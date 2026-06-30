@@ -123,7 +123,7 @@ const displayBenefits = computed(() => expanded.value ? benefits : benefits.slic
 .mc-val-vip { font-size: 28rpx; color: #2C2C2C; font-weight: 500; }
 
 .mc-toggle { padding: 16rpx; border-top: 2rpx solid #E8E3DB; display: flex; align-items: center; justify-content: center; }
-.mc-toggle-txt { font-size: 22rpx; color: #C41E3A; }
+.mc-toggle-txt { font-size: 22rpx; color: var(--brand); }
 
 .mc-cta { padding: 32rpx; background: linear-gradient(90deg, rgba(245,158,11,0.1), rgba(249,115,22,0.1), rgba(239,68,68,0.1)); border-top: 2rpx solid rgba(245,158,11,0.2); }
 .mc-save { display: flex; align-items: center; justify-content: center; gap: 16rpx; margin-bottom: 24rpx; }

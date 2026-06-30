@@ -8,9 +8,9 @@ import LiveCard from '@/components/cards/live-card.vue'
 import AgentCard from '@/components/cards/agent-card.vue'
 import ClassicCard from '@/components/cards/classic-card.vue'
 import VideoCard from '@/components/cards/video-card.vue'
-import { toastComingSoon } from '@/utils/router'
+import { navigateTo, toastComingSoon } from '@/utils/router'
 import {
-  discoverApi, coreEntries, allCategory, categories, columns, hotWords,
+  discoverApi, coreEntries, columns, serviceGroups,
   type FeedItem,
 } from '@/lib/discover-data'
 
@@ -18,8 +18,8 @@ const activeCategory = ref('all')
 const isLoading = ref(true)
 const error = ref('')
 const feedItems = ref<FeedItem[]>([])
-
-const allCats = computed(() => [allCategory, ...categories])
+const allCats = ref<{ id: string; label: string }[]>([])
+const hotWords = ref<string[]>([])
 
 // 瀑布流：按索引奇偶分两列
 const colLeft = computed(() => feedItems.value.filter((_, i) => i % 2 === 0))
@@ -29,7 +29,7 @@ async function fetchFeed() {
   isLoading.value = true
   error.value = ''
   try {
-    feedItems.value = await discoverApi.getFeed()
+    feedItems.value = await discoverApi.getFeed(activeCategory.value)
   } catch {
     error.value = '加载失败'
   } finally {
@@ -37,38 +37,41 @@ async function fetchFeed() {
   }
 }
 
-onMounted(() => { fetchFeed() })
+// 品类导航与热搜词（与 feed 并行加载，失败各自走 data 层兜底）
+async function loadMeta() {
+  const [cats, hot] = await Promise.all([
+    discoverApi.getCategories(),
+    discoverApi.getHotWords(),
+  ])
+  allCats.value = cats
+  hotWords.value = hot
+}
+
+onMounted(() => { loadMeta(); fetchFeed() })
 
 function retry() { fetchFeed() }
 
+// 统一走 navigateTo：内部含 ROUTE_MAP 解析 + 主 tab reLaunch 兜底；未注册路径才 toast
 function goEntry(href: string) {
-  if (href.startsWith('/pages/')) {
-    uni.switchTab({ url: href, fail: () => uni.navigateTo({ url: href, fail: () => toastComingSoon() }) })
-  } else {
-    toastComingSoon()
-  }
+  navigateTo(href)
 }
-function goSearch() { toastComingSoon() }
-function goSearchWord(_w: string) { toastComingSoon() }
+function goSearchWord(w: string) { navigateTo(`/pkg-search/search/index?keyword=${encodeURIComponent(w)}`) }
 function goCategory(cat: { id: string; label: string }) {
-  if (cat.id === 'all') { activeCategory.value = 'all' } else { toastComingSoon() }
+  if (activeCategory.value === cat.id) return
+  activeCategory.value = cat.id
+  fetchFeed()
 }
 function goColumn(_href: string) { toastComingSoon() }
 </script>
 
 <template>
   <view class="page">
+    <app-network-bar />
+    <customer-service-fab />
     <!-- 顶部固定区：搜索栏 + 品类导航 -->
     <view class="sticky-top">
       <view class="search-wrap">
-        <view class="search-bar" @tap="goSearch">
-          <AppIcon name="search" :size="28" color="#999999" />
-          <view class="ai-badge">
-            <AppIcon name="sparkles" :size="18" color="#c41e3a" />
-            <text class="ai-txt">AI</text>
-          </view>
-          <text class="search-ph">搜索课程、商品、古籍...</text>
-        </view>
+        <search-bar default-tab="all" placeholder="搜索课程、商品、古籍..." />
 
         <!-- 热搜词 -->
         <scroll-view class="hot-row" scroll-x :show-scrollbar="false">
@@ -117,6 +120,28 @@ function goColumn(_href: string) { toastComingSoon() }
       </view>
     </view>
 
+    <!-- 全部服务矩阵（覆盖所有已完工分包，消除入口孤岛） -->
+    <view
+      v-for="group in serviceGroups" :key="group.title"
+      class="grid-section svc-section"
+    >
+      <view class="svc-head">
+        <view class="svc-bar" />
+        <text class="svc-title">{{ group.title }}</text>
+      </view>
+      <view class="grid">
+        <view
+          v-for="item in group.items" :key="item.id"
+          class="grid-item" @tap="goEntry(item.href)"
+        >
+          <view class="grid-icon">
+            <AppIcon :name="item.icon" :size="44" color="#c41e3a" />
+          </view>
+          <text class="grid-label">{{ item.label }}</text>
+        </view>
+      </view>
+    </view>
+
     <!-- 运营专栏 -->
     <view class="col-section">
       <view class="sec-head">
@@ -133,7 +158,7 @@ function goColumn(_href: string) { toastComingSoon() }
             class="col-card" @tap="goColumn(col.href)"
           >
             <view class="col-cover">
-              <image class="col-img" :src="col.cover" mode="aspectFill" />
+              <image lazy-load class="col-img" :src="col.cover" mode="aspectFill" />
               <view class="col-mask" :style="{ background: `linear-gradient(180deg, transparent 40%, ${col.accent}E6 100%)` }" />
               <view class="col-cover-txt">
                 <text class="col-title">{{ col.title }}</text>
@@ -169,6 +194,17 @@ function goColumn(_href: string) { toastComingSoon() }
         </view>
       </view>
 
+      <!-- 错误态 -->
+      <view v-else-if="error" class="feed-state">
+        <text class="state-txt">{{ error }}</text>
+        <view class="state-btn" @tap="retry">重试</view>
+      </view>
+
+      <!-- 空态 -->
+      <view v-else-if="!feedItems.length" class="feed-state">
+        <text class="state-txt">该品类暂无内容，换个看看</text>
+      </view>
+
       <!-- 瀑布流 -->
       <view v-else class="masonry">
         <view class="masonry-col">
@@ -193,7 +229,7 @@ function goColumn(_href: string) { toastComingSoon() }
         </view>
       </view>
 
-      <view v-if="!isLoading" class="feed-end">
+      <view v-if="!isLoading && !error && feedItems.length" class="feed-end">
         <view class="end-line" />
         <text class="end-txt">已经到底了</text>
         <view class="end-line" />
@@ -212,7 +248,7 @@ function goColumn(_href: string) { toastComingSoon() }
 .search-wrap { padding: 96rpx 32rpx 24rpx; }
 .search-bar { display: flex; align-items: center; height: 80rpx; padding: 0 32rpx; border-radius: 999rpx; background: var(--surface-sunken, #ece6dc); border: 2rpx solid var(--line, #e4ddd0); }
 .ai-badge { display: flex; align-items: center; gap: 4rpx; padding: 4rpx 12rpx; margin: 0 16rpx; border-radius: 999rpx; background: rgba(196, 30, 58, 0.15); }
-.ai-txt { font-size: 18rpx; color: #c41e3a; font-weight: 600; line-height: 1; }
+.ai-txt { font-size: 18rpx; color: var(--brand); font-weight: 600; line-height: 1; }
 .search-ph { font-size: 26rpx; color: var(--text-soft, #999); flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 
 .hot-row { margin-top: 24rpx; white-space: nowrap; }
@@ -222,16 +258,20 @@ function goColumn(_href: string) { toastComingSoon() }
 .hot-chip { flex-shrink: 0; padding: 8rpx 24rpx; border-radius: 999rpx; background: var(--surface, #fff); }
 .hot-chip-first { background: rgba(196, 30, 58, 0.1); }
 .hot-chip-txt { font-size: 24rpx; color: var(--text, #444); }
-.hot-chip-first .hot-chip-txt { color: #c41e3a; font-weight: 500; }
+.hot-chip-first .hot-chip-txt { color: var(--brand); font-weight: 500; }
 
 .cat-row { white-space: nowrap; padding: 0 32rpx 20rpx; }
 .cat-inner { display: flex; align-items: center; gap: 8rpx; }
 .cat-item { position: relative; flex-shrink: 0; padding: 12rpx 24rpx; }
 .cat-txt { font-size: 28rpx; color: var(--text, #444); white-space: nowrap; }
-.cat-txt-active { color: #c41e3a; font-weight: 600; }
-.cat-underline { position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 32rpx; height: 4rpx; border-radius: 999rpx; background: #c41e3a; }
+.cat-txt-active { color: var(--brand); font-weight: 600; }
+.cat-underline { position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 32rpx; height: 4rpx; border-radius: 999rpx; background: var(--brand); }
 
 .grid-section { padding: 32rpx 32rpx 16rpx; }
+.svc-section { padding-top: 8rpx; }
+.svc-head { display: flex; align-items: center; gap: 12rpx; margin-bottom: 20rpx; }
+.svc-bar { width: 6rpx; height: 28rpx; border-radius: 9999rpx; background: var(--brand); }
+.svc-title { font-size: 30rpx; font-weight: 700; color: var(--text-strong, #2c2c2c); }
 .grid { display: flex; flex-wrap: wrap; }
 .grid-item { width: 25%; display: flex; flex-direction: column; align-items: center; gap: 12rpx; margin-bottom: 32rpx; }
 .grid-icon { width: 96rpx; height: 96rpx; border-radius: 32rpx; background: rgba(196, 30, 58, 0.08); display: flex; align-items: center; justify-content: center; }
@@ -253,7 +293,7 @@ function goColumn(_href: string) { toastComingSoon() }
 .col-subtitle { display: block; color: rgba(255,255,255,0.85); font-size: 20rpx; margin-top: 4rpx; }
 .col-foot { display: flex; align-items: center; justify-content: space-between; padding: 16rpx 20rpx; }
 .col-count { font-size: 22rpx; color: var(--text-soft, #999); }
-.col-view { font-size: 22rpx; color: #c41e3a; font-weight: 500; }
+.col-view { font-size: 22rpx; color: var(--brand); font-weight: 500; }
 
 .feed-section { padding-top: 40rpx; }
 .feed-head { display: flex; align-items: center; gap: 12rpx; padding: 0 32rpx; margin-bottom: 16rpx; }
@@ -268,6 +308,10 @@ function goColumn(_href: string) { toastComingSoon() }
 .sk-body { padding: 20rpx; display: flex; flex-direction: column; gap: 16rpx; }
 .sk-line { height: 24rpx; background: var(--surface-sunken, #ece6dc); border-radius: 8rpx; }
 .sk-line-short { width: 66%; }
+
+.feed-state { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24rpx; padding: 120rpx 0; }
+.state-txt { font-size: 28rpx; color: var(--text-soft, #999); }
+.state-btn { padding: 12rpx 48rpx; border-radius: 999rpx; background: var(--brand); color: #fff; font-size: 26rpx; }
 
 .feed-end { display: flex; align-items: center; justify-content: center; gap: 24rpx; padding: 48rpx 0; }
 .end-line { width: 80rpx; height: 2rpx; background: var(--line, #e4ddd0); }

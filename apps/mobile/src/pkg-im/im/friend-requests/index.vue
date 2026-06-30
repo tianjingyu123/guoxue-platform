@@ -42,7 +42,7 @@
         </view>
         <view class="req-list">
           <view v-for="req in pending" :key="req.id" class="req-item">
-            <image class="avatar" :src="req.fromUser.avatar" mode="aspectFill" @tap="goUser(req.fromUser.id)" />
+            <image lazy-load class="avatar" :src="req.fromUser.avatar" mode="aspectFill" @tap="goUser(req.fromUser.id)" />
             <view class="req-info">
               <view class="req-name-row">
                 <text class="req-name">{{ req.fromUser.nickname }}</text>
@@ -72,7 +72,7 @@
         </view>
         <view v-if="showProcessed" class="req-list">
           <view v-for="req in processed" :key="req.id" class="req-item processed">
-            <image class="avatar avatar-sm" :src="req.fromUser.avatar" mode="aspectFill" />
+            <image lazy-load class="avatar avatar-sm" :src="req.fromUser.avatar" mode="aspectFill" />
             <view class="req-info">
               <view class="req-name-row">
                 <text class="req-name-sm">{{ req.fromUser.nickname }}</text>
@@ -268,7 +268,7 @@ async function handleApproveAll() {
 .section-head.clickable:active { background: rgba(243,244,246,0.8); }
 .section-title { font-size: 28rpx; color: #6b7280; }
 .approve-all { padding: 8rpx 16rpx; }
-.approve-all-text { font-size: 28rpx; color: #C41E3A; }
+.approve-all-text { font-size: 28rpx; color: var(--brand); }
 
 /* 请求项 */
 .req-list { background: #ffffff; }
@@ -293,7 +293,7 @@ async function handleApproveAll() {
 .req-actions { display: flex; align-items: center; gap: 16rpx; flex-shrink: 0; }
 .btn { height: 64rpx; min-width: 64rpx; padding: 0 24rpx; border-radius: 12rpx; display: flex; align-items: center; justify-content: center; }
 .btn-reject { background: #ffffff; border: 2rpx solid #e5e7eb; }
-.btn-approve { background: #C41E3A; }
+.btn-approve { background: var(--brand); }
 .dots { color: #ffffff; font-size: 32rpx; }
 
 /* 空态 */
@@ -330,6 +330,6 @@ async function handleApproveAll() {
 /* 加载/错误状态 */
 .load-state { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; gap: 24rpx; }
 .load-state-text { font-size: 28rpx; color: #8a8178; }
-.retry-btn { padding: 16rpx 48rpx; background: #c41e3a; border-radius: 999rpx; }
+.retry-btn { padding: 16rpx 48rpx; background: var(--brand); border-radius: 999rpx; }
 .retry-text { font-size: 28rpx; color: #fff; }
 </style>

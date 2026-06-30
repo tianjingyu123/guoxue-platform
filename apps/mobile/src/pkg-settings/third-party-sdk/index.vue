@@ -374,7 +374,7 @@ loadSDKList()
   color: #999999;
 }
 .cat-chip-active {
-  background: #c41e3a;
+  background: var(--brand);
   color: #ffffff;
 }
 
@@ -477,7 +477,7 @@ loadSDKList()
 }
 .link-text-primary {
   font-size: 22rpx;
-  color: #c41e3a;
+  color: var(--brand);
 }
 .link-text {
   font-size: 22rpx;

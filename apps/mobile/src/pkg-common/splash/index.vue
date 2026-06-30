@@ -31,7 +31,7 @@
     <!-- 广告展示阶段 -->
     <view v-else-if="phase === 'ad' && ad" class="phase-ad">
       <view class="skip-btn skip-btn-ad" @tap="goHome">跳过 {{ adCountdown }}s</view>
-      <image class="ad-image" :src="ad.image" mode="aspectFill" @tap="handleAdClick" />
+      <image lazy-load class="ad-image" :src="ad.image" mode="aspectFill" @tap="handleAdClick" />
       <view class="ad-brand">
         <view class="ad-brand-logo">
           <app-icon name="compass" :size="14" color="#C9A96E" />

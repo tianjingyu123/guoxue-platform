@@ -6,7 +6,7 @@
     <!-- Hero -->
     <view class="hero">
       <view class="logo-box">
-        <image class="logo-img" :src="logoSrc" mode="aspectFill" />
+        <image lazy-load class="logo-img" :src="logoSrc" mode="aspectFill" />
       </view>
       <text class="hero-title">热卜国学</text>
       <text class="hero-slogan">传承智慧 · 启迪人生</text>
@@ -121,7 +121,7 @@ function goFeedback() {
 .loading { flex: 1; display: flex; align-items: center; justify-content: center; padding-top: 200rpx; font-size: 28rpx; color: #8a8178; }
 .error-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding-top: 200rpx; gap: 24rpx; }
 .error-state text { font-size: 28rpx; color: #8a8178; }
-.retry-btn { padding: 16rpx 48rpx; background: #C41E3A; color: #fff; border-radius: 12rpx; font-size: 26rpx; }
+.retry-btn { padding: 16rpx 48rpx; background: var(--brand); color: #fff; border-radius: 12rpx; font-size: 26rpx; }
 
 /* Hero */
 .hero {

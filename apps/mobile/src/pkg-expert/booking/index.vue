@@ -289,53 +289,33 @@ function generateDates(): DateItem[] {
   return result
 }
 
-// 生成时段数据
+// 生成时段数据（营业时段固定；不伪造占用——真实余位以提交为准，待后端预约接口接入后真连）
 function generateTimeSlots(dateIndex: number): TimeSlot[] {
   const slots: TimeSlot[] = []
   const pad = (n: number) => n.toString().padStart(2, '0')
+  const now = new Date()
+  // 今天已过的时段不可约（未来日期全部可约）
+  const isPast = (hour: number, minute: number) =>
+    dateIndex === 0 && (hour < now.getHours() || (hour === now.getHours() && minute <= now.getMinutes()))
 
-  // 上午时段 9-12
-  for (let hour = 9; hour < 12; hour++) {
-    for (let minute = 0; minute < 60; minute += 30) {
-      const isOccupied = Math.random() < 0.3
-      slots.push({
-        id: `${hour}:${pad(minute)}`,
-        time: `${pad(hour)}:${pad(minute)}`,
-        period: '上午',
-        isAvailable: !isOccupied && dateIndex > 0,
-        isOccupied,
-      })
+  const ranges: { period: TimeSlot['period']; from: number; to: number }[] = [
+    { period: '上午', from: 9, to: 12 },
+    { period: '下午', from: 14, to: 18 },
+    { period: '晚上', from: 19, to: 21 },
+  ]
+  for (const r of ranges) {
+    for (let hour = r.from; hour < r.to; hour++) {
+      for (let minute = 0; minute < 60; minute += 30) {
+        slots.push({
+          id: `${hour}:${pad(minute)}`,
+          time: `${pad(hour)}:${pad(minute)}`,
+          period: r.period,
+          isAvailable: !isPast(hour, minute),
+          isOccupied: false, // 不伪造占用状态（消除原 Math.random 假数据）
+        })
+      }
     }
   }
-
-  // 下午时段 14-18
-  for (let hour = 14; hour < 18; hour++) {
-    for (let minute = 0; minute < 60; minute += 30) {
-      const isOccupied = Math.random() < 0.25
-      slots.push({
-        id: `${hour}:${pad(minute)}`,
-        time: `${pad(hour)}:${pad(minute)}`,
-        period: '下午',
-        isAvailable: !isOccupied,
-        isOccupied,
-      })
-    }
-  }
-
-  // 晚上时段 19-21
-  for (let hour = 19; hour < 21; hour++) {
-    for (let minute = 0; minute < 60; minute += 30) {
-      const isOccupied = Math.random() < 0.2
-      slots.push({
-        id: `${hour}:${pad(minute)}`,
-        time: `${pad(hour)}:${pad(minute)}`,
-        period: '晚上',
-        isAvailable: !isOccupied,
-        isOccupied,
-      })
-    }
-  }
-
   return slots
 }
 
@@ -448,7 +428,7 @@ function goBack() {
   height: 112rpx;
   border-radius: 999rpx;
   background: rgba(196, 30, 58, 0.1);
-  color: #c41e3a;
+  color: var(--brand);
   font-size: 40rpx;
   display: flex;
   align-items: center;
@@ -498,7 +478,7 @@ function goBack() {
   display: block;
   font-size: 36rpx;
   font-weight: 700;
-  color: #c41e3a;
+  color: var(--brand);
 }
 .bk-expert-price-unit {
   font-size: 24rpx;
@@ -538,7 +518,7 @@ function goBack() {
   transition: all 0.2s;
 }
 .bk-call-type--active {
-  border-color: #c41e3a;
+  border-color: var(--brand);
   background: rgba(196, 30, 58, 0.05);
 }
 .bk-call-icon {
@@ -588,8 +568,8 @@ function goBack() {
   transition: all 0.2s;
 }
 .bk-date--active {
-  border-color: #c41e3a;
-  background: #c41e3a;
+  border-color: var(--brand);
+  background: var(--brand);
 }
 .bk-date--today {
   border-color: rgba(196, 30, 58, 0.5);
@@ -660,9 +640,9 @@ function goBack() {
   border-color: transparent;
 }
 .bk-slot--selected {
-  background: #c41e3a;
+  background: var(--brand);
   color: #ffffff;
-  border-color: #c41e3a;
+  border-color: var(--brand);
 }
 
 /* 图例 */
@@ -692,7 +672,7 @@ function goBack() {
   background: #f0f0f0;
 }
 .bk-legend-dot--selected {
-  background: #c41e3a;
+  background: var(--brand);
 }
 
 /* 时长选择 */
@@ -712,9 +692,9 @@ function goBack() {
   transition: all 0.2s;
 }
 .bk-duration--active {
-  border-color: #c41e3a;
+  border-color: var(--brand);
   background: rgba(196, 30, 58, 0.1);
-  color: #c41e3a;
+  color: var(--brand);
 }
 
 /* 提示 */
@@ -779,7 +759,7 @@ function goBack() {
 .bk-footer-fee-num {
   font-size: 36rpx;
   font-weight: 700;
-  color: #c41e3a;
+  color: var(--brand);
 }
 .bk-footer-empty {
   display: block;
@@ -798,7 +778,7 @@ function goBack() {
   border-radius: 24rpx;
   font-size: 28rpx;
   font-weight: 500;
-  background: #c41e3a;
+  background: var(--brand);
   color: #ffffff;
   transition: all 0.2s;
 }
@@ -877,7 +857,7 @@ function goBack() {
   color: #2c2c2c;
 }
 .bk-success-price {
-  color: #c41e3a;
+  color: var(--brand);
   font-weight: 500;
 }
 .bk-success-actions {
@@ -897,7 +877,7 @@ function goBack() {
   border-radius: 24rpx;
 }
 .bk-success-btn--primary {
-  background: #c41e3a;
+  background: var(--brand);
   color: #ffffff;
 }
 .bk-success-btn--secondary {

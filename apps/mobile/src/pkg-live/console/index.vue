@@ -29,7 +29,7 @@
             <text class="badge-live-txt">直播中</text>
           </view>
           <view v-else class="badge-ended">已结束</view>
-          <text class="room-name">八字命理入门精讲</text>
+          <text class="room-name">{{ roomTitle }}</text>
         </view>
       </view>
 
@@ -426,6 +426,8 @@ import {
 // ===== 三态UI =====
 const loading = ref(true)
 const error = ref('')
+const consoleId = ref('1')
+const roomTitle = ref('')
 
 // ===== 数据（由 API 异步获取）=====
 const stats = ref({
@@ -480,7 +482,8 @@ async function fetchData() {
   loading.value = true
   error.value = ''
   try {
-    const res = await liveApi.getConsoleData('1')
+    const res = await liveApi.getConsoleData(consoleId.value)
+    roomTitle.value = res.title || ''
     stats.value = res.stats
     danmakuList.value = res.danmaku
     connectRequests.value = res.requests
@@ -493,9 +496,7 @@ async function fetchData() {
   }
 }
 
-// ===== 定时器：直播计时 + 模拟实时弹幕 + 自动滚动 =====
-const mockMessages = ['老师讲得太好了！', '学到了很多', '这个知识点很重要', '请问老师...', '感谢老师分享', '涨知识了', '求老师讲讲风水']
-const mockUsers = ['易学新人', '命理迷', '国学爱好者', '道友', '学习中', '小白一枚']
+// ===== 定时器：直播计时 =====
 let liveTimer: ReturnType<typeof setInterval> | null = null
 let danmakuTimer: ReturnType<typeof setInterval> | null = null
 
@@ -504,23 +505,13 @@ function scrollDanmakuToBottom() {
   danmakuScrollTop.value = danmakuList.value.length * 9999
 }
 
-onLoad(async () => {
+onLoad(async (options: any) => {
+  if (options?.id) consoleId.value = String(options.id)
   await fetchData()
   liveTimer = setInterval(() => {
     if (isLive.value) liveTime.value += 1
   }, 1000)
-  danmakuTimer = setInterval(() => {
-    const item: ConsoleDanmaku = {
-      id: Date.now(),
-      user: mockUsers[Math.floor(Math.random() * mockUsers.length)],
-      content: mockMessages[Math.floor(Math.random() * mockMessages.length)],
-      time: new Date().toLocaleTimeString('zh-CN', { hour12: false }),
-      level: Math.floor(Math.random() * 10) + 1,
-      isVip: Math.random() > 0.8,
-    }
-    danmakuList.value = [...danmakuList.value.slice(-50), item]
-    scrollDanmakuToBottom()
-  }, 3000)
+  // 实时弹幕由直播推流/IM 推送，本地无实时流，仅展示真实初始弹幕（不再模拟假弹幕）
 })
 
 onUnmounted(() => {
@@ -622,7 +613,7 @@ function onConfirmEnd() {
 }
 .retry-btn {
   padding: 20rpx 64rpx;
-  background: #C41E3A;
+  background: var(--brand);
   color: #fff;
   border-radius: 24rpx;
   font-size: 28rpx;
@@ -991,7 +982,7 @@ function onConfirmEnd() {
 .send-btn {
   width: 36px;
   height: 36px;
-  background: #C41E3A;
+  background: var(--brand);
   border-radius: 6px;
   display: flex;
   align-items: center;
@@ -1094,7 +1085,7 @@ function onConfirmEnd() {
   gap: 4px;
   height: 28px;
   padding: 0 12px;
-  background: #C41E3A;
+  background: var(--brand);
   border-radius: 6px;
 }
 .connect-accept-txt {
@@ -1168,7 +1159,7 @@ function onConfirmEnd() {
 }
 .live-product-tag-txt {
   font-size: 12px;
-  color: #C41E3A;
+  color: var(--brand);
   font-weight: 500;
 }
 .live-product-row {
@@ -1205,7 +1196,7 @@ function onConfirmEnd() {
   margin-top: 4px;
 }
 .live-product-price {
-  color: #C41E3A;
+  color: var(--brand);
   font-weight: 700;
   font-size: 14px;
 }
@@ -1279,7 +1270,7 @@ function onConfirmEnd() {
   margin-top: 2px;
 }
 .product-price {
-  color: #C41E3A;
+  color: var(--brand);
   font-weight: 500;
 }
 .product-stock {
@@ -1395,7 +1386,7 @@ function onConfirmEnd() {
 }
 .script-item.current {
   background: rgba(196, 30, 58, 0.1);
-  border-color: #C41E3A;
+  border-color: var(--brand);
 }
 .script-item.done {
   background: #f5f5f5;
@@ -1416,13 +1407,13 @@ function onConfirmEnd() {
   padding: 2px 6px;
 }
 .script-time.current {
-  background: #C41E3A;
+  background: var(--brand);
   color: #fff;
 }
 .script-tag-current {
   font-size: 10px;
   background: rgba(196, 30, 58, 0.2);
-  color: #C41E3A;
+  color: var(--brand);
   border-radius: 4px;
   padding: 1px 5px;
 }
@@ -1548,7 +1539,7 @@ function onConfirmEnd() {
   background: #fff;
 }
 .dialog-btn.primary {
-  background: #C41E3A;
+  background: var(--brand);
   color: #fff;
 }
 .dialog-btn.danger {
@@ -1572,7 +1563,7 @@ function onConfirmEnd() {
   display: block;
 }
 .c-primary {
-  color: #C41E3A;
+  color: var(--brand);
 }
 .c-amber {
   color: #f59e0b;

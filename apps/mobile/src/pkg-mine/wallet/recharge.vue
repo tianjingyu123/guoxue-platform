@@ -66,7 +66,9 @@ async function handleSubmit() {
   isSubmitting.value = true
   try {
     const selectedOpt = options.value.find(o => o.coins === selectedCoins.value)
-    const res = await mineApi.recharge(selectedOpt ? selectedOpt.coins : (parseInt(customAmount.value) || 0), payMethod.value)
+    // 到账币数：档位=基础币+赠送币；自定义=金额(元)×10
+    const amountCoin = selectedOpt ? (selectedOpt.coins + selectedOpt.bonus) : (parseInt(customAmount.value) || 0) * 10
+    const res = await mineApi.recharge(amountCoin, payMethod.value)
     uni.showToast({ title: res.message, icon: res.success ? 'success' : 'none' })
   } catch (e: any) {
     uni.showToast({ title: e?.message || '充值失败', icon: 'none' })
@@ -82,6 +84,12 @@ async function handleSubmit() {
     <view v-else-if="error" class="error-state"><text>{{ error }}</text><view class="retry-btn" @tap="retry">重试</view></view>
     <template v-else>
     <view class="body">
+      <!-- 功能即将开放提示（后端虚拟币充值支付端点尚未接入） -->
+      <view class="cs-banner">
+        <app-icon name="alert-circle" :size="28" color="#C9A96E" />
+        <text class="cs-banner-txt">演示模式：当前为模拟到账，真实支付待接入微信/支付宝/云闪付渠道</text>
+      </view>
+
       <!-- 说明文字 -->
       <view class="intro">
         <text class="intro-main"
@@ -220,6 +228,20 @@ async function handleSubmit() {
 .body {
   padding: 32rpx;
 }
+.cs-banner {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  background: rgba(201, 169, 110, 0.1);
+  border: 2rpx solid rgba(201, 169, 110, 0.3);
+  border-radius: 16rpx;
+  padding: 20rpx 24rpx;
+  margin-bottom: 32rpx;
+}
+.cs-banner-txt {
+  font-size: 24rpx;
+  color: #8a7a6d;
+}
 
 /* 说明 */
 .intro {
@@ -279,7 +301,7 @@ async function handleSubmit() {
   left: 50%;
   transform: translateX(-50%);
   padding: 2rpx 16rpx;
-  background: #c41e3a;
+  background: var(--brand);
   color: #fff;
   font-size: 20rpx;
   font-weight: 500;
@@ -509,7 +531,7 @@ async function handleSubmit() {
   width: 100%;
   height: 96rpx;
   border-radius: 24rpx;
-  background: #c41e3a;
+  background: var(--brand);
   color: #fff;
   font-size: 32rpx;
   font-weight: 500;
@@ -525,5 +547,5 @@ async function handleSubmit() {
 .loading { flex: 1; display: flex; align-items: center; justify-content: center; font-size: 28rpx; color: #8a7a6d; }
 .error-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24rpx; }
 .error-state text { font-size: 28rpx; color: #8a7a6d; }
-.retry-btn { padding: 16rpx 48rpx; background: #c41e3a; color: #fff; border-radius: 12rpx; font-size: 26rpx; }
+.retry-btn { padding: 16rpx 48rpx; background: var(--brand); color: #fff; border-radius: 12rpx; font-size: 26rpx; }
 </style>

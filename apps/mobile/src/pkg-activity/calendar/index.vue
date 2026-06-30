@@ -370,7 +370,7 @@ onMounted(() => {
   color: rgba(153, 153, 153, 0.5);
 }
 .cal-day.today {
-  color: #C41E3A;
+  color: var(--brand);
   font-weight: 700;
 }
 .cal-dots {
@@ -443,7 +443,7 @@ onMounted(() => {
   background: #F0F0F0;
 }
 .event-badge.on {
-  background: #C41E3A;
+  background: var(--brand);
 }
 .event-badge-txt {
   font-size: 20rpx;

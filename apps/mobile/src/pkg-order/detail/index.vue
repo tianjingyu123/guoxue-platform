@@ -56,8 +56,8 @@
       <app-icon name="chevron-right" :size="32" color="#CCCCCC" />
     </view>
 
-    <!-- 地址 -->
-    <view class="card address">
+    <!-- 地址（后端订单模型暂无收货地址字段，无则隐藏） -->
+    <view v-if="order.address" class="card address">
       <view class="addr-icon"><app-icon name="map-pin" :size="36" color="#C41E3A" /></view>
       <view class="addr-info">
         <view class="addr-top">
@@ -72,7 +72,7 @@
     <view class="card products">
       <view class="card-title-row"><text class="card-title">商品清单</text></view>
       <view v-for="p in order.products" :key="p.id" class="product">
-        <image class="p-cover" :src="p.cover" mode="aspectFill" />
+        <image lazy-load class="p-cover" :src="p.cover" mode="aspectFill" />
         <view class="p-info">
           <text class="p-name">{{ p.name }}</text>
           <text class="p-sku">{{ p.skuName }}</text>
@@ -213,12 +213,12 @@ async function confirmReceive() {
 .step-item:last-child { flex: 0; }
 .step-col { display: flex; flex-direction: column; align-items: center; }
 .step-dot { width: 44rpx; height: 44rpx; border-radius: 50%; background: #E8E3DB; display: flex; align-items: center; justify-content: center; }
-.step-dot.done { background: #C41E3A; }
+.step-dot.done { background: var(--brand); }
 .step-num { font-size: 24rpx; color: #999999; }
 .step-label { font-size: 22rpx; color: #999999; margin-top: 8rpx; white-space: nowrap; }
 .step-label.done { color: #2C2C2C; }
 .step-line { flex: 1; height: 2rpx; background: #E8E3DB; margin: 22rpx 8rpx 0; }
-.step-line.done { background: #C41E3A; }
+.step-line.done { background: var(--brand); }
 .card { margin: 24rpx 32rpx 0; background: #FFFFFF; border-radius: 20rpx; padding: 28rpx; box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.03); }
 .card.last { margin-bottom: 24rpx; }
 .logistics-entry { display: flex; align-items: flex-start; gap: 20rpx; }
@@ -244,12 +244,12 @@ async function confirmReceive() {
 .p-name { font-size: 28rpx; color: #2C2C2C; line-height: 1.4; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .p-sku { font-size: 24rpx; color: #999999; margin-top: 8rpx; }
 .p-bottom { display: flex; align-items: center; justify-content: space-between; margin-top: auto; }
-.p-price { font-size: 28rpx; font-weight: 500; color: #C41E3A; }
+.p-price { font-size: 28rpx; font-weight: 500; color: var(--brand); }
 .p-qty { font-size: 26rpx; color: #999999; }
 .quick-acts { display: flex; gap: 16rpx; padding-top: 24rpx; }
 .quick { flex: 1; display: flex; align-items: center; justify-content: center; gap: 8rpx; height: 72rpx; border-radius: 12rpx; }
 .quick text { font-size: 26rpx; font-weight: 500; }
-.quick.primary { background: rgba(196,30,58,0.1); color: #C41E3A; }
+.quick.primary { background: rgba(196,30,58,0.1); color: var(--brand); }
 .quick.ghost { background: #F3F0EB; color: #666666; }
 .price-rows, .info-rows { margin-top: 20rpx; display: flex; flex-direction: column; gap: 16rpx; }
 .price-row { display: flex; align-items: center; justify-content: space-between; }
@@ -257,8 +257,8 @@ async function confirmReceive() {
 .pr-label { font-size: 26rpx; color: #666666; }
 .pr-label.bold { font-weight: 500; color: #2C2C2C; }
 .pr-value { font-size: 26rpx; color: #2C2C2C; }
-.pr-value.red { color: #C41E3A; }
-.pr-pay { font-size: 34rpx; font-weight: 700; color: #C41E3A; }
+.pr-value.red { color: var(--brand); }
+.pr-pay { font-size: 34rpx; font-weight: 700; color: var(--brand); }
 .info-row { display: flex; align-items: center; justify-content: space-between; }
 .ir-label { font-size: 26rpx; color: #666666; }
 .ir-right { display: flex; align-items: center; gap: 12rpx; }
@@ -271,13 +271,13 @@ async function confirmReceive() {
 .fbtn { display: flex; align-items: center; gap: 6rpx; padding: 16rpx 32rpx; border-radius: 40rpx; }
 .fbtn text { font-size: 26rpx; }
 .fbtn.ghost { border: 1rpx solid #E8E3DB; color: #666666; }
-.fbtn.outline { border: 1rpx solid #C41E3A; color: #C41E3A; }
-.fbtn.primary { background: #C41E3A; color: #FFFFFF; }
+.fbtn.outline { border: 1rpx solid var(--brand); color: var(--brand); }
+.fbtn.primary { background: var(--brand); color: #FFFFFF; }
 .toast { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.7); padding: 16rpx 32rpx; border-radius: 12rpx; z-index: 100; }
 .toast text { font-size: 26rpx; color: #FFFFFF; }
 
 .loading { display: flex; align-items: center; justify-content: center; padding: 200rpx 0; font-size: 28rpx; color: #999999; }
 .error-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 200rpx 0; gap: 24rpx; }
 .error-state text { font-size: 28rpx; color: #999999; }
-.retry-btn { padding: 16rpx 48rpx; background: #C41E3A; color: #fff; border-radius: 12rpx; font-size: 26rpx; }
+.retry-btn { padding: 16rpx 48rpx; background: var(--brand); color: #fff; border-radius: 12rpx; font-size: 26rpx; }
 </style>

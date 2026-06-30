@@ -21,43 +21,9 @@ async function loadData() {
   finally { loading.value = false }
 }
 onMounted(loadData)
-const showClearConfirm = ref(false)
-const activeId = ref<string | null>(null)
-const submitting = ref(false)
 
 const totalCount = computed(() => groups.value.reduce((s, g) => s + g.items.length, 0))
 
-// 左滑删除手势
-const touchStartX = ref(0)
-const touchStartY = ref(0)
-function onTouchStart(e: TouchEvent, _id: string) {
-  touchStartX.value = e.touches[0].clientX
-  touchStartY.value = e.touches[0].clientY
-}
-function onTouchMove(e: TouchEvent, id: string) {
-  const dx = e.touches[0].clientX - touchStartX.value
-  const dy = e.touches[0].clientY - touchStartY.value
-  if (Math.abs(dx) > Math.abs(dy) && dx < -30) {
-    activeId.value = id
-  } else if (Math.abs(dx) > Math.abs(dy) && dx > 30) {
-    if (activeId.value === id) activeId.value = null
-  }
-}
-function onTouchEnd(_id: string) {
-  // 状态在 move 中已确定
-}
-function deleteItem(id: string) {
-  groups.value = groups.value
-    .map((g) => ({ ...g, items: g.items.filter((i) => i.id !== id) }))
-    .filter((g) => g.items.length > 0)
-  activeId.value = null
-}
-async function clearAll() {
-  if (submitting.value) return; submitting.value = true
-  try { await mineApi.clearHistory(); groups.value = []; showClearConfirm.value = false }
-  catch { uni.showToast({ title: '清除失败', icon: 'none' }) }
-  finally { submitting.value = false }
-}
 function formatProgress(item: HistoryItem) {
   if (item.progress === undefined || !item.duration) return ''
   if (item.progress >= 100) return '已看完'
@@ -71,11 +37,7 @@ function openItem() {
 
 <template>
   <view class="page">
-    <app-nav-bar title="浏览历史" :back-size="40">
-      <template #right>
-        <text v-if="totalCount > 0" class="nav-action" @tap="showClearConfirm = true">清空</text>
-      </template>
-    </app-nav-bar>
+    <app-nav-bar title="浏览历史" :back-size="40" />
 
     <!-- 加载/错误 -->
     <view v-if="loading" class="loading"><text>加载中...</text></view>
@@ -108,15 +70,11 @@ function openItem() {
           <view v-for="item in group.items" :key="item.id" class="item-wrap">
             <view
               class="item"
-              :style="{ transform: activeId === item.id ? 'translateX(-160rpx)' : 'translateX(0)' }"
               @tap="openItem"
-              @touchstart="onTouchStart($event, item.id)"
-              @touchmove="onTouchMove($event, item.id)"
-              @touchend="onTouchEnd(item.id)"
             >
               <!-- 封面或图标 -->
               <view v-if="item.cover" class="cover">
-                <image class="cover-img" :src="item.cover" mode="aspectFill" />
+                <image lazy-load class="cover-img" :src="item.cover" mode="aspectFill" />
                 <view
                   v-if="item.progress !== undefined && item.progress < 100"
                   class="cover-prog"
@@ -162,29 +120,11 @@ function openItem() {
                 <text class="continue-text">继续</text>
               </view>
             </view>
-
-            <!-- 左滑删除块 -->
-            <view class="swipe-del" @tap="deleteItem(item.id)">
-              <AppIcon name="trash-2" :size="20" color="#fff" />
-            </view>
           </view>
         </view>
       </view>
       <view class="list-foot">仅展示近30天的浏览记录</view>
     </scroll-view>
-
-    <!-- 清空确认弹窗 -->
-    <view v-if="showClearConfirm" class="mask center mask-fade-in" @tap="showClearConfirm = false">
-      <view class="dialog dialog-pop-in" @tap.stop>
-        <view class="dialog-icon"><AppIcon name="trash-2" :size="30" color="#C41E3A" /></view>
-        <text class="dialog-title">清空浏览历史</text>
-        <text class="dialog-desc">确定要清空所有浏览记录吗？此操作不可恢复</text>
-        <view class="dialog-actions">
-          <view class="dialog-btn ghost" @tap="showClearConfirm = false"><text class="dialog-btn-text">取消</text></view>
-          <view class="dialog-btn solid" @tap="clearAll"><text class="dialog-btn-text solid-text">清空</text></view>
-        </view>
-      </view>
-    </view>
     </template>
   </view>
 </template>
@@ -196,7 +136,7 @@ function openItem() {
 .loading { flex: 1; display: flex; align-items: center; justify-content: center; padding-top: 200rpx; font-size: 28rpx; color: #8a8178; }
 .error-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding-top: 200rpx; gap: 24rpx; }
 .error-state text { font-size: 28rpx; color: #8a8178; }
-.retry-btn { padding: 16rpx 48rpx; background: #C41E3A; color: #fff; border-radius: 12rpx; font-size: 26rpx; }
+.retry-btn { padding: 16rpx 48rpx; background: var(--brand); color: #fff; border-radius: 12rpx; font-size: 26rpx; }
 .nav-action { font-size: 28rpx; color: #EF4444; }
 
 .stat-bar { display: flex; align-items: center; gap: 32rpx; padding: 18rpx 24rpx; background: #F2ECE1; }
@@ -207,7 +147,7 @@ function openItem() {
 .empty-icon { width: 140rpx; height: 140rpx; border-radius: 50%; background: #F2ECE1; display: flex; align-items: center; justify-content: center; margin-bottom: 8rpx; }
 .empty-title { font-size: 28rpx; color: #6f6760; }
 .empty-desc { font-size: 24rpx; color: #b8b0a4; }
-.empty-btn { margin-top: 24rpx; padding: 18rpx 56rpx; background: #C41E3A; border-radius: 999rpx; }
+.empty-btn { margin-top: 24rpx; padding: 18rpx 56rpx; background: var(--brand); border-radius: 999rpx; }
 .empty-btn-text { font-size: 28rpx; color: #fff; }
 
 .scroll { flex: 1; padding: 24rpx; box-sizing: border-box; }
@@ -219,7 +159,7 @@ function openItem() {
 .cover { position: relative; width: 168rpx; height: 112rpx; border-radius: 12rpx; overflow: hidden; background: #F2ECE1; flex-shrink: 0; }
 .cover-img { width: 100%; height: 100%; }
 .cover-prog { position: absolute; left: 0; right: 0; bottom: 0; height: 6rpx; background: rgba(0,0,0,0.3); }
-.cover-prog-fill { height: 100%; background: #C41E3A; }
+.cover-prog-fill { height: 100%; background: var(--brand); }
 .cover-play { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
 .icon-box { width: 112rpx; height: 112rpx; border-radius: 12rpx; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .item-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 12rpx; }
@@ -231,9 +171,9 @@ function openItem() {
 .item-prog { font-size: 22rpx; color: #b8b0a4; }
 .item-prog.done { color: #16a34a; }
 .continue-btn { align-self: center; flex-shrink: 0; padding: 10rpx 24rpx; background: rgba(196,30,58,0.1); border-radius: 999rpx; }
-.continue-text { font-size: 24rpx; color: #C41E3A; }
+.continue-text { font-size: 24rpx; color: var(--brand); }
 
-.swipe-del { position: absolute; right: 0; top: 0; bottom: 0; width: 160rpx; z-index: 1; background: #C41E3A; display: flex; align-items: center; justify-content: center; }
+.swipe-del { position: absolute; right: 0; top: 0; bottom: 0; width: 160rpx; z-index: 1; background: var(--brand); display: flex; align-items: center; justify-content: center; }
 
 .list-foot { text-align: center; padding: 24rpx 0; font-size: 24rpx; color: #b8b0a4; }
 
@@ -246,7 +186,7 @@ function openItem() {
 .dialog-actions { display: flex; gap: 20rpx; width: 100%; }
 .dialog-btn { flex: 1; height: 84rpx; border-radius: 20rpx; display: flex; align-items: center; justify-content: center; }
 .dialog-btn.ghost { background: #F2ECE1; }
-.dialog-btn.solid { background: #C41E3A; }
+.dialog-btn.solid { background: var(--brand); }
 .dialog-btn-text { font-size: 28rpx; color: #2C2C2C; font-weight: 500; }
 .solid-text { color: #fff; }
 </style>

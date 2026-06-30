@@ -50,40 +50,54 @@
 
       <!-- 成员列表 -->
       <view class="list">
+        <view v-if="loading" class="state-box">
+          <view class="spinner" />
+          <text class="state-text">加载中…</text>
+        </view>
+        <view v-else-if="errMsg" class="state-box">
+          <app-icon name="alert-circle" :size="40" color="#d1d5db" />
+          <text class="state-text">{{ errMsg }}</text>
+          <view class="retry-btn" @tap="load"><text class="retry-text">重试</text></view>
+        </view>
+        <view v-else-if="filteredMembers.length === 0" class="state-box">
+          <app-icon name="users" :size="44" color="#d1d5db" />
+          <text class="state-text">暂无成员</text>
+        </view>
         <view
+          v-else
           v-for="m in filteredMembers"
           :key="m.id"
           class="member-card"
           @tap="goDetail(m.id)"
         >
           <view class="avatar-wrap">
-            <view class="avatar">
-              <text class="avatar-text">{{ m.name.slice(0, 1) }}</text>
+            <image lazy-load v-if="m.user.avatar" :src="m.user.avatar" class="avatar-img" mode="aspectFill" />
+            <view v-else class="avatar">
+              <text class="avatar-text">{{ memberName(m.user).slice(0, 1) }}</text>
             </view>
-            <view v-if="m.role !== 'member'" class="role-badge" :style="{ background: roleConfig[m.role].bg }">
-              <app-icon :name="roleIcon(m.role)" :size="12" :color="roleConfig[m.role].color" />
+            <view v-if="isManagement(m.role)" class="role-badge" :style="{ background: roleColor[m.role].bg }">
+              <app-icon :name="roleIcon(m.role)" :size="12" :color="roleColor[m.role].color" />
             </view>
           </view>
 
           <view class="member-info">
             <view class="name-row">
-              <text class="m-name">{{ m.name }}</text>
-              <view class="role-tag" :style="{ background: roleConfig[m.role].bg }">
-                <text class="role-tag-text" :style="{ color: roleConfig[m.role].color }">{{ roleConfig[m.role].label }}</text>
+              <text class="m-name">{{ memberName(m.user) }}</text>
+              <view class="role-tag" :style="{ background: roleColor[m.role].bg }">
+                <text class="role-tag-text" :style="{ color: roleColor[m.role].color }">{{ roleLabel[m.role] }}</text>
               </view>
-              <view v-if="m.isOnlineTeacher" class="teacher-tag">
-                <text class="teacher-tag-text">人才库</text>
+              <view v-if="m.lecturerLevel !== 'NONE'" class="teacher-tag">
+                <text class="teacher-tag-text">{{ lecturerLevelLabel[m.lecturerLevel] }}</text>
               </view>
             </view>
-            <text class="m-title">擅长：{{ m.title }}</text>
             <view class="meta-row">
               <view class="meta-item">
-                <app-icon name="users" :size="11" color="#9ca3af" />
-                <text class="meta-text">{{ m.circleName }}</text>
+                <app-icon name="calendar" :size="11" color="#9ca3af" />
+                <text class="meta-text">{{ m.joinYear }}年加入</text>
               </view>
               <view class="meta-item">
-                <app-icon name="video" :size="11" color="#9ca3af" />
-                <text class="meta-text">分享{{ m.contributions }}次</text>
+                <app-icon name="check-circle" :size="11" color="#9ca3af" />
+                <text class="meta-text">完成任务 {{ m.tasksCompleted }} 项</text>
               </view>
             </view>
           </view>
@@ -105,13 +119,12 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import {
-  instituteMembers,
-  memberRoleConfig as roleConfig,
-  memberFilterOptions as filterOptions,
-  type MemberRole,
+  instituteApi, roleLabel, roleColor, isManagement, memberName,
+  lecturerLevelLabel, type InstituteRole, type InstituteMember,
 } from '@/lib/institute-data'
 
 const statusBarHeight = ref(0)
@@ -122,31 +135,57 @@ try {
   scrollHeight.value = (info.windowHeight || 700) - statusBarHeight.value - 44 - 52 - 64
 } catch (e) {}
 
+const filterOptions = [
+  { id: 'all', label: '全部' },
+  { id: 'leadership', label: '管理层' },
+  { id: 'teacher', label: '讲师库' },
+]
+const ROLE_ORDER: Record<InstituteRole, number> = {
+  PRESIDENT: 1, VICE_PRESIDENT: 2, SECRETARY_GENERAL: 3, INITIATOR: 4, TYPE_A: 5, TYPE_B: 6,
+}
+
+const loading = ref(true)
+const errMsg = ref('')
+const members = ref<InstituteMember[]>([])
 const keyword = ref('')
 const activeFilter = ref('all')
 
-const stats = {
-  total: instituteMembers.length,
-  leadership: instituteMembers.filter(m => m.role !== 'member').length,
-  teachers: instituteMembers.filter(m => m.isOnlineTeacher).length,
+async function load() {
+  loading.value = true
+  errMsg.value = ''
+  try {
+    members.value = await instituteApi.getMembers({ status: 'ACTIVE' })
+  } catch (e: any) {
+    errMsg.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
 }
+onLoad(() => load())
 
-const filteredMembers = computed(() => instituteMembers
+const stats = computed(() => ({
+  total: members.value.length,
+  leadership: members.value.filter(m => isManagement(m.role)).length,
+  teachers: members.value.filter(m => m.lecturerLevel !== 'NONE').length,
+}))
+
+const filteredMembers = computed(() => members.value
   .filter(m => {
-    if (activeFilter.value === 'leadership') return m.role === 'dean' || m.role === 'vice_dean' || m.role === 'secretary'
-    if (activeFilter.value === 'teacher') return m.isOnlineTeacher
+    if (activeFilter.value === 'leadership') return isManagement(m.role)
+    if (activeFilter.value === 'teacher') return m.lecturerLevel !== 'NONE'
     return true
   })
-  .filter(m => !keyword.value || m.name.includes(keyword.value) || m.title.includes(keyword.value))
-  .sort((a, b) => roleConfig[a.role].order - roleConfig[b.role].order)
+  .filter(m => !keyword.value || memberName(m.user).includes(keyword.value))
+  .sort((a, b) => ROLE_ORDER[a.role] - ROLE_ORDER[b.role])
 )
 
-function roleIcon(role: MemberRole) {
-  if (role === 'dean') return 'crown'
-  if (role === 'vice_dean') return 'award'
-  return 'star'
+function roleIcon(role: InstituteRole) {
+  if (role === 'PRESIDENT') return 'crown'
+  if (role === 'VICE_PRESIDENT') return 'award'
+  if (role === 'SECRETARY_GENERAL') return 'star'
+  return 'user'
 }
-function goDetail(id: number) {
+function goDetail(id: string) {
   navigateTo(`/institute/members/${id}`)
 }
 function goApply() {
@@ -176,7 +215,7 @@ function goApply() {
 
 .filter-row { display: flex; gap: 8px; padding: 0 16px 8px; }
 .filter-chip { padding: 5px 16px; border-radius: 999px; border: 1px solid #d1d5db; background: #fff; }
-.filter-chip-active { background: #c41e3a; border-color: #c41e3a; }
+.filter-chip-active { background: var(--brand); border-color: var(--brand); }
 .filter-text { font-size: 12px; color: #4b5563; }
 .filter-text-active { color: #fff; }
 
@@ -184,6 +223,13 @@ function goApply() {
 .member-card { display: flex; align-items: center; gap: 12px; background: #fff; border-radius: 12px; border: 1px solid #ededed; padding: 12px; }
 .avatar-wrap { position: relative; flex-shrink: 0; }
 .avatar { width: 56px; height: 56px; border-radius: 50%; background: rgba(212,160,23,0.15); display: flex; align-items: center; justify-content: center; }
+.avatar-img { width: 56px; height: 56px; border-radius: 50%; }
+.state-box { padding: 64px 0; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.state-text { font-size: 13px; color: #9ca3af; }
+.spinner { width: 28px; height: 28px; border: 3px solid #f0f0f0; border-top-color: var(--brand); border-radius: 50%; animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.retry-btn { margin-top: 4px; padding: 6px 20px; border: 1px solid var(--brand); border-radius: 999px; }
+.retry-text { font-size: 13px; color: var(--brand); }
 .avatar-text { font-size: 20px; font-weight: 700; color: #d4a017; }
 .role-badge { position: absolute; bottom: -2px; right: -2px; width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 2px solid #fff; }
 .member-info { flex: 1; min-width: 0; }

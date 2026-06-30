@@ -264,7 +264,7 @@ onMounted(() => {
 .qk-stat-tx { font-size: 26rpx; color: #999999; }
 .qk-expertise { display: flex; flex-wrap: wrap; gap: 16rpx; margin-top: 24rpx; }
 .qk-exp-tag { padding: 8rpx 24rpx; background-color: rgba(196, 30, 58, 0.1); border-radius: 999rpx; }
-.qk-exp-tag-tx { font-size: 22rpx; color: #c41e3a; }
+.qk-exp-tag-tx { font-size: 22rpx; color: var(--brand); }
 .qk-price-row {
   margin-top: 32rpx;
   padding-top: 32rpx;
@@ -274,7 +274,7 @@ onMounted(() => {
   justify-content: space-between;
 }
 .qk-price-label { font-size: 28rpx; color: #999999; }
-.qk-price { font-size: 40rpx; font-weight: 700; color: #c41e3a; }
+.qk-price { font-size: 40rpx; font-weight: 700; color: var(--brand); }
 .qk-field-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16rpx; }
 .qk-field-label { font-size: 28rpx; font-weight: 500; color: #2c2c2c; }
 .qk-field-count { font-size: 22rpx; color: #999999; }
@@ -314,7 +314,7 @@ onMounted(() => {
   flex-shrink: 0;
   transition: background-color 0.2s;
 }
-.qk-switch-on { background-color: #c41e3a; }
+.qk-switch-on { background-color: var(--brand); }
 .qk-switch-knob {
   position: absolute;
   top: 8rpx;
@@ -339,7 +339,7 @@ onMounted(() => {
   background-color: #f5f5f5;
   text-align: center;
 }
-.qk-option-active { background-color: #c41e3a; }
+.qk-option-active { background-color: var(--brand); }
 .qk-option-tx { font-size: 26rpx; font-weight: 500; color: #2c2c2c; }
 .qk-option-tx-active { color: #ffffff; }
 .qk-section-title { font-size: 28rpx; font-weight: 500; color: #2c2c2c; margin-bottom: 24rpx; display: block; }
@@ -359,11 +359,11 @@ onMounted(() => {
 }
 .qk-bottom-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24rpx; }
 .qk-bottom-label { font-size: 28rpx; color: #999999; }
-.qk-bottom-price { font-size: 44rpx; font-weight: 700; color: #c41e3a; }
+.qk-bottom-price { font-size: 44rpx; font-weight: 700; color: var(--brand); }
 .qk-submit {
   width: 100%;
   padding: 24rpx 0;
-  background-color: #c41e3a;
+  background-color: var(--brand);
   border-radius: 24rpx;
   display: flex;
   align-items: center;

@@ -1,21 +1,16 @@
-// 课程列表页数据（从原型 app/courses-list/page.tsx 迁移，mock 照抄原型）
+// 课程列表页数据层（真连后端 /courses）
+// 后端契约确认（apps/server/src/modules/course/course.controller.ts + course.service.ts）：
+//   - GET /courses            → { courses, total, page, pageSize }；course 字段见 adaptCard
+//   - GET /courses/flash-sale → { sessions, courses:[{id,title,salePrice,originalPrice,discount,...}] }
+//   注：列表端点 select 未返回逐课分类（categoryLevel1），分类 tab 从真实课程的
+//       categoryLevel1 / circle.name 去重派生，保证分类筛选作用于真实数据。
 import type { CourseCardData } from '@/lib/card-utils'
-import { apiGet, useMock } from '@/utils/request'
+import { apiGet } from '@/utils/request'
 
-// 分类 - 纯文字，不带图标
+// 分类 - 纯文字，不带图标（运行时从真实课程派生，类型保留）
 export interface CourseListCategory { id: string; name: string }
-export const courseListCategories: CourseListCategory[] = [
-  { id: 'all', name: '全部' },
-  { id: 'bazi', name: '八字命理' },
-  { id: 'ziwei', name: '紫微斗数' },
-  { id: 'fengshui', name: '风水堪舆' },
-  { id: 'yijing', name: '易经' },
-  { id: 'mianxiang', name: '面相手相' },
-  { id: 'qimen', name: '奇门遁甲' },
-  { id: 'liuyao', name: '六爻预测' },
-]
 
-// 排序
+// 排序（前端客户端排序的运营配置，非 mock 数据）
 export interface CourseSortOption { id: string; name: string }
 export const courseSortOptions: CourseSortOption[] = [
   { id: 'recommend', name: '综合推荐' },
@@ -33,15 +28,10 @@ export interface RecommendedCourse {
   originalPrice: number
   tag: string
   image: string
-  hours: number // 距结束的小时数(原型为 endTime, 此处保留相对值供联调替换)
+  hours: number // 页面 banner 未消费，保留供联调
 }
-export const recommendedCourses: RecommendedCourse[] = [
-  { id: 'featured-1', title: '八字命理大师班', subtitle: '零基础到精通', price: 1999, originalPrice: 3999, tag: '限时5折', image: 'https://images.unsplash.com/photo-1512820790803-83ca734da794?w=400&q=80', hours: 48 },
-  { id: 'featured-2', title: '紫微斗数精讲', subtitle: '名师亲授', price: 999, originalPrice: 1999, tag: '即将涨价', image: 'https://images.unsplash.com/photo-1516979187457-637abb4f9353?w=400&q=80', hours: 24 },
-  { id: 'featured-3', title: '风水堪舆实战', subtitle: '案例教学', price: 1299, originalPrice: 2599, tag: '新课首发', image: 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=400&q=80', hours: 72 },
-]
 
-// 限时优惠课程(倒计时初始值, 单位:毫秒偏移)
+// 限时优惠课程（倒计时初始偏移，单位毫秒）
 export interface FlashSaleCourse {
   id: string
   title: string
@@ -50,50 +40,131 @@ export interface FlashSaleCourse {
   discount: string
   offsetMs: number // 距结束的毫秒数初值
 }
-export const flashSaleCourses: FlashSaleCourse[] = [
-  { id: 'flash-1', title: '六爻预测入门', price: 49, originalPrice: 199, discount: '2.5折', offsetMs: 3600 * 1000 * 5 },
-  { id: 'flash-2', title: '面相识人术', price: 69, originalPrice: 299, discount: '2.3折', offsetMs: 3600 * 1000 * 8 },
-  { id: 'flash-3', title: '姓名学精讲', price: 39, originalPrice: 149, discount: '2.6折', offsetMs: 3600 * 1000 * 12 },
-]
 
-// 课程列表 mock(照抄原型 mockCourses, 映射为 CourseCardData 供 course-card 复用)
-export const courseListMock: (CourseCardData & { category: string; free: boolean })[] = [
-  { id: '1', title: '八字入门实战课：从零开始学命理', teacher: '周易大师', teacherAvatar: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=100&q=80', price: 199, originalPrice: 399, students: 2860, rating: 4.9, lessons: 48, category: 'bazi', tag: 'TOP1', free: false, cover: 'https://images.unsplash.com/photo-1512820790803-83ca734da794?w=400&q=80', coverRatio: '3:4' },
-  { id: '2', title: '紫微斗数命盘解读进阶', teacher: '张玄风', teacherAvatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&q=80', price: 299, originalPrice: 599, students: 1560, rating: 4.8, lessons: 36, category: 'ziwei', tag: '新品', free: false, cover: 'https://images.unsplash.com/photo-1516979187457-637abb4f9353?w=400&q=80', coverRatio: '3:4' },
-  { id: '3', title: '风水布局入门精讲', teacher: '陈风水', teacherAvatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&q=80', price: 0, originalPrice: 99, students: 5280, rating: 4.7, lessons: 12, category: 'fengshui', free: true, cover: 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=400&q=80', coverRatio: '3:4' },
-  { id: '4', title: '姓名学与起名技巧', teacher: '李国学', teacherAvatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&q=80', price: 149, originalPrice: 199, students: 1280, rating: 4.8, lessons: 18, category: 'bazi', free: false, cover: 'https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?w=400&q=80', coverRatio: '3:4' },
-  { id: '5', title: '易经六十四卦精讲', teacher: '周易大师', teacherAvatar: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=100&q=80', price: 399, originalPrice: 599, students: 3560, rating: 4.9, lessons: 64, category: 'yijing', tag: '热销', free: false, cover: 'https://images.unsplash.com/photo-1519791883288-dc8bd696e667?w=400&q=80', coverRatio: '3:4' },
-  { id: '6', title: '面相入门与识人术', teacher: '王相师', teacherAvatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=100&q=80', price: 99, originalPrice: 149, students: 2180, rating: 4.6, lessons: 15, category: 'mianxiang', free: false, cover: 'https://images.unsplash.com/photo-1544717305-2782549b5136?w=400&q=80', coverRatio: '3:4' },
-  { id: '7', title: '奇门遁甲入门班', teacher: '玄学居士', teacherAvatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&q=80', price: 299, originalPrice: 499, students: 980, rating: 4.8, lessons: 24, category: 'qimen', tag: '高阶', free: false, cover: 'https://images.unsplash.com/photo-1471107340929-a87cd0f5b5f3?w=400&q=80', coverRatio: '3:4' },
-  { id: '8', title: '六爻预测实战技法', teacher: '张玄风', teacherAvatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&q=80', price: 199, originalPrice: 299, students: 1520, rating: 4.7, lessons: 20, category: 'liuyao', free: false, cover: 'https://images.unsplash.com/photo-1519791883288-dc8bd696e667?w=400&q=80', coverRatio: '3:4' },
-]
+// ============ 适配器 ============
+
+function toNum(v: any): number { const x = Number(v); return Number.isFinite(x) ? x : 0 }
+
+/** 取课程数组（后端 /courses 返回 { courses } 包裹，兼容数组/items/list） */
+function toCourseList(d: any): any[] {
+  if (Array.isArray(d)) return d
+  return d?.courses ?? d?.items ?? d?.list ?? []
+}
+
+/** 单课程分类名（列表端点未返回 categoryLevel1 → 退到 circle.name；都无→空） */
+function courseCategory(c: any): string {
+  return c.categoryLevel1 || c.circle?.name || ''
+}
+
+/** 后端课程 → 前端课程卡 */
+function adaptCard(c: any): CourseCardData & { category: string; free: boolean } {
+  const price = toNum(c.price)
+  const orig = toNum(c.originalPrice)
+  return {
+    id: c.id,
+    title: c.title || '',
+    cover: c.cover || '',
+    coverRatio: '3:4',
+    price,
+    originalPrice: orig || price,
+    free: price === 0,
+    students: toNum(c.studentCount),
+    lessons: toNum(c._count?.chapters),
+    rating: 0, // 列表无评分，详情页另取
+    teacher: c.user?.nickname || '',
+    teacherAvatar: c.user?.avatar || '',
+    category: courseCategory(c),
+    tag: orig > price && price > 0 ? '优惠' : undefined,
+  }
+}
 
 // ============ API 层 ============
 
 export const coursesListApi = {
-  /** 获取课程列表 */
-  async list(_category?: string, _sort?: string): Promise<(CourseCardData & { category: string; free: boolean })[]> {
-    let data = courseListMock
-    if (_category && _category !== 'all') data = data.filter(c => c.category === _category)
-    if (true) return data
-    try { return await apiGet<(CourseCardData & { category: string; free: boolean })[]>(`/courses?category=${_category || 'all'}&sort=${_sort || 'recommend'}`) } catch { return data }
+  /**
+   * 课程列表 — GET /courses（错误向上抛走三态，不回退假数据）。
+   * 后端无 category/sort 参数：分类按 card.category 客户端过滤；
+   * 排序客户端处理（newest 复用后端 createdAt desc 原序）。
+   */
+  async list(category?: string, sort?: string): Promise<(CourseCardData & { category: string; free: boolean })[]> {
+    const res = await apiGet<any>('/courses?page=1&pageSize=50')
+    let data = toCourseList(res).map(adaptCard)
+    if (category && category !== 'all') data = data.filter((c) => c.category === category)
+    switch (sort) {
+      case 'popular':
+      case 'recommend':
+        data = [...data].sort((a, b) => (b.students ?? 0) - (a.students ?? 0))
+        break
+      case 'price-asc':
+        data = [...data].sort((a, b) => (a.price ?? 0) - (b.price ?? 0))
+        break
+      // 'newest' → 保持后端 createdAt desc 原序
+    }
+    return data
   },
 
-  /** 获取分类列表 */
+  /**
+   * 分类列表 — 从真实课程派生（后端列表端点无逐课分类字段，无独立分类筛选端点）。
+   * 取真实课程的 categoryLevel1 / circle.name 去重，保证筛选作用于真实数据；
+   * 无任何分类时仅返回「全部」（诚实降级）。
+   */
   async getCategories(): Promise<CourseListCategory[]> {
-    if (true) return courseListCategories
-    try { return await apiGet('/courses/categories') } catch { return courseListCategories }
+    const res = await apiGet<any>('/courses?page=1&pageSize=50')
+    const names = new Set<string>()
+    for (const c of toCourseList(res)) {
+      const name = courseCategory(c)
+      if (name) names.add(name)
+    }
+    return [{ id: 'all', name: '全部' }, ...[...names].map((n) => ({ id: n, name: n }))]
   },
 
-  /** 获取推荐课程Banner */
+  /**
+   * 推荐 Banner — 后端无专门推荐端点，复用 GET /courses 取学习人数最高的前 3 条。
+   */
   async getRecommended(): Promise<RecommendedCourse[]> {
-    if (true) return recommendedCourses
-    try { return await apiGet('/courses/recommended') } catch { return recommendedCourses }
+    const res = await apiGet<any>('/courses?page=1&pageSize=50')
+    return toCourseList(res)
+      .slice()
+      .sort((a: any, b: any) => toNum(b.studentCount) - toNum(a.studentCount))
+      .slice(0, 3)
+      .map((c: any) => {
+        const price = toNum(c.price)
+        const orig = toNum(c.originalPrice)
+        return {
+          id: c.id,
+          title: c.title || '',
+          subtitle: String(c.intro || '').slice(0, 20),
+          price,
+          originalPrice: orig || price,
+          tag: orig > price && price > 0 ? '限时优惠' : '精品好课',
+          image: c.cover || '',
+          hours: 0,
+        }
+      })
   },
 
-  /** 获取限时优惠课程 */
+  /**
+   * 限时优惠 — GET /courses/flash-sale。后端 discount 为 round(price/orig*100)，
+   * 折算为「x.x折」；倒计时按会话当日 23:59:59 派生 offsetMs。
+   */
   async getFlashSale(): Promise<FlashSaleCourse[]> {
-    if (true) return flashSaleCourses
-    try { return await apiGet('/courses/flash-sale') } catch { return flashSaleCourses }
+    const res = await apiGet<any>('/courses/flash-sale')
+    const courses = Array.isArray(res?.courses) ? res.courses : []
+    const now = new Date()
+    const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59).getTime()
+    const offsetMs = Math.max(0, endOfDay - now.getTime())
+    return courses.map((c: any) => {
+      const orig = toNum(c.originalPrice)
+      const price = toNum(c.salePrice)
+      const pct = toNum(c.discount) // 占原价百分比，如 25 → 2.5折
+      return {
+        id: c.id,
+        title: c.title || '',
+        price,
+        originalPrice: orig,
+        discount: pct > 0 ? `${(pct / 10).toFixed(1)}折` : '',
+        offsetMs,
+      }
+    })
   },
 }

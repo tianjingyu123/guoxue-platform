@@ -16,7 +16,7 @@
       </view>
       <!-- 数据渲染 -->
       <template v-else>
-        <text class="an-intro">系统自动分析每位下线的推广漏斗（曝光→点击→成交），诊断转化瓶颈。</text>
+        <text class="an-intro">名下站长本月收益与运营诊断。推广漏斗（曝光→点击→成交）数据待埋点接入后展示。</text>
 
         <view v-for="m in members" :key="m.id" class="an-card">
           <!-- 头部 -->
@@ -97,10 +97,10 @@ async function loadData() {
 async function retry() { await loadData() }
 
 function ctr(m: MemberPerf) {
-  return ((m.clicks / m.visits) * 100).toFixed(1)
+  return m.visits > 0 ? ((m.clicks / m.visits) * 100).toFixed(1) : '0.0'
 }
 function cvr(m: MemberPerf) {
-  return ((m.orders / m.clicks) * 100).toFixed(1)
+  return m.clicks > 0 ? ((m.orders / m.clicks) * 100).toFixed(1) : '0.0'
 }
 </script>
 

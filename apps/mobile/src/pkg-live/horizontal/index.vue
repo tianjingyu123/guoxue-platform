@@ -20,7 +20,7 @@
             <view class="host-bar__close" @tap="goBack">
               <AppIcon name="x" :size="20" unit="px" color="rgba(255,255,255,0.8)" />
             </view>
-            <image class="host-bar__avatar" :src="room.hostAvatar" mode="aspectFill" />
+            <image lazy-load class="host-bar__avatar" :src="room.hostAvatar" mode="aspectFill" />
             <view class="host-bar__info">
               <text class="host-bar__title">{{ room.title }}</text>
               <view class="host-bar__meta">
@@ -67,7 +67,7 @@
           <view class="teacher-cam" :class="{ 'teacher-cam--pip': !showVideo }">
             <view class="teacher-cam__inner">
               <view class="teacher-cam__avatar">
-                <image class="teacher-cam__img" :src="room.hostAvatar" mode="aspectFill" />
+                <image lazy-load class="teacher-cam__img" :src="room.hostAvatar" mode="aspectFill" />
               </view>
               <text class="teacher-cam__label">讲师画面</text>
             </view>
@@ -219,7 +219,7 @@
             </view>
             <view v-for="q in filteredQuestions" :key="q.id" class="qa-card">
               <view class="qa-card__head">
-                <image class="qa-card__avatar" :src="q.userAvatar" mode="aspectFill" />
+                <image lazy-load class="qa-card__avatar" :src="q.userAvatar" mode="aspectFill" />
                 <view class="qa-card__body">
                   <view class="qa-card__meta">
                     <text class="qa-card__name">{{ q.userName }}</text>
@@ -288,7 +288,7 @@
           <scroll-view scroll-y class="tab-intro__scroll">
             <view class="intro-host">
               <view class="intro-host__avatar">
-                <image class="intro-host__img" :src="room.hostAvatar" mode="aspectFill" />
+                <image lazy-load class="intro-host__img" :src="room.hostAvatar" mode="aspectFill" />
               </view>
               <text class="intro-host__name">{{ room.hostName }}</text>
               <text class="intro-host__title">{{ room.hostTitle }}</text>
@@ -424,10 +424,10 @@ onLoad((opts: any) => {
 
 /* 加载/错误覆盖层 */
 .hlive-state { position: absolute; inset: 0; z-index: 200; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #0f0f0f; }
-.hlive-state__spinner { width: 48px; height: 48px; border-radius: 50%; border: 4px solid rgba(255,255,255,0.2); border-top-color: #C41E3A; animation: spin 0.8s linear infinite; }
+.hlive-state__spinner { width: 48px; height: 48px; border-radius: 50%; border: 4px solid rgba(255,255,255,0.2); border-top-color: var(--brand); animation: spin 0.8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .hlive-state__txt { font-size: 14px; color: rgba(255,255,255,0.6); margin-top: 16px; }
-.hlive-state__retry { margin-top: 24px; padding: 8px 32px; background: #C41E3A; border-radius: 999px; }
+.hlive-state__retry { margin-top: 24px; padding: 8px 32px; background: var(--brand); border-radius: 999px; }
 .hlive-state__retry-txt { font-size: 14px; color: #fff; font-weight: 500; }
 
 /* ===== 横屏主体：仅 ≥1024px 显示 ===== */
@@ -473,7 +473,7 @@ onLoad((opts: any) => {
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  border: 2px solid #C41E3A;
+  border: 2px solid var(--brand);
   flex-shrink: 0;
 }
 .host-bar__info {
@@ -527,11 +527,11 @@ onLoad((opts: any) => {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background-color: #C41E3A;
+  background-color: var(--brand);
 }
 .host-bar__live-txt {
   font-size: 14px;
-  color: #C41E3A;
+  color: var(--brand);
 }
 .host-bar__live-time {
   font-size: 14px;
@@ -722,7 +722,7 @@ onLoad((opts: any) => {
   border: 2px solid transparent;
   overflow: hidden;
 }
-.thumb--on { border-color: #C41E3A; }
+.thumb--on { border-color: var(--brand); }
 .thumb__bg {
   position: absolute;
   inset: 0;
@@ -742,7 +742,7 @@ onLoad((opts: any) => {
   bottom: 0;
   left: 0;
   right: 0;
-  background-color: #C41E3A;
+  background-color: var(--brand);
   padding: 1px 0;
 }
 .thumb__cur-txt {
@@ -763,7 +763,7 @@ onLoad((opts: any) => {
   border-radius: 999px;
   background-color: rgba(255, 255, 255, 0.1);
 }
-.follow-btn--on { background-color: #C41E3A; }
+.follow-btn--on { background-color: var(--brand); }
 .follow-btn__txt {
   font-size: 14px;
   font-weight: 500;
@@ -807,7 +807,7 @@ onLoad((opts: any) => {
   width: 32px;
   height: 2px;
   border-radius: 999px;
-  background-color: #C41E3A;
+  background-color: var(--brand);
 }
 
 /* ===== 聊天 Tab ===== */
@@ -879,7 +879,7 @@ onLoad((opts: any) => {
   font-size: 14px;
   color: rgba(255, 255, 255, 0.6);
 }
-.like-btn__txt--on { color: #C41E3A; }
+.like-btn__txt--on { color: var(--brand); }
 .mic-btn {
   display: flex;
   align-items: center;
@@ -922,7 +922,7 @@ onLoad((opts: any) => {
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  background-color: #C41E3A;
+  background-color: var(--brand);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1071,7 +1071,7 @@ onLoad((opts: any) => {
   padding: 0 16px;
   height: 40px;
   border-radius: 8px;
-  background-color: #C41E3A;
+  background-color: var(--brand);
   display: flex;
   align-items: center;
 }
@@ -1154,7 +1154,7 @@ onLoad((opts: any) => {
   width: 80px;
   height: 80px;
   border-radius: 50%;
-  border: 2px solid #C41E3A;
+  border: 2px solid var(--brand);
   overflow: hidden;
 }
 .intro-host__img {

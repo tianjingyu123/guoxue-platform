@@ -179,7 +179,7 @@ function goOrder() { navigateTo(`/shop/orders/${orderId.value}`) }
   gap: 12rpx;
   font-size: 28rpx;
   font-weight: 500;
-  &.primary { background: linear-gradient(90deg, #C41E3A, #E53935); color: #FFFFFF; }
+  &.primary { background: linear-gradient(90deg, var(--brand), #E53935); color: #FFFFFF; }
   &.ghost { flex: 1; border: 1rpx solid #E8E3DB; color: #666666; }
 }
 .btn-row { display: flex; gap: 24rpx; }

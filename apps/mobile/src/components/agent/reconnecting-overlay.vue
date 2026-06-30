@@ -159,7 +159,7 @@ onUnmounted(() => {
   border-radius: 999rpx;
   display: flex; align-items: center; justify-content: center; gap: 12rpx;
 }
-.btn-primary { background: #c41e3a; }
+.btn-primary { background: var(--brand); }
 .btn-primary.disabled { opacity: 0.5; }
 .btn-ghost { background: rgba(255, 255, 255, 0.1); }
 .btn-txt { color: #fff; font-size: 30rpx; font-weight: 500; }

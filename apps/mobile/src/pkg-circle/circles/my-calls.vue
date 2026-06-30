@@ -1,35 +1,89 @@
 <script setup lang="ts">
 /**
- * 我的通话（从原型 app/circles/[id]/consult/my-calls/page.tsx 高保真迁移）
- * 类型筛选(全部/拨出/接入/未接) + 通话记录卡(头像/专长/类型彩色图标/时长/费用/时间)。
+ * 我的通话记录 —— 接真实 GET /consult-calls/my。
+ * 方向由 callerId/expertId 判定(我主叫=拨出/我达人=接入/MISSED=未接)；费用以金币计。
  */
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
+import { callApi, type ConsultCallRecord } from '@/lib/consult-call-data'
+import { getCurrentUserId } from '@/lib/circle-consult-data'
 
 type CallType = 'all' | 'incoming' | 'outgoing' | 'missed'
 
-interface CallRecord {
-  id: string; expert: string; avatar: string; specialty: string
-  type: 'incoming' | 'outgoing' | 'missed'; duration: string; time: string; cost: string
-}
-
-const mockCalls: CallRecord[] = [
-  { id: '1', expert: '周易大师', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80', specialty: '八字命理', type: 'outgoing', duration: '28分钟', time: '今天 14:35', cost: '¥84.00' },
-  { id: '2', expert: '张玄风', avatar: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=80', specialty: '紫微斗数', type: 'incoming', duration: '15分钟', time: '昨天 20:12', cost: '¥45.00' },
-  { id: '3', expert: '李玄机', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=80', specialty: '易经', type: 'missed', duration: '--', time: '昨天 09:30', cost: '¥0.00' },
-  { id: '4', expert: '王德华', avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=80', specialty: '风水', type: 'outgoing', duration: '42分钟', time: '2024-01-10', cost: '¥126.00' },
-  { id: '5', expert: '林奇门', avatar: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=80', specialty: '奇门遁甲', type: 'outgoing', duration: '10分钟', time: '2024-01-08', cost: '¥30.00' },
-]
+const calls = ref<ConsultCallRecord[]>([])
+const loading = ref(true)
+const error = ref('')
+const me = ref('')
 
 const TYPE_LABEL: Record<CallType, string> = { all: '全部', outgoing: '拨出', incoming: '接入', missed: '未接' }
 const filterTabs: CallType[] = ['all', 'outgoing', 'incoming', 'missed']
 const filter = ref<CallType>('all')
-const filtered = computed(() => filter.value === 'all' ? mockCalls : mockCalls.filter(c => c.type === filter.value))
 
-function typeIcon(t: CallRecord['type']) { return t === 'incoming' ? 'phone-incoming' : t === 'outgoing' ? 'phone-outgoing' : 'phone' }
-function typeColor(t: CallRecord['type']) { return t === 'missed' ? '#EF4444' : t === 'outgoing' ? '#3B82F6' : '#16A34A' }
-function typeText(t: CallRecord['type']) { return t === 'incoming' ? '接入' : t === 'outgoing' ? '拨出' : '未接' }
+function direction(c: ConsultCallRecord): 'incoming' | 'outgoing' | 'missed' {
+  if (c.status === 'MISSED') return 'missed'
+  return c.callerId === me.value ? 'outgoing' : 'incoming'
+}
+function peerName(c: ConsultCallRecord): string {
+  return (c.callerId === me.value ? c.expertName : c.callerName) || '对方'
+}
+function peerAvatar(c: ConsultCallRecord): string {
+  return (c.callerId === me.value ? c.expertAvatar : c.callerAvatar) || ''
+}
+function mediaText(c: ConsultCallRecord): string {
+  return c.type === 'VIDEO' ? '视频通话' : '语音通话'
+}
+function durationText(c: ConsultCallRecord): string {
+  if (!c.durationSec) return '--'
+  const m = Math.floor(c.durationSec / 60)
+  const s = c.durationSec % 60
+  return m > 0 ? `${m}分${s}秒` : `${s}秒`
+}
+function costText(c: ConsultCallRecord): string {
+  if (c.status === 'MISSED' || c.status === 'REFUNDED') return '0 金币'
+  // 主叫看支出(结算金币)，达人看收益(50% 分账)
+  if (c.callerId === me.value) return `-${c.settledCoin} 金币`
+  return `+${Math.floor(c.settledCoin * 0.5)} 金币`
+}
+function timeText(c: ConsultCallRecord): string {
+  const d = new Date(c.createdAt)
+  const now = new Date()
+  const sameDay = d.toDateString() === now.toDateString()
+  const hh = String(d.getHours()).padStart(2, '0')
+  const mm = String(d.getMinutes()).padStart(2, '0')
+  if (sameDay) return `今天 ${hh}:${mm}`
+  return `${d.getMonth() + 1}-${d.getDate()} ${hh}:${mm}`
+}
+
+const filtered = computed(() =>
+  filter.value === 'all' ? calls.value : calls.value.filter((c) => direction(c) === filter.value),
+)
+
+function typeIcon(t: 'incoming' | 'outgoing' | 'missed') {
+  return t === 'incoming' ? 'phone-incoming' : t === 'outgoing' ? 'phone-outgoing' : 'phone'
+}
+function typeColor(t: 'incoming' | 'outgoing' | 'missed') {
+  return t === 'missed' ? '#EF4444' : t === 'outgoing' ? '#3B82F6' : '#16A34A'
+}
+function typeText(t: 'incoming' | 'outgoing' | 'missed') {
+  return t === 'incoming' ? '接入' : t === 'outgoing' ? '拨出' : '未接'
+}
+
+async function load() {
+  loading.value = true
+  error.value = ''
+  try {
+    me.value = getCurrentUserId()
+    calls.value = await callApi.myCalls()
+  } catch (e: any) {
+    error.value = e?.message || '加载失败，请重试'
+    calls.value = []
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(load)
 </script>
 
 <template>
@@ -47,25 +101,37 @@ function typeText(t: CallRecord['type']) { return t === 'incoming' ? '接入' : 
       </view>
     </scroll-view>
 
-    <view class="mc-list">
+    <!-- loading -->
+    <view v-if="loading" class="mc-state">
+      <app-icon name="loader-2" :size="32" color="#C41E3A" class="mc-spin" />
+      <text class="mc-state-t">加载中...</text>
+    </view>
+    <!-- error -->
+    <view v-else-if="error" class="mc-state">
+      <text class="mc-state-t">{{ error }}</text>
+      <view class="mc-retry" @tap="load"><text class="mc-retry-t">重试</text></view>
+    </view>
+
+    <view v-else class="mc-list">
       <view v-for="c in filtered" :key="c.id" class="mc-card">
-        <image class="mc-avatar" :src="c.avatar" mode="aspectFill" />
+        <image lazy-load v-if="peerAvatar(c)" class="mc-avatar" :src="peerAvatar(c)" mode="aspectFill" />
+        <view v-else class="mc-avatar mc-avatar-ph"><app-icon name="user" :size="36" color="#C9A96E" /></view>
         <view class="mc-info">
           <view class="mc-info-top">
-            <text class="mc-expert">{{ c.expert }}</text>
-            <text class="mc-specialty">{{ c.specialty }}</text>
+            <text class="mc-expert">{{ peerName(c) }}</text>
+            <text class="mc-specialty">{{ mediaText(c) }}</text>
           </view>
           <view class="mc-info-sub">
             <view class="mc-type">
-              <app-icon :name="typeIcon(c.type)" :size="22" :color="typeColor(c.type)" />
-              <text class="mc-type-t" :style="{ color: typeColor(c.type) }">{{ typeText(c.type) }}</text>
+              <app-icon :name="typeIcon(direction(c))" :size="22" :color="typeColor(direction(c))" />
+              <text class="mc-type-t" :style="{ color: typeColor(direction(c)) }">{{ typeText(direction(c)) }}</text>
             </view>
-            <view class="mc-dur"><app-icon name="clock" :size="22" color="#999999" /><text class="mc-dur-t">{{ c.duration }}</text></view>
+            <view class="mc-dur"><app-icon name="clock" :size="22" color="#999999" /><text class="mc-dur-t">{{ durationText(c) }}</text></view>
           </view>
         </view>
         <view class="mc-right">
-          <text class="mc-cost">{{ c.cost }}</text>
-          <text class="mc-time">{{ c.time }}</text>
+          <text class="mc-cost">{{ costText(c) }}</text>
+          <text class="mc-time">{{ timeText(c) }}</text>
         </view>
       </view>
       <view v-if="filtered.length === 0" class="mc-empty"><text class="mc-empty-t">暂无通话记录</text></view>
@@ -81,12 +147,19 @@ function typeText(t: CallRecord['type']) { return t === 'incoming' ? '接入' : 
 .mc-filters { white-space: nowrap; padding: 24rpx 24rpx 16rpx; }
 .mc-filters-inner { display: inline-flex; gap: 16rpx; }
 .mc-filter { padding: 12rpx 28rpx; border-radius: 999rpx; background: #ECE6D8; }
-.mc-filter.is-active { background: #C41E3A; }
+.mc-filter.is-active { background: var(--brand); }
 .mc-filter-t { font-size: 26rpx; color: #2C2C2C; font-weight: 500; }
 .mc-filter-t.is-active { color: #fff; }
+.mc-state { display: flex; flex-direction: column; align-items: center; gap: 20rpx; padding: 140rpx 0; }
+.mc-state-t { font-size: 26rpx; color: #999; }
+.mc-spin { animation: mc-rotate 1s linear infinite; }
+@keyframes mc-rotate { to { transform: rotate(360deg); } }
+.mc-retry { padding: 16rpx 56rpx; background: var(--brand); border-radius: 999rpx; }
+.mc-retry-t { font-size: 26rpx; color: #fff; }
 .mc-list { display: flex; flex-direction: column; gap: 16rpx; padding: 8rpx 24rpx 0; }
 .mc-card { display: flex; align-items: center; gap: 16rpx; padding: 20rpx; background: #fff; border: 1rpx solid #E8E0D0; border-radius: 20rpx; }
 .mc-avatar { width: 80rpx; height: 80rpx; border-radius: 50%; flex-shrink: 0; }
+.mc-avatar-ph { background: #F5F0E8; display: flex; align-items: center; justify-content: center; }
 .mc-info { flex: 1; min-width: 0; }
 .mc-info-top { display: flex; align-items: center; gap: 12rpx; }
 .mc-expert { font-size: 28rpx; font-weight: 500; color: #2C2C2C; }
@@ -97,7 +170,7 @@ function typeText(t: CallRecord['type']) { return t === 'incoming' ? '接入' : 
 .mc-dur { display: flex; align-items: center; gap: 4rpx; }
 .mc-dur-t { font-size: 22rpx; color: #999; }
 .mc-right { text-align: right; flex-shrink: 0; }
-.mc-cost { display: block; font-size: 28rpx; font-weight: 600; color: #C41E3A; }
+.mc-cost { display: block; font-size: 28rpx; font-weight: 600; color: var(--brand); }
 .mc-time { display: block; font-size: 20rpx; color: #999; margin-top: 6rpx; }
 .mc-empty { padding: 120rpx 0; }
 .mc-empty-t { display: block; text-align: center; font-size: 26rpx; color: #999; }

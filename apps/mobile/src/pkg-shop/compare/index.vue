@@ -30,12 +30,21 @@
       </view>
       <!-- 商品选择区 -->
       <template v-else>
-      <view class="picker">
+      <!-- 暂无对比商品（后端无用户对比清单/结构化对比规格，从商品详情添加） -->
+      <view v-if="!pickList.length && !picked.length" class="compare-empty">
+        <app-icon name="git-compare" :size="80" color="#C9A96E" />
+        <text class="compare-empty-title">暂无可对比商品</text>
+        <text class="compare-empty-desc">从商品详情页点击「加入对比」，即可在此并排比较</text>
+        <view class="compare-empty-btn" hover-class="card-hover" @tap="goShop">
+          <text class="compare-empty-btn-text">去逛商城</text>
+        </view>
+      </view>
+      <view v-if="picked.length || pickList.length" class="picker">
         <scroll-view scroll-x class="picker-scroll">
           <view class="picker-list">
             <view v-for="(p, idx) in picked" :key="p.id" class="pcard">
               <view class="pcard-cover" hover-class="card-hover" @tap="goDetail(p.id)">
-                <image class="pcard-img" :src="p.cover" mode="aspectFill" />
+                <image lazy-load class="pcard-img" :src="p.cover" mode="aspectFill" />
               </view>
               <text class="pcard-name">{{ p.name }}</text>
               <text class="pcard-price">¥{{ p.price }}</text>
@@ -45,7 +54,7 @@
             </view>
 
             <!-- 添加插槽 -->
-            <view v-if="selected.length < 4" class="empty-slot" hover-class="card-hover" @tap="showPicker = true">
+            <view v-if="selected.length < 4 && pickList.length" class="empty-slot" hover-class="card-hover" @tap="showPicker = true">
               <app-icon name="plus" :size="56" color="#C9A96E" />
               <text class="empty-slot-text">添加商品</text>
             </view>
@@ -129,7 +138,7 @@
             hover-class="card-hover"
             @tap="addProduct(pid)"
           >
-            <image class="modal-cover" :src="products[pid].cover" mode="aspectFill" />
+            <image lazy-load class="modal-cover" :src="products[pid].cover" mode="aspectFill" />
             <view class="modal-info">
               <text class="modal-name">{{ products[pid].name }}</text>
               <text class="modal-price">¥{{ products[pid].price }}</text>
@@ -158,7 +167,7 @@ const products = ref<Record<string, CompareProduct>>({})
 const pickList = ref<string[]>([])
 const loading = ref(true)
 const error = ref('')
-const selected = ref<string[]>(['p1', 'p2'])
+const selected = ref<string[]>([])
 const showPicker = ref(false)
 const onlyDiff = ref(false)
 const collapsed = ref<string[]>([])
@@ -195,6 +204,9 @@ const pickableIds = computed(() => pickList.value.filter((id) => !selected.value
 
 function goDetail(id: string) {
   uni.navigateTo({ url: `/pkg-shop/detail/index?id=${id}` })
+}
+function goShop() {
+  uni.navigateTo({ url: '/pkg-shop/index/index' })
 }
 function removeAt(idx: number) {
   selected.value.splice(idx, 1)
@@ -289,8 +301,8 @@ const visibleGroups = computed<Group[]>(() => {
   border: 2rpx solid #e8e3db;
 }
 .nav-diff--on {
-  background: #c41e3a;
-  border-color: #c41e3a;
+  background: var(--brand);
+  border-color: var(--brand);
 }
 .nav-hover {
   opacity: 0.7;
@@ -357,7 +369,7 @@ const visibleGroups = computed<Group[]>(() => {
   margin-top: 4rpx;
   font-size: 28rpx;
   font-weight: 700;
-  color: #c41e3a;
+  color: var(--brand);
 }
 .pcard-del {
   position: absolute;
@@ -434,7 +446,7 @@ const visibleGroups = computed<Group[]>(() => {
   width: 12rpx;
   height: 12rpx;
   border-radius: 50%;
-  background: #c41e3a;
+  background: var(--brand);
   flex-shrink: 0;
 }
 .td-values {
@@ -465,7 +477,7 @@ const visibleGroups = computed<Group[]>(() => {
   font-weight: 600;
 }
 .td-cell--best .td-cell-text {
-  color: #c41e3a;
+  color: var(--brand);
   font-weight: 700;
 }
 
@@ -488,7 +500,7 @@ const visibleGroups = computed<Group[]>(() => {
   flex: 1;
   height: 80rpx;
   border-radius: 999rpx;
-  background: #c41e3a;
+  background: var(--brand);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -579,7 +591,7 @@ const visibleGroups = computed<Group[]>(() => {
   margin-top: 6rpx;
   font-size: 28rpx;
   font-weight: 700;
-  color: #c41e3a;
+  color: var(--brand);
 }
 .modal-empty {
   padding: 60rpx 0;
@@ -605,11 +617,16 @@ const visibleGroups = computed<Group[]>(() => {
 }
 .retry-btn {
   padding: 16rpx 48rpx;
-  background: #c41e3a;
+  background: var(--brand);
   border-radius: 999rpx;
 }
 .retry-btn-text {
   font-size: 26rpx;
   color: #fff;
 }
+.compare-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 160rpx 48rpx; gap: 20rpx; }
+.compare-empty-title { font-size: 30rpx; color: #2C2C2C; font-weight: 600; }
+.compare-empty-desc { font-size: 25rpx; color: #999; text-align: center; line-height: 1.6; }
+.compare-empty-btn { margin-top: 16rpx; padding: 18rpx 64rpx; background: #C9A96E; border-radius: 44rpx; }
+.compare-empty-btn-text { font-size: 27rpx; color: #fff; }
 </style>

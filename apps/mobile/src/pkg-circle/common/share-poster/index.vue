@@ -34,14 +34,14 @@
 
               <view class="poster-card__footer">
                 <view class="poster-card__author">
-                  <image :src="posterData.authorAvatar" class="poster-card__avatar" mode="aspectFill" />
+                  <image lazy-load :src="posterData.authorAvatar" class="poster-card__avatar" mode="aspectFill" />
                   <view class="poster-card__author-info">
                     <text class="poster-card__author-name" :style="{ color: activeTheme.ink }">{{ posterData.author }}</text>
                     <text class="poster-card__author-from" :style="{ color: activeTheme.sub }">来自 热卜国学</text>
                   </view>
                 </view>
                 <view class="poster-card__qr">
-                  <image :src="posterData.qrcode" class="poster-card__qr-img" mode="aspectFit" />
+                  <image lazy-load :src="posterData.qrcode" class="poster-card__qr-img" mode="aspectFit" />
                   <text class="poster-card__qr-label" :style="{ color: activeTheme.sub }">{{ posterData.qrLabel }}</text>
                 </view>
               </view>
@@ -543,7 +543,7 @@ onMounted(() => {})
   text-align: center;
 }
 .theme-item--active {
-  border-color: #c41e3a;
+  border-color: var(--brand);
 }
 .theme-item__name {
   font-size: 26rpx;
@@ -555,7 +555,7 @@ onMounted(() => {})
   top: -8rpx;
   width: 36rpx;
   height: 36rpx;
-  background: #c41e3a;
+  background: var(--brand);
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -576,7 +576,7 @@ onMounted(() => {})
   background: rgba(255, 255, 255, 0.1);
 }
 .tone-tab--active {
-  background: #c41e3a;
+  background: var(--brand);
   color: #ffffff;
 }
 .tone-text {
@@ -617,7 +617,7 @@ onMounted(() => {})
   border: 2rpx solid rgba(255, 255, 255, 0.2);
 }
 .action-btn--primary {
-  background: #c41e3a;
+  background: var(--brand);
 }
 .action-btn--disabled {
   opacity: 0.6;

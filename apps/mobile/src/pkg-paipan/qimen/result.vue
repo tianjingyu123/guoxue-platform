@@ -1,25 +1,17 @@
 <script setup lang="ts">
-/** 奇门遁甲排盘结果页——从原型 app/paipan/qimen/result/page.tsx 1:1 迁移 */
+/** 奇门遁甲排盘结果页——接 qimenApi.calculate 真实算法，三态驱动 */
 import { ref, reactive, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import QimenNotesPanel from '@/components/qimen/notes-panel.vue'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
 import { navigateTo } from '@/utils/router'
+import { getToken } from '@/utils/storage'
+import { qimenApi, type QimenResult, type QimenInput } from '@/lib/qimen-data'
 
 // ─── 奇门常量 ───
 const PALACE_ORDER = [4, 9, 2, 3, 5, 7, 8, 1, 6] // 洛书九宫: 巽离坤/震中兑/艮坎乾
 const PALACE_NAMES = ['', '坎1宫', '坤2宫', '震3宫', '巽4宫', '中5宫', '乾6宫', '兑7宫', '艮8宫', '离9宫']
-const BASHEN = ['', '值符', '腾蛇', '太阴', '六合', '勾陈', '太常', '九地', '九天', '朱雀']
-const JIUXING = ['', '天蓬', '天芮', '天冲', '天辅', '天禽', '天心', '天柱', '天任', '天英']
-const BAMEN = ['', '休门', '死门', '伤门', '杜门', '中门', '开门', '惊门', '生门', '景门']
-const DIPAN_SHEN = ['', '常', '符', '阴', '合', '', '天', '地', '蛇', '雀']
-const CHANGSHENG = ['长生', '沐浴', '冠带', '临官', '帝旺', '衰', '病', '死', '墓', '绝', '胎', '养']
-
-const PALACE_DIZHI: Record<number, string[]> = {
-  1: ['子'], 2: ['丑', '未'], 3: ['卯'], 4: ['辰', '巳'], 5: [],
-  6: ['戌', '亥'], 7: ['酉'], 8: ['丑', '寅'], 9: ['午'],
-}
 
 const GEJU_MEANINGS: Record<string, string> = {
   '癸+己': '华盖地户。男女测之，音信皆阻，此格躲灾避难方为吉。得吉门尚可为之。',
@@ -33,42 +25,72 @@ interface PalaceCell {
   bashen: string; jiuxing: string; bamen: string
   tianGan: string; diGan: string; anGan: string
   dipanShen: string
-  changsheng: { tian: string; di: string; an: string }
+  changsheng: { di: string; an: string }
   isZhifu: boolean; isZhishi: boolean
   ruMu: boolean; jiXing: boolean; menPo: boolean
-}
-
-function generatePalaceData(juNum: number, isYang: boolean, zhifuPalace: number, zhishiPalace: number) {
-  const tiangan = ['甲', '乙', '丙', '丁', '戊', '己', '庚', '辛', '壬', '癸']
-  const offset = (juNum - 1) % 9
-  const palaces: Record<number, PalaceCell> = {}
-  for (let i = 1; i <= 9; i++) {
-    const idx = isYang ? (i + offset - 1) % 9 : (9 - i + offset) % 9
-    palaces[i] = {
-      bashen: BASHEN[(idx % 9) + 1] || BASHEN[i],
-      jiuxing: JIUXING[(idx % 9) + 1] || JIUXING[i],
-      bamen: BAMEN[(idx % 9) + 1] || BAMEN[i],
-      tianGan: tiangan[idx % 10],
-      diGan: tiangan[(idx + 3) % 10],
-      anGan: tiangan[(idx + 6) % 10],
-      dipanShen: DIPAN_SHEN[i],
-      changsheng: {
-        tian: CHANGSHENG[(idx + juNum) % 12],
-        di: CHANGSHENG[(idx + juNum + 4) % 12],
-        an: CHANGSHENG[(idx + juNum + 8) % 12],
-      },
-      isZhifu: i === zhifuPalace, isZhishi: i === zhishiPalace,
-      ruMu: [3, 6].includes(i), jiXing: [4, 8].includes(i), menPo: i === 2,
-    }
-  }
-  return palaces
+  kongWang: boolean; maXing: boolean
 }
 
 // ─── 路由参数 ───
 const q = reactive({
   matter: '', year: 2026, month: 5, day: 17, hour: 13, minute: 59,
-  panMethod: 'fei', flyMethod: 'yinyang', startMethod: 'zhirun', anganMethod: 'dipan', customJu: '',
+  panMethod: 'zhuan', flyMethod: 'yinyang', startMethod: 'zhirun', anganMethod: 'dipan', customJu: '',
+  useTrueSolar: false, lat: 0, lng: 0,
 })
+
+// ─── 三态 ───
+const loading = ref(true)
+const errMsg = ref('')
+const result = ref<QimenResult | null>(null)
+const saving = ref(false)
+
+function buildInput(): QimenInput {
+  return {
+    matter: q.matter,
+    year: q.year, month: q.month, day: q.day, hour: q.hour, minute: q.minute,
+    panMethod: q.panMethod as QimenInput['panMethod'],
+    flyMethod: q.flyMethod as QimenInput['flyMethod'],
+    startMethod: q.startMethod as QimenInput['startMethod'],
+    customJu: q.customJu || undefined,
+    anganMethod: q.anganMethod as QimenInput['anganMethod'],
+    useTrueSolar: q.useTrueSolar,
+    lat: q.lat || undefined,
+    lng: q.lng || undefined,
+  }
+}
+
+async function load() {
+  loading.value = true
+  errMsg.value = ''
+  try {
+    result.value = await qimenApi.calculate(buildInput())
+  } catch (e) {
+    errMsg.value = (e as Error)?.message || '排盘失败，请稍后重试'
+  } finally {
+    loading.value = false
+  }
+}
+
+/** 保存排盘记录（需登录，防重复提交） */
+async function onSave() {
+  if (saving.value) return
+  if (!getToken()) { uni.showToast({ title: '请先登录后保存', icon: 'none' }); return }
+  saving.value = true
+  try {
+    await qimenApi.save(buildInput())
+    uni.showToast({ title: '已保存到排盘记录', icon: 'success' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '保存失败', icon: 'none' })
+  } finally {
+    saving.value = false
+  }
+}
+
+/** AI 智能解析（后端时家奇门 AI 端点尚未提供，暂占位） */
+function onAnalyze() {
+  uni.showToast({ title: 'AI 智能解析即将上线', icon: 'none' })
+}
+
 onLoad((opts: Record<string, string> = {}) => {
   q.matter = opts.matter ? decodeURIComponent(opts.matter) : ''
   q.year = Number(opts.year) || 2026
@@ -76,81 +98,137 @@ onLoad((opts: Record<string, string> = {}) => {
   q.day = Number(opts.day) || 17
   q.hour = Number(opts.hour) || 13
   q.minute = Number(opts.minute) || 59
-  q.panMethod = opts.panMethod || 'fei'
+  q.panMethod = opts.panMethod || 'zhuan'
   q.flyMethod = opts.flyMethod || 'yinyang'
   q.startMethod = opts.startMethod || 'zhirun'
   q.anganMethod = opts.anganMethod || 'dipan'
   q.customJu = opts.customJu ? decodeURIComponent(opts.customJu) : ''
+  q.useTrueSolar = opts.useTrueSolar === 'true'
+  q.lat = Number(opts.lat) || 0
+  q.lng = Number(opts.lng) || 0
   editedMatter.value = q.matter
-  if (q.customJu) {
-    const m = q.customJu.match(/(阳遁|阴遁)(\d)局/)
-    if (m) { currentJu.isYang = m[1] === '阳遁'; currentJu.num = parseInt(m[2]) }
-  }
+  load()
 })
 
-// ─── 状态 ───
+// ─── 适配层：QimenResult → 页面结构 ───
+const meta = computed(() => result.value?.meta)
+const hasData = computed(() => !!result.value && (result.value.gongs?.length ?? 0) > 0)
+const isFei = computed(() => q.panMethod === 'fei') // 飞盘暂无安干/地盘神/长生，诚实降级
+
+// 值符/值使所在宫（按数组位置=洛书宫，避免阴盘中宫寄坤2的 index 碰撞）
+const zhifuPos = computed(() => {
+  const gongs = result.value?.gongs || []
+  const i = gongs.findIndex(g => g.star === result.value?.zhiFu)
+  return i >= 0 ? i + 1 : -1
+})
+const zhishiPos = computed(() => {
+  const m = result.value?.zhiShiMen || ''
+  const full = m && !m.endsWith('门') ? m + '门' : m
+  const gongs = result.value?.gongs || []
+  const i = gongs.findIndex(g => (g.men?.endsWith('门') ? g.men : (g.men || '') + '门') === full)
+  return i >= 0 ? i + 1 : -1
+})
+
+// 九宫按数组位置(i+1=坎1..离9)映射：阳盘/阴盘数组恒为此序；阴盘中宫寄坤2其 index=2 但位置仍是5
+const palaceData = computed<Record<number, PalaceCell>>(() => {
+  const map: Record<number, PalaceCell> = {}
+  const gongs = result.value?.gongs || []
+  gongs.forEach((g, i) => {
+    const palace = i + 1
+    map[palace] = {
+      bashen: g.shen || '',
+      jiuxing: g.star,
+      bamen: palace === 5 ? '中门' : (g.men?.endsWith('门') ? g.men : (g.men || '') + '门'),
+      tianGan: g.tianPan,          // 天盘干（奇门格局 天盘+地盘）
+      diGan: g.diPan,              // 地盘干
+      anGan: g.anGan || g.yinGan || '',   // 阴盘隐干即安干
+      dipanShen: g.dipanShen || '',
+      changsheng: { di: g.changsheng?.di || '', an: g.changsheng?.an || '' },
+      isZhifu: palace === zhifuPos.value,
+      isZhishi: palace === zhishiPos.value,
+      ruMu: g.isRuMu, jiXing: g.isJiXing, menPo: g.isMenPo,
+      kongWang: g.kongWang, maXing: g.maXing,
+    }
+  })
+  return map
+})
+
+const sizhu = computed(() => {
+  const s = meta.value?.siZhu
+  if (!s) return []
+  return [
+    { label: '年柱', g: s.nian.gan, z: s.nian.zhi },
+    { label: '月柱', g: s.yue.gan, z: s.yue.zhi },
+    { label: '日柱', g: s.ri.gan, z: s.ri.zhi },
+    { label: '时柱', g: s.shi.gan, z: s.shi.zhi },
+  ]
+})
+const kongwangData = computed(() => {
+  const k = meta.value?.kongWang
+  if (!k) return []
+  return [
+    { label: '年', zhi: k.nian },
+    { label: '月', zhi: k.yue },
+    { label: '日', zhi: k.ri },
+    { label: '时', zhi: k.shi },
+  ]
+})
+const maXing = computed(() => meta.value?.maXingZhi || '')
+
+const juLabel = computed(() => {
+  const r = result.value
+  return r ? `${r.dunType === 'yang' ? '阳' : '阴'}${r.juNumber}局` : ''
+})
+const zhiShiMenLabel = computed(() => {
+  const m = result.value?.zhiShiMen || ''
+  return m && !m.endsWith('门') ? m + '门' : m
+})
+
+// ─── 交互状态 ───
 const showChangsheng = ref(false)
 const showDipanShen = ref(false)
 const selectedPalace = ref<number | null>(null)
 const showNotes = ref(false)
 const showEditMatter = ref(false)
 const editedMatter = ref('')
-const selectedKongwang = ref(3)
-const currentJu = reactive({ isYang: true, num: 7 })
-
-const zhifuPalace = 1
-const zhishiPalace = 6
-const palaceData = computed(() => generatePalaceData(currentJu.num, currentJu.isYang, zhifuPalace, zhishiPalace))
-
-function prevJu() {
-  if (currentJu.num === 1) { currentJu.isYang = !currentJu.isYang; currentJu.num = 9 }
-  else currentJu.num -= 1
-  selectedPalace.value = null
-}
-function nextJu() {
-  if (currentJu.num === 9) { currentJu.isYang = !currentJu.isYang; currentJu.num = 1 }
-  else currentJu.num += 1
-  selectedPalace.value = null
-}
 
 const startLabel = computed(() =>
   q.startMethod === 'zhirun' ? '置闰' : q.startMethod === 'chaibu' ? '拆补' : q.startMethod === 'maoshan' ? '茅山' : '自选')
 const panshi = computed(() =>
   `${q.panMethod === 'fei' ? '飞盘' : '转盘'}奇门 - ${q.flyMethod === 'yinyang' ? '阴阳皆顺' : '阳顺阴逆'} - ${startLabel.value} - ${q.anganMethod === 'dipan' ? '门地盘起' : '值使门起'}`)
 
-const sizhu = [
-  { label: '年柱', g: '丙', z: '午' },
-  { label: '月柱', g: '癸', z: '巳' },
-  { label: '日柱', g: '辛', z: '卯' },
-  { label: '时柱', g: '乙', z: '未' },
-]
-const kongwangData = [
-  { zhi: '寅卯', label: '年' },
-  { zhi: '午未', label: '月' },
-  { zhi: '午未', label: '日' },
-  { zhi: '辰巳', label: '时' },
-]
-const maXing = '巳'
-
-const selectedKongwangZhi = computed(() => kongwangData[selectedKongwang.value]?.zhi || '')
-function hasKongwang(p: number) { return (PALACE_DIZHI[p] || []).some(dz => selectedKongwangZhi.value.includes(dz)) }
-function hasMaXing(p: number) { return (PALACE_DIZHI[p] || []).includes(maXing) }
+// 上一局/下一局：以 customJu 重新向后端排盘（真实换局，非前端臆造）
+function shiftJu(delta: number) {
+  if (!result.value) return
+  let num = result.value.juNumber
+  let isYang = result.value.dunType === 'yang'
+  num += delta
+  if (num > 9) { num = 1; isYang = !isYang }
+  if (num < 1) { num = 9; isYang = !isYang }
+  q.startMethod = 'custom'
+  q.customJu = `${isYang ? '阳遁' : '阴遁'}${num}局`
+  selectedPalace.value = null
+  load()
+}
 
 function pad(n: number) { return String(n).padStart(2, '0') }
 
 // 详情格局
 const detail = computed(() => {
   const p = selectedPalace.value
-  if (!p) return null
+  if (!p || !palaceData.value[p]) return null
   const d = palaceData.value[p]
   const xiantianGong = ['', '震', '艮', '坎', '巽', '', '离', '坤', '乾', '兑']
   const dizhi = ['', '子', '丑未', '卯', '辰巳', '', '戌亥', '酉', '丑寅', '午']
   const nums = [p, p + 2, p + 4, p + 6].filter(n => n <= 10).join('，')
-  const combos = [
+  const rawCombos = [
     { k: `${d.tianGan}+${d.diGan}`, l: `${d.tianGan}+${d.diGan}` },
-    { k: `${d.tianGan}+${d.anGan}`, l: `${d.tianGan}+${d.anGan}` },
+    { k: d.anGan ? `${d.tianGan}+${d.anGan}` : '', l: d.anGan ? `${d.tianGan}+${d.anGan}` : '' },
     { k: `${d.bamen.replace('门', '')}+${d.jiuxing.replace('天', '')}`, l: `${d.bamen}+${d.jiuxing}` },
-  ].map(c => ({ ...c, text: GEJU_MEANINGS[c.k] || '此格局需结合用神具体分析。' }))
+  ]
+  const combos = rawCombos
+    .filter(c => c.k && !c.k.startsWith('+') && !c.k.endsWith('+'))
+    .map(c => ({ ...c, text: GEJU_MEANINGS[c.k] || '此格局需结合用神具体分析。' }))
   return { name: PALACE_NAMES[p], xiantian: xiantianGong[p], nums, dizhi: dizhi[p], combos }
 })
 
@@ -169,6 +247,25 @@ function saveMatter() { q.matter = editedMatter.value; showEditMatter.value = fa
     </view>
 
     <scroll-view scroll-y class="body">
+      <!-- Loading -->
+      <view v-if="loading" class="state">
+        <view class="spinner" />
+        <text class="state-t">正在排盘…</text>
+      </view>
+      <!-- Error -->
+      <view v-else-if="errMsg" class="state">
+        <app-icon name="alert-circle" :size="56" color="var(--text-soft)" />
+        <text class="state-t">{{ errMsg }}</text>
+        <view class="state-btn" @tap="load"><text class="state-btn-t">重试</text></view>
+      </view>
+      <!-- Empty -->
+      <view v-else-if="!hasData" class="state">
+        <app-icon name="inbox" :size="56" color="var(--text-soft)" />
+        <text class="state-t">暂无排盘数据</text>
+        <view class="state-btn" @tap="navigateTo('/paipan/qimen')"><text class="state-btn-t">返回重排</text></view>
+      </view>
+      <!-- 内容 -->
+      <template v-else>
       <!-- 信息表格 -->
       <view class="info-wrap">
         <view class="info-card">
@@ -184,11 +281,11 @@ function saveMatter() { q.matter = editedMatter.value; showEditMatter.value = fa
           </view>
           <view class="info-row">
             <text class="info-key">日期</text>
-            <text class="info-val">{{ q.year }}年{{ pad(q.month) }}月{{ pad(q.day) }}日 {{ q.hour }}时{{ q.minute }}分<text class="info-muted">(四月初一)</text></text>
+            <text class="info-val">{{ q.year }}年{{ pad(q.month) }}月{{ pad(q.day) }}日 {{ q.hour }}时{{ pad(q.minute) }}分</text>
           </view>
-          <view class="info-row">
+          <view v-if="meta?.trueSolar" class="info-row">
             <text class="info-key">真太阳时</text>
-            <text class="info-val">{{ q.year }}年{{ pad(q.month) }}月{{ pad(q.day) }}日 {{ q.hour }}时{{ Math.max(0, q.minute - 15) }}分</text>
+            <text class="info-val">{{ q.year }}年{{ pad(q.month) }}月{{ pad(q.day) }}日 {{ meta.trueSolar.hour }}时{{ pad(meta.trueSolar.minute) }}分</text>
           </view>
           <!-- 四柱 -->
           <view class="info-row col">
@@ -201,33 +298,35 @@ function saveMatter() { q.matter = editedMatter.value; showEditMatter.value = fa
               </view>
             </view>
           </view>
-          <!-- 空亡 -->
+          <!-- 空亡（每柱旬空） -->
           <view class="info-row col">
             <text class="info-key">空亡</text>
             <view class="grid4">
-              <view v-for="(k, i) in kongwangData" :key="i" class="kw-cell" :class="{ on: selectedKongwang === i }" @tap="selectedKongwang = i">
-                <text class="kw-text" :class="{ on: selectedKongwang === i }">{{ k.zhi }}</text>
+              <view v-for="(k, i) in kongwangData" :key="i" class="kw-cell">
+                <text class="kw-text">{{ k.label }} {{ k.zhi }}</text>
               </view>
             </view>
           </view>
-          <view class="info-row">
+          <view v-if="result?.jieQi" class="info-row">
             <text class="info-key">节气</text>
-            <text class="info-val sm"><text class="hl">立夏</text> {{ q.year }}.05.05 19:48 ~ <text class="hl">小满</text> {{ q.year }}.05.21 08:36</text>
+            <text v-if="meta?.jieQi" class="info-val sm"><text class="hl">{{ meta.jieQi.name }}</text> {{ meta.jieQi.start }} ~ <text class="hl">{{ meta.jieQi.nextName }}</text> {{ meta.jieQi.end }}</text>
+            <text v-else class="info-val sm"><text class="hl">{{ result.jieQi }}</text> 用事</text>
           </view>
-          <!-- 旬首表头 -->
+          <!-- 用事表头 -->
           <view class="info-row shade">
-            <text class="info-key">旬首</text>
+            <text class="info-key">用事</text>
             <view class="grid4 center">
               <text class="xh-h">局数</text><text class="xh-h">值符</text><text class="xh-h">值使</text><text class="xh-h">马星</text>
             </view>
           </view>
           <view class="info-row noborder">
-            <text class="info-key dark">甲午辛</text>
+            <text class="info-key dark">{{ result?.yongShi }}</text>
             <view class="grid4 center mid">
-              <text class="xh-v">{{ startLabel }} {{ currentJu.isYang ? '阳' : '阴' }}{{ currentJu.num }}</text>
-              <text class="xh-v green">天蓬</text>
-              <text class="xh-v green">休门</text>
-              <view class="ma-badge"><text class="ma-badge-t">{{ maXing }}</text></view>
+              <text class="xh-v">{{ juLabel }}</text>
+              <text class="xh-v green">{{ result?.zhiFu }}</text>
+              <text class="xh-v green">{{ zhiShiMenLabel }}</text>
+              <view v-if="maXing" class="ma-badge"><text class="ma-badge-t">{{ maXing }}</text></view>
+              <text v-else class="xh-v">—</text>
             </view>
           </view>
         </view>
@@ -242,12 +341,12 @@ function saveMatter() { q.matter = editedMatter.value; showEditMatter.value = fa
             :class="{ sel: selectedPalace === palace, center: palace === 5 }"
             @tap="selectedPalace = selectedPalace === palace ? null : palace"
           >
-            <view v-if="hasMaXing(palace)" class="cell-ma"><text class="cell-ma-t">马</text></view>
+            <view v-if="palaceData[palace].maXing" class="cell-ma"><text class="cell-ma-t">马</text></view>
             <view class="cell-grid">
               <!-- 列1 -->
               <view class="cell-c1">
                 <view class="cell-slot">
-                  <view v-if="hasKongwang(palace)" class="kw-circle" />
+                  <view v-if="palaceData[palace].kongWang" class="kw-circle" />
                 </view>
                 <view class="cell-slot"><text class="cell-tg">{{ palaceData[palace].tianGan }}</text></view>
                 <view class="cell-slot"><text v-if="showDipanShen" class="cell-dps">{{ palaceData[palace].dipanShen }}</text></view>
@@ -282,8 +381,8 @@ function saveMatter() { q.matter = editedMatter.value; showEditMatter.value = fa
         <!-- 操作按钮 -->
         <view class="ops">
           <view class="op" :class="{ on: showChangsheng }" @tap="showChangsheng = !showChangsheng"><text class="op-t" :class="{ on: showChangsheng }">长生状态</text></view>
-          <view class="op" @tap="prevJu"><text class="op-t">上一局</text></view>
-          <view class="op" @tap="nextJu"><text class="op-t">下一局</text></view>
+          <view class="op" @tap="shiftJu(-1)"><text class="op-t">上一局</text></view>
+          <view class="op" @tap="shiftJu(1)"><text class="op-t">下一局</text></view>
           <view class="op" :class="{ on: showDipanShen }" @tap="showDipanShen = !showDipanShen"><text class="op-t" :class="{ on: showDipanShen }">地盘九神</text></view>
         </view>
         <text class="hint">点击宫位查看详细信息</text>
@@ -305,14 +404,15 @@ function saveMatter() { q.matter = editedMatter.value; showEditMatter.value = fa
 
       <!-- AI解析/保存 -->
       <view class="cta">
-        <view class="cta-ai"><app-icon name="sparkles" :size="32" color="#ffffff" /><text class="cta-ai-t">AI智能解析</text></view>
-        <view class="cta-save"><app-icon name="save" :size="30" color="var(--text-ink)" /><text class="cta-save-t">保存</text></view>
+        <view class="cta-ai" @tap="onAnalyze"><app-icon name="sparkles" :size="32" color="#ffffff" /><text class="cta-ai-t">AI智能解析</text></view>
+        <view class="cta-save" :class="{ disabled: saving }" @tap="onSave"><app-icon name="save" :size="30" color="var(--text-ink)" /><text class="cta-save-t">{{ saving ? '保存中…' : '保存' }}</text></view>
       </view>
 
       <!-- 免责声明 -->
       <view class="dc-wrap">
         <disclaimer variant="fortune" tone="card" />
       </view>
+      </template>
     </scroll-view>
 
     <!-- 悬浮笔记按钮 -->
@@ -348,6 +448,14 @@ function saveMatter() { q.matter = editedMatter.value; showEditMatter.value = fa
 .hdr-share { padding: 8rpx; margin-right: -8rpx; }
 
 .body { flex: 1; }
+
+/* 三态 */
+.state { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20rpx; padding: 160rpx 48rpx; }
+.state-t { font-size: 26rpx; color: var(--text-soft); text-align: center; line-height: 1.6; }
+.state-btn { margin-top: 8rpx; padding: 18rpx 56rpx; background: var(--brand); border-radius: 999rpx; box-shadow: 0 4rpx 12rpx rgba(196,30,58,0.25); }
+.state-btn-t { font-size: 26rpx; font-weight: 500; color: #fff; }
+.spinner { width: 56rpx; height: 56rpx; border-radius: 999rpx; border: 6rpx solid rgba(196,30,58,0.18); border-top-color: var(--brand); animation: qm-spin 0.8s linear infinite; }
+@keyframes qm-spin { to { transform: rotate(360deg); } }
 
 /* 信息表格 */
 .info-wrap { padding: 16rpx 24rpx 0; }
@@ -430,6 +538,7 @@ function saveMatter() { q.matter = editedMatter.value; showEditMatter.value = fa
 .cta-ai { flex: 1; display: flex; align-items: center; justify-content: center; gap: 12rpx; padding: 26rpx 0; background: var(--brand); border-radius: 20rpx; box-shadow: 0 8rpx 20rpx rgba(196,30,58,0.25); }
 .cta-ai-t { font-size: 28rpx; font-weight: 500; color: #fff; }
 .cta-save { display: flex; align-items: center; justify-content: center; gap: 12rpx; padding: 26rpx 48rpx; background: var(--card); border: 2rpx solid var(--border); border-radius: 20rpx; }
+.cta-save.disabled { opacity: 0.55; }
 .cta-save-t { font-size: 28rpx; font-weight: 500; color: var(--text-ink); }
 
 .dc-wrap { padding: 24rpx; }

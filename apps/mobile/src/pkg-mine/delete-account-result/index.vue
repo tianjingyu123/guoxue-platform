@@ -233,7 +233,7 @@ function goCustomerService() {
 .blue-link { color: #2563eb; font-weight: 500; text-decoration: underline; }
 
 .btns { width: 100%; display: flex; flex-direction: column; gap: 24rpx; }
-.btn-danger { height: 96rpx; background: #C41E3A; border-radius: 24rpx; display: flex; align-items: center; justify-content: center; gap: 16rpx; }
+.btn-danger { height: 96rpx; background: var(--brand); border-radius: 24rpx; display: flex; align-items: center; justify-content: center; gap: 16rpx; }
 .btn-danger-text { font-size: 30rpx; font-weight: 500; color: #fff; }
 .btn-muted { height: 96rpx; background: #f2ece1; border-radius: 24rpx; display: flex; align-items: center; justify-content: center; gap: 16rpx; }
 .btn-muted-text { font-size: 30rpx; font-weight: 500; color: #2c2c2c; }

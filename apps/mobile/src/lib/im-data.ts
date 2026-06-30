@@ -2,7 +2,7 @@
  * IM 消息板块数据层（mock + 类型 + 工具）
  * v0 迁移：会话列表/聊天/通知三页公用
  */
-import { apiGet, apiPost, useMock } from '@/utils/request'
+import { apiGet, apiPost, apiPut, useMock } from '@/utils/request'
 
 const AVATAR = (seed: string) => `https://api.dicebear.com/7.x/avataaars/svg?seed=${seed}`
 
@@ -281,6 +281,50 @@ export function getChatPermission(
   return { state: 'can_greet', canSend: true, hint: '你们还未互相关注，发送消息需要对方回复后才能继续聊天' }
 }
 
+// ============ 私信社交策略（后端 /im/relation/:id 真连） ============
+
+/** 与目标用户的私信关系层级（与后端 ImPolicyService.ImRelation 对齐） */
+export type ImRelation =
+  | 'self'
+  | 'blocked'
+  | 'circle'
+  | 'paid'
+  | 'mutual'
+  | 'following'
+  | 'stranger'
+
+/** 后端返回的私信关系与权限判定结果 */
+export interface RelationPolicy {
+  relation: ImRelation
+  canSend: boolean
+  /** 本会话剩余可发条数；-1 表示不限 */
+  remaining: number
+  mediaPerms: { image: boolean; voice: boolean; file: boolean }
+  hint: string
+  reason?: string
+}
+
+/** 将后端 RelationPolicy 映射为聊天页 UI 使用的 ChatPermission 状态 */
+export function toChatPermission(p: RelationPolicy): ChatPermission {
+  if (p.reason === 'blocked') {
+    return { state: 'blocked', canSend: false, hint: p.hint, reason: p.reason }
+  }
+  if (p.canSend) {
+    const unrestricted = p.relation === 'circle' || p.relation === 'paid' || p.relation === 'mutual'
+    return {
+      state: unrestricted ? 'unrestricted' : 'can_greet',
+      canSend: true,
+      hint: p.hint,
+      reason: p.reason,
+    }
+  }
+  if (p.reason === 'waiting_reply') {
+    return { state: 'waiting_reply', canSend: false, hint: p.hint, reason: p.reason }
+  }
+  // 陌生人不可发 / 自己等其余不可发场景：统一禁用输入
+  return { state: 'blocked', canSend: false, hint: p.hint, reason: p.reason }
+}
+
 // ============ 消息中心(im/messages) ============
 // @data-needs: 消息中心列表, 参数 type(all|system|interaction|transaction|service), 返回 NotifyMessage[]
 export type NotifyType = 'system' | 'interaction' | 'transaction' | 'service' | 'income'
@@ -320,6 +364,85 @@ export const mockUnreadCounts: MessageUnreadCounts = {
   service: 0,
   income: 0,
   total: 6,
+}
+
+// ───────── 后端通知 → 前端 NotifyMessage 映射（真连 /notifications） ─────────
+
+/** 后端 Notification 原始结构（DMMF 权威字段：type 为自由 String） */
+interface RawNotification {
+  id: string
+  type: string
+  title: string
+  content: string
+  targetType?: string | null
+  targetId?: string | null
+  isRead: boolean
+  createdAt: string
+}
+
+/** 后端自由 type(String) → 前端四类 NotifyType（宽松关键词匹配 + 兜底 system；收益类并入交易 tab 避免隐形） */
+function mapNotifyType(t: string): NotifyType {
+  const s = (t || '').toUpperCase()
+  if (/COMMENT|REPLY|LIKE|COLLECT|FAVORITE|FOLLOW|MENTION/.test(s)) return 'interaction'
+  if (/EARN|INCOME|SETTLE|WITHDRAW|COMMISSION|REVENUE|ORDER|REFUND|LOGISTIC|SHIP|PAY|TRADE|DELIVER|RECHARGE/.test(s)) return 'transaction'
+  if (/SERVICE|SUPPORT|CUSTOMER|KEFU/.test(s)) return 'service'
+  return 'system'
+}
+
+/** 后端 type → 中文分类标签 */
+function notifyCategory(t: string): string {
+  const s = (t || '').toUpperCase()
+  const map: Record<string, string> = {
+    COMMENT: '评论', REPLY: '评论', LIKE: '点赞', COLLECT: '收藏', FAVORITE: '收藏',
+    FOLLOW: '关注', MENTION: '提及',
+    ORDER: '订单', REFUND: '退款', LOGISTIC: '物流', RECHARGE: '充值', PAY: '支付',
+    EARN: '收益', INCOME: '收益', WITHDRAW: '提现', COMMISSION: '分成',
+    SERVICE: '客服', SYSTEM: '系统',
+  }
+  for (const key of Object.keys(map)) {
+    if (s.includes(key)) return map[key]
+  }
+  return '通知'
+}
+
+/** targetType/targetId → 站内跳转链接（已知类型才给，未知返回 undefined 诚实降级） */
+function notifyLink(targetType?: string | null, targetId?: string | null): string | undefined {
+  if (!targetType || !targetId) return undefined
+  const t = targetType.toUpperCase()
+  if (t.includes('COURSE')) return `/pkg-course/detail?id=${targetId}`
+  if (t.includes('ARTICLE') || t.includes('POST')) return `/pkg-circle/articles/detail?id=${targetId}`
+  if (t.includes('ORDER')) return `/pkg-order/detail?id=${targetId}`
+  if (t.includes('CIRCLE')) return `/pkg-circle/detail?id=${targetId}`
+  if (t.includes('LIVE')) return `/pkg-live/vertical/index?id=${targetId}`
+  return undefined
+}
+
+/** 单条后端通知 → 前端展示模型 */
+function toNotifyMessage(n: RawNotification): NotifyMessage {
+  return {
+    id: n.id,
+    type: mapNotifyType(n.type),
+    category: notifyCategory(n.type),
+    title: n.title,
+    content: n.content,
+    time: formatMessageTime(new Date(n.createdAt).getTime()),
+    isRead: n.isRead,
+    link: notifyLink(n.targetType, n.targetId),
+  }
+}
+
+/** 按 NotifyType 聚合未读数（tab badge 用）；total 取后端权威总未读 */
+function buildUnreadCounts(list: NotifyMessage[], totalUnread: number): MessageUnreadCounts {
+  const c: MessageUnreadCounts = { system: 0, interaction: 0, transaction: 0, service: 0, income: 0, total: totalUnread }
+  for (const m of list) {
+    if (m.isRead) continue
+    if (m.type === 'system') c.system++
+    else if (m.type === 'interaction') c.interaction++
+    else if (m.type === 'transaction') c.transaction++
+    else if (m.type === 'service') c.service++
+    else if (m.type === 'income') c.income++
+  }
+  return c
 }
 
 export const mockNotifyMessages: NotifyMessage[] = [
@@ -728,6 +851,11 @@ export function getRequestStatusText(status: FriendRequestStatus): string {
 // ============ API 层 ============
 
 export const imApi = {
+  /** 查询与目标用户的私信关系与权限（真连，错误向上抛由页面走三态，不回退假数据） */
+  async getRelationPolicy(targetId: string): Promise<RelationPolicy> {
+    return await apiGet<RelationPolicy>(`/im/relation/${targetId}`)
+  },
+
   /** 获取会话列表 */
   async getConversations(): Promise<ConversationItem[]> {
     if (true) return mockConversations
@@ -752,10 +880,23 @@ export const imApi = {
     try { return await apiPost<ChatMessage>(`/im/send/${_targetId}`, { content: _content, type: _type }) } catch { return null }
   },
 
-  /** 获取通知消息列表 */
+  /** 获取通知消息列表（真连 /notifications，映射为前端展示模型；错误向上抛走三态，不回退假数据） */
   async getMessages(): Promise<{ list: NotifyMessage[]; unreadCounts: MessageUnreadCounts }> {
-    if (true) return { list: mockNotifyMessages, unreadCounts: mockUnreadCounts }
-    try { return await apiGet<{ list: NotifyMessage[]; unreadCounts: MessageUnreadCounts }>('/im/messages') } catch { return { list: mockNotifyMessages, unreadCounts: mockUnreadCounts } }
+    const res = await apiGet<{ notifications: RawNotification[]; total: number; unreadCount: number }>(
+      '/notifications?page=1&pageSize=50',
+    )
+    const list = (res.notifications || []).map(toNotifyMessage)
+    return { list, unreadCounts: buildUnreadCounts(list, res.unreadCount ?? 0) }
+  },
+
+  /** 标记单条通知已读 */
+  async markNotifyRead(id: string): Promise<void> {
+    await apiPut(`/notifications/${id}/read`)
+  },
+
+  /** 全部通知标记已读 */
+  async markAllNotifyRead(): Promise<void> {
+    await apiPut('/notifications/read-all')
   },
 
   /** 获取群详情 */

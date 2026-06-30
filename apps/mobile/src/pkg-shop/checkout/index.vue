@@ -45,7 +45,7 @@
       <view class="goods-card">
         <text class="goods-title">商品清单</text>
         <view v-for="g in items" :key="g.id" class="goods-item">
-          <image class="goods-img" :src="g.productCover" mode="aspectFill" />
+          <image lazy-load class="goods-img" :src="g.productCover" mode="aspectFill" />
           <view class="goods-info">
             <text class="goods-name">{{ g.productName }}</text>
             <view class="sku-tag"><text>{{ g.skuName }}</text></view>
@@ -146,6 +146,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import { redirectTo } from '@/utils/router'
 import { shopApi, formatCountdown, type ShippingAddress, type CheckoutCoupon } from '@/lib/shop-data'
 
@@ -163,6 +164,9 @@ const showCoupon = ref(false)
 const showTimeout = ref(false)
 const submitting = ref(false)
 
+// 结算来源：立即购买(productId+skuId+quantity) 或 购物车结算(itemIds)
+const source = ref<{ productId?: string; skuId?: string; quantity?: number; itemIds?: string[] }>({})
+
 const goodsTotal = computed(() => items.value.reduce((s: number, i: any) => s + i.price * i.quantity, 0))
 const payTotal = computed(() => Math.max(0, goodsTotal.value - (selectedCoupon.value?.value || 0)))
 
@@ -170,18 +174,28 @@ async function fetchCheckoutData() {
   error.value = ''
   loading.value = true
   try {
-    const result = await shopApi.getCheckout()
+    const result = await shopApi.getCheckout(source.value)
     items.value = result.items || []
     addresses.value = result.addresses || []
     coupons.value = result.coupons || []
     payMethods.value = result.payMethods || []
     currentAddress.value = addresses.value.find((a: ShippingAddress) => a.isDefault) || addresses.value[0] || null
+    if (!items.value.length) error.value = '没有可结算的商品，请返回重新选择'
   } catch (e: any) {
     error.value = e?.message || '加载失败'
   } finally {
     loading.value = false
   }
 }
+
+onLoad((q: any) => {
+  source.value = {
+    productId: q?.productId || undefined,
+    skuId: q?.skuId || undefined,
+    quantity: q?.quantity ? Number(q.quantity) : undefined,
+    itemIds: q?.items ? String(q.items).split(',').filter(Boolean) : undefined,
+  }
+})
 
 // 15分钟倒计时
 const remain = ref(15 * 60 * 1000)
@@ -203,11 +217,38 @@ onUnmounted(() => { if (timer) clearInterval(timer) })
 
 function selectAddress(a: ShippingAddress) { currentAddress.value = a; showAddress.value = false }
 function selectCoupon(c: CheckoutCoupon | null) { selectedCoupon.value = c; showCoupon.value = false }
-function submitOrder() {
+
+async function submitOrder() {
   if (submitting.value) return
+  if (!items.value.length) { uni.showToast({ title: '没有可结算的商品', icon: 'none' }); return }
+  if (!currentAddress.value) { uni.showToast({ title: '请选择收货地址', icon: 'none' }); return }
   submitting.value = true
-  redirectTo('/shop/paying')
-  setTimeout(() => { submitting.value = false }, 2000)
+  try {
+    const couponId = selectedCoupon.value?.id
+    // 后端为单商品下单（无合并支付）：多商品逐个创建订单，券仅用于第一单；先支付第一笔，其余在「我的订单」继续支付
+    const orders: { id: string; amount: number }[] = []
+    for (let i = 0; i < items.value.length; i++) {
+      const it = items.value[i]
+      const order = await shopApi.createOrder({
+        type: 'PRODUCT',
+        targetId: it.productId,
+        skuId: it.skuId,
+        quantity: it.quantity,
+        couponId: i === 0 ? couponId : undefined,
+        addressId: currentAddress.value.id,
+      })
+      orders.push({ id: order.id, amount: order.amount })
+    }
+    const first = orders[0]
+    if (orders.length > 1) {
+      uni.showToast({ title: `已创建${orders.length}笔订单，先支付第一笔`, icon: 'none' })
+    }
+    redirectTo(`/shop/paying?orderId=${first.id}&method=${payMethod.value}&amount=${first.amount}`)
+    // 成功跳转后不重置 submitting（页面已离开）
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '下单失败，请重试', icon: 'none' })
+    submitting.value = false
+  }
 }
 function onTimeout() { redirectTo('/shop/pay-timeout') }
 </script>
@@ -226,7 +267,7 @@ function onTimeout() { redirectTo('/shop/pay-timeout') }
 .addr-name { font-size: 30rpx; font-weight: 600; color: #1A1A1A; }
 .addr-phone { font-size: 26rpx; color: #666666; }
 .default-tag { background: rgba(196, 30, 58,0.1); padding: 2rpx 10rpx; border-radius: 6rpx; }
-.default-tag text { font-size: 20rpx; color: #C41E3A; }
+.default-tag text { font-size: 20rpx; color: var(--brand); }
 .addr-detail { font-size: 26rpx; color: #666666; line-height: 1.4; }
 .goods-card { background: #FFFFFF; margin: 0 20rpx 20rpx; border-radius: 20rpx; padding: 24rpx; }
 .goods-title { font-size: 28rpx; font-weight: 600; color: #1A1A1A; display: block; margin-bottom: 20rpx; }
@@ -237,35 +278,35 @@ function onTimeout() { redirectTo('/shop/pay-timeout') }
 .sku-tag { align-self: flex-start; background: #F5F5F5; padding: 4rpx 14rpx; border-radius: 8rpx; }
 .sku-tag text { font-size: 22rpx; color: #999999; }
 .goods-bottom { display: flex; justify-content: space-between; align-items: center; }
-.goods-price { font-size: 30rpx; color: #C41E3A; font-weight: 700; }
+.goods-price { font-size: 30rpx; color: var(--brand); font-weight: 700; }
 .goods-qty { font-size: 26rpx; color: #999999; }
 .cell { display: flex; align-items: center; background: #FFFFFF; margin: 0 20rpx 20rpx; padding: 28rpx 24rpx; border-radius: 20rpx; }
 .cell-left { display: flex; align-items: center; gap: 16rpx; }
 .cell-label { font-size: 28rpx; color: #1A1A1A; }
-.cell-value { margin-left: auto; font-size: 26rpx; color: #999999; margin-right: 10rpx; &.active { color: #C41E3A; } }
+.cell-value { margin-left: auto; font-size: 26rpx; color: #999999; margin-right: 10rpx; &.active { color: var(--brand); } }
 .pay-card { background: #FFFFFF; margin: 0 20rpx 20rpx; padding: 24rpx; border-radius: 20rpx; }
 .pay-title { font-size: 28rpx; font-weight: 600; color: #1A1A1A; display: block; margin-bottom: 16rpx; }
 .pay-item { display: flex; align-items: center; gap: 16rpx; padding: 16rpx 0; }
 .pay-badge { width: 56rpx; height: 56rpx; border-radius: 12rpx; display: flex; align-items: center; justify-content: center; }
 .pay-badge text { color: #FFFFFF; font-size: 28rpx; }
 .pay-name { font-size: 28rpx; color: #1A1A1A; }
-.radio { width: 40rpx; height: 40rpx; border-radius: 50%; border: 2rpx solid #CCCCCC; margin-left: auto; display: flex; align-items: center; justify-content: center; &.checked { border-color: #C41E3A; } }
-.radio-dot { width: 22rpx; height: 22rpx; border-radius: 50%; background: #C41E3A; }
+.radio { width: 40rpx; height: 40rpx; border-radius: 50%; border: 2rpx solid #CCCCCC; margin-left: auto; display: flex; align-items: center; justify-content: center; &.checked { border-color: var(--brand); } }
+.radio-dot { width: 22rpx; height: 22rpx; border-radius: 50%; background: var(--brand); }
 .amount-card { background: #FFFFFF; margin: 0 20rpx; padding: 24rpx; border-radius: 20rpx; }
 .amount-title { font-size: 28rpx; font-weight: 600; color: #1A1A1A; display: block; margin-bottom: 20rpx; }
 .amount-val { color: #1A1A1A; }
 .amount-row { display: flex; justify-content: space-between; font-size: 26rpx; color: #666666; margin-bottom: 16rpx; }
-.amount-row .discount { color: #C41E3A; }
+.amount-row .discount { color: var(--brand); }
 .amount-row.total { margin-bottom: 0; padding-top: 16rpx; border-top: 2rpx solid #F0F0F0; }
 .amount-row.total text { font-size: 28rpx; color: #1A1A1A; font-weight: 600; }
-.pay-amount { color: #C41E3A !important; font-size: 34rpx !important; }
+.pay-amount { color: var(--brand) !important; font-size: 34rpx !important; }
 .footer { position: fixed; left: 0; right: 0; bottom: 0; display: flex; align-items: center; padding: 20rpx 30rpx; padding-bottom: calc(20rpx + env(safe-area-inset-bottom)); background: #FFFFFF; box-shadow: 0 -2rpx 12rpx rgba(0,0,0,0.05); }
 .footer-total { display: flex; flex-direction: column; }
 .ft-line { display: flex; align-items: baseline; gap: 8rpx; }
 .ft-label { font-size: 26rpx; color: #666666; }
-.ft-amount { font-size: 38rpx; color: #C41E3A; font-weight: 700; }
+.ft-amount { font-size: 38rpx; color: var(--brand); font-weight: 700; }
 .ft-saved { font-size: 22rpx; color: #16A34A; }
-.pay-btn { margin-left: auto; padding: 20rpx 60rpx; border-radius: 40rpx; background: linear-gradient(90deg, #C41E3A, #C8453E); }
+.pay-btn { margin-left: auto; padding: 20rpx 60rpx; border-radius: 40rpx; background: linear-gradient(90deg, var(--brand), #C8453E); }
 .pay-btn text { color: #FFFFFF; font-size: 30rpx; font-weight: 600; }
 .mask { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 100; display: flex; align-items: flex-end; &.center { align-items: center; justify-content: center; } }
 .sheet { width: 100%; background: #FFFFFF; border-radius: 24rpx 24rpx 0 0; padding: 32rpx; max-height: 70vh; }
@@ -277,7 +318,7 @@ function onTimeout() { redirectTo('/shop/pay-timeout') }
 .dialog { width: 560rpx; background: #FFFFFF; border-radius: 24rpx; padding: 48rpx 40rpx; display: flex; flex-direction: column; align-items: center; gap: 20rpx; }
 .dialog-title { font-size: 34rpx; font-weight: 600; color: #1A1A1A; }
 .dialog-desc { font-size: 28rpx; color: #666666; text-align: center; }
-.dialog-btn { margin-top: 12rpx; width: 100%; height: 88rpx; border-radius: 44rpx; background: #C41E3A; display: flex; align-items: center; justify-content: center; }
+.dialog-btn { margin-top: 12rpx; width: 100%; height: 88rpx; border-radius: 44rpx; background: var(--brand); display: flex; align-items: center; justify-content: center; }
 .dialog-btn text { color: #FFFFFF; font-size: 30rpx; }
 
 /* 加载态 */
@@ -289,6 +330,6 @@ function onTimeout() { redirectTo('/shop/pay-timeout') }
 /* 错误态 */
 .error-zone { min-height: 60vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 32rpx; }
 .error-text { font-size: 28rpx; color: #999999; }
-.error-retry { padding: 16rpx 56rpx; background: #C41E3A; border-radius: 40rpx; }
+.error-retry { padding: 16rpx 56rpx; background: var(--brand); border-radius: 40rpx; }
 .error-retry text { color: #FFFFFF; font-size: 28rpx; }
 </style>

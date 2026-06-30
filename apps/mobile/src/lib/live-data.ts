@@ -1,7 +1,7 @@
 // ============ 直播板块(live) mock 数据（从原型 app/live 迁移） ============
 // 说明：原型封面/头像为 mock 配图，dev 下回退占位；此处统一用 /marketing 占位路径，比对时会被中和
 
-import { apiGet, useMock } from '@/utils/request'
+import { apiGet, apiPost, useMock } from '@/utils/request'
 
 export type LiveStatus = 'live' | 'upcoming' | 'replay'
 export type LiveType = 'knowledge' | 'commerce'
@@ -813,7 +813,7 @@ export const themeComponentStyles = [
 // ============ creator/live/schedule 直播排期管理(竖屏) ============
 // @data-needs: 排期场次列表，按 hostId 查询；今日日期由后端/客户端确定（原型固定 2026-05-10）
 export interface ScheduleItem {
-  id: number; title: string; date: string; time: string; duration: number
+  id: number | string; title: string; date: string; time: string; duration: number
   type: 'knowledge' | 'commerce'; status: 'scheduled' | 'live' | 'completed' | 'cancelled'
   seriesName: string | null; seriesIndex: number | null; seriesTotal: number | null
   viewerEstimate: number; actualViewers?: number
@@ -844,7 +844,7 @@ export const teamRoleConfig: Record<TeamRole, TeamRoleConfig> = {
   guest: { label: '嘉宾', color: '#22c55e', icon: 'users', level: 4, desc: '仅参与连麦互动' },
 }
 export interface TeamMember {
-  id: number; name: string; avatar: string; role: TeamRole; expertise: string[]
+  id: number | string; name: string; avatar: string; role: TeamRole; expertise: string[]
   phone: string; joinDate: string; liveCount: number; hasActiveLive: boolean; status: 'online' | 'offline'
 }
 export const teamMembers: TeamMember[] = [
@@ -853,7 +853,7 @@ export const teamMembers: TeamMember[] = [
   { id: 3, name: '小雅助理', avatar: '/static/marketing/course.png', role: 'cohost', expertise: ['商品讲解', '互动管理'], phone: '137****5555', joinDate: '2024-03-10', liveCount: 28, hasActiveLive: true, status: 'online' },
   { id: 4, name: '运营小李', avatar: '/static/marketing/course.png', role: 'operator', expertise: ['数据分析', '活动策划'], phone: '136****4444', joinDate: '2024-04-05', liveCount: 15, hasActiveLive: false, status: 'online' },
 ]
-export interface AvailableMember { id: number; name: string; avatar: string; expertise: string[]; type: 'lecturer' | 'member' }
+export interface AvailableMember { id: number | string; name: string; avatar: string; expertise: string[]; type: 'lecturer' | 'member' }
 export const teamAvailableMembers: AvailableMember[] = [
   { id: 101, name: '风水堂主', avatar: '', expertise: ['风水堪舆', '择日择吉'], type: 'lecturer' },
   { id: 102, name: '起名大师', avatar: '', expertise: ['姓名学', '五行分析'], type: 'lecturer' },
@@ -1104,7 +1104,7 @@ export const liveManageStats: LiveManageStat[] = [
 
 // @data-needs: 直播管理列表, 参数 tab(all|preview|live|ended|draft), 返回 LiveManageItem[]
 export interface LiveManageItem {
-  id: number
+  id: number | string
   title: string
   type: 'knowledge' | 'commerce'
   status: 'preview' | 'live' | 'ended' | 'draft'
@@ -1140,56 +1140,88 @@ export const liveManageStatusConfig: Record<string, { label: string; color: stri
 
 // ============ API 层 ============
 
+/** 后端 LiveStatus（WAITING/LIVING/ENDED/REPLAY）→ 前端（live/upcoming/replay） */
+function mapLiveStatus(s: string): LiveStatus {
+  const u = String(s || '').toUpperCase()
+  if (u === 'LIVING') return 'live'
+  if (u === 'WAITING') return 'upcoming'
+  return 'replay' // ENDED / REPLAY
+}
+/** 开播时间 ISO → 友好格式「M月D日 H:mm」 */
+function fmtLiveTime(iso?: string): string | undefined {
+  if (!iso) return undefined
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return undefined
+  const mm = String(d.getMinutes()).padStart(2, '0')
+  return `${d.getMonth() + 1}月${d.getDate()}日 ${d.getHours()}:${mm}`
+}
+
+/** 后端直播间 → 前端 LiveItem（type/orientation 后端无→默认；价格按 chargeType） */
+function adaptLiveItem(r: any): LiveItem {
+  return {
+    id: r.id,
+    title: r.title || '',
+    cover: r.cover || '',
+    hostName: r.user?.nickname || '',
+    hostAvatar: r.user?.avatar || '',
+    viewerCount: r.viewCount ?? 0,
+    type: 'knowledge',
+    status: mapLiveStatus(r.status),
+    orientation: 'horizontal',
+    priceType: (r.chargeType && String(r.chargeType).toUpperCase() !== 'FREE') ? 'paid' : 'free',
+    price: r.chargePrice != null ? Number(r.chargePrice) : undefined,
+    productCount: r._count?.products ?? undefined,
+    scheduledTime: fmtLiveTime(r.startTime),
+  }
+}
+
 export const liveApi = {
-  /** 获取直播广场列表 — GET /live */
+  /** 直播广场列表 — GET /live/rooms（适配）；tab 客户端过滤 */
   async getPlaza(tab?: string): Promise<LiveItem[]> {
-    if (true) {
-      if (!tab || tab === '全部') return liveList
-      const typeMap: Record<string, string> = { '知识授课': 'knowledge', '电商带货': 'commerce' }
-      const filterType = typeMap[tab]
-      if (filterType) return liveList.filter(item => item.type === filterType)
-      if (tab === '关注的') return []
-      return liveList
-    }
     try {
-      const url = tab && tab !== '全部' ? `/live?tab=${encodeURIComponent(tab)}` : '/live'
-      const data = await apiGet<any>(url)
-      return (data?.items || data) as LiveItem[]
+      const res = await apiGet<any>('/live/rooms?pageSize=30')
+      const arr = Array.isArray(res) ? res : (res?.rooms ?? res?.data ?? [])
+      let items: LiveItem[] = arr.map(adaptLiveItem)
+      if (tab && tab !== '全部') {
+        const typeMap: Record<string, string> = { '知识授课': 'knowledge', '电商带货': 'commerce' }
+        const t = typeMap[tab]
+        if (t) items = items.filter((i) => i.type === t)
+        else if (tab === '关注的') items = []
+      }
+      return items.length ? items : liveList
     } catch {
       return liveList
     }
   },
 
-  /** 获取直播间详情 — GET /live/:id */
+  /** 直播间详情 — GET /live/rooms/:id（适配） */
   async getWatch(id: string): Promise<LiveItem | undefined> {
-    if (true) return liveList.find(item => item.id === id)
     try {
-      const data = await apiGet<any>(`/live/${id}`)
-      return data as LiveItem
+      return adaptLiveItem(await apiGet<any>(`/live/rooms/${id}`))
     } catch {
       return liveList.find(item => item.id === id)
     }
   },
 
-  /** 获取主播列表 — GET /live/hosts */
+  /** 主播列表 — GET /live/hosts（后端结构已对齐 LiveHost） */
   async getHosts(filter?: string): Promise<LiveHost[]> {
-    if (true) return liveHosts
     try {
       const url = filter ? `/live/hosts?filter=${encodeURIComponent(filter)}` : '/live/hosts'
-      const data = await apiGet<any>(url)
-      return (data?.items || data) as LiveHost[]
+      const res = await apiGet<any>(url)
+      const arr = res?.items ?? (Array.isArray(res) ? res : [])
+      return (arr.length ? arr : liveHosts) as LiveHost[]
     } catch {
       return liveHosts
     }
   },
 
-  /** 获取回放列表 — GET /live/replays */
+  /** 回放列表 — GET /live/replays（后端结构已对齐 LiveReplay） */
   async getReplays(sort?: string): Promise<LiveReplay[]> {
-    if (true) return liveReplays
     try {
       const url = sort ? `/live/replays?sort=${encodeURIComponent(sort)}` : '/live/replays'
-      const data = await apiGet<any>(url)
-      return (data?.items || data) as LiveReplay[]
+      const res = await apiGet<any>(url)
+      const arr = res?.items ?? (Array.isArray(res) ? res : [])
+      return (arr.length ? arr : liveReplays) as LiveReplay[]
     } catch {
       return liveReplays
     }
@@ -1197,10 +1229,8 @@ export const liveApi = {
 
   /** 获取回放详情 — GET /live/replay/:id */
   async getReplayDetail(id: string): Promise<ReplayDetail> {
-    if (true) return replayDetail
     try {
-      const data = await apiGet<any>(`/live/replay/${id}`)
-      return data as ReplayDetail
+      return await apiGet<ReplayDetail>(`/live/replay/${id}`)
     } catch {
       return replayDetail
     }
@@ -1210,110 +1240,203 @@ export const liveApi = {
   async getReplayHome(): Promise<{
     categories: ReplayCategory[]; hotItems: ReplayHomeItem[]; list: ReplayHomeItem[]; hotSearches: string[]
   }> {
-    if (true) return { categories: replayCategories, hotItems: replayHotItems, list: replayHomeList, hotSearches: replayHotSearches }
-    try {
-      const data = await apiGet<any>('/live/replay-home')
-      return data as any
-    } catch {
-      return { categories: replayCategories, hotItems: replayHotItems, list: replayHomeList, hotSearches: replayHotSearches }
+    // 后端无 replay-home 聚合端点、回放也无分类维度 → 用 GET /live/replays 组合「最新+热门」，分类不做假筛选
+    const toItem = (r: any): ReplayHomeItem => ({
+      id: String(r?.id || ''), title: r?.title || '', cover: r?.cover || '',
+      hostName: r?.hostName || '', hostAvatar: r?.hostAvatar || '',
+      duration: Number(r?.duration) || 0, views: Number(r?.viewers) || 0,
+      category: r?.category || '', isHot: false,
+    })
+    const [latest, popular] = await Promise.all([
+      apiGet<any>('/live/replays').catch(() => ({ items: [] })),
+      apiGet<any>('/live/replays?sortBy=popular').catch(() => ({ items: [] })),
+    ])
+    const list = (Array.isArray(latest?.items) ? latest.items : []).map(toItem)
+    const hotItems = (Array.isArray(popular?.items) ? popular.items : []).slice(0, 5).map((r: any) => ({ ...toItem(r), isHot: true }))
+    return {
+      categories: [], // 后端回放无分类维度 → 不做假分类筛选（页面分类区随之隐藏）
+      hotItems,
+      list,
+      hotSearches: replayHotSearches, // 搜索热词为运营配置（非数据 mock）
     }
   },
 
   /** 获取直播预告 — GET /live/preview/:id */
   async getPreview(id: string): Promise<LivePreviewRoom> {
-    if (true) return livePreviewRoom
     try {
-      const data = await apiGet<any>(`/live/preview/${id}`)
-      return data as LivePreviewRoom
+      return await apiGet<LivePreviewRoom>(`/live/preview/${id}`)
     } catch {
       return livePreviewRoom
     }
   },
 
-  /** 获取直播结束数据 — GET /live/end/:id */
+  /** 获取直播结束数据 — GET /live/end/:id（真连，含真实峰值/获赞/打赏聚合） */
   async getEndRoom(id: string): Promise<{
     room: LiveEndRoom; recommendLives: LiveEndRecommendLive[]; recommendCourses: typeof liveEndRecommendCourses
   }> {
-    if (true) return { room: liveEndRoom, recommendLives: liveEndRecommendLives, recommendCourses: liveEndRecommendCourses }
-    try {
-      const data = await apiGet<any>(`/live/end/${id}`)
-      return data as any
-    } catch {
-      return { room: liveEndRoom, recommendLives: liveEndRecommendLives, recommendCourses: liveEndRecommendCourses }
+    const data = await apiGet<any>(`/live/end/${id}`)
+    const r = data?.room || {}
+    const room: LiveEndRoom = {
+      id: String(r.id || ''),
+      title: r.title || '',
+      cover: r.cover || '',
+      hostId: '', // 后端 end 未返回 hostId
+      hostName: r.hostName || '',
+      hostAvatar: r.hostAvatar || '',
+      hostFollowers: Number(r.hostFollowers) || 0, // 后端无 → 0（页面降级隐藏）
+      tags: Array.isArray(r.tags) ? r.tags : [], // 后端无 → 空（页面 v-for 不渲染）
+      stats: {
+        totalViewers: Number(r.viewerCount) || 0,
+        peakViewers: Number(r.peakViewers) || 0,
+        totalLikes: Number(r.likeCount) || 0,
+        totalGifts: Number(r.giftCoin) || 0, // 打赏金币总额（label「礼物收入」）
+        duration: Number(r.duration) || 0,
+      },
+      hasReplay: !!r.hasReplay,
+    }
+    return {
+      room,
+      // 推荐位后端暂无数据源 → 空（页面 section 降级隐藏）
+      recommendLives: Array.isArray(data?.recommendLives) ? data.recommendLives : [],
+      recommendCourses: Array.isArray(data?.recommendCourses) ? data.recommendCourses : [],
     }
   },
 
   /** 获取创建直播分类 — GET /live/categories */
   async getCategories(): Promise<LiveCategory[]> {
-    if (true) return liveCreateCategories
-    try {
-      const data = await apiGet<any>('/live/categories')
-      return (data?.items || data) as LiveCategory[]
-    } catch {
-      return liveCreateCategories
-    }
+    // 直播分类为前端运营配置（后端无分类模型），非数据 mock
+    return liveCreateCategories
+  },
+
+  /** 创建直播间 — POST /live/rooms（预约直播，status=WAITING） */
+  async createRoom(payload: { title: string; cover?: string; startTime?: string; chargeType?: string }): Promise<{ id: string }> {
+    return await apiPost<{ id: string }>('/live/rooms', payload)
   },
 
   /** 获取直播管理列表 — GET /live/manage */
-  async getManageList(tab?: string): Promise<{ stats: LiveManageStat[]; list: LiveManageItem[] }> {
-    if (true) {
-      let list = liveManageList
-      if (tab && tab !== 'all') list = liveManageList.filter(item => item.status === tab)
-      return { stats: liveManageStats, list }
+  async getManageList(): Promise<{ stats: LiveManageStat[]; list: LiveManageItem[] }> {
+    // 经营概览（真实聚合，无运行数据则为 0；后端 GET /live/my-rooms BFF）
+    const buildStats = (s?: { monthCount?: number; totalViews?: number; endedCount?: number }): LiveManageStat[] => {
+      const views = s?.totalViews ?? 0
+      const viewsLabel = views >= 10000 ? (views / 10000).toFixed(1) + '万' : String(views)
+      return [
+        { id: 1, label: '本月直播', value: String(s?.monthCount ?? 0), unit: '场', icon: 'video', color: 'linear-gradient(135deg, #3b82f6, #6366f1)' },
+        { id: 2, label: '累计观看', value: viewsLabel, unit: '', icon: 'eye', color: 'linear-gradient(135deg, #a855f7, #8b5cf6)' },
+        { id: 3, label: '已结束', value: String(s?.endedCount ?? 0), unit: '场', icon: 'check-circle', color: 'linear-gradient(135deg, #ec4899, #f43f5e)' },
+      ]
+    }
+    // 后端直播状态 → 前端管理页状态（后端无「草稿」概念）
+    const statusMap: Record<string, LiveManageItem['status']> = { WAITING: 'preview', LIVING: 'live', ENDED: 'ended', REPLAY: 'ended' }
+    const adapt = (r: any): LiveManageItem => {
+      const status = statusMap[r.status] || 'ended'
+      let duration = '-'
+      if (status === 'live') duration = '进行中'
+      else if (r.startTime && r.endTime) {
+        const mins = Math.round((new Date(r.endTime).getTime() - new Date(r.startTime).getTime()) / 60000)
+        if (mins > 0) duration = mins >= 60 ? `${Math.floor(mins / 60)}小时${mins % 60}分` : `${mins}分钟`
+      }
+      return {
+        id: r.id,
+        title: r.title,
+        type: r.hasProducts ? 'commerce' : 'knowledge',
+        status,
+        scheduledTime: fmtLiveTime(r.startTime) || '',
+        duration,
+        viewers: r.viewCount || 0,
+        peakViewers: 0, // 后端无峰值（依赖运行时分钟数据，当前为空）
+        income: 0, // 同上，收益依赖运行时订单/打赏
+        likes: 0,
+        previewCount: status === 'preview' ? 0 : undefined, // 预约数后端暂未聚合
+      }
     }
     try {
-      const url = tab ? `/live/manage?tab=${encodeURIComponent(tab)}` : '/live/manage'
-      const data = await apiGet<any>(url)
-      return data as any
+      const data = await apiGet<{ stats?: any; rooms?: any[] }>('/live/my-rooms')
+      return { stats: buildStats(data?.stats), list: (data?.rooms || []).map(adapt) }
     } catch {
-      return { stats: liveManageStats, list: liveManageList }
+      // 未登录 / 无直播间 → 空概览 + 空列表（页面走空态，不回退假数据）
+      return { stats: buildStats(), list: [] }
     }
   },
 
   /** 获取直播控制台数据 — GET /live/console/:id */
   async getConsoleData(id: string): Promise<{
-    stats: typeof consoleLiveStats; danmaku: ConsoleDanmaku[]; requests: ConsoleConnectRequest[]
+    title: string; stats: typeof consoleLiveStats; danmaku: ConsoleDanmaku[]; requests: ConsoleConnectRequest[]
     products: ConsoleProduct[]; script: ConsoleScript[]
   }> {
-    if (true) return { stats: consoleLiveStats, danmaku: consoleDanmaku, requests: consoleConnectRequests, products: consoleProducts, script: consoleScript }
     try {
       const data = await apiGet<any>(`/live/console/${id}`)
-      return data as any
+      return {
+        title: data?.title || '',
+        stats: data?.stats || consoleLiveStats,
+        danmaku: data?.danmaku || [],
+        requests: data?.requests || [],
+        products: data?.products || [],
+        script: data?.script || [],
+      }
     } catch {
-      return { stats: consoleLiveStats, danmaku: consoleDanmaku, requests: consoleConnectRequests, products: consoleProducts, script: consoleScript }
+      // 未登录 / 无权 → 抛错走页面 error 态
+      throw new Error('加载控制台失败')
     }
   },
 
-  /** 获取OBS推流数据 — GET /live/obs-stream */
+  /** 获取OBS推流配置与实时状态 — GET /live/stream-config（未推流时为离线态，实时指标由推流引擎上报） */
   async getObsStream(): Promise<typeof obsStreamData> {
-    if (true) return obsStreamData
-    try {
-      const data = await apiGet<any>('/live/obs-stream')
-      return data as typeof obsStreamData
-    } catch {
-      return obsStreamData
-    }
+    const cfg = await apiGet<any>('/live/stream-config')
+    const rs = cfg?.recommendedSettings || {}
+    return {
+      serverUrl: cfg?.streamUrl || '',
+      streamKey: cfg?.streamKey || '',
+      status: 'offline', // 当前未推流（真实离线；时长/帧率/码率等实时指标由推流引擎上报）
+      duration: 0,
+      fps: 0,
+      bitrate: 0,
+      resolution: rs.resolution || '',
+      droppedFrames: 0,
+      totalFrames: 0,
+    } as typeof obsStreamData
   },
 
-  /** 获取排期列表 — GET /live/schedule */
+  /** 获取我的排期 — GET /live/my-rooms 适配为排期项（我创建的全部直播按时间编排） */
   async getScheduleList(): Promise<ScheduleItem[]> {
-    if (true) return scheduleList
+    const fmtDate = (iso?: string) => { if (!iso) return ''; const d = new Date(iso); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` }
+    const fmtTime = (iso?: string) => { if (!iso) return ''; const d = new Date(iso); return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}` }
+    const statusMap: Record<string, ScheduleItem['status']> = { WAITING: 'scheduled', LIVING: 'live', ENDED: 'completed', REPLAY: 'completed' }
     try {
-      const data = await apiGet<any>('/live/schedule')
-      return (data?.items || data) as ScheduleItem[]
+      const data = await apiGet<{ rooms?: any[] }>('/live/my-rooms')
+      return (data?.rooms || []).map((r: any): ScheduleItem => {
+        const status = statusMap[r.status] || 'completed'
+        let duration = 90 // 待开播无结束时间，用默认时长
+        if (r.startTime && r.endTime) {
+          const m = Math.round((new Date(r.endTime).getTime() - new Date(r.startTime).getTime()) / 60000)
+          if (m > 0) duration = m
+        }
+        return {
+          id: r.id,
+          title: r.title,
+          date: fmtDate(r.startTime),
+          time: fmtTime(r.startTime),
+          duration,
+          type: r.hasProducts ? 'commerce' : 'knowledge',
+          status,
+          seriesName: null, seriesIndex: null, seriesTotal: null, // 后端无系列课概念
+          viewerEstimate: r.viewCount || 0,
+          actualViewers: status === 'completed' ? (r.viewCount || 0) : undefined,
+        }
+      })
     } catch {
-      return scheduleList
+      // 未登录 / 无排期 → 空列表（页面走空态，不回退假数据）
+      return []
     }
   },
 
   /** 获取团队成员 — GET /live/team */
   async getTeam(): Promise<{ members: TeamMember[]; available: AvailableMember[] }> {
-    if (true) return { members: teamMembers, available: teamAvailableMembers }
     try {
       const data = await apiGet<any>('/live/team')
-      return data as any
+      return { members: data?.members || [], available: data?.available || [] }
     } catch {
-      return { members: teamMembers, available: teamAvailableMembers }
+      // 未登录 / 无团队 → 空（页面走空态，不回退假mock）
+      return { members: [], available: [] }
     }
   },
 
@@ -1323,66 +1446,145 @@ export const liveApi = {
     keyMoments: typeof analyticsKeyMoments; audience: typeof analyticsAudience
     interaction: typeof analyticsInteraction; wordCloud: typeof analyticsWordCloud
     productStats: typeof analyticsProductStats; replay: typeof analyticsReplay
+    insights: string[]
   }> {
-    if (true) return {
-      info: analyticsLiveInfo, coreStats: analyticsCoreStats, trafficData: analyticsTrafficData,
-      keyMoments: analyticsKeyMoments, audience: analyticsAudience, interaction: analyticsInteraction,
-      wordCloud: analyticsWordCloud, productStats: analyticsProductStats, replay: analyticsReplay,
+    // 聚合主播端数据大屏多接口（dashboard/*）+ 复盘 report + 对比 compare，适配为分析页结构。
+    // 主数据接口任一失败 → 抛错走页面 error 态（不回退假 mock）；compare/audience 为增强项，失败容错。
+    const wan = (n: number) => (n >= 10000 ? (n / 10000).toFixed(1) + '万' : String(n))
+    const hm = (iso: string) => { const d = new Date(iso); return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}` }
+    const dur = (m: number) => (m >= 60 ? `${Math.floor(m / 60)}小时${m % 60}分` : `${m}分钟`)
+    const trendOf = (c?: string): 'up' | 'down' | 'flat' => { if (!c) return 'flat'; const n = parseFloat(c); return n > 0 ? 'up' : n < 0 ? 'down' : 'flat' }
+
+    const [overview, trends, products, interactions, report, compare, audienceRaw] = await Promise.all([
+      apiGet<any>(`/live/rooms/${id}/dashboard/overview`),
+      apiGet<any>(`/live/rooms/${id}/dashboard/trends`),
+      apiGet<any>(`/live/rooms/${id}/dashboard/products`),
+      apiGet<any>(`/live/rooms/${id}/dashboard/interactions`),
+      apiGet<any>(`/live/rooms/${id}/report`),
+      apiGet<any>(`/live/rooms/${id}/compare`).catch(() => null),
+      apiGet<any>(`/live/rooms/${id}/dashboard/audience`).catch(() => null),
+    ])
+
+    const sum: any = report?.summary || {}
+    const ch: any = compare?.changes || {}
+    const hasPrev = !!compare?.previous
+    const stat = (label: string, value: string, icon: string, key: string): CoreStat => ({
+      label, value, icon,
+      trend: hasPrev ? trendOf(ch[key]) : 'flat',
+      change: hasPrev ? (ch[key] || '—') : '持平',
+    })
+
+    // 关键时刻：从分钟趋势派生真实可解释的节点（峰值/首单/成交高峰）
+    const tr: any[] = trends?.trends || []
+    const keyMoments: any[] = []
+    if (tr.length) {
+      const peak = tr.reduce((a, b) => (b.online > a.online ? b : a), tr[0])
+      keyMoments.push({ time: hm(peak.minute), event: '人气峰值', desc: `在线人数达到峰值 ${peak.online} 人` })
+      const firstOrder = tr.find((t) => t.orders > 0)
+      if (firstOrder) keyMoments.push({ time: hm(firstOrder.minute), event: '首笔成交', desc: '直播间产生首笔订单' })
+      const topGmv = tr.reduce((a, b) => (b.gmv > a.gmv ? b : a), tr[0])
+      if (topGmv.gmv > 0) keyMoments.push({ time: hm(topGmv.minute), event: '成交高峰', desc: `单分钟成交额 ¥${topGmv.gmv}` })
     }
-    try {
-      const data = await apiGet<any>(`/live/analytics/${id}`)
-      return data as any
-    } catch {
-      return {
-        info: analyticsLiveInfo, coreStats: analyticsCoreStats, trafficData: analyticsTrafficData,
-        keyMoments: analyticsKeyMoments, audience: analyticsAudience, interaction: analyticsInteraction,
-        wordCloud: analyticsWordCloud, productStats: analyticsProductStats, replay: analyticsReplay,
+
+    // 观众画像：解析后端「男X / 女Y」为占比；无画像字段则留空（页面隐藏空卡）
+    const gender: any[] = []
+    const gstr: string | undefined = audienceRaw?.gender
+    if (gstr && gstr !== '--') {
+      const m = gstr.match(/男\s*(\d+)\s*\/\s*女\s*(\d+)/)
+      if (m) {
+        const male = +m[1], female = +m[2], tot = male + female
+        if (tot > 0) {
+          gender.push({ label: '男', value: Math.round((male / tot) * 100), color: '#3b82f6' })
+          gender.push({ label: '女', value: 100 - Math.round((male / tot) * 100), color: '#ec4899' })
+        }
       }
     }
+
+    // 数据洞察：基于真实指标生成（非写死假文本）
+    const insights: string[] = []
+    const ov: any = overview || {}
+    if (ov.peakOnline) insights.push(`本场峰值在线 ${ov.peakOnline} 人，累计观看 ${wan(ov.viewCount || 0)} 人次，平均在线 ${sum.avgOnline || 0} 人。`)
+    if (ov.orderCount) {
+      const top = (products?.products || []).slice().sort((a: any, b: any) => b.revenue - a.revenue)[0]
+      insights.push(`直播带货成交 ${ov.orderCount} 单，GMV ¥${ov.gmv}${top ? `，「${top.title}」最畅销（售 ${top.sales} 件）` : ''}。`)
+    }
+    if (ov.totalGiftCoin) insights.push(`收到打赏 ${ov.giftCount} 次共 ${ov.totalGiftCoin} 金币，弹幕互动 ${ov.commentCount} 条。`)
+
+    return {
+      info: {
+        title: overview?.title || '',
+        startTime: overview?.startTime ? (fmtLiveTime(overview.startTime) || '') : '',
+        duration: dur(sum.durationMinutes || 0),
+        type: products?.products?.length ? 'commerce' : 'knowledge',
+      } as any,
+      coreStats: [
+        stat('观看人数', wan(overview?.viewCount || 0), 'eye', 'views'),
+        stat('峰值在线', wan(overview?.peakOnline || 0), 'users', 'peakOnline'),
+        stat('直播GMV', '¥' + (overview?.gmv || 0), 'shopping-bag', 'gmv'),
+        stat('成交订单', String(overview?.orderCount || 0), 'shopping-cart', 'orders'),
+      ],
+      trafficData: (() => {
+        // 降采样至约 30 个点，避免柱状图过密
+        const step = Math.max(1, Math.ceil(tr.length / 30))
+        return tr.filter((_, i) => i % step === 0).map((t) => ({ time: hm(t.minute), value: t.online }))
+      })() as any,
+      keyMoments: keyMoments as any,
+      audience: { gender, age: [], region: [], source: [] } as any,
+      interaction: {
+        danmaku: sum.totalComments || overview?.commentCount || 0,
+        likes: sum.totalLikes || 0,
+        comments: overview?.commentCount || 0,
+        shares: 0,
+        gifts: (interactions?.giftsByType || []).map((g: any) => ({ name: g.name, count: g.count, amount: g.totalCoin })),
+      } as any,
+      wordCloud: [] as any,
+      productStats: (products?.products || []).map((p: any) => ({
+        id: p.productId, name: p.title, clicks: 0, orders: p.sales, amount: p.revenue, conversion: 0,
+      })) as any,
+      replay: { isPublic: overview?.status === 'REPLAY', isPaid: false, playCount: 0, playDuration: '', revenue: 0 } as any,
+      insights,
+    } as any
   },
 
   /** 获取收益数据 — GET /live/earnings */
   async getEarnings(range?: string): Promise<{
     ranges: LiveEarningRange[]; stats: LiveEarningStats; records: LiveEarningRecord[]
   }> {
-    if (true) {
-      const key = range || '7d'
-      return { ranges: liveEarningRanges, stats: liveEarningStatsByRange[key] || liveEarningStatsByRange['7d'], records: liveEarningRecords }
-    }
     try {
-      const url = range ? `/live/earnings?range=${encodeURIComponent(range)}` : '/live/earnings'
+      const url = range ? `/live/earnings?range=${encodeURIComponent(range ?? "")}` : '/live/earnings'
       const data = await apiGet<any>(url)
-      return data as any
+      return {
+        ranges: data?.ranges || liveEarningRanges,
+        stats: data?.stats || { total: 0, reward: 0, goods: 0, trend: 0 },
+        records: data?.records || [],
+      }
     } catch {
-      const key = range || '7d'
-      return { ranges: liveEarningRanges, stats: liveEarningStatsByRange[key] || liveEarningStatsByRange['7d'], records: liveEarningRecords }
+      // 未登录 / 无收益 → 空概览 + 空明细（ranges 为周期 tab 配置，保留）
+      return { ranges: liveEarningRanges, stats: { total: 0, reward: 0, goods: 0, trend: 0 }, records: [] }
     }
   },
 
   /** 获取带货商品列表 — GET /live/products */
   async getProducts(filter?: string): Promise<LiveProductItem[]> {
-    if (true) {
-      if (!filter || filter === 'all') return liveProducts
-      return liveProducts.filter(p => p.status === filter)
-    }
     try {
-      const url = filter ? `/live/products?filter=${encodeURIComponent(filter)}` : '/live/products'
-      const data = await apiGet<any>(url)
-      return (data?.items || data) as LiveProductItem[]
+      const url = filter && filter !== 'all' ? `/live/products?filter=${encodeURIComponent(filter)}` : '/live/products'
+      const data = await apiGet<{ items?: LiveProductItem[] }>(url)
+      return data?.items || []
     } catch {
-      return liveProducts
+      // 未登录 / 无商品 → 空列表（页面走空态，不回退假数据）
+      return []
     }
   },
 
   /** 获取评价列表 — GET /live/reviews */
   async getReviews(filter?: string): Promise<{ dist: LiveReviewDist[]; reviews: LiveReview[] }> {
-    if (true) return { dist: liveReviewDist, reviews: liveReviews }
     try {
-      const url = filter ? `/live/reviews?filter=${encodeURIComponent(filter)}` : '/live/reviews'
+      const url = filter && filter !== 'all' ? `/live/reviews?filter=${encodeURIComponent(filter)}` : '/live/reviews'
       const data = await apiGet<any>(url)
-      return data as any
+      return { dist: data?.dist || [], reviews: data?.reviews || [] }
     } catch {
-      return { dist: liveReviewDist, reviews: liveReviews }
+      // 未登录 / 无评价 → 空（页面走空态，不回退假mock）
+      return { dist: [], reviews: [] }
     }
   },
 
@@ -1390,12 +1592,11 @@ export const liveApi = {
   async getSettings(): Promise<{
     profile: typeof liveSettingProfile; notify: typeof liveSettingNotifyDefault; privacy: typeof liveSettingPrivacyDefault
   }> {
-    if (true) return { profile: liveSettingProfile, notify: liveSettingNotifyDefault, privacy: liveSettingPrivacyDefault }
-    try {
-      const data = await apiGet<any>('/live/settings')
-      return data as any
-    } catch {
-      return { profile: liveSettingProfile, notify: liveSettingNotifyDefault, privacy: liveSettingPrivacyDefault }
+    const data = await apiGet<any>('/live/settings')
+    return {
+      profile: data?.profile || liveSettingProfile,
+      notify: data?.notify || liveSettingNotifyDefault,
+      privacy: data?.privacy || liveSettingPrivacyDefault,
     }
   },
 
@@ -1465,12 +1666,20 @@ export const liveApi = {
 
   /** 获取推流配置 — GET /live/stream-config */
   async getStreamConfig(): Promise<StreamConfig> {
-    if (true) return streamConfig
-    try {
-      const data = await apiGet<any>('/live/stream-config')
-      return data as StreamConfig
-    } catch {
-      return streamConfig
+    const cfg = await apiGet<any>('/live/stream-config')
+    const rs = cfg?.recommendedSettings || {}
+    return {
+      roomId: cfg?.roomId || '',
+      roomTitle: cfg?.roomTitle || '我的直播间',
+      streamUrl: cfg?.streamUrl || '',
+      streamKey: cfg?.streamKey || '',
+      playUrl: cfg?.playUrl || '',
+      recommendedSettings: {
+        resolution: rs.resolution || '',
+        bitrate: rs.bitrate || '',
+        fps: String(rs.fps ?? ''),
+        encoder: rs.encoder || '',
+      },
     }
   },
 }

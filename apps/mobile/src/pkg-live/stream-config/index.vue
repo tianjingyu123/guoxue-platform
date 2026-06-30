@@ -298,7 +298,7 @@ onMounted(() => { fetchData() })
   width: 96rpx;
   height: 96rpx;
   border-radius: 24rpx;
-  background: linear-gradient(135deg, #C41E3A, #E8546D);
+  background: linear-gradient(135deg, var(--brand), #E8546D);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -364,12 +364,12 @@ onMounted(() => { fetchData() })
   align-items: center;
   gap: 8rpx;
   padding: 12rpx 24rpx;
-  border: 1rpx solid #C41E3A;
+  border: 1rpx solid var(--brand);
   border-radius: 999rpx;
 }
 .refresh-txt {
   font-size: 28rpx;
-  color: #C41E3A;
+  color: var(--brand);
 }
 .spin {
   animation: spin 1s linear infinite;
@@ -475,7 +475,7 @@ onMounted(() => { fetchData() })
 }
 .obs-download-txt {
   font-size: 28rpx;
-  color: #C41E3A;
+  color: var(--brand);
 }
 .step-indicator {
   white-space: nowrap;
@@ -496,7 +496,7 @@ onMounted(() => { fetchData() })
   flex-shrink: 0;
 }
 .step-dot.active {
-  background: #C41E3A;
+  background: var(--brand);
   color: #fff;
 }
 .step-dot.done {
@@ -544,7 +544,7 @@ onMounted(() => { fetchData() })
   color: #666;
 }
 .step-nav-btn.next {
-  color: #C41E3A;
+  color: var(--brand);
   font-weight: 500;
 }
 .step-nav-btn.disabled {
@@ -593,6 +593,6 @@ onMounted(() => { fetchData() })
 .error-card { display: flex; flex-direction: column; align-items: center; gap: 32rpx; padding: 80rpx 32rpx; }
 .error-text { font-size: 28rpx; color: #999; text-align: center; }
 .error-icon { width: 80rpx; height: 80rpx; }
-.retry-btn { padding: 16rpx 48rpx; border: 1rpx solid #C41E3A; border-radius: 999rpx; }
-.retry-btn-txt { font-size: 28rpx; color: #C41E3A; }
+.retry-btn { padding: 16rpx 48rpx; border: 1rpx solid var(--brand); border-radius: 999rpx; }
+.retry-btn-txt { font-size: 28rpx; color: var(--brand); }
 </style>

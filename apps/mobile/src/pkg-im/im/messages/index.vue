@@ -14,7 +14,7 @@
           </view>
           <text class="navbar__title">消息中心</text>
         </view>
-        <view v-if="currentUnread > 0" class="navbar__action" @tap="markAllRead">
+        <view v-if="(counts.total || 0) > 0" class="navbar__action" :class="{ 'navbar__action--busy': marking }" @tap="markAllRead">
           <AppIcon name="check-check" :size="32" color="#c41e3a" />
           <text class="navbar__action-txt">全部已读</text>
         </view>
@@ -56,7 +56,7 @@
       >
         <!-- 图标/头像 -->
         <view class="msg-item__lead">
-          <image v-if="msg.avatar" :src="msg.avatar" class="msg-item__avatar" mode="aspectFill" />
+          <image lazy-load v-if="msg.avatar" :src="msg.avatar" class="msg-item__avatar" mode="aspectFill" />
           <view v-else class="msg-item__icon" :style="{ background: iconBg(msg) }">
             <AppIcon :name="categoryIcon(msg).name" :size="40" :color="categoryIcon(msg).color" />
           </view>
@@ -134,8 +134,6 @@ const filteredMessages = computed(() =>
   messages.value.filter((m) => m.type === activeTab.value),
 )
 
-const currentUnread = computed(() => counts.value[activeTab.value] || 0)
-
 // 分类图标 + 配色（照原型 getCategoryIcon 映射）
 function categoryIcon(msg: NotifyMessage): { name: string; color: string } {
   if (msg.type === 'interaction') {
@@ -165,17 +163,26 @@ function iconBg(_msg: NotifyMessage): string {
 
 function onMessageTap(msg: NotifyMessage) {
   if (!msg.isRead) {
+    // 乐观更新：先改 UI，再后台同步后端；同步失败不回滚（已读是幂等的低风险操作）
     msg.isRead = true
-    counts.value[msg.type] = Math.max(0, counts.value[msg.type] - 1)
-    counts.value.total = Math.max(0, counts.value.total - 1)
+    counts.value[msg.type] = Math.max(0, (counts.value[msg.type] || 0) - 1)
+    counts.value.total = Math.max(0, (counts.value.total || 0) - 1)
+    imApi.markNotifyRead(msg.id).catch(() => {})
   }
   if (msg.link) navigateTo(msg.link)
 }
 
-function markAllRead() {
-  filteredMessages.value.forEach((m) => (m.isRead = true))
-  counts.value.total = Math.max(0, counts.value.total - counts.value[activeTab.value])
-  counts.value[activeTab.value] = 0
+const marking = ref(false)
+async function markAllRead() {
+  if (marking.value) return
+  marking.value = true
+  try {
+    await imApi.markAllNotifyRead()
+    messages.value.forEach((m) => (m.isRead = true))
+    counts.value = { system: 0, interaction: 0, transaction: 0, service: 0, income: 0, total: 0 }
+  } finally {
+    marking.value = false
+  }
 }
 </script>
 
@@ -225,7 +232,11 @@ function markAllRead() {
 }
 .navbar__action-txt {
   font-size: 26rpx;
-  color: #c41e3a;
+  color: var(--brand);
+}
+.navbar__action--busy {
+  opacity: 0.5;
+  pointer-events: none;
 }
 
 /* 分类 Tab */
@@ -252,7 +263,7 @@ function markAllRead() {
   min-width: 30rpx;
   height: 30rpx;
   padding: 0 6rpx;
-  background: #c41e3a;
+  background: var(--brand);
   color: #ffffff;
   font-size: 18rpx;
   line-height: 30rpx;
@@ -265,7 +276,7 @@ function markAllRead() {
   white-space: nowrap;
 }
 .tab--active .tab__label {
-  color: #c41e3a;
+  color: var(--brand);
 }
 .tab__indicator {
   position: absolute;
@@ -274,7 +285,7 @@ function markAllRead() {
   transform: translateX(-50%);
   width: 48rpx;
   height: 6rpx;
-  background: #c41e3a;
+  background: var(--brand);
   border-radius: 999rpx;
 }
 
@@ -314,7 +325,7 @@ function markAllRead() {
   right: -2rpx;
   width: 20rpx;
   height: 20rpx;
-  background: #c41e3a;
+  background: var(--brand);
   border-radius: 50%;
   border: 4rpx solid #ffffff;
 }
@@ -402,6 +413,6 @@ function markAllRead() {
 /* 加载/错误状态 */
 .load-state { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; gap: 24rpx; }
 .load-state-text { font-size: 28rpx; color: #8a8178; }
-.retry-btn { padding: 16rpx 48rpx; background: #c41e3a; border-radius: 999rpx; }
+.retry-btn { padding: 16rpx 48rpx; background: var(--brand); border-radius: 999rpx; }
 .retry-text { font-size: 28rpx; color: #fff; }
 </style>

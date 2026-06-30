@@ -1,5 +1,6 @@
 <template>
   <view class="bd-page">
+    <customer-service-fab />
     <!-- Header -->
     <view class="bd-header" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="bd-header-row">
@@ -19,6 +20,9 @@
       <view class="bd-sk-line bd-sk-w50" />
       <view class="bd-sk-block" />
     </view>
+
+    <!-- Error -->
+    <app-error v-else-if="error" title="悬赏加载失败" desc="网络异常，请稍后重试" @retry="loadBounty" />
 
     <!-- Not found -->
     <view v-else-if="!bounty" class="bd-notfound">
@@ -49,7 +53,7 @@
         <!-- Poster -->
         <view class="bd-poster">
           <view class="bd-poster-avatar">
-            <image v-if="bounty.poster.avatar" :src="bounty.poster.avatar" class="bd-poster-img" mode="aspectFill" />
+            <image lazy-load v-if="bounty.poster.avatar" :src="bounty.poster.avatar" class="bd-poster-img" mode="aspectFill" />
             <app-icon v-else name="user" :size="40" color="#c41e3a" />
           </view>
           <view class="bd-poster-body">
@@ -98,7 +102,7 @@
             <!-- Answer Header -->
             <view class="bd-answer-head">
               <view class="bd-answer-avatar">
-                <image v-if="answer.author.avatar" :src="answer.author.avatar" class="bd-answer-img" mode="aspectFill" />
+                <image lazy-load v-if="answer.author.avatar" :src="answer.author.avatar" class="bd-answer-img" mode="aspectFill" />
                 <app-icon v-else name="user" :size="40" color="#2563eb" />
               </view>
               <view class="bd-answer-meta">
@@ -242,12 +246,14 @@ const bountyId = ref('')
 const currentUserId = 'user-123'
 const bounty = ref<BountyDetail | null>(null)
 const loading = ref(true)
+const error = ref(false)
 const showAnswerForm = ref(false)
 const answerContent = ref('')
 const submitting = ref(false)
 
 function loadBounty() {
   loading.value = true
+  error.value = false
   setTimeout(() => {
     bounty.value = {
       id: bountyId.value || '1',
@@ -477,7 +483,7 @@ loadBounty()
 }
 .bd-status-text-open { color: #16a34a; }
 .bd-status-text-answered { color: #2563eb; }
-.bd-status-text-resolved { color: #c41e3a; }
+.bd-status-text-resolved { color: var(--brand); }
 .bd-status-text-expired { color: #999999; }
 .bd-status-text-cancelled { color: #999999; }
 .bd-remain {
@@ -649,7 +655,7 @@ loadBounty()
 }
 .bd-answer-badge-text {
   font-size: 20rpx;
-  color: #c41e3a;
+  color: var(--brand);
 }
 .bd-accepted {
   display: flex;
@@ -698,14 +704,14 @@ loadBounty()
   color: #999999;
 }
 .bd-like-text-active {
-  color: #c41e3a;
+  color: var(--brand);
 }
 .bd-accept-btn {
   display: flex;
   align-items: center;
   gap: 12rpx;
   padding: 12rpx 24rpx;
-  background: #c41e3a;
+  background: var(--brand);
   border-radius: 999rpx;
 }
 .bd-accept-btn-text {
@@ -749,7 +755,7 @@ loadBounty()
 .bd-modal-submit {
   font-size: 28rpx;
   font-weight: 500;
-  color: #c41e3a;
+  color: var(--brand);
 }
 .bd-modal-submit-disabled {
   opacity: 0.5;
@@ -796,7 +802,7 @@ loadBounty()
   justify-content: center;
   gap: 16rpx;
   height: 88rpx;
-  background: #c41e3a;
+  background: var(--brand);
   border-radius: 24rpx;
 }
 .bd-btn-primary-text {

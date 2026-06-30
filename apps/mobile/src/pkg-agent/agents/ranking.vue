@@ -45,7 +45,7 @@
         >
           <view class="rc-head">
             <view class="rc-avatar-wrap">
-              <image class="rc-avatar" :src="agent.avatar" mode="aspectFill" />
+              <image lazy-load class="rc-avatar" :src="agent.avatar" mode="aspectFill" />
               <view v-if="agent.verified" class="rc-verified">
                 <app-icon name="check" :size="20" color="#ffffff" />
               </view>
@@ -60,16 +60,17 @@
             </view>
           </view>
 
-          <view class="rc-stats">
-            <view class="rc-stat">
+          <!-- 用户/对话/评分后端暂无 → 有数据才展示，无则整块隐藏，不造假 -->
+          <view v-if="agent.users || agent.sessions || agent.rating" class="rc-stats">
+            <view v-if="agent.users" class="rc-stat">
               <text class="rc-stat-num">{{ agent.users.toLocaleString() }}</text>
               <text class="rc-stat-label">用户</text>
             </view>
-            <view class="rc-stat">
+            <view v-if="agent.sessions" class="rc-stat">
               <text class="rc-stat-num">{{ agent.sessions.toLocaleString() }}</text>
               <text class="rc-stat-label">对话</text>
             </view>
-            <view class="rc-stat rc-stat-rating">
+            <view v-if="agent.rating" class="rc-stat rc-stat-rating">
               <text class="rc-stat-num rc-rating-num">{{ agent.rating }} 分</text>
               <text class="rc-stat-label">评分</text>
             </view>
@@ -143,7 +144,7 @@ function goBack() {
 <style scoped>
 .load-state { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; gap: 24rpx; }
 .load-state-text { font-size: 28rpx; color: #8a8178; }
-.retry-btn { padding: 16rpx 48rpx; background: #c41e3a; border-radius: 999rpx; }
+.retry-btn { padding: 16rpx 48rpx; background: var(--brand); border-radius: 999rpx; }
 .retry-text { font-size: 28rpx; color: #fff; }
 
 .page {
@@ -202,7 +203,7 @@ function goBack() {
   font-size: 26rpx;
 }
 .cat-chip-on {
-  background: #c41e3a;
+  background: var(--brand);
   color: #ffffff;
 }
 .rank-list {
@@ -239,7 +240,7 @@ function goBack() {
   width: 36rpx;
   height: 36rpx;
   border-radius: 50%;
-  background: #c41e3a;
+  background: var(--brand);
   border: 4rpx solid #ffffff;
   display: flex;
   align-items: center;
@@ -258,7 +259,7 @@ function goBack() {
 .rc-rank {
   font-size: 40rpx;
   font-weight: 700;
-  color: #c41e3a;
+  color: var(--brand);
 }
 .rc-name {
   font-size: 30rpx;
@@ -302,7 +303,7 @@ function goBack() {
   color: #2b2b2b;
 }
 .rc-rating-num {
-  color: #c41e3a;
+  color: var(--brand);
 }
 .rc-stat-label {
   font-size: 20rpx;
@@ -314,7 +315,7 @@ function goBack() {
   justify-content: center;
   gap: 8rpx;
   height: 72rpx;
-  background: #c41e3a;
+  background: var(--brand);
   border-radius: 16rpx;
 }
 .rc-btn-txt {

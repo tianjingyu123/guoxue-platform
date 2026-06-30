@@ -22,7 +22,7 @@ const dim = computed(() => props.size + props.unit)
 </script>
 
 <template>
-  <image :src="src" :style="{ width: dim, height: dim }" class="app-icon" />
+  <image lazy-load :src="src" :style="{ width: dim, height: dim }" class="app-icon" />
 </template>
 
 <style scoped>

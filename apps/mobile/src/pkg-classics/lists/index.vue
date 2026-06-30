@@ -50,14 +50,7 @@ function fmtLikes(n: number): string {
 
 <template>
   <view class="lp-page">
-    <ClassicsHeader title="精选书单">
-      <template #right>
-        <view class="lp-create" @tap="onCreate">
-          <app-icon name="plus" :size="32" color="#c41e3a" />
-          <text class="lp-create-txt">创建</text>
-        </view>
-      </template>
-    </ClassicsHeader>
+    <ClassicsHeader title="精选书单" />
 
     <!-- Hero -->
     <view class="lp-hero">
@@ -103,18 +96,9 @@ function fmtLikes(n: number): string {
 
         <!-- 底部操作栏 -->
         <view class="lp-card-foot">
-          <view class="lp-foot-btn" @tap.stop="toggleLike(list.id)">
-            <app-icon
-              name="heart"
-              :size="32"
-              :color="list.liked ? '#c41e3a' : '#999999'"
-              :fill="list.liked"
-            />
-            <text class="lp-foot-txt">{{ fmtLikes(list.likes) }}</text>
-          </view>
           <view class="lp-foot-btn">
-            <app-icon name="share-2" :size="32" color="#999999" />
-            <text class="lp-foot-txt">分享</text>
+            <app-icon name="heart" :size="32" color="#999999" />
+            <text class="lp-foot-txt">{{ fmtLikes(list.likes) }} 收藏</text>
           </view>
           <view class="lp-foot-view" @tap.stop="goDetail(list.id)">
             <text class="lp-foot-view-txt">查看书单</text>
@@ -144,7 +128,7 @@ function fmtLikes(n: number): string {
 .lp-create-txt {
   font-size: 26rpx;
   font-weight: 500;
-  color: #c41e3a;
+  color: var(--brand);
 }
 
 /* Hero */
@@ -156,7 +140,7 @@ function fmtLikes(n: number): string {
 .lp-kicker {
   font-size: 26rpx;
   font-weight: 600;
-  color: #c41e3a;
+  color: var(--brand);
   letter-spacing: 1rpx;
   margin-bottom: 12rpx;
 }
@@ -288,7 +272,7 @@ function fmtLikes(n: number): string {
 .lp-foot-view-txt {
   font-size: 26rpx;
   font-weight: 500;
-  color: #c41e3a;
+  color: var(--brand);
 }
 .lp-bottom-safe {
   height: calc(40rpx + env(safe-area-inset-bottom));

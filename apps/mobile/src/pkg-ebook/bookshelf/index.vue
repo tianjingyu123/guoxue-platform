@@ -27,7 +27,7 @@
 
       <!-- 视图切换 + 计数 -->
       <view class="ebs-toolbar">
-        <text class="ebs-count">共 {{ sortedBooks.length }} 本</text>
+        <text class="ebs-count">共 {{ sortedBooks.length }} 本 · 已购永久保留</text>
         <view class="ebs-vt">
           <view class="ebs-vt-btn" :class="{ 'ebs-vt-on': viewMode === 'grid' }" @tap="viewMode = 'grid'">
             <app-icon name="grid-3x3" :size="30" :color="viewMode === 'grid' ? '#2563eb' : '#64748b'" />
@@ -41,8 +41,17 @@
 
     <!-- 内容 -->
     <view class="ebs-main">
+      <!-- 未登录态 -->
+      <view v-if="notLoggedIn" class="ebs-empty">
+        <app-icon name="bookmark" :size="112" color="#e2e8f0" />
+        <text class="ebs-empty-title">登录后查看书架</text>
+        <text class="ebs-empty-sub">登录即可同步你已购买的电子书</text>
+        <view class="ebs-empty-btn" @tap="goLogin">
+          <text class="ebs-empty-btn-txt">去登录</text>
+        </view>
+      </view>
       <!-- 加载态 -->
-      <view v-if="loading" class="ebs-empty">
+      <view v-else-if="loading" class="ebs-empty">
         <text class="ebs-empty-title">加载中...</text>
       </view>
       <!-- 错误态 -->
@@ -98,11 +107,11 @@
           <view v-if="activeMenu === book.id" class="ebs-grid-menu" @tap.stop>
             <view class="ebs-menu-row" @tap="onDownload(book)">
               <app-icon name="download" :size="28" color="#2563eb" />
-              <text class="ebs-menu-row-txt">{{ book.isDownloaded ? '已下载' : '下载离线' }}</text>
+              <text class="ebs-menu-row-txt">离线下载</text>
             </view>
-            <view class="ebs-menu-row" @tap="onRemove(book)">
-              <app-icon name="trash-2" :size="28" color="#ef4444" />
-              <text class="ebs-menu-row-txt ebs-menu-row-danger">移出书架</text>
+            <view class="ebs-menu-row" @tap="goDetail(book)">
+              <app-icon name="book-open" :size="28" color="#64748b" />
+              <text class="ebs-menu-row-txt">书籍详情</text>
             </view>
           </view>
         </view>
@@ -149,15 +158,11 @@
           <view v-if="activeMenu === book.id" class="ebs-list-actions">
             <view class="ebs-action" @tap="onDownload(book)">
               <app-icon name="download" :size="28" color="#2563eb" />
-              <text class="ebs-action-txt ebs-action-primary">{{ book.isDownloaded ? '已下载' : '下载' }}</text>
+              <text class="ebs-action-txt ebs-action-primary">离线下载</text>
             </view>
             <view class="ebs-action ebs-action-mid" @tap="goDetail(book)">
               <app-icon name="book-open" :size="28" color="#64748b" />
-              <text class="ebs-action-txt">详情</text>
-            </view>
-            <view class="ebs-action" @tap="onRemove(book)">
-              <app-icon name="trash-2" :size="28" color="#ef4444" />
-              <text class="ebs-action-txt ebs-action-danger">移出</text>
+              <text class="ebs-action-txt">书籍详情</text>
             </view>
           </view>
         </view>
@@ -176,6 +181,7 @@ import {
   type EbookFilterType,
   type EbookShelfBook,
 } from '@/lib/ebook-data'
+import { getToken } from '@/utils/storage'
 
 const filter = ref<EbookFilterType>('all')
 const viewMode = ref<'grid' | 'list'>('grid')
@@ -184,8 +190,11 @@ const books = ref<EbookShelfBook[]>([])
 const filters = ebookShelfFilters
 const loading = ref(true)
 const error = ref('')
+const notLoggedIn = ref(false)
 
 async function fetchData() {
+  if (!getToken()) { notLoggedIn.value = true; loading.value = false; return }
+  notLoggedIn.value = false
   loading.value = true
   error.value = ''
   try {
@@ -195,6 +204,9 @@ async function fetchData() {
   } finally {
     loading.value = false
   }
+}
+function goLogin() {
+  uni.navigateTo({ url: '/pkg-auth/login/index' })
 }
 
 onLoad(() => { fetchData() })
@@ -237,31 +249,18 @@ function goBack() {
   uni.navigateBack({ fail: () => uni.switchTab({ url: '/pages/mine/index', fail: () => {} }) })
 }
 function goStore() {
-  uni.showToast({ title: '电子书城即将上线', icon: 'none' })
+  uni.navigateTo({ url: '/pkg-ebook/store/index' })
 }
 function goReader(book: EbookShelfBook) {
-  uni.showToast({ title: `阅读《${book.title}》即将上线`, icon: 'none' })
+  uni.navigateTo({ url: `/pkg-ebook/reader/index?id=${book.id}` })
 }
 function goDetail(book: EbookShelfBook) {
-  uni.showToast({ title: `《${book.title}》详情即将上线`, icon: 'none' })
   activeMenu.value = null
+  uni.navigateTo({ url: `/pkg-ebook/detail/index?id=${book.id}` })
 }
-function onDownload(book: EbookShelfBook) {
-  uni.showToast({ title: book.isDownloaded ? '已离线下载' : `开始下载《${book.title}》`, icon: 'none' })
+function onDownload(_book: EbookShelfBook) {
   activeMenu.value = null
-}
-function onRemove(book: EbookShelfBook) {
-  uni.showModal({
-    title: '移出书架',
-    content: `确定将《${book.title}》移出书架？`,
-    success: (res) => {
-      if (res.confirm) {
-        books.value = books.value.filter((b) => b.id !== book.id)
-        activeMenu.value = null
-        uni.showToast({ title: '已移出', icon: 'none' })
-      }
-    },
-  })
+  uni.showToast({ title: '离线下载即将上线', icon: 'none' })
 }
 </script>
 

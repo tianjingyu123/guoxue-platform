@@ -44,6 +44,9 @@
         </view>
       </template>
 
+      <!-- Error -->
+      <app-error v-else-if="error" title="问答加载失败" desc="网络异常，请稍后重试" @retry="loadQuestions" />
+
       <!-- Empty -->
       <view v-else-if="filteredQuestions.length === 0" class="qa-empty">
         <app-icon name="message-circle" :size="128" color="#d1d5db" />
@@ -147,6 +150,7 @@ interface Question {
 const statusBarHeight = ref(0)
 const activeTab = ref<'all' | 'pending' | 'answered'>('all')
 const loading = ref(true)
+const error = ref(false)
 const questions = ref<Question[]>([])
 
 const tabs = [
@@ -193,9 +197,9 @@ const onBack = () => navigateBack()
 const goAsk = () => navigateTo('/qa/ask')
 const goDetail = (id: string) => navigateTo(`/qa/${id}`)
 
-onMounted(() => {
-  const info = uni.getSystemInfoSync()
-  statusBarHeight.value = info.statusBarHeight || 0
+function loadQuestions() {
+  loading.value = true
+  error.value = false
   setTimeout(() => {
     questions.value = [
       {
@@ -252,6 +256,12 @@ onMounted(() => {
     ]
     loading.value = false
   }, 300)
+}
+
+onMounted(() => {
+  const info = uni.getSystemInfoSync()
+  statusBarHeight.value = info.statusBarHeight || 0
+  loadQuestions()
 })
 </script>
 
@@ -287,7 +297,7 @@ onMounted(() => {
   align-items: center;
   gap: 8rpx;
   padding: 12rpx 24rpx;
-  background-color: #c41e3a;
+  background-color: var(--brand);
   border-radius: 999rpx;
 }
 .qa-ask-text {
@@ -310,7 +320,7 @@ onMounted(() => {
   color: #999999;
 }
 .qa-tab-text-active {
-  color: #c41e3a;
+  color: var(--brand);
 }
 .qa-tab-line {
   position: absolute;
@@ -318,7 +328,7 @@ onMounted(() => {
   right: 0;
   bottom: 0;
   height: 4rpx;
-  background-color: #c41e3a;
+  background-color: var(--brand);
 }
 .qa-list {
   padding: 32rpx;
@@ -351,7 +361,7 @@ onMounted(() => {
   justify-content: center;
 }
 .qa-avatar-red {
-  background: linear-gradient(135deg, #c41e3a, #e85a6b);
+  background: linear-gradient(135deg, var(--brand), #e85a6b);
 }
 .qa-avatar-gold {
   background: linear-gradient(135deg, #c9a96e, #dfc296);
@@ -519,7 +529,7 @@ onMounted(() => {
 .qa-empty-btn {
   margin-top: 32rpx;
   padding: 16rpx 48rpx;
-  background-color: #c41e3a;
+  background-color: var(--brand);
   border-radius: 999rpx;
 }
 .qa-empty-btn-text {

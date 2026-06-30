@@ -14,7 +14,7 @@
       <!-- Logo和标题 -->
       <view class="logo-section">
         <view class="logo-box">
-          <image class="logo-img" :src="logoSrc" mode="aspectFill" />
+          <image lazy-load class="logo-img" :src="logoSrc" mode="aspectFill" />
         </view>
         <text class="app-title">热卜国学</text>
         <text class="app-subtitle">探寻东方智慧</text>
@@ -39,7 +39,7 @@
           </view>
           <input
             class="input"
-            type="number"
+            type="text"
             :value="phone"
             maxlength="11"
             placeholder="请输入手机号"
@@ -55,7 +55,7 @@
           </view>
           <input
             class="input input-code"
-            type="number"
+            type="text"
             :value="code"
             maxlength="6"
             placeholder="请输入验证码"
@@ -161,6 +161,8 @@
 import { ref, computed, onUnmounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
+import { authApi } from '@/lib/auth-data'
+import { setToken, setUserInfo } from '@/utils/storage'
 
 const statusBarHeight = ref(0)
 const logoSrc = ref('/images/logo.jpg')
@@ -206,19 +208,51 @@ function onPasswordInput(e: any) {
 }
 
 // @data-needs: 发送验证码, 参数 {phone, scene:'login'}, 返回 {success, message}
-function handleSendCode() {
+async function handleSendCode() {
   if (countdown.value > 0 || !isPhoneValid.value || isSendingCode.value) return
-  countdown.value = 60
-  timer = setInterval(() => {
-    countdown.value--
-    if (countdown.value <= 0 && timer) clearInterval(timer)
-  }, 1000)
+  isSendingCode.value = true
+  error.value = ''
+  try {
+    const res = await authApi.sendCode(phone.value, 'login')
+    if (res.success) {
+      countdown.value = 60
+      timer = setInterval(() => {
+        countdown.value--
+        if (countdown.value <= 0 && timer) clearInterval(timer)
+      }, 1000)
+    } else {
+      error.value = res.message || '验证码发送失败'
+    }
+  } catch (e: any) {
+    error.value = e?.message || '验证码发送失败'
+  } finally {
+    isSendingCode.value = false
+  }
 }
 
 // @data-needs: 登录, 参数 {phone, code} 或 {phone, password}, 返回 {success, data:{token, user}, message}
-function handleLogin() {
+async function handleLogin() {
   if (!canSubmit.value || isLoading.value) return
-  // 认证逻辑交给 @/lib 层
+  isLoading.value = true
+  error.value = ''
+  try {
+    const res = await authApi.login(
+      loginType.value === 'password'
+        ? { phone: phone.value, password: password.value }
+        : { phone: phone.value, code: code.value },
+    )
+    if (res.success && res.data?.token) {
+      setToken(res.data.token)
+      setUserInfo(res.data.user)
+      uni.reLaunch({ url: '/pages/index/index' })
+    } else {
+      error.value = res.message || '登录失败'
+    }
+  } catch (e: any) {
+    error.value = e?.message || '登录失败'
+  } finally {
+    isLoading.value = false
+  }
 }
 
 function handleThirdParty(_type: 'wechat' | 'apple') {
@@ -326,7 +360,7 @@ onUnmounted(() => {
   border-bottom: 4rpx solid transparent;
 }
 .tab.active {
-  border-bottom-color: #c41e3a;
+  border-bottom-color: var(--brand);
 }
 .tab-text {
   font-size: 28rpx;
@@ -334,7 +368,7 @@ onUnmounted(() => {
   color: #999999;
 }
 .tab-text-active {
-  color: #c41e3a;
+  color: var(--brand);
 }
 
 /* 表单 */
@@ -396,7 +430,7 @@ onUnmounted(() => {
 .code-btn-text {
   font-size: 26rpx;
   font-weight: 500;
-  color: #c41e3a;
+  color: var(--brand);
 }
 .code-btn-text-disabled {
   color: #999999;
@@ -422,7 +456,7 @@ onUnmounted(() => {
 }
 .forgot-link {
   font-size: 26rpx;
-  color: #c41e3a;
+  color: var(--brand);
 }
 
 /* 协议 */
@@ -444,8 +478,8 @@ onUnmounted(() => {
   margin-top: 4rpx;
 }
 .checkbox-checked {
-  background: #c41e3a;
-  border-color: #c41e3a;
+  background: var(--brand);
+  border-color: var(--brand);
 }
 .terms-text {
   flex: 1;
@@ -457,7 +491,7 @@ onUnmounted(() => {
 }
 .terms-link {
   font-size: 24rpx;
-  color: #c41e3a;
+  color: var(--brand);
 }
 
 /* 登录按钮 */
@@ -469,7 +503,7 @@ onUnmounted(() => {
   width: 100%;
   height: 96rpx;
   border-radius: 24rpx;
-  background: #c41e3a;
+  background: var(--brand);
 }
 .submit-btn-disabled {
   opacity: 0.5;
@@ -492,7 +526,7 @@ onUnmounted(() => {
 }
 .register-link {
   font-size: 28rpx;
-  color: #c41e3a;
+  color: var(--brand);
   margin-left: 8rpx;
 }
 

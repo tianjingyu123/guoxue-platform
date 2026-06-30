@@ -20,7 +20,7 @@
         <view class="cat-hero" :style="{ background: `linear-gradient(150deg, ${config.from}, ${config.to})` }">
           <view class="cat-hero-top">
             <view class="cat-hero-info">
-              <text class="cat-hero-cat">四库 · {{ config.desc }}</text>
+              <text class="cat-hero-cat">典籍 · {{ config.desc }}</text>
               <text class="cat-hero-name">{{ config.name }}</text>
               <text class="cat-hero-intro">{{ config.intro }}</text>
             </view>
@@ -35,21 +35,6 @@
         </view>
       </view>
 
-      <!-- 子门类筛选 -->
-      <scroll-view class="cat-subs" scroll-x :show-scrollbar="false">
-        <view class="cat-subs-row">
-          <view
-            v-for="sub in config.subCats"
-            :key="sub"
-            class="cat-sub-chip"
-            :class="{ 'cat-sub-active': activeSub === sub }"
-            @tap="activeSub = sub"
-          >
-            <text class="cat-sub-text">{{ sub }}</text>
-          </view>
-        </view>
-      </scroll-view>
-
       <!-- 排序 -->
       <view class="cat-sort">
         <text class="cat-sort-count">共 <text class="cat-sort-num">{{ books.length }}</text> 部</text>
@@ -59,7 +44,7 @@
             :key="s.key"
             class="cat-sort-btn"
             :class="{ 'cat-sort-btn-active': sort === s.key }"
-            @tap="sort = s.key"
+            @tap="setSort(s.key)"
           >
             <text class="cat-sort-btn-text">{{ s.label }}</text>
           </view>
@@ -83,7 +68,7 @@
               </view>
               <text class="cat-card-desc">{{ book.desc }}</text>
             </view>
-            <text class="cat-card-meta">{{ book.author }} · {{ book.dynasty }} · {{ fmtReads(book.reads) }}人读</text>
+            <text class="cat-card-meta">{{ bookMetaLine(book.author, book.dynasty, book.reads) }}</text>
           </view>
           <view class="cat-card-arrow">
             <app-icon name="chevron-right" :size="40" color="rgba(0,0,0,0.25)" />
@@ -100,9 +85,9 @@ import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import ClassicsHeader from '@/components/classics/classics-header.vue'
 import FlatCover from '@/components/classics/flat-cover.vue'
-import { classicsApi, fmtReads, type CatId, type CatConfig, type CatBook } from '@/lib/classics-data'
+import { classicsApi, bookMetaLine, type CatConfig, type CatBook } from '@/lib/classics-data'
 
-const catId = ref<CatId>('jing')
+const catId = ref<string>('jing')
 const activeSub = ref('全部')
 const sort = ref<'hot' | 'new'>('hot')
 const sortOptions = [
@@ -115,11 +100,11 @@ const books = ref<CatBook[]>([])
 const loading = ref(true)
 const error = ref('')
 
-async function fetchData(cat: CatId) {
+async function fetchData(cat: string) {
   loading.value = true
   error.value = ''
   try {
-    const data = await classicsApi.category(cat)
+    const data = await classicsApi.category(cat, sort.value)
     config.value = data.config
     books.value = data.books
   } catch (e: any) {
@@ -128,11 +113,16 @@ async function fetchData(cat: CatId) {
     loading.value = false
   }
 }
+function setSort(k: 'hot' | 'new') {
+  if (sort.value === k) return
+  sort.value = k
+  fetchData(catId.value)
+}
 
 onLoad((query) => {
   const cat = query?.cat
-  if (cat && ['jing', 'shi', 'zi', 'ji'].includes(cat)) {
-    catId.value = cat as CatId
+  if (cat && ['jing', 'shi', 'zi', 'ji', 'fo', 'dao', 'ming', 'yi'].includes(cat)) {
+    catId.value = cat
   }
   fetchData(catId.value)
 })

@@ -52,7 +52,7 @@
       <!-- 已上传图片 -->
       <view v-if="images.length > 0" class="img-grid">
         <view v-for="(img, i) in images" :key="i" class="img-cell">
-          <image :src="img" class="img-thumb" mode="aspectFill" />
+          <image lazy-load :src="img" class="img-thumb" mode="aspectFill" />
           <view class="img-del" @tap="removeImage(i)">
             <app-icon name="x" :size="12" color="#fff" />
           </view>
@@ -63,7 +63,7 @@
       <view v-if="cover && type === 'article'" class="cover-block">
         <text class="cover-label">封面图</text>
         <view class="cover-wrap">
-          <image :src="cover" class="cover-img" mode="aspectFill" />
+          <image lazy-load :src="cover" class="cover-img" mode="aspectFill" />
           <view class="cover-del" @tap="cover = ''">
             <app-icon name="x" :size="16" color="#fff" />
           </view>
@@ -71,30 +71,28 @@
       </view>
     </view>
 
-    <!-- 选择圈子 -->
+    <!-- 选择圈子（必选，后端发帖/发文章均需归属圈子） -->
     <view class="select-row" @tap="showCircleSelect = true">
       <template v-if="selectedCircleData">
         <view class="circle-avatar">
-          <image :src="selectedCircleData.cover" class="circle-avatar-img" mode="aspectFill" />
+          <image lazy-load :src="selectedCircleData.cover" class="circle-avatar-img" mode="aspectFill" />
         </view>
         <text class="select-text">{{ selectedCircleData.name }}</text>
       </template>
       <template v-else>
         <app-icon name="hash" :size="16" color="#8a8a8a" />
-        <text class="select-placeholder">选择圈子（可选）</text>
+        <text class="select-placeholder">选择要发布到的圈子</text>
       </template>
       <app-icon name="chevron-down" :size="16" color="#8a8a8a" class="select-arrow" />
     </view>
 
-    <!-- 选择话题 -->
-    <view class="select-row" @tap="showTopicSelect = true">
+    <!-- 选择标签（仅文章，后端文章支持 tags，帖子无标签字段） -->
+    <view v-if="type === 'article'" class="select-row" @tap="showTopicSelect = true">
       <app-icon name="tag" :size="16" color="#8a8a8a" />
       <view v-if="selectedTopics.length > 0" class="topic-tags">
-        <text v-for="t in selectedTopics" :key="t" class="topic-tag">
-          #{{ topics.find(topic => topic.id === t)?.name }}
-        </text>
+        <text v-for="t in selectedTopics" :key="t" class="topic-tag">#{{ t }}</text>
       </view>
-      <text v-else class="select-placeholder">添加话题标签</text>
+      <text v-else class="select-placeholder">添加标签</text>
       <app-icon name="chevron-down" :size="16" color="#8a8a8a" class="select-arrow" />
     </view>
 
@@ -120,11 +118,11 @@
             <app-icon name="image-plus" :size="12" color="#059669" />
             <text class="ai-chip-text green">封面</text>
           </view>
+          <view class="ai-chip ai-orange" @tap="openAIPanel('tags')">
+            <app-icon name="tag" :size="12" color="#ea580c" />
+            <text class="ai-chip-text orange">标签</text>
+          </view>
         </template>
-        <view class="ai-chip ai-orange" @tap="openAIPanel('tags')">
-          <app-icon name="tag" :size="12" color="#ea580c" />
-          <text class="ai-chip-text orange">标签</text>
-        </view>
       </view>
     </view>
 
@@ -135,10 +133,12 @@
           <text class="sheet-title center">选择圈子</text>
         </view>
         <view class="sheet-body">
-          <view class="opt-row" :class="{ active: !selectedCircle }" @tap="selectCircle(null)">
-            <view class="opt-icon"><app-icon name="hash" :size="20" color="#8a8a8a" /></view>
-            <text class="opt-text">不选择圈子</text>
-            <app-icon v-if="!selectedCircle" name="check" :size="20" color="#C41E3A" class="opt-check" />
+          <view v-if="circlesLoading" class="sheet-state">
+            <app-icon name="loader-2" :size="28" color="#a855f7" class="spin" />
+            <text class="sheet-state-text">加载中...</text>
+          </view>
+          <view v-else-if="circles.length === 0" class="sheet-state">
+            <text class="sheet-state-text">你还没有加入任何圈子</text>
           </view>
           <view
             v-for="circle in circles"
@@ -147,7 +147,7 @@
             :class="{ active: selectedCircle === circle.id }"
             @tap="selectCircle(circle.id)"
           >
-            <view class="opt-avatar"><image :src="circle.cover" class="opt-avatar-img" mode="aspectFill" /></view>
+            <view class="opt-avatar"><image lazy-load :src="circle.cover" class="opt-avatar-img" mode="aspectFill" /></view>
             <text class="opt-text">{{ circle.name }}</text>
             <app-icon v-if="selectedCircle === circle.id" name="check" :size="20" color="#C41E3A" class="opt-check" />
           </view>
@@ -155,24 +155,27 @@
       </view>
     </view>
 
-    <!-- 话题选择弹窗 -->
+    <!-- 标签选择弹窗 -->
     <view v-if="showTopicSelect" class="mask" @tap="showTopicSelect = false">
       <view class="sheet" @tap.stop>
         <view class="sheet-header between">
           <text class="sheet-count">已选 {{ selectedTopics.length }}/3</text>
-          <text class="sheet-title">选择话题</text>
+          <text class="sheet-title">选择标签</text>
           <text class="sheet-done" @tap="showTopicSelect = false">完成</text>
         </view>
         <view class="sheet-body">
-          <view class="topic-pool">
+          <view v-if="tags.length === 0" class="sheet-state">
+            <text class="sheet-state-text">暂无热门标签</text>
+          </view>
+          <view v-else class="topic-pool">
             <view
-              v-for="topic in topics"
-              :key="topic.id"
+              v-for="tag in tags"
+              :key="tag.id"
               class="topic-pick"
-              :class="{ active: selectedTopics.includes(topic.id) }"
-              @tap="toggleTopic(topic.id)"
+              :class="{ active: selectedTopics.includes(tag.name) }"
+              @tap="toggleTopic(tag.name)"
             >
-              #{{ topic.name }}
+              #{{ tag.name }}
             </view>
           </view>
         </view>
@@ -201,10 +204,6 @@
             <!-- 润色结果 -->
             <view v-if="showAIPanel === 'polish' && aiResult" class="ai-section">
               <view class="polish-box"><text class="polish-text">{{ aiResult.polished }}</text></view>
-              <view class="changes">
-                <text class="changes-label">优化说明：</text>
-                <text v-for="(c, i) in aiResult.changes" :key="i" class="change-item">• {{ c }}</text>
-              </view>
               <view class="ai-actions">
                 <view class="ai-apply purple" @tap="applyPolish">应用润色</view>
                 <view class="ai-refresh" @tap="handleAIPolish"><app-icon name="refresh-cw" :size="16" color="#8a8a8a" /></view>
@@ -214,7 +213,7 @@
             <!-- 标题建议 -->
             <view v-if="showAIPanel === 'title' && aiResult" class="ai-section">
               <view
-                v-for="(s, i) in aiResult.suggestions"
+                v-for="(s, i) in aiResult.titles"
                 :key="i"
                 class="title-sug"
                 @tap="applyTitle(s)"
@@ -232,7 +231,7 @@
                   v-for="(tag, i) in aiResult.tags"
                   :key="i"
                   class="tag-pick"
-                  :class="{ active: selectedTags.includes(tag) }"
+                  :class="{ active: selectedTopics.includes(tag) }"
                   @tap="pickTag(tag)"
                 >{{ tag }}</view>
               </view>
@@ -253,7 +252,18 @@
                   placeholder-class="ph"
                 />
               </view>
-              <view v-if="aiResult && aiResult.imageUrl" class="cover-gen-result" :style="{ background: aiResult.imageUrl }" />
+              <!-- 真实图片 -->
+              <image lazy-load
+                v-if="aiResult && aiResult.imageUrl"
+                :src="aiResult.imageUrl"
+                class="cover-gen-result"
+                mode="aspectFill"
+              />
+              <!-- 降级：图片生成服务未配置，仅返回设计提示词 -->
+              <view v-else-if="aiResult && aiResult.designPrompt" class="cover-gen-fallback">
+                <text class="cover-gen-fallback-label">AI 已生成封面设计提示词（图片生成服务待配置）：</text>
+                <text class="cover-gen-fallback-text">{{ aiResult.designPrompt }}</text>
+              </view>
               <view class="ai-actions">
                 <template v-if="aiResult && aiResult.imageUrl">
                   <view class="ai-apply green" @tap="useCover">使用此封面</view>
@@ -271,35 +281,26 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import { navigateBack } from '@/utils/router'
+import { circleApi } from '@/lib/circle-data'
+import { articleApi, tagApi } from '@/lib/article-data'
+import { publishAssistApi } from '@/lib/publish-assist-data'
 
 interface CircleItem { id: string; name: string; cover: string }
-interface TopicItem { id: string; name: string }
 
 const statusBarHeight = ref(0)
-
-const mockCircles: CircleItem[] = [
-  { id: '1', name: '八字研习社', cover: 'https://images.unsplash.com/photo-1532102235608-dc8fc689c9ab?w=80&h=80&fit=crop' },
-  { id: '2', name: '紫微斗数交流', cover: 'https://images.unsplash.com/photo-1519681393784-d120267933ba?w=80&h=80&fit=crop' },
-  { id: '3', name: '风水堪舆', cover: 'https://images.unsplash.com/photo-1490750967868-88aa4486c946?w=80&h=80&fit=crop' },
-]
-const topics: TopicItem[] = [
-  { id: '1', name: '八字命理' },
-  { id: '2', name: '紫微斗数' },
-  { id: '3', name: '风水布局' },
-  { id: '4', name: '每日打卡' },
-  { id: '5', name: '学习心得' },
-]
 
 const type = ref<'post' | 'article'>('post')
 const title = ref('')
 const content = ref('')
-const cover = ref('')
+const cover = ref('')                        // 封面图：AI 生成的 base64 data url 或本地临时路径
 const images = ref<string[]>([])
 const selectedCircle = ref<string | null>(null)
-const selectedTags = ref<string[]>([])
-const selectedTopics = ref<string[]>([])
-const circles = ref<CircleItem[]>(mockCircles)
+const selectedTopics = ref<string[]>([])     // 已选标签名（文章 tags）
+const circles = ref<CircleItem[]>([])
+const circlesLoading = ref(false)
+const tags = ref<{ id: string; name: string }[]>([])
 
 const showCircleSelect = ref(false)
 const showTopicSelect = ref(false)
@@ -316,16 +317,39 @@ const aiPanelTitle = computed(() => {
   return showAIPanel.value ? m[showAIPanel.value] : ''
 })
 
+onLoad((opts: any) => {
+  if (opts?.circleId) selectedCircle.value = opts.circleId
+})
+
 onMounted(() => {
   try {
     const info = uni.getSystemInfoSync()
     statusBarHeight.value = info.statusBarHeight || 0
   } catch (e) {}
-  const pages = getCurrentPages()
-  const cur: any = pages[pages.length - 1]
-  const opts = cur?.options || {}
-  if (opts.circleId) selectedCircle.value = opts.circleId
+  loadCircles()
+  loadTags()
 })
+
+async function loadCircles() {
+  circlesLoading.value = true
+  try {
+    const list = await circleApi.my()
+    circles.value = list.map(c => ({ id: c.id, name: c.name, cover: c.cover }))
+  } catch {
+    circles.value = []
+  } finally {
+    circlesLoading.value = false
+  }
+}
+
+async function loadTags() {
+  try {
+    const hot = await tagApi.hot(15)
+    tags.value = hot.map(t => ({ id: t.id, name: t.name }))
+  } catch {
+    tags.value = []
+  }
+}
 
 function goBack() { navigateBack() }
 
@@ -338,24 +362,24 @@ function insertFormat(format: 'bold' | 'italic' | 'quote') {
 }
 
 function handleImageUpload() {
-  // mock 上传：追加占位渐变图
-  const palette = [
-    'linear-gradient(135deg,#C41E3A,#9a1830)',
-    'linear-gradient(135deg,#C9A96E,#a8894f)',
-    'linear-gradient(135deg,#2563eb,#1e40af)',
-  ]
-  images.value.push(palette[images.value.length % palette.length])
+  uni.chooseImage({
+    count: Math.max(1, 9 - images.value.length),
+    success: (res: any) => {
+      const paths: string[] = res.tempFilePaths || []
+      images.value.push(...paths)
+    },
+  })
 }
 function removeImage(i: number) { images.value.splice(i, 1) }
 
-function selectCircle(id: string | null) {
+function selectCircle(id: string) {
   selectedCircle.value = id
   showCircleSelect.value = false
 }
-function toggleTopic(id: string) {
-  const idx = selectedTopics.value.indexOf(id)
+function toggleTopic(name: string) {
+  const idx = selectedTopics.value.indexOf(name)
   if (idx >= 0) selectedTopics.value.splice(idx, 1)
-  else if (selectedTopics.value.length < 3) selectedTopics.value.push(id)
+  else if (selectedTopics.value.length < 3) selectedTopics.value.push(name)
 }
 
 function openAIPanel(panel: 'polish' | 'title' | 'tags' | 'cover') {
@@ -367,51 +391,120 @@ function openAIPanel(panel: 'polish' | 'title' | 'tags' | 'cover') {
   else if (panel === 'cover') coverPrompt.value = ''
 }
 
-function mockDelay(cb: () => void) {
+async function handleAIPolish() {
+  if (!content.value.trim()) { uni.showToast({ title: '请先输入内容', icon: 'none' }); showAIPanel.value = null; return }
   aiLoading.value = true
-  setTimeout(() => { cb(); aiLoading.value = false }, 1200)
+  try {
+    const res = await publishAssistApi.polish(content.value)
+    aiResult.value = { polished: res.polished }
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '润色失败', icon: 'none' })
+    showAIPanel.value = null
+  } finally { aiLoading.value = false }
 }
-function handleAIPolish() {
-  mockDelay(() => {
-    aiResult.value = {
-      polished: content.value + '\n\n（AI润色后的内容会更加流畅、专业）',
-      changes: ['优化了段落结构', '增强了表达的专业性', '修正了语法问题'],
-    }
-  })
+async function handleAITitle() {
+  const base = content.value.trim() || title.value.trim()
+  if (!base) { uni.showToast({ title: '请先输入内容', icon: 'none' }); showAIPanel.value = null; return }
+  aiLoading.value = true
+  try {
+    const res = await publishAssistApi.optimizeTitle(base)
+    aiResult.value = { titles: res.titles }
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '生成失败', icon: 'none' })
+    showAIPanel.value = null
+  } finally { aiLoading.value = false }
 }
-function handleAITitle() {
-  mockDelay(() => {
-    aiResult.value = {
-      suggestions: ['深入解析八字命理的核心奥秘', '八字命理入门：从基础到实践', '探索八字命理的智慧之道'],
-    }
-  })
+async function handleAITags() {
+  if (!content.value.trim()) { uni.showToast({ title: '请先输入内容', icon: 'none' }); showAIPanel.value = null; return }
+  aiLoading.value = true
+  try {
+    const res = await publishAssistApi.suggestTags(content.value)
+    aiResult.value = { tags: res.tags }
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '推荐失败', icon: 'none' })
+    showAIPanel.value = null
+  } finally { aiLoading.value = false }
 }
-function handleAITags() {
-  mockDelay(() => {
-    aiResult.value = { tags: ['八字命理', '国学智慧', '传统文化', '命理学习', '易学入门'] }
-  })
-}
-function handleAICover() {
+async function handleAICover() {
   if (!coverPrompt.value.trim()) return
-  mockDelay(() => {
-    aiResult.value = { imageUrl: 'linear-gradient(135deg,#C41E3A,#C9A96E)' }
-  })
+  aiLoading.value = true
+  try {
+    const res = await publishAssistApi.generateCover(coverPrompt.value)
+    aiResult.value = res
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '生成失败', icon: 'none' })
+  } finally { aiLoading.value = false }
 }
 
 function applyPolish() { content.value = aiResult.value.polished; showAIPanel.value = null }
 function applyTitle(s: string) { title.value = s; showAIPanel.value = null }
-function pickTag(tag: string) { if (!selectedTags.value.includes(tag)) selectedTags.value.push(tag) }
-function useCover() { cover.value = aiResult.value.imageUrl; showAIPanel.value = null }
-
-function handleSaveDraft() {
-  if (saving.value) return
-  saving.value = true
-  setTimeout(() => { saving.value = false; uni.showToast({ title: '草稿已保存', icon: 'none' }) }, 800)
+function pickTag(tag: string) {
+  if (!selectedTopics.value.includes(tag) && selectedTopics.value.length < 3) selectedTopics.value.push(tag)
 }
-function handlePublish() {
-  if (publishing.value || !content.value.trim()) return
+function useCover() {
+  if (aiResult.value?.imageUrl) { cover.value = aiResult.value.imageUrl; showAIPanel.value = null }
+}
+
+/** 公共校验：内容 + 圈子必选 */
+function validateBase(): boolean {
+  if (!content.value.trim()) { uni.showToast({ title: '请输入内容', icon: 'none' }); return false }
+  if (!selectedCircle.value) { uni.showToast({ title: '请选择要发布到的圈子', icon: 'none' }); return false }
+  return true
+}
+
+async function handleSaveDraft() {
+  if (saving.value) return
+  if (!validateBase()) return
+  saving.value = true
+  try {
+    if (type.value === 'article') {
+      await articleApi.saveDraft({
+        title: title.value.trim() || '无标题',
+        content: content.value,
+        cover: cover.value || undefined,
+        tags: selectedTopics.value,
+        circleId: selectedCircle.value!,
+      })
+    } else {
+      await articleApi.createPost(selectedCircle.value!, {
+        type: images.value.length ? 'IMAGE' : 'TEXT',
+        content: content.value,
+        images: images.value.length ? images.value : undefined,
+        status: 'DRAFT',
+      })
+    }
+    uni.showToast({ title: '草稿已保存', icon: 'success' })
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '保存失败', icon: 'none' })
+  } finally { saving.value = false }
+}
+
+async function handlePublish() {
+  if (publishing.value) return
+  if (!validateBase()) return
+  if (type.value === 'article' && !title.value.trim()) { uni.showToast({ title: '请输入文章标题', icon: 'none' }); return }
   publishing.value = true
-  setTimeout(() => { publishing.value = false; uni.showToast({ title: '发布成功', icon: 'success' }); setTimeout(() => navigateBack(), 600) }, 1000)
+  try {
+    if (type.value === 'article') {
+      await articleApi.create(selectedCircle.value!, {
+        title: title.value.trim(),
+        content: content.value,
+        cover: cover.value || undefined,
+        tags: selectedTopics.value,
+      })
+    } else {
+      await articleApi.createPost(selectedCircle.value!, {
+        type: images.value.length ? 'IMAGE' : 'TEXT',
+        content: content.value,
+        images: images.value.length ? images.value : undefined,
+        status: 'PUBLISHED',
+      })
+    }
+    uni.showToast({ title: '发布成功', icon: 'success' })
+    setTimeout(() => navigateBack(), 600)
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '发布失败', icon: 'none' })
+  } finally { publishing.value = false }
 }
 </script>
 
@@ -452,7 +545,7 @@ function handlePublish() {
   align-items: center;
   gap: 8rpx;
   padding: 12rpx 32rpx;
-  background: #C41E3A;
+  background: var(--brand);
   border-radius: 999rpx;
 }
 .btn-publish.disabled { opacity: 0.5; }
@@ -467,9 +560,9 @@ function handlePublish() {
   gap: 32rpx;
 }
 .type-item { padding-bottom: 8rpx; border-bottom: 4rpx solid transparent; }
-.type-item.active { border-bottom-color: #C41E3A; }
+.type-item.active { border-bottom-color: var(--brand); }
 .type-text { font-size: 28rpx; font-weight: 500; color: #8a8a8a; }
-.type-text.active { color: #C41E3A; }
+.type-text.active { color: var(--brand); }
 
 /* 编辑区 */
 .edit-area { flex: 1; padding: 32rpx; }
@@ -555,7 +648,7 @@ function handlePublish() {
 .topic-tag {
   padding: 4rpx 16rpx;
   background: rgba(196,30,58,0.1);
-  color: #C41E3A;
+  color: var(--brand);
   font-size: 22rpx;
   border-radius: 999rpx;
 }
@@ -624,8 +717,17 @@ function handlePublish() {
 .sheet-title { font-size: 30rpx; font-weight: 600; color: #1a1a1a; }
 .sheet-title.center { text-align: center; display: block; }
 .sheet-count { font-size: 26rpx; color: #8a8a8a; }
-.sheet-done { font-size: 26rpx; color: #C41E3A; }
+.sheet-done { font-size: 26rpx; color: var(--brand); }
 .sheet-body { padding: 32rpx; }
+.sheet-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16rpx;
+  padding: 64rpx 0;
+}
+.sheet-state-text { font-size: 26rpx; color: #8a8a8a; }
 .opt-row {
   display: flex;
   align-items: center;
@@ -636,15 +738,6 @@ function handlePublish() {
   margin-bottom: 16rpx;
 }
 .opt-row.active { background: rgba(196,30,58,0.1); }
-.opt-icon {
-  width: 80rpx;
-  height: 80rpx;
-  border-radius: 999rpx;
-  background: #ececec;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
 .opt-avatar { width: 80rpx; height: 80rpx; border-radius: 999rpx; overflow: hidden; }
 .opt-avatar-img { width: 100%; height: 100%; }
 .opt-text { font-size: 28rpx; color: #1a1a1a; }
@@ -657,7 +750,7 @@ function handlePublish() {
   background: #f4f4f5;
   color: #1a1a1a;
 }
-.topic-pick.active { background: #C41E3A; color: #fff; }
+.topic-pick.active { background: var(--brand); color: #fff; }
 
 /* AI面板 */
 .ai-sheet-title { display: flex; align-items: center; gap: 16rpx; }
@@ -674,9 +767,6 @@ function handlePublish() {
 .ai-section { display: flex; flex-direction: column; gap: 32rpx; }
 .polish-box { padding: 24rpx; background: rgba(168,85,247,0.08); border-radius: 24rpx; }
 .polish-text { font-size: 28rpx; color: #1a1a1a; line-height: 1.6; white-space: pre-wrap; }
-.changes { display: flex; flex-direction: column; gap: 8rpx; }
-.changes-label { font-size: 22rpx; color: #8a8a8a; }
-.change-item { font-size: 22rpx; color: #9333ea; }
 .ai-actions { display: flex; gap: 16rpx; }
 .ai-apply {
   flex: 1;
@@ -737,10 +827,21 @@ function handlePublish() {
   font-size: 28rpx;
 }
 .cover-gen-result {
+  width: 100%;
   aspect-ratio: 16/9;
   border-radius: 24rpx;
   overflow: hidden;
 }
+.cover-gen-fallback {
+  padding: 24rpx;
+  background: rgba(5,150,105,0.06);
+  border-radius: 24rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 12rpx;
+}
+.cover-gen-fallback-label { font-size: 24rpx; color: #059669; }
+.cover-gen-fallback-text { font-size: 26rpx; color: #1a1a1a; line-height: 1.6; }
 .spin { animation: spin 1s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 </style>

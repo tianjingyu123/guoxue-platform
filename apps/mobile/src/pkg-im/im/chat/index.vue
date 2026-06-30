@@ -13,7 +13,7 @@
         </view>
         <view class="target-info">
           <view class="target-avatar-wrap">
-            <image class="target-avatar" :src="target.avatar" mode="aspectFill" />
+            <image lazy-load class="target-avatar" :src="target.avatar" mode="aspectFill" />
             <view v-if="target.isOnline" class="online-dot" />
           </view>
           <view class="target-text">
@@ -44,7 +44,7 @@
 
           <!-- 消息气泡 -->
           <view class="msg-row" :class="{ 'msg-mine': isMine(message) }">
-            <image class="msg-avatar" :src="message.senderAvatar" mode="aspectFill" />
+            <image lazy-load class="msg-avatar" :src="message.senderAvatar" mode="aspectFill" />
             <view class="msg-content" :class="{ 'msg-content-mine': isMine(message) }">
               <view
                 class="bubble"
@@ -59,7 +59,7 @@
                 <!-- 文字 -->
                 <text v-else-if="message.type === 'text'" class="bubble-text" :class="{ 'bubble-text-mine': isMine(message) }">{{ message.content }}</text>
                 <!-- 图片 -->
-                <image v-else-if="message.type === 'image'" class="bubble-image" :src="message.image?.url" mode="widthFix" />
+                <image lazy-load v-else-if="message.type === 'image'" class="bubble-image" :src="message.image?.url" mode="widthFix" />
                 <!-- 语音 -->
                 <view v-else-if="message.type === 'voice'" class="voice-row">
                   <view class="voice-play">
@@ -70,7 +70,7 @@
                 </view>
                 <!-- 商品卡片 -->
                 <view v-else-if="message.type === 'card'" class="product-card">
-                  <image class="product-cover" :src="message.product?.cover" mode="aspectFill" />
+                  <image lazy-load class="product-cover" :src="message.product?.cover" mode="aspectFill" />
                   <view class="product-body">
                     <text class="product-title">{{ message.product?.title }}</text>
                     <view class="product-price-row">
@@ -159,9 +159,10 @@ import {
   imApi,
   formatMessageTime,
   shouldShowTimeLabel,
-  getChatPermission,
+  toChatPermission,
   CURRENT_USER_ID,
   type ChatMessage,
+  type ChatPermission,
 } from '@/lib/im-data'
 
 const props = defineProps<{ targetId: string }>()
@@ -192,8 +193,20 @@ async function loadData() {
     messages.value = chatHistory.messages
   } catch (e: any) {
     error.value = e?.message || '加载聊天数据失败，请重试'
-  } finally {
     loading.value = false
+    return
+  }
+  // 私信权限真连后端 /im/relation/:id；单独获取，失败保守降级（禁止发送）不阻塞整页
+  await refreshPermission()
+  loading.value = false
+}
+
+// 拉取与目标用户的私信关系权限（驱动输入框可用态与提示）
+async function refreshPermission() {
+  try {
+    permission.value = toChatPermission(await imApi.getRelationPolicy(props.targetId))
+  } catch {
+    permission.value = { state: 'blocked', canSend: false, hint: '暂时无法确认会话权限，请稍后重试', reason: 'error' }
   }
 }
 
@@ -208,9 +221,8 @@ function showTime(m: ChatMessage, prev?: ChatMessage) {
   return shouldShowTimeLabel(m.timestamp, prev?.timestamp)
 }
 
-const permission = computed(() =>
-  getChatPermission(target.value, messages.value, CURRENT_USER_ID),
-)
+// 私信权限：后端 /im/relation/:id 真相（替代旧的前端本地推断）。默认加载中禁止发送
+const permission = ref<ChatPermission>({ state: 'waiting_reply', canSend: false, hint: '' })
 
 const hintClass = computed(() => {
   const s = permission.value.state
@@ -255,6 +267,8 @@ async function handleSendText() {
     const msg = await imApi.sendMessage(Number(props.targetId), content, 'text')
     if (msg) {
       messages.value.push(msg)
+      // 发送成功后刷新权限：未互关时剩余条数会随发送递减
+      await refreshPermission()
     }
   } finally {
     submitting.value = false
@@ -411,7 +425,7 @@ async function handleSendText() {
   border-top-left-radius: 4rpx;
 }
 .bubble-mine {
-  background: #c41e3a;
+  background: var(--brand);
   border-top-right-radius: 4rpx;
 }
 .bubble-card {
@@ -512,7 +526,7 @@ async function handleSendText() {
 .product-price {
   font-size: 30rpx;
   font-weight: 700;
-  color: #c41e3a;
+  color: var(--brand);
 }
 .product-origin {
   font-size: 22rpx;
@@ -595,7 +609,7 @@ async function handleSendText() {
   width: 72rpx;
   height: 72rpx;
   border-radius: 16rpx;
-  background: #c41e3a;
+  background: var(--brand);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -633,7 +647,7 @@ async function handleSendText() {
 /* 加载/错误状态 */
 .load-state { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; gap: 24rpx; }
 .load-state-text { font-size: 28rpx; color: #8a8178; }
-.retry-btn { padding: 16rpx 48rpx; background: #c41e3a; border-radius: 999rpx; }
+.retry-btn { padding: 16rpx 48rpx; background: var(--brand); border-radius: 999rpx; }
 .retry-text { font-size: 28rpx; color: #fff; }
 
 /* 发送按钮禁用态 */

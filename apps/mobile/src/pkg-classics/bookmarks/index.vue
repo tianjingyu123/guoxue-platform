@@ -47,6 +47,13 @@
       <view v-if="loading" class="bm-empty">
         <text class="bm-empty-title">加载中...</text>
       </view>
+      <!-- 未登录态 -->
+      <view v-else-if="isGuest" class="bm-empty">
+        <view class="bm-empty-icon"><app-icon name="bookmark" :size="64" color="#999999" /></view>
+        <text class="bm-empty-title">登录后查看书签</text>
+        <text class="bm-empty-sub">书签会自动同步到你的账号</text>
+        <view class="bm-empty-btn" @tap="goLogin"><text class="bm-empty-btn-text">去登录</text></view>
+      </view>
       <!-- 错误态 -->
       <view v-else-if="error" class="bm-empty">
         <text class="bm-empty-title">{{ error }}</text>
@@ -132,6 +139,7 @@
 import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { classicsApi, type BookmarkItem } from '@/lib/classics-data'
+import { getToken } from '@/utils/storage'
 
 const searchValue = ref('')
 const selectedIds = ref<Set<string>>(new Set())
@@ -140,8 +148,11 @@ const bookmarks = ref<BookmarkItem[]>([])
 const viewMode = ref<'timeline' | 'book'>('timeline')
 const loading = ref(true)
 const error = ref('')
+const isGuest = ref(false)
 
 async function fetchData() {
+  if (!getToken()) { isGuest.value = true; loading.value = false; return }
+  isGuest.value = false
   loading.value = true
   error.value = ''
   try {
@@ -187,13 +198,27 @@ function exitSelect() {
   isSelectMode.value = false
   selectedIds.value = new Set()
 }
-function batchDelete() {
+async function batchDelete() {
   if (selectedIds.value.size === 0) return
-  bookmarks.value = bookmarks.value.filter((bm) => !selectedIds.value.has(bm.id))
-  exitSelect()
+  const ids = [...selectedIds.value]
+  try {
+    await Promise.all(ids.map((id) => classicsApi.removeBookmark(id)))
+    bookmarks.value = bookmarks.value.filter((bm) => !ids.includes(bm.id))
+    exitSelect()
+    uni.showToast({ title: '已删除', icon: 'none' })
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '删除失败', icon: 'none' })
+    fetchData()
+  }
 }
-function deleteItem(id: string) {
-  bookmarks.value = bookmarks.value.filter((bm) => bm.id !== id)
+async function deleteItem(id: string) {
+  try {
+    await classicsApi.removeBookmark(id)
+    bookmarks.value = bookmarks.value.filter((bm) => bm.id !== id)
+    uni.showToast({ title: '已删除', icon: 'none' })
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '删除失败', icon: 'none' })
+  }
 }
 function openManageMenu() {
   uni.showActionSheet({
@@ -204,10 +229,12 @@ function openManageMenu() {
   })
 }
 function openItemMenu(id: string) {
+  const bm = bookmarks.value.find((b) => b.id === id)
   uni.showActionSheet({
-    itemList: ['分享', '跳转阅读', '删除'],
+    itemList: ['跳转阅读', '删除'],
     success: (res) => {
-      if (res.tapIndex === 2) deleteItem(id)
+      if (res.tapIndex === 0 && bm) uni.navigateTo({ url: `/pkg-classics/reader/index?bookId=${bm.bookId}` })
+      else if (res.tapIndex === 1) deleteItem(id)
     },
   })
 }
@@ -219,6 +246,9 @@ function goBook(id: string) {
 }
 function goHome() {
   uni.navigateTo({ url: '/pkg-classics/home/index' })
+}
+function goLogin() {
+  uni.navigateTo({ url: '/pkg-auth/login/index' })
 }
 </script>
 
@@ -281,7 +311,7 @@ function goHome() {
   border-radius: 12rpx;
 }
 .bm-tbtn--danger {
-  background: #c41e3a;
+  background: var(--brand);
 }
 .bm-tbtn--disabled {
   opacity: 0.5;
@@ -373,7 +403,7 @@ function goHome() {
   border-left-color: #d8b4fe;
 }
 .bm-card--selected {
-  box-shadow: 0 0 0 4rpx #c41e3a;
+  box-shadow: 0 0 0 4rpx var(--brand);
 }
 .bm-card-main {
   flex: 1;

@@ -69,7 +69,7 @@
           hover-class="item-hover"
           @tap="goItem(item)"
         >
-          <image class="apply-img" :src="item.image" mode="aspectFill" />
+          <image lazy-load class="apply-img" :src="item.image" mode="aspectFill" />
           <view class="apply-info">
             <view class="apply-type">
               <app-icon :name="item.type === 'product' ? 'shopping-bag' : 'book-open'" :size="24" :color="item.type === 'product' ? '#999' : '#c9a96e'" />
@@ -164,7 +164,7 @@ function goUse() {
   padding: 24rpx;
 }
 .big-card {
-  background: linear-gradient(90deg, #c41e3a, #e74c57);
+  background: linear-gradient(90deg, var(--brand), #e74c57);
   border-radius: 24rpx;
   padding: 48rpx;
   margin-bottom: 24rpx;
@@ -239,7 +239,7 @@ function goUse() {
   align-items: center;
   gap: 8rpx;
   padding: 16rpx 32rpx;
-  background: #c41e3a;
+  background: var(--brand);
   border-radius: 12rpx;
 }
 .code-btn-text {
@@ -270,7 +270,7 @@ function goUse() {
   gap: 16rpx;
 }
 .rule-dot {
-  color: #c41e3a;
+  color: var(--brand);
   font-weight: 700;
   flex-shrink: 0;
 }
@@ -331,11 +331,11 @@ function goUse() {
 .apply-price {
   font-size: 28rpx;
   font-weight: 600;
-  color: #c41e3a;
+  color: var(--brand);
 }
 .use-btn {
   padding: 28rpx 0;
-  background: linear-gradient(90deg, #c41e3a, #e74c57);
+  background: linear-gradient(90deg, var(--brand), #e74c57);
   border-radius: 24rpx;
   text-align: center;
   margin-bottom: 32rpx;
@@ -364,7 +364,7 @@ function goUse() {
 }
 .retry-btn {
   padding: 16rpx 48rpx;
-  background: #c41e3a;
+  background: var(--brand);
   border-radius: 999rpx;
 }
 .retry-btn-text {

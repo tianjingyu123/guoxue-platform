@@ -64,7 +64,7 @@
 
         <!-- 内容 -->
         <view class="card-body">
-          <image v-if="order.cover" class="cover" :src="order.cover" mode="aspectFill" />
+          <image lazy-load v-if="order.cover" class="cover" :src="order.cover" mode="aspectFill" />
           <view v-else class="cover ph" :style="{ background: catColor(order.category).bg }">
             <app-icon :name="catIcon(order.category)" :size="44" :color="catColor(order.category).color" />
           </view>
@@ -169,7 +169,7 @@ onMounted(() => { loadData() })
 .cats { white-space: nowrap; padding: 8rpx 0; }
 .cats-inner { display: inline-flex; gap: 16rpx; padding: 0 24rpx; }
 .cat { flex-shrink: 0; display: flex; align-items: center; gap: 10rpx; padding: 12rpx 24rpx; border-radius: 40rpx; background: #F3F0EB; }
-.cat.active { background: #C41E3A; }
+.cat.active { background: var(--brand); }
 .cat-text { font-size: 24rpx; color: #999999; }
 .cat-text.active { color: #FFFFFF; }
 .cat-badge { min-width: 30rpx; height: 30rpx; border-radius: 16rpx; background: #E8E3DB; display: flex; align-items: center; justify-content: center; padding: 0 6rpx; }
@@ -181,7 +181,7 @@ onMounted(() => { loadData() })
 .state { flex-shrink: 0; padding: 8rpx 20rpx; border-radius: 8rpx; }
 .state.active { background: rgba(196,30,58,0.1); }
 .state-text { font-size: 24rpx; color: #999999; }
-.state-text.active { color: #C41E3A; font-weight: 600; }
+.state-text.active { color: var(--brand); font-weight: 600; }
 .content { padding: 24rpx; display: flex; flex-direction: column; gap: 20rpx; }
 .empty { display: flex; flex-direction: column; align-items: center; padding: 120rpx 0; }
 .empty-text { font-size: 26rpx; color: #999999; margin-top: 20rpx; }
@@ -203,7 +203,7 @@ onMounted(() => { loadData() })
 .expire-text { font-size: 20rpx; color: #999999; }
 .expire-text.expired { color: #EF4444; }
 .price-box { text-align: right; flex-shrink: 0; }
-.price { font-size: 32rpx; font-weight: 700; color: #C41E3A; }
+.price { font-size: 32rpx; font-weight: 700; color: var(--brand); }
 .origin { display: block; font-size: 20rpx; color: #999999; text-decoration: line-through; margin-top: 4rpx; }
 .card-foot { display: flex; align-items: center; justify-content: space-between; padding: 16rpx 20rpx; border-top: 1rpx solid #E8E3DB; background: rgba(245,242,235,0.25); }
 .foot-time { font-size: 20rpx; color: #999999; }
@@ -211,11 +211,11 @@ onMounted(() => { loadData() })
 .mini { display: flex; align-items: center; gap: 4rpx; padding: 8rpx 20rpx; border-radius: 8rpx; }
 .mini text { font-size: 24rpx; }
 .mini.ghost { border: 1rpx solid #E8E3DB; color: #666666; }
-.mini.primary { background: #C41E3A; color: #FFFFFF; }
+.mini.primary { background: var(--brand); color: #FFFFFF; }
 .mini.warn { background: #F59E0B; color: #FFFFFF; }
 .mini.text { color: #999999; }
 .loading { flex: 1; display: flex; align-items: center; justify-content: center; padding-top: 200rpx; font-size: 28rpx; color: #999999; }
 .error-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding-top: 200rpx; gap: 24rpx; }
 .error-state text { font-size: 28rpx; color: #999999; }
-.retry-btn { padding: 16rpx 48rpx; background: #C41E3A; color: #fff; border-radius: 12rpx; font-size: 26rpx; }
+.retry-btn { padding: 16rpx 48rpx; background: var(--brand); color: #fff; border-radius: 12rpx; font-size: 26rpx; }
 </style>

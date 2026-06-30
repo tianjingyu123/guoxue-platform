@@ -29,7 +29,7 @@ function onTap(link: string) {
     >
       <swiper-item v-for="b in banners" :key="b.id" @tap="onTap(b.link)">
         <view class="slide">
-          <image :src="b.image" class="slide-img" mode="aspectFill" />
+          <image lazy-load :src="b.image" class="slide-img" mode="aspectFill" />
           <view class="mask" />
           <text class="slide-title">{{ b.title }}</text>
         </view>

@@ -92,8 +92,8 @@ function goUser(id: number) { navigateTo('/user/' + id) }
 .header { position: sticky; top: 0; z-index: 50; background: rgba(250,248,245,0.95); border-bottom: 2rpx solid #e8e3db; }
 .tabs { display: flex; border-bottom: 2rpx solid #e8e3db; }
 .tab { flex: 1; text-align: center; padding: 24rpx 0; font-size: 28rpx; font-weight: 500; color: #8a8276; position: relative; }
-.tab.on { color: #c41e3a; }
-.tab-bar { position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 48rpx; height: 4rpx; background: #c41e3a; border-radius: 2rpx; }
+.tab.on { color: var(--brand); }
+.tab-bar { position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 48rpx; height: 4rpx; background: var(--brand); border-radius: 2rpx; }
 .search-wrap { padding: 24rpx 32rpx; }
 .search { display: flex; align-items: center; gap: 16rpx; height: 72rpx; padding: 0 24rpx; background: #f0ece4; border-radius: 999rpx; }
 .search-input { flex: 1; font-size: 28rpx; color: #2c2c2c; }
@@ -101,12 +101,12 @@ function goUser(id: number) { navigateTo('/user/' + id) }
 .list { display: flex; flex-direction: column; }
 .row { display: flex; align-items: center; gap: 24rpx; padding: 24rpx 32rpx; border-bottom: 2rpx solid #e8e3db; }
 .row-main { display: flex; align-items: center; gap: 24rpx; flex: 1; min-width: 0; }
-.avatar { width: 96rpx; height: 96rpx; border-radius: 50%; background: rgba(196,30,58,0.1); color: #c41e3a; display: flex; align-items: center; justify-content: center; font-size: 32rpx; flex-shrink: 0; }
+.avatar { width: 96rpx; height: 96rpx; border-radius: 50%; background: rgba(196,30,58,0.1); color: var(--brand); display: flex; align-items: center; justify-content: center; font-size: 32rpx; flex-shrink: 0; }
 .info { flex: 1; min-width: 0; }
 .name-line { display: flex; align-items: center; gap: 8rpx; }
 .name { font-size: 28rpx; font-weight: 500; color: #2c2c2c; max-width: 320rpx; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .bio { display: block; font-size: 24rpx; color: #8a8276; margin-top: 4rpx; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.follow-btn { display: flex; align-items: center; gap: 6rpx; height: 56rpx; padding: 0 28rpx; border-radius: 999rpx; background: #c41e3a; color: #fff; font-size: 24rpx; font-weight: 500; flex-shrink: 0; }
+.follow-btn { display: flex; align-items: center; gap: 6rpx; height: 56rpx; padding: 0 28rpx; border-radius: 999rpx; background: var(--brand); color: #fff; font-size: 24rpx; font-weight: 500; flex-shrink: 0; }
 .follow-btn text { color: #fff; }
 .follow-btn.following { background: transparent; border: 2rpx solid #e8e3db; color: #8a8276; }
 .follow-btn.following text { color: #8a8276; }

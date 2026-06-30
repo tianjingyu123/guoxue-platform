@@ -117,7 +117,7 @@ onUnmounted(() => { if (timer) clearInterval(timer) })
     <view class="list">
       <view v-for="course in sessionCourses" :key="course.id" class="card">
         <view class="card-cover">
-          <image class="cover-img" :src="course.cover" mode="aspectFill" />
+          <image lazy-load class="cover-img" :src="course.cover" mode="aspectFill" />
           <view class="cover-tags">
             <view class="tag-discount">
               <app-icon name="tag" :size="20" color="#1a1815" />
@@ -162,7 +162,7 @@ onUnmounted(() => { if (timer) clearInterval(timer) })
 <style scoped>
 .page { min-height: 100vh; background: #FAF8F5; }
 
-.header { position: sticky; top: 0; z-index: 20; background: linear-gradient(135deg, #a01830, #C41E3A 60%, #C41E3A); color: #fff; }
+.header { position: sticky; top: 0; z-index: 20; background: linear-gradient(135deg, #a01830, var(--brand) 60%, var(--brand)); color: #fff; }
 .nav { display: flex; align-items: center; gap: 24rpx; padding: 0 32rpx; height: 96rpx; }
 .nav-title { display: flex; align-items: center; gap: 12rpx; flex: 1; }
 .nav-title-txt { font-size: 32rpx; font-weight: 600; color: #fff; }
@@ -181,7 +181,7 @@ onUnmounted(() => { if (timer) clearInterval(timer) })
 .seg-item { flex: 1; padding: 20rpx 0; text-align: center; }
 .seg-item.active { background: #FAF8F5; }
 .seg-time { display: block; font-size: 28rpx; font-weight: 600; color: #fff; }
-.seg-time.active { color: #C41E3A; }
+.seg-time.active { color: var(--brand); }
 .seg-state { display: block; font-size: 22rpx; color: rgba(255,255,255,0.8); }
 .seg-state.active { color: #9a8c80; }
 
@@ -202,14 +202,14 @@ onUnmounted(() => { if (timer) clearInterval(timer) })
 .meta-txt { font-size: 22rpx; color: #9a8c80; }
 .card-price-row { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 16rpx; }
 .price-group { display: flex; align-items: baseline; gap: 12rpx; }
-.price-now { font-size: 40rpx; font-weight: 700; color: #C41E3A; }
+.price-now { font-size: 40rpx; font-weight: 700; color: var(--brand); }
 .price-old { font-size: 22rpx; color: #9a8c80; text-decoration: line-through; }
 .price-stock { font-size: 22rpx; color: #9a8c80; }
-.price-stock.low { color: #C41E3A; font-weight: 500; }
+.price-stock.low { color: var(--brand); font-weight: 500; }
 .progress { position: relative; height: 32rpx; border-radius: 999rpx; background: #F2EFEA; overflow: hidden; margin-bottom: 24rpx; }
-.progress-fill { position: absolute; top: 0; bottom: 0; left: 0; border-radius: 999rpx; background: linear-gradient(to right, #a01830, #C41E3A); }
+.progress-fill { position: absolute; top: 0; bottom: 0; left: 0; border-radius: 999rpx; background: linear-gradient(to right, #a01830, var(--brand)); }
 .progress-txt { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 20rpx; font-weight: 500; color: #2C2C2C; }
-.btn { height: 80rpx; border-radius: 16rpx; background: #C41E3A; display: flex; align-items: center; justify-content: center; gap: 12rpx; }
+.btn { height: 80rpx; border-radius: 16rpx; background: var(--brand); display: flex; align-items: center; justify-content: center; gap: 12rpx; }
 .btn.disabled { background: #F2EFEA; }
 .btn-txt { font-size: 28rpx; font-weight: 600; color: #fff; }
 .btn-txt.disabled { color: #9a8c80; }

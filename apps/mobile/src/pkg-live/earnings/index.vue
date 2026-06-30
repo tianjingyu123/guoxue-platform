@@ -235,7 +235,7 @@ onMounted(() => { fetchData() })
   background: #f0ece5;
 }
 .range-chip-active {
-  background: #C41E3A;
+  background: var(--brand);
   color: #fff;
 }
 
@@ -346,7 +346,7 @@ onMounted(() => { fetchData() })
 .withdraw-amount {
   font-size: 34rpx;
   font-weight: 700;
-  color: #C41E3A;
+  color: var(--brand);
 }
 
 /* 明细筛选 */
@@ -364,7 +364,7 @@ onMounted(() => { fetchData() })
   background: #f0ece5;
 }
 .type-chip-active {
-  background: #C41E3A;
+  background: var(--brand);
   color: #fff;
 }
 

@@ -252,7 +252,7 @@ function handlePay() {
   background: #ffffff;
 }
 .plan-item-active {
-  border-color: #c41e3a;
+  border-color: var(--brand);
   background: #fdf3f4;
 }
 .plan-tag {
@@ -268,7 +268,7 @@ function handlePay() {
   white-space: nowrap;
 }
 .tag-primary {
-  background: #c41e3a;
+  background: var(--brand);
 }
 .tag-amber {
   background: #f0a020;
@@ -300,7 +300,7 @@ function handlePay() {
 }
 .plan-permonth {
   font-size: 18rpx;
-  color: #c41e3a;
+  color: var(--brand);
   margin-top: 8rpx;
 }
 .plan-check {
@@ -310,7 +310,7 @@ function handlePay() {
   width: 28rpx;
   height: 28rpx;
   border-radius: 50%;
-  background: #c41e3a;
+  background: var(--brand);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -337,7 +337,7 @@ function handlePay() {
   transition: background 0.2s;
 }
 .switch-on {
-  background: #c41e3a;
+  background: var(--brand);
 }
 .switch-dot {
   width: 32rpx;
@@ -417,7 +417,7 @@ function handlePay() {
 .pay-price {
   font-size: 36rpx;
   font-weight: 800;
-  color: #c41e3a;
+  color: var(--brand);
 }
 .pay-origin {
   font-size: 22rpx;
@@ -426,7 +426,7 @@ function handlePay() {
 .pay-btn {
   flex: 1;
   height: 88rpx;
-  background: #c41e3a;
+  background: var(--brand);
   border-radius: 16rpx;
   display: flex;
   align-items: center;

@@ -45,7 +45,7 @@
             <view class="code-row">
               <input
                 class="code-input" :class="{ 'input-err': currentCodeError }"
-                type="number" maxlength="6" v-model="currentCode"
+                type="text" maxlength="6" v-model="currentCode"
                 placeholder="请输入6位验证码" placeholder-class="ph"
                 @input="currentCodeError = ''"
               />
@@ -73,7 +73,7 @@
 
           <view class="field">
             <text class="field-label">新手机号</text>
-            <input class="text-input" type="number" maxlength="11" v-model="newPhone" placeholder="请输入新手机号" placeholder-class="ph" />
+            <input class="text-input" type="text" maxlength="11" v-model="newPhone" placeholder="请输入新手机号" placeholder-class="ph" />
           </view>
 
           <view class="field">
@@ -81,7 +81,7 @@
             <view class="code-row">
               <input
                 class="code-input" :class="{ 'input-err': newCodeError }"
-                type="number" maxlength="6" v-model="newCode"
+                type="text" maxlength="6" v-model="newCode"
                 placeholder="请输入6位验证码" placeholder-class="ph"
                 @input="newCodeError = ''"
               />
@@ -249,13 +249,13 @@ watch(step, (v) => {
 .steps { display: flex; align-items: center; justify-content: center; gap: 24rpx; padding: 32rpx 48rpx; }
 .step-item { display: flex; align-items: center; gap: 14rpx; }
 .step-dot { width: 48rpx; height: 48rpx; border-radius: 50%; background: #ece7df; display: flex; align-items: center; justify-content: center; }
-.step-dot.dot-on { background: #c41e3a; }
+.step-dot.dot-on { background: var(--brand); }
 .dot-num { font-size: 24rpx; font-weight: 500; color: #999; }
 .dot-num.num-on { color: #fff; }
 .step-label { font-size: 26rpx; color: #999; }
 .step-label.label-on { color: #2c2c2c; }
 .step-line { width: 96rpx; height: 3rpx; background: #ece7df; }
-.step-line.line-on { background: #c41e3a; }
+.step-line.line-on { background: var(--brand); }
 .main { padding: 0 24rpx 180rpx; }
 .card { background: #fff; border-radius: 24rpx; padding: 40rpx; box-shadow: 0 2rpx 16rpx rgba(0,0,0,0.03); }
 .card-title { font-size: 30rpx; font-weight: 600; color: #2c2c2c; display: block; margin-bottom: 8rpx; }
@@ -271,12 +271,12 @@ watch(step, (v) => {
 .ph { color: #bbb; }
 .code-btn { padding: 0 28rpx; height: 88rpx; border-radius: 18rpx; background: rgba(196,30,46,0.1); display: flex; align-items: center; justify-content: center; }
 .code-btn.btn-dis { background: #f0ece5; }
-.code-btn-txt { font-size: 26rpx; color: #c41e3a; font-weight: 500; white-space: nowrap; }
+.code-btn-txt { font-size: 26rpx; color: var(--brand); font-weight: 500; white-space: nowrap; }
 .code-btn-txt.txt-dis { color: #bbb; }
 .err { display: flex; align-items: center; gap: 6rpx; margin-top: 12rpx; }
 .err-txt { font-size: 22rpx; color: #e74c3c; }
 .submit { width: 100%; height: 88rpx; border-radius: 18rpx; background: #f0ece5; display: flex; align-items: center; justify-content: center; margin-top: 8rpx; }
-.submit-on { background: #c41e3a; }
+.submit-on { background: var(--brand); }
 .submit-txt { font-size: 30rpx; font-weight: 500; color: #bbb; }
 .submit-txt-on { color: #fff; }
 .back-step { margin-top: 24rpx; display: flex; justify-content: center; }
@@ -290,6 +290,6 @@ watch(step, (v) => {
 .modal-btn { flex: 1; height: 80rpx; border-radius: 18rpx; display: flex; align-items: center; justify-content: center; }
 .modal-btn-ghost { background: #f5f1ea; }
 .modal-btn-ghost-txt { font-size: 28rpx; color: #2c2c2c; font-weight: 500; }
-.modal-btn-primary { background: #c41e3a; }
+.modal-btn-primary { background: var(--brand); }
 .modal-btn-primary-txt { font-size: 28rpx; color: #fff; font-weight: 500; }
 </style>

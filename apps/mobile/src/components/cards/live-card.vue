@@ -3,6 +3,7 @@
 import { ref, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
+import { track } from '@/composables/useTrack'
 import { type LiveCardData, normalizeRatio, formatCount } from '@/lib/card-utils'
 
 const props = defineProps<{ data: LiveCardData }>()
@@ -10,14 +11,17 @@ const booked = ref(false)
 const ratio = computed(() => normalizeRatio(props.data.coverRatio))
 const status = computed(() => props.data.status ?? 'live')
 const typeLabel = computed(() => (props.data.liveType === 'commerce' ? '电商带货' : '知识授课'))
-function open() { navigateTo(`/live/${props.data.id}`) }
+function open() {
+  track.click('live_card', { id: props.data.id })
+  navigateTo(`/live/${props.data.id}`)
+}
 function toggleBook() { booked.value = !booked.value }
 </script>
 
 <template>
   <view class="card" :class="status === 'live' && 'card-live'" hover-class="card-press" @tap="open">
     <view class="cover" :class="ratio === '1:1' ? 'r-sq' : 'r-34'">
-      <image v-if="data.cover" class="cover-img" :src="data.cover" mode="aspectFill" />
+      <image v-if="data.cover" class="cover-img" :src="data.cover" mode="aspectFill" lazy-load />
       <view class="grad" />
       <!-- 类型标 -->
       <text class="type-badge">{{ typeLabel }}</text>
@@ -41,7 +45,7 @@ function toggleBook() { booked.value = !booked.value }
       <text class="title">{{ data.title }}</text>
       <view v-if="data.host" class="author">
         <view class="avatar">
-          <image v-if="data.hostAvatar" class="avatar-img" :src="data.hostAvatar" mode="aspectFill" />
+          <image lazy-load v-if="data.hostAvatar" class="avatar-img" :src="data.hostAvatar" mode="aspectFill" />
           <text v-else class="avatar-ph">{{ data.host.charAt(0) }}</text>
         </view>
         <text class="author-name">{{ data.host }}</text>

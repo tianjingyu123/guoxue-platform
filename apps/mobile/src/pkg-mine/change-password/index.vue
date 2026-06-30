@@ -32,6 +32,7 @@ function validate() {
   if (!oldPwd.value) errs.oldPwd = '请输入当前密码'
   if (!newPwd.value) errs.newPwd = '请输入新密码'
   else if (newPwd.value.length < 8) errs.newPwd = '密码长度至少 8 位'
+  else if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(newPwd.value)) errs.newPwd = '需包含大小写字母和数字'
   else if (newPwd.value === oldPwd.value) errs.newPwd = '新密码不能与当前密码相同'
   if (!confirmPwd.value) errs.confirmPwd = '请确认新密码'
   else if (confirmPwd.value !== newPwd.value) errs.confirmPwd = '两次输入的密码不一致'
@@ -298,7 +299,7 @@ async function handleSubmit() {
 .submit {
   height: 88rpx;
   border-radius: 20rpx;
-  background: #c41e3a;
+  background: var(--brand);
   display: flex;
   align-items: center;
   justify-content: center;

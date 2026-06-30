@@ -108,7 +108,7 @@ function goShop() { navigateTo('/shop') }
 .pay-fail { min-height: 100vh; background: #FAF8F5; }
 .hero {
   position: relative;
-  background: linear-gradient(180deg, #C41E3A 0%, #E8534A 100%);
+  background: linear-gradient(180deg, var(--brand) 0%, #E8534A 100%);
   padding-bottom: 192rpx;
   overflow: hidden;
 }
@@ -168,7 +168,7 @@ function goShop() { navigateTo('/shop') }
   gap: 12rpx;
   font-size: 30rpx;
   font-weight: 500;
-  &.primary { background: linear-gradient(90deg, #C41E3A, #E8534A); color: #FFFFFF; }
+  &.primary { background: linear-gradient(90deg, var(--brand), #E8534A); color: #FFFFFF; }
   &.ghost { background: #FAF8F5; color: #2C2C2C; }
   &.text { color: #666666; }
 }

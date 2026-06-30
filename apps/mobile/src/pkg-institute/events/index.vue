@@ -44,53 +44,45 @@
 
       <!-- 列表视图 -->
       <view v-if="viewMode === 'list'" class="list">
-        <view v-if="filteredEvents.length === 0" class="empty">
+        <view v-if="loading" class="state-box">
+          <view class="spinner" />
+          <text class="state-text">加载中…</text>
+        </view>
+        <view v-else-if="errMsg" class="state-box">
+          <app-icon name="alert-circle" :size="40" color="#d1d5db" />
+          <text class="state-text">{{ errMsg }}</text>
+          <view class="retry-btn" @tap="load"><text class="retry-text">重试</text></view>
+        </view>
+        <view v-else-if="filteredEvents.length === 0" class="empty">
           <app-icon name="calendar" :size="48" color="#d1d5db" />
           <text class="empty-text">暂无相关活动</text>
         </view>
-        <view v-for="e in filteredEvents" :key="e.id" class="event-card" @tap="goDetail(e.id)">
+        <view v-else v-for="e in filteredEvents" :key="e.id" class="event-card" @tap="goDetail(e.id)">
           <view class="event-cover">
             <app-icon name="calendar" :size="36" color="#d1d5db" />
             <view class="cover-tags">
               <text class="cover-tag" :style="{ color: eventTypeColor[e.type].color, background: eventTypeColor[e.type].bg }">{{ eventTypeLabel[e.type] }}</text>
               <text class="cover-tag" :style="{ color: eventStatusColor[e.status].color, background: eventStatusColor[e.status].bg }">{{ eventStatusLabel[e.status] }}</text>
             </view>
-            <view v-if="e.isOnline" class="online-tag">
+            <view v-if="e.type === 'LIVE'" class="online-tag">
               <app-icon name="video" :size="12" color="#fff" />
               <text class="online-tag-text">线上</text>
             </view>
           </view>
           <view class="event-body">
             <text class="event-title">{{ e.title }}</text>
-            <view v-if="e.speakers && e.speakers.length" class="speakers">
-              <view class="speaker-avatars">
-                <view v-for="(s, idx) in e.speakers.slice(0, 3)" :key="idx" class="speaker-avatar" :style="{ marginLeft: idx > 0 ? '-8px' : '0' }">
-                  <app-icon name="user" :size="12" color="#9ca3af" />
-                </view>
-              </view>
-              <text class="speaker-names">{{ e.speakers.map(s => s.name).join('、') }}</text>
-            </view>
             <view class="event-meta">
               <app-icon name="clock" :size="14" color="#9ca3af" />
-              <text class="event-meta-text">{{ formatDate(e.startTime) }}</text>
+              <text class="event-meta-text">{{ fmtDateTime(e.scheduleAt) }}</text>
             </view>
             <view class="event-meta">
               <app-icon name="map-pin" :size="14" color="#9ca3af" />
-              <text class="event-meta-text">{{ e.isOnline ? '线上直播' : e.location }}</text>
+              <text class="event-meta-text">{{ e.type === 'LIVE' ? (e.location || '线上直播') : (e.location || '地点待定') }}</text>
             </view>
             <view class="event-foot">
               <view class="foot-count">
                 <app-icon name="users" :size="14" color="#9ca3af" />
-                <text class="foot-count-text">/不限人</text>
-              </view>
-              <view class="foot-actions">
-                <view class="cal-btn" @tap.stop="noop">
-                  <app-icon name="calendar" :size="14" color="#4b5563" />
-                  <text class="cal-btn-text">日历</text>
-                </view>
-                <view v-if="e.status === 'enrolling'" class="enroll-btn" @tap.stop="noop">
-                  <text class="enroll-btn-text">我要报名</text>
-                </view>
+                <text class="foot-count-text">限 {{ e.maxAttendees }} 人</text>
               </view>
             </view>
           </view>
@@ -140,9 +132,10 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
-import { instituteEvents, eventTypeLabel, eventTypeColor, eventStatusLabel, eventStatusColor, type InstituteEventType } from '@/lib/institute-data'
+import { instituteApi, eventTypeLabel, eventTypeColor, eventStatusLabel, eventStatusColor, fmtDate, fmtDateTime, type EventType, type InstituteEvent } from '@/lib/institute-data'
 
 const statusBarHeight = ref(0)
 const navHeight = ref(44)
@@ -150,35 +143,42 @@ const sys = uni.getSystemInfoSync()
 statusBarHeight.value = sys.statusBarHeight || 0
 navHeight.value = (sys.statusBarHeight || 0) + 44
 
-const eventTypes: { value: InstituteEventType | 'all'; label: string }[] = [
+const eventTypes: { value: EventType | 'all'; label: string }[] = [
   { value: 'all', label: '全部' },
-  { value: 'lecture', label: '学术讲座' },
-  { value: 'seminar', label: '研讨会' },
-  { value: 'workshop', label: '工作坊' },
-  { value: 'conference', label: '学术会议' },
-  { value: 'online', label: '线上活动' },
+  { value: 'SALON', label: '线下沙龙' },
+  { value: 'LIVE', label: '线上直播' },
+  { value: 'COURSE', label: '课程论坛' },
 ]
 
+const loading = ref(true)
+const errMsg = ref('')
+const events = ref<InstituteEvent[]>([])
 const keyword = ref('')
-const selectedType = ref<InstituteEventType | 'all'>('all')
+const selectedType = ref<EventType | 'all'>('all')
 const viewMode = ref<'list' | 'calendar'>('list')
 const now = new Date()
 const calYear = ref(now.getFullYear())
 const calMonth = ref(now.getMonth())
 
-const typeFiltered = computed(() => instituteEvents.filter((e) => selectedType.value === 'all' || e.type === selectedType.value))
+async function load() {
+  loading.value = true
+  errMsg.value = ''
+  try {
+    events.value = await instituteApi.getEvents()
+  } catch (e: any) {
+    errMsg.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
+onLoad(() => load())
+
+const typeFiltered = computed(() => events.value.filter((e) => selectedType.value === 'all' || e.type === selectedType.value))
 const filteredEvents = computed(() => {
   if (!keyword.value) return typeFiltered.value
   const kw = keyword.value.toLowerCase()
-  return typeFiltered.value.filter((e) => e.title.toLowerCase().includes(kw) || e.speakers?.some((s) => s.name.toLowerCase().includes(kw)))
+  return typeFiltered.value.filter((e) => e.title.toLowerCase().includes(kw))
 })
-
-function formatDate(dateStr: string) {
-  // dateStr 形如 '2026-06-20 14:00'
-  const [d, t] = dateStr.split(' ')
-  const [, m, day] = d.split('-')
-  return `${Number(m)}月${Number(day)}日 ${t}`
-}
 
 const calendarData = computed(() => {
   const year = calYear.value
@@ -187,11 +187,11 @@ const calendarData = computed(() => {
   const lastDay = new Date(year, month + 1, 0)
   const startWeekDay = firstDay.getDay()
   const daysInMonth = lastDay.getDate()
-  const days: { date: number; events: typeof instituteEvents }[] = []
+  const days: { date: number; events: InstituteEvent[] }[] = []
   for (let i = 0; i < startWeekDay; i++) days.push({ date: 0, events: [] })
   for (let day = 1; day <= daysInMonth; day++) {
     const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
-    const dayEvents = filteredEvents.value.filter((e) => e.startTime.startsWith(dateStr))
+    const dayEvents = filteredEvents.value.filter((e) => fmtDate(e.scheduleAt) === dateStr)
     days.push({ date: day, events: dayEvents })
   }
   return days
@@ -207,10 +207,9 @@ function nextMonth() {
   if (calMonth.value === 11) { calMonth.value = 0; calYear.value++ } else calMonth.value++
 }
 
-function goDetail(id: number) {
+function goDetail(id: string) {
   navigateTo('/institute/events/' + id)
 }
-function noop() {}
 </script>
 
 <style scoped>
@@ -222,7 +221,7 @@ function noop() {}
 .nav-title { font-size: 17px; font-weight: 600; color: #1a1a1a; }
 .nav-right { display: flex; gap: 8px; }
 .view-btn { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; background: #f3f4f6; }
-.view-btn-active { background: #c41e3a; }
+.view-btn-active { background: var(--brand); }
 .scroll { height: 100vh; box-sizing: border-box; }
 
 .filter-bar { padding: 16px; background: #fff; border-bottom: 1px solid #ececec; }
@@ -232,7 +231,7 @@ function noop() {}
 .type-scroll { white-space: nowrap; }
 .type-row { display: inline-flex; gap: 8px; }
 .type-btn { border: 1px solid #d1d5db; border-radius: 8px; padding: 5px 14px; background: #fff; }
-.type-btn-active { background: #c41e3a; border-color: #c41e3a; }
+.type-btn-active { background: var(--brand); border-color: var(--brand); }
 .type-btn-text { font-size: 13px; color: #4b5563; }
 .type-btn-text-active { color: #fff; }
 
@@ -259,7 +258,7 @@ function noop() {}
 .foot-actions { display: flex; align-items: center; gap: 8px; }
 .cal-btn { display: flex; align-items: center; gap: 4px; padding: 6px 12px; }
 .cal-btn-text { font-size: 13px; color: #4b5563; }
-.enroll-btn { background: #c41e3a; border-radius: 8px; padding: 6px 14px; }
+.enroll-btn { background: var(--brand); border-radius: 8px; padding: 6px 14px; }
 .enroll-btn-text { font-size: 13px; color: #fff; }
 
 .calendar { padding: 16px; }
@@ -273,10 +272,16 @@ function noop() {}
 .day-empty { border-color: transparent; }
 .day-has-event { background: rgba(196,30,58,0.05); }
 .day-num { font-size: 13px; color: #1a1a1a; }
-.day-today { color: #c41e3a; font-weight: 700; }
+.day-today { color: var(--brand); font-weight: 700; }
 .day-events { margin-top: 4px; display: flex; flex-direction: column; gap: 2px; }
 .day-event { border-radius: 4px; padding: 1px 4px; overflow: hidden; }
 .day-event-text { font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .day-more { font-size: 10px; color: #9ca3af; }
 .bottom-safe { height: 24px; }
+.state-box { padding: 80px 0; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.state-text { font-size: 13px; color: #9ca3af; }
+.spinner { width: 28px; height: 28px; border: 3px solid #f0f0f0; border-top-color: var(--brand); border-radius: 50%; animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.retry-btn { margin-top: 4px; padding: 6px 20px; border: 1px solid var(--brand); border-radius: 999px; }
+.retry-text { font-size: 13px; color: var(--brand); }
 </style>

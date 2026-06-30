@@ -115,7 +115,17 @@ const result = reactive({ amount: 0, fee: 0, actualAmount: 0, estimatedArrival: 
 async function verifyAndSubmit() {
   verifying.value = true
   try {
-    const account = method.value === 'alipay' ? form.alipayAccount : form.bankAccount
+    // 先验证支付密码（后端 bcrypt 校验 + 连续错误锁定30分钟）
+    const pwdRes = await mineApi.verifyPaymentPassword(pwd.value.join(''))
+    if (!pwdRes.success) {
+      uni.showToast({ title: pwdRes.message || '支付密码错误', icon: 'none' })
+      pwd.value = ['', '', '', '', '', '']
+      return
+    }
+    // 组装完整收款账户信息（后端 accountInfo 存 Record，保留姓名/银行等）
+    const account: Record<string, string> = method.value === 'alipay'
+      ? { alipayAccount: form.alipayAccount, alipayName: form.alipayName }
+      : { bankName: form.bankName, bankAccount: form.bankAccount, bankHolder: form.bankHolder }
     const res = await mineApi.withdraw(amountNum.value, method.value, account)
     if (res.success) {
       showPwd.value = false
@@ -197,9 +207,9 @@ function continueWithdraw() {
           <text class="bal-label">可提现余额</text>
         </view>
         <text class="bal-amount">¥{{ info.availableBalance.toFixed(2) }}</text>
-        <view class="bal-extra">
-          <text>冻结中: ¥{{ info.frozenBalance.toFixed(2) }}</text>
-          <text>待结算: ¥{{ info.pendingBalance.toFixed(2) }}</text>
+        <view v-if="info.frozenBalance > 0 || info.pendingBalance > 0" class="bal-extra">
+          <text v-if="info.frozenBalance > 0">冻结中: ¥{{ info.frozenBalance.toFixed(2) }}</text>
+          <text v-if="info.pendingBalance > 0">待结算: ¥{{ info.pendingBalance.toFixed(2) }}</text>
         </view>
       </view>
 
@@ -397,7 +407,7 @@ function continueWithdraw() {
 
 /* 余额卡 */
 .balance-card {
-  background: linear-gradient(135deg, #c41e3a, #8b1528);
+  background: linear-gradient(135deg, var(--brand), #8b1528);
   border-radius: 24rpx;
   padding: 32rpx;
   color: #fff;
@@ -448,7 +458,7 @@ function continueWithdraw() {
 }
 .all-btn {
   font-size: 28rpx;
-  color: #c41e3a;
+  color: var(--brand);
 }
 
 /* 金额输入 */
@@ -502,11 +512,11 @@ function continueWithdraw() {
   border-radius: 16rpx;
 }
 .method-btn.active {
-  border-color: #c41e3a;
+  border-color: var(--brand);
   background: rgba(196, 30, 58, 0.05);
 }
 .m-active {
-  color: #c41e3a;
+  color: var(--brand);
   font-size: 30rpx;
 }
 .m-normal {
@@ -563,14 +573,14 @@ function continueWithdraw() {
 .result-amount {
   font-size: 36rpx;
   font-weight: 600;
-  color: #c41e3a;
+  color: var(--brand);
 }
 
 /* 提交 */
 .submit-btn {
   height: 96rpx;
   border-radius: 16rpx;
-  background: #c41e3a;
+  background: var(--brand);
   color: #fff;
   font-size: 32rpx;
   display: flex;
@@ -658,7 +668,7 @@ function continueWithdraw() {
 .btn-primary {
   flex: 1;
   height: 88rpx;
-  background: #c41e3a;
+  background: var(--brand);
   border-radius: 16rpx;
   color: #fff;
   font-size: 30rpx;
@@ -739,12 +749,12 @@ function continueWithdraw() {
   display: block;
   text-align: center;
   font-size: 28rpx;
-  color: #c41e3a;
+  color: var(--brand);
   margin-top: 32rpx;
 }
 
 .loading { flex: 1; display: flex; align-items: center; justify-content: center; font-size: 28rpx; color: rgba(92,64,51,0.6); }
 .error-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24rpx; }
 .error-state text { font-size: 28rpx; color: rgba(92,64,51,0.6); }
-.retry-btn { padding: 16rpx 48rpx; background: #c41e3a; color: #fff; border-radius: 12rpx; font-size: 26rpx; }
+.retry-btn { padding: 16rpx 48rpx; background: var(--brand); color: #fff; border-radius: 12rpx; font-size: 26rpx; }
 </style>

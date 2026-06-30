@@ -46,7 +46,7 @@
             <view class="post-main">
               <text class="post-title">{{ post.title }}</text>
               <view class="post-meta">
-                <view class="post-author"><image class="post-avatar" :src="post.avatar" mode="aspectFill" /><text class="post-author-t">{{ post.author }}</text></view>
+                <view class="post-author"><image lazy-load class="post-avatar" :src="post.avatar" mode="aspectFill" /><text class="post-author-t">{{ post.author }}</text></view>
                 <view class="meta-item"><app-icon name="eye" :size="20" color="#999999" /><text class="meta-t">{{ post.views.toLocaleString() }}</text></view>
                 <view class="meta-item"><app-icon name="heart" :size="20" color="#999999" /><text class="meta-t">{{ post.likes }}</text></view>
                 <view class="meta-item"><app-icon name="message-circle" :size="20" color="#999999" /><text class="meta-t">{{ post.comments }}</text></view>
@@ -119,13 +119,13 @@ function rankCls(idx: number) { return idx === 0 ? 'gold' : idx === 1 ? 'silver'
 .chart-col { flex: 1; display: flex; flex-direction: column; align-items: center; height: 100%; }
 .bars { flex: 1; display: flex; align-items: flex-end; justify-content: center; gap: 6rpx; width: 100%; }
 .bar { width: 18rpx; border-radius: 4rpx 4rpx 0 0; }
-.bar.views { background: #C41E3A; }
+.bar.views { background: var(--brand); }
 .bar.likes { background: #C9A96E; }
 .chart-x { font-size: 18rpx; color: #999999; margin-top: 12rpx; }
 .legend { display: flex; justify-content: center; gap: 32rpx; margin-top: 16rpx; }
 .lg { display: flex; align-items: center; gap: 8rpx; }
 .lg-dot { width: 16rpx; height: 16rpx; border-radius: 4rpx; }
-.lg-dot.views { background: #C41E3A; }
+.lg-dot.views { background: var(--brand); }
 .lg-dot.likes { background: #C9A96E; }
 .lg-t { font-size: 20rpx; color: #999999; }
 

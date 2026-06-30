@@ -408,8 +408,8 @@ function goBack() {
   border: 2rpx solid #ddd;
 }
 .rr-filter-btn-active {
-  background: #C41E3A;
-  border-color: #C41E3A;
+  background: var(--brand);
+  border-color: var(--brand);
 }
 .rr-filter-text {
   font-size: 26rpx;
@@ -645,7 +645,7 @@ function goBack() {
 .rr-result-conclusion {
   font-size: 26rpx;
   font-weight: 500;
-  color: #C41E3A;
+  color: var(--brand);
 }
 .rr-result-item {
   margin-bottom: 16rpx;

@@ -283,7 +283,7 @@ function sendInvite() {
   flex-shrink: 0;
   height: 72rpx;
   padding: 0 24rpx;
-  background: #c41e3a;
+  background: var(--brand);
   border-radius: 16rpx;
   display: flex;
   align-items: center;
@@ -352,7 +352,7 @@ function sendInvite() {
   flex-shrink: 0;
   height: 72rpx;
   padding: 0 32rpx;
-  background: #c41e3a;
+  background: var(--brand);
   border-radius: 16rpx;
   display: flex;
   align-items: center;
@@ -419,7 +419,7 @@ function sendInvite() {
 }
 .inv-item-commission {
   font-size: 22rpx;
-  color: #c41e3a;
+  color: var(--brand);
   font-weight: 600;
   margin-top: 8rpx;
 }

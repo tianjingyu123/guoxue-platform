@@ -2,10 +2,14 @@
 /** 古籍卡(feed,宣纸质感+印章)- 从原型 components/cards/classic-card.tsx 迁移 */
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
+import { track } from '@/composables/useTrack'
 import { type ClassicCardData, formatCount } from '@/lib/card-utils'
 
 const props = defineProps<{ data: ClassicCardData }>()
-function open() { navigateTo(`/classics/${props.data.id}`) }
+function open() {
+  track.click('classic_card', { id: props.data.id })
+  navigateTo(`/classics/${props.data.id}`)
+}
 </script>
 
 <template>

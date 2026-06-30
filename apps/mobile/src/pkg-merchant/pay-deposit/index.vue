@@ -21,15 +21,15 @@
         <view class="pd-success-info">
           <view class="pd-info-row">
             <text class="pd-info-label">缴纳金额</text>
-            <text class="pd-info-val pd-text-red">¥{{ depositInfo.totalDeposit }}.00</text>
+            <text class="pd-info-val pd-text-red">¥{{ totalDeposit }}.00</text>
           </view>
           <view class="pd-info-row">
             <text class="pd-info-label">缴纳时间</text>
-            <text class="pd-info-val">{{ depositInfo.paidAt }}</text>
+            <text class="pd-info-val">{{ paidInfo.paidAt }}</text>
           </view>
           <view class="pd-info-row">
             <text class="pd-info-label">交易流水号</text>
-            <text class="pd-info-mono">{{ depositInfo.transactionId }}</text>
+            <text class="pd-info-mono">{{ paidInfo.transactionId }}</text>
           </view>
         </view>
       </view>
@@ -44,17 +44,17 @@
             <text class="pd-amount-label">应缴保证金</text>
             <view class="pd-amount-row">
               <text class="pd-amount-sym">¥</text>
-              <text class="pd-amount-num">{{ depositInfo.totalDeposit }}</text>
+              <text class="pd-amount-num">{{ totalDeposit }}</text>
               <text class="pd-amount-cents">.00</text>
             </view>
             <view class="pd-amount-detail">
               <view class="pd-detail-row">
                 <text class="pd-detail-label">基础保证金</text>
-                <text class="pd-detail-val">¥{{ depositInfo.baseDeposit }}.00</text>
+                <text class="pd-detail-val">¥{{ baseDeposit }}.00</text>
               </view>
               <view class="pd-detail-row">
                 <text class="pd-detail-label">类目保证金</text>
-                <text class="pd-detail-val">¥{{ depositInfo.categoryDeposit }}.00</text>
+                <text class="pd-detail-val">¥{{ categoryDeposit }}.00</text>
               </view>
             </view>
           </view>
@@ -90,32 +90,6 @@
             </view>
           </view>
 
-          <!-- 银行账户 -->
-          <view v-if="selectedMethod === 'bank'" class="pd-card">
-            <text class="pd-card-title">收款账户信息</text>
-            <view class="pd-bank">
-              <view class="pd-bank-item">
-                <text class="pd-bank-label">开户银行</text>
-                <text class="pd-bank-val">{{ bankInfo.bankName }}</text>
-              </view>
-              <view class="pd-bank-item">
-                <text class="pd-bank-label">账户名称</text>
-                <text class="pd-bank-val">{{ bankInfo.accountName }}</text>
-              </view>
-              <view class="pd-bank-row">
-                <view class="pd-bank-item">
-                  <text class="pd-bank-label">银行账号</text>
-                  <text class="pd-bank-mono">{{ bankInfo.accountNo }}</text>
-                </view>
-                <view class="pd-copy-btn" @tap="handleCopy(bankInfo.accountNo)">
-                  <AppIcon :name="copied ? 'check' : 'copy'" :size="16" color="#1a1a1a" />
-                </view>
-              </view>
-              <view class="pd-bank-remark">
-                <text class="pd-remark-txt">转账时请备注：{{ bankInfo.remark }}</text>
-              </view>
-            </view>
-          </view>
         </view>
         <view class="pd-bottom-placeholder" />
       </scroll-view>
@@ -129,7 +103,7 @@
           </template>
           <template v-else>
             <AppIcon name="credit-card" :size="18" color="#ffffff" />
-            <text>确认支付 ¥{{ depositInfo.totalDeposit }}.00</text>
+            <text>确认支付 ¥{{ totalDeposit }}.00</text>
           </template>
         </view>
       </view>
@@ -138,52 +112,74 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
+import { merchantApi } from '@/lib/merchant-data'
 
+// 后端 PayDepositDto 仅支持微信/支付宝（银行转账无对应支付能力）
 const paymentMethods = [
-  { id: 'wechat', name: '微信支付', icon: 'smartphone', color: '#22c55e' },
-  { id: 'alipay', name: '支付宝', icon: 'smartphone', color: '#3b82f6' },
-  { id: 'bank', name: '银行卡转账', icon: 'building-2', color: '#f97316' },
+  { id: 'WECHAT' as const, name: '微信支付', icon: 'smartphone', color: '#22c55e' },
+  { id: 'ALIPAY' as const, name: '支付宝', icon: 'smartphone', color: '#3b82f6' },
 ]
 
-const depositInfo = { baseDeposit: 1000, categoryDeposit: 1000, totalDeposit: 2000, paidAt: '2024-01-17 15:30:25', transactionId: 'PAY202401171530250001' }
-const bankInfo = { bankName: '中国工商银行', accountName: '热卜（北京）科技有限公司', accountNo: '6222 0202 0001 1234 5678', remark: '商家入驻保证金' }
+const baseDeposit = 1000 // 基础保证金（与后端 merchant_deposit_base 配置一致）
 
-const selectedMethod = ref('wechat')
+const loading = ref(true)
+const totalDeposit = ref(0)
+const selectedMethod = ref<'WECHAT' | 'ALIPAY'>('WECHAT')
 const isPaying = ref(false)
 const isPaid = ref(false)
-const copied = ref(false)
+const paidInfo = ref({ paidAt: '', transactionId: '' })
 const statusBarHeight = ref(0)
 
-function handleCopy(text: string) {
-  uni.setClipboardData({
-    data: text.replace(/\s/g, ''),
-    success: () => {
-      copied.value = true
-      setTimeout(() => (copied.value = false), 2000)
-    },
-  })
+// 类目保证金 = 总额 - 基础（拆分明细，总额来自后端真实计算）
+const categoryDeposit = computed(() => Math.max(0, totalDeposit.value - baseDeposit))
+
+function formatNow(): string {
+  const d = new Date()
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
+}
+
+async function load() {
+  loading.value = true
+  try {
+    const info = await merchantApi.getDepositInfo()
+    totalDeposit.value = Math.round(Number(info.depositAmount || 0))
+    if (info.depositPaid || info.status !== 'DEPOSIT_PENDING') {
+      uni.showToast({ title: '当前无需缴纳保证金', icon: 'none' })
+      setTimeout(() => navigateTo('/merchant/application-status'), 800)
+    }
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '加载失败', icon: 'none' })
+  } finally {
+    loading.value = false
+  }
 }
 
 async function handlePay() {
   if (isPaying.value) return
   isPaying.value = true
-  await new Promise((r) => setTimeout(r, 2000))
-  isPaying.value = false
-  isPaid.value = true
-  setTimeout(() => navigateTo('/merchant/application-status'), 3000)
+  try {
+    const res: any = await merchantApi.payDeposit(selectedMethod.value)
+    paidInfo.value = { paidAt: formatNow(), transactionId: res?.depositRecordId || '' }
+    isPaid.value = true
+    setTimeout(() => navigateTo('/merchant/application-status'), 2000)
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '支付失败', icon: 'none' })
+  } finally {
+    isPaying.value = false
+  }
 }
 
 function go(url: string) {
   navigateTo(url)
 }
 
-uni.getSystemInfo({
-  success: (res) => {
-    statusBarHeight.value = res.statusBarHeight || 0
-  },
+onMounted(() => {
+  uni.getSystemInfo({ success: (res) => { statusBarHeight.value = res.statusBarHeight || 0 } })
+  load()
 })
 </script>
 
@@ -206,7 +202,7 @@ uni.getSystemInfo({
 .pd-info-label { font-size: 14px; color: #999; }
 .pd-info-val { font-size: 14px; font-weight: 500; color: #1a1a1a; }
 .pd-info-mono { font-size: 12px; font-family: monospace; color: #1a1a1a; }
-.pd-text-red { color: #c41e3a; }
+.pd-text-red { color: var(--brand); }
 
 .pd-scroll { flex: 1; height: 100vh; box-sizing: border-box; }
 .pd-body { padding: 16px; display: flex; flex-direction: column; gap: 16px; }
@@ -215,9 +211,9 @@ uni.getSystemInfo({
 .pd-amount-card { background: linear-gradient(135deg, rgba(196,30,58,0.05), rgba(196,30,58,0.1)); border-radius: 12px; padding: 24px; }
 .pd-amount-label { display: block; font-size: 14px; color: #999; text-align: center; margin-bottom: 8px; }
 .pd-amount-row { display: flex; align-items: baseline; justify-content: center; }
-.pd-amount-sym { font-size: 14px; color: #c41e3a; }
-.pd-amount-num { font-size: 36px; font-weight: 700; color: #c41e3a; }
-.pd-amount-cents { font-size: 14px; color: #c41e3a; }
+.pd-amount-sym { font-size: 14px; color: var(--brand); }
+.pd-amount-num { font-size: 36px; font-weight: 700; color: var(--brand); }
+.pd-amount-cents { font-size: 14px; color: var(--brand); }
 .pd-amount-detail { margin-top: 16px; padding-top: 16px; border-top: 1px solid rgba(0,0,0,0.08); display: flex; flex-direction: column; gap: 8px; }
 .pd-detail-row { display: flex; align-items: center; justify-content: space-between; }
 .pd-detail-label { font-size: 14px; color: #999; }
@@ -234,11 +230,11 @@ uni.getSystemInfo({
 /* 支付方式 */
 .pd-methods { display: flex; flex-direction: column; gap: 12px; }
 .pd-method { display: flex; align-items: center; justify-content: space-between; padding: 16px; border-radius: 12px; border: 2px solid #eee; }
-.pd-method-on { border-color: #c41e3a; background: rgba(196,30,58,0.05); }
+.pd-method-on { border-color: var(--brand); background: rgba(196,30,58,0.05); }
 .pd-method-left { display: flex; align-items: center; gap: 12px; }
 .pd-method-name { font-size: 15px; font-weight: 500; color: #1a1a1a; }
 .pd-radio { width: 20px; height: 20px; border-radius: 50%; border: 2px solid #999; display: flex; align-items: center; justify-content: center; }
-.pd-radio-on { background: #c41e3a; border-color: #c41e3a; }
+.pd-radio-on { background: var(--brand); border-color: var(--brand); }
 
 /* 银行 */
 .pd-bank { display: flex; flex-direction: column; gap: 16px; }
@@ -255,7 +251,7 @@ uni.getSystemInfo({
 
 /* Footer */
 .pd-footer { position: fixed; bottom: 0; left: 0; right: 0; padding: 16px 16px calc(16px + env(safe-area-inset-bottom)); background: #fff; border-top: 1px solid rgba(0,0,0,0.06); }
-.pd-pay-btn { height: 48px; background: #c41e3a; border-radius: 8px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+.pd-pay-btn { height: 48px; background: var(--brand); border-radius: 8px; display: flex; align-items: center; justify-content: center; gap: 8px; }
 .pd-pay-btn text { font-size: 16px; font-weight: 500; color: #fff; }
 .pd-pay-btn-disabled { opacity: 0.5; }
 .pd-spin { display: inline-flex; animation: pd-spin 1s linear infinite; }

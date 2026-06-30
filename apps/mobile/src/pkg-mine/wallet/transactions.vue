@@ -281,7 +281,7 @@ function openDetail(id: string) {
   position: sticky;
   top: 0;
   z-index: 10;
-  background: linear-gradient(90deg, #c41e3a, #e85a6b);
+  background: linear-gradient(90deg, var(--brand), #e85a6b);
   display: flex;
   align-items: center;
   gap: 24rpx;
@@ -299,7 +299,7 @@ function openDetail(id: string) {
 /* 余额卡 */
 .balance-card {
   margin: 32rpx;
-  background: linear-gradient(135deg, #c41e3a, #e85a6b);
+  background: linear-gradient(135deg, var(--brand), #e85a6b);
   border-radius: 32rpx;
   padding: 32rpx;
   display: flex;
@@ -388,7 +388,7 @@ function openDetail(id: string) {
   white-space: nowrap;
 }
 .dropdown-item.active {
-  color: #c41e3a;
+  color: var(--brand);
   background: #fdf0f2;
 }
 
@@ -534,5 +534,5 @@ function openDetail(id: string) {
 .loading { flex: 1; display: flex; align-items: center; justify-content: center; padding-top: 200rpx; font-size: 28rpx; color: #8a8178; }
 .error-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding-top: 200rpx; gap: 24rpx; }
 .error-state text { font-size: 28rpx; color: #8a8178; }
-.retry-btn { padding: 16rpx 48rpx; background: #C41E3A; color: #fff; border-radius: 12rpx; font-size: 26rpx; }
+.retry-btn { padding: 16rpx 48rpx; background: var(--brand); color: #fff; border-radius: 12rpx; font-size: 26rpx; }
 </style>

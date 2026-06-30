@@ -65,7 +65,7 @@
 
         <text class="field-label">短信验证码</text>
         <view class="code-row">
-          <input class="code-input" :class="{ err: codeError }" v-model="verifyCode" type="number" maxlength="6" placeholder="请输入6位验证码" placeholder-class="ph" />
+          <input class="code-input" :class="{ err: codeError }" v-model="verifyCode" type="text" maxlength="6" placeholder="请输入6位验证码" placeholder-class="ph" />
           <view class="send-btn" :class="{ disabled: countdown > 0 }" @tap="sendCode">
             {{ countdown > 0 ? countdown + 's' : '获取验证码' }}
           </view>
@@ -176,7 +176,7 @@ function goHome() {
 .body { padding: 32rpx 32rpx 200rpx; }
 .warn-card { display: flex; align-items: flex-start; gap: 24rpx; padding: 32rpx; background: rgba(196,30,58,0.08); border: 1rpx solid rgba(196,30,58,0.2); border-radius: 24rpx; margin-bottom: 32rpx; }
 .warn-icon { width: 80rpx; height: 80rpx; border-radius: 50%; background: rgba(196,30,58,0.15); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.warn-title { display: block; font-size: 30rpx; font-weight: 600; color: #c41e3a; }
+.warn-title { display: block; font-size: 30rpx; font-weight: 600; color: var(--brand); }
 .warn-sub { display: block; font-size: 26rpx; color: rgba(196,30,58,0.8); margin-top: 6rpx; }
 .warn-list { background: #fff; border: 1rpx solid #e8e3db; border-radius: 24rpx; overflow: hidden; }
 .warn-item { display: flex; align-items: flex-start; gap: 24rpx; padding: 32rpx; border-bottom: 1rpx solid #f0ece3; }
@@ -190,18 +190,18 @@ function goHome() {
 .data-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6rpx; }
 .data-num { font-size: 36rpx; font-weight: 700; }
 .c-accent { color: #d4a017; }
-.c-primary { color: #c41e3a; }
+.c-primary { color: var(--brand); }
 .c-ink { color: #2c2c2c; }
 .data-cap { font-size: 22rpx; color: #8a8378; }
 .keep-card { display: flex; align-items: center; justify-content: space-between; padding: 32rpx; background: #fff; border: 1rpx solid #e8e3db; border-radius: 24rpx; }
 .keep-title { display: block; font-size: 28rpx; font-weight: 500; color: #2c2c2c; }
 .keep-desc { display: block; font-size: 24rpx; color: #8a8378; margin-top: 4rpx; }
 .switch { width: 88rpx; height: 50rpx; border-radius: 999rpx; background: #e0dbd0; position: relative; transition: background .2s; }
-.switch.on { background: #c41e3a; }
+.switch.on { background: var(--brand); }
 .knob { position: absolute; top: 5rpx; left: 5rpx; width: 40rpx; height: 40rpx; border-radius: 50%; background: #fff; box-shadow: 0 2rpx 6rpx rgba(0,0,0,0.15); transition: transform .2s; }
 .knob.on { transform: translateX(38rpx); }
 .footer { position: fixed; bottom: 0; left: 0; right: 0; padding: 24rpx 32rpx calc(24rpx + env(safe-area-inset-bottom)); background: rgba(255,255,255,0.96); border-top: 1rpx solid #e8e3db; }
-.btn-danger { height: 88rpx; display: flex; align-items: center; justify-content: center; background: #c41e3a; color: #fff; font-size: 28rpx; font-weight: 500; border-radius: 20rpx; }
+.btn-danger { height: 88rpx; display: flex; align-items: center; justify-content: center; background: var(--brand); color: #fff; font-size: 28rpx; font-weight: 500; border-radius: 20rpx; }
 .btn-danger.disabled { background: #e0dbd0; color: #b5ad9f; }
 .footer-tip { display: block; text-align: center; font-size: 22rpx; color: #8a8378; margin-top: 12rpx; }
 /* verify */
@@ -214,11 +214,11 @@ function goHome() {
 .phone-box { padding: 24rpx 32rpx; background: #f0ece3; border-radius: 16rpx; font-size: 28rpx; font-weight: 500; color: #2c2c2c; margin-bottom: 48rpx; }
 .code-row { display: flex; gap: 24rpx; }
 .code-input { flex: 1; padding: 24rpx 32rpx; background: #fff; border: 1rpx solid #e8e3db; border-radius: 16rpx; font-size: 28rpx; color: #2c2c2c; }
-.code-input.err { border-color: #c41e3a; }
+.code-input.err { border-color: var(--brand); }
 .ph { color: #b5ad9f; }
-.send-btn { padding: 0 32rpx; height: 84rpx; display: flex; align-items: center; background: #c41e3a; color: #fff; font-size: 26rpx; font-weight: 500; border-radius: 16rpx; white-space: nowrap; }
+.send-btn { padding: 0 32rpx; height: 84rpx; display: flex; align-items: center; background: var(--brand); color: #fff; font-size: 26rpx; font-weight: 500; border-radius: 16rpx; white-space: nowrap; }
 .send-btn.disabled { background: #f0ece3; color: #8a8378; }
-.err-text { display: block; font-size: 24rpx; color: #c41e3a; margin-top: 16rpx; }
+.err-text { display: block; font-size: 24rpx; color: var(--brand); margin-top: 16rpx; }
 .amber-card { display: flex; align-items: flex-start; gap: 16rpx; padding: 32rpx; background: rgba(245,158,11,0.1); border: 1rpx solid rgba(245,158,11,0.2); border-radius: 20rpx; margin-top: 48rpx; }
 .amber-text { flex: 1; }
 .amber-title { display: block; font-size: 26rpx; font-weight: 600; color: #d97706; }
@@ -233,7 +233,7 @@ function goHome() {
 .modal-btns { display: flex; gap: 24rpx; width: 100%; margin-top: 48rpx; }
 .m-btn { flex: 1; height: 84rpx; display: flex; align-items: center; justify-content: center; font-size: 28rpx; font-weight: 500; border-radius: 20rpx; }
 .m-cancel { background: #f0ece3; color: #2c2c2c; }
-.m-confirm { background: #c41e3a; color: #fff; }
+.m-confirm { background: var(--brand); color: #fff; }
 /* success */
 .success { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 48rpx; }
 .suc-ic { width: 160rpx; height: 160rpx; border-radius: 50%; background: rgba(245,158,11,0.1); display: flex; align-items: center; justify-content: center; margin-bottom: 48rpx; }
@@ -243,5 +243,5 @@ function goHome() {
 .suc-card-ic { width: 80rpx; height: 80rpx; border-radius: 50%; background: rgba(196,30,58,0.1); display: flex; align-items: center; justify-content: center; }
 .scc-title { display: block; font-size: 28rpx; font-weight: 500; color: #2c2c2c; }
 .scc-sub { display: block; font-size: 24rpx; color: #8a8378; margin-top: 4rpx; }
-.btn-primary { width: 100%; max-width: 600rpx; height: 88rpx; display: flex; align-items: center; justify-content: center; background: #c41e3a; color: #fff; font-size: 28rpx; font-weight: 500; border-radius: 20rpx; }
+.btn-primary { width: 100%; max-width: 600rpx; height: 88rpx; display: flex; align-items: center; justify-content: center; background: var(--brand); color: #fff; font-size: 28rpx; font-weight: 500; border-radius: 20rpx; }
 </style>

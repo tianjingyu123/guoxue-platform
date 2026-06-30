@@ -15,7 +15,31 @@ export interface ApiResponse<T> {
 const BASE_URL = (import.meta as any).env?.VITE_API_URL || ''
 const PREFIX = '/api/v1'
 
+// 请求超时（弱网下避免长时间空等；各端默认值偏长，统一收敛为 15s）
+const TIMEOUT = 15000
+// 登录页（pkg-auth 分包根 + login/index）
+const LOGIN_URL = '/pkg-auth/login/index'
+
 type Method = 'GET' | 'POST' | 'PUT' | 'DELETE'
+
+/**
+ * 401 统一处理：清 token + 跳登录页。
+ * 用 _redirecting 去重，避免多请求并发返回 401 时重复 reLaunch。
+ */
+let _redirecting = false
+function handleUnauthorized() {
+  clearToken()
+  if (_redirecting) return
+  _redirecting = true
+  uni.reLaunch({
+    url: LOGIN_URL,
+    complete: () => {
+      setTimeout(() => {
+        _redirecting = false
+      }, 1500)
+    },
+  })
+}
 
 function buildHeader(custom?: Record<string, string>): Record<string, string> {
   const token = getToken()
@@ -26,17 +50,18 @@ function buildHeader(custom?: Record<string, string>): Record<string, string> {
   }
 }
 
-function apiFetch<T>(path: string, method: Method, data?: unknown, header?: Record<string, string>): Promise<T> {
+function apiFetch<T>(path: string, method: Method, data?: unknown, header?: Record<string, string>, _retried = false): Promise<T> {
   return new Promise((resolve, reject) => {
     uni.request({
       url: `${BASE_URL}${PREFIX}${path}`,
       method,
       data: data as any,
       header: buildHeader(header),
+      timeout: TIMEOUT,
       success: (res) => {
         const body = res.data as ApiResponse<T>
         if (res.statusCode === 401) {
-          clearToken()
+          handleUnauthorized()
           reject(new Error('未登录或登录已过期'))
           return
         }
@@ -46,15 +71,118 @@ function apiFetch<T>(path: string, method: Method, data?: unknown, header?: Reco
           reject(new Error(body?.message || `请求失败(${res.statusCode})`))
         }
       },
-      fail: (err) => reject(new Error(err.errMsg || '网络错误')),
+      fail: (err) => {
+        // 幂等 GET 网络失败/超时自动重试一次，吸收瞬时抖动
+        if (method === 'GET' && !_retried) {
+          resolve(apiFetch<T>(path, method, data, header, true))
+          return
+        }
+        reject(new Error(err.errMsg || '网络错误'))
+      },
     })
   })
 }
 
 export const apiGet = <T>(path: string, header?: Record<string, string>) => apiFetch<T>(path, 'GET', undefined, header)
+
+/**
+ * 分页 GET：后端 ResponseInterceptor 把 { items, total, page, pageSize } 转为
+ * { code, data: items, pagination: {...} }，而 apiGet 只回 data 会丢失 total。
+ * 此助手保留分页信息，返回 { items, total, page, pageSize }。
+ */
+export function apiGetPaged<T>(path: string, header?: Record<string, string>, _retried = false): Promise<{ items: T[]; total: number; page: number; pageSize: number }> {
+  return new Promise((resolve, reject) => {
+    uni.request({
+      url: `${BASE_URL}${PREFIX}${path}`,
+      method: 'GET',
+      header: buildHeader(header),
+      timeout: TIMEOUT,
+      success: (res) => {
+        const body = res.data as ApiResponse<T[]> & { pagination?: { total: number; page: number; pageSize: number } }
+        if (res.statusCode === 401) {
+          handleUnauthorized()
+          reject(new Error('未登录或登录已过期'))
+          return
+        }
+        if (body && body.code === 200) {
+          const items = Array.isArray(body.data) ? body.data : []
+          const p = body.pagination
+          resolve({ items, total: p?.total ?? items.length, page: p?.page ?? 1, pageSize: p?.pageSize ?? items.length })
+        } else {
+          reject(new Error(body?.message || `请求失败(${res.statusCode})`))
+        }
+      },
+      fail: (err) => {
+        // 幂等分页 GET 同样重试一次
+        if (!_retried) {
+          resolve(apiGetPaged<T>(path, header, true))
+          return
+        }
+        reject(new Error(err.errMsg || '网络错误'))
+      },
+    })
+  })
+}
 export const apiPost = <T>(path: string, data?: unknown, header?: Record<string, string>) => apiFetch<T>(path, 'POST', data, header)
 export const apiPut = <T>(path: string, data?: unknown, header?: Record<string, string>) => apiFetch<T>(path, 'PUT', data, header)
 export const apiDelete = <T>(path: string, data?: unknown, header?: Record<string, string>) => apiFetch<T>(path, 'DELETE', data, header)
+
+/**
+ * 上传单张图片 — POST /upload/image（multipart，字段名 file，需登录）
+ * 返回图片可访问 URL（后端 UploadResult.url）。
+ */
+export function uploadImage(filePath: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const token = getToken()
+    uni.uploadFile({
+      url: `${BASE_URL}${PREFIX}/upload/image`,
+      filePath,
+      name: 'file',
+      header: token ? { Authorization: `Bearer ${token}` } : {},
+      success: (res) => {
+        if (res.statusCode === 401) {
+          handleUnauthorized()
+          reject(new Error('未登录或登录已过期'))
+          return
+        }
+        try {
+          const body = JSON.parse(res.data) as ApiResponse<{ url: string }>
+          if (body && body.code === 200 && body.data?.url) {
+            resolve(body.data.url)
+          } else {
+            reject(new Error(body?.message || `上传失败(${res.statusCode})`))
+          }
+        } catch (e) {
+          reject(new Error('上传响应解析失败'))
+        }
+      },
+      fail: (err) => reject(new Error(err.errMsg || '上传失败')),
+    })
+  })
+}
+
+/** 选择并上传单张图片，返回 URL（封装 uni.chooseImage + uploadImage） */
+export function chooseAndUploadImage(): Promise<string> {
+  return new Promise((resolve, reject) => {
+    uni.chooseImage({
+      count: 1,
+      sizeType: ['compressed'],
+      success: async (res: any) => {
+        const path = Array.isArray(res.tempFilePaths) ? res.tempFilePaths[0] : res.tempFilePaths
+        if (!path) {
+          reject(new Error('未选择图片'))
+          return
+        }
+        try {
+          resolve(await uploadImage(path))
+        } catch (e) {
+          reject(e)
+        }
+      },
+      fail: () => reject(new Error('已取消')),
+    })
+  })
+}
 
 /* mock 开关：默认开启 mock 模式，VITE_USE_MOCK=false 时关闭 */
 const _MOCK_ENABLED = (import.meta as any).env?.VITE_USE_MOCK !== 'false'

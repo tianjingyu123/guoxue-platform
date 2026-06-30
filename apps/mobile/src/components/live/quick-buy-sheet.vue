@@ -14,7 +14,7 @@
       <template v-else>
         <!-- 头部：商品信息 -->
         <view class="qbs-head">
-          <image class="qbs-head__img" :src="product.cover" mode="aspectFill" />
+          <image lazy-load class="qbs-head__img" :src="product.cover" mode="aspectFill" />
           <view class="qbs-head__info">
             <text class="qbs-head__name">{{ product.name }}</text>
             <view class="qbs-head__price-row">
@@ -254,7 +254,7 @@ function onPay() {}
   margin-top: 16rpx;
 }
 .qbs-head__price {
-  color: #C41E3A;
+  color: var(--brand);
   font-size: 40rpx;
   font-weight: 700;
 }
@@ -302,7 +302,7 @@ function onPay() {}
   border: 1px solid #e5e5e5;
 }
 .qbs-sku--on {
-  border-color: #C41E3A;
+  border-color: var(--brand);
   background: rgba(196, 30, 58, 0.05);
 }
 .qbs-sku__txt {
@@ -310,7 +310,7 @@ function onPay() {}
   color: #333;
 }
 .qbs-sku--on .qbs-sku__txt {
-  color: #C41E3A;
+  color: var(--brand);
   font-weight: 500;
 }
 
@@ -362,7 +362,7 @@ function onPay() {}
   border: 1px solid #e5e5e5;
 }
 .qbs-pay--on {
-  border-color: #C41E3A;
+  border-color: var(--brand);
   background: rgba(196, 30, 58, 0.05);
 }
 .qbs-pay__left {
@@ -397,8 +397,8 @@ function onPay() {}
   justify-content: center;
 }
 .qbs-pay__radio--on {
-  border-color: #C41E3A;
-  background: #C41E3A;
+  border-color: var(--brand);
+  background: var(--brand);
 }
 
 /* 底部 */
@@ -436,19 +436,19 @@ function onPay() {}
   gap: 2rpx;
 }
 .qbs-foot__total-sym {
-  color: #C41E3A;
+  color: var(--brand);
   font-size: 26rpx;
   font-weight: 700;
 }
 .qbs-foot__total-num {
-  color: #C41E3A;
+  color: var(--brand);
   font-size: 48rpx;
   font-weight: 700;
 }
 .qbs-foot__pay {
   flex: 1;
   padding: 28rpx 0;
-  background: #C41E3A;
+  background: var(--brand);
   border-radius: 999rpx;
   display: flex;
   align-items: center;

@@ -81,11 +81,11 @@
         </view>
       </view>
 
-      <!-- 退款商品 -->
-      <view class="card">
+      <!-- 退款商品（后端售后单关联商品缺失时隐藏） -->
+      <view v-if="data.product" class="card">
         <text class="card-title">退款商品</text>
         <view class="product-row">
-          <image class="product-cover" :src="data.product.cover" mode="aspectFill" />
+          <image lazy-load class="product-cover" :src="data.product.cover" mode="aspectFill" />
           <view class="product-info">
             <text class="product-name">{{ data.product.name }}</text>
             <text class="product-sku">{{ data.product.skuName }}</text>
@@ -369,7 +369,7 @@ function goDispute() {
 }
 .info-link-text {
   font-size: 28rpx;
-  color: #C41E3A;
+  color: var(--brand);
 }
 
 /* 退款商品 */
@@ -408,7 +408,7 @@ function goDispute() {
 .product-price {
   font-size: 28rpx;
   font-weight: 500;
-  color: #C41E3A;
+  color: var(--brand);
 }
 .product-qty {
   font-size: 24rpx;
@@ -488,5 +488,5 @@ function goDispute() {
 .loading { flex: 1; display: flex; align-items: center; justify-content: center; padding-top: 200rpx; font-size: 28rpx; color: #999999; }
 .error-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding-top: 200rpx; gap: 24rpx; }
 .error-state text { font-size: 28rpx; color: #999999; }
-.retry-btn { padding: 16rpx 48rpx; background: #C41E3A; color: #fff; border-radius: 12rpx; font-size: 26rpx; }
+.retry-btn { padding: 16rpx 48rpx; background: var(--brand); color: #fff; border-radius: 12rpx; font-size: 26rpx; }
 </style>

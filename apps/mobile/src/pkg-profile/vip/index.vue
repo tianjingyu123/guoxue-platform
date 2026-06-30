@@ -262,6 +262,7 @@ import AppError from '@/components/common/app-error.vue'
 import AppSkeleton from '@/components/common/app-skeleton.vue'
 import MembershipComparison from '@/components/marketing/membership-comparison.vue'
 import { navigateTo } from '@/utils/router'
+import { track } from '@/composables/useTrack'
 
 type VipLevel = 'none' | 'basic' | 'pro' | 'premium'
 interface VipPlan {
@@ -378,6 +379,7 @@ function handlePurchase() {
   // @data-needs: 接入 use-payment-bindings 判断渠道是否已绑定，未绑定则引导绑定弹窗
   purchasing.value = true
   setTimeout(() => {
+    track.purchase({ type: 'vip', planId: selectedPlan.value?.id, level: selectedPlan.value?.level, amount: selectedPlan.value?.price })
     uni.showToast({ title: '购买成功', icon: 'success' })
     showPaySheet.value = false
     purchasing.value = false
@@ -403,7 +405,7 @@ onMounted(loadData)
 <style lang="scss" scoped>
 .page { min-height: 100vh; background: #FAF8F5; padding-bottom: 192rpx; position: relative; }
 .top-glow { position: absolute; top: 0; left: 0; right: 0; height: 640rpx; background: linear-gradient(180deg, rgba(201,169,110,0.2) 0%, rgba(201,169,110,0.1) 40%, transparent 100%); pointer-events: none; }
-.nav-records { font-size: 28rpx; color: #C41E3A; }
+.nav-records { font-size: 28rpx; color: var(--brand); }
 
 .body { position: relative; z-index: 1; padding: 0 32rpx; }
 .sk-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24rpx; }
@@ -458,7 +460,7 @@ onMounted(loadData)
 .plan-duration { font-size: 28rpx; font-weight: 500; color: #2C2C2C; text-align: center; display: block; }
 .plan-price-row { display: flex; align-items: baseline; justify-content: center; gap: 2rpx; margin-top: 16rpx; }
 .plan-yuan { font-size: 22rpx; color: #8A8478; }
-.plan-price { font-size: 48rpx; font-weight: 700; color: #C41E3A; }
+.plan-price { font-size: 48rpx; font-weight: 700; color: var(--brand); }
 .plan-original { font-size: 22rpx; color: #8A8478; text-decoration: line-through; text-align: center; margin-top: 8rpx; display: block; }
 .plan-daily { font-size: 22rpx; color: #C9A96E; text-align: center; margin-top: 8rpx; display: block; }
 .plan-check { position: absolute; top: 16rpx; left: 16rpx; width: 40rpx; height: 40rpx; border-radius: 50%; background: #C9A96E; display: flex; align-items: center; justify-content: center; }
@@ -498,10 +500,10 @@ onMounted(loadData)
 .buy-price-box { display: flex; flex-direction: column; }
 .buy-price-row { display: flex; align-items: baseline; gap: 4rpx; }
 .buy-yuan { font-size: 28rpx; color: #8A8478; }
-.buy-price { font-size: 60rpx; font-weight: 700; color: #C41E3A; }
+.buy-price { font-size: 60rpx; font-weight: 700; color: var(--brand); }
 .buy-duration { font-size: 28rpx; color: #8A8478; }
 .buy-original { font-size: 22rpx; color: #8A8478; text-decoration: line-through; }
-.buy-btn { padding: 0 64rpx; height: 96rpx; border-radius: 999rpx; background: linear-gradient(90deg in oklab, #C9A96E, #C41E3A); display: flex; align-items: center; justify-content: center; box-shadow: 0 8rpx 24rpx rgba(201,169,110,0.3); }
+.buy-btn { padding: 0 64rpx; height: 96rpx; border-radius: 999rpx; background: linear-gradient(90deg in oklab, #C9A96E, var(--brand)); display: flex; align-items: center; justify-content: center; box-shadow: 0 8rpx 24rpx rgba(201,169,110,0.3); }
 .buy-btn-txt { font-size: 30rpx; font-weight: 500; color: #FFFFFF; }
 
 /* 支付 Sheet */
@@ -510,17 +512,17 @@ onMounted(loadData)
 .sheet-title { font-size: 32rpx; font-weight: 600; color: #2C2C2C; text-align: center; display: block; }
 .sheet-summary { text-align: center; margin: 32rpx 0; padding-bottom: 32rpx; border-bottom: 2rpx solid #E8E3DB; }
 .sheet-plan { font-size: 26rpx; color: #8A8478; display: block; }
-.sheet-amount { font-size: 60rpx; font-weight: 700; color: #C41E3A; margin-top: 8rpx; display: block; }
+.sheet-amount { font-size: 60rpx; font-weight: 700; color: var(--brand); margin-top: 8rpx; display: block; }
 .sheet-amount-yuan { font-size: 32rpx; }
 .pay-list { display: flex; flex-direction: column; gap: 24rpx; }
 .pay-item { display: flex; align-items: center; gap: 24rpx; padding: 24rpx; border: 2rpx solid #E8E3DB; border-radius: 16rpx; }
 .pay-radio { width: 36rpx; height: 36rpx; border-radius: 50%; border: 2rpx solid #C9C4BB; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.pay-radio-on { border-color: #C41E3A; }
-.pay-radio-dot { width: 20rpx; height: 20rpx; border-radius: 50%; background: #C41E3A; }
+.pay-radio-on { border-color: var(--brand); }
+.pay-radio-dot { width: 20rpx; height: 20rpx; border-radius: 50%; background: var(--brand); }
 .pay-logo { width: 64rpx; height: 64rpx; border-radius: 12rpx; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .pay-logo-txt { font-size: 24rpx; font-weight: 700; color: #FFFFFF; }
 .pay-name { font-size: 28rpx; color: #2C2C2C; }
-.sheet-confirm { margin-top: 48rpx; height: 96rpx; border-radius: 16rpx; background: #C41E3A; display: flex; align-items: center; justify-content: center; }
+.sheet-confirm { margin-top: 48rpx; height: 96rpx; border-radius: 16rpx; background: var(--brand); display: flex; align-items: center; justify-content: center; }
 .sheet-confirm.disabled { opacity: 0.6; }
 .sheet-confirm-txt { font-size: 30rpx; font-weight: 500; color: #FFFFFF; }
 </style>

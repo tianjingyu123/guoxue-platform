@@ -117,6 +117,7 @@ import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import AiSearchModal from '@/components/common/ai-search-modal.vue'
 import { navigateTo, navigateBack } from '@/utils/router'
+import { track } from '@/composables/useTrack'
 
 // ===== UI 状态 =====
 const statusBarHeight = ref(0)
@@ -170,6 +171,7 @@ function clearHistory() {
 function doSearch(kw: string) {
   const q = (kw || '').trim()
   if (!q) return
+  track.search(q) // 搜索词埋点（搜索词分析）
   // 记录历史（UI 临时，交接后由后端持久化）
   if (!historyList.value.includes(q)) {
     historyList.value = [q, ...historyList.value].slice(0, 10)

@@ -55,16 +55,9 @@ async function submit() {
   if (selectedTypes.value.length === 0 || submitting.value) return
   submitting.value = true
   try {
+    // 后端暂无数据导出端点 → 诚实提示即将开放，不伪造导出记录
     const result = await mineApi.requestExport(selectedTypes.value)
-    records.value = [
-      { id: String(Date.now()), types: [...selectedTypes.value], status: 'processing' as const, createdAt: new Date().toISOString() },
-      ...records.value,
-    ]
-    selectedTypes.value = []
-    activeTab.value = 'records'
-    uni.showToast({ title: '已提交导出申请', icon: 'none' })
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '提交失败', icon: 'none' })
+    uni.showToast({ title: result.message || '数据导出功能即将开放', icon: 'none' })
   } finally {
     submitting.value = false
   }
@@ -207,14 +200,14 @@ function reapply(r: ExportRecord) {
 .loading { flex: 1; display: flex; align-items: center; justify-content: center; padding-top: 200rpx; font-size: 28rpx; color: #8a8178; }
 .error-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding-top: 200rpx; gap: 24rpx; }
 .error-state text { font-size: 28rpx; color: #8a8178; }
-.retry-btn { padding: 16rpx 48rpx; background: #C41E3A; color: #fff; border-radius: 12rpx; font-size: 26rpx; }
+.retry-btn { padding: 16rpx 48rpx; background: var(--brand); color: #fff; border-radius: 12rpx; font-size: 26rpx; }
 
 .tabs { display: flex; background: #fff; border-bottom: 1rpx solid #EDE7DC; }
 .tab { flex: 1; height: 88rpx; display: flex; align-items: center; justify-content: center; gap: 8rpx; border-bottom: 4rpx solid transparent; }
-.tab.active { border-bottom-color: #C41E3A; }
+.tab.active { border-bottom-color: var(--brand); }
 .tab-text { font-size: 28rpx; color: #8a8178; }
-.tab.active .tab-text { color: #C41E3A; font-weight: 600; }
-.tab-badge { min-width: 32rpx; height: 32rpx; padding: 0 8rpx; border-radius: 999rpx; background: #C41E3A; color: #fff; font-size: 20rpx; display: flex; align-items: center; justify-content: center; }
+.tab.active .tab-text { color: var(--brand); font-weight: 600; }
+.tab-badge { min-width: 32rpx; height: 32rpx; padding: 0 8rpx; border-radius: 999rpx; background: var(--brand); color: #fff; font-size: 20rpx; display: flex; align-items: center; justify-content: center; }
 
 .scroll { flex: 1; padding: 24rpx; box-sizing: border-box; }
 
@@ -226,17 +219,17 @@ function reapply(r: ExportRecord) {
 .card { background: #fff; border-radius: 24rpx; overflow: hidden; margin-bottom: 24rpx; }
 .card-head { display: flex; align-items: center; justify-content: space-between; padding: 24rpx 28rpx; border-bottom: 1rpx solid #F2ECE1; }
 .card-head-title { font-size: 28rpx; font-weight: 600; color: #2C2C2C; }
-.select-all { font-size: 26rpx; color: #C41E3A; }
+.select-all { font-size: 26rpx; color: var(--brand); }
 .row { display: flex; align-items: center; gap: 20rpx; padding: 24rpx 28rpx; border-bottom: 1rpx solid #F6F1E8; }
 .row:last-child { border-bottom: none; }
 .row-icon { width: 76rpx; height: 76rpx; border-radius: 20rpx; background: #F2ECE1; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.row-icon.icon-active { background: #C41E3A; }
+.row-icon.icon-active { background: var(--brand); }
 .row-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6rpx; }
 .row-name { font-size: 28rpx; font-weight: 500; color: #2C2C2C; }
 .row-sub { font-size: 22rpx; color: #8a8178; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .row-size { font-size: 22rpx; color: #b8b0a4; flex-shrink: 0; }
 .check { width: 40rpx; height: 40rpx; border-radius: 50%; border: 3rpx solid #D8D1C5; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.check.checked { background: #C41E3A; border-color: #C41E3A; }
+.check.checked { background: var(--brand); border-color: var(--brand); }
 
 .estimate { display: flex; align-items: center; justify-content: space-between; background: #F2ECE1; border-radius: 20rpx; padding: 24rpx 28rpx; }
 .estimate-left { font-size: 26rpx; color: #8a8178; }
@@ -247,7 +240,7 @@ function reapply(r: ExportRecord) {
 .empty { padding: 140rpx 0; display: flex; flex-direction: column; align-items: center; gap: 16rpx; }
 .empty-icon { width: 140rpx; height: 140rpx; border-radius: 50%; background: #F2ECE1; display: flex; align-items: center; justify-content: center; margin-bottom: 8rpx; }
 .empty-text { font-size: 28rpx; color: #8a8178; }
-.empty-link { font-size: 26rpx; color: #C41E3A; margin-top: 8rpx; }
+.empty-link { font-size: 26rpx; color: var(--brand); margin-top: 8rpx; }
 
 .rec { background: #fff; border-radius: 24rpx; padding: 28rpx; margin-bottom: 24rpx; }
 .rec-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16rpx; }
@@ -260,13 +253,13 @@ function reapply(r: ExportRecord) {
 .progress-bar { flex: 1; height: 10rpx; background: #E8EEFB; border-radius: 999rpx; overflow: hidden; }
 .progress-fill { width: 35%; height: 100%; background: #2563eb; border-radius: 999rpx; }
 .progress-text { font-size: 22rpx; color: #2563eb; }
-.btn-download { height: 80rpx; background: #C41E3A; border-radius: 20rpx; display: flex; align-items: center; justify-content: center; gap: 12rpx; margin-top: 20rpx; }
+.btn-download { height: 80rpx; background: var(--brand); border-radius: 20rpx; display: flex; align-items: center; justify-content: center; gap: 12rpx; margin-top: 20rpx; }
 .btn-download-text { font-size: 28rpx; font-weight: 500; color: #fff; }
 .btn-reapply { height: 80rpx; background: #F2ECE1; border-radius: 20rpx; display: flex; align-items: center; justify-content: center; margin-top: 20rpx; }
 .btn-reapply-text { font-size: 28rpx; font-weight: 500; color: #2C2C2C; }
 
 .footer-bar { padding: 20rpx 24rpx calc(20rpx + env(safe-area-inset-bottom)); background: #fff; border-top: 1rpx solid #EDE7DC; }
-.btn-submit { height: 92rpx; background: #C41E3A; border-radius: 20rpx; display: flex; align-items: center; justify-content: center; gap: 12rpx; }
+.btn-submit { height: 92rpx; background: var(--brand); border-radius: 20rpx; display: flex; align-items: center; justify-content: center; gap: 12rpx; }
 .btn-submit.disabled { opacity: 0.5; }
 .btn-submit-text { font-size: 30rpx; font-weight: 600; color: #fff; }
 </style>

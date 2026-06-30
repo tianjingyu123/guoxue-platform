@@ -312,7 +312,7 @@ function onSecondary() {
   font-size: 30rpx;
   font-weight: 500;
 }
-.btn-primary { background: #c41e3a; color: #fff; }
+.btn-primary { background: var(--brand); color: #fff; }
 .btn-danger { background: #ef4444; color: #fff; }
 .btn-secondary { background: #f3f4f6; color: #1f2937; }
 
@@ -370,7 +370,7 @@ function onSecondary() {
 }
 .item-title { font-size: 28rpx; font-weight: 500; color: #1f2937; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .item-meta { display: block; font-size: 22rpx; color: #9ca3af; margin-top: 8rpx; }
-.item-price { display: block; font-size: 28rpx; color: #c41e3a; font-weight: 500; margin-top: 8rpx; }
+.item-price { display: block; font-size: 28rpx; color: var(--brand); font-weight: 500; margin-top: 8rpx; }
 
 .help {
   margin-top: 64rpx;
@@ -380,5 +380,5 @@ function onSecondary() {
   transition: all 0.5s ease 0.5s;
 }
 .help-tip { display: block; font-size: 28rpx; color: #6b7280; margin-bottom: 8rpx; }
-.help-link { font-size: 28rpx; color: #c41e3a; }
+.help-link { font-size: 28rpx; color: var(--brand); }
 </style>

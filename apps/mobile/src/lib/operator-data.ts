@@ -1,6 +1,6 @@
 // 分站运营商 - 加入运营商页数据（对齐原型 app/join/operator）
 
-import { apiGet, apiPost, useMock } from '@/utils/request'
+import { apiGet, apiPost, apiPut } from '@/utils/request'
 
 export interface PlanCompareRow {
   feature: string
@@ -154,7 +154,7 @@ export const stationAgreementSections: AgreementSection[] = [
 // 站长协议提示
 export const stationAgreementTip = '本协议自您注册成为站长时生效。请仔细阅读所有条款，了解您的权利和义务。'
 
-// ===== 运营商角色面板数据（对齐原型 lib/api/operator mock）=====
+// ===== 运营商角色面板数据（入驻营销静态文案，后端无端点）=====
 
 export interface OperatorOverviewItem {
   key: string
@@ -167,7 +167,7 @@ export interface OperatorOverviewItem {
 
 export interface TeamMemberRanking {
   rank: number
-  userId: number
+  userId: number | string
   nickname: string
   performance: number
   performanceUnit: string
@@ -238,7 +238,7 @@ export const operatorQuickActions: OperatorQuickAction[] = [
   { key: 'settlement', label: '结算申请', icon: 'credit-card', href: '/station/earnings' },
 ]
 
-// ===== 站长角色面板数据（对齐原型 lib/api/station mock）=====
+// ===== 站长角色面板数据（入驻营销静态文案，后端无端点）=====
 
 export interface StationOverviewItem {
   label: string
@@ -384,17 +384,18 @@ export interface OperatorDashboardData {
 }
 
 export interface DashboardTeamMember {
-  id: number
+  id: number | string
   name: string
   joinDate: string
   status: 'active' | 'pending'
   users: number
   earnings: number
   myBonus: number
+  totalEarning?: number
 }
 
 export interface DashboardQuotaRecord {
-  id: number
+  id: number | string
   type: 'self' | 'sold'
   name: string
   date: string
@@ -427,128 +428,37 @@ export const dashboardQuotaRecords: DashboardQuotaRecord[] = [
 
 export const operatorInviteLink = 'https://rebu.com/join/station?ref=OP12345'
 
-// ===== 团队管理 team 数据（对齐原型 lib/api/team mock）=====
+// ===== 团队管理 team 静态展示常量（真连方法见 operatorApi）=====
 
-export interface TeamMgmtOverview {
-  totalMembers: number
-  newMembersThisMonth: number
-  totalCommission: number
-  commissionRate: number
-  myLevel: string
-  nextLevelRequirement: number
+// 站长团队（运营商视角·对齐后端 operator-dashboard 真实字段，无虚构推广员等级/分销）
+export interface StationTeamOverview {
+  totalStations: number     // 名下站长（分站）数
+  activeStations: number    // 活跃站长
+  silentStations: number    // 沉寂站长
+  monthTeamEarned: number   // 本月团队佣金
+  monthTeamAmount: number   // 本月团队成交额
+  quotaUsed: number
+  quotaTotal: number
 }
 
-export interface TeamMgmtMember {
-  id: number
-  nickname: string
-  phone: string
-  level: string
-  levelIcon: string
-  joinDate: string
-  totalCommission: number
-  thisMonthCommission: number
-  inviteCount: number
-  status: 'active' | 'inactive'
-  lastActiveTime: string
-}
-
-export interface TeamLeaderboardItem {
-  rank: number
-  userId: number
-  nickname: string
-  level: string
-  value: number
-  change: number
-}
-
-export interface TeamActivityItem {
-  id: number
-  type: 'join' | 'upgrade' | 'commission' | 'invite' | 'achievement'
-  userId: number
-  userNickname: string
-  content: string
-  amount?: number
-  createdAt: string
-}
-
-export interface TeamSuccessCaseItem {
-  id: number
-  userId: number
-  nickname: string
-  title: string
-  description: string
-  achievement: string
-  duration: string
-  totalEarnings: number
-  createdAt: string
-}
-
-export interface TeamMemberOrder {
-  id: number
-  amount: number
-  commission: number
-  time: string
-}
-
-export interface TeamMemberInvited {
-  id: number
-  nickname: string
+export interface StationTeamMember {
+  id: string
+  name: string
+  code: string
+  status: 'active' | 'silent'
+  totalEarning: number      // 累计收益
+  monthEarning: number      // 本月收益
+  mgmtBonus: number         // 本月管理奖（运营商分成）
   joinDate: string
 }
 
-export const teamMgmtOverview: TeamMgmtOverview = {
-  totalMembers: 156,
-  newMembersThisMonth: 23,
-  totalCommission: 28650.0,
-  commissionRate: 15,
-  myLevel: '金牌站长',
-  nextLevelRequirement: 50000,
+export interface StationSuccessCase {
+  id: string
+  name: string
+  intro: string
+  totalEarning: number
+  since: string
 }
-
-export const teamMgmtMembers: TeamMgmtMember[] = [
-  { id: 1, nickname: '易学传人', phone: '138****6688', level: '银牌推广员', levelIcon: '🥈', joinDate: '2026-03-15', totalCommission: 3580.0, thisMonthCommission: 680.0, inviteCount: 12, status: 'active', lastActiveTime: '2026-06-03 10:30' },
-  { id: 2, nickname: '国学爱好者', phone: '139****8899', level: '铜牌推广员', levelIcon: '🥉', joinDate: '2026-04-20', totalCommission: 1260.0, thisMonthCommission: 320.0, inviteCount: 5, status: 'active', lastActiveTime: '2026-06-02 18:45' },
-  { id: 3, nickname: '命理研究员', phone: '136****7766', level: '金牌推广员', levelIcon: '🥇', joinDate: '2026-02-10', totalCommission: 8920.0, thisMonthCommission: 1580.0, inviteCount: 28, status: 'active', lastActiveTime: '2026-06-03 09:15' },
-  { id: 4, nickname: '风水学徒', phone: '135****5544', level: '普通推广员', levelIcon: '⭐', joinDate: '2026-05-08', totalCommission: 380.0, thisMonthCommission: 180.0, inviteCount: 2, status: 'inactive', lastActiveTime: '2026-05-28 14:20' },
-]
-
-export const teamLeaderboard: TeamLeaderboardItem[] = [
-  { rank: 1, userId: 3, nickname: '命理研究员', level: '金牌', value: 8920, change: 2 },
-  { rank: 2, userId: 1, nickname: '易学传人', level: '银牌', value: 3580, change: 0 },
-  { rank: 3, userId: 5, nickname: '玄学探索者', level: '银牌', value: 2860, change: 1 },
-  { rank: 4, userId: 2, nickname: '国学爱好者', level: '铜牌', value: 1260, change: -1 },
-  { rank: 5, userId: 6, nickname: '八字初学者', level: '铜牌', value: 980, change: 3 },
-]
-export const teamMyRank = 8
-
-export const teamActivities: TeamActivityItem[] = [
-  { id: 1, type: 'join', userId: 10, userNickname: '新成员小张', content: '加入了您的团队', createdAt: '2026-06-03 14:30' },
-  { id: 2, type: 'commission', userId: 3, userNickname: '命理研究员', content: '完成一笔推广订单', amount: 128.0, createdAt: '2026-06-03 11:20' },
-  { id: 3, type: 'upgrade', userId: 1, userNickname: '易学传人', content: '升级为银牌推广员', createdAt: '2026-06-02 16:45' },
-  { id: 4, type: 'invite', userId: 2, userNickname: '国学爱好者', content: '成功邀请了 2 位新成员', createdAt: '2026-06-02 10:30' },
-  { id: 5, type: 'achievement', userId: 3, userNickname: '命理研究员', content: '达成"月入过千"成就', createdAt: '2026-06-01 20:00' },
-]
-
-export const teamSuccessCases: TeamSuccessCaseItem[] = [
-  { id: 1, userId: 3, nickname: '命理研究员', title: '从小白到金牌的蜕变', description: '分享我如何在3个月内实现月入过万的推广之路，关键在于持续学习和真诚分享...', achievement: '月入过万', duration: '4个月', totalEarnings: 32580, createdAt: '2026-05-20' },
-  { id: 2, userId: 8, nickname: '风水大师徒弟', title: '边学边赚的推广心得', description: '作为国学爱好者，我把推广当作分享好东西给朋友，没想到收益超出预期...', achievement: '百人团队', duration: '6个月', totalEarnings: 18960, createdAt: '2026-04-15' },
-]
-
-// 成员详情弹窗 mock（对齐原型 getMemberDetail）
-export const teamMemberRecentOrders: TeamMemberOrder[] = [
-  { id: 1, amount: 299, commission: 44.85, time: '2026-06-03 10:20' },
-  { id: 2, amount: 599, commission: 89.85, time: '2026-06-01 15:30' },
-]
-export const teamMemberInvitedMembers: TeamMemberInvited[] = [
-  { id: 101, nickname: '小明', joinDate: '2026-05-20' },
-  { id: 102, nickname: '小红', joinDate: '2026-05-15' },
-]
-
-export const teamActivityIconMap: Record<string, string> = {
-  join: '👋', upgrade: '⬆️', commission: '💰', invite: '🤝', achievement: '🏆',
-}
-
-export const teamInviteLink = 'https://rebu.com/invite/ABC123'
 
 // ===== 名额管理 quota 数据（对齐原型 app/operator/quota，页面内联）=====
 
@@ -639,252 +549,505 @@ export const analysisMembers: MemberPerf[] = [
   { id: 'm4', name: '郑浩', level: '普通站长', visits: 1900, clicks: 620, orders: 8, commission: 480, trend: -15, diagnosis: { type: 'warn', text: '点击多成交少，建议推荐高性价比内容' } },
 ]
 
+// ===== 后端真实结构 → 前端展示适配 =====
+
+const STATION_STATUS_MAP: Record<string, 'active' | 'pending' | 'expired' | 'paused'> = {
+  ACTIVE: 'active', PENDING: 'pending', EXPIRED: 'expired', DISABLED: 'paused',
+}
+const OPERATOR_LEVEL_LABEL: Record<string, string> = {
+  SILVER: '白银运营商', GOLD: '黄金运营商', DIAMOND: '钻石运营商', BLACK_GOLD: '黑金运营商',
+}
+/** 截取 YYYY-MM-DD */
+function toYmd(d?: string | null): string {
+  return d ? String(d).slice(0, 10) : ''
+}
+/** 安全转数字（后端 Decimal 序列化多为 string） */
+function toNum(v: unknown): number {
+  const n = Number(v)
+  return Number.isFinite(n) ? n : 0
+}
+
+// 站长分站信息（GET /station/my 适配后）
+export interface StationPanelInfo {
+  id: string
+  name: string
+  code: string
+  logo: string
+  themeColor: string
+  status: 'active' | 'pending' | 'expired' | 'paused'
+  createTime: string
+  expireTime: string
+}
+
+// 站长收益余额（真实字段，无虚构的可提现/冻结）
+export interface StationBalanceInfo {
+  totalEarning: number
+  monthEarning: number
+  pendingSettlement: number
+  nextSettleDate: string
+  remainingDays: number
+}
+
+// 站长收益明细（对齐后端 StationEarning：佣金流水，无 status/标题/来源用户等虚构字段）
+export type StationEarningType = 'COURSE' | 'PRODUCT' | 'MEMBER' | 'CIRCLE' | 'BOT' | string
+export interface StationEarningItem {
+  id: string
+  type: StationEarningType
+  orderId: string
+  amount: number // 订单金额
+  rate: number // 佣金比例（0-1）
+  earned: number // 实得佣金
+  createdAt: string
+}
+export const STATION_EARNING_TYPE_LABELS: Record<string, string> = {
+  COURSE: '课程佣金',
+  PRODUCT: '商品佣金',
+  MEMBER: '会员佣金',
+  CIRCLE: '圈子佣金',
+  BOT: '智能体佣金',
+}
+
+// 站长推广素材（对齐后端 PromotionMaterial：type=poster/qrcode/copy）
+export interface PromotionMaterialItem {
+  id: string
+  type: 'poster' | 'qrcode' | 'copy' | string
+  title: string
+  content: string
+  imageUrl: string
+  tags: string[]
+  usageCount: number
+  createdAt: string
+}
+
+// 分站首页模板选项（后端 STATION_TEMPLATES，5套）
+export interface StationTemplateOption {
+  id: string
+  name: string
+  desc: string
+  hero: string | null
+  tabs: string[]
+  modules: string[]
+}
+
+// 分站配置（站长「分站装修」页可编辑字段，皆对齐 Station 表真实字段）
+export interface StationConfigData {
+  id: string
+  name: string
+  code: string
+  logo: string
+  themeColor: string
+  intro: string
+  status: 'active' | 'pending' | 'expired' | 'paused'
+  templateId: string
+  createTime: string
+  // 站长信息（来自 /station/my 关联，只读展示）
+  masterNickname: string
+  masterAvatar: string
+  // 真实经营统计（只读展示）
+  totalEarning: number
+  monthEarning: number
+  monthOrders: number
+  lockedUsers: number
+}
+
+// 站长更新分站的入参（仅含后端 UpdateStationDto 支持的字段）
+export interface UpdateStationPayload {
+  name?: string
+  intro?: string
+  logo?: string
+  themeColor?: string
+  templateId?: string
+}
+
 // ===== operatorApi — 运营商/站长数据 API 层 =====
+// 注：入驻营销内容（定价/方案/权益/收益案例/FAQ/协议）后端无对应端点，属前端运营配置（静态展示文案），
+//     非业务数据，直接返回常量即可（保留 async 以兼容调用方 await）。
 export const operatorApi = {
-  // === 运营商入驻 (用于 join-operator 页) ===
-  async getOperatorPricing() {
-    if (true) return operatorPricing
-    try { return await apiGet<any>('/operator/pricing') }
-    catch { return operatorPricing }
-  },
-  async getPlanComparison() {
-    if (true) return planComparison
-    try { return await apiGet<any>('/operator/plan-comparison') }
-    catch { return planComparison }
-  },
-  async getOperatorBenefits() {
-    if (true) return operatorBenefits
-    try { return await apiGet<any>('/operator/benefits') }
-    catch { return operatorBenefits }
-  },
-  async getOperatorEarningCases() {
-    if (true) return operatorEarningCases
-    try { return await apiGet<any>('/operator/earning-cases') }
-    catch { return operatorEarningCases }
-  },
-  async getOperatorFaqs() {
-    if (true) return operatorFaqs
-    try { return await apiGet<any>('/operator/faqs') }
-    catch { return operatorFaqs }
-  },
+  // === 运营商入驻 (用于 join-operator 页·静态运营文案) ===
+  async getOperatorPricing() { return operatorPricing },
+  async getPlanComparison() { return planComparison },
+  async getOperatorBenefits() { return operatorBenefits },
+  async getOperatorEarningCases() { return operatorEarningCases },
+  async getOperatorFaqs() { return operatorFaqs },
 
-  // === 站长入驻 (用于 join-station 页) ===
-  async getStationPricing() {
-    if (true) return stationPricing
-    try { return await apiGet<any>('/station/pricing') }
-    catch { return stationPricing }
-  },
-  async getStationBenefits() {
-    if (true) return stationBenefits
-    try { return await apiGet<any>('/station/benefits') }
-    catch { return stationBenefits }
-  },
-  async getStationEarningCases() {
-    if (true) return stationEarningCases
-    try { return await apiGet<any>('/station/earning-cases') }
-    catch { return stationEarningCases }
-  },
-  async getStationFaqs() {
-    if (true) return stationFaqs
-    try { return await apiGet<any>('/station/faqs') }
-    catch { return stationFaqs }
-  },
+  // === 站长入驻 (用于 join-station 页·静态运营文案) ===
+  async getStationPricing() { return stationPricing },
+  async getStationBenefits() { return stationBenefits },
+  async getStationEarningCases() { return stationEarningCases },
+  async getStationFaqs() { return stationFaqs },
 
-  // === 协议 (用于 agreement-operator, agreement-station 页) ===
-  async getOperatorAgreement() {
-    if (true) return { sections: operatorAgreementSections, tip: operatorAgreementTip }
-    try { return await apiGet<any>('/operator/agreement') }
-    catch { return { sections: operatorAgreementSections, tip: operatorAgreementTip } }
-  },
-  async getStationAgreement() {
-    if (true) return { sections: stationAgreementSections, tip: stationAgreementTip }
-    try { return await apiGet<any>('/station/agreement') }
-    catch { return { sections: stationAgreementSections, tip: stationAgreementTip } }
-  },
+  // === 协议 (用于 agreement-operator, agreement-station 页·静态条款) ===
+  async getOperatorAgreement() { return { sections: operatorAgreementSections, tip: operatorAgreementTip } },
+  async getStationAgreement() { return { sections: stationAgreementSections, tip: stationAgreementTip } },
 
   // === 运营商面板 (用于 operator-panel 页) ===
+  // 后端 GET /station/operator-dashboard/my：非运营商抛 403 → 页面据此走"未开通"引导态
   async getPanelInfo() {
-    if (true) return operatorPanelInfo
-    try { return await apiGet<any>('/operator/panel-info') }
-    catch { return operatorPanelInfo }
+    const op = await apiGet<any>('/station/operator-dashboard/my')
+    return {
+      id: op.id,
+      name: op.brandName || op.user?.nickname || '我的运营中心',
+      level: OPERATOR_LEVEL_LABEL[op.level] || '运营商',
+      joinDate: toYmd(op.purchasedAt),
+    }
   },
-  async getOverview() {
-    if (true) return operatorOverview
-    try { return await apiGet<any>('/operator/overview') }
-    catch { return operatorOverview }
+  async getOverview(): Promise<OperatorOverviewItem[]> {
+    const o = await apiGet<any>('/station/operator-dashboard/overview')
+    // 后端无环比 trend，诚实不展示趋势
+    return [
+      { key: 'monthTeamEarned', label: '本月团队佣金', value: toNum(o.monthTeamEarned), unit: '元' },
+      { key: 'totalStations', label: '名下站长', value: toNum(o.totalStations), unit: '人' },
+      { key: 'activeStations', label: '活跃站长', value: toNum(o.activeStations), unit: '人' },
+      { key: 'monthTeamAmount', label: '本月成交额', value: toNum(o.monthTeamAmount), unit: '元' },
+      { key: 'monthTeamOrders', label: '本月订单', value: toNum(o.monthTeamOrders), unit: '单' },
+      { key: 'quota', label: '名额使用', value: `${toNum(o.quotaUsed)}/${toNum(o.quotaTotal)}` },
+    ]
   },
-  async getTeamRanking() {
-    if (true) return operatorTeamRanking
-    try { return await apiGet<any>('/operator/team-ranking') }
-    catch { return operatorTeamRanking }
+  async getTeamRanking(): Promise<TeamMemberRanking[]> {
+    const res = await apiGet<any>('/station/operator-dashboard/team-ranking')
+    const ranking: any[] = res?.ranking || []
+    // 后端按 totalEarning 排序的名下站长；无 change 环比 → 诚实不展示
+    return ranking.map((s, i) => ({
+      rank: i + 1,
+      userId: s.id,
+      nickname: s.name || '未命名分站',
+      performance: toNum(s.totalEarning),
+      performanceUnit: '元',
+    }))
   },
-  async getQuotaUsage() {
-    if (true) return operatorQuotaUsage
-    try { return await apiGet<any>('/operator/quota-usage') }
-    catch { return operatorQuotaUsage }
+  async getQuotaUsage(): Promise<QuotaUsageItem[]> {
+    const q = await apiGet<any>('/station/operator-dashboard/quota-usage')
+    const used = toNum(q.used), total = toNum(q.total)
+    // 后端仅"分站名额"一种配额；原型的课程/直播/存储配额后端无 → 诚实不展示
+    return [{
+      key: 'station', label: '分站名额', used, total, unit: '个',
+      isLow: total > 0 && used / total >= 0.8,
+    }]
   },
-  async getQuickActions() {
-    if (true) return operatorQuickActions
-    try { return await apiGet<any>('/operator/quick-actions') }
-    catch { return operatorQuickActions }
+  getQuickActions() {
+    return operatorQuickActions
   },
 
   // === 站长面板 (用于 station-master-panel 页) ===
-  async getStationPanelInfo() {
-    if (true) return stationPanelInfo
-    try { return await apiGet<any>('/station/panel-info') }
-    catch { return stationPanelInfo }
+  // 后端 GET /station/my：未开通分站抛 404 → 页面据此走"未开通"引导态
+  async getStationPanelInfo(): Promise<StationPanelInfo> {
+    const s = await apiGet<any>('/station/my')
+    return {
+      id: s.id,
+      name: s.name,
+      code: s.code,
+      logo: s.logo || '',
+      themeColor: s.themeColor || '#C41E3A',
+      status: STATION_STATUS_MAP[s.status] || 'active',
+      createTime: toYmd(s.createdAt),
+      expireTime: s.expireAt ? toYmd(s.expireAt) : '长期有效',
+    }
   },
-  async getStationPanelOverview() {
-    if (true) return stationPanelOverview
-    try { return await apiGet<any>('/station/panel-overview') }
-    catch { return stationPanelOverview }
+  // 概览指标：组装 站长仪表盘 overview + 分站 my 统计（皆真实）
+  async getStationPanelOverview(): Promise<StationOverviewItem[]> {
+    const [ov, my] = await Promise.all([
+      apiGet<any>('/station/dashboard/overview'),
+      apiGet<any>('/station/my'),
+    ])
+    // 后端 conversionRate 为占位 "0"、无环比 trend → 诚实不展示，统一 flat
+    return [
+      { label: '本月收益', value: toNum(ov.monthEarned), unit: '元', trendType: 'flat', icon: 'revenue' },
+      { label: '本月成交', value: toNum(ov.monthAmount), unit: '元', trendType: 'flat', icon: 'total' },
+      { label: '本月订单', value: toNum(ov.monthOrders), unit: '单', trendType: 'flat', icon: 'orders' },
+      { label: '锁定用户', value: toNum(my.lockedUsers), unit: '人', trendType: 'flat', icon: 'users' },
+      { label: '累计收益', value: toNum(my.totalEarning), unit: '元', trendType: 'flat', icon: 'total' },
+    ]
   },
-  async getStationOverviewIconMap() {
-    if (true) return stationOverviewIconMap
-    try { return await apiGet<any>('/station/overview-icon-map') }
-    catch { return stationOverviewIconMap }
+  getStationOverviewIconMap() {
+    return stationOverviewIconMap
   },
-  async getStationPanelTrends() {
-    if (true) return stationPanelTrends
-    try { return await apiGet<any>('/station/panel-trends') }
-    catch { return stationPanelTrends }
+  // 收益趋势：后端近30天每日收益（真实）；环比按近7天 vs 前7天真实计算
+  async getStationPanelTrends(): Promise<StationTrendData[]> {
+    const res = await apiGet<any>('/station/dashboard/trends')
+    const trends: Array<{ date: string; earned: number }> = res?.trends || []
+    const total = trends.reduce((sum, t) => sum + toNum(t.earned), 0)
+    const last7 = trends.slice(-7).reduce((sum, t) => sum + toNum(t.earned), 0)
+    const prev7 = trends.slice(-14, -7).reduce((sum, t) => sum + toNum(t.earned), 0)
+    const change = prev7 > 0 ? Math.round(((last7 - prev7) / prev7) * 1000) / 10 : 0
+    return [{
+      type: 'revenue', label: '收益趋势', total, change,
+      data: trends.map(t => ({ date: t.date.slice(5), value: toNum(t.earned) })),
+    }]
   },
-  async getStationPanelBalance() {
-    if (true) return stationPanelBalance
-    try { return await apiGet<any>('/station/panel-balance') }
-    catch { return stationPanelBalance }
+  // 余额：累计/本月/待结算 + 结算倒计时（皆真实）；可提现走平台钱包
+  async getStationPanelBalance(): Promise<StationBalanceInfo> {
+    const [my, timer] = await Promise.all([
+      apiGet<any>('/station/my'),
+      apiGet<any>('/station/dashboard/settlement-timer'),
+    ])
+    return {
+      totalEarning: toNum(my.totalEarning),
+      monthEarning: toNum(my.monthEarning),
+      pendingSettlement: toNum(timer.pendingSettlement),
+      nextSettleDate: timer.nextSettleDate || '',
+      remainingDays: toNum(timer.remainingDays),
+    }
   },
-  async getStationPanelQuickActions() {
-    if (true) return stationPanelQuickActions
-    try { return await apiGet<any>('/station/panel-quick-actions') }
-    catch { return stationPanelQuickActions }
+  // 站长收益明细（GET /station/my/earnings；earnings 非分页 row key → 不拆包，apiGet 取 .earnings）
+  async getMyStationEarnings(page = 1, pageSize = 20): Promise<{ items: StationEarningItem[]; total: number }> {
+    const res = await apiGet<{ earnings: any[]; total: number }>(`/station/my/earnings?page=${page}&pageSize=${pageSize}`)
+    const items = (res.earnings || []).map((e): StationEarningItem => ({
+      id: String(e.id),
+      type: e.type || 'COURSE',
+      orderId: e.orderId || '',
+      amount: toNum(e.amount),
+      rate: toNum(e.rate),
+      earned: toNum(e.earned),
+      createdAt: e.createdAt || '',
+    }))
+    return { items, total: res.total || 0 }
   },
-  async getStationActionIconMap() {
-    if (true) return stationActionIconMap
-    try { return await apiGet<any>('/station/action-icon-map') }
-    catch { return stationActionIconMap }
+  // 站长推广素材（GET /station/promotion/materials，需先取自己 stationId；返回裸数组）
+  async getMyStationMaterials(): Promise<PromotionMaterialItem[]> {
+    const my = await apiGet<any>('/station/my')
+    const list = await apiGet<any[]>(`/station/promotion/materials?stationId=${my.id}`)
+    return (list || []).map((m): PromotionMaterialItem => ({
+      id: String(m.id),
+      type: m.type || 'poster',
+      title: m.title || '',
+      content: m.content || '',
+      imageUrl: m.imageUrl || '',
+      tags: m.tags || [],
+      usageCount: Number(m.usageCount) || 0,
+      createdAt: m.createdAt || '',
+    }))
   },
-  async getStationPanelNotices() {
-    if (true) return stationPanelNotices
-    try { return await apiGet<any>('/station/panel-notices') }
-    catch { return stationPanelNotices }
+  // 记录素材使用（POST /station/promotion/materials/:id/use）
+  async useStationMaterial(id: string): Promise<void> {
+    await apiPost(`/station/promotion/materials/${id}/use`, {})
+  },
+  getStationPanelQuickActions() {
+    return stationPanelQuickActions
+  },
+  getStationActionIconMap() {
+    return stationActionIconMap
+  },
+  // 分站通知：后端无分站专属通知模型 → 诚实降级空（页面隐藏通知卡）
+  async getStationPanelNotices(): Promise<StationNotice[]> {
+    return []
   },
 
   // === 运营商 Dashboard (用于 dashboard 页) ===
-  async getDashboardData() {
-    if (true) return operatorDashboardData
-    try { return await apiGet<any>('/operator/dashboard') }
-    catch { return operatorDashboardData }
+  async getDashboardData(): Promise<OperatorDashboardData> {
+    const op = await apiGet<any>('/station/operator-dashboard/my')
+    const total = toNum(op.containQuota)
+    const used = toNum(op.usedQuota)
+    // 后端 quota 仅 总/已用/可用；原型的自用vs已售区分后端无 → sold 等同 used 诚实展示
+    return {
+      name: op.brandName || op.user?.nickname || '我的运营中心',
+      level: OPERATOR_LEVEL_LABEL[op.level] || '运营商',
+      joinDate: toYmd(op.purchasedAt),
+      quota: { total, used, sold: used, available: Math.max(0, total - used) },
+      team: { total: toNum(op.stationCount), thisMonth: toNum(op.monthNewStations) },
+      // pending/teamBonus/quotaSales 后端无单独字段 → 0，页面降级隐藏对应卡片
+      earnings: {
+        total: toNum(op.totalEarning), thisMonth: toNum(op.monthEarning),
+        pending: 0, teamBonus: 0, quotaSales: 0,
+      },
+      stats: { totalUsers: 0, thisMonthUsers: 0, conversionRate: 0 },
+    }
   },
-  async getDashboardTeamMembers() {
-    if (true) return dashboardTeamMembers
-    try { return await apiGet<any>('/operator/dashboard/team-members') }
-    catch { return dashboardTeamMembers }
+  async getDashboardTeamMembers(): Promise<DashboardTeamMember[]> {
+    const stations = await apiGet<any[]>('/station/operator-dashboard/my/stations')
+    return (stations || []).map((s) => ({
+      id: s.id,
+      name: s.name || '未命名分站',
+      joinDate: toYmd(s.createdAt),
+      status: s.status === 'ACTIVE' ? 'active' : 'pending',
+      users: 0, // 该端点无名下站长的用户数 → 页面以累计收益替代展示
+      earnings: toNum(s.monthEarning),
+      myBonus: toNum(s.mgmtBonus),
+      totalEarning: toNum(s.totalEarning),
+    }))
   },
-  async getDashboardQuotaRecords() {
-    if (true) return dashboardQuotaRecords
-    try { return await apiGet<any>('/operator/dashboard/quota-records') }
-    catch { return dashboardQuotaRecords }
+  async getDashboardQuotaRecords(): Promise<DashboardQuotaRecord[]> {
+    // 后端无名额销售流水表 → 用名下站长映射为"已用名额记录"（真实）
+    const stations = await apiGet<any[]>('/station/operator-dashboard/my/stations')
+    return (stations || []).map((s) => ({
+      id: s.id,
+      type: 'sold' as const,
+      name: s.name || '未命名分站',
+      date: toYmd(s.createdAt),
+      status: s.status === 'ACTIVE' ? ('active' as const) : ('pending' as const),
+    }))
   },
-  async getDashboardInviteLink() {
-    if (true) return operatorInviteLink
-    try { return await apiGet<any>('/operator/invite-link') }
-    catch { return operatorInviteLink }
-  },
-
-  // === 团队管理 (用于 team 页) ===
-  async getTeamOverview() {
-    if (true) return teamMgmtOverview
-    try { return await apiGet<any>('/operator/team/overview') }
-    catch { return teamMgmtOverview }
-  },
-  async getTeamMemberList() {
-    if (true) return teamMgmtMembers
-    try { return await apiGet<any>('/operator/team/members') }
-    catch { return teamMgmtMembers }
-  },
-  async getTeamLeaderboard() {
-    if (true) return teamLeaderboard
-    try { return await apiGet<any>('/operator/team/leaderboard') }
-    catch { return teamLeaderboard }
-  },
-  async getTeamMyRank() {
-    if (true) return teamMyRank
-    try { return await apiGet<any>('/operator/team/my-rank') }
-    catch { return teamMyRank }
-  },
-  async getTeamActivities() {
-    if (true) return teamActivities
-    try { return await apiGet<any>('/operator/team/activities') }
-    catch { return teamActivities }
-  },
-  async getTeamSuccessCases() {
-    if (true) return teamSuccessCases
-    try { return await apiGet<any>('/operator/team/success-cases') }
-    catch { return teamSuccessCases }
-  },
-  async getMemberDetailOrders(_memberId: number) {
-    if (true) return { orders: teamMemberRecentOrders, invited: teamMemberInvitedMembers }
-    try { return await apiGet<any>(`/operator/team/member/${_memberId}/detail`) }
-    catch { return { orders: teamMemberRecentOrders, invited: teamMemberInvitedMembers } }
-  },
-  async getActivityIconMap() {
-    if (true) return teamActivityIconMap
-    try { return await apiGet<any>('/operator/team/activity-icon-map') }
-    catch { return teamActivityIconMap }
-  },
-  async getTeamInviteLink() {
-    if (true) return teamInviteLink
-    try { return await apiGet<any>('/operator/team/invite-link') }
-    catch { return teamInviteLink }
+  async getDashboardInviteLink(): Promise<string> {
+    const op = await apiGet<any>('/station/operator-dashboard/my')
+    const base = (import.meta as any).env?.VITE_H5_URL || ''
+    return `${base}/#/pkg-operator/join-station/index?op=${op.id}`
   },
 
-  // === 名额管理 (用于 quota 页) ===
+  // === 分站装修/配置 (用于 station-config 页) ===
+  // 后端 GET /station/my：未开通分站抛 404 → 页面据此走"未开通"引导态
+  async getStationConfig(): Promise<StationConfigData> {
+    const s = await apiGet<any>('/station/my')
+    return {
+      id: s.id,
+      name: s.name || '',
+      code: s.code || '',
+      logo: s.logo || '',
+      themeColor: s.themeColor || '#C41E3A',
+      intro: s.intro || '',
+      status: STATION_STATUS_MAP[s.status] || 'active',
+      templateId: s.templateId || 'default',
+      createTime: toYmd(s.createdAt),
+      masterNickname: s.user?.nickname || '',
+      masterAvatar: s.user?.avatar || '',
+      totalEarning: toNum(s.totalEarning),
+      monthEarning: toNum(s.monthEarning),
+      monthOrders: toNum(s.monthOrders),
+      lockedUsers: toNum(s.lockedUsers),
+    }
+  },
+  // 分站首页模板列表（后端 STATION_TEMPLATES 5套）
+  async getStationTemplates(): Promise<StationTemplateOption[]> {
+    const list = await apiGet<any>('/station/templates/list')
+    const arr: any[] = Array.isArray(list) ? list : (list?.items || [])
+    return arr.map((t) => ({
+      id: t.id,
+      name: t.name,
+      desc: t.desc || '',
+      hero: t.preview?.hero ?? null,
+      tabs: t.preview?.tabs || [],
+      modules: t.preview?.modules || [],
+    }))
+  },
+  // 保存分站配置（PUT /station/my，UpdateStationDto 支持 name/intro/logo/themeColor/templateId）
+  async updateStationConfig(payload: UpdateStationPayload): Promise<void> {
+    await apiPut<any>('/station/my', payload)
+  },
+
+  // === 站长团队管理 (用于 team 页·真连 operator-dashboard·无虚构推广员分销) ===
+  async getTeamOverview(): Promise<StationTeamOverview> {
+    const o = await apiGet<any>('/station/operator-dashboard/overview')
+    return {
+      totalStations: toNum(o.totalStations),
+      activeStations: toNum(o.activeStations),
+      silentStations: toNum(o.silentStations),
+      monthTeamEarned: toNum(o.monthTeamEarned),
+      monthTeamAmount: toNum(o.monthTeamAmount),
+      quotaUsed: toNum(o.quotaUsed),
+      quotaTotal: toNum(o.quotaTotal),
+    }
+  },
+  // 名下站长列表（运营商团队成员=分站站长，按 operatorId 真实归属）
+  async getTeamMembers(): Promise<StationTeamMember[]> {
+    const res = await apiGet<any>('/station/operator-dashboard/my/stations')
+    const arr: any[] = Array.isArray(res) ? res : (res?.items || [])
+    return arr.map((s) => ({
+      id: s.id,
+      name: s.name || '未命名分站',
+      code: s.code || '',
+      status: s.status === 'ACTIVE' ? 'active' : 'silent',
+      totalEarning: toNum(s.totalEarning),
+      monthEarning: toNum(s.monthEarning),
+      mgmtBonus: toNum(s.mgmtBonus),
+      joinDate: toYmd(s.createdAt),
+    }))
+  },
+  // 成功案例（高收益分站·激励团队）
+  async getTeamSuccessCases(): Promise<StationSuccessCase[]> {
+    const res = await apiGet<any>('/station/team/success-cases')
+    const arr: any[] = res?.items || res?.list || (Array.isArray(res) ? res : [])
+    return arr.map((s) => ({ id: s.id, name: s.name || '', intro: s.intro || '', totalEarning: toNum(s.totalEarning), since: toYmd(s.createdAt) }))
+  },
+  // 邀请站长加入链接（复用运营商招募口）
+  async getTeamInviteLink(): Promise<string> {
+    const op = await apiGet<any>('/station/operator-dashboard/my')
+    const base = (import.meta as any).env?.VITE_H5_URL || ''
+    return `${base}/#/pkg-operator/join-station/index?op=${op.id}`
+  },
+
+  // === 名额管理 (用于 quota 页·真连 quota-usage·名额交易体系后端未实现→诚实降级) ===
   async getQuotaData() {
-    if (true) return quotaData
-    try { return await apiGet<any>('/operator/quota') }
-    catch { return quotaData }
+    const [q, op] = await Promise.all([
+      apiGet<any>('/station/operator-dashboard/quota-usage'),
+      apiGet<any>('/station/operator-dashboard/my'),
+    ])
+    const total = toNum(q.total) || toNum(op.containQuota)
+    const used = toNum(q.used)
+    return {
+      total,
+      used,
+      sold: 0,    // 后端无名额交易记录 → 诚实为 0
+      gifted: 0,
+      available: Math.max(0, total - used),
+      price: operatorPricing.quotaUnitPrice, // 名额单价：运营配置常量
+    }
   },
-  async getQuotaRecords() {
-    if (true) return quotaRecords
-    try { return await apiGet<any>('/operator/quota/records') }
-    catch { return quotaRecords }
+  // 名额交易记录：后端暂无名额售卖/赠送模型 → 诚实返回空（页面展示"剩余N个待分配"）
+  async getQuotaRecords(): Promise<QuotaRecord[]> {
+    return []
   },
-  async getQuotaSaleLink() {
-    if (true) return quotaSaleLink
-    try { return await apiGet<any>('/operator/quota/sale-link') }
-    catch { return quotaSaleLink }
+  async getQuotaSaleLink(): Promise<string> {
+    const op = await apiGet<any>('/station/operator-dashboard/my')
+    const base = (import.meta as any).env?.VITE_H5_URL || ''
+    return `${base}/#/pkg-operator/join-station/index?op=${op.id}`
   },
 
-  // === 邀请站长 (用于 invite 页) ===
-  async getInvitedStations() {
-    if (true) return invitedStations
-    try { return await apiGet<any>('/operator/invited-stations') }
-    catch { return invitedStations }
+  // === 邀请站长 (用于 invite 页·真连名下站长 + 构造邀请入口) ===
+  async getInvitedStations(): Promise<InvitedStation[]> {
+    const res = await apiGet<any>('/station/operator-dashboard/my/stations')
+    const arr: any[] = Array.isArray(res) ? res : (res?.items || [])
+    return arr.map((s) => ({
+      id: s.id,
+      name: s.name || '未命名分站',
+      joinedAt: toYmd(s.createdAt),
+      status: s.status === 'ACTIVE' ? 'active' : 'pending',
+      revenue: `¥${toNum(s.totalEarning).toLocaleString()}`,
+      commission: `¥${toNum(s.mgmtBonus).toLocaleString()}`,
+    }))
   },
-  async getInviteLinkFull() {
-    if (true) return operatorInviteLinkFull
-    try { return await apiGet<any>('/operator/invite-link-full') }
-    catch { return operatorInviteLinkFull }
+  async getInviteLinkFull(): Promise<string> {
+    const op = await apiGet<any>('/station/operator-dashboard/my')
+    const base = (import.meta as any).env?.VITE_H5_URL || ''
+    return `${base}/#/pkg-operator/join-station/index?op=${op.id}`
   },
-  async getInviteCode() {
-    if (true) return operatorInviteCode
-    try { return await apiGet<any>('/operator/invite-code') }
-    catch { return operatorInviteCode }
+  async getInviteCode(): Promise<string> {
+    const op = await apiGet<any>('/station/operator-dashboard/my')
+    // 后端无专门邀请码字段 → 用运营商ID派生稳定邀请码
+    return `OP${String(op.id).replace(/-/g, '').slice(0, 8).toUpperCase()}`
   },
 
   // === 沉寂预警 (用于 dormant 页) ===
-  async getDormantMembers() {
-    if (true) return dormantMembers
-    try { return await apiGet<any>('/operator/dormant-members') }
-    catch { return dormantMembers }
+  // 沉寂站长 = 名下本月无收益(monthEarning=0)的站长（后端无最后活跃时间/等级→诚实降级）
+  async getDormantMembers(): Promise<DormantMember[]> {
+    const res = await apiGet<any>('/station/operator-dashboard/my/stations')
+    const arr: any[] = Array.isArray(res) ? res : (res?.items || [])
+    return arr
+      .filter((s) => toNum(s.monthEarning) === 0)
+      .map((s) => ({
+        id: s.id,
+        name: s.name || '未命名分站',
+        level: s.code || '',     // 后端无站长等级 → 展示分站码
+        lastActiveDays: 0,        // 后端无最后活跃时间 → 降级（页面不展示天数）
+        totalCommission: toNum(s.totalEarning),
+        reminded: false,
+      }))
   },
 
-  // === 业绩分析 (用于 analysis 页) ===
-  async getAnalysisMembers() {
-    if (true) return analysisMembers
-    try { return await apiGet<any>('/operator/analysis-members') }
-    catch { return analysisMembers }
+  // === 业绩分析 (用于 analysis 页·真连收益·流量漏斗后端无埋点→降级) ===
+  async getAnalysisMembers(): Promise<MemberPerf[]> {
+    const res = await apiGet<any>('/station/operator-dashboard/my/stations')
+    const arr: any[] = Array.isArray(res) ? res : (res?.items || [])
+    return arr.map((s) => {
+      const month = toNum(s.monthEarning)
+      return {
+        id: s.id,
+        name: s.name || '未命名分站',
+        level: s.code || '',
+        visits: 0, clicks: 0, orders: 0, // 后端无流量埋点 → 诚实降级
+        commission: month,
+        trend: 0, // 后端无环比 → 降级
+        diagnosis: month > 0
+          ? { type: 'good' as const, text: '本月收益稳定，运营状态良好' }
+          : { type: 'warn' as const, text: '本月暂无收益，建议关怀唤醒' },
+      }
+    })
   },
 }

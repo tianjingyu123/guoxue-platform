@@ -15,7 +15,7 @@
             <app-icon name="clock" :size="32" color="#d97706" />
           </view>
           <view class="dm-stat-info">
-            <text class="dm-stat-label">超过 30 天无推广动作</text>
+            <text class="dm-stat-label">本月暂无收益</text>
             <text class="dm-stat-value">{{ members.length }} <text class="dm-stat-unit">位站长</text></text>
           </view>
         </view>
@@ -34,7 +34,7 @@
             <text class="dm-item-name">{{ m.name }}</text>
             <text class="dm-item-level">{{ m.level }}</text>
           </view>
-          <text class="dm-item-meta">已沉寂 {{ m.lastActiveDays }} 天 · 累计佣金 ¥{{ m.totalCommission }}</text>
+          <text class="dm-item-meta">本月暂无收益 · 累计 ¥{{ m.totalCommission.toLocaleString() }}</text>
         </view>
         <view class="dm-btn" :class="{ reminded: m.reminded }" @tap="remindOne(m.id)">
           <app-icon :name="m.reminded ? 'check' : 'bell'" :size="24" :color="m.reminded ? '#9ca3af' : '#ffffff'" />

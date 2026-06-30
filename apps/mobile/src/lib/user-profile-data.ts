@@ -1,17 +1,19 @@
 // 用户主页数据层（v0 迁移自原型 lib/api/user-profile + types/user-profile）
 // 用于 pkg-circle/user/profile 页面
-import { apiGet, apiPost, useMock } from '@/utils/request'
+import { apiGet, apiPost, apiDelete } from '@/utils/request'
+import { getStorage } from '@/utils/storage'
 
 export interface UserProfileInfo {
-  id: number
+  id: string
   nickname: string
   avatar: string
   coverImage?: string
   verified: boolean
   verifiedTitle?: string
   bio?: string
-  level: number
-  levelName: string
+  /** 后端 users 模型暂无「研习等级」概念 → 诚实降级，无则不展示 */
+  level?: number
+  levelName?: string
 }
 
 export interface UserProfileStats {
@@ -76,141 +78,93 @@ export function getContentUrl(item: UserPostItem): string {
   }
 }
 
-// ===== mock 数据 =====
+// ============ 工具 ============
 
-const _mockProfile: UserProfileResponse = {
-  profile: {
-    id: 1,
-    nickname: '张明远',
-    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=zhangmingyuan',
-    coverImage: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800&h=400&fit=crop',
-    verified: true,
-    verifiedTitle: '认证命理师',
-    bio: '研习易理二十载，专注八字与紫微斗数。愿以所学，助君明心见性，趋吉避凶。',
-    level: 8,
-    levelName: '研习大成',
-  },
-  stats: {
-    followingCount: 286,
-    followerCount: 12800,
-    likeCount: 45600,
-  },
-  isFollowing: false,
-  isMutualFollow: false,
-  isSelf: false,
+/** 当前登录用户 id（登录时存于 storage 'userInfo'，见 pkg-auth/login）。未登录返回 '' */
+function currentUserId(): string {
+  const u = getStorage<{ id?: string | number }>('userInfo')
+  return u?.id != null ? String(u.id) : ''
 }
 
-const _mockPosts: UserPostItem[] = [
-  {
-    id: 'p1',
-    type: 'post',
-    content: '今日与诸位道友论及"天人合一"之理。古人观天象以察人事，非迷信也，乃是对自然规律的敬畏与体悟。诸君以为然否？',
-    images: [
-      'https://picsum.photos/400/400?random=801',
-      'https://picsum.photos/400/400?random=802',
-    ],
-    likeCount: 328,
-    commentCount: 56,
-    isLiked: false,
-    createdAt: '2小时前',
-  },
-  {
-    id: 'a1',
-    type: 'article',
-    title: '八字入门：天干地支与五行生克的基础逻辑',
-    content: '本文从最基础的天干地支讲起，梳理五行生克制化的核心规律……',
-    cover: 'https://picsum.photos/240/160?random=803',
-    likeCount: 1265,
-    commentCount: 142,
-    isLiked: true,
-    createdAt: '昨天',
-  },
-  {
-    id: 'v1',
-    type: 'video',
-    title: '三分钟读懂紫微斗数十二宫',
-    content: '三分钟读懂紫微斗数十二宫',
-    cover: 'https://picsum.photos/360/640?random=804',
-    likeCount: 5620,
-    commentCount: 318,
-    isLiked: false,
-    createdAt: '3天前',
-  },
-  {
-    id: 'p2',
-    type: 'post',
-    content: '有缘人问我：如何看待"命由天定"与"事在人为"？我答曰：知命方能造命，明理才可立身。命是起点，非终点。',
-    likeCount: 196,
-    commentCount: 38,
-    isLiked: false,
-    createdAt: '4天前',
-  },
-  {
-    id: 'a2',
-    type: 'article',
-    title: '紫微斗数命盘解析：命宫主星的深层含义',
-    content: '命宫主星决定一个人的先天格局，本文详解十四主星入命宫……',
-    cover: 'https://picsum.photos/240/160?random=805',
-    likeCount: 892,
-    commentCount: 76,
-    isLiked: false,
-    createdAt: '1周前',
-  },
-  {
-    id: 'v2',
-    type: 'video',
-    title: '风水入门：家居布局的三大禁忌',
-    content: '风水入门：家居布局的三大禁忌',
-    cover: 'https://picsum.photos/360/640?random=806',
-    likeCount: 3210,
-    commentCount: 205,
-    isLiked: false,
-    createdAt: '2周前',
-  },
-]
-
 // ============ API 层 ============
+// 后端真实端点（apps/server user.controller）：
+//   GET    /users/:id              → 公开资料（nickname/avatar/bio/...）
+//   GET    /users/:id/stats        → 统计（articles/followers/following/totalLikes...）
+//   GET    /users/:id/is-following → { following }
+//   POST   /users/:id/follow       → 关注
+//   DELETE /users/:id/follow       → 取关
+// 后端无字段（coverImage/verified/verifiedTitle/level/levelName/isMutualFollow）→ 诚实降级
 
 export const userProfileApi = {
-  /** 获取用户资料 */
-  async getProfile(userId: number) {
-    if (true) return {
-      code: 200, message: 'ok',
-      data: { ..._mockProfile, profile: { ..._mockProfile.profile, id: userId } },
+  /** 获取用户资料：聚合 资料 + 统计 + 是否已关注 */
+  async getProfile(userId: string) {
+    const [user, stats] = await Promise.all([
+      apiGet<any>(`/users/${userId}`),
+      apiGet<any>(`/users/${userId}/stats`),
+    ])
+
+    const isSelf = !!userId && currentUserId() === String(userId)
+
+    // is-following 仅作辅助信号：未登录/无权限时按「未关注」展示，不阻塞资料渲染
+    let isFollowing = false
+    if (!isSelf) {
+      try {
+        const r = await apiGet<{ following: boolean }>(`/users/${userId}/is-following`)
+        isFollowing = !!r?.following
+      } catch {
+        isFollowing = false
+      }
     }
+
+    const data: UserProfileResponse = {
+      profile: {
+        id: String(user?.id ?? userId),
+        nickname: user?.nickname || '用户',
+        avatar: user?.avatar || '',
+        bio: user?.bio || undefined,
+        // 后端无以下字段 → 降级（页面 v-if 隐藏）
+        verified: false,
+      },
+      stats: {
+        followingCount: stats?.following ?? 0,
+        followerCount: stats?.followers ?? 0,
+        likeCount: stats?.totalLikes ?? 0,
+      },
+      isFollowing,
+      isMutualFollow: false, // 后端无「互相关注」查询端点 → 降级
+      isSelf,
+    }
+    return { code: 200, message: 'ok', data }
+  },
+
+  /**
+   * 获取用户内容列表。
+   * 诚实降级：后端无「用户内容聚合」端点（user.controller 无 posts；content 模块是
+   * 诗词/精选库，非按作者聚合的动态流），故返回空列表 → 页面走空态。
+   */
+  async getPosts(_userId: string, _tab: string) {
+    return { code: 200, message: 'ok', data: { list: [] as UserPostItem[] } }
+  },
+
+  /** 关注用户 —— POST /users/:id/follow */
+  async follow(userId: string) {
     try {
-      const data = await apiGet<any>(`/user/${userId}/profile`)
-      return { code: 200, message: 'ok', data: data || { ..._mockProfile, profile: { ..._mockProfile.profile, id: userId } } }
-    } catch {
-      return { code: 200, message: 'ok', data: { ..._mockProfile, profile: { ..._mockProfile.profile, id: userId } } }
+      const data = await apiPost<any>(`/users/${userId}/follow`)
+      return { code: 200, message: 'ok', data: (data ?? {}) as any }
+    } catch (e: any) {
+      // 不回退假 mock：返回错误信封，页面据 code!==200 回滚乐观更新并提示
+      return { code: 500, message: e?.message || '关注失败', data: {} as any }
     }
   },
 
-  /** 获取用户内容列表 */
-  async getPosts(userId: number, tab: string) {
-    if (true) return { code: 200, message: 'ok', data: { list: _mockPosts } }
+  /** 取关用户 —— DELETE /users/:id/follow */
+  async unfollow(userId: string) {
     try {
-      const data = await apiGet<any>(`/user/${userId}/posts?tab=${tab}`)
-      return { code: 200, message: 'ok', data: { list: data?.list?.length ? data.list : _mockPosts } }
-    } catch { return { code: 200, message: 'ok', data: { list: _mockPosts } } }
-  },
-
-  /** 关注用户 */
-  async follow(userId: number) {
-    if (true) return { code: 200, message: 'ok', data: { isMutualFollow: true } }
-    try {
-      const data = await apiPost<any>(`/user/${userId}/follow`)
-      return { code: 200, message: 'ok', data }
-    } catch { return { code: 200, message: 'ok', data: { isMutualFollow: true } } }
-  },
-
-  /** 取关用户 */
-  async unfollow(userId: number) {
-    if (true) return { code: 200, message: 'ok', data: {} }
-    try {
-      const data = await apiPost<any>(`/user/${userId}/unfollow`)
-      return { code: 200, message: 'ok', data }
-    } catch { return { code: 200, message: 'ok', data: {} } }
+      const data = await apiDelete<any>(`/users/${userId}/follow`)
+      return { code: 200, message: 'ok', data: (data ?? {}) as any }
+    } catch (e: any) {
+      return { code: 500, message: e?.message || '取消关注失败', data: {} as any }
+    }
   },
 }
 

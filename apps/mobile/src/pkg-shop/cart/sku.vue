@@ -33,7 +33,7 @@
               <view class="item-check" :class="{ checked: item.selected }" @tap.stop="toggleItem(item)">
                 <app-icon v-if="item.selected" name="check" :size="28" color="#FFFFFF" />
               </view>
-              <image class="item-img" :src="item.productCover" mode="aspectFill" />
+              <image lazy-load class="item-img" :src="item.productCover" mode="aspectFill" />
               <view class="item-info">
                 <text class="item-name">{{ item.productName }}</text>
                 <view class="sku-tag"><text>{{ item.skuName }}</text></view>
@@ -65,7 +65,7 @@
         </view>
         <view v-for="iv in invalidItems" :key="iv.id" class="cart-item invalid">
           <view class="invalid-badge"><text>失效</text></view>
-          <image class="item-img gray" :src="iv.productCover" mode="aspectFill" />
+          <image lazy-load class="item-img gray" :src="iv.productCover" mode="aspectFill" />
           <view class="item-info">
             <text class="item-name gray">{{ iv.productName }}</text>
             <text class="invalid-reason">{{ iv.invalidReason }}</text>
@@ -163,26 +163,63 @@ function toggleAll() {
 const selectedCount = computed(() => validItems.value.filter((i) => i.selected).reduce((s, i) => s + i.quantity, 0))
 const totalAmount = computed(() => validItems.value.filter((i) => i.selected).reduce((s, i) => s + i.price * i.quantity, 0))
 const savedAmount = computed(() => validItems.value.filter((i) => i.selected).reduce((s, i) => s + (i.originalPrice - i.price) * i.quantity, 0))
-function changeQty(item: SkuCartItem, delta: number) {
+/** 写操作后重拉购物车，保留用户当前勾选状态 */
+async function refreshSku() {
+  const selectedMap = new Map(items.value.map((i) => [i.id, i.selected]))
+  const next = await shopApi.getSkuCart()
+  items.value = next.map((i) => ({ ...i, selected: selectedMap.has(i.id) ? selectedMap.get(i.id)! : i.selected }))
+}
+async function changeQty(item: SkuCartItem, delta: number) {
   const next = item.quantity + delta
-  if (next < 1 || next > item.stock) return
-  item.quantity = next
+  if (next < 1 || next > item.stock || submitting.value) return
+  submitting.value = true
+  try {
+    await shopApi.updateCartItem(item.id, next)
+    await refreshSku()
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '更新失败', icon: 'none' })
+  } finally {
+    submitting.value = false
+  }
 }
-function removeItem(id: string) {
-  items.value = items.value.filter((i) => i.id !== id)
-  openId.value = null
-}
-function removeSelected() {
+async function removeItem(id: string) {
   if (submitting.value) return
   submitting.value = true
-  items.value = items.value.filter((i) => !(i.isValid && i.selected))
-  submitting.value = false
+  try {
+    await shopApi.removeCartItem(id)
+    await refreshSku()
+    openId.value = null
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '删除失败', icon: 'none' })
+  } finally {
+    submitting.value = false
+  }
 }
-function clearInvalid() {
+async function removeSelected() {
   if (submitting.value) return
   submitting.value = true
-  items.value = items.value.filter((i) => i.isValid)
-  submitting.value = false
+  try {
+    const targets = items.value.filter((i) => i.isValid && i.selected).map((i) => i.id)
+    for (const id of targets) await shopApi.removeCartItem(id)
+    await refreshSku()
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '删除失败', icon: 'none' })
+  } finally {
+    submitting.value = false
+  }
+}
+async function clearInvalid() {
+  if (submitting.value) return
+  submitting.value = true
+  try {
+    const targets = items.value.filter((i) => !i.isValid).map((i) => i.id)
+    for (const id of targets) await shopApi.removeCartItem(id)
+    await refreshSku()
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '清除失败', icon: 'none' })
+  } finally {
+    submitting.value = false
+  }
 }
 function goShop() { reLaunch('/shop') }
 function goCheckout() {
@@ -196,7 +233,7 @@ function goCheckout() {
 
 <style lang="scss" scoped>
 .sku-cart { min-height: 100vh; background: #F5F5F5; display: flex; flex-direction: column; }
-.nav-edit { font-size: 28rpx; color: #C41E3A; }
+.nav-edit { font-size: 28rpx; color: var(--brand); }
 .content { flex: 1; }
 .item-list { padding: 20rpx; display: flex; flex-direction: column; gap: 20rpx; }
 .swipe-wrap { overflow: hidden; border-radius: 20rpx; }
@@ -218,7 +255,7 @@ function goCheckout() {
   width: 40rpx; height: 40rpx; border-radius: 50%;
   border: 2rpx solid #CCCCCC;
   display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-  &.checked { background: #C41E3A; border-color: #C41E3A; }
+  &.checked { background: var(--brand); border-color: var(--brand); }
 }
 .item-img { width: 160rpx; height: 160rpx; border-radius: 12rpx; flex-shrink: 0; }
 .item-img.gray { opacity: 0.5; }
@@ -229,7 +266,7 @@ function goCheckout() {
 .sku-tag text { font-size: 22rpx; color: #999999; }
 .item-bottom { display: flex; align-items: center; justify-content: space-between; }
 .price-box { display: flex; align-items: baseline; gap: 10rpx; }
-.cur { font-size: 32rpx; color: #C41E3A; font-weight: 700; }
+.cur { font-size: 32rpx; color: var(--brand); font-weight: 700; }
 .ori { font-size: 22rpx; color: #BBBBBB; text-decoration: line-through; }
 .stepper { display: flex; align-items: center; border: 2rpx solid #EEEEEE; border-radius: 8rpx; }
 .step-btn { width: 48rpx; height: 48rpx; display: flex; align-items: center; justify-content: center; &.disabled { opacity: 0.3; } }
@@ -244,7 +281,7 @@ function goCheckout() {
 .invalid-reason { font-size: 24rpx; color: #999999; }
 .empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24rpx; }
 .empty-text { font-size: 28rpx; color: #999999; }
-.empty-btn { padding: 16rpx 60rpx; background: #C41E3A; border-radius: 40rpx; }
+.empty-btn { padding: 16rpx 60rpx; background: var(--brand); border-radius: 40rpx; }
 .empty-btn text { color: #FFFFFF; font-size: 28rpx; }
 .footer {
   position: fixed; left: 0; right: 0; bottom: 0;
@@ -257,11 +294,11 @@ function goCheckout() {
 .footer-spacer { margin-left: auto; }
 .total-row { display: flex; align-items: baseline; gap: 6rpx; }
 .total-label { font-size: 26rpx; color: #666666; }
-.total-amount { font-size: 36rpx; color: #C41E3A; font-weight: 700; }
+.total-amount { font-size: 36rpx; color: var(--brand); font-weight: 700; }
 .saved { font-size: 22rpx; color: #999999; }
 .checkout-btn {
   padding: 20rpx 50rpx; border-radius: 40rpx; margin-left: 20rpx;
-  background: linear-gradient(90deg, #C41E3A, #C8453E);
+  background: linear-gradient(90deg, var(--brand), #C8453E);
 }
 .checkout-btn text { color: #FFFFFF; font-size: 30rpx; font-weight: 600; }
 .checkout-btn.danger { background: #E74C3C; }
@@ -282,7 +319,7 @@ function goCheckout() {
 }
 .retry-btn {
   padding: 16rpx 48rpx;
-  background: #c41e3a;
+  background: var(--brand);
   border-radius: 999rpx;
 }
 .retry-btn-text {

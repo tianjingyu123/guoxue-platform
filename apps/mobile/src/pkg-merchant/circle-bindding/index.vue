@@ -12,94 +12,25 @@
     </view>
 
     <scroll-view scroll-y class="scroll" :style="{ top: navH + 'px' }">
-      <!-- 说明 -->
-      <view class="intro">
-        <text class="intro-title">圈子绑定说明</text>
-        <text class="intro-text">绑定圈子后，您可以在该圈子中发布内容、与圈主进行合作。请选择您希望合作的圈子。</text>
-      </view>
-
-      <!-- 搜索 -->
-      <view class="search-wrap">
-        <view class="search-box">
-          <AppIcon name="search" :size="16" color="#9ca3af" />
-          <input
-            v-model="searchText"
-            class="search-input"
-            placeholder="搜索圈子名称或分类"
-            placeholder-class="search-ph"
-          />
+      <view class="placeholder">
+        <view class="ph-icon">
+          <AppIcon name="users" :size="40" color="#c41e3a" />
+        </view>
+        <text class="ph-title">圈子绑定功能即将开放</text>
+        <text class="ph-desc">商家商品经平台审核进入商品池后，由圈主在自有圈子中自主选品上架分销，商家无需手动绑定圈子。</text>
+        <text class="ph-tip">您只需专注于商品上架与经营，分销渠道由平台与圈主自动对接。</text>
+        <view class="ph-btn" @tap="goBack">
+          <text class="ph-btn-text">返回</text>
         </view>
       </view>
-
-      <!-- 圈子列表 -->
-      <view class="list-wrap">
-        <text class="section-title">可绑定圈子 ({{ filteredCircles.length }})</text>
-        <view class="circle-list">
-          <view
-            v-for="circle in filteredCircles"
-            :key="circle.id"
-            class="circle-item"
-            :class="{ 'circle-item-active': selected.includes(circle.id) }"
-            @tap="toggle(circle.id)"
-          >
-            <view class="circle-left">
-              <view class="circle-avatar" :class="{ 'circle-avatar-active': selected.includes(circle.id) }">
-                <AppIcon v-if="selected.includes(circle.id)" name="check" :size="24" color="#fff" />
-                <AppIcon v-else name="users" :size="24" color="#9ca3af" />
-              </view>
-              <view class="circle-info">
-                <text class="circle-name">{{ circle.name }}</text>
-                <view class="circle-meta">
-                  <view class="circle-cat">
-                    <text class="circle-cat-text">{{ circle.category }}</text>
-                  </view>
-                  <view class="circle-members">
-                    <AppIcon name="users" :size="12" color="#9ca3af" />
-                    <text class="circle-members-text">{{ circle.members }} 人</text>
-                  </view>
-                </view>
-              </view>
-            </view>
-            <AppIcon name="chevron-right" :size="20" :color="selected.includes(circle.id) ? '#c41e3a' : '#d1d5db'" />
-          </view>
-        </view>
-
-        <view v-if="filteredCircles.length === 0" class="empty">
-          <text class="empty-text">未找到匹配的圈子</text>
-        </view>
-      </view>
-
-      <!-- 已选统计 -->
-      <view v-if="selected.length > 0" class="summary">
-        <text class="summary-title">已选择 {{ selected.length }} 个圈子</text>
-        <view class="summary-list">
-          <text v-for="c in selectedCircles" :key="c.id" class="summary-item">• {{ c.name }}</text>
-        </view>
-      </view>
-      <view style="height: 100px" />
     </scroll-view>
-
-    <!-- 底部操作按钮 -->
-    <view class="footer">
-      <view class="btn btn-outline" @tap="goBack">
-        <text class="btn-outline-text">返回</text>
-      </view>
-      <view
-        class="btn btn-primary"
-        :class="{ 'btn-disabled': submitting || selected.length === 0 }"
-        @tap="submit"
-      >
-        <text class="btn-primary-text">{{ submitting ? '提交中...' : '确认绑定' }}</text>
-      </view>
-    </view>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
-import { goBack, navigateTo } from '@/utils/router'
-import { merchantCircles } from '@/lib/merchant-data'
+import { goBack } from '@/utils/router'
 
 const statusBarHeight = ref(20)
 const navH = ref(64)
@@ -109,38 +40,6 @@ uni.getSystemInfo({
     navH.value = (r.statusBarHeight || 20) + 44
   },
 })
-
-const searchText = ref('')
-const selected = ref<string[]>(merchantCircles.filter((c) => c.bound).map((c) => c.id))
-const submitting = ref(false)
-
-const filteredCircles = computed(() =>
-  merchantCircles.filter(
-    (c) =>
-      c.name.toLowerCase().includes(searchText.value.toLowerCase()) ||
-      c.category.toLowerCase().includes(searchText.value.toLowerCase()),
-  ),
-)
-
-const selectedCircles = computed(() => merchantCircles.filter((c) => selected.value.includes(c.id)))
-
-function toggle(id: string) {
-  if (selected.value.includes(id)) {
-    selected.value = selected.value.filter((x) => x !== id)
-  } else {
-    selected.value = [...selected.value, id]
-  }
-}
-
-function submit() {
-  if (submitting.value || selected.value.length === 0) return
-  submitting.value = true
-  setTimeout(() => {
-    submitting.value = false
-    uni.showToast({ title: '绑定成功', icon: 'success' })
-    setTimeout(() => navigateTo('/merchant/dashboard'), 800)
-  }, 1500)
-}
 </script>
 
 <style scoped>
@@ -152,44 +51,11 @@ function submit() {
 .nav-placeholder { width: 32px; }
 .scroll { position: fixed; left: 0; right: 0; bottom: 0; }
 
-.intro { margin: 16px; padding: 16px; background: rgba(196, 30, 58, 0.08); border: 1px solid rgba(196, 30, 58, 0.2); border-radius: 12px; }
-.intro-title { font-size: 15px; font-weight: 600; color: #1f1f1f; display: block; margin-bottom: 4px; }
-.intro-text { font-size: 13px; color: #6b7280; line-height: 1.5; }
-
-.search-wrap { padding: 0 16px; margin-top: 4px; }
-.search-box { display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 12px; background: #f5f5f5; border-radius: 8px; }
-.search-input { flex: 1; font-size: 14px; color: #1f1f1f; }
-.search-ph { color: #9ca3af; }
-
-.list-wrap { padding: 16px; }
-.section-title { font-size: 14px; font-weight: 600; color: #1f1f1f; display: block; margin-bottom: 12px; }
-.circle-list { display: flex; flex-direction: column; gap: 8px; }
-.circle-item { display: flex; align-items: center; justify-content: space-between; padding: 16px; border: 1px solid #ededed; border-radius: 12px; }
-.circle-item-active { border-color: #c41e3a; background: rgba(196, 30, 58, 0.05); }
-.circle-left { display: flex; align-items: center; gap: 12px; flex: 1; }
-.circle-avatar { width: 40px; height: 40px; border-radius: 8px; background: #f3f4f6; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.circle-avatar-active { background: #c41e3a; }
-.circle-info { flex: 1; }
-.circle-name { font-size: 15px; font-weight: 600; color: #1f1f1f; display: block; }
-.circle-meta { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
-.circle-cat { padding: 1px 8px; background: #f3f4f6; border-radius: 999px; }
-.circle-cat-text { font-size: 11px; color: #6b7280; }
-.circle-members { display: flex; align-items: center; gap: 4px; }
-.circle-members-text { font-size: 11px; color: #9ca3af; }
-
-.empty { padding: 32px; display: flex; justify-content: center; }
-.empty-text { font-size: 14px; color: #9ca3af; }
-
-.summary { margin: 24px 16px 0; padding: 16px; background: #f9fafb; border-radius: 12px; }
-.summary-title { font-size: 13px; color: #6b7280; display: block; margin-bottom: 8px; }
-.summary-list { display: flex; flex-direction: column; gap: 4px; }
-.summary-item { font-size: 13px; color: #1f1f1f; }
-
-.footer { position: fixed; bottom: 0; left: 0; right: 0; display: flex; gap: 12px; padding: 12px 16px; padding-bottom: calc(12px + env(safe-area-inset-bottom)); background: #fff; border-top: 1px solid #ededed; }
-.btn { flex: 1; height: 44px; border-radius: 8px; display: flex; align-items: center; justify-content: center; }
-.btn-outline { border: 1px solid #d1d5db; }
-.btn-outline-text { font-size: 15px; color: #4b5563; }
-.btn-primary { background: #c41e3a; }
-.btn-primary-text { font-size: 15px; color: #fff; }
-.btn-disabled { opacity: 0.5; }
+.placeholder { padding: 120px 32px 0; display: flex; flex-direction: column; align-items: center; }
+.ph-icon { width: 80px; height: 80px; border-radius: 50%; background: rgba(196, 30, 58, 0.08); display: flex; align-items: center; justify-content: center; margin-bottom: 20px; }
+.ph-title { font-size: 17px; font-weight: 600; color: #1f1f1f; margin-bottom: 8px; }
+.ph-desc { font-size: 14px; color: #9ca3af; line-height: 1.6; text-align: center; }
+.ph-tip { font-size: 13px; color: #6b7280; line-height: 1.6; text-align: center; margin-top: 12px; }
+.ph-btn { margin-top: 28px; padding: 0 40px; height: 44px; border-radius: 8px; border: 1px solid #d1d5db; display: flex; align-items: center; justify-content: center; }
+.ph-btn-text { font-size: 15px; color: #4b5563; }
 </style>

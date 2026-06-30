@@ -286,22 +286,48 @@ export const videoSearchResults: VideoSearchResult[] = [
 
 // ============ API 层 ============
 
+/** 后端视频 → 前端 VideoItem（全屏流；followers/verified/music/hotComments 后端无→默认） */
+function adaptVideoItem(v: any): VideoItem {
+  return {
+    id: v.id,
+    title: v.title || '',
+    author: {
+      id: v.user?.id || '',
+      name: v.user?.nickname || '',
+      avatar: v.user?.avatar || '',
+      isFollowed: false,
+      followers: 0,
+      verified: false,
+    },
+    coverUrl: v.coverUrl || '',
+    videoUrl: v.videoUrl || '',
+    likes: v.likeCount ?? v.likes ?? 0,
+    comments: v.commentCount ?? v.comments ?? 0,
+    shares: v.shareCount ?? v.shares ?? 0,
+    isLiked: false,
+    isCollected: false,
+    music: '原声',
+    products: Array.isArray(v.products)
+      ? v.products.map((p: any) => ({ id: p.id, name: p.title || p.name || '', price: Number(p.price) || 0, originalPrice: Number(p.originalPrice) || 0, image: (Array.isArray(p.images) && p.images[0]) || p.image || '', sales: p.salesCount ?? p.sales ?? 0 }))
+      : [],
+    hotComments: [],
+  }
+}
+
 export const videoApi = {
-  /** 发布视频 — POST /video */
+  /** 发布视频 — POST /videos（错误传播给页面） */
   async publish(data: Record<string, any>): Promise<any> {
-    if (true) return { id: String(Date.now()), ...data, createdAt: new Date().toISOString() }
-    try {
-      return await apiPost('/videos', data)
-    } catch {
-      return { id: String(Date.now()), ...data, createdAt: new Date().toISOString() }
-    }
+    return await apiPost('/videos', data)
   },
 
-  /** 视频列表 — GET /video */
-  async list(params?: Record<string, any>): Promise<VideoItem[]> {
-    if (true) return mockVideos
+  /** 视频列表（全屏流）— GET /videos */
+  async list(_params?: Record<string, any>): Promise<VideoItem[]> {
     try {
-      return await apiGet('/videos', params)
+      const res = await apiGet<any>('/videos?pageSize=50')
+      const arr = Array.isArray(res) ? res : (res?.videos ?? res?.data ?? [])
+      const seen = new Set<string>()
+      const r = arr.map(adaptVideoItem).filter((v: VideoItem) => { if (seen.has(v.title)) return false; seen.add(v.title); return true })
+      return r.length ? r : mockVideos
     } catch {
       return mockVideos
     }
@@ -309,77 +335,61 @@ export const videoApi = {
 
   /** 视频详情 — GET /videos/:id */
   async getById(id: string): Promise<VideoItem | null> {
-    if (true) return mockVideos.find((v) => v.id === id) || null
     try {
-      return await apiGet(`/videos/${id}`)
+      return adaptVideoItem(await apiGet<any>(`/videos/${id}`))
     } catch {
       return mockVideos.find((v) => v.id === id) || null
     }
   },
 
-  /** 编辑视频 — PUT /video/:id */
+  /** 编辑视频 — PUT /videos/:id（错误传播） */
   async update(id: string, data: Record<string, any>): Promise<any> {
-    if (true) return { id, ...data, updatedAt: new Date().toISOString() }
-    try {
-      return await apiPut(`/videos/${id}`, data)
-    } catch {
-      return { id, ...data, updatedAt: new Date().toISOString() }
-    }
+    return await apiPut(`/videos/${id}`, data)
   },
 
-  /** 删除视频 — DELETE /video/:id */
+  /** 删除视频 — DELETE /videos/:id */
   async delete(id: string): Promise<{ success: boolean; message: string }> {
-    if (true) return { success: true, message: '删除成功' }
-    try {
-      await apiDelete(`/videos/${id}`)
-      return { success: true, message: '删除成功' }
-    } catch (e: any) {
-      return { success: false, message: e?.message || '删除失败' }
-    }
+    await apiDelete(`/videos/${id}`)
+    return { success: true, message: '删除成功' }
   },
 
-  /** 点赞 — POST /video/:id/like */
-  async like(id: string): Promise<{ success: boolean; isLiked: boolean; likes: number }> {
-    if (true) {
-      const video = mockVideos.find((v) => v.id === id)
-      const newLiked = !video?.isLiked
-      const newLikes = (video?.likes || 0) + (newLiked ? 1 : -1)
-      return { success: true, isLiked: newLiked, likes: newLikes }
-    }
-    try {
-      return await apiPost(`/videos/${id}/like`)
-    } catch (e: any) {
-      return { success: false, isLiked: false, likes: 0 }
-    }
+  /** 点赞切换 — POST /videos/:id/like（后端返回 {liked}，计数由页面本地维护） */
+  async like(id: string): Promise<{ success: boolean; isLiked: boolean }> {
+    const res = await apiPost<{ liked: boolean }>(`/videos/${id}/like`)
+    return { success: true, isLiked: !!res?.liked }
   },
 
-  /** 瀑布流列表 — GET /video/items */
-  async listItems(params?: Record<string, any>): Promise<VideoListItem[]> {
-    if (true) return videoListItems
+  /** 瀑布流列表 — GET /videos/items（后端结构已对齐 VideoListItem；seed 有大量重复→按标题去重） */
+  async listItems(_params?: Record<string, any>): Promise<VideoListItem[]> {
     try {
-      return await apiGet('/videos/items', params)
+      const res = await apiGet<any>('/videos/items?pageSize=50')
+      const arr = Array.isArray(res) ? res : (res?.data ?? res?.items ?? [])
+      const seen = new Set<string>()
+      const deduped = arr.filter((v: any) => { const k = v.title || v.id; if (seen.has(k)) return false; seen.add(k); return true })
+      return deduped.length ? deduped : videoListItems
     } catch {
       return videoListItems
     }
   },
 
-  /** 搜索视频 — GET /video/search */
-  async search(params?: Record<string, any>): Promise<VideoSearchResult[]> {
-    if (true) return videoSearchResults
-    try {
-      return await apiGet('/videos/search', params)
-    } catch {
-      return videoSearchResults
-    }
+  /** 搜索视频 — GET /videos/search（错误传播给页面三态） */
+  async search(_params?: Record<string, any>): Promise<VideoSearchResult[]> {
+    const res = await apiGet<any>('/videos/search')
+    const arr = Array.isArray(res) ? res : (res?.videos ?? res?.items ?? [])
+    return arr.map(adaptVideoItem) as unknown as VideoSearchResult[]
   },
 
-  /** 商品库列表 — GET /video/products */
-  async getProductLibrary(params?: Record<string, any>): Promise<PublishProduct[]> {
-    if (true) return publishProductLibrary
-    try {
-      return await apiGet('/videos/products', params)
-    } catch {
-      return publishProductLibrary
-    }
+  /** 商品库列表 — GET /videos/products（带货选品；commission 后端无→降级0） */
+  async getProductLibrary(_params?: Record<string, any>): Promise<PublishProduct[]> {
+    const res = await apiGet<any>('/videos/products')
+    const arr = Array.isArray(res) ? res : (res?.items ?? res?.data ?? [])
+    return arr.map((p: any) => ({
+      id: String(p.id),
+      name: p.title || p.name || '',
+      cover: (Array.isArray(p.images) && p.images[0]) || p.cover || '',
+      price: Number(p.price) || 0,
+      commission: Number(p.commission) || 0,
+      stock: p.stock ?? 0,
+    }))
   },
 }

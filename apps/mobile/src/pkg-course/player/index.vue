@@ -283,7 +283,7 @@ onMounted(() => {
 .ctrl-center { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 112rpx; height: 112rpx; border-radius: 50%; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; }
 .ctrl-bottom { position: absolute; bottom: 0; left: 0; right: 0; padding: 24rpx; }
 .progress-track { height: 6rpx; background: rgba(255,255,255,0.3); border-radius: 999rpx; margin-bottom: 16rpx; }
-.progress-fill { height: 100%; background: #C41E3A; border-radius: 999rpx; }
+.progress-fill { height: 100%; background: var(--brand); border-radius: 999rpx; }
 .ctrl-row { display: flex; align-items: center; justify-content: space-between; }
 .ctrl-left { display: flex; align-items: center; gap: 28rpx; }
 .ctrl-rt { display: flex; align-items: center; gap: 24rpx; }
@@ -293,9 +293,9 @@ onMounted(() => {
 .speed-btn { font-size: 22rpx; color: #fff; }
 .speed-menu { position: absolute; bottom: 100%; right: 0; margin-bottom: 16rpx; background: #27272A; border-radius: 16rpx; padding: 8rpx 0; min-width: 96rpx; }
 .speed-item { display: block; padding: 12rpx 24rpx; font-size: 22rpx; color: #fff; }
-.speed-item.active { color: #C41E3A; }
+.speed-item.active { color: var(--brand); }
 .ctrl-icon { padding: 6rpx; border-radius: 8rpx; }
-.ctrl-icon.on { background: #C41E3A; }
+.ctrl-icon.on { background: var(--brand); }
 
 /* 音频遮罩 */
 .audio-mask { position: absolute; inset: 0; background: #18181B; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 10; }
@@ -330,7 +330,7 @@ onMounted(() => {
 .dw-lesson.current { background: rgba(196,30,58,0.2); }
 .dw-lesson.locked { opacity: 0.5; }
 .dw-lesson-title { flex: 1; font-size: 26rpx; color: #fff; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.dw-lesson.current .dw-lesson-title { color: #C41E3A; }
+.dw-lesson.current .dw-lesson-title { color: var(--brand); }
 .dw-lesson-dur { font-size: 22rpx; color: #71717A; }
 
 /* 深色面板 */
@@ -344,7 +344,7 @@ onMounted(() => {
 .dark-input { width: 100%; height: 256rpx; background: #27272A; border-radius: 16rpx; padding: 24rpx; font-size: 26rpx; color: #fff; box-sizing: border-box; }
 .dark-ph { color: #71717A; }
 .dark-sheet-foot { padding: 24rpx; border-top: 1rpx solid #27272A; }
-.dark-submit { width: 100%; padding: 24rpx 0; background: #C41E3A; border-radius: 16rpx; display: flex; align-items: center; justify-content: center; }
+.dark-submit { width: 100%; padding: 24rpx 0; background: var(--brand); border-radius: 16rpx; display: flex; align-items: center; justify-content: center; }
 .dark-submit.disabled { opacity: 0.5; }
 .dark-submit-txt { font-size: 28rpx; font-weight: 500; color: #fff; }
 

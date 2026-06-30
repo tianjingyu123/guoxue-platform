@@ -26,15 +26,13 @@
           <text class="state-retry-text">重试</text>
         </view>
       </view>
-      <!-- 空数据 -->
+      <!-- 空数据（平台支付在下单时选择微信/支付宝，无需预先绑定） -->
       <view v-else-if="!methods.length" class="state-box">
         <view class="state-icon">
           <app-icon name="credit-card" :size="72" color="#b8ab94" />
         </view>
-        <text class="state-text">暂无支付方式</text>
-        <view class="state-retry" @tap="showAdd = true">
-          <text class="state-retry-text">添加支付方式</text>
-        </view>
+        <text class="state-text">下单时可直接选择微信 / 支付宝支付</text>
+        <text class="state-subtext">平台采用安全收银台，无需预先绑定支付方式</text>
       </view>
       <!-- 支付方式列表 -->
       <template v-else>
@@ -214,7 +212,7 @@ async function retryLoad() {
   flex-direction: column;
 }
 .nav-add { display: flex; align-items: center; gap: 6rpx; justify-content: flex-end; white-space: nowrap; }
-.nav-add-text { font-size: 26rpx; color: #C41E3A; }
+.nav-add-text { font-size: 26rpx; color: var(--brand); }
 .content { flex: 1; }
 .list { padding: 30rpx; }
 .method-card {
@@ -234,7 +232,7 @@ async function retryLoad() {
   flex-shrink: 0;
   &.wechat { background: #07C160; }
   &.alipay { background: #1677FF; }
-  &.bank_card { background: linear-gradient(135deg, #C41E3A, #8B0000); }
+  &.bank_card { background: linear-gradient(135deg, var(--brand), #8B0000); }
 }
 .method-info { flex: 1; display: flex; flex-direction: column; gap: 8rpx; }
 .method-name-row { display: flex; align-items: center; gap: 12rpx; }
@@ -248,7 +246,7 @@ async function retryLoad() {
 }
 .default-tag {
   font-size: 20rpx;
-  color: #C41E3A;
+  color: var(--brand);
   background: rgba(196, 30, 58, 0.1);
   padding: 2rpx 12rpx;
   border-radius: 8rpx;
@@ -300,7 +298,7 @@ async function retryLoad() {
   color: #1A1A1A;
   border-radius: 16rpx;
   margin-bottom: 12rpx;
-  &.danger text { color: #C41E3A; }
+  &.danger text { color: var(--brand); }
   &.cancel { margin-top: 12rpx; font-weight: 600; }
 }
 .add-sheet {
@@ -330,7 +328,7 @@ async function retryLoad() {
   flex-shrink: 0;
   &.wechat { background: #07C160; }
   &.alipay { background: #1677FF; }
-  &.bank_card { background: linear-gradient(135deg, #C41E3A, #8B0000); }
+  &.bank_card { background: linear-gradient(135deg, var(--brand), #8B0000); }
 }
 .add-info { flex: 1; display: flex; flex-direction: column; gap: 8rpx; }
 .add-name { font-size: 30rpx; font-weight: 600; color: #1A1A1A; }
@@ -365,7 +363,7 @@ async function retryLoad() {
   font-size: 30rpx;
   background: #F5F5F5;
   color: #666666;
-  &.confirm { background: #C41E3A; color: #FFFFFF; }
+  &.confirm { background: var(--brand); color: #FFFFFF; }
 }
 
 /* 三态UI */
@@ -380,7 +378,7 @@ async function retryLoad() {
   width: 64rpx;
   height: 64rpx;
   border: 4rpx solid #e8e3db;
-  border-top-color: #c41e3a;
+  border-top-color: var(--brand);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
@@ -400,9 +398,16 @@ async function retryLoad() {
   font-size: 26rpx;
   color: #b8ab94;
 }
+.state-subtext {
+  display: block;
+  margin-top: 12rpx;
+  font-size: 22rpx;
+  color: #c9bfa9;
+  text-align: center;
+}
 .state-retry {
   padding: 12rpx 48rpx;
-  background: #c41e3a;
+  background: var(--brand);
   border-radius: 999rpx;
 }
 .state-retry-text {

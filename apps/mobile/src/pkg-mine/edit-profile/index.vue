@@ -20,12 +20,18 @@
       <view class="skeleton-field tall" />
     </view>
 
+    <!-- 错误态 -->
+    <view v-else-if="loadError" class="load-error">
+      <text class="load-error-text">{{ loadError }}</text>
+      <view class="load-error-btn" @tap="loadProfile">重试</view>
+    </view>
+
     <template v-else>
       <!-- 头像区 -->
       <view class="avatar-section">
         <view class="avatar-btn" @tap="showAvatarSheet = true">
           <view class="avatar-box">
-            <image v-if="profile.avatar" class="avatar-img" :src="profile.avatar" mode="aspectFill" />
+            <image lazy-load v-if="profile.avatar" class="avatar-img" :src="profile.avatar" mode="aspectFill" />
             <view v-else class="avatar-fallback">
               <text class="avatar-fallback-text">{{ profile.nickname.charAt(0) || '?' }}</text>
             </view>
@@ -120,6 +126,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import { mineApi } from '@/lib/mine-data'
 
 interface UserProfile {
   avatar: string
@@ -137,6 +144,7 @@ const defaultInterests = [
 
 const profile = ref<UserProfile>({ avatar: '', nickname: '', bio: '', interests: [] })
 const loading = ref(true)
+const loadError = ref('')
 const saving = ref(false)
 const showAvatarSheet = ref(false)
 const errors = ref<Record<string, string>>({})
@@ -145,17 +153,23 @@ onMounted(() => {
   loadProfile()
 })
 
-// @data-needs: 拉取当前用户资料, 返回 {avatar, nickname, bio, interests}
-function loadProfile() {
-  setTimeout(() => {
+// 拉取当前用户资料 —— GET /auth/me（nickname/avatar/bio/兴趣品类）
+async function loadProfile() {
+  loading.value = true
+  loadError.value = ''
+  try {
+    const me = await mineApi.getProfile()
     profile.value = {
-      avatar: 'https://picsum.photos/200/200?random=user',
-      nickname: '国学爱好者',
-      bio: '热爱传统文化，专注易学研究十年',
-      interests: ['易经', '风水', '八字'],
+      avatar: me.avatar || '',
+      nickname: me.nickname || '',
+      bio: me.bio || '',
+      interests: Array.isArray(me.interests) ? me.interests.slice(0, 5) : [],
     }
+  } catch (e: any) {
+    loadError.value = e?.message || '加载失败'
+  } finally {
     loading.value = false
-  }, 500)
+  }
 }
 
 function goBack() {
@@ -205,15 +219,25 @@ function validate() {
   return Object.keys(e).length === 0
 }
 
-// @data-needs: 保存用户资料, 参数 profile, 返回 {code, message}
-function handleSave() {
+// 保存用户资料 —— PUT /users/profile（nickname/avatar/bio/兴趣品类）
+async function handleSave() {
   if (saving.value) return
   if (!validate()) return
   saving.value = true
-  setTimeout(() => {
+  try {
+    await mineApi.updateProfile({
+      nickname: profile.value.nickname,
+      avatar: profile.value.avatar,
+      bio: profile.value.bio,
+      interestCategories: profile.value.interests,
+    })
+    uni.showToast({ title: '保存成功', icon: 'none' })
+    setTimeout(() => uni.navigateBack(), 600)
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '保存失败', icon: 'none' })
+  } finally {
     saving.value = false
-    uni.navigateBack()
-  }, 800)
+  }
 }
 </script>
 
@@ -261,7 +285,7 @@ function handleSave() {
 .nav-save-text {
   font-size: 30rpx;
   font-weight: 500;
-  color: #c41e3a;
+  color: var(--brand);
 }
 .spin {
   animation: rotate 0.8s linear infinite;
@@ -320,7 +344,7 @@ function handleSave() {
 .avatar-fallback {
   width: 100%;
   height: 100%;
-  background: linear-gradient(135deg, #c41e3a, #8b0000);
+  background: linear-gradient(135deg, var(--brand), #8b0000);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -337,7 +361,7 @@ function handleSave() {
   width: 64rpx;
   height: 64rpx;
   border-radius: 50%;
-  background: #c41e3a;
+  background: var(--brand);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -452,8 +476,8 @@ function handleSave() {
   border: 2rpx solid #e8e3db;
 }
 .tag-selected {
-  background: #c41e3a;
-  border-color: #c41e3a;
+  background: var(--brand);
+  border-color: var(--brand);
 }
 .tag-disabled {
   background: #f3f4f6;
@@ -526,5 +550,24 @@ function handleSave() {
   font-size: 30rpx;
   font-weight: 500;
   color: #666666;
+}
+.load-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24rpx;
+  padding-top: 200rpx;
+}
+.load-error-text {
+  font-size: 28rpx;
+  color: #8a8178;
+}
+.load-error-btn {
+  padding: 16rpx 48rpx;
+  background: var(--brand);
+  color: #fff;
+  border-radius: 12rpx;
+  font-size: 26rpx;
 }
 </style>

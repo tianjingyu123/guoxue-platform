@@ -9,7 +9,7 @@
           </view>
           <text class="sa-title">签署入驻协议</text>
         </view>
-        <text v-if="!isSigned" class="sa-version">{{ agreementInfo.version }}</text>
+        <text v-if="!isSigned" class="sa-version">{{ agreement?.version }}</text>
       </view>
     </view>
 
@@ -24,11 +24,11 @@
         <view class="sa-success-info">
           <view class="sa-info-row">
             <text class="sa-info-label">协议版本</text>
-            <text class="sa-info-val">{{ agreementInfo.version }}</text>
+            <text class="sa-info-val">{{ agreement?.version }}</text>
           </view>
           <view class="sa-info-row">
             <text class="sa-info-label">签署时间</text>
-            <text class="sa-info-val">{{ agreementInfo.signedAt }}</text>
+            <text class="sa-info-val">{{ signedAt }}</text>
           </view>
         </view>
       </view>
@@ -38,16 +38,19 @@
     <template v-else>
       <scroll-view scroll-y class="sa-scroll" :style="{ paddingTop: statusBarHeight + 44 + 'px' }" @scrolltolower="hasScrolled = true">
         <view class="sa-doc-wrap">
-          <view class="sa-doc">
-            <text class="sa-doc-title">热卜平台商家入驻协议</text>
-            <text class="sa-doc-intro">欢迎您入驻热卜平台。在您完成入驻流程前，请仔细阅读本协议的全部内容。</text>
-            <view v-for="(sec, i) in sections" :key="i" class="sa-doc-sec">
-              <text class="sa-doc-h">{{ sec.h }}</text>
-              <text v-for="(p, pi) in sec.ps" :key="pi" class="sa-doc-p">{{ p }}</text>
-            </view>
+          <view v-if="loading" class="sa-doc">
+            <text class="sa-doc-intro">协议加载中…</text>
+          </view>
+          <view v-else-if="error" class="sa-doc">
+            <text class="sa-doc-intro">{{ error }}</text>
+            <view class="sa-sign-btn" style="margin-top:16px;" @tap="load"><text>重试</text></view>
+          </view>
+          <view v-else class="sa-doc">
+            <text class="sa-doc-title">{{ agreement?.title || '商家入驻协议' }}</text>
+            <text v-for="(line, i) in contentLines" :key="i" class="sa-doc-p">{{ line }}</text>
             <text class="sa-doc-end">— 协议内容结束 —</text>
           </view>
-          <text v-if="!hasScrolled" class="sa-scroll-hint">请滚动阅读完整协议内容</text>
+          <text v-if="!loading && !error && !hasScrolled" class="sa-scroll-hint">请滚动阅读完整协议内容</text>
           <view class="sa-doc-placeholder" />
         </view>
       </scroll-view>
@@ -73,27 +76,40 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
+import { merchantApi, type MerchantAgreement } from '@/lib/merchant-data'
 
-const agreementInfo = { version: 'v2024.01', signedAt: '2024-01-17 16:45:30', signedIP: '192.168.1.100' }
-
-const sections = [
-  { h: '第一条 定义', ps: ['1.1 商家是指在平台上开设店铺、销售商品或提供服务的企业或个人。', '1.2 平台是指热卜运营的电子商务平台，包括但不限于网站、移动应用程序等。'] },
-  { h: '第二条 入驻条件', ps: ['2.1 商家应具有合法的经营资质，包括但不限于营业执照、相关行业许可证等。', '2.2 商家应保证所提供的信息真实、准确、完整，如有变更应及时更新。'] },
-  { h: '第三条 商家权利与义务', ps: ['3.1 商家有权使用平台提供的各项服务，包括但不限于商品上架、订单管理、数据统计等。', '3.2 商家应遵守国家法律法规和平台规则，不得从事违法违规经营活动。'] },
-  { h: '第四条 费用与结算', ps: ['4.1 商家应按照平台规定的比例支付技术服务费。', '4.2 平台将在每笔订单完成后扣除相应佣金，剩余金额进入商家可提现账户。'] },
-  { h: '第五条 保证金', ps: ['5.1 保证金用于保障消费者权益和平台交易安全。', '5.2 商家退出经营且无违规记录的情况下，保证金将在30个工作日内全额退还。'] },
-  { h: '第六条 违约责任', ps: ['6.1 任何一方违反本协议约定，应承担相应的违约责任。'] },
-  { h: '第七条 争议解决', ps: ['7.1 本协议的签订、履行、解释及争议解决均适用中华人民共和国法律。'] },
-]
-
+const agreement = ref<MerchantAgreement | null>(null)
+const loading = ref(true)
+const error = ref('')
 const hasScrolled = ref(false)
 const agreed = ref(false)
 const isSigning = ref(false)
 const isSigned = ref(false)
+const signedAt = ref('')
 const statusBarHeight = ref(0)
+
+const contentLines = computed(() => (agreement.value?.content || '').split('\n').filter((l) => l.trim() !== ''))
+
+function formatNow(): string {
+  const d = new Date()
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
+}
+
+async function load() {
+  loading.value = true
+  error.value = ''
+  try {
+    agreement.value = await merchantApi.getAgreementPreview()
+  } catch (e: any) {
+    error.value = e?.message || '协议加载失败'
+  } finally {
+    loading.value = false
+  }
+}
 
 function toggleAgree() {
   if (!hasScrolled.value) {
@@ -104,22 +120,27 @@ function toggleAgree() {
 }
 
 async function handleSign() {
-  if (!agreed.value || isSigning.value) return
+  if (!agreed.value || isSigning.value || !agreement.value) return
   isSigning.value = true
-  await new Promise((r) => setTimeout(r, 1500))
-  isSigning.value = false
-  isSigned.value = true
-  setTimeout(() => navigateTo('/merchant/application-status'), 2000)
+  try {
+    await merchantApi.signAgreement(agreement.value.version)
+    signedAt.value = formatNow()
+    isSigned.value = true
+    setTimeout(() => navigateTo('/merchant/application-status'), 2000)
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '签署失败', icon: 'none' })
+  } finally {
+    isSigning.value = false
+  }
 }
 
 function go(url: string) {
   navigateTo(url)
 }
 
-uni.getSystemInfo({
-  success: (res) => {
-    statusBarHeight.value = res.statusBarHeight || 0
-  },
+onMounted(() => {
+  uni.getSystemInfo({ success: (res) => { statusBarHeight.value = res.statusBarHeight || 0 } })
+  load()
 })
 </script>
 
@@ -161,10 +182,10 @@ uni.getSystemInfo({
 .sa-footer { position: fixed; bottom: 0; left: 0; right: 0; padding: 16px 16px calc(16px + env(safe-area-inset-bottom)); background: #fff; border-top: 1px solid rgba(0,0,0,0.06); }
 .sa-agree { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
 .sa-checkbox { width: 20px; height: 20px; border-radius: 4px; border: 2px solid #999; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.sa-checkbox-on { background: #c41e3a; border-color: #c41e3a; }
+.sa-checkbox-on { background: var(--brand); border-color: var(--brand); }
 .sa-checkbox-disabled { opacity: 0.5; }
 .sa-agree-txt { font-size: 14px; color: #999; }
-.sa-sign-btn { height: 48px; background: #c41e3a; border-radius: 8px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+.sa-sign-btn { height: 48px; background: var(--brand); border-radius: 8px; display: flex; align-items: center; justify-content: center; gap: 8px; }
 .sa-sign-btn text { font-size: 16px; font-weight: 500; color: #fff; }
 .sa-sign-btn-disabled { opacity: 0.5; }
 .sa-spin { display: inline-flex; animation: sa-spin 1s linear infinite; }

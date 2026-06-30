@@ -132,59 +132,92 @@ export function shiftDate(dateStr: string, days: number): string {
   return d.toISOString().split('T')[0]
 }
 
-// ============ API 层 ============
+// ============ 适配：后端 FortuneRecord → 前端 DailyFortune ============
+// 后端 fortuneContent = { overall, career, love, wealth, health, direction, color, number, advice }
+// 核心分数/幸运色数方位/advice 为真实后端值；等级/星期/概述为展示层派生；
+// 农历/宜忌/吉时后端无 → 诚实降级（页面 v-if 隐藏，不编造）。
+
+const CAT_META: { category: FortuneCategory['category']; categoryName: string; key: 'career' | 'love' | 'wealth' | 'health' }[] = [
+  { category: 'career', categoryName: '事业运', key: 'career' },
+  { category: 'love', categoryName: '爱情运', key: 'love' },
+  { category: 'wealth', categoryName: '财运', key: 'wealth' },
+  { category: 'health', categoryName: '健康运', key: 'health' },
+]
+
+function summaryByLevel(level: FortuneLevel): string {
+  switch (level) {
+    case 'excellent': return '运势极佳，大有可为'
+    case 'good': return '运势上佳，宜主动进取'
+    case 'normal': return '运势平稳，按部就班'
+    case 'bad': return '运势欠佳，宜静守'
+    default: return '运势低迷，谨慎为上'
+  }
+}
+
+function adaptFortune(record: any): DailyFortune {
+  const c = record?.fortuneContent || {}
+  const overallScore = Number(c.overall ?? 0)
+  const overallLevel = getLevel(overallScore)
+  const dateStr = record?.period || todayISO()
+  const advice: string = record?.advice || c.advice || ''
+  return {
+    date: dateStr,
+    lunarDate: '', // 后端未提供农历 → 降级隐藏
+    weekday: WEEKDAYS[new Date(dateStr).getDay()] || '',
+    overallScore,
+    overallLevel,
+    overallSummary: summaryByLevel(overallLevel),
+    yiji: { yi: [], ji: [] }, // 后端未提供宜忌 → 降级隐藏
+    categories: CAT_META.map((m) => {
+      const score = Number(c[m.key] ?? 0)
+      const level = getLevel(score)
+      return {
+        category: m.category,
+        categoryName: m.categoryName,
+        score,
+        level,
+        summary: summaryByLevel(level),
+        suggestion: advice,
+        luckyColor: record?.luckyColor || '',
+        luckyNumber: record?.luckyNumber || 0,
+        luckyDirection: record?.luckyDirection || '',
+      }
+    }),
+    luckyColor: record?.luckyColor || '',
+    luckyNumber: record?.luckyNumber || 0,
+    luckyDirection: record?.luckyDirection || '',
+    luckyTime: '', // 后端未提供吉时 → 降级隐藏
+    tips: advice ? [advice] : [],
+  }
+}
+
+// ============ API 层（真连 /fortune/*，错误传播给页面三态，不回退假数据）============
 
 export const fortuneApi = {
-  /** 获取今日运势 — GET /fortune/today */
+  /** 今日运势 — GET /fortune/today */
   async getToday(): Promise<DailyFortune> {
-    if (true) return buildDailyFortune(todayISO())
-    try {
-      const data = await apiGet<any>('/fortune/today')
-      return data as DailyFortune
-    } catch {
-      return buildDailyFortune(todayISO())
-    }
+    return adaptFortune(await apiGet<any>('/fortune/today'))
   },
 
-  /** 获取指定日期运势 — GET /fortune/:type/:period (type=daily, period=日期) */
+  /** 指定日期运势 — GET /fortune/daily/:date（后端按登录用户，缺失即确定性生成） */
   async getByDate(dateStr: string): Promise<DailyFortune> {
-    if (true) return buildDailyFortune(dateStr)
-    try {
-      const data = await apiGet<any>(`/fortune/daily/${dateStr}`)
-      return data as DailyFortune
-    } catch {
-      return buildDailyFortune(dateStr)
-    }
+    return adaptFortune(await apiGet<any>(`/fortune/daily/${dateStr}`))
   },
 
-  /** 订阅运势推送 — POST /fortune/subscribe */
+  /** 订阅运势推送 — POST /fortune/subscribe（fortuneType + pushChannel） */
   async subscribe(channel: string, type: string): Promise<{ success: boolean; message: string }> {
-    if (true) return { success: true, message: '订阅成功' }
-    try {
-      await apiPost('/fortune/subscribe', { channel, type })
-      return { success: true, message: '订阅成功' }
-    } catch (e: any) {
-      return { success: false, message: e?.message || '订阅失败' }
-    }
+    await apiPost('/fortune/subscribe', { fortuneType: type, pushChannel: channel })
+    return { success: true, message: '订阅成功' }
   },
 
-  /** 获取运势工具列表 — GET /fortune/tools */
+  /** 排盘工具首页聚合 — GET /fortune/tools */
   async getTools(): Promise<any[]> {
-    if (true) return []
-    try {
-      return await apiGet<any[]>('/fortune/tools') || []
-    } catch {
-      return []
-    }
+    const data = await apiGet<any>('/fortune/tools')
+    return Array.isArray(data?.tools) ? data.tools : (Array.isArray(data) ? data : [])
   },
 
-  /** 获取引导卡 — GET /fortune/guide-card */
+  /** 排盘引导卡 — GET /fortune/guide-card */
   async getGuideCard(): Promise<any | null> {
-    if (true) return null
-    try {
-      return await apiGet<any>('/fortune/guide-card')
-    } catch {
-      return null
-    }
+    return await apiGet<any>('/fortune/guide-card')
   },
 }

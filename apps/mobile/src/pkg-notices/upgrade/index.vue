@@ -231,7 +231,7 @@ onUnmounted(() => {
 }
 .decor-circle {
   position: absolute;
-  border: 4rpx solid #C41E3A;
+  border: 4rpx solid var(--brand);
   border-radius: 50%;
 }
 .decor-circle.c1 {
@@ -249,7 +249,7 @@ onUnmounted(() => {
 }
 .decor-dot {
   position: absolute;
-  background-color: #C41E3A;
+  background-color: var(--brand);
   border-radius: 50%;
 }
 .decor-dot.d1 {
@@ -277,7 +277,7 @@ onUnmounted(() => {
 .hero-logo {
   width: 128rpx;
   height: 128rpx;
-  background-color: #C41E3A;
+  background-color: var(--brand);
   border-radius: 32rpx;
   display: flex;
   align-items: center;
@@ -298,7 +298,7 @@ onUnmounted(() => {
 .hero-version {
   font-size: 52rpx;
   font-weight: 700;
-  color: #C41E3A;
+  color: var(--brand);
 }
 .hero-version-name {
   font-size: 26rpx;
@@ -479,7 +479,7 @@ onUnmounted(() => {
   gap: 12rpx;
 }
 .btn-active {
-  background-color: #C41E3A;
+  background-color: var(--brand);
   box-shadow: 0 8rpx 24rpx rgba(196, 30, 58, 0.3);
 }
 .btn-disabled {

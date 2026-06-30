@@ -1,7 +1,13 @@
-/** 讲师详情数据 - 从原型 institute/instructors/[id]/page.tsx 迁移 */
-// @data-needs: 讲师详情聚合, 参数 instructorId, 返回 InstructorDetail
-// mock 数据，交付时由 Claude Code 替换为真实接口
-import { apiGet, useMock } from '@/utils/request'
+/** 讲师公开详情数据 - 真连后端 users 模块 */
+// 真源说明：后端无"讲师公开详情"聚合端点，讲师本质是课程作者(User)。
+// 入口 /instructor/:id 的 id = course.instructor.id = User.id（见 pkg-course/detail）。
+// 真连可用端点（均需登录 JwtAuthGuard）：
+//   GET /users/:id            → { id, nickname, avatar, bio, ... }
+//   GET /users/:id/stats      → { courses, followers, articles, circles, ... }
+//   GET /users/:id/is-following → { following }
+// 后端无公开数据源的字段（title/level/verified/specialties/rating/教学经历/
+// 资质证书/讲师课程列表/评价）→ 一律留空，由页面 v-if 诚实降级，绝不回退假 mock。
+import { apiGet } from '@/utils/request'
 
 export interface InstructorCertificate { name: string; issuer: string; year: string }
 export interface InstructorFeaturedCourse {
@@ -22,16 +28,20 @@ export interface InstructorDetail {
   id: string
   name: string
   avatar: string
-  title: string
-  level: 'gold' | 'silver' | 'normal'
-  verified: boolean
-  specialties: string[]
-  studentCount: string
-  courseCount: number
-  rating: number
-  reviewCount: number
   isFollowing: boolean
+  /** 关注者数（真实，来自 users/:id/stats.followers） */
+  followerCount: number
+  /** 课程数（真实，来自 users/:id/stats.courses） */
+  courseCount: number
+  /** 个人简介（真实，来自 user.bio，可能为空） */
   introduction: string
+  // ── 以下字段后端无公开数据源，恒为空/undefined，页面 v-if 降级 ──
+  title?: string
+  level?: 'gold' | 'silver' | 'normal'
+  verified?: boolean
+  specialties: string[]
+  rating?: number
+  reviewCount?: number
   education: string[]
   experience: string[]
   certificates: InstructorCertificate[]
@@ -41,7 +51,7 @@ export interface InstructorDetail {
 
 /** 讲师等级标签 */
 export function getInstructorLevelLabel(level: InstructorDetail['level']): string {
-  return { gold: '金牌讲师', silver: '银牌讲师', normal: '认证讲师' }[level] || '认证讲师'
+  return { gold: '金牌讲师', silver: '银牌讲师', normal: '认证讲师' }[level || 'normal'] || '认证讲师'
 }
 /** 讲师等级配色（返回 {color,bg}） */
 export function getInstructorLevelStyle(level: InstructorDetail['level']): { color: string; bg: string } {
@@ -50,93 +60,41 @@ export function getInstructorLevelStyle(level: InstructorDetail['level']): { col
     silver: { color: '#475569', bg: '#E2E8F0' },
     normal: { color: '#C41E3A', bg: '#FBE8EA' },
   }
-  return map[level] || map.normal
-}
-
-export const instructorDetail: InstructorDetail = {
-  id: '1',
-  name: '李明德',
-  avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=limingde',
-  title: '国学研究院首席讲师 · 易学博士',
-  level: 'gold',
-  verified: true,
-  specialties: ['八字命理', '周易预测', '风水堪舆', '国学经典'],
-  studentCount: '1.2万',
-  courseCount: 18,
-  rating: 4.9,
-  reviewCount: 326,
-  isFollowing: false,
-  introduction:
-    '李明德教授，国学研究院首席讲师，从事易学研究与教学二十余年。师承当代易学名家，精研《周易》《黄帝内经》《滴天髓》等经典，将传统命理与现代生活智慧相结合，授课深入浅出，深受学员喜爱。累计培养专业命理师三百余名。',
-  education: [
-    '北京大学哲学系 易学方向博士',
-    '中国社会科学院 国学研究访问学者',
-    '台湾师范大学 中国文学硕士',
-  ],
-  experience: [
-    '国学研究院首席讲师（2015 至今）',
-    '某知名易学平台特约顾问（2010-2015）',
-    '多家企业风水堪舆顾问',
-  ],
-  certificates: [
-    { name: '高级周易预测师', issuer: '中国周易学会', year: '2012' },
-    { name: '国家二级心理咨询师', issuer: '人力资源和社会保障部', year: '2014' },
-    { name: '传统文化讲师认证', issuer: '中华传统文化促进会', year: '2016' },
-  ],
-  featuredCourses: [
-    {
-      id: 'c1',
-      title: '八字命理从入门到精通：21天系统课',
-      cover: 'https://api.dicebear.com/7.x/shapes/svg?seed=course1',
-      studentCount: '3.5千',
-      rating: 4.9,
-    },
-    {
-      id: 'c2',
-      title: '周易六十四卦详解与实战占断',
-      cover: 'https://api.dicebear.com/7.x/shapes/svg?seed=course2',
-      studentCount: '2.1千',
-      rating: 4.8,
-    },
-    {
-      id: 'c3',
-      title: '家居风水布局：财位与健康',
-      cover: 'https://api.dicebear.com/7.x/shapes/svg?seed=course3',
-      studentCount: '1.8千',
-      rating: 4.7,
-    },
-  ],
-  reviews: [
-    {
-      id: 'r1',
-      user: { id: 'u1', name: '王*华', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=u1' },
-      rating: 5,
-      content: '李老师讲课非常细致，把复杂的八字理论讲得通俗易懂，跟着学了两个月已经能自己排盘分析了，强烈推荐！',
-      time: '2026-05-12',
-    },
-    {
-      id: 'r2',
-      user: { id: 'u2', name: '陈*明', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=u2' },
-      rating: 5,
-      content: '系统性很强，从基础到实战循序渐进，老师答疑也很耐心。',
-      time: '2026-04-28',
-    },
-    {
-      id: 'r3',
-      user: { id: 'u3', name: '刘*芳', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=u3' },
-      rating: 4,
-      content: '内容很扎实，就是课程节奏稍快，需要反复回看，总体满意。',
-      time: '2026-04-15',
-    },
-  ],
+  return map[level || 'normal'] || map.normal
 }
 
 // ============ API 层 ============
 
+interface UserBasic { id: string; nickname?: string; avatar?: string; bio?: string }
+interface UserStats { courses?: number; followers?: number }
+
 export const instructorApi = {
-  /** 获取讲师详情 */
-  async getDetail(_id: string): Promise<InstructorDetail> {
-    if (true) return instructorDetail
-    try { return await apiGet<InstructorDetail>(`/instructor/${_id}`) } catch { return instructorDetail }
+  /**
+   * 获取讲师（课程作者）公开详情。
+   * 主请求 users/:id 失败（404/401）直接抛出，页面走错误态；
+   * 辅助的 stats / is-following 失败则降级为 0 / 未关注，不阻断主资料展示。
+   */
+  async getDetail(id: string): Promise<InstructorDetail> {
+    const [user, stats, follow] = await Promise.all([
+      apiGet<UserBasic>(`/users/${id}`),
+      apiGet<UserStats>(`/users/${id}/stats`).catch(() => null),
+      apiGet<{ following: boolean }>(`/users/${id}/is-following`).catch(() => null),
+    ])
+    return {
+      id: user.id,
+      name: user.nickname || '讲师',
+      avatar: user.avatar || '',
+      introduction: user.bio || '',
+      followerCount: stats?.followers ?? 0,
+      courseCount: stats?.courses ?? 0,
+      isFollowing: !!follow?.following,
+      // 后端无来源 → 空，页面降级
+      specialties: [],
+      education: [],
+      experience: [],
+      certificates: [],
+      featuredCourses: [],
+      reviews: [],
+    }
   },
 }

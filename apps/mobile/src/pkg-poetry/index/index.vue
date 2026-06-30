@@ -63,14 +63,14 @@
               </view>
               <view class="pm-today-foot">
                 <view class="pm-today-actions">
-                  <view class="pm-act" @tap.stop="isLiked = !isLiked">
-                    <app-icon name="heart" :size="28" :color="isLiked ? '#c0433a' : 'rgba(245,234,216,0.3)'" :fill="isLiked" />
-                    <text class="pm-act-text">{{ (todayPoem.likes / 1000).toFixed(1) }}k</text>
+                  <view class="pm-act" @tap.stop="onTodayLike">
+                    <app-icon name="heart" :size="28" :color="todayLiked ? '#c0433a' : 'rgba(245,234,216,0.3)'" :fill="todayLiked" />
+                    <text class="pm-act-text">{{ fmtCount(todayLikeCount) }}</text>
                   </view>
-                  <view class="pm-act" @tap.stop="isBookmarked = !isBookmarked">
-                    <app-icon name="bookmark" :size="28" :color="isBookmarked ? '#e8c07a' : 'rgba(245,234,216,0.3)'" :fill="isBookmarked" />
+                  <view class="pm-act" @tap.stop="onTodayCollect">
+                    <app-icon name="bookmark" :size="28" :color="todayBookmarked ? '#e8c07a' : 'rgba(245,234,216,0.3)'" :fill="todayBookmarked" />
                   </view>
-                  <app-icon name="volume-2" :size="28" color="rgba(245,234,216,0.3)" />
+                  <app-icon name="volume-2" :size="28" color="rgba(245,234,216,0.3)" @tap.stop="toDetail(todayPoem.id)" />
                 </view>
                 <view class="pm-today-more">
                   <text class="pm-more-gold">阅读全文</text>
@@ -111,7 +111,7 @@
         </view>
         <scroll-view scroll-x :show-scrollbar="false" class="pm-poets">
           <view class="pm-poets-row">
-            <view v-for="poet in poets" :key="poet.id" class="pm-poet" @tap="toPoet(poet.id)">
+            <view v-for="poet in poets" :key="poet.id" class="pm-poet" @tap="toPoet(poet.name)">
               <view class="pm-poet-avatar">
                 <text class="pm-poet-avatar-text">{{ poet.avatar }}</text>
               </view>
@@ -127,7 +127,7 @@
         <view class="pm-sec-head">
           <view class="pm-sec-label">
             <app-icon name="trending-up" :size="28" color="#e8c07a" />
-            <text class="pm-label-text">热门诗词</text>
+            <text class="pm-label-text">{{ isSearching ? '搜索结果' : '热门诗词' }}</text>
           </view>
           <view class="pm-sec-more" @tap="toCategories">
             <text class="pm-more-muted">分类浏览</text>
@@ -150,12 +150,12 @@
             </view>
             <view class="pm-item-like">
               <app-icon name="heart" :size="26" color="rgba(245,234,216,0.3)" />
-              <text class="pm-item-like-text">{{ (poem.likes / 1000).toFixed(1) }}k</text>
+              <text class="pm-item-like-text">{{ fmtCount(poem.likes) }}</text>
             </view>
           </view>
         </view>
         <view v-else class="pm-empty">
-          <text class="pm-empty-text">暂无相关诗词</text>
+          <text class="pm-empty-text">{{ searching ? '搜索中…' : (isSearching ? '未找到相关诗词' : '暂无相关诗词') }}</text>
         </view>
       </view>
 
@@ -178,9 +178,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { navigateTo, navigateBack } from '@/utils/router'
 import { poetryApi, type PoemItem, type PoetItem, type TodayPoem } from '@/lib/poetry-data'
+import { getToken } from '@/utils/storage'
 
 const statusBarHeight = ref(0)
 try {
@@ -207,6 +208,7 @@ async function fetchData() {
     todayPoem.value = data.todayPoem
     poems.value = data.poems
     poets.value = data.poets
+    todayLikeCount.value = data.todayPoem.likes
   } catch (e: any) {
     error.value = e?.message || '加载失败'
   } finally {
@@ -216,18 +218,80 @@ async function fetchData() {
 
 onMounted(() => { fetchData() })
 
+function fmtCount(n: number): string {
+  return n >= 1000 ? (n / 1000).toFixed(1) + 'k' : String(n)
+}
+
+// ── 搜索（真连 /poetry/search，防抖） ──
 const searchQuery = ref('')
 const activeDynasty = ref('全部')
-const isLiked = ref(false)
-const isBookmarked = ref(false)
+const searchResults = ref<PoemItem[]>([])
+const searching = ref(false)
+let searchTimer: ReturnType<typeof setTimeout> | null = null
 
-const filtered = computed(() =>
-  (poems.value as PoemItem[]).filter(
-    (p: PoemItem) =>
-      (activeDynasty.value === '全部' || p.dynasty === activeDynasty.value) &&
-      (!searchQuery.value || p.title.includes(searchQuery.value) || p.author.includes(searchQuery.value)),
-  ),
-)
+watch(searchQuery, (kw) => {
+  if (searchTimer) clearTimeout(searchTimer)
+  const q = kw.trim()
+  if (!q) { searchResults.value = []; searching.value = false; return }
+  searching.value = true
+  searchTimer = setTimeout(async () => {
+    try { searchResults.value = await poetryApi.search(q) }
+    catch { searchResults.value = [] }
+    finally { searching.value = false }
+  }, 300)
+})
+
+const isSearching = computed(() => !!searchQuery.value.trim())
+const filtered = computed(() => {
+  if (isSearching.value) return searchResults.value
+  return poems.value.filter((p) => activeDynasty.value === '全部' || p.dynasty === activeDynasty.value)
+})
+
+// ── 每日一首互动（真实，需登录） ──
+const todayLiked = ref(false)
+const todayBookmarked = ref(false)
+const todayLikeCount = ref(0)
+const todayLiking = ref(false)
+const todayCollecting = ref(false)
+
+function requireLogin(): boolean {
+  if (getToken()) return true
+  uni.showModal({
+    title: '登录后体验',
+    content: '登录后可点赞、收藏诗词',
+    confirmText: '去登录',
+    cancelText: '再看看',
+    success: (r) => { if (r.confirm) navigateTo('/login') },
+  })
+  return false
+}
+
+async function onTodayLike() {
+  if (!todayPoem.value.id || !requireLogin() || todayLiking.value) return
+  todayLiking.value = true
+  try {
+    const r = await poetryApi.toggleLike(todayPoem.value.id)
+    todayLiked.value = r.liked
+    todayLikeCount.value = r.likes
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '操作失败', icon: 'none' })
+  } finally {
+    todayLiking.value = false
+  }
+}
+
+async function onTodayCollect() {
+  if (!todayPoem.value.id || !requireLogin() || todayCollecting.value) return
+  todayCollecting.value = true
+  try {
+    const r = await poetryApi.toggleCollect(todayPoem.value.id)
+    todayBookmarked.value = r.collected
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '操作失败', icon: 'none' })
+  } finally {
+    todayCollecting.value = false
+  }
+}
 
 function goBack() {
   navigateBack()
@@ -241,8 +305,8 @@ function toCategories() {
 function toCollections() {
   navigateTo('/poetry/collections')
 }
-function toPoet(id: string) {
-  navigateTo(`/poetry/poet/${id}`)
+function toPoet(name: string) {
+  if (name) navigateTo(`/poetry/poet?name=${encodeURIComponent(name)}`)
 }
 function toPublish() {
   navigateTo('/publish?type=poem')

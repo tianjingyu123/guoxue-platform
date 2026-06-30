@@ -79,7 +79,7 @@
         <view v-for="product in filtered" :key="product.id" class="product-card">
           <view class="product-main">
             <!-- 封面 -->
-            <image class="product-cover" :src="product.cover" mode="aspectFill" />
+            <image lazy-load class="product-cover" :src="product.cover" mode="aspectFill" />
 
             <!-- 信息 -->
             <view class="product-info">
@@ -220,7 +220,7 @@ onMounted(() => { fetchData() })
 .nav-add-text {
   font-size: 24rpx;
   font-weight: 500;
-  color: #C41E3A;
+  color: var(--brand);
 }
 
 .page-body {
@@ -269,7 +269,7 @@ onMounted(() => { fetchData() })
   background: #f0ece5;
 }
 .filter-chip-active {
-  background: #C41E3A;
+  background: var(--brand);
   color: #fff;
 }
 
@@ -296,7 +296,7 @@ onMounted(() => { fetchData() })
   padding: 16rpx 32rpx;
   font-size: 24rpx;
   color: #fff;
-  background: #C41E3A;
+  background: var(--brand);
   border-radius: 999rpx;
 }
 
@@ -341,7 +341,7 @@ onMounted(() => { fetchData() })
   display: block;
   font-size: 32rpx;
   font-weight: 700;
-  color: #C41E3A;
+  color: var(--brand);
 }
 .product-meta {
   display: flex;
@@ -417,13 +417,13 @@ onMounted(() => { fetchData() })
   color: #999;
 }
 .op-text-danger {
-  color: #C41E3A;
+  color: var(--brand);
 }
 .stock-warn {
   margin-left: auto;
   font-size: 22rpx;
   font-weight: 500;
-  color: #C41E3A;
+  color: var(--brand);
 }
 .bottom-spacer {
   height: 64rpx;
@@ -446,5 +446,5 @@ onMounted(() => { fetchData() })
 /* 错误态 */
 .error-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 128rpx 0; }
 .error-text { font-size: 26rpx; color: #999; margin-top: 24rpx; }
-.error-btn { margin-top: 32rpx; padding: 16rpx 48rpx; font-size: 26rpx; color: #fff; background: #C41E3A; border-radius: 999rpx; }
+.error-btn { margin-top: 32rpx; padding: 16rpx 48rpx; font-size: 26rpx; color: #fff; background: var(--brand); border-radius: 999rpx; }
 </style>

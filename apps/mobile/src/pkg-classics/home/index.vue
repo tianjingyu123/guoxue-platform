@@ -59,7 +59,7 @@ function goAudioList() {
   uni.navigateTo({ url: '/pkg-classics/audiobooks/index' })
 }
 function goAudio(id: string) {
-  uni.navigateTo({ url: `/pkg-classics/audiobooks/index?id=${id}` })
+  uni.navigateTo({ url: `/pkg-classics/audiobooks/player?id=${id}` })
 }
 function goLists() {
   uni.navigateTo({ url: '/pkg-classics/lists/index' })
@@ -107,7 +107,7 @@ function onRefreshRanking() {}
       <template v-else>
       <!-- Hero 大标题 -->
       <view class="ch-hero">
-        <text class="ch-hero-kicker">中华典籍 · 经史子集</text>
+        <text class="ch-hero-kicker">经史子集 · 释道医藏</text>
         <text class="ch-hero-title">千年典籍，尽收一馆</text>
         <view class="ch-hero-stats">
           <view v-for="(s, i) in libraryStats" :key="s.label" class="ch-stat">
@@ -158,8 +158,8 @@ function onRefreshRanking() {}
         </view>
       </view>
 
-      <!-- 继续阅读 -->
-      <view class="ch-sec">
+      <!-- 继续阅读（仅登录且有阅读记录时显示） -->
+      <view v-if="lastReading" class="ch-sec">
         <view class="ch-continue" @tap="goDetail(lastReading.id)">
           <FlatCover
             :title="lastReading.title"
@@ -209,8 +209,8 @@ function onRefreshRanking() {}
         </view>
       </view>
 
-      <!-- 经典书单 -->
-      <view class="ch-block">
+      <!-- 经典书单（后端有书单数据时显示） -->
+      <view v-if="bookLists.length" class="ch-block">
         <view class="ch-sec-head">
           <view>
             <text class="ch-sec-title">经典书单</text>
@@ -299,8 +299,8 @@ function onRefreshRanking() {}
         </view>
       </view>
 
-      <!-- 听书 -->
-      <view class="ch-block">
+      <!-- 听书（后端有有声书数据时显示） -->
+      <view v-if="audioBooks.length" class="ch-block">
         <view class="ch-sec-head">
           <view>
             <text class="ch-sec-title">听书</text>

@@ -8,7 +8,7 @@
     <view v-else-if="error" class="hero">
       <text class="hero-title">{{ error }}</text>
       <view class="hero-actions">
-        <view class="btn-primary" @tap="fetchData(order?.orderNo || '1')">
+        <view class="btn-primary" @tap="fetchData(bookId)">
           <text class="btn-primary-tx">重试</text>
         </view>
       </view>
@@ -86,12 +86,14 @@ import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { ebookApi, EBOOK_COVER, type EbookRelated } from '@/lib/ebook-data'
+import { track } from '@/composables/useTrack'
 
 const C = { primary: '#2563eb' }
 const loading = ref(true)
 const error = ref('')
 const order = ref<any>({})
 const related = ref<EbookRelated[]>([])
+const bookId = ref('1')
 
 async function fetchData(id: string) {
   loading.value = true
@@ -102,6 +104,7 @@ async function fetchData(id: string) {
       ebookApi.store(),
     ])
     order.value = orderData
+    track.purchase({ type: 'ebook', bookId: bookId.value, orderId: order.value?.orderNo, amount: order.value?.amount })
     // 取 store 前3本作为相关推荐
     related.value = (storeData || []).slice(0, 3).map((b: any) => ({
       id: b.id,
@@ -117,10 +120,10 @@ async function fetchData(id: string) {
   }
 }
 
-onLoad((q: any = {}) => { fetchData(q?.id || '1') })
+onLoad((q: any = {}) => { bookId.value = q?.id || '1'; fetchData(bookId.value) })
 
 function goReader() {
-  uni.redirectTo({ url: '/pkg-ebook/reader/index?id=1' })
+  uni.redirectTo({ url: `/pkg-ebook/reader/index?id=${bookId.value}` })
 }
 function goShelf() {
   uni.redirectTo({ url: '/pkg-ebook/bookshelf/index' })

@@ -20,6 +20,12 @@
       <view v-else-if="isEmpty" class="state-empty">
         <text class="state-empty-text">暂无数据</text>
       </view>
+      <view v-else-if="notOpened" class="state-empty smp-not-opened">
+        <view class="smp-not-opened-icon"><app-icon name="store" :size="64" color="#C41E3A" /></view>
+        <text class="smp-not-opened-title">您还未开通分站</text>
+        <text class="smp-not-opened-sub">开通分站，打造属于你的国学推广事业</text>
+        <view class="smp-not-opened-btn" @tap="navigateTo('/pkg-operator/join-station/index')"><text class="smp-not-opened-btn-txt">立即开通</text></view>
+      </view>
       <template v-else>
       <!-- 分站信息卡 -->
       <view class="smp-info">
@@ -28,7 +34,7 @@
           <view class="smp-info-main">
             <view class="smp-info-name-row">
               <text class="smp-info-name">{{ stationPanelInfo.name }}</text>
-              <view class="smp-info-level"><app-icon name="crown" :size="22" color="#C41E3A" /><text class="smp-info-level-txt">{{ stationPanelInfo.levelName }}</text></view>
+              <view v-if="stationPanelInfo.code" class="smp-info-code"><text class="smp-info-code-txt">推广码 {{ stationPanelInfo.code }}</text></view>
             </view>
             <text class="smp-info-meta">创建于 {{ stationPanelInfo.createTime }} · 有效期至 {{ stationPanelInfo.expireTime }}</text>
           </view>
@@ -66,44 +72,37 @@
         </view>
         <view class="smp-balance-grid">
           <view class="smp-bal-item">
-            <text class="smp-bal-value primary">¥{{ formatNum(stationPanelBalance.available) }}</text>
-            <text class="smp-bal-label">可提现</text>
+            <text class="smp-bal-value primary">¥{{ formatNum(stationPanelBalance.totalEarning) }}</text>
+            <text class="smp-bal-label">累计收益</text>
           </view>
           <view class="smp-bal-item">
-            <text class="smp-bal-value">¥{{ formatNum(stationPanelBalance.pending) }}</text>
+            <text class="smp-bal-value">¥{{ formatNum(stationPanelBalance.monthEarning) }}</text>
+            <text class="smp-bal-label">本月收益</text>
+          </view>
+          <view class="smp-bal-item">
+            <text class="smp-bal-value">¥{{ formatNum(stationPanelBalance.pendingSettlement) }}</text>
             <text class="smp-bal-label">待结算</text>
           </view>
-          <view class="smp-bal-item">
-            <text class="smp-bal-value">¥{{ formatNum(stationPanelBalance.withdrawn) }}</text>
-            <text class="smp-bal-label">已提现</text>
-          </view>
-          <view class="smp-bal-item">
-            <text class="smp-bal-value">¥{{ formatNum(stationPanelBalance.frozen) }}</text>
-            <text class="smp-bal-label">冻结中</text>
-          </view>
         </view>
-        <view class="smp-withdraw-btn" @tap="goWithdraw"><text class="smp-withdraw-txt">立即提现</text></view>
+        <view v-if="stationPanelBalance.remainingDays >= 0 && stationPanelBalance.nextSettleDate" class="smp-settle-tip">
+          <app-icon name="clock" :size="24" color="#C41E3A" />
+          <text class="smp-settle-tip-txt">下次结算 {{ stationPanelBalance.nextSettleDate }}（{{ stationPanelBalance.remainingDays }} 天后）</text>
+        </view>
+        <view class="smp-withdraw-btn" @tap="goWithdraw"><text class="smp-withdraw-txt">佣金提现</text></view>
+        <text class="smp-withdraw-note">佣金结算后进入平台钱包，可在钱包提现</text>
       </view>
 
       <!-- 趋势图 -->
       <view class="smp-card">
         <view class="smp-trend-head">
-          <view class="smp-trend-tabs">
-            <view v-for="(t, i) in stationPanelTrends" :key="i" class="smp-trend-tab" :class="{ active: trendIndex === i }" @tap="trendIndex = i">
-              <text class="smp-trend-tab-txt">{{ trendTypeLabel(t.type) }}</text>
-            </view>
-          </view>
-          <view class="smp-trend-tabs">
-            <view v-for="p in (['week', 'month'] as const)" :key="p" class="smp-trend-tab" :class="{ active: trendPeriod === p }" @tap="trendPeriod = p">
-              <text class="smp-trend-tab-txt">{{ p === 'week' ? '本周' : '本月' }}</text>
-            </view>
-          </view>
+          <text class="smp-card-title">收益趋势</text>
+          <text class="smp-trend-sub">近30天</text>
         </view>
         <view class="smp-trend-summary">
-          <text class="smp-trend-total">{{ activeTrend.type === 'revenue' ? '¥' : '' }}{{ formatNum(activeTrend.total) }}</text>
-          <view class="smp-trend-change" :class="activeTrend.change >= 0 ? 'up' : 'down'">
-            <app-icon :name="activeTrend.change >= 0 ? 'trending-up' : 'trending-down'" :size="22" :color="activeTrend.change >= 0 ? '#16a34a' : '#dc2626'" />
-            <text class="smp-trend-change-txt">{{ Math.abs(activeTrend.change) }}%</text>
+          <text class="smp-trend-total">¥{{ formatNum(activeTrend.total || 0) }}</text>
+          <view v-if="activeTrend.data && activeTrend.data.length" class="smp-trend-change" :class="(activeTrend.change || 0) >= 0 ? 'up' : 'down'">
+            <app-icon :name="(activeTrend.change || 0) >= 0 ? 'trending-up' : 'trending-down'" :size="22" :color="(activeTrend.change || 0) >= 0 ? '#16a34a' : '#dc2626'" />
+            <text class="smp-trend-change-txt">{{ Math.abs(activeTrend.change || 0) }}%</text>
           </view>
         </view>
         <view class="smp-chart">
@@ -131,7 +130,7 @@
       </view>
 
       <!-- 最新通知 -->
-      <view class="smp-card">
+      <view v-if="stationPanelNotices.length" class="smp-card">
         <view class="smp-notice-head">
           <text class="smp-card-title">最新通知</text>
           <view class="smp-notice-more" @tap="goNotices"><text class="smp-notice-more-txt">查看全部</text><app-icon name="chevron-right" :size="24" color="#999" /></view>
@@ -169,6 +168,7 @@ import {
 const loading = ref(true)
 const error = ref('')
 const isEmpty = ref(false)
+const notOpened = ref(false)
 
 // 各个数据 ref
 const stationPanelInfo = ref<any>({})
@@ -187,6 +187,7 @@ onMounted(async () => {
 async function loadData() {
   loading.value = true
   error.value = ''
+  notOpened.value = false
   try {
     const [info, overview, iconMap, trends, balance, quickActions, actionIcons, notices] = await Promise.all([
       operatorApi.getStationPanelInfo(),
@@ -208,7 +209,13 @@ async function loadData() {
     stationPanelNotices.value = Array.isArray(notices) ? notices : []
     isEmpty.value = !info || Object.keys(info).length === 0
   } catch (e: any) {
-    error.value = e?.message || '加载失败'
+    const msg = e?.message || ''
+    // 后端未开通分站时抛错（404/未找到）→ 走友好引导态，不当作错误
+    if (msg.includes('开通') || msg.includes('未找到') || msg.includes('不存在')) {
+      notOpened.value = true
+    } else {
+      error.value = msg || '加载失败'
+    }
   } finally {
     loading.value = false
   }
@@ -216,14 +223,12 @@ async function loadData() {
 
 async function retry() { await loadData() }
 
-const trendIndex = ref(0)
-const trendPeriod = ref<'week' | 'month'>('week')
-const activeTrend = computed(() => stationPanelTrends.value[trendIndex.value] || ({} as StationTrendData))
-function trendTypeLabel(type: string) { return type === 'revenue' ? '收益' : '订单' }
+// 后端趋势仅单一粒度（近30天收益），始终取第 0 项
+const activeTrend = computed(() => stationPanelTrends.value[0] || ({} as StationTrendData))
 const unreadNotices = computed(() => stationPanelNotices.value.filter((n) => n.type === 'warning').length)
 
 const statusLabel = computed(() => {
-  const map: Record<string, string> = { active: '运营中', expired: '已过期', paused: '已暂停' }
+  const map: Record<string, string> = { active: '运营中', pending: '审核中', expired: '已过期', paused: '已暂停' }
   return map[stationPanelInfo.value.status] || '运营中'
 })
 
@@ -254,7 +259,8 @@ function goAction(qa: StationPanelQuickAction) { navigateTo(qa.path) }
 function goNotices() { navigateTo('/station/notices') }
 function goRenew() { navigateTo('/pkg-operator/join-station/index') }
 function goEarnings() { navigateTo('/station/earnings') }
-function goWithdraw() { navigateTo('/wallet/withdraw') }
+// 站长佣金结算后进入平台钱包，提现在钱包内完成
+function goWithdraw() { navigateTo('/pkg-mine/wallet/index') }
 </script>
 
 <style scoped>
@@ -264,14 +270,14 @@ function goWithdraw() { navigateTo('/wallet/withdraw') }
 .smp-nav-dot { position: absolute; top: 8rpx; right: 8rpx; width: 14rpx; height: 14rpx; border-radius: 50%; background: #fbbf24; }
 
 /* 分站信息卡 */
-.smp-info { margin: 24rpx; padding: 32rpx; border-radius: 24rpx; background: linear-gradient(135deg, #C41E3A 0%, #e85d75 100%); }
+.smp-info { margin: 24rpx; padding: 32rpx; border-radius: 24rpx; background: linear-gradient(135deg, var(--brand) 0%, #e85d75 100%); }
 .smp-info-top { display: flex; align-items: center; gap: 24rpx; }
 .smp-info-icon { width: 88rpx; height: 88rpx; border-radius: 20rpx; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .smp-info-main { flex: 1; min-width: 0; }
 .smp-info-name-row { display: flex; align-items: center; gap: 16rpx; }
 .smp-info-name { font-size: 34rpx; font-weight: 700; color: #ffffff; }
-.smp-info-level { display: flex; align-items: center; gap: 4rpx; padding: 4rpx 12rpx; border-radius: 999rpx; background: #ffffff; }
-.smp-info-level-txt { font-size: 22rpx; font-weight: 600; color: #C41E3A; }
+.smp-info-code { display: flex; align-items: center; padding: 4rpx 16rpx; border-radius: 999rpx; background: rgba(255,255,255,0.25); }
+.smp-info-code-txt { font-size: 22rpx; font-weight: 600; color: #ffffff; }
 .smp-info-meta { display: block; margin-top: 10rpx; font-size: 22rpx; color: rgba(255,255,255,0.85); }
 .smp-info-status { display: flex; align-items: center; gap: 12rpx; margin-top: 24rpx; padding-top: 24rpx; border-top: 1rpx solid rgba(255,255,255,0.2); }
 .smp-status-dot { width: 16rpx; height: 16rpx; border-radius: 50%; }
@@ -280,7 +286,7 @@ function goWithdraw() { navigateTo('/wallet/withdraw') }
 .smp-status-dot.paused { background: #fbbf24; }
 .smp-status-txt { font-size: 24rpx; color: #ffffff; }
 .smp-info-renew { margin-left: auto; padding: 8rpx 28rpx; border-radius: 999rpx; background: #ffffff; }
-.smp-renew-txt { font-size: 24rpx; font-weight: 600; color: #C41E3A; }
+.smp-renew-txt { font-size: 24rpx; font-weight: 600; color: var(--brand); }
 
 /* 通用卡片 */
 .smp-card { margin: 0 24rpx 24rpx; padding: 28rpx; border-radius: 24rpx; background: #ffffff; }
@@ -305,18 +311,17 @@ function goWithdraw() { navigateTo('/wallet/withdraw') }
 .smp-balance-grid { display: flex; margin-top: 20rpx; }
 .smp-bal-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8rpx; }
 .smp-bal-value { font-size: 30rpx; font-weight: 700; color: #1a1a1a; }
-.smp-bal-value.primary { color: #C41E3A; }
+.smp-bal-value.primary { color: var(--brand); }
 .smp-bal-label { font-size: 22rpx; color: #999; }
-.smp-withdraw-btn { margin-top: 24rpx; height: 80rpx; border-radius: 16rpx; background: #C41E3A; display: flex; align-items: center; justify-content: center; }
+.smp-settle-tip { display: flex; align-items: center; gap: 8rpx; margin-top: 20rpx; padding: 16rpx 20rpx; border-radius: 12rpx; background: #fdecef; }
+.smp-settle-tip-txt { font-size: 24rpx; color: var(--brand); }
+.smp-withdraw-btn { margin-top: 24rpx; height: 80rpx; border-radius: 16rpx; background: var(--brand); display: flex; align-items: center; justify-content: center; }
 .smp-withdraw-txt { font-size: 28rpx; font-weight: 600; color: #ffffff; }
+.smp-withdraw-note { display: block; margin-top: 12rpx; text-align: center; font-size: 20rpx; color: #999; }
 
 /* 趋势图 */
-.smp-trend-head { display: flex; align-items: center; }
-.smp-trend-tabs { display: flex; gap: 16rpx; }
-.smp-trend-tab { padding: 8rpx 24rpx; border-radius: 999rpx; background: #f5f5f5; }
-.smp-trend-tab.active { background: #fdecef; }
-.smp-trend-tab-txt { font-size: 24rpx; color: #666; }
-.smp-trend-tab.active .smp-trend-tab-txt { color: #C41E3A; font-weight: 600; }
+.smp-trend-head { display: flex; align-items: baseline; justify-content: space-between; }
+.smp-trend-sub { font-size: 22rpx; color: #999; }
 .smp-trend-summary { display: flex; align-items: baseline; gap: 16rpx; margin-top: 20rpx; }
 .smp-trend-total { font-size: 44rpx; font-weight: 700; color: #1a1a1a; }
 .smp-trend-change { display: flex; align-items: center; gap: 2rpx; }
@@ -326,14 +331,14 @@ function goWithdraw() { navigateTo('/wallet/withdraw') }
 .smp-chart { display: flex; align-items: flex-end; justify-content: space-between; height: 280rpx; margin-top: 24rpx; padding-top: 16rpx; }
 .smp-bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; height: 100%; }
 .smp-bar-wrap { flex: 1; width: 100%; display: flex; align-items: flex-end; justify-content: center; }
-.smp-bar { width: 32rpx; border-radius: 8rpx 8rpx 0 0; background: linear-gradient(180deg, #C41E3A 0%, #e85d75 100%); transition: height 0.3s; }
+.smp-bar { width: 32rpx; border-radius: 8rpx 8rpx 0 0; background: linear-gradient(180deg, var(--brand) 0%, #e85d75 100%); transition: height 0.3s; }
 .smp-bar-date { margin-top: 12rpx; font-size: 18rpx; color: #999; }
 
 /* 快捷功能 */
 .smp-qa-grid { display: flex; flex-wrap: wrap; margin-top: 16rpx; }
 .smp-qa-item { width: 25%; display: flex; flex-direction: column; align-items: center; gap: 12rpx; padding: 20rpx 0; }
 .smp-qa-icon { position: relative; width: 88rpx; height: 88rpx; border-radius: 24rpx; background: #fdecef; display: flex; align-items: center; justify-content: center; }
-.smp-qa-badge { position: absolute; top: -6rpx; right: -6rpx; min-width: 32rpx; height: 32rpx; padding: 0 8rpx; border-radius: 999rpx; background: #C41E3A; display: flex; align-items: center; justify-content: center; box-sizing: border-box; }
+.smp-qa-badge { position: absolute; top: -6rpx; right: -6rpx; min-width: 32rpx; height: 32rpx; padding: 0 8rpx; border-radius: 999rpx; background: var(--brand); display: flex; align-items: center; justify-content: center; box-sizing: border-box; }
 .smp-qa-badge-txt { font-size: 20rpx; color: #ffffff; }
 .smp-qa-label { font-size: 24rpx; color: #333; }
 
@@ -359,4 +364,11 @@ function goWithdraw() { navigateTo('/wallet/withdraw') }
 .state-empty-text { font-size: 28rpx; color: #999; }
 .state-retry-btn { padding: 16rpx 48rpx; background: #7c3aed; border-radius: 12rpx; }
 .state-retry-btn text { font-size: 26rpx; color: #fff; }
+
+/* 未开通引导态 */
+.smp-not-opened-icon { width: 128rpx; height: 128rpx; border-radius: 32rpx; background: #fdecef; display: flex; align-items: center; justify-content: center; margin-bottom: 28rpx; }
+.smp-not-opened-title { font-size: 32rpx; font-weight: 700; color: #1a1a1a; }
+.smp-not-opened-sub { margin-top: 12rpx; font-size: 24rpx; color: #999; text-align: center; }
+.smp-not-opened-btn { margin-top: 36rpx; padding: 18rpx 64rpx; border-radius: 999rpx; background: var(--brand); }
+.smp-not-opened-btn-txt { font-size: 28rpx; font-weight: 600; color: #ffffff; }
 </style>

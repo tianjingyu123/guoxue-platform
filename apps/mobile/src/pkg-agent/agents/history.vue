@@ -61,9 +61,8 @@
               <text class="conv-msg">{{ conv.lastMessage }}</text>
               <view class="conv-tail">
                 <text v-if="conv.unread > 0" class="conv-unread">{{ conv.unread }}</text>
-                <view class="conv-del" @tap.stop="remove(conv.id)">
-                  <app-icon name="trash-2" :size="28" color="#bbbbbb" />
-                </view>
+                <text class="conv-count">{{ conv.messageCount }} 条</text>
+                <app-icon name="chevron-right" :size="28" color="#cccccc" />
               </view>
             </view>
           </view>
@@ -123,12 +122,9 @@ function catColor(cat: string) {
   return CATEGORY_COLORS[cat] || { bg: '#f0f0f0', fg: '#888888' }
 }
 
-function remove(id: string) {
-  convs.value = convs.value.filter((c) => c.id !== id)
-}
-
 function goChat(conv: AgentConversation) {
-  navigateTo(`/agent/${conv.id}`)
+  // 带 conversationId 进入对话页续聊
+  navigateTo(`/agent/${conv.botConfigId}?conversationId=${encodeURIComponent(conv.conversationId)}`)
 }
 
 function goBack() {
@@ -147,7 +143,7 @@ function goBack() {
 <style scoped>
 .load-state { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; gap: 24rpx; }
 .load-state-text { font-size: 28rpx; color: #8a8178; }
-.retry-btn { padding: 16rpx 48rpx; background: #c41e3a; border-radius: 999rpx; }
+.retry-btn { padding: 16rpx 48rpx; background: var(--brand); border-radius: 999rpx; }
 .retry-text { font-size: 28rpx; color: #fff; }
 
 .page {
@@ -303,18 +299,16 @@ function goBack() {
   height: 32rpx;
   padding: 0 8rpx;
   border-radius: 999rpx;
-  background: #c41e3a;
+  background: var(--brand);
   color: #ffffff;
   font-size: 20rpx;
   display: flex;
   align-items: center;
   justify-content: center;
 }
-.conv-del {
-  width: 44rpx;
-  height: 44rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.conv-count {
+  font-size: 20rpx;
+  color: #bbbbbb;
+  flex-shrink: 0;
 }
 </style>

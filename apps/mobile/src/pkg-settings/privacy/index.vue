@@ -145,7 +145,7 @@ function go(path: string) {
 .sel-cur-txt { font-size: 24rpx; color: #999; }
 .sel-opts { margin-top: 16rpx; margin-left: 76rpx; display: flex; flex-wrap: wrap; gap: 16rpx; }
 .opt { padding: 10rpx 24rpx; border-radius: 999rpx; background: #f5f1ea; }
-.opt-on { background: #c41e3a; }
+.opt-on { background: var(--brand); }
 .opt-txt { font-size: 24rpx; color: #999; }
 .opt-txt-on { color: #fff; }
 .blacklist { display: flex; align-items: center; justify-content: space-between; padding: 24rpx 28rpx; }

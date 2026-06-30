@@ -105,7 +105,7 @@ onMounted(() => { fetchCircles() })
       <!-- 列表 -->
       <view v-else class="mc-list">
         <view v-for="(c, i) in displayCircles" :key="c.id" class="mc-card" @tap="openCircle(c.id)">
-          <image :src="c.cover" class="mc-card-cover" mode="aspectFill" />
+          <image lazy-load :src="c.cover" class="mc-card-cover" mode="aspectFill" />
           <view class="mc-card-main">
             <view class="mc-card-name-row">
               <text class="mc-card-name">{{ c.name }}</text>
@@ -139,7 +139,7 @@ onMounted(() => { fetchCircles() })
 /* Tab */
 .mc-tabs { display: flex; gap: 16rpx; padding: 24rpx 32rpx 8rpx; flex-shrink: 0; }
 .mc-tab { padding: 14rpx 32rpx; border-radius: 999rpx; background: #f0ebe3; }
-.mc-tab.on { background: #c41e3a; }
+.mc-tab.on { background: var(--brand); }
 .mc-tab-t { font-size: 26rpx; font-weight: 500; color: #1a1a1a; }
 .mc-tab-t.on { color: #fff; }
 /* body */
@@ -149,7 +149,7 @@ onMounted(() => { fetchCircles() })
 .mc-empty-icon { width: 128rpx; height: 128rpx; border-radius: 999rpx; background: #f0ebe3; display: flex; align-items: center; justify-content: center; }
 .mc-empty-title { font-size: 30rpx; font-weight: 600; color: #1a1a1a; margin-top: 32rpx; }
 .mc-empty-sub { font-size: 24rpx; color: #b5aea3; margin-top: 12rpx; }
-.mc-empty-btn { margin-top: 32rpx; padding: 20rpx 48rpx; border-radius: 999rpx; background: #c41e3a; }
+.mc-empty-btn { margin-top: 32rpx; padding: 20rpx 48rpx; border-radius: 999rpx; background: var(--brand); }
 .mc-empty-btn-t { font-size: 28rpx; font-weight: 600; color: #fff; }
 /* 列表 */
 .mc-list { display: flex; flex-direction: column; gap: 20rpx; }
@@ -168,7 +168,7 @@ onMounted(() => { fetchCircles() })
 .mc-card-meta { display: flex; align-items: center; gap: 24rpx; }
 .mc-card-stat { display: flex; align-items: center; gap: 6rpx; }
 .mc-card-stat-t { font-size: 22rpx; color: #999; }
-.mc-card-stat.new .mc-card-stat-t.new { color: #c41e3a; }
+.mc-card-stat.new .mc-card-stat-t.new { color: var(--brand); }
 /* 创建入口 */
 .mc-create { display: flex; flex-direction: column; align-items: center; gap: 16rpx; padding: 40rpx 0; border-radius: 24rpx; border: 4rpx dashed rgba(0,0,0,0.15); background: #faf6f0; }
 .mc-create-icon { width: 88rpx; height: 88rpx; border-radius: 999rpx; background: #f0ebe3; display: flex; align-items: center; justify-content: center; }

@@ -10,7 +10,7 @@
       <block v-else-if="view === 'create'">
         <!-- 订单信息 -->
         <view class="card order-card">
-          <image class="order-cover" :src="order.productCover" mode="aspectFill" />
+          <image lazy-load class="order-cover" :src="order.productCover" mode="aspectFill" />
           <view class="order-info">
             <text class="order-name">{{ order.productName }}</text>
             <text class="order-no">订单号：{{ order.orderNo }}</text>
@@ -54,7 +54,7 @@
           <text class="section-title">证据图片 <text class="req">*</text><text class="section-sub">（聊天记录、商品照片等）</text></text>
           <view class="upload-wrap">
             <view v-for="(img, i) in form.images" :key="i" class="upload-item">
-              <image class="upload-img" :src="img" mode="aspectFill" />
+              <image lazy-load class="upload-img" :src="img" mode="aspectFill" />
               <view class="upload-del" @tap="removeImage(i)">
                 <app-icon name="x" :size="24" color="#FFFFFF" />
               </view>
@@ -111,7 +111,7 @@
             </view>
           </view>
           <view class="dispute-body">
-            <image class="dispute-cover" :src="d.productCover" mode="aspectFill" />
+            <image lazy-load class="dispute-cover" :src="d.productCover" mode="aspectFill" />
             <view class="dispute-info">
               <text class="dispute-name">{{ d.productName }}</text>
               <text class="dispute-type">{{ typeLabel(d.type) }}</text>
@@ -135,7 +135,7 @@
         <view class="card">
           <text class="section-title">申诉商品</text>
           <view class="order-card-inner">
-            <image class="order-cover" :src="detail.order.productCover" mode="aspectFill" />
+            <image lazy-load class="order-cover" :src="detail.order.productCover" mode="aspectFill" />
             <view class="order-info">
               <text class="order-name">{{ detail.order.productName }}</text>
               <text class="order-amount">¥{{ detail.order.amount }}</text>
@@ -153,7 +153,7 @@
           <view v-if="detail.images.length" class="info-block">
             <text class="info-label">凭证图片</text>
             <view class="detail-imgs">
-              <image
+              <image lazy-load
                 v-for="(img, i) in detail.images"
                 :key="i"
                 class="detail-img"
@@ -220,6 +220,7 @@ const view = ref<'create' | 'list' | 'detail'>('create')
 
 const loading = ref(true)
 const error = ref('')
+const orderId = ref('')
 const order = ref<any>(null)
 const disputes = ref<any[]>([])
 const detail = ref<any>(null)
@@ -229,8 +230,8 @@ async function loadData() {
   error.value = ''
   try {
     if (view.value === 'create') {
-      // 从路由参数获取 orderId
-      order.value = await orderApi.getDisputeOrder('')
+      // 从路由参数获取 orderId，加载订单简要供申诉表单展示
+      order.value = await orderApi.getDisputeOrder(orderId.value)
     } else if (view.value === 'list') {
       disputes.value = await orderApi.getDisputes()
     } else {
@@ -271,7 +272,9 @@ onLoad((q) => {
   } catch (e) {
     safeBottom.value = 0
   }
-  if (q && q.view === 'list') view.value = 'list'
+  orderId.value = q?.orderId || q?.id || ''
+  // 无订单上下文则默认进入"我的申诉"列表；带订单则进入创建申诉
+  if (q?.view === 'list' || !orderId.value) view.value = 'list'
 })
 
 onMounted(() => { loadData() })
@@ -326,7 +329,7 @@ async function submit() {
   submitting.value = true
   try {
     uni.showLoading({ title: '提交中...' })
-    await orderApi.submitDispute(order.value?.orderId || '', form.type, form.description, form.expectation, form.images)
+    await orderApi.submitDispute(orderId.value || order.value?.orderId || '', form.type, form.description, form.expectation, form.images)
     uni.hideLoading()
     uni.showToast({ title: '申诉已提交', icon: 'success' })
     setTimeout(() => switchToList(), 1200)
@@ -375,7 +378,7 @@ async function cancelDispute() {
 }
 .nav-right-text {
   font-size: 28rpx;
-  color: #C41E3A;
+  color: var(--brand);
 }
 
 .scroll-area {
@@ -396,7 +399,7 @@ async function cancelDispute() {
   color: #1A1A1A;
 }
 .req {
-  color: #C41E3A;
+  color: var(--brand);
 }
 .section-sub {
   font-size: 22rpx;
@@ -439,7 +442,7 @@ async function cancelDispute() {
   margin-top: auto;
   font-size: 30rpx;
   font-weight: 600;
-  color: #C41E3A;
+  color: var(--brand);
 }
 
 .type-grid {
@@ -460,7 +463,7 @@ async function cancelDispute() {
 }
 .type-cell.active {
   background: rgba(196, 30, 58, 0.06);
-  border-color: #C41E3A;
+  border-color: var(--brand);
 }
 .type-label {
   font-size: 28rpx;
@@ -468,7 +471,7 @@ async function cancelDispute() {
   font-weight: 600;
 }
 .type-label.active {
-  color: #C41E3A;
+  color: var(--brand);
 }
 .type-desc {
   font-size: 22rpx;
@@ -646,7 +649,7 @@ async function cancelDispute() {
   display: block;
   margin-top: 8rpx;
   font-size: 24rpx;
-  color: #C41E3A;
+  color: var(--brand);
 }
 .dispute-time {
   display: block;
@@ -734,7 +737,7 @@ async function cancelDispute() {
   margin-top: 6rpx;
 }
 .tl-dot.done {
-  background: #C41E3A;
+  background: var(--brand);
 }
 .tl-dot.current {
   box-shadow: 0 0 0 6rpx rgba(196, 30, 58, 0.18);
@@ -786,7 +789,7 @@ async function cancelDispute() {
 .submit-btn {
   height: 88rpx;
   border-radius: 999rpx;
-  background: #C41E3A;
+  background: var(--brand);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -811,5 +814,5 @@ async function cancelDispute() {
 .loading { flex: 1; display: flex; align-items: center; justify-content: center; padding-top: 200rpx; font-size: 28rpx; color: #999999; }
 .error-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding-top: 200rpx; gap: 24rpx; }
 .error-state text { font-size: 28rpx; color: #999999; }
-.retry-btn { padding: 16rpx 48rpx; background: #C41E3A; color: #fff; border-radius: 12rpx; font-size: 26rpx; }
+.retry-btn { padding: 16rpx 48rpx; background: var(--brand); color: #fff; border-radius: 12rpx; font-size: 26rpx; }
 </style>

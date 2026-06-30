@@ -32,7 +32,7 @@
           <view class="stat-head">
             <view class="stat-head-left">
               <app-icon name="trending-up" :size="20" color="#fff" />
-              <text class="stat-head-txt">本周学习统计</text>
+              <text class="stat-head-txt">学习概览</text>
             </view>
             <view class="stat-plan" @tap="goPlan">
               <text class="stat-plan-txt">学习计划</text>
@@ -41,28 +41,19 @@
           </view>
           <view class="stat-grid">
             <view class="stat-col">
-              <text class="stat-num">{{ studyStats.todayMinutes }}</text>
-              <text class="stat-label">今日/分钟</text>
+              <text class="stat-num">{{ learningCount }}</text>
+              <text class="stat-label">学习中</text>
             </view>
             <view class="stat-col">
-              <text class="stat-num">{{ studyStats.weekMinutes }}</text>
-              <text class="stat-label">本周/分钟</text>
+              <text class="stat-num">{{ completedCount }}</text>
+              <text class="stat-label">已完结</text>
             </view>
             <view class="stat-col">
               <view class="stat-flame">
                 <app-icon name="flame" :size="20" color="#fde047" />
-                <text class="stat-num">{{ studyStats.streak }}</text>
+                <text class="stat-num">{{ streak }}</text>
               </view>
               <text class="stat-label">连续天数</text>
-            </view>
-          </view>
-          <view class="stat-goal">
-            <view class="stat-goal-row">
-              <text class="stat-goal-label">今日目标</text>
-              <text class="stat-goal-val">{{ studyStats.todayMinutes }}/{{ studyStats.todayGoal }}分钟</text>
-            </view>
-            <view class="stat-goal-track">
-              <view class="stat-goal-fill" :style="{ width: todayGoalPct + '%' }" />
             </view>
           </view>
         </view>
@@ -70,8 +61,15 @@
 
       <!-- 课程列表 -->
       <view class="list">
+        <!-- 加载态 -->
+        <view v-if="loading" class="state-box"><text class="state-txt">加载中...</text></view>
+        <!-- 错误态 -->
+        <view v-else-if="error" class="state-box">
+          <text class="state-txt">{{ error }}</text>
+          <view class="state-btn" @tap="fetchData"><text class="state-btn-txt">重试</text></view>
+        </view>
         <!-- 空态 -->
-        <view v-if="filteredCourses.length === 0" class="empty">
+        <view v-else-if="filteredCourses.length === 0" class="empty">
           <view class="empty-icon">
             <app-icon name="book-open" :size="40" color="#C9A96E" />
           </view>
@@ -81,7 +79,7 @@
 
         <!-- 课程卡 -->
         <view
-          v-for="c in filteredCourses"
+          v-for="c in (loading || error ? [] : filteredCourses)"
           :key="c.id"
           class="ccard"
           @tap="openCourse(c)"
@@ -89,7 +87,7 @@
           <view class="ccard-main">
             <!-- 封面 -->
             <view class="ccard-cover">
-              <image :src="c.cover" mode="aspectFill" class="ccard-img" />
+              <image lazy-load :src="c.cover" mode="aspectFill" class="ccard-img" />
               <view v-if="c.status === 'completed'" class="ccard-cover-mask">
                 <view class="ccard-award">
                   <app-icon name="award" :size="16" color="#fff" />
@@ -136,12 +134,6 @@
           <view v-if="c.status !== 'completed' && c.lastLesson" class="ccard-last">
             <text class="ccard-last-txt">上次学到: {{ c.lastLesson }}</text>
           </view>
-
-          <!-- 过期提醒 -->
-          <view v-if="c.status !== 'completed' && expireDays(c) !== null && expireDays(c)! <= 7 && expireDays(c)! > 0" class="ccard-expire">
-            <app-icon name="alert-triangle" :size="14" color="#d97706" />
-            <text class="ccard-expire-txt">课程将在{{ expireDays(c) }}天后过期，请尽快学习</text>
-          </view>
         </view>
       </view>
     </scroll-view>
@@ -149,63 +141,19 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
+import { mineApi, type MyCourseItem } from '@/lib/mine-data'
 
 type TabId = 'learning' | 'completed'
 
-interface Course {
-  id: string
-  title: string
-  cover: string
-  instructor: string
-  totalLessons: number
-  completedLessons: number
-  progressPercent: number
-  status: 'learning' | 'completed'
-  lastStudyAt?: string
-  lastLesson?: string
-  expireAt?: string
-}
-
-const studyStats = {
-  todayMinutes: 45,
-  weekMinutes: 280,
-  streak: 7,
-  todayGoal: 60,
-}
-const todayGoalPct = Math.min(100, (studyStats.todayMinutes / studyStats.todayGoal) * 100)
-
 const day = 24 * 60 * 60 * 1000
-const courses = ref<Course[]>([
-  {
-    id: '1', title: '八字命理入门到精通',
-    cover: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=300&fit=crop',
-    instructor: '张明远', totalLessons: 32, completedLessons: 18, progressPercent: 56,
-    status: 'learning', lastStudyAt: new Date(Date.now() - 0 * day).toISOString(),
-    lastLesson: '第18课：大运流年的推算', expireAt: new Date(Date.now() + 7 * day).toISOString(),
-  },
-  {
-    id: '2', title: '紫微斗数零基础入门',
-    cover: 'https://images.unsplash.com/photo-1516321497487-e288fb19713f?w=400&h=300&fit=crop',
-    instructor: '李玄机', totalLessons: 24, completedLessons: 8, progressPercent: 33,
-    status: 'learning', lastStudyAt: new Date(Date.now() - 1 * day).toISOString(),
-    lastLesson: '第8课：命宫的奥秘', expireAt: new Date(Date.now() + 30 * day).toISOString(),
-  },
-  {
-    id: '3', title: '风水堪舆实战课程',
-    cover: 'https://images.unsplash.com/photo-1513475382585-d06e58bcb0e0?w=400&h=300&fit=crop',
-    instructor: '王德华', totalLessons: 20, completedLessons: 20, progressPercent: 100,
-    status: 'completed',
-  },
-  {
-    id: '4', title: '易经六十四卦详解',
-    cover: 'https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=400&h=300&fit=crop',
-    instructor: '赵无极', totalLessons: 64, completedLessons: 64, progressPercent: 100,
-    status: 'completed',
-  },
-])
+
+const courses = ref<MyCourseItem[]>([])
+const streak = ref(0)
+const loading = ref(true)
+const error = ref('')
 
 const tabs = [
   { id: 'learning', label: '学习中' },
@@ -214,9 +162,28 @@ const tabs = [
 const activeTab = ref<TabId>('learning')
 const isRefreshing = ref(false)
 
+const learningCount = computed(() => courses.value.filter((c) => c.status === 'learning').length)
+const completedCount = computed(() => courses.value.filter((c) => c.status === 'completed').length)
 const filteredCourses = computed(() => courses.value.filter((c) => c.status === activeTab.value))
 
-function fmtDate(iso: string) {
+async function fetchData() {
+  loading.value = true
+  error.value = ''
+  try {
+    const res = await mineApi.getMyCourses()
+    courses.value = res.courses
+    streak.value = res.streak
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(fetchData)
+
+function fmtDate(iso?: string) {
+  if (!iso) return ''
   const diff = Date.now() - new Date(iso).getTime()
   const days = Math.floor(diff / day)
   if (days === 0) return '今天'
@@ -225,20 +192,16 @@ function fmtDate(iso: string) {
   const d = new Date(iso)
   return `${d.getMonth() + 1}月${d.getDate()}日`
 }
-function expireDays(c: Course): number | null {
-  if (!c.expireAt) return null
-  return Math.ceil((new Date(c.expireAt).getTime() - Date.now()) / day)
-}
-function refresh() {
+async function refresh() {
   if (isRefreshing.value) return
   isRefreshing.value = true
-  setTimeout(() => (isRefreshing.value = false), 600)
+  try { await fetchData() } finally { isRefreshing.value = false }
 }
-function openCourse(c: Course) {
+function openCourse(c: MyCourseItem) {
   if (c.status === 'completed') navigateTo(`/courses/${c.id}`)
   else navigateTo(`/courses/${c.id}/learn`)
 }
-function continueStudy(c: Course) {
+function continueStudy(c: MyCourseItem) {
   navigateTo(`/courses/${c.id}/player`)
 }
 function goPlan() {
@@ -300,7 +263,7 @@ function goCourseList() {
   color: #666666;
 }
 .tab-active .tab-txt {
-  color: #c41e3a;
+  color: var(--brand);
 }
 .tab-line {
   position: absolute;
@@ -309,7 +272,7 @@ function goCourseList() {
   transform: translateX(-50%);
   width: 48rpx;
   height: 4rpx;
-  background: #c41e3a;
+  background: var(--brand);
   border-radius: 999rpx;
 }
 .scroll-area {
@@ -321,7 +284,7 @@ function goCourseList() {
   padding: 32rpx 32rpx 16rpx;
 }
 .stat-card {
-  background: linear-gradient(135deg, #c41e3a, #e74c3c);
+  background: linear-gradient(135deg, var(--brand), #e74c3c);
   border-radius: 32rpx;
   padding: 32rpx;
   color: #fff;
@@ -410,6 +373,26 @@ function goCourseList() {
 .list {
   padding: 32rpx;
 }
+.state-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24rpx;
+  padding: 120rpx 0;
+}
+.state-txt {
+  font-size: 28rpx;
+  color: #999999;
+}
+.state-btn {
+  padding: 16rpx 48rpx;
+  background: var(--brand);
+  border-radius: 12rpx;
+}
+.state-btn-txt {
+  font-size: 26rpx;
+  color: #fff;
+}
 .empty {
   display: flex;
   flex-direction: column;
@@ -434,7 +417,7 @@ function goCourseList() {
 .empty-link {
   font-size: 26rpx;
   font-weight: 500;
-  color: #c41e3a;
+  color: var(--brand);
 }
 
 /* 课程卡 */
@@ -516,7 +499,7 @@ function goCourseList() {
   font-weight: 500;
 }
 .c-red {
-  color: #c41e3a;
+  color: var(--brand);
 }
 .c-gold {
   color: #c9a96e;
@@ -532,7 +515,7 @@ function goCourseList() {
   border-radius: 999rpx;
 }
 .fill-red {
-  background: linear-gradient(90deg, #c41e3a, #e74c3c);
+  background: linear-gradient(90deg, var(--brand), #e74c3c);
 }
 .fill-gold {
   background: linear-gradient(90deg, #c9a96e, #d4b896);
@@ -561,7 +544,7 @@ function goCourseList() {
   align-items: center;
   gap: 4rpx;
   padding: 8rpx 20rpx;
-  background: #c41e3a;
+  background: var(--brand);
   border-radius: 999rpx;
 }
 .ccard-continue-txt {

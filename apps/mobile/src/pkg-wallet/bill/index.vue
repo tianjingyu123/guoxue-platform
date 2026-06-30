@@ -246,7 +246,7 @@ function goBack() {
 <style scoped>
 .page { min-height: 100vh; background: #FAF8F5; display: flex; flex-direction: column; }
 
-.topbar { background: linear-gradient(90deg, #C41E3A 0%, #A01830 100%); }
+.topbar { background: linear-gradient(90deg, var(--brand) 0%, #A01830 100%); }
 .topbar-inner { height: 88rpx; display: flex; align-items: center; justify-content: space-between; padding: 0 16rpx; }
 .tb-btn { width: 64rpx; height: 64rpx; display: flex; align-items: center; justify-content: center; }
 .tb-title { font-size: 32rpx; font-weight: 600; color: #FFFFFF; }
@@ -254,7 +254,7 @@ function goBack() {
 .period-bar { background: #FFFFFF; padding: 20rpx 32rpx; border-bottom: 1rpx solid #E8E3DB; display: flex; align-items: center; justify-content: space-between; }
 .seg { display: flex; gap: 16rpx; }
 .seg-item { font-size: 26rpx; color: #666666; background: #FAF8F5; padding: 10rpx 28rpx; border-radius: 999rpx; }
-.seg-item.active { background: #C41E3A; color: #FFFFFF; }
+.seg-item.active { background: var(--brand); color: #FFFFFF; }
 .period-nav { display: flex; align-items: center; gap: 12rpx; }
 .pn-btn { width: 48rpx; height: 48rpx; display: flex; align-items: center; justify-content: center; }
 .pn-label { font-size: 28rpx; font-weight: 500; color: #2C2C2C; min-width: 160rpx; text-align: center; }
@@ -267,17 +267,17 @@ function goBack() {
 .ring-hole { width: 140rpx; height: 140rpx; background: #FFFFFF; border-radius: 999rpx; display: flex; flex-direction: column; align-items: center; justify-content: center; }
 .ring-label { font-size: 22rpx; color: #999999; }
 .ring-val { font-size: 34rpx; font-weight: 700; color: #4CAF50; }
-.ring-val.neg { color: #C41E3A; }
+.ring-val.neg { color: var(--brand); }
 .ov-data { flex: 1; display: flex; flex-direction: column; gap: 32rpx; }
 .ov-row { display: flex; align-items: center; justify-content: space-between; }
 .ov-left { display: flex; align-items: center; gap: 12rpx; }
 .dot { width: 20rpx; height: 20rpx; border-radius: 999rpx; }
 .dot.income { background: #4CAF50; }
-.dot.expense { background: #C41E3A; }
+.dot.expense { background: var(--brand); }
 .ov-name { font-size: 26rpx; color: #666666; }
 .ov-amt { font-size: 30rpx; font-weight: 600; }
 .ov-amt.income { color: #4CAF50; }
-.ov-amt.expense { color: #C41E3A; }
+.ov-amt.expense { color: var(--brand); }
 
 .cat-card { margin: 0 32rpx 32rpx; background: #FFFFFF; border-radius: 24rpx; overflow: hidden; box-shadow: 0 2rpx 16rpx rgba(0,0,0,0.04); }
 .cat-head { padding: 24rpx 32rpx; border-bottom: 1rpx solid #E8E3DB; }
@@ -303,6 +303,6 @@ function goBack() {
 .sub-amt.income { color: #4CAF50; }
 
 .footer { background: #FFFFFF; border-top: 1rpx solid #E8E3DB; padding: 24rpx 32rpx calc(24rpx + env(safe-area-inset-bottom)); }
-.export-btn { height: 96rpx; background: #C41E3A; border-radius: 20rpx; display: flex; align-items: center; justify-content: center; gap: 12rpx; }
+.export-btn { height: 96rpx; background: var(--brand); border-radius: 20rpx; display: flex; align-items: center; justify-content: center; gap: 12rpx; }
 .export-txt { font-size: 30rpx; font-weight: 600; color: #FFFFFF; }
 </style>

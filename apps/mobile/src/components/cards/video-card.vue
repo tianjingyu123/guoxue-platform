@@ -3,17 +3,21 @@
 import { computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
+import { track } from '@/composables/useTrack'
 import { type VideoCardData, normalizeRatio, formatCount } from '@/lib/card-utils'
 
 const props = defineProps<{ data: VideoCardData }>()
 const ratio = computed(() => normalizeRatio(props.data.coverRatio))
-function open() { navigateTo(`/video/${props.data.id}`) }
+function open() {
+  track.click('video_card', { id: props.data.id })
+  navigateTo(`/video/${props.data.id}`)
+}
 </script>
 
 <template>
   <view class="card" hover-class="card-press" @tap="open">
     <view class="cover" :class="ratio === '1:1' ? 'r-sq' : 'r-34'">
-      <image v-if="data.cover" class="cover-img" :src="data.cover" mode="aspectFill" />
+      <image v-if="data.cover" class="cover-img" :src="data.cover" mode="aspectFill" lazy-load />
       <text class="type-badge">视频</text>
       <!-- 播放按钮 -->
       <view class="play"><AppIcon name="play" :size="40" color="#ffffff" :fill="true" /></view>

@@ -1,27 +1,34 @@
 <script setup lang="ts">
 /**
- * 咨询订单（从原型 app/circles/[id]/consult/orders/page.tsx 高保真迁移）
- * 汇总卡(累计消费/完成订单/通话次数) + 状态筛选 + 订单列表卡。
+ * 咨询订单（真连后端 GET /question）—— 图文问答订单
+ * 我在本圈的图文问答记录：我提问的 + 我作为达人被提问的。circleId 由 onLoad 带入。
+ * 后端按 circleId + participantId（asker OR answerer）维度精确筛选（不再前端过滤降级）。
+ * 注：本页仅图文问答（电话连麦订单属通话子系统，另页处理），故汇总不含「通话次数」。
+ * 金额单位为金币（后端资金以币计，非现金 ¥）。三态齐全；点击进详情。
  */
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
-import { goBack } from '@/utils/router'
+import { goBack, navigateTo } from '@/utils/router'
+import { questionApi, getCurrentUserId, splitQuestion, type PaidQuestion } from '@/lib/circle-consult-data'
 
 type OrderStatus = 'all' | 'completed' | 'pending' | 'refunded'
 
-interface Order {
-  id: string; orderNo: string; expert: string; avatar: string
-  type: 'call' | 'text'; amount: string; status: 'completed' | 'pending' | 'refunded'
-  createdAt: string; desc: string
-}
+const circleId = ref('')
+const myId = ref('')
+const loading = ref(true)
+const error = ref('')
+const all = ref<PaidQuestion[]>([])
 
-const mockOrders: Order[] = [
-  { id: '1', orderNo: 'CS202401200001', expert: '周易大师', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80', type: 'call', amount: '¥84.00', status: 'completed', createdAt: '2024-01-20', desc: '电话咨询 28分钟' },
-  { id: '2', orderNo: 'CS202401180002', expert: '张玄风', avatar: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=80', type: 'text', amount: '¥30.00', status: 'completed', createdAt: '2024-01-18', desc: '图文咨询' },
-  { id: '3', orderNo: 'CS202401220003', expert: '李玄机', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=80', type: 'text', amount: '¥80.00', status: 'pending', createdAt: '2024-01-22', desc: '图文咨询（待回复）' },
-  { id: '4', orderNo: 'CS202401100004', expert: '王德华', avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=80', type: 'call', amount: '¥126.00', status: 'completed', createdAt: '2024-01-10', desc: '电话咨询 42分钟' },
-  { id: '5', orderNo: 'CS202401050005', expert: '林奇门', avatar: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=80', type: 'call', amount: '¥0.00', status: 'refunded', createdAt: '2024-01-05', desc: '已退款' },
-]
+const filterTabs: OrderStatus[] = ['all', 'completed', 'pending', 'refunded']
+const filter = ref<OrderStatus>('all')
+
+/** 后端状态 → 订单三态 */
+function bucket(q: PaidQuestion): Exclude<OrderStatus, 'all'> {
+  if (q.status === 'ANSWERED') return 'completed'
+  if (q.status === 'PENDING') return 'pending'
+  return 'refunded' // REFUNDED / REJECTED / EXPIRED / CLOSED
+}
 
 const STATUS_CFG: Record<Exclude<OrderStatus, 'all'>, { label: string; icon: string; color: string }> = {
   completed: { label: '已完成', icon: 'check-circle', color: '#16A34A' },
@@ -29,15 +36,41 @@ const STATUS_CFG: Record<Exclude<OrderStatus, 'all'>, { label: string; icon: str
   refunded: { label: '已退款', icon: 'x-circle', color: '#999999' },
 }
 
-const filter = ref<OrderStatus>('all')
-const filterTabs: OrderStatus[] = ['all', 'completed', 'pending', 'refunded']
+// 后端已按 participantId（我提问的 + 我回答的）维度筛选，列表即「我的订单」
+const mine = computed(() => all.value)
+const filtered = computed(() => filter.value === 'all' ? mine.value : mine.value.filter(q => bucket(q) === filter.value))
 
-const filtered = computed(() => filter.value === 'all' ? mockOrders : mockOrders.filter(o => o.status === filter.value))
-const totalSpent = computed(() => mockOrders.filter(o => o.status === 'completed').reduce((s, o) => s + parseFloat(o.amount.replace('¥', '')), 0))
-const completedCount = computed(() => mockOrders.filter(o => o.status === 'completed').length)
-const callCount = computed(() => mockOrders.filter(o => o.type === 'call').length)
+// 汇总：累计消费=我作为提问者且未退款的支付金币；问答总数；已回答数
+const totalSpent = computed(() =>
+  mine.value.filter(q => q.askerId === myId.value && bucket(q) !== 'refunded').reduce((s, q) => s + q.priceCoin, 0),
+)
+const totalCount = computed(() => mine.value.length)
+const answeredCount = computed(() => mine.value.filter(q => q.status === 'ANSWERED').length)
 
 function tabLabel(f: OrderStatus) { return f === 'all' ? '全部' : STATUS_CFG[f].label }
+function roleLabel(q: PaidQuestion) { return q.askerId === myId.value ? '我提问' : '我回答' }
+function counterpart(q: PaidQuestion) { return q.askerId === myId.value ? q.answerer : q.asker }
+function fmtDate(s: string) { return s ? String(s).slice(0, 10) : '' }
+
+async function load() {
+  if (!circleId.value) { error.value = '缺少圈子参数'; loading.value = false; return }
+  if (!myId.value) { error.value = '请先登录'; loading.value = false; return }
+  loading.value = true
+  error.value = ''
+  try {
+    const res = await questionApi.list({ circleId: circleId.value, participantId: myId.value, page: 1, pageSize: 100 })
+    all.value = res.items
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+function openDetail(id: string) { navigateTo(`/pkg-circle/circles/question-detail?id=${id}`) }
+
+onLoad((opt) => { circleId.value = (opt?.circleId || opt?.id || '') as string })
+onMounted(() => { myId.value = getCurrentUserId(); load() })
 </script>
 
 <template>
@@ -48,9 +81,9 @@ function tabLabel(f: OrderStatus) { return f === 'all' ? '全部' : STATUS_CFG[f
     </view>
 
     <view class="co-summary">
-      <view class="co-sum-item"><text class="co-sum-num is-primary">¥{{ totalSpent.toFixed(2) }}</text><text class="co-sum-label">累计消费</text></view>
-      <view class="co-sum-item"><text class="co-sum-num">{{ completedCount }}</text><text class="co-sum-label">完成订单</text></view>
-      <view class="co-sum-item"><text class="co-sum-num">{{ callCount }}</text><text class="co-sum-label">通话次数</text></view>
+      <view class="co-sum-item"><text class="co-sum-num is-primary">{{ totalSpent }}</text><text class="co-sum-label">累计消费(币)</text></view>
+      <view class="co-sum-item"><text class="co-sum-num">{{ totalCount }}</text><text class="co-sum-label">问答总数</text></view>
+      <view class="co-sum-item"><text class="co-sum-num">{{ answeredCount }}</text><text class="co-sum-label">已回答</text></view>
     </view>
 
     <scroll-view scroll-x class="co-filters" :show-scrollbar="false">
@@ -61,34 +94,41 @@ function tabLabel(f: OrderStatus) { return f === 'all' ? '全部' : STATUS_CFG[f
       </view>
     </scroll-view>
 
-    <view class="co-list">
-      <view v-for="o in filtered" :key="o.id" class="co-card">
+    <!-- 三态 -->
+    <view v-if="loading" class="co-state"><text class="co-state-t">加载中…</text></view>
+    <view v-else-if="error" class="co-state">
+      <text class="co-state-t">{{ error }}</text>
+      <view class="co-retry" @tap="load"><text class="co-retry-t">重试</text></view>
+    </view>
+    <view v-else-if="filtered.length === 0" class="co-state"><text class="co-state-t">暂无订单</text></view>
+
+    <view v-else class="co-list">
+      <view v-for="o in filtered" :key="o.id" class="co-card" @tap="openDetail(o.id)">
         <view class="co-card-head">
-          <text class="co-order-no">订单号：{{ o.orderNo }}</text>
+          <text class="co-order-no">订单号：{{ o.id.slice(0, 8).toUpperCase() }}</text>
           <view class="co-status">
-            <app-icon :name="STATUS_CFG[o.status].icon" :size="22" :color="STATUS_CFG[o.status].color" />
-            <text class="co-status-t" :style="{ color: STATUS_CFG[o.status].color }">{{ STATUS_CFG[o.status].label }}</text>
+            <app-icon :name="STATUS_CFG[bucket(o)].icon" :size="22" :color="STATUS_CFG[bucket(o)].color" />
+            <text class="co-status-t" :style="{ color: STATUS_CFG[bucket(o)].color }">{{ STATUS_CFG[bucket(o)].label }}</text>
           </view>
         </view>
         <view class="co-card-body">
-          <image class="co-avatar" :src="o.avatar" mode="aspectFill" />
+          <image lazy-load class="co-avatar" :src="counterpart(o)?.avatar || ''" mode="aspectFill" />
           <view class="co-info">
             <view class="co-info-top">
-              <text class="co-expert">{{ o.expert }}</text>
+              <text class="co-expert">{{ counterpart(o)?.nickname || '用户' }}</text>
               <view class="co-type">
-                <app-icon :name="o.type === 'call' ? 'phone' : 'message-square'" :size="20" color="#999999" />
-                <text class="co-type-t">{{ o.type === 'call' ? '电话' : '图文' }}</text>
+                <app-icon name="message-square" :size="20" color="#999999" />
+                <text class="co-type-t">图文 · {{ roleLabel(o) }}</text>
               </view>
             </view>
-            <text class="co-desc">{{ o.desc }}</text>
+            <text class="co-desc">{{ splitQuestion(o.question).title || splitQuestion(o.question).body }}</text>
           </view>
           <view class="co-amount-wrap">
-            <text class="co-amount" :class="{ 'is-refunded': o.status === 'refunded' }">{{ o.amount }}</text>
-            <text class="co-date">{{ o.createdAt }}</text>
+            <text class="co-amount" :class="{ 'is-refunded': bucket(o) === 'refunded' }">{{ o.priceCoin }}币</text>
+            <text class="co-date">{{ fmtDate(o.createdAt) }}</text>
           </view>
         </view>
       </view>
-      <view v-if="filtered.length === 0" class="co-empty"><text class="co-empty-t">暂无订单</text></view>
     </view>
   </view>
 </template>
@@ -101,14 +141,18 @@ function tabLabel(f: OrderStatus) { return f === 'all' ? '全部' : STATUS_CFG[f
 .co-summary { display: flex; gap: 32rpx; margin: 24rpx; padding: 28rpx; background: rgba(196,30,58,0.05); border: 1rpx solid rgba(196,30,58,0.2); border-radius: 20rpx; }
 .co-sum-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6rpx; }
 .co-sum-num { font-size: 38rpx; font-weight: 700; color: #2C2C2C; }
-.co-sum-num.is-primary { color: #C41E3A; }
+.co-sum-num.is-primary { color: var(--brand); }
 .co-sum-label { font-size: 22rpx; color: #999; }
 .co-filters { white-space: nowrap; padding: 8rpx 24rpx 16rpx; }
 .co-filters-inner { display: inline-flex; gap: 16rpx; }
 .co-filter { padding: 12rpx 28rpx; border-radius: 999rpx; background: #ECE6D8; }
-.co-filter.is-active { background: #C41E3A; }
+.co-filter.is-active { background: var(--brand); }
 .co-filter-t { font-size: 26rpx; color: #2C2C2C; font-weight: 500; }
 .co-filter-t.is-active { color: #fff; }
+.co-state { padding: 140rpx 0; display: flex; flex-direction: column; align-items: center; gap: 24rpx; }
+.co-state-t { font-size: 26rpx; color: #999; }
+.co-retry { padding: 12rpx 48rpx; border-radius: 999rpx; background: var(--brand); }
+.co-retry-t { font-size: 26rpx; color: #fff; }
 .co-list { display: flex; flex-direction: column; gap: 20rpx; padding: 8rpx 24rpx 0; }
 .co-card { background: #fff; border: 1rpx solid #E8E0D0; border-radius: 20rpx; padding: 24rpx; }
 .co-card-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20rpx; }
@@ -116,17 +160,15 @@ function tabLabel(f: OrderStatus) { return f === 'all' ? '全部' : STATUS_CFG[f
 .co-status { display: flex; align-items: center; gap: 6rpx; }
 .co-status-t { font-size: 22rpx; }
 .co-card-body { display: flex; align-items: center; gap: 16rpx; }
-.co-avatar { width: 72rpx; height: 72rpx; border-radius: 50%; flex-shrink: 0; }
+.co-avatar { width: 72rpx; height: 72rpx; border-radius: 50%; flex-shrink: 0; background: #ECE6D8; }
 .co-info { flex: 1; min-width: 0; }
 .co-info-top { display: flex; align-items: center; gap: 12rpx; }
 .co-expert { font-size: 28rpx; font-weight: 500; color: #2C2C2C; }
 .co-type { display: flex; align-items: center; gap: 4rpx; }
 .co-type-t { font-size: 22rpx; color: #999; }
-.co-desc { display: block; font-size: 22rpx; color: #999; margin-top: 6rpx; }
+.co-desc { display: block; font-size: 22rpx; color: #999; margin-top: 6rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .co-amount-wrap { text-align: right; flex-shrink: 0; }
-.co-amount { display: block; font-size: 28rpx; font-weight: 700; color: #C41E3A; }
+.co-amount { display: block; font-size: 28rpx; font-weight: 700; color: var(--brand); }
 .co-amount.is-refunded { text-decoration: line-through; color: #999; }
 .co-date { display: block; font-size: 20rpx; color: #999; margin-top: 6rpx; }
-.co-empty { padding: 120rpx 0; }
-.co-empty-t { display: block; text-align: center; font-size: 26rpx; color: #999; }
 </style>

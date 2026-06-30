@@ -1,191 +1,183 @@
 <template>
   <view class="page">
-    <!-- 头部 -->
     <view class="nav" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="nav-bar">
-        <view class="nav-back" @tap="goBack">
-          <app-icon name="chevron-left" :size="22" color="#1a1a1a" />
-        </view>
-        <text class="nav-title">我的任务</text>
+        <view class="nav-back" @tap="goBack"><app-icon name="chevron-left" :size="22" color="#1a1a1a" /></view>
+        <text class="nav-title">我的会籍</text>
         <view class="nav-placeholder" />
       </view>
     </view>
 
     <scroll-view scroll-y class="scroll" :style="{ height: scrollHeight + 'px' }">
-      <!-- 累计奖励统计 -->
-      <view class="reward-card">
-        <view>
-          <text class="reward-label">累计奖励</text>
-          <view class="reward-value-row">
-            <text class="reward-value">{{ taskStats.totalReward }}</text>
-            <text class="reward-unit">积分</text>
-          </view>
-        </view>
-        <app-icon name="coins" :size="40" color="rgba(196,30,58,0.3)" />
+      <!-- 加载/错误态 -->
+      <view v-if="loading" class="state-box">
+        <view class="spinner" />
+        <text class="state-text">加载中…</text>
+      </view>
+      <view v-else-if="errMsg" class="state-box">
+        <app-icon name="alert-circle" :size="40" color="#d1d5db" />
+        <text class="state-text">{{ errMsg }}</text>
+        <view class="retry-btn" @tap="load"><text class="retry-text">重试</text></view>
       </view>
 
-      <!-- Tab 切换 -->
-      <view class="tabs">
-        <view
-          v-for="tab in tabs"
-          :key="tab.key"
-          class="tab"
-          :class="{ 'tab-active': activeTab === tab.key }"
-          @tap="activeTab = tab.key"
-        >
-          <text class="tab-text" :class="{ 'tab-text-active': activeTab === tab.key }">{{ tab.label }}</text>
-          <text v-if="tab.count > 0" class="tab-badge" :class="{ 'tab-badge-active': activeTab === tab.key }">{{ tab.count }}</text>
-          <view v-if="activeTab === tab.key" class="tab-underline" />
-        </view>
+      <!-- 未入会 -->
+      <view v-else-if="!member" class="state-box">
+        <app-icon name="graduation-cap" :size="52" color="#d1d5db" />
+        <text class="state-text">你还不是研究院成员</text>
+        <view class="retry-btn" @tap="goApply"><text class="retry-text">申请加入研究院</text></view>
       </view>
 
-      <!-- 任务列表 -->
-      <view class="list">
-        <view v-if="filteredTasks.length === 0" class="empty">
-          <view class="empty-icon">
-            <app-icon name="file-text" :size="32" color="#9ca3af" />
+      <template v-else>
+        <!-- 会籍卡 -->
+        <view class="member-card">
+          <view class="mc-top">
+            <text class="mc-name">{{ memberName(member.user) }}</text>
+            <text class="mc-status" :style="{ color: memberStatusColor[member.status].color, background: memberStatusColor[member.status].bg }">{{ memberStatusLabel[member.status] }}</text>
           </view>
-          <text class="empty-text">{{ emptyText }}</text>
+          <view class="mc-badges">
+            <text class="mc-badge" :style="{ color: roleColor[member.role].color, background: roleColor[member.role].bg }">{{ roleLabel[member.role] }}</text>
+            <text v-if="member.lecturerLevel !== 'NONE'" class="mc-badge" :style="{ color: lecturerLevelColor[member.lecturerLevel].color, background: lecturerLevelColor[member.lecturerLevel].bg }">{{ lecturerLevelLabel[member.lecturerLevel] }}</text>
+          </view>
+          <view class="mc-meta">
+            <text class="mc-meta-text">{{ member.joinYear }} 年加入</text>
+            <text v-if="member.expireStatus.expireAt" class="mc-meta-text">会籍至 {{ fmtDate(member.expireStatus.expireAt) }}</text>
+          </view>
+          <view v-if="member.status === 'PENDING'" class="mc-pending">
+            <app-icon name="clock" :size="14" color="#ea580c" />
+            <text class="mc-pending-text">入会申请审核中，通过后正式生效</text>
+          </view>
         </view>
 
-        <view v-for="task in filteredTasks" :key="task.id" class="task-card">
-          <view class="task-body">
-            <!-- 标题行 -->
-            <view class="task-head">
-              <view class="task-head-left">
-                <view class="type-badge" :style="{ color: taskTypeColor[task.type].color, background: taskTypeColor[task.type].bg }">
-                  <app-icon :name="typeIcon(task.type)" :size="13" :color="taskTypeColor[task.type].color" />
-                  <text class="type-badge-text" :style="{ color: taskTypeColor[task.type].color }">{{ taskTypeLabel[task.type] }}</text>
+        <!-- 管理端入口（仅管理层）-->
+        <view v-if="isManagement(member.role)" class="manage-entry" @tap="goManage">
+          <view class="manage-left">
+            <app-icon name="shield" :size="20" color="#c41e3a" />
+            <view>
+              <text class="manage-title">研究院管理</text>
+              <text class="manage-sub">成员审批 · 角色任命 · 财务分红</text>
+            </view>
+          </view>
+          <app-icon name="chevron-right" :size="18" color="#c41e3a" />
+        </view>
+
+        <!-- 任务进度 -->
+        <view class="card">
+          <view class="card-head">
+            <text class="card-title">分享任务进度</text>
+            <text class="progress-num">{{ member.taskProgress.verified }}/{{ member.taskProgress.total }}</text>
+          </view>
+          <view class="progress-bar"><view class="progress-fill" :style="{ width: progressPct + '%' }" /></view>
+          <text class="progress-hint">完成 {{ member.taskProgress.total }} 项年度任务且全部通过验证，年度结束可全额退还会费</text>
+        </view>
+
+        <!-- 押金/退费 -->
+        <view class="card">
+          <text class="card-title">会费 / 保证金</text>
+          <view class="deposit-row">
+            <view>
+              <text class="deposit-amount">¥{{ num(member.depositStatus.deposited).toLocaleString() }}</text>
+              <text class="deposit-label">已缴会费</text>
+            </view>
+            <view
+              v-if="!member.depositStatus.refunded"
+              class="deposit-btn"
+              :class="{ 'deposit-btn-disabled': !member.depositStatus.canRefund || refunding }"
+              @tap="onRefund"
+            >
+              <text class="deposit-btn-text">{{ refunding ? '提交中…' : '申请退费' }}</text>
+            </view>
+            <view v-else class="deposit-done">
+              <app-icon name="check-circle" :size="16" color="#16a34a" />
+              <text class="deposit-done-text">已退还</text>
+            </view>
+          </view>
+          <text v-if="!member.depositStatus.refunded && !member.depositStatus.canRefund" class="deposit-cond">{{ member.depositStatus.refundCondition }}</text>
+        </view>
+
+        <!-- 我的任务 -->
+        <view class="card">
+          <text class="card-title">我的任务</text>
+          <view v-if="tasks.length === 0" class="mini-empty"><text class="mini-empty-text">暂无分配的任务</text></view>
+          <view v-else class="task-list">
+            <view v-for="t in tasks" :key="t.id" class="task-card">
+              <view class="task-top">
+                <view class="task-head-left">
+                  <text class="type-badge" :style="{ color: taskTypeColor[t.taskType].color, background: taskTypeColor[t.taskType].bg }">{{ taskTypeLabel[t.taskType] }}</text>
+                  <text class="task-title">{{ t.title }}</text>
                 </view>
-                <text class="task-title">{{ task.title }}</text>
+                <text class="status-badge" :style="{ color: taskStatusColor[t.status].color, background: taskStatusColor[t.status].bg }">{{ taskStatusLabel[t.status] }}</text>
               </view>
-              <text class="status-badge" :style="{ color: taskStatusColor[task.status].color, background: taskStatusColor[task.status].bg }">{{ taskStatusLabel[task.status] }}</text>
-            </view>
-
-            <!-- 描述 -->
-            <text class="task-desc">{{ task.description }}</text>
-
-            <!-- 要求 -->
-            <view v-if="task.requirements && task.requirements.length" class="req">
-              <text class="req-label">任务要求：</text>
-              <view class="req-tags">
-                <text v-for="(r, i) in task.requirements.slice(0, 3)" :key="i" class="req-tag">{{ r }}</text>
-                <text v-if="task.requirements.length > 3" class="req-more">+{{ task.requirements.length - 3 }}</text>
+              <text v-if="t.description" class="task-desc">{{ t.description }}</text>
+              <view class="task-foot">
+                <text v-if="t.completedAt" class="task-date">完成于 {{ fmtDate(t.completedAt) }}</text>
+                <text v-else class="task-date">进行中</text>
+                <view
+                  v-if="t.status === 'PENDING'"
+                  class="task-btn"
+                  :class="{ 'task-btn-disabled': completingId === t.id }"
+                  @tap="onComplete(t)"
+                >
+                  <text class="task-btn-text">{{ completingId === t.id ? '提交中…' : '提交完成' }}</text>
+                </view>
+                <view v-else-if="t.status === 'COMPLETED'" class="task-hint">
+                  <text class="task-hint-text" style="color:#ea580c">等待管理层验证</text>
+                </view>
+                <view v-else class="task-hint">
+                  <app-icon name="check-circle" :size="13" color="#16a34a" />
+                  <text class="task-hint-text" style="color:#16a34a">已通过验证</text>
+                </view>
               </view>
-            </view>
-
-            <!-- 信息行 -->
-            <view class="info-row">
-              <view class="info-item">
-                <app-icon name="clock" :size="14" color="#6b7280" />
-                <text class="info-text" :class="{ 'info-expired': daysLeft(task.deadline) === '已过期' }">{{ daysLeft(task.deadline) }}</text>
-              </view>
-              <view class="info-item">
-                <app-icon name="gift" :size="14" color="#c41e3a" />
-                <text class="info-reward">{{ task.reward.points }}积分</text>
-                <text v-if="task.reward.bonus" class="info-bonus">+¥{{ task.reward.bonus }}</text>
-              </view>
-            </view>
-
-            <!-- 已提交内容 -->
-            <view v-if="task.submission" class="submission">
-              <text class="submission-label">已提交内容：</text>
-              <text class="submission-content">{{ task.submission.content }}</text>
-              <text class="submission-time">提交于 {{ task.submission.submittedAt }}</text>
-            </view>
-          </view>
-
-          <!-- 操作按钮 -->
-          <view class="task-actions">
-            <view v-if="task.status === 'available'" class="btn btn-primary" @tap="acceptTask(task)">
-              <text class="btn-primary-text">领取任务</text>
-            </view>
-            <template v-else-if="task.status === 'in_progress'">
-              <view class="btn btn-outline" @tap="openAbandon(task)">
-                <text class="btn-outline-text">放弃任务</text>
-              </view>
-              <view class="btn btn-primary" @tap="openSubmit(task)">
-                <text class="btn-primary-text">提交成果</text>
-              </view>
-            </template>
-            <view v-else-if="task.status === 'submitted'" class="status-hint status-hint-orange">
-              <app-icon name="alert-circle" :size="14" color="#ea580c" />
-              <text class="status-hint-text" style="color:#ea580c">等待审核中</text>
-            </view>
-            <view v-else-if="task.status === 'completed'" class="status-hint status-hint-green">
-              <app-icon name="check-circle" :size="14" color="#16a34a" />
-              <text class="status-hint-text" style="color:#16a34a">已完成，奖励已发放</text>
             </view>
           </view>
         </view>
-      </view>
-      <view style="height: 24px" />
+
+        <!-- 平台标准任务要求 -->
+        <view v-if="templates.length" class="card">
+          <text class="card-title">平台标准任务要求</text>
+          <view class="tpl-list">
+            <view v-for="tp in templates" :key="tp.id" class="tpl-row">
+              <view class="tpl-icon" :style="{ background: taskTypeColor[tp.taskType].bg }">
+                <app-icon name="calendar-check" :size="15" :color="taskTypeColor[tp.taskType].color" />
+              </view>
+              <view class="tpl-info">
+                <text class="tpl-title">{{ tp.title }}</text>
+                <text class="tpl-meta">{{ periodLabel(tp.periodUnit) }} · 全年 {{ tp.requiredCount }} 次</text>
+              </view>
+            </view>
+          </view>
+        </view>
+
+        <!-- 分红记录 -->
+        <view class="card">
+          <text class="card-title">分红 / 奖励记录</text>
+          <view v-if="dividends.length === 0" class="mini-empty"><text class="mini-empty-text">暂无分红记录</text></view>
+          <view v-else class="div-list">
+            <view v-for="d in dividends" :key="d.id" class="div-row">
+              <view class="div-info">
+                <text class="div-type">{{ dividendTypeLabel[d.type] }}</text>
+                <text class="div-meta">{{ d.period || fmtDate(d.createdAt) }}{{ d.description ? ' · ' + d.description : '' }}</text>
+              </view>
+              <text class="div-amount">+¥{{ num(d.amount).toLocaleString() }}</text>
+            </view>
+          </view>
+        </view>
+
+        <view style="height: 24px" />
+      </template>
     </scroll-view>
-
-    <!-- 提交任务弹窗 -->
-    <view v-if="submitModalOpen" class="mask mask-bottom" @tap="submitModalOpen = false">
-      <view class="sheet" @tap.stop>
-        <view class="sheet-head">
-          <text class="sheet-title">提交任务成果</text>
-          <view @tap="submitModalOpen = false"><app-icon name="x" :size="20" color="#1a1a1a" /></view>
-        </view>
-        <view class="sheet-body">
-          <view>
-            <text class="field-hint">任务</text>
-            <text class="field-value">{{ selectedTask?.title }}</text>
-          </view>
-          <view>
-            <text class="field-label">成果描述 <text class="req-star">*</text></text>
-            <textarea v-model="submitContent" class="textarea" placeholder="请描述您的任务完成情况和成果..." :maxlength="-1" />
-          </view>
-          <view>
-            <text class="field-label">附件（可选）</text>
-            <view class="upload-box">
-              <app-icon name="upload" :size="32" color="#9ca3af" />
-              <text class="upload-text">点击上传附件</text>
-            </view>
-          </view>
-          <view class="btn btn-primary btn-block" :class="{ 'btn-disabled': !submitContent.trim() || submitting }" @tap="submitTask">
-            <text class="btn-primary-text">{{ submitting ? '提交中...' : '确认提交' }}</text>
-          </view>
-        </view>
-      </view>
-    </view>
-
-    <!-- 放弃任务弹窗 -->
-    <view v-if="abandonModalOpen" class="mask mask-center" @tap="abandonModalOpen = false">
-      <view class="dialog" @tap.stop>
-        <view class="dialog-head">
-          <text class="dialog-title">确认放弃任务</text>
-        </view>
-        <view class="dialog-body">
-          <text class="dialog-desc">放弃后任务将重新进入可领取状态，确定要放弃吗？</text>
-          <view>
-            <text class="field-label">放弃原因（可选）</text>
-            <textarea v-model="abandonReason" class="textarea textarea-sm" placeholder="请输入放弃原因..." :maxlength="-1" />
-          </view>
-          <view class="dialog-actions">
-            <view class="btn btn-outline btn-flex" @tap="abandonModalOpen = false">
-              <text class="btn-outline-text">取消</text>
-            </view>
-            <view class="btn btn-danger btn-flex" @tap="abandonTask">
-              <text class="btn-danger-text">确认放弃</text>
-            </view>
-          </view>
-        </view>
-      </view>
-    </view>
   </view>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
-import { goBack } from '@/utils/router'
+import { goBack, navigateTo } from '@/utils/router'
 import {
-  instructorTasks, taskStats,
-  taskTypeLabel, taskTypeColor, taskStatusLabel, taskStatusColor,
-  type InstructorTask, type TaskType,
+  instituteApi, roleLabel, roleColor, lecturerLevelLabel, lecturerLevelColor,
+  memberStatusLabel, memberStatusColor, taskTypeLabel, taskTypeColor,
+  taskStatusLabel, taskStatusColor, dividendTypeLabel, fmtDate, num, memberName, isManagement,
+  type MyDashboard, type InstituteTask, type TaskTemplate, type InstituteDividend,
 } from '@/lib/institute-data'
 
 const statusBarHeight = ref(0)
@@ -196,97 +188,89 @@ try {
   scrollHeight.value = (info.windowHeight || 700) - statusBarHeight.value - 44
 } catch (e) {}
 
-type TabType = 'available' | 'in_progress' | 'completed'
-const activeTab = ref<TabType>('available')
-const tasks = ref<InstructorTask[]>([...instructorTasks])
+const loading = ref(true)
+const errMsg = ref('')
+const member = ref<MyDashboard | null>(null)
+const tasks = ref<InstituteTask[]>([])
+const templates = ref<TaskTemplate[]>([])
+const dividends = ref<InstituteDividend[]>([])
+const refunding = ref(false)
+const completingId = ref('')
 
-const tabs = computed(() => [
-  { key: 'available' as TabType, label: '可领取', count: taskStats.available },
-  { key: 'in_progress' as TabType, label: '进行中', count: taskStats.inProgress },
-  { key: 'completed' as TabType, label: '已完成', count: taskStats.completed },
-])
-
-const filteredTasks = computed(() => tasks.value.filter(t => {
-  if (activeTab.value === 'in_progress') return t.status === 'in_progress' || t.status === 'submitted'
-  return t.status === activeTab.value
-}))
-
-const emptyText = computed(() => {
-  if (activeTab.value === 'available') return '暂无可领取的任务'
-  if (activeTab.value === 'in_progress') return '暂无进行中的任务'
-  return '暂无已完成的任务'
+const progressPct = computed(() => {
+  if (!member.value || member.value.taskProgress.total === 0) return 0
+  return Math.min(100, Math.round((member.value.taskProgress.verified / member.value.taskProgress.total) * 100))
 })
 
-const typeIconMap: Record<TaskType, string> = {
-  course: 'video', article: 'file-text', qa: 'message-square', live: 'radio', review: 'clipboard-check', other: 'more-horizontal',
-}
-const typeIcon = (t: TaskType) => typeIconMap[t] || 'more-horizontal'
-
-function daysLeft(deadline: string) {
-  const now = new Date()
-  const end = new Date(deadline.replace(/-/g, '/'))
-  const diff = Math.ceil((end.getTime() - now.getTime()) / 86400000)
-  if (diff < 0) return '已过期'
-  if (diff === 0) return '今天截止'
-  return `剩余${diff}天`
+function periodLabel(p: string) {
+  return p === 'MONTH' ? '每月' : p === 'QUARTER' ? '每季度' : '每年'
 }
 
-const submitModalOpen = ref(false)
-const abandonModalOpen = ref(false)
-const selectedTask = ref<InstructorTask | null>(null)
-const submitContent = ref('')
-const abandonReason = ref('')
-const submitting = ref(false)
+async function load() {
+  loading.value = true
+  errMsg.value = ''
+  try {
+    const my = await instituteApi.getMy()
+    member.value = my
+    if (my) {
+      const [t, d] = await Promise.all([instituteApi.getMyTasks(), instituteApi.getDividends()])
+      tasks.value = t.tasks || []
+      templates.value = t.templates || []
+      dividends.value = d
+    }
+  } catch (e: any) {
+    errMsg.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
+onLoad(() => load())
 
-function acceptTask(task: InstructorTask) {
+async function onComplete(t: InstituteTask) {
+  if (completingId.value) return
+  completingId.value = t.id
+  try {
+    await instituteApi.completeTask(t.id)
+    uni.showToast({ title: '已提交完成', icon: 'success' })
+    await load()
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '操作失败', icon: 'none' })
+  } finally {
+    completingId.value = ''
+  }
+}
+
+function onRefund() {
+  if (!member.value || refunding.value) return
+  if (!member.value.depositStatus.canRefund) {
+    uni.showToast({ title: member.value.depositStatus.refundCondition, icon: 'none' })
+    return
+  }
   uni.showModal({
-    title: '领取任务',
-    content: '确定领取此任务吗？领取后请在截止日期前完成。',
-    success: (res) => {
-      if (res.confirm) {
-        task.status = 'in_progress'
-        task.acceptedAt = new Date().toISOString().slice(0, 10)
-        uni.showToast({ title: '已领取', icon: 'success' })
+    title: '申请退费',
+    content: '确认申请退还会费？退费后会籍将转为已结业。',
+    confirmColor: '#C41E3A',
+    success: async (res) => {
+      if (!res.confirm) return
+      refunding.value = true
+      try {
+        const r = await instituteApi.depositRefund()
+        uni.showToast({ title: r.message || '已提交', icon: 'success' })
+        await load()
+      } catch (e: any) {
+        uni.showToast({ title: e?.message || '申请失败', icon: 'none' })
+      } finally {
+        refunding.value = false
       }
     },
   })
 }
 
-function openSubmit(task: InstructorTask) {
-  selectedTask.value = task
-  submitContent.value = task.submission?.content || ''
-  submitModalOpen.value = true
+function goApply() {
+  navigateTo('/institute/member-apply')
 }
-
-function submitTask() {
-  if (!selectedTask.value || !submitContent.value.trim() || submitting.value) return
-  submitting.value = true
-  setTimeout(() => {
-    if (selectedTask.value) {
-      selectedTask.value.status = 'submitted'
-      selectedTask.value.submission = { content: submitContent.value, submittedAt: new Date().toLocaleString() }
-    }
-    submitting.value = false
-    submitModalOpen.value = false
-    selectedTask.value = null
-    submitContent.value = ''
-    uni.showToast({ title: '已提交', icon: 'success' })
-  }, 1000)
-}
-
-function openAbandon(task: InstructorTask) {
-  selectedTask.value = task
-  abandonReason.value = ''
-  abandonModalOpen.value = true
-}
-
-function abandonTask() {
-  if (!selectedTask.value) return
-  selectedTask.value.status = 'available'
-  abandonModalOpen.value = false
-  selectedTask.value = null
-  abandonReason.value = ''
-  uni.showToast({ title: '已放弃', icon: 'none' })
+function goManage() {
+  navigateTo('/institute/manage')
 }
 </script>
 
@@ -299,87 +283,75 @@ function abandonTask() {
 .nav-placeholder { width: 32px; }
 .scroll { width: 100%; }
 
-.reward-card { display: flex; align-items: center; justify-content: space-between; padding: 16px; background: linear-gradient(to right, rgba(196,30,58,0.1), rgba(196,30,58,0.05)); }
-.reward-label { font-size: 13px; color: #6b7280; }
-.reward-value-row { display: flex; align-items: baseline; margin-top: 2px; }
-.reward-value { font-size: 26px; font-weight: 700; color: #c41e3a; }
-.reward-unit { font-size: 13px; color: #c41e3a; margin-left: 4px; }
+.state-box { padding: 100px 0; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.state-text { font-size: 13px; color: #9ca3af; }
+.spinner { width: 28px; height: 28px; border: 3px solid #f0f0f0; border-top-color: var(--brand); border-radius: 50%; animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.retry-btn { margin-top: 4px; padding: 8px 22px; border: 1px solid var(--brand); border-radius: 999px; }
+.retry-text { font-size: 13px; color: var(--brand); }
 
-.tabs { display: flex; background: #fff; border-bottom: 1px solid #ededed; position: sticky; top: 0; z-index: 10; }
-.tab { flex: 1; display: flex; align-items: center; justify-content: center; height: 44px; position: relative; gap: 4px; }
-.tab-text { font-size: 14px; color: #6b7280; }
-.tab-text-active { color: #c41e3a; font-weight: 500; }
-.tab-badge { font-size: 11px; padding: 1px 6px; border-radius: 999px; background: #f3f4f6; color: #6b7280; }
-.tab-badge-active { background: rgba(196,30,58,0.1); color: #c41e3a; }
-.tab-underline { position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 48px; height: 2px; background: #c41e3a; border-radius: 2px; }
+.member-card { margin: 12px; padding: 16px; border-radius: 14px; background: linear-gradient(135deg, var(--brand), #d4445c); }
+.mc-top { display: flex; align-items: center; justify-content: space-between; }
+.mc-name { font-size: 19px; font-weight: 700; color: #fff; }
+.mc-status { font-size: 11px; padding: 2px 8px; border-radius: 999px; }
+.mc-badges { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.mc-badge { font-size: 11px; padding: 2px 8px; border-radius: 4px; }
+.mc-meta { display: flex; gap: 16px; margin-top: 12px; }
+.mc-meta-text { font-size: 12px; color: rgba(255,255,255,0.85); }
+.mc-pending { display: flex; align-items: center; gap: 6px; margin-top: 12px; padding: 8px 10px; background: rgba(255,255,255,0.92); border-radius: 8px; }
+.mc-pending-text { font-size: 12px; color: #ea580c; }
 
-.list { padding: 16px; }
-.empty { display: flex; flex-direction: column; align-items: center; padding: 48px 0; }
-.empty-icon { width: 64px; height: 64px; border-radius: 999px; background: #f3f4f6; display: flex; align-items: center; justify-content: center; margin-bottom: 16px; }
-.empty-text { font-size: 14px; color: #6b7280; }
+.manage-entry { margin: 12px; padding: 14px 16px; background: #fff; border-radius: 12px; display: flex; align-items: center; justify-content: space-between; border: 1px solid rgba(196,30,58,0.15); }
+.manage-left { display: flex; align-items: center; gap: 12px; }
+.manage-title { display: block; font-size: 14px; font-weight: 600; color: #1a1a1a; }
+.manage-sub { display: block; font-size: 11px; color: #9ca3af; margin-top: 2px; }
+.card { margin: 12px; padding: 16px; background: #fff; border-radius: 12px; }
+.card-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.card-title { display: block; font-size: 15px; font-weight: 600; color: #1a1a1a; margin-bottom: 12px; }
+.progress-num { font-size: 15px; font-weight: 700; color: var(--brand); }
+.progress-bar { height: 8px; background: #f3f4f6; border-radius: 999px; overflow: hidden; }
+.progress-fill { height: 100%; background: linear-gradient(90deg, var(--brand), #d4445c); border-radius: 999px; }
+.progress-hint { display: block; font-size: 12px; color: #9ca3af; margin-top: 10px; line-height: 1.5; }
 
-.task-card { background: #fff; border-radius: 12px; border: 1px solid #ededed; overflow: hidden; margin-bottom: 12px; }
-.task-body { padding: 16px; }
-.task-head { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 8px; gap: 8px; }
+.deposit-row { display: flex; align-items: center; justify-content: space-between; }
+.deposit-amount { display: block; font-size: 22px; font-weight: 700; color: #1a1a1a; }
+.deposit-label { font-size: 12px; color: #9ca3af; }
+.deposit-btn { padding: 8px 18px; background: var(--brand); border-radius: 8px; }
+.deposit-btn-disabled { background: #d1d5db; }
+.deposit-btn-text { font-size: 13px; color: #fff; font-weight: 500; }
+.deposit-done { display: flex; align-items: center; gap: 4px; }
+.deposit-done-text { font-size: 13px; color: #16a34a; }
+.deposit-cond { display: block; font-size: 12px; color: #9ca3af; margin-top: 10px; line-height: 1.5; }
+
+.mini-empty { padding: 20px 0; display: flex; justify-content: center; }
+.mini-empty-text { font-size: 13px; color: #9ca3af; }
+.task-list { display: flex; flex-direction: column; gap: 12px; }
+.task-card { padding: 12px; background: #fafafa; border-radius: 10px; }
+.task-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
 .task-head-left { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
-.type-badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px; flex-shrink: 0; }
-.type-badge-text { font-size: 11px; }
-.task-title { font-size: 15px; font-weight: 500; color: #1a1a1a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.type-badge { font-size: 11px; padding: 2px 8px; border-radius: 999px; flex-shrink: 0; }
+.task-title { font-size: 14px; font-weight: 500; color: #1a1a1a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .status-badge { font-size: 11px; padding: 2px 8px; border-radius: 999px; flex-shrink: 0; }
-.task-desc { display: block; font-size: 13px; color: #6b7280; line-height: 1.5; margin-bottom: 12px; }
+.task-desc { display: block; font-size: 12px; color: #6b7280; line-height: 1.5; margin-top: 8px; }
+.task-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; }
+.task-date { font-size: 12px; color: #9ca3af; }
+.task-btn { padding: 6px 14px; background: var(--brand); border-radius: 8px; }
+.task-btn-disabled { opacity: 0.5; }
+.task-btn-text { font-size: 12px; color: #fff; }
+.task-hint { display: flex; align-items: center; gap: 4px; }
+.task-hint-text { font-size: 12px; }
 
-.req { margin-bottom: 12px; }
-.req-label { font-size: 11px; color: #6b7280; display: block; margin-bottom: 4px; }
-.req-tags { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
-.req-tag { font-size: 11px; padding: 2px 8px; background: #f3f4f6; border-radius: 999px; color: #4b5563; }
-.req-more { font-size: 11px; color: #6b7280; }
+.tpl-list { display: flex; flex-direction: column; gap: 12px; }
+.tpl-row { display: flex; align-items: center; gap: 10px; }
+.tpl-icon { width: 34px; height: 34px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.tpl-info { flex: 1; }
+.tpl-title { display: block; font-size: 13px; font-weight: 500; color: #1a1a1a; }
+.tpl-meta { display: block; font-size: 11px; color: #9ca3af; margin-top: 2px; }
 
-.info-row { display: flex; align-items: center; gap: 16px; }
-.info-item { display: flex; align-items: center; gap: 4px; }
-.info-text { font-size: 13px; color: #6b7280; }
-.info-expired { color: #ef4444; }
-.info-reward { font-size: 13px; color: #c41e3a; }
-.info-bonus { font-size: 13px; color: #d97706; }
-
-.submission { margin-top: 12px; padding: 12px; background: rgba(0,0,0,0.03); border-radius: 8px; }
-.submission-label { font-size: 11px; color: #6b7280; display: block; margin-bottom: 4px; }
-.submission-content { font-size: 13px; color: #1a1a1a; display: block; line-height: 1.5; }
-.submission-time { font-size: 11px; color: #6b7280; display: block; margin-top: 4px; }
-
-.task-actions { border-top: 1px solid #ededed; padding: 12px; display: flex; gap: 8px; }
-.btn { height: 38px; border-radius: 8px; display: flex; align-items: center; justify-content: center; }
-.btn-primary { flex: 1; background: #c41e3a; }
-.btn-primary-text { font-size: 14px; color: #fff; font-weight: 500; }
-.btn-outline { flex: 1; border: 1px solid #d1d5db; background: #fff; }
-.btn-outline-text { font-size: 14px; color: #4b5563; }
-.btn-danger { background: #dc2626; }
-.btn-danger-text { font-size: 14px; color: #fff; font-weight: 500; }
-.btn-disabled { opacity: 0.5; }
-.btn-block { width: 100%; height: 44px; }
-.btn-flex { flex: 1; height: 42px; }
-.status-hint { flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; }
-.status-hint-text { font-size: 13px; }
-
-.mask { position: fixed; inset: 0; z-index: 50; background: rgba(0,0,0,0.5); }
-.mask-bottom { display: flex; align-items: flex-end; }
-.mask-center { display: flex; align-items: center; justify-content: center; padding: 16px; }
-.sheet { width: 100%; background: #fff; border-radius: 16px 16px 0 0; max-height: 80vh; overflow-y: auto; }
-.sheet-head { position: sticky; top: 0; background: #fff; border-bottom: 1px solid #ededed; padding: 16px; display: flex; align-items: center; justify-content: space-between; }
-.sheet-title { font-size: 16px; font-weight: 600; color: #1a1a1a; }
-.sheet-body { padding: 16px; display: flex; flex-direction: column; gap: 16px; }
-.field-hint { font-size: 13px; color: #6b7280; display: block; margin-bottom: 4px; }
-.field-value { font-size: 15px; font-weight: 500; color: #1a1a1a; }
-.field-label { font-size: 14px; font-weight: 500; color: #1a1a1a; display: block; margin-bottom: 8px; }
-.req-star { color: #ef4444; }
-.textarea { width: 100%; box-sizing: border-box; min-height: 110px; padding: 10px 12px; font-size: 14px; background: #fff; border: 1px solid #d1d5db; border-radius: 8px; }
-.textarea-sm { min-height: 72px; }
-.upload-box { width: 100%; box-sizing: border-box; border: 2px dashed #d1d5db; border-radius: 8px; padding: 24px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
-.upload-text { font-size: 13px; color: #6b7280; }
-
-.dialog { width: 100%; max-width: 320px; background: #fff; border-radius: 12px; overflow: hidden; }
-.dialog-head { padding: 16px; border-bottom: 1px solid #ededed; }
-.dialog-title { font-size: 16px; font-weight: 600; color: #1a1a1a; text-align: center; display: block; }
-.dialog-body { padding: 16px; display: flex; flex-direction: column; gap: 16px; }
-.dialog-desc { font-size: 13px; color: #6b7280; text-align: center; line-height: 1.5; }
-.dialog-actions { display: flex; gap: 12px; }
+.div-list { display: flex; flex-direction: column; gap: 12px; }
+.div-row { display: flex; align-items: center; justify-content: space-between; }
+.div-info { flex: 1; min-width: 0; }
+.div-type { display: block; font-size: 13px; font-weight: 500; color: #1a1a1a; }
+.div-meta { display: block; font-size: 11px; color: #9ca3af; margin-top: 2px; }
+.div-amount { font-size: 15px; font-weight: 700; color: var(--brand); }
 </style>

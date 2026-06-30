@@ -93,7 +93,7 @@ function retry() {
           </view>
           <view class="date-center">
             <text class="date-main">{{ dateLabel }}</text>
-            <text class="date-sub">{{ fortune.lunarDate }} {{ fortune.weekday }}</text>
+            <text class="date-sub"><text v-if="fortune.lunarDate">{{ fortune.lunarDate }} </text>{{ fortune.weekday }}</text>
           </view>
           <view class="date-arrow" @tap="changeDate(1)">
             <app-icon name="chevron-right" :size="40" color="#2c2c2c" />
@@ -121,8 +121,8 @@ function retry() {
           <text class="ring-summary">{{ fortune.overallSummary }}</text>
         </view>
 
-        <!-- 今日宜忌 -->
-        <view class="yiji">
+        <!-- 今日宜忌（后端未提供则隐藏） -->
+        <view v-if="fortune.yiji.yi.length || fortune.yiji.ji.length" class="yiji">
           <view class="yiji-card yiji-yi">
             <view class="yiji-head">
               <view class="yiji-badge yiji-badge-yi">宜</view>
@@ -169,7 +169,7 @@ function retry() {
             <view class="lucky-item"><text class="lucky-key">幸运色：</text><text class="lucky-val">{{ fortune.luckyColor }}</text></view>
             <view class="lucky-item"><text class="lucky-key">幸运数：</text><text class="lucky-val">{{ fortune.luckyNumber }}</text></view>
             <view class="lucky-item"><text class="lucky-key">吉方位：</text><text class="lucky-val">{{ fortune.luckyDirection }}</text></view>
-            <view class="lucky-item"><text class="lucky-key">吉时：</text><text class="lucky-val">{{ fortune.luckyTime }}</text></view>
+            <view v-if="fortune.luckyTime" class="lucky-item"><text class="lucky-key">吉时：</text><text class="lucky-val">{{ fortune.luckyTime }}</text></view>
           </view>
         </view>
 
@@ -294,7 +294,7 @@ function retry() {
 .ring-score {
   font-size: 72rpx;
   font-weight: 700;
-  color: #c41e3a;
+  color: var(--brand);
   line-height: 1;
 }
 .ring-level {
@@ -471,7 +471,7 @@ function retry() {
 /* 详细解读按钮 */
 .detail-btn {
   height: 88rpx;
-  background: #c41e3a;
+  background: var(--brand);
   border-radius: 16rpx;
   display: flex;
   align-items: center;
@@ -504,7 +504,7 @@ function retry() {
   margin-bottom: 8rpx;
 }
 .tip-dot {
-  color: #c41e3a;
+  color: var(--brand);
   font-size: 24rpx;
   line-height: 1.5;
 }
@@ -531,7 +531,7 @@ function retry() {
   width: 80rpx;
   height: 80rpx;
   border: 6rpx solid #f0e6e6;
-  border-top-color: #c41e3a;
+  border-top-color: var(--brand);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
@@ -544,7 +544,7 @@ function retry() {
 }
 .retry-btn {
   padding: 16rpx 48rpx;
-  background: #c41e3a;
+  background: var(--brand);
   border-radius: 12rpx;
 }
 .retry-text {

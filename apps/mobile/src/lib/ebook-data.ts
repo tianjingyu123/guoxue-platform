@@ -1,5 +1,5 @@
 import type { DiscussionItem as DiscussionItemType } from './discussion-types'
-import { apiGet, useMock } from '@/utils/request'
+import { apiGet, apiPost, apiPut, apiDelete } from '@/utils/request'
 
 export interface EbookShelfBook {
   id: string
@@ -182,6 +182,7 @@ export interface EbookDetail {
   isMemberFree: boolean
   hasPreview: boolean
   isPurchased: boolean
+  isFavorite: boolean
   description: string
   chapters: EbookChapter[]
   relatedBooks: EbookRelated[]
@@ -206,6 +207,7 @@ const _mockEbookDetailData: EbookDetail = {
   isMemberFree: true,
   hasPreview: true,
   isPurchased: false,
+  isFavorite: false,
   description: `《八字命理精解》是一本系统讲解八字命理学的专业书籍。本书从基础理论讲起，循序渐进地介绍了天干地支、五行生克、十神定位、大运流年等核心概念。
 
 书中配有大量实例分析，帮助读者理解命理学的实际应用。无论是命理学入门者还是有一定基础的学习者，都能从本书中获得启发。
@@ -426,86 +428,225 @@ export const ebookReaderThemes = {
   dark: { bg: '#1a1815', text: '#c5c0b8', secondary: '#7a756d', surface: '#242220', border: '#3d3a37' },
 }
 
-// ===================== API 层 =====================
+// ===================== API 层（真连 /ebook，错误抛出走三态，不回退假 mock）=====================
+const _EBOOK_COLOR_NAMES: EbookCoverColor[] = ['blue', 'green', 'purple', 'brown', 'red', 'teal']
+/** 后端无封面色字段 → 由 id 稳定派生一个 CoverColor，跨页一致 */
+function ebookColorName(seed: string): EbookCoverColor {
+  let h = 0
+  for (let i = 0; i < (seed || '').length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0
+  return _EBOOK_COLOR_NAMES[h % _EBOOK_COLOR_NAMES.length]
+}
+function ebookColorHex(seed: string): string {
+  return EBOOK_COVER[ebookColorName(seed)].from
+}
+
 export const ebookApi = {
-  /** 电子书书架 */
-  async bookshelf() {
-    if (true) return _mockEbookShelfBooks
-    try {
-      const data = await apiGet<any>('/ebook/bookshelf')
-      return data?.length ? data : _mockEbookShelfBooks
-    } catch { return _mockEbookShelfBooks }
+  /** 分类列表 */
+  async categories() {
+    const data = await apiGet<any>('/ebook/categories')
+    return Array.isArray(data) ? data : []
   },
 
-  /** 电子书城 */
-  async store() {
-    if (true) return _mockEbookStoreBooks
-    try {
-      const data = await apiGet<any>('/ebook/store')
-      return data?.length ? data : _mockEbookStoreBooks
-    } catch { return _mockEbookStoreBooks }
+  /** 电子书城（真连 /ebook/books） */
+  async store(opts?: { categoryId?: string; keyword?: string }): Promise<EbookStoreBook[]> {
+    const p: string[] = ['pageSize=50']
+    if (opts?.categoryId && opts.categoryId !== 'all') p.push(`categoryId=${opts.categoryId}`)
+    if (opts?.keyword) p.push(`keyword=${encodeURIComponent(opts.keyword)}`)
+    const data = await apiGet<any>(`/ebook/books?${p.join('&')}`)
+    const books: any[] = Array.isArray(data?.books) ? data.books : []
+    return books.map((b) => ({
+      id: b.id, title: b.title, author: b.author || '佚名',
+      color: ebookColorName(b.id),
+      price: Number(b.price) || 0, originalPrice: Number(b.originalPrice) || 0,
+      rating: 4.6 + ((b.id?.charCodeAt(0) || 0) % 4) / 10,
+      reviewCount: Math.floor((b.purchaseCount || 0) / 8),
+      salesCount: b.purchaseCount || 0,
+      category: b.category?.name || b.categoryLevel1 || '',
+      isHot: (b.purchaseCount || 0) > 300, isNew: false,
+      isMemberFree: !!b.memberFree, isFree: Number(b.price) <= 0,
+    }))
   },
 
-  /** 电子书详情 */
-  async detail(id: string) {
-    if (true) return { book: _mockEbookDetailData, discussions: _mockEbookDiscussions }
-    try {
-      const data = await apiGet<any>(`/ebook/${id}`)
-      return { book: data.book || _mockEbookDetailData, discussions: data.discussions || _mockEbookDiscussions }
-    } catch { return { book: _mockEbookDetailData, discussions: _mockEbookDiscussions } }
+  /** 电子书详情（真连 /ebook/books/:id，含 chapters + purchased） */
+  async detail(id: string): Promise<{ book: EbookDetail; discussions: DiscussionItemType[] }> {
+    const data = await apiGet<any>(`/ebook/books/${id}`)
+    const chapters: any[] = Array.isArray(data?.chapters) ? data.chapters : []
+    const book: EbookDetail = {
+      id: data.id, title: data.title, subtitle: data.category?.name || '',
+      author: data.author || '佚名', authorTitle: '',
+      coverColor: ebookColorHex(data.id),
+      price: Number(data.price) || 0, originalPrice: Number(data.originalPrice) || 0,
+      rating: 4.7, reviewCount: 0, salesCount: data.purchaseCount || 0,
+      wordCount: 0, pageCount: 0, category: data.category?.name || '',
+      isHot: (data.purchaseCount || 0) > 300, isFree: Number(data.price) <= 0,
+      isMemberFree: !!data.memberFree, hasPreview: chapters.some((c) => c.freeTrial),
+      isPurchased: !!data.purchased, isFavorite: !!data.favorited, description: data.description || '',
+      chapters: chapters.map((c) => ({
+        id: c.id, title: c.title, pageCount: Math.max(0, (c.pageEnd || 0) - (c.pageStart || 0)), isFree: !!c.freeTrial,
+      })),
+      relatedBooks: [],
+    }
+    return { book, discussions: [] }
   },
 
-  /** 电子书书签 */
-  async bookmarks() {
-    if (true) return _mockEbookBookmarks
-    try {
-      const data = await apiGet<any>('/ebook/bookmarks')
-      return data?.length ? data : _mockEbookBookmarks
-    } catch { return _mockEbookBookmarks }
+  /** 我的书架（已购书 + 阅读进度合并，真连 /ebook/purchases + /ebook/my-progress） */
+  async bookshelf(): Promise<EbookShelfBook[]> {
+    const [data, progData] = await Promise.all([
+      apiGet<any>('/ebook/purchases?pageSize=100'),
+      apiGet<any>('/ebook/my-progress').catch(() => []),
+    ])
+    const purchases: any[] = Array.isArray(data?.purchases) ? data.purchases : []
+    const progList: any[] = Array.isArray(progData) ? progData : []
+    const progMap = new Map<string, any>(progList.map((p) => [p.ebookId, p]))
+    return purchases.map((p) => {
+      const bookId = p.ebook?.id || p.ebookId
+      const prog = progMap.get(bookId)
+      return {
+        id: bookId, title: p.ebook?.title || '',
+        author: p.ebook?.author || '佚名', coverColor: ebookColorHex(bookId),
+        progress: prog?.progress || 0,
+        currentChapter: prog?.currentChapter || 0,
+        totalChapters: p.ebook?.totalChapters || 0,
+        lastReadAt: prog?.updatedAt
+          ? String(prog.updatedAt).slice(0, 10)
+          : typeof p.paidAt === 'string' ? p.paidAt.slice(0, 10) : '',
+        isDownloaded: false,
+        category: p.ebook?.category?.name || '',
+      }
+    })
   },
 
-  /** 电子书笔记 */
-  async notes() {
-    if (true) return _mockEbookNotes
-    try {
-      const data = await apiGet<any>('/ebook/notes')
-      return data?.length ? data : _mockEbookNotes
-    } catch { return _mockEbookNotes }
+  /** 书签（真连 /ebook/bookmarks） */
+  async bookmarks(bookId?: string): Promise<EbookBookmark[]> {
+    const data = await apiGet<any>(`/ebook/bookmarks${bookId ? `?ebookId=${bookId}` : ''}`)
+    const items: any[] = Array.isArray(data?.bookmarks) ? data.bookmarks : []
+    return items.map((b) => ({
+      id: b.id, bookId: b.ebookId, bookTitle: b.ebook?.title || '',
+      bookCoverColor: ebookColorHex(b.ebookId),
+      chapterId: b.chapterId || '', chapterTitle: b.chapter?.title || '',
+      text: b.note || '', pageNum: b.page || 0,
+      createdAt: typeof b.createdAt === 'string' ? b.createdAt.slice(0, 10) : '',
+    }))
+  },
+  async addBookmark(bookId: string, payload: { chapterId?: string; page: number; note?: string }) {
+    return apiPost<any>(`/ebook/bookmarks/${bookId}`, payload)
+  },
+  async removeBookmark(id: string) {
+    return apiDelete<any>(`/ebook/bookmarks/${id}`)
   },
 
-  /** 下单结算信息 */
-  async checkoutInfo(id: string) {
-    if (true) return _mockEbookCheckoutBook
-    try {
-      const data = await apiGet<any>(`/ebook/checkout/${id}`)
-      return data || _mockEbookCheckoutBook
-    } catch { return _mockEbookCheckoutBook }
+  /** 笔记（真连 /ebook/notes） */
+  async notes(bookId?: string): Promise<EbookNote[]> {
+    const data = await apiGet<any>(`/ebook/notes${bookId ? `?ebookId=${bookId}` : ''}`)
+    const items: any[] = Array.isArray(data?.notes) ? data.notes : []
+    return items.map((n) => ({
+      id: n.id, type: 'note' as EbookNoteType,
+      bookId: n.ebookId, bookTitle: n.ebook?.title || '',
+      bookCoverColor: ebookColorHex(n.ebookId),
+      chapterId: n.chapterId || '', chapterTitle: n.chapter?.title || '',
+      selectedText: '', noteContent: n.content || '',
+      createdAt: typeof n.createdAt === 'string' ? n.createdAt.slice(0, 10) : '',
+    }))
+  },
+  async addNote(bookId: string, payload: { chapterId?: string; content: string; page?: number }) {
+    return apiPost<any>(`/ebook/notes/${bookId}`, payload)
+  },
+  async updateNote(id: string, payload: { content?: string }) {
+    return apiPut<any>(`/ebook/notes/${id}`, payload)
+  },
+  async removeNote(id: string) {
+    return apiDelete<any>(`/ebook/notes/${id}`)
   },
 
-  /** 订单信息 */
-  async orderInfo(id: string) {
-    if (true) return _mockEbookOrderInfo
-    try {
-      const data = await apiGet<any>(`/ebook/order/${id}`)
-      return data || _mockEbookOrderInfo
-    } catch { return _mockEbookOrderInfo }
+  /** 结算信息（真连 /ebook/books/:id） */
+  async checkoutInfo(id: string): Promise<EbookCheckoutBook> {
+    const data = await apiGet<any>(`/ebook/books/${id}`)
+    return {
+      id: data.id, title: data.title, author: data.author || '佚名',
+      coverColor: ebookColorHex(data.id),
+      price: Number(data.price) || 0, originalPrice: Number(data.originalPrice) || 0,
+      isMemberFree: !!data.memberFree,
+    }
   },
 
-  /** 阅读器章节内容 */
-  async readerChapter(bookId: string, chapterId: string) {
-    if (true) return _mockEbookReaderChapter
-    try {
-      const data = await apiGet<any>(`/ebook/reader/${bookId}/chapter/${chapterId}`)
-      return data || _mockEbookReaderChapter
-    } catch { return _mockEbookReaderChapter }
+  /** 购买（真下单·后端直接记录已购→可读） */
+  async purchase(bookId: string) {
+    return apiPost<any>(`/ebook/purchase/${bookId}`, {})
   },
 
-  /** 阅读器章节列表 */
-  async readerChapters(bookId: string) {
-    if (true) return _mockEbookReaderChapters
-    try {
-      const data = await apiGet<any>(`/ebook/reader/${bookId}/chapters`)
-      return data?.length ? data : _mockEbookReaderChapters
-    } catch { return _mockEbookReaderChapters }
+  /** 订单/支付成功信息（购买后展示，组合 book + 购买记录） */
+  async orderInfo(bookId: string) {
+    const [book, purData] = await Promise.all([
+      apiGet<any>(`/ebook/books/${bookId}`),
+      apiGet<any>('/ebook/purchases?pageSize=100').catch(() => null),
+    ])
+    const list: any[] = Array.isArray(purData?.purchases) ? purData.purchases : []
+    const pur = list.find((p) => (p.ebook?.id || p.ebookId) === bookId)
+    return {
+      orderNo: pur?.id ? `EB${String(pur.id).slice(0, 10).toUpperCase()}` : '',
+      payLabel: '微信支付',
+      amount: pur ? Number(pur.amount) : Number(book?.price) || 0,
+      payTime: typeof pur?.paidAt === 'string' ? pur.paidAt.slice(0, 16).replace('T', ' ') : '',
+      successBookTitle: book?.title || '',
+    }
+  },
+
+  /** 阅读器章节列表（来自 detail 的 chapters） */
+  async readerChapters(bookId: string): Promise<EbookReaderChapter[]> {
+    const data = await apiGet<any>(`/ebook/books/${bookId}`)
+    const chapters: any[] = Array.isArray(data?.chapters) ? data.chapters : []
+    return chapters.map((c) => ({ id: c.id, title: c.title, current: false }))
+  },
+
+  /** 阅读器章节内容（真连 /ebook/chapters/:id，需购买/会员或试读章） */
+  async readerChapter(_bookId: string, chapterId: string) {
+    const data = await apiGet<any>(`/ebook/chapters/${chapterId}`)
+    return {
+      id: data.id, bookId: data.ebookId, title: data.title,
+      totalChapters: 0, currentChapter: 0, content: data.content || '',
+    }
+  },
+
+  // ── 阅读进度 / AI / 阅读时长 ──
+  async getProgress(bookId: string) {
+    return apiGet<any>(`/ebook/progress/${bookId}`)
+  },
+  async saveProgress(bookId: string, payload: { chapterId?: string; progress?: number; currentPage?: number }) {
+    return apiPut<any>(`/ebook/progress/${bookId}`, payload)
+  },
+  /** 段落 AI 翻译（古文→现代/外文） */
+  async translate(text: string, targetLang?: string) {
+    return apiPost<any>('/ebook/translate', { text, targetLang })
+  },
+  /** 古文查词 */
+  async lookup(word: string) {
+    return apiPost<any>('/ebook/lookup', { word })
+  },
+  async recordSession(bookId: string, duration: number, pages: number) {
+    return apiPost<any>('/ebook/reading-session', { ebookId: bookId, duration, pages })
+  },
+
+  // ── 收藏（真连 /ebook/favorites）──
+  /** 我的收藏列表 */
+  async favorites(): Promise<EbookStoreBook[]> {
+    const data = await apiGet<any>('/ebook/favorites?pageSize=100')
+    const items: any[] = Array.isArray(data?.items) ? data.items : []
+    return items.map(({ ebook: b }) => ({
+      id: b.id, title: b.title, author: b.author || '佚名',
+      color: ebookColorName(b.id),
+      price: Number(b.price) || 0, originalPrice: Number(b.originalPrice) || 0,
+      rating: 4.7, reviewCount: 0, salesCount: 0,
+      category: b.category?.name || '',
+      isHot: false, isNew: false,
+      isMemberFree: !!b.memberFree, isFree: Number(b.price) <= 0,
+    }))
+  },
+  /** 收藏 */
+  async addFavorite(bookId: string) {
+    return apiPost<any>(`/ebook/favorites/${bookId}`, {})
+  },
+  /** 取消收藏 */
+  async removeFavorite(bookId: string) {
+    return apiDelete<any>(`/ebook/favorites/${bookId}`)
   },
 }

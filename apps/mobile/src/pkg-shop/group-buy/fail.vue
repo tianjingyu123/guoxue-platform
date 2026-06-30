@@ -37,7 +37,7 @@
       <!-- 商品卡 -->
       <view class="card">
         <view class="prod">
-          <image class="prod-cover" :src="info.productCover" mode="aspectFill" />
+          <image lazy-load class="prod-cover" :src="info.productCover" mode="aspectFill" />
           <view class="prod-info">
             <text class="prod-name">{{ info.productName }}</text>
             <text class="price-now">¥{{ info.price }}</text>
@@ -47,7 +47,7 @@
         <view class="row">
           <text class="row-label">参团人数</text>
           <view class="members">
-            <image
+            <image lazy-load
               v-for="(m, i) in info.members"
               :key="i"
               class="member-avatar"
@@ -333,7 +333,7 @@ async function retryLoad() {
 .price-now {
   font-size: 32rpx;
   font-weight: 700;
-  color: #c41e3a;
+  color: var(--brand);
 }
 .card-divider {
   height: 1rpx;
@@ -418,7 +418,7 @@ async function retryLoad() {
 .refund-amount {
   font-size: 36rpx;
   font-weight: 700;
-  color: #c41e3a;
+  color: var(--brand);
 }
 .refund-sub {
   font-size: 24rpx;
@@ -444,7 +444,7 @@ async function retryLoad() {
 }
 .steps-fill {
   height: 100%;
-  background: linear-gradient(90deg, #c41e3a, #e85a6b);
+  background: linear-gradient(90deg, var(--brand), #e85a6b);
   border-radius: 999rpx;
   transition: width 0.5s;
 }
@@ -463,7 +463,7 @@ async function retryLoad() {
   justify-content: center;
 }
 .dot--on {
-  background: #c41e3a;
+  background: var(--brand);
 }
 .refund-note {
   display: flex;
@@ -538,7 +538,7 @@ async function retryLoad() {
   justify-content: center;
   gap: 6rpx;
   padding: 22rpx 0;
-  background: linear-gradient(90deg, #c41e3a, #e85a6b);
+  background: linear-gradient(90deg, var(--brand), #e85a6b);
   border-radius: 20rpx;
 }
 .btn-primary-text {
@@ -558,7 +558,7 @@ async function retryLoad() {
 .btn-browse-text {
   font-size: 28rpx;
   font-weight: 500;
-  color: #c41e3a;
+  color: var(--brand);
 }
 .btn-hover {
   opacity: 0.85;
@@ -576,7 +576,7 @@ async function retryLoad() {
   width: 64rpx;
   height: 64rpx;
   border: 4rpx solid #e8e3db;
-  border-top-color: #c41e3a;
+  border-top-color: var(--brand);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
@@ -598,7 +598,7 @@ async function retryLoad() {
 }
 .state-retry {
   padding: 12rpx 48rpx;
-  background: #c41e3a;
+  background: var(--brand);
   border-radius: 999rpx;
 }
 .state-retry-text {

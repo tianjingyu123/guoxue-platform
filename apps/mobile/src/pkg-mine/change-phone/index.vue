@@ -6,6 +6,7 @@ import { mineApi } from '@/lib/mine-data'
 
 const step = ref(1)
 const currentPhone = ref('')
+const phoneFull = ref('')
 const profileLoading = ref(true)
 const profileError = ref('')
 const verifyCode = ref('')
@@ -28,6 +29,7 @@ async function fetchProfile() {
   try {
     const profile = await mineApi.getProfile()
     currentPhone.value = profile.phone
+    phoneFull.value = profile.phoneFull
   } catch (e: any) {
     profileError.value = e?.message || '加载失败'
   } finally {
@@ -46,16 +48,30 @@ onMounted(() => {
 let timer1: ReturnType<typeof setInterval> | null = null
 let timer2: ReturnType<typeof setInterval> | null = null
 
-function sendVerifyCode() {
-  if (countdown.value > 0) return
+// 发送旧手机号验证码（scene 须与后端校验一致）
+async function sendVerifyCode() {
+  if (countdown.value > 0 || !phoneFull.value) return
+  try {
+    await mineApi.sendPhoneCode(phoneFull.value, 'change-phone-old')
+  } catch (e: any) {
+    error.value = e?.message || '验证码发送失败'
+    return
+  }
   countdown.value = 60
   timer1 = setInterval(() => {
     countdown.value--
     if (countdown.value <= 0 && timer1) clearInterval(timer1)
   }, 1000)
 }
-function sendNewCode() {
+// 发送新手机号验证码
+async function sendNewCode() {
   if (newCountdown.value > 0 || newPhone.value.length !== 11) return
+  try {
+    await mineApi.sendPhoneCode(newPhone.value, 'change-phone-new')
+  } catch (e: any) {
+    error.value = e?.message || '验证码发送失败'
+    return
+  }
   newCountdown.value = 60
   timer2 = setInterval(() => {
     newCountdown.value--
@@ -75,22 +91,14 @@ function onNewCodeInput(e: any) {
   error.value = ''
 }
 
-async function verifyCurrentPhone() {
+// 第一步仅本地校验旧号验证码格式；真正校验在最终提交时由后端一次性完成
+function verifyCurrentPhone() {
   if (verifyCode.value.length !== 6) {
     error.value = '请输入6位验证码'
     return
   }
-  if (loading.value) return
-  loading.value = true
   error.value = ''
-  try {
-    await mineApi.changePhone('', verifyCode.value)
-    step.value = 2
-  } catch (e: any) {
-    error.value = e?.message || '验证失败'
-  } finally {
-    loading.value = false
-  }
+  step.value = 2
 }
 async function submitNewPhone() {
   if (newPhone.value.length !== 11) {
@@ -105,7 +113,7 @@ async function submitNewPhone() {
   loading.value = true
   error.value = ''
   try {
-    await mineApi.changePhone(newPhone.value, newCode.value)
+    await mineApi.changePhone(verifyCode.value, newPhone.value, newCode.value)
     step.value = 3
     setTimeout(() => goBack(), 2000)
   } catch (e: any) {
@@ -165,7 +173,7 @@ onUnmounted(() => {
         <view class="form">
           <text class="form-label">短信验证码</text>
           <view class="code-row">
-            <input class="code-input" type="number" :maxlength="6" :value="verifyCode" @input="onVerifyInput" placeholder="请输入验证码" placeholder-class="ph" />
+            <input class="code-input" type="text" :maxlength="6" :value="verifyCode" @input="onVerifyInput" placeholder="请输入验证码" placeholder-class="ph" />
             <view class="code-btn" :class="{ disabled: countdown > 0 }" @tap="sendVerifyCode">
               <text class="code-btn-text" :class="{ disabled: countdown > 0 }">{{ countdown > 0 ? `${countdown}s` : '获取验证码' }}</text>
             </view>
@@ -191,10 +199,10 @@ onUnmounted(() => {
         </view>
         <view class="form">
           <text class="form-label">新手机号</text>
-          <input class="full-input" type="number" :maxlength="11" :value="newPhone" @input="onNewPhoneInput" placeholder="请输入新手机号" placeholder-class="ph" />
+          <input class="full-input" type="text" :maxlength="11" :value="newPhone" @input="onNewPhoneInput" placeholder="请输入新手机号" placeholder-class="ph" />
           <text class="form-label">短信验证码</text>
           <view class="code-row">
-            <input class="code-input" type="number" :maxlength="6" :value="newCode" @input="onNewCodeInput" placeholder="请输入验证码" placeholder-class="ph" />
+            <input class="code-input" type="text" :maxlength="6" :value="newCode" @input="onNewCodeInput" placeholder="请输入验证码" placeholder-class="ph" />
             <view class="code-btn" :class="{ disabled: newCountdown > 0 || newPhone.length !== 11 }" @tap="sendNewCode">
               <text class="code-btn-text" :class="{ disabled: newCountdown > 0 || newPhone.length !== 11 }">{{ newCountdown > 0 ? `${newCountdown}s` : '获取验证码' }}</text>
             </view>
@@ -233,7 +241,7 @@ onUnmounted(() => {
 .loading { flex: 1; display: flex; align-items: center; justify-content: center; padding-top: 200rpx; font-size: 28rpx; color: #8a8178; }
 .error-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding-top: 200rpx; gap: 24rpx; }
 .error-state text { font-size: 28rpx; color: #8a8178; }
-.retry-btn { padding: 16rpx 48rpx; background: #C41E3A; color: #fff; border-radius: 12rpx; font-size: 26rpx; }
+.retry-btn { padding: 16rpx 48rpx; background: var(--brand); color: #fff; border-radius: 12rpx; font-size: 26rpx; }
 .steps {
   display: flex;
   align-items: flex-start;
@@ -262,7 +270,7 @@ onUnmounted(() => {
   justify-content: center;
 }
 .step-dot.active {
-  background: #c41e3a;
+  background: var(--brand);
 }
 .step-num {
   font-size: 28rpx;
@@ -278,7 +286,7 @@ onUnmounted(() => {
   margin-top: 12rpx;
 }
 .step-label.active {
-  color: #c41e3a;
+  color: var(--brand);
 }
 .step-line {
   flex: 1;
@@ -287,7 +295,7 @@ onUnmounted(() => {
   margin: 32rpx 16rpx 0;
 }
 .step-line.active {
-  background: #c41e3a;
+  background: var(--brand);
 }
 .body {
   padding: 0 32rpx;
@@ -387,7 +395,7 @@ onUnmounted(() => {
   padding: 0 28rpx;
   height: 88rpx;
   border-radius: 20rpx;
-  background: #c41e3a;
+  background: var(--brand);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -410,7 +418,7 @@ onUnmounted(() => {
 .primary-btn {
   height: 88rpx;
   border-radius: 20rpx;
-  background: #c41e3a;
+  background: var(--brand);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -471,7 +479,7 @@ onUnmounted(() => {
 .done-phone {
   font-size: 32rpx;
   font-weight: 500;
-  color: #c41e3a;
+  color: var(--brand);
 }
 .done-tip {
   font-size: 24rpx;

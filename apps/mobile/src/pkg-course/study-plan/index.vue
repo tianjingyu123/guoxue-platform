@@ -247,7 +247,7 @@ onMounted(() => {
         <view v-else class="tl-list">
           <view v-for="course in courses" :key="course.id" class="tl-item">
             <app-icon name="grip-vertical" :size="28" color="#DDDDDD" />
-            <image class="tl-cover" :src="course.cover" mode="aspectFill" />
+            <image lazy-load class="tl-cover" :src="course.cover" mode="aspectFill" />
             <view class="tl-info">
               <text class="tl-name">{{ course.title }}</text>
               <view class="tl-prog-row">
@@ -276,13 +276,13 @@ onMounted(() => {
 <style scoped>
 .page { min-height: 100vh; background: #FAF8F5; }
 
-.nav { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 24rpx; height: 112rpx; padding: 0 32rpx; background: #C41E3A; }
+.nav { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 24rpx; height: 112rpx; padding: 0 32rpx; background: var(--brand); }
 .nav-back { width: 64rpx; height: 64rpx; display: flex; align-items: center; justify-content: center; margin-left: -16rpx; }
 .nav-title { flex: 1; font-size: 34rpx; font-weight: 700; color: #fff; }
 .streak { display: flex; align-items: center; gap: 8rpx; background: rgba(255,255,255,0.2); padding: 8rpx 20rpx; border-radius: 999rpx; }
 .streak-txt { font-size: 24rpx; font-weight: 700; color: #fff; }
 
-.stat-bar { display: flex; align-items: center; gap: 32rpx; padding: 8rpx 32rpx 40rpx; background: linear-gradient(to right, #C41E3A, #9B0B28); }
+.stat-bar { display: flex; align-items: center; gap: 32rpx; padding: 8rpx 32rpx 40rpx; background: linear-gradient(to right, var(--brand), #9B0B28); }
 .stat-left { flex: 1; }
 .stat-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12rpx; }
 .stat-label { font-size: 24rpx; color: rgba(255,255,255,0.8); }
@@ -304,7 +304,7 @@ onMounted(() => {
 .ico-box.blue { background: rgba(74,144,217,0.1); }
 .card-title { font-size: 30rpx; font-weight: 600; color: #2C2C2C; }
 .card-sub { font-size: 24rpx; color: #999; }
-.hl { color: #C41E3A; font-weight: 500; }
+.hl { color: var(--brand); font-weight: 500; }
 
 /* 热力图 */
 .cal-wkrow { display: flex; margin-bottom: 16rpx; }
@@ -317,35 +317,35 @@ onMounted(() => {
 .cal-cell.lv0 { background: #F2EFEA; }
 .cal-cell.lv1 { background: #FFE5E5; }
 .cal-cell.lv2 { background: #FF9999; }
-.cal-cell.lv3 { background: #C41E3A; }
+.cal-cell.lv3 { background: var(--brand); }
 .cal-cell.future { background: transparent; }
-.cal-cell.tdy { border: 3rpx solid #C41E3A; box-shadow: 0 0 0 3rpx #fff inset; }
+.cal-cell.tdy { border: 3rpx solid var(--brand); box-shadow: 0 0 0 3rpx #fff inset; }
 .cal-legend { display: flex; align-items: center; justify-content: flex-end; gap: 8rpx; margin-top: 24rpx; }
 .legend-txt { font-size: 20rpx; color: #999; }
 .legend-box { width: 24rpx; height: 24rpx; border-radius: 8rpx; }
 .legend-box.lv0 { background: #F2EFEA; }
 .legend-box.lv1 { background: #FFE5E5; }
 .legend-box.lv2 { background: #FF9999; }
-.legend-box.lv3 { background: #C41E3A; }
+.legend-box.lv3 { background: var(--brand); }
 
 /* 目标卡 */
 .edit-btn { display: flex; align-items: center; gap: 8rpx; }
-.edit-txt { font-size: 24rpx; color: #C41E3A; font-weight: 500; }
+.edit-txt { font-size: 24rpx; color: var(--brand); font-weight: 500; }
 .goal-stats { display: flex; gap: 24rpx; margin-bottom: 24rpx; }
 .goal-stat { flex: 1; text-align: center; background: #FAF8F5; border-radius: 24rpx; padding: 24rpx 0; }
 .goal-num { display: block; font-size: 56rpx; font-weight: 900; line-height: 1; }
-.goal-num.red { color: #C41E3A; }
+.goal-num.red { color: var(--brand); }
 .goal-num.gold { color: #C9A96E; }
 .goal-num.blue { color: #4A90D9; }
 .goal-unit { font-size: 22rpx; color: #999; margin-top: 8rpx; }
 .goal-week { display: flex; gap: 12rpx; }
 .gw-cell { flex: 1; height: 64rpx; border-radius: 12rpx; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4rpx; }
-.gw-cell.tdy { background: #C41E3A; }
+.gw-cell.tdy { background: var(--brand); }
 .gw-cell.plan { background: rgba(196,30,58,0.1); }
 .gw-cell.off { background: #F2EFEA; }
 .gw-txt { font-size: 18rpx; font-weight: 500; }
 .gw-cell.tdy .gw-txt { color: #fff; }
-.gw-cell.plan .gw-txt { color: #C41E3A; }
+.gw-cell.plan .gw-txt { color: var(--brand); }
 .gw-cell.off .gw-txt { color: #BBB; }
 .gw-dot { width: 8rpx; height: 8rpx; border-radius: 999rpx; background: rgba(196,30,58,0.5); }
 
@@ -354,12 +354,12 @@ onMounted(() => {
 .task-head-row { display: flex; align-items: center; justify-content: space-between; }
 .task-head-tt { display: flex; align-items: baseline; gap: 16rpx; }
 .task-date { font-size: 24rpx; color: #999; }
-.task-count { font-size: 26rpx; font-weight: 700; color: #C41E3A; }
+.task-count { font-size: 26rpx; font-weight: 700; color: var(--brand); }
 .task-track { height: 12rpx; background: #F2EFEA; border-radius: 999rpx; overflow: hidden; margin-top: 20rpx; }
-.task-fill { height: 100%; background: linear-gradient(to right, #C41E3A, #E74C3C); border-radius: 999rpx; }
+.task-fill { height: 100%; background: linear-gradient(to right, var(--brand), #E74C3C); border-radius: 999rpx; }
 .task-mins { display: flex; justify-content: space-between; margin-top: 8rpx; }
 .task-min { font-size: 20rpx; color: #999; }
-.task-min.hl { color: #C41E3A; }
+.task-min.hl { color: var(--brand); }
 .task-empty { padding: 64rpx 0; text-align: center; font-size: 26rpx; color: #BBB; }
 .task-list { display: flex; flex-direction: column; }
 .task-item { display: flex; align-items: center; gap: 24rpx; padding: 24rpx 32rpx; border-top: 1rpx solid #F5F0E8; }
@@ -384,16 +384,16 @@ onMounted(() => {
 .tl-name { display: block; font-size: 26rpx; font-weight: 500; color: #2C2C2C; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tl-prog-row { display: flex; align-items: center; gap: 16rpx; margin-top: 8rpx; }
 .tl-track { flex: 1; height: 12rpx; background: #F2EFEA; border-radius: 999rpx; overflow: hidden; }
-.tl-fill { height: 100%; background: linear-gradient(to right, #C41E3A, #E74C3C); border-radius: 999rpx; }
+.tl-fill { height: 100%; background: linear-gradient(to right, var(--brand), #E74C3C); border-radius: 999rpx; }
 .tl-pct { font-size: 20rpx; color: #BBB; }
 .tl-days { display: flex; gap: 8rpx; margin-top: 12rpx; }
 .tl-day { width: 32rpx; height: 32rpx; border-radius: 8rpx; display: flex; align-items: center; justify-content: center; font-size: 18rpx; font-weight: 500; background: #F2EFEA; color: #CCC; }
-.tl-day.on { background: #C41E3A; color: #fff; }
+.tl-day.on { background: var(--brand); color: #fff; }
 .tl-del { width: 56rpx; height: 56rpx; display: flex; align-items: center; justify-content: center; }
 
 .foot { margin-top: 16rpx; margin-bottom: 64rpx; text-align: center; }
 .foot-txt { font-size: 24rpx; color: #BBB; }
-.foot-link { font-size: 24rpx; color: #C41E3A; font-weight: 500; margin: 0 8rpx; }
+.foot-link { font-size: 24rpx; color: var(--brand); font-weight: 500; margin: 0 8rpx; }
 
 /* 加载 / 错误 */
 .loading-wrap, .error-wrap { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; gap: 24rpx; }

@@ -449,7 +449,7 @@ onMounted(async () => {
 .section { background: #fff; border-radius: 20rpx; border: 1rpx solid #ece6dc; padding: 28rpx; margin-bottom: 24rpx; }
 .section-head { display: flex; align-items: center; gap: 12rpx; margin-bottom: 24rpx; }
 .section-title { font-size: 30rpx; font-weight: 600; color: #1a1a1a; }
-.required { color: #c41e3a; font-size: 28rpx; }
+.required { color: var(--brand); font-size: 28rpx; }
 
 .select-row {
   display: flex;
@@ -477,15 +477,15 @@ onMounted(async () => {
   border-radius: 16rpx;
   box-sizing: border-box;
 }
-.filter-opt.active { border-color: #c41e3a; background: #fdf2f4; }
+.filter-opt.active { border-color: var(--brand); background: #fdf2f4; }
 .filter-opt-text { font-size: 26rpx; color: #6b6055; }
-.filter-opt-text.active { color: #c41e3a; }
+.filter-opt-text.active { color: var(--brand); }
 
 .filter-detail { margin-top: 24rpx; }
 .detail-label { display: block; font-size: 26rpx; color: #9a8a78; margin-bottom: 16rpx; }
 .level-list { display: flex; flex-wrap: wrap; gap: 16rpx; }
 .level-chip { padding: 12rpx 28rpx; border: 1rpx solid #ece6dc; border-radius: 32rpx; }
-.level-chip.active { border-color: #c41e3a; background: #c41e3a; }
+.level-chip.active { border-color: var(--brand); background: var(--brand); }
 .level-chip-text { font-size: 26rpx; color: #6b6055; }
 .level-chip-text.active { color: #fff; }
 
@@ -532,9 +532,9 @@ onMounted(async () => {
 
 .seg-row { display: flex; gap: 16rpx; }
 .seg-btn { flex: 1; padding: 18rpx 0; text-align: center; border: 1rpx solid #ece6dc; border-radius: 12rpx; }
-.seg-btn.active { border-color: #c41e3a; background: #fdf2f4; }
+.seg-btn.active { border-color: var(--brand); background: #fdf2f4; }
 .seg-text { font-size: 28rpx; color: #6b6055; }
-.seg-text.active { color: #c41e3a; }
+.seg-text.active { color: var(--brand); }
 
 .warn-box { display: flex; align-items: flex-start; gap: 12rpx; padding: 20rpx; background: #fffbeb; border-radius: 16rpx; }
 .warn-text { flex: 1; font-size: 24rpx; color: #92400e; line-height: 1.5; }
@@ -560,9 +560,9 @@ onMounted(async () => {
   border-radius: 16rpx;
 }
 .footer-btn.outline { border: 1rpx solid #f0c0c8; background: #fdf2f4; }
-.footer-btn.primary { background: #c41e3a; }
+.footer-btn.primary { background: var(--brand); }
 .footer-btn.disabled { opacity: 0.5; }
-.footer-btn-text { font-size: 30rpx; color: #c41e3a; }
+.footer-btn-text { font-size: 30rpx; color: var(--brand); }
 .footer-btn-text.disabled { color: #b3a695; }
 .footer-btn-text-primary { font-size: 30rpx; color: #fff; font-weight: 500; }
 
@@ -581,9 +581,9 @@ onMounted(async () => {
   border-radius: 16rpx;
   margin-bottom: 20rpx;
 }
-.coupon-opt.active { border-color: #c41e3a; background: #fdf2f4; }
+.coupon-opt.active { border-color: var(--brand); background: #fdf2f4; }
 .coupon-opt-icon { width: 88rpx; height: 88rpx; border-radius: 16rpx; background: #fdf2f4; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.coupon-opt-val { font-size: 28rpx; font-weight: 700; color: #c41e3a; }
+.coupon-opt-val { font-size: 28rpx; font-weight: 700; color: var(--brand); }
 .coupon-opt-info { flex: 1; min-width: 0; }
 .coupon-opt-name { display: block; font-size: 28rpx; font-weight: 500; color: #1a1a1a; }
 .coupon-opt-meta { font-size: 22rpx; color: #9a8a78; }
@@ -594,7 +594,7 @@ onMounted(async () => {
 .dialog-body { padding: 40rpx; }
 .preview-count { text-align: center; margin-bottom: 28rpx; }
 .preview-label { display: block; font-size: 26rpx; color: #9a8a78; margin-bottom: 8rpx; }
-.preview-num { font-size: 60rpx; font-weight: 700; color: #c41e3a; }
+.preview-num { font-size: 60rpx; font-weight: 700; color: var(--brand); }
 .preview-grid { display: flex; gap: 20rpx; margin-bottom: 24rpx; }
 .preview-cell { flex: 1; text-align: center; padding: 20rpx; background: #f7f4ef; border-radius: 12rpx; }
 .preview-cell-label { display: block; font-size: 22rpx; color: #9a8a78; margin-bottom: 6rpx; }
@@ -609,12 +609,12 @@ onMounted(async () => {
 .confirm-icon { width: 112rpx; height: 112rpx; margin: 0 auto 28rpx; border-radius: 50%; background: #fef3c7; display: flex; align-items: center; justify-content: center; }
 .confirm-title { display: block; font-size: 34rpx; font-weight: 600; color: #1a1a1a; margin-bottom: 16rpx; }
 .confirm-desc { font-size: 26rpx; color: #6b6055; line-height: 1.6; }
-.confirm-num { color: #c41e3a; font-weight: 600; }
+.confirm-num { color: var(--brand); font-weight: 600; }
 
 .dialog-foot { display: flex; gap: 20rpx; padding: 24rpx; border-top: 1rpx solid #ece6dc; }
 .dialog-btn { flex: 1; height: 80rpx; display: flex; align-items: center; justify-content: center; border-radius: 14rpx; }
 .dialog-btn.outline { border: 1rpx solid #ece6dc; background: #fff; }
-.dialog-btn.primary { background: #c41e3a; }
+.dialog-btn.primary { background: var(--brand); }
 .dialog-btn.disabled { opacity: 0.6; }
 .dialog-btn-text { font-size: 28rpx; color: #6b6055; }
 .dialog-btn-text-primary { font-size: 28rpx; color: #fff; font-weight: 500; }

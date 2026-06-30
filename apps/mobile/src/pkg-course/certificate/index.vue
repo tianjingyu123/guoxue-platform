@@ -153,13 +153,13 @@ onMounted(() => {
 .cert-area { flex: 1; display: flex; align-items: center; justify-content: center; padding: 32rpx; }
 .cert-card { width: 100%; max-width: 670rpx; aspect-ratio: 3 / 4; background: linear-gradient(to bottom, #FDF8F3, #F5EDE4); border: 6rpx solid #C9A96E; border-radius: 16rpx; box-shadow: 0 24rpx 64rpx rgba(0,0,0,0.5); padding: 20rpx; }
 .cert-inner { width: 100%; height: 100%; border: 2rpx solid #E8D5B5; border-radius: 8rpx; display: flex; flex-direction: column; align-items: center; padding: 32rpx 40rpx; }
-.cert-badge { width: 88rpx; height: 88rpx; border-radius: 999rpx; background: #C41E3A; display: flex; align-items: center; justify-content: center; margin-top: 8rpx; }
+.cert-badge { width: 88rpx; height: 88rpx; border-radius: 999rpx; background: var(--brand); display: flex; align-items: center; justify-content: center; margin-top: 8rpx; }
 .cert-star { font-size: 40rpx; color: #fff; }
-.cert-title { font-size: 48rpx; font-weight: 700; color: #C41E3A; margin-top: 24rpx; font-family: serif; }
+.cert-title { font-size: 48rpx; font-weight: 700; color: var(--brand); margin-top: 24rpx; font-family: serif; }
 .cert-en { font-size: 18rpx; color: #999; margin-top: 8rpx; letter-spacing: 1rpx; }
 .cert-name { font-size: 44rpx; font-weight: 700; color: #2C2C2C; margin-top: 40rpx; }
 .cert-desc { font-size: 24rpx; color: #666; margin-top: 24rpx; }
-.cert-course { font-size: 32rpx; font-weight: 700; color: #C41E3A; margin-top: 16rpx; font-family: serif; }
+.cert-course { font-size: 32rpx; font-weight: 700; color: var(--brand); margin-top: 16rpx; font-family: serif; }
 .cert-hours { font-size: 22rpx; color: #666; margin-top: 16rpx; }
 .cert-score { font-size: 28rpx; font-weight: 700; color: #C9A96E; margin-top: 16rpx; }
 .cert-divider { width: 80%; height: 1rpx; background: #E8D5B5; margin: 32rpx 0; }
@@ -170,7 +170,7 @@ onMounted(() => {
 .cert-foot-val { font-size: 26rpx; color: #2C2C2C; }
 .cert-foot-val.italic { font-style: italic; font-family: serif; }
 .cert-no { font-size: 18rpx; color: #999; margin-top: 24rpx; }
-.cert-platform { font-size: 22rpx; font-weight: 700; color: #C41E3A; margin-top: 12rpx; }
+.cert-platform { font-size: 22rpx; font-weight: 700; color: var(--brand); margin-top: 12rpx; }
 
 .info-card { margin: 0 32rpx 32rpx; padding: 24rpx 32rpx; background: rgba(255,255,255,0.05); border-radius: 24rpx; }
 .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 32rpx; }
@@ -180,7 +180,7 @@ onMounted(() => {
 .info-val.small { font-size: 22rpx; }
 
 .actions { padding: 32rpx; padding-bottom: 64rpx; display: flex; flex-direction: column; gap: 24rpx; }
-.btn-primary { height: 96rpx; border-radius: 999rpx; background: linear-gradient(to right, #C41E3A, #E74C3C); display: flex; align-items: center; justify-content: center; gap: 16rpx; }
+.btn-primary { height: 96rpx; border-radius: 999rpx; background: linear-gradient(to right, var(--brand), #E74C3C); display: flex; align-items: center; justify-content: center; gap: 16rpx; }
 .btn-primary-txt { font-size: 30rpx; font-weight: 500; color: #fff; }
 .btn-secondary { height: 96rpx; border-radius: 999rpx; background: rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; gap: 16rpx; }
 .btn-secondary-txt { font-size: 30rpx; font-weight: 500; color: #fff; }

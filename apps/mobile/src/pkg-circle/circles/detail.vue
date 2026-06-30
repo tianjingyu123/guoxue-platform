@@ -4,14 +4,20 @@
  * 封面+导航 / 信息卡 / 公告 / 6Tab(首页/帖子/文章/精华/专栏/成员) / 底部操作栏 / 会员权益弹窗
  */
 import { ref, computed } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { onLoad, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
+import { useShare } from '@/composables/useShare'
 import AppIcon from '@/components/common/app-icon.vue'
 import PostCard from '@/components/circle/post-card.vue'
 import { goBack, navigateTo, toastComingSoon } from '@/utils/router'
+import { getToken } from '@/utils/storage'
+import PurchaseSheet from '@/components/common/purchase-sheet.vue'
 import {
   circleDetailApi, memberBenefits,
   type CircleDetail, type CirclePost, type CircleMember, type CircleColumn, type CircleArticle, type CircleActivity,
 } from '@/lib/circle-detail-data'
+import { recommendApi } from '@/lib/recommend-data'
+import type { RecommendItem } from '@/components/common/recommend-section.vue'
+import { track } from '@/composables/useTrack'
 
 const circleId = ref('1')
 const circle = ref<CircleDetail | null>(null)
@@ -25,9 +31,25 @@ const error = ref('')
 const activeTab = ref<'home' | 'posts' | 'articles' | 'essence' | 'columns' | 'members'>('home')
 const showAnnouncement = ref(true)
 const isJoined = ref(false)
-const isOwner = ref(true) // mock：当前用户是圈主
+const applied = ref(false) // 需审批圈：本次会话已提交申请，按钮转「审核中」
+// 角色权限：按当前用户在该圈的真实角色判断（圈主=OWNER，管理入口仅圈主可见）
+const isOwner = computed(() => circle.value?.myRole === 'OWNER')
+const isLoggedIn = () => !!getToken()
 const likedPosts = ref<Set<string>>(new Set())
 const showBenefits = ref(false)
+const showPurchase = ref(false)
+const recItems = ref<RecommendItem[]>([])
+
+/** 底部加入按钮文案：按圈子类型/价格/加入态展示真实信息 */
+const joinButtonText = computed(() => {
+  const c = circle.value
+  if (!c) return '加入圈子'
+  if (isJoined.value) return '已加入'
+  if (applied.value) return '审核中 · 查看进度'
+  if (c.type === 'FREE') return c.needApproval ? '申请加入' : '免费加入'
+  if (c.type === 'YEARLY') return `¥${c.price}/年 加入`
+  return `¥${c.price} 加入圈子`
+})
 
 const tabs = [
   { id: 'home', label: '首页' },
@@ -45,6 +67,19 @@ onLoad((q) => {
   if (q?.id) circleId.value = q.id
   loadData()
 })
+
+// 微信原生分享（好友 / 朋友圈）
+const { toAppMessage, toTimeline } = useShare()
+onShareAppMessage(() => toAppMessage({
+  title: circle.value?.name || '国学圈子',
+  path: `/circles/${circle.value?.id || circleId.value}`,
+  cover: circle.value?.cover,
+}))
+onShareTimeline(() => toTimeline({
+  title: circle.value?.name || '国学圈子',
+  path: `/circles/${circle.value?.id || circleId.value}`,
+  cover: circle.value?.cover,
+}))
 
 async function loadData() {
   isLoading.value = true
@@ -66,6 +101,8 @@ async function loadData() {
     activities.value = acts
     isJoined.value = c.isJoined
     likedPosts.value = new Set(p.data.filter(x => x.isLiked).map(x => x.id))
+    // 相关圈子推荐（getForScene 已内置降级，无需 try/catch）
+    recItems.value = await recommendApi.getForScene('guess_like', String(circleId.value))
   } catch {
     error.value = '加载失败，请重试'
   } finally {
@@ -74,17 +111,80 @@ async function loadData() {
 }
 
 function handleJoin() {
-  if (!isJoined.value) {
-    showBenefits.value = true
-  } else {
-    isJoined.value = false
-    circleDetailApi.leave(circleId.value).catch(() => { isJoined.value = true })
+  // 已提交申请：点击进「我的入圈申请」查看审核进度
+  if (applied.value) {
+    navigateTo('/pkg-circle/circles/my-join-requests')
+    return
   }
+  if (isJoined.value) {
+    const c = circle.value
+    if (c && c.type !== 'FREE') {
+      // 付费圈退出 → 退款引导流程（引导页强调虚拟产品不退款，引导继续使用 / 申诉退款）
+      navigateTo(`/pkg-circle/circles/exit?id=${circleId.value}`)
+    } else {
+      // 免费圈退出 → 二次确认后直接退出
+      uni.showModal({
+        title: '退出圈子',
+        content: '确定退出该圈子吗？退出后将失去成员身份。',
+        confirmColor: '#C41E3A',
+        success: (r) => {
+          if (!r.confirm) return
+          isJoined.value = false
+          circleDetailApi.leave(circleId.value).catch(() => { isJoined.value = true; uni.showToast({ title: '退出失败', icon: 'none' }) })
+        },
+      })
+    }
+    return
+  }
+  if (!isLoggedIn()) {
+    uni.showToast({ title: '请先登录', icon: 'none' })
+    setTimeout(() => navigateTo('/pkg-auth/login/index'), 600)
+    return
+  }
+  const c = circle.value
+  if (!c) return
+  if (c.type === 'FREE') {
+    doJoin() // 免费圈直接加入
+  } else {
+    showBenefits.value = true // 付费圈先展示权益，确认后走购买
+  }
+}
+const joining = ref(false)
+/** 免费圈加入：需审批圈→提交申请等审核（不直接进）；普通免费圈→乐观更新+失败回滚 */
+async function doJoin() {
+  const c = circle.value
+  if (!c || joining.value) return
+  // 需审批的免费圈：提交申请，不直接成为成员
+  if (c.needApproval) {
+    joining.value = true
+    try {
+      const r = await circleDetailApi.join(circleId.value)
+      applied.value = true
+      uni.showToast({ title: r?.message || '申请已提交，等待圈主审核', icon: 'none' })
+    } catch {
+      uni.showToast({ title: '申请提交失败，请重试', icon: 'none' })
+    } finally {
+      joining.value = false
+    }
+    return
+  }
+  // 普通免费圈：乐观加入
+  isJoined.value = true
+  circleDetailApi.join(circleId.value).catch(() => {
+    isJoined.value = false
+    uni.showToast({ title: '加入失败，请重试', icon: 'none' })
+  })
 }
 function confirmJoin() {
   showBenefits.value = false
+  showPurchase.value = true // 打开购买弹窗（现金支付，统一下单 POST /shop/orders type=CIRCLE）
+}
+/** 购买下单成功 → 标记已加入 */
+function onPurchased() {
+  showPurchase.value = false
   isJoined.value = true
-  circleDetailApi.join(circleId.value).catch(() => { isJoined.value = false })
+  track.purchase({ type: 'circle', id: circle.value?.id, amount: circle.value?.price })
+  uni.showToast({ title: '加入成功', icon: 'success' })
 }
 function handleLikePost(postId: string) {
   const next = new Set(likedPosts.value)
@@ -101,13 +201,15 @@ function openPublish() { navigateTo(`/pkg-circle/circles/publish?circleId=${circ
 function openAnnouncement() { navigateTo(`/pkg-circle/circles/announcements?id=1&circleId=${circleId.value}`) }
 function openUser(id: string) { navigateTo(`/pkg-circle/user/profile?id=${id}`) }
 function openRecommendEbook() { navigateTo(`/pkg-circle/circles/recommend-ebook?id=${circleId.value}`) }
+function openAssistant() { navigateTo(`/pkg-circle/circles/assistant?circleId=${circleId.value}&name=${encodeURIComponent(circle.value?.name || '')}`) }
 </script>
 
 <template>
+  <customer-service-fab />
   <view class="cd" v-if="!isLoading && !error && circle">
     <!-- 顶部封面 -->
     <view class="cd-cover">
-      <image :src="circle.cover" class="cd-cover-img" mode="aspectFill" />
+      <image lazy-load :src="circle.cover" class="cd-cover-img" mode="aspectFill" />
       <view class="cd-cover-mask" />
       <view class="cd-nav">
         <view class="cd-nav-btn" @tap="goBack"><app-icon name="arrow-left" :size="40" color="#ffffff" /></view>
@@ -123,16 +225,16 @@ function openRecommendEbook() { navigateTo(`/pkg-circle/circles/recommend-ebook?
     <view class="cd-info-wrap">
       <view class="cd-info">
         <view class="cd-info-top">
-          <view class="cd-avatar"><image :src="circle.owner.avatar" class="cd-avatar-img" mode="aspectFill" /></view>
+          <view class="cd-avatar"><image lazy-load :src="circle.owner.avatar" class="cd-avatar-img" mode="aspectFill" /></view>
           <view class="cd-info-main">
             <view class="cd-name-row">
               <text class="cd-name">{{ circle.name }}</text>
-              <text class="cd-paid">付费</text>
+              <text v-if="circle.type !== 'FREE'" class="cd-paid">{{ circle.type === 'YEARLY' ? '年费' : '付费' }}</text>
             </view>
             <view class="cd-stats">
               <view class="cd-stat"><app-icon name="users" :size="26" color="#999999" /><text class="cd-stat-txt">{{ fmt(circle.members) }} 成员</text></view>
               <view class="cd-stat"><app-icon name="file-text" :size="26" color="#999999" /><text class="cd-stat-txt">{{ fmt(circle.posts) }} 帖子</text></view>
-              <view class="cd-stat"><app-icon name="flame" :size="26" color="#f97316" /><text class="cd-stat-txt">今日{{ circle.todayActive }}</text></view>
+              <view v-if="circle.todayActive" class="cd-stat"><app-icon name="flame" :size="26" color="#f97316" /><text class="cd-stat-txt">今日{{ circle.todayActive }}</text></view>
             </view>
           </view>
         </view>
@@ -141,7 +243,7 @@ function openRecommendEbook() { navigateTo(`/pkg-circle/circles/recommend-ebook?
           <text v-for="tag in circle.tags" :key="tag" class="cd-tag">#{{ tag }}</text>
         </view>
         <view class="cd-owner" @tap="openUser(circle.owner.id)">
-          <image :src="circle.owner.avatar" class="cd-owner-avatar" mode="aspectFill" />
+          <image lazy-load :src="circle.owner.avatar" class="cd-owner-avatar" mode="aspectFill" />
           <view class="cd-owner-info">
             <view class="cd-owner-name-row">
               <text class="cd-owner-name">{{ circle.owner.name }}</text>
@@ -172,6 +274,16 @@ function openRecommendEbook() { navigateTo(`/pkg-circle/circles/recommend-ebook?
           </view>
         </view>
       </view>
+    </view>
+
+    <!-- 圈主助理入口 -->
+    <view class="cd-assistant" @tap="openAssistant">
+      <view class="cd-assistant-icon"><app-icon name="sparkles" :size="32" color="#ffffff" /></view>
+      <view class="cd-assistant-main">
+        <text class="cd-assistant-title">圈主助理</text>
+        <text class="cd-assistant-sub">圈子专属 AI 助手，有问题随时问</text>
+      </view>
+      <app-icon name="chevron-right" :size="28" color="#C9A96E" />
     </view>
 
     <!-- Tab 切换 -->
@@ -216,7 +328,7 @@ function openRecommendEbook() { navigateTo(`/pkg-circle/circles/recommend-ebook?
           <view class="cd-sec-title mb"><app-icon name="pin" :size="28" color="#C41E3A" /><text class="cd-sec-label">置顶内容</text></view>
           <view class="cd-pinned-list">
             <view v-for="post in pinnedPosts" :key="post.id" class="cd-pinned" @tap="openPost(post.id)">
-              <image :src="post.author.avatar" class="cd-pinned-avatar" mode="aspectFill" />
+              <image lazy-load :src="post.author.avatar" class="cd-pinned-avatar" mode="aspectFill" />
               <view class="cd-pinned-main">
                 <view class="cd-pinned-tags">
                   <app-icon name="pin" :size="24" color="#C41E3A" /><text class="cd-pinned-pin">置顶</text>
@@ -229,7 +341,7 @@ function openRecommendEbook() { navigateTo(`/pkg-circle/circles/recommend-ebook?
                   <view class="cd-pinned-stat"><app-icon name="message-circle" :size="22" color="#999999" /><text class="cd-pinned-meta-txt">{{ post.comments }}</text></view>
                 </view>
               </view>
-              <image v-if="post.images && post.images.length" :src="post.images[0]" class="cd-pinned-img" mode="aspectFill" />
+              <image lazy-load v-if="post.images && post.images.length" :src="post.images[0]" class="cd-pinned-img" mode="aspectFill" />
             </view>
           </view>
         </view>
@@ -244,7 +356,7 @@ function openRecommendEbook() { navigateTo(`/pkg-circle/circles/recommend-ebook?
             <view class="cd-cols-row">
               <view v-for="col in columns" :key="col.id" class="cd-col" @tap="toastComingSoon">
                 <view class="cd-col-cover">
-                  <image :src="col.cover" class="cd-col-img" mode="aspectFill" />
+                  <image lazy-load :src="col.cover" class="cd-col-img" mode="aspectFill" />
                   <view v-if="col.isPremium" class="cd-col-lock"><app-icon name="lock" :size="20" color="#ffffff" /></view>
                 </view>
                 <view class="cd-col-body">
@@ -256,8 +368,8 @@ function openRecommendEbook() { navigateTo(`/pkg-circle/circles/recommend-ebook?
           </scroll-view>
         </view>
 
-        <!-- 圈主推荐电子书（仅圈主可见管理入口，对齐原型） -->
-        <view v-if="isOwner" class="cd-sec">
+        <!-- 圈主推荐电子书（仅圈主可见管理入口；无数据时隐藏，不展示空壳） -->
+        <view v-if="isOwner && circleArticles.length" class="cd-sec">
           <view class="cd-sec-head">
             <view class="cd-sec-title">
               <app-icon name="book-open" :size="28" color="#2563eb" />
@@ -308,7 +420,7 @@ function openRecommendEbook() { navigateTo(`/pkg-circle/circles/recommend-ebook?
       <view v-else-if="activeTab === 'articles'" class="cd-post-list">
         <template v-if="circleArticles.length">
           <view v-for="a in circleArticles" :key="a.id" class="cd-article" @tap="toastComingSoon">
-            <image v-if="a.cover" :src="a.cover" class="cd-article-cover" mode="aspectFill" />
+            <image lazy-load v-if="a.cover" :src="a.cover" class="cd-article-cover" mode="aspectFill" />
             <view class="cd-article-main">
               <view class="cd-article-title-row">
                 <text v-if="a.isFeatured" class="cd-article-feat">精选</text>
@@ -329,7 +441,7 @@ function openRecommendEbook() { navigateTo(`/pkg-circle/circles/recommend-ebook?
       <view v-else-if="activeTab === 'columns'" class="cd-col-grid">
         <view v-for="col in columns" :key="col.id" class="cd-col-card" @tap="toastComingSoon">
           <view class="cd-col-cover">
-            <image :src="col.cover" class="cd-col-card-img" mode="aspectFill" />
+            <image lazy-load :src="col.cover" class="cd-col-card-img" mode="aspectFill" />
             <view v-if="col.isPremium" class="cd-col-lock"><app-icon name="lock" :size="20" color="#ffffff" /></view>
           </view>
           <view class="cd-col-body">
@@ -342,7 +454,7 @@ function openRecommendEbook() { navigateTo(`/pkg-circle/circles/recommend-ebook?
       <!-- 成员 Tab -->
       <view v-else-if="activeTab === 'members'" class="cd-member-list">
         <view v-for="m in members" :key="m.id" class="cd-member" @tap="openUser(m.id)">
-          <image :src="m.avatar" class="cd-member-avatar" mode="aspectFill" />
+          <image lazy-load :src="m.avatar" class="cd-member-avatar" mode="aspectFill" />
           <view class="cd-member-main">
             <view class="cd-member-name-row">
               <text class="cd-member-name">{{ m.name }}</text>
@@ -358,15 +470,28 @@ function openRecommendEbook() { navigateTo(`/pkg-circle/circles/recommend-ebook?
       </view>
     </view>
 
+    <!-- 相关圈子推荐 -->
+    <recommend-section title="相关圈子" :items="recItems" />
+
     <!-- 底部操作栏 -->
     <view class="cd-foot">
       <view class="cd-join" :class="{ joined: isJoined }" @tap="handleJoin">
-        <text class="cd-join-txt" :class="{ joined: isJoined }">{{ isJoined ? '已加入' : '¥199/年 加入圈子' }}</text>
+        <text class="cd-join-txt" :class="{ joined: isJoined }">{{ joinButtonText }}</text>
       </view>
       <view v-if="isJoined" class="cd-post-btn" @tap="openPublish">
         <app-icon name="plus" :size="28" color="#ffffff" /><text class="cd-post-btn-txt">发帖</text>
       </view>
     </view>
+
+    <!-- 购买弹窗（圈子付费入圈，统一下单 type=CIRCLE） -->
+    <purchase-sheet
+      :open="showPurchase"
+      :product="circle ? { id: circle.id, name: circle.name, cover: circle.cover, price: circle.price } : null"
+      biz-type="CIRCLE"
+      :allow-qty="false"
+      @close="showPurchase = false"
+      @paid="onPurchased"
+    />
 
     <!-- 会员权益弹窗 -->
     <view v-if="showBenefits" class="cd-mask" @tap="showBenefits = false">
@@ -375,7 +500,7 @@ function openRecommendEbook() { navigateTo(`/pkg-circle/circles/recommend-ebook?
           <view class="cd-sheet-head">
             <view class="cd-sheet-icon"><app-icon name="sparkles" :size="44" color="#ffffff" /></view>
             <text class="cd-sheet-title">加入「{{ circle.name }}」</text>
-            <text class="cd-sheet-sub">¥199/年，解锁以下专属权益</text>
+            <text class="cd-sheet-sub">{{ circle.type === 'YEARLY' ? '¥' + circle.price + '/年' : '¥' + circle.price }}，解锁以下专属权益</text>
           </view>
           <view class="cd-benefits">
             <view v-for="(b, i) in memberBenefits" :key="i" class="cd-benefit">
@@ -434,7 +559,7 @@ function openRecommendEbook() { navigateTo(`/pkg-circle/circles/recommend-ebook?
 .cd-info-main { flex: 1; min-width: 0; }
 .cd-name-row { display: flex; align-items: center; gap: 16rpx; }
 .cd-name { font-size: 36rpx; font-weight: 700; color: var(--text-ink, #2C2C2C); }
-.cd-paid { font-size: 20rpx; padding: 2rpx 12rpx; background: rgba(196,30,58,0.1); color: var(--brand, #C41E3A); border-radius: 6rpx; }
+.cd-paid { font-size: 20rpx; padding: 2rpx 12rpx; background: rgba(196,30,58,0.1); color: var(--brand, var(--brand)); border-radius: 6rpx; }
 .cd-stats { display: flex; align-items: center; gap: 24rpx; margin-top: 8rpx; }
 .cd-stat { display: flex; align-items: center; gap: 6rpx; flex-shrink: 0; }
 .cd-stat-txt { font-size: 24rpx; color: #999; white-space: nowrap; }
@@ -457,15 +582,22 @@ function openRecommendEbook() { navigateTo(`/pkg-circle/circles/recommend-ebook?
 .cd-ann-body { padding: 0 32rpx 24rpx; }
 .cd-ann-text { font-size: 24rpx; color: #666; line-height: 1.7; }
 .cd-ann-more { display: flex; align-items: center; gap: 4rpx; margin-top: 16rpx; }
-.cd-ann-more-t { font-size: 24rpx; color: #C41E3A; font-weight: 500; }
+.cd-ann-more-t { font-size: 24rpx; color: var(--brand); font-weight: 500; }
+/* 圈主助理入口 */
+.cd-assistant { display: flex; align-items: center; gap: 20rpx; margin: 24rpx 32rpx 0; padding: 24rpx 28rpx; border-radius: 24rpx; background: linear-gradient(135deg, #FFF8E7, #FFFBF0); border: 2rpx solid #F0E6D3; }
+.cd-assistant-icon { width: 72rpx; height: 72rpx; border-radius: 20rpx; background: linear-gradient(135deg, #C9A96E, #B8935A); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.cd-assistant-main { flex: 1; min-width: 0; }
+.cd-assistant-title { display: block; font-size: 28rpx; font-weight: 600; color: var(--text-ink, #2C2C2C); }
+.cd-assistant-sub { display: block; font-size: 22rpx; color: #999; margin-top: 4rpx; }
+
 /* Tabs */
 .cd-tabs { margin-top: 32rpx; padding: 0 32rpx; border-bottom: 2rpx solid #E8E3DB; }
 .cd-tabs-scroll { white-space: nowrap; }
 .cd-tabs-row { display: inline-flex; gap: 8rpx; }
   .cd-tab { padding: 0 32rpx 24rpx; position: relative; flex-shrink: 0; }
   .cd-tab-txt { font-size: 28rpx; font-weight: 500; color: #999; white-space: nowrap; }
-.cd-tab-txt.on { color: var(--brand, #C41E3A); }
-.cd-tab-line { position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 40rpx; height: 4rpx; background: var(--brand, #C41E3A); border-radius: 999rpx; }
+.cd-tab-txt.on { color: var(--brand, var(--brand)); }
+.cd-tab-line { position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 40rpx; height: 4rpx; background: var(--brand, var(--brand)); border-radius: 999rpx; }
 /* 内容 */
 .cd-content { padding: 32rpx; }
 .cd-home { display: flex; flex-direction: column; gap: 32rpx; }
@@ -488,7 +620,7 @@ function openRecommendEbook() { navigateTo(`/pkg-circle/circles/recommend-ebook?
 .cd-act-meta { display: flex; align-items: center; gap: 16rpx; margin-top: 4rpx; }
 .cd-act-time { font-size: 22rpx; color: #999; }
 .cd-act-btn { padding: 12rpx 24rpx; border-radius: 999rpx; flex-shrink: 0; }
-.cd-act-btn.red { background: var(--brand, #C41E3A); }
+.cd-act-btn.red { background: var(--brand, var(--brand)); }
 .cd-act-btn.green { background: #52C41A; }
 .cd-act-btn-txt { font-size: 22rpx; color: #fff; }
 /* 置顶 */
@@ -497,7 +629,7 @@ function openRecommendEbook() { navigateTo(`/pkg-circle/circles/recommend-ebook?
 .cd-pinned-avatar { width: 80rpx; height: 80rpx; border-radius: 999rpx; flex-shrink: 0; }
 .cd-pinned-main { flex: 1; min-width: 0; }
 .cd-pinned-tags { display: flex; align-items: center; gap: 8rpx; margin-bottom: 8rpx; }
-.cd-pinned-pin { font-size: 22rpx; color: var(--brand, #C41E3A); font-weight: 500; }
+.cd-pinned-pin { font-size: 22rpx; color: var(--brand, var(--brand)); font-weight: 500; }
 .cd-pinned-content { display: block; font-size: 24rpx; color: var(--text-ink, #2C2C2C); line-height: 1.6; }
 .cd-pinned-meta { display: flex; align-items: center; gap: 24rpx; margin-top: 12rpx; }
 .cd-pinned-stat { display: flex; align-items: center; gap: 6rpx; }
@@ -532,7 +664,7 @@ function openRecommendEbook() { navigateTo(`/pkg-circle/circles/recommend-ebook?
 .cd-article-cover { width: 192rpx; height: 192rpx; border-radius: 16rpx; flex-shrink: 0; background: #F5F0E8; }
 .cd-article-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .cd-article-title-row { display: flex; align-items: flex-start; gap: 12rpx; }
-.cd-article-feat { margin-top: 4rpx; flex-shrink: 0; font-size: 20rpx; padding: 2rpx 12rpx; background: rgba(196,30,58,0.1); color: var(--brand, #C41E3A); border-radius: 6rpx; }
+.cd-article-feat { margin-top: 4rpx; flex-shrink: 0; font-size: 20rpx; padding: 2rpx 12rpx; background: rgba(196,30,58,0.1); color: var(--brand, var(--brand)); border-radius: 6rpx; }
 .cd-article-title { font-size: 28rpx; font-weight: 500; color: var(--text-ink, #2C2C2C); line-height: 1.4; }
 .cd-article-meta { margin-top: auto; display: flex; align-items: center; gap: 24rpx; padding-top: 16rpx; }
 .cd-article-stat { display: flex; align-items: center; gap: 6rpx; }
@@ -557,11 +689,11 @@ function openRecommendEbook() { navigateTo(`/pkg-circle/circles/recommend-ebook?
 .cd-empty-txt { font-size: 28rpx; color: #999; }
 /* 底部操作栏 */
 .cd-foot { position: fixed; bottom: 0; left: 0; right: 0; background: var(--card, #fff); border-top: 2rpx solid #E8E3DB; padding: 24rpx 32rpx calc(24rpx + env(safe-area-inset-bottom)); display: flex; align-items: center; gap: 24rpx; z-index: 50; }
-.cd-join { flex: 1; padding: 24rpx 0; border-radius: 999rpx; text-align: center; background: linear-gradient(to right, #C41E3A, #E74C3C); box-shadow: 0 8rpx 24rpx rgba(196,30,58,0.3); }
+.cd-join { flex: 1; padding: 24rpx 0; border-radius: 999rpx; text-align: center; background: linear-gradient(to right, var(--brand), #E74C3C); box-shadow: 0 8rpx 24rpx rgba(196,30,58,0.3); }
 .cd-join.joined { background: #F5F0E8; box-shadow: none; }
 .cd-join-txt { font-size: 28rpx; font-weight: 500; color: #fff; }
 .cd-join-txt.joined { color: #666; }
-.cd-post-btn { flex: 1; padding: 24rpx 0; border-radius: 999rpx; background: linear-gradient(to right, #C41E3A, #E74C3C); box-shadow: 0 8rpx 24rpx rgba(196,30,58,0.3); display: flex; align-items: center; justify-content: center; gap: 8rpx; }
+.cd-post-btn { flex: 1; padding: 24rpx 0; border-radius: 999rpx; background: linear-gradient(to right, var(--brand), #E74C3C); box-shadow: 0 8rpx 24rpx rgba(196,30,58,0.3); display: flex; align-items: center; justify-content: center; gap: 8rpx; }
 .cd-post-btn-txt { font-size: 28rpx; font-weight: 500; color: #fff; }
 /* 会员弹窗 */
 .cd-mask { position: fixed; inset: 0; z-index: 60; background: rgba(0,0,0,0.5); display: flex; align-items: flex-end; }
@@ -579,7 +711,7 @@ function openRecommendEbook() { navigateTo(`/pkg-circle/circles/recommend-ebook?
 .cd-sheet-actions { display: flex; gap: 24rpx; }
 .cd-sheet-btn { flex: 1; padding: 24rpx 0; border-radius: 999rpx; text-align: center; }
 .cd-sheet-btn.cancel { background: #F5F0E8; }
-.cd-sheet-btn.confirm { background: linear-gradient(to right, #C41E3A, #E74C3C); }
+.cd-sheet-btn.confirm { background: linear-gradient(to right, var(--brand), #E74C3C); }
 .cd-sheet-btn-txt { font-size: 28rpx; font-weight: 500; }
 .cd-sheet-btn-txt.cancel { color: #666; }
 .cd-sheet-btn-txt.confirm { color: #fff; }
@@ -591,6 +723,6 @@ function openRecommendEbook() { navigateTo(`/pkg-circle/circles/recommend-ebook?
 /* 错误态 */
 .cd-err { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 128rpx 32rpx; }
 .cd-err-txt { font-size: 28rpx; color: #999; margin-bottom: 24rpx; }
-.cd-err-retry { padding: 16rpx 48rpx; border-radius: 999rpx; background: #C41E3A; }
+.cd-err-retry { padding: 16rpx 48rpx; border-radius: 999rpx; background: var(--brand); }
 .cd-err-retry-t { font-size: 26rpx; color: #fff; }
 </style>

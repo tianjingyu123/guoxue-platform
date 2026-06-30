@@ -377,7 +377,7 @@ function onCertMore() {
   position: relative;
   padding: 24px;
   text-align: center;
-  background: linear-gradient(135deg, #c41e3a, #d94b60, #b48a3c);
+  background: linear-gradient(135deg, var(--brand), #d94b60, #b48a3c);
 }
 .deco {
   position: absolute;
@@ -546,7 +546,7 @@ function onCertMore() {
 .rate-submit {
   margin-top: 16px;
   height: 48px;
-  background: #c41e3a;
+  background: var(--brand);
   border-radius: 12px;
   display: flex;
   align-items: center;
@@ -601,7 +601,7 @@ function onCertMore() {
 }
 .recommend-more {
   font-size: 12px;
-  color: #c41e3a;
+  color: var(--brand);
 }
 .recommend-scroll {
   white-space: nowrap;
@@ -664,7 +664,7 @@ function onCertMore() {
 .rec-price {
   font-size: 14px;
   font-weight: 700;
-  color: #c41e3a;
+  color: var(--brand);
 }
 .rec-students {
   font-size: 10px;
@@ -690,7 +690,7 @@ function onCertMore() {
 .thanks-avatar-text {
   font-size: 18px;
   font-weight: 600;
-  color: #c41e3a;
+  color: var(--brand);
 }
 .thanks-info {
   flex: 1;
@@ -731,7 +731,7 @@ function onCertMore() {
   color: #1a1a1a;
 }
 .footer-primary {
-  background: #c41e3a;
+  background: var(--brand);
 }
 .footer-primary-text {
   font-size: 14px;
@@ -792,7 +792,7 @@ function onCertMore() {
   display: block;
   font-size: 16px;
   font-weight: 600;
-  color: #c41e3a;
+  color: var(--brand);
   margin: 8px 0 16px;
 }
 .cert-stats {
@@ -850,15 +850,15 @@ function onCertMore() {
 }
 .cert-action-save {
   background: #fff;
-  border: 1rpx solid #c41e3a;
+  border: 1rpx solid var(--brand);
 }
 .cert-action-save-text {
   font-size: 14px;
   font-weight: 500;
-  color: #c41e3a;
+  color: var(--brand);
 }
 .cert-action-more {
-  background: #c41e3a;
+  background: var(--brand);
 }
 .cert-action-more-text {
   font-size: 14px;

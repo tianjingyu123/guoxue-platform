@@ -42,7 +42,7 @@
           <text class="ba-ref-title">{{ bounty.title }}</text>
           <text class="ba-ref-desc">{{ bounty.description }}</text>
           <view class="ba-ref-foot">
-            <image :src="bounty.poster.avatar" class="ba-ref-avatar" mode="aspectFill" />
+            <image lazy-load :src="bounty.poster.avatar" class="ba-ref-avatar" mode="aspectFill" />
             <text class="ba-ref-meta">{{ bounty.poster.name }} 发布</text>
             <text class="ba-ref-dot">·</text>
             <text class="ba-ref-meta">{{ bounty.answerCount }} 人已回答</text>
@@ -70,7 +70,7 @@
             </view>
             <view class="ba-upload-grid">
               <view v-for="(img, index) in images" :key="index" class="ba-upload-item">
-                <image :src="img" class="ba-upload-img" mode="aspectFill" />
+                <image lazy-load :src="img" class="ba-upload-img" mode="aspectFill" />
                 <view class="ba-upload-remove" @tap="removeImage(index)">
                   <app-icon name="x" :size="20" color="#ffffff" />
                 </view>

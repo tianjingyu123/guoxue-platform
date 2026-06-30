@@ -1,14 +1,16 @@
 <!--
-  知识库设置（从原型 app/circles/[id]/settings/knowledge/page.tsx 高保真迁移）
-  统计三卡 + 知识项列表(类型图标/启用切换/删除) + 空态
+  知识库管理（视觉层沿用原型 settings/knowledge；逻辑层重写为真连后端）
+  统计三卡(真实来源统计) + 知识条目列表(摘要/来源/删除) + 添加(手动录入) + 三态。
+  与 knowledge 页分工：本页偏「管理(增删全部条目)」，knowledge 页偏「浏览+候选审核」，同一后端知识库。
+  注：原型的「启用开关 / 文档·链接·问答分类」后端无对应模型，已去除（不造假）。
 -->
 <template>
   <view class="page">
     <view class="hdr" :style="{ paddingTop: statusBarH + 'px' }">
       <view class="hdr-bar">
         <view class="hdr-btn" @tap="goBack"><app-icon name="arrow-left" :size="36" color="#2C2C2C" /></view>
-        <text class="hdr-title">知识库</text>
-        <view class="add-btn" @tap="toastComingSoon"><app-icon name="plus" :size="26" color="#ffffff" /><text class="add-btn-t">添加</text></view>
+        <text class="hdr-title">知识库管理</text>
+        <view class="add-btn" @tap="addKnowledge"><app-icon name="plus" :size="26" color="#ffffff" /><text class="add-btn-t">添加</text></view>
       </view>
     </view>
 
@@ -22,26 +24,30 @@
           </view>
         </view>
 
-        <view class="list">
-          <view v-for="item in items" :key="item.id" class="item" :class="{ off: !item.enabled }">
-            <view class="item-icon" :style="{ background: cfg(item.type).bg }"><app-icon :name="cfg(item.type).icon" :size="26" :color="cfg(item.type).text" /></view>
-            <view class="item-info">
-              <text class="item-title">{{ item.title }}</text>
-              <text class="item-desc">{{ item.desc }}</text>
-              <text class="item-time">更新于 {{ item.updatedAt }}</text>
-            </view>
-            <view class="item-ops">
-              <view class="op" @tap="toggle(item.id)"><app-icon :name="item.enabled ? 'toggle-right' : 'toggle-left'" :size="36" :color="item.enabled ? '#C41E3A' : '#999999'" /></view>
-              <view class="op" @tap="remove(item.id)"><app-icon name="trash-2" :size="28" color="#999999" /></view>
-              <app-icon name="chevron-right" :size="28" color="#cccccc" />
-            </view>
-          </view>
+        <!-- 三态 -->
+        <view v-if="loading" class="empty"><text class="empty-t">加载中…</text></view>
+        <view v-else-if="error" class="empty">
+          <text class="empty-t">{{ error }}</text>
+          <view class="retry" @tap="load"><text class="retry-t">重试</text></view>
         </view>
-
-        <view v-if="items.length === 0" class="empty">
+        <view v-else-if="items.length === 0" class="empty">
           <app-icon name="file-text" :size="60" color="#D9D4C8" />
           <text class="empty-t">暂无知识库内容</text>
-          <text class="empty-sub">添加文档、链接或问答，让 AI 助手更了解您的圈子</text>
+          <text class="empty-sub">点击右上角「添加」，让圈主助理更懂你的圈子</text>
+        </view>
+
+        <view v-else class="list">
+          <view v-for="item in items" :key="item.id" class="item">
+            <view class="item-icon"><app-icon name="file-text" :size="26" color="#C41E3A" /></view>
+            <view class="item-info">
+              <text class="item-title">{{ item.title }}</text>
+              <text class="item-desc">{{ item.summary }}</text>
+              <text class="item-time">来源：{{ item.sourceLabel }} · {{ fmtDate(item.createdAt) }}</text>
+            </view>
+            <view class="item-ops">
+              <view class="op" @tap="remove(item.id)"><app-icon name="trash-2" :size="28" color="#999999" /></view>
+            </view>
+          </view>
         </view>
       </view>
     </scroll-view>
@@ -50,39 +56,95 @@
 
 <script setup lang="ts">
 /**
- * 知识库设置页（启用切换/删除为本地状态，1:1 还原无持久化）
+ * 知识库管理页：真连后端知识库 CRUD（list / add / remove）。
  */
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
-import { goBack, toastComingSoon } from '@/utils/router'
+import { goBack } from '@/utils/router'
+import { knowledgeApi, type KnowledgeItem } from '@/lib/circle-knowledge-data'
 
 const statusBarH = uni.getSystemInfoSync().statusBarHeight || 20
 
-interface KItem { id: string; type: 'doc' | 'link' | 'qa'; title: string; desc: string; enabled: boolean; updatedAt: string }
+const circleId = ref('')
+const items = ref<KnowledgeItem[]>([])
+const loading = ref(true)
+const error = ref('')
+const acting = ref(false)
 
-const items = ref<KItem[]>([
-  { id: '1', type: 'doc', title: '圈子规则手册', desc: '圈子基本规则与行为准则', enabled: true, updatedAt: '2024-01-15' },
-  { id: '2', type: 'qa', title: '命理常见问题解答', desc: '28条常见命理问题标准回答', enabled: true, updatedAt: '2024-01-18' },
-  { id: '3', type: 'link', title: '易经基础资料', desc: 'https://example.com/yijing', enabled: true, updatedAt: '2024-01-10' },
-  { id: '4', type: 'doc', title: '专家介绍合集', desc: '圈内专家背景与专长介绍', enabled: false, updatedAt: '2024-01-05' },
-  { id: '5', type: 'qa', title: '报名流程说明', desc: '活动报名常见疑问及解答', enabled: true, updatedAt: '2024-01-20' },
-])
+const stats = computed(() => {
+  const total = items.value.length
+  const manual = items.value.filter(i => i.sourceLabel === '手动添加').length
+  return [
+    { label: '知识条目', count: total },
+    { label: '手动添加', count: manual },
+    { label: '自动采集', count: total - manual },
+  ]
+})
 
-const TYPE_CFG: Record<string, { label: string; icon: string; bg: string; text: string }> = {
-  doc: { label: '文档', icon: 'file-text', bg: '#EFF6FF', text: '#2563EB' },
-  link: { label: '链接', icon: 'link-2', bg: '#F0FDF4', text: '#16A34A' },
-  qa: { label: '问答', icon: 'file-text', bg: '#FFF7ED', text: '#EA580C' },
+function fmtDate(s: string) {
+  if (!s) return ''
+  const d = new Date(s)
+  return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`
 }
-function cfg(type: string) { return TYPE_CFG[type] }
 
-const stats = computed(() => [
-  { label: '文档', count: items.value.filter(i => i.type === 'doc').length },
-  { label: '链接', count: items.value.filter(i => i.type === 'link').length },
-  { label: '问答', count: items.value.filter(i => i.type === 'qa').length },
-])
+async function load() {
+  loading.value = true
+  error.value = ''
+  try {
+    items.value = await knowledgeApi.list(circleId.value)
+  } catch {
+    error.value = '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
 
-function toggle(id: string) { const i = items.value.find(x => x.id === id); if (i) i.enabled = !i.enabled }
-function remove(id: string) { items.value = items.value.filter(x => x.id !== id) }
+function addKnowledge() {
+  uni.showModal({
+    title: '添加知识',
+    editable: true,
+    placeholderText: '输入要加入知识库的内容…',
+    success: async (r) => {
+      const content = (r.content || '').trim()
+      if (!r.confirm || !content || acting.value) return
+      acting.value = true
+      try {
+        await knowledgeApi.add(circleId.value, content)
+        uni.showToast({ title: '已添加', icon: 'success' })
+        await load()
+      } catch {
+        uni.showToast({ title: '添加失败', icon: 'none' })
+      } finally {
+        acting.value = false
+      }
+    },
+  })
+}
+
+function remove(id: string) {
+  uni.showModal({
+    title: '删除知识',
+    content: '确定删除这条知识吗？',
+    confirmColor: '#C41E3A',
+    success: async (r) => {
+      if (!r.confirm || acting.value) return
+      acting.value = true
+      try {
+        await knowledgeApi.remove(circleId.value, id)
+        uni.showToast({ title: '已删除', icon: 'none' })
+        await load()
+      } catch {
+        uni.showToast({ title: '删除失败', icon: 'none' })
+      } finally {
+        acting.value = false
+      }
+    },
+  })
+}
+
+onLoad((opt) => { circleId.value = (opt?.id || opt?.circleId || '') as string })
+onMounted(load)
 </script>
 
 <style scoped lang="scss">
@@ -91,7 +153,7 @@ function remove(id: string) { items.value = items.value.filter(x => x.id !== id)
 .hdr-bar { display: flex; align-items: center; gap: 18rpx; height: 96rpx; padding: 0 24rpx; }
 .hdr-btn { width: 56rpx; height: 56rpx; display: flex; align-items: center; justify-content: center; }
 .hdr-title { flex: 1; font-size: 32rpx; font-weight: 600; color: #2C2C2C; }
-.add-btn { display: flex; align-items: center; gap: 6rpx; padding: 12rpx 24rpx; background: #C41E3A; border-radius: 14rpx; }
+.add-btn { display: flex; align-items: center; gap: 6rpx; padding: 12rpx 24rpx; background: var(--brand); border-radius: 14rpx; }
 .add-btn-t { font-size: 24rpx; color: #ffffff; }
 .scroll { height: calc(100vh - 96rpx); }
 .body { padding: 32rpx; }
@@ -103,8 +165,7 @@ function remove(id: string) { items.value = items.value.filter(x => x.id !== id)
 
 .list { display: flex; flex-direction: column; gap: 14rpx; }
 .item { display: flex; align-items: center; gap: 18rpx; padding: 24rpx; background: #ffffff; border: 1rpx solid #ECE7DD; border-radius: 20rpx; }
-.item.off { opacity: 0.6; }
-.item-icon { width: 60rpx; height: 60rpx; border-radius: 14rpx; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.item-icon { width: 60rpx; height: 60rpx; border-radius: 14rpx; background: #FBF1F2; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .item-info { flex: 1; min-width: 0; }
 .item-title { display: block; font-size: 26rpx; font-weight: 500; color: #2C2C2C; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .item-desc { display: block; font-size: 22rpx; color: #999999; margin-top: 4rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -112,7 +173,9 @@ function remove(id: string) { items.value = items.value.filter(x => x.id !== id)
 .item-ops { display: flex; align-items: center; gap: 12rpx; flex-shrink: 0; }
 .op { display: flex; align-items: center; justify-content: center; }
 
-.empty { display: flex; flex-direction: column; align-items: center; padding: 100rpx 0; }
-.empty-t { font-size: 26rpx; color: #999999; margin-top: 20rpx; }
-.empty-sub { font-size: 22rpx; color: #BBBBBB; margin-top: 6rpx; text-align: center; }
+.empty { display: flex; flex-direction: column; align-items: center; padding: 100rpx 0; gap: 16rpx; }
+.empty-t { font-size: 26rpx; color: #999999; }
+.empty-sub { font-size: 22rpx; color: #BBBBBB; text-align: center; }
+.retry { padding: 12rpx 48rpx; border-radius: 999rpx; background: var(--brand); }
+.retry-t { font-size: 26rpx; color: #fff; }
 </style>

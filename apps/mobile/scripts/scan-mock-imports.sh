@@ -77,26 +77,17 @@ MOCK_PATTERNS=(
 EXIT_CODE=0
 COUNT=0
 
-while IFS= read -r -d '' vuefile; do
-  # 跳过数据文件自身
-  [[ "$vuefile" == *"/lib/"* ]] && continue
-  [[ "$vuefile" == *"node_modules"* ]] && continue
+# 单次扫描（取代原"每文件 × 每模式"嵌套 grep）：把所有 mock 名拼成一个交替正则，
+# 一次性 grep 出 .vue（非 lib）里 import 行直接引用 mock 名的违规行。
+# 原版在 Windows/Git-Bash 上因进程启动慢会跑几分钟甚至卡死并堆积僵尸进程，故改单进程实现。
+JOINED=$(IFS='|'; echo "${MOCK_PATTERNS[*]}")
 
-  IMPORTS=$(grep -oP "from ['\"]@/lib/[^'\"]+['\"]" "$vuefile" 2>/dev/null | head -20)
-  [ -z "$IMPORTS" ] && continue
-
-  for pattern in "${MOCK_PATTERNS[@]}"; do
-    if grep -q "\b${pattern}\b" "$vuefile" 2>/dev/null; then
-      # 检查是否确实在该文件中作为导入使用（非类型、非注释）
-      if grep -q "import.*${pattern}" "$vuefile" 2>/dev/null; then
-        echo "  ❌ $vuefile — 直接导入 mock: $pattern"
-        EXIT_CODE=1
-        COUNT=$((COUNT + 1))
-        break
-      fi
-    fi
-  done
-done < <(find src -name "*.vue" -type f -print0 2>/dev/null)
+while IFS= read -r line; do
+  [ -z "$line" ] && continue
+  echo "  ❌ $line"
+  EXIT_CODE=1
+  COUNT=$((COUNT + 1))
+done < <(grep -rEn --include="*.vue" "import[^;]*\b(${JOINED})\b" src 2>/dev/null)
 
 echo ""
 if [ $EXIT_CODE -eq 0 ]; then

@@ -34,7 +34,7 @@ function openUser() {
     <!-- 作者信息 -->
     <view class="pc-head">
       <view class="pc-author" @tap="openUser">
-        <image :src="post.author.avatar" class="pc-avatar" mode="aspectFill" />
+        <image lazy-load :src="post.author.avatar" class="pc-avatar" mode="aspectFill" />
         <view>
           <view class="pc-name-row">
             <text class="pc-name">{{ post.author.name }}</text>
@@ -57,6 +57,7 @@ function openUser() {
           class="pc-img"
           :class="post.images.length === 1 ? 'single' : 'square'"
           mode="aspectFill"
+          lazy-load
         />
       </view>
     </view>
@@ -83,14 +84,14 @@ function openUser() {
 .pc { background: var(--card, #fff); border-radius: 24rpx; padding: 32rpx; box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.04); }
 .pc-tags { display: flex; align-items: center; gap: 16rpx; margin-bottom: 16rpx; }
 .pc-pin { display: flex; align-items: center; gap: 8rpx; }
-.pc-pin-txt { font-size: 22rpx; color: var(--brand, #C41E3A); font-weight: 500; }
+.pc-pin-txt { font-size: 22rpx; color: var(--brand, var(--brand)); font-weight: 500; }
 .pc-essence { font-size: 20rpx; padding: 2rpx 12rpx; background: rgba(201,169,110,0.1); color: #C9A96E; border-radius: 6rpx; }
 .pc-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24rpx; }
 .pc-author { display: flex; align-items: center; gap: 16rpx; }
 .pc-avatar { width: 72rpx; height: 72rpx; border-radius: 999rpx; background: #f5f0e8; }
 .pc-name-row { display: flex; align-items: center; gap: 8rpx; }
 .pc-name { font-size: 26rpx; font-weight: 500; color: var(--text-ink, #2C2C2C); }
-.pc-title { font-size: 20rpx; padding: 2rpx 12rpx; background: rgba(196,30,58,0.1); color: var(--brand, #C41E3A); border-radius: 6rpx; }
+.pc-title { font-size: 20rpx; padding: 2rpx 12rpx; background: rgba(196,30,58,0.1); color: var(--brand, var(--brand)); border-radius: 6rpx; }
 .pc-time { font-size: 22rpx; color: #999; }
 .pc-more { padding: 4rpx; }
 .pc-content { display: block; font-size: 28rpx; color: var(--text-ink, #2C2C2C); line-height: 1.7; margin-bottom: 24rpx; }
@@ -103,5 +104,5 @@ function openUser() {
 .pc-actions { display: flex; align-items: center; gap: 48rpx; padding-top: 16rpx; border-top: 2rpx solid #F5F0E8; }
 .pc-act { display: flex; align-items: center; gap: 8rpx; }
 .pc-act-txt { font-size: 24rpx; color: #999; }
-.pc-act-txt.on { color: var(--brand, #C41E3A); }
+.pc-act-txt.on { color: var(--brand, var(--brand)); }
 </style>

@@ -21,43 +21,61 @@
       scroll-with-animation
       @scrolltolower="hasScrolledToBottom = true"
     >
-      <!-- 文档信息 -->
-      <view class="doc-info">
-        <text class="doc-title">{{ doc.title }}</text>
-        <view class="doc-meta">
-          <view class="meta-item">
-            <app-icon name="file-text" :size="14" color="#999999" />
-            <text class="meta-text">版本 {{ doc.version }}</text>
-          </view>
-          <view class="meta-item">
-            <app-icon name="clock" :size="14" color="#999999" />
-            <text class="meta-text">{{ doc.effectiveDate }} 生效</text>
-          </view>
-        </view>
-        <text v-if="doc.summary" class="doc-summary">{{ doc.summary }}</text>
+      <!-- Loading -->
+      <view v-if="loading" class="state-box">
+        <text class="state-text">加载中...</text>
       </view>
-
-      <!-- 正文 -->
-      <view class="content">
-        <view v-for="section in doc.sections" :id="section.id" :key="section.id" class="section">
-          <text class="h2">{{ section.title }}</text>
-          <block v-for="(blk, bi) in section.blocks" :key="bi">
-            <view v-if="blk.type === 'p'" class="para">
-              <text v-for="(run, ri) in blk.runs" :key="ri" :class="['run', { 'run-bold': run.bold }]">{{ run.text }}</text>
-            </view>
-            <view v-else class="ul">
-              <view v-for="(li, li2) in blk.items" :key="li2" class="li">
-                <text class="li-dot">•</text>
-                <text class="li-text">{{ li }}</text>
-              </view>
-            </view>
-          </block>
+      <!-- Error -->
+      <view v-else-if="error" class="state-box">
+        <text class="state-text">加载失败，请重试</text>
+        <view class="state-btn" @tap="load">
+          <text class="state-btn-text">重新加载</text>
         </view>
+      </view>
+      <!-- 内容 -->
+      <view v-else-if="doc" class="ok-wrap">
+        <!-- 文档信息 -->
+        <view class="doc-info">
+          <text class="doc-title">{{ doc.title }}</text>
+          <view class="doc-meta">
+            <view class="meta-item">
+              <app-icon name="file-text" :size="14" color="#999999" />
+              <text class="meta-text">版本 {{ doc.version }}</text>
+            </view>
+            <view v-if="doc.effectiveDate" class="meta-item">
+              <app-icon name="clock" :size="14" color="#999999" />
+              <text class="meta-text">{{ doc.effectiveDate }} 生效</text>
+            </view>
+          </view>
+          <text v-if="doc.summary" class="doc-summary">{{ doc.summary }}</text>
+        </view>
+
+        <!-- 正文 -->
+        <view class="content">
+          <view v-for="section in doc.sections" :id="section.id" :key="section.id" class="section">
+            <text class="h2">{{ section.title }}</text>
+            <block v-for="(blk, bi) in section.blocks" :key="bi">
+              <view v-if="blk.type === 'p'" class="para">
+                <text v-for="(run, ri) in blk.runs" :key="ri" :class="['run', { 'run-bold': run.bold }]">{{ run.text }}</text>
+              </view>
+              <view v-else class="ul">
+                <view v-for="(li, li2) in blk.items" :key="li2" class="li">
+                  <text class="li-dot">•</text>
+                  <text class="li-text">{{ li }}</text>
+                </view>
+              </view>
+            </block>
+          </view>
+        </view>
+      </view>
+      <!-- Empty -->
+      <view v-else class="state-box">
+        <text class="state-text">协议内容暂未发布</text>
       </view>
     </scroll-view>
 
     <!-- 底部确认按钮 -->
-    <view v-if="!confirmed" class="footer">
+    <view v-if="doc && !confirmed" class="footer">
       <view
         class="confirm-btn"
         :class="{ 'confirm-btn-disabled': !hasScrolledToBottom || confirming }"
@@ -70,7 +88,7 @@
     </view>
 
     <!-- 已确认 -->
-    <view v-else class="footer-confirmed">
+    <view v-else-if="doc && confirmed" class="footer-confirmed">
       <app-icon name="check" :size="20" color="#16a34a" />
       <text class="confirmed-text">您已确认阅读并同意本协议</text>
     </view>
@@ -103,12 +121,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { goBack } from '@/utils/router'
-import { legalDocs, extractToc } from '@/lib/legal-data'
+import { legalApi, extractToc, type LegalDoc, type LegalTocItem } from '@/lib/legal-data'
 
-const doc = legalDocs['user-agreement']
-const toc = extractToc(doc)
+const TYPE = 'user-agreement'
+
+const doc = ref<LegalDoc | null>(null)
+const toc = ref<LegalTocItem[]>([])
+const loading = ref(true)
+const error = ref(false)
 
 const showToc = ref(false)
 const activeSection = ref('')
@@ -116,6 +138,21 @@ const scrollTarget = ref('')
 const hasScrolledToBottom = ref(false)
 const confirming = ref(false)
 const confirmed = ref(false)
+
+async function load() {
+  loading.value = true
+  error.value = false
+  try {
+    const d = await legalApi.getDoc(TYPE)
+    doc.value = d
+    toc.value = d ? extractToc(d) : []
+  } catch {
+    error.value = true
+  } finally {
+    loading.value = false
+  }
+}
+onMounted(load)
 
 const goSection = (id: string) => {
   activeSection.value = id
@@ -125,13 +162,16 @@ const goSection = (id: string) => {
   showToc.value = false
 }
 
-const handleConfirm = () => {
+// 确认：后端无 confirm 端点 → 诚实降级为本地确认（不持久化，详见 legal-data.ts）
+async function handleConfirm() {
   if (!hasScrolledToBottom.value || confirming.value) return
   confirming.value = true
-  setTimeout(() => {
-    confirming.value = false
+  try {
+    await legalApi.confirm(TYPE)
     confirmed.value = true
-  }, 400)
+  } finally {
+    confirming.value = false
+  }
 }
 </script>
 
@@ -176,6 +216,32 @@ const handleConfirm = () => {
 .scroll-area {
   flex: 1;
   overflow: hidden;
+}
+.ok-wrap {
+  display: block;
+}
+
+/* 三态 */
+.state-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24rpx;
+  padding: 160rpx 48rpx;
+}
+.state-text {
+  font-size: 28rpx;
+  color: #999999;
+}
+.state-btn {
+  padding: 16rpx 48rpx;
+  background-color: var(--brand);
+  border-radius: 12rpx;
+}
+.state-btn-text {
+  font-size: 28rpx;
+  color: #ffffff;
 }
 
 /* 文档信息 */
@@ -275,7 +341,7 @@ const handleConfirm = () => {
 .confirm-btn {
   width: 100%;
   height: 88rpx;
-  background-color: #c41e3a;
+  background-color: var(--brand);
   border-radius: 16rpx;
   display: flex;
   align-items: center;
@@ -376,6 +442,6 @@ const handleConfirm = () => {
   font-weight: 400;
 }
 .toc-item-active .toc-item-text {
-  color: #c41e3a;
+  color: var(--brand);
 }
 </style>

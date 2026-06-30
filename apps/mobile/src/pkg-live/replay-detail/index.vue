@@ -79,7 +79,7 @@
     <view class="info">
       <text class="info-title">{{ replay.title }}</text>
       <view class="info-host">
-        <image class="host-avatar" :src="replay.hostAvatar" mode="aspectFill" />
+        <image lazy-load class="host-avatar" :src="replay.hostAvatar" mode="aspectFill" />
         <view class="host-meta">
           <view class="host-name-row">
             <text class="host-name">{{ replay.hostName }}</text>
@@ -297,7 +297,7 @@ onLoad((opts: any) => {
 /* 错误状态 */
 .state-error { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 320rpx 0; }
 .state-error__txt { font-size: 28rpx; color: #999; margin-bottom: 32rpx; }
-.state-error__retry { padding: 16rpx 48rpx; background: #C41E3A; border-radius: 999rpx; }
+.state-error__retry { padding: 16rpx 48rpx; background: var(--brand); border-radius: 999rpx; }
 .state-error__retry-txt { font-size: 28rpx; color: #fff; font-weight: 500; }
 
 /* 播放器 */
@@ -382,7 +382,7 @@ onLoad((opts: any) => {
 }
 .progress-fill {
   height: 100%;
-  background: #C41E3A;
+  background: var(--brand);
   border-radius: 999rpx;
   position: relative;
 }
@@ -487,13 +487,13 @@ onLoad((opts: any) => {
 }
 .follow-btn {
   padding: 12rpx 28rpx;
-  border: 1rpx solid #C41E3A;
+  border: 1rpx solid var(--brand);
   border-radius: 999rpx;
 }
 .follow-txt {
   font-size: 22rpx;
   font-weight: 500;
-  color: #C41E3A;
+  color: var(--brand);
 }
 .info-stats {
   display: flex;
@@ -535,7 +535,7 @@ onLoad((opts: any) => {
   color: #999999;
 }
 .tab-active {
-  color: #C41E3A;
+  color: var(--brand);
 }
 .tab-underline {
   position: absolute;
@@ -544,7 +544,7 @@ onLoad((opts: any) => {
   transform: translateX(-50%);
   width: 48rpx;
   height: 4rpx;
-  background: #C41E3A;
+  background: var(--brand);
   border-radius: 999rpx;
 }
 
@@ -567,7 +567,7 @@ onLoad((opts: any) => {
   flex-shrink: 0;
   padding: 8rpx 16rpx;
   background: rgba(196, 30, 58, 0.1);
-  color: #C41E3A;
+  color: var(--brand);
   font-size: 22rpx;
   border-radius: 8rpx;
 }
@@ -584,7 +584,7 @@ onLoad((opts: any) => {
   color: #2C2C2C;
 }
 .chapter-title-active {
-  color: #C41E3A;
+  color: var(--brand);
 }
 .chapter-desc {
   font-size: 22rpx;
@@ -599,7 +599,7 @@ onLoad((opts: any) => {
 }
 .chapter-badge-txt {
   font-size: 18rpx;
-  color: #C41E3A;
+  color: var(--brand);
 }
 
 /* 讨论列表 */
@@ -622,7 +622,7 @@ onLoad((opts: any) => {
 }
 .disc-time-txt {
   font-size: 22rpx;
-  color: #C41E3A;
+  color: var(--brand);
 }
 .disc-avatar {
   width: 64rpx;
@@ -700,7 +700,7 @@ onLoad((opts: any) => {
 }
 .qa-time-txt {
   font-size: 22rpx;
-  color: #C41E3A;
+  color: var(--brand);
 }
 .qa-body {
   flex: 1;
@@ -798,7 +798,7 @@ onLoad((opts: any) => {
 }
 .prod-jump {
   font-size: 22rpx;
-  color: #C41E3A;
+  color: var(--brand);
   margin-top: 8rpx;
 }
 .prod-foot {
@@ -815,7 +815,7 @@ onLoad((opts: any) => {
 .prod-price {
   font-size: 30rpx;
   font-weight: 700;
-  color: #C41E3A;
+  color: var(--brand);
 }
 .prod-original {
   font-size: 22rpx;
@@ -829,7 +829,7 @@ onLoad((opts: any) => {
 .prod-buy {
   align-self: flex-end;
   padding: 12rpx 24rpx;
-  background: #C41E3A;
+  background: var(--brand);
   border-radius: 999rpx;
   flex-shrink: 0;
 }
@@ -870,7 +870,7 @@ onLoad((opts: any) => {
 .bottom-cta {
   width: 100%;
   height: 80rpx;
-  background: #C41E3A;
+  background: var(--brand);
   border-radius: 999rpx;
   display: flex;
   align-items: center;

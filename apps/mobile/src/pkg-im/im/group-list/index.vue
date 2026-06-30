@@ -63,7 +63,7 @@
         >
           <!-- 群头像 -->
           <view class="avatar-box">
-            <image class="avatar" :src="group.avatar" mode="aspectFill" />
+            <image lazy-load class="avatar" :src="group.avatar" mode="aspectFill" />
             <view v-if="group.isMuted" class="mute-badge">
               <app-icon name="bell-off" :size="20" color="#ffffff" />
             </view>
@@ -285,7 +285,7 @@ function onQuitConfirm() {
 .group-item:active { background: #f9fafb; }
 
 .avatar-box { position: relative; flex-shrink: 0; }
-.avatar { width: 96rpx; height: 96rpx; border-radius: 16rpx; background: #C41E3A; }
+.avatar { width: 96rpx; height: 96rpx; border-radius: 16rpx; background: var(--brand); }
 .mute-badge { position: absolute; bottom: -4rpx; right: -4rpx; width: 32rpx; height: 32rpx; background: #9ca3af; border-radius: 999rpx; display: flex; align-items: center; justify-content: center; }
 
 .group-info { flex: 1; min-width: 0; }
@@ -297,13 +297,13 @@ function onQuitConfirm() {
 
 .group-right { display: flex; flex-direction: column; align-items: flex-end; gap: 8rpx; flex-shrink: 0; }
 .group-time { font-size: 22rpx; color: #9ca3af; }
-.unread-badge { height: 36rpx; min-width: 36rpx; padding: 0 12rpx; background: #C41E3A; color: #ffffff; font-size: 22rpx; border-radius: 999rpx; display: flex; align-items: center; justify-content: center; }
+.unread-badge { height: 36rpx; min-width: 36rpx; padding: 0 12rpx; background: var(--brand); color: #ffffff; font-size: 22rpx; border-radius: 999rpx; display: flex; align-items: center; justify-content: center; }
 .unread-badge.muted { background: #9ca3af; }
 
 .more-btn { padding: 12rpx; margin-right: -12rpx; flex-shrink: 0; }
 
 /* 浮动按钮 */
-.fab { position: fixed; bottom: 192rpx; right: 32rpx; width: 112rpx; height: 112rpx; background: #C41E3A; border-radius: 999rpx; box-shadow: 0 8rpx 24rpx rgba(196,30,58,0.3); display: flex; align-items: center; justify-content: center; z-index: 30; }
+.fab { position: fixed; bottom: 192rpx; right: 32rpx; width: 112rpx; height: 112rpx; background: var(--brand); border-radius: 999rpx; box-shadow: 0 8rpx 24rpx rgba(196,30,58,0.3); display: flex; align-items: center; justify-content: center; z-index: 30; }
 .fab:active { transform: scale(0.95); }
 
 /* 骨架 */
@@ -343,6 +343,6 @@ function onQuitConfirm() {
 /* 加载/错误状态 */
 .load-state { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; gap: 24rpx; }
 .load-state-text { font-size: 28rpx; color: #8a8178; }
-.retry-btn { padding: 16rpx 48rpx; background: #c41e3a; border-radius: 999rpx; }
+.retry-btn { padding: 16rpx 48rpx; background: var(--brand); border-radius: 999rpx; }
 .retry-text { font-size: 28rpx; color: #fff; }
 </style>

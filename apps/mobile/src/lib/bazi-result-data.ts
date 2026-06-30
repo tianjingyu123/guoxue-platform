@@ -85,19 +85,100 @@ const _mockClassicsContent: Record<string, { title: string; original: string; tr
   },
 }
 
-export const baziApi = {
-  /** 八字排盘结果 */
-  async calculate(input: { name?: string; gender: string; year: number; month: number; day: number; hour: number; minute?: number; place?: string }) {
-    if (true) return _mockBaziData
-    try {
-      const params = new URLSearchParams({
-        year: String(input.year), month: String(input.month), day: String(input.day),
-        hour: String(input.hour), minute: String(input.minute ?? 0),
-        gender: input.gender
-      }).toString()
-      return await apiGet<any>('/paipan/bazi/calculate?' + params)
+// ───────── 后端真实算法输出 → 前端组件结构适配 ─────────
+// 后端 GET /paipan/bazi/calculate（calcBaziPreview，真实排盘算法）输出结构与组件期望(_mockBaziData)不同，
+// 此适配做精确字段映射；后端无的字段（每柱自坐/真太阳时/节气）降级为空，组件侧 v-if 隐藏（不造假）。
+
+const _PILLAR_BE = { year: 'nian', month: 'yue', day: 'ri', hour: 'shi' } as const
+const _SS_PILLAR_FE: Record<string, string> = { nian: 'year', yue: 'month', ri: 'day', shi: 'hour' }
+const _WX_STATES = ['旺', '相', '休', '囚', '死']
+
+function _adaptPillar(p: any, kongWang: string, isDay: boolean) {
+  return {
+    shiShen: isDay ? '日元' : (p?.ganShiShen || ''), // 日柱天干为日主本身，显示「日元」
+    gan: p?.gan || '', zhi: p?.zhi || '',
+    cangGan: Array.isArray(p?.cangGan) ? p.cangGan.map((c: any) => ({ gan: c.gan, shen: c.shiShen })) : [],
+    naYin: p?.nayin || '',
+    diShi: p?.xingYun || '', // 后端 xingYun = 十二长生地势
+    ziZuo: '', // 后端无每柱自坐 → 降级（组件不渲染自坐行）
+    kongWang: kongWang || '', // 后端为整盘旬空，四柱同值
+    zhiShiShen: p?.zhiShiShen || '',
+  }
+}
+
+export function adaptBazi(raw: any) {
+  const sz = raw?.siZhu || {}
+  const kw = raw?.kongWang || ''
+  const siZhu: Record<string, any> = {}
+  for (const [fe, be] of Object.entries(_PILLAR_BE)) {
+    siZhu[fe] = _adaptPillar(sz[be], kw, be === 'ri')
+  }
+  // 神煞按柱分组（后端扁平 [{name,pillar}]）
+  const shenSha: Record<string, string[]> = { year: [], month: [], day: [], hour: [] }
+  for (const s of (Array.isArray(raw?.shenSha) ? raw.shenSha : [])) {
+    const fe = _SS_PILLAR_FE[s?.pillar]
+    if (fe && s?.name) shenSha[fe].push(s.name)
+  }
+  // 五行旺衰：后端 wuXingEnergy 为分数 → 按高低映射 旺/相/休/囚/死
+  const we = raw?.wuXingEnergy || {}
+  const wx: Array<[string, number]> = [['木', +we.mu || 0], ['火', +we.huo || 0], ['土', +we.tu || 0], ['金', +we.jin || 0], ['水', +we.shui || 0]]
+  const wuxingState: Record<string, string> = {}
+  ;[...wx].sort((a, b) => b[1] - a[1]).forEach(([el], i) => { wuxingState[el] = _WX_STATES[i] })
+  // 大运 + 流年（当前大运的逐年）
+  const nowYear = new Date().getFullYear()
+  const dyRaw: any[] = Array.isArray(raw?.qiYun?.daYun) ? raw.qiYun.daYun : []
+  const daYun = dyRaw.map((d: any) => ({
+    year: d.startYear, gan: d.tianGan, zhi: d.diZhi,
+    shiShen: d.ganShiShen, shiShenZhi: d.zhiShiShen,
+    active: nowYear >= d.startYear && nowYear <= d.endYear,
+  }))
+  const activeDy = dyRaw.find((d: any) => nowYear >= d.startYear && nowYear <= d.endYear) || dyRaw[0]
+  const liuNian = (Array.isArray(activeDy?.liuNian) ? activeDy.liuNian : []).map((n: any) => {
+    const gz = String(n?.ganZhi || '')
+    return {
+      year: n.year, gan: gz[0] || '', zhi: gz.slice(1) || '',
+      shiShen: n.ganShiShen, shiShenZhi: n.zhiShiShen,
+      age: n.age, active: n.year === nowYear,
     }
-    catch { return _mockBaziData }
+  })
+  const palace = (p: any) => ({ gan: p?.gan || '', zhi: p?.zhi || '', naYin: p?.nayin || '' })
+  // 刑冲合害（后端 fenXiTiShi）→ 前端 relations（分析模式「提示」区）
+  const fx = raw?.fenXiTiShi || {}
+  const fxArr = (...keys: string[]) => keys.flatMap((k) => (Array.isArray(fx[k]) ? fx[k] : []))
+  const relations = {
+    tianGan: fxArr('ganHe'), // 天干合
+    diZhi: fxArr('sanHe', 'sanHui', 'liuChong', 'liuHe', 'liuHai', 'sanXing', 'ziXing'), // 地支三合/三会/冲/合/害/刑/自刑
+    zhengZhu: fxArr('anHe', 'xiangPo', 'anJue'), // 暗合/相破/暗绝
+  }
+  return {
+    relations,
+    zodiac: raw?.shengXiao || '',
+    lunarDate: raw?.lunarDate || '',
+    realSolarTime: '', // 后端未启用真太阳时换算 → 降级（组件 v-if 隐藏）
+    jieQi: '', // 后端无节气字段 → 降级
+    siZhu,
+    shenSha,
+    taiYuan: palace(raw?.taiYuan),
+    mingGong: palace(raw?.mingGong),
+    shenGong: palace(raw?.shenGong),
+    wuxingState,
+    qiYun: raw?.qiYun?.desc || '',
+    daYun,
+    liuNian,
+    geJu: raw?.geJu || null, // 格局（分析模式可用）
+    fenXiTiShi: raw?.fenXiTiShi || null, // 刑冲合害（分析模式可用）
+  }
+}
+
+export const baziApi = {
+  /** 八字排盘结果（真连 GET /paipan/bazi/calculate，真实算法 + adaptBazi 适配，失败抛错走页面 error 态） */
+  async calculate(input: { name?: string; gender: string; year: number; month: number; day: number; hour: number; minute?: number; place?: string }) {
+    const params = new URLSearchParams({
+      year: String(input.year), month: String(input.month), day: String(input.day),
+      hour: String(input.hour), minute: String(input.minute ?? 0),
+      gender: input.gender,
+    }).toString()
+    return adaptBazi(await apiGet<any>('/paipan/bazi/calculate?' + params))
   },
 
   /** 古籍参考内容 */

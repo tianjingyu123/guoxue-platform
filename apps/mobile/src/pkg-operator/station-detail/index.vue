@@ -100,7 +100,7 @@ function toastSoon() {
       <!-- 分站品牌栏 -->
       <view class="sd-brandbar" :style="{ background: theme }">
         <view class="sd-brandbar-left">
-          <view class="sd-brand-logo"><text class="sd-brand-logo-txt">{{ station.name.charAt(0) }}</text></view>
+          <view class="sd-brand-logo"><text class="sd-brand-logo-txt">{{ station.name?.charAt(0) }}</text></view>
           <text class="sd-brand-name">{{ station.name }}</text>
           <text class="sd-brand-tag">热卜国学</text>
         </view>
@@ -150,18 +150,22 @@ function toastSoon() {
             @change="onHeroChange"
           >
             <swiper-item v-for="(img, i) in station.heroImages" :key="i">
-              <image class="sd-hero-img" :src="img" mode="aspectFill" />
+              <image lazy-load class="sd-hero-img" :src="img" mode="aspectFill" />
             </swiper-item>
           </swiper>
           <view class="sd-hero-mask" />
           <view class="sd-hero-master">
             <view class="sd-hero-avatar" :style="{ background: theme }">
-              <image v-if="station.masterAvatar" class="sd-hero-avatar-img" :src="station.masterAvatar" mode="aspectFill" />
+              <image lazy-load v-if="station.masterAvatar" class="sd-hero-avatar-img" :src="station.masterAvatar" mode="aspectFill" />
               <text v-else class="sd-hero-avatar-txt">{{ station.masterName.charAt(0) }}</text>
             </view>
             <view class="sd-hero-meta">
               <text class="sd-hero-name">{{ station.name }}</text>
-              <text class="sd-hero-stat">{{ station.memberCount }} 成员 · {{ station.contentCount }} 内容</text>
+              <text v-if="station.memberCount != null || station.contentCount != null" class="sd-hero-stat">
+                <text v-if="station.memberCount != null">{{ station.memberCount }} 成员</text>
+                <text v-if="station.memberCount != null && station.contentCount != null"> · </text>
+                <text v-if="station.contentCount != null">{{ station.contentCount }} 内容</text>
+              </text>
             </view>
           </view>
           <view v-if="station.heroImages.length > 1" class="sd-hero-dots">
@@ -186,8 +190,8 @@ function toastSoon() {
       <!-- 十宫格 -->
       <quick-entry-grid />
 
-      <!-- 站长精选 -->
-      <view class="sd-featured">
+      <!-- 站长精选（后端无该端点，有数据才展示） -->
+      <view v-if="station.featured && station.featured.length" class="sd-featured">
         <view class="sd-featured-head">
           <view class="sd-featured-title">
             <view class="sd-featured-bar" :style="{ background: theme }" />
@@ -212,7 +216,7 @@ function toastSoon() {
           >
             <view class="sd-fcard-main">
               <view class="sd-fcard-cover">
-                <image v-if="item.cover" class="sd-fcard-cover-img" :src="item.cover" mode="aspectFill" />
+                <image lazy-load v-if="item.cover" class="sd-fcard-cover-img" :src="item.cover" mode="aspectFill" />
                 <view v-else class="sd-fcard-cover-ph" :style="{ background: theme + '33' }">
                   <app-icon :name="featuredTypeConfig[item.type].icon" :size="56" :color="theme" />
                 </view>
@@ -342,7 +346,7 @@ function toastSoon() {
 .sd-fcard-tags { display: flex; align-items: center; gap: 12rpx; margin-bottom: 8rpx; }
 .sd-fcard-type { padding: 2rpx 12rpx; border-radius: 8rpx; }
 .sd-fcard-type-txt { font-size: 20rpx; }
-.sd-fcard-price { font-size: 24rpx; font-weight: 500; color: var(--brand-red, #C41E3A); }
+.sd-fcard-price { font-size: 24rpx; font-weight: 500; color: var(--brand-red, var(--brand)); }
 .sd-fcard-original { font-size: 20rpx; color: var(--text-soft, #999); text-decoration: line-through; }
 .sd-fcard-title { display: block; font-size: 28rpx; font-weight: 500; color: var(--text-strong, #1f1f1f); margin-bottom: 8rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sd-fcard-rec { display: flex; align-items: flex-start; gap: 8rpx; margin-top: 12rpx; }

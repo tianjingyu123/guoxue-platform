@@ -11,12 +11,12 @@ const tags = ['八字', '紫微', '六爻', '奇门']
     <!-- 宣纸纹理层 -->
     <view class="paper-texture" />
     <!-- 八卦背景装饰 -->
-    <image src="/static/bagua-deco.svg" class="bagua-deco" mode="aspectFit" />
+    <image lazy-load src="/static/bagua-deco.svg" class="bagua-deco" mode="aspectFit" />
 
     <view class="row">
       <!-- 太极旋转图标 -->
       <view class="taiji-box gold-glow">
-        <image src="/static/taiji-gold.svg" class="taiji taiji-rotate" mode="aspectFit" />
+        <image lazy-load src="/static/taiji-gold.svg" class="taiji taiji-rotate" mode="aspectFit" />
       </view>
       <!-- 文案 -->
       <view class="copy">
@@ -71,7 +71,7 @@ const tags = ['八字', '紫微', '六爻', '奇门']
   color: var(--text-ink, #2c2c2c); letter-spacing: 1rpx;
 }
 .free-tag {
-  font-size: 18rpx; color: #c41e3a; font-weight: 500;
+  font-size: 18rpx; color: var(--brand); font-weight: 500;
   padding: 4rpx 12rpx; border-radius: 8rpx; background: rgba(196, 30, 58, 0.1);
 }
 .desc { display: block; font-size: 24rpx; color: var(--text-soft, #555); margin-bottom: 16rpx; }
@@ -85,7 +85,7 @@ const tags = ['八字', '紫微', '六爻', '奇门']
 .cta {
   flex-shrink: 0; display: flex; align-items: center; gap: 4rpx;
   padding: 16rpx 28rpx; border-radius: 999rpx;
-  background: #c41e3a; box-shadow: 0 6rpx 24rpx rgba(196, 30, 58, 0.25);
+  background: var(--brand); box-shadow: 0 6rpx 24rpx rgba(196, 30, 58, 0.25);
 }
 .cta-text { color: #fff; font-size: 26rpx; font-weight: 500; }
 </style>

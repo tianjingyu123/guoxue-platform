@@ -50,7 +50,6 @@ onMounted(() => {
   loadData()
 })
 
-function openSearch() { navigateTo('/search?from=course') }
 function openCategory(id: string) { navigateTo(`/courses-list?category=${id}`) }
 </script>
 
@@ -76,14 +75,7 @@ function openCategory(id: string) { navigateTo(`/courses-list?category=${id}`) }
       </view>
       <!-- AI 搜索栏 -->
       <view class="search-wrap">
-        <view class="search-bar" @tap="openSearch">
-          <app-icon name="search" :size="32" color="var(--text-soft)" />
-          <text class="search-ph">搜索课程、讲师...</text>
-          <view class="ai-tag">
-            <app-icon name="sparkles" :size="24" color="var(--brand)" />
-            <text class="ai-txt">AI</text>
-          </view>
-        </view>
+        <search-bar default-tab="course" placeholder="搜索课程、讲师..." />
       </view>
     </view>
 

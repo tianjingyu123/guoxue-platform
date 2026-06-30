@@ -38,7 +38,7 @@ const sortedProducts = computed(() => {
       case 'sales': return b.sales - a.sales
       case 'price_asc': return a.price - b.price
       case 'price_desc': return b.price - a.price
-      case 'newest': return b.id - a.id
+      case 'newest': return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
       default: return 0
     }
   })
@@ -66,7 +66,7 @@ function pickSort(id: string) { sortBy.value = id; showSortMenu.value = false }
 function pickQuickPrice(min: number, max: number) { priceMin.value = min; priceMax.value = max }
 function resetFilter() { priceMin.value = 0; priceMax.value = 1000; onlyMemberFree.value = false }
 function resetAll() { activeCategory.value = 'all'; searchQuery.value = ''; resetFilter() }
-function openProduct(id: number) { navigateTo(`/mall/product/${id}`) }
+function openProduct(id: string | number) { navigateTo(`/mall/product/${id}`) }
 </script>
 
 <template>
@@ -143,7 +143,7 @@ function openProduct(id: number) { navigateTo(`/mall/product/${id}`) }
         <view v-if="sortedProducts.length" class="grid">
           <view v-for="p in sortedProducts" :key="p.id" class="g-card" hover-class="g-card-press" @tap="openProduct(p.id)">
             <view class="g-cover">
-              <image class="g-img" :src="p.cover" mode="aspectFill" />
+              <image lazy-load class="g-img" :src="p.cover" mode="aspectFill" />
               <text v-if="p.isMemberFree" class="g-badge">会员免费</text>
             </view>
             <view class="g-body">

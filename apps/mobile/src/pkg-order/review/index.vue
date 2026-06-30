@@ -10,10 +10,20 @@
     </app-nav-bar>
 
     <scroll-view scroll-y class="scroll-area">
-      <view v-for="(item, idx) in reviewItems" :key="item.id" class="review-card">
+      <view v-if="loading" class="state-block">
+        <text class="state-text">加载中...</text>
+      </view>
+      <view v-else-if="error" class="state-block">
+        <text class="state-text">{{ error }}</text>
+        <view class="state-btn" @tap="retry"><text class="state-btn-text">重试</text></view>
+      </view>
+      <view v-else-if="reviewItems.length === 0" class="state-block">
+        <text class="state-text">该订单暂无可评价商品</text>
+      </view>
+      <view v-for="(item, idx) in reviewItems" v-else :key="item.id" class="review-card">
         <!-- 商品信息 -->
         <view class="product-row">
-          <image class="product-cover" :src="item.cover" mode="aspectFill" />
+          <image lazy-load class="product-cover" :src="item.cover" mode="aspectFill" />
           <view class="product-info">
             <text class="product-name">{{ item.name }}</text>
             <text class="product-idx">商品 {{ idx + 1 }}/{{ reviewItems.length }}</text>
@@ -82,7 +92,7 @@
     </scroll-view>
 
     <!-- 底部提交 -->
-    <view class="submit-bar" :style="{ paddingBottom: 16 + safeBottom + 'px' }">
+    <view v-if="!loading && !error && reviewItems.length > 0" class="submit-bar" :style="{ paddingBottom: 16 + safeBottom + 'px' }">
       <text v-if="!allRated" class="submit-hint">请为所有商品打分后提交</text>
       <view class="submit-btn" :class="{ disabled: !allRated }" @tap="submit">
         <text class="submit-text" :class="{ disabled: !allRated }">提交评价</text>
@@ -95,21 +105,21 @@
 import { ref, reactive, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { goBack } from '@/utils/router'
-import { orderApi, reviewItems as orderReviewItems, reviewTagsByRating, reviewRatingLabels } from '@/lib/order-data'
+import { orderApi, reviewTagsByRating, reviewRatingLabels, type ReviewItem } from '@/lib/order-data'
 
 const safeBottom = ref(0)
-const orderId = ref('1')
+const orderId = ref('')
 
-const reviewItems = ref(orderReviewItems)
+const loading = ref(true)
+const error = ref('')
+const reviewItems = ref<ReviewItem[]>([])
 const tagsByRating = reviewTagsByRating
 const ratingLabels = reviewRatingLabels
 
 interface ReviewForm { rating: number; tags: string[]; content: string; images: string[] }
-const forms = reactive<ReviewForm[]>(
-  orderReviewItems.map(() => ({ rating: 0, tags: [], content: '', images: [] })),
-)
+const forms = reactive<ReviewForm[]>([])
 
-const allRated = computed(() => forms.every((f) => f.rating > 0))
+const allRated = computed(() => forms.length > 0 && forms.every((f) => f.rating > 0))
 const submitting = ref(false)
 
 function ratingClass(r: number) {
@@ -118,13 +128,29 @@ function ratingClass(r: number) {
   return 'bad'
 }
 
+async function loadData() {
+  loading.value = true
+  error.value = ''
+  try {
+    const items = await orderApi.reviewItems(orderId.value)
+    reviewItems.value = items
+    forms.splice(0, forms.length, ...items.map(() => ({ rating: 0, tags: [], content: '', images: [] })))
+  } catch (e: any) {
+    error.value = e?.message || '加载失败，请重试'
+  } finally {
+    loading.value = false
+  }
+}
+function retry() { loadData() }
+
 onLoad((opts: any) => {
-  if (opts?.id) orderId.value = opts.id
+  orderId.value = opts?.id || opts?.orderId || ''
   try {
     safeBottom.value = uni.getSystemInfoSync().safeAreaInsets?.bottom || 0
   } catch (e) {
     safeBottom.value = 0
   }
+  loadData()
 })
 
 function setRating(idx: number, star: number) {
@@ -293,8 +319,8 @@ async function submit() {
   border: 1rpx solid #E8E3DB;
 }
 .tag-chip.active {
-  background: #C41E3A;
-  border-color: #C41E3A;
+  background: var(--brand);
+  border-color: var(--brand);
 }
 .tag-text {
   font-size: 24rpx;
@@ -383,7 +409,7 @@ async function submit() {
 .submit-btn {
   height: 88rpx;
   border-radius: 24rpx;
-  background: #C41E3A;
+  background: var(--brand);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -399,4 +425,8 @@ async function submit() {
 .submit-text.disabled {
   color: #9CA3AF;
 }
+.state-block { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 160rpx 0; gap: 24rpx; }
+.state-text { font-size: 28rpx; color: #999999; }
+.state-btn { padding: 14rpx 48rpx; border: 1rpx solid var(--brand); border-radius: 40rpx; }
+.state-btn-text { font-size: 26rpx; color: var(--brand); }
 </style>

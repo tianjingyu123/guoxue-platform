@@ -1,7 +1,7 @@
 // 课程模块数据(从原型 app/courses/page.tsx 迁移)
 import type { CourseCardData } from '@/lib/card-utils'
 import type { BannerItem } from '@/lib/home-data'
-import { apiGet, useMock } from '@/utils/request'
+import { apiGet, apiPost, apiPut, apiGetPaged, useMock } from '@/utils/request'
 
 // 课程首页 Banner
 export const courseBanners: BannerItem[] = [
@@ -25,27 +25,7 @@ export const categoryNav: CourseCategory[] = [
 
 export type Course = CourseCardData & { category: string; isNew?: boolean; flashSale?: boolean }
 
-export const allCourses: Course[] = [
-  { id: 'c1', category: 'ziwei', title: '紫微斗数入门到精通', cover: 'https://images.unsplash.com/photo-1516979187457-637abb4f9353?w=400&q=80', coverRatio: '1:1', teacher: '林道长', teacherAvatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&q=80', price: 199, originalPrice: 399, students: 3200, lessons: 36, rating: 4.9, tag: '热销', flashSale: true },
-  { id: 'c2', category: 'fengshui', title: '风水堪舆实战班', cover: 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=400&q=80', coverRatio: '1:1', teacher: '王大师', teacherAvatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&q=80', price: 299, originalPrice: 599, students: 1800, lessons: 48, rating: 4.8, tag: '热销' },
-  { id: 'c3', category: 'liuyao', title: '六爻预测从零开始', cover: 'https://images.unsplash.com/photo-1519791883288-dc8bd696e667?w=400&q=80', coverRatio: '3:4', teacher: '陈老师', teacherAvatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&q=80', price: 128, originalPrice: 299, students: 1300, lessons: 24, rating: 4.7, flashSale: true },
-  { id: 'c4', category: 'bazi', title: '八字命理系统精讲', cover: 'https://images.unsplash.com/photo-1512820790803-83ca734da794?w=400&q=80', coverRatio: '1:1', teacher: '张师傅', teacherAvatar: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=100&q=80', price: 268, originalPrice: 498, students: 4100, lessons: 52, rating: 4.9, tag: '热销' },
-  { id: 'c5', category: 'qimen', title: '奇门遁甲实战应用', cover: 'https://images.unsplash.com/photo-1471107340929-a87cd0f5b5f3?w=400&q=80', coverRatio: '3:4', teacher: '赵先生', teacherAvatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&q=80', price: 388, originalPrice: 688, students: 920, lessons: 40, rating: 4.8 },
-  { id: 'c6', category: 'qiming', title: '宝宝起名改名全攻略', cover: 'https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?w=400&q=80', coverRatio: '1:1', teacher: '李老师', teacherAvatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&q=80', price: 99, originalPrice: 199, students: 2700, lessons: 18, rating: 4.7, tag: '新品', isNew: true },
-  { id: 'c7', category: 'mianxiang', title: '面相识人快速入门', cover: 'https://images.unsplash.com/photo-1544717305-2782549b5136?w=400&q=80', coverRatio: '3:4', teacher: '周老师', teacherAvatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=100&q=80', price: 0, free: true, students: 8600, lessons: 12, rating: 4.6 },
-  { id: 'c8', category: 'bazi', title: '八字合婚实操课', cover: 'https://images.unsplash.com/photo-1465495976277-4387d4b0b4c6?w=400&q=80', coverRatio: '1:1', teacher: '孙大师', teacherAvatar: 'https://images.unsplash.com/photo-1531123897727-8f129e1688ce?w=100&q=80', price: 0, free: true, students: 1500, lessons: 20, rating: 4.8 },
-  { id: 'c9', category: 'ziwei', title: '紫微飞星进阶秘传', cover: 'https://images.unsplash.com/photo-1532074205216-d0e1f4b87368?w=400&q=80', coverRatio: '3:4', teacher: '林道长', teacherAvatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&q=80', price: 458, originalPrice: 888, students: 680, lessons: 60, rating: 4.9, tag: '新品', isNew: true },
-  { id: 'c10', category: 'fengshui', title: '阳宅风水布局详解', cover: 'https://images.unsplash.com/photo-1493809842364-78817add7ffb?w=400&q=80', coverRatio: '1:1', teacher: '王大师', teacherAvatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&q=80', price: 199, originalPrice: 399, students: 2200, lessons: 32, rating: 4.7, isNew: true },
-]
-
-// 派生专栏(与原型一致)
-export const featured = allCourses.filter((c) => c.tag === '热销').slice(0, 6)
-export const ranking = [...allCourses].sort((a, b) => (b.students ?? 0) - (a.students ?? 0)).slice(0, 5)
-export const flashSaleCourses = allCourses.filter((c) => c.flashSale)
-export const freeCourses = allCourses.filter((c) => c.free)
-export const newCourses = allCourses.filter((c) => c.isNew)
-
-// 为你精选 分类筛选项
+// 为你精选 分类筛选项（运营配置，非 mock）
 export const feedFilters = [
   { id: 'all', label: '全部' },
   { id: 'bazi', label: '八字命理' },
@@ -65,261 +45,62 @@ export interface CourseDetail {
   description: string; objectives: string[]; suitable: string[]
   isEnrolled: boolean; progress: number
 }
-export const courseDetail: CourseDetail = {
-  id: '1', title: '八字命理入门到精通',
-  cover: 'https://images.unsplash.com/photo-1516589178581-6cd7833ae3b2?w=800&h=450&fit=crop',
-  instructor: { id: 'ins1', name: '张明远', avatar: 'https://api.dicebear.com/7.x/notionists/svg?seed=master1', title: '资深命理师' },
-  price: 299, originalPrice: 599, students: 12860, rating: 4.9, chapters: 32,
-  category: '命理', tag: '热门', isFree: false,
-  description: '本课程由资深命理师张明远老师主讲，从零基础开始，系统讲解八字命理的核心理论与实战技巧。课程涵盖天干地支、五行生克、十神论命、大运流年等核心内容，配合大量真实案例分析，让你快速掌握八字命理的精髓。',
-  objectives: ['掌握天干地支的基本概念和五行属性', '理解八字排盘的原理和方法', '学会分析日主强弱和用神取用', '能够独立进行八字命盘分析'],
-  suitable: ['对命理学感兴趣的初学者', '希望系统学习八字的爱好者', '想要提升命理水平的从业者'],
-  isEnrolled: false, progress: 0,
-}
-
 // @data-needs: 课程章节, 参数 courseId, 返回 [{id,title,duration,isFree,lessons:[{id,title,duration,isFree,isCompleted}]}]
 export interface CourseLesson { id: string; title: string; duration: number; isFree: boolean; isCompleted?: boolean }
 export interface CourseChapter { id: string; title: string; duration: number; isFree: boolean; lessons: CourseLesson[] }
-export const courseChapters: CourseChapter[] = [
-  { id: 'c1', title: '第一章 八字命理概述', duration: 45, isFree: true, lessons: [
-    { id: 'l1', title: '1.1 什么是八字命理', duration: 15, isFree: true },
-    { id: 'l2', title: '1.2 八字命理的历史渊源', duration: 18, isFree: true },
-    { id: 'l3', title: '1.3 学习八字的正确方法', duration: 12, isFree: false },
-  ] },
-  { id: 'c2', title: '第二章 天干地支基础', duration: 68, isFree: false, lessons: [
-    { id: 'l4', title: '2.1 十天干详解', duration: 22, isFree: false },
-    { id: 'l5', title: '2.2 十二地支详解', duration: 25, isFree: false },
-    { id: 'l6', title: '2.3 干支配合规律', duration: 21, isFree: false },
-  ] },
-  { id: 'c3', title: '第三章 五行生克制化', duration: 72, isFree: false, lessons: [
-    { id: 'l7', title: '3.1 五行的基本概念', duration: 18, isFree: false },
-    { id: 'l8', title: '3.2 五行生克关系', duration: 28, isFree: false },
-    { id: 'l9', title: '3.3 五行在命理中的应用', duration: 26, isFree: false },
-  ] },
-  { id: 'c4', title: '第四章 八字排盘实战', duration: 85, isFree: false, lessons: [
-    { id: 'l10', title: '4.1 年柱的排法', duration: 20, isFree: false },
-    { id: 'l11', title: '4.2 月柱的排法', duration: 22, isFree: false },
-    { id: 'l12', title: '4.3 日柱的排法', duration: 18, isFree: false },
-    { id: 'l13', title: '4.4 时柱的排法', duration: 25, isFree: false },
-  ] },
-]
-
 // @data-needs: 课程评价, 参数 courseId, 返回 [{id,user:{id,name,avatar},rating,content,createdAt}]
-export interface CourseReview { id: string; user: { id: string; name: string; avatar: string }; rating: number; content: string; createdAt: string }
-export const courseReviews: CourseReview[] = [
-  { id: 'r1', user: { id: 'u1', name: '易学爱好者', avatar: 'https://api.dicebear.com/7.x/notionists/svg?seed=user1' }, rating: 5, content: '张老师讲得非常清晰，从零基础开始学完全能听懂。案例分析特别实用，已经可以给朋友简单看看八字了！', createdAt: '2024-01-15' },
-  { id: 'r2', user: { id: 'u2', name: '命理新手', avatar: 'https://api.dicebear.com/7.x/notionists/svg?seed=user2' }, rating: 5, content: '课程内容很系统，比看书效率高多了。特别是五行生克那部分，老师用图解的方式讲解，一下子就理解了。', createdAt: '2024-01-10' },
-  { id: 'r3', user: { id: 'u3', name: '学习中', avatar: 'https://api.dicebear.com/7.x/notionists/svg?seed=user3' }, rating: 4, content: '整体不错，就是希望能多一些实战案例的讲解。期待老师出进阶课程！', createdAt: '2024-01-05' },
-]
-
-// ============ 章节列表页(学习进度) mock(从原型 courses/[id]/chapters 迁移) ============
+export interface CourseReview { id: string; user: { id: string; name: string; avatar: string }; rating: number; content: string; reply?: string; createdAt: string }
+// ============ 章节列表页(学习进度) ============
 // @data-needs: 课程学习进度概览, 参数 courseId, 返回 {id,title,totalLessons,completedLessons,progressPercent}
 export interface CourseProgress { id: string; title: string; totalLessons: number; completedLessons: number; progressPercent: number }
-export const courseProgress: CourseProgress = {
-  id: '1', title: '八字命理入门到精通', totalLessons: 32, completedLessons: 12, progressPercent: 38,
-}
-
 // @data-needs: 带学习状态的章节列表, 参数 courseId, 返回 [{id,title,lessons:[{id,title,duration(秒),status}]}], status∈completed|in-progress|available|locked
 export type LessonStatus = 'completed' | 'in-progress' | 'available' | 'locked'
 export interface ProgressLesson { id: string; title: string; duration: number; status: LessonStatus }
 export interface ProgressChapter { id: string; title: string; lessons: ProgressLesson[] }
-export const progressChapters: ProgressChapter[] = [
-  { id: 'ch1', title: '第一章 八字基础概念', lessons: [
-    { id: 'l1', title: '1.1 什么是八字命理', duration: 1520, status: 'completed' },
-    { id: 'l2', title: '1.2 天干地支详解', duration: 1830, status: 'completed' },
-    { id: 'l3', title: '1.3 阴阳五行基础', duration: 2100, status: 'completed' },
-    { id: 'l4', title: '1.4 干支配合规律', duration: 1650, status: 'completed' },
-  ] },
-  { id: 'ch2', title: '第二章 排盘方法', lessons: [
-    { id: 'l5', title: '2.1 年柱的排法', duration: 1420, status: 'completed' },
-    { id: 'l6', title: '2.2 月柱的排法', duration: 1680, status: 'completed' },
-    { id: 'l7', title: '2.3 日柱的排法', duration: 1550, status: 'completed' },
-    { id: 'l8', title: '2.4 时柱的排法', duration: 1720, status: 'completed' },
-  ] },
-  { id: 'ch3', title: '第三章 十神详解', lessons: [
-    { id: 'l9', title: '3.1 比劫的含义与作用', duration: 1850, status: 'completed' },
-    { id: 'l10', title: '3.2 食伤的含义与作用', duration: 1920, status: 'completed' },
-    { id: 'l11', title: '3.3 财星的含义与作用', duration: 1780, status: 'completed' },
-    { id: 'l12', title: '3.4 官杀的含义与作用', duration: 1650, status: 'in-progress' },
-    { id: 'l13', title: '3.5 印星的含义与作用', duration: 1880, status: 'available' },
-  ] },
-  { id: 'ch4', title: '第四章 格局分析', lessons: [
-    { id: 'l14', title: '4.1 八格的判定方法', duration: 2100, status: 'available' },
-    { id: 'l15', title: '4.2 正格与变格', duration: 1950, status: 'available' },
-    { id: 'l16', title: '4.3 用神的取法', duration: 2250, status: 'available' },
-    { id: 'l17', title: '4.4 格局高低判断', duration: 1820, status: 'available' },
-  ] },
-  { id: 'ch5', title: '第五章 大运流年', lessons: [
-    { id: 'l18', title: '5.1 大运的排法', duration: 1680, status: 'locked' },
-    { id: 'l19', title: '5.2 流年的看法', duration: 1750, status: 'locked' },
-    { id: 'l20', title: '5.3 运年作用关系', duration: 1920, status: 'locked' },
-    { id: 'l21', title: '5.4 吉凶判断要点', duration: 2080, status: 'locked' },
-  ] },
-]
-
-// ============ 学习中心页(learn) mock(从原型 courses/[id]/learn 迁移) ============
+// ============ 学习中心页(learn) ============
 // @data-needs: 学习中心聚合, 参数 courseId, 返回 { course, progress, chapters, notes, questions }
 export interface LearnCourse { id: string; title: string; cover: string; instructor: { id: string; name: string; avatar: string; title: string }; totalLessons: number; totalDuration: number }
-export const learnCourse: LearnCourse = {
-  id: '1', title: '八字命理入门到精通',
-  cover: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=300&fit=crop',
-  instructor: { id: '1', name: '李明远', avatar: 'https://i.pravatar.cc/100?img=11', title: '资深命理师' },
-  totalLessons: 32, totalDuration: 1920,
-}
 export interface LearnProgress { courseId: string; completedLessons: string[]; totalLessons: number; progressPercent: number; lastLesson: { id: string; chapterId: string; title: string }; studyTime: number }
-export const learnProgress: LearnProgress = {
-  courseId: '1', completedLessons: ['l1', 'l2', 'l3', 'l4', 'l5'], totalLessons: 32, progressPercent: 15,
-  lastLesson: { id: 'l6', chapterId: 'c2', title: '天干地支的阴阳属性' }, studyTime: 180,
-}
 export interface LearnLesson { id: string; title: string; duration: number; isFree: boolean; isCompleted: boolean }
 export interface LearnChapter { id: string; title: string; duration: number; isFree: boolean; lessons: LearnLesson[] }
-export const learnChapters: LearnChapter[] = [
-  { id: 'c1', title: '第一章 八字基础概念', duration: 180, isFree: true, lessons: [
-    { id: 'l1', title: '什么是八字命理', duration: 15, isFree: true, isCompleted: true },
-    { id: 'l2', title: '八字的起源与发展', duration: 18, isFree: true, isCompleted: true },
-    { id: 'l3', title: '四柱八字的构成', duration: 20, isFree: true, isCompleted: true },
-  ] },
-  { id: 'c2', title: '第二章 天干地支详解', duration: 240, isFree: false, lessons: [
-    { id: 'l4', title: '十天干基础', duration: 25, isFree: false, isCompleted: true },
-    { id: 'l5', title: '十二地支基础', duration: 25, isFree: false, isCompleted: true },
-    { id: 'l6', title: '天干地支的阴阳属性', duration: 22, isFree: false, isCompleted: false },
-    { id: 'l7', title: '干支的五行属性', duration: 28, isFree: false, isCompleted: false },
-  ] },
-  { id: 'c3', title: '第三章 排盘方法', duration: 300, isFree: false, lessons: [
-    { id: 'l8', title: '年柱的推算', duration: 30, isFree: false, isCompleted: false },
-    { id: 'l9', title: '月柱的推算', duration: 32, isFree: false, isCompleted: false },
-    { id: 'l10', title: '日柱的推算', duration: 28, isFree: false, isCompleted: false },
-  ] },
-]
 export interface LearnNote { id: string; content: string; chapterId: string; chapterTitle: string; lessonTitle: string; timestamp?: number; createdAt: string }
-export const learnNotes: LearnNote[] = [
-  { id: 'n1', content: '八字由年、月、日、时四柱组成，每柱包含天干地支，共八个字。', chapterId: 'c1', chapterTitle: '第一章 八字基础概念', lessonTitle: '四柱八字的构成', createdAt: '2024-01-15' },
-  { id: 'n2', content: '十天干：甲乙丙丁戊己庚辛壬癸。其中甲丙戊庚壬为阳干，乙丁己辛癸为阴干。', chapterId: 'c2', chapterTitle: '第二章 天干地支详解', lessonTitle: '十天干基础', timestamp: 320, createdAt: '2024-01-16' },
-  { id: 'n3', content: '十二地支：子丑寅卯辰巳午未申酉戌亥。对应十二生肖。', chapterId: 'c2', chapterTitle: '第二章 天干地支详解', lessonTitle: '十二地支基础', timestamp: 180, createdAt: '2024-01-16' },
-]
 export interface LearnQuestion { id: string; content: string; author: { id: string; name: string; avatar: string }; chapterTitle: string; createdAt: string; answers: number; isAnswered: boolean }
-export const learnQuestions: LearnQuestion[] = [
-  { id: 'q1', content: '请问老师，为什么说八字中日柱最重要？', author: { id: 'u1', name: '学习者小王', avatar: 'https://i.pravatar.cc/100?img=33' }, chapterTitle: '第一章', createdAt: '2024-01-18', answers: 3, isAnswered: true },
-  { id: 'q2', content: '天干地支的阴阳划分有什么实际应用意义？', author: { id: 'u2', name: '命理新手', avatar: 'https://i.pravatar.cc/100?img=44' }, chapterTitle: '第二章', createdAt: '2024-01-17', answers: 5, isAnswered: true },
-  { id: 'q3', content: '如何判断一个八字的五行是否平衡？', author: { id: 'u3', name: '易学爱好者', avatar: 'https://i.pravatar.cc/100?img=55' }, chapterTitle: '第三章', createdAt: '2024-01-16', answers: 0, isAnswered: false },
-]
 
 // ============ 视频播放页(player) mock(从原型 courses/[id]/player 迁移) ============
 // @data-needs: 课时播放内容, 参数 lessonId, 返回 ChapterContent
 export interface PlayerLesson { id: string; title: string; chapterId: string }
 export interface ChapterContent { id: string; title: string; courseId: string; courseTitle: string; videoUrl: string; duration: number; currentProgress: number; nextLesson?: PlayerLesson; prevLesson?: PlayerLesson }
-export const playerContent: ChapterContent = {
-  id: '1', title: '第一课：八字基础概念', courseId: '1', courseTitle: '八字命理入门精讲',
-  videoUrl: '', duration: 1800, currentProgress: 300,
-  nextLesson: { id: '2', title: '第二课：天干地支', chapterId: 'ch1' }, prevLesson: undefined,
-}
 // @data-needs: 播放页章节目录, 参数 courseId, 返回 PlayerChapter[]
 export interface PlayerChapterLesson { id: string; title: string; duration: number; isFree: boolean; isCompleted: boolean }
 export interface PlayerChapter { id: string; title: string; duration: number; isFree: boolean; lessons: PlayerChapterLesson[] }
-export const playerChapters: PlayerChapter[] = [
-  { id: 'ch1', title: '第一章：基础入门', duration: 3600, isFree: true, lessons: [
-    { id: '1', title: '八字基础概念', duration: 1800, isFree: true, isCompleted: true },
-    { id: '2', title: '天干地支详解', duration: 1500, isFree: true, isCompleted: false },
-    { id: '3', title: '五行生克关系', duration: 1200, isFree: false, isCompleted: false },
-  ] },
-  { id: 'ch2', title: '第二章：进阶应用', duration: 5400, isFree: false, lessons: [
-    { id: '4', title: '八字排盘方法', duration: 1800, isFree: false, isCompleted: false },
-    { id: '5', title: '十神详解', duration: 2000, isFree: false, isCompleted: false },
-  ] },
-]
-
-// ============ 课程限时特惠页(flash-sale) mock(从原型 courses/flash-sale 迁移) ============
+// ============ 课程限时特惠页(flash-sale) ============
 // @data-needs: 限时特惠场次, 参数 无, 返回 [{id,label,startTime,endTime,status}], status∈past|active|upcoming
 export interface SaleSession { id: string; label: string; startTime: string; endTime: string; status: 'past' | 'active' | 'upcoming' }
-export const saleSessions: SaleSession[] = [
-  { id: '1', label: '10:00场', startTime: '10:00', endTime: '12:00', status: 'past' },
-  { id: '2', label: '14:00场', startTime: '14:00', endTime: '16:00', status: 'active' },
-  { id: '3', label: '20:00场', startTime: '20:00', endTime: '22:00', status: 'upcoming' },
-]
 // @data-needs: 特惠课程, 参数 sessionId, 返回 [{id,title,instructor,cover,originalPrice,salePrice,discount,students,rating,sessionId,sold,total,category}]
 export interface SaleCourse { id: string; title: string; instructor: string; cover: string; originalPrice: number; salePrice: number; discount: number; students: number; rating: number; sessionId: string; sold: number; total: number; category: string }
-export const saleCourses: SaleCourse[] = [
-  { id: '1', title: '八字入门实战课', instructor: '周易大师', cover: '/static/marketing/course.png', originalPrice: 299, salePrice: 99, discount: 33, students: 2680, rating: 4.9, sessionId: '2', sold: 180, total: 200, category: '八字' },
-  { id: '2', title: '紫微斗数精讲班', instructor: '张玄风', cover: '/static/marketing/course.png', originalPrice: 499, salePrice: 149, discount: 30, students: 1520, rating: 4.8, sessionId: '2', sold: 95, total: 100, category: '紫微' },
-  { id: '3', title: '奇门遁甲高阶课', instructor: '林奇门', cover: '/static/marketing/luopan.png', originalPrice: 399, salePrice: 128, discount: 32, students: 980, rating: 4.7, sessionId: '2', sold: 48, total: 80, category: '奇门' },
-  { id: '4', title: '风水堪舆实操班', instructor: '王德华', cover: '/static/marketing/luopan.png', originalPrice: 599, salePrice: 199, discount: 33, students: 860, rating: 4.8, sessionId: '3', sold: 0, total: 50, category: '风水' },
-  { id: '5', title: '易经六十四卦速解', instructor: '李玄机', cover: '/static/marketing/course.png', originalPrice: 199, salePrice: 59, discount: 30, students: 3400, rating: 4.6, sessionId: '3', sold: 0, total: 100, category: '易经' },
-]
 
-// ============ 课程购买确认页(purchase-confirm) mock(从原型 courses/purchase-confirm 迁移) ============
+// ============ 课程购买确认页(purchase-confirm) ============
 // @data-needs: 待购课程信息, 参数 courseId, 返回 {id,title,cover,instructorName,chapters,price,originalPrice}
 export interface PurchaseCourse { id: string; title: string; cover: string; instructorName: string; chapters: number; price: number; originalPrice: number }
-export const purchaseCourse: PurchaseCourse = {
-  id: '1', title: '八字命理入门到精通', cover: '/static/marketing/course.png',
-  instructorName: '张老师', chapters: 32, price: 299, originalPrice: 599,
-}
 // @data-needs: 可用优惠券, 参数 scope=course, 返回 [{id,name,type,value,minAmount,maxDiscount,expireAt,isAvailable}], type∈amount|percent
 export interface PurchaseCoupon { id: string; name: string; type: 'amount' | 'percent'; value: number; minAmount: number; maxDiscount?: number; expireAt: string; isAvailable: boolean }
-export const purchaseCoupons: PurchaseCoupon[] = [
-  { id: '1', name: '新人专享券', type: 'amount', value: 50, minAmount: 100, expireAt: '2024-12-31', isAvailable: true },
-  { id: '2', name: '课程9折券', type: 'percent', value: 10, minAmount: 200, maxDiscount: 100, expireAt: '2024-06-30', isAvailable: true },
-  { id: '3', name: '满300减30', type: 'amount', value: 30, minAmount: 300, expireAt: '2024-07-15', isAvailable: false },
-]
 
-// ============ 课程结业证书页(certificate) mock(从原型 courses/certificate 迁移) ============
+// ============ 课程结业证书页(certificate) ============
 // @data-needs: 结业证书, 参数 courseId, 返回 Certificate（证书图建议由后端/canvas 生成 imageUrl）
 export interface Certificate { id: string; courseId: string; courseName: string; studentName: string; completedAt: string; certificateNo: string; instructor: string; totalHours: number; score?: number }
-export const courseCertificate: Certificate = {
-  id: 'cert-001', courseId: '1', courseName: '八字命理入门精讲', studentName: '张三',
-  completedAt: '2026-06-16', certificateNo: 'RB2024010001', instructor: '李明德', totalHours: 32, score: 95,
-}
 
-// ============ 学习计划页(study-plan) mock(从原型 courses/study-plan 迁移) ============
-// @data-needs: 学习目标, 参数 无, 返回 {daysPerWeek,minutesPerDay}
+// ============ 学习计划页(study-plan) ============
 export interface StudyGoal { daysPerWeek: number; minutesPerDay: number }
-export const studyGoal: StudyGoal = { daysPerWeek: 5, minutesPerDay: 30 }
-// @data-needs: 计划中的课程, 参数 无, 返回 PlannedCourse[]（scheduledDays:0=周日…6=周六）
+// @data-needs: 计划中的课程（scheduledDays:0=周日…6=周六）
 export interface PlannedCourse { id: string; courseId: string; title: string; cover: string; totalLessons: number; completedLessons: number; scheduledDays: number[]; order: number }
-export const plannedCourses: PlannedCourse[] = [
-  { id: 'pc1', courseId: 'c1', title: '八字命理入门精讲', cover: '/static/marketing/course.png', totalLessons: 32, completedLessons: 12, scheduledDays: [1, 3, 5], order: 0 },
-  { id: 'pc2', courseId: 'c2', title: '紫微斗数基础课', cover: '/static/marketing/course.png', totalLessons: 24, completedLessons: 6, scheduledDays: [2, 4], order: 1 },
-  { id: 'pc3', courseId: 'c3', title: '周易易经入门', cover: '/static/marketing/course.png', totalLessons: 18, completedLessons: 0, scheduledDays: [6], order: 2 },
-]
-// @data-needs: 连续打卡天数, 参数 无, 返回 number
-export const studyStreak = 7
-// 近30天打卡热力图（level:0-3）。原型用 Math.random() 生成（每次不同）；此处用确定性 pattern 保证可复现验收
-export const checkInLevels: number[] = [
-  2, 0, 1, 3, 2, 1, 0, 1, 2, 3, 1, 0, 2, 1, 3, 2, 0, 1, 2, 1, 3, 0, 2, 1, 1, 2, 3, 1, 2, 1,
-]
 
-// ============ 作业提交页(work-submit) mock(从原型 courses/work-submit 迁移) ============
-// @data-needs: 作业要求, 参数 chapterId, 返回 WorkRequirement
+// ============ 作业提交页(work-submit) ============
 export interface WorkRequirement { id: string; title: string; description: string; chapterTitle: string; courseTitle: string; deadline?: string; maxImages: number; minWords: number }
-export const workRequirement: WorkRequirement = {
-  id: '1', title: '八字命理基础练习',
-  description: '请根据本章节所学内容，分析以下八字命盘的五行分布，并写出你的解读思路。要求：\n1. 分析命盘五行强弱\n2. 找出命主的喜用神\n3. 简要分析命主性格特点\n\n提示：可以参考课程中的案例分析方法，结合自己的理解进行作答。',
-  chapterTitle: '第三章：五行生克与喜用神', courseTitle: '八字命理入门精讲',
-  deadline: '2024-12-31 23:59', maxImages: 9, minWords: 100,
-}
 
-// ============ 作业批改页(work-review) mock(从原型 courses/work-review 迁移) ============
-// @data-needs: 作业提交列表, 参数 courseId, 返回 WorkSubmission[]
+// ============ 作业批改页(work-review) ============
 export interface WorkSubmission { id: string; student: { id: string; name: string; avatar: string }; chapterId: string; chapterTitle: string; content: string; images: string[]; submittedAt: string; status: 'pending' | 'graded' | 'returned'; wordCount: number }
-export const workSubmissions: WorkSubmission[] = [
-  {
-    id: '1', student: { id: 's1', name: '张三', avatar: '' }, chapterId: 'c1', chapterTitle: '第一章：八字基础',
-    content: '通过本章学习，我了解到八字命理的核心是以出生时间为基础，用天干地支来表示。天干有十个：甲、乙、丙、丁、戊、己、庚、辛、壬、癸；地支有十二个：子、丑、寅、卯、辰、巳、午、未、申、酉、戌、亥。\n\n八字中最重要的是日主，代表命主本人。通过分析日主与其他七个字的关系，可以推断一个人的性格特点和命运走向。',
-    images: ['/images/courses/work-1.jpg', '/images/courses/work-2.jpg'], submittedAt: '2024-01-15 14:30', status: 'pending', wordCount: 156,
-  },
-  {
-    id: '2', student: { id: 's2', name: '李四', avatar: '' }, chapterId: 'c1', chapterTitle: '第一章：八字基础',
-    content: '八字命理学习心得：天干地支是基础，需要熟练掌握。日主很重要，是分析的核心。',
-    images: [], submittedAt: '2024-01-15 15:20', status: 'pending', wordCount: 42,
-  },
-  {
-    id: '3', student: { id: 's3', name: '王五', avatar: '' }, chapterId: 'c2', chapterTitle: '第二章：五行生克',
-    content: '五行相生：木生火、火生土、土生金、金生水、水生木。五行相克：木克土、土克水、水克火、火克金、金克木。这些关系在八字分析中非常重要。',
-    images: ['/images/courses/work-3.jpg'], submittedAt: '2024-01-14 10:15', status: 'graded', wordCount: 78,
-  },
-]
 
-// ============ 作业批改结果页(work-result) mock(从原型 courses/work-result 迁移) ============
-// @data-needs: 作业批改结果, 参数 workId, 返回 WorkResult（status∈pending|graded|returned）
+// ============ 作业批改结果页(work-result) ============
 export interface WorkResult {
   id: string; chapterId: string; status: 'pending' | 'graded' | 'returned'
   chapterTitle: string; courseTitle: string
@@ -330,104 +111,230 @@ export interface WorkResult {
   suggestions?: string[]
   canResubmit?: boolean
 }
-export const workResult: WorkResult = {
-  id: '1', chapterId: 'c1', status: 'graded',
-  chapterTitle: '第一章：八字基础', courseTitle: '八字命理入门精讲',
-  content: '通过本章学习，我对八字命理有了初步的认识。八字由年柱、月柱、日柱、时柱组成，每柱包含一个天干和一个地支。天干有甲、乙、丙、丁、戊、己、庚、辛、壬、癸十个，地支有子、丑、寅、卯、辰、巳、午、未、申、酉、戌、亥十二个。\n\n日主代表命主本人，是分析的核心。',
-  images: ['/static/marketing/course.png', '/static/marketing/course.png'],
-  submittedAt: '2024-01-15 14:30',
-  score: 85, maxScore: 100,
-  gradedBy: { name: '周易大师', avatar: '/static/marketing/course.png' },
-  teacherComment: '作业完成得很好！对八字的基本概念理解准确，举例也很恰当。建议在后续学习中多练习排盘，加深对天干地支的记忆。',
-  gradedAt: '2024-01-16 09:15',
-  suggestions: ['建议补充五行生克关系的说明', '可以尝试分析自己的八字加深理解'],
-  canResubmit: true,
-}
 
 // ============ API 层 ============
 
+// ───────── 后端字段适配（前端 /course 单数 → 后端 /courses 复数 + 结构适配）─────────
+function toNum(v: any): number { const x = Number(v); return Number.isFinite(x) ? x : 0 }
+
+/** 后端课程 → 前端课程卡 Course */
+function adaptCourseCard(c: any): Course {
+  const price = toNum(c.price)
+  const orig = toNum(c.originalPrice)
+  return {
+    id: c.id,
+    title: c.title || '',
+    cover: c.cover || '',
+    coverRatio: '1:1',
+    price,
+    originalPrice: orig || price,
+    free: price === 0,
+    students: toNum(c.studentCount),
+    lessons: toNum(c._count?.chapters),
+    rating: 0, // 列表无评分，详情页另取
+    teacher: c.user?.nickname || '',
+    teacherAvatar: c.user?.avatar || '',
+    category: c.categoryLevel1 || c.circle?.name || '',
+    isNew: false,
+    flashSale: orig > price && price > 0,
+  }
+}
+
+/** 后端课程详情 → 前端 CourseDetail（objectives/suitable 后端无→空，页面隐藏） */
+function adaptCourseDetail(c: any, rating?: any): CourseDetail {
+  const price = toNum(c.price)
+  const orig = toNum(c.originalPrice)
+  return {
+    id: c.id,
+    title: c.title || '',
+    cover: c.cover || '',
+    instructor: { id: c.user?.id || '', name: c.user?.nickname || '讲师', avatar: c.user?.avatar || '', title: '主讲老师' },
+    price,
+    originalPrice: orig || price,
+    students: toNum(c.studentCount),
+    rating: rating?.avgRating ?? 0,
+    chapters: Array.isArray(c.chapters) ? c.chapters.length : toNum(c._count?.chapters),
+    category: c.categoryLevel1 || '',
+    tag: undefined,
+    isFree: price === 0,
+    description: c.intro || '',
+    objectives: [],
+    suitable: [],
+    isEnrolled: false,
+    progress: 0,
+  }
+}
+
+/** 后端单级章节 → 前端「章-课时」结构（后端每章节包成一个含单课时的章） */
+function adaptChapters(arr: any): CourseChapter[] {
+  const list = Array.isArray(arr) ? arr : (arr?.items ?? [])
+  return list.map((ch: any) => ({
+    id: ch.id,
+    title: ch.title || '',
+    duration: toNum(ch.duration),
+    isFree: !!ch.freeTrial,
+    lessons: [{ id: ch.id, title: ch.title || '', duration: toNum(ch.duration), isFree: !!ch.freeTrial }],
+  }))
+}
+
+/** 后端评价 → 前端 CourseReview */
+function adaptReviews(arr: any): CourseReview[] {
+  const list = Array.isArray(arr) ? arr : (arr?.reviews ?? arr?.items ?? [])
+  return list.map((r: any) => ({
+    id: r.id,
+    user: { id: r.user?.id || '', name: r.user?.nickname || '匿名', avatar: r.user?.avatar || '' },
+    rating: toNum(r.rating),
+    content: r.content || '',
+    reply: r.reply || '',
+    createdAt: r.createdAt ? String(r.createdAt).slice(0, 10) : '',
+  }))
+}
+
+/** 取列表（后端可能返回数组或 {list/items} 包裹） */
+function toList(data: any): any[] {
+  if (Array.isArray(data)) return data
+  return data?.list ?? data?.items ?? data?.courses ?? []
+}
+
+/** 后端作业(含 user/chapter join) → 前端 WorkSubmission（图片从 content 末尾 markdown 提取） */
+function adaptWorkSubmission(w: any): WorkSubmission {
+  const images: string[] = []
+  const content = String(w.content || '')
+    .replace(/!\[作业图片\]\(([^)]+)\)/g, (_m: string, url: string) => { images.push(url); return '' })
+    .trim()
+  return {
+    id: w.id,
+    student: { id: w.user?.id || w.userId || '', name: w.user?.nickname || '学员', avatar: w.user?.avatar || '' },
+    chapterId: w.chapterId || '',
+    chapterTitle: w.chapter?.title || '',
+    content,
+    images,
+    submittedAt: w.createdAt ? String(w.createdAt).replace('T', ' ').slice(0, 16) : '',
+    status: w.score != null ? 'graded' : 'pending',
+    wordCount: content.length,
+  }
+}
+
+/** 讲师创作管理台 - 我创建的课程卡片 */
+export interface CreatedCourse {
+  id: string
+  title: string
+  cover: string
+  type: string
+  price: number
+  auditStatus: string
+  studentCount: number
+  circleId: string | null
+  chapterCount: number
+  reviewCount: number
+  createdAt: string
+}
+
 export const courseApi = {
-  /** 获取课程首页数据 — GET /course */
+  /** 创建课程 — POST /courses（需讲师认证 APPROVED，后端 CourseCreatorGuard 拦截 + course_publish 开关） */
+  create: (body: { circleId?: string; title: string; cover?: string; intro?: string; type?: string; price?: number; tags?: string[] }) =>
+    apiPost<{ id: string }>('/courses', body),
+
+  /** 我创建的课程（讲师管理台）— GET /courses/created（含审核状态/章节·评价计数；空→空态，错→错误态） */
+  async getCreatedCourses(page = 1, pageSize = 20): Promise<{ items: CreatedCourse[]; total: number }> {
+    const res = await apiGetPaged<any>(`/courses/created?page=${page}&pageSize=${pageSize}`)
+    return {
+      items: res.items.map((c) => ({
+        id: c.id,
+        title: c.title,
+        cover: c.cover || '',
+        type: c.type,
+        price: Number(c.price ?? 0),
+        auditStatus: c.auditStatus || 'PENDING',
+        studentCount: c.studentCount ?? 0,
+        circleId: c.circleId ?? null,
+        chapterCount: c._count?.chapters ?? 0,
+        reviewCount: c._count?.reviews ?? 0,
+        createdAt: c.createdAt ? String(c.createdAt).slice(0, 10) : '',
+      })),
+      total: res.total,
+    }
+  },
+
+  /** 讲师回复课程评价 — PUT /courses/reviews/:reviewId/reply（仅本人课程，后端归属校验） */
+  replyReview: (reviewId: string, reply: string) =>
+    apiPut(`/courses/reviews/${reviewId}/reply`, { reply }),
+
+  /** 课程首页 — GET /courses 列表 + 前端派生（banner/分类=运营配置；错误传播给页面三态，不回退假数据）*/
   async getHome(): Promise<any> {
-    if (true) return {
+    const res = await apiGet<any>('/courses?pageSize=50')
+    const courses: Course[] = toList(res).map(adaptCourseCard)
+    return {
       banners: courseBanners,
       categories: categoryNav,
-      featured,
-      ranking,
-      flashSale: flashSaleCourses,
-      free: freeCourses,
-      newCourses,
-      allCourses,
+      featured: courses.filter((c) => c.flashSale).slice(0, 6),
+      ranking: [...courses].sort((a, b) => (b.students ?? 0) - (a.students ?? 0)).slice(0, 5),
+      flashSale: courses.filter((c) => c.flashSale),
+      free: courses.filter((c) => c.free),
+      newCourses: courses.slice(0, 6),
+      allCourses: courses,
       feedFilters,
     }
-    try {
-      return await apiGet<any>('/course')
-    } catch {
-      return {
-        banners: courseBanners,
-        categories: categoryNav,
-        featured,
-        ranking,
-        flashSale: flashSaleCourses,
-        free: freeCourses,
-        newCourses,
-        allCourses,
-        feedFilters,
-      }
-    }
   },
 
-  /** 获取课程详情 — GET /course/:id */
+  /** 课程详情 — GET /courses/:id (+ /rating)；错误传播给页面三态 */
   async getDetail(id: string): Promise<CourseDetail> {
-    if (true) return courseDetail
-    try {
-      const data = await apiGet<any>(`/course/${id}`)
-      return data as CourseDetail
-    } catch {
-      return courseDetail
-    }
+    const [c, rating] = await Promise.all([
+      apiGet<any>(`/courses/${id}`),
+      apiGet<any>(`/courses/${id}/rating`).catch(() => null),
+    ])
+    return adaptCourseDetail(c, rating)
   },
 
-  /** 获取课程章节 — GET /course/:id/chapters */
+  /** 课程章节 — GET /courses/:id/chapters（空→空态，错→错误态，不回退假数据） */
   async getChapters(id: string): Promise<CourseChapter[]> {
-    if (true) return courseChapters
-    try {
-      const data = await apiGet<any>(`/course/${id}/chapters`)
-      return (data?.items || data) as CourseChapter[]
-    } catch {
-      return courseChapters
-    }
+    return adaptChapters(await apiGet<any>(`/courses/${id}/chapters`))
   },
 
-  /** 获取课程评价 — GET /course/:id/reviews */
+  /** 课程评价 — GET /courses/:id/reviews（空→空态，错→错误态） */
   async getReviews(id: string): Promise<CourseReview[]> {
-    if (true) return courseReviews
-    try {
-      const data = await apiGet<any>(`/course/${id}/reviews`)
-      return (data?.items || data) as CourseReview[]
-    } catch {
-      return courseReviews
-    }
+    return adaptReviews(await apiGet<any>(`/courses/${id}/reviews`))
   },
 
-  /** 获取课程学习进度概览 — GET /course/:id/progress */
+  /** 学习进度概览 — 合并 GET /courses/:id/chapters + /progress + 课程标题 */
   async getProgress(id: string): Promise<CourseProgress> {
-    if (true) return courseProgress
-    try { return await apiGet<CourseProgress>(`/course/${id}/progress`) } catch { return courseProgress }
-  },
-
-  /** 获取带学习状态的章节列表 — GET /course/:id/progress-chapters */
-  async getProgressChapters(id: string): Promise<ProgressChapter[]> {
-    if (true) return progressChapters
-    try {
-      const data = await apiGet<any>(`/course/${id}/progress-chapters`)
-      return (data?.items || data) as ProgressChapter[]
-    } catch {
-      return progressChapters
+    const [chapters, progress, course] = await Promise.all([
+      apiGet<any>(`/courses/${id}/chapters`),
+      apiGet<any>(`/courses/${id}/progress`),
+      apiGet<any>(`/courses/${id}`).catch(() => null),
+    ])
+    const chList = toList(chapters)
+    const prog = toList(progress)
+    const total = chList.length
+    const completed = prog.filter((p: any) => p.completed).length
+    return {
+      id,
+      title: course?.title || '',
+      totalLessons: total,
+      completedLessons: completed,
+      progressPercent: total ? Math.round((completed / total) * 100) : 0,
     }
   },
 
-  /** 获取学习中心聚合数据 — GET /course/:id/learn */
+  /** 带学习状态的章节列表 — 合并 GET /courses/:id/chapters + /progress（后端单级章节包成「章含一课时」） */
+  async getProgressChapters(id: string): Promise<ProgressChapter[]> {
+    const [chapters, progress] = await Promise.all([
+      apiGet<any>(`/courses/${id}/chapters`),
+      apiGet<any>(`/courses/${id}/progress`).catch(() => []),
+    ])
+    const chList = toList(chapters).sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+    const progMap = new Map<string, any>(toList(progress).map((p: any) => [p.chapterId, p]))
+    return chList.map((ch: any) => {
+      const p = progMap.get(ch.id)
+      let status: LessonStatus
+      if (p?.completed) status = 'completed'
+      else if (p && p.progress > 0) status = 'in-progress'
+      else status = 'available' // 无逐章购买信息时不臆造 locked，访问权由章节内容接口服务端兜底
+      return { id: ch.id, title: ch.title || '', lessons: [{ id: ch.id, title: ch.title || '', duration: toNum(ch.duration), status }] }
+    })
+  },
+
+  /** 学习中心聚合 — 组合 GET /courses/:id (+/chapters +/progress +/questions)；笔记/学习时长后端暂无→空/0诚实降级 */
   async getLearnData(id: string): Promise<{
     course: LearnCourse
     progress: LearnProgress
@@ -435,120 +342,211 @@ export const courseApi = {
     notes: LearnNote[]
     questions: LearnQuestion[]
   }> {
-    if (true) return {
-      course: learnCourse,
-      progress: learnProgress,
-      chapters: learnChapters,
-      notes: learnNotes,
-      questions: learnQuestions,
+    const [course, chaptersRaw, progressRaw, questionsRaw] = await Promise.all([
+      apiGet<any>(`/courses/${id}`),
+      apiGet<any>(`/courses/${id}/chapters`),
+      apiGet<any>(`/courses/${id}/progress`).catch(() => []),
+      apiGet<any>(`/courses/${id}/questions`).catch(() => ({ questions: [] })),
+    ])
+    const chs = toList(chaptersRaw).sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+    const prog = toList(progressRaw)
+    const progMap = new Map<string, any>(prog.map((p: any) => [p.chapterId, p]))
+    const completedIds = prog.filter((p: any) => p.completed).map((p: any) => p.chapterId)
+    const totalLessons = chs.length
+    const totalDuration = chs.reduce((s: number, c: any) => s + toNum(c.duration), 0)
+    const learnCourseData: LearnCourse = {
+      id: course.id, title: course.title || '', cover: course.cover || '',
+      instructor: { id: course.user?.id || '', name: course.user?.nickname || '讲师', avatar: course.user?.avatar || '', title: '主讲老师' },
+      totalLessons, totalDuration,
     }
-    try {
-      return await apiGet<any>(`/course/${id}/learn`)
-    } catch {
-      return {
-        course: learnCourse,
-        progress: learnProgress,
-        chapters: learnChapters,
-        notes: learnNotes,
-        questions: learnQuestions,
-      }
+    const sortedProg = [...prog].sort((a: any, b: any) => new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime())
+    const lastP = sortedProg[0]
+    const lastCh = (lastP ? chs.find((c: any) => c.id === lastP.chapterId) : chs[0]) || chs[0]
+    const learnProgressData: LearnProgress = {
+      courseId: id, completedLessons: completedIds, totalLessons,
+      progressPercent: totalLessons ? Math.round((completedIds.length / totalLessons) * 100) : 0,
+      lastLesson: lastCh ? { id: lastCh.id, chapterId: lastCh.id, title: lastCh.title || '' } : { id: '', chapterId: '', title: '' },
+      studyTime: 0,
     }
+    const learnChaptersData: LearnChapter[] = chs.map((ch: any) => ({
+      id: ch.id, title: ch.title || '', duration: toNum(ch.duration), isFree: !!ch.freeTrial,
+      lessons: [{ id: ch.id, title: ch.title || '', duration: toNum(ch.duration), isFree: !!ch.freeTrial, isCompleted: !!progMap.get(ch.id)?.completed }],
+    }))
+    const qList = questionsRaw?.questions ?? toList(questionsRaw)
+    const learnQuestionsData: LearnQuestion[] = qList.map((q: any) => ({
+      id: q.id, content: q.content || '',
+      author: { id: q.user?.id || '', name: q.user?.nickname || '匿名', avatar: q.user?.avatar || '' },
+      chapterTitle: q.chapter?.title || '',
+      createdAt: q.createdAt ? String(q.createdAt).slice(0, 10) : '',
+      answers: toNum(q.answerCount ?? q._count?.answers),
+      isAnswered: q.status === 'ANSWERED' || !!q.answerCount,
+    }))
+    return { course: learnCourseData, progress: learnProgressData, chapters: learnChaptersData, notes: [], questions: learnQuestionsData }
   },
 
-  /** 获取课时播放内容 — GET /course/lesson/:lessonId */
+  /** 课时播放内容 — GET /courses/chapters/:chapterId/content（需购买/会员，服务端鉴权）+ 兄弟章节做前后课时 */
   async getPlayerContent(lessonId: string): Promise<ChapterContent> {
-    if (true) return playerContent
-    try { return await apiGet<ChapterContent>(`/course/lesson/${lessonId}`) } catch { return playerContent }
-  },
-
-  /** 获取播放页章节目录 — GET /course/:id/player-chapters */
-  async getPlayerChapters(id: string): Promise<PlayerChapter[]> {
-    if (true) return playerChapters
-    try {
-      const data = await apiGet<any>(`/course/${id}/player-chapters`)
-      return (data?.items || data) as PlayerChapter[]
-    } catch {
-      return playerChapters
+    const ch = await apiGet<any>(`/courses/chapters/${lessonId}/content`)
+    const courseId = ch.courseId || ch.course?.id || ''
+    const [chapters, course, progress] = await Promise.all([
+      courseId ? apiGet<any>(`/courses/${courseId}/chapters`).catch(() => []) : Promise.resolve([]),
+      courseId ? apiGet<any>(`/courses/${courseId}`).catch(() => null) : Promise.resolve(null),
+      courseId ? apiGet<any>(`/courses/${courseId}/progress`).catch(() => []) : Promise.resolve([]),
+    ])
+    const list = toList(chapters).sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+    const idx = list.findIndex((c: any) => c.id === lessonId)
+    const prev = idx > 0 ? list[idx - 1] : undefined
+    const next = idx >= 0 && idx < list.length - 1 ? list[idx + 1] : undefined
+    const myProg = toList(progress).find((p: any) => p.chapterId === lessonId)
+    const duration = toNum(ch.duration)
+    return {
+      id: ch.id,
+      title: ch.title || '',
+      courseId,
+      courseTitle: course?.title || '',
+      videoUrl: ch.mediaUrl || ch.content || '',
+      duration,
+      currentProgress: myProg ? Math.round((toNum(myProg.progress) / 100) * duration) : 0,
+      nextLesson: next ? { id: next.id, title: next.title || '', chapterId: next.id } : undefined,
+      prevLesson: prev ? { id: prev.id, title: prev.title || '', chapterId: prev.id } : undefined,
     }
   },
 
-  /** 获取限时特惠场次 — GET /course/flash-sale/sessions */
+  /** 播放页章节目录 — GET /courses/:id/chapters + /progress（单级章节包成「章含一课时」） */
+  async getPlayerChapters(id: string): Promise<PlayerChapter[]> {
+    const [chapters, progress] = await Promise.all([
+      apiGet<any>(`/courses/${id}/chapters`),
+      apiGet<any>(`/courses/${id}/progress`).catch(() => []),
+    ])
+    const chList = toList(chapters).sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+    const progMap = new Map<string, any>(toList(progress).map((p: any) => [p.chapterId, p]))
+    return chList.map((ch: any) => ({
+      id: ch.id,
+      title: ch.title || '',
+      duration: toNum(ch.duration),
+      isFree: !!ch.freeTrial,
+      lessons: [{ id: ch.id, title: ch.title || '', duration: toNum(ch.duration), isFree: !!ch.freeTrial, isCompleted: !!progMap.get(ch.id)?.completed }],
+    }))
+  },
+
+  /** 限时特惠场次 — GET /courses/flash-sale（折扣课派生，单场进行中） */
   async getSaleSessions(): Promise<SaleSession[]> {
-    if (true) return saleSessions
-    try { return await apiGet<SaleSession[]>('/course/flash-sale/sessions') } catch { return saleSessions }
+    const d = await apiGet<any>('/courses/flash-sale')
+    return (d.sessions ?? []) as SaleSession[]
   },
 
-  /** 获取特惠课程 — GET /course/flash-sale/courses */
+  /** 特惠课程 — GET /courses/flash-sale */
   async getSaleCourses(sessionId?: string): Promise<SaleCourse[]> {
-    let data = saleCourses
-    if (sessionId) data = data.filter((c) => c.sessionId === sessionId)
-    if (true) return data
-    try { return await apiGet<SaleCourse[]>(`/course/flash-sale/courses?sessionId=${sessionId || ''}`) } catch { return data }
+    const d = await apiGet<any>('/courses/flash-sale')
+    const list: SaleCourse[] = (d.courses ?? []).map((c: any) => ({
+      id: c.id, title: c.title || '', instructor: c.instructor || '讲师', cover: c.cover || '',
+      originalPrice: toNum(c.originalPrice), salePrice: toNum(c.salePrice), discount: toNum(c.discount),
+      students: toNum(c.students), rating: toNum(c.rating), sessionId: c.sessionId || 'active',
+      sold: toNum(c.sold), total: toNum(c.total), category: c.category || '',
+    }))
+    return sessionId ? list.filter((c) => c.sessionId === sessionId) : list
   },
 
-  /** 获取待购课程信息 — GET /course/:id/purchase */
+  /** 待购课程信息 — GET /courses/:id 取子集 */
   async getPurchaseCourse(id: string): Promise<PurchaseCourse> {
-    if (true) return purchaseCourse
-    try { return await apiGet<PurchaseCourse>(`/course/${id}/purchase`) } catch { return purchaseCourse }
+    const c = await apiGet<any>(`/courses/${id}`)
+    return {
+      id: c.id,
+      title: c.title || '',
+      cover: c.cover || '',
+      instructorName: c.user?.nickname || '讲师',
+      chapters: Array.isArray(c.chapters) ? c.chapters.length : toNum(c._count?.chapters),
+      price: toNum(c.price),
+      originalPrice: toNum(c.originalPrice) || toNum(c.price),
+    }
   },
 
-  /** 获取可用优惠券 — GET /course/coupons */
+  /** 可用优惠券 — 课程券为独立功能，后端券系统面向商城商品，课程暂无→诚实空态 */
   async getPurchaseCoupons(): Promise<PurchaseCoupon[]> {
-    if (true) return purchaseCoupons
-    try { return await apiGet<PurchaseCoupon[]>('/course/coupons') } catch { return purchaseCoupons }
+    return []
   },
 
-  /** 获取结业证书 — GET /course/:id/certificate */
+  /** 结业证书 — GET /courses/:id/certificate（未学完则后端 403→页面错误态提示） */
   async getCertificate(id: string): Promise<Certificate> {
-    if (true) return courseCertificate
-    try { return await apiGet<Certificate>(`/course/${id}/certificate`) } catch { return courseCertificate }
+    const c = await apiGet<any>(`/courses/${id}/certificate`)
+    return {
+      id: c.id,
+      courseId: c.courseId,
+      courseName: c.courseName || '',
+      studentName: c.studentName || '',
+      completedAt: c.completedAt || '',
+      certificateNo: c.certificateNo || '',
+      instructor: c.instructor || '',
+      totalHours: toNum(c.totalHours),
+      score: c.score != null ? toNum(c.score) : undefined,
+    }
   },
 
-  /** 获取学习计划 — GET /study-plan */
+  /** 学习计划 — GET /courses/study-plan（从已购课+进度派生，需登录） */
   async getStudyPlan(): Promise<{
     goal: StudyGoal
     courses: PlannedCourse[]
     streak: number
     checkInLevels: number[]
   }> {
-    if (true) return {
-      goal: studyGoal,
-      courses: plannedCourses,
-      streak: studyStreak,
-      checkInLevels,
-    }
-    try {
-      return await apiGet<any>('/study-plan')
-    } catch {
-      return {
-        goal: studyGoal,
-        courses: plannedCourses,
-        streak: studyStreak,
-        checkInLevels,
-      }
+    const d = await apiGet<any>('/courses/study-plan')
+    return {
+      goal: d.goal ?? { daysPerWeek: 5, minutesPerDay: 30 },
+      courses: (d.courses ?? []).map((c: any) => ({
+        id: c.id, courseId: c.courseId, title: c.title || '', cover: c.cover || '',
+        totalLessons: toNum(c.totalLessons), completedLessons: toNum(c.completedLessons),
+        scheduledDays: c.scheduledDays ?? [], order: toNum(c.order),
+      })),
+      streak: toNum(d.streak),
+      checkInLevels: d.checkInLevels ?? [],
     }
   },
 
-  /** 获取作业要求 — GET /course/work-requirement/:chapterId */
+  /** 作业要求 — 后端无作业题库，取真实章节/课程名 + 通用提交指引（非臆造具体题目） */
   async getWorkRequirement(chapterId: string): Promise<WorkRequirement> {
-    if (true) return workRequirement
-    try { return await apiGet<WorkRequirement>(`/course/work-requirement/${chapterId}`) } catch { return workRequirement }
-  },
-
-  /** 获取作业提交列表 — GET /course/:id/work-submissions */
-  async getWorkSubmissions(id: string): Promise<WorkSubmission[]> {
-    if (true) return workSubmissions
-    try {
-      const data = await apiGet<any>(`/course/${id}/work-submissions`)
-      return (data?.items || data) as WorkSubmission[]
-    } catch {
-      return workSubmissions
+    const ch = await apiGet<any>(`/courses/chapters/${chapterId}/content`)
+    const courseId = ch.courseId || ch.course?.id || ''
+    const course = courseId ? await apiGet<any>(`/courses/${courseId}`).catch(() => null) : null
+    return {
+      id: chapterId,
+      title: `${ch.title || '本章'} · 课后作业`,
+      description: '请结合本章所学内容，提交你的学习心得与练习思考。要求：条理清晰、结合课程案例展开，鼓励图文并茂。',
+      chapterTitle: ch.title || '',
+      courseTitle: course?.title || '',
+      maxImages: 9,
+      minWords: 100,
     }
   },
 
-  /** 获取作业批改结果 — GET /course/work-result/:workId */
+  /** 作业提交列表 — GET /courses/:id/works（后端已 join user/chapter） */
+  async getWorkSubmissions(id: string): Promise<WorkSubmission[]> {
+    const data = await apiGet<any>(`/courses/${id}/works`)
+    return toList(data).map(adaptWorkSubmission)
+  },
+
+  /** 作业批改结果 — GET /courses/works/:workId（gradedAt/批改人名/建议 后端暂无→降级） */
   async getWorkResult(workId: string): Promise<WorkResult> {
-    if (true) return workResult
-    try { return await apiGet<WorkResult>(`/course/work-result/${workId}`) } catch { return workResult }
+    const w = await apiGet<any>(`/courses/works/${workId}`)
+    const images: string[] = []
+    const content = String(w.content || '')
+      .replace(/!\[作业图片\]\(([^)]+)\)/g, (_m: string, url: string) => { images.push(url); return '' })
+      .trim()
+    const graded = w.score != null
+    return {
+      id: w.id,
+      chapterId: w.chapterId || '',
+      status: graded ? 'graded' : 'pending',
+      chapterTitle: w.chapter?.title || '',
+      courseTitle: w.course?.title || '',
+      content,
+      images,
+      submittedAt: w.createdAt ? String(w.createdAt).replace('T', ' ').slice(0, 16) : '',
+      score: graded ? toNum(w.score) : undefined,
+      maxScore: 100,
+      gradedBy: graded ? { name: '讲师', avatar: '' } : undefined,
+      teacherComment: w.feedback || undefined,
+      suggestions: [],
+      canResubmit: false,
+    }
   },
 }

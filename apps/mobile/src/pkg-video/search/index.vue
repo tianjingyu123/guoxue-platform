@@ -84,7 +84,7 @@
             @tap="goDetail(video.id)"
           >
             <view class="vs-result-cover">
-              <image class="vs-result-img" :src="video.cover" mode="aspectFill" />
+              <image lazy-load class="vs-result-img" :src="video.cover" mode="aspectFill" />
               <text class="vs-result-dur">{{ video.duration }}</text>
               <view class="vs-result-play-wrap">
                 <view class="vs-result-play">
@@ -93,7 +93,7 @@
               </view>
             </view>
             <view class="vs-result-info">
-              <image class="vs-result-avatar" :src="video.authorAvatar" mode="aspectFill" />
+              <image lazy-load class="vs-result-avatar" :src="video.authorAvatar" mode="aspectFill" />
               <view class="vs-result-meta">
                 <text class="vs-result-title">{{ video.title }}</text>
                 <view class="vs-result-stats">
@@ -201,7 +201,7 @@ function goDetail(id: string) {
 .vs-input { flex: 1; font-size: 28rpx; color: #1A1A1A; }
 .vs-input-ph { color: #9CA3AF; }
 .vs-clear { flex-shrink: 0; }
-.vs-search-btn { font-size: 28rpx; font-weight: 500; color: #c41e3a; flex-shrink: 0; }
+.vs-search-btn { font-size: 28rpx; font-weight: 500; color: var(--brand); flex-shrink: 0; }
 
 .vs-body { padding: 32rpx 32rpx 160rpx; }
 
@@ -233,9 +233,9 @@ function goDetail(id: string) {
   background-color: #F3F4F6;
 }
 .vs-chip-hot { background-color: rgba(196, 30, 58, 0.1); }
-.vs-chip-rank { font-size: 26rpx; font-weight: 700; color: #c41e3a; }
+.vs-chip-rank { font-size: 26rpx; font-weight: 700; color: var(--brand); }
 .vs-chip-txt { font-size: 28rpx; color: #1A1A1A; }
-.vs-chip-txt-hot { color: #c41e3a; font-weight: 500; }
+.vs-chip-txt-hot { color: var(--brand); font-weight: 500; }
 
 /* 结果 */
 .vs-result-count { display: block; font-size: 22rpx; color: #9CA3AF; margin-bottom: 32rpx; }

@@ -1,3 +1,79 @@
+<script setup lang="ts">
+import { ref, computed, onMounted } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
+import AppIcon from '@/components/common/app-icon.vue'
+import { goBack, navigateTo } from '@/utils/router'
+import {
+  mineApi,
+  likeTypeNames,
+  likeTypeStyles,
+  likeFilterOptions,
+  type LikeItem,
+  type LikeTargetType,
+} from '@/lib/mine-data'
+
+const statusBarHeight = ref(0)
+const activeTab = ref<LikeTargetType | 'all'>('all')
+const list = ref<LikeItem[]>([])
+const loading = ref(true)
+const error = ref('')
+const unliking = ref<string | number | null>(null)
+
+async function fetchData() {
+  loading.value = true
+  error.value = ''
+  try {
+    list.value = await mineApi.getMyLikes()
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+onLoad(() => {
+  try {
+    statusBarHeight.value = uni.getSystemInfoSync().statusBarHeight || 0
+  } catch {
+    statusBarHeight.value = 0
+  }
+})
+onMounted(fetchData)
+
+const filteredItems = computed(() =>
+  activeTab.value === 'all'
+    ? list.value
+    : list.value.filter((i) => i.target.type === activeTab.value),
+)
+const isEmpty = computed(() => filteredItems.value.length === 0)
+
+function tabCount(id: LikeTargetType | 'all') {
+  if (id === 'all') return list.value.length
+  return list.value.filter((i) => i.target.type === id).length
+}
+
+async function handleUnlike(item: LikeItem) {
+  if (unliking.value !== null) return
+  unliking.value = item.id
+  try {
+    // 乐观移除（后端取消点赞端点为 interaction toggle，此处先本地移除保持交互）
+    list.value = list.value.filter((i) => i.id !== item.id)
+    uni.showToast({ title: '已取消点赞', icon: 'none' })
+  } finally {
+    unliking.value = null
+  }
+}
+function goDetail() {
+  uni.showToast({ title: '内容详情开发中', icon: 'none' })
+}
+function onBack() {
+  goBack()
+}
+function goHome() {
+  navigateTo('/pages/index/index')
+}
+</script>
+
 <template>
   <view class="likes-page">
     <!-- 顶部导航 -->
@@ -16,68 +92,60 @@
       <scroll-view class="tab-scroll" scroll-x :show-scrollbar="false">
         <view class="tab-row">
           <view
-            v-for="tab in tabs"
-            :key="tab.id"
+            v-for="tab in likeFilterOptions"
+            :key="tab.value"
             class="tab-item"
-            :class="{ 'tab-active': activeTab === tab.id }"
-            @click="activeTab = tab.id"
+            :class="{ 'tab-active': activeTab === tab.value }"
+            @click="activeTab = tab.value"
           >
-            <app-icon
-              v-if="tab.icon"
-              :name="tab.icon"
-              :size="16"
-              :color="activeTab === tab.id ? '#c41e3a' : '#999999'"
-            />
             <text class="tab-label">{{ tab.label }}</text>
-            <text v-if="tabCount(tab.id) > 0" class="tab-count">({{ tabCount(tab.id) }})</text>
+            <text v-if="tabCount(tab.value) > 0" class="tab-count">({{ tabCount(tab.value) }})</text>
           </view>
         </view>
       </scroll-view>
     </view>
 
-    <!-- 点赞列表 -->
+    <!-- 列表区域 -->
     <view class="list" :style="{ paddingTop: statusBarHeight + 56 + 49 + 12 + 'px' }">
-      <template v-if="filteredItems.length > 0">
+      <!-- 加载 -->
+      <view v-if="loading" class="state-box"><text class="state-text">加载中...</text></view>
+      <!-- 错误 -->
+      <view v-else-if="error" class="state-box">
+        <text class="state-text">{{ error }}</text>
+        <view class="retry-btn" @click="fetchData"><text class="retry-text">重试</text></view>
+      </view>
+      <!-- 正常列表 -->
+      <template v-else-if="!isEmpty">
         <view v-for="item in filteredItems" :key="item.id" class="card">
           <view class="card-inner">
-            <!-- 封面 -->
-            <view class="cover" @click="goDetail(item)">
-              <template v-if="item.type === 'video'">
-                <app-icon name="play" :size="32" color="rgba(153,153,153,0.4)" />
-                <text v-if="item.duration" class="duration">{{ item.duration }}</text>
-              </template>
+            <!-- 类型图标 -->
+            <view class="cover" :style="{ background: likeTypeStyles[item.target.type].bg }" @click="goDetail">
               <app-icon
-                v-else-if="item.type === 'course'"
-                name="book-open"
+                :name="likeTypeStyles[item.target.type].icon"
                 :size="32"
-                color="rgba(201,169,110,0.4)"
+                :color="likeTypeStyles[item.target.type].color"
               />
-              <app-icon v-else name="file-text" :size="32" color="rgba(153,153,153,0.4)" />
             </view>
 
             <!-- 内容 -->
             <view class="content">
               <view class="content-main">
-                <!-- 类型标签 -->
-                <view class="type-badge" :style="{ background: typeConfig[item.type].bg, color: typeConfig[item.type].color }">
-                  <app-icon :name="typeConfig[item.type].icon" :size="12" :color="typeConfig[item.type].color" />
-                  <text class="type-badge-text">{{ typeConfig[item.type].label }}</text>
+                <view
+                  class="type-badge"
+                  :style="{ background: likeTypeStyles[item.target.type].bg, color: likeTypeStyles[item.target.type].color }"
+                >
+                  <app-icon :name="likeTypeStyles[item.target.type].icon" :size="12" :color="likeTypeStyles[item.target.type].color" />
+                  <text class="type-badge-text">{{ likeTypeNames[item.target.type] }}</text>
                 </view>
-                <!-- 标题 -->
-                <text class="title" @click="goDetail(item)">{{ item.title }}</text>
-                <!-- 摘要 -->
-                <text v-if="item.summary" class="summary">{{ item.summary }}</text>
-                <!-- 底部信息 -->
+                <text class="title" @click="goDetail">{{ item.target.title }}</text>
                 <view class="meta">
-                  <text class="meta-author">{{ item.author || item.instructor }}</text>
-                  <text v-if="item.type === 'course' && item.price" class="meta-price">¥{{ item.price }}</text>
-                  <text v-if="item.type === 'video' && item.likes" class="meta-likes">{{ item.likes }} 点赞</text>
-                  <text class="meta-time">· {{ item.likedAt }}</text>
+                  <text v-if="item.target.author" class="meta-author">{{ item.target.author.nickname }}</text>
+                  <text class="meta-time">· {{ item.createdAt }}</text>
                 </view>
               </view>
 
               <!-- 取消点赞 -->
-              <view class="unlike-btn" @click="handleUnlike(item.id)">
+              <view class="unlike-btn" :class="{ disabled: unliking === item.id }" @click="handleUnlike(item)">
                 <app-icon name="heart" :size="20" color="#c41e3a" :fill="true" />
               </view>
             </view>
@@ -99,125 +167,6 @@
     </view>
   </view>
 </template>
-
-<script>
-import { goBack, navigateTo } from '@/utils/router'
-
-const likedItems = [
-  {
-    id: 1,
-    type: 'article',
-    title: '八字命理入门：如何看懂你的命盘',
-    summary: '八字命理是中国传统文化的重要组成部分，本文将带你从零开始了解八字的基本概念...',
-    author: '周易大师',
-    likedAt: '2小时前',
-    href: '/articles/1',
-  },
-  {
-    id: 2,
-    type: 'video',
-    title: '三分钟看懂十神关系',
-    duration: '03:25',
-    author: '命理小课堂',
-    likes: 2580,
-    likedAt: '5小时前',
-    href: '/video/1',
-  },
-  {
-    id: 3,
-    type: 'post',
-    title: '今日案例分析：乙木生于子月',
-    summary: '分享一个最近遇到的命盘，乙木日主生于子月，地支一片水旺...',
-    images: 2,
-    author: '八字研习者',
-    likedAt: '昨天',
-    href: '/post/1',
-  },
-  {
-    id: 4,
-    type: 'course',
-    title: '紫微斗数入门到精通',
-    instructor: '张玄风',
-    price: 299,
-    likedAt: '3天前',
-    href: '/course/1',
-  },
-  {
-    id: 5,
-    type: 'article',
-    title: '风水布局的五大禁忌',
-    summary: '家居风水关系到一家人的运势，这些常见的风水禁忌你一定要知道...',
-    author: '陈风水',
-    likedAt: '1周前',
-    href: '/articles/2',
-  },
-  {
-    id: 6,
-    type: 'video',
-    title: '手把手教你排八字',
-    duration: '08:42',
-    author: '国学小白',
-    likes: 5680,
-    likedAt: '1周前',
-    href: '/video/2',
-  },
-]
-
-export default {
-  data() {
-    return {
-      statusBarHeight: 0,
-      activeTab: 'all',
-      items: [...likedItems],
-      tabs: [
-        { id: 'all', label: '全部', icon: null },
-        { id: 'post', label: '帖子', icon: 'message-square' },
-        { id: 'article', label: '文章', icon: 'file-text' },
-        { id: 'video', label: '短视频', icon: 'video' },
-        { id: 'course', label: '课程', icon: 'book-open' },
-      ],
-      typeConfig: {
-        post: { label: '帖子', bg: 'rgba(59,130,246,0.1)', color: '#3b82f6', icon: 'message-square' },
-        article: { label: '文章', bg: 'rgba(34,197,94,0.1)', color: '#22c55e', icon: 'file-text' },
-        video: { label: '视频', bg: 'rgba(139,92,246,0.1)', color: '#8b5cf6', icon: 'video' },
-        course: { label: '课程', bg: 'rgba(201,169,110,0.1)', color: '#c9a96e', icon: 'book-open' },
-      },
-    }
-  },
-  computed: {
-    filteredItems() {
-      if (this.activeTab === 'all') return this.items
-      return this.items.filter((i) => i.type === this.activeTab)
-    },
-  },
-  onLoad() {
-    try {
-      const info = uni.getSystemInfoSync()
-      this.statusBarHeight = info.statusBarHeight || 0
-    } catch (e) {
-      this.statusBarHeight = 0
-    }
-  },
-  methods: {
-    tabCount(id) {
-      if (id === 'all') return this.items.length
-      return this.items.filter((i) => i.type === id).length
-    },
-    handleUnlike(id) {
-      this.items = this.items.filter((i) => i.id !== id)
-    },
-    goDetail(item) {
-      if (item.href) navigateTo(item.href)
-    },
-    onBack() {
-      goBack()
-    },
-    goHome() {
-      navigateTo('/pages/index/index')
-    },
-  },
-}
-</script>
 
 <style lang="scss" scoped>
 .likes-page {
@@ -282,7 +231,7 @@ export default {
   border-bottom: 2px solid transparent;
 }
 .tab-active {
-  border-bottom-color: #c41e3a;
+  border-bottom-color: var(--brand);
 }
 .tab-label {
   font-size: 14px;
@@ -290,7 +239,7 @@ export default {
   color: #999999;
 }
 .tab-active .tab-label {
-  color: #c41e3a;
+  color: var(--brand);
 }
 .tab-count {
   font-size: 12px;
@@ -302,6 +251,29 @@ export default {
   padding-right: 16px;
   padding-bottom: 24px;
 }
+
+.state-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 80px 0;
+}
+.state-text {
+  font-size: 14px;
+  color: #999999;
+}
+.retry-btn {
+  padding: 8px 24px;
+  background: var(--brand);
+  border-radius: 9999px;
+}
+.retry-text {
+  font-size: 14px;
+  color: #ffffff;
+}
+
 .card {
   background: #ffffff;
   border: 1px solid #e8e3db;
@@ -316,21 +288,9 @@ export default {
   flex-shrink: 0;
   width: 112px;
   aspect-ratio: 4 / 3;
-  background: #f5f1eb;
   display: flex;
   align-items: center;
   justify-content: center;
-  position: relative;
-}
-.duration {
-  position: absolute;
-  bottom: 4px;
-  right: 4px;
-  padding: 1px 6px;
-  background: rgba(0, 0, 0, 0.6);
-  color: #ffffff;
-  font-size: 10px;
-  border-radius: 4px;
 }
 .content {
   flex: 1;
@@ -366,15 +326,6 @@ export default {
   color: #2c2c2c;
   line-height: 1.4;
 }
-.summary {
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 1;
-  overflow: hidden;
-  font-size: 12px;
-  color: #999999;
-  margin-top: 4px;
-}
 .meta {
   display: flex;
   align-items: center;
@@ -383,15 +334,9 @@ export default {
   margin-top: 8px;
 }
 .meta-author,
-.meta-likes,
 .meta-time {
   font-size: 10px;
   color: #999999;
-}
-.meta-price {
-  font-size: 10px;
-  color: #c41e3a;
-  font-weight: 500;
 }
 .unlike-btn {
   flex-shrink: 0;
@@ -401,6 +346,9 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+.unlike-btn.disabled {
+  opacity: 0.5;
 }
 
 .empty {
@@ -432,7 +380,7 @@ export default {
 .empty-btn {
   margin-top: 16px;
   padding: 8px 24px;
-  background: #c41e3a;
+  background: var(--brand);
   border-radius: 9999px;
 }
 .empty-btn-text {

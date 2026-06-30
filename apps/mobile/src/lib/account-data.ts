@@ -3,9 +3,7 @@
    主题色统一为商城 #9A2D2D。
    ============================================================ */
 
-import { apiGet, apiPost, useMock } from '@/utils/request'
-
-const P = '/static/images/products'
+import { apiGet, apiPost, apiPut, apiDelete } from '@/utils/request'
 
 /* —— 售后申请 —— */
 export const afterSaleReasons = [
@@ -24,21 +22,6 @@ export interface AfterSaleProduct {
   skuName: string
   price: number
   quantity: number
-}
-
-/** 申请页默认商品与最大可退金额（来自订单） */
-const _mockAfterSaleApplyContext = {
-  orderId: 'order001',
-  orderNo: '202401150001',
-  maxAmount: 256,
-  product: {
-    id: 'p1',
-    name: '周易六十四卦详解（精装典藏版）',
-    cover: `${P}/book1.jpg`,
-    skuName: '精装版',
-    price: 168,
-    quantity: 1,
-  } as AfterSaleProduct,
 }
 
 /* —— 售后列表 —— */
@@ -83,33 +66,6 @@ export const afterSaleStatusConfig: Record<
   cancelled: { label: '已取消', color: '#999999', bg: 'rgba(153,153,153,0.1)', icon: 'x' },
 }
 
-const _mockAfterSaleList: AfterSaleListItem[] = [
-  {
-    id: '1', orderId: 'o1', orderNo: 'AS202401150001', type: 'refund_only', status: 'pending',
-    amount: 168, reason: '商品质量问题',
-    product: { id: 'p1', name: '周易六十四卦详解（精装典藏版）', cover: `${P}/book1.jpg`, skuName: '精装版' },
-    createdAt: '2024-01-15 10:30', canCancel: true,
-  },
-  {
-    id: '2', orderId: 'o2', orderNo: 'AS202401140002', type: 'refund_with_return', status: 'approved',
-    amount: 88, reason: '尺寸不符',
-    product: { id: 'p2', name: '紫微斗数入门教程', cover: `${P}/book2.jpg`, skuName: '平装版' },
-    createdAt: '2024-01-14 14:20', canCancel: false,
-  },
-  {
-    id: '3', orderId: 'o3', orderNo: 'AS202401130003', type: 'refund_only', status: 'completed',
-    amount: 299, reason: '七天无理由',
-    product: { id: 'p3', name: '奇门遁甲实战手册', cover: `${P}/book3.jpg`, skuName: '典藏版' },
-    createdAt: '2024-01-13 09:15', canCancel: false,
-  },
-  {
-    id: '4', orderId: 'o4', orderNo: 'AS202401120004', type: 'refund_with_return', status: 'rejected',
-    amount: 128, reason: '不喜欢',
-    product: { id: 'p4', name: '梅花易数精解', cover: `${P}/book4.jpg`, skuName: '标准版' },
-    createdAt: '2024-01-12 16:45', canCancel: false,
-  },
-]
-
 /* —— 售后详情 / 驳回 —— */
 export interface AfterSaleTimelineNode {
   status: string
@@ -136,38 +92,6 @@ export interface AfterSaleDetailData {
   canCancel: boolean
 }
 
-const _mockAfterSaleDetail: AfterSaleDetailData = {
-  id: 'as001', orderId: 'order001', orderNo: '202401150001',
-  type: 'refund_with_return', status: 'approved', reason: '商品与描述不符', amount: 168,
-  description: '收到商品后发现颜色与图片差异较大，希望退货退款。',
-  images: [`${P}/book1.jpg`, `${P}/book2.jpg`],
-  product: { id: 'p1', name: '周易六十四卦详解（精装典藏版）', cover: `${P}/book1.jpg`, skuName: '精装版', price: 168, quantity: 1 },
-  timeline: [
-    { status: 'submitted', title: '提交申请', description: '您的售后申请已提交', time: '2024-01-15 10:30', isCurrent: false },
-    { status: 'approved', title: '审核通过', description: '商家已同意您的退货申请，请尽快寄回商品', time: '2024-01-15 14:20', isCurrent: true },
-    { status: 'shipping', title: '退货中', description: '等待您寄回商品', time: '', isCurrent: false },
-    { status: 'refunding', title: '退款中', description: '商家确认收货后将处理退款', time: '', isCurrent: false },
-    { status: 'completed', title: '退款完成', description: '退款已原路返回', time: '', isCurrent: false },
-  ],
-  logistics: { company: '顺丰速运', trackingNo: '', address: '北京市朝阳区建国路88号SOHO现代城A座1201' },
-  createdAt: '2024-01-15 10:30', canCancel: true,
-}
-
-const _mockAfterSaleRejectedDetail: AfterSaleDetailData = {
-  id: 'as001', orderId: 'order001', orderNo: '202401150001',
-  type: 'refund_only', status: 'rejected', reason: '商品质量问题', amount: 168,
-  description: '收到商品后发现印刷模糊，影响阅读体验',
-  images: [`${P}/book1.jpg`, `${P}/book3.jpg`],
-  product: { id: 'p1', name: '周易六十四卦详解（精装典藏版）', cover: `${P}/book1.jpg`, skuName: '精装版', price: 168, quantity: 1 },
-  timeline: [
-    { status: 'submitted', title: '提交申请', time: '2024-01-15 10:30', isCurrent: false },
-    { status: 'reviewing', title: '商家审核', time: '2024-01-15 14:20', isCurrent: false },
-    { status: 'rejected', title: '申请驳回', description: '商家已驳回您的售后申请', time: '2024-01-16 09:15', isCurrent: true },
-  ],
-  rejectReason: '经核实，您购买的商品为正品且印刷清晰，不符合退款条件。商品在发货前已经过严格质检，如有疑问请联系客服进一步沟通。',
-  createdAt: '2024-01-15 10:30', canCancel: false,
-}
-
 /* —— 收货地址 —— */
 export interface ShippingAddressItem {
   id: string
@@ -179,12 +103,6 @@ export interface ShippingAddressItem {
   address: string
   isDefault: boolean
 }
-
-const _mockShippingAddressList: ShippingAddressItem[] = [
-  { id: '1', name: '张三', phone: '138****8888', province: '北京市', city: '北京市', district: '朝阳区', address: '建国路88号SOHO现代城A座1201室', isDefault: true },
-  { id: '2', name: '李四', phone: '139****9999', province: '上海市', city: '上海市', district: '浦东新区', address: '张江高科技园区博云路2号浦软大厦8楼', isDefault: false },
-  { id: '3', name: '王五', phone: '137****7777', province: '广东省', city: '深圳市', district: '南山区', address: '科技园南区高新南一道飞亚达大厦5层', isDefault: false },
-]
 
 /** 省市区数据（简化版） */
 export const REGIONS: Record<string, Record<string, string[]>> = {
@@ -209,73 +127,251 @@ export const REGIONS: Record<string, Record<string, string[]>> = {
 }
 export const PROVINCES = Object.keys(REGIONS)
 
-/** 编辑页：用于回填的示例地址 */
-const _mockAddressEditSample: ShippingAddressItem = {
-  id: '1', name: '张三', phone: '13812345678', province: '北京市', city: '北京市', district: '朝阳区',
-  address: '建国路88号SOHO现代城A座1201室', isDefault: true,
+/* ============================================================
+   适配层：后端真实结构 → 前端视图模型
+   售后端点与 order-data.ts 共用同一套订单售后子系统（见文末说明）：
+     GET    /shop/after-sales?page&pageSize     列表 { items,total,page,pageSize }
+     GET    /shop/after-sales/:id               详情（enriched，含 order/product）
+     POST   /shop/orders/:orderId/after-sale    申请（body: type/reason/amount）
+     PUT    /shop/after-sales/:id/cancel         取消
+   收货地址：/shop/addresses（GET列表 / POST新增 / PUT:id编辑 / DELETE:id / PUT:id/default）
+   ============================================================ */
+
+/** ISO 时间 → 'YYYY-MM-DD HH:mm'（uni-app 多端无 dayjs） */
+function fmtTime(iso?: string | null): string {
+  if (!iso) return ''
+  const d = new Date(iso)
+  if (isNaN(d.getTime())) return ''
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
+}
+const _num = (v: any): number => { const n = Number(v); return isNaN(n) ? 0 : n }
+/** 后端 UUID → 展示用短单号（前 12 位大写） */
+function shortNo(id: string): string {
+  return id ? id.replace(/-/g, '').slice(0, 12).toUpperCase() : ''
+}
+
+/** 后端 AfterSale.status → 前端售后状态 */
+const AS_STATUS_MAP: Record<string, AfterSaleStatus> = {
+  PENDING: 'pending', PROCESSING: 'refunding', APPROVED: 'approved',
+  COMPLETED: 'completed', REJECTED: 'rejected', CANCELLED: 'cancelled',
+}
+/** 后端售后类型字符串（refund/return…）→ 前端两类 */
+function asType(t: string): 'refund_only' | 'refund_with_return' {
+  return t === 'return' || t === 'refund_with_return' ? 'refund_with_return' : 'refund_only'
+}
+
+/** 后端 enriched AfterSale → 前端列表项 */
+function adaptAfterSaleListItem(a: any): AfterSaleListItem {
+  return {
+    id: a.id,
+    orderId: a.orderId,
+    orderNo: shortNo(a.orderId),
+    type: asType(a.type),
+    status: AS_STATUS_MAP[a.status] || 'pending',
+    amount: _num(a.amount ?? a.order?.amount),
+    reason: a.reason || '',
+    product: {
+      id: a.product?.id || '',
+      name: a.product?.title || '商品',
+      cover: a.product?.cover || '',
+      skuName: '', // 后端售后单未关联 SKU → 不展示
+    },
+    createdAt: fmtTime(a.createdAt),
+    canCancel: a.status === 'PENDING',
+  }
+}
+
+/** 由 AfterSale.status 派生处理时间轴（后端无逐节点时间，按真实状态推进） */
+function buildAfterSaleTimeline(a: any): AfterSaleTimelineNode[] {
+  const t0 = fmtTime(a.createdAt)
+  const t1 = fmtTime(a.updatedAt || a.createdAt)
+  const submitted: AfterSaleTimelineNode = { status: 'submitted', title: '提交申请', description: '您的售后申请已提交', time: t0, isCurrent: false }
+  if (a.status === 'CANCELLED') {
+    return [submitted, { status: 'cancelled', title: '已取消', description: '您已撤销本次售后申请', time: t1, isCurrent: true }]
+  }
+  if (a.status === 'REJECTED') {
+    return [
+      submitted,
+      { status: 'reviewing', title: '商家审核', time: t1, isCurrent: false },
+      { status: 'rejected', title: '申请驳回', description: '商家已驳回您的售后申请', time: t1, isCurrent: true },
+    ]
+  }
+  if (a.status === 'PENDING' || a.status === 'PROCESSING') {
+    return [submitted, { status: 'reviewing', title: '商家审核中', description: '商家正在处理您的售后申请', time: t1, isCurrent: true }]
+  }
+  // APPROVED / COMPLETED
+  const approved: AfterSaleTimelineNode = { status: 'approved', title: '审核通过', description: '商家已同意您的售后申请', time: t1, isCurrent: a.status === 'APPROVED' }
+  if (a.status === 'APPROVED') return [submitted, { status: 'reviewing', title: '商家审核', time: t1, isCurrent: false }, approved]
+  return [
+    submitted,
+    { status: 'reviewing', title: '商家审核', time: t1, isCurrent: false },
+    { ...approved, isCurrent: false },
+    { status: 'completed', title: '退款完成', description: '退款已原路返回', time: t1, isCurrent: true },
+  ]
+}
+
+/** 后端 enriched AfterSale → 前端售后详情 */
+function adaptAfterSaleDetail(a: any): AfterSaleDetailData {
+  const isRejected = a.status === 'REJECTED'
+  return {
+    id: a.id,
+    orderId: a.orderId,
+    orderNo: shortNo(a.orderId),
+    type: asType(a.type),
+    status: AS_STATUS_MAP[a.status] || 'pending',
+    reason: a.reason || '',
+    amount: _num(a.amount ?? a.order?.amount),
+    // 后端售后单无独立"问题描述"字段（申请时已并入 reason）→ 不重复展示
+    description: undefined,
+    // 后端售后单不存凭证图片 → 诚实降级为空，详情页 v-if 隐藏
+    images: [],
+    product: {
+      id: a.product?.id || '',
+      name: a.product?.title || '商品',
+      cover: a.product?.cover || '',
+      skuName: '',
+      price: _num(a.product?.price),
+      quantity: 1,
+    },
+    timeline: buildAfterSaleTimeline(a),
+    // 后端无结构化退货地址对象 → 不提供，详情页"退货地址"卡片 v-if 隐藏
+    logistics: undefined,
+    // 驳回备注：后端 processAfterSale 把驳回理由写入 AfterSale.logistics 字段
+    rejectReason: isRejected ? (a.logistics || '商家未通过本次售后申请，如有疑问请联系客服') : undefined,
+    createdAt: fmtTime(a.createdAt),
+    canCancel: a.status === 'PENDING',
+  }
+}
+
+/** 后端 ShippingAddress → 前端地址项（后端字段名 detail，前端用 address） */
+function adaptAddress(a: any): ShippingAddressItem {
+  return {
+    id: a.id,
+    name: a.name || '',
+    phone: a.phone || '',
+    province: a.province || '',
+    city: a.city || '',
+    district: a.district || '',
+    address: a.detail || '',
+    isDefault: !!a.isDefault,
+  }
 }
 
 export const accountApi = {
-  /** 售后列表 */
-  async afterSales() {
-    if (true) return _mockAfterSaleList
-    try { const data = await apiGet<any>('/account/after-sales'); return data?.length ? data : _mockAfterSaleList }
-    catch { return _mockAfterSaleList }
+  /** 售后列表（真连 /shop/after-sales，错误向上抛由页面三态处理） */
+  async afterSales(): Promise<AfterSaleListItem[]> {
+    const res = await apiGet<any>('/shop/after-sales?page=1&pageSize=100')
+    const list = Array.isArray(res) ? res : (res?.items || [])
+    return list.map(adaptAfterSaleListItem)
   },
 
   /** 售后详情 */
-  async afterSaleDetail(id: string) {
-    if (true) return _mockAfterSaleDetail
-    try { const data = await apiGet<any>(`/account/after-sales/${id}`); return data || _mockAfterSaleDetail }
-    catch { return _mockAfterSaleDetail }
+  async afterSaleDetail(id: string): Promise<AfterSaleDetailData> {
+    const a = await apiGet<any>(`/shop/after-sales/${id}`)
+    return adaptAfterSaleDetail(a)
   },
 
-  /** 驳回售后详情 */
-  async afterSaleRejected(id: string) {
-    if (true) return _mockAfterSaleRejectedDetail
-    try { const data = await apiGet<any>(`/account/after-sales/${id}/rejected`); return data || _mockAfterSaleRejectedDetail }
-    catch { return _mockAfterSaleRejectedDetail }
+  /** 驳回售后详情（与详情同一端点，复用适配） */
+  async afterSaleRejected(id: string): Promise<AfterSaleDetailData> {
+    const a = await apiGet<any>(`/shop/after-sales/${id}`)
+    return adaptAfterSaleDetail(a)
   },
 
-  /** 售后申请上下文 */
+  /**
+   * 售后申请上下文：从订单详情构造默认商品与最大可退金额。
+   * 后端无专用"申请上下文"端点 → 复用订单详情 GET /shop/orders/:id。
+   */
   async afterSaleApplyContext(orderId: string) {
-    if (true) return _mockAfterSaleApplyContext
-    try { const data = await apiGet<any>(`/account/after-sales/apply?orderId=${orderId}`); return data || _mockAfterSaleApplyContext }
-    catch { return _mockAfterSaleApplyContext }
+    const o = await apiGet<any>(`/shop/orders/${orderId}`)
+    const maxAmount = _num(o.payAmount ?? o.amount)
+    return {
+      orderId,
+      orderNo: shortNo(o.id),
+      maxAmount,
+      product: {
+        id: o.product?.id || o.targetId || '',
+        name: o.product?.title || '商品',
+        cover: o.product?.cover || o.product?.images?.[0] || '',
+        skuName: o.sku?.skuName || '',
+        price: maxAmount,
+        quantity: 1,
+      } as AfterSaleProduct,
+    }
   },
 
-  /** 提交售后申请 */
-  async submitAfterSale(data: any) {
-    if (true) return { success: true, id: 'mock-as-id' }
-    try { return await apiPost<any>('/account/after-sales', data) }
-    catch (e: any) { throw e }
+  /**
+   * 提交售后申请 → POST /shop/orders/:orderId/after-sale。
+   * 后端 body 仅 { type, reason, amount }；问题描述并入 reason，凭证图片后端不落库（不传）。
+   */
+  async submitAfterSale(data: any): Promise<{ success: boolean; id?: string }> {
+    if (!data?.orderId) throw new Error('缺少订单信息')
+    const type = data.type === 'refund_with_return' ? 'return' : 'refund'
+    const reason = [data.reason, data.description].filter(Boolean).join('；').slice(0, 500)
+    const res = await apiPost<any>(`/shop/orders/${data.orderId}/after-sale`, {
+      type,
+      reason: reason || '用户申请售后',
+      amount: data.amount,
+    })
+    return { success: true, id: res?.id }
   },
 
-  /** 地址列表 */
-  async addresses() {
-    if (true) return _mockShippingAddressList
-    try { const data = await apiGet<any>('/account/addresses'); return data?.length ? data : _mockShippingAddressList }
-    catch { return _mockShippingAddressList }
+  /** 取消售后申请 → PUT /shop/after-sales/:id/cancel */
+  async cancelAfterSale(id: string): Promise<boolean> {
+    await apiPut(`/shop/after-sales/${id}/cancel`, {})
+    return true
   },
 
-  /** 地址详情（编辑回填） */
-  async addressDetail(id: string) {
-    if (true) return _mockAddressEditSample
-    try { const data = await apiGet<any>(`/account/addresses/${id}`); return data || _mockAddressEditSample }
-    catch { return _mockAddressEditSample }
+  /** 地址列表 → GET /shop/addresses */
+  async addresses(): Promise<ShippingAddressItem[]> {
+    const res = await apiGet<any>('/shop/addresses')
+    const list = Array.isArray(res) ? res : (res?.items || [])
+    return list.map(adaptAddress)
   },
 
-  /** 保存地址 */
-  async saveAddress(data: any) {
-    if (true) return { success: true }
-    try { return await apiPost<any>('/account/addresses', data) }
-    catch (e: any) { throw e }
+  /**
+   * 地址详情（编辑回填）：后端无 GET /shop/addresses/:id 单条端点
+   * → 拉取列表后按 id 匹配；不存在则抛错走错误态。
+   */
+  async addressDetail(id: string): Promise<ShippingAddressItem> {
+    const list = await this.addresses()
+    const found = list.find((a) => a.id === id)
+    if (!found) throw new Error('地址不存在或已删除')
+    return found
   },
 
-  /** 删除地址 */
-  async deleteAddress(id: string) {
-    if (true) return { success: true }
-    try { return await apiGet<any>(`/account/addresses/${id}/delete`) }
-    catch (e: any) { throw e }
+  /**
+   * 保存地址：有 id 走 PUT 编辑，否则 POST 新增。
+   * 前端 address 字段映射为后端 detail；isDefault 由独立端点设置（创建/编辑 DTO 不含该字段）。
+   */
+  async saveAddress(data: any): Promise<{ success: boolean }> {
+    const body = {
+      name: data.name,
+      phone: data.phone,
+      province: data.province,
+      city: data.city,
+      district: data.district,
+      detail: data.address,
+    }
+    const saved = data.id
+      ? await apiPut<any>(`/shop/addresses/${data.id}`, body)
+      : await apiPost<any>('/shop/addresses', body)
+    // 用户勾选「设为默认」→ 调独立端点落库（仅在需要置默认时调用）
+    if (data.isDefault && saved?.id && !saved.isDefault) {
+      await apiPut(`/shop/addresses/${saved.id}/default`, {})
+    }
+    return { success: true }
+  },
+
+  /** 设为默认地址 → PUT /shop/addresses/:id/default */
+  async setDefaultAddress(id: string): Promise<boolean> {
+    await apiPut(`/shop/addresses/${id}/default`, {})
+    return true
+  },
+
+  /** 删除地址 → DELETE /shop/addresses/:id */
+  async deleteAddress(id: string): Promise<boolean> {
+    await apiDelete(`/shop/addresses/${id}`)
+    return true
   },
 }

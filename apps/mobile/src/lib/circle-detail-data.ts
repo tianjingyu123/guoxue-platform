@@ -6,6 +6,8 @@ import { apiGet, apiPost, useMock } from '@/utils/request'
 
 export interface CircleOwner { id: string; name: string; avatar: string }
 
+export type CircleMemberRole = 'OWNER' | 'PARTNER' | 'ADMIN' | 'GUEST' | 'VOLUNTEER' | 'MEMBER'
+
 export interface CircleDetail {
   id: string
   name: string
@@ -21,6 +23,16 @@ export interface CircleDetail {
   rules?: string[]
   announcement?: string
   tags?: string[]
+  /** 圈子类型：免费/付费/年费 */
+  type: 'FREE' | 'PAID' | 'YEARLY'
+  /** 价格（元，FREE 为 0） */
+  price: number
+  /** 当前用户在该圈的角色（未加入为 null） */
+  myRole: CircleMemberRole | null
+  /** 年费到期时间（仅 YEARLY 有意义） */
+  expireAt: string | null
+  /** 加入是否需圈主审批（仅免费圈生效；true 时加入为「提交申请」而非直接进） */
+  needApproval: boolean
 }
 
 export interface CirclePost {
@@ -79,6 +91,11 @@ export const mockCircleDetail: CircleDetail = {
   rules: ['禁止发布广告信息', '尊重他人，理性讨论', '禁止人身攻击', '原创内容请标注'],
   announcement: '欢迎加入八字命理研习社！本圈子致力于传承和发扬中华传统命理文化，定期举办线上交流活动，欢迎各位同好积极参与讨论。近期将举办「八字入门精讲」系列直播，敬请期待！',
   tags: ['八字', '命理', '国学', '传统文化'],
+  type: 'PAID',
+  price: 199,
+  myRole: null,
+  expireAt: null,
+  needApproval: false,
 }
 
 export const memberBenefits: MemberBenefit[] = [
@@ -119,44 +136,116 @@ export const mockMembers: CircleMember[] = [
   { id: '4', name: '古籍爱好者', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=book', role: 'member', joinedAt: '2023-12-05', posts: 34 },
 ]
 
-// ─── API（mock 容错，与原型 Promise.all + catch 口径一致） ───
+/** ISO 时间 → 相对时间（与 circle-data 口径一致） */
+function relTime(iso?: string): string {
+  if (!iso) return ''
+  const t = new Date(iso).getTime()
+  if (Number.isNaN(t)) return String(iso)
+  const diff = Date.now() - t
+  const min = Math.floor(diff / 60000)
+  if (min < 1) return '刚刚'
+  if (min < 60) return `${min}分钟前`
+  const hour = Math.floor(min / 60)
+  if (hour < 24) return `${hour}小时前`
+  const day = Math.floor(hour / 24)
+  if (day < 7) return `${day}天前`
+  const d = new Date(iso)
+  return `${d.getMonth() + 1}月${d.getDate()}日`
+}
+
+/** 后端成员角色（OWNER/ADMIN/MEMBER）→ 前端小写 */
+function mapRole(r?: string): 'owner' | 'admin' | 'member' {
+  const u = String(r || '').toUpperCase()
+  return u === 'OWNER' ? 'owner' : u === 'ADMIN' ? 'admin' : 'member'
+}
+
+/** 后端圈子详情（prisma 扁平对象）→ 前端 CircleDetail */
+function adaptDetail(c: any): CircleDetail {
+  return {
+    id: c.id,
+    name: c.name,
+    cover: c.cover || '',
+    description: c.intro ?? c.description ?? '',
+    category: Array.isArray(c.tags) ? (c.tags[0] ?? '') : (c.category ?? ''),
+    members: c.memberCount ?? 0,
+    // 优先用真实关联计数 _count.posts（postCount 字段经实测虚高，与真实帖数不符）
+    posts: c._count?.posts ?? c.postCount ?? 0,
+    isJoined: !!c.membership,
+    todayActive: c.todayActive, // 后端暂无 → undefined，页面隐藏
+    createdAt: c.createdAt ? String(c.createdAt).slice(0, 10) : '',
+    owner: {
+      id: c.owner?.id ?? '',
+      name: c.owner?.nickname ?? c.owner?.name ?? '',
+      avatar: c.owner?.avatar ?? '',
+    },
+    announcement: c.announcement || undefined,
+    tags: Array.isArray(c.tags) ? c.tags : [],
+    type: (c.type as CircleDetail['type']) ?? 'FREE',
+    price: c.price != null ? Number(c.price) : 0,
+    myRole: (c.membership?.role as CircleMemberRole) ?? null,
+    expireAt: c.membership?.expireAt ? String(c.membership.expireAt) : null,
+    needApproval: !!c.needApproval,
+  }
+}
+
+/** 后端帖子 → 前端 CirclePost */
+function adaptPost(p: any): CirclePost {
+  return {
+    id: p.id,
+    content: (p.content ?? p.title ?? '').trim(),
+    images: Array.isArray(p.images) ? p.images : [],
+    author: {
+      id: p.user?.id ?? p.userId ?? '',
+      name: p.user?.nickname ?? '匿名',
+      avatar: p.user?.avatar ?? '',
+      title: p.user?.title,
+    },
+    createdAt: relTime(p.createdAt),
+    likes: p.likeCount ?? p.likes ?? 0,
+    comments: p.commentCount ?? p.comments ?? 0,
+    isLiked: p.isLiked ?? false,
+    isPinned: p.isTop ?? p.isPinned ?? false,
+    isEssence: p.isEssence ?? false,
+  }
+}
+
+/** 后端成员 → 前端 CircleMember */
+function adaptMember(m: any): CircleMember {
+  return {
+    id: m.user?.id ?? m.userId ?? m.id,
+    name: m.user?.nickname ?? '成员',
+    avatar: m.user?.avatar ?? '',
+    title: m.title,
+    role: mapRole(m.role),
+    joinedAt: m.joinedAt ? String(m.joinedAt).slice(0, 10) : '',
+    posts: m.postCount ?? m.posts ?? 0,
+  }
+}
+
+// ─── API（detail 主数据真连，失败抛出走页面 error 态；次要数据失败/后端无接口走空态隐藏，不展示假数据） ───
 export const circleDetailApi = {
   detail: async (id: string): Promise<CircleDetail> => {
-    if (true) return { ...mockCircleDetail, id }
-    return apiGet(`/circles/${id}`)
+    return adaptDetail(await apiGet<any>(`/circles/${id}`))
   },
   posts: async (id: string): Promise<{ data: CirclePost[]; total: number }> => {
-    if (true) return { data: mockDetailPosts, total: mockDetailPosts.length }
-    return apiGet(`/circles/${id}/posts`)
+    try {
+      const r = await apiGet<any>(`/circles/${id}/posts`)
+      const arr = Array.isArray(r) ? r : (r?.posts ?? r?.data ?? [])
+      return { data: arr.map(adaptPost), total: r?.total ?? arr.length }
+    } catch { return { data: [], total: 0 } }
   },
   listMembers: async (id: string): Promise<{ data: CircleMember[]; total: number }> => {
-    if (true) return { data: mockMembers, total: mockMembers.length }
-    return apiGet(`/circles/${id}/members`)
-  },
-  /** 圈子专栏列表 — GET /circles/:id/columns */
-  columns: async (id: string): Promise<CircleColumn[]> => {
-    if (true) return mockColumns
     try {
-      const data = await apiGet<any>(`/circles/${id}/columns`)
-      return (data?.items || data) as CircleColumn[]
-    } catch { return mockColumns }
+      const r = await apiGet<any>(`/circles/${id}/members`)
+      const arr = Array.isArray(r) ? r : (r?.members ?? r?.data ?? [])
+      return { data: arr.map(adaptMember), total: r?.total ?? arr.length }
+    } catch { return { data: [], total: 0 } }
   },
-  /** 圈子精选文章 — GET /circles/:id/articles */
-  articles: async (id: string): Promise<CircleArticle[]> => {
-    if (true) return mockCircleArticles
-    try {
-      const data = await apiGet<any>(`/circles/${id}/articles`)
-      return (data?.items || data) as CircleArticle[]
-    } catch { return mockCircleArticles }
-  },
-  /** 圈子活动列表 — GET /circles/:id/activities */
-  activities: async (id: string): Promise<CircleActivity[]> => {
-    if (true) return mockActivities
-    try {
-      const data = await apiGet<any>(`/circles/${id}/activities`)
-      return (data?.items || data) as CircleActivity[]
-    } catch { return mockActivities }
-  },
-  join: (id: string) => apiPost<{ success: boolean }>(`/circles/${id}/join`),
+  // 后端无 /circles/:id/columns|articles|activities → 返回空，页面对应板块空态隐藏（不展示假数据）
+  columns: async (_id: string): Promise<CircleColumn[]> => [],
+  articles: async (_id: string): Promise<CircleArticle[]> => [],
+  activities: async (_id: string): Promise<CircleActivity[]> => [],
+  // 免费圈直接成员 {success}；需审批免费圈返回 {status:'pending',message}
+  join: (id: string) => apiPost<{ success?: boolean; status?: string; message?: string }>(`/circles/${id}/join`),
   leave: (id: string) => apiPost<{ success: boolean }>(`/circles/${id}/leave`),
 }

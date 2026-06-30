@@ -352,7 +352,7 @@ function fmt(n: number) {
 .case-name { display: block; font-size: 28rpx; font-weight: 500; color: #2C2C2C; }
 .case-meta { display: block; font-size: 20rpx; color: #8a8178; margin-top: 4rpx; }
 .case-right { text-align: right; flex-shrink: 0; }
-.case-earn { display: block; font-size: 30rpx; font-weight: 700; color: #C41E3A; }
+.case-earn { display: block; font-size: 30rpx; font-weight: 700; color: var(--brand); }
 .case-earn-label { display: block; font-size: 20rpx; color: #8a8178; }
 
 /* FAQ */
@@ -375,7 +375,7 @@ function fmt(n: number) {
 .buybar-row { display: flex; align-items: center; gap: 24rpx; }
 .buybar-price { flex: 1; }
 .buybar-price-line { display: flex; align-items: baseline; gap: 8rpx; }
-.buybar-price-now { font-size: 44rpx; font-weight: 700; color: #C41E3A; }
+.buybar-price-now { font-size: 44rpx; font-weight: 700; color: var(--brand); }
 .buybar-price-old { font-size: 26rpx; color: #8a8178; text-decoration: line-through; }
 .buybar-price-gift { display: flex; align-items: center; gap: 6rpx; margin-top: 4rpx; }
 .buybar-gift-text { font-size: 20rpx; color: #7c3aed; font-weight: 500; }

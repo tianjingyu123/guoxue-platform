@@ -106,7 +106,7 @@ function fmtLikes(n: number) {
       <view class="list">
         <view v-for="host in filtered" :key="host.id" class="host-card" @tap="open(host.id)">
           <view class="cover">
-            <image class="cover-img" :src="host.cover" mode="aspectFill" />
+            <image lazy-load class="cover-img" :src="host.cover" mode="aspectFill" />
             <view v-if="host.isLive" class="cover-mask">
               <view class="live-tag">
                 <AppIcon name="radio" :size="20" color="#ffffff" /><text class="tag-txt">直播中</text>
@@ -118,7 +118,7 @@ function fmtLikes(n: number) {
           </view>
           <view class="host-info">
             <view class="avatar">
-              <image class="avatar-img" :src="host.avatar" mode="aspectFill" />
+              <image lazy-load class="avatar-img" :src="host.avatar" mode="aspectFill" />
             </view>
             <view class="meta">
               <view class="name-row">

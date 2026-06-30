@@ -32,7 +32,7 @@
         <view class="content-card">
           <!-- 好友 -->
           <view v-if="result.type === 'friend'" class="row">
-            <image class="avatar" :src="result.data.avatar" mode="aspectFill" />
+            <image lazy-load class="avatar" :src="result.data.avatar" mode="aspectFill" />
             <view class="row-info">
               <text class="row-title">{{ result.data.nickname }}</text>
               <text class="row-sub clamp2">{{ result.data.signature }}</text>
@@ -41,7 +41,7 @@
 
           <!-- 群聊 -->
           <view v-else-if="result.type === 'group'" class="row">
-            <image class="avatar avatar-square" :src="result.data.avatar" mode="aspectFill" />
+            <image lazy-load class="avatar avatar-square" :src="result.data.avatar" mode="aspectFill" />
             <view class="row-info">
               <text class="row-title">{{ result.data.name }}</text>
               <text class="row-sub">{{ result.data.memberCount }}人</text>
@@ -51,7 +51,7 @@
 
           <!-- 付款 -->
           <view v-else-if="result.type === 'pay'" class="row">
-            <image class="avatar" :src="result.data.merchantAvatar" mode="aspectFill" />
+            <image lazy-load class="avatar" :src="result.data.merchantAvatar" mode="aspectFill" />
             <view class="row-info">
               <text class="row-title">{{ result.data.merchantName }}</text>
               <text class="row-sub">向TA付款</text>
@@ -60,7 +60,7 @@
 
           <!-- 课程 -->
           <view v-else-if="result.type === 'course'" class="media-row">
-            <image class="media-cover" :src="result.data.cover" mode="aspectFill" />
+            <image lazy-load class="media-cover" :src="result.data.cover" mode="aspectFill" />
             <view class="row-info">
               <text class="row-title clamp2">{{ result.data.title }}</text>
               <text class="row-sub">{{ result.data.teacher }}</text>
@@ -70,7 +70,7 @@
 
           <!-- 文章 -->
           <view v-else-if="result.type === 'article'" class="media-row">
-            <image class="media-cover" :src="result.data.cover" mode="aspectFill" />
+            <image lazy-load class="media-cover" :src="result.data.cover" mode="aspectFill" />
             <view class="row-info">
               <text class="row-title clamp2">{{ result.data.title }}</text>
               <text class="row-sub">{{ result.data.author }}</text>
@@ -80,7 +80,7 @@
           <!-- 直播 -->
           <view v-else-if="result.type === 'live'" class="media-row">
             <view class="live-cover-wrap">
-              <image class="media-cover" :src="result.data.cover" mode="aspectFill" />
+              <image lazy-load class="media-cover" :src="result.data.cover" mode="aspectFill" />
               <text v-if="result.data.status === 'live'" class="live-badge">直播中</text>
             </view>
             <view class="row-info">
@@ -91,7 +91,7 @@
 
           <!-- 邀请注册 -->
           <view v-else-if="result.type === 'invite'" class="invite-box">
-            <image class="avatar avatar-center" :src="result.data.inviterAvatar" mode="aspectFill" />
+            <image lazy-load class="avatar avatar-center" :src="result.data.inviterAvatar" mode="aspectFill" />
             <text class="invite-text"><text class="invite-name">{{ result.data.inviterName }}</text> 邀请您加入热卜</text>
             <view class="benefits">
               <view v-for="(b, idx) in result.data.benefits" :key="idx" class="benefit-item">
@@ -426,7 +426,7 @@ onMounted(() => {
 }
 .price {
   display: block;
-  color: #C41E3A;
+  color: var(--brand);
   font-size: 30rpx;
   font-weight: 600;
   margin-top: 6rpx;
@@ -511,7 +511,7 @@ onMounted(() => {
   gap: 12rpx;
   width: 100%;
   height: 96rpx;
-  background: #C41E3A;
+  background: var(--brand);
   border-radius: 16rpx;
   margin-top: 48rpx;
 }

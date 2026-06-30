@@ -9,9 +9,12 @@ import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import VisibilitySettings, { type Visibility, type PaymentType } from '@/components/circle/visibility-settings.vue'
 import { goBack, navigateTo, reLaunch } from '@/utils/router'
+import { circleDetailApi } from '@/lib/circle-detail-data'
+import { articleApi } from '@/lib/article-data'
+import { courseApi } from '@/lib/course-data'
 
 const circleId = ref('1')
-const circle = reactive({ id: '1', name: '八字命理研习社', members: 12580, role: 'owner' as 'owner' | 'admin' })
+const circle = reactive({ id: '1', name: '', members: 0, role: 'owner' as 'owner' | 'admin' })
 
 const selectedType = ref<string | null>(null)
 
@@ -21,21 +24,35 @@ const contentTypes = [
   { id: 'live', name: '直播', icon: 'radio', desc: '发起在线直播' },
 ]
 
-onLoad((q) => { if (q?.circleId) { circleId.value = q.circleId; circle.id = q.circleId } })
+onLoad((q) => {
+  if (q?.circleId) { circleId.value = q.circleId; circle.id = q.circleId }
+  loadCircle()
+})
+
+/** 加载真实圈子信息（名称/成员数/当前用户角色） */
+async function loadCircle() {
+  try {
+    const d = await circleDetailApi.detail(circleId.value)
+    circle.id = d.id
+    circle.name = d.name
+    circle.members = d.members
+    circle.role = d.myRole === 'OWNER' ? 'owner' : 'admin'
+  } catch {
+    // 圈子信息加载失败：保留默认值，模板按 circle.name 为空时降级显示
+  }
+}
 
 function selectType(t: typeof contentTypes[0]) {
   if (t.id === 'live') { navigateTo(`/pkg-live/create/index?circleId=${circleId.value}`); return }
   selectedType.value = t.id
 }
 
-// ─── 文章表单 ───
+// ─── 文章表单（后端文章不支持付费/可见性，仅保留真实可用的"推荐到首页"） ───
 const a = reactive({
   title: '', content: '', cover: '',
-  visibility: 'platform_wide' as Visibility,
-  paymentType: 'free' as PaymentType,
-  price: 0,
+  isPushHome: false,
 })
-const aErr = reactive<{ title?: string; content?: string; price?: string }>({})
+const aErr = reactive<{ title?: string; content?: string }>({})
 const aSubmitting = ref(false)
 
 function uploadCover(target: 'a' | 'c') {
@@ -52,12 +69,26 @@ function uploadCover(target: 'a' | 'c') {
 async function submitArticle() {
   aErr.title = a.title.trim() ? '' : '请输入文章标题'
   aErr.content = a.content.trim() ? '' : '请输入文章内容'
-  aErr.price = (a.paymentType !== 'free' && a.price <= 0) ? '请设置价格' : ''
-  if (aErr.title || aErr.content || aErr.price) return
+  if (aErr.title || aErr.content) return
+  if (aSubmitting.value) return
   aSubmitting.value = true
-  await new Promise((r) => setTimeout(r, 800))
-  uni.showToast({ title: '发布成功', icon: 'success' })
-  setTimeout(() => reLaunch(`/pkg-circle/circles/detail?id=${circleId.value}`), 600)
+  try {
+    // 后端文章不支持付费/可见性，仅"推荐到首页"(isPushHome)为真实可用选项
+    await articleApi.create(circleId.value, {
+      title: a.title.trim(),
+      content: a.content,
+      cover: a.cover || undefined,
+      excerpt: a.content.trim().slice(0, 80),
+      tags: [],
+      isPushHome: a.isPushHome,
+    })
+    uni.showToast({ title: '发布成功', icon: 'success' })
+    setTimeout(() => reLaunch(`/pkg-circle/circles/detail?id=${circleId.value}`), 600)
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '发布失败', icon: 'none' })
+  } finally {
+    aSubmitting.value = false
+  }
 }
 
 // ─── 课程表单 ───
@@ -87,10 +118,24 @@ async function submitCourse() {
   cErr.description = c.description.trim() ? '' : '请输入课程简介'
   cErr.price = (c.paymentType !== 'free' && c.price <= 0) ? '请设置价格' : ''
   if (cErr.title || cErr.description || cErr.price) return
+  if (cSubmitting.value) return
   cSubmitting.value = true
-  await new Promise((r) => setTimeout(r, 800))
-  uni.showToast({ title: '创建成功', icon: 'success' })
-  setTimeout(() => reLaunch(`/pkg-circle/circles/detail?id=${circleId.value}`), 600)
+  try {
+    await courseApi.create({
+      circleId: circleId.value,
+      title: c.title.trim(),
+      cover: c.cover || undefined,
+      intro: c.description,
+      type: c.format === 'av' ? 'VIDEO' : 'TEXT',
+      price: c.paymentType === 'free' ? 0 : c.price,
+    })
+    uni.showToast({ title: '创建成功', icon: 'success' })
+    setTimeout(() => reLaunch(`/pkg-circle/circles/detail?id=${circleId.value}`), 600)
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '创建失败', icon: 'none' })
+  } finally {
+    cSubmitting.value = false
+  }
 }
 </script>
 
@@ -106,7 +151,7 @@ async function submitCourse() {
     <scroll-view scroll-y class="cr-body">
       <!-- 圈子信息 -->
       <view class="cr-circle">
-        <image :src="`https://api.dicebear.com/7.x/shapes/svg?seed=${circle.id}`" class="cr-circle-avatar" mode="aspectFill" />
+        <image lazy-load :src="`https://api.dicebear.com/7.x/shapes/svg?seed=${circle.id}`" class="cr-circle-avatar" mode="aspectFill" />
         <view class="cr-circle-info">
           <text class="cr-circle-name">{{ circle.name }}</text>
           <text class="cr-circle-members">{{ circle.members.toLocaleString() }} 成员</text>
@@ -140,7 +185,7 @@ async function submitCourse() {
         <view class="cr-panel">
           <text class="cr-field-label">文章封面</text>
           <view class="cr-cover" @tap="uploadCover('a')">
-            <image v-if="a.cover" :src="a.cover" class="cr-cover-img" mode="aspectFill" />
+            <image lazy-load v-if="a.cover" :src="a.cover" class="cr-cover-img" mode="aspectFill" />
             <view v-else class="cr-cover-empty"><app-icon name="camera" :size="48" color="rgba(255,255,255,0.4)" /><text class="cr-cover-tip">点击上传封面</text></view>
             <view v-if="a.cover" class="cr-cover-del" @tap.stop="a.cover = ''"><app-icon name="x" :size="28" color="#ffffff" /></view>
           </view>
@@ -159,13 +204,15 @@ async function submitCourse() {
         </view>
 
         <view class="cr-panel">
-          <visibility-settings
-            v-model:visibility="a.visibility"
-            v-model:payment-type="a.paymentType"
-            v-model:price="a.price"
-            :price-error="aErr.price"
-            content-type="article"
-          />
+          <view class="cr-switch-row" @tap="a.isPushHome = !a.isPushHome">
+            <view class="cr-switch-main">
+              <text class="cr-field-label">推荐到平台首页</text>
+              <text class="cr-switch-tip">开启后文章有机会展示在平台首页信息流</text>
+            </view>
+            <view class="cr-switch" :class="{ on: a.isPushHome }">
+              <view class="cr-switch-dot" :class="{ on: a.isPushHome }" />
+            </view>
+          </view>
         </view>
 
         <view class="cr-submit" :class="{ disabled: aSubmitting }" @tap="submitArticle">
@@ -205,7 +252,7 @@ async function submitCourse() {
         <view class="cr-panel">
           <text class="cr-field-label">课程封面 <text class="cr-req">*</text></text>
           <view class="cr-cover" @tap="uploadCover('c')">
-            <image v-if="c.cover" :src="c.cover" class="cr-cover-img" mode="aspectFill" />
+            <image lazy-load v-if="c.cover" :src="c.cover" class="cr-cover-img" mode="aspectFill" />
             <view v-else class="cr-cover-empty"><app-icon name="video" :size="48" color="rgba(255,255,255,0.4)" /><text class="cr-cover-tip">点击上传封面</text></view>
             <view v-if="c.cover" class="cr-cover-del" @tap.stop="c.cover = ''"><app-icon name="x" :size="28" color="#ffffff" /></view>
           </view>
@@ -230,6 +277,7 @@ async function submitCourse() {
             v-model:price="c.price"
             :price-error="cErr.price"
             content-type="course"
+            :show-visibility="false"
           />
         </view>
 
@@ -276,23 +324,23 @@ async function submitCourse() {
 .cr-back-pad { width: 96rpx; }
 .cr-form-title { font-size: 30rpx; font-weight: 500; color: #fff; }
 .cr-field-label { display: block; font-size: 28rpx; font-weight: 500; color: #fff; margin-bottom: 20rpx; }
-.cr-req { color: #C41E3A; }
+.cr-req { color: var(--brand); }
 .cr-cover { position: relative; width: 100%; aspect-ratio: 16/9; border-radius: 20rpx; overflow: hidden; border: 4rpx dashed rgba(255,255,255,0.2); background: rgba(255,255,255,0.05); }
 .cr-cover-img { width: 100%; height: 100%; }
 .cr-cover-empty { width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12rpx; }
 .cr-cover-tip { font-size: 26rpx; color: rgba(255,255,255,0.6); }
 .cr-cover-del { position: absolute; top: 16rpx; right: 16rpx; width: 56rpx; height: 56rpx; border-radius: 999rpx; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; }
 .cr-input { width: 100%; padding: 24rpx 28rpx; border-radius: 16rpx; border: 2rpx solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); color: #fff; font-size: 28rpx; box-sizing: border-box; }
-.cr-input.err { border-color: #C41E3A; }
+.cr-input.err { border-color: var(--brand); }
 .cr-textarea { width: 100%; min-height: 320rpx; padding: 24rpx 28rpx; border-radius: 16rpx; border: 2rpx solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); color: #fff; font-size: 28rpx; box-sizing: border-box; }
 .cr-textarea.sm { min-height: 200rpx; }
-.cr-textarea.err { border-color: #C41E3A; }
+.cr-textarea.err { border-color: var(--brand); }
 .cr-ph { color: rgba(255,255,255,0.3); }
-.cr-err { display: block; font-size: 22rpx; color: #C41E3A; margin-top: 16rpx; }
+.cr-err { display: block; font-size: 22rpx; color: var(--brand); margin-top: 16rpx; }
 /* 课程类型 */
 .cr-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20rpx; }
 .cr-course-type { padding: 24rpx; border-radius: 20rpx; border: 4rpx solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); }
-.cr-course-type.on { border-color: #C41E3A; background: rgba(196,30,58,0.1); }
+.cr-course-type.on { border-color: var(--brand); background: rgba(196,30,58,0.1); }
 .cr-course-type-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16rpx; }
 .cr-course-type-name { display: block; font-size: 28rpx; font-weight: 500; color: #fff; margin-top: 16rpx; }
 .cr-course-type-name.off { color: rgba(255,255,255,0.6); margin-top: 0; }
@@ -303,7 +351,15 @@ async function submitCourse() {
 .cr-tip-gold { background: rgba(201,169,110,0.1); border: 2rpx solid rgba(201,169,110,0.2); border-radius: 16rpx; padding: 20rpx; margin-bottom: 24rpx; }
 .cr-tip-gold-t { font-size: 22rpx; color: #C9A96E; line-height: 1.5; }
 /* 提交 */
-.cr-submit { padding: 28rpx 0; border-radius: 999rpx; background: #C41E3A; text-align: center; box-shadow: 0 8rpx 24rpx rgba(196,30,58,0.25); margin-bottom: 40rpx; }
+.cr-submit { padding: 28rpx 0; border-radius: 999rpx; background: var(--brand); text-align: center; box-shadow: 0 8rpx 24rpx rgba(196,30,58,0.25); margin-bottom: 40rpx; }
 .cr-submit.disabled { opacity: 0.5; }
 .cr-submit-t { font-size: 30rpx; font-weight: 600; color: #fff; }
+/* 推荐到首页开关 */
+.cr-switch-row { display: flex; align-items: center; justify-content: space-between; gap: 24rpx; }
+.cr-switch-main { flex: 1; }
+.cr-switch-tip { display: block; font-size: 22rpx; color: rgba(255,255,255,0.5); margin-top: 8rpx; }
+.cr-switch { width: 88rpx; height: 48rpx; border-radius: 999rpx; background: rgba(255,255,255,0.15); position: relative; flex-shrink: 0; transition: background 0.2s; }
+.cr-switch.on { background: var(--brand); }
+.cr-switch-dot { position: absolute; top: 4rpx; left: 4rpx; width: 40rpx; height: 40rpx; border-radius: 999rpx; background: #fff; transition: transform 0.2s; }
+.cr-switch-dot.on { transform: translateX(40rpx); }
 </style>

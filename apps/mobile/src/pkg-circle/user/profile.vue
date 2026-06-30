@@ -16,9 +16,21 @@ import {
   type UserProfileResponse,
   type UserPostItem,
 } from '@/lib/user-profile-data'
+import { imApi, type ImRelation } from '@/lib/im-data'
+import { consultApi, type UserConsultService } from '@/lib/circle-consult-data'
 
-const userId = ref(1)
+/** 真实用户 id（uuid string），来源 query.id */
+const userIdStr = ref('')
 const profile = ref<UserProfileResponse | null>(null)
+
+// ── 付费引导（策略B：陌生人隐藏私信、只见付费咨询）──
+const relation = ref<ImRelation | ''>('')
+/** 能否私信：非陌生/非黑名单/非自己（圈友/付费/互关/单向关注均可） */
+const canDM = ref(false)
+const consultServices = ref<UserConsultService[]>([])
+/** 可发起图文付费咨询的服务（需提问价>0） */
+const consultable = computed(() => consultServices.value.filter((s) => s.questionPrice > 0))
+const hasConsult = computed(() => consultable.value.length > 0)
 const posts = ref<UserPostItem[]>([])
 const loading = ref(true)
 const error = ref('')
@@ -43,15 +55,32 @@ const filteredPosts = computed(() => {
 })
 
 onLoad((q) => {
-  if (q?.id) userId.value = Number(q.id) || 1
+  if (q?.id) {
+    userIdStr.value = String(q.id)
+  }
   loadProfile()
+  loadRelationAndConsult()
 })
+
+// 加载私信关系 + 付费咨询服务（独立于资料展示，失败保守降级，不阻塞页面）
+async function loadRelationAndConsult() {
+  if (!userIdStr.value) return
+  try {
+    const p = await imApi.getRelationPolicy(userIdStr.value)
+    relation.value = p.relation
+    canDM.value = p.relation === 'circle' || p.relation === 'paid' || p.relation === 'mutual' || p.relation === 'following'
+  } catch {
+    // 拿不到关系：保守按"不可私信"处理（策略B 下隐藏私信入口）
+    canDM.value = false
+  }
+  consultServices.value = await consultApi.getUserConsultServices(userIdStr.value)
+}
 
 async function loadProfile() {
   loading.value = true
   error.value = ''
   try {
-    const res = await userProfileApi.getProfile(userId.value)
+    const res = await userProfileApi.getProfile(userIdStr.value)
     if (res.code === 200 && res.data) {
       profile.value = res.data
       loadPosts()
@@ -69,7 +98,7 @@ async function loadPosts() {
   postsLoading.value = true
   postsError.value = ''
   try {
-    const res = await userProfileApi.getPosts(userId.value, 'all')
+    const res = await userProfileApi.getPosts(userIdStr.value, 'all')
     if (res.code === 200 && res.data) {
       posts.value = res.data.list
     } else {
@@ -97,8 +126,8 @@ async function handleFollow() {
   }
   try {
     const res = wasFollowing
-      ? await userProfileApi.unfollow(userId.value)
-      : await userProfileApi.follow(userId.value)
+      ? await userProfileApi.unfollow(userIdStr.value)
+      : await userProfileApi.follow(userIdStr.value)
     if (res.code === 200) {
       uni.showToast({ title: wasFollowing ? '已取消关注' : '关注成功', icon: 'none' })
       if (!wasFollowing && 'isMutualFollow' in res.data && res.data.isMutualFollow && profile.value) {
@@ -125,7 +154,28 @@ function handleShare() {
 }
 
 function goChat() {
-  navigateTo(`/pkg-im/im/chat/index?id=${userId.value}`)
+  navigateTo(`/pkg-im/im/chat/index?id=${userIdStr.value}`)
+}
+
+// 付费咨询：走图文付费提问（consult-ask）。多圈子开通时让用户选圈子
+function goConsult() {
+  const svcs = consultable.value
+  if (svcs.length === 0) {
+    uni.showToast({ title: '暂无可用咨询服务', icon: 'none' })
+    return
+  }
+  const go = (s: UserConsultService) =>
+    navigateTo(
+      `/pkg-circle/circles/consult-ask?circleId=${s.circleId}&answererId=${userIdStr.value}&priceCoin=${s.questionPrice}&expertName=${encodeURIComponent(s.expertName)}`,
+    )
+  if (svcs.length === 1) {
+    go(svcs[0])
+    return
+  }
+  uni.showActionSheet({
+    itemList: svcs.map((s) => `${s.circleName}（${s.questionPrice}金币/次）`),
+    success: (r) => go(svcs[r.tapIndex]),
+  })
 }
 
 function openContent(item: UserPostItem) {
@@ -197,7 +247,7 @@ function avatarInitial(name?: string): string {
 
       <!-- 头像 -->
       <view v-if="profile" class="up-avatar-wrap">
-        <image
+        <image lazy-load
           v-if="profile.profile.avatar"
           class="up-avatar"
           :src="profile.profile.avatar"
@@ -222,7 +272,7 @@ function avatarInitial(name?: string): string {
       </view>
       <text v-if="profile.profile.bio" class="up-bio">{{ profile.profile.bio }}</text>
       <view class="up-badges">
-        <view class="up-level">
+        <view v-if="profile.profile.levelName" class="up-level">
           <text class="up-level-txt">Lv.{{ profile.profile.level }} {{ profile.profile.levelName }}</text>
         </view>
         <view v-if="profile.isMutualFollow" class="up-mutual">
@@ -259,8 +309,15 @@ function avatarInitial(name?: string): string {
             {{ profile.isFollowing ? '已关注' : '+ 关注' }}
           </text>
         </view>
-        <view class="up-btn up-btn--msg" @tap="goChat">
+        <!-- 策略B：可私信(圈友/付费/互关/关注)→发私信；陌生人→付费咨询(若开通)；陌生且无咨询→引导关注 -->
+        <view v-if="canDM" class="up-btn up-btn--msg" @tap="goChat">
           <text class="up-btn-txt up-btn-txt--msg">发私信</text>
+        </view>
+        <view v-else-if="hasConsult" class="up-btn up-btn--consult" @tap="goConsult">
+          <text class="up-btn-txt up-btn-txt--consult">付费咨询</text>
+        </view>
+        <view v-else class="up-btn up-btn--locked">
+          <text class="up-btn-txt up-btn-txt--locked">关注后可私信</text>
         </view>
       </view>
     </view>
@@ -302,7 +359,7 @@ function avatarInitial(name?: string): string {
           @tap="openContent(video)"
         >
           <view class="up-video-cover">
-            <image v-if="video.cover" class="up-video-img" :src="video.cover" mode="aspectFill" />
+            <image lazy-load v-if="video.cover" class="up-video-img" :src="video.cover" mode="aspectFill" />
             <view v-else class="up-video-placeholder">
               <AppIcon name="video" :size="56" color="rgba(0,0,0,0.2)" />
             </view>
@@ -326,7 +383,7 @@ function avatarInitial(name?: string): string {
           <!-- 文章卡片 -->
           <view v-if="item.type === 'article'" class="up-article" @tap="openContent(item)">
             <view class="up-article-cover">
-              <image v-if="item.cover" class="up-article-img" :src="item.cover" mode="aspectFill" />
+              <image lazy-load v-if="item.cover" class="up-article-img" :src="item.cover" mode="aspectFill" />
               <view v-else class="up-article-placeholder">
                 <AppIcon name="file-text" :size="36" color="rgba(0,0,0,0.2)" />
               </view>
@@ -346,7 +403,7 @@ function avatarInitial(name?: string): string {
           <!-- 视频卡片（动态混排时） -->
           <view v-else-if="item.type === 'video'" class="up-post" @tap="openContent(item)">
             <view class="up-post-video">
-              <image v-if="item.cover" class="up-post-video-img" :src="item.cover" mode="aspectFill" />
+              <image lazy-load v-if="item.cover" class="up-post-video-img" :src="item.cover" mode="aspectFill" />
               <view class="up-post-video-play">
                 <AppIcon name="play" :size="36" color="#ffffff" />
               </view>
@@ -376,7 +433,7 @@ function avatarInitial(name?: string): string {
                 :key="idx"
                 class="up-post-img-wrap"
               >
-                <image class="up-post-img" :src="img" mode="aspectFill" />
+                <image lazy-load class="up-post-img" :src="img" mode="aspectFill" />
               </view>
             </view>
             <view class="up-post-foot">
@@ -493,7 +550,7 @@ function avatarInitial(name?: string): string {
 }
 .up-avatar-initial {
   font-size: 56rpx;
-  color: #c41e3a;
+  color: var(--brand);
   font-weight: 600;
 }
 .up-verify {
@@ -532,7 +589,7 @@ function avatarInitial(name?: string): string {
 }
 .up-verify-tag-txt {
   font-size: 20rpx;
-  color: #c41e3a;
+  color: var(--brand);
 }
 .up-bio {
   display: block;
@@ -615,13 +672,19 @@ function avatarInitial(name?: string): string {
   justify-content: center;
 }
 .up-btn--follow {
-  background: #c41e3a;
+  background: var(--brand);
 }
 .up-btn--following {
   background: #f2ece1;
 }
 .up-btn--msg {
   border: 2rpx solid #e8e0d5;
+}
+.up-btn--consult {
+  background: var(--brand);
+}
+.up-btn--locked {
+  background: #f2ece1;
 }
 .up-btn-txt {
   font-size: 28rpx;
@@ -635,6 +698,12 @@ function avatarInitial(name?: string): string {
 }
 .up-btn-txt--msg {
   color: #2c2c2c;
+}
+.up-btn-txt--consult {
+  color: #ffffff;
+}
+.up-btn-txt--locked {
+  color: #8a8178;
 }
 
 /* 内容Tab栏 */
@@ -656,7 +725,7 @@ function avatarInitial(name?: string): string {
   color: #8a8178;
 }
 .up-tab-txt--active {
-  color: #c41e3a;
+  color: var(--brand);
 }
 .up-tab-line {
   position: absolute;
@@ -665,7 +734,7 @@ function avatarInitial(name?: string): string {
   transform: translateX(-50%);
   width: 48rpx;
   height: 4rpx;
-  background: #c41e3a;
+  background: var(--brand);
   border-radius: 999rpx;
 }
 
@@ -771,7 +840,7 @@ function avatarInitial(name?: string): string {
   color: #999188;
 }
 .up-meta-txt--liked {
-  color: #c41e3a;
+  color: var(--brand);
 }
 
 /* 文章卡片 */
@@ -893,6 +962,6 @@ function avatarInitial(name?: string): string {
 
 .up-error { padding: 200rpx 64rpx 0; display: flex; flex-direction: column; align-items: center; gap: 32rpx; }
 .up-error-text { font-size: 28rpx; color: #8a8178; text-align: center; }
-.up-retry-btn { padding: 16rpx 48rpx; border-radius: 999rpx; border: 2rpx solid #c41e3a; margin-top: 8rpx; }
-.up-retry-btn text { font-size: 28rpx; color: #c41e3a; }
+.up-retry-btn { padding: 16rpx 48rpx; border-radius: 999rpx; border: 2rpx solid var(--brand); margin-top: 8rpx; }
+.up-retry-btn text { font-size: 28rpx; color: var(--brand); }
 </style>

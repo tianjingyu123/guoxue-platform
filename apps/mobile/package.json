@@ -11,7 +11,9 @@
     "build:mp-harmony": "uni build -p mp-harmony",
     "dev:h5": "uni -p h5",
     "build:h5": "uni build -p h5",
-    "lint": "eslint src --ext .vue,.ts"
+    "lint": "eslint src --ext .vue,.ts",
+    "type-check": "vue-tsc --noEmit",
+    "scan-mock": "bash scripts/scan-mock-imports.sh"
   },
   "dependencies": {
     "@dcloudio/uni-app": "3.0.0-alpha-5000820260430001",

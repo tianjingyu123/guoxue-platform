@@ -1,556 +1,322 @@
+<script setup lang="ts">
+/** 运营商「我的站长团队」— 真连 operator-dashboard：名下分站站长的概览/列表/业绩排行/成功案例。
+ *  对齐角色定位：运营商管理名下分站站长（非推广员分销）。 */
+import { ref, computed, onMounted } from 'vue'
+import AppIcon from '@/components/common/app-icon.vue'
+import { navigateTo } from '@/utils/router'
+import {
+  operatorApi,
+  type StationTeamOverview,
+  type StationTeamMember,
+  type TeamMemberRanking,
+  type StationSuccessCase,
+} from '@/lib/operator-data'
+
+const loading = ref(true)
+const error = ref('')
+const notOpened = ref(false)
+
+const overview = ref<StationTeamOverview>({} as StationTeamOverview)
+const members = ref<StationTeamMember[]>([])
+const ranking = ref<TeamMemberRanking[]>([])
+const cases = ref<StationSuccessCase[]>([])
+const inviteLink = ref('')
+
+const activeTab = ref<'members' | 'ranking' | 'cases'>('members')
+const tabs = [
+  { key: 'members' as const, label: '名下站长' },
+  { key: 'ranking' as const, label: '业绩排行' },
+  { key: 'cases' as const, label: '成功案例' },
+]
+
+const memberFilter = ref<'all' | 'active' | 'silent'>('all')
+const filterOptions = [
+  { value: 'all' as const, label: '全部' },
+  { value: 'active' as const, label: '活跃' },
+  { value: 'silent' as const, label: '沉寂' },
+]
+const filteredMembers = computed(() =>
+  memberFilter.value === 'all' ? members.value : members.value.filter((m) => m.status === memberFilter.value),
+)
+
+async function fetchData() {
+  try {
+    const [ov, mem, rank, cs, link] = await Promise.all([
+      operatorApi.getTeamOverview(),
+      operatorApi.getTeamMembers(),
+      operatorApi.getTeamRanking(),
+      operatorApi.getTeamSuccessCases(),
+      operatorApi.getTeamInviteLink(),
+    ])
+    overview.value = ov
+    members.value = mem
+    ranking.value = rank
+    cases.value = cs
+    inviteLink.value = link
+  } catch (e: any) {
+    const msg = e?.message || ''
+    if (/运营商|不是|未找到|FORBIDDEN|403/.test(msg)) notOpened.value = true
+    else error.value = msg || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
+async function retry() {
+  loading.value = true
+  error.value = ''
+  notOpened.value = false
+  await fetchData()
+}
+onMounted(fetchData)
+
+const showInvite = ref(false)
+function openInvite() { showInvite.value = true }
+function closeInvite() { showInvite.value = false }
+function copyInvite() {
+  uni.setClipboardData({ data: inviteLink.value, success: () => uni.showToast({ title: '邀请链接已复制', icon: 'none' }) })
+}
+
+function goBack() { uni.navigateBack({ fail: () => navigateTo('/pages/index/index') }) }
+function fmtMoney(n: number) {
+  const v = Number(n) || 0
+  return v >= 10000 ? (v / 10000).toFixed(1) + 'w' : v.toLocaleString()
+}
+function rankClass(r: number) { return r === 1 ? 'r1' : r === 2 ? 'r2' : r === 3 ? 'r3' : 'rn' }
+</script>
+
 <template>
-  <view v-if="loading" class="state-loading"><text>加载中...</text></view>
-  <view v-else-if="error" class="state-error">
-    <text class="state-error-text">{{ error }}</text>
-    <view class="state-retry-btn" @tap="retry"><text>重试</text></view>
-  </view>
-  <view v-else class="team-page">
-    <!-- 顶部导航 -->
-    <app-nav-bar title="团队管理" :show-back="true">
-      <template #right>
-        <view class="team-invite-btn" @tap="openInvite">
-          <app-icon name="user-plus" :size="28" color="#ffffff" />
-          <text class="team-invite-btn-txt">邀请下级</text>
-        </view>
-      </template>
-    </app-nav-bar>
-
-    <!-- 概览卡片 -->
-    <view class="team-overview">
-      <view class="team-ov-grid">
-        <view class="team-ov-card">
-          <view class="team-ov-top"><app-icon name="users" :size="26" color="#999" /><text class="team-ov-label">团队总人数</text></view>
-          <text class="team-ov-val">{{ overview.totalMembers }}</text>
-          <text class="team-ov-sub green">本月新增 +{{ overview.newMembersThisMonth }}</text>
-        </view>
-        <view class="team-ov-card">
-          <view class="team-ov-top"><app-icon name="wallet" :size="26" color="#999" /><text class="team-ov-label">累计佣金</text></view>
-          <text class="team-ov-val primary">{{ overview.totalCommission.toFixed(2) }}</text>
-          <text class="team-ov-sub">元</text>
-        </view>
-        <view class="team-ov-card">
-          <view class="team-ov-top"><app-icon name="percent" :size="26" color="#999" /><text class="team-ov-label">提成比例</text></view>
-          <text class="team-ov-val">{{ overview.commissionRate }}%</text>
-          <text class="team-ov-sub">{{ overview.myLevel }}</text>
-        </view>
-        <view class="team-ov-card">
-          <view class="team-ov-top"><app-icon name="trending-up" :size="26" color="#999" /><text class="team-ov-label">升级进度</text></view>
-          <view class="team-progress-bar"><view class="team-progress-fill" :style="{ width: upgradePercent + '%' }" /></view>
-          <text class="team-ov-sub">距下一等级还需 {{ (overview.nextLevelRequirement - overview.totalCommission).toFixed(0) }} 元</text>
-        </view>
-      </view>
+  <view class="tm">
+    <!-- Header -->
+    <view class="tm-header">
+      <view class="tm-hbtn" @tap="goBack"><app-icon name="arrow-left" :size="40" color="#fff" /></view>
+      <text class="tm-title">我的站长团队</text>
+      <view class="tm-invite-btn" @tap="openInvite"><app-icon name="user-plus" :size="28" color="#fff" /><text class="tm-invite-txt">邀请</text></view>
     </view>
 
-    <!-- Tab 切换 -->
-    <view class="team-tabs">
-      <view v-for="t in tabs" :key="t.key" class="team-tab" :class="{ active: activeTab === t.key }" @tap="activeTab = t.key">
-        <text class="team-tab-txt">{{ t.label }}</text>
-      </view>
+    <!-- 三态 -->
+    <view v-if="loading" class="tm-state"><view v-for="i in 4" :key="i" class="tm-sk" /></view>
+    <view v-else-if="error" class="tm-state center">
+      <app-icon name="alert-circle" :size="72" color="#ef4444" />
+      <text class="tm-state-text">{{ error }}</text>
+      <view class="tm-state-btn" @tap="retry"><text>重试</text></view>
+    </view>
+    <view v-else-if="notOpened" class="tm-state center">
+      <app-icon name="crown" :size="80" color="#C9A96E" />
+      <text class="tm-state-title">您还不是运营商</text>
+      <text class="tm-state-desc">升级运营商，组建并管理你的站长团队</text>
+      <view class="tm-state-btn" @tap="navigateTo('/pkg-operator/join-operator/index')"><text>了解运营商</text></view>
     </view>
 
-    <!-- 成员列表 -->
-    <view v-if="activeTab === 'members'" class="team-content">
-      <!-- 筛选栏 -->
-      <view class="team-filter">
-        <view class="team-select" @tap="toggleDropdown('filter')">
-          <text class="team-select-txt">{{ filterLabel }}</text>
-          <app-icon name="chevron-down" :size="24" color="#999" />
-          <view v-if="dropdown === 'filter'" class="team-dropdown">
-            <view v-for="o in filterOptions" :key="o.value" class="team-dropdown-item" :class="{ active: memberFilter === o.value }" @tap.stop="selectFilter(o.value)"><text>{{ o.label }}</text></view>
-          </view>
+    <scroll-view v-else scroll-y class="tm-scroll">
+      <!-- 概览 -->
+      <view class="tm-ov">
+        <view class="tm-ov-card">
+          <text class="tm-ov-label">名下站长</text>
+          <text class="tm-ov-val">{{ overview.totalStations }}</text>
+          <text class="tm-ov-sub green">活跃 {{ overview.activeStations }}</text>
         </view>
-        <view class="team-select" @tap="toggleDropdown('sort')">
-          <text class="team-select-txt">{{ sortLabel }}</text>
-          <app-icon name="chevron-down" :size="24" color="#999" />
-          <view v-if="dropdown === 'sort'" class="team-dropdown">
-            <view v-for="o in sortOptions" :key="o.value" class="team-dropdown-item" :class="{ active: memberSort === o.value }" @tap.stop="selectSort(o.value)"><text>{{ o.label }}</text></view>
-          </view>
+        <view class="tm-ov-card">
+          <text class="tm-ov-label">本月团队佣金</text>
+          <text class="tm-ov-val primary">{{ fmtMoney(overview.monthTeamEarned) }}</text>
+          <text class="tm-ov-sub">元</text>
+        </view>
+        <view class="tm-ov-card">
+          <text class="tm-ov-label">本月成交额</text>
+          <text class="tm-ov-val">{{ fmtMoney(overview.monthTeamAmount) }}</text>
+          <text class="tm-ov-sub">元</text>
+        </view>
+        <view class="tm-ov-card">
+          <text class="tm-ov-label">沉寂站长</text>
+          <text class="tm-ov-val" :class="{ warn: overview.silentStations > 0 }">{{ overview.silentStations }}</text>
+          <text class="tm-ov-sub">{{ overview.silentStations > 0 ? '待唤醒' : '全员活跃' }}</text>
         </view>
       </view>
 
-      <view class="team-list">
-        <view v-for="m in sortedMembers" :key="m.id" class="team-member-card" @tap="openMemberDetail(m)">
-          <view class="team-member-row">
-            <view class="team-avatar"><text class="team-avatar-txt">{{ m.nickname[0] }}</text></view>
-            <view class="team-member-info">
-              <view class="team-member-name-row">
-                <text class="team-member-name">{{ m.nickname }}</text>
-                <text class="team-badge secondary">{{ m.levelIcon }} {{ m.level }}</text>
-                <text v-if="m.status === 'inactive'" class="team-badge outline">不活跃</text>
-              </view>
-              <text class="team-member-meta">{{ m.phone }} · 加入于 {{ m.joinDate }}</text>
-              <view class="team-member-stats">
-                <text class="team-member-stat">佣金 <text class="primary bold">{{ m.totalCommission.toFixed(2) }}</text></text>
-                <text class="team-member-stat">邀请 <text class="bold">{{ m.inviteCount }}</text> 人</text>
-              </view>
-            </view>
-            <app-icon name="chevron-right" :size="30" color="#ccc" />
+      <!-- Tabs -->
+      <view class="tm-tabs">
+        <view v-for="t in tabs" :key="t.key" class="tm-tab" :class="{ active: activeTab === t.key }" @tap="activeTab = t.key">
+          <text class="tm-tab-txt">{{ t.label }}</text>
+        </view>
+      </view>
+
+      <!-- 名下站长 -->
+      <view v-if="activeTab === 'members'" class="tm-content">
+        <view class="tm-filter">
+          <view v-for="o in filterOptions" :key="o.value" class="tm-filter-btn" :class="{ on: memberFilter === o.value }" @tap="memberFilter = o.value">
+            <text class="tm-filter-txt">{{ o.label }}</text>
           </view>
         </view>
-      </view>
-    </view>
-
-    <!-- 排行榜 -->
-    <view v-else-if="activeTab === 'leaderboard'" class="team-content">
-      <view class="team-period">
-        <view v-for="p in periods" :key="p.value" class="team-period-btn" :class="{ active: leaderboardPeriod === p.value }" @tap="leaderboardPeriod = p.value">
-          <text class="team-period-txt">{{ p.label }}</text>
-        </view>
-      </view>
-      <view class="team-list">
-        <view v-for="item in leaderboard" :key="item.userId" class="team-rank-card" :class="{ top: item.rank <= 3 }">
-          <view class="team-rank-row">
-            <view class="team-rank-num" :class="rankClass(item.rank)"><text class="team-rank-num-txt">{{ item.rank }}</text></view>
-            <view class="team-avatar sm"><text class="team-avatar-txt">{{ item.nickname[0] }}</text></view>
-            <view class="team-rank-info">
-              <view class="team-member-name-row">
-                <text class="team-member-name">{{ item.nickname }}</text>
-                <app-icon v-if="item.rank === 1" name="trophy" :size="24" color="#eab308" />
-                <app-icon v-else-if="item.rank === 2" name="medal" :size="24" color="#9ca3af" />
-                <app-icon v-else-if="item.rank === 3" name="medal" :size="24" color="#d97706" />
+        <view v-if="filteredMembers.length" class="tm-list">
+          <view v-for="m in filteredMembers" :key="m.id" class="tm-member">
+            <view class="tm-avatar"><text class="tm-avatar-txt">{{ m.name[0] }}</text></view>
+            <view class="tm-member-info">
+              <view class="tm-member-name-row">
+                <text class="tm-member-name">{{ m.name }}</text>
+                <text class="tm-badge" :class="m.status === 'active' ? 'on' : 'off'">{{ m.status === 'active' ? '活跃' : '沉寂' }}</text>
               </view>
-              <text class="team-rank-level">{{ item.level }}</text>
-            </view>
-            <view class="team-rank-value">
-              <text class="team-rank-val primary">{{ item.value.toFixed(2) }}</text>
-              <view class="team-rank-change">
-                <template v-if="item.change > 0"><app-icon name="arrow-up-right" :size="20" color="#16a34a" /><text class="green">+{{ item.change }}</text></template>
-                <template v-else-if="item.change < 0"><app-icon name="arrow-down-right" :size="20" color="#ef4444" /><text class="red">{{ item.change }}</text></template>
-                <text v-else class="muted">-</text>
+              <text class="tm-member-meta">{{ m.code }} · 加入于 {{ m.joinDate }}</text>
+              <view class="tm-member-stats">
+                <text class="tm-stat">累计 <text class="primary bold">{{ fmtMoney(m.totalEarning) }}</text></text>
+                <text class="tm-stat">本月 <text class="bold">{{ fmtMoney(m.monthEarning) }}</text></text>
+                <text class="tm-stat">管理奖 <text class="gold bold">{{ fmtMoney(m.mgmtBonus) }}</text></text>
               </view>
             </view>
           </view>
         </view>
-        <view class="team-myrank">
-          <text class="team-myrank-label">我的排名</text>
-          <text class="team-myrank-val">第 {{ myRank }} 名</text>
-        </view>
+        <view v-else class="tm-empty"><app-icon name="users" :size="72" color="#d6ccbb" /><text class="tm-empty-txt">暂无站长</text></view>
       </view>
-    </view>
 
-    <!-- 团队动态 -->
-    <view v-else-if="activeTab === 'activities'" class="team-content">
-      <view class="team-timeline">
-        <view class="team-timeline-line" />
-        <view v-for="a in activities" :key="a.id" class="team-activity">
-          <view class="team-activity-dot"><text class="team-activity-emoji">{{ activityIcon(a.type) }}</text></view>
-          <view class="team-activity-card">
-            <view class="team-activity-head">
-              <view class="team-avatar sm"><text class="team-avatar-txt">{{ a.userNickname[0] }}</text></view>
-              <view class="team-activity-body">
-                <view><text class="team-activity-name">{{ a.userNickname }}</text><text class="team-activity-content">{{ a.content }}</text></view>
-                <text v-if="a.amount" class="team-activity-amount primary">+{{ a.amount.toFixed(2) }} 元</text>
-                <view class="team-activity-time"><app-icon name="clock" :size="20" color="#999" /><text class="team-activity-time-txt">{{ a.createdAt }}</text></view>
-              </view>
-            </view>
+      <!-- 业绩排行 -->
+      <view v-else-if="activeTab === 'ranking'" class="tm-content">
+        <view v-if="ranking.length" class="tm-list">
+          <view v-for="item in ranking" :key="item.userId" class="tm-rank" :class="{ top: item.rank <= 3 }">
+            <view class="tm-rank-no" :class="rankClass(item.rank)"><text class="tm-rank-no-txt" :class="rankClass(item.rank)">{{ item.rank }}</text></view>
+            <view class="tm-avatar sm"><text class="tm-avatar-txt">{{ item.nickname[0] }}</text></view>
+            <text class="tm-rank-name">{{ item.nickname }}</text>
+            <text class="tm-rank-val primary">{{ fmtMoney(item.performance) }}</text>
           </view>
         </view>
+        <view v-else class="tm-empty"><app-icon name="trophy" :size="72" color="#d6ccbb" /><text class="tm-empty-txt">暂无排行数据</text></view>
       </view>
-    </view>
 
-    <!-- 成功案例 -->
-    <view v-else-if="activeTab === 'cases'" class="team-content">
-      <view class="team-list">
-        <view v-for="c in successCases" :key="c.id" class="team-case-card">
-          <view class="team-case-head">
-            <view class="team-avatar"><text class="team-avatar-txt">{{ c.nickname[0] }}</text></view>
-            <view>
-              <text class="team-case-name">{{ c.nickname }}</text>
-              <view class="team-case-meta">
-                <text class="team-badge primary-badge">{{ c.achievement }}</text>
-                <text class="team-case-duration">加入 {{ c.duration }}</text>
-              </view>
+      <!-- 成功案例 -->
+      <view v-else class="tm-content">
+        <view v-if="cases.length" class="tm-list">
+          <view v-for="c in cases" :key="c.id" class="tm-case">
+            <view class="tm-case-head">
+              <text class="tm-case-name">{{ c.name }}</text>
+              <text class="tm-case-earning primary">{{ fmtMoney(c.totalEarning) }} 元</text>
             </view>
-          </view>
-          <text class="team-case-title">{{ c.title }}</text>
-          <text class="team-case-desc">{{ c.description }}</text>
-          <view class="team-case-footer">
-            <text class="team-case-footer-label">累计收益</text>
-            <text class="team-case-footer-val primary">{{ c.totalEarnings.toFixed(2) }} 元</text>
+            <text v-if="c.intro" class="tm-case-intro">{{ c.intro }}</text>
+            <text class="tm-case-since">开站于 {{ c.since }}</text>
           </view>
         </view>
+        <view v-else class="tm-empty"><app-icon name="award" :size="72" color="#d6ccbb" /><text class="tm-empty-txt">暂无成功案例</text></view>
       </view>
-    </view>
 
-    <!-- 邀请弹窗 -->
-    <view v-if="showInvite" class="team-mask" @tap.self="showInvite = false">
-      <view class="team-sheet">
-        <view class="team-sheet-handle" />
-        <text class="team-sheet-title">邀请下级</text>
-        <view class="team-qr-wrap">
-          <view class="team-qr-box"><app-icon name="qr-code" :size="120" color="#ccc" /></view>
-          <text class="team-qr-hint">扫码加入我的团队</text>
-        </view>
-        <view class="team-link-section">
-          <text class="team-link-label">邀请链接</text>
-          <view class="team-link-row">
-            <view class="team-link-box"><text class="team-link-txt">{{ inviteLink }}</text></view>
-            <view class="team-link-copy" @tap="copyLink"><app-icon name="copy" :size="26" color="#ffffff" /><text class="team-link-copy-txt">复制</text></view>
-          </view>
-        </view>
-        <view class="team-share-btn"><app-icon name="share-2" :size="30" color="#ffffff" /><text class="team-share-txt">分享邀请海报</text></view>
-      </view>
-    </view>
+      <view class="tm-pad" />
+    </scroll-view>
 
-    <!-- 成员详情弹窗 -->
-    <view v-if="showMemberDetail && selectedMember" class="team-mask" @tap.self="showMemberDetail = false">
-      <view class="team-sheet tall">
-        <view class="team-sheet-handle" />
-        <text class="team-sheet-title">成员详情</text>
-        <scroll-view scroll-y class="team-detail-scroll">
-          <view class="team-detail-info">
-            <view class="team-avatar lg"><text class="team-avatar-txt">{{ selectedMember.nickname[0] }}</text></view>
-            <view>
-              <text class="team-detail-name">{{ selectedMember.nickname }}</text>
-              <text class="team-badge secondary block">{{ selectedMember.levelIcon }} {{ selectedMember.level }}</text>
-              <text class="team-detail-date">加入于 {{ selectedMember.joinDate }}</text>
-            </view>
-          </view>
-          <view class="team-detail-stats">
-            <view class="team-detail-stat"><text class="team-detail-stat-num primary">{{ selectedMember.totalCommission.toFixed(0) }}</text><text class="team-detail-stat-label">累计佣金</text></view>
-            <view class="team-detail-stat"><text class="team-detail-stat-num">{{ selectedMember.thisMonthCommission.toFixed(0) }}</text><text class="team-detail-stat-label">本月佣金</text></view>
-            <view class="team-detail-stat"><text class="team-detail-stat-num">{{ selectedMember.inviteCount }}</text><text class="team-detail-stat-label">邀请人数</text></view>
-          </view>
-          <view class="team-detail-block">
-            <text class="team-detail-block-title">近期推广订单</text>
-            <view v-for="o in recentOrders" :key="o.id" class="team-order-row">
-              <view><text class="team-order-amount">订单金额 {{ o.amount }} 元</text><text class="team-order-time">{{ o.time }}</text></view>
-              <text class="team-order-commission primary">+{{ o.commission.toFixed(2) }}</text>
-            </view>
-          </view>
-          <view class="team-detail-block">
-            <text class="team-detail-block-title">邀请的成员</text>
-            <view class="team-invited-wrap">
-              <view v-for="im in invitedMembers" :key="im.id" class="team-invited-chip">
-                <view class="team-avatar xs"><text class="team-avatar-txt">{{ im.nickname[0] }}</text></view>
-                <text class="team-invited-name">{{ im.nickname }}</text>
-              </view>
-            </view>
-          </view>
-        </scroll-view>
+    <!-- 邀请弹层 -->
+    <view v-if="showInvite" class="tm-mask" @tap="closeInvite">
+      <view class="tm-sheet" @tap.stop>
+        <view class="tm-sheet-head">
+          <text class="tm-sheet-title">邀请站长加入团队</text>
+          <view class="tm-sheet-close" @tap="closeInvite"><app-icon name="x" :size="40" color="#666" /></view>
+        </view>
+        <view class="tm-sheet-body">
+          <text class="tm-sheet-desc">把邀请链接分享给意向站长，对方通过链接开通分站即归入你的团队。</text>
+          <view class="tm-link"><text class="tm-link-txt">{{ inviteLink }}</text></view>
+          <view class="tm-copy" @tap="copyInvite"><text class="tm-copy-txt">复制邀请链接</text></view>
+        </view>
       </view>
     </view>
   </view>
 </template>
 
-<script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { operatorApi, type TeamMgmtOverview, type TeamMgmtMember, type TeamLeaderboardItem, type TeamActivityItem, type TeamSuccessCaseItem, type TeamMemberOrder, type TeamMemberInvited } from '@/lib/operator-data'
+<style scoped lang="scss">
+.tm { min-height: 100vh; background: #FAF8F5; display: flex; flex-direction: column; }
 
-const tabs = [
-  { key: 'members', label: '成员' },
-  { key: 'leaderboard', label: '排行榜' },
-  { key: 'activities', label: '动态' },
-  { key: 'cases', label: '案例' },
-] as const
-const activeTab = ref<'members' | 'leaderboard' | 'activities' | 'cases'>('members')
+.tm-header { display: flex; align-items: center; justify-content: space-between; height: 88rpx; padding: 0 24rpx; background: var(--brand); }
+.tm-hbtn { width: 64rpx; height: 64rpx; display: flex; align-items: center; justify-content: center; }
+.tm-title { font-size: 34rpx; font-weight: 600; color: #fff; }
+.tm-invite-btn { display: flex; align-items: center; gap: 6rpx; padding: 8rpx 20rpx; background: rgba(255,255,255,0.2); border-radius: 999rpx; }
+.tm-invite-txt { font-size: 24rpx; color: #fff; }
 
-const loading = ref(true)
-const error = ref('')
-const overview = ref<TeamMgmtOverview>({} as TeamMgmtOverview)
-const teamMgmtMembers = ref<TeamMgmtMember[]>([])
-const leaderboard = ref<TeamLeaderboardItem[]>([])
-const myRank = ref(0)
-const activities = ref<TeamActivityItem[]>([])
-const successCases = ref<TeamSuccessCaseItem[]>([])
-const recentOrders = ref<TeamMemberOrder[]>([])
-const invitedMembers = ref<TeamMemberInvited[]>([])
-const activityIconMap = ref<Record<string, string>>({})
-const inviteLink = ref('')
-const submitting = ref(false)
-
-onMounted(async () => {
-  try {
-    const [ov, tmm, lb, mr, act, sc, aim, il] = await Promise.all([
-      operatorApi.getTeamOverview(),
-      operatorApi.getTeamMemberList(),
-      operatorApi.getTeamLeaderboard(),
-      operatorApi.getTeamMyRank(),
-      operatorApi.getTeamActivities(),
-      operatorApi.getTeamSuccessCases(),
-      operatorApi.getActivityIconMap(),
-      operatorApi.getTeamInviteLink(),
-    ])
-    overview.value = ov
-    teamMgmtMembers.value = tmm
-    leaderboard.value = lb
-    myRank.value = mr
-    activities.value = act
-    successCases.value = sc
-    activityIconMap.value = aim
-    inviteLink.value = il
-  } catch (e: any) {
-    error.value = e?.message || '加载失败'
-  } finally {
-    loading.value = false
-  }
-})
-
-async function retry() {
-  loading.value = true
-  error.value = ''
-  try {
-    const [ov, tmm, lb, mr, act, sc, aim, il] = await Promise.all([
-      operatorApi.getTeamOverview(),
-      operatorApi.getTeamMemberList(),
-      operatorApi.getTeamLeaderboard(),
-      operatorApi.getTeamMyRank(),
-      operatorApi.getTeamActivities(),
-      operatorApi.getTeamSuccessCases(),
-      operatorApi.getActivityIconMap(),
-      operatorApi.getTeamInviteLink(),
-    ])
-    overview.value = ov
-    teamMgmtMembers.value = tmm
-    leaderboard.value = lb
-    myRank.value = mr
-    activities.value = act
-    successCases.value = sc
-    activityIconMap.value = aim
-    inviteLink.value = il
-  } catch (e: any) {
-    error.value = e?.message || '加载失败'
-  } finally {
-    loading.value = false
-  }
-}
-
-const upgradePercent = computed(() =>
-  Math.min((overview.value.totalCommission / overview.value.nextLevelRequirement) * 100, 100),
-)
-
-// 成员筛选/排序
-const filterOptions = [
-  { value: 'all', label: '全部' },
-  { value: 'active', label: '活跃' },
-  { value: 'inactive', label: '不活跃' },
-] as const
-const sortOptions = [
-  { value: 'commission', label: '按佣金' },
-  { value: 'inviteCount', label: '按邀请数' },
-  { value: 'joinDate', label: '按加入时间' },
-] as const
-const memberFilter = ref<'all' | 'active' | 'inactive'>('all')
-const memberSort = ref<'commission' | 'inviteCount' | 'joinDate'>('commission')
-const dropdown = ref<'filter' | 'sort' | null>(null)
-const filterLabel = computed(() => filterOptions.find(o => o.value === memberFilter.value)?.label)
-const sortLabel = computed(() => sortOptions.find(o => o.value === memberSort.value)?.label)
-
-function toggleDropdown(which: 'filter' | 'sort') {
-  dropdown.value = dropdown.value === which ? null : which
-}
-function selectFilter(v: 'all' | 'active' | 'inactive') { memberFilter.value = v; dropdown.value = null }
-function selectSort(v: 'commission' | 'inviteCount' | 'joinDate') { memberSort.value = v; dropdown.value = null }
-
-const sortedMembers = computed(() => {
-  let list = [...teamMgmtMembers.value]
-  if (memberFilter.value === 'active') list = list.filter(m => m.status === 'active')
-  if (memberFilter.value === 'inactive') list = list.filter(m => m.status === 'inactive')
-  if (memberSort.value === 'commission') list.sort((a, b) => b.totalCommission - a.totalCommission)
-  if (memberSort.value === 'inviteCount') list.sort((a, b) => b.inviteCount - a.inviteCount)
-  return list
-})
-
-// 排行榜
-const periods = [
-  { value: 'week', label: '本周' },
-  { value: 'month', label: '本月' },
-  { value: 'all', label: '总榜' },
-] as const
-const leaderboardPeriod = ref<'week' | 'month' | 'all'>('month')
-function rankClass(rank: number) {
-  if (rank === 1) return 'rank-1'
-  if (rank === 2) return 'rank-2'
-  if (rank === 3) return 'rank-3'
-  return 'rank-default'
-}
-
-function activityIcon(type: string) { return activityIconMap.value[type] || '📢' }
-
-// 弹窗
-const showInvite = ref(false)
-const showMemberDetail = ref(false)
-const selectedMember = ref<TeamMgmtMember | null>(null)
-function openInvite() { showInvite.value = true }
-async function openMemberDetail(m: TeamMgmtMember) {
-  selectedMember.value = m
-  showMemberDetail.value = true
-  try {
-    const detail = await operatorApi.getMemberDetailOrders(m.id)
-    recentOrders.value = detail.orders
-    invitedMembers.value = detail.invited
-  } catch (e: any) {
-    recentOrders.value = []
-    invitedMembers.value = []
-  }
-}
-function copyLink() {
-  if (submitting.value) return
-  submitting.value = true
-  uni.setClipboardData({ data: inviteLink.value, success: () => uni.showToast({ title: '链接已复制', icon: 'none' }), complete: () => { submitting.value = false } })
-}
-</script>
-
-<style scoped>
-.team-page { min-height: 100vh; background: #f5f5f5; padding-bottom: 40rpx; }
-.team-invite-btn { display: flex; align-items: center; gap: 6rpx; background: #C41E3A; border-radius: 999rpx; padding: 10rpx 24rpx; }
-.team-invite-btn-txt { font-size: 24rpx; color: #fff; }
+.tm-scroll { flex: 1; }
 
 /* 概览 */
-.team-overview { padding: 28rpx 32rpx; background: linear-gradient(135deg, rgba(196,30,58,0.1), rgba(196,30,58,0.05)); }
-.team-ov-grid { display: flex; flex-wrap: wrap; gap: 20rpx; }
-.team-ov-card { width: calc(50% - 10rpx); background: #fff; border-radius: 20rpx; padding: 24rpx; box-sizing: border-box; box-shadow: 0 2rpx 8rpx rgba(0,0,0,0.04); }
-.team-ov-top { display: flex; align-items: center; gap: 10rpx; margin-bottom: 14rpx; }
-.team-ov-label { font-size: 24rpx; color: #999; }
-.team-ov-val { display: block; font-size: 44rpx; font-weight: 700; color: #1a1a1a; }
-.team-ov-val.primary { color: #C41E3A; }
-.team-ov-sub { font-size: 22rpx; color: #999; margin-top: 6rpx; }
-.team-ov-sub.green { color: #16a34a; }
-.team-progress-bar { height: 12rpx; background: #eee; border-radius: 999rpx; overflow: hidden; margin: 14rpx 0 4rpx; }
-.team-progress-fill { height: 100%; background: #C41E3A; border-radius: 999rpx; }
+.tm-ov { display: grid; grid-template-columns: 1fr 1fr; gap: 20rpx; padding: 24rpx 32rpx 0; }
+.tm-ov-card { background: #fff; border-radius: 16rpx; padding: 24rpx; border: 1rpx solid #EDE7DC; }
+.tm-ov-label { display: block; font-size: 22rpx; color: #8a8178; }
+.tm-ov-val { display: block; font-size: 44rpx; font-weight: 700; color: #2C2C2C; margin-top: 8rpx; }
+.tm-ov-val.primary { color: var(--brand); }
+.tm-ov-val.warn { color: #f59e0b; }
+.tm-ov-sub { font-size: 22rpx; color: #8a8178; }
+.tm-ov-sub.green { color: #16a34a; }
 
 /* Tabs */
-.team-tabs { display: flex; margin: 32rpx 32rpx 0; background: rgba(0,0,0,0.05); border-radius: 16rpx; padding: 6rpx; }
-.team-tab { flex: 1; height: 64rpx; display: flex; align-items: center; justify-content: center; border-radius: 12rpx; }
-.team-tab.active { background: #fff; box-shadow: 0 2rpx 8rpx rgba(0,0,0,0.06); }
-.team-tab-txt { font-size: 26rpx; color: #666; }
-.team-tab.active .team-tab-txt { color: #1a1a1a; font-weight: 600; }
+.tm-tabs { display: flex; margin: 24rpx 32rpx 0; background: #F2ECE1; border-radius: 12rpx; padding: 6rpx; }
+.tm-tab { flex: 1; height: 64rpx; display: flex; align-items: center; justify-content: center; border-radius: 10rpx; }
+.tm-tab.active { background: #fff; }
+.tm-tab-txt { font-size: 26rpx; color: #8a8178; }
+.tm-tab.active .tm-tab-txt { color: var(--brand); font-weight: 600; }
 
-.team-content { padding: 28rpx 32rpx 0; }
+.tm-content { padding: 24rpx 32rpx 0; }
 
 /* 筛选 */
-.team-filter { display: flex; gap: 16rpx; margin-bottom: 24rpx; }
-.team-select { position: relative; display: flex; align-items: center; gap: 8rpx; height: 64rpx; padding: 0 20rpx; background: #fff; border: 1rpx solid #e5e5e5; border-radius: 12rpx; }
-.team-select-txt { font-size: 24rpx; color: #333; }
-.team-dropdown { position: absolute; top: 72rpx; left: 0; min-width: 180rpx; background: #fff; border-radius: 12rpx; box-shadow: 0 4rpx 16rpx rgba(0,0,0,0.12); z-index: 20; overflow: hidden; }
-.team-dropdown-item { padding: 20rpx 24rpx; font-size: 24rpx; color: #333; }
-.team-dropdown-item.active { color: #C41E3A; background: rgba(196,30,58,0.06); }
+.tm-filter { display: flex; gap: 16rpx; margin-bottom: 20rpx; }
+.tm-filter-btn { padding: 8rpx 28rpx; border-radius: 999rpx; background: #fff; border: 1rpx solid #EDE7DC; }
+.tm-filter-btn.on { background: var(--brand); border-color: var(--brand); }
+.tm-filter-txt { font-size: 24rpx; color: #8a8178; }
+.tm-filter-btn.on .tm-filter-txt { color: #fff; }
 
-.team-list { display: flex; flex-direction: column; gap: 24rpx; }
+.tm-list { display: flex; flex-direction: column; gap: 20rpx; }
 
-/* 头像 */
-.team-avatar { width: 96rpx; height: 96rpx; border-radius: 50%; background: linear-gradient(135deg, #C41E3A, #e05a72); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.team-avatar.sm { width: 80rpx; height: 80rpx; }
-.team-avatar.xs { width: 48rpx; height: 48rpx; }
-.team-avatar.lg { width: 128rpx; height: 128rpx; }
-.team-avatar-txt { font-size: 36rpx; color: #fff; font-weight: 600; }
-.team-avatar.sm .team-avatar-txt, .team-avatar.xs .team-avatar-txt { font-size: 28rpx; }
+/* 站长卡 */
+.tm-member { display: flex; gap: 20rpx; padding: 24rpx; background: #fff; border-radius: 16rpx; border: 1rpx solid #EDE7DC; }
+.tm-avatar { width: 80rpx; height: 80rpx; border-radius: 50%; background: var(--brand); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.tm-avatar.sm { width: 64rpx; height: 64rpx; }
+.tm-avatar-txt { font-size: 30rpx; color: #fff; font-weight: 600; }
+.tm-member-info { flex: 1; min-width: 0; }
+.tm-member-name-row { display: flex; align-items: center; gap: 12rpx; }
+.tm-member-name { font-size: 28rpx; font-weight: 600; color: #2C2C2C; }
+.tm-badge { font-size: 20rpx; padding: 2rpx 12rpx; border-radius: 6rpx; }
+.tm-badge.on { background: #dcfce7; color: #16a34a; }
+.tm-badge.off { background: #f3f4f6; color: #9ca3af; }
+.tm-member-meta { display: block; margin-top: 4rpx; font-size: 22rpx; color: #9ca3af; }
+.tm-member-stats { display: flex; flex-wrap: wrap; gap: 24rpx; margin-top: 12rpx; }
+.tm-stat { font-size: 22rpx; color: #8a8178; }
+.tm-stat .primary { color: var(--brand); }
+.tm-stat .gold { color: #C9A96E; }
+.tm-stat .bold { font-weight: 700; }
 
-/* 成员卡 */
-.team-member-card { background: #fff; border-radius: 20rpx; padding: 28rpx; border: 1rpx solid #eee; }
-.team-member-row { display: flex; align-items: flex-start; gap: 20rpx; }
-.team-member-info { flex: 1; min-width: 0; }
-.team-member-name-row { display: flex; align-items: center; gap: 12rpx; flex-wrap: wrap; }
-.team-member-name { font-size: 28rpx; font-weight: 500; color: #1a1a1a; }
-.team-badge { font-size: 20rpx; padding: 2rpx 12rpx; border-radius: 8rpx; }
-.team-badge.secondary { background: #f0f0f0; color: #666; }
-.team-badge.outline { border: 1rpx solid #ddd; color: #999; }
-.team-badge.primary-badge { background: rgba(196,30,58,0.1); color: #C41E3A; }
-.team-badge.block { display: inline-block; margin: 6rpx 0; }
-.team-member-meta { display: block; font-size: 24rpx; color: #999; margin-top: 8rpx; }
-.team-member-stats { display: flex; gap: 32rpx; margin-top: 14rpx; }
-.team-member-stat { font-size: 24rpx; color: #666; }
-.primary { color: #C41E3A; }
-.bold { font-weight: 600; }
-.green { color: #16a34a; }
-.red { color: #ef4444; }
-.muted { color: #999; }
-
-/* 排行榜 */
-.team-period { display: flex; gap: 16rpx; margin-bottom: 24rpx; }
-.team-period-btn { padding: 10rpx 28rpx; border: 1rpx solid #e5e5e5; border-radius: 12rpx; background: #fff; }
-.team-period-btn.active { background: #C41E3A; border-color: #C41E3A; }
-.team-period-txt { font-size: 24rpx; color: #666; }
-.team-period-btn.active .team-period-txt { color: #fff; }
-.team-rank-card { background: #fff; border: 1rpx solid #eee; border-radius: 20rpx; padding: 24rpx; }
-.team-rank-card.top { background: linear-gradient(90deg, rgba(196,30,58,0.05), transparent); border-left: 6rpx solid #C41E3A; }
-.team-rank-row { display: flex; align-items: center; gap: 20rpx; }
-.team-rank-num { width: 56rpx; height: 56rpx; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.team-rank-num-txt { font-size: 26rpx; font-weight: 700; }
-.rank-1 { background: linear-gradient(90deg, #facc15, #eab308); }
-.rank-1 .team-rank-num-txt, .rank-2 .team-rank-num-txt, .rank-3 .team-rank-num-txt { color: #fff; }
-.rank-2 { background: linear-gradient(90deg, #d1d5db, #9ca3af); }
-.rank-3 { background: linear-gradient(90deg, #d97706, #b45309); }
-.rank-default { background: #f0f0f0; }
-.rank-default .team-rank-num-txt { color: #999; }
-.team-rank-info { flex: 1; min-width: 0; }
-.team-rank-level { font-size: 22rpx; color: #999; }
-.team-rank-value { text-align: right; }
-.team-rank-val { display: block; font-size: 30rpx; font-weight: 700; }
-.team-rank-change { display: flex; align-items: center; justify-content: flex-end; gap: 4rpx; font-size: 22rpx; }
-.team-myrank { margin-top: 32rpx; padding: 28rpx; background: rgba(196,30,58,0.05); border: 1rpx solid rgba(196,30,58,0.2); border-radius: 20rpx; }
-.team-myrank-label { display: block; font-size: 24rpx; color: #999; margin-bottom: 6rpx; }
-.team-myrank-val { font-size: 40rpx; font-weight: 700; color: #1a1a1a; }
-
-/* 时间线 */
-.team-timeline { position: relative; }
-.team-timeline-line { position: absolute; left: 20rpx; top: 0; bottom: 0; width: 2rpx; background: #e5e5e5; }
-.team-activity { position: relative; padding-left: 72rpx; margin-bottom: 24rpx; }
-.team-activity-dot { position: absolute; left: 8rpx; top: 4rpx; width: 40rpx; height: 40rpx; border-radius: 50%; background: #fff; border: 2rpx solid #C41E3A; display: flex; align-items: center; justify-content: center; }
-.team-activity-emoji { font-size: 22rpx; }
-.team-activity-card { background: #fff; border: 1rpx solid #eee; border-radius: 20rpx; padding: 24rpx; }
-.team-activity-head { display: flex; gap: 16rpx; }
-.team-activity-body { flex: 1; }
-.team-activity-name { font-size: 26rpx; font-weight: 500; color: #1a1a1a; }
-.team-activity-content { font-size: 26rpx; color: #999; margin-left: 12rpx; }
-.team-activity-amount { display: block; font-size: 26rpx; font-weight: 500; margin-top: 6rpx; }
-.team-activity-time { display: flex; align-items: center; gap: 6rpx; margin-top: 12rpx; }
-.team-activity-time-txt { font-size: 22rpx; color: #999; }
+/* 排行 */
+.tm-rank { display: flex; align-items: center; gap: 20rpx; padding: 20rpx 24rpx; background: #fff; border-radius: 16rpx; border: 1rpx solid #EDE7DC; }
+.tm-rank.top { border-color: #f5e3c0; }
+.tm-rank-no { width: 44rpx; height: 44rpx; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.tm-rank-no.r1 { background: #f59e0b; }
+.tm-rank-no.r2 { background: #9ca3af; }
+.tm-rank-no.r3 { background: #b45309; }
+.tm-rank-no.rn { background: #F2ECE1; }
+.tm-rank-no-txt { font-size: 22rpx; font-weight: 700; color: #fff; }
+.tm-rank-no-txt.rn { color: #8a8178; }
+.tm-rank-name { flex: 1; min-width: 0; font-size: 28rpx; font-weight: 500; color: #2C2C2C; }
+.tm-rank-val { font-size: 30rpx; font-weight: 700; }
+.tm-rank-val.primary { color: var(--brand); }
 
 /* 案例 */
-.team-case-card { background: #fff; border: 1rpx solid #eee; border-radius: 20rpx; padding: 28rpx; }
-.team-case-head { display: flex; gap: 20rpx; margin-bottom: 20rpx; }
-.team-case-name { font-size: 28rpx; font-weight: 500; color: #1a1a1a; }
-.team-case-meta { display: flex; align-items: center; gap: 12rpx; margin-top: 8rpx; }
-.team-case-duration { font-size: 22rpx; color: #999; }
-.team-case-title { display: block; font-size: 28rpx; font-weight: 500; color: #1a1a1a; margin-bottom: 12rpx; }
-.team-case-desc { display: block; font-size: 24rpx; color: #999; line-height: 1.5; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-.team-case-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 28rpx; padding-top: 24rpx; border-top: 1rpx solid #f0f0f0; }
-.team-case-footer-label { font-size: 24rpx; color: #999; }
-.team-case-footer-val { font-size: 28rpx; font-weight: 700; }
+.tm-case { padding: 24rpx; background: #fff; border-radius: 16rpx; border: 1rpx solid #EDE7DC; }
+.tm-case-head { display: flex; align-items: center; justify-content: space-between; }
+.tm-case-name { font-size: 28rpx; font-weight: 600; color: #2C2C2C; }
+.tm-case-earning { font-size: 26rpx; font-weight: 700; }
+.tm-case-earning.primary { color: var(--brand); }
+.tm-case-intro { display: block; margin-top: 12rpx; font-size: 24rpx; color: #6b7280; line-height: 1.5; }
+.tm-case-since { display: block; margin-top: 12rpx; font-size: 22rpx; color: #9ca3af; }
 
-/* 弹窗 */
-.team-mask { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 100; display: flex; flex-direction: column; justify-content: flex-end; }
-.team-sheet { background: #fff; border-radius: 32rpx 32rpx 0 0; padding: 24rpx 32rpx 48rpx; max-height: 80vh; }
-.team-sheet.tall { height: 80vh; display: flex; flex-direction: column; }
-.team-sheet-handle { width: 72rpx; height: 8rpx; background: #ddd; border-radius: 999rpx; margin: 0 auto 24rpx; }
-.team-sheet-title { display: block; font-size: 32rpx; font-weight: 600; color: #1a1a1a; text-align: center; margin-bottom: 32rpx; }
-.team-qr-wrap { display: flex; flex-direction: column; align-items: center; }
-.team-qr-box { width: 320rpx; height: 320rpx; background: #f5f5f5; border-radius: 20rpx; display: flex; align-items: center; justify-content: center; }
-.team-qr-hint { font-size: 24rpx; color: #999; margin-top: 16rpx; }
-.team-link-section { margin-top: 40rpx; }
-.team-link-label { display: block; font-size: 26rpx; font-weight: 500; color: #1a1a1a; margin-bottom: 16rpx; }
-.team-link-row { display: flex; gap: 16rpx; }
-.team-link-box { flex: 1; min-width: 0; background: #f5f5f5; border-radius: 12rpx; padding: 0 20rpx; display: flex; align-items: center; }
-.team-link-txt { font-size: 24rpx; color: #666; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.team-link-copy { display: flex; align-items: center; gap: 6rpx; background: #C41E3A; border-radius: 12rpx; padding: 18rpx 28rpx; }
-.team-link-copy-txt { font-size: 26rpx; color: #fff; }
-.team-share-btn { display: flex; align-items: center; justify-content: center; gap: 12rpx; margin-top: 40rpx; height: 88rpx; background: #C41E3A; border-radius: 16rpx; }
-.team-share-txt { font-size: 28rpx; color: #fff; font-weight: 500; }
+/* 空态/骨架 */
+.tm-empty { display: flex; flex-direction: column; align-items: center; gap: 16rpx; padding: 100rpx 0; }
+.tm-empty-txt { font-size: 26rpx; color: #9ca3af; }
+.tm-state { padding: 24rpx 32rpx; }
+.tm-state.center { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24rpx; padding: 160rpx 48rpx; }
+.tm-sk { height: 140rpx; border-radius: 16rpx; background: #EDE7DC; opacity: 0.6; margin-bottom: 20rpx; }
+.tm-state-text { font-size: 28rpx; color: #ef4444; }
+.tm-state-title { font-size: 30rpx; font-weight: 600; color: #2C2C2C; }
+.tm-state-desc { font-size: 26rpx; color: #8a8178; text-align: center; }
+.tm-state-btn { padding: 16rpx 56rpx; background: var(--brand); border-radius: 16rpx; }
+.tm-state-btn text { font-size: 28rpx; color: #fff; }
+.tm-pad { height: 64rpx; }
 
-/* 成员详情 */
-.team-detail-scroll { flex: 1; }
-.team-detail-info { display: flex; align-items: center; gap: 28rpx; padding: 28rpx; background: #f7f7f7; border-radius: 20rpx; }
-.team-detail-name { display: block; font-size: 34rpx; font-weight: 500; color: #1a1a1a; }
-.team-detail-date { display: block; font-size: 24rpx; color: #999; margin-top: 4rpx; }
-.team-detail-stats { display: flex; gap: 20rpx; margin-top: 28rpx; }
-.team-detail-stat { flex: 1; text-align: center; padding: 24rpx 0; background: #fff; border: 1rpx solid #eee; border-radius: 20rpx; }
-.team-detail-stat-num { display: block; font-size: 40rpx; font-weight: 700; color: #1a1a1a; }
-.team-detail-stat-num.primary { color: #C41E3A; }
-.team-detail-stat-label { font-size: 22rpx; color: #999; }
-.team-detail-block { margin-top: 32rpx; }
-.team-detail-block-title { display: block; font-size: 28rpx; font-weight: 500; color: #1a1a1a; margin-bottom: 20rpx; }
-.team-order-row { display: flex; align-items: center; justify-content: space-between; padding: 24rpx; background: #fff; border: 1rpx solid #eee; border-radius: 16rpx; margin-bottom: 16rpx; }
-.team-order-amount { display: block; font-size: 26rpx; color: #1a1a1a; }
-.team-order-time { display: block; font-size: 22rpx; color: #999; margin-top: 4rpx; }
-.team-order-commission { font-size: 28rpx; font-weight: 500; }
-.team-invited-wrap { display: flex; flex-wrap: wrap; gap: 16rpx; }
-.team-invited-chip { display: flex; align-items: center; gap: 10rpx; padding: 10rpx 20rpx 10rpx 10rpx; background: #f5f5f5; border-radius: 999rpx; }
-.team-invited-name { font-size: 24rpx; color: #333; }
-/* 三态 */
-.state-loading, .state-error { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 120rpx 32rpx; }
-.state-loading text { font-size: 28rpx; color: #999; }
-.state-error-text { font-size: 28rpx; color: #ef4444; text-align: center; margin-bottom: 24rpx; }
-.state-retry-btn { padding: 16rpx 48rpx; background: #7c3aed; border-radius: 12rpx; }
-.state-retry-btn text { font-size: 26rpx; color: #fff; }
+/* 邀请弹层 */
+.tm-mask { position: fixed; inset: 0; z-index: 100; background: rgba(0,0,0,0.5); display: flex; align-items: flex-end; }
+.tm-sheet { width: 100%; background: #fff; border-radius: 32rpx 32rpx 0 0; }
+.tm-sheet-head { display: flex; align-items: center; justify-content: space-between; padding: 32rpx; }
+.tm-sheet-title { font-size: 30rpx; font-weight: 600; color: #2C2C2C; }
+.tm-sheet-close { width: 56rpx; height: 56rpx; display: flex; align-items: center; justify-content: center; }
+.tm-sheet-body { padding: 0 32rpx 64rpx; }
+.tm-sheet-desc { font-size: 24rpx; color: #8a8178; line-height: 1.6; }
+.tm-link { margin-top: 24rpx; padding: 20rpx 24rpx; background: #f7f4ef; border-radius: 12rpx; }
+.tm-link-txt { font-size: 22rpx; color: #6b7280; word-break: break-all; }
+.tm-copy { margin-top: 24rpx; height: 88rpx; background: var(--brand); border-radius: 16rpx; display: flex; align-items: center; justify-content: center; }
+.tm-copy-txt { font-size: 28rpx; color: #fff; font-weight: 600; }
 </style>

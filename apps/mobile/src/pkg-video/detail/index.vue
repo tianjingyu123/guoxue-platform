@@ -5,6 +5,7 @@
     @touchmove="onTouchMove"
     @touchend="onTouchEnd"
   >
+    <customer-service-fab />
     <!-- 视频容器：支持上下滑动 -->
     <view class="vp__stage">
       <!-- 上一个视频预览 -->
@@ -13,7 +14,7 @@
         class="vp__layer"
         :style="layerStyle(-windowH - swipeOffset)"
       >
-        <image class="vp__cover" :src="prevVideo.coverUrl" mode="aspectFill" />
+        <image lazy-load class="vp__cover" :src="prevVideo.coverUrl" mode="aspectFill" />
         <view class="vp__shade" />
       </view>
 
@@ -23,7 +24,7 @@
         :style="curLayerStyle"
         @tap="onSingleTap"
       >
-        <image class="vp__cover" :src="currentVideo.coverUrl" mode="aspectFill" />
+        <image lazy-load class="vp__cover" :src="currentVideo.coverUrl" mode="aspectFill" />
         <!-- 暂停图标 -->
         <view v-if="!isPlaying" class="vp__pause">
           <view class="vp__pause-btn">
@@ -48,7 +49,7 @@
         class="vp__layer"
         :style="layerStyle(windowH - swipeOffset)"
       >
-        <image class="vp__cover" :src="nextVideo.coverUrl" mode="aspectFill" />
+        <image lazy-load class="vp__cover" :src="nextVideo.coverUrl" mode="aspectFill" />
         <view class="vp__shade" />
       </view>
     </view>
@@ -90,7 +91,7 @@
     <view class="vp__actions">
       <!-- 作者头像 -->
       <view class="vp__avatar-wrap">
-        <image class="vp__avatar" :src="currentVideo.author.avatar" mode="aspectFill" />
+        <image lazy-load class="vp__avatar" :src="currentVideo.author.avatar" mode="aspectFill" />
         <view v-if="currentVideo.author.verified" class="vp__verified">
           <AppIcon name="check" :size="18" color="#ffffff" />
         </view>
@@ -190,7 +191,7 @@
         </view>
         <scroll-view scroll-y class="sheet__body">
           <view v-for="p in currentVideo.products" :key="p.id" class="prod">
-            <image class="prod__img" :src="p.image" mode="aspectFill" />
+            <image lazy-load class="prod__img" :src="p.image" mode="aspectFill" />
             <view class="prod__info">
               <text class="prod__name">{{ p.name }}</text>
               <view class="prod__price-row">
@@ -219,7 +220,7 @@
         <scroll-view scroll-y class="sheet__body">
           <text v-if="cart.length === 0" class="sheet__empty">购物车是空的</text>
           <view v-for="item in cart" :key="item.productId" class="cart-row">
-            <image class="cart-row__img" :src="item.product.image" mode="aspectFill" />
+            <image lazy-load class="cart-row__img" :src="item.product.image" mode="aspectFill" />
             <view class="cart-row__info">
               <text class="cart-row__name">{{ item.product.name }}</text>
               <text class="cart-row__price">¥{{ item.product.price }}</text>
@@ -245,9 +246,10 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { onLoad, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
+import { useShare } from '@/composables/useShare'
 import { mockVideos, formatVideoNumber as fmt, type VideoItem, type VideoProduct } from '@/lib/video-data'
 
 interface CartItem { productId: string; quantity: number; product: VideoProduct }
@@ -305,6 +307,19 @@ onLoad((opts) => {
     if (idx !== -1) currentIndex.value = idx
   }
 })
+
+// 微信原生分享（分享当前正在播放的视频）
+const { toAppMessage, toTimeline } = useShare()
+onShareAppMessage(() => toAppMessage({
+  title: currentVideo.value?.title || '国学视频',
+  path: `/video/${currentVideo.value?.id || ''}`,
+  cover: currentVideo.value?.coverUrl,
+}))
+onShareTimeline(() => toTimeline({
+  title: currentVideo.value?.title || '国学视频',
+  path: `/video/${currentVideo.value?.id || ''}`,
+  cover: currentVideo.value?.coverUrl,
+}))
 
 // ===== 触摸滑动 =====
 function onTouchStart(e: any) {
@@ -445,7 +460,7 @@ function onBack() {
 .vp__top-row { display: flex; align-items: center; justify-content: space-between; padding: 16rpx 24rpx; }
 .vp__icon-btn { position: relative; width: 64rpx; height: 64rpx; border-radius: 999rpx; background: rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; }
 .vp__top-right { display: flex; align-items: center; gap: 12rpx; }
-.vp__cart-badge { position: absolute; top: -6rpx; right: -6rpx; min-width: 32rpx; height: 32rpx; padding: 0 6rpx; border-radius: 999rpx; background: #c41e3a; color: #fff; font-size: 18rpx; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+.vp__cart-badge { position: absolute; top: -6rpx; right: -6rpx; min-width: 32rpx; height: 32rpx; padding: 0 6rpx; border-radius: 999rpx; background: var(--brand); color: #fff; font-size: 18rpx; font-weight: 700; display: flex; align-items: center; justify-content: center; }
 .vp__progress { display: flex; align-items: center; gap: 6rpx; }
 .vp__dot { width: 10rpx; height: 10rpx; border-radius: 999rpx; background: rgba(255,255,255,0.4); transition: all 0.2s; }
 .vp__dot--active { width: 28rpx; background: #fff; }
@@ -454,8 +469,8 @@ function onBack() {
 .vp__actions { position: absolute; right: 20rpx; bottom: 320rpx; z-index: 30; display: flex; flex-direction: column; align-items: center; gap: 36rpx; }
 .vp__avatar-wrap { position: relative; margin-bottom: 8rpx; }
 .vp__avatar { width: 84rpx; height: 84rpx; border-radius: 999rpx; border: 3rpx solid #fff; background: #333; }
-.vp__verified { position: absolute; bottom: -2rpx; right: -2rpx; width: 30rpx; height: 30rpx; border-radius: 999rpx; background: #c41e3a; display: flex; align-items: center; justify-content: center; }
-.vp__follow-plus { position: absolute; bottom: -16rpx; left: 50%; transform: translateX(-50%); width: 36rpx; height: 36rpx; border-radius: 999rpx; background: #c41e3a; display: flex; align-items: center; justify-content: center; }
+.vp__verified { position: absolute; bottom: -2rpx; right: -2rpx; width: 30rpx; height: 30rpx; border-radius: 999rpx; background: var(--brand); display: flex; align-items: center; justify-content: center; }
+.vp__follow-plus { position: absolute; bottom: -16rpx; left: 50%; transform: translateX(-50%); width: 36rpx; height: 36rpx; border-radius: 999rpx; background: var(--brand); display: flex; align-items: center; justify-content: center; }
 .vp__act { display: flex; flex-direction: column; align-items: center; gap: 6rpx; }
 .vp__act-circle { width: 80rpx; height: 80rpx; border-radius: 999rpx; background: rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
 .vp__act-circle--liked { background: rgba(230,57,80,0.2); }
@@ -471,7 +486,7 @@ function onBack() {
 .vp__author-name { font-size: 30rpx; font-weight: 600; color: #fff; }
 .vp__auth-badge { padding: 2rpx 10rpx; border-radius: 6rpx; background: rgba(201,168,106,0.8); }
 .vp__auth-badge-txt { font-size: 18rpx; color: #fff; }
-.vp__follow-btn { padding: 4rpx 18rpx; border-radius: 999rpx; background: #c41e3a; }
+.vp__follow-btn { padding: 4rpx 18rpx; border-radius: 999rpx; background: var(--brand); }
 .vp__follow-btn-txt { font-size: 22rpx; color: #fff; font-weight: 500; }
 .vp__title { display: block; font-size: 26rpx; color: #fff; line-height: 1.5; margin-bottom: 16rpx; }
 .vp__music { display: flex; align-items: center; gap: 10rpx; margin-bottom: 16rpx; }
@@ -508,11 +523,11 @@ function onBack() {
 .prod__info { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .prod__name { font-size: 26rpx; font-weight: 500; color: var(--text, #1a1a1a); line-height: 1.4; }
 .prod__price-row { display: flex; align-items: baseline; gap: 12rpx; margin: 10rpx 0; }
-.prod__price { font-size: 30rpx; font-weight: 700; color: #c41e3a; }
+.prod__price { font-size: 30rpx; font-weight: 700; color: var(--brand); }
 .prod__origin { font-size: 22rpx; color: var(--text-muted, #999); text-decoration: line-through; }
 .prod__foot { display: flex; align-items: center; justify-content: space-between; margin-top: auto; }
 .prod__sales { font-size: 22rpx; color: var(--text-muted, #999); }
-.prod__buy { padding: 10rpx 28rpx; border-radius: 999rpx; background: #c41e3a; }
+.prod__buy { padding: 10rpx 28rpx; border-radius: 999rpx; background: var(--brand); }
 .prod__buy--added { background: #34A853; }
 .prod__buy-txt { font-size: 22rpx; color: #fff; font-weight: 500; }
 
@@ -521,13 +536,13 @@ function onBack() {
 .cart-row__img { width: 112rpx; height: 112rpx; border-radius: 14rpx; flex-shrink: 0; }
 .cart-row__info { flex: 1; min-width: 0; }
 .cart-row__name { display: block; font-size: 26rpx; font-weight: 500; color: var(--text, #1a1a1a); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; margin-bottom: 8rpx; }
-.cart-row__price { font-size: 28rpx; font-weight: 700; color: #c41e3a; }
+.cart-row__price { font-size: 28rpx; font-weight: 700; color: var(--brand); }
 .cart-row__qty { display: flex; align-items: center; gap: 16rpx; }
 .cart-row__btn { width: 48rpx; height: 48rpx; border-radius: 999rpx; background: var(--surface, #fff); border: 1rpx solid var(--border, #eee); display: flex; align-items: center; justify-content: center; }
 .cart-row__num { min-width: 36rpx; text-align: center; font-size: 26rpx; font-weight: 500; color: var(--text, #1a1a1a); }
 .cart-foot { display: flex; align-items: center; justify-content: space-between; padding: 24rpx 28rpx; border-top: 1rpx solid var(--border, #eee); }
 .cart-foot__label { font-size: 24rpx; color: var(--text-muted, #999); }
-.cart-foot__amount { font-size: 38rpx; font-weight: 700; color: #c41e3a; }
-.cart-foot__checkout { padding: 20rpx 56rpx; border-radius: 999rpx; background: #c41e3a; }
+.cart-foot__amount { font-size: 38rpx; font-weight: 700; color: var(--brand); }
+.cart-foot__checkout { padding: 20rpx 56rpx; border-radius: 999rpx; background: var(--brand); }
 .cart-foot__checkout-txt { font-size: 28rpx; color: #fff; font-weight: 500; }
 </style>

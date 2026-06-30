@@ -222,7 +222,7 @@ function goShop() {
 .info-right { display: flex; align-items: center; gap: 16rpx; }
 .info-value { font-size: 28rpx; color: #2C2C2C; font-weight: 500; }
 .copy-btn { display: flex; align-items: center; gap: 6rpx; }
-.copy-text { font-size: 24rpx; color: #C41E3A; }
+.copy-text { font-size: 24rpx; color: var(--brand); }
 .actions {
   display: flex;
   flex-direction: column;
@@ -242,7 +242,7 @@ function goShop() {
   gap: 12rpx;
   font-size: 30rpx;
   font-weight: 500;
-  &.primary { background: #C41E3A; color: #FFFFFF; }
+  &.primary { background: var(--brand); color: #FFFFFF; }
   &.ghost { background: #FFFFFF; border: 1rpx solid #E8E3DB; color: #2C2C2C; }
 }
 .recommend {
@@ -264,7 +264,7 @@ function goShop() {
   width: 72rpx;
   height: 72rpx;
   border-radius: 18rpx;
-  background: linear-gradient(135deg, #C41E3A, #e85a6b);
+  background: linear-gradient(135deg, var(--brand), #e85a6b);
   display: flex;
   align-items: center;
   justify-content: center;

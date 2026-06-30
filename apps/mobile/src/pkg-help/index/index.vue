@@ -358,7 +358,7 @@ function go(url: string) {
   display: inline-block;
   margin-top: 16rpx;
   font-size: 24rpx;
-  color: #C41E3A;
+  color: var(--brand);
 }
 .q-list {
   display: flex;
@@ -443,7 +443,7 @@ function go(url: string) {
 }
 .q-feedback-yes {
   font-size: 24rpx;
-  color: #C41E3A;
+  color: var(--brand);
 }
 .q-feedback-no {
   font-size: 24rpx;
@@ -526,7 +526,7 @@ function go(url: string) {
   width: 100%;
   height: 96rpx;
   border-radius: 24rpx;
-  background: #C41E3A;
+  background: var(--brand);
   display: flex;
   align-items: center;
   justify-content: center;

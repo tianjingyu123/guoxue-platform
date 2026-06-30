@@ -314,7 +314,7 @@ function handleSubmit() {
 .coins-container { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20rpx; margin-bottom: 24rpx; }
 .coin-item { display: flex; flex-direction: column; align-items: center; gap: 8rpx; padding: 20rpx 12rpx; border-radius: 20rpx; border: 3rpx solid rgba(0,0,0,0.08); background: var(--bg-paper); transition: all 0.2s; }
 .coin-shaking { transform: rotateY(180deg); }
-.coin-yang { border-color: #c41e3a; background: rgba(196,30,58,0.05); }
+.coin-yang { border-color: var(--brand); background: rgba(196,30,58,0.05); }
 .coin-yin { border-color: #2d5a87; background: rgba(45,90,135,0.05); }
 .coin-face { display: flex; flex-direction: column; align-items: center; gap: 4rpx; }
 .coin-num { font-size: 24rpx; color: var(--text-soft); }
@@ -325,7 +325,7 @@ function handleSubmit() {
 
 /* 摇卦按钮 */
 .coins-actions { margin-bottom: 20rpx; }
-.btn-shake { display: flex; align-items: center; justify-content: center; gap: 12rpx; padding: 24rpx; background: linear-gradient(135deg, #c41e3a, #a01830); border-radius: 20rpx; }
+.btn-shake { display: flex; align-items: center; justify-content: center; gap: 12rpx; padding: 24rpx; background: linear-gradient(135deg, var(--brand), #a01830); border-radius: 20rpx; }
 .btn-disabled { opacity: 0.5; pointer-events: none; }
 .btn-shake-text { font-size: 28rpx; font-weight: 600; color: #fff; }
 

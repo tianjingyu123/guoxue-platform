@@ -7,154 +7,200 @@
           <AppIcon name="arrow-left" :size="20" color="#1a1a1a" />
         </view>
         <text class="rv-title">收入管理</text>
-        <view class="rv-cal" @tap="toast">
-          <AppIcon name="calendar" :size="20" color="#1a1a1a" />
-        </view>
+        <view class="rv-cal" />
       </view>
     </view>
 
     <scroll-view scroll-y class="rv-scroll" :style="{ paddingTop: statusBarHeight + 44 + 'px' }">
-      <!-- 余额卡片 -->
-      <view class="rv-balance">
-        <view class="rv-balance-top">
-          <view>
-            <text class="rv-balance-label">可提现余额(元)</text>
-            <text class="rv-balance-val">{{ r.balance.toFixed(2) }}</text>
-          </view>
-          <view class="rv-withdraw-btn" @tap="toast">
-            <AppIcon name="wallet" :size="16" color="#c41e3a" />
-            <text>提现</text>
-          </view>
-        </view>
-        <view class="rv-balance-sub">
-          <view>
-            <text class="rv-sub-label">待结算</text>
-            <text class="rv-sub-val">¥{{ r.pendingSettle.toFixed(2) }}</text>
-          </view>
-          <view>
-            <text class="rv-sub-label">冻结中</text>
-            <text class="rv-sub-val">¥{{ r.frozen.toFixed(2) }}</text>
-          </view>
-        </view>
+      <!-- Loading -->
+      <view v-if="loading" class="rv-state">
+        <text class="rv-state-txt">加载中…</text>
+      </view>
+      <!-- Error -->
+      <view v-else-if="error" class="rv-state">
+        <AppIcon name="alert-circle" :size="48" color="#dc2626" />
+        <text class="rv-state-title">加载失败</text>
+        <text class="rv-state-txt">{{ error }}</text>
+        <view class="rv-retry" @tap="load"><text>重试</text></view>
       </view>
 
-      <!-- 数据概览 -->
-      <view class="rv-overview-wrap">
-        <view class="rv-overview">
-          <view class="rv-ov-cell">
-            <text class="rv-ov-val">¥{{ (r.totalIncome / 1000).toFixed(1) }}k</text>
-            <text class="rv-ov-label">累计收入</text>
-          </view>
-          <view class="rv-ov-cell rv-ov-bordered">
-            <text class="rv-ov-val">¥{{ r.monthIncome.toFixed(0) }}</text>
-            <text class="rv-ov-label">本月收入</text>
-          </view>
-          <view class="rv-ov-cell">
-            <view class="rv-ov-trend">
-              <AppIcon name="trending-up" :size="16" color="#16a34a" />
-              <text class="rv-ov-trend-val">+{{ r.monthCompare }}%</text>
+      <template v-else>
+        <!-- 分成概览卡片 -->
+        <view class="rv-balance">
+          <view class="rv-balance-top">
+            <view>
+              <text class="rv-balance-label">商家分成累计(元)</text>
+              <text class="rv-balance-val">{{ money(revenue.merchantShare) }}</text>
             </view>
-            <text class="rv-ov-label">环比上月</text>
+            <view class="rv-withdraw-btn rv-withdraw-disabled" @tap="onWithdraw">
+              <AppIcon name="wallet" :size="16" color="#bbbbbb" />
+              <text>提现·即将开放</text>
+            </view>
           </view>
-        </view>
-      </view>
-
-      <!-- 收支明细 -->
-      <view class="rv-section">
-        <view class="rv-section-head">
-          <text class="rv-section-title">收支明细</text>
-          <view class="rv-export" @tap="toast">
-            <AppIcon name="download" :size="16" color="#c41e3a" />
-            <text>导出</text>
-          </view>
-        </view>
-        <view class="rv-tabs">
-          <view
-            v-for="t in tabs"
-            :key="t.key"
-            class="rv-tab"
-            :class="{ active: activeTab === t.key }"
-            @tap="activeTab = t.key"
-          >
-            {{ t.label }}
+          <view class="rv-balance-sub">
+            <view>
+              <text class="rv-sub-label">累计销售额</text>
+              <text class="rv-sub-val">¥{{ money(revenue.totalSales) }}</text>
+            </view>
+            <view>
+              <text class="rv-sub-label">平台抽成</text>
+              <text class="rv-sub-val">¥{{ money(revenue.platformShare) }}</text>
+            </view>
           </view>
         </view>
 
-        <view class="rv-list">
-          <view v-for="item in filteredTransactions" :key="item.id" class="rv-tx">
-            <view class="rv-tx-icon" :style="{ color: typeCfg[item.type].color }">
-              <AppIcon :name="typeCfg[item.type].icon" :size="20" :color="typeCfg[item.type].color" />
+        <!-- 数据概览 -->
+        <view class="rv-overview-wrap">
+          <view class="rv-overview">
+            <view class="rv-ov-cell">
+              <text class="rv-ov-val">{{ revenue.totalOrders }}</text>
+              <text class="rv-ov-label">累计订单</text>
             </view>
-            <view class="rv-tx-info">
-              <view class="rv-tx-top">
-                <text class="rv-tx-title">{{ item.title }}</text>
-                <text class="rv-tx-status" :style="{ color: statusCfg[item.status].color, background: statusCfg[item.status].bg }">
-                  {{ statusCfg[item.status].label }}
-                </text>
+            <view class="rv-ov-cell rv-ov-bordered">
+              <text class="rv-ov-val">¥{{ money(revenue.merchantShare) }}</text>
+              <text class="rv-ov-label">商家分成</text>
+            </view>
+            <view class="rv-ov-cell">
+              <text class="rv-ov-val">{{ commissionPct }}</text>
+              <text class="rv-ov-label">平台抽成比例</text>
+            </view>
+          </view>
+        </view>
+
+        <!-- 结算单 -->
+        <view class="rv-section">
+          <view class="rv-section-head">
+            <text class="rv-section-title">结算单</text>
+          </view>
+          <view class="rv-tabs">
+            <view
+              v-for="t in tabs"
+              :key="t.key"
+              class="rv-tab"
+              :class="{ active: activeTab === t.key }"
+              @tap="activeTab = t.key"
+            >
+              {{ t.label }}
+            </view>
+          </view>
+
+          <view v-if="filteredSettlements.length" class="rv-list">
+            <view v-for="s in filteredSettlements" :key="s.id" class="rv-tx">
+              <view class="rv-tx-info">
+                <view class="rv-tx-top">
+                  <text class="rv-tx-title">{{ periodText(s) }}</text>
+                  <text class="rv-tx-status" :style="{ color: stCfg(s.status).color, background: stCfg(s.status).bg }">
+                    {{ stCfg(s.status).label }}
+                  </text>
+                </view>
+                <text class="rv-tx-sub">{{ s.orderCount }} 单 · 营收 ¥{{ money(s.totalRevenue) }} · 抽成 ¥{{ money(s.commission) }}</text>
               </view>
-              <text class="rv-tx-sub">{{ item.orderNo ? '订单: ' + item.orderNo : item.bankCard }}</text>
-            </view>
-            <view class="rv-tx-right">
-              <text class="rv-tx-amount" :class="{ income: item.amount > 0 }">
-                {{ item.amount > 0 ? '+' : '' }}{{ item.amount.toFixed(2) }}
-              </text>
-              <text class="rv-tx-time">{{ item.createdAt }}</text>
+              <view class="rv-tx-right">
+                <text class="rv-tx-amount income">+{{ money(s.settlementAmount) }}</text>
+                <text class="rv-tx-time">{{ s.paidAt ? dt(s.paidAt) : dt(s.createdAt) }}</text>
+              </view>
             </view>
           </view>
+          <view v-else class="rv-empty">
+            <AppIcon name="file-text" :size="40" color="#cccccc" />
+            <text class="rv-empty-txt">暂无结算单</text>
+          </view>
         </view>
-      </view>
 
-      <!-- 结算说明 -->
-      <view class="rv-section">
-        <view class="rv-settle">
-          <AppIcon name="clock" :size="16" color="#d97706" />
-          <view>
-            <text class="rv-settle-title">结算说明</text>
-            <text class="rv-settle-desc">订单完成后7天自动结算到可提现余额，提现到银行卡1-3个工作日到账。</text>
+        <!-- 结算说明 -->
+        <view class="rv-section">
+          <view class="rv-settle">
+            <AppIcon name="clock" :size="16" color="#d97706" />
+            <view>
+              <text class="rv-settle-title">结算说明</text>
+              <text class="rv-settle-desc">订单完成后平台按周期生成结算单，商家分成 = 销售额 − 平台抽成。提现功能即将开放。</text>
+            </view>
           </view>
         </view>
-      </view>
-      <view style="height: 24px" />
+        <view style="height: 24px" />
+      </template>
     </scroll-view>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
-import { merchantRevenue, revenueTransactions, revenueTypeConfig, revenueStatusConfig } from '@/lib/merchant-data'
+import {
+  merchantBackendApi,
+  settlementStatusConfig,
+  type RevenueOverview,
+  type MerchantSettlement,
+} from '@/lib/merchant-data'
 
 const statusBarHeight = ref(0)
-uni.getSystemInfo({ success: (e) => { statusBarHeight.value = e.statusBarHeight || 0 } })
+const loading = ref(true)
+const error = ref('')
 
-const r = merchantRevenue
-const typeCfg = revenueTypeConfig
-const statusCfg = revenueStatusConfig
+const revenue = ref<RevenueOverview>({ totalSales: 0, totalOrders: 0, merchantShare: 0, platformShare: 0, commissionRate: 0 })
+const settlements = ref<MerchantSettlement[]>([])
 const activeTab = ref('all')
 
 const tabs = [
   { key: 'all', label: '全部' },
-  { key: 'income', label: '收入' },
-  { key: 'withdraw', label: '提现' },
-  { key: 'refund', label: '支出' },
+  { key: 'PENDING', label: '待结算' },
+  { key: 'PAID', label: '已结算' },
+  { key: 'CANCELLED', label: '已取消' },
 ]
 
-const filteredTransactions = computed(() =>
-  revenueTransactions.filter((t) => {
-    if (activeTab.value === 'income') return t.type === 'income'
-    if (activeTab.value === 'withdraw') return t.type === 'withdraw'
-    if (activeTab.value === 'refund') return t.type === 'refund' || t.type === 'fee'
-    return true
-  }),
+const filteredSettlements = computed(() =>
+  activeTab.value === 'all' ? settlements.value : settlements.value.filter((s) => s.status === activeTab.value),
 )
 
-function toast() {
-  uni.showToast({ title: '演示功能', icon: 'none' })
+// 分成比例：后端可能返回小数(0.05)或百分数(5)，统一归一为百分比展示
+const commissionPct = computed(() => {
+  const rate = Number(revenue.value.commissionRate) || 0
+  const pct = rate <= 1 ? rate * 100 : rate
+  return `${Number(pct.toFixed(2))}%`
+})
+
+function money(v: number | string | null | undefined) {
+  return (Number(v) || 0).toFixed(2)
+}
+function dt(v?: string | null) {
+  return v ? String(v).slice(0, 10) : ''
+}
+function periodText(s: MerchantSettlement) {
+  return `${dt(s.periodStart)} ~ ${dt(s.periodEnd)}`
+}
+function stCfg(status: string) {
+  return settlementStatusConfig[status] || { label: status, color: '#4b5563', bg: '#f3f4f6' }
+}
+
+async function load() {
+  loading.value = true
+  error.value = ''
+  try {
+    const [rev, settle] = await Promise.all([
+      merchantBackendApi.getRevenue(),
+      merchantBackendApi.getSettlements({ pageSize: 50 }),
+    ])
+    revenue.value = rev
+    settlements.value = settle.items
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+function onWithdraw() {
+  uni.showToast({ title: '提现功能即将开放', icon: 'none' })
 }
 function go(path: string) {
   navigateTo(path)
 }
+
+onMounted(() => {
+  uni.getSystemInfo({ success: (e) => { statusBarHeight.value = e.statusBarHeight || 0 } })
+  load()
+})
 </script>
 
 <style scoped>
@@ -163,14 +209,15 @@ function go(path: string) {
 .rv-header-inner { height: 44px; display: flex; align-items: center; padding: 0 16px; }
 .rv-back { width: 32px; display: flex; align-items: center; }
 .rv-title { font-size: 18px; font-weight: 600; color: #1a1a1a; flex: 1; }
-.rv-cal { width: 32px; display: flex; align-items: center; justify-content: flex-end; }
+.rv-cal { width: 32px; }
 .rv-scroll { height: 100vh; box-sizing: border-box; }
 
-.rv-balance { background: linear-gradient(135deg, #c41e3a, #a01830); padding: 16px; padding-bottom: 64px; }
+.rv-balance { background: linear-gradient(135deg, var(--brand), #a01830); padding: 16px; padding-bottom: 64px; }
 .rv-balance-top { display: flex; align-items: center; justify-content: space-between; }
 .rv-balance-label { font-size: 13px; color: rgba(255,255,255,0.8); display: block; }
 .rv-balance-val { font-size: 30px; font-weight: 700; color: #fff; margin-top: 4px; display: block; }
-.rv-withdraw-btn { display: flex; align-items: center; gap: 6px; background: #fff; color: #c41e3a; font-size: 14px; padding: 8px 16px; border-radius: 8px; }
+.rv-withdraw-btn { display: flex; align-items: center; gap: 6px; background: #fff; color: var(--brand); font-size: 14px; padding: 8px 16px; border-radius: 8px; }
+.rv-withdraw-disabled { background: rgba(255,255,255,0.6); color: #999; }
 .rv-balance-sub { display: flex; gap: 24px; margin-top: 16px; }
 .rv-sub-label { font-size: 13px; color: rgba(255,255,255,0.7); display: block; }
 .rv-sub-val { font-size: 14px; font-weight: 500; color: #fff; margin-top: 2px; display: block; }
@@ -181,20 +228,16 @@ function go(path: string) {
 .rv-ov-bordered { border-left: 1px solid #f3f4f6; border-right: 1px solid #f3f4f6; }
 .rv-ov-val { font-size: 18px; font-weight: 700; color: #1a1a1a; }
 .rv-ov-label { font-size: 12px; color: #9ca3af; margin-top: 2px; }
-.rv-ov-trend { display: flex; align-items: center; gap: 4px; }
-.rv-ov-trend-val { font-size: 18px; font-weight: 700; color: #16a34a; }
 
 .rv-section { padding: 0 16px; margin-top: 16px; }
 .rv-section-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
 .rv-section-title { font-size: 15px; font-weight: 500; color: #1a1a1a; }
-.rv-export { display: flex; align-items: center; gap: 4px; font-size: 12px; color: #c41e3a; }
 .rv-tabs { display: flex; background: #ececef; border-radius: 8px; padding: 3px; margin-bottom: 12px; }
 .rv-tab { flex: 1; text-align: center; font-size: 12px; color: #6b7280; padding: 6px 0; border-radius: 6px; }
 .rv-tab.active { background: #fff; color: #1a1a1a; font-weight: 500; }
 
 .rv-list { display: flex; flex-direction: column; gap: 8px; }
 .rv-tx { background: #fff; border-radius: 12px; padding: 12px; display: flex; align-items: center; gap: 12px; }
-.rv-tx-icon { width: 40px; height: 40px; border-radius: 50%; background: #f5f5f7; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .rv-tx-info { flex: 1; min-width: 0; }
 .rv-tx-top { display: flex; align-items: center; gap: 8px; }
 .rv-tx-title { font-size: 14px; font-weight: 500; color: #1a1a1a; }
@@ -208,4 +251,13 @@ function go(path: string) {
 .rv-settle { background: #fffbeb; border: 1px solid rgba(245,158,11,0.3); border-radius: 12px; padding: 16px; display: flex; align-items: flex-start; gap: 8px; }
 .rv-settle-title { font-size: 14px; font-weight: 500; color: #1a1a1a; display: block; }
 .rv-settle-desc { font-size: 12px; color: #6b7280; margin-top: 4px; display: block; line-height: 1.5; }
+
+/* 三态 */
+.rv-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 80px 24px; gap: 12px; }
+.rv-state-title { font-size: 16px; font-weight: 600; color: #1a1a1a; }
+.rv-state-txt { font-size: 14px; color: #9ca3af; text-align: center; }
+.rv-retry { margin-top: 8px; padding: 10px 32px; border: 1px solid var(--brand); border-radius: 8px; }
+.rv-retry text { font-size: 14px; color: var(--brand); }
+.rv-empty { display: flex; flex-direction: column; align-items: center; padding: 48px 0; gap: 12px; }
+.rv-empty-txt { font-size: 14px; color: #9ca3af; }
 </style>

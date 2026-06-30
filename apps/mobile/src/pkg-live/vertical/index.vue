@@ -12,7 +12,7 @@
     <template v-else>
     <!-- 视频背景 -->
     <view class="video-bg">
-      <image class="video-img" :src="room.hostAvatar" mode="aspectFill" />
+      <image lazy-load class="video-img" :src="room.hostAvatar" mode="aspectFill" />
       <view class="video-mask" />
     </view>
 
@@ -22,7 +22,7 @@
         <!-- 主播信息 -->
         <view class="host-pill">
           <view class="host-avatar-wrap">
-            <image class="host-avatar" :src="room.hostAvatar" mode="aspectFill" />
+            <image lazy-load class="host-avatar" :src="room.hostAvatar" mode="aspectFill" />
             <view class="live-tag">LIVE</view>
           </view>
           <view class="host-text">
@@ -55,7 +55,7 @@
       <!-- 在线观众头像 -->
       <view class="online-row">
         <view v-for="(avatar, i) in room.onlineAvatars" :key="i" class="online-avatar" :class="{ 'online-avatar-first': i === 0 }">
-          <image class="online-img" :src="avatar" mode="aspectFill" />
+          <image lazy-load class="online-img" :src="avatar" mode="aspectFill" />
         </view>
         <text class="online-more">+{{ formatCount(viewerCount - 3) }}</text>
       </view>
@@ -65,7 +65,7 @@
     <view class="gift-anim-layer">
       <view v-for="anim in giftAnimations" :key="anim.id" class="gift-anim">
         <view class="gift-anim__icon">
-          <image class="gift-anim__img" :src="anim.gift.icon" mode="aspectFit" />
+          <image lazy-load class="gift-anim__img" :src="anim.gift.icon" mode="aspectFit" />
         </view>
         <view class="gift-anim__info">
           <text class="gift-anim__user">{{ anim.user }}</text>
@@ -115,7 +115,7 @@
     <view v-if="currentProduct" class="product-float" @tap="onOpenProductDetail(currentProduct)">
       <view class="pf-card">
         <view class="pf-img-wrap">
-          <image class="pf-img" :src="currentProduct.cover" mode="aspectFill" />
+          <image lazy-load class="pf-img" :src="currentProduct.cover" mode="aspectFill" />
           <view class="pf-badge">讲解中</view>
         </view>
         <view class="pf-info">
@@ -178,7 +178,7 @@
         </view>
         <view class="gp-grid">
           <view v-for="g in gifts" :key="g.id" class="gp-cell" @tap="onSendGift(g)">
-            <image class="gp-cell__img" :src="g.icon" mode="aspectFit" />
+            <image lazy-load class="gp-cell__img" :src="g.icon" mode="aspectFit" />
             <text class="gp-cell__name">{{ g.name }}</text>
             <text class="gp-cell__price">{{ g.price }}国学币</text>
           </view>
@@ -203,7 +203,7 @@
           <view v-for="(product, idx) in products" :key="product.id" class="pl-row" @tap="onOpenProductDetail(product)">
             <view class="pl-img-wrap">
               <view class="pl-idx">{{ idx + 1 }}</view>
-              <image class="pl-img" :src="product.cover" mode="aspectFill" />
+              <image lazy-load class="pl-img" :src="product.cover" mode="aspectFill" />
               <view v-if="product.isExplaining" class="pl-explaining">讲解中</view>
             </view>
             <view class="pl-info">
@@ -381,10 +381,10 @@ function onPaid() { showProductDetail.value = false }
 
 /* 加载/错误覆盖层 */
 .state-overlay { position: absolute; inset: 0; z-index: 200; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #000; }
-.state-spinner { width: 64rpx; height: 64rpx; border-radius: 50%; border: 4rpx solid rgba(255,255,255,0.2); border-top-color: #C41E3A; animation: spin 0.8s linear infinite; }
+.state-spinner { width: 64rpx; height: 64rpx; border-radius: 50%; border: 4rpx solid rgba(255,255,255,0.2); border-top-color: var(--brand); animation: spin 0.8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .state-txt { font-size: 26rpx; color: rgba(255,255,255,0.6); margin-top: 24rpx; }
-.state-retry { margin-top: 32rpx; padding: 16rpx 48rpx; background: #C41E3A; border-radius: 999rpx; }
+.state-retry { margin-top: 32rpx; padding: 16rpx 48rpx; background: var(--brand); border-radius: 999rpx; }
 .state-retry-txt { font-size: 28rpx; color: #fff; font-weight: 500; }
 
 /* 视频背景 */
@@ -431,14 +431,14 @@ function onPaid() { showProductDetail.value = false }
   width: 80rpx;
   height: 80rpx;
   border-radius: 50%;
-  border: 4rpx solid #C41E3A;
+  border: 4rpx solid var(--brand);
 }
 .live-tag {
   position: absolute;
   bottom: -4rpx;
   left: 50%;
   transform: translateX(-50%);
-  background: #C41E3A;
+  background: var(--brand);
   color: #fff;
   font-size: 16rpx;
   padding: 0 12rpx;
@@ -478,7 +478,7 @@ function onPaid() { showProductDetail.value = false }
   border-radius: 999rpx;
   font-size: 22rpx;
   font-weight: 500;
-  background: #C41E3A;
+  background: var(--brand);
   color: #fff;
 }
 .follow-btn--on {
@@ -669,7 +669,7 @@ function onPaid() { showProductDetail.value = false }
   font-size: 22rpx;
 }
 .dm-name--host {
-  color: #C41E3A;
+  color: var(--brand);
 }
 .dm-content {
   color: #fff;
@@ -709,7 +709,7 @@ function onPaid() { showProductDetail.value = false }
   position: absolute;
   top: 0;
   left: 0;
-  background: #C41E3A;
+  background: var(--brand);
   color: #fff;
   font-size: 16rpx;
   padding: 2rpx 8rpx;
@@ -734,7 +734,7 @@ function onPaid() { showProductDetail.value = false }
   margin-top: 4rpx;
 }
 .pf-price {
-  color: #C41E3A;
+  color: var(--brand);
   font-weight: 700;
   font-size: 28rpx;
 }
@@ -744,7 +744,7 @@ function onPaid() { showProductDetail.value = false }
   text-decoration: line-through;
 }
 .pf-buy {
-  background: #C41E3A;
+  background: var(--brand);
   color: #fff;
   font-size: 22rpx;
   padding: 12rpx 24rpx;
@@ -787,7 +787,7 @@ function onPaid() { showProductDetail.value = false }
   flex-shrink: 0;
 }
 .action-cart {
-  background: #C41E3A;
+  background: var(--brand);
 }
 .cart-badge {
   position: absolute;
@@ -842,7 +842,7 @@ function onPaid() { showProductDetail.value = false }
 .ci-send {
   width: 88rpx;
   height: 88rpx;
-  background: #C41E3A;
+  background: var(--brand);
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -915,7 +915,7 @@ function onPaid() { showProductDetail.value = false }
   font-size: 22rpx;
 }
 .gp-recharge {
-  color: #C41E3A;
+  color: var(--brand);
   font-size: 22rpx;
 }
 
@@ -971,7 +971,7 @@ function onPaid() { showProductDetail.value = false }
   top: -8rpx;
   width: 40rpx;
   height: 40rpx;
-  background: #C41E3A;
+  background: var(--brand);
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -991,7 +991,7 @@ function onPaid() { showProductDetail.value = false }
   bottom: 0;
   left: 0;
   right: 0;
-  background: #C41E3A;
+  background: var(--brand);
   color: #fff;
   font-size: 16rpx;
   text-align: center;
@@ -1015,7 +1015,7 @@ function onPaid() { showProductDetail.value = false }
   margin-top: 8rpx;
 }
 .pl-price {
-  color: #C41E3A;
+  color: var(--brand);
   font-weight: 700;
   font-size: 30rpx;
 }
@@ -1031,7 +1031,7 @@ function onPaid() { showProductDetail.value = false }
   display: block;
 }
 .pl-buy {
-  background: #C41E3A;
+  background: var(--brand);
   color: #fff;
   font-size: 22rpx;
   padding: 16rpx 32rpx;

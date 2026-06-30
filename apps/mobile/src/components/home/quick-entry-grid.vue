@@ -6,14 +6,14 @@ interface Entry { id: string; name: string; icon: string; color: string; bg: str
 
 // 十宫格入口（与原型 quick-entry-grid 1:1）
 const entries: Entry[] = [
-  { id: 'courses',  name: '课程',   icon: 'graduation-cap', color: '#4A90D9', bg: 'rgba(74,144,217,0.1)',  url: '/pkg-course/list/index' },
+  { id: 'courses',  name: '课程',   icon: 'graduation-cap', color: '#4A90D9', bg: 'rgba(74,144,217,0.1)',  url: '/pkg-course/home/index' },
   { id: 'circles',  name: '圈子',   icon: 'users',          color: '#52C41A', bg: 'rgba(82,196,26,0.1)',   url: '/pages/circles/index' },
   { id: 'classics', name: '古籍馆', icon: 'book-open',      color: '#C9A96E', bg: 'rgba(201,169,110,0.1)', url: '/pkg-classics/home/index' },
-  { id: 'mall',     name: '商城',   icon: 'shopping-bag',   color: '#C41E3A', bg: 'rgba(196,30,58,0.1)',   url: '/pkg-mall/index/index', badge: '热' },
-  { id: 'live',     name: '直播',   icon: 'radio',          color: '#E74C3C', bg: 'rgba(231,76,60,0.1)',   url: '/pkg-live/index/index' },
+  { id: 'mall',     name: '商城',   icon: 'shopping-bag',   color: '#C41E3A', bg: 'rgba(196,30,58,0.1)',   url: '/pkg-mall/home/index', badge: '热' },
+  { id: 'live',     name: '直播',   icon: 'radio',          color: '#E74C3C', bg: 'rgba(231,76,60,0.1)',   url: '/pkg-live/plaza/index' },
   { id: 'fortune',  name: '运势',   icon: 'compass',        color: '#9B59B6', bg: 'rgba(155,89,182,0.1)',  url: '/pkg-fortune/index/index' },
   { id: 'paipan',   name: '排盘',   icon: 'layout-grid',    color: '#1890FF', bg: 'rgba(24,144,255,0.1)',  url: '/pages/paipan/index' },
-  { id: 'agents',   name: '智能体', icon: 'bot',            color: '#722ED1', bg: 'rgba(114,46,209,0.1)',  url: '/pkg-im/agents/index', badge: 'AI' },
+  { id: 'agents',   name: '智能体', icon: 'bot',            color: '#722ED1', bg: 'rgba(114,46,209,0.1)',  url: '/pkg-agent/agents/index', badge: 'AI' },
   { id: 'poetry',   name: '诗词',   icon: 'book-heart',     color: '#EB2F96', bg: 'rgba(235,47,150,0.1)',  url: '/pkg-poetry/index/index' },
   { id: 'more',     name: '更多',   icon: 'more-horizontal',color: '#666666', bg: 'rgba(102,102,102,0.1)', url: '/pages/discover/index' },
 ]
@@ -49,7 +49,7 @@ const entries: Entry[] = [
   position: absolute; top: -8rpx; right: -8rpx;
   padding: 2rpx 10rpx; border-radius: 999rpx;
   font-size: 18rpx; font-weight: 700; color: #fff;
-  background: #c41e3a;
+  background: var(--brand);
 }
 .name { font-size: 22rpx; color: #333; font-weight: 500; }
 </style>

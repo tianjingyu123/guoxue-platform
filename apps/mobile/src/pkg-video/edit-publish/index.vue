@@ -360,7 +360,7 @@ function handlePublish() {
 }
 .nav-publish {
   padding: 6px 16px;
-  background: #c41e3a;
+  background: var(--brand);
   border-radius: 999px;
 }
 .nav-publish.disabled {
@@ -466,7 +466,7 @@ function handlePublish() {
   color: #888;
 }
 .tool-label.active {
-  color: #c41e3a;
+  color: var(--brand);
 }
 .panel {
   padding: 16px;
@@ -500,8 +500,8 @@ function handlePublish() {
   top: 0;
   bottom: 0;
   background: rgba(196, 30, 58, 0.15);
-  border-left: 2px solid #c41e3a;
-  border-right: 2px solid #c41e3a;
+  border-left: 2px solid var(--brand);
+  border-right: 2px solid var(--brand);
 }
 .trim-times {
   display: flex;
@@ -534,7 +534,7 @@ function handlePublish() {
   background: linear-gradient(135deg, #ececec, #ddd);
 }
 .filter-thumb.active {
-  border-color: #c41e3a;
+  border-color: var(--brand);
 }
 .thumb-shuimo {
   background: linear-gradient(135deg, #e2e8f0, #94a3b8);
@@ -559,7 +559,7 @@ function handlePublish() {
   color: #888;
 }
 .filter-name.active {
-  color: #c41e3a;
+  color: var(--brand);
   font-weight: 500;
 }
 .panel-music {
@@ -586,7 +586,7 @@ function handlePublish() {
   justify-content: center;
 }
 .music-icon.active {
-  background: #c41e3a;
+  background: var(--brand);
 }
 .music-info {
   flex: 1;
@@ -597,7 +597,7 @@ function handlePublish() {
   display: block;
 }
 .music-name.active {
-  color: #c41e3a;
+  color: var(--brand);
   font-weight: 500;
 }
 .music-meta {
@@ -622,7 +622,7 @@ function handlePublish() {
   justify-content: center;
 }
 .cover-item.active {
-  border-color: #c41e3a;
+  border-color: var(--brand);
 }
 .cover-num {
   font-size: 10px;
@@ -760,7 +760,7 @@ function handlePublish() {
   background: #fff;
 }
 .vis-btn.active {
-  background: #c41e3a;
+  background: var(--brand);
 }
 .vis-btn-text {
   font-size: 12px;
@@ -777,7 +777,7 @@ function handlePublish() {
 .publish-btn {
   width: 100%;
   height: 48px;
-  background: #c41e3a;
+  background: var(--brand);
   border-radius: 12px;
   display: flex;
   align-items: center;

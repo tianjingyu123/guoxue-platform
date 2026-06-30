@@ -107,7 +107,7 @@ onMounted(() => {
           </view>
           <view class="card-body">
             <view class="teacher-row">
-              <image class="teacher-avatar" :src="work.gradedBy.avatar" mode="aspectFill" />
+              <image lazy-load class="teacher-avatar" :src="work.gradedBy.avatar" mode="aspectFill" />
               <view class="teacher-info">
                 <text class="teacher-name">{{ work.gradedBy.name }}</text>
                 <text class="graded-at">批改于 {{ work.gradedAt }}</text>
@@ -137,7 +137,7 @@ onMounted(() => {
             <text class="content-text">{{ work.content }}</text>
             <view v-if="work.images.length" class="img-grid">
               <view v-for="(img, i) in work.images" :key="i" class="img-cell">
-                <image class="img" :src="img" mode="aspectFill" />
+                <image lazy-load class="img" :src="img" mode="aspectFill" />
                 <view class="img-mask"><app-icon name="zoom-in" :size="36" color="#ffffff" /></view>
               </view>
             </view>
@@ -236,7 +236,7 @@ onMounted(() => {
 .scale-txt { font-size: 22rpx; color: #999; }
 
 .footer { padding: 32rpx; padding-bottom: calc(32rpx + env(safe-area-inset-bottom)); background: #fff; border-top: 1rpx solid #E8E3DB; }
-.footer-btn { height: 88rpx; border-radius: 999rpx; background: linear-gradient(to right, #C41E3A, #E74C3C); display: flex; align-items: center; justify-content: center; gap: 12rpx; }
+.footer-btn { height: 88rpx; border-radius: 999rpx; background: linear-gradient(to right, var(--brand), #E74C3C); display: flex; align-items: center; justify-content: center; gap: 12rpx; }
 .footer-btn-txt { font-size: 30rpx; font-weight: 600; color: #fff; }
 
 /* 加载 / 错误 */

@@ -89,7 +89,7 @@ async function submit() {
       <!-- 封面 -->
       <view class="cc-cover-wrap">
         <view class="cc-cover-btn" @tap="uploadCover">
-          <image v-if="cover" :src="cover" class="cc-cover-img" mode="aspectFill" />
+          <image lazy-load v-if="cover" :src="cover" class="cc-cover-img" mode="aspectFill" />
           <template v-else>
             <app-icon name="camera" :size="48" color="#8a8378" />
             <text class="cc-cover-tip">添加封面</text>
@@ -250,26 +250,26 @@ async function submit() {
 /* 字段 */
 .cc-field { margin-bottom: 40rpx; }
 .cc-label { display: block; font-size: 28rpx; font-weight: 500; color: #1a1a1a; margin-bottom: 16rpx; }
-.cc-req { color: #c41e3a; }
+.cc-req { color: var(--brand); }
 .cc-input { width: 100%; padding: 22rpx 24rpx; border-radius: 16rpx; border: 2rpx solid rgba(0,0,0,0.12); background: #fff; color: #1a1a1a; font-size: 28rpx; box-sizing: border-box; }
-.cc-input.err { border-color: #c41e3a; }
+.cc-input.err { border-color: var(--brand); }
 .cc-textarea { width: 100%; min-height: 200rpx; padding: 22rpx 24rpx; border-radius: 16rpx; border: 2rpx solid rgba(0,0,0,0.12); background: #fff; color: #1a1a1a; font-size: 28rpx; box-sizing: border-box; }
-.cc-textarea.err { border-color: #c41e3a; }
+.cc-textarea.err { border-color: var(--brand); }
 .cc-ph { color: #b5aea3; }
 .cc-row { display: flex; align-items: center; justify-content: space-between; margin-top: 10rpx; }
 .cc-spacer { flex: 1; }
-.cc-err { font-size: 22rpx; color: #c41e3a; }
+.cc-err { font-size: 22rpx; color: var(--brand); }
 .cc-count { font-size: 22rpx; color: #8a8378; }
 /* 分类 */
 .cc-cats { display: flex; flex-wrap: wrap; gap: 16rpx; }
 .cc-cat { padding: 12rpx 24rpx; border-radius: 999rpx; border: 2rpx solid rgba(0,0,0,0.12); background: #fff; }
-.cc-cat.on { background: #c41e3a; border-color: #c41e3a; }
+.cc-cat.on { background: var(--brand); border-color: var(--brand); }
 .cc-cat-t { font-size: 26rpx; color: #1a1a1a; }
 .cc-cat-t.on { color: #fff; }
 /* 标签 */
 .cc-tags { display: flex; flex-wrap: wrap; gap: 12rpx; margin-bottom: 16rpx; }
 .cc-tag { display: flex; align-items: center; gap: 8rpx; background: rgba(196,30,58,0.1); padding: 8rpx 18rpx; border-radius: 999rpx; }
-.cc-tag-t { font-size: 22rpx; color: #c41e3a; }
+.cc-tag-t { font-size: 22rpx; color: var(--brand); }
 .cc-tag-x { font-size: 26rpx; color: rgba(196,30,58,0.6); line-height: 1; }
 .cc-tag-add { display: flex; gap: 16rpx; }
 .cc-tag-input { flex: 1; }
@@ -278,19 +278,19 @@ async function submit() {
 /* 加入方式 */
 .cc-joins { display: flex; flex-direction: column; gap: 16rpx; }
 .cc-join { display: flex; align-items: center; gap: 20rpx; padding: 24rpx; border-radius: 20rpx; border: 2rpx solid rgba(0,0,0,0.12); background: #fff; }
-.cc-join.on { border-color: #c41e3a; background: rgba(196,30,58,0.05); }
+.cc-join.on { border-color: var(--brand); background: rgba(196,30,58,0.05); }
 .cc-join-icon { width: 64rpx; height: 64rpx; border-radius: 999rpx; background: #f0ebe3; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .cc-join-icon.on { background: rgba(196,30,58,0.1); }
 .cc-join-main { flex: 1; }
 .cc-join-label { display: block; font-size: 28rpx; font-weight: 500; color: #1a1a1a; }
 .cc-join-desc { display: block; font-size: 22rpx; color: #8a8378; margin-top: 4rpx; }
 .cc-radio { width: 36rpx; height: 36rpx; border-radius: 999rpx; border: 4rpx solid rgba(0,0,0,0.18); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.cc-radio.on { border-color: #c41e3a; }
-.cc-radio-dot { width: 16rpx; height: 16rpx; border-radius: 999rpx; background: #c41e3a; }
+.cc-radio.on { border-color: var(--brand); }
+.cc-radio-dot { width: 16rpx; height: 16rpx; border-radius: 999rpx; background: var(--brand); }
 /* 付费 */
 .cc-paid { margin-top: 24rpx; padding: 24rpx; border-radius: 20rpx; border: 2rpx solid rgba(196,30,58,0.2); background: rgba(196,30,58,0.05); }
 .cc-price-row { display: flex; align-items: center; gap: 16rpx; }
-.cc-price-sym { font-size: 36rpx; font-weight: 700; color: #c41e3a; }
+.cc-price-sym { font-size: 36rpx; font-weight: 700; color: var(--brand); }
 .cc-price-input { flex: 1; }
 .cc-price-unit { font-size: 26rpx; color: #8a8378; white-space: nowrap; }
 .cc-paid-hint { display: block; font-size: 22rpx; color: #8a8378; margin-top: 16rpx; line-height: 1.5; }
@@ -299,7 +299,7 @@ async function submit() {
 .cc-approval-t { font-size: 22rpx; color: #8a8378; line-height: 1.6; }
 /* 提交 */
 .cc-submit-bar { padding: 20rpx 32rpx calc(20rpx + env(safe-area-inset-bottom)); background: #faf6f0; border-top: 2rpx solid rgba(0,0,0,0.08); flex-shrink: 0; }
-.cc-submit { padding: 26rpx 0; border-radius: 999rpx; background: #c41e3a; text-align: center; box-shadow: 0 8rpx 24rpx rgba(196,30,58,0.25); }
+.cc-submit { padding: 26rpx 0; border-radius: 999rpx; background: var(--brand); text-align: center; box-shadow: 0 8rpx 24rpx rgba(196,30,58,0.25); }
 .cc-submit.disabled { opacity: 0.5; }
 .cc-submit-t { font-size: 30rpx; font-weight: 600; color: #fff; }
 </style>

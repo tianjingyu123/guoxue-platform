@@ -1,259 +1,246 @@
 <template>
   <view class="chat-page">
-    <!-- 顶部导航 -->
-    <view class="nav-bar">
-      <view class="nav-btn" @tap="goBack">
-        <app-icon name="arrow-left" :size="40" color="#fff" />
-      </view>
-      <view class="nav-bot">
-        <image v-if="botDetail.avatar" class="nav-avatar" :src="botDetail.avatar" mode="aspectFill" />
-        <view v-else class="nav-avatar nav-avatar-fb">{{ botDetail.name.slice(0, 1) }}</view>
-        <view class="nav-info">
-          <text class="nav-name">{{ botDetail.name }}</text>
-          <text class="nav-status">{{ botDetail.isOfficial ? '官方认证' : '在线' }}</text>
-        </view>
-      </view>
-      <view class="nav-actions">
-        <view v-if="botDetail.voiceEnabled" class="nav-btn" @tap="handleVoiceCall">
-          <app-icon name="phone" :size="38" color="#fff" />
-        </view>
-        <view class="nav-btn" @tap="toggleMenu">
-          <app-icon name="more-vertical" :size="38" color="#fff" />
-        </view>
-      </view>
+    <!-- 加载/错误态 -->
+    <view v-if="loading" class="cc-state"><text class="cc-state-t">加载中...</text></view>
+    <view v-else-if="error" class="cc-state">
+      <text class="cc-state-t">{{ error }}</text>
+      <view class="cc-retry" @tap="loadDetail"><text class="cc-retry-t">重试</text></view>
     </view>
 
-    <!-- 下拉菜单 -->
-    <view v-if="menuOpen" class="menu-mask" @tap="menuOpen = false">
-      <view class="menu-pop" @tap.stop>
-        <view class="menu-item" @tap="onMenu('history')">
-          <app-icon name="history" :size="32" color="#444" />
-          <text class="menu-text">历史记录</text>
+    <template v-else>
+      <!-- 顶部导航 -->
+      <view class="nav-bar">
+        <view class="nav-btn" @tap="goBack">
+          <app-icon name="arrow-left" :size="40" color="#fff" />
         </view>
-        <view class="menu-item" @tap="onMenu('share')">
-          <app-icon name="share-2" :size="32" color="#444" />
-          <text class="menu-text">分享</text>
+        <view class="nav-bot">
+          <image lazy-load v-if="botDetail.avatar" class="nav-avatar" :src="botDetail.avatar" mode="aspectFill" />
+          <view v-else class="nav-avatar nav-avatar-fb">{{ botDetail.name.slice(0, 1) }}</view>
+          <view class="nav-info">
+            <text class="nav-name">{{ botDetail.name }}</text>
+            <text class="nav-status">在线</text>
+          </view>
         </view>
-        <view class="menu-item" @tap="onMenu('settings')">
-          <app-icon name="settings" :size="32" color="#444" />
-          <text class="menu-text">设置</text>
-        </view>
-        <view class="menu-divider" />
-        <view class="menu-item" @tap="onMenu('clear')">
-          <app-icon name="trash-2" :size="32" color="#C41E3A" />
-          <text class="menu-text menu-text-danger">清空对话</text>
+        <view class="nav-actions">
+          <view v-if="botDetail.voiceEnabled" class="nav-btn" @tap="handleVoiceCall">
+            <app-icon name="phone" :size="38" color="#fff" />
+          </view>
+          <view class="nav-btn" @tap="toggleMenu">
+            <app-icon name="more-vertical" :size="38" color="#fff" />
+          </view>
         </view>
       </view>
-    </view>
 
-    <!-- 对话区域 -->
-    <scroll-view
-      class="chat-scroll"
-      scroll-y
-      :scroll-top="scrollTop"
-      :scroll-with-animation="true"
-    >
-      <view class="chat-content">
-        <!-- 欢迎消息 -->
-        <view v-if="messages.length === 0" class="welcome-block">
-          <view class="msg-row">
-            <image v-if="botDetail.avatar" class="msg-avatar" :src="botDetail.avatar" mode="aspectFill" />
-            <view v-else class="msg-avatar msg-avatar-bot">{{ botDetail.name.slice(0, 1) }}</view>
-            <view class="bubble bubble-bot">
-              <text class="bubble-text">{{ botDetail.welcomeMessage }}</text>
+      <!-- 下拉菜单 -->
+      <view v-if="menuOpen" class="menu-mask" @tap="menuOpen = false">
+        <view class="menu-pop" @tap.stop>
+          <view class="menu-item" @tap="onMenu('clear')">
+            <app-icon name="trash-2" :size="32" color="#C41E3A" />
+            <text class="menu-text menu-text-danger">清空对话</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 对话区域 -->
+      <scroll-view
+        class="chat-scroll"
+        scroll-y
+        :scroll-top="scrollTop"
+        :scroll-with-animation="true"
+      >
+        <view class="chat-content">
+          <!-- 欢迎消息 -->
+          <view v-if="messages.length === 0" class="welcome-block">
+            <view class="msg-row">
+              <image lazy-load v-if="botDetail.avatar" class="msg-avatar" :src="botDetail.avatar" mode="aspectFill" />
+              <view v-else class="msg-avatar msg-avatar-bot">{{ botDetail.name.slice(0, 1) }}</view>
+              <view class="bubble bubble-bot">
+                <text class="bubble-text">{{ botDetail.welcomeMessage }}</text>
+              </view>
             </view>
           </view>
 
-          <!-- 推荐问题 -->
-          <view v-if="botDetail.suggestions.length" class="sugg-block">
-            <text class="sugg-tip">您可以这样问我：</text>
-            <view class="sugg-list">
+          <!-- 对话消息 -->
+          <view
+            v-for="msg in messages"
+            :key="msg.id"
+            class="msg-row"
+            :class="{ 'msg-row-user': msg.role === 'user' }"
+          >
+            <view v-if="msg.role === 'user'" class="msg-avatar msg-avatar-user">我</view>
+            <template v-else>
+              <image lazy-load v-if="botDetail.avatar" class="msg-avatar" :src="botDetail.avatar" mode="aspectFill" />
+              <view v-else class="msg-avatar msg-avatar-bot">{{ botDetail.name.slice(0, 1) }}</view>
+            </template>
+
+            <view class="msg-body" :class="{ 'msg-body-user': msg.role === 'user' }">
               <view
-                v-for="(s, i) in botDetail.suggestions"
-                :key="i"
-                class="sugg-chip"
-                @tap="onSuggestion(s)"
-              >{{ s }}</view>
+                class="bubble"
+                :class="msg.role === 'user' ? 'bubble-user' : 'bubble-bot'"
+              >
+                <rich-text class="bubble-rich" :nodes="renderMarkdown(msg.isStreaming ? streamingText : msg.content)" />
+                <text v-if="msg.isStreaming" class="cursor">|</text>
+              </view>
+
+              <!-- AI 风险免责声明（后端下发，仅 assistant 非流式时展示） -->
+              <text v-if="msg.role === 'assistant' && msg.disclaimer && !msg.isStreaming" class="ai-disclaimer">{{ msg.disclaimer }}</text>
+
+              <!-- 软性导流推荐（先征求同意，同意才展开真实卡片） -->
+              <view v-if="msg.role === 'assistant' && msg.recommendation && !msg.isStreaming" class="recommend-block">
+                <view v-if="!msg.recoConsented" class="reco-consent">
+                  <text class="reco-consent-text">{{ msg.recommendation.consentPrompt }}</text>
+                  <view class="reco-consent-btns">
+                    <view class="reco-btn reco-btn-yes" @tap="consentReco(msg)"><text class="reco-btn-yes-text">好的，看看</text></view>
+                    <view class="reco-btn reco-btn-no" @tap="declineReco(msg)"><text class="reco-btn-no-text">不用了</text></view>
+                  </view>
+                </view>
+                <template v-else>
+                  <view class="recommend-head"><app-icon name="sparkles" :size="24" color="#c9a96e" /><text class="recommend-label">为您推荐</text></view>
+                  <view v-for="(rec, i) in msg.recommendation.items" :key="i" class="rec-card" :class="`rec-${rec.type}`" @tap="openRecommend(rec)">
+                    <!-- 课程 -->
+                    <template v-if="rec.type === 'course'">
+                      <view class="rec-icon rec-icon-course"><app-icon name="play" :size="28" color="#C41E3A" /></view>
+                      <view class="rec-info">
+                        <view class="rec-top"><text class="rec-title">{{ rec.data.title }}</text><text class="rec-badge">推荐</text></view>
+                        <text v-if="rec.data.reason" class="rec-sub">{{ rec.data.reason }}</text>
+                        <view class="rec-price-row">
+                          <text class="rec-price">{{ rec.data.price > 0 ? '¥' + rec.data.price : '免费' }}</text>
+                          <text class="rec-members">{{ rec.data.studentCount }}人已学</text>
+                        </view>
+                      </view>
+                      <app-icon name="chevron-right" :size="28" color="#999" />
+                    </template>
+                    <!-- 圈子 -->
+                    <template v-else-if="rec.type === 'circle'">
+                      <view class="rec-icon rec-icon-circle"><app-icon name="users" :size="26" color="#059669" /></view>
+                      <view class="rec-info">
+                        <view class="rec-top"><text class="rec-title">{{ rec.data.name }}</text></view>
+                        <text class="rec-sub">{{ rec.data.reason || rec.data.intro }}</text>
+                        <view class="rec-price-row"><text class="rec-members">{{ rec.data.memberCount }}成员</text></view>
+                      </view>
+                      <app-icon name="chevron-right" :size="28" color="#999" />
+                    </template>
+                  </view>
+                </template>
+              </view>
+
+              <text class="msg-time">{{ formatTime(msg.createdAt) }}</text>
             </view>
           </view>
 
-          <!-- 能力说明 -->
-          <view v-if="botDetail.capabilities.length" class="cap-block">
-            <text class="cap-tip">我的能力：</text>
-            <view class="cap-list">
-              <text v-for="(c, i) in botDetail.capabilities" :key="i" class="cap-tag">{{ c }}</text>
-            </view>
-          </view>
+          <view style="height: 20rpx" />
         </view>
+      </scroll-view>
 
-        <!-- 对话消息 -->
+      <!-- 底部输入区 -->
+      <view class="input-bar">
+        <view class="input-wrap">
+          <input
+            class="chat-input"
+            v-model="inputValue"
+            :placeholder="'输入您的问题...'"
+            :disabled="isSending"
+            confirm-type="send"
+            @confirm="handleSend"
+          />
+        </view>
         <view
-          v-for="msg in messages"
-          :key="msg.id"
-          class="msg-row"
-          :class="{ 'msg-row-user': msg.role === 'user' }"
+          class="send-btn"
+          :class="{ 'send-btn-disabled': !inputValue.trim() || isSending }"
+          @tap="handleSend"
         >
-          <!-- 头像 -->
-          <view v-if="msg.role === 'user'" class="msg-avatar msg-avatar-user">我</view>
-          <template v-else>
-            <image v-if="botDetail.avatar" class="msg-avatar" :src="botDetail.avatar" mode="aspectFill" />
-            <view v-else class="msg-avatar msg-avatar-bot">{{ botDetail.name.slice(0, 1) }}</view>
-          </template>
-
-          <!-- 内容 -->
-          <view class="msg-body" :class="{ 'msg-body-user': msg.role === 'user' }">
-            <!-- 文本 -->
-            <view
-              v-if="msg.type === 'text'"
-              class="bubble"
-              :class="msg.role === 'user' ? 'bubble-user' : 'bubble-bot'"
-            >
-              <rich-text class="bubble-rich" :nodes="renderMarkdown(msg.isStreaming ? streamingText : msg.content)" />
-              <text v-if="msg.isStreaming" class="cursor">|</text>
-            </view>
-
-            <!-- 图片 -->
-            <image
-              v-else-if="msg.type === 'image' && msg.attachment"
-              class="msg-image"
-              :src="msg.attachment.url"
-              mode="widthFix"
-            />
-
-            <!-- 文件 -->
-            <view
-              v-else-if="msg.type === 'file' && msg.attachment"
-              class="bubble file-bubble"
-              :class="msg.role === 'user' ? 'bubble-user' : 'bubble-bot'"
-            >
-              <app-icon name="paperclip" :size="28" :color="msg.role === 'user' ? '#fff' : '#666'" />
-              <text class="file-name">{{ msg.attachment.name }}</text>
-            </view>
-
-            <text class="msg-time">{{ formatTime(msg.createdAt) }}</text>
-          </view>
-        </view>
-
-        <view style="height: 20rpx" />
-      </view>
-    </scroll-view>
-
-    <!-- 使用限制提示 -->
-    <view v-if="botDetail.limits && !botDetail.isFree" class="limit-bar">
-      <text class="limit-text">
-        今日免费次数：{{ botDetail.limits.usedCount }}/{{ botDetail.limits.dailyFreeCount }}
-      </text>
-      <text
-        v-if="botDetail.limits.usedCount >= botDetail.limits.dailyFreeCount"
-        class="limit-upgrade"
-        @tap="onUpgrade"
-      >升级会员</text>
-    </view>
-
-    <!-- 底部输入区 -->
-    <view class="input-bar">
-      <view
-        v-if="botDetail.voiceEnabled"
-        class="input-icon-btn"
-        :class="{ 'recording': isRecording }"
-        @tap="toggleVoice"
-      >
-        <app-icon :name="isRecording ? 'mic-off' : 'mic'" :size="38" :color="isRecording ? '#C41E3A' : '#666'" />
-      </view>
-
-      <view class="input-wrap">
-        <input
-          class="chat-input"
-          v-model="inputValue"
-          :placeholder="isRecording ? '正在录音...' : '输入您的问题...'"
-          :disabled="isRecording || isSending"
-          confirm-type="send"
-          @confirm="handleSend"
-        />
-        <view v-if="botDetail.fileEnabled" class="input-file-btn" @tap="handleFileUpload">
-          <app-icon name="image-plus" :size="32" color="#999" />
+          <app-icon :name="isSending ? 'loader-2' : 'send'" :size="36" color="#fff" :class="{ spin: isSending }" />
         </view>
       </view>
-
-      <view
-        class="send-btn"
-        :class="{ 'send-btn-disabled': !inputValue.trim() || isSending }"
-        @tap="handleSend"
-      >
-        <app-icon :name="isSending ? 'loader-2' : 'send'" :size="36" color="#fff" :class="{ spin: isSending }" />
-      </view>
-    </view>
+    </template>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+/**
+ * Bot 对话页 —— 接真实后端 GET /bots/:id（详情）+ POST /bots/:id/chat（对话）。
+ * 原型臆想字段（推荐问题/能力标签/官方认证/每日已用次数/文件上传）后端无 → 降级隐藏，不造假。
+ * 逐字展示的是后端真实返回的回复 content（展示动效，非伪造内容）。
+ */
+import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
-import { navigateBack } from '@/utils/router'
+import { navigateBack, navigateTo, toastComingSoon } from '@/utils/router'
+import { apiGet, apiPost } from '@/utils/request'
+import type { Recommendation, RecommendItem } from '@/lib/agent-data'
 
-interface Attachment { url: string; name: string }
 interface ChatMessage {
   id: string
   role: 'user' | 'assistant'
-  type: 'text' | 'image' | 'file'
   content: string
-  attachment?: Attachment
   createdAt: string
   isStreaming?: boolean
+  /** AI 风险免责声明（后端下发，仅 assistant 消息有） */
+  disclaimer?: string
+  /** 软性导流推荐（征求同意后才展开卡片） */
+  recommendation?: Recommendation
+  /** 用户是否已同意查看推荐 */
+  recoConsented?: boolean
 }
 
-const botId = ref('1')
+const botId = ref('')
 const inputValue = ref('')
 const isSending = ref(false)
-const isRecording = ref(false)
 const streamingText = ref('')
 const messages = ref<ChatMessage[]>([])
 const menuOpen = ref(false)
 const scrollTop = ref(0)
+const loading = ref(true)
+const error = ref('')
+const conversationId = ref('')
 
-// mock Bot 详情
 const botDetail = ref({
-  name: '紫微大师',
-  avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=ziwei',
-  isOfficial: true,
-  isFree: false,
-  voiceEnabled: true,
-  fileEnabled: true,
-  welcomeMessage: '你好！我是紫微大师，精通紫微斗数、八字命理。无论是事业、感情还是健康，我都可以为你提供专业的命理分析。请问有什么可以帮你的吗？',
-  suggestions: ['帮我看看今年运势', '我适合什么职业？', '分析一下我的感情运', '近期财运如何？'],
-  capabilities: ['紫微斗数', '八字命理', '运势分析', '事业指导', '情感咨询'],
-  limits: { dailyFreeCount: 5, usedCount: 2 },
+  name: '智能体',
+  avatar: '',
+  voiceEnabled: false,
+  welcomeMessage: '',
 })
-
-// mock AI 回复库
-const MOCK_REPLIES = [
-  '根据你的描述，我为你做以下分析：\n\n**整体运势**\n今年你的事业宫有吉星照拂，适合主动出击、把握机会。\n\n**需要注意**\n1. 上半年财运平稳，不宜大额投资\n2. 下半年贵人运旺，可拓展人脉\n3. 感情方面宜以诚相待\n\n建议你保持积极心态，顺势而为。',
-  '这是一个很好的问题。从命理角度看：\n\n- 你的性格偏向理性务实\n- 适合从事需要专业积累的领域\n- 中年后运势渐入佳境\n\n保持耐心，机会自然会来。',
-]
-let replyIndex = 0
 
 onLoad((opts: any) => {
   if (opts?.id) botId.value = String(opts.id)
+  loadDetail()
 })
 
-onMounted(() => {
-  // 保持欢迎态（messages 为空展示欢迎语+推荐问题+能力）
-})
+async function loadDetail() {
+  if (!botId.value) {
+    error.value = '缺少智能体 ID'
+    loading.value = false
+    return
+  }
+  loading.value = true
+  error.value = ''
+  try {
+    const b = await apiGet<any>(`/bots/${botId.value}`)
+    botDetail.value = {
+      name: b.name || '智能体',
+      avatar: b.avatar || '',
+      voiceEnabled: !!b.voiceEnabled,
+      welcomeMessage: b.intro || `您好！我是${b.name || '智能助手'}，有什么可以帮您的吗？`,
+    }
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
 
 function scrollToBottom() {
   scrollTop.value = 0
   setTimeout(() => { scrollTop.value = 999999 }, 50)
 }
 
-function handleSend() {
+async function handleSend() {
   const text = inputValue.value.trim()
   if (!text || isSending.value) return
 
   messages.value.push({
     id: 'user_' + Date.now(),
     role: 'user',
-    type: 'text',
     content: text,
     createdAt: new Date().toISOString(),
   })
@@ -266,61 +253,58 @@ function handleSend() {
   messages.value.push({
     id: aiId,
     role: 'assistant',
-    type: 'text',
     content: '',
     createdAt: new Date().toISOString(),
     isStreaming: true,
   })
 
-  // 模拟流式逐字回复
-  const fullText = MOCK_REPLIES[replyIndex % MOCK_REPLIES.length]
-  replyIndex++
-  let i = 0
-  const timer = setInterval(() => {
-    if (i < fullText.length) {
-      streamingText.value += fullText[i]
-      i++
-      scrollToBottom()
-    } else {
-      clearInterval(timer)
-      const target = messages.value.find((m) => m.id === aiId)
-      if (target) {
-        target.content = fullText
-        target.isStreaming = false
-      }
-      streamingText.value = ''
-      isSending.value = false
-      if (botDetail.value.limits) botDetail.value.limits.usedCount++
-      scrollToBottom()
+  try {
+    const res = await apiPost<any>(`/bots/${botId.value}/chat`, {
+      query: text,
+      conversationId: conversationId.value || undefined,
+    })
+    if (res?.conversationId) conversationId.value = res.conversationId
+    await typewriter(res?.content || '（未返回内容）', aiId)
+    // 打字结束后挂载免责声明 + 软性导流推荐（后端 bot.chat 下发，剥离协议后的净文本）
+    const done = messages.value.find((m) => m.id === aiId)
+    if (done) {
+      done.disclaimer = res?.disclaimer
+      done.recommendation = res?.recommendation || undefined
     }
-  }, 30)
+  } catch (e: any) {
+    const target = messages.value.find((m) => m.id === aiId)
+    if (target) {
+      target.content = '抱歉，回复失败：' + (e?.message || '请稍后再试')
+      target.isStreaming = false
+    }
+    streamingText.value = ''
+  } finally {
+    isSending.value = false
+    scrollToBottom()
+  }
 }
 
-function onSuggestion(s: string) {
-  inputValue.value = s
-}
-
-function handleFileUpload() {
-  uni.chooseImage({
-    count: 1,
-    success: (res: any) => {
-      const path = res.tempFilePaths?.[0]
-      if (!path) return
-      messages.value.push({
-        id: 'file_' + Date.now(),
-        role: 'user',
-        type: 'image',
-        content: '[上传了图片]',
-        attachment: { url: path, name: '图片' },
-        createdAt: new Date().toISOString(),
-      })
-      scrollToBottom()
-    },
+/** 逐字展示真实返回文本 */
+function typewriter(fullText: string, aiId: string): Promise<void> {
+  return new Promise((resolve) => {
+    let i = 0
+    const timer = setInterval(() => {
+      if (i < fullText.length) {
+        streamingText.value += fullText[i]
+        i++
+        scrollToBottom()
+      } else {
+        clearInterval(timer)
+        const target = messages.value.find((m) => m.id === aiId)
+        if (target) {
+          target.content = fullText
+          target.isStreaming = false
+        }
+        streamingText.value = ''
+        resolve()
+      }
+    }, 30)
   })
-}
-
-function toggleVoice() {
-  isRecording.value = !isRecording.value
 }
 
 function handleVoiceCall() {
@@ -338,15 +322,15 @@ function onMenu(action: string) {
       title: '清空对话',
       content: '确定要清空当前对话记录吗？',
       confirmColor: '#C41E3A',
-      success: (r) => { if (r.confirm) { messages.value = []; streamingText.value = '' } },
+      success: (r) => {
+        if (r.confirm) {
+          messages.value = []
+          streamingText.value = ''
+          conversationId.value = ''
+        }
+      },
     })
-  } else {
-    uni.showToast({ title: '功能开发中', icon: 'none' })
   }
-}
-
-function onUpgrade() {
-  uni.showToast({ title: '会员升级开发中', icon: 'none' })
 }
 
 // 简化 Markdown → rich-text nodes（粗体/标题/列表）
@@ -376,6 +360,22 @@ function formatTime(iso: string): string {
 function goBack() {
   navigateBack()
 }
+
+// 软性导流：同意/拒绝查看推荐
+function consentReco(msg: ChatMessage) {
+  msg.recoConsented = true
+  scrollToBottom()
+}
+function declineReco(msg: ChatMessage) {
+  msg.recommendation = undefined
+}
+// 推荐卡片点击 → 跳转对应板块
+function openRecommend(item: RecommendItem) {
+  if (item.type === 'course') navigateTo(`/courses/${item.data.id}`)
+  else if (item.type === 'circle') navigateTo(`/circles/${item.data.id}`)
+  else if (item.type === 'paipan') navigateTo('/paipan')
+  else toastComingSoon()
+}
 </script>
 
 <style scoped>
@@ -386,10 +386,33 @@ function goBack() {
   background: #faf8f5;
 }
 
+/* 加载/错误态 */
+.cc-state {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24rpx;
+}
+.cc-state-t {
+  font-size: 28rpx;
+  color: #8a8178;
+}
+.cc-retry {
+  padding: 16rpx 48rpx;
+  background: var(--brand);
+  border-radius: 999rpx;
+}
+.cc-retry-t {
+  font-size: 28rpx;
+  color: #fff;
+}
+
 /* 顶栏 */
 .nav-bar {
   height: 96rpx;
-  background: linear-gradient(90deg, #c41e3a, #e8544e);
+  background: linear-gradient(90deg, var(--brand), #e8544e);
   display: flex;
   align-items: center;
   padding: 0 16rpx;
@@ -473,12 +496,7 @@ function goBack() {
   color: #444;
 }
 .menu-text-danger {
-  color: #c41e3a;
-}
-.menu-divider {
-  height: 1rpx;
-  background: #eee;
-  margin: 4rpx 0;
+  color: var(--brand);
 }
 
 /* 对话区 */
@@ -512,7 +530,7 @@ function goBack() {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #c41e3a;
+  background: var(--brand);
   color: #fff;
   font-size: 26rpx;
 }
@@ -543,7 +561,7 @@ function goBack() {
   border-top-left-radius: 4rpx;
 }
 .bubble-user {
-  background: #c41e3a;
+  background: var(--brand);
   color: #fff;
   border-radius: 24rpx;
   border-top-right-radius: 4rpx;
@@ -565,92 +583,11 @@ function goBack() {
   0%, 100% { opacity: 1; }
   50% { opacity: 0; }
 }
-.msg-image {
-  max-width: 360rpx;
-  border-radius: 16rpx;
-}
-.file-bubble {
-  display: flex;
-  align-items: center;
-  gap: 12rpx;
-}
-.file-name {
-  font-size: 26rpx;
-}
 .msg-time {
   display: block;
   font-size: 22rpx;
   color: #bbb;
   margin-top: 8rpx;
-}
-
-/* 推荐问题 */
-.sugg-block {
-  padding-left: 88rpx;
-}
-.sugg-tip {
-  font-size: 22rpx;
-  color: #999;
-  margin-bottom: 16rpx;
-  display: block;
-}
-.sugg-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 16rpx;
-}
-.sugg-chip {
-  padding: 12rpx 24rpx;
-  background: #fff;
-  border: 1rpx solid rgba(196, 30, 58, 0.2);
-  color: #c41e3a;
-  font-size: 24rpx;
-  border-radius: 999rpx;
-}
-
-/* 能力说明 */
-.cap-block {
-  padding-left: 88rpx;
-}
-.cap-tip {
-  font-size: 22rpx;
-  color: #999;
-  margin-bottom: 12rpx;
-  display: block;
-}
-.cap-list {
-  background: rgba(196, 30, 58, 0.05);
-  border-radius: 12rpx;
-  padding: 20rpx;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12rpx;
-}
-.cap-tag {
-  padding: 4rpx 16rpx;
-  background: #fff;
-  font-size: 22rpx;
-  color: #666;
-  border-radius: 8rpx;
-}
-
-/* 限制提示 */
-.limit-bar {
-  padding: 16rpx 24rpx;
-  background: rgba(201, 169, 110, 0.1);
-  border-top: 1rpx solid rgba(201, 169, 110, 0.2);
-  text-align: center;
-  flex-shrink: 0;
-}
-.limit-text {
-  font-size: 22rpx;
-  color: #c9a96e;
-}
-.limit-upgrade {
-  font-size: 22rpx;
-  color: #c9a96e;
-  text-decoration: underline;
-  margin-left: 12rpx;
 }
 
 /* 输入栏 */
@@ -664,18 +601,6 @@ function goBack() {
   padding-bottom: calc(20rpx + env(safe-area-inset-bottom));
   flex-shrink: 0;
 }
-.input-icon-btn {
-  width: 64rpx;
-  height: 64rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-.input-icon-btn.recording {
-  background: rgba(196, 30, 58, 0.1);
-}
 .input-wrap {
   flex: 1;
   position: relative;
@@ -688,24 +613,13 @@ function goBack() {
   background: #f7f7f7;
   border: 1rpx solid #e5e5e5;
   border-radius: 16rpx;
-  padding: 0 72rpx 0 24rpx;
+  padding: 0 24rpx;
   font-size: 28rpx;
-}
-.input-file-btn {
-  position: absolute;
-  right: 12rpx;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 56rpx;
-  height: 56rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
 .send-btn {
   width: 72rpx;
   height: 72rpx;
-  background: #c41e3a;
+  background: var(--brand);
   border-radius: 16rpx;
   display: flex;
   align-items: center;
@@ -715,6 +629,36 @@ function goBack() {
 .send-btn-disabled {
   opacity: 0.4;
 }
+/* AI 风险免责声明（每条 AI 回复下方小字） */
+.ai-disclaimer { display: block; margin-top: 10rpx; font-size: 20rpx; line-height: 1.4; color: #bbb; }
+
+/* 软性导流推荐卡片 */
+.recommend-block { margin-top: 16rpx; display: flex; flex-direction: column; gap: 12rpx; }
+.recommend-head { display: flex; align-items: center; gap: 6rpx; }
+.recommend-label { font-size: 22rpx; color: #999; }
+.reco-consent { background: rgba(201, 169, 110, 0.08); border: 2rpx solid rgba(201, 169, 110, 0.3); border-radius: 20rpx; padding: 24rpx; }
+.reco-consent-text { font-size: 26rpx; color: #1a1a1a; line-height: 1.5; }
+.reco-consent-btns { display: flex; gap: 16rpx; margin-top: 20rpx; }
+.reco-btn { padding: 12rpx 32rpx; border-radius: 999rpx; }
+.reco-btn-yes { background: #c9a96e; }
+.reco-btn-yes-text { font-size: 26rpx; color: #fff; }
+.reco-btn-no { background: rgba(0, 0, 0, 0.05); }
+.reco-btn-no-text { font-size: 26rpx; color: #999; }
+.rec-card { display: flex; align-items: center; gap: 20rpx; padding: 20rpx; border-radius: 20rpx; border: 1rpx solid; }
+.rec-course { background: rgba(196, 30, 58, 0.04); border-color: rgba(196, 30, 58, 0.1); }
+.rec-circle { background: rgba(5, 150, 105, 0.04); border-color: rgba(5, 150, 105, 0.1); }
+.rec-icon { width: 80rpx; height: 80rpx; border-radius: 18rpx; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+.rec-icon-course { background: rgba(196, 30, 58, 0.12); }
+.rec-icon-circle { width: 72rpx; height: 72rpx; background: rgba(5, 150, 105, 0.15); }
+.rec-info { flex: 1; min-width: 0; }
+.rec-top { display: flex; align-items: center; gap: 12rpx; }
+.rec-title { font-size: 26rpx; font-weight: 500; color: #1a1a1a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rec-badge { font-size: 18rpx; color: var(--brand); background: rgba(196, 30, 58, 0.1); padding: 2rpx 10rpx; border-radius: 8rpx; flex-shrink: 0; }
+.rec-sub { display: block; font-size: 22rpx; color: #999; margin-top: 4rpx; }
+.rec-price-row { display: flex; align-items: center; gap: 12rpx; margin-top: 8rpx; }
+.rec-price { font-size: 28rpx; font-weight: 700; color: var(--brand); }
+.rec-members { font-size: 22rpx; color: #999; }
+
 .spin {
   animation: spin 1s linear infinite;
 }

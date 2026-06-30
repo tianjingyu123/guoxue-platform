@@ -78,6 +78,8 @@ const ROUTE_MAP: Record<string, string> = {
   '/poetry': '/pkg-poetry/index/index',
   '/poetry/categories': '/pkg-poetry/categories/index',
   '/poetry/collections': '/pkg-poetry/collections/index',
+  // 诗人详情（按作者名走 ?name= query，避开中文路径段；静态须优先于动态 /poetry/:id）
+  '/poetry/poet': '/pkg-poetry/poet/index',
   // 商城
   '/mall': '/pkg-mall/home/index',
   '/mall/category': '/pkg-mall/category/index',
@@ -262,9 +264,9 @@ const ROUTE_MAP: Record<string, string> = {
   '/become-partner': '/pkg-operator/become-partner/index',
   // 平台公告（驿站站长面板入口，分类筛选+置顶/普通分组，详情复用 notices 兜底）
   '/announcements': '/pkg-operator/announcements/index',
-  // 智能体广场（全站 AI Bot 应用市场，区别于 circles/bots 圈子内机器人列表）
-  '/bots': '/pkg-agent/bots/index',
-  // Bot 对话页（接 ?id= query，流式回复，circles/bots 和 bots 广场都跳此）
+  // 智能体广场（去重：原 pkg-agent/bots/index 纯 mock 页已删除，统一指向真实化的 agents/index）
+  '/bots': '/pkg-agent/agents/index',
+  // Bot 对话页（接 ?id= query，circles/bots 和广场都跳此）
   '/bots/chat': '/pkg-agent/bots/chat/index',
 
   /* ───────── 断链修复（2026-06-22 排查）─────────
@@ -303,6 +305,12 @@ const ROUTE_MAP: Record<string, string> = {
   '/offline/teacher-booking': '/pkg-offline/teacher-booking/index',
   '/offline/events': '/pkg-offline/events/index',
   '/offline/checkin': '/pkg-offline/checkin/index',
+  // 线下驿站 B 端运营者经营后台（工作台 + 课程/签到/商品/讲师管理）
+  '/offline/manage': '/pkg-offline/manage/index',
+  '/offline/manage/courses': '/pkg-offline/manage-courses/index',
+  '/offline/manage/checkin': '/pkg-offline/manage-checkin/index',
+  '/offline/manage/products': '/pkg-offline/manage-products/index',
+  '/offline/manage/teachers': '/pkg-offline/manage-teachers/index',
   // 线下驿站 C 端（驿站列表 + 详情，详情 /offline/stations/:id 见动态表）
   '/offline/stations': '/pkg-offline/stations/index',
   // 线下课程 C 端（课程列表 + 详情，详情 /offline/courses/:id 见动态表）
@@ -359,7 +367,32 @@ const ROUTE_MAP: Record<string, string> = {
   // 成员管理第三批：成员列表 / 成员申请四步向导 / 发布通用需求（成员详情 /institute/members/:id 复用讲师详情页，见动态表）
   '/institute/members': '/pkg-institute/members/index',
   '/institute/member-apply': '/pkg-institute/member-apply/index',
+  // 研究院管理端（院长/副院长/秘书长：审批/任命/荐才/财务分红）
+  '/institute/manage': '/pkg-institute/manage/index',
   '/institute/demands/create': '/pkg-institute/demands-create/index',
+  // 赛事（竞技人才选拔）：列表/往届静态；详情/报名/答题/成绩/排行/证书/海报为动态（见 DYNAMIC_ROUTES）
+  '/competition': '/pkg-competition/home/index',
+  '/competition/home': '/pkg-competition/home/index',
+  '/competition/archive': '/pkg-competition/archive/index',
+
+  /* ───────── 横向贯通·入口死链补全（2026-06-28）───────── */
+  // 电子书城（此前 pkg-ebook 整包零映射，profile「我的笔记」/ebook/notes 死链）
+  '/ebook': '/pkg-ebook/store/index',
+  '/ebook/store': '/pkg-ebook/store/index',
+  '/ebook/bookshelf': '/pkg-ebook/bookshelf/index',
+  '/ebook/bookmarks': '/pkg-ebook/bookmarks/index',
+  '/ebook/notes': '/pkg-ebook/notes/index',
+  '/ebook/checkout': '/pkg-ebook/checkout/index',
+  '/ebook/checkout/success': '/pkg-ebook/checkout/success',
+  // 分站运营商/站长经营后台（operator-data 入口曾指向 /operator/dashboard 等均无映射）
+  '/operator': '/pkg-operator/operator-panel/index',
+  '/operator/dashboard': '/pkg-operator/dashboard/index',
+  '/operator/quota': '/pkg-operator/quota/index',
+  '/operator/station-master-panel': '/pkg-operator/station-master-panel/index',
+  '/join/operator': '/pkg-operator/join-operator/index',
+  '/join/station': '/pkg-operator/join-station/index',
+  // 主播中心（直播控制台；profile streamer 身份入口此前死链）
+  '/creator/live/console': '/pkg-live/console/index',
 }
 
 /**
@@ -368,6 +401,14 @@ const ROUTE_MAP: Record<string, string> = {
  * 注意顺序：更具体的 /reviews 必须在通用 detail 之前匹配。
  */
 const DYNAMIC_ROUTES: Array<[RegExp, string, string]> = [
+  // 赛事子页（具体路径须先于通用 /competition/:id 详情匹配；静态 /competition/home|archive 已在 ROUTE_MAP 优先命中）
+  [/^\/competition\/([^/?]+)\/register$/, '/pkg-competition/register/index', 'id'],
+  [/^\/competition\/([^/?]+)\/quiz$/, '/pkg-competition/quiz/index', 'id'],
+  [/^\/competition\/([^/?]+)\/result$/, '/pkg-competition/result/index', 'id'],
+  [/^\/competition\/([^/?]+)\/score-detail$/, '/pkg-competition/score-detail/index', 'id'],
+  [/^\/competition\/([^/?]+)\/certificate$/, '/pkg-competition/certificate/index', 'id'],
+  [/^\/competition\/([^/?]+)\/poster$/, '/pkg-competition/poster/index', 'id'],
+  [/^\/competition\/([^/?]+)$/, '/pkg-competition/detail/index', 'id'],
   // 短视频全屏播放详情（/video/:id；video-card 等多处已上线页跳此，原为断链）
   [/^\/video\/([^/?]+)$/, '/pkg-video/detail/index', 'id'],
   // 研究院讲师详情 /institute/instructors/:id（静态 /institute/instructors 已在 ROUTE_MAP 优先命中）
@@ -391,6 +432,8 @@ const DYNAMIC_ROUTES: Array<[RegExp, string, string]> = [
   // 售后详情（/shop/after-sale/:id；静态 /shop/after-sale 已在 ROUTE_MAP 优先命中）
   [/^\/shop\/after-sale\/([^/?]+)$/, '/pkg-account/after-sale-detail/index', 'id'],
   // shop 商品评价（/shop/:id/reviews 更具体，须在通用商品详情之前��
+  // shop C 端店铺主页（/shop/store/:merchantId 两段，须先于通用 /shop/:id 单段兜底）
+  [/^\/shop\/store\/([^/?]+)$/, '/pkg-shop/store/index', 'id'],
   [/^\/shop\/([^/?]+)\/reviews$/, '/pkg-shop/reviews/index', 'id'],
   // shop 商品详情（/shop/:id，兜�����；所有 /shop/xxx ���态页已在 ROUTE_MAP 优先命中）
   [/^\/shop\/([^/?]+)$/, '/pkg-shop/product/index', 'id'],
@@ -439,10 +482,13 @@ const DYNAMIC_ROUTES: Array<[RegExp, string, string]> = [
   [/^\/activity\/([^/?]+)$/, '/pkg-activity/detail/index', 'id'],
   // 公告详情 /notices/:id（静态 /notices、/notices/upgrade 已在 ROUTE_MAP 优先命中）
   [/^\/notices\/([^/?]+)$/, '/pkg-notices/detail/index', 'id'],
-  // 话题详情 /topics/:id（复数，红渐变头图版；与 /topic/:tag 单数标签聚合页区分）
-  [/^\/topics\/([^/?]+)$/, '/pkg-circle/circles/topic-detail', 'id'],
-  // 话题标签聚合 /topic/:tag（单数，内容流版；article/video/post 三类型卡）
-  [/^\/topic\/([^/?]+)$/, '/pkg-circle/circles/topic-tag', 'tag'],
+  // 话题标签聚合 /topic/:tag 与 /topics/:tag（均指向标签聚合页，按话题名取 GET /tags/:name/posts）
+  [/^\/topics?\/([^/?]+)$/, '/pkg-circle/circles/topic-tag', 'tag'],
+  // 智能体对话 /agent/:id（广场/排行卡片跳此；静态 /agent/main、/agent/customer-service 已在 ROUTE_MAP 优先命中）
+  [/^\/agent\/([^/?]+)$/, '/pkg-agent/agent/chat', 'id'],
+  // 电子书详情/阅读器（静态 /ebook、/ebook/store|bookshelf|notes 等已在 ROUTE_MAP 优先命中）
+  [/^\/ebook\/([^/?]+)\/reader$/, '/pkg-ebook/reader/index', 'id'],
+  [/^\/ebook\/([^/?]+)$/, '/pkg-ebook/detail/index', 'id'],
 ]
 
 function normalize(url: string): string {

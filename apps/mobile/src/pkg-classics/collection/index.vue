@@ -66,12 +66,9 @@
       </view>
 
       <view class="cd-actions">
-        <view class="cd-act-primary" :class="{ 'cd-act-primary--added': isAddedToShelf }" @tap="isAddedToShelf = !isAddedToShelf">
-          <text class="cd-act-primary-text" :class="{ 'cd-act-primary-text--added': isAddedToShelf }">{{ isAddedToShelf ? '已加入书架' : '加入书架' }}</text>
-        </view>
-        <view class="cd-act-outline" @tap="startReading">
-          <app-icon name="book-open" :size="32" color="#2c2c2c" />
-          <text class="cd-act-outline-text">开始阅读</text>
+        <view class="cd-act-primary" @tap="startReading">
+          <app-icon name="book-open" :size="32" color="#ffffff" />
+          <text class="cd-act-primary-text">开始研读</text>
         </view>
       </view>
     </view>
@@ -181,7 +178,9 @@ function goCollection(id: string) {
   uni.navigateTo({ url: `/pkg-classics/collection/index?id=${id}` })
 }
 function startReading() {
-  uni.showToast({ title: '阅读器即将上线', icon: 'none' })
+  const first = collection.value?.books?.[0]
+  if (first) uni.navigateTo({ url: `/pkg-classics/reader/index?bookId=${first.id}` })
+  else uni.showToast({ title: '本书单暂无书目', icon: 'none' })
 }
 </script>
 
@@ -335,7 +334,7 @@ function startReading() {
   flex: 1;
   height: 80rpx;
   border-radius: 999rpx;
-  background: #c41e3a;
+  background: var(--brand);
   display: flex;
   align-items: center;
   justify-content: center;

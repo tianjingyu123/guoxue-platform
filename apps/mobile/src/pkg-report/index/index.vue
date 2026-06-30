@@ -101,7 +101,7 @@
         <text class="rp-section-label">上传截图 <text class="rp-section-hint">(可选，最多4张)</text></text>
         <view class="rp-image-grid">
           <view v-for="(img, index) in images" :key="index" class="rp-image-item">
-            <image :src="img" class="rp-image" mode="aspectFill" />
+            <image lazy-load :src="img" class="rp-image" mode="aspectFill" />
             <view class="rp-image-remove" @tap="removeImage(index)">
               <app-icon name="x" :size="24" color="#ffffff" />
             </view>
@@ -298,7 +298,7 @@ function goBack() {
   font-weight: 400;
 }
 .rp-required {
-  color: #C41E3A;
+  color: var(--brand);
 }
 
 /* 举报对象 */
@@ -334,7 +334,7 @@ function goBack() {
 }
 .rp-avatar-letter {
   font-size: 20rpx;
-  color: #C41E3A;
+  color: var(--brand);
 }
 .rp-target-thumb {
   width: 80rpx;
@@ -413,7 +413,7 @@ function goBack() {
   background: #fff;
 }
 .rp-type-item-active {
-  border-color: #C41E3A;
+  border-color: var(--brand);
   background: rgba(196, 30, 58, 0.05);
 }
 .rp-type-text {
@@ -442,8 +442,8 @@ function goBack() {
   flex-shrink: 0;
 }
 .rp-radio-active {
-  border-color: #C41E3A;
-  background: #C41E3A;
+  border-color: var(--brand);
+  background: var(--brand);
 }
 .rp-radio-dot {
   width: 16rpx;
@@ -557,7 +557,7 @@ function goBack() {
   width: 100%;
   height: 96rpx;
   border-radius: 20rpx;
-  background: #C41E3A;
+  background: var(--brand);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -629,7 +629,7 @@ function goBack() {
 .rp-success-btn {
   width: 100%;
   height: 88rpx;
-  background: #C41E3A;
+  background: var(--brand);
   border-radius: 16rpx;
   display: flex;
   align-items: center;

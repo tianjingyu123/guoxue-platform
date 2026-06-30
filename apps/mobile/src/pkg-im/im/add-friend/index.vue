@@ -55,7 +55,7 @@
         </view>
         <view v-else class="result-list">
           <view v-for="user in results" :key="user.id" class="result-item">
-            <image class="result-avatar" :src="user.avatar" mode="aspectFill" />
+            <image lazy-load class="result-avatar" :src="user.avatar" mode="aspectFill" />
             <view class="result-body">
               <text class="result-name">{{ user.name }}</text>
               <text class="result-bio">{{ user.bio }}</text>
@@ -212,7 +212,7 @@ async function addFriend(id: string) {
   height: 72rpx;
   padding: 0 32rpx;
   border-radius: 12rpx;
-  background: #c41e3a;
+  background: var(--brand);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -339,7 +339,7 @@ async function addFriend(id: string) {
   gap: 8rpx;
 }
 .add-btn-default {
-  background: #c41e3a;
+  background: var(--brand);
 }
 .add-btn-done {
   background: transparent;

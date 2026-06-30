@@ -63,6 +63,8 @@ function backToTop() {
 
 <template>
   <view class="home">
+    <app-network-bar />
+    <customer-service-fab />
     <!-- 今日小语（每日一次浮层） -->
     <daily-verse />
 

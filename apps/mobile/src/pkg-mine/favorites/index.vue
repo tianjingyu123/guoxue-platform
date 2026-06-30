@@ -49,6 +49,15 @@
         </view>
       </template>
 
+      <!-- 错误态 -->
+      <view v-else-if="error" class="empty">
+        <app-icon name="alert-circle" :size="64" color="#d1d5db" />
+        <text class="empty-text">{{ error }}</text>
+        <view class="empty-btn" @tap="fetchData">
+          <text class="empty-btn-text">重试</text>
+        </view>
+      </view>
+
       <!-- 空态 -->
       <view v-else-if="displayList.length === 0" class="empty">
         <app-icon name="heart" :size="64" color="#d1d5db" />
@@ -75,7 +84,7 @@
           <view class="fav-card" :class="{ 'fav-invalid': item.isInvalid }" @tap="openItem(item)">
             <!-- 封面 -->
             <view class="fav-cover">
-              <image v-if="item.cover" :src="item.cover" class="fav-cover-img" mode="aspectFill" />
+              <image lazy-load v-if="item.cover" :src="item.cover" class="fav-cover-img" mode="aspectFill" />
               <view v-else class="fav-cover-icon">
                 <app-icon :name="typeIcons[item.type]" :size="24" color="#9ca3af" />
               </view>
@@ -90,13 +99,6 @@
               </view>
               <text class="fav-title">{{ item.title }}</text>
               <text class="fav-subtitle">{{ item.subtitle }}</text>
-              <view class="fav-price-row">
-                <view v-if="item.price > 0" class="fav-price-wrap">
-                  <text class="fav-price">¥{{ item.price }}</text>
-                  <text v-if="item.originalPrice && item.originalPrice > item.price" class="fav-original">¥{{ item.originalPrice }}</text>
-                </view>
-                <text v-else class="fav-free">免费</text>
-              </view>
             </view>
           </view>
 
@@ -104,11 +106,6 @@
           <view v-if="!isEditMode" class="fav-del" @tap="handleRemove(item.id)">
             <app-icon name="trash-2" :size="16" color="#9ca3af" />
           </view>
-        </view>
-
-        <!-- 加载更多 -->
-        <view v-if="hasMore" class="load-more" @tap="loadMore">
-          <text class="load-more-text">加载更多</text>
         </view>
       </template>
     </view>
@@ -125,88 +122,78 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { navigateBack, navigateTo } from '@/utils/router'
-
-type FavType = 'course' | 'circle' | 'article' | 'product' | 'live' | 'teacher'
-
-interface FavItem {
-  id: number
-  type: FavType
-  title: string
-  subtitle: string
-  cover: string
-  price: number
-  originalPrice?: number
-  collectedAt: string
-  isInvalid?: boolean
-}
+import { mineApi, type FavItem, type FavType } from '@/lib/mine-data'
 
 const typeIcons: Record<FavType, string> = {
   course: 'play',
-  circle: 'users',
+  circle_post: 'users',
   article: 'file-text',
   product: 'shopping-bag',
-  live: 'radio',
-  teacher: 'graduation-cap',
+  video: 'video',
+  comment: 'message-square',
 }
 
 const typeNames: Record<FavType, string> = {
   course: '课程',
-  circle: '圈子',
+  circle_post: '帖子',
   article: '文章',
   product: '商品',
-  live: '直播',
-  teacher: '讲师',
+  video: '视频',
+  comment: '评论',
 }
 
 const typeColors: Record<FavType, { bg: string; text: string }> = {
   course: { bg: 'rgba(37,99,235,0.1)', text: '#2563eb' },
-  circle: { bg: 'rgba(139,92,246,0.1)', text: '#8b5cf6' },
+  circle_post: { bg: 'rgba(139,92,246,0.1)', text: '#8b5cf6' },
   article: { bg: 'rgba(5,150,105,0.1)', text: '#059669' },
   product: { bg: 'rgba(234,88,12,0.1)', text: '#ea580c' },
-  live: { bg: 'rgba(196,30,58,0.1)', text: '#C41E3A' },
-  teacher: { bg: 'rgba(79,70,229,0.1)', text: '#4f46e5' },
+  video: { bg: 'rgba(196,30,58,0.1)', text: '#C41E3A' },
+  comment: { bg: 'rgba(79,70,229,0.1)', text: '#4f46e5' },
 }
 
-const allFavorites: FavItem[] = [
-  { id: 1, type: 'course', title: '八字命理精讲：从入门到精通', subtitle: '王明阳 · 32课时', cover: 'https://images.unsplash.com/photo-1532012197267-da84d127e765?w=200&h=200&fit=crop', price: 199, originalPrice: 399, collectedAt: '2024-06-18 14:30' },
-  { id: 2, type: 'circle', title: '紫微斗数研习社', subtitle: '12.8万成员 · 每日更新', cover: '', price: 0, collectedAt: '2024-06-15 09:12' },
-  { id: 3, type: 'article', title: '论易经六十四卦的现代应用', subtitle: '李清源 · 阅读 3.2万', cover: '', price: 0, collectedAt: '2024-06-12 20:45' },
-  { id: 4, type: 'product', title: '开光天然黑曜石手串', subtitle: '辟邪转运 · 已售 2380', cover: 'https://images.unsplash.com/photo-1611652022419-a9419f74343d?w=200&h=200&fit=crop', price: 168, originalPrice: 268, collectedAt: '2024-06-10 16:20' },
-  { id: 5, type: 'live', title: '六月运势详解直播', subtitle: '张玄机 · 已结束', cover: '', price: 0, collectedAt: '2024-06-05 19:00', isInvalid: true },
-  { id: 6, type: 'teacher', title: '陈半仙', subtitle: '风水堪舆 · 从业28年', cover: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop', price: 0, collectedAt: '2024-06-01 11:30' },
-]
-
+const allFavorites = ref<FavItem[]>([])
 const activeTab = ref<FavType | 'all'>('all')
 const isEditMode = ref(false)
-const selectedIds = ref<number[]>([])
-const isLoading = ref(false)
+const selectedIds = ref<string[]>([])
+const isLoading = ref(true)
 const isRefreshing = ref(false)
-const hasMore = ref(false)
+const error = ref('')
+const submitting = ref(false)
 
 const tabs = computed(() => {
-  const counts: Record<string, number> = { all: allFavorites.length }
-  for (const f of allFavorites) counts[f.type] = (counts[f.type] || 0) + 1
+  const counts: Record<string, number> = { all: allFavorites.value.length }
+  for (const f of allFavorites.value) counts[f.type] = (counts[f.type] || 0) + 1
   return [
     { id: 'all' as const, name: '全部', count: counts.all || 0 },
     { id: 'course' as const, name: '课程', count: counts.course || 0 },
-    { id: 'circle' as const, name: '圈子', count: counts.circle || 0 },
     { id: 'article' as const, name: '文章', count: counts.article || 0 },
+    { id: 'video' as const, name: '视频', count: counts.video || 0 },
     { id: 'product' as const, name: '商品', count: counts.product || 0 },
-    { id: 'live' as const, name: '直播', count: counts.live || 0 },
-    { id: 'teacher' as const, name: '讲师', count: counts.teacher || 0 },
+    { id: 'circle_post' as const, name: '帖子', count: counts.circle_post || 0 },
   ]
 })
 
-const removedIds = ref<number[]>([])
-const displayList = computed(() => {
-  return allFavorites.filter(f => {
-    if (removedIds.value.includes(f.id)) return false
-    if (activeTab.value === 'all') return true
-    return f.type === activeTab.value
-  })
-})
+const displayList = computed(() =>
+  activeTab.value === 'all'
+    ? allFavorites.value
+    : allFavorites.value.filter((f) => f.type === activeTab.value),
+)
+
+async function fetchData() {
+  isLoading.value = true
+  error.value = ''
+  try {
+    allFavorites.value = await mineApi.getFavorites()
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    isLoading.value = false
+  }
+}
+
+onMounted(fetchData)
 
 function goBack() {
   navigateBack()
@@ -225,16 +212,20 @@ function switchTab(id: FavType | 'all') {
   activeTab.value = id
 }
 
-function handleRefresh() {
+async function handleRefresh() {
   if (isRefreshing.value) return
   isRefreshing.value = true
-  setTimeout(() => {
-    isRefreshing.value = false
+  try {
+    allFavorites.value = await mineApi.getFavorites()
     uni.showToast({ title: '已刷新', icon: 'none' })
-  }, 800)
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '刷新失败', icon: 'none' })
+  } finally {
+    isRefreshing.value = false
+  }
 }
 
-function toggleSelect(id: number) {
+function toggleSelect(id: string) {
   const idx = selectedIds.value.indexOf(id)
   if (idx >= 0) selectedIds.value.splice(idx, 1)
   else selectedIds.value.push(id)
@@ -244,53 +235,58 @@ function handleSelectAll() {
   if (selectedIds.value.length === displayList.value.length) {
     selectedIds.value = []
   } else {
-    selectedIds.value = displayList.value.map(f => f.id)
+    selectedIds.value = displayList.value.map((f) => f.id)
   }
 }
 
-function handleRemove(id: number) {
+async function removeByIds(ids: string[]) {
+  if (submitting.value || ids.length === 0) return
+  submitting.value = true
+  try {
+    const targets = allFavorites.value.filter((f) => ids.includes(f.id))
+    await Promise.all(targets.map((t) => mineApi.removeFavorite(t.targetType, t.targetId)))
+    allFavorites.value = allFavorites.value.filter((f) => !ids.includes(f.id))
+    selectedIds.value = []
+    isEditMode.value = false
+    uni.showToast({ title: `已取消${targets.length}个收藏`, icon: 'none' })
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '操作失败', icon: 'none' })
+  } finally {
+    submitting.value = false
+  }
+}
+
+function handleRemove(id: string) {
   uni.showModal({
     title: '取消收藏',
     content: '确定要取消收藏吗？',
     confirmColor: '#C41E3A',
     success: (res) => {
-      if (res.confirm) {
-        removedIds.value.push(id)
-        uni.showToast({ title: '已取消收藏', icon: 'none' })
-      }
+      if (res.confirm) removeByIds([id])
     },
   })
 }
 
 function handleBatchRemove() {
   if (selectedIds.value.length === 0) return
+  const ids = [...selectedIds.value]
   uni.showModal({
     title: '批量取消收藏',
-    content: `确定要取消 ${selectedIds.value.length} 个收藏吗？`,
+    content: `确定要取消 ${ids.length} 个收藏吗？`,
     confirmColor: '#C41E3A',
     success: (res) => {
-      if (res.confirm) {
-        const count = selectedIds.value.length
-        removedIds.value.push(...selectedIds.value)
-        selectedIds.value = []
-        isEditMode.value = false
-        uni.showToast({ title: `已取消${count}个收藏`, icon: 'none' })
-      }
+      if (res.confirm) removeByIds(ids)
     },
   })
 }
 
-function loadMore() {
-  hasMore.value = false
-}
-
 const linkMap: Record<FavType, string> = {
-  course: '/course/detail',
-  circle: '/circles/detail',
-  article: '/articles/detail',
+  course: '/course',
+  circle_post: '/post',
+  article: '/article',
   product: '/shop/product',
-  live: '/live/room',
-  teacher: '/expert',
+  video: '/video',
+  comment: '',
 }
 
 function openItem(item: FavItem) {
@@ -302,7 +298,12 @@ function openItem(item: FavItem) {
     uni.showToast({ title: '该内容已失效', icon: 'none' })
     return
   }
-  navigateTo(`${linkMap[item.type]}/${item.id}`)
+  const base = linkMap[item.type]
+  if (!base) {
+    uni.showToast({ title: '暂不支持查看该内容', icon: 'none' })
+    return
+  }
+  navigateTo(`${base}/${item.targetId}`)
 }
 </script>
 
@@ -347,7 +348,7 @@ function openItem(item: FavItem) {
 
 .nav-action {
   font-size: 28rpx;
-  color: #C41E3A;
+  color: var(--brand);
   width: 56rpx;
   text-align: right;
 }
@@ -375,7 +376,7 @@ function openItem(item: FavItem) {
 }
 
 .tab-active {
-  background: #C41E3A;
+  background: var(--brand);
   color: #ffffff;
 }
 
@@ -468,7 +469,7 @@ function openItem(item: FavItem) {
 
 .empty-btn {
   padding: 16rpx 48rpx;
-  background: #C41E3A;
+  background: var(--brand);
   border-radius: 999rpx;
 }
 
@@ -496,8 +497,8 @@ function openItem(item: FavItem) {
 }
 
 .checkbox-checked {
-  background: #C41E3A;
-  border-color: #C41E3A;
+  background: var(--brand);
+  border-color: var(--brand);
 }
 
 .fav-card {
@@ -603,7 +604,7 @@ function openItem(item: FavItem) {
 .fav-price {
   font-size: 28rpx;
   font-weight: 700;
-  color: #C41E3A;
+  color: var(--brand);
 }
 
 .fav-original {
@@ -651,7 +652,7 @@ function openItem(item: FavItem) {
 
 .batch-all {
   font-size: 28rpx;
-  color: #C41E3A;
+  color: var(--brand);
 }
 
 .batch-del {
@@ -659,7 +660,7 @@ function openItem(item: FavItem) {
   align-items: center;
   gap: 12rpx;
   padding: 16rpx 48rpx;
-  background: #C41E3A;
+  background: var(--brand);
   border-radius: 999rpx;
 }
 

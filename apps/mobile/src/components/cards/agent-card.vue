@@ -2,17 +2,21 @@
 /** 智能体卡(feed,品牌红渐变)- 从原型 components/cards/agent-card.tsx 迁移 */
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
+import { track } from '@/composables/useTrack'
 import { type AgentCardData, formatCount } from '@/lib/card-utils'
 
 const props = defineProps<{ data: AgentCardData; context?: string }>()
-function open() { navigateTo(`/pkg-agent/agent/chat?id=${props.data.id}${props.context ? `&from=${props.context}` : ''}`) }
+function open() {
+  track.click('agent_card', { id: props.data.id, from: props.context })
+  navigateTo(`/pkg-agent/agent/chat?id=${props.data.id}${props.context ? `&from=${props.context}` : ''}`)
+}
 </script>
 
 <template>
   <view class="card" hover-class="card-press" @tap="open">
     <view class="inner">
       <view class="head">
-        <image v-if="data.avatar" class="avatar" :src="data.avatar" mode="aspectFill" />
+        <image lazy-load v-if="data.avatar" class="avatar" :src="data.avatar" mode="aspectFill" />
         <view class="head-info">
           <view class="name-row">
             <text class="name">{{ data.name }}</text>

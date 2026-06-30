@@ -51,9 +51,20 @@
         </view>
       </view>
 
+      <!-- 错误态 -->
+      <view v-else-if="error" class="error-state">
+        <view class="empty-icon">
+          <app-icon name="alert-circle" :size="56" color="var(--text-soft)" />
+        </view>
+        <text class="empty-title">{{ error }}</text>
+        <view class="retry-btn" @click="loadResults">
+          <text class="retry-btn-text">重试</text>
+        </view>
+      </view>
+
       <block v-else>
-        <!-- AI 智能总结（仅综合Tab）-->
-        <view v-if="activeTab === 'all'" class="ai-summary-pad">
+        <!-- AI 智能总结（仅综合Tab，需登录+后端配置，失败静默隐藏）-->
+        <view v-if="activeTab === 'all' && aiSummaryText" class="ai-summary-pad">
           <view class="ai-summary-card">
             <view class="ai-summary-head" @click="aiExpanded = !aiExpanded">
               <view class="ai-summary-head-left">
@@ -66,28 +77,7 @@
             </view>
 
             <view v-if="aiExpanded" class="ai-summary-body">
-              <text class="ai-summary-text">{{ aiSummary.summary }}</text>
-
-              <view class="ai-block">
-                <text class="ai-block-label">核心要点</text>
-                <view class="ai-points">
-                  <view v-for="(point, i) in aiSummary.keyPoints" :key="i" class="ai-point-chip">
-                    <text class="ai-point-text">{{ point }}</text>
-                  </view>
-                </view>
-              </view>
-
-              <view class="ai-block">
-                <text class="ai-block-label">相关问题</text>
-                <view class="ai-questions">
-                  <text
-                    v-for="(q, i) in aiSummary.relatedQuestions"
-                    :key="i"
-                    class="ai-question"
-                    @click="goSearch(q)"
-                  >{{ q }}</text>
-                </view>
-              </view>
+              <text class="ai-summary-text">{{ aiSummaryText }}</text>
             </view>
           </view>
         </view>
@@ -103,26 +93,24 @@
               v-for="item in results.contents"
               :key="item.id"
               class="content-card"
-              @click="navigateTo(item.type === 'video' ? `/videos/${item.id}` : `/articles/${item.id}`)"
+              @click="navigateTo(item.href)"
             >
               <view class="content-main">
                 <view class="content-tags">
-                  <text v-if="item.type === 'video'" class="type-tag type-tag--video">视频</text>
-                  <text v-if="item.type === 'article'" class="type-tag type-tag--article">文章</text>
-                  <text v-if="item.type === 'post'" class="type-tag type-tag--post">帖子</text>
+                  <text v-if="item.kind === 'video'" class="type-tag type-tag--video">视频</text>
+                  <text v-else-if="item.kind === 'article'" class="type-tag type-tag--article">文章</text>
+                  <text v-else-if="item.kind === 'post'" class="type-tag type-tag--post">帖子</text>
+                  <text v-else-if="item.kind === 'classic'" class="type-tag type-tag--article">古籍</text>
+                  <text v-else-if="item.kind === 'poem'" class="type-tag type-tag--post">诗词</text>
                 </view>
                 <rich-text class="content-title" :nodes="highlight(item.title)" />
-                <rich-text class="content-summary" :nodes="highlight(item.summary)" />
+                <rich-text v-if="item.summary" class="content-summary" :nodes="highlight(item.summary)" />
                 <view class="content-foot">
-                  <text class="content-author">{{ item.author.name }}</text>
+                  <text v-if="item.author" class="content-author">{{ item.author }}</text>
                   <view class="content-stats">
                     <view class="stat">
-                      <app-icon name="heart" :size="22" color="var(--text-soft)" />
-                      <text class="stat-num">{{ item.likes }}</text>
-                    </view>
-                    <view class="stat">
-                      <app-icon name="message-circle" :size="22" color="var(--text-soft)" />
-                      <text class="stat-num">{{ item.comments }}</text>
+                      <app-icon name="eye" :size="22" color="var(--text-soft)" />
+                      <text class="stat-num">{{ formatNumber(item.viewCount) }}浏览</text>
                     </view>
                   </view>
                 </view>
@@ -140,21 +128,21 @@
               v-for="circle in results.circles"
               :key="circle.id"
               class="circle-card"
-              @click="navigateTo(`/circles/${circle.id}`)"
+              @click="navigateTo(circle.href)"
             >
               <view class="circle-avatar">
-                <app-icon name="users" :size="48" color="#C41E3A" />
+                <image lazy-load v-if="circle.cover" :src="circle.cover" class="circle-avatar-img" mode="aspectFill" />
+                <app-icon v-else name="users" :size="48" color="#C41E3A" />
               </view>
               <view class="circle-info">
                 <rich-text class="circle-name" :nodes="highlight(circle.name)" />
-                <text class="circle-desc">{{ circle.description }}</text>
+                <text v-if="circle.description" class="circle-desc">{{ circle.description }}</text>
                 <view class="circle-stats">
                   <text class="circle-stat">{{ formatNumber(circle.memberCount) }}成员</text>
-                  <text class="circle-stat">{{ formatNumber(circle.postCount) }}帖子</text>
                 </view>
               </view>
               <view class="join-btn">
-                <text class="join-btn-text">加入</text>
+                <text class="join-btn-text">查看</text>
               </view>
             </view>
           </view>
@@ -170,24 +158,81 @@
                 v-for="course in results.courses"
                 :key="course.id"
                 :class="activeTab === 'course' ? 'course-card-grid' : 'course-card-row'"
-                @click="navigateTo(`/courses/${course.id}`)"
+                @click="navigateTo(course.href)"
               >
                 <view :class="activeTab === 'course' ? 'course-cover-grid' : 'course-cover-row'">
-                  <app-icon name="book-open" :size="56" color="#C41E3A" />
+                  <image lazy-load v-if="course.cover" :src="course.cover" class="row-cover-img" mode="aspectFill" />
+                  <app-icon v-else name="book-open" :size="56" color="#C41E3A" />
                 </view>
                 <view :class="activeTab === 'course' ? 'course-meta-grid' : 'course-meta-row'">
                   <rich-text class="course-title" :nodes="highlight(course.title)" />
-                  <text class="course-teacher">{{ course.teacher }}</text>
+                  <text v-if="course.intro" class="course-teacher">{{ course.intro }}</text>
                   <view class="course-sub">
-                    <view class="course-rating">
-                      <app-icon name="star" :size="22" color="#C9A96E" :fill="true" />
-                      <text class="course-rating-num">{{ course.rating }}</text>
-                    </view>
                     <text class="course-students">{{ formatNumber(course.studentCount) }}人学习</text>
                   </view>
                   <view class="course-price-row">
                     <text class="course-price">¥{{ course.price }}</text>
-                    <text v-if="course.originalPrice" class="course-original">¥{{ course.originalPrice }}</text>
+                  </view>
+                </view>
+              </view>
+            </view>
+          </view>
+
+          <!-- 古籍结果 -->
+          <view v-if="(activeTab === 'all' || activeTab === 'classic') && results.classics.length" class="result-group">
+            <view v-if="activeTab === 'all'" class="group-head">
+              <text class="group-title">相关古籍</text>
+              <text class="group-more" @click="activeTab = 'classic'">查看全部</text>
+            </view>
+            <view class="course-list">
+              <view
+                v-for="classic in results.classics"
+                :key="classic.id"
+                class="course-card-row"
+                @click="navigateTo(classic.href)"
+              >
+                <view class="course-cover-row">
+                  <image lazy-load v-if="classic.cover" :src="classic.cover" class="row-cover-img" mode="aspectFill" />
+                  <app-icon v-else name="book-open" :size="56" color="#C41E3A" />
+                </view>
+                <view class="course-meta-row">
+                  <rich-text class="course-title" :nodes="highlight(classic.title)" />
+                  <text v-if="classic.dynasty || classic.author" class="course-teacher">
+                    <text v-if="classic.dynasty">{{ classic.dynasty }}</text><text v-if="classic.dynasty && classic.author"> · </text><text v-if="classic.author">{{ classic.author }}</text>
+                  </text>
+                  <view v-if="classic.category" class="course-sub">
+                    <text class="meta-tag">{{ classic.category }}</text>
+                  </view>
+                </view>
+              </view>
+            </view>
+          </view>
+
+          <!-- 电子书结果 -->
+          <view v-if="(activeTab === 'all' || activeTab === 'ebook') && results.ebooks.length" class="result-group">
+            <view v-if="activeTab === 'all'" class="group-head">
+              <text class="group-title">相关电子书</text>
+              <text class="group-more" @click="activeTab = 'ebook'">查看全部</text>
+            </view>
+            <view class="course-list">
+              <view
+                v-for="ebook in results.ebooks"
+                :key="ebook.id"
+                class="course-card-row"
+                @click="navigateTo(ebook.href)"
+              >
+                <view class="course-cover-row">
+                  <image lazy-load v-if="ebook.cover" :src="ebook.cover" class="row-cover-img" mode="aspectFill" />
+                  <app-icon v-else name="book" :size="56" color="#C41E3A" />
+                </view>
+                <view class="course-meta-row">
+                  <rich-text class="course-title" :nodes="highlight(ebook.title)" />
+                  <text v-if="ebook.author" class="course-teacher">{{ ebook.author }}</text>
+                  <view class="course-sub">
+                    <text class="course-students">{{ formatNumber(ebook.purchaseCount) }}人购买</text>
+                  </view>
+                  <view class="course-price-row">
+                    <text class="course-price">¥{{ ebook.price }}</text>
                   </view>
                 </view>
               </view>
@@ -205,19 +250,19 @@
                 v-for="product in results.products"
                 :key="product.id"
                 class="product-card"
-                @click="navigateTo(`/mall/product/${product.id}`)"
+                @click="navigateTo(product.href)"
               >
                 <view class="product-cover">
-                  <app-icon name="shopping-bag" :size="72" color="rgba(196,30,58,0.5)" />
+                  <image lazy-load v-if="product.cover" :src="product.cover" class="product-cover-img" mode="aspectFill" />
+                  <app-icon v-else name="shopping-bag" :size="72" color="rgba(196,30,58,0.5)" />
                 </view>
                 <view class="product-meta">
-                  <rich-text class="product-name" :nodes="highlight(product.name)" />
+                  <rich-text class="product-name" :nodes="highlight(product.title)" />
                   <view class="product-foot">
                     <view class="product-price-wrap">
                       <text class="product-price">¥{{ product.price }}</text>
-                      <text v-if="product.originalPrice" class="product-original">¥{{ product.originalPrice }}</text>
                     </view>
-                    <text class="product-sales">{{ product.sales }}人购买</text>
+                    <text class="product-sales">{{ formatNumber(product.salesCount) }}人购买</text>
                   </view>
                 </view>
               </view>
@@ -234,21 +279,14 @@
               v-for="user in results.users"
               :key="user.id"
               class="user-card"
-              @click="navigateTo(`/user/${user.id}`)"
+              @click="navigateTo(user.href)"
             >
               <view class="user-avatar">
-                <app-icon name="user" :size="44" color="#C41E3A" />
+                <image lazy-load v-if="user.avatar" :src="user.avatar" class="user-avatar-img" mode="aspectFill" />
+                <app-icon v-else name="user" :size="44" color="#C41E3A" />
               </view>
               <view class="user-info">
                 <rich-text class="user-name" :nodes="highlight(user.name)" />
-                <text v-if="user.bio" class="user-bio">{{ user.bio }}</text>
-                <view class="user-stat">
-                  <app-icon name="trending-up" :size="22" color="var(--text-soft)" />
-                  <text class="user-fans">{{ formatNumber(user.followers) }}粉丝</text>
-                </view>
-              </view>
-              <view class="follow-btn" :class="{ 'follow-btn--done': user.isFollowed }">
-                <text class="follow-btn-text" :class="{ 'follow-btn-text--done': user.isFollowed }">{{ user.isFollowed ? '已关注' : '关注' }}</text>
               </view>
             </view>
           </view>
@@ -284,78 +322,95 @@ import { ref, computed, watch } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo, navigateBack } from '@/utils/router'
+import { searchApi, type SearchResults, type SearchTab } from '@/lib/search-data'
 
-type TabType = 'all' | 'content' | 'circle' | 'course' | 'product' | 'user'
-
-const tabs: { key: TabType; label: string }[] = [
+const tabs: { key: SearchTab; label: string }[] = [
   { key: 'all', label: '综合' },
   { key: 'content', label: '内容' },
-  { key: 'circle', label: '圈子' },
   { key: 'course', label: '课程' },
   { key: 'product', label: '商品' },
+  { key: 'circle', label: '圈子' },
+  { key: 'classic', label: '古籍' },
+  { key: 'ebook', label: '电子书' },
   { key: 'user', label: '用户' },
 ]
 
 // 来源页面 → 默认Tab 映射（从课程页搜索默认落"课程"Tab）
-const fromToTab: Record<string, TabType> = {
+const fromToTab: Record<string, SearchTab> = {
   course: 'course',
   mall: 'product',
   shop: 'product',
   circle: 'circle',
-  classics: 'content',
+  classics: 'classic',
+  ebook: 'ebook',
 }
 
 // ===== UI 状态 =====
 const statusBarHeight = ref(0)
 const keyword = ref('')
 const searchValue = ref('')
-const activeTab = ref<TabType>('all')
-const loading = ref(true)
+const activeTab = ref<SearchTab>('all')
+const loading = ref(false)
+const error = ref('')
 const aiExpanded = ref(true)
+const aiSummaryText = ref('')
 
 const emptyHotWords = ['八字入门', '紫微斗数', '风水布局', '奇门遁甲', '六爻预测']
 
-// ===== Mock 数据（照抄原型，关键词动态拼接；交接后由 Claude Code 接入接口）=====
-// @data-needs: GET /api/search/ai-summary?keyword=xxx
-const aiSummary = computed(() => ({
-  summary: `关于"${keyword.value}"的搜索结果显示，这是国学领域的重要概念。根据平台内容分析，相关课程和文章主要涵盖基础理论、实践应用和案例分析三个方面。`,
-  keyPoints: ['基础理论知识体系完整', '实践案例丰富详实', '多位名师深度讲解'],
-  relatedQuestions: ['如何入门学习？', '有哪些经典书籍推荐？', '实际应用场景有哪些？'],
-}))
-
-// @data-needs: GET /api/search/results?keyword=xxx&tab=xxx
-const results = computed(() => {
-  const kw = keyword.value
-  return {
-    contents: [
-      { id: '1', type: 'article' as const, title: `深入解读${kw}的核心要义`, summary: '本文从多个角度深入分析，帮助读者全面理解其内涵与外延...', author: { id: '1', name: '张老师' }, likes: 328, comments: 56 },
-      { id: '2', type: 'video' as const, title: `${kw}入门必看教程`, summary: '零基础小白也能快速上手，系统学习核心知识点...', author: { id: '2', name: '李讲师' }, likes: 892, comments: 124 },
-      { id: '3', type: 'post' as const, title: `我学习${kw}三年的心得体会`, summary: '分享我的学习历程和一些实用的学习方法...', author: { id: '3', name: '老学员' }, likes: 156, comments: 38 },
-    ],
-    circles: [
-      { id: '1', name: `${kw}研习社`, description: '专注于国学知识的深度探讨与交流', memberCount: 12580, postCount: 3420 },
-      { id: '2', name: `${kw}爱好者`, description: '志同道合的朋友一起学习成长', memberCount: 8960, postCount: 2180 },
-    ],
-    courses: [
-      { id: '1', title: `${kw}系统精讲课`, price: 299, originalPrice: 599, teacher: '王教授', studentCount: 5680, rating: 4.9 },
-      { id: '2', title: `${kw}实战应用班`, price: 199, originalPrice: 399, teacher: '赵讲师', studentCount: 3240, rating: 4.8 },
-      { id: '3', title: `${kw}高级研修课`, price: 499, originalPrice: 999, teacher: '钱大师', studentCount: 1890, rating: 4.9 },
-    ],
-    products: [
-      { id: '1', name: `${kw}经典教材`, price: 68, originalPrice: 98, sales: 2380 },
-      { id: '2', name: `${kw}学习工具套装`, price: 128, originalPrice: 198, sales: 1560 },
-    ],
-    users: [
-      { id: '1', name: '国学大师张三', bio: '专注国学研究30年，著有多部畅销书籍', followers: 128000, isFollowed: false },
-      { id: '2', name: '李老师讲国学', bio: '每日分享国学智慧，让传统文化走进生活', followers: 86000, isFollowed: true },
-    ],
-  }
+// ===== 真连后端：搜索结果 =====
+const results = ref<SearchResults>({
+  contents: [], courses: [], products: [], circles: [], classics: [], ebooks: [], users: [],
 })
 
 const isEmpty = computed(() => {
   const r = results.value
-  return !loading.value && !r.contents.length && !r.circles.length && !r.courses.length && !r.products.length && !r.users.length
+  return !loading.value && !error.value &&
+    !r.contents.length && !r.courses.length && !r.products.length &&
+    !r.circles.length && !r.classics.length && !r.ebooks.length && !r.users.length
 })
+
+/** 拉取搜索结果（关键词/Tab 变化触发） */
+async function loadResults() {
+  if (!keyword.value.trim()) {
+    results.value = { contents: [], courses: [], products: [], circles: [], classics: [], ebooks: [], users: [] }
+    aiSummaryText.value = ''
+    loading.value = false
+    return
+  }
+  loading.value = true
+  error.value = ''
+  try {
+    results.value = await searchApi.search(keyword.value, activeTab.value)
+    searchApi.saveHistory(keyword.value) // 静默保存历史，不阻塞
+    const r = results.value
+    const hasAny = r.contents.length || r.courses.length || r.products.length ||
+      r.circles.length || r.classics.length || r.ebooks.length || r.users.length
+    if (activeTab.value === 'all' && hasAny) {
+      loadAiSummary()
+    } else {
+      aiSummaryText.value = ''
+    }
+  } catch (e) {
+    error.value = '搜索失败，请重试'
+  } finally {
+    loading.value = false
+  }
+}
+
+/** AI 智能总结（需登录+后端配置，失败静默隐藏卡片） */
+async function loadAiSummary() {
+  const r = results.value
+  const items = [
+    ...r.contents.slice(0, 4).map((c) => ({ title: c.title, content: c.summary || '' })),
+    ...r.courses.slice(0, 3).map((c) => ({ title: c.title, content: c.intro || '' })),
+  ]
+  if (!items.length) { aiSummaryText.value = ''; return }
+  try {
+    aiSummaryText.value = await searchApi.aiSummary(keyword.value, items)
+  } catch {
+    aiSummaryText.value = ''
+  }
+}
 
 onLoad((opt) => {
   try {
@@ -365,22 +420,16 @@ onLoad((opt) => {
     statusBarHeight.value = 0
   }
   const kw = opt && opt.keyword ? decodeURIComponent(opt.keyword) : ''
+  const tabOpt = opt && opt.tab ? (opt.tab as SearchTab) : ''
   const from = opt && opt.from ? opt.from : ''
   keyword.value = kw
   searchValue.value = kw
-  activeTab.value = fromToTab[from] || 'all'
-  triggerLoading()
+  activeTab.value = (tabOpt && tabs.some((t) => t.key === tabOpt) ? tabOpt : fromToTab[from]) || 'all'
+  loadResults()
 })
 
-// 关键词或Tab变化 → 模拟加载
-watch([keyword, activeTab], () => triggerLoading())
-
-let loadTimer: ReturnType<typeof setTimeout> | null = null
-function triggerLoading() {
-  loading.value = true
-  if (loadTimer) clearTimeout(loadTimer)
-  loadTimer = setTimeout(() => { loading.value = false }, 800)
-}
+// 关键词或Tab变化 → 重新加载
+watch([keyword, activeTab], loadResults)
 
 function goBack() {
   navigateBack()
@@ -484,7 +533,7 @@ function formatNumber(num: number) {
 }
 .search-action-text {
   font-size: 28rpx;
-  color: #C41E3A;
+  color: var(--brand);
   font-weight: 500;
   white-space: nowrap;
 }
@@ -504,7 +553,7 @@ function formatNumber(num: number) {
   border-bottom: 4rpx solid transparent;
 }
 .tab-item--active {
-  border-bottom-color: #C41E3A;
+  border-bottom-color: var(--brand);
 }
 .tab-label {
   font-size: 28rpx;
@@ -513,7 +562,7 @@ function formatNumber(num: number) {
   white-space: nowrap;
 }
 .tab-label--active {
-  color: #C41E3A;
+  color: var(--brand);
 }
 
 /* 主体 */
@@ -568,7 +617,7 @@ function formatNumber(num: number) {
   width: 56rpx;
   height: 56rpx;
   border-radius: 28rpx;
-  background: linear-gradient(135deg, #C41E3A, #C9A96E);
+  background: linear-gradient(135deg, var(--brand), #C9A96E);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -619,7 +668,7 @@ function formatNumber(num: number) {
 }
 .ai-question {
   font-size: 28rpx;
-  color: #C41E3A;
+  color: var(--brand);
 }
 
 /* 结果区 */
@@ -646,7 +695,7 @@ function formatNumber(num: number) {
 }
 .group-more {
   font-size: 24rpx;
-  color: #C41E3A;
+  color: var(--brand);
 }
 
 /* 内容卡片 */
@@ -665,7 +714,7 @@ function formatNumber(num: number) {
   padding: 2rpx 12rpx;
   border-radius: 8rpx;
 }
-.type-tag--video { background: rgba(196, 30, 58, 0.1); color: #C41E3A; }
+.type-tag--video { background: rgba(196, 30, 58, 0.1); color: var(--brand); }
 .type-tag--article { background: #dbeafe; color: #2563eb; }
 .type-tag--post { background: #dcfce7; color: #16a34a; }
 .content-title {
@@ -753,7 +802,7 @@ function formatNumber(num: number) {
 }
 .join-btn {
   padding: 12rpx 32rpx;
-  background: #C41E3A;
+  background: var(--brand);
   border-radius: 32rpx;
   flex-shrink: 0;
 }
@@ -849,7 +898,7 @@ function formatNumber(num: number) {
 .course-price {
   font-size: 30rpx;
   font-weight: 700;
-  color: #C41E3A;
+  color: var(--brand);
 }
 .course-original {
   font-size: 24rpx;
@@ -899,7 +948,7 @@ function formatNumber(num: number) {
 .product-price {
   font-size: 28rpx;
   font-weight: 700;
-  color: #C41E3A;
+  color: var(--brand);
 }
 .product-original {
   font-size: 22rpx;
@@ -960,7 +1009,7 @@ function formatNumber(num: number) {
 }
 .follow-btn {
   padding: 12rpx 32rpx;
-  background: #C41E3A;
+  background: var(--brand);
   border-radius: 32rpx;
   flex-shrink: 0;
 }
@@ -1018,6 +1067,50 @@ function formatNumber(num: number) {
   font-size: 26rpx;
   color: var(--text-main);
   white-space: nowrap;
+}
+
+/* 封面图（覆盖各占位容器，圆角继承父级裁剪） */
+.circle-avatar-img,
+.user-avatar-img,
+.row-cover-img,
+.product-cover-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.circle-avatar,
+.course-cover-row,
+.course-cover-grid,
+.product-cover,
+.user-avatar {
+  overflow: hidden;
+}
+
+/* 古籍/电子书 分类标签 */
+.meta-tag {
+  font-size: 22rpx;
+  color: var(--text-soft);
+  padding: 2rpx 16rpx;
+  background: var(--background);
+  border-radius: 8rpx;
+}
+
+/* 错误态 */
+.error-state {
+  padding: 128rpx 32rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.retry-btn {
+  margin-top: 40rpx;
+  padding: 16rpx 56rpx;
+  background: var(--brand);
+  border-radius: 40rpx;
+}
+.retry-btn-text {
+  font-size: 28rpx;
+  color: #ffffff;
 }
 
 .bottom-gap {

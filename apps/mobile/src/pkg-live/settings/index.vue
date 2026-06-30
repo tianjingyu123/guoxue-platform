@@ -47,7 +47,7 @@
           <!-- 封面 -->
           <view class="cover-row">
             <view class="cover-wrap">
-              <image class="cover-img" :src="profile.cover" mode="aspectFill" />
+              <image lazy-load class="cover-img" :src="profile.cover" mode="aspectFill" />
               <view class="cover-upload">
                 <app-icon name="upload" :size="24" color="#fff" />
               </view>
@@ -306,7 +306,7 @@ onMounted(() => { fetchData() })
   width: 48rpx;
   height: 48rpx;
   border-radius: 50%;
-  background: #C41E3A;
+  background: var(--brand);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -415,7 +415,7 @@ onMounted(() => { fetchData() })
   transition: background 0.2s;
 }
 .switch-on {
-  background: #C41E3A;
+  background: var(--brand);
 }
 .switch-knob {
   position: absolute;
@@ -467,7 +467,7 @@ onMounted(() => { fetchData() })
 .save-btn {
   height: 88rpx;
   border-radius: 24rpx;
-  background: #C41E3A;
+  background: var(--brand);
   color: #fff;
   font-size: 28rpx;
   font-weight: 600;
@@ -513,5 +513,5 @@ onMounted(() => { fetchData() })
 /* 错误态 */
 .error-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 128rpx 0; }
 .error-text { font-size: 26rpx; color: #999; margin-top: 24rpx; }
-.error-btn { margin-top: 32rpx; padding: 16rpx 48rpx; font-size: 26rpx; color: #fff; background: #C41E3A; border-radius: 999rpx; }
+.error-btn { margin-top: 32rpx; padding: 16rpx 48rpx; font-size: 26rpx; color: #fff; background: var(--brand); border-radius: 999rpx; }
 </style>

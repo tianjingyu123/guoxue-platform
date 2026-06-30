@@ -29,7 +29,7 @@ function toggleBook() {
   <view class="lc" hover-class="lc-press" @tap="open">
     <!-- 封面 -->
     <view class="cover" :class="data.orientation === 'horizontal' ? 'r-169' : 'r-34'">
-      <image v-if="data.cover" class="cover-img" :src="data.cover" mode="aspectFill" />
+      <image lazy-load v-if="data.cover" class="cover-img" :src="data.cover" mode="aspectFill" />
       <view class="grad" />
       <!-- 类型标签 左上 -->
       <text class="type-badge" :class="data.type === 'knowledge' ? 'tb-know' : 'tb-comm'">{{ typeLabel }}</text>
@@ -65,7 +65,7 @@ function toggleBook() {
       <text class="title">{{ data.title }}</text>
       <view class="host">
         <view class="avatar">
-          <image v-if="data.hostAvatar" class="avatar-img" :src="data.hostAvatar" mode="aspectFill" />
+          <image lazy-load v-if="data.hostAvatar" class="avatar-img" :src="data.hostAvatar" mode="aspectFill" />
           <text v-else class="avatar-ph">{{ data.hostName.charAt(0) }}</text>
         </view>
         <text class="host-name">{{ data.hostName }}</text>

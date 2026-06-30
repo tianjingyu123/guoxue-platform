@@ -61,7 +61,7 @@
             class="rec-card"
             @click="goProduct(item.id)"
           >
-            <image class="rec-img" :src="item.image" mode="aspectFill" />
+            <image lazy-load class="rec-img" :src="item.image" mode="aspectFill" />
             <text class="rec-name">{{ item.name }}</text>
             <text class="rec-price">¥{{ item.price }}</text>
           </view>

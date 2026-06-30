@@ -1,5 +1,5 @@
 import type { CoverColor } from '@/lib/classics-cover'
-import { apiGet, useMock } from '@/utils/request'
+import { apiGet, apiGetPaged, apiPost, apiPut, apiDelete } from '@/utils/request'
 
 // ===================== 首页 classics/home =====================
 const _mockLibraryStats = [
@@ -102,6 +102,15 @@ export const _mockFilterTypes = [
 
 export function fmtReads(n: number): string {
   return n >= 10000 ? `${(n / 10000).toFixed(1)}万` : `${n}`
+}
+
+/** 拼接「作者 · 朝代 · X人读」元信息，自动跳过空字段与 0 阅读（避免出现「佚名 · · 0人读」） */
+export function bookMetaLine(author?: string, dynasty?: string, reads?: number): string {
+  const segs: string[] = []
+  if (author) segs.push(author)
+  if (dynasty) segs.push(dynasty)
+  if (reads && reads > 0) segs.push(`${fmtReads(reads)}人读`)
+  return segs.join(' · ')
 }
 
 // ===================== 分类列表 classics/category/[cat] =====================
@@ -411,10 +420,10 @@ const _mockRankingPageBooks: RankBook[] = [
   { id: '26', rank: 9, title: '阳宅三要', author: '赵九峰', dynasty: '清', views: '34.2万', rating: 4.5, category: '风水' },
   { id: '27', rank: 10, title: '地理五诀', author: '赵九峰', dynasty: '清', views: '29.8万', rating: 4.4, category: '风水' },
 ]
+// 评分维度暂无后端数据，移除「评分」tab（古籍不做星级评分）
 export const _mockRankTabs = [
   { key: 'hot', label: '热门' },
   { key: 'new', label: '最新' },
-  { key: 'rating', label: '评分' },
 ] as const
 
 // ===================== 精选书单 classics/lists =====================
@@ -595,158 +604,214 @@ const _mockNotesData: NoteItem[] = [
 ]
 
 // ===================== API 层 =====================
+// 铁律：所有方法真连后端，错误向上抛由页面走「错误态」，空数据走「空态」，
+// 绝不回退假 mock 掩盖。浏览主干(home/category/detail/ranking/search)连 /classics BFF；
+// 阅读器/进度/书签/笔记/AI 连 /classic(单数) 真实端点（多数需登录）。
 export const classicsApi = {
-  /** 首页数据 */
+  /** 首页聚合（真连，失败抛错走错误态） */
   async home() {
-    if (true) return {
-      libraryStats: _mockLibraryStats,
-      categories: _mockCategories,
-      todayFeature: _mockTodayFeature,
-      lastReading: _mockLastReading,
-      weeklyMinutes: _mockWeeklyMinutes,
-      bookLists: _mockBookLists,
-      rankingData: _mockRankingData,
-      audioBooks: _mockAudioBooks,
-      featuredBooks: _mockFeaturedBooks,
-    }
-    try {
-      const data = await apiGet<any>('/classics/home')
-      return {
-        libraryStats: data.libraryStats || _mockLibraryStats,
-        categories: data.categories || _mockCategories,
-        todayFeature: data.todayFeature || _mockTodayFeature,
-        lastReading: data.lastReading || _mockLastReading,
-        weeklyMinutes: data.weeklyMinutes ?? _mockWeeklyMinutes,
-        bookLists: data.bookLists || _mockBookLists,
-        rankingData: data.rankingData || _mockRankingData,
-        audioBooks: data.audioBooks || _mockAudioBooks,
-        featuredBooks: data.featuredBooks || _mockFeaturedBooks,
-      }
-    } catch {
-      return {
-        libraryStats: _mockLibraryStats,
-        categories: _mockCategories,
-        todayFeature: _mockTodayFeature,
-        lastReading: _mockLastReading,
-        weeklyMinutes: _mockWeeklyMinutes,
-        bookLists: _mockBookLists,
-        rankingData: _mockRankingData,
-        audioBooks: _mockAudioBooks,
-        featuredBooks: _mockFeaturedBooks,
-      }
+    const data = await apiGet<any>('/classics/home')
+    return {
+      libraryStats: Array.isArray(data.libraryStats) ? data.libraryStats : [],
+      categories: Array.isArray(data.categories) ? data.categories : [],
+      todayFeature: data.todayFeature ?? null,
+      lastReading: data.lastReading ?? null,
+      weeklyMinutes: data.weeklyMinutes ?? 0,
+      bookLists: Array.isArray(data.bookLists) ? data.bookLists : [],
+      rankingData: Array.isArray(data.rankingData) ? data.rankingData : [],
+      audioBooks: Array.isArray(data.audioBooks) ? data.audioBooks : [],
+      featuredBooks: Array.isArray(data.featuredBooks) ? data.featuredBooks : [],
     }
   },
 
-  /** 分类书籍 */
-  async category(cat: string) {
-    if (true) return { config: _mockCAT_CONFIG[cat as CatId], books: _mockCAT_BOOKS[cat as CatId] || [] }
-    try {
-      const data = await apiGet<any>(`/classics/category/${cat}`)
-      return { config: data.config || _mockCAT_CONFIG[cat as CatId], books: data.books?.length ? data.books : (_mockCAT_BOOKS[cat as CatId] || []) }
-    } catch { return { config: _mockCAT_CONFIG[cat as CatId], books: _mockCAT_BOOKS[cat as CatId] || [] } }
+  /** 分类书籍（sort: hot=最热 / new=最新） */
+  async category(cat: string, sort: 'hot' | 'new' = 'hot') {
+    const data = await apiGet<any>(`/classics/category/${cat}?sort=${sort}`)
+    return { config: data.config ?? null, books: Array.isArray(data.books) ? data.books : [] }
   },
 
   /** 图书详情 */
   async detail(id: string) {
-    if (true) return { book: _mockBookData[id], discussions: _mockBookDiscussions, aiFeatures: _mockAI_FEATURES }
-    try {
-      const data = await apiGet<any>(`/classics/${id}`)
-      return { book: data.book || _mockBookData[id], discussions: data.discussions || _mockBookDiscussions, aiFeatures: data.aiFeatures || _mockAI_FEATURES }
-    } catch { return { book: _mockBookData[id], discussions: _mockBookDiscussions, aiFeatures: _mockAI_FEATURES } }
+    const data = await apiGet<any>(`/classics/${id}`)
+    return {
+      book: data.book ?? null,
+      discussions: Array.isArray(data.discussions) ? data.discussions : [],
+      aiFeatures: Array.isArray(data.aiFeatures) ? data.aiFeatures : [],
+    }
   },
 
-  /** 书架 */
-  async bookshelf() {
-    if (true) return { books: _mockBookshelfData, groups: _mockGroupsData, history: _mockReadingHistoryData }
-    try {
-      const data = await apiGet<any>('/classics/bookshelf')
-      return { books: data.books || _mockBookshelfData, groups: data.groups || _mockGroupsData, history: data.history || _mockReadingHistoryData }
-    } catch { return { books: _mockBookshelfData, groups: _mockGroupsData, history: _mockReadingHistoryData } }
-  },
-
-  /** 有声书列表 */
-  async audiobooks() {
-    if (true) return _mockMockAudioBooks
-    try {
-      const data = await apiGet<any>('/classics/audiobooks')
-      return data?.length ? data : _mockMockAudioBooks
-    } catch { return _mockMockAudioBooks }
-  },
-
-  /** 有声书播放器 */
-  async audiobookPlayer(id: string) {
-    if (true) return _mockAudioBookPlayerData[id] || _mockAudioBookPlayerData.default
-    try {
-      const data = await apiGet<any>(`/classics/audiobooks/${id}`)
-      return data || _mockAudioBookPlayerData.default
-    } catch { return _mockAudioBookPlayerData[id] || _mockAudioBookPlayerData.default }
-  },
-
-  /** 书签 */
-  async bookmarks() {
-    if (true) return _mockBookmarksData
-    try {
-      const data = await apiGet<any>('/classics/bookmarks')
-      return data?.length ? data : _mockBookmarksData
-    } catch { return _mockBookmarksData }
-  },
-
-  /** 笔记 */
-  async notes() {
-    if (true) return _mockNotesData
-    try {
-      const data = await apiGet<any>('/classics/notes')
-      return data?.length ? data : _mockNotesData
-    } catch { return _mockNotesData }
-  },
-
-  /** 收藏列表 */
-  async collections() {
-    if (true) return _mockMockCollections
-    try {
-      const data = await apiGet<any>('/classics/collections')
-      return data?.length ? data : _mockMockCollections
-    } catch { return _mockMockCollections }
-  },
-
-  /** 合集详情 */
-  async collectionDetail(id: string) {
-    if (true) return _mockCollectionsDetailData[id]
-    try {
-      const data = await apiGet<any>(`/classics/collections/${id}`)
-      return data || _mockCollectionsDetailData[id]
-    } catch { return _mockCollectionsDetailData[id] }
-  },
-
-  /** 排行榜 */
-  async ranking() {
-    if (true) return { books: _mockRankingPageBooks, tabs: _mockRankTabs }
-    try {
-      const data = await apiGet<any>('/classics/ranking')
-      return { books: data.books || _mockRankingPageBooks, tabs: data.tabs || _mockRankTabs }
-    } catch { return { books: _mockRankingPageBooks, tabs: _mockRankTabs } }
-  },
-
-  /** 精选书单 */
-  async lists() {
-    if (true) return _mockListsPageData
-    try {
-      const data = await apiGet<any>('/classics/lists')
-      return data?.length ? data : _mockListsPageData
-    } catch { return _mockListsPageData }
+  /** 排行榜（sort: hot=热门 / new=最新） */
+  async ranking(sort: 'hot' | 'new' = 'hot') {
+    const data = await apiGet<any>(`/classics/ranking?sort=${sort}`)
+    return { books: Array.isArray(data.books) ? data.books : [], tabs: Array.isArray(data.tabs) ? data.tabs : [] }
   },
 
   /** 搜索 */
   async search(query: string) {
-    if (true) return { results: _mockSearchResultsData, suggestions: _mockSearchSuggestionsData, hotSearch: _mockHotSearchData, history: _mockSearchHistoryData }
-    try {
-      const data = await apiGet<any>(`/classics/search?q=${encodeURIComponent(query)}`)
-      return {
-        results: data.results || _mockSearchResultsData,
-        suggestions: data.suggestions || _mockSearchSuggestionsData,
-        hotSearch: data.hotSearch || _mockHotSearchData,
-        history: data.history || _mockSearchHistoryData,
-      }
-    } catch { return { results: _mockSearchResultsData, suggestions: _mockSearchSuggestionsData, hotSearch: _mockHotSearchData, history: _mockSearchHistoryData } }
+    const data = await apiGet<any>(`/classics/search?q=${encodeURIComponent(query)}`)
+    return {
+      results: Array.isArray(data.results) ? data.results : [],
+      suggestions: Array.isArray(data.suggestions) ? data.suggestions : [],
+      hotSearch: Array.isArray(data.hotSearch) ? data.hotSearch : [],
+      history: Array.isArray(data.history) ? data.history : [],
+    }
+  },
+
+  /** 精选书单（后端暂无数据源→空态隐藏） */
+  async lists() {
+    const data = await apiGet<any>('/classics/lists')
+    return Array.isArray(data) ? data : []
+  },
+
+  /** 我的收藏（真连 /classic/favorites，需登录） */
+  async collections(): Promise<CollectionItem[]> {
+    const data = await apiGet<any>('/classic/favorites')
+    const items: any[] = Array.isArray(data?.items) ? data.items : []
+    const colors: CoverColor[] = ['cream', 'brown', 'blue', 'green', 'red']
+    return items.map((b, i) => ({
+      id: b.id, title: b.title, type: 'article' as MediaType,
+      author: b.author || '佚名', addedDate: (b.addedAt || '').slice(0, 10),
+      plays: b.plays || 0, color: colors[i % colors.length],
+    }))
+  },
+  async addFavorite(bookId: string) {
+    return await apiPost<any>(`/classic/favorites/${bookId}`)
+  },
+  async removeFavorite(bookId: string) {
+    return await apiDelete<any>(`/classic/favorites/${bookId}`)
+  },
+  async favoriteStatus(bookId: string): Promise<{ favorited: boolean }> {
+    return await apiGet<{ favorited: boolean }>(`/classic/favorites/${bookId}/status`)
+  },
+
+  /** 合集详情（后端暂无数据源→null 走空态） */
+  async collectionDetail(id: string) {
+    return await apiGet<any>(`/classics/collections/${id}`)
+  },
+
+  /** 有声书列表（第二阶段 TTS→当前空态隐藏） */
+  async audiobooks() {
+    const data = await apiGet<any>('/classics/audiobooks')
+    return Array.isArray(data) ? data : []
+  },
+
+  /** 有声书播放器（第二阶段 TTS→当前 null 走空态） */
+  async audiobookPlayer(id: string) {
+    return await apiGet<any>(`/classics/audiobooks/${id}`)
+  },
+
+  // ── 阅读器：章节正文（公开） ──
+  /** 章节正文 + 所属书 { id, bookId, title, content, translation, annotation, sortOrder, book } */
+  async chapter(id: string) {
+    return await apiGet<any>(`/classic/chapters/${id}`)
+  },
+
+  // ── AI 赋能（需登录） ──
+  /** 文白翻译：{ original, translation, notes[], source } */
+  async translate(text: string, context?: string) {
+    return await apiPost<any>('/classic/translate', { text, context })
+  },
+  /** 古汉语查词：{ word, pinyin, radicals, meanings[], classicalUsages[], commonPhrases[], explanation } */
+  async lookupWord(word: string) {
+    return await apiPost<any>('/classic/dictionary/lookup', { word })
+  },
+  /** 古籍AI问答：{ answer } */
+  async askAI(question: string) {
+    return await apiPost<{ answer: string }>('/classic/ask', { question })
+  },
+
+  // ── 古籍伴读智能体（识典伴读·注入当前章节正文·需登录） ──
+  /** 伴读开场引导问题：{ bookTitle, chapterTitle, prompts[] } */
+  async companionPrompts(chapterId: string): Promise<{ bookTitle: string; chapterTitle: string; prompts: string[] }> {
+    return await apiGet<any>(`/classic/companion/prompts?chapterId=${chapterId}`)
+  },
+  /** 伴读多轮对话（带当前章节上下文）：{ answer, disclaimer } */
+  async companionChat(
+    chapterId: string,
+    question: string,
+    history?: { role: string; content: string }[],
+  ): Promise<{ answer: string; disclaimer: string }> {
+    return await apiPost<{ answer: string; disclaimer: string }>('/classic/companion/chat', { chapterId, question, history })
+  },
+
+  // ── 阅读进度（需登录） ──
+  async getProgress(bookId: string) {
+    return await apiGet<any>(`/classic/progress/${bookId}`)
+  },
+  async saveProgress(bookId: string, chapterId: string, progress: number) {
+    return await apiPut<any>(`/classic/progress/${bookId}`, { chapterId, progress })
+  },
+  async continueReading(limit = 20) {
+    return await apiGet<any>(`/classic/continue-reading?limit=${limit}`)
+  },
+  async readingStats() {
+    return await apiGet<any>('/classic/reading-stats')
+  },
+
+  // ── 书架（基于真实阅读进度，需登录） ──
+  async bookshelf() {
+    const data = await apiGet<any>('/classic/continue-reading?limit=100')
+    const items: any[] = Array.isArray(data?.items) ? data.items : []
+    const books: ShelfBook[] = items.map((r) => ({
+      id: r.book?.id, title: r.book?.title, author: r.book?.author || '佚名',
+      dynasty: r.book?.dynasty || '', progress: Math.round(r.progress || 0),
+      hasAI: true, hasTranslation: true,
+      lastReadAt: (r.updatedAt || '').slice(0, 10),
+    }))
+    const history: HistoryItem[] = items.map((r) => ({
+      id: r.book?.id, title: r.book?.title, author: r.book?.author || '佚名',
+      dynasty: r.book?.dynasty || '', chapter: r.chapter?.title || '',
+      readAt: (r.updatedAt || '').slice(0, 10),
+    }))
+    return { books, groups: [] as ShelfGroup[], history }
+  },
+  /** 移出书架（删除阅读进度） */
+  async removeFromShelf(bookId: string) {
+    return await apiDelete<any>(`/classic/progress/${bookId}`)
+  },
+
+  // ── 书签（真实 CRUD，需登录） ──
+  async bookmarks(bookId?: string): Promise<BookmarkItem[]> {
+    const path = bookId
+      ? `/classic/bookmarks?bookId=${bookId}&pageSize=100`
+      : '/classic/bookmarks?pageSize=100'
+    const res = await apiGetPaged<any>(path)
+    const colors = ['amber', 'blue', 'green', 'purple'] as const
+    return res.items.map((b, i) => ({
+      id: b.id, bookId: b.bookId, bookTitle: b.book?.title || '', bookAuthor: '',
+      dynasty: '', chapter: b.chapter?.title || '', content: b.note || '',
+      page: b.position || 0, createdAt: (b.createdAt || '').slice(0, 10),
+      color: colors[i % colors.length],
+    }))
+  },
+  async addBookmark(bookId: string, payload: { chapterId: string; position: number; note?: string }) {
+    return await apiPost<any>(`/classic/bookmarks/${bookId}`, payload)
+  },
+  async removeBookmark(id: string) {
+    return await apiDelete<any>(`/classic/bookmarks/${id}`)
+  },
+
+  // ── 读书笔记（真实 CRUD，需登录） ──
+  async notes(bookId?: string): Promise<NoteItem[]> {
+    const path = bookId
+      ? `/classic/notes?bookId=${bookId}&pageSize=100`
+      : '/classic/notes?pageSize=100'
+    const res = await apiGetPaged<any>(path)
+    return res.items.map((n) => ({
+      id: n.id, bookId: n.bookId, bookTitle: n.book?.title || '', bookAuthor: '',
+      dynasty: '', chapter: n.chapter?.title || '', originalText: '',
+      noteContent: n.content || '', tags: [], page: 0,
+      createdAt: (n.createdAt || '').slice(0, 16).replace('T', ' '),
+      updatedAt: (n.updatedAt || '').slice(0, 16).replace('T', ' '),
+    }))
+  },
+  async addNote(bookId: string, payload: { chapterId: string; content: string }) {
+    return await apiPost<any>(`/classic/notes/${bookId}`, payload)
+  },
+  async updateNote(id: string, content: string) {
+    return await apiPut<any>(`/classic/notes/${id}`, { content })
+  },
+  async removeNote(id: string) {
+    return await apiDelete<any>(`/classic/notes/${id}`)
   },
 }

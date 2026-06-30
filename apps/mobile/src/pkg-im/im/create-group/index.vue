@@ -28,7 +28,7 @@
         <text class="selected-tip">已选 {{ selected.length }} 人（至少选 2 人）</text>
         <view class="selected-row">
           <view v-for="f in selectedFriends" :key="f.id" class="selected-avatar-wrap" @tap="toggle(f.id)">
-            <image class="selected-avatar" :src="f.avatar" mode="aspectFill" />
+            <image lazy-load class="selected-avatar" :src="f.avatar" mode="aspectFill" />
             <view class="selected-remove"><text class="selected-remove-text">×</text></view>
           </view>
         </view>
@@ -40,7 +40,7 @@
           <view class="checkbox" :class="{ 'checkbox-on': selected.includes(friend.id) }">
             <AppIcon v-if="selected.includes(friend.id)" name="check" :size="24" color="#ffffff" />
           </view>
-          <image class="friend-avatar" :src="friend.avatar" mode="aspectFill" />
+          <image lazy-load class="friend-avatar" :src="friend.avatar" mode="aspectFill" />
           <view class="friend-body">
             <text class="friend-name">{{ friend.name }}</text>
             <text class="friend-bio">{{ friend.bio }}</text>
@@ -58,7 +58,7 @@
           <text class="group-avatar-text">群头像</text>
         </view>
         <view class="member-avatars">
-          <image v-for="f in selectedFriends" :key="f.id" class="member-avatar" :src="f.avatar" mode="aspectFill" />
+          <image lazy-load v-for="f in selectedFriends" :key="f.id" class="member-avatar" :src="f.avatar" mode="aspectFill" />
         </view>
       </view>
 
@@ -201,7 +201,7 @@ async function create() {
 .nav-next {
   font-size: 28rpx;
   font-weight: 500;
-  color: #c41e3a;
+  color: var(--brand);
 }
 
 /* 步骤1 */
@@ -266,7 +266,7 @@ async function create() {
   width: 32rpx;
   height: 32rpx;
   border-radius: 50%;
-  background: #c41e3a;
+  background: var(--brand);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -303,8 +303,8 @@ async function create() {
   flex-shrink: 0;
 }
 .checkbox-on {
-  background: #c41e3a;
-  border-color: #c41e3a;
+  background: var(--brand);
+  border-color: var(--brand);
 }
 .friend-avatar {
   width: 80rpx;
@@ -433,7 +433,7 @@ async function create() {
   width: 100%;
   height: 96rpx;
   border-radius: 12rpx;
-  background: #c41e3a;
+  background: var(--brand);
   display: flex;
   align-items: center;
   justify-content: center;

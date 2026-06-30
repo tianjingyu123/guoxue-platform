@@ -73,7 +73,7 @@
           <text class="field-label">上传截图（选填）</text>
           <view class="img-row">
             <view v-for="(img, i) in images" :key="i" class="img-cell">
-              <image class="img-thumb" :src="img" mode="aspectFill" />
+              <image lazy-load class="img-thumb" :src="img" mode="aspectFill" />
               <view class="img-del" @tap="removeImage(i)">
                 <AppIcon name="x" :size="12" color="#ffffff" />
               </view>
@@ -220,7 +220,7 @@ async function handleSubmit() {
   if (!canSubmit.value || isSubmitting.value) return
   isSubmitting.value = true
   try {
-    await mineApi.submitFeedback(selectedType.value!, content.value, content.value, images.value)
+    await mineApi.submitFeedback(selectedType.value!, content.value, contact.value || undefined, images.value)
     submitted.value = true
   } catch (e: any) {
     uni.showToast({ title: e?.message || '提交失败', icon: 'none' })
@@ -249,7 +249,7 @@ function resetForm() {
 .loading { flex: 1; display: flex; align-items: center; justify-content: center; padding-top: 200rpx; font-size: 28rpx; color: #8a8178; }
 .error-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding-top: 200rpx; gap: 24rpx; }
 .error-state text { font-size: 28rpx; color: #8a8178; }
-.retry-btn { padding: 16rpx 48rpx; background: #C41E3A; color: #fff; border-radius: 12rpx; font-size: 26rpx; }
+.retry-btn { padding: 16rpx 48rpx; background: var(--brand); color: #fff; border-radius: 12rpx; font-size: 26rpx; }
 
 /* Tab */
 .tabs {
@@ -271,7 +271,7 @@ function resetForm() {
   color: #999999;
 }
 .tab-active {
-  color: #c41e3a;
+  color: var(--brand);
 }
 .tab-line {
   position: absolute;
@@ -280,7 +280,7 @@ function resetForm() {
   transform: translateX(-50%);
   width: 100%;
   height: 4rpx;
-  background: #c41e3a;
+  background: var(--brand);
 }
 
 .tab-pane {
@@ -323,7 +323,7 @@ function resetForm() {
   background: #ffffff;
 }
 .type-active {
-  border-color: #c41e3a;
+  border-color: var(--brand);
   background: rgba(196, 30, 58, 0.05);
 }
 .type-icon {
@@ -432,7 +432,7 @@ function resetForm() {
   width: 100%;
   height: 88rpx;
   border-radius: 16rpx;
-  background: #c41e3a;
+  background: var(--brand);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -479,7 +479,7 @@ function resetForm() {
   padding: 0 48rpx;
   height: 80rpx;
   border-radius: 16rpx;
-  background: #c41e3a;
+  background: var(--brand);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -573,7 +573,7 @@ function resetForm() {
   display: block;
   font-size: 24rpx;
   font-weight: 500;
-  color: #c41e3a;
+  color: var(--brand);
   margin-bottom: 8rpx;
 }
 .reply-content {

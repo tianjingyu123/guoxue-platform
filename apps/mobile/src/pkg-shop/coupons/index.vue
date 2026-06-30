@@ -188,17 +188,24 @@ const emptyText = computed(() =>
   activeTab.value === 'unused' ? '暂无可用优惠券' : activeTab.value === 'used' ? '暂无已使用优惠券' : '暂无过期优惠券',
 )
 
-function claim(c: CenterCoupon) {
+async function claim(c: CenterCoupon) {
   if (c.isClaimed || claimingId.value === c.id || submitting.value) return
   submitting.value = true
   claimingId.value = c.id
-  setTimeout(() => {
+  try {
+    await shopApi.claimCoupon(c.id)
     c.isClaimed = true
     c.claimed += 1
+    // 同步刷新「我的券」，确保未使用列表与角标即时更新
+    const myRes = await shopApi.getMyCoupons()
+    myList.value = myRes.coupons
+    uni.showToast({ title: '领取成功', icon: 'success' })
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '领取失败', icon: 'none' })
+  } finally {
     claimingId.value = null
     submitting.value = false
-    uni.showToast({ title: '领取成功', icon: 'success' })
-  }, 600)
+  }
 }
 function goUse() {
   navigateTo('/shop')
@@ -220,7 +227,7 @@ function goUse() {
   height: 88rpx;
   padding: 0 24rpx;
   padding-top: var(--status-bar-height, 0px);
-  background: linear-gradient(90deg, #c41e3a, #e85a71);
+  background: linear-gradient(90deg, var(--brand), #e85a71);
 }
 .nav-back {
   width: 56rpx;
@@ -257,11 +264,11 @@ function goUse() {
   color: #666;
 }
 .tab-text--on {
-  color: #c41e3a;
+  color: var(--brand);
 }
 .tab-badge {
   padding: 0 10rpx;
-  background: #c41e3a;
+  background: var(--brand);
   color: #fff;
   font-size: 20rpx;
   border-radius: 999rpx;
@@ -273,7 +280,7 @@ function goUse() {
   transform: translateX(-50%);
   width: 64rpx;
   height: 4rpx;
-  background: #c41e3a;
+  background: var(--brand);
   border-radius: 999rpx;
 }
 .body {
@@ -283,7 +290,7 @@ function goUse() {
   gap: 24rpx;
 }
 .center-banner {
-  background: linear-gradient(90deg, #c41e3a, #e85a71);
+  background: linear-gradient(90deg, var(--brand), #e85a71);
   border-radius: 24rpx;
   padding: 24rpx;
 }
@@ -336,12 +343,12 @@ function goUse() {
   left: 0;
   width: 100%;
   height: 6rpx;
-  background: linear-gradient(90deg, #c41e3a, #e85a71);
+  background: linear-gradient(90deg, var(--brand), #e85a71);
 }
 .cv-amount {
   font-size: 48rpx;
   font-weight: 700;
-  color: #c41e3a;
+  color: var(--brand);
 }
 .cv-amount--gray {
   color: #999;
@@ -378,7 +385,7 @@ function goUse() {
 .ci-scope {
   padding: 2rpx 12rpx;
   background: #fff5f5;
-  color: #c41e3a;
+  color: var(--brand);
   font-size: 20rpx;
   border-radius: 6rpx;
 }
@@ -405,7 +412,7 @@ function goUse() {
 .claim-btn {
   flex-shrink: 0;
   padding: 12rpx 28rpx;
-  background: #c41e3a;
+  background: var(--brand);
   border-radius: 999rpx;
 }
 .claim-btn--done {
@@ -428,7 +435,7 @@ function goUse() {
 }
 .use-text {
   font-size: 26rpx;
-  color: #c41e3a;
+  color: var(--brand);
 }
 .status-text {
   font-size: 26rpx;
@@ -447,7 +454,7 @@ function goUse() {
 }
 .empty-btn {
   padding: 12rpx 48rpx;
-  background: #c41e3a;
+  background: var(--brand);
   border-radius: 999rpx;
 }
 .empty-btn-text {
@@ -456,7 +463,7 @@ function goUse() {
 }
 .retry-btn {
   padding: 12rpx 48rpx;
-  background: #c41e3a;
+  background: var(--brand);
   border-radius: 999rpx;
 }
 .retry-btn-text {

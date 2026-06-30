@@ -45,7 +45,7 @@
           <!-- 消息气泡 -->
           <view v-else class="msg-row" :class="{ 'msg-mine': isMine(message) }">
             <view v-if="!isMine(message)" class="avatar-wrap">
-              <image class="msg-avatar" :src="message.senderAvatar" mode="aspectFill" />
+              <image lazy-load class="msg-avatar" :src="message.senderAvatar" mode="aspectFill" />
               <view v-if="message.senderRole === 'owner'" class="role-badge role-owner">
                 <AppIcon name="crown" :size="12" color="#f59e0b" />
               </view>
@@ -70,7 +70,7 @@
                   <text v-if="message.atAll" class="at-text">@所有人 </text>{{ message.content }}
                 </text>
                 <!-- 图片 -->
-                <image v-else-if="message.type === 'image'" class="bubble-image" :src="message.image?.url" mode="widthFix" />
+                <image lazy-load v-else-if="message.type === 'image'" class="bubble-image" :src="message.image?.url" mode="widthFix" />
                 <!-- 语音 -->
                 <view v-else-if="message.type === 'voice'" class="voice-row">
                   <AppIcon name="mic" :size="16" :color="isMine(message) ? '#ffffff' : '#2c2c2c'" />
@@ -95,7 +95,7 @@
           <text class="at-name at-name-bold">@所有人</text>
         </view>
         <view v-for="member in atSearchResults" :key="member.id" class="at-item" @tap="handleSelectAtMember(member)">
-          <image class="at-avatar" :src="member.avatar" mode="aspectFill" />
+          <image lazy-load class="at-avatar" :src="member.avatar" mode="aspectFill" />
           <view class="at-info">
             <text class="at-name">{{ member.remark || member.nickname }}</text>
             <text v-if="member.role !== 'member'" class="at-role">{{ getGroupRoleName(member.role) }}</text>
@@ -173,7 +173,7 @@
         </view>
         <scroll-view class="sheet-body" scroll-y>
           <view class="sheet-group-info">
-            <image class="sheet-group-avatar" :src="groupDetail.avatar" mode="aspectFill" />
+            <image lazy-load class="sheet-group-avatar" :src="groupDetail.avatar" mode="aspectFill" />
             <view class="sheet-group-text">
               <text class="sheet-group-name">{{ groupDetail.name }}</text>
               <text class="sheet-group-count">{{ groupDetail.memberCount }}人</text>
@@ -188,7 +188,7 @@
             <view class="member-grid">
               <view v-for="member in members.slice(0, 10)" :key="member.id" class="member-cell">
                 <view class="avatar-wrap">
-                  <image class="member-avatar" :src="member.avatar" mode="aspectFill" />
+                  <image lazy-load class="member-avatar" :src="member.avatar" mode="aspectFill" />
                   <view v-if="member.role === 'owner'" class="role-badge role-owner">
                     <AppIcon name="crown" :size="12" color="#f59e0b" />
                   </view>
@@ -539,7 +539,7 @@ async function handleSend() {
   margin-left: 8rpx;
 }
 .sender-role {
-  color: #c41e3a;
+  color: var(--brand);
 }
 .bubble {
   border-radius: 32rpx;
@@ -550,7 +550,7 @@ async function handleSend() {
   border-top-left-radius: 4rpx;
 }
 .bubble-mine {
-  background: #c41e3a;
+  background: var(--brand);
   border-top-right-radius: 4rpx;
 }
 .bubble-text {
@@ -682,7 +682,7 @@ async function handleSend() {
   width: 72rpx;
   height: 72rpx;
   border-radius: 16rpx;
-  background: #c41e3a;
+  background: var(--brand);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -826,7 +826,7 @@ async function handleSend() {
 }
 .sheet-section-more {
   font-size: 26rpx;
-  color: #c41e3a;
+  color: var(--brand);
 }
 .member-grid {
   display: grid;
@@ -907,7 +907,7 @@ async function handleSend() {
 /* 加载/错误状态 */
 .load-state { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; gap: 24rpx; }
 .load-state-text { font-size: 28rpx; color: #8a8178; }
-.retry-btn { padding: 16rpx 48rpx; background: #c41e3a; border-radius: 999rpx; }
+.retry-btn { padding: 16rpx 48rpx; background: var(--brand); border-radius: 999rpx; }
 .retry-text { font-size: 28rpx; color: #fff; }
 
 /* 发送按钮禁用态 */

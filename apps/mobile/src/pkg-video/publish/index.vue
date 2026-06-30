@@ -182,7 +182,7 @@
             <view v-if="selectedProducts.length" class="vp-pub-selprods">
               <view v-for="(p, idx) in selectedProducts" :key="p.id" class="vp-pub-selprod">
                 <view class="vp-pub-selprod-idx">{{ idx + 1 }}</view>
-                <image class="vp-pub-selprod-img" :src="p.cover" mode="aspectFill" />
+                <image lazy-load class="vp-pub-selprod-img" :src="p.cover" mode="aspectFill" />
                 <view class="vp-pub-selprod-info">
                   <text class="vp-pub-selprod-name">{{ p.name }}</text>
                   <view class="vp-pub-selprod-meta">
@@ -284,7 +284,7 @@
             @tap="toggleProduct(p)"
           >
             <view class="vp-prod-item-imgwrap">
-              <image class="vp-prod-item-img" :src="p.cover" mode="aspectFill" />
+              <image lazy-load class="vp-prod-item-img" :src="p.cover" mode="aspectFill" />
               <view v-if="isProductSelected(p)" class="vp-prod-item-check">
                 <AppIcon name="check" :size="24" color="#ffffff" />
               </view>
@@ -505,7 +505,7 @@ async function handlePublish() {
   justify-content: center;
   gap: 16rpx;
 }
-.vp-sel-btn-primary { background-color: #c41e3a; }
+.vp-sel-btn-primary { background-color: var(--brand); }
 .vp-sel-btn-ghost { background-color: rgba(255, 255, 255, 0.1); }
 .vp-sel-btn-txt { color: #ffffff; font-size: 30rpx; }
 
@@ -526,7 +526,7 @@ async function handlePublish() {
 }
 .vp-edit-back { padding: 16rpx; }
 .vp-edit-title { color: #ffffff; font-size: 34rpx; font-weight: 500; }
-.vp-edit-next { color: #c41e3a; font-size: 30rpx; font-weight: 500; }
+.vp-edit-next { color: var(--brand); font-size: 30rpx; font-weight: 500; }
 .vp-edit-preview {
   flex: 1;
   display: flex;
@@ -571,7 +571,7 @@ async function handlePublish() {
 }
 .vp-edit-cover-label { color: #ffffff; font-size: 26rpx; }
 .vp-edit-cover-upload { display: flex; align-items: center; gap: 8rpx; }
-.vp-edit-cover-upload-txt { color: #c41e3a; font-size: 26rpx; }
+.vp-edit-cover-upload-txt { color: var(--brand); font-size: 26rpx; }
 .vp-edit-frames { white-space: nowrap; }
 .vp-edit-frame {
   display: inline-block;
@@ -583,7 +583,7 @@ async function handlePublish() {
   margin-right: 16rpx;
   box-sizing: border-box;
 }
-.vp-edit-frame.active { border: 4rpx solid #c41e3a; }
+.vp-edit-frame.active { border: 4rpx solid var(--brand); }
 .vp-edit-frame-img { width: 100%; height: 100%; }
 .vp-edit-frame-check {
   position: absolute;
@@ -620,7 +620,7 @@ async function handlePublish() {
 .vp-pub-title { color: #2C2C2C; font-size: 34rpx; font-weight: 500; }
 .vp-pub-submit {
   padding: 12rpx 32rpx;
-  background-color: #c41e3a;
+  background-color: var(--brand);
   border-radius: 999rpx;
 }
 .vp-pub-submit.disabled { opacity: 0.5; }
@@ -678,7 +678,7 @@ async function handlePublish() {
 .vp-pub-row-title { font-size: 26rpx; color: #2C2C2C; font-weight: 500; }
 .vp-pub-row-tip { font-size: 22rpx; color: #999999; }
 .vp-pub-add { display: flex; align-items: center; gap: 4rpx; }
-.vp-pub-add-txt { color: #c41e3a; font-size: 26rpx; }
+.vp-pub-add-txt { color: var(--brand); font-size: 26rpx; }
 .vp-pub-tags { display: flex; flex-wrap: wrap; gap: 16rpx; margin-bottom: 24rpx; }
 .vp-pub-tag {
   display: flex;
@@ -688,7 +688,7 @@ async function handlePublish() {
   background-color: rgba(196, 30, 58, 0.1);
   border-radius: 999rpx;
 }
-.vp-pub-tag-txt { color: #c41e3a; font-size: 26rpx; }
+.vp-pub-tag-txt { color: var(--brand); font-size: 26rpx; }
 .vp-pub-tag-x { display: flex; align-items: center; }
 .vp-pub-taginput { display: flex; gap: 16rpx; margin-bottom: 24rpx; }
 .vp-pub-taginput-field {
@@ -701,7 +701,7 @@ async function handlePublish() {
 }
 .vp-pub-taginput-btn {
   padding: 16rpx 32rpx;
-  background-color: #c41e3a;
+  background-color: var(--brand);
   border-radius: 16rpx;
   display: flex;
   align-items: center;
@@ -730,7 +730,7 @@ async function handlePublish() {
   width: 40rpx;
   height: 40rpx;
   border-radius: 50%;
-  background-color: #c41e3a;
+  background-color: var(--brand);
   color: #ffffff;
   font-size: 22rpx;
   display: flex;
@@ -749,7 +749,7 @@ async function handlePublish() {
   display: block;
 }
 .vp-pub-selprod-meta { display: flex; align-items: center; gap: 16rpx; margin-top: 4rpx; }
-.vp-pub-selprod-price { font-size: 22rpx; color: #c41e3a; font-weight: 500; }
+.vp-pub-selprod-price { font-size: 22rpx; color: var(--brand); font-weight: 500; }
 .vp-pub-selprod-comm {
   font-size: 18rpx;
   color: #16A34A;
@@ -822,7 +822,7 @@ async function handlePublish() {
 }
 .vp-upload-txt { display: block; text-align: center; color: #2C2C2C; font-size: 30rpx; font-weight: 500; margin-bottom: 32rpx; }
 .vp-upload-bar { height: 16rpx; background-color: #f4f4f5; border-radius: 999rpx; overflow: hidden; }
-.vp-upload-bar-fill { height: 100%; background-color: #c41e3a; transition: width 0.3s; }
+.vp-upload-bar-fill { height: 100%; background-color: var(--brand); transition: width 0.3s; }
 .vp-upload-pct { display: block; text-align: center; font-size: 26rpx; color: #999999; margin-top: 16rpx; }
 
 /* ===== 商品搜索弹层 ===== */
@@ -851,7 +851,7 @@ async function handlePublish() {
 }
 .vp-prod-head-title { font-size: 34rpx; font-weight: 500; color: #2C2C2C; }
 .vp-prod-head-right { display: flex; align-items: center; gap: 16rpx; }
-.vp-prod-head-count { font-size: 22rpx; color: #c41e3a; }
+.vp-prod-head-count { font-size: 22rpx; color: var(--brand); }
 .vp-prod-search { display: flex; gap: 16rpx; padding: 32rpx; }
 .vp-prod-search-input {
   flex: 1;
@@ -865,7 +865,7 @@ async function handlePublish() {
 .vp-prod-search-field { flex: 1; height: 72rpx; font-size: 26rpx; color: #2C2C2C; }
 .vp-prod-search-btn {
   padding: 0 32rpx;
-  background-color: #c41e3a;
+  background-color: var(--brand);
   border-radius: 24rpx;
   display: flex;
   align-items: center;
@@ -894,7 +894,7 @@ async function handlePublish() {
   right: -8rpx;
   width: 40rpx;
   height: 40rpx;
-  background-color: #c41e3a;
+  background-color: var(--brand);
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -910,7 +910,7 @@ async function handlePublish() {
   display: block;
 }
 .vp-prod-item-meta { display: flex; align-items: center; gap: 16rpx; margin-top: 8rpx; }
-.vp-prod-item-price { font-size: 28rpx; color: #c41e3a; font-weight: 700; }
+.vp-prod-item-price { font-size: 28rpx; color: var(--brand); font-weight: 700; }
 .vp-prod-item-comm {
   font-size: 18rpx;
   color: #16A34A;
@@ -924,7 +924,7 @@ async function handlePublish() {
 .vp-prod-confirm-btn {
   width: 100%;
   height: 88rpx;
-  background-color: #c41e3a;
+  background-color: var(--brand);
   border-radius: 24rpx;
   display: flex;
   align-items: center;

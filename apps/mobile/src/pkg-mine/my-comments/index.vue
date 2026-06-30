@@ -12,8 +12,8 @@ const list = ref<MyCommentItem[]>([])
 const loading = ref(true)
 const error = ref('')
 const isEditMode = ref(false)
-const selectedIds = ref<number[]>([])
-const activeId = ref<number | null>(null)
+const selectedIds = ref<(string | number)[]>([])
+const activeId = ref<string | number | null>(null)
 
 async function fetchData() {
   loading.value = true
@@ -43,7 +43,7 @@ function toggleEdit() {
   selectedIds.value = []
   activeId.value = null
 }
-function toggleSelect(id: number) {
+function toggleSelect(id: string | number) {
   selectedIds.value = selectedIds.value.includes(id)
     ? selectedIds.value.filter((i) => i !== id)
     : [...selectedIds.value, id]
@@ -51,11 +51,11 @@ function toggleSelect(id: number) {
 function selectAll() {
   selectedIds.value = list.value.map((c) => c.id)
 }
-function toggleActive(id: number) {
+function toggleActive(id: string | number) {
   if (isEditMode.value) return
   activeId.value = activeId.value === id ? null : id
 }
-function deleteOne(id: number) {
+function deleteOne(id: string | number) {
   list.value = list.value.filter((c) => c.id !== id)
   activeId.value = null
   uni.showToast({ title: '已删除', icon: 'none' })
@@ -109,7 +109,7 @@ function openTarget() {
             <!-- 目标内容 -->
             <view class="target" @tap.stop="openTarget">
               <view v-if="c.target.cover" class="target-cover">
-                <image class="target-img" :src="c.target.cover" mode="aspectFill" />
+                <image lazy-load class="target-img" :src="c.target.cover" mode="aspectFill" />
               </view>
               <view v-else class="target-icon" :style="{ background: commentTypeStyles[c.target.type].bg }">
                 <AppIcon :name="commentTypeStyles[c.target.type].icon" :size="22" :color="commentTypeStyles[c.target.type].color" />
@@ -168,8 +168,8 @@ function openTarget() {
 .loading { flex: 1; display: flex; align-items: center; justify-content: center; padding-top: 200rpx; font-size: 28rpx; color: #8a8178; }
 .error-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding-top: 200rpx; gap: 24rpx; }
 .error-state text { font-size: 28rpx; color: #8a8178; }
-.retry-btn { padding: 16rpx 48rpx; background: #C41E3A; color: #fff; border-radius: 12rpx; font-size: 26rpx; }
-.nav-action { font-size: 28rpx; color: #C41E3A; }
+.retry-btn { padding: 16rpx 48rpx; background: var(--brand); color: #fff; border-radius: 12rpx; font-size: 26rpx; }
+.nav-action { font-size: 28rpx; color: var(--brand); }
 
 .empty { flex: 1; padding: 140rpx 0; display: flex; flex-direction: column; align-items: center; gap: 16rpx; }
 .empty-icon { width: 140rpx; height: 140rpx; border-radius: 50%; background: #F2ECE1; display: flex; align-items: center; justify-content: center; margin-bottom: 8rpx; }
@@ -180,7 +180,7 @@ function openTarget() {
 .comment-list { display: flex; flex-direction: column; gap: 20rpx; }
 .comment-row { display: flex; align-items: center; gap: 16rpx; }
 .checkbox { width: 44rpx; height: 44rpx; border-radius: 50%; border: 2rpx solid #c9c2b6; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.checkbox.checked { background: #C41E3A; border-color: #C41E3A; }
+.checkbox.checked { background: var(--brand); border-color: var(--brand); }
 
 .card { flex: 1; min-width: 0; background: #fff; border-radius: 20rpx; padding: 24rpx; }
 .comment-content { display: block; font-size: 28rpx; color: #2C2C2C; line-height: 1.6; margin-bottom: 20rpx; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
@@ -196,15 +196,15 @@ function openTarget() {
 .foot-stats { display: flex; align-items: center; gap: 24rpx; }
 .fs-item { display: flex; align-items: center; gap: 6rpx; }
 .fs-num { font-size: 22rpx; color: #8a8178; }
-.reply-tag { font-size: 20rpx; color: #C41E3A; background: rgba(196,30,58,0.1); padding: 2rpx 12rpx; border-radius: 8rpx; }
+.reply-tag { font-size: 20rpx; color: var(--brand); background: rgba(196,30,58,0.1); padding: 2rpx 12rpx; border-radius: 8rpx; }
 
 .del-row { display: flex; margin-top: 20rpx; border-top: 1rpx solid #F2ECE1; }
 .del-cancel { flex: 1; text-align: center; padding: 20rpx 0; font-size: 26rpx; color: #8a8178; }
-.del-confirm { flex: 1; text-align: center; padding: 20rpx 0; font-size: 26rpx; color: #C41E3A; font-weight: 500; border-left: 1rpx solid #F2ECE1; }
+.del-confirm { flex: 1; text-align: center; padding: 20rpx 0; font-size: 26rpx; color: var(--brand); font-weight: 500; border-left: 1rpx solid #F2ECE1; }
 
 .batch-bar { position: fixed; left: 0; right: 0; bottom: 0; background: #fff; border-top: 1rpx solid #EDE7DC; padding: 24rpx 32rpx calc(24rpx + env(safe-area-inset-bottom)); display: flex; align-items: center; justify-content: space-between; z-index: 20; }
-.batch-all { font-size: 28rpx; color: #C41E3A; }
-.batch-del { display: flex; align-items: center; gap: 10rpx; background: #C41E3A; padding: 16rpx 40rpx; border-radius: 999rpx; }
+.batch-all { font-size: 28rpx; color: var(--brand); }
+.batch-del { display: flex; align-items: center; gap: 10rpx; background: var(--brand); padding: 16rpx 40rpx; border-radius: 999rpx; }
 .batch-del.disabled { opacity: 0.5; }
 .batch-del-text { font-size: 28rpx; color: #fff; }
 </style>

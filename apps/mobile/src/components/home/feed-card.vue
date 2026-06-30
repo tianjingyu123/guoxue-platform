@@ -5,6 +5,7 @@
 import { computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
+import { track } from '@/composables/useTrack'
 import {
   type RenderItem,
   type FeedItem,
@@ -44,6 +45,7 @@ const avatarChar = computed(() => {
 function go() {
   const it = item.value
   if (it) {
+    track.click('feed_card', { type: it.type, id: it.id })
     const map: Record<string, string> = {
       live: `/pages/live/detail?id=${it.id}`,
       course: `/pages/course/detail?id=${it.id}`,
@@ -66,7 +68,10 @@ function go() {
     navigateTo(map[it.type] || `/pages/article/detail?id=${it.id}`)
     return
   }
-  if (agent.value) navigateTo(`/pkg-agent/agent/chat?id=${agent.value.id}`)
+  if (agent.value) {
+    track.click('feed_card', { type: 'agent', id: agent.value.id })
+    navigateTo(`/pkg-agent/agent/chat?id=${agent.value.id}`)
+  }
 }
 
 const theme = computed(() => agentThemes[agent.value?.type ?? 'general'] ?? agentThemes.general)
@@ -103,7 +108,7 @@ const theme = computed(() => agentThemes[agent.value?.type ?? 'general'] ?? agen
   <!-- ============ 视觉卡：课程/商品/直播/视频/电子书 ============ -->
   <view v-else-if="item && isVisual" class="card card-press" :class="{ 'live-card-glow': isLiveNow }" @tap="go">
     <view class="cover" :style="{ aspectRatio: aspect }">
-      <image :src="item.cover!" class="cover-img" mode="aspectFill" />
+      <image :src="item.cover!" class="cover-img" mode="aspectFill" lazy-load />
       <text v-if="badge" class="type-badge" :style="{ background: badge.bg }">{{ badge.label }}</text>
       <!-- 直播中呼吸灯 -->
       <view v-if="isLiveNow" class="live-tag live-indicator">
@@ -161,7 +166,7 @@ const theme = computed(() => agentThemes[agent.value?.type ?? 'general'] ?? agen
   <!-- ============ 文章卡（带封面） ============ -->
   <view v-else-if="item && isArticle" class="card card-press" @tap="go">
     <view class="cover" :style="{ aspectRatio: aspect }">
-      <image :src="item.cover!" class="cover-img" mode="aspectFill" />
+      <image :src="item.cover!" class="cover-img" mode="aspectFill" lazy-load />
       <text class="type-badge" :style="{ background: typeConfig.article.bg }">文章</text>
     </view>
     <view class="info">
@@ -234,7 +239,7 @@ const theme = computed(() => agentThemes[agent.value?.type ?? 'general'] ?? agen
   <!-- ============ 圈子卡（masonry 简版） ============ -->
   <view v-else-if="item && isCircle" class="card card-press" @tap="go">
     <view class="cover" :style="{ aspectRatio: aspect }">
-      <image :src="item.cover!" class="cover-img" mode="aspectFill" />
+      <image :src="item.cover!" class="cover-img" mode="aspectFill" lazy-load />
       <text class="type-badge" :style="{ background: typeConfig.circle.bg }">圈子</text>
     </view>
     <view class="info">
@@ -272,7 +277,7 @@ const theme = computed(() => agentThemes[agent.value?.type ?? 'general'] ?? agen
 .live-tag {
   position: absolute; top: 16rpx; right: 16rpx;
   display: flex; align-items: center; gap: 6rpx;
-  padding: 4rpx 12rpx; border-radius: 999rpx; background: #c41e3a;
+  padding: 4rpx 12rpx; border-radius: 999rpx; background: var(--brand);
 }
 .live-dot { width: 10rpx; height: 10rpx; border-radius: 999rpx; background: #fff; }
 .live-text { font-size: 18rpx; color: #fff; }
@@ -287,7 +292,7 @@ const theme = computed(() => agentThemes[agent.value?.type ?? 'general'] ?? agen
   font-size: 18rpx; padding: 4rpx 16rpx; border-radius: 999rpx; font-weight: 500;
 }
 .tag-danger { background: #d4380d; color: #fff; }
-.tag-brand { background: #c41e3a; color: #fff; }
+.tag-brand { background: var(--brand); color: #fff; }
 .tag-dim { background: rgba(0, 0, 0, 0.35); color: rgba(255, 255, 255, 0.95); }
 .play-btn {
   position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
@@ -321,7 +326,7 @@ const theme = computed(() => agentThemes[agent.value?.type ?? 'general'] ?? agen
   line-height: 1.4; color: var(--text-ink, #2c2c2c); margin-bottom: 12rpx;
 }
 .price-row { display: flex; align-items: baseline; gap: 12rpx; margin-bottom: 12rpx; }
-.price { font-size: 32rpx; font-weight: 700; color: #c41e3a; font-family: var(--font-mono); }
+.price { font-size: 32rpx; font-weight: 700; color: var(--brand); font-family: var(--font-mono); }
 .origin { font-size: 22rpx; color: var(--text-soft, #999); text-decoration: line-through; }
 .ebook-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12rpx; }
 .ebook-p { font-size: 30rpx; font-weight: 700; color: #4a7fa5; font-family: var(--font-mono); }
@@ -354,7 +359,7 @@ const theme = computed(() => agentThemes[agent.value?.type ?? 'general'] ?? agen
 .poem-inner { padding: 28rpx 28rpx 24rpx 32rpx; }
 .poem-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24rpx; }
 .seal {
-  font-size: 18rpx; font-weight: 700; color: #c41e3a; letter-spacing: 4rpx;
+  font-size: 18rpx; font-weight: 700; color: var(--brand); letter-spacing: 4rpx;
   padding: 4rpx 16rpx; border-radius: 8rpx;
   border: 2rpx solid rgba(196, 30, 58, 0.5); background: rgba(196, 30, 58, 0.04);
 }
@@ -388,9 +393,9 @@ const theme = computed(() => agentThemes[agent.value?.type ?? 'general'] ?? agen
 .circle-meta { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16rpx; }
 .cm-stat { display: flex; align-items: center; gap: 4rpx; }
 .cm-num { font-size: 22rpx; color: var(--text-soft, #666); }
-.cm-price { font-size: 24rpx; font-weight: 700; color: #c41e3a; }
+.cm-price { font-size: 24rpx; font-weight: 700; color: var(--brand); }
 .circle-foot { display: flex; justify-content: flex-end; }
-.join-btn { font-size: 22rpx; color: #fff; background: #c41e3a; padding: 8rpx 28rpx; border-radius: 999rpx; }
+.join-btn { font-size: 22rpx; color: #fff; background: var(--brand); padding: 8rpx 28rpx; border-radius: 999rpx; }
 .join-btn.joined { color: var(--text-soft, #999); background: var(--line-soft, #f5f0e8); }
 
 /* 智能体卡 */
@@ -404,7 +409,7 @@ const theme = computed(() => agentThemes[agent.value?.type ?? 'general'] ?? agen
 .hot-badge {
   position: absolute; top: 16rpx; right: 16rpx; z-index: 1;
   font-size: 18rpx; color: #fff; font-weight: 500;
-  padding: 4rpx 12rpx; border-radius: 8rpx; background: #c41e3a;
+  padding: 4rpx 12rpx; border-radius: 8rpx; background: var(--brand);
 }
 .agent-center { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; text-align: center; }
 .agent-icon {

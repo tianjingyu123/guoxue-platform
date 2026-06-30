@@ -43,7 +43,6 @@ onMounted(() => { fetchHomeData() })
 onUnmounted(() => { if (timer) clearInterval(timer) })
 
 function onBannerChange(e: { detail: { current: number } }) { bannerIndex.value = e.detail.current }
-function goSearch() { toastComingSoon() }
 const groupPct = computed(() => {
   if (!data.value?.groupBuy) return 0
   return Math.round((data.value.groupBuy.currentMembers / data.value.groupBuy.minMembers) * 100)
@@ -76,10 +75,7 @@ const groupPct = computed(() => {
   <view v-else class="page">
     <!-- 顶部搜索栏 -->
     <view class="topbar">
-      <view class="search-bar" @tap="goSearch">
-        <AppIcon name="search" :size="28" color="#999999" />
-        <text class="search-ph">搜索商品</text>
-      </view>
+      <search-bar default-tab="product" placeholder="搜索商品" />
       <view class="top-btn" @tap="navigateTo('/shop/cart')">
         <AppIcon name="shopping-bag" :size="36" color="#666666" />
         <text class="top-badge">3</text>
@@ -148,7 +144,7 @@ const groupPct = computed(() => {
               v-for="p in data.flashSale.products" :key="p.id" class="seckill-item"
               @tap.stop="navigateTo(`/shop/product/${p.id}`)"
             >
-              <image class="seckill-img" :src="p.cover" mode="aspectFill" />
+              <image lazy-load class="seckill-img" :src="p.cover" mode="aspectFill" />
               <text class="seckill-price">¥{{ p.price }}</text>
               <text class="seckill-orig">¥{{ p.originalPrice }}</text>
             </view>
@@ -169,7 +165,7 @@ const groupPct = computed(() => {
           <AppIcon name="chevron-right" :size="28" color="#999999" />
         </view>
         <view class="group-body">
-          <image class="group-cover" :src="data.groupBuy.cover" mode="aspectFill" />
+          <image lazy-load class="group-cover" :src="data.groupBuy.cover" mode="aspectFill" />
           <view class="group-info">
             <text class="group-name">{{ data.groupBuy.productName }}</text>
             <view class="group-price">
@@ -200,7 +196,7 @@ const groupPct = computed(() => {
           @tap="navigateTo(`/shop/product/${p.id}`)"
         >
           <view class="rec-cover">
-            <image class="rec-img" :src="p.cover" mode="aspectFill" />
+            <image lazy-load class="rec-img" :src="p.cover" mode="aspectFill" />
             <text v-if="p.isNew" class="rec-badge rec-badge-new">新品</text>
             <text v-else-if="p.isHot" class="rec-badge rec-badge-hot">热销</text>
           </view>
@@ -237,13 +233,13 @@ const groupPct = computed(() => {
 .search-bar { flex: 1; display: flex; align-items: center; gap: 16rpx; height: 72rpx; padding: 0 32rpx; border-radius: 999rpx; background: #faf8f5; }
 .search-ph { font-size: 26rpx; color: #999999; }
 .top-btn { position: relative; padding: 12rpx; }
-.top-badge { position: absolute; top: -2rpx; right: -2rpx; width: 32rpx; height: 32rpx; border-radius: 999rpx; background: #c41e3a; color: #fff; font-size: 18rpx; display: flex; align-items: center; justify-content: center; }
-.top-dot { position: absolute; top: 8rpx; right: 8rpx; width: 16rpx; height: 16rpx; border-radius: 999rpx; background: #c41e3a; }
+.top-badge { position: absolute; top: -2rpx; right: -2rpx; width: 32rpx; height: 32rpx; border-radius: 999rpx; background: var(--brand); color: #fff; font-size: 18rpx; display: flex; align-items: center; justify-content: center; }
+.top-dot { position: absolute; top: 8rpx; right: 8rpx; width: 16rpx; height: 16rpx; border-radius: 999rpx; background: var(--brand); }
 
 /* banner */
 .banner { margin: 32rpx; }
 .banner-swiper { width: 100%; height: 224rpx; border-radius: 24rpx; overflow: hidden; }
-.banner-slide { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: linear-gradient(90deg, #C41E3A, #E85A70); }
+.banner-slide { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: linear-gradient(90deg, var(--brand), #E85A70); }
 .banner-title { color: #fff; font-size: 40rpx; font-weight: 700; }
 .dots { display: flex; justify-content: center; gap: 12rpx; margin-top: -28rpx; position: relative; z-index: 2; }
 .dot { width: 12rpx; height: 12rpx; border-radius: 999rpx; background: rgba(255,255,255,0.5); transition: all 0.2s; }
@@ -264,7 +260,7 @@ const groupPct = computed(() => {
 .block { margin: 48rpx 32rpx 0; }
 
 /* 秒杀 */
-.seckill { background: linear-gradient(90deg, #C41E3A, #E85A70); border-radius: 24rpx; padding: 32rpx; }
+.seckill { background: linear-gradient(90deg, var(--brand), #E85A70); border-radius: 24rpx; padding: 32rpx; }
 .seckill-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24rpx; }
 .seckill-head-l { display: flex; align-items: center; gap: 12rpx; }
 .seckill-title { color: #fff; font-weight: 700; font-size: 30rpx; }
@@ -275,7 +271,7 @@ const groupPct = computed(() => {
 .seckill-rail-inner { display: flex; gap: 24rpx; padding-bottom: 4rpx; }
 .seckill-item { flex-shrink: 0; width: 152rpx; background: #fff; border-radius: 16rpx; padding: 16rpx; }
 .seckill-img { width: 120rpx; height: 120rpx; margin: 0 auto 12rpx; display: block; border-radius: 12rpx; background: #faf8f5; }
-.seckill-price { display: block; text-align: center; color: #C41E3A; font-weight: 700; font-size: 26rpx; }
+.seckill-price { display: block; text-align: center; color: var(--brand); font-weight: 700; font-size: 26rpx; }
 .seckill-orig { display: block; text-align: center; color: #999999; font-size: 20rpx; text-decoration: line-through; }
 
 /* 拼团 */
@@ -283,18 +279,18 @@ const groupPct = computed(() => {
 .group-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24rpx; }
 .group-head-l { display: flex; align-items: center; gap: 12rpx; }
 .group-title { font-weight: 700; color: #2c2c2c; font-size: 28rpx; }
-.group-tag { color: #fff; background: #C41E3A; padding: 2rpx 16rpx; border-radius: 999rpx; font-size: 20rpx; }
+.group-tag { color: #fff; background: var(--brand); padding: 2rpx 16rpx; border-radius: 999rpx; font-size: 20rpx; }
 .group-body { display: flex; gap: 24rpx; }
 .group-cover { width: 152rpx; height: 152rpx; border-radius: 16rpx; background: #faf8f5; flex-shrink: 0; }
 .group-info { flex: 1; min-width: 0; }
 .group-name { display: block; font-size: 26rpx; color: #2c2c2c; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .group-price { display: flex; align-items: baseline; gap: 16rpx; margin-top: 8rpx; }
-.group-now { color: #C41E3A; font-weight: 700; font-size: 36rpx; }
+.group-now { color: var(--brand); font-weight: 700; font-size: 36rpx; }
 .group-orig { color: #999999; font-size: 22rpx; text-decoration: line-through; }
 .group-progress { display: flex; align-items: center; gap: 16rpx; margin-top: 16rpx; }
 .group-bar { flex: 1; height: 12rpx; background: #faf8f5; border-radius: 999rpx; overflow: hidden; }
-.group-bar-fill { height: 100%; background: linear-gradient(90deg, #C41E3A, #E85A70); border-radius: 999rpx; }
-.group-left { font-size: 22rpx; color: #C41E3A; }
+.group-bar-fill { height: 100%; background: linear-gradient(90deg, var(--brand), #E85A70); border-radius: 999rpx; }
+.group-left { font-size: 22rpx; color: var(--brand); }
 
 /* 推荐 */
 .rec-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24rpx; }
@@ -308,14 +304,14 @@ const groupPct = computed(() => {
 .rec-img { position: absolute; inset: 0; width: 100%; height: 100%; }
 .rec-badge { position: absolute; top: 16rpx; left: 16rpx; color: #fff; padding: 2rpx 16rpx; border-radius: 8rpx; font-size: 20rpx; }
 .rec-badge-new { background: #1890FF; }
-.rec-badge-hot { background: #C41E3A; }
+.rec-badge-hot { background: var(--brand); }
 .rec-body { padding: 24rpx; }
 .rec-name { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; font-size: 26rpx; color: #2c2c2c; line-height: 1.4; min-height: 72rpx; }
 .rec-rating { display: flex; align-items: center; gap: 6rpx; margin-top: 8rpx; }
 .rec-rating-num { font-size: 22rpx; color: #C9A96E; }
 .rec-sales { font-size: 22rpx; color: #999999; margin-left: 8rpx; }
 .rec-price { display: flex; align-items: baseline; gap: 16rpx; margin-top: 16rpx; }
-.rec-now { color: #C41E3A; font-weight: 700; font-size: 30rpx; }
+.rec-now { color: var(--brand); font-weight: 700; font-size: 30rpx; }
 .rec-orig { font-size: 22rpx; color: #999999; text-decoration: line-through; }
 
 .bottom-safe { height: 32rpx; }
@@ -335,6 +331,6 @@ const groupPct = computed(() => {
 /* 错误态 */
 .err-page { min-height: 100vh; background: #faf8f5; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 32rpx; }
 .err-text { font-size: 28rpx; color: #999999; }
-.err-retry { padding: 16rpx 56rpx; background: #C41E3A; border-radius: 40rpx; }
+.err-retry { padding: 16rpx 56rpx; background: var(--brand); border-radius: 40rpx; }
 .err-retry text { color: #FFFFFF; font-size: 28rpx; }
 </style>

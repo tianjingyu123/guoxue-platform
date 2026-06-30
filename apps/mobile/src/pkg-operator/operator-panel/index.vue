@@ -27,6 +27,13 @@
       <text class="state-error-text">{{ error }}</text>
       <view class="state-retry-btn" @tap="retry"><text>重试</text></view>
     </view>
+    <!-- 未开通运营商引导 -->
+    <view v-else-if="notOpened" class="state-error">
+      <app-icon name="crown" :size="80" color="#C9A96E" />
+      <text class="state-empty-title">您还不是运营商</text>
+      <text class="state-empty-desc">升级运营商，组建并管理你的站长团队</text>
+      <view class="state-retry-btn" @tap="navigateTo('/pkg-operator/join-operator/index')"><text>了解运营商</text></view>
+    </view>
     <!-- 正常内容 -->
     <scroll-view v-else scroll-y class="op-scroll">
       <!-- 数据概览 -->
@@ -79,17 +86,6 @@
             <view class="op-rank-title-wrap">
               <app-icon name="trophy" :size="36" color="#C9A96E" />
               <text class="op-card-title plain">团队排行</text>
-            </view>
-            <view class="op-rank-tabs">
-              <view
-                v-for="t in periodTabs"
-                :key="t.key"
-                class="op-rank-tab"
-                :class="{ on: rankingPeriod === t.key }"
-                @tap="rankingPeriod = t.key"
-              >
-                <text class="op-rank-tab-text" :class="{ on: rankingPeriod === t.key }">{{ t.label }}</text>
-              </view>
             </view>
           </view>
           <view class="op-rank-list">
@@ -179,18 +175,12 @@ interface PanelInfo {
 const statusBarHeight = ref(0)
 const loading = ref(true)
 const error = ref('')
+const notOpened = ref(false)
 const info = ref<PanelInfo>({ id: 0, name: '', level: '', joinDate: '' })
 const overview = ref<OperatorOverviewItem[]>([])
 const teamRanking = ref<TeamMemberRanking[]>([])
 const quotaUsage = ref<QuotaUsageItem[]>([])
 const quickActions = ref<OperatorQuickAction[]>([])
-const rankingPeriod = ref<'day' | 'week' | 'month'>('month')
-
-const periodTabs = [
-  { key: 'day' as const, label: '日' },
-  { key: 'week' as const, label: '周' },
-  { key: 'month' as const, label: '月' },
-]
 
 async function fetchData() {
   try {
@@ -209,7 +199,13 @@ async function fetchData() {
     quotaUsage.value = quotaRes
     quickActions.value = actionsRes
   } catch (e: any) {
-    error.value = e?.message || '加载失败'
+    const msg = e?.message || ''
+    // 用户不是运营商时后端抛错，展示开通引导态而非错误态
+    if (/运营商|不是|未找到/.test(msg)) {
+      notOpened.value = true
+    } else {
+      error.value = msg || '加载失败'
+    }
   } finally {
     loading.value = false
   }
@@ -218,6 +214,7 @@ async function fetchData() {
 async function retry() {
   loading.value = true
   error.value = ''
+  notOpened.value = false
   await fetchData()
 }
 
@@ -251,7 +248,7 @@ function pct(q: { used: number; total: number }) {
 .op-page { display: flex; flex-direction: column; height: 100vh; background: #FAF8F5; }
 
 /* Header */
-.op-header { background: #C41E3A; }
+.op-header { background: var(--brand); }
 .op-header-row { display: flex; align-items: center; gap: 24rpx; padding: 20rpx 32rpx; }
 .op-back { margin-left: -12rpx; }
 .op-header-info { flex: 1; }
@@ -267,7 +264,7 @@ function pct(q: { used: number; total: number }) {
 .op-overview { display: grid; grid-template-columns: 1fr 1fr; gap: 24rpx; }
 .op-ov-card { background: #fff; border-radius: 16rpx; padding: 24rpx; border: 1rpx solid #EDE7DC; }
 .op-ov-label { display: block; font-size: 22rpx; color: #8a8178; margin-bottom: 8rpx; }
-.op-ov-value { display: block; font-size: 40rpx; font-weight: 700; color: #C41E3A; }
+.op-ov-value { display: block; font-size: 40rpx; font-weight: 700; color: var(--brand); }
 .op-ov-trend { display: flex; align-items: center; gap: 4rpx; margin-top: 8rpx; }
 .op-ov-trend-val { font-size: 22rpx; }
 .op-ov-trend.up .op-ov-trend-val { color: #16a34a; }
@@ -307,20 +304,20 @@ function pct(q: { used: number; total: number }) {
 .op-rank-no-text { font-size: 22rpx; font-weight: 700; }
 .op-rank-no-text.r1, .op-rank-no-text.r2, .op-rank-no-text.r3 { color: #fff; }
 .op-rank-no-text.rn { color: #8a8178; }
-.op-rank-avatar { width: 64rpx; height: 64rpx; border-radius: 50%; background: #C41E3A; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 28rpx; flex-shrink: 0; }
+.op-rank-avatar { width: 64rpx; height: 64rpx; border-radius: 50%; background: var(--brand); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 28rpx; flex-shrink: 0; }
 .op-rank-body { flex: 1; min-width: 0; }
 .op-rank-name-row { display: flex; align-items: center; gap: 12rpx; }
 .op-rank-name { font-size: 26rpx; font-weight: 500; color: #2C2C2C; }
-.op-rank-self-tag { border: 1rpx solid #C41E3A; border-radius: 6rpx; padding: 0 8rpx; }
-.op-rank-self-text { font-size: 18rpx; color: #C41E3A; }
+.op-rank-self-tag { border: 1rpx solid var(--brand); border-radius: 6rpx; padding: 0 8rpx; }
+.op-rank-self-text { font-size: 18rpx; color: var(--brand); }
 .op-rank-change { display: block; font-size: 22rpx; margin-top: 2rpx; }
 .op-rank-change.up { color: #16a34a; }
 .op-rank-change.down { color: #ef4444; }
 .op-rank-perf { text-align: right; flex-shrink: 0; }
-.op-rank-perf-val { display: block; font-size: 28rpx; font-weight: 700; color: #C41E3A; }
+.op-rank-perf-val { display: block; font-size: 28rpx; font-weight: 700; color: var(--brand); }
 .op-rank-perf-unit { font-size: 20rpx; color: #8a8178; }
 .op-rank-more { display: flex; align-items: center; justify-content: center; gap: 4rpx; padding: 24rpx; border-top: 1rpx solid #EDE7DC; }
-.op-rank-more-text { font-size: 26rpx; color: #C41E3A; }
+.op-rank-more-text { font-size: 26rpx; color: var(--brand); }
 
 /* 配额使用 */
 .op-quota-list { display: flex; flex-direction: column; gap: 32rpx; }
@@ -331,11 +328,11 @@ function pct(q: { used: number; total: number }) {
 .op-quota-num .low { color: #f59e0b; font-weight: 500; }
 .op-quota-total { color: #8a8178; }
 .op-quota-bar { height: 16rpx; background: #F2ECE1; border-radius: 8rpx; overflow: hidden; }
-.op-quota-bar-fill { height: 100%; background: #C41E3A; border-radius: 8rpx; }
+.op-quota-bar-fill { height: 100%; background: var(--brand); border-radius: 8rpx; }
 .op-quota-bar-fill.low { background: #f59e0b; }
 .op-quota-expire { display: block; font-size: 20rpx; color: #8a8178; margin-top: 8rpx; }
-.op-quota-btn { margin-top: 32rpx; height: 80rpx; border: 1rpx solid #C41E3A; border-radius: 16rpx; display: flex; align-items: center; justify-content: center; }
-.op-quota-btn-text { font-size: 28rpx; color: #C41E3A; }
+.op-quota-btn { margin-top: 32rpx; height: 80rpx; border: 1rpx solid var(--brand); border-radius: 16rpx; display: flex; align-items: center; justify-content: center; }
+.op-quota-btn-text { font-size: 28rpx; color: var(--brand); }
 
 /* Loading 骨架 */
 .op-loading { flex: 1; padding: 32rpx; }
@@ -345,6 +342,8 @@ function pct(q: { used: number; total: number }) {
 /* 三态错误 */
 .state-error { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24rpx; padding: 48rpx; }
 .state-error-text { font-size: 28rpx; color: #ef4444; text-align: center; }
-.state-retry-btn { padding: 16rpx 48rpx; background: #C41E3A; border-radius: 16rpx; }
+.state-empty-title { font-size: 32rpx; font-weight: 600; color: #2C2C2C; text-align: center; }
+.state-empty-desc { font-size: 26rpx; color: #8a8178; text-align: center; }
+.state-retry-btn { padding: 16rpx 48rpx; background: var(--brand); border-radius: 16rpx; }
 .state-retry-btn text { font-size: 28rpx; color: #fff; }
 </style>

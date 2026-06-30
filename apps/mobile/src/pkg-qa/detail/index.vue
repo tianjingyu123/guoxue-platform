@@ -1,5 +1,6 @@
 <template>
   <view class="qd-page">
+    <customer-service-fab />
     <!-- Header -->
     <view class="qd-header" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="qd-header-bar">
@@ -341,14 +342,14 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
 }
-.qd-avatar-red { background: linear-gradient(135deg, #c41e3a, #e85a6b); }
+.qd-avatar-red { background: linear-gradient(135deg, var(--brand), #e85a6b); }
 .qd-avatar-gold { background: linear-gradient(135deg, #c9a96e, #dfc296); }
 .qd-avatar-tx { font-size: 32rpx; font-weight: 600; color: #ffffff; }
 .qd-asker-info { flex: 1; }
 .qd-asker-name { font-size: 28rpx; font-weight: 500; color: #2c2c2c; display: block; }
 .qd-asker-time { font-size: 22rpx; color: #999999; }
 .qd-price-col { text-align: right; }
-.qd-price { font-size: 36rpx; font-weight: 700; color: #c41e3a; display: block; }
+.qd-price { font-size: 36rpx; font-weight: 700; color: var(--brand); display: block; }
 .qd-price-label { font-size: 22rpx; color: #999999; }
 .qd-q-title { font-size: 36rpx; font-weight: 700; color: #2c2c2c; margin-bottom: 16rpx; display: block; }
 .qd-q-content { font-size: 28rpx; color: #666666; line-height: 1.6; display: block; }
@@ -377,7 +378,7 @@ onMounted(() => {
 .qd-answerer-row { display: flex; align-items: center; gap: 16rpx; }
 .qd-answerer-name { font-size: 30rpx; font-weight: 700; color: #2c2c2c; }
 .qd-answerer-badge { padding: 2rpx 16rpx; background-color: rgba(196, 30, 58, 0.1); border-radius: 999rpx; }
-.qd-answerer-badge-tx { font-size: 22rpx; color: #c41e3a; }
+.qd-answerer-badge-tx { font-size: 22rpx; color: var(--brand); }
 .qd-answerer-status { font-size: 22rpx; color: #999999; margin-top: 4rpx; display: block; }
 .qd-answer-body { padding: 32rpx; }
 .qd-answer-text { font-size: 28rpx; color: #2c2c2c; line-height: 1.7; white-space: pre-wrap; display: block; }
@@ -390,11 +391,11 @@ onMounted(() => {
 .qd-rate-btn {
   margin-top: 32rpx;
   padding: 16rpx 0;
-  border: 1rpx solid #c41e3a;
+  border: 1rpx solid var(--brand);
   border-radius: 24rpx;
   text-align: center;
 }
-.qd-rate-btn-tx { font-size: 26rpx; font-weight: 500; color: #c41e3a; }
+.qd-rate-btn-tx { font-size: 26rpx; font-weight: 500; color: var(--brand); }
 .qd-peek { text-align: center; padding: 64rpx 0; }
 .qd-peek-icon {
   width: 128rpx;
@@ -411,7 +412,7 @@ onMounted(() => {
 .qd-peek-btn {
   display: inline-block;
   padding: 16rpx 64rpx;
-  background: linear-gradient(90deg, #c41e3a, #d94a5f);
+  background: linear-gradient(90deg, var(--brand), #d94a5f);
   border-radius: 999rpx;
 }
 .qd-peek-btn-tx { font-size: 26rpx; font-weight: 500; color: #ffffff; }
@@ -477,7 +478,7 @@ onMounted(() => {
 .qd-bottom-answer {
   flex: 1;
   padding: 24rpx 0;
-  background: linear-gradient(90deg, #c41e3a, #d94a5f);
+  background: linear-gradient(90deg, var(--brand), #d94a5f);
   border-radius: 24rpx;
   text-align: center;
 }
@@ -501,7 +502,7 @@ onMounted(() => {
 .qd-modal-title { font-size: 30rpx; font-weight: 700; color: #2c2c2c; margin-bottom: 32rpx; display: block; }
 .qd-center { text-align: center; }
 .qd-peek-modal-body { text-align: center; padding: 32rpx 0; }
-.qd-peek-modal-price { font-size: 56rpx; font-weight: 700; color: #c41e3a; margin-bottom: 16rpx; display: block; }
+.qd-peek-modal-price { font-size: 56rpx; font-weight: 700; color: var(--brand); margin-bottom: 16rpx; display: block; }
 .qd-peek-modal-desc { font-size: 26rpx; color: #999999; }
 .qd-modal-textarea {
   width: 100%;
@@ -527,7 +528,7 @@ onMounted(() => {
 .qd-modal-confirm {
   flex: 1;
   padding: 24rpx 0;
-  background-color: #c41e3a;
+  background-color: var(--brand);
   border-radius: 24rpx;
   text-align: center;
 }

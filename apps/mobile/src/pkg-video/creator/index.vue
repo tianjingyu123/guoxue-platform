@@ -14,14 +14,25 @@
     </view>
 
     <scroll-view scroll-y class="cc-scroll" :style="{ paddingTop: statusBarHeight + 44 + 'px' }">
+      <!-- 加载态 -->
+      <view v-if="loading" class="cc-state">
+        <text class="cc-state-txt">加载中…</text>
+      </view>
+      <!-- 错误态 -->
+      <view v-else-if="errMsg" class="cc-state">
+        <AppIcon name="alert-circle" :size="40" color="#ccc" />
+        <text class="cc-state-txt">{{ errMsg }}</text>
+        <view class="cc-state-btn" @tap="loadAll">重试</view>
+      </view>
+
+      <template v-else-if="stats">
       <!-- 创作者信息卡片 -->
       <view class="cc-profile">
         <view class="cc-profile-top">
-          <image class="cc-avatar" src="https://api.dicebear.com/7.x/notionists/svg?seed=creator" mode="aspectFill" />
+          <image lazy-load class="cc-avatar" :src="profile.avatar || ('https://api.dicebear.com/7.x/notionists/svg?seed=' + encodeURIComponent(profile.nickname))" mode="aspectFill" />
           <view class="cc-profile-info">
             <view class="cc-name-row">
-              <text class="cc-name">易学张老师</text>
-              <text class="cc-badge">认证创作者</text>
+              <text class="cc-name">{{ profile.nickname }}</text>
             </view>
             <text class="cc-followers">{{ fmt(stats.followers) }} 粉丝</text>
           </view>
@@ -43,7 +54,7 @@
           </view>
           <view class="cc-core-item">
             <text class="cc-core-num">{{ stats.totalSales }}</text>
-            <text class="cc-core-label">带货订单</text>
+            <text class="cc-core-label">带货商品</text>
           </view>
           <view class="cc-core-item">
             <text class="cc-core-num">¥{{ fmt(stats.totalEarnings) }}</text>
@@ -69,31 +80,22 @@
 
       <!-- 数据概览 -->
       <view v-if="activeTab === 'overview'" class="cc-panel">
-        <!-- 数据趋势 -->
+        <!-- 数据总览（「较上周」趋势缺每日快照支撑，不编造，仅展示真实累计）-->
         <view class="cc-card">
           <view class="cc-card-head">
-            <text class="cc-card-title">数据趋势</text>
-            <text class="cc-card-sub">较上周</text>
+            <text class="cc-card-title">数据总览</text>
           </view>
           <view class="cc-trend-grid">
             <view class="cc-trend-item">
               <view>
-                <text class="cc-trend-label">播放量</text>
+                <text class="cc-trend-label">总播放量</text>
                 <text class="cc-trend-num">{{ fmt(stats.totalViews) }}</text>
-              </view>
-              <view class="cc-trend-tag" :class="stats.viewsTrend > 0 ? 'cc-up' : 'cc-down'">
-                <AppIcon :name="stats.viewsTrend > 0 ? 'trending-up' : 'trending-down'" :size="14" :color="stats.viewsTrend > 0 ? '#22c55e' : '#ef4444'" />
-                <text>{{ Math.abs(stats.viewsTrend) }}%</text>
               </view>
             </view>
             <view class="cc-trend-item">
               <view>
-                <text class="cc-trend-label">新增粉丝</text>
-                <text class="cc-trend-num">+{{ fmt(Math.floor(stats.followers * stats.followersTrend / 100)) }}</text>
-              </view>
-              <view class="cc-trend-tag" :class="stats.followersTrend > 0 ? 'cc-up' : 'cc-down'">
-                <AppIcon :name="stats.followersTrend > 0 ? 'trending-up' : 'trending-down'" :size="14" :color="stats.followersTrend > 0 ? '#22c55e' : '#ef4444'" />
-                <text>{{ Math.abs(stats.followersTrend) }}%</text>
+                <text class="cc-trend-label">粉丝数</text>
+                <text class="cc-trend-num">{{ fmt(stats.followers) }}</text>
               </view>
             </view>
             <view class="cc-trend-item">
@@ -101,19 +103,11 @@
                 <text class="cc-trend-label">互动量</text>
                 <text class="cc-trend-num">{{ fmt(stats.totalLikes + stats.totalComments) }}</text>
               </view>
-              <view class="cc-trend-tag" :class="stats.likesTrend > 0 ? 'cc-up' : 'cc-down'">
-                <AppIcon :name="stats.likesTrend > 0 ? 'trending-up' : 'trending-down'" :size="14" :color="stats.likesTrend > 0 ? '#22c55e' : '#ef4444'" />
-                <text>{{ Math.abs(stats.likesTrend) }}%</text>
-              </view>
             </view>
             <view class="cc-trend-item">
               <view>
-                <text class="cc-trend-label">带货销量</text>
-                <text class="cc-trend-num">{{ stats.totalSales }}单</text>
-              </view>
-              <view class="cc-trend-tag" :class="stats.salesTrend > 0 ? 'cc-up' : 'cc-down'">
-                <AppIcon :name="stats.salesTrend > 0 ? 'trending-up' : 'trending-down'" :size="14" :color="stats.salesTrend > 0 ? '#22c55e' : '#ef4444'" />
-                <text>{{ Math.abs(stats.salesTrend) }}%</text>
+                <text class="cc-trend-label">带货商品</text>
+                <text class="cc-trend-num">{{ stats.totalSales }}</text>
               </view>
             </view>
           </view>
@@ -128,11 +122,11 @@
               <AppIcon name="chevron-right" :size="14" color="#c41e3a" />
             </view>
           </view>
-          <view class="cc-sales-grid">
+          <view v-if="hasBizStats" class="cc-sales-grid">
             <view class="cc-sales-item cc-sales-red">
               <AppIcon name="shopping-bag" :size="20" color="#c41e3a" />
               <text class="cc-sales-num">{{ stats.totalSales }}</text>
-              <text class="cc-sales-label">成交订单</text>
+              <text class="cc-sales-label">带货商品</text>
             </view>
             <view class="cc-sales-item cc-sales-amber">
               <AppIcon name="dollar-sign" :size="20" color="#d97706" />
@@ -144,6 +138,11 @@
               <text class="cc-sales-num">{{ stats.conversionRate }}%</text>
               <text class="cc-sales-label">转化率</text>
             </view>
+          </view>
+          <view v-else class="cc-biz-empty">
+            <text class="cc-biz-num">{{ stats.totalSales }}</text>
+            <text class="cc-biz-label">已关联带货商品</text>
+            <text class="cc-biz-tip">成交额 / 转化率统计即将开放</text>
           </view>
         </view>
 
@@ -159,7 +158,7 @@
           <view class="cc-hot-list">
             <view v-for="(video, index) in videos.slice(0, 2)" :key="video.id" class="cc-hot-item" @tap="go('/video/' + video.id)">
               <view class="cc-hot-cover">
-                <image :src="video.cover" mode="aspectFill" class="cc-hot-img" />
+                <image lazy-load :src="video.cover" mode="aspectFill" class="cc-hot-img" />
                 <view class="cc-hot-mask">
                   <AppIcon name="play" :size="24" color="#ffffff" :fill="true" />
                 </view>
@@ -183,10 +182,15 @@
 
       <!-- 我的作品 -->
       <view v-if="activeTab === 'videos'" class="cc-panel">
+        <view v-if="videos.length === 0" class="cc-empty">
+          <AppIcon name="file-video" :size="40" color="#ccc" />
+          <text class="cc-empty-txt">还没有作品，去发布第一个视频吧</text>
+          <view class="cc-empty-btn" @tap="go('/videos/publish')">发布视频</view>
+        </view>
         <view v-for="video in videos" :key="video.id" class="cc-card cc-video-card">
           <view class="cc-video-row">
             <view class="cc-video-cover">
-              <image :src="video.cover" mode="aspectFill" class="cc-hot-img" />
+              <image lazy-load :src="video.cover" mode="aspectFill" class="cc-hot-img" />
               <view class="cc-hot-mask">
                 <AppIcon name="play" :size="24" color="#ffffff" :fill="true" />
               </view>
@@ -220,19 +224,23 @@
         <view class="cc-card">
           <view class="cc-prod-head">
             <view>
-              <text class="cc-card-title">我的商品库</text>
-              <text class="cc-prod-sub">已添加 {{ products.length }} 件商品</text>
+              <text class="cc-card-title">可带货商品库</text>
+              <text class="cc-prod-sub">共 {{ products.length }} 件平台商品可选</text>
             </view>
             <view class="cc-add-btn" @tap="go('/videos/creator/products/add')">
-              <AppIcon name="plus" :size="16" color="#ffffff" />
-              <text class="cc-add-txt">添加商品</text>
+              <AppIcon name="info" :size="16" color="#ffffff" />
+              <text class="cc-add-txt">带货说明</text>
             </view>
           </view>
+        </view>
+        <view v-if="products.length === 0" class="cc-empty">
+          <AppIcon name="package" :size="40" color="#ccc" />
+          <text class="cc-empty-txt">平台暂无可带货商品</text>
         </view>
         <view class="cc-prod-list">
           <view v-for="product in products" :key="product.id" class="cc-card cc-prod-card">
             <view class="cc-prod-row">
-              <image :src="product.image" mode="aspectFill" class="cc-prod-img" />
+              <image lazy-load :src="product.image" mode="aspectFill" class="cc-prod-img" />
               <view class="cc-prod-info">
                 <text class="cc-prod-name">{{ product.name }}</text>
                 <view class="cc-prod-price-row">
@@ -289,6 +297,9 @@
             </view>
           </view>
           <view class="cc-earn-list">
+            <view v-if="earningsPreview.length === 0" class="cc-earn-empty">
+              <text class="cc-earn-empty-txt">暂无收益记录</text>
+            </view>
             <view v-for="(item, index) in earningsPreview" :key="index" class="cc-earn-item">
               <view>
                 <text class="cc-earn-type">{{ item.type }}</text>
@@ -312,20 +323,22 @@
       </view>
 
       <view class="cc-bottom-pad" />
+      </template>
     </scroll-view>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo, goBack } from '@/utils/router'
 import {
-  creatorStats as stats,
-  myVideos as videos,
-  creatorProductLibrary as products,
-  creatorEarningsPreview as earningsPreview,
+  creatorApi,
   formatCreatorNumber,
+  type CreatorOverview,
+  type CreatorVideo,
+  type CreatorProduct,
+  type CreatorEarningItem,
 } from '@/lib/creator-data'
 
 const statusBarHeight = ref(0)
@@ -340,14 +353,48 @@ const tabs = [
 
 const fmt = formatCreatorNumber
 
+// ===== 数据 + 三态 =====
+const loading = ref(true)
+const errMsg = ref('')
+const stats = ref<CreatorOverview | null>(null)
+const videos = ref<CreatorVideo[]>([])
+const products = ref<CreatorProduct[]>([])
+const earningsPreview = ref<CreatorEarningItem[]>([])
+const profile = ref({ nickname: '创作者', avatar: '', bio: '' })
+
+// 带货 GMV/转化率后端暂无统计支撑（恒 0）→ 是否有任一可展示
+const hasBizStats = computed(() => !!stats.value && (stats.value.totalGMV > 0 || stats.value.conversionRate > 0))
+
+async function loadAll() {
+  loading.value = true
+  errMsg.value = ''
+  try {
+    const [ov, vs, ps, ep, st] = await Promise.all([
+      creatorApi.getOverview(),
+      creatorApi.getMyVideos(),
+      creatorApi.getProducts(),
+      creatorApi.getEarningsPreview(),
+      creatorApi.getSettings(),
+    ])
+    stats.value = ov
+    videos.value = vs
+    products.value = ps
+    earningsPreview.value = ep
+    if (st?.profile) profile.value = { nickname: st.profile.nickname || '创作者', avatar: st.profile.avatar, bio: st.profile.bio }
+  } catch (e: any) {
+    errMsg.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
+
 function go(url: string) {
   navigateTo(url)
 }
 
-uni.getSystemInfo({
-  success: (res) => {
-    statusBarHeight.value = res.statusBarHeight || 0
-  },
+onMounted(() => {
+  uni.getSystemInfo({ success: (res) => { statusBarHeight.value = res.statusBarHeight || 0 } })
+  loadAll()
 })
 </script>
 
@@ -386,7 +433,7 @@ uni.getSystemInfo({
 }
 /* 创作者信息卡片 */
 .cc-profile {
-  background: linear-gradient(135deg, #c41e3a, #d94452);
+  background: linear-gradient(135deg, var(--brand), #d94452);
   color: #ffffff;
   padding: 16px;
 }
@@ -437,7 +484,7 @@ uni.getSystemInfo({
   border-radius: 999px;
 }
 .cc-publish-txt {
-  color: #c41e3a;
+  color: var(--brand);
   font-size: 14px;
   font-weight: 500;
 }
@@ -483,7 +530,7 @@ uni.getSystemInfo({
   position: relative;
 }
 .cc-tab-active {
-  color: #c41e3a;
+  color: var(--brand);
 }
 .cc-tab-label {
   font-size: 14px;
@@ -495,7 +542,7 @@ uni.getSystemInfo({
   transform: translateX(-50%);
   width: 48px;
   height: 2px;
-  background: #c41e3a;
+  background: var(--brand);
   border-radius: 999px;
 }
 /* 面板 */
@@ -528,7 +575,7 @@ uni.getSystemInfo({
   display: flex;
   align-items: center;
   font-size: 12px;
-  color: #c41e3a;
+  color: var(--brand);
 }
 /* 趋势 */
 .cc-trend-grid {
@@ -678,7 +725,7 @@ uni.getSystemInfo({
 }
 .cc-hot-sale-txt {
   font-size: 12px;
-  color: #c41e3a;
+  color: var(--brand);
   font-weight: 500;
 }
 /* 我的作品 */
@@ -746,7 +793,7 @@ uni.getSystemInfo({
 }
 .cc-foot-sale {
   font-size: 12px;
-  color: #c41e3a;
+  color: var(--brand);
   font-weight: 500;
 }
 .cc-foot-gmv {
@@ -770,7 +817,7 @@ uni.getSystemInfo({
   align-items: center;
   gap: 4px;
   padding: 6px 12px;
-  background: #c41e3a;
+  background: var(--brand);
   border-radius: 999px;
 }
 .cc-add-txt {
@@ -817,7 +864,7 @@ uni.getSystemInfo({
   margin-top: 4px;
 }
 .cc-prod-price {
-  color: #c41e3a;
+  color: var(--brand);
   font-weight: 700;
   font-size: 15px;
 }
@@ -844,7 +891,7 @@ uni.getSystemInfo({
 .cc-prod-promote {
   padding: 4px 12px;
   background: rgba(196, 30, 58, 0.1);
-  color: #c41e3a;
+  color: var(--brand);
   border-radius: 4px;
   font-size: 12px;
   font-weight: 500;
@@ -873,7 +920,7 @@ uni.getSystemInfo({
 }
 .cc-withdraw-btn {
   padding: 8px 16px;
-  background: #c41e3a;
+  background: var(--brand);
   color: #ffffff;
   border-radius: 999px;
   font-size: 14px;
@@ -948,4 +995,17 @@ uni.getSystemInfo({
 .cc-bottom-pad {
   height: 80px;
 }
+/* 三态 + 空态 + 降级 */
+.cc-state { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 80px 32px; }
+.cc-state-txt { font-size: 14px; color: #999; }
+.cc-state-btn { margin-top: 4px; padding: 8px 24px; background: var(--brand); color: #ffffff; border-radius: 999px; font-size: 14px; }
+.cc-empty { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 48px 32px; }
+.cc-empty-txt { font-size: 14px; color: #999; }
+.cc-empty-btn { margin-top: 4px; padding: 8px 24px; background: var(--brand); color: #ffffff; border-radius: 999px; font-size: 14px; }
+.cc-biz-empty { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 16px; background: rgba(0, 0, 0, 0.02); border-radius: 8px; }
+.cc-biz-num { font-size: 28px; font-weight: 700; color: var(--brand); }
+.cc-biz-label { font-size: 13px; color: #1a1a1a; }
+.cc-biz-tip { font-size: 12px; color: #999; }
+.cc-earn-empty { padding: 24px; text-align: center; }
+.cc-earn-empty-txt { font-size: 13px; color: #999; }
 </style>

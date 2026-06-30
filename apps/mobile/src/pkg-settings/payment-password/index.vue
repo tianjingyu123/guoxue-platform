@@ -17,7 +17,7 @@
           </view>
           <view class="code-row">
             <input
-              class="code-input" type="number" maxlength="6" v-model="verifyCode"
+              class="code-input" type="text" maxlength="6" v-model="verifyCode"
               placeholder="请输入验证码" placeholder-class="ph" @input="error = ''"
             />
             <view class="code-btn" :class="{ 'btn-dis': countdown > 0 }" @click="handleSendCode">
@@ -45,7 +45,7 @@
             </view>
           </view>
           <input
-            ref="setInput" class="hidden-input" type="number" maxlength="6"
+            ref="setInput" class="hidden-input" type="text" maxlength="6"
             :value="password" @input="onSetInput"
           />
           <text class="hint">支付密码用于支付验证，请勿使用生日或简单数字</text>
@@ -66,7 +66,7 @@
             </view>
           </view>
           <input
-            ref="confirmInput" class="hidden-input" type="number" maxlength="6"
+            ref="confirmInput" class="hidden-input" type="text" maxlength="6"
             :value="confirmPwd" @input="onConfirmInput"
           />
           <text v-if="error" class="err-center">{{ error }}</text>
@@ -186,23 +186,23 @@ function go(path: string) { navigateTo(path) }
 .code-row { display: flex; gap: 20rpx; margin-bottom: 32rpx; }
 .code-input { flex: 1; height: 88rpx; padding: 0 28rpx; background: #f5f1ea; border-radius: 18rpx; font-size: 28rpx; color: #2c2c2c; }
 .ph { color: #bbb; }
-.code-btn { padding: 0 28rpx; height: 88rpx; border-radius: 18rpx; background: #c41e3a; display: flex; align-items: center; justify-content: center; }
+.code-btn { padding: 0 28rpx; height: 88rpx; border-radius: 18rpx; background: var(--brand); display: flex; align-items: center; justify-content: center; }
 .code-btn.btn-dis { background: #f0ece5; }
 .code-btn-txt { font-size: 26rpx; color: #fff; font-weight: 500; white-space: nowrap; }
 .code-btn-txt.txt-dis { color: #bbb; }
 .err-center { font-size: 26rpx; color: #e74c3c; text-align: center; display: block; margin-bottom: 24rpx; }
 .next-btn { width: 100%; height: 88rpx; border-radius: 18rpx; background: #f0ece5; display: flex; align-items: center; justify-content: center; }
-.next-on { background: #c41e3a; }
+.next-on { background: var(--brand); }
 .next-txt { font-size: 30rpx; font-weight: 500; color: #bbb; }
 .next-txt-on { color: #fff; }
 .dots { display: flex; justify-content: center; gap: 24rpx; }
 .dot-box { width: 84rpx; height: 96rpx; background: #f5f1ea; border-radius: 18rpx; border: 3rpx solid transparent; display: flex; align-items: center; justify-content: center; }
-.dot-box-on { border-color: #c41e3a; }
+.dot-box-on { border-color: var(--brand); }
 .dot-fill { width: 28rpx; height: 28rpx; border-radius: 50%; background: #2c2c2c; }
 .hidden-input { position: absolute; opacity: 0; width: 1rpx; height: 1rpx; pointer-events: none; }
 .hint { font-size: 22rpx; color: #999; text-align: center; display: block; margin-top: 32rpx; }
 .confirm-btn { width: 100%; height: 88rpx; border-radius: 18rpx; background: #f0ece5; display: flex; align-items: center; justify-content: center; gap: 12rpx; margin-top: 48rpx; }
-.confirm-on { background: #c41e3a; }
+.confirm-on { background: var(--brand); }
 .confirm-txt { font-size: 30rpx; font-weight: 500; color: #fff; }
 .back-step { margin-top: 24rpx; display: flex; justify-content: center; }
 .back-step-txt { font-size: 26rpx; color: #999; }
@@ -212,6 +212,6 @@ function go(path: string) { navigateTo(path) }
 .success-ic { width: 160rpx; height: 160rpx; border-radius: 50%; background: rgba(46,204,113,0.18); display: flex; align-items: center; justify-content: center; margin-bottom: 48rpx; }
 .success-title { font-size: 38rpx; font-weight: 600; color: #2c2c2c; margin-bottom: 16rpx; }
 .success-sub { font-size: 26rpx; color: #999; margin-bottom: 64rpx; }
-.back-settings { padding: 0 64rpx; height: 88rpx; border-radius: 18rpx; background: #c41e3a; display: flex; align-items: center; justify-content: center; }
+.back-settings { padding: 0 64rpx; height: 88rpx; border-radius: 18rpx; background: var(--brand); display: flex; align-items: center; justify-content: center; }
 .back-settings-txt { font-size: 28rpx; font-weight: 500; color: #fff; }
 </style>

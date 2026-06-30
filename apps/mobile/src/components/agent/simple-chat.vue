@@ -143,7 +143,7 @@ function reset() {
 .msg-avatar { width: 56rpx; height: 56rpx; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; margin-top: 6rpx; }
 .bubble { max-width: 80%; border-radius: 24rpx; padding: 20rpx 28rpx; }
 .bubble-ai { background: #fff; border: 1rpx solid #ececec; border-top-left-radius: 6rpx; }
-.bubble-user { background: #c41e3a; border-top-right-radius: 6rpx; }
+.bubble-user { background: var(--brand); border-top-right-radius: 6rpx; }
 .bubble-text { font-size: 28rpx; line-height: 1.6; white-space: pre-wrap; color: inherit; }
 .bubble-ai .bubble-text { color: #1a1a1a; }
 .bubble-user .bubble-text { color: #fff; }
@@ -176,7 +176,7 @@ function reset() {
 }
 .send-btn {
   width: 80rpx; height: 80rpx; border-radius: 50%; flex-shrink: 0;
-  background: #c41e3a; display: flex; align-items: center; justify-content: center;
+  background: var(--brand); display: flex; align-items: center; justify-content: center;
 }
 .send-btn.disabled { opacity: 0.5; }
 .tip { font-size: 22rpx; color: #aaa; text-align: center; padding: 8rpx 24rpx 16rpx; background: #fff; }

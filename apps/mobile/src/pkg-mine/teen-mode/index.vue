@@ -142,9 +142,10 @@ async function save() {
   submitting.value = true
   try {
     await mineApi.updateTeenMode({ ...settings })
-    goBack()
-  } catch {
-    // 保存失败静默处理
+    uni.showToast({ title: '已保存', icon: 'none' })
+    setTimeout(() => goBack(), 600)
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '保存失败', icon: 'none' })
   } finally {
     saving.value = false
     submitting.value = false
@@ -289,7 +290,7 @@ async function save() {
           <view v-for="i in 4" :key="i" class="pin-box" :class="{ filled: pwdActiveVal.length >= i }">
             <text v-if="pwdActiveVal.length >= i" class="pin-dot">●</text>
           </view>
-          <input class="pin-input" type="number" :value="pwdActiveVal" :focus="pwdModal" :maxlength="4" @input="onPwdInput" />
+          <input class="pin-input" type="text" :value="pwdActiveVal" :focus="pwdModal" :maxlength="4" @input="onPwdInput" />
         </view>
         <view class="modal-cancel" @tap="pwdModal = false"><text class="modal-cancel-text">取消</text></view>
       </view>
@@ -304,7 +305,7 @@ async function save() {
           <view v-for="i in 4" :key="i" class="pin-box" :class="{ filled: pwdVerify.length >= i }">
             <text v-if="pwdVerify.length >= i" class="pin-dot">●</text>
           </view>
-          <input class="pin-input" type="number" :value="pwdVerify" :focus="verifyModal" :maxlength="4" @input="onVerifyInput" />
+          <input class="pin-input" type="text" :value="pwdVerify" :focus="verifyModal" :maxlength="4" @input="onVerifyInput" />
         </view>
         <view class="modal-link" @tap="verifyModal = false; resetModal = true"><text class="modal-link-text">忘记密码？</text></view>
         <view class="modal-cancel" @tap="verifyModal = false"><text class="modal-cancel-text">取消</text></view>
@@ -386,7 +387,7 @@ async function save() {
 
 <style scoped>
 .page { min-height: 100vh; background: #FAF8F5; display: flex; flex-direction: column; }
-.nav-link { font-size: 28rpx; color: #C41E3A; }
+.nav-link { font-size: 28rpx; color: var(--brand); }
 .scroll { flex: 1; padding: 24rpx; box-sizing: border-box; }
 
 .banner { background: linear-gradient(90deg, #3B82F6, #06B6D4); border-radius: 24rpx; padding: 32rpx; display: flex; gap: 20rpx; margin-bottom: 24rpx; }
@@ -411,7 +412,7 @@ async function save() {
 .row-name { font-size: 28rpx; font-weight: 500; color: #2C2C2C; }
 .row-name.flex1 { flex: 1; }
 .row-sub { font-size: 22rpx; color: #8a8178; }
-.row-value { font-size: 26rpx; color: #C41E3A; font-weight: 500; }
+.row-value { font-size: 26rpx; color: var(--brand); font-weight: 500; }
 .status-tag { font-size: 22rpx; padding: 4rpx 16rpx; border-radius: 999rpx; }
 .tag-ok { color: #16a34a; background: #E7F6EC; }
 .tag-warn { color: #d97706; background: #FBF0E1; }
@@ -430,7 +431,7 @@ async function save() {
 
 .safe-bottom { height: 40rpx; }
 .footer-bar { padding: 20rpx 24rpx calc(20rpx + env(safe-area-inset-bottom)); background: #fff; border-top: 1rpx solid #EDE7DC; }
-.btn-save { height: 92rpx; background: #C41E3A; border-radius: 20rpx; display: flex; align-items: center; justify-content: center; }
+.btn-save { height: 92rpx; background: var(--brand); border-radius: 20rpx; display: flex; align-items: center; justify-content: center; }
 .btn-save.disabled { opacity: 0.6; }
 .btn-save-text { font-size: 30rpx; font-weight: 600; color: #fff; }
 
@@ -444,19 +445,19 @@ async function save() {
 .modal-sub { display: block; font-size: 26rpx; color: #8a8178; text-align: center; margin-top: 12rpx; }
 .pin-wrap { position: relative; display: flex; justify-content: center; gap: 24rpx; margin: 40rpx 0; }
 .pin-box { width: 88rpx; height: 100rpx; background: #F6F1E8; border-radius: 20rpx; border: 2rpx solid transparent; display: flex; align-items: center; justify-content: center; }
-.pin-box.filled { border-color: #C41E3A; }
+.pin-box.filled { border-color: var(--brand); }
 .pin-dot { font-size: 36rpx; color: #2C2C2C; }
 .pin-input { position: absolute; inset: 0; opacity: 0; }
 .modal-cancel { height: 84rpx; border: 1rpx solid #EDE7DC; border-radius: 20rpx; display: flex; align-items: center; justify-content: center; margin-top: 12rpx; }
 .modal-cancel-text { font-size: 28rpx; color: #6f6760; }
 .modal-link { display: flex; justify-content: center; padding: 24rpx 0 8rpx; }
-.modal-link-text { font-size: 26rpx; color: #C41E3A; }
+.modal-link-text { font-size: 26rpx; color: var(--brand); }
 .id-input { height: 88rpx; background: #F6F1E8; border-radius: 20rpx; padding: 0 28rpx; font-size: 28rpx; color: #2C2C2C; margin: 28rpx 0; }
 .ph { color: #b8b0a4; }
 .modal-actions { display: flex; gap: 20rpx; }
 .modal-btn { flex: 1; height: 84rpx; border-radius: 20rpx; display: flex; align-items: center; justify-content: center; }
 .modal-btn.ghost { border: 1rpx solid #EDE7DC; }
-.modal-btn.solid { background: #C41E3A; }
+.modal-btn.solid { background: var(--brand); }
 .modal-btn.solid.disabled { opacity: 0.5; }
 .modal-btn-text { font-size: 28rpx; color: #6f6760; }
 .solid-text { color: #fff; }
@@ -467,7 +468,7 @@ async function save() {
 .opt-list { display: flex; flex-direction: column; gap: 16rpx; max-height: 600rpx; }
 .opt { display: flex; align-items: center; justify-content: space-between; background: #F6F1E8; border-radius: 20rpx; padding: 28rpx; border: 2rpx solid transparent; }
 .opt.active { background: #FBEDEF; }
-.opt.opt-block.active { border-color: #C41E3A; }
+.opt.opt-block.active { border-color: var(--brand); }
 .opt-label { font-size: 28rpx; color: #2C2C2C; font-weight: 500; }
 .opt-block-body { display: flex; flex-direction: column; gap: 6rpx; }
 .opt-desc { font-size: 24rpx; color: #8a8178; }
@@ -477,10 +478,10 @@ async function save() {
 .range-label { font-size: 24rpx; color: #8a8178; }
 .range-picker { width: 100%; height: 88rpx; background: #F6F1E8; border-radius: 20rpx; display: flex; align-items: center; justify-content: center; font-size: 30rpx; color: #2C2C2C; }
 .range-sep { font-size: 26rpx; color: #8a8178; margin-top: 36rpx; }
-.btn-confirm { height: 92rpx; background: #C41E3A; border-radius: 20rpx; display: flex; align-items: center; justify-content: center; margin-top: 32rpx; }
+.btn-confirm { height: 92rpx; background: var(--brand); border-radius: 20rpx; display: flex; align-items: center; justify-content: center; margin-top: 32rpx; }
 .btn-confirm-text { font-size: 30rpx; font-weight: 600; color: #fff; }
 .loading { flex: 1; display: flex; align-items: center; justify-content: center; padding-top: 200rpx; font-size: 28rpx; color: #8a8178; }
 .error-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding-top: 200rpx; gap: 24rpx; }
 .error-state text { font-size: 28rpx; color: #8a8178; }
-.retry-btn { padding: 16rpx 48rpx; background: #C41E3A; color: #fff; border-radius: 12rpx; font-size: 26rpx; }
+.retry-btn { padding: 16rpx 48rpx; background: var(--brand); color: #fff; border-radius: 12rpx; font-size: 26rpx; }
 </style>

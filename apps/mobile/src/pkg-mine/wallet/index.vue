@@ -59,7 +59,7 @@ function notReady() {
           <view>
             <text class="balance-label">国学币余额</text>
             <text class="balance-num">{{ info.balance }}</text>
-            <text class="balance-rmb">≈ ¥{{ info.rmb.toFixed(2) }}</text>
+            <text v-if="info.rmb > 0" class="balance-rmb">≈ ¥{{ info.rmb.toFixed(2) }}</text>
           </view>
           <view class="balance-icon">
             <AppIcon name="zap" :size="34" color="#fff" />
@@ -77,8 +77,8 @@ function notReady() {
         </view>
       </view>
 
-      <!-- 会员等级 -->
-      <view class="level-card">
+      <!-- 会员等级（成长值体系，后端钱包接口不含→无数据时降级隐藏，不展示 0 级假象） -->
+      <view v-if="info.growthValue > 0" class="level-card">
         <view class="level-head">
           <view class="level-left">
             <view class="level-badge">{{ info.level }}</view>
@@ -169,7 +169,7 @@ function notReady() {
 .page { min-height: 100vh; background: #FAF8F5; display: flex; flex-direction: column; }
 .scroll { flex: 1; padding: 24rpx; box-sizing: border-box; }
 
-.balance-card { background: linear-gradient(135deg, #C41E3A, #8B0000); border-radius: 28rpx; padding: 40rpx 36rpx; }
+.balance-card { background: linear-gradient(135deg, var(--brand), #8B0000); border-radius: 28rpx; padding: 40rpx 36rpx; }
 .balance-head { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 40rpx; }
 .balance-label { display: block; font-size: 24rpx; color: rgba(255,255,255,0.8); margin-bottom: 12rpx; }
 .balance-num { display: block; font-size: 64rpx; font-weight: 700; color: #fff; line-height: 1.1; }
@@ -189,7 +189,7 @@ function notReady() {
 .level-prog-label { font-size: 24rpx; color: #8a8178; }
 .level-prog-val { font-size: 24rpx; color: #2C2C2C; font-weight: 500; }
 .prog-track { height: 14rpx; background: #F2ECE1; border-radius: 999rpx; overflow: hidden; }
-.prog-fill { height: 100%; background: linear-gradient(90deg, #C9A96E, #C41E3A); border-radius: 999rpx; }
+.prog-fill { height: 100%; background: linear-gradient(90deg, #C9A96E, var(--brand)); border-radius: 999rpx; }
 
 .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20rpx; margin-top: 24rpx; }
 .stat-card { background: #fff; border-radius: 20rpx; padding: 28rpx; text-align: center; }
@@ -199,16 +199,16 @@ function notReady() {
 .section { margin-top: 36rpx; }
 .section-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20rpx; }
 .section-title { font-size: 28rpx; font-weight: 600; color: #2C2C2C; }
-.section-link { font-size: 24rpx; color: #C41E3A; }
+.section-link { font-size: 24rpx; color: var(--brand); }
 
 .recharge-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20rpx; }
 .recharge-item { background: #fff; border: 1rpx solid #EDE7DC; border-radius: 20rpx; padding: 24rpx; display: flex; flex-direction: column; align-items: flex-start; gap: 4rpx; position: relative; }
-.recharge-item.popular { border-color: #C41E3A; background: rgba(196,30,58,0.04); }
-.recharge-tag { font-size: 20rpx; color: #C41E3A; font-weight: 600; }
+.recharge-item.popular { border-color: var(--brand); background: rgba(196,30,58,0.04); }
+.recharge-tag { font-size: 20rpx; color: var(--brand); font-weight: 600; }
 .recharge-coins { font-size: 32rpx; font-weight: 700; color: #2C2C2C; }
 .recharge-price { font-size: 24rpx; color: #8a8178; }
 .recharge-bonus { font-size: 22rpx; color: #C9A96E; margin-top: 4rpx; }
-.more-btn { margin-top: 24rpx; height: 84rpx; background: #C41E3A; border-radius: 20rpx; display: flex; align-items: center; justify-content: center; }
+.more-btn { margin-top: 24rpx; height: 84rpx; background: var(--brand); border-radius: 20rpx; display: flex; align-items: center; justify-content: center; }
 .more-btn-text { font-size: 28rpx; color: #fff; font-weight: 500; }
 
 .tx-list { display: flex; flex-direction: column; gap: 16rpx; }
@@ -223,5 +223,5 @@ function notReady() {
 .loading { flex: 1; display: flex; align-items: center; justify-content: center; font-size: 28rpx; color: #8a8178; }
 .error-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24rpx; }
 .error-state text { font-size: 28rpx; color: #8a8178; }
-.retry-btn { padding: 16rpx 48rpx; background: #C41E3A; color: #fff; border-radius: 12rpx; font-size: 26rpx; }
+.retry-btn { padding: 16rpx 48rpx; background: var(--brand); color: #fff; border-radius: 12rpx; font-size: 26rpx; }
 </style>

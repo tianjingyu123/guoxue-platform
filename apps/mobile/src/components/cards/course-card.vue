@@ -2,6 +2,7 @@
 /** 课程卡 - 从原型 components/cards/course-card.tsx 迁移(feed/rail/rank/list 四变体) */
 import { computed } from 'vue'
 import { navigateTo } from '@/utils/router'
+import { track } from '@/composables/useTrack'
 import AppIcon from '@/components/common/app-icon.vue'
 import { type CourseCardData, type CardVariant, normalizeRatio, formatCount, courseHotKind } from '@/lib/card-utils'
 
@@ -18,14 +19,17 @@ const rankClass = computed(() => {
   if (r === 3) return 'rk-3'
   return 'rk-n'
 })
-function open() { navigateTo(`/course/${props.data.id}`) }
+function open() {
+  track.click('course_card', { id: props.data.id })
+  navigateTo(`/course/${props.data.id}`)
+}
 </script>
 
 <template>
   <!-- ---------- 横滑小卡 rail ---------- -->
   <view v-if="variant === 'rail'" class="rail" hover-class="card-press" @tap="open">
     <view class="cover r-sq">
-      <image v-if="data.cover" class="cover-img" :src="data.cover" mode="aspectFill" />
+      <image v-if="data.cover" class="cover-img" :src="data.cover" mode="aspectFill" lazy-load />
       <text class="type-badge">课程</text>
     </view>
     <view class="rail-body">
@@ -44,7 +48,7 @@ function open() { navigateTo(`/course/${props.data.id}`) }
   <view v-else-if="variant === 'rank'" class="rank" hover-class="card-press" @tap="open">
     <text class="rank-badge" :class="rankClass">{{ rank }}</text>
     <view class="rank-cover">
-      <image v-if="data.cover" class="cover-img" :src="data.cover" mode="aspectFill" />
+      <image v-if="data.cover" class="cover-img" :src="data.cover" mode="aspectFill" lazy-load />
     </view>
     <view class="rank-info">
       <text class="rank-title">{{ data.title }}</text>
@@ -62,7 +66,7 @@ function open() { navigateTo(`/course/${props.data.id}`) }
   <!-- ---------- 横向列表卡 list ---------- -->
   <view v-else-if="variant === 'list'" class="list" hover-class="card-press" @tap="open">
     <view class="list-cover">
-      <image v-if="data.cover" class="cover-img" :src="data.cover" mode="aspectFill" />
+      <image v-if="data.cover" class="cover-img" :src="data.cover" mode="aspectFill" lazy-load />
     </view>
     <view class="list-body">
       <view>
@@ -84,7 +88,7 @@ function open() { navigateTo(`/course/${props.data.id}`) }
   <!-- ---------- 瀑布流竖卡 feed(默认) ---------- -->
   <view v-else class="card" hover-class="card-press" @tap="open">
     <view class="cover" :class="ratio === '1:1' ? 'r-sq' : 'r-34'">
-      <image v-if="data.cover" class="cover-img" :src="data.cover" mode="aspectFill" />
+      <image v-if="data.cover" class="cover-img" :src="data.cover" mode="aspectFill" lazy-load />
       <text class="type-badge">课程</text>
       <text v-if="kind" class="hot-badge" :class="kind === 'new' ? 'hot-new' : 'hot-red'">{{ hotText }}</text>
     </view>
@@ -100,7 +104,7 @@ function open() { navigateTo(`/course/${props.data.id}`) }
       </view>
       <view v-if="data.teacher" class="author">
         <view class="avatar">
-          <image v-if="data.teacherAvatar" class="avatar-img" :src="data.teacherAvatar" mode="aspectFill" />
+          <image lazy-load v-if="data.teacherAvatar" class="avatar-img" :src="data.teacherAvatar" mode="aspectFill" />
           <text v-else class="avatar-ph">{{ data.teacher.charAt(0) }}</text>
         </view>
         <text class="author-name">{{ data.teacher }}</text>

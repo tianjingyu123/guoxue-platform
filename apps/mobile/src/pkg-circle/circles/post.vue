@@ -10,28 +10,38 @@ import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo, toastComingSoon } from '@/utils/router'
 import {
-  postDetail, comments as rawComments, parseMarkdown,
+  postDetailApi, parseMarkdown,
   REWARD_QUICK, REWARD_ALL,
-  type Comment,
+  type PostDetail, type Comment, type MdBlock,
 } from '@/lib/post-detail-data'
 
-const circleId = ref('1')
-const post = reactive({ ...postDetail })
-const mdBlocks = parseMarkdown(post.content)
+const circleId = ref('')
+const postId = ref('')
+const post = ref<PostDetail | null>(null)
+const mdBlocks = ref<MdBlock[]>([])
+const loading = ref(true)
+const error = ref('')
 
 // 互动状态
-const isLiked = ref(post.isLiked)
-const isCollected = ref(post.isCollected)
-const likes = ref(post.likes)
-const collects = ref(post.collects)
-const isFollowed = ref(post.author.isFollowed ?? false)
+const isLiked = ref(false)
+const isCollected = ref(false)
+const likes = ref(0)
+const collects = ref(0)
+const isFollowed = ref(false)
 
 // 评论
-const comments = reactive<Comment[]>(JSON.parse(JSON.stringify(rawComments)))
+const comments = ref<Comment[]>([])
 const expandedReplies = reactive<Record<string, boolean>>({})
 const commentText = ref('')
 const replyTo = ref<Comment | null>(null)
 const commentSort = ref<'hot' | 'new'>('hot')
+
+// 互动防重复（进行中直接 return，避免快点连发）
+const likeActing = ref(false)
+const collectActing = ref(false)
+const followActing = ref(false)
+const commentSubmitting = ref(false)
+const commentLikeActing = reactive<Record<string, boolean>>({})
 
 // 弹窗
 const showRewardModal = ref(false)
@@ -39,9 +49,35 @@ const previewImage = ref<string | null>(null)
 
 onLoad((q) => {
   if (q?.circleId) circleId.value = q.circleId
+  if (q?.id) postId.value = q.id
+  loadData()
 })
 
-// ─── 音频播放器（跨端） ───
+async function loadData() {
+  loading.value = true
+  error.value = ''
+  try {
+    const p = await postDetailApi.getDetail(circleId.value, postId.value)
+    post.value = p
+    mdBlocks.value = parseMarkdown(p.content)
+    isLiked.value = p.isLiked
+    // 收藏：后端无单帖收藏态查询端点 → 保持初始 false，靠乐观更新维护本次会话内状态
+    isCollected.value = p.isCollected
+    likes.value = p.likes
+    collects.value = p.collects
+    isFollowed.value = p.author.isFollowed ?? false
+    comments.value = await postDetailApi.getComments(postId.value)
+    // 详情不返回当前用户点赞态 → 单独查询补上 isLiked（失败保持 false，不阻断页面）
+    isLiked.value = await postDetailApi.checkPostLiked(postId.value)
+  } catch {
+    error.value = '加载失败，请重试'
+  } finally {
+    loading.value = false
+  }
+}
+function retry() { loadData() }
+
+// ─── 音频播放器（跨端；后端暂无音频，逻辑保留兼容将来） ───
 const isPlaying = ref(false)
 const currentTime = ref(0)
 let audioCtx: any = null
@@ -51,10 +87,11 @@ function fmtDuration(sec: number) {
   return `${m}:${s.toString().padStart(2, '0')}`
 }
 function toggleAudio() {
-  if (!post.audio) return
+  const audio = post.value?.audio
+  if (!audio) return
   if (!audioCtx) {
     audioCtx = uni.createInnerAudioContext()
-    audioCtx.src = post.audio.url
+    audioCtx.src = audio.url
     audioCtx.onTimeUpdate(() => { currentTime.value = Math.floor(audioCtx.currentTime) })
     audioCtx.onEnded(() => { isPlaying.value = false; currentTime.value = 0 })
     audioCtx.onError(() => { isPlaying.value = false; uni.showToast({ title: '音频加载失败', icon: 'none' }) })
@@ -62,28 +99,114 @@ function toggleAudio() {
   if (isPlaying.value) { audioCtx.pause(); isPlaying.value = false }
   else { audioCtx.play(); isPlaying.value = true }
 }
-const audioProgress = () => post.audio ? Math.min(100, (currentTime.value / post.audio.duration) * 100) : 0
+const audioProgress = () => post.value?.audio ? Math.min(100, (currentTime.value / post.value.audio.duration) * 100) : 0
 
-// ─── 互动 ───
-function toggleLike() { isLiked.value = !isLiked.value; likes.value += isLiked.value ? 1 : -1 }
-function toggleCollect() { isCollected.value = !isCollected.value; collects.value += isCollected.value ? 1 : -1 }
-function toggleFollow() { isFollowed.value = !isFollowed.value }
+// ─── 互动（乐观更新 + 失败回滚 + 防重复）───
 
-function toggleCommentLike(c: Comment) {
-  c.isLiked = !c.isLiked
-  c.likes += c.isLiked ? 1 : -1
+// 帖子点赞
+async function toggleLike() {
+  if (likeActing.value) return
+  likeActing.value = true
+  const prevLiked = isLiked.value
+  const prevLikes = likes.value
+  // 乐观更新
+  isLiked.value = !prevLiked
+  likes.value = prevLikes + (isLiked.value ? 1 : -1)
+  try {
+    await postDetailApi.toggleLike(postId.value)
+  } catch {
+    // 回滚
+    isLiked.value = prevLiked
+    likes.value = prevLikes
+    uni.showToast({ title: '操作失败，请重试', icon: 'none' })
+  } finally {
+    likeActing.value = false
+  }
 }
+
+// 帖子收藏
+async function toggleCollect() {
+  if (collectActing.value) return
+  collectActing.value = true
+  const prevCollected = isCollected.value
+  const prevCollects = collects.value
+  isCollected.value = !prevCollected
+  collects.value = prevCollects + (isCollected.value ? 1 : -1)
+  try {
+    await postDetailApi.toggleCollect(postId.value)
+  } catch {
+    isCollected.value = prevCollected
+    collects.value = prevCollects
+    uni.showToast({ title: '操作失败，请重试', icon: 'none' })
+  } finally {
+    collectActing.value = false
+  }
+}
+
+// 关注作者
+async function toggleFollow() {
+  if (followActing.value) return
+  const authorId = post.value?.author.id
+  if (!authorId) return
+  followActing.value = true
+  const prev = isFollowed.value
+  isFollowed.value = !prev
+  try {
+    await postDetailApi.toggleFollow(authorId)
+  } catch {
+    isFollowed.value = prev
+    uni.showToast({ title: '操作失败，请重试', icon: 'none' })
+  } finally {
+    followActing.value = false
+  }
+}
+
+// 评论点赞
+async function toggleCommentLike(c: Comment) {
+  if (commentLikeActing[c.id]) return
+  commentLikeActing[c.id] = true
+  const prevLiked = c.isLiked
+  const prevLikes = c.likes
+  c.isLiked = !prevLiked
+  c.likes = prevLikes + (c.isLiked ? 1 : -1)
+  try {
+    await postDetailApi.toggleCommentLike(c.id)
+  } catch {
+    c.isLiked = prevLiked
+    c.likes = prevLikes
+    uni.showToast({ title: '操作失败，请重试', icon: 'none' })
+  } finally {
+    commentLikeActing[c.id] = false
+  }
+}
+
 function startReply(c: Comment) {
   replyTo.value = c
 }
-function submitComment() {
-  if (!commentText.value.trim()) return
-  uni.showToast({ title: '评论已发送', icon: 'success' })
-  commentText.value = ''
-  replyTo.value = null
+
+// 发评论/回复（防重复 + 真调后端 + 成功后重载评论列表）
+async function submitComment() {
+  if (commentSubmitting.value) return
+  const content = commentText.value.trim()
+  if (!content) return
+  commentSubmitting.value = true
+  try {
+    await postDetailApi.createComment(postId.value, content, replyTo.value?.id)
+    // 成功：清空输入 + 重载评论拿真实新评论 + 同步评论计数
+    commentText.value = ''
+    replyTo.value = null
+    comments.value = await postDetailApi.getComments(postId.value)
+    if (post.value) post.value.comments = comments.value.length
+    uni.showToast({ title: '评论已发送', icon: 'success' })
+  } catch {
+    // 失败：不清空输入，便于重发
+    uni.showToast({ title: '发送失败，请重试', icon: 'none' })
+  } finally {
+    commentSubmitting.value = false
+  }
 }
 
-function openShare() { navigateTo(`/pkg-circle/common/share-poster?type=post&targetId=${post.id}`) }
+function openShare() { navigateTo(`/pkg-circle/common/share-poster?type=post&targetId=${postId.value}`) }
 function openUser(id: string) { navigateTo(`/pkg-circle/user/profile?id=${id}`) }
 function openCircle() { navigateTo(`/pkg-circle/circles/detail?id=${circleId.value}`) }
 function fmt(n: number) { return n >= 10000 ? (n / 10000).toFixed(1) + 'w' : String(n) }
@@ -96,11 +219,21 @@ onUnmounted(() => { if (audioCtx) { try { audioCtx.destroy() } catch {} } })
     <!-- 顶部导航 -->
     <view class="pd-hdr">
       <view class="pd-hdr-btn" @tap="goBack"><app-icon name="arrow-left" :size="40" color="#2C2C2C" /></view>
-      <view class="pd-hdr-circle" @tap="openCircle"><text class="pd-hdr-name">{{ post.circleName }}</text></view>
+      <view class="pd-hdr-circle" @tap="openCircle"><text class="pd-hdr-name">{{ post?.circleName || '帖子' }}</text></view>
       <view class="pd-hdr-btn" @tap="toastComingSoon"><app-icon name="more-horizontal" :size="40" color="#666666" /></view>
     </view>
 
-    <scroll-view scroll-y class="pd-body">
+    <!-- 加载态 -->
+    <view v-if="loading && !post" class="pd-state">
+      <text class="pd-state-t">加载中…</text>
+    </view>
+    <!-- 错误态 -->
+    <view v-else-if="error && !post" class="pd-state">
+      <text class="pd-state-t">{{ error }}</text>
+      <view class="pd-state-retry" @tap="retry"><text class="pd-state-retry-t">重试</text></view>
+    </view>
+
+    <scroll-view v-else-if="post" scroll-y class="pd-body">
       <!-- 文章 -->
       <view class="pd-article">
         <!-- 标签 -->
@@ -117,31 +250,31 @@ onUnmounted(() => { if (audioCtx) { try { audioCtx.destroy() } catch {} } })
         <view class="pd-author-row">
           <view class="pd-author" @tap="openUser(post.author.id)">
             <view class="pd-avatar-wrap">
-              <image :src="post.author.avatar" class="pd-avatar" mode="aspectFill" />
-              <view class="pd-level">{{ post.author.level }}</view>
+              <image lazy-load :src="post.author.avatar" class="pd-avatar" mode="aspectFill" />
+              <view v-if="post.author.level" class="pd-level">{{ post.author.level }}</view>
             </view>
             <view class="pd-author-info">
               <view class="pd-author-name-row">
                 <text class="pd-author-name">{{ post.author.name }}</text>
-                <text class="pd-author-title">{{ post.author.title }}</text>
+                <text v-if="post.author.title" class="pd-author-title">{{ post.author.title }}</text>
               </view>
-              <view class="pd-author-meta">
-                <text class="pd-author-stat">{{ post.author.followers }}粉丝</text>
-                <text class="pd-author-dot">·</text>
-                <text class="pd-author-stat">{{ post.author.posts }}篇文章</text>
+              <view v-if="post.author.followers != null || post.author.posts != null" class="pd-author-meta">
+                <text v-if="post.author.followers != null" class="pd-author-stat">{{ post.author.followers }}粉丝</text>
+                <text v-if="post.author.followers != null && post.author.posts != null" class="pd-author-dot">·</text>
+                <text v-if="post.author.posts != null" class="pd-author-stat">{{ post.author.posts }}篇文章</text>
               </view>
             </view>
           </view>
-          <view class="pd-follow" :class="{ on: isFollowed }" @tap="toggleFollow">
+          <view v-if="post.author.followers != null" class="pd-follow" :class="{ on: isFollowed }" @tap="toggleFollow">
             <text class="pd-follow-t" :class="{ on: isFollowed }">{{ isFollowed ? '已关注' : '关注' }}</text>
           </view>
         </view>
 
-        <!-- 元信息 -->
+        <!-- 元信息（阅读量/读完时间后端无 → 隐藏，仅留发布时间） -->
         <view class="pd-meta">
           <view class="pd-meta-item"><app-icon name="clock" :size="24" color="#999999" /><text class="pd-meta-t">{{ post.createdAt }}</text></view>
-          <view class="pd-meta-item"><app-icon name="eye" :size="24" color="#999999" /><text class="pd-meta-t">{{ post.views }}阅读</text></view>
-          <view class="pd-meta-item"><app-icon name="clock" :size="24" color="#999999" /><text class="pd-meta-t">约{{ post.readTime }}分钟</text></view>
+          <view v-if="post.views" class="pd-meta-item"><app-icon name="eye" :size="24" color="#999999" /><text class="pd-meta-t">{{ post.views }}阅读</text></view>
+          <view v-if="post.readTime" class="pd-meta-item"><app-icon name="clock" :size="24" color="#999999" /><text class="pd-meta-t">约{{ post.readTime }}分钟</text></view>
         </view>
 
         <!-- 音频播放器 -->
@@ -189,13 +322,13 @@ onUnmounted(() => { if (audioCtx) { try { audioCtx.destroy() } catch {} } })
         <!-- 图片 -->
         <view v-if="post.images && post.images.length" class="pd-images">
           <view v-for="(img, i) in post.images" :key="i" class="pd-img-cell">
-            <image :src="img.url" class="pd-img" mode="widthFix" @tap="previewImage = img.url" />
+            <image lazy-load :src="img.url" class="pd-img" mode="widthFix" @tap="previewImage = img.url" />
             <view v-if="img.caption" class="pd-img-cap"><text class="pd-img-cap-t">{{ img.caption }}</text></view>
           </view>
         </view>
 
-        <!-- 打赏区 -->
-        <view class="pd-reward">
+        <!-- 打赏区（后端暂无打赏统计 → 隐藏，待打赏数据接入后显示） -->
+        <view v-if="post.reward || post.rewardCount" class="pd-reward">
           <view class="pd-reward-head">
             <view class="pd-reward-title"><app-icon name="gift" :size="28" color="#C9A96E" /><text class="pd-reward-title-t">打赏作者</text></view>
             <text class="pd-reward-count">{{ post.rewardCount }}人已打赏</text>
@@ -222,11 +355,11 @@ onUnmounted(() => { if (audioCtx) { try { audioCtx.destroy() } catch {} } })
         </view>
         <view class="pd-action" @tap="toggleCollect">
           <app-icon name="bookmark" :size="44" :color="isCollected ? '#C9A96E' : '#666666'" :fill="isCollected" />
-          <text class="pd-action-t" :style="{ color: isCollected ? '#C9A96E' : '#666666' }">{{ collects }}</text>
+          <text v-if="collects" class="pd-action-t" :style="{ color: isCollected ? '#C9A96E' : '#666666' }">{{ collects }}</text>
         </view>
         <view class="pd-action" @tap="openShare">
           <app-icon name="share-2" :size="44" color="#666666" />
-          <text class="pd-action-t">{{ post.shares }}</text>
+          <text v-if="post.shares" class="pd-action-t">{{ post.shares }}</text>
         </view>
       </view>
 
@@ -241,8 +374,14 @@ onUnmounted(() => { if (audioCtx) { try { audioCtx.destroy() } catch {} } })
           </view>
         </view>
 
+        <!-- 评论空态 -->
+        <view v-if="comments.length === 0" class="pd-c-empty">
+          <app-icon name="message-circle" :size="64" color="#E8E3DB" />
+          <text class="pd-c-empty-t">还没有评论，来抢沙发吧</text>
+        </view>
+
         <view v-for="c in comments" :key="c.id" class="pd-comment">
-          <image :src="c.author.avatar" class="pd-c-avatar" mode="aspectFill" @tap="openUser(c.author.id)" />
+          <image lazy-load :src="c.author.avatar" class="pd-c-avatar" mode="aspectFill" @tap="openUser(c.author.id)" />
           <view class="pd-c-main">
             <view class="pd-c-name-row">
               <text class="pd-c-name">{{ c.author.name }}</text>
@@ -268,7 +407,7 @@ onUnmounted(() => { if (audioCtx) { try { audioCtx.destroy() } catch {} } })
               </view>
               <view v-else class="pd-reply-list">
                 <view v-for="r in c.replies" :key="r.id" class="pd-reply">
-                  <image :src="r.author.avatar" class="pd-r-avatar" mode="aspectFill" />
+                  <image lazy-load :src="r.author.avatar" class="pd-r-avatar" mode="aspectFill" />
                   <view class="pd-r-main">
                     <view class="pd-r-name-row">
                       <text class="pd-r-name">{{ r.author.name }}</text>
@@ -294,7 +433,7 @@ onUnmounted(() => { if (audioCtx) { try { audioCtx.destroy() } catch {} } })
     </scroll-view>
 
     <!-- 底部评论输入 -->
-    <view class="pd-input-bar">
+    <view v-if="post" class="pd-input-bar">
       <view v-if="replyTo" class="pd-reply-hint">
         <view class="pd-reply-hint-l"><app-icon name="at-sign" :size="22" color="#666666" /><text class="pd-reply-hint-t">回复 {{ replyTo.author.name }}</text></view>
         <view @tap="replyTo = null"><app-icon name="x" :size="28" color="#999999" /></view>
@@ -316,7 +455,7 @@ onUnmounted(() => { if (audioCtx) { try { audioCtx.destroy() } catch {} } })
     <!-- 图片预览 -->
     <view v-if="previewImage" class="pd-preview" @tap="previewImage = null">
       <view class="pd-preview-close"><app-icon name="x" :size="44" color="#ffffff" /></view>
-      <image :src="previewImage" class="pd-preview-img" mode="aspectFit" />
+      <image lazy-load :src="previewImage" class="pd-preview-img" mode="aspectFit" />
     </view>
 
     <!-- 打赏弹窗 -->
@@ -325,7 +464,7 @@ onUnmounted(() => { if (audioCtx) { try { audioCtx.destroy() } catch {} } })
         <view class="pd-rm-head">
           <view class="pd-rm-icon"><app-icon name="gift" :size="44" color="#ffffff" /></view>
           <text class="pd-rm-title">打赏作者</text>
-          <text class="pd-rm-sub">感谢 {{ post.author.name }} 的精彩分享</text>
+          <text class="pd-rm-sub">感谢 {{ post?.author.name }} 的精彩分享</text>
         </view>
         <view class="pd-rm-grid">
           <view v-for="amt in REWARD_ALL" :key="amt" class="pd-rm-amt"><text class="pd-rm-amt-t">{{ amt }}</text></view>
@@ -347,6 +486,14 @@ onUnmounted(() => { if (audioCtx) { try { audioCtx.destroy() } catch {} } })
 .pd-hdr-name { font-size: 28rpx; font-weight: 500; color: #2C2C2C; }
 .pd-body { flex: 1; overflow: hidden; }
 .pd-article { padding: 24rpx; }
+/* 加载/错误态 */
+.pd-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24rpx; padding: 160rpx 0; }
+.pd-state-t { font-size: 28rpx; color: #999; }
+.pd-state-retry { padding: 16rpx 48rpx; border-radius: 999rpx; background: var(--brand); }
+.pd-state-retry-t { font-size: 26rpx; color: #fff; }
+/* 评论空态 */
+.pd-c-empty { display: flex; flex-direction: column; align-items: center; gap: 20rpx; padding: 96rpx 0; }
+.pd-c-empty-t { font-size: 26rpx; color: #999; }
 /* 标签 */
 .pd-tags { display: flex; gap: 12rpx; margin-bottom: 20rpx; }
 .pd-tag { display: flex; align-items: center; gap: 6rpx; padding: 4rpx 16rpx; border-radius: 999rpx; }
@@ -360,14 +507,14 @@ onUnmounted(() => { if (audioCtx) { try { audioCtx.destroy() } catch {} } })
 .pd-author { display: flex; align-items: center; gap: 20rpx; }
 .pd-avatar-wrap { position: relative; }
 .pd-avatar { width: 88rpx; height: 88rpx; border-radius: 999rpx; }
-.pd-level { position: absolute; bottom: -4rpx; right: -4rpx; width: 36rpx; height: 36rpx; border-radius: 999rpx; background: #C41E3A; color: #fff; font-size: 18rpx; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+.pd-level { position: absolute; bottom: -4rpx; right: -4rpx; width: 36rpx; height: 36rpx; border-radius: 999rpx; background: var(--brand); color: #fff; font-size: 18rpx; font-weight: 700; display: flex; align-items: center; justify-content: center; }
 .pd-author-name-row { display: flex; align-items: center; gap: 12rpx; }
 .pd-author-name { font-size: 30rpx; font-weight: 500; color: #2C2C2C; }
 .pd-author-title { font-size: 20rpx; color: #C9A96E; background: rgba(201,169,110,0.1); padding: 2rpx 10rpx; border-radius: 6rpx; }
 .pd-author-meta { display: flex; align-items: center; gap: 12rpx; margin-top: 6rpx; }
 .pd-author-stat { font-size: 24rpx; color: #999999; }
 .pd-author-dot { font-size: 24rpx; color: #999999; }
-.pd-follow { padding: 12rpx 32rpx; border-radius: 999rpx; background: #C41E3A; }
+.pd-follow { padding: 12rpx 32rpx; border-radius: 999rpx; background: var(--brand); }
 .pd-follow.on { background: #F5F0E8; }
 .pd-follow-t { font-size: 26rpx; font-weight: 500; color: #fff; }
 .pd-follow-t.on { color: #999999; }
@@ -398,7 +545,7 @@ onUnmounted(() => { if (audioCtx) { try { audioCtx.destroy() } catch {} } })
 .md-quote { border-left: 8rpx solid #C9A96E; background: #FFF8E7; padding: 20rpx 28rpx; margin: 28rpx 0; border-radius: 0 12rpx 12rpx 0; }
 .md-quote-t { font-size: 28rpx; color: #666666; font-style: italic; }
 .md-li { display: flex; gap: 10rpx; margin: 8rpx 0; padding-left: 20rpx; }
-.md-dot { color: #C41E3A; }
+.md-dot { color: var(--brand); }
 .md-li-t { flex: 1; font-size: 30rpx; color: #2C2C2C; line-height: 1.7; }
 .md-hr { height: 2rpx; background: #E8E3DB; margin: 40rpx 0; }
 .md-em { display: block; font-size: 28rpx; color: #999999; font-style: italic; margin: 12rpx 0; }
@@ -430,7 +577,7 @@ onUnmounted(() => { if (audioCtx) { try { audioCtx.destroy() } catch {} } })
 .pd-comments-title { font-size: 30rpx; font-weight: 600; color: #2C2C2C; }
 .pd-comments-sort { display: flex; align-items: center; gap: 12rpx; }
 .pd-sort { font-size: 24rpx; color: #999999; }
-.pd-sort.on { color: #C41E3A; }
+.pd-sort.on { color: var(--brand); }
 .pd-sort-sep { color: #E8E3DB; }
 .pd-comment { display: flex; gap: 20rpx; padding: 28rpx 0; border-bottom: 2rpx solid #F5F0E8; }
 .pd-c-avatar { width: 72rpx; height: 72rpx; border-radius: 999rpx; flex-shrink: 0; }
@@ -438,7 +585,7 @@ onUnmounted(() => { if (audioCtx) { try { audioCtx.destroy() } catch {} } })
 .pd-c-name-row { display: flex; align-items: center; gap: 12rpx; margin-bottom: 8rpx; flex-wrap: wrap; }
 .pd-c-name { font-size: 28rpx; font-weight: 500; color: #2C2C2C; }
 .pd-c-badge { font-size: 20rpx; padding: 2rpx 10rpx; border-radius: 6rpx; }
-.pd-c-badge.lv { background: rgba(196,30,58,0.1); color: #C41E3A; }
+.pd-c-badge.lv { background: rgba(196,30,58,0.1); color: var(--brand); }
 .pd-c-badge.title { background: rgba(201,169,110,0.1); color: #C9A96E; }
 .pd-c-badge.title.sm { font-size: 18rpx; padding: 2rpx 8rpx; }
 .pd-c-badge.pin-badge { display: flex; align-items: center; gap: 4rpx; background: rgba(82,196,26,0.1); }
@@ -451,7 +598,7 @@ onUnmounted(() => { if (audioCtx) { try { audioCtx.destroy() } catch {} } })
 .pd-c-reply { font-size: 22rpx; color: #999999; }
 .pd-replies { margin-top: 20rpx; padding-left: 20rpx; border-left: 4rpx solid #F5F0E8; }
 .pd-expand { display: flex; align-items: center; gap: 6rpx; }
-.pd-expand-t { font-size: 24rpx; color: #C41E3A; }
+.pd-expand-t { font-size: 24rpx; color: var(--brand); }
 .pd-collapse-t { font-size: 22rpx; color: #999999; }
 .pd-reply-list { display: flex; flex-direction: column; gap: 20rpx; }
 .pd-reply { display: flex; gap: 12rpx; }
@@ -473,7 +620,7 @@ onUnmounted(() => { if (audioCtx) { try { audioCtx.destroy() } catch {} } })
 .pd-input-row { display: flex; align-items: center; gap: 20rpx; }
 .pd-input { flex: 1; height: 72rpx; padding: 0 28rpx; background: #F5F0E8; border-radius: 999rpx; font-size: 28rpx; }
 .pd-send { width: 72rpx; height: 72rpx; border-radius: 999rpx; background: #E8E3DB; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.pd-send.on { background: #C41E3A; }
+.pd-send.on { background: var(--brand); }
 /* 图片预览 */
 .pd-preview { position: fixed; inset: 0; z-index: 200; background: #000; display: flex; align-items: center; justify-content: center; }
 .pd-preview-close { position: absolute; top: 60rpx; right: 32rpx; }

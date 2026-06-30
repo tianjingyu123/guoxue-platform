@@ -1,36 +1,52 @@
 <script setup lang="ts">
 /**
- * 我的徽章（从原型 app/circles/badges/page.tsx 高保真迁移）
- * 已获得徽章网格 + 待解锁列表(进度条)；徽章图案=生成的国风圆形勋章图(跨端一致)
+ * 我的徽章（圈子成长体系）—— 真连 growth 后端
+ * 已获得网格 + 待解锁列表(进度条)；徽章用 app-icon 图标（与后端 icon 字段一致）
+ * 数据：GET /circles/:id/badges。三态：loading / error / empty。
  */
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
+import { growthApi, type BadgeItem } from '@/lib/circle-growth-data'
 
-interface BadgeItem {
-  id: string; name: string; desc: string; image: string
-  rarity: 'common' | 'rare' | 'epic' | 'legendary'
-  earned: boolean; earnedAt?: string; progress?: number; total?: number
-}
 const RARITY_CFG = {
-  common: { label: '普通', cls: 'common' },
-  rare: { label: '稀有', cls: 'rare' },
-  epic: { label: '史诗', cls: 'epic' },
-  legendary: { label: '传说', cls: 'legendary' },
+  common: { label: '普通', cls: 'common', color: '#475569' },
+  rare: { label: '稀有', cls: 'rare', color: '#2563EB' },
+  epic: { label: '史诗', cls: 'epic', color: '#9333EA' },
+  legendary: { label: '传说', cls: 'legendary', color: '#D97706' },
 }
-const badges: BadgeItem[] = [
-  { id: '1', name: '初入门径', desc: '加入第一个圈子', image: '/static/badges/badge-1.png', rarity: 'common', earned: true, earnedAt: '2023-10-01' },
-  { id: '2', name: '活跃探索', desc: '连续7天发帖', image: '/static/badges/badge-2.png', rarity: 'common', earned: true, earnedAt: '2023-10-15' },
-  { id: '3', name: '知识布道', desc: '发布10篇精华内容', image: '/static/badges/badge-3.png', rarity: 'rare', earned: true, earnedAt: '2023-11-05' },
-  { id: '4', name: '百人追随', desc: '获得100个粉丝', image: '/static/badges/badge-4.png', rarity: 'rare', earned: true, earnedAt: '2023-12-01' },
-  { id: '5', name: '命理宗师', desc: '回答500个命理问题', image: '/static/badges/badge-5.png', rarity: 'epic', earned: false, progress: 342, total: 500 },
-  { id: '6', name: '圈主传奇', desc: '圈子成员突破10000', image: '/static/badges/badge-6.png', rarity: 'legendary', earned: false, progress: 1280, total: 10000 },
-  { id: '7', name: '月度达人', desc: '单月获赞超500', image: '/static/badges/badge-7.png', rarity: 'epic', earned: false, progress: 210, total: 500 },
-  { id: '8', name: '古籍守护', desc: '收藏50部古籍', image: '/static/badges/badge-8.png', rarity: 'rare', earned: false, progress: 28, total: 50 },
-]
-const earned = computed(() => badges.filter(b => b.earned))
-const locked = computed(() => badges.filter(b => !b.earned))
-function pct(b: BadgeItem) { return Math.min(100, (b.progress! / b.total!) * 100) }
+
+const circleId = ref('')
+const isLoading = ref(true)
+const loadError = ref(false)
+const badges = ref<BadgeItem[]>([])
+
+onLoad((query) => {
+  circleId.value = (query?.id as string) || ''
+  loadBadges()
+})
+
+async function loadBadges() {
+  if (!circleId.value) { isLoading.value = false; loadError.value = true; return }
+  isLoading.value = true
+  loadError.value = false
+  try {
+    const res = await growthApi.badges(circleId.value)
+    badges.value = res.badges
+  } catch (e: any) {
+    loadError.value = true
+    uni.showToast({ title: e?.message || '加载失败', icon: 'none' })
+  } finally {
+    isLoading.value = false
+  }
+}
+
+const earned = computed(() => badges.value.filter((b) => b.earned))
+const locked = computed(() => badges.value.filter((b) => !b.earned))
+function pct(b: BadgeItem) { return b.total ? Math.min(100, (b.progress / b.total) * 100) : 0 }
+function rarityColor(r: BadgeItem['rarity']) { return RARITY_CFG[r]?.color ?? '#475569' }
+function fmtDate(s: string | null) { if (!s) return ''; const d = new Date(s); return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}` }
 </script>
 
 <template>
@@ -41,30 +57,53 @@ function pct(b: BadgeItem) { return Math.min(100, (b.progress! / b.total!) * 100
       <text class="bg-count">{{ earned.length }}/{{ badges.length }}</text>
     </view>
 
-    <view class="bg-body">
+    <!-- 骨架屏 -->
+    <view v-if="isLoading" class="bg-body">
+      <view class="bg-grid">
+        <view v-for="i in 6" :key="i" class="bg-card common bg-skel" />
+      </view>
+    </view>
+
+    <!-- 错误态 -->
+    <view v-else-if="loadError" class="bg-state">
+      <app-icon name="alert-circle" :size="72" color="#CCCCCC" />
+      <text class="bg-state-t">加载失败</text>
+      <view class="bg-retry" @tap="loadBadges">重试</view>
+    </view>
+
+    <!-- 空态 -->
+    <view v-else-if="badges.length === 0" class="bg-state">
+      <app-icon name="award" :size="72" color="#CCCCCC" />
+      <text class="bg-state-t">暂无徽章</text>
+    </view>
+
+    <view v-else class="bg-body">
       <!-- 已获得 -->
       <text class="bg-section">已获得 {{ earned.length }} 枚</text>
-      <view class="bg-grid">
-        <view v-for="b in earned" :key="b.id" class="bg-card" :class="RARITY_CFG[b.rarity].cls">
-          <image class="bg-badge-img" :src="b.image" mode="aspectFit" />
+      <view v-if="earned.length" class="bg-grid">
+        <view v-for="b in earned" :key="b.code" class="bg-card" :class="RARITY_CFG[b.rarity].cls">
+          <view class="bg-badge-ic" :style="{ background: rarityColor(b.rarity) + '22' }">
+            <app-icon :name="b.icon" :size="44" :color="rarityColor(b.rarity)" />
+          </view>
           <text class="bg-name">{{ b.name }}</text>
           <text class="bg-rarity" :class="RARITY_CFG[b.rarity].cls">{{ RARITY_CFG[b.rarity].label }}</text>
-          <text class="bg-date">{{ b.earnedAt }}</text>
+          <text v-if="b.gainedAt" class="bg-date">{{ fmtDate(b.gainedAt) }}</text>
         </view>
       </view>
+      <view v-else class="bg-mini-empty">还没有获得徽章，快去签到/发帖解锁吧</view>
 
       <!-- 待解锁 -->
       <text class="bg-section mt">待解锁 {{ locked.length }} 枚</text>
       <view class="bg-locked-list">
-        <view v-for="b in locked" :key="b.id" class="bg-locked">
-          <view class="bg-locked-icon"><image class="bg-locked-img" :src="b.image" mode="aspectFit" /></view>
+        <view v-for="b in locked" :key="b.code" class="bg-locked">
+          <view class="bg-locked-icon"><app-icon :name="b.icon" :size="40" color="#BBBBBB" /></view>
           <view class="bg-locked-main">
             <view class="bg-locked-top">
               <text class="bg-locked-name">{{ b.name }}</text>
               <text class="bg-rarity-tag" :class="RARITY_CFG[b.rarity].cls">{{ RARITY_CFG[b.rarity].label }}</text>
             </view>
             <text class="bg-locked-desc">{{ b.desc }}</text>
-            <view v-if="b.progress !== undefined" class="bg-progress-row">
+            <view class="bg-progress-row">
               <view class="bg-progress"><view class="bg-progress-bar" :style="{ width: pct(b) + '%' }" /></view>
               <text class="bg-progress-txt">{{ b.progress }}/{{ b.total }}</text>
             </view>
@@ -90,7 +129,8 @@ function pct(b: BadgeItem) { return Math.min(100, (b.progress! / b.total!) * 100
 .bg-card.rare { background: #EFF6FF; border-color: #BFDBFE; }
 .bg-card.epic { background: #FAF5FF; border-color: #E9D5FF; }
 .bg-card.legendary { background: #FFFBEB; border-color: #FCD34D; }
-.bg-badge-img { width: 96rpx; height: 96rpx; margin-bottom: 16rpx; }
+.bg-skel { height: 200rpx; opacity: 0.5; }
+.bg-badge-ic { width: 96rpx; height: 96rpx; border-radius: 999rpx; display: flex; align-items: center; justify-content: center; margin-bottom: 16rpx; }
 .bg-name { font-size: 24rpx; font-weight: 600; color: var(--text-ink, #2C2C2C); text-align: center; }
 .bg-rarity { font-size: 20rpx; margin-top: 8rpx; }
 .bg-rarity.common { color: #475569; }
@@ -98,10 +138,10 @@ function pct(b: BadgeItem) { return Math.min(100, (b.progress! / b.total!) * 100
 .bg-rarity.epic { color: #9333EA; }
 .bg-rarity.legendary { color: #D97706; }
 .bg-date { font-size: 20rpx; color: #999; margin-top: 8rpx; }
+.bg-mini-empty { font-size: 24rpx; color: #999; padding: 24rpx 0; }
 .bg-locked-list { display: flex; flex-direction: column; gap: 16rpx; }
 .bg-locked { display: flex; align-items: center; gap: 24rpx; padding: 24rpx; background: rgba(240,235,227,0.4); border: 2rpx solid var(--border, #EDE8E0); border-radius: 24rpx; }
-.bg-locked-icon { width: 88rpx; height: 88rpx; border-radius: 20rpx; background: #F0EBE3; display: flex; align-items: center; justify-content: center; flex-shrink: 0; opacity: 0.5; }
-.bg-locked-img { width: 72rpx; height: 72rpx; filter: grayscale(1); }
+.bg-locked-icon { width: 88rpx; height: 88rpx; border-radius: 20rpx; background: #F0EBE3; display: flex; align-items: center; justify-content: center; flex-shrink: 0; opacity: 0.6; }
 .bg-locked-main { flex: 1; min-width: 0; }
 .bg-locked-top { display: flex; align-items: center; gap: 16rpx; flex-wrap: wrap; }
 .bg-locked-name { font-size: 28rpx; font-weight: 500; color: var(--text-ink, #2C2C2C); }
@@ -115,4 +155,7 @@ function pct(b: BadgeItem) { return Math.min(100, (b.progress! / b.total!) * 100
 .bg-progress { flex: 1; height: 12rpx; background: #F0EBE3; border-radius: 999rpx; overflow: hidden; }
 .bg-progress-bar { height: 100%; background: rgba(196,30,58,0.5); border-radius: 999rpx; }
 .bg-progress-txt { font-size: 20rpx; color: #999; flex-shrink: 0; }
+.bg-state { display: flex; flex-direction: column; align-items: center; padding: 160rpx 0; gap: 24rpx; }
+.bg-state-t { font-size: 28rpx; color: #999; }
+.bg-retry { padding: 14rpx 48rpx; background: var(--brand); color: #fff; font-size: 26rpx; border-radius: 999rpx; }
 </style>

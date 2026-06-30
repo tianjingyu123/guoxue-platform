@@ -82,7 +82,9 @@
 <script setup lang="ts">
 import { ref, computed, onUnmounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
-import { redirectTo, navigateTo, reLaunch } from '@/utils/router'
+import { redirectTo, navigateTo } from '@/utils/router'
+import { shopApi } from '@/lib/shop-data'
+import { track } from '@/composables/useTrack'
 
 type Status = 'loading' | 'paying' | 'success' | 'failed' | 'timeout' | 'cancelled'
 
@@ -113,18 +115,29 @@ const methodColor = computed(() => {
 })
 
 onLoad((q) => {
-  orderId.value = (q?.orderId as string) || '202401150001'
+  orderId.value = (q?.orderId as string) || ''
   payMethod.value = (q?.method as string) || 'wechat'
-  amount.value = (q?.amount as string) || '344'
-  // 模拟准备支付 → 进入支付中
-  setTimeout(() => startPaying(), 800)
+  amount.value = (q?.amount as string) || '0'
+  if (!orderId.value) {
+    status.value = 'failed'
+    failReason.value = '缺少订单信息'
+    return
+  }
+  startPaying()
 })
 
-function startPaying() {
+async function startPaying() {
   status.value = 'paying'
   countdown.value = 30
   pollCount = 0
+  failReason.value = ''
   startCountdown()
+  // 发起微信 Native 支付（本地无商户证书会失败，不阻断；微信回调或管理员确认置 PAID 后轮询可见，闭环可验证）
+  try {
+    await shopApi.payOrderNative(orderId.value)
+  } catch (e) {
+    console.warn('[paying] 发起支付失败，继续轮询订单状态以等待支付确认', e)
+  }
   startPolling()
 }
 
@@ -141,15 +154,23 @@ function startCountdown() {
 }
 
 function startPolling() {
-  // 模拟轮询：第3次返回成功
-  pollTimer = setTimeout(() => {
+  // 真实轮询订单支付状态（读订单 status，不依赖微信查单）
+  pollTimer = setTimeout(async () => {
     if (status.value !== 'paying') return
     pollCount += 1
-    if (pollCount >= 3) {
-      status.value = 'success'
-      clearTimers('all')
-      setTimeout(() => redirectTo(`/shop/pay-success?orderId=${orderId.value}`), 1500)
-    } else if (pollCount >= maxPolls) {
+    try {
+      const st = await shopApi.getOrderPayState(orderId.value)
+      if (st.paid) {
+        status.value = 'success'
+        track.purchase({ type: 'shop_order', orderId: orderId.value, amount: amount.value, method: payMethod.value })
+        clearTimers('all')
+        setTimeout(() => redirectTo(`/shop/pay-success?orderId=${orderId.value}`), 1200)
+        return
+      }
+    } catch (e) {
+      console.warn('[paying] 查询订单状态失败', e)
+    }
+    if (pollCount >= maxPolls) {
       status.value = 'timeout'
       clearTimers('all')
     } else {
@@ -201,7 +222,7 @@ onUnmounted(() => clearTimers('all'))
   width: 96rpx;
   height: 96rpx;
   border: 8rpx solid #E8E3DB;
-  border-top-color: #C41E3A;
+  border-top-color: var(--brand);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
   margin-bottom: 40rpx;
@@ -228,7 +249,7 @@ onUnmounted(() => clearTimers('all'))
 @keyframes ping { 75%,100% { transform: scale(1.6); opacity: 0; } }
 .title { font-size: 40rpx; font-weight: bold; color: #2C2C2C; margin-bottom: 16rpx; }
 .method-name { font-size: 28rpx; color: #666666; margin-bottom: 16rpx; }
-.amount { font-size: 48rpx; font-weight: bold; color: #C41E3A; margin-bottom: 48rpx; }
+.amount { font-size: 48rpx; font-weight: bold; color: var(--brand); margin-bottom: 48rpx; }
 .countdown-box {
   display: flex;
   align-items: center;
@@ -240,7 +261,7 @@ onUnmounted(() => clearTimers('all'))
   margin-bottom: 48rpx;
 }
 .cd-text { font-size: 28rpx; color: #666666; }
-.cd-num { color: #C41E3A; font-weight: bold; }
+.cd-num { color: var(--brand); font-weight: bold; }
 .cancel-link { font-size: 26rpx; color: #666666; text-decoration: underline; }
 .result-icon {
   width: 160rpx;
@@ -267,7 +288,7 @@ onUnmounted(() => clearTimers('all'))
   border-radius: 40rpx;
   font-size: 28rpx;
   &.ghost { border: 1rpx solid #E8E3DB; color: #666666; }
-  &.primary { background: #C41E3A; color: #FFFFFF; }
+  &.primary { background: var(--brand); color: #FFFFFF; }
   &.single { margin-top: 0; }
 }
 .footer { padding: 0 48rpx 64rpx; }

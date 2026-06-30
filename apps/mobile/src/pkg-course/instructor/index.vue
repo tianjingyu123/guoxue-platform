@@ -77,7 +77,7 @@ onMounted(() => {
     <view class="header">
       <view class="hd-top">
         <view class="avatar-wrap">
-          <image class="avatar" :src="detail.avatar" mode="aspectFill" />
+          <image lazy-load class="avatar" :src="detail.avatar" mode="aspectFill" />
           <view v-if="detail.verified" class="verified">
             <app-icon name="badge-check" :size="28" color="#C41E3A" />
           </view>
@@ -85,12 +85,12 @@ onMounted(() => {
         <view class="hd-info">
           <view class="hd-name-row">
             <text class="hd-name">{{ detail.name }}</text>
-            <text class="hd-level" :style="{ color: levelStyle.color, background: levelStyle.bg }">
+            <text v-if="detail.level" class="hd-level" :style="{ color: levelStyle.color, background: levelStyle.bg }">
               {{ getInstructorLevelLabel(detail.level) }}
             </text>
           </view>
-          <text class="hd-title">{{ detail.title }}</text>
-          <view class="hd-tags">
+          <text v-if="detail.title" class="hd-title">{{ detail.title }}</text>
+          <view v-if="detail.specialties.length" class="hd-tags">
             <text v-for="s in detail.specialties" :key="s" class="hd-tag">{{ s }}</text>
           </view>
         </view>
@@ -99,14 +99,14 @@ onMounted(() => {
       <!-- 统计 -->
       <view class="stats">
         <view class="stat">
-          <text class="stat-num">{{ detail.studentCount }}</text>
-          <text class="stat-label">学员</text>
+          <text class="stat-num">{{ detail.followerCount }}</text>
+          <text class="stat-label">关注者</text>
         </view>
         <view class="stat">
           <text class="stat-num">{{ detail.courseCount }}</text>
           <text class="stat-label">课程</text>
         </view>
-        <view class="stat">
+        <view v-if="detail.rating" class="stat">
           <view class="stat-num stat-rating">
             <app-icon name="star" :size="28" color="#F59E0B" :fill="true" />
             <text>{{ detail.rating }}</text>
@@ -133,7 +133,7 @@ onMounted(() => {
     <view v-if="tab === 'intro'" class="content">
       <view class="section">
         <text class="sec-title">个人简介</text>
-        <text class="sec-text">{{ detail.introduction }}</text>
+        <text class="sec-text">{{ detail.introduction || '这位老师还没有填写简介' }}</text>
       </view>
       <view v-if="detail.education.length" class="section">
         <view class="sec-title sec-title-icon">
@@ -176,7 +176,7 @@ onMounted(() => {
           class="course-item"
           @tap="navigateTo(`/courses/${c.id}`)"
         >
-          <image class="course-cover" :src="c.cover" mode="aspectFill" />
+          <image lazy-load class="course-cover" :src="c.cover" mode="aspectFill" />
           <view class="course-info">
             <text class="course-title">{{ c.title }}</text>
             <view class="course-meta">
@@ -203,7 +203,7 @@ onMounted(() => {
       <view v-if="detail.reviews.length" class="review-list">
         <view v-for="r in detail.reviews" :key="r.id" class="review-item">
           <view class="rv-head">
-            <image class="rv-avatar" :src="r.user.avatar" mode="aspectFill" />
+            <image lazy-load class="rv-avatar" :src="r.user.avatar" mode="aspectFill" />
             <view class="rv-meta">
               <text class="rv-name">{{ r.user.name }}</text>
               <view class="rv-stars">
@@ -289,7 +289,7 @@ onMounted(() => {
   background: #FAFAFA; border-radius: 16rpx;
 }
 .stat { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6rpx; }
-.stat-num { font-size: 34rpx; font-weight: 700; color: #C41E3A; }
+.stat-num { font-size: 34rpx; font-weight: 700; color: var(--brand); }
 .stat-rating { display: flex; align-items: center; gap: 4rpx; }
 .stat-label { font-size: 20rpx; color: #9CA3AF; }
 
@@ -303,7 +303,7 @@ onMounted(() => {
   font-size: 28rpx; color: #9CA3AF;
   border-bottom: 4rpx solid transparent;
 }
-.tab-active { color: #C41E3A; font-weight: 600; border-bottom-color: #C41E3A; }
+.tab-active { color: var(--brand); font-weight: 600; border-bottom-color: var(--brand); }
 
 /* 内容 */
 .content { padding: 28rpx 32rpx; }
@@ -363,10 +363,10 @@ onMounted(() => {
   width: 140rpx; height: 88rpx; border: 1rpx solid #E5E7EB; border-radius: 16rpx;
   font-size: 22rpx; color: #6B7280;
 }
-.ft-follow-active { border-color: #C41E3A; color: #C41E3A; }
+.ft-follow-active { border-color: var(--brand); color: var(--brand); }
 .ft-book {
   flex: 1; display: flex; align-items: center; justify-content: center; gap: 10rpx;
-  height: 88rpx; background: #C41E3A; border-radius: 16rpx;
+  height: 88rpx; background: var(--brand); border-radius: 16rpx;
   font-size: 30rpx; font-weight: 600; color: #ffffff;
 }
 

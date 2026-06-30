@@ -441,7 +441,7 @@ function onBack() {
 }
 .retry-btn {
   padding: 20rpx 64rpx;
-  background: #C41E3A;
+  background: var(--brand);
   color: #fff;
   border-radius: 24rpx;
   font-size: 28rpx;
@@ -730,7 +730,7 @@ function onBack() {
 .step-num-txt {
   font-size: 24rpx;
   font-weight: 700;
-  color: #C41E3A;
+  color: var(--brand);
 }
 .step-info {
   flex: 1;
@@ -787,7 +787,7 @@ function onBack() {
   border: 2rpx solid #E8E3DB;
 }
 .quality-item.active {
-  border-color: #C41E3A;
+  border-color: var(--brand);
   background: rgba(196, 30, 58, 0.05);
 }
 .quality-head {
@@ -825,8 +825,8 @@ function onBack() {
   justify-content: center;
 }
 .quality-radio.active {
-  border-color: #C41E3A;
-  background: #C41E3A;
+  border-color: var(--brand);
+  background: var(--brand);
 }
 .quality-desc {
   display: block;

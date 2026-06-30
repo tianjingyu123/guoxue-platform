@@ -191,17 +191,17 @@ function go(path: string) {
 .rule-txt { font-size: 22rpx; color: #999; }
 .rule-txt-on { color: #2ecc71; }
 .submit { width: 100%; height: 88rpx; border-radius: 20rpx; background: #f0ece5; display: flex; align-items: center; justify-content: center; gap: 12rpx; }
-.submit-on { background: #c41e3a; }
+.submit-on { background: var(--brand); }
 .submit-txt { font-size: 30rpx; font-weight: 500; color: #bbb; }
 .submit-txt-on { color: #fff; }
 .spin { animation: spin 1s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .forgot { display: flex; justify-content: center; }
-.forgot-txt { font-size: 28rpx; color: #c41e3a; }
+.forgot-txt { font-size: 28rpx; color: var(--brand); }
 .success { display: flex; flex-direction: column; align-items: center; justify-content: center; padding-top: 180rpx; }
 .success-ic { width: 160rpx; height: 160rpx; border-radius: 50%; background: rgba(46,204,113,0.18); display: flex; align-items: center; justify-content: center; margin-bottom: 48rpx; }
 .success-title { font-size: 38rpx; font-weight: 600; color: #2c2c2c; margin-bottom: 16rpx; }
 .success-sub { font-size: 26rpx; color: #999; margin-bottom: 64rpx; }
-.relogin { width: 480rpx; height: 88rpx; border-radius: 20rpx; background: #c41e3a; display: flex; align-items: center; justify-content: center; }
+.relogin { width: 480rpx; height: 88rpx; border-radius: 20rpx; background: var(--brand); display: flex; align-items: center; justify-content: center; }
 .relogin-txt { font-size: 28rpx; font-weight: 500; color: #fff; }
 </style>

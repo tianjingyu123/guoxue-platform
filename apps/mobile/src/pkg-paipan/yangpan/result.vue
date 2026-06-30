@@ -1,11 +1,13 @@
 <script setup lang="ts">
-/** 阳盘命理奇门排盘结果页——从原型 app/paipan/yangpan/result/page.tsx 1:1 迁移 */
+/** 阳盘命理奇门排盘结果页——接 yangpanApi.calculate 真实算法，三态驱动 */
 import { ref, reactive, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import NotesPanel from '@/components/bazi/notes-panel.vue'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
 import { navigateTo } from '@/utils/router'
+import { getToken } from '@/utils/storage'
+import { yangpanApi, type YangpanResult, type YangpanInput } from '@/lib/yangpan-data'
 
 // ─── 五行颜色映射 ───
 const wuxingColors: Record<string, string> = {
@@ -30,46 +32,68 @@ interface Cell {
   kongwang: boolean; maXing: boolean
   changsheng: { tian: string; an: string }
 }
-const palaceData: Record<number, Cell> = {
-  4: { bashen: '值符', jiuxing: '天蓬', bamen: '休门', tianGan: '戊', diGan: '庚', anGan: '癸', dipanShen: '腾蛇', kongwang: true, maXing: false, changsheng: { tian: '长生', an: '沐浴' } },
-  9: { bashen: '腾蛇', jiuxing: '天芮', bamen: '生门', tianGan: '己', diGan: '辛', anGan: '乙', dipanShen: '太阴', kongwang: false, maXing: true, changsheng: { tian: '冠带', an: '临官' } },
-  2: { bashen: '太阴', jiuxing: '天冲', bamen: '伤门', tianGan: '庚', diGan: '壬', anGan: '丙', dipanShen: '六合', kongwang: false, maXing: false, changsheng: { tian: '帝旺', an: '衰' } },
-  3: { bashen: '六合', jiuxing: '天辅', bamen: '杜门', tianGan: '辛', diGan: '癸', anGan: '丁', dipanShen: '白虎', kongwang: true, maXing: false, changsheng: { tian: '墓', an: '死' } },
-  5: { bashen: '勾陈', jiuxing: '天禽', bamen: '中宫', tianGan: '壬', diGan: '甲', anGan: '戊', dipanShen: '玄武', kongwang: false, maXing: false, changsheng: { tian: '绝', an: '胎' } },
-  7: { bashen: '白虎', jiuxing: '天心', bamen: '惊门', tianGan: '癸', diGan: '乙', anGan: '己', dipanShen: '九地', kongwang: false, maXing: false, changsheng: { tian: '养', an: '长生' } },
-  8: { bashen: '玄武', jiuxing: '天柱', bamen: '死门', tianGan: '甲', diGan: '丙', anGan: '庚', dipanShen: '九天', kongwang: false, maXing: false, changsheng: { tian: '沐浴', an: '冠带' } },
-  1: { bashen: '九地', jiuxing: '天任', bamen: '景门', tianGan: '乙', diGan: '丁', anGan: '辛', dipanShen: '值符', kongwang: false, maXing: true, changsheng: { tian: '临官', an: '帝旺' } },
-  6: { bashen: '九天', jiuxing: '天英', bamen: '开门', tianGan: '丙', diGan: '戊', anGan: '壬', dipanShen: '勾陈', kongwang: false, maXing: false, changsheng: { tian: '衰', an: '墓' } },
-}
-
-const daYunData = [
-  { year: 1990, gan: '戊', zhi: '午', shiShen: '伤', shiShenZhi: '劫', age: 0 },
-  { year: 1994, gan: '丁', zhi: '巳', shiShen: '比', shiShenZhi: '枭', age: 4 },
-  { year: 2004, gan: '丙', zhi: '辰', shiShen: '劫', shiShenZhi: '食', age: 14 },
-  { year: 2014, gan: '乙', zhi: '卯', shiShen: '枭', shiShenZhi: '枭', age: 24 },
-  { year: 2024, gan: '甲', zhi: '寅', shiShen: '印', shiShenZhi: '印', age: 34, active: true },
-  { year: 2034, gan: '癸', zhi: '丑', shiShen: '杀', shiShenZhi: '食', age: 44 },
-  { year: 2044, gan: '壬', zhi: '子', shiShen: '官', shiShenZhi: '官', age: 54 },
-  { year: 2054, gan: '辛', zhi: '亥', shiShen: '才', shiShenZhi: '官', age: 64 },
-]
-const liuNianData = [
-  { year: 2024, gan: '甲', zhi: '辰', shiShen: '印', shiShenZhi: '食', age: 34 },
-  { year: 2025, gan: '乙', zhi: '巳', shiShen: '枭', shiShenZhi: '枭', age: 35 },
-  { year: 2026, gan: '丙', zhi: '午', shiShen: '劫', shiShenZhi: '劫', age: 36, active: true },
-  { year: 2027, gan: '丁', zhi: '未', shiShen: '比', shiShenZhi: '食', age: 37 },
-  { year: 2028, gan: '戊', zhi: '申', shiShen: '伤', shiShenZhi: '才', age: 38 },
-  { year: 2029, gan: '己', zhi: '酉', shiShen: '食', shiShenZhi: '才', age: 39 },
-  { year: 2030, gan: '庚', zhi: '戌', shiShen: '财', shiShenZhi: '伤', age: 40 },
-  { year: 2031, gan: '辛', zhi: '亥', shiShen: '才', shiShenZhi: '官', age: 41 },
-  { year: 2032, gan: '壬', zhi: '子', shiShen: '官', shiShenZhi: '官', age: 42 },
-  { year: 2033, gan: '癸', zhi: '丑', shiShen: '杀', shiShenZhi: '食', age: 43 },
-]
 
 // ─── 路由参数 ───
 const q = reactive({
   name: '', gender: 'male', year: 1990, month: 1, day: 1, hour: 12, minute: 0,
-  panMethod: 'zhuan', jigongMethod: 'kungong', startMethod: 'chaibu',
+  panMethod: 'zhuan', jigongMethod: 'kungong', startMethod: 'chaibu', anganMethod: 'zhishi',
+  place: '', trueSolar: true, earlyLateZi: false, daylightSaving: false,
 })
+
+// ─── 三态 ───
+const loading = ref(true)
+const errMsg = ref('')
+const result = ref<YangpanResult | null>(null)
+const saving = ref(false)
+
+function buildInput(): YangpanInput {
+  return {
+    name: q.name,
+    gender: q.gender as 'male' | 'female',
+    year: q.year, month: q.month, day: q.day, hour: q.hour, minute: q.minute,
+    panMethod: q.panMethod as YangpanInput['panMethod'],
+    jigongMethod: q.jigongMethod as YangpanInput['jigongMethod'],
+    startMethod: q.startMethod as YangpanInput['startMethod'],
+    anganMethod: q.anganMethod as YangpanInput['anganMethod'],
+    place: q.place || undefined,
+    trueSolar: q.trueSolar,
+    earlyLateZi: q.earlyLateZi,
+    daylightSaving: q.daylightSaving,
+  }
+}
+
+async function load() {
+  loading.value = true
+  errMsg.value = ''
+  try {
+    result.value = await yangpanApi.calculate(buildInput())
+  } catch (e) {
+    errMsg.value = (e as Error)?.message || '排盘失败，请稍后重试'
+  } finally {
+    loading.value = false
+  }
+}
+
+/** 保存排盘记录（需登录，防重复提交） */
+async function onSave() {
+  if (saving.value) return
+  if (!getToken()) { uni.showToast({ title: '请先登录后保存', icon: 'none' }); return }
+  saving.value = true
+  try {
+    await yangpanApi.save(buildInput())
+    uni.showToast({ title: '已保存到排盘记录', icon: 'success' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '保存失败', icon: 'none' })
+  } finally {
+    saving.value = false
+  }
+}
+
+/** AI 智能解析（后端阳盘奇门 AI 端点尚未提供，暂占位） */
+function onAnalyze() {
+  uni.showToast({ title: 'AI 智能解析即将上线', icon: 'none' })
+}
+
 onLoad((opts: Record<string, string> = {}) => {
   q.name = opts.name ? decodeURIComponent(opts.name) : ''
   q.gender = opts.gender || 'male'
@@ -81,27 +105,94 @@ onLoad((opts: Record<string, string> = {}) => {
   q.panMethod = opts.panMethod || 'zhuan'
   q.jigongMethod = opts.jigongMethod || 'kungong'
   q.startMethod = opts.startMethod || 'chaibu'
+  q.anganMethod = opts.anganMethod || 'zhishi'
+  q.place = opts.place ? decodeURIComponent(opts.place) : ''
+  q.trueSolar = opts.trueSolar !== 'false'   // 默认开启真太阳时，仅显式 false 关闭
+  q.earlyLateZi = opts.earlyLateZi === 'true'
+  q.daylightSaving = opts.daylightSaving === 'true'
+  load()
 })
 
-// ─── 状态 ───
+// ─── 适配层：后端 YangpanResult → 页面结构 ───
+const mingli = computed(() => result.value?.mingli)
+const hasData = computed(() => !!result.value && (result.value.gongs?.length ?? 0) > 0)
+
+// 九宫（注意：原型 tianGan 实为地盘干、diGan 实为天盘干，照原型视觉映射）
+const palaceData = computed<Record<number, Cell>>(() => {
+  const map: Record<number, Cell> = {}
+  for (const g of result.value?.gongs || []) {
+    map[g.index] = {
+      bashen: g.shen || '',
+      jiuxing: g.star,
+      bamen: g.index === 5 ? '中宫' : (g.men?.endsWith('门') ? g.men : (g.men || '') + '门'),
+      tianGan: g.diPan,                 // 视觉顶部/详情「地盘」
+      diGan: g.tianPan,                 // 视觉c3/详情「天盘」，配长生tian
+      anGan: g.anGan || '',
+      dipanShen: g.dipanShen || '',
+      kongwang: g.kongWang,
+      maXing: g.maXing,
+      changsheng: g.changsheng || { tian: '', an: '' },
+    }
+  }
+  return map
+})
+
+const sizhu = computed(() => {
+  const s = mingli.value?.siZhu
+  if (!s) return []
+  return [
+    { label: '年柱', g: s.nian.gan, z: s.nian.zhi },
+    { label: '月柱', g: s.yue.gan, z: s.yue.zhi },
+    { label: '日柱', g: s.ri.gan, z: s.ri.zhi },
+    { label: '时柱', g: s.shi.gan, z: s.shi.zhi },
+  ]
+})
+const kongWangStr = computed(() => mingli.value?.kongWang || '')
+const kongwangData = computed(() =>
+  sizhu.value.map(p => ({ label: p.label[0], zhi: p.z, kong: kongWangStr.value.includes(p.z) })))
+const maXing = computed(() => mingli.value?.maXingZhi || '')
+
+const juLabel = computed(() => {
+  const r = result.value
+  return r ? `${r.dunType === 'yang' ? '阳' : '阴'}${r.juNumber}局` : ''
+})
+const zhiShiMenLabel = computed(() => {
+  const m = result.value?.zhiShiMen || ''
+  return m && !m.endsWith('门') ? m + '门' : m
+})
+
+const daYunData = computed(() =>
+  (mingli.value?.daYun || []).map(d => ({
+    year: d.startYear ?? 0, gan: d.gan, zhi: d.zhi,
+    shiShen: d.ganShiShen || '', shiShenZhi: d.zhiShiShen || '',
+    age: d.startAge, active: !!d.active,
+  })))
+
+function dayunLiuNian(idx: number) {
+  const step = (mingli.value?.daYun || [])[idx]
+  return (step?.liuNian || []).map(n => ({
+    year: n.year, gan: n.gan, zhi: n.zhi,
+    shiShen: n.ganShiShen || '', shiShenZhi: n.zhiShiShen || '',
+    age: n.age, active: !!n.active,
+  }))
+}
+// 流年卡：默认当前大运（active），无则首运
+const liuNianData = computed(() => {
+  const dy = mingli.value?.daYun || []
+  const idx = dy.findIndex(d => d.active)
+  return dayunLiuNian(idx >= 0 ? idx : 0)
+})
+
+// ─── 交互状态 ───
 const showNotes = ref(false)
 const selectedPalace = ref<number | null>(null)
 const showChangsheng = ref(false)
 const showDipanShen = ref(false)
 const expandedDaYun = ref<number | null>(null)
-const selectedKongwang = ref(2)
-
-const sizhu = [
-  { label: '年柱', g: '庚', z: '午' },
-  { label: '月柱', g: '戊', z: '寅' },
-  { label: '日柱', g: '丁', z: '丑' },
-  { label: '时柱', g: '丁', z: '未' },
-]
-const kongwangData = [
-  { label: '年', zhi: '子丑' }, { label: '月', zhi: '子丑' },
-  { label: '日', zhi: '申酉' }, { label: '时', zhi: '寅卯' },
-]
-const maXing = '亥'
+const expandedLiuNian = computed(() =>
+  expandedDaYun.value === null ? [] : dayunLiuNian(expandedDaYun.value))
+const expandedDaYunItem = computed(() =>
+  expandedDaYun.value === null ? null : daYunData.value[expandedDaYun.value] ?? null)
 
 const panshi = computed(() =>
   `${q.panMethod === 'zhuan' ? '转盘' : '飞盘'} ${q.jigongMethod === 'kungong' ? '坤宫' : '阳艮阴坤'} ${q.startMethod === 'chaibu' ? '拆补' : q.startMethod === 'maoshan' ? '茅山' : '置闰'}`)
@@ -110,8 +201,8 @@ function pad(n: number) { return String(n).padStart(2, '0') }
 
 const detail = computed(() => {
   const p = selectedPalace.value
-  if (!p) return null
-  return { name: PALACE_NAMES[p], d: palaceData[p] }
+  if (!p || !palaceData.value[p]) return null
+  return { name: PALACE_NAMES[p], d: palaceData.value[p] }
 })
 
 function goToBazi() {
@@ -136,13 +227,33 @@ function goToBazi() {
     </view>
 
     <scroll-view scroll-y class="body">
+      <!-- Loading -->
+      <view v-if="loading" class="state">
+        <view class="spinner" />
+        <text class="state-t">正在排盘…</text>
+      </view>
+      <!-- Error -->
+      <view v-else-if="errMsg" class="state">
+        <app-icon name="alert-circle" :size="56" color="var(--text-soft)" />
+        <text class="state-t">{{ errMsg }}</text>
+        <view class="state-btn" @tap="load"><text class="state-btn-t">重试</text></view>
+      </view>
+      <!-- Empty -->
+      <view v-else-if="!hasData" class="state">
+        <app-icon name="inbox" :size="56" color="var(--text-soft)" />
+        <text class="state-t">暂无排盘数据</text>
+        <view class="state-btn" @tap="navigateTo('/paipan/yangpan')"><text class="state-btn-t">返回重排</text></view>
+      </view>
+      <!-- 内容 -->
+      <template v-else>
       <!-- 信息表格 -->
       <view class="info-wrap">
         <view class="info-card">
           <view class="info-row"><text class="info-key">姓名</text><text class="info-val">{{ q.name || '未填写' }}</text></view>
           <view class="info-row"><text class="info-key">性别</text><text class="info-val">{{ q.gender === 'male' ? '男' : '女' }}</text></view>
           <view class="info-row"><text class="info-key">盘式</text><text class="info-val sm">{{ panshi }}</text></view>
-          <view class="info-row"><text class="info-key">出生</text><text class="info-val">{{ q.year }}年{{ pad(q.month) }}月{{ pad(q.day) }}日 {{ q.hour }}时{{ q.minute }}分</text></view>
+          <view class="info-row"><text class="info-key">出生</text><text class="info-val">{{ q.year }}年{{ pad(q.month) }}月{{ pad(q.day) }}日 {{ q.hour }}时{{ pad(q.minute) }}分</text></view>
+          <view v-if="mingli?.trueSolar" class="info-row"><text class="info-key">真太阳时</text><text class="info-val">{{ q.year }}年{{ pad(q.month) }}月{{ pad(q.day) }}日 {{ mingli.trueSolar.hour }}时{{ pad(mingli.trueSolar.minute) }}分</text></view>
           <!-- 四柱 -->
           <view class="info-row col">
             <text class="info-key">四柱</text>
@@ -158,24 +269,29 @@ function goToBazi() {
           <view class="info-row col">
             <text class="info-key">空亡</text>
             <view class="grid4">
-              <view v-for="(k, i) in kongwangData" :key="i" class="kw-cell" :class="{ on: selectedKongwang === i }" @tap="selectedKongwang = i">
-                <text class="kw-text" :class="{ on: selectedKongwang === i }">{{ k.zhi }}</text>
+              <view v-for="(k, i) in kongwangData" :key="i" class="kw-cell" :class="{ on: k.kong }">
+                <text class="kw-text" :class="{ on: k.kong }">{{ k.label }}{{ k.zhi }}</text>
               </view>
             </view>
           </view>
-          <view class="info-row"><text class="info-key">节气</text><text class="info-val sm"><text class="hl">立夏</text> {{ q.year }}.05.05 ~ <text class="hl">小满</text> {{ q.year }}.05.21</text></view>
-          <!-- 旬首表头 -->
+          <view v-if="result?.jieQi" class="info-row">
+            <text class="info-key">节气</text>
+            <text v-if="mingli?.jieQi" class="info-val sm"><text class="hl">{{ mingli.jieQi.name }}</text> {{ mingli.jieQi.start }} ~ <text class="hl">{{ mingli.jieQi.nextName }}</text> {{ mingli.jieQi.end }}</text>
+            <text v-else class="info-val sm"><text class="hl">{{ result.jieQi }}</text> 用事</text>
+          </view>
+          <!-- 用事表头 -->
           <view class="info-row shade">
-            <text class="info-key">旬首</text>
+            <text class="info-key">用事</text>
             <view class="grid4 center"><text class="xh-h">局数</text><text class="xh-h">值符</text><text class="xh-h">值使</text><text class="xh-h">马星</text></view>
           </view>
           <view class="info-row noborder">
-            <text class="info-key dark">甲午辛</text>
+            <text class="info-key dark">{{ result?.yongShi }}</text>
             <view class="grid4 center mid">
-              <text class="xh-v">阳9局</text>
-              <text class="xh-v green">天蓬</text>
-              <text class="xh-v green">休门</text>
-              <view class="ma-badge"><text class="ma-badge-t">{{ maXing }}</text></view>
+              <text class="xh-v">{{ juLabel }}</text>
+              <text class="xh-v green">{{ result?.zhiFu }}</text>
+              <text class="xh-v green">{{ zhiShiMenLabel }}</text>
+              <view v-if="maXing" class="ma-badge"><text class="ma-badge-t">{{ maXing }}</text></view>
+              <text v-else class="xh-v">—</text>
             </view>
           </view>
         </view>
@@ -258,14 +374,14 @@ function goToBazi() {
           </view>
           <view v-if="expandedDaYun !== null" class="dy-exp">
             <view class="dy-exp-head">
-              <text class="dy-exp-t">{{ daYunData[expandedDaYun].year }}-{{ daYunData[expandedDaYun].year + 9 }} 流年</text>
+              <text class="dy-exp-t">{{ expandedDaYunItem?.year }}-{{ (expandedDaYunItem?.year ?? 0) + 9 }} 流年</text>
               <text class="dy-exp-close" @tap="expandedDaYun = null">收起</text>
             </view>
             <view class="dy-exp-grid">
-              <view v-for="i in 10" :key="i" class="dy-exp-cell">
-                <text class="dy-exp-yr">{{ daYunData[expandedDaYun].year + (i - 1) }}</text>
-                <text class="dy-exp-gan" :class="wx(liuNianData[(i-1) % 10].gan)">{{ liuNianData[(i-1) % 10].gan }}</text>
-                <text class="dy-exp-gan" :class="wx(liuNianData[(i-1) % 10].zhi)">{{ liuNianData[(i-1) % 10].zhi }}</text>
+              <view v-for="(n, i) in expandedLiuNian" :key="i" class="dy-exp-cell">
+                <text class="dy-exp-yr">{{ n.year }}</text>
+                <text class="dy-exp-gan" :class="wx(n.gan)">{{ n.gan }}</text>
+                <text class="dy-exp-gan" :class="wx(n.zhi)">{{ n.zhi }}</text>
               </view>
             </view>
           </view>
@@ -299,12 +415,13 @@ function goToBazi() {
 
       <!-- AI解析/保存 -->
       <view class="cta">
-        <view class="cta-ai"><app-icon name="sparkles" :size="32" color="#ffffff" /><text class="cta-ai-t">AI智能解析</text></view>
-        <view class="cta-save"><app-icon name="save" :size="30" color="var(--text-ink)" /><text class="cta-save-t">保存</text></view>
+        <view class="cta-ai" @tap="onAnalyze"><app-icon name="sparkles" :size="32" color="#ffffff" /><text class="cta-ai-t">AI智能解析</text></view>
+        <view class="cta-save" :class="{ disabled: saving }" @tap="onSave"><app-icon name="save" :size="30" color="var(--text-ink)" /><text class="cta-save-t">{{ saving ? '保存中…' : '保存' }}</text></view>
       </view>
 
       <!-- 免责声明 -->
       <view class="dc-wrap"><disclaimer variant="fortune" tone="card" /></view>
+      </template>
     </scroll-view>
 
     <!-- 悬浮笔记按钮 -->
@@ -328,6 +445,14 @@ function goToBazi() {
 .hdr-share { padding: 8rpx; margin-right: -8rpx; }
 
 .body { flex: 1; }
+
+/* 三态 */
+.state { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20rpx; padding: 160rpx 48rpx; }
+.state-t { font-size: 26rpx; color: var(--text-soft); text-align: center; line-height: 1.6; }
+.state-btn { margin-top: 8rpx; padding: 18rpx 56rpx; background: var(--brand); border-radius: 999rpx; box-shadow: 0 4rpx 12rpx rgba(196,30,58,0.25); }
+.state-btn-t { font-size: 26rpx; font-weight: 500; color: #fff; }
+.spinner { width: 56rpx; height: 56rpx; border-radius: 999rpx; border: 6rpx solid rgba(196,30,58,0.18); border-top-color: var(--brand); animation: yp-spin 0.8s linear infinite; }
+@keyframes yp-spin { to { transform: rotate(360deg); } }
 
 /* 五行色 */
 .wx-wood { color: #16a34a; } .wx-fire { color: #dc2626; } .wx-earth { color: #ca8a04; }
@@ -448,6 +573,7 @@ function goToBazi() {
 .cta-ai { flex: 1; display: flex; align-items: center; justify-content: center; gap: 12rpx; padding: 26rpx 0; background: var(--brand); border-radius: 20rpx; box-shadow: 0 8rpx 20rpx rgba(196,30,58,0.25); }
 .cta-ai-t { font-size: 28rpx; font-weight: 500; color: #fff; }
 .cta-save { display: flex; align-items: center; justify-content: center; gap: 12rpx; padding: 26rpx 48rpx; background: var(--secondary, rgba(0,0,0,0.04)); border: 2rpx solid var(--border); border-radius: 20rpx; }
+.cta-save.disabled { opacity: 0.55; }
 .cta-save-t { font-size: 28rpx; font-weight: 500; color: var(--text-ink); }
 
 .dc-wrap { padding: 24rpx; }

@@ -290,7 +290,7 @@ function handleSave() {
   height: 80rpx;
   border-radius: 50%;
   background: rgba(196, 30, 45, 0.15);
-  color: #c41e3a;
+  color: var(--brand);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -376,7 +376,7 @@ function handleSave() {
   vertical-align: top;
 }
 
-.tpl-active { border-color: #c41e3a; box-shadow: 0 8rpx 24rpx rgba(196, 30, 45, 0.2); }
+.tpl-active { border-color: var(--brand); box-shadow: 0 8rpx 24rpx rgba(196, 30, 45, 0.2); }
 
 .tpl-thumb {
   height: 220rpx;
@@ -404,7 +404,7 @@ function handleSave() {
   background: #fff;
   color: #6b7280;
 }
-.tpl-name-active { color: #c41e3a; font-weight: 500; }
+.tpl-name-active { color: var(--brand); font-weight: 500; }
 
 .tip-card {
   margin: 48rpx 32rpx 0;
@@ -437,7 +437,7 @@ function handleSave() {
 
 .action-save { background: #f3f4f6; }
 .action-saved { background: #22c55e; }
-.action-share { background: #c41e3a; }
+.action-share { background: var(--brand); }
 
 .action-text { font-size: 30rpx; color: #1f2937; }
 .action-text-light { color: #fff; }

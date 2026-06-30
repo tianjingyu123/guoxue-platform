@@ -55,7 +55,7 @@
           </view>
 
           <view class="as-body" @tap="navigateTo(`/shop/after-sale/${item.id}`)">
-            <image class="as-cover" :src="item.product.cover" mode="aspectFill" />
+            <image lazy-load class="as-cover" :src="item.product.cover" mode="aspectFill" />
             <view class="as-info">
               <text class="as-name">{{ item.product.name }}</text>
               <text class="as-sku">{{ item.product.skuName }}</text>
@@ -168,12 +168,23 @@ onLoad(() => {
 function confirmCancel(id: string) {
   cancelId.value = id
 }
-function doCancel() {
-  list.value = list.value.map((i) =>
-    i.id === cancelId.value ? { ...i, status: 'cancelled' as const, canCancel: false } : i,
-  )
-  cancelId.value = ''
-  uni.showToast({ title: '已取消', icon: 'none' })
+const cancelling = ref(false)
+async function doCancel() {
+  if (cancelling.value) return
+  const id = cancelId.value
+  cancelling.value = true
+  try {
+    await accountApi.cancelAfterSale(id)
+    list.value = list.value.map((i) =>
+      i.id === id ? { ...i, status: 'cancelled' as const, canCancel: false } : i,
+    )
+    cancelId.value = ''
+    uni.showToast({ title: '已取消', icon: 'none' })
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '取消失败', icon: 'none' })
+  } finally {
+    cancelling.value = false
+  }
 }
 </script>
 
@@ -232,7 +243,7 @@ function doCancel() {
   color: #666666;
 }
 .tab-text.active {
-  color: #C41E3A;
+  color: var(--brand);
   font-weight: 500;
 }
 .tab-bar {
@@ -243,7 +254,7 @@ function doCancel() {
   width: 40rpx;
   height: 4rpx;
   border-radius: 2rpx;
-  background: #C41E3A;
+  background: var(--brand);
 }
 
 .scroll-area {
@@ -274,7 +285,7 @@ function doCancel() {
 }
 .empty-btn {
   padding: 16rpx 48rpx;
-  background: #C41E3A;
+  background: var(--brand);
   border-radius: 999rpx;
 }
 .empty-btn-text {
@@ -362,7 +373,7 @@ function doCancel() {
 .amount-value {
   font-size: 30rpx;
   font-weight: 600;
-  color: #C41E3A;
+  color: var(--brand);
 }
 
 .as-actions {
@@ -380,10 +391,10 @@ function doCancel() {
   border: 1rpx solid #E8E3DB;
 }
 .act-btn.outline {
-  border: 1rpx solid #C41E3A;
+  border: 1rpx solid var(--brand);
 }
 .act-btn.primary {
-  background: #C41E3A;
+  background: var(--brand);
 }
 .act-text {
   font-size: 26rpx;
@@ -391,7 +402,7 @@ function doCancel() {
 }
 .act-text-outline {
   font-size: 26rpx;
-  color: #C41E3A;
+  color: var(--brand);
 }
 .act-text-primary {
   font-size: 26rpx;
@@ -458,7 +469,7 @@ function doCancel() {
   border: 1rpx solid #E8E3DB;
 }
 .confirm-btn.primary {
-  background: #C41E3A;
+  background: var(--brand);
 }
 .confirm-btn-text {
   font-size: 28rpx;

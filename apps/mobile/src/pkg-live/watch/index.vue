@@ -33,7 +33,7 @@
           <!-- 主播信息胶囊 -->
           <view class="host-card">
             <view class="host-card__avatar-wrap">
-              <image class="host-card__avatar" :src="room.hostAvatar" mode="aspectFill" />
+              <image lazy-load class="host-card__avatar" :src="room.hostAvatar" mode="aspectFill" />
               <view class="host-card__live-dot" />
             </view>
             <view class="host-card__info">
@@ -79,7 +79,7 @@
 
     <!-- 商品讲解卡（电商直播） -->
     <view v-if="room.type === 'commerce' && explainingProduct" class="explain-card" @tap="openQuickBuy(explainingProduct)">
-      <image class="explain-card__img" :src="explainingProduct.cover" mode="aspectFill" />
+      <image lazy-load class="explain-card__img" :src="explainingProduct.cover" mode="aspectFill" />
       <view class="explain-card__info">
         <view class="explain-card__tag"><text class="explain-card__tag-txt">讲解中</text></view>
         <text class="explain-card__name">{{ explainingProduct.name }}</text>
@@ -103,7 +103,7 @@
     <!-- 飘屏礼物（大礼物横幅滑入） -->
     <view class="gift-flyers">
       <view v-for="g in giftFlyers" :key="g.id" class="gift-flyer">
-        <image class="gift-flyer__avatar" :src="g.avatar" mode="aspectFill" />
+        <image lazy-load class="gift-flyer__avatar" :src="g.avatar" mode="aspectFill" />
         <view class="gift-flyer__info">
           <text class="gift-flyer__user">{{ g.user }}</text>
           <text class="gift-flyer__desc">送出 {{ g.giftName }}</text>
@@ -229,7 +229,7 @@
         <scroll-view scroll-y class="product-sheet__list">
           <view v-for="(p, idx) in products" :key="p.id" class="product-row">
             <text class="product-row__no">{{ idx + 1 }}</text>
-            <image class="product-row__img" :src="p.cover" mode="aspectFill" />
+            <image lazy-load class="product-row__img" :src="p.cover" mode="aspectFill" />
             <view class="product-row__info">
               <text class="product-row__name">{{ p.name }}</text>
               <view v-if="p.isExplaining" class="product-row__tag"><text class="product-row__tag-txt">讲解中</text></view>
@@ -514,11 +514,11 @@ onUnmounted(() => {
 
 /* 加载/错误覆盖层 */
 .watch-loading, .watch-error { position: absolute; inset: 0; z-index: 100; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #000; }
-.watch-loading__spinner { width: 64rpx; height: 64rpx; border-radius: 50%; border: 4rpx solid rgba(255,255,255,0.2); border-top-color: #C41E3A; animation: spin 0.8s linear infinite; }
+.watch-loading__spinner { width: 64rpx; height: 64rpx; border-radius: 50%; border: 4rpx solid rgba(255,255,255,0.2); border-top-color: var(--brand); animation: spin 0.8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .watch-loading__txt { font-size: 26rpx; color: rgba(255,255,255,0.6); margin-top: 24rpx; }
 .watch-error__txt { font-size: 28rpx; color: rgba(255,255,255,0.8); margin-bottom: 32rpx; }
-.watch-error__retry { padding: 16rpx 48rpx; background: #C41E3A; border-radius: 999rpx; }
+.watch-error__retry { padding: 16rpx 48rpx; background: var(--brand); border-radius: 999rpx; }
 .watch-error__retry-txt { font-size: 28rpx; color: #fff; font-weight: 500; }
 
 /* 视频画面占位 */
@@ -636,13 +636,13 @@ onUnmounted(() => {
 }
 .explain-card__img { width: 96rpx; height: 96rpx; border-radius: 12rpx; flex-shrink: 0; }
 .explain-card__info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4rpx; }
-.explain-card__tag { background-color: #C41E3A; border-radius: 8rpx; padding: 2rpx 10rpx; align-self: flex-start; }
+.explain-card__tag { background-color: var(--brand); border-radius: 8rpx; padding: 2rpx 10rpx; align-self: flex-start; }
 .explain-card__tag-txt { font-size: 16rpx; color: #fff; white-space: nowrap; }
 .explain-card__name { font-size: 22rpx; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .explain-card__price-row { display: flex; align-items: baseline; gap: 8rpx; }
 .explain-card__price { font-size: 28rpx; color: #FFD700; font-weight: 700; }
 .explain-card__origin { font-size: 18rpx; color: rgba(255,255,255,0.5); text-decoration: line-through; }
-.explain-card__buy { flex-shrink: 0; background-color: #C41E3A; border-radius: 24rpx; padding: 12rpx 22rpx; }
+.explain-card__buy { flex-shrink: 0; background-color: var(--brand); border-radius: 24rpx; padding: 12rpx 22rpx; }
 .explain-card__buy-txt { font-size: 22rpx; color: #fff; font-weight: 600; white-space: nowrap; }
 
 /* 系统消息横幅 */
@@ -690,7 +690,7 @@ onUnmounted(() => {
   border-radius: 24rpx; padding: 8rpx 18rpx;
   z-index: 16; animation: flyer-in 0.4s ease;
 }
-.sale-notif__txt { font-size: 20rpx; color: #C41E3A; white-space: nowrap; }
+.sale-notif__txt { font-size: 20rpx; color: var(--brand); white-space: nowrap; }
 
 /* 弹幕区 */
 .danmaku {
@@ -702,7 +702,7 @@ onUnmounted(() => {
 .danmaku__item { max-width: 100%; }
 .danmaku__row { display: flex; align-items: flex-start; gap: 16rpx; }
 .danmaku__tag { flex-shrink: 0; padding: 8rpx 16rpx; background: rgba(196,30,58,0.2); border-radius: 999rpx; }
-.danmaku__tag-txt { font-size: 20rpx; font-weight: 500; color: #C41E3A; white-space: nowrap; }
+.danmaku__tag-txt { font-size: 20rpx; font-weight: 500; color: var(--brand); white-space: nowrap; }
 .danmaku__content { font-size: 28rpx; color: rgba(255,255,255,0.9); line-height: 1.625; }
 
 /* 飘心 */
@@ -736,7 +736,7 @@ onUnmounted(() => {
   .input-box__ph { flex: 1; min-width: 0; font-size: 28rpx; color: rgba(255,255,255,0.5); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .input-box__send {
   width: 40rpx; height: 40rpx; border-radius: 50%;
-  background: #C41E3A;
+  background: var(--brand);
   display: flex; align-items: center; justify-content: center; flex-shrink: 0;
 }
   .act-btn {
@@ -774,7 +774,7 @@ onUnmounted(() => {
 }
 .comment-input__ph { color: rgba(255,255,255,0.5); }
 .comment-input__send { flex-shrink: 0; background-color: rgba(255,255,255,0.18); border-radius: 36rpx; padding: 16rpx 32rpx; }
-.comment-input__send--on { background-color: #C41E3A; }
+.comment-input__send--on { background-color: var(--brand); }
 .comment-input__send-txt { font-size: 26rpx; color: #fff; }
 
 /* 榜单 sheet */
@@ -784,7 +784,7 @@ onUnmounted(() => {
 .rank-sheet__list { display: flex; flex-direction: column; gap: 8rpx; }
 .rank-row { display: flex; align-items: center; gap: 20rpx; padding: 18rpx 8rpx; }
 .rank-row__no { width: 44rpx; text-align: center; font-size: 28rpx; font-weight: 700; color: #999; flex-shrink: 0; }
-.rank-row__no--1 { color: #C41E3A; }
+.rank-row__no--1 { color: var(--brand); }
 .rank-row__no--2 { color: #C9A96E; }
 .rank-row__no--3 { color: #E0A458; }
 .rank-row__user { flex: 1; font-size: 26rpx; color: #1c1c1e; }
@@ -801,13 +801,13 @@ onUnmounted(() => {
 .product-row__img { width: 120rpx; height: 120rpx; border-radius: 12rpx; flex-shrink: 0; }
 .product-row__info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6rpx; }
 .product-row__name { font-size: 26rpx; color: #1c1c1e; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.product-row__tag { align-self: flex-start; background-color: #C41E3A; border-radius: 8rpx; padding: 2rpx 10rpx; }
+.product-row__tag { align-self: flex-start; background-color: var(--brand); border-radius: 8rpx; padding: 2rpx 10rpx; }
 .product-row__tag-txt { font-size: 16rpx; color: #fff; white-space: nowrap; }
 .product-row__price-row { display: flex; align-items: baseline; gap: 10rpx; }
-.product-row__price { font-size: 30rpx; color: #C41E3A; font-weight: 700; }
+.product-row__price { font-size: 30rpx; color: var(--brand); font-weight: 700; }
 .product-row__origin { font-size: 20rpx; color: #999; text-decoration: line-through; }
 .product-row__sold { font-size: 20rpx; color: #999; }
-.product-row__buy { flex-shrink: 0; background-color: #C41E3A; border-radius: 28rpx; padding: 14rpx 28rpx; }
+.product-row__buy { flex-shrink: 0; background-color: var(--brand); border-radius: 28rpx; padding: 14rpx 28rpx; }
 .product-row__buy-txt { font-size: 24rpx; color: #fff; font-weight: 600; white-space: nowrap; }
 
 /* 分享 sheet */

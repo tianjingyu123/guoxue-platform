@@ -52,7 +52,7 @@
           @tap="goDetail(video.id)"
         >
           <view class="vl-cover" :style="{ paddingBottom: coverRatio(video) }">
-            <image class="vl-cover-img" :src="video.coverUrl" mode="aspectFill" />
+            <image lazy-load class="vl-cover-img" :src="video.coverUrl" mode="aspectFill" />
             <view class="vl-cover-mask" />
             <view v-if="video.isHot" class="vl-tag vl-tag-hot">
               <AppIcon name="trending-up" :size="20" color="#ffffff" />
@@ -75,7 +75,7 @@
             <text class="vl-title">{{ video.title }}</text>
             <view class="vl-meta">
               <view class="vl-author">
-                <image class="vl-avatar" :src="video.author.avatar" mode="aspectFill" />
+                <image lazy-load class="vl-avatar" :src="video.author.avatar" mode="aspectFill" />
                 <text class="vl-author-name">{{ video.author.name }}</text>
               </view>
               <view class="vl-likes">
@@ -95,7 +95,7 @@
           @tap="goDetail(video.id)"
         >
           <view class="vl-cover" :style="{ paddingBottom: coverRatio(video) }">
-            <image class="vl-cover-img" :src="video.coverUrl" mode="aspectFill" />
+            <image lazy-load class="vl-cover-img" :src="video.coverUrl" mode="aspectFill" />
             <view class="vl-cover-mask" />
             <view v-if="video.isHot" class="vl-tag vl-tag-hot">
               <AppIcon name="trending-up" :size="20" color="#ffffff" />
@@ -118,7 +118,7 @@
             <text class="vl-title">{{ video.title }}</text>
             <view class="vl-meta">
               <view class="vl-author">
-                <image class="vl-avatar" :src="video.author.avatar" mode="aspectFill" />
+                <image lazy-load class="vl-avatar" :src="video.author.avatar" mode="aspectFill" />
                 <text class="vl-author-name">{{ video.author.name }}</text>
               </view>
               <view class="vl-likes">
@@ -139,11 +139,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
 import {
-  videoListItems,
+  videoApi,
   videoHotTopics,
   formatVideoNumber,
   formatDuration,
@@ -152,6 +152,10 @@ import {
 
 const statusBarHeight = ref(0)
 uni.getSystemInfo({ success: (r) => { statusBarHeight.value = r.statusBarHeight || 0 } })
+
+// 瀑布流数据：真实接口 GET /videos/items
+const videoListItems = ref<VideoListItem[]>([])
+onMounted(async () => { videoListItems.value = await videoApi.listItems() })
 
 const tabs = [
   { id: 'follow' as const, label: '关注' },
@@ -163,13 +167,13 @@ const hotTopics = videoHotTopics
 
 // 双列瀑布流：原型用 CSS columns-2,按文档顺序顺序填充前后两半(非奇偶交替)
 // 左列=前半[0..3]，右列=后半[4..7]
-const half = computed(() => Math.ceil(videoListItems.length / 2))
-const leftColumn = computed(() => videoListItems.slice(0, half.value))
-const rightColumn = computed(() => videoListItems.slice(half.value))
+const half = computed(() => Math.ceil(videoListItems.value.length / 2))
+const leftColumn = computed(() => videoListItems.value.slice(0, half.value))
+const rightColumn = computed(() => videoListItems.value.slice(half.value))
 
 // 封面比例：照搬原型 index%3 的 3/4、3/5、4/5
 function coverRatio(video: VideoListItem): string {
-  const idx = videoListItems.findIndex((v) => v.id === video.id)
+  const idx = videoListItems.value.findIndex((v) => v.id === video.id)
   const r = idx % 3 === 0 ? 4 / 3 : idx % 3 === 1 ? 5 / 3 : 5 / 4
   return r * 100 + '%'
 }
@@ -227,7 +231,7 @@ function goTopic() {
   width: 72rpx;
   height: 72rpx;
   border-radius: 50%;
-  background-color: #c41e3a;
+  background-color: var(--brand);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -251,7 +255,7 @@ function goTopic() {
   transform: translateX(-50%);
   width: 40rpx;
   height: 4rpx;
-  background-color: #c41e3a;
+  background-color: var(--brand);
   border-radius: 999rpx;
 }
 
@@ -267,7 +271,7 @@ function goTopic() {
   border-radius: 999rpx;
   background-color: rgba(196, 30, 58, 0.1);
 }
-.vl-topic-name { font-size: 24rpx; font-weight: 500; color: #c41e3a; }
+.vl-topic-name { font-size: 24rpx; font-weight: 500; color: var(--brand); }
 .vl-topic-count { font-size: 20rpx; color: rgba(196, 30, 58, 0.6); }
 
 /* 瀑布流 */
@@ -356,7 +360,7 @@ function goTopic() {
   width: 112rpx;
   height: 112rpx;
   border-radius: 50%;
-  background: linear-gradient(135deg, #c41e3a, rgba(196, 30, 58, 0.8));
+  background: linear-gradient(135deg, var(--brand), rgba(196, 30, 58, 0.8));
   box-shadow: 0 8rpx 24rpx rgba(196, 30, 58, 0.4);
   display: flex;
   align-items: center;

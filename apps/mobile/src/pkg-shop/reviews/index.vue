@@ -69,7 +69,7 @@
       </view>
       <view v-for="rv in filteredReviews" :key="rv.id" class="rv-card">
         <view class="rv-head">
-          <image class="rv-avatar" :src="rv.avatar" mode="aspectFill" />
+          <image lazy-load class="rv-avatar" :src="rv.avatar" mode="aspectFill" />
           <view class="rv-info">
             <text class="rv-name">{{ rv.userName }}</text>
             <view class="rv-stars">
@@ -89,7 +89,7 @@
         <text class="rv-content">{{ rv.content }}</text>
         <scroll-view v-if="rv.images && rv.images.length" class="rv-imgs-scroll" scroll-x>
           <view class="rv-imgs">
-            <image
+            <image lazy-load
               v-for="(img, idx) in rv.images"
               :key="idx"
               class="rv-img"
@@ -99,6 +99,10 @@
             />
           </view>
         </scroll-view>
+        <view v-if="rv.reply" class="rv-reply">
+          <text class="rv-reply-label">商家回复：</text>
+          <text class="rv-reply-text">{{ rv.reply }}</text>
+        </view>
         <view class="rv-foot">
           <view class="like-btn" hover-class="opt-hover">
             <app-icon name="thumbs-up" :size="28" color="#999999" />
@@ -114,7 +118,7 @@
       <view class="viewer-close" @tap.stop="previewImage = ''">
         <app-icon name="x" :size="44" color="#fff" />
       </view>
-      <image class="viewer-img" :src="previewImage" mode="aspectFit" />
+      <image lazy-load class="viewer-img" :src="previewImage" mode="aspectFit" />
       <view v-if="previewImages.length > 1" class="viewer-dots">
         <view
           v-for="(img, idx) in previewImages"
@@ -233,7 +237,7 @@ function setPreview(idx: number) {
 .avg-num {
   font-size: 64rpx;
   font-weight: 700;
-  color: #c41e3a;
+  color: var(--brand);
   line-height: 1.1;
 }
 .avg-stars {
@@ -298,8 +302,8 @@ function setPreview(idx: number) {
   border: 1rpx solid #e8e3db;
 }
 .filter-active {
-  background: #c41e3a;
-  border-color: #c41e3a;
+  background: var(--brand);
+  border-color: var(--brand);
 }
 .filter-label {
   font-size: 26rpx;
@@ -383,6 +387,22 @@ function setPreview(idx: number) {
   color: #666;
   line-height: 1.6;
   margin-bottom: 20rpx;
+}
+.rv-reply {
+  margin: 4rpx 0 20rpx;
+  padding: 16rpx 20rpx;
+  background: #FAF6EF;
+  border-radius: 12rpx;
+}
+.rv-reply-label {
+  font-size: 26rpx;
+  color: #C9A96E;
+  font-weight: 600;
+}
+.rv-reply-text {
+  font-size: 26rpx;
+  color: #666;
+  line-height: 1.6;
 }
 .rv-imgs-scroll {
   white-space: nowrap;
@@ -473,7 +493,7 @@ function setPreview(idx: number) {
 }
 .retry-btn {
   padding: 16rpx 48rpx;
-  background: #c41e3a;
+  background: var(--brand);
   border-radius: 999rpx;
 }
 .retry-btn-text {

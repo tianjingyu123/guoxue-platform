@@ -45,7 +45,7 @@
                 :color="item.selected ? '#C41E3A' : '#CCCCCC'"
               />
             </view>
-            <image class="item-img" :src="item.productCover" mode="aspectFill" @tap="goProduct(item.productId)" />
+            <image lazy-load class="item-img" :src="item.productCover" mode="aspectFill" @tap="goProduct(item.productId)" />
             <view class="item-info">
               <text class="item-name" @tap="goProduct(item.productId)">{{ item.productName }}</text>
               <text class="item-sku">{{ item.skuName }}</text>
@@ -92,7 +92,7 @@
           </view>
           <view v-for="iv in invalidItems" :key="iv.id" class="invalid-item">
             <view class="invalid-img-wrap">
-              <image class="invalid-img" :src="iv.productCover" mode="aspectFill" />
+              <image lazy-load class="invalid-img" :src="iv.productCover" mode="aspectFill" />
               <view class="invalid-mask"><text class="invalid-mask-text">已失效</text></view>
             </view>
             <view class="item-info">
@@ -169,10 +169,16 @@ const loading = ref(true)
 const error = ref('')
 const items = ref<FlatCartItem[]>([])
 const editMode = ref(false)
-const swipedId = ref<number | null>(null)
+const swipedId = ref<string | null>(null)
 const submitting = ref(false)
 
 let touchStartX = 0
+
+/** 用后端返回的最新购物车覆盖本地，并保留用户当前的勾选状态 */
+function syncItems(next: FlatCartItem[]) {
+  const selectedMap = new Map(items.value.map((i) => [i.id, i.selected]))
+  items.value = next.map((i) => ({ ...i, selected: selectedMap.has(i.id) ? selectedMap.get(i.id)! : i.selected }))
+}
 
 async function fetchCartData() {
   error.value = ''
@@ -199,7 +205,7 @@ const totalAmount = computed(() =>
   validItems.value.filter((i) => i.selected).reduce((s, i) => s + i.price * i.quantity, 0),
 )
 
-function toggleSelect(id: number) {
+function toggleSelect(id: string) {
   const it = items.value.find((i) => i.id === id)
   if (it) it.selected = !it.selected
 }
@@ -209,35 +215,70 @@ function toggleSelectAll() {
     if (i.isValid) i.selected = next
   })
 }
-function changeQty(item: FlatCartItem, delta: number) {
+async function changeQty(item: FlatCartItem, delta: number) {
   const next = Math.max(1, Math.min(item.stock, item.quantity + delta))
-  item.quantity = next
+  if (next === item.quantity || submitting.value) return
+  submitting.value = true
+  try {
+    const res = await shopApi.updateCartItem(item.id, next)
+    syncItems(res.items)
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '更新失败', icon: 'none' })
+  } finally {
+    submitting.value = false
+  }
 }
-function removeItem(id: number) {
+async function removeItem(id: string) {
   if (submitting.value) return
   submitting.value = true
-  items.value = items.value.filter((i) => i.id !== id)
-  swipedId.value = null
-  submitting.value = false
+  try {
+    const res = await shopApi.removeCartItem(id)
+    syncItems(res.items)
+    swipedId.value = null
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '删除失败', icon: 'none' })
+  } finally {
+    submitting.value = false
+  }
 }
-function removeSelected() {
+async function removeSelected() {
   if (selectedCount.value === 0 || submitting.value) return
   submitting.value = true
-  items.value = items.value.filter((i) => !(i.isValid && i.selected))
-  submitting.value = false
+  try {
+    const targets = items.value.filter((i) => i.isValid && i.selected).map((i) => i.id)
+    let latest: FlatCartItem[] = items.value
+    for (const id of targets) {
+      latest = (await shopApi.removeCartItem(id)).items
+    }
+    syncItems(latest)
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '删除失败', icon: 'none' })
+  } finally {
+    submitting.value = false
+  }
 }
-function clearInvalid() {
+async function clearInvalid() {
   if (submitting.value) return
   submitting.value = true
-  items.value = items.value.filter((i) => i.isValid)
-  submitting.value = false
+  try {
+    const targets = items.value.filter((i) => !i.isValid).map((i) => i.id)
+    let latest: FlatCartItem[] = items.value
+    for (const id of targets) {
+      latest = (await shopApi.removeCartItem(id)).items
+    }
+    syncItems(latest)
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '清除失败', icon: 'none' })
+  } finally {
+    submitting.value = false
+  }
 }
 
 // 左滑手势
-function onTouchStart(e: TouchEvent, _id: number) {
+function onTouchStart(e: TouchEvent, _id: string) {
   touchStartX = e.touches[0].clientX
 }
-function onTouchMove(e: TouchEvent, id: number) {
+function onTouchMove(e: TouchEvent, id: string) {
   const diff = touchStartX - e.touches[0].clientX
   if (diff > 50) swipedId.value = id
   else if (diff < -30) swipedId.value = null
@@ -249,7 +290,7 @@ function onTouchEnd() {
 function goMall() {
   reLaunch('/mall')
 }
-function goProduct(id: number) {
+function goProduct(id: string) {
   navigateTo(`/pkg-shop/product/index?id=${id}`)
 }
 function goCheckout() {
@@ -266,7 +307,7 @@ function goCheckout() {
   display: flex;
   flex-direction: column;
 }
-.nav-edit { font-size: 28rpx; color: #C41E3A; }
+.nav-edit { font-size: 28rpx; color: var(--brand); }
 .content { flex: 1; }
 .list { padding: 24rpx; display: flex; flex-direction: column; gap: 20rpx; }
 
@@ -336,7 +377,7 @@ function goCheckout() {
   margin-top: 16rpx;
 }
 .price-box { display: flex; align-items: baseline; gap: 10rpx; }
-.cur { font-size: 32rpx; color: #C41E3A; font-weight: 600; }
+.cur { font-size: 32rpx; color: var(--brand); font-weight: 600; }
 .ori { font-size: 22rpx; color: #999999; text-decoration: line-through; }
 .del-btn {
   width: 56rpx;
@@ -375,7 +416,7 @@ function goCheckout() {
 }
 .invalid-left { display: flex; align-items: center; gap: 12rpx; }
 .invalid-title { font-size: 26rpx; color: #999999; }
-.invalid-clear { font-size: 24rpx; color: #C41E3A; }
+.invalid-clear { font-size: 24rpx; color: var(--brand); }
 .invalid-item {
   background: rgba(255,255,255,0.6);
   border-radius: 24rpx;
@@ -431,7 +472,7 @@ function goCheckout() {
   margin-bottom: 32rpx;
 }
 .empty-text { font-size: 28rpx; color: #666666; margin-bottom: 32rpx; }
-.empty-btn { padding: 16rpx 56rpx; background: #C41E3A; border-radius: 40rpx; }
+.empty-btn { padding: 16rpx 56rpx; background: var(--brand); border-radius: 40rpx; }
 .empty-btn-text { color: #FFFFFF; font-size: 28rpx; }
 
 /* 底部结算栏 */
@@ -453,10 +494,10 @@ function goCheckout() {
 .total-count { font-size: 22rpx; color: #999999; display: block; }
 .total-row { display: flex; align-items: baseline; gap: 4rpx; }
 .total-label { font-size: 26rpx; color: #666666; }
-.total-amount { font-size: 40rpx; color: #C41E3A; font-weight: 700; }
+.total-amount { font-size: 40rpx; color: var(--brand); font-weight: 700; }
 .footer-btn {
   padding: 20rpx 48rpx;
-  background: linear-gradient(135deg, #C41E3A, #E85050);
+  background: linear-gradient(135deg, var(--brand), #E85050);
   border-radius: 40rpx;
 }
 .footer-btn.danger { background: #E74C3C; }
@@ -470,6 +511,6 @@ function goCheckout() {
 /* 错误态 */
 .error-zone { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 32rpx; }
 .error-text { font-size: 28rpx; color: #999999; }
-.error-retry { padding: 16rpx 56rpx; background: #C41E3A; border-radius: 40rpx; }
+.error-retry { padding: 16rpx 56rpx; background: var(--brand); border-radius: 40rpx; }
 .error-retry text { color: #FFFFFF; font-size: 28rpx; }
 </style>

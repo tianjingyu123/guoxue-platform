@@ -523,7 +523,7 @@ onUnmounted(() => clearTimer())
 }
 .avatar-letter {
   font-size: 44rpx;
-  color: #c41e3a;
+  color: var(--brand);
 }
 .status-dot {
   position: absolute;
@@ -633,7 +633,7 @@ onUnmounted(() => clearTimer())
   color: #999999;
 }
 .toggle-on {
-  background: #c41e3a;
+  background: var(--brand);
   color: #ffffff;
 }
 
@@ -653,7 +653,7 @@ onUnmounted(() => clearTimer())
   border: 4rpx solid #e8e0d5;
 }
 .type-active {
-  border-color: #c41e3a;
+  border-color: var(--brand);
   background: rgba(196, 30, 58, 0.05);
 }
 .type-label {
@@ -662,7 +662,7 @@ onUnmounted(() => clearTimer())
   color: #2c2c2c;
 }
 .label-active {
-  color: #c41e3a;
+  color: var(--brand);
 }
 
 /* 套餐 */
@@ -680,7 +680,7 @@ onUnmounted(() => clearTimer())
   border: 4rpx solid #e8e0d5;
 }
 .pkg-active {
-  border-color: #c41e3a;
+  border-color: var(--brand);
   background: rgba(196, 30, 58, 0.05);
 }
 .pkg-left {
@@ -719,7 +719,7 @@ onUnmounted(() => clearTimer())
   font-size: 20rpx;
   padding: 0 12rpx;
   line-height: 32rpx;
-  background: #c41e3a;
+  background: var(--brand);
   color: #ffffff;
   border-radius: 8rpx;
 }
@@ -736,7 +736,7 @@ onUnmounted(() => clearTimer())
   display: block;
   font-size: 36rpx;
   font-weight: 700;
-  color: #c41e3a;
+  color: var(--brand);
 }
 .pkg-origin {
   font-size: 24rpx;
@@ -750,7 +750,7 @@ onUnmounted(() => clearTimer())
   align-items: center;
   justify-content: space-between;
   padding: 32rpx;
-  border: 4rpx solid #c41e3a;
+  border: 4rpx solid var(--brand);
   background: rgba(196, 30, 58, 0.05);
 }
 .permin-left {
@@ -780,7 +780,7 @@ onUnmounted(() => clearTimer())
 .permin-price {
   font-size: 36rpx;
   font-weight: 700;
-  color: #c41e3a;
+  color: var(--brand);
 }
 
 /* 问题描述 */
@@ -829,7 +829,7 @@ onUnmounted(() => clearTimer())
 }
 .balance-recharge {
   font-size: 24rpx;
-  color: #c41e3a;
+  color: var(--brand);
 }
 
 /* 底部操作栏 */
@@ -856,13 +856,13 @@ onUnmounted(() => clearTimer())
 .footer-price {
   font-size: 36rpx;
   font-weight: 700;
-  color: #c41e3a;
+  color: var(--brand);
 }
 .start-btn {
   width: 100%;
   height: 100rpx;
   border-radius: 24rpx;
-  background: #c41e3a;
+  background: var(--brand);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -925,7 +925,7 @@ onUnmounted(() => clearTimer())
 }
 .waiting-letter {
   font-size: 72rpx;
-  color: #c41e3a;
+  color: var(--brand);
 }
 .waiting-name {
   font-size: 40rpx;
@@ -1034,7 +1034,7 @@ onUnmounted(() => clearTimer())
   width: 256rpx;
   height: 256rpx;
   border-radius: 50%;
-  background: linear-gradient(to bottom right, #c41e3a, #c9a96e);
+  background: linear-gradient(to bottom right, var(--brand), #c9a96e);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1052,7 +1052,7 @@ onUnmounted(() => clearTimer())
 }
 .big-letter {
   font-size: 72rpx;
-  color: #c41e3a;
+  color: var(--brand);
 }
 .active-name {
   font-size: 40rpx;
@@ -1069,7 +1069,7 @@ onUnmounted(() => clearTimer())
 }
 .wave-bar {
   width: 8rpx;
-  background: #c41e3a;
+  background: var(--brand);
   border-radius: 999rpx;
   animation: pulse 1.5s ease-in-out infinite;
 }
@@ -1213,7 +1213,7 @@ onUnmounted(() => clearTimer())
   background: #f5f1eb;
 }
 .lb-btn-primary {
-  background: #c41e3a;
+  background: var(--brand);
 }
 .lb-btn-text-dark {
   font-size: 30rpx;
@@ -1281,7 +1281,7 @@ onUnmounted(() => clearTimer())
 .ended-row-cost {
   font-size: 28rpx;
   font-weight: 700;
-  color: #c41e3a;
+  color: var(--brand);
 }
 .ended-actions {
   display: flex;
@@ -1301,7 +1301,7 @@ onUnmounted(() => clearTimer())
   background: #f5f1eb;
 }
 .ended-btn-primary {
-  background: #c41e3a;
+  background: var(--brand);
 }
 .ended-btn-text-dark {
   font-size: 30rpx;

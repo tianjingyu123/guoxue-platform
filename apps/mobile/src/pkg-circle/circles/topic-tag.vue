@@ -7,149 +7,88 @@
           <app-icon name="arrow-left" :size="36" color="#2C2C2C" />
         </view>
         <text class="header-title">话题</text>
-        <view class="nav-btn" @tap="onShare">
-          <app-icon name="share-2" :size="36" color="#2C2C2C" />
-        </view>
+        <view class="nav-btn" />
       </view>
     </view>
 
-    <!-- 话题信息区 -->
+    <!-- 话题信息区（仅展示真实字段：标签名 + 真实内容总数） -->
     <view class="topic-info">
-      <view class="info-main">
-        <view class="info-left">
-          <view class="tag-head">
-            <view class="hash-box">
-              <app-icon name="hash" :size="34" color="#C41E3A" />
-            </view>
-            <text class="tag-name">#{{ topicData.tag }}#</text>
-          </view>
-          <text class="tag-desc">{{ topicData.description }}</text>
-          <view class="tag-stats">
-            <text class="stat-item"><text class="stat-num">{{ formatNum(topicData.contentCount) }}</text> 篇内容</text>
-            <text class="stat-item"><text class="stat-num">{{ formatNum(topicData.followCount) }}</text> 人关注</text>
-          </view>
+      <view class="tag-head">
+        <view class="hash-box">
+          <app-icon name="hash" :size="34" color="#C41E3A" />
         </view>
-        <view class="follow-btn" :class="{ followed: isFollowed }" @tap="toggleFollow">
-          <app-icon :name="isFollowed ? 'check' : 'plus'" :size="28" :color="isFollowed ? '#999999' : '#FFFFFF'" />
-          <text class="follow-text">{{ isFollowed ? '已关注' : '关注' }}</text>
+        <text class="tag-name">#{{ tagName }}#</text>
+      </view>
+      <view class="tag-stats">
+        <text class="stat-item"><text class="stat-num">{{ total }}</text> 篇内容</text>
+      </view>
+    </view>
+
+    <!-- 排序切换（客户端排序：最新=后端默认 createdAt 倒序；最热=按点赞数） -->
+    <view class="sort-bar">
+      <view class="sort-tabs">
+        <view class="sort-tab" :class="{ active: sortBy === 'latest' }" @tap="sortBy = 'latest'">
+          <text class="sort-text">最新发布</text>
+        </view>
+        <view class="sort-tab" :class="{ active: sortBy === 'hot' }" @tap="sortBy = 'hot'">
+          <text class="sort-text">最受欢迎</text>
         </view>
       </view>
     </view>
 
-    <!-- 排序切换 -->
-    <view class="sort-bar">
-      <view class="sort-select" @tap="showSortMenu = !showSortMenu">
-        <text class="sort-label">{{ sortBy === 'latest' ? '最新发布' : '最受欢迎' }}</text>
-        <app-icon name="chevron-down" :size="28" color="#2C2C2C" :class="{ 'rotate-180': showSortMenu }" />
-        <view v-if="showSortMenu" class="sort-menu">
-          <view class="sort-opt" :class="{ active: sortBy === 'latest' }" @tap.stop="selectSort('latest')">最新发布</view>
-          <view class="sort-opt" :class="{ active: sortBy === 'hot' }" @tap.stop="selectSort('hot')">最受欢迎</view>
-        </view>
-      </view>
-      <text class="refresh-btn" @tap="onRefresh">{{ isRefreshing ? '刷新中...' : '刷新' }}</text>
+    <!-- loading -->
+    <view v-if="loading" class="state">
+      <app-icon name="loader-2" :size="40" color="#C41E3A" class="spin" />
+      <text class="state-txt">加载中...</text>
     </view>
-    <view v-if="showSortMenu" class="sort-mask" @tap="showSortMenu = false" />
+
+    <!-- error -->
+    <view v-else-if="error" class="state">
+      <text class="state-txt">加载失败，请稍后重试</text>
+      <view class="retry" @tap="reload"><text class="retry-txt">重试</text></view>
+    </view>
+
+    <!-- empty -->
+    <view v-else-if="sortedContent.length === 0" class="state">
+      <app-icon name="hash" :size="64" color="#D8D2C8" />
+      <text class="state-txt">该话题下暂无内容</text>
+    </view>
 
     <!-- 内容列表 -->
-    <view class="content-list">
+    <view v-else class="content-list">
       <view v-for="item in sortedContent" :key="item.id" class="content-item" @tap="onItemTap(item)">
-        <!-- 文章 -->
-        <view v-if="item.type === 'article'" class="article-card">
+        <view class="article-card">
           <view class="article-body">
-            <view class="type-badge badge-article">
-              <app-icon name="file-text" :size="22" color="#3b82f6" />
-              <text class="badge-text" style="color:#3b82f6">文章</text>
+            <view class="type-badge" :class="badgeClass(item.type)">
+              <text class="badge-text" :style="{ color: badgeColor(item.type) }">{{ typeLabel(item.type) }}</text>
             </view>
             <text class="article-title">{{ item.title }}</text>
-            <text class="article-excerpt">{{ item.excerpt }}</text>
+            <text v-if="item.excerpt" class="article-excerpt">{{ item.excerpt }}</text>
             <view class="item-foot">
               <view class="author-mini">
-                <view class="avatar-mini" :style="{ background: avatarBg(item.author.name) }">
-                  <text class="avatar-mini-text">{{ item.author.name.charAt(0) }}</text>
+                <view class="avatar-mini" :style="{ background: avatarBg(item.author || '佚') }">
+                  <text class="avatar-mini-text">{{ (item.author || '佚').charAt(0) }}</text>
                 </view>
-                <text class="author-mini-name">{{ item.author.name }}</text>
-                <text v-if="item.author.isVerified" class="v-badge">V</text>
+                <text class="author-mini-name">{{ item.author || '佚名' }}</text>
+                <text v-if="item.dynasty" class="dynasty-tag">{{ item.dynasty }}</text>
               </view>
               <view class="meta-mini">
-                <view class="meta-cell"><app-icon name="heart" :size="22" color="#999999" /><text class="meta-mini-text">{{ item.likes }}</text></view>
-                <view class="meta-cell"><app-icon name="message-circle" :size="22" color="#999999" /><text class="meta-mini-text">{{ item.comments }}</text></view>
-                <text class="meta-mini-text">{{ item.time }}</text>
+                <view class="meta-cell"><app-icon name="heart" :size="22" color="#999999" /><text class="meta-mini-text">{{ item.likeCount }}</text></view>
+                <view class="meta-cell"><app-icon name="eye" :size="22" color="#999999" /><text class="meta-mini-text">{{ formatNum(item.viewCount) }}</text></view>
+                <text class="meta-mini-text">{{ relTime(item.createdAt) }}</text>
               </view>
             </view>
           </view>
-          <view class="article-cover">
-            <app-icon name="file-text" :size="48" color="#CCCCCC" />
-          </view>
-        </view>
-
-        <!-- 帖子 -->
-        <view v-else-if="item.type === 'post'" class="post-card">
-          <view class="post-head">
-            <view class="avatar-sm" :style="{ background: avatarBg(item.author.name) }">
-              <text class="avatar-sm-text">{{ item.author.name.charAt(0) }}</text>
-            </view>
-            <view class="post-author">
-              <view class="post-author-row">
-                <text class="post-author-name">{{ item.author.name }}</text>
-                <text v-if="item.author.isVerified" class="v-badge">V</text>
-              </view>
-              <text class="post-time">{{ item.time }}</text>
-            </view>
-            <view class="type-badge badge-post">
-              <app-icon name="message-square" :size="22" color="#22c55e" />
-              <text class="badge-text" style="color:#22c55e">帖子</text>
-            </view>
-          </view>
-          <text class="post-text">{{ item.content }}</text>
-          <view v-if="item.images && item.images.length" class="post-imgs" :class="'cols-' + Math.min(item.images.length, 3)">
-            <view v-for="(img, idx) in item.images.slice(0, 3)" :key="idx" class="post-img-cell">
-              <app-icon name="message-square" :size="40" color="#CCCCCC" />
-              <view v-if="idx === 2 && item.images.length > 3" class="img-more">
-                <text class="img-more-text">+{{ item.images.length - 3 }}</text>
-              </view>
-            </view>
-          </view>
-          <view class="meta-mini">
-            <view class="meta-cell"><app-icon name="heart" :size="26" color="#999999" /><text class="meta-mini-text">{{ item.likes }}</text></view>
-            <view class="meta-cell"><app-icon name="message-circle" :size="26" color="#999999" /><text class="meta-mini-text">{{ item.comments }}</text></view>
-          </view>
-        </view>
-
-        <!-- 视频 -->
-        <view v-else-if="item.type === 'video'" class="video-card">
-          <view class="video-cover">
-            <app-icon name="video" :size="56" color="#CCCCCC" />
-            <view class="play-btn">
-              <app-icon name="play" :size="32" color="#FFFFFF" />
-            </view>
-            <text class="video-duration">{{ item.duration }}</text>
-          </view>
-          <view class="video-body">
-            <view class="type-badge badge-video">
-              <app-icon name="video" :size="22" color="#a855f7" />
-              <text class="badge-text" style="color:#a855f7">视频</text>
-            </view>
-            <text class="video-title">{{ item.title }}</text>
-            <view class="author-mini">
-              <view class="avatar-mini" :style="{ background: avatarBg(item.author.name) }">
-                <text class="avatar-mini-text">{{ item.author.name.charAt(0) }}</text>
-              </view>
-              <text class="author-mini-name">{{ item.author.name }}</text>
-              <text v-if="item.author.isVerified" class="v-badge">V</text>
-            </view>
-            <view class="meta-mini">
-              <view class="meta-cell"><app-icon name="heart" :size="22" color="#999999" /><text class="meta-mini-text">{{ item.likes }}</text></view>
-              <view class="meta-cell"><app-icon name="eye" :size="22" color="#999999" /><text class="meta-mini-text">{{ formatNum(item.views) }}</text></view>
-              <text class="meta-mini-text">{{ item.time }}</text>
-            </view>
+          <view v-if="item.cover" class="article-cover">
+            <image lazy-load :src="item.cover" class="cover-img" mode="aspectFill" />
           </view>
         </view>
       </view>
     </view>
 
     <!-- 加载更多 -->
-    <view class="load-more" @tap="onLoadMore">
-      <view v-if="isLoadingMore" class="loading-row">
+    <view v-if="!loading && !error && sortedContent.length > 0 && hasMore" class="load-more" @tap="loadMore">
+      <view v-if="loadingMore" class="loading-row">
         <app-icon name="loader-2" :size="28" color="#999999" class="spin" />
         <text class="load-text">加载中...</text>
       </view>
@@ -158,9 +97,10 @@
   </view>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed } from 'vue'
 import { navigateBack, navigateTo } from '@/utils/router'
+import { tagApi, type TagContentItem } from '@/lib/article-data'
 
 const statusBarHeight = ref(20)
 try {
@@ -168,64 +108,104 @@ try {
   statusBarHeight.value = info.statusBarHeight || 20
 } catch (e) {}
 
-const isFollowed = ref(false)
-const sortBy = ref('latest')
-const showSortMenu = ref(false)
-const isRefreshing = ref(false)
-const isLoadingMore = ref(false)
+// 读取 onLoad 参数 tag（话题名）
+function readTagParam(): string {
+  try {
+    const pages = getCurrentPages()
+    const cur: any = pages[pages.length - 1]
+    const raw = (cur && cur.options && (cur.options.tag || cur.options.name)) || ''
+    try { return decodeURIComponent(raw) } catch { return raw }
+  } catch (e) {
+    return ''
+  }
+}
 
-const topicData = ref({
-  tag: '八字案例',
-  contentCount: 1286,
-  followCount: 3560,
-  description: '分享八字命理实战案例，探讨命盘分析技法',
-})
+const tagName = ref(readTagParam() || '话题')
+const sortBy = ref<'latest' | 'hot'>('latest')
 
-const contentList = ref([
-  { id: 1, type: 'article', title: '从一个八字看事业转机：从低谷到高峰的命理分析', excerpt: '今天分享一个真实案例，命主在2023年经历了事业的重大转折...', author: { name: '周易大师', isVerified: true }, likes: 328, comments: 56, time: '2小时前' },
-  { id: 2, type: 'post', content: '刚看完一个财运很旺的八字，年柱甲子、月柱庚申、日柱壬寅、时柱癸卯。大家觉得这个八字有什么特点？#八字案例# #命理分析#', images: ['', '', ''], author: { name: '命理小白', isVerified: false }, likes: 89, comments: 23, time: '3小时前' },
-  { id: 3, type: 'video', title: '实战讲解：如何从八字看婚姻缘分', duration: '05:32', author: { name: '玄学研究员', isVerified: true }, likes: 1256, views: 8900, time: '昨天' },
-  { id: 4, type: 'article', title: '八字中的食伤生财格局详解', excerpt: '食伤生财是八字中常见的富贵格局之一，今天我们通过几个实际案例来分析...', author: { name: '易学传承', isVerified: true }, likes: 456, comments: 78, time: '昨天' },
-  { id: 5, type: 'post', content: '请教各位大师，这个八字的用神应该怎么取？感觉木火土金水都有点道理...', images: [''], author: { name: '初学者小王', isVerified: false }, likes: 45, comments: 67, time: '2天前' },
-  { id: 6, type: 'video', title: '一分钟看懂八字十神关系', duration: '01:28', author: { name: '周易大师', isVerified: true }, likes: 2345, views: 15600, time: '3天前' },
-])
+const contentList = ref<TagContentItem[]>([])
+const total = ref(0)
+const page = ref(1)
+const pageSize = 20
+const loading = ref(true)
+const error = ref(false)
+const loadingMore = ref(false)
+
+const hasMore = computed(() => contentList.value.length < total.value)
 
 const sortedContent = computed(() => {
   const arr = [...contentList.value]
-  if (sortBy.value === 'hot') arr.sort((a, b) => b.likes - a.likes)
+  if (sortBy.value === 'hot') arr.sort((a, b) => b.likeCount - a.likeCount)
   return arr
 })
 
-function formatNum(n) {
+async function reload() {
+  loading.value = true
+  error.value = false
+  page.value = 1
+  try {
+    const res = await tagApi.posts(tagName.value, 1, pageSize)
+    contentList.value = res.items
+    total.value = res.total
+  } catch (e) {
+    error.value = true
+  } finally {
+    loading.value = false
+  }
+}
+
+async function loadMore() {
+  if (loadingMore.value || !hasMore.value) return
+  loadingMore.value = true
+  try {
+    const next = page.value + 1
+    const res = await tagApi.posts(tagName.value, next, pageSize)
+    contentList.value = contentList.value.concat(res.items)
+    total.value = res.total
+    page.value = next
+  } catch (e) {
+    uni.showToast({ title: '加载失败', icon: 'none' })
+  } finally {
+    loadingMore.value = false
+  }
+}
+
+reload()
+
+function formatNum(n: number) {
   return (n || 0).toLocaleString()
 }
 
+function relTime(iso: string) {
+  const t = new Date(iso).getTime()
+  if (!t) return ''
+  const diff = Date.now() - t
+  const h = Math.floor(diff / 3600000)
+  if (h < 1) return '刚刚'
+  if (h < 24) return `${h}小时前`
+  const d = Math.floor(h / 24)
+  if (d < 30) return `${d}天前`
+  return new Date(iso).toLocaleDateString('zh-CN')
+}
+
+const TYPE_MAP: Record<string, { label: string; cls: string; color: string }> = {
+  ARTICLE: { label: '文章', cls: 'badge-article', color: '#3b82f6' },
+  POEM: { label: '诗词', cls: 'badge-poem', color: '#a855f7' },
+  CLASSIC: { label: '典籍', cls: 'badge-classic', color: '#22c55e' },
+}
+function typeLabel(t: string) { return TYPE_MAP[t]?.label || '内容' }
+function badgeClass(t: string) { return TYPE_MAP[t]?.cls || 'badge-article' }
+function badgeColor(t: string) { return TYPE_MAP[t]?.color || '#3b82f6' }
+
 const avatarColors = ['#C41E3A', '#C9A96E', '#2563eb', '#059669', '#d97706']
-function avatarBg(name) {
+function avatarBg(name: string) {
   let sum = 0
   for (let i = 0; i < name.length; i++) sum += name.charCodeAt(i)
   return avatarColors[sum % avatarColors.length]
 }
 
 function onBack() { navigateBack() }
-function onShare() { uni.showToast({ title: '分享', icon: 'none' }) }
-function toggleFollow() { isFollowed.value = !isFollowed.value }
-function selectSort(v) { sortBy.value = v; showSortMenu.value = false }
-function onRefresh() {
-  if (isRefreshing.value) return
-  isRefreshing.value = true
-  setTimeout(() => { isRefreshing.value = false }, 1000)
-}
-function onLoadMore() {
-  if (isLoadingMore.value) return
-  isLoadingMore.value = true
-  setTimeout(() => { isLoadingMore.value = false }, 1000)
-}
-function onItemTap(item) {
-  if (item.type === 'article') navigateTo(`/articles/${item.id}`)
-  else if (item.type === 'video') navigateTo(`/video/${item.id}`)
-  else navigateTo(`/post/${item.id}`)
-}
+function onItemTap(item: TagContentItem) { navigateTo(`/content/${item.id}`) }
 </script>
 
 <style scoped>
@@ -264,15 +244,6 @@ function onItemTap(item) {
   padding: 40rpx 32rpx;
   border-bottom: 1rpx solid #EFEAE3;
 }
-.info-main {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 32rpx;
-}
-.info-left {
-  flex: 1;
-}
 .tag-head {
   display: flex;
   align-items: center;
@@ -293,12 +264,6 @@ function onItemTap(item) {
   font-weight: 700;
   color: #2C2C2C;
 }
-.tag-desc {
-  font-size: 28rpx;
-  color: #999999;
-  margin-bottom: 24rpx;
-  display: block;
-}
 .tag-stats {
   display: flex;
   align-items: center;
@@ -312,76 +277,48 @@ function onItemTap(item) {
   font-weight: 600;
   color: #2C2C2C;
 }
-.follow-btn {
-  display: flex;
-  align-items: center;
-  gap: 8rpx;
-  padding: 16rpx 32rpx;
-  border-radius: 999rpx;
-  background: #C41E3A;
-}
-.follow-btn.followed {
-  background: #F2EFEA;
-}
-.follow-text {
-  font-size: 28rpx;
-  font-weight: 500;
-  color: #FFFFFF;
-}
-.follow-btn.followed .follow-text {
-  color: #999999;
-}
 .sort-bar {
   padding: 24rpx 32rpx;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
   border-bottom: 1rpx solid #EFEAE3;
-  position: relative;
 }
-.sort-select {
+.sort-tabs {
+  display: inline-flex;
+  gap: 16rpx;
+}
+.sort-tab {
+  padding: 12rpx 28rpx;
+  border-radius: 999rpx;
+  background: #F0EBE3;
+}
+.sort-tab.active {
+  background: var(--brand);
+}
+.sort-text {
+  font-size: 26rpx;
+  color: #2C2C2C;
+}
+.sort-tab.active .sort-text {
+  color: #FFFFFF;
+}
+.state {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 8rpx;
-  position: relative;
+  gap: 24rpx;
+  padding: 140rpx 0;
 }
-.sort-label {
-  font-size: 28rpx;
-  color: #2C2C2C;
+.state-txt {
+  font-size: 26rpx;
+  color: #999999;
 }
-.rotate-180 {
-  transform: rotate(180deg);
+.retry {
+  padding: 12rpx 48rpx;
+  border-radius: 999rpx;
+  background: var(--brand);
 }
-.sort-menu {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  margin-top: 8rpx;
-  width: 224rpx;
-  background: #FFFFFF;
-  border-radius: 16rpx;
-  box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.12);
-  border: 1rpx solid #EFEAE3;
-  overflow: hidden;
-  z-index: 50;
-}
-.sort-opt {
-  padding: 20rpx 32rpx;
-  font-size: 28rpx;
-  color: #2C2C2C;
-}
-.sort-opt.active {
-  color: #C41E3A;
-  background: rgba(196, 30, 58, 0.05);
-}
-.sort-mask {
-  position: fixed;
-  inset: 0;
-  z-index: 40;
-}
-.refresh-btn {
-  font-size: 28rpx;
-  color: #C41E3A;
+.retry-txt {
+  font-size: 26rpx;
+  color: #FFFFFF;
 }
 .content-list {
   background: #FFFFFF;
@@ -407,8 +344,8 @@ function onItemTap(item) {
   margin-bottom: 12rpx;
 }
 .badge-article { background: rgba(59, 130, 246, 0.1); }
-.badge-post { background: rgba(34, 197, 94, 0.1); }
-.badge-video { background: rgba(168, 85, 247, 0.1); }
+.badge-poem { background: rgba(168, 85, 247, 0.1); }
+.badge-classic { background: rgba(34, 197, 94, 0.1); }
 .badge-text {
   font-size: 20rpx;
 }
@@ -439,9 +376,11 @@ function onItemTap(item) {
   border-radius: 16rpx;
   background: #F2EFEA;
   flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  overflow: hidden;
+}
+.cover-img {
+  width: 100%;
+  height: 100%;
 }
 .item-foot {
   display: flex;
@@ -469,9 +408,9 @@ function onItemTap(item) {
   font-size: 24rpx;
   color: #999999;
 }
-.v-badge {
-  font-size: 16rpx;
-  padding: 0 6rpx;
+.dynasty-tag {
+  font-size: 18rpx;
+  padding: 0 8rpx;
   border-radius: 6rpx;
   background: rgba(201, 169, 110, 0.2);
   color: #C9A96E;
@@ -489,138 +428,6 @@ function onItemTap(item) {
 .meta-mini-text {
   font-size: 24rpx;
   color: #999999;
-}
-.post-card {
-  padding: 32rpx;
-}
-.post-head {
-  display: flex;
-  align-items: center;
-  gap: 16rpx;
-  margin-bottom: 16rpx;
-}
-.avatar-sm {
-  width: 64rpx;
-  height: 64rpx;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.avatar-sm-text {
-  font-size: 26rpx;
-  color: #FFFFFF;
-}
-.post-author {
-  flex: 1;
-}
-.post-author-row {
-  display: flex;
-  align-items: center;
-  gap: 12rpx;
-}
-.post-author-name {
-  font-size: 28rpx;
-  font-weight: 500;
-  color: #2C2C2C;
-}
-.post-time {
-  font-size: 20rpx;
-  color: #999999;
-}
-.post-text {
-  font-size: 28rpx;
-  color: #2C2C2C;
-  line-height: 1.5;
-  margin-bottom: 24rpx;
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-.post-imgs {
-  display: grid;
-  gap: 8rpx;
-  margin-bottom: 24rpx;
-}
-.cols-1 { grid-template-columns: 1fr; }
-.cols-2 { grid-template-columns: 1fr 1fr; }
-.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
-.post-img-cell {
-  aspect-ratio: 1;
-  border-radius: 16rpx;
-  background: #F2EFEA;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-}
-.img-more {
-  position: absolute;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.5);
-  border-radius: 16rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.img-more-text {
-  color: #FFFFFF;
-  font-size: 28rpx;
-  font-weight: 500;
-}
-.video-card {
-  padding: 32rpx;
-  display: flex;
-  gap: 24rpx;
-}
-.video-cover {
-  width: 256rpx;
-  aspect-ratio: 9 / 16;
-  border-radius: 16rpx;
-  background: #F2EFEA;
-  flex-shrink: 0;
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.play-btn {
-  position: absolute;
-  width: 80rpx;
-  height: 80rpx;
-  border-radius: 50%;
-  background: rgba(0, 0, 0, 0.4);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.video-duration {
-  position: absolute;
-  bottom: 12rpx;
-  right: 12rpx;
-  padding: 2rpx 12rpx;
-  border-radius: 8rpx;
-  background: rgba(0, 0, 0, 0.6);
-  color: #FFFFFF;
-  font-size: 20rpx;
-}
-.video-body {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-}
-.video-title {
-  font-size: 28rpx;
-  font-weight: 500;
-  color: #2C2C2C;
-  line-height: 1.4;
-  margin-bottom: auto;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
 }
 .spin {
   animation: spin 1s linear infinite;

@@ -47,7 +47,7 @@
           <view class="input-icon"><AppIcon name="phone" :size="20" color="#999999" /></view>
           <input
             class="input"
-            type="number"
+            type="text"
             :value="phone"
             maxlength="11"
             placeholder="请输入手机号"
@@ -70,7 +70,7 @@
           <view class="input-icon"><AppIcon name="shield" :size="20" color="#999999" /></view>
           <input
             class="input input-code"
-            type="number"
+            type="text"
             :value="code"
             maxlength="6"
             placeholder="请输入6位验证码"
@@ -167,6 +167,8 @@
 import { ref, computed, onUnmounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
+import { authApi } from '@/lib/auth-data'
+import { setToken, setUserInfo } from '@/utils/storage'
 
 const statusBarHeight = ref(0)
 const steps = ['phone', 'verify', 'password'] as const
@@ -216,14 +218,20 @@ function handleBack() {
 }
 
 // @data-needs: 发送注册验证码, 参数 {phone, scene:'register'}, 返回 {success, message}
-function sendCode() {
+async function sendCode() {
   if (countdown.value > 0 || phone.value.length !== 11) return
-  countdown.value = 60
-  timer = setInterval(() => {
-    countdown.value--
-    if (countdown.value <= 0 && timer) clearInterval(timer)
-  }, 1000)
-  if (step.value === 'phone') step.value = 'verify'
+  try {
+    const res = await authApi.sendCode(phone.value, 'register')
+    if (!res.success) { uni.showToast({ title: res.message || '发送失败', icon: 'none' }); return }
+    countdown.value = 60
+    timer = setInterval(() => {
+      countdown.value--
+      if (countdown.value <= 0 && timer) clearInterval(timer)
+    }, 1000)
+    if (step.value === 'phone') step.value = 'verify'
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '发送失败', icon: 'none' })
+  }
 }
 
 // @data-needs: 校验验证码, 参数 {phone, code}, 返回 {success, message}
@@ -233,9 +241,28 @@ function verifyCode() {
 }
 
 // @data-needs: 注册, 参数 {phone, code, password, nickname}, 返回 {success, data:{token, user}, message}
-function handleRegister() {
+async function handleRegister() {
   if (!canRegister.value || isLoading.value) return
-  // 注册逻辑交给 @/lib 层
+  isLoading.value = true
+  try {
+    const res = await authApi.register({
+      phone: phone.value,
+      code: code.value,
+      password: password.value,
+      nickname: nickname.value,
+    })
+    if (res.success && res.data?.token) {
+      setToken(res.data.token)
+      setUserInfo(res.data.user)
+      uni.reLaunch({ url: '/pages/index/index' })
+    } else {
+      uni.showToast({ title: res.message || '注册失败', icon: 'none' })
+    }
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '注册失败', icon: 'none' })
+  } finally {
+    isLoading.value = false
+  }
 }
 
 function goLogin() {
@@ -303,7 +330,7 @@ onUnmounted(() => {
   flex-shrink: 0;
 }
 .step-active {
-  background: #c41e3a;
+  background: var(--brand);
 }
 .step-done {
   background: #52c41a;
@@ -418,7 +445,7 @@ onUnmounted(() => {
 .resend-btn {
   font-size: 26rpx;
   font-weight: 500;
-  color: #c41e3a;
+  color: var(--brand);
 }
 .resend-disabled {
   color: #999999;
@@ -448,8 +475,8 @@ onUnmounted(() => {
   margin-top: 4rpx;
 }
 .checkbox-checked {
-  background: #c41e3a;
-  border-color: #c41e3a;
+  background: var(--brand);
+  border-color: var(--brand);
 }
 .terms-text {
   flex: 1;
@@ -461,7 +488,7 @@ onUnmounted(() => {
 }
 .terms-link {
   font-size: 26rpx;
-  color: #c41e3a;
+  color: var(--brand);
 }
 
 /* 按钮 */
@@ -472,7 +499,7 @@ onUnmounted(() => {
   width: 100%;
   height: 96rpx;
   border-radius: 24rpx;
-  background: #c41e3a;
+  background: var(--brand);
 }
 .btn-disabled {
   opacity: 0.5;
@@ -497,7 +524,7 @@ onUnmounted(() => {
 .bottom-strong {
   font-size: 28rpx;
   font-weight: 500;
-  color: #c41e3a;
+  color: var(--brand);
   margin-left: 8rpx;
 }
 </style>

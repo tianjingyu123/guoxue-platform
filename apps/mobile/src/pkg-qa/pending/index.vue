@@ -237,7 +237,7 @@ onMounted(() => {
 }
 .qp-stat { text-align: center; }
 .qp-stat-num { font-size: 48rpx; font-weight: 700; display: block; }
-.qp-num-red { color: #c41e3a; }
+.qp-num-red { color: var(--brand); }
 .qp-num-amber { color: #f59e0b; }
 .qp-num-green { color: #16a34a; }
 .qp-stat-label { font-size: 22rpx; color: #999999; margin-top: 8rpx; display: block; }
@@ -280,7 +280,7 @@ onMounted(() => {
   width: 80rpx;
   height: 80rpx;
   border-radius: 999rpx;
-  background: linear-gradient(135deg, #c41e3a, #e85a6b);
+  background: linear-gradient(135deg, var(--brand), #e85a6b);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -299,13 +299,13 @@ onMounted(() => {
 .qp-card-foot { display: flex; align-items: center; justify-content: space-between; }
 .qp-foot-left { display: flex; align-items: center; gap: 24rpx; }
 .qp-coins { display: flex; align-items: center; gap: 8rpx; }
-.qp-coins-tx { font-size: 28rpx; font-weight: 600; color: #c41e3a; }
+.qp-coins-tx { font-size: 28rpx; font-weight: 600; color: var(--brand); }
 .qp-badge-public { padding: 2rpx 16rpx; background-color: #f5f5f5; border-radius: 8rpx; }
 .qp-badge-public-tx { font-size: 22rpx; color: #999999; }
 .qp-badge-private { padding: 2rpx 16rpx; background-color: #fffbeb; border-radius: 8rpx; }
 .qp-badge-private-tx { font-size: 22rpx; color: #d97706; }
 .qp-go { display: flex; align-items: center; gap: 8rpx; }
-.qp-go-tx { font-size: 26rpx; color: #c41e3a; }
+.qp-go-tx { font-size: 26rpx; color: var(--brand); }
 .qp-expired-badge { padding: 8rpx 16rpx; background-color: #fef2f2; border-radius: 999rpx; }
 .qp-expired-badge-tx { font-size: 22rpx; color: #ef4444; }
 .qp-expired-info { display: flex; align-items: center; gap: 16rpx; }

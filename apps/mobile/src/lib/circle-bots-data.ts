@@ -82,17 +82,21 @@ export function formatUsageCount(count: number): string {
 }
 
 // ============ API 层 ============
-import { apiGet, useMock } from '@/utils/request'
+// 真连审计（2026-06-28）：后端【不存在】 `GET /circles/:circleId/bots`
+// （圈内「多」智能体列表 + 圈子概要）这一端点。
+// 现有最接近端点为 `GET /bots/circle/:circleId`（bot.controller → getCircleBot），
+// 它基于 CircleBot.circleId 唯一约束，只返回「单个」圈子绑定的智能体，
+// 结构为 { ...circleBot, botConfig }，与本页期望的 { summary, bots[] } 完全不同，
+// 也不含圈子概要字段（name / memberCount / isAdmin / isOwner）。
+// → 诚实降级：直接抛明确错误，由消费页面走错误态，绝不回退假 mock 掩盖。
+//   待后端补齐「圈内智能体列表 + 概要」端点后再行真连。
 
 export const botsApi = {
-  /** 获取圈子智能体数据 — GET /circles/:circleId/bots */
-  async getCircleBots(circleId: number): Promise<{ summary: CircleSummary; bots: CircleBotItem[] }> {
-    if (true) return { summary: circleSummary, bots: circleBots }
-    try {
-      const data = await apiGet<any>(`/circles/${circleId}/bots`)
-      return data as any
-    } catch {
-      return { summary: circleSummary, bots: circleBots }
-    }
+  /** 获取圈子智能体数据 — 后端暂无对应端点（见上方审计说明），诚实降级抛错 */
+  async getCircleBots(_circleId: number): Promise<{ summary: CircleSummary; bots: CircleBotItem[] }> {
+    throw new Error(
+      '圈子智能体列表接口未就绪：后端暂无 GET /circles/:circleId/bots 端点' +
+        '（现仅支持单圈单智能体 GET /bots/circle/:circleId，结构不兼容），待后端补齐后接入',
+    )
   },
 }

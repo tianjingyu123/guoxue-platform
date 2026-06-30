@@ -7,125 +7,128 @@
           <AppIcon name="arrow-left" :size="24" color="#1a1a1a" />
         </view>
         <text class="an-title">数据分析</text>
-        <view class="an-icon-btn">
-          <AppIcon name="download" :size="24" color="#999" />
-        </view>
-      </view>
-      <!-- 时间周期 -->
-      <view class="an-period">
-        <view
-          v-for="p in periods"
-          :key="p.key"
-          class="an-period-btn"
-          :class="{ 'an-period-active': period === p.key }"
-          @tap="period = p.key"
-        >
-          {{ p.label }}
-        </view>
+        <view class="an-icon-btn" />
       </view>
     </view>
 
-    <scroll-view scroll-y class="an-scroll" :style="{ paddingTop: statusBarHeight + 96 + 'px' }">
-      <!-- 关键指标 -->
-      <view class="an-section">
-        <text class="an-section-title">关键指标</text>
-        <view class="an-metric-grid">
-          <view class="an-card an-metric">
-            <text class="an-metric-label">总观看</text>
-            <text class="an-metric-num">{{ (data.totalViews / 1000).toFixed(0) }}K</text>
-            <view class="an-trend an-up"><AppIcon name="trending-up" :size="12" color="#16a34a" /><text>12%</text></view>
-          </view>
-          <view class="an-card an-metric">
-            <text class="an-metric-label">总点赞</text>
-            <text class="an-metric-num">{{ data.totalLikes }}</text>
-            <view class="an-trend an-up"><AppIcon name="trending-up" :size="12" color="#16a34a" /><text>8%</text></view>
-          </view>
-          <view class="an-card an-metric">
-            <text class="an-metric-label">评论数</text>
-            <text class="an-metric-num">{{ data.totalComments }}</text>
-            <view class="an-trend an-down"><AppIcon name="trending-down" :size="12" color="#dc2626" /><text>2%</text></view>
-          </view>
-          <view class="an-card an-metric">
-            <text class="an-metric-label">分享数</text>
-            <text class="an-metric-num">{{ data.totalShares }}</text>
-            <view class="an-trend an-up"><AppIcon name="trending-up" :size="12" color="#16a34a" /><text>5%</text></view>
-          </view>
-        </view>
+    <scroll-view scroll-y class="an-scroll" :style="{ paddingTop: statusBarHeight + 44 + 'px' }">
+      <!-- 加载态 -->
+      <view v-if="loading" class="an-state">
+        <text class="an-state-txt">加载中…</text>
+      </view>
+      <!-- 错误态 -->
+      <view v-else-if="errMsg" class="an-state">
+        <AppIcon name="alert-circle" :size="40" color="#ccc" />
+        <text class="an-state-txt">{{ errMsg }}</text>
+        <view class="an-state-btn" @tap="load">重试</view>
       </view>
 
-      <!-- 观看趋势 -->
-      <view class="an-section">
-        <text class="an-section-title">观看趋势</text>
-        <view class="an-card">
-          <view class="an-chart-wrap">
-            <view class="an-yaxis">
-              <text v-for="t in yTicks" :key="t" class="an-ytick">{{ t }}</text>
+      <template v-else-if="data">
+        <!-- 关键指标 -->
+        <view class="an-section">
+          <text class="an-section-title">关键指标（累计）</text>
+          <view class="an-metric-grid">
+            <view class="an-card an-metric">
+              <text class="an-metric-label">总观看</text>
+              <text class="an-metric-num">{{ fmt(data.totalViews) }}</text>
             </view>
-            <view class="an-chart-main">
-              <view class="an-grid">
-                <view v-for="t in yTicks" :key="t" class="an-gridline" />
-              </view>
-              <view class="an-svg-box">
-                <svg :viewBox="`0 0 ${svgW} ${svgH}`" preserveAspectRatio="none" class="an-svg">
-                  <polyline :points="linePoints" fill="none" stroke="#c41e3a" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
-                  <circle v-for="(pt, i) in pointCoords" :key="i" :cx="pt.x" :cy="pt.y" r="3" fill="#c41e3a" />
-                </svg>
-              </view>
-              <view class="an-xaxis">
-                <text v-for="(item, i) in data.viewTrend" :key="i" class="an-xtick">{{ item.date }}</text>
-              </view>
+            <view class="an-card an-metric">
+              <text class="an-metric-label">总点赞</text>
+              <text class="an-metric-num">{{ fmt(data.totalLikes) }}</text>
             </view>
-          </view>
-          <view class="an-legend">
-            <view class="an-legend-item"><view class="an-dot" style="background:#C41E3A" /><text>观看</text></view>
+            <view class="an-card an-metric">
+              <text class="an-metric-label">评论数</text>
+              <text class="an-metric-num">{{ fmt(data.totalComments) }}</text>
+            </view>
+            <view class="an-card an-metric">
+              <text class="an-metric-label">分享数</text>
+              <text class="an-metric-num">{{ fmt(data.totalShares) }}</text>
+            </view>
           </view>
         </view>
-      </view>
 
-      <!-- 视频统计 -->
-      <view class="an-section">
-        <text class="an-section-title">视频统计</text>
-        <view class="an-list">
-          <view v-for="(video, idx) in data.videoMetrics" :key="video.id" class="an-card an-video">
-            <view class="an-video-head">
-              <view class="an-video-info">
-                <text class="an-video-title">{{ video.title }}</text>
-                <text class="an-video-meta">{{ video.uploadDate }} • {{ video.duration }}</text>
+        <!-- 观看趋势（仅当后端有按天快照数据时展示，否则诚实隐藏）-->
+        <view v-if="hasTrend" class="an-section">
+          <text class="an-section-title">观看趋势</text>
+          <view class="an-card">
+            <view class="an-chart-wrap">
+              <view class="an-yaxis">
+                <text v-for="t in yTicks" :key="t" class="an-ytick">{{ t }}</text>
               </view>
-              <text class="an-rank">#{{ idx + 1 }}</text>
+              <view class="an-chart-main">
+                <view class="an-grid">
+                  <view v-for="t in yTicks" :key="t" class="an-gridline" />
+                </view>
+                <view class="an-svg-box">
+                  <svg :viewBox="`0 0 ${svgW} ${svgH}`" preserveAspectRatio="none" class="an-svg">
+                    <polyline :points="linePoints" fill="none" stroke="#c41e3a" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
+                    <circle v-for="(pt, i) in pointCoords" :key="i" :cx="pt.x" :cy="pt.y" r="3" fill="#c41e3a" />
+                  </svg>
+                </view>
+                <view class="an-xaxis">
+                  <text v-for="(item, i) in trend" :key="i" class="an-xtick">{{ item.date }}</text>
+                </view>
+              </view>
             </view>
-            <view class="an-video-stats">
-              <view class="an-vstat"><AppIcon name="eye" :size="12" color="#999" /><text>{{ video.views }}</text></view>
-              <view class="an-vstat"><AppIcon name="thumbs-up" :size="12" color="#999" /><text>{{ video.likes }}</text></view>
-              <view class="an-vstat"><AppIcon name="message-square" :size="12" color="#999" /><text>{{ video.comments }}</text></view>
-              <view class="an-vstat"><AppIcon name="trending-up" :size="12" color="#999" /><text>{{ video.shares }}</text></view>
+            <view class="an-legend">
+              <view class="an-legend-item"><view class="an-dot" style="background:#C41E3A" /><text>观看</text></view>
             </view>
           </view>
         </view>
-      </view>
+
+        <!-- 视频统计 -->
+        <view class="an-section">
+          <text class="an-section-title">视频统计</text>
+          <view v-if="data.videoMetrics.length === 0" class="an-empty">
+            <AppIcon name="file-video" :size="40" color="#ccc" />
+            <text class="an-empty-txt">还没有视频数据</text>
+          </view>
+          <view v-else class="an-list">
+            <view v-for="(video, idx) in data.videoMetrics" :key="video.id" class="an-card an-video">
+              <view class="an-video-head">
+                <view class="an-video-info">
+                  <text class="an-video-title">{{ video.title }}</text>
+                  <text class="an-video-meta">{{ video.uploadDate }} • {{ video.duration }}</text>
+                </view>
+                <text class="an-rank">#{{ idx + 1 }}</text>
+              </view>
+              <view class="an-video-stats">
+                <view class="an-vstat"><AppIcon name="eye" :size="12" color="#999" /><text>{{ fmt(video.views) }}</text></view>
+                <view class="an-vstat"><AppIcon name="thumbs-up" :size="12" color="#999" /><text>{{ fmt(video.likes) }}</text></view>
+                <view class="an-vstat"><AppIcon name="message-square" :size="12" color="#999" /><text>{{ fmt(video.comments) }}</text></view>
+                <view class="an-vstat"><AppIcon name="trending-up" :size="12" color="#999" /><text>{{ fmt(video.shares) }}</text></view>
+              </view>
+            </view>
+          </view>
+        </view>
+      </template>
       <view class="an-pad" />
     </scroll-view>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
-import { creatorAnalytics as data } from '@/lib/creator-data'
+import { creatorApi, formatCreatorNumber, type CreatorAnalytics } from '@/lib/creator-data'
 
 const statusBarHeight = ref(0)
-const period = ref<'week' | 'month' | 'year'>('week')
-const periods = [
-  { key: 'week' as const, label: '本周' },
-  { key: 'month' as const, label: '本月' },
-  { key: 'year' as const, label: '本年' },
-]
-// 折线图：Y轴上界取整到 1500 的倍数(匹配原型刻度)
+const fmt = formatCreatorNumber
+
+const loading = ref(true)
+const errMsg = ref('')
+const data = ref<CreatorAnalytics | null>(null)
+
+const trend = computed(() => data.value?.viewTrend ?? [])
+const hasTrend = computed(() => trend.value.length > 0)
+
+// 折线图：Y轴上界取整到 1500 的倍数
 const chartMax = computed(() => {
-  const peak = Math.max(...data.viewTrend.map((d) => d.views))
+  if (!trend.value.length) return 1500
+  const peak = Math.max(...trend.value.map((d) => d.views))
   const step = 1500
-  return Math.ceil(peak / step) * step
+  return Math.max(step, Math.ceil(peak / step) * step)
 })
 const yTicks = computed(() => {
   const step = 1500
@@ -133,19 +136,33 @@ const yTicks = computed(() => {
   for (let v = chartMax.value; v >= 0; v -= step) ticks.push(v)
   return ticks
 })
-// SVG 视图坐标系
 const svgW = 300
 const svgH = 200
 const pointCoords = computed(() => {
-  const n = data.viewTrend.length
-  return data.viewTrend.map((d, i) => ({
+  const n = trend.value.length
+  return trend.value.map((d, i) => ({
     x: n > 1 ? (i / (n - 1)) * svgW : svgW / 2,
     y: svgH - (d.views / chartMax.value) * svgH,
   }))
 })
 const linePoints = computed(() => pointCoords.value.map((p) => `${p.x},${p.y}`).join(' '))
 
-uni.getSystemInfo({ success: (res) => { statusBarHeight.value = res.statusBarHeight || 0 } })
+async function load() {
+  loading.value = true
+  errMsg.value = ''
+  try {
+    data.value = await creatorApi.getAnalytics()
+  } catch (e: any) {
+    errMsg.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(() => {
+  uni.getSystemInfo({ success: (res) => { statusBarHeight.value = res.statusBarHeight || 0 } })
+  load()
+})
 </script>
 
 <style scoped>
@@ -155,15 +172,14 @@ uni.getSystemInfo({ success: (res) => { statusBarHeight.value = res.statusBarHei
   background: #ffffff; border-bottom: 1px solid #eee;
 }
 .an-nav-inner { display: flex; align-items: center; justify-content: space-between; padding: 8px 16px; height: 44px; }
-.an-icon-btn { padding: 4px; }
+.an-icon-btn { padding: 4px; width: 32px; }
 .an-title { font-size: 18px; font-weight: 600; color: #1a1a1a; }
-.an-period { display: flex; gap: 8px; padding: 12px 16px; border-top: 1px solid #f5f5f5; }
-.an-period-btn {
-  padding: 6px 12px; border-radius: 999px; font-size: 14px; font-weight: 500;
-  background: #f0f0f0; color: #1a1a1a;
-}
-.an-period-active { background: #c41e3a; color: #ffffff; }
 .an-scroll { height: 100vh; box-sizing: border-box; }
+.an-state { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 80px 32px; }
+.an-state-txt { font-size: 14px; color: #999; }
+.an-state-btn { margin-top: 4px; padding: 8px 24px; background: var(--brand); color: #ffffff; border-radius: 999px; font-size: 14px; }
+.an-empty { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 48px 32px; }
+.an-empty-txt { font-size: 14px; color: #999; }
 .an-section { margin: 16px 16px 0; }
 .an-section-title { display: block; font-size: 14px; font-weight: 600; color: #1a1a1a; margin-bottom: 12px; }
 .an-card { background: #ffffff; border-radius: 12px; padding: 12px; border: 1px solid #f0f0f0; }
@@ -171,9 +187,6 @@ uni.getSystemInfo({ success: (res) => { statusBarHeight.value = res.statusBarHei
 .an-metric { display: flex; flex-direction: column; }
 .an-metric-label { font-size: 12px; color: #999; margin-bottom: 4px; }
 .an-metric-num { font-size: 24px; font-weight: 700; color: #1a1a1a; }
-.an-trend { display: flex; align-items: center; gap: 2px; font-size: 12px; margin-top: 4px; }
-.an-up { color: #16a34a; }
-.an-down { color: #dc2626; }
 /* 趋势折线图 */
 .an-chart-wrap { display: flex; padding: 8px 0; }
 .an-yaxis { display: flex; flex-direction: column; justify-content: space-between; align-items: flex-end; padding-right: 8px; height: 200px; }

@@ -15,7 +15,7 @@ const list = ref<LikeItem[]>([])
 const loading = ref(true)
 const error = ref('')
 const filter = ref<LikeTargetType | 'all'>('all')
-const unliking = ref<number | null>(null)
+const unliking = ref<string | number | null>(null)
 
 async function fetchData() {
   loading.value = true
@@ -111,7 +111,7 @@ function openTarget() {
             <text class="like-title">{{ item.target.title }}</text>
             <view class="like-meta">
               <view class="like-author" v-if="item.target.author">
-                <image class="author-avatar" :src="item.target.author.avatar" mode="aspectFill" />
+                <image lazy-load class="author-avatar" :src="item.target.author.avatar" mode="aspectFill" />
                 <text class="author-name">{{ item.target.author.nickname }}</text>
               </view>
               <text class="like-type">{{ likeTypeNames[item.target.type] }}</text>
@@ -137,12 +137,12 @@ function openTarget() {
 .loading { flex: 1; display: flex; align-items: center; justify-content: center; padding-top: 200rpx; font-size: 28rpx; color: #8a8178; }
 .error-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding-top: 200rpx; gap: 24rpx; }
 .error-state text { font-size: 28rpx; color: #8a8178; }
-.retry-btn { padding: 16rpx 48rpx; background: #C41E3A; color: #fff; border-radius: 12rpx; font-size: 26rpx; }
+.retry-btn { padding: 16rpx 48rpx; background: var(--brand); color: #fff; border-radius: 12rpx; font-size: 26rpx; }
 
 .filter-scroll { background: #fff; border-bottom: 1rpx solid #EDE7DC; white-space: nowrap; }
 .filter-row { display: inline-flex; gap: 16rpx; padding: 20rpx 24rpx; }
 .filter-chip { font-size: 26rpx; color: #6f6760; background: #F2ECE1; padding: 12rpx 28rpx; border-radius: 999rpx; }
-.filter-chip.active { background: #C41E3A; color: #fff; }
+.filter-chip.active { background: var(--brand); color: #fff; }
 
 .count-bar { padding: 16rpx 24rpx 0; font-size: 22rpx; color: #b8b0a4; }
 
@@ -150,7 +150,7 @@ function openTarget() {
 .empty-icon { width: 140rpx; height: 140rpx; border-radius: 50%; background: #F2ECE1; display: flex; align-items: center; justify-content: center; margin-bottom: 8rpx; }
 .empty-title { font-size: 28rpx; color: #6f6760; }
 .empty-desc { font-size: 24rpx; color: #b8b0a4; }
-.empty-btn { margin-top: 24rpx; padding: 18rpx 56rpx; background: #C41E3A; border-radius: 999rpx; }
+.empty-btn { margin-top: 24rpx; padding: 18rpx 56rpx; background: var(--brand); border-radius: 999rpx; }
 .empty-btn-text { font-size: 28rpx; color: #fff; }
 
 .scroll { flex: 1; padding: 24rpx; box-sizing: border-box; }

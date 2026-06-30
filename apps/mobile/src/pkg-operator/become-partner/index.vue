@@ -56,7 +56,7 @@
         </view>
         <view class="field">
           <text class="field-label">联系电话</text>
-          <input v-model="form.phone" type="number" class="field-input" placeholder="请输入手机号码" placeholder-class="ph" />
+          <input v-model="form.phone" type="text" class="field-input" placeholder="请输入手机号码" placeholder-class="ph" />
         </view>
         <view class="field">
           <text class="field-label">专业方向</text>

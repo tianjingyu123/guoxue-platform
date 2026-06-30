@@ -133,7 +133,7 @@ function fmt(n: number) {
 .scroll { height: calc(100vh - 100rpx); }
 .body { padding-bottom: 60rpx; }
 
-.overview { margin: 32rpx 32rpx 0; padding: 32rpx; border-radius: 24rpx; background: linear-gradient(135deg, #C41E3A, #9A1528); }
+.overview { margin: 32rpx 32rpx 0; padding: 32rpx; border-radius: 24rpx; background: linear-gradient(135deg, var(--brand), #9A1528); }
 .ov-top { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 32rpx; }
 .ov-label { display: block; font-size: 24rpx; color: rgba(255,255,255,0.8); margin-bottom: 8rpx; }
 .ov-month { font-size: 56rpx; font-weight: 700; color: #ffffff; }
@@ -155,7 +155,7 @@ function fmt(n: number) {
 .card-trend.down { color: #DC2626; }
 .card-bar-row { display: flex; align-items: center; }
 .bar-track { flex: 1; height: 14rpx; background: #F0EDE6; border-radius: 999rpx; overflow: hidden; }
-.bar-fill { height: 100%; background: #C41E3A; border-radius: 999rpx; }
+.bar-fill { height: 100%; background: var(--brand); border-radius: 999rpx; }
 .card-amount { margin-left: 24rpx; text-align: right; }
 .card-amount-num { display: block; font-size: 28rpx; font-weight: 700; color: #2C2C2C; }
 .card-amount-pct { display: block; font-size: 22rpx; color: #999999; }

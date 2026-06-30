@@ -28,13 +28,18 @@ function tick() {
 onMounted(async () => {
   tick(); timer = setInterval(tick, 1000)
   try {
-    const data = await shopApi.getFlashSale()
-    seckillItems.value = data?.seckill || []
-    groupItems.value = data?.group || []
+    const [flash, groups] = await Promise.all([
+      shopApi.getFlashSale(),
+      shopApi.getActiveGroupBuys(),
+    ])
+    seckillItems.value = (flash?.products || []).map((p) => ({
+      id: p.id, cover: p.cover, title: p.name, price: p.price, originalPrice: p.originalPrice,
+    }))
+    groupItems.value = groups
   } catch {
-    const mod = await import('@/lib/shop-data')
-    seckillItems.value = mod.seckillItems
-    groupItems.value = mod.groupItems
+    // 错误时保持空态（铁律：不回退假 mock 掩盖）
+    seckillItems.value = []
+    groupItems.value = []
   }
 })
 onUnmounted(() => { if (timer) clearInterval(timer) })
@@ -67,7 +72,7 @@ function off(price: number, original: number) {
         <view class="mz-rail-inner">
           <view v-for="item in seckillItems" :key="item.id" class="mz-sk-item">
             <view class="mz-sk-cover">
-              <image class="mz-sk-img" :src="item.cover" mode="aspectFill" />
+              <image lazy-load class="mz-sk-img" :src="item.cover" mode="aspectFill" />
               <text class="mz-sk-off">-{{ off(item.price, item.originalPrice) }}%</text>
             </view>
             <text class="mz-sk-title">{{ item.title }}</text>
@@ -92,7 +97,7 @@ function off(price: number, original: number) {
       </view>
       <view v-for="item in groupItems" :key="item.id" class="mz-gp">
         <view class="mz-gp-cover">
-          <image class="mz-gp-img" :src="item.cover" mode="aspectFill" />
+          <image lazy-load class="mz-gp-img" :src="item.cover" mode="aspectFill" />
         </view>
         <view class="mz-gp-body">
           <text class="mz-gp-title">{{ item.title }}</text>
@@ -118,7 +123,7 @@ function off(price: number, original: number) {
 
 /* 头部 */
 .mz-head { display: flex; align-items: center; justify-content: space-between; padding: 20rpx 28rpx; }
-.mz-head-red { background: linear-gradient(90deg, #c41e3a, #e0524d); }
+.mz-head-red { background: linear-gradient(90deg, var(--brand), #e0524d); }
 .mz-head-amber { background: linear-gradient(90deg, #d97706, #f59e0b); }
 .mz-head-l { display: flex; align-items: center; gap: 12rpx; }
 .mz-head-title { color: #fff; font-weight: 700; font-size: 30rpx; }
@@ -133,10 +138,10 @@ function off(price: number, original: number) {
 .mz-sk-item { flex-shrink: 0; width: 176rpx; }
 .mz-sk-cover { position: relative; width: 176rpx; height: 176rpx; border-radius: 20rpx; overflow: hidden; background: var(--secondary); }
 .mz-sk-img { width: 100%; height: 100%; }
-.mz-sk-off { position: absolute; top: 8rpx; left: 8rpx; padding: 2rpx 8rpx; border-radius: 8rpx; background: #c41e3a; color: #fff; font-size: 18rpx; font-weight: 700; }
+.mz-sk-off { position: absolute; top: 8rpx; left: 8rpx; padding: 2rpx 8rpx; border-radius: 8rpx; background: var(--brand); color: #fff; font-size: 18rpx; font-weight: 700; }
 .mz-sk-title { display: block; margin-top: 8rpx; font-size: 22rpx; color: var(--text-strong); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .mz-sk-price { display: flex; align-items: baseline; gap: 8rpx; }
-.mz-sk-now { font-size: 28rpx; font-weight: 700; color: #c41e3a; }
+.mz-sk-now { font-size: 28rpx; font-weight: 700; color: var(--brand); }
 .mz-sk-orig { font-size: 20rpx; color: var(--text-soft); text-decoration: line-through; }
 
 /* 拼团 */

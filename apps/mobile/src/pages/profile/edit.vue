@@ -124,7 +124,7 @@ function chooseAvatar() {
     <view class="avatar-sec">
       <view class="avatar-wrap">
         <view class="avatar">
-          <image v-if="form.avatar" class="avatar-img" :src="form.avatar" mode="aspectFill" />
+          <image lazy-load v-if="form.avatar" class="avatar-img" :src="form.avatar" mode="aspectFill" />
           <text v-else class="avatar-fallback">{{ form.nickname[0] }}</text>
         </view>
         <view class="cam-btn" @tap="showAvatarMenu = true"><AppIcon name="camera" :size="26" color="#ffffff" /></view>
@@ -291,7 +291,7 @@ function chooseAvatar() {
 .page { min-height: 100vh; background: #FAF8F5; padding-bottom: 64rpx; }
 
 /* 顶部导航 */
-.save-btn { min-width: 96rpx; height: 56rpx; padding: 0 28rpx; border-radius: 999rpx; background: #C41E3A; display: flex; align-items: center; justify-content: center; }
+.save-btn { min-width: 96rpx; height: 56rpx; padding: 0 28rpx; border-radius: 999rpx; background: var(--brand); display: flex; align-items: center; justify-content: center; }
 .save-btn.saved { background: rgba(82,196,26,0.2); }
 .save-txt { font-size: 26rpx; font-weight: 500; color: #fff; }
 .saved-txt { color: #52C41A; }
@@ -304,8 +304,8 @@ function chooseAvatar() {
 .avatar-wrap { position: relative; }
 .avatar { width: 192rpx; height: 192rpx; border-radius: 50%; background: rgba(196,30,58,0.1); display: flex; align-items: center; justify-content: center; border: 8rpx solid #FAF8F5; box-shadow: 0 8rpx 24rpx rgba(0,0,0,0.12); overflow: hidden; }
 .avatar-img { width: 100%; height: 100%; }
-.avatar-fallback { font-size: 64rpx; color: #C41E3A; }
-.cam-btn { position: absolute; bottom: 0; right: 0; width: 64rpx; height: 64rpx; border-radius: 50%; background: #C41E3A; display: flex; align-items: center; justify-content: center; box-shadow: 0 4rpx 16rpx rgba(0,0,0,0.2); }
+.avatar-fallback { font-size: 64rpx; color: var(--brand); }
+.cam-btn { position: absolute; bottom: 0; right: 0; width: 64rpx; height: 64rpx; border-radius: 50%; background: var(--brand); display: flex; align-items: center; justify-content: center; box-shadow: 0 4rpx 16rpx rgba(0,0,0,0.2); }
 .avatar-tip { font-size: 26rpx; color: #999; margin-top: 24rpx; }
 
 /* 表单 */
@@ -327,7 +327,7 @@ function chooseAvatar() {
 .tag-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24rpx; }
 .tag-wrap { display: flex; flex-wrap: wrap; gap: 16rpx; }
 .tag-chip { display: flex; align-items: center; gap: 8rpx; padding: 8rpx 12rpx 8rpx 20rpx; border-radius: 999rpx; background: rgba(196,30,58,0.1); }
-.tag-chip-txt { font-size: 24rpx; color: #C41E3A; }
+.tag-chip-txt { font-size: 24rpx; color: var(--brand); }
 .tag-del { width: 32rpx; height: 32rpx; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
 .tag-add { display: flex; align-items: center; gap: 8rpx; padding: 8rpx 24rpx; border-radius: 999rpx; border: 2rpx dashed rgba(153,153,153,0.4); }
 .tag-add-txt { font-size: 24rpx; color: #999; }
@@ -340,11 +340,11 @@ function chooseAvatar() {
 .sheet-head { display: flex; align-items: center; justify-content: space-between; padding: 32rpx; border-bottom: 2rpx solid #f0ece4; }
 .sheet-title { font-size: 28rpx; font-weight: 500; color: #2c2c2c; }
 .sheet-cancel-t { font-size: 28rpx; color: #999; }
-.sheet-confirm-t { font-size: 28rpx; font-weight: 500; color: #C41E3A; }
+.sheet-confirm-t { font-size: 28rpx; font-weight: 500; color: var(--brand); }
 .sheet-list { padding: 32rpx; }
 .sheet-opt { padding: 32rpx 0; text-align: center; font-size: 28rpx; color: #2c2c2c; border-radius: 16rpx; }
 .opt-row { display: flex; align-items: center; justify-content: center; gap: 12rpx; }
-.opt-active { background: rgba(196,30,58,0.1); color: #C41E3A; }
+.opt-active { background: rgba(196,30,58,0.1); color: var(--brand); }
 .sheet-cancel { padding: 32rpx 0; text-align: center; font-size: 28rpx; color: #999; border-top: 2rpx solid #f0ece4; }
 
 /* 地区 */
@@ -353,7 +353,7 @@ function chooseAvatar() {
 .loc-label { display: block; font-size: 22rpx; color: #999; margin-bottom: 16rpx; }
 .loc-scroll { height: 384rpx; }
 .loc-opt { padding: 16rpx 24rpx; font-size: 28rpx; color: #2c2c2c; border-radius: 12rpx; margin-bottom: 4rpx; }
-.loc-active { background: rgba(196,30,58,0.1); color: #C41E3A; }
+.loc-active { background: rgba(196,30,58,0.1); color: var(--brand); }
 
 /* 标签选择器 */
 .tag-scroll { flex: 1; padding: 32rpx; }
@@ -361,6 +361,6 @@ function chooseAvatar() {
 .tag-cat-name { display: block; font-size: 28rpx; font-weight: 500; color: #2c2c2c; margin-bottom: 24rpx; }
 .tag-cat-wrap { display: flex; flex-wrap: wrap; gap: 16rpx; }
 .picker-tag { padding: 12rpx 24rpx; border-radius: 999rpx; font-size: 26rpx; background: rgba(240,236,228,0.6); color: #2c2c2c; }
-.picker-tag-on { background: #C41E3A; color: #fff; }
+.picker-tag-on { background: var(--brand); color: #fff; }
 .picker-tag-disabled { color: rgba(153,153,153,0.5); }
 </style>

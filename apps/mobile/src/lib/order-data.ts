@@ -1,11 +1,13 @@
 /**
- * 订单中心数据层 - 从原型 app/orders/* 1:1 迁移
- * 含：商品订单列表 / 统一订单中心 / 订单详情 / 物流 / 评价 / 发票 / 退款进度 / 纠纷申诉
- * 图片走 /static（跨端约定）。
+ * 订单中心数据层 —— 全部真连后端，无 mock。
+ * 商品订单：/shop/orders/*（统一订单中心 /orders/my）
+ * 售后/退款/纠纷：/shop/orders/:id/after-sale、/shop/after-sales/*（平台仅一套售后子系统，退款页与纠纷页共用之）
+ * 物流：/shop/orders/:id/logistics
+ * 评价：/shop/products/:id/reviews
+ * 发票：后端暂无电子发票子系统 —— 诚实降级（见文末 invoice 三方法），不臆造数据。
+ * 图片走后端真实字段（product.images[0]），无则前端 v-if 降级。
  */
-import { apiGet, apiPost, useMock } from '@/utils/request'
-
-const P = '/static/images/products'
+import { apiGet, apiPost, apiPut } from '@/utils/request'
 
 /* ============================================================
    一、商品订单列表（app/orders）
@@ -59,36 +61,6 @@ export const orderStatusConfig: Record<string, { label: string; color: string; i
 }
 
 export const orderCancelReasons = ['不想要了', '信息填写错误', '重复下单', '其他原因']
-
-export const mockOrders: OrderListItem[] = [
-  {
-    id: '1', orderNo: '202401150001', status: 'pending_pay', totalAmount: 256, payAmount: 256,
-    createdAt: '2024-01-15 14:30',
-    products: [
-      { id: 'p1', name: '周易六十四卦详解（精装典藏版）', cover: `${P}/book1.jpg`, skuName: '精装版', price: 168, quantity: 1 },
-      { id: 'p2', name: '紫微斗数入门教程', cover: `${P}/book2.jpg`, skuName: '平装版', price: 88, quantity: 1 },
-    ],
-    canCancel: true, canConfirm: false, canReview: false, hasAfterSale: false,
-  },
-  {
-    id: '2', orderNo: '202401140002', status: 'pending_ship', totalAmount: 168, payAmount: 158,
-    createdAt: '2024-01-14 10:20', paidAt: '2024-01-14 10:25',
-    products: [{ id: 'p3', name: '八字命理学基础', cover: `${P}/book3.jpg`, skuName: '标准版', price: 168, quantity: 1 }],
-    canCancel: true, canConfirm: false, canReview: false, hasAfterSale: false,
-  },
-  {
-    id: '3', orderNo: '202401130003', status: 'pending_receive', totalAmount: 299, payAmount: 279,
-    createdAt: '2024-01-13 09:15', paidAt: '2024-01-13 09:20', shippedAt: '2024-01-14 08:00',
-    products: [{ id: 'p4', name: '风水布局实战指南', cover: `${P}/book4.jpg`, skuName: '精装版', price: 299, quantity: 1 }],
-    canCancel: false, canConfirm: true, canReview: false, hasAfterSale: false,
-  },
-  {
-    id: '4', orderNo: '202401100004', status: 'completed', totalAmount: 128, payAmount: 128,
-    createdAt: '2024-01-10 16:40', paidAt: '2024-01-10 16:45', shippedAt: '2024-01-11 09:00', completedAt: '2024-01-13 14:30',
-    products: [{ id: 'p5', name: '梅花易数速成', cover: `${P}/book5.jpg`, skuName: '电子版', price: 128, quantity: 1 }],
-    canCancel: false, canConfirm: false, canReview: true, hasAfterSale: false,
-  },
-]
 
 /* ============================================================
    二、统一订单中心（app/orders/center · 多品类）
@@ -150,19 +122,6 @@ export interface UnifiedOrder {
   extra?: { circleName?: string; teacherName?: string; duration?: string; quantity?: number }
 }
 
-export const mockUnifiedOrders: UnifiedOrder[] = [
-  { id: '1', orderNo: 'C202401150001', category: 'course', title: '八字入门实战精讲课', cover: `${P}/book1.jpg`, price: 299, originalPrice: 599, status: 'completed', createdAt: '2024-01-15 14:30', paidAt: '2024-01-15 14:32', extra: { teacherName: '张玄风', duration: '36课时' } },
-  { id: '2', orderNo: 'R202401140002', category: 'circle', title: '八字命理研习社', cover: `${P}/book2.jpg`, price: 199, status: 'completed', createdAt: '2024-01-14 10:20', paidAt: '2024-01-14 10:25', expiredAt: '2025-01-14', extra: { circleName: '八字命理研习社' } },
-  { id: '3', orderNo: 'P202401130003', category: 'product', title: '周易六十四卦详解（精装典藏版）', cover: `${P}/book3.jpg`, price: 168, status: 'paid', createdAt: '2024-01-13 09:15', paidAt: '2024-01-13 09:20', extra: { quantity: 1 } },
-  { id: '4', orderNo: 'L202401120004', category: 'live', title: '紫微斗数实战直播课', cover: `${P}/book4.jpg`, price: 49.9, status: 'completed', createdAt: '2024-01-12 18:00', paidAt: '2024-01-12 18:02', extra: { teacherName: '李命理' } },
-  { id: '5', orderNo: 'Q202401100005', category: 'qa', title: '八字婚姻分析咨询', cover: `${P}/book5.jpg`, price: 88, status: 'completed', createdAt: '2024-01-10 16:40', paidAt: '2024-01-10 16:45', extra: { teacherName: '王大师' } },
-  { id: '6', orderNo: 'M202401080006', category: 'membership', title: '热卜国学VIP年卡', price: 365, originalPrice: 588, status: 'completed', createdAt: '2024-01-08 12:00', paidAt: '2024-01-08 12:05', expiredAt: '2025-01-08' },
-  { id: '7', orderNo: 'A202401050007', category: 'activity', title: '新春开运讲座', cover: `${P}/book1.jpg`, price: 0, status: 'completed', createdAt: '2024-01-05 20:00', extra: { duration: '2小时' } },
-  { id: '8', orderNo: 'S202312200008', category: 'station', title: '分站站长资格', price: 999, status: 'completed', createdAt: '2023-12-20 10:00', paidAt: '2023-12-20 10:05', expiredAt: '2024-12-20' },
-  { id: '9', orderNo: 'I202312150009', category: 'institute', title: '研究院保证金', price: 10000, status: 'completed', createdAt: '2023-12-15 14:00', paidAt: '2023-12-15 14:10', expiredAt: '2024-12-15', extra: { circleName: '热卜国学研究院' } },
-  { id: '10', orderNo: 'C202401160010', category: 'course', title: '风水堪舆高级班', cover: `${P}/book2.jpg`, price: 1299, status: 'pending', createdAt: '2024-01-16 09:00', extra: { teacherName: '风水大师', duration: '60课时' } },
-]
-
 /* ============================================================
    三、订单详情（app/orders/[id]）
    ============================================================ */
@@ -176,7 +135,7 @@ export interface OrderLogisticsBrief {
   timeline: { time: string; content: string }[]
 }
 export interface OrderDetail extends OrderListItem {
-  address: OrderAddress
+  address?: OrderAddress
   payMethod?: string
   logistics?: OrderLogisticsBrief
   coupon?: { name: string; discount: number }
@@ -197,29 +156,6 @@ export const detailStatusConfig: Record<string, { icon: string; color: string; b
   completed: { icon: 'check-circle', color: '#10B981', bg: 'rgba(16,185,129,0.1)', text: '已完成', step: 4 },
   cancelled: { icon: 'x-circle', color: '#6B7280', bg: 'rgba(107,114,128,0.1)', text: '已取消', step: 0 },
   after_sale: { icon: 'refresh-cw', color: '#F59E0B', bg: 'rgba(245,158,11,0.1)', text: '售后中', step: 3 },
-}
-
-export const mockOrderDetail: OrderDetail = {
-  id: '1', orderNo: 'GX202401150001', status: 'pending_receive', totalAmount: 344, payAmount: 294,
-  createdAt: '2024-01-15 14:30:00', paidAt: '2024-01-15 14:32:15', shippedAt: '2024-01-16 09:00:00',
-  products: [
-    { id: '1', name: '《渊海子平》精装典藏版', cover: `${P}/book1.jpg`, skuName: '精装版', price: 168, quantity: 1 },
-    { id: '2', name: '紫微斗数入门教程', cover: `${P}/book2.jpg`, skuName: '平装版', price: 88, quantity: 2 },
-  ],
-  canCancel: false, canConfirm: true, canReview: false, hasAfterSale: false,
-  address: { id: '1', name: '张三', phone: '138****8888', province: '北京市', city: '北京市', district: '朝阳区', address: '建国路88号SOHO现代城A座1201', isDefault: true },
-  payMethod: '微信支付',
-  logistics: {
-    company: '顺丰速运', trackingNo: 'SF1234567890', status: '派送中',
-    timeline: [
-      { time: '01-17 08:30', content: '快递员正在派送中，预计12:00前送达' },
-      { time: '01-17 06:15', content: '快件已到达【北京朝阳营业点】' },
-      { time: '01-16 18:20', content: '快件在【北京转运中心】已装车，准备发往【北京朝阳营业点】' },
-      { time: '01-16 09:00', content: '商家已发货，快递员已揽件' },
-    ],
-  },
-  coupon: { name: '新人专享券', discount: 50 },
-  remark: '请放门口快递柜',
 }
 
 /* ============================================================
@@ -247,30 +183,11 @@ export const logisticsStatusMap: Record<string, { label: string; color: string }
   signed: { label: '已签收', color: '#16A34A' },
 }
 
-export const mockLogistics: LogisticsDetail = {
-  orderId: '1', orderNo: '202412010001',
-  company: '顺丰速运', companyPhone: '95338', trackingNo: 'SF1234567890123',
-  status: 'in_transit', estimatedDelivery: '2024-12-03 18:00',
-  courierName: '张师傅', courierPhone: '13800138000',
-  receiver: { name: '张三', phone: '138****8888', address: '北京市朝阳区建国路88号SOHO现代城A座1201' },
-  tracks: [
-    { status: 'in_transit', description: '快件已到达【北京朝阳营业点】，正在派送中', time: '2024-12-02 14:30', location: '北京市朝阳区', isCurrent: true },
-    { status: 'in_transit', description: '快件已到达【北京转运中心】', time: '2024-12-02 08:15', location: '北京市顺义区', isCurrent: false },
-    { status: 'in_transit', description: '快件已从【上海转运中心】发出', time: '2024-12-01 22:00', location: '上海市青浦区', isCurrent: false },
-    { status: 'picked', description: '快件已到达【上海转运中心】', time: '2024-12-01 18:30', location: '上海市青浦区', isCurrent: false },
-    { status: 'picked', description: '已揽收，快递员：李师傅 13900139000', time: '2024-12-01 15:20', location: '上海市浦东新区', isCurrent: false },
-    { status: 'pending', description: '商家已发货，等待揽收', time: '2024-12-01 14:00', location: '上海市浦东新区', isCurrent: false },
-  ],
-}
-
 /* ============================================================
    五、订单评价（app/orders/[id]/review）
    ============================================================ */
 
-export const reviewItems = [
-  { id: '1', name: '《渊海子平》精装典藏版', cover: `${P}/book1.jpg` },
-  { id: '2', name: '紫微斗数入门教程', cover: `${P}/book2.jpg` },
-]
+export interface ReviewItem { id: string; name: string; cover: string }
 export const reviewTagsByRating: Record<number, string[]> = {
   5: ['正品保证', '包装精美', '物流很快', '与描述一致', '非常满意', '强烈推荐'],
   4: ['商品不错', '物流及时', '整体满意'],
@@ -281,7 +198,7 @@ export const reviewTagsByRating: Record<number, string[]> = {
 export const reviewRatingLabels = ['', '很差', '较差', '一般', '不错', '非常好']
 
 /* ============================================================
-   六、发票管理（app/orders/invoice）
+   六、发票管理（app/orders/invoice）—— 后端暂无电子发票子系统
    ============================================================ */
 
 export interface InvoiceOrder { orderId: string; orderNo: string; amount: number; createdAt: string; productName: string }
@@ -290,17 +207,9 @@ export interface InvoiceRecord {
   amount: number; status: 'pending' | 'processing' | 'completed' | 'rejected'
   email: string; createdAt: string; completedAt?: string; rejectReason?: string
 }
+/** 电子发票功能是否已接入后端（当前后端无发票子系统，统一降级） */
+export const INVOICE_AVAILABLE = false
 
-export const mockInvoiceOrders: InvoiceOrder[] = [
-  { orderId: 'o1', orderNo: '202412150001', amount: 299, createdAt: '2024-12-15 10:30', productName: '周易六十四卦详解' },
-  { orderId: 'o2', orderNo: '202412140002', amount: 168, createdAt: '2024-12-14 15:20', productName: '紫微斗数入门课程' },
-  { orderId: 'o3', orderNo: '202412130003', amount: 88, createdAt: '2024-12-13 09:15', productName: '风水基础教程' },
-]
-export const mockInvoices: InvoiceRecord[] = [
-  { id: 'i1', type: 'company', title: '北京某某科技有限公司', taxNumber: '91110108MA01XXXXX', amount: 467, status: 'completed', email: 'finance@example.com', createdAt: '2024-12-10 14:30', completedAt: '2024-12-11 10:00' },
-  { id: 'i2', type: 'personal', title: '张*三', amount: 168, status: 'processing', email: 'zhang***@163.com', createdAt: '2024-12-14 16:00' },
-  { id: 'i3', type: 'company', title: '上海某某文化传媒', taxNumber: '91310115MA1HXXXX', amount: 299, status: 'rejected', email: 'acc@example.com', createdAt: '2024-12-08 11:20', rejectReason: '税号格式不正确' },
-]
 export const invoiceStatusConfig: Record<string, { label: string; color: string; bg: string }> = {
   pending: { label: '待处理', color: '#A16207', bg: '#FEF9C3' },
   processing: { label: '开票中', color: '#1D4ED8', bg: '#DBEAFE' },
@@ -318,34 +227,13 @@ export interface RefundDetail {
   type: 'refund_only' | 'return_refund'
   status: 'submitted' | 'merchant_review' | 'platform_review' | 'refunding' | 'completed'
   reason: string; amount: number; description: string
-  product: OrderProduct
+  product?: OrderProduct
   timeline: RefundTimelineNode[]
   createdAt: string; canCancel: boolean
 }
 
-export const mockRefund: RefundDetail = {
-  id: 'RF202401150001', orderId: '1', orderNo: 'GX20240115001',
-  type: 'refund_only', status: 'refunding', reason: '不想要了', amount: 168, description: '商品包装完好，未拆封',
-  product: { id: 'p1', name: '周易六十四卦详解（精装典藏版）', cover: `${P}/book1.jpg`, skuName: '精装版', price: 168, quantity: 1 },
-  timeline: [
-    { status: 'submitted', title: '申请提交', description: '您已提交退款申请', time: '2024-01-15 10:30', isCurrent: false },
-    { status: 'merchant_review', title: '商家审核', description: '商家已同意退款', time: '2024-01-15 14:20', isCurrent: false },
-    { status: 'platform_review', title: '平台审核', description: '平台审核通过', time: '2024-01-15 15:00', isCurrent: false },
-    { status: 'refunding', title: '退款处理', description: '正在处理退款...', time: '2024-01-15 15:30', isCurrent: true },
-    { status: 'completed', title: '退款到账', description: '预计1-3个工作日到账', time: '', isCurrent: false },
-  ],
-  createdAt: '2024-01-15 10:30', canCancel: false,
-}
-export const refundNodeDetails = [
-  '您的退款申请已成功提交，等待商家处理',
-  '商家已审核通过，退款申请已转至平台',
-  '平台已审核通过，退款正在处理中',
-  '退款正在处理中，请耐心等待',
-  '退款金额将在1-3个工作日内退回原支付账户',
-]
-
 /* ============================================================
-   八、纠纷申诉（app/orders/dispute）
+   八、纠纷申诉（app/orders/dispute）—— 复用售后子系统
    ============================================================ */
 
 export const disputeTypes = [
@@ -373,125 +261,353 @@ export const disputeStatusConfig: Record<string, { label: string; color: string;
   cancelled: { label: '已取消', color: '#999999', bg: '#F3F0EB', icon: 'x-circle' },
 }
 
-export const mockDisputeOrder: DisputeOrderBrief = {
-  orderId: 'order_001', orderNo: 'RB2024010100001',
-  productName: '周易六十四卦详解（精装典藏版）', productCover: `${P}/book1.jpg`,
-  amount: 168, createdAt: '2024-01-01 12:00:00',
-}
-export const mockMyDisputes: DisputeListItem[] = [
-  { id: '1', orderId: 'o1', orderNo: 'RB2024010100002', type: 'quality_issue', status: 'processing', productName: '紫微斗数入门', productCover: `${P}/book2.jpg`, createdAt: '2024-01-05 10:00:00' },
-]
-export const mockDisputeDetail: DisputeDetail = {
-  id: '1', orderId: 'o1', orderNo: 'RB2024010100001', type: 'quality_issue', status: 'processing',
-  description: '收到的书籍有破损，封面有明显折痕', images: [`${P}/book1.jpg`], expectation: '希望能够换货或退款',
-  order: mockDisputeOrder,
-  timeline: [
-    { status: 'submitted', title: '提交申诉', description: '您已成功提交申诉', time: '2024-01-05 10:00', isCurrent: false },
-    { status: 'processing', title: '处理中', description: '客服正在处理您的申诉', time: '2024-01-05 14:00', isCurrent: true },
-  ],
-  createdAt: '2024-01-05 10:00:00', canCancel: true,
-}
-
 export function getDisputeTypeLabel(type: string) {
   return disputeTypes.find((t) => t.value === type)?.label || type
 }
 
-// ============ API 层 ============
+/* ============================================================
+   适配工具：后端真实结构 → 前端视图模型
+   ============================================================ */
+
+/** ISO 时间 → 'YYYY-MM-DD HH:mm'（uni-app 多端无 dayjs 依赖，手写格式化） */
+function fmtTime(iso?: string | null): string {
+  if (!iso) return ''
+  const d = new Date(iso)
+  if (isNaN(d.getTime())) return ''
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
+}
+
+const num = (v: any): number => { const n = Number(v); return isNaN(n) ? 0 : n }
+
+/** 后端短订单号：取 UUID 前 8 位大写，供展示/复制 */
+function shortNo(id: string): string {
+  return id ? id.replace(/-/g, '').slice(0, 12).toUpperCase() : ''
+}
+
+/** 后端 OrderStatus → 前端列表状态枚举 */
+const ORDER_STATUS_MAP: Record<string, OrderStatus> = {
+  PENDING: 'pending_pay', PAID: 'pending_ship', SHIPPED: 'pending_receive',
+  COMPLETED: 'completed', CANCELLED: 'cancelled', REFUNDED: 'after_sale',
+}
+
+/** 后端 orderType（SHOP/MEMBER/BUNDLE）→ 前端统一中心品类 */
+const ORDER_TYPE_CATEGORY: Record<string, OrderCategory> = {
+  SHOP: 'product', MEMBER: 'membership', BUNDLE: 'station', COURSE: 'course',
+}
+
+/** 统一中心状态映射 */
+const UNIFIED_STATUS_MAP: Record<string, UnifiedOrderStatus> = {
+  PENDING: 'pending', PAID: 'paid', SHIPPED: 'paid', COMPLETED: 'completed',
+  CANCELLED: 'cancelled', REFUNDED: 'refunding', CLAIMED: 'completed',
+}
+
+/** 售后/纠纷状态映射（后端 AfterSale.status → 前端 dispute 状态） */
+const AFTERSALE_STATUS_MAP: Record<string, string> = {
+  PENDING: 'pending', PROCESSING: 'processing', APPROVED: 'resolved',
+  COMPLETED: 'resolved', REJECTED: 'rejected', CANCELLED: 'cancelled',
+}
+
+/** 售后/申诉类型 → 中文标签（兼容两套词表：售后方式 refund/return/exchange、申诉原因 not_received 等） */
+const AFTERSALE_TYPE_LABEL: Record<string, string> = {
+  refund: '仅退款', return: '退货退款', exchange: '换货',
+  not_received: '未收到货', not_as_described: '商品不符', quality_issue: '质量问题', other: '其他问题',
+}
+const typeText = (t: string) => AFTERSALE_TYPE_LABEL[t] || t
+
+/** 单条后端订单 → 一条商品行（订单为单商品模型；无商品信息时降级为通用名） */
+function toOrderProduct(o: any): OrderProduct {
+  return {
+    id: o.product?.id || o.targetId || '',
+    name: o.product?.title || '商品',
+    cover: o.product?.cover || '',
+    skuName: o.sku?.skuName || '',
+    price: num(o.payAmount ?? o.amount),
+    quantity: 1,
+  }
+}
+
+function adaptOrderListItem(o: any): OrderListItem {
+  return {
+    id: o.id,
+    orderNo: shortNo(o.id),
+    status: ORDER_STATUS_MAP[o.status] || 'completed',
+    totalAmount: num(o.originalAmount ?? o.amount),
+    payAmount: num(o.payAmount ?? o.amount),
+    createdAt: fmtTime(o.createdAt),
+    paidAt: o.paidAt ? fmtTime(o.paidAt) : undefined,
+    shippedAt: o.shippedAt ? fmtTime(o.shippedAt) : undefined,
+    completedAt: o.completedAt ? fmtTime(o.completedAt) : undefined,
+    products: [toOrderProduct(o)],
+    canCancel: o.status === 'PENDING',
+    canConfirm: o.status === 'SHIPPED',
+    canReview: o.status === 'COMPLETED',
+    hasAfterSale: o.status === 'REFUNDED',
+  }
+}
+
+function adaptOrderDetail(o: any): OrderDetail {
+  const base = adaptOrderListItem(o)
+  return {
+    ...base,
+    // 后端 Order 模型无收货地址/备注字段 → 不提供，详情页 v-if 降级隐藏
+    payMethod: o.payMethod === 'WECHAT' ? '微信支付' : o.payMethod === 'ALIPAY' ? '支付宝' : (o.payMethod || undefined),
+  }
+}
+
+function adaptUnifiedOrder(o: any): UnifiedOrder {
+  const category = ORDER_TYPE_CATEGORY[o.orderType] || 'product'
+  const title = o.title || o.bundle?.name || (o.memberType ? `会员 · ${o.memberType}` : '订单')
+  return {
+    id: o.id,
+    orderNo: shortNo(o.id),
+    category,
+    title,
+    cover: o.cover || undefined,
+    price: num(o.payAmount ?? o.amount),
+    status: UNIFIED_STATUS_MAP[o.status] || 'completed',
+    createdAt: fmtTime(o.createdAt),
+  }
+}
+
+/** 后端 {order, logistics} → 前端 LogisticsDetail */
+function adaptLogistics(orderId: string, raw: any): LogisticsDetail {
+  const lg = raw?.logistics
+  const ord = raw?.order
+  const tracks: LogisticsTrack[] = Array.isArray(lg?.trackingData)
+    ? lg.trackingData
+        .slice()
+        .sort((a: any, b: any) => new Date(b.time).getTime() - new Date(a.time).getTime())
+        .map((t: any, i: number) => ({
+          status: t.status || '',
+          description: t.desc || t.description || '',
+          time: fmtTime(t.time),
+          location: '',
+          isCurrent: i === 0,
+        }))
+    : []
+  const receiverAddr = lg
+    ? [lg.province, lg.city, lg.district, lg.address].filter(Boolean).join('')
+    : ''
+  return {
+    orderId,
+    orderNo: shortNo(orderId),
+    company: lg?.company || '',
+    companyPhone: '', // 后端无承运商客服电话
+    trackingNo: lg?.logisticsNo || '',
+    status: (lg?.status || ord?.status || '').toString().toLowerCase(),
+    courierName: undefined, // 后端无快递员信息（contactName 是收货人，不可混用）
+    courierPhone: undefined,
+    receiver: {
+      name: lg?.contactName || '',
+      phone: lg?.contactPhone || '',
+      address: receiverAddr,
+    },
+    tracks,
+  }
+}
+
+/** 后端 AfterSale(enriched) → 前端纠纷列表项 */
+function adaptDisputeListItem(a: any): DisputeListItem {
+  return {
+    id: a.id,
+    orderId: a.orderId,
+    orderNo: shortNo(a.orderId),
+    type: typeText(a.type),
+    status: AFTERSALE_STATUS_MAP[a.status] || 'pending',
+    productName: a.product?.title || '商品',
+    productCover: a.product?.cover || '',
+    createdAt: fmtTime(a.createdAt),
+  }
+}
+
+/** 由 AfterSale.status 派生时间轴（后端无逐节点时间，按真实状态推进） */
+function buildAfterSaleTimeline(a: any) {
+  const t0 = fmtTime(a.createdAt)
+  const t1 = fmtTime(a.updatedAt)
+  const submitted = { status: 'submitted', title: '提交申请', description: '您已成功提交售后申请', time: t0, isCurrent: false }
+  if (a.status === 'CANCELLED') {
+    return [submitted, { status: 'cancelled', title: '已撤销', description: '您已撤销本次售后申请', time: t1, isCurrent: true }]
+  }
+  if (a.status === 'REJECTED') {
+    return [submitted, { status: 'rejected', title: '审核未通过', description: '商家未通过本次售后申请', time: t1, isCurrent: true }]
+  }
+  const processing = { status: 'processing', title: '商家处理中', description: '商家正在处理您的售后申请', time: t1, isCurrent: a.status === 'PENDING' || a.status === 'PROCESSING' }
+  if (a.status === 'PENDING' || a.status === 'PROCESSING') return [submitted, processing]
+  // APPROVED / COMPLETED
+  return [
+    submitted,
+    { ...processing, isCurrent: false },
+    { status: 'completed', title: '处理完成', description: '售后已处理完成', time: t1, isCurrent: true },
+  ]
+}
+
+function adaptDisputeDetail(a: any): DisputeDetail {
+  const orderBrief: DisputeOrderBrief = {
+    orderId: a.orderId,
+    orderNo: shortNo(a.orderId),
+    productName: a.product?.title || '商品',
+    productCover: a.product?.cover || '',
+    amount: num(a.amount ?? a.order?.amount),
+    createdAt: fmtTime(a.order?.createdAt || a.createdAt),
+  }
+  return {
+    id: a.id,
+    orderId: a.orderId,
+    orderNo: shortNo(a.orderId),
+    type: typeText(a.type),
+    status: AFTERSALE_STATUS_MAP[a.status] || 'pending',
+    description: a.reason || '',
+    images: [],
+    expectation: '',
+    order: orderBrief,
+    timeline: buildAfterSaleTimeline(a),
+    createdAt: fmtTime(a.createdAt),
+    canCancel: a.status === 'PENDING',
+  }
+}
+
+/** 后端 AfterSale(enriched) → 前端退款进度（退款页与纠纷页共用售后子系统） */
+function adaptRefundDetail(a: any): RefundDetail {
+  const statusMap: Record<string, RefundDetail['status']> = {
+    PENDING: 'merchant_review', PROCESSING: 'platform_review',
+    APPROVED: 'refunding', COMPLETED: 'completed', REJECTED: 'submitted', CANCELLED: 'submitted',
+  }
+  const tl = buildAfterSaleTimeline(a)
+  return {
+    id: a.id,
+    orderId: a.orderId,
+    orderNo: shortNo(a.orderId),
+    type: a.type === 'return' ? 'return_refund' : 'refund_only',
+    status: statusMap[a.status] || 'submitted',
+    reason: a.reason || '',
+    amount: num(a.amount ?? a.order?.amount),
+    description: a.reason || '',
+    product: a.product ? { id: a.product.id, name: a.product.title, cover: a.product.cover || '', skuName: '', price: num(a.product.price), quantity: 1 } : undefined,
+    timeline: tl,
+    createdAt: fmtTime(a.createdAt),
+    canCancel: a.status === 'PENDING',
+  }
+}
+
+// ============ API 层（全部真连，错误向上传播由页面三态处理） ============
 
 export const orderApi = {
-  /** 获取订单列表 */
+  /** 我的商品订单列表（前端按 tab 二次过滤，故全量拉取） */
   async list(_status?: string): Promise<OrderListItem[]> {
-    if (true) return _status ? mockOrders.filter(o => o.status === _status) : mockOrders
-    try { return await apiGet<OrderListItem[]>(`/orders${_status ? `?status=${_status}` : ''}`) } catch { return _status ? mockOrders.filter(o => o.status === _status) : mockOrders }
+    const res = await apiGet<{ orders: any[] }>(`/shop/orders/my?page=1&pageSize=100`)
+    return (res?.orders || []).map(adaptOrderListItem)
   },
 
-  /** 取消订单 */
-  async cancel(_orderId: string, _reason?: string): Promise<boolean> {
-    if (true) return true
-    try { await apiPost(`/orders/${_orderId}/cancel`, { reason: _reason }); return true } catch { return false }
+  /** 取消订单（仅待付款可取消，后端校验） */
+  async cancel(orderId: string, _reason?: string): Promise<boolean> {
+    await apiPut(`/shop/orders/${orderId}/cancel`, {})
+    return true
   },
 
-  /** 确认收货 */
-  async confirm(_orderId: string): Promise<boolean> {
-    if (true) return true
-    try { await apiPost(`/orders/${_orderId}/confirm`, {}); return true } catch { return false }
+  /** 确认收货（买家，后端仅放行已发货订单） */
+  async confirm(orderId: string): Promise<boolean> {
+    await apiPost(`/shop/orders/${orderId}/confirm`, {})
+    return true
   },
 
-  /** 获取订单详情 */
-  async detail(_orderId: string): Promise<OrderDetail> {
-    if (true) return mockOrderDetail
-    try { return await apiGet<OrderDetail>(`/orders/${_orderId}`) } catch { return mockOrderDetail }
+  /** 订单详情 */
+  async detail(orderId: string): Promise<OrderDetail> {
+    const o = await apiGet<any>(`/shop/orders/${orderId}`)
+    return adaptOrderDetail(o)
   },
 
-  /** 获取统一订单中心 */
+  /** 统一订单中心（商城+会员+权益包，跨品类聚合） */
   async center(_category?: string): Promise<UnifiedOrder[]> {
-    if (true) return _category && _category !== 'all' ? mockUnifiedOrders.filter(o => o.category === _category) : mockUnifiedOrders
-    try { return await apiGet<UnifiedOrder[]>(`/orders/center${_category ? `?category=${_category}` : ''}`) } catch { return _category && _category !== 'all' ? mockUnifiedOrders.filter(o => o.category === _category) : mockUnifiedOrders }
+    const res = await apiGet<{ orders: any[] }>(`/orders/my?page=1&pageSize=100`)
+    return (res?.orders || []).map(adaptUnifiedOrder)
   },
 
-  /** 获取物流详情 */
-  async logistics(_orderId: string): Promise<LogisticsDetail> {
-    if (true) return mockLogistics
-    try { return await apiGet<LogisticsDetail>(`/orders/${_orderId}/logistics`) } catch { return mockLogistics }
+  /** 物流详情 */
+  async logistics(orderId: string): Promise<LogisticsDetail> {
+    const raw = await apiGet<any>(`/shop/orders/${orderId}/logistics`)
+    return adaptLogistics(orderId, raw)
   },
 
-  /** 提交评价 */
-  async submitReview(_orderId: string, _items: { productId: string; rating: number; tags: string[]; content: string }[]): Promise<boolean> {
-    if (true) return true
-    try { await apiPost(`/orders/${_orderId}/review`, { items: _items }); return true } catch { return false }
+  /** 加载订单可评价商品（评价页用，来自订单详情） */
+  async reviewItems(orderId: string): Promise<ReviewItem[]> {
+    const o = await apiGet<any>(`/shop/orders/${orderId}`)
+    return (adaptOrderDetail(o).products || []).map((p) => ({ id: p.id, name: p.name, cover: p.cover }))
   },
 
-  /** 获取可开票订单 */
+  /** 提交评价（按商品逐条提交至 /shop/products/:id/reviews，tags 并入内容） */
+  async submitReview(_orderId: string, items: { productId: string; rating: number; tags: string[]; content: string }[]): Promise<boolean> {
+    for (const it of items) {
+      if (!it.productId) continue
+      const tagPrefix = it.tags?.length ? `【${it.tags.join('·')}】` : ''
+      await apiPost(`/shop/products/${it.productId}/reviews`, {
+        rating: it.rating,
+        content: `${tagPrefix}${it.content || '用户未填写文字评价'}`.slice(0, 500),
+      })
+    }
+    return true
+  },
+
+  /** —— 发票：后端暂无电子发票子系统，诚实降级（返回空，页面展示"即将开放"） —— */
   async getInvoiceOrders(): Promise<InvoiceOrder[]> {
-    if (true) return mockInvoiceOrders
-    try { return await apiGet<InvoiceOrder[]>('/orders/invoice/orders') } catch { return mockInvoiceOrders }
+    return []
   },
-
-  /** 获取发票记录 */
   async getInvoices(): Promise<InvoiceRecord[]> {
-    if (true) return mockInvoices
-    try { return await apiGet<InvoiceRecord[]>('/orders/invoice') } catch { return mockInvoices }
+    return []
+  },
+  async applyInvoice(_orderIds?: string[], _type?: 'personal' | 'company', _title?: string, _email?: string, _taxNumber?: string): Promise<boolean> {
+    throw new Error('电子发票功能即将开放，如需发票请联系在线客服')
   },
 
-  /** 申请开票 */
-  async applyInvoice(_orderIds: string[], _type: 'personal' | 'company', _title: string, _email: string, _taxNumber?: string): Promise<boolean> {
-    if (true) return true
-    try { await apiPost('/orders/invoice', { orderIds: _orderIds, type: _type, title: _title, email: _email, taxNumber: _taxNumber }); return true } catch { return false }
+  /** 退款进度（按 orderId 在用户售后单中匹配最新一条） */
+  async refundProgress(orderId: string): Promise<RefundDetail> {
+    const res = await apiGet<any>(`/shop/after-sales?page=1&pageSize=100`)
+    const list = Array.isArray(res) ? res : (res?.items || [])
+    const matched = orderId ? list.find((a: any) => a.orderId === orderId) : list[0]
+    if (!matched) throw new Error('暂无该订单的退款记录')
+    return adaptRefundDetail(matched)
   },
 
-  /** 获取退款进度 */
-  async refundProgress(_orderId: string): Promise<RefundDetail> {
-    if (true) return mockRefund
-    try { return await apiGet<RefundDetail>(`/orders/${_orderId}/refund`) } catch { return mockRefund }
+  /** 纠纷/售后：创建表单的订单简要（来自订单详情） */
+  async getDisputeOrder(orderId: string): Promise<DisputeOrderBrief> {
+    if (!orderId) throw new Error('缺少订单信息')
+    const o = await apiGet<any>(`/shop/orders/${orderId}`)
+    const p = o.product
+    return {
+      orderId: o.id,
+      orderNo: shortNo(o.id),
+      productName: p?.title || '商品',
+      productCover: p?.cover || '',
+      amount: num(o.payAmount ?? o.amount),
+      createdAt: fmtTime(o.createdAt),
+    }
   },
 
-  /** 获取纠纷订单 */
-  async getDisputeOrder(_orderId: string) {
-    if (true) return mockDisputeOrder
-    try { return await apiGet(`/orders/${_orderId}/dispute-order`) } catch { return mockDisputeOrder }
-  },
-
-  /** 获取纠纷列表 */
+  /** 我的纠纷/售后列表 */
   async getDisputes(): Promise<DisputeListItem[]> {
-    if (true) return mockMyDisputes
-    try { return await apiGet<DisputeListItem[]>('/orders/disputes') } catch { return mockMyDisputes }
+    const res = await apiGet<any>(`/shop/after-sales?page=1&pageSize=100`)
+    const list = Array.isArray(res) ? res : (res?.items || [])
+    return list.map(adaptDisputeListItem)
   },
 
-  /** 获取纠纷详情 */
-  async disputeDetail(_disputeId: string): Promise<DisputeDetail> {
-    if (true) return mockDisputeDetail
-    try { return await apiGet<DisputeDetail>(`/orders/disputes/${_disputeId}`) } catch { return mockDisputeDetail }
+  /** 纠纷/售后详情 */
+  async disputeDetail(disputeId: string): Promise<DisputeDetail> {
+    const a = await apiGet<any>(`/shop/after-sales/${disputeId}`)
+    return adaptDisputeDetail(a)
   },
 
-  /** 提交纠纷申诉 */
-  async submitDispute(_orderId: string, _type: string, _description: string, _expectation: string, _images?: string[]): Promise<boolean> {
-    if (true) return true
-    try { await apiPost('/orders/disputes', { orderId: _orderId, type: _type, description: _description, expectation: _expectation, images: _images }); return true } catch { return false }
+  /** 提交纠纷/售后申请（映射至订单售后；description+expectation 合并为 reason） */
+  async submitDispute(orderId: string, type: string, description: string, expectation: string, _images?: string[]): Promise<boolean> {
+    if (!orderId) throw new Error('缺少订单信息')
+    const reason = [getDisputeTypeLabel(type), description, expectation ? `期望：${expectation}` : '']
+      .filter(Boolean).join('；').slice(0, 500)
+    await apiPost(`/shop/orders/${orderId}/after-sale`, { type, reason })
+    return true
   },
 
-  /** 取消纠纷 */
-  async cancelDispute(_disputeId: string): Promise<boolean> {
-    if (true) return true
-    try { await apiPost(`/orders/disputes/${_disputeId}/cancel`, {}); return true } catch { return false }
+  /** 撤销纠纷/售后申请 */
+  async cancelDispute(disputeId: string): Promise<boolean> {
+    await apiPut(`/shop/after-sales/${disputeId}/cancel`, {})
+    return true
   },
 }

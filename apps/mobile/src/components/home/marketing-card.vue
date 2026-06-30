@@ -58,7 +58,7 @@ onUnmounted(() => {
 .deco-2 { right: -16rpx; bottom: 0; width: 128rpx; height: 128rpx; opacity: 0.08; }
 .left { position: relative; z-index: 1; flex: 1; min-width: 0; }
 .label {
-  display: inline-block; font-size: 18rpx; font-weight: 700; color: #c41e3a;
+  display: inline-block; font-size: 18rpx; font-weight: 700; color: var(--brand);
   padding: 4rpx 12rpx; border-radius: 999rpx; margin-bottom: 8rpx;
 }
 .title {

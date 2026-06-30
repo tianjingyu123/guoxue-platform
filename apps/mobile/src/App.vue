@@ -1,10 +1,42 @@
 <script setup lang="ts">
-import { onLaunch, onShow } from '@dcloudio/uni-app'
+import { onLaunch, onShow, onHide, onError } from '@dcloudio/uni-app'
+import { track } from '@/composables/useTrack'
+
+/** 从跳转参数中取出页面路径（去 query），用于全局 page_view 埋点 */
+function pickUrl(args: any): string {
+  const url = typeof args === 'string' ? args : args?.url
+  return url ? String(url).split('?')[0] : ''
+}
 
 onLaunch(() => {
-  // 应用启动：可在此做登录态检查、版本检查等
+  // 全局路由埋点：拦截四类跳转，统一上报 page_view（一处接入、全局覆盖，无需逐页改）
+  ;['navigateTo', 'redirectTo', 'reLaunch', 'switchTab'].forEach((api) => {
+    uni.addInterceptor(api, {
+      invoke(args: any) {
+        // 埋点拦截器自身异常绝不能影响跳转放行
+        try {
+          const path = pickUrl(args)
+          if (path) track.pageView(path)
+        } catch {
+          /* 埋点失败静默忽略 */
+        }
+        // 不返回 false，正常放行跳转
+      },
+    })
+  })
 })
 onShow(() => {})
+// 切后台主动 flush 埋点队列，避免残留事件丢失
+onHide(() => { track.flushNow() })
+// 全局未捕获错误兜底（小程序/App 运行时错误、未处理 Promise rejection）
+onError((err) => {
+  console.error('[App.onError]', err)
+  try {
+    track.custom('error', { msg: String(err), source: 'app' })
+  } catch {
+    /* 上报失败不影响主流程 */
+  }
+})
 </script>
 
 <template>

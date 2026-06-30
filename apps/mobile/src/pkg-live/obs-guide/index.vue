@@ -197,7 +197,7 @@ function goCreate() {
   height: 64rpx;
   border-radius: 50%;
   background: rgba(196, 30, 58, 0.1);
-  color: #C41E3A;
+  color: var(--brand);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -236,7 +236,7 @@ function goCreate() {
 }
 .step-action-txt {
   font-size: 24rpx;
-  color: #C41E3A;
+  color: var(--brand);
   font-weight: 500;
 }
 
@@ -297,7 +297,7 @@ function goCreate() {
 }
 .faq-badge.q {
   background: rgba(196, 30, 58, 0.1);
-  color: #C41E3A;
+  color: var(--brand);
 }
 .faq-badge.a {
   background: #dcfce7;
@@ -320,7 +320,7 @@ function goCreate() {
 .cta {
   margin-top: 48rpx;
   height: 96rpx;
-  background: #C41E3A;
+  background: var(--brand);
   border-radius: 16rpx;
   display: flex;
   align-items: center;

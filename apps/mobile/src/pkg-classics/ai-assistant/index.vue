@@ -9,8 +9,8 @@
         <text class="ai-hd-title">古籍AI助手</text>
         <text class="ai-hd-sub">内容由AI生成</text>
       </view>
-      <view class="ai-hd-btn">
-        <app-icon name="history" :size="40" color="#1a1a1a" />
+      <view class="ai-hd-btn" @tap="clearChat">
+        <app-icon name="trash-2" :size="36" color="#1a1a1a" />
       </view>
     </view>
 
@@ -18,36 +18,6 @@
     <scroll-view class="ai-body" scroll-y :scroll-into-view="scrollAnchor">
       <!-- 空状态 -->
       <view v-if="messages.length === 0" class="ai-empty">
-        <!-- 最近一次AI回复（模拟） -->
-        <view class="ai-card">
-          <text class="ai-card-text">刃"的高超创作技艺——全书虽完全以虚构笔法展开，却做到了数万字内容境界不重复、主旨不偏离，兼具可读性与思想启发性，进一步印证了本篇对《西游记》艺术价值的评价。</text>
-          <view class="ai-card-ops">
-            <view class="ai-op"><app-icon name="rotate-ccw" :size="28" color="#999999" /></view>
-            <view class="ai-op"><app-icon name="thumbs-up" :size="28" color="#999999" /></view>
-            <view class="ai-op"><app-icon name="thumbs-down" :size="28" color="#999999" /></view>
-            <view class="ai-op"><app-icon name="copy" :size="28" color="#999999" /></view>
-          </view>
-        </view>
-
-        <!-- 相关问题 -->
-        <view class="ai-qlist">
-          <view
-            v-for="(q, i) in relatedQuestions"
-            :key="'r' + i"
-            class="ai-related-q"
-            @tap="pickQuestion(q)"
-          >
-            <text class="ai-related-q-text">{{ q }}</text>
-          </view>
-        </view>
-
-        <!-- 分隔线 -->
-        <view class="ai-divider">
-          <view class="ai-divider-line" />
-          <text class="ai-divider-text">聊聊新话题</text>
-          <view class="ai-divider-line" />
-        </view>
-
         <!-- AI介绍卡片 -->
         <view class="ai-intro">
           <view class="ai-intro-head">
@@ -56,10 +26,10 @@
             </view>
             <view>
               <text class="ai-intro-title">Hi~我是古籍AI助手</text>
-              <text class="ai-intro-desc">熟悉古籍内容，善于解释概念</text>
+              <text class="ai-intro-desc">贯通经史子集，为你白话解读古籍疑难</text>
             </view>
           </view>
-          <text class="ai-intro-tip">有什么问题都可以问我哦！</text>
+          <text class="ai-intro-tip">有什么关于古籍和传统文化的问题，都可以问我哦！</text>
         </view>
 
         <!-- 快捷问题 -->
@@ -95,10 +65,10 @@
               <text class="ai-card-text">{{ m.content }}</text>
             </view>
             <view class="ai-card-ops ai-card-ops--bare">
-              <view class="ai-op"><app-icon name="rotate-ccw" :size="28" color="#999999" /></view>
-              <view class="ai-op"><app-icon name="thumbs-up" :size="28" :color="liked[m.id] === true ? '#22c55e' : '#999999'" /></view>
-              <view class="ai-op"><app-icon name="thumbs-down" :size="28" :color="liked[m.id] === false ? '#ef4444' : '#999999'" /></view>
-              <view class="ai-op"><app-icon name="copy" :size="28" color="#999999" /></view>
+              <view class="ai-op" @tap="regenerate"><app-icon name="rotate-ccw" :size="28" color="#999999" /></view>
+              <view class="ai-op" @tap="rate(m.id, true)"><app-icon name="thumbs-up" :size="28" :color="liked[m.id] === true ? '#22c55e' : '#999999'" /></view>
+              <view class="ai-op" @tap="rate(m.id, false)"><app-icon name="thumbs-down" :size="28" :color="liked[m.id] === false ? '#ef4444' : '#999999'" /></view>
+              <view class="ai-op" @tap="copyMsg(m.content)"><app-icon name="copy" :size="28" color="#999999" /></view>
             </view>
           </view>
         </view>
@@ -136,9 +106,6 @@
           :auto-height="true"
           :show-confirm-bar="false"
         />
-        <view class="ai-mic">
-          <app-icon name="mic" :size="32" color="#999999" />
-        </view>
       </view>
       <view
         class="ai-send"
@@ -154,6 +121,8 @@
 <script setup lang="ts">
 import { ref, nextTick } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import { classicsApi } from '@/lib/classics-data'
+import { getToken } from '@/utils/storage'
 
 interface ChatMessage {
   id: string
@@ -162,15 +131,10 @@ interface ChatMessage {
 }
 
 const suggestedQuestions = [
-  '请总结本文的主要内容？',
-  '针对本文可以提出哪些研究问题？',
-  '古籍中有哪些和本文相关的论述？',
-]
-
-const relatedQuestions = [
-  '《李卓吾先生批评西游记》甲本卷首题辞中提到的"魔非他，即我也"这一观点，在明代其他《西游记》评点本中是否有类似表述？',
-  '《李卓吾先生批评西游记》另一刊本卷首题辞补充的对后世模拟创作的批评，具体涉及哪些明代文人的作品？',
-  '《李卓吾先生批评西游记》乙本题辞中的文字异文（如"引而伸之"写为"多而伸之"），在其他明代通俗文学刊本中是否常见？',
+  '《论语》中“仁”到底是什么意思？',
+  '儒家、道家、佛家的核心区别是什么？',
+  '《周易》的六十四卦是怎么来的？',
+  '想入门国学，应从哪几部经典读起？',
 ]
 
 const messages = ref<ChatMessage[]>([])
@@ -180,11 +144,18 @@ const liked = ref<Record<string, boolean | null>>({})
 const scrollAnchor = ref('')
 
 function goBack() {
-  uni.navigateBack()
+  uni.navigateBack({ fail: () => uni.navigateTo({ url: '/pkg-classics/home/index' }) })
 }
 
 function pickQuestion(q: string) {
   inputValue.value = q
+}
+
+function clearChat() {
+  if (!messages.value.length) return
+  uni.showModal({
+    title: '清空对话', content: '确定清空当前对话记录吗？', confirmColor: '#C41E3A', success: (r) => { if (r.confirm) messages.value = [] },
+  })
 }
 
 function scrollToBottom() {
@@ -196,39 +167,46 @@ function scrollToBottom() {
   })
 }
 
-function generateAIResponse(question: string): string {
-  if (question.includes('主要内容') || question.includes('总结')) {
-    return '《周易》是中国古代哲学的重要经典，主要包含以下核心内容：\n\n1. 卦象系统：由八卦（乾、坤、震、巽、坎、离、艮、兑）演化为六十四卦，每卦由六个爻组成。\n\n2. 阴阳哲学：以阴阳二元对立统一的思想解释宇宙万物的变化规律。\n\n3. 占卜方法：通过蓍草或铜钱等工具，按特定程序得出卦象，用于预测吉凶。\n\n4. 人生智慧：蕴含修身、齐家、治国的哲理，如"天行健，君子以自强不息"等名言。'
-  }
-  if (question.includes('研究问题')) {
-    return '针对《周易》可以提出以下研究问题：\n\n1. 《周易》的成书年代和作者问题，伏羲画卦、文王演易、孔子作传的传说是否有历史依据？\n\n2. 《周易》与西方占星术、塔罗牌等预测体系在方法论上的异同比较。\n\n3. 《周易》的数学结构——64卦与二进制的关系是否体现了古人对数学的深刻理解？\n\n4. 《周易》在中医、风水、命理等领域的应用发展史研究。'
-  }
-  return '感谢您的提问。根据古籍记载和学术研究，这是一个非常值得深入探讨的话题。《周易》作为群经之首，其思想内涵极为丰富，涵盖了宇宙观、人生观、方法论等多个层面。\n\n如需了解更具体的内容，您可以进一步询问特定的卦象解读、历史背景或哲学意义等方面。'
+function ensureLogin(): boolean {
+  if (getToken()) return true
+  uni.showModal({
+    title: '需要登录', content: '登录后即可与古籍AI助手对话', confirmText: '去登录',
+    success: (r) => { if (r.confirm) uni.navigateTo({ url: '/pkg-auth/login/index' }) },
+  })
+  return false
 }
 
-function handleSend() {
+async function handleSend() {
   const text = inputValue.value.trim()
   if (!text || isLoading.value) return
+  if (!ensureLogin()) return
 
-  const userMsg: ChatMessage = {
-    id: Date.now().toString(),
-    role: 'user',
-    content: text,
-  }
-  messages.value.push(userMsg)
+  messages.value.push({ id: Date.now().toString(), role: 'user', content: text })
   inputValue.value = ''
   isLoading.value = true
   scrollToBottom()
 
-  setTimeout(() => {
-    messages.value.push({
-      id: (Date.now() + 1).toString(),
-      role: 'assistant',
-      content: generateAIResponse(userMsg.content),
-    })
+  try {
+    const r = await classicsApi.askAI(text)
+    messages.value.push({ id: (Date.now() + 1).toString(), role: 'assistant', content: r?.answer || '抱歉，我暂时无法回答这个问题。' })
+  } catch (e: any) {
+    messages.value.push({ id: (Date.now() + 1).toString(), role: 'assistant', content: e?.message || 'AI 暂时无法回答，请稍后重试。' })
+  } finally {
     isLoading.value = false
     scrollToBottom()
-  }, 1500)
+  }
+}
+
+function copyMsg(content: string) {
+  uni.setClipboardData({ data: content, success: () => uni.showToast({ title: '已复制', icon: 'none' }) })
+}
+function rate(id: string, val: boolean) {
+  liked.value[id] = liked.value[id] === val ? null : val
+}
+function regenerate() {
+  if (isLoading.value) return
+  const lastUser = [...messages.value].reverse().find((m) => m.role === 'user')
+  if (lastUser) { inputValue.value = lastUser.content; handleSend() }
 }
 </script>
 
@@ -433,7 +411,7 @@ function handleSend() {
 }
 .ai-bubble-user {
   max-width: 85%;
-  background: #c41e3a;
+  background: var(--brand);
   border-radius: 32rpx;
   border-top-right-radius: 8rpx;
   padding: 24rpx 32rpx;

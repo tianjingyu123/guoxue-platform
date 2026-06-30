@@ -43,8 +43,15 @@
     </view>
 
     <scroll-view scroll-y class="body">
+      <!-- 未登录态 -->
+      <view v-if="notLoggedIn" class="empty">
+        <AppIcon name="message-square" :size="96" :color="C.slate200" />
+        <text class="empty-title">登录后查看笔记</text>
+        <text class="empty-sub">登录即可同步你的读书笔记与划线</text>
+        <view class="empty-btn" @tap="goLogin"><text class="empty-btn-tx">去登录</text></view>
+      </view>
       <!-- 加载态 -->
-      <view v-if="loading" class="empty">
+      <view v-else-if="loading" class="empty">
         <text class="empty-title">加载中...</text>
       </view>
       <!-- 错误态 -->
@@ -122,6 +129,7 @@ import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { ebookApi, type EbookNote, type EbookNoteType } from '@/lib/ebook-data'
+import { getToken } from '@/utils/storage'
 
 const C = {
   text: '#1e293b', textSoft: '#64748b', primary: '#2563eb', amber: '#f59e0b',
@@ -137,11 +145,15 @@ const filterTabs: { id: FilterType; label: string }[] = [
 
 const loading = ref(true)
 const error = ref('')
+const notLoggedIn = ref(false)
 const search = ref('')
 const filter = ref<FilterType>('all')
 const items = ref<EbookNote[]>([])
+const deletingId = ref('')
 
 async function fetchData() {
+  if (!getToken()) { notLoggedIn.value = true; loading.value = false; return }
+  notLoggedIn.value = false
   loading.value = true
   error.value = ''
   try {
@@ -174,8 +186,21 @@ const groupedKeys = computed(() => grouped.value.map((g) => g.bookId))
 const totalNotes = computed(() => items.value.filter((n) => n.type === 'note').length)
 const totalHighlights = computed(() => items.value.filter((n) => n.type === 'highlight').length)
 
-function del(id: string) {
-  items.value = items.value.filter((n) => n.id !== id)
+async function del(id: string) {
+  if (deletingId.value) return
+  deletingId.value = id
+  try {
+    await ebookApi.removeNote(id)
+    items.value = items.value.filter((n) => n.id !== id)
+    uni.showToast({ title: '已删除', icon: 'none' })
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '删除失败', icon: 'none' })
+  } finally {
+    deletingId.value = ''
+  }
+}
+function goLogin() {
+  uni.navigateTo({ url: '/pkg-auth/login/index' })
 }
 function goBack() {
   uni.navigateBack()

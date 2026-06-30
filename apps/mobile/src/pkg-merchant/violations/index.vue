@@ -12,109 +12,113 @@
     </view>
 
     <scroll-view scroll-y class="scroll" :style="{ top: navH + 'px' }">
-      <!-- 违规概览 -->
-      <view class="overview-wrap">
-        <view class="card">
-          <view class="ov-head">
-            <view>
-              <text class="ov-label">店铺扣分</text>
-              <view class="ov-score-row">
-                <text class="ov-score">{{ stats.score }}</text>
-                <text class="ov-max">/ {{ stats.maxScore }}分</text>
-              </view>
-            </view>
-            <view class="ov-circle" :style="{ background: levelBg }">
-              <text class="ov-circle-text" :style="{ color: levelColor }">{{ levelLabel }}</text>
-            </view>
-          </view>
-          <!-- 进度条 -->
-          <view class="progress-track">
-            <view class="progress-fill" :style="{ width: scorePercent + '%', background: levelColor }" />
-          </view>
-          <view class="ov-foot">
-            <view class="ov-foot-item">
-              <text class="ov-foot-label">违规次数</text>
-              <text class="ov-foot-val">{{ stats.total }}</text>
-            </view>
-            <view class="ov-foot-item">
-              <text class="ov-foot-label">待处理</text>
-              <text class="ov-foot-val ov-foot-danger">{{ stats.pending }}</text>
-            </view>
-          </view>
-        </view>
-
-        <!-- 扣分说明 -->
-        <view class="info-card">
-          <AppIcon name="info" :size="16" color="#d97706" />
-          <view class="info-text-wrap">
-            <text class="info-text">扣分满48分将被暂停营业资格，每季度初清零一次。</text>
-            <text class="info-text info-text-2">如有异议可在收到通知后3天内提交申诉。</text>
-          </view>
-        </view>
+      <!-- Loading -->
+      <view v-if="loading" class="state">
+        <text class="state-text">加载中…</text>
+      </view>
+      <!-- Error -->
+      <view v-else-if="error" class="state">
+        <AppIcon name="alert-circle" :size="40" color="#dc2626" />
+        <text class="state-text">{{ error }}</text>
+        <view class="state-btn" @tap="load"><text class="state-btn-text">重试</text></view>
       </view>
 
-      <!-- 违规记录 -->
-      <view class="record-wrap">
-        <text class="section-title">违规记录</text>
-        <view class="record-list">
-          <view v-for="v in violations" :key="v.id" class="record-card">
-            <view class="record-row">
-              <view class="record-icon" :style="{ background: typeConfig[v.type].bg }">
-                <AppIcon :name="typeConfig[v.type].icon" :size="20" :color="typeConfig[v.type].color" />
+      <template v-else>
+        <!-- 违规概览（由已加载记录真实聚合） -->
+        <view class="overview-wrap">
+          <view class="card">
+            <view class="ov-stats">
+              <view class="ov-stat">
+                <text class="ov-stat-val">{{ totalCount }}</text>
+                <text class="ov-stat-label">违规次数</text>
               </view>
-              <view class="record-body">
-                <view class="record-title-row">
-                  <text class="record-title">{{ v.title }}</text>
-                  <view class="record-status" :style="{ background: statusConfig[v.status].bg }">
-                    <text class="record-status-text" :style="{ color: statusConfig[v.status].color }">{{ statusConfig[v.status].label }}</text>
-                  </view>
+              <view class="ov-stat">
+                <text class="ov-stat-val ov-danger">{{ pendingCount }}</text>
+                <text class="ov-stat-label">待处理</text>
+              </view>
+              <view class="ov-stat">
+                <text class="ov-stat-val">¥{{ totalPenalty }}</text>
+                <text class="ov-stat-label">累计罚款</text>
+              </view>
+            </view>
+          </view>
+
+          <!-- 说明 -->
+          <view class="info-card">
+            <AppIcon name="info" :size="16" color="#d97706" />
+            <view class="info-text-wrap">
+              <text class="info-text">如对违规判定有异议，可对「待处理」记录提交申诉，平台将复核处理。</text>
+            </view>
+          </view>
+        </view>
+
+        <!-- 违规记录 -->
+        <view class="record-wrap">
+          <text class="section-title">违规记录</text>
+
+          <view v-if="violations.length === 0" class="empty">
+            <view class="empty-icon">
+              <AppIcon name="shield-alert" :size="32" color="#16a34a" />
+            </view>
+            <text class="empty-text">暂无违规记录，继续保持！</text>
+          </view>
+
+          <view v-else class="record-list">
+            <view v-for="v in violations" :key="v.id" class="record-card">
+              <view class="record-row">
+                <view class="record-icon" :style="{ background: typeConfig[v.type]?.bg }">
+                  <AppIcon :name="typeConfig[v.type]?.icon || 'alert-circle'" :size="20" :color="typeConfig[v.type]?.color" />
                 </view>
-                <text class="record-desc">{{ v.description }}</text>
-                <view class="record-meta">
-                  <text v-if="v.productTitle" class="record-meta-text">商品: {{ v.productTitle }}</text>
-                  <text v-if="v.orderNo" class="record-meta-text">订单: {{ v.orderNo }}</text>
-                </view>
-                <view class="record-penalty">
-                  <text class="record-penalty-text">处罚: {{ v.penalty }}</text>
-                </view>
-                <view class="record-foot">
-                  <text class="record-time">{{ v.createdAt }}</text>
-                  <view v-if="v.status === 'pending'" class="record-actions">
-                    <view class="rbtn rbtn-outline" @tap="onAppeal">
-                      <text class="rbtn-outline-text">申诉</text>
+                <view class="record-body">
+                  <view class="record-title-row">
+                    <text class="record-title">{{ v.title }}</text>
+                    <view class="record-status" :style="{ background: statusConfig[v.status]?.bg }">
+                      <text class="record-status-text" :style="{ color: statusConfig[v.status]?.color }">{{ statusConfig[v.status]?.label || v.status }}</text>
                     </view>
-                    <view class="rbtn rbtn-primary" @tap="onHandle">
-                      <text class="rbtn-primary-text">去处理</text>
+                  </view>
+                  <text class="record-desc">{{ v.description }}</text>
+                  <view v-if="Number(v.penalty) > 0" class="record-penalty">
+                    <text class="record-penalty-text">罚款: ¥{{ Number(v.penalty) }}</text>
+                  </view>
+
+                  <!-- 已申诉：展示申诉内容 -->
+                  <view v-if="v.appeal" class="appeal-box">
+                    <view class="appeal-head">
+                      <AppIcon name="message-square" :size="14" color="#2563eb" />
+                      <text class="appeal-tag">我的申诉</text>
+                      <text v-if="v.appealAt" class="appeal-time">{{ formatDate(v.appealAt) }}</text>
+                    </view>
+                    <text class="appeal-text">{{ v.appeal }}</text>
+                  </view>
+
+                  <view class="record-foot">
+                    <text class="record-time">{{ formatDate(v.createdAt) }}</text>
+                    <view v-if="v.status === 'PENDING' && !v.appeal" class="record-actions">
+                      <view class="rbtn rbtn-outline" :class="{ 'rbtn-disabled': submittingId === v.id }" @tap="onAppeal(v)">
+                        <text class="rbtn-outline-text">{{ submittingId === v.id ? '提交中...' : '申诉' }}</text>
+                      </view>
                     </view>
                   </view>
-                  <text v-else class="record-processed">处理时间: {{ v.processedAt }}</text>
                 </view>
               </view>
             </view>
           </view>
         </view>
-
-        <view v-if="violations.length === 0" class="empty">
-          <view class="empty-icon">
-            <AppIcon name="shield-alert" :size="32" color="#16a34a" />
-          </view>
-          <text class="empty-text">暂无违规记录，继续保持！</text>
-        </view>
-      </view>
-      <view style="height: 40px" />
+        <view style="height: 40px" />
+      </template>
     </scroll-view>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
 import {
-  merchantViolationStats,
-  merchantViolations,
+  merchantBackendApi,
   violationTypeConfig,
   violationStatusConfig,
+  type MerchantViolation,
 } from '@/lib/merchant-data'
 
 const statusBarHeight = ref(20)
@@ -126,22 +130,64 @@ uni.getSystemInfo({
   },
 })
 
-const stats = merchantViolationStats
-const violations = merchantViolations
 const typeConfig = violationTypeConfig
 const statusConfig = violationStatusConfig
 
-const scorePercent = computed(() => (stats.score / stats.maxScore) * 100)
-const levelLabel = computed(() => (scorePercent.value > 50 ? '警告' : scorePercent.value > 25 ? '注意' : '良好'))
-const levelColor = computed(() => (scorePercent.value > 50 ? '#dc2626' : scorePercent.value > 25 ? '#d97706' : '#16a34a'))
-const levelBg = computed(() => (scorePercent.value > 50 ? '#fee2e2' : scorePercent.value > 25 ? '#fef3c7' : '#dcfce7'))
+const violations = ref<MerchantViolation[]>([])
+const loading = ref(true)
+const error = ref('')
+const submittingId = ref('')
 
-function onAppeal() {
-  uni.showToast({ title: '申诉功能开发中', icon: 'none' })
+const totalCount = computed(() => violations.value.length)
+const pendingCount = computed(() => violations.value.filter((v) => v.status === 'PENDING').length)
+const totalPenalty = computed(() => violations.value.reduce((s, v) => s + Number(v.penalty || 0), 0))
+
+function formatDate(t?: string | null) {
+  if (!t) return ''
+  return String(t).slice(0, 10)
 }
-function onHandle() {
-  uni.showToast({ title: '处理功能开发中', icon: 'none' })
+
+async function load() {
+  loading.value = true
+  error.value = ''
+  try {
+    const res = await merchantBackendApi.getViolations({ page: 1, pageSize: 100 })
+    violations.value = res.items
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
 }
+
+function onAppeal(v: MerchantViolation) {
+  if (submittingId.value) return
+  uni.showModal({
+    title: '提交申诉',
+    editable: true,
+    placeholderText: '请输入申诉理由…',
+    success: async (r) => {
+      if (!r.confirm) return
+      const text = (r.content || '').trim()
+      if (!text) {
+        uni.showToast({ title: '请输入申诉理由', icon: 'none' })
+        return
+      }
+      submittingId.value = v.id
+      try {
+        await merchantBackendApi.appealViolation(v.id, text)
+        uni.showToast({ title: '申诉已提交', icon: 'success' })
+        await load()
+      } catch (e: any) {
+        uni.showToast({ title: e?.message || '提交失败', icon: 'none' })
+      } finally {
+        submittingId.value = ''
+      }
+    },
+  })
+}
+
+onMounted(load)
 </script>
 
 <style scoped>
@@ -155,25 +201,15 @@ function onHandle() {
 
 .overview-wrap { padding: 16px; }
 .card { background: #fff; border-radius: 12px; padding: 16px; }
-.ov-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
-.ov-label { font-size: 13px; color: #9ca3af; }
-.ov-score-row { display: flex; align-items: baseline; gap: 4px; margin-top: 4px; }
-.ov-score { font-size: 30px; font-weight: 700; color: #1f1f1f; }
-.ov-max { font-size: 13px; color: #9ca3af; }
-.ov-circle { width: 64px; height: 64px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
-.ov-circle-text { font-size: 17px; font-weight: 700; }
-.progress-track { width: 100%; height: 8px; background: #f3f4f6; border-radius: 999px; overflow: hidden; }
-.progress-fill { height: 100%; border-radius: 999px; }
-.ov-foot { display: flex; align-items: center; gap: 16px; margin-top: 16px; }
-.ov-foot-item { display: flex; align-items: center; gap: 4px; }
-.ov-foot-label { font-size: 13px; color: #9ca3af; }
-.ov-foot-val { font-size: 13px; font-weight: 500; color: #1f1f1f; }
-.ov-foot-danger { color: #dc2626; }
+.ov-stats { display: flex; align-items: center; }
+.ov-stat { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.ov-stat-val { font-size: 24px; font-weight: 700; color: #1f1f1f; }
+.ov-danger { color: #dc2626; }
+.ov-stat-label { font-size: 12px; color: #9ca3af; }
 
 .info-card { display: flex; align-items: flex-start; gap: 8px; margin-top: 12px; padding: 12px; background: #fffbeb; border: 1px solid rgba(217, 119, 6, 0.2); border-radius: 12px; }
 .info-text-wrap { flex: 1; }
 .info-text { font-size: 12px; color: #6b7280; line-height: 1.5; display: block; }
-.info-text-2 { margin-top: 4px; }
 
 .record-wrap { padding: 0 16px; }
 .section-title { font-size: 15px; font-weight: 500; color: #1f1f1f; display: block; margin-bottom: 12px; }
@@ -182,26 +218,32 @@ function onHandle() {
 .record-row { display: flex; align-items: flex-start; gap: 12px; }
 .record-icon { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .record-body { flex: 1; min-width: 0; }
-.record-title-row { display: flex; align-items: center; justify-content: space-between; }
-.record-title { font-size: 15px; font-weight: 500; color: #1f1f1f; }
-.record-status { padding: 2px 8px; border-radius: 6px; }
+.record-title-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.record-title { font-size: 15px; font-weight: 500; color: #1f1f1f; flex: 1; }
+.record-status { padding: 2px 8px; border-radius: 6px; flex-shrink: 0; }
 .record-status-text { font-size: 10px; }
 .record-desc { font-size: 13px; color: #6b7280; margin-top: 4px; display: block; }
-.record-meta { margin-top: 8px; }
-.record-meta-text { font-size: 12px; color: #9ca3af; display: block; }
 .record-penalty { margin-top: 8px; padding: 8px; background: #fef2f2; border-radius: 6px; }
 .record-penalty-text { font-size: 12px; color: #dc2626; }
+.appeal-box { margin-top: 8px; padding: 8px 10px; background: #eff6ff; border-radius: 6px; }
+.appeal-head { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+.appeal-tag { font-size: 12px; color: #2563eb; font-weight: 500; }
+.appeal-time { font-size: 11px; color: #9ca3af; margin-left: auto; }
+.appeal-text { font-size: 13px; color: #1f1f1f; line-height: 1.5; }
 .record-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 12px; padding-top: 12px; border-top: 1px solid #ededed; }
 .record-time { font-size: 12px; color: #9ca3af; }
 .record-actions { display: flex; gap: 8px; }
 .rbtn { height: 30px; padding: 0 14px; border-radius: 6px; display: flex; align-items: center; justify-content: center; }
 .rbtn-outline { border: 1px solid #d1d5db; }
 .rbtn-outline-text { font-size: 13px; color: #4b5563; }
-.rbtn-primary { background: #c41e3a; }
-.rbtn-primary-text { font-size: 13px; color: #fff; }
-.record-processed { font-size: 12px; color: #9ca3af; }
+.rbtn-disabled { opacity: 0.5; }
 
-.empty { padding: 80px 0; display: flex; flex-direction: column; align-items: center; }
+.empty { padding: 60px 0; display: flex; flex-direction: column; align-items: center; }
 .empty-icon { width: 64px; height: 64px; border-radius: 50%; background: #dcfce7; display: flex; align-items: center; justify-content: center; margin-bottom: 16px; }
 .empty-text { font-size: 14px; color: #9ca3af; }
+
+.state { padding: 100px 24px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.state-text { font-size: 14px; color: #9ca3af; text-align: center; }
+.state-btn { margin-top: 8px; padding: 8px 24px; border: 1px solid #d1d5db; border-radius: 8px; }
+.state-btn-text { font-size: 14px; color: #4b5563; }
 </style>

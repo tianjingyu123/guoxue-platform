@@ -37,7 +37,7 @@
       <!-- 商品 -->
       <view class="card">
         <view class="product-row">
-          <image class="product-cover" :src="detail.product.cover" mode="aspectFill" />
+          <image lazy-load class="product-cover" :src="detail.product.cover" mode="aspectFill" />
           <view class="product-info">
             <text class="product-name">{{ detail.product.name }}</text>
             <text class="product-sku">{{ detail.product.skuName }}</text>
@@ -71,7 +71,7 @@
         <view v-if="detail.images.length" class="info-block">
           <text class="info-label">上传凭证</text>
           <view class="imgs">
-            <image
+            <image lazy-load
               v-for="(img, i) in detail.images"
               :key="i"
               class="evidence-img"
@@ -236,11 +236,21 @@ function previewImage(urls: string[], current: number) {
 function fillLogistics() {
   uni.showToast({ title: '功能开发中', icon: 'none' })
 }
-function doCancel() {
-  detail.value.status = 'cancelled'
-  detail.value.canCancel = false
-  showCancel.value = false
-  uni.showToast({ title: '已取消', icon: 'none' })
+const cancelling = ref(false)
+async function doCancel() {
+  if (cancelling.value) return
+  cancelling.value = true
+  try {
+    await accountApi.cancelAfterSale(detail.value.id)
+    detail.value.status = 'cancelled'
+    detail.value.canCancel = false
+    showCancel.value = false
+    uni.showToast({ title: '已取消', icon: 'none' })
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '取消失败', icon: 'none' })
+  } finally {
+    cancelling.value = false
+  }
 }
 </script>
 
@@ -283,7 +293,7 @@ function doCancel() {
 }
 .nav-service-text {
   font-size: 24rpx;
-  color: #C41E3A;
+  color: var(--brand);
 }
 
 .scroll-area {
@@ -335,7 +345,7 @@ function doCancel() {
 .amount-value {
   font-size: 36rpx;
   font-weight: 700;
-  color: #C41E3A;
+  color: var(--brand);
 }
 
 .card {
@@ -384,7 +394,7 @@ function doCancel() {
 .product-price {
   font-size: 30rpx;
   font-weight: 600;
-  color: #C41E3A;
+  color: var(--brand);
 }
 .product-qty {
   font-size: 24rpx;
@@ -462,7 +472,7 @@ function doCancel() {
   background: #2E7D32;
 }
 .tl-dot.current {
-  background: #C41E3A;
+  background: var(--brand);
 }
 .tl-inner {
   width: 12rpx;
@@ -492,7 +502,7 @@ function doCancel() {
   color: #2C2C2C;
 }
 .tl-title.current {
-  color: #C41E3A;
+  color: var(--brand);
 }
 .tl-desc {
   display: block;
@@ -533,7 +543,7 @@ function doCancel() {
   height: 80rpx;
   margin-top: 24rpx;
   border-radius: 16rpx;
-  background: #C41E3A;
+  background: var(--brand);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -570,7 +580,7 @@ function doCancel() {
   border: 1rpx solid #E8E3DB;
 }
 .action-btn.outline {
-  border: 1rpx solid #C41E3A;
+  border: 1rpx solid var(--brand);
 }
 .action-text {
   font-size: 28rpx;
@@ -578,7 +588,7 @@ function doCancel() {
 }
 .action-text-outline {
   font-size: 28rpx;
-  color: #C41E3A;
+  color: var(--brand);
 }
 
 .mask {
@@ -643,6 +653,6 @@ function doCancel() {
 .confirm-btn-text-primary {
   font-size: 28rpx;
   font-weight: 500;
-  color: #C41E3A;
+  color: var(--brand);
 }
 </style>

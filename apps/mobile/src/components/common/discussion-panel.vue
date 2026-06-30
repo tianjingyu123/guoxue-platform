@@ -40,7 +40,7 @@
       <view v-if="sorted.length === 0" class="dp-empty">还没有讨论，来说两句吧～</view>
       <view v-for="c in sorted" :key="c.id" class="dp-item">
         <!-- 头像 -->
-        <image v-if="c.author.avatar" :src="c.author.avatar" class="dp-avatar" mode="aspectFill" />
+        <image lazy-load v-if="c.author.avatar" :src="c.author.avatar" class="dp-avatar" mode="aspectFill" />
         <view v-else class="dp-avatar dp-avatar-letter" :style="{ background: avatarColor(c.author.name) }">
           {{ c.author.name.charAt(0) }}
         </view>
@@ -102,7 +102,7 @@
             </view>
             <view v-else class="dp-replies">
               <view v-for="r in c.replies" :key="r.id" class="dp-reply">
-                <image v-if="r.author.avatar" :src="r.author.avatar" class="dp-reply-avatar" mode="aspectFill" />
+                <image lazy-load v-if="r.author.avatar" :src="r.author.avatar" class="dp-reply-avatar" mode="aspectFill" />
                 <view v-else class="dp-reply-avatar dp-avatar-letter" :style="{ background: avatarColor(r.author.name) }">
                   {{ r.author.name.charAt(0) }}
                 </view>
@@ -157,7 +157,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import AiAssistPopover from '@/components/common/ai-assist-popover.vue'
 import type {
   AuthorBadge,
@@ -171,14 +171,26 @@ const props = withDefaults(
     items: DiscussionItem[]
     inline?: boolean
     enableAIAssist?: boolean
+    /** 受控模式：交互只 emit 给父组件做真实持久化，不在本地乐观更新（默认 false 保持原行为） */
+    controlled?: boolean
   }>(),
-  { inline: true, enableAIAssist: false },
+  { inline: true, enableAIAssist: false, controlled: false },
 )
+
+const emit = defineEmits<{
+  (e: 'submit-comment', payload: { content: string; parentId?: string | number; rating?: number }): void
+  (e: 'like-comment', id: string | number): void
+}>()
 
 const accent = computed(() => props.config.accentColor || '#c41e3a')
 const isReview = computed(() => props.config.mode === 'review')
 
 const data = ref<DiscussionItem[]>(props.items.map((it) => ({ ...it })))
+// 受控模式下，父组件异步加载/更新 items 后同步到本地（静态调用方 items 不变，不触发）
+watch(
+  () => props.items,
+  (next) => { data.value = next.map((it) => ({ ...it })) },
+)
 const sort = ref<'hot' | 'new'>('hot')
 const input = ref('')
 const rating = ref(5)
@@ -214,6 +226,7 @@ function badgeInfo(badge?: AuthorBadge) {
 }
 
 function toggleLike(id: string | number) {
+  if (props.controlled) { emit('like-comment', id); return }
   data.value = data.value.map((c) =>
     c.id === id ? { ...c, liked: !c.liked, likeCount: c.liked ? c.likeCount - 1 : c.likeCount + 1 } : c,
   )
@@ -232,6 +245,17 @@ function handleReply(id: string | number, name: string) {
 function submit() {
   const text = input.value.trim()
   if (!text) return
+  // 受控模式：交给父组件持久化（含未登录引导），不在本地乐观更新
+  if (props.controlled) {
+    emit('submit-comment', {
+      content: text,
+      parentId: replyTo.value?.id,
+      ...(isReview.value && !replyTo.value ? { rating: rating.value } : {}),
+    })
+    input.value = ''
+    replyTo.value = null
+    return
+  }
   const me = { id: 'me', name: '我' }
   if (replyTo.value) {
     const target = replyTo.value

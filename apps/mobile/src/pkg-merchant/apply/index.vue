@@ -47,7 +47,7 @@
             <text class="ma-card-title">店铺信息</text>
           </view>
           <view class="ma-logo-row">
-            <view class="ma-logo-box">
+            <view class="ma-logo-box" @tap="comingSoon">
               <view class="ma-logo-upload">
                 <AppIcon name="camera" :size="24" color="#999" />
                 <text class="ma-logo-txt">上传Logo</text>
@@ -119,42 +119,19 @@
 
           <view class="ma-field">
             <text class="ma-label">手机号码 <text class="ma-req">*</text></text>
-            <view class="ma-phone-row">
-              <input
-                class="ma-input ma-input-flex"
-                :class="{ 'ma-input-err': fieldError('contactPhone') }"
-                placeholder="请输入手机号"
-                placeholder-class="ma-ph"
-                type="number"
-                :maxlength="11"
-                v-model="formData.contactPhone"
-                @blur="markTouched('contactPhone')"
-              />
-              <view class="ma-code-btn" :class="{ 'ma-code-btn-disabled': countdown > 0 }" @tap="handleSendCode">
-                <text>{{ countdown > 0 ? countdown + 's' : '获取验证码' }}</text>
-              </view>
-            </view>
+            <input
+              class="ma-input"
+              :class="{ 'ma-input-err': fieldError('contactPhone') }"
+              placeholder="请输入手机号"
+              placeholder-class="ma-ph"
+              type="text"
+              :maxlength="11"
+              v-model="formData.contactPhone"
+              @blur="markTouched('contactPhone')"
+            />
             <view v-if="fieldError('contactPhone')" class="ma-err">
               <AppIcon name="alert-circle" :size="12" color="#dc2626" />
               <text>{{ fieldError('contactPhone') }}</text>
-            </view>
-          </view>
-
-          <view class="ma-field">
-            <text class="ma-label">验证码 <text class="ma-req">*</text></text>
-            <input
-              class="ma-input"
-              :class="{ 'ma-input-err': fieldError('verifyCode') }"
-              placeholder="请输入6位验证码"
-              placeholder-class="ma-ph"
-              type="number"
-              :maxlength="6"
-              v-model="formData.verifyCode"
-              @blur="markTouched('verifyCode')"
-            />
-            <view v-if="fieldError('verifyCode')" class="ma-err">
-              <AppIcon name="alert-circle" :size="12" color="#dc2626" />
-              <text>{{ fieldError('verifyCode') }}</text>
             </view>
           </view>
 
@@ -176,13 +153,13 @@
           </view>
 
           <view class="ma-field">
-            <text class="ma-label">身份证照片 <text class="ma-req">*</text></text>
+            <text class="ma-label">身份证照片 <text class="ma-opt">（选填，可后台补充）</text></text>
             <view class="ma-id-grid">
-              <view class="ma-id-upload">
+              <view class="ma-id-upload" @tap="comingSoon">
                 <AppIcon name="upload" :size="24" color="#999" />
                 <text class="ma-upload-txt">人像面</text>
               </view>
-              <view class="ma-id-upload">
+              <view class="ma-id-upload" @tap="comingSoon">
                 <AppIcon name="upload" :size="24" color="#999" />
                 <text class="ma-upload-txt">国徽面</text>
               </view>
@@ -197,8 +174,8 @@
             <text class="ma-card-title">资质材料</text>
           </view>
           <view class="ma-field">
-            <text class="ma-label">营业执照 <text class="ma-req">*</text></text>
-            <view class="ma-license-upload">
+            <text class="ma-label">营业执照 <text class="ma-opt">（选填，企业商家建议提供）</text></text>
+            <view class="ma-license-upload" @tap="comingSoon">
               <AppIcon name="upload" :size="32" color="#999" />
               <text class="ma-license-txt">点击上传营业执照</text>
               <text class="ma-license-tip">支持 jpg、png 格式，小于 5MB</text>
@@ -244,9 +221,9 @@
           </view>
           <view class="ma-agree-txt">
             <text class="ma-agree-normal">我已阅读并同意</text>
-            <text class="ma-agree-link" @tap="go('/terms/merchant')">《商家入驻协议》</text>
+            <text class="ma-agree-link" @tap="go('/merchant/terms')">《商家入驻协议》</text>
             <text class="ma-agree-normal">和</text>
-            <text class="ma-agree-link" @tap="go('/terms/service')">《平台服务条款》</text>
+            <text class="ma-agree-link" @tap="go('/merchant/terms')">《平台服务条款》</text>
           </view>
         </view>
       </view>
@@ -295,19 +272,10 @@
 <script setup lang="ts">
 import { ref, reactive, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
-import { navigateTo, goBack } from '@/utils/router'
+import { navigateTo } from '@/utils/router'
+import { merchantApi, productCategories } from '@/lib/merchant-data'
 
-const categories = [
-  { id: 'guoxue', name: '国学课程' },
-  { id: 'guji', name: '古籍图书' },
-  { id: 'wenchuang', name: '文创用品' },
-  { id: 'wenfang', name: '文房四宝' },
-  { id: 'chadao', name: '茶道用品' },
-  { id: 'mingli', name: '命理咨询' },
-  { id: 'fengshui', name: '风水服务' },
-  { id: 'shufa', name: '书法字画' },
-  { id: 'other', name: '其他' },
-]
+const categories = productCategories
 
 const steps = [
   { id: 1, name: '填写信息' },
@@ -316,9 +284,9 @@ const steps = [
 ]
 
 const progressSteps = [
-  { id: 1, name: '校验信息' },
-  { id: 2, name: '上传资料' },
-  { id: 3, name: '提交申请' },
+  { id: 1, name: '创建申请' },
+  { id: 2, name: '提交审核' },
+  { id: 3, name: '处理完成' },
 ]
 
 const validators: Record<string, (v: any) => string | null> = {
@@ -338,11 +306,6 @@ const validators: Record<string, (v: any) => string | null> = {
     if (!/^1[3-9]\d{9}$/.test(v)) return '请输入正确的手机号码'
     return null
   },
-  verifyCode: (v: string) => {
-    if (!v.trim()) return '请输入验证码'
-    if (!/^\d{6}$/.test(v)) return '验证码为6位数字'
-    return null
-  },
   idNumber: (v: string) => {
     if (!v.trim()) return '请输入身份证号码'
     if (!/^[1-9]\d{5}(18|19|20)\d{2}(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])\d{3}[\dXx]$/.test(v)) return '请输入正确的身份证号码'
@@ -358,7 +321,6 @@ const currentStep = ref(1)
 const isSubmitting = ref(false)
 const submitStep = ref(0)
 const agreedToTerms = ref(false)
-const countdown = ref(0)
 const statusBarHeight = ref(0)
 const touched = reactive<Record<string, boolean>>({})
 
@@ -368,7 +330,6 @@ const formData = reactive({
   shopDesc: '',
   contactName: '',
   contactPhone: '',
-  verifyCode: '',
   idNumber: '',
   categories: [] as string[],
 })
@@ -385,7 +346,7 @@ function markTouched(field: string) {
 }
 
 const completeness = computed(() => {
-  const required = ['shopName', 'contactName', 'contactPhone', 'verifyCode', 'idNumber']
+  const required = ['shopName', 'contactName', 'contactPhone', 'idNumber']
   const filled = required.filter((f) => {
     const v = (formData as any)[f]
     return typeof v === 'string' && v.trim() !== ''
@@ -397,18 +358,8 @@ const completeness = computed(() => {
   }
 })
 
-function handleSendCode() {
-  if (countdown.value > 0) return
-  const err = validators.contactPhone(formData.contactPhone)
-  if (err) {
-    markTouched('contactPhone')
-    return
-  }
-  countdown.value = 60
-  const timer = setInterval(() => {
-    countdown.value -= 1
-    if (countdown.value <= 0) clearInterval(timer)
-  }, 1000)
+function comingSoon() {
+  uni.showToast({ title: '图片上传功能即将开放', icon: 'none' })
 }
 
 function toggleCategory(id: string) {
@@ -422,7 +373,7 @@ function toggleCategory(id: string) {
 }
 
 function validateForm(): boolean {
-  const fields = ['shopName', 'contactName', 'contactPhone', 'verifyCode', 'idNumber', 'categories']
+  const fields = ['shopName', 'contactName', 'contactPhone', 'idNumber', 'categories']
   fields.forEach((f) => markTouched(f))
   for (const field of fields) {
     const validator = validators[field]
@@ -443,13 +394,33 @@ async function handleSubmit() {
   }
   isSubmitting.value = true
   submitStep.value = 1
-  await new Promise((r) => setTimeout(r, 1000))
-  submitStep.value = 2
-  await new Promise((r) => setTimeout(r, 1500))
-  submitStep.value = 3
-  await new Promise((r) => setTimeout(r, 1000))
-  isSubmitting.value = false
-  navigateTo('/merchant/application-status')
+  try {
+    // 1. 创建入驻申请（PENDING_REVIEW）
+    await merchantApi.apply({
+      shopName: formData.shopName.trim(),
+      shopIntro: formData.shopDesc.trim() || undefined,
+      contactName: formData.contactName.trim(),
+      contactPhone: formData.contactPhone.trim(),
+      idCardNumber: formData.idNumber.trim(),
+      categoryIds: formData.categories,
+    })
+    submitStep.value = 2
+    // 2. 提交审核（开启自动审核时直接进入待缴保证金）
+    await merchantApi.submit()
+    submitStep.value = 3
+    await new Promise((r) => setTimeout(r, 400))
+    navigateTo('/merchant/application-status')
+  } catch (e: any) {
+    const msg = e?.message || '提交失败'
+    if (msg.includes('已提交') || msg.includes('已存在')) {
+      uni.showToast({ title: '您已提交过入驻申请', icon: 'none' })
+      setTimeout(() => navigateTo('/merchant/application-status'), 800)
+    } else {
+      uni.showToast({ title: msg, icon: 'none' })
+    }
+  } finally {
+    isSubmitting.value = false
+  }
 }
 
 function go(url: string) {
@@ -480,19 +451,19 @@ uni.getSystemInfo({
 .ma-step-col { display: flex; flex-direction: column; align-items: center; }
 .ma-step-circle { width: 32px; height: 32px; border-radius: 50%; background: #e5e5e5; color: #999; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 500; }
 .ma-step-circle text { color: #999; }
-.ma-step-on { background: #c41e3a; }
+.ma-step-on { background: var(--brand); }
 .ma-step-on text { color: #fff; }
 .ma-step-name { font-size: 12px; color: #999; margin-top: 4px; }
-.ma-step-name-on { color: #c41e3a; font-weight: 500; }
+.ma-step-name-on { color: var(--brand); font-weight: 500; }
 .ma-step-line { width: 48px; height: 2px; margin: 0 8px; background: #e5e5e5; margin-bottom: 18px; }
-.ma-step-line-on { background: #c41e3a; }
+.ma-step-line-on { background: var(--brand); }
 
 .ma-completeness { margin-top: 16px; padding: 12px; background: #fff; border-radius: 8px; border: 1px solid rgba(0,0,0,0.06); }
 .ma-comp-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
 .ma-comp-label { font-size: 14px; color: #999; }
 .ma-comp-pct { font-size: 14px; font-weight: 500; color: #1a1a1a; }
 .ma-comp-bar { height: 8px; background: #eee; border-radius: 4px; overflow: hidden; }
-.ma-comp-fill { height: 100%; background: #c41e3a; border-radius: 4px; transition: width 0.5s; }
+.ma-comp-fill { height: 100%; background: var(--brand); border-radius: 4px; transition: width 0.5s; }
 .ma-comp-hint { display: block; font-size: 12px; color: #999; margin-top: 8px; }
 
 /* Body */
@@ -508,7 +479,7 @@ uni.getSystemInfo({
 .ma-logo-box { position: relative; }
 .ma-logo-upload { width: 80px; height: 80px; border-radius: 12px; background: #f5f5f5; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 2px dashed #ddd; }
 .ma-logo-txt { font-size: 12px; color: #999; margin-top: 4px; }
-.ma-logo-plus { position: absolute; bottom: -4px; right: -4px; width: 24px; height: 24px; border-radius: 50%; background: #c41e3a; display: flex; align-items: center; justify-content: center; }
+.ma-logo-plus { position: absolute; bottom: -4px; right: -4px; width: 24px; height: 24px; border-radius: 50%; background: var(--brand); display: flex; align-items: center; justify-content: center; }
 .ma-logo-tip { font-size: 14px; color: #999; }
 
 /* Field */
@@ -516,6 +487,7 @@ uni.getSystemInfo({
 .ma-field:last-child { margin-bottom: 0; }
 .ma-label { display: block; font-size: 14px; font-weight: 500; color: #1a1a1a; margin-bottom: 8px; }
 .ma-req { color: #dc2626; }
+.ma-opt { color: #999; font-weight: normal; font-size: 12px; }
 .ma-input { height: 44px; background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 0 12px; font-size: 14px; color: #1a1a1a; box-sizing: border-box; width: 100%; }
 .ma-input-err { border-color: #dc2626; }
 .ma-ph { color: #bbb; }
@@ -550,16 +522,16 @@ uni.getSystemInfo({
 .ma-cats { display: flex; flex-wrap: wrap; gap: 8px; }
 .ma-cat { display: flex; align-items: center; gap: 6px; padding: 8px 12px; border-radius: 8px; background: #f0f0f0; }
 .ma-cat text { font-size: 14px; font-weight: 500; color: #666; }
-.ma-cat-on { background: #c41e3a; }
+.ma-cat-on { background: var(--brand); }
 .ma-cat-on text { color: #fff; }
 
 /* Agree */
 .ma-agree { display: flex; align-items: flex-start; gap: 8px; padding: 0 4px; }
 .ma-checkbox { width: 20px; height: 20px; border-radius: 4px; border: 2px solid #999; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px; }
-.ma-checkbox-on { background: #c41e3a; border-color: #c41e3a; }
+.ma-checkbox-on { background: var(--brand); border-color: var(--brand); }
 .ma-agree-txt { flex: 1; line-height: 1.5; }
 .ma-agree-normal { font-size: 14px; color: #999; }
-.ma-agree-link { font-size: 14px; color: #c41e3a; }
+.ma-agree-link { font-size: 14px; color: var(--brand); }
 
 .ma-bottom-placeholder { height: 96px; }
 
@@ -567,7 +539,7 @@ uni.getSystemInfo({
 .ma-footer { position: fixed; bottom: 0; left: 0; right: 0; padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); background: #fff; border-top: 1px solid rgba(0,0,0,0.06); display: flex; align-items: center; gap: 12px; }
 .ma-footer-back { flex: 1; height: 48px; border: 1px solid #ddd; border-radius: 8px; display: flex; align-items: center; justify-content: center; }
 .ma-footer-back text { font-size: 16px; color: #1a1a1a; }
-.ma-footer-submit { flex: 2; height: 48px; background: #c41e3a; border-radius: 8px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+.ma-footer-submit { flex: 2; height: 48px; background: var(--brand); border-radius: 8px; display: flex; align-items: center; justify-content: center; gap: 8px; }
 .ma-footer-submit text { font-size: 16px; font-weight: 500; color: #fff; }
 .ma-footer-submit-disabled { opacity: 0.5; }
 
@@ -584,7 +556,7 @@ uni.getSystemInfo({
 .ma-modal-circle { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 500; }
 .ma-modal-idle { background: #eee; color: #999; }
 .ma-modal-idle text { color: #999; }
-.ma-modal-active { background: #c41e3a; }
+.ma-modal-active { background: var(--brand); }
 .ma-modal-done { background: #22c55e; }
 .ma-modal-name { flex: 1; font-size: 14px; color: #999; }
 .ma-modal-name-on { color: #1a1a1a; font-weight: 500; }

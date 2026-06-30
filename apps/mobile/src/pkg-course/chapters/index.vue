@@ -152,10 +152,10 @@ onMounted(() => {
 .progress-wrap { padding: 0 32rpx 32rpx; }
 .progress-hdr { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16rpx; }
 .progress-label { font-size: 26rpx; color: #666; }
-.progress-done { color: #C41E3A; font-weight: 500; }
-.progress-pct { font-size: 26rpx; font-weight: 700; color: #C41E3A; }
+.progress-done { color: var(--brand); font-weight: 500; }
+.progress-pct { font-size: 26rpx; font-weight: 700; color: var(--brand); }
 .progress-track { height: 16rpx; background: #F2EFEA; border-radius: 999rpx; overflow: hidden; }
-.progress-fill { height: 100%; background: linear-gradient(to right, #C41E3A, #E85A71); border-radius: 999rpx; transition: width 0.5s; }
+.progress-fill { height: 100%; background: linear-gradient(to right, var(--brand), #E85A71); border-radius: 999rpx; transition: width 0.5s; }
 
 /* 列表 */
 .list { padding: 32rpx; display: flex; flex-direction: column; gap: 32rpx; }
@@ -175,16 +175,16 @@ onMounted(() => {
 .status-ico.in-progress { background: rgba(196,30,58,0.1); }
 .status-ico.available { background: rgba(196,30,58,0.1); }
 .status-ico.locked { background: #F3F4F6; }
-.dot { width: 24rpx; height: 24rpx; border-radius: 50%; background: #C41E3A; animation: pulse 1.5s ease-in-out infinite; }
+.dot { width: 24rpx; height: 24rpx; border-radius: 50%; background: var(--brand); animation: pulse 1.5s ease-in-out infinite; }
 @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
 
 .lesson-meta { flex: 1; min-width: 0; }
 .lesson-title { display: block; font-size: 26rpx; color: #2C2C2C; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .lesson-title.completed { color: #999; }
-.lesson-title.active { color: #C41E3A; font-weight: 500; }
+.lesson-title.active { color: var(--brand); font-weight: 500; }
 .lesson-sub { display: flex; align-items: center; gap: 8rpx; margin-top: 4rpx; }
 .lesson-dur { font-size: 22rpx; color: #999; }
-.lesson-learning { font-size: 22rpx; color: #C41E3A; margin-left: 8rpx; }
+.lesson-learning { font-size: 22rpx; color: var(--brand); margin-left: 8rpx; }
 
 .safe-bottom { height: 48rpx; }
 

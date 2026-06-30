@@ -17,6 +17,30 @@
 
     <scroll-view scroll-y class="as-scroll" :style="{ paddingTop: statusBarHeight + 44 + 'px' }">
       <view class="as-body">
+        <!-- Loading -->
+        <view v-if="loading" class="as-state">
+          <text class="as-state-txt">加载中…</text>
+        </view>
+        <!-- 未申请 -->
+        <view v-else-if="notApplied" class="as-state">
+          <AppIcon name="store" :size="48" color="#ccc" />
+          <text class="as-state-title">您还未提交入驻申请</text>
+          <text class="as-state-txt">成为平台商家，开启您的国学生意</text>
+          <view class="as-btn as-btn-primary as-state-btn" @tap="go('/merchant/apply')">
+            <text>立即入驻</text>
+          </view>
+        </view>
+        <!-- Error -->
+        <view v-else-if="error" class="as-state">
+          <AppIcon name="alert-circle" :size="48" color="#dc2626" />
+          <text class="as-state-title">加载失败</text>
+          <text class="as-state-txt">{{ error }}</text>
+          <view class="as-btn as-btn-outline as-state-btn" @tap="load">
+            <text>重试</text>
+          </view>
+        </view>
+
+        <template v-else>
         <!-- 状态卡片 -->
         <view class="as-status-card" :style="{ background: config.bg }">
           <view class="as-status-icon" :style="{ background: config.iconBg }">
@@ -26,7 +50,7 @@
           <text class="as-status-desc">{{ config.desc }}</text>
           <view class="as-shop-name">
             <text class="as-shop-label">店铺名称：</text>
-            <text class="as-shop-val">{{ applicationData.shopName }}</text>
+            <text class="as-shop-val">{{ app?.shopName }}</text>
           </view>
         </view>
 
@@ -49,14 +73,14 @@
         <!-- 驳回原因 -->
         <view v-if="status === 'REVIEW_FAILED'" class="as-card as-card-red">
           <text class="as-block-title as-text-red">驳回原因</text>
-          <text class="as-block-desc">{{ applicationData.rejectReason }}</text>
+          <text class="as-block-desc">{{ app?.rejectReason || '请联系客服了解详情' }}</text>
         </view>
 
         <!-- 保证金信息 -->
         <view v-if="status === 'DEPOSIT_PENDING'" class="as-card">
           <text class="as-card-title">保证金信息</text>
           <view class="as-deposit-amount">
-            <text class="as-deposit-num">¥{{ applicationData.depositAmount }}</text>
+            <text class="as-deposit-num">¥{{ depositAmountNum }}</text>
             <text class="as-deposit-cents">.00</text>
           </view>
           <text class="as-block-desc">保证金将在您退出经营时全额退还</text>
@@ -64,15 +88,15 @@
 
         <!-- 暂停原因 -->
         <view v-if="status === 'SUSPENDED'" class="as-card as-card-orange">
-          <text class="as-block-title as-text-orange">暂停原因</text>
-          <text class="as-block-desc">{{ applicationData.suspendReason }}</text>
+          <text class="as-block-title as-text-orange">店铺已暂停经营</text>
+          <text class="as-block-desc">{{ app?.remark || '如有疑问请联系平台客服或提交申诉。' }}</text>
         </view>
 
         <!-- 开店日期 -->
         <view v-if="status === 'ACTIVE'" class="as-card">
           <view class="as-row-between">
             <text class="as-block-desc">开店日期</text>
-            <text class="as-row-val">{{ applicationData.openDate }}</text>
+            <text class="as-row-val">{{ openDateText }}</text>
           </view>
         </view>
 
@@ -108,24 +132,17 @@
           </view>
         </view>
 
-        <!-- 演示模式 -->
-        <view class="as-demo">
-          <text class="as-demo-label">演示模式</text>
-          <view class="as-btn as-btn-outline as-btn-sm" @tap="handleDemoSwitch">
-            <text>切换状态（{{ status }}）</text>
-          </view>
-        </view>
+        </template>
       </view>
     </scroll-view>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
-
-type Status = 'PENDING_REVIEW' | 'REVIEW_FAILED' | 'DEPOSIT_PENDING' | 'AGREEMENT_PENDING' | 'ACTIVE' | 'SUSPENDED' | 'CLOSED'
+import { merchantApi, type MerchantApplication, type MerchantStatus as Status } from '@/lib/merchant-data'
 
 const statusConfig: Record<Status, { icon: string; color: string; bg: string; iconBg: string; title: string; desc: string }> = {
   PENDING_REVIEW: { icon: 'clock', color: '#3b82f6', bg: '#eff6ff', iconBg: '#dbeafe', title: '申请已提交，正在审核中', desc: '预计1-3个工作日完成审核' },
@@ -145,22 +162,17 @@ const progressSteps = [
   { id: 'active', name: '已开通' },
 ]
 
-const demoStatuses: Status[] = ['PENDING_REVIEW', 'REVIEW_FAILED', 'DEPOSIT_PENDING', 'AGREEMENT_PENDING', 'ACTIVE', 'SUSPENDED', 'CLOSED']
-
-const status = ref<Status>('PENDING_REVIEW')
-const isLoading = ref(false)
-const demoIndex = ref(0)
+const app = ref<MerchantApplication | null>(null)
+const loading = ref(true)
+const error = ref('')
+const notApplied = ref(false)
+const isLoading = ref(false) // 顶部刷新动画
 const statusBarHeight = ref(0)
 
-const applicationData = {
-  shopName: '古韵轩书店',
-  rejectReason: '营业执照图片不清晰，请重新上传',
-  depositAmount: 2000,
-  suspendReason: '存在违规商品',
-  openDate: '2024-01-18',
-}
-
+const status = computed<Status>(() => app.value?.status ?? 'PENDING_REVIEW')
 const config = computed(() => statusConfig[status.value])
+const depositAmountNum = computed(() => Math.round(Number(app.value?.depositAmount ?? 0)))
+const openDateText = computed(() => (app.value?.openedAt ? String(app.value.openedAt).slice(0, 10) : ''))
 
 const progressIndex = computed(() => {
   switch (status.value) {
@@ -173,26 +185,36 @@ const progressIndex = computed(() => {
   }
 })
 
+async function load() {
+  loading.value = true
+  error.value = ''
+  notApplied.value = false
+  try {
+    app.value = await merchantApi.getApplication()
+  } catch (e: any) {
+    const msg = e?.message || ''
+    // 未提交过申请：后端返回「未找到入驻申请」→ 引导去入驻
+    if (msg.includes('未找到') || msg.includes('不存在') || msg.includes('未登录')) notApplied.value = true
+    else error.value = msg || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
+
 async function handleRefresh() {
   if (isLoading.value) return
   isLoading.value = true
-  await new Promise((r) => setTimeout(r, 1000))
+  await load()
   isLoading.value = false
-}
-
-function handleDemoSwitch() {
-  demoIndex.value = (demoIndex.value + 1) % demoStatuses.length
-  status.value = demoStatuses[demoIndex.value]
 }
 
 function go(url: string) {
   navigateTo(url)
 }
 
-uni.getSystemInfo({
-  success: (res) => {
-    statusBarHeight.value = res.statusBarHeight || 0
-  },
+onMounted(() => {
+  uni.getSystemInfo({ success: (res) => { statusBarHeight.value = res.statusBarHeight || 0 } })
+  load()
 })
 </script>
 
@@ -235,25 +257,25 @@ uni.getSystemInfo({
 /* 进度条 */
 .as-progress { position: relative; display: flex; align-items: flex-start; justify-content: space-between; }
 .as-progress-line { position: absolute; top: 16px; left: 0; right: 0; height: 2px; background: #eee; }
-.as-progress-fill { position: absolute; top: 16px; left: 0; height: 2px; background: #c41e3a; transition: width 0.3s; }
+.as-progress-fill { position: absolute; top: 16px; left: 0; height: 2px; background: var(--brand); transition: width 0.3s; }
 .as-progress-step { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; }
 .as-progress-dot { width: 32px; height: 32px; border-radius: 50%; background: #eee; color: #999; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 500; }
 .as-progress-dot text { color: #999; }
-.as-progress-dot-on { background: #c41e3a; }
+.as-progress-dot-on { background: var(--brand); }
 .as-progress-dot-on text { color: #fff; }
 .as-progress-name { font-size: 12px; color: #999; margin-top: 8px; }
-.as-progress-name-on { color: #c41e3a; font-weight: 500; }
+.as-progress-name-on { color: var(--brand); font-weight: 500; }
 
 /* 保证金 */
 .as-deposit-amount { display: flex; align-items: baseline; margin-bottom: 8px; }
-.as-deposit-num { font-size: 30px; font-weight: 700; color: #c41e3a; }
+.as-deposit-num { font-size: 30px; font-weight: 700; color: var(--brand); }
 .as-deposit-cents { font-size: 14px; color: #999; }
 
 /* Actions */
 .as-actions { display: flex; flex-direction: column; gap: 12px; }
 .as-btn { height: 48px; border-radius: 8px; display: flex; align-items: center; justify-content: center; gap: 8px; }
 .as-btn text { font-size: 16px; font-weight: 500; }
-.as-btn-primary { background: #c41e3a; }
+.as-btn-primary { background: var(--brand); }
 .as-btn-primary text { color: #fff; }
 .as-btn-outline { border: 1px solid #ddd; background: #fff; }
 .as-btn-outline text { color: #1a1a1a; }
@@ -262,7 +284,9 @@ uni.getSystemInfo({
 .as-btn-sm { height: 36px; }
 .as-btn-sm text { font-size: 14px; }
 
-/* Demo */
-.as-demo { padding-top: 16px; border-top: 1px dashed #ddd; display: flex; flex-direction: column; gap: 8px; }
-.as-demo-label { font-size: 12px; color: #999; text-align: center; }
+/* 三态 */
+.as-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 64px 24px; gap: 12px; }
+.as-state-title { font-size: 16px; font-weight: 600; color: #1a1a1a; margin-top: 4px; }
+.as-state-txt { font-size: 14px; color: #999; text-align: center; line-height: 1.5; }
+.as-state-btn { width: 200px; margin-top: 8px; }
 </style>

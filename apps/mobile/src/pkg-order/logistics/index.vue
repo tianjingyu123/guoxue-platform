@@ -14,7 +14,7 @@
           </view>
           <view class="status-info">
             <text class="status-name" :style="{ color: statusMeta.color }">{{ statusMeta.label }}</text>
-            <text class="status-est">预计 {{ data.estimatedDelivery }} 送达</text>
+            <text v-if="data.estimatedDelivery" class="status-est">预计 {{ data.estimatedDelivery }} 送达</text>
           </view>
         </view>
         <view class="company-row">
@@ -32,7 +32,7 @@
           </view>
         </view>
         <view class="action-row">
-          <view class="action-btn" @tap="callCompany">
+          <view v-if="data.companyPhone" class="action-btn" @tap="callCompany">
             <app-icon name="phone" :size="28" color="#666666" />
             <text class="action-text">联系快递公司</text>
           </view>
@@ -115,7 +115,7 @@ const statusMeta = computed(
 )
 
 onLoad((q: any) => {
-  if (q?.id) orderId.value = q.id
+  orderId.value = q?.orderId || q?.id || ''
 })
 onMounted(() => { loadData() })
 
@@ -165,7 +165,7 @@ function callCourier() {
   width: 88rpx;
   height: 88rpx;
   border-radius: 50%;
-  background: #C41E3A;
+  background: var(--brand);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -210,12 +210,12 @@ function callCourier() {
   align-items: center;
   gap: 6rpx;
   padding: 10rpx 20rpx;
-  border: 1rpx solid #C41E3A;
+  border: 1rpx solid var(--brand);
   border-radius: 999rpx;
 }
 .copy-text {
   font-size: 24rpx;
-  color: #C41E3A;
+  color: var(--brand);
 }
 .action-row {
   display: flex;
@@ -304,7 +304,7 @@ function callCourier() {
 .track-dot.current {
   width: 48rpx;
   height: 48rpx;
-  background: #C41E3A;
+  background: var(--brand);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -346,5 +346,5 @@ function callCourier() {
 .loading { flex: 1; display: flex; align-items: center; justify-content: center; padding-top: 200rpx; font-size: 28rpx; color: #999999; }
 .error-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding-top: 200rpx; gap: 24rpx; }
 .error-state text { font-size: 28rpx; color: #999999; }
-.retry-btn { padding: 16rpx 48rpx; background: #C41E3A; color: #fff; border-radius: 12rpx; font-size: 26rpx; }
+.retry-btn { padding: 16rpx 48rpx; background: var(--brand); color: #fff; border-radius: 12rpx; font-size: 26rpx; }
 </style>

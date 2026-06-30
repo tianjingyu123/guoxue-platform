@@ -329,7 +329,7 @@ function piePct(chart: ChartData, value: number) {
 
 /* 顶部导航 */
 .asst-header {
-  background: linear-gradient(90deg, #C41E3A, #d8344f);
+  background: linear-gradient(90deg, var(--brand), #d8344f);
   flex-shrink: 0;
 }
 .asst-hd-row {
@@ -413,7 +413,7 @@ function piePct(chart: ChartData, value: number) {
   border-top-left-radius: 6rpx;
 }
 .asst-bubble-user {
-  background: #C41E3A;
+  background: var(--brand);
   border-top-right-radius: 6rpx;
 }
 .asst-bubble-text {
@@ -623,7 +623,7 @@ function piePct(chart: ChartData, value: number) {
   background: #ffffff;
 }
 .asst-action-high {
-  border-color: #C41E3A;
+  border-color: var(--brand);
 }
 .asst-action-medium {
   border-color: #f59e0b;
@@ -633,7 +633,7 @@ function piePct(chart: ChartData, value: number) {
   color: #374151;
 }
 .asst-action-txt-high {
-  color: #C41E3A;
+  color: var(--brand);
 }
 .asst-action-txt-medium {
   color: #d97706;
@@ -703,7 +703,7 @@ function piePct(chart: ChartData, value: number) {
   width: 72rpx;
   height: 72rpx;
   border-radius: 16rpx;
-  background: #C41E3A;
+  background: var(--brand);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -790,7 +790,7 @@ function piePct(chart: ChartData, value: number) {
   color: #374151;
 }
 .asst-modal-ok {
-  background: #C41E3A;
+  background: var(--brand);
 }
 .asst-modal-ok-txt {
   font-size: 28rpx;

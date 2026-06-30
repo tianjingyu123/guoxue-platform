@@ -101,12 +101,7 @@
                   <text class="cs-row-desc">{{ book.description }}</text>
                 </view>
                 <view class="cs-row-meta">
-                  <text>{{ book.author }} · {{ book.dynasty }}</text>
-                  <view class="cs-row-rating">
-                    <app-icon name="star" :size="22" color="#fbbf24" fill="#fbbf24" />
-                    <text>{{ book.rating }}</text>
-                  </view>
-                  <text>{{ fmtReads(book.reads) }}人读</text>
+                  <text>{{ bookMetaLine(book.author, book.dynasty, book.reads) }}</text>
                 </view>
               </view>
             </view>
@@ -153,12 +148,7 @@
                 <text class="cs-row-desc">{{ book.description }}</text>
               </view>
               <view class="cs-row-meta">
-                <text>{{ book.author }} · {{ book.dynasty }}</text>
-                <view class="cs-row-rating">
-                  <app-icon name="star" :size="22" color="#fbbf24" fill="#fbbf24" />
-                  <text>{{ book.rating }}</text>
-                </view>
-                <text>{{ fmtReads(book.reads) }}人读</text>
+                <text>{{ bookMetaLine(book.author, book.dynasty, book.reads) }}</text>
               </view>
             </view>
           </view>
@@ -184,7 +174,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import FlatCover from '@/components/classics/flat-cover.vue'
-import { classicsApi, fmtReads, type SearchResultItem } from '@/lib/classics-data'
+import { classicsApi, bookMetaLine, type SearchResultItem } from '@/lib/classics-data'
 
 interface SuggestionItem { text: string }
 interface HotSearchItem { keyword: string; isHot: boolean }
@@ -267,7 +257,7 @@ function goBack() {
   uni.navigateBack({ delta: 1, fail: () => uni.switchTab({ url: '/pages/index/index' }) })
 }
 function goAi() {
-  uni.showToast({ title: 'AI 助手开发中', icon: 'none' })
+  uni.navigateTo({ url: '/pkg-classics/ai-assistant/index' })
 }
 function goHome() {
   uni.navigateTo({ url: '/pkg-classics/home/index' })
@@ -412,7 +402,7 @@ function goDetail(id: string) {
 }
 .cs-tag-hot {
   background: rgba(196, 30, 58, 0.1);
-  color: #c41e3a;
+  color: var(--brand);
   font-weight: 500;
   box-shadow: none;
 }
@@ -510,7 +500,7 @@ function goDetail(id: string) {
   color: var(--foreground);
 }
 .cs-hl {
-  color: #c41e3a;
+  color: var(--brand);
   font-weight: 500;
 }
 
@@ -524,7 +514,7 @@ function goDetail(id: string) {
 .cs-spinner {
   width: 64rpx;
   height: 64rpx;
-  border: 4rpx solid #c41e3a;
+  border: 4rpx solid var(--brand);
   border-top-color: transparent;
   border-radius: 50%;
   animation: cs-spin 0.8s linear infinite;

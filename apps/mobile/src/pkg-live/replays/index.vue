@@ -39,7 +39,7 @@
         <view class="card-inner">
           <!-- 封面 -->
           <view class="cover">
-            <image class="cover-img" :src="item.cover" mode="aspectFill" />
+            <image lazy-load class="cover-img" :src="item.cover" mode="aspectFill" />
             <view class="replay-tag">
               <AppIcon name="play" :size="20" color="#fff" />
               <text class="replay-txt">回放</text>
@@ -51,7 +51,7 @@
             <text class="title">{{ item.title }}</text>
             <view class="info-bottom">
               <view class="host-row">
-                <image class="host-avatar" :src="item.hostAvatar" mode="aspectFill" />
+                <image lazy-load class="host-avatar" :src="item.hostAvatar" mode="aspectFill" />
                 <text class="host-name">{{ item.hostName }}</text>
                 <text class="cat-tag">{{ item.category }}</text>
               </view>
@@ -337,7 +337,7 @@ function openReplay(_item: { id: string }) {}
 /* 错误状态 */
 .error-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 160rpx 0; }
 .error-txt { font-size: 28rpx; color: #999; margin-bottom: 32rpx; }
-.retry-btn { padding: 16rpx 48rpx; background: #C41E3A; border-radius: 999rpx; }
+.retry-btn { padding: 16rpx 48rpx; background: var(--brand); border-radius: 999rpx; }
 .retry-btn-txt { font-size: 28rpx; color: #fff; font-weight: 500; }
 
 /* 排序弹层 */
@@ -395,7 +395,7 @@ function openReplay(_item: { id: string }) {}
   background: rgba(196, 30, 58, 0.1);
 }
 .sheet-item-active .sheet-item-label {
-  color: #C41E3A;
+  color: var(--brand);
   font-weight: 500;
 }
 </style>

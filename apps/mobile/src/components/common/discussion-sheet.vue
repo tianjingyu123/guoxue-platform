@@ -15,7 +15,10 @@
         :items="items"
         :inline="true"
         :enable-a-i-assist="enableAIAssist"
+        :controlled="controlled"
         class="ds-panel"
+        @submit-comment="(p: any) => emit('submit-comment', p)"
+        @like-comment="(id: any) => emit('like-comment', id)"
       />
     </view>
   </view>
@@ -30,10 +33,13 @@ defineProps<{
   config: DiscussionConfig
   items: DiscussionItem[]
   enableAIAssist?: boolean
+  controlled?: boolean
 }>()
 
 const emit = defineEmits<{
   (e: 'close'): void
+  (e: 'submit-comment', payload: { content: string; parentId?: string | number; rating?: number }): void
+  (e: 'like-comment', id: string | number): void
 }>()
 </script>
 

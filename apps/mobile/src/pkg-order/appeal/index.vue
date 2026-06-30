@@ -362,7 +362,7 @@ function goBack() {
   flex-shrink: 0;
 }
 .step-dot-active {
-  background: #C41E3A;
+  background: var(--brand);
 }
 .step-num {
   font-size: 26rpx;
@@ -379,7 +379,7 @@ function goBack() {
   background: #ECE5DB;
 }
 .step-line-active {
-  background: #C41E3A;
+  background: var(--brand);
 }
 .stepper-labels {
   display: flex;
@@ -412,7 +412,7 @@ function goBack() {
   border: 2rpx solid transparent;
 }
 .order-card-selected {
-  border-color: #C41E3A;
+  border-color: var(--brand);
   background: rgba(196, 30, 58, 0.04);
 }
 .order-thumb {
@@ -453,7 +453,7 @@ function goBack() {
 .order-price {
   font-size: 28rpx;
   font-weight: 500;
-  color: #C41E3A;
+  color: var(--brand);
 }
 .order-status {
   font-size: 20rpx;
@@ -473,8 +473,8 @@ function goBack() {
   flex-shrink: 0;
 }
 .radio-on {
-  border-color: #C41E3A;
-  background: #C41E3A;
+  border-color: var(--brand);
+  background: var(--brand);
 }
 
 /* 类型卡 */
@@ -488,7 +488,7 @@ function goBack() {
   border: 2rpx solid transparent;
 }
 .type-card-selected {
-  border-color: #C41E3A;
+  border-color: var(--brand);
   background: rgba(196, 30, 58, 0.04);
 }
 .type-info {
@@ -518,7 +518,7 @@ function goBack() {
   color: #1F1B16;
 }
 .req {
-  color: #C41E3A;
+  color: var(--brand);
 }
 .field-textarea {
   width: 100%;
@@ -564,7 +564,7 @@ function goBack() {
   width: 40rpx;
   height: 40rpx;
   border-radius: 50%;
-  background: #C41E3A;
+  background: var(--brand);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -640,7 +640,7 @@ function goBack() {
 .btn-next {
   flex: 1;
   padding: 24rpx 0;
-  background: #C41E3A;
+  background: var(--brand);
   border-radius: 20rpx;
   display: flex;
   align-items: center;
@@ -727,7 +727,7 @@ function goBack() {
   flex-shrink: 0;
 }
 .tl-dot-current {
-  background: #C41E3A;
+  background: var(--brand);
 }
 .tl-dot-done {
   background: #16A34A;

@@ -14,28 +14,23 @@
             <AppIcon name="bell" :size="20" color="#fff" />
             <view class="td-dot" />
           </view>
-          <view class="td-icon-btn" @tap="go('/teacher/settings')">
-            <AppIcon name="settings" :size="20" color="#fff" />
+          <view class="td-icon-btn" @tap="go('/pkg-creator/my-qualifications/index')">
+            <AppIcon name="award" :size="20" color="#fff" />
           </view>
         </view>
       </view>
 
       <!-- 身份卡 -->
-      <view class="td-identity">
+      <view v-if="isTeacher" class="td-identity">
         <view class="td-avatar">
           <AppIcon name="award" :size="32" color="#fff" />
         </view>
         <view class="td-id-info">
           <view class="td-id-name-row">
-            <text class="td-id-name">李明德</text>
-            <text class="td-id-badge">金牌讲师</text>
+            <text class="td-id-name">{{ teacherName || '认证讲师' }}</text>
+            <text class="td-id-badge">认证讲师</text>
           </view>
-          <text class="td-id-sub">命理咨询师 · 从业20年</text>
-          <view class="td-id-rating">
-            <AppIcon name="star" :size="14" color="#f0b400" />
-            <text class="td-id-score">{{ stats.rating }}</text>
-            <text class="td-id-count">({{ stats.ratingCount }}评价)</text>
-          </view>
+          <text v-if="teacherTitle" class="td-id-sub">{{ teacherTitle }}</text>
         </view>
       </view>
     </view>
@@ -45,12 +40,37 @@
       <view class="td-grid">
         <view v-for="i in 4" :key="i" class="td-skeleton td-skeleton-card" />
       </view>
-      <view class="td-skeleton td-skeleton-block" />
       <view class="td-skeleton td-skeleton-block-lg" />
     </view>
 
+    <!-- 加载失败 -->
+    <view v-else-if="error" class="td-empty">
+      <AppIcon name="alert-circle" :size="56" color="#f97316" />
+      <text class="td-empty-title">加载失败</text>
+      <button class="td-empty-btn" @tap="loadData">重试</button>
+    </view>
+
+    <!-- 资格门控：非认证讲师 -->
+    <view v-else-if="!isTeacher" class="td-empty">
+      <AppIcon name="award" :size="56" color="#c41e3a" />
+      <text class="td-empty-title">
+        {{ certStatus === 'pending' ? '认证审核中' : certStatus === 'rejected' ? '认证未通过' : '成为认证讲师' }}
+      </text>
+      <text class="td-empty-desc">
+        {{ certStatus === 'pending'
+          ? '您的讲师认证正在审核，通过后即可在此管理线上课程。'
+          : certStatus === 'rejected'
+            ? '很抱歉，您的认证未通过，可重新提交申请。'
+            : '通过讲师认证后，方可在圈子内上传与管理线上课程。' }}
+      </text>
+      <button class="td-empty-btn" @tap="goCertify">
+        {{ certStatus === 'pending' ? '查看认证进度' : certStatus === 'rejected' ? '重新申请' : '去认证' }}
+      </button>
+    </view>
+
+    <!-- 认证讲师：课程管理台 -->
     <view v-else class="td-body">
-      <!-- 数据概览 -->
+      <!-- 数据概览（全部来自真实课程数据） -->
       <view class="td-grid">
         <view class="td-stat">
           <view class="td-stat-label">
@@ -58,84 +78,27 @@
             <text class="td-stat-label-text">累计学员</text>
           </view>
           <text class="td-stat-num">{{ formatNum(stats.studentCount) }}</text>
-          <text class="td-stat-extra td-green">+128 本月新增</text>
         </view>
         <view class="td-stat">
           <view class="td-stat-label">
             <AppIcon name="book-open" :size="16" color="#999" />
-            <text class="td-stat-label-text">课程数量</text>
+            <text class="td-stat-label-text">课程总数</text>
           </view>
           <text class="td-stat-num">{{ stats.courseCount }}</text>
-          <text class="td-stat-extra">3 门草稿中</text>
         </view>
         <view class="td-stat">
           <view class="td-stat-label">
-            <AppIcon name="wallet" :size="16" color="#999" />
-            <text class="td-stat-label-text">累计收入</text>
+            <AppIcon name="check-circle" :size="16" color="#999" />
+            <text class="td-stat-label-text">已发布</text>
           </view>
-          <text class="td-stat-num td-brand">¥{{ (stats.totalIncome / 10000).toFixed(1) }}万</text>
-          <text class="td-stat-extra">可提现 ¥8,650</text>
+          <text class="td-stat-num td-green">{{ stats.published }}</text>
         </view>
         <view class="td-stat">
           <view class="td-stat-label">
-            <AppIcon name="trending-up" :size="16" color="#999" />
-            <text class="td-stat-label-text">本月收入</text>
+            <AppIcon name="clock" :size="16" color="#999" />
+            <text class="td-stat-label-text">审核中</text>
           </view>
-          <text class="td-stat-num">¥{{ formatNum(stats.monthIncome) }}</text>
-          <text class="td-stat-extra td-green">+12.5% 环比</text>
-        </view>
-      </view>
-
-      <!-- 待处理事项 -->
-      <view class="td-card">
-        <view class="td-card-head">
-          <text class="td-card-title">待处理事项</text>
-          <text class="td-card-sub">共 {{ pendingTotal }} 项</text>
-        </view>
-        <view class="td-list">
-          <view
-            v-for="item in pendingItems"
-            :key="item.id"
-            class="td-list-item"
-            @tap="go(pendingPath(item.type))"
-          >
-            <view class="td-list-icon">
-              <AppIcon :name="pendingIcon(item.type)" :size="20" :color="pendingColor(item.type)" />
-            </view>
-            <view class="td-list-main">
-              <text class="td-list-title">{{ item.title }}</text>
-              <text class="td-list-time">{{ item.time }}</text>
-            </view>
-            <view class="td-list-right">
-              <text class="td-count-badge">{{ item.count }}</text>
-              <AppIcon name="chevron-right" :size="16" color="#bbb" />
-            </view>
-          </view>
-        </view>
-      </view>
-
-      <!-- 收入趋势 -->
-      <view class="td-card td-card-pad">
-        <view class="td-card-head td-no-border">
-          <text class="td-card-title">收入趋势</text>
-          <view class="td-link" @tap="go('/teacher/income')">
-            <text class="td-link-text">查看详情</text>
-            <AppIcon name="chevron-right" :size="12" color="#c41e3a" />
-          </view>
-        </view>
-        <view class="td-chart">
-          <view
-            v-for="(item, index) in incomeTrend"
-            :key="item.month"
-            class="td-bar-col"
-          >
-            <view
-              class="td-bar"
-              :class="{ 'td-bar-active': index === incomeTrend.length - 1 }"
-              :style="{ height: barHeight(item.income) }"
-            />
-            <text class="td-bar-label">{{ item.month }}</text>
-          </view>
+          <text class="td-stat-num">{{ stats.pending }}</text>
         </view>
       </view>
 
@@ -143,56 +106,53 @@
       <view class="td-card">
         <view class="td-card-head">
           <text class="td-card-title">我的课程</text>
-          <view class="td-link" @tap="go('/teacher/courses')">
-            <text class="td-link-text">全部课程</text>
-            <AppIcon name="chevron-right" :size="12" color="#c41e3a" />
+          <view class="td-link" @tap="goCreate">
+            <AppIcon name="plus" :size="14" color="#c41e3a" />
+            <text class="td-link-text">发布课程</text>
           </view>
         </view>
-        <view class="td-list">
+
+        <!-- 空态 -->
+        <view v-if="courses.length === 0" class="td-course-empty">
+          <AppIcon name="book-open" :size="40" color="#ddd" />
+          <text class="td-course-empty-text">还没有课程，点击右上角发布第一门课程</text>
+        </view>
+
+        <view v-else class="td-list">
           <view
             v-for="course in courses"
             :key="course.id"
             class="td-list-item"
-            @tap="go('/teacher/courses/' + course.id)"
+            @tap="go('/pkg-course/detail/index?id=' + course.id)"
           >
             <view class="td-course-cover">
-              <AppIcon name="video" :size="24" color="#c41e3a" />
+              <image lazy-load v-if="course.cover" class="td-course-img" :src="course.cover" mode="aspectFill" />
+              <AppIcon v-else name="video" :size="24" color="#c41e3a" />
             </view>
             <view class="td-list-main">
               <view class="td-course-title-row">
                 <text class="td-list-title">{{ course.title }}</text>
-                <text v-if="course.status === 'draft'" class="td-draft-tag">草稿</text>
+                <text
+                  class="td-draft-tag"
+                  :style="{ color: courseStatus(course.auditStatus).color, background: courseStatus(course.auditStatus).bg }"
+                >{{ courseStatus(course.auditStatus).label }}</text>
               </view>
               <view class="td-course-meta">
                 <view class="td-meta-item">
                   <AppIcon name="users" :size="12" color="#999" />
-                  <text class="td-meta-text">{{ course.students }}</text>
+                  <text class="td-meta-text">{{ course.studentCount }} 学员</text>
                 </view>
                 <view class="td-meta-item">
-                  <AppIcon name="star" :size="12" color="#f0b400" />
-                  <text class="td-meta-text">{{ course.rating }}</text>
+                  <AppIcon name="layers" :size="12" color="#999" />
+                  <text class="td-meta-text">{{ course.chapterCount }} 章</text>
+                </view>
+                <view class="td-meta-item td-meta-link" @tap.stop="goReviews(course)">
+                  <AppIcon name="message-square" :size="12" color="#c41e3a" />
+                  <text class="td-meta-text td-meta-text-link">{{ course.reviewCount }} 评价</text>
                 </view>
               </view>
             </view>
             <AppIcon name="chevron-right" :size="16" color="#bbb" />
-          </view>
-        </view>
-      </view>
-
-      <!-- 快捷操作 -->
-      <view class="td-card td-card-pad">
-        <text class="td-card-title td-block-title">快捷操作</text>
-        <view class="td-quick-grid">
-          <view
-            v-for="action in quickActions"
-            :key="action.label"
-            class="td-quick-item"
-            @tap="go(action.path)"
-          >
-            <view class="td-quick-icon">
-              <AppIcon :name="action.icon" :size="20" color="#c41e3a" />
-            </view>
-            <text class="td-quick-label">{{ action.label }}</text>
           </view>
         </view>
       </view>
@@ -205,91 +165,85 @@ import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo, goBack } from '@/utils/router'
+import { teacherApi, type CertStatus } from '@/lib/teacher-data'
+import { courseApi, type CreatedCourse } from '@/lib/course-data'
 
 const statusBarHeight = ref(0)
 const loading = ref(true)
+const error = ref(false)
 
-const stats = ref({
-  rating: 4.9,
-  ratingCount: 328,
-  studentCount: 3256,
-  courseCount: 12,
-  totalIncome: 128650,
-  monthIncome: 15680,
+// 资格门控：仅 APPROVED 讲师可进入管理台
+const certStatus = ref<CertStatus>('none')
+const isTeacher = computed(() => certStatus.value === 'approved')
+const teacherName = ref('')
+const teacherTitle = ref('')
+
+// 我创建的课程（真连 GET /courses/created）
+const courses = ref<CreatedCourse[]>([])
+
+// 派生统计（全部来自真实课程数据，无虚构）
+const stats = computed(() => {
+  const list = courses.value
+  return {
+    studentCount: list.reduce((s, c) => s + (c.studentCount || 0), 0),
+    courseCount: list.length,
+    published: list.filter((c) => c.auditStatus === 'APPROVED').length,
+    pending: list.filter((c) => c.auditStatus === 'PENDING').length,
+  }
 })
-
-const pendingItems = ref([
-  { id: 1, type: 'homework', title: '八字命理入门-第3章作业', count: 8, time: '最近提交: 10分钟前' },
-  { id: 2, type: 'question', title: '学员提问待回答', count: 5, time: '最近提问: 30分钟前' },
-  { id: 3, type: 'booking', title: '预约咨询待确认', count: 2, time: '最近预约: 1小时前' },
-  { id: 4, type: 'review', title: '课程评价待回复', count: 3, time: '最近评价: 2小时前' },
-])
-
-const courses = ref([
-  { id: 1, title: '八字命理入门实战班', students: 1256, rating: 4.9, status: 'active' },
-  { id: 2, title: '紫微斗数进阶课程', students: 890, rating: 4.8, status: 'active' },
-  { id: 3, title: '风水堪舆基础', students: 567, rating: 4.7, status: 'draft' },
-])
-
-const incomeTrend = ref([
-  { month: '1月', income: 12500 },
-  { month: '2月', income: 15200 },
-  { month: '3月', income: 11800 },
-  { month: '4月', income: 18600 },
-  { month: '5月', income: 16400 },
-  { month: '6月', income: 15680 },
-])
-
-const quickActions = [
-  { icon: 'edit', label: '发布课程', path: '/teacher/courses/create' },
-  { icon: 'video', label: '开始直播', path: '/live/create' },
-  { icon: 'file-text', label: '发布文章', path: '/teacher/articles/create' },
-  { icon: 'calendar', label: '预约管理', path: '/teacher/bookings' },
-]
-
-const pendingTotal = computed(() => pendingItems.value.reduce((s, i) => s + i.count, 0))
-const maxIncome = computed(() => Math.max(...incomeTrend.value.map((d) => d.income)))
-
-function barHeight(income: number) {
-  return Math.max((income / maxIncome.value) * 100, 8) + '%'
-}
 
 function formatNum(n: number) {
   return n.toLocaleString('en-US')
 }
 
-function pendingIcon(type: string) {
-  const map: Record<string, string> = {
-    homework: 'file-text',
-    question: 'message-square',
-    booking: 'calendar',
-    review: 'star',
-  }
-  return map[type] || 'bell'
+const STATUS_MAP: Record<string, { label: string; color: string; bg: string }> = {
+  DRAFT: { label: '草稿', color: '#6b7280', bg: '#f3f4f6' },
+  PENDING: { label: '审核中', color: '#ea580c', bg: '#fff7ed' },
+  APPROVED: { label: '已发布', color: '#16a34a', bg: '#f0fdf4' },
+  REJECTED: { label: '未通过', color: '#ef4444', bg: '#fef2f2' },
+}
+function courseStatus(s: string) {
+  return STATUS_MAP[s] || STATUS_MAP.PENDING
 }
 
-function pendingColor(type: string) {
-  const map: Record<string, string> = {
-    homework: '#2563eb',
-    question: '#16a34a',
-    booking: '#7c3aed',
-    review: '#ea580c',
+async function loadData() {
+  loading.value = true
+  error.value = false
+  try {
+    const cert = await teacherApi.getMyCertification()
+    certStatus.value = cert
+      ? (cert.status === 'APPROVED' ? 'approved' : cert.status === 'PENDING' ? 'pending' : cert.status === 'REJECTED' ? 'rejected' : 'none')
+      : 'none'
+    teacherName.value = cert?.realName || ''
+    teacherTitle.value = cert?.verifiedTitle || cert?.title || ''
+    // 仅认证讲师加载课程
+    if (certStatus.value === 'approved') {
+      const res = await courseApi.getCreatedCourses(1, 50)
+      courses.value = res.items
+    }
+  } catch (e) {
+    error.value = true
+  } finally {
+    loading.value = false
   }
-  return map[type] || '#666'
-}
-
-function pendingPath(type: string) {
-  const map: Record<string, string> = {
-    homework: '/teacher/homework',
-    question: '/teacher/questions',
-    booking: '/teacher/bookings',
-    review: '/teacher/reviews',
-  }
-  return map[type] || '/teacher/dashboard'
 }
 
 function go(path: string) {
   navigateTo(path)
+}
+
+/** 发布课程（仅认证讲师；后端 CourseCreatorGuard 二次拦截） */
+function goCreate() {
+  navigateTo('/pkg-course/publish-course/index')
+}
+
+/** 进入某课程的评价管理（回复评价） */
+function goReviews(course: CreatedCourse) {
+  navigateTo(`/pkg-creator/course-reviews/index?id=${course.id}&title=${encodeURIComponent(course.title)}`)
+}
+
+function goCertify() {
+  navigateTo('/pkg-creator/teacher-certification/index')
 }
 
 function back() {
@@ -303,9 +257,7 @@ onLoad(() => {
   } catch (e) {
     statusBarHeight.value = 0
   }
-  setTimeout(() => {
-    loading.value = false
-  }, 500)
+  loadData()
 })
 </script>
 
@@ -318,7 +270,7 @@ onLoad(() => {
 
 /* 头部 */
 .td-header {
-  background: #c41e3a;
+  background: var(--brand);
   color: #fff;
   padding-bottom: 48rpx;
 }
@@ -458,7 +410,7 @@ onLoad(() => {
   color: #2c2c2c;
 }
 .td-stat-num.td-brand {
-  color: #c41e3a;
+  color: var(--brand);
 }
 .td-stat-extra {
   display: block;
@@ -514,7 +466,7 @@ onLoad(() => {
 }
 .td-link-text {
   font-size: 24rpx;
-  color: #c41e3a;
+  color: var(--brand);
 }
 
 /* 列表 */
@@ -569,7 +521,7 @@ onLoad(() => {
   font-weight: 500;
   padding: 4rpx 16rpx;
   background: rgba(196, 30, 58, 0.1);
-  color: #c41e3a;
+  color: var(--brand);
   border-radius: 20rpx;
 }
 
@@ -595,7 +547,7 @@ onLoad(() => {
   background: rgba(196, 30, 58, 0.3);
 }
 .td-bar-active {
-  background: #c41e3a;
+  background: var(--brand);
 }
 .td-bar-label {
   font-size: 22rpx;
@@ -612,6 +564,53 @@ onLoad(() => {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  overflow: hidden;
+}
+.td-course-img {
+  width: 100%;
+  height: 100%;
+}
+
+/* 门控 / 空态 / 失败态 */
+.td-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 120rpx 48rpx;
+  gap: 20rpx;
+}
+.td-empty-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #2c2c2c;
+}
+.td-empty-desc {
+  font-size: 26rpx;
+  color: #999;
+  text-align: center;
+  line-height: 1.6;
+}
+.td-empty-btn {
+  margin-top: 16rpx;
+  padding: 0 64rpx;
+  height: 80rpx;
+  line-height: 80rpx;
+  background: var(--brand);
+  color: #fff;
+  font-size: 28rpx;
+  border-radius: 999rpx;
+}
+.td-course-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 64rpx 32rpx;
+  gap: 16rpx;
+}
+.td-course-empty-text {
+  font-size: 26rpx;
+  color: #bbb;
 }
 .td-course-title-row {
   display: flex;
@@ -640,6 +639,12 @@ onLoad(() => {
 .td-meta-text {
   font-size: 22rpx;
   color: #999;
+}
+.td-meta-link {
+  padding: 4rpx 0;
+}
+.td-meta-text-link {
+  color: var(--brand);
 }
 
 /* 快捷操作 */

@@ -351,7 +351,7 @@ onMounted(() => { fetchData() })
   color: #1a1a1a;
 }
 .filter-chip-active {
-  background: #C41E3A;
+  background: var(--brand);
   color: #fff;
 }
 
@@ -488,7 +488,7 @@ onMounted(() => { fetchData() })
 }
 .reply-btn-submit {
   color: #fff;
-  background: #C41E3A;
+  background: var(--brand);
 }
 
 /* 操作区 */
@@ -592,5 +592,5 @@ onMounted(() => { fetchData() })
 /* 错误态 */
 .error-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 128rpx 0; }
 .error-text { font-size: 26rpx; color: #999; margin-top: 24rpx; }
-.error-btn { margin-top: 32rpx; padding: 16rpx 48rpx; font-size: 26rpx; color: #fff; background: #C41E3A; border-radius: 999rpx; }
+.error-btn { margin-top: 32rpx; padding: 16rpx 48rpx; font-size: 26rpx; color: #fff; background: var(--brand); border-radius: 999rpx; }
 </style>

@@ -3,7 +3,7 @@
  * mock 数据 + 类型 + 装配函数。图片走 /static（跨端约定）。
  */
 import type { ProductCardData } from '@/lib/card-utils'
-import { apiGet, useMock } from '@/utils/request'
+import { apiGet, apiPost, apiPut, apiDelete, useMock } from '@/utils/request'
 
 const P = '/static/images/products'
 
@@ -241,7 +241,7 @@ export interface ProductReview {
   spec: string
 }
 export interface ProductDetail {
-  id: number
+  id: number | string
   title: string
   subtitle: string
   images: string[]
@@ -257,6 +257,33 @@ export interface ProductDetail {
   tags: string[]
   reviews: ProductReview[]
   description: string
+  /** 所属商家（自营/未开通则 null，详情页据此显示「进店」入口） */
+  merchant?: { id: string; shopName: string; shopLogo?: string } | null
+}
+
+/** C 端店铺主页 — 商家公开信息 */
+export interface StoreInfo {
+  id: string
+  shopName: string
+  shopLogo?: string
+  shopIntro?: string
+  rating: number
+  totalSales: number
+  totalOrders: number
+  productCount: number
+}
+/** C 端店铺商品卡 */
+export interface StoreProduct {
+  id: string
+  title: string
+  cover?: string
+  price: number
+  sales: number
+}
+export interface StoreData {
+  merchant: StoreInfo
+  products: StoreProduct[]
+  total: number
 }
 
 /** 头像走 dicebear（与 circle-bots-data 约定一致） */
@@ -360,7 +387,7 @@ export const categorySortOptions: CategorySortOption[] = [
 ]
 
 export interface CategoryProduct {
-  id: number
+  id: string | number
   name: string
   price: number
   originalPrice: number
@@ -368,6 +395,7 @@ export interface CategoryProduct {
   category: string
   cover: string
   isMemberFree: boolean
+  createdAt?: string
 }
 export const categoryProducts: CategoryProduct[] = [
   { id: 1, name: '《渊海子平》精装典藏版', price: 128, originalPrice: 168, sales: 2856, category: 'books', cover: `${P}/book1.jpg`, isMemberFree: false },
@@ -408,7 +436,7 @@ export const reviewSortOptions: ReviewSortOption[] = [
 ]
 
 export interface FullReview {
-  id: number
+  id: string | number
   user: { name: string; avatar: string; level: string }
   rating: number
   content: string
@@ -489,6 +517,12 @@ export const flashNotices = [
 ]
 /** 秒杀结束时间（now + 2h），运行时计算倒计时 */
 export const flashEndOffsetMs = 2 * 60 * 60 * 1000
+
+/** 取首个进行中秒杀场次（后端 /marketing/flash-sales/active 返回数组） */
+async function fetchActiveFlashSale(): Promise<any | null> {
+  const list = await apiGet<any[]>('/marketing/flash-sales/active')
+  return list && list.length > 0 ? list[0] : null
+}
 
 /* ============================================================
    九、拼团（app/shop/group-buy 列表/详情/成功/失败）
@@ -651,6 +685,22 @@ export function formatCouponValue(c: { type: CouponType; value: number }): strin
   return `减¥${c.value}`
 }
 
+/* ── 后端优惠券适配（Coupon/UserCoupon → 前端 MyCoupon/CenterCoupon） ── */
+const COUPON_SCOPE_LABELS: Record<string, string> = {
+  ALL: '全场通用', PRODUCT: '商城', COURSE: '课程', CIRCLE: '圈子', MEMBER: '会员',
+}
+/** 后端 CouponType(NO_THRESHOLD/FULL_REDUCE/DISCOUNT) → 前端展示类型 */
+function adaptCouponType(t: string): CouponType {
+  return t === 'DISCOUNT' ? 'percent' : 'amount'
+}
+/** 后端 value(满减为元，折扣为 0.90) → 前端 value(满减元 / 折扣 90 即 9 折) */
+function adaptCouponValue(t: string, value: number): number {
+  return t === 'DISCOUNT' ? Math.round(value * 100) : value
+}
+function fmtCouponDate(s?: string): string {
+  return s ? String(s).slice(0, 10) : ''
+}
+
 /** 券详情页 */
 export interface CouponApplicableItem { id: string; type: 'product' | 'course'; name: string; image: string; price: number }
 export const couponDetail = {
@@ -700,8 +750,8 @@ export interface GroupCartItem {
 
 // 平铺购物车数据（对齐原型 app/shop/cart：无店铺分组）
 export interface FlatCartItem {
-  id: number
-  productId: number
+  id: string
+  productId: string
   productName: string
   productCover: string
   skuName: string
@@ -713,12 +763,6 @@ export interface FlatCartItem {
   isValid: boolean
   invalidReason?: string
 }
-export const cartFlatItems: FlatCartItem[] = [
-  { id: 1, productId: 1, productName: '《渊海子平》精装典藏版', productCover: `${P}/book1.jpg`, skuName: '精装版 / 全三册', price: 168, originalPrice: 298, quantity: 1, stock: 99, selected: true, isValid: true },
-  { id: 2, productId: 2, productName: '八字命理入门到精通（视频课程）', productCover: `${P}/book2.jpg`, skuName: '视频课程 / 共36节', price: 299, originalPrice: 599, quantity: 1, stock: 50, selected: true, isValid: true },
-  { id: 3, productId: 3, productName: '天然黑曜石貔貅手链', productCover: `${P}/item1.jpg`, skuName: '14mm / 男款', price: 128, originalPrice: 199, quantity: 2, stock: 30, selected: false, isValid: true },
-  { id: 4, productId: 4, productName: '【已下架】限量版紫水晶摆件', productCover: `${P}/item6.jpg`, skuName: '标准款', price: 388, originalPrice: 588, quantity: 1, stock: 0, selected: false, isValid: false, invalidReason: '商品已下架' },
-]
 export interface CartSellerGroup {
   id: number
   sellerName: string
@@ -750,6 +794,31 @@ export const cartGroups: CartSellerGroup[] = [
     ],
   },
 ]
+/** 后端 Redis 购物车项 → 前端 FlatCartItem（规格 Json 转可读字符串） */
+function formatSkuSpecs(specs: any): string {
+  if (!specs) return ''
+  if (typeof specs === 'string') return specs
+  if (Array.isArray(specs)) return specs.join(' / ')
+  if (typeof specs === 'object') return Object.values(specs).join(' / ')
+  return ''
+}
+function adaptCartItem(it: any): FlatCartItem {
+  return {
+    id: it.id,
+    productId: it.productId,
+    productName: it.product?.title || '商品已失效',
+    productCover: it.product?.image || '',
+    skuName: formatSkuSpecs(it.sku?.specs),
+    price: Number(it.unitPrice ?? 0),
+    originalPrice: Number(it.originalPrice ?? it.unitPrice ?? 0),
+    quantity: it.quantity ?? 1,
+    stock: it.stock ?? 0,
+    selected: !!it.isValid, // 有效商品默认勾选（后端无 selected，结算前端管理）
+    isValid: !!it.isValid,
+    invalidReason: it.invalidReason || undefined,
+  }
+}
+
 export interface InvalidCartItem { id: number; name: string; spec: string; price: number; image: string; reason: string }
 export const cartInvalidItems: InvalidCartItem[] = [
   { id: 101, name: '限量版紫水晶摆件', spec: '已下架', price: 388, image: `${P}/item6.jpg`, reason: '商品已下架' },
@@ -815,7 +884,16 @@ export const payMethods: PayMethodOption[] = [
   { id: 'huifu', name: '汇付天下', badge: '汇', badgeColor: '#FF8800' },
 ]
 
-export interface CheckoutItem { id: string; productId: string; productName: string; productCover: string; skuName: string; price: number; originalPrice: number; quantity: number }
+/**
+ * 结算页真实可用支付方式：后端订单仅提供微信支付创建端点（pay/jsapi 小程序、pay/native PC扫码），
+ * 支付宝/银联仅有回调与管理端点、无「创建支付」端点 → 诚实只展示微信，避免点了报错。
+ * 后续后端补支付宝/银联创建支付后再扩充。
+ */
+export const checkoutPayMethods: PayMethodOption[] = [
+  { id: 'wechat', name: '微信支付', badge: '微', badgeColor: '#07C160' },
+]
+
+export interface CheckoutItem { id: string; productId: string; skuId?: string; productName: string; productCover: string; skuName: string; price: number; originalPrice: number; quantity: number }
 export const checkoutItems: CheckoutItem[] = [
   { id: '1', productId: 'p1', productName: '周易六十四卦详解（精装典藏版）', productCover: `${P}/book1.jpg`, skuName: '精装版', price: 168, originalPrice: 298, quantity: 1 },
   { id: '2', productId: 'p2', productName: '紫微斗数入门教程', productCover: `${P}/book2.jpg`, skuName: '平装版', price: 88, originalPrice: 128, quantity: 2 },
@@ -1234,6 +1312,8 @@ export interface ShopProductReview {
   createdAt: string
   likes: number
   images?: string[]
+  reply?: string
+  repliedAt?: string
 }
 export interface ShopProductDetail {
   id: string
@@ -1315,6 +1395,12 @@ export interface ShopCategoryProduct {
   originalPrice: number
   sales: number
 }
+/** 一级分类名 → 展示图标（后端 ProductCategory.icon 为空，前端按名称派生，纯展示非数据） */
+const SHOP_CAT_ICON: Record<string, string> = {
+  书籍: 'book-open', 文房: 'book-marked', 茶具: 'leaf', 香道: 'flame',
+  文创: 'sparkles', 养生保健: 'heart-pulse', 风水摆件: 'landmark', 乐器: 'music',
+}
+const shopCatIcon = (name: string) => SHOP_CAT_ICON[name] || 'package'
 const shopCatGoodsNames = ['易经全解', '毛笔套装', '沉香线香', '紫砂茶壶', '艾灸盒', '招财貔貅', '小叶紫檀念珠', '古琴入门']
 const shopCatGoodsCovers = [`${P}/book1.jpg`, `${P}/item4.jpg`, `${P}/item5.jpg`, `${P}/item3.jpg`, `${P}/item6.jpg`, `${P}/item2.jpg`, `${P}/item1.jpg`, `${P}/item7.jpg`]
 const shopCatPrices = [128, 89, 168, 299, 68, 388, 258, 1999]
@@ -1388,193 +1474,824 @@ export const shopExchangeAddresses: ShopExchangeAddress[] = [
 
 // ============ API 层 ============
 
-export const shopApi = {
-  /** 获取商城首页数据 — GET /shop */
-  async getHome(): Promise<any> {
-    if (true) return {
-      banners: shopBanners,
-      quickActions: shopQuickActions,
-      categories: shopCategories,
-      flashSale: shopFlashSale,
-      groupBuy: shopGroupBuy,
-      recProducts: shopRecProducts,
+// ───────── 后端商品适配（前端 /shop 单数 → 后端 /shop/products）─────────
+function shopNum(v: any): number { const x = Number(v); return Number.isFinite(x) ? x : 0 }
+/** 后端商品 → 前端首页推荐卡 ShopRecProduct */
+function adaptRecProduct(p: any): ShopRecProduct {
+  const price = p.effectivePrice ?? shopNum(p.price)
+  return {
+    id: p.id,
+    name: p.title || '',
+    cover: (Array.isArray(p.images) && p.images[0]) || '',
+    price,
+    originalPrice: shopNum(p.originalPrice) || price,
+    sales: shopNum(p.salesCount),
+    rating: 0,
+    category: p.categoryLevel1 || '',
+    isHot: !!p.hasPromotion,
+    isNew: false,
+  }
+}
+/** 后端商品详情 → 前端 ProductDetail（specs/reviews/coupon 后端结构不同→默认空，页面降级） */
+function adaptProductDetail(p: any): ProductDetail {
+  const price = p.effectivePrice ?? shopNum(p.price)
+  return {
+    id: p.id,
+    title: p.title || '',
+    subtitle: p.intro || '',
+    images: Array.isArray(p.images) ? p.images : [],
+    hasVideo: !!p.videoUrl,
+    price,
+    originalPrice: shopNum(p.originalPrice) || price,
+    coupon: { value: 0, threshold: 0 },
+    sales: shopNum(p.salesCount),
+    stock: shopNum(p.stock),
+    specs: [],
+    rating: 0,
+    reviewCount: 0,
+    tags: Array.isArray(p.tags) ? p.tags : [],
+    reviews: [],
+    description: p.detail || p.intro || '',
+    merchant: p.merchant
+      ? { id: p.merchant.id, shopName: p.merchant.shopName, shopLogo: p.merchant.shopLogo || undefined }
+      : null,
+  }
+}
+
+/** ISO → 'YYYY-MM-DD'（评价展示日期，多端无 dayjs） */
+function shopFmtDate(iso?: string): string {
+  if (!iso) return ''
+  const d = new Date(iso)
+  if (isNaN(d.getTime())) return ''
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
+}
+
+/** 后端商品评价（含 user/reply）→ 前端 ShopProductReview */
+function adaptShopReview(r: any): ShopProductReview {
+  return {
+    id: r.id,
+    userName: r.user?.nickname || '匿名用户',
+    avatar: r.user?.avatar || '',
+    rating: r.rating ?? 5,
+    content: r.content || '',
+    skuName: undefined, // 后端评价未关联 SKU
+    createdAt: shopFmtDate(r.createdAt),
+    likes: 0, // 后端评价无点赞体系
+    images: Array.isArray(r.images) ? r.images : [],
+    reply: r.reply || undefined,
+    repliedAt: r.repliedAt ? shopFmtDate(r.repliedAt) : undefined,
+  }
+}
+
+/** 后端评价 stats {average,count,distribution:{1..5}} → 前端 {average,total,withImages,distribution[5..1]} */
+function adaptReviewStats(stats: any, reviews: any[]) {
+  const dist = stats?.distribution || {}
+  const total = stats?.count ?? reviews.length
+  const withImages = reviews.filter((r) => Array.isArray(r.images) && r.images.length > 0).length
+  const distribution = [5, 4, 3, 2, 1].map((stars) => {
+    const count = dist[stars] ?? dist[String(stars)] ?? 0
+    return { stars, count, percent: total > 0 ? Math.round((count / total) * 100) : 0 }
+  })
+  return { average: Number(stats?.average ?? 0), total, withImages, distribution }
+}
+
+/** 后端商品 → 前端 ShopProductDetail（规格表后端无→空降级；shipping 取平台默认包邮） */
+function adaptShopProductDetail(p: any, stats?: any): ShopProductDetail {
+  const price = p.effectivePrice ?? shopNum(p.price)
+  const skus: ShopProductSku[] = Array.isArray(p.skus)
+    ? p.skus.map((s: any) => ({
+        id: s.id,
+        name: s.specs && typeof s.specs === 'object' && !Array.isArray(s.specs)
+          ? Object.values(s.specs).filter(Boolean).join(' ') || (s.skuCode || '规格')
+          : (s.skuCode || '规格'),
+        price: shopNum(s.price),
+        originalPrice: shopNum(s.price),
+        stock: shopNum(s.stock),
+        image: p.images?.[0] || '',
+      }))
+    : []
+  return {
+    id: p.id,
+    name: p.title || '',
+    price,
+    originalPrice: shopNum(p.originalPrice) || price,
+    sales: shopNum(p.salesCount),
+    rating: Number(stats?.average ?? 0),
+    category: p.categoryLevel1 || '',
+    tags: Array.isArray(p.tags) ? p.tags : [],
+    isHot: !!p.hasPromotion,
+    images: Array.isArray(p.images) ? p.images : [],
+    description: p.detail || p.intro || '',
+    specs: [], // 后端无独立规格参数表（规格在 SKU 上），列表型规格降级隐藏
+    stock: shopNum(p.stock),
+    shipping: '包邮',
+    reviewCount: stats?.count ?? 0,
+    skus,
+  }
+}
+
+/** 拼团规则（UI 文案配置，非后端数据） */
+const GROUP_BUY_RULES = [
+  '邀请好友参团，达到成团人数即拼团成功',
+  '拼团成功后商家统一发货',
+  '在有效期内未达成团人数，拼团失败，已付款项原路退回',
+  '同一拼团活动每人限参与一次',
+]
+
+/** 后端进行中拼团活动 → 前端 GroupBuyItem */
+function adaptGroupBuyItem(g: any): GroupBuyItem {
+  const joined = g.joinedCount ?? g._count?.participants ?? 0
+  const minMembers = g.minMembers ?? 2
+  return {
+    id: g.id,
+    title: g.product?.title || '拼团商品',
+    cover: g.product?.image || '',
+    price: shopNum(g.groupPrice),
+    originalPrice: shopNum(g.product?.originalPrice ?? g.product?.price ?? g.groupPrice),
+    minMembers,
+    currentMembers: joined,
+    endOffsetMs: (g.expireMinutes ?? 0) * 60000, // 后端为活动配置时长（无逐团截止时间）
+    status: joined >= minMembers ? 'success' : 'ongoing',
+  }
+}
+
+/** 后端我的拼团参与记录 → 前端 MyGroupBuyItem */
+function adaptMyGroupBuy(r: any): MyGroupBuyItem {
+  const gb = r.groupBuy || {}
+  const joined = r.joinedCount ?? 0
+  const statusMap: Record<string, MyGroupBuyItem['status']> = { WAITING: 'pending', SUCCESS: 'success', REFUNDED: 'failed' }
+  return {
+    id: r.groupBuyId,
+    productId: gb.productId || '',
+    productName: r.product?.title || '拼团商品',
+    productCover: r.product?.image || '',
+    price: shopNum(gb.groupPrice),
+    status: statusMap[r.status] || 'pending',
+    memberCount: joined,
+    minMembers: gb.minMembers ?? 2,
+    currentMembers: joined,
+    endOffsetMs: (gb.expireMinutes ?? 0) * 60000,
+    isOwner: !!r.isLeader,
+  }
+}
+
+/** 格式化日期时间（YYYY-MM-DD HH:mm） */
+function fmtDateTime(s?: string | null): string {
+  if (!s) return ''
+  const d = new Date(s)
+  if (isNaN(d.getTime())) return String(s).slice(0, 16).replace('T', ' ')
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
+}
+/** 后端拼团结果(my-result) → 成功结果页（成团时间取支付时间·后端无单独成团时间；发货预估为业务承诺文案） */
+function adaptGroupBuySuccess(r: any) {
+  const price = shopNum(r?.product?.price)
+  const originalPrice = shopNum(r?.product?.originalPrice)
+  return {
+    productCover: r?.product?.image || '',
+    productName: r?.product?.title || '',
+    price,
+    originalPrice,
+    savedAmount: Math.round((originalPrice - price) * 100) / 100,
+    members: (r?.members || []).map((m: any) => ({ avatar: m.avatar || '' })),
+    completedAt: fmtDateTime(r?.paidAt),
+    orderId: r?.orderId || '',
+    estimatedShipDate: '付款后 3 个工作日内',
+  }
+}
+/** 后端拼团结果(my-result) → 失败结果页（reason 统一 timeout·后端仅超时未成团一种失败；退款状态由 refundedAt 派生） */
+function adaptGroupBuyFail(r: any) {
+  return {
+    productCover: r?.product?.image || '',
+    productName: r?.product?.title || '',
+    price: shopNum(r?.product?.price),
+    minMembers: r?.minMembers || 2,
+    currentMembers: r?.currentMembers || 0,
+    members: (r?.members || []).map((m: any) => ({ avatar: m.avatar || '' })),
+    reason: 'timeout',
+    failedAt: fmtDateTime(r?.refundedAt || r?.paidAt),
+    refundAmount: shopNum(r?.refundAmount),
+    estimatedRefundTime: '1-3 个工作日',
+    refundStatus: r?.refundedAt ? 'completed' : 'processing',
+    orderId: r?.orderId || '',
+    groupId: r?.groupId || '',
+  }
+}
+
+/** 后端拼团详情 → 前端 GroupBuyDetailData（rules 为静态配置，description 取商品简介） */
+function adaptGroupBuyDetailData(gb: any): GroupBuyDetailData {
+  return {
+    id: gb.id,
+    title: gb.product?.title || '拼团商品',
+    cover: gb.product?.image || '',
+    price: shopNum(gb.groupPrice),
+    originalPrice: shopNum(gb.product?.originalPrice ?? gb.product?.price ?? gb.groupPrice),
+    minMembers: gb.minMembers ?? 2,
+    description: gb.product?.intro || '',
+    rules: GROUP_BUY_RULES,
+  }
+}
+
+/** 后端进行中的团（按 groupId 聚合）→ 前端 ActiveGroup[]（团长 joinedAt + 活动时长 推算剩余时间） */
+function adaptActiveGroups(groups: any[], expireMinutes?: number): ActiveGroup[] {
+  const winMs = (expireMinutes ?? 0) * 60000
+  const now = Date.now()
+  return (groups || []).map((g) => {
+    const members = g.members || []
+    const leader = members.find((m: any) => m.isLeader) || members[0]
+    const others = members.filter((m: any) => m !== leader)
+    const startMs = leader?.joinedAt ? new Date(leader.joinedAt).getTime() : now
+    return {
+      id: g.groupId,
+      owner: { name: leader?.nickname || '团长', avatar: leader?.avatar || '' },
+      members: others.map((m: any) => ({ name: m.nickname || '团员', avatar: m.avatar || '' })),
+      currentMembers: g.currentMembers ?? members.length,
+      minMembers: g.minMembers ?? 2,
+      endOffsetMs: Math.max(0, startMs + winMs - now),
     }
+  })
+}
+
+/** 后端商品 → 前端 ProductCardData（mall 首页推荐卡片） */
+function adaptProductCard(p: any): ProductCardData {
+  return {
+    id: p.id,
+    title: p.title || '',
+    cover: p.images?.[0] || '',
+    price: shopNum(p.effectivePrice ?? p.price),
+    originalPrice: shopNum(p.originalPrice ?? p.price),
+    sales: p.salesCount ?? 0,
+    tag: p.hasPromotion ? (p.promotionTag || '促销') : undefined,
+  }
+}
+
+/** mall 分类排序选项（UI 配置） */
+const MALL_CATEGORY_SORT_OPTIONS = [
+  { id: 'default', name: '综合排序' },
+  { id: 'sales', name: '销量优先' },
+  { id: 'price_asc', name: '价格升序' },
+  { id: 'price_desc', name: '价格降序' },
+  { id: 'newest', name: '最新上架' },
+]
+
+/** 后端商品 → 前端 CategoryProduct（mall 分类页·category 取 categoryLevel1 真实标签） */
+function adaptCategoryProduct(p: any): CategoryProduct {
+  return {
+    id: p.id,
+    name: p.title || '',
+    price: shopNum(p.effectivePrice ?? p.price),
+    originalPrice: shopNum(p.originalPrice ?? p.price),
+    sales: p.salesCount ?? 0,
+    category: p.categoryLevel1 || '',
+    cover: p.images?.[0] || '',
+    isMemberFree: false, // 后端无会员免费标记
+    createdAt: p.createdAt || '',
+  }
+}
+
+/** mall 评价排序选项（UI 配置） */
+const MALL_REVIEW_SORT_OPTIONS = [
+  { id: 'default', label: '默认排序' },
+  { id: 'newest', label: '最新评价' },
+  { id: 'withImages', label: '有图优先' },
+  { id: 'mostLikes', label: '最多点赞' },
+]
+
+/** 后端商品评价 → 前端 FullReview（后端无 level/spec/tags/likes，诚实降级；reply 取后端回复） */
+function adaptMallReview(r: any): FullReview {
+  return {
+    id: r.id,
+    user: { name: r.user?.nickname || '匿名用户', avatar: r.user?.avatar || '', level: '' },
+    rating: r.rating ?? 5,
+    content: r.content || '',
+    images: Array.isArray(r.images) ? r.images : [],
+    spec: '', // 后端评价未关联 SKU 规格
+    time: shopFmtDate(r.createdAt),
+    likes: 0, // 后端评价无点赞体系
+    tags: [], // 后端评价无标签维度
+    reply: r.reply ? { content: r.reply, time: shopFmtDate(r.repliedAt) } : null,
+  }
+}
+
+export const shopApi = {
+  /** 商城首页 — 商品列表 GET /shop/products 真连 + 运营字段用前端配置（后端无聚合 BFF）*/
+  async getHome(): Promise<any> {
     try {
-      return await apiGet<any>('/shop')
+      const res = await apiGet<any>('/shop/products?pageSize=30')
+      const arr = Array.isArray(res) ? res : (res?.products ?? res?.data ?? [])
+      const recProducts: ShopRecProduct[] = arr.map(adaptRecProduct)
+      if (!recProducts.length) throw new Error('empty')
+      return { banners: shopBanners, quickActions: shopQuickActions, categories: shopCategories, flashSale: shopFlashSale, groupBuy: shopGroupBuy, recProducts }
     } catch {
-      return {
-        banners: shopBanners,
-        quickActions: shopQuickActions,
-        categories: shopCategories,
-        flashSale: shopFlashSale,
-        groupBuy: shopGroupBuy,
-        recProducts: shopRecProducts,
-      }
+      return { banners: shopBanners, quickActions: shopQuickActions, categories: shopCategories, flashSale: shopFlashSale, groupBuy: shopGroupBuy, recProducts: shopRecProducts }
     }
   },
 
-  /** 获取商品详情 — GET /shop/:id */
+  /** 商品详情 — GET /shop/products/:id */
   async getProduct(id: string): Promise<ProductDetail> {
-    if (true) return getProductDetail(id)
     try {
-      const data = await apiGet<any>(`/shop/${id}`)
-      return data as ProductDetail
+      return adaptProductDetail(await apiGet<any>(`/shop/products/${id}`))
     } catch {
       return getProductDetail(id)
     }
   },
 
-  /** 获取商品分类 — GET /shop/categories */
+  /** C 端店铺主页 — 商家信息 + 在售商品（GET /shop/store/:merchantId）。失败抛给页面走三态，不回退假数据 */
+  async getStore(merchantId: string): Promise<StoreData> {
+    const res = await apiGet<any>(`/shop/store/${merchantId}?pageSize=50`)
+    const m = res?.merchant || {}
+    return {
+      merchant: {
+        id: m.id,
+        shopName: m.shopName || '',
+        shopLogo: m.shopLogo || undefined,
+        shopIntro: m.shopIntro || undefined,
+        rating: shopNum(m.rating),
+        totalSales: shopNum(m.totalSales),
+        totalOrders: shopNum(m.totalOrders),
+        productCount: shopNum(m.productCount),
+      },
+      products: Array.isArray(res?.products)
+        ? res.products.map((p: any): StoreProduct => ({
+            id: p.id,
+            title: p.title || '',
+            cover: Array.isArray(p.images) ? p.images[0] : undefined,
+            price: p.effectivePrice ?? shopNum(p.price),
+            sales: shopNum(p.salesCount),
+          }))
+        : [],
+      total: shopNum(res?.total),
+    }
+  },
+
+  /** 获取商品分类树 — GET /shop/categories/tree（公开），适配为 ShopCategoryNode（icon 按名称派生） */
   async getCategories(): Promise<ShopCategoryNode[]> {
-    if (true) return shopCategoryTree
-    try {
-      const data = await apiGet<any>('/shop/categories')
-      return (data?.items || data) as ShopCategoryNode[]
-    } catch {
-      return shopCategoryTree
+    const data = await apiGet<any>('/shop/categories/tree')
+    const arr = Array.isArray(data) ? data : (data?.items || [])
+    return arr.map((c: any) => ({
+      id: c.id,
+      name: c.name,
+      icon: shopCatIcon(c.name),
+      children: (c.children || []).map((ch: any) => ({ id: ch.id, name: ch.name })),
+    })) as ShopCategoryNode[]
+  },
+
+  /** 获取某分类下商品 — GET /shop/categories/:id/products */
+  async getCategoryProducts(categoryId: string): Promise<ShopCategoryProduct[]> {
+    if (!categoryId) return []
+    const res = await apiGet<any>(`/shop/categories/${categoryId}/products?pageSize=50`)
+    const items = Array.isArray(res) ? res : (res?.items || [])
+    return items.map((p: any) => ({
+      id: p.id,
+      name: p.title,
+      cover: p.images?.[0] || '',
+      price: Number(p.price) || 0,
+      originalPrice: Number(p.originalPrice ?? p.price) || 0,
+      sales: p.salesCount ?? 0,
+    })) as ShopCategoryProduct[]
+  },
+
+  /** 获取限时秒杀（首页秒杀专区） — GET /marketing/flash-sales/active 取首个进行中场次 */
+  async getFlashSale(): Promise<typeof shopFlashSale> {
+    const sale = await fetchActiveFlashSale()
+    if (!sale) return { id: '', title: '限时秒杀', durationSec: 0, products: [] }
+    const endOffsetMs = Math.max(0, new Date(sale.endTime).getTime() - Date.now())
+    return {
+      id: sale.id,
+      title: sale.name || '限时秒杀',
+      durationSec: Math.floor(endOffsetMs / 1000),
+      products: (sale.items || []).map((it: any) => ({
+        id: it.productId,
+        name: it.product?.title || '商品',
+        cover: it.product?.image || '',
+        price: Number(it.flashPrice),
+        originalPrice: Number(it.product?.originalPrice ?? it.product?.price ?? it.flashPrice),
+      })) as ShopFlashProduct[],
     }
   },
 
-  /** 获取限时秒杀 — GET /shop/flash-sale */
-  async getFlashSale(): Promise<any> {
-    if (true) return shopFlashSale
-    try {
-      return await apiGet<any>('/shop/flash-sale')
-    } catch {
-      return shopFlashSale
-    }
+  /** 获取进行中拼团（首页拼团专区/营销区） — GET /marketing/group-buys/active */
+  async getActiveGroupBuys(): Promise<Array<{ id: string; cover: string; title: string; need: number; joined: number; groupPrice: number; originalPrice: number }>> {
+    const list = await apiGet<any[]>('/marketing/group-buys/active')
+    return (list || []).map((g) => ({
+      id: g.id,
+      cover: g.product?.image || '',
+      title: g.product?.title || '拼团商品',
+      need: g.minMembers,
+      joined: g.joinedCount ?? g._count?.participants ?? 0,
+      groupPrice: Number(g.groupPrice),
+      originalPrice: Number(g.product?.originalPrice ?? g.product?.price ?? g.groupPrice),
+    }))
   },
 
-  /** 获取秒杀页完整数据 — GET /shop/flash-sale/full */
-  async getFlashSaleFull(): Promise<any> {
-    if (true) return { timeSlots: flashTimeSlots, products: flashProducts, notices: flashNotices, endOffsetMs: flashEndOffsetMs }
-    try { return await apiGet<any>('/shop/flash-sale/full') }
-    catch { return { timeSlots: flashTimeSlots, products: flashProducts, notices: flashNotices, endOffsetMs: flashEndOffsetMs } }
+  /** 获取秒杀页完整数据 — GET /marketing/flash-sales/active（单场进行中 → 时段/商品/倒计时） */
+  async getFlashSaleFull(): Promise<{ timeSlots: FlashTimeSlot[]; products: FlashProduct[]; notices: string[]; endOffsetMs: number }> {
+    const sale = await fetchActiveFlashSale()
+    if (!sale) return { timeSlots: [], products: [], notices: [], endOffsetMs: 0 }
+    const products: FlashProduct[] = (sale.items || []).map((it: any) => ({
+      id: it.productId,
+      name: it.product?.title || '商品',
+      cover: it.product?.image || '',
+      price: Number(it.flashPrice),
+      originalPrice: Number(it.product?.originalPrice ?? it.product?.price ?? it.flashPrice),
+      stock: it.stock,
+      sold: it.sold,
+    }))
+    const startHour = new Date(sale.startTime).getHours()
+    const hh = String(startHour).padStart(2, '0')
+    const timeSlots: FlashTimeSlot[] = [{ id: String(startHour), label: `${hh}:00`, time: `${hh}:00:00` }]
+    const notices = products.slice(0, 3).map((p) => `「${p.name}」秒杀价 ¥${p.price}，限时抢购`)
+    const endOffsetMs = Math.max(0, new Date(sale.endTime).getTime() - Date.now())
+    return { timeSlots, products, notices, endOffsetMs }
   },
 
-  /** 获取购物车 — GET /shop/cart */
-  async getCart(): Promise<{ items: FlatCartItem[]; groups: CartSellerGroup[]; invalidItems: InvalidCartItem[]; recommends: CartRecommendItem[] }> {
-    if (true) return { items: cartFlatItems, groups: cartGroups, invalidItems: cartInvalidItems, recommends: cartRecommendProducts }
-    try { return await apiGet<any>('/shop/cart') }
-    catch { return { items: cartFlatItems, groups: cartGroups, invalidItems: cartInvalidItems, recommends: cartRecommendProducts } }
+  /** 获取购物车 — GET /shop/cart（Redis 购物车，扁平结构） */
+  async getCart(): Promise<{ items: FlatCartItem[] }> {
+    const res = await apiGet<any>('/shop/cart')
+    return { items: (res?.items || []).map(adaptCartItem) }
   },
 
-  /** 获取SKU维度购物车 — GET /shop/cart/sku */
+  /** 加入购物车 — POST /shop/cart，返回最新购物车 */
+  async addToCart(productId: string, quantity = 1, skuId?: string): Promise<{ items: FlatCartItem[] }> {
+    const res = await apiPost<any>('/shop/cart', { productId, skuId, quantity })
+    return { items: (res?.items || []).map(adaptCartItem) }
+  },
+
+  /** 更新购物车商品数量 — PUT /shop/cart/:itemId，返回最新购物车 */
+  async updateCartItem(itemId: string, quantity: number): Promise<{ items: FlatCartItem[] }> {
+    const res = await apiPut<any>(`/shop/cart/${itemId}`, { quantity })
+    return { items: (res?.items || []).map(adaptCartItem) }
+  },
+
+  /** 移除购物车商品 — DELETE /shop/cart/:itemId，返回最新购物车 */
+  async removeCartItem(itemId: string): Promise<{ items: FlatCartItem[] }> {
+    const res = await apiDelete<any>(`/shop/cart/${itemId}`)
+    return { items: (res?.items || []).map(adaptCartItem) }
+  },
+
+  /** 清空购物车 — DELETE /shop/cart */
+  async clearCart(): Promise<void> {
+    await apiDelete('/shop/cart')
+  },
+
+  /** 获取 SKU 维度购物车 — GET /shop/cart（后端购物车本就含 skuId） */
   async getSkuCart(): Promise<SkuCartItem[]> {
-    if (true) return skuCartItems
-    try { return await apiGet<any>('/shop/cart/sku') }
-    catch { return skuCartItems }
+    const res = await apiGet<any>('/shop/cart')
+    return (res?.items || []).map((it: any) => ({
+      id: it.id,
+      productId: it.productId,
+      productName: it.product?.title || '商品已失效',
+      productCover: it.product?.image || '',
+      skuId: it.skuId || '',
+      skuName: formatSkuSpecs(it.sku?.specs),
+      price: Number(it.unitPrice ?? 0),
+      originalPrice: Number(it.originalPrice ?? it.unitPrice ?? 0),
+      quantity: it.quantity ?? 1,
+      stock: it.stock ?? 0,
+      selected: !!it.isValid,
+      isValid: !!it.isValid,
+      invalidReason: it.invalidReason || undefined,
+    })) as SkuCartItem[]
   },
 
-  /** 获取结算数据 — GET /shop/checkout */
-  async getCheckout(): Promise<any> {
-    if (true) return { items: checkoutItems, addresses: checkoutAddresses, coupons: checkoutCoupons, payMethods, invoiceOptions }
-    try { return await apiGet<any>('/shop/checkout') }
-    catch { return { items: checkoutItems, addresses: checkoutAddresses, coupons: checkoutCoupons, payMethods, invoiceOptions } }
+  /**
+   * 获取结算数据（真连组装：后端无 /shop/checkout 聚合端点，前端按来源拼装）。
+   * 来源二选一：立即购买(productId+skuId+quantity) 或 购物车结算(itemIds=购物车项ID)。
+   * 地址 GET /shop/addresses、可用券 GET /shop/coupons/my；支付方式诚实仅微信；发票后端未实现仅 UI 选项。
+   */
+  async getCheckout(opts?: { productId?: string; skuId?: string; quantity?: number; itemIds?: string[] }): Promise<{
+    items: CheckoutItem[]; addresses: ShippingAddress[]; coupons: CheckoutCoupon[]
+    payMethods: PayMethodOption[]; invoiceOptions: typeof invoiceOptions
+  }> {
+    // 1) 商品清单
+    let items: CheckoutItem[] = []
+    if (opts?.productId) {
+      // 立即购买（单品）：拉商品详情，可选 SKU
+      const p = await apiGet<any>(`/shop/products/${opts.productId}`)
+      const sku = opts.skuId && Array.isArray(p?.skus) ? p.skus.find((s: any) => s.id === opts.skuId) : null
+      const price = sku ? shopNum(sku.price) : shopNum(p?.effectivePrice ?? p?.price)
+      items = [{
+        id: opts.skuId || p?.id || opts.productId,
+        productId: p?.id || opts.productId,
+        skuId: opts.skuId || undefined,
+        productName: p?.title || '商品',
+        productCover: (Array.isArray(p?.images) && p.images[0]) || '',
+        skuName: sku ? formatSkuSpecs(sku.specs) : '',
+        price,
+        originalPrice: shopNum(p?.originalPrice ?? p?.price) || price,
+        quantity: Math.max(1, Number(opts.quantity) || 1),
+      }]
+    } else if (opts?.itemIds?.length) {
+      // 购物车结算（多品）：用 SKU 维度购物车（含 skuId），按选中项过滤，仅有效项
+      const cart = await this.getSkuCart()
+      const idSet = new Set(opts.itemIds.map(String))
+      items = cart.filter((it) => idSet.has(String(it.id)) && it.isValid).map((it) => ({
+        id: it.id, productId: it.productId, skuId: it.skuId || undefined,
+        productName: it.productName, productCover: it.productCover,
+        skuName: it.skuName, price: it.price, originalPrice: it.originalPrice, quantity: it.quantity,
+      }))
+    }
+    // 2) 收货地址（后端 detail → 前端 address）
+    const addrRes = await apiGet<any>('/shop/addresses').catch(() => [])
+    const addresses: ShippingAddress[] = (Array.isArray(addrRes) ? addrRes : addrRes?.items || []).map((a: any) => ({
+      id: a.id, name: a.name || '', phone: a.phone || '',
+      province: a.province || '', city: a.city || '', district: a.district || '',
+      address: a.detail || a.address || '', isDefault: !!a.isDefault,
+    }))
+    // 3) 可用券（未用 + 未过期 + 满足门槛），按当前金额预估抵扣（最终以后端 createOrder 重算为准）
+    const goodsTotal = items.reduce((s, i) => s + i.price * i.quantity, 0)
+    const myRes = await apiGet<any[]>('/shop/coupons/my').catch(() => [])
+    const now = Date.now()
+    const coupons: CheckoutCoupon[] = (myRes || [])
+      .filter((uc: any) => !uc.used && (!uc.coupon?.validEnd || new Date(uc.coupon.validEnd).getTime() > now))
+      .map((uc: any) => {
+        const c = uc.coupon || {}
+        const minAmount = Number(c.minAmount ?? 0)
+        let value = 0
+        if (c.type === 'DISCOUNT') {
+          const rate = Number(c.discountRate ?? (c.value ? Number(c.value) / 100 : 1))
+          value = Math.round(goodsTotal * (1 - rate) * 100) / 100
+        } else {
+          value = Number(c.discountAmount ?? c.value ?? 0)
+        }
+        return { id: uc.id, name: c.name || '优惠券', value, minAmount }
+      })
+      .filter((c: CheckoutCoupon) => c.minAmount <= goodsTotal)
+    return { items, addresses, coupons, payMethods: checkoutPayMethods, invoiceOptions }
+  },
+
+  /**
+   * 创建订单 — POST /shop/orders（单商品；服务端重算金额防篡改、按数量计价、扣库存、绑定收货地址快照）。
+   * 注意 amount 字段语义=购买数量（后端约定），金额由后端依统一定价引擎计算。
+   */
+  async createOrder(payload: { type?: string; targetId: string; skuId?: string; quantity?: number; couponId?: string; addressId?: string }): Promise<{ id: string; amount: number; status: string }> {
+    const res = await apiPost<any>('/shop/orders', {
+      type: payload.type || 'PRODUCT',
+      targetId: payload.targetId,
+      skuId: payload.skuId || undefined,
+      amount: Math.max(1, Number(payload.quantity) || 1),
+      couponId: payload.couponId || undefined,
+      addressId: payload.addressId || undefined,
+    })
+    return { id: res.id, amount: shopNum(res.amount), status: res.status || 'PENDING' }
+  },
+
+  /** 发起微信 Native 扫码支付 — POST /shop/orders/:id/pay/native（返回 code_url 二维码；本地无商户证书会失败，走错误态） */
+  async payOrderNative(orderId: string): Promise<{ codeUrl?: string; raw: any }> {
+    const res = await apiPost<any>(`/shop/orders/${orderId}/pay/native`, {})
+    return { codeUrl: res?.code_url || res?.codeUrl, raw: res }
+  },
+
+  /**
+   * 查询订单支付状态（轮询用）— GET /shop/orders/:id 读 status。
+   * 不用 /payment-status（依赖微信查单·本地不通），改读订单 status：微信回调或管理员确认支付后置 PAID，本地可验证闭环。
+   */
+  async getOrderPayState(orderId: string): Promise<{ status: string; paid: boolean }> {
+    const res = await apiGet<any>(`/shop/orders/${orderId}`)
+    const status = res?.status || 'PENDING'
+    return { status, paid: ['PAID', 'SHIPPED', 'COMPLETED'].includes(status) }
   },
 
   /** 获取对比数据 — GET /shop/compare */
   async getCompare(): Promise<{ products: Record<string, CompareProduct>; pickList: string[] }> {
-    if (true) return { products: compareProducts, pickList: comparePickList }
-    try { return await apiGet<any>('/shop/compare') }
-    catch { return { products: compareProducts, pickList: comparePickList } }
+    // 商品对比依赖「用户对比清单」与「结构化对比规格」，后端两者均无 → 诚实降级为空（页面引导从商品详情添加）
+    return { products: {}, pickList: [] }
   },
 
-  /** 获取优惠券详情 — GET /shop/coupon/:id */
-  async getCouponDetail(_id: string): Promise<any> {
-    if (true) return couponDetail
-    try { return await apiGet<any>(`/shop/coupon/${_id}`) }
-    catch { return couponDetail }
+  /** 获取优惠券详情 — GET /shop/coupons/:id（后端无规则/适用商品，页面 v-if 降级） */
+  async getCouponDetail(id: string): Promise<any> {
+    const c = await apiGet<any>(`/shop/coupons/${id}`)
+    return {
+      id: c.id,
+      name: c.name || '优惠券',
+      type: adaptCouponType(c.type),
+      value: adaptCouponValue(c.type, Number(c.value)),
+      minAmount: Number(c.minAmount ?? 0),
+      expireAt: fmtCouponDate(c.validEnd),
+      scope: [COUPON_SCOPE_LABELS[c.scope] || '全场通用'],
+      description: c.name || '',
+      rules: [] as string[],
+      applicableItems: [] as CouponApplicableItem[],
+    }
   },
 
-  /** 获取我的优惠券 — GET /shop/coupons/my */
-  async getMyCoupons(): Promise<any> {
-    if (true) return { coupons: myCoupons, tabs: couponTabs }
-    try { return await apiGet<any>('/shop/coupons/my') }
-    catch { return { coupons: myCoupons, tabs: couponTabs } }
+  /** 获取我的优惠券 — GET /shop/coupons/my（UserCoupon[] include coupon） */
+  async getMyCoupons(): Promise<{ coupons: MyCoupon[]; tabs: typeof couponTabs }> {
+    const list = await apiGet<any[]>('/shop/coupons/my')
+    const now = Date.now()
+    const coupons: MyCoupon[] = (list || []).map((uc) => {
+      const c = uc.coupon || {}
+      const expired = c.validEnd ? new Date(c.validEnd).getTime() < now : false
+      return {
+        id: uc.id,
+        name: c.name || '优惠券',
+        type: adaptCouponType(c.type),
+        value: adaptCouponValue(c.type, Number(c.value)),
+        minAmount: Number(c.minAmount ?? 0),
+        expireAt: fmtCouponDate(c.validEnd),
+        scope: [COUPON_SCOPE_LABELS[c.scope] || '全场通用'],
+        status: uc.used ? 'used' : expired ? 'expired' : 'unused',
+      }
+    })
+    return { coupons, tabs: couponTabs }
   },
 
-  /** 获取领券中心 — GET /shop/coupons/center */
+  /** 获取领券中心 — GET /shop/coupons（ACTIVE 券，叠加我的已领状态） */
   async getCenterCoupons(): Promise<CenterCoupon[]> {
-    if (true) return centerCoupons
-    try { return await apiGet<any>('/shop/coupons/center') }
-    catch { return centerCoupons }
+    const [listRes, myList] = await Promise.all([
+      apiGet<any>('/shop/coupons?pageSize=50'),
+      apiGet<any[]>('/shop/coupons/my').catch(() => [] as any[]),
+    ])
+    const claimedIds = new Set((myList || []).map((uc: any) => uc.couponId))
+    const coupons = listRes?.coupons || []
+    return coupons.map((c: any) => ({
+      id: c.id,
+      name: c.name || '优惠券',
+      type: adaptCouponType(c.type),
+      value: adaptCouponValue(c.type, Number(c.value)),
+      minAmount: Number(c.minAmount ?? 0),
+      expireAt: fmtCouponDate(c.validEnd),
+      scope: [COUPON_SCOPE_LABELS[c.scope] || '全场通用'],
+      stock: c.totalCount === -1 ? 9999 : c.totalCount,
+      claimed: c.usedCount ?? 0,
+      isClaimed: claimedIds.has(c.id),
+    })) as CenterCoupon[]
+  },
+
+  /** 领取优惠券 — POST /shop/coupons/:id/claim */
+  async claimCoupon(couponId: string): Promise<void> {
+    await apiPost(`/shop/coupons/${couponId}/claim`)
   },
 
   /** 获取换货数据 — GET /shop/exchange */
-  async getExchange(): Promise<any> {
-    if (true) return { reasons: shopExchangeReasons, products: shopExchangeProducts, addresses: shopExchangeAddresses }
-    try { return await apiGet<any>('/shop/exchange') }
-    catch { return { reasons: shopExchangeReasons, products: shopExchangeProducts, addresses: shopExchangeAddresses } }
+  async getExchange(orderId?: string): Promise<any> {
+    // 换货 = 售后(type=exchange)：商品来自订单、地址来自用户地址、原因为 UI 配置；提交走 after-sale
+    const [order, addrRes] = await Promise.all([
+      orderId ? apiGet<any>(`/shop/orders/${orderId}`).catch(() => null) : Promise.resolve(null),
+      apiGet<any>('/shop/addresses').catch(() => []),
+    ])
+    const addrArr = Array.isArray(addrRes) ? addrRes : (addrRes?.items || [])
+    const addresses: ShopExchangeAddress[] = addrArr.map((a: any) => ({
+      id: a.id,
+      name: a.name || a.contactName || '',
+      phone: a.phone || a.contactPhone || '',
+      province: a.province || '',
+      city: a.city || '',
+      district: a.district || '',
+      address: a.address || a.detail || '',
+      isDefault: !!a.isDefault,
+    }))
+    const products: ShopExchangeProduct[] = []
+    if (order?.product) {
+      // 拉商品 SKU（换不同规格用；订单行未携带 SKU 列表）
+      let skus: { id: string; name: string; price: number }[] = []
+      try {
+        const p = await apiGet<any>(`/shop/products/${order.product.id}`)
+        skus = Array.isArray(p?.skus)
+          ? p.skus.map((s: any) => ({
+              id: s.id,
+              name: s.specs && typeof s.specs === 'object' && !Array.isArray(s.specs)
+                ? Object.values(s.specs).filter(Boolean).join(' ') || (s.skuCode || '规格')
+                : (s.skuCode || '规格'),
+              price: shopNum(s.price),
+            }))
+          : []
+      } catch { skus = [] }
+      products.push({
+        id: order.product.id || order.targetId,
+        name: order.product.title || '商品',
+        cover: order.product.cover || '',
+        skuId: order.skuId || '',
+        skuName: order.sku?.skuName || '',
+        price: shopNum(order.payAmount ?? order.amount),
+        quantity: 1,
+        skus,
+      })
+    }
+    return { reasons: shopExchangeReasons, products, addresses }
+  },
+
+  /** 提交换货申请 → 售后(type=exchange) */
+  async submitExchange(orderId: string, reason: string): Promise<boolean> {
+    if (!orderId) throw new Error('缺少订单信息')
+    await apiPost(`/shop/orders/${orderId}/after-sale`, { type: 'exchange', reason })
+    return true
   },
 
   /** 获取拼团列表 — GET /shop/group-buy */
   async getGroupBuyList(): Promise<{ list: GroupBuyItem[]; myList: MyGroupBuyItem[] }> {
-    if (true) return { list: groupBuyList, myList: myGroupBuyList }
-    try { return await apiGet<any>('/shop/group-buy') }
-    catch { return { list: groupBuyList, myList: myGroupBuyList } }
+    const [active, my] = await Promise.all([
+      apiGet<any[]>('/marketing/group-buys/active'),
+      apiGet<any[]>('/marketing/group-buys/my').catch(() => []), // 未登录/无记录降级空（非假数据）
+    ])
+    return {
+      list: (active || []).map(adaptGroupBuyItem),
+      myList: (my || []).map(adaptMyGroupBuy),
+    }
   },
 
   /** 获取拼团详情 — GET /shop/group-buy/:id */
   async getGroupBuyDetail(_id: string): Promise<{ detail: GroupBuyDetailData; activeGroups: ActiveGroup[] }> {
-    if (true) return { detail: groupBuyDetail, activeGroups }
-    try { return await apiGet<any>(`/shop/group-buy/${_id}`) }
-    catch { return { detail: groupBuyDetail, activeGroups } }
+    const gb = await apiGet<any>(`/marketing/group-buys/${_id}/detail`)
+    return {
+      detail: adaptGroupBuyDetailData(gb),
+      activeGroups: adaptActiveGroups(gb?.groups, gb?.expireMinutes),
+    }
   },
 
-  /** 获取拼团失败数据 — GET /shop/group-buy/:id/fail */
-  async getGroupBuyFail(_id: string): Promise<any> {
-    if (true) return groupBuyFail
-    try { return await apiGet<any>(`/shop/group-buy/${_id}/fail`) }
-    catch { return groupBuyFail }
+  /** 参与拼团 — POST /marketing/group-buys/:id/join（返回拼团订单，走支付链路；groupId 传则加入已有团，否则开新团） */
+  async joinGroupBuy(groupBuyId: string, groupId?: string): Promise<{ orderId: string; amount: number; groupId: string }> {
+    const res = await apiPost<any>(`/marketing/group-buys/${groupBuyId}/join`, groupId ? { groupId } : {})
+    return { orderId: res.orderId, amount: shopNum(res.amount), groupId: res.groupId }
   },
 
-  /** 获取拼团成功数据 — GET /shop/group-buy/:id/success */
-  async getGroupBuySuccess(_id: string): Promise<any> {
-    if (true) return groupBuySuccess
-    try { return await apiGet<any>(`/shop/group-buy/${_id}/success`) }
-    catch { return groupBuySuccess }
+  /** 拼团成功结果页数据 — GET /marketing/group-buys/:id/my-result（按我的参与状态派生·SUCCESS） */
+  async getGroupBuySuccess(groupBuyId: string): Promise<any> {
+    const r = await apiGet<any>(`/marketing/group-buys/${groupBuyId}/my-result`)
+    return adaptGroupBuySuccess(r)
+  },
+
+  /** 拼团失败结果页数据 — GET /marketing/group-buys/:id/my-result（按我的参与状态派生·REFUNDED/未成团） */
+  async getGroupBuyFail(groupBuyId: string): Promise<any> {
+    const r = await apiGet<any>(`/marketing/group-buys/${groupBuyId}/my-result`)
+    return adaptGroupBuyFail(r)
   },
 
   /** 获取支付方式 — GET /shop/payment-methods */
   async getPaymentMethods(): Promise<any> {
-    if (true) return { boundMethods: boundPaymentMethods, addOptions: addPaymentOptions }
-    try { return await apiGet<any>('/shop/payment-methods') }
-    catch { return { boundMethods: boundPaymentMethods, addOptions: addPaymentOptions } }
+    // 平台支付在下单时直接选择微信/支付宝，后端无「预绑定支付方式」模型 → 诚实降级为空（页面提示无需绑定）
+    return { boundMethods: [], addOptions: [] }
   },
 
   /** 获取shop商品详情 — GET /shop/product/:id */
   async getShopProductDetail(_id: string): Promise<{ product: ShopProductDetail; reviews: ShopProductReview[] }> {
-    if (true) return { product: shopProductDetail, reviews: shopProductReviews }
-    try { return await apiGet<any>(`/shop/product/${_id}`) }
-    catch { return { product: shopProductDetail, reviews: shopProductReviews } }
+    const [p, reviewsRes] = await Promise.all([
+      apiGet<any>(`/shop/products/${_id}`),
+      // 评价为次要内容，失败降级空评价（非假数据），不阻断商品详情
+      apiGet<any>(`/shop/products/${_id}/reviews?pageSize=50`).catch(() => ({ reviews: [], stats: null })),
+    ])
+    const reviews = (reviewsRes?.reviews || []).map(adaptShopReview)
+    return { product: adaptShopProductDetail(p, reviewsRes?.stats), reviews }
   },
 
-  /** 获取shop评价 — GET /shop/product/:id/reviews */
-  async getShopReviews(_id: string): Promise<any> {
-    if (true) return { stats: shopReviewStats, list: shopReviewList }
-    try { return await apiGet<any>(`/shop/product/${_id}/reviews`) }
-    catch { return { stats: shopReviewStats, list: shopReviewList } }
+  /** 获取shop商品评价 — GET /shop/products/:id/reviews（含 user/reply/stats） */
+  async getShopReviews(_id: string): Promise<{ stats: any; list: ShopProductReview[] }> {
+    const res = await apiGet<any>(`/shop/products/${_id}/reviews?pageSize=50`)
+    const rawReviews = res?.reviews || []
+    return { stats: adaptReviewStats(res?.stats, rawReviews), list: rawReviews.map(adaptShopReview) }
   },
 
   /** 获取mall首页 — GET /mall */
   async getMallHome(): Promise<any> {
-    if (true) return { quickEntries: mallQuickEntries, banners: mallBanners, lives: mallCommerceLives, categories: mallCategories, products: mallProducts, seckillItems, groupItems }
-    try { return await apiGet<any>('/mall') }
-    catch { return { quickEntries: mallQuickEntries, banners: mallBanners, lives: mallCommerceLives, categories: mallCategories, products: mallProducts, seckillItems, groupItems } }
+    // 商品真连 /shop/products；banners/quickEntries/categories 为运营 UI 配置（后端无 banner CMS/聚合 BFF，同 getHome 约定）
+    const res = await apiGet<any>('/shop/products?pageSize=30')
+    const arr = Array.isArray(res) ? res : (res?.products ?? res?.items ?? [])
+    const products: ProductCardData[] = arr.map(adaptProductCard)
+    return {
+      quickEntries: mallQuickEntries,
+      banners: mallBanners,
+      lives: [], // 暂无实时电商直播聚合 → 空态降级（不展示假直播）
+      categories: mallCategories,
+      products,
+      seckillItems: [],
+      groupItems: [],
+    }
   },
 
   /** 获取mall分类 — GET /mall/categories */
   async getMallCategories(): Promise<any> {
-    if (true) return { tabs: categoryTabs, sortOptions: categorySortOptions, products: categoryProducts }
-    try { return await apiGet<any>('/mall/categories') }
-    catch { return { tabs: categoryTabs, sortOptions: categorySortOptions, products: categoryProducts } }
+    const res = await apiGet<any>('/shop/products?pageSize=100')
+    const arr = Array.isArray(res) ? res : (res?.products ?? res?.items ?? [])
+    const products: CategoryProduct[] = arr.map(adaptCategoryProduct)
+    // 从商品 categoryLevel1 聚合分类 tab（真实标签，后端无独立 mall 分类聚合）
+    const counts = new Map<string, number>()
+    for (const p of products) { if (p.category) counts.set(p.category, (counts.get(p.category) || 0) + 1) }
+    const tabs = [
+      { id: 'all', name: '全部', count: products.length },
+      ...[...counts.entries()].map(([name, count]) => ({ id: name, name, count })),
+    ]
+    return { tabs, sortOptions: MALL_CATEGORY_SORT_OPTIONS, products }
   },
 
   /** 获取mall评价 — GET /mall/product/:id/reviews */
   async getMallReviews(_id: string): Promise<any> {
-    if (true) return { tags: reviewTags, sortOptions: reviewSortOptions, reviews: fullReviews, summary: reviewSummary }
-    try { return await apiGet<any>(`/mall/product/${_id}/reviews`) }
-    catch { return { tags: reviewTags, sortOptions: reviewSortOptions, reviews: fullReviews, summary: reviewSummary } }
+    const res = await apiGet<any>(`/shop/products/${_id}/reviews?pageSize=50`)
+    const raw = res?.reviews || []
+    const stats = res?.stats || {}
+    const dist = stats.distribution || {}
+    const total = stats.count ?? raw.length
+    const good = (dist[5] ?? dist['5'] ?? 0) + (dist[4] ?? dist['4'] ?? 0)
+    return {
+      // 后端评价无标签维度 → 仅保留「全部」，标签筛选诚实降级
+      tags: [{ id: 'all', label: '全部', count: total }],
+      sortOptions: MALL_REVIEW_SORT_OPTIONS,
+      reviews: raw.map(adaptMallReview),
+      summary: {
+        goodRatePercent: total > 0 ? Math.round((good / total) * 100) : 0,
+        rating: Number(stats.average ?? 0),
+        total,
+      },
+    }
   },
 }

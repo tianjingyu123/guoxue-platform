@@ -30,14 +30,14 @@
       <!-- 商品信息 -->
       <view class="product-card">
         <view class="pc-main">
-          <image class="pc-cover" :src="detail.cover" mode="aspectFill" />
+          <image lazy-load class="pc-cover" :src="detail.cover" mode="aspectFill" />
           <view class="pc-info">
             <text class="pc-title">{{ detail.title }}</text>
             <text class="pc-desc">{{ detail.description }}</text>
             <view class="pc-price">
               <text class="price-now">¥{{ detail.price }}</text>
               <text class="price-old">¥{{ detail.originalPrice }}</text>
-              <text class="save-tag">省¥{{ detail.originalPrice - detail.price }}</text>
+              <text class="save-tag">省¥{{ savedAmount }}</text>
             </view>
           </view>
         </view>
@@ -62,13 +62,13 @@
       <view class="groups">
         <view v-for="g in groups" :key="g.id" class="group">
           <view class="g-owner">
-            <image class="g-owner-avatar" :src="g.owner.avatar" mode="aspectFill" />
+            <image lazy-load class="g-owner-avatar" :src="g.owner.avatar" mode="aspectFill" />
             <view class="g-crown">
               <app-icon name="crown" :size="20" color="#fff" />
             </view>
           </view>
           <view class="g-members">
-            <image
+            <image lazy-load
               v-for="(m, i) in g.members"
               :key="i"
               class="g-member-avatar"
@@ -125,9 +125,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
-import { goBack, navigateTo } from '@/utils/router'
+import { goBack, navigateTo, redirectTo } from '@/utils/router'
 import { shopApi, formatCountdown } from '@/lib/shop-data'
 
 interface GroupBuyDetailData {
@@ -150,6 +150,8 @@ interface ActiveGroup {
 }
 
 const detail = ref<GroupBuyDetailData | null>(null)
+/** 节省金额：两位小数取整，避免浮点误差 */
+const savedAmount = computed(() => Math.max(0, Math.round(((detail.value?.originalPrice || 0) - (detail.value?.price || 0)) * 100) / 100))
 const groups = ref<ActiveGroup[]>([])
 const loading = ref(true)
 const error = ref('')
@@ -187,16 +189,29 @@ function cdText(id: string): string {
   const c = formatCountdown((endMap[id] ?? Date.now()) - Date.now())
   return `${c.h}:${c.m}:${c.s}`
 }
-function join(id: string) {
-  joiningId.value = id
-  setTimeout(() => {
+/** 参团（加入已有团）：调 join 创建拼团订单 → 跳支付 */
+async function join(groupId: string) {
+  if (joiningId.value) return
+  joiningId.value = groupId
+  try {
+    const res = await shopApi.joinGroupBuy(pageId, groupId)
+    redirectTo(`/shop/paying?orderId=${res.orderId}&method=wechat&amount=${res.amount}`)
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '参团失败', icon: 'none' })
     joiningId.value = null
-    navigateTo(`/shop/checkout?type=group&groupId=${id}`)
-  }, 800)
+  }
 }
-function create() {
-  if (!detail.value) return
-  navigateTo(`/shop/checkout?type=group&groupId=${detail.value.id}`)
+/** 开新团：调 join（不传 groupId）创建拼团订单 → 跳支付 */
+async function create() {
+  if (joiningId.value) return
+  joiningId.value = 'new'
+  try {
+    const res = await shopApi.joinGroupBuy(pageId)
+    redirectTo(`/shop/paying?orderId=${res.orderId}&method=wechat&amount=${res.amount}`)
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '开团失败', icon: 'none' })
+    joiningId.value = null
+  }
 }
 async function retryLoad() {
   loading.value = true
@@ -233,7 +248,7 @@ async function retryLoad() {
   height: 88rpx;
   padding: 0 24rpx;
   padding-top: var(--status-bar-height, 0px);
-  background: linear-gradient(90deg, #ff6b35, #c41e3a);
+  background: linear-gradient(90deg, #ff6b35, var(--brand));
 }
 .nav-btn {
   width: 56rpx;
@@ -298,7 +313,7 @@ async function retryLoad() {
 .price-now {
   font-size: 40rpx;
   font-weight: 700;
-  color: #c41e3a;
+  color: var(--brand);
 }
 .price-old {
   font-size: 24rpx;
@@ -308,7 +323,7 @@ async function retryLoad() {
 .save-tag {
   padding: 2rpx 12rpx;
   background: #fff0ed;
-  color: #c41e3a;
+  color: var(--brand);
   font-size: 20rpx;
   border-radius: 8rpx;
 }
@@ -419,7 +434,7 @@ async function retryLoad() {
   color: #666;
 }
 .g-remain-num {
-  color: #c41e3a;
+  color: var(--brand);
   font-weight: 700;
   margin: 0 6rpx;
 }
@@ -438,7 +453,7 @@ async function retryLoad() {
 .g-btn {
   flex-shrink: 0;
   padding: 14rpx 28rpx;
-  background: linear-gradient(90deg, #ff6b35, #c41e3a);
+  background: linear-gradient(90deg, #ff6b35, var(--brand));
   border-radius: 999rpx;
 }
 .g-btn-text {
@@ -497,7 +512,7 @@ async function retryLoad() {
   justify-content: center;
   gap: 8rpx;
   padding: 24rpx 0;
-  background: linear-gradient(90deg, #ff6b35, #c41e3a);
+  background: linear-gradient(90deg, #ff6b35, var(--brand));
   border-radius: 999rpx;
 }
 .footer-btn-text {
@@ -518,7 +533,7 @@ async function retryLoad() {
   width: 64rpx;
   height: 64rpx;
   border: 4rpx solid #e8e3db;
-  border-top-color: #c41e3a;
+  border-top-color: var(--brand);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
@@ -540,7 +555,7 @@ async function retryLoad() {
 }
 .state-retry {
   padding: 12rpx 48rpx;
-  background: #c41e3a;
+  background: var(--brand);
   border-radius: 999rpx;
 }
 .state-retry-text {

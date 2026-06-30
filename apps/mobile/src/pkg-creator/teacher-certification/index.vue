@@ -8,17 +8,41 @@
       <text class="tc-title">讲师认证</text>
     </view>
 
-    <!-- 已通过 / 审核中 状态页 -->
-    <view v-if="status === 'approved'" class="tc-status-page">
-      <AppIcon name="check-circle" :size="80" color="#22c55e" />
-      <text class="tc-status-title">认证已通过</text>
-      <text class="tc-status-desc">您已是平台认证讲师，享有专属权益。</text>
+    <!-- 加载中 -->
+    <view v-if="pageLoading" class="tc-status-page">
+      <AppIcon name="loader" :size="48" color="#c41e3a" />
+      <text class="tc-status-desc">加载中…</text>
     </view>
 
+    <!-- 加载失败 -->
+    <view v-else-if="pageError" class="tc-status-page">
+      <AppIcon name="alert-circle" :size="64" color="#f97316" />
+      <text class="tc-status-title">加载失败</text>
+      <text class="tc-status-desc">认证状态获取失败，请重试。</text>
+      <button class="tc-btn tc-btn-full" @tap="loadContext">重试</button>
+    </view>
+
+    <!-- 已通过 -->
+    <view v-else-if="status === 'approved'" class="tc-status-page">
+      <AppIcon name="check-circle" :size="80" color="#22c55e" />
+      <text class="tc-status-title">认证已通过</text>
+      <text class="tc-status-desc">您已是平台认证讲师，可在圈子内上传与管理线上课程。</text>
+      <button class="tc-btn tc-btn-full" @tap="navigateTo('/pkg-creator/teacher-dashboard/index')">进入课程管理台</button>
+    </view>
+
+    <!-- 审核中 -->
     <view v-else-if="status === 'pending'" class="tc-status-page">
       <AppIcon name="clock" :size="80" color="#f97316" />
       <text class="tc-status-title">审核中</text>
       <text class="tc-status-desc">您的认证申请正在审核中，预计 3-5 个工作日完成。</text>
+    </view>
+
+    <!-- 已驳回（可重新提交） -->
+    <view v-else-if="status === 'rejected' && step !== 3" class="tc-status-page">
+      <AppIcon name="x-circle" :size="80" color="#ef4444" />
+      <text class="tc-status-title">认证未通过</text>
+      <text class="tc-status-desc">{{ rejectReason ? '原因：' + rejectReason : '很抱歉，您的申请未通过审核。' }}</text>
+      <button class="tc-btn tc-btn-full" @tap="status = 'none'">修改资料并重新申请</button>
     </view>
 
     <template v-else>
@@ -37,6 +61,12 @@
 
       <!-- 步骤1 基本信息 -->
       <view v-if="step === 1" class="tc-form">
+        <!-- 实名前置提示（线上讲师认证复用平台实名认证） -->
+        <view v-if="!identityVerified" class="tc-verify-tip" @tap="goToVerify">
+          <AppIcon name="shield-alert" :size="20" color="#f97316" />
+          <text class="tc-verify-text">需先完成实名认证才能申请讲师认证，点此前往</text>
+          <AppIcon name="chevron-right" :size="18" color="#f97316" />
+        </view>
         <view v-for="f in baseFields" :key="f.key" class="tc-field">
           <text class="tc-label">{{ f.label }}</text>
           <input
@@ -66,20 +96,23 @@
 
       <!-- 步骤2 资质证明 -->
       <view v-else-if="step === 2" class="tc-form">
-        <text class="tc-hint">请上传专业资质证书，支持 JPG、PNG 格式，单张不超过 5MB。</text>
+        <text class="tc-hint">可上传专业资质证书辅助审核（选填），支持 JPG、PNG 格式。</text>
         <view v-for="f in certFields" :key="f.key" class="tc-field">
           <text class="tc-label">{{ f.label }}</text>
           <view class="tc-upload" :class="{ 'tc-upload-done': form[f.key] }" @tap="chooseImage(f.key)">
-            <AppIcon :name="form[f.key] ? 'file-text' : 'upload'" :size="32" :color="form[f.key] ? '#c41e3a' : '#bbb'" />
-            <text class="tc-upload-text" :class="{ 'tc-upload-text-done': form[f.key] }">
-              {{ form[f.key] ? '已上传' : '点击上传证书图片' }}
-            </text>
+            <image lazy-load v-if="form[f.key]" class="tc-upload-img" :src="form[f.key]" mode="aspectFill" />
+            <template v-else>
+              <AppIcon :name="uploadingKey === f.key ? 'loader' : 'upload'" :size="32" :color="uploadingKey === f.key ? '#c41e3a' : '#bbb'" />
+              <text class="tc-upload-text">
+                {{ uploadingKey === f.key ? '上传中…' : '点击选择证书图片' }}
+              </text>
+            </template>
           </view>
         </view>
         <view class="tc-footer tc-footer-row">
           <button class="tc-btn tc-btn-outline" @tap="step = 1">上一步</button>
-          <button class="tc-btn" :class="{ 'tc-btn-disabled': loading || !form.cert1 }" :disabled="loading || !form.cert1" @tap="handleSubmit">
-            {{ loading ? '提交中…' : '提交申请' }}
+          <button class="tc-btn" :class="{ 'tc-btn-disabled': submitting }" :disabled="submitting" @tap="handleSubmit">
+            {{ submitting ? '提交中…' : '提交申请' }}
           </button>
         </view>
       </view>
@@ -101,58 +134,132 @@
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
-import { reLaunch, goBack } from '@/utils/router'
-
-type CertStatus = 'none' | 'pending' | 'approved' | 'rejected'
+import { reLaunch, goBack, navigateTo } from '@/utils/router'
+import { chooseAndUploadImage } from '@/utils/request'
+import { teacherApi, type CertStatus } from '@/lib/teacher-data'
 
 const statusBarHeight = ref(0)
 const status = ref<CertStatus>('none')
 const step = ref(1)
-const loading = ref(false)
+
+// 三态：页面初始加载认证状态
+const pageLoading = ref(true)
+const pageError = ref(false)
+const submitting = ref(false)
+
+// 实名前置（线上讲师认证复用平台实名认证，不重复采集身份证）
+const identityVerified = ref(true)
+const rejectReason = ref('')
 
 const form = ref<Record<string, string>>({
   realName: '',
-  idCard: '',
-  specialty: '',
+  title: '',
   experience: '',
   bio: '',
   cert1: '',
   cert2: '',
 })
 
+// 身份证已由实名认证体系核验，此处不再采集（避免 PII 重复 + 合规）
 const baseFields = [
-  { key: 'realName', label: '真实姓名', placeholder: '请输入真实姓名' },
-  { key: 'idCard', label: '身份证号', placeholder: '请输入18位身份证号' },
-  { key: 'specialty', label: '专业领域', placeholder: '如：八字命理、风水堪舆' },
-  { key: 'experience', label: '从业年限', placeholder: '如：5年' },
+  { key: 'realName', label: '讲师署名', placeholder: '用于课程与证书展示的真实姓名' },
+  { key: 'title', label: '专业领域 / 头衔', placeholder: '如：八字命理讲师、书法讲师' },
+  { key: 'experience', label: '从业年限', placeholder: '如：5年（选填）' },
 ]
 
 const certFields = [
-  { key: 'cert1', label: '资质证书 1（必填）' },
+  { key: 'cert1', label: '资质证书 1（选填）' },
   { key: 'cert2', label: '资质证书 2（选填）' },
 ]
 
-const canNext = computed(() => !!form.value.realName && !!form.value.specialty)
+const canNext = computed(() => !!form.value.realName && !!form.value.title)
 
 function updateForm(key: string, e: any) {
   form.value[key] = e.detail.value
 }
 
-function chooseImage(key: string) {
-  uni.chooseImage({
-    count: 1,
-    success: (res: any) => {
-      const path = Array.isArray(res.tempFilePaths) ? res.tempFilePaths[0] : res.tempFilePaths
-      form.value[key] = path || 'uploaded'
-    },
-  })
+const uploadingKey = ref('')
+async function chooseImage(key: string) {
+  if (uploadingKey.value) return
+  uploadingKey.value = key
+  try {
+    form.value[key] = await chooseAndUploadImage()
+  } catch (e: any) {
+    if (e?.message && e.message !== '已取消') uni.showToast({ title: e.message, icon: 'none' })
+  } finally {
+    uploadingKey.value = ''
+  }
+}
+
+/** 加载认证状态 + 实名状态（三态） */
+async function loadContext() {
+  pageLoading.value = true
+  pageError.value = false
+  try {
+    const ctx = await teacherApi.getCertificationContext()
+    status.value = ctx.status
+    identityVerified.value = ctx.identityVerified
+    rejectReason.value = ctx.cert?.rejectReason || ''
+    // 已驳回：回填原资料，便于修改后重新提交
+    if (ctx.cert && ctx.status === 'rejected') {
+      form.value.realName = ctx.cert.realName || ''
+      form.value.title = ctx.cert.title || ''
+      form.value.bio = ctx.cert.intro || ''
+    }
+  } catch (e) {
+    pageError.value = true
+  } finally {
+    pageLoading.value = false
+  }
+}
+
+/** 跳转实名认证（账号安全中心） */
+function goToVerify() {
+  navigateTo('/pkg-mine/security/index')
 }
 
 async function handleSubmit() {
-  loading.value = true
-  await new Promise((r) => setTimeout(r, 1500))
-  loading.value = false
-  step.value = 3
+  if (submitting.value) return
+  // 前置：未实名先引导
+  if (!identityVerified.value) {
+    uni.showModal({
+      title: '需先完成实名认证',
+      content: '线上讲师认证复用平台实名认证，请先在「账号安全」完成实名后再申请。',
+      confirmText: '去实名',
+      success: (r) => { if (r.confirm) goToVerify() },
+    })
+    return
+  }
+  submitting.value = true
+  try {
+    const intro = [
+      form.value.experience ? `从业 ${form.value.experience}` : '',
+      form.value.bio || '',
+    ].filter(Boolean).join('。 ')
+    const credentials = [form.value.cert1, form.value.cert2].filter(Boolean)
+    await teacherApi.applyCertification({
+      realName: form.value.realName,
+      title: form.value.title,
+      intro: intro || undefined,
+      credentials: credentials.length ? credentials : undefined,
+    })
+    step.value = 3
+    status.value = 'pending'
+  } catch (e: any) {
+    const msg = e?.message || e?.errMsg || ''
+    if (msg.includes('实名')) {
+      uni.showModal({
+        title: '需先完成实名认证',
+        content: '请先在「账号安全」完成实名认证后再申请讲师认证。',
+        confirmText: '去实名',
+        success: (r) => { if (r.confirm) goToVerify() },
+      })
+    } else {
+      uni.showToast({ title: msg || '提交失败，请重试', icon: 'none' })
+    }
+  } finally {
+    submitting.value = false
+  }
 }
 
 function goHome() {
@@ -170,6 +277,7 @@ onLoad(() => {
   } catch (e) {
     statusBarHeight.value = 0
   }
+  loadContext()
 })
 </script>
 
@@ -202,6 +310,23 @@ onLoad(() => {
   font-size: 32rpx;
   font-weight: 600;
   color: #2c2c2c;
+}
+
+/* 实名前置提示 */
+.tc-verify-tip {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  margin-bottom: 24rpx;
+  padding: 20rpx 24rpx;
+  background: #fff7ed;
+  border: 2rpx solid #fed7aa;
+  border-radius: 16rpx;
+}
+.tc-verify-text {
+  flex: 1;
+  font-size: 26rpx;
+  color: #c2410c;
 }
 
 /* 状态页 */
@@ -255,7 +380,7 @@ onLoad(() => {
   flex-shrink: 0;
 }
 .tc-step-active {
-  background: #c41e3a;
+  background: var(--brand);
   color: #fff;
 }
 .tc-step-line {
@@ -265,7 +390,7 @@ onLoad(() => {
   background: #f0f0f0;
 }
 .tc-step-line-active {
-  background: #c41e3a;
+  background: var(--brand);
 }
 .tc-progress-labels {
   display: flex;
@@ -338,13 +463,20 @@ onLoad(() => {
 .tc-upload-done {
   border-color: rgba(196, 30, 58, 0.5);
   background: rgba(196, 30, 58, 0.05);
+  padding: 0;
+  overflow: hidden;
+}
+.tc-upload-img {
+  width: 100%;
+  height: 240rpx;
+  border-radius: 16rpx;
 }
 .tc-upload-text {
   font-size: 26rpx;
   color: #999;
 }
 .tc-upload-text-done {
-  color: #c41e3a;
+  color: var(--brand);
   font-weight: 500;
 }
 
@@ -370,7 +502,7 @@ onLoad(() => {
   font-size: 30rpx;
   font-weight: 500;
   color: #fff;
-  background: #c41e3a;
+  background: var(--brand);
   border-radius: 16rpx;
   text-align: center;
   border: none;

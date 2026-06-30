@@ -121,7 +121,7 @@
           <text class="form-label">手机号</text>
           <input
             class="form-input"
-            type="number"
+            type="text"
             v-model="formData.phone"
             placeholder="请输入手机号码"
             placeholder-class="form-placeholder"
@@ -389,7 +389,7 @@ export default {
 .nav-save {
   font-size: 28rpx;
   font-weight: 500;
-  color: #C41E3A;
+  color: var(--brand);
 }
 .nav-save-disabled {
   color: #999999;
@@ -482,7 +482,7 @@ export default {
 }
 .setdefault-text {
   font-size: 24rpx;
-  color: #C41E3A;
+  color: var(--brand);
 }
 
 /* 空态 */
@@ -526,7 +526,7 @@ export default {
 .add-btn {
   width: 100%;
   height: 88rpx;
-  background-color: #C41E3A;
+  background-color: var(--brand);
   border-radius: 24rpx;
   display: flex;
   align-items: center;
@@ -686,7 +686,7 @@ export default {
   transition: background-color 0.2s;
 }
 .switch-on {
-  background-color: #C41E3A;
+  background-color: var(--brand);
 }
 .switch-dot {
   position: absolute;

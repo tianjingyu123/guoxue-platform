@@ -320,7 +320,7 @@ async function fetchData() {
 function goBack() {
   uni.navigateBack()
 }
-function goCreate(id?: number) {
+function goCreate(id?: number | string) {
   const url = id ? `/pkg-live/create/index?id=${id}` : '/pkg-live/create/index'
   uni.navigateTo({ url })
 }
@@ -391,7 +391,7 @@ onMounted(() => { fetchData() })
   background: transparent;
 }
 .nav-btn-primary {
-  background: #C41E3A;
+  background: var(--brand);
 }
 .nav-btn-text {
   font-size: 26rpx;
@@ -480,7 +480,7 @@ onMounted(() => { fetchData() })
   background: #f0ece5;
 }
 .filter-chip-active {
-  background: #C41E3A;
+  background: var(--brand);
   color: #fff;
 }
 
@@ -536,7 +536,7 @@ onMounted(() => { fetchData() })
 }
 .cal-cell-selected {
   background: rgba(196, 30, 58, 0.1);
-  border: 2px solid #C41E3A;
+  border: 2px solid var(--brand);
 }
 .cal-cell-today {
   background: #f0ece5;
@@ -547,7 +547,7 @@ onMounted(() => { fetchData() })
   color: #1a1a1a;
 }
 .cal-day-today {
-  color: #C41E3A;
+  color: var(--brand);
 }
 .cal-dots {
   display: flex;
@@ -664,7 +664,7 @@ onMounted(() => { fetchData() })
   gap: 12rpx;
   margin-top: 32rpx;
   padding: 16rpx 32rpx;
-  background: #C41E3A;
+  background: var(--brand);
   border-radius: 12rpx;
 }
 .empty-list-btn-text {
@@ -766,7 +766,7 @@ onMounted(() => { fetchData() })
   color: #1a1a1a;
 }
 .dlg-btn-primary {
-  background: #C41E3A;
+  background: var(--brand);
   color: #fff;
 }
 .dlg-btn-danger {
@@ -791,6 +791,6 @@ onMounted(() => { fetchData() })
 /* 错误状态 */
 .schedule-error { display: flex; flex-direction: column; align-items: center; gap: 32rpx; padding: 120rpx 32rpx; }
 .error-msg { font-size: 28rpx; color: #999; text-align: center; }
-.retry-btn { padding: 16rpx 48rpx; border: 1rpx solid #C41E3A; border-radius: 999rpx; }
-.retry-btn-txt { font-size: 28rpx; color: #C41E3A; }
+.retry-btn { padding: 16rpx 48rpx; border: 1rpx solid var(--brand); border-radius: 999rpx; }
+.retry-btn-txt { font-size: 28rpx; color: var(--brand); }
 </style>

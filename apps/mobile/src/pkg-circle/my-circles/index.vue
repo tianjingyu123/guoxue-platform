@@ -299,7 +299,7 @@ function roleColor(role: Role) {
 }
 .nav-more {
   font-size: 26rpx;
-  color: #c41e3a;
+  color: var(--brand);
 }
 .scroll-area {
   flex: 1;
@@ -309,7 +309,7 @@ function roleColor(role: Role) {
   margin: 24rpx;
   padding: 32rpx;
   border-radius: 32rpx;
-  background: linear-gradient(135deg, #c41e3a, #a01530);
+  background: linear-gradient(135deg, var(--brand), #a01530);
 }
 .overview-head {
   display: flex;
@@ -415,8 +415,8 @@ function roleColor(role: Role) {
   border: 2rpx solid #e8e3db;
 }
 .filter-chip.active {
-  background: #c41e3a;
-  border-color: #c41e3a;
+  background: var(--brand);
+  border-color: var(--brand);
 }
 .filter-label {
   font-size: 24rpx;
@@ -473,7 +473,7 @@ function roleColor(role: Role) {
   height: 36rpx;
   padding: 0 6rpx;
   border-radius: 999rpx;
-  background: #c41e3a;
+  background: var(--brand);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -557,7 +557,7 @@ function roleColor(role: Role) {
   padding: 2rpx 10rpx;
   border-radius: 8rpx;
   background: rgba(196, 30, 58, 0.1);
-  color: #c41e3a;
+  color: var(--brand);
 }
 .level-bar {
   flex: 1;
@@ -568,7 +568,7 @@ function roleColor(role: Role) {
 }
 .level-fill {
   height: 100%;
-  background: linear-gradient(90deg, #c41e3a, #ff6b35);
+  background: linear-gradient(90deg, var(--brand), #ff6b35);
   border-radius: 999rpx;
 }
 .level-exp {
@@ -618,7 +618,7 @@ function roleColor(role: Role) {
 }
 .empty-link {
   font-size: 26rpx;
-  color: #c41e3a;
+  color: var(--brand);
 }
 .quick-entry {
   display: flex;

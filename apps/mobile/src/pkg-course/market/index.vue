@@ -91,10 +91,7 @@ const feedColumns = computed(() => {
 onLoad(() => {})
 
 function goBack() {
-  navigateBack('/discover')
-}
-function goSearch() {
-  navigateTo('/search?from=course')
+  navigateBack(1)
 }
 function goCategory(id: string) {
   navigateTo(`/courses-list?category=${id}`)
@@ -116,14 +113,7 @@ function setCategory(id: string) {
       </view>
       <!-- AI 搜索栏 -->
       <view class="search-wrap">
-        <view class="search-bar" hover-class="press" @tap="goSearch">
-          <app-icon name="search" :size="28" color="var(--text-soft)" />
-          <text class="search-ph">搜索课程、讲师...</text>
-          <view class="ai-tag">
-            <app-icon name="sparkles" :size="22" color="var(--brand)" />
-            <text class="ai-text">AI</text>
-          </view>
-        </view>
+        <search-bar default-tab="course" placeholder="搜索课程、讲师..." />
       </view>
     </view>
 
@@ -286,12 +276,12 @@ function setCategory(id: string) {
   gap: 4rpx;
   padding: 4rpx 14rpx;
   border-radius: 999rpx;
-  background: color-mix(in srgb, var(--brand, #c41e3a) 15%, transparent);
+  background: color-mix(in srgb, var(--brand, var(--brand)) 15%, transparent);
 }
 .ai-text {
   font-size: 22rpx;
   font-weight: 500;
-  color: var(--brand, #c41e3a);
+  color: var(--brand, var(--brand));
 }
 
 /* 分类导航 */
@@ -383,7 +373,7 @@ function setCategory(id: string) {
   color: var(--text-soft, #999);
 }
 .tab-chip--on {
-  background: var(--brand, #c41e3a);
+  background: var(--brand, var(--brand));
   color: #fff;
 }
 .feed-masonry {

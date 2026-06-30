@@ -1,38 +1,40 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
+import { mineApi } from '@/lib/mine-data'
 
 type Step = 'enter_old' | 'enter_new' | 'confirm_new' | 'verify_phone' | 'done'
 
-// 模拟：已设置过支付密码
-const hasPaymentPwd = true
-const mode = hasPaymentPwd ? 'change' : 'set'
+const pageLoading = ref(true)
+const mode = ref<'set' | 'change'>('change') // set=首次设置 change=已设置
+const phoneFull = ref('')
+const isReset = ref(false) // 是否走「忘记密码→短信重置」流程
 
-const step = ref<Step>(hasPaymentPwd ? 'enter_old' : 'enter_new')
+const step = ref<Step>('enter_old')
 const oldPin = ref('')
 const newPin = ref('')
 const confirmPin = ref('')
 const phone = ref('')
 const smsCode = ref('')
 const countdown = ref(0)
-const loading = ref(false)
+const submitting = ref(false)
 const error = ref('')
 
-const stepTitles: Record<Step, string> = {
+const stepTitles = computed<Record<Step, string>>(() => ({
   enter_old: '验证当前支付密码',
   enter_new: '设置新支付密码',
   confirm_new: '再次确认新密码',
   verify_phone: '验证手机号',
   done: '设置成功',
-}
-const stepSubtitles: Record<Step, string> = {
+}))
+const stepSubtitles = computed<Record<Step, string>>(() => ({
   enter_old: '请输入当前6位支付密码',
-  enter_new: mode === 'set' ? '请设置6位数字支付密码' : '请输入新的6位支付密码',
+  enter_new: mode.value === 'set' ? '请设置6位数字支付密码' : '请输入新的6位支付密码',
   confirm_new: '请再次输入新支付密码',
   verify_phone: '通过手机验证码重置支付密码',
-  done: mode === 'set' ? '支付密码设置成功' : '支付密码修改成功',
-}
+  done: mode.value === 'set' ? '支付密码设置成功' : '支付密码修改成功',
+}))
 
 const progressSteps: Step[] = ['enter_old', 'enter_new', 'confirm_new']
 const currentProgressIdx = computed(() => progressSteps.indexOf(step.value))
@@ -65,29 +67,59 @@ function startCountdown() {
     if (countdown.value <= 0 && timer) clearInterval(timer)
   }, 1000)
 }
-function handleSendCode() {
+async function handleSendCode() {
   if (!/^1[3-9]\d{9}$/.test(phone.value)) {
     error.value = '请输入正确的手机号'
     return
   }
-  startCountdown()
-  error.value = ''
+  try {
+    await mineApi.sendPhoneCode(phone.value, 'RESET_PAY_PWD')
+    startCountdown()
+    error.value = ''
+  } catch (e: any) {
+    error.value = e?.message || '验证码发送失败'
+  }
 }
 function handleForget() {
+  isReset.value = true
   step.value = 'verify_phone'
   oldPin.value = ''
   error.value = ''
+  if (!phone.value) phone.value = phoneFull.value
+}
+
+// confirm_new 完成后按场景提交真实接口
+async function submitNewPassword() {
+  submitting.value = true
+  error.value = ''
+  let res: { success: boolean; message?: string }
+  if (isReset.value) {
+    res = await mineApi.resetPaymentPassword(newPin.value, smsCode.value)
+  } else if (mode.value === 'set') {
+    // 后端首次设置不强制校验短信，占位满足 DTO 格式
+    res = await mineApi.setPaymentPassword(newPin.value, '000000')
+  } else {
+    res = await mineApi.updatePaymentPassword(oldPin.value, newPin.value)
+  }
+  submitting.value = false
+  if (res.success) {
+    step.value = 'done'
+  } else {
+    error.value = res.message || '操作失败'
+    confirmPin.value = ''
+  }
 }
 
 async function advance() {
+  if (submitting.value) return
   error.value = ''
-  loading.value = true
-  await new Promise((r) => setTimeout(r, 600))
-  loading.value = false
 
   if (step.value === 'enter_old') {
     if (oldPin.value.length < 6) { error.value = '请输入完整的6位密码'; return }
-    if (oldPin.value !== '123456') { oldPin.value = ''; error.value = '密码错误，请重试'; return }
+    submitting.value = true
+    const res = await mineApi.verifyPaymentPassword(oldPin.value)
+    submitting.value = false
+    if (!res.success) { oldPin.value = ''; error.value = res.message || '密码错误，请重试'; return }
     step.value = 'enter_new'
   } else if (step.value === 'enter_new') {
     if (newPin.value.length < 6) { error.value = '请输入完整的6位新密码'; return }
@@ -95,7 +127,7 @@ async function advance() {
   } else if (step.value === 'confirm_new') {
     if (confirmPin.value.length < 6) { error.value = '请输入完整的确认密码'; return }
     if (confirmPin.value !== newPin.value) { confirmPin.value = ''; error.value = '两次密码不一致，请重新输入'; return }
-    step.value = 'done'
+    await submitNewPassword()
   } else if (step.value === 'verify_phone') {
     if (smsCode.value.length < 6) { error.value = '请输入6位验证码'; return }
     step.value = 'enter_new'
@@ -104,6 +136,7 @@ async function advance() {
 
 // PIN 输满 6 位自动推进
 watch([oldPin, newPin, confirmPin], () => {
+  if (submitting.value) return
   if (step.value === 'enter_old' && oldPin.value.length === 6) advance()
   else if (step.value === 'enter_new' && newPin.value.length === 6) advance()
   else if (step.value === 'confirm_new' && confirmPin.value.length === 6) advance()
@@ -115,6 +148,20 @@ function onPhoneInput(e: any) {
 function onSmsInput(e: any) {
   smsCode.value = e.detail.value.replace(/\D/g, '').slice(0, 6)
 }
+
+onMounted(async () => {
+  try {
+    const profile = await mineApi.getProfile()
+    mode.value = profile.paymentPasswordSet ? 'change' : 'set'
+    phoneFull.value = profile.phoneFull || ''
+    step.value = mode.value === 'set' ? 'enter_new' : 'enter_old'
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+    step.value = 'enter_old'
+  } finally {
+    pageLoading.value = false
+  }
+})
 </script>
 
 <template>
@@ -123,6 +170,11 @@ function onSmsInput(e: any) {
     <app-nav-bar :title="mode === 'set' ? '设置支付密码' : '修改支付密码'" />
 
     <view class="body">
+      <view v-if="pageLoading" class="title-block">
+        <view class="title-icon"><AppIcon name="shield" :size="32" color="#C41E3A" /></view>
+        <text class="subtitle">加载中…</text>
+      </view>
+      <template v-else>
       <template v-if="step !== 'done'">
         <!-- 进度 -->
         <view v-if="mode === 'change'" class="progress">
@@ -146,7 +198,7 @@ function onSmsInput(e: any) {
           <view class="field">
             <text class="field-label">手机号</text>
             <view class="code-row">
-              <input class="full-input" type="number" :value="phone" @input="onPhoneInput" placeholder="请输入手机号" placeholder-class="ph" />
+              <input class="full-input" type="text" :value="phone" @input="onPhoneInput" placeholder="请输入手机号" placeholder-class="ph" />
               <view class="code-btn" :class="{ disabled: countdown > 0 }" @tap="handleSendCode">
                 <text class="code-btn-text">{{ countdown > 0 ? `${countdown}s` : '发送验证码' }}</text>
               </view>
@@ -154,10 +206,10 @@ function onSmsInput(e: any) {
           </view>
           <view class="field">
             <text class="field-label">验证码</text>
-            <input class="full-input" type="number" :maxlength="6" :value="smsCode" @input="onSmsInput" placeholder="请输入6位验证码" placeholder-class="ph" />
+            <input class="full-input" type="text" :maxlength="6" :value="smsCode" @input="onSmsInput" placeholder="请输入6位验证码" placeholder-class="ph" />
           </view>
           <text v-if="error" class="err center">{{ error }}</text>
-          <view class="primary-btn" @tap="advance"><text class="primary-btn-text">{{ loading ? '验证中...' : '下一步' }}</text></view>
+          <view class="primary-btn" @tap="advance"><text class="primary-btn-text">{{ submitting ? '验证中...' : '下一步' }}</text></view>
         </view>
 
         <!-- PIN 格子 -->
@@ -165,7 +217,7 @@ function onSmsInput(e: any) {
           <view class="pin-wrap">
             <input
               class="pin-hidden"
-              type="number"
+              type="text"
               :maxlength="6"
               :value="activePin"
               :focus="true"
@@ -179,7 +231,7 @@ function onSmsInput(e: any) {
             </view>
           </view>
           <text v-if="error" class="err center">{{ error }}</text>
-          <text v-else-if="loading" class="loading-text">验证中...</text>
+          <text v-else-if="submitting" class="loading-text">验证中...</text>
 
           <view v-if="step === 'enter_old'" class="forget" @tap="handleForget">
             <text class="forget-text">忘记支付密码？</text>
@@ -199,6 +251,7 @@ function onSmsInput(e: any) {
         <text class="done-sub">您的支付密码已{{ mode === 'set' ? '设置' : '更新' }}，下次支付时将使用新密码验证</text>
         <view class="done-btn" @tap="goBack"><text class="done-btn-text">完成</text></view>
       </view>
+      </template>
     </view>
   </view>
 </template>
@@ -231,7 +284,7 @@ function onSmsInput(e: any) {
   justify-content: center;
 }
 .progress-dot.active {
-  background: #c41e3a;
+  background: var(--brand);
 }
 .progress-dot.passed {
   background: rgba(196, 30, 58, 0.2);
@@ -245,7 +298,7 @@ function onSmsInput(e: any) {
   color: #fff;
 }
 .progress-dot.passed .progress-num {
-  color: #c41e3a;
+  color: var(--brand);
 }
 .progress-line {
   width: 64rpx;
@@ -254,7 +307,7 @@ function onSmsInput(e: any) {
   margin: 0 12rpx;
 }
 .progress-line.active {
-  background: #c41e3a;
+  background: var(--brand);
 }
 .title-block {
   display: flex;
@@ -329,7 +382,7 @@ function onSmsInput(e: any) {
 .pin-caret {
   width: 4rpx;
   height: 48rpx;
-  background: #c41e3a;
+  background: var(--brand);
 }
 .err {
   font-size: 24rpx;
@@ -349,7 +402,7 @@ function onSmsInput(e: any) {
 }
 .forget-text {
   font-size: 26rpx;
-  color: #c41e3a;
+  color: var(--brand);
 }
 .phone-form {
   display: flex;
@@ -387,7 +440,7 @@ function onSmsInput(e: any) {
   padding: 0 28rpx;
   height: 88rpx;
   border-radius: 20rpx;
-  background: #c41e3a;
+  background: var(--brand);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -403,7 +456,7 @@ function onSmsInput(e: any) {
 .primary-btn {
   height: 88rpx;
   border-radius: 20rpx;
-  background: #c41e3a;
+  background: var(--brand);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -460,7 +513,7 @@ function onSmsInput(e: any) {
   max-width: 480rpx;
   height: 88rpx;
   border-radius: 20rpx;
-  background: #c41e3a;
+  background: var(--brand);
   display: flex;
   align-items: center;
   justify-content: center;

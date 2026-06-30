@@ -24,7 +24,7 @@ export interface PointsTask {
 
 // 积分历史记录
 export interface PointsHistoryItem {
-  id: number
+  id: number | string
   title: string
   points: number // 正数为获取，负数为消费
   time: string
@@ -34,7 +34,7 @@ export interface PointsHistoryItem {
 // 积分兑换商品
 export type ExchangeType = 'coupon' | 'coin' | 'vip' | 'gift'
 export interface PointsExchangeItem {
-  id: number
+  id: string
   type: ExchangeType
   title: string
   points: number // 所需积分
@@ -67,14 +67,18 @@ export const pointsHistory: PointsHistoryItem[] = [
   { id: 4, title: '购买课程', points: 199, time: '昨天 09:00', type: 'earn' },
 ]
 
-export const pointsExchangeItems: PointsExchangeItem[] = [
-  { id: 1, type: 'coupon', title: '10元无门槛券', points: 500, icon: 'ticket', stock: 100, color: '#c9a96e' },
-  { id: 2, type: 'coupon', title: '满100减20券', points: 800, icon: 'ticket', stock: 50, color: '#c9a96e' },
-  { id: 3, type: 'coin', title: '50国学币', points: 500, icon: 'coins', stock: 999, color: '#d97706' },
-  { id: 4, type: 'coin', title: '200国学币', points: 1800, icon: 'coins', stock: 999, color: '#d97706' },
-  { id: 5, type: 'vip', title: '7天会员体验', points: 1000, icon: 'crown', stock: 30, color: '#eab308' },
-  { id: 6, type: 'gift', title: '国学书签套装', points: 2000, icon: 'package', stock: 20, color: '#22c55e' },
-]
+// 后端 PointsProduct → 前端 PointsExchangeItem（type 大写→小写）
+function adaptPointsProduct(p: any): PointsExchangeItem {
+  return {
+    id: String(p.id),
+    type: String(p.type || '').toLowerCase() as ExchangeType,
+    title: p.title || '',
+    points: Number(p.points ?? 0),
+    icon: p.icon || 'gift',
+    stock: Number(p.stock ?? 0),
+    color: p.color || '#c9a96e',
+  }
+}
 
 export const exchangeTypeLabels: Record<ExchangeType, string> = {
   coupon: '优惠券',
@@ -83,36 +87,70 @@ export const exchangeTypeLabels: Record<ExchangeType, string> = {
   gift: '实物',
 }
 
+// ============ 适配（后端 PointsRecord → 前端 PointsHistoryItem）============
+function formatPointsTime(v: any): string {
+  const d = new Date(v)
+  if (Number.isNaN(d.getTime())) return ''
+  const now = new Date()
+  const p = (n: number) => String(n).padStart(2, '0')
+  const hm = `${p(d.getHours())}:${p(d.getMinutes())}`
+  if (d.toDateString() === now.toDateString()) return `今天 ${hm}`
+  const y = new Date(now); y.setDate(now.getDate() - 1)
+  if (d.toDateString() === y.toDateString()) return `昨天 ${hm}`
+  return `${p(d.getMonth() + 1)}-${p(d.getDate())} ${hm}`
+}
+function adaptPointsRecord(r: any): PointsHistoryItem {
+  const amt = Number(r.amount ?? 0)
+  const isEarn = String(r.type ?? '').toUpperCase() === 'EARN' || amt >= 0
+  return {
+    id: r.id,
+    title: r.description || r.source || (isEarn ? '积分获取' : '积分消费'),
+    points: amt,
+    time: formatPointsTime(r.createdAt),
+    type: isEarn ? 'earn' : 'spend',
+  }
+}
+
 // ============ API 层 ============
 
 export const pointsApi = {
-  /** 获取积分信息 */
+  /** 获取积分信息 —— GET /users/me/points（后端 {balance,totalEarned,totalSpent}；今日获取后端无→0 降级） */
   async getInfo(): Promise<PointsInfo> {
-    if (true) return pointsInfo
-    try { return await apiGet<PointsInfo>('/points') } catch { return pointsInfo }
+    const p = await apiGet<{ balance?: number; totalEarned?: number; totalSpent?: number }>('/users/me/points')
+    return {
+      balance: Number(p.balance ?? 0),
+      totalEarned: Number(p.totalEarned ?? 0),
+      totalSpent: Number(p.totalSpent ?? 0),
+      todayEarned: 0,
+    }
   },
 
-  /** 获取积分任务列表 */
+  /** 获取积分任务列表 —— GET /users/me/points/tasks（后端结构与前端 PointsTask 对齐） */
   async getTasks(): Promise<PointsTask[]> {
-    if (true) return pointsTasks
-    try { return await apiGet<PointsTask[]>('/points/tasks') } catch { return pointsTasks }
+    const res = await apiGet<PointsTask[]>('/users/me/points/tasks')
+    return Array.isArray(res) ? res : []
   },
 
-  /** 获取积分历史 */
+  /** 获取积分历史 —— GET /users/me/points/records（后端 {items:PointsRecord[]} → 适配） */
   async getHistory(): Promise<PointsHistoryItem[]> {
-    if (true) return pointsHistory
-    try { return await apiGet<PointsHistoryItem[]>('/points/history') } catch { return pointsHistory }
+    const res = await apiGet<{ items?: any[] } | any[]>('/users/me/points/records')
+    const list = Array.isArray(res) ? res : (res?.items ?? [])
+    return list.map(adaptPointsRecord)
   },
 
-  /** 获取积分兑换商品 */
+  /** 获取积分兑换商品 —— GET /users/me/points/products（积分商城真实商品） */
   async getExchangeItems(): Promise<PointsExchangeItem[]> {
-    if (true) return pointsExchangeItems
-    try { return await apiGet<PointsExchangeItem[]>('/points/exchange') } catch { return pointsExchangeItems }
+    const res = await apiGet<any[]>('/users/me/points/products')
+    return Array.isArray(res) ? res.map(adaptPointsProduct) : []
   },
 
-  /** 执行积分兑换 */
-  async exchange(_itemId: number): Promise<{ success: boolean; message: string }> {
-    if (true) return { success: true, message: '兑换成功' }
-    try { await apiPost(`/points/exchange/${_itemId}`, {}); return { success: true, message: '兑换成功' } } catch (e: any) { return { success: false, message: e?.message || '兑换失败' } }
+  /** 执行积分兑换 —— POST /users/me/points/exchange（事务扣积分+减库存+建兑换记录，奖励由系统发放） */
+  async exchange(_productId: string): Promise<{ success: boolean; message: string }> {
+    try {
+      const res = await apiPost<{ reward?: string }>('/users/me/points/exchange', { productId: _productId })
+      return { success: true, message: res?.reward || '兑换成功' }
+    } catch (e: any) {
+      return { success: false, message: e?.message || '兑换失败' }
+    }
   },
 }

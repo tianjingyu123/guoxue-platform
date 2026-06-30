@@ -382,7 +382,7 @@ const contactEmail = () => {}
 }
 .toggle-link {
   font-size: 24rpx;
-  color: #c41e3a;
+  color: var(--brand);
 }
 .toggle-sep {
   font-size: 24rpx;
@@ -518,7 +518,7 @@ const contactEmail = () => {}
 }
 .field-manage-text {
   font-size: 28rpx;
-  color: #c41e3a;
+  color: var(--brand);
 }
 
 /* 图例/依据 */
@@ -582,7 +582,7 @@ const contactEmail = () => {}
 }
 .contact-email {
   font-size: 28rpx;
-  color: #c41e3a;
+  color: var(--brand);
 }
 
 /* 底部按钮 */
@@ -599,7 +599,7 @@ const contactEmail = () => {}
 .footer-btn {
   width: 100%;
   height: 88rpx;
-  background-color: #c41e3a;
+  background-color: var(--brand);
   border-radius: 16rpx;
   display: flex;
   align-items: center;

@@ -11,6 +11,26 @@
       </view>
     </view>
 
+    <!-- loading -->
+    <view v-if="loading" class="poster-state">
+      <view class="poster-spinner" /><text class="poster-state-txt">加载中...</text>
+    </view>
+
+    <!-- 未开通分站 -->
+    <view v-else-if="notOpened" class="poster-state">
+      <app-icon name="store" :size="96" color="#d1d5db" />
+      <text class="poster-state-txt">你还没有开通分站</text>
+      <view class="poster-state-btn" @tap="goJoin"><text class="poster-state-btn-txt">去开通分站</text></view>
+    </view>
+
+    <!-- error -->
+    <view v-else-if="error" class="poster-state">
+      <app-icon name="alert-circle" :size="96" color="#d1d5db" />
+      <text class="poster-state-txt">{{ error }}</text>
+      <view class="poster-state-btn" @tap="load"><text class="poster-state-btn-txt">重新加载</text></view>
+    </view>
+
+    <template v-else>
     <!-- 海报预览 -->
     <view class="poster-preview-wrap">
       <view class="poster-card" :style="posterBgStyle">
@@ -30,25 +50,23 @@
           <!-- 主内容 -->
           <view class="poster-main">
             <view class="poster-avatar" :style="{ background: station.themeColor }">
-              <image v-if="station.masterAvatar" :src="station.masterAvatar" class="poster-avatar-img" mode="aspectFill" />
-              <text v-else class="poster-avatar-txt">{{ station.masterName.charAt(0) }}</text>
+              <image lazy-load v-if="station.masterAvatar" :src="station.masterAvatar" class="poster-avatar-img" mode="aspectFill" />
+              <text v-else class="poster-avatar-txt">{{ (station.masterName || station.name).charAt(0) }}</text>
             </view>
             <text class="poster-name" :style="{ color: tpl.textColor }">{{ station.name }}</text>
-            <text class="poster-sub" :style="{ color: tpl.textColor }">{{ station.masterName }} · 诚邀您加入</text>
+            <text class="poster-sub" :style="{ color: tpl.textColor }">
+              {{ station.masterName ? station.masterName + ' · 诚邀您加入' : '诚邀您加入' }}
+            </text>
 
-            <view class="poster-stats">
+            <!-- 锁定用户为后端真实字段，>0 才展示（无则诚实隐藏） -->
+            <view v-if="station.lockedUsers > 0" class="poster-stats">
               <view class="poster-stat">
-                <text class="poster-stat-num" :style="{ color: tpl.accentColor }">{{ station.memberCount }}</text>
+                <text class="poster-stat-num" :style="{ color: tpl.accentColor }">{{ station.lockedUsers }}</text>
                 <text class="poster-stat-label" :style="{ color: tpl.textColor }">成员</text>
-              </view>
-              <view class="poster-stat-divider" />
-              <view class="poster-stat">
-                <text class="poster-stat-num" :style="{ color: tpl.accentColor }">{{ station.contentCount }}</text>
-                <text class="poster-stat-label" :style="{ color: tpl.textColor }">精选</text>
               </view>
             </view>
 
-            <text class="poster-intro" :style="{ color: tpl.textColor }">{{ station.masterIntro }}</text>
+            <text v-if="station.intro" class="poster-intro" :style="{ color: tpl.textColor }">{{ station.intro }}</text>
           </view>
 
           <!-- 底部二维码 -->
@@ -95,23 +113,26 @@
     <!-- 操作按钮 -->
     <view class="poster-actions">
       <view class="poster-action-row">
-        <view class="poster-btn poster-btn-outline" :class="{ disabled: isSaving }" @tap="handleSave">
-          <app-icon v-if="saved" name="check" :size="32" color="#1f1f1f" />
-          <app-icon v-else name="download" :size="32" color="#1f1f1f" :class="{ 'icon-bounce': isSaving }" />
-          <text class="poster-btn-txt">{{ saved ? '已保存' : isSaving ? '保存中...' : '保存图片' }}</text>
+        <view class="poster-btn poster-btn-outline" @tap="handleSave">
+          <app-icon name="download" :size="32" color="#1f1f1f" />
+          <text class="poster-btn-txt">保存图片</text>
         </view>
         <view class="poster-btn poster-btn-primary" :style="{ background: station.themeColor }" @tap="handleShare">
           <app-icon name="share-2" :size="32" color="#ffffff" />
-          <text class="poster-btn-txt" style="color:#fff">分享海报</text>
+          <text class="poster-btn-txt" style="color:#fff">复制推广链接</text>
         </view>
       </view>
-      <text class="poster-tip">分享海报邀请好友，好友通过您的专属链接加入平台后将永久归属您的分站</text>
+      <text class="poster-tip">复制专属推广链接邀请好友，好友通过您的链接加入平台后将永久归属您的分站</text>
     </view>
+    </template>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import AppIcon from '@/components/common/app-icon.vue'
+import { navigateTo, navigateBack } from '@/utils/router'
+import { operatorApi } from '@/lib/operator-data'
 
 const statusBarHeight = ref(20)
 try {
@@ -119,15 +140,46 @@ try {
   statusBarHeight.value = info.statusBarHeight || 20
 } catch (e) {}
 
-const station = {
-  id: 'station-demo',
-  name: '青云国学小站',
-  themeColor: '#8B5CF6',
-  masterName: '青云道长',
-  masterAvatar: '/static/experts/expert-1.jpg',
-  masterIntro: '从事国学研究20余年，专注八字命理与风水堪舆',
-  memberCount: 3680,
-  contentCount: 156,
+// 海报展示用分站信息（全部来自 /station/my 真实字段）
+const station = ref({
+  name: '',
+  code: '',
+  themeColor: '#C41E3A',
+  masterName: '',
+  masterAvatar: '',
+  intro: '',
+  lockedUsers: 0,
+})
+
+const loading = ref(true)
+const error = ref('')
+const notOpened = ref(false)
+
+async function load() {
+  loading.value = true
+  error.value = ''
+  notOpened.value = false
+  try {
+    const config = await operatorApi.getStationConfig()
+    station.value = {
+      name: config.name || '我的分站',
+      code: config.code || '',
+      themeColor: config.themeColor || '#C41E3A',
+      masterName: config.masterNickname || '',
+      masterAvatar: config.masterAvatar || '',
+      intro: config.intro || '',
+      lockedUsers: config.lockedUsers || 0,
+    }
+  } catch (e: any) {
+    const msg = e?.message || ''
+    if (msg.includes('开通分站') || msg.includes('没有开通') || msg.includes('NOT_FOUND')) {
+      notOpened.value = true
+    } else {
+      error.value = msg || '加载失败，请重试'
+    }
+  } finally {
+    loading.value = false
+  }
 }
 
 interface PosterTemplate {
@@ -138,6 +190,7 @@ interface PosterTemplate {
   accentColor: string
 }
 
+// 海报风格配色（前端展示配置常量，非业务数据）
 const posterTemplates: PosterTemplate[] = [
   { id: 'classic', name: '经典', bg: 'linear-gradient(to bottom, #1f1f1f, #2b2b2b)', textColor: '#ffffff', accentColor: '#fbbf24' },
   { id: 'elegant', name: '素雅', bg: 'linear-gradient(to bottom, #faf8f5, #e8e4d9)', textColor: '#1f1f1f', accentColor: '#C9A96E' },
@@ -153,27 +206,35 @@ function thumbBg(t: PosterTemplate) {
   return { background: t.bg }
 }
 
-const isSaving = ref(false)
-const saved = ref(false)
+// 推广链接：用真实分站 code
+const promoLink = computed(() => station.value.code ? `https://rebu.com/s/${station.value.code}` : '')
 
+// 诚实降级：前端暂无 canvas 海报截图链路，不伪造下载
 function handleSave() {
-  if (isSaving.value) return
-  isSaving.value = true
-  setTimeout(() => {
-    isSaving.value = false
-    saved.value = true
-    uni.showToast({ title: '已保存到相册', icon: 'success' })
-    setTimeout(() => { saved.value = false }, 2000)
-  }, 1500)
+  uni.showToast({ title: '海报图片保存即将开放', icon: 'none' })
 }
 
+// 复制真实推广链接
 function handleShare() {
-  uni.showToast({ title: '调起分享', icon: 'none' })
+  if (!promoLink.value) {
+    uni.showToast({ title: '分站推广码缺失', icon: 'none' })
+    return
+  }
+  uni.setClipboardData({
+    data: promoLink.value,
+    success: () => uni.showToast({ title: '推广链接已复制', icon: 'success' }),
+    fail: () => uni.showToast({ title: '复制失败', icon: 'none' }),
+  })
 }
 
-function goBack() {
-  uni.navigateBack({ fail: () => uni.switchTab({ url: '/pages/index/index', fail: () => {} }) })
+function goJoin() {
+  navigateTo('/pkg-operator/join-station/index')
 }
+function goBack() {
+  navigateBack()
+}
+
+onMounted(load)
 </script>
 
 <style lang="scss" scoped>
@@ -181,6 +242,15 @@ function goBack() {
   min-height: 100vh;
   background: #faf8f5;
 }
+
+/* 三态 */
+.poster-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 160rpx 32rpx; gap: 24rpx; }
+.poster-state-txt { font-size: 28rpx; color: #6b7280; }
+.poster-spinner { width: 56rpx; height: 56rpx; border: 6rpx solid #f0d0d4; border-top-color: var(--brand); border-radius: 50%; animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.poster-state-btn { margin-top: 8rpx; padding: 16rpx 48rpx; background: var(--brand); border-radius: 999rpx; }
+.poster-state-btn-txt { color: #fff; font-size: 28rpx; }
+
 .poster-nav {
   position: sticky;
   top: 0;
@@ -391,7 +461,7 @@ function goBack() {
   box-sizing: border-box;
 }
 .poster-tpl-item.active {
-  border-color: #C41E3A;
+  border-color: var(--brand);
   box-shadow: 0 0 0 4rpx rgba(196, 30, 58, 0.2);
 }
 .poster-tpl-thumb {
@@ -433,7 +503,7 @@ function goBack() {
   color: #8a8a8a;
 }
 .poster-tpl-label.active {
-  color: #C41E3A;
+  color: var(--brand);
   font-weight: 500;
 }
 

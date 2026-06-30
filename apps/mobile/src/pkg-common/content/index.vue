@@ -304,7 +304,7 @@ function onAction() {
   background: rgba(196, 30, 58, 0.1);
 }
 .type-notice .type-badge-text {
-  color: #c41e3a;
+  color: var(--brand);
 }
 .type-agreement {
   background: rgba(59, 130, 246, 0.1);
@@ -372,7 +372,7 @@ function onAction() {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #c41e3a;
+  background: var(--brand);
   margin-top: 9px;
   flex-shrink: 0;
 }
@@ -427,7 +427,7 @@ function onAction() {
 .action-btn {
   width: 100%;
   height: 48px;
-  background: #c41e3a;
+  background: var(--brand);
   border-radius: 12px;
   display: flex;
   align-items: center;

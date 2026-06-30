@@ -33,7 +33,7 @@
       <view class="re-list">
         <view v-for="book in filteredBooks" :key="book.id" class="re-book" :class="{ sel: isRec(book.id) }">
           <view class="re-cover" :style="{ background: coverColor(book.id) }">
-            <image v-if="book.cover" class="re-cover-img" :src="book.cover" mode="aspectFill" />
+            <image lazy-load v-if="book.cover" class="re-cover-img" :src="book.cover" mode="aspectFill" />
             <app-icon v-else name="book-open" :size="28" color="rgba(255,255,255,0.6)" />
           </view>
           <view class="re-book-info">
@@ -65,7 +65,7 @@
         <view v-for="(book, i) in recommendedBooks" :key="book.id" class="re-book">
           <text class="re-rank">{{ i + 1 }}</text>
           <view class="re-cover sm" :style="{ background: coverColor(book.id) }">
-            <image v-if="book.cover" class="re-cover-img" :src="book.cover" mode="aspectFill" />
+            <image lazy-load v-if="book.cover" class="re-cover-img" :src="book.cover" mode="aspectFill" />
             <app-icon v-else name="book-open" :size="24" color="rgba(255,255,255,0.6)" />
           </view>
           <view class="re-book-info">
@@ -139,15 +139,15 @@ async function handleSave() {
 .re-header-left { display: flex; align-items: center; gap: 24rpx; }
 .re-title { display: block; font-size: 30rpx; font-weight: 700; color: #0f172a; }
 .re-subtitle { display: block; font-size: 22rpx; color: #64748b; }
-.re-save-btn { padding: 0 32rpx; height: 64rpx; line-height: 64rpx; background: #C41E3A; color: #fff; font-size: 24rpx; border-radius: 16rpx; }
+.re-save-btn { padding: 0 32rpx; height: 64rpx; line-height: 64rpx; background: var(--brand); color: #fff; font-size: 24rpx; border-radius: 16rpx; }
 .re-save-btn.disabled { opacity: 0.6; }
 
 .re-tip { margin: 24rpx 32rpx 16rpx; padding: 16rpx 24rpx; border-radius: 16rpx; display: flex; align-items: center; gap: 16rpx; background: rgba(196,30,58,0.08); }
-.re-tip-t { font-size: 24rpx; color: #C41E3A; flex: 1; }
+.re-tip-t { font-size: 24rpx; color: var(--brand); flex: 1; }
 
 .re-tabs { display: flex; gap: 8rpx; margin: 24rpx 32rpx 8rpx; }
 .re-tab { flex: 1; text-align: center; padding: 16rpx 0; font-size: 26rpx; font-weight: 500; border-radius: 16rpx; color: #64748b; background: #fff; }
-.re-tab.on { background: #C41E3A; color: #fff; }
+.re-tab.on { background: var(--brand); color: #fff; }
 
 .re-body { padding: 0 32rpx 64rpx; }
 .re-search { position: relative; display: flex; align-items: center; gap: 16rpx; margin: 24rpx 0; padding: 0 24rpx; height: 80rpx; background: #fff; border-radius: 16rpx; box-shadow: 0 2rpx 8rpx rgba(0,0,0,0.08); }
@@ -156,7 +156,7 @@ async function handleSave() {
 
 .re-list { display: flex; flex-direction: column; gap: 16rpx; }
 .re-book { display: flex; align-items: center; gap: 24rpx; padding: 24rpx; background: #fff; border-radius: 20rpx; box-shadow: 0 2rpx 8rpx rgba(0,0,0,0.06); }
-.re-book.sel { border: 2rpx solid #C41E3A; }
+.re-book.sel { border: 2rpx solid var(--brand); }
 .re-cover { width: 112rpx; height: 160rpx; border-radius: 8rpx; display: flex; align-items: center; justify-content: center; flex-shrink: 0; overflow: hidden; }
 .re-cover.sm { width: 80rpx; height: 112rpx; }
 .re-cover-img { width: 100%; height: 100%; }
@@ -167,12 +167,12 @@ async function handleSave() {
 .re-tag-member { font-size: 20rpx; padding: 2rpx 12rpx; border-radius: 999rpx; background: rgba(201,169,110,0.15); color: #A67C52; }
 .re-tag-member-plain { font-size: 20rpx; color: #A67C52; }
 .re-tag-free { font-size: 20rpx; font-weight: 700; color: #16a34a; }
-.re-tag-price { font-size: 22rpx; font-weight: 700; color: #C41E3A; }
+.re-tag-price { font-size: 22rpx; font-weight: 700; color: var(--brand); }
 .re-meta-item { display: flex; align-items: center; gap: 4rpx; }
 .re-meta-t { font-size: 20rpx; color: #94a3b8; }
 .re-rank { width: 32rpx; text-align: center; font-size: 24rpx; color: #94a3b8; flex-shrink: 0; }
 .re-toggle { width: 56rpx; height: 56rpx; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.re-toggle.on { background: #C41E3A; } .re-toggle.off { background: #f1f5f9; }
+.re-toggle.on { background: var(--brand); } .re-toggle.off { background: #f1f5f9; }
 .re-remove { width: 48rpx; height: 48rpx; border-radius: 50%; background: #fee2e2; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 
 .re-empty { display: flex; flex-direction: column; align-items: center; padding: 128rpx 0; }

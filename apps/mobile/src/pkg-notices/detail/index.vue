@@ -15,7 +15,7 @@
 
     <view class="detail-main">
       <!-- 封面 -->
-      <image v-if="notice.cover" :src="notice.cover" class="detail-cover" mode="aspectFill" />
+      <image lazy-load v-if="notice.cover" :src="notice.cover" class="detail-cover" mode="aspectFill" />
 
       <!-- 标题区 -->
       <view class="title-block">
@@ -239,7 +239,7 @@ onLoad(() => {
   border-radius: 8rpx;
 }
 .badge-pinned {
-  background-color: #C41E3A;
+  background-color: var(--brand);
   padding: 4rpx 14rpx;
 }
 .badge-pinned-text {
@@ -306,7 +306,7 @@ onLoad(() => {
   padding-left: 8rpx;
 }
 .content-li-dot {
-  color: #C41E3A;
+  color: var(--brand);
   font-size: 28rpx;
 }
 .content-li-text {
@@ -336,11 +336,11 @@ onLoad(() => {
 }
 .link-text {
   font-size: 26rpx;
-  color: #C41E3A;
+  color: var(--brand);
 }
 .link-arrow {
   font-size: 22rpx;
-  color: #C41E3A;
+  color: var(--brand);
 }
 
 .attach-item {
@@ -380,7 +380,7 @@ onLoad(() => {
 }
 .attach-download {
   font-size: 22rpx;
-  color: #C41E3A;
+  color: var(--brand);
 }
 
 .publish-info {
@@ -424,7 +424,7 @@ onLoad(() => {
   color: #374151;
 }
 .bottom-btn-primary {
-  background-color: #C41E3A;
+  background-color: var(--brand);
 }
 .bottom-btn-primary-text {
   font-size: 28rpx;

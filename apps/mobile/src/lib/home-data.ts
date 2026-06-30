@@ -22,7 +22,7 @@ export const defaultBanners: BannerItem[] = [
 // Feed 内容数据（千人千面示例）
 // ============================================
 export interface FeedItem {
-  id: number
+  id: number | string // 原型 mock 用 number；后端真实 feed 是 uuid 字符串
   type: string
   title?: string
   author?: string
@@ -212,37 +212,72 @@ export type RenderItem =
   | { kind: 'feed'; key: string; item: FeedItem }
   | { kind: 'agent'; key: string; agent: AgentItem }
 
-export function buildFeedItems(): RenderItem[] {
+/** 把 feed 列表编排成 render 列表：顺序填 feed，从 pos>0 起每 12 位插一张智能体卡。 */
+export function buildRenderItems(items: FeedItem[]): RenderItem[] {
   const result: RenderItem[] = []
   let feedIdx = 0
   let agentIdx = 0
   let pos = 0
-  while (pos < 32) {
+  while (feedIdx < items.length) {
     if (pos > 0 && pos % 12 === 0 && agentIdx < agents.length) {
       result.push({ kind: 'agent', key: `agent-${agents[agentIdx].id}`, agent: agents[agentIdx] })
       agentIdx++
       pos++
       continue
     }
-    if (feedIdx < feedItems.length) {
-      const item = feedItems[feedIdx]
-      result.push({ kind: 'feed', key: `feed-${item.id}`, item })
-      feedIdx++
-    }
+    const item = items[feedIdx]
+    result.push({ kind: 'feed', key: `feed-${item.id}`, item })
+    feedIdx++
     pos++
   }
   return result
 }
 
+export function buildFeedItems(): RenderItem[] {
+  return buildRenderItems(feedItems.slice(0, 26))
+}
+
+// ============ 后端 feed 适配 ============
+// 后端 GET /home 的 feed 项是扁平结构 { id(uuid), type, title, cover, excerpt, createdAt, tag, ... }，
+// 与前端 RenderItem 联合类型不匹配，需在此映射成 { kind:'feed', key, item:FeedItem }。
+
+export interface ApiFeedItem {
+  id: string
+  type: string
+  title?: string
+  cover?: string | null
+  excerpt?: string
+  createdAt?: string
+  tag?: string
+  [k: string]: unknown
+}
+
+/** 后端扁平 feed 项 → 前端 FeedItem。透传后端已有字段（将来后端补 author/likes/price 等自动生效）。 */
+export function adaptFeedItem(f: ApiFeedItem): FeedItem {
+  return {
+    ...(f as Record<string, unknown>),
+    id: f.id,
+    type: f.type,
+    title: f.title,
+    cover: f.cover ?? null,
+    excerpt: f.excerpt,
+  } as FeedItem
+}
+
 // ============ API 层 ============
 
 export const homeApi = {
-  /** 获取首页数据 — GET /home */
+  /** 获取首页数据 — GET /home（后端返回 {banners,feed,...}，feed 为扁平项，需适配） */
   async getHome(): Promise<{ banners: BannerItem[]; feed: RenderItem[] }> {
-    if (true) return { banners: defaultBanners, feed: buildFeedItems() }
     try {
       const data = await apiGet<any>('/home')
-      return data as { banners: BannerItem[]; feed: RenderItem[] }
+      const banners: BannerItem[] =
+        Array.isArray(data?.banners) && data.banners.length ? data.banners : defaultBanners
+      const rawFeed: ApiFeedItem[] = Array.isArray(data?.feed) ? data.feed : []
+      const feed = rawFeed.length
+        ? buildRenderItems(rawFeed.map(adaptFeedItem))
+        : buildFeedItems()
+      return { banners, feed }
     } catch {
       return { banners: defaultBanners, feed: buildFeedItems() }
     }

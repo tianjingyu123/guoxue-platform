@@ -2,12 +2,14 @@
 /** 圈子卡片（原型 app/circles/page.tsx CircleCard，2列网格用） */
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
+import { track } from '@/composables/useTrack'
 import { formatMembers, type Circle } from '@/lib/circle-data'
 
 const props = defineProps<{ circle: Circle }>()
 const emit = defineEmits<{ (e: 'join', id: string): void }>()
 
 function openDetail() {
+  track.click('circle_card', { id: props.circle.id })
   navigateTo(`/pkg-circle/circles/detail?id=${props.circle.id}`)
 }
 function onJoin() {
@@ -19,7 +21,7 @@ function onJoin() {
   <view class="card" @tap="openDetail">
     <!-- 封面 -->
     <view class="cover-wrap">
-      <image :src="circle.cover" class="cover" mode="aspectFill" />
+      <image :src="circle.cover" class="cover" mode="aspectFill" lazy-load />
       <!-- 排名角标（前三：金/银/铜） -->
       <view
         v-if="circle.rank && circle.rank <= 3"
@@ -101,7 +103,7 @@ function onJoin() {
   padding: 4rpx 16rpx; background: var(--line-soft, #f5f0e8); border-radius: 999rpx;
 }
 .join-btn {
-  padding: 6rpx 20rpx; background: var(--brand, #c41e3a); border-radius: 999rpx;
+  padding: 6rpx 20rpx; background: var(--brand, var(--brand)); border-radius: 999rpx;
 }
 .join-text { font-size: 20rpx; color: #fff; }
 </style>

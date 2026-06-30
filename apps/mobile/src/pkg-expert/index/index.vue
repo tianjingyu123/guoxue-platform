@@ -372,7 +372,7 @@ function goBack() {
   border-radius: 999rpx;
 }
 .ep-cat--on {
-  background: #c41e3a;
+  background: var(--brand);
   color: #ffffff;
 }
 
@@ -430,7 +430,7 @@ function goBack() {
   color: #2c2c2c;
 }
 .ep-sort-item--on {
-  color: #c41e3a;
+  color: var(--brand);
   background: rgba(196, 30, 58, 0.05);
 }
 
@@ -458,7 +458,7 @@ function goBack() {
   height: 128rpx;
   border-radius: 20rpx;
   background: #f5f1eb;
-  color: #c41e3a;
+  color: var(--brand);
   font-size: 40rpx;
   font-weight: 500;
   display: flex;
@@ -560,7 +560,7 @@ function goBack() {
   color: #666666;
 }
 .ep-price-val {
-  color: #c41e3a;
+  color: var(--brand);
   font-weight: 700;
 }
 .ep-actions {
@@ -574,8 +574,8 @@ function goBack() {
   padding: 12rpx 24rpx;
   font-size: 22rpx;
   font-weight: 500;
-  border: 1rpx solid #c41e3a;
-  color: #c41e3a;
+  border: 1rpx solid var(--brand);
+  color: var(--brand);
   border-radius: 999rpx;
 }
 .ep-btn-call {
@@ -585,7 +585,7 @@ function goBack() {
   padding: 12rpx 24rpx;
   font-size: 22rpx;
   font-weight: 500;
-  background: #c41e3a;
+  background: var(--brand);
   color: #ffffff;
   border-radius: 999rpx;
 }
@@ -674,7 +674,7 @@ function goBack() {
   border-radius: 16rpx;
 }
 .ep-chip--on {
-  background: #c41e3a;
+  background: var(--brand);
   color: #ffffff;
 }
 .ep-sheet-foot {
@@ -700,7 +700,7 @@ function goBack() {
   font-size: 26rpx;
   font-weight: 500;
   color: #ffffff;
-  background: #c41e3a;
+  background: var(--brand);
   border-radius: 20rpx;
 }
 </style>

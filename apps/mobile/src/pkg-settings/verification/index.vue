@@ -422,7 +422,7 @@ function goBack() {
   margin-top: 64rpx;
   width: 100%;
   height: 92rpx;
-  background: #C41E3A;
+  background: var(--brand);
   border-radius: 24rpx;
   display: flex;
   align-items: center;
@@ -629,7 +629,7 @@ function goBack() {
 }
 .privacy-link {
   font-size: 24rpx;
-  color: #C41E3A;
+  color: var(--brand);
   margin: 0 8rpx;
 }
 
@@ -655,7 +655,7 @@ function goBack() {
   justify-content: center;
 }
 .submit-btn--active {
-  background: #C41E3A;
+  background: var(--brand);
 }
 .submit-text {
   font-size: 30rpx;

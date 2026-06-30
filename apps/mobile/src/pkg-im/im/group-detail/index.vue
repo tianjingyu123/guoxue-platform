@@ -189,7 +189,7 @@ function goInvite() {
         <!-- 群基本信息 -->
         <view class="card info-card">
           <view class="info-head">
-            <image class="group-avatar" :src="group.avatar" mode="aspectFill" />
+            <image lazy-load class="group-avatar" :src="group.avatar" mode="aspectFill" />
             <view class="info-main">
               <view class="info-name-row">
                 <text class="group-name">{{ group.name }}</text>
@@ -226,7 +226,7 @@ function goInvite() {
                 @tap="openMemberMenu(member)"
               >
                 <view class="member-avatar-wrap">
-                  <image class="member-avatar" :src="member.avatar" mode="aspectFill" />
+                  <image lazy-load class="member-avatar" :src="member.avatar" mode="aspectFill" />
                   <view v-if="member.role !== 'member'" class="role-badge">
                     <AppIcon :name="roleIconName(member.role)" :size="12" :color="roleIconColor(member.role)" />
                   </view>
@@ -323,7 +323,7 @@ function goInvite() {
         <scroll-view scroll-y class="drawer-list">
           <view v-for="member in members" :key="member.id" class="drawer-item">
             <view class="drawer-item-left">
-              <image class="drawer-avatar" :src="member.avatar" mode="aspectFill" />
+              <image lazy-load class="drawer-avatar" :src="member.avatar" mode="aspectFill" />
               <view class="drawer-info">
                 <view class="drawer-name-row">
                   <text class="drawer-name">{{ member.remark || member.nickname }}</text>
@@ -568,7 +568,7 @@ function goInvite() {
 }
 .more-text {
   font-size: 26rpx;
-  color: #c41e3a;
+  color: var(--brand);
 }
 .member-grid {
   display: flex;
@@ -638,7 +638,7 @@ function goInvite() {
 }
 .notice-edit {
   font-size: 26rpx;
-  color: #c41e3a;
+  color: var(--brand);
 }
 .notice-content {
   font-size: 26rpx;
@@ -709,7 +709,7 @@ function goInvite() {
   justify-content: center;
 }
 .edit-btn.save {
-  background: #c41e3a;
+  background: var(--brand);
 }
 .edit-btn.cancel {
   background: #f5f1eb;
@@ -947,7 +947,7 @@ function goInvite() {
   background: #ef4444;
 }
 .dialog-btn.primary {
-  background: #c41e3a;
+  background: var(--brand);
 }
 .dialog-btn-text {
   font-size: 28rpx;
@@ -960,6 +960,6 @@ function goInvite() {
 /* 加载/错误状态 */
 .load-state { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; gap: 24rpx; }
 .load-state-text { font-size: 28rpx; color: #8a8178; }
-.retry-btn { padding: 16rpx 48rpx; background: #c41e3a; border-radius: 999rpx; }
+.retry-btn { padding: 16rpx 48rpx; background: var(--brand); border-radius: 999rpx; }
 .retry-text { font-size: 28rpx; color: #fff; }
 </style>

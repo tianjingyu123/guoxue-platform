@@ -65,7 +65,7 @@
       <view v-for="item in groupBuyList" :key="item.id" class="card">
         <view class="card-main">
           <view class="card-img-wrap">
-            <image class="card-img" :src="item.cover" mode="aspectFill" />
+            <image lazy-load class="card-img" :src="item.cover" mode="aspectFill" />
             <view class="badge-team">{{ item.minMembers }}人团</view>
             <view v-if="item.status === 'success'" class="mask-done">
               <text class="mask-done-text">已成团</text>
@@ -77,7 +77,7 @@
               <text class="price-now"><text class="price-unit">¥</text>{{ item.price }}</text>
               <text class="price-old">单买¥{{ item.originalPrice }}</text>
             </view>
-            <view class="save-tag">拼团省{{ item.originalPrice - item.price }}元</view>
+            <view class="save-tag">拼团省{{ saveAmount(item) }}元</view>
             <view class="prog-meta">
               <view class="member-stack">
                 <view v-for="n in item.currentMembers" :key="'m' + n" class="m-avatar m-avatar--on">
@@ -128,13 +128,13 @@
           <text class="empty-btn-text">去拼团</text>
         </view>
       </view>
-      <view v-for="item in myGroups" :key="item.id" class="card">
+      <view v-for="item in myGroups" :key="item.id" class="card" @tap="openMyResult(item)">
         <view class="my-head">
           <text class="my-status" :class="'my-status--' + item.status">{{ statusText(item.status) }}</text>
           <text v-if="item.isOwner" class="my-owner">团长</text>
         </view>
         <view class="card-main">
-          <image class="my-cover" :src="item.productCover" mode="aspectFill" />
+          <image lazy-load class="my-cover" :src="item.productCover" mode="aspectFill" />
           <view class="card-info">
             <text class="card-title">{{ item.productName }}</text>
             <text class="price-now my-price"><text class="price-unit">¥</text>{{ item.price }}</text>
@@ -154,7 +154,7 @@
             <app-icon name="clock" :size="24" color="#c41e3a" />
             <text class="cd-text">剩余 {{ cdText(item.id, item.endOffsetMs) }}</text>
           </view>
-          <view class="btn-invite" hover-class="btn-hover" @tap="openShare(item)">
+          <view class="btn-invite" hover-class="btn-hover" @tap.stop="openShare(item)">
             <app-icon name="share-2" :size="26" color="#fff" />
             <text class="btn-invite-text">邀请好友</text>
           </view>
@@ -175,7 +175,7 @@
         <text class="share-title">邀请好友参团</text>
         <text class="share-sub">还差 <text class="share-num">{{ shareTarget.minMembers - shareTarget.currentMembers }}</text> 人即可成团</text>
         <view class="share-product">
-          <image class="share-cover" :src="shareTarget.productCover" mode="aspectFill" />
+          <image lazy-load class="share-cover" :src="shareTarget.productCover" mode="aspectFill" />
           <view class="share-pinfo">
             <text class="share-pname">{{ shareTarget.productName }}</text>
             <text class="price-now">¥{{ shareTarget.price }}</text>
@@ -268,6 +268,10 @@ function cdText(id: string, _offset: number): string {
 function pct(cur: number, min: number): number {
   return Math.round((cur / min) * 100)
 }
+/** 拼团节省金额：两位小数取整，避免浮点误差 */
+function saveAmount(item: { originalPrice: number; price: number }): number {
+  return Math.max(0, Math.round((item.originalPrice - item.price) * 100) / 100)
+}
 function statusText(s: string): string {
   return s === 'pending' ? '拼团中' : s === 'success' ? '已成团' : '拼团失败'
 }
@@ -280,6 +284,12 @@ function goCreate(id: string) {
 function openShare(item: MyGroupBuyItem) {
   shareTarget.value = item
   showShare.value = true
+}
+/** 点击我的拼团：按状态跳结果页（成团→成功页 / 失败→失败页 / 拼团中→详情继续拼团） */
+function openMyResult(item: MyGroupBuyItem) {
+  if (item.status === 'success') navigateTo(`/shop/group-buy-success?id=${item.id}`)
+  else if (item.status === 'failed') navigateTo(`/shop/group-buy-fail?id=${item.id}`)
+  else navigateTo(`/shop/group-buy/${item.id}`)
 }
 function copyLink() {
   uni.setClipboardData({ data: `https://rebu.app/shop/group-buy/${shareTarget.value?.id}` })
@@ -317,7 +327,7 @@ function endMapCleanup() {
   position: sticky;
   top: 0;
   z-index: 20;
-  background: linear-gradient(135deg, #a01830 0%, #c41e3a 60%, #e85050 100%);
+  background: linear-gradient(135deg, #a01830 0%, var(--brand) 60%, #e85050 100%);
   padding-top: var(--status-bar-height, 0px);
 }
 .nav-top {
@@ -392,7 +402,7 @@ function endMapCleanup() {
   width: 72rpx;
   height: 72rpx;
   border-radius: 50%;
-  background: linear-gradient(135deg, #c41e3a, #e85050);
+  background: linear-gradient(135deg, var(--brand), #e85050);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -447,7 +457,7 @@ function endMapCleanup() {
   top: 0;
   left: 0;
   padding: 2rpx 12rpx;
-  background: linear-gradient(90deg, #c41e3a, #e85050);
+  background: linear-gradient(90deg, var(--brand), #e85050);
   color: #fff;
   font-size: 20rpx;
   font-weight: 700;
@@ -488,7 +498,7 @@ function endMapCleanup() {
 .price-now {
   font-size: 40rpx;
   font-weight: 700;
-  color: #c41e3a;
+  color: var(--brand);
   line-height: 1;
 }
 .price-unit {
@@ -535,7 +545,7 @@ function endMapCleanup() {
   margin-left: 0;
 }
 .m-avatar--on {
-  background: linear-gradient(135deg, #c41e3a, #e85050);
+  background: linear-gradient(135deg, var(--brand), #e85050);
 }
 .m-avatar--empty {
   background: #eee5d8;
@@ -556,7 +566,7 @@ function endMapCleanup() {
 }
 .cd-text {
   font-size: 24rpx;
-  color: #c41e3a;
+  color: var(--brand);
   font-weight: 500;
   font-variant-numeric: tabular-nums;
 }
@@ -569,7 +579,7 @@ function endMapCleanup() {
 }
 .prog-fill {
   height: 100%;
-  background: linear-gradient(90deg, #c41e3a, #e85050);
+  background: linear-gradient(90deg, var(--brand), #e85050);
   border-radius: 999rpx;
   transition: width 0.3s;
 }
@@ -589,7 +599,7 @@ function endMapCleanup() {
   border-radius: 999rpx;
 }
 .btn-join {
-  background: linear-gradient(90deg, #c41e3a, #e85050);
+  background: linear-gradient(90deg, var(--brand), #e85050);
 }
 .btn-join-text {
   font-size: 26rpx;
@@ -597,12 +607,12 @@ function endMapCleanup() {
   color: #fff;
 }
 .btn-create {
-  border: 1rpx solid #c41e3a;
+  border: 1rpx solid var(--brand);
 }
 .btn-create-text {
   font-size: 26rpx;
   font-weight: 500;
-  color: #c41e3a;
+  color: var(--brand);
 }
 .btn-hover {
   opacity: 0.85;
@@ -631,7 +641,7 @@ function endMapCleanup() {
 }
 .empty-btn {
   padding: 12rpx 48rpx;
-  background: #c41e3a;
+  background: var(--brand);
   border-radius: 999rpx;
 }
 .empty-btn-text {
@@ -652,7 +662,7 @@ function endMapCleanup() {
   border-radius: 999rpx;
 }
 .my-status--pending {
-  background: #c41e3a;
+  background: var(--brand);
 }
 .my-status--success {
   background: #2e8b57;
@@ -700,7 +710,7 @@ function endMapCleanup() {
   align-items: center;
   gap: 6rpx;
   padding: 12rpx 32rpx;
-  background: linear-gradient(90deg, #c41e3a, #e85050);
+  background: linear-gradient(90deg, var(--brand), #e85050);
   border-radius: 999rpx;
 }
 .btn-invite-text {
@@ -750,7 +760,7 @@ function endMapCleanup() {
   display: block;
 }
 .share-num {
-  color: #c41e3a;
+  color: var(--brand);
   font-weight: 700;
 }
 .share-product {
@@ -843,7 +853,7 @@ function endMapCleanup() {
   width: 64rpx;
   height: 64rpx;
   border: 4rpx solid #e8e3db;
-  border-top-color: #c41e3a;
+  border-top-color: var(--brand);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
@@ -865,7 +875,7 @@ function endMapCleanup() {
 }
 .state-retry {
   padding: 12rpx 48rpx;
-  background: #c41e3a;
+  background: var(--brand);
   border-radius: 999rpx;
 }
 .state-retry-text {

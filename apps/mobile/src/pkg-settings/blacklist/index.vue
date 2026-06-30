@@ -19,7 +19,7 @@
 
       <view v-else class="list">
         <view v-for="u in filtered" :key="u.id" class="item">
-          <image class="avatar" :src="u.avatar" mode="aspectFill" />
+          <image lazy-load class="avatar" :src="u.avatar" mode="aspectFill" />
           <view class="info">
             <text class="name">{{ u.name }}</text>
             <text class="time">拉黑于 {{ u.blockedAt }}</text>

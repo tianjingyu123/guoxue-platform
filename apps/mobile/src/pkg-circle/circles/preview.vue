@@ -11,7 +11,7 @@
     <template v-else>
       <!-- 封面 -->
       <view class="pv-cover">
-        <image class="pv-cover-img" :src="circle.cover" mode="aspectFill" />
+        <image lazy-load class="pv-cover-img" :src="circle.cover" mode="aspectFill" />
         <view class="pv-cover-mask" />
         <view class="pv-nav">
           <view class="pv-nav-btn" @tap="goBack"><app-icon name="chevron-left" :size="36" color="#ffffff" /></view>
@@ -28,7 +28,7 @@
         <view class="pv-info-card">
           <view class="pv-info-row">
             <view class="pv-avatar-wrap">
-              <image class="pv-avatar" :src="circle.owner.avatar" mode="aspectFill" />
+              <image lazy-load class="pv-avatar" :src="circle.owner.avatar" mode="aspectFill" />
               <view class="pv-crown"><app-icon name="crown" :size="24" color="#ffffff" /></view>
             </view>
             <view class="pv-info-main">
@@ -62,7 +62,7 @@
             </view>
             <view class="pv-rank" :class="rankClass(index)"><text class="pv-rank-n">{{ index + 1 }}</text></view>
             <view class="pv-post-author">
-              <image class="pv-post-avatar" :src="post.author.avatar" mode="aspectFill" />
+              <image lazy-load class="pv-post-avatar" :src="post.author.avatar" mode="aspectFill" />
               <text class="pv-post-name">{{ post.author.name }}</text>
             </view>
             <view class="pv-post-content">
@@ -219,7 +219,7 @@ onMounted(() => { setTimeout(() => { isLoading.value = false }, 400) })
 .pv-cover-mask { position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(0,0,0,0.3), transparent 50%, rgba(0,0,0,0.7)); }
 .pv-nav { position: absolute; top: 0; left: 0; right: 0; padding: 32rpx; display: flex; align-items: center; justify-content: space-between; }
 .pv-nav-btn { width: 72rpx; height: 72rpx; border-radius: 50%; background: rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; }
-.pv-discount { position: absolute; top: 32rpx; left: 50%; transform: translateX(-50%); padding: 12rpx 32rpx; background: linear-gradient(to right, #C41E3A, #FF6B35); border-radius: 999rpx; display: flex; align-items: center; gap: 12rpx; box-shadow: 0 8rpx 24rpx rgba(0,0,0,0.2); }
+.pv-discount { position: absolute; top: 32rpx; left: 50%; transform: translateX(-50%); padding: 12rpx 32rpx; background: linear-gradient(to right, var(--brand), #FF6B35); border-radius: 999rpx; display: flex; align-items: center; gap: 12rpx; box-shadow: 0 8rpx 24rpx rgba(0,0,0,0.2); }
 .pv-discount-t { font-size: 28rpx; font-weight: 700; color: #fff; }
 
 .pv-info-wrap { padding: 0 32rpx; margin-top: -160rpx; position: relative; z-index: 10; }
@@ -232,8 +232,8 @@ onMounted(() => { setTimeout(() => { isLoading.value = false }, 400) })
 .pv-name { display: block; font-size: 36rpx; font-weight: 700; color: #2C2C2C; margin-bottom: 8rpx; }
 .pv-desc { display: block; font-size: 26rpx; color: #666666; line-height: 1.5; margin-bottom: 16rpx; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .pv-stats { display: flex; align-items: center; gap: 32rpx; flex-wrap: wrap; }
-.pv-stat { display: flex; align-items: center; gap: 8rpx; } .pv-stat-t { font-size: 22rpx; color: #999999; } .pv-stat-t.red { color: #C41E3A; }
-.pv-dot { width: 12rpx; height: 12rpx; border-radius: 50%; background: #C41E3A; }
+.pv-stat { display: flex; align-items: center; gap: 8rpx; } .pv-stat-t { font-size: 22rpx; color: #999999; } .pv-stat-t.red { color: var(--brand); }
+.pv-dot { width: 12rpx; height: 12rpx; border-radius: 50%; background: var(--brand); }
 .pv-tags { display: flex; flex-wrap: wrap; gap: 16rpx; margin-top: 32rpx; }
 .pv-tag { padding: 8rpx 20rpx; font-size: 22rpx; background: #F5F0E8; color: #666666; border-radius: 999rpx; }
 
@@ -257,7 +257,7 @@ onMounted(() => { setTimeout(() => { isLoading.value = false }, 400) })
 .pv-post-meta { display: flex; align-items: center; gap: 32rpx; margin-top: 24rpx; }
 .pv-pm { display: flex; align-items: center; gap: 8rpx; } .pv-pm-t { font-size: 22rpx; color: #999999; }
 .pv-more { margin-top: 32rpx; padding: 32rpx; background: #F5F0E8; border-radius: 24rpx; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 8rpx; }
-.pv-more-t { font-size: 26rpx; color: #666666; } .pv-more-n { font-weight: 700; color: #C41E3A; }
+.pv-more-t { font-size: 26rpx; color: #666666; } .pv-more-n { font-weight: 700; color: var(--brand); }
 .pv-more-sub { font-size: 22rpx; color: #999999; }
 
 .pv-benefit-title { display: block; font-size: 32rpx; font-weight: 700; color: #2C2C2C; margin-bottom: 24rpx; }
@@ -269,12 +269,12 @@ onMounted(() => { setTimeout(() => { isLoading.value = false }, 400) })
 .pv-footer { position: fixed; bottom: 0; left: 0; right: 0; background: #fff; border-top: 1rpx solid #E8E3DB; padding: 32rpx; padding-bottom: calc(32rpx + env(safe-area-inset-bottom)); display: flex; align-items: center; gap: 32rpx; z-index: 50; }
 .pv-footer-info { flex: 1; }
 .pv-price-row { display: flex; align-items: baseline; gap: 16rpx; }
-.pv-price { font-size: 48rpx; font-weight: 900; color: #C41E3A; }
+.pv-price { font-size: 48rpx; font-weight: 900; color: var(--brand); }
 .pv-price-old { font-size: 26rpx; color: #999999; text-decoration: line-through; }
 .pv-price-days { font-size: 22rpx; color: #666666; }
 .pv-method { font-size: 32rpx; font-weight: 700; color: #2C2C2C; }
 .pv-method-sub { display: block; font-size: 22rpx; color: #999999; margin-top: 4rpx; }
-.pv-join-btn { padding: 24rpx 64rpx; background: linear-gradient(to right, #C41E3A, #E74C3C); color: #fff; font-weight: 700; border-radius: 999rpx; box-shadow: 0 8rpx 24rpx rgba(196,30,58,0.3); }
+.pv-join-btn { padding: 24rpx 64rpx; background: linear-gradient(to right, var(--brand), #E74C3C); color: #fff; font-weight: 700; border-radius: 999rpx; box-shadow: 0 8rpx 24rpx rgba(196,30,58,0.3); }
 .pv-join-btn.disabled { opacity: 0.6; }
 
 .pv-modal-mask { position: fixed; inset: 0; z-index: 60; background: rgba(0,0,0,0.5); display: flex; align-items: flex-end; }
@@ -286,8 +286,8 @@ onMounted(() => { setTimeout(() => { isLoading.value = false }, 400) })
 .pv-pay-row { display: flex; align-items: center; justify-content: space-between; }
 .pv-pay-row + .pv-pay-row { margin-top: 24rpx; }
 .pv-pay-label { font-size: 26rpx; color: #666666; } .pv-pay-val { font-size: 26rpx; font-weight: 500; color: #2C2C2C; }
-.pv-pay-btn { padding: 32rpx; background: linear-gradient(to right, #C41E3A, #E74C3C); color: #fff; font-weight: 700; border-radius: 24rpx; text-align: center; font-size: 30rpx; }
-.pv-agreement { display: block; text-align: center; font-size: 22rpx; color: #999999; margin-top: 32rpx; } .pv-link { color: #C41E3A; }
+.pv-pay-btn { padding: 32rpx; background: linear-gradient(to right, var(--brand), #E74C3C); color: #fff; font-weight: 700; border-radius: 24rpx; text-align: center; font-size: 30rpx; }
+.pv-agreement { display: block; text-align: center; font-size: 22rpx; color: #999999; margin-top: 32rpx; } .pv-link { color: var(--brand); }
 
 .pv-approval-mask { position: fixed; inset: 0; z-index: 60; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; padding: 0 64rpx; }
 .pv-approval { width: 100%; max-width: 560rpx; background: #fff; border-radius: 32rpx; padding: 48rpx; text-align: center; }
@@ -297,5 +297,5 @@ onMounted(() => { setTimeout(() => { isLoading.value = false }, 400) })
 .pv-approval-btns { display: grid; grid-template-columns: repeat(2, 1fr); gap: 24rpx; margin-top: 40rpx; }
 .pv-ab { padding: 20rpx; border-radius: 999rpx; font-size: 28rpx; }
 .pv-ab.outline { border: 1rpx solid #E8E3DB; color: #2C2C2C; }
-.pv-ab.primary { background: #C41E3A; color: #fff; }
+.pv-ab.primary { background: var(--brand); color: #fff; }
 </style>

@@ -330,7 +330,7 @@ function goBack() {
 }
 .rd-avatar-letter {
   font-size: 36rpx;
-  color: #C41E3A;
+  color: var(--brand);
 }
 .rd-target-thumb {
   width: 88rpx;
@@ -360,7 +360,7 @@ function goBack() {
 }
 .rd-badge-primary {
   border-color: rgba(196, 30, 58, 0.3);
-  color: #C41E3A;
+  color: var(--brand);
 }
 .rd-target-name {
   display: block;
@@ -493,7 +493,7 @@ function goBack() {
   color: #aaa;
 }
 .rd-link {
-  color: #C41E3A;
+  color: var(--brand);
 }
 
 /* 底部 */
@@ -509,7 +509,7 @@ function goBack() {
 }
 .rd-home-btn {
   height: 88rpx;
-  background: #C41E3A;
+  background: var(--brand);
   border-radius: 20rpx;
   display: flex;
   align-items: center;

@@ -1,101 +1,149 @@
 <script setup lang="ts">
 /**
- * 文章详情页（从原型 app/articles/[id]/page.tsx 1:1 高保真迁移，A级）
- * 结构：导航 + 封面 + 标题/标签/作者(关注)/元信息 + AI摘要 + 音频播放器 +
- *       正文块渲染(text/heading/quote/list/image/5种内联推荐卡) +
- *       作者其他文章 + 猜你喜欢 + 评论区(楼中楼) + 底部圈子引流 + 底部互动栏
- * 音频经 uni.createInnerAudioContext 跨端适配。
+ * 文章详情页（真连后端 GET /articles/:id）
+ * 正文为后端富文本 HTML，用 rich-text 渲染；内联推荐卡来自后端 recommends（5 类型，降级仅标题/封面/跳转）。
+ * 互动（点赞/收藏/关注/评论）真连 interaction 端点，乐观更新 + 失败回滚 + 防重复。
+ * 后端无的字段（AI摘要/语音/作者头衔粉丝/作者其他文章）按真实数据 v-if 降级隐藏。三态齐全。
  */
-import { ref, reactive, computed, onUnmounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo, toastComingSoon } from '@/utils/router'
 import {
-  mockArticle, mockComments,
-  type ContentBlock, type ArticleComment,
+  articleApi, recommendRoute,
+  type ArticleDetail, type ArticleComment, type ArticleRecommendCard,
 } from '@/lib/article-data'
 
-const articleId = ref('1')
-const article = reactive({ ...mockArticle })
-const comments = reactive<ArticleComment[]>(JSON.parse(JSON.stringify(mockComments)))
+const articleId = ref('')
+const loading = ref(true)
+const error = ref('')
+const article = ref<ArticleDetail | null>(null)
+const comments = ref<ArticleComment[]>([])
 
 // 互动状态
-const isFollowed = ref(article.author.isFollowed)
-const isLiked = ref(article.isLiked)
-const isCollected = ref(article.isCollected)
-const likeCount = ref(article.likes)
-const collectCount = ref(article.collects)
-const joinedCircle = ref(article.sourceCircle.isJoined)
+const isFollowed = ref(false)
+const isLiked = ref(false)
+const isCollected = ref(false)
+const likeCount = ref(0)
+const collectCount = ref(0)
+const likeActing = ref(false)
+const collectActing = ref(false)
+const followActing = ref(false)
+const commentSubmitting = ref(false)
+const commentLikeActing = reactive<Record<string, boolean>>({})
 
-// AI 摘要展开
-const summaryExpanded = ref(false)
-
-// 评论展开
+// 评论展开 / 输入
 const expandedReplies = reactive<Record<string, boolean>>({})
 const commentText = ref('')
 const replyTo = ref<ArticleComment | null>(null)
+const commentFocus = ref(false)
 
-// 音频
-const isPlaying = ref(false)
-const progress = ref(0)
-const duration = ref(0)
-let audioCtx: any = null
+const showJoinGuide = computed(() => !!article.value?.sourceCircle)
 
-const showJoinGuide = computed(() => !joinedCircle.value)
-
-onLoad((q) => {
-  if (q && q.id) articleId.value = String(q.id)
-})
-
-function toggleFollow() {
-  isFollowed.value = !isFollowed.value
-}
-function toggleLike() {
-  isLiked.value = !isLiked.value
-  likeCount.value += isLiked.value ? 1 : -1
-}
-function toggleCollect() {
-  isCollected.value = !isCollected.value
-  collectCount.value += isCollected.value ? 1 : -1
-}
-function toggleCommentLike(c: ArticleComment) {
-  c.isLiked = !c.isLiked
-  c.likes += c.isLiked ? 1 : -1
-}
-function toggleReplies(id: string) {
-  expandedReplies[id] = !expandedReplies[id]
-}
-function joinCircle() {
-  joinedCircle.value = true
-}
-
-// 音频播放
-function togglePlay() {
-  if (!article.audioUrl) return
-  if (!audioCtx) {
-    audioCtx = uni.createInnerAudioContext()
-    audioCtx.src = article.audioUrl
-    audioCtx.onTimeUpdate(() => {
-      progress.value = audioCtx.currentTime
-      duration.value = audioCtx.duration
-    })
-    audioCtx.onEnded(() => { isPlaying.value = false; progress.value = 0 })
+async function load() {
+  if (!articleId.value) { error.value = '缺少文章参数'; loading.value = false; return }
+  loading.value = true
+  error.value = ''
+  try {
+    const a = await articleApi.detail(articleId.value)
+    article.value = a
+    likeCount.value = a.likes
+    collectCount.value = a.collects
+    // 评论 + 我的互动态并行拉取（失败不阻断主体）
+    const [cs, chk] = await Promise.all([
+      articleApi.getComments(articleId.value).catch(() => []),
+      articleApi.checkInteraction(articleId.value).catch(() => ({ liked: false, collected: false })),
+    ])
+    comments.value = cs
+    isLiked.value = chk.liked
+    isCollected.value = chk.collected
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
   }
-  if (isPlaying.value) audioCtx.pause()
-  else audioCtx.play()
-  isPlaying.value = !isPlaying.value
 }
-function fmtTime(t: number) {
-  const m = Math.floor(t / 60)
-  const s = Math.floor(t % 60)
-  return `${m}:${s.toString().padStart(2, '0')}`
-}
-onUnmounted(() => { if (audioCtx) { audioCtx.destroy() } })
 
-// 嵌入卡内部状态（圈子加入）
-const embedCircleJoined = reactive<Record<number, boolean>>({})
-function toggleEmbedCircle(i: number, init: boolean) {
-  embedCircleJoined[i] = !(embedCircleJoined[i] ?? init)
+onLoad((q) => { if (q && q.id) articleId.value = String(q.id) })
+onMounted(load)
+
+function openArticle(id: string) { navigateTo('/articles/' + id) }
+function openCircle() { if (article.value?.sourceCircle) navigateTo('/circles/' + article.value.sourceCircle.id) }
+function openRecommend(c: ArticleRecommendCard) {
+  const r = recommendRoute(c)
+  if (r) navigateTo(r); else toastComingSoon()
+}
+const REC_LABEL: Record<ArticleRecommendCard['recommendType'], string> = {
+  CIRCLE: '相关圈子', COURSE: '相关课程', PRODUCT: '相关商品', PAIPAN: '智能排盘', BOT: 'AI 智能体',
+}
+const REC_ICON: Record<ArticleRecommendCard['recommendType'], string> = {
+  CIRCLE: 'users', COURSE: 'book-open', PRODUCT: 'shopping-bag', PAIPAN: 'compass', BOT: 'bot',
+}
+function recLabel(t: ArticleRecommendCard['recommendType']) { return REC_LABEL[t] || '相关推荐' }
+function recIcon(t: ArticleRecommendCard['recommendType']) { return REC_ICON[t] || 'link' }
+
+// ─── 互动（乐观更新 + 失败回滚 + 防重复）───
+async function toggleLike() {
+  if (likeActing.value || !article.value) return
+  likeActing.value = true
+  const pl = isLiked.value, pc = likeCount.value
+  isLiked.value = !pl
+  likeCount.value = pc + (isLiked.value ? 1 : -1)
+  try { await articleApi.toggleLike(articleId.value) }
+  catch { isLiked.value = pl; likeCount.value = pc; uni.showToast({ title: '操作失败，请重试', icon: 'none' }) }
+  finally { likeActing.value = false }
+}
+async function toggleCollect() {
+  if (collectActing.value || !article.value) return
+  collectActing.value = true
+  const pc = isCollected.value, pn = collectCount.value
+  isCollected.value = !pc
+  collectCount.value = pn + (isCollected.value ? 1 : -1)
+  try { await articleApi.toggleCollect(articleId.value) }
+  catch { isCollected.value = pc; collectCount.value = pn; uni.showToast({ title: '操作失败，请重试', icon: 'none' }) }
+  finally { collectActing.value = false }
+}
+async function toggleFollow() {
+  if (followActing.value || !article.value) return
+  const authorId = article.value.author.id
+  if (!authorId) return
+  followActing.value = true
+  const prev = isFollowed.value
+  isFollowed.value = !prev
+  try { await articleApi.toggleFollow(authorId) }
+  catch { isFollowed.value = prev; uni.showToast({ title: '操作失败，请重试', icon: 'none' }) }
+  finally { followActing.value = false }
+}
+async function toggleCommentLike(c: ArticleComment) {
+  if (commentLikeActing[c.id]) return
+  commentLikeActing[c.id] = true
+  const pl = c.isLiked, pn = c.likes
+  c.isLiked = !pl
+  c.likes = pn + (c.isLiked ? 1 : -1)
+  try { await articleApi.toggleCommentLike(c.id) }
+  catch { c.isLiked = pl; c.likes = pn; uni.showToast({ title: '操作失败，请重试', icon: 'none' }) }
+  finally { commentLikeActing[c.id] = false }
+}
+function toggleReplies(id: string) { expandedReplies[id] = !expandedReplies[id] }
+function startReply(c: ArticleComment) { replyTo.value = c }
+
+async function submitComment() {
+  if (commentSubmitting.value) return
+  const content = commentText.value.trim()
+  if (!content) return
+  commentSubmitting.value = true
+  try {
+    await articleApi.createComment(articleId.value, content, replyTo.value?.id)
+    commentText.value = ''
+    replyTo.value = null
+    comments.value = await articleApi.getComments(articleId.value)
+    if (article.value) article.value.comments = comments.value.length
+    uni.showToast({ title: '评论已发送', icon: 'success' })
+  } catch {
+    uni.showToast({ title: '发送失败，请重试', icon: 'none' })
+  } finally {
+    commentSubmitting.value = false
+  }
 }
 </script>
 
@@ -117,11 +165,21 @@ function toggleEmbedCircle(i: number, init: boolean) {
       </view>
     </view>
 
-    <scroll-view scroll-y class="scroll" :style="{ paddingBottom: showJoinGuide ? '264rpx' : '144rpx' }">
-      <!-- 封面图 -->
+    <!-- 加载态 -->
+    <view v-if="loading && !article" class="state-box">
+      <text class="state-text">加载中…</text>
+    </view>
+    <!-- 错误态 -->
+    <view v-else-if="error && !article" class="state-box">
+      <text class="state-text">{{ error }}</text>
+      <view class="state-retry" @tap="load"><text class="state-retry-text">重试</text></view>
+    </view>
+
+    <scroll-view v-else-if="article" scroll-y class="scroll" :style="{ paddingBottom: showJoinGuide ? '264rpx' : '144rpx' }">
+      <!-- 封面图（后端 coverRatio 缺省，统一 16:9） -->
       <view v-if="article.cover" class="cover-wrap">
-        <view class="cover" :class="article.coverRatio === '3:4' ? 'cover-34' : 'cover-169'">
-          <image class="cover-img" :src="article.cover" mode="aspectFill" />
+        <view class="cover cover-169">
+          <image lazy-load class="cover-img" :src="article.cover" mode="aspectFill" />
         </view>
       </view>
 
@@ -132,20 +190,18 @@ function toggleEmbedCircle(i: number, init: boolean) {
           <text class="title">{{ article.title }}</text>
 
           <view v-if="article.tags.length" class="tags">
-            <view v-for="tag in article.tags" :key="tag" class="tag" @tap="toastComingSoon">
+            <view v-for="tag in article.tags" :key="tag" class="tag" @tap="navigateTo('/topic/' + tag)">
               <text class="tag-text">#{{ tag }}</text>
             </view>
           </view>
 
           <view class="author-row">
-            <view class="author-info" @tap="toastComingSoon">
-              <image class="author-avatar" :src="article.author.avatar" mode="aspectFill" />
+            <view class="author-info" @tap="navigateTo('/pkg-circle/user/profile?id=' + article.author.id)">
+              <image lazy-load class="author-avatar" :src="article.author.avatar" mode="aspectFill" />
               <view class="author-meta">
                 <view class="author-name-row">
                   <text class="author-name">{{ article.author.name }}</text>
-                  <AppIcon name="check-circle-2" :size="14" color="#C41E3A" />
                 </view>
-                <text class="author-title">{{ article.author.title }}</text>
               </view>
             </view>
             <view class="follow-btn" :class="{ followed: isFollowed }" @tap="toggleFollow">
@@ -158,190 +214,44 @@ function toggleEmbedCircle(i: number, init: boolean) {
               <AppIcon name="eye" :size="12" color="#999999" />
               <text class="meta-text">{{ article.views }} 阅读</text>
             </view>
-            <view class="meta-item">
+            <view v-if="article.publishedAt" class="meta-item">
               <AppIcon name="clock" :size="12" color="#999999" />
               <text class="meta-text">{{ article.publishedAt }}</text>
             </view>
           </view>
         </view>
 
-        <!-- AI 智能摘要 -->
-        <view v-if="article.aiSummary" class="ai-summary">
-          <view class="ai-head">
-            <view class="ai-icon">
-              <AppIcon name="sparkles" :size="12" color="#ffffff" />
-            </view>
-            <text class="ai-label">AI 智能摘要</text>
-          </view>
-          <text class="ai-text" :class="{ clamp2: !summaryExpanded }">{{ article.aiSummary }}</text>
-          <text v-if="article.aiSummary.length > 60" class="ai-toggle" @tap="summaryExpanded = !summaryExpanded">
-            {{ summaryExpanded ? '收起' : '展开全部' }}
-          </text>
-        </view>
-
-        <!-- 语音朗读 -->
-        <view v-if="article.audioUrl" class="audio">
-          <view class="audio-btn" @tap="togglePlay">
-            <AppIcon :name="isPlaying ? 'pause' : 'play'" :size="20" color="#ffffff" />
-          </view>
-          <view class="audio-body">
-            <view class="audio-time">
-              <text class="audio-time-text">{{ fmtTime(progress) }}</text>
-              <text class="audio-time-text">{{ fmtTime(duration) }}</text>
-            </view>
-            <view class="audio-track">
-              <view class="audio-fill" :style="{ width: duration > 0 ? (progress / duration * 100) + '%' : '0%' }" />
-            </view>
-          </view>
-          <view class="audio-label">
-            <AppIcon name="volume-2" :size="14" color="#C9A96E" />
-            <text class="audio-label-text">朗读</text>
-          </view>
-        </view>
-
-        <!-- 正文块渲染 -->
+        <!-- 正文（后端富文本 HTML，rich-text 渲染） -->
         <view class="body">
-          <template v-for="(block, i) in article.blocks" :key="i">
-            <!-- heading -->
-            <text v-if="block.type === 'heading'" class="b-heading">{{ block.content }}</text>
-            <!-- text -->
-            <text v-else-if="block.type === 'text'" class="b-text">{{ block.content }}</text>
-            <!-- quote -->
-            <view v-else-if="block.type === 'quote'" class="b-quote">
-              <text class="b-quote-text">{{ block.content }}</text>
-            </view>
-            <!-- list -->
-            <view v-else-if="block.type === 'list'" class="b-list">
-              <view v-for="(it, k) in block.items" :key="k" class="b-list-item">
-                <view class="b-list-dot" />
-                <text class="b-list-text">{{ it }}</text>
-              </view>
-            </view>
-            <!-- image -->
-            <view v-else-if="block.type === 'image'" class="b-image">
-              <image class="b-image-img" :src="block.src" mode="widthFix" />
-              <text v-if="block.caption" class="b-image-cap">{{ block.caption }}</text>
-            </view>
-            <!-- embed: circle -->
-            <view v-else-if="block.type === 'embed' && block.embedType === 'circle'" class="em-circle">
-              <view class="em-circle-icon">
-                <AppIcon name="users" :size="24" color="#C41E3A" />
-              </view>
-              <view class="em-circle-body">
-                <view class="em-circle-name-row">
-                  <text class="em-circle-name">{{ block.data.name }}</text>
-                  <text class="em-badge em-badge-purple">圈子</text>
-                </view>
-                <text class="em-circle-desc">{{ block.data.description }}</text>
-                <view class="em-circle-foot">
-                  <text class="em-circle-members">{{ block.data.members }} 成员</text>
-                  <view
-                    class="em-join-btn"
-                    :class="{ joined: embedCircleJoined[i] ?? block.data.isJoined }"
-                    @tap="toggleEmbedCircle(i, !!block.data.isJoined)"
-                  >
-                    <text class="em-join-text">{{ (embedCircleJoined[i] ?? block.data.isJoined) ? '已加入' : '加入圈子' }}</text>
-                  </view>
-                </view>
-              </view>
-            </view>
-            <!-- embed: course -->
-            <view v-else-if="block.type === 'embed' && block.embedType === 'course'" class="em-card" @tap="toastComingSoon">
-              <image class="em-card-cover" :src="block.data.cover" mode="aspectFill" />
-              <view class="em-card-body">
-                <view class="em-card-tag">
-                  <AppIcon name="book-open" :size="12" color="#3B82F6" />
-                  <text class="em-card-tag-text em-tag-info">相关课程</text>
-                </view>
-                <text class="em-card-title">{{ block.data.title }}</text>
-                <view class="em-card-foot">
-                  <text class="em-card-price">¥{{ block.data.price }}</text>
-                  <text class="em-card-sub">{{ block.data.students }}人学习</text>
-                </view>
-              </view>
-              <view class="em-card-arrow">
-                <AppIcon name="chevron-right" :size="16" color="#999999" />
-              </view>
-            </view>
-            <!-- embed: product -->
-            <view v-else-if="block.type === 'embed' && block.embedType === 'product'" class="em-card" @tap="toastComingSoon">
-              <image class="em-card-cover" :src="block.data.cover" mode="aspectFill" />
-              <view class="em-card-body">
-                <view class="em-card-tag">
-                  <AppIcon name="shopping-bag" :size="12" color="#C41E3A" />
-                  <text class="em-card-tag-text em-tag-brand">相关商品</text>
-                </view>
-                <text class="em-card-title">{{ block.data.name }}</text>
-                <view class="em-card-foot em-card-foot-between">
-                  <view class="em-price-group">
-                    <text class="em-card-price">¥{{ block.data.price }}</text>
-                    <text v-if="block.data.originalPrice" class="em-card-origin">¥{{ block.data.originalPrice }}</text>
-                  </view>
-                  <view class="em-buy-btn"><text class="em-buy-text">立即购买</text></view>
-                </view>
-              </view>
-            </view>
-            <!-- embed: paipan -->
-            <view v-else-if="block.type === 'embed' && block.embedType === 'paipan'" class="em-action em-action-paipan" @tap="toastComingSoon">
-              <view class="em-action-icon em-icon-brand">
-                <AppIcon name="compass" :size="24" color="#ffffff" />
-              </view>
-              <view class="em-action-body">
-                <text class="em-action-title">{{ block.data.title }}</text>
-                <text class="em-action-desc">{{ block.data.description }}</text>
-              </view>
-              <view class="em-action-btn em-btn-brand"><text class="em-action-btn-text">免费排盘</text></view>
-            </view>
-            <!-- embed: agent -->
-            <view v-else-if="block.type === 'embed' && block.embedType === 'agent'" class="em-action em-action-agent" @tap="toastComingSoon">
-              <view class="em-action-icon em-icon-purple">
-                <AppIcon name="bot" :size="24" color="#ffffff" />
-              </view>
-              <view class="em-action-body">
-                <view class="em-action-name-row">
-                  <text class="em-action-title">{{ block.data.name }}</text>
-                  <text class="em-badge em-badge-purple">AI</text>
-                </view>
-                <text class="em-action-desc">{{ block.data.description }}</text>
-              </view>
-              <view class="em-action-btn em-btn-purple"><text class="em-action-btn-text">体验</text></view>
-            </view>
-          </template>
+          <rich-text class="body-rich" :nodes="article.content"></rich-text>
         </view>
 
-        <!-- 作者其他文章 -->
-        <view v-if="article.authorOtherArticles.length" class="section section-border">
-          <view class="section-head">
-            <text class="section-title">{{ article.author.name }}的其他文章</text>
-            <view class="section-more" @tap="toastComingSoon">
-              <text class="section-more-text">更多</text>
-              <AppIcon name="chevron-right" :size="12" color="#C41E3A" />
-            </view>
-          </view>
-          <view class="rec-list">
-            <view v-for="a in article.authorOtherArticles.slice(0, 3)" :key="a.id" class="rec-item" @tap="navigateTo('/articles/' + a.id)">
-              <view class="rec-body">
-                <text class="rec-title">{{ a.title }}</text>
-                <view class="rec-meta">
-                  <view class="rec-meta-item"><AppIcon name="eye" :size="12" color="#999999" /><text class="rec-meta-text">{{ a.views }}</text></view>
-                  <view class="rec-meta-item"><AppIcon name="heart" :size="12" color="#999999" /><text class="rec-meta-text">{{ a.likes }}</text></view>
-                </view>
+        <!-- 内联推荐卡（后端 recommends，5 类型；后端仅标题/封面 → 降级展示 + 跳转） -->
+        <view v-if="article.recommends.length" class="rec-cards">
+          <view v-for="c in article.recommends" :key="c.id" class="em-card" @tap="openRecommend(c)">
+            <image lazy-load v-if="c.cover" class="em-card-cover" :src="c.cover" mode="aspectFill" />
+            <view class="em-card-body">
+              <view class="em-card-tag">
+                <AppIcon :name="recIcon(c.recommendType)" :size="12" color="#C41E3A" />
+                <text class="em-card-tag-text em-tag-brand">{{ recLabel(c.recommendType) }}</text>
               </view>
-              <image v-if="a.cover" class="rec-cover" :src="a.cover" mode="aspectFill" />
+              <text class="em-card-title">{{ c.title || recLabel(c.recommendType) }}</text>
+            </view>
+            <view class="em-card-arrow">
+              <AppIcon name="chevron-right" :size="16" color="#999999" />
             </view>
           </view>
         </view>
 
-        <!-- 猜你喜欢 -->
-        <view v-if="article.relatedArticles.length" class="section section-border">
+        <!-- 猜你喜欢（后端 getRelated：同圈/同标签相关文章） -->
+        <view v-if="article.related.length" class="section section-border">
           <text class="section-title section-title-block">猜你喜欢</text>
           <view class="rec-list">
-            <view v-for="a in article.relatedArticles" :key="a.id" class="rec-item" @tap="navigateTo('/articles/' + a.id)">
-              <image v-if="a.cover" class="rec-cover" :src="a.cover" mode="aspectFill" />
+            <view v-for="a in article.related" :key="a.id" class="rec-item" @tap="openArticle(a.id)">
+              <image lazy-load v-if="a.cover" class="rec-cover" :src="a.cover" mode="aspectFill" />
               <view class="rec-body">
                 <text class="rec-title">{{ a.title }}</text>
                 <view class="rec-meta">
-                  <text class="rec-meta-text">{{ a.author }}</text>
                   <view class="rec-meta-item"><AppIcon name="heart" :size="12" color="#999999" /><text class="rec-meta-text">{{ a.likes }}</text></view>
                 </view>
               </view>
@@ -353,11 +263,32 @@ function toggleEmbedCircle(i: number, init: boolean) {
         <view class="comments section-border">
           <view class="comments-head">
             <text class="comments-title">评论 ({{ article.comments }})</text>
-            <text class="comments-sort">按热度</text>
           </view>
-          <view class="comment-list">
+
+          <!-- 评论输入（真实发评论 / 回复，防重复） -->
+          <view class="comment-input-bar">
+            <textarea
+              class="comment-input"
+              v-model="commentText"
+              :focus="commentFocus"
+              :placeholder="replyTo ? ('回复 ' + (replyTo.author.name || '')) : '写下你的评论...'"
+              :maxlength="500"
+              auto-height
+              @blur="commentFocus = false"
+            />
+            <view class="comment-send" :class="{ disabled: commentSubmitting || !commentText.trim() }" @tap="submitComment">
+              <text class="comment-send-text">{{ commentSubmitting ? '发送中' : '发送' }}</text>
+            </view>
+          </view>
+
+          <!-- 空态 -->
+          <view v-if="!comments.length" class="comment-empty">
+            <text class="comment-empty-text">还没有评论，来抢沙发吧</text>
+          </view>
+
+          <view v-else class="comment-list">
             <view v-for="c in comments" :key="c.id" class="comment">
-              <image class="comment-avatar" :src="c.author.avatar" mode="aspectFill" />
+              <image lazy-load class="comment-avatar" :src="c.author.avatar" mode="aspectFill" />
               <view class="comment-body">
                 <view class="comment-top">
                   <text class="comment-name">{{ c.author.name }}</text>
@@ -369,24 +300,21 @@ function toggleEmbedCircle(i: number, init: boolean) {
                     <AppIcon name="heart" :size="14" :color="c.isLiked ? '#C41E3A' : '#999999'" />
                     <text v-if="c.likes > 0" class="comment-act-text" :class="{ liked: c.isLiked }">{{ c.likes }}</text>
                   </view>
-                  <view class="comment-act" @tap="toastComingSoon">
+                  <view class="comment-act" @tap="startReply(c)">
                     <AppIcon name="message-circle" :size="14" color="#999999" />
                     <text class="comment-act-text">回复</text>
-                  </view>
-                  <view class="comment-more" @tap="toastComingSoon">
-                    <AppIcon name="more-horizontal" :size="14" color="#999999" />
                   </view>
                 </view>
 
                 <!-- 楼中楼 -->
                 <view v-if="c.replies && c.replies.length" class="replies">
                   <view v-for="r in (expandedReplies[c.id] ? c.replies : c.replies.slice(0, 2))" :key="r.id" class="reply">
-                    <image class="reply-avatar" :src="r.author.avatar" mode="aspectFill" />
+                    <image lazy-load class="reply-avatar" :src="r.author.avatar" mode="aspectFill" />
                     <view class="reply-body">
                       <text class="reply-line"><text class="reply-name">{{ r.author.name }}</text><text class="reply-colon">：</text><text class="reply-content">{{ r.content }}</text></text>
                       <view class="reply-foot">
                         <text class="reply-time">{{ r.createdAt }}</text>
-                        <text class="reply-act" @tap="toastComingSoon">回复</text>
+                        <text class="reply-act" @tap="startReply(c)">回复</text>
                       </view>
                     </view>
                   </view>
@@ -402,21 +330,21 @@ function toggleEmbedCircle(i: number, init: boolean) {
       </view>
     </scroll-view>
 
-    <!-- 底部来源圈子引流（非成员可见） -->
-    <view v-if="showJoinGuide" class="join-guide">
-      <view class="join-info" @tap="toastComingSoon">
-        <image class="join-cover" :src="article.sourceCircle.cover" mode="aspectFill" />
+    <!-- 底部来源圈子引流 -->
+    <view v-if="article && article.sourceCircle" class="join-guide">
+      <view class="join-info" @tap="openCircle">
+        <image lazy-load v-if="article.sourceCircle.cover" class="join-cover" :src="article.sourceCircle.cover" mode="aspectFill" />
         <view class="join-meta">
           <text class="join-name">{{ article.sourceCircle.name }}</text>
-          <text class="join-sub">{{ article.sourceCircle.members }}成员 · 今日{{ article.sourceCircle.postsToday }}条动态</text>
+          <text class="join-sub">{{ article.sourceCircle.members }}成员</text>
         </view>
       </view>
-      <view class="join-btn" @tap="joinCircle"><text class="join-btn-text">加入圈子</text></view>
+      <view class="join-btn" @tap="openCircle"><text class="join-btn-text">进入圈子</text></view>
     </view>
 
     <!-- 底部互动栏 -->
-    <view class="action-bar">
-      <view class="ab-comment" @tap="toastComingSoon">
+    <view v-if="article" class="action-bar">
+      <view class="ab-comment" @tap="commentFocus = true">
         <AppIcon name="message-circle" :size="16" color="#999999" />
         <text class="ab-comment-text">写评论...</text>
       </view>
@@ -428,7 +356,7 @@ function toggleEmbedCircle(i: number, init: boolean) {
         <AppIcon name="star" :size="24" :color="isCollected ? '#C9A96E' : '#666666'" />
         <text class="ab-count">{{ collectCount }}</text>
       </view>
-      <view class="ab-item" @tap="toastComingSoon">
+      <view class="ab-item" @tap="navigateTo('/pkg-circle/common/share-poster?type=article&targetId=' + article.id)">
         <AppIcon name="share-2" :size="24" color="#666666" />
         <text class="ab-count">分享</text>
       </view>
@@ -441,6 +369,68 @@ function toggleEmbedCircle(i: number, init: boolean) {
   min-height: 100vh;
   background: #faf8f5;
 }
+/* 三态 */
+.state-box {
+  padding: 240rpx 32rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24rpx;
+}
+.state-text { font-size: 28rpx; color: #999999; }
+.state-retry {
+  padding: 12rpx 48rpx;
+  border: 1rpx solid var(--brand);
+  border-radius: 999rpx;
+}
+.state-retry-text { font-size: 26rpx; color: var(--brand); }
+/* 正文富文本 */
+.body-rich {
+  font-size: 30rpx;
+  line-height: 1.85;
+  color: #2c2c2c;
+  word-break: break-word;
+}
+/* 内联推荐卡容器 */
+.rec-cards {
+  padding: 8rpx 32rpx 24rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+}
+/* 评论输入 */
+.comment-input-bar {
+  display: flex;
+  align-items: flex-end;
+  gap: 16rpx;
+  padding: 16rpx 0 24rpx;
+}
+.comment-input {
+  flex: 1;
+  min-height: 64rpx;
+  max-height: 240rpx;
+  padding: 16rpx 24rpx;
+  background: #f5f0e8;
+  border-radius: 24rpx;
+  font-size: 26rpx;
+  color: #2c2c2c;
+  box-sizing: border-box;
+}
+.comment-send {
+  flex-shrink: 0;
+  padding: 14rpx 36rpx;
+  background: var(--brand);
+  border-radius: 999rpx;
+}
+.comment-send.disabled { background: #d9b3ba; }
+.comment-send-text { font-size: 26rpx; color: #ffffff; font-weight: 500; }
+/* 评论空态 */
+.comment-empty {
+  padding: 60rpx 0;
+  display: flex;
+  justify-content: center;
+}
+.comment-empty-text { font-size: 26rpx; color: #999999; }
 /* 导航 */
 .navbar {
   position: fixed;
@@ -574,7 +564,7 @@ function toggleEmbedCircle(i: number, init: boolean) {
   flex-shrink: 0;
   padding: 12rpx 32rpx;
   border-radius: 999rpx;
-  background: #c41e3a;
+  background: var(--brand);
 }
 .follow-btn.followed {
   background: #f5f0e8;
@@ -621,7 +611,7 @@ function toggleEmbedCircle(i: number, init: boolean) {
   width: 40rpx;
   height: 40rpx;
   border-radius: 50%;
-  background: #c41e3a;
+  background: var(--brand);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -629,7 +619,7 @@ function toggleEmbedCircle(i: number, init: boolean) {
 .ai-label {
   font-size: 24rpx;
   font-weight: 700;
-  color: #c41e3a;
+  color: var(--brand);
 }
 .ai-text {
   display: block;
@@ -647,7 +637,7 @@ function toggleEmbedCircle(i: number, init: boolean) {
 .ai-toggle {
   display: block;
   font-size: 24rpx;
-  color: #c41e3a;
+  color: var(--brand);
   margin-top: 8rpx;
 }
 /* 音频 */
@@ -666,7 +656,7 @@ function toggleEmbedCircle(i: number, init: boolean) {
   width: 80rpx;
   height: 80rpx;
   border-radius: 50%;
-  background: #c41e3a;
+  background: var(--brand);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -694,7 +684,7 @@ function toggleEmbedCircle(i: number, init: boolean) {
 }
 .audio-fill {
   height: 100%;
-  background: #c41e3a;
+  background: var(--brand);
   border-radius: 999rpx;
 }
 .audio-label {
@@ -753,7 +743,7 @@ function toggleEmbedCircle(i: number, init: boolean) {
   width: 12rpx;
   height: 12rpx;
   border-radius: 50%;
-  background: #c41e3a;
+  background: var(--brand);
   margin-top: 14rpx;
   flex-shrink: 0;
 }
@@ -843,7 +833,7 @@ function toggleEmbedCircle(i: number, init: boolean) {
 .em-join-btn {
   padding: 12rpx 32rpx;
   border-radius: 999rpx;
-  background: #c41e3a;
+  background: var(--brand);
 }
 .em-join-btn.joined {
   background: #f5f0e8;
@@ -893,7 +883,7 @@ function toggleEmbedCircle(i: number, init: boolean) {
   color: #3b82f6;
 }
 .em-tag-brand {
-  color: #c41e3a;
+  color: var(--brand);
 }
 .em-card-title {
   display: block;
@@ -914,7 +904,7 @@ function toggleEmbedCircle(i: number, init: boolean) {
 .em-card-price {
   font-size: 30rpx;
   font-weight: 700;
-  color: #c41e3a;
+  color: var(--brand);
 }
 .em-card-sub {
   font-size: 22rpx;
@@ -933,7 +923,7 @@ function toggleEmbedCircle(i: number, init: boolean) {
 .em-buy-btn {
   padding: 8rpx 24rpx;
   border-radius: 999rpx;
-  background: #c41e3a;
+  background: var(--brand);
 }
 .em-buy-text {
   font-size: 24rpx;
@@ -972,7 +962,7 @@ function toggleEmbedCircle(i: number, init: boolean) {
 }
 .em-icon-brand {
   border-radius: 50%;
-  background: #c41e3a;
+  background: var(--brand);
 }
 .em-icon-purple {
   border-radius: 24rpx;
@@ -1004,7 +994,7 @@ function toggleEmbedCircle(i: number, init: boolean) {
   flex-shrink: 0;
 }
 .em-btn-brand {
-  background: #c41e3a;
+  background: var(--brand);
 }
 .em-btn-purple {
   background: #8b7bb8;
@@ -1043,7 +1033,7 @@ function toggleEmbedCircle(i: number, init: boolean) {
 }
 .section-more-text {
   font-size: 24rpx;
-  color: #c41e3a;
+  color: var(--brand);
 }
 .rec-list {
   display: flex;
@@ -1166,7 +1156,7 @@ function toggleEmbedCircle(i: number, init: boolean) {
   color: #999999;
 }
 .comment-act-text.liked {
-  color: #c41e3a;
+  color: var(--brand);
 }
 .comment-more {
   margin-left: auto;
@@ -1232,7 +1222,7 @@ function toggleEmbedCircle(i: number, init: boolean) {
 }
 .reply-expand-text {
   font-size: 24rpx;
-  color: #c41e3a;
+  color: var(--brand);
 }
 /* 底部圈子引流 */
 .join-guide {
@@ -1280,7 +1270,7 @@ function toggleEmbedCircle(i: number, init: boolean) {
 .join-btn {
   padding: 16rpx 40rpx;
   border-radius: 999rpx;
-  background: #c41e3a;
+  background: var(--brand);
   flex-shrink: 0;
 }
 .join-btn-text {

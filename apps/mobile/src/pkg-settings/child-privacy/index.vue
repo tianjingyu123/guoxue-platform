@@ -11,7 +11,7 @@
           <text class="navbar-title">儿童隐私保护</text>
         </view>
       </view>
-      <text class="navbar-version">v{{ doc.version }}</text>
+      <text v-if="doc" class="navbar-version">v{{ doc.version }}</text>
     </view>
 
     <!-- 滚动区 -->
@@ -32,27 +32,45 @@
           </view>
         </view>
 
-        <!-- 版本信息 -->
-        <view class="version-row">
-          <text class="version-text">更新日期：{{ doc.effectiveDate }}</text>
+        <!-- Loading -->
+        <view v-if="loading" class="state-box">
+          <text class="state-text">加载中...</text>
         </view>
-
-        <!-- 文档内容 -->
-        <view class="content">
-          <view v-for="section in doc.sections" :id="section.id" :key="section.id" class="section">
-            <text class="h2">{{ section.title }}</text>
-            <block v-for="(blk, bi) in section.blocks" :key="bi">
-              <view v-if="blk.type === 'p'" class="para">
-                <text v-for="(run, ri) in blk.runs" :key="ri" :class="['run', { 'run-bold': run.bold }]">{{ run.text }}</text>
-              </view>
-              <view v-else class="ul">
-                <view v-for="(li, li2) in blk.items" :key="li2" class="li">
-                  <text class="li-dot">•</text>
-                  <text class="li-text">{{ li }}</text>
-                </view>
-              </view>
-            </block>
+        <!-- Error -->
+        <view v-else-if="error" class="state-box">
+          <text class="state-text">加载失败，请重试</text>
+          <view class="state-btn" @tap="load">
+            <text class="state-btn-text">重新加载</text>
           </view>
+        </view>
+        <!-- 内容 -->
+        <view v-else-if="doc" class="ok-wrap">
+          <!-- 版本信息 -->
+          <view v-if="doc.effectiveDate" class="version-row">
+            <text class="version-text">更新日期：{{ doc.effectiveDate }}</text>
+          </view>
+
+          <!-- 文档内容 -->
+          <view class="content">
+            <view v-for="section in doc.sections" :id="section.id" :key="section.id" class="section">
+              <text class="h2">{{ section.title }}</text>
+              <block v-for="(blk, bi) in section.blocks" :key="bi">
+                <view v-if="blk.type === 'p'" class="para">
+                  <text v-for="(run, ri) in blk.runs" :key="ri" :class="['run', { 'run-bold': run.bold }]">{{ run.text }}</text>
+                </view>
+                <view v-else class="ul">
+                  <view v-for="(li, li2) in blk.items" :key="li2" class="li">
+                    <text class="li-dot">•</text>
+                    <text class="li-text">{{ li }}</text>
+                  </view>
+                </view>
+              </block>
+            </view>
+          </view>
+        </view>
+        <!-- Empty -->
+        <view v-else class="state-box">
+          <text class="state-text">儿童隐私保护声明内容暂未发布</text>
         </view>
 
         <!-- 监护人联系方式 -->
@@ -82,7 +100,7 @@
         </view>
 
         <!-- 底部确认 -->
-        <view class="confirm-wrap">
+        <view v-if="doc" class="confirm-wrap">
           <view
             v-if="!confirmed"
             class="confirm-btn"
@@ -129,12 +147,17 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { goBack } from '@/utils/router'
-import { legalDocs, extractToc } from '@/lib/legal-data'
+import { legalApi, extractToc, type LegalDoc, type LegalTocItem } from '@/lib/legal-data'
 
-const doc = legalDocs['child-privacy']
-const toc = extractToc(doc)
+// ⚠️ 后端 type 枚举无 child-privacy（仅 agreement/privacy/community），故 getDoc 恒返回 null → 空态
+const TYPE = 'child-privacy'
+
+const doc = ref<LegalDoc | null>(null)
+const toc = ref<LegalTocItem[]>([])
+const loading = ref(true)
+const error = ref(false)
 
 const showToc = ref(false)
 const activeSection = ref('')
@@ -144,6 +167,21 @@ const confirming = ref(false)
 const confirmed = ref(false)
 const confirmedAt = ref('')
 
+async function load() {
+  loading.value = true
+  error.value = false
+  try {
+    const d = await legalApi.getDoc(TYPE)
+    doc.value = d
+    toc.value = d ? extractToc(d) : []
+  } catch {
+    error.value = true
+  } finally {
+    loading.value = false
+  }
+}
+onMounted(load)
+
 const goSection = (id: string) => {
   activeSection.value = id
   scrollTarget.value = ''
@@ -151,14 +189,17 @@ const goSection = (id: string) => {
   showToc.value = false
 }
 
-const handleConfirm = () => {
+// 确认：后端无 confirm 端点 → 诚实降级为本地确认（不持久化，详见 legal-data.ts）
+async function handleConfirm() {
   if (!hasScrolledToBottom.value || confirming.value) return
   confirming.value = true
-  setTimeout(() => {
-    confirming.value = false
+  try {
+    await legalApi.confirm(TYPE)
     confirmed.value = true
     confirmedAt.value = new Date().toLocaleDateString()
-  }, 400)
+  } finally {
+    confirming.value = false
+  }
 }
 
 const onMail = () => {
@@ -220,6 +261,30 @@ const onPhone = () => {
   flex: 1;
   overflow: hidden;
 }
+.ok-wrap {
+  display: block;
+}
+.state-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24rpx;
+  padding: 120rpx 48rpx;
+}
+.state-text {
+  font-size: 28rpx;
+  color: #999999;
+}
+.state-btn {
+  padding: 16rpx 48rpx;
+  background-color: var(--brand);
+  border-radius: 12rpx;
+}
+.state-btn-text {
+  font-size: 28rpx;
+  color: #ffffff;
+}
 .container {
   padding: 32rpx;
 }
@@ -245,7 +310,7 @@ const onPhone = () => {
   display: block;
   font-size: 28rpx;
   font-weight: 500;
-  color: #c41e3a;
+  color: var(--brand);
   margin-bottom: 8rpx;
 }
 .notice-text {
@@ -381,7 +446,7 @@ const onPhone = () => {
 .confirm-btn {
   width: 100%;
   height: 88rpx;
-  background-color: #c41e3a;
+  background-color: var(--brand);
   border-radius: 16rpx;
   display: flex;
   align-items: center;
@@ -410,7 +475,7 @@ const onPhone = () => {
   width: 96rpx;
   height: 96rpx;
   border-radius: 50%;
-  background-color: #c41e3a;
+  background-color: var(--brand);
   box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.15);
   display: flex;
   align-items: center;
@@ -481,7 +546,7 @@ const onPhone = () => {
   color: #999999;
 }
 .toc-item-active .toc-item-text {
-  color: #c41e3a;
+  color: var(--brand);
   font-weight: 500;
 }
 </style>

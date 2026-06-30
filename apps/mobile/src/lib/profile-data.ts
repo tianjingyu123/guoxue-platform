@@ -1,41 +1,41 @@
 // 我的主页数据层（1:1 迁移自原型 app/profile/page.tsx）
-import { apiGet, useMock } from '@/utils/request'
+import { apiGet, apiPost } from '@/utils/request'
 
 export type UserRole = 'user' | 'circle_owner' | 'teacher' | 'station_owner' | 'streamer' | 'creator'
 
 export interface RoleEntry {
   type: UserRole
   name: string
-  id: number
+  id: string | number
 }
 
-const _mockUserData = {
-  name: '张三丰',
-  avatar: '',
-  bio: '易学爱好者 | 八字研习中',
-  isVip: true,
-  vipLevel: '黄金会员',
-  vipExpiry: '2025-12-31',
-  vipDaysLeft: 234,
-  isVerified: true,
-  roles: [
-    { type: 'circle_owner' as UserRole, name: '张氏命理研习社', id: 1 },
-    { type: 'teacher' as UserRole, name: '八字入门精讲', id: 1 },
-    { type: 'streamer' as UserRole, name: '直播间', id: 1 },
-  ] as RoleEntry[],
-  messages: { system: 2, interaction: 5, transaction: 1 },
-  checkIn: { todayChecked: false, continuousDays: 7, totalPoints: 350 },
-  stats: { following: 128, followers: 1024, likes: 3680 },
-  coins: 520,
-  coupons: 3,
-  points: 1280,
-  orders: { pending: 2, shipped: 1, received: 3, refund: 0 },
-  continueLearning: {
-    id: 1,
-    title: '八字入门实战课',
-    progress: 45,
-    lastLesson: '第三章：天干地支详解',
-  },
+export interface RecommendItem {
+  id: number
+  type: 'course' | 'product'
+  title: string
+  price: number
+  originalPrice: number
+  tag: string
+}
+
+export interface ProfileData {
+  name: string
+  avatar: string
+  bio: string
+  isVip: boolean
+  vipLevel: string
+  vipExpiry: string
+  vipDaysLeft: number
+  isVerified: boolean
+  roles: RoleEntry[]
+  messages: { system: number; interaction: number; transaction: number }
+  checkIn: { todayChecked: boolean; continuousDays: number; totalPoints: number }
+  stats: { following: number; followers: number; likes: number }
+  coins: number
+  coupons: number
+  points: number
+  orders: { pending: number; shipped: number; received: number; refund: number }
+  continueLearning: { id: number; title: string; progress: number; lastLesson: string } | null
 }
 
 export function getGreeting(): string {
@@ -61,21 +61,15 @@ export const roleConfig: Record<UserRole, { label: string; icon: string; color: 
 export const quickFunctions: { icon: string; label: string; href: string; color: string }[] = [
   { icon: 'compass', label: '排盘记录', href: '/paipan', color: '#C41E3A' },
   { icon: 'book-open', label: '我的课程', href: '/learning', color: '#4A90D9' },
+  { icon: 'award', label: '讲师工作台', href: '/pkg-creator/teacher-dashboard/index', color: '#C41E3A' },
+  { icon: 'shield-check', label: '我的资质', href: '/pkg-creator/my-qualifications/index', color: '#16A34A' },
   { icon: 'users', label: '我的圈子', href: '/pkg-circle/circles/mine', color: '#722ED1' },
   { icon: 'sticky-note', label: '我的笔记', href: '/ebook/notes', color: '#C9A96E' },
   { icon: 'heart', label: '我的收藏', href: '/favorites', color: '#C41E3A' },
-  { icon: 'file-text', label: '我的电子书', href: '/downloads', color: '#52C41A' },
+  { icon: 'file-text', label: '我的电子书', href: '/ebook/bookshelf', color: '#52C41A' },
   { icon: 'clipboard-list', label: '我的申请', href: '/mine/applications', color: '#FA8C16' },
   { icon: 'history', label: '浏览历史', href: '/history', color: '#64748B' },
   { icon: 'help-circle', label: '帮助中心', href: '/help', color: '#999999' },
-]
-
-// 猜你喜欢
-const _mockRecommendations: { id: number; type: 'course' | 'product'; title: string; price: number; originalPrice: number; tag: string }[] = [
-  { id: 1, type: 'course', title: '紫微斗数入门精讲', price: 199, originalPrice: 399, tag: '热门' },
-  { id: 2, type: 'product', title: '专业罗盘套装', price: 298, originalPrice: 598, tag: '特惠' },
-  { id: 3, type: 'course', title: '六爻预测实战班', price: 299, originalPrice: 499, tag: '新课' },
-  { id: 4, type: 'product', title: '渊海子平精装版', price: 68, originalPrice: 128, tag: '' },
 ]
 
 // 全部可开通角色
@@ -87,45 +81,93 @@ export const allRoleTypes: { type: UserRole; applyHref: string }[] = [
 ]
 
 // 已开通身份点击进入的后台路由
-export function roleHref(type: UserRole, id: number): string {
+export function roleHref(type: UserRole, id: string | number): string {
   switch (type) {
     case 'circle_owner': return `/pkg-circle/circles/manage?id=${id}`
     case 'teacher': return '/teacher/dashboard'
     case 'streamer': return '/creator/live/console'
     case 'creator': return '/videos/creator'
-    case 'station_owner': return '/mine/role-panels/station-master-panel'
+    case 'station_owner': return '/operator/station-master-panel'
     default: return '/pages/profile/index'
   }
 }
 
-export const totalMessages =
-  _mockUserData.messages.system + _mockUserData.messages.interaction + _mockUserData.messages.transaction
-
 // ============ API 层 ============
 
+// 后端 RoleType → 前端 UserRole（仅映射个人中心可进入的身份后台，其余角色忽略）
+const _roleTypeMap: Record<string, UserRole> = {
+  CIRCLE_OWNER: 'circle_owner',
+  LECTURER: 'teacher',
+  STATION_MASTER: 'station_owner',
+}
+
+// 会员等级标签
+const _memberLevelLabel: Record<string, string> = {
+  MONTHLY: '月度会员',
+  YEARLY: '年度会员',
+  LIFETIME: '永久会员',
+}
+
+/** /auth/me + 签到状态 → 个人中心主页数据 */
+function adaptProfile(me: any, checkin: any): ProfileData {
+  const level = String(me?.memberLevel ?? 'NONE')
+  const isVip = level !== 'NONE'
+  let vipExpiry = ''
+  let vipDaysLeft = 0
+  if (me?.memberExpire) {
+    const exp = new Date(me.memberExpire)
+    vipExpiry = exp.toISOString().split('T')[0]
+    vipDaysLeft = Math.max(0, Math.ceil((exp.getTime() - Date.now()) / 86400000))
+  }
+  // 后端仅返回 { roleType, bindId }，无业务名称 → name 留空诚实降级
+  const roles: RoleEntry[] = (me?.roles ?? [])
+    .map((r: any): RoleEntry | null => {
+      const type = _roleTypeMap[r?.roleType]
+      return type ? { type, name: '', id: r?.bindId ?? '' } : null
+    })
+    .filter((r: RoleEntry | null): r is RoleEntry => r !== null)
+
+  return {
+    name: me?.nickname || '国学用户',
+    avatar: me?.avatar || '',
+    bio: me?.bio || '',
+    isVip,
+    vipLevel: isVip ? (_memberLevelLabel[level] || '会员') : '',
+    vipExpiry,
+    vipDaysLeft,
+    isVerified: !!me?.identityVerified,
+    roles,
+    // 消息中心暂无聚合端点 → 0（角标 v-if 隐藏）
+    messages: { system: 0, interaction: 0, transaction: 0 },
+    checkIn: {
+      todayChecked: !!checkin?.todayChecked,
+      continuousDays: checkin?.continuousDays ?? 0,
+      totalPoints: checkin?.totalPoints ?? 0,
+    },
+    // 关注/资产/订单暂无聚合端点 → 0（真实默认值，非伪造）
+    stats: { following: 0, followers: 0, likes: 0 },
+    coins: 0,
+    coupons: 0,
+    points: 0,
+    orders: { pending: 0, shipped: 0, received: 0, refund: 0 },
+    continueLearning: null,
+  }
+}
+
 export const profileApi = {
-  /** 获取用户主页数据 */
-  async getProfile() {
-    if (true) return _mockUserData
-    try {
-      const data = await apiGet<any>('/user/profile')
-      return { ..._mockUserData, ...data }
-    } catch { return _mockUserData }
+  /** 获取用户主页数据 —— GET /auth/me + GET /users/me/checkin/status 并行聚合 */
+  async getProfile(): Promise<ProfileData> {
+    const [me, checkin] = await Promise.all([
+      apiGet<any>('/auth/me'),
+      // 签到状态非主资料，失败不阻断主页加载
+      apiGet<any>('/users/me/checkin/status').catch(() => null),
+    ])
+    return adaptProfile(me, checkin)
   },
 
-  /** 猜你喜欢推荐 */
-  async recommendations() {
-    if (true) return _mockRecommendations
-    try {
-      const data = await apiGet<any>('/user/recommendations')
-      return data?.length ? data : _mockRecommendations
-    } catch { return _mockRecommendations }
-  },
-
-  /** 签到 */
-  async checkIn() {
-    if (true) return { success: true, points: 10 }
-    try { return await apiGet<any>('/user/checkin') }
-    catch { return { success: true, points: 10 } }
+  /** 每日签到 —— POST /users/me/checkin（返回连续天数+本次积分；失败由页面三态处理） */
+  async checkIn(): Promise<{ success: true; points: number; consecutiveDays: number }> {
+    const res = await apiPost<{ consecutiveDays: number; rewardPoints: number }>('/users/me/checkin')
+    return { success: true, points: res.rewardPoints, consecutiveDays: res.consecutiveDays }
   },
 }

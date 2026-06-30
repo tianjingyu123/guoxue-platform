@@ -180,13 +180,13 @@ onMounted(() => { nextTick(() => setTimeout(drawLineChart, 100)) })
 .st-bar-group { display: flex; flex-direction: column; align-items: center; flex: 1; height: 100%; }
 .st-bar-pair { display: flex; align-items: flex-end; gap: 4rpx; flex: 1; height: 100%; }
 .st-bar { width: 16rpx; border-radius: 4rpx 4rpx 0 0; }
-.st-bar.posts { background: #C41E3A; }
+.st-bar.posts { background: var(--brand); }
 .st-bar.views { background: #C9A96E; }
 .st-bar-label { font-size: 20rpx; color: #8a8378; margin-top: 12rpx; }
 .st-legend { display: flex; justify-content: center; gap: 32rpx; margin-top: 20rpx; }
 .st-legend-item { display: flex; align-items: center; gap: 8rpx; }
 .st-legend-dot { width: 20rpx; height: 20rpx; border-radius: 4rpx; }
-.st-legend-dot.posts { background: #C41E3A; }
+.st-legend-dot.posts { background: var(--brand); }
 .st-legend-dot.views { background: #C9A96E; }
 .st-legend-t { font-size: 22rpx; color: #666; }
 </style>

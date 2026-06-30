@@ -270,10 +270,10 @@ async function authorize(type: 'always' | 'while_using' | 'authorized' | 'deny')
 .promise-desc { font-size: 24rpx; color: #8a8178; line-height: 1.6; }
 .warn { display: flex; gap: 12rpx; background: #FBF4E6; border-radius: 16rpx; padding: 18rpx 24rpx; margin-bottom: 24rpx; align-items: flex-start; }
 .warn-text { flex: 1; font-size: 24rpx; color: #a98a52; line-height: 1.5; }
-.btn-primary { height: 88rpx; background: #C41E3A; border-radius: 20rpx; display: flex; align-items: center; justify-content: center; margin-bottom: 20rpx; }
+.btn-primary { height: 88rpx; background: var(--brand); border-radius: 20rpx; display: flex; align-items: center; justify-content: center; margin-bottom: 20rpx; }
 .btn-primary-text { font-size: 30rpx; font-weight: 600; color: #fff; }
 .btn-soft { height: 88rpx; background: #FBEDEF; border-radius: 20rpx; display: flex; align-items: center; justify-content: center; margin-bottom: 20rpx; }
-.btn-soft-text { font-size: 30rpx; font-weight: 600; color: #C41E3A; }
+.btn-soft-text { font-size: 30rpx; font-weight: 600; color: var(--brand); }
 .btn-text { height: 88rpx; display: flex; align-items: center; justify-content: center; }
 .btn-text-label { font-size: 30rpx; color: #8a8178; }
 
@@ -284,12 +284,12 @@ async function authorize(type: 'always' | 'while_using' | 'authorized' | 'deny')
 .dialog-actions { display: flex; gap: 20rpx; }
 .dialog-btn { flex: 1; height: 84rpx; border-radius: 20rpx; display: flex; align-items: center; justify-content: center; }
 .dialog-btn.ghost { background: #F2ECE1; }
-.dialog-btn.solid { background: #C41E3A; }
+.dialog-btn.solid { background: var(--brand); }
 .dialog-btn-text { font-size: 28rpx; color: #2C2C2C; font-weight: 500; }
 .solid-text { color: #fff; }
 .loading { flex: 1; display: flex; align-items: center; justify-content: center; padding-top: 200rpx; font-size: 28rpx; color: #8a8178; }
 .error-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding-top: 200rpx; gap: 24rpx; }
 .error-state text { font-size: 28rpx; color: #8a8178; }
-.retry-btn { padding: 16rpx 48rpx; background: #C41E3A; color: #fff; border-radius: 12rpx; font-size: 26rpx; }
+.retry-btn { padding: 16rpx 48rpx; background: var(--brand); color: #fff; border-radius: 12rpx; font-size: 26rpx; }
 .empty-page { flex: 1; display: flex; align-items: center; justify-content: center; padding-top: 200rpx; font-size: 28rpx; color: #8a8178; }
 </style>

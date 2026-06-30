@@ -132,7 +132,7 @@
         <view class="quota-form-field">
           <text class="quota-form-label">用户手机号</text>
           <view class="quota-search-row">
-            <input class="quota-input" v-model="giftPhone" placeholder="请输入手机号" placeholder-class="quota-input-ph" type="number" maxlength="11" />
+            <input class="quota-input" v-model="giftPhone" placeholder="请输入手机号" placeholder-class="quota-input-ph" type="text" maxlength="11" />
             <view class="quota-search-btn" :class="{ disabled: isSearching || giftPhone.length < 11 }" @tap="doSearch"><text class="quota-search-btn-txt">{{ isSearching ? '搜索中...' : '搜索' }}</text></view>
           </view>
         </view>
@@ -261,7 +261,7 @@ function doGift() {
 .c-gold { color: #C9A96E !important; }
 .c-operator { color: #7c3aed !important; }
 .c-info { color: #2563eb !important; }
-.c-primary { color: #C41E3A !important; }
+.c-primary { color: var(--brand) !important; }
 .bold { font-weight: 700; }
 
 /* 名额概览 */

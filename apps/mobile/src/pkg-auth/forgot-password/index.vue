@@ -36,7 +36,7 @@
             <view class="input-icon"><AppIcon name="phone" :size="20" color="#999999" /></view>
             <input
               class="input"
-              type="number"
+              type="text"
               :value="phone"
               maxlength="11"
               placeholder="请输入手机号"
@@ -49,7 +49,7 @@
             <view class="input-icon"><AppIcon name="message-circle" :size="20" color="#999999" /></view>
             <input
               class="input input-code"
-              type="number"
+              type="text"
               :value="code"
               maxlength="6"
               placeholder="请输入验证码"
@@ -152,6 +152,7 @@
 import { ref, computed, onUnmounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
+import { authApi } from '@/lib/auth-data'
 
 const statusBarHeight = ref(0)
 
@@ -210,16 +211,22 @@ function handleBack() {
 }
 
 // @data-needs: 发送找回密码验证码, 参数 {phone, scene:'reset'}, 返回 {success, message}
-function sendCode() {
+async function sendCode() {
   if (countdown.value > 0 || !isPhoneValid.value) {
     if (!isPhoneValid.value) error.value = '请输入正确的手机号'
     return
   }
-  countdown.value = 60
-  timer = setInterval(() => {
-    countdown.value--
-    if (countdown.value <= 0 && timer) clearInterval(timer)
-  }, 1000)
+  try {
+    const res = await authApi.sendCode(phone.value, 'reset')
+    if (!res.success) { error.value = res.message || '发送失败'; return }
+    countdown.value = 60
+    timer = setInterval(() => {
+      countdown.value--
+      if (countdown.value <= 0 && timer) clearInterval(timer)
+    }, 1000)
+  } catch (e: any) {
+    error.value = e?.message || '发送失败'
+  }
 }
 
 // @data-needs: 校验找回密码验证码, 参数 {phone, code}, 返回 {success, message}
@@ -230,10 +237,22 @@ function verifyPhone() {
 }
 
 // @data-needs: 重置密码, 参数 {phone, code, password}, 返回 {success, message}
-function resetPassword() {
+async function resetPassword() {
   if (!isPasswordValid.value || isLoading.value) return
   error.value = ''
-  step.value = 3
+  isLoading.value = true
+  try {
+    const res = await authApi.resetPassword({ phone: phone.value, code: code.value, password: password.value })
+    if (res.success) {
+      step.value = 3
+    } else {
+      error.value = res.message || '重置失败'
+    }
+  } catch (e: any) {
+    error.value = e?.message || '重置失败'
+  } finally {
+    isLoading.value = false
+  }
 }
 
 function goLogin() {
@@ -308,7 +327,7 @@ onUnmounted(() => {
   flex-shrink: 0;
 }
 .dot-active {
-  background: #c41e3a;
+  background: var(--brand);
 }
 .dot-todo {
   background: #f5f1eb;
@@ -326,7 +345,7 @@ onUnmounted(() => {
   height: 2px;
 }
 .line-active {
-  background: #c41e3a;
+  background: var(--brand);
 }
 .line-todo {
   background: #f5f1eb;
@@ -406,7 +425,7 @@ onUnmounted(() => {
 .code-btn-text {
   font-size: 26rpx;
   font-weight: 500;
-  color: #c41e3a;
+  color: var(--brand);
 }
 .code-btn-text-disabled {
   color: #999999;
@@ -461,7 +480,7 @@ onUnmounted(() => {
   width: 100%;
   height: 96rpx;
   border-radius: 24rpx;
-  background: #c41e3a;
+  background: var(--brand);
 }
 .btn-disabled {
   opacity: 0.5;

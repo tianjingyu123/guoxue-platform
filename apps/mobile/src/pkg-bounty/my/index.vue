@@ -65,6 +65,9 @@
         </view>
       </template>
 
+      <!-- Error -->
+      <app-error v-else-if="error" title="悬赏加载失败" desc="网络异常，请稍后重试" @retry="loadBounties" />
+
       <!-- Empty -->
       <view v-else-if="bounties.length === 0" class="bm-empty">
         <view class="bm-empty-icon">
@@ -175,6 +178,7 @@ try {
 
 const activeTab = ref<'posted' | 'answered'>('posted')
 const loading = ref(true)
+const error = ref(false)
 const bounties = ref<Bounty[]>([])
 
 const postedData: Bounty[] = [
@@ -190,6 +194,7 @@ const answeredData: Bounty[] = [
 
 function loadBounties() {
   loading.value = true
+  error.value = false
   setTimeout(() => {
     bounties.value = activeTab.value === 'posted' ? postedData : answeredData
     loading.value = false
@@ -301,7 +306,7 @@ loadBounties()
   color: #999999;
 }
 .bm-tab-text-active {
-  color: #c41e3a;
+  color: var(--brand);
 }
 .bm-tab-line {
   position: absolute;
@@ -310,7 +315,7 @@ loadBounties()
   transform: translateX(-50%);
   width: 48rpx;
   height: 4rpx;
-  background: #c41e3a;
+  background: var(--brand);
   border-radius: 999rpx;
 }
 
@@ -461,7 +466,7 @@ loadBounties()
   align-items: center;
   gap: 12rpx;
   padding: 16rpx 32rpx;
-  background: #c41e3a;
+  background: var(--brand);
   border-radius: 16rpx;
 }
 .bm-act-repost-text {
@@ -508,7 +513,7 @@ loadBounties()
 }
 .bm-empty-btn {
   padding: 20rpx 48rpx;
-  background: #c41e3a;
+  background: var(--brand);
   border-radius: 999rpx;
 }
 .bm-empty-btn-text {

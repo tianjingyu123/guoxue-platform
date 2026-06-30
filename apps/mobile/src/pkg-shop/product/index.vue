@@ -34,7 +34,7 @@
     <view class="gallery" @tap="showImageViewer = true">
       <swiper class="gallery-swiper" :current="currentImage" @change="onSwiperChange" :circular="true">
         <swiper-item v-for="(img, i) in product.images" :key="i">
-          <image class="gallery-img" :src="img" mode="aspectFill" />
+          <image lazy-load class="gallery-img" :src="img" mode="aspectFill" />
         </swiper-item>
       </swiper>
       <view class="gallery-dots">
@@ -54,7 +54,7 @@
       <view class="price-row">
         <text class="price-now">¥{{ currentPrice }}</text>
         <text class="price-old">¥{{ currentOriginalPrice }}</text>
-        <text class="save-tag">省¥{{ currentOriginalPrice - currentPrice }}</text>
+        <text v-if="savedAmount > 0" class="save-tag">省¥{{ savedAmount }}</text>
       </view>
       <text class="p-title">{{ product.name }}</text>
       <view class="p-meta">
@@ -76,8 +76,8 @@
       </view>
     </view>
 
-    <!-- 规格参数 -->
-    <view class="block">
+    <!-- 规格参数（后端无独立规格参数表时隐藏） -->
+    <view v-if="product.specs.length" class="block">
       <text class="block-title">规格参数</text>
       <view class="specs">
         <view v-for="(spec, i) in product.specs" :key="i" class="spec-item">
@@ -112,7 +112,7 @@
       <view class="reviews">
         <view v-for="rv in reviews" :key="rv.id" class="review">
           <view class="rv-head">
-            <image class="rv-avatar" :src="rv.avatar" mode="aspectFill" />
+            <image lazy-load class="rv-avatar" :src="rv.avatar" mode="aspectFill" />
             <view class="rv-info">
               <text class="rv-name">{{ rv.userName }}</text>
               <view class="rv-stars">
@@ -130,7 +130,11 @@
           </view>
           <text class="rv-content">{{ rv.content }}</text>
           <view v-if="rv.images && rv.images.length" class="rv-images">
-            <image v-for="(img, i) in rv.images" :key="i" class="rv-img" :src="img" mode="aspectFill" />
+            <image lazy-load v-for="(img, i) in rv.images" :key="i" class="rv-img" :src="img" mode="aspectFill" />
+          </view>
+          <view v-if="rv.reply" class="rv-reply">
+            <text class="rv-reply-label">商家回复：</text>
+            <text class="rv-reply-text">{{ rv.reply }}</text>
           </view>
         </view>
       </view>
@@ -173,7 +177,7 @@
     <view v-if="showSkuPanel" class="mask mask-fade-in" @tap="showSkuPanel = false">
       <view class="sku-panel sheet-slide-up" @tap.stop>
         <view class="sku-top">
-          <image class="sku-cover" :src="selectedSku ? selectedSku.image : product.images[0]" mode="aspectFill" />
+          <image lazy-load class="sku-cover" :src="selectedSku ? selectedSku.image : product.images[0]" mode="aspectFill" />
           <view class="sku-top-info">
             <text class="sku-price">¥{{ selectedSku ? selectedSku.price : product.price }}</text>
             <text class="sku-stock">库存 {{ selectedSku ? selectedSku.stock : product.stock }}</text>
@@ -231,7 +235,7 @@
       </view>
       <swiper class="viewer-swiper" :current="currentImage" @change="onSwiperChange" :circular="true">
         <swiper-item v-for="(img, i) in product.images" :key="i" class="viewer-item">
-          <image class="viewer-img" :src="img" mode="aspectFit" />
+          <image lazy-load class="viewer-img" :src="img" mode="aspectFit" />
         </swiper-item>
       </swiper>
       <view class="viewer-dots">
@@ -276,6 +280,8 @@ const flyBall = ref(false)
 
 const currentPrice = computed(() => selectedSku.value?.price ?? product.value?.price ?? 0)
 const currentOriginalPrice = computed(() => selectedSku.value?.originalPrice ?? product.value?.originalPrice ?? 0)
+/** 节省金额：两位小数取整，避免浮点误差（209.3 vs 299 → 89.7 而非 89.6999…） */
+const savedAmount = computed(() => Math.max(0, Math.round((currentOriginalPrice.value - currentPrice.value) * 100) / 100))
 
 // 养生保健类商品：需展示专业医疗免责声明
 const healthKeywords = ['养生', '保健', '中医', '理疗', '艾灸', '推拿', '经络', '食疗', '针灸', '健康', '调理']
@@ -444,14 +450,14 @@ function goCart() {
 .dot-active {
   width: 28rpx;
   border-radius: 6rpx;
-  background: #c41e3a;
+  background: var(--brand);
 }
 .hot-tag {
   position: absolute;
   top: 120rpx;
   left: 0;
   padding: 6rpx 20rpx;
-  background: linear-gradient(90deg, #c41e3a, #e85a71);
+  background: linear-gradient(90deg, var(--brand), #e85a71);
   color: #fff;
   font-size: 22rpx;
   border-radius: 0 30rpx 30rpx 0;
@@ -469,7 +475,7 @@ function goCart() {
 .price-now {
   font-size: 48rpx;
   font-weight: 700;
-  color: #c41e3a;
+  color: var(--brand);
 }
 .price-old {
   font-size: 26rpx;
@@ -478,7 +484,7 @@ function goCart() {
 }
 .save-tag {
   font-size: 22rpx;
-  color: #c41e3a;
+  color: var(--brand);
   background: #fff0f0;
   padding: 4rpx 12rpx;
   border-radius: 8rpx;
@@ -554,7 +560,7 @@ function goCart() {
 }
 .more-text {
   font-size: 26rpx;
-  color: #c41e3a;
+  color: var(--brand);
 }
 .specs {
   display: flex;
@@ -587,7 +593,7 @@ function goCart() {
 .rating-num {
   font-size: 44rpx;
   font-weight: 700;
-  color: #c41e3a;
+  color: var(--brand);
 }
 .stars {
   display: flex;
@@ -644,6 +650,22 @@ function goCart() {
   line-height: 1.6;
   margin-bottom: 14rpx;
 }
+.rv-reply {
+  margin-top: 12rpx;
+  padding: 14rpx 18rpx;
+  background: #FAF6EF;
+  border-radius: 12rpx;
+}
+.rv-reply-label {
+  font-size: 25rpx;
+  color: #C9A96E;
+  font-weight: 600;
+}
+.rv-reply-text {
+  font-size: 25rpx;
+  color: #666;
+  line-height: 1.6;
+}
 .rv-images {
   display: flex;
   gap: 12rpx;
@@ -696,7 +718,7 @@ function goCart() {
   width: 32rpx;
   height: 32rpx;
   border-radius: 50%;
-  background: #c41e3a;
+  background: var(--brand);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -713,7 +735,7 @@ function goCart() {
   background: linear-gradient(90deg, #c9a96e, #d4b87a);
 }
 .btn-buy {
-  background: linear-gradient(90deg, #c41e3a, #e85a71);
+  background: linear-gradient(90deg, var(--brand), #e85a71);
 }
 .bar-btn-text {
   font-size: 30rpx;
@@ -758,7 +780,7 @@ function goCart() {
   display: block;
   font-size: 40rpx;
   font-weight: 700;
-  color: #c41e3a;
+  color: var(--brand);
 }
 .sku-stock {
   display: block;
@@ -803,9 +825,9 @@ function goCart() {
   border: 1rpx solid #e8e3db;
 }
 .sku-opt-active {
-  border-color: #c41e3a;
+  border-color: var(--brand);
   background: #fff0f0;
-  color: #c41e3a;
+  color: var(--brand);
 }
 .sku-opt-disabled {
   color: #ccc;
@@ -857,7 +879,7 @@ function goCart() {
   background: linear-gradient(90deg, #c9a96e, #d4b87a);
 }
 .submit-buy {
-  background: linear-gradient(90deg, #c41e3a, #e85a71);
+  background: linear-gradient(90deg, var(--brand), #e85a71);
 }
 .sku-submit-text {
   font-size: 30rpx;
@@ -873,7 +895,7 @@ function goCart() {
   height: 64rpx;
   margin-left: -32rpx;
   border-radius: 50%;
-  background: linear-gradient(135deg, #c41e3a, #e85a71);
+  background: linear-gradient(135deg, var(--brand), #e85a71);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -957,6 +979,6 @@ function goCart() {
 /* 错误态 */
 .error-zone { min-height: 60vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 32rpx; }
 .error-text { font-size: 28rpx; color: #999999; }
-.error-retry { padding: 16rpx 56rpx; background: #C41E3A; border-radius: 40rpx; }
+.error-retry { padding: 16rpx 56rpx; background: var(--brand); border-radius: 40rpx; }
 .error-retry text { color: #FFFFFF; font-size: 28rpx; }
 </style>

@@ -115,7 +115,7 @@ function dateOnly(t?: string) { return t ? t.split(' ')[0] : '' }
       <view v-else class="sc-list">
         <view v-for="item in items" :key="item.id" class="sc-card" @tap="openDetail(item)">
           <view class="sc-cover-wrap">
-            <image :src="item.cover" class="sc-cover" mode="aspectFill" />
+            <image lazy-load :src="item.cover" class="sc-cover" mode="aspectFill" />
             <view class="sc-type" :style="{ color: getContentTypeColor(item.type).color, background: getContentTypeColor(item.type).bg }">
               <text class="sc-type-txt" :style="{ color: getContentTypeColor(item.type).color }">{{ getContentTypeLabel(item.type) }}</text>
             </view>
@@ -162,7 +162,7 @@ function dateOnly(t?: string) { return t ? t.split(' ')[0] : '' }
                 </view>
               </view>
               <view v-if="item.author" class="sc-author">
-                <image :src="item.author.avatar" class="sc-author-avatar" mode="aspectFill" />
+                <image lazy-load :src="item.author.avatar" class="sc-author-avatar" mode="aspectFill" />
                 <text class="sc-author-name">{{ item.author.name }}</text>
               </view>
             </view>

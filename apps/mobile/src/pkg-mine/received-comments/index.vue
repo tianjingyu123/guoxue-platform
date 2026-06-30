@@ -128,7 +128,7 @@ function openContent() {
           :class="{ unreplied: !c.isReplied }"
         >
           <view class="card-top">
-            <image class="avatar" :src="c.commenter.avatar" mode="aspectFill" />
+            <image lazy-load class="avatar" :src="c.commenter.avatar" mode="aspectFill" />
             <view class="card-body">
               <view class="name-row">
                 <text class="name">{{ c.commenter.nickname }}</text>
@@ -179,7 +179,7 @@ function openContent() {
         </view>
         <view v-if="replying" class="origin">
           <view class="origin-head">
-            <image class="origin-avatar" :src="replying.commenter.avatar" mode="aspectFill" />
+            <image lazy-load class="origin-avatar" :src="replying.commenter.avatar" mode="aspectFill" />
             <text class="origin-name">{{ replying.commenter.nickname }}</text>
           </view>
           <text class="origin-content">{{ replying.content }}</text>
@@ -214,9 +214,9 @@ function openContent() {
 .nav-filter { position: relative; width: 56rpx; height: 56rpx; display: flex; align-items: center; justify-content: center; }
 .nav-filter-dot { position: absolute; top: 6rpx; right: 6rpx; width: 14rpx; height: 14rpx; border-radius: 50%; background: #C9A96E; }
 
-.filter-row { display: flex; gap: 16rpx; padding: 20rpx 32rpx; background: #C41E3A; }
+.filter-row { display: flex; gap: 16rpx; padding: 20rpx 32rpx; background: var(--brand); }
 .filter-chip { font-size: 26rpx; color: rgba(255,255,255,0.85); border: 1rpx solid rgba(255,255,255,0.4); padding: 8rpx 28rpx; border-radius: 999rpx; }
-.filter-chip.active { background: #fff; color: #C41E3A; border-color: #fff; font-weight: 500; }
+.filter-chip.active { background: #fff; color: var(--brand); border-color: #fff; font-weight: 500; }
 
 .skeleton { padding: 24rpx; display: flex; flex-direction: column; gap: 20rpx; }
 .sk-card { background: #fff; border-radius: 20rpx; padding: 24rpx; display: flex; gap: 20rpx; }
@@ -236,14 +236,14 @@ function openContent() {
 .scroll { flex: 1; padding: 24rpx; box-sizing: border-box; }
 .comment-list { display: flex; flex-direction: column; gap: 20rpx; }
 .card { background: #fff; border-radius: 20rpx; padding: 24rpx; }
-.card.unreplied { border-left: 6rpx solid #C41E3A; }
+.card.unreplied { border-left: 6rpx solid var(--brand); }
 .card-top { display: flex; gap: 20rpx; }
 .avatar { width: 80rpx; height: 80rpx; border-radius: 50%; background: #F2ECE1; flex-shrink: 0; }
 .card-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 12rpx; }
 .name-row { display: flex; align-items: center; gap: 12rpx; flex-wrap: wrap; }
 .name { font-size: 28rpx; font-weight: 600; color: #2C2C2C; }
 .level { font-size: 20rpx; color: #C9A96E; border: 1rpx solid rgba(201,169,110,0.4); padding: 2rpx 10rpx; border-radius: 8rpx; }
-.pending { font-size: 20rpx; color: #fff; background: #C41E3A; padding: 2rpx 12rpx; border-radius: 8rpx; }
+.pending { font-size: 20rpx; color: #fff; background: var(--brand); padding: 2rpx 12rpx; border-radius: 8rpx; }
 .content { font-size: 28rpx; color: #4a4a4a; line-height: 1.6; }
 .time { font-size: 22rpx; color: #b8b0a4; }
 
@@ -251,13 +251,13 @@ function openContent() {
 .mc-label { font-size: 22rpx; color: #8a8178; }
 .mc-title { font-size: 26rpx; color: #4a4a4a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-.my-reply { background: rgba(196,30,58,0.05); border-left: 4rpx solid #C41E3A; border-radius: 12rpx; padding: 18rpx; display: flex; flex-direction: column; gap: 8rpx; }
-.mr-label { font-size: 22rpx; color: #C41E3A; }
+.my-reply { background: rgba(196,30,58,0.05); border-left: 4rpx solid var(--brand); border-radius: 12rpx; padding: 18rpx; display: flex; flex-direction: column; gap: 8rpx; }
+.mr-label { font-size: 22rpx; color: var(--brand); }
 .mr-content { font-size: 26rpx; color: #4a4a4a; line-height: 1.5; }
 .mr-time { font-size: 20rpx; color: #b8b0a4; }
 
 .actions { display: flex; gap: 16rpx; margin-top: 4rpx; }
-.btn-reply { display: flex; align-items: center; gap: 8rpx; background: #C41E3A; padding: 12rpx 32rpx; border-radius: 999rpx; }
+.btn-reply { display: flex; align-items: center; gap: 8rpx; background: var(--brand); padding: 12rpx 32rpx; border-radius: 999rpx; }
 .btn-reply-text { font-size: 26rpx; color: #fff; }
 .btn-view { padding: 12rpx 32rpx; border: 1rpx solid #C9A96E; border-radius: 999rpx; }
 .btn-view-text { font-size: 26rpx; color: #C9A96E; }
@@ -281,7 +281,7 @@ function openContent() {
 .dialog-actions { display: flex; gap: 20rpx; margin-top: 24rpx; }
 .dialog-btn { flex: 1; height: 84rpx; border-radius: 20rpx; display: flex; align-items: center; justify-content: center; gap: 8rpx; }
 .dialog-btn.ghost { background: #F2ECE1; }
-.dialog-btn.solid { background: #C41E3A; }
+.dialog-btn.solid { background: var(--brand); }
 .dialog-btn.solid.disabled { opacity: 0.5; }
 .dialog-btn-text { font-size: 28rpx; color: #2C2C2C; font-weight: 500; }
 .solid-text { color: #fff; }

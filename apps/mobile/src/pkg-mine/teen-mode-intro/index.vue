@@ -421,7 +421,7 @@ uni.getSystemInfo({
   color: #2c2c2c;
 }
 .contact-link {
-  color: #c41e3a;
+  color: var(--brand);
 }
 
 /* 底部固定按钮 */
@@ -439,7 +439,7 @@ uni.getSystemInfo({
 .footer-btn {
   width: 100%;
   height: 96rpx;
-  background: #c41e3a;
+  background: var(--brand);
   border-radius: 16rpx;
   display: flex;
   align-items: center;

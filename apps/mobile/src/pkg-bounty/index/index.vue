@@ -47,6 +47,9 @@
         </view>
       </template>
 
+      <!-- Error -->
+      <app-error v-else-if="error" title="悬赏加载失败" desc="网络异常，请稍后重试" @retry="loadBounties" />
+
       <!-- Empty -->
       <view v-else-if="bounties.length === 0" class="bp-empty">
         <view class="bp-empty-icon">
@@ -68,7 +71,7 @@
         >
           <!-- Card Header -->
           <view class="bp-card-head">
-            <image :src="bounty.poster.avatar" class="bp-avatar" mode="aspectFill" />
+            <image lazy-load :src="bounty.poster.avatar" class="bp-avatar" mode="aspectFill" />
             <view class="bp-card-meta">
               <view class="bp-card-meta-top">
                 <text class="bp-poster-name">{{ bounty.poster.name }}</text>
@@ -160,6 +163,7 @@ try {
 
 const activeTab = ref('all')
 const loading = ref(true)
+const error = ref(false)
 const bounties = ref<Bounty[]>([])
 
 const allBounties: Bounty[] = [
@@ -238,6 +242,7 @@ const allBounties: Bounty[] = [
 
 function loadBounties() {
   loading.value = true
+  error.value = false
   const filtered = activeTab.value === 'all'
     ? allBounties
     : allBounties.filter(b => b.status === activeTab.value)
@@ -332,7 +337,7 @@ loadBounties()
   align-items: center;
   gap: 8rpx;
   padding: 12rpx 24rpx;
-  background: #c41e3a;
+  background: var(--brand);
   border-radius: 999rpx;
 }
 .bp-publish-text {
@@ -357,7 +362,7 @@ loadBounties()
   background: #f5f5f4;
 }
 .bp-tab-active {
-  background: #c41e3a;
+  background: var(--brand);
 }
 .bp-tab-text {
   font-size: 26rpx;
@@ -431,7 +436,7 @@ loadBounties()
 }
 .bp-empty-btn {
   padding: 16rpx 48rpx;
-  background: #c41e3a;
+  background: var(--brand);
   border-radius: 999rpx;
 }
 .bp-empty-btn-text {
@@ -560,6 +565,6 @@ loadBounties()
 .bp-amount-text {
   font-size: 28rpx;
   font-weight: 600;
-  color: #c41e3a;
+  color: var(--brand);
 }
 </style>

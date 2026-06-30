@@ -48,7 +48,7 @@
             <input
               v-model="phone"
               class="field-input"
-              type="number"
+              type="text"
               maxlength="11"
               placeholder="填写收货人手机号"
               placeholder-class="field-ph"
@@ -177,6 +177,7 @@ const navHeight = ref(64)
 const safeBottom = ref(0)
 
 const isEdit = ref(false)
+const addressId = ref('')
 const name = ref('')
 const phone = ref('')
 const province = ref('')
@@ -221,6 +222,7 @@ onLoad(async (query) => {
   }
   if (query && query.id) {
     isEdit.value = true
+    addressId.value = query.id
     loading.value = true
     try {
       const detail = await accountApi.addressDetail(query.id)
@@ -258,7 +260,7 @@ async function handleSave() {
   saving.value = true
   try {
     await accountApi.saveAddress({
-      id: isEdit.value ? undefined : undefined, // 新增时不传 id
+      id: isEdit.value ? addressId.value : undefined, // 编辑传 id 走 PUT，新增不传走 POST
       name: name.value.trim(),
       phone: phone.value.trim(),
       province: province.value,
@@ -412,7 +414,7 @@ function selectDistrict(d: string) {
   margin-top: 12rpx;
   margin-left: 180rpx;
   font-size: 22rpx;
-  color: #C41E3A;
+  color: var(--brand);
 }
 
 .default-card {
@@ -438,7 +440,7 @@ function selectDistrict(d: string) {
   transition: background 0.2s;
 }
 .switch.on {
-  background: #C41E3A;
+  background: var(--brand);
 }
 .switch-dot {
   width: 40rpx;
@@ -462,7 +464,7 @@ function selectDistrict(d: string) {
 }
 .save-btn {
   height: 92rpx;
-  background: #C41E3A;
+  background: var(--brand);
   border-radius: 24rpx;
   display: flex;
   align-items: center;
@@ -515,7 +517,7 @@ function selectDistrict(d: string) {
   color: #999999;
 }
 .picker-step.active {
-  color: #C41E3A;
+  color: var(--brand);
 }
 .picker-sep {
   color: #C0B8B0;
@@ -541,7 +543,7 @@ function selectDistrict(d: string) {
   color: #2C2C2C;
 }
 .picker-item-text.active {
-  color: #C41E3A;
+  color: var(--brand);
   font-weight: 600;
 }
 </style>

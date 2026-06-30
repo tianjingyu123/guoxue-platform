@@ -48,7 +48,7 @@
         </view>
 
         <view class="product-row">
-          <image class="product-cover" :src="detail.product.cover" mode="aspectFill" />
+          <image lazy-load class="product-cover" :src="detail.product.cover" mode="aspectFill" />
           <view class="product-info">
             <text class="product-name">{{ detail.product.name }}</text>
             <text class="product-sku">{{ detail.product.skuName }}</text>
@@ -94,7 +94,7 @@
       <view v-if="detail.images && detail.images.length" class="card">
         <text class="card-title">凭证图片</text>
         <view class="img-grid">
-          <image
+          <image lazy-load
             v-for="(img, idx) in detail.images"
             :key="idx"
             class="evidence-img"
@@ -250,7 +250,7 @@ function viewOrder() {
   left: 0;
   right: 0;
   z-index: 100;
-  background: linear-gradient(90deg, #C41E3A 0%, #B83A3A 100%);
+  background: linear-gradient(90deg, var(--brand) 0%, #B83A3A 100%);
 }
 .nav-bar {
   height: 44px;
@@ -281,7 +281,7 @@ function viewOrder() {
 }
 
 .result-banner {
-  background: linear-gradient(135deg, #C41E3A 0%, #B83A3A 100%);
+  background: linear-gradient(135deg, var(--brand) 0%, #B83A3A 100%);
   padding: 48rpx 24rpx 96rpx;
   display: flex;
   flex-direction: column;
@@ -323,7 +323,7 @@ function viewOrder() {
 .reason-head-text {
   font-size: 30rpx;
   font-weight: 600;
-  color: #C41E3A;
+  color: var(--brand);
 }
 .reason-body {
   display: block;
@@ -405,7 +405,7 @@ function viewOrder() {
 .product-price {
   font-size: 28rpx;
   font-weight: 600;
-  color: #C41E3A;
+  color: var(--brand);
 }
 .product-qty {
   font-size: 22rpx;
@@ -432,7 +432,7 @@ function viewOrder() {
   color: #2C2C2C;
 }
 .info-value.price {
-  color: #C41E3A;
+  color: var(--brand);
   font-weight: 600;
 }
 .info-copy {
@@ -562,15 +562,15 @@ function viewOrder() {
   gap: 10rpx;
 }
 .footer-btn.ghost {
-  border: 1rpx solid #C41E3A;
+  border: 1rpx solid var(--brand);
 }
 .footer-btn.primary {
-  background: linear-gradient(90deg, #C41E3A 0%, #B83A3A 100%);
+  background: linear-gradient(90deg, var(--brand) 0%, #B83A3A 100%);
 }
 .footer-btn-text-ghost {
   font-size: 28rpx;
   font-weight: 600;
-  color: #C41E3A;
+  color: var(--brand);
 }
 .footer-btn-text-primary {
   font-size: 28rpx;

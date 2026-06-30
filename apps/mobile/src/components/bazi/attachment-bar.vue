@@ -46,7 +46,7 @@ function voiceList() { return props.media.voiceNotes[props.noteKey] || [] }
     <!-- 图片网格 -->
     <view v-if="imgList().length" class="img-grid">
       <view v-for="(url, i) in imgList()" :key="i" class="img-cell">
-        <image :src="url" class="img" mode="aspectFill" @tap="media.previewImage(imgList(), url)" />
+        <image lazy-load :src="url" class="img" mode="aspectFill" @tap="media.previewImage(imgList(), url)" />
         <view class="img-del" @tap.stop="media.deleteImage(noteKey, i)"><app-icon name="x" :size="18" color="#ffffff" /></view>
       </view>
     </view>

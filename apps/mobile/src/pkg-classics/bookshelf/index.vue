@@ -33,16 +33,16 @@
       <view v-if="menuOpen" class="bs-menu-mask" @tap="menuOpen = false">
         <view class="bs-menu" @tap.stop>
           <view class="bs-menu-item" @tap="enterSelect">批量管理</view>
-          <view class="bs-menu-item" @tap="onNewGroup">
-            <app-icon name="folder-plus" :size="32" color="#4a4a4a" />
-            <text>新建分组</text>
-          </view>
         </view>
       </view>
     </view>
 
     <!-- 加载/错误态 -->
     <view v-if="loading" class="bs-loading"><text class="bs-loading-text">书房加载中...</text></view>
+    <view v-else-if="isGuest" class="bs-error-wrap">
+      <text class="bs-error-text">登录后查看你的书房</text>
+      <view class="bs-retry-btn" @tap="goLogin"><text class="bs-retry-text">去登录</text></view>
+    </view>
     <view v-else-if="error" class="bs-error-wrap">
       <text class="bs-error-text">{{ error }}</text>
       <view class="bs-retry-btn" @tap="fetchBookshelf()"><text class="bs-retry-text">重试</text></view>
@@ -67,30 +67,6 @@
 
     <!-- 书架 Tab -->
     <view v-show="activeTab === 'shelf'">
-      <!-- 分组筛选 -->
-      <scroll-view scroll-x class="bs-groups" :show-scrollbar="false">
-        <view class="bs-groups-row">
-          <view
-            class="bs-group"
-            :class="activeGroup === null ? 'bs-group-all-active' : 'bs-group-idle'"
-            @tap="activeGroup = null"
-          >全部</view>
-          <view
-            v-for="g in groups"
-            :key="g.id"
-            class="bs-group bs-group-flex"
-            :class="activeGroup === g.id ? groupActiveClass(g.color) : 'bs-group-idle'"
-            @tap="activeGroup = g.id"
-          >
-            <text>{{ g.name }}</text>
-            <text class="bs-group-badge">{{ g.count }}</text>
-          </view>
-          <view class="bs-group-plus" @tap="onNewGroup">
-            <app-icon name="plus" :size="34" color="#6b6b6b" />
-          </view>
-        </view>
-      </scroll-view>
-
       <!-- 视图切换 -->
       <view class="bs-viewbar">
         <text class="bs-count">共 <text class="bs-count-num">{{ filteredBooks.length }}</text> 本</text>
@@ -140,14 +116,14 @@
               </view>
             </view>
             <text class="bs-book-title">{{ book.title }}</text>
-            <!-- 已读完: 读后小结 -->
+            <!-- 已读完 -->
             <view
               v-if="book.progress >= 100"
               class="bs-summary-btn"
-              @tap.stop="openSummary(book)"
+              @tap.stop="goReader(book.id)"
             >
-              <app-icon name="sparkles" :size="24" color="#8a6d2f" />
-              <text>读后小结</text>
+              <app-icon name="check-circle" :size="24" color="#3f8560" />
+              <text>已读完 · 重读</text>
             </view>
             <!-- 进度条 -->
             <view v-else-if="book.progress > 0" class="bs-progress">
@@ -226,6 +202,7 @@ import { ref, computed, onMounted } from 'vue'
 import FlatCover from '@/components/classics/flat-cover.vue'
 import { coverColorForBook } from '@/lib/classics-cover'
 import { classicsApi, type ShelfBook, type ShelfGroup, type HistoryItem } from '@/lib/classics-data'
+import { getToken } from '@/utils/storage'
 
 const statusBarH = ref(0)
 try {
@@ -235,11 +212,14 @@ try {
 
 const loading = ref(true)
 const error = ref('')
+const isGuest = ref(false)
 const books = ref<ShelfBook[]>([])
 const readingHistory = ref<HistoryItem[]>([])
 const groups = ref<ShelfGroup[]>([])
 
 async function fetchBookshelf() {
+  if (!getToken()) { isGuest.value = true; loading.value = false; return }
+  isGuest.value = false
   loading.value = true
   error.value = ''
   try {
@@ -283,8 +263,12 @@ function goSearch() {
 function goHome() {
   uni.navigateTo({ url: '/pkg-classics/home/index' })
 }
-function goReader(_id?: string) {
-  uni.showToast({ title: '阅读器即将上线', icon: 'none' })
+function goReader(id?: string) {
+  if (!id) return
+  uni.navigateTo({ url: `/pkg-classics/reader/index?bookId=${id}` })
+}
+function goLogin() {
+  uni.navigateTo({ url: '/pkg-auth/login/index' })
 }
 function goDetail(id: string) {
   uni.navigateTo({ url: `/pkg-classics/detail/index?id=${id}` })
@@ -302,20 +286,24 @@ function exitSelect() {
   isSelectMode.value = false
   selectedIds.value = []
 }
-function onNewGroup() {
-  menuOpen.value = false
-  uni.showToast({ title: '新建分组', icon: 'none' })
-}
 function toggleSelect(id: string) {
   const i = selectedIds.value.indexOf(id)
   if (i >= 0) selectedIds.value.splice(i, 1)
   else selectedIds.value.push(id)
 }
-function batchRemove() {
+async function batchRemove() {
   if (selectedIds.value.length === 0) return
-  books.value = books.value.filter((b) => !selectedIds.value.includes(b.id))
-  selectedIds.value = []
-  isSelectMode.value = false
+  const ids = [...selectedIds.value]
+  try {
+    await Promise.all(ids.map((id) => classicsApi.removeFromShelf(id)))
+    books.value = books.value.filter((b) => !ids.includes(b.id))
+    selectedIds.value = []
+    isSelectMode.value = false
+    uni.showToast({ title: '已移出书架', icon: 'none' })
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '操作失败', icon: 'none' })
+    fetchBookshelf()
+  }
 }
 
 function onGridTap(book: ShelfBook) {
@@ -328,27 +316,28 @@ function onListTap(book: ShelfBook) {
 }
 function openRowMenu(book: ShelfBook) {
   uni.showActionSheet({
-    itemList: ['继续阅读', '移动分组', '移出书架'],
+    itemList: ['继续阅读', '移出书架'],
     success: (res) => {
-      if (res.tapIndex === 2) {
-        books.value = books.value.filter((b) => b.id !== book.id)
-      } else if (res.tapIndex === 0) {
-        goReader()
-      } else {
-        uni.showToast({ title: '移动分组', icon: 'none' })
-      }
+      if (res.tapIndex === 0) goReader(book.id)
+      else if (res.tapIndex === 1) removeFromShelf(book.id)
     },
   })
 }
-
-// 读后小结成就弹窗 —— 母版(canvas)后续单独迁移，此处占位
-function openSummary(book: ShelfBook) {
-  uni.showToast({ title: `《${book.title}》读后小结即将上线`, icon: 'none' })
+async function removeFromShelf(id: string) {
+  try {
+    await classicsApi.removeFromShelf(id)
+    books.value = books.value.filter((b) => b.id !== id)
+    uni.showToast({ title: '已移出书架', icon: 'none' })
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '操作失败', icon: 'none' })
+  }
 }
+
 function onClearHistory() {
   uni.showModal({
     title: '清空历史记录',
     content: '确定清空全部浏览历史吗？',
+    confirmColor: '#C41E3A',
     success: (res) => {
       if (res.confirm) readingHistory.value = []
     },
@@ -409,7 +398,7 @@ function onClearHistory() {
   color: var(--foreground);
 }
 .bs-textbtn-danger {
-  background: #c41e3a;
+  background: var(--brand);
   color: #fff;
 }
 .bs-textbtn-disabled {
@@ -502,7 +491,7 @@ function onClearHistory() {
   color: var(--muted-foreground);
 }
 .bs-group-all-active {
-  background: #c41e3a;
+  background: var(--brand);
   color: #fff;
 }
 .bs-group-amber {
@@ -602,7 +591,7 @@ function onClearHistory() {
 .bs-empty-btn {
   padding: 18rpx 48rpx;
   border-radius: 999rpx;
-  background: #c41e3a;
+  background: var(--brand);
   color: #fff;
   font-size: 28rpx;
 }
@@ -617,7 +606,7 @@ function onClearHistory() {
   position: relative;
 }
 .bs-grid-selected {
-  outline: 4rpx solid #c41e3a;
+  outline: 4rpx solid var(--brand);
   border-radius: 16rpx;
 }
 .bs-cover-wrap {
@@ -646,7 +635,7 @@ function onClearHistory() {
   font-weight: 500;
   padding: 2rpx 10rpx;
   border-radius: 8rpx;
-  background: #c41e3a;
+  background: var(--brand);
   color: #fff;
 }
 .bs-check {
@@ -656,7 +645,7 @@ function onClearHistory() {
   width: 40rpx;
   height: 40rpx;
   border-radius: 50%;
-  background: #c41e3a;
+  background: var(--brand);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -701,7 +690,7 @@ function onClearHistory() {
 .bs-progress-fill {
   height: 100%;
   border-radius: 999rpx;
-  background: #c41e3a;
+  background: var(--brand);
 }
 .bs-progress-fill-soft {
   background: rgba(196, 30, 58, 0.7);
@@ -744,7 +733,7 @@ function onClearHistory() {
   gap: 12rpx;
 }
 .bs-list-selected {
-  outline: 4rpx solid #c41e3a;
+  outline: 4rpx solid var(--brand);
 }
 .bs-row-menu {
   display: flex;

@@ -13,11 +13,12 @@ const reviewSortOptions = ref<any[]>([])
 const fullReviews = ref<any[]>([])
 const reviewSummary = ref<any>({ goodRatePercent: 0, rating: 0, total: 0 })
 
+const productId = ref('')
 const selectedTag = ref('all')
 const sortBy = ref('default')
 const showSortMenu = ref(false)
-const likedReviews = ref<number[]>([])
-const previewImage = ref<{ reviewId: number; index: number } | null>(null)
+const likedReviews = ref<(string | number)[]>([])
+const previewImage = ref<{ reviewId: string | number; index: number } | null>(null)
 
 const sortLabel = computed(() => reviewSortOptions.value.find((o: any) => o.id === sortBy.value)?.label)
 const sortedReviews = computed(() => {
@@ -37,7 +38,7 @@ async function fetchData() {
   loading.value = true
   error.value = false
   try {
-    const data = await shopApi.getMallReviews('1')
+    const data = await shopApi.getMallReviews(productId.value)
     reviewTags.value = data.tags || []
     reviewSortOptions.value = data.sortOptions || []
     fullReviews.value = data.reviews || []
@@ -50,17 +51,17 @@ async function fetchData() {
 }
 
 onLoad((query: any) => {
-  // 可从query中取productId，暂时用'1'
+  productId.value = query?.id || query?.productId || ''
   fetchData()
 })
 
 function pickSort(id: string) { sortBy.value = id; showSortMenu.value = false }
-function toggleLike(id: number) {
+function toggleLike(id: string | number) {
   likedReviews.value = likedReviews.value.includes(id)
     ? likedReviews.value.filter((x) => x !== id)
     : [...likedReviews.value, id]
 }
-function openPreview(reviewId: number, index: number) { previewImage.value = { reviewId, index } }
+function openPreview(reviewId: string | number, index: number) { previewImage.value = { reviewId, index } }
 function setPreviewIndex(index: number) { if (previewImage.value) previewImage.value = { ...previewImage.value, index } }
 </script>
 
@@ -139,7 +140,7 @@ function setPreviewIndex(index: number) { if (previewImage.value) previewImage.v
     <view class="review-list">
       <view v-for="r in sortedReviews" :key="r.id" class="review-item">
         <view class="rv-head">
-          <image class="rv-avatar" :src="r.user.avatar" mode="aspectFill" />
+          <image lazy-load class="rv-avatar" :src="r.user.avatar" mode="aspectFill" />
           <view class="rv-info">
             <view class="rv-name-row">
               <text class="rv-name">{{ r.user.name }}</text>
@@ -156,10 +157,10 @@ function setPreviewIndex(index: number) { if (previewImage.value) previewImage.v
         <text class="rv-content">{{ r.content }}</text>
         <scroll-view v-if="r.images.length" class="rv-imgs" scroll-x>
           <view class="rv-imgs-row">
-            <image v-for="(img, i) in r.images" :key="i" class="rv-img" :src="img" mode="aspectFill" @tap="openPreview(r.id, i)" />
+            <image lazy-load v-for="(img, i) in r.images" :key="i" class="rv-img" :src="img" mode="aspectFill" @tap="openPreview(r.id, i)" />
           </view>
         </scroll-view>
-        <text class="rv-spec">购买规格：{{ r.spec }}</text>
+        <text v-if="r.spec" class="rv-spec">购买规格：{{ r.spec }}</text>
         <view v-if="r.reply" class="rv-reply">
           <view class="rv-reply-head">
             <text class="rv-reply-badge">商家回复</text>
@@ -185,7 +186,7 @@ function setPreviewIndex(index: number) { if (previewImage.value) previewImage.v
     <view v-if="previewImage" class="preview">
       <view class="preview-close" @tap="previewImage = null"><AppIcon name="x" :size="44" color="#fff" /></view>
       <view class="preview-body">
-        <image v-if="previewReview" class="preview-img" :src="previewReview.images[previewImage.index]" mode="aspectFit" />
+        <image lazy-load v-if="previewReview" class="preview-img" :src="previewReview.images[previewImage.index]" mode="aspectFit" />
       </view>
       <view v-if="previewReview && previewReview.images.length > 1" class="preview-dots">
         <view

@@ -1,5 +1,6 @@
 <template>
   <view class="pd-page">
+    <customer-service-fab />
     <!-- 顶部导航 -->
     <view class="pd-header" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="pd-header-row">
@@ -83,17 +84,17 @@
 
           <!-- 互动统计 -->
           <view class="pd-stats">
-            <view class="pd-stat" @tap="isLiked = !isLiked">
-              <view class="pd-stat-icon" :style="{ background: isLiked ? 'rgba(192,67,58,0.2)' : 'var(--poem-gold-soft)' }">
+            <view class="pd-stat" @tap="onToggleLike">
+              <view class="pd-stat-icon" :style="{ background: isLiked ? 'rgba(192,67,58,0.2)' : 'var(--poem-gold-soft)', opacity: liking ? 0.6 : 1 }">
                 <app-icon name="heart" :size="34" :color="isLiked ? '#c0433a' : '#e8c07a'" :fill="isLiked" />
               </view>
-              <text class="pd-stat-text">{{ (poem.likes / 1000).toFixed(1) }}k</text>
+              <text class="pd-stat-text">{{ fmtCount(likeCount) }}</text>
             </view>
-            <view class="pd-stat" @tap="isBookmarked = !isBookmarked">
-              <view class="pd-stat-icon" style="background: var(--poem-gold-soft)">
+            <view class="pd-stat" @tap="onToggleCollect">
+              <view class="pd-stat-icon" :style="{ background: isBookmarked ? 'rgba(232,192,122,0.28)' : 'var(--poem-gold-soft)', opacity: collecting ? 0.6 : 1 }">
                 <app-icon :name="isBookmarked ? 'bookmark-check' : 'bookmark'" :size="34" color="#e8c07a" />
               </view>
-              <text class="pd-stat-text">{{ (poem.collections / 1000).toFixed(1) }}k</text>
+              <text class="pd-stat-text">{{ fmtCount(collectCount) }}</text>
             </view>
             <view class="pd-stat" @tap="handleCopy">
               <view class="pd-stat-icon" style="background: var(--poem-gold-soft)">
@@ -144,7 +145,7 @@
       </view>
 
       <!-- 作者简介 -->
-      <view class="pd-author-sec" @tap="toPoet(poem.authorId)">
+      <view class="pd-author-sec" @tap="toPoet">
         <view class="pd-author-avatar">
           <text class="pd-author-avatar-text">{{ poem.authorInfo.name.charAt(0) }}</text>
         </view>
@@ -166,10 +167,10 @@
           <text class="pd-disc-meta">{{ commentCount }} 条</text>
         </view>
         <view class="pd-disc-card" @tap="showComments = true">
-          <view class="pd-disc-preview">
-            <view class="pd-disc-avatar">{{ firstComment.author.name.charAt(0) }}</view>
+          <view v-if="firstComment" class="pd-disc-preview">
+            <view class="pd-disc-avatar">{{ firstComment.authorName.charAt(0) }}</view>
             <view class="pd-disc-body">
-              <text class="pd-disc-name">{{ firstComment.author.name }}</text>
+              <text class="pd-disc-name">{{ firstComment.authorName }}</text>
               <text class="pd-disc-content">{{ firstComment.content }}</text>
               <view class="pd-disc-like">
                 <app-icon name="heart" :size="26" color="rgba(245,234,216,0.3)" />
@@ -177,9 +178,14 @@
               </view>
             </view>
           </view>
+          <view v-else class="pd-disc-preview">
+            <view class="pd-disc-body">
+              <text class="pd-disc-content">还没有品评，来写下第一句感悟～</text>
+            </view>
+          </view>
           <view class="pd-disc-all">
             <app-icon name="message-circle" :size="28" color="#e8c07a" />
-            <text class="pd-disc-all-text">查看全部 {{ commentCount }} 条品评</text>
+            <text class="pd-disc-all-text">{{ commentCount ? `查看全部 ${commentCount} 条品评` : '我要品评' }}</text>
           </view>
         </view>
       </view>
@@ -216,7 +222,7 @@
             background: isPlaying ? 'var(--poem-gold-soft)' : 'var(--poem-surface)',
             borderColor: isPlaying ? 'var(--poem-gold-dim)' : 'var(--poem-border)',
           }"
-          @tap="isPlaying = !isPlaying"
+          @tap="toggleTTS"
         >
           <template v-if="isPlaying">
             <view class="pd-soundwave">
@@ -234,7 +240,7 @@
         <view
           class="pd-act-btn"
           :style="{ background: isBookmarked ? 'var(--poem-gold-soft)' : 'var(--poem-surface)', borderColor: isBookmarked ? 'var(--poem-gold-dim)' : 'var(--poem-border)' }"
-          @tap="isBookmarked = !isBookmarked"
+          @tap="onToggleCollect"
         >
           <app-icon :name="isBookmarked ? 'bookmark-check' : 'bookmark'" :size="34" :color="isBookmarked ? '#e8c07a' : 'rgba(245,234,216,0.55)'" />
         </view>
@@ -242,7 +248,7 @@
         <view
           class="pd-act-btn"
           :style="{ background: isLiked ? 'rgba(192,67,58,0.15)' : 'var(--poem-surface)', borderColor: isLiked ? 'rgba(192,67,58,0.4)' : 'var(--poem-border)' }"
-          @tap="isLiked = !isLiked"
+          @tap="onToggleLike"
         >
           <app-icon name="heart" :size="34" :color="isLiked ? '#c0433a' : 'rgba(245,234,216,0.55)'" :fill="isLiked" />
         </view>
@@ -280,10 +286,17 @@
             </view>
             <view class="pd-ai-idle-text">
               <text class="pd-ai-idle-title">AI 深度解读《{{ poem.title }}》</text>
-              <text class="pd-ai-idle-sub">从创作背景、意象分析、情感解读三个维度深入解析</text>
+              <text class="pd-ai-idle-sub">从创作背景、逐层细读、意象艺术、情感境界四维深入解析</text>
             </view>
-            <view class="pd-ai-btn" @tap="generateAi">
-              <text class="pd-ai-btn-text">开始解析</text>
+            <view class="pd-ai-idle-btns">
+              <view v-if="poem.aiAppreciation" class="pd-ai-btn pd-ai-btn-ghost" @tap="generateAi">
+                <app-icon name="bookmark-check" :size="26" color="#9b7ec8" />
+                <text class="pd-ai-btn-text-ghost">精选赏析</text>
+              </view>
+              <view class="pd-ai-btn" @tap="generateAiRealtime">
+                <app-icon name="sparkles" :size="26" color="#ffffff" />
+                <text class="pd-ai-btn-text">{{ aiGenerating ? '生成中…' : 'AI 实时解读' }}</text>
+              </view>
             </view>
           </view>
           <!-- loading -->
@@ -299,9 +312,9 @@
             <view class="pd-ai-donehead">
               <view class="pd-ai-donestatus">
                 <app-icon name="check" :size="26" color="#e8c07a" />
-                <text class="pd-ai-donetext">解析完成</text>
+                <text class="pd-ai-donetext">{{ aiRealtime ? 'AI 实时生成' : '精选赏析' }}</text>
               </view>
-              <view class="pd-ai-regen" @tap="generateAi">
+              <view class="pd-ai-regen" @tap="aiRealtime ? generateAiRealtime() : generateAi()">
                 <app-icon name="refresh-cw" :size="24" color="#9b7ec8" />
                 <text class="pd-ai-regen-text">重新生成</text>
               </view>
@@ -329,102 +342,64 @@
       </view>
     </view>
 
-    <!-- AI 配图分享面板 -->
+    <!-- 诗词分享面板（CSS 海报实时渲染 + 复制文案） -->
     <view v-if="showSharePanel" class="pd-overlay">
       <view class="pd-overlay-mask" @tap="showSharePanel = false" />
       <view class="pd-sheet sheet-slide-up">
         <view class="pd-sheet-head">
-          <text class="pd-sheet-title">生成诗词海报</text>
+          <text class="pd-sheet-title">诗词分享</text>
           <view class="pd-sheet-close" @tap="showSharePanel = false">
             <app-icon name="x" :size="28" color="var(--poem-text-soft)" />
           </view>
         </view>
         <view class="pd-share-body">
-          <!-- 配图选项 -->
-          <view class="pd-share-opts">
-            <view
-              class="pd-share-opt"
-              :style="{ background: useAiImage ? 'var(--poem-ai-soft)' : 'var(--poem-bg-2)', borderColor: useAiImage ? 'var(--poem-ai)' : 'var(--poem-border)' }"
-              @tap="useAiImage = true"
-            >
-              <app-icon name="sparkles" :size="28" :color="useAiImage ? '#9b7ec8' : 'rgba(245,234,216,0.3)'" />
-              <text class="pd-share-opt-text">AI 配图</text>
-              <text v-if="useAiImage" class="pd-share-opt-badge">AI 生成</text>
-            </view>
-            <view
-              class="pd-share-opt"
-              :style="{ background: !useAiImage ? 'var(--poem-gold-soft)' : 'var(--poem-bg-2)', borderColor: !useAiImage ? 'var(--poem-gold)' : 'var(--poem-border)' }"
-              @tap="useAiImage = false"
-            >
-              <app-icon name="image" :size="28" :color="!useAiImage ? '#e8c07a' : 'rgba(245,234,216,0.3)'" />
-              <text class="pd-share-opt-text">默认样式</text>
-            </view>
-          </view>
-
-          <!-- 预览区 -->
-          <view class="pd-poster" :style="{ background: imgStatus === 'done' ? 'linear-gradient(160deg, #0d1a2e 0%, #1a0e05 50%, #2e1f10 100%)' : 'linear-gradient(135deg, #1a0e05 0%, #2e1f10 100%)' }">
-            <view v-if="imgStatus === 'idle'" class="pd-poster-idle">
+          <!-- 海报预览 -->
+          <view class="pd-poster">
+            <view class="pd-poster-glow" />
+            <view class="pd-poster-done">
+              <text class="pd-poster-title">{{ poem.title }}</text>
               <view class="poem-vertical pd-poster-verse">
                 <text v-for="(c, i) in poem.content" :key="i">{{ c.line }}</text>
               </view>
-              <text class="pd-poster-hint">{{ useAiImage ? '点击生成 AI 配图' : '默认深色背景海报' }}</text>
-            </view>
-            <view v-else-if="imgStatus === 'generating'" class="pd-poster-gen">
-              <app-icon name="loader-2" :size="44" color="#9b7ec8" class="pd-spin" />
-              <text class="pd-poster-gen-text">AI 正在感受诗词意境…</text>
-            </view>
-            <view v-else class="pd-poster-done">
-              <view class="poem-vertical pd-poster-verse">
-                <text v-for="(c, i) in poem.content" :key="i">{{ c.line }}</text>
-              </view>
-              <text class="pd-poster-sign">— {{ poem.dynasty }} · {{ poem.author }}</text>
-              <view class="pd-poster-badge">AI 生成</view>
+              <text class="pd-poster-sign">— 〔{{ poem.dynasty }}〕{{ poem.author }}</text>
             </view>
           </view>
 
           <!-- 操作按钮 -->
           <view class="pd-share-actions">
-            <view v-if="imgStatus === 'idle'" class="pd-share-genbtn" @tap="generateImg">
-              <app-icon name="sparkles" :size="30" color="#ffffff" />
-              <text class="pd-share-genbtn-text">{{ useAiImage ? '生成 AI 配图' : '生成海报' }}</text>
+            <view class="pd-share-save" @tap="shareCopy">
+              <app-icon name="copy" :size="28" color="#1c1208" />
+              <text class="pd-share-save-text">复制诗词文案</text>
             </view>
-            <view v-else-if="imgStatus === 'generating'" class="pd-share-genbtn pd-share-genbtn-disabled">
-              <app-icon name="loader-2" :size="30" color="#ffffff" class="pd-spin" />
-              <text class="pd-share-genbtn-text">生成中…</text>
-            </view>
-            <template v-else>
-              <view class="pd-share-regen" @tap="generateImg">
-                <app-icon name="refresh-cw" :size="28" color="#ffffff" />
-                <text class="pd-share-regen-text">重新生成</text>
-              </view>
-              <view class="pd-share-save">
-                <app-icon name="download" :size="28" color="#1c1208" />
-                <text class="pd-share-save-text">保存分享</text>
-              </view>
-            </template>
           </view>
+          <text class="pd-share-tip">长按上方海报可保存图片分享</text>
         </view>
       </view>
     </view>
 
-    <!-- 诗词品评抽屉 -->
+    <!-- 诗词品评抽屉（真实 Comment·受控） -->
     <discussion-sheet
       :open="showComments"
       :config="discussionConfig"
-      :items="POEM_DISCUSSIONS"
+      :items="discussionItems"
+      :controlled="true"
       :enable-a-i-assist="true"
       @close="showComments = false"
+      @submit-comment="onSubmitComment"
+      @like-comment="onLikeComment"
     />
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { ref, computed, onUnmounted } from 'vue'
+import { onLoad, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
+import { useShare } from '@/composables/useShare'
 import { navigateTo, navigateBack } from '@/utils/router'
 import DiscussionSheet from '@/components/common/discussion-sheet.vue'
 import type { DiscussionConfig, DiscussionItem } from '@/lib/discussion-types'
-import { poetryApi, type PoemDetail } from '@/lib/poetry-data'
+import { poetryApi, type PoemDetail, type PoemComment } from '@/lib/poetry-data'
+import { getToken } from '@/utils/storage'
 
 const statusBarHeight = ref(0)
 const safeBottom = ref(0)
@@ -438,13 +413,22 @@ type TabKey = 'poem' | 'appreciation' | 'translation' | 'notes'
 
 const loading = ref(true)
 const error = ref('')
+const currentId = ref('')
 const poem = ref<PoemDetail>({
   id: '', title: '', author: '', authorId: '', dynasty: '', form: '',
   content: [], appreciation: '', aiAppreciation: '', notes: [],
   authorInfo: { name: '', dynasty: '', years: '', title: '', intro: '', poemCount: 0 },
-  relatedPoems: [], tags: [], likes: 0, collections: 0,
+  relatedPoems: [], tags: [], likes: 0, collections: 0, isLiked: false, isBookmarked: false,
 })
 const translations = ref<string[]>([])
+
+// 互动态（真连后端）
+const isLiked = ref(false)
+const isBookmarked = ref(false)
+const likeCount = ref(0)
+const collectCount = ref(0)
+const liking = ref(false)
+const collecting = ref(false)
 
 async function fetchDetail(poemId: string) {
   loading.value = true
@@ -453,6 +437,11 @@ async function fetchDetail(poemId: string) {
     const data = await poetryApi.detail(poemId)
     poem.value = data.poem
     translations.value = data.translations
+    isLiked.value = data.poem.isLiked
+    isBookmarked.value = data.poem.isBookmarked
+    likeCount.value = data.poem.likes
+    collectCount.value = data.poem.collections
+    fetchComments(poemId)
   } catch (e: any) {
     error.value = e?.message || '加载失败'
   } finally {
@@ -461,44 +450,130 @@ async function fetchDetail(poemId: string) {
 }
 
 onLoad((q: Record<string, string> = {}) => {
-  fetchDetail(q.id || '1')
+  currentId.value = q.id || '1'
+  fetchDetail(currentId.value)
 })
 
-const POEM_DISCUSSIONS: DiscussionItem[] = [
-  {
-    id: 'p1',
-    author: { id: 1, name: '明月客' },
-    content: '二十字写尽天下游子心。最妙在『疑』字，半梦半醒间把月光错认成霜，那份恍惚正是思乡情最真实的模样。',
-    time: '2天前',
-    likeCount: 96,
-    featured: true,
-    quote: { text: '疑是地上霜', source: '全诗品评' },
-    replies: [
-      { id: 'p1r1', author: { id: 11, name: '归雁' }, content: '『疑是地上霜』这一『疑』，比直接写愁高明太多。', time: '1天前', likeCount: 14, replyToName: '明月客' },
-      { id: 'p1r2', author: { id: 12, name: '采薇' }, content: '李白的绝句就是这样，看似平淡，回味无穷。', time: '1天前', likeCount: 7, replyToName: '明月客' },
-    ],
-    replyCount: 2,
-  },
-  {
-    id: 'p2',
-    author: { id: 2, name: '竹下听雨' },
-    content: '举头、低头两个动作，把思绪从天上拉回心里，短短十字完成了一次完整的情感起落，太见功力。',
-    time: '4天前',
-    likeCount: 58,
-    replies: [],
-  },
-  {
-    id: 'p3',
-    author: { id: 3, name: '青莲居士迷' },
-    content: '请教各位，『床』字到底作何解？有说是井栏，有说是坐具，有说是窗的通假，哪种更合理？',
-    time: '1周前',
-    likeCount: 33,
-    replies: [
-      { id: 'p3r1', author: { id: 31, name: '明月客' }, content: '我倾向井栏说，月夜立于井边望月更有画面感。', time: '6天前', likeCount: 11, replyToName: '青莲居士迷' },
-    ],
-    replyCount: 1,
-  },
-]
+// 微信原生分享（诗词无封面图，省略 cover）
+const { toAppMessage, toTimeline } = useShare()
+onShareAppMessage(() => toAppMessage({
+  title: poem.value?.title || '诗词雅集',
+  path: `/poetry/${currentId.value || '1'}`,
+}))
+onShareTimeline(() => toTimeline({
+  title: poem.value?.title || '诗词雅集',
+  path: `/poetry/${currentId.value || '1'}`,
+}))
+
+// 数字格式化：千以上转 k
+function fmtCount(n: number): string {
+  return n >= 1000 ? (n / 1000).toFixed(1) + 'k' : String(n)
+}
+
+// 未登录引导（写操作前置）
+function requireLogin(): boolean {
+  if (getToken()) return true
+  uni.showModal({
+    title: '登录后体验',
+    content: '登录后可点赞、收藏与品评诗词',
+    confirmText: '去登录',
+    cancelText: '再看看',
+    success: (r) => { if (r.confirm) navigateTo('/login') },
+  })
+  return false
+}
+
+async function onToggleLike() {
+  if (!requireLogin() || liking.value) return
+  liking.value = true
+  try {
+    const r = await poetryApi.toggleLike(currentId.value)
+    isLiked.value = r.liked
+    likeCount.value = r.likes
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '操作失败', icon: 'none' })
+  } finally {
+    liking.value = false
+  }
+}
+
+async function onToggleCollect() {
+  if (!requireLogin() || collecting.value) return
+  collecting.value = true
+  try {
+    const r = await poetryApi.toggleCollect(currentId.value)
+    isBookmarked.value = r.collected
+    collectCount.value = r.collectCount
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '操作失败', icon: 'none' })
+  } finally {
+    collecting.value = false
+  }
+}
+
+// ── 诗词品评（真实 Comment） ──
+const comments = ref<PoemComment[]>([])
+const showComments = ref(false)
+
+async function fetchComments(id: string) {
+  try {
+    comments.value = await poetryApi.comments(id)
+  } catch {
+    comments.value = []
+  }
+}
+
+const discussionItems = computed<DiscussionItem[]>(() =>
+  comments.value.map((c) => ({
+    id: c.id,
+    author: { id: c.authorId, name: c.authorName, avatar: c.authorAvatar || undefined },
+    content: c.content,
+    time: c.time,
+    likeCount: c.likeCount,
+    liked: c.liked,
+    replies: c.replies.map((r) => ({
+      id: r.id,
+      author: { id: r.id, name: r.authorName, avatar: r.authorAvatar || undefined },
+      content: r.content,
+      time: r.time,
+      likeCount: r.likeCount,
+      liked: r.liked,
+      replyToName: r.replyToName || undefined,
+    })),
+    replyCount: c.replies.length,
+  })),
+)
+const commentCount = computed(() => comments.value.reduce((n, c) => n + 1 + c.replies.length, 0))
+const firstComment = computed(() => comments.value[0])
+
+async function onSubmitComment(payload: { content: string; parentId?: string | number }) {
+  if (!requireLogin()) return
+  try {
+    await poetryApi.addComment(
+      currentId.value,
+      payload.content,
+      payload.parentId !== undefined ? String(payload.parentId) : undefined,
+    )
+    await fetchComments(currentId.value)
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '发表失败', icon: 'none' })
+  }
+}
+
+async function onLikeComment(id: string | number) {
+  if (!requireLogin()) return
+  const cid = String(id)
+  try {
+    const r = await poetryApi.likeComment(cid)
+    comments.value = comments.value.map((c) =>
+      c.id === cid
+        ? { ...c, liked: r.liked, likeCount: r.likeCount }
+        : { ...c, replies: c.replies.map((rp) => (rp.id === cid ? { ...rp, liked: r.liked, likeCount: r.likeCount } : rp)) },
+    )
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '操作失败', icon: 'none' })
+  }
+}
 
 const discussionConfig: DiscussionConfig = {
   scene: 'article',
@@ -516,36 +591,32 @@ const tabs: { key: TabKey; label: string }[] = [
 ]
 
 const activeTab = ref<TabKey>('poem')
-const isLiked = ref(false)
-const isBookmarked = ref(false)
-const isPlaying = ref(false)
 const showPinyin = ref(false)
 const copied = ref(false)
 const showAiPanel = ref(false)
 const showSharePanel = ref(false)
-const showComments = ref(false)
 
 const reversedContent = computed(() => [...poem.value.content].reverse())
-const firstComment = POEM_DISCUSSIONS[0]
-const commentCount = POEM_DISCUSSIONS.reduce((n, c) => n + 1 + c.replies.length, 0)
 
-// AI 赏析流式
+// ── AI 赏析：预存（打字机）+ 实时生成 ──
 const aiStatus = ref<'idle' | 'loading' | 'done'>('idle')
+const aiRealtime = ref(false)
+const aiGenerating = ref(false)
 const displayed = ref('')
 let aiTimer: ReturnType<typeof setInterval> | null = null
 
 const displayedHtml = computed(() => {
   const html = displayed.value
     .replace(/\*\*(.*?)\*\*/g, aiStatus.value === 'done' ? '<strong style="color:#e8c07a">$1</strong>' : '<strong>$1</strong>')
+    .replace(/^#{1,6}\s*(.*)$/gm, '<strong style="color:#e8c07a">$1</strong>')
     .replace(/\n/g, '<br/>')
   return `<div style="color:#f5ead8;font-size:28rpx;line-height:1.9">${html}</div>`
 })
 
-function generateAi() {
+function typewriter(full: string) {
   aiStatus.value = 'loading'
   displayed.value = ''
   if (aiTimer) clearInterval(aiTimer)
-  const full = poem.value.aiAppreciation
   let i = 0
   aiTimer = setInterval(() => {
     i += 3
@@ -557,19 +628,95 @@ function generateAi() {
   }, 30)
 }
 
-// AI 配图
-const imgStatus = ref<'idle' | 'generating' | 'done'>('idle')
-const useAiImage = ref(true)
-let imgTimer: ReturnType<typeof setTimeout> | null = null
-
-function generateImg() {
-  imgStatus.value = 'generating'
-  if (imgTimer) clearTimeout(imgTimer)
-  imgTimer = setTimeout(() => {
-    imgStatus.value = 'done'
-  }, 2200)
+// 预存赏析（瞬时呈现，标注「精选」）
+function generateAi() {
+  aiRealtime.value = false
+  typewriter(poem.value.aiAppreciation || '本篇暂无预存赏析，可点击「AI 实时解读」生成。')
 }
 
+// AI 实时深度赏析（真接后端大模型）
+async function generateAiRealtime() {
+  if (!requireLogin() || aiGenerating.value) return
+  aiGenerating.value = true
+  aiRealtime.value = true
+  aiStatus.value = 'loading'
+  displayed.value = ''
+  if (aiTimer) clearInterval(aiTimer)
+  try {
+    const r = await poetryApi.askAI(currentId.value)
+    typewriter(r.appreciation)
+  } catch (e: any) {
+    aiStatus.value = 'idle'
+    uni.showToast({ title: e?.message || 'AI 生成失败', icon: 'none' })
+  } finally {
+    aiGenerating.value = false
+  }
+}
+
+// ── 朗读 TTS（浏览器原生逐句跟读，复用古籍馆范式） ──
+const synth: any = (typeof window !== 'undefined' && (window as any).speechSynthesis) ? (window as any).speechSynthesis : null
+const ttsSupported = computed(() => !!synth)
+let zhVoice: any = null
+function pickVoice() {
+  if (!synth) return
+  const voices: any[] = synth.getVoices() || []
+  zhVoice =
+    voices.find((v) => /zh[-_]?CN|cmn/i.test(v.lang)) ||
+    voices.find((v) => /^zh/i.test(v.lang)) ||
+    voices.find((v) => /chinese|中文|普通话/i.test(v.name)) ||
+    null
+}
+if (synth) {
+  pickVoice()
+  synth.onvoiceschanged = pickVoice
+}
+const isPlaying = ref(false)
+const curLine = ref(-1)
+
+function speakLine() {
+  if (!synth) return
+  const lines = poem.value.content
+  if (curLine.value >= lines.length) { isPlaying.value = false; curLine.value = -1; return }
+  const u = new (window as any).SpeechSynthesisUtterance(lines[curLine.value].line)
+  if (zhVoice) u.voice = zhVoice
+  u.lang = 'zh-CN'
+  u.rate = 0.85
+  u.onend = () => {
+    if (!isPlaying.value) return
+    if (curLine.value < lines.length - 1) {
+      curLine.value++
+      speakLine()
+    } else {
+      isPlaying.value = false
+      curLine.value = -1
+    }
+  }
+  synth.speak(u)
+}
+
+function playTTS() {
+  if (!ttsSupported.value) {
+    uni.showToast({ title: '朗读需在浏览器/H5端使用', icon: 'none' })
+    return
+  }
+  if (!poem.value.content.length) return
+  isPlaying.value = true
+  curLine.value = 0
+  synth.cancel()
+  speakLine()
+}
+
+function stopTTS() {
+  isPlaying.value = false
+  curLine.value = -1
+  if (synth) synth.cancel()
+}
+
+function toggleTTS() {
+  isPlaying.value ? stopTTS() : playTTS()
+}
+
+// ── 海报分享（CSS 真实渲染 + 复制文案，移除假 AI 配图流程） ──
 function handleCopy() {
   const text = poem.value.content.map((c) => c.line).join('\n')
   const full = `${poem.value.title}\n【${poem.value.dynasty}】${poem.value.author}\n\n${text}`
@@ -580,10 +727,18 @@ function handleCopy() {
   // #endif
   uni.setClipboardData({ data: full, showToast: false, success: () => {}, fail: () => {} })
   copied.value = true
-  setTimeout(() => {
-    copied.value = false
-  }, 2000)
+  setTimeout(() => { copied.value = false }, 2000)
 }
+
+function shareCopy() {
+  handleCopy()
+  uni.showToast({ title: '诗词已复制，可粘贴分享', icon: 'none' })
+}
+
+onUnmounted(() => {
+  if (synth) synth.cancel()
+  if (aiTimer) clearInterval(aiTimer)
+})
 
 function goBack() {
   navigateBack()
@@ -595,16 +750,12 @@ function goRelated(id: string) {
   showAiPanel.value = false
   navigateTo(`/poetry/${id}`)
 }
-function toPoet(id: string) {
-  navigateTo(`/poetry/poet/${id}`)
+function toPoet() {
+  if (poem.value.author) navigateTo(`/poetry/poet?name=${encodeURIComponent(poem.value.author)}`)
 }
 function toHome() {
   navigateTo('/poetry')
 }
-
-onLoad(() => {
-  // 当前仅静夜思一首示例数据，q.id ��留
-})
 </script>
 
 <style scoped>
@@ -1575,4 +1726,54 @@ onLoad(() => {
 .pd-error-text { font-size: 28rpx; color: #e74c3c; text-align: center; }
 .pd-retry { padding: 16rpx 48rpx; background: var(--poem-gold); border-radius: 24rpx; }
 .pd-retry-text { font-size: 28rpx; color: #1c1208; font-weight: 600; }
+
+/* ── 阶段二增强 ── */
+.pd-ai-idle-btns {
+  display: flex;
+  gap: 24rpx;
+  width: 100%;
+}
+.pd-ai-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12rpx;
+  padding: 20rpx 0;
+}
+.pd-ai-btn-ghost {
+  background: var(--poem-ai-soft);
+  border: 2rpx solid rgba(155, 126, 200, 0.4);
+}
+.pd-ai-btn-text-ghost {
+  font-size: 28rpx;
+  color: var(--poem-ai);
+}
+.pd-poster {
+  position: relative;
+}
+.pd-poster-glow {
+  position: absolute;
+  top: -40rpx;
+  right: -40rpx;
+  width: 280rpx;
+  height: 280rpx;
+  border-radius: 999rpx;
+  background: radial-gradient(circle, rgba(232, 192, 122, 0.12) 0%, transparent 70%);
+  pointer-events: none;
+}
+.pd-poster-title {
+  font-family: var(--font-serif, serif);
+  font-size: 40rpx;
+  font-weight: 700;
+  color: var(--poem-gold);
+  margin-bottom: 32rpx;
+}
+.pd-share-tip {
+  display: block;
+  text-align: center;
+  font-size: 22rpx;
+  color: var(--poem-text-muted);
+  padding: 8rpx 0 24rpx;
+}
 </style>

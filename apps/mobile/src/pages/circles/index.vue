@@ -1,19 +1,19 @@
 <script setup lang="ts">
 /**
  * 圈子主列表页（从原型 app/circles/page.tsx 557行 1:1 高保真迁移）
- * 自定义顶栏(标题+搜索+日历+创建) + 主Tab(发现/动态/我的)
+ * 自定义顶栏(标题+搜索+日历，创建走右下角FAB) + 主Tab(发现/动态/我的)
  * 发现: 直播预告横幅 + 今日活动横滚 + 分类Tab + 排行榜入口 + 圈子2列网格
  * 动态: 沉浸式帖子信息流(空态引导)
  * 我的: 数据卡片 + 我加入的圈子列表
  */
-import { ref, computed, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import BottomNav from '@/components/bottom-nav/bottom-nav.vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import CircleCard from '@/components/circle/circle-card.vue'
 import { navigateTo } from '@/utils/router'
 import {
-  circleApi, circleCategories, upcomingLives, todayActivities, hotPosts,
-  formatMembers, type Circle,
+  circleApi, circleCategories, formatMembers,
+  type Circle, type UpcomingLive, type TodayActivity, type HotPost, type MyCircleStats, type RankingCircle,
 } from '@/lib/circle-data'
 
 type Tab = 'discover' | 'feed' | 'mine'
@@ -21,9 +21,14 @@ type Tab = 'discover' | 'feed' | 'mine'
 const category = ref('')
 const circles = ref<Circle[]>([])
 const myCircles = ref<Circle[]>([])
-const ranking = ref<Circle[]>([])
+const ranking = ref<RankingCircle[]>([])
+const upcomingLives = ref<UpcomingLive[]>([])
+const todayActivities = ref<TodayActivity[]>([])
+const hotPosts = ref<HotPost[]>([])
 const loading = ref(true)
+const error = ref(false)
 const activeTab = ref<Tab>('discover')
+const myStats = ref<MyCircleStats>({ joinedCount: 0, postCount: 0, likeReceived: 0 })
 
 const mainTabs: { id: Tab; label: string }[] = [
   { id: 'discover', label: '发现' },
@@ -31,26 +36,43 @@ const mainTabs: { id: Tab; label: string }[] = [
   { id: 'mine', label: '我的' },
 ]
 
-async function loadData() {
+/** 圈子网格（随分类变化，单独重载） */
+async function loadCircles() {
   loading.value = true
+  error.value = false
   try {
-    const [listRes, myRes, rankRes] = await Promise.allSettled([
-      circleApi.list({ category: category.value }),
-      circleApi.my(),
-      circleApi.getRanking(),
-    ])
-    circles.value = listRes.status === 'fulfilled' ? listRes.value.data : []
-    myCircles.value = myRes.status === 'fulfilled' ? myRes.value : []
-    ranking.value = rankRes.status === 'fulfilled' ? rankRes.value : []
+    const res = await circleApi.list({ category: category.value })
+    circles.value = res.data
+  } catch {
+    error.value = true
+    circles.value = []
   } finally {
     loading.value = false
   }
 }
 
+/** 发现/我的页的其余板块（与分类无关，仅首屏加载一次；各自空数据走空态隐藏） */
+async function loadExtras() {
+  const [myRes, rankRes, liveRes, actRes, postRes, statsRes] = await Promise.allSettled([
+    circleApi.my(),
+    circleApi.getRanking(),
+    circleApi.getUpcomingLives(),
+    circleApi.getActivities(),
+    circleApi.getHotPosts(),
+    circleApi.getMyStats(),
+  ])
+  myCircles.value = myRes.status === 'fulfilled' ? myRes.value : []
+  ranking.value = rankRes.status === 'fulfilled' ? rankRes.value : []
+  upcomingLives.value = liveRes.status === 'fulfilled' ? liveRes.value : []
+  todayActivities.value = actRes.status === 'fulfilled' ? actRes.value : []
+  hotPosts.value = postRes.status === 'fulfilled' ? postRes.value : []
+  if (statsRes.status === 'fulfilled') myStats.value = statsRes.value
+}
+
 function selectCategory(id: string) {
   if (category.value === id) return
   category.value = id
-  loadData()
+  loadCircles()
 }
 
 async function handleJoin(id: string) {
@@ -66,24 +88,24 @@ async function handleJoin(id: string) {
 }
 
 function activityTypeLabel(t: string) {
-  return t === 'checkin' ? '打卡' : t === 'homework' ? '作业' : '问答'
+  return t === 'checkin' ? '打卡' : t === 'homework' ? '作业' : t === 'qa' ? '问答' : '动态'
 }
 function activityTypeIcon(t: string) {
-  return t === 'checkin' ? 'book-open' : t === 'homework' ? 'award' : 'message-square'
+  return t === 'checkin' ? 'book-open' : t === 'homework' ? 'award' : t === 'qa' ? 'message-square' : 'zap'
 }
 function activityTypeColor(t: string) {
-  return t === 'checkin' ? '#52C41A' : t === 'homework' ? '#C41E3A' : '#1890FF'
+  return t === 'checkin' ? '#52C41A' : t === 'homework' ? '#C41E3A' : t === 'qa' ? '#1890FF' : '#FF6B35'
 }
-
-const totalStats = computed(() => ({ joined: myCircles.value.length }))
 
 function go(url: string) { navigateTo(url) }
 
-onMounted(loadData)
+onMounted(() => { loadCircles(); loadExtras() })
 </script>
 
 <template>
   <view class="page">
+    <app-network-bar />
+    <customer-service-fab />
     <!-- 自定义顶栏 -->
     <view class="topbar">
       <view class="topbar-head">
@@ -116,7 +138,7 @@ onMounted(loadData)
               <text class="live-badge-text">直播预告</text>
             </view>
             <view class="live-row">
-              <image :src="upcomingLives[0].avatar" class="live-avatar" mode="aspectFill" />
+              <image lazy-load :src="upcomingLives[0].avatar" class="live-avatar" mode="aspectFill" />
               <view class="live-info">
                 <text class="live-title">{{ upcomingLives[0].title }}</text>
                 <text class="live-sub">{{ upcomingLives[0].host }} · {{ upcomingLives[0].circleName }}</text>
@@ -130,8 +152,8 @@ onMounted(loadData)
           </view>
         </view>
 
-        <!-- 今日活动 -->
-        <view class="section">
+        <!-- 今日活动（后端今日无新动态时整块隐藏） -->
+        <view v-if="todayActivities.length" class="section">
           <view class="sec-head">
             <view class="sec-title">
               <app-icon name="zap" :size="32" color="#FF6B35" />
@@ -154,10 +176,13 @@ onMounted(loadData)
                 </view>
                 <text class="act-title">{{ act.title }}</text>
                 <view class="act-meta">
-                  <text class="act-part">{{ act.participants }}人参与</text>
-                  <text class="act-reward">{{ act.reward }}</text>
+                  <text v-if="act.circleName" class="act-part">{{ act.circleName }}</text>
+                  <text v-if="act.participants" class="act-reward">{{ act.participants }}人参与</text>
+                  <text v-else-if="act.reward" class="act-reward">{{ act.reward }}</text>
                 </view>
-                <view class="act-deadline"><text class="act-deadline-text">截止: {{ act.deadline }}</text></view>
+                <view v-if="act.deadline || act.time" class="act-deadline">
+                  <text class="act-deadline-text">{{ act.deadline ? '截止: ' + act.deadline : act.time }}</text>
+                </view>
               </view>
             </view>
           </scroll-view>
@@ -205,6 +230,7 @@ onMounted(loadData)
             <view class="sk-line w2" />
           </view>
         </view>
+        <app-error v-else-if="error" title="圈子加载失败" desc="网络异常，请稍后重试" @retry="loadCircles" />
         <view v-else-if="circles.length" class="grid">
           <circle-card v-for="c in circles" :key="c.id" :circle="c" @join="handleJoin" />
         </view>
@@ -214,12 +240,12 @@ onMounted(loadData)
         </view>
       </template>
 
-      <!-- ════ 动态 Tab ════ -->
+      <!-- ════ 动态 Tab（全平台热门动态）════ -->
       <template v-else-if="activeTab === 'feed'">
-        <view v-if="myCircles.length === 0" class="feed-empty">
-          <view class="empty-icon big"><app-icon name="users" :size="64" color="#999999" /></view>
-          <text class="empty-title">还没有加入任何圈子</text>
-          <text class="empty-sub">加入圈子后，这里会显示最新动态</text>
+        <view v-if="hotPosts.length === 0" class="feed-empty">
+          <view class="empty-icon big"><app-icon name="message-square" :size="64" color="#999999" /></view>
+          <text class="empty-title">暂无圈子动态</text>
+          <text class="empty-sub">加入感兴趣的圈子，参与话题讨论吧</text>
           <view class="go-btn" @tap="activeTab = 'discover'"><text class="go-btn-text">去发现圈子</text></view>
         </view>
         <view v-else class="feed">
@@ -235,7 +261,7 @@ onMounted(loadData)
               <text class="post-time">{{ post.time }}</text>
             </view>
             <view class="post-author">
-              <image :src="post.author.avatar" class="post-avatar" mode="aspectFill" />
+              <image lazy-load :src="post.author.avatar" class="post-avatar" mode="aspectFill" />
               <view class="post-author-info">
                 <text class="post-author-name">{{ post.author.name }}</text>
                 <text v-if="post.author.title" class="post-author-title">{{ post.author.title }}</text>
@@ -243,7 +269,7 @@ onMounted(loadData)
             </view>
             <view class="post-content"><text class="post-text">{{ post.content }}</text></view>
             <view v-if="post.images.length" class="post-imgs" :class="post.images.length === 1 ? 'one' : 'multi'">
-              <image
+              <image lazy-load
                 v-for="(img, idx) in post.images" :key="idx" :src="img"
                 class="post-img" :class="post.images.length === 1 ? 'single' : 'grid-img'" mode="aspectFill"
               />
@@ -269,10 +295,9 @@ onMounted(loadData)
               </view>
             </view>
             <view class="mine-stats-grid">
-              <view class="mine-stat"><text class="mine-stat-num">{{ totalStats.joined }}</text><text class="mine-stat-label">已加入</text></view>
-              <view class="mine-stat"><text class="mine-stat-num">156</text><text class="mine-stat-label">发帖数</text></view>
-              <view class="mine-stat"><text class="mine-stat-num">2.8k</text><text class="mine-stat-label">获赞数</text></view>
-              <view class="mine-stat"><text class="mine-stat-num">Lv.5</text><text class="mine-stat-label">等级</text></view>
+              <view class="mine-stat"><text class="mine-stat-num">{{ myStats.joinedCount }}</text><text class="mine-stat-label">已加入</text></view>
+              <view class="mine-stat"><text class="mine-stat-num">{{ myStats.postCount }}</text><text class="mine-stat-label">发帖数</text></view>
+              <view class="mine-stat"><text class="mine-stat-num">{{ formatMembers(myStats.likeReceived) }}</text><text class="mine-stat-label">获赞数</text></view>
             </view>
           </view>
 
@@ -294,7 +319,7 @@ onMounted(loadData)
               v-for="c in myCircles" :key="c.id"
               class="mine-item" @tap="go(`/pkg-circle/circles/detail?id=${c.id}`)"
             >
-              <image :src="c.cover" class="mine-cover" mode="aspectFill" />
+              <image lazy-load :src="c.cover" class="mine-cover" mode="aspectFill" />
               <view class="mine-item-info">
                 <text class="mine-item-name">{{ c.name }}</text>
                 <text class="mine-item-meta">{{ formatMembers(c.members) }}成员 · {{ c.posts }}帖子</text>
@@ -343,8 +368,8 @@ onMounted(loadData)
 .main-tabs { display: flex; align-items: center; border-bottom: 2rpx solid var(--line-nav, #e8e3db); }
 .main-tab { flex: 1; padding: 24rpx 0; display: flex; flex-direction: column; align-items: center; position: relative; }
 .main-tab-text { font-size: 28rpx; font-weight: 500; color: var(--text-faint, #999); }
-.main-tab-text.on { color: var(--brand, #c41e3a); }
-.main-tab-underline { position: absolute; bottom: 0; width: 48rpx; height: 4rpx; background: var(--brand, #c41e3a); border-radius: 999rpx; }
+.main-tab-text.on { color: var(--brand, var(--brand)); }
+.main-tab-underline { position: absolute; bottom: 0; width: 48rpx; height: 4rpx; background: var(--brand, var(--brand)); border-radius: 999rpx; }
 
 .body { flex: 1; }
 .section { padding: 32rpx 32rpx 0; }
@@ -363,7 +388,7 @@ onMounted(loadData)
 .live-time { display: flex; align-items: center; gap: 6rpx; }
 .live-time-text { color: #FFD700; font-size: 24rpx; }
 .live-viewers { color: rgba(255, 255, 255, 0.5); font-size: 22rpx; }
-.live-btn { display: flex; align-items: center; gap: 6rpx; padding: 16rpx 28rpx; background: var(--brand, #c41e3a); border-radius: 999rpx; flex-shrink: 0; }
+.live-btn { display: flex; align-items: center; gap: 6rpx; padding: 16rpx 28rpx; background: var(--brand, var(--brand)); border-radius: 999rpx; flex-shrink: 0; }
 .live-btn-text { color: #fff; font-size: 24rpx; font-weight: 500; }
 
 /* 区块标题 */
@@ -391,7 +416,7 @@ onMounted(loadData)
 .cat-scroll { width: 100%; white-space: nowrap; }
 .cat-row { display: inline-flex; gap: 16rpx; }
 .cat-chip { flex-shrink: 0; padding: 12rpx 28rpx; border-radius: 999rpx; background: var(--card, #fff); border: 2rpx solid var(--line-nav, #e8e3db); }
-.cat-chip.on { background: var(--brand, #c41e3a); border-color: var(--brand, #c41e3a); }
+.cat-chip.on { background: var(--brand, var(--brand)); border-color: var(--brand, var(--brand)); }
 .cat-text { font-size: 26rpx; font-weight: 500; color: var(--text-soft, #666); white-space: nowrap; }
 .cat-text.on { color: #fff; }
 
@@ -430,13 +455,13 @@ onMounted(loadData)
 .feed-empty { display: flex; flex-direction: column; align-items: center; padding: 140rpx 0; }
 .empty-title { font-size: 28rpx; color: var(--text-faint, #999); margin-bottom: 12rpx; }
 .empty-sub { font-size: 24rpx; color: #bbb; margin-bottom: 32rpx; }
-.go-btn { padding: 16rpx 32rpx; background: var(--brand, #c41e3a); border-radius: 999rpx; margin-top: 8rpx; }
+.go-btn { padding: 16rpx 32rpx; background: var(--brand, var(--brand)); border-radius: 999rpx; margin-top: 8rpx; }
 .go-btn-text { font-size: 26rpx; color: #fff; }
 .post { background: var(--card, #fff); border-radius: 32rpx; overflow: hidden; box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.04); }
 .post-source { padding: 24rpx 32rpx 16rpx; display: flex; align-items: center; justify-content: space-between; border-bottom: 2rpx solid var(--line-soft, #f5f0e8); }
 .post-source-left { display: flex; align-items: center; gap: 12rpx; }
-.post-circle { font-size: 24rpx; color: var(--brand, #c41e3a); font-weight: 500; }
-.post-pin { font-size: 18rpx; padding: 4rpx 12rpx; background: #FFF0F0; color: var(--brand, #c41e3a); border-radius: 6rpx; }
+.post-circle { font-size: 24rpx; color: var(--brand, var(--brand)); font-weight: 500; }
+.post-pin { font-size: 18rpx; padding: 4rpx 12rpx; background: #FFF0F0; color: var(--brand, var(--brand)); border-radius: 6rpx; }
 .post-time { font-size: 22rpx; color: #bbb; }
 .post-author { padding: 24rpx 32rpx 0; display: flex; align-items: center; gap: 16rpx; }
 .post-avatar { width: 80rpx; height: 80rpx; border-radius: 999rpx; }
@@ -456,12 +481,12 @@ onMounted(loadData)
 .post-act-num { font-size: 24rpx; color: var(--text-soft, #666); }
 
 /* 我的 Tab */
-.mine-stats { background: linear-gradient(135deg, #c41e3a, #a01530); border-radius: 32rpx; padding: 32rpx; margin-bottom: 32rpx; }
+.mine-stats { background: linear-gradient(135deg, var(--brand), #a01530); border-radius: 32rpx; padding: 32rpx; margin-bottom: 32rpx; }
 .mine-stats-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24rpx; }
 .mine-stats-title { font-size: 28rpx; font-weight: 500; color: #fff; }
 .mine-stats-more { display: flex; align-items: center; }
 .mine-stats-more-text { font-size: 22rpx; color: rgba(255, 255, 255, 0.7); }
-.mine-stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16rpx; }
+.mine-stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16rpx; }
 .mine-stat { display: flex; flex-direction: column; align-items: center; }
 .mine-stat-num { font-size: 40rpx; font-weight: 700; color: #fff; }
 .mine-stat-label { font-size: 22rpx; color: rgba(255, 255, 255, 0.7); margin-top: 4rpx; }
@@ -480,6 +505,6 @@ onMounted(loadData)
 .mine-item-active-text { font-size: 22rpx; color: #FF6B35; }
 
 /* FAB */
-.fab { position: fixed; right: 32rpx; bottom: 196rpx; width: 96rpx; height: 96rpx; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #c41e3a, #a01530); box-shadow: 0 8rpx 20rpx rgba(196, 30, 58, 0.36); z-index: 50; }
+.fab { position: fixed; right: 32rpx; bottom: 196rpx; width: 96rpx; height: 96rpx; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, var(--brand), #a01530); box-shadow: 0 8rpx 20rpx rgba(196, 30, 58, 0.36); z-index: 50; }
 .fab:active { opacity: 0.88; }
 </style>

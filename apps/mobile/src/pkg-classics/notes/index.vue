@@ -47,6 +47,13 @@
       <view v-if="loading" class="nt-empty">
         <text class="nt-empty-title">加载中...</text>
       </view>
+      <!-- 未登录态 -->
+      <view v-else-if="isGuest" class="nt-empty">
+        <view class="nt-empty-icon"><app-icon name="file-text" :size="64" color="#999999" /></view>
+        <text class="nt-empty-title">登录后查看笔记</text>
+        <text class="nt-empty-sub">笔记会自动同步到你的账号</text>
+        <view class="nt-empty-btn" @tap="goLogin"><text class="nt-empty-btn-text">去登录</text></view>
+      </view>
       <!-- 错误态 -->
       <view v-else-if="error" class="nt-empty">
         <text class="nt-empty-title">{{ error }}</text>
@@ -143,6 +150,16 @@
         </view>
       </view>
     </view>
+    <!-- 编辑笔记 -->
+    <view v-if="editing" class="nt-edit-mask" @tap="editing = false">
+      <view class="nt-edit-sheet" @tap.stop>
+        <text class="nt-edit-title">编辑笔记</text>
+        <textarea v-model="editText" class="nt-edit-area" :maxlength="2000" />
+        <view class="nt-edit-save" :class="{ 'nt-edit-disabled': !editText.trim() || editSubmitting }" @tap="saveEdit">
+          <text>{{ editSubmitting ? '保存中…' : '保存' }}</text>
+        </view>
+      </view>
+    </view>
   </view>
 </template>
 
@@ -150,6 +167,7 @@
 import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { classicsApi, type NoteItem } from '@/lib/classics-data'
+import { getToken } from '@/utils/storage'
 
 const searchValue = ref('')
 const selectedIds = ref<Set<string>>(new Set())
@@ -158,8 +176,15 @@ const notes = ref<NoteItem[]>([])
 const viewMode = ref<'timeline' | 'book'>('timeline')
 const loading = ref(true)
 const error = ref('')
+const isGuest = ref(false)
+const editing = ref(false)
+const editId = ref('')
+const editText = ref('')
+const editSubmitting = ref(false)
 
 async function fetchData() {
+  if (!getToken()) { isGuest.value = true; loading.value = false; return }
+  isGuest.value = false
   loading.value = true
   error.value = ''
   try {
@@ -209,13 +234,27 @@ function exitSelect() {
   isSelectMode.value = false
   selectedIds.value = new Set()
 }
-function batchDelete() {
+async function batchDelete() {
   if (selectedIds.value.size === 0) return
-  notes.value = notes.value.filter((note) => !selectedIds.value.has(note.id))
-  exitSelect()
+  const ids = [...selectedIds.value]
+  try {
+    await Promise.all(ids.map((id) => classicsApi.removeNote(id)))
+    notes.value = notes.value.filter((note) => !ids.includes(note.id))
+    exitSelect()
+    uni.showToast({ title: '已删除', icon: 'none' })
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '删除失败', icon: 'none' })
+    fetchData()
+  }
 }
-function deleteItem(id: string) {
-  notes.value = notes.value.filter((note) => note.id !== id)
+async function deleteItem(id: string) {
+  try {
+    await classicsApi.removeNote(id)
+    notes.value = notes.value.filter((note) => note.id !== id)
+    uni.showToast({ title: '已删除', icon: 'none' })
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '删除失败', icon: 'none' })
+  }
 }
 function openManageMenu() {
   uni.showActionSheet({
@@ -226,10 +265,13 @@ function openManageMenu() {
   })
 }
 function openItemMenu(id: string) {
+  const note = notes.value.find((n) => n.id === id)
   uni.showActionSheet({
-    itemList: ['编辑', '分享', '跳转阅读', '删除'],
+    itemList: ['编辑', '跳转阅读', '删除'],
     success: (res) => {
-      if (res.tapIndex === 3) deleteItem(id)
+      if (res.tapIndex === 0 && note) openEdit(note)
+      else if (res.tapIndex === 1 && note) uni.navigateTo({ url: `/pkg-classics/reader/index?bookId=${note.bookId}` })
+      else if (res.tapIndex === 2) deleteItem(id)
     },
   })
 }
@@ -242,9 +284,39 @@ function goBook(id: string) {
 function goHome() {
   uni.navigateTo({ url: '/pkg-classics/home/index' })
 }
+function goLogin() {
+  uni.navigateTo({ url: '/pkg-auth/login/index' })
+}
+function openEdit(note: NoteItem) {
+  editId.value = note.id
+  editText.value = note.noteContent
+  editing.value = true
+}
+async function saveEdit() {
+  const c = editText.value.trim()
+  if (!c || editSubmitting.value) return
+  editSubmitting.value = true
+  try {
+    await classicsApi.updateNote(editId.value, c)
+    const n = notes.value.find((x) => x.id === editId.value)
+    if (n) n.noteContent = c
+    editing.value = false
+    uni.showToast({ title: '已保存', icon: 'none' })
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '保存失败', icon: 'none' })
+  } finally {
+    editSubmitting.value = false
+  }
+}
 </script>
 
 <style scoped lang="scss">
+.nt-edit-mask { position: fixed; inset: 0; z-index: 60; background: rgba(0, 0, 0, 0.45); display: flex; align-items: flex-end; }
+.nt-edit-sheet { width: 100%; background: var(--background, #fff); border-radius: 32rpx 32rpx 0 0; padding: 32rpx; padding-bottom: calc(32rpx + env(safe-area-inset-bottom)); box-sizing: border-box; }
+.nt-edit-title { font-size: 32rpx; font-weight: 600; color: var(--foreground, #2c2c2c); }
+.nt-edit-area { margin-top: 24rpx; width: 100%; box-sizing: border-box; height: 280rpx; padding: 24rpx; background: var(--secondary, #f5f5f5); border-radius: 16rpx; font-size: 28rpx; line-height: 1.7; color: var(--foreground, #2c2c2c); }
+.nt-edit-save { margin-top: 24rpx; height: 88rpx; border-radius: 20rpx; background: var(--brand); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 30rpx; font-weight: 600; }
+.nt-edit-disabled { opacity: 0.5; }
 .nt-page {
   min-height: 100vh;
   background: var(--background);
@@ -303,7 +375,7 @@ function goHome() {
   border-radius: 12rpx;
 }
 .nt-tbtn--danger {
-  background: #c41e3a;
+  background: var(--brand);
 }
 .nt-tbtn--disabled {
   opacity: 0.5;
@@ -375,7 +447,7 @@ function goHome() {
   border: 1rpx solid var(--border);
 }
 .nt-card--selected {
-  box-shadow: 0 0 0 4rpx #c41e3a;
+  box-shadow: 0 0 0 4rpx var(--brand);
 }
 .nt-card-head {
   display: flex;

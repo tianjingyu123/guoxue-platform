@@ -22,6 +22,20 @@
       </view>
     </view>
 
+    <!-- 分类 Tab（公告并入消息中心：系统公告/互动/交易统一在此） -->
+    <view class="cat-tabs">
+      <view
+        v-for="cat in CATEGORY_TABS"
+        :key="cat.key"
+        class="cat-tab"
+        :class="{ active: activeCat === cat.key }"
+        @click="activeCat = cat.key"
+      >
+        <text class="cat-tab-text" :class="{ active: activeCat === cat.key }">{{ cat.label }}</text>
+        <view v-if="catUnread(cat.key) > 0" class="cat-dot" />
+      </view>
+    </view>
+
     <!-- 加载骨架屏 -->
     <view v-if="loading" class="skeleton-wrap">
       <view v-for="i in 5" :key="i" class="skel-row">
@@ -34,25 +48,28 @@
       </view>
     </view>
 
+    <!-- 错误态（首屏加载失败，可重试） -->
+    <app-error v-else-if="error" title="通知加载失败" desc="网络异常，请稍后重试" @retry="() => fetchNotifications()" />
+
     <!-- 空态 -->
-    <view v-else-if="notifications.length === 0" class="empty">
+    <view v-else-if="filteredNotifications.length === 0" class="empty">
       <view class="empty-icon-circle">
         <app-icon name="bell" :size="32" color="#cccccc" />
       </view>
-      <text class="empty-text">暂无通知</text>
+      <text class="empty-text">{{ activeCat === 'all' ? '暂无通知' : '该分类暂无通知' }}</text>
     </view>
 
     <!-- 通知列表 -->
     <view v-else class="list">
       <view
-        v-for="n in notifications"
+        v-for="n in filteredNotifications"
         :key="n.id"
         class="notify-item"
         :class="{ unread: !n.isRead }"
         @click="handleMarkRead(n)"
       >
-        <view class="notify-icon" :style="{ background: typeColors[n.type].bg }">
-          <app-icon :name="getIcon(n.category)" :size="20" :color="typeColors[n.type].color" />
+        <view class="notify-icon" :style="{ background: typeColors[n.kind].bg }">
+          <app-icon :name="getIcon(n.category)" :size="20" :color="typeColors[n.kind].color" />
         </view>
         <view class="notify-body">
           <view class="notify-top">
@@ -82,119 +99,127 @@
   </view>
 </template>
 
-<script>
-const MOCK_MESSAGES = [
-  { id: 1, type: 'interaction', category: '评论', title: '张三清', content: '回复了你的文章《八字入门：如何看懂自己的命盘》：写得太好了，受益匪浅！', time: '5分钟前', isRead: false, link: '/article/1' },
-  { id: 2, type: 'interaction', category: '点赞', title: '李易道', content: '赞了你的文章《八字入门：如何看懂自己的命盘》', time: '15分钟前', isRead: false, link: '/article/1' },
-  { id: 3, type: 'interaction', category: '关注', title: '王玄机', content: '关注了你', time: '1小时前', isRead: true, link: '/profile/123' },
-  { id: 4, type: 'interaction', category: '评论', title: '赵明远', content: '在你的直播间留言：老师讲得很细致，期待下次直播！', time: '2小时前', isRead: true, link: '/live/1' },
-  { id: 5, type: 'interaction', category: '加入圈子', title: '陈国学', content: '加入了你的圈子「八字命理研习社」', time: '3小时前', isRead: true, link: '/circle/1' },
-  { id: 6, type: 'system', category: '课程上新', title: '新课程上线', content: '您关注的讲师「易学大师」发布了新课程《紫微斗数进阶实战》', time: '30分钟前', isRead: false, link: '/course/2' },
-  { id: 7, type: 'system', category: '直播预告', title: '直播即将开始', content: '您预约的直播「八字看财运专题」将在30分钟后开始', time: '1小时前', isRead: false, link: '/live/3' },
-  { id: 8, type: 'system', category: '会员到期', title: '会员即将到期', content: '您的VIP会员将于3天后到期，续费可享8折优惠', time: '1天前', isRead: true, link: '/profile' },
-  { id: 9, type: 'system', category: '活动通知', title: '限时活动', content: '双十一大促：全场课程5折起，古籍电子书买一送一', time: '2天前', isRead: true, link: '/discover' },
-  { id: 10, type: 'income', category: '课程收益', title: '课程销售收入', content: '您的课程《八字入门精讲》被购买，获得收益 ¥89.00', time: '10分钟前', isRead: false, link: '/manage/income' },
-  { id: 11, type: 'income', category: '打赏收入', title: '直播打赏', content: '用户「张三清」在直播间打赏了您 66 国学币', time: '2小时前', isRead: false, link: '/manage/income' },
-  { id: 12, type: 'income', category: '分销收益', title: '推广佣金到账', content: '您推广的课程产生订单，获得佣金 ¥12.50', time: '5小时前', isRead: true, link: '/manage/income' },
-  { id: 13, type: 'income', category: '提现通知', title: '提现成功', content: '您申请的提现 ¥500.00 已到账，请查收', time: '1天前', isRead: true, link: '/profile' },
-  { id: 14, type: 'transaction', category: '订单', title: '订单支付成功', content: '您已成功购买课程《八字命理精讲》，订单号：2026060312345', time: '20分钟前', isRead: false, link: '/orders/12345' },
-  { id: 15, type: 'transaction', category: '订单', title: '订单已发货', content: '您购买的《周易全解》已发货，物流单号：SF1234567890', time: '2小时前', isRead: false, link: '/orders/12346' },
-  { id: 16, type: 'transaction', category: '退款', title: '退款成功', content: '您申请的退款已处理完成，¥99.00已原路退回', time: '1天前', isRead: true, link: '/orders/12340' },
-  { id: 17, type: 'service', category: '客服', title: '客服回复', content: '您咨询的问题已得到回复，请查看详情', time: '10分钟前', isRead: false, link: '/customer-service' },
-  { id: 18, type: 'service', category: '工单', title: '工单处理中', content: '您提交的工单【#2026060001】正在处理中，预计24小时内回复', time: '3小时前', isRead: true, link: '/feedback/detail/2026060001' },
-]
+<script setup lang="ts">
+import { ref, computed, onMounted } from 'vue'
+import { goBack, navigateTo } from '@/utils/router'
+import { mineApi, type NotifyItem, type NotifyKind } from '@/lib/mine-data'
 
-const ICON_MAP = {
-  '评论': 'message-circle',
-  '点赞': 'heart',
-  '关注': 'user-plus',
-  '加入圈子': 'user-plus',
-  '课程上新': 'gift',
-  '直播预告': 'megaphone',
-  '会员到期': 'alert-circle',
-  '活动通知': 'gift',
-  '课程收益': 'credit-card',
-  '打赏收入': 'gift',
-  '分销收益': 'credit-card',
-  '提现通知': 'credit-card',
-  '订单': 'shopping-bag',
-  '退款': 'credit-card',
-  '客服': 'headphones',
-  '工单': 'headphones',
+const ICON_MAP: Record<string, string> = {
+  评论: 'message-circle',
+  点赞: 'heart',
+  关注: 'user-plus',
+  系统通知: 'bell',
+  审核通知: 'shield',
+  订单: 'shopping-bag',
+  收益: 'credit-card',
 }
 
-import { goBack, navigateTo } from '@/utils/router'
+const typeColors: Record<NotifyKind, { bg: string; color: string }> = {
+  interaction: { bg: '#dbeafe', color: '#2563eb' },
+  system: { bg: '#fef3c7', color: '#d97706' },
+  income: { bg: '#dcfce7', color: '#16a34a' },
+  transaction: { bg: '#f3e8ff', color: '#9333ea' },
+  service: { bg: '#ffe4e6', color: '#e11d48' },
+}
 
-export default {
-  data() {
-    return {
-      notifications: [],
-      loading: true,
-      refreshing: false,
-      markingAllRead: false,
-      toastMsg: '',
-      typeColors: {
-        interaction: { bg: '#dbeafe', color: '#2563eb' },
-        system: { bg: '#fef3c7', color: '#d97706' },
-        income: { bg: '#dcfce7', color: '#16a34a' },
-        transaction: { bg: '#f3e8ff', color: '#9333ea' },
-        service: { bg: '#ffe4e6', color: '#e11d48' },
-      },
-    }
-  },
-  computed: {
-    unreadTotal() {
-      return this.notifications.filter((n) => !n.isRead).length
-    },
-    markAllDisabled() {
-      return this.markingAllRead || this.unreadTotal === 0
-    },
-  },
-  onLoad() {
-    this.fetchNotifications()
-  },
-  methods: {
-    fetchNotifications(showRefreshing) {
-      if (showRefreshing) this.refreshing = true
-      else this.loading = true
-      setTimeout(() => {
-        this.notifications = JSON.parse(JSON.stringify(MOCK_MESSAGES))
-        this.loading = false
-        this.refreshing = false
-      }, 500)
-    },
-    getIcon(category) {
-      return ICON_MAP[category] || 'bell'
-    },
-    handleMarkRead(n) {
-      if (!n.isRead) {
-        n.isRead = true
-      }
-      if (n.link) {
-        navigateTo(n.link)
-      }
-    },
-    handleMarkAllRead() {
-      if (this.markAllDisabled) return
-      this.markingAllRead = true
-      setTimeout(() => {
-        this.notifications.forEach((n) => { n.isRead = true })
-        this.markingAllRead = false
-        this.showToast('已全部标记为已读')
-      }, 300)
-    },
-    handleRefresh() {
-      if (this.refreshing) return
-      this.fetchNotifications(true)
-    },
-    showToast(msg) {
-      this.toastMsg = msg
-      setTimeout(() => { this.toastMsg = '' }, 2000)
-    },
-    onBack() {
-      goBack()
-    },
-  },
+const notifications = ref<NotifyItem[]>([])
+const loading = ref(true)
+const error = ref(false)
+const refreshing = ref(false)
+const markingAllRead = ref(false)
+const toastMsg = ref('')
+
+// 分类 Tab：公告(系统)/互动/交易统一并入消息中心。kind→分类映射见 belongsTo
+type CatKey = 'all' | 'system' | 'interaction' | 'transaction'
+const CATEGORY_TABS: { key: CatKey; label: string }[] = [
+  { key: 'all', label: '全部' },
+  { key: 'system', label: '系统公告' },
+  { key: 'interaction', label: '互动' },
+  { key: 'transaction', label: '交易' },
+]
+const activeCat = ref<CatKey>('all')
+
+/** 通知 kind 归入哪个分类 Tab（service 归系统、income 归交易） */
+function belongsTo(n: NotifyItem, cat: CatKey): boolean {
+  if (cat === 'all') return true
+  if (cat === 'system') return n.kind === 'system' || n.kind === 'service'
+  if (cat === 'transaction') return n.kind === 'transaction' || n.kind === 'income'
+  return n.kind === 'interaction'
+}
+
+const filteredNotifications = computed(() =>
+  notifications.value.filter((n) => belongsTo(n, activeCat.value)),
+)
+
+/** 某分类下的未读数（Tab 红点提示） */
+function catUnread(cat: CatKey): number {
+  if (cat === 'all') return 0 // 全部不显红点，避免与导航栏总数重复
+  return notifications.value.filter((n) => !n.isRead && belongsTo(n, cat)).length
+}
+
+const unreadTotal = computed(() => notifications.value.filter((n) => !n.isRead).length)
+const markAllDisabled = computed(() => markingAllRead.value || unreadTotal.value === 0)
+
+async function fetchNotifications(showRefreshing = false) {
+  if (showRefreshing) refreshing.value = true
+  else loading.value = true
+  error.value = false
+  try {
+    notifications.value = await mineApi.getNotifications()
+  } catch (e: any) {
+    // 仅在首屏（无已有数据）展示整页错误态；刷新失败保留旧列表 + toast 提示
+    if (notifications.value.length === 0) error.value = true
+    showToast(e?.message || '加载失败')
+  } finally {
+    loading.value = false
+    refreshing.value = false
+  }
+}
+
+onMounted(() => { fetchNotifications() })
+
+function getIcon(category: string) {
+  return ICON_MAP[category] || 'bell'
+}
+
+async function handleMarkRead(n: NotifyItem) {
+  if (!n.isRead) {
+    n.isRead = true
+    try {
+      await mineApi.markNotificationRead(n.id)
+      uni.$emit('notify:refresh') // 同步顶部铃铛角标
+    } catch { n.isRead = false }
+  }
+  if (n.link) navigateTo(n.link)
+}
+
+async function handleMarkAllRead() {
+  if (markAllDisabled.value) return
+  markingAllRead.value = true
+  try {
+    await mineApi.markAllNotificationsRead()
+    notifications.value.forEach((n) => { n.isRead = true })
+    uni.$emit('notify:refresh') // 同步顶部铃铛角标
+    showToast('已全部标记为已读')
+  } catch (e: any) {
+    showToast(e?.message || '操作失败')
+  } finally {
+    markingAllRead.value = false
+  }
+}
+
+function handleRefresh() {
+  if (refreshing.value) return
+  fetchNotifications(true)
+}
+
+function showToast(msg: string) {
+  toastMsg.value = msg
+  setTimeout(() => { toastMsg.value = '' }, 2000)
+}
+
+function onBack() {
+  goBack()
 }
 </script>
 
@@ -272,6 +297,44 @@ export default {
 @keyframes spin {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
+}
+
+/* 分类 Tab */
+.cat-tabs {
+  position: sticky;
+  top: 112rpx;
+  z-index: 9;
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  padding: 16rpx 24rpx;
+  background: #faf8f5;
+  border-bottom: 1rpx solid #e8e3db;
+}
+.cat-tab {
+  position: relative;
+  padding: 10rpx 28rpx;
+  border-radius: 999rpx;
+  background: #f0ebe3;
+}
+.cat-tab.active {
+  background: var(--brand);
+}
+.cat-tab-text {
+  font-size: 26rpx;
+  color: #666666;
+}
+.cat-tab-text.active {
+  color: #ffffff;
+}
+.cat-dot {
+  position: absolute;
+  top: 4rpx;
+  right: 8rpx;
+  width: 14rpx;
+  height: 14rpx;
+  border-radius: 50%;
+  background: #ff4d4f;
 }
 
 /* 骨架屏 */

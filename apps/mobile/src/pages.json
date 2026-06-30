@@ -6,7 +6,12 @@
       "^app-icon$": "@/components/common/app-icon.vue",
       "^app-empty$": "@/components/common/app-empty.vue",
       "^app-error$": "@/components/common/app-error.vue",
-      "^app-nav-bar$": "@/components/common/app-nav-bar.vue"
+      "^app-nav-bar$": "@/components/common/app-nav-bar.vue",
+      "^app-load-more$": "@/components/common/app-load-more.vue",
+      "^app-network-bar$": "@/components/common/app-network-bar.vue",
+      "^customer-service-fab$": "@/components/common/customer-service-fab.vue",
+      "^search-bar$": "@/components/common/search-bar.vue",
+      "^recommend-section$": "@/components/common/recommend-section.vue"
     }
   },
   "pages": [
@@ -231,6 +236,12 @@
           }
         },
         {
+          "path": "publish-course/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
           "path": "market/index",
           "style": {
             "navigationStyle": "custom"
@@ -278,6 +289,12 @@
       "pages": [
         {
           "path": "home/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "store/index",
           "style": {
             "navigationStyle": "custom"
           }
@@ -562,6 +579,19 @@
           }
         },
         {
+          "path": "reader/index",
+          "style": {
+            "navigationStyle": "custom",
+            "disableScroll": false
+          }
+        },
+        {
+          "path": "companion/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
           "path": "bookshelf/index",
           "style": {
             "navigationStyle": "custom"
@@ -704,6 +734,12 @@
           }
         },
         {
+          "path": "circles/assistant",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
           "path": "circles/post",
           "style": {
             "navigationStyle": "custom"
@@ -800,6 +836,12 @@
           }
         },
         {
+          "path": "circles/my-join-requests",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
           "path": "circles/exit-requests",
           "style": {
             "navigationStyle": "custom"
@@ -878,7 +920,25 @@
           }
         },
         {
+          "path": "circles/question-detail",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
           "path": "circles/exit",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "circles/refund-review",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "circles/my-refunds",
           "style": {
             "navigationStyle": "custom"
           }
@@ -902,19 +962,7 @@
           }
         },
         {
-          "path": "circles/circle-bots",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
           "path": "circles/preview",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "circles/topic-detail",
           "style": {
             "navigationStyle": "custom"
           }
@@ -998,12 +1046,6 @@
         },
         {
           "path": "agents/ranking",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "bots/index",
           "style": {
             "navigationStyle": "custom"
           }
@@ -1252,6 +1294,20 @@
             "navigationStyle": "custom"
           }
         }
+      ]
+    },
+    {
+      "root": "pkg-competition",
+      "pages": [
+        { "path": "home/index", "style": { "navigationStyle": "custom" } },
+        { "path": "detail/index", "style": { "navigationStyle": "custom" } },
+        { "path": "register/index", "style": { "navigationStyle": "custom" } },
+        { "path": "quiz/index", "style": { "navigationStyle": "custom" } },
+        { "path": "result/index", "style": { "navigationStyle": "custom" } },
+        { "path": "score-detail/index", "style": { "navigationStyle": "custom" } },
+        { "path": "certificate/index", "style": { "navigationStyle": "custom" } },
+        { "path": "poster/index", "style": { "navigationStyle": "custom" } },
+        { "path": "archive/index", "style": { "navigationStyle": "custom" } }
       ]
     },
     {
@@ -1527,6 +1583,12 @@
           }
         },
         {
+          "path": "micro-page-editor/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
           "path": "station-live/index",
           "style": {
             "navigationStyle": "custom"
@@ -1632,6 +1694,12 @@
           "style": {
             "navigationStyle": "custom"
           }
+        },
+        {
+          "path": "manage/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
         }
       ]
     },
@@ -1676,6 +1744,36 @@
         },
         {
           "path": "checkin/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "manage/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "manage-courses/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "manage-checkin/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "manage-products/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "manage-teachers/index",
           "style": {
             "navigationStyle": "custom"
           }
@@ -1945,18 +2043,6 @@
         },
         {
           "path": "favorites/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "user-audit/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "batch-coupon-send/index",
           "style": {
             "navigationStyle": "custom"
           }
@@ -2295,6 +2381,12 @@
           "style": {
             "navigationStyle": "custom"
           }
+        },
+        {
+          "path": "poet/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
         }
       ]
     },
@@ -2576,11 +2668,29 @@
           "style": {
             "navigationStyle": "custom"
           }
+        },
+        {
+          "path": "course-reviews/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "my-qualifications/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
         }
       ]
     }
   ],
-  "preloadRule": {},
+  "preloadRule": {
+    "pages/index/index": { "network": "wifi", "packages": ["pkg-classics", "pkg-course"] },
+    "pages/circles/index": { "network": "wifi", "packages": ["pkg-circle"] },
+    "pages/paipan/index": { "network": "wifi", "packages": ["pkg-paipan"] },
+    "pages/discover/index": { "network": "wifi", "packages": ["pkg-discover"] },
+    "pages/profile/index": { "network": "wifi", "packages": ["pkg-mine"] }
+  },
   "globalStyle": {
     "navigationBarTextStyle": "black",
     "navigationBarTitleText": "热卜国学",

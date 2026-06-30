@@ -92,7 +92,7 @@ const filtered = computed(() => filter.value === 'all' ? mockRecords : mockRecor
 .tabs-scroll { white-space: nowrap; padding: 32rpx 32rpx 16rpx; }
 .tabs-row { display: inline-flex; gap: 16rpx; }
 .tab { flex-shrink: 0; padding: 12rpx 24rpx; border-radius: 999rpx; white-space: nowrap; }
-.tab-active { background: #C41E3A; }
+.tab-active { background: var(--brand); }
 .tab-normal { background: #F0EDE8; }
 .tab-txt { font-size: 28rpx; font-weight: 500; color: #2C2C2C; }
 .tab-txt-active { color: #FFFFFF; }
@@ -107,7 +107,7 @@ const filtered = computed(() => filter.value === 'all' ? mockRecords : mockRecor
 .rec-type-txt { font-size: 22rpx; }
 .rec-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12rpx 0; }
 .rec-field { font-size: 22rpx; color: #8A8478; }
-.rec-amount { color: #C41E3A; font-weight: 600; }
+.rec-amount { color: var(--brand); font-weight: 600; }
 .rec-time { font-size: 20rpx; color: #8A8478; margin-top: 16rpx; text-align: right; display: block; }
 .empty { text-align: center; font-size: 28rpx; color: #8A8478; padding: 128rpx 0; }
 </style>

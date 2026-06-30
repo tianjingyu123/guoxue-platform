@@ -14,8 +14,11 @@ const props = withDefaults(defineProps<{
   price: number
   priceError?: string
   contentType?: 'article' | 'course' | 'post' | 'live'
+  /** 是否显示「可见范围」块。后端课程仅支持付费、不支持可见性枚举时传 false 只留付费 */
+  showVisibility?: boolean
 }>(), {
   contentType: 'article',
+  showVisibility: true,
 })
 
 const emit = defineEmits<{
@@ -35,7 +38,7 @@ function onPriceInput(e: any) {
 <template>
   <view class="vs">
     <!-- 可见范围 -->
-    <view class="vs-block">
+    <view v-if="showVisibility" class="vs-block">
       <text class="vs-label">可见范围</text>
       <view class="vs-grid2">
         <view class="vs-card" :class="{ on: visibility === 'circle_only' }" @tap="emit('update:visibility', 'circle_only')">
@@ -65,8 +68,8 @@ function onPriceInput(e: any) {
           <view v-if="paymentType === 'free'" class="vs-check"><app-icon name="check" :size="20" color="#ffffff" /></view>
         </view>
 
-        <!-- 付费（仅全平台可见） -->
-        <view v-if="visibility === 'platform_wide'" class="vs-pay" :class="{ on: paymentType === 'paid' }" @tap="emit('update:paymentType', 'paid')">
+        <!-- 付费（全平台可见，或不展示可见性时直接可选） -->
+        <view v-if="!showVisibility || visibility === 'platform_wide'" class="vs-pay" :class="{ on: paymentType === 'paid' }" @tap="emit('update:paymentType', 'paid')">
           <view class="vs-pay-icon paid" :class="{ on: paymentType === 'paid' }"><app-icon name="coins" :size="26" :color="paymentType === 'paid' ? '#ffffff' : 'rgba(255,255,255,0.6)'" /></view>
           <view class="vs-pay-main">
             <text class="vs-pay-title" :class="{ on: paymentType === 'paid' }">付费</text>
@@ -75,8 +78,8 @@ function onPriceInput(e: any) {
           <view v-if="paymentType === 'paid'" class="vs-check"><app-icon name="check" :size="20" color="#ffffff" /></view>
         </view>
 
-        <!-- 圈内免费（仅全平台可见） -->
-        <view v-if="visibility === 'platform_wide'" class="vs-pay" :class="{ on: paymentType === 'member_free' }" @tap="emit('update:paymentType', 'member_free')">
+        <!-- 圈内免费（全平台可见，或不展示可见性时直接可选） -->
+        <view v-if="!showVisibility || visibility === 'platform_wide'" class="vs-pay" :class="{ on: paymentType === 'member_free' }" @tap="emit('update:paymentType', 'member_free')">
           <view class="vs-pay-icon member" :class="{ on: paymentType === 'member_free' }"><app-icon name="users" :size="26" :color="paymentType === 'member_free' ? '#ffffff' : 'rgba(255,255,255,0.6)'" /></view>
           <view class="vs-pay-main">
             <text class="vs-pay-title" :class="{ on: paymentType === 'member_free' }">圈内免费</text>
@@ -106,15 +109,15 @@ function onPriceInput(e: any) {
 .vs-label { display: block; font-size: 28rpx; font-weight: 500; color: #fff; margin-bottom: 24rpx; }
 .vs-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 24rpx; }
 .vs-card { padding: 28rpx; border-radius: 20rpx; border: 4rpx solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); }
-.vs-card.on { border-color: #C41E3A; background: rgba(196,30,58,0.1); }
+.vs-card.on { border-color: var(--brand); background: rgba(196,30,58,0.1); }
 .vs-card-icon { width: 64rpx; height: 64rpx; border-radius: 14rpx; background: rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; margin-bottom: 16rpx; }
-.vs-card-icon.on { background: #C41E3A; }
+.vs-card-icon.on { background: var(--brand); }
 .vs-card-title { display: block; font-size: 28rpx; font-weight: 500; color: #fff; }
-.vs-card-title.on { color: #C41E3A; }
+.vs-card-title.on { color: var(--brand); }
 .vs-card-desc { display: block; font-size: 20rpx; color: rgba(255,255,255,0.5); margin-top: 8rpx; }
 .vs-pay-list { display: flex; flex-direction: column; gap: 20rpx; }
 .vs-pay { display: flex; align-items: center; gap: 20rpx; padding: 28rpx; border-radius: 20rpx; border: 4rpx solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); }
-.vs-pay.on { border-color: #C41E3A; background: rgba(196,30,58,0.1); }
+.vs-pay.on { border-color: var(--brand); background: rgba(196,30,58,0.1); }
 .vs-pay-icon { width: 72rpx; height: 72rpx; border-radius: 14rpx; background: rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .vs-pay-icon.free.on { background: #52C41A; }
 .vs-pay-icon.paid.on { background: #C9A96E; }
@@ -125,12 +128,12 @@ function onPriceInput(e: any) {
 .vs-pay-title { display: block; font-size: 28rpx; font-weight: 500; color: rgba(255,255,255,0.8); }
 .vs-pay-title.on { color: #fff; }
 .vs-pay-desc { display: block; font-size: 22rpx; color: rgba(255,255,255,0.5); margin-top: 4rpx; }
-.vs-check { width: 36rpx; height: 36rpx; border-radius: 999rpx; background: #C41E3A; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.vs-check { width: 36rpx; height: 36rpx; border-radius: 999rpx; background: var(--brand); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .vs-price { margin-top: 12rpx; padding: 28rpx; background: rgba(255,255,255,0.05); border-radius: 20rpx; }
 .vs-price-label { display: block; font-size: 28rpx; font-weight: 500; color: #fff; margin-bottom: 16rpx; }
 .vs-price-row { display: flex; align-items: center; gap: 16rpx; }
 .vs-price-symbol { font-size: 36rpx; font-weight: 700; color: #C9A96E; }
 .vs-price-input { flex: 1; padding: 24rpx 28rpx; border-radius: 16rpx; border: 2rpx solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); color: #fff; font-size: 36rpx; font-weight: 700; }
-.vs-price-err { display: block; font-size: 22rpx; color: #C41E3A; margin-top: 16rpx; }
+.vs-price-err { display: block; font-size: 22rpx; color: var(--brand); margin-top: 16rpx; }
 .vs-price-tip { display: block; font-size: 20rpx; color: rgba(255,255,255,0.4); margin-top: 16rpx; }
 </style>

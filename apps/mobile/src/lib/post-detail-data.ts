@@ -1,6 +1,9 @@
 /**
- * 帖子详情页数据（从原型 app/circles/[id]/posts/[postId]/page.tsx 1:1 迁移）
+ * 帖子详情页数据 + API
+ * 真连后端 GET /circles/:id/posts/:postId + GET /comment?targetType=POST。
+ * 富页面字段（音频/打赏/作者等级粉丝/阅读量/收藏/分享）后端无 → 适配为空，页面对应板块降级隐藏。
  */
+import { apiGet, apiPost } from '@/utils/request'
 
 export interface PostAuthor {
   id: string
@@ -225,3 +228,159 @@ export function parseMarkdown(content: string): MdBlock[] {
 
 export const REWARD_QUICK = [5, 10, 20, 50]
 export const REWARD_ALL = [5, 10, 20, 50, 100, 200, 500, 1000]
+
+// ─────────────────────────── API ───────────────────────────
+
+/** ISO → 相对时间 */
+function relTime(iso?: string): string {
+  if (!iso) return ''
+  const t = new Date(iso).getTime()
+  if (Number.isNaN(t)) return String(iso)
+  const diff = Date.now() - t
+  const min = Math.floor(diff / 60000)
+  if (min < 1) return '刚刚'
+  if (min < 60) return `${min}分钟前`
+  const hour = Math.floor(min / 60)
+  if (hour < 24) return `${hour}小时前`
+  const day = Math.floor(hour / 24)
+  if (day < 7) return `${day}天前`
+  const d = new Date(iso)
+  return `${d.getMonth() + 1}月${d.getDate()}日`
+}
+
+/** 后端 PostType → 前端 type */
+function mapPostType(t?: string): PostDetail['type'] {
+  const u = String(t || '').toUpperCase()
+  if (u === 'ARTICLE') return 'article'
+  if (u === 'AUDIO') return 'audio'
+  if (u === 'QA' || u === 'QUESTION') return 'qa'
+  return 'normal'
+}
+
+/** 后端帖子详情 → 前端 PostDetail（后端无的富字段留空，页面隐藏） */
+function adaptPostDetail(p: any, commentsCount = 0): PostDetail {
+  return {
+    id: p.id,
+    type: mapPostType(p.type),
+    circleId: p.circleId ?? p.circle?.id ?? '',
+    circleName: p.circle?.name ?? '',
+    title: p.title ?? '',
+    content: p.content ?? '',
+    images: Array.isArray(p.images) ? p.images.map((u: string) => ({ url: u })) : [],
+    audio: undefined, // 后端无音频
+    author: {
+      id: p.user?.id ?? p.userId ?? '',
+      name: p.user?.nickname ?? '匿名',
+      avatar: p.user?.avatar ?? '',
+      title: p.user?.title, // 以下后端无 → undefined，页面隐藏
+      level: undefined,
+      levelName: undefined,
+      isFollowed: false,
+      followers: undefined,
+      posts: undefined,
+    },
+    createdAt: relTime(p.createdAt),
+    readTime: 0, // 后端无 → 隐藏
+    views: 0,
+    likes: p.likeCount ?? p.likes ?? 0,
+    collects: 0,
+    comments: commentsCount,
+    shares: 0,
+    isLiked: false,
+    isCollected: false,
+    isPinned: p.isTop ?? false,
+    isEssence: p.isEssence ?? false,
+    reward: 0, // 后端无打赏统计 → 隐藏
+    rewardCount: 0,
+  }
+}
+
+/** 后端评论回复 → 前端 CommentReply */
+function adaptReply(r: any): CommentReply {
+  return {
+    id: r.id,
+    content: r.content ?? '',
+    author: { id: r.user?.id ?? r.userId ?? '', name: r.user?.nickname ?? '匿名', avatar: r.user?.avatar ?? '' },
+    createdAt: relTime(r.createdAt),
+    likes: r.likeCount ?? r.likes ?? 0,
+    isLiked: false,
+  }
+}
+
+/** 后端评论 → 前端 Comment */
+function adaptComment(c: any): Comment {
+  return {
+    id: c.id,
+    content: c.content ?? '',
+    author: { id: c.user?.id ?? c.userId ?? '', name: c.user?.nickname ?? '匿名', avatar: c.user?.avatar ?? '', title: c.user?.title },
+    createdAt: relTime(c.createdAt),
+    likes: c.likeCount ?? c.likes ?? 0,
+    isLiked: false,
+    isPinned: c.isPinned ?? false,
+    replies: Array.isArray(c.replies) ? c.replies.map(adaptReply) : [],
+  }
+}
+
+export const postDetailApi = {
+  /** 帖子详情（含评论数）— GET /circles/:id/posts/:postId + /comment/count */
+  getDetail: async (circleId: string, postId: string): Promise<PostDetail> => {
+    const [p, cnt] = await Promise.all([
+      apiGet<any>(`/circles/${circleId}/posts/${postId}`),
+      apiGet<any>(`/comment/count?targetType=POST&targetId=${postId}`).catch(() => 0),
+    ])
+    const count = typeof cnt === 'number' ? cnt : (cnt?.count ?? 0)
+    return adaptPostDetail(p, count)
+  },
+  /** 帖子评论列表 — GET /comment?targetType=POST&targetId=（无评论时返回 []，页面空态） */
+  getComments: async (postId: string): Promise<Comment[]> => {
+    try {
+      const r = await apiGet<any>(`/comment?targetType=POST&targetId=${postId}`)
+      const arr = Array.isArray(r) ? r : (r?.data ?? r?.comments ?? r?.items ?? [])
+      return arr.map(adaptComment)
+    } catch { return [] }
+  },
+
+  // ───────── 互动（写操作，需登录；apiPost 自动加 token + 剥信封） ─────────
+
+  /** 帖子点赞/取消（toggle）— POST /interaction/like */
+  toggleLike: (postId: string): Promise<any> =>
+    apiPost<any>('/interaction/like', { targetType: 'POST', targetId: postId }),
+
+  /** 帖子收藏/取消（toggle）— POST /interaction/collect */
+  toggleCollect: (postId: string): Promise<any> =>
+    apiPost<any>('/interaction/collect', { targetType: 'POST', targetId: postId }),
+
+  /** 关注/取消关注作者 — POST /interaction/follow */
+  toggleFollow: (userId: string): Promise<any> =>
+    apiPost<any>('/interaction/follow', { followedUserId: userId }),
+
+  /** 发评论/回复 — POST /interaction/comment（parentId 用于回复）。读评论仍走 /comment */
+  createComment: (postId: string, content: string, parentId?: string): Promise<any> =>
+    apiPost<any>('/interaction/comment', {
+      targetType: 'POST',
+      targetId: postId,
+      content,
+      ...(parentId ? { parentId } : {}),
+    }),
+
+  /** 评论点赞/取消（toggle）— POST /interaction/like，targetType=COMMENT */
+  toggleCommentLike: (commentId: string): Promise<any> =>
+    apiPost<any>('/interaction/like', { targetType: 'COMMENT', targetId: commentId }),
+
+  /** 检查当前用户对帖子的点赞状态 — GET /interaction/like/check（详情不返回点赞态） */
+  checkPostLiked: async (postId: string): Promise<boolean> => {
+    try {
+      const r = await apiGet<any>(`/interaction/like/check?targetType=POST&targetIds=${postId}`)
+      // 后端返回已点赞的 targetId 字符串数组；兼容对象数组 / 字典等其他形态
+      const data = r?.data ?? r
+      if (Array.isArray(data)) {
+        return data.some((x: any) => String(x?.targetId ?? x?.id ?? x) === String(postId))
+      }
+      if (data && typeof data === 'object') {
+        const v = data[postId] ?? data[String(postId)]
+        return !!(typeof v === 'object' ? (v?.liked ?? v?.isLiked) : v)
+      }
+      return !!data
+    } catch { return false }
+  },
+}

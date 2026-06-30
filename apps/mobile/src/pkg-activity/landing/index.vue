@@ -219,7 +219,7 @@ onUnmounted(() => {
   position: relative;
   width: 100%;
   height: 375rpx;
-  background: linear-gradient(135deg, #C41E3A, #C9A96E);
+  background: linear-gradient(135deg, var(--brand), #C9A96E);
 }
 .banner-mask {
   position: absolute;
@@ -270,7 +270,7 @@ onUnmounted(() => {
   height: 48rpx;
   padding: 0 8rpx;
   border-radius: 8rpx;
-  background: #C41E3A;
+  background: var(--brand);
   color: #FFFFFF;
   font-size: 26rpx;
   font-weight: 700;
@@ -340,7 +340,7 @@ onUnmounted(() => {
 .sk-price {
   font-size: 36rpx;
   font-weight: 700;
-  color: #C41E3A;
+  color: var(--brand);
 }
 .sk-origin {
   font-size: 26rpx;
@@ -368,7 +368,7 @@ onUnmounted(() => {
 }
 .sk-bar-fill {
   height: 100%;
-  background: linear-gradient(90deg, #C41E3A, #C9A96E);
+  background: linear-gradient(90deg, var(--brand), #C9A96E);
   border-radius: 8rpx;
 }
 .sk-item-foot {
@@ -378,7 +378,7 @@ onUnmounted(() => {
 }
 .sk-buy {
   padding: 14rpx 40rpx;
-  background: #C41E3A;
+  background: var(--brand);
   border-radius: 999rpx;
 }
 .sk-buy.disabled {
@@ -423,7 +423,7 @@ onUnmounted(() => {
 }
 .rule-no {
   font-size: 26rpx;
-  color: #C41E3A;
+  color: var(--brand);
 }
 .rule-txt {
   flex: 1;

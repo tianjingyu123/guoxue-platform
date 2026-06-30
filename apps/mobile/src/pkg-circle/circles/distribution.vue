@@ -69,7 +69,7 @@
       <view v-else class="list">
         <text class="guests-hint">为特定嘉宾/老师设置个性化分成比例，覆盖默认方案</text>
         <view v-for="g in guestOverrides" :key="g.guestId" class="guest-card">
-          <image class="guest-avatar" :src="g.avatar" mode="aspectFill" />
+          <image lazy-load class="guest-avatar" :src="g.avatar" mode="aspectFill" />
           <view class="guest-info">
             <text class="guest-name">{{ g.guestName }}</text>
             <view class="guest-types">
@@ -281,7 +281,7 @@ function handleSave() {
 .hdr-title { font-size: 32rpx; font-weight: 600; color: #2C2C2C; }
 .tabs { display: flex; border-bottom: 1rpx solid #ECE7DD; }
 .tab { flex: 1; text-align: center; padding: 24rpx 0; font-size: 26rpx; color: #999999; border-bottom: 4rpx solid transparent; }
-.tab.on { color: #C41E3A; border-bottom-color: #C41E3A; font-weight: 500; }
+.tab.on { color: var(--brand); border-bottom-color: var(--brand); font-weight: 500; }
 .scroll { height: calc(100vh - 200rpx); }
 
 .info-card { display: flex; gap: 16rpx; margin: 28rpx 32rpx 0; padding: 28rpx; background: #FFFBEB; border: 1rpx solid #FDE68A; border-radius: 24rpx; }
@@ -295,7 +295,7 @@ function handleSave() {
 .plan-info { flex: 1; }
 .plan-name-row { display: flex; align-items: center; gap: 12rpx; }
 .plan-name { font-size: 28rpx; font-weight: 500; color: #2C2C2C; }
-.plan-default { font-size: 18rpx; padding: 2rpx 10rpx; border-radius: 6rpx; background: rgba(196,30,58,0.1); color: #C41E3A; }
+.plan-default { font-size: 18rpx; padding: 2rpx 10rpx; border-radius: 6rpx; background: rgba(196,30,58,0.1); color: var(--brand); }
 .plan-desc { display: block; font-size: 22rpx; color: #999999; margin-top: 6rpx; }
 .plan-edit { width: 56rpx; height: 56rpx; display: flex; align-items: center; justify-content: center; }
 .plan-types { display: flex; flex-wrap: wrap; gap: 10rpx; margin-top: 20rpx; }
@@ -321,7 +321,7 @@ function handleSave() {
 .guest-types { display: flex; flex-wrap: wrap; gap: 8rpx; margin-top: 8rpx; }
 .guest-type { font-size: 18rpx; padding: 2rpx 10rpx; border-radius: 6rpx; }
 .guest-share { text-align: right; }
-.guest-pct { display: block; font-size: 34rpx; font-weight: 700; color: #C41E3A; }
+.guest-pct { display: block; font-size: 34rpx; font-weight: 700; color: var(--brand); }
 .guest-share-t { font-size: 18rpx; color: #999999; }
 .empty { display: flex; flex-direction: column; align-items: center; padding: 60rpx 0; }
 .empty-t { font-size: 26rpx; color: #999999; margin-top: 20rpx; }
@@ -334,7 +334,7 @@ function handleSave() {
 .sheet-hdr { display: flex; align-items: center; justify-content: space-between; padding: 28rpx; border-bottom: 1rpx solid #F0EDE6; }
 .sheet-cancel { font-size: 28rpx; color: #999999; }
 .sheet-title { font-size: 30rpx; font-weight: 500; color: #2C2C2C; }
-.sheet-save { font-size: 28rpx; color: #C41E3A; font-weight: 500; }
+.sheet-save { font-size: 28rpx; color: var(--brand); font-weight: 500; }
 .sheet-body { padding: 28rpx; max-height: 75vh; }
 .err { display: flex; align-items: center; gap: 10rpx; padding: 20rpx; background: #FEF2F2; border-radius: 16rpx; margin-bottom: 24rpx; }
 .err-t { font-size: 24rpx; color: #DC2626; }
@@ -349,10 +349,10 @@ function handleSave() {
 .slider-name { font-size: 26rpx; color: #999999; }
 .slider-val { font-size: 26rpx; font-weight: 500; color: #2C2C2C; }
 .slider-val.gold { color: #C9A96E; }
-.slider-val.red { color: #C41E3A; }
+.slider-val.red { color: var(--brand); }
 .slider-hint { display: block; font-size: 18rpx; color: #999999; margin-top: 8rpx; }
 .creator-bar { width: 100%; height: 14rpx; background: #F7F4EE; border-radius: 999rpx; overflow: hidden; }
-.creator-fill { height: 100%; background: #C41E3A; }
+.creator-fill { height: 100%; background: var(--brand); }
 .total { display: flex; align-items: center; justify-content: space-between; padding: 20rpx; border-radius: 16rpx; }
 .total.ok { background: #F0FDF4; }
 .total.bad { background: #FEF2F2; }
@@ -364,7 +364,7 @@ function handleSave() {
 .default-name { font-size: 26rpx; font-weight: 500; color: #2C2C2C; }
 .default-sub { display: block; font-size: 18rpx; color: #999999; margin-top: 4rpx; }
 .switch { width: 88rpx; height: 48rpx; border-radius: 999rpx; background: #D9D4C8; position: relative; transition: background 0.2s; }
-.switch.on { background: #C41E3A; }
+.switch.on { background: var(--brand); }
 .switch-knob { position: absolute; top: 4rpx; left: 4rpx; width: 40rpx; height: 40rpx; background: #ffffff; border-radius: 999rpx; box-shadow: 0 2rpx 6rpx rgba(0,0,0,0.2); transition: transform 0.2s; }
 .switch.on .switch-knob { transform: translateX(40rpx); }
 

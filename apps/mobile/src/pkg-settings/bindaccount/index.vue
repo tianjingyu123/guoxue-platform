@@ -64,5 +64,5 @@ function unbind(type: string) {
 .label { font-size: 28rpx; font-weight: 500; color: #2c2c2c; }
 .value { font-size: 24rpx; color: #8a8378; }
 .unbind { font-size: 24rpx; color: #8a8378; }
-.bind { display: flex; align-items: center; gap: 4rpx; font-size: 24rpx; font-weight: 500; color: #c41e3a; }
+.bind { display: flex; align-items: center; gap: 4rpx; font-size: 24rpx; font-weight: 500; color: var(--brand); }
 </style>

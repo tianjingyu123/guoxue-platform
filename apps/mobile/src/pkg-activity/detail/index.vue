@@ -1,5 +1,6 @@
 <template>
   <view class="page">
+    <customer-service-fab />
     <!-- 顶部导航 -->
     <view class="nav" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="nav-btn" @tap="onBack">
@@ -454,7 +455,7 @@ onUnmounted(() => {
 .dot.on {
   width: 32rpx;
   border-radius: 6rpx;
-  background: #C41E3A;
+  background: var(--brand);
 }
 .section-pad {
   padding: 24rpx 32rpx;
@@ -490,7 +491,7 @@ onUnmounted(() => {
   width: 56rpx;
   height: 56rpx;
   border-radius: 8rpx;
-  background: #C41E3A;
+  background: var(--brand);
   color: #FFFFFF;
   font-size: 28rpx;
   font-weight: 700;
@@ -598,7 +599,7 @@ onUnmounted(() => {
 .coupon-amount {
   font-size: 48rpx;
   font-weight: 700;
-  color: #C41E3A;
+  color: var(--brand);
 }
 .coupon-amount.gray {
   color: #999;
@@ -615,7 +616,7 @@ onUnmounted(() => {
 .coupon-btn {
   width: 100%;
   padding: 16rpx 0;
-  background: #C41E3A;
+  background: var(--brand);
   text-align: center;
 }
 .coupon-btn.claimed {
@@ -649,7 +650,7 @@ onUnmounted(() => {
   position: absolute;
   top: 8rpx;
   right: 8rpx;
-  background: #C41E3A;
+  background: var(--brand);
   border-radius: 6rpx;
   padding: 2rpx 8rpx;
 }
@@ -676,7 +677,7 @@ onUnmounted(() => {
 }
 .sk-price {
   font-size: 28rpx;
-  color: #C41E3A;
+  color: var(--brand);
   font-weight: 700;
 }
 .sk-origin {
@@ -695,7 +696,7 @@ onUnmounted(() => {
 }
 .sk-bar-fill {
   height: 100%;
-  background: linear-gradient(90deg, #C41E3A, #C9A96E);
+  background: linear-gradient(90deg, var(--brand), #C9A96E);
   border-radius: 6rpx;
 }
 .sk-sold {
@@ -743,7 +744,7 @@ onUnmounted(() => {
   color: #C9A96E;
 }
 .prod-tag.goods .prod-tag-txt {
-  color: #C41E3A;
+  color: var(--brand);
 }
 .prod-info {
   padding: 20rpx;
@@ -765,7 +766,7 @@ onUnmounted(() => {
 }
 .prod-price {
   font-size: 32rpx;
-  color: #C41E3A;
+  color: var(--brand);
   font-weight: 700;
 }
 .prod-origin {
@@ -805,7 +806,7 @@ onUnmounted(() => {
   border-radius: 999rpx;
 }
 .rank-tab.on {
-  background: #C41E3A;
+  background: var(--brand);
 }
 .rank-tab-txt {
   font-size: 24rpx;
@@ -862,7 +863,7 @@ onUnmounted(() => {
 }
 .rank-amount {
   font-size: 28rpx;
-  color: #C41E3A;
+  color: var(--brand);
   font-weight: 500;
 }
 .rank-foot {
@@ -916,11 +917,11 @@ onUnmounted(() => {
   margin-top: 4rpx;
 }
 .share-bar-hl {
-  color: #C41E3A;
+  color: var(--brand);
 }
 .share-bar-btn {
   padding: 16rpx 48rpx;
-  background: #C41E3A;
+  background: var(--brand);
   border-radius: 999rpx;
 }
 .share-bar-btn-txt {

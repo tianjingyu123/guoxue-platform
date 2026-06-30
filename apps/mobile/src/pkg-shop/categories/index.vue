@@ -70,7 +70,7 @@
               hover-class="card-hover"
               @tap="goProduct(p.id)"
             >
-              <image class="goods-img" :src="p.cover" mode="aspectFill" />
+              <image lazy-load class="goods-img" :src="p.cover" mode="aspectFill" />
               <text class="goods-name">{{ p.name }}</text>
               <view class="goods-price-row">
                 <text class="goods-price">¥{{ p.price }}</text>
@@ -97,20 +97,6 @@ import { navigateTo } from '@/utils/router'
 import { shopApi, type ShopCategoryNode, type ShopCategoryProduct } from '@/lib/shop-data'
 import AppSkeleton from '@/components/common/app-skeleton.vue'
 
-const IMG = '/static/images/products'
-
-/** 本地产品后备数据（待后端 API 支持品类产品后移除） */
-const _localProducts: ShopCategoryProduct[] = [
-  { id: 'cp1', name: '易经全解', cover: `${IMG}/book1.jpg`, price: 128, originalPrice: 168, sales: 100 },
-  { id: 'cp2', name: '毛笔套装', cover: `${IMG}/item4.jpg`, price: 89, originalPrice: 128, sales: 237 },
-  { id: 'cp3', name: '沉香线香', cover: `${IMG}/item5.jpg`, price: 168, originalPrice: 218, sales: 374 },
-  { id: 'cp4', name: '紫砂茶壶', cover: `${IMG}/item3.jpg`, price: 299, originalPrice: 399, sales: 511 },
-  { id: 'cp5', name: '艾灸盒', cover: `${IMG}/item6.jpg`, price: 68, originalPrice: 98, sales: 648 },
-  { id: 'cp6', name: '招财貔貅', cover: `${IMG}/item2.jpg`, price: 388, originalPrice: 488, sales: 785 },
-  { id: 'cp7', name: '小叶紫檀念珠', cover: `${IMG}/item1.jpg`, price: 258, originalPrice: 328, sales: 922 },
-  { id: 'cp8', name: '古琴入门', cover: `${IMG}/item7.jpg`, price: 1999, originalPrice: 2599, sales: 1059 },
-]
-
 const categories = ref<ShopCategoryNode[]>([])
 const products = ref<ShopCategoryProduct[]>([])
 const selectedCategory = ref('')
@@ -118,18 +104,33 @@ const selectedSubCategory = ref('')
 const loading = ref(true)
 const error = ref('')
 
+const currentCategory = computed(() => categories.value.find((c) => c.id === selectedCategory.value))
+
 async function loadCategories() {
   loading.value = true
   error.value = ''
   try {
     categories.value = await shopApi.getCategories()
-    products.value = _localProducts
-    if (categories.value.length > 0 && !selectedCategory.value) {
+    if (categories.value.length > 0) {
       selectedCategory.value = categories.value[0].id
-      if (categories.value[0].children.length > 0) {
-        selectedSubCategory.value = categories.value[0].children[0].id
-      }
+      selectedSubCategory.value = categories.value[0].children[0]?.id || ''
+      await loadProducts()
+    } else {
+      products.value = []
+      loading.value = false
     }
+  } catch (_e) {
+    error.value = '加载失败，请重试'
+    loading.value = false
+  }
+}
+
+/** 加载当前选中分类的商品：优先按二级分类，无二级则按一级分类 */
+async function loadProducts() {
+  loading.value = true
+  error.value = ''
+  try {
+    products.value = await shopApi.getCategoryProducts(selectedSubCategory.value || selectedCategory.value)
   } catch (_e) {
     error.value = '加载失败，请重试'
   } finally {
@@ -141,24 +142,18 @@ onMounted(() => { loadCategories() })
 
 function retry() { loadCategories() }
 
-function triggerLoading() {
-  loading.value = true
-  setTimeout(() => (loading.value = false), 450)
-}
 function selectSub(id: string) {
   if (selectedSubCategory.value === id) return
   selectedSubCategory.value = id
-  triggerLoading()
+  loadProducts()
 }
-
-const currentCategory = computed(() => categories.value.find((c) => c.id === selectedCategory.value))
 
 function handleCategoryClick(id: string) {
   if (selectedCategory.value === id) return
   selectedCategory.value = id
   const cat = categories.value.find((c) => c.id === id)
-  if (cat?.children.length) selectedSubCategory.value = cat.children[0].id
-  triggerLoading()
+  selectedSubCategory.value = cat?.children[0]?.id || ''
+  loadProducts()
 }
 function goProduct(id: string) {
   navigateTo(`/shop/${id}`)
@@ -225,7 +220,7 @@ function goSearch() {
   transform: translateY(-50%);
   width: 8rpx;
   height: 56rpx;
-  background: #c41e3a;
+  background: var(--brand);
   border-radius: 0 6rpx 6rpx 0;
 }
 .rail-icon {
@@ -241,7 +236,7 @@ function goSearch() {
   text-align: center;
 }
 .rail-active .rail-name {
-  color: #c41e3a;
+  color: var(--brand);
   font-weight: 500;
 }
 .right-panel {
@@ -270,7 +265,7 @@ function goSearch() {
   transform: scale(0.95);
 }
 .sub-tab-active {
-  background: #c41e3a;
+  background: var(--brand);
   color: #fff;
 }
 .goods-card {
@@ -339,7 +334,7 @@ function goSearch() {
 .goods-price {
   font-size: 30rpx;
   font-weight: 700;
-  color: #c41e3a;
+  color: var(--brand);
 }
 .goods-old {
   font-size: 22rpx;
@@ -376,7 +371,7 @@ function goSearch() {
 .retry-btn {
   margin-top: 24rpx;
   padding: 16rpx 48rpx;
-  background: #c41e3a;
+  background: var(--brand);
   border-radius: 999rpx;
 }
 .retry-text {

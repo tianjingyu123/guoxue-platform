@@ -26,31 +26,42 @@
 
     <scroll-view scroll-y class="follows-scroll">
       <view class="follows-list">
-        <view v-if="currentList.length === 0" class="follows-empty">
+        <!-- 加载态 -->
+        <view v-if="loading" class="follows-empty">
+          <text class="empty-title">加载中...</text>
+        </view>
+        <!-- 错误态 -->
+        <view v-else-if="error" class="follows-empty">
+          <app-icon name="alert-circle" :size="100" color="rgba(0,0,0,0.15)" />
+          <text class="empty-title">{{ error }}</text>
+          <view class="retry-btn" @tap="fetchData"><text class="retry-btn-text">重试</text></view>
+        </view>
+        <!-- 空态 -->
+        <view v-else-if="currentList.length === 0" class="follows-empty">
           <app-icon name="users" :size="120" color="rgba(0,0,0,0.15)" />
           <text class="empty-title">{{ activeTab === 'following' ? '暂无关注' : '暂无粉丝' }}</text>
           <text class="empty-desc">{{ activeTab === 'following' ? '去发现更多感兴趣的人吧' : '分享优质内容吸引更多关注' }}</text>
         </view>
 
         <view
-          v-for="user in currentList"
+          v-for="user in (loading || error ? [] : currentList)"
           :key="user.id"
           class="user-item"
           @tap="goUser(user.id)"
         >
           <view class="user-avatar-wrap">
-            <image class="user-avatar" :src="user.avatar || defaultAvatar" mode="aspectFill" />
+            <image lazy-load class="user-avatar" :src="user.avatar || defaultAvatar" mode="aspectFill" />
             <view v-if="user.isFollowing && user.isFollowedBy" class="mutual-badge">
               <app-icon name="users" :size="18" color="#fff" />
             </view>
           </view>
           <view class="user-info">
             <text class="user-name">{{ user.name }}</text>
-            <text class="user-bio">{{ user.bio || `${user.followers} 粉丝` }}</text>
+            <text class="user-bio">{{ user.isFollowing && user.isFollowedBy ? '互相关注' : (user.isFollowedBy ? '关注了你' : '') }}</text>
           </view>
           <view
             class="follow-btn"
-            :class="followBtnClass(user)"
+            :class="[followBtnClass(user), { disabled: submittingId === user.id }]"
             @tap.stop="toggleFollow(user)"
           >
             <app-icon :name="followBtnIcon(user)" :size="22" :color="followBtnIconColor(user)" />
@@ -63,61 +74,74 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { navigateTo } from '@/utils/router'
-
-interface FollowUser {
-  id: string
-  name: string
-  avatar: string
-  bio?: string
-  followers: number
-  isFollowing: boolean
-  isFollowedBy: boolean
-}
+import { mineApi, type FollowUserItem } from '@/lib/mine-data'
 
 const defaultAvatar = '/static/placeholder-avatar.png'
 
 const activeTab = ref<'following' | 'followers'>('following')
-
-const followingList = ref<FollowUser[]>([
-  { id: '1', name: '易学大师王老师', avatar: '', bio: '专注易经研究30年，擅长八字命理与风水布局', followers: 12580, isFollowing: true, isFollowedBy: true },
-  { id: '2', name: '道法自然', avatar: '', bio: '传播传统文化，弘扬国学智慧', followers: 8920, isFollowing: true, isFollowedBy: false },
-  { id: '3', name: '玄学研究院', avatar: '', bio: '专业玄学研究机构官方账号', followers: 45600, isFollowing: true, isFollowedBy: true },
-  { id: '4', name: '风水师李明', avatar: '', bio: '阳宅风水、办公室布局、家居环境优化', followers: 6780, isFollowing: true, isFollowedBy: false },
-  { id: '5', name: '命理学堂', avatar: '', bio: '八字命理入门到精通，系统学习命理知识', followers: 23400, isFollowing: true, isFollowedBy: true },
-])
-
-const followersList = ref<FollowUser[]>([
-  { id: '6', name: '学习者小王', avatar: '', bio: '国学爱好者，正在学习易经', followers: 128, isFollowing: false, isFollowedBy: true },
-  { id: '7', name: '传统文化粉', avatar: '', bio: '热爱传统文化', followers: 256, isFollowing: true, isFollowedBy: true },
-  { id: '8', name: '易学初学者', avatar: '', bio: '刚开始接触易学，求指导', followers: 45, isFollowing: false, isFollowedBy: true },
-  { id: '9', name: '风水研究者', avatar: '', bio: '从事风水研究5年', followers: 890, isFollowing: true, isFollowedBy: true },
-  { id: '10', name: '命理爱好者', avatar: '', bio: '对八字命理很感兴趣', followers: 320, isFollowing: false, isFollowedBy: true },
-])
+const followingList = ref<FollowUserItem[]>([])
+const followersList = ref<FollowUserItem[]>([])
+const loading = ref(true)
+const error = ref('')
+const submittingId = ref<string | null>(null)
 
 const currentList = computed(() => (activeTab.value === 'following' ? followingList.value : followersList.value))
 
-function toggleFollow(user: FollowUser) {
-  user.isFollowing = !user.isFollowing
+async function fetchData() {
+  loading.value = true
+  error.value = ''
+  try {
+    const res = await mineApi.getFollowData()
+    followingList.value = res.following
+    followersList.value = res.followers
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
 }
 
-function followBtnClass(u: FollowUser) {
-  if (u.isFollowing && u.isFollowedBy) return 'btn-muted'
-  if (u.isFollowing) return 'btn-muted'
-  return 'btn-primary'
+onMounted(fetchData)
+
+async function toggleFollow(user: FollowUserItem) {
+  if (submittingId.value) return
+  submittingId.value = user.id
+  const next = !user.isFollowing
+  try {
+    if (next) await mineApi.followUser(user.id)
+    else await mineApi.unfollowUser(user.id)
+    // 同步两个列表中同一用户的关注态
+    for (const list of [followingList.value, followersList.value]) {
+      const u = list.find((x) => x.id === user.id)
+      if (u) u.isFollowing = next
+    }
+    // 关注列表：取关后从列表移除
+    if (!next) {
+      followingList.value = followingList.value.filter((x) => x.id !== user.id)
+    }
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '操作失败', icon: 'none' })
+  } finally {
+    submittingId.value = null
+  }
 }
-function followBtnText(u: FollowUser) {
+
+function followBtnClass(u: FollowUserItem) {
+  return u.isFollowing ? 'btn-muted' : 'btn-primary'
+}
+function followBtnText(u: FollowUserItem) {
   if (u.isFollowing && u.isFollowedBy) return '互相关注'
   if (u.isFollowing) return '已关注'
   return '关注'
 }
-function followBtnIcon(u: FollowUser) {
+function followBtnIcon(u: FollowUserItem) {
   if (u.isFollowing && u.isFollowedBy) return 'users'
   if (u.isFollowing) return 'user-check'
   return 'user-plus'
 }
-function followBtnIconColor(u: FollowUser) {
+function followBtnIconColor(u: FollowUserItem) {
   return u.isFollowing ? '#999' : '#fff'
 }
 
@@ -148,7 +172,7 @@ function goUser(id: string) {
   padding: 24rpx 0;
 }
 .tab-text { font-size: 30rpx; color: #999; }
-.follows-tab.active .tab-text { color: #c41e3a; font-weight: 500; }
+.follows-tab.active .tab-text { color: var(--brand); font-weight: 500; }
 .tab-count {
   font-size: 22rpx;
   color: #999;
@@ -163,7 +187,7 @@ function goUser(id: string) {
   transform: translateX(-50%);
   width: 96rpx;
   height: 4rpx;
-  background: #c41e3a;
+  background: var(--brand);
   border-radius: 999rpx;
 }
 
@@ -183,6 +207,9 @@ function goUser(id: string) {
 }
 .empty-title { font-size: 32rpx; color: #999; margin: 32rpx 0 16rpx; }
 .empty-desc { font-size: 26rpx; color: #bbb; }
+.retry-btn { margin-top: 24rpx; padding: 16rpx 48rpx; background: var(--brand); border-radius: 12rpx; }
+.retry-btn-text { font-size: 26rpx; color: #fff; }
+.follow-btn.disabled { opacity: 0.5; }
 
 .user-item {
   display: flex;
@@ -207,7 +234,7 @@ function goUser(id: string) {
   right: -4rpx;
   width: 32rpx;
   height: 32rpx;
-  background: #c41e3a;
+  background: var(--brand);
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -245,7 +272,7 @@ function goUser(id: string) {
   flex-shrink: 0;
 }
 .follow-btn-text { font-size: 24rpx; }
-.btn-primary { background: #c41e3a; }
+.btn-primary { background: var(--brand); }
 .btn-primary .follow-btn-text { color: #fff; }
 .btn-muted { background: #f4f4f5; }
 .btn-muted .follow-btn-text { color: #999; }

@@ -26,6 +26,12 @@
       <view class="error-retry" @tap="fetchFlashSaleData()"><text>重试</text></view>
     </view>
 
+    <!-- 空态：当前无进行中秒杀 -->
+    <view v-else-if="!data || !data.products || !data.products.length" class="error-zone">
+      <app-icon name="zap" :size="72" color="rgba(255,255,255,0.6)" />
+      <text class="error-text">当前暂无进行中的秒杀场次</text>
+    </view>
+
     <template v-else>
     <!-- 时段切换 -->
     <scroll-view scroll-x class="slots">
@@ -78,7 +84,7 @@
           @tap="goDetail(p.id)"
         >
           <view class="card-img-wrap">
-            <image class="card-img" :src="p.cover" mode="aspectFill" />
+            <image lazy-load class="card-img" :src="p.cover" mode="aspectFill" />
             <view v-if="progress(p) >= 80" class="badge-soon">即将售罄</view>
             <view class="badge-flash">
               <app-icon name="zap" :size="20" color="#fff" />
@@ -133,9 +139,11 @@ async function fetchFlashSaleData() {
   loading.value = true
   try {
     data.value = await shopApi.getFlashSaleFull()
-    if (data.value?.endOffsetMs) {
-      endTime.value = Date.now() + data.value.endOffsetMs
+    // 高亮真实场次时段（后端单场进行中）
+    if (data.value?.timeSlots?.length) {
+      activeSlot.value = data.value.timeSlots[0].id
     }
+    endTime.value = data.value?.endOffsetMs ? Date.now() + data.value.endOffsetMs : 0
     cd.value = formatCountdown(endTime.value - Date.now())
   } catch (e: any) {
     error.value = e?.message || '加载失败'
@@ -187,7 +195,7 @@ function goDetail(id: string) {
 <style lang="scss" scoped>
 .flash-page {
   min-height: 100vh;
-  background: linear-gradient(180deg, #c41e3a 0%, #8b0000 100%);
+  background: linear-gradient(180deg, var(--brand) 0%, #8b0000 100%);
 }
 .navbar {
   position: sticky;
@@ -198,7 +206,7 @@ function goDetail(id: string) {
   gap: 24rpx;
   padding: 24rpx 32rpx;
   padding-top: calc(24rpx + var(--status-bar-height, 0px));
-  background: linear-gradient(90deg, #c41e3a 0%, #e85050 100%);
+  background: linear-gradient(90deg, var(--brand) 0%, #e85050 100%);
 }
 .nav-back {
   width: 64rpx;
@@ -248,7 +256,7 @@ function goDetail(id: string) {
   display: block;
 }
 .slot-time--on {
-  color: #c41e3a;
+  color: var(--brand);
 }
 .slot-state {
   font-size: 24rpx;
@@ -258,7 +266,7 @@ function goDetail(id: string) {
   white-space: nowrap;
 }
 .slot-state--on {
-  color: #c41e3a;
+  color: var(--brand);
 }
 
 .countdown-box {
@@ -312,7 +320,7 @@ function goDetail(id: string) {
   min-width: 64rpx;
   padding: 8rpx 16rpx;
   background: #fff;
-  color: #c41e3a;
+  color: var(--brand);
   font-size: 36rpx;
   font-weight: 700;
   border-radius: 8rpx;
@@ -374,7 +382,7 @@ function goDetail(id: string) {
   align-items: center;
   gap: 4rpx;
   padding: 2rpx 12rpx;
-  background: #c41e3a;
+  background: var(--brand);
   border-radius: 999rpx;
 }
 .badge-flash-text {
@@ -399,7 +407,7 @@ function goDetail(id: string) {
 .price-now {
   font-size: 34rpx;
   font-weight: 700;
-  color: #c41e3a;
+  color: var(--brand);
 }
 .price-old {
   font-size: 22rpx;
@@ -416,7 +424,7 @@ function goDetail(id: string) {
 }
 .progress-bar {
   height: 100%;
-  background: linear-gradient(90deg, #c41e3a, #ff6b6b);
+  background: linear-gradient(90deg, var(--brand), #ff6b6b);
   border-radius: 999rpx;
   transition: width 0.5s;
 }
@@ -434,13 +442,13 @@ function goDetail(id: string) {
   padding: 20rpx 0;
   border-radius: 999rpx;
   text-align: center;
-  background: linear-gradient(90deg, #c41e3a, #e85050);
+  background: linear-gradient(90deg, var(--brand), #e85050);
 }
 .rush-btn--done {
   background: #e5e5e5;
 }
 .rush-btn--ing {
-  background: #c41e3a;
+  background: var(--brand);
 }
 .rush-text {
   font-size: 28rpx;
@@ -452,15 +460,15 @@ function goDetail(id: string) {
 }
 
 /* 加载态 */
-.loading-zone { min-height: 100vh; background: linear-gradient(180deg, #c41e3a 0%, #8b0000 100%); padding: 24rpx; display: flex; flex-direction: column; gap: 24rpx; }
+.loading-zone { min-height: 100vh; background: linear-gradient(180deg, var(--brand) 0%, #8b0000 100%); padding: 24rpx; display: flex; flex-direction: column; gap: 24rpx; }
 .sk-slots { height: 80rpx; background: rgba(255,255,255,0.1); border-radius: 999rpx; }
 .sk-cd { height: 120rpx; background: rgba(0,0,0,0.2); border-radius: 24rpx; }
 .sk-grid-flash { display: grid; grid-template-columns: 1fr 1fr; gap: 24rpx; margin-top: 32rpx; }
 .sk-card { height: 360rpx; background: rgba(255,255,255,0.1); border-radius: 24rpx; }
 
 /* 错误态 */
-.error-zone { min-height: 60vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 32rpx; background: linear-gradient(180deg, #c41e3a 0%, #8b0000 100%); }
+.error-zone { min-height: 60vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 32rpx; background: linear-gradient(180deg, var(--brand) 0%, #8b0000 100%); }
 .error-text { font-size: 28rpx; color: rgba(255,255,255,0.8); }
 .error-retry { padding: 16rpx 56rpx; background: #fff; border-radius: 40rpx; }
-.error-retry text { color: #c41e3a; font-size: 28rpx; }
+.error-retry text { color: var(--brand); font-size: 28rpx; }
 </style>

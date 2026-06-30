@@ -15,7 +15,7 @@
     <template v-else>
     <!-- 封面区域 -->
     <view class="cover-area">
-      <image class="cover-img" :src="room.cover" mode="aspectFill" />
+      <image lazy-load class="cover-img" :src="room.cover" mode="aspectFill" />
       <view class="cover-mask" />
 
       <!-- 顶部导航 -->
@@ -39,7 +39,7 @@
         <text class="cover-title">{{ room.title }}</text>
         <!-- 讲师 -->
         <view class="host-row">
-          <image class="host-avatar" :src="room.hostAvatar" mode="aspectFill" />
+          <image lazy-load class="host-avatar" :src="room.hostAvatar" mode="aspectFill" />
           <view class="host-info">
             <text class="host-name">{{ room.hostName }}</text>
             <text class="host-fans">{{ room.hostFollowers.toLocaleString() }} 粉丝</text>
@@ -126,7 +126,7 @@
       <view class="detail-card">
         <text class="detail-title">讲师介绍</text>
         <view class="teacher-row">
-          <image class="teacher-avatar" :src="room.hostAvatar" mode="aspectFill" />
+          <image lazy-load class="teacher-avatar" :src="room.hostAvatar" mode="aspectFill" />
           <view class="teacher-info">
             <text class="teacher-name">{{ room.hostName }}</text>
             <text class="teacher-fans">{{ room.hostFollowers.toLocaleString() }} 粉丝</text>
@@ -241,7 +241,7 @@ const descLines = computed(() => {
 /* 错误状态 */
 .state-error { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 320rpx 0; }
 .state-error__txt { font-size: 28rpx; color: #999; margin-bottom: 32rpx; }
-.state-error__retry { padding: 16rpx 48rpx; background: #C41E3A; border-radius: 999rpx; }
+.state-error__retry { padding: 16rpx 48rpx; background: var(--brand); border-radius: 999rpx; }
 .state-error__retry-txt { font-size: 28rpx; color: #fff; font-weight: 500; }
 
 /* 封面 */
@@ -287,7 +287,7 @@ const descLines = computed(() => {
   align-items: center;
   gap: 12rpx;
   padding: 12rpx 32rpx;
-  background: #C41E3A;
+  background: var(--brand);
   border-radius: 999rpx;
 }
 .preview-badge-txt {
@@ -407,7 +407,7 @@ const descLines = computed(() => {
   font-weight: 700;
 }
 .info-red .info-num {
-  color: #C41E3A;
+  color: var(--brand);
 }
 .info-gold .info-num {
   color: #C9A96E;
@@ -431,7 +431,7 @@ const descLines = computed(() => {
 .tag {
   padding: 8rpx 24rpx;
   background: rgba(196, 30, 58, 0.1);
-  color: #C41E3A;
+  color: var(--brand);
   font-size: 26rpx;
   border-radius: 999rpx;
 }
@@ -475,7 +475,7 @@ const descLines = computed(() => {
   padding-left: 8rpx;
 }
 .desc-dot {
-  color: #C41E3A;
+  color: var(--brand);
   font-size: 28rpx;
 }
 .desc-bullet-txt {
@@ -529,7 +529,7 @@ const descLines = computed(() => {
 }
 .teacher-link {
   font-size: 26rpx;
-  color: #C41E3A;
+  color: var(--brand);
 }
 
 /* 底部按钮 */
@@ -548,7 +548,7 @@ const descLines = computed(() => {
 .book-btn {
   flex: 1;
   padding: 28rpx 0;
-  background: #C41E3A;
+  background: var(--brand);
   border-radius: 24rpx;
   display: flex;
   align-items: center;

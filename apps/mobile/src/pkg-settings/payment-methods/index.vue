@@ -58,5 +58,5 @@ function toggle(key: string) {
 .status { font-size: 24rpx; color: #8a8378; }
 .btn { display: flex; align-items: center; gap: 6rpx; padding: 12rpx 32rpx; border-radius: 999rpx; font-size: 24rpx; font-weight: 500; }
 .btn-bound { background: #f0ece3; color: #8a8378; }
-.btn-bind { background: #c41e3a; color: #fff; }
+.btn-bind { background: var(--brand); color: #fff; }
 </style>

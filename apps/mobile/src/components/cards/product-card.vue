@@ -21,7 +21,7 @@ function open() { navigateTo(`/mall/product/${props.data.id}`) }
 <template>
   <view class="card" hover-class="card-press" @tap="open">
     <view class="cover" :class="ratio === '1:1' ? 'r-sq' : 'r-34'">
-      <image v-if="data.cover" class="cover-img" :src="data.cover" mode="aspectFill" />
+      <image v-if="data.cover" class="cover-img" :src="data.cover" mode="aspectFill" lazy-load />
       <text class="type-badge">好物</text>
       <text v-if="kind" class="hot-badge" :class="kind === 'new' ? 'hot-new' : 'hot-red'">{{ hotText }}</text>
     </view>

@@ -2,32 +2,31 @@
 import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, redirectTo } from '@/utils/router'
-import { mineApi, deleteAccountReasons, deleteAccountDataItems, deleteAccountAssets } from '@/lib/mine-data'
+import { mineApi } from '@/lib/mine-data'
 
 const step = ref(1)
 const agreed = ref(false)
 const selectedReason = ref('')
 const otherReason = ref('')
-const verifyMethod = ref<'password' | 'code'>('password')
 const password = ref('')
 const showPassword = ref(false)
-const code = ref('')
-const countdown = ref(0)
 const confirmText = ref('')
 const showConfirm = ref(false)
 const loading = ref(false)
-const phone = ref('')
+const reasons = ref<{ id: string; label: string }[]>([])
+const dataItems = ref<{ icon: string; label: string; color: string }[]>([])
+const assets = ref({ balance: 0, points: 0, coupons: 0, memberDays: 0 })
 const profileLoading = ref(true)
 const profileError = ref('')
-
-const assets = deleteAccountAssets
 
 async function fetchProfile() {
   profileLoading.value = true
   profileError.value = ''
   try {
-    const profile = await mineApi.getProfile()
-    phone.value = profile.phone
+    const info = await mineApi.getDeleteAccountInfo()
+    reasons.value = info.reasons
+    dataItems.value = info.dataItems
+    assets.value = info.assets
   } catch (e: any) {
     profileError.value = e?.message || '加载失败'
   } finally {
@@ -43,23 +42,10 @@ onMounted(() => {
   fetchProfile()
 })
 
-let timer: ReturnType<typeof setInterval> | null = null
-function sendCode() {
-  if (countdown.value > 0) return
-  countdown.value = 60
-  timer = setInterval(() => {
-    countdown.value--
-    if (countdown.value <= 0 && timer) clearInterval(timer)
-  }, 1000)
-}
-
 const nextDisabled = computed(() => {
   if (step.value === 1) return !agreed.value
   if (step.value === 2) return !selectedReason.value
-  if (step.value === 3) {
-    if (verifyMethod.value === 'password') return password.value.length < 6
-    return code.value.length !== 6
-  }
+  if (step.value === 3) return password.value.length < 6
   return false
 })
 
@@ -79,15 +65,15 @@ async function doDelete() {
   if (confirmText.value !== '确认注销' || loading.value) return
   loading.value = true
   try {
-    await mineApi.deleteAccount(selectedReason.value, otherReason.value)
+    const label = reasons.value.find((r) => r.id === selectedReason.value)?.label || selectedReason.value
+    const reason = selectedReason.value === 'other' ? (otherReason.value || label) : label
+    await mineApi.deleteAccount(password.value, reason)
     redirectTo(`/mine/delete-account-result?status=pending&expire=${encodeURIComponent(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString())}`)
   } catch (e: any) {
     loading.value = false
+    showConfirm.value = false
     uni.showToast({ title: e?.message || '注销失败', icon: 'none' })
   }
-}
-function onCodeInput(e: any) {
-  code.value = String(e.detail.value).replace(/\D/g, '').slice(0, 6)
 }
 </script>
 
@@ -123,7 +109,7 @@ function onCodeInput(e: any) {
 
         <view class="card">
           <text class="card-title">将被删除的数据</text>
-          <view v-for="(item, idx) in deleteAccountDataItems" :key="idx" class="data-row">
+          <view v-for="(item, idx) in dataItems" :key="idx" class="data-row">
             <view class="data-icon"><AppIcon :name="item.icon" :size="18" :color="item.color" /></view>
             <text class="data-label">{{ item.label }}</text>
             <AppIcon name="x-circle" :size="18" color="#ef4444" />
@@ -171,7 +157,7 @@ function onCodeInput(e: any) {
         <view class="card">
           <text class="card-title">请告诉我们您注销的原因</text>
           <text class="card-sub">您的反馈将帮助我们改进服务</text>
-          <view v-for="r in deleteAccountReasons" :key="r.id" class="reason" :class="{ active: selectedReason === r.id }" @tap="selectedReason = r.id">
+          <view v-for="r in reasons" :key="r.id" class="reason" :class="{ active: selectedReason === r.id }" @tap="selectedReason = r.id">
             <view class="radio" :class="{ on: selectedReason === r.id }">
               <view v-if="selectedReason === r.id" class="radio-dot" />
             </view>
@@ -189,33 +175,13 @@ function onCodeInput(e: any) {
       <template v-if="step === 3">
         <view class="card">
           <text class="card-title">验证身份</text>
-          <view class="method-toggle">
-            <view class="method" :class="{ active: verifyMethod === 'password' }" @tap="verifyMethod = 'password'">
-              <text class="method-text">密码验证</text>
-            </view>
-            <view class="method" :class="{ active: verifyMethod === 'code' }" @tap="verifyMethod = 'code'">
-              <text class="method-text">短信验证</text>
+          <text class="field-label">请输入登录密码</text>
+          <view class="input-wrap">
+            <input class="input" :password="!showPassword" v-model="password" placeholder="输入当前登录密码" placeholder-class="ph" />
+            <view class="input-eye" @tap="showPassword = !showPassword">
+              <AppIcon :name="showPassword ? 'eye-off' : 'eye'" :size="20" color="#9b948a" />
             </view>
           </view>
-
-          <template v-if="verifyMethod === 'password'">
-            <text class="field-label">请输入登录密码</text>
-            <view class="input-wrap">
-              <input class="input" :password="!showPassword" v-model="password" placeholder="输入当前登录密码" placeholder-class="ph" />
-              <view class="input-eye" @tap="showPassword = !showPassword">
-                <AppIcon :name="showPassword ? 'eye-off' : 'eye'" :size="20" color="#9b948a" />
-              </view>
-            </view>
-          </template>
-          <template v-else>
-            <text class="field-label">验证码将发送至 {{ phone }}</text>
-            <view class="code-row">
-              <input class="input flex1" type="number" :value="code" :maxlength="6" placeholder="输入6位验证码" placeholder-class="ph" @input="onCodeInput" />
-              <view class="btn-code" :class="{ disabled: countdown > 0 }" @tap="sendCode">
-                <text class="btn-code-text">{{ countdown > 0 ? `${countdown}s` : '获取验证码' }}</text>
-              </view>
-            </view>
-          </template>
         </view>
         <view class="yellow-tip">
           <text class="yellow-tip-text">验证通过后，将进入最终确认步骤</text>
@@ -258,17 +224,17 @@ function onCodeInput(e: any) {
 .loading { flex: 1; display: flex; align-items: center; justify-content: center; padding-top: 200rpx; font-size: 28rpx; color: #8a8178; }
 .error-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding-top: 200rpx; gap: 24rpx; }
 .error-state text { font-size: 28rpx; color: #8a8178; }
-.retry-btn { padding: 16rpx 48rpx; background: #C41E3A; color: #fff; border-radius: 12rpx; font-size: 26rpx; }
+.retry-btn { padding: 16rpx 48rpx; background: var(--brand); color: #fff; border-radius: 12rpx; font-size: 26rpx; }
 .nav-wrap { background: #fff; border-bottom: 1rpx solid #EDE7DC; position: sticky; top: 0; z-index: 10; }
 .steps { display: flex; align-items: center; padding: 0 64rpx 28rpx; }
 .step-item { display: flex; align-items: center; flex: 1; }
 .step-item:last-child { flex: none; }
 .step-dot { width: 56rpx; height: 56rpx; border-radius: 50%; background: #F2ECE1; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.step-dot.active { background: #C41E3A; }
+.step-dot.active { background: var(--brand); }
 .step-num { font-size: 26rpx; color: #b8b0a4; font-weight: 600; }
 .step-num.num-active { color: #fff; }
 .step-line { flex: 1; height: 4rpx; background: #F2ECE1; margin: 0 16rpx; }
-.step-line.active { background: #C41E3A; }
+.step-line.active { background: var(--brand); }
 
 .scroll { flex: 1; padding: 24rpx; box-sizing: border-box; }
 
@@ -305,14 +271,14 @@ function onCodeInput(e: any) {
 
 .agree { display: flex; gap: 16rpx; background: #fff; border-radius: 24rpx; padding: 28rpx; }
 .checkbox { width: 40rpx; height: 40rpx; border-radius: 10rpx; border: 3rpx solid #D8D1C5; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2rpx; }
-.checkbox.checked { background: #C41E3A; border-color: #C41E3A; }
+.checkbox.checked { background: var(--brand); border-color: var(--brand); }
 .agree-text { flex: 1; font-size: 24rpx; color: #8a8178; line-height: 1.6; }
 
 .reason { display: flex; align-items: center; gap: 16rpx; padding: 24rpx; border: 1rpx solid #EDE7DC; border-radius: 20rpx; margin-top: 16rpx; }
-.reason.active { border-color: #C41E3A; background: #FBEDEF; }
+.reason.active { border-color: var(--brand); background: #FBEDEF; }
 .radio { width: 36rpx; height: 36rpx; border-radius: 50%; border: 3rpx solid #D8D1C5; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.radio.on { border-color: #C41E3A; }
-.radio-dot { width: 18rpx; height: 18rpx; border-radius: 50%; background: #C41E3A; }
+.radio.on { border-color: var(--brand); }
+.radio-dot { width: 18rpx; height: 18rpx; border-radius: 50%; background: var(--brand); }
 .reason-label { font-size: 28rpx; color: #2C2C2C; }
 .textarea { width: 100%; height: 180rpx; background: #F6F1E8; border-radius: 20rpx; padding: 20rpx 24rpx; font-size: 26rpx; color: #2C2C2C; box-sizing: border-box; margin-top: 16rpx; }
 .textarea-count { display: block; text-align: right; font-size: 22rpx; color: #b8b0a4; margin-top: 8rpx; }
@@ -320,7 +286,7 @@ function onCodeInput(e: any) {
 
 .method-toggle { display: flex; gap: 16rpx; margin: 20rpx 0; }
 .method { flex: 1; height: 76rpx; border-radius: 16rpx; background: #F2ECE1; display: flex; align-items: center; justify-content: center; }
-.method.active { background: #C41E3A; }
+.method.active { background: var(--brand); }
 .method-text { font-size: 28rpx; color: #8a8178; }
 .method.active .method-text { color: #fff; font-weight: 500; }
 .field-label { display: block; font-size: 24rpx; color: #8a8178; margin-bottom: 12rpx; }
@@ -330,7 +296,7 @@ function onCodeInput(e: any) {
 .input-eye { position: absolute; right: 24rpx; top: 50%; transform: translateY(-50%); width: 48rpx; height: 48rpx; display: flex; align-items: center; justify-content: center; }
 .code-row { display: flex; gap: 16rpx; }
 .flex1 { flex: 1; }
-.btn-code { padding: 0 28rpx; height: 88rpx; background: #C41E3A; border-radius: 20rpx; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.btn-code { padding: 0 28rpx; height: 88rpx; background: var(--brand); border-radius: 20rpx; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .btn-code.disabled { opacity: 0.5; }
 .btn-code-text { font-size: 26rpx; color: #fff; font-weight: 500; }
 .yellow-tip { background: #FBF4E6; border-radius: 20rpx; padding: 24rpx; }

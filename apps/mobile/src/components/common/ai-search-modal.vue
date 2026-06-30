@@ -58,23 +58,6 @@
           <view class="ai-answer-body">
             <text class="ai-answer-text">{{ response }}</text>
 
-            <!-- 推荐结果 -->
-            <view v-if="results.length && !isStreaming" class="ai-results">
-              <text class="ai-results-label">为你推荐：</text>
-              <view
-                v-for="(result, index) in results"
-                :key="index"
-                class="ai-result-item"
-                @click="goResult(result)"
-              >
-                <text class="ai-result-badge" :style="badgeStyle(result.type)">{{ typeLabel(result.type) }}</text>
-                <view class="ai-result-info">
-                  <text class="ai-result-title">{{ result.title }}</text>
-                  <text class="ai-result-desc">{{ result.description }}</text>
-                </view>
-                <app-icon name="arrow-right" :size="32" color="var(--text-soft)" />
-              </view>
-            </view>
           </view>
         </view>
       </scroll-view>
@@ -91,7 +74,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
-import { navigateTo } from '@/utils/router'
+import { aiSearchApi } from '@/lib/ai-search-data'
 
 const props = defineProps<{
   isOpen: boolean
@@ -104,13 +87,9 @@ const emit = defineEmits<{ (e: 'close'): void }>()
 const placeholder = props.placeholder || '问我任何问题...'
 const quickQuestions = ['八字如何入门', '紫微斗数准吗', '如何看风水']
 
-// ---- UI 状态（交互演示用，真实数据接入交接给后端） ----
 const query = ref('')
 const isSearching = ref(false)
 const response = ref('')
-const results = ref<{ type: string; id: number; title: string; description: string; link: string }[]>([])
-const isStreaming = ref(false)
-let streamTimer: ReturnType<typeof setInterval> | null = null
 
 function onClose() {
   emit('close')
@@ -121,57 +100,19 @@ function askQuick(q: string) {
   handleSearch()
 }
 
-function handleSearch() {
+async function handleSearch() {
   const q = query.value.trim()
-  if (!q) return
+  if (!q || isSearching.value) return
   isSearching.value = true
   response.value = ''
-  results.value = []
-  isStreaming.value = true
-
-  const mockResponse = props.context
-    ? `根据你的问题「${q}」，我在${props.context}相关内容中为你找到以下信息：\n\n这是一个关于${q}的专业解答。在国学传统中，${q}涉及多个层面的理解...`
-    : `根据你的问题「${q}」，我为你整理了以下内容：\n\n${q}在易学体系中有着深远的意义和应用价值...`
-
-  let i = 0
-  if (streamTimer) clearInterval(streamTimer)
-  streamTimer = setInterval(() => {
-    if (i < mockResponse.length) {
-      response.value = mockResponse.slice(0, i + 1)
-      i++
-    } else {
-      if (streamTimer) clearInterval(streamTimer)
-      isStreaming.value = false
-      results.value = [
-        { type: 'article', id: 1, title: `${q}入门指南`, description: '系统学习的第一步', link: `/articles/1` },
-        { type: 'course', id: 1, title: `${q}精讲课程`, description: '名师带你深入理解', link: `/courses/1` },
-        { type: 'circle', id: 1, title: `${q}研习社`, description: '与同好交流探讨', link: `/circle/1` },
-      ]
-    }
-  }, 30)
-
-  setTimeout(() => { isSearching.value = false }, 500)
-}
-
-function goResult(result: { link: string }) {
-  emit('close')
-  navigateTo(result.link)
-}
-
-const TYPE_LABELS: Record<string, { text: string; bg: string; color: string }> = {
-  circle: { text: '圈子', bg: 'rgba(201,169,110,0.2)', color: 'var(--primary)' },
-  course: { text: '课程', bg: 'rgba(201,169,110,0.2)', color: 'var(--gold)' },
-  article: { text: '文章', bg: 'rgba(59,130,246,0.2)', color: '#3b82f6' },
-  product: { text: '商品', bg: 'rgba(249,115,22,0.2)', color: '#f97316' },
-  expert: { text: '讲师', bg: 'rgba(168,85,247,0.2)', color: '#a855f7' },
-  answer: { text: '问答', bg: 'rgba(34,197,94,0.2)', color: '#22c55e' },
-}
-function typeLabel(type: string) {
-  return TYPE_LABELS[type]?.text || type
-}
-function badgeStyle(type: string) {
-  const t = TYPE_LABELS[type]
-  return t ? `background:${t.bg};color:${t.color};` : ''
+  try {
+    const res = await aiSearchApi.query(q)
+    response.value = res.answer || '未获取到回答，请换个问法试试'
+  } catch (e: any) {
+    response.value = e?.message || 'AI 搜索失败，请稍后重试'
+  } finally {
+    isSearching.value = false
+  }
 }
 </script>
 

@@ -112,155 +112,128 @@ export function getCompletedStepIndex(stage: ExitStage): number {
   }
 }
 
-// 加入日期取「当前日期前 30 天」，保证退款预览金额始终有意义（演示用）
-function daysAgo(n: number): string {
-  const d = new Date()
-  d.setDate(d.getDate() - n)
-  return d.toISOString().slice(0, 10)
-}
-
-// Mock：当前用户在某圈子的会员信息（用于退出申请页计算）
-export const mockMembership = {
-  circleId: '1',
-  circleName: '八字命理研习社',
-  joinMethod: 'paid' as 'free' | 'paid',
-  paidAmount: 365,
-  totalDays: 365,
-  joinDate: daysAgo(30), // 已加入 30 天
-  allowRefund: true, // 圈主是否开启退款
-}
-
-// Mock：圈主端待审核 / 已处理的退出申请
-export const mockExitRequests: ExitApplication[] = [
-  {
-    id: 'e1',
-    circleId: '1',
-    circleName: '八字命理研习社',
-    user: { id: 'u1', name: '林清远', avatar: '/static/avatars/u1.png' },
-    joinDate: '2024-05-15',
-    applyDate: '2024-06-14',
-    reason: '最近工作繁忙，暂时没有时间深入学习，希望先退出。',
-    breakdown: calcRefund({ paidAmount: 365, joinDate: '2024-05-15', applyDate: '2024-06-14' }),
-    stage: 'owner_reviewing',
-  },
-  {
-    id: 'e2',
-    circleId: '1',
-    circleName: '八字命理研习社',
-    user: { id: 'u2', name: '苏晚晴', avatar: '/static/avatars/u2.png' },
-    joinDate: '2024-03-01',
-    applyDate: '2024-06-10',
-    reason: '内容与预期不符。',
-    breakdown: calcRefund({ paidAmount: 365, joinDate: '2024-03-01', applyDate: '2024-06-10' }),
-    stage: 'owner_reviewing',
-  },
-  {
-    id: 'e3',
-    circleId: '1',
-    circleName: '八字命理研习社',
-    user: { id: 'u3', name: '陈墨白', avatar: '/static/avatars/u3.png' },
-    joinDate: '2024-01-10',
-    applyDate: '2024-05-20',
-    breakdown: calcRefund({ paidAmount: 365, joinDate: '2024-01-10', applyDate: '2024-05-20' }),
-    stage: 'refunded',
-    ownerReviewedAt: '2024-05-20',
-    platformReviewedAt: '2024-05-21',
-    refundedAt: '2024-05-23',
-  },
-  {
-    id: 'e4',
-    circleId: '1',
-    circleName: '八字命理研习社',
-    user: { id: 'u4', name: '王浩然', avatar: '/static/avatars/u4.png' },
-    joinDate: '2024-06-01',
-    applyDate: '2024-06-08',
-    reason: '误操作加入。',
-    breakdown: calcRefund({ paidAmount: 365, joinDate: '2024-06-01', applyDate: '2024-06-08' }),
-    stage: 'rejected',
-    rejectBy: 'owner',
-    rejectReason: '该成员存在违规发言记录，按圈规不予退款，详情可联系客服申诉。',
-    ownerReviewedAt: '2024-06-09',
-  },
-]
-
-// Mock：当前用户提交的退出申请（用于"我的申请"页）
-export const mockMyExitApps: ExitApplication[] = [
-  {
-    id: 'me1',
-    circleId: '2',
-    circleName: '紫微斗数高阶班',
-    user: { id: 'me', name: '我', avatar: '/static/avatars/me.png' },
-    joinDate: '2024-04-20',
-    applyDate: '2024-06-13',
-    reason: '课程进度跟不上。',
-    breakdown: calcRefund({ paidAmount: 299, joinDate: '2024-04-20', applyDate: '2024-06-13', totalDays: 365 }),
-    stage: 'platform_reviewing',
-    ownerReviewedAt: '2024-06-14',
-  },
-  {
-    id: 'me2',
-    circleId: '3',
-    circleName: '风水堪舆交流会',
-    user: { id: 'me', name: '我', avatar: '/static/avatars/me.png' },
-    joinDate: '2024-02-01',
-    applyDate: '2024-05-10',
-    breakdown: calcRefund({ paidAmount: 199, joinDate: '2024-02-01', applyDate: '2024-05-10' }),
-    stage: 'refunded',
-    ownerReviewedAt: '2024-05-11',
-    platformReviewedAt: '2024-05-12',
-    refundedAt: '2024-05-14',
-  },
-  {
-    id: 'me3',
-    circleId: '4',
-    circleName: '奇门遁甲研修社',
-    user: { id: 'me', name: '我', avatar: '/static/avatars/me.png' },
-    joinDate: '2024-05-01',
-    applyDate: '2024-06-02',
-    reason: '个人原因。',
-    breakdown: calcRefund({ paidAmount: 488, joinDate: '2024-05-01', applyDate: '2024-06-02' }),
-    stage: 'rejected',
-    rejectBy: 'platform',
-    rejectReason: '退款金额核算存在异议，平台已驳回，请核对加入时间后重新申请或联系客服。',
-    ownerReviewedAt: '2024-06-03',
-    platformReviewedAt: '2024-06-04',
-  },
-]
-
 // ============ API 层 ============
-import { apiGet, useMock } from '@/utils/request'
+// 真实后端：CircleRefundController（@Controller("circle-refund")）
+// 后端用 ownerStatus/adminStatus/refundStatus 三个状态字段表达审核流，前端合成单一 stage。
+import { apiGet, apiPost } from '@/utils/request'
+
+/** 退款预览信息（真实来源：GET /circle-refund/preview/:circleId，按使用天数核算） */
+export interface MembershipRefundInfo {
+  circleId: string
+  paidAmount: number // 已付费用
+  dailyCost: number // 每天费用
+  usedDays: number // 已使用天数
+  refundBase: number // 应退基数（扣使用天数后）
+  feeRate: number // 手续费率
+  feeAmount: number // 手续费金额
+  actualRefund: number // 实退金额（扣手续费后）
+}
+
+function num(v: any): number {
+  const n = Number(v)
+  return Number.isFinite(n) ? n : 0
+}
+
+function ymd(v: any): string {
+  if (!v) return ''
+  const d = new Date(v)
+  return Number.isNaN(d.getTime()) ? '' : d.toISOString().slice(0, 10)
+}
+
+// 后端三状态字段 → 前端单一 stage
+function deriveStage(row: any): ExitStage {
+  if (row.refundStatus === 'refunded') return 'refunded'
+  if (row.refundStatus === 'failed') return 'rejected'
+  if (row.refundStatus === 'refunding' || row.adminStatus === 'approved') return 'refunding'
+  if (row.ownerStatus === 'approved') return 'platform_reviewing'
+  return 'owner_reviewing'
+}
+
+// 后端 CircleRefundRequest 行 → 前端 ExitApplication
+// currentUser=true 时为「我的申请」（后端不返回昵称/头像，固定显示「我」）
+function mapRefundRow(row: any, currentUser: boolean): ExitApplication {
+  const paidAmount = num(row.paidAmount)
+  const refundBase = num(row.refundBase)
+  const usedDays = num(row.usedDays)
+  const dailyRate = num(row.dailyCost)
+  const totalDays = dailyRate > 0 ? Math.round(paidAmount / dailyRate) : 365
+  const applyDate = ymd(row.createdAt)
+  // 后端未存加入日期，按「申请日 − 已用天数」反推（usedDays 即申请时距加入的天数）
+  let joinDate = ''
+  if (applyDate) {
+    const d = new Date(applyDate)
+    d.setDate(d.getDate() - usedDays)
+    joinDate = d.toISOString().slice(0, 10)
+  }
+  const rejectBy: RejectBy | undefined =
+    row.ownerStatus === 'rejected' ? 'owner' : row.adminStatus === 'rejected' ? 'platform' : undefined
+  return {
+    id: row.id,
+    circleId: row.circleId,
+    circleName: row.circleName ?? '',
+    user: {
+      id: row.userId,
+      name: currentUser ? '我' : row.userNickname || '圈友',
+      avatar: row.userAvatar || undefined,
+    },
+    joinDate,
+    applyDate,
+    reason: row.reason || undefined,
+    breakdown: {
+      paidAmount,
+      usedDays,
+      totalDays,
+      dailyRate,
+      deduction: Math.round((paidAmount - refundBase) * 100) / 100,
+      refundAmount: num(row.actualRefund),
+    },
+    stage: deriveStage(row),
+    rejectBy,
+    rejectReason: row.ownerRejectReason || row.adminRejectReason || undefined,
+    ownerReviewedAt: ymd(row.ownerReviewedAt) || undefined,
+    platformReviewedAt: ymd(row.adminReviewedAt) || undefined,
+    refundedAt: ymd(row.refundedAt) || undefined,
+  }
+}
 
 export const exitApi = {
-  /** 获取会员信息（用于退出申请页） — GET /circles/:circleId/membership */
-  async getMembership(circleId: string): Promise<typeof mockMembership> {
-    if (true) return mockMembership
-    try {
-      const data = await apiGet<any>(`/circles/${circleId}/membership`)
-      return data as typeof mockMembership
-    } catch {
-      return mockMembership
+  /**
+   * 退款金额预览（退出申请页计算用） — GET /circle-refund/preview/:circleId
+   * 注：后端无 /circles/:id/membership 端点，真实来源为退款预览接口（按使用天数核算）。
+   */
+  async getMembership(circleId: string): Promise<MembershipRefundInfo> {
+    const data = await apiGet<any>(`/circle-refund/preview/${circleId}`)
+    return {
+      circleId,
+      paidAmount: num(data.paidAmount),
+      dailyCost: num(data.dailyCost),
+      usedDays: num(data.usedDays),
+      refundBase: num(data.refundBase),
+      feeRate: num(data.feeRate),
+      feeAmount: num(data.feeAmount),
+      actualRefund: num(data.actualRefund),
     }
   },
 
-  /** 获取退出申请列表（圈主端） — GET /circles/:circleId/exit-requests */
-  async getExitRequests(circleId: string): Promise<ExitApplication[]> {
-    if (true) return mockExitRequests
-    try {
-      const data = await apiGet<any>(`/circles/${circleId}/exit-requests`)
-      return (data?.items || data) as ExitApplication[]
-    } catch {
-      return mockExitRequests
-    }
+  /**
+   * 圈主待审退出申请列表 — GET /circle-refund/owner-pending
+   * 后端按登录圈主（JWT）返回其名下所有圈子的「待圈主审核」申请；circleId 可选，传入则前端按圈过滤。
+   * 注：后端无圈主侧「已处理历史」端点，已处理记录依赖本次会话内审核后的乐观更新。
+   */
+  async getExitRequests(circleId?: string): Promise<ExitApplication[]> {
+    const rows = await apiGet<any[]>('/circle-refund/owner-pending')
+    const list = (Array.isArray(rows) ? rows : []).map((r) => mapRefundRow(r, false))
+    return circleId ? list.filter((r) => r.circleId === circleId) : list
   },
 
-  /** 获取我的退出申请 — GET /user/exit-applications */
+  /** 我的退出申请 — GET /circle-refund/my */
   async getMyExitApps(): Promise<ExitApplication[]> {
-    if (true) return mockMyExitApps
-    try {
-      const data = await apiGet<any>('/user/exit-applications')
-      return (data?.items || data) as ExitApplication[]
-    } catch {
-      return mockMyExitApps
-    }
+    const rows = await apiGet<any[]>('/circle-refund/my')
+    return (Array.isArray(rows) ? rows : []).map((r) => mapRefundRow(r, true))
+  },
+
+  /** 圈主审核退出申请（同意/驳回） — POST /circle-refund/:id/owner-review */
+  async ownerReview(id: string, approve: boolean, rejectReason?: string): Promise<void> {
+    await apiPost(`/circle-refund/${id}/owner-review`, { approve, rejectReason })
   },
 }

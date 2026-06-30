@@ -36,7 +36,7 @@ function go(url: string, id: string) {
         <!-- 排盘居中凸起太极按钮 -->
         <view v-if="tab.id === 'paipan'" class="paipan">
           <view class="taiji-wrap" :class="{ 'taiji-breathing-glow': isActive('paipan') }">
-            <image
+            <image lazy-load
               src="/static/taiji.svg"
               class="taiji"
               :class="{ 'taiji-slow-rotate': isActive('paipan') }"
@@ -82,7 +82,7 @@ function go(url: string, id: string) {
 .normal { display: flex; flex-direction: column; align-items: center; gap: 4rpx; }
 .label { font-size: 22rpx; margin-top: 4rpx; }
 .label.bold { font-weight: 700; }
-.label.on { color: var(--brand, #c41e3a); }
+.label.on { color: var(--brand, var(--brand)); }
 .label.off { color: var(--text-soft, #999); }
 
 .paipan { display: flex; flex-direction: column; align-items: center; margin-top: -40rpx; }

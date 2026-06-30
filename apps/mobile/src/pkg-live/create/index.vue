@@ -150,7 +150,7 @@
 
     <!-- 底部按钮 -->
     <view class="footer">
-      <view class="submit-btn">创建直播</view>
+      <view class="submit-btn" @tap="onCreate">{{ submitting ? '创建中...' : '创建直播' }}</view>
     </view>
 
     <!-- 分类选择器 -->
@@ -225,6 +225,26 @@ function selectCategory(id: string) {
   showCategoryPicker.value = false
 }
 function addTag() {}
+
+// 创建直播（写操作，防重复）。description/tags/liveType/liveMode 后端 LiveRoom 暂无对应字段，仅提交核心字段
+const submitting = ref(false)
+async function onCreate() {
+  if (submitting.value) return
+  if (!title.value.trim()) {
+    uni.showToast({ title: '请输入直播标题', icon: 'none' })
+    return
+  }
+  submitting.value = true
+  try {
+    await liveApi.createRoom({ title: title.value.trim(), chargeType: 'FREE' })
+    uni.showToast({ title: '创建成功', icon: 'success' })
+    setTimeout(() => goBack(), 800)
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '创建失败', icon: 'none' })
+  } finally {
+    submitting.value = false
+  }
+}
 </script>
 
 <style scoped>
@@ -267,7 +287,7 @@ function addTag() {}
 }
 .retry-btn {
   padding: 20rpx 64rpx;
-  background: #C41E3A;
+  background: var(--brand);
   color: #fff;
   border-radius: 24rpx;
   font-size: 28rpx;
@@ -340,7 +360,7 @@ function addTag() {}
   font-weight: 400;
 }
 .req {
-  color: #C41E3A;
+  color: var(--brand);
 }
 
 /* 直播模式 */
@@ -357,14 +377,14 @@ function addTag() {}
   background: #FAF8F5;
 }
 .mode-active {
-  border-color: #C41E3A;
+  border-color: var(--brand);
   background: #fef2f2;
 }
 .mode-badge {
   position: absolute;
   top: 16rpx;
   right: 16rpx;
-  background: #C41E3A;
+  background: var(--brand);
   color: #fff;
   font-size: 20rpx;
   padding: 2rpx 12rpx;
@@ -381,7 +401,7 @@ function addTag() {}
   margin-bottom: 16rpx;
 }
 .mode-icon-active {
-  background: #C41E3A;
+  background: var(--brand);
 }
 .mode-name {
   display: block;
@@ -390,7 +410,7 @@ function addTag() {}
   color: #2C2C2C;
 }
 .mode-name-active {
-  color: #C41E3A;
+  color: var(--brand);
 }
 .mode-desc {
   display: block;
@@ -516,7 +536,7 @@ function addTag() {}
   background: #FAF8F5;
 }
 .type-active {
-  border-color: #C41E3A;
+  border-color: var(--brand);
   background: #fef2f2;
 }
 .type-name {
@@ -525,7 +545,7 @@ function addTag() {}
   color: #2C2C2C;
 }
 .type-name-active {
-  color: #C41E3A;
+  color: var(--brand);
 }
 .type-desc {
   display: block;
@@ -551,7 +571,7 @@ function addTag() {}
 }
 .tag-add-btn {
   padding: 16rpx 32rpx;
-  background: #C41E3A;
+  background: var(--brand);
   color: #fff;
   border-radius: 24rpx;
   font-size: 28rpx;
@@ -586,7 +606,7 @@ function addTag() {}
   flex-shrink: 0;
 }
 .switch-on {
-  background: #C41E3A;
+  background: var(--brand);
 }
 .switch-dot {
   position: absolute;
@@ -631,7 +651,7 @@ function addTag() {}
   width: 100%;
   box-sizing: border-box;
   padding: 28rpx 0;
-  background: linear-gradient(to right, #C41E3A, #E85D75);
+  background: linear-gradient(to right, var(--brand), #E85D75);
   color: #fff;
   border-radius: 24rpx;
   font-size: 30rpx;
@@ -690,8 +710,8 @@ function addTag() {}
   font-size: 26rpx;
 }
 .cat-item-active {
-  border-color: #C41E3A;
+  border-color: var(--brand);
   background: #fef2f2;
-  color: #C41E3A;
+  color: var(--brand);
 }
 </style>

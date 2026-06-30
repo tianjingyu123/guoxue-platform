@@ -448,7 +448,7 @@ function onBack() {
 .save-btn {
   padding: 12rpx 28rpx;
   border-radius: 12rpx;
-  background: #C41E3A;
+  background: var(--brand);
 }
 .save-btn-txt {
   font-size: 26rpx;
@@ -480,7 +480,7 @@ function onBack() {
   border-radius: 12rpx;
 }
 .tab.active {
-  background: #C41E3A;
+  background: var(--brand);
 }
 .tab-txt {
   font-size: 24rpx;
@@ -540,7 +540,7 @@ function onBack() {
   border: 1rpx solid #E8E3DB;
 }
 .theme-card.selected {
-  border: 4rpx solid #C41E3A;
+  border: 4rpx solid var(--brand);
 }
 .theme-preview {
   position: relative;
@@ -559,7 +559,7 @@ function onBack() {
   width: 36rpx;
   height: 36rpx;
   border-radius: 999rpx;
-  background: #C41E3A;
+  background: var(--brand);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -753,7 +753,7 @@ function onBack() {
   top: 0;
   height: 8rpx;
   border-radius: 999rpx;
-  background: #C41E3A;
+  background: var(--brand);
 }
 .slider-thumb {
   position: absolute;
@@ -762,7 +762,7 @@ function onBack() {
   height: 28rpx;
   border-radius: 999rpx;
   background: #fff;
-  border: 2rpx solid #C41E3A;
+  border: 2rpx solid var(--brand);
   transform: translate(-50%, -50%);
 }
 
@@ -781,7 +781,7 @@ function onBack() {
   border: 1rpx solid #E8E3DB;
 }
 .pendant.active {
-  border-color: #C41E3A;
+  border-color: var(--brand);
   background: rgba(196, 30, 58, 0.05);
 }
 .pendant-icon {
@@ -834,7 +834,7 @@ function onBack() {
   transition: background 0.2s;
 }
 .switch.on {
-  background: #C41E3A;
+  background: var(--brand);
 }
 .switch-knob {
   position: absolute;
@@ -937,7 +937,7 @@ function onBack() {
   text-align: center;
 }
 .enter-cell.active {
-  border-color: #C41E3A;
+  border-color: var(--brand);
   background: rgba(196, 30, 58, 0.05);
 }
 .enter-emoji-wrap {
@@ -969,7 +969,7 @@ function onBack() {
   text-align: center;
 }
 .like-cell.active {
-  border-color: #C41E3A;
+  border-color: var(--brand);
   background: rgba(196, 30, 58, 0.05);
 }
 .like-txt {
@@ -1209,7 +1209,7 @@ function onBack() {
   background: #fff;
 }
 .footer-btn.primary {
-  background: #C41E3A;
+  background: var(--brand);
 }
 .footer-btn-txt {
   font-size: 28rpx;

@@ -180,7 +180,7 @@ function go(path: string) { navigateTo(path) }
 .level-row { display: flex; justify-content: space-between; margin-bottom: 8rpx; }
 .level-tag { font-size: 22rpx; color: #8A8478; }
 .level-bar { height: 12rpx; background: rgba(232,227,219,0.6); border-radius: 999rpx; overflow: hidden; }
-.level-fill { height: 100%; background: linear-gradient(90deg, #C9A96E, #C41E3A); border-radius: 999rpx; }
+.level-fill { height: 100%; background: linear-gradient(90deg, #C9A96E, var(--brand)); border-radius: 999rpx; }
 .level-hint { font-size: 22rpx; color: #8A8478; display: block; text-align: center; margin-top: 8rpx; }
 
 .total-line { display: flex; align-items: center; justify-content: center; gap: 48rpx; padding-top: 28rpx; border-top: 1rpx solid rgba(232,227,219,0.6); position: relative; z-index: 1; }
@@ -190,7 +190,7 @@ function go(path: string) { navigateTo(path) }
 
 .quick-row { display: flex; gap: 24rpx; }
 .quick-btn { flex: 1; height: 96rpx; border-radius: 16rpx; display: flex; align-items: center; justify-content: center; gap: 12rpx; }
-.quick-btn.primary { background: #C41E3A; }
+.quick-btn.primary { background: var(--brand); }
 .quick-btn.outline { background: #FFFFFF; border: 1rpx solid #E8E3DB; }
 .quick-txt { font-size: 30rpx; font-weight: 500; color: #2C2C2C; }
 .quick-txt.light { color: #FFFFFF; }
@@ -199,7 +199,7 @@ function go(path: string) { navigateTo(path) }
 .card-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 32rpx; }
 .card-title { font-size: 30rpx; font-weight: 600; color: #2C2C2C; }
 .more { display: flex; align-items: center; }
-.more-txt { font-size: 26rpx; color: #C41E3A; }
+.more-txt { font-size: 26rpx; color: var(--brand); }
 
 .trans-list { display: flex; flex-direction: column; gap: 24rpx; }
 .trans-item { display: flex; align-items: center; gap: 24rpx; }
@@ -207,7 +207,7 @@ function go(path: string) { navigateTo(path) }
 .trans-mid { flex: 1; min-width: 0; }
 .trans-title { font-size: 28rpx; font-weight: 500; color: #2C2C2C; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .trans-time { font-size: 22rpx; color: #8A8478; display: block; margin-top: 4rpx; }
-.trans-amt { font-size: 28rpx; font-weight: 600; color: #C41E3A; }
+.trans-amt { font-size: 28rpx; font-weight: 600; color: var(--brand); }
 .trans-amt.pos { color: #16A34A; }
 
 .note-list { display: flex; flex-direction: column; gap: 16rpx; margin-top: 24rpx; }

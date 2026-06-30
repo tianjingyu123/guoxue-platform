@@ -57,7 +57,7 @@
           class="author-card"
           @click="goDetail(author.id)"
         >
-          <image class="author-avatar" :src="author.avatar" mode="aspectFill" />
+          <image lazy-load class="author-avatar" :src="author.avatar" mode="aspectFill" />
           <view class="author-main">
             <view class="author-name-row">
               <text class="author-name">{{ author.name }}</text>
@@ -256,7 +256,7 @@ try {
 }
 
 .filter-tab-active {
-  background: #c41e3a;
+  background: var(--brand);
   color: #ffffff;
 }
 
@@ -315,7 +315,7 @@ try {
 
 .author-specialty {
   font-size: 22rpx;
-  color: #c41e3a;
+  color: var(--brand);
   background: rgba(196, 30, 58, 0.1);
   padding: 4rpx 12rpx;
   border-radius: 999rpx;

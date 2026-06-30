@@ -14,9 +14,10 @@ const expandedDaYun = ref<number | null>(null)
 
 const COLS = ['year', 'month', 'day', 'hour'] as const
 const COL_NAMES = ['年柱', '月柱', '日柱', '时柱']
+// 自坐行后端无每柱数据 → 移除（不造假）；保留 纳音/地势/空亡
 const naYinRows = [
   { label: '纳音', key: 'naYin' }, { label: '地势', key: 'diShi' },
-  { label: '自坐', key: 'ziZuo' }, { label: '空亡', key: 'kongWang' },
+  { label: '空亡', key: 'kongWang' },
 ] as const
 
 function daYunYears(idx: number) {
@@ -43,10 +44,10 @@ function daYunYears(idx: number) {
         <text class="info-v">{{ data.solarDate }}（{{ data.lunarDate }}）</text>
         <view class="info-edit" @tap="emit('edit')"><app-icon name="pencil" :size="26" color="#9ca3af" /></view>
       </view>
-      <view class="info-row">
+      <view v-if="data.realSolarTime" class="info-row">
         <text class="info-k shrink">真太阳时</text><text class="info-soft">{{ data.realSolarTime }}</text>
       </view>
-      <view class="info-row no-bd">
+      <view v-if="data.jieQi" class="info-row no-bd">
         <text class="info-k shrink">节气</text><text class="info-soft">{{ data.jieQi }}</text>
       </view>
     </view>

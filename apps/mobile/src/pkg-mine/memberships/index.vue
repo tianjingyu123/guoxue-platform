@@ -44,8 +44,20 @@
 
       <!-- 权益列表 -->
       <view class="list">
+        <!-- 加载态 -->
+        <view v-if="loading" class="empty">
+          <text class="empty-txt">加载中...</text>
+        </view>
+        <!-- 错误态 -->
+        <view v-else-if="error" class="empty">
+          <app-icon name="alert-circle" :size="48" color="rgba(0,0,0,0.2)" />
+          <text class="empty-txt">{{ error }}</text>
+          <view class="empty-btn" @tap="fetchData">
+            <text class="empty-btn-txt">重试</text>
+          </view>
+        </view>
         <!-- 空态 -->
-        <view v-if="filteredMemberships.length === 0" class="empty">
+        <view v-else-if="filteredMemberships.length === 0" class="empty">
           <app-icon name="gift" :size="48" color="rgba(0,0,0,0.2)" />
           <text class="empty-txt">暂无权益</text>
           <view class="empty-btn" @tap="goVip">
@@ -55,20 +67,19 @@
 
         <!-- 权益卡 -->
         <view
-          v-for="m in filteredMemberships"
+          v-for="m in (loading || error ? [] : filteredMemberships)"
           :key="m.id"
-          class="mcard"
-          :class="m.bgClass"
+          class="mcard bg-gold"
         >
           <!-- 头部 -->
           <view class="mcard-head">
             <view class="mcard-head-left">
-              <view class="mcard-icon" :class="m.iconBgClass">
-                <app-icon :name="m.icon" :size="16" :color="m.iconColor" />
+              <view class="mcard-icon ibg-gold">
+                <app-icon name="crown" :size="16" color="#c8a96a" />
               </view>
               <view>
                 <text class="mcard-name">{{ m.name }}</text>
-                <text class="mcard-date">{{ m.startDate }} ~ {{ m.expireDate }}</text>
+                <text class="mcard-date">{{ m.isLifetime ? '永久有效' : (m.expireDate ? '有效期至 ' + m.expireDate : '') }}</text>
               </view>
             </view>
             <text class="mcard-status" :class="statusConfig[m.status].cls">{{ statusConfig[m.status].label }}</text>
@@ -81,41 +92,29 @@
                 <app-icon name="clock" :size="14" color="rgba(0,0,0,0.4)" />
                 <text class="exp-label">剩余有效期</text>
               </view>
-              <text class="exp-days" :style="{ color: isExpiring(m) ? '#d97706' : m.iconColor }">
-                {{ m.daysLeft > 0 ? m.daysLeft + '天' : '已过期' }}
+              <text class="exp-days" :style="{ color: isExpiring(m) ? '#d97706' : '#c8a96a' }">
+                {{ m.isLifetime ? '永久' : (m.daysLeft > 0 ? m.daysLeft + '天' : '已过期') }}
               </text>
             </view>
             <!-- 进度条 -->
             <view class="bar-track">
               <view
                 class="bar-fill"
-                :style="{ width: barWidth(m) + '%', background: isExpiring(m) ? '#f59e0b' : m.iconColor }"
+                :style="{ width: barWidth(m) + '%', background: isExpiring(m) ? '#f59e0b' : '#c8a96a' }"
               />
             </view>
             <!-- 权益标签 -->
-            <view class="benefit-tags">
+            <view v-if="m.benefits.length > 0" class="benefit-tags">
               <text v-for="(b, i) in m.benefits.slice(0, 4)" :key="i" class="benefit-tag">{{ b }}</text>
             </view>
           </view>
 
           <!-- 底部操作 -->
           <view class="mcard-foot">
-            <view class="renew-switch">
-              <switch
-                :checked="m.autoRenew"
-                color="#c41e3a"
-                style="transform: scale(0.7)"
-                @change="toggleAutoRenew(m.id)"
-              />
-              <text class="renew-switch-txt">{{ m.autoRenew ? '自动续费已开启' : '自动续费' }}</text>
-            </view>
             <view class="renew-right">
-              <view class="renew-price">
+              <view v-if="m.price > 0" class="renew-price">
                 <text class="renew-price-label">续费价格</text>
-                <text class="renew-price-num">
-                  ¥{{ m.price }}
-                  <text v-if="m.originalPrice" class="renew-price-old">¥{{ m.originalPrice }}</text>
-                </text>
+                <text class="renew-price-num">¥{{ m.price }}</text>
               </view>
               <view class="renew-btn" :class="{ 'renew-btn-amber': isExpiring(m) }" @tap="goRenew(m)">
                 <app-icon name="refresh-cw" :size="14" color="#fff" />
@@ -127,27 +126,7 @@
           <!-- 即将到期警告 -->
           <view v-if="isExpiring(m)" class="warn">
             <app-icon name="alert-triangle" :size="16" color="#f59e0b" />
-            <text class="warn-txt">您的权益将在{{ m.daysLeft }}天后到期，续费可享受连续优惠</text>
-          </view>
-
-          <!-- 管理订阅（仅圈子会员，退出入口深藏） -->
-          <view v-if="m.type === 'circle'" class="manage">
-            <view class="manage-toggle" @tap="toggleManage(m.id)">
-              <text class="manage-toggle-txt">管理订阅</text>
-              <app-icon
-                name="chevron-down"
-                :size="12"
-                color="rgba(0,0,0,0.4)"
-                :style="{ transform: manageOpen === m.id ? 'rotate(180deg)' : 'none' }"
-              />
-            </view>
-            <view v-if="manageOpen === m.id" class="manage-panel">
-              <text class="manage-desc">退出后将失去圈内全部权益与内容访问，已用时长按天计费，剩余部分可申请退款。</text>
-              <view class="manage-exit" @tap="goExit(m)">
-                <app-icon name="log-out" :size="12" color="rgba(0,0,0,0.5)" />
-                <text class="manage-exit-txt">申请退出并退款</text>
-              </view>
-            </view>
+            <text class="warn-txt">您的权益将在{{ m.daysLeft }}天后到期，续费可继续享受会员特权</text>
           </view>
         </view>
       </view>
@@ -156,69 +135,17 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import AppNavBar from '@/components/common/app-nav-bar.vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
+import { mineApi, type MembershipItem } from '@/lib/mine-data'
 
-type MembershipType = 'vip' | 'circle' | 'station' | 'institute'
 type MembershipStatus = 'active' | 'expiring' | 'expired'
 
-interface Membership {
-  id: string
-  type: MembershipType
-  name: string
-  icon: string
-  iconColor: string
-  iconBgClass: string
-  bgClass: string
-  status: MembershipStatus
-  startDate: string
-  expireDate: string
-  daysLeft: number
-  price: number
-  originalPrice?: number
-  autoRenew: boolean
-  benefits: string[]
-}
-
-const memberships = ref<Membership[]>([
-  {
-    id: 'vip-1', type: 'vip', name: '热卜国学VIP会员', icon: 'crown',
-    iconColor: '#c8a96a', iconBgClass: 'ibg-gold', bgClass: 'bg-gold',
-    status: 'active', startDate: '2024-01-08', expireDate: '2025-01-08', daysLeft: 186,
-    price: 365, originalPrice: 588, autoRenew: true,
-    benefits: ['排盘工具无限使用', '课程专属折扣', '专属客服', '去广告'],
-  },
-  {
-    id: 'circle-1', type: 'circle', name: '八字命理研习社', icon: 'users',
-    iconColor: '#c41e3a', iconBgClass: 'ibg-primary', bgClass: 'bg-primary',
-    status: 'expiring', startDate: '2024-01-14', expireDate: '2025-01-14', daysLeft: 28,
-    price: 199, autoRenew: false,
-    benefits: ['圈内免费内容', '专属直播', '圈内问答', '交流群'],
-  },
-  {
-    id: 'circle-2', type: 'circle', name: '紫微斗数学习班', icon: 'users',
-    iconColor: '#c41e3a', iconBgClass: 'ibg-primary', bgClass: 'bg-primary',
-    status: 'active', startDate: '2024-03-01', expireDate: '2025-03-01', daysLeft: 268,
-    price: 299, autoRenew: true,
-    benefits: ['系统课程', '案例分析', '作业点评', '1v1答疑'],
-  },
-  {
-    id: 'station-1', type: 'station', name: '分站站长资格', icon: 'building-2',
-    iconColor: '#2d8a4e', iconBgClass: 'ibg-success', bgClass: 'bg-success',
-    status: 'active', startDate: '2023-12-20', expireDate: '2024-12-20', daysLeft: 45,
-    price: 999, autoRenew: false,
-    benefits: ['专属分站页面', '推广分佣', '自购返佣', '品牌展示'],
-  },
-  {
-    id: 'institute-1', type: 'institute', name: '研究院成员', icon: 'graduation-cap',
-    iconColor: '#7c3aed', iconBgClass: 'ibg-operator', bgClass: 'bg-operator',
-    status: 'active', startDate: '2023-12-15', expireDate: '2024-12-15', daysLeft: 40,
-    price: 10000, autoRenew: false,
-    benefits: ['内部交流', '线下活动', '资源对接', '保证金可退'],
-  },
-])
+const memberships = ref<MembershipItem[]>([])
+const loading = ref(true)
+const error = ref('')
 
 const statusConfig: Record<MembershipStatus, { label: string; cls: string }> = {
   active: { label: '正常', cls: 'st-active' },
@@ -227,7 +154,20 @@ const statusConfig: Record<MembershipStatus, { label: string; cls: string }> = {
 }
 
 const filter = ref<'all' | MembershipStatus>('all')
-const manageOpen = ref<string | null>(null)
+
+async function fetchData() {
+  loading.value = true
+  error.value = ''
+  try {
+    memberships.value = await mineApi.getMemberships()
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(fetchData)
 
 const stats = computed(() => ({
   total: memberships.value.length,
@@ -240,23 +180,17 @@ const filteredMemberships = computed(() =>
   filter.value === 'all' ? memberships.value : memberships.value.filter((m) => m.status === filter.value),
 )
 
-const expiringCount = computed(() => memberships.value.filter((m) => m.daysLeft <= 30 && m.daysLeft > 0).length)
+const expiringCount = computed(() => memberships.value.filter((m) => !m.isLifetime && m.daysLeft <= 30 && m.daysLeft > 0).length)
 
-function isExpiring(m: Membership) {
-  return m.daysLeft <= 30 && m.daysLeft > 0
+function isExpiring(m: MembershipItem) {
+  return !m.isLifetime && m.daysLeft <= 30 && m.daysLeft > 0
 }
-function barWidth(m: Membership) {
+function barWidth(m: MembershipItem) {
+  if (m.isLifetime) return 100
   return Math.min(100, Math.max(0, (m.daysLeft / 365) * 100))
 }
-function toggleAutoRenew(id: string) {
-  const m = memberships.value.find((x) => x.id === id)
-  if (m) m.autoRenew = !m.autoRenew
-}
-function toggleManage(id: string) {
-  manageOpen.value = manageOpen.value === id ? null : id
-}
 function goExpiryNotice() {
-  navigateTo('/notifications?type=expiry')
+  navigateTo('/notifications')
 }
 function goOrders() {
   navigateTo('/orders/center')
@@ -264,11 +198,8 @@ function goOrders() {
 function goVip() {
   navigateTo('/vip')
 }
-function goRenew(m: Membership) {
-  navigateTo(`/renew?type=${m.type}&id=${m.id}`)
-}
-function goExit(m: Membership) {
-  navigateTo(`/circles/${m.id.replace('circle-', '')}/exit`)
+function goRenew(_m: MembershipItem) {
+  navigateTo('/vip')
 }
 </script>
 
@@ -327,7 +258,7 @@ function goExit(m: Membership) {
 }
 .stat-link-txt {
   font-size: 22rpx;
-  color: #c41e3a;
+  color: var(--brand);
 }
 .stat-grid {
   display: flex;
@@ -398,12 +329,12 @@ function goExit(m: Membership) {
 .empty-btn {
   margin-top: 16rpx;
   padding: 12rpx 32rpx;
-  border: 1rpx solid #c41e3a;
+  border: 1rpx solid var(--brand);
   border-radius: 999rpx;
 }
 .empty-btn-txt {
   font-size: 24rpx;
-  color: #c41e3a;
+  color: var(--brand);
 }
 
 /* 权益卡 */
@@ -563,7 +494,7 @@ function goExit(m: Membership) {
 .renew-price-num {
   font-size: 28rpx;
   font-weight: 700;
-  color: #c41e3a;
+  color: var(--brand);
 }
 .renew-price-old {
   font-size: 20rpx;
@@ -578,7 +509,7 @@ function goExit(m: Membership) {
   height: 56rpx;
   padding: 0 24rpx;
   border-radius: 12rpx;
-  background: #c41e3a;
+  background: var(--brand);
 }
 .renew-btn-amber {
   background: #f59e0b;

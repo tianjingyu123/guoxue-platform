@@ -1,154 +1,76 @@
 <template>
-  <view class="sm-page">
-    <!-- Header -->
-    <view class="sm-header" :style="{ paddingTop: statusBarHeight + 'px' }">
-      <view class="sm-header-inner">
-        <view class="sm-back" @tap="goBack">
-          <app-icon name="arrow-left" :size="40" color="#1f1f1f" />
-        </view>
-        <text class="sm-title">站点管理</text>
+  <view class="mg-page">
+    <!-- 顶部导航 -->
+    <view class="mg-nav" :style="{ paddingTop: statusBarHeight + 'px' }">
+      <view class="mg-nav-inner">
+        <view class="mg-nav-btn" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1f2937" /></view>
+        <text class="mg-nav-title">分站管理</text>
+        <view class="mg-nav-btn" :class="{ spinning: loading }" @tap="onRefresh"><app-icon name="refresh-cw" :size="38" color="#4b5563" /></view>
       </view>
     </view>
 
-    <!-- Tab bar -->
-    <view class="sm-tabs" :style="{ top: statusBarHeight + 44 + 'px' }">
-      <view
-        v-for="t in tabs"
-        :key="t.key"
-        class="sm-tab"
-        :class="{ active: active === t.key }"
-        @tap="active = t.key"
-      >
-        <app-icon :name="t.icon" :size="28" :color="active === t.key ? '#C41E3A' : '#9ca3af'" />
-        <text class="sm-tab-txt">{{ t.label }}</text>
-      </view>
+    <!-- loading -->
+    <view v-if="loading" class="mg-state"><view class="mg-spinner" /><text class="mg-state-txt">加载中...</text></view>
+    <!-- 未开通 -->
+    <view v-else-if="notOpened" class="mg-state">
+      <app-icon name="store" :size="96" color="#d1d5db" />
+      <text class="mg-state-txt">你还没有开通分站</text>
+      <view class="mg-state-btn" @tap="goJoin"><text class="mg-state-btn-txt">去开通分站</text></view>
+    </view>
+    <!-- error -->
+    <view v-else-if="error" class="mg-state">
+      <app-icon name="alert-circle" :size="96" color="#d1d5db" />
+      <text class="mg-state-txt">{{ error }}</text>
+      <view class="mg-state-btn" @tap="load"><text class="mg-state-btn-txt">重新加载</text></view>
     </view>
 
-    <view class="sm-body">
-      <!-- 基本信息 -->
-      <view v-if="active === 'basic'" class="sm-section">
-        <view v-for="f in basicFields" :key="f.key" class="sm-field">
-          <text class="sm-label">{{ f.label }}</text>
-          <input class="sm-input" v-model="basic[f.key]" />
-        </view>
-        <view class="sm-field">
-          <text class="sm-label">站点介绍</text>
-          <textarea class="sm-textarea" v-model="basic.intro" />
-        </view>
-
-        <text class="sm-group-title">功能开关</text>
-        <view class="sm-switch-card">
-          <view v-for="f in featureItems" :key="f.key" class="sm-switch-row">
-            <text class="sm-switch-label">{{ f.label }}</text>
-            <view class="sm-switch" :class="{ on: features[f.key] }" @tap="features[f.key] = !features[f.key]">
-              <view class="sm-switch-knob" :class="{ on: features[f.key] }" />
-            </view>
+    <view v-else-if="cfg" class="mg-content">
+      <!-- 分站品牌卡（真实信息） -->
+      <view class="mg-brand" :style="{ background: `linear-gradient(135deg, ${cfg.themeColor}, ${darken(cfg.themeColor)})` }">
+        <view class="mg-brand-top">
+          <view class="mg-logo">
+            <image lazy-load v-if="cfg.logo" :src="cfg.logo" class="mg-logo-img" mode="aspectFill" />
+            <text v-else class="mg-logo-txt">{{ (cfg.name || '站').charAt(0) }}</text>
           </view>
+          <view class="mg-brand-info">
+            <text class="mg-brand-name">{{ cfg.name || '我的分站' }}</text>
+            <text class="mg-brand-code">推广码：{{ cfg.code || '—' }}</text>
+          </view>
+          <view class="mg-status" :class="cfg.status"><text class="mg-status-txt">{{ statusLabel(cfg.status) }}</text></view>
         </view>
-
-        <text class="sm-group-title">高级功能</text>
-        <!-- FeatureGate 内联卡 -->
-        <view class="sm-gate" :class="{ reviewing: liveStatus === 'reviewing' }" @tap="onGateClick">
-          <view class="sm-gate-icon">
-            <app-icon name="shopping-bag" :size="40" color="#C41E3A" />
-          </view>
-          <view class="sm-gate-main">
-            <view class="sm-gate-head">
-              <text class="sm-gate-label">电商直播</text>
-              <app-icon v-if="liveStatus === 'approved'" name="check" :size="26" color="#3D7A5C" />
-            </view>
-            <text class="sm-gate-desc">{{ gateDesc }}</text>
-          </view>
-          <view class="sm-badge" :class="liveStatus">
-            <app-icon v-if="liveStatus === 'reviewing'" name="clock" :size="22" color="#C9A96E" />
-            <app-icon v-else-if="liveStatus === 'approved'" name="check" :size="22" color="#3D7A5C" />
-            <app-icon v-else-if="liveStatus === 'rejected'" name="alert-circle" :size="22" color="#C41E3A" />
-            <app-icon v-else name="chevron-right" :size="22" color="#9ca3af" />
-            <text class="sm-badge-txt">{{ gateBadgeLabel }}</text>
-          </view>
-        </view>
+        <text v-if="cfg.intro" class="mg-brand-intro">{{ cfg.intro }}</text>
       </view>
 
-      <!-- 域名功能 -->
-      <view v-else-if="active === 'domain'" class="sm-section">
-        <view class="sm-field">
-          <text class="sm-label">自定义域名</text>
-          <view class="sm-domain-row">
-            <input class="sm-input sm-domain-input" v-model="domain.custom" placeholder="example.com" />
-            <view class="sm-verify-btn"><text class="sm-verify-txt">验证</text></view>
-          </view>
-          <text class="sm-hint">请将 CNAME 记录指向 cname.rebu.com</text>
-        </view>
-        <view class="sm-ssl-card">
-          <view class="sm-ssl-info">
-            <text class="sm-ssl-title">SSL 证书</text>
-            <text class="sm-ssl-desc">自动签发 HTTPS 证书</text>
-          </view>
-          <view class="sm-switch" :class="{ on: domain.ssl }" @tap="domain.ssl = !domain.ssl">
-            <view class="sm-switch-knob" :class="{ on: domain.ssl }" />
-          </view>
-        </view>
-        <view class="sm-addr-card">
-          <text class="sm-addr-title">当前访问地址</text>
-          <text class="sm-addr-url">https://rebu.com/s/station001</text>
-        </view>
+      <!-- 经营概览（真实统计） -->
+      <view class="mg-stats">
+        <view class="mg-stat"><text class="mg-stat-val">¥{{ cfg.totalEarning.toFixed(0) }}</text><text class="mg-stat-cap">累计收益</text></view>
+        <view class="mg-stat"><text class="mg-stat-val">¥{{ cfg.monthEarning.toFixed(0) }}</text><text class="mg-stat-cap">本月收益</text></view>
+        <view class="mg-stat"><text class="mg-stat-val">{{ cfg.monthOrders }}</text><text class="mg-stat-cap">本月订单</text></view>
+        <view class="mg-stat"><text class="mg-stat-val">{{ cfg.lockedUsers }}</text><text class="mg-stat-cap">锁粉用户</text></view>
       </view>
 
-      <!-- 通知设置 -->
-      <view v-else-if="active === 'notify'" class="sm-switch-card sm-notify">
-        <view v-for="n in notifyItems" :key="n.key" class="sm-notify-row">
-          <view class="sm-notify-info">
-            <text class="sm-switch-label">{{ n.label }}</text>
-            <text class="sm-notify-desc">{{ n.desc }}</text>
-          </view>
-          <view class="sm-switch" :class="{ on: notify[n.key] }" @tap="notify[n.key] = !notify[n.key]">
-            <view class="sm-switch-knob" :class="{ on: notify[n.key] }" />
-          </view>
+      <!-- 管理入口（真实页面） -->
+      <view class="mg-group">
+        <text class="mg-group-title">分站运营</text>
+        <view class="mg-item" @tap="go('/pkg-operator/station-config/index')">
+          <view class="mg-item-ico ico-red"><app-icon name="palette" :size="36" color="#C41E3A" /></view>
+          <view class="mg-item-body"><text class="mg-item-label">分站装修</text><text class="mg-item-desc">品牌/模板/微页面设置</text></view>
+          <app-icon name="chevron-right" :size="32" color="#d1d5db" />
         </view>
-      </view>
-
-      <!-- 安全设置 -->
-      <view v-else class="sm-section">
-        <view v-for="item in securityItems" :key="item.label" class="sm-sec-row">
-          <app-icon :name="item.icon" :size="32" color="#C41E3A" />
-          <text class="sm-sec-label">{{ item.label }}</text>
-          <app-icon name="chevron-right" :size="28" color="#9ca3af" />
+        <view class="mg-item" @tap="go('/pkg-operator/station-materials/index')">
+          <view class="mg-item-ico ico-amber"><app-icon name="image" :size="36" color="#d97706" /></view>
+          <view class="mg-item-body"><text class="mg-item-label">推广素材</text><text class="mg-item-desc">海报/文案/推广码</text></view>
+          <app-icon name="chevron-right" :size="32" color="#d1d5db" />
         </view>
-        <view class="sm-danger">
-          <text class="sm-danger-title">危险操作</text>
-          <text class="sm-danger-desc">以下操作不可撤销，请谨慎操作</text>
-          <view class="sm-danger-btn"><text class="sm-danger-btn-txt">申请注销站点</text></view>
+        <view class="mg-item" @tap="go('/pkg-operator/station-earnings/index')">
+          <view class="mg-item-ico ico-green"><app-icon name="wallet" :size="36" color="#16a34a" /></view>
+          <view class="mg-item-body"><text class="mg-item-label">收益明细</text><text class="mg-item-desc">佣金流水与结算</text></view>
+          <app-icon name="chevron-right" :size="32" color="#d1d5db" />
         </view>
-      </view>
-    </view>
-
-    <!-- 保存栏 -->
-    <view v-if="active !== 'security'" class="sm-savebar">
-      <view class="sm-save-btn" :class="{ saved }" @tap="handleSave">
-        <app-icon v-if="saving" name="loader-2" :size="28" color="#ffffff" class="sm-spin" />
-        <text class="sm-save-txt">{{ saving ? '保存中…' : saved ? '保存成功' : '保存设置' }}</text>
-      </view>
-    </view>
-
-    <!-- 申请开通弹窗 -->
-    <view v-if="showApply" class="sm-modal-mask" @tap="showApply = false">
-      <view class="sm-modal" @tap.stop>
-        <view class="sm-modal-bar" />
-        <view class="sm-modal-head">
-          <text class="sm-modal-title">申请开通电商直播</text>
-          <view @tap="showApply = false"><app-icon name="x" :size="36" color="#9ca3af" /></view>
-        </view>
-        <text class="sm-modal-desc">开通后可在分站发起电商带货直播</text>
-        <text class="sm-modal-label">申请理由 <text class="sm-req">*</text></text>
-        <textarea class="sm-modal-textarea" v-model="applyReason" placeholder="请简要说明开通该功能的用途与计划" />
-        <text class="sm-modal-label">补充说明</text>
-        <textarea class="sm-modal-textarea sm-modal-textarea-sm" v-model="applyNote" placeholder="选填，可补充圈子运营情况等" />
-        <view class="sm-modal-tip">
-          <app-icon name="sparkles" :size="28" color="#C9A96E" />
-          <text class="sm-modal-tip-txt">满足运营条件的圈子将自动通过审核，预计审核时长 3-5 个工作日。</text>
-        </view>
-        <view class="sm-modal-submit" :class="{ disabled: !applyReason.trim() || submitting }" @tap="submitApply">
-          <text class="sm-modal-submit-txt">{{ submitting ? '提交中...' : '提交申请' }}</text>
+        <view class="mg-item" @tap="go('/pkg-operator/station-poster/index')">
+          <view class="mg-item-ico ico-purple"><app-icon name="share-2" :size="36" color="#8b5cf6" /></view>
+          <view class="mg-item-body"><text class="mg-item-label">邀请海报</text><text class="mg-item-desc">生成专属推广海报</text></view>
+          <app-icon name="chevron-right" :size="32" color="#d1d5db" />
         </view>
       </view>
     </view>
@@ -156,207 +78,100 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, reactive } from 'vue'
-import { navigateTo } from '@/utils/router'
+import { ref } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
+import AppIcon from '@/components/common/app-icon.vue'
+import { navigateTo, navigateBack } from '@/utils/router'
+import { operatorApi, type StationConfigData } from '@/lib/operator-data'
 
 const statusBarHeight = ref(20)
-uni.getSystemInfo({ success: (r) => { statusBarHeight.value = r.statusBarHeight || 20 } })
+const loading = ref(true)
+const error = ref('')
+const notOpened = ref(false)
+const cfg = ref<StationConfigData | null>(null)
 
-const active = ref<'basic' | 'domain' | 'notify' | 'security'>('basic')
-const saving = ref(false)
-const saved = ref(false)
-
-const tabs = [
-  { key: 'basic', label: '基本信息', icon: 'settings' },
-  { key: 'domain', label: '域名功能', icon: 'globe' },
-  { key: 'notify', label: '通知设置', icon: 'bell' },
-  { key: 'security', label: '安全设置', icon: 'shield' },
-] as const
-
-const basic = reactive<Record<string, string>>({
-  name: '儒布命理文化站',
-  slogan: '传承国学智慧，点亮人生方向',
-  intro: '专注于传统命理文化传播与学习，汇聚百位名师，覆盖八字、紫微、风水等多个领域。',
-  contactEmail: 'admin@station.com',
-  contactPhone: '138-0000-1234',
-})
-const basicFields = [
-  { label: '站点名称', key: 'name' },
-  { label: '站点标语', key: 'slogan' },
-  { label: '联系邮箱', key: 'contactEmail' },
-  { label: '联系电话', key: 'contactPhone' },
-]
-
-const features = reactive<Record<string, boolean>>({ comment: true, share: true, community: true, ai: false, offline: true })
-const featureItems = [
-  { key: 'comment', label: '评论功能' },
-  { key: 'share', label: '分享功能' },
-  { key: 'community', label: '圈子社区' },
-  { key: 'ai', label: 'AI 助手（Beta）' },
-  { key: 'offline', label: '线下活动' },
-]
-
-const domain = reactive({ custom: 'minglijia.com', ssl: true })
-
-const notify = reactive<Record<string, boolean>>({ newUser: true, newOrder: true, newReview: false, lowStock: true })
-const notifyItems = [
-  { key: 'newUser', label: '新用户注册', desc: '有新用户加入站点时通知' },
-  { key: 'newOrder', label: '新订单提醒', desc: '有用户下单时通知' },
-  { key: 'newReview', label: '新评价通知', desc: '有用户发表评价时通知' },
-  { key: 'lowStock', label: '库存预警', desc: '商品剩余库存不足时通知' },
-]
-
-const securityItems = [
-  { label: '修改登录密码', icon: 'shield' },
-  { label: '绑定双重验证', icon: 'shield' },
-  { label: '操作日志', icon: 'file-text' },
-  { label: '数据备份与导出', icon: 'file-text' },
-]
-
-// FeatureGate 电商直播
-const liveStatus = ref<'not_applied' | 'reviewing' | 'approved' | 'rejected'>('not_applied')
-const showApply = ref(false)
-const applyReason = ref('')
-const applyNote = ref('')
-const submitting = ref(false)
-
-const gateDesc = computed(() => {
-  if (liveStatus.value === 'reviewing') return '审核中 · 预计 3-5 个工作日'
-  if (liveStatus.value === 'rejected') return '申请未通过，点击查看原因'
-  if (liveStatus.value === 'approved') return '已开通，点击进入'
-  return '开通后可在分站发起电商带货直播'
-})
-const gateBadgeLabel = computed(() => {
-  return { not_applied: '申请开通', reviewing: '审核中', approved: '已开通', rejected: '已驳回' }[liveStatus.value]
-})
-
-function onGateClick() {
-  if (liveStatus.value === 'approved') { navigateTo('/pkg-operator/station-live/index'); return }
-  if (liveStatus.value === 'reviewing') return
-  showApply.value = true
+function statusLabel(s: string): string {
+  return ({ active: '运营中', pending: '审核中', expired: '已到期', paused: '已暂停' } as Record<string, string>)[s] || s
 }
-async function submitApply() {
-  if (!applyReason.value.trim() || submitting.value) return
-  submitting.value = true
-  await new Promise((r) => setTimeout(r, 800))
-  submitting.value = false
-  liveStatus.value = 'reviewing'
-  showApply.value = false
+function darken(hex: string): string {
+  // 主色加深用于渐变；非标准 hex 回退默认深红
+  if (!/^#[0-9a-fA-F]{6}$/.test(hex)) return '#A01830'
+  const n = parseInt(hex.slice(1), 16)
+  const r = Math.max(0, ((n >> 16) & 255) - 30)
+  const g = Math.max(0, ((n >> 8) & 255) - 30)
+  const b = Math.max(0, (n & 255) - 30)
+  return `rgb(${r}, ${g}, ${b})`
 }
 
-function handleSave() {
-  if (saving.value) return
-  saving.value = true
-  setTimeout(() => {
-    saving.value = false
-    saved.value = true
-    setTimeout(() => { saved.value = false }, 2500)
-  }, 900)
+async function load() {
+  loading.value = true
+  error.value = ''
+  notOpened.value = false
+  try {
+    cfg.value = await operatorApi.getStationConfig()
+  } catch (e: any) {
+    const msg = e?.message || ''
+    if (msg.includes('开通分站') || msg.includes('没有开通') || msg.includes('NOT_FOUND')) {
+      notOpened.value = true
+    } else {
+      error.value = msg || '加载失败，请重试'
+    }
+  } finally {
+    loading.value = false
+  }
 }
 
-function goBack() { uni.navigateBack({ fail: () => navigateTo('/pages/index/index') }) }
+function onRefresh() { if (!loading.value) load() }
+function go(p: string) { navigateTo(p) }
+function goJoin() { navigateTo('/pkg-operator/join-station/index') }
+function goBack() { navigateBack() }
+
+onLoad(() => {
+  try { statusBarHeight.value = uni.getSystemInfoSync().statusBarHeight || 20 } catch (e) {}
+  load()
+})
 </script>
 
-<style scoped lang="scss">
-.sm-page { min-height: 100vh; background: #f7f7f7; }
+<style lang="scss" scoped>
+.mg-page { min-height: 100vh; background: #faf8f5; }
+.mg-nav { position: sticky; top: 0; z-index: 10; background: #faf8f5; border-bottom: 1rpx solid #f3f4f6; }
+.mg-nav-inner { display: flex; align-items: center; justify-content: space-between; padding: 24rpx 32rpx; }
+.mg-nav-btn { width: 48rpx; height: 48rpx; display: flex; align-items: center; justify-content: center; }
+.mg-nav-btn.spinning { animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.mg-nav-title { font-size: 36rpx; font-weight: 600; color: #111827; }
 
-.sm-header { position: sticky; top: 0; z-index: 20; background: #fff; border-bottom: 1rpx solid #ededed; }
-.sm-header-inner { height: 88rpx; display: flex; align-items: center; padding: 0 24rpx; gap: 24rpx; }
-.sm-back { width: 56rpx; height: 56rpx; display: flex; align-items: center; }
-.sm-title { font-size: 32rpx; font-weight: 600; color: #1f1f1f; }
+.mg-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 160rpx 32rpx; gap: 24rpx; }
+.mg-state-txt { font-size: 28rpx; color: #6b7280; }
+.mg-spinner { width: 56rpx; height: 56rpx; border: 6rpx solid #f0d0d4; border-top-color: var(--brand); border-radius: 50%; animation: spin 0.8s linear infinite; }
+.mg-state-btn { margin-top: 8rpx; padding: 16rpx 48rpx; background: var(--brand); border-radius: 999rpx; }
+.mg-state-btn-txt { color: #fff; font-size: 28rpx; }
 
-.sm-tabs { position: sticky; z-index: 19; display: flex; background: #fff; border-bottom: 1rpx solid #ededed; }
-.sm-tab { flex: 1; display: flex; align-items: center; justify-content: center; gap: 8rpx; padding: 24rpx 0; border-bottom: 4rpx solid transparent; }
-.sm-tab.active { border-bottom-color: #C41E3A; }
-.sm-tab-txt { font-size: 24rpx; font-weight: 500; color: #9ca3af; }
-.sm-tab.active .sm-tab-txt { color: #C41E3A; }
+.mg-content { padding: 32rpx; }
 
-.sm-body { padding: 32rpx 32rpx 220rpx; }
-.sm-section { display: flex; flex-direction: column; gap: 32rpx; }
+.mg-brand { border-radius: 28rpx; padding: 36rpx; margin-bottom: 28rpx; }
+.mg-brand-top { display: flex; align-items: center; gap: 24rpx; }
+.mg-logo { width: 96rpx; height: 96rpx; border-radius: 24rpx; background: rgba(255,255,255,0.25); display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0; }
+.mg-logo-img { width: 100%; height: 100%; }
+.mg-logo-txt { font-size: 44rpx; font-weight: 700; color: #fff; }
+.mg-brand-info { flex: 1; min-width: 0; }
+.mg-brand-name { display: block; font-size: 34rpx; font-weight: 700; color: #fff; }
+.mg-brand-code { font-size: 24rpx; color: rgba(255,255,255,0.85); }
+.mg-status { padding: 6rpx 18rpx; border-radius: 999rpx; background: rgba(255,255,255,0.25); }
+.mg-status-txt { font-size: 22rpx; color: #fff; }
+.mg-brand-intro { display: block; margin-top: 20rpx; font-size: 26rpx; color: rgba(255,255,255,0.9); line-height: 1.6; }
 
-.sm-field { display: flex; flex-direction: column; }
-.sm-label { font-size: 24rpx; font-weight: 500; color: #1f1f1f; margin-bottom: 12rpx; }
-.sm-input { height: 72rpx; padding: 0 24rpx; background: #fff; border: 1rpx solid #e5e5e5; border-radius: 16rpx; font-size: 28rpx; color: #1f1f1f; }
-.sm-textarea { width: 100%; min-height: 180rpx; padding: 16rpx 24rpx; background: #fff; border: 1rpx solid #e5e5e5; border-radius: 16rpx; font-size: 28rpx; color: #1f1f1f; box-sizing: border-box; }
+.mg-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16rpx; background: #fff; border-radius: 24rpx; padding: 32rpx 16rpx; margin-bottom: 28rpx; }
+.mg-stat { display: flex; flex-direction: column; align-items: center; gap: 8rpx; }
+.mg-stat-val { font-size: 32rpx; font-weight: 700; color: var(--brand); }
+.mg-stat-cap { font-size: 22rpx; color: #9ca3af; }
 
-.sm-group-title { font-size: 24rpx; font-weight: 600; color: #1f1f1f; padding-top: 8rpx; }
-.sm-switch-card { background: #fff; border: 1rpx solid #ededed; border-radius: 20rpx; }
-.sm-switch-row { display: flex; align-items: center; justify-content: space-between; padding: 24rpx; border-bottom: 1rpx solid #f0f0f0; }
-.sm-switch-row:last-child { border-bottom: none; }
-.sm-switch-label { font-size: 28rpx; color: #1f1f1f; }
-
-.sm-switch { width: 88rpx; height: 48rpx; border-radius: 24rpx; background: #d1d5db; position: relative; transition: background .2s; flex-shrink: 0; }
-.sm-switch.on { background: #C41E3A; }
-.sm-switch-knob { position: absolute; top: 4rpx; left: 4rpx; width: 40rpx; height: 40rpx; background: #fff; border-radius: 50%; box-shadow: 0 2rpx 6rpx rgba(0,0,0,.15); transition: left .2s; }
-.sm-switch-knob.on { left: 44rpx; }
-
-/* FeatureGate */
-.sm-gate { display: flex; align-items: center; gap: 24rpx; padding: 32rpx; background: #fff; border: 1rpx solid #ededed; border-radius: 20rpx; }
-.sm-gate.reviewing { opacity: .6; }
-.sm-gate-icon { width: 80rpx; height: 80rpx; border-radius: 20rpx; background: #f3f3f3; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.sm-gate-main { flex: 1; min-width: 0; }
-.sm-gate-head { display: flex; align-items: center; gap: 12rpx; }
-.sm-gate-label { font-size: 28rpx; font-weight: 500; color: #1f1f1f; }
-.sm-gate-desc { font-size: 24rpx; color: #999; margin-top: 4rpx; }
-.sm-badge { display: flex; align-items: center; gap: 6rpx; padding: 8rpx 20rpx; border-radius: 999rpx; flex-shrink: 0; background: #f3f3f3; }
-.sm-badge.reviewing { background: rgba(201,169,110,.1); }
-.sm-badge.approved { background: rgba(61,122,92,.1); }
-.sm-badge.rejected { background: rgba(196,30,58,.1); }
-.sm-badge-txt { font-size: 22rpx; color: #6b7280; }
-.sm-badge.reviewing .sm-badge-txt { color: #C9A96E; }
-.sm-badge.approved .sm-badge-txt { color: #3D7A5C; }
-.sm-badge.rejected .sm-badge-txt { color: #C41E3A; }
-
-/* Domain */
-.sm-domain-row { display: flex; gap: 16rpx; }
-.sm-domain-input { flex: 1; }
-.sm-verify-btn { padding: 0 28rpx; height: 72rpx; display: flex; align-items: center; background: #C41E3A; border-radius: 16rpx; }
-.sm-verify-txt { font-size: 24rpx; color: #fff; }
-.sm-hint { font-size: 22rpx; color: #999; margin-top: 12rpx; }
-.sm-ssl-card { display: flex; align-items: center; justify-content: space-between; padding: 24rpx; background: #fff; border: 1rpx solid #ededed; border-radius: 20rpx; }
-.sm-ssl-title { font-size: 28rpx; color: #1f1f1f; }
-.sm-ssl-desc { font-size: 22rpx; color: #999; margin-top: 4rpx; display: block; }
-.sm-addr-card { padding: 24rpx; background: #f0f0f0; border-radius: 20rpx; }
-.sm-addr-title { font-size: 22rpx; font-weight: 500; color: #1f1f1f; margin-bottom: 8rpx; display: block; }
-.sm-addr-url { font-size: 22rpx; color: #C41E3A; font-family: monospace; }
-
-/* Notify */
-.sm-notify-row { display: flex; align-items: center; gap: 24rpx; padding: 24rpx; border-bottom: 1rpx solid #f0f0f0; }
-.sm-notify-row:last-child { border-bottom: none; }
-.sm-notify-info { flex: 1; }
-.sm-notify-desc { font-size: 22rpx; color: #999; margin-top: 4rpx; display: block; }
-
-/* Security */
-.sm-sec-row { display: flex; align-items: center; gap: 24rpx; padding: 24rpx; background: #fff; border: 1rpx solid #ededed; border-radius: 20rpx; }
-.sm-sec-label { font-size: 28rpx; color: #1f1f1f; flex: 1; }
-.sm-danger { padding: 24rpx; margin-top: 8rpx; background: rgba(196,30,58,.05); border: 1rpx solid rgba(196,30,58,.2); border-radius: 20rpx; }
-.sm-danger-title { font-size: 28rpx; font-weight: 600; color: #C41E3A; margin-bottom: 8rpx; display: block; }
-.sm-danger-desc { font-size: 22rpx; color: #999; margin-bottom: 24rpx; display: block; }
-.sm-danger-btn { width: 100%; padding: 20rpx 0; display: flex; align-items: center; justify-content: center; border: 1rpx solid rgba(196,30,58,.4); border-radius: 16rpx; }
-.sm-danger-btn-txt { font-size: 24rpx; color: #C41E3A; font-weight: 500; }
-
-/* Save bar */
-.sm-savebar { position: fixed; bottom: 0; left: 0; right: 0; background: #fff; border-top: 1rpx solid #ededed; padding: 24rpx 32rpx; padding-bottom: calc(24rpx + env(safe-area-inset-bottom)); }
-.sm-save-btn { height: 88rpx; border-radius: 20rpx; background: #C41E3A; display: flex; align-items: center; justify-content: center; gap: 12rpx; }
-.sm-save-btn.saved { background: #6ed24a; }
-.sm-save-txt { font-size: 28rpx; font-weight: 600; color: #fff; }
-.sm-spin { animation: sm-spin 1s linear infinite; }
-@keyframes sm-spin { to { transform: rotate(360deg); } }
-
-/* Modal */
-.sm-modal-mask { position: fixed; inset: 0; z-index: 50; background: rgba(0,0,0,.5); display: flex; align-items: flex-end; }
-.sm-modal { width: 100%; background: #fff; border-radius: 32rpx 32rpx 0 0; padding: 40rpx 40rpx 64rpx; }
-.sm-modal-bar { width: 80rpx; height: 8rpx; background: #e5e5e5; border-radius: 999rpx; margin: 0 auto 32rpx; }
-.sm-modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8rpx; }
-.sm-modal-title { font-size: 32rpx; font-weight: 700; color: #1f1f1f; }
-.sm-modal-desc { font-size: 24rpx; color: #999; margin-bottom: 32rpx; display: block; }
-.sm-modal-label { font-size: 28rpx; font-weight: 500; color: #1f1f1f; margin-bottom: 12rpx; display: block; }
-.sm-req { color: #C41E3A; }
-.sm-modal-textarea { width: 100%; min-height: 140rpx; padding: 20rpx; border: 1rpx solid #e5e5e5; border-radius: 16rpx; font-size: 28rpx; color: #1f1f1f; box-sizing: border-box; margin-bottom: 24rpx; }
-.sm-modal-textarea-sm { min-height: 100rpx; }
-.sm-modal-tip { display: flex; align-items: flex-start; gap: 12rpx; padding: 24rpx; border-radius: 16rpx; background: rgba(201,169,110,.1); margin-bottom: 32rpx; }
-.sm-modal-tip-txt { font-size: 22rpx; color: #8B7355; line-height: 1.6; flex: 1; }
-.sm-modal-submit { width: 100%; padding: 28rpx 0; border-radius: 999rpx; background: #C41E3A; display: flex; align-items: center; justify-content: center; }
-.sm-modal-submit.disabled { opacity: .5; }
-.sm-modal-submit-txt { font-size: 30rpx; font-weight: 600; color: #fff; }
+.mg-group { background: #fff; border-radius: 24rpx; padding: 12rpx 0; }
+.mg-group-title { display: block; font-size: 26rpx; color: #9ca3af; padding: 20rpx 32rpx 12rpx; }
+.mg-item { display: flex; align-items: center; gap: 24rpx; padding: 24rpx 32rpx; }
+.mg-item-ico { width: 72rpx; height: 72rpx; border-radius: 20rpx; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.ico-red { background: #fef2f4; } .ico-amber { background: #fffbeb; } .ico-green { background: #f0fdf4; } .ico-purple { background: #f5f3ff; }
+.mg-item-body { flex: 1; min-width: 0; }
+.mg-item-label { display: block; font-size: 30rpx; font-weight: 500; color: #111827; }
+.mg-item-desc { font-size: 24rpx; color: #9ca3af; }
 </style>

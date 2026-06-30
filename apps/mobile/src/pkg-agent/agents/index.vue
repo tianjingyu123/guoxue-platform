@@ -39,10 +39,13 @@
           <view v-if="searchQuery" class="search-clear" @tap="searchQuery = ''">
             <app-icon name="x" :size="28" color="#999999" />
           </view>
-          <view class="search-divider" />
-          <view class="voice-btn" :class="{ listening: isListening }" @tap="handleVoiceSearch">
-            <app-icon name="mic" :size="30" :color="isListening ? '#ffffff' : '#666666'" />
-          </view>
+          <!-- 语音搜索：仅 H5 端用 Web Speech 真实识别，其余端不支持则隐藏入口 -->
+          <template v-if="voiceSupported">
+            <view class="search-divider" />
+            <view class="voice-btn" :class="{ listening: isListening }" @tap="handleVoiceSearch">
+              <app-icon name="mic" :size="30" :color="isListening ? '#ffffff' : '#666666'" />
+            </view>
+          </template>
           <!-- 聆听遮罩 -->
           <view v-if="isListening" class="listening-mask">
             <view class="dot" />
@@ -73,8 +76,8 @@
       </view>
     </view>
 
-    <!-- 热门问答 -->
-    <view class="section-px section-mt">
+    <!-- 热门问答（后端暂无该数据时整块隐藏） -->
+    <view v-if="hotQuestions.length" class="section-px section-mt">
       <view class="sec-head">
         <view class="sec-head-left">
           <app-icon name="flame" :size="36" color="#ff6b35" />
@@ -96,7 +99,7 @@
           <view class="q-body">
             <text class="q-text">{{ q.question }}</text>
             <view class="q-meta">
-              <image class="q-bot-avatar" :src="q.botAvatar" mode="aspectFill" />
+              <image lazy-load class="q-bot-avatar" :src="q.botAvatar" mode="aspectFill" />
               <text class="q-bot-name">{{ q.botName }}</text>
               <text class="q-dot">·</text>
               <text class="q-views">{{ formatCount(q.views) }}浏览</text>
@@ -129,7 +132,7 @@
         >
           <view class="bot-avatar-wrap">
             <view class="bot-avatar" :style="{ background: bot.bgColor }">
-              <image class="bot-avatar-img" :src="bot.avatar" mode="aspectFit" />
+              <image lazy-load class="bot-avatar-img" :src="bot.avatar" mode="aspectFit" />
             </view>
             <view v-if="index < 3" class="bot-rank" :class="'bot-rank-' + index">{{ index + 1 }}</view>
           </view>
@@ -146,12 +149,12 @@
               <text v-for="(cap, i) in bot.capabilities.slice(0, 3)" :key="i" class="bot-cap">{{ cap }}</text>
             </view>
 
-            <view class="bot-stats">
-              <view class="bot-stat">
+            <view v-if="bot.rating || bot.useCount || bot.capabilities.includes('语音对话')" class="bot-stats">
+              <view v-if="bot.rating" class="bot-stat">
                 <app-icon name="star" :size="26" color="#ffb800" />
                 <text class="bot-stat-txt">{{ bot.rating }}</text>
               </view>
-              <text class="bot-stat-txt muted">{{ formatCount(bot.useCount) }}次对话</text>
+              <text v-if="bot.useCount" class="bot-stat-txt muted">{{ formatCount(bot.useCount) }}次对话</text>
               <view v-if="bot.capabilities.includes('语音对话')" class="bot-voice">
                 <app-icon name="volume-2" :size="26" color="#7c3aed" />
                 <text class="bot-voice-txt">语音</text>
@@ -190,7 +193,13 @@ const error = ref('')
 const statusBarHeight = ref(0)
 const searchQuery = ref('')
 const isListening = ref(false)
+const voiceSupported = ref(false)
 const showAllBots = ref(false)
+
+// #ifdef H5
+voiceSupported.value =
+  typeof window !== 'undefined' && !!((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition)
+// #endif
 const hotBots = ref<any[]>([])
 const hotQuestions = ref<any[]>([])
 
@@ -221,13 +230,36 @@ uni.getSystemInfo({
 
 const displayBots = computed(() => (showAllBots.value ? hotBots.value : hotBots.value.slice(0, 4)))
 
+let recognition: any = null
+// 语音搜索：H5 端调用浏览器原生 Web Speech API 做真实识别（无 mock 假识别）
 function handleVoiceSearch() {
-  if (isListening.value) return
-  isListening.value = true
-  setTimeout(() => {
+  // #ifdef H5
+  if (isListening.value) {
+    recognition?.stop()
+    return
+  }
+  const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+  if (!SR) {
+    uni.showToast({ title: '当前浏览器不支持语音识别', icon: 'none' })
+    return
+  }
+  recognition = new SR()
+  recognition.lang = 'zh-CN'
+  recognition.interimResults = false
+  recognition.maxAlternatives = 1
+  recognition.onresult = (e: any) => {
+    const transcript = e?.results?.[0]?.[0]?.transcript || ''
+    if (transcript) searchQuery.value = transcript
+  }
+  recognition.onerror = () => {
+    uni.showToast({ title: '语音识别失败，请重试', icon: 'none' })
+  }
+  recognition.onend = () => {
     isListening.value = false
-    searchQuery.value = '八字分析'
-  }, 2000)
+  }
+  isListening.value = true
+  recognition.start()
+  // #endif
 }
 
 function goAsk(q: SquareQuestion) {
@@ -250,7 +282,7 @@ function goBack() {
 <style scoped>
 .load-state { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; gap: 24rpx; }
 .load-state-text { font-size: 28rpx; color: #8a8178; }
-.retry-btn { padding: 16rpx 48rpx; background: #c41e3a; border-radius: 999rpx; }
+.retry-btn { padding: 16rpx 48rpx; background: var(--brand); border-radius: 999rpx; }
 .retry-text { font-size: 28rpx; color: #fff; }
 
 .square {
@@ -264,7 +296,7 @@ function goBack() {
   position: sticky;
   top: 0;
   z-index: 50;
-  background: linear-gradient(180deg, #c41e3a 0%, #a01530 100%);
+  background: linear-gradient(180deg, var(--brand) 0%, #a01530 100%);
 }
 .topbar-inner {
   padding: 16rpx 32rpx 28rpx;
@@ -353,7 +385,7 @@ function goBack() {
   justify-content: center;
 }
 .voice-btn.listening {
-  background: #c41e3a;
+  background: var(--brand);
 }
 .listening-mask {
   position: absolute;
@@ -372,7 +404,7 @@ function goBack() {
   width: 14rpx;
   height: 14rpx;
   border-radius: 999rpx;
-  background: #c41e3a;
+  background: var(--brand);
   animation: bounce 1s infinite;
 }
 .dot-2 {
@@ -450,7 +482,7 @@ function goBack() {
   width: 96rpx;
   height: 96rpx;
   border-radius: 24rpx;
-  background: linear-gradient(135deg, #c41e3a 0%, #7c3aed 100%);
+  background: linear-gradient(135deg, var(--brand) 0%, #7c3aed 100%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -698,7 +730,7 @@ function goBack() {
   flex-shrink: 0;
   align-self: center;
   padding: 14rpx 32rpx;
-  background: #c41e3a;
+  background: var(--brand);
   border-radius: 999rpx;
 }
 .bot-chat-txt {

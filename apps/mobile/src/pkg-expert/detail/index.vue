@@ -1,5 +1,6 @@
 <template>
   <view class="ed-page">
+    <customer-service-fab />
     <!-- 顶部背景和返回 -->
     <view class="ed-hero">
       <view class="ed-hero-bg" />
@@ -483,7 +484,7 @@ function goBack() {
   height: 160rpx;
   border-radius: 999rpx;
   background: rgba(196, 30, 58, 0.1);
-  color: #c41e3a;
+  color: var(--brand);
   font-size: 56rpx;
   display: flex;
   align-items: center;
@@ -540,7 +541,7 @@ function goBack() {
   font-size: 18rpx;
   padding: 2rpx 12rpx;
   border: 1rpx solid rgba(196, 30, 58, 0.3);
-  color: #c41e3a;
+  color: var(--brand);
   border-radius: 6rpx;
 }
 
@@ -570,7 +571,7 @@ function goBack() {
   color: #2c2c2c;
 }
 .ed-num-primary {
-  color: #c41e3a;
+  color: var(--brand);
 }
 .ed-num-accent {
   color: #c9a96e;
@@ -615,7 +616,7 @@ function goBack() {
   align-items: center;
   gap: 4rpx;
   font-size: 22rpx;
-  color: #c41e3a;
+  color: var(--brand);
 }
 .ed-intro {
   display: block;
@@ -689,7 +690,7 @@ function goBack() {
 .ed-price-primary {
   font-size: 28rpx;
   font-weight: 700;
-  color: #c41e3a;
+  color: var(--brand);
 }
 .ed-price-accent {
   font-size: 28rpx;
@@ -866,7 +867,7 @@ function goBack() {
 .ed-foot-call {
   flex: 1;
   height: 88rpx;
-  background: #c41e3a;
+  background: var(--brand);
   color: #ffffff;
   font-size: 28rpx;
   font-weight: 500;
@@ -1004,7 +1005,7 @@ function goBack() {
 .ed-submit {
   width: 100%;
   height: 88rpx;
-  background: #c41e3a;
+  background: var(--brand);
   color: #ffffff;
   font-size: 28rpx;
   font-weight: 500;

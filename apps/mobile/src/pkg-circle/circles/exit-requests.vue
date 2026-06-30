@@ -16,6 +16,7 @@ const error = ref('')
 const filter = ref<'pending' | 'processed'>('pending')
 const rejectingId = ref<string | null>(null)
 const rejectReason = ref('')
+const submitting = ref(false)
 
 const pending = computed(() => requests.value.filter((r) => r.stage === 'owner_reviewing'))
 const processed = computed(() => requests.value.filter((r) => r.stage !== 'owner_reviewing'))
@@ -31,7 +32,8 @@ async function fetchRequests() {
   loading.value = true
   error.value = ''
   try {
-    requests.value = await exitApi.getExitRequests('1')
+    // 圈主侧按 JWT 返回名下所有圈子的待审申请（后端 owner-scoped，无需传 circleId）
+    requests.value = await exitApi.getExitRequests()
   } catch {
     error.value = '加载失败，请重试'
   } finally {
@@ -43,21 +45,41 @@ function retry() { fetchRequests() }
 
 onMounted(() => { fetchRequests() })
 
-function approve(id: string) {
-  requests.value = requests.value.map((r) =>
-    r.id === id ? { ...r, stage: 'platform_reviewing' as const, ownerReviewedAt: new Date().toISOString().slice(0, 10) } : r,
-  )
+async function approve(id: string) {
+  if (submitting.value) return
+  submitting.value = true
+  try {
+    await exitApi.ownerReview(id, true)
+    // 审核已持久化：本地乐观更新，使该条移入「已处理」（后端无圈主已处理历史端点）
+    requests.value = requests.value.map((r) =>
+      r.id === id ? { ...r, stage: 'platform_reviewing' as const, ownerReviewedAt: new Date().toISOString().slice(0, 10) } : r,
+    )
+    uni.showToast({ title: '已同意退出', icon: 'success' })
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '操作失败，请重试', icon: 'none' })
+  } finally {
+    submitting.value = false
+  }
 }
 function openReject(id: string) { rejectingId.value = id; rejectReason.value = '' }
-function confirmReject() {
+async function confirmReject() {
   const id = rejectingId.value
-  if (!id) return
-  requests.value = requests.value.map((r) =>
-    r.id === id
-      ? { ...r, stage: 'rejected' as const, rejectBy: 'owner' as const, rejectReason: rejectReason.value || '圈主未通过退出申请', ownerReviewedAt: new Date().toISOString().slice(0, 10) }
-      : r,
-  )
-  rejectingId.value = null; rejectReason.value = ''
+  if (!id || submitting.value) return
+  submitting.value = true
+  try {
+    await exitApi.ownerReview(id, false, rejectReason.value || undefined)
+    requests.value = requests.value.map((r) =>
+      r.id === id
+        ? { ...r, stage: 'rejected' as const, rejectBy: 'owner' as const, rejectReason: rejectReason.value || '圈主未通过退出申请', ownerReviewedAt: new Date().toISOString().slice(0, 10) }
+        : r,
+    )
+    rejectingId.value = null; rejectReason.value = ''
+    uni.showToast({ title: '已驳回申请', icon: 'none' })
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '操作失败，请重试', icon: 'none' })
+  } finally {
+    submitting.value = false
+  }
 }
 </script>
 
@@ -132,7 +154,7 @@ function confirmReject() {
       <view v-for="req in display" :key="req.id" class="er-card" :class="{ 'er-card-done': req.stage !== 'owner_reviewing' }">
         <view class="er-card-body">
           <view class="er-card-head">
-            <image class="er-avatar" :src="req.user.avatar || '/static/avatars/me.png'" mode="aspectFill" />
+            <image lazy-load class="er-avatar" :src="req.user.avatar || '/static/avatars/me.png'" mode="aspectFill" />
             <view class="er-userinfo">
               <view class="er-name-row">
                 <text class="er-name">{{ req.user.name }}</text>
@@ -195,13 +217,13 @@ function confirmReject() {
 .er-stat { display: flex; align-items: center; gap: 14rpx; }
 .er-stat-icon { width: 52rpx; height: 52rpx; border-radius: 999rpx; background: rgba(196,30,58,0.1); display: flex; align-items: center; justify-content: center; }
 .er-stat-num { display: block; font-size: 34rpx; font-weight: 700; color: #2C2C2C; }
-.er-red { color: #C41E3A; }
+.er-red { color: var(--brand); }
 .er-stat-label { display: block; font-size: 22rpx; color: #999999; }
 .er-divider { width: 1rpx; height: 52rpx; background: #E8E3DB; }
 .er-tabs { display: flex; border-bottom: 1rpx solid #F2EFEA; }
 .er-tab { flex: 1; padding: 22rpx 0; text-align: center; font-size: 28rpx; font-weight: 500; color: #999999; position: relative; }
-.er-tab-on { color: #C41E3A; }
-.er-tab-line { position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 48rpx; height: 4rpx; background: #C41E3A; border-radius: 999rpx; }
+.er-tab-on { color: var(--brand); }
+.er-tab-line { position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 48rpx; height: 4rpx; background: var(--brand); border-radius: 999rpx; }
 .er-note { margin: 20rpx 24rpx 0; padding: 18rpx; border-radius: 16rpx; background: rgba(201,169,110,0.1); border: 1rpx solid rgba(201,169,110,0.2); }
 .er-note-text { font-size: 22rpx; color: #7A6A4F; line-height: 1.7; }
 .er-empty { display: flex; flex-direction: column; align-items: center; padding: 120rpx 0; }
@@ -229,13 +251,13 @@ function confirmReject() {
 .er-refund-detail { display: block; font-size: 22rpx; color: #666666; }
 .er-refund-total { display: flex; align-items: center; justify-content: space-between; padding-top: 10rpx; }
 .er-refund-label { font-size: 22rpx; color: #999999; }
-.er-refund-amount { font-size: 34rpx; font-weight: 700; color: #C41E3A; }
+.er-refund-amount { font-size: 34rpx; font-weight: 700; color: var(--brand); }
 .er-rej { display: block; margin-top: 14rpx; font-size: 22rpx; color: #EF4444; }
 .er-flow { display: block; margin-top: 14rpx; font-size: 22rpx; color: #C9A96E; }
 .er-flow-ok { display: block; margin-top: 14rpx; font-size: 22rpx; color: #16A34A; }
 .er-actions { display: flex; border-top: 1rpx solid #F2EFEA; }
 .er-act { flex: 1; padding: 22rpx 0; display: flex; align-items: center; justify-content: center; gap: 8rpx; font-size: 28rpx; color: #666666; }
-.er-act-ok { color: #C41E3A; font-weight: 500; }
+.er-act-ok { color: var(--brand); font-weight: 500; }
 .er-act-divider { width: 1rpx; background: #F2EFEA; }
 .er-modal-mask { position: fixed; inset: 0; z-index: 50; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; padding: 0 64rpx; }
 .er-modal { background: #fff; border-radius: 28rpx; width: 100%; max-width: 600rpx; padding: 36rpx; }
@@ -243,13 +265,13 @@ function confirmReject() {
 .er-modal-input { width: 100%; height: 180rpx; margin-top: 28rpx; padding: 20rpx; border: 1rpx solid #E8E3DB; border-radius: 14rpx; font-size: 26rpx; box-sizing: border-box; }
 .er-modal-btns { display: flex; gap: 20rpx; margin-top: 28rpx; }
 .er-modal-cancel { flex: 1; padding: 20rpx 0; text-align: center; border: 1rpx solid #E8E3DB; border-radius: 14rpx; color: #666666; font-size: 28rpx; }
-.er-modal-ok { flex: 1; padding: 20rpx 0; text-align: center; background: #C41E3A; color: #fff; border-radius: 14rpx; font-size: 28rpx; }
+.er-modal-ok { flex: 1; padding: 20rpx 0; text-align: center; background: var(--brand); color: #fff; border-radius: 14rpx; font-size: 28rpx; }
 /* 骨架 */
 .er-skel-avatar { width: 88rpx; height: 88rpx; border-radius: 999rpx; background: #e8e0d5; flex-shrink: 0; }
 .er-skel-info { flex: 1; }
 .er-skel-line { height: 22rpx; background: #e8e0d5; border-radius: 6rpx; margin-bottom: 10rpx; }
 .er-skel-line.w32 { width: 240rpx; } .er-skel-line.wfull { width: 100%; }
 .er-skel-block { height: 100rpx; background: #e8e0d5; border-radius: 16rpx; margin-top: 18rpx; }
-.er-empty-retry { margin-top: 24rpx; padding: 14rpx 40rpx; border-radius: 999rpx; background: #C41E3A; }
+.er-empty-retry { margin-top: 24rpx; padding: 14rpx 40rpx; border-radius: 999rpx; background: var(--brand); }
 .er-empty-retry-t { font-size: 24rpx; color: #fff; }
 </style>

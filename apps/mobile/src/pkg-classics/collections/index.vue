@@ -43,6 +43,15 @@
         <view v-if="loading" class="cl-empty">
           <text class="cl-empty-title">加载中...</text>
         </view>
+        <!-- 未登录态 -->
+        <view v-else-if="isGuest" class="cl-empty">
+          <view class="cl-empty-icon"><app-icon name="heart" :size="48" color="#999999" /></view>
+          <text class="cl-empty-title">登录后查看收藏</text>
+          <text class="cl-empty-sub">收藏会自动同步到你的账号</text>
+          <view class="cl-empty-btn" @tap="goLogin">
+            <text class="cl-empty-btn-text">去登录</text>
+          </view>
+        </view>
         <!-- 错误态 -->
         <view v-else-if="error" class="cl-empty">
           <text class="cl-empty-title" style="color:#c41e3a;">{{ error }}</text>
@@ -63,7 +72,7 @@
                   <text class="cl-type-tag">{{ typeMeta[item.type].label }}</text>
                   <text class="cl-author">{{ item.author }}</text>
                 </view>
-                <text v-if="item.plays > 0" class="cl-plays">已播放 {{ item.plays }} 次</text>
+                <text v-if="item.plays > 0" class="cl-plays">阅读 {{ item.plays }} 次</text>
               </view>
             </view>
             <view class="cl-del" @tap="removeItem(item.id)">
@@ -96,17 +105,22 @@ import ClassicsHeader from '@/components/classics/classics-header.vue'
 import FlatCover from '@/components/classics/flat-cover.vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { coverColorForBook } from '@/lib/classics-cover'
-import { classicsApi, _mockCollectionTypeMeta, _mockCollectionFilters, type CollectionItem } from '@/lib/classics-data'
+import { classicsApi, _mockCollectionTypeMeta, type CollectionItem } from '@/lib/classics-data'
+import { getToken } from '@/utils/storage'
 
 const searchText = ref('')
 const filter = ref<string>('all')
 const collections = ref<CollectionItem[]>([])
 const typeMeta = _mockCollectionTypeMeta
-const filters = _mockCollectionFilters
+// 收藏均为古籍，去掉多媒体类型筛选摆设，仅保留「全部」
+const filters = [{ id: 'all', label: '全部' }] as const
 const loading = ref(true)
 const error = ref('')
+const isGuest = ref(false)
 
 async function fetchData() {
+  if (!getToken()) { isGuest.value = true; loading.value = false; return }
+  isGuest.value = false
   loading.value = true
   error.value = ''
   try {
@@ -131,8 +145,14 @@ const filtered = computed(() =>
 function shortTitle(t: string): string {
   return t.replace(/[《》]/g, '').slice(0, 4)
 }
-function removeItem(id: string) {
-  collections.value = collections.value.filter((i) => i.id !== id)
+async function removeItem(id: string) {
+  try {
+    await classicsApi.removeFavorite(id)
+    collections.value = collections.value.filter((i) => i.id !== id)
+    uni.showToast({ title: '已取消收藏', icon: 'none' })
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '操作失败', icon: 'none' })
+  }
 }
 function openItem(item: CollectionItem) {
   switch (item.type) {
@@ -145,6 +165,9 @@ function openItem(item: CollectionItem) {
 }
 function goHome() {
   uni.navigateTo({ url: '/pkg-classics/home/index' })
+}
+function goLogin() {
+  uni.navigateTo({ url: '/pkg-auth/login/index' })
 }
 </script>
 
@@ -166,7 +189,7 @@ function goHome() {
   font-size: 26rpx;
   font-weight: 600;
   letter-spacing: 1rpx;
-  color: #c41e3a;
+  color: var(--brand);
   margin-bottom: 12rpx;
 }
 .cl-title {
@@ -340,7 +363,7 @@ function goHome() {
   height: 80rpx;
   padding: 0 40rpx;
   border-radius: 999rpx;
-  background: #c41e3a;
+  background: var(--brand);
   margin-top: 40rpx;
 }
 .cl-empty-btn-text {

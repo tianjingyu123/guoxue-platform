@@ -1,12 +1,16 @@
 <script setup lang="ts">
 /** 商品详情页 - 从原型 app/mall/product/[id]/page.tsx 1:1 迁移 */
 import { ref, computed } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { onLoad, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
+import { useShare } from '@/composables/useShare'
 import AppIcon from '@/components/common/app-icon.vue'
 import GroupBuyInfoCard from '@/components/marketing/group-buy-info-card.vue'
 import CouponClaimCard from '@/components/marketing/coupon-claim-card.vue'
 import { navigateBack, navigateTo } from '@/utils/router'
 import { shopApi } from '@/lib/shop-data'
+import { purchaseApi } from '@/lib/purchase-data'
+import { recommendApi } from '@/lib/recommend-data'
+import type { RecommendItem } from '@/components/common/recommend-section.vue'
 
 const loading = ref(true)
 const error = ref(false)
@@ -18,6 +22,7 @@ const showSpecPanel = ref(false)
 const specAction = ref<'cart' | 'buy'>('cart')
 const selectedSpecs = ref<Record<string, string>>({ 版本: 'standard', 数量: '1' })
 const submitting = ref(false)
+const recItems = ref<RecommendItem[]>([])
 
 async function fetchData(productId?: string) {
   loading.value = true
@@ -25,6 +30,8 @@ async function fetchData(productId?: string) {
   try {
     const data = await shopApi.getProduct(productId || '1')
     product.value = data
+    // 详情加载成功后拉取推荐（内置降级，无需 try/catch）
+    recItems.value = await recommendApi.getForScene('product_detail', String(product.value?.id ?? productId ?? '1'))
   } catch (e) {
     error.value = true
   } finally {
@@ -36,6 +43,19 @@ onLoad((query: any) => {
   const id = query?.id as string || '1'
   fetchData(id)
 })
+
+// 微信原生分享（好友 / 朋友圈）
+const { toAppMessage, toTimeline } = useShare()
+onShareAppMessage(() => toAppMessage({
+  title: product.value?.title || '精选好物',
+  path: `/mall/product/${product.value?.id || '1'}`,
+  cover: product.value?.images?.[0],
+}))
+onShareTimeline(() => toTimeline({
+  title: product.value?.title || '精选好物',
+  path: `/mall/product/${product.value?.id || '1'}`,
+  cover: product.value?.images?.[0],
+}))
 
 const discount = computed(() => {
   if (!product.value) return 0
@@ -66,19 +86,38 @@ const previewReviews = computed(() => {
 function onSwiperChange(e: any) { swiperIndex.value = e.detail.current }
 function selectSpec(name: string, id: string) { selectedSpecs.value = { ...selectedSpecs.value, [name]: id } }
 function openSpecPanel(action: 'cart' | 'buy') { specAction.value = action; showSpecPanel.value = true }
-function addToCart() {
-  if (submitting.value) return
+async function addToCart() {
+  if (submitting.value || !product.value) return
   submitting.value = true
-  cartCount.value += 1
-  showSpecPanel.value = false
-  submitting.value = false
+  try {
+    const qty = Number(selectedSpecs.value['数量']) || 1
+    const res = await shopApi.addToCart(String(product.value.id), qty)
+    cartCount.value = (res.items || []).reduce((s, i) => s + i.quantity, 0)
+    showSpecPanel.value = false
+    uni.showToast({ title: '已加入购物车', icon: 'success' })
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '加入失败', icon: 'none' })
+  } finally {
+    submitting.value = false
+  }
 }
-function buyNow() {
-  if (submitting.value) return
+async function buyNow() {
+  if (submitting.value || !product.value) return
   submitting.value = true
-  showSpecPanel.value = false
-  navigateTo('/shop/checkout')
-  submitting.value = false
+  try {
+    const order = await purchaseApi.createOrder({
+      type: 'PRODUCT',
+      targetId: String(product.value.id),
+      amount: Number(selectedSpecs.value['数量']) || 1,
+    })
+    showSpecPanel.value = false
+    uni.showToast({ title: '订单已提交', icon: 'success' })
+    setTimeout(() => navigateTo(`/pkg-order/detail/index?id=${order.id}`), 800)
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '下单失败', icon: 'none' })
+  } finally {
+    submitting.value = false
+  }
 }
 function goReviews() { navigateTo('/mall/product/reviews') }
 function goCart() { navigateTo('/shop/cart') }
@@ -86,6 +125,7 @@ function goCart() { navigateTo('/shop/cart') }
 
 <template>
   <view class="page">
+    <customer-service-fab />
     <!-- 加载中 -->
     <view v-if="loading" class="state-wrap">
       <view class="state-spinner" />
@@ -106,7 +146,7 @@ function goCart() { navigateTo('/shop/cart') }
       <swiper class="swiper" circular @change="onSwiperChange">
         <swiper-item v-for="(src, i) in product.images" :key="i">
           <view class="slide">
-            <image class="slide-img" :src="src" mode="aspectFill" />
+            <image lazy-load class="slide-img" :src="src" mode="aspectFill" />
             <view v-if="i === 0 && product.hasVideo" class="play-wrap">
               <view class="play-btn"><AppIcon name="play" :size="48" color="#1f1f1f" /></view>
             </view>
@@ -144,6 +184,16 @@ function goCart() { navigateTo('/shop/cart') }
       </view>
     </view>
 
+    <!-- 进店入口（自营/未开通商家 merchant 为 null 时整块不渲染） -->
+    <view v-if="product.merchant" class="card store-entry" hover-class="card-press" @tap="navigateTo('/shop/store/' + product.merchant.id)">
+      <view class="store-entry-l">
+        <image lazy-load v-if="product.merchant.shopLogo" class="store-entry-logo" :src="product.merchant.shopLogo" mode="aspectFill" />
+        <view v-else class="store-entry-logo store-entry-logo-ph"><AppIcon name="store" :size="36" color="var(--brand)" /></view>
+        <text class="store-entry-name">{{ product.merchant.shopName }}</text>
+      </view>
+      <view class="store-entry-btn"><text class="store-entry-btn-text">进店</text><AppIcon name="chevron-right" :size="28" color="var(--brand)" /></view>
+    </view>
+
     <!-- 规格入口 -->
     <view class="card spec-entry" hover-class="card-press" @tap="openSpecPanel('cart')">
       <view class="spec-entry-l"><text class="spec-label">规格</text><text class="spec-val">{{ selectedSpecLabels }}</text></view>
@@ -173,7 +223,7 @@ function goCart() { navigateTo('/shop/cart') }
       <view class="review-list">
         <view v-for="r in previewReviews" :key="r.id" class="review-item">
           <view class="rv-top">
-            <image class="rv-avatar" :src="r.user.avatar" mode="aspectFill" />
+            <image lazy-load class="rv-avatar" :src="r.user.avatar" mode="aspectFill" />
             <view class="rv-user">
               <text class="rv-name">{{ r.user.name }}</text>
               <view class="rv-stars">
@@ -184,7 +234,7 @@ function goCart() { navigateTo('/shop/cart') }
           </view>
           <text class="rv-content">{{ r.content }}</text>
           <view v-if="r.images.length" class="rv-imgs">
-            <image v-for="(img, ii) in r.images" :key="ii" class="rv-img" :src="img" mode="aspectFill" />
+            <image lazy-load v-for="(img, ii) in r.images" :key="ii" class="rv-img" :src="img" mode="aspectFill" />
           </view>
           <view class="rv-foot"><text class="rv-spec">{{ r.spec }}</text><view class="rv-like"><AppIcon name="thumbs-up" :size="24" color="var(--text-soft)" /><text class="rv-like-num">{{ r.likes }}</text></view></view>
         </view>
@@ -200,6 +250,9 @@ function goCart() { navigateTo('/shop/cart') }
         <view v-for="i in 3" :key="i" class="desc-img-ph"><text class="desc-img-text">商品详情图 {{ i }}</text></view>
       </view>
     </view>
+
+    <!-- 推荐：经常一起购买 -->
+    <recommend-section title="经常一起购买" :items="recItems" />
 
     <!-- 底部操作栏 -->
     <view class="action-bar">
@@ -218,7 +271,7 @@ function goCart() { navigateTo('/shop/cart') }
     <view v-if="showSpecPanel" class="mask" @tap="showSpecPanel = false" />
     <view v-if="showSpecPanel" class="spec-panel">
       <view class="sp-head">
-        <view class="sp-thumb"><image class="sp-thumb-img" :src="product.images[0]" mode="aspectFill" /></view>
+        <view class="sp-thumb"><image lazy-load class="sp-thumb-img" :src="product.images[0]" mode="aspectFill" /></view>
         <view class="sp-info">
           <text class="sp-price">¥{{ currentPrice }}</text>
           <text class="sp-stock">库存 {{ currentStock }} 件</text>
@@ -282,6 +335,14 @@ function goCart() { navigateTo('/shop/cart') }
 .spec-entry-l { display: flex; align-items: center; gap: 12rpx; }
 .spec-label { font-size: 26rpx; color: var(--text-soft); }
 .spec-val { font-size: 26rpx; color: var(--text-strong); }
+/* 进店入口 */
+.store-entry { display: flex; align-items: center; justify-content: space-between; }
+.store-entry-l { display: flex; align-items: center; gap: 16rpx; min-width: 0; }
+.store-entry-logo { width: 64rpx; height: 64rpx; border-radius: 50%; flex-shrink: 0; background: var(--surface-sunken); }
+.store-entry-logo-ph { display: flex; align-items: center; justify-content: center; background: rgba(196,30,58,0.08); }
+.store-entry-name { font-size: 28rpx; font-weight: 500; color: var(--text-strong); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.store-entry-btn { display: flex; align-items: center; gap: 4rpx; flex-shrink: 0; padding: 8rpx 20rpx; border-radius: 999rpx; border: 1rpx solid var(--brand); }
+.store-entry-btn-text { font-size: 24rpx; color: var(--brand); }
 /* 服务保障 */
 .guard-grid { display: flex; flex-wrap: wrap; margin-top: 24rpx; }
 .guard-item { width: 50%; display: flex; align-items: center; gap: 14rpx; margin-bottom: 20rpx; }

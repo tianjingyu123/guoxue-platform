@@ -44,7 +44,7 @@
             @tap="selectProduct(p)"
           >
             <view class="prod-cover-wrap">
-              <image class="prod-cover" :src="p.cover" mode="aspectFill" />
+              <image lazy-load class="prod-cover" :src="p.cover" mode="aspectFill" />
               <view v-if="selectedProduct && selectedProduct.id === p.id" class="prod-check">
                 <app-icon name="check" :size="20" color="#fff" />
               </view>
@@ -139,7 +139,7 @@
         <text class="card-title block">上传凭证（选填，最多5张）</text>
         <view class="img-grid">
           <view v-for="(img, idx) in images" :key="idx" class="img-item">
-            <image class="up-img" :src="img" mode="aspectFill" />
+            <image lazy-load class="up-img" :src="img" mode="aspectFill" />
             <view class="img-del" @tap="removeImage(idx)">
               <app-icon name="x" :size="20" color="#fff" />
             </view>
@@ -294,10 +294,11 @@ onLoad((q) => {
 })
 onMounted(async () => {
   try {
-    const res = await shopApi.getExchange()
+    const res = await shopApi.getExchange(orderId.value)
     reasons.value = res.reasons
     products.value = res.products
     addresses.value = res.addresses
+    if (products.value.length === 1) selectedProduct.value = products.value[0]
     const def = addresses.value.find((a) => a.isDefault)
     if (def) selectedAddress.value = def
   } catch (e: any) {
@@ -342,23 +343,40 @@ function validate() {
   errors.value = e
   return Object.keys(e).length === 0
 }
-function handleSubmit() {
+async function handleSubmit() {
   if (submitting.value) return
   if (!validate()) return
   submitting.value = true
-  setTimeout(() => {
+  try {
+    // 组装换货说明并提交售后(type=exchange)
+    const typeLabel = exchangeType.value === 'different' ? '换其他规格' : '换同款'
+    const newSku = exchangeType.value === 'different'
+      ? availableSkus.value.find((s) => s.id === newSkuId.value)?.name
+      : ''
+    const parts = [
+      `换货商品：${selectedProduct.value?.name || ''}`,
+      `换货方式：${typeLabel}${newSku ? `（${newSku}）` : ''}`,
+      `原因：${reasons.value.find((r) => r.value === reason.value)?.label || reason.value}`,
+      description.value ? `补充：${description.value}` : '',
+    ].filter(Boolean)
+    await shopApi.submitExchange(orderId.value, parts.join('；').slice(0, 500))
+    uni.showToast({ title: '换货申请已提交', icon: 'success' })
+    setTimeout(() => navigateTo('/shop/my-after-sales'), 1200)
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '提交失败，请重试', icon: 'none' })
+  } finally {
     submitting.value = false
-    navigateTo('/shop/my-after-sales')
-  }, 800)
+  }
 }
 async function retryLoad() {
   loading.value = true
   error.value = ''
   try {
-    const res = await shopApi.getExchange()
+    const res = await shopApi.getExchange(orderId.value)
     reasons.value = res.reasons
     products.value = res.products
     addresses.value = res.addresses
+    if (products.value.length === 1) selectedProduct.value = products.value[0]
     const def = addresses.value.find((a) => a.isDefault)
     if (def) selectedAddress.value = def
   } catch (e: any) {
@@ -423,7 +441,7 @@ async function retryLoad() {
   border: 2rpx solid #e8e3db;
 }
 .prod-active {
-  border-color: #c41e3a;
+  border-color: var(--brand);
   background: #fdf2f3;
 }
 .prod-cover-wrap {
@@ -442,7 +460,7 @@ async function retryLoad() {
   width: 36rpx;
   height: 36rpx;
   border-radius: 50%;
-  background: #c41e3a;
+  background: var(--brand);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -473,7 +491,7 @@ async function retryLoad() {
 .prod-price {
   font-size: 30rpx;
   font-weight: 600;
-  color: #c41e3a;
+  color: var(--brand);
 }
 .prod-qty {
   font-size: 24rpx;
@@ -516,7 +534,7 @@ async function retryLoad() {
   border: 2rpx solid #e8e3db;
 }
 .type-active {
-  border-color: #c41e3a;
+  border-color: var(--brand);
   background: #fdf2f3;
 }
 .type-top {
@@ -534,13 +552,13 @@ async function retryLoad() {
   justify-content: center;
 }
 .radio-active {
-  border-color: #c41e3a;
+  border-color: var(--brand);
 }
 .radio-dot {
   width: 16rpx;
   height: 16rpx;
   border-radius: 50%;
-  background: #c41e3a;
+  background: var(--brand);
 }
 .type-label {
   font-size: 26rpx;
@@ -582,9 +600,9 @@ async function retryLoad() {
   color: #666;
 }
 .sku-opt-active {
-  border-color: #c41e3a;
+  border-color: var(--brand);
   background: #fdf2f3;
-  color: #c41e3a;
+  color: var(--brand);
 }
 .opt-hover {
   opacity: 0.7;
@@ -683,7 +701,7 @@ async function retryLoad() {
 .addr-default {
   font-size: 20rpx;
   color: #fff;
-  background: #c41e3a;
+  background: var(--brand);
   padding: 2rpx 12rpx;
   border-radius: 8rpx;
 }
@@ -738,7 +756,7 @@ async function retryLoad() {
 .submit-btn {
   height: 88rpx;
   border-radius: 18rpx;
-  background: linear-gradient(90deg, #c41e3a, #e85d04);
+  background: linear-gradient(90deg, var(--brand), #e85d04);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -799,7 +817,7 @@ async function retryLoad() {
   color: #2c2c2c;
 }
 .reason-active {
-  color: #c41e3a;
+  color: var(--brand);
 }
 .addr-pick {
   padding: 24rpx;
@@ -808,7 +826,7 @@ async function retryLoad() {
   margin-bottom: 20rpx;
 }
 .addr-pick-active {
-  border-color: #c41e3a;
+  border-color: var(--brand);
   background: #fdf2f3;
 }
 
@@ -824,7 +842,7 @@ async function retryLoad() {
   width: 64rpx;
   height: 64rpx;
   border: 4rpx solid #e8e3db;
-  border-top-color: #c41e3a;
+  border-top-color: var(--brand);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
@@ -846,7 +864,7 @@ async function retryLoad() {
 }
 .state-retry {
   padding: 12rpx 48rpx;
-  background: #c41e3a;
+  background: var(--brand);
   border-radius: 999rpx;
 }
 .state-retry-text {

@@ -56,7 +56,7 @@
           @tap="goDetail(notice.id)"
         >
           <view class="card-inner">
-            <image
+            <image lazy-load
               v-if="notice.cover"
               :src="notice.cover"
               class="card-cover"
@@ -329,7 +329,7 @@ onLoad(() => {
   background-color: #F3F4F6;
 }
 .filter-chip.active {
-  background-color: #C41E3A;
+  background-color: var(--brand);
 }
 .filter-text {
   font-size: 26rpx;
@@ -354,7 +354,7 @@ onLoad(() => {
   box-shadow: 0 1rpx 4rpx rgba(0, 0, 0, 0.04);
 }
 .notice-card.unread {
-  border-left: 6rpx solid #C41E3A;
+  border-left: 6rpx solid var(--brand);
 }
 .card-inner {
   display: flex;
@@ -382,7 +382,7 @@ onLoad(() => {
   width: 14rpx;
   height: 14rpx;
   border-radius: 50%;
-  background-color: #C41E3A;
+  background-color: var(--brand);
   flex-shrink: 0;
 }
 .card-title {
@@ -501,7 +501,7 @@ onLoad(() => {
   width: 28rpx;
   height: 28rpx;
   border: 3rpx solid #E5E7EB;
-  border-top-color: #C41E3A;
+  border-top-color: var(--brand);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }

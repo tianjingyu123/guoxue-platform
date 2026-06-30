@@ -35,7 +35,7 @@
       <!-- 商品 -->
       <view class="goods-card">
         <view v-for="g in items" :key="g.id" class="goods-item">
-          <image class="goods-img" :src="g.productCover" mode="aspectFill" />
+          <image lazy-load class="goods-img" :src="g.productCover" mode="aspectFill" />
           <view class="goods-info">
             <text class="goods-name">{{ g.productName }}</text>
             <view class="sku-tag"><text>{{ g.skuName }}</text></view>
@@ -202,7 +202,7 @@ function submitOrder() {
 .addr-name { font-size: 30rpx; font-weight: 600; color: #1A1A1A; }
 .addr-phone { font-size: 26rpx; color: #666666; }
 .default-tag { background: rgba(196, 30, 58,0.1); padding: 2rpx 10rpx; border-radius: 6rpx; }
-.default-tag text { font-size: 20rpx; color: #C41E3A; }
+.default-tag text { font-size: 20rpx; color: var(--brand); }
 .addr-detail { font-size: 26rpx; color: #666666; line-height: 1.4; }
 .goods-card { background: #FFFFFF; margin: 0 20rpx 20rpx; border-radius: 20rpx; padding: 24rpx; }
 .goods-item { display: flex; gap: 16rpx; margin-bottom: 20rpx; &:last-child { margin-bottom: 0; } }
@@ -212,12 +212,12 @@ function submitOrder() {
 .sku-tag { align-self: flex-start; background: #F5F5F5; padding: 4rpx 14rpx; border-radius: 8rpx; }
 .sku-tag text { font-size: 22rpx; color: #999999; }
 .goods-bottom { display: flex; justify-content: space-between; align-items: center; }
-.goods-price { font-size: 30rpx; color: #C41E3A; font-weight: 700; }
+.goods-price { font-size: 30rpx; color: var(--brand); font-weight: 700; }
 .goods-qty { font-size: 26rpx; color: #999999; }
 .cell { display: flex; align-items: center; background: #FFFFFF; margin: 0 20rpx 20rpx; padding: 28rpx 24rpx; border-radius: 20rpx; }
 .cell.column { flex-direction: column; align-items: stretch; gap: 16rpx; }
 .cell-label { font-size: 28rpx; color: #1A1A1A; }
-.cell-value { margin-left: auto; font-size: 26rpx; color: #999999; margin-right: 10rpx; &.active { color: #C41E3A; } }
+.cell-value { margin-left: auto; font-size: 26rpx; color: #999999; margin-right: 10rpx; &.active { color: var(--brand); } }
 .note-input { font-size: 26rpx; color: #1A1A1A; height: 60rpx; }
 .ph { color: #BBBBBB; }
 .invoice-card { background: #FFFFFF; margin: 0 20rpx 20rpx; border-radius: 20rpx; padding: 28rpx 24rpx; }
@@ -233,19 +233,19 @@ function submitOrder() {
 .pay-badge { width: 56rpx; height: 56rpx; border-radius: 12rpx; display: flex; align-items: center; justify-content: center; }
 .pay-badge text { color: #FFFFFF; font-size: 28rpx; }
 .pay-name { font-size: 28rpx; color: #1A1A1A; }
-.radio { width: 40rpx; height: 40rpx; border-radius: 50%; border: 2rpx solid #CCCCCC; margin-left: auto; display: flex; align-items: center; justify-content: center; &.checked { border-color: #C41E3A; } }
-.radio-dot { width: 22rpx; height: 22rpx; border-radius: 50%; background: #C41E3A; }
+.radio { width: 40rpx; height: 40rpx; border-radius: 50%; border: 2rpx solid #CCCCCC; margin-left: auto; display: flex; align-items: center; justify-content: center; &.checked { border-color: var(--brand); } }
+.radio-dot { width: 22rpx; height: 22rpx; border-radius: 50%; background: var(--brand); }
 .amount-card { background: #FFFFFF; margin: 0 20rpx; padding: 24rpx; border-radius: 20rpx; }
 .amount-row { display: flex; justify-content: space-between; font-size: 26rpx; color: #666666; margin-bottom: 16rpx; }
-.amount-row .discount { color: #C41E3A; }
+.amount-row .discount { color: var(--brand); }
 .amount-row.total { margin-bottom: 0; padding-top: 16rpx; border-top: 2rpx solid #F0F0F0; }
 .amount-row.total text { font-size: 28rpx; color: #1A1A1A; font-weight: 600; }
-.pay-amount { color: #C41E3A !important; font-size: 34rpx !important; }
+.pay-amount { color: var(--brand) !important; font-size: 34rpx !important; }
 .footer { position: fixed; left: 0; right: 0; bottom: 0; display: flex; align-items: center; padding: 20rpx 30rpx; padding-bottom: calc(20rpx + env(safe-area-inset-bottom)); background: #FFFFFF; box-shadow: 0 -2rpx 12rpx rgba(0,0,0,0.05); }
 .footer-total { display: flex; align-items: baseline; gap: 8rpx; }
 .ft-label { font-size: 26rpx; color: #666666; }
-.ft-amount { font-size: 38rpx; color: #C41E3A; font-weight: 700; }
-.pay-btn { margin-left: auto; padding: 20rpx 60rpx; border-radius: 40rpx; background: linear-gradient(90deg, #C41E3A, #C8453E); }
+.ft-amount { font-size: 38rpx; color: var(--brand); font-weight: 700; }
+.pay-btn { margin-left: auto; padding: 20rpx 60rpx; border-radius: 40rpx; background: linear-gradient(90deg, var(--brand), #C8453E); }
 .pay-btn text { color: #FFFFFF; font-size: 30rpx; font-weight: 600; }
 .mask { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 100; display: flex; align-items: flex-end; }
 .sheet { width: 100%; background: #FFFFFF; border-radius: 24rpx 24rpx 0 0; padding: 32rpx; max-height: 70vh; }
@@ -264,6 +264,6 @@ function submitOrder() {
 /* 错误态 */
 .error-zone { min-height: 60vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 32rpx; }
 .error-text { font-size: 28rpx; color: #999999; }
-.error-retry { padding: 16rpx 56rpx; background: #C41E3A; border-radius: 40rpx; }
+.error-retry { padding: 16rpx 56rpx; background: var(--brand); border-radius: 40rpx; }
 .error-retry text { color: #FFFFFF; font-size: 28rpx; }
 </style>

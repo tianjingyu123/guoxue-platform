@@ -1,5 +1,6 @@
 <template>
   <view class="cd-page">
+    <customer-service-fab />
     <classics-header v-if="book" :title="book.title" right-type="share" @back="goBack" @right="onShare" />
 
     <view class="cd-main">
@@ -38,10 +39,6 @@
             </view>
             <view class="cd-stats">
               <view class="cd-stat">
-                <app-icon name="star" :size="26" color="#f59e0b" :fill="true" />
-                <text class="cd-stat-text">{{ book.rating }}</text>
-              </view>
-              <view class="cd-stat">
                 <app-icon name="eye" :size="26" color="#999999" />
                 <text class="cd-stat-text">{{ (book.reads / 10000).toFixed(1) }}万</text>
               </view>
@@ -49,19 +46,23 @@
                 <app-icon name="file-text" :size="26" color="#999999" />
                 <text class="cd-stat-text">{{ book.totalChapters }}篇</text>
               </view>
+              <view class="cd-stat cd-fav" @tap="toggleFavorite">
+                <app-icon name="heart" :size="26" :color="isFavorited ? '#c41e3a' : '#999999'" :fill="isFavorited" />
+                <text class="cd-stat-text" :style="{ color: isFavorited ? '#c41e3a' : '' }">{{ isFavorited ? '已收藏' : '收藏' }}</text>
+              </view>
             </view>
           </view>
         </view>
       </view>
 
-      <!-- AI 智能导读 -->
-      <view class="cd-sec">
+      <!-- AI 智能导读（后端生成摘要后显示，无摘要则隐藏，避免空壳） -->
+      <view v-if="book.aiSummary" class="cd-sec">
         <view class="cd-card cd-ai">
           <view class="cd-ai-head">
             <view class="cd-ai-badge">
               <app-icon name="sparkles" :size="22" color="#ffffff" />
             </view>
-            <text class="cd-ai-title">AI 智能导读</text>
+            <text class="cd-ai-title">经典导读</text>
           </view>
           <text class="cd-ai-text">{{ book.aiSummary }}</text>
         </view>
@@ -167,7 +168,7 @@
     <!-- 底部固定操作栏 -->
     <view class="cd-bottom">
       <view class="cd-bottom-row">
-        <view class="cd-shelf-btn" :class="{ 'cd-shelf-on': isInBookshelf }" @tap="isInBookshelf = !isInBookshelf">
+        <view class="cd-shelf-btn" :class="{ 'cd-shelf-on': isInBookshelf }" @tap="toggleShelf">
           <app-icon :name="isInBookshelf ? 'bookmark-check' : 'bookmark-plus'" :size="34" :color="isInBookshelf ? '#c41e3a' : '#2c2c2c'" />
           <text class="cd-shelf-text" :style="{ color: isInBookshelf ? '#c41e3a' : '#2c2c2c' }">{{ isInBookshelf ? '已在书架' : '加入书架' }}</text>
         </view>
@@ -192,13 +193,15 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { onLoad, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
+import { useShare } from '@/composables/useShare'
 import ClassicsHeader from '@/components/classics/classics-header.vue'
 import FlatCover from '@/components/classics/flat-cover.vue'
 import DiscussionSheet from '@/components/common/discussion-sheet.vue'
 import { coverColorForBook } from '@/lib/classics-cover'
 import { classicsApi, _mockAI_FEATURES, type BookInfo, type BookDiscussion } from '@/lib/classics-data'
 import type { AuthorBadge, DiscussionConfig, DiscussionItem } from '@/lib/discussion-types'
+import { getToken } from '@/utils/storage'
 
 const bookId = ref('1')
 const book = ref<BookInfo | null>(null)
@@ -234,6 +237,11 @@ async function fetchData(id: string) {
     const data = await classicsApi.detail(id)
     book.value = data.book
     isInBookshelf.value = data.book?.isInBookshelf ?? false
+    // 真实在架状态：登录用户查阅读进度，有记录即在书架
+    if (getToken() && data.book?.id) {
+      try { isInBookshelf.value = !!(await classicsApi.getProgress(data.book.id)) } catch { /* 未登录或无记录 */ }
+      try { isFavorited.value = (await classicsApi.favoriteStatus(data.book.id)).favorited } catch { /* 忽略 */ }
+    }
     // Map BookDiscussion to DiscussionItem
     BOOK_DISCUSSIONS.value = (data.discussions || []).map((d: BookDiscussion): DiscussionItem => ({
       id: d.id,
@@ -257,6 +265,17 @@ onLoad((q) => {
   fetchData(bookId.value)
 })
 
+// 微信原生分享（好友 / 朋友圈）；古籍封面为生成色块，无图片字段，故省略 cover
+const { toAppMessage, toTimeline } = useShare()
+onShareAppMessage(() => toAppMessage({
+  title: book.value?.title || '古籍典藏',
+  path: `/classics/${book.value?.id || bookId.value}`,
+}))
+onShareTimeline(() => toTimeline({
+  title: book.value?.title || '古籍典藏',
+  path: `/classics/${book.value?.id || bookId.value}`,
+}))
+
 function toggleChapter(id: string) {
   const next = new Set(expandedChapters.value)
   next.has(id) ? next.delete(id) : next.add(id)
@@ -269,8 +288,68 @@ function goBack() {
 function onShare() {
   uni.showToast({ title: '分享', icon: 'none' })
 }
-function toReader(_chapter?: string) {
-  uni.showToast({ title: '阅读器即将上线', icon: 'none' })
+function toReader(chapterId?: string) {
+  if (!book.value) return
+  if (chapterId === 'audio') {
+    uni.navigateTo({ url: `/pkg-classics/audiobooks/player?id=${book.value.id}` })
+    return
+  }
+  const base = `/pkg-classics/reader/index?bookId=${book.value.id}`
+  uni.navigateTo({ url: chapterId ? `${base}&chapterId=${chapterId}` : base })
+}
+
+const isFavorited = ref(false)
+const favSubmitting = ref(false)
+async function toggleFavorite() {
+  if (!getToken()) {
+    uni.showModal({
+      title: '需要登录', content: '登录后即可收藏古籍', confirmText: '去登录',
+      success: (r) => { if (r.confirm) uni.navigateTo({ url: '/pkg-auth/login/index' }) },
+    })
+    return
+  }
+  if (favSubmitting.value || !book.value) return
+  favSubmitting.value = true
+  try {
+    if (isFavorited.value) {
+      await classicsApi.removeFavorite(book.value.id)
+      isFavorited.value = false
+      uni.showToast({ title: '已取消收藏', icon: 'none' })
+    } else {
+      await classicsApi.addFavorite(book.value.id)
+      isFavorited.value = true
+      uni.showToast({ title: '已收藏', icon: 'success' })
+    }
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '操作失败', icon: 'none' })
+  } finally {
+    favSubmitting.value = false
+  }
+}
+
+const shelfSubmitting = ref(false)
+async function toggleShelf() {
+  if (!getToken()) {
+    uni.showModal({
+      title: '需要登录', content: '登录后即可加入书架、同步阅读进度', confirmText: '去登录',
+      success: (r) => { if (r.confirm) uni.navigateTo({ url: '/pkg-auth/login/index' }) },
+    })
+    return
+  }
+  if (shelfSubmitting.value || !book.value) return
+  if (isInBookshelf.value) { uni.showToast({ title: '已在书架中', icon: 'none' }); return }
+  const first = book.value.chapters?.[0]
+  if (!first) { uni.showToast({ title: '本书暂无章节', icon: 'none' }); return }
+  shelfSubmitting.value = true
+  try {
+    await classicsApi.saveProgress(book.value.id, first.id, 1)
+    isInBookshelf.value = true
+    uni.showToast({ title: '已加入书架', icon: 'success' })
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '操作失败', icon: 'none' })
+  } finally {
+    shelfSubmitting.value = false
+  }
 }
 async function toBook(id: string) {
   bookId.value = id
@@ -390,7 +469,7 @@ async function toBook(id: string) {
 .cd-ai-title {
   font-size: 26rpx;
   font-weight: 600;
-  color: #c41e3a;
+  color: var(--brand);
 }
 .cd-ai-text {
   font-size: 28rpx;
@@ -513,7 +592,7 @@ async function toBook(id: string) {
   text-align: center;
   font-size: 28rpx;
   font-weight: 500;
-  color: #c41e3a;
+  color: var(--brand);
   border-top: 2rpx solid var(--border);
 }
 .cd-disc {
@@ -576,7 +655,7 @@ async function toBook(id: string) {
   border-top: 2rpx solid var(--border);
   font-size: 28rpx;
   font-weight: 500;
-  color: #c41e3a;
+  color: var(--brand);
 }
 .cd-related-sec {
   padding-left: 0;
@@ -667,7 +746,7 @@ async function toBook(id: string) {
   align-items: center;
   justify-content: center;
   gap: 16rpx;
-  background: #c41e3a;
+  background: var(--brand);
   box-shadow: 0 2rpx 12rpx rgba(196, 30, 58, 0.2);
 }
 .cd-read-text {

@@ -45,6 +45,8 @@ onMounted(() => { fetchTools() })
 
 <template>
   <view class="paipan">
+    <app-network-bar />
+    <customer-service-fab />
     <!-- 顶部标题栏 -->
     <view class="header">
       <text class="header-title">排盘工具</text>
@@ -197,7 +199,7 @@ onMounted(() => { fetchTools() })
 .ai-card {
   position: relative; overflow: hidden;
   border-radius: 32rpx; padding: 32rpx;
-  background: linear-gradient(to right, #c41e3a, rgba(196,30,58,0.9), rgba(196,30,58,0.8));
+  background: linear-gradient(to right, var(--brand), rgba(196,30,58,0.9), rgba(196,30,58,0.8));
 }
 .ai-blob { position: absolute; border-radius: 50%; background: rgba(255,255,255,0.1); }
 .ai-blob-1 { right: 0; top: 0; width: 256rpx; height: 256rpx; transform: translate(25%, -50%); }
@@ -224,14 +226,14 @@ onMounted(() => { fetchTools() })
 .sec-title { font-size: 32rpx; font-weight: 600; color: var(--text-ink, #2c2c2c); }
 .sec-title-row { display: flex; align-items: center; gap: 16rpx; }
 .sec-link { display: flex; align-items: center; gap: 4rpx; }
-.sec-link-text { font-size: 24rpx; color: var(--brand, #c41e3a); }
+.sec-link-text { font-size: 24rpx; color: var(--brand, var(--brand)); }
 
 /* 工具网格 4 列 */
 .grid { display: grid; grid-template-columns: repeat(4, 1fr); row-gap: 24rpx; }
 .cell { display: flex; flex-direction: column; align-items: center; gap: 12rpx; padding: 16rpx 0; }
 .cell-icon { position: relative; }
 .badge { position: absolute; top: -4rpx; right: -4rpx; width: 16rpx; height: 16rpx; border-radius: 50%; }
-.badge-red { background: var(--brand, #c41e3a); }
+.badge-red { background: var(--brand, var(--brand)); }
 .badge-green { background: #10b981; }
 .cell-name { font-size: 24rpx; color: var(--text-ink, #2c2c2c); text-align: center; line-height: 1.2; }
 
@@ -262,7 +264,7 @@ onMounted(() => { fetchTools() })
 /* 错误重试 */
 .err-state { display: flex; flex-direction: column; align-items: center; padding: 80rpx 0; }
 .err-txt { font-size: 28rpx; color: #999; margin-bottom: 24rpx; }
-.err-retry { padding: 16rpx 48rpx; border-radius: 999rpx; background: var(--brand, #c41e3a); }
+.err-retry { padding: 16rpx 48rpx; border-radius: 999rpx; background: var(--brand, var(--brand)); }
 .err-retry-t { font-size: 26rpx; color: #fff; }
 
 /* 合规提示 */

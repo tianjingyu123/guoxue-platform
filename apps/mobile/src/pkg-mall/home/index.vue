@@ -40,7 +40,6 @@ onMounted(() => { fetchData() })
 
 function onBannerChange(e: { detail: { current: number } }) { bannerIndex.value = e.detail.current }
 
-function goSearch() { toastComingSoon() }
 function goCart() { navigateTo('/shop/cart') }
 function goCategory(id: string) { navigateTo(id === 'all' ? '/mall/category' : `/mall/category?cat=${id}`) }
 </script>
@@ -49,14 +48,7 @@ function goCategory(id: string) { navigateTo(id === 'all' ? '/mall/category' : `
   <view class="page">
     <!-- 顶部搜索栏 -->
     <view class="topbar">
-      <view class="search-bar" @tap="goSearch">
-        <AppIcon name="search" :size="28" color="#999999" />
-        <view class="ai-badge">
-          <AppIcon name="sparkles" :size="18" color="#c41e3a" />
-          <text class="ai-txt">AI</text>
-        </view>
-        <text class="search-ph">搜索商品...</text>
-      </view>
+      <search-bar default-tab="product" placeholder="搜索商品..." />
       <view class="cart-btn" @tap="goCart">
         <AppIcon name="shopping-cart" :size="36" color="#666666" />
         <text v-if="cartCount > 0" class="cart-badge">{{ cartCount }}</text>
@@ -87,8 +79,8 @@ function goCategory(id: string) { navigateTo(id === 'all' ? '/mall/category' : `
         </view>
       </view>
 
-      <!-- 电商直播 -->
-      <view class="section">
+      <!-- 电商直播（暂无实时直播聚合时隐藏） -->
+      <view v-if="mallCommerceLives.length" class="section">
         <view class="sec-head">
           <view class="sec-head-l">
             <AppIcon name="radio" :size="28" color="#ef4444" />
@@ -179,7 +171,7 @@ function goCategory(id: string) { navigateTo(id === 'all' ? '/mall/category' : `
 }
 .search-bar { flex: 1; display: flex; align-items: center; height: 72rpx; padding: 0 24rpx; border-radius: 999rpx; background: #f5f1eb; }
 .ai-badge { display: flex; align-items: center; gap: 2rpx; margin: 0 12rpx; padding: 2rpx 12rpx; border-radius: 999rpx; background: rgba(196,30,58,0.15); }
-.ai-txt { font-size: 18rpx; color: #c41e3a; font-weight: 600; line-height: 1; }
+.ai-txt { font-size: 18rpx; color: var(--brand); font-weight: 600; line-height: 1; }
 .search-ph { font-size: 26rpx; color: #999999; }
 .cart-btn { position: relative; width: 72rpx; height: 72rpx; border-radius: 999rpx; background: #f5f1eb; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .cart-badge { position: absolute; top: -4rpx; right: -4rpx; min-width: 32rpx; height: 32rpx; padding: 0 6rpx; border-radius: 999rpx; background: var(--brand); color: #fff; font-size: 18rpx; font-weight: 600; display: flex; align-items: center; justify-content: center; }

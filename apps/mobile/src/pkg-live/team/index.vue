@@ -83,7 +83,7 @@
         </view>
         <view v-for="member in filteredMembers" :key="member.id" class="member-card">
           <view class="member-avatar-wrap">
-            <image class="member-avatar" :src="member.avatar" mode="aspectFill" />
+            <image lazy-load class="member-avatar" :src="member.avatar" mode="aspectFill" />
             <view class="member-status" :class="member.status === 'online' ? 'status-online' : 'status-offline'" />
           </view>
           <view class="member-info">
@@ -181,7 +181,7 @@
         <text class="dialog-title">编辑成员信息</text>
         <view v-if="selectedMember" class="edit-body">
           <view class="edit-head">
-            <image class="edit-avatar" :src="selectedMember.avatar" mode="aspectFill" />
+            <image lazy-load class="edit-avatar" :src="selectedMember.avatar" mode="aspectFill" />
             <view>
               <text class="edit-name">{{ selectedMember.name }}</text>
               <text class="edit-join">加入时间：{{ selectedMember.joinDate }}</text>
@@ -231,7 +231,7 @@
             </view>
           </view>
           <view v-else class="remove-confirm">
-            <image class="remove-avatar" :src="selectedMember.avatar" mode="aspectFill" />
+            <image lazy-load class="remove-avatar" :src="selectedMember.avatar" mode="aspectFill" />
             <text class="remove-q">确定要移除 <text class="remove-name">{{ selectedMember.name }}</text> 吗？</text>
             <text class="remove-sub">移除后该成员将无法参与直播管理</text>
           </view>
@@ -266,7 +266,7 @@ const showPermissions = ref(false)
 const selectedMember = ref<TeamMember | null>(null)
 const addSearchQuery = ref('')
 const selectedRole = ref('cohost')
-const openMenuId = ref<number | null>(null)
+const openMenuId = ref<number | string | null>(null)
 
 const tabs = [
   { key: 'all', label: '全部' },
@@ -308,7 +308,7 @@ const filteredAvailable = computed(() => {
   )
 })
 
-function toggleMenu(id: number) {
+function toggleMenu(id: number | string) {
   openMenuId.value = openMenuId.value === id ? null : id
 }
 function openEdit(member: TeamMember) {
@@ -375,7 +375,7 @@ onMounted(() => { fetchData() })
   gap: 8rpx;
   height: 56rpx;
   padding: 0 20rpx;
-  background: #C41E3A;
+  background: var(--brand);
   border-radius: 12rpx;
 }
 .nav-add-text {
@@ -770,9 +770,9 @@ onMounted(() => { fetchData() })
   color: #999;
 }
 .role-opt-active {
-  border-color: #C41E3A;
+  border-color: var(--brand);
   background: rgba(196, 30, 58, 0.06);
-  color: #C41E3A;
+  color: var(--brand);
 }
 .result-label {
   font-size: 22rpx;
@@ -864,7 +864,7 @@ onMounted(() => { fetchData() })
   color: #1a1a1a;
 }
 .dlg-btn-primary {
-  background: #C41E3A;
+  background: var(--brand);
   color: #fff;
 }
 .dlg-btn-danger {

@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
-import { mineApi, type BlacklistItem, type SearchUserItem } from '@/lib/mine-data'
+import { mineApi, type BlacklistItem } from '@/lib/mine-data'
 
 const list = ref<BlacklistItem[]>([])
 const loading = ref(true)
@@ -53,50 +53,10 @@ async function confirmRemove() {
   }
 }
 
-// 添加黑名单
-const addSheet = ref(false)
-const keyword = ref('')
-const searching = ref(false)
-const results = ref<SearchUserItem[]>([])
-const adding = ref<number | null>(null)
-
-watch(keyword, async (kw) => {
-  if (!kw.trim()) {
-    results.value = []
-    return
-  }
-  searching.value = true
-  try {
-    const data = await mineApi.searchUsers(kw.trim())
-    results.value = data.map((u: SearchUserItem) => ({ ...u }))
-  } catch {
-    results.value = []
-  } finally {
-    searching.value = false
-  }
-})
-
+// 拉黑入口：平台从用户主页「拉黑」按钮发起（POST /users/:id/block），此处不提供用户搜索
+// 后端暂无用户搜索端点 → 诚实提示，不伪造搜索结果
 function openAdd() {
-  addSheet.value = true
-  keyword.value = ''
-  results.value = []
-}
-async function addToBlacklist(u: SearchUserItem) {
-  if (u.isBlocked || adding.value !== null) return
-  adding.value = u.id
-  try {
-    await mineApi.blockUser(u.id)
-    results.value = results.value.map((r) => (r.id === u.id ? { ...r, isBlocked: true } : r))
-    list.value = [
-      { id: Date.now(), userId: u.id, nickname: u.nickname, avatar: u.avatar, blockedAt: new Date().toISOString().slice(0, 10) },
-      ...list.value,
-    ]
-    uni.showToast({ title: '已加入黑名单', icon: 'none' })
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '操作失败', icon: 'none' })
-  } finally {
-    adding.value = null
-  }
+  uni.showToast({ title: '请在用户主页拉黑对方', icon: 'none' })
 }
 
 const isEmpty = computed(() => list.value.length === 0)
@@ -128,7 +88,7 @@ const isEmpty = computed(() => list.value.length === 0)
       <!-- 列表 -->
       <template v-else>
         <view v-for="u in list" :key="u.id" class="item">
-          <image class="avatar" :src="u.avatar" mode="aspectFill" />
+          <image lazy-load class="avatar" :src="u.avatar" mode="aspectFill" />
           <view class="item-body">
             <text class="item-name">{{ u.nickname }}</text>
             <text class="item-time">{{ u.blockedAt }} 加入黑名单</text>
@@ -156,40 +116,6 @@ const isEmpty = computed(() => list.value.length === 0)
       </view>
     </view>
 
-    <!-- 添加黑名单底部弹窗 -->
-    <view v-if="addSheet" class="mask mask-fade-in" @tap="addSheet = false">
-      <view class="sheet sheet-slide-up" @tap.stop>
-        <view class="sheet-head">
-          <text class="sheet-title">添加黑名单</text>
-        </view>
-        <view class="search">
-          <AppIcon name="search" :size="18" color="#b8b0a4" />
-          <input v-model="keyword" class="search-input" placeholder="搜索用户昵称" placeholder-class="ph" confirm-type="search" />
-          <view v-if="keyword" class="search-clear" @tap="keyword = ''">
-            <AppIcon name="x" :size="16" color="#b8b0a4" />
-          </view>
-        </view>
-
-        <scroll-view scroll-y class="results">
-          <view v-if="searching" class="result-hint">搜索中...</view>
-          <view v-else-if="keyword && results.length === 0" class="result-hint">未找到相关用户</view>
-          <view v-else-if="!keyword" class="result-empty">
-            <AppIcon name="alert-circle" :size="40" color="#E8E3D7" />
-            <text class="result-empty-text">输入用户昵称进行搜索</text>
-          </view>
-          <template v-else>
-            <view v-for="u in results" :key="u.id" class="result-item">
-              <image class="result-avatar" :src="u.avatar" mode="aspectFill" />
-              <text class="result-name">{{ u.nickname }}</text>
-              <text v-if="u.isBlocked" class="result-done">已拉黑</text>
-              <view v-else class="btn-block" @tap="addToBlacklist(u)">
-                <text class="btn-block-text">{{ adding === u.id ? '添加中...' : '拉黑' }}</text>
-              </view>
-            </view>
-          </template>
-        </scroll-view>
-      </view>
-    </view>
   </view>
 </template>
 
@@ -200,7 +126,7 @@ const isEmpty = computed(() => list.value.length === 0)
 .loading { flex: 1; display: flex; align-items: center; justify-content: center; padding-top: 200rpx; font-size: 28rpx; color: #8a8178; }
 .error-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding-top: 200rpx; gap: 24rpx; }
 .error-state text { font-size: 28rpx; color: #8a8178; }
-.retry-btn { padding: 16rpx 48rpx; background: #C41E3A; color: #fff; border-radius: 12rpx; font-size: 26rpx; }
+.retry-btn { padding: 16rpx 48rpx; background: var(--brand); color: #fff; border-radius: 12rpx; font-size: 26rpx; }
 .nav-btn { width: 56rpx; height: 56rpx; display: flex; align-items: center; justify-content: center; }
 .scroll { flex: 1; padding: 24rpx; box-sizing: border-box; }
 
@@ -215,8 +141,8 @@ const isEmpty = computed(() => list.value.length === 0)
 .item-name { font-size: 28rpx; font-weight: 500; color: #2C2C2C; }
 .item-time { font-size: 22rpx; color: #8a8178; }
 .item-reason { font-size: 22rpx; color: #b8b0a4; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.btn-remove { padding: 12rpx 28rpx; border: 1rpx solid #C41E3A; border-radius: 999rpx; flex-shrink: 0; }
-.btn-remove-text { font-size: 26rpx; color: #C41E3A; }
+.btn-remove { padding: 12rpx 28rpx; border: 1rpx solid var(--brand); border-radius: 999rpx; flex-shrink: 0; }
+.btn-remove-text { font-size: 26rpx; color: var(--brand); }
 
 .footer { text-align: center; padding: 24rpx 0; display: flex; flex-direction: column; gap: 8rpx; }
 .footer-line { font-size: 26rpx; color: #b8b0a4; }
@@ -231,7 +157,7 @@ const isEmpty = computed(() => list.value.length === 0)
 .dialog-actions { display: flex; gap: 20rpx; }
 .dialog-btn { flex: 1; height: 84rpx; border-radius: 20rpx; display: flex; align-items: center; justify-content: center; }
 .dialog-btn.ghost { background: #F2ECE1; }
-.dialog-btn.solid { background: #C41E3A; }
+.dialog-btn.solid { background: var(--brand); }
 .dialog-btn-text { font-size: 28rpx; color: #2C2C2C; font-weight: 500; }
 .solid-text { color: #fff; }
 
@@ -250,6 +176,6 @@ const isEmpty = computed(() => list.value.length === 0)
 .result-avatar { width: 72rpx; height: 72rpx; border-radius: 50%; background: #E8E3D7; flex-shrink: 0; }
 .result-name { flex: 1; font-size: 28rpx; font-weight: 500; color: #2C2C2C; }
 .result-done { font-size: 26rpx; color: #b8b0a4; }
-.btn-block { padding: 10rpx 28rpx; border: 1rpx solid #C41E3A; border-radius: 999rpx; }
-.btn-block-text { font-size: 26rpx; color: #C41E3A; }
+.btn-block { padding: 10rpx 28rpx; border: 1rpx solid var(--brand); border-radius: 999rpx; }
+.btn-block-text { font-size: 26rpx; color: var(--brand); }
 </style>

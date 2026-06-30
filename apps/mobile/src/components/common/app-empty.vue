@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * 通用空状态
+ * 通用空状态（全平台空态标准组件）。
  * 用法：<AppEmpty icon="inbox" title="暂无数据" desc="..." actionText="去逛逛" @action="..." />
  */
 import AppIcon from '@/components/common/app-icon.vue'
@@ -23,14 +23,13 @@ const emit = defineEmits<{ (e: 'action'): void }>()
 <template>
   <view class="app-empty content-fade-in">
     <view class="app-empty__icon">
-      <AppIcon :name="icon" :size="56" color="#D9CFC2" />
+      <AppIcon :name="icon" :size="56" color="#C9C2B6" />
     </view>
     <text class="app-empty__title">{{ title }}</text>
     <text v-if="desc" class="app-empty__desc">{{ desc }}</text>
     <view v-if="actionText" class="app-empty__action btn-press" @tap="emit('action')">
       <text class="app-empty__action-text">{{ actionText }}</text>
     </view>
-
   </view>
 </template>
 
@@ -46,36 +45,32 @@ const emit = defineEmits<{ (e: 'action'): void }>()
   width: 160rpx;
   height: 160rpx;
   border-radius: 50%;
-  background: #F5F1EB;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 32rpx;
+  background: var(--surface-sunken);
+  @include flex-center;
+  margin-bottom: $space-lg;
 }
 .app-empty__title {
   font-size: 30rpx;
-  color: #2C2C2C;
+  color: var(--text-strong);
   font-weight: 600;
   margin-bottom: 12rpx;
 }
 .app-empty__desc {
-  font-size: 26rpx;
-  color: #999;
+  font-size: $font-md;
+  color: var(--text-soft);
   text-align: center;
   line-height: 1.5;
 }
 .app-empty__action {
-  margin-top: 40rpx;
+  margin-top: $space-xl;
   padding: 0 56rpx;
   height: 80rpx;
-  border-radius: 40rpx;
-  background: linear-gradient(135deg, #C41E3A, #E85A71);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  border-radius: $radius-full;
+  background: linear-gradient(135deg, var(--brand), var(--brand-soft));
+  @include flex-center;
 }
 .app-empty__action-text {
-  font-size: 28rpx;
+  font-size: $font-md;
   color: #fff;
   font-weight: 600;
 }

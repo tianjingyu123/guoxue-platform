@@ -53,32 +53,10 @@
             <text class="price-label">限时优惠</text>
             <text class="price-free">-¥{{ book.originalPrice - book.price }}</text>
           </view>
-          <view v-if="couponApplied" class="price-row">
-            <text class="price-label">优惠券</text>
-            <text class="price-free">-¥10</text>
-          </view>
           <view class="price-total">
             <text class="price-total-label">实付金额</text>
             <text class="price-total-val">¥{{ finalPrice }}</text>
           </view>
-        </view>
-      </view>
-
-      <!-- 优惠券 -->
-      <view class="card">
-        <view class="coupon-hd" @tap="showCoupon = !showCoupon">
-          <view class="coupon-left">
-            <AppIcon name="tag" :size="32" :color="C.price" />
-            <text class="coupon-tx">优惠券</text>
-          </view>
-          <view class="coupon-right">
-            <text class="coupon-state">{{ couponApplied ? '已使用 1 张' : '可用 1 张' }}</text>
-            <AppIcon name="chevron-down" :size="32" :color="C.textSoft" :class="{ rotated: showCoupon }" />
-          </view>
-        </view>
-        <view v-if="showCoupon" class="coupon-body">
-          <input v-model="couponCode" class="coupon-input" placeholder="输入优惠码" placeholder-class="ph" />
-          <view class="coupon-use-btn" @tap="applyCoupon"><text class="coupon-use-tx">使用</text></view>
         </view>
       </view>
 
@@ -139,6 +117,7 @@ import {
   ebookPayMethods,
   type EbookCheckoutBook,
 } from '@/lib/ebook-data'
+import { getToken } from '@/utils/storage'
 
 const C = {
   text: '#1e293b', textSoft: '#64748b', member: '#7c3aed', price: '#dc2626', free: '#16a34a',
@@ -150,9 +129,6 @@ const book = ref<EbookCheckoutBook>({} as EbookCheckoutBook)
 const bookId = ref('1')
 const payMethods = ebookPayMethods
 const payMethod = ref('wechat')
-const couponCode = ref('')
-const couponApplied = ref(false)
-const showCoupon = ref(false)
 const isProcessing = ref(false)
 
 async function fetchData(id: string) {
@@ -170,21 +146,30 @@ async function fetchData(id: string) {
 
 onLoad((q: any = {}) => { fetchData(q?.id || '1') })
 
-const finalPrice = computed(() => (couponApplied.value ? (book.value.price || 0) - 10 : book.value.price || 0))
+const finalPrice = computed(() => book.value.price || 0)
 
-function applyCoupon() {
-  if (couponCode.value) couponApplied.value = true
-}
 function goBack() {
   uni.navigateBack()
 }
-function handlePay() {
+async function handlePay() {
   if (isProcessing.value) return
+  if (!getToken()) {
+    uni.showModal({
+      title: '需要登录', content: '登录后即可购买电子书',
+      confirmText: '去登录',
+      success: (r) => { if (r.confirm) uni.navigateTo({ url: '/pkg-auth/login/index' }) },
+    })
+    return
+  }
   isProcessing.value = true
-  setTimeout(() => {
-    isProcessing.value = false
+  try {
+    // 模拟支付：后端 purchase 直接记录已购 → 可读
+    await ebookApi.purchase(bookId.value)
     uni.redirectTo({ url: `/pkg-ebook/checkout/success?id=${bookId.value}` })
-  }, 1200)
+  } catch (e: any) {
+    isProcessing.value = false
+    uni.showToast({ title: e?.message || '购买失败', icon: 'none' })
+  }
 }
 </script>
 

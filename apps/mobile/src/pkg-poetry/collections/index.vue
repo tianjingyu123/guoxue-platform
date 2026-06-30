@@ -35,7 +35,7 @@
                 <text class="pl-cat" :class="catClass(poem.category)">{{ poem.category }}</text>
               </view>
               <view class="pl-author">
-                <image class="pl-avatar" :src="poem.authorAvatar" mode="aspectFill" />
+                <image lazy-load class="pl-avatar" :src="poem.authorAvatar" mode="aspectFill" />
                 <text class="pl-author-text">{{ poem.author }} · {{ poem.dynasty }}</text>
               </view>
             </view>

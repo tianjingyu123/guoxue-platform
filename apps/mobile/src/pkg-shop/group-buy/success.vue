@@ -29,20 +29,20 @@
       <!-- 商品卡片 -->
       <view class="card">
         <view class="prod">
-          <image class="prod-cover" :src="data.productCover" mode="aspectFill" />
+          <image lazy-load class="prod-cover" :src="data.productCover" mode="aspectFill" />
           <view class="prod-info">
             <text class="prod-name">{{ data.productName }}</text>
             <view class="prod-price">
               <text class="price-now">¥{{ data.price }}</text>
               <text class="price-old">¥{{ data.originalPrice }}</text>
-              <text class="save-tag">省¥{{ data.originalPrice - data.price }}</text>
+              <text class="save-tag">省¥{{ data.savedAmount }}</text>
             </view>
           </view>
         </view>
         <view class="row">
           <text class="row-label">成团成员</text>
           <view class="members">
-            <image
+            <image lazy-load
               v-for="(m, i) in data.members"
               :key="i"
               class="member-avatar"
@@ -121,6 +121,7 @@ interface GroupBuySuccessData {
   productName: string
   price: number
   originalPrice: number
+  savedAmount: number
   members: { avatar: string }[]
   completedAt: string
   orderId: string
@@ -254,7 +255,7 @@ async function retryLoad() {
 .price-now {
   font-size: 36rpx;
   font-weight: 700;
-  color: #c41e3a;
+  color: var(--brand);
 }
 .price-old {
   font-size: 24rpx;
@@ -406,7 +407,7 @@ async function retryLoad() {
   justify-content: center;
   gap: 8rpx;
   padding: 28rpx 0;
-  background: #c41e3a;
+  background: var(--brand);
   border-radius: 20rpx;
 }
 .btn-primary-text {
@@ -442,7 +443,7 @@ async function retryLoad() {
   width: 64rpx;
   height: 64rpx;
   border: 4rpx solid #e8e3db;
-  border-top-color: #c41e3a;
+  border-top-color: var(--brand);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
@@ -464,7 +465,7 @@ async function retryLoad() {
 }
 .state-retry {
   padding: 12rpx 48rpx;
-  background: #c41e3a;
+  background: var(--brand);
   border-radius: 999rpx;
 }
 .state-retry-text {

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * 通用加载失败 / 重试状态
+ * 通用加载失败 / 重试状态（全平台错误态标准组件）。
  * 用法：<AppError title="加载失败" desc="网络异常，请稍后重试" @retry="..." />
  */
 import AppIcon from '@/components/common/app-icon.vue'
@@ -23,7 +23,7 @@ const emit = defineEmits<{ (e: 'retry'): void }>()
 <template>
   <view class="app-error content-fade-in">
     <view class="app-error__icon">
-      <AppIcon :name="icon" :size="56" color="#D9CFC2" />
+      <AppIcon :name="icon" :size="56" color="#C9C2B6" />
     </view>
     <text class="app-error__title">{{ title }}</text>
     <text v-if="desc" class="app-error__desc">{{ desc }}</text>
@@ -31,7 +31,6 @@ const emit = defineEmits<{ (e: 'retry'): void }>()
       <AppIcon name="refresh-cw" :size="28" color="#C41E3A" />
       <text class="app-error__action-text">{{ retryText }}</text>
     </view>
-
   </view>
 </template>
 
@@ -47,37 +46,35 @@ const emit = defineEmits<{ (e: 'retry'): void }>()
   width: 160rpx;
   height: 160rpx;
   border-radius: 50%;
-  background: #F5F1EB;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 32rpx;
+  background: var(--surface-sunken);
+  @include flex-center;
+  margin-bottom: $space-lg;
 }
 .app-error__title {
   font-size: 30rpx;
-  color: #2C2C2C;
+  color: var(--text-strong);
   font-weight: 600;
   margin-bottom: 12rpx;
 }
 .app-error__desc {
-  font-size: 26rpx;
-  color: #999;
+  font-size: $font-md;
+  color: var(--text-soft);
   text-align: center;
   line-height: 1.5;
 }
 .app-error__action {
-  margin-top: 40rpx;
+  margin-top: $space-xl;
   padding: 0 48rpx;
   height: 80rpx;
-  border-radius: 40rpx;
-  border: 2rpx solid #C41E3A;
+  border-radius: $radius-full;
+  border: 2rpx solid var(--brand);
   display: flex;
   align-items: center;
   gap: 12rpx;
 }
 .app-error__action-text {
-  font-size: 28rpx;
-  color: #C41E3A;
+  font-size: $font-md;
+  color: var(--brand);
   font-weight: 600;
 }
 </style>

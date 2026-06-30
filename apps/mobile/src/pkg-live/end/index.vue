@@ -15,7 +15,7 @@
     <template v-else>
     <!-- 封面区域 -->
     <view class="cover">
-      <image class="cover-img" :src="room.cover" mode="aspectFill" />
+      <image lazy-load class="cover-img" :src="room.cover" mode="aspectFill" />
       <view class="cover-mask" />
 
       <!-- 顶部导航 -->
@@ -39,24 +39,19 @@
       <!-- 底部信息 -->
       <view class="cover-info">
         <text class="cover-title">{{ room.title }}</text>
-        <view class="cover-tags">
+        <view v-if="room.tags && room.tags.length" class="cover-tags">
           <text v-for="tag in room.tags" :key="tag" class="cover-tag">{{ tag }}</text>
         </view>
       </view>
     </view>
 
-    <!-- 主播信息 -->
+    <!-- 主播信息（后端 end 无关注/粉丝维度 → 仅展示主播） -->
     <view class="host-card">
       <view class="host-left">
-        <image class="host-avatar" :src="room.hostAvatar" mode="aspectFill" />
+        <image lazy-load class="host-avatar" :src="room.hostAvatar" mode="aspectFill" />
         <view class="host-meta">
           <text class="host-name">{{ room.hostName }}</text>
-          <text class="host-fans">{{ formatNumber(room.hostFollowers) }} 粉丝</text>
         </view>
-      </view>
-      <view class="follow-btn" :class="{ followed: isFollowing }" @tap="isFollowing = !isFollowing">
-        <AppIcon :name="isFollowing ? 'check' : 'user-plus'" :size="32" :color="isFollowing ? '#999999' : '#fff'" />
-        <text class="follow-txt">{{ isFollowing ? '已关注' : '关注' }}</text>
       </view>
     </view>
 
@@ -87,8 +82,8 @@
       </view>
     </view>
 
-    <!-- 讲师其他直播 -->
-    <view class="card">
+    <!-- 讲师其他直播（后端暂无推荐数据源 → 空则隐藏） -->
+    <view v-if="recommendLives.length" class="card">
       <view class="card-head">
         <text class="card-title">讲师其他直播</text>
         <view class="card-more">
@@ -99,7 +94,7 @@
       <view class="live-list">
         <view v-for="live in recommendLives" :key="live.id" class="live-item">
           <view class="live-cover">
-            <image class="live-cover-img" :src="live.cover" mode="aspectFill" />
+            <image lazy-load class="live-cover-img" :src="live.cover" mode="aspectFill" />
             <view v-if="live.status === 'live'" class="live-tag live-tag-live">
               <view class="live-dot" />
               <text class="live-tag-txt">直播中</text>
@@ -116,8 +111,8 @@
       </view>
     </view>
 
-    <!-- 相关课程推荐 -->
-    <view class="card">
+    <!-- 相关课程推荐（后端暂无推荐数据源 → 空则隐藏） -->
+    <view v-if="recommendCourses.length" class="card">
       <view class="card-head">
         <text class="card-title">相关课程推荐</text>
         <view class="card-more">
@@ -127,7 +122,7 @@
       </view>
       <view class="course-grid">
         <view v-for="course in recommendCourses" :key="course.id" class="course-item">
-          <image class="course-cover" :src="course.cover" mode="aspectFill" />
+          <image lazy-load class="course-cover" :src="course.cover" mode="aspectFill" />
           <view class="course-meta">
             <text class="course-title">{{ course.title }}</text>
             <view class="course-foot">
@@ -141,10 +136,10 @@
 
     <!-- 底部固定按钮 -->
     <view class="bottom-bar" :style="{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 16rpx)' }">
-      <view class="bottom-btn bottom-btn-outline">
-        <text class="bottom-btn-txt-outline">进入讲师圈子</text>
+      <view class="bottom-btn bottom-btn-outline" @tap="goPlaza">
+        <text class="bottom-btn-txt-outline">返回直播广场</text>
       </view>
-      <view v-if="room.hasReplay" class="bottom-btn bottom-btn-primary">
+      <view v-if="room.hasReplay" class="bottom-btn bottom-btn-primary" @tap="goReplay">
         <AppIcon name="play" :size="32" color="#fff" />
         <text class="bottom-btn-txt-primary">查看回放</text>
       </view>
@@ -157,7 +152,7 @@
 import { ref, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
-import { goBack } from '@/utils/router'
+import { goBack, navigateTo } from '@/utils/router'
 import { liveApi } from '@/lib/live-data'
 
 const statusBarHeight = ref(0)
@@ -168,7 +163,6 @@ const error = ref('')
 const room = ref<any>({})
 const recommendLives = ref<any[]>([])
 const recommendCourses = ref<any[]>([])
-const isFollowing = ref(false)
 
 async function fetchData(endId: string) {
   loading.value = true
@@ -188,6 +182,9 @@ async function fetchData(endId: string) {
 onLoad((opts: any) => {
   fetchData(opts?.id || '1')
 })
+
+function goPlaza() { navigateTo('/pkg-live/plaza/index') }
+function goReplay() { if (room.value?.id) navigateTo(`/pkg-live/replay-detail/index?id=${room.value.id}`) }
 
 function formatDuration(seconds: number): string {
   const hours = Math.floor(seconds / 3600)
@@ -216,7 +213,7 @@ function formatNumber(num: number): string {
 /* 错误状态 */
 .state-error { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 320rpx 0; }
 .state-error__txt { font-size: 28rpx; color: #999; margin-bottom: 32rpx; }
-.state-error__retry { padding: 16rpx 48rpx; background: #C41E3A; border-radius: 999rpx; }
+.state-error__retry { padding: 16rpx 48rpx; background: var(--brand); border-radius: 999rpx; }
 .state-error__retry-txt { font-size: 28rpx; color: #fff; font-weight: 500; }
 
 /* 封面区域 */
@@ -358,7 +355,7 @@ function formatNumber(num: number): string {
   align-items: center;
   gap: 8rpx;
   padding: 16rpx 32rpx;
-  background: #C41E3A;
+  background: var(--brand);
   border-radius: 999rpx;
   flex-shrink: 0;
 }
@@ -462,7 +459,7 @@ function formatNumber(num: number): string {
   border-radius: 8rpx;
 }
 .live-tag-live {
-  background: #C41E3A;
+  background: var(--brand);
 }
 .live-tag-preview {
   background: #C9A96E;
@@ -533,7 +530,7 @@ function formatNumber(num: number): string {
 .course-price {
   font-size: 28rpx;
   font-weight: 700;
-  color: #C41E3A;
+  color: var(--brand);
 }
 .course-lessons {
   font-size: 22rpx;
@@ -570,7 +567,7 @@ function formatNumber(num: number): string {
   color: #2C2C2C;
 }
 .bottom-btn-primary {
-  background: #C41E3A;
+  background: var(--brand);
 }
 .bottom-btn-txt-primary {
   font-size: 28rpx;

@@ -14,8 +14,21 @@ const notifyItems = ref<SettingNotifyItem[]>([])
 
 // 通知开关
 const notifications = ref<Record<string, boolean>>({})
-function toggleNotify(key: string) {
-  notifications.value[key] = !notifications.value[key]
+const notifySaving = ref<Record<string, boolean>>({})
+async function toggleNotify(key: string) {
+  if (notifySaving.value[key]) return
+  const next = !notifications.value[key]
+  notifications.value[key] = next
+  notifySaving.value[key] = true
+  try {
+    await mineApi.updateNotifySetting(key, next)
+  } catch (e: any) {
+    // 失败回滚，保证开关状态与后端一致
+    notifications.value[key] = !next
+    uni.showToast({ title: e?.message || '设置失败', icon: 'none' })
+  } finally {
+    notifySaving.value[key] = false
+  }
 }
 
 async function fetchData() {
@@ -348,7 +361,7 @@ function pickOption(v: string) {
   transition: background 0.2s;
 }
 .switch.on {
-  background: #c41e3a;
+  background: var(--brand);
 }
 .switch-dot {
   position: absolute;
@@ -418,7 +431,7 @@ function pickOption(v: string) {
   font-size: 22rpx;
 }
 .hl {
-  color: #c41e3a;
+  color: var(--brand);
   font-weight: 500;
 }
 .dialog-actions {
@@ -441,7 +454,7 @@ function pickOption(v: string) {
   background: #ef4444;
 }
 .dlg-btn.primary {
-  background: #c41e3a;
+  background: var(--brand);
 }
 .dlg-btn-text {
   font-size: 28rpx;
@@ -481,7 +494,7 @@ function pickOption(v: string) {
   color: #2c2c2c;
 }
 .sheet-opt-text.active {
-  color: #c41e3a;
+  color: var(--brand);
   font-weight: 500;
 }
 .sheet-cancel {
@@ -496,5 +509,5 @@ function pickOption(v: string) {
 .loading { flex: 1; display: flex; align-items: center; justify-content: center; padding-top: 200rpx; font-size: 28rpx; color: #8a8178; }
 .error-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding-top: 200rpx; gap: 24rpx; }
 .error-state text { font-size: 28rpx; color: #8a8178; }
-.retry-btn { padding: 16rpx 48rpx; background: #C41E3A; color: #fff; border-radius: 12rpx; font-size: 26rpx; }
+.retry-btn { padding: 16rpx 48rpx; background: var(--brand); color: #fff; border-radius: 12rpx; font-size: 26rpx; }
 </style>

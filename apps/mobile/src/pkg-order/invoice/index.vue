@@ -20,6 +20,11 @@
       </view>
     </view>
 
+    <view v-if="!invoiceAvailable" class="notice-banner">
+      <app-icon name="info" :size="32" color="#A16207" />
+      <text class="notice-text">电子发票功能即将开放，如需发票请联系在线客服</text>
+    </view>
+
     <scroll-view scroll-y class="scroll-area">
       <view v-if="loading" class="loading"><text>加载中...</text></view>
       <view v-else-if="error" class="error-state"><text>{{ error }}</text><view class="retry-btn" @tap="retry">重试</view></view>
@@ -173,7 +178,10 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
-import { orderApi, invoiceStatusConfig } from '@/lib/order-data'
+import { orderApi, invoiceStatusConfig, INVOICE_AVAILABLE } from '@/lib/order-data'
+
+// 后端暂无电子发票子系统，统一诚实降级提示（不臆造可开票数据）
+const invoiceAvailable = INVOICE_AVAILABLE
 
 const safeBottom = ref(0)
 const activeTab = ref<'apply' | 'list'>('apply')
@@ -319,7 +327,7 @@ function downloadInvoice(_rec: any) {
   color: #666666;
 }
 .tab-text.active {
-  color: #C41E3A;
+  color: var(--brand);
 }
 .tab-badge {
   min-width: 32rpx;
@@ -332,7 +340,7 @@ function downloadInvoice(_rec: any) {
   justify-content: center;
 }
 .tab-badge.active {
-  background: #C41E3A;
+  background: var(--brand);
 }
 .tab-badge-text {
   font-size: 20rpx;
@@ -349,7 +357,7 @@ function downloadInvoice(_rec: any) {
   width: 96rpx;
   height: 4rpx;
   border-radius: 999rpx;
-  background: #C41E3A;
+  background: var(--brand);
 }
 
 .scroll-area {
@@ -400,7 +408,7 @@ function downloadInvoice(_rec: any) {
   background: #FAF8F5;
 }
 .order-item.selected {
-  border-color: #C41E3A;
+  border-color: var(--brand);
   background: #fef2f2;
 }
 .order-radio {
@@ -415,8 +423,8 @@ function downloadInvoice(_rec: any) {
   justify-content: center;
 }
 .order-radio.selected {
-  border-color: #C41E3A;
-  background: #C41E3A;
+  border-color: var(--brand);
+  background: var(--brand);
 }
 .order-info {
   flex: 1;
@@ -445,7 +453,7 @@ function downloadInvoice(_rec: any) {
 .order-amount {
   font-size: 30rpx;
   font-weight: 600;
-  color: #C41E3A;
+  color: var(--brand);
 }
 .order-total {
   display: flex;
@@ -462,7 +470,7 @@ function downloadInvoice(_rec: any) {
 .order-total-value {
   font-size: 36rpx;
   font-weight: 700;
-  color: #C41E3A;
+  color: var(--brand);
 }
 
 /* 发票类型 */
@@ -480,7 +488,7 @@ function downloadInvoice(_rec: any) {
   flex-direction: column;
 }
 .type-card.active {
-  border-color: #C41E3A;
+  border-color: var(--brand);
   background: #fef2f2;
 }
 .type-name {
@@ -490,7 +498,7 @@ function downloadInvoice(_rec: any) {
   color: #2C2C2C;
 }
 .type-name.active {
-  color: #C41E3A;
+  color: var(--brand);
 }
 .type-desc {
   margin-top: 8rpx;
@@ -626,7 +634,7 @@ function downloadInvoice(_rec: any) {
   display: block;
   font-size: 36rpx;
   font-weight: 700;
-  color: #C41E3A;
+  color: var(--brand);
 }
 .record-time {
   display: block;
@@ -645,7 +653,7 @@ function downloadInvoice(_rec: any) {
   border-radius: 999rpx;
 }
 .record-btn.primary {
-  background: #C41E3A;
+  background: var(--brand);
 }
 .record-btn.ghost {
   border: 1rpx solid #E8E3DB;
@@ -685,7 +693,7 @@ function downloadInvoice(_rec: any) {
 .submit-btn {
   height: 88rpx;
   border-radius: 999rpx;
-  background: #C41E3A;
+  background: var(--brand);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -701,5 +709,7 @@ function downloadInvoice(_rec: any) {
 .loading { flex: 1; display: flex; align-items: center; justify-content: center; padding-top: 200rpx; font-size: 28rpx; color: #999999; }
 .error-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding-top: 200rpx; gap: 24rpx; }
 .error-state text { font-size: 28rpx; color: #999999; }
-.retry-btn { padding: 16rpx 48rpx; background: #C41E3A; color: #fff; border-radius: 12rpx; font-size: 26rpx; }
+.retry-btn { padding: 16rpx 48rpx; background: var(--brand); color: #fff; border-radius: 12rpx; font-size: 26rpx; }
+.notice-banner { display: flex; align-items: center; gap: 12rpx; margin: 16rpx 24rpx 0; padding: 20rpx 24rpx; background: #FEF9C3; border-radius: 16rpx; }
+.notice-text { font-size: 26rpx; color: #A16207; line-height: 1.5; }
 </style>

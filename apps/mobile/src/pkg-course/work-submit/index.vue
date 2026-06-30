@@ -116,7 +116,7 @@ onMounted(() => {
         </view>
         <view class="img-grid">
           <view v-for="(url, index) in images" :key="index" class="img-cell">
-            <image class="img-thumb" :src="url" mode="aspectFill" />
+            <image lazy-load class="img-thumb" :src="url" mode="aspectFill" />
             <view class="img-del" @tap="removeImage(index)"><app-icon name="x" :size="22" color="#ffffff" /></view>
           </view>
           <view v-if="images.length < requirement.maxImages" class="img-add" @tap="onAddImage">
@@ -176,7 +176,7 @@ onMounted(() => {
 .img-add-txt { font-size: 20rpx; color: #999; }
 
 .submit-bar { position: fixed; bottom: 0; left: 0; right: 0; background: #fff; border-top: 1rpx solid #E8E3DB; padding: 32rpx; padding-bottom: calc(32rpx + env(safe-area-inset-bottom)); }
-.submit-btn { height: 96rpx; border-radius: 999rpx; display: flex; align-items: center; justify-content: center; gap: 16rpx; background: linear-gradient(to right, #C41E3A, #E74C3C); box-shadow: 0 8rpx 24rpx rgba(196,30,58,0.3); }
+.submit-btn { height: 96rpx; border-radius: 999rpx; display: flex; align-items: center; justify-content: center; gap: 16rpx; background: linear-gradient(to right, var(--brand), #E74C3C); box-shadow: 0 8rpx 24rpx rgba(196,30,58,0.3); }
 .submit-btn.disabled { background: #E8E3DB; box-shadow: none; }
 .submit-txt { font-size: 30rpx; font-weight: 600; color: #fff; }
 .submit-txt.disabled { color: #999; }

@@ -34,59 +34,38 @@
         </view>
       </scroll-view>
 
-      <!-- 领域筛选 -->
-      <scroll-view scroll-x class="filter-scroll">
-        <view class="filter-row">
-          <view
-            v-for="s in specialtyFilters"
-            :key="s"
-            class="spec-btn"
-            :class="{ 'spec-btn-active': activeSpecialty === s }"
-            @tap="activeSpecialty = s"
-          >
-            <text class="spec-btn-text" :class="{ 'spec-btn-text-active': activeSpecialty === s }">{{ s }}</text>
-          </view>
-        </view>
-      </scroll-view>
-
       <!-- 列表 -->
       <view class="list">
-        <view v-if="filteredList.length === 0" class="empty">
+        <view v-if="loading" class="state-box">
+          <view class="spinner" />
+          <text class="state-text">加载中…</text>
+        </view>
+        <view v-else-if="errMsg" class="state-box">
+          <app-icon name="alert-circle" :size="40" color="#d1d5db" />
+          <text class="state-text">{{ errMsg }}</text>
+          <view class="retry-btn" @tap="load"><text class="retry-text">重试</text></view>
+        </view>
+        <view v-else-if="filteredList.length === 0" class="empty">
           <app-icon name="users" :size="48" color="#d1d5db" />
           <text class="empty-text">未找到符合条件的讲师</text>
         </view>
         <view v-for="ins in filteredList" :key="ins.id" class="ins-card" @tap="goDetail(ins.id)">
           <view class="ins-row">
             <view class="ins-avatar-wrap">
-              <view class="ins-avatar"><app-icon name="user" :size="26" color="#9ca3af" /></view>
-              <view v-if="ins.verified" class="ins-badge">
+              <image lazy-load v-if="ins.user.avatar" :src="ins.user.avatar" class="ins-avatar-img" mode="aspectFill" />
+              <view v-else class="ins-avatar"><app-icon name="user" :size="26" color="#9ca3af" /></view>
+              <view v-if="ins.lecturerLevel === 'SIGNED'" class="ins-badge">
                 <app-icon name="badge-check" :size="16" color="#c41e3a" />
               </view>
             </view>
             <view class="ins-info">
               <view class="ins-name-row">
-                <text class="ins-name">{{ ins.name }}</text>
-                <text class="ins-level" :style="{ color: instructorLevelColor[ins.level].color, background: instructorLevelColor[ins.level].bg }">{{ instructorLevelLabel[ins.level] }}</text>
+                <text class="ins-name">{{ memberName(ins.user) }}</text>
+                <text class="ins-level" :style="{ color: lecturerLevelColor[ins.lecturerLevel].color, background: lecturerLevelColor[ins.lecturerLevel].bg }">{{ lecturerLevelLabel[ins.lecturerLevel] }}</text>
               </view>
-              <text class="ins-title">{{ ins.title }}</text>
-              <view class="ins-tags">
-                <text v-for="s in ins.specialties.slice(0, 3)" :key="s" class="ins-tag">{{ s }}</text>
-              </view>
-              <view class="ins-stats">
-                <view class="ins-stat">
-                  <app-icon name="users" :size="12" color="#9ca3af" />
-                  <text class="ins-stat-text">{{ ins.studentCount }}学员</text>
-                </view>
-                <view class="ins-stat">
-                  <app-icon name="book-open" :size="12" color="#9ca3af" />
-                  <text class="ins-stat-text">{{ ins.courseCount }}课程</text>
-                </view>
-                <view class="ins-stat">
-                  <app-icon name="star" :size="12" color="#f59e0b" />
-                  <text class="ins-stat-text">{{ ins.rating }}</text>
-                </view>
-              </view>
+              <text class="ins-title">研究院签约讲师体系成员</text>
             </view>
+            <app-icon name="chevron-right" :size="16" color="#d1d5db" />
           </view>
         </view>
       </view>
@@ -101,7 +80,7 @@ import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
-import { instructors as allInstructors, instructorLevelLabel, instructorLevelColor, type InstructorLevel } from '@/lib/institute-data'
+import { instituteApi, lecturerLevelLabel, lecturerLevelColor, memberName, type LecturerLevel, type TalentTeacher } from '@/lib/institute-data'
 
 const statusBarHeight = ref(0)
 const navHeight = ref(44)
@@ -109,25 +88,39 @@ const sys = uni.getSystemInfoSync()
 statusBarHeight.value = sys.statusBarHeight || 0
 navHeight.value = (sys.statusBarHeight || 0) + 44
 
-const levelFilters: { id: InstructorLevel | 'all'; label: string }[] = [
+const levelFilters: { id: LecturerLevel | 'all'; label: string }[] = [
   { id: 'all', label: '全部' },
-  { id: 'master', label: '大师' },
-  { id: 'expert', label: '专家' },
-  { id: 'senior', label: '高级' },
-  { id: 'junior', label: '讲师' },
+  { id: 'SIGNED', label: '签约讲师' },
+  { id: 'SENIOR', label: '高级讲师' },
+  { id: 'JUNIOR', label: '初级讲师' },
+  { id: 'PREPARATORY', label: '储备讲师' },
 ]
-const specialtyFilters = ['全部', '八字命理', '紫微斗数', '风水堪舆', '易经占卜', '六爻预测', '奇门遁甲']
 
+const loading = ref(true)
+const errMsg = ref('')
+const all = ref<TalentTeacher[]>([])
 const keyword = ref('')
 const searchTerm = ref('')
-const activeLevel = ref<InstructorLevel | 'all'>('all')
-const activeSpecialty = ref('全部')
+const activeLevel = ref<LecturerLevel | 'all'>('all')
+
+async function load() {
+  loading.value = true
+  errMsg.value = ''
+  try {
+    all.value = await instituteApi.getTalentPool()
+  } catch (e: any) {
+    errMsg.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
 
 onLoad((q) => {
   if (q && q.keyword) {
     keyword.value = decodeURIComponent(q.keyword)
     searchTerm.value = keyword.value
   }
+  load()
 })
 
 function applyFilter() {
@@ -135,19 +128,14 @@ function applyFilter() {
 }
 
 const filteredList = computed(() => {
-  return allInstructors.filter((i) => {
-    if (activeLevel.value !== 'all' && i.level !== activeLevel.value) return false
-    if (activeSpecialty.value !== '全部' && !i.specialties.includes(activeSpecialty.value)) return false
-    if (searchTerm.value) {
-      const kw = searchTerm.value.toLowerCase()
-      const hit = i.name.toLowerCase().includes(kw) || i.title.toLowerCase().includes(kw) || i.specialties.some((s) => s.toLowerCase().includes(kw))
-      if (!hit) return false
-    }
+  return all.value.filter((t) => {
+    if (activeLevel.value !== 'all' && t.lecturerLevel !== activeLevel.value) return false
+    if (searchTerm.value && !memberName(t.user).toLowerCase().includes(searchTerm.value.toLowerCase())) return false
     return true
   })
 })
 
-function goDetail(id: number) {
+function goDetail(id: string) {
   navigateTo('/institute/instructors/' + id)
 }
 </script>
@@ -163,20 +151,20 @@ function goDetail(id: number) {
 .search-box { position: relative; display: flex; align-items: center; height: 38px; background: rgba(196,30,58,0.04); border-radius: 10px; padding: 0 8px 0 12px; gap: 8px; }
 .search-input { flex: 1; font-size: 14px; color: #1a1a1a; height: 38px; }
 .search-ph { color: #9ca3af; }
-.search-btn { background: #c41e3a; border-radius: 8px; padding: 6px 14px; }
+.search-btn { background: var(--brand); border-radius: 8px; padding: 6px 14px; }
 .search-btn-text { font-size: 13px; color: #fff; }
 
 .scroll { height: 100vh; box-sizing: border-box; }
 .filter-scroll { white-space: nowrap; padding: 12px 16px 0; }
 .filter-row { display: inline-flex; gap: 8px; }
 .level-btn { border: 1px solid #d1d5db; border-radius: 999px; padding: 5px 14px; background: #fff; }
-.level-btn-active { background: #c41e3a; border-color: #c41e3a; }
+.level-btn-active { background: var(--brand); border-color: var(--brand); }
 .level-btn-text { font-size: 12px; color: #4b5563; }
 .level-btn-text-active { color: #fff; }
 .spec-btn { border-radius: 999px; padding: 4px 12px; background: #f0f0f0; }
 .spec-btn-active { background: rgba(196,30,58,0.1); }
 .spec-btn-text { font-size: 12px; color: #9ca3af; }
-.spec-btn-text-active { color: #c41e3a; font-weight: 500; }
+.spec-btn-text-active { color: var(--brand); font-weight: 500; }
 
 .list { padding: 12px 16px; display: flex; flex-direction: column; gap: 12px; }
 .empty { padding: 64px 0; display: flex; flex-direction: column; align-items: center; gap: 8px; }
@@ -197,4 +185,12 @@ function goDetail(id: number) {
 .ins-stat { display: flex; align-items: center; gap: 4px; }
 .ins-stat-text { font-size: 11px; color: #9ca3af; }
 .bottom-safe { height: 24px; }
+.ins-row { align-items: center; }
+.ins-avatar-img { width: 56px; height: 56px; border-radius: 50%; flex-shrink: 0; }
+.state-box { padding: 64px 0; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.state-text { font-size: 13px; color: #9ca3af; }
+.spinner { width: 28px; height: 28px; border: 3px solid #f0f0f0; border-top-color: var(--brand); border-radius: 50%; animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.retry-btn { margin-top: 4px; padding: 6px 20px; border: 1px solid var(--brand); border-radius: 999px; }
+.retry-text { font-size: 13px; color: var(--brand); }
 </style>

@@ -1,84 +1,91 @@
 <script setup lang="ts">
 /**
- * 圈子数据看板（从原型 app/circles/[id]/dashboard/page.tsx 高保真迁移）
- * 概览KPI卡 + 近30天趋势柱图(四指标切换) + 活跃贡献者TOP5 + 热门内容TOP5 + 流失预警 + 收益构成
- * 原型趋势图用 CSS 柱条(非recharts),跨端直接复用
+ * 圈子数据看板（真连后端）
+ * 概览KPI卡(成员/活跃/本月新增) + 活跃贡献者TOP5 + 热门内容TOP5 + 收益构成
+ *
+ * 数据来源：
+ * - overview / revenue：/circle-backend/*（后端取当前圈主的圈子，不传 circleId）
+ * - contributors / hotPosts：/circles/:id/leaderboard、/circles/:id/hot-content（需 circleId）
+ *
+ * 说明：后端无「近30天趋势」「流失预警」端点，且无任何随机/真实趋势统计来源 →
+ *      原型这两块整块删除（禁止用随机数/假数据填充）。
+ *      KPI 增长率、总帖子数、总收益、贡献者点赞数、帖子浏览量后端均无来源 → 一律降级隐藏。
  */
-import { ref, computed } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
+import { ref } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
+import {
+  dashboardApi,
+  type DashboardOverview,
+  type DashboardRevenue,
+  type DashboardContributor,
+  type DashboardHotPost,
+} from '@/lib/circle-dashboard-data'
 
-type TrendType = 'members' | 'posts' | 'active' | 'revenue'
+const circleId = ref('')
 
-const circleId = ref('1')
+// 三态
+const loading = ref(true)
+const error = ref('')
 const refreshing = ref(false)
-const trendType = ref<TrendType>('members')
 
-const overview = {
-  totalMembers: 12580, membersGrowth: 8.5,
-  activeMembers: 3240, activeGrowth: 12.3,
-  totalPosts: 8960, postsGrowth: -2.1,
-  totalRevenue: 156800, revenueGrowth: 15.8,
+// 真实数据
+const overview = ref<DashboardOverview | null>(null)
+const revenue = ref<DashboardRevenue | null>(null)
+const contributors = ref<DashboardContributor[]>([])
+const hotPosts = ref<DashboardHotPost[]>([])
+
+// KPI 卡：仅后端真实可得三项（无增长率来源，故不展示 growth）
+const KPI_META = [
+  { key: 'memberCount', icon: 'users', label: '总成员', color: '#C41E3A' },
+  { key: 'activeMembers', icon: 'activity', label: '活跃成员', color: '#4A90D9' },
+  { key: 'monthNewMembers', icon: 'user-plus', label: '本月新增', color: '#C9A96E' },
+] as const
+
+// 收益构成：后端无分项明细 → 用 revenue 真实三项（总流水/嘉宾分账/圈主净收益）构成
+const revenueItems = ref<{ name: string; value: number; percent: number; color: string }[]>([])
+
+function buildRevenueItems(r: DashboardRevenue) {
+  const base = [
+    { name: '总流水', value: r.totalAmount, color: '#C41E3A' },
+    { name: '嘉宾分账', value: r.totalGuestPayouts, color: '#C9A96E' },
+    { name: '圈主净收益', value: r.ownerRevenue, color: '#52C41A' },
+  ]
+  const max = Math.max(...base.map((b) => b.value), 0)
+  revenueItems.value = base.map((b) => ({
+    ...b,
+    percent: max > 0 ? Math.round((b.value / max) * 1000) / 10 : 0,
+  }))
 }
 
-const trends = Array.from({ length: 30 }, (_, i) => ({
-  date: new Date(Date.now() - (29 - i) * 86400000).toISOString().split('T')[0],
-  members: 12000 + Math.floor(Math.random() * 600),
-  posts: 200 + Math.floor(Math.random() * 100),
-  active: 2800 + Math.floor(Math.random() * 500),
-  revenue: 4000 + Math.floor(Math.random() * 2000),
-}))
-
-const contributors = [
-  { id: '1', name: '易学大师', posts: 128, likes: 3560 },
-  { id: '2', name: '命理研究者', posts: 96, likes: 2840 },
-  { id: '3', name: '周易爱好者', posts: 85, likes: 2120 },
-  { id: '4', name: '风水学徒', posts: 72, likes: 1890 },
-  { id: '5', name: '国学传承', posts: 68, likes: 1650 },
-]
-
-const hotPosts = [
-  { id: '1', title: '八字入门：如何看懂自己的命盘', author: '易学大师', views: 12580, likes: 896, comments: 234 },
-  { id: '2', title: '紫微斗数与八字的区别详解', author: '命理研究者', views: 9860, likes: 756, comments: 189 },
-  { id: '3', title: '2024年流年运势预测方法', author: '周易爱好者', views: 8420, likes: 623, comments: 156 },
-  { id: '4', title: '风水布局的基本原则', author: '风水学徒', views: 7650, likes: 542, comments: 128 },
-  { id: '5', title: '易经六十四卦快速记忆法', author: '国学传承', views: 6890, likes: 489, comments: 98 },
-]
-
-const churnWarning = [
-  { id: '1', name: '沉默用户A', daysSilent: 28 },
-  { id: '2', name: '流失风险B', daysSilent: 25 },
-  { id: '3', name: '待唤醒C', daysSilent: 23 },
-]
-
-const revenue = {
-  total: 156800,
-  items: [
-    { name: '入圈费', value: 89600, percent: 57.1, color: '#C41E3A' },
-    { name: '打赏收入', value: 34200, percent: 21.8, color: '#C9A96E' },
-    { name: '连麦咨询', value: 23400, percent: 14.9, color: '#4A90D9' },
-    { name: '知识付费', value: 9600, percent: 6.2, color: '#52C41A' },
-  ],
+async function loadAll() {
+  loading.value = true
+  error.value = ''
+  try {
+    const [ov, rev] = await Promise.all([dashboardApi.overview(), dashboardApi.revenue()])
+    overview.value = ov
+    revenue.value = rev
+    buildRevenueItems(rev)
+    // 贡献者/热门内容依赖 circleId，缺失则降级为空列表
+    if (circleId.value) {
+      const [contrib, hot] = await Promise.all([
+        dashboardApi.contributors(circleId.value, 5),
+        dashboardApi.hotContent(circleId.value, 5),
+      ])
+      contributors.value = contrib
+      hotPosts.value = hot
+    } else {
+      contributors.value = []
+      hotPosts.value = []
+    }
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
 }
 
-const kpis = computed(() => [
-  { icon: 'users', label: '总成员', value: overview.totalMembers, growth: overview.membersGrowth, color: '#C41E3A' },
-  { icon: 'activity', label: '活跃成员', value: overview.activeMembers, growth: overview.activeGrowth, color: '#4A90D9' },
-  { icon: 'file-text', label: '总帖子', value: overview.totalPosts, growth: overview.postsGrowth, color: '#C9A96E' },
-  { icon: 'dollar-sign', label: '总收益', value: overview.totalRevenue, growth: overview.revenueGrowth, color: '#52C41A', isPrice: true },
-])
-
-const TREND_LABEL: Record<TrendType, string> = { members: '成员', posts: '帖子', active: '活跃', revenue: '收益' }
-const trendTypes: TrendType[] = ['members', 'posts', 'active', 'revenue']
-
-const trendMax = computed(() => Math.max(...trends.map((t) => t[trendType.value])))
-const trendMin = computed(() => Math.min(...trends.map((t) => t[trendType.value])))
-
-function barHeight(v: number) {
-  const range = trendMax.value - trendMin.value
-  const h = range === 0 ? 50 : ((v - trendMin.value) / range) * 100
-  return Math.max(h, 5)
-}
 function fmtNum(n: number) {
   if (n >= 10000) return (n / 10000).toFixed(1) + '万'
   if (n >= 1000) return (n / 1000).toFixed(1) + 'k'
@@ -88,11 +95,25 @@ function rankColor(i: number) { return ['#FFD700', '#C0C0C0', '#CD7F32'][i] || '
 function hotBg(i: number) { return ['#FFD70020', '#C0C0C020', '#CD7F3220'][i] || '#F5F5F5' }
 function hotColor(i: number) { return ['#B8860B', '#808080', '#8B4513'][i] || '#999999' }
 
-function refresh() {
+async function refresh() {
+  if (refreshing.value || loading.value) return
   refreshing.value = true
-  setTimeout(() => { refreshing.value = false; uni.showToast({ title: '已刷新', icon: 'success' }) }, 800)
+  try {
+    await loadAll()
+    uni.showToast({ title: '已刷新', icon: 'success' })
+  } finally {
+    refreshing.value = false
+  }
 }
-function openPost(id: string) { navigateTo(`/pkg-circle/circles/post?id=${id}&circleId=${circleId.value}`) }
+function openPost(id: string) {
+  if (!id) return
+  navigateTo(`/pkg-circle/circles/post?id=${id}&circleId=${circleId.value}`)
+}
+
+onLoad((query) => {
+  circleId.value = (query?.id as string) || ''
+  loadAll()
+})
 </script>
 
 <template>
@@ -108,110 +129,77 @@ function openPost(id: string) { navigateTo(`/pkg-circle/circles/post?id=${id}&ci
       </view>
     </view>
 
-    <scroll-view scroll-y class="db-body">
+    <!-- 首屏加载 -->
+    <view v-if="loading" class="db-state">
+      <app-icon name="loader" :size="48" color="#c41e3a" class="spin" />
+      <text class="db-state-t">加载中…</text>
+    </view>
+
+    <!-- 错误态 -->
+    <view v-else-if="error" class="db-state">
+      <app-icon name="alert-circle" :size="48" color="#FF4D4F" />
+      <text class="db-state-t">{{ error }}</text>
+      <view class="db-state-btn" @tap="loadAll"><text class="db-state-btn-t">重试</text></view>
+    </view>
+
+    <scroll-view v-else scroll-y class="db-body">
       <!-- 概览卡片 -->
       <view class="db-kpis">
-        <view v-for="k in kpis" :key="k.label" class="db-kpi">
+        <view v-for="k in KPI_META" :key="k.key" class="db-kpi">
           <view class="db-kpi-top">
             <view class="db-kpi-icon" :style="{ background: k.color + '15' }"><app-icon :name="k.icon" :size="26" :color="k.color" /></view>
             <text class="db-kpi-label">{{ k.label }}</text>
           </view>
           <view class="db-kpi-bot">
-            <text class="db-kpi-value">{{ k.isPrice ? '¥' : '' }}{{ fmtNum(k.value) }}</text>
-            <view class="db-kpi-growth">
-              <app-icon :name="k.growth >= 0 ? 'trending-up' : 'trending-down'" :size="22" :color="k.growth >= 0 ? '#52C41A' : '#FF4D4F'" />
-              <text class="db-kpi-growth-t" :style="{ color: k.growth >= 0 ? '#52C41A' : '#FF4D4F' }">{{ Math.abs(k.growth) }}%</text>
-            </view>
+            <text class="db-kpi-value">{{ fmtNum(overview?.[k.key] || 0) }}</text>
           </view>
         </view>
-      </view>
-
-      <!-- 趋势图 -->
-      <view class="db-card">
-        <view class="db-card-head">
-          <text class="db-card-title">近30天趋势</text>
-          <view class="db-trend-tabs">
-            <view v-for="t in trendTypes" :key="t" class="db-trend-tab" :class="{ on: trendType === t }" @tap="trendType = t">
-              <text class="db-trend-tab-t" :class="{ on: trendType === t }">{{ TREND_LABEL[t] }}</text>
-            </view>
-          </view>
-        </view>
-        <view class="db-chart">
-          <view
-            v-for="(t, i) in trends" :key="i" class="db-bar"
-            :class="{ last: i === trends.length - 1 }"
-            :style="{ height: barHeight(t[trendType]) + '%' }"
-          />
-        </view>
-        <view class="db-chart-axis"><text class="db-axis-t">30天前</text><text class="db-axis-t">今日</text></view>
       </view>
 
       <!-- 活跃贡献者 -->
       <view class="db-card">
         <text class="db-card-title">活跃贡献者 TOP5</text>
-        <view class="db-list">
-          <view v-for="(c, i) in contributors" :key="c.id" class="db-contrib">
+        <view v-if="contributors.length" class="db-list">
+          <view v-for="(c, i) in contributors" :key="c.userId" class="db-contrib">
             <view class="db-contrib-avatar-wrap">
               <view class="db-contrib-avatar"><text class="db-contrib-avatar-t">{{ c.name[0] }}</text></view>
               <view v-if="i < 3" class="db-contrib-rank" :style="{ background: rankColor(i) }"><text class="db-contrib-rank-t">{{ i + 1 }}</text></view>
             </view>
             <view class="db-contrib-info">
               <text class="db-contrib-name">{{ c.name }}</text>
-              <text class="db-contrib-posts">{{ c.posts }}篇帖子</text>
-            </view>
-            <view class="db-contrib-likes">
-              <app-icon name="heart" :size="22" color="#C41E3A" :fill="true" />
-              <text class="db-contrib-likes-t">{{ fmtNum(c.likes) }}</text>
+              <text class="db-contrib-posts">{{ c.postCount }}篇帖子</text>
             </view>
           </view>
         </view>
+        <view v-else class="db-empty"><text class="db-empty-t">暂无贡献数据</text></view>
       </view>
 
       <!-- 热门内容 -->
       <view class="db-card">
         <text class="db-card-title">热门内容 TOP5</text>
-        <view class="db-list">
+        <view v-if="hotPosts.length" class="db-list">
           <view v-for="(p, i) in hotPosts" :key="p.id" class="db-hot" @tap="openPost(p.id)">
             <view class="db-hot-rank" :style="{ background: hotBg(i), color: hotColor(i) }"><text class="db-hot-rank-t" :style="{ color: hotColor(i) }">{{ i + 1 }}</text></view>
             <view class="db-hot-info">
               <text class="db-hot-title">{{ p.title }}</text>
               <view class="db-hot-meta">
-                <view class="db-hot-stat"><app-icon name="eye" :size="20" color="#999999" /><text class="db-hot-stat-t">{{ fmtNum(p.views) }}</text></view>
-                <view class="db-hot-stat"><app-icon name="heart" :size="20" color="#999999" /><text class="db-hot-stat-t">{{ fmtNum(p.likes) }}</text></view>
-                <view class="db-hot-stat"><app-icon name="message-circle" :size="20" color="#999999" /><text class="db-hot-stat-t">{{ p.comments }}</text></view>
+                <view class="db-hot-stat"><app-icon name="heart" :size="20" color="#999999" /><text class="db-hot-stat-t">{{ fmtNum(p.likeCount) }}</text></view>
+                <view class="db-hot-stat"><app-icon name="message-circle" :size="20" color="#999999" /><text class="db-hot-stat-t">{{ p.commentCount }}</text></view>
               </view>
             </view>
           </view>
         </view>
-      </view>
-
-      <!-- 流失预警 -->
-      <view v-if="churnWarning.length" class="db-churn">
-        <view class="db-churn-head">
-          <app-icon name="alert-triangle" :size="26" color="#FA8C16" />
-          <text class="db-churn-title">流失预警</text>
-          <view class="db-churn-count"><text class="db-churn-count-t">{{ churnWarning.length }}人</text></view>
-        </view>
-        <view class="db-churn-list">
-          <view v-for="u in churnWarning" :key="u.id" class="db-churn-item">
-            <view class="db-churn-avatar"><text class="db-churn-avatar-t">{{ u.name[0] }}</text></view>
-            <view class="db-churn-info">
-              <text class="db-churn-name">{{ u.name }}</text>
-              <text class="db-churn-days">已沉默{{ u.daysSilent }}天</text>
-            </view>
-            <text class="db-churn-wake">唤醒</text>
-          </view>
-        </view>
+        <view v-else class="db-empty"><text class="db-empty-t">暂无热门内容</text></view>
       </view>
 
       <!-- 收益构成 -->
       <view class="db-card">
         <view class="db-card-head">
-          <text class="db-card-title">收益构成</text>
-          <text class="db-revenue-total">¥{{ fmtNum(revenue.total) }}</text>
+          <text class="db-card-title">收益概览</text>
+          <text class="db-revenue-total">¥{{ fmtNum(revenue?.totalAmount || 0) }}</text>
         </view>
-        <view class="db-revenue-list">
-          <view v-for="(item, i) in revenue.items" :key="i" class="db-revenue-item">
+        <view v-if="revenueItems.length" class="db-revenue-list">
+          <view v-for="(item, i) in revenueItems" :key="i" class="db-revenue-item">
             <view class="db-revenue-row">
               <view class="db-revenue-name-wrap">
                 <view class="db-revenue-dot" :style="{ background: item.color }" />
@@ -224,6 +212,7 @@ function openPost(id: string) { navigateTo(`/pkg-circle/circles/post?id=${id}&ci
             </view>
           </view>
         </view>
+        <view v-else class="db-empty"><text class="db-empty-t">暂无收益数据</text></view>
       </view>
       <view class="db-spacer" />
     </scroll-view>
@@ -253,12 +242,12 @@ function openPost(id: string) { navigateTo(`/pkg-circle/circles/post?id=${id}&ci
 .db-card-title { font-size: 30rpx; font-weight: 600; color: #2c2c2c; }
 .db-trend-tabs { display: flex; gap: 8rpx; }
 .db-trend-tab { padding: 8rpx 18rpx; border-radius: 999rpx; background: #faf8f5; }
-.db-trend-tab.on { background: #c41e3a; }
+.db-trend-tab.on { background: var(--brand); }
 .db-trend-tab-t { font-size: 22rpx; color: #666666; }
 .db-trend-tab-t.on { color: #ffffff; }
 .db-chart { height: 200rpx; display: flex; align-items: flex-end; gap: 4rpx; }
 .db-bar { flex: 1; border-radius: 6rpx 6rpx 0 0; background: linear-gradient(180deg, #e8e3db 0%, #f5f0e8 100%); }
-.db-bar.last { background: linear-gradient(180deg, #c41e3a 0%, #e85a71 100%); }
+.db-bar.last { background: linear-gradient(180deg, var(--brand) 0%, #e85a71 100%); }
 .db-chart-axis { display: flex; justify-content: space-between; margin-top: 12rpx; }
 .db-axis-t { font-size: 22rpx; color: #999999; }
 .db-list { display: flex; flex-direction: column; gap: 24rpx; }
@@ -272,7 +261,7 @@ function openPost(id: string) { navigateTo(`/pkg-circle/circles/post?id=${id}&ci
 .db-contrib-name { display: block; font-size: 26rpx; font-weight: 500; color: #2c2c2c; }
 .db-contrib-posts { display: block; font-size: 22rpx; color: #999999; margin-top: 2rpx; }
 .db-contrib-likes { display: flex; align-items: center; gap: 4rpx; }
-.db-contrib-likes-t { font-size: 22rpx; color: #c41e3a; }
+.db-contrib-likes-t { font-size: 22rpx; color: var(--brand); }
 .db-hot { display: flex; align-items: flex-start; gap: 16rpx; padding: 12rpx; border-radius: 16rpx; }
 .db-hot-rank { width: 40rpx; height: 40rpx; border-radius: 10rpx; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .db-hot-rank-t { font-size: 22rpx; font-weight: 700; }
@@ -294,7 +283,7 @@ function openPost(id: string) { navigateTo(`/pkg-circle/circles/post?id=${id}&ci
 .db-churn-name { display: block; font-size: 26rpx; color: #2c2c2c; }
 .db-churn-days { display: block; font-size: 22rpx; color: #999999; margin-top: 2rpx; }
 .db-churn-wake { font-size: 22rpx; color: #fa8c16; }
-.db-revenue-total { font-size: 34rpx; font-weight: 700; color: #c41e3a; }
+.db-revenue-total { font-size: 34rpx; font-weight: 700; color: var(--brand); }
 .db-revenue-list { display: flex; flex-direction: column; gap: 24rpx; }
 .db-revenue-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8rpx; }
 .db-revenue-name-wrap { display: flex; align-items: center; gap: 12rpx; }
@@ -304,4 +293,10 @@ function openPost(id: string) { navigateTo(`/pkg-circle/circles/post?id=${id}&ci
 .db-revenue-track { height: 16rpx; background: #f5f5f5; border-radius: 999rpx; overflow: hidden; }
 .db-revenue-fill { height: 100%; border-radius: 999rpx; }
 .db-spacer { height: 40rpx; }
+.db-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20rpx; }
+.db-state-t { font-size: 26rpx; color: #999999; }
+.db-state-btn { margin-top: 8rpx; padding: 14rpx 48rpx; background: var(--brand); border-radius: 999rpx; }
+.db-state-btn-t { font-size: 26rpx; color: #ffffff; }
+.db-empty { padding: 48rpx 0; display: flex; align-items: center; justify-content: center; }
+.db-empty-t { font-size: 24rpx; color: #bbbbbb; }
 </style>

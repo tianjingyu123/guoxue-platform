@@ -1,5 +1,6 @@
 <template>
   <view class="ed-page">
+    <customer-service-fab />
     <!-- 顶部导航 毛玻璃 -->
     <view class="ed-header">
       <view class="ed-bar">
@@ -85,7 +86,7 @@
             <text class="ed-author-meta-name">{{ book.author }}</text>
             <text class="ed-author-meta-title">{{ book.authorTitle }}</text>
           </view>
-          <view class="ed-author-follow">
+          <view class="ed-author-follow" @tap="onFollow">
             <text class="ed-author-follow-txt">关注</text>
           </view>
         </view>
@@ -123,7 +124,7 @@
           <text class="ed-disc-cnt">{{ commentCount }} 条</text>
         </view>
         <view class="ed-card ed-disc" @tap="showComments = true">
-          <view class="ed-disc-top">
+          <view v-if="firstDiscussion" class="ed-disc-top">
             <view class="ed-disc-avatar">{{ firstDiscussion.author.name.charAt(0) }}</view>
             <view class="ed-disc-body">
               <text class="ed-disc-name">{{ firstDiscussion.author.name }}</text>
@@ -136,13 +137,13 @@
           </view>
           <view class="ed-disc-all">
             <app-icon name="message-square" :size="32" color="#2563eb" />
-            <text class="ed-disc-all-txt">查看全部 {{ commentCount }} 条讨论</text>
+            <text class="ed-disc-all-txt">{{ commentCount ? `查看全部 ${commentCount} 条讨论` : '来发表第一条书友讨论' }}</text>
           </view>
         </view>
       </view>
 
       <!-- 相关推荐 -->
-      <view class="ed-section">
+      <view v-if="book.relatedBooks && book.relatedBooks.length" class="ed-section">
         <text class="ed-sec-title">相关推荐</text>
         <scroll-view scroll-x class="ed-related" :show-scrollbar="false">
           <view class="ed-related-row">
@@ -173,7 +174,7 @@
 
     <!-- 底部操作栏 -->
     <view class="ed-actionbar">
-      <view class="ed-act-icon" @tap="isFavorite = !isFavorite">
+      <view class="ed-act-icon" @tap="toggleFavorite">
         <app-icon name="heart" :size="40" :color="isFavorite ? '#ef4444' : '#64748b'" :fill="isFavorite" />
         <text class="ed-act-icon-txt">收藏</text>
       </view>
@@ -221,7 +222,8 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { onLoad, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
+import { useShare } from '@/composables/useShare'
 import AppIcon from '@/components/common/app-icon.vue'
 import FlatBookCover from '@/components/ebook/flat-book-cover.vue'
 import DiscussionSheet from '@/components/common/discussion-sheet.vue'
@@ -234,6 +236,7 @@ import {
   type EbookChapter,
   type EbookDetail,
 } from '@/lib/ebook-data'
+import { getToken } from '@/utils/storage'
 
 const loading = ref(true)
 const error = ref('')
@@ -247,6 +250,7 @@ async function fetchData(id: string) {
     const res = await ebookApi.detail(id)
     book.value = res.book
     ebookDiscussions.value = res.discussions
+    isFavorite.value = res.book.isFavorite
   } catch (e: any) {
     error.value = e?.message || '加载失败'
   } finally {
@@ -256,7 +260,19 @@ async function fetchData(id: string) {
 
 onLoad((q: any = {}) => { fetchData(q?.id || '1') })
 
+// 微信原生分享
+const { toAppMessage, toTimeline } = useShare()
+onShareAppMessage(() => toAppMessage({
+  title: book.value?.title || '精品电子书',
+  path: `/ebook/${book.value?.id || '1'}`,
+}))
+onShareTimeline(() => toTimeline({
+  title: book.value?.title || '精品电子书',
+  path: `/ebook/${book.value?.id || '1'}`,
+}))
+
 const isFavorite = ref(false)
+const favoriting = ref(false)
 const showComments = ref(false)
 const descExpanded = ref(false)
 
@@ -272,12 +288,17 @@ function hexTo(hex: string) {
   return EBOOK_COVER[ebookColorFromHex(hex)].to
 }
 
-const stats = computed(() => [
-  { v: `${(book.value.wordCount / 10000).toFixed(1)}万`, l: '字数' },
-  { v: String(book.value.pageCount), l: '页数' },
-  { v: `${(book.value.salesCount / 1000).toFixed(1)}k`, l: '已购' },
-  { v: String(book.value.chapters.length), l: '章节' },
-])
+const stats = computed(() => {
+  const b = book.value
+  const arr: { v: string; l: string }[] = []
+  // 后端无字数/页数 → 有值才显示，诚实降级隐藏 0 值
+  if (b.wordCount > 0) arr.push({ v: `${(b.wordCount / 10000).toFixed(1)}万`, l: '字数' })
+  if (b.pageCount > 0) arr.push({ v: String(b.pageCount), l: '页数' })
+  const sales = b.salesCount || 0
+  arr.push({ v: sales >= 1000 ? `${(sales / 1000).toFixed(1)}k` : String(sales), l: '已购' })
+  arr.push({ v: String(b.chapters?.length || 0), l: '章节' })
+  return arr
+})
 
 const discussionConfig: DiscussionConfig = {
   scene: 'classic',
@@ -292,6 +313,32 @@ function goBack() {
 }
 function onShare() {
   uni.showToast({ title: '分享功能即将上线', icon: 'none' })
+}
+function onFollow() {
+  uni.showToast({ title: '作者关注即将上线', icon: 'none' })
+}
+async function toggleFavorite() {
+  if (!getToken()) {
+    uni.showModal({
+      title: '需要登录', content: '登录后即可收藏喜欢的电子书',
+      confirmText: '去登录',
+      success: (r) => { if (r.confirm) uni.navigateTo({ url: '/pkg-auth/login/index' }) },
+    })
+    return
+  }
+  if (favoriting.value || !book.value.id) return
+  favoriting.value = true
+  const next = !isFavorite.value
+  try {
+    if (next) await ebookApi.addFavorite(book.value.id)
+    else await ebookApi.removeFavorite(book.value.id)
+    isFavorite.value = next
+    uni.showToast({ title: next ? '已收藏' : '已取消收藏', icon: 'none' })
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '操作失败', icon: 'none' })
+  } finally {
+    favoriting.value = false
+  }
 }
 function goChapter(ch: EbookChapter) {
   const canRead = ch.isFree || book.value.isPurchased

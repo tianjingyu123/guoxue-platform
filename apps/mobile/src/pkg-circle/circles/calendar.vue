@@ -114,12 +114,12 @@ const selLabel = computed(() => `${selected.value.slice(5, 7)}月${selected.valu
 .cal-grid { display: flex; flex-wrap: wrap; }
 .cal-cell { width: calc(100% / 7); display: flex; justify-content: center; padding: 4rpx 0; }
 .cal-day { width: 72rpx; height: 80rpx; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 16rpx; position: relative; }
-.cal-day.sel { background: var(--brand, #C41E3A); }
+.cal-day.sel { background: var(--brand, var(--brand)); }
 .cal-day.today { background: rgba(196,30,58,0.1); }
 .cal-day-txt { font-size: 28rpx; font-weight: 500; color: var(--text-ink, #2C2C2C); }
 .cal-day-txt.sel { color: #fff; }
-.cal-day-txt.today { color: var(--brand, #C41E3A); }
-.cal-dot { width: 12rpx; height: 12rpx; border-radius: 999rpx; background: var(--brand, #C41E3A); margin-top: 4rpx; }
+.cal-day-txt.today { color: var(--brand, var(--brand)); }
+.cal-dot { width: 12rpx; height: 12rpx; border-radius: 999rpx; background: var(--brand, var(--brand)); margin-top: 4rpx; }
 .cal-dot.sel { background: #fff; }
 .cal-events { margin-top: 48rpx; }
 .cal-events-title { font-size: 28rpx; font-weight: 600; color: var(--text-ink, #2C2C2C); }
@@ -127,7 +127,7 @@ const selLabel = computed(() => `${selected.value.slice(5, 7)}月${selected.valu
 .cal-events-empty-txt { font-size: 26rpx; color: #999; }
 .cal-events-list { display: flex; flex-direction: column; gap: 24rpx; margin-top: 24rpx; }
 .cal-event { display: flex; gap: 24rpx; padding: 24rpx; background: var(--card, #fff); border: 2rpx solid var(--border, #EDE8E0); border-radius: 24rpx; }
-.cal-event-time { font-size: 28rpx; font-weight: 700; color: var(--brand, #C41E3A); padding-top: 2rpx; }
+.cal-event-time { font-size: 28rpx; font-weight: 700; color: var(--brand, var(--brand)); padding-top: 2rpx; }
 .cal-event-main { flex: 1; min-width: 0; }
 .cal-event-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 16rpx; }
 .cal-event-title { font-size: 28rpx; font-weight: 500; color: var(--text-ink, #2C2C2C); }

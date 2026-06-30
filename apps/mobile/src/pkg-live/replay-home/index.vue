@@ -26,8 +26,8 @@
       </view>
 
       <template v-else>
-      <!-- 分类横滚 -->
-      <scroll-view class="cat-scroll" scroll-x :show-scrollbar="false">
+      <!-- 分类横滚（后端回放无分类维度时隐藏，不做假分类） -->
+      <scroll-view v-if="categories.length" class="cat-scroll" scroll-x :show-scrollbar="false">
         <view class="cat-row">
           <view
             v-for="cat in categories"
@@ -55,7 +55,7 @@
         <view class="hot-list">
           <view v-for="(item, idx) in hotReplays" :key="item.id" class="hot-card" @tap="openReplay(item)">
             <view class="hot-cover">
-              <image class="hot-img" :src="item.cover" mode="aspectFill" />
+              <image lazy-load class="hot-img" :src="item.cover" mode="aspectFill" />
               <view class="hot-mask" />
               <view class="hot-tag">
                 <text class="hot-tag-emoji">🔥</text>
@@ -73,7 +73,7 @@
             </view>
             <view class="hot-foot">
               <view class="hot-host">
-                <image class="hot-avatar" :src="item.hostAvatar" mode="aspectFill" />
+                <image lazy-load class="hot-avatar" :src="item.hostAvatar" mode="aspectFill" />
                 <text class="hot-host-name">{{ item.hostName }}</text>
                 <text class="hot-cat">{{ item.category }}</text>
               </view>
@@ -98,7 +98,7 @@
         <view class="grid">
           <view v-for="item in filteredReplays" :key="item.id" class="grid-card" @tap="openReplay(item)">
             <view class="grid-cover">
-              <image class="grid-img" :src="item.cover" mode="aspectFill" />
+              <image lazy-load class="grid-img" :src="item.cover" mode="aspectFill" />
               <view class="grid-mask" />
               <view class="grid-replay-tag">
                 <AppIcon name="play" :size="24" color="#fff" />
@@ -110,7 +110,7 @@
               <text class="grid-title">{{ item.title }}</text>
               <view class="grid-meta">
                 <view class="grid-host">
-                  <image class="grid-avatar" :src="item.hostAvatar" mode="aspectFill" />
+                  <image lazy-load class="grid-avatar" :src="item.hostAvatar" mode="aspectFill" />
                   <text class="grid-host-name">{{ item.hostName }}</text>
                 </view>
                 <view class="grid-views">
@@ -160,7 +160,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
-import { goBack } from '@/utils/router'
+import { goBack, navigateTo } from '@/utils/router'
 import {
   liveApi,
   formatLiveDuration,
@@ -221,8 +221,8 @@ function closeSearch() {
   showSearch.value = false
   searchQuery.value = ''
 }
-function goReplays() {}
-function openReplay(_item: ReplayHomeItem) {}
+function goReplays() { navigateTo('/pkg-live/replays/index') }
+function openReplay(item: ReplayHomeItem) { navigateTo(`/pkg-live/replay-detail/index?id=${item.id}`) }
 </script>
 
 <style scoped>
@@ -236,7 +236,7 @@ function openReplay(_item: ReplayHomeItem) {}
   position: sticky;
   top: 0;
   z-index: 20;
-  background: linear-gradient(to right, #C41E3A, #D4456A);
+  background: linear-gradient(to right, var(--brand), #D4456A);
 }
 .nav-bar {
   height: 88rpx;
@@ -286,8 +286,8 @@ function openReplay(_item: ReplayHomeItem) {}
   border: 1rpx solid #e8e3db;
 }
 .cat-chip-active {
-  background: #C41E3A;
-  border-color: #C41E3A;
+  background: var(--brand);
+  border-color: var(--brand);
 }
 .cat-icon {
   font-size: 26rpx;
@@ -331,7 +331,7 @@ function openReplay(_item: ReplayHomeItem) {}
 }
 .more-txt {
   font-size: 26rpx;
-  color: #C41E3A;
+  color: var(--brand);
 }
 .filter-btn {
   display: flex;
@@ -378,7 +378,7 @@ function openReplay(_item: ReplayHomeItem) {}
   align-items: center;
   gap: 4rpx;
   padding: 6rpx 16rpx;
-  background: #C41E3A;
+  background: var(--brand);
   border-radius: 999rpx;
 }
 .hot-tag-emoji {
@@ -632,7 +632,7 @@ function openReplay(_item: ReplayHomeItem) {}
 }
 .search-cancel {
   font-size: 28rpx;
-  color: #C41E3A;
+  color: var(--brand);
 }
 .search-body {
   padding: 32rpx;
@@ -665,6 +665,6 @@ function openReplay(_item: ReplayHomeItem) {}
 /* 错误状态 */
 .error-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 160rpx 0; }
 .error-txt { font-size: 28rpx; color: #999; margin-bottom: 32rpx; }
-.retry-btn { padding: 16rpx 48rpx; background: #C41E3A; border-radius: 999rpx; }
+.retry-btn { padding: 16rpx 48rpx; background: var(--brand); border-radius: 999rpx; }
 .retry-btn-txt { font-size: 28rpx; color: #fff; font-weight: 500; }
 </style>

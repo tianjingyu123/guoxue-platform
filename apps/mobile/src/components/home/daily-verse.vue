@@ -58,7 +58,7 @@ onMounted(() => {
   box-shadow: 0 12rpx 40rpx rgba(0, 0, 0, 0.12);
   display: flex; flex-direction: column; align-items: center;
 }
-.term { font-size: 24rpx; font-weight: 500; color: #c41e3a; margin-bottom: 12rpx; }
+.term { font-size: 24rpx; font-weight: 500; color: var(--brand); margin-bottom: 12rpx; }
 .text {
   font-family: var(--font-serif); font-size: 34rpx; line-height: 1.6;
   color: var(--text-ink, #2c2c2c);

@@ -17,7 +17,7 @@
 
     <!-- 图片区域 -->
     <view class="image-wrap">
-      <image
+      <image lazy-load
         v-if="images.length"
         class="viewer-img"
         :src="images[currentIndex]"

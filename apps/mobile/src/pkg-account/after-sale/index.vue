@@ -85,7 +85,7 @@
         <text class="card-title">上传凭证 <text class="sub">（最多5张）</text></text>
         <view class="upload-wrap">
           <view v-for="(img, i) in images" :key="i" class="upload-item">
-            <image class="upload-img" :src="img" mode="aspectFill" />
+            <image lazy-load class="upload-img" :src="img" mode="aspectFill" />
             <view class="upload-del" @tap="removeImage(i)">
               <app-icon name="x" :size="24" color="#FFFFFF" />
             </view>
@@ -328,7 +328,7 @@ async function submit() {
   color: #2C2C2C;
 }
 .req {
-  color: #C41E3A;
+  color: var(--brand);
 }
 .sub {
   margin-left: 12rpx;
@@ -354,7 +354,7 @@ async function submit() {
   gap: 8rpx;
 }
 .type-btn.active {
-  border-color: #C41E3A;
+  border-color: var(--brand);
   background: rgba(196, 30, 58, 0.05);
 }
 .type-name {
@@ -363,7 +363,7 @@ async function submit() {
   color: #2C2C2C;
 }
 .type-name.active {
-  color: #C41E3A;
+  color: var(--brand);
 }
 .type-desc {
   font-size: 22rpx;
@@ -417,7 +417,7 @@ async function submit() {
 .amount-symbol {
   font-size: 40rpx;
   font-weight: 700;
-  color: #C41E3A;
+  color: var(--brand);
 }
 .amount-input {
   flex: 1;
@@ -432,7 +432,7 @@ async function submit() {
 }
 .full-text {
   font-size: 22rpx;
-  color: #C41E3A;
+  color: var(--brand);
 }
 
 .desc-input {
@@ -517,7 +517,7 @@ async function submit() {
   height: 44rpx;
   border-radius: 50%;
   border: 5rpx solid #E8E3DB;
-  border-top-color: #C41E3A;
+  border-top-color: var(--brand);
   animation: spin 0.8s linear infinite;
 }
 .upload-loading-text {
@@ -565,7 +565,7 @@ async function submit() {
 .submit-btn {
   height: 88rpx;
   border-radius: 16rpx;
-  background: #C41E3A;
+  background: var(--brand);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -619,13 +619,13 @@ async function submit() {
 }
 .reason-item.active {
   background: rgba(196, 30, 58, 0.06);
-  border-color: #C41E3A;
+  border-color: var(--brand);
 }
 .reason-text {
   font-size: 28rpx;
   color: #2C2C2C;
 }
 .reason-text.active {
-  color: #C41E3A;
+  color: var(--brand);
 }
 </style>

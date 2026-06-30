@@ -249,7 +249,7 @@ const tabs = liveManageTabs
 const statusConfig = liveManageStatusConfig
 
 const activeTab = ref('all')
-const showActions = ref<number | null>(null)
+const showActions = ref<number | string | null>(null)
 
 const filteredList = computed(() =>
   activeTab.value === 'all' ? list.value : list.value.filter((i) => i.status === activeTab.value),
@@ -280,7 +280,7 @@ async function fetchData() {
 
 onMounted(() => { fetchData() })
 
-function toggleActions(id: number) {
+function toggleActions(id: number | string) {
   showActions.value = showActions.value === id ? null : id
 }
 
@@ -343,7 +343,7 @@ function viewData(item: LiveManageItem) {
 }
 .retry-btn {
   padding: 20rpx 64rpx;
-  background: #C41E3A;
+  background: var(--brand);
   color: #fff;
   border-radius: 24rpx;
   font-size: 28rpx;
@@ -445,7 +445,7 @@ function viewData(item: LiveManageItem) {
 .create-btn {
   height: 96rpx;
   border-radius: 24rpx;
-  background: linear-gradient(to right, #C41E3A, #C9A96E);
+  background: linear-gradient(to right, var(--brand), #C9A96E);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -509,7 +509,7 @@ function viewData(item: LiveManageItem) {
   background: #f0ebe3;
 }
 .tab-chip-active {
-  background: #C41E3A;
+  background: var(--brand);
   color: #fff;
 }
 .tab-count {
@@ -653,13 +653,13 @@ function viewData(item: LiveManageItem) {
   border-radius: 12rpx;
 }
 .act-btn-live {
-  background: #C41E3A;
+  background: var(--brand);
 }
 .act-btn-outline {
   border: 2rpx solid #dcd3c7;
 }
 .act-btn-solid {
-  background: #C41E3A;
+  background: var(--brand);
 }
 .act-btn-ghost {
   background: transparent;
@@ -697,7 +697,7 @@ function viewData(item: LiveManageItem) {
   color: #666;
 }
 .menu-text-danger {
-  color: #C41E3A;
+  color: var(--brand);
 }
 
 /* 空状态 */
@@ -736,7 +736,7 @@ function viewData(item: LiveManageItem) {
   height: 80rpx;
   padding: 0 40rpx;
   border-radius: 16rpx;
-  background: #C41E3A;
+  background: var(--brand);
 }
 .empty-btn-text {
   font-size: 28rpx;
@@ -753,7 +753,7 @@ function viewData(item: LiveManageItem) {
   width: 104rpx;
   height: 104rpx;
   border-radius: 50%;
-  background: #C41E3A;
+  background: var(--brand);
   display: flex;
   align-items: center;
   justify-content: center;

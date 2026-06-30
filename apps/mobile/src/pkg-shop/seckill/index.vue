@@ -69,7 +69,7 @@
           <app-icon name="flame" :size="24" color="#ffe066" />
           <text class="hero-badge-text">今日主推</text>
         </view>
-        <image class="hero-img" :src="hero.image" mode="aspectFill" />
+        <image lazy-load class="hero-img" :src="hero.image" mode="aspectFill" />
         <view class="hero-info">
           <text class="hero-name">{{ hero.name }}</text>
           <view class="hero-price-row">
@@ -96,7 +96,7 @@
         :key="p.id"
         class="card"
       >
-        <image class="card-img" :src="p.image" mode="aspectFill" @tap="goDetail(p.id)" />
+        <image lazy-load class="card-img" :src="p.image" mode="aspectFill" @tap="goDetail(p.id)" />
         <view class="card-body">
           <text class="card-name" @tap="goDetail(p.id)">{{ p.name }}</text>
           <view class="card-price-row">
@@ -275,7 +275,7 @@ function goRules() {
   position: sticky;
   top: 0;
   z-index: 50;
-  background: linear-gradient(135deg, #a01830 0%, #c41e3a 60%, #e85a71 100%);
+  background: linear-gradient(135deg, #a01830 0%, var(--brand) 60%, #e85a71 100%);
   padding-top: var(--status-bar-height, 0px);
 }
 .nav-row {
@@ -365,7 +365,7 @@ function goRules() {
   color: #999;
 }
 .session-time--on {
-  color: #c41e3a;
+  color: var(--brand);
 }
 .session-state {
   margin-top: 4rpx;
@@ -376,12 +376,12 @@ function goRules() {
   font-weight: 500;
 }
 .session-state--ongoing {
-  background: #c41e3a;
+  background: var(--brand);
   color: #fff;
 }
 .session-state--upcoming {
   background: rgba(196, 30, 58, 0.1);
-  color: #c41e3a;
+  color: var(--brand);
 }
 .session-state--ended {
   background: #f0f0f0;
@@ -394,7 +394,7 @@ function goRules() {
   transform: translateX(-50%);
   width: 48rpx;
   height: 4rpx;
-  background: #c41e3a;
+  background: var(--brand);
   border-radius: 999rpx;
 }
 
@@ -422,7 +422,7 @@ function goRules() {
   align-items: center;
   gap: 6rpx;
   padding: 8rpx 28rpx 8rpx 16rpx;
-  background: linear-gradient(90deg, #a01830, #c41e3a);
+  background: linear-gradient(90deg, #a01830, var(--brand));
   border-bottom-right-radius: 24rpx;
 }
 .hero-badge-text {
@@ -457,12 +457,12 @@ function goRules() {
 }
 .hero-price-label {
   font-size: 26rpx;
-  color: #c41e3a;
+  color: var(--brand);
   font-weight: 500;
 }
 .hero-price {
   font-size: 56rpx;
-  color: #c41e3a;
+  color: var(--brand);
   font-weight: 700;
   line-height: 1;
 }
@@ -491,7 +491,7 @@ function goRules() {
 }
 .hero-sold {
   font-size: 24rpx;
-  color: #c41e3a;
+  color: var(--brand);
   font-weight: 500;
 }
 .hero-stock {
@@ -536,7 +536,7 @@ function goRules() {
 }
 .card-price {
   font-size: 44rpx;
-  color: #c41e3a;
+  color: var(--brand);
   font-weight: 700;
   line-height: 1;
 }
@@ -565,7 +565,7 @@ function goRules() {
 }
 .card-sold {
   font-size: 20rpx;
-  color: #c41e3a;
+  color: var(--brand);
   font-weight: 500;
 }
 .card-stock {
@@ -584,7 +584,7 @@ function goRules() {
 }
 .progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, #c41e3a, #e85a71);
+  background: linear-gradient(90deg, var(--brand), #e85a71);
   border-radius: 999rpx;
   transition: width 0.5s;
 }
@@ -592,7 +592,7 @@ function goRules() {
   height: 64rpx;
   padding: 0 32rpx;
   border-radius: 999rpx;
-  background: linear-gradient(90deg, #c41e3a, #e85a71);
+  background: linear-gradient(90deg, var(--brand), #e85a71);
   display: flex;
   align-items: center;
   flex-shrink: 0;
@@ -656,7 +656,7 @@ function goRules() {
 }
 .footer-rule-text {
   font-size: 24rpx;
-  color: #c41e3a;
+  color: var(--brand);
   font-weight: 500;
 }
 
@@ -672,7 +672,7 @@ function goRules() {
   width: 72rpx;
   height: 72rpx;
   border: 6rpx solid #e8e3db;
-  border-top-color: #c41e3a;
+  border-top-color: var(--brand);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
   margin-bottom: 32rpx;
@@ -686,7 +686,7 @@ function goRules() {
 .retry-btn {
   padding: 16rpx 48rpx;
   border-radius: 40rpx;
-  background: #c41e3a;
+  background: var(--brand);
 }
 .retry-btn text {
   font-size: 28rpx;

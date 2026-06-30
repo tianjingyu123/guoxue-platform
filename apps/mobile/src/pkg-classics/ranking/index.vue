@@ -4,9 +4,9 @@ import ClassicsHeader from '@/components/classics/classics-header.vue'
 import FlatCover from '@/components/classics/flat-cover.vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { coverColorForBook } from '@/lib/classics-cover'
-import { classicsApi, _mockRankTabs, type RankBook } from '@/lib/classics-data'
+import { classicsApi, _mockRankTabs, bookMetaLine, type RankBook } from '@/lib/classics-data'
 
-const rankType = ref<'hot' | 'new' | 'rating'>('hot')
+const rankType = ref<'hot' | 'new'>('hot')
 const rankTabs = _mockRankTabs
 const books = ref<RankBook[]>([])
 const loading = ref(true)
@@ -19,13 +19,19 @@ async function fetchData() {
   loading.value = true
   error.value = ''
   try {
-    const data = await classicsApi.ranking()
+    const data = await classicsApi.ranking(rankType.value)
     books.value = data.books
   } catch (e: any) {
     error.value = e?.message || '加载失败'
   } finally {
     loading.value = false
   }
+}
+
+function setTab(k: 'hot' | 'new') {
+  if (rankType.value === k) return
+  rankType.value = k
+  fetchData()
 }
 
 onMounted(fetchData)
@@ -74,7 +80,7 @@ function goDetail(id: string) {
             :key="t.key"
             class="rk-tab"
             :class="{ 'rk-tab--active': rankType === t.key }"
-            @tap="rankType = t.key"
+            @tap="setTab(t.key)"
           >{{ t.label }}</view>
         </view>
       </view>
@@ -123,16 +129,12 @@ function goDetail(id: string) {
             </view>
             <view class="rk-row-info">
               <text class="rk-row-title">{{ book.title }}</text>
-              <text class="rk-row-author">{{ book.author }} · {{ book.dynasty }}</text>
+              <text class="rk-row-author">{{ bookMetaLine(book.author, book.dynasty) }}</text>
               <view class="rk-row-meta">
                 <text class="rk-row-cat">{{ book.category }}</text>
                 <view class="rk-row-stat">
                   <AppIcon name="eye" :size="24" color="#b3b3b3" />
                   <text>{{ book.views }}</text>
-                </view>
-                <view class="rk-row-stat">
-                  <AppIcon name="star" :size="24" color="#fbbf24" :fill="true" />
-                  <text>{{ book.rating }}</text>
                 </view>
               </view>
             </view>
@@ -164,7 +166,7 @@ function goDetail(id: string) {
   font-size: 26rpx;
   font-weight: 600;
   letter-spacing: 2rpx;
-  color: #c41e3a;
+  color: var(--brand);
   margin-bottom: 12rpx;
 }
 .rk-title {
@@ -199,7 +201,7 @@ function goDetail(id: string) {
   color: var(--muted-foreground);
 }
 .rk-tab--active {
-  background: #c41e3a;
+  background: var(--brand);
   color: #ffffff;
 }
 

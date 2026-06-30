@@ -199,8 +199,8 @@ function openCourse(id: string) { navigateTo(`/course/${id}`) }
       </view>
     </view>
 
-    <!-- 推荐课程轮播Banner -->
-    <view class="banner-wrap">
+    <!-- 推荐课程轮播Banner（后端无推荐数据时隐藏） -->
+    <view v-if="recommendedCourses.length" class="banner-wrap">
       <view class="banner">
         <view
           v-for="(course, index) in recommendedCourses" :key="course.id"
@@ -221,7 +221,7 @@ function openCourse(id: string) { navigateTo(`/course/${id}`) }
               </view>
             </view>
             <view class="banner-thumb">
-              <image class="banner-thumb-img" :src="course.image" mode="aspectFill" />
+              <image lazy-load class="banner-thumb-img" :src="course.image" mode="aspectFill" />
             </view>
           </view>
         </view>
@@ -236,8 +236,8 @@ function openCourse(id: string) { navigateTo(`/course/${id}`) }
       </view>
     </view>
 
-    <!-- 限时秒杀区域 -->
-    <view class="flash-sec">
+    <!-- 限时秒杀区域（后端无限时课时隐藏） -->
+    <view v-if="flashSaleCourses.length" class="flash-sec">
       <view class="flash-hd">
         <view class="flash-hd-left">
           <app-icon name="zap" :size="34" color="var(--brand)" />
@@ -369,7 +369,7 @@ function openCourse(id: string) { navigateTo(`/course/${id}`) }
 .banner { position: relative; height: 256rpx; border-radius: 24rpx; overflow: hidden; }
 .banner-slide { position: absolute; inset: 0; opacity: 0; transition: opacity 0.5s; pointer-events: none; }
 .banner-slide.active { opacity: 1; pointer-events: auto; }
-.banner-bg { position: absolute; inset: 0; background: linear-gradient(to right, #C41E3A, #8B0000); }
+.banner-bg { position: absolute; inset: 0; background: linear-gradient(to right, var(--brand), #8B0000); }
 .banner-content { position: relative; height: 100%; display: flex; align-items: center; justify-content: space-between; padding: 0 32rpx; }
 .banner-info { display: flex; flex-direction: column; }
 .banner-tag-row { margin-bottom: 8rpx; }

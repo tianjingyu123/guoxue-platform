@@ -444,7 +444,7 @@ function goBack() {
   color: #2c2c2c;
 }
 .bc-required {
-  color: #c41e3a;
+  color: var(--brand);
 }
 .bc-sublabel {
   display: block;
@@ -512,8 +512,8 @@ function goBack() {
   border: 2rpx solid #e8e3db;
 }
 .bc-amount-item-active {
-  background: #c41e3a;
-  border-color: #c41e3a;
+  background: var(--brand);
+  border-color: var(--brand);
 }
 .bc-amount-item-text {
   font-size: 28rpx;
@@ -532,14 +532,14 @@ function goBack() {
 }
 .bc-custom-btn-active {
   background: rgba(196, 30, 58, 0.05);
-  border-color: #c41e3a;
+  border-color: var(--brand);
 }
 .bc-custom-btn-text {
   font-size: 28rpx;
   color: #666666;
 }
 .bc-custom-btn-text-active {
-  color: #c41e3a;
+  color: var(--brand);
 }
 .bc-custom-input {
   margin-top: 16rpx;
@@ -575,7 +575,7 @@ function goBack() {
 }
 .bc-expire-item-active {
   background: rgba(196, 30, 58, 0.05);
-  border-color: #c41e3a;
+  border-color: var(--brand);
 }
 .bc-expire-label {
   display: block;
@@ -584,7 +584,7 @@ function goBack() {
   color: #2c2c2c;
 }
 .bc-expire-label-active {
-  color: #c41e3a;
+  color: var(--brand);
 }
 .bc-expire-desc {
   display: block;
@@ -607,8 +607,8 @@ function goBack() {
   border: 2rpx solid #e8e3db;
 }
 .bc-cat-active {
-  background: #c41e3a;
-  border-color: #c41e3a;
+  background: var(--brand);
+  border-color: var(--brand);
 }
 .bc-cat-text {
   font-size: 22rpx;
@@ -706,7 +706,7 @@ function goBack() {
   transition: background 0.2s;
 }
 .bc-switch-on {
-  background: #c41e3a;
+  background: var(--brand);
 }
 .bc-switch-knob {
   position: absolute;
@@ -752,14 +752,14 @@ function goBack() {
 .bc-bottom-amount-text {
   font-size: 32rpx;
   font-weight: 700;
-  color: #c41e3a;
+  color: var(--brand);
 }
 .bc-submit {
   height: 96rpx;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #c41e3a;
+  background: var(--brand);
   border-radius: 32rpx;
 }
 .bc-submit-text {
@@ -843,7 +843,7 @@ function goBack() {
 .bc-modal-total-value {
   font-size: 40rpx;
   font-weight: 700;
-  color: #c41e3a;
+  color: var(--brand);
 }
 .bc-modal-pay {
   height: 96rpx;
@@ -851,7 +851,7 @@ function goBack() {
   align-items: center;
   justify-content: center;
   gap: 16rpx;
-  background: #c41e3a;
+  background: var(--brand);
   border-radius: 32rpx;
 }
 .bc-modal-pay-loading {

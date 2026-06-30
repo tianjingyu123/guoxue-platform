@@ -13,8 +13,8 @@ const exchangeItems = ref<PointsExchangeItem[]>([])
 const loading = ref(true)
 const error = ref('')
 const activeType = ref<ExchangeType | 'all'>('all')
-const exchanging = ref<number | null>(null)
-const successId = ref<number | null>(null)
+const exchanging = ref<string | null>(null)
+const successId = ref<string | null>(null)
 const submitting = ref(false)
 
 const tabs: { key: ExchangeType | 'all'; label: string }[] = [
@@ -164,7 +164,7 @@ async function handleExchange(item: PointsExchangeItem) {
       <!-- 说明 -->
       <view class="note">
         <text class="note-title">兑换说明</text>
-        <text class="note-item">• 优惠券和国学币兑换后实时到账</text>
+        <text class="note-item">• 兑换后奖励将由系统发放到账户/卡券中心</text>
         <text class="note-item">• 实物奖品将在 3-7 个工作日内寄出</text>
         <text class="note-item">• 兑换不支持退换，请谨慎操作</text>
       </view>
@@ -364,6 +364,6 @@ async function handleExchange(item: PointsExchangeItem) {
 .loading { flex: 1; display: flex; align-items: center; justify-content: center; padding-top: 200rpx; font-size: 28rpx; color: #8a8178; }
 .error-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding-top: 200rpx; gap: 24rpx; }
 .error-state text { font-size: 28rpx; color: #8a8178; }
-.retry-btn { padding: 16rpx 48rpx; background: #C41E3A; color: #fff; border-radius: 12rpx; font-size: 26rpx; }
+.retry-btn { padding: 16rpx 48rpx; background: var(--brand); color: #fff; border-radius: 12rpx; font-size: 26rpx; }
 .empty { flex: 1; display: flex; align-items: center; justify-content: center; padding-top: 200rpx; font-size: 28rpx; color: #8a8178; }
 </style>

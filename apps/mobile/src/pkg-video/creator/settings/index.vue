@@ -20,12 +20,23 @@
     </view>
 
     <scroll-view scroll-y class="cs-scroll" :style="{ paddingTop: statusBarHeight + 92 + 'px' }">
-      <view class="cs-body">
+      <!-- 加载态 -->
+      <view v-if="loading" class="cs-state">
+        <text class="cs-state-txt">加载中…</text>
+      </view>
+      <!-- 错误态 -->
+      <view v-else-if="errMsg" class="cs-state">
+        <AppIcon name="alert-circle" :size="40" color="#ccc" />
+        <text class="cs-state-txt">{{ errMsg }}</text>
+        <view class="cs-state-btn" @tap="load">重试</view>
+      </view>
+
+      <view v-else class="cs-body">
         <!-- 个人资料 -->
         <view v-if="tab === 'profile'" class="cs-profile">
           <view class="cs-avatar-box">
-            <view class="cs-avatar-wrap">
-              <image class="cs-avatar" src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80" mode="aspectFill" />
+            <view class="cs-avatar-wrap" @tap="onEditAvatar">
+              <image lazy-load class="cs-avatar" :src="profile.avatar || ('https://api.dicebear.com/7.x/notionists/svg?seed=' + encodeURIComponent(profile.nickname || 'creator'))" mode="aspectFill" />
               <view class="cs-avatar-edit"><AppIcon name="upload" :size="12" color="#ffffff" /></view>
             </view>
             <text class="cs-avatar-tip">点击头像更换</text>
@@ -37,7 +48,7 @@
           </view>
           <view class="cs-field">
             <text class="cs-label">专业领域</text>
-            <input class="cs-input" v-model="profile.specialty" />
+            <input class="cs-input" v-model="profile.specialty" placeholder="如：八字命理、紫微斗数" />
           </view>
           <view class="cs-field">
             <text class="cs-label">个人网站</text>
@@ -71,23 +82,19 @@
 
         <!-- 收款 -->
         <view v-if="tab === 'payment'" class="cs-payment">
-          <view v-for="item in paymentItems" :key="item.label" class="cs-pay-row">
-            <AppIcon name="dollar-sign" :size="16" color="#c41e3a" />
-            <view class="cs-pay-info">
-              <text class="cs-pay-label">{{ item.label }}</text>
-              <text class="cs-pay-value">{{ item.value }}</text>
-            </view>
-            <AppIcon name="chevron-right" :size="16" color="#999" />
+          <view class="cs-pay-notice">
+            <AppIcon name="info" :size="20" color="#c41e3a" />
+            <text class="cs-pay-notice-txt">收款账号在「申请提现」时填写，暂无需在此预先绑定。</text>
           </view>
           <view class="cs-pay-tip">
-            <text class="cs-pay-tip-txt">每月 1 日自动结算上月收益，满 ¥50 即可提现。</text>
+            <text class="cs-pay-tip-txt">每月 1 日自动结算上月收益，满 ¥10 即可提现。</text>
           </view>
         </view>
       </view>
       <view class="cs-pad" />
     </scroll-view>
 
-    <view v-if="tab !== 'payment'" class="cs-footer">
+    <view v-if="!loading && !errMsg && tab !== 'payment'" class="cs-footer">
       <view class="cs-save" :class="{ 'cs-save-done': saved }" @tap="handleSave">
         <AppIcon v-if="saving" name="loader-2" :size="16" color="#ffffff" class="cs-spin" />
         <text>{{ saving ? '保存中…' : saved ? '保存成功' : '保存设置' }}</text>
@@ -97,15 +104,18 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
+import { creatorApi } from '@/lib/creator-data'
 
 type Tab = 'profile' | 'notify' | 'privacy' | 'payment'
 const statusBarHeight = ref(0)
 const tab = ref<Tab>('profile')
 const saving = ref(false)
 const saved = ref(false)
+const loading = ref(true)
+const errMsg = ref('')
 
 const tabs = [
   { key: 'profile' as const, label: '个人资料' },
@@ -114,14 +124,9 @@ const tabs = [
   { key: 'payment' as const, label: '收款' },
 ]
 
-const profile = ref({
-  nickname: '玄易老师',
-  bio: '专注八字命理二十年，著有《现代八字新解》。擅长婚姻、事业、财运分析。',
-  specialty: '八字命理、紫微斗数',
-  website: '',
-})
+const profile = ref({ nickname: '', avatar: '', bio: '', specialty: '', website: '' })
 
-const notify = ref<Record<string, boolean>>({
+const notify = reactive<Record<string, boolean>>({
   newFollower: true, newComment: true, newOrder: true, newLike: false, system: true,
 })
 const notifyItems = [
@@ -132,7 +137,7 @@ const notifyItems = [
   { key: 'system', label: '系统通知' },
 ]
 
-const privacy = ref<Record<string, boolean>>({
+const privacy = reactive<Record<string, boolean>>({
   showFollowers: true, showFollowing: false, allowComment: true, allowDm: true,
 })
 const privacyItems = [
@@ -142,22 +147,63 @@ const privacyItems = [
   { key: 'allowDm', label: '允许私信' },
 ]
 
-const paymentItems = [
-  { label: '绑定支付宝收款', value: '已绑定 z***@qq.com' },
-  { label: '绑定微信收款', value: '未绑定' },
-  { label: '银行卡提现', value: '添加银行卡' },
-]
+function onEditAvatar() {
+  uni.showToast({ title: '头像更换即将开放', icon: 'none' })
+}
+
+async function load() {
+  loading.value = true
+  errMsg.value = ''
+  try {
+    const s = await creatorApi.getSettings()
+    profile.value = {
+      nickname: s.profile.nickname,
+      avatar: s.profile.avatar,
+      bio: s.profile.bio,
+      specialty: s.profile.specialty,
+      website: s.profile.website,
+    }
+    Object.assign(notify, s.notify)
+    Object.assign(privacy, s.privacy)
+  } catch (e: any) {
+    errMsg.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
 
 async function handleSave() {
   if (saving.value) return
   saving.value = true
-  await new Promise((r) => setTimeout(r, 800))
-  saving.value = false
-  saved.value = true
-  setTimeout(() => (saved.value = false), 2500)
+  saved.value = false
+  try {
+    const res = await creatorApi.saveSettings({
+      profile: {
+        nickname: profile.value.nickname,
+        bio: profile.value.bio,
+        specialty: profile.value.specialty,
+        website: profile.value.website,
+      },
+      notify: { ...notify },
+      privacy: { ...privacy },
+    })
+    if (res.success) {
+      saved.value = true
+      setTimeout(() => (saved.value = false), 2500)
+    } else {
+      uni.showToast({ title: res.message || '保存失败', icon: 'none' })
+    }
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '保存失败', icon: 'none' })
+  } finally {
+    saving.value = false
+  }
 }
 
-uni.getSystemInfo({ success: (res) => { statusBarHeight.value = res.statusBarHeight || 0 } })
+onMounted(() => {
+  uni.getSystemInfo({ success: (res) => { statusBarHeight.value = res.statusBarHeight || 0 } })
+  load()
+})
 </script>
 
 <style scoped>
@@ -168,15 +214,18 @@ uni.getSystemInfo({ success: (res) => { statusBarHeight.value = res.statusBarHei
 .cs-title { font-size: 16px; font-weight: 600; color: #1a1a1a; }
 .cs-tabs { display: flex; border-top: 1px solid #f5f5f5; }
 .cs-tab { flex: 1; text-align: center; padding: 12px 0; font-size: 12px; font-weight: 500; color: #999; border-bottom: 2px solid transparent; }
-.cs-tab-active { color: #c41e3a; border-bottom-color: #c41e3a; }
+.cs-tab-active { color: var(--brand); border-bottom-color: var(--brand); }
 .cs-scroll { height: 100vh; box-sizing: border-box; }
+.cs-state { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 80px 32px; }
+.cs-state-txt { font-size: 14px; color: #999; }
+.cs-state-btn { margin-top: 4px; padding: 8px 24px; background: var(--brand); color: #ffffff; border-radius: 999px; font-size: 14px; }
 .cs-body { padding: 20px 16px; }
 /* 个人资料 */
 .cs-profile { display: flex; flex-direction: column; gap: 20px; }
 .cs-avatar-box { display: flex; flex-direction: column; align-items: center; gap: 12px; }
 .cs-avatar-wrap { position: relative; }
 .cs-avatar { width: 80px; height: 80px; border-radius: 50%; }
-.cs-avatar-edit { position: absolute; bottom: 0; right: 0; width: 24px; height: 24px; background: #c41e3a; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+.cs-avatar-edit { position: absolute; bottom: 0; right: 0; width: 24px; height: 24px; background: var(--brand); border-radius: 50%; display: flex; align-items: center; justify-content: center; }
 .cs-avatar-tip { font-size: 12px; color: #999; }
 .cs-field { display: flex; flex-direction: column; }
 .cs-label { font-size: 12px; font-weight: 500; color: #1a1a1a; margin-bottom: 6px; }
@@ -188,20 +237,18 @@ uni.getSystemInfo({ success: (res) => { statusBarHeight.value = res.statusBarHei
 .cs-row-border { border-top: 1px solid #f0f0f0; }
 .cs-toggle-label { font-size: 14px; color: #1a1a1a; }
 .cs-switch { width: 44px; height: 24px; border-radius: 999px; background: #e5e5e5; position: relative; transition: background 0.2s; }
-.cs-switch-on { background: #c41e3a; }
+.cs-switch-on { background: var(--brand); }
 .cs-switch-dot { position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; background: #ffffff; border-radius: 50%; box-shadow: 0 1px 2px rgba(0,0,0,0.15); transition: left 0.2s; }
 .cs-switch-dot-on { left: 22px; }
 /* 收款 */
 .cs-payment { display: flex; flex-direction: column; gap: 12px; }
-.cs-pay-row { display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: #ffffff; border: 1px solid #e5e5e5; border-radius: 12px; }
-.cs-pay-info { flex: 1; }
-.cs-pay-label { font-size: 14px; color: #1a1a1a; }
-.cs-pay-value { display: block; font-size: 12px; color: #999; margin-top: 2px; }
+.cs-pay-notice { display: flex; align-items: flex-start; gap: 10px; padding: 14px 16px; background: rgba(196, 30, 58, 0.05); border: 1px solid rgba(196, 30, 58, 0.15); border-radius: 12px; }
+.cs-pay-notice-txt { flex: 1; font-size: 13px; color: #1a1a1a; line-height: 1.5; }
 .cs-pay-tip { padding: 12px; background: rgba(0, 0, 0, 0.03); border-radius: 12px; }
 .cs-pay-tip-txt { font-size: 12px; color: #999; line-height: 1.5; }
 .cs-pad { height: 100px; }
 .cs-footer { position: fixed; bottom: 0; left: 0; right: 0; background: #ffffff; border-top: 1px solid #eee; padding: 16px; }
-.cs-save { height: 44px; border-radius: 12px; background: #c41e3a; color: #ffffff; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 14px; font-weight: 600; }
+.cs-save { height: 44px; border-radius: 12px; background: var(--brand); color: #ffffff; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 14px; font-weight: 600; }
 .cs-save-done { background: #16a34a; }
 .cs-spin { animation: cs-rotate 1s linear infinite; }
 @keyframes cs-rotate { from { transform: rotate(0); } to { transform: rotate(360deg); } }

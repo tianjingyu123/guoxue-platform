@@ -301,17 +301,17 @@ function handleLogout() {
 .theme-opt { flex: 1; display: flex; align-items: center; justify-content: center; gap: 10rpx; padding: 18rpx 0; border-radius: 14rpx; }
 .theme-opt.active { background: #ffffff; box-shadow: 0 2rpx 8rpx rgba(0,0,0,0.06); }
 .theme-label { font-size: 26rpx; font-weight: 500; color: #8a8278; }
-.theme-label.active { color: #c41e3a; }
+.theme-label.active { color: var(--brand); }
 
 .cache-row { display: flex; align-items: center; justify-content: space-between; padding: 28rpx; }
 .cache-size { display: block; font-size: 22rpx; color: #a39a8c; margin-top: 4rpx; }
 .cache-btn { padding: 12rpx 24rpx; border-radius: 14rpx; background: rgba(196,30,58,0.1); }
 .cache-btn.disabled { background: #f0ece4; }
-.cache-btn-text { font-size: 22rpx; font-weight: 500; color: #c41e3a; }
+.cache-btn-text { font-size: 22rpx; font-weight: 500; color: var(--brand); }
 .cache-btn.disabled .cache-btn-text { color: #a39a8c; }
 
 .logout-btn { background: #ffffff; border-radius: 20rpx; padding: 28rpx; display: flex; align-items: center; justify-content: center; }
-.logout-text { font-size: 28rpx; font-weight: 500; color: #c41e3a; }
+.logout-text { font-size: 28rpx; font-weight: 500; color: var(--brand); }
 
 .mask { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 100; display: flex; }
 .mask-bottom { align-items: flex-end; justify-content: center; }
@@ -324,7 +324,7 @@ function handleLogout() {
 .sheet-opt { display: flex; align-items: center; justify-content: space-between; padding: 28rpx 32rpx; }
 .sheet-opt.active { background: rgba(196,30,58,0.05); }
 .sheet-opt-text { font-size: 28rpx; color: #2c2c2c; }
-.sheet-opt-text.active { color: #c41e3a; }
+.sheet-opt-text.active { color: var(--brand); }
 .sheet-ft { padding: 24rpx 32rpx; border-top: 1rpx solid #f0ece4; }
 .sheet-cancel { padding: 24rpx; border-radius: 18rpx; background: #f5f1ea; display: flex; align-items: center; justify-content: center; }
 .sheet-cancel-text { font-size: 28rpx; color: #8a8278; }
@@ -337,5 +337,5 @@ function handleLogout() {
 .dialog-btn { flex: 1; padding: 28rpx; display: flex; align-items: center; justify-content: center; }
 .dialog-btn:first-child { border-right: 1rpx solid #f0ece4; }
 .dialog-btn-text { font-size: 28rpx; font-weight: 500; color: #2c2c2c; }
-.dialog-btn-text.primary { color: #c41e3a; }
+.dialog-btn-text.primary { color: var(--brand); }
 </style>

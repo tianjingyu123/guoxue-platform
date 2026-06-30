@@ -1,18 +1,70 @@
 <script setup lang="ts">
-import { ref, computed, watch, onUnmounted } from 'vue'
+import { ref, computed, onUnmounted, nextTick } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
-import { classicsApi, type AudioBookDetail } from '@/lib/classics-data'
+import { classicsApi } from '@/lib/classics-data'
+import { getToken } from '@/utils/storage'
 
-const bookId = ref('default')
-const book = ref<AudioBookDetail | null>(null)
+interface ChapterRef { id: string; title: string }
+
+const bookId = ref('')
+const bookTitle = ref('')
+const bookMeta = ref('')
+const chapters = ref<ChapterRef[]>([])
+const curIndex = ref(0)
+const sentences = ref<string[]>([])
+const curSentence = ref(0)
 const loading = ref(true)
 const error = ref('')
+const playing = ref(false)
+const speed = ref(1)
+const showChapters = ref(false)
 
-async function fetchData(id: string) {
+// 浏览器原生语音合成（H5/真机可用；小程序无 window → 降级提示）
+const synth: any = (typeof window !== 'undefined' && (window as any).speechSynthesis) ? (window as any).speechSynthesis : null
+const ttsSupported = computed(() => !!synth)
+let zhVoice: any = null
+function pickVoice() {
+  if (!synth) return
+  const voices: any[] = synth.getVoices() || []
+  zhVoice =
+    voices.find((v) => /zh[-_]?CN|cmn/i.test(v.lang)) ||
+    voices.find((v) => /^zh/i.test(v.lang)) ||
+    voices.find((v) => /chinese|中文|普通话/i.test(v.name)) ||
+    null
+}
+if (synth) {
+  pickVoice()
+  synth.onvoiceschanged = pickVoice
+}
+
+const curChapter = computed(() => chapters.value[curIndex.value] || null)
+const hasPrev = computed(() => curIndex.value > 0)
+const hasNext = computed(() => curIndex.value < chapters.value.length - 1)
+const progress = computed(() =>
+  sentences.value.length ? Math.round(((curSentence.value + 1) / sentences.value.length) * 100) : 0,
+)
+
+/** 章节正文切句（与阅读器一致：优先换行，否则按句读切） */
+function splitSentences(text: string): string[] {
+  if (!text) return []
+  let parts = text.split(/\n+/).map((s) => s.trim()).filter(Boolean)
+  if (parts.length <= 1) {
+    parts = text.replace(/([。！？；])/g, '$1\n').split('\n').map((s) => s.trim()).filter(Boolean)
+  }
+  return parts
+}
+
+async function fetchBook(id: string) {
   loading.value = true
   error.value = ''
   try {
-    book.value = await classicsApi.audiobookPlayer(id)
+    const data = await classicsApi.detail(id)
+    if (!data.book) throw new Error('书籍不存在')
+    bookTitle.value = data.book.title
+    bookMeta.value = [data.book.dynasty, data.book.author].filter(Boolean).join(' · ')
+    chapters.value = (data.book.chapters || []).map((c: any) => ({ id: c.id, title: c.title }))
+    if (!chapters.value.length) throw new Error('本书暂无可朗读章节')
+    await loadChapter(0, false)
   } catch (e: any) {
     error.value = e?.message || '加载失败'
   } finally {
@@ -20,175 +72,190 @@ async function fetchData(id: string) {
   }
 }
 
-const isPlaying = ref(false)
-const progress = ref(0)
-const currentChapter = ref(0)
-const speed = ref(1)
-const liked = ref(false)
-const showChapters = ref(false)
-
-const chapter = computed(() => book.value?.chapters?.[currentChapter.value] ?? { id: 0, title: '', duration: '' })
-
-const curMin = computed(() => Math.floor((progress.value / 100) * 8))
-const curSec = computed(() =>
-  String(Math.floor(((progress.value / 100) * 495) % 60)).padStart(2, '0'),
-)
-
-let timer: ReturnType<typeof setInterval> | null = null
-watch(isPlaying, (playing) => {
-  if (timer) { clearInterval(timer); timer = null }
-  if (playing) {
-    timer = setInterval(() => {
-      progress.value = progress.value >= 100 ? 0 : progress.value + 0.4
-    }, 200)
+async function loadChapter(idx: number, autoPlay = false) {
+  const ch = chapters.value[idx]
+  if (!ch) return
+  stop()
+  curIndex.value = idx
+  curSentence.value = 0
+  try {
+    const data = await classicsApi.chapter(ch.id)
+    sentences.value = splitSentences(data?.content || '')
+  } catch {
+    sentences.value = []
   }
-})
-onUnmounted(() => { if (timer) clearInterval(timer) })
+  saveProgress()
+  if (autoPlay && sentences.value.length) play()
+}
 
-onLoad((q) => {
-  if (q && q.id) bookId.value = q.id
-  fetchData(bookId.value)
-})
+// ── 朗读控制 ──
+function speakCurrent() {
+  if (!synth) return
+  if (curSentence.value >= sentences.value.length) { playing.value = false; return }
+  const u = new (window as any).SpeechSynthesisUtterance(sentences.value[curSentence.value])
+  if (zhVoice) u.voice = zhVoice
+  u.lang = 'zh-CN'
+  u.rate = speed.value
+  u.onend = () => {
+    if (!playing.value) return
+    if (curSentence.value < sentences.value.length - 1) {
+      curSentence.value++
+      scrollToCurrent()
+      speakCurrent()
+    } else if (hasNext.value) {
+      // 章末自动续读下一章
+      loadChapter(curIndex.value + 1, true)
+    } else {
+      playing.value = false
+    }
+  }
+  synth.speak(u)
+}
 
-function goBack() {
-  const pages = getCurrentPages()
-  if (pages.length > 1) uni.navigateBack()
-  else uni.reLaunch({ url: '/pages/index/index' })
+function play() {
+  if (!ttsSupported.value) {
+    uni.showToast({ title: '听书需在浏览器/H5端使用', icon: 'none' })
+    return
+  }
+  if (!sentences.value.length) return
+  playing.value = true
+  synth.cancel()
+  speakCurrent()
+  scrollToCurrent()
+}
+function pause() {
+  playing.value = false
+  if (synth) synth.cancel()
+}
+function stop() {
+  playing.value = false
+  if (synth) synth.cancel()
 }
 function togglePlay() {
-  isPlaying.value = !isPlaying.value
+  playing.value ? pause() : play()
 }
+function jumpSentence(i: number) {
+  curSentence.value = Math.max(0, Math.min(i, sentences.value.length - 1))
+  scrollToCurrent()
+  if (playing.value) { synth.cancel(); speakCurrent() }
+}
+function prevSentence() { jumpSentence(curSentence.value - 1) }
+function nextSentence() { jumpSentence(curSentence.value + 1) }
 function changeSpeed() {
-  speed.value = speed.value >= 2 ? 0.5 : speed.value + 0.5
+  speed.value = speed.value >= 2 ? 0.75 : +(speed.value + 0.25).toFixed(2)
+  if (playing.value) { synth.cancel(); speakCurrent() }
 }
-function playChapter(index: number) {
-  currentChapter.value = index
-  progress.value = 0
-  isPlaying.value = true
-  showChapters.value = false
+function prevChapter() { if (hasPrev.value) loadChapter(curIndex.value - 1, playing.value) }
+function nextChapter() { if (hasNext.value) loadChapter(curIndex.value + 1, playing.value) }
+function pickChapter(idx: number) { showChapters.value = false; loadChapter(idx, true) }
+
+function scrollToCurrent() {
+  nextTick(() => { scrollIntoId.value = `s${curSentence.value}` })
 }
-function prevChapter() {
-  playChapter(Math.max(0, currentChapter.value - 1))
+const scrollIntoId = ref('')
+
+function saveProgress() {
+  if (!getToken() || !curChapter.value) return
+  classicsApi.saveProgress(bookId.value, curChapter.value.id, progress.value).catch(() => {})
 }
-function nextChapter() {
-  playChapter(Math.min((book.value?.chapters.length ?? 1) - 1, currentChapter.value + 1))
+
+function goBack() {
+  stop()
+  uni.navigateBack({ fail: () => uni.navigateTo({ url: '/pkg-classics/audiobooks/index' }) })
 }
+
+onUnmounted(() => stop())
+
+onLoad((q) => {
+  bookId.value = String(q?.id || q?.bookId || '')
+  if (!bookId.value) { error.value = '缺少书籍参数'; loading.value = false; return }
+  fetchBook(bookId.value)
+})
 </script>
 
 <template>
   <view class="ap-page">
-    <!-- 顶部栏 -->
+    <!-- 顶栏 -->
     <view class="ap-header">
       <view class="ap-statusbar" />
       <view class="ap-header-inner">
-        <view class="ap-circle-btn" @tap="goBack">
-          <app-icon name="arrow-left" :size="40" color="#2c2c2c" />
-        </view>
-        <text class="ap-header-title">听书</text>
-        <view class="ap-circle-btn">
-          <app-icon name="share-2" :size="40" color="#2c2c2c" />
-        </view>
+        <view class="ap-circle-btn" @tap="goBack"><app-icon name="arrow-left" :size="40" color="#78350f" /></view>
+        <text class="ap-header-title">听书 · AI 朗读</text>
+        <view class="ap-circle-btn" @tap="showChapters = true"><app-icon name="list" :size="38" color="#78350f" /></view>
       </view>
     </view>
 
-    <view class="ap-main">
-      <!-- 加载态 -->
-      <view v-if="loading" style="text-align:center;padding-top:128rpx;">
-        <text style="color:var(--muted-foreground);font-size:28rpx;">加载中...</text>
-      </view>
-      <!-- 错误态 -->
-      <view v-else-if="error" style="text-align:center;padding-top:128rpx;">
-        <text style="color:#c41e3a;font-size:28rpx;">{{ error }}</text>
-        <view style="margin-top:24rpx;" @tap="fetchData(bookId)">
-          <text style="color:var(--muted-foreground);">重试</text>
-        </view>
-      </view>
-      <template v-else-if="book">
-      <!-- 旋转唱片封面 -->
-      <view class="ap-disc" :class="{ 'ap-disc--spin': isPlaying }">
-        <view class="ap-disc-ring ap-disc-ring1" />
-        <view class="ap-disc-ring ap-disc-ring2" />
-        <view class="ap-disc-book">
-          <view class="ap-disc-spine" />
-          <view class="ap-disc-title">
-            <text v-for="(ch, i) in book.title.split('')" :key="i" class="ap-disc-char">{{ ch }}</text>
-          </view>
-        </view>
-      </view>
+    <view v-if="loading" class="ap-state"><text class="ap-state-txt">加载中…</text></view>
+    <view v-else-if="error" class="ap-state">
+      <text class="ap-state-txt">{{ error }}</text>
+      <view class="ap-retry" @tap="fetchBook(bookId)"><text>重试</text></view>
+    </view>
 
-      <!-- 书名 + 朗读者 -->
+    <template v-else>
+      <!-- 书名 + 声波 -->
       <view class="ap-titlebox">
-        <text class="ap-title">{{ book.title }}</text>
-        <text class="ap-sub">{{ book.dynasty }} · {{ book.author }} 著 · {{ book.narrator }} 朗读</text>
-        <text class="ap-chapter">{{ chapter.title }}</text>
+        <view class="ap-wave" :class="{ 'ap-wave--on': playing }">
+          <view v-for="n in 5" :key="n" class="ap-wave-bar" :style="{ animationDelay: (n * 0.12) + 's' }" />
+        </view>
+        <text class="ap-title">{{ bookTitle }}</text>
+        <text class="ap-sub">{{ bookMeta }} · AI 智能语音</text>
+        <text class="ap-chapter">{{ curChapter?.title }}</text>
       </view>
 
-      <!-- 进度条 -->
+      <!-- 跟读正文 -->
+      <scroll-view scroll-y class="ap-text" :scroll-into-view="scrollIntoId" scroll-with-animation>
+        <view v-if="!ttsSupported" class="ap-tip">当前环境不支持语音朗读，请在手机浏览器 / H5 中体验听书</view>
+        <text
+          v-for="(s, i) in sentences"
+          :id="`s${i}`"
+          :key="i"
+          class="ap-sent"
+          :class="{ 'ap-sent--on': i === curSentence }"
+          @tap="jumpSentence(i)"
+        >{{ s }}</text>
+        <view v-if="!sentences.length" class="ap-tip">本章暂无可朗读内容</view>
+      </scroll-view>
+
+      <!-- 进度 -->
       <view class="ap-progress">
-        <view class="ap-progress-track">
-          <view class="ap-progress-fill" :style="{ width: progress + '%' }" />
-        </view>
+        <view class="ap-progress-track"><view class="ap-progress-fill" :style="{ width: progress + '%' }" /></view>
         <view class="ap-progress-time">
-          <text>{{ curMin }}:{{ curSec }}</text>
-          <text>{{ chapter.duration }}</text>
+          <text>{{ curSentence + 1 }} / {{ sentences.length }} 句</text>
+          <text>第 {{ curIndex + 1 }} / {{ chapters.length }} 章</text>
         </view>
       </view>
 
-      <!-- 播放控制 -->
+      <!-- 控制 -->
       <view class="ap-controls">
         <view class="ap-speed" @tap="changeSpeed">{{ speed }}x</view>
-        <view class="ap-ctrl-icon" @tap="prevChapter">
-          <app-icon name="skip-back" :size="56" color="#2c2c2c" />
+        <view class="ap-ctrl" :class="{ 'ap-ctrl--off': curSentence === 0 && !hasPrev }" @tap="prevSentence">
+          <app-icon name="chevron-left" :size="48" color="#78350f" />
         </view>
         <view class="ap-play" @tap="togglePlay">
-          <app-icon :name="isPlaying ? 'pause' : 'play'" :size="56" color="#ffffff" :fill="isPlaying" />
+          <app-icon :name="playing ? 'pause' : 'play'" :size="52" color="#ffffff" :fill="true" />
         </view>
-        <view class="ap-ctrl-icon" @tap="nextChapter">
-          <app-icon name="skip-forward" :size="56" color="#2c2c2c" />
-        </view>
-        <view class="ap-like" @tap="liked = !liked">
-          <app-icon name="heart" :size="48" :color="liked ? '#ef4444' : '#2c2c2c'" :fill="liked" />
-        </view>
+        <view class="ap-ctrl" @tap="nextSentence"><app-icon name="chevron-right" :size="48" color="#78350f" /></view>
+        <view class="ap-speed ap-chapnav" @tap="nextChapter" :class="{ 'ap-ctrl--off': !hasNext }">下章</view>
       </view>
+    </template>
 
-      <!-- 底部操作 -->
-      <view class="ap-actions">
-        <view class="ap-action" @tap="showChapters = true">
-          <app-icon name="list" :size="40" color="#999999" />
-          <text class="ap-action-txt">目录</text>
-        </view>
-        <view class="ap-action">
-          <app-icon name="repeat" :size="40" color="#999999" />
-          <text class="ap-action-txt">循环</text>
-        </view>
-        <view class="ap-action">
-          <app-icon name="moon" :size="40" color="#999999" />
-          <text class="ap-action-txt">定时</text>
-        </view>
-      </view>
-      </template>
-    </view>
-
-    <!-- 章节目录抽屉 -->
+    <!-- 目录 -->
     <view v-if="showChapters" class="ap-mask" @tap="showChapters = false">
       <view class="ap-sheet" @tap.stop>
         <view class="ap-sheet-head">
-          <text class="ap-sheet-title">目录 · 共{{ book?.chapters?.length ?? 0 }}章</text>
+          <text class="ap-sheet-title">目录 · 共 {{ chapters.length }} 章</text>
           <text class="ap-sheet-close" @tap="showChapters = false">关闭</text>
         </view>
         <scroll-view scroll-y class="ap-sheet-list">
           <view
-            v-for="(ch, index) in book.chapters"
+            v-for="(ch, idx) in chapters"
             :key="ch.id"
             class="ap-sheet-item"
-            :class="{ 'ap-sheet-item--on': index === currentChapter }"
-            @tap="playChapter(index)"
+            :class="{ 'ap-sheet-item--on': idx === curIndex }"
+            @tap="pickChapter(idx)"
           >
-            <text
-              class="ap-sheet-item-title"
-              :class="{ 'ap-sheet-item-title--on': index === currentChapter }"
-            >{{ ch.title }}</text>
-            <text class="ap-sheet-item-dur">{{ ch.duration }}</text>
+            <text class="ap-sheet-item-idx">{{ idx + 1 }}</text>
+            <text class="ap-sheet-item-title" :class="{ 'ap-sheet-item-title--on': idx === curIndex }">{{ ch.title }}</text>
           </view>
         </scroll-view>
       </view>
@@ -197,282 +264,56 @@ function nextChapter() {
 </template>
 
 <style scoped lang="scss">
-.ap-page {
-  min-height: 100vh;
-  background: var(--background);
-  display: flex;
-  flex-direction: column;
-}
+.ap-page { min-height: 100vh; background: linear-gradient(to bottom, #f5f0e6, #faf8f5); display: flex; flex-direction: column; }
+.ap-header { position: sticky; top: 0; z-index: 40; }
+.ap-statusbar { height: var(--status-bar-height, 0px); }
+.ap-header-inner { display: flex; align-items: center; justify-content: space-between; padding: 0 32rpx; height: 100rpx; }
+.ap-circle-btn { width: 72rpx; height: 72rpx; border-radius: 50%; background: rgba(255,255,255,0.6); display: flex; align-items: center; justify-content: center; &:active { transform: scale(0.92); } }
+.ap-header-title { font-family: var(--font-serif); font-size: 30rpx; font-weight: 700; color: #78350f; }
+.ap-state { text-align: center; padding-top: 160rpx; }
+.ap-state-txt { color: var(--muted-foreground); font-size: 28rpx; }
+.ap-retry { margin-top: 24rpx; color: var(--brand); font-size: 28rpx; }
 
-/* 顶部栏 */
-.ap-header {
-  position: sticky;
-  top: 0;
-  z-index: 40;
-  background: linear-gradient(to bottom, #f5f0e6, #faf8f5);
-}
-.ap-statusbar {
-  height: var(--status-bar-height, 0px);
-}
-.ap-header-inner {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 32rpx;
-  height: 112rpx;
-}
-.ap-circle-btn {
-  width: 72rpx;
-  height: 72rpx;
-  border-radius: 50%;
-  background: color-mix(in srgb, var(--card) 80%, transparent);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.06);
-  &:active { transform: scale(0.92); }
-}
-.ap-header-title {
-  font-family: var(--font-serif);
-  font-size: 32rpx;
-  font-weight: 700;
-  color: #78350f;
-}
+/* 书名 + 声波 */
+.ap-titlebox { text-align: center; padding: 24rpx 48rpx 8rpx; }
+.ap-wave { display: flex; align-items: flex-end; justify-content: center; gap: 8rpx; height: 56rpx; margin-bottom: 16rpx; }
+.ap-wave-bar { width: 8rpx; height: 16rpx; border-radius: 999rpx; background: #d97706; }
+.ap-wave--on .ap-wave-bar { animation: ap-wave 0.8s ease-in-out infinite; }
+@keyframes ap-wave { 0%, 100% { height: 16rpx; } 50% { height: 48rpx; } }
+.ap-title { display: block; font-family: var(--font-serif); font-size: 46rpx; font-weight: 700; color: #78350f; }
+.ap-sub { display: block; font-size: 24rpx; color: var(--muted-foreground); margin-top: 8rpx; }
+.ap-chapter { display: block; font-size: 28rpx; color: #92400e; margin-top: 16rpx; font-weight: 500; }
 
-.ap-main {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 64rpx 48rpx 0;
-}
+/* 跟读正文 */
+.ap-text { flex: 1; padding: 24rpx 48rpx; min-height: 0; }
+.ap-sent { display: inline; font-family: 'Songti SC', serif; font-size: 36rpx; line-height: 2.1; color: #5c5347; letter-spacing: 1rpx; }
+.ap-sent--on { color: #78350f; font-weight: 700; background: rgba(217,119,6,0.14); border-radius: 6rpx; padding: 2rpx 4rpx; }
+.ap-tip { text-align: center; color: var(--muted-foreground); font-size: 26rpx; padding: 80rpx 0; }
 
-/* 旋转唱片 */
-.ap-disc {
-  position: relative;
-  width: 448rpx;
-  height: 448rpx;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #2a2118, #4a3a28);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 8rpx 30rpx rgba(80, 60, 30, 0.3);
-}
-@keyframes ap-rotate {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-.ap-disc--spin {
-  animation: ap-rotate 8s linear infinite;
-}
-.ap-disc-ring {
-  position: absolute;
-  border-radius: 50%;
-  border: 1rpx solid rgba(255, 251, 235, 0.1);
-}
-.ap-disc-ring1 { inset: 32rpx; }
-.ap-disc-ring2 { inset: 64rpx; }
-.ap-disc-book {
-  position: relative;
-  width: 192rpx;
-  height: 256rpx;
-  border-radius: 6rpx;
-  background: linear-gradient(135deg, #f7f3e8, #ebe3d0);
-  border: 1rpx solid rgba(208, 192, 160, 0.5);
-  box-shadow: 0 8rpx 16rpx rgba(0, 0, 0, 0.2);
-  overflow: hidden;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.ap-disc-spine {
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 16rpx;
-  background: #d4c4a8;
-}
-.ap-disc-title {
-  writing-mode: vertical-rl;
-  display: flex;
-}
-.ap-disc-char {
-  font-family: var(--font-serif);
-  font-size: 32rpx;
-  font-weight: 700;
-  color: #3d3225;
-}
+/* 进度 */
+.ap-progress { padding: 8rpx 48rpx; }
+.ap-progress-track { height: 10rpx; background: #e5ddd0; border-radius: 999rpx; overflow: hidden; }
+.ap-progress-fill { height: 100%; background: #d97706; border-radius: 999rpx; transition: width 0.3s; }
+.ap-progress-time { display: flex; justify-content: space-between; margin-top: 12rpx; font-size: 22rpx; color: var(--muted-foreground); }
 
-/* 书名 */
-.ap-titlebox {
-  text-align: center;
-  margin-top: 64rpx;
-}
-.ap-title {
-  display: block;
-  font-family: var(--font-serif);
-  font-size: 48rpx;
-  font-weight: 700;
-  color: #78350f;
-}
-.ap-sub {
-  display: block;
-  font-size: 28rpx;
-  color: var(--muted-foreground);
-  margin-top: 8rpx;
-}
-.ap-chapter {
-  display: block;
-  font-size: 28rpx;
-  color: color-mix(in srgb, var(--foreground) 80%, transparent);
-  margin-top: 24rpx;
-  font-weight: 500;
-}
+/* 控制 */
+.ap-controls { display: flex; align-items: center; justify-content: center; gap: 40rpx; padding: 24rpx 0 calc(32rpx + env(safe-area-inset-bottom)); }
+.ap-speed { min-width: 80rpx; text-align: center; font-size: 28rpx; font-weight: 600; color: #92400e; }
+.ap-chapnav { font-size: 26rpx; }
+.ap-ctrl { &:active { transform: scale(0.9); } }
+.ap-ctrl--off { opacity: 0.35; }
+.ap-play { width: 120rpx; height: 120rpx; border-radius: 50%; background: #d97706; display: flex; align-items: center; justify-content: center; box-shadow: 0 8rpx 20rpx rgba(217,119,6,0.3); &:active { transform: scale(0.95); } }
 
-/* 进度条 */
-.ap-progress {
-  width: 100%;
-  max-width: 896rpx;
-  margin-top: 64rpx;
-}
-.ap-progress-track {
-  height: 12rpx;
-  background: #e5ddd0;
-  border-radius: 999rpx;
-  overflow: hidden;
-}
-.ap-progress-fill {
-  height: 100%;
-  background: #d97706;
-  border-radius: 999rpx;
-  transition: width 0.2s linear;
-}
-.ap-progress-time {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 16rpx;
-  font-size: 22rpx;
-  color: var(--muted-foreground);
-  font-variant-numeric: tabular-nums;
-}
-
-/* 播放控制 */
-.ap-controls {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 48rpx;
-  margin-top: 64rpx;
-}
-.ap-speed {
-  width: 96rpx;
-  text-align: center;
-  font-size: 28rpx;
-  font-weight: 500;
-  color: #92400e;
-}
-.ap-ctrl-icon {
-  &:active { transform: scale(0.9); }
-}
-.ap-play {
-  width: 128rpx;
-  height: 128rpx;
-  border-radius: 50%;
-  background: #d97706;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 8rpx 20rpx rgba(217, 119, 6, 0.3);
-  &:active { transform: scale(0.95); }
-}
-.ap-like {
-  width: 96rpx;
-  display: flex;
-  justify-content: center;
-}
-
-/* 底部操作 */
-.ap-actions {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 64rpx;
-  margin-top: 64rpx;
-  margin-bottom: 32rpx;
-}
-.ap-action {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8rpx;
-  color: var(--muted-foreground);
-}
-.ap-action-txt {
-  font-size: 22rpx;
-  color: var(--muted-foreground);
-}
-
-/* 章节抽屉 */
-.ap-mask {
-  position: fixed;
-  inset: 0;
-  z-index: 50;
-  background: rgba(0, 0, 0, 0.5);
-}
-.ap-sheet {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  max-height: 70vh;
-  background: var(--card);
-  border-radius: 32rpx 32rpx 0 0;
-  display: flex;
-  flex-direction: column;
-}
-.ap-sheet-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 24rpx 32rpx;
-  border-bottom: 1rpx solid var(--border);
-}
-.ap-sheet-title {
-  font-size: 30rpx;
-  font-weight: 500;
-  color: var(--foreground);
-}
-.ap-sheet-close {
-  font-size: 28rpx;
-  color: var(--muted-foreground);
-}
-.ap-sheet-list {
-  max-height: calc(70vh - 100rpx);
-  padding: 16rpx;
-}
-.ap-sheet-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 24rpx;
-  border-radius: 16rpx;
-}
-.ap-sheet-item--on {
-  background: #fffbeb;
-}
-.ap-sheet-item-title {
-  font-size: 28rpx;
-  color: var(--foreground);
-}
-.ap-sheet-item-title--on {
-  color: #b45309;
-  font-weight: 500;
-}
-.ap-sheet-item-dur {
-  font-size: 24rpx;
-  color: var(--muted-foreground);
-  font-variant-numeric: tabular-nums;
-}
+/* 目录 */
+.ap-mask { position: fixed; inset: 0; z-index: 50; background: rgba(0,0,0,0.5); }
+.ap-sheet { position: absolute; bottom: 0; left: 0; right: 0; max-height: 70vh; background: var(--card); border-radius: 32rpx 32rpx 0 0; display: flex; flex-direction: column; padding-bottom: env(safe-area-inset-bottom); }
+.ap-sheet-head { display: flex; align-items: center; justify-content: space-between; padding: 24rpx 32rpx; border-bottom: 1rpx solid var(--border); }
+.ap-sheet-title { font-size: 30rpx; font-weight: 600; color: var(--foreground); }
+.ap-sheet-close { font-size: 28rpx; color: var(--muted-foreground); }
+.ap-sheet-list { max-height: calc(70vh - 100rpx); padding: 12rpx 24rpx; }
+.ap-sheet-item { display: flex; align-items: center; gap: 20rpx; padding: 24rpx 16rpx; border-bottom: 1rpx solid rgba(150,130,90,0.12); }
+.ap-sheet-item--on { background: #fffbeb; border-radius: 12rpx; }
+.ap-sheet-item-idx { width: 44rpx; text-align: center; font-size: 24rpx; color: var(--muted-foreground); flex-shrink: 0; }
+.ap-sheet-item-title { flex: 1; font-size: 28rpx; color: var(--foreground); }
+.ap-sheet-item-title--on { color: #b45309; font-weight: 600; }
 </style>

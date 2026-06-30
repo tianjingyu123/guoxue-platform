@@ -91,7 +91,7 @@ onMounted(() => {
     <view class="body">
       <!-- 课程信息 -->
       <view class="card course-card">
-        <image class="course-cover" :src="course.cover" mode="aspectFill" />
+        <image lazy-load class="course-cover" :src="course.cover" mode="aspectFill" />
         <view class="course-info">
           <text class="course-title">{{ course.title }}</text>
           <text class="course-meta">{{ course.instructorName }} | {{ course.chapters }}课时</text>
@@ -234,26 +234,26 @@ onMounted(() => {
 .course-title { display: block; font-size: 28rpx; font-weight: 500; color: #2C2C2C; margin-bottom: 8rpx; line-height: 1.4; }
 .course-meta { display: block; font-size: 24rpx; color: #999; margin-bottom: 16rpx; }
 .course-price { display: flex; align-items: baseline; gap: 16rpx; }
-.price-now { font-size: 36rpx; font-weight: 700; color: #C41E3A; }
+.price-now { font-size: 36rpx; font-weight: 700; color: var(--brand); }
 .price-old { font-size: 24rpx; color: #999; text-decoration: line-through; }
 
 .coupon-head { display: flex; align-items: center; justify-content: space-between; }
 .coupon-head-left { display: flex; align-items: center; gap: 16rpx; }
 .coupon-label { font-size: 28rpx; font-weight: 500; color: #2C2C2C; }
-.coupon-badge { font-size: 20rpx; color: #C41E3A; background: rgba(196,30,58,0.1); padding: 4rpx 12rpx; border-radius: 8rpx; }
+.coupon-badge { font-size: 20rpx; color: var(--brand); background: rgba(196,30,58,0.1); padding: 4rpx 12rpx; border-radius: 8rpx; }
 .coupon-head-right { display: flex; align-items: center; gap: 8rpx; }
-.coupon-discount { font-size: 28rpx; color: #C41E3A; }
+.coupon-discount { font-size: 28rpx; color: var(--brand); }
 .coupon-hint { font-size: 28rpx; color: #999; }
 .rotated { transform: rotate(90deg); }
 
 .coupon-list { border-top: 1rpx solid #F2EFEA; margin-top: 32rpx; padding-top: 32rpx; display: flex; flex-direction: column; gap: 16rpx; }
 .coupon-item { border: 4rpx solid #E8E3DB; border-radius: 16rpx; padding: 24rpx; display: flex; align-items: center; justify-content: space-between; }
 .coupon-item.simple { justify-content: space-between; }
-.coupon-item.active { border-color: #C41E3A; background: rgba(196,30,58,0.05); }
+.coupon-item.active { border-color: var(--brand); background: rgba(196,30,58,0.05); }
 .coupon-item.disabled { opacity: 0.5; }
 .coupon-none-txt { font-size: 28rpx; color: #666; }
 .coupon-item-left { display: flex; align-items: center; gap: 24rpx; }
-.coupon-val { width: 112rpx; height: 112rpx; border-radius: 16rpx; background: linear-gradient(135deg, #C41E3A, #8B0000); display: flex; flex-direction: column; align-items: center; justify-content: center; color: #fff; }
+.coupon-val { width: 112rpx; height: 112rpx; border-radius: 16rpx; background: linear-gradient(135deg, var(--brand), #8B0000); display: flex; flex-direction: column; align-items: center; justify-content: center; color: #fff; }
 .coupon-val-num { font-size: 32rpx; font-weight: 700; color: #fff; }
 .coupon-val-unit { font-size: 20rpx; color: #fff; }
 .coupon-val-yen { font-size: 20rpx; color: #fff; }
@@ -267,7 +267,7 @@ onMounted(() => {
 .section-title { display: block; font-size: 28rpx; font-weight: 500; color: #2C2C2C; margin-bottom: 24rpx; }
 .pay-list { display: flex; flex-direction: column; gap: 16rpx; }
 .pay-item { border: 4rpx solid #E8E3DB; border-radius: 16rpx; padding: 24rpx; display: flex; align-items: center; justify-content: space-between; }
-.pay-item.active { border-color: #C41E3A; background: rgba(196,30,58,0.05); }
+.pay-item.active { border-color: var(--brand); background: rgba(196,30,58,0.05); }
 .pay-item-left { display: flex; align-items: center; gap: 24rpx; }
 .pay-name { font-size: 28rpx; color: #2C2C2C; }
 
@@ -275,24 +275,24 @@ onMounted(() => {
 .price-row { display: flex; align-items: center; justify-content: space-between; }
 .price-row-label { font-size: 28rpx; color: #666; }
 .price-row-val { font-size: 28rpx; color: #2C2C2C; }
-.price-row-label.red, .price-row-val.red { color: #C41E3A; }
+.price-row-label.red, .price-row-val.red { color: var(--brand); }
 .price-row.total { padding-top: 16rpx; border-top: 1rpx solid #F2EFEA; align-items: baseline; }
-.price-total { font-size: 48rpx; font-weight: 700; color: #C41E3A; }
+.price-total { font-size: 48rpx; font-weight: 700; color: var(--brand); }
 
 .agree { display: flex; align-items: flex-start; gap: 16rpx; padding: 0 8rpx; }
 .agree-box { width: 40rpx; height: 40rpx; border-radius: 8rpx; border: 4rpx solid #CCC; flex-shrink: 0; margin-top: 4rpx; display: flex; align-items: center; justify-content: center; }
-.agree-box.checked { background: #C41E3A; border-color: #C41E3A; }
+.agree-box.checked { background: var(--brand); border-color: var(--brand); }
 .agree-txt { font-size: 24rpx; color: #999; line-height: 1.6; }
-.agree-link { color: #C41E3A; }
+.agree-link { color: var(--brand); }
 
 .footer { position: fixed; bottom: 0; left: 0; right: 0; background: #fff; border-top: 1rpx solid #E8E3DB; padding: 24rpx 32rpx; padding-bottom: calc(24rpx + env(safe-area-inset-bottom)); display: flex; align-items: center; gap: 32rpx; }
 .footer-price { flex: 1; }
 .footer-price-row { display: flex; align-items: baseline; gap: 4rpx; }
 .footer-pay-label { font-size: 24rpx; color: #666; }
-.footer-yen { font-size: 20rpx; color: #C41E3A; }
-.footer-amount { font-size: 48rpx; font-weight: 700; color: #C41E3A; }
+.footer-yen { font-size: 20rpx; color: var(--brand); }
+.footer-amount { font-size: 48rpx; font-weight: 700; color: var(--brand); }
 .footer-saved { font-size: 22rpx; color: #999; }
-.footer-btn { display: flex; align-items: center; gap: 12rpx; padding: 24rpx 64rpx; border-radius: 999rpx; background: linear-gradient(to right, #C41E3A, #E74C3C); box-shadow: 0 8rpx 24rpx rgba(196,30,58,0.3); }
+.footer-btn { display: flex; align-items: center; gap: 12rpx; padding: 24rpx 64rpx; border-radius: 999rpx; background: linear-gradient(to right, var(--brand), #E74C3C); box-shadow: 0 8rpx 24rpx rgba(196,30,58,0.3); }
 .footer-btn.disabled { background: #CCC; box-shadow: none; }
 .footer-btn-txt { font-size: 32rpx; font-weight: 700; color: #fff; }
 

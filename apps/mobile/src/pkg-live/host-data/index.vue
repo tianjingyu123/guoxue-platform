@@ -137,7 +137,7 @@
         <view v-for="room in rooms" :key="room.id" class="record-card" @tap="openRoom(room)">
           <view class="record-inner">
             <view class="record-cover">
-              <image class="record-img" :src="room.cover" mode="aspectFill" />
+              <image lazy-load class="record-img" :src="room.cover" mode="aspectFill" />
               <view v-if="room.status === 'preview'" class="rc-preview">预告</view>
               <view v-else class="rc-dur">{{ formatHostDuration(room.duration) }}</view>
             </view>
@@ -228,7 +228,7 @@ onMounted(() => { fetchData() })
   position: sticky;
   top: 0;
   z-index: 10;
-  background: linear-gradient(to right, #C41E3A, #E85A70);
+  background: linear-gradient(to right, var(--brand), #E85A70);
 }
 .nav-bar {
   height: 88rpx;
@@ -288,7 +288,7 @@ onMounted(() => { fetchData() })
   color: #C9A96E;
 }
 .stat-value.red {
-  color: #C41E3A;
+  color: var(--brand);
 }
 .stat-unit {
   font-size: 26rpx;
@@ -357,7 +357,7 @@ onMounted(() => { fetchData() })
 }
 .trend-tab-active {
   background: #fff;
-  color: #C41E3A;
+  color: var(--brand);
   box-shadow: 0 1rpx 4rpx rgba(0, 0, 0, 0.08);
 }
 .chart {
@@ -510,5 +510,5 @@ onMounted(() => { fetchData() })
 /* 错误态 */
 .error-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 128rpx 0; }
 .error-text { font-size: 26rpx; color: #999; margin-top: 24rpx; }
-.error-btn { margin-top: 32rpx; padding: 16rpx 48rpx; font-size: 26rpx; color: #fff; background: #C41E3A; border-radius: 999rpx; }
+.error-btn { margin-top: 32rpx; padding: 16rpx 48rpx; font-size: 26rpx; color: #fff; background: var(--brand); border-radius: 999rpx; }
 </style>

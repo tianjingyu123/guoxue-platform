@@ -4,6 +4,12 @@
     <text class="state-error-text">{{ error }}</text>
     <view class="state-retry-btn" @tap="retry"><text>重试</text></view>
   </view>
+  <view v-else-if="notOpened" class="state-guide">
+    <view class="guide-icon"><app-icon name="building-2" :size="80" color="#7c3aed" /></view>
+    <text class="guide-title">您还不是运营商</text>
+    <text class="guide-desc">升级运营商，组建并管理你的站长团队</text>
+    <view class="guide-btn" @tap="goJoin"><text>了解运营商</text></view>
+  </view>
   <view v-else class="dash-page">
     <!-- 顶部导航 -->
     <app-nav-bar title="运营商中心" :show-back="true" background="#7c3aed" color="#ffffff" :no-border="true">
@@ -30,9 +36,8 @@
         </view>
         <view class="dash-quota-grid">
           <view class="dash-quota-item"><text class="dash-quota-num">{{ data.quota.total }}</text><text class="dash-quota-sub">总名额</text></view>
-          <view class="dash-quota-item"><text class="dash-quota-num">{{ data.quota.used }}</text><text class="dash-quota-sub">自用</text></view>
-          <view class="dash-quota-item"><text class="dash-quota-num c-success">{{ data.quota.sold }}</text><text class="dash-quota-sub">已售</text></view>
-          <view class="dash-quota-item"><text class="dash-quota-num c-gold">{{ data.quota.available }}</text><text class="dash-quota-sub">可售</text></view>
+          <view class="dash-quota-item"><text class="dash-quota-num c-success">{{ data.quota.used }}</text><text class="dash-quota-sub">已用</text></view>
+          <view class="dash-quota-item"><text class="dash-quota-num c-gold">{{ data.quota.available }}</text><text class="dash-quota-sub">可用</text></view>
         </view>
       </view>
     </view>
@@ -51,14 +56,14 @@
           <text class="dash-ov-sub">本月 +{{ data.team.thisMonth }}人</text>
         </view>
         <view class="dash-ov-item ov-bg3">
-          <view class="dash-ov-top"><app-icon name="gift" :size="28" color="#C9A96E" /><text class="dash-ov-label">名额销售</text></view>
-          <text class="dash-ov-val c-gold">¥{{ data.earnings.quotaSales.toLocaleString() }}</text>
-          <text class="dash-ov-sub">已售 {{ data.quota.sold }} 个名额</text>
+          <view class="dash-ov-top"><app-icon name="trending-up" :size="28" color="#C9A96E" /><text class="dash-ov-label">本月收益</text></view>
+          <text class="dash-ov-val c-gold">¥{{ data.earnings.thisMonth.toLocaleString() }}</text>
+          <text class="dash-ov-sub">本月新增收益</text>
         </view>
         <view class="dash-ov-item ov-bg4">
-          <view class="dash-ov-top"><app-icon name="trending-up" :size="28" color="#16a34a" /><text class="dash-ov-label">团队奖励</text></view>
-          <text class="dash-ov-val c-success">¥{{ data.earnings.teamBonus.toLocaleString() }}</text>
-          <text class="dash-ov-sub">下级站长分佣5%</text>
+          <view class="dash-ov-top"><app-icon name="users" :size="28" color="#16a34a" /><text class="dash-ov-label">本月新增站长</text></view>
+          <text class="dash-ov-val c-success">{{ data.team.thisMonth }}人</text>
+          <text class="dash-ov-sub">本月加入团队</text>
         </view>
       </view>
     </view>
@@ -106,9 +111,9 @@
           <view class="dash-member-more" @tap="toastSoon"><app-icon name="more-horizontal" :size="32" color="#999" /></view>
         </view>
         <view v-if="m.status === 'active'" class="dash-member-stats">
-          <view class="dash-mstat"><text class="dash-mstat-num">{{ m.users }}</text><text class="dash-mstat-label">用户数</text></view>
-          <view class="dash-mstat"><text class="dash-mstat-num c-success">¥{{ m.earnings }}</text><text class="dash-mstat-label">产生收益</text></view>
-          <view class="dash-mstat"><text class="dash-mstat-num c-operator">¥{{ m.myBonus }}</text><text class="dash-mstat-label">我的奖励</text></view>
+          <view class="dash-mstat"><text class="dash-mstat-num c-success">¥{{ m.earnings }}</text><text class="dash-mstat-label">本月收益</text></view>
+          <view class="dash-mstat"><text class="dash-mstat-num">¥{{ m.totalEarning }}</text><text class="dash-mstat-label">累计收益</text></view>
+          <view class="dash-mstat"><text class="dash-mstat-num c-operator">¥{{ m.myBonus }}</text><text class="dash-mstat-label">我的管理奖</text></view>
         </view>
       </view>
 
@@ -144,6 +149,7 @@ import { operatorApi, type OperatorDashboardData, type DashboardTeamMember, type
 
 const loading = ref(true)
 const error = ref('')
+const notOpened = ref(false)
 const data = ref<OperatorDashboardData>({} as OperatorDashboardData)
 const teamMembers = ref<DashboardTeamMember[]>([])
 const quotaRecords = ref<DashboardQuotaRecord[]>([])
@@ -152,28 +158,10 @@ const activeTab = ref<'team' | 'quota'>('team')
 const copied = ref(false)
 const submitting = ref(false)
 
-onMounted(async () => {
-  try {
-    const [d, tm, qr, il] = await Promise.all([
-      operatorApi.getDashboardData(),
-      operatorApi.getDashboardTeamMembers(),
-      operatorApi.getDashboardQuotaRecords(),
-      operatorApi.getDashboardInviteLink(),
-    ])
-    data.value = d
-    teamMembers.value = tm
-    quotaRecords.value = qr
-    inviteLink.value = il
-  } catch (e: any) {
-    error.value = e?.message || '加载失败'
-  } finally {
-    loading.value = false
-  }
-})
-
-async function retry() {
+async function loadData() {
   loading.value = true
   error.value = ''
+  notOpened.value = false
   try {
     const [d, tm, qr, il] = await Promise.all([
       operatorApi.getDashboardData(),
@@ -186,10 +174,22 @@ async function retry() {
     quotaRecords.value = qr
     inviteLink.value = il
   } catch (e: any) {
-    error.value = e?.message || '加载失败'
+    const msg = e?.message || ''
+    // 用户尚未开通运营商：后端抛错（含「不是运营商」等）→ 进入引导态而非错误态
+    if (/运营商|不是|未找到/.test(msg)) {
+      notOpened.value = true
+    } else {
+      error.value = msg || '加载失败'
+    }
   } finally {
     loading.value = false
   }
+}
+
+onMounted(loadData)
+
+function retry() {
+  loadData()
 }
 
 function copyLink() {
@@ -211,6 +211,7 @@ function goTeam() { navigateTo('/pkg-operator/team/index') }
 function goDormant() { navigateTo('/pkg-operator/dormant/index') }
 function goAnalysis() { navigateTo('/pkg-operator/analysis/index') }
 function goInvite() { navigateTo('/pkg-operator/invite/index') }
+function goJoin() { navigateTo('/pkg-operator/join-operator/index') }
 </script>
 
 <style scoped>
@@ -238,7 +239,7 @@ function goInvite() { navigateTo('/pkg-operator/invite/index') }
 .c-success { color: #16a34a !important; }
 .c-gold { color: #C9A96E !important; }
 .c-operator { color: #7c3aed !important; }
-.c-primary { color: #C41E3A !important; }
+.c-primary { color: var(--brand) !important; }
 
 /* 通用 */
 .dash-sec { padding: 0 32rpx; margin-top: 32rpx; }
@@ -313,4 +314,11 @@ function goInvite() { navigateTo('/pkg-operator/invite/index') }
 .state-error-text { font-size: 28rpx; color: #ef4444; text-align: center; margin-bottom: 24rpx; }
 .state-retry-btn { padding: 16rpx 48rpx; background: #7c3aed; border-radius: 12rpx; }
 .state-retry-btn text { font-size: 26rpx; color: #fff; }
+/* 未开通引导态 */
+.state-guide { min-height: 100vh; background: #f5f5f5; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 120rpx 48rpx; }
+.guide-icon { width: 160rpx; height: 160rpx; border-radius: 48rpx; background: rgba(124,58,237,0.1); display: flex; align-items: center; justify-content: center; margin-bottom: 40rpx; }
+.guide-title { font-size: 34rpx; font-weight: 700; color: #1a1a1a; margin-bottom: 16rpx; }
+.guide-desc { font-size: 26rpx; color: #999; text-align: center; line-height: 1.6; margin-bottom: 48rpx; }
+.guide-btn { padding: 20rpx 64rpx; background: #7c3aed; border-radius: 999rpx; }
+.guide-btn text { font-size: 28rpx; color: #fff; font-weight: 500; }
 </style>

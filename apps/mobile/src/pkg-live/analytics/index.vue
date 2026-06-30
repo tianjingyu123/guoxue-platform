@@ -1,5 +1,16 @@
 <template>
-  <view class="analytics-page">
+  <!-- 加载态 -->
+  <view v-if="loading" class="state-page">
+    <view class="state-spinner" />
+    <text class="state-text">加载数据中…</text>
+  </view>
+  <!-- 错误态 -->
+  <view v-else-if="error" class="state-page">
+    <text class="state-text">{{ error }}</text>
+    <view class="state-retry" @tap="fetchData">重试</view>
+  </view>
+  <!-- 正常内容 -->
+  <view v-else class="analytics-page">
     <!-- 顶部导航 -->
     <view class="nav-bar">
       <view class="nav-left">
@@ -72,22 +83,14 @@
         </view>
       </view>
 
-      <view class="card">
+      <view v-if="insights.length" class="card">
         <view class="card-title">
           <app-icon name="zap" :size="32" color="#f59e0b" />
-          <text class="card-title-text">AI复盘洞察</text>
+          <text class="card-title-text">数据洞察</text>
         </view>
-        <view class="insight insight-green">
-          <app-icon name="star" :size="32" color="#22c55e" />
-          <text class="insight-text insight-text-green">本场直播观看量较上场增长23%，20:15达到峰值3256人，建议在此时间段安排重点内容。</text>
-        </view>
-        <view class="insight insight-blue">
-          <app-icon name="target" :size="32" color="#3b82f6" />
-          <text class="insight-text insight-text-blue">关注转化率达3.4%，高于平台均值2.1%。25-44岁用户占比66%，建议针对此人群优化内容。</text>
-        </view>
-        <view class="insight insight-amber">
-          <app-icon name="trending-up" :size="32" color="#f59e0b" />
-          <text class="insight-text insight-text-amber">弹幕高频词"八字""命理"说明用户对核心主题高度关注，可考虑开设进阶系列课程。</text>
+        <view v-for="(text, i) in insights" :key="i" class="insight" :class="iStyle(i).box">
+          <app-icon :name="iStyle(i).icon" :size="32" :color="iStyle(i).color" />
+          <text class="insight-text" :class="iStyle(i).textClass">{{ text }}</text>
         </view>
       </view>
     </view>
@@ -100,7 +103,7 @@
             <app-icon name="bar-chart-3" :size="32" color="#C41E3A" />
             <text class="card-title-text">在线人数趋势</text>
           </view>
-          <view class="badge badge-outline">峰值 3,256</view>
+          <view class="badge badge-outline">峰值 {{ maxTraffic.toLocaleString() }}</view>
         </view>
         <view class="chart">
           <view v-for="(item, i) in trafficData" :key="i" class="chart-col">
@@ -113,14 +116,11 @@
           </view>
         </view>
         <view class="chart-axis">
-          <text class="axis-text">19:00</text>
-          <text class="axis-text">20:00</text>
-          <text class="axis-text">21:00</text>
-          <text class="axis-text">21:35</text>
+          <text v-for="t in axisTicks" :key="t" class="axis-text">{{ t }}</text>
         </view>
       </view>
 
-      <view class="card">
+      <view v-if="keyMoments.length" class="card">
         <text class="card-title-text card-title-block">关键时刻</text>
         <view v-for="(item, i) in keyMoments" :key="i" class="moment-row">
           <view class="moment-dot-col">
@@ -140,7 +140,11 @@
 
     <!-- 观众画像 -->
     <view v-if="activeTab === 'audience'" class="tab-content">
-      <view class="card">
+      <view v-if="!audience.gender.length && !audience.age.length && !audience.region.length && !audience.source.length" class="empty-hint">
+        <app-icon name="users" :size="64" color="rgba(0,0,0,0.15)" />
+        <text class="empty-hint-text">本场暂无观众画像数据</text>
+      </view>
+      <view v-if="audience.gender.length" class="card">
         <view class="card-title">
           <app-icon name="pie-chart" :size="32" color="#C41E3A" />
           <text class="card-title-text">性别分布</text>
@@ -161,7 +165,7 @@
         </view>
       </view>
 
-      <view class="card">
+      <view v-if="audience.age.length" class="card">
         <text class="card-title-text card-title-block">年龄分布</text>
         <view v-for="item in audience.age" :key="item.label" class="age-row">
           <view class="age-head">
@@ -174,7 +178,7 @@
         </view>
       </view>
 
-      <view class="card">
+      <view v-if="audience.region.length" class="card">
         <view class="card-title">
           <app-icon name="map-pin" :size="32" color="#C41E3A" />
           <text class="card-title-text">地域Top5</text>
@@ -186,7 +190,7 @@
         </view>
       </view>
 
-      <view class="card">
+      <view v-if="audience.source.length" class="card">
         <text class="card-title-text card-title-block">来源渠道</text>
         <view class="source-grid">
           <view v-for="item in audience.source" :key="item.label" class="source-item">
@@ -210,7 +214,7 @@
         </view>
       </view>
 
-      <view class="card">
+      <view v-if="wordCloud.length" class="card">
         <text class="card-title-text card-title-block">弹幕热词</text>
         <view class="word-cloud">
           <text
@@ -231,7 +235,7 @@
           <view class="gift-rank">{{ i + 1 }}</view>
           <text class="gift-name">{{ gift.name }}</text>
           <text class="gift-count">{{ gift.count }}个</text>
-          <text class="gift-amount">¥{{ gift.amount }}</text>
+          <text class="gift-amount">{{ gift.amount }}金币</text>
         </view>
       </view>
 
@@ -248,7 +252,7 @@
           <view class="prod-stats">
             <view class="prod-stat">
               <text class="prod-stat-label">点击</text>
-              <text class="prod-stat-value">{{ p.clicks }}</text>
+              <text class="prod-stat-value">{{ p.clicks || '-' }}</text>
             </view>
             <view class="prod-stat">
               <text class="prod-stat-label">下单</text>
@@ -260,7 +264,7 @@
             </view>
             <view class="prod-stat">
               <text class="prod-stat-label">转化率</text>
-              <text class="prod-stat-value">{{ p.conversion }}%</text>
+              <text class="prod-stat-value">{{ p.conversion ? p.conversion + '%' : '-' }}</text>
             </view>
           </view>
         </view>
@@ -269,7 +273,7 @@
 
     <!-- 回放管理 -->
     <view v-if="activeTab === 'replay'" class="tab-content">
-      <view class="card">
+      <view v-if="replay.playCount > 0 || replay.revenue > 0" class="card">
         <view class="card-title">
           <app-icon name="play" :size="32" color="#C41E3A" />
           <text class="card-title-text">回放数据</text>
@@ -370,6 +374,7 @@ const interaction = ref<any>({ danmaku: 0, likes: 0, comments: 0, shares: 0, gif
 const wordCloud = ref<any[]>([])
 const productStats = ref<any[]>([])
 const replay = ref<any>({ isPublic: false, isPaid: false, playCount: 0, playDuration: '', revenue: 0 })
+const insights = ref<string[]>([])
 
 const activeTab = ref('overview')
 const replayPublic = ref(false)
@@ -396,6 +401,7 @@ async function fetchData() {
     interaction.value = res.interaction
     wordCloud.value = res.wordCloud
     productStats.value = res.productStats
+    insights.value = res.insights || []
     replay.value = res.replay
     replayPublic.value = res.replay?.isPublic ?? false
     replayPaid.value = res.replay?.isPaid ?? false
@@ -409,6 +415,13 @@ async function fetchData() {
 const maxTraffic = computed(() => {
   if (trafficData.value.length === 0) return 0
   return Math.max(...trafficData.value.map((d: any) => d.value))
+})
+
+const axisTicks = computed(() => {
+  const d = trafficData.value
+  if (!d.length) return []
+  const idx = [0, Math.floor(d.length / 3), Math.floor((d.length * 2) / 3), d.length - 1]
+  return [...new Set(idx)].map((i) => d[i]?.time).filter(Boolean)
 })
 
 const interStats = computed(() => [
@@ -427,6 +440,12 @@ function trendBg(trend: string) {
 function rankClass(i: number) {
   return i === 0 ? 'rank-gold' : i === 1 ? 'rank-silver' : i === 2 ? 'rank-bronze' : 'rank-default'
 }
+const insightStyles = [
+  { box: 'insight-green', icon: 'star', color: '#22c55e', textClass: 'insight-text-green' },
+  { box: 'insight-blue', icon: 'target', color: '#3b82f6', textClass: 'insight-text-blue' },
+  { box: 'insight-amber', icon: 'trending-up', color: '#f59e0b', textClass: 'insight-text-amber' },
+]
+function iStyle(i: number) { return insightStyles[i % insightStyles.length] }
 function goBack() {
   uni.navigateBack()
 }
@@ -529,8 +548,8 @@ onLoad((options: any) => {
   border-bottom: 4rpx solid transparent;
 }
 .tab-item-active {
-  color: #C41E3A;
-  border-bottom-color: #C41E3A;
+  color: var(--brand);
+  border-bottom-color: var(--brand);
   font-weight: 500;
 }
 
@@ -755,7 +774,7 @@ onLoad((options: any) => {
   background: rgba(196, 30, 58, 0.4);
 }
 .chart-bar-peak {
-  background: #C41E3A;
+  background: var(--brand);
 }
 .chart-label {
   font-size: 16rpx;
@@ -785,7 +804,7 @@ onLoad((options: any) => {
   width: 16rpx;
   height: 16rpx;
   border-radius: 50%;
-  background: #C41E3A;
+  background: var(--brand);
   margin-top: 6rpx;
 }
 .moment-line {
@@ -894,7 +913,7 @@ onLoad((options: any) => {
 }
 .progress-fill {
   height: 100%;
-  background: #C41E3A;
+  background: var(--brand);
   border-radius: 6rpx;
 }
 
@@ -1118,7 +1137,7 @@ onLoad((options: any) => {
   margin-top: 4rpx;
 }
 .prod-stat-primary {
-  color: #C41E3A;
+  color: var(--brand);
 }
 
 /* 回放数据 */
@@ -1181,7 +1200,7 @@ onLoad((options: any) => {
   transition: background 0.2s;
 }
 .switch-on {
-  background: #C41E3A;
+  background: var(--brand);
 }
 .switch-knob {
   width: 36rpx;
@@ -1265,7 +1284,7 @@ onLoad((options: any) => {
   left: 16rpx;
   padding: 4rpx 12rpx;
   border-radius: 6rpx;
-  background: #C41E3A;
+  background: var(--brand);
   color: #fff;
   font-size: 20rpx;
 }
@@ -1293,5 +1312,49 @@ onLoad((options: any) => {
   color: #999;
   margin-top: 6rpx;
   display: block;
+}
+
+/* 三态 */
+.state-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: #faf8f5;
+  gap: 24rpx;
+}
+.state-spinner {
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 50%;
+  border: 6rpx solid #ece8e1;
+  border-top-color: var(--brand);
+  animation: state-spin 0.8s linear infinite;
+}
+@keyframes state-spin {
+  to { transform: rotate(360deg); }
+}
+.state-text {
+  font-size: 26rpx;
+  color: #999;
+}
+.state-retry {
+  padding: 16rpx 56rpx;
+  background: var(--brand);
+  color: #fff;
+  border-radius: 24rpx;
+  font-size: 26rpx;
+}
+.empty-hint {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16rpx;
+  padding: 80rpx 0;
+}
+.empty-hint-text {
+  font-size: 24rpx;
+  color: #999;
 }
 </style>

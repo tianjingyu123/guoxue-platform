@@ -116,13 +116,13 @@ function goRecharge() { navigateTo('/wallet/recharge') }
 .ibd-shortfall-num {
   font-size: 40rpx;
   font-weight: 700;
-  color: #C41E3A;
+  color: var(--brand);
 }
 .ibd-recharge {
   width: 100%;
   height: 96rpx;
   border-radius: 24rpx;
-  background-color: #C41E3A;
+  background-color: var(--brand);
   display: flex;
   align-items: center;
   justify-content: center;

@@ -172,10 +172,19 @@ function onTouchEnd() {
   touchStartX = 0
 }
 
-function setDefault(addr: ShippingAddressItem) {
-  if (addr.isDefault) return
-  addresses.value = addresses.value.map((a) => ({ ...a, isDefault: a.id === addr.id }))
-  uni.showToast({ title: '已设为默认', icon: 'none' })
+const settingDefault = ref(false)
+async function setDefault(addr: ShippingAddressItem) {
+  if (addr.isDefault || settingDefault.value) return
+  settingDefault.value = true
+  try {
+    await accountApi.setDefaultAddress(addr.id)
+    addresses.value = addresses.value.map((a) => ({ ...a, isDefault: a.id === addr.id }))
+    uni.showToast({ title: '已设为默认', icon: 'none' })
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '设置失败', icon: 'none' })
+  } finally {
+    settingDefault.value = false
+  }
 }
 
 function confirmDelete(id: string) {
@@ -277,7 +286,7 @@ function goEdit(id?: string) {
 .empty-btn {
   padding: 0 48rpx;
   height: 72rpx;
-  background: #C41E3A;
+  background: var(--brand);
   border-radius: 36rpx;
   display: flex;
   align-items: center;
@@ -359,7 +368,7 @@ function goEdit(id?: string) {
 }
 .addr-tag {
   padding: 2rpx 12rpx;
-  background: #C41E3A;
+  background: var(--brand);
   border-radius: 6rpx;
 }
 .addr-tag-text {
@@ -394,15 +403,15 @@ function goEdit(id?: string) {
   justify-content: center;
 }
 .radio.checked {
-  border-color: #C41E3A;
-  background: #C41E3A;
+  border-color: var(--brand);
+  background: var(--brand);
 }
 .foot-default-text {
   font-size: 26rpx;
   color: #666666;
 }
 .foot-default-text.active {
-  color: #C41E3A;
+  color: var(--brand);
 }
 .foot-edit {
   padding: 4rpx 8rpx;
@@ -427,7 +436,7 @@ function goEdit(id?: string) {
 }
 .add-btn {
   height: 88rpx;
-  background: #C41E3A;
+  background: var(--brand);
   border-radius: 44rpx;
   display: flex;
   align-items: center;

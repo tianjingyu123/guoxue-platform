@@ -216,9 +216,9 @@ function backToCircle() { goBack() }
 .bk-experts { white-space: nowrap; }
 .bk-experts-inner { display: inline-flex; gap: 20rpx; }
  .bk-expert { flex-shrink: 0; width: 200rpx; border-radius: 20rpx; padding: 20rpx; border: 3rpx solid transparent; background: #fff; }
-.bk-expert.is-active { border-color: #C41E3A; background: #FEF0F2; }
+.bk-expert.is-active { border-color: var(--brand); background: #FEF0F2; }
 .bk-expert.is-disabled { background: #F2F2F2; opacity: 0.6; }
-.bk-avatar { width: 88rpx; height: 88rpx; border-radius: 50%; background: linear-gradient(135deg, #C41E3A, #E85A6B); margin: 0 auto 14rpx; display: flex; align-items: center; justify-content: center; }
+.bk-avatar { width: 88rpx; height: 88rpx; border-radius: 50%; background: linear-gradient(135deg, var(--brand), #E85A6B); margin: 0 auto 14rpx; display: flex; align-items: center; justify-content: center; }
 .bk-avatar-lg { width: 88rpx; height: 88rpx; margin: 0; }
 .bk-avatar-t { font-size: 34rpx; font-weight: 500; color: #fff; }
 .bk-expert-name { display: block; font-size: 26rpx; font-weight: 500; color: #2C2C2C; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -226,7 +226,7 @@ function backToCircle() { goBack() }
 .bk-expert-rate { display: flex; align-items: center; justify-content: center; gap: 4rpx; margin-top: 6rpx; }
 .bk-expert-rate-t { font-size: 22rpx; color: #666; }
 .bk-expert-price { text-align: center; margin-top: 12rpx; }
-.bk-expert-price-num { font-size: 28rpx; font-weight: 700; color: #C41E3A; }
+.bk-expert-price-num { font-size: 28rpx; font-weight: 700; color: var(--brand); }
 .bk-expert-price-unit { font-size: 22rpx; color: #999; }
 .bk-expert-na { display: block; font-size: 22rpx; color: #999; text-align: center; margin-top: 8rpx; }
 /* 日历 */
@@ -239,7 +239,7 @@ function backToCircle() { goBack() }
 .bk-cal-grid { display: flex; flex-wrap: wrap; }
 .bk-cal-cell { width: 14.285%; aspect-ratio: 1; display: flex; align-items: center; justify-content: center; }
 .bk-cal-day { width: 64rpx; height: 64rpx; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
-.bk-cal-day.is-selected { background: #C41E3A; }
+.bk-cal-day.is-selected { background: var(--brand); }
 .bk-cal-day-t { font-size: 26rpx; color: #2C2C2C; }
 .bk-cal-day-t.is-selected { color: #fff; }
 .bk-cal-day-t.is-past { color: #CCC; }
@@ -247,7 +247,7 @@ function backToCircle() { goBack() }
 .bk-slots-wrap { background: #fff; border-radius: 20rpx; padding: 24rpx; }
 .bk-slots { display: flex; flex-wrap: wrap; gap: 16rpx; }
 .bk-slot { width: calc((100% - 48rpx) / 4); height: 64rpx; border-radius: 12rpx; background: #FAF8F5; display: flex; align-items: center; justify-content: center; }
-.bk-slot.is-selected { background: #C41E3A; }
+.bk-slot.is-selected { background: var(--brand); }
 .bk-slot.is-disabled { background: #F2F2F2; }
 .bk-slot-t { font-size: 26rpx; color: #2C2C2C; }
 .bk-slot-t.is-selected { color: #fff; }
@@ -256,7 +256,7 @@ function backToCircle() { goBack() }
 /* 时长 */
 .bk-durations { display: flex; gap: 20rpx; }
 .bk-duration { flex: 1; height: 84rpx; border-radius: 16rpx; background: #fff; display: flex; align-items: center; justify-content: center; }
-.bk-duration.is-active { background: #C41E3A; }
+.bk-duration.is-active { background: var(--brand); }
 .bk-duration-t { font-size: 26rpx; font-weight: 500; color: #2C2C2C; }
 .bk-duration-t.is-active { color: #fff; }
 /* 主题 */
@@ -273,15 +273,15 @@ function backToCircle() { goBack() }
 .bk-fee-v { font-size: 26rpx; color: #2C2C2C; }
 .bk-fee-total { display: flex; align-items: center; justify-content: space-between; padding-top: 16rpx; border-top: 1rpx solid #E8E3DB; }
 .bk-fee-total-l { font-size: 28rpx; font-weight: 500; color: #2C2C2C; }
-.bk-fee-total-v { font-size: 36rpx; font-weight: 700; color: #C41E3A; }
+.bk-fee-total-v { font-size: 36rpx; font-weight: 700; color: var(--brand); }
 /* 底部 */
 .bk-footer { position: fixed; bottom: 0; left: 0; right: 0; background: #fff; border-top: 1rpx solid #E8E3DB; padding: 24rpx; }
 .bk-footer-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20rpx; }
 .bk-footer-time { display: flex; align-items: center; gap: 8rpx; }
 .bk-footer-time-t { font-size: 26rpx; color: #666; }
 .bk-footer-pay-l { font-size: 26rpx; color: #999; }
-.bk-footer-pay-v { font-size: 38rpx; font-weight: 700; color: #C41E3A; margin-left: 8rpx; }
-.bk-submit { height: 88rpx; border-radius: 16rpx; background: linear-gradient(90deg, #C41E3A, #E85A6B); display: flex; align-items: center; justify-content: center; }
+.bk-footer-pay-v { font-size: 38rpx; font-weight: 700; color: var(--brand); margin-left: 8rpx; }
+.bk-submit { height: 88rpx; border-radius: 16rpx; background: linear-gradient(90deg, var(--brand), #E85A6B); display: flex; align-items: center; justify-content: center; }
 .bk-submit.is-disabled { opacity: 0.5; }
 .bk-submit-t { font-size: 30rpx; font-weight: 500; color: #fff; }
 /* 成功页 */
@@ -298,10 +298,10 @@ function backToCircle() { goBack() }
 .bk-success-row { display: flex; align-items: center; justify-content: space-between; }
 .bk-success-row-l { font-size: 26rpx; color: #999; }
 .bk-success-row-v { font-size: 26rpx; color: #2C2C2C; }
-.bk-success-row-v.is-price { color: #C41E3A; font-weight: 500; }
+.bk-success-row-v.is-price { color: var(--brand); font-weight: 500; }
 .bk-success-footer { padding: 24rpx; display: flex; flex-direction: column; gap: 20rpx; }
-.bk-success-cal { height: 88rpx; border: 1rpx solid #C41E3A; border-radius: 16rpx; display: flex; align-items: center; justify-content: center; gap: 12rpx; }
-.bk-success-cal-t { font-size: 28rpx; font-weight: 500; color: #C41E3A; }
-.bk-success-back { height: 88rpx; border-radius: 16rpx; background: linear-gradient(90deg, #C41E3A, #E85A6B); display: flex; align-items: center; justify-content: center; }
+.bk-success-cal { height: 88rpx; border: 1rpx solid var(--brand); border-radius: 16rpx; display: flex; align-items: center; justify-content: center; gap: 12rpx; }
+.bk-success-cal-t { font-size: 28rpx; font-weight: 500; color: var(--brand); }
+.bk-success-back { height: 88rpx; border-radius: 16rpx; background: linear-gradient(90deg, var(--brand), #E85A6B); display: flex; align-items: center; justify-content: center; }
 .bk-success-back-t { font-size: 28rpx; font-weight: 500; color: #fff; }
 </style>

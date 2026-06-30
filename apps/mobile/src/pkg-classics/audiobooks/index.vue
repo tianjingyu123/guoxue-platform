@@ -56,12 +56,17 @@ function goPlayer(id: string) {
       <template v-else>
       <!-- Hero -->
       <view class="ab-hero">
-        <text class="ab-hero-kicker">名家播讲</text>
+        <text class="ab-hero-kicker">AI 智能语音 · 逐句跟读</text>
         <text class="ab-hero-title">轻松听典籍</text>
       </view>
 
+      <!-- 空态 -->
+      <view v-if="!audioBooks.length" style="text-align:center;padding:120rpx 0;">
+        <text style="color:var(--muted-foreground);font-size:28rpx;">暂无可听书目</text>
+      </view>
+
       <!-- 今日主打 - 大卡 -->
-      <view class="ab-feature-sec">
+      <view v-if="feature" class="ab-feature-sec">
         <view class="ab-feature" @tap="goPlayer(feature.id)">
           <text class="ab-feature-tag">编辑主打</text>
           <view class="ab-feature-body">
@@ -76,12 +81,12 @@ function goPlayer(id: string) {
               <text class="ab-feature-desc">{{ feature.desc }}</text>
               <view class="ab-feature-meta">
                 <view class="ab-meta-item">
-                  <app-icon name="clock" :size="28" color="rgba(255,255,255,0.7)" />
-                  <text>{{ feature.duration }}</text>
+                  <app-icon name="sparkles" :size="28" color="rgba(255,255,255,0.7)" />
+                  <text>{{ feature.narrator }}</text>
                 </view>
                 <view class="ab-meta-item">
                   <app-icon name="headphones" :size="28" color="rgba(255,255,255,0.7)" />
-                  <text>{{ fmtPlays(feature.plays) }}</text>
+                  <text>{{ fmtPlays(feature.plays) }} 收听</text>
                 </view>
               </view>
               <view class="ab-feature-btn">
@@ -109,27 +114,15 @@ function goPlayer(id: string) {
                 <text class="ab-row-title">{{ book.title }}</text>
                 <text class="ab-row-desc">{{ book.desc }}</text>
                 <view class="ab-row-meta">
-                  <text class="ab-row-quality">{{ book.quality }}</text>
-                  <view class="ab-meta-item">
-                    <app-icon name="clock" :size="24" color="#999999" />
-                    <text>{{ book.duration }}</text>
-                  </view>
+                  <text class="ab-row-quality">{{ book.narrator }}</text>
                   <view class="ab-meta-item">
                     <app-icon name="headphones" :size="24" color="#999999" />
-                    <text>{{ fmtPlays(book.plays) }}</text>
+                    <text>{{ fmtPlays(book.plays) }} 收听</text>
                   </view>
                 </view>
               </view>
             </view>
             <view class="ab-row-actions">
-              <view class="ab-fav-btn" @tap="toggleFavorite(book.id)">
-                <app-icon
-                  name="heart"
-                  :size="40"
-                  :color="favorites.includes(book.id) ? '#c41e3a' : '#cccccc'"
-                  :fill="favorites.includes(book.id)"
-                />
-              </view>
               <view class="ab-play-btn" @tap="goPlayer(book.id)">
                 <app-icon name="play" :size="32" color="#ffffff" :fill="true" />
               </view>
@@ -161,7 +154,7 @@ function goPlayer(id: string) {
   font-size: 26rpx;
   font-weight: 600;
   letter-spacing: 1rpx;
-  color: #c41e3a;
+  color: var(--brand);
   margin-bottom: 12rpx;
 }
 .ab-hero-title {
@@ -348,7 +341,7 @@ function goPlayer(id: string) {
   width: 72rpx;
   height: 72rpx;
   border-radius: 50%;
-  background: #c41e3a;
+  background: var(--brand);
   display: flex;
   align-items: center;
   justify-content: center;

@@ -7,7 +7,7 @@
       <!-- 热卜 LOGO -->
       <view class="logo-wrap" :class="{ 'logo-in': true }">
         <view class="logo-box">
-          <image class="logo-img" :src="logoSrc" mode="aspectFill" />
+          <image lazy-load class="logo-img" :src="logoSrc" mode="aspectFill" />
         </view>
       </view>
 
@@ -215,7 +215,7 @@ onUnmounted(() => {
   gap: 12rpx;
   padding: 28rpx 80rpx;
   border-radius: 48rpx;
-  background: #c41e3a;
+  background: var(--brand);
   box-shadow: 0 12rpx 32rpx rgba(196, 30, 58, 0.28);
   transition: all 0.7s ease-out;
 }

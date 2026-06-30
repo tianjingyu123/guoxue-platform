@@ -16,8 +16,15 @@
     </view>
 
     <scroll-view scroll-y class="body">
+      <!-- 未登录态 -->
+      <view v-if="notLoggedIn" class="empty">
+        <AppIcon name="bookmark" :size="96" :color="C.slate200" />
+        <text class="empty-title">登录后查看书签</text>
+        <text class="empty-sub">登录即可同步你的阅读书签</text>
+        <view class="empty-btn" @tap="goLogin"><text class="empty-btn-tx">去登录</text></view>
+      </view>
       <!-- 加载态 -->
-      <view v-if="loading" class="empty">
+      <view v-else-if="loading" class="empty">
         <text class="empty-title">加载中...</text>
       </view>
       <!-- 错误态 -->
@@ -70,6 +77,7 @@ import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { ebookApi, type EbookBookmark } from '@/lib/ebook-data'
+import { getToken } from '@/utils/storage'
 
 const C = {
   text: '#1e293b', primary: '#2563eb', slate400: '#94a3b8', slate200: '#e2e8f0',
@@ -77,10 +85,14 @@ const C = {
 
 const loading = ref(true)
 const error = ref('')
+const notLoggedIn = ref(false)
 const search = ref('')
 const items = ref<EbookBookmark[]>([])
+const deletingId = ref('')
 
 async function fetchData() {
+  if (!getToken()) { notLoggedIn.value = true; loading.value = false; return }
+  notLoggedIn.value = false
   loading.value = true
   error.value = ''
   try {
@@ -109,8 +121,21 @@ const grouped = computed(() => {
 })
 const groupedKeys = computed(() => grouped.value.map((g) => g.bookId))
 
-function del(id: string) {
-  items.value = items.value.filter((b) => b.id !== id)
+async function del(id: string) {
+  if (deletingId.value) return
+  deletingId.value = id
+  try {
+    await ebookApi.removeBookmark(id)
+    items.value = items.value.filter((b) => b.id !== id)
+    uni.showToast({ title: '已删除', icon: 'none' })
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '删除失败', icon: 'none' })
+  } finally {
+    deletingId.value = ''
+  }
+}
+function goLogin() {
+  uni.navigateTo({ url: '/pkg-auth/login/index' })
 }
 function goBack() {
   uni.navigateBack()

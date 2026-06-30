@@ -114,7 +114,7 @@ onMounted(() => {
       <view class="info-meta">
         <text class="info-title">{{ course.title }}</text>
         <view class="info-inst">
-          <image class="info-avatar" :src="course.instructor.avatar" mode="aspectFill" />
+          <image lazy-load class="info-avatar" :src="course.instructor.avatar" mode="aspectFill" />
           <text class="info-inst-name">{{ course.instructor.name }}</text>
         </view>
         <view class="info-stats">
@@ -209,7 +209,7 @@ onMounted(() => {
           <text class="ask-btn-txt">我要提问</text>
         </view>
         <view v-for="q in questions" :key="q.id" class="q-card">
-          <image class="q-avatar" :src="q.author.avatar" mode="aspectFill" />
+          <image lazy-load class="q-avatar" :src="q.author.avatar" mode="aspectFill" />
           <view class="q-body">
             <view class="q-hdr">
               <text class="q-name">{{ q.author.name }}</text>
@@ -271,7 +271,7 @@ onMounted(() => {
 .ring-bg { position: absolute; inset: 0; border-radius: 50%; background: #E8E3DB; }
 .ring-track { position: absolute; inset: 0; border-radius: 50%; }
 .ring-hole { position: absolute; inset: 12rpx; border-radius: 50%; background: #fff; }
-.ring-pct { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 32rpx; font-weight: 700; color: #C41E3A; }
+.ring-pct { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 32rpx; font-weight: 700; color: var(--brand); }
 .info-meta { flex: 1; min-width: 0; }
 .info-title { display: block; font-size: 30rpx; font-weight: 700; color: #2C2C2C; margin-bottom: 8rpx; }
 .info-inst { display: flex; align-items: center; gap: 8rpx; margin-bottom: 16rpx; }
@@ -285,11 +285,11 @@ onMounted(() => {
 /* Tabs */
 .tabs { background: #fff; border-bottom: 1rpx solid #E8E3DB; position: sticky; top: 88rpx; z-index: 30; display: flex; }
 .tab-item { flex: 1; padding: 24rpx 0; display: flex; align-items: center; justify-content: center; gap: 8rpx; border-bottom: 4rpx solid transparent; }
-.tab-item.active { border-bottom-color: #C41E3A; }
+.tab-item.active { border-bottom-color: var(--brand); }
 .tab-label { font-size: 26rpx; font-weight: 500; color: #666; }
-.tab-item.active .tab-label { color: #C41E3A; }
+.tab-item.active .tab-label { color: var(--brand); }
 .tab-count { font-size: 22rpx; padding: 2rpx 12rpx; border-radius: 999rpx; background: #F5F0E8; color: #666; }
-.tab-count.active { background: rgba(196,30,58,0.1); color: #C41E3A; }
+.tab-count.active { background: rgba(196,30,58,0.1); color: var(--brand); }
 
 .content { padding: 32rpx; }
 
@@ -320,7 +320,7 @@ onMounted(() => {
 .note-card { background: #fff; border-radius: 16rpx; padding: 24rpx; box-shadow: 0 2rpx 8rpx rgba(0,0,0,0.04); }
 .note-hdr { display: flex; align-items: flex-start; gap: 16rpx; margin-bottom: 16rpx; }
 .note-hdr-meta { flex: 1; }
-.note-chapter { display: block; font-size: 24rpx; color: #C41E3A; }
+.note-chapter { display: block; font-size: 24rpx; color: var(--brand); }
 .note-lesson { display: block; font-size: 22rpx; color: #999; }
 .note-content { display: block; font-size: 26rpx; color: #2C2C2C; line-height: 1.6; padding-left: 44rpx; }
 .note-date { display: block; font-size: 22rpx; color: #999; margin-top: 16rpx; padding-left: 44rpx; }
@@ -330,8 +330,8 @@ onMounted(() => {
 
 /* 问答 */
 .questions { display: flex; flex-direction: column; gap: 24rpx; }
-.ask-btn { padding: 24rpx 0; background: #fff; border-radius: 24rpx; border: 1rpx dashed #C41E3A; display: flex; align-items: center; justify-content: center; gap: 16rpx; }
-.ask-btn-txt { font-size: 26rpx; font-weight: 500; color: #C41E3A; }
+.ask-btn { padding: 24rpx 0; background: #fff; border-radius: 24rpx; border: 1rpx dashed var(--brand); display: flex; align-items: center; justify-content: center; gap: 16rpx; }
+.ask-btn-txt { font-size: 26rpx; font-weight: 500; color: var(--brand); }
 .q-card { background: #fff; border-radius: 16rpx; padding: 24rpx; display: flex; align-items: flex-start; gap: 20rpx; box-shadow: 0 2rpx 8rpx rgba(0,0,0,0.04); }
 .q-avatar { width: 64rpx; height: 64rpx; border-radius: 50%; background: #F2EFEA; flex-shrink: 0; }
 .q-body { flex: 1; min-width: 0; }
@@ -341,12 +341,12 @@ onMounted(() => {
 .q-content { display: block; font-size: 26rpx; color: #2C2C2C; line-height: 1.6; margin-bottom: 16rpx; }
 .q-foot { display: flex; align-items: center; gap: 24rpx; }
 .q-chapter { font-size: 22rpx; color: #999; }
-.q-answers { font-size: 22rpx; color: #C41E3A; }
+.q-answers { font-size: 22rpx; color: var(--brand); }
 .q-answered { font-size: 20rpx; color: #fff; background: #52c41a; padding: 2rpx 12rpx; border-radius: 6rpx; }
 
 /* 底部 */
 .bottom-bar { position: fixed; bottom: 0; left: 0; right: 0; background: #fff; border-top: 1rpx solid #E8E3DB; padding: 32rpx 32rpx 64rpx; z-index: 40; }
-.continue-btn { width: 100%; height: 88rpx; background: linear-gradient(to right, #C41E3A, #E74C3C); border-radius: 999rpx; display: flex; align-items: center; justify-content: center; gap: 16rpx; box-shadow: 0 8rpx 24rpx rgba(196,30,58,0.3); }
+.continue-btn { width: 100%; height: 88rpx; background: linear-gradient(to right, var(--brand), #E74C3C); border-radius: 999rpx; display: flex; align-items: center; justify-content: center; gap: 16rpx; box-shadow: 0 8rpx 24rpx rgba(196,30,58,0.3); }
 .continue-txt { font-size: 30rpx; font-weight: 700; color: #fff; }
 
 /* 提问弹窗 */
@@ -357,7 +357,7 @@ onMounted(() => {
 .sheet-title { font-size: 32rpx; font-weight: 700; color: #2C2C2C; }
 .ask-input { width: 100%; height: 256rpx; padding: 24rpx; background: #F5F0E8; border-radius: 16rpx; font-size: 28rpx; color: #2C2C2C; box-sizing: border-box; }
 .ask-ph { color: #999; }
-.submit-btn { margin-top: 32rpx; height: 88rpx; background: #C41E3A; border-radius: 999rpx; display: flex; align-items: center; justify-content: center; gap: 16rpx; }
+.submit-btn { margin-top: 32rpx; height: 88rpx; background: var(--brand); border-radius: 999rpx; display: flex; align-items: center; justify-content: center; gap: 16rpx; }
 .submit-btn.disabled { background: #E8E3DB; }
 .submit-txt { font-size: 28rpx; font-weight: 700; color: #fff; }
 .submit-btn.disabled .submit-txt { color: #999; }

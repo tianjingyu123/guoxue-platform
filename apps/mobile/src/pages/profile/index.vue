@@ -7,6 +7,8 @@ import {
   profileApi, getGreeting, roleConfig, quickFunctions,
   allRoleTypes, roleHref, type UserRole,
 } from '@/lib/profile-data'
+import { recommendApi } from '@/lib/recommend-data'
+import type { RecommendItem } from '@/components/common/recommend-section.vue'
 
 const loading = ref(true)
 const error = ref('')
@@ -32,7 +34,7 @@ const userData = ref({
   orders: { pending: 0, shipped: 0, received: 0, refund: 0 },
   continueLearning: null as { id: number; title: string; progress: number; lastLesson: string } | null,
 })
-const recList = ref<{ id: number; type: 'course' | 'product'; title: string; price: number; originalPrice: number; tag: string }[]>([])
+const recItems = ref<RecommendItem[]>([])
 
 // totalMessages 基于 API 返回的用户数据动态计算
 const totalMessages = computed(() => {
@@ -58,7 +60,8 @@ async function fetchData() {
   try {
     const data = await profileApi.getProfile()
     userData.value = data
-    recList.value = await profileApi.recommendations()
+    // 猜你喜欢（getForScene 已内置降级，无需 try/catch）
+    recItems.value = await recommendApi.getForScene('guess_like')
   } catch (e: any) {
     error.value = e?.message || '加载失败，请重试'
   } finally {
@@ -76,7 +79,7 @@ const pendingRole = ref<{ type: UserRole; name: string; href: string } | null>(n
 function go(href: string) {
   navigateTo(href)
 }
-function openRole(type: UserRole, name: string, id: number) {
+function openRole(type: UserRole, name: string, id: string | number) {
   pendingRole.value = { type, name, href: roleHref(type, id) }
 }
 function confirmRole() {
@@ -96,17 +99,14 @@ async function handleCheckIn() {
   checkInSubmitting.value = true
   try {
     const res = await profileApi.checkIn()
-    if (res.success) {
-      userData.value.checkIn = {
-        ...userData.value.checkIn,
-        todayChecked: true,
-        continuousDays: userData.value.checkIn.continuousDays + 1,
-        totalPoints: userData.value.checkIn.totalPoints + res.points,
-      }
-      uni.showToast({ title: `签到成功 +${res.points}积分`, icon: 'none' })
+    userData.value.checkIn = {
+      todayChecked: true,
+      continuousDays: res.consecutiveDays,
+      totalPoints: userData.value.checkIn.totalPoints + res.points,
     }
-  } catch {
-    uni.showToast({ title: '签到失败，请重试', icon: 'none' })
+    uni.showToast({ title: `签到成功 +${res.points}积分`, icon: 'none' })
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '签到失败，请重试', icon: 'none' })
   } finally {
     checkInSubmitting.value = false
   }
@@ -115,6 +115,8 @@ async function handleCheckIn() {
 
 <template>
   <view class="page">
+    <app-network-bar />
+    <customer-service-fab />
     <!-- 骨架屏 -->
     <view v-if="loading" class="skeleton">
       <view class="skeleton-hero" />
@@ -150,7 +152,7 @@ async function handleCheckIn() {
       <!-- 用户信息 -->
       <view class="user-row">
         <view class="avatar" @tap="go('/pages/profile/edit')">
-          <image v-if="userData.avatar" class="avatar-img" :src="userData.avatar" mode="aspectFill" />
+          <image lazy-load v-if="userData.avatar" class="avatar-img" :src="userData.avatar" mode="aspectFill" />
           <text v-else class="avatar-fallback">{{ userData.name[0] }}</text>
         </view>
         <view class="user-info">
@@ -252,7 +254,7 @@ async function handleCheckIn() {
             </view>
             <view class="role-info">
               <text class="role-label">{{ roleConfig[role.type].label }}</text>
-              <text class="role-name">{{ role.name }}</text>
+              <text v-if="role.name" class="role-name">{{ role.name }}</text>
             </view>
             <AppIcon name="chevron-right" :size="28" color="#999999" />
           </view>
@@ -306,28 +308,8 @@ async function handleCheckIn() {
       </view>
     </view>
 
-    <!-- ===== 猜你喜欢 ===== -->
-    <view class="sec sec-rec">
-      <view class="rec-head">
-        <text class="card-title">猜你喜欢</text>
-        <view class="card-more" @tap="go('/pages/discover/index')"><text class="more-txt">更多</text><AppIcon name="chevron-right" :size="28" color="#999999" /></view>
-      </view>
-      <scroll-view scroll-x class="rec-scroll" :show-scrollbar="false">
-        <view class="rec-row">
-          <view v-for="item in recList" :key="item.id" class="rec-item" @tap="toastComingSoon">
-            <view class="rec-cover">
-              <AppIcon :name="item.type === 'course' ? 'book-open' : 'package'" :size="56" :color="item.type === 'course' ? 'rgba(196,30,58,0.3)' : 'rgba(201,169,110,0.3)'" />
-              <text v-if="item.tag" class="rec-tag">{{ item.tag }}</text>
-            </view>
-            <text class="rec-title">{{ item.title }}</text>
-            <view class="rec-price-row">
-              <text class="rec-price">¥{{ item.price }}</text>
-              <text class="rec-origin">¥{{ item.originalPrice }}</text>
-            </view>
-          </view>
-        </view>
-      </scroll-view>
-    </view>
+    <!-- ===== 猜你喜欢（统一推荐区块·空时不渲染）===== -->
+    <recommend-section title="猜你喜欢" :items="recItems" />
 
     <!-- ===== 会员到期提醒（剩余<=30天）===== -->
     <view v-if="userData.isVip && userData.vipDaysLeft <= 30" class="vip-remind">
@@ -369,10 +351,10 @@ async function handleCheckIn() {
 .topbar { position: relative; display: flex; align-items: center; justify-content: space-between; padding: 96rpx 32rpx 16rpx; }
 .topbar-right { display: flex; align-items: center; gap: 16rpx; }
 .round-btn { position: relative; width: 72rpx; height: 72rpx; border-radius: 50%; background: rgba(255,255,255,0.6); display: flex; align-items: center; justify-content: center; }
-.msg-badge { position: absolute; top: -4rpx; right: -4rpx; min-width: 32rpx; height: 32rpx; padding: 0 6rpx; background: #C41E3A; color: #fff; font-size: 18rpx; font-weight: 700; border-radius: 16rpx; display: flex; align-items: center; justify-content: center; }
+.msg-badge { position: absolute; top: -4rpx; right: -4rpx; min-width: 32rpx; height: 32rpx; padding: 0 6rpx; background: var(--brand); color: #fff; font-size: 18rpx; font-weight: 700; border-radius: 16rpx; display: flex; align-items: center; justify-content: center; }
 
 .user-row { position: relative; display: flex; align-items: flex-start; gap: 32rpx; padding: 0 32rpx 32rpx; }
-.avatar { width: 160rpx; height: 160rpx; border-radius: 50%; background: #C41E3A; display: flex; align-items: center; justify-content: center; border: 8rpx solid #fff; box-shadow: 0 8rpx 24rpx rgba(0,0,0,0.12); flex-shrink: 0; overflow: hidden; }
+.avatar { width: 160rpx; height: 160rpx; border-radius: 50%; background: var(--brand); display: flex; align-items: center; justify-content: center; border: 8rpx solid #fff; box-shadow: 0 8rpx 24rpx rgba(0,0,0,0.12); flex-shrink: 0; overflow: hidden; }
 .avatar-img { width: 100%; height: 100%; }
 .avatar-fallback { font-family: var(--font-serif); font-size: 56rpx; font-weight: 700; color: #fff; }
 .user-info { flex: 1; padding-top: 8rpx; min-width: 0; }
@@ -414,7 +396,7 @@ async function handleCheckIn() {
 .order-item { flex: 1; position: relative; display: flex; flex-direction: column; align-items: center; gap: 12rpx; }
 .order-icon { width: 80rpx; height: 80rpx; border-radius: 50%; background: rgba(240,236,228,0.5); display: flex; align-items: center; justify-content: center; }
 .order-label { font-size: 22rpx; color: #2c2c2c; }
-.order-badge { position: absolute; top: 0; right: 25%; min-width: 32rpx; height: 32rpx; padding: 0 6rpx; background: #C41E3A; color: #fff; font-size: 18rpx; font-weight: 700; border-radius: 16rpx; display: flex; align-items: center; justify-content: center; }
+.order-badge { position: absolute; top: 0; right: 25%; min-width: 32rpx; height: 32rpx; padding: 0 6rpx; background: var(--brand); color: #fff; font-size: 18rpx; font-weight: 700; border-radius: 16rpx; display: flex; align-items: center; justify-content: center; }
 
 /* 第四层 常用功能 */
 .fn-grid { display: flex; flex-wrap: wrap; padding: 32rpx 0; }
@@ -439,13 +421,13 @@ async function handleCheckIn() {
 /* 签到 */
 .checkin-card { display: flex; align-items: center; justify-content: space-between; padding: 24rpx; background: linear-gradient(to right, rgba(196,30,58,0.05), rgba(201,169,110,0.05)); border: 2rpx solid rgba(196,30,58,0.2); border-radius: 24rpx; box-shadow: 0 2rpx 16rpx rgba(0,0,0,0.05); }
 .checkin-left { display: flex; align-items: center; gap: 24rpx; }
-.checkin-icon { width: 80rpx; height: 80rpx; border-radius: 20rpx; background: linear-gradient(135deg, #C41E3A, #C9A96E); display: flex; align-items: center; justify-content: center; }
+.checkin-icon { width: 80rpx; height: 80rpx; border-radius: 20rpx; background: linear-gradient(135deg, var(--brand), #C9A96E); display: flex; align-items: center; justify-content: center; }
 .checkin-title-row { display: flex; align-items: center; gap: 16rpx; }
 .checkin-title { font-size: 28rpx; font-weight: 500; color: #2c2c2c; }
 .checkin-done { font-size: 20rpx; color: #52C41A; background: rgba(82,196,26,0.1); padding: 2rpx 12rpx; border-radius: 8rpx; }
-.checkin-todo { font-size: 20rpx; color: #fff; background: #C41E3A; padding: 2rpx 12rpx; border-radius: 8rpx; }
+.checkin-todo { font-size: 20rpx; color: #fff; background: var(--brand); padding: 2rpx 12rpx; border-radius: 8rpx; }
 .checkin-sub { display: block; font-size: 22rpx; color: #999; margin-top: 4rpx; }
-.hl-red { color: #C41E3A; font-weight: 500; }
+.hl-red { color: var(--brand); font-weight: 500; }
 .hl-gold { color: #C9A96E; font-weight: 500; }
 
 /* 继续学习 */
@@ -456,9 +438,9 @@ async function handleCheckIn() {
 .learn-title { display: block; font-size: 28rpx; font-weight: 500; color: #2c2c2c; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .learn-lesson { display: block; font-size: 20rpx; color: #999; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .learn-prog { display: flex; flex-direction: column; align-items: flex-end; flex-shrink: 0; }
-.learn-pct { font-size: 28rpx; font-weight: 700; color: #C41E3A; }
+.learn-pct { font-size: 28rpx; font-weight: 700; color: var(--brand); }
 .learn-bar { width: 96rpx; height: 8rpx; background: #f0ece4; border-radius: 999rpx; margin-top: 8rpx; overflow: hidden; }
-.learn-bar-fill { height: 100%; background: #C41E3A; border-radius: 999rpx; }
+.learn-bar-fill { height: 100%; background: var(--brand); border-radius: 999rpx; }
 
 /* 猜你喜欢 */
 .sec-rec { margin-bottom: 24rpx; }
@@ -467,10 +449,10 @@ async function handleCheckIn() {
 .rec-row { display: inline-flex; gap: 24rpx; padding-bottom: 8rpx; }
 .rec-item { display: inline-block; width: 256rpx; vertical-align: top; }
 .rec-cover { position: relative; width: 256rpx; height: 341rpx; border-radius: 16rpx; background: linear-gradient(135deg, rgba(196,30,58,0.05), rgba(201,169,110,0.05)); display: flex; align-items: center; justify-content: center; box-shadow: 0 2rpx 16rpx rgba(0,0,0,0.05); }
-.rec-tag { position: absolute; top: 12rpx; left: 12rpx; font-size: 18rpx; padding: 2rpx 12rpx; background: #C41E3A; color: #fff; border-radius: 8rpx; }
+.rec-tag { position: absolute; top: 12rpx; left: 12rpx; font-size: 18rpx; padding: 2rpx 12rpx; background: var(--brand); color: #fff; border-radius: 8rpx; }
 .rec-title { display: block; font-size: 22rpx; font-weight: 500; color: #2c2c2c; margin-top: 16rpx; line-height: 1.5; white-space: normal; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .rec-price-row { display: flex; align-items: baseline; gap: 8rpx; margin-top: 8rpx; }
-.rec-price { font-size: 28rpx; font-weight: 700; color: #C41E3A; }
+.rec-price { font-size: 28rpx; font-weight: 700; color: var(--brand); }
 .rec-origin { font-size: 20rpx; color: #999; text-decoration: line-through; }
 
 /* 会员提醒 */
@@ -492,7 +474,7 @@ async function handleCheckIn() {
 .modal-actions { display: flex; border-top: 2rpx solid #f0ece4; }
 .modal-cancel { flex: 1; padding: 28rpx 0; text-align: center; }
 .modal-cancel-txt { font-size: 28rpx; color: #999; }
-.modal-confirm { flex: 1; padding: 28rpx 0; text-align: center; background: #C41E3A; border-left: 2rpx solid #f0ece4; }
+.modal-confirm { flex: 1; padding: 28rpx 0; text-align: center; background: var(--brand); border-left: 2rpx solid #f0ece4; }
 .modal-confirm-txt { font-size: 28rpx; font-weight: 500; color: #fff; }
 
 /* 三态：骨架屏 / 错误态 */
@@ -504,8 +486,8 @@ async function handleCheckIn() {
 
 .error-state { padding: 200rpx 64rpx 0; display: flex; flex-direction: column; align-items: center; gap: 32rpx; }
 .error-text { font-size: 28rpx; color: #999; text-align: center; }
-.retry-btn { padding: 16rpx 48rpx; border-radius: 999rpx; border: 2rpx solid #C41E3A; }
-.retry-btn text { font-size: 28rpx; color: #C41E3A; }
+.retry-btn { padding: 16rpx 48rpx; border-radius: 999rpx; border: 2rpx solid var(--brand); }
+.retry-btn text { font-size: 28rpx; color: var(--brand); }
 
 /* 签到提交中 */
 .checkin-submitting { opacity: 0.6; pointer-events: none; }

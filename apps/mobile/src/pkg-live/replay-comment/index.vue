@@ -288,8 +288,8 @@ function onSubmit() {
   background: #fff;
 }
 .tag-chip.active {
-  background: #C41E3A;
-  border-color: #C41E3A;
+  background: var(--brand);
+  border-color: var(--brand);
 }
 .tag-txt {
   font-size: 22rpx;
@@ -340,7 +340,7 @@ function onSubmit() {
 .submit-btn {
   width: 100%;
   height: 88rpx;
-  background: #C41E3A;
+  background: var(--brand);
   border-radius: 24rpx;
   display: flex;
   align-items: center;
@@ -394,7 +394,7 @@ function onSubmit() {
   margin-top: 32rpx;
   width: 100%;
   height: 88rpx;
-  background: #C41E3A;
+  background: var(--brand);
   border-radius: 24rpx;
   display: flex;
   align-items: center;

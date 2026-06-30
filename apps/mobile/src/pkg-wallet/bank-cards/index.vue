@@ -64,7 +64,7 @@
           </view>
           <view class="field">
             <text class="label">银行卡号</text>
-            <input v-model="form.cardNumber" type="number" class="input" placeholder="请输入银行卡号" placeholder-class="ph" />
+            <input v-model="form.cardNumber" type="text" class="input" placeholder="请输入银行卡号" placeholder-class="ph" />
           </view>
           <view class="field">
             <text class="label">所属银行</text>
@@ -80,7 +80,7 @@
           </view>
           <view class="field">
             <text class="label">预留手机号</text>
-            <input v-model="form.phone" type="number" maxlength="11" class="input" placeholder="请输入银行预留手机号" placeholder-class="ph" />
+            <input v-model="form.phone" type="text" maxlength="11" class="input" placeholder="请输入银行预留手机号" placeholder-class="ph" />
           </view>
         </view>
         <view class="submit" :class="{ disabled: !canSubmit }" @tap="addCard">确认添加</view>
@@ -146,6 +146,7 @@ function openMenu(c: BankCard) {
         uni.showModal({
           title: '解绑银行卡',
           content: `确定解绑 ${c.bankName} (尾号${c.last4}) 吗？`,
+          confirmColor: '#C41E3A',
           success: (m) => {
             if (m.confirm) {
               cards.value = cards.value.filter((x) => x.id !== c.id)
@@ -201,7 +202,7 @@ function addCard() {
 .bc-bind { font-size: 22rpx; color: rgba(255,255,255,0.7); }
 
 .add-btn { display: flex; align-items: center; justify-content: center; gap: 12rpx; margin-top: 32rpx; height: 96rpx; background: #FFFFFF; border: 2rpx dashed #E8E3DB; border-radius: 20rpx; }
-.add-txt { font-size: 30rpx; font-weight: 500; color: #C41E3A; }
+.add-txt { font-size: 30rpx; font-weight: 500; color: var(--brand); }
 
 .tip { display: flex; align-items: center; justify-content: center; gap: 12rpx; margin-top: 32rpx; padding: 0 8rpx; }
 .tip-txt { font-size: 24rpx; color: #8A8478; }
@@ -218,7 +219,7 @@ function addCard() {
 .ph { color: #B5AD9F; }
 .bank-grid { display: flex; flex-wrap: wrap; gap: 16rpx; }
 .bank-chip { font-size: 26rpx; color: #6B6B6B; padding: 14rpx 28rpx; background: #FAF8F5; border-radius: 16rpx; border: 1rpx solid #E8E3DB; }
-.bank-chip.active { background: #FCEEF0; color: #C41E3A; border-color: #C41E3A; }
-.submit { margin-top: 32rpx; height: 96rpx; background: #C41E3A; color: #FFFFFF; font-size: 30rpx; font-weight: 600; border-radius: 999rpx; display: flex; align-items: center; justify-content: center; }
+.bank-chip.active { background: #FCEEF0; color: var(--brand); border-color: var(--brand); }
+.submit { margin-top: 32rpx; height: 96rpx; background: var(--brand); color: #FFFFFF; font-size: 30rpx; font-weight: 600; border-radius: 999rpx; display: flex; align-items: center; justify-content: center; }
 .submit.disabled { background: #E0DCD4; color: #B5AD9F; }
 </style>

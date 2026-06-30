@@ -257,7 +257,7 @@ onMounted(() => {
 .ig-step-dot.is-current {
   width: 40rpx;
   height: 16rpx;
-  background: #c41e3a;
+  background: var(--brand);
 }
 .ig-step-dot.is-done {
   background: rgba(196, 30, 58, 0.6);
@@ -279,7 +279,7 @@ onMounted(() => {
 .ig-ai-text {
   font-size: 24rpx;
   font-weight: 500;
-  color: #c41e3a;
+  color: var(--brand);
 }
 .ig-title {
   font-family: serif;
@@ -292,14 +292,14 @@ onMounted(() => {
   flex-direction: column;
 }
 .ig-title-accent {
-  color: #c41e3a;
+  color: var(--brand);
 }
 .ig-sub {
   font-size: 26rpx;
   color: #999999;
 }
 .ig-sub-num {
-  color: #c41e3a;
+  color: var(--brand);
   font-weight: bold;
 }
 .ig-sub-remain {
@@ -335,8 +335,8 @@ onMounted(() => {
   transition: all 0.2s;
 }
 .ig-chip.is-selected {
-  background: #c41e3a;
-  border-color: #c41e3a;
+  background: var(--brand);
+  border-color: var(--brand);
   box-shadow: 0 4rpx 24rpx rgba(196, 30, 58, 0.3);
 }
 .ig-chip.is-disabled {
@@ -393,7 +393,7 @@ onMounted(() => {
   border-radius: 999rpx;
   background: rgba(196, 30, 58, 0.1);
   font-size: 22rpx;
-  color: #c41e3a;
+  color: var(--brand);
   font-weight: 500;
 }
 .ig-submit {
@@ -408,7 +408,7 @@ onMounted(() => {
   transition: all 0.2s;
 }
 .ig-submit.is-active {
-  background: linear-gradient(to right, #c41e3a, #e8314e);
+  background: linear-gradient(to right, var(--brand), #e8314e);
   box-shadow: 0 8rpx 40rpx rgba(196, 30, 58, 0.35);
 }
 .ig-submit.is-shake {

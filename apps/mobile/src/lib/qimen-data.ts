@@ -1,5 +1,5 @@
 /** 奇门遁甲排盘数据层 */
-import { apiGet, apiPost, useMock } from '@/utils/request'
+import { apiGet, apiPost } from '@/utils/request'
 
 // ── 类型定义 ──
 
@@ -20,6 +20,24 @@ export interface QimenGong {
   yinGan?: string
   changSheng?: string
   shenSha?: string[]
+  /** 安干/暗干（人元，转盘有；飞盘暂无） */
+  anGan?: string
+  /** 地盘神（转盘有；飞盘暂无） */
+  dipanShen?: string
+  /** 天盘干、地盘干、安干在本宫地支的十二长生（转盘有；飞盘暂无） */
+  changsheng?: { tian: string; di: string; an: string }
+}
+
+export interface QimenPillar { gan: string; zhi: string }
+
+export interface JieQiRange { name: string; start: string; nextName: string; end: string }
+
+export interface QimenMeta {
+  siZhu: { nian: QimenPillar; yue: QimenPillar; ri: QimenPillar; shi: QimenPillar }
+  kongWang: { nian: string; yue: string; ri: string; shi: string }
+  maXingZhi: string
+  jieQi?: JieQiRange
+  trueSolar?: { hour: number; minute: number; offsetMin: number }
 }
 
 export interface QimenResult {
@@ -31,6 +49,7 @@ export interface QimenResult {
   zhiShiMen: string
   gongs: QimenGong[]
   dipanBashen: string[]
+  meta?: QimenMeta
   prevJu?: { number: number; type: 'yang' | 'yin' }
   nextJu?: { number: number; type: 'yang' | 'yin' }
   summary?: string
@@ -53,53 +72,26 @@ export interface QimenInput {
   lng?: number
 }
 
-// ── Mock 数据 ──
-
-const _mockQimenResult: QimenResult = {
-  juNumber: 5,
-  dunType: 'yang',
-  jieQi: '芒种',
-  yongShi: '丙辰',
-  zhiFu: '天蓬',
-  zhiShiMen: '休门',
-  dipanBashen: ['值符', '螣蛇', '太阴', '六合', '白虎', '玄武', '九地', '九天'],
-  gongs: [
-    { index: 1, name: '坎', bagua: '坎', diPan: '戊', tianPan: '癸', star: '天蓬', men: '休门', shen: '值符', isRuMu: false, isJiXing: false, isMenPo: false, kongWang: false, maXing: true },
-    { index: 2, name: '坤', bagua: '坤', diPan: '己', tianPan: '壬', star: '天芮', men: '死门', shen: '螣蛇', isRuMu: false, isJiXing: false, isMenPo: false, kongWang: false, maXing: false },
-    { index: 3, name: '震', bagua: '震', diPan: '庚', tianPan: '丁', star: '天冲', men: '伤门', shen: '太阴', isRuMu: false, isJiXing: false, isMenPo: false, kongWang: true, maXing: false },
-    { index: 4, name: '巽', bagua: '巽', diPan: '辛', tianPan: '丙', star: '天辅', men: '杜门', shen: '六合', isRuMu: false, isJiXing: false, isMenPo: false, kongWang: false, maXing: false },
-    { index: 5, name: '中', bagua: '中', diPan: '壬', tianPan: '乙', star: '天禽', men: '死门', shen: '白虎', isRuMu: false, isJiXing: false, isMenPo: false, kongWang: false, maXing: false },
-    { index: 6, name: '乾', bagua: '乾', diPan: '癸', tianPan: '戊', star: '天心', men: '开门', shen: '玄武', isRuMu: false, isJiXing: false, isMenPo: false, kongWang: false, maXing: false },
-    { index: 7, name: '兑', bagua: '兑', diPan: '丁', tianPan: '庚', star: '天柱', men: '惊门', shen: '九地', isRuMu: false, isJiXing: false, isMenPo: false, kongWang: false, maXing: false },
-    { index: 8, name: '艮', bagua: '艮', diPan: '丙', tianPan: '辛', star: '天任', men: '生门', shen: '九天', isRuMu: false, isJiXing: false, isMenPo: false, kongWang: false, maXing: false },
-    { index: 9, name: '离', bagua: '离', diPan: '乙', tianPan: '己', star: '天英', men: '景门', shen: '螣蛇', isRuMu: false, isJiXing: false, isMenPo: false, kongWang: false, maXing: false },
-  ],
-}
-
 // ── API ──
 
 export const qimenApi = {
-  /** 奇门遁甲排盘 */
+  /** 奇门遁甲排盘 — POST /paipan/qimen（真实算法 BFF，失败抛错走页面 error 态） */
   async calculate(input: QimenInput): Promise<QimenResult> {
-    if (true) return _mockQimenResult
     return await apiPost<QimenResult>('/paipan/qimen', input)
   },
 
-  /** 保存排盘记录 POST /paipan/qimen/save */
+  /** 保存排盘记录 — POST /paipan/qimen/save（需登录） */
   async save(input: QimenInput): Promise<{ id: string; result: QimenResult }> {
-    if (true) return { id: 'mock-id', result: _mockQimenResult }
     return await apiPost<{ id: string; result: QimenResult }>('/paipan/qimen/save', input)
   },
 
-  /** 获取单条记录 GET /paipan/qimen/:id */
+  /** 获取单条记录 — GET /paipan/qimen/:id（需登录） */
   async detail(id: string): Promise<{ id: string; inputParams: any; resultData: QimenResult; clientName: string; clientBirth: string; createdAt: string }> {
-    if (true) return { id, clientName: '测试', clientBirth: '2026-5-17 13:38', inputParams: {}, resultData: _mockQimenResult, createdAt: new Date().toISOString() }
     return await apiGet<any>(`/paipan/qimen/${id}`)
   },
 
-  /** 获取排盘历史 GET /paipan/qimen/history */
+  /** 获取排盘历史 — GET /paipan/qimen/history（空/失败返回空列表走空态） */
   async history(page = 1, pageSize = 20): Promise<{ records: any[]; total: number; page: number; pageSize: number }> {
-    if (true) return { records: [{ id: 'mock-1', clientName: '测试', clientBirth: '2026-5-17 13:38', createdAt: new Date().toISOString() }], total: 1, page: 1, pageSize: 20 }
     try {
       return await apiGet<{ records: any[]; total: number; page: number; pageSize: number }>(`/paipan/qimen/history?page=${page}&pageSize=${pageSize}`)
     } catch { return { records: [], total: 0, page, pageSize } }

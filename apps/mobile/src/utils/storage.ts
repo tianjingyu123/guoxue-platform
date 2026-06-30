@@ -29,3 +29,15 @@ const TOKEN_KEY = 'auth_token'
 export const getToken = () => getStorage<string>(TOKEN_KEY, '') || ''
 export const setToken = (t: string) => setStorage(TOKEN_KEY, t)
 export const clearToken = () => removeStorage(TOKEN_KEY)
+
+/* 用户信息缓存（敏感字段不落本地存储，避免明文手机号/生辰在 localStorage 暴露） */
+const USERINFO_KEY = 'userInfo'
+const SENSITIVE_USER_FIELDS = ['phone','phoneFull','mobile','email','idCard','idCardNo','realName','birthday','birthDate','birthTime','password','phoneEnc','phoneHash']
+export function setUserInfo(user: Record<string, any> | null | undefined): void {
+  if (!user || typeof user !== 'object') { removeStorage(USERINFO_KEY); return }
+  const safe: Record<string, any> = {}
+  for (const k of Object.keys(user)) { if (!SENSITIVE_USER_FIELDS.includes(k)) safe[k] = (user as any)[k] }
+  setStorage(USERINFO_KEY, safe)
+}
+export const getUserInfo = <T = any>() => getStorage<T>(USERINFO_KEY, null as any)
+export const clearUserInfo = () => removeStorage(USERINFO_KEY)

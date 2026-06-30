@@ -1,0 +1,179 @@
+import { apiGet, apiPost } from '@/utils/request'
+
+/**
+ * 全局搜索数据层。
+ * 后端真源：GET /search?q=&type=&page=&pageSize=（FTS + ILIKE 回退 + 权重 + redis 缓存）。
+ * 后端按类型返回 { articles, courses, products, circles, videos, users, classics, ebooks, contents }，
+ * 各数组元素字段见下方 RawX。本层负责映射为前端统一展示结构，并把
+ * articles + videos + contents 合并为一个「内容」列表（综合模式后端三类都给，content 模式只给 contents）。
+ *
+ * AI 总结：POST /search/ai/summary（需登录），失败/未登录由调用方走诚实降级隐藏。
+ */
+
+// ===== 后端原始返回（仅列前端用到的字段；price 为 Decimal，raw query 下可能是 string）=====
+interface RawArticle { id: string; title: string; cover?: string | null; excerpt?: string | null; viewCount?: number }
+interface RawVideo { id: string; title: string; coverUrl?: string | null; viewCount?: number }
+interface RawContent { id: string; title: string; type?: string; author?: string | null; dynasty?: string | null; cover?: string | null; excerpt?: string | null; viewCount?: number; likeCount?: number }
+interface RawCourse { id: string; title: string; cover?: string | null; intro?: string | null; price?: number | string; studentCount?: number }
+interface RawProduct { id: string; title: string; images?: string[]; price?: number | string; salesCount?: number }
+interface RawCircle { id: string; name: string; cover?: string | null; intro?: string | null; memberCount?: number }
+interface RawClassic { id: string; title: string; author?: string | null; cover?: string | null; category?: string | null; dynasty?: string | null }
+interface RawEbook { id: string; title: string; author?: string | null; cover?: string | null; description?: string | null; price?: number | string; purchaseCount?: number }
+interface RawUser { id: string; nickname?: string | null; avatar?: string | null }
+
+interface RawSearchResponse {
+  q?: string
+  type?: string
+  articles?: RawArticle[]
+  videos?: RawVideo[]
+  contents?: RawContent[]
+  courses?: RawCourse[]
+  products?: RawProduct[]
+  circles?: RawCircle[]
+  classics?: RawClassic[]
+  ebooks?: RawEbook[]
+  users?: RawUser[]
+}
+
+// ===== 前端统一展示结构 =====
+export type ContentKind = 'article' | 'video' | 'post' | 'classic' | 'poem'
+
+export interface SearchContent {
+  id: string
+  kind: ContentKind
+  title: string
+  summary: string
+  cover?: string
+  author?: string
+  viewCount: number
+  likeCount?: number
+  href: string
+}
+export interface SearchCourse {
+  id: string; title: string; cover?: string; intro?: string
+  price: number; studentCount: number; href: string
+}
+export interface SearchProduct {
+  id: string; title: string; cover?: string
+  price: number; salesCount: number; href: string
+}
+export interface SearchCircle {
+  id: string; name: string; cover?: string; description?: string
+  memberCount: number; href: string
+}
+export interface SearchClassic {
+  id: string; title: string; author?: string; cover?: string
+  category?: string; dynasty?: string; href: string
+}
+export interface SearchEbook {
+  id: string; title: string; author?: string; cover?: string; description?: string
+  price: number; purchaseCount: number; href: string
+}
+export interface SearchUser {
+  id: string; name: string; avatar?: string; href: string
+}
+
+export interface SearchResults {
+  contents: SearchContent[]
+  courses: SearchCourse[]
+  products: SearchProduct[]
+  circles: SearchCircle[]
+  classics: SearchClassic[]
+  ebooks: SearchEbook[]
+  users: SearchUser[]
+}
+
+/** 前端 Tab key → 后端 type（'all' 不传 type，后端各类返回前 5 条混排） */
+export type SearchTab = 'all' | 'content' | 'course' | 'product' | 'circle' | 'classic' | 'ebook' | 'user'
+
+const dNum = (v: unknown): number => {
+  const n = Number(v)
+  return Number.isFinite(n) ? n : 0
+}
+const s = (v: unknown): string | undefined => (typeof v === 'string' && v ? v : undefined)
+
+/** Content 表 type → 前端 ContentKind */
+function contentKind(t?: string): ContentKind {
+  switch ((t || '').toUpperCase()) {
+    case 'POEM': return 'poem'
+    case 'CLASSIC': return 'classic'
+    default: return 'article'
+  }
+}
+
+function emptyResults(): SearchResults {
+  return { contents: [], courses: [], products: [], circles: [], classics: [], ebooks: [], users: [] }
+}
+
+/** 后端原始响应 → 前端统一结构 */
+function adapt(res: RawSearchResponse): SearchResults {
+  const contents: SearchContent[] = [
+    ...(res.articles || []).map((a): SearchContent => ({
+      id: a.id, kind: 'article', title: a.title || '', summary: s(a.excerpt) || '',
+      cover: s(a.cover), viewCount: dNum(a.viewCount), href: `/articles/${a.id}`,
+    })),
+    ...(res.videos || []).map((v): SearchContent => ({
+      id: v.id, kind: 'video', title: v.title || '', summary: '',
+      cover: s(v.coverUrl), viewCount: dNum(v.viewCount), href: `/video/${v.id}`,
+    })),
+    ...(res.contents || []).map((c): SearchContent => ({
+      id: c.id, kind: contentKind(c.type), title: c.title || '', summary: s(c.excerpt) || '',
+      cover: s(c.cover), author: s(c.author) || s(c.dynasty),
+      viewCount: dNum(c.viewCount), likeCount: dNum(c.likeCount), href: `/articles/${c.id}`,
+    })),
+  ]
+  return {
+    contents,
+    courses: (res.courses || []).map((c): SearchCourse => ({
+      id: c.id, title: c.title || '', cover: s(c.cover), intro: s(c.intro),
+      price: dNum(c.price), studentCount: dNum(c.studentCount), href: `/courses/${c.id}`,
+    })),
+    products: (res.products || []).map((p): SearchProduct => ({
+      id: p.id, title: p.title || '', cover: p.images?.[0],
+      price: dNum(p.price), salesCount: dNum(p.salesCount), href: `/mall/product/${p.id}`,
+    })),
+    circles: (res.circles || []).map((c): SearchCircle => ({
+      id: c.id, name: c.name || '', cover: s(c.cover), description: s(c.intro),
+      memberCount: dNum(c.memberCount), href: `/circles/${c.id}`,
+    })),
+    classics: (res.classics || []).map((c): SearchClassic => ({
+      id: c.id, title: c.title || '', author: s(c.author), cover: s(c.cover),
+      category: s(c.category), dynasty: s(c.dynasty), href: `/classics/${c.id}`,
+    })),
+    ebooks: (res.ebooks || []).map((e): SearchEbook => ({
+      id: e.id, title: e.title || '', author: s(e.author), cover: s(e.cover), description: s(e.description),
+      price: dNum(e.price), purchaseCount: dNum(e.purchaseCount), href: `/ebook/${e.id}`,
+    })),
+    users: (res.users || []).map((u): SearchUser => ({
+      id: u.id, name: s(u.nickname) || '用户', avatar: s(u.avatar), href: `/user/${u.id}`,
+    })),
+  }
+}
+
+export const searchApi = {
+  /**
+   * 执行搜索。tab='all' 综合（不传 type，各类前 5）；其余传对应后端 type。
+   * 出错抛给调用方走 error 三态（不回退假数据）。
+   */
+  async search(q: string, tab: SearchTab = 'all'): Promise<SearchResults> {
+    const kw = q.trim()
+    if (!kw) return emptyResults()
+    const typeParam = tab === 'all' ? '' : `&type=${tab}`
+    const res = await apiGet<RawSearchResponse>(`/search?q=${encodeURIComponent(kw)}&pageSize=20${typeParam}`)
+    return adapt(res || {})
+  },
+
+  /**
+   * AI 智能总结（综合 Tab 用）。需登录；未登录/未配置/限流时抛错，调用方静默隐藏卡片。
+   * @param items 用于喂给模型的结果摘要（title + 一句话）
+   */
+  async aiSummary(query: string, items: { title: string; content: string }[]): Promise<string> {
+    const res = await apiPost<{ summary?: string }>('/search/ai/summary', { query, results: items.slice(0, 10) })
+    return res?.summary || ''
+  },
+
+  /** 保存搜索历史（登录态，失败静默） */
+  async saveHistory(keyword: string): Promise<void> {
+    try { await apiGet(`/search/history/save?keyword=${encodeURIComponent(keyword)}`) } catch { /* 非关键 */ }
+  },
+}

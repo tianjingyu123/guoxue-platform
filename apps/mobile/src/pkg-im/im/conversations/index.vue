@@ -32,7 +32,7 @@
       >
         <!-- 头像 -->
         <view class="avatar-wrap">
-          <image class="avatar" :src="conv.targetAvatar" mode="aspectFill" />
+          <image lazy-load class="avatar" :src="conv.targetAvatar" mode="aspectFill" />
           <!-- 未读角标 -->
           <view v-if="conv.unreadCount > 0 && !conv.isMuted" class="unread-badge">
             <text class="unread-text">{{ conv.unreadCount > 99 ? '99+' : conv.unreadCount }}</text>
@@ -103,7 +103,7 @@
             class="search-result-item"
             @tap="handleEnterChat(conv); closeSearch()"
           >
-            <image class="search-result-avatar" :src="conv.targetAvatar" mode="aspectFill" />
+            <image lazy-load class="search-result-avatar" :src="conv.targetAvatar" mode="aspectFill" />
             <view class="search-result-body">
               <text class="search-result-name">{{ conv.targetName }}</text>
               <text class="search-result-summary">{{ summary(conv.lastMessage) }}</text>
@@ -387,7 +387,7 @@ function handleDelete() {
   width: 36rpx;
   height: 36rpx;
   border-radius: 50%;
-  background: #c41e3a;
+  background: var(--brand);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -638,6 +638,6 @@ function handleDelete() {
 /* 加载/错误状态 */
 .load-state { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; gap: 24rpx; }
 .load-state-text { font-size: 28rpx; color: #8a8178; }
-.retry-btn { padding: 16rpx 48rpx; background: #c41e3a; border-radius: 999rpx; }
+.retry-btn { padding: 16rpx 48rpx; background: var(--brand); border-radius: 999rpx; }
 .retry-text { font-size: 28rpx; color: #fff; }
 </style>

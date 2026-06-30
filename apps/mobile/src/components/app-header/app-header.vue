@@ -2,9 +2,10 @@
 /** 顶部导航（1:1 迁移自原型 components/app-header.tsx）
  *  两行结构：① AI搜索框 + 智能客服 + 消息铃铛  ② 内容分类 Tab（下划线指示器）+ 自定义入口
  *  px→rpx 按 ×2 换算；颜色取设计令牌。 */
-import { ref } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
+import { mineApi } from '@/lib/mine-data'
 
 const tabs = [
   { name: '推荐', href: '/' },
@@ -14,7 +15,22 @@ const tabs = [
   { name: '同城', href: '/pkg-discover/same-city/feed' },
 ]
 const activeTab = ref('推荐')
-const hasUnread = ref(true)
+const unreadCount = ref(0)
+
+/** 拉取未读通知数（铃铛角标真连，未登录/异常降级为 0 不显示红点） */
+async function loadUnread() {
+  unreadCount.value = await mineApi.getUnreadNotifyCount()
+}
+
+// app-header 是常驻子组件，页面 onShow 不触发；用全局事件总线同步——
+// 消息中心标记已读后 uni.$emit('notify:refresh') 即可刷新角标
+onMounted(() => {
+  loadUnread()
+  uni.$on('notify:refresh', loadUnread)
+})
+onUnmounted(() => {
+  uni.$off('notify:refresh', loadUnread)
+})
 
 function onTab(tab: { name: string; href: string }) {
   activeTab.value = tab.name
@@ -42,9 +58,11 @@ function onTab(tab: { name: string; href: string }) {
         <app-icon name="message-circle" :size="40" color="#999999" />
       </view>
 
-      <view class="icon-btn bell" @tap="navigateTo('/im/conversations')">
+      <view class="icon-btn bell" @tap="navigateTo('/notifications')">
         <app-icon name="bell" :size="40" color="#2c2c2c" />
-        <view v-if="hasUnread" class="dot" />
+        <view v-if="unreadCount > 0" class="badge">
+          <text class="badge-text">{{ unreadCount > 99 ? '99+' : unreadCount }}</text>
+        </view>
       </view>
     </view>
 
@@ -98,17 +116,21 @@ function onTab(tab: { name: string; href: string }) {
   background: rgba(196, 30, 58, 0.15);
   flex-shrink: 0;
 }
-.ai-text { font-size: 18rpx; line-height: 1; font-weight: 600; color: var(--primary, #c41e3a); }
+.ai-text { font-size: 18rpx; line-height: 1; font-weight: 600; color: var(--primary, var(--brand)); }
 .ph {
   font-size: 24rpx; color: var(--text-soft, #999999);
   overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
 }
 .icon-btn { position: relative; padding: 16rpx; flex-shrink: 0; }
-.bell .dot {
-  position: absolute; top: 12rpx; right: 12rpx;
-  width: 16rpx; height: 16rpx; border-radius: 50%;
-  background: var(--primary, #c41e3a);
+.bell .badge {
+  position: absolute; top: 2rpx; right: 2rpx;
+  min-width: 28rpx; height: 28rpx; padding: 0 6rpx;
+  border-radius: 999rpx;
+  background: #ff4d4f;
+  display: flex; align-items: center; justify-content: center;
+  border: 2rpx solid rgba(250, 248, 245, 0.95);
 }
+.bell .badge-text { font-size: 18rpx; line-height: 1; color: #ffffff; }
 
 /* 第二行 */
 .tabs {
@@ -123,11 +145,11 @@ function onTab(tab: { name: string; href: string }) {
   font-size: 30rpx; font-weight: 600; white-space: nowrap;
   color: var(--muted-foreground, #999999);
 }
-.tab.active .tab-text { color: var(--primary, #c41e3a); }
+.tab.active .tab-text { color: var(--primary, var(--brand)); }
 .indicator {
   position: absolute; bottom: 0; left: 50%; transform: translateX(-50%);
   width: 40rpx; height: 6rpx; border-radius: 999rpx;
-  background: var(--primary, #c41e3a);
+  background: var(--primary, var(--brand));
 }
 .plus-btn { padding: 12rpx; flex-shrink: 0; }
 </style>

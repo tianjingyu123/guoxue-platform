@@ -59,7 +59,7 @@
               @tap="selectedFriend = friend"
             >
               <view class="friend-avatar-wrap">
-                <image class="friend-avatar" :src="friend.avatar" mode="aspectFill" />
+                <image lazy-load class="friend-avatar" :src="friend.avatar" mode="aspectFill" />
                 <view v-if="friend.isOnline" class="online-dot" />
               </view>
               <view class="friend-body">
@@ -130,7 +130,7 @@
               @tap="selectedFriend = friend"
             >
               <view class="friend-avatar-wrap">
-                <image class="friend-avatar" :src="friend.avatar" mode="aspectFill" />
+                <image lazy-load class="friend-avatar" :src="friend.avatar" mode="aspectFill" />
                 <view v-if="friend.isOnline" class="online-dot" />
               </view>
               <view class="friend-body">
@@ -160,7 +160,7 @@
       <view class="action-sheet" @tap.stop>
         <view class="action-friend">
           <view class="action-avatar-wrap">
-            <image class="action-avatar" :src="selectedFriend.avatar" mode="aspectFill" />
+            <image lazy-load class="action-avatar" :src="selectedFriend.avatar" mode="aspectFill" />
             <view v-if="selectedFriend.isOnline" class="action-online-dot" />
           </view>
           <view class="action-info">
@@ -447,7 +447,7 @@ function friendAction(action: 'chat' | 'profile') {
   border-radius: 50%;
 }
 .letter-index-active .letter-index-text {
-  color: #c41e3a;
+  color: var(--brand);
 }
 
 /* 骨架屏 */
@@ -696,7 +696,7 @@ function friendAction(action: 'chat' | 'profile') {
   gap: 16rpx;
 }
 .action-btn-primary {
-  background: #c41e3a;
+  background: var(--brand);
 }
 .action-btn-outline {
   background: transparent;
@@ -714,6 +714,6 @@ function friendAction(action: 'chat' | 'profile') {
 /* 加载/错误状态 */
 .load-state { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; gap: 24rpx; }
 .load-state-text { font-size: 28rpx; color: #8a8178; }
-.retry-btn { padding: 16rpx 48rpx; background: #c41e3a; border-radius: 999rpx; }
+.retry-btn { padding: 16rpx 48rpx; background: var(--brand); border-radius: 999rpx; }
 .retry-text { font-size: 28rpx; color: #fff; }
 </style>

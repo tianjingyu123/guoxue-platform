@@ -308,7 +308,7 @@ async function handleBuy() {
 .js-case-name { font-size: 28rpx; font-weight: 500; color: #2a2a2a; }
 .js-case-meta { display: block; font-size: 18rpx; color: #8a8178; margin-top: 4rpx; }
 .js-case-right { text-align: right; }
-.js-case-earn { font-size: 28rpx; font-weight: 700; color: #C41E3A; }
+.js-case-earn { font-size: 28rpx; font-weight: 700; color: var(--brand); }
 .js-case-label { display: block; font-size: 18rpx; color: #8a8178; margin-top: 4rpx; }
 
 /* 邀请码 */
@@ -339,7 +339,7 @@ async function handleBuy() {
 .js-buybar-row { display: flex; align-items: center; gap: 24rpx; }
 .js-buybar-price { flex: 1; }
 .js-buybar-price-line { display: flex; align-items: baseline; gap: 8rpx; }
-.js-buybar-price-now { font-size: 44rpx; font-weight: 700; color: #C41E3A; }
+.js-buybar-price-now { font-size: 44rpx; font-weight: 700; color: var(--brand); }
 .js-buybar-price-old { font-size: 26rpx; color: #8a8178; text-decoration: line-through; }
 .js-buybar-valid { display: flex; align-items: center; gap: 6rpx; margin-top: 4rpx; }
 .js-buybar-valid-text { font-size: 18rpx; color: #8a8178; }

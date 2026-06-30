@@ -446,7 +446,7 @@ function coverColor(name: string) {
 .rank-price {
   font-size: 30rpx;
   font-weight: 700;
-  color: #c41e3a;
+  color: var(--brand);
 }
 .rising-badge {
   display: flex;

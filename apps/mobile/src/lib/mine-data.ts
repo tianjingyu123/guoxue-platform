@@ -3,7 +3,7 @@
  * 对应原型 app/mine/{settings,security,change-password,change-phone,payment-password,bind-accounts}
  * 主题色沿用原型 #C41E3A
  */
-import { apiGet, apiPost, apiPut, useMock } from '@/utils/request'
+import { apiGet, apiPost, apiPut, apiDelete } from '@/utils/request'
 
 /* —— 头像生成辅助（沿用工程 dicebear 约定） —— */
 const AVATAR = (seed: string) => `https://api.dicebear.com/7.x/avataaars/svg?seed=${seed}`
@@ -166,6 +166,8 @@ export const appPermissions: AppPermission[] = [
   { id: 'calendar', name: '日历', icon: 'calendar', description: '访问日历事件', purpose: '用于添加课程提醒、直播预约到日历', status: 'not_determined', required: false, degradedFeature: '无法添加日历提醒' },
   { id: 'notifications', name: '通知', icon: 'bell', description: '发送推送通知', purpose: '用于消息提醒、课程提醒、直播开播提醒', status: 'authorized', required: true },
 ]
+/** 隐私授权本地存储 key（客户端权限·后端无端点·诚实降级，授权选择存本地） */
+const PERMISSION_STORAGE_KEY = 'mine_app_permissions'
 
 /* —— 黑名单 —— */
 export interface BlacklistItem {
@@ -482,10 +484,10 @@ export const historyGroups: HistoryGroup[] = [
 /* —— 我的点赞 —— */
 export type LikeTargetType = 'article' | 'course' | 'video' | 'product' | 'circle_post' | 'question' | 'answer' | 'comment'
 export interface LikeItem {
-  id: number
+  id: string | number
   createdAt: string
   target: {
-    id: number
+    id: string | number
     type: LikeTargetType
     title: string
     author?: { nickname: string; avatar: string }
@@ -537,13 +539,13 @@ export const commentTypeStyles: Record<CommentTargetType, { icon: string; color:
   question: { icon: 'help-circle', color: '#d97706', bg: '#fef3c7' },
 }
 export interface MyCommentItem {
-  id: number
+  id: string | number
   content: string
   createdAt: string
   likeCount: number
   replyCount: number
   hasReply: boolean
-  target: { id: number; type: CommentTargetType; title: string; cover?: string }
+  target: { id: string | number; type: CommentTargetType; title: string; cover?: string }
 }
 export const myComments: MyCommentItem[] = [
   { id: 1, content: '老师讲得太透彻了，把天干地支的关系讲得很清楚，受益匪浅！', createdAt: '2026-06-03 15:20', likeCount: 28, replyCount: 3, hasReply: true, target: { id: 201, type: 'course', title: '八字命理基础精讲班', cover: `${P}/book1.jpg` } },
@@ -552,12 +554,12 @@ export const myComments: MyCommentItem[] = [
   { id: 4, content: '请问这个摆件适合摆放在客厅哪个方位？', createdAt: '2026-05-29 14:00', likeCount: 2, replyCount: 5, hasReply: true, target: { id: 204, type: 'product', title: '开光铜葫芦摆件', cover: `${P}/item3.jpg` } },
 ]
 export interface ReceivedCommentItem {
-  id: number
+  id: string | number
   content: string
   createdAt: string
   isReplied: boolean
   commenter: { nickname: string; avatar: string; level?: number }
-  myContent: { id: number; type: CommentTargetType; title: string }
+  myContent: { id: string | number; type: CommentTargetType; title: string }
   myReply?: { content: string; createdAt: string }
 }
 export const receivedComments: ReceivedCommentItem[] = [
@@ -677,7 +679,6 @@ export const rechargePayMethods: RechargePayMethod[] = [
   { id: 'wechat', name: '微信支付', badge: '微', badgeClass: 'badge-wechat' },
   { id: 'alipay', name: '支付宝', badge: '支', badgeClass: 'badge-alipay' },
   { id: 'unionpay', name: '云闪付', badge: '云', badgeClass: 'badge-unionpay' },
-  { id: 'huifu', name: '汇付天下', badge: '汇', badgeClass: 'badge-huifu' },
 ]
 
 /* —— 钱包提现页 —— */
@@ -750,234 +751,931 @@ export const walletTxRecords: WalletTxRecord[] = [
   { id: '6', type: 'expense', category: 'transfer', title: '打赏作者', description: '打赏文章《八字命理基础》', amount: -20, balance: 2298, createdAt: '2024-01-10 20:30' },
 ]
 
+// ============ 钱包适配（后端 users/wallet/* 真实结构 → 前端类型）============
+/** ISO/日期 → 'YYYY-MM-DD HH:mm'（交易记录页按此切片做月份过滤/分组，格式不可变） */
+function formatDateTime(v: any): string {
+  const d = new Date(v)
+  if (Number.isNaN(d.getTime())) return ''
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
+}
+const _txCatTitle: Record<WalletTxCategory, string> = {
+  purchase: '消费支出', refund: '退款到账', reward: '奖励收入',
+  recharge: '充值', withdraw: '提现', transfer: '转账', other: '账户变动',
+}
+/** 后端 VirtualCoinTransaction → 前端 WalletTxRecord（收支按 amountCoin 正负，类别按 scene 关键词归类，无则 other） */
+function adaptWalletTx(t: any): WalletTxRecord {
+  const amt = Number(t.amountCoin ?? t.amount ?? 0)
+  const scene = String(t.scene ?? '').toLowerCase()
+  const category: WalletTxCategory =
+    scene.includes('recharge') ? 'recharge'
+      : scene.includes('withdraw') ? 'withdraw'
+        : scene.includes('refund') ? 'refund'
+          : (scene.includes('reward') || scene.includes('gift') || scene.includes('sign') || scene.includes('checkin')) ? 'reward'
+            : scene.includes('transfer') ? 'transfer'
+              : (scene.includes('order') || scene.includes('purchase') || scene.includes('consume') || scene.includes('buy') || scene.includes('pay')) ? 'purchase'
+                : 'other'
+  return {
+    id: String(t.id),
+    type: amt >= 0 ? 'income' : 'expense',
+    category,
+    title: t.description || _txCatTitle[category],
+    description: t.description || '',
+    amount: amt,
+    balance: Number(t.balanceAfter ?? t.balance ?? 0),
+    createdAt: formatDateTime(t.createdAt),
+    orderNo: t.refId || undefined,
+  }
+}
+/** 后端已存收款账户 accountInfo(Record) → 前端 WithdrawAccount（缺 method 时按字段推断） */
+function adaptSavedAccount(a: any): WithdrawAccount {
+  const method: WithdrawMethod = a?.method || (a?.bankAccount || a?.bankName ? 'bank' : 'alipay')
+  return { method, ...(a || {}) }
+}
+
+// ============ 个人资料 / 安全 / 历史 / 黑名单 / 青少年 / 反馈 适配 ============
+
+/** 手机号脱敏：138****8888 */
+function maskPhone(p?: string | null): string {
+  if (!p) return ''
+  const s = String(p)
+  if (s.length < 7) return s
+  return s.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2')
+}
+/** 邮箱脱敏：u***@example.com */
+function maskEmail(e?: string | null): string {
+  if (!e) return ''
+  const [name, domain] = String(e).split('@')
+  if (!domain) return String(e)
+  return `${name.slice(0, 1)}***@${domain}`
+}
+
+/** 当前用户资料（来源 /auth/me，脱敏用于展示，phoneFull 用于发码） */
+export interface MineProfileData {
+  phone: string
+  phoneFull: string
+  email: string
+  nickname: string
+  avatar: string
+  bio: string
+  gender?: number
+  birthday: string
+  interests: string[]
+  identityVerified: boolean
+  paymentPasswordSet: boolean
+}
+function adaptProfile(me: any): MineProfileData {
+  return {
+    phone: maskPhone(me?.phone),
+    phoneFull: me?.phone || '',
+    email: maskEmail(me?.email),
+    nickname: me?.nickname || '',
+    avatar: me?.avatar || '',
+    bio: me?.bio || '',
+    gender: me?.gender ?? undefined,
+    birthday: me?.birthday ? String(me.birthday).slice(0, 10) : '',
+    interests: Array.isArray(me?.interestCategories) ? me.interestCategories : [],
+    identityVerified: !!me?.identityVerified,
+    paymentPasswordSet: !!me?.paymentPasswordSet,
+  }
+}
+
+/** 后端 BrowseHistory.targetType → 前端 HistoryItemType（未知归 article） */
+function adaptHistoryType(t: string): HistoryItemType {
+  const k = String(t || '').toLowerCase()
+  if (k === 'course') return 'course'
+  if (k === 'video') return 'video'
+  if (k === 'live') return 'live'
+  if (k === 'product') return 'product'
+  if (k === 'circle' || k === 'post') return 'circle'
+  return 'article'
+}
+/** 浏览历史日期分组标签 */
+function historyDateLabel(d: Date): { date: string; label: string } {
+  const p = (n: number) => String(n).padStart(2, '0')
+  const date = `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
+  const today = new Date()
+  const todayStr = `${today.getFullYear()}-${p(today.getMonth() + 1)}-${p(today.getDate())}`
+  const yest = new Date(today.getTime() - 86400000)
+  const yestStr = `${yest.getFullYear()}-${p(yest.getMonth() + 1)}-${p(yest.getDate())}`
+  let label = `${d.getMonth() + 1}月${d.getDate()}日`
+  if (date === todayStr) label = '今天'
+  else if (date === yestStr) label = '昨天'
+  return { date, label }
+}
+/** 后端 BrowseHistory[] → 前端按日期分组的 HistoryGroup[] */
+function adaptHistory(items: any[]): HistoryGroup[] {
+  const map = new Map<string, HistoryGroup>()
+  for (const it of items) {
+    const created = new Date(it.createdAt)
+    const { date, label } = historyDateLabel(created)
+    const p = (n: number) => String(n).padStart(2, '0')
+    const viewedAt = `${p(created.getHours())}:${p(created.getMinutes())}`
+    const item: HistoryItem = {
+      id: String(it.id),
+      type: adaptHistoryType(it.targetType),
+      title: it.title || '',
+      cover: it.cover || undefined,
+      viewedAt,
+    }
+    if (!map.has(date)) map.set(date, { date, label, items: [] })
+    map.get(date)!.items.push(item)
+  }
+  return [...map.values()]
+}
+
+/** 后端 Blacklist 项 → 前端 BlacklistItem */
+function adaptBlacklist(b: any): BlacklistItem {
+  const u = b.blockedUser ?? {}
+  return {
+    id: Number.isFinite(+b.id) ? +b.id : (b.id as any),
+    userId: u.id ?? b.blockedUserId,
+    nickname: u.nickname || '未知用户',
+    avatar: u.avatar || AVATAR(String(u.id || b.id)),
+    blockedAt: b.createdAt ? String(b.createdAt).slice(0, 10) : '',
+  }
+}
+
+/** 后端青少年模式 {enabled,settings} → 前端 TeenModeSettings */
+function adaptTeenMode(r: any): TeenModeSettings {
+  const s = r?.settings ?? {}
+  return {
+    enabled: !!r?.enabled,
+    dailyLimit: Number(s.dailyLimitMinutes ?? 40),
+    restrictedStartHour: Number(s.blockStartHour ?? 22),
+    restrictedEndHour: Number(s.blockEndHour ?? 6),
+    autoNightMode: true,
+    filterLevel: (s.contentFilter === 'strict' ? 'strict' : 'moderate'),
+    hasPassword: !!s.guardianPassword,
+  }
+}
+
+/** 后端 Feedback 记录 → 前端 HistoryFeedbackItem（后端无独立 title，取内容首行） */
+function adaptFeedbackHistory(f: any): HistoryFeedbackItem {
+  const content = f.content || ''
+  const firstLine = content.split('\n')[0]
+  const title = firstLine.length > 20 ? `${firstLine.slice(0, 20)}…` : (firstLine || '反馈')
+  return {
+    id: Number.isFinite(+f.id) ? +f.id : (f.id as any),
+    type: f.type || 'other',
+    title,
+    content,
+    time: f.createdAt ? String(f.createdAt).slice(0, 10) : '',
+    status: f.status || 'pending',
+    reply: f.reply ?? null,
+  }
+}
+
+// ============ 互动（点赞/评论/收到的评论）适配 ============
+/** ISO/日期 → 'YYYY-MM-DD'（点赞列表只显示到日） */
+function formatDate(v: any): string {
+  const d = new Date(v)
+  if (Number.isNaN(d.getTime())) return ''
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
+}
+/** 后端 targetType/type → 前端点赞类型（POST/CIRCLE_POST→circle_post，未知归 article） */
+function normLikeType(t?: string): LikeTargetType {
+  const k = String(t || '').toLowerCase()
+  if (k === 'post' || k === 'circle_post') return 'circle_post'
+  if (['article', 'course', 'video', 'product', 'question', 'answer', 'comment'].includes(k)) return k as LikeTargetType
+  return 'article'
+}
+/** 后端 targetType/type → 前端评论类型（评论目标无 comment/answer，未知归 article） */
+function normCommentType(t?: string): CommentTargetType {
+  const k = String(t || '').toLowerCase()
+  if (k === 'post' || k === 'circle_post') return 'circle_post'
+  if (['article', 'course', 'video', 'product', 'question'].includes(k)) return k as CommentTargetType
+  return 'article'
+}
+/** 后端点赞项（含 target 多态详情，已删为 null）→ 前端 LikeItem */
+function adaptLike(it: any): LikeItem {
+  const tgt = it.target
+  const type = normLikeType(tgt?.type ?? it.targetType)
+  if (tgt) {
+    return {
+      id: it.id,
+      createdAt: formatDate(it.createdAt),
+      target: {
+        id: tgt.id,
+        type,
+        title: tgt.title || '内容已删除',
+        author: tgt.author ? { nickname: tgt.author.nickname || '', avatar: tgt.author.avatar || AVATAR(String(tgt.id)) } : undefined,
+      },
+    }
+  }
+  // 目标已删除：诚实降级
+  return { id: it.id, createdAt: formatDate(it.createdAt), target: { id: it.targetId, type, title: '内容已删除' } }
+}
+/** 后端我的评论项（含 target/replyCount/hasReply）→ 前端 MyCommentItem */
+function adaptMyComment(it: any): MyCommentItem {
+  const tgt = it.target
+  const type = normCommentType(tgt?.type ?? it.targetType)
+  return {
+    id: it.id,
+    content: it.content || '',
+    createdAt: formatDateTime(it.createdAt),
+    likeCount: Number(it.likeCount ?? 0),
+    replyCount: Number(it.replyCount ?? 0),
+    hasReply: !!it.hasReply,
+    target: tgt
+      ? { id: tgt.id, type, title: tgt.title || '内容已删除', cover: tgt.cover || undefined }
+      : { id: it.targetId, type, title: '内容已删除' },
+  }
+}
+/** 后端收到的评论项（含 user/target/isReplied/myReply）→ 前端 ReceivedCommentItem */
+function adaptReceivedComment(it: any): ReceivedCommentItem {
+  const tgt = it.target
+  const type = normCommentType(tgt?.type ?? it.targetType)
+  return {
+    id: it.id,
+    content: it.content || '',
+    createdAt: formatDateTime(it.createdAt),
+    isReplied: !!it.isReplied,
+    // 后端无评论者等级 → level 省略，页面 v-if 降级隐藏
+    commenter: { nickname: it.user?.nickname || '匿名用户', avatar: it.user?.avatar || AVATAR(String(it.userId || it.id)) },
+    myContent: tgt
+      ? { id: tgt.id, type, title: tgt.title || '内容已删除' }
+      : { id: it.targetId, type, title: '内容已删除' },
+    myReply: it.myReply ? { content: it.myReply.content || '', createdAt: formatDateTime(it.myReply.createdAt) } : undefined,
+  }
+}
+
+/* ============================================================
+   个人中心二级页（课程/收藏/关注/通知/会员）真连数据层
+   ============================================================ */
+
+/* —— 我的课程 —— */
+export interface MyCourseItem {
+  id: string
+  title: string
+  cover: string
+  instructor: string
+  totalLessons: number
+  completedLessons: number
+  progressPercent: number
+  status: 'learning' | 'completed'
+  lastStudyAt?: string
+  lastLesson?: string
+}
+export interface MyCoursesResult {
+  courses: MyCourseItem[]
+  streak: number
+  learningCount: number
+  completedCount: number
+}
+
+/* —— 收藏 —— */
+export type FavType = 'course' | 'article' | 'video' | 'product' | 'circle_post' | 'comment'
+export interface FavItem {
+  id: string
+  targetType: string
+  targetId: string
+  type: FavType
+  title: string
+  subtitle: string
+  cover: string
+  collectedAt: string
+  isInvalid: boolean
+}
+
+/* —— 关注/粉丝 —— */
+export interface FollowUserItem {
+  id: string
+  name: string
+  avatar: string
+  isFollowing: boolean
+  isFollowedBy: boolean
+}
+
+/* —— 通知 —— */
+export type NotifyKind = 'interaction' | 'system' | 'income' | 'transaction' | 'service'
+export interface NotifyItem {
+  id: string
+  kind: NotifyKind
+  category: string
+  title: string
+  content: string
+  time: string
+  isRead: boolean
+  link: string
+}
+
+/* —— 会员权益（仅平台VIP，圈子/分站/研究院属独立子系统） —— */
+export interface MembershipItem {
+  id: string
+  name: string
+  level: string
+  startDate: string
+  expireDate: string
+  daysLeft: number
+  isLifetime: boolean
+  status: 'active' | 'expiring' | 'expired'
+  price: number
+  benefits: string[]
+}
+
+/* —— 收藏适配（target-resolver 已补全多态详情，目标已删 target=null 降级） —— */
+const _favTypeName: Record<string, string> = {
+  course: '课程', article: '文章', video: '视频', product: '商品', circle_post: '帖子', comment: '评论',
+}
+function adaptFavorite(it: any): FavItem {
+  const tgt = it.target
+  const rawType = String(tgt?.type ?? it.targetType ?? '').toLowerCase()
+  const type = (['course', 'article', 'video', 'product', 'circle_post', 'comment'].includes(rawType) ? rawType : 'article') as FavType
+  return {
+    id: String(it.id),
+    targetType: it.targetType,
+    targetId: String(it.targetId),
+    type,
+    title: tgt?.title || '内容已删除',
+    subtitle: tgt?.author?.nickname || _favTypeName[type] || '',
+    cover: tgt?.cover || '',
+    collectedAt: formatDate(it.createdAt),
+    isInvalid: !tgt,
+  }
+}
+
+/* —— 通知适配（后端 type → 前端 kind/category/跳转） —— */
+function relativeTime(v: any): string {
+  const d = new Date(v)
+  if (Number.isNaN(d.getTime())) return ''
+  const diff = Date.now() - d.getTime()
+  const m = Math.floor(diff / 60000)
+  if (m < 1) return '刚刚'
+  if (m < 60) return `${m}分钟前`
+  const h = Math.floor(m / 60)
+  if (h < 24) return `${h}小时前`
+  const day = Math.floor(h / 24)
+  if (day < 30) return `${day}天前`
+  return formatDate(v)
+}
+const _notifyMeta: Record<string, { kind: NotifyKind; category: string }> = {
+  COMMENT: { kind: 'interaction', category: '评论' },
+  LIKE: { kind: 'interaction', category: '点赞' },
+  FOLLOW: { kind: 'interaction', category: '关注' },
+  SYSTEM: { kind: 'system', category: '系统通知' },
+  AUDIT: { kind: 'system', category: '审核通知' },
+  PURCHASE: { kind: 'transaction', category: '订单' },
+  EARNING: { kind: 'income', category: '收益' },
+}
+function notifyLink(targetType?: string | null, targetId?: string | null): string {
+  if (!targetType || !targetId) return ''
+  const t = String(targetType).toLowerCase()
+  const map: Record<string, string> = {
+    article: `/article/${targetId}`, course: `/course/${targetId}`,
+    video: `/video/${targetId}`, product: `/shop/product/${targetId}`,
+    post: `/post/${targetId}`, circle_post: `/post/${targetId}`,
+    circle: `/circle/${targetId}`, order: `/orders/${targetId}`, live: `/live/${targetId}`,
+  }
+  return map[t] || ''
+}
+function adaptNotification(n: any): NotifyItem {
+  const meta = _notifyMeta[String(n.type || '').toUpperCase()] || { kind: 'system' as NotifyKind, category: '通知' }
+  return {
+    id: String(n.id),
+    kind: meta.kind,
+    category: meta.category,
+    title: n.title || '',
+    content: n.content || '',
+    time: relativeTime(n.createdAt),
+    isRead: !!n.isRead,
+    link: notifyLink(n.targetType, n.targetId),
+  }
+}
+
 // ============ API 层 ============
 
 export const mineApi = {
-  /** 获取用户资料 */
-  async getProfile() {
-    if (true) return mineProfile
-    try { return await apiGet<typeof mineProfile>('/user/profile') } catch { return mineProfile }
+  /** 获取当前用户资料 —— GET /auth/me（脱敏展示 + phoneFull 供发码） */
+  async getProfile(): Promise<MineProfileData> {
+    const me = await apiGet<any>('/auth/me')
+    return adaptProfile(me)
   },
 
-  /** 更新用户资料 */
-  async updateProfile(_data: Partial<EditProfileData>): Promise<boolean> {
-    if (true) return true
-    try { await apiPut('/user/profile', _data); return true } catch { return false }
+  /** 更新用户资料 —— PUT /users/profile（nickname/avatar/bio/gender/兴趣品类） */
+  async updateProfile(_data: { nickname?: string; avatar?: string; bio?: string; gender?: number; interestCategories?: string[] }): Promise<boolean> {
+    await apiPut('/users/profile', _data)
+    return true
   },
 
-  /** 获取设置通知项 */
+  /** 获取设置通知项 —— GET /users/notify-settings（后端真返 [{key,label,icon,value}]） */
   async getNotifySettings(): Promise<SettingNotifyItem[]> {
-    if (true) return settingNotifyItems
-    try { return await apiGet<SettingNotifyItem[]>('/user/settings/notify') } catch { return settingNotifyItems }
+    return await apiGet<SettingNotifyItem[]>('/users/notify-settings')
   },
 
-  /** 获取账号安全项 */
+  /** 更新单项通知开关 —— PUT /users/notify-settings（后端按 {key,value} 单项合并） */
+  async updateNotifySetting(_key: string, _value: boolean): Promise<boolean> {
+    await apiPut('/users/notify-settings', { key: _key, value: _value })
+    return true
+  },
+
+  /** 获取账号安全项 —— /auth/me + /auth/devices 真实数据组装（后端无聚合端点，无的字段诚实降级） */
   async getSecurityItems(): Promise<{ login: SecurityItem[]; payment: SecurityItem[]; device: SecurityItem[]; score: { label: string; done: boolean }[] }> {
-    if (true) return { login: securityLoginItems, payment: securityPaymentItems, device: securityDeviceItems, score: securityScoreItems }
-    try { return await apiGet('/user/security') } catch { return { login: securityLoginItems, payment: securityPaymentItems, device: securityDeviceItems, score: securityScoreItems } }
+    const [me, devices] = await Promise.all([
+      apiGet<any>('/auth/me'),
+      apiGet<any[]>('/auth/devices').catch(() => [] as any[]),
+    ])
+    const hasPhone = !!me?.phone
+    const hasEmail = !!me?.email
+    const paySet = !!me?.paymentPasswordSet
+    const verified = !!me?.identityVerified
+    const login: SecurityItem[] = [
+      { id: 'password', icon: 'key', iconBg: '#3b82f6', label: '登录密码', value: '定期修改更安全', status: 'set', href: '/mine/change-password' },
+      { id: 'phone', icon: 'smartphone', iconBg: '#22c55e', label: '手机号码', value: hasPhone ? maskPhone(me.phone) : '未绑定', status: hasPhone ? 'set' : 'unset', href: '/mine/change-phone' },
+    ]
+    if (hasEmail) {
+      login.push({ id: 'email', icon: 'mail', iconBg: '#f97316', label: '邮箱绑定', value: maskEmail(me.email), status: 'set', href: '/mine/bind-accounts' })
+    }
+    const payment: SecurityItem[] = [
+      { id: 'pay-password', icon: 'credit-card', iconBg: '#a855f7', label: '支付密码', status: paySet ? 'set' : 'unset', href: '/mine/payment-password' },
+      { id: 'real-name', icon: 'shield', iconBg: '#C41E3A', label: '实名认证', status: verified ? 'verified' : 'unverified', href: '/mine/security' },
+    ]
+    const deviceCount = Array.isArray(devices) ? devices.length : 0
+    const device: SecurityItem[] = [
+      { id: 'devices', icon: 'monitor', iconBg: '#64748b', label: '登录设备管理', value: `${deviceCount} 台设备已登录`, href: '/mine/security' },
+    ]
+    const score = [
+      { label: '密码', done: true },
+      { label: '手机', done: hasPhone },
+      { label: '邮箱', done: hasEmail },
+      { label: '支付', done: paySet },
+      { label: '实名', done: verified },
+    ]
+    return { login, payment, device, score }
   },
 
-  /** 修改密码 */
+  /** 修改登录密码 —— PUT /auth/password（失败抛错，页面 catch 提示） */
   async changePassword(_oldPwd: string, _newPwd: string): Promise<{ success: boolean; message: string }> {
-    if (true) return { success: true, message: '密码修改成功' }
-    try { await apiPut('/user/password', { oldPassword: _oldPwd, newPassword: _newPwd }); return { success: true, message: '密码修改成功' } } catch (e: any) { return { success: false, message: e?.message || '修改失败' } }
+    await apiPut('/auth/password', { oldPassword: _oldPwd, newPassword: _newPwd })
+    return { success: true, message: '密码修改成功' }
   },
 
-  /** 修改手机号 */
-  async changePhone(_phone: string, _code: string): Promise<{ success: boolean; message: string }> {
-    if (true) return { success: true, message: '手机号修改成功' }
-    try { await apiPut('/user/phone', { phone: _phone, code: _code }); return { success: true, message: '手机号修改成功' } } catch (e: any) { return { success: false, message: e?.message || '修改失败' } }
+  /** 发送短信验证码 —— POST /auth/sms/send（换手机号场景需带 scene） */
+  async sendPhoneCode(_phone: string, _scene: string): Promise<boolean> {
+    await apiPost('/auth/sms/send', { phone: _phone, scene: _scene })
+    return true
   },
 
-  /** 获取绑定账号列表 */
+  /** 更换手机号 —— PUT /auth/phone（旧号验证码 + 新号 + 新号验证码，后端一次性校验） */
+  async changePhone(_oldCode: string, _newPhone: string, _newCode: string): Promise<{ success: boolean; message: string }> {
+    await apiPut('/auth/phone', { oldCode: _oldCode, newPhone: _newPhone, newCode: _newCode })
+    return { success: true, message: '手机号修改成功' }
+  },
+
+  /** 获取绑定账号列表 —— GET /users/bound-accounts（后端真返 {provider,name,color,isBound,accountInfo,boundAt}） */
   async getBoundAccounts(): Promise<BoundAccount[]> {
-    if (true) return boundAccounts
-    try { return await apiGet<BoundAccount[]>('/user/bind-accounts') } catch { return boundAccounts }
+    return await apiGet<BoundAccount[]>('/users/bound-accounts')
   },
 
-  /** 绑定/解绑账号 */
+  /** 解绑第三方账号 —— DELETE /users/bound-accounts/:provider；绑定走 OAuth 后端暂无简单端点→诚实降级抛错 */
   async toggleBind(_provider: string, _bind: boolean): Promise<boolean> {
-    if (true) return true
-    try { await apiPost(`/user/bind-accounts/${_provider}`, { bind: _bind }); return true } catch { return false }
+    if (_bind) {
+      throw new Error('第三方账号绑定即将开放')
+    }
+    await apiDelete(`/users/bound-accounts/${_provider}`)
+    return true
   },
 
-  /** 获取黑名单 */
+  /** 获取黑名单 —— GET /users/blacklist/list（后端 {items:[{id,blockedUser}]} → 适配） */
   async getBlacklist(): Promise<BlacklistItem[]> {
-    if (true) return blacklistUsers
-    try { return await apiGet<BlacklistItem[]>('/user/blacklist') } catch { return blacklistUsers }
+    const res = await apiGet<{ items?: any[] } | any[]>('/users/blacklist/list')
+    const list = Array.isArray(res) ? res : (res?.items ?? [])
+    return list.map(adaptBlacklist)
   },
 
-  /** 移出黑名单 */
-  async unblockUser(_userId: number): Promise<boolean> {
-    if (true) return true
-    try { await apiPost(`/user/blacklist/${_userId}/unblock`, {}); return true } catch { return false }
+  /** 移出黑名单 —— DELETE /users/:id/block（:id 为被拉黑用户ID） */
+  async unblockUser(_userId: number | string): Promise<boolean> {
+    await apiDelete(`/users/${_userId}/block`)
+    return true
   },
 
-  /** 搜索用户（拉黑用） */
-  async searchUsers(_keyword: string): Promise<SearchUserItem[]> {
-    if (true) return blacklistSearchPool.filter(u => u.nickname.includes(_keyword))
-    try { return await apiGet<SearchUserItem[]>(`/user/search?keyword=${_keyword}`) } catch { return [] }
+  /** 拉黑用户 —— POST /users/:id/block */
+  async blockUser(_userId: number | string): Promise<boolean> {
+    await apiPost(`/users/${_userId}/block`, {})
+    return true
   },
 
-  /** 拉黑用户 */
-  async blockUser(_userId: number, _reason?: string): Promise<boolean> {
-    if (true) return true
-    try { await apiPost('/user/blacklist', { userId: _userId, reason: _reason }); return true } catch { return false }
-  },
-
-  /** 获取青少年模式设置 */
+  /** 获取青少年模式设置 —— GET /users/me/teen-mode（{enabled,settings} → 适配） */
   async getTeenMode(): Promise<TeenModeSettings> {
-    if (true) return defaultTeenModeSettings
-    try { return await apiGet<TeenModeSettings>('/user/teen-mode') } catch { return defaultTeenModeSettings }
+    const r = await apiGet<any>('/users/me/teen-mode')
+    return adaptTeenMode(r)
   },
 
-  /** 更新青少年模式 */
-  async updateTeenMode(_settings: Partial<TeenModeSettings>): Promise<boolean> {
-    if (true) return true
-    try { await apiPut('/user/teen-mode', _settings); return true } catch { return false }
+  /** 更新青少年模式 —— PUT /users/me/teen-mode（前端字段 → 后端 DTO 映射） */
+  async updateTeenMode(_settings: TeenModeSettings): Promise<boolean> {
+    await apiPut('/users/me/teen-mode', {
+      enabled: _settings.enabled,
+      dailyLimitMinutes: _settings.dailyLimit,
+      blockStartHour: _settings.restrictedStartHour,
+      blockEndHour: _settings.restrictedEndHour,
+      contentFilter: _settings.filterLevel,
+    })
+    return true
   },
 
-  /** 获取数据导出类型 */
+  /** 注销账号信息 —— GET /users/delete-account/info（脱敏手机号 + 原因 + 影响数据 + 真实资产） */
+  async getDeleteAccountInfo(): Promise<{
+    phone: string
+    reasons: { id: string; label: string }[]
+    dataItems: { icon: string; label: string; color: string }[]
+    assets: { balance: number; points: number; coupons: number; memberDays: number }
+  }> {
+    const r = await apiGet<any>('/users/delete-account/info')
+    return {
+      phone: r?.phone || '',
+      reasons: Array.isArray(r?.reasons) ? r.reasons : deleteAccountReasons,
+      dataItems: Array.isArray(r?.dataItems) ? r.dataItems : deleteAccountDataItems,
+      assets: {
+        balance: Number(r?.assets?.balance ?? 0),
+        points: Number(r?.assets?.points ?? 0),
+        coupons: Number(r?.assets?.coupons ?? 0),
+        memberDays: Number(r?.assets?.memberDays ?? 0),
+      },
+    }
+  },
+
+  /** 申请注销账号 —— POST /auth/delete-account（需登录密码 + 原因，进入7天冷静期） */
+  async deleteAccount(_password: string, _reason?: string): Promise<{ success: boolean; message: string }> {
+    await apiPost('/auth/delete-account', { password: _password, reason: _reason })
+    return { success: true, message: '注销申请已提交' }
+  },
+
+  /** 数据导出类型目录（说明性静态配置，非用户数据） */
   async getExportTypes(): Promise<typeof exportDataTypes> {
-    if (true) return exportDataTypes
-    try { return await apiGet('/user/data-export/types') } catch { return exportDataTypes }
+    return exportDataTypes
   },
 
-  /** 获取导出记录 */
+  /** 导出记录 —— 后端暂无数据导出端点 → 诚实返回空，页面提示即将开放 */
   async getExportRecords(): Promise<ExportRecord[]> {
-    if (true) return exportRecords
-    try { return await apiGet<ExportRecord[]>('/user/data-export/records') } catch { return exportRecords }
+    return []
   },
 
-  /** 申请数据导出 */
-  async requestExport(_typeIds: string[]): Promise<boolean> {
-    if (true) return true
-    try { await apiPost('/user/data-export', { types: _typeIds }); return true } catch { return false }
+  /** 申请数据导出 —— 后端暂无端点 → 诚实降级，不伪造成功 */
+  async requestExport(_typeIds: string[]): Promise<{ success: boolean; message: string }> {
+    return { success: false, message: '数据导出功能即将开放' }
   },
 
-  /** 申请注销账号 */
-  async deleteAccount(_reason: string, _detail?: string): Promise<{ success: boolean; message: string }> {
-    if (true) return { success: true, message: '注销申请已提交' }
-    try { await apiPost('/user/delete-account', { reason: _reason, detail: _detail }); return { success: true, message: '注销申请已提交' } } catch (e: any) { return { success: false, message: e?.message || '注销失败' } }
-  },
-
-  /** 获取钱包信息 */
+  /** 获取钱包信息 —— GET /users/wallet/balance（后端返回币/积分/累计；会员等级属成长体系不在此接口→0，页面降级隐藏） */
   async getWallet(): Promise<WalletInfo> {
-    if (true) return walletInfo
-    try { return await apiGet<WalletInfo>('/wallet') } catch { return walletInfo }
+    const b = await apiGet<{ coin?: number; points?: number; frozen?: number; totalRecharged?: number; totalSpent?: number }>('/users/wallet/balance')
+    return {
+      balance: Number(b.coin ?? 0),
+      rmb: 0,
+      level: 0,
+      growthValue: 0,
+      nextLevelGrowth: 1,
+      points: Number(b.points ?? 0),
+      totalRecharge: Number(b.totalRecharged ?? 0),
+      totalSpent: Number(b.totalSpent ?? 0),
+    }
   },
 
-  /** 获取充值选项 */
+  /** 获取充值选项 —— GET /users/wallet/recharge-options（后端 {amountRmb,amountCoin,bonus} → 前端 {coins,price,bonus}） */
   async getRechargeOptions(): Promise<RechargeOption[]> {
-    if (true) return rechargeOptions
-    try { return await apiGet<RechargeOption[]>('/wallet/recharge-options') } catch { return rechargeOptions }
+    const res = await apiGet<any[]>('/users/wallet/recharge-options')
+    const list = Array.isArray(res) ? res : []
+    return list.map((t: any, i: number) => ({
+      coins: Number(t.amountCoin ?? t.coins ?? 0),
+      price: Number(t.amountRmb ?? t.price ?? 0),
+      bonus: Number(t.bonus ?? 0),
+      popular: i === 2,
+    }))
   },
 
-  /** 充值 */
-  async recharge(_optionId: number, _payMethod: string): Promise<{ success: boolean; message: string }> {
-    if (true) return { success: true, message: '充值成功' }
-    try { await apiPost('/wallet/recharge', { optionId: _optionId, payMethod: _payMethod }); return { success: true, message: '充值成功' } } catch (e: any) { return { success: false, message: e?.message || '充值失败' } }
+  /** 充值 —— POST /users/wallet/recharge（微信/支付宝/云闪付；演示模式下单后模拟到账） */
+  async recharge(_amountCoin: number, _payMethod: string): Promise<{ success: boolean; message: string }> {
+    try {
+      const res = await apiPost<any>('/users/wallet/recharge', { amountCoin: _amountCoin, payMethod: _payMethod })
+      return { success: true, message: res?.message || '充值成功' }
+    } catch (e: any) {
+      return { success: false, message: e?.message || '充值失败' }
+    }
   },
 
-  /** 获取交易记录 */
+  /** 获取交易记录 —— GET /users/wallet/transactions（后端 {transactions:VirtualCoinTransaction[]} → 适配） */
   async getTransactions(_type?: string): Promise<WalletTxRecord[]> {
-    if (true) return walletTxRecords
-    try { return await apiGet<WalletTxRecord[]>(`/wallet/transactions${_type ? `?type=${_type}` : ''}`) } catch { return walletTxRecords }
+    const res = await apiGet<{ transactions?: any[] } | any[]>(`/users/wallet/transactions${_type ? `?type=${encodeURIComponent(_type)}` : ''}`)
+    const list = Array.isArray(res) ? res : (res?.transactions ?? [])
+    return list.map(adaptWalletTx)
   },
 
-  /** 获取提现信息 */
+  /** 获取提现信息 —— GET /users/wallet/withdraw-info（冻结/在途后端无→0，页面降级；savedAccounts 适配） */
   async getWithdrawInfo(): Promise<WithdrawBalanceInfo> {
-    if (true) return withdrawBalanceInfo
-    try { return await apiGet<WithdrawBalanceInfo>('/wallet/withdraw-info') } catch { return withdrawBalanceInfo }
+    const r = await apiGet<any>('/users/wallet/withdraw-info')
+    return {
+      availableBalance: Number(r.availableBalance ?? 0),
+      frozenBalance: 0,
+      pendingBalance: 0,
+      minWithdraw: Number(r.minWithdraw ?? 100),
+      maxWithdraw: Number(r.maxWithdraw ?? 50000),
+      feeRate: Number(r.feeRate ?? 0.006),
+      minFee: Number(r.minFee ?? 1),
+      savedAccounts: Array.isArray(r.savedAccounts) ? r.savedAccounts.map(adaptSavedAccount) : [],
+    }
   },
 
-  /** 申请提现 */
-  async withdraw(_amount: number, _method: string, _account: string): Promise<{ success: boolean; message: string }> {
-    if (true) return { success: true, message: '提现申请已提交' }
-    try { await apiPost('/wallet/withdraw', { amount: _amount, method: _method, account: _account }); return { success: true, message: '提现申请已提交' } } catch (e: any) { return { success: false, message: e?.message || '提现失败' } }
+  /** 申请提现 —— POST /users/wallet/withdraw（后端校验可提现余额/门槛100-50000/并发锁） */
+  async withdraw(_amount: number, _method: string, _account: string | Record<string, string>): Promise<{ success: boolean; message: string }> {
+    try {
+      await apiPost('/users/wallet/withdraw', { amount: _amount, method: _method, account: _account })
+      return { success: true, message: '提现申请已提交' }
+    } catch (e: any) { return { success: false, message: e?.message || '提现失败' } }
+  },
+
+  /** 验证支付密码 —— POST /users/me/payment-password/verify（后端 bcrypt 校验 + 连续错误锁定30分钟） */
+  async verifyPaymentPassword(_password: string): Promise<{ success: boolean; message?: string }> {
+    try {
+      await apiPost('/users/me/payment-password/verify', { password: _password })
+      return { success: true }
+    } catch (e: any) {
+      return { success: false, message: e?.message || '支付密码验证失败' }
+    }
+  },
+
+  /** 设置支付密码（首次） —— POST /users/me/payment-password（6位数字 + 短信码） */
+  async setPaymentPassword(_password: string, _smsCode: string): Promise<{ success: boolean; message?: string }> {
+    try {
+      await apiPost('/users/me/payment-password', { password: _password, smsCode: _smsCode })
+      return { success: true }
+    } catch (e: any) {
+      return { success: false, message: e?.message || '设置失败' }
+    }
+  },
+
+  /** 修改支付密码 —— POST /users/me/payment-password/update（后端校验旧密码 + 爆破锁定） */
+  async updatePaymentPassword(_oldPassword: string, _newPassword: string): Promise<{ success: boolean; message?: string }> {
+    try {
+      await apiPost('/users/me/payment-password/update', { oldPassword: _oldPassword, newPassword: _newPassword })
+      return { success: true }
+    } catch (e: any) {
+      return { success: false, message: e?.message || '修改失败' }
+    }
+  },
+
+  /** 重置支付密码 —— POST /users/me/payment-password/reset（短信验证后设新密码） */
+  async resetPaymentPassword(_newPassword: string, _smsCode: string): Promise<{ success: boolean; message?: string }> {
+    try {
+      await apiPost('/users/me/payment-password/reset', { newPassword: _newPassword, smsCode: _smsCode })
+      return { success: true }
+    } catch (e: any) {
+      return { success: false, message: e?.message || '重置失败' }
+    }
   },
 
   /** 获取积分信息 */
   async getPoints(): Promise<PointsInfo> {
-    if (true) return pointsInfo
-    try { return await apiGet<PointsInfo>('/user/points') } catch { return pointsInfo }
+    try { return await apiGet<PointsInfo>('/users/me/points') } catch { return pointsInfo }
   },
 
   /** 获取成长值 */
   async getGrowth(): Promise<GrowthInfo> {
-    if (true) return growthInfo
-    try { return await apiGet<GrowthInfo>('/user/growth') } catch { return growthInfo }
+    try { return await apiGet<GrowthInfo>('/users/me/growth') } catch { return growthInfo }
   },
 
   /** 获取积分记录 */
   async getPointsRecords(): Promise<PointsRecord[]> {
-    if (true) return pointsRecords
-    try { return await apiGet<PointsRecord[]>('/user/points/records') } catch { return pointsRecords }
+    try { return await apiGet<PointsRecord[]>('/users/me/points/records') } catch { return pointsRecords }
   },
 
-  /** 获取浏览历史 */
+  /** 获取浏览历史 —— GET /users/history（后端 {items:BrowseHistory[]} → 按日期分组适配） */
   async getHistory(): Promise<HistoryGroup[]> {
-    if (true) return historyGroups
-    try { return await apiGet<HistoryGroup[]>('/user/history') } catch { return historyGroups }
+    const res = await apiGet<{ items?: any[] } | any[]>('/users/history?page=1&pageSize=50')
+    const list = Array.isArray(res) ? res : (res?.items ?? [])
+    return adaptHistory(list)
   },
 
-  /** 清除浏览历史 */
-  async clearHistory(): Promise<boolean> {
-    if (true) return true
-    try { await apiPost('/user/history/clear', {}); return true } catch { return false }
-  },
-
-  /** 获取我的点赞 */
+  /** 获取我的点赞 —— GET /users/me/likes（后端 {items} 含多态 target 详情 → 适配，目标已删降级） */
   async getMyLikes(_filter?: string): Promise<LikeItem[]> {
-    if (true) return myLikes
-    try { return await apiGet<LikeItem[]>(`/user/likes${_filter ? `?filter=${_filter}` : ''}`) } catch { return myLikes }
+    const res = await apiGet<{ items?: any[] } | any[]>('/users/me/likes?page=1&pageSize=50')
+    const list = Array.isArray(res) ? res : (res?.items ?? [])
+    return list.map(adaptLike)
   },
 
-  /** 获取我的评论 */
+  /** 获取我的评论 —— GET /users/me/comments（后端 {items} 含 target/replyCount/hasReply → 适配） */
   async getMyComments(): Promise<MyCommentItem[]> {
-    if (true) return myComments
-    try { return await apiGet<MyCommentItem[]>('/user/comments') } catch { return myComments }
+    const res = await apiGet<{ items?: any[] } | any[]>('/users/me/comments?page=1&pageSize=50')
+    const list = Array.isArray(res) ? res : (res?.items ?? [])
+    return list.map(adaptMyComment)
   },
 
-  /** 获取收到的评论 */
+  /** 获取收到的评论 —— GET /users/me/received-comments（后端 {items} 含 user/target/isReplied/myReply → 适配） */
   async getReceivedComments(): Promise<ReceivedCommentItem[]> {
-    if (true) return receivedComments
-    try { return await apiGet<ReceivedCommentItem[]>('/user/received-comments') } catch { return receivedComments }
+    const res = await apiGet<{ items?: any[] } | any[]>('/users/me/received-comments?page=1&pageSize=50')
+    const list = Array.isArray(res) ? res : (res?.items ?? [])
+    return list.map(adaptReceivedComment)
   },
 
-  /** 获取反馈类型 */
-  async getFeedbackTypes(): Promise<typeof feedbackTypes> {
-    if (true) return feedbackTypes
-    try { return await apiGet('/user/feedback/types') } catch { return feedbackTypes }
+  /** 获取反馈类型 —— GET /users/feedback/types（后端 {types,statusConfig} → 取 types） */
+  async getFeedbackTypes(): Promise<FeedbackType[]> {
+    const res = await apiGet<{ types?: FeedbackType[] } | FeedbackType[]>('/users/feedback/types')
+    return Array.isArray(res) ? res : (res?.types ?? [])
   },
 
-  /** 获取历史反馈 */
+  /** 获取历史反馈 —— GET /users/feedback/history（后端 Feedback[] 无 title → 适配） */
   async getFeedbackHistory(): Promise<HistoryFeedbackItem[]> {
-    if (true) return historyFeedbacks
-    try { return await apiGet<HistoryFeedbackItem[]>('/user/feedback') } catch { return historyFeedbacks }
+    const res = await apiGet<any[]>('/users/feedback/history')
+    return Array.isArray(res) ? res.map(adaptFeedbackHistory) : []
   },
 
-  /** 提交反馈 */
-  async submitFeedback(_type: string, _title: string, _content: string, _images?: string[]): Promise<{ success: boolean; message: string }> {
-    if (true) return { success: true, message: '反馈已提交' }
-    try { await apiPost('/user/feedback', { type: _type, title: _title, content: _content, images: _images }); return { success: true, message: '反馈已提交' } } catch (e: any) { return { success: false, message: e?.message || '提交失败' } }
+  /** 提交反馈 —— POST /users/feedback（后端 {type,content,contact?,images?}，无 title 字段） */
+  async submitFeedback(_type: string, _content: string, _contact?: string, _images?: string[]): Promise<{ success: boolean; message: string }> {
+    await apiPost('/users/feedback', { type: _type, content: _content, contact: _contact, images: _images })
+    return { success: true, message: '反馈已提交' }
   },
 
-  /** 获取关于页数据 */
+  /**
+   * 获取关于页数据
+   * aboutStats/aboutFeatures 是纯 UI 展示配置（平台简介数据），后端无 /about 端点，
+   * 直接返回前端维护的展示常量，不属于伪造业务数据。
+   */
   async getAbout(): Promise<{ stats: typeof aboutStats; features: typeof aboutFeatures }> {
-    if (true) return { stats: aboutStats, features: aboutFeatures }
-    try { return await apiGet('/about') } catch { return { stats: aboutStats, features: aboutFeatures } }
+    return { stats: aboutStats, features: aboutFeatures }
   },
 
-  /** 获取隐私授权列表 */
+  /**
+   * 获取隐私授权列表
+   * 客户端权限·后端无端点·诚实降级：
+   * 相机/定位/麦克风等是设备级（客户端）概念，后端不存储授权状态。
+   * 返回 appPermissions 静态权限说明，并叠加本地（uni storage）记录的用户授权选择。
+   */
   async getPermissions(): Promise<AppPermission[]> {
-    if (true) return appPermissions
-    try { return await apiGet<AppPermission[]>('/user/permissions') } catch { return appPermissions }
+    let overrides: Record<string, PermissionStatus> = {}
+    try { overrides = (uni.getStorageSync(PERMISSION_STORAGE_KEY) as Record<string, PermissionStatus>) || {} } catch { overrides = {} }
+    return appPermissions.map((p) => (overrides[p.id] ? { ...p, status: overrides[p.id] } : { ...p }))
   },
 
-  /** 更新隐私授权 */
+  /**
+   * 更新隐私授权
+   * 客户端权限·后端无端点·诚实降级：将用户的授权选择持久化到本地 uni storage，
+   * 真实的系统级授权需用户前往设备系统设置开启（页面已提供「前往系统设置」引导）。
+   */
   async updatePermission(_permissionId: string, _status: PermissionStatus): Promise<boolean> {
-    if (true) return true
-    try { await apiPut(`/user/permissions/${_permissionId}`, { status: _status }); return true } catch { return false }
+    try {
+      const overrides: Record<string, PermissionStatus> = (uni.getStorageSync(PERMISSION_STORAGE_KEY) as Record<string, PermissionStatus>) || {}
+      overrides[_permissionId] = _status
+      uni.setStorageSync(PERMISSION_STORAGE_KEY, overrides)
+      return true
+    } catch {
+      return false
+    }
+  },
+
+  /** 当前登录用户ID —— GET /auth/me（关注列表等公共端点需显式 :id） */
+  async getMyUserId(): Promise<string> {
+    const me = await apiGet<any>('/auth/me')
+    return me?.id ? String(me.id) : ''
+  },
+
+  /** 我的课程 —— GET /courses/my + /courses/study-plan + /courses/dashboard 组合 */
+  async getMyCourses(): Promise<MyCoursesResult> {
+    const [my, plan, dash] = await Promise.all([
+      apiGet<any>('/courses/my?page=1&pageSize=50'),
+      apiGet<any>('/courses/study-plan').catch(() => null),
+      apiGet<any>('/courses/dashboard').catch(() => null),
+    ])
+    const progressByCourse = new Map<string, { total: number; done: number }>()
+    for (const c of (plan?.courses ?? [])) {
+      progressByCourse.set(String(c.courseId ?? c.id), { total: Number(c.totalLessons ?? 0), done: Number(c.completedLessons ?? 0) })
+    }
+    const recentByCourse = new Map<string, { lastLesson?: string; lastStudyAt?: string }>()
+    for (const p of (dash?.recentProgress ?? [])) {
+      const cid = String(p.course?.id ?? p.courseId ?? '')
+      if (cid && !recentByCourse.has(cid)) {
+        recentByCourse.set(cid, { lastLesson: p.chapter?.title, lastStudyAt: p.updatedAt })
+      }
+    }
+    const courses: MyCourseItem[] = (my?.courses ?? [])
+      .filter((o: any) => o.course)
+      .map((o: any) => {
+        const c = o.course
+        const prog = progressByCourse.get(String(c.id))
+        const total = prog?.total ?? 0
+        const done = prog?.done ?? 0
+        const percent = total > 0 ? Math.min(100, Math.round((done / total) * 100)) : 0
+        const recent = recentByCourse.get(String(c.id))
+        return {
+          id: String(c.id),
+          title: c.title || '',
+          cover: c.cover || '',
+          instructor: c.user?.nickname || '',
+          totalLessons: total,
+          completedLessons: done,
+          progressPercent: percent,
+          status: (total > 0 && done >= total ? 'completed' : 'learning') as 'learning' | 'completed',
+          lastStudyAt: recent?.lastStudyAt,
+          lastLesson: recent?.lastLesson,
+        }
+      })
+    return {
+      courses,
+      streak: Number(plan?.streak ?? 0),
+      learningCount: courses.filter((c) => c.status === 'learning').length,
+      completedCount: courses.filter((c) => c.status === 'completed').length,
+    }
+  },
+
+  /** 我的收藏 —— GET /interaction/collect（多态 target 已补全，已删降级） */
+  async getFavorites(): Promise<FavItem[]> {
+    const res = await apiGet<{ items?: any[] }>('/interaction/collect?page=1&pageSize=50')
+    const list = Array.isArray(res?.items) ? res!.items! : []
+    return list.map(adaptFavorite)
+  },
+
+  /** 取消收藏 —— POST /interaction/collect（已收藏 → toggle 关闭） */
+  async removeFavorite(_targetType: string, _targetId: string): Promise<boolean> {
+    await apiPost('/interaction/collect', { targetType: _targetType, targetId: _targetId })
+    return true
+  },
+
+  /** 关注与粉丝 —— GET /users/:id/following + /users/:id/followers（交叉计算互关） */
+  async getFollowData(): Promise<{ following: FollowUserItem[]; followers: FollowUserItem[] }> {
+    const uid = await this.getMyUserId()
+    if (!uid) return { following: [], followers: [] }
+    const [fg, fr] = await Promise.all([
+      apiGet<any>(`/users/${uid}/following?page=1&pageSize=100`),
+      apiGet<any>(`/users/${uid}/followers?page=1&pageSize=100`),
+    ])
+    const followingUsers: any[] = fg?.following ?? []
+    const followerUsers: any[] = fr?.followers ?? []
+    const followingIds = new Set(followingUsers.map((u) => String(u.id)))
+    const followerIds = new Set(followerUsers.map((u) => String(u.id)))
+    const following: FollowUserItem[] = followingUsers.map((u) => ({
+      id: String(u.id), name: u.nickname || '用户', avatar: u.avatar || '',
+      isFollowing: true, isFollowedBy: followerIds.has(String(u.id)),
+    }))
+    const followers: FollowUserItem[] = followerUsers.map((u) => ({
+      id: String(u.id), name: u.nickname || '用户', avatar: u.avatar || '',
+      isFollowing: followingIds.has(String(u.id)), isFollowedBy: true,
+    }))
+    return { following, followers }
+  },
+
+  /** 关注用户 —— POST /users/:id/follow */
+  async followUser(_userId: string): Promise<boolean> {
+    await apiPost(`/users/${_userId}/follow`, {})
+    return true
+  },
+
+  /** 取消关注 —— DELETE /users/:id/follow */
+  async unfollowUser(_userId: string): Promise<boolean> {
+    await apiDelete(`/users/${_userId}/follow`)
+    return true
+  },
+
+  /** 通知列表 —— GET /notifications */
+  async getNotifications(): Promise<NotifyItem[]> {
+    const res = await apiGet<{ notifications?: any[] }>('/notifications?page=1&pageSize=50')
+    const list = Array.isArray(res?.notifications) ? res!.notifications! : []
+    return list.map(adaptNotification)
+  },
+
+  /** 标记单条通知已读 —— PUT /notifications/:id/read */
+  async markNotificationRead(_id: string): Promise<boolean> {
+    await apiPut(`/notifications/${_id}/read`, {})
+    return true
+  },
+
+  /** 全部通知标记已读 —— PUT /notifications/read-all */
+  async markAllNotificationsRead(): Promise<boolean> {
+    await apiPut('/notifications/read-all', {})
+    return true
+  },
+
+  /** 未读通知数量 —— GET /notifications/unread-count（铃铛角标，未登录/异常时降级为 0） */
+  async getUnreadNotifyCount(): Promise<number> {
+    try {
+      const res = await apiGet<{ unreadCount?: number }>('/notifications/unread-count')
+      return Number(res?.unreadCount) || 0
+    } catch {
+      return 0
+    }
+  },
+
+  /** 我的会员权益 —— GET /member/status + /member/plans（仅平台VIP） */
+  async getMemberships(): Promise<MembershipItem[]> {
+    const [status, plans] = await Promise.all([
+      apiGet<any>('/member/status'),
+      apiGet<any[]>('/member/plans').catch(() => [] as any[]),
+    ])
+    if (!status || status.memberLevel === 'NONE') return []
+    const planList = Array.isArray(plans) ? plans : []
+    const config = planList.find((p: any) => p.level === status.memberLevel)
+    const isLifetime = status.memberLevel === 'LIFETIME' || status.remainingDays === -1
+    const daysLeft = isLifetime ? -1 : Number(status.remainingDays ?? 0)
+    const st: 'active' | 'expiring' | 'expired' =
+      !status.isActive ? 'expired' : (!isLifetime && daysLeft <= 30 ? 'expiring' : 'active')
+    return [{
+      id: String(status.memberLevel),
+      name: config?.name || '平台会员',
+      level: String(status.memberLevel),
+      startDate: '',
+      expireDate: isLifetime ? '永久' : (status.memberExpire ? String(status.memberExpire).slice(0, 10) : ''),
+      daysLeft,
+      isLifetime,
+      status: st,
+      price: Number(config?.price ?? 0),
+      benefits: Array.isArray(config?.benefits) ? config.benefits : [],
+    }]
   },
 }
