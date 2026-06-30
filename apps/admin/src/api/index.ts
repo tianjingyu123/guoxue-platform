@@ -135,10 +135,10 @@ export const imApi = {
 
 // 内容
 export const contentApi = {
-  list: (params?: any) => api.get("/contents", { params }),
+  list: (params?: Record<string, unknown>) => api.get("/contents", { params }),
   detail: (id: string) => api.get(`/contents/${id}`),
-  create: (data: any) => api.post("/contents", data),
-  update: (id: string, data: any) => api.put(`/contents/${id}`, data),
+  create: (data: Record<string, unknown>) => api.post("/contents", data),
+  update: (id: string, data: Record<string, unknown>) => api.put(`/contents/${id}`, data),
   remove: (id: string) => api.delete(`/contents/${id}`),
   batchStatus: (ids: string[], status: string) => api.put("/contents/batch/status", { ids, status }),
   stats: () => api.get("/contents/stats/overview"),
@@ -146,10 +146,10 @@ export const contentApi = {
 
 // 课程
 export const courseApi = {
-  list: (params?: any) => api.get("/courses", { params }),
+  list: (params?: Record<string, unknown>) => api.get("/courses", { params }),
   detail: (id: string) => api.get(`/courses/${id}`),
-  create: (data: any) => api.post("/courses", data),
-  update: (id: string, data: any) => api.put(`/courses/${id}`, data),
+  create: (data: Record<string, unknown>) => api.post("/courses", data),
+  update: (id: string, data: Record<string, unknown>) => api.put(`/courses/${id}`, data),
   remove: (id: string) => api.delete(`/courses/${id}`),
   audit: (id: string, status: string) => api.put(`/courses/${id}/audit`, { status }),
   batchAudit: (ids: string[], status: string) => api.put("/courses/batch/audit", { ids, status }),
@@ -157,24 +157,24 @@ export const courseApi = {
   forceStatus: (id: string, status: string) => api.put(`/courses/${id}/status`, { status }),
   // 章节
   getChapters: (id: string) => api.get(`/courses/${id}/chapters`),
-  addChapter: (id: string, data: any) => api.post(`/courses/${id}/chapters`, data),
-  updateChapter: (id: string, chapterId: string, data: any) => api.put(`/courses/${id}/chapters/${chapterId}`, data),
+  addChapter: (id: string, data: Record<string, unknown>) => api.post(`/courses/${id}/chapters`, data),
+  updateChapter: (id: string, chapterId: string, data: Record<string, unknown>) => api.put(`/courses/${id}/chapters/${chapterId}`, data),
   deleteChapter: (id: string, chapterId: string) => api.delete(`/courses/${id}/chapters/${chapterId}`),
   // 学员
-  getStudents: (id: string, params?: any) => api.get(`/courses/${id}/students`, { params }),
+  getStudents: (id: string, params?: Record<string, unknown>) => api.get(`/courses/${id}/students`, { params }),
   getStudentProgress: (id: string, userId: string) => api.get(`/courses/${id}/students/${userId}`),
   // 作业
-  getWorks: (id: string, params?: any) => api.get(`/courses/${id}/works`, { params }),
+  getWorks: (id: string, params?: Record<string, unknown>) => api.get(`/courses/${id}/works`, { params }),
   scoreWork: (workId: string, score: number, feedback?: string) => api.put(`/courses/works/${workId}/score`, { score, feedback }),
   aiScoreWork: (workId: string) => api.post(`/courses/works/${workId}/ai-score`),
   aiBatchScoreWorks: (courseId: string, chapterId?: string) => api.post(`/courses/${courseId}/works/ai-batch`, { chapterId }),
   // 评价
-  getReviews: (id: string, params?: any) => api.get(`/courses/${id}/reviews`, { params }),
-  getAllReviews: (id: string, params?: any) => api.get(`/courses/${id}/reviews/all`, { params }),
+  getReviews: (id: string, params?: Record<string, unknown>) => api.get(`/courses/${id}/reviews`, { params }),
+  getAllReviews: (id: string, params?: Record<string, unknown>) => api.get(`/courses/${id}/reviews/all`, { params }),
   replyReview: (reviewId: string, reply: string) => api.put(`/courses/reviews/${reviewId}/reply`, { reply }),
   toggleReview: (reviewId: string, status: string) => api.put(`/courses/reviews/${reviewId}/toggle`, { status }),
   // 问答
-  getQuestions: (id: string, params?: any) => api.get(`/courses/${id}/questions`, { params }),
+  getQuestions: (id: string, params?: Record<string, unknown>) => api.get(`/courses/${id}/questions`, { params }),
   getQuestionTags: (id: string) => api.get(`/courses/${id}/questions/tags`),
   answerQuestion: (qaId: string, answer: string) => api.put(`/courses/questions/${qaId}/answer`, { answer }),
   closeQuestion: (qaId: string) => api.put(`/courses/questions/${qaId}/close`),
@@ -185,9 +185,9 @@ export const courseApi = {
   getRelated: (id: string, limit?: number, useAi?: boolean) => api.get(`/courses/${id}/related`, { params: { limit, useAi: useAi ? 'true' : 'false' } }),
   // 分类
   getCategories: () => api.get("/courses/categories"),
-  listDrafts: (params?: any) => api.get("/courses/drafts", { params }),
-  createDraft: (data: any) => api.post("/courses/drafts", data),
-  updateDraft: (id: string, data: any) => api.put(`/courses/drafts/${id}`, data),
+  listDrafts: (params?: Record<string, unknown>) => api.get("/courses/drafts", { params }),
+  createDraft: (data: Record<string, unknown>) => api.post("/courses/drafts", data),
+  updateDraft: (id: string, data: Record<string, unknown>) => api.put(`/courses/drafts/${id}`, data),
   deleteDraft: (id: string) => api.delete(`/courses/drafts/${id}`),
   publishDraft: (id: string) => api.post(`/courses/drafts/${id}/publish`),
   getLiveRooms: (id: string) => api.get(`/courses/${id}/live-rooms`),
@@ -195,37 +195,37 @@ export const courseApi = {
 
 // 排盘
 export const paipanApi = {
-  preview: (data: any) => api.post("/paipan/bazi/preview", data),
-  save: (data: any) => api.post("/paipan/bazi", data),
-  history: (params?: any) => api.get("/paipan/bazi", { params }),
+  preview: (data: Record<string, unknown>) => api.post("/paipan/bazi/preview", data),
+  save: (data: Record<string, unknown>) => api.post("/paipan/bazi", data),
+  history: (params?: Record<string, unknown>) => api.get("/paipan/bazi", { params }),
   detail: (id: string) => api.get(`/paipan/bazi/${id}`),
   // 紫微斗数
-  ziweiPreview: (data: any) => api.post("/paipan/ziwei/preview", data),
-  ziweiSave: (data: any) => api.post("/paipan/ziwei", data),
-  ziweiHistory: (params?: any) => api.get("/paipan/ziwei", { params }),
+  ziweiPreview: (data: Record<string, unknown>) => api.post("/paipan/ziwei/preview", data),
+  ziweiSave: (data: Record<string, unknown>) => api.post("/paipan/ziwei", data),
+  ziweiHistory: (params?: Record<string, unknown>) => api.get("/paipan/ziwei", { params }),
   ziweiDetail: (id: string) => api.get(`/paipan/ziwei/${id}`),
   // 奇门遁甲
-  qimenPreview: (data: any) => api.post("/paipan/qimen", data),
-  qimenSave: (data: any) => api.post("/paipan/qimen/save", data),
-  qimenHistory: (params?: any) => api.get("/paipan/qimen/history", { params }),
+  qimenPreview: (data: Record<string, unknown>) => api.post("/paipan/qimen", data),
+  qimenSave: (data: Record<string, unknown>) => api.post("/paipan/qimen/save", data),
+  qimenHistory: (params?: Record<string, unknown>) => api.get("/paipan/qimen/history", { params }),
   qimenDetail: (id: string) => api.get(`/paipan/qimen/${id}`),
   // 阳盘命理
-  yangpanPreview: (data: any) => api.post("/paipan/yangpan", data),
-  yangpanSave: (data: any) => api.post("/paipan/yangpan/save", data),
-  yangpanHistory: (params?: any) => api.get("/paipan/yangpan/history", { params }),
+  yangpanPreview: (data: Record<string, unknown>) => api.post("/paipan/yangpan", data),
+  yangpanSave: (data: Record<string, unknown>) => api.post("/paipan/yangpan/save", data),
+  yangpanHistory: (params?: Record<string, unknown>) => api.get("/paipan/yangpan/history", { params }),
   yangpanDetail: (id: string) => api.get(`/paipan/yangpan/${id}`),
   // 六爻
-  liuyaoPreview: (data: any) => api.post("/paipan/liuyao", data),
-  liuyaoSave: (data: any) => api.post("/paipan/liuyao/save", data),
-  liuyaoHistory: (params?: any) => api.get("/paipan/liuyao/history", { params }),
+  liuyaoPreview: (data: Record<string, unknown>) => api.post("/paipan/liuyao", data),
+  liuyaoSave: (data: Record<string, unknown>) => api.post("/paipan/liuyao/save", data),
+  liuyaoHistory: (params?: Record<string, unknown>) => api.get("/paipan/liuyao/history", { params }),
   liuyaoDetail: (id: string) => api.get(`/paipan/liuyao/${id}`),
   // 大六壬
-  daliurenPreview: (data: any) => api.post("/paipan/daliuren", data),
-  daliurenSave: (data: any) => api.post("/paipan/daliuren/save", data),
-  daliurenHistory: (params?: any) => api.get("/paipan/daliuren/history", { params }),
+  daliurenPreview: (data: Record<string, unknown>) => api.post("/paipan/daliuren", data),
+  daliurenSave: (data: Record<string, unknown>) => api.post("/paipan/daliuren/save", data),
+  daliurenHistory: (params?: Record<string, unknown>) => api.get("/paipan/daliuren/history", { params }),
   daliurenDetail: (id: string) => api.get(`/paipan/daliuren/${id}`),
   // 管理员
-  adminRecords: (params?: any) => api.get("/paipan/admin/records", { params }),
+  adminRecords: (params?: Record<string, unknown>) => api.get("/paipan/admin/records", { params }),
 };
 
 // 仪表盘
@@ -253,10 +253,10 @@ export const dashboardApi = {
 
 // 圈子
 export const circleApi = {
-  list: (params?: any) => api.get("/circles", { params }),
+  list: (params?: Record<string, unknown>) => api.get("/circles", { params }),
   detail: (id: string) => api.get(`/circles/${id}`),
-  create: (data: any) => api.post("/circles", data),
-  update: (id: string, data: any) => api.put(`/circles/${id}`, data),
+  create: (data: Record<string, unknown>) => api.post("/circles", data),
+  update: (id: string, data: Record<string, unknown>) => api.put(`/circles/${id}`, data),
   remove: (id: string) => api.delete(`/circles/${id}`),
   // 成员管理
   getMembers: (circleId: string, params?: { page?: number; pageSize?: number }) =>
@@ -266,12 +266,12 @@ export const circleApi = {
   removeMember: (circleId: string, userId: string) =>
     api.delete(`/circles/${circleId}/members/${userId}`),
   // 帖子管理
-  createPost: (circleId: string, data: any) => api.post(`/circles/${circleId}/posts`, data),
-  getPosts: (circleId: string, params?: any) =>
+  createPost: (circleId: string, data: Record<string, unknown>) => api.post(`/circles/${circleId}/posts`, data),
+  getPosts: (circleId: string, params?: Record<string, unknown>) =>
     api.get(`/circles/${circleId}/posts`, { params }),
   getPostDetail: (circleId: string, postId: string) =>
     api.get(`/circles/${circleId}/posts/${postId}`),
-  updatePost: (circleId: string, postId: string, data: any) =>
+  updatePost: (circleId: string, postId: string, data: Record<string, unknown>) =>
     api.put(`/circles/${circleId}/posts/${postId}`, data),
   toggleEssence: (circleId: string, postId: string) =>
     api.post(`/circles/${circleId}/posts/${postId}/essence`),
@@ -284,7 +284,7 @@ export const circleApi = {
   // 排行
   getCircleRanking: (params?: { page?: number; pageSize?: number; sortBy?: string }) =>
     api.get("/circles/ranking", { params }),
-  getLeaderboard: (circleId: string, params?: any) =>
+  getLeaderboard: (circleId: string, params?: Record<string, unknown>) =>
     api.get(`/circles/${circleId}/leaderboard`, { params }),
   getHotContent: (circleId: string, limit?: number) =>
     api.get(`/circles/${circleId}/hot-content`, { params: { limit: limit || 10 } }),
@@ -295,10 +295,10 @@ export const circleApi = {
   setExpertConfig: (circleId: string, data: { userId?: string; questionPriceCoin?: number; callPricePerMinuteCoin?: number }) =>
     api.post(`/circles/${circleId}/expert/config`, data),
   // 付费入圈
-  prepareJoin: (circleId: string, data?: any) => api.post(`/circles/${circleId}/join/prepare`, data),
-  confirmJoin: (circleId: string, data?: any) => api.post(`/circles/${circleId}/join/confirm`, data),
+  prepareJoin: (circleId: string, data?: Record<string, unknown>) => api.post(`/circles/${circleId}/join/prepare`, data),
+  confirmJoin: (circleId: string, data?: Record<string, unknown>) => api.post(`/circles/${circleId}/join/confirm`, data),
   getJoinStatus: (circleId: string) => api.get(`/circles/${circleId}/join/status`),
-  renew: (circleId: string, data?: any) => api.post(`/circles/${circleId}/renew`, data),
+  renew: (circleId: string, data?: Record<string, unknown>) => api.post(`/circles/${circleId}/renew`, data),
   // 公告
   getAnnouncement: (circleId: string) => api.get(`/circles/${circleId}/announcement`),
   setAnnouncement: (circleId: string, content: string, isTop?: boolean) => api.put(`/circles/${circleId}/announcement`, { content, isTop }),
@@ -310,8 +310,8 @@ export const circleApi = {
   getInvitationStats: (circleId: string) => api.get(`/circles/${circleId}/invitation-stats`),
   // 分组
   listGroups: (circleId: string) => api.get(`/circles/${circleId}/member-groups`),
-  createGroup: (circleId: string, data: any) => api.post(`/circles/${circleId}/member-groups`, data),
-  updateGroup: (circleId: string, groupId: string, data: any) => api.put(`/circles/${circleId}/member-groups/${groupId}`, data),
+  createGroup: (circleId: string, data: Record<string, unknown>) => api.post(`/circles/${circleId}/member-groups`, data),
+  updateGroup: (circleId: string, groupId: string, data: Record<string, unknown>) => api.put(`/circles/${circleId}/member-groups/${groupId}`, data),
   deleteGroup: (circleId: string, groupId: string) => api.delete(`/circles/${circleId}/member-groups/${groupId}`),
   addMembersToGroup: (circleId: string, groupId: string, userIds: string[]) =>
     api.post(`/circles/${circleId}/member-groups/${groupId}/members`, { userIds }),
@@ -320,38 +320,38 @@ export const circleApi = {
   getGroupMembers: (circleId: string, groupId: string, params?: { page?: number; pageSize?: number }) =>
     api.get(`/circles/${circleId}/member-groups/${groupId}/members`, { params }),
   // 收益
-  getRevenue: (circleId: string, params?: any) => api.get(`/circles/${circleId}/dashboard/revenue-breakdown`, { params }),
+  getRevenue: (circleId: string, params?: Record<string, unknown>) => api.get(`/circles/${circleId}/dashboard/revenue-breakdown`, { params }),
 };
 
 // 视频
 export const videoApi = {
-  list: (params?: any) => api.get("/videos", { params }),
+  list: (params?: Record<string, unknown>) => api.get("/videos", { params }),
   detail: (id: string) => api.get(`/videos/${id}`),
-  create: (data: any) => api.post("/videos", data),
-  update: (id: string, data: any) => api.put(`/videos/${id}`, data),
+  create: (data: Record<string, unknown>) => api.post("/videos", data),
+  update: (id: string, data: Record<string, unknown>) => api.put(`/videos/${id}`, data),
   remove: (id: string) => api.delete(`/videos/${id}`),
   // VOD 上传签名
-  getUploadSignature: (data?: any) => api.post("/videos/vod/upload-signature", data),
+  getUploadSignature: (data?: Record<string, unknown>) => api.post("/videos/vod/upload-signature", data),
   // VOD 播放鉴权签名
   getPlaySignature: (fileId: string, expire?: number) => api.get(`/videos/vod/play-signature/${fileId}`, { params: { expire } }),
   // VOD URL拉取上传
-  pullUpload: (data: any) => api.post("/videos/vod/pull-upload", data),
+  pullUpload: (data: Record<string, unknown>) => api.post("/videos/vod/pull-upload", data),
   // VOD 媒资处理（转码+截图+水印）
-  processMedia: (fileId: string, data?: any) => api.post(`/videos/vod/process/${fileId}`, data),
+  processMedia: (fileId: string, data?: Record<string, unknown>) => api.post(`/videos/vod/process/${fileId}`, data),
   // VOD 视频剪辑
-  clipVideo: (data: any) => api.post("/videos/vod/clip", data),
+  clipVideo: (data: Record<string, unknown>) => api.post("/videos/vod/clip", data),
   // VOD 媒资信息
   getMediaInfo: (fileId: string) => api.get(`/videos/vod/media/${fileId}`),
   // VOD 删除媒资
   deleteMedia: (fileId: string) => api.delete(`/videos/vod/media/${fileId}`),
   // VOD 媒资搜索
-  searchVodMedia: (params?: any) => api.get("/videos/vod/search", { params }),
+  searchVodMedia: (params?: Record<string, unknown>) => api.get("/videos/vod/search", { params }),
   // VOD 播放统计
   getPlaybackStats: (fileId: string, params: { startDate: string; endDate: string }) => api.get(`/videos/vod/playback-stats/${fileId}`, { params }),
   // VOD 播放统计概览
   getPlaybackSummary: (params: { startDate: string; endDate: string }) => api.get("/videos/vod/playback-summary", { params }),
   // 收藏管理
-  getCollectedList: (params?: any) => api.get("/videos/collected/mine", { params }),
+  getCollectedList: (params?: Record<string, unknown>) => api.get("/videos/collected/mine", { params }),
   // 分享记录
   recordShare: (id: string) => api.post(`/videos/${id}/share`),
   // 商品关联
@@ -361,36 +361,36 @@ export const videoApi = {
 
 // 直播
 export const liveApi = {
-  rooms: (params?: any) => api.get("/live/rooms", { params }),
+  rooms: (params?: Record<string, unknown>) => api.get("/live/rooms", { params }),
   detail: (id: string) => api.get(`/live/rooms/${id}`),
-  create: (data: any) => api.post("/live/rooms", data),
-  update: (id: string, data: any) => api.put(`/live/rooms/${id}`, data),
+  create: (data: Record<string, unknown>) => api.post("/live/rooms", data),
+  update: (id: string, data: Record<string, unknown>) => api.put(`/live/rooms/${id}`, data),
   endRoom: (id: string) => api.put(`/live/rooms/${id}/end`),
   remove: (id: string) => api.delete(`/live/rooms/${id}`),
   // 礼物管理
   gifts: () => api.get("/live/gifts"),
-  createGift: (data: any) => api.post("/live/gifts", data),
-  updateGift: (id: string, data: any) => api.put(`/live/gifts/${id}`, data),
+  createGift: (data: Record<string, unknown>) => api.post("/live/gifts", data),
+  updateGift: (id: string, data: Record<string, unknown>) => api.put(`/live/gifts/${id}`, data),
   removeGift: (id: string) => api.delete(`/live/gifts/${id}`),
   // 秒杀管理
   flashSales: (roomId: string) => api.get(`/live/rooms/${roomId}/flash-sales`),
   // 审核日志
-  auditLogs: (roomId: string, params?: any) => api.get(`/live/rooms/${roomId}/audit-logs`, { params }),
+  auditLogs: (roomId: string, params?: Record<string, unknown>) => api.get(`/live/rooms/${roomId}/audit-logs`, { params }),
   // 预约统计
   bookings: (roomId: string) => api.get(`/live/rooms/${roomId}/bookings`),
 };
 
 // 用户管理
 export const userApi = {
-  list: (params?: any) => api.get("/users", { params }),
+  list: (params?: Record<string, unknown>) => api.get("/users", { params }),
   detail: (id: string) => api.get(`/users/${id}`),
-  assignRole: (id: string, data: any) => api.post(`/users/${id}/roles`, data),
+  assignRole: (id: string, data: Record<string, unknown>) => api.post(`/users/${id}/roles`, data),
   removeRole: (id: string, roleType: string, bindId?: string) => api.delete(`/users/${id}/roles/${roleType}`, { data: { bindId } }),
   updateStatus: (id: string, status: string) => api.put(`/users/${id}/status`, { status }),
   ban: (id: string, reason?: string) => api.put(`/users/${id}/status`, { status: 'DISABLED', reason }),
   unban: (id: string) => api.put(`/users/${id}/status`, { status: 'ACTIVE' }),
   getUserStats: (id: string) => api.get(`/users/${id}/stats`),
-  getUserPurchases: (id: string, params?: any) => api.get(`/users/${id}/purchases`, { params }),
+  getUserPurchases: (id: string, params?: Record<string, unknown>) => api.get(`/users/${id}/purchases`, { params }),
   getAdminProfile: (id: string) => api.get(`/users/${id}/profile`),
   getInterestStats: () => api.get("/users/stats/interests"),
   pushByTag: (data: { tag: string; title: string; content: string }) => api.post("/users/push/by-tag", data),
@@ -401,21 +401,21 @@ export const userApi = {
 
 // 实名认证
 export const identityApi = {
-  list: (params?: any) => api.get("/identity/admin/audit-list", { params }),
+  list: (params?: Record<string, unknown>) => api.get("/identity/admin/audit-list", { params }),
   approve: (id: string) => api.post(`/identity/admin/approve/${id}`),
   reject: (id: string, reason: string) => api.post(`/identity/admin/reject/${id}`, { reason }),
 };
 
 // 古籍
 export const classicApi = {
-  list: (params?: any) => api.get("/classic/books", { params }),
+  list: (params?: Record<string, unknown>) => api.get("/classic/books", { params }),
   detail: (id: string) => api.get(`/classic/books/${id}`),
-  create: (data: any) => api.post("/classic/books", data),
-  update: (id: string, data: any) => api.put(`/classic/books/${id}`, data),
+  create: (data: Record<string, unknown>) => api.post("/classic/books", data),
+  update: (id: string, data: Record<string, unknown>) => api.put(`/classic/books/${id}`, data),
   remove: (id: string) => api.delete(`/classic/books/${id}`),
   getChapters: (bookId: string) => api.get(`/classic/books/${bookId}/chapters`),
-  addChapter: (bookId: string, data: any) => api.post(`/classic/books/${bookId}/chapters`, data),
-  updateChapter: (id: string, data: any) => api.put(`/classic/chapters/${id}`, data),
+  addChapter: (bookId: string, data: Record<string, unknown>) => api.post(`/classic/books/${bookId}/chapters`, data),
+  updateChapter: (id: string, data: Record<string, unknown>) => api.put(`/classic/chapters/${id}`, data),
   deleteChapter: (id: string) => api.delete(`/classic/chapters/${id}`),
   // 注疏管理
   listAnnotations: (bookId: string, params?: { chapterId?: string; page?: number; pageSize?: number }) =>
@@ -453,26 +453,26 @@ export const classicApi = {
 export const poetryAdminApi = {
   listPoems: (params?: { page?: number; pageSize?: number; status?: string; categoryId?: string; dynasty?: string; keyword?: string }) =>
     api.get("/poetry/admin/poems", { params }),
-  createPoem: (data: any) => api.post("/poetry/admin/poems", data),
-  updatePoem: (id: string, data: any) => api.put(`/poetry/admin/poems/${id}`, data),
+  createPoem: (data: Record<string, unknown>) => api.post("/poetry/admin/poems", data),
+  updatePoem: (id: string, data: Record<string, unknown>) => api.put(`/poetry/admin/poems/${id}`, data),
   deletePoem: (id: string) => api.delete(`/poetry/admin/poems/${id}`),
   listCategories: () => api.get("/poetry/admin/categories"),
-  createCategory: (data: any) => api.post("/poetry/admin/categories", data),
-  updateCategory: (id: string, data: any) => api.put(`/poetry/admin/categories/${id}`, data),
+  createCategory: (data: Record<string, unknown>) => api.post("/poetry/admin/categories", data),
+  updateCategory: (id: string, data: Record<string, unknown>) => api.put(`/poetry/admin/categories/${id}`, data),
   deleteCategory: (id: string) => api.delete(`/poetry/admin/categories/${id}`),
   listCollections: (params?: { page?: number; pageSize?: number; status?: string }) =>
     api.get("/poetry/admin/collections", { params }),
-  createCollection: (data: any) => api.post("/poetry/admin/collections", data),
-  updateCollection: (id: string, data: any) => api.put(`/poetry/admin/collections/${id}`, data),
+  createCollection: (data: Record<string, unknown>) => api.post("/poetry/admin/collections", data),
+  updateCollection: (id: string, data: Record<string, unknown>) => api.put(`/poetry/admin/collections/${id}`, data),
   deleteCollection: (id: string) => api.delete(`/poetry/admin/collections/${id}`),
 };
 
 // 智能体
 export const botApi = {
-  list: (params?: any) => api.get("/bots", { params }),
+  list: (params?: Record<string, unknown>) => api.get("/bots", { params }),
   detail: (id: string) => api.get(`/bots/${id}`),
-  create: (data: any) => api.post("/bots", data),
-  update: (id: string, data: any) => api.put(`/bots/${id}`, data),
+  create: (data: Record<string, unknown>) => api.post("/bots", data),
+  update: (id: string, data: Record<string, unknown>) => api.put(`/bots/${id}`, data),
   remove: (id: string) => api.delete(`/bots/${id}`),
   bindCircle: (id: string, data: { circleId: string; knowledgeBaseId?: string }) =>
     api.post(`/bots/${id}/bind-circle`, data),
@@ -503,50 +503,50 @@ export const botApi = {
 
 // 研究院
 export const instituteApi = {
-  listMembers: (params?: any) => api.get("/institute/members", { params }),
+  listMembers: (params?: Record<string, unknown>) => api.get("/institute/members", { params }),
   getMember: (id: string) => api.get(`/institute/members/${id}`),
-  updateMember: (id: string, data: any) => api.put(`/institute/members/${id}`, data),
+  updateMember: (id: string, data: Record<string, unknown>) => api.put(`/institute/members/${id}`, data),
   setLecturerLevel: (id: string, level: string) => api.put(`/institute/members/${id}/lecturer-level`, { level }),
   verifyTask: (taskId: string) => api.post(`/institute/tasks/${taskId}/verify`),
-  createEvent: (data: any) => api.post("/institute/events", data),
-  updateEvent: (id: string, data: any) => api.put(`/institute/events/${id}`, data),
+  createEvent: (data: Record<string, unknown>) => api.post("/institute/events", data),
+  updateEvent: (id: string, data: Record<string, unknown>) => api.put(`/institute/events/${id}`, data),
   // 管理层
   getOverview: () => api.get("/institute/manage/overview"),
   getPendingMembers: () => api.get("/institute/manage/pending-members"),
-  approveMember: (id: string, data: any) => api.put(`/institute/manage/members/${id}/approve`, data),
-  assignRole: (id: string, data: any) => api.put(`/institute/manage/members/${id}/role`, data),
+  approveMember: (id: string, data: Record<string, unknown>) => api.put(`/institute/manage/members/${id}/approve`, data),
+  assignRole: (id: string, data: Record<string, unknown>) => api.put(`/institute/manage/members/${id}/role`, data),
   getFinance: (period?: string) => api.get("/institute/manage/finance", { params: { period } }),
-  createDividend: (data: any) => api.post("/institute/manage/dividends", data),
+  createDividend: (data: Record<string, unknown>) => api.post("/institute/manage/dividends", data),
   recommendToTalent: (id: string, lecturerLevel: string) => api.put(`/institute/manage/members/${id}/recommend`, { lecturerLevel }),
   // 任务模板
   listTaskTemplates: () => api.get("/institute/task-templates"),
-  createTaskTemplate: (data: any) => api.post("/institute/task-templates", data),
-  updateTaskTemplate: (id: string, data: any) => api.put(`/institute/task-templates/${id}`, data),
+  createTaskTemplate: (data: Record<string, unknown>) => api.post("/institute/task-templates", data),
+  updateTaskTemplate: (id: string, data: Record<string, unknown>) => api.put(`/institute/task-templates/${id}`, data),
   deleteTaskTemplate: (id: string) => api.delete(`/institute/task-templates/${id}`),
   // 人才库
   getCandidates: () => api.get("/institute/candidates"),
   // 内容
-  listContents: (params?: any) => api.get("/admin/institute/contents", { params }),
-  createContent: (data: any) => api.post("/admin/institute/contents", data),
+  listContents: (params?: Record<string, unknown>) => api.get("/admin/institute/contents", { params }),
+  createContent: (data: Record<string, unknown>) => api.post("/admin/institute/contents", data),
   getContent: (id: string) => api.get(`/admin/institute/contents/${id}`),
-  updateContent: (id: string, data: any) => api.put(`/admin/institute/contents/${id}`, data),
+  updateContent: (id: string, data: Record<string, unknown>) => api.put(`/admin/institute/contents/${id}`, data),
   deleteContent: (id: string) => api.delete(`/admin/institute/contents/${id}`),
   getContentStats: () => api.get("/admin/institute/contents/stats"),
-  getContentPurchases: (id: string, params?: any) => api.get(`/admin/institute/contents/${id}/purchases`, { params }),
+  getContentPurchases: (id: string, params?: Record<string, unknown>) => api.get(`/admin/institute/contents/${id}/purchases`, { params }),
   // 分红
-  getDividends: (params?: any) => api.get("/institute/my/dividends", { params }),
+  getDividends: (params?: Record<string, unknown>) => api.get("/institute/my/dividends", { params }),
 };
 
 // 分站管理（推广分站）
 export const stationApi = {
-  list: (params?: any) => api.get("/station", { params }),
+  list: (params?: Record<string, unknown>) => api.get("/station", { params }),
   detail: (id: string) => api.get(`/station/${id}`),
-  create: (data: any) => api.post("/station", data),
-  update: (id: string, data: any) => api.put(`/station/${id}`, data),
+  create: (data: Record<string, unknown>) => api.post("/station", data),
+  update: (id: string, data: Record<string, unknown>) => api.put(`/station/${id}`, data),
   remove: (id: string) => api.delete(`/station/${id}`),
-  earnings: (id: string, params?: any) => api.get(`/station/${id}/earnings`, { params }),
-  operatorList: (params?: any) => api.get("/station/operator/list", { params }),
-  createOperator: (data: any) => api.post("/station/operator", data),
+  earnings: (id: string, params?: Record<string, unknown>) => api.get(`/station/${id}/earnings`, { params }),
+  operatorList: (params?: Record<string, unknown>) => api.get("/station/operator/list", { params }),
+  createOperator: (data: Record<string, unknown>) => api.post("/station/operator", data),
   // 模版
   getTemplates: () => api.get("/station/templates/list"),
   getTemplateConfig: (id: string) => api.get(`/station/templates/${id}`),
@@ -556,58 +556,58 @@ export const stationApi = {
   getMiniConfig: (id: string) => api.get(`/station/${id}/mini-config`),
   getRevenueDashboard: (id: string) => api.get(`/station/${id}/revenue-dashboard`),
   getOperatorMiniConfig: (id: string) => api.get(`/station/operator/${id}/mini-config`),
-  updateOperatorBrand: (id: string, data: any) => api.put(`/station/operator/${id}/brand`, data),
-  getTeamMembers: (params?: any) => api.get("/station/team/members", { params }),
-  getTeamLeaderboard: (params?: any) => api.get("/station/team/leaderboard", { params }),
-  getTeamActivity: (params?: any) => api.get("/station/team/activity", { params }),
-  getTeamSuccessCases: (params?: any) => api.get("/station/team/success-cases", { params }),
-  listPromotionMaterials: (params?: any) => api.get("/station/promotion/materials", { params }),
+  updateOperatorBrand: (id: string, data: Record<string, unknown>) => api.put(`/station/operator/${id}/brand`, data),
+  getTeamMembers: (params?: Record<string, unknown>) => api.get("/station/team/members", { params }),
+  getTeamLeaderboard: (params?: Record<string, unknown>) => api.get("/station/team/leaderboard", { params }),
+  getTeamActivity: (params?: Record<string, unknown>) => api.get("/station/team/activity", { params }),
+  getTeamSuccessCases: (params?: Record<string, unknown>) => api.get("/station/team/success-cases", { params }),
+  listPromotionMaterials: (params?: Record<string, unknown>) => api.get("/station/promotion/materials", { params }),
   getPromotionMaterial: (id: string) => api.get(`/station/promotion/materials/${id}`),
-  createPromotionMaterial: (data: any) => api.post("/station/promotion/materials", data),
+  createPromotionMaterial: (data: Record<string, unknown>) => api.post("/station/promotion/materials", data),
   deletePromotionMaterial: (id: string) => api.delete(`/station/promotion/materials/${id}`),
   listReferralConfigs: () => api.get("/admin/referral/temp-configs"),
   getActiveReferralConfig: () => api.get("/admin/referral/temp-configs/active"),
   getReferralConfigHistory: () => api.get("/admin/referral/temp-configs/history"),
   getReferralConfig: (id: string) => api.get(`/admin/referral/temp-configs/${id}`),
-  createReferralConfig: (data: any) => api.post("/admin/referral/temp-configs", data),
-  updateReferralConfig: (id: string, data: any) => api.put(`/admin/referral/temp-configs/${id}`, data),
+  createReferralConfig: (data: Record<string, unknown>) => api.post("/admin/referral/temp-configs", data),
+  updateReferralConfig: (id: string, data: Record<string, unknown>) => api.put(`/admin/referral/temp-configs/${id}`, data),
   deleteReferralConfig: (id: string) => api.delete(`/admin/referral/temp-configs/${id}`),
 };
 
 // 线下驿站管理（完整 API）
 export const offlineApi = {
-  list: (params?: any) => api.get("/offline/stations", { params }),
+  list: (params?: Record<string, unknown>) => api.get("/offline/stations", { params }),
   detail: (id: string) => api.get(`/offline/stations/${id}`),
-  create: (data: any) => api.post("/offline/stations", data),
+  create: (data: Record<string, unknown>) => api.post("/offline/stations", data),
   audit: (id: string, status: string) => api.put(`/offline/stations/${id}/audit`, { status }),
-  courses: (params?: any) => api.get("/offline/courses", { params }),
-  createCourse: (data: any) => api.post("/offline/courses", data),
-  members: (params?: any) => api.get("/offline/institute/members", { params }),
-  updateMember: (id: string, data: any) => api.put(`/offline/institute/members/${id}`, data),
+  courses: (params?: Record<string, unknown>) => api.get("/offline/courses", { params }),
+  createCourse: (data: Record<string, unknown>) => api.post("/offline/courses", data),
+  members: (params?: Record<string, unknown>) => api.get("/offline/institute/members", { params }),
+  updateMember: (id: string, data: Record<string, unknown>) => api.put(`/offline/institute/members/${id}`, data),
   getRevenueDashboard: (id: string) => api.get(`/offline/stations/${id}/revenue-dashboard`),
-  getPendingCourses: (params?: any) => api.get("/offline/admin/courses/pending", { params }),
+  getPendingCourses: (params?: Record<string, unknown>) => api.get("/offline/admin/courses/pending", { params }),
   auditCourse: (id: string, status: string) => api.put(`/offline/admin/courses/${id}/audit`, { status }),
-  recommendCourse: (id: string, data?: any) => api.put(`/offline/admin/courses/${id}/recommend`, data),
+  recommendCourse: (id: string, data?: Record<string, unknown>) => api.put(`/offline/admin/courses/${id}/recommend`, data),
   getRecommendedCourses: () => api.get("/offline/admin/courses/recommended"),
-  getCourseRegistrations: (id: string, params?: any) => api.get(`/offline/courses/${id}/registrations`, { params }),
-  addProduct: (stationId: string, data: any) => api.post(`/offline/stations/${stationId}/products`, data),
-  updateProduct: (productId: string, data: any) => api.put(`/offline/products/${productId}`, data),
+  getCourseRegistrations: (id: string, params?: Record<string, unknown>) => api.get(`/offline/courses/${id}/registrations`, { params }),
+  addProduct: (stationId: string, data: Record<string, unknown>) => api.post(`/offline/stations/${stationId}/products`, data),
+  updateProduct: (productId: string, data: Record<string, unknown>) => api.put(`/offline/products/${productId}`, data),
   getProducts: (stationId: string) => api.get(`/offline/stations/${stationId}/products`),
   deleteProduct: (productId: string) => api.delete(`/offline/products/${productId}`),
-  getStationOrders: (stationId: string, params?: any) => api.get(`/offline/stations/${stationId}/orders`, { params }),
-  updateOrder: (orderId: string, data: any) => api.put(`/offline/orders/${orderId}`, data),
+  getStationOrders: (stationId: string, params?: Record<string, unknown>) => api.get(`/offline/stations/${stationId}/orders`, { params }),
+  updateOrder: (orderId: string, data: Record<string, unknown>) => api.put(`/offline/orders/${orderId}`, data),
   getSettlements: (stationId: string) => api.get(`/offline/stations/${stationId}/settlements`),
-  createSettlement: (stationId: string, data: any) => api.post(`/offline/stations/${stationId}/settlements`, data),
+  createSettlement: (stationId: string, data: Record<string, unknown>) => api.post(`/offline/stations/${stationId}/settlements`, data),
   settleSettlement: (settlementId: string) => api.put(`/offline/settlements/${settlementId}/settle`),
-  createTeacher: (data: any) => api.post("/offline/admin/teachers", data),
-  listTeachers: (params?: any) => api.get("/offline/admin/teachers", { params }),
+  createTeacher: (data: Record<string, unknown>) => api.post("/offline/admin/teachers", data),
+  listTeachers: (params?: Record<string, unknown>) => api.get("/offline/admin/teachers", { params }),
   getTeacher: (id: string) => api.get(`/offline/admin/teachers/${id}`),
-  updateTeacher: (id: string, data: any) => api.put(`/offline/admin/teachers/${id}`, data),
+  updateTeacher: (id: string, data: Record<string, unknown>) => api.put(`/offline/admin/teachers/${id}`, data),
   deleteTeacher: (id: string) => api.delete(`/offline/admin/teachers/${id}`),
   getTeacherSchedule: (id: string) => api.get(`/offline/admin/teachers/${id}/schedule`),
-  setTeacherAvailability: (id: string, data: any) => api.post(`/offline/admin/teachers/${id}/availability`, data),
+  setTeacherAvailability: (id: string, data: Record<string, unknown>) => api.post(`/offline/admin/teachers/${id}/availability`, data),
   getScheduleConflicts: () => api.get("/offline/admin/schedule/conflicts"),
-  getTeacherBookings: (stationId: string, params?: any) => api.get(`/offline/stations/${stationId}/teacher-bookings`, { params }),
+  getTeacherBookings: (stationId: string, params?: Record<string, unknown>) => api.get(`/offline/stations/${stationId}/teacher-bookings`, { params }),
   confirmBooking: (bookingId: string) => api.put(`/offline/teacher-bookings/${bookingId}/confirm`),
   cancelBooking: (bookingId: string) => api.put(`/offline/teacher-bookings/${bookingId}/cancel`),
 };
@@ -626,19 +626,19 @@ export const uploadApi = {
 // 分佣管理
 export const commissionApi = {
   getConfigs: () => api.get("/commission/configs"),
-  updateConfig: (key: string, data: any) => api.put(`/commission/configs/${key}`, data),
-  stationEarnings: (stationId: string, params?: any) => api.get(`/commission/station-earnings/${stationId}`, { params }),
+  updateConfig: (key: string, data: Record<string, unknown>) => api.put(`/commission/configs/${key}`, data),
+  stationEarnings: (stationId: string, params?: Record<string, unknown>) => api.get(`/commission/station-earnings/${stationId}`, { params }),
   stationBalance: (stationId: string) => api.get(`/commission/station-balance/${stationId}`),
-  listWithdrawals: (params?: any) => api.get("/commission/admin/withdrawals", { params }),
+  listWithdrawals: (params?: Record<string, unknown>) => api.get("/commission/admin/withdrawals", { params }),
   auditWithdrawal: (id: string, data: { status: string; remark?: string }) => api.put(`/commission/admin/withdrawals/${id}`, data),
   getQuickConfig: () => api.get("/commission/config"),
-  updateQuickConfig: (data: any) => api.put("/commission/config", data),
+  updateQuickConfig: (data: Record<string, unknown>) => api.put("/commission/config", data),
   getPlatformFeeSummary: () => api.get("/commission/platform-fee/summary"),
 };
 
 // 审计日志
 export const auditApi = {
-  list: (params?: any) => api.get("/system/audit-logs", { params }),
+  list: (params?: Record<string, unknown>) => api.get("/system/audit-logs", { params }),
   getActions: () => api.get("/system/audit-actions"),
   moderateImage: (imageUrl: string, context?: string) =>
     api.post("/audit/moderate/image", { imageUrl, context }),
@@ -663,7 +663,7 @@ export const featureFlagApi = {
   detail: (key: string) => api.get(`/admin/feature-flags/${key}`),
   create: (data: { key: string; name: string; description?: string; enabled: boolean; percentage?: number; whitelist?: string[] }) =>
     api.post("/admin/feature-flags", data),
-  update: (key: string, data: any) => api.put(`/admin/feature-flags/${key}`, data),
+  update: (key: string, data: Record<string, unknown>) => api.put(`/admin/feature-flags/${key}`, data),
   delete: (key: string) => api.delete(`/admin/feature-flags/${key}`),
 };
 
@@ -672,8 +672,8 @@ export const taskApi = {
   list: (params?: { status?: string; type?: string; assignee?: string; page?: number; pageSize?: number }) =>
     api.get("/tasks", { params }),
   detail: (id: string) => api.get(`/tasks/${id}`),
-  create: (data: any) => api.post("/tasks", data),
-  update: (id: string, data: any) => api.put(`/tasks/${id}`, data),
+  create: (data: Record<string, unknown>) => api.post("/tasks", data),
+  update: (id: string, data: Record<string, unknown>) => api.put(`/tasks/${id}`, data),
   claim: (id: string) => api.post(`/tasks/${id}/claim`),
   transfer: (id: string, data: { assignee: string }) => api.post(`/tasks/${id}/transfer`, data),
   forceReclaim: (id: string) => api.post(`/tasks/${id}/force-reclaim`),
@@ -714,12 +714,12 @@ export const systemApi = {
     api.get("/system/site-notices", { params }),
   createSiteNotice: (data: { title: string; content: string; level?: string }) =>
     api.post("/system/site-notices", data),
-  updateSiteNotice: (id: string, data: any) => api.put(`/system/site-notices/${id}`, data),
+  updateSiteNotice: (id: string, data: Record<string, unknown>) => api.put(`/system/site-notices/${id}`, data),
   deleteSiteNotice: (id: string) => api.delete(`/system/site-notices/${id}`),
   // 会员配置
   getMemberConfigs: () => api.get("/system/member-configs"),
-  createMemberConfig: (data: any) => api.post("/system/member-configs", data),
-  updateMemberConfig: (id: string, data: any) => api.put(`/system/member-configs/${id}`, data),
+  createMemberConfig: (data: Record<string, unknown>) => api.post("/system/member-configs", data),
+  updateMemberConfig: (id: string, data: Record<string, unknown>) => api.put(`/system/member-configs/${id}`, data),
   deleteMemberConfig: (id: string) => api.delete(`/system/member-configs/${id}`),
   // Cron调度
   getCronStatus: () => api.get("/system/cron-status"),
@@ -732,7 +732,7 @@ export const legalApi = {
   getVersions: (type: string) => api.get(`/system/legal/${type}/versions`),
   create: (data: { type: string; title: string; content: string }) =>
     api.post("/system/legal", data),
-  update: (id: string, data: any) => api.put(`/system/legal/${id}`, data),
+  update: (id: string, data: Record<string, unknown>) => api.put(`/system/legal/${id}`, data),
   delete: (id: string) => api.delete(`/system/legal/${id}`),
 };
 
@@ -740,35 +740,35 @@ export const legalApi = {
 export const versionApi = {
   list: () => api.get("/system/version"),
   check: (current: string) => api.get("/system/version/check", { params: { current } }),
-  create: (data: any) => api.post("/system/version", data),
-  update: (id: string, data: any) => api.put(`/system/version/${id}`, data),
+  create: (data: Record<string, unknown>) => api.post("/system/version", data),
+  update: (id: string, data: Record<string, unknown>) => api.put(`/system/version/${id}`, data),
   delete: (id: string) => api.delete(`/system/version/${id}`),
 };
 
 // 评论管理
 export const commentApi = {
-  list: (params?: any) => api.get("/comment", { params }),
-  count: (params?: any) => api.get("/comment/count", { params }),
+  list: (params?: Record<string, unknown>) => api.get("/comment", { params }),
+  count: (params?: Record<string, unknown>) => api.get("/comment/count", { params }),
   hide: (id: string) => api.put(`/comment/${id}/hide`),
   remove: (id: string) => api.delete(`/comment/${id}`),
-  getReplies: (id: string, params?: any) => api.get(`/comment/${id}/replies`, { params }),
-  getModerationList: (params?: any) => api.get("/comment/moderation/list", { params }),
+  getReplies: (id: string, params?: Record<string, unknown>) => api.get(`/comment/${id}/replies`, { params }),
+  getModerationList: (params?: Record<string, unknown>) => api.get("/comment/moderation/list", { params }),
   batchHide: (ids: string[]) => api.put("/comment/moderation/batch-hide", { ids }),
 };
 
 // 商城管理
 export const shopApi = {
   // 优惠券
-  listCoupons: (params?: any) => api.get("/shop/coupons", { params }),
-  createCoupon: (data: any) => api.post("/shop/coupons", data),
-  updateCoupon: (id: string, data: any) => api.put(`/shop/coupons/${id}`, data),
+  listCoupons: (params?: Record<string, unknown>) => api.get("/shop/coupons", { params }),
+  createCoupon: (data: Record<string, unknown>) => api.post("/shop/coupons", data),
+  updateCoupon: (id: string, data: Record<string, unknown>) => api.put(`/shop/coupons/${id}`, data),
   deleteCoupon: (id: string) => api.delete(`/shop/coupons/${id}`),
   updateCouponStatus: (id: string, status: string) => api.put(`/shop/coupons/${id}/status`, { status }),
   // 物流
   getLogistics: (orderId: string) => api.get(`/shop/orders/${orderId}/logistics`),
-  updateLogistics: (orderId: string, data: any) => api.put(`/shop/orders/${orderId}/logistics`, data),
+  updateLogistics: (orderId: string, data: Record<string, unknown>) => api.put(`/shop/orders/${orderId}/logistics`, data),
   // 评价
-  listReviews: (productId: string, params?: any) => api.get(`/shop/products/${productId}/reviews`, { params }),
+  listReviews: (productId: string, params?: Record<string, unknown>) => api.get(`/shop/products/${productId}/reviews`, { params }),
 };
 
 // 虚拟币管理
@@ -802,7 +802,7 @@ export const coinApi = {
 
 // 付费问答
 export const questionApi = {
-  list: (params?: any) => api.get("/question", { params }),
+  list: (params?: Record<string, unknown>) => api.get("/question", { params }),
   detail: (id: string) => api.get(`/question/${id}`),
   refundExpired: () => api.post("/question/admin/refund-expired"),
 };
@@ -836,8 +836,8 @@ export const productApi = {
   list: (params?: { page?: number; pageSize?: number; status?: string; categoryId?: string; keyword?: string }) =>
     api.get("/shop/products", { params }),
   detail: (id: string) => api.get(`/shop/products/${id}`),
-  create: (data: any) => api.post("/shop/products", data),
-  update: (id: string, data: any) => api.put(`/shop/products/${id}`, data),
+  create: (data: Record<string, unknown>) => api.post("/shop/products", data),
+  update: (id: string, data: Record<string, unknown>) => api.put(`/shop/products/${id}`, data),
   updateStatus: (id: string, status: string) => api.put(`/shop/products/${id}/status`, { status }),
   delete: (id: string) => api.delete(`/shop/products/${id}`),
   // SKU
@@ -859,7 +859,7 @@ export const orderApi = {
   complete: (id: string) => api.put(`/shop/orders/${id}/complete`),
   cancel: (id: string) => api.put(`/shop/orders/${id}/cancel`),
   getLogistics: (id: string) => api.get(`/shop/orders/${id}/logistics`),
-  updateLogistics: (id: string, data: any) => api.put(`/shop/orders/${id}/logistics`, data),
+  updateLogistics: (id: string, data: Record<string, unknown>) => api.put(`/shop/orders/${id}/logistics`, data),
 };
 
 // 搜索统计
@@ -926,8 +926,8 @@ export const merchantBackendApi = {
   // 商品
   listProducts: (params?: { page?: number; pageSize?: number; status?: string }) =>
     api.get("/merchant-backend/products", { params }),
-  createProduct: (data: any) => api.post("/merchant-backend/products", data),
-  updateProduct: (id: string, data: any) => api.put(`/merchant-backend/products/${id}`, data),
+  createProduct: (data: Record<string, unknown>) => api.post("/merchant-backend/products", data),
+  updateProduct: (id: string, data: Record<string, unknown>) => api.put(`/merchant-backend/products/${id}`, data),
   deleteProduct: (id: string) => api.delete(`/merchant-backend/products/${id}`),
   listProduct: (id: string) => api.post(`/merchant-backend/products/${id}/list`),
   unlistProduct: (id: string) => api.post(`/merchant-backend/products/${id}/unlist`),
@@ -972,11 +972,11 @@ export const ebookApi = {
   listBooks: (params?: { page?: number; pageSize?: number; categoryId?: string; status?: string; keyword?: string }) =>
     api.get("/ebook/books", { params }),
   detail: (id: string) => api.get(`/ebook/books/${id}`),
-  create: (data: any) => api.post("/ebook/books", data),
-  update: (id: string, data: any) => api.put(`/ebook/books/${id}`, data),
+  create: (data: Record<string, unknown>) => api.post("/ebook/books", data),
+  update: (id: string, data: Record<string, unknown>) => api.put(`/ebook/books/${id}`, data),
   delete: (id: string) => api.delete(`/ebook/books/${id}`),
-  createChapter: (ebookId: string, data: any) => api.post(`/ebook/books/${ebookId}/chapters`, data),
-  updateChapter: (id: string, data: any) => api.put(`/ebook/chapters/${id}`, data),
+  createChapter: (ebookId: string, data: Record<string, unknown>) => api.post(`/ebook/books/${ebookId}/chapters`, data),
+  updateChapter: (id: string, data: Record<string, unknown>) => api.put(`/ebook/chapters/${id}`, data),
   deleteChapter: (id: string) => api.delete(`/ebook/chapters/${id}`),
   // 评价管理
   listReviews: (ebookId: string, params?: { page?: number; pageSize?: number }) =>
@@ -1025,8 +1025,8 @@ export const importApi = {
 export const abTestApi = {
   list: () => api.get("/recommend/ab-tests"),
   detail: (id: string) => api.get(`/recommend/ab-tests/${id}`),
-  create: (data: any) => api.post("/recommend/ab-tests", data),
-  update: (id: string, data: any) => api.put(`/recommend/ab-tests/${id}`, data),
+  create: (data: Record<string, unknown>) => api.post("/recommend/ab-tests", data),
+  update: (id: string, data: Record<string, unknown>) => api.put(`/recommend/ab-tests/${id}`, data),
   delete: (id: string) => api.delete(`/recommend/ab-tests/${id}`),
   start: (id: string) => api.post(`/recommend/ab-tests/${id}/start`),
   pause: (id: string) => api.post(`/recommend/ab-tests/${id}/pause`),
@@ -1040,8 +1040,8 @@ export const abTestApi = {
 export const recommendRuleApi = {
   list: (params?: { page?: number; pageSize?: number; scene?: string }) => api.get("/admin/recommend/rules", { params }),
   detail: (id: string) => api.get(`/admin/recommend/rules/${id}`),
-  create: (data: any) => api.post("/admin/recommend/rules", data),
-  update: (id: string, data: any) => api.put(`/admin/recommend/rules/${id}`, data),
+  create: (data: Record<string, unknown>) => api.post("/admin/recommend/rules", data),
+  update: (id: string, data: Record<string, unknown>) => api.put(`/admin/recommend/rules/${id}`, data),
   delete: (id: string) => api.delete(`/admin/recommend/rules/${id}`),
 };
 
@@ -1103,8 +1103,8 @@ export const churnApi = {
   calculate: () => api.post("/admin/churn/calculate"),
   listRules: (params?: { page?: number; pageSize?: number }) =>
     api.get("/admin/churn/rules", { params }),
-  createRule: (data: any) => api.post("/admin/churn/rules", data),
-  updateRule: (id: string, data: any) => api.put(`/admin/churn/rules/${id}`, data),
+  createRule: (data: Record<string, unknown>) => api.post("/admin/churn/rules", data),
+  updateRule: (id: string, data: Record<string, unknown>) => api.put(`/admin/churn/rules/${id}`, data),
   deleteRule: (id: string) => api.delete(`/admin/churn/rules/${id}`),
   getActions: (params?: { page?: number; pageSize?: number; status?: string }) =>
     api.get("/admin/churn/actions", { params }),
@@ -1137,57 +1137,57 @@ export const aiUsageApi = {
 // ───────── 营销管理 ─────────
 export const marketingApi = {
   // 秒杀
-  listFlashSales: (params?: any) => api.get("/marketing/flash-sales", { params }),
-  createFlashSale: (data: any) => api.post("/marketing/flash-sales", data),
-  updateFlashSale: (id: string, data: any) => api.put(`/marketing/flash-sales/${id}`, data),
+  listFlashSales: (params?: Record<string, unknown>) => api.get("/marketing/flash-sales", { params }),
+  createFlashSale: (data: Record<string, unknown>) => api.post("/marketing/flash-sales", data),
+  updateFlashSale: (id: string, data: Record<string, unknown>) => api.put(`/marketing/flash-sales/${id}`, data),
   deleteFlashSale: (id: string) => api.delete(`/marketing/flash-sales/${id}`),
-  addFlashSaleItem: (id: string, data: any) => api.post(`/marketing/flash-sales/${id}/items`, data),
-  updateFlashSaleItem: (id: string, itemId: string, data: any) => api.put(`/marketing/flash-sales/${id}/items/${itemId}`, data),
+  addFlashSaleItem: (id: string, data: Record<string, unknown>) => api.post(`/marketing/flash-sales/${id}/items`, data),
+  updateFlashSaleItem: (id: string, itemId: string, data: Record<string, unknown>) => api.put(`/marketing/flash-sales/${id}/items/${itemId}`, data),
   deleteFlashSaleItem: (id: string, itemId: string) => api.delete(`/marketing/flash-sales/${id}/items/${itemId}`),
   startFlashSale: (id: string) => api.post(`/marketing/flash-sales/${id}/start`),
   endFlashSale: (id: string) => api.post(`/marketing/flash-sales/${id}/end`),
   // 拼团
-  listGroupBuys: (params?: any) => api.get("/marketing/group-buys", { params }),
-  createGroupBuy: (data: any) => api.post("/marketing/group-buys", data),
-  updateGroupBuy: (id: string, data: any) => api.put(`/marketing/group-buys/${id}`, data),
+  listGroupBuys: (params?: Record<string, unknown>) => api.get("/marketing/group-buys", { params }),
+  createGroupBuy: (data: Record<string, unknown>) => api.post("/marketing/group-buys", data),
+  updateGroupBuy: (id: string, data: Record<string, unknown>) => api.put(`/marketing/group-buys/${id}`, data),
   deleteGroupBuy: (id: string) => api.delete(`/marketing/group-buys/${id}`),
   getGroupBuyParticipants: (id: string) => api.get(`/marketing/group-buys/${id}/participants`),
   // 优惠券
-  listCoupons: (params?: any) => api.get("/marketing/coupons", { params }),
-  createCoupon: (data: any) => api.post("/marketing/coupons", data),
-  updateCoupon: (id: string, data: any) => api.put(`/marketing/coupons/${id}`, data),
+  listCoupons: (params?: Record<string, unknown>) => api.get("/marketing/coupons", { params }),
+  createCoupon: (data: Record<string, unknown>) => api.post("/marketing/coupons", data),
+  updateCoupon: (id: string, data: Record<string, unknown>) => api.put(`/marketing/coupons/${id}`, data),
   deleteCoupon: (id: string) => api.delete(`/marketing/coupons/${id}`),
-  grantCoupon: (id: string, data: any) => api.post(`/marketing/coupons/${id}/grant`, data),
-  batchGrantCoupon: (id: string, data: any) => api.post(`/marketing/coupons/${id}/batch-grant`, data),
-  getCouponRecords: (id: string, params?: any) => api.get(`/marketing/coupons/${id}/records`, { params }),
+  grantCoupon: (id: string, data: Record<string, unknown>) => api.post(`/marketing/coupons/${id}/grant`, data),
+  batchGrantCoupon: (id: string, data: Record<string, unknown>) => api.post(`/marketing/coupons/${id}/batch-grant`, data),
+  getCouponRecords: (id: string, params?: Record<string, unknown>) => api.get(`/marketing/coupons/${id}/records`, { params }),
   // 限时折扣
-  listDiscounts: (params?: any) => api.get("/marketing/discounts", { params }),
-  createDiscount: (data: any) => api.post("/marketing/discounts", data),
-  updateDiscount: (id: string, data: any) => api.put(`/marketing/discounts/${id}`, data),
+  listDiscounts: (params?: Record<string, unknown>) => api.get("/marketing/discounts", { params }),
+  createDiscount: (data: Record<string, unknown>) => api.post("/marketing/discounts", data),
+  updateDiscount: (id: string, data: Record<string, unknown>) => api.put(`/marketing/discounts/${id}`, data),
   deleteDiscount: (id: string) => api.delete(`/marketing/discounts/${id}`),
   // 微页面
   listPages: () => api.get("/marketing/pages"),
   getPage: (id: string) => api.get(`/marketing/pages/${id}`),
-  createPage: (data: any) => api.post("/marketing/pages", data),
-  updatePage: (id: string, data: any) => api.put(`/marketing/pages/${id}`, data),
+  createPage: (data: Record<string, unknown>) => api.post("/marketing/pages", data),
+  updatePage: (id: string, data: Record<string, unknown>) => api.put(`/marketing/pages/${id}`, data),
   deletePage: (id: string) => api.delete(`/marketing/pages/${id}`),
   publishPage: (id: string) => api.post(`/marketing/pages/${id}/publish`),
   getPageVersions: (id: string) => api.get(`/marketing/pages/${id}/versions`),
   rollbackPage: (id: string, versionId: string) => api.post(`/marketing/pages/${id}/rollback/${versionId}`),
-  addPageComponent: (pageId: string, data: any) => api.post(`/marketing/pages/${pageId}/components`, data),
-  updatePageComponent: (pageId: string, compId: string, data: any) => api.put(`/marketing/pages/${pageId}/components/${compId}`, data),
+  addPageComponent: (pageId: string, data: Record<string, unknown>) => api.post(`/marketing/pages/${pageId}/components`, data),
+  updatePageComponent: (pageId: string, compId: string, data: Record<string, unknown>) => api.put(`/marketing/pages/${pageId}/components/${compId}`, data),
   deletePageComponent: (pageId: string, compId: string) => api.delete(`/marketing/pages/${pageId}/components/${compId}`),
   sortPageComponents: (pageId: string, data: { componentIds: string[] }) => api.put(`/marketing/pages/${pageId}/components/sort`, data),
   // 活动
-  listActivities: (params?: any) => api.get("/marketing/activities", { params }),
-  createActivity: (data: any) => api.post("/marketing/activities", data),
-  updateActivity: (id: string, data: any) => api.put(`/marketing/activities/${id}`, data),
+  listActivities: (params?: Record<string, unknown>) => api.get("/marketing/activities", { params }),
+  createActivity: (data: Record<string, unknown>) => api.post("/marketing/activities", data),
+  updateActivity: (id: string, data: Record<string, unknown>) => api.put(`/marketing/activities/${id}`, data),
   deleteActivity: (id: string) => api.delete(`/marketing/activities/${id}`),
   getActivityMetrics: (id: string) => api.get(`/marketing/activities/${id}/metrics`),
   // 满减送
-  listFullReductions: (params?: any) => api.get("/marketing/full-reductions", { params }),
-  createFullReduction: (data: any) => api.post("/marketing/full-reductions", data),
-  updateFullReduction: (id: string, data: any) => api.put(`/marketing/full-reductions/${id}`, data),
+  listFullReductions: (params?: Record<string, unknown>) => api.get("/marketing/full-reductions", { params }),
+  createFullReduction: (data: Record<string, unknown>) => api.post("/marketing/full-reductions", data),
+  updateFullReduction: (id: string, data: Record<string, unknown>) => api.put(`/marketing/full-reductions/${id}`, data),
   deleteFullReduction: (id: string) => api.delete(`/marketing/full-reductions/${id}`),
   getFullReduction: (id: string) => api.get(`/marketing/full-reductions/${id}`),
 };
@@ -1195,28 +1195,28 @@ export const marketingApi = {
 // ───────── 财务管理 ─────────
 export const financeApi = {
   // 对账中心
-  listReconciliations: (params?: any) => api.get("/finance/reconciliation", { params }),
-  createReconciliation: (data: any) => api.post("/finance/reconciliation", data),
+  listReconciliations: (params?: Record<string, unknown>) => api.get("/finance/reconciliation", { params }),
+  createReconciliation: (data: Record<string, unknown>) => api.post("/finance/reconciliation", data),
   getReconciliationDetail: (id: string) => api.get(`/finance/reconciliation/${id}`),
   // 发票管理
-  listInvoices: (params?: any) => api.get("/finance/invoices", { params }),
-  createInvoice: (data: any) => api.post("/finance/invoices", data),
+  listInvoices: (params?: Record<string, unknown>) => api.get("/finance/invoices", { params }),
+  createInvoice: (data: Record<string, unknown>) => api.post("/finance/invoices", data),
   issueInvoice: (id: string, invoiceUrl: string) => api.put(`/finance/invoices/${id}/issue`, { invoiceUrl }),
   mailInvoice: (id: string, expressNo: string) => api.put(`/finance/invoices/${id}/mail`, { expressNo }),
   // 结算单
-  listSettlements: (params?: any) => api.get("/finance/settlements", { params }),
-  generateSettlement: (data: any) => api.post("/finance/settlements/generate", data),
+  listSettlements: (params?: Record<string, unknown>) => api.get("/finance/settlements", { params }),
+  generateSettlement: (data: Record<string, unknown>) => api.post("/finance/settlements/generate", data),
   approveSettlement: (id: string) => api.put(`/finance/settlements/${id}/approve`),
   paySettlement: (id: string) => api.put(`/finance/settlements/${id}/pay`),
   // 提现审批
-  listWithdrawals: (params?: any) => api.get("/finance/withdrawals", { params }),
+  listWithdrawals: (params?: Record<string, unknown>) => api.get("/finance/withdrawals", { params }),
   approveWithdrawal: (id: string, reviewNote?: string) => api.put(`/finance/withdrawals/${id}/approve`, { reviewNote }),
   rejectWithdrawal: (id: string, reviewNote: string) => api.put(`/finance/withdrawals/${id}/reject`, { reviewNote }),
   payWithdrawal: (id: string) => api.post(`/finance/withdrawals/${id}/pay`),
   // 资金冻结
-  freezeFund: (data: any) => api.post("/finance/freeze", data),
-  unfreezeFund: (data: any) => api.post("/finance/unfreeze", data),
-  listFreezes: (params?: any) => api.get("/finance/freeze-records", { params }),
+  freezeFund: (data: Record<string, unknown>) => api.post("/finance/freeze", data),
+  unfreezeFund: (data: Record<string, unknown>) => api.post("/finance/unfreeze", data),
+  listFreezes: (params?: Record<string, unknown>) => api.get("/finance/freeze-records", { params }),
   // 财务报表
   getMonthlyReport: (period: string) => api.get("/finance/reports/monthly", { params: { period } }),
   generateMonthlyReport: (period: string) => api.post(`/finance/reports/monthly/generate`, null, { params: { period } }),
@@ -1225,23 +1225,23 @@ export const financeApi = {
 // ───────── 风控管理 ─────────
 export const riskApi = {
   // 预警规则
-  listRules: (params?: any) => api.get("/risk-control/rules", { params }),
-  createRule: (data: any) => api.post("/risk-control/rules", data),
-  updateRule: (id: string, data: any) => api.put(`/risk-control/rules/${id}`, data),
+  listRules: (params?: Record<string, unknown>) => api.get("/risk-control/rules", { params }),
+  createRule: (data: Record<string, unknown>) => api.post("/risk-control/rules", data),
+  updateRule: (id: string, data: Record<string, unknown>) => api.put(`/risk-control/rules/${id}`, data),
   deleteRule: (id: string) => api.delete(`/risk-control/rules/${id}`),
   toggleRule: (id: string, enabled: boolean) => api.put(`/risk-control/rules/${id}`, { enabled }),
   // 预警列表
-  listAlerts: (params?: any) => api.get("/risk-control/alerts", { params }),
+  listAlerts: (params?: Record<string, unknown>) => api.get("/risk-control/alerts", { params }),
   handleAlert: (id: string, note?: string) => api.put(`/risk-control/alerts/${id}/handle`, { note }),
   dismissAlert: (id: string) => api.put(`/risk-control/alerts/${id}/dismiss`),
   // 刷单检测
-  listFraudDetections: (params?: any) => api.get("/risk-control/fraud-detections", { params }),
+  listFraudDetections: (params?: Record<string, unknown>) => api.get("/risk-control/fraud-detections", { params }),
   confirmFraud: (id: string) => api.put(`/risk-control/fraud-detections/${id}/confirm`),
   dismissFraud: (id: string) => api.put(`/risk-control/fraud-detections/${id}/dismiss`),
   // 行为轨迹
-  getUserTimeline: (userId: string, params?: any) => api.get(`/risk-control/user-timeline/${userId}`, { params }),
+  getUserTimeline: (userId: string, params?: Record<string, unknown>) => api.get(`/risk-control/user-timeline/${userId}`, { params }),
   // 申诉处理
-  listAppeals: (params?: any) => api.get("/risk-control/appeals", { params }),
+  listAppeals: (params?: Record<string, unknown>) => api.get("/risk-control/appeals", { params }),
   approveAppeal: (id: string) => api.put(`/risk-control/appeals/${id}/approve`),
   rejectAppeal: (id: string, reviewNote: string) => api.put(`/risk-control/appeals/${id}/reject`, { reviewNote }),
 };
@@ -1249,22 +1249,22 @@ export const riskApi = {
 // ───────── AI 管理 ─────────
 export const aiAdminApi = {
   // 对话日志（后端 AiLoggerService，路由 /ai/media/tasks）
-  listChatLogs: (params?: any) => api.get("/ai/media/tasks", { params }),
+  listChatLogs: (params?: Record<string, unknown>) => api.get("/ai/media/tasks", { params }),
   getChatLogDetail: (id: string) => api.get(`/ai/media/tasks/${id}`),
   deleteChatLog: (id: string) => api.delete(`/ai/media/tasks/${id}`),
   // 调用统计
   getCallStats: (period?: string) => api.get("/ai/media/tasks", { params: { period: period || "day" } }),
-  getCallLogs: (params?: any) => api.get("/ai/media/tasks", { params }),
+  getCallLogs: (params?: Record<string, unknown>) => api.get("/ai/media/tasks", { params }),
   getAbnormalCalls: () => api.get("/ai/media/tasks", { params: { scene: "abnormal" } }),
   // 圈主助理审批（后端 /bots/manage/approvals）
-  listCircleAssistants: (params?: any) => api.get("/bots/manage/approvals", { params }),
-  updateCircleAssistant: (id: string, data: any) => api.put(`/bots/${id}`, data),
+  listCircleAssistants: (params?: Record<string, unknown>) => api.get("/bots/manage/approvals", { params }),
+  updateCircleAssistant: (id: string, data: Record<string, unknown>) => api.put(`/bots/${id}`, data),
   approveCircleAssistant: (circleId: string) => api.post(`/bots/manage/approvals/${circleId}/approve`),
   rejectCircleAssistant: (circleId: string, reason?: string) => api.post(`/bots/manage/approvals/${circleId}/reject`, { reason }),
   // 知识库管理（后端 /bots/manage/knowledge）
   getKnowledgeBase: (circleId: string) => api.get(`/bots/manage/knowledge/${circleId}`),
-  createKnowledgeEntry: (circleId: string, data: any) => api.post(`/bots/manage/knowledge/${circleId}`, data),
-  updateKnowledgeEntry: (id: string, data: any) => api.put(`/bots/manage/knowledge/${id}`, data),
+  createKnowledgeEntry: (circleId: string, data: Record<string, unknown>) => api.post(`/bots/manage/knowledge/${circleId}`, data),
+  updateKnowledgeEntry: (id: string, data: Record<string, unknown>) => api.put(`/bots/manage/knowledge/${id}`, data),
   deleteKnowledgeEntry: (id: string) => api.delete(`/bots/manage/knowledge/${id}`),
   getUsageData: (circleId: string) => api.get(`/bots/manage/usage/${circleId}`),
 };
@@ -1275,8 +1275,8 @@ export const articleApi = {
     api.get("/articles", { params }),
   stats: () => api.get("/articles/stats"),
   detail: (id: string) => api.get(`/articles/${id}`),
-  create: (circleId: string, data: any) => api.post(`/articles/circles/${circleId}`, data),
-  update: (id: string, data: any) => api.put(`/articles/${id}`, data),
+  create: (circleId: string, data: Record<string, unknown>) => api.post(`/articles/circles/${circleId}`, data),
+  update: (id: string, data: Record<string, unknown>) => api.put(`/articles/${id}`, data),
   remove: (id: string) => api.delete(`/articles/${id}`),
   audit: (id: string, status: string) => api.put(`/articles/${id}/audit`, { status }),
   addRecommend: (articleId: string, data: { itemId: string; itemType: string; sort?: number }) =>
@@ -1300,7 +1300,7 @@ export const contentGenerationApi = {
     api.get("/content-generation/history", { params }),
   getStatus: () => api.get("/content-generation/status"),
   getParams: () => api.get("/content-generation/params"),
-  updateParams: (data: any) => api.put("/content-generation/params", data),
+  updateParams: (data: Record<string, unknown>) => api.put("/content-generation/params", data),
 };
 
 // ───────── 汇付支付管理 ─────────
@@ -1309,9 +1309,9 @@ export const huifuApi = {
   updateConfig: (data: { key: string; value: string; description?: string }) => api.put("/huifu/config", data),
   getStatus: () => api.get("/huifu/status"),
   queryPayment: (outTradeNo: string) => api.post("/huifu/query", { outTradeNo }),
-  createSplit: (data: any) => api.post("/huifu/split", data),
+  createSplit: (data: Record<string, unknown>) => api.post("/huifu/split", data),
   querySplit: (orderId: string) => api.get(`/huifu/split/${orderId}`),
-  createRefund: (data: any) => api.post("/huifu/refund", data),
+  createRefund: (data: Record<string, unknown>) => api.post("/huifu/refund", data),
   getBalance: () => api.get("/huifu/balance"),
   downloadBill: (date: string) => api.get(`/huifu/bill/${date}`),
 };
@@ -1331,8 +1331,8 @@ export const pricingApi = {
   getRules: (params?: { page?: number; pageSize?: number }) =>
     api.get("/admin/pricing/rules", { params }),
   getRule: (id: string) => api.get(`/admin/pricing/rules/${id}`),
-  createRule: (data: any) => api.post("/admin/pricing/rules", data),
-  updateRule: (id: string, data: any) => api.put(`/admin/pricing/rules/${id}`, data),
+  createRule: (data: Record<string, unknown>) => api.post("/admin/pricing/rules", data),
+  updateRule: (id: string, data: Record<string, unknown>) => api.put(`/admin/pricing/rules/${id}`, data),
   deleteRule: (id: string) => api.delete(`/admin/pricing/rules/${id}`),
   getDemand: (params?: { page?: number; pageSize?: number; targetType?: string; demandLevel?: string }) =>
     api.get("/admin/pricing/demand", { params }),
@@ -1411,7 +1411,7 @@ export const ragTemplateApi = {
   update: (id: string, data: { scene?: string; templateName?: string; systemPrompt?: string; userPromptTemplate?: string; variables?: any[]; status?: string }) =>
     api.put(`/admin/rag/templates/${id}`, data),
   delete: (id: string) => api.delete(`/admin/rag/templates/${id}`),
-  preview: (idOrData: string | { systemPrompt: string; userPromptTemplate?: string; variables?: Record<string, string>; testQuestion?: string }, data?: any) =>
+  preview: (idOrData: string | { systemPrompt: string; userPromptTemplate?: string; variables?: Record<string, string>; testQuestion?: string }, data?: Record<string, unknown>) =>
     typeof idOrData === "string"
       ? api.post(`/admin/rag/templates/preview`, { id: idOrData, ...data })
       : api.post("/admin/rag/templates/preview", idOrData),
@@ -1432,9 +1432,9 @@ export const dedupApi = {
 // ───────── AI模型路由配置 ─────────
 export const aiRoutingApi = {
   getConfig: () => api.get("/admin/ai/routing/config"),
-  updateConfig: (data: any) => api.put("/admin/ai/routing/config", data),
-  updateScene: (scene: string, data: any) => api.put(`/admin/ai/routing/scenes/${scene}`, data),
-  validateConfig: (data: any) => api.post("/admin/ai/routing/config/validate", data),
+  updateConfig: (data: Record<string, unknown>) => api.put("/admin/ai/routing/config", data),
+  updateScene: (scene: string, data: Record<string, unknown>) => api.put(`/admin/ai/routing/scenes/${scene}`, data),
+  validateConfig: (data: Record<string, unknown>) => api.post("/admin/ai/routing/config/validate", data),
   getHistory: () => api.get("/admin/ai/routing/config/history"),
   getBudgets: () => api.get("/admin/ai/routing/budgets"),
 };
@@ -1528,29 +1528,29 @@ export const circleDashboardApi = {
 
 // ───────── 竞赛管理 ─────────
 export const competitionApi = {
-  list: (params?: any) => api.get("/admin/competitions", { params }),
+  list: (params?: Record<string, unknown>) => api.get("/admin/competitions", { params }),
   detail: (id: string) => api.get(`/admin/competitions/${id}`),
-  create: (data: any) => api.post("/admin/competitions", data),
-  update: (id: string, data: any) => api.put(`/admin/competitions/${id}`, data),
+  create: (data: Record<string, unknown>) => api.post("/admin/competitions", data),
+  update: (id: string, data: Record<string, unknown>) => api.put(`/admin/competitions/${id}`, data),
   publish: (id: string) => api.post(`/admin/competitions/${id}/publish`),
   start: (id: string) => api.post(`/admin/competitions/${id}/start`),
   finish: (id: string) => api.post(`/admin/competitions/${id}/finish`),
-  createRound: (id: string, data: any) => api.post(`/admin/competitions/${id}/rounds`, data),
+  createRound: (id: string, data: Record<string, unknown>) => api.post(`/admin/competitions/${id}/rounds`, data),
   listRounds: (id: string) => api.get(`/admin/competitions/${id}/rounds`),
-  addQuestion: (id: string, data: any) => api.post(`/admin/competitions/${id}/questions`, data),
-  batchQuestions: (id: string, data: any) => api.post(`/admin/competitions/${id}/questions/batch`, data),
-  listQuestions: (id: string, params?: any) => api.get(`/admin/competitions/${id}/questions`, { params }),
-  listRegistrations: (id: string, params?: any) => api.get(`/admin/competitions/${id}/registrations`, { params }),
-  updateRegistration: (id: string, regId: string, data: any) => api.put(`/admin/competitions/${id}/registrations/${regId}`, data),
-  getRankings: (id: string, params?: any) => api.get(`/admin/competitions/${id}/rankings`, { params }),
+  addQuestion: (id: string, data: Record<string, unknown>) => api.post(`/admin/competitions/${id}/questions`, data),
+  batchQuestions: (id: string, data: Record<string, unknown>) => api.post(`/admin/competitions/${id}/questions/batch`, data),
+  listQuestions: (id: string, params?: Record<string, unknown>) => api.get(`/admin/competitions/${id}/questions`, { params }),
+  listRegistrations: (id: string, params?: Record<string, unknown>) => api.get(`/admin/competitions/${id}/registrations`, { params }),
+  updateRegistration: (id: string, regId: string, data: Record<string, unknown>) => api.put(`/admin/competitions/${id}/registrations/${regId}`, data),
+  getRankings: (id: string, params?: Record<string, unknown>) => api.get(`/admin/competitions/${id}/rankings`, { params }),
   calculateRanking: (id: string) => api.post(`/admin/competitions/${id}/calculate-ranking`),
   gradeAnswer: (answerId: string, data: { score: number; comment?: string }) =>
     api.post(`/competitions/judge/answers/${answerId}/grade`, data),
   delete: (id: string) => api.delete(`/admin/competitions/${id}`),
   deleteRound: (id: string, roundId: string) => api.delete(`/admin/competitions/${id}/rounds/${roundId}`),
   deleteQuestion: (id: string, questionId: string) => api.delete(`/admin/competitions/${id}/questions/${questionId}`),
-  updateRound: (id: string, roundId: string, data: any) => api.put(`/admin/competitions/${id}/rounds/${roundId}`, data),
-  updateQuestion: (id: string, questionId: string, data: any) => api.put(`/admin/competitions/${id}/questions/${questionId}`, data),
+  updateRound: (id: string, roundId: string, data: Record<string, unknown>) => api.put(`/admin/competitions/${id}/rounds/${roundId}`, data),
+  updateQuestion: (id: string, questionId: string, data: Record<string, unknown>) => api.put(`/admin/competitions/${id}/questions/${questionId}`, data),
 };
 
 // ───────── 品类管理 ─────────
@@ -1558,7 +1558,7 @@ export const categoryApi = {
   getTree: () => api.get("/admin/categories/tree"),
   create: (data: { name: string; parentId?: string; sortOrder?: number }) =>
     api.post("/admin/categories", data),
-  update: (id: string, data: any) => api.put(`/admin/categories/${id}`, data),
+  update: (id: string, data: Record<string, unknown>) => api.put(`/admin/categories/${id}`, data),
   delete: (id: string) => api.delete(`/admin/categories/${id}`),
   getStats: () => api.get("/admin/categories/stats"),
   syncCounts: () => api.post("/admin/categories/sync-counts"),
@@ -1567,8 +1567,8 @@ export const categoryApi = {
 // ───────── 小程序管理 ─────────
 export const miniApi = {
   listApps: () => api.get("/mini/admin/apps"),
-  createApp: (data: any) => api.post("/mini/admin/apps", data),
-  updateApp: (id: string, data: any) => api.put(`/mini/admin/apps/${id}`, data),
+  createApp: (data: Record<string, unknown>) => api.post("/mini/admin/apps", data),
+  updateApp: (id: string, data: Record<string, unknown>) => api.put(`/mini/admin/apps/${id}`, data),
   deleteApp: (id: string) => api.delete(`/mini/admin/apps/${id}`),
 };
 
@@ -1649,47 +1649,47 @@ export const aiDataExplorerApi = {
 
 // ───────── 课程组合包 ─────────
 export const bundleApi = {
-  list: (params?: any) => api.get("/bundles", { params }),
+  list: (params?: Record<string, unknown>) => api.get("/bundles", { params }),
   getById: (id: string) => api.get(`/bundles/${id}`),
-  create: (data: any) => api.post("/bundles", data),
-  update: (id: string, data: any) => api.put(`/bundles/${id}`, data),
+  create: (data: Record<string, unknown>) => api.post("/bundles", data),
+  update: (id: string, data: Record<string, unknown>) => api.put(`/bundles/${id}`, data),
   delete: (id: string) => api.delete(`/bundles/${id}`),
 };
 
 // ───────── 续费管理 ─────────
 export const renewalApi = {
-  getEntitlements: (params?: any) => api.get("/renewal/my/entitlements", { params }),
-  getHistory: (params?: any) => api.get("/renewal/my/history", { params }),
+  getEntitlements: (params?: Record<string, unknown>) => api.get("/renewal/my/entitlements", { params }),
+  getHistory: (params?: Record<string, unknown>) => api.get("/renewal/my/history", { params }),
   // 管理员
   getExpiringUsers: (days?: number) => api.get("/renewal/admin/expiring-users", { params: { days } }),
-  getAdminHistory: (params?: any) => api.get("/renewal/admin/history", { params }),
+  getAdminHistory: (params?: Record<string, unknown>) => api.get("/renewal/admin/history", { params }),
 };
 
 // ───────── 统一订单中心 ─────────
 export const orderCenterApi = {
-  list: (params?: any) => api.get("/orders/my", { params }),
+  list: (params?: Record<string, unknown>) => api.get("/orders/my", { params }),
   // 管理员
-  adminList: (params?: any) => api.get("/orders/admin/all", { params }),
+  adminList: (params?: Record<string, unknown>) => api.get("/orders/admin/all", { params }),
 };
 
 // ───────── 驿站老师邀约 ─────────
 export const teacherRequestApi = {
-  create: (stationId: string, data: any) => api.post(`/offline/stations/${stationId}/teacher-requests`, data),
-  list: (stationId: string, params?: any) => api.get(`/offline/stations/${stationId}/teacher-requests`, { params }),
-  respond: (id: string, data: any) => api.put(`/offline/teacher-requests/${id}/respond`, data),
+  create: (stationId: string, data: Record<string, unknown>) => api.post(`/offline/stations/${stationId}/teacher-requests`, data),
+  list: (stationId: string, params?: Record<string, unknown>) => api.get(`/offline/stations/${stationId}/teacher-requests`, { params }),
+  respond: (id: string, data: Record<string, unknown>) => api.put(`/offline/teacher-requests/${id}/respond`, data),
   // 管理员
-  adminList: (params?: any) => api.get("/offline/admin/teacher-requests", { params }),
+  adminList: (params?: Record<string, unknown>) => api.get("/offline/admin/teacher-requests", { params }),
 };
 
 // ───────── 圈子后台管理 ─────────
 export const circleBackendApi = {
   overview: () => api.get("/circle-backend/overview"),
-  members: (params?: any) => api.get("/circle-backend/members", { params }),
+  members: (params?: Record<string, unknown>) => api.get("/circle-backend/members", { params }),
   guests: () => api.get("/circle-backend/guests"),
   setGuestShareRate: (userId: string, shareRate: number) => api.put(`/circle-backend/guests/${userId}/share-rate`, { shareRate }),
   revenue: (period?: string) => api.get("/circle-backend/revenue", { params: { period } }),
   // 管理员
-  adminCircles: (params?: any) => api.get("/circle-backend/admin/circles", { params }),
+  adminCircles: (params?: Record<string, unknown>) => api.get("/circle-backend/admin/circles", { params }),
   adminOverview: (circleId: string) => api.get(`/circle-backend/admin/circles/${circleId}/overview`),
 };
 
@@ -1720,7 +1720,7 @@ export const certificationApi = {
   listTypes: () => api.get("/admin/certifications/types"),
   createType: (data: { name: string; icon: string; color: string; description?: string; autoGrantRole?: string; conditions?: any }) =>
     api.post("/admin/certifications/types", data),
-  updateType: (id: string, data: any) => api.put(`/admin/certifications/types/${id}`, data),
+  updateType: (id: string, data: Record<string, unknown>) => api.put(`/admin/certifications/types/${id}`, data),
   deleteType: (id: string) => api.delete(`/admin/certifications/types/${id}`),
   // 认证申请审批
   listApplications: (params?: { page?: number; pageSize?: number; status?: string; typeId?: string }) =>
@@ -1739,7 +1739,7 @@ export const emojiApi = {
     api.get("/admin/social/emojis", { params }),
   create: (data: { name: string; icon: string; category: string; sortOrder?: number }) =>
     api.post("/admin/social/emojis", data),
-  update: (id: string, data: any) => api.put(`/admin/social/emojis/${id}`, data),
+  update: (id: string, data: Record<string, unknown>) => api.put(`/admin/social/emojis/${id}`, data),
   delete: (id: string) => api.delete(`/admin/social/emojis/${id}`),
   getCategories: () => api.get("/admin/social/emojis/categories"),
   getStats: () => api.get("/admin/social/emojis/stats"),
@@ -1755,7 +1755,7 @@ export const aiPromptApi = {
   listStyles: (scene: string) => api.get(`/admin/ai/prompts/scenes/${scene}/styles`),
   createStyle: (scene: string, data: { name: string; prompt: string; example?: string }) =>
     api.post(`/admin/ai/prompts/scenes/${scene}/styles`, data),
-  updateStyle: (id: string, data: any) => api.put(`/admin/ai/prompts/styles/${id}`, data),
+  updateStyle: (id: string, data: Record<string, unknown>) => api.put(`/admin/ai/prompts/styles/${id}`, data),
   deleteStyle: (id: string) => api.delete(`/admin/ai/prompts/styles/${id}`),
   // 功能开关
   getToggles: () => api.get("/admin/ai/prompts/toggles"),
@@ -1772,7 +1772,7 @@ export const posterApi = {
   detail: (id: string) => api.get(`/admin/marketing/posters/${id}`),
   create: (data: { name: string; scene: string; backgroundImage: string; elements: any[]; brandConfig?: any }) =>
     api.post("/admin/marketing/posters", data),
-  update: (id: string, data: any) => api.put(`/admin/marketing/posters/${id}`, data),
+  update: (id: string, data: Record<string, unknown>) => api.put(`/admin/marketing/posters/${id}`, data),
   delete: (id: string) => api.delete(`/admin/marketing/posters/${id}`),
   preview: (id: string, data?: { userId?: string; contentId?: string }) =>
     api.post(`/admin/marketing/posters/${id}/preview`, data),
@@ -1826,7 +1826,7 @@ export const achievementApi = {
     api.get("/admin/social/achievements/types", { params }),
   createType: (data: { name: string; description: string; icon: string; category: string; triggerCondition: any; badgeUrl?: string }) =>
     api.post("/admin/social/achievements/types", data),
-  updateType: (id: string, data: any) => api.put(`/admin/social/achievements/types/${id}`, data),
+  updateType: (id: string, data: Record<string, unknown>) => api.put(`/admin/social/achievements/types/${id}`, data),
   deleteType: (id: string) => api.delete(`/admin/social/achievements/types/${id}`),
   listUserAchievements: (params?: { page?: number; pageSize?: number; userId?: string; typeId?: string }) =>
     api.get("/admin/social/achievements/users", { params }),
@@ -1847,7 +1847,7 @@ export const ritualContentApi = {
     api.get("/admin/content/daily-verses", { params }),
   createDailyVerse: (data: { title: string; author?: string; content: string; imageUrl?: string; publishDate: string }) =>
     api.post("/admin/content/daily-verses", data),
-  updateDailyVerse: (id: string, data: any) => api.put(`/admin/content/daily-verses/${id}`, data),
+  updateDailyVerse: (id: string, data: Record<string, unknown>) => api.put(`/admin/content/daily-verses/${id}`, data),
   deleteDailyVerse: (id: string) => api.delete(`/admin/content/daily-verses/${id}`),
 };
 
@@ -1878,10 +1878,10 @@ export const fortuneAdminApi = {
 export const operatorAdminApi = {
   list: (params?: { page?: number; pageSize?: number }) =>
     api.get("/admin/operators", { params }),
-  update: (id: string, data: any) => api.put(`/admin/operators/${id}`, data),
+  update: (id: string, data: Record<string, unknown>) => api.put(`/admin/operators/${id}`, data),
   listMiniApps: (params?: { page?: number; pageSize?: number }) =>
     api.get("/admin/operator-miniapps", { params }),
-  updateMiniApp: (id: string, data: any) => api.put(`/admin/operator-miniapps/${id}`, data),
+  updateMiniApp: (id: string, data: Record<string, unknown>) => api.put(`/admin/operator-miniapps/${id}`, data),
 };
 
 // ───────── 租户管理 ─────────
@@ -1889,8 +1889,8 @@ export const tenantAdminApi = {
   list: (params?: { page?: number; pageSize?: number; name?: string; status?: string }) =>
     api.get("/admin/tenants", { params }),
   detail: (id: string) => api.get(`/admin/tenants/${id}`),
-  create: (data: any) => api.post("/admin/tenants", data),
-  update: (id: string, data: any) => api.put(`/admin/tenants/${id}`, data),
+  create: (data: Record<string, unknown>) => api.post("/admin/tenants", data),
+  update: (id: string, data: Record<string, unknown>) => api.put(`/admin/tenants/${id}`, data),
   delete: (id: string) => api.delete(`/admin/tenants/${id}`),
   recharge: (id: string, data: { amount: number }) => api.post(`/admin/tenants/${id}/recharge`, data),
   getUsage: (id: string, params?: { page?: number; pageSize?: number; startDate?: string; endDate?: string }) =>
