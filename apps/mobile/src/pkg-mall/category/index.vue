@@ -1,15 +1,15 @@
 <script setup lang="ts">
-/** 商品分类页 - 从原型 app/mall/category/page.tsx 1:1 迁移 */
-import { ref, computed, onMounted } from 'vue'
+/** 商品分类页 - 分类/搜索/价格/排序全下沉后端，useList 管理列表分页 */
+import { ref, computed } from 'vue'
+import { onLoad, onReachBottom } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppLoadMore from '@/components/common/app-load-more.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { shopApi } from '@/lib/shop-data'
+import { useList } from '@/composables/useList'
 
-const loading = ref(true)
-const error = ref(false)
 const categoryTabs = ref<any[]>([])
 const categorySortOptions = ref<any[]>([])
-const categoryProducts = ref<any[]>([])
 
 const activeCategory = ref('all')
 const sortBy = ref('default')
@@ -18,54 +18,44 @@ const showFilter = ref(false)
 const searchQuery = ref('')
 const priceMin = ref(0)
 const priceMax = ref(1000)
-const onlyMemberFree = ref(false)
 
 const quickPrices: Array<[number, number]> = [[0, 50], [50, 100], [100, 300], [300, 500], [500, 1000]]
 
 const sortName = computed(() => categorySortOptions.value.find((s: any) => s.id === sortBy.value)?.name)
-const hasFilter = computed(() => priceMin.value > 0 || priceMax.value < 1000 || onlyMemberFree.value)
+const hasFilter = computed(() => priceMin.value > 0 || priceMax.value < 1000)
 
-const sortedProducts = computed(() => {
-  const list = categoryProducts.value.filter((p: any) => {
-    if (activeCategory.value !== 'all' && p.category !== activeCategory.value) return false
-    if (searchQuery.value && !p.name.includes(searchQuery.value)) return false
-    if (p.price < priceMin.value || p.price > priceMax.value) return false
-    if (onlyMemberFree.value && !p.isMemberFree) return false
-    return true
-  })
-  return [...list].sort((a: any, b: any) => {
-    switch (sortBy.value) {
-      case 'sales': return b.sales - a.sales
-      case 'price_asc': return a.price - b.price
-      case 'price_desc': return b.price - a.price
-      case 'newest': return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
-      default: return 0
-    }
-  })
+// 分类/搜索/价格/排序全部作为查询参数下沉后端；切任一条件即重载第一页
+const { list: categoryProducts, loading, error, isEmpty, loadStatus, refresh, loadMore } = useList<any>({
+  fetcher: ({ page, pageSize }) => shopApi.getMallProducts({
+    page,
+    pageSize,
+    category: activeCategory.value,
+    keyword: searchQuery.value || undefined,
+    priceMin: priceMin.value > 0 ? priceMin.value : undefined,
+    priceMax: priceMax.value < 1000 ? priceMax.value : undefined,
+    sort: sortBy.value,
+  }),
 })
 
-async function fetchData() {
-  loading.value = true
-  error.value = false
+async function loadTabs() {
   try {
-    const data = await shopApi.getMallCategories()
+    const data = await shopApi.getMallCategoryTabs()
     categoryTabs.value = data.tabs || []
     categorySortOptions.value = data.sortOptions || []
-    categoryProducts.value = data.products || []
-  } catch (e) {
-    error.value = true
-  } finally {
-    loading.value = false
-  }
+  } catch { /* 分类 tab 拉取失败不阻塞商品列表 */ }
 }
 
-onMounted(() => { fetchData() })
+onLoad(() => { loadTabs(); refresh() })
+onReachBottom(() => loadMore())
 
+function selectCategory(id: string) { if (activeCategory.value === id) return; activeCategory.value = id; refresh() }
+function onSearch() { refresh() }
 function formatSales(n: number) { return n > 1000 ? (n / 1000).toFixed(1) + 'k' : String(n) }
-function pickSort(id: string) { sortBy.value = id; showSortMenu.value = false }
+function pickSort(id: string) { sortBy.value = id; showSortMenu.value = false; refresh() }
 function pickQuickPrice(min: number, max: number) { priceMin.value = min; priceMax.value = max }
-function resetFilter() { priceMin.value = 0; priceMax.value = 1000; onlyMemberFree.value = false }
-function resetAll() { activeCategory.value = 'all'; searchQuery.value = ''; resetFilter() }
+function applyFilter() { showFilter.value = false; refresh() }
+function resetFilter() { priceMin.value = 0; priceMax.value = 1000 }
+function resetAll() { activeCategory.value = 'all'; searchQuery.value = ''; resetFilter(); refresh() }
 function openProduct(id: string | number) { navigateTo(`/mall/product/${id}`) }
 </script>
 
@@ -77,7 +67,7 @@ function openProduct(id: string | number) { navigateTo(`/mall/product/${id}`) }
         <view class="back-btn" @tap="goBack"><AppIcon name="arrow-left" :size="40" color="var(--text-strong)" /></view>
         <view class="search-box">
           <view class="search-icon"><AppIcon name="search" :size="32" color="var(--text-soft)" /></view>
-          <input v-model="searchQuery" class="search-input" type="text" placeholder="搜索商品" placeholder-class="search-ph" />
+          <input v-model="searchQuery" class="search-input" type="text" confirm-type="search" placeholder="搜索商品后回车" placeholder-class="search-ph" @confirm="onSearch" />
         </view>
       </view>
     </view>
@@ -92,7 +82,7 @@ function openProduct(id: string | number) { navigateTo(`/mall/product/${id}`) }
       <view v-else-if="error" class="state-wrap">
         <view class="state-icon"><AppIcon name="alert-circle" :size="56" color="#c41e3a" /></view>
         <text class="state-text">加载失败，请重试</text>
-        <view class="state-retry" @tap="fetchData"><text class="state-retry-text">点击重试</text></view>
+        <view class="state-retry" @tap="refresh"><text class="state-retry-text">点击重试</text></view>
       </view>
       <!-- 内容 -->
       <template v-else>
@@ -103,7 +93,7 @@ function openProduct(id: string | number) { navigateTo(`/mall/product/${id}`) }
           :key="cat.id"
           class="cat-item"
           :class="{ 'cat-item-on': activeCategory === cat.id }"
-          @tap="activeCategory = cat.id"
+          @tap="selectCategory(cat.id)"
         >
           <view v-if="activeCategory === cat.id" class="cat-bar" />
           <text class="cat-name">{{ cat.name }}</text>
@@ -140,8 +130,8 @@ function openProduct(id: string | number) { navigateTo(`/mall/product/${id}`) }
         </view>
 
         <!-- 商品网格 -->
-        <view v-if="sortedProducts.length" class="grid">
-          <view v-for="p in sortedProducts" :key="p.id" class="g-card" hover-class="g-card-press" @tap="openProduct(p.id)">
+        <view v-if="categoryProducts.length" class="grid">
+          <view v-for="p in categoryProducts" :key="p.id" class="g-card" hover-class="g-card-press" @tap="openProduct(p.id)">
             <view class="g-cover">
               <image lazy-load class="g-img" :src="p.cover" mode="aspectFill" />
               <text v-if="p.isMemberFree" class="g-badge">会员免费</text>
@@ -161,6 +151,8 @@ function openProduct(id: string | number) { navigateTo(`/mall/product/${id}`) }
           <text class="empty-text">暂无相关商品</text>
           <text class="empty-reset" @tap="resetAll">重置筛选条件</text>
         </view>
+
+        <app-load-more v-if="categoryProducts.length" :status="loadStatus" />
       </view>
       </template>
     </view>
@@ -192,19 +184,10 @@ function openProduct(id: string | number) { navigateTo(`/mall/product/${id}`) }
             </view>
           </view>
         </view>
-        <view class="fp-group">
-          <text class="fp-label">其他</text>
-          <view class="fp-check-row" @tap="onlyMemberFree = !onlyMemberFree">
-            <view class="fp-check" :class="{ 'fp-check-on': onlyMemberFree }">
-              <AppIcon v-if="onlyMemberFree" name="check" :size="22" color="#fff" />
-            </view>
-            <text class="fp-check-label">仅看会员免费</text>
-          </view>
-        </view>
       </view>
       <view class="fp-actions">
         <view class="fp-btn-reset" hover-class="g-card-press" @tap="resetFilter"><text class="fp-btn-reset-text">重置</text></view>
-        <view class="fp-btn-ok" hover-class="g-card-press" @tap="showFilter = false"><text class="fp-btn-ok-text">确定</text></view>
+        <view class="fp-btn-ok" hover-class="g-card-press" @tap="applyFilter"><text class="fp-btn-ok-text">确定</text></view>
       </view>
     </view>
   </view>

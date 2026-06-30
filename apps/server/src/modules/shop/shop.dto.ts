@@ -217,6 +217,22 @@ export class ProductListQueryDto {
   @ApiPropertyOptional({ description: "商品名称关键词搜索" })
   @IsOptional() @IsString()
   keyword?: string;
+
+  @ApiPropertyOptional({ description: "一级品类(categoryLevel1)" })
+  @IsOptional() @IsString()
+  categoryLevel1?: string;
+
+  @ApiPropertyOptional({ description: "最低价" })
+  @IsOptional() @Type(() => Number) @IsNumber() @Min(0)
+  priceMin?: number;
+
+  @ApiPropertyOptional({ description: "最高价" })
+  @IsOptional() @Type(() => Number) @IsNumber() @Min(0)
+  priceMax?: number;
+
+  @ApiPropertyOptional({ description: "排序: default/sales/price_asc/price_desc/newest" })
+  @IsOptional() @IsString()
+  sort?: string;
 }
 
 export class JsapiPayDto {

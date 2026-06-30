@@ -187,13 +187,26 @@ export class ShopService {
   }
 
   async listProducts(dto: ProductListQueryDto) {
-    const { page = 1, pageSize = 20, categoryId, status, stationId, keyword } = dto;
+    const { page = 1, pageSize = 20, categoryId, status, stationId, keyword, categoryLevel1, priceMin, priceMax, sort } = dto;
 
     const where: Prisma.ProductWhereInput = {};
     if (categoryId) where.categoryId = categoryId;
     if (status) where.status = status;
     if (stationId) where.stationId = stationId;
     if (keyword) where.title = { contains: keyword, mode: "insensitive" };
+    if (categoryLevel1) where.categoryLevel1 = categoryLevel1;
+    if (priceMin != null || priceMax != null) {
+      where.price = {};
+      if (priceMin != null) where.price.gte = priceMin;
+      if (priceMax != null) where.price.lte = priceMax;
+    }
+
+    // 排序下沉：销量/价格升降/最新；default 同最新
+    const orderBy: Prisma.ProductOrderByWithRelationInput =
+      sort === "sales" ? { salesCount: "desc" }
+      : sort === "price_asc" ? { price: "asc" }
+      : sort === "price_desc" ? { price: "desc" }
+      : { createdAt: "desc" };
 
     const [products, total] = await Promise.all([
       this.prisma.product.findMany({
@@ -201,7 +214,7 @@ export class ShopService {
         include: { skus: true },
         skip: (page - 1) * pageSize,
         take: pageSize,
-        orderBy: { createdAt: "desc" },
+        orderBy,
       }),
       this.prisma.product.count({ where }),
     ]);
@@ -227,6 +240,19 @@ export class ShopService {
     });
 
     return { products: enriched, total, page, pageSize };
+  }
+
+  /** 商品一级品类聚合(供商城分类页 tab：分页后无法从单页商品聚合出完整分类) */
+  async listProductCategoryL1() {
+    const grouped = await this.prisma.product.groupBy({
+      by: ["categoryLevel1"],
+      where: { categoryLevel1: { not: null } },
+      _count: { _all: true },
+    });
+    return grouped
+      .filter(g => g.categoryLevel1)
+      .map(g => ({ name: g.categoryLevel1 as string, count: g._count._all }))
+      .sort((a, b) => b.count - a.count);
   }
 
   /** C 端店铺主页 — 商家公开信息 + 在售商品列表（仅已开通 ACTIVE 商家可见） */

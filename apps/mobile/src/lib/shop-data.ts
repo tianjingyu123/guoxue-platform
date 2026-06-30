@@ -3,7 +3,7 @@
  * mock 数据 + 类型 + 装配函数。图片走 /static（跨端约定）。
  */
 import type { ProductCardData } from '@/lib/card-utils'
-import { apiGet, apiPost, apiPut, apiDelete, useMock } from '@/utils/request'
+import { apiGet, apiGetPaged, apiPost, apiPut, apiDelete, useMock } from '@/utils/request'
 
 const P = '/static/images/products'
 
@@ -2260,18 +2260,34 @@ export const shopApi = {
   },
 
   /** 获取mall分类 — GET /mall/categories */
-  async getMallCategories(): Promise<any> {
-    const res = await apiGet<any>('/shop/products?pageSize=100')
-    const arr = Array.isArray(res) ? res : (res?.products ?? res?.items ?? [])
-    const products: CategoryProduct[] = arr.map(adaptCategoryProduct)
-    // 从商品 categoryLevel1 聚合分类 tab（真实标签，后端无独立 mall 分类聚合）
-    const counts = new Map<string, number>()
-    for (const p of products) { if (p.category) counts.set(p.category, (counts.get(p.category) || 0) + 1) }
-    const tabs = [
-      { id: 'all', name: '全部', count: products.length },
-      ...[...counts.entries()].map(([name, count]) => ({ id: name, name, count })),
-    ]
-    return { tabs, sortOptions: MALL_CATEGORY_SORT_OPTIONS, products }
+  /** 商城分类页 tab + 排序选项（分类从后端聚合端点取，不受分页影响） */
+  async getMallCategoryTabs(): Promise<{ tabs: any[]; sortOptions: any[] }> {
+    const list = await apiGet<any[]>('/shop/products/category-tabs')
+    const arr = Array.isArray(list) ? list : []
+    const total = arr.reduce((s, c) => s + (c.count || 0), 0)
+    return {
+      tabs: [
+        { id: 'all', name: '全部', count: total },
+        ...arr.map((c: any) => ({ id: c.name, name: c.name, count: c.count })),
+      ],
+      sortOptions: MALL_CATEGORY_SORT_OPTIONS,
+    }
+  },
+
+  /** 商城分类页商品（分类/搜索/价格/排序全下沉后端，分页返回 {items,total}） */
+  async getMallProducts(params: {
+    category?: string; keyword?: string; priceMin?: number; priceMax?: number; sort?: string; page?: number; pageSize?: number
+  }): Promise<{ items: CategoryProduct[]; total: number }> {
+    const { category, keyword, priceMin, priceMax, sort, page = 1, pageSize = 20 } = params
+    const qs: string[] = [`page=${page}`, `pageSize=${pageSize}`]
+    if (category && category !== 'all') qs.push(`categoryLevel1=${encodeURIComponent(category)}`)
+    if (keyword) qs.push(`keyword=${encodeURIComponent(keyword)}`)
+    if (priceMin) qs.push(`priceMin=${priceMin}`)
+    if (priceMax) qs.push(`priceMax=${priceMax}`)
+    if (sort && sort !== 'default') qs.push(`sort=${sort}`)
+    // listProducts 返回 {products,total,page,pageSize} 被拦截器转为 {data:数组,pagination}，用 apiGetPaged 保留 total
+    const { items, total } = await apiGetPaged<any>(`/shop/products?${qs.join('&')}`)
+    return { items: items.map(adaptCategoryProduct), total }
   },
 
   /** 获取mall评价 — GET /mall/product/:id/reviews */

@@ -65,6 +65,13 @@ export class ShopController {
     return this.shop.listProducts(q);
   }
 
+  @Get("products/category-tabs")
+  @ApiOperation({ summary: "商品一级分类聚合(商城分类页 tab)" })
+  @ApiResponse({ status: 200, description: "成功" })
+  productCategoryTabs() {
+    return this.shop.listProductCategoryL1();
+  }
+
   @Get("products/:id")
   @UseGuards(OptionalAuthGuard, StationIsolationGuard)
   @ApiOperation({ summary: "获取商品详情（含统一活动价格）" })
