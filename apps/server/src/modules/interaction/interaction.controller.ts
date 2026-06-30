@@ -245,6 +245,19 @@ export class InteractionController {
     return this.svc.dismissReport(id);
   }
 
+  @Get("report/admin/:id/target")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR")
+  @ApiOperation({ summary: "查看被举报内容详情（管理员）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 404, description: "举报不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
+  @ApiBearerAuth()
+  getReportTarget(@Param("id") id: string) {
+    return this.svc.getReportTarget(id);
+  }
+
   // ───────── 管理统计 ─────────
 
   @Get("admin/stats")

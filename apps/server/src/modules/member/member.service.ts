@@ -2,6 +2,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "@guoxue/shared";
+import { maskPhone } from "../../common/crypto.util";
 
 @Injectable()
 export class MemberService {
@@ -121,7 +122,12 @@ export class MemberService {
       }),
       this.prisma.memberPurchase.count(),
     ]);
-    return { items, total, page, pageSize };
+    // 管理端列表脱敏会员手机号
+    const masked = items.map((it) => ({
+      ...it,
+      user: it.user ? { ...it.user, phone: maskPhone(it.user.phone) } : it.user,
+    }));
+    return { items: masked, total, page, pageSize };
   }
 
   /** 管理员查看会员统计 */

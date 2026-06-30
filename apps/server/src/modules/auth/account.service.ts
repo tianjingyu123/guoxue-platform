@@ -5,6 +5,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { SmsService } from "../sms/sms.service";
 import { DeleteAccountDto, ChangePhoneDto } from "./auth.dto";
+import { buildPhoneFields, phoneHmac } from "../../common/crypto.util";
 import * as bcrypt from "bcryptjs";
 
 @Injectable()
@@ -85,12 +86,12 @@ export class AccountService {
     if (!ok2) throw new BusinessException(ErrorCode.BAD_REQUEST, "新手机验证码错误");
 
     // 检查新手机号是否已被使用
-    const exists = await this.prisma.user.findUnique({ where: { phone: dto.newPhone } });
+    const exists = await this.prisma.user.findUnique({ where: { phoneHash: phoneHmac(dto.newPhone) } });
     if (exists) throw new BusinessException(ErrorCode.AUTH_PHONE_EXISTS, "新手机号已被注册");
 
     await this.prisma.user.update({
       where: { id: userId },
-      data: { phone: dto.newPhone },
+      data: buildPhoneFields(dto.newPhone), // M4 灰度双写：phone + phoneHash + phoneEnc
     });
 
     this.logger.log(`用户 ${userId} 更换手机号: ${user.phone} → ${dto.newPhone}`);

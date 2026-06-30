@@ -29,7 +29,7 @@ export class WalletService {
     return {
       coin: account.balance,
       points: points?.balance ?? 0,
-      frozen: account.balance, // 简化为coin字段，实际frozen在account中
+      frozen: account.frozen,
       totalRecharged: account.totalRecharged,
       totalSpent: account.totalSpent,
     };
@@ -135,5 +135,79 @@ export class WalletService {
     } finally {
       await this.redis.del(lockKey);
     }
+  }
+
+  // ───────── 充值 ─────────
+
+  /** 支持的充值支付渠道（云闪付=UNIONPAY） */
+  private static readonly RECHARGE_METHODS = ["WECHAT", "ALIPAY", "UNIONPAY"];
+
+  /** 创建充值订单（PENDING）。真实支付需对接微信/支付宝/云闪付下单 API（本地无密钥）→ 返回订单待支付。 */
+  async createRecharge(userId: string, dto: { amountCoin: number; payMethod: string }) {
+    if (!dto.amountCoin || dto.amountCoin <= 0) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "充值金额必须大于0");
+    }
+    const pm = String(dto.payMethod || "WECHAT").toUpperCase();
+    if (!WalletService.RECHARGE_METHODS.includes(pm)) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "不支持的支付方式");
+    }
+    const coinRate = await this.coin.getCoinRate();
+    const orderNo = `RC${Date.now()}${userId.replace(/-/g, "").slice(0, 8)}`;
+    const order = await this.prisma.virtualCoinRecharge.create({
+      data: {
+        userId,
+        amountCoin: dto.amountCoin,
+        amountRmb: dto.amountCoin / coinRate,
+        payMethod: pm,
+        orderNo,
+        status: "PENDING",
+      },
+    });
+    return { orderNo: order.orderNo, amountCoin: order.amountCoin, amountRmb: Number(order.amountRmb), payMethod: pm };
+  }
+
+  /**
+   * 模拟支付到账（本地无真实支付渠道；真实支付由各渠道回调触发同等逻辑）。
+   * 资金安全：①条件 updateMany 原子置 PAID（防并发重复加币）②已 PAID 幂等返回 ③加币与订单状态同事务。
+   */
+  async mockPayRecharge(userId: string, orderNo: string) {
+    // 安全：模拟到账仅限非生产环境，杜绝真实用户凭空充值（免费刷币）；生产须由支付渠道回调验签后到账
+    if (process.env.NODE_ENV === "production") {
+      throw new BusinessException(ErrorCode.FORBIDDEN, "生产环境不支持模拟支付，请通过支付渠道完成");
+    }
+    await this.coin.getOrCreateAccount(userId); // 确保虚拟币账户存在
+    return this.prisma.$transaction(async (tx) => {
+      const order = await tx.virtualCoinRecharge.findFirst({ where: { orderNo, userId } });
+      if (!order) throw new BusinessException(ErrorCode.NOT_FOUND, "充值订单不存在");
+      if (order.status === "PAID") {
+        return { success: true, alreadyPaid: true, amountCoin: order.amountCoin };
+      }
+      if (order.status !== "PENDING") {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "订单状态异常，无法支付");
+      }
+      // 原子置 PAID：只有把 PENDING→PAID 成功的那次事务才加币，杜绝重复到账
+      const upd = await tx.virtualCoinRecharge.updateMany({
+        where: { orderNo, status: "PENDING" },
+        data: { status: "PAID", paidAt: new Date() },
+      });
+      if (upd.count === 0) {
+        return { success: true, alreadyPaid: true, amountCoin: order.amountCoin };
+      }
+      const acc = await tx.virtualCoinAccount.update({
+        where: { userId },
+        data: { balance: { increment: order.amountCoin }, totalRecharged: { increment: order.amountCoin } },
+      });
+      await tx.virtualCoinTransaction.create({
+        data: {
+          userId,
+          type: "RECHARGE",
+          amountCoin: order.amountCoin,
+          balanceAfter: acc.balance,
+          scene: "RECHARGE",
+          description: `充值${order.amountCoin}国学币`,
+        },
+      });
+      return { success: true, amountCoin: order.amountCoin, balance: acc.balance };
+    });
   }
 }

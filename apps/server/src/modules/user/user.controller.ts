@@ -10,6 +10,7 @@ import { RoleType } from "@prisma/client";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { AssignRoleDto, RemoveRoleDto, UserListQueryDto, UpdateProfileDto, UpdateUserStatusDto, BatchUpdateUserStatusDto, UpdateNotifySettingsDto, PushByTagDto, AddWhitelistDto } from "./user.dto";
+import { Auditable } from "../../common/audit.decorator";
 
 @ApiTags("用户")
 @ApiBearerAuth()
@@ -142,6 +143,7 @@ export class UserController {
   // ───────── 角色管理 ─────────
 
   @Post(":id/roles")
+  @Auditable({ action: "授予用户角色", targetType: "USER" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "分配用户角色" })
@@ -167,6 +169,7 @@ export class UserController {
   }
 
   @Delete(":id/roles/:roleType")
+  @Auditable({ action: "移除用户角色", targetType: "USER" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "移除用户角色" })
@@ -196,6 +199,7 @@ export class UserController {
   // ───────── 状态管理 ─────────
 
   @Put("batch/status")
+  @Auditable({ action: "批量用户状态变更", targetType: "USER" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "批量更新用户状态" })
@@ -208,6 +212,7 @@ export class UserController {
   }
 
   @Put(":id/status")
+  @Auditable({ action: "用户封禁/解封", targetType: "USER" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "更新用户状态（封禁/激活）" })
@@ -326,6 +331,23 @@ export class UserController {
   }
 
   // ───────── 用户分群推送 ─────────
+
+  @Get("push/estimate")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "分群推送预估人数（dry-run，不发送）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
+  @ApiBearerAuth()
+  @ApiQuery({ name: "memberLevel", required: false, type: String, description: "会员等级" })
+  @ApiQuery({ name: "activeDays", required: false, type: Number, description: "最少活跃天数" })
+  estimatePush(
+    @Query("memberLevel") memberLevel?: string,
+    @Query("activeDays") activeDays?: number,
+  ) {
+    return this.user.estimateByTag(memberLevel || "", Number(activeDays) || 0);
+  }
 
   @Post("push/by-tag")
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -446,6 +468,7 @@ export class UserController {
   }
 
   @Post(":id/delete-execute")
+  @Auditable({ action: "执行账号注销", targetType: "USER" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "管理员执行账号注销" })

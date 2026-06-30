@@ -12,6 +12,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { WechatService } from "./wechat.service";
 import { isUniqueConstraintError } from "../../common/prisma-errors";
+import { buildPhoneFields, phoneHmac } from "../../common/crypto.util";
 import { ImService } from "../im/im.service";
 import { WebhookService } from "../webhook/webhook.service";
 import { SmsService } from "../sms/sms.service";
@@ -73,7 +74,7 @@ export class AuthService {
   }
 
   async phoneRegister(dto: PhoneRegisterDto) {
-    const existing = await this.prisma.user.findUnique({ where: { phone: dto.phone } });
+    const existing = await this.prisma.user.findUnique({ where: { phoneHash: phoneHmac(dto.phone) } });
     if (existing) throw new BusinessException(ErrorCode.AUTH_PHONE_EXISTS, "手机号已注册");
 
     const passwordHash = await bcrypt.hash(dto.password, 10);
@@ -82,7 +83,7 @@ export class AuthService {
       user = await this.prisma.user.create({
         data: {
           nickname: dto.nickname,
-          phone: dto.phone,
+          ...buildPhoneFields(dto.phone), // M4 灰度双写：phone + phoneHash + phoneEnc
           auths: { create: { provider: "PASSWORD", credential: passwordHash } },
         },
       });
@@ -102,40 +103,64 @@ export class AuthService {
   }
 
   async phoneLogin(dto: PhoneLoginDto) {
+    // 账号级失败锁定：防止换 IP 绕过 IP 限流后对单一手机号定向撞库
+    const lockKey = `login:lock:${dto.phone}`;
+    if (await this.redis.get(lockKey)) {
+      throw new BusinessException(ErrorCode.AUTH_PASSWORD_WRONG, "登录失败次数过多，请15分钟后再试");
+    }
+
     const user = await this.prisma.user.findUnique({
-      where: { phone: dto.phone },
+      where: { phoneHash: phoneHmac(dto.phone) },
       include: { auths: { where: { provider: "PASSWORD" } } },
     });
-    if (!user) throw new BusinessException(ErrorCode.AUTH_PASSWORD_WRONG, "手机号或密码错误");
+    if (!user) {
+      await this.bumpLoginFail(dto.phone);
+      throw new BusinessException(ErrorCode.AUTH_PASSWORD_WRONG, "手机号或密码错误");
+    }
 
     const auth = user.auths[0];
     if (!auth?.credential) throw new BusinessException(ErrorCode.BAD_REQUEST, "账号未设置密码");
 
     const valid = await bcrypt.compare(dto.password, auth.credential);
-    if (!valid) throw new BusinessException(ErrorCode.AUTH_PASSWORD_WRONG, "手机号或密码错误");
+    if (!valid) {
+      await this.bumpLoginFail(dto.phone);
+      throw new BusinessException(ErrorCode.AUTH_PASSWORD_WRONG, "手机号或密码错误");
+    }
 
+    // 登录成功：清除失败计数
+    await this.redis.del(`login:fail:${dto.phone}`);
     this.importToIm(user.id, user.nickname);
     return this.buildLoginResult(user.id);
+  }
+
+  /** 登录失败计数：连续 10 次失败锁定该手机号 15 分钟（账号级，补充 IP 级限流抵御换 IP 撞库） */
+  private async bumpLoginFail(phone: string) {
+    const failKey = `login:fail:${phone}`;
+    const count = parseInt((await this.redis.get(failKey)) || "0", 10) + 1;
+    await this.redis.set(failKey, String(count), 900);
+    if (count >= 10) {
+      await this.redis.set(`login:lock:${phone}`, "LOCKED", 900);
+    }
   }
 
   async smsLogin(dto: SmsLoginDto) {
     // 验证短信验证码
     await this.verifySmsCode(dto.phone, dto.code);
 
-    let user = await this.prisma.user.findUnique({ where: { phone: dto.phone } });
+    let user = await this.prisma.user.findUnique({ where: { phoneHash: phoneHmac(dto.phone) } });
     if (!user) {
       // 新用户自动注册（并发时捕获 P2002）
       try {
         user = await this.prisma.user.create({
           data: {
             nickname: `用户${dto.phone.slice(-4)}`,
-            phone: dto.phone,
-            auths: { create: { provider: "PHONE", credential: dto.phone } },
+            ...buildPhoneFields(dto.phone), // M4 灰度双写
+            auths: { create: { provider: "PHONE", credential: phoneHmac(dto.phone) } }, // M4 Auth不存明文phone
           },
         });
       } catch (e: unknown) {
         if (isUniqueConstraintError(e)) {
-          user = await this.prisma.user.findUnique({ where: { phone: dto.phone } });
+          user = await this.prisma.user.findUnique({ where: { phoneHash: phoneHmac(dto.phone) } });
         } else {
           throw e;
         }
@@ -285,7 +310,7 @@ export class AuthService {
     }
 
     // 3. 通过手机号查找或创建用户
-    let user = await this.prisma.user.findUnique({ where: { phone } });
+    let user = await this.prisma.user.findUnique({ where: { phoneHash: phoneHmac(phone) } });
 
     if (user) {
       // 已有用户：绑定微信 openId（如未绑定，并发时捕获 P2002）
@@ -310,7 +335,7 @@ export class AuthService {
         user = await this.prisma.user.create({
           data: {
             nickname: `用户${phone.slice(-4)}`,
-            phone,
+            ...buildPhoneFields(phone), // M4 灰度双写
             auths: {
               create: { provider: "WECHAT", openId, unionId: session.unionId },
             },
@@ -318,7 +343,7 @@ export class AuthService {
         });
       } catch (e: unknown) {
         if (isUniqueConstraintError(e)) {
-          user = await this.prisma.user.findUnique({ where: { phone } });
+          user = await this.prisma.user.findUnique({ where: { phoneHash: phoneHmac(phone) } });
           if (!user) throw e;
         } else {
           throw e;
@@ -340,7 +365,9 @@ export class AuthService {
         where: { id: userId },
         select: {
           id: true, nickname: true, avatar: true, phone: true, email: true,
-          gender: true, birthday: true, memberLevel: true, memberExpire: true,
+          gender: true, birthday: true, bio: true, interestCategories: true,
+          identityVerified: true, paymentPasswordHash: true,
+          memberLevel: true, memberExpire: true,
           createdAt: true,
           roles: { select: { roleType: true, bindId: true } },
         },
@@ -351,7 +378,9 @@ export class AuthService {
         select: { id: true, status: true, shopName: true, shopLogo: true },
       }),
     ]);
-    return { ...user, permissions, merchant };
+    // 不回传支付密码哈希，仅暴露是否已设置的布尔值
+    const { paymentPasswordHash, ...rest } = user ?? {};
+    return { ...rest, paymentPasswordSet: !!paymentPasswordHash, permissions, merchant };
   }
 
   async updateProfile(userId: string, dto: UpdateProfileDto) {
@@ -387,7 +416,7 @@ export class AuthService {
   async forgotPassword(dto: ForgotPasswordDto) {
     await this.sms.verifyCode(dto.phone, dto.code, "RESET");
 
-    const user = await this.prisma.user.findUnique({ where: { phone: dto.phone } });
+    const user = await this.prisma.user.findUnique({ where: { phoneHash: phoneHmac(dto.phone) } });
     if (!user) throw new BusinessException(ErrorCode.USER_NOT_FOUND, "该手机号未注册");
 
     const auth = await this.prisma.auth.findFirst({
@@ -433,13 +462,13 @@ export class AuthService {
     await this.sms.verifyCode(phone, code);
 
     // 检查手机号是否已被其他用户占用
-    const phoneTaken = await this.prisma.user.findUnique({ where: { phone } });
+    const phoneTaken = await this.prisma.user.findUnique({ where: { phoneHash: phoneHmac(phone) } });
     if (phoneTaken && phoneTaken.id !== userId) {
       throw new BusinessException(ErrorCode.AUTH_PHONE_EXISTS, "手机号已被其他账号绑定");
     }
 
     // 检查 openId 是否已被其他 Auth 记录占用
-    const openIdTaken = await this.prisma.auth.findUnique({ where: { openId: phone } });
+    const openIdTaken = await this.prisma.auth.findUnique({ where: { openId: phoneHmac(phone) } });
     if (openIdTaken && openIdTaken.userId !== userId) {
       throw new BusinessException(ErrorCode.AUTH_PHONE_EXISTS, "手机号已被其他账号绑定");
     }
@@ -447,11 +476,11 @@ export class AuthService {
     // Auth: openId存手机号作为唯一标识
     const existing = await this.prisma.auth.findFirst({ where: { userId, provider: "PHONE" } });
     if (existing) {
-      await this.prisma.auth.update({ where: { id: existing.id }, data: { openId: phone, credential: phone } });
+      await this.prisma.auth.update({ where: { id: existing.id }, data: { openId: phoneHmac(phone), credential: phoneHmac(phone)} });
     } else {
-      await this.prisma.auth.create({ data: { userId, provider: "PHONE", openId: phone, credential: phone } });
+      await this.prisma.auth.create({ data: { userId, provider: "PHONE", openId: phoneHmac(phone), credential: phoneHmac(phone)} });
     }
-    await this.prisma.user.update({ where: { id: userId }, data: { phone } });
+    await this.prisma.user.update({ where: { id: userId }, data: buildPhoneFields(phone) }); // M4 灰度双写
     return { success: true };
   }
 

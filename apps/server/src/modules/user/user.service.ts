@@ -146,7 +146,7 @@ export class UserService {
 
   // ───────── 个人资料 ─────────
 
-  async updateProfile(userId: string, dto: { nickname?: string; avatar?: string; bio?: string; gender?: number }) {
+  async updateProfile(userId: string, dto: { nickname?: string; avatar?: string; bio?: string; gender?: number; interestCategories?: string[] }) {
     return this.prisma.user.update({
       where: { id: userId },
       data: {
@@ -154,8 +154,9 @@ export class UserService {
         ...(dto.avatar !== undefined && { avatar: dto.avatar }),
         ...(dto.bio !== undefined && { bio: dto.bio }),
         ...(dto.gender !== undefined && { gender: dto.gender }),
+        ...(dto.interestCategories !== undefined && { interestCategories: dto.interestCategories }),
       },
-      select: { id: true, nickname: true, avatar: true, bio: true, gender: true },
+      select: { id: true, nickname: true, avatar: true, bio: true, gender: true, interestCategories: true },
     });
   }
 
@@ -301,13 +302,12 @@ export class UserService {
 
   // ───────── 用户分群推送 ─────────
 
-  async pushByTag(
-    tag: string,
-    memberLevel: string,
-    activeDays: number,
-    title: string,
-    content: string,
-  ): Promise<{ matchedCount: number; tag: string; memberLevel: string; activeDays: number }> {
+  /**
+   * 构建分群筛选条件（会员等级 + 活跃天数）。
+   * pushByTag 与 estimateByTag 共用，保证「预估人数」与「实际推送人数」口径一致。
+   * 注：tag 维度当前后端未落地具体筛选规则，仅 memberLevel/activeDays 生效。
+   */
+  private async buildTagWhere(memberLevel: string, activeDays: number): Promise<Prisma.UserWhereInput> {
     const where: Prisma.UserWhereInput = {};
 
     // 按会员等级筛选
@@ -325,16 +325,30 @@ export class UserService {
         where: { createdAt: { gte: activeSince } },
       });
       const activeIds = activeUserIds.map((u) => u.userId).filter((id): id is string => id !== null);
-      const activeSet = new Set(activeIds);
-
-      // Prisma 动态筛选器构建，需绕过严格类型检查
-      const idFilter = (where as Record<string, unknown>).id as { in?: string[] } | undefined;
-      if (idFilter?.in) {
-        idFilter.in = idFilter.in.filter((id) => activeSet.has(id));
-      } else {
-        where.id = { in: [...activeSet] };
-      }
+      where.id = { in: activeIds };
     }
+
+    return where;
+  }
+
+  /** 分群推送预估人数（dry-run，不发送） */
+  async estimateByTag(
+    memberLevel: string,
+    activeDays: number,
+  ): Promise<{ count: number; memberLevel: string; activeDays: number }> {
+    const where = await this.buildTagWhere(memberLevel, activeDays);
+    const count = await this.prisma.user.count({ where });
+    return { count, memberLevel, activeDays };
+  }
+
+  async pushByTag(
+    tag: string,
+    memberLevel: string,
+    activeDays: number,
+    title: string,
+    content: string,
+  ): Promise<{ matchedCount: number; tag: string; memberLevel: string; activeDays: number }> {
+    const where = await this.buildTagWhere(memberLevel, activeDays);
 
     // 查询匹配用户
     const matchedUsers = await this.prisma.user.findMany({

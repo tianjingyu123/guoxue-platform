@@ -53,11 +53,18 @@ export class PointsController {
   }
 
   @Post("points/exchange")
-  @ApiOperation({ summary: "积分兑换" })
-  @ApiResponse({ status: 201, description: "创建成功" })
-  @ApiResponse({ status: 400, description: "参数校验失败" })
-  exchange(@Req() req: Request, @Body() dto: SpendPointsDto) {
-    return this.svc.spendPoints(req.user.id, dto.amount, "EXCHANGE", `兑换${dto.targetType}:${dto.targetId}`);
+  @ApiOperation({ summary: "积分兑换（兑换积分商城商品）" })
+  @ApiResponse({ status: 201, description: "兑换成功" })
+  @ApiResponse({ status: 400, description: "积分不足/已兑完/参数错误" })
+  exchange(@Req() req: Request, @Body() dto: { productId: string }) {
+    return this.svc.exchangeProduct(req.user.id, dto.productId);
+  }
+
+  @Get("points/products")
+  @ApiOperation({ summary: "积分商城商品列表" })
+  @ApiResponse({ status: 200, description: "成功" })
+  getPointsProducts() {
+    return this.svc.getProducts();
   }
 
   @Get("points/tasks")

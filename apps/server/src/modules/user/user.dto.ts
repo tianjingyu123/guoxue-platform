@@ -53,6 +53,9 @@ export class UpdateProfileDto {
 
   @IsOptional() @Type(() => Number) @IsInt()
   gender?: number;
+
+  @IsOptional() @IsArray() @IsString({ each: true })
+  interestCategories?: string[];
 }
 
 export class UpdateUserStatusDto {

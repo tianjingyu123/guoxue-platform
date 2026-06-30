@@ -63,6 +63,63 @@ export class PointsService {
     return updated;
   }
 
+  // ───────── 积分商城 ─────────
+
+  /** 积分商城商品列表（上架，按排序） */
+  async getProducts() {
+    return this.prisma.pointsProduct.findMany({
+      where: { status: "ACTIVE" },
+      orderBy: { sortOrder: "asc" },
+    });
+  }
+
+  /**
+   * 积分兑换：事务内扣积分 + 原子减库存 + 建兑换记录。
+   * MVP：发放状态为 PENDING（实物发货 / 券 / 会员由运营后台发放；即时发放为二阶段）。
+   */
+  async exchangeProduct(userId: string, productId: string) {
+    const product = await this.prisma.pointsProduct.findUnique({ where: { id: productId } });
+    if (!product || product.status !== "ACTIVE") {
+      throw new BusinessException(ErrorCode.NOT_FOUND, "积分商品不存在或已下架");
+    }
+    if (product.stock === 0) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "该商品已兑完");
+    }
+    return this.prisma.$transaction(async (tx) => {
+      const points = await tx.userPoints.findUnique({ where: { userId } });
+      if (!points || points.balance < product.points) {
+        throw new BusinessException(ErrorCode.COIN_BALANCE_INSUFFICIENT, "积分不足");
+      }
+      await tx.userPoints.update({
+        where: { userId },
+        data: { balance: { decrement: product.points }, totalSpent: { increment: product.points } },
+      });
+      await tx.pointsRecord.create({
+        data: { userId, amount: product.points, type: "SPEND", source: "EXCHANGE", description: `兑换${product.title}` },
+      });
+      // 限量商品原子减库存（条件更新防超卖；-1 表示不限量不减）
+      if (product.stock > 0) {
+        const dec = await tx.pointsProduct.updateMany({
+          where: { id: productId, stock: { gt: 0 } },
+          data: { stock: { decrement: 1 } },
+        });
+        if (dec.count === 0) {
+          throw new BusinessException(ErrorCode.BAD_REQUEST, "该商品已兑完");
+        }
+      }
+      const reward =
+        product.type === "GIFT" ? "实物奖励将由客服联系发货"
+          : product.type === "COIN" ? "国学币将发放到账户"
+            : product.type === "COUPON" ? "优惠券将发放到卡券中心"
+              : product.type === "VIP" ? "会员权益将开通到账户"
+                : "奖励将发放";
+      const record = await tx.pointsExchangeRecord.create({
+        data: { userId, productId, pointsCost: product.points, status: "PENDING", reward },
+      });
+      return { success: true, recordId: record.id, reward, balance: points.balance - product.points };
+    });
+  }
+
   async getGrowth(userId: string) {
     let gv = await this.prisma.growthValue.findUnique({ where: { userId } });
     if (!gv) {

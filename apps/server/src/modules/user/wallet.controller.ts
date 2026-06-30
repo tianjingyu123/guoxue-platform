@@ -56,4 +56,19 @@ export class WalletController {
   submitWithdraw(@Req() req: Request, @Body() body: { amount: number; method: string; account: Record<string, string> }) {
     return this.svc.submitWithdraw(req.user.id, body);
   }
+
+  @Post("recharge")
+  @ApiOperation({ summary: "充值国学币（微信/支付宝/云闪付；演示模式下单后模拟到账）" })
+  @ApiResponse({ status: 201, description: "充值成功" })
+  @ApiResponse({ status: 400, description: "金额/支付方式错误" })
+  async recharge(@Req() req: Request, @Body() body: { amountCoin: number; payMethod: string }) {
+    const order = await this.svc.createRecharge(req.user.id, body);
+    // 安全：生产环境绝不自动到账——只下单返回支付参数，必须由支付渠道回调（验签）标记 PAID 后到账，杜绝免费刷币。
+    if (process.env.NODE_ENV === "production") {
+      return { ...order, demo: false, payParams: { note: "请通过微信/支付宝/云闪付完成支付" }, message: "订单已创建，请完成支付" };
+    }
+    // 非生产（开发/联调）：模拟到账，便于真机演示。
+    const pay = await this.svc.mockPayRecharge(req.user.id, order.orderNo);
+    return { ...order, ...pay, demo: true, message: "演示模式·已模拟到账（仅非生产环境）" };
+  }
 }

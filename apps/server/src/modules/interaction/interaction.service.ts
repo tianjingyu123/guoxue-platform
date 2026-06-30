@@ -9,6 +9,7 @@ import {
 } from "./interaction.dto";
 import { Prisma } from "@prisma/client";
 import { isUniqueConstraintError } from "../../common/prisma-errors";
+import { resolveTargets, targetKey } from "./target-resolver";
 
 @Injectable()
 export class InteractionService {
@@ -43,7 +44,8 @@ export class InteractionService {
       where: { userId, targetType, targetId: { in: targetIds } },
       select: { targetId: true },
     });
-    return new Set(likes.map(l => l.targetId));
+    // 返回数组而非 Set —— Set 无法 JSON 序列化（会变成 {}），导致前端拿不到点赞状态
+    return likes.map(l => l.targetId);
   }
 
   async getLikeCount(targetType: string, targetId: string) {
@@ -61,7 +63,17 @@ export class InteractionService {
       }),
       this.prisma.like.count({ where }),
     ]);
-    return { items: likes, total, page, pageSize };
+    // 多态批量补全目标详情（每种类型一次查询，绝不 N+1）
+    const targets = await resolveTargets(this.prisma, likes);
+    const items = likes.map((l) => ({
+      id: l.id,
+      targetType: l.targetType,
+      targetId: l.targetId,
+      createdAt: l.createdAt,
+      // 目标已删除时为 null，前端降级显示"内容已删除"
+      target: targets.get(targetKey(l.targetType, l.targetId)) ?? null,
+    }));
+    return { items, total, page, pageSize };
   }
 
   // ═══════════════════ 评论 ═══════════════════
@@ -174,7 +186,18 @@ export class InteractionService {
       this.prisma.collect.count({ where }),
     ]);
 
-    return { collects, total, page, pageSize };
+    // 多态批量补全目标详情（每种类型一次查询，绝不 N+1）；目标已删则 target 为 null，前端降级
+    const targets = await resolveTargets(this.prisma, collects);
+    const items = collects.map((c) => ({
+      id: c.id,
+      targetType: c.targetType,
+      targetId: c.targetId,
+      createdAt: c.createdAt,
+      target: targets.get(targetKey(c.targetType, c.targetId)) ?? null,
+    }));
+
+    // 保留 collects 字段向后兼容，新增 items 含 target 详情
+    return { items, collects, total, page, pageSize };
   }
 
   // ═══════════════════ 关注 ═══════════════════
@@ -278,6 +301,129 @@ export class InteractionService {
       where: { id: reportId },
       data: { status: "DISMISSED", processedAt: new Date() },
     });
+  }
+
+  /**
+   * 查看被举报内容详情（管理员）
+   * ─────────────────────────────────────────────
+   * 举报记录只存裸 targetType + targetId，管理员据此无法实质判断。
+   * 本方法按 targetType 切换查询对应业务表，返回结构化内容摘要供后台核验。
+   * 纯只读，不触碰举报处理逻辑。被举报目标已删/不存在时 found=false 由前端降级。
+   */
+  async getReportTarget(reportId: string) {
+    const report = await this.prisma.report.findUnique({ where: { id: reportId } });
+    if (!report) throw new BusinessException(ErrorCode.NOT_FOUND, "举报不存在");
+
+    const { targetType, targetId } = report;
+    const type = String(targetType || "").toUpperCase();
+
+    // 统一摘要结构；found=false 表示目标已删除或不存在
+    const base = {
+      reportId: report.id,
+      targetType,
+      targetId,
+      reason: report.reason,
+      status: report.status,
+      found: false as boolean,
+      type: "",
+      title: "",
+      content: "",
+      author: null as null | { id: string; nickname: string; avatar: string },
+      createdAt: null as Date | null,
+      extra: {} as Record<string, unknown>,
+    };
+
+    const author = (u?: { id: string; nickname: string; avatar: string | null } | null) =>
+      u ? { id: u.id, nickname: u.nickname, avatar: u.avatar ?? "" } : null;
+
+    switch (type) {
+      case "POST":
+      case "CIRCLE_POST": {
+        const p = await this.prisma.post.findUnique({
+          where: { id: targetId },
+          select: { id: true, title: true, content: true, images: true, status: true, createdAt: true, user: { select: { id: true, nickname: true, avatar: true } } },
+        });
+        if (p) Object.assign(base, { found: true, type: "帖子", title: p.title || "", content: p.content || "", author: author(p.user), createdAt: p.createdAt, extra: { images: p.images ?? [], status: p.status } });
+        break;
+      }
+      case "COMMENT": {
+        const c = await this.prisma.comment.findUnique({
+          where: { id: targetId },
+          select: { id: true, content: true, status: true, createdAt: true, targetType: true, targetId: true, user: { select: { id: true, nickname: true, avatar: true } } },
+        });
+        if (c) Object.assign(base, { found: true, type: "评论", title: "", content: c.content || "", author: author(c.user), createdAt: c.createdAt, extra: { status: c.status, onTargetType: c.targetType, onTargetId: c.targetId } });
+        break;
+      }
+      case "ARTICLE": {
+        const a = await this.prisma.article.findUnique({
+          where: { id: targetId },
+          select: { id: true, title: true, content: true, excerpt: true, cover: true, auditStatus: true, createdAt: true, user: { select: { id: true, nickname: true, avatar: true } } },
+        });
+        if (a) Object.assign(base, { found: true, type: "文章", title: a.title || "", content: a.excerpt || a.content || "", author: author(a.user), createdAt: a.createdAt, extra: { cover: a.cover, auditStatus: a.auditStatus } });
+        break;
+      }
+      case "COURSE": {
+        const c = await this.prisma.course.findUnique({
+          where: { id: targetId },
+          select: { id: true, title: true, intro: true, cover: true, auditStatus: true, createdAt: true, user: { select: { id: true, nickname: true, avatar: true } } },
+        });
+        if (c) Object.assign(base, { found: true, type: "课程", title: c.title || "", content: c.intro || "", author: author(c.user), createdAt: c.createdAt, extra: { cover: c.cover, auditStatus: c.auditStatus } });
+        break;
+      }
+      case "PRODUCT": {
+        const p = await this.prisma.product.findUnique({
+          where: { id: targetId },
+          select: { id: true, title: true, intro: true, images: true, status: true, createdAt: true },
+        });
+        if (p) Object.assign(base, { found: true, type: "商品", title: p.title || "", content: p.intro || "", createdAt: p.createdAt, extra: { images: p.images ?? [], status: p.status } });
+        break;
+      }
+      case "VIDEO": {
+        const v = await this.prisma.video.findUnique({
+          where: { id: targetId },
+          select: { id: true, title: true, coverUrl: true, videoUrl: true, status: true, createdAt: true, user: { select: { id: true, nickname: true, avatar: true } } },
+        });
+        if (v) Object.assign(base, { found: true, type: "视频", title: v.title || "视频", content: "", author: author(v.user), createdAt: v.createdAt, extra: { cover: v.coverUrl, videoUrl: v.videoUrl, status: v.status } });
+        break;
+      }
+      case "CIRCLE": {
+        const c = await this.prisma.circle.findUnique({
+          where: { id: targetId },
+          select: { id: true, name: true, intro: true, cover: true, status: true, createdAt: true, owner: { select: { id: true, nickname: true, avatar: true } } },
+        });
+        if (c) Object.assign(base, { found: true, type: "圈子", title: c.name || "", content: c.intro || "", author: author(c.owner), createdAt: c.createdAt, extra: { cover: c.cover, status: c.status } });
+        break;
+      }
+      case "LIVE":
+      case "LIVEROOM":
+      case "LIVESTREAM": {
+        const l = await this.prisma.liveRoom.findUnique({
+          where: { id: targetId },
+          select: { id: true, title: true, cover: true, status: true, createdAt: true, user: { select: { id: true, nickname: true, avatar: true } } },
+        });
+        if (l) Object.assign(base, { found: true, type: "直播", title: l.title || "", content: "", author: author(l.user), createdAt: l.createdAt, extra: { cover: l.cover, status: l.status } });
+        break;
+      }
+      case "USER": {
+        const u = await this.prisma.user.findUnique({
+          where: { id: targetId },
+          select: { id: true, nickname: true, avatar: true, bio: true, phone: true, status: true, createdAt: true },
+        });
+        if (u) Object.assign(base, { found: true, type: "用户", title: u.nickname || "", content: u.bio || "", author: author(u), createdAt: u.createdAt, extra: { phone: this.maskPhone(u.phone), status: u.status } });
+        break;
+      }
+      default:
+        // 未知类型，保持 found=false，前端展示「无法识别的举报对象类型」
+        break;
+    }
+
+    return base;
+  }
+
+  /** 手机号脱敏：138****8000 */
+  private maskPhone(phone?: string | null): string {
+    if (!phone) return "";
+    return phone.length >= 7 ? `${phone.slice(0, 3)}****${phone.slice(-4)}` : "***";
   }
 
   // ═══════════════════ 附近的人 ═══════════════════

@@ -42,6 +42,19 @@ const mockPrisma = {
   },
   article: {
     update: jest.fn(),
+    findMany: jest.fn().mockResolvedValue([]),
+  },
+  course: {
+    findMany: jest.fn().mockResolvedValue([]),
+  },
+  video: {
+    findMany: jest.fn().mockResolvedValue([]),
+  },
+  product: {
+    findMany: jest.fn().mockResolvedValue([]),
+  },
+  post: {
+    findMany: jest.fn().mockResolvedValue([]),
   },
   userBehavior: {
     create: jest.fn().mockResolvedValue({}),
@@ -89,9 +102,9 @@ describe("InteractionService", () => {
     it("返回用户点赞的 targetId 集合", async () => {
       mockPrisma.like.findMany.mockResolvedValue([{ targetId: "a1" }, { targetId: "a3" }])
       const result = await svc.isLiked("u1", "ARTICLE", ["a1", "a2", "a3"])
-      expect(result.has("a1")).toBe(true)
-      expect(result.has("a2")).toBe(false)
-      expect(result.has("a3")).toBe(true)
+      expect(result.includes("a1")).toBe(true)
+      expect(result.includes("a2")).toBe(false)
+      expect(result.includes("a3")).toBe(true)
     })
   })
 
@@ -100,6 +113,39 @@ describe("InteractionService", () => {
       mockPrisma.like.count.mockResolvedValue(42)
       const result = await svc.getLikeCount("ARTICLE", "a1")
       expect(result).toBe(42)
+    })
+  })
+
+  describe("getMyLikes", () => {
+    it("多态批量补全目标详情（每类型一次查询，目标已删降级为 null）", async () => {
+      mockPrisma.like.findMany.mockResolvedValue([
+        { id: "l1", targetType: "ARTICLE", targetId: "a1", createdAt: new Date() },
+        { id: "l2", targetType: "COURSE", targetId: "c1", createdAt: new Date() },
+        { id: "l3", targetType: "ARTICLE", targetId: "a-deleted", createdAt: new Date() },
+      ])
+      mockPrisma.like.count.mockResolvedValue(3)
+      mockPrisma.article.findMany.mockResolvedValue([
+        { id: "a1", title: "文章一", cover: "c.jpg", user: { nickname: "作者A", avatar: null } },
+      ])
+      mockPrisma.course.findMany.mockResolvedValue([
+        { id: "c1", title: "课程一", cover: null, user: { nickname: "讲师B", avatar: "b.png" } },
+      ])
+
+      const result = await svc.getMyLikes("u1", 1, 20)
+
+      // 每种类型仅一次 findMany，绝不 N+1
+      expect(mockPrisma.article.findMany).toHaveBeenCalledTimes(1)
+      expect(mockPrisma.course.findMany).toHaveBeenCalledTimes(1)
+      expect(mockPrisma.article.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: { in: ["a1", "a-deleted"] } } }),
+      )
+
+      expect(result.total).toBe(3)
+      expect(result.items[0].target).toMatchObject({ id: "a1", type: "article", title: "文章一" })
+      expect(result.items[0].target?.author).toEqual({ nickname: "作者A", avatar: "" })
+      expect(result.items[1].target).toMatchObject({ id: "c1", type: "course", title: "课程一" })
+      // 目标已删除 → null，前端降级"内容已删除"
+      expect(result.items[2].target).toBeNull()
     })
   })
 
