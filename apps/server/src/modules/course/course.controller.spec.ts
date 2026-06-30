@@ -7,6 +7,7 @@ import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { FeatureFlagGuard } from "../../common/feature-flag.guard";
 import { MemberGuard } from "../../common/member.guard";
+import { CourseCreatorGuard } from "../../common/course-creator.guard";
 import { StationIsolationGuard } from "../../common/station-isolation.guard";
 
 const mockCourseSvc = {
@@ -36,6 +37,8 @@ const mockCourseSvc = {
   listReviews: jest.fn().mockResolvedValue([{ id: "rv1", rating: 5 }]),
   getCourseRating: jest.fn().mockResolvedValue({ average: 4.5, count: 20 }),
   getCourseStats: jest.fn().mockResolvedValue({ enrollments: 100, revenue: 5000 }),
+  getCreatedCourses: jest.fn().mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 20 }),
+  replyReviewByCreator: jest.fn().mockResolvedValue({ id: "rv1", reply: "谢谢" }),
 };
 
 const mockSystemSvc = {
@@ -62,6 +65,7 @@ describe("CourseController", () => {
       .overrideGuard(RolesGuard).useValue({ canActivate: () => true })
       .overrideGuard(FeatureFlagGuard).useValue({ canActivate: () => true })
       .overrideGuard(MemberGuard).useValue({ canActivate: () => true })
+      .overrideGuard(CourseCreatorGuard).useValue({ canActivate: () => true })
       .overrideGuard(StationIsolationGuard).useValue({ canActivate: () => true })
       .compile();
     ctrl = mod.get(CourseController);

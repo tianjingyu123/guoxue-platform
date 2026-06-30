@@ -3,6 +3,7 @@ import { ClassicController } from "./classic.controller";
 import { ClassicService } from "./classic.service";
 import { ClassicLibrarySeeder } from "./classic-library-seeder.service";
 import { ClassicDaizhigeSeeder } from "./classic-daizhige-seeder.service";
+import { ClassicCompanionService } from "./classic-companion.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 
 const mockClassicSvc = {
@@ -47,6 +48,11 @@ const mockDaizhigeSeeder = {
   importFromJson: jest.fn().mockResolvedValue({ imported: 10, errors: [] }),
 };
 
+const mockCompanion = {
+  getGuidingPrompts: jest.fn().mockResolvedValue({ bookTitle: "论语", chapterTitle: "学而", prompts: [] }),
+  chat: jest.fn().mockResolvedValue({ answer: "...", disclaimer: "..." }),
+};
+
 describe("ClassicController", () => {
   let ctrl: ClassicController;
 
@@ -57,6 +63,7 @@ describe("ClassicController", () => {
         { provide: ClassicService, useValue: mockClassicSvc },
         { provide: ClassicLibrarySeeder, useValue: mockSeeder },
         { provide: ClassicDaizhigeSeeder, useValue: mockDaizhigeSeeder },
+        { provide: ClassicCompanionService, useValue: mockCompanion },
       ],
     })
       .overrideGuard(JwtAuthGuard).useValue({ canActivate: () => true })

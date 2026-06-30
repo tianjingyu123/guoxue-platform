@@ -43,7 +43,7 @@ describe("ClassicQaService", () => {
       expect(result.answer).toBeDefined();
       expect(result.citations).toHaveLength(1);
       expect(result.citations[0].bookName).toBe("论语");
-      expect(mockRag.searchContext).toHaveBeenCalledWith("什么是学而时习之？", [], 5);
+      expect(mockRag.searchContext).toHaveBeenCalledWith("什么是学而时习之？", ["classic"], 5);
     });
 
     it("无相关片段时返回友好提示", async () => {

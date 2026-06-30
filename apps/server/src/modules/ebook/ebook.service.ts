@@ -72,7 +72,7 @@ export class EbookService {
   }
 
   async getBook(id: string, userId?: string) {
-    const [book, purchase] = await Promise.all([
+    const [book, purchase, favorite] = await Promise.all([
       this.prisma.ebook.findUnique({
         where: { id },
         include: {
@@ -83,13 +83,16 @@ export class EbookService {
       userId
         ? this.prisma.ebookPurchase.findUnique({ where: { userId_ebookId: { userId, ebookId: id } } })
         : Promise.resolve(null),
+      userId
+        ? this.prisma.ebookFavorite.findUnique({ where: { userId_ebookId: { userId, ebookId: id } } })
+        : Promise.resolve(null),
     ]);
     if (!book) throw new BusinessException(ErrorCode.EBOOK_NOT_FOUND);
 
     // 异步增加浏览数
     this.prisma.ebook.update({ where: { id }, data: { viewCount: { increment: 1 } } }).catch((err) => this.logger.warn("缓存写入失败", err));
 
-    return { ...book, purchased: !!purchase };
+    return { ...book, purchased: !!purchase, favorited: !!favorite };
   }
 
   async createEbook(dto: CreateEbookDto) {
@@ -235,7 +238,14 @@ export class EbookService {
     const [purchases, total] = await Promise.all([
       this.prisma.ebookPurchase.findMany({
         where,
-        include: { ebook: { select: { id: true, title: true, cover: true, author: true } } },
+        include: {
+          ebook: {
+            select: {
+              id: true, title: true, cover: true, author: true,
+              totalChapters: true, category: { select: { name: true } },
+            },
+          },
+        },
         skip: (page - 1) * pageSize,
         take: pageSize,
         orderBy: { paidAt: "desc" },
@@ -267,6 +277,28 @@ export class EbookService {
       create: { userId, ebookId, ...data },
       update: data,
     });
+  }
+
+  /** 批量获取当前用户的全部阅读进度（书架页一次拿全，避免逐本 N+1） */
+  async getMyProgress(userId: string) {
+    const rows = await this.prisma.ebookProgress.findMany({
+      where: { userId },
+      select: {
+        ebookId: true, chapterId: true, progress: true, currentPage: true,
+        completed: true, updatedAt: true,
+        chapter: { select: { sortOrder: true } },
+      },
+    });
+    return rows.map((r) => ({
+      ebookId: r.ebookId,
+      chapterId: r.chapterId,
+      progress: r.progress,
+      currentPage: r.currentPage,
+      completed: r.completed,
+      // 当前章序号（从 0 起的 sortOrder + 1），无则 0
+      currentChapter: r.chapter ? r.chapter.sortOrder + 1 : 0,
+      updatedAt: r.updatedAt,
+    }));
   }
 
   // ═══════════════════════════════════════════
@@ -354,6 +386,52 @@ export class EbookService {
       throw new BusinessException(ErrorCode.NOT_FOUND, "笔记不存在");
     }
     return { success: true };
+  }
+
+  // ═══════════════════════════════════════════
+  // 收藏（对齐古籍馆 ClassicFavorite）
+  // ═══════════════════════════════════════════
+
+  async listFavorites(userId: string, page = 1, pageSize = 50) {
+    const favorites = await this.prisma.ebookFavorite.findMany({
+      where: { userId },
+      orderBy: { createdAt: "desc" },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+    });
+    const ebookIds = favorites.map((f) => f.ebookId);
+    const books = ebookIds.length
+      ? await this.prisma.ebook.findMany({
+          where: { id: { in: ebookIds } },
+          select: {
+            id: true, title: true, author: true, cover: true,
+            price: true, originalPrice: true, memberFree: true,
+            category: { select: { name: true } },
+          },
+        })
+      : [];
+    const bookMap = new Map(books.map((b) => [b.id, b]));
+    const items = favorites
+      .map((f) => ({ favoritedAt: f.createdAt, ebook: bookMap.get(f.ebookId) }))
+      .filter((it) => !!it.ebook);
+    return { items, total: items.length, page, pageSize };
+  }
+
+  /** 收藏/取消收藏（幂等 toggle）：返回最新收藏态 */
+  async addFavorite(userId: string, ebookId: string) {
+    const book = await this.prisma.ebook.findUnique({ where: { id: ebookId }, select: { id: true } });
+    if (!book) throw new BusinessException(ErrorCode.EBOOK_NOT_FOUND);
+    await this.prisma.ebookFavorite.upsert({
+      where: { userId_ebookId: { userId, ebookId } },
+      create: { userId, ebookId },
+      update: {},
+    });
+    return { favorited: true };
+  }
+
+  async removeFavorite(userId: string, ebookId: string) {
+    await this.prisma.ebookFavorite.deleteMany({ where: { userId, ebookId } });
+    return { favorited: false };
   }
 
   // ═══════════════════════════════════════════

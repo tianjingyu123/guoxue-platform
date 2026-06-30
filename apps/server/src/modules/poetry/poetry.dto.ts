@@ -229,6 +229,12 @@ export class PoemDetailDto {
 
   @ApiProperty({ description: "收藏数" })
   collections: number;
+
+  @ApiProperty({ description: "当前用户是否已点赞" })
+  isLiked: boolean;
+
+  @ApiProperty({ description: "当前用户是否已收藏" })
+  isBookmarked: boolean;
 }
 
 export class PoemDetailResponseDto {
@@ -237,4 +243,147 @@ export class PoemDetailResponseDto {
 
   @ApiProperty({ description: "逐句白话译文", type: [String] })
   translations: string[];
+}
+
+// ─────────────────────────────────────────────────
+// 诗人详情
+// ─────────────────────────────────────────────────
+
+export class PoetProfileDto {
+  @ApiProperty({ description: "姓名" })
+  name: string;
+
+  @ApiProperty({ description: "朝代" })
+  dynasty: string;
+
+  @ApiProperty({ description: "生卒年" })
+  years: string;
+
+  @ApiProperty({ description: "称号" })
+  title: string;
+
+  @ApiProperty({ description: "简介" })
+  intro: string;
+
+  @ApiProperty({ description: "作品数" })
+  poemCount: number;
+
+  @ApiProperty({ description: "作品累计获赞" })
+  totalLikes: number;
+}
+
+export class PoetDetailResponseDto {
+  @ApiProperty({ description: "诗人信息", type: PoetProfileDto })
+  poet: PoetProfileDto;
+
+  @ApiProperty({ description: "诗人作品列表", type: [PoemItemDto] })
+  poems: PoemItemDto[];
+}
+
+// ─────────────────────────────────────────────────
+// 互动（点赞 / 收藏 / AI 赏析）
+// ─────────────────────────────────────────────────
+
+export class LikeResultDto {
+  @ApiProperty({ description: "是否已点赞" })
+  liked: boolean;
+
+  @ApiProperty({ description: "最新点赞数" })
+  likes: number;
+}
+
+export class CollectResultDto {
+  @ApiProperty({ description: "是否已收藏" })
+  collected: boolean;
+
+  @ApiProperty({ description: "最新收藏数" })
+  collectCount: number;
+}
+
+export class AskPoemDto {
+  @ApiPropertyOptional({ description: "自定义提问（留空则按整首深度赏析）" })
+  question?: string;
+}
+
+export class AppreciationResultDto {
+  @ApiProperty({ description: "AI 赏析正文（markdown）" })
+  appreciation: string;
+}
+
+// ─────────────────────────────────────────────────
+// 诗词品评（评论）
+// ─────────────────────────────────────────────────
+
+export class CreatePoemCommentDto {
+  @ApiProperty({ description: "评论内容" })
+  content: string;
+
+  @ApiPropertyOptional({ description: "父评论ID（楼中楼回复）" })
+  parentId?: string;
+}
+
+export class PoemReplyDto {
+  @ApiProperty({ description: "回复ID" })
+  id: string;
+
+  @ApiProperty({ description: "作者名" })
+  authorName: string;
+
+  @ApiProperty({ description: "作者头像" })
+  authorAvatar: string;
+
+  @ApiProperty({ description: "内容" })
+  content: string;
+
+  @ApiProperty({ description: "时间（相对）" })
+  time: string;
+
+  @ApiProperty({ description: "点赞数" })
+  likeCount: number;
+
+  @ApiProperty({ description: "当前用户是否已赞" })
+  liked: boolean;
+
+  @ApiProperty({ description: "被回复人名" })
+  replyToName: string;
+}
+
+export class PoemCommentDto {
+  @ApiProperty({ description: "评论ID" })
+  id: string;
+
+  @ApiProperty({ description: "作者ID" })
+  authorId: string;
+
+  @ApiProperty({ description: "作者名" })
+  authorName: string;
+
+  @ApiProperty({ description: "作者头像" })
+  authorAvatar: string;
+
+  @ApiProperty({ description: "内容" })
+  content: string;
+
+  @ApiProperty({ description: "时间（相对）" })
+  time: string;
+
+  @ApiProperty({ description: "点赞数" })
+  likeCount: number;
+
+  @ApiProperty({ description: "当前用户是否已赞" })
+  liked: boolean;
+
+  @ApiProperty({ description: "是否为本人评论（可删除）" })
+  mine: boolean;
+
+  @ApiProperty({ description: "回复列表", type: [PoemReplyDto] })
+  replies: PoemReplyDto[];
+}
+
+export class CommentLikeResultDto {
+  @ApiProperty({ description: "是否已点赞" })
+  liked: boolean;
+
+  @ApiProperty({ description: "最新点赞数" })
+  likeCount: number;
 }

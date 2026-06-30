@@ -16,10 +16,12 @@ export class TagController {
   @ApiResponse({ status: 200, description: "成功" })
   @ApiQuery({ name: "limit", required: false, type: Number })
   async hotTags(@Query("limit") limit = 20) {
+    // query 参数为字符串，Prisma take 需 number，未转换会触发运行时 500
+    const takeN = Math.min(Math.max(Number(limit) || 20, 1), 50);
     return this.prisma.topicTag.findMany({
       where: { status: "ACTIVE" },
       orderBy: { postCount: "desc" },
-      take: limit,
+      take: takeN,
     });
   }
 
@@ -40,17 +42,34 @@ export class TagController {
   @ApiQuery({ name: "page", required: false, type: Number })
   @ApiQuery({ name: "pageSize", required: false, type: Number })
   async tagPosts(@Param("name") name: string, @Query("page") page = 1, @Query("pageSize") pageSize = 20) {
+    // query 参数为字符串，分页计算/Prisma take 需 number
+    const pageN = Math.max(Number(page) || 1, 1);
+    const sizeN = Math.min(Math.max(Number(pageSize) || 20, 1), 100);
     const where = { tags: { has: name }, status: "PUBLISHED" };
+    // 显式 select：DB 当前缺少 schema 中声明的 deletedAt 列，裸 findMany 全列查询会 500
     const [items, total] = await Promise.all([
       this.prisma.content.findMany({
-        where: { ...where, status: { not: "DRAFT" } },
-        skip: (page - 1) * pageSize,
-        take: pageSize,
+        where,
+        select: {
+          id: true,
+          title: true,
+          type: true,
+          author: true,
+          dynasty: true,
+          excerpt: true,
+          cover: true,
+          tags: true,
+          viewCount: true,
+          likeCount: true,
+          createdAt: true,
+        },
+        skip: (pageN - 1) * sizeN,
+        take: sizeN,
         orderBy: { createdAt: "desc" },
       }),
       this.prisma.content.count({ where }),
     ]);
-    return { items, total, page, pageSize };
+    return { items, total, page: pageN, pageSize: sizeN };
   }
 
   @Post()

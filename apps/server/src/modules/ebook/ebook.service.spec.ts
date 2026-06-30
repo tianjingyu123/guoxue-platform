@@ -19,7 +19,10 @@ const mockPrisma = {
     findUnique: jest.fn(), findMany: jest.fn(), create: jest.fn(), upsert: jest.fn(), count: jest.fn(),
   },
   ebookProgress: {
-    findUnique: jest.fn(), upsert: jest.fn(),
+    findUnique: jest.fn(), findMany: jest.fn(), upsert: jest.fn(),
+  },
+  ebookFavorite: {
+    findUnique: jest.fn(), findMany: jest.fn(), upsert: jest.fn(), deleteMany: jest.fn(),
   },
   ebookBookmark: {
     findMany: jest.fn(), create: jest.fn(), delete: jest.fn(), deleteMany: jest.fn(), count: jest.fn(),

@@ -43,7 +43,9 @@ export class ClassicQaService {
     _classicId?: string,
   ): Promise<ClassicQAReply> {
     // 1. 向量检索相关古籍段落
-    const chunks = await this.rag.searchContext(question, [], 5);
+    // 古籍向量数据存于 circleId="classic" 命名空间（见 ClassicIndexTask），必须显式指定，
+    // 否则 searchAllKnowledge 遇空 circleIds 直接返回 []（历史接线 bug）。
+    const chunks = await this.rag.searchContext(question, ["classic"], 5);
 
     if (chunks.length === 0) {
       return { answer: "经典库中暂未收录相关内容，管理员正在持续丰富古籍数据。", citations: [] };
@@ -90,7 +92,9 @@ export class ClassicQaService {
     history?: AiMessage[],
     _classicId?: string,
   ): AsyncIterable<string> {
-    const chunks = await this.rag.searchContext(question, [], 5);
+    // 古籍向量数据存于 circleId="classic" 命名空间（见 ClassicIndexTask），必须显式指定，
+    // 否则 searchAllKnowledge 遇空 circleIds 直接返回 []（历史接线 bug）。
+    const chunks = await this.rag.searchContext(question, ["classic"], 5);
 
     if (chunks.length === 0) {
       yield "经典库中暂未收录相关内容。";

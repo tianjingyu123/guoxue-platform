@@ -170,6 +170,15 @@ export class EbookController {
 
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
+  @Get("my-progress")
+  @ApiOperation({ summary: "我的全部阅读进度（书架批量）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  getMyProgress(@Req() req: Request) {
+    return this.svc.getMyProgress(req.user.id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @Put("progress/:ebookId")
   @ApiOperation({ summary: "更新阅读进度" })
   @ApiResponse({ status: 200, description: "更新成功" })
@@ -249,6 +258,35 @@ export class EbookController {
   @ApiResponse({ status: 404, description: "资源不存在" })
   deleteNote(@Req() req: Request, @Param("id") id: string) {
     return this.svc.deleteNote(req.user.id, id);
+  }
+
+  // ── 收藏 ──
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @Get("favorites")
+  @ApiOperation({ summary: "我的收藏列表" })
+  @ApiResponse({ status: 200, description: "成功" })
+  listFavorites(@Req() req: Request, @Query("page") page = 1, @Query("pageSize") pageSize = 50) {
+    return this.svc.listFavorites(req.user.id, +page, +pageSize);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @Post("favorites/:ebookId")
+  @ApiOperation({ summary: "收藏电子书" })
+  @ApiResponse({ status: 201, description: "收藏成功" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  addFavorite(@Req() req: Request, @Param("ebookId") ebookId: string) {
+    return this.svc.addFavorite(req.user.id, ebookId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @Delete("favorites/:ebookId")
+  @ApiOperation({ summary: "取消收藏电子书" })
+  @ApiResponse({ status: 200, description: "取消成功" })
+  removeFavorite(@Req() req: Request, @Param("ebookId") ebookId: string) {
+    return this.svc.removeFavorite(req.user.id, ebookId);
   }
 
   // ── AI 翻译 ──

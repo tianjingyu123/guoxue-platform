@@ -346,11 +346,121 @@ export class CourseService {
         orderBy: { createdAt: "desc" },
         skip: (page - 1) * pageSize,
         take: pageSize,
+        include: {
+          user: { select: { id: true, nickname: true, avatar: true } },
+          chapter: { select: { id: true, title: true } },
+        },
       }),
       this.prisma.courseWork.count({ where }),
     ]);
 
     return { list, total, page, pageSize };
+  }
+
+  /** 获取单份作业（含批改结果）— 作业本人或课程讲师可见 */
+  async getWork(workId: string, userId: string) {
+    const work = await this.prisma.courseWork.findUnique({
+      where: { id: workId },
+      include: {
+        user: { select: { id: true, nickname: true, avatar: true } },
+        chapter: { select: { id: true, title: true } },
+        course: { select: { id: true, title: true, userId: true } },
+      },
+    });
+    if (!work) throw new BusinessException(ErrorCode.NOT_FOUND, "作业不存在");
+    if (work.userId !== userId && work.course.userId !== userId) {
+      throw new BusinessException(ErrorCode.FORBIDDEN, "无权查看该作业");
+    }
+    return work;
+  }
+
+  /** 限时特惠：从折扣课（originalPrice>price）派生，单场进行中 */
+  async getFlashSale() {
+    const courses = await this.prisma.course.findMany({
+      where: { auditStatus: "APPROVED", deletedAt: null, originalPrice: { not: null } },
+      include: { user: { select: { nickname: true } } },
+      orderBy: { studentCount: "desc" },
+      take: 30,
+    });
+    const list = courses
+      .filter((c) => c.originalPrice != null && Number(c.originalPrice) > Number(c.price))
+      .map((c) => {
+        const orig = Number(c.originalPrice);
+        const price = Number(c.price);
+        return {
+          id: c.id,
+          title: c.title,
+          instructor: c.user?.nickname || "讲师",
+          cover: c.cover || "",
+          originalPrice: orig,
+          salePrice: price,
+          discount: orig > 0 ? Math.round((price / orig) * 100) : 100,
+          students: c.studentCount,
+          rating: 0,
+          sessionId: "active",
+          sold: c.studentCount,
+          total: c.studentCount + 50,
+          category: c.categoryLevel1 || "",
+        };
+      });
+    const sessions = [
+      { id: "active", label: "限时特惠", startTime: "00:00", endTime: "23:59", status: "active" as const },
+    ];
+    return { sessions, courses: list };
+  }
+
+  /** 我的学习计划：从已购/有进度课程 + 进度更新历史派生 */
+  async getStudyPlan(userId: string) {
+    const progresses = await this.prisma.courseProgress.findMany({
+      where: { userId },
+      include: { course: { select: { id: true, title: true, cover: true, _count: { select: { chapters: true } } } } },
+      orderBy: { updatedAt: "desc" },
+    });
+
+    // 计划课程：按课程聚合完成进度
+    const courseMap = new Map<string, { id: string; courseId: string; title: string; cover: string; totalLessons: number; completedLessons: number; scheduledDays: number[]; order: number }>();
+    for (const p of progresses) {
+      if (!courseMap.has(p.courseId)) {
+        courseMap.set(p.courseId, {
+          id: p.courseId, courseId: p.courseId, title: p.course.title, cover: p.course.cover || "",
+          totalLessons: p.course._count.chapters, completedLessons: 0, scheduledDays: [], order: courseMap.size,
+        });
+      }
+      if (p.completed) courseMap.get(p.courseId)!.completedLessons++;
+    }
+    const courses = [...courseMap.values()];
+
+    // 打卡：按 updatedAt 日期聚合
+    const dayKey = (d: Date) => `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+    const dayCount = new Map<string, number>();
+    for (const p of progresses) {
+      const k = dayKey(new Date(p.updatedAt));
+      dayCount.set(k, (dayCount.get(k) || 0) + 1);
+    }
+    // 近30天热力图（level 0-3）
+    const checkInLevels: number[] = [];
+    const today = new Date();
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(today.getDate() - i);
+      const n = dayCount.get(dayKey(d)) || 0;
+      checkInLevels.push(n >= 3 ? 3 : n === 2 ? 2 : n === 1 ? 1 : 0);
+    }
+    // 连续打卡（从今天往前）
+    let streak = 0;
+    for (let i = 0; i < 365; i++) {
+      const d = new Date(today);
+      d.setDate(today.getDate() - i);
+      if ((dayCount.get(dayKey(d)) || 0) > 0) streak++;
+      else if (i > 0) break; // 今天没打卡不中断（允许今天还没学）
+    }
+
+    return {
+      goal: { daysPerWeek: 5, minutesPerDay: 30 },
+      courses,
+      streak,
+      checkInLevels,
+    };
   }
 
   async scoreWork(workId: string, userId: string, score: number, isAdmin: boolean, feedback?: string) {
@@ -814,6 +924,56 @@ ${chapterCtx}
     };
   }
 
+  // ═══════════════════ 讲师创作管理台 ═══════════════════
+
+  /** 我创建的课程（讲师管理台，含章节/评价计数与审核状态） */
+  async getCreatedCourses(userId: string, page = 1, pageSize = 20) {
+    const where: Prisma.CourseWhereInput = { userId, deletedAt: null };
+    const [items, total] = await Promise.all([
+      this.prisma.course.findMany({
+        where,
+        select: {
+          id: true,
+          title: true,
+          cover: true,
+          type: true,
+          price: true,
+          auditStatus: true,
+          studentCount: true,
+          circleId: true,
+          createdAt: true,
+          _count: { select: { chapters: true, reviews: true } },
+        },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        orderBy: { createdAt: "desc" },
+      }),
+      this.prisma.course.count({ where }),
+    ]);
+    return { items, total, page, pageSize };
+  }
+
+  /** 讲师回复自己课程的评价（归属校验：只能回复自己创建课程下的评价） */
+  async replyReviewByCreator(reviewId: string, userId: string, reply: string) {
+    if (!reply || !reply.trim()) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "回复内容不能为空");
+    }
+    const review = await this.prisma.courseReview.findUnique({
+      where: { id: reviewId },
+      include: { course: { select: { userId: true } } },
+    });
+    if (!review) throw new BusinessException(ErrorCode.NOT_FOUND, "评价不存在");
+    if (review.course.userId !== userId) {
+      throw new BusinessException(ErrorCode.FORBIDDEN, "只能回复自己课程的评价");
+    }
+    const updated = await this.prisma.courseReview.update({
+      where: { id: reviewId },
+      data: { reply: reply.trim() } as any,
+    });
+    await this.redis.del(`courses:detail:${review.courseId}`);
+    return updated;
+  }
+
   // ═══════════════════ 学习看板 ═══════════════════
 
   /** 学生学习看板 */
@@ -919,20 +1079,36 @@ ${chapterCtx}
   }
 
   async getCertificate(userId: string, courseId: string) {
-    const course = await this.prisma.course.findUnique({ where: { id: courseId }, select: { title: true } });
+    const course = await this.prisma.course.findUnique({
+      where: { id: courseId },
+      select: { title: true, user: { select: { nickname: true } }, chapters: { select: { duration: true } } },
+    });
     if (!course) throw new BusinessException(ErrorCode.COURSE_NOT_FOUND, "课程不存在");
 
-    const chapters = await this.prisma.courseChapter.count({ where: { courseId } });
-    const completed = await this.prisma.courseProgress.count({ where: { userId, courseId, completed: true } });
-    if (chapters > 0 && completed < chapters) throw new BusinessException(ErrorCode.BAD_REQUEST, "尚未完成全部章节");
+    const chapters = course.chapters.length;
+    const completedRows = await this.prisma.courseProgress.findMany({
+      where: { userId, courseId, completed: true },
+      select: { updatedAt: true },
+      orderBy: { updatedAt: "desc" },
+    });
+    if (chapters > 0 && completedRows.length < chapters) throw new BusinessException(ErrorCode.BAD_REQUEST, "尚未完成全部章节");
 
     const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { nickname: true } });
+    const completedAt = completedRows[0]?.updatedAt ?? new Date();
+    const totalHours = Math.round((course.chapters.reduce((s, c) => s + (c.duration || 0), 0) / 3600) * 10) / 10;
 
     return {
+      id: `cert-${courseId.slice(0, 8)}-${userId.slice(0, 8)}`,
+      courseId,
+      // 原字段保留（向后兼容）+ 补全字段（前端证书页所需）
       courseTitle: course.title,
+      courseName: course.title,
       studentName: user?.nickname || "",
-      completedChapters: completed,
+      instructor: course.user?.nickname || "讲师",
+      completedChapters: completedRows.length,
       totalChapters: chapters,
+      totalHours,
+      completedAt: completedAt.toISOString().slice(0, 10),
       certificateNo: `GX-${courseId.slice(0, 8).toUpperCase()}-${userId.slice(0, 4).toUpperCase()}`,
     };
   }

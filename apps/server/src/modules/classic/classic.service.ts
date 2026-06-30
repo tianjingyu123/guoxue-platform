@@ -197,6 +197,12 @@ export class ClassicService {
     });
   }
 
+  /** 移出书架：删除该用户某书的阅读进度（幂等） */
+  async deleteProgress(userId: string, bookId: string) {
+    await this.prisma.readingProgress.deleteMany({ where: { userId, bookId } });
+    return { success: true };
+  }
+
   // ── 书签 ──
   async listBookmarks(userId: string, bookId?: string, page = 1, pageSize = 20) {
     const where: Prisma.BookmarkWhereInput = { userId };
@@ -236,6 +242,46 @@ export class ClassicService {
     const existing = await this.prisma.bookmark.findFirst({ where });
     if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "书签不存在");
     return this.prisma.bookmark.delete({ where: { id } });
+  }
+
+  // ── 收藏 ──
+  async listFavorites(userId: string) {
+    const favs = await this.prisma.classicFavorite.findMany({ where: { userId }, orderBy: { createdAt: "desc" } });
+    const ids = favs.map((f) => f.bookId);
+    if (!ids.length) return { items: [] };
+    const books = await this.prisma.classicBook.findMany({
+      where: { id: { in: ids } },
+      select: { id: true, title: true, author: true, dynasty: true, category: true, viewCount: true },
+    });
+    const items = favs
+      .map((f) => {
+        const b = books.find((x) => x.id === f.bookId);
+        return b
+          ? { id: b.id, title: b.title, author: b.author, dynasty: b.dynasty, category: b.category, plays: b.viewCount, addedAt: f.createdAt }
+          : null;
+      })
+      .filter(Boolean);
+    return { items };
+  }
+
+  async addFavorite(userId: string, bookId: string) {
+    const book = await this.prisma.classicBook.findUnique({ where: { id: bookId }, select: { id: true } });
+    if (!book) throw new BusinessException(ErrorCode.NOT_FOUND, "书籍不存在");
+    return this.prisma.classicFavorite.upsert({
+      where: { userId_bookId: { userId, bookId } },
+      create: { userId, bookId },
+      update: {},
+    });
+  }
+
+  async removeFavorite(userId: string, bookId: string) {
+    await this.prisma.classicFavorite.deleteMany({ where: { userId, bookId } });
+    return { success: true };
+  }
+
+  async isFavorited(userId: string, bookId: string) {
+    const f = await this.prisma.classicFavorite.findUnique({ where: { userId_bookId: { userId, bookId } } });
+    return { favorited: !!f };
   }
 
   // ── 下载 ──
@@ -344,6 +390,25 @@ export class ClassicService {
         source: "",
       };
     }
+  }
+
+  // ── 古籍AI问答（自由对话） ──
+  async askClassic(question: string) {
+    const prompt = `你是一位博学儒雅的国学与古籍专家，贯通经史子集、释道医卜。
+请用通俗易懂的白话，准确且有据地回答用户关于古籍、传统文化的问题。要求：
+1. 引用相关古籍原文或观点时，注明出处书名（如《论语·学而》）；
+2. 深入浅出、生动有趣，让古籍学习不再枯燥难懂，必要时举例或打比方；
+3. 若问题超出古籍与传统文化范畴，礼貌地引导回国学话题；
+4. 回答条理清晰，控制在 500 字以内。`;
+    const result = await this.gateway.chat({
+      scene: "classic_qa",
+      messages: [
+        { role: "system", content: prompt },
+        { role: "user", content: question },
+      ],
+      options: { temperature: 0.6, maxTokens: 1200 },
+    });
+    return { answer: result.content?.trim() || "抱歉，我暂时无法回答这个问题，请换个方式提问。" };
   }
 
   // ── 继续阅读 ──

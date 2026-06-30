@@ -4,12 +4,13 @@ import { Request } from "express";
 import { ClassicService } from "./classic.service";
 import { ClassicLibrarySeeder } from "./classic-library-seeder.service";
 import { ClassicDaizhigeSeeder } from "./classic-daizhige-seeder.service";
+import { ClassicCompanionService } from "./classic-companion.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { ThrottleGuard } from "../../common/throttle.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
 import { SkipFormat } from "../../common/skip-format.decorator";
-import { CreateBookDto, UpdateBookDto, CreateChapterDto, UpdateChapterDto, UpdateProgressDto, CreateBookmarkDto, UpdateBookmarkDto, BookListQueryDto, DictionaryLookupDto, TranslateDto, ContinueReadingQueryDto, CreateAnnotationDto, CreateNoteDto, UpdateNoteDto } from "./classic.dto";
+import { CreateBookDto, UpdateBookDto, CreateChapterDto, UpdateChapterDto, UpdateProgressDto, CreateBookmarkDto, UpdateBookmarkDto, BookListQueryDto, DictionaryLookupDto, TranslateDto, ContinueReadingQueryDto, CreateAnnotationDto, CreateNoteDto, UpdateNoteDto, AskClassicDto, CompanionChatDto } from "./classic.dto";
 
 @ApiTags("经典")
 @Controller("classic")
@@ -18,6 +19,7 @@ export class ClassicController {
     private svc: ClassicService,
     private seeder: ClassicLibrarySeeder,
     private daizhigeSeeder: ClassicDaizhigeSeeder,
+    private companion: ClassicCompanionService,
   ) {}
 
   // ── 书籍（公开） ──
@@ -169,6 +171,15 @@ export class ClassicController {
     return this.svc.updateProgress(req.user.id, bookId, dto);
   }
 
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @Delete("progress/:bookId")
+  @ApiOperation({ summary: "移出书架（删除阅读进度）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  removeProgress(@Req() req: Request, @Param("bookId") bookId: string) {
+    return this.svc.deleteProgress(req.user.id, bookId);
+  }
+
   // ── 书签 ──
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
@@ -217,6 +228,39 @@ export class ClassicController {
   @ApiResponse({ status: 404, description: "资源不存在" })
   deleteBookmark(@Param("id") id: string, @Req() req: Request) {
     return this.svc.deleteBookmark(id, req.user?.id);
+  }
+
+  // ── 收藏 ──
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @Get("favorites")
+  @ApiOperation({ summary: "我的收藏列表" })
+  listFavorites(@Req() req: Request) {
+    return this.svc.listFavorites(req.user.id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @Get("favorites/:bookId/status")
+  @ApiOperation({ summary: "查询是否已收藏" })
+  favoriteStatus(@Req() req: Request, @Param("bookId") bookId: string) {
+    return this.svc.isFavorited(req.user.id, bookId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @Post("favorites/:bookId")
+  @ApiOperation({ summary: "收藏古籍" })
+  addFavorite(@Req() req: Request, @Param("bookId") bookId: string) {
+    return this.svc.addFavorite(req.user.id, bookId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @Delete("favorites/:bookId")
+  @ApiOperation({ summary: "取消收藏" })
+  removeFavorite(@Req() req: Request, @Param("bookId") bookId: string) {
+    return this.svc.removeFavorite(req.user.id, bookId);
   }
 
   // ── 下载 ──
@@ -274,6 +318,41 @@ export class ClassicController {
   @ApiResponse({ status: 400, description: "参数校验失败" })
   async translate(@Body() dto: TranslateDto) {
     return this.svc.translateClassical(dto);
+  }
+
+  // ── 古籍AI问答 ──
+  @UseGuards(JwtAuthGuard, ThrottleGuard)
+  @ApiBearerAuth()
+  @Post("ask")
+  @ApiOperation({ summary: "古籍AI助手问答（AI，需登录）" })
+  @ApiResponse({ status: 201, description: "成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  async ask(@Body() dto: AskClassicDto) {
+    return this.svc.askClassic(dto.question);
+  }
+
+  // ── 古籍伴读智能体（识典伴读·注入当前章节正文的开放多轮对话） ──
+  @Get("companion/prompts")
+  @ApiOperation({ summary: "伴读开场引导问题（针对当前章节）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 404, description: "章节不存在" })
+  @ApiQuery({ name: "chapterId", required: true, description: "当前阅读章节ID" })
+  companionPrompts(@Query("chapterId") chapterId: string) {
+    return this.companion.getGuidingPrompts(chapterId);
+  }
+
+  @UseGuards(JwtAuthGuard, ThrottleGuard)
+  @ApiBearerAuth()
+  @Post("companion/chat")
+  @ApiOperation({ summary: "古籍伴读对话（注入当前章节正文·多轮·需登录）" })
+  @ApiResponse({ status: 201, description: "成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "章节不存在" })
+  companionChat(@Req() req: Request, @Body() dto: CompanionChatDto) {
+    return this.companion.chat(
+      { chapterId: dto.chapterId, question: dto.question, history: dto.history },
+      req.user?.id,
+    );
   }
 
   // ── 继续阅读 ──

@@ -7,6 +7,7 @@ import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { OptionalAuthGuard } from "../../common/optional-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
+import { Auditable } from "../../common/audit.decorator";
 import { SanitizePipe } from "../../common/sanitize.pipe";
 
 @ApiTags("付费问答")
@@ -71,6 +72,20 @@ export class QuestionController {
   getQuestion(@Req() req: Request, @Param("id") id: string) {
     // 安全：付费墙判断需当前用户身份，OptionalAuthGuard 允许匿名访问（req.user 可能为 undefined）
     return this.svc.getQuestion(id, req.user?.id);
+  }
+
+  @Post(":id/refund")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @Auditable({ action: "问答退款", targetType: "QUESTION" })
+  @ApiOperation({ summary: "单条问答退款", description: "管理员按 questionId 对未回答的付费提问退款：退还提问者灵石、状态流转 REFUNDED，防重复退款" })
+  @ApiResponse({ status: 201, description: "退款成功" })
+  @ApiResponse({ status: 400, description: "状态不允许退款" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
+  @ApiResponse({ status: 404, description: "问题不存在" })
+  refund(@Req() req: Request, @Param("id") id: string, @Body() dto?: RejectQuestionDto) {
+    return this.svc.refundQuestion(id, req.user.id, dto?.reason);
   }
 
   @Post("admin/refund-expired")

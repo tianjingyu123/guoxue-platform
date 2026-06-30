@@ -19,6 +19,7 @@ import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { FeatureFlagGuard } from "../../common/feature-flag.guard";
 import { RequireFeature } from "../../common/feature-flag.decorator";
 import { MemberGuard } from "../../common/member.guard";
+import { CourseCreatorGuard } from "../../common/course-creator.guard";
 import { StationId } from "../../common/station-id.decorator";
 import { StationIsolationGuard } from "../../common/station-isolation.guard";
 
@@ -39,7 +40,7 @@ export class CourseController {
   // ───────── 课程 CRUD ─────────
 
   @Post()
-  @UseGuards(JwtAuthGuard, FeatureFlagGuard)
+  @UseGuards(JwtAuthGuard, FeatureFlagGuard, CourseCreatorGuard)
   @RequireFeature("course_publish")
   @ApiOperation({ summary: "创建课程" })
   @ApiBearerAuth()
@@ -144,6 +145,37 @@ export class CourseController {
     return this.course.getMyDrafts(req.user.id, +page, +pageSize);
   }
 
+  // ───────── 限时特惠 / 学习计划（须在 :id 之前，避免被参数路由吞）─────────
+
+  @Get("flash-sale")
+  @ApiOperation({ summary: "限时特惠课程（从折扣课派生，单场进行中）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  getFlashSale() {
+    return this.course.getFlashSale();
+  }
+
+  @Get("study-plan")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "我的学习计划（从已购课+学习进度派生）" })
+  @ApiBearerAuth()
+  getStudyPlan(@Req() req: AuthRequest) {
+    return this.course.getStudyPlan(req.user.id);
+  }
+
+  // ───────── 讲师创作管理台（须在 :id 之前，避免被参数路由吞）─────────
+
+  @Get("created")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "我创建的课程（讲师管理台）" })
+  @ApiBearerAuth()
+  @ApiQuery({ name: "page", required: false })
+  @ApiQuery({ name: "pageSize", required: false })
+  @ApiResponse({ status: 200, description: "成功返回我创建的课程列表" })
+  @ApiResponse({ status: 401, description: "未认证" })
+  getCreatedCourses(@Req() req: AuthRequest, @Query("page") page = 1, @Query("pageSize") pageSize = 20) {
+    return this.course.getCreatedCourses(req.user.id, +page, +pageSize);
+  }
+
   @Get(":id")
   @UseGuards(StationIsolationGuard)
   @ApiOperation({ summary: "获取课程详情" })
@@ -154,7 +186,7 @@ export class CourseController {
   }
 
   @Put(":id")
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, CourseCreatorGuard)
   @ApiOperation({ summary: "更新课程" })
   @ApiBearerAuth()
   @ApiResponse({ status: 200, description: "更新成功" })
@@ -222,7 +254,7 @@ export class CourseController {
   // ───────── 章节管理 ─────────
 
   @Post(":id/chapters")
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, CourseCreatorGuard)
   @ApiOperation({ summary: "添加课程章节" })
   @ApiBearerAuth()
   @ApiResponse({ status: 201, description: "添加成功" })
@@ -253,7 +285,7 @@ export class CourseController {
   }
 
   @Put(":id/chapters/:chapterId")
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, CourseCreatorGuard)
   @ApiOperation({ summary: "更新课程章节" })
   @ApiBearerAuth()
   @ApiResponse({ status: 200, description: "更新成功" })
@@ -337,6 +369,17 @@ export class CourseController {
     return this.course.getWorks(id, chapterId, page || 1, pageSize || 20);
   }
 
+  @Get("works/:workId")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "获取单份作业及批改结果（本人或讲师）" })
+  @ApiBearerAuth()
+  @ApiResponse({ status: 200, description: "成功返回作业详情" })
+  @ApiResponse({ status: 403, description: "无权查看" })
+  @ApiResponse({ status: 404, description: "作业不存在" })
+  getWork(@Req() req: AuthRequest, @Param("workId") workId: string) {
+    return this.course.getWork(workId, req.user.id);
+  }
+
   // ───────── 课程评价 ─────────
 
   @Post(":id/reviews")
@@ -357,6 +400,18 @@ export class CourseController {
   @ApiResponse({ status: 200, description: "成功返回评价列表" })
   getReviews(@Param("id") courseId: string, @Query() q: ReviewListQueryDto) {
     return this.course.listReviews(courseId, q.page || 1, q.pageSize || 20);
+  }
+
+  @Put("reviews/:reviewId/reply")
+  @UseGuards(JwtAuthGuard, CourseCreatorGuard)
+  @ApiOperation({ summary: "讲师回复课程评价（仅本人课程）" })
+  @ApiBearerAuth()
+  @ApiResponse({ status: 200, description: "回复成功" })
+  @ApiResponse({ status: 401, description: "未认证" })
+  @ApiResponse({ status: 403, description: "无权限（需讲师资格，且只能回复自己课程的评价）" })
+  @ApiResponse({ status: 404, description: "评价不存在" })
+  replyReview(@Req() req: AuthRequest, @Param("reviewId") reviewId: string, @Body() body: { reply: string }) {
+    return this.course.replyReviewByCreator(reviewId, req.user.id, body?.reply);
   }
 
   @Get(":id/rating")

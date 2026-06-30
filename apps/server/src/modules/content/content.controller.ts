@@ -15,6 +15,7 @@ import { FeatureFlagGuard } from "../../common/feature-flag.guard";
 import { RequireFeature } from "../../common/feature-flag.decorator";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
+import { Auditable } from "../../common/audit.decorator";
 
 @ApiTags("内容管理")
 @Controller("contents")
@@ -94,7 +95,9 @@ export class ContentController {
   }
 
   @Put(":id")
-  @UseGuards(JwtAuthGuard)
+  @Auditable({ action: "内容审核/编辑", targetType: "CONTENT" })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "更新内容" })
   @ApiResponse({ status: 200, description: "更新成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -115,6 +118,7 @@ export class ContentController {
   }
 
   @Delete(":id")
+  @Auditable({ action: "删除内容", targetType: "CONTENT" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "删除内容（管理员）" })
@@ -140,6 +144,7 @@ export class ContentController {
   // ───────── 批量操作 & 统计 ─────────
 
   @Put("batch/status")
+  @Auditable({ action: "内容批量审核", targetType: "CONTENT" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "批量更新内容状态" })

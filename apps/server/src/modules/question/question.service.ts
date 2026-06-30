@@ -197,13 +197,55 @@ export class QuestionService {
     return { refunded };
   }
 
+  /**
+   * 管理员单条退款（按 questionId）
+   * 仅 PENDING（未回答）的提问可退款；退还提问者灵石、状态流转 REFUNDED。
+   * 防重：状态流转用条件 updateMany（仅 PENDING→REFUNDED）与退款置于同一事务，
+   * 并发/重复调用时只有一次能命中 PENDING，杜绝重复退款。
+   */
+  async refundQuestion(questionId: string, _operatorId?: string, reason?: string) {
+    const question = await this.prisma.paidQuestion.findUnique({ where: { id: questionId } });
+    if (!question) throw new BusinessException(ErrorCode.NOT_FOUND, "问题不存在");
+    if (question.status !== "PENDING") {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "仅待回答的提问可退款");
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      // 先抢占状态：仅当仍为 PENDING 时才翻转，count===0 说明已被他人处理（防重）
+      const flipped = await tx.paidQuestion.updateMany({
+        where: { id: questionId, status: "PENDING" },
+        data: {
+          status: "REFUNDED",
+          answer: reason ? `管理员已退款，理由：${reason}` : "管理员已为该提问退款",
+        },
+      });
+      if (flipped.count === 0) {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "提问状态已变更，退款失败（可能已被处理）");
+      }
+
+      // 退款与状态流转同事务，确保钱货一致
+      await this.coin.refund(
+        question.askerId,
+        question.priceCoin,
+        `管理员退款（问题ID: ${questionId}）${reason ? `，理由: ${reason}` : ""}`,
+        tx,
+      );
+
+      return { refunded: true, questionId, amountCoin: question.priceCoin };
+    });
+  }
+
   /** 圈子问答列表 */
-  async listQuestions(dto: { circleId?: string; status?: string; isPublic?: boolean; page?: number; pageSize?: number }) {
+  async listQuestions(dto: { circleId?: string; status?: string; isPublic?: boolean; askerId?: string; answererId?: string; participantId?: string; page?: number; pageSize?: number }) {
     const page = dto.page || 1;
     const pageSize = dto.pageSize || 20;
     const where: Prisma.PaidQuestionWhereInput = {};
     if (dto.circleId) where.circleId = dto.circleId;
     if (dto.status) where.status = dto.status;
+    if (dto.askerId) where.askerId = dto.askerId;
+    if (dto.answererId) where.answererId = dto.answererId;
+    // 参与者维度（我提问的 + 我回答的）；由调用方在 askerId/answererId/participantId 中择一使用
+    if (dto.participantId) where.OR = [{ askerId: dto.participantId }, { answererId: dto.participantId }];
     if ((dto as any).stationId !== undefined) where.stationId = (dto as any).stationId || null;
 
     const [questions, total] = await Promise.all([

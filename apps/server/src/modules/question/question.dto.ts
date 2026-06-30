@@ -97,6 +97,21 @@ export class QuestionQueryDto {
   @IsString()
   status?: string;
 
+  @ApiPropertyOptional({ description: "提问者用户ID筛选（用于「我的提问」）" })
+  @IsOptional()
+  @IsString()
+  askerId?: string;
+
+  @ApiPropertyOptional({ description: "回答者用户ID筛选（用于「我收到的提问」）" })
+  @IsOptional()
+  @IsString()
+  answererId?: string;
+
+  @ApiPropertyOptional({ description: "参与者用户ID筛选（我提问的 + 我回答的，OR 关系；用于「咨询订单」）" })
+  @IsOptional()
+  @IsString()
+  participantId?: string;
+
   @ApiPropertyOptional({ description: "分站ID筛选（管理后台分站隔离）" })
   @IsOptional()
   @IsString()

@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsInt, Min, Max, Length } from "class-validator";
+import { IsString, IsOptional, IsInt, IsArray, Min, Max, Length } from "class-validator";
 import { Type } from "class-transformer";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 
@@ -117,6 +117,14 @@ export class TranslateDto {
   context?: string;
 }
 
+// ── 古籍AI问答 ──
+export class AskClassicDto {
+  @ApiProperty({ description: "向古籍AI助手提的问题", example: "《论语》中“仁”是什么意思？" })
+  @IsString()
+  @Length(1, 1000)
+  question: string;
+}
+
 // ── 注疏标记 ──
 export class CreateAnnotationDto {
   @ApiPropertyOptional({ description: "章节ID" })
@@ -172,4 +180,23 @@ export class UpdateNoteDto {
   @ApiProperty({ description: "笔记内容" })
   @IsString()
   content: string;
+}
+
+// ───────── 古籍伴读智能体 ─────────
+
+export class CompanionChatDto {
+  @ApiProperty({ description: "当前阅读章节ID" })
+  @IsString()
+  @Length(1, 64)
+  chapterId: string;
+
+  @ApiProperty({ description: "用户问题" })
+  @IsString()
+  @Length(1, 1000)
+  question: string;
+
+  @ApiPropertyOptional({ description: "多轮对话历史 [{role:'user'|'assistant', content}]" })
+  @IsOptional()
+  @IsArray()
+  history?: { role: string; content: string }[];
 }
