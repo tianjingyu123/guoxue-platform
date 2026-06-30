@@ -471,7 +471,7 @@
             width="110"
           >
             <template #default="{ row }">
-              ¥{{ (row.totalRevenue / 100).toFixed(2) }}
+              ¥{{ Number(row.totalRevenue || 0).toFixed(2) }}
             </template>
           </el-table-column>
           <el-table-column
@@ -479,7 +479,7 @@
             width="110"
           >
             <template #default="{ row }">
-              ¥{{ (row.commission / 100).toFixed(2) }}
+              ¥{{ Number(row.commission || 0).toFixed(2) }}
             </template>
           </el-table-column>
           <el-table-column
@@ -487,7 +487,7 @@
             width="110"
           >
             <template #default="{ row }">
-              ¥{{ (row.settlementAmount / 100).toFixed(2) }}
+              ¥{{ Number(row.settlementAmount || 0).toFixed(2) }}
             </template>
           </el-table-column>
           <el-table-column

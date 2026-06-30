@@ -11,6 +11,7 @@ const mockSystemService = {
 const mockPrisma: any = {
   merchant: { findUnique: jest.fn(), update: jest.fn() },
   order: { aggregate: jest.fn() },
+  merchantSettlement: { findFirst: jest.fn(), create: jest.fn(), findUnique: jest.fn(), update: jest.fn() },
 };
 
 describe("MerchantSettlementService", () => {
@@ -59,6 +60,54 @@ describe("MerchantSettlementService", () => {
       mockPrisma.merchant.findUnique.mockResolvedValue({ id: "m1", commissionRate: null });
       const result = await svc.calculateCommission(1000, "m1");
       expect(result.merchantShare).toBe(850); // 1000 * 0.85 default
+    });
+  });
+
+  describe("generateSettlement", () => {
+    const dto = { periodStart: "2026-06-01", periodEnd: "2026-06-30" };
+
+    it("含分金额不丢分：分账两者之和严格等于总额", async () => {
+      mockPrisma.merchant.findUnique.mockResolvedValue({ id: "m1", commissionRate: 0.85 });
+      mockPrisma.merchantSettlement.findFirst.mockResolvedValue(null); // 无重叠
+      // 订单总额 ¥1234.56（含分），旧逻辑会截整到 1235 元丢分
+      mockPrisma.order.aggregate.mockResolvedValue({ _sum: { amount: 1234.56 }, _count: 10 });
+      mockPrisma.merchantSettlement.create.mockImplementation((args: any) => Promise.resolve(args.data));
+
+      const result: any = await svc.generateSettlement("m1", dto as any);
+
+      // 总额保留分，不再截整到元
+      expect(result.totalRevenue).toBe(1234.56);
+      // 商家分成 0.85：Math.round(123456 * 0.85)=104938 分 → 1049.38
+      expect(result.settlementAmount).toBe(1049.38);
+      // 平台抽成 = 总额 - 商家 = 18518 分 → 185.18
+      expect(result.commission).toBe(185.18);
+      // 不丢分铁律：分账在「分」层面严格守恒（避免 JS number 相加的浮点尾数）
+      expect(
+        Math.round(result.settlementAmount * 100) + Math.round(result.commission * 100),
+      ).toBe(Math.round(result.totalRevenue * 100));
+    });
+
+    it("周期内无可结算订单抛出异常", async () => {
+      mockPrisma.merchant.findUnique.mockResolvedValue({ id: "m1", commissionRate: 0.85 });
+      mockPrisma.merchantSettlement.findFirst.mockResolvedValue(null);
+      mockPrisma.order.aggregate.mockResolvedValue({ _sum: { amount: 0 }, _count: 0 });
+      await expect(svc.generateSettlement("m1", dto as any)).rejects.toThrow(BusinessException);
+    });
+
+    it("周期重叠已有结算单则拒绝重复生成", async () => {
+      mockPrisma.merchant.findUnique.mockResolvedValue({ id: "m1", commissionRate: 0.85 });
+      mockPrisma.merchantSettlement.findFirst.mockResolvedValue({ id: "s-exist" });
+      await expect(svc.generateSettlement("m1", dto as any)).rejects.toThrow(BusinessException);
+    });
+  });
+
+  describe("paySettlement", () => {
+    it("paidAmount 规整到分写入", async () => {
+      mockPrisma.merchantSettlement.findUnique.mockResolvedValue({ id: "s1", status: "PENDING" });
+      mockPrisma.merchantSettlement.update.mockImplementation((args: any) => Promise.resolve(args.data));
+      const result: any = await svc.paySettlement("s1", { amount: 1049.385, remark: "结清" } as any);
+      expect(result.paidAmount).toBe(1049.39); // 1049.385 → 规整到分
+      expect(result.status).toBe("PAID");
     });
   });
 

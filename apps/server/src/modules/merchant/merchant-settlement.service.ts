@@ -93,15 +93,19 @@ export class MerchantSettlementService {
       _count: true,
     });
 
-    const totalRevenue = Math.round(Number(orderAgg._sum.amount ?? 0));
-    if (totalRevenue === 0) {
+    // 用「分」为单位做整数运算，避免浮点尾数与截整丢分
+    const totalCents = Math.round(Number(orderAgg._sum.amount ?? 0) * 100);
+    if (totalCents === 0) {
       throw new BusinessException(ErrorCode.MERCHANT_STATUS_INVALID, "该时间段内无可结算订单");
     }
+    const totalRevenue = totalCents / 100;
 
     // commissionRate 存储的是商家分成比例（如 0.85 = 85%归商家）
     const merchantRate = Number(merchant.commissionRate ?? 0.85);
-    const commission = totalRevenue - Math.round(totalRevenue * merchantRate);
-    const settlementAmount = totalRevenue - commission;
+    const merchantCents = Math.round(totalCents * merchantRate); // 商家应得（分）
+    const commissionCents = totalCents - merchantCents; // 平台抽成（分）= 总额 - 商家，保证两者之和严格等于总额
+    const commission = commissionCents / 100;
+    const settlementAmount = merchantCents / 100;
 
     return this.prisma.merchantSettlement.create({
       data: {
@@ -156,7 +160,7 @@ export class MerchantSettlementService {
       data: {
         status: "PAID",
         paidAt: new Date(),
-        paidAmount: dto.amount,
+        paidAmount: Math.round(dto.amount * 100) / 100, // 规整到分
         remark: dto.remark,
       },
     });

@@ -4254,12 +4254,12 @@ model MerchantSettlement {
   periodStart      DateTime
   periodEnd        DateTime
   orderCount       Int       @default(0)
-  totalRevenue     Int       @default(0)
-  commission       Int       @default(0)
-  settlementAmount Int       @default(0)
+  totalRevenue     Decimal   @default(0) @db.Decimal(12, 2)
+  commission       Decimal   @default(0) @db.Decimal(12, 2)
+  settlementAmount Decimal   @default(0) @db.Decimal(12, 2)
   status           String    @default("PENDING")
   paidAt           DateTime?
-  paidAmount       Int?
+  paidAmount       Decimal?  @db.Decimal(12, 2)
   remark           String?
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
