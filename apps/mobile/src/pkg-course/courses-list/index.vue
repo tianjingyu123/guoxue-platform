@@ -1,23 +1,22 @@
 <script setup lang="ts">
-/** 课程列表页 - 从原型 app/courses-list/page.tsx 迁移(A级高保真) */
-import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+/** 课程列表页 - 分类/搜索/免费/排序全下沉后端，主列表 useList 分页；轮播/秒杀头部一次性加载 */
+import { ref, computed, onUnmounted } from 'vue'
+import { onLoad, onReachBottom } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppLoadMore from '@/components/common/app-load-more.vue'
 import CourseCard from '@/components/cards/course-card.vue'
 import BottomNav from '@/components/bottom-nav/bottom-nav.vue'
 import { navigateTo, navigateBack } from '@/utils/router'
 import { coursesListApi, courseSortOptions } from '@/lib/courses-list-data'
+import { useList } from '@/composables/useList'
+import type { CourseCardData } from '@/lib/card-utils'
 
-const loading = ref(true)
-const error = ref('')
-
-// 数据ref
+// 头部区块（一次性加载，与主列表分页解耦）
 const courseListCategories = ref<any[]>([])
 const recommendedCourses = ref<any[]>([])
 const flashSaleCourses = ref<any[]>([])
-const allCourses = ref<any[]>([])
 
-// 路由参数初始化
+// 筛选状态
 const searchQuery = ref('')
 const activeCategory = ref('all')
 const activeSort = ref('recommend')
@@ -25,11 +24,41 @@ const onlyFree = ref(false)
 const showSortMenu = ref(false)
 const showFilter = ref(false)
 
+// 主列表：分类/搜索/免费/排序全部作为查询参数下沉后端，切任一条件即重载第一页
+const { list: courses, loading, error, loadStatus, refresh, loadMore } = useList<
+  CourseCardData & { category: string; free: boolean },
+  { category: string; keyword: string; free: boolean; sort: string }
+>({
+  fetcher: ({ page, pageSize, category, keyword, free, sort }) =>
+    coursesListApi.list({ page, pageSize, category, keyword: keyword || undefined, free, sort }),
+  getParams: () => ({ category: activeCategory.value, keyword: searchQuery.value, free: onlyFree.value, sort: activeSort.value }),
+})
+
+// 头部轮播/秒杀/分类 tab（失败不阻塞主列表，三态由主列表承载）
+async function loadHeader() {
+  try {
+    const [categories, recommended, flashSale] = await Promise.all([
+      coursesListApi.getCategoryTabs(),
+      coursesListApi.getRecommended(),
+      coursesListApi.getFlashSale(),
+    ])
+    courseListCategories.value = categories
+    recommendedCourses.value = recommended
+    flashSaleCourses.value = flashSale
+    startTimers()
+  } catch { /* 头部失败静默，不阻塞主列表 */ }
+}
+
 onLoad((opts?: Record<string, string>) => {
   if (opts?.category) activeCategory.value = opts.category
   if (opts?.sort) activeSort.value = opts.sort
   if (opts?.filter === 'free') onlyFree.value = true
+  loadHeader()
+  refresh()
 })
+onReachBottom(() => loadMore())
+
+function retry() { loadHeader(); refresh() }
 
 // 推荐课程轮播
 const currentBanner = ref(0)
@@ -76,33 +105,6 @@ function stopTimers() {
   if (bannerTimer) clearInterval(bannerTimer)
 }
 
-async function loadData() {
-  loading.value = true
-  error.value = ''
-  try {
-    const [categories, recommended, flashSale, courses] = await Promise.all([
-      coursesListApi.getCategories(),
-      coursesListApi.getRecommended(),
-      coursesListApi.getFlashSale(),
-      coursesListApi.list(activeCategory.value, activeSort.value),
-    ])
-    courseListCategories.value = categories
-    recommendedCourses.value = recommended
-    flashSaleCourses.value = flashSale
-    allCourses.value = courses
-    // 数据加载完成后启动定时器
-    startTimers()
-  } catch (e: any) {
-    error.value = e?.message || '加载失败'
-  } finally {
-    loading.value = false
-  }
-}
-
-onMounted(() => {
-  loadData()
-})
-
 onUnmounted(() => {
   stopTimers()
 })
@@ -110,22 +112,15 @@ onUnmounted(() => {
 // 当前排序名
 const activeSortName = computed(() => courseSortOptions.find((s) => s.id === activeSort.value)?.name ?? '')
 
-// 过滤后的课程
-const filteredCourses = computed(() =>
-  allCourses.value.filter((course) => {
-    const matchCategory = activeCategory.value === 'all' || course.category === activeCategory.value
-    const matchSearch = searchQuery.value === '' || course.title.includes(searchQuery.value) || (course.teacher ?? '').includes(searchQuery.value)
-    const matchFree = !onlyFree.value || course.free
-    return matchCategory && matchSearch && matchFree
-  }),
-)
-
 // 价格区间 / 时长筛选项(原型为纯展示)
 const priceRanges = ['全部', '免费', '0-100', '100-300', '300以上']
 const durationRanges = ['全部', '5小时内', '5-10小时', '10小时以上']
 
 function goBack() { navigateBack() }
-function selectSort(id: string) { activeSort.value = id; showSortMenu.value = false }
+function selectCategory(id: string) { if (activeCategory.value === id) return; activeCategory.value = id; refresh() }
+function selectSort(id: string) { activeSort.value = id; showSortMenu.value = false; refresh() }
+function toggleFree() { onlyFree.value = !onlyFree.value; refresh() }
+function onSearch() { refresh() }
 function openCourse(id: string) { navigateTo(`/course/${id}`) }
 </script>
 
@@ -137,7 +132,7 @@ function openCourse(id: string) { navigateTo(`/course/${id}`) }
   <!-- Error -->
   <view v-else-if="error" class="error-wrap">
     <text class="error-text">{{ error }}</text>
-    <view class="retry-btn" @tap="loadData"><text class="retry-text">重试</text></view>
+    <view class="retry-btn" @tap="retry"><text class="retry-text">重试</text></view>
   </view>
   <!-- Content -->
   <view v-else class="page">
@@ -156,6 +151,7 @@ function openCourse(id: string) { navigateTo(`/course/${id}`) }
             placeholder="搜索课程、讲师"
             placeholder-class="search-ph"
             confirm-type="search"
+            @confirm="onSearch"
           />
         </view>
       </view>
@@ -166,7 +162,7 @@ function openCourse(id: string) { navigateTo(`/course/${id}`) }
           <view
             v-for="cat in courseListCategories" :key="cat.id"
             class="cat-chip" :class="{ on: activeCategory === cat.id }"
-            @tap="activeCategory = cat.id"
+            @tap="selectCategory(cat.id)"
           >
             <text class="cat-txt" :class="{ on: activeCategory === cat.id }">{{ cat.name }}</text>
           </view>
@@ -181,7 +177,7 @@ function openCourse(id: string) { navigateTo(`/course/${id}`) }
           <text class="sort-cur">{{ activeSortName }}</text>
           <app-icon name="chevron-down" :size="28" color="var(--text-strong)" :class="{ rotated: showSortMenu }" />
         </view>
-        <text class="free-btn" :class="{ on: onlyFree }" @tap="onlyFree = !onlyFree">免费</text>
+        <text class="free-btn" :class="{ on: onlyFree }" @tap="toggleFree">免费</text>
       </view>
       <view class="filter-trigger" @tap="showFilter = true">
         <app-icon name="filter" :size="28" color="var(--text-soft)" />
@@ -286,15 +282,16 @@ function openCourse(id: string) { navigateTo(`/course/${id}`) }
 
     <!-- 课程列表 - 双列瀑布流, 3:4竖版封面 -->
     <view class="list-wrap">
-      <view v-if="filteredCourses.length === 0" class="empty">
+      <view v-if="courses.length === 0" class="empty">
         <app-icon name="graduation-cap" :size="120" color="var(--line)" />
         <text class="empty-txt">暂无相关课程</text>
       </view>
       <view v-else class="grid">
-        <view class="grid-cell" v-for="course in filteredCourses" :key="course.id">
+        <view class="grid-cell" v-for="course in courses" :key="course.id">
           <course-card :data="course" variant="feed" />
         </view>
       </view>
+      <app-load-more v-if="courses.length" :status="loadStatus" />
     </view>
 
     <!-- 筛选弹窗 -->

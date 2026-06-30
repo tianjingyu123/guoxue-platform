@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { IsString, IsOptional, IsInt, IsBoolean, IsEnum, IsNumber, IsArray, IsDateString, Min, Max, MinLength, MaxLength } from "class-validator";
-import { Type } from "class-transformer";
+import { Type, Transform } from "class-transformer";
 
 export enum CourseType {
   VIDEO = "VIDEO",
@@ -225,6 +225,18 @@ export class CourseListQueryDto {
   @ApiPropertyOptional({ description: "标题关键词搜索" })
   @IsOptional() @IsString()
   keyword?: string;
+
+  @ApiPropertyOptional({ description: "一级品类(categoryLevel1)" })
+  @IsOptional() @IsString()
+  categoryLevel1?: string;
+
+  @ApiPropertyOptional({ description: "排序: recommend/popular(学习人数) / newest(默认,最新) / price-asc(价格升序)" })
+  @IsOptional() @IsString()
+  sort?: string;
+
+  @ApiPropertyOptional({ description: "仅看免费课程(price=0)" })
+  @IsOptional() @Transform(({ value }) => value === "true" || value === true) @IsBoolean()
+  free?: boolean;
 }
 
 // ═══════════════════ 课程购买 ═══════════════════

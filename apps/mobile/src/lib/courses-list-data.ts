@@ -5,7 +5,7 @@
 //   注：列表端点 select 未返回逐课分类（categoryLevel1），分类 tab 从真实课程的
 //       categoryLevel1 / circle.name 去重派生，保证分类筛选作用于真实数据。
 import type { CourseCardData } from '@/lib/card-utils'
-import { apiGet } from '@/utils/request'
+import { apiGet, apiGetPaged } from '@/utils/request'
 
 // 分类 - 纯文字，不带图标（运行时从真实课程派生，类型保留）
 export interface CourseListCategory { id: string; name: string }
@@ -82,50 +82,39 @@ function adaptCard(c: any): CourseCardData & { category: string; free: boolean }
 
 export const coursesListApi = {
   /**
-   * 课程列表 — GET /courses（错误向上抛走三态，不回退假数据）。
-   * 后端无 category/sort 参数：分类按 card.category 客户端过滤；
-   * 排序客户端处理（newest 复用后端 createdAt desc 原序）。
+   * 课程列表 — GET /courses（分类/搜索/免费/排序全下沉后端，分页返回 {items,total}）。
+   * 错误向上抛走三态，不回退假数据。
    */
-  async list(category?: string, sort?: string): Promise<(CourseCardData & { category: string; free: boolean })[]> {
-    const res = await apiGet<any>('/courses?page=1&pageSize=50')
-    let data = toCourseList(res).map(adaptCard)
-    if (category && category !== 'all') data = data.filter((c) => c.category === category)
-    switch (sort) {
-      case 'popular':
-      case 'recommend':
-        data = [...data].sort((a, b) => (b.students ?? 0) - (a.students ?? 0))
-        break
-      case 'price-asc':
-        data = [...data].sort((a, b) => (a.price ?? 0) - (b.price ?? 0))
-        break
-      // 'newest' → 保持后端 createdAt desc 原序
-    }
-    return data
+  async list(params: {
+    category?: string; keyword?: string; free?: boolean; sort?: string; page?: number; pageSize?: number
+  }): Promise<{ items: (CourseCardData & { category: string; free: boolean })[]; total: number }> {
+    const { category, keyword, free, sort, page = 1, pageSize = 20 } = params
+    const qs: string[] = [`page=${page}`, `pageSize=${pageSize}`]
+    if (category && category !== 'all') qs.push(`categoryLevel1=${encodeURIComponent(category)}`)
+    if (keyword) qs.push(`keyword=${encodeURIComponent(keyword)}`)
+    if (free) qs.push('free=true')
+    if (sort) qs.push(`sort=${sort}`)
+    // /courses 含分页行键 courses → 拦截器转 {data:数组,pagination}，用 apiGetPaged 保留 total
+    const { items, total } = await apiGetPaged<any>(`/courses?${qs.join('&')}`)
+    return { items: items.map(adaptCard), total }
   },
 
   /**
-   * 分类列表 — 从真实课程派生（后端列表端点无逐课分类字段，无独立分类筛选端点）。
-   * 取真实课程的 categoryLevel1 / circle.name 去重，保证筛选作用于真实数据；
+   * 分类 tab — GET /courses/category-tabs（仅含真实有课程的一级品类+计数，不受分页影响）。
    * 无任何分类时仅返回「全部」（诚实降级）。
    */
-  async getCategories(): Promise<CourseListCategory[]> {
-    const res = await apiGet<any>('/courses?page=1&pageSize=50')
-    const names = new Set<string>()
-    for (const c of toCourseList(res)) {
-      const name = courseCategory(c)
-      if (name) names.add(name)
-    }
-    return [{ id: 'all', name: '全部' }, ...[...names].map((n) => ({ id: n, name: n }))]
+  async getCategoryTabs(): Promise<CourseListCategory[]> {
+    const list = await apiGet<any[]>('/courses/category-tabs')
+    const arr = Array.isArray(list) ? list : []
+    return [{ id: 'all', name: '全部' }, ...arr.map((c: any) => ({ id: c.name, name: c.name }))]
   },
 
   /**
-   * 推荐 Banner — 后端无专门推荐端点，复用 GET /courses 取学习人数最高的前 3 条。
+   * 推荐 Banner — 后端无专门推荐端点，复用 GET /courses?sort=popular 取学习人数最高的前 3 条。
    */
   async getRecommended(): Promise<RecommendedCourse[]> {
-    const res = await apiGet<any>('/courses?page=1&pageSize=50')
+    const res = await apiGet<any>('/courses?page=1&pageSize=3&sort=popular')
     return toCourseList(res)
-      .slice()
-      .sort((a: any, b: any) => toNum(b.studentCount) - toNum(a.studentCount))
       .slice(0, 3)
       .map((c: any) => {
         const price = toNum(c.price)

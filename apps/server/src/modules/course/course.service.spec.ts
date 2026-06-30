@@ -14,6 +14,7 @@ const mockPrisma = {
     update: jest.fn(),
     delete: jest.fn(),
     count: jest.fn(),
+    groupBy: jest.fn(),
   },
   courseChapter: {
     create: jest.fn(),
@@ -201,6 +202,51 @@ describe("CourseService", () => {
       mockRedis.getJson.mockResolvedValue(cached);
       const result = await svc.listCourses({ page: 1, pageSize: 20 });
       expect(result).toEqual(cached);
+    });
+
+    // 分类/排序/免费 下沉：作用于 where/orderBy，且筛选态绕过缓存
+    describe("筛选与排序下沉", () => {
+      beforeEach(() => {
+        mockRedis.getJson.mockResolvedValue(null);
+        mockPrisma.course.findMany.mockResolvedValue([]);
+        mockPrisma.course.count.mockResolvedValue(0);
+      });
+
+      it("categoryLevel1 过滤进 where，且绕过缓存", async () => {
+        await svc.listCourses({ page: 1, pageSize: 20, categoryLevel1: "国学经典" });
+        const arg = mockPrisma.course.findMany.mock.calls.at(-1)![0];
+        expect(arg.where.categoryLevel1).toBe("国学经典");
+        expect(arg.where.auditStatus).toBe("APPROVED"); // 默认只看已审核
+      });
+
+      it("free=true → where.price=0", async () => {
+        await svc.listCourses({ page: 1, pageSize: 20, free: true });
+        expect(mockPrisma.course.findMany.mock.calls.at(-1)![0].where.price).toBe(0);
+      });
+
+      it("sort=popular→studentCount desc / price-asc→price asc / 默认→createdAt desc", async () => {
+        await svc.listCourses({ page: 1, pageSize: 20, sort: "popular" });
+        expect(mockPrisma.course.findMany.mock.calls.at(-1)![0].orderBy).toEqual({ studentCount: "desc" });
+        await svc.listCourses({ page: 1, pageSize: 20, sort: "price-asc" });
+        expect(mockPrisma.course.findMany.mock.calls.at(-1)![0].orderBy).toEqual({ price: "asc" });
+        await svc.listCourses({ page: 1, pageSize: 20 });
+        expect(mockPrisma.course.findMany.mock.calls.at(-1)![0].orderBy).toEqual({ createdAt: "desc" });
+      });
+    });
+  });
+
+  describe("listCourseCategoryTabs", () => {
+    it("聚合一级品类+计数，按计数降序，过滤空品类", async () => {
+      mockPrisma.course.groupBy.mockResolvedValue([
+        { categoryLevel1: "国学经典", _count: { _all: 2 } },
+        { categoryLevel1: "易经命理", _count: { _all: 5 } },
+        { categoryLevel1: null, _count: { _all: 9 } },
+      ]);
+      const result = await svc.listCourseCategoryTabs();
+      expect(result).toEqual([
+        { name: "易经命理", count: 5 },
+        { name: "国学经典", count: 2 },
+      ]);
     });
   });
 

@@ -71,6 +71,9 @@ export class CourseController {
       stationId: stationId || q.stationId,
       type: q.type,
       keyword: q.keyword,
+      categoryLevel1: q.categoryLevel1,
+      sort: q.sort,
+      free: q.free,
     });
   }
 
@@ -121,6 +124,12 @@ export class CourseController {
   @ApiOperation({ summary: "获取课程品类树" })
   getCourseCategories() {
     return this.course.getCourseCategories();
+  }
+
+  @Get("category-tabs")
+  @ApiOperation({ summary: "课程一级品类聚合(课程列表页 tab，仅含有课程的品类+计数)" })
+  getCourseCategoryTabs(@StationId() stationId?: string) {
+    return this.course.listCourseCategoryTabs(stationId);
   }
 
   // ───────── 草稿管理（讲师端）─────────

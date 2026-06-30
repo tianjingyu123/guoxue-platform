@@ -132,14 +132,15 @@ export class CourseService {
   async listCourses(params: {
     page: number; pageSize: number; circleId?: string;
     auditStatus?: string; status?: string; stationId?: string; type?: string; keyword?: string;
+    categoryLevel1?: string; sort?: string; free?: boolean;
   }) {
-    const { page, pageSize, circleId, auditStatus, status, stationId, type, keyword } = params;
+    const { page, pageSize, circleId, auditStatus, status, stationId, type, keyword, categoryLevel1, sort, free } = params;
     const filterStatus = auditStatus || status;
-    const filterHash = `${circleId ?? ""}:${filterStatus ?? ""}:${type ?? ""}:${keyword ?? ""}`;
+    const filterHash = `${circleId ?? ""}:${filterStatus ?? ""}:${type ?? ""}:${keyword ?? ""}:${categoryLevel1 ?? ""}:${sort ?? ""}:${free ? "1" : ""}`;
     const cacheKey = `courses:list:${page}:${pageSize}:${filterHash}`;
 
-    // 关键词搜索和类型筛选不缓存（组合太多）
-    if (!keyword && !type) {
+    // 关键词搜索、类型/品类/排序/免费筛选不缓存（组合太多）
+    if (!keyword && !type && !categoryLevel1 && !sort && !free) {
       const cached = await this.redis.getJson<any>(cacheKey);
       if (cached) return cached;
     }
@@ -151,13 +152,21 @@ export class CourseService {
     if (stationId) where.stationId = stationId;
     if (type) where.type = type as any;
     if (keyword) where.title = { contains: keyword };
+    if (categoryLevel1) where.categoryLevel1 = categoryLevel1;
+    if (free) where.price = 0;
+
+    // 排序下沉：popular/recommend=学习人数，price-asc=价格升序，newest/默认=最新
+    const orderBy: Prisma.CourseOrderByWithRelationInput =
+      sort === "popular" || sort === "recommend" ? { studentCount: "desc" }
+      : sort === "price-asc" ? { price: "asc" }
+      : { createdAt: "desc" };
 
     const [courses, total] = await Promise.all([
       this.prisma.course.findMany({
         where,
         select: {
           id: true, title: true, cover: true, intro: true,
-          type: true, price: true, originalPrice: true,
+          type: true, price: true, originalPrice: true, categoryLevel1: true,
           studentCount: true, auditStatus: true, createdAt: true,
           user: { select: { id: true, nickname: true, avatar: true } },
           circle: { select: { id: true, name: true } },
@@ -165,7 +174,7 @@ export class CourseService {
         },
         skip: (page - 1) * pageSize,
         take: pageSize,
-        orderBy: { createdAt: "desc" },
+        orderBy,
       }),
       this.prisma.course.count({ where }),
     ]);
@@ -173,6 +182,21 @@ export class CourseService {
     const data = { courses, total, page, pageSize };
     await this.redis.setJson(cacheKey, data, 300);
     return data;
+  }
+
+  /** 课程一级品类聚合(供课程列表页 tab：仅返回真实有课程的品类+计数，分页后无法从单页聚合) */
+  async listCourseCategoryTabs(stationId?: string) {
+    const where: Prisma.CourseWhereInput = { auditStatus: "APPROVED", categoryLevel1: { not: null } };
+    if (stationId) where.stationId = stationId;
+    const grouped = await this.prisma.course.groupBy({
+      by: ["categoryLevel1"],
+      where,
+      _count: { _all: true },
+    });
+    return grouped
+      .filter(g => g.categoryLevel1)
+      .map(g => ({ name: g.categoryLevel1 as string, count: g._count._all }))
+      .sort((a, b) => b.count - a.count);
   }
 
   // ═══════════════════ 审核 ═══════════════════
