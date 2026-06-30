@@ -95,12 +95,27 @@ function currentUserId(): string {
 //   DELETE /users/:id/follow       → 取关
 // 后端无字段（coverImage/verified/verifiedTitle/level/levelName/isMutualFollow）→ 诚实降级
 
+/* —— 后端原始响应类型（容错适配用，字段全 optional，仅声明 adapter 实际访问到的字段） —— */
+/** 后端 GET /users/:id 公开资料原始响应 */
+interface RawUser {
+  id?: string | number
+  nickname?: string
+  avatar?: string
+  bio?: string
+}
+/** 后端 GET /users/:id/stats 统计原始响应 */
+interface RawUserStats {
+  following?: number
+  followers?: number
+  totalLikes?: number
+}
+
 export const userProfileApi = {
   /** 获取用户资料：聚合 资料 + 统计 + 是否已关注 */
   async getProfile(userId: string) {
     const [user, stats] = await Promise.all([
-      apiGet<any>(`/users/${userId}`),
-      apiGet<any>(`/users/${userId}/stats`),
+      apiGet<RawUser>(`/users/${userId}`),
+      apiGet<RawUserStats>(`/users/${userId}/stats`),
     ])
 
     const isSelf = !!userId && currentUserId() === String(userId)
@@ -149,7 +164,8 @@ export const userProfileApi = {
   /** 关注用户 —— POST /users/:id/follow */
   async follow(userId: string) {
     try {
-      const data = await apiPost<any>(`/users/${userId}/follow`)
+      // 写操作后端返回结构不定，用 unknown 接收；信封 data 强转 any（允许保留）
+      const data = await apiPost<unknown>(`/users/${userId}/follow`)
       return { code: 200, message: 'ok', data: (data ?? {}) as any }
     } catch (e: any) {
       // 不回退假 mock：返回错误信封，页面据 code!==200 回滚乐观更新并提示
@@ -160,7 +176,8 @@ export const userProfileApi = {
   /** 取关用户 —— DELETE /users/:id/follow */
   async unfollow(userId: string) {
     try {
-      const data = await apiDelete<any>(`/users/${userId}/follow`)
+      // 写操作后端返回结构不定，用 unknown 接收；信封 data 强转 any（允许保留）
+      const data = await apiDelete<unknown>(`/users/${userId}/follow`)
       return { code: 200, message: 'ok', data: (data ?? {}) as any }
     } catch (e: any) {
       return { code: 500, message: e?.message || '取消关注失败', data: {} as any }

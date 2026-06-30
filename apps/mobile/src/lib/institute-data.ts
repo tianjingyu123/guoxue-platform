@@ -258,11 +258,17 @@ export const shareTaskRules = [
   { period: '年度任务', icon: 'mic', label: '每年至少 1 次大型分享', proof: '以研究院活动记录为准' },
 ]
 
+// ============ 后端原始响应类型（容错适配用，不 export，仅声明 adapter 实际访问到的字段）============
+/** 后端 /institute/intro 原始响应：与 InstituteIntro 同构，仅 counts 由 _count 提供 */
+interface RawInstituteIntro extends Omit<InstituteIntro, 'counts'> {
+  _count?: { members: number; events: number; courses: number }
+}
+
 // ============ API 层 ============
 export const instituteApi = {
   /** 研究院介绍（公开）GET /institute/intro */
   async getIntro(): Promise<InstituteIntro> {
-    const d = await apiGet<any>('/institute/intro')
+    const d = await apiGet<RawInstituteIntro>('/institute/intro')
     return { ...d, counts: d._count || { members: 0, events: 0, courses: 0 } }
   },
 

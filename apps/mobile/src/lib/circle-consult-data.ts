@@ -32,17 +32,25 @@ export interface UserConsultService {
 
 const ROLE_LABEL: Record<string, string> = { OWNER: '圈主', PARTNER: '合伙人', GUEST: '嘉宾' }
 
+/* —— 后端原始响应类型（容错适配用，字段全 optional，仅声明 adapter 访问到的） —— */
+interface RawQUser { id?: string | number; nickname?: string; avatar?: string }
+interface RawExpertMember {
+  userId?: string; user?: RawQUser | null; role?: string
+  questionPriceCoin?: number | string; callPricePerMinuteCoin?: number | string; questionTimeoutHours?: number | string
+  circleId?: string; circle?: { id?: string; name?: string; cover?: string } | null
+}
+
 export const consultApi = {
   /** 圈子达人列表 — GET /circles/:id/experts */
   listExperts: async (circleId: string): Promise<ConsultExpert[]> => {
     try {
-      const res = await apiGet<any>(`/circles/${circleId}/experts`)
+      const res = await apiGet<RawExpertMember[] | { data?: RawExpertMember[] }>(`/circles/${circleId}/experts`)
       const arr = Array.isArray(res) ? res : (res?.data ?? [])
-      return arr.map((m: any): ConsultExpert => ({
-        id: m.user?.id || m.userId || '',
+      return arr.map((m: RawExpertMember): ConsultExpert => ({
+        id: m.user?.id != null ? String(m.user.id) : (m.userId || ''),
         name: m.user?.nickname || '',
         avatar: m.user?.avatar || '',
-        roleLabel: ROLE_LABEL[m.role] || '达人',
+        roleLabel: ROLE_LABEL[m.role || ''] || '达人',
         questionPrice: Number(m.questionPriceCoin) || 0,
         callPrice: Number(m.callPricePerMinuteCoin) || 0,
         responseHours: Number(m.questionTimeoutHours) || 0,
@@ -55,13 +63,13 @@ export const consultApi = {
   /** 用户在所有圈子开通的咨询服务聚合 — GET /circles/expert-services/by-user/:userId（查询失败返回 []，由调用方按"无服务"降级，不展示假数据） */
   getUserConsultServices: async (userId: string): Promise<UserConsultService[]> => {
     try {
-      const res = await apiGet<any>(`/circles/expert-services/by-user/${userId}`)
+      const res = await apiGet<RawExpertMember[] | { data?: RawExpertMember[] }>(`/circles/expert-services/by-user/${userId}`)
       const arr = Array.isArray(res) ? res : (res?.data ?? [])
-      return arr.map((m: any): UserConsultService => ({
+      return arr.map((m: RawExpertMember): UserConsultService => ({
         circleId: m.circleId || m.circle?.id || '',
         circleName: m.circle?.name || '',
         circleCover: m.circle?.cover || '',
-        roleLabel: ROLE_LABEL[m.role] || '达人',
+        roleLabel: ROLE_LABEL[m.role || ''] || '达人',
         expertName: m.user?.nickname || '',
         expertAvatar: m.user?.avatar || '',
         questionPrice: Number(m.questionPriceCoin) || 0,
@@ -152,12 +160,22 @@ export function splitQuestion(raw: string): { title: string; body: string } {
   return { title: '', body: raw || '' }
 }
 
-function mapUser(u: any): QuestionUser | undefined {
+/** 后端 PaidQuestion 原始响应（字段全 optional，仅声明 adapter 访问到的） */
+interface RawPaidQuestion {
+  id?: string | number; circleId?: string; circle?: { id?: string | number; name?: string } | null
+  askerId?: string; asker?: RawQUser | null; answererId?: string; answerer?: RawQUser | null
+  question?: string; images?: string[]; priceCoin?: number | string; peekPriceCoin?: number | string
+  status?: string; answer?: string | null; answerLocked?: boolean; answeredAt?: string | null
+  peekCount?: number | string; createdAt?: string
+}
+interface RawQuestionListResp { questions?: RawPaidQuestion[]; total?: number; page?: number; pageSize?: number }
+
+function mapUser(u?: RawQUser | null): QuestionUser | undefined {
   if (!u) return undefined
   return { id: String(u.id || ''), nickname: u.nickname || '', avatar: u.avatar || '' }
 }
 
-function mapQuestion(q: any): PaidQuestion {
+function mapQuestion(q: RawPaidQuestion): PaidQuestion {
   return {
     id: String(q?.id || ''),
     circleId: String(q?.circleId || q?.circle?.id || ''),
@@ -206,12 +224,12 @@ export const questionApi = {
     // 后端 peekPriceCoin 校验 @Min(1)，0/未填一律不传（0 表示不可围观由后端默认处理）
     if (payload.peekPriceCoin && payload.peekPriceCoin > 0) body.peekPriceCoin = payload.peekPriceCoin
     if (payload.images && payload.images.length) body.images = payload.images
-    return mapQuestion(await apiPost<any>('/question/ask', body))
+    return mapQuestion(await apiPost<RawPaidQuestion>('/question/ask', body))
   },
 
   /** 问答列表 — GET /question（仅 circleId/status/isPublic 维度，无用户维度） */
   list: async (params: QuestionListQuery): Promise<{ items: PaidQuestion[]; total: number; page: number; pageSize: number }> => {
-    const res = await apiGet<any>(`/question${buildQuery(params)}`)
+    const res = await apiGet<RawQuestionListResp>(`/question${buildQuery(params)}`)
     const arr = Array.isArray(res?.questions) ? res.questions : (Array.isArray(res) ? res : [])
     return {
       items: arr.map(mapQuestion),
@@ -222,20 +240,20 @@ export const questionApi = {
   },
 
   /** 问答详情 — GET /question/:id（付费墙：非当事人/未围观时 answer=null & answerLocked=true） */
-  detail: async (id: string): Promise<PaidQuestion> => mapQuestion(await apiGet<any>(`/question/${id}`)),
+  detail: async (id: string): Promise<PaidQuestion> => mapQuestion(await apiGet<RawPaidQuestion>(`/question/${id}`)),
 
   /** 达人回答 — POST /question/:id/answer（仅回答者本人） */
   answer: async (id: string, payload: { answer: string; images?: string[] }): Promise<PaidQuestion> => {
     const body: Record<string, unknown> = { answer: payload.answer }
     if (payload.images && payload.images.length) body.images = payload.images
-    return mapQuestion(await apiPost<any>(`/question/${id}/answer`, body))
+    return mapQuestion(await apiPost<RawPaidQuestion>(`/question/${id}/answer`, body))
   },
 
   /** 拒答 — POST /question/:id/reject（自动全额退币给提问者） */
   reject: async (id: string, reason?: string): Promise<void> => {
-    await apiPost<any>(`/question/${id}/reject`, reason ? { reason } : {})
+    await apiPost<unknown>(`/question/${id}/reject`, reason ? { reason } : {})
   },
 
   /** 围观付费看答案 — POST /question/:id/peek（扣围观币） */
-  peek: async (id: string): Promise<PaidQuestion> => mapQuestion(await apiPost<any>(`/question/${id}/peek`, {})),
+  peek: async (id: string): Promise<PaidQuestion> => mapQuestion(await apiPost<RawPaidQuestion>(`/question/${id}/peek`, {})),
 }

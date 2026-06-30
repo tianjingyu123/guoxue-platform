@@ -108,8 +108,28 @@ const _memberLevelLabel: Record<string, string> = {
   LIFETIME: '永久会员',
 }
 
+/* —— 后端原始响应类型（容错适配用，字段全 optional，仅声明 adapter 实际访问到的字段） —— */
+/** /auth/me 角色条目原始结构（仅 { roleType, bindId }） */
+interface RawRole { roleType?: string; bindId?: string | number }
+/** 后端 GET /auth/me 原始响应 */
+interface RawMe {
+  nickname?: string
+  avatar?: string
+  bio?: string
+  memberLevel?: string
+  memberExpire?: string | null
+  identityVerified?: boolean
+  roles?: RawRole[]
+}
+/** 后端 GET /users/me/checkin/status 原始响应 */
+interface RawCheckin {
+  todayChecked?: boolean
+  continuousDays?: number
+  totalPoints?: number
+}
+
 /** /auth/me + 签到状态 → 个人中心主页数据 */
-function adaptProfile(me: any, checkin: any): ProfileData {
+function adaptProfile(me: RawMe, checkin: RawCheckin | null): ProfileData {
   const level = String(me?.memberLevel ?? 'NONE')
   const isVip = level !== 'NONE'
   let vipExpiry = ''
@@ -121,8 +141,8 @@ function adaptProfile(me: any, checkin: any): ProfileData {
   }
   // 后端仅返回 { roleType, bindId }，无业务名称 → name 留空诚实降级
   const roles: RoleEntry[] = (me?.roles ?? [])
-    .map((r: any): RoleEntry | null => {
-      const type = _roleTypeMap[r?.roleType]
+    .map((r: RawRole): RoleEntry | null => {
+      const type = _roleTypeMap[r?.roleType || '']
       return type ? { type, name: '', id: r?.bindId ?? '' } : null
     })
     .filter((r: RoleEntry | null): r is RoleEntry => r !== null)
@@ -158,9 +178,9 @@ export const profileApi = {
   /** 获取用户主页数据 —— GET /auth/me + GET /users/me/checkin/status 并行聚合 */
   async getProfile(): Promise<ProfileData> {
     const [me, checkin] = await Promise.all([
-      apiGet<any>('/auth/me'),
+      apiGet<RawMe>('/auth/me'),
       // 签到状态非主资料，失败不阻断主页加载
-      apiGet<any>('/users/me/checkin/status').catch(() => null),
+      apiGet<RawCheckin>('/users/me/checkin/status').catch(() => null),
     ])
     return adaptProfile(me, checkin)
   },

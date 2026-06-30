@@ -11,6 +11,7 @@ export type ContentBlock =
   | { type: 'quote'; content: string }
   | { type: 'list'; items: string[] }
   | { type: 'image'; src: string; caption?: string }
+  // 嵌入卡 payload 形态随 embedType 而异（圈子/课程/商品各不同），仅 mock 使用，保留 any
   | { type: 'embed'; embedType: EmbedType; data: any }
 
 export interface ArticleAuthor {
@@ -137,9 +138,10 @@ export interface HotTag {
 }
 
 /** 解析后端分页信封 paginated → {rows,total} / 兼容多种命名 */
-function parseList<T>(res: any): { items: T[]; total: number } {
-  const items: T[] = res?.rows ?? res?.items ?? res?.list ?? (Array.isArray(res) ? res : [])
-  const total: number = res?.total ?? items.length
+function parseList<T>(res: unknown): { items: T[]; total: number } {
+  const r = (res ?? {}) as { rows?: T[]; items?: T[]; list?: T[]; total?: number }
+  const items: T[] = r.rows ?? r.items ?? r.list ?? (Array.isArray(res) ? (res as T[]) : [])
+  const total: number = r.total ?? items.length
   return { items, total }
 }
 
@@ -195,17 +197,58 @@ export function recommendRoute(c: ArticleRecommendCard): string {
   }
 }
 
-function adaptArticleDetail(a: any): ArticleDetail {
+/* —— 后端原始响应类型（容错适配用，字段宽松全 optional，仅声明 adapter 实际访问到的字段，不 export） —— */
+interface RawUserLite { id?: string; nickname?: string; avatar?: string | null }
+interface RawRecommend { id?: string | number; recommendType?: string; targetId?: string | number; title?: string | null; cover?: string | null }
+interface RawRelated { id?: string | number; title?: string; cover?: string | null; likeCount?: number; likes?: number }
+interface RawArticleCircle { id?: string; name?: string; cover?: string | null; memberCount?: number }
+/** 后端文章详情原始响应（GET /articles/:id） */
+interface RawArticleDetail {
+  id?: string | number
+  title?: string
+  cover?: string | null
+  tags?: string[]
+  user?: RawUserLite | null
+  userId?: string
+  circleId?: string
+  circle?: RawArticleCircle | null
+  createdAt?: string
+  viewCount?: number
+  likeCount?: number
+  collectCount?: number
+  commentCount?: number
+  content?: string
+  recommends?: RawRecommend[]
+  related?: RawRelated[]
+}
+/** 后端评论回复原始响应 */
+interface RawReply {
+  id?: string | number
+  content?: string
+  user?: RawUserLite | null
+  userId?: string
+  createdAt?: string
+  likeCount?: number
+  likes?: number
+  isLiked?: boolean
+}
+/** 后端评论原始响应（含楼中楼 replies） */
+interface RawComment extends RawReply { replies?: RawReply[] }
+/** 我的收藏列表项（checkInteraction 比对用） */
+interface RawCollectItem { targetId?: string | number }
+
+function adaptArticleDetail(a: RawArticleDetail): ArticleDetail {
   const recs: ArticleRecommendCard[] = (Array.isArray(a?.recommends) ? a.recommends : [])
-    .filter((r: any) => REC_TYPES.includes(r?.recommendType))
-    .map((r: any) => ({
+    .filter((r: RawRecommend) => (REC_TYPES as readonly string[]).includes(r?.recommendType || ''))
+    .map((r: RawRecommend) => ({
       id: String(r.id || ''),
-      recommendType: r.recommendType,
+      // 已由上面 filter 保证 recommendType 落在 REC_TYPES 内，断言为视图模型枚举
+      recommendType: (r.recommendType || '') as ArticleRecommendCard['recommendType'],
       targetId: String(r.targetId || ''),
       title: r.title || undefined,
       cover: r.cover || undefined,
     }))
-  const related: RelatedArticleCard[] = (Array.isArray(a?.related) ? a.related : []).map((r: any) => ({
+  const related: RelatedArticleCard[] = (Array.isArray(a?.related) ? a.related : []).map((r: RawRelated) => ({
     id: String(r.id || ''),
     title: r.title || '',
     cover: r.cover ?? null,
@@ -241,8 +284,8 @@ function adaptArticleDetail(a: any): ArticleDetail {
 }
 
 /** 后端评论项 → 前端 ArticleComment（含楼中楼 replies） */
-function adaptArticleComment(c: any): ArticleComment {
-  const replies: CommentReply[] = (Array.isArray(c?.replies) ? c.replies : []).map((r: any) => ({
+function adaptArticleComment(c: RawComment): ArticleComment {
+  const replies: CommentReply[] = (Array.isArray(c?.replies) ? c.replies : []).map((r: RawReply) => ({
     id: String(r.id || ''),
     content: r.content || '',
     author: { id: String(r.user?.id || r.userId || ''), name: r.user?.nickname || '匿名用户', avatar: r.user?.avatar || '' },
@@ -270,7 +313,7 @@ export const articleApi = {
     if (params.pageSize) qs.push(`pageSize=${params.pageSize}`)
     if (params.circleId) qs.push(`circleId=${encodeURIComponent(params.circleId)}`)
     if (params.tag) qs.push(`tag=${encodeURIComponent(params.tag)}`)
-    const res = await apiGet<any>(`/articles${qs.length ? '?' + qs.join('&') : ''}`)
+    const res = await apiGet<unknown>(`/articles${qs.length ? '?' + qs.join('&') : ''}`)
     return parseList<ArticleListItem>(res)
   },
 
@@ -290,43 +333,46 @@ export const articleApi = {
 
   /** 文章详情 GET /articles/:id（含 recommends 内联卡 + related 相关文章） */
   async detail(id: string): Promise<ArticleDetail> {
-    return adaptArticleDetail(await apiGet<any>(`/articles/${id}`))
+    return adaptArticleDetail(await apiGet<RawArticleDetail>(`/articles/${id}`))
   },
 
   /** 文章评论列表 GET /comment?targetType=ARTICLE&targetId=（无评论返回 []，走空态） */
   async getComments(id: string): Promise<ArticleComment[]> {
-    const r = await apiGet<any>(`/comment?targetType=ARTICLE&targetId=${id}`)
-    const arr = Array.isArray(r) ? r : (r?.data ?? r?.comments ?? r?.items ?? r?.rows ?? [])
+    const r = await apiGet<unknown>(`/comment?targetType=ARTICLE&targetId=${id}`)
+    const ro = (r ?? {}) as { data?: RawComment[]; comments?: RawComment[]; items?: RawComment[]; rows?: RawComment[] }
+    const arr: RawComment[] = Array.isArray(r) ? (r as RawComment[]) : (ro.data ?? ro.comments ?? ro.items ?? ro.rows ?? [])
     return arr.map(adaptArticleComment)
   },
 
   // ───────── 互动（写操作，需登录；apiPost 自动加 token + 剥信封） ─────────
 
   /** 点赞/取消（toggle）— POST /interaction/like */
-  toggleLike: (id: string) => apiPost<any>('/interaction/like', { targetType: 'ARTICLE', targetId: id }),
+  toggleLike: (id: string) => apiPost<unknown>('/interaction/like', { targetType: 'ARTICLE', targetId: id }),
   /** 收藏/取消（toggle）— POST /interaction/collect */
-  toggleCollect: (id: string) => apiPost<any>('/interaction/collect', { targetType: 'ARTICLE', targetId: id }),
+  toggleCollect: (id: string) => apiPost<unknown>('/interaction/collect', { targetType: 'ARTICLE', targetId: id }),
   /** 关注/取消关注作者 — POST /interaction/follow（FollowDto.followedUserId） */
-  toggleFollow: (userId: string) => apiPost<any>('/interaction/follow', { followedUserId: userId }),
+  toggleFollow: (userId: string) => apiPost<unknown>('/interaction/follow', { followedUserId: userId }),
   /** 评论点赞/取消 — POST /interaction/like（targetType=COMMENT） */
-  toggleCommentLike: (commentId: string) => apiPost<any>('/interaction/like', { targetType: 'COMMENT', targetId: commentId }),
+  toggleCommentLike: (commentId: string) => apiPost<unknown>('/interaction/like', { targetType: 'COMMENT', targetId: commentId }),
   /** 发表评论 — POST /interaction/comment（parentId 用于楼中楼回复） */
   createComment: (id: string, content: string, parentId?: string) =>
-    apiPost<any>('/interaction/comment', { targetType: 'ARTICLE', targetId: id, content, ...(parentId ? { parentId } : {}) }),
+    apiPost<unknown>('/interaction/comment', { targetType: 'ARTICLE', targetId: id, content, ...(parentId ? { parentId } : {}) }),
   /**
    * 预查我对文章的点赞/收藏态（避免 toggle 语义反向）。
    * like/check 返回「已点赞的 targetId 数组」；collect 无单查端点 → 拉我的收藏首页比对（>100 时降级漏判，可接受）。
    */
   async checkInteraction(id: string): Promise<{ liked: boolean; collected: boolean }> {
     const [likedIds, collects] = await Promise.all([
-      apiGet<any>(`/interaction/like/check?targetType=ARTICLE&targetIds=${id}`).catch(() => null),
-      apiGet<any>(`/interaction/collect?page=1&pageSize=100`).catch(() => null),
+      apiGet<unknown>(`/interaction/like/check?targetType=ARTICLE&targetIds=${id}`).catch(() => null),
+      apiGet<unknown>(`/interaction/collect?page=1&pageSize=100`).catch(() => null),
     ])
-    const likedArr: any[] = Array.isArray(likedIds) ? likedIds : (likedIds?.data ?? likedIds?.items ?? [])
-    const collectItems: any[] = Array.isArray(collects?.items) ? collects.items : (Array.isArray(collects) ? collects : [])
+    const likedObj = (likedIds ?? {}) as { data?: unknown[]; items?: unknown[] }
+    const likedArr: unknown[] = Array.isArray(likedIds) ? likedIds : (likedObj.data ?? likedObj.items ?? [])
+    const collectsObj = (collects ?? {}) as { items?: RawCollectItem[] }
+    const collectItems: RawCollectItem[] = Array.isArray(collectsObj.items) ? collectsObj.items : (Array.isArray(collects) ? (collects as RawCollectItem[]) : [])
     return {
       liked: likedArr.map(String).includes(String(id)),
-      collected: collectItems.some((c: any) => String(c?.targetId) === String(id)),
+      collected: collectItems.some((c: RawCollectItem) => String(c?.targetId) === String(id)),
     }
   },
 }
@@ -349,8 +395,9 @@ export interface TagContentItem {
 export const tagApi = {
   /** 热门标签 GET /tags/hot?limit= */
   async hot(limit = 20): Promise<HotTag[]> {
-    const res = await apiGet<any>(`/tags/hot?limit=${limit}`)
-    return Array.isArray(res) ? res : (res?.rows ?? res?.items ?? [])
+    const res = await apiGet<unknown>(`/tags/hot?limit=${limit}`)
+    const ro = (res ?? {}) as { rows?: HotTag[]; items?: HotTag[] }
+    return Array.isArray(res) ? (res as HotTag[]) : (ro.rows ?? ro.items ?? [])
   },
 
   /** 标签下内容聚合 GET /tags/:name/posts?page=&pageSize=（分页，返回真实 total） */
@@ -360,8 +407,9 @@ export const tagApi = {
 
   /** 搜索标签 GET /tags/search?q= */
   async search(q: string): Promise<HotTag[]> {
-    const res = await apiGet<any>(`/tags/search?q=${encodeURIComponent(q)}`)
-    return Array.isArray(res) ? res : (res?.rows ?? res?.items ?? [])
+    const res = await apiGet<unknown>(`/tags/search?q=${encodeURIComponent(q)}`)
+    const ro = (res ?? {}) as { rows?: HotTag[]; items?: HotTag[] }
+    return Array.isArray(res) ? (res as HotTag[]) : (ro.rows ?? ro.items ?? [])
   },
 }
 

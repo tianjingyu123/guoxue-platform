@@ -137,6 +137,65 @@ export const PROVINCES = Object.keys(REGIONS)
    收货地址：/shop/addresses（GET列表 / POST新增 / PUT:id编辑 / DELETE:id / PUT:id/default）
    ============================================================ */
 
+/* —— 后端原始响应类型（容错适配用，字段宽松全 optional，仅声明 adapter 实际访问到的字段） —— */
+/** 后端商品精简信息 */
+interface RawProductLite { id?: string; title?: string; cover?: string | null; price?: number | string; images?: string[] }
+/** 后端 enriched AfterSale 原始响应 */
+interface RawAfterSale {
+  id?: string
+  orderId?: string
+  type?: string
+  status?: string
+  amount?: number | string
+  reason?: string
+  createdAt?: string | null
+  updatedAt?: string | null
+  product?: RawProductLite | null
+  order?: { amount?: number | string } | null
+  // 后端 processAfterSale 把驳回理由写入此字段
+  logistics?: string | null
+}
+/** 后端 Order 原始响应（售后申请上下文用） */
+interface RawOrderLite {
+  id?: string
+  payAmount?: number | string
+  amount?: number | string
+  targetId?: string
+  product?: RawProductLite | null
+  sku?: { skuName?: string } | null
+}
+/** 后端 ShippingAddress 原始响应（字段名 detail） */
+interface RawAddress {
+  id?: string
+  name?: string
+  phone?: string
+  province?: string
+  city?: string
+  district?: string
+  detail?: string
+  isDefault?: boolean
+}
+/** 提交售后申请的前端表单数据 */
+interface RawSubmitAfterSale {
+  orderId?: string
+  type?: string
+  reason?: string
+  description?: string
+  amount?: number | string
+  images?: string[]
+}
+/** 保存地址的前端表单数据（前端字段 address，映射为后端 detail） */
+interface RawSaveAddress {
+  id?: string
+  name?: string
+  phone?: string
+  province?: string
+  city?: string
+  district?: string
+  address?: string
+  isDefault?: boolean
+}
+
 /** ISO 时间 → 'YYYY-MM-DD HH:mm'（uni-app 多端无 dayjs） */
 function fmtTime(iso?: string | null): string {
   if (!iso) return ''
@@ -145,9 +204,9 @@ function fmtTime(iso?: string | null): string {
   const p = (n: number) => String(n).padStart(2, '0')
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
 }
-const _num = (v: any): number => { const n = Number(v); return isNaN(n) ? 0 : n }
+const _num = (v: unknown): number => { const n = Number(v); return isNaN(n) ? 0 : n }
 /** 后端 UUID → 展示用短单号（前 12 位大写） */
-function shortNo(id: string): string {
+function shortNo(id?: string): string {
   return id ? id.replace(/-/g, '').slice(0, 12).toUpperCase() : ''
 }
 
@@ -157,18 +216,18 @@ const AS_STATUS_MAP: Record<string, AfterSaleStatus> = {
   COMPLETED: 'completed', REJECTED: 'rejected', CANCELLED: 'cancelled',
 }
 /** 后端售后类型字符串（refund/return…）→ 前端两类 */
-function asType(t: string): 'refund_only' | 'refund_with_return' {
+function asType(t?: string): 'refund_only' | 'refund_with_return' {
   return t === 'return' || t === 'refund_with_return' ? 'refund_with_return' : 'refund_only'
 }
 
 /** 后端 enriched AfterSale → 前端列表项 */
-function adaptAfterSaleListItem(a: any): AfterSaleListItem {
+function adaptAfterSaleListItem(a: RawAfterSale): AfterSaleListItem {
   return {
-    id: a.id,
-    orderId: a.orderId,
+    id: a.id || '',
+    orderId: a.orderId || '',
     orderNo: shortNo(a.orderId),
     type: asType(a.type),
-    status: AS_STATUS_MAP[a.status] || 'pending',
+    status: AS_STATUS_MAP[a.status || ''] || 'pending',
     amount: _num(a.amount ?? a.order?.amount),
     reason: a.reason || '',
     product: {
@@ -183,7 +242,7 @@ function adaptAfterSaleListItem(a: any): AfterSaleListItem {
 }
 
 /** 由 AfterSale.status 派生处理时间轴（后端无逐节点时间，按真实状态推进） */
-function buildAfterSaleTimeline(a: any): AfterSaleTimelineNode[] {
+function buildAfterSaleTimeline(a: RawAfterSale): AfterSaleTimelineNode[] {
   const t0 = fmtTime(a.createdAt)
   const t1 = fmtTime(a.updatedAt || a.createdAt)
   const submitted: AfterSaleTimelineNode = { status: 'submitted', title: '提交申请', description: '您的售后申请已提交', time: t0, isCurrent: false }
@@ -212,14 +271,14 @@ function buildAfterSaleTimeline(a: any): AfterSaleTimelineNode[] {
 }
 
 /** 后端 enriched AfterSale → 前端售后详情 */
-function adaptAfterSaleDetail(a: any): AfterSaleDetailData {
+function adaptAfterSaleDetail(a: RawAfterSale): AfterSaleDetailData {
   const isRejected = a.status === 'REJECTED'
   return {
-    id: a.id,
-    orderId: a.orderId,
+    id: a.id || '',
+    orderId: a.orderId || '',
     orderNo: shortNo(a.orderId),
     type: asType(a.type),
-    status: AS_STATUS_MAP[a.status] || 'pending',
+    status: AS_STATUS_MAP[a.status || ''] || 'pending',
     reason: a.reason || '',
     amount: _num(a.amount ?? a.order?.amount),
     // 后端售后单无独立"问题描述"字段（申请时已并入 reason）→ 不重复展示
@@ -245,9 +304,9 @@ function adaptAfterSaleDetail(a: any): AfterSaleDetailData {
 }
 
 /** 后端 ShippingAddress → 前端地址项（后端字段名 detail，前端用 address） */
-function adaptAddress(a: any): ShippingAddressItem {
+function adaptAddress(a: RawAddress): ShippingAddressItem {
   return {
-    id: a.id,
+    id: a.id || '',
     name: a.name || '',
     phone: a.phone || '',
     province: a.province || '',
@@ -261,20 +320,20 @@ function adaptAddress(a: any): ShippingAddressItem {
 export const accountApi = {
   /** 售后列表（真连 /shop/after-sales，错误向上抛由页面三态处理） */
   async afterSales(): Promise<AfterSaleListItem[]> {
-    const res = await apiGet<any>('/shop/after-sales?page=1&pageSize=100')
-    const list = Array.isArray(res) ? res : (res?.items || [])
+    const res = await apiGet<RawAfterSale[] | { items?: RawAfterSale[] }>('/shop/after-sales?page=1&pageSize=100')
+    const list: RawAfterSale[] = Array.isArray(res) ? res : (res?.items || [])
     return list.map(adaptAfterSaleListItem)
   },
 
   /** 售后详情 */
   async afterSaleDetail(id: string): Promise<AfterSaleDetailData> {
-    const a = await apiGet<any>(`/shop/after-sales/${id}`)
+    const a = await apiGet<RawAfterSale>(`/shop/after-sales/${id}`)
     return adaptAfterSaleDetail(a)
   },
 
   /** 驳回售后详情（与详情同一端点，复用适配） */
   async afterSaleRejected(id: string): Promise<AfterSaleDetailData> {
-    const a = await apiGet<any>(`/shop/after-sales/${id}`)
+    const a = await apiGet<RawAfterSale>(`/shop/after-sales/${id}`)
     return adaptAfterSaleDetail(a)
   },
 
@@ -283,7 +342,7 @@ export const accountApi = {
    * 后端无专用"申请上下文"端点 → 复用订单详情 GET /shop/orders/:id。
    */
   async afterSaleApplyContext(orderId: string) {
-    const o = await apiGet<any>(`/shop/orders/${orderId}`)
+    const o = await apiGet<RawOrderLite>(`/shop/orders/${orderId}`)
     const maxAmount = _num(o.payAmount ?? o.amount)
     return {
       orderId,
@@ -304,11 +363,11 @@ export const accountApi = {
    * 提交售后申请 → POST /shop/orders/:orderId/after-sale。
    * 后端 body 仅 { type, reason, amount }；问题描述并入 reason，凭证图片后端不落库（不传）。
    */
-  async submitAfterSale(data: any): Promise<{ success: boolean; id?: string }> {
+  async submitAfterSale(data: RawSubmitAfterSale): Promise<{ success: boolean; id?: string }> {
     if (!data?.orderId) throw new Error('缺少订单信息')
     const type = data.type === 'refund_with_return' ? 'return' : 'refund'
     const reason = [data.reason, data.description].filter(Boolean).join('；').slice(0, 500)
-    const res = await apiPost<any>(`/shop/orders/${data.orderId}/after-sale`, {
+    const res = await apiPost<{ id?: string }>(`/shop/orders/${data.orderId}/after-sale`, {
       type,
       reason: reason || '用户申请售后',
       amount: data.amount,
@@ -324,8 +383,8 @@ export const accountApi = {
 
   /** 地址列表 → GET /shop/addresses */
   async addresses(): Promise<ShippingAddressItem[]> {
-    const res = await apiGet<any>('/shop/addresses')
-    const list = Array.isArray(res) ? res : (res?.items || [])
+    const res = await apiGet<RawAddress[] | { items?: RawAddress[] }>('/shop/addresses')
+    const list: RawAddress[] = Array.isArray(res) ? res : (res?.items || [])
     return list.map(adaptAddress)
   },
 
@@ -344,7 +403,7 @@ export const accountApi = {
    * 保存地址：有 id 走 PUT 编辑，否则 POST 新增。
    * 前端 address 字段映射为后端 detail；isDefault 由独立端点设置（创建/编辑 DTO 不含该字段）。
    */
-  async saveAddress(data: any): Promise<{ success: boolean }> {
+  async saveAddress(data: RawSaveAddress): Promise<{ success: boolean }> {
     const body = {
       name: data.name,
       phone: data.phone,
@@ -354,8 +413,8 @@ export const accountApi = {
       detail: data.address,
     }
     const saved = data.id
-      ? await apiPut<any>(`/shop/addresses/${data.id}`, body)
-      : await apiPost<any>('/shop/addresses', body)
+      ? await apiPut<{ id?: string; isDefault?: boolean }>(`/shop/addresses/${data.id}`, body)
+      : await apiPost<{ id?: string; isDefault?: boolean }>('/shop/addresses', body)
     // 用户勾选「设为默认」→ 调独立端点落库（仅在需要置默认时调用）
     if (data.isDefault && saved?.id && !saved.isDefault) {
       await apiPut(`/shop/addresses/${saved.id}/default`, {})

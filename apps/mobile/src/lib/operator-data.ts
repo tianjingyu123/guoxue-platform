@@ -567,6 +567,92 @@ function toNum(v: unknown): number {
   return Number.isFinite(n) ? n : 0
 }
 
+/* —— 后端原始响应类型（容错适配用，字段宽松；数值统一经 toNum 转换故用 number|string；不 export） —— */
+interface RawUserLite { nickname?: string; avatar?: string }
+/** GET /station/operator-dashboard/my 运营商仪表盘 */
+interface RawOperatorDashboard {
+  id: string
+  brandName?: string
+  user?: RawUserLite | null
+  level?: string
+  purchasedAt?: string | null
+  containQuota?: number | string
+  usedQuota?: number | string
+  stationCount?: number | string
+  monthNewStations?: number | string
+  totalEarning?: number | string
+  monthEarning?: number | string
+}
+/** GET /station/operator-dashboard/overview 团队概览 */
+interface RawOperatorOverview {
+  monthTeamEarned?: number | string
+  totalStations?: number | string
+  activeStations?: number | string
+  silentStations?: number | string
+  monthTeamAmount?: number | string
+  monthTeamOrders?: number | string
+  quotaUsed?: number | string
+  quotaTotal?: number | string
+}
+/** GET /station/operator-dashboard/quota-usage 名额使用 */
+interface RawQuotaUsage { used?: number | string; total?: number | string }
+/** 名下分站列表元素（team-ranking / my/stations 通用） */
+interface RawStationItem {
+  id: string
+  name?: string
+  code?: string
+  status?: string
+  createdAt?: string | null
+  totalEarning?: number | string
+  monthEarning?: number | string
+  mgmtBonus?: number | string
+}
+interface RawStationsResp { items?: RawStationItem[]; ranking?: RawStationItem[] }
+/** GET /station/my 分站详情 */
+interface RawStationMy {
+  id: string
+  name: string
+  code: string
+  logo?: string | null
+  themeColor?: string | null
+  status?: string
+  createdAt?: string | null
+  expireAt?: string | null
+  intro?: string | null
+  templateId?: string | null
+  user?: RawUserLite | null
+  totalEarning?: number | string
+  monthEarning?: number | string
+  monthOrders?: number | string
+  lockedUsers?: number | string
+}
+/** GET /station/dashboard/overview 站长仪表盘概览 */
+interface RawStationDashOverview { monthEarned?: number | string; monthAmount?: number | string; monthOrders?: number | string }
+/** GET /station/dashboard/trends 收益趋势 */
+interface RawStationTrendsResp { trends?: { date: string; earned?: number | string }[] }
+/** GET /station/dashboard/settlement-timer 结算倒计时 */
+interface RawSettlementTimer { pendingSettlement?: number | string; nextSettleDate?: string; remainingDays?: number | string }
+/** GET /station/my/earnings 收益明细 */
+interface RawStationEarning {
+  id?: string | number; type?: string; orderId?: string
+  amount?: number | string; rate?: number | string; earned?: number | string; createdAt?: string
+}
+interface RawEarningsResp { earnings?: RawStationEarning[]; total?: number }
+/** GET /station/promotion/materials 推广素材 */
+interface RawPromotionMaterial {
+  id?: string | number; type?: string; title?: string; content?: string
+  imageUrl?: string; tags?: string[]; usageCount?: number | string; createdAt?: string
+}
+/** GET /station/templates/list 模板 */
+interface RawTemplate {
+  id: string; name: string; desc?: string
+  preview?: { hero?: string | null; tabs?: string[]; modules?: string[] } | null
+}
+interface RawTemplatesResp { items?: RawTemplate[] }
+/** GET /station/team/success-cases 成功案例 */
+interface RawSuccessCase { id: string; name?: string; intro?: string; totalEarning?: number | string; createdAt?: string | null }
+interface RawSuccessCasesResp { items?: RawSuccessCase[]; list?: RawSuccessCase[] }
+
 // 站长分站信息（GET /station/my 适配后）
 export interface StationPanelInfo {
   id: string
@@ -683,16 +769,18 @@ export const operatorApi = {
   // === 运营商面板 (用于 operator-panel 页) ===
   // 后端 GET /station/operator-dashboard/my：非运营商抛 403 → 页面据此走"未开通"引导态
   async getPanelInfo() {
-    const op = await apiGet<any>('/station/operator-dashboard/my')
+    const op = await apiGet<RawOperatorDashboard>('/station/operator-dashboard/my')
     return {
-      id: op.id,
+      // 消费页 operator-panel 的本地 PanelInfo.id 声明为 number，而后端运营商 id 实为 cuid 字符串；
+      // 保留 any 以兼容该页（页面不在本次收敛范围，不改其类型），等同收敛前行为
+      id: op.id as any,
       name: op.brandName || op.user?.nickname || '我的运营中心',
-      level: OPERATOR_LEVEL_LABEL[op.level] || '运营商',
+      level: OPERATOR_LEVEL_LABEL[op.level || ''] || '运营商',
       joinDate: toYmd(op.purchasedAt),
     }
   },
   async getOverview(): Promise<OperatorOverviewItem[]> {
-    const o = await apiGet<any>('/station/operator-dashboard/overview')
+    const o = await apiGet<RawOperatorOverview>('/station/operator-dashboard/overview')
     // 后端无环比 trend，诚实不展示趋势
     return [
       { key: 'monthTeamEarned', label: '本月团队佣金', value: toNum(o.monthTeamEarned), unit: '元' },
@@ -704,8 +792,8 @@ export const operatorApi = {
     ]
   },
   async getTeamRanking(): Promise<TeamMemberRanking[]> {
-    const res = await apiGet<any>('/station/operator-dashboard/team-ranking')
-    const ranking: any[] = res?.ranking || []
+    const res = await apiGet<RawStationsResp>('/station/operator-dashboard/team-ranking')
+    const ranking: RawStationItem[] = res?.ranking || []
     // 后端按 totalEarning 排序的名下站长；无 change 环比 → 诚实不展示
     return ranking.map((s, i) => ({
       rank: i + 1,
@@ -716,7 +804,7 @@ export const operatorApi = {
     }))
   },
   async getQuotaUsage(): Promise<QuotaUsageItem[]> {
-    const q = await apiGet<any>('/station/operator-dashboard/quota-usage')
+    const q = await apiGet<RawQuotaUsage>('/station/operator-dashboard/quota-usage')
     const used = toNum(q.used), total = toNum(q.total)
     // 后端仅"分站名额"一种配额；原型的课程/直播/存储配额后端无 → 诚实不展示
     return [{
@@ -731,14 +819,14 @@ export const operatorApi = {
   // === 站长面板 (用于 station-master-panel 页) ===
   // 后端 GET /station/my：未开通分站抛 404 → 页面据此走"未开通"引导态
   async getStationPanelInfo(): Promise<StationPanelInfo> {
-    const s = await apiGet<any>('/station/my')
+    const s = await apiGet<RawStationMy>('/station/my')
     return {
       id: s.id,
       name: s.name,
       code: s.code,
       logo: s.logo || '',
       themeColor: s.themeColor || '#C41E3A',
-      status: STATION_STATUS_MAP[s.status] || 'active',
+      status: STATION_STATUS_MAP[s.status || ''] || 'active',
       createTime: toYmd(s.createdAt),
       expireTime: s.expireAt ? toYmd(s.expireAt) : '长期有效',
     }
@@ -746,8 +834,8 @@ export const operatorApi = {
   // 概览指标：组装 站长仪表盘 overview + 分站 my 统计（皆真实）
   async getStationPanelOverview(): Promise<StationOverviewItem[]> {
     const [ov, my] = await Promise.all([
-      apiGet<any>('/station/dashboard/overview'),
-      apiGet<any>('/station/my'),
+      apiGet<RawStationDashOverview>('/station/dashboard/overview'),
+      apiGet<RawStationMy>('/station/my'),
     ])
     // 后端 conversionRate 为占位 "0"、无环比 trend → 诚实不展示，统一 flat
     return [
@@ -763,8 +851,8 @@ export const operatorApi = {
   },
   // 收益趋势：后端近30天每日收益（真实）；环比按近7天 vs 前7天真实计算
   async getStationPanelTrends(): Promise<StationTrendData[]> {
-    const res = await apiGet<any>('/station/dashboard/trends')
-    const trends: Array<{ date: string; earned: number }> = res?.trends || []
+    const res = await apiGet<RawStationTrendsResp>('/station/dashboard/trends')
+    const trends = res?.trends || []
     const total = trends.reduce((sum, t) => sum + toNum(t.earned), 0)
     const last7 = trends.slice(-7).reduce((sum, t) => sum + toNum(t.earned), 0)
     const prev7 = trends.slice(-14, -7).reduce((sum, t) => sum + toNum(t.earned), 0)
@@ -777,8 +865,8 @@ export const operatorApi = {
   // 余额：累计/本月/待结算 + 结算倒计时（皆真实）；可提现走平台钱包
   async getStationPanelBalance(): Promise<StationBalanceInfo> {
     const [my, timer] = await Promise.all([
-      apiGet<any>('/station/my'),
-      apiGet<any>('/station/dashboard/settlement-timer'),
+      apiGet<RawStationMy>('/station/my'),
+      apiGet<RawSettlementTimer>('/station/dashboard/settlement-timer'),
     ])
     return {
       totalEarning: toNum(my.totalEarning),
@@ -790,7 +878,7 @@ export const operatorApi = {
   },
   // 站长收益明细（GET /station/my/earnings；earnings 非分页 row key → 不拆包，apiGet 取 .earnings）
   async getMyStationEarnings(page = 1, pageSize = 20): Promise<{ items: StationEarningItem[]; total: number }> {
-    const res = await apiGet<{ earnings: any[]; total: number }>(`/station/my/earnings?page=${page}&pageSize=${pageSize}`)
+    const res = await apiGet<RawEarningsResp>(`/station/my/earnings?page=${page}&pageSize=${pageSize}`)
     const items = (res.earnings || []).map((e): StationEarningItem => ({
       id: String(e.id),
       type: e.type || 'COURSE',
@@ -804,8 +892,8 @@ export const operatorApi = {
   },
   // 站长推广素材（GET /station/promotion/materials，需先取自己 stationId；返回裸数组）
   async getMyStationMaterials(): Promise<PromotionMaterialItem[]> {
-    const my = await apiGet<any>('/station/my')
-    const list = await apiGet<any[]>(`/station/promotion/materials?stationId=${my.id}`)
+    const my = await apiGet<RawStationMy>('/station/my')
+    const list = await apiGet<RawPromotionMaterial[]>(`/station/promotion/materials?stationId=${my.id}`)
     return (list || []).map((m): PromotionMaterialItem => ({
       id: String(m.id),
       type: m.type || 'poster',
@@ -834,13 +922,13 @@ export const operatorApi = {
 
   // === 运营商 Dashboard (用于 dashboard 页) ===
   async getDashboardData(): Promise<OperatorDashboardData> {
-    const op = await apiGet<any>('/station/operator-dashboard/my')
+    const op = await apiGet<RawOperatorDashboard>('/station/operator-dashboard/my')
     const total = toNum(op.containQuota)
     const used = toNum(op.usedQuota)
     // 后端 quota 仅 总/已用/可用；原型的自用vs已售区分后端无 → sold 等同 used 诚实展示
     return {
       name: op.brandName || op.user?.nickname || '我的运营中心',
-      level: OPERATOR_LEVEL_LABEL[op.level] || '运营商',
+      level: OPERATOR_LEVEL_LABEL[op.level || ''] || '运营商',
       joinDate: toYmd(op.purchasedAt),
       quota: { total, used, sold: used, available: Math.max(0, total - used) },
       team: { total: toNum(op.stationCount), thisMonth: toNum(op.monthNewStations) },
@@ -853,7 +941,7 @@ export const operatorApi = {
     }
   },
   async getDashboardTeamMembers(): Promise<DashboardTeamMember[]> {
-    const stations = await apiGet<any[]>('/station/operator-dashboard/my/stations')
+    const stations = await apiGet<RawStationItem[]>('/station/operator-dashboard/my/stations')
     return (stations || []).map((s) => ({
       id: s.id,
       name: s.name || '未命名分站',
@@ -867,7 +955,7 @@ export const operatorApi = {
   },
   async getDashboardQuotaRecords(): Promise<DashboardQuotaRecord[]> {
     // 后端无名额销售流水表 → 用名下站长映射为"已用名额记录"（真实）
-    const stations = await apiGet<any[]>('/station/operator-dashboard/my/stations')
+    const stations = await apiGet<RawStationItem[]>('/station/operator-dashboard/my/stations')
     return (stations || []).map((s) => ({
       id: s.id,
       type: 'sold' as const,
@@ -877,15 +965,15 @@ export const operatorApi = {
     }))
   },
   async getDashboardInviteLink(): Promise<string> {
-    const op = await apiGet<any>('/station/operator-dashboard/my')
-    const base = (import.meta as any).env?.VITE_H5_URL || ''
+    const op = await apiGet<RawOperatorDashboard>('/station/operator-dashboard/my')
+    const base = (import.meta as unknown as { env?: { VITE_H5_URL?: string } }).env?.VITE_H5_URL || ''
     return `${base}/#/pkg-operator/join-station/index?op=${op.id}`
   },
 
   // === 分站装修/配置 (用于 station-config 页) ===
   // 后端 GET /station/my：未开通分站抛 404 → 页面据此走"未开通"引导态
   async getStationConfig(): Promise<StationConfigData> {
-    const s = await apiGet<any>('/station/my')
+    const s = await apiGet<RawStationMy>('/station/my')
     return {
       id: s.id,
       name: s.name || '',
@@ -893,7 +981,7 @@ export const operatorApi = {
       logo: s.logo || '',
       themeColor: s.themeColor || '#C41E3A',
       intro: s.intro || '',
-      status: STATION_STATUS_MAP[s.status] || 'active',
+      status: STATION_STATUS_MAP[s.status || ''] || 'active',
       templateId: s.templateId || 'default',
       createTime: toYmd(s.createdAt),
       masterNickname: s.user?.nickname || '',
@@ -906,8 +994,8 @@ export const operatorApi = {
   },
   // 分站首页模板列表（后端 STATION_TEMPLATES 5套）
   async getStationTemplates(): Promise<StationTemplateOption[]> {
-    const list = await apiGet<any>('/station/templates/list')
-    const arr: any[] = Array.isArray(list) ? list : (list?.items || [])
+    const list = await apiGet<RawTemplatesResp>('/station/templates/list')
+    const arr: RawTemplate[] = Array.isArray(list) ? list : (list?.items || [])
     return arr.map((t) => ({
       id: t.id,
       name: t.name,
@@ -919,12 +1007,12 @@ export const operatorApi = {
   },
   // 保存分站配置（PUT /station/my，UpdateStationDto 支持 name/intro/logo/themeColor/templateId）
   async updateStationConfig(payload: UpdateStationPayload): Promise<void> {
-    await apiPut<any>('/station/my', payload)
+    await apiPut<void>('/station/my', payload)
   },
 
   // === 站长团队管理 (用于 team 页·真连 operator-dashboard·无虚构推广员分销) ===
   async getTeamOverview(): Promise<StationTeamOverview> {
-    const o = await apiGet<any>('/station/operator-dashboard/overview')
+    const o = await apiGet<RawOperatorOverview>('/station/operator-dashboard/overview')
     return {
       totalStations: toNum(o.totalStations),
       activeStations: toNum(o.activeStations),
@@ -937,8 +1025,8 @@ export const operatorApi = {
   },
   // 名下站长列表（运营商团队成员=分站站长，按 operatorId 真实归属）
   async getTeamMembers(): Promise<StationTeamMember[]> {
-    const res = await apiGet<any>('/station/operator-dashboard/my/stations')
-    const arr: any[] = Array.isArray(res) ? res : (res?.items || [])
+    const res = await apiGet<RawStationsResp>('/station/operator-dashboard/my/stations')
+    const arr: RawStationItem[] = Array.isArray(res) ? res : (res?.items || [])
     return arr.map((s) => ({
       id: s.id,
       name: s.name || '未命名分站',
@@ -952,22 +1040,22 @@ export const operatorApi = {
   },
   // 成功案例（高收益分站·激励团队）
   async getTeamSuccessCases(): Promise<StationSuccessCase[]> {
-    const res = await apiGet<any>('/station/team/success-cases')
-    const arr: any[] = res?.items || res?.list || (Array.isArray(res) ? res : [])
+    const res = await apiGet<RawSuccessCasesResp>('/station/team/success-cases')
+    const arr: RawSuccessCase[] = res?.items || res?.list || (Array.isArray(res) ? res : [])
     return arr.map((s) => ({ id: s.id, name: s.name || '', intro: s.intro || '', totalEarning: toNum(s.totalEarning), since: toYmd(s.createdAt) }))
   },
   // 邀请站长加入链接（复用运营商招募口）
   async getTeamInviteLink(): Promise<string> {
-    const op = await apiGet<any>('/station/operator-dashboard/my')
-    const base = (import.meta as any).env?.VITE_H5_URL || ''
+    const op = await apiGet<RawOperatorDashboard>('/station/operator-dashboard/my')
+    const base = (import.meta as unknown as { env?: { VITE_H5_URL?: string } }).env?.VITE_H5_URL || ''
     return `${base}/#/pkg-operator/join-station/index?op=${op.id}`
   },
 
   // === 名额管理 (用于 quota 页·真连 quota-usage·名额交易体系后端未实现→诚实降级) ===
   async getQuotaData() {
     const [q, op] = await Promise.all([
-      apiGet<any>('/station/operator-dashboard/quota-usage'),
-      apiGet<any>('/station/operator-dashboard/my'),
+      apiGet<RawQuotaUsage>('/station/operator-dashboard/quota-usage'),
+      apiGet<RawOperatorDashboard>('/station/operator-dashboard/my'),
     ])
     const total = toNum(q.total) || toNum(op.containQuota)
     const used = toNum(q.used)
@@ -985,15 +1073,15 @@ export const operatorApi = {
     return []
   },
   async getQuotaSaleLink(): Promise<string> {
-    const op = await apiGet<any>('/station/operator-dashboard/my')
-    const base = (import.meta as any).env?.VITE_H5_URL || ''
+    const op = await apiGet<RawOperatorDashboard>('/station/operator-dashboard/my')
+    const base = (import.meta as unknown as { env?: { VITE_H5_URL?: string } }).env?.VITE_H5_URL || ''
     return `${base}/#/pkg-operator/join-station/index?op=${op.id}`
   },
 
   // === 邀请站长 (用于 invite 页·真连名下站长 + 构造邀请入口) ===
   async getInvitedStations(): Promise<InvitedStation[]> {
-    const res = await apiGet<any>('/station/operator-dashboard/my/stations')
-    const arr: any[] = Array.isArray(res) ? res : (res?.items || [])
+    const res = await apiGet<RawStationsResp>('/station/operator-dashboard/my/stations')
+    const arr: RawStationItem[] = Array.isArray(res) ? res : (res?.items || [])
     return arr.map((s) => ({
       id: s.id,
       name: s.name || '未命名分站',
@@ -1004,12 +1092,12 @@ export const operatorApi = {
     }))
   },
   async getInviteLinkFull(): Promise<string> {
-    const op = await apiGet<any>('/station/operator-dashboard/my')
-    const base = (import.meta as any).env?.VITE_H5_URL || ''
+    const op = await apiGet<RawOperatorDashboard>('/station/operator-dashboard/my')
+    const base = (import.meta as unknown as { env?: { VITE_H5_URL?: string } }).env?.VITE_H5_URL || ''
     return `${base}/#/pkg-operator/join-station/index?op=${op.id}`
   },
   async getInviteCode(): Promise<string> {
-    const op = await apiGet<any>('/station/operator-dashboard/my')
+    const op = await apiGet<RawOperatorDashboard>('/station/operator-dashboard/my')
     // 后端无专门邀请码字段 → 用运营商ID派生稳定邀请码
     return `OP${String(op.id).replace(/-/g, '').slice(0, 8).toUpperCase()}`
   },
@@ -1017,8 +1105,8 @@ export const operatorApi = {
   // === 沉寂预警 (用于 dormant 页) ===
   // 沉寂站长 = 名下本月无收益(monthEarning=0)的站长（后端无最后活跃时间/等级→诚实降级）
   async getDormantMembers(): Promise<DormantMember[]> {
-    const res = await apiGet<any>('/station/operator-dashboard/my/stations')
-    const arr: any[] = Array.isArray(res) ? res : (res?.items || [])
+    const res = await apiGet<RawStationsResp>('/station/operator-dashboard/my/stations')
+    const arr: RawStationItem[] = Array.isArray(res) ? res : (res?.items || [])
     return arr
       .filter((s) => toNum(s.monthEarning) === 0)
       .map((s) => ({
@@ -1033,8 +1121,8 @@ export const operatorApi = {
 
   // === 业绩分析 (用于 analysis 页·真连收益·流量漏斗后端无埋点→降级) ===
   async getAnalysisMembers(): Promise<MemberPerf[]> {
-    const res = await apiGet<any>('/station/operator-dashboard/my/stations')
-    const arr: any[] = Array.isArray(res) ? res : (res?.items || [])
+    const res = await apiGet<RawStationsResp>('/station/operator-dashboard/my/stations')
+    const arr: RawStationItem[] = Array.isArray(res) ? res : (res?.items || [])
     return arr.map((s) => {
       const month = toNum(s.monthEarning)
       return {

@@ -603,6 +603,90 @@ const _mockNotesData: NoteItem[] = [
   { id: '3', bookId: '3', bookTitle: '论语', bookAuthor: '孔子门人', dynasty: '春秋', chapter: '学而篇', originalText: '学而时习之，不亦说乎？', noteContent: "学习不仅是获取知识，更重要的是'时习'——在合适的时机反复实践。'说'通'悦'，是内心深处的喜悦。", tags: ['学习方法', '儒家'], page: 5, createdAt: '2024-01-13 09:00', updatedAt: '2024-01-13 11:30' },
 ]
 
+// ===================== 后端原始响应类型（容错适配用） =====================
+/* 字段宽松全 optional，仅声明 adapter/页面实际访问到的字段，不求完整复刻后端 DTO。 */
+/** /classics/home 聚合响应 */
+interface RawClassicsHome {
+  libraryStats?: { value: string; label: string }[]
+  categories?: CategoryTile[]
+  todayFeature?: unknown
+  lastReading?: unknown
+  weeklyMinutes?: number
+  bookLists?: BookListItem[]
+  rankingData?: RankItem[]
+  audioBooks?: AudioItem[]
+  featuredBooks?: FeaturedItem[]
+}
+/** /classics/category/:cat 响应 */
+interface RawClassicsCategory { config?: CatConfig | null; books?: CatBook[] }
+/** /classics/:id 详情响应 */
+interface RawClassicsDetail {
+  book?: BookInfo | null
+  discussions?: BookDiscussion[]
+  aiFeatures?: { icon: string; label: string }[]
+}
+/** /classics/ranking 响应 */
+interface RawClassicsRanking { books?: RankBook[]; tabs?: { key: string; label: string }[] }
+/** /classics/search 响应 */
+interface RawClassicsSearch {
+  results?: SearchResultItem[]
+  suggestions?: string[]
+  hotSearch?: { keyword: string; isHot: boolean }[]
+  history?: string[]
+}
+/** /classic/favorites 收藏项 */
+interface RawFavorite { id?: string; title?: string; author?: string; addedAt?: string; plays?: number }
+/** /classic/continue-reading 阅读进度项（书架/历史用） */
+interface RawContinueItem {
+  book?: { id?: string; title?: string; author?: string; dynasty?: string } | null
+  chapter?: { title?: string } | null
+  progress?: number
+  updatedAt?: string
+}
+/** /classic/bookmarks 书签项 */
+interface RawBookmark {
+  id?: string
+  bookId?: string
+  book?: { title?: string } | null
+  chapter?: { title?: string } | null
+  note?: string
+  position?: number
+  createdAt?: string
+}
+/** /classic/notes 笔记项 */
+interface RawNote {
+  id?: string
+  bookId?: string
+  book?: { title?: string } | null
+  chapter?: { title?: string } | null
+  content?: string
+  createdAt?: string
+  updatedAt?: string
+}
+/** /classic/chapters/:id 章节正文（阅读器/听书用） */
+interface RawClassicChapter {
+  id?: string
+  bookId?: string
+  title?: string
+  content?: string
+  translation?: string
+  annotation?: string
+  sortOrder?: number
+  book?: unknown
+}
+/** /classic/translate 文白翻译（notes 为白话注释字符串数组） */
+interface RawTranslate { original?: string; translation?: string; notes?: string[]; source?: string }
+/** /classic/dictionary/lookup 查词 */
+interface RawDictionaryResult {
+  word?: string
+  pinyin?: string
+  radicals?: string
+  meanings?: unknown[]
+  classicalUsages?: unknown[]
+  commonPhrases?: unknown[]
+  explanation?: string
+}
+
 // ===================== API 层 =====================
 // 铁律：所有方法真连后端，错误向上抛由页面走「错误态」，空数据走「空态」，
 // 绝不回退假 mock 掩盖。浏览主干(home/category/detail/ranking/search)连 /classics BFF；
@@ -610,7 +694,7 @@ const _mockNotesData: NoteItem[] = [
 export const classicsApi = {
   /** 首页聚合（真连，失败抛错走错误态） */
   async home() {
-    const data = await apiGet<any>('/classics/home')
+    const data = await apiGet<RawClassicsHome>('/classics/home')
     return {
       libraryStats: Array.isArray(data.libraryStats) ? data.libraryStats : [],
       categories: Array.isArray(data.categories) ? data.categories : [],
@@ -626,13 +710,13 @@ export const classicsApi = {
 
   /** 分类书籍（sort: hot=最热 / new=最新） */
   async category(cat: string, sort: 'hot' | 'new' = 'hot') {
-    const data = await apiGet<any>(`/classics/category/${cat}?sort=${sort}`)
+    const data = await apiGet<RawClassicsCategory>(`/classics/category/${cat}?sort=${sort}`)
     return { config: data.config ?? null, books: Array.isArray(data.books) ? data.books : [] }
   },
 
   /** 图书详情 */
   async detail(id: string) {
-    const data = await apiGet<any>(`/classics/${id}`)
+    const data = await apiGet<RawClassicsDetail>(`/classics/${id}`)
     return {
       book: data.book ?? null,
       discussions: Array.isArray(data.discussions) ? data.discussions : [],
@@ -642,13 +726,13 @@ export const classicsApi = {
 
   /** 排行榜（sort: hot=热门 / new=最新） */
   async ranking(sort: 'hot' | 'new' = 'hot') {
-    const data = await apiGet<any>(`/classics/ranking?sort=${sort}`)
+    const data = await apiGet<RawClassicsRanking>(`/classics/ranking?sort=${sort}`)
     return { books: Array.isArray(data.books) ? data.books : [], tabs: Array.isArray(data.tabs) ? data.tabs : [] }
   },
 
   /** 搜索 */
   async search(query: string) {
-    const data = await apiGet<any>(`/classics/search?q=${encodeURIComponent(query)}`)
+    const data = await apiGet<RawClassicsSearch>(`/classics/search?q=${encodeURIComponent(query)}`)
     return {
       results: Array.isArray(data.results) ? data.results : [],
       suggestions: Array.isArray(data.suggestions) ? data.suggestions : [],
@@ -659,26 +743,26 @@ export const classicsApi = {
 
   /** 精选书单（后端暂无数据源→空态隐藏） */
   async lists() {
-    const data = await apiGet<any>('/classics/lists')
+    const data = await apiGet<BookListFull[]>('/classics/lists')
     return Array.isArray(data) ? data : []
   },
 
   /** 我的收藏（真连 /classic/favorites，需登录） */
   async collections(): Promise<CollectionItem[]> {
-    const data = await apiGet<any>('/classic/favorites')
-    const items: any[] = Array.isArray(data?.items) ? data.items : []
+    const data = await apiGet<{ items?: RawFavorite[] }>('/classic/favorites')
+    const items: RawFavorite[] = Array.isArray(data?.items) ? data.items : []
     const colors: CoverColor[] = ['cream', 'brown', 'blue', 'green', 'red']
     return items.map((b, i) => ({
-      id: b.id, title: b.title, type: 'article' as MediaType,
+      id: b.id || '', title: b.title || '', type: 'article' as MediaType,
       author: b.author || '佚名', addedDate: (b.addedAt || '').slice(0, 10),
       plays: b.plays || 0, color: colors[i % colors.length],
     }))
   },
   async addFavorite(bookId: string) {
-    return await apiPost<any>(`/classic/favorites/${bookId}`)
+    return await apiPost<unknown>(`/classic/favorites/${bookId}`)
   },
   async removeFavorite(bookId: string) {
-    return await apiDelete<any>(`/classic/favorites/${bookId}`)
+    return await apiDelete<unknown>(`/classic/favorites/${bookId}`)
   },
   async favoriteStatus(bookId: string): Promise<{ favorited: boolean }> {
     return await apiGet<{ favorited: boolean }>(`/classic/favorites/${bookId}/status`)
@@ -686,34 +770,34 @@ export const classicsApi = {
 
   /** 合集详情（后端暂无数据源→null 走空态） */
   async collectionDetail(id: string) {
-    return await apiGet<any>(`/classics/collections/${id}`)
+    return await apiGet<CollectionDetail | null>(`/classics/collections/${id}`)
   },
 
   /** 有声书列表（第二阶段 TTS→当前空态隐藏） */
   async audiobooks() {
-    const data = await apiGet<any>('/classics/audiobooks')
+    const data = await apiGet<AudioBookFull[]>('/classics/audiobooks')
     return Array.isArray(data) ? data : []
   },
 
   /** 有声书播放器（第二阶段 TTS→当前 null 走空态） */
   async audiobookPlayer(id: string) {
-    return await apiGet<any>(`/classics/audiobooks/${id}`)
+    return await apiGet<unknown>(`/classics/audiobooks/${id}`)
   },
 
   // ── 阅读器：章节正文（公开） ──
   /** 章节正文 + 所属书 { id, bookId, title, content, translation, annotation, sortOrder, book } */
   async chapter(id: string) {
-    return await apiGet<any>(`/classic/chapters/${id}`)
+    return await apiGet<RawClassicChapter>(`/classic/chapters/${id}`)
   },
 
   // ── AI 赋能（需登录） ──
   /** 文白翻译：{ original, translation, notes[], source } */
   async translate(text: string, context?: string) {
-    return await apiPost<any>('/classic/translate', { text, context })
+    return await apiPost<RawTranslate>('/classic/translate', { text, context })
   },
   /** 古汉语查词：{ word, pinyin, radicals, meanings[], classicalUsages[], commonPhrases[], explanation } */
   async lookupWord(word: string) {
-    return await apiPost<any>('/classic/dictionary/lookup', { word })
+    return await apiPost<RawDictionaryResult>('/classic/dictionary/lookup', { word })
   },
   /** 古籍AI问答：{ answer } */
   async askAI(question: string) {
@@ -723,7 +807,7 @@ export const classicsApi = {
   // ── 古籍伴读智能体（识典伴读·注入当前章节正文·需登录） ──
   /** 伴读开场引导问题：{ bookTitle, chapterTitle, prompts[] } */
   async companionPrompts(chapterId: string): Promise<{ bookTitle: string; chapterTitle: string; prompts: string[] }> {
-    return await apiGet<any>(`/classic/companion/prompts?chapterId=${chapterId}`)
+    return await apiGet<{ bookTitle: string; chapterTitle: string; prompts: string[] }>(`/classic/companion/prompts?chapterId=${chapterId}`)
   },
   /** 伴读多轮对话（带当前章节上下文）：{ answer, disclaimer } */
   async companionChat(
@@ -736,30 +820,30 @@ export const classicsApi = {
 
   // ── 阅读进度（需登录） ──
   async getProgress(bookId: string) {
-    return await apiGet<any>(`/classic/progress/${bookId}`)
+    return await apiGet<unknown>(`/classic/progress/${bookId}`)
   },
   async saveProgress(bookId: string, chapterId: string, progress: number) {
-    return await apiPut<any>(`/classic/progress/${bookId}`, { chapterId, progress })
+    return await apiPut<unknown>(`/classic/progress/${bookId}`, { chapterId, progress })
   },
   async continueReading(limit = 20) {
-    return await apiGet<any>(`/classic/continue-reading?limit=${limit}`)
+    return await apiGet<unknown>(`/classic/continue-reading?limit=${limit}`)
   },
   async readingStats() {
-    return await apiGet<any>('/classic/reading-stats')
+    return await apiGet<unknown>('/classic/reading-stats')
   },
 
   // ── 书架（基于真实阅读进度，需登录） ──
   async bookshelf() {
-    const data = await apiGet<any>('/classic/continue-reading?limit=100')
-    const items: any[] = Array.isArray(data?.items) ? data.items : []
+    const data = await apiGet<{ items?: RawContinueItem[] }>('/classic/continue-reading?limit=100')
+    const items: RawContinueItem[] = Array.isArray(data?.items) ? data.items : []
     const books: ShelfBook[] = items.map((r) => ({
-      id: r.book?.id, title: r.book?.title, author: r.book?.author || '佚名',
+      id: r.book?.id || '', title: r.book?.title || '', author: r.book?.author || '佚名',
       dynasty: r.book?.dynasty || '', progress: Math.round(r.progress || 0),
       hasAI: true, hasTranslation: true,
       lastReadAt: (r.updatedAt || '').slice(0, 10),
     }))
     const history: HistoryItem[] = items.map((r) => ({
-      id: r.book?.id, title: r.book?.title, author: r.book?.author || '佚名',
+      id: r.book?.id || '', title: r.book?.title || '', author: r.book?.author || '佚名',
       dynasty: r.book?.dynasty || '', chapter: r.chapter?.title || '',
       readAt: (r.updatedAt || '').slice(0, 10),
     }))
@@ -767,7 +851,7 @@ export const classicsApi = {
   },
   /** 移出书架（删除阅读进度） */
   async removeFromShelf(bookId: string) {
-    return await apiDelete<any>(`/classic/progress/${bookId}`)
+    return await apiDelete<unknown>(`/classic/progress/${bookId}`)
   },
 
   // ── 书签（真实 CRUD，需登录） ──
@@ -775,20 +859,20 @@ export const classicsApi = {
     const path = bookId
       ? `/classic/bookmarks?bookId=${bookId}&pageSize=100`
       : '/classic/bookmarks?pageSize=100'
-    const res = await apiGetPaged<any>(path)
+    const res = await apiGetPaged<RawBookmark>(path)
     const colors = ['amber', 'blue', 'green', 'purple'] as const
     return res.items.map((b, i) => ({
-      id: b.id, bookId: b.bookId, bookTitle: b.book?.title || '', bookAuthor: '',
+      id: b.id || '', bookId: b.bookId || '', bookTitle: b.book?.title || '', bookAuthor: '',
       dynasty: '', chapter: b.chapter?.title || '', content: b.note || '',
       page: b.position || 0, createdAt: (b.createdAt || '').slice(0, 10),
       color: colors[i % colors.length],
     }))
   },
   async addBookmark(bookId: string, payload: { chapterId: string; position: number; note?: string }) {
-    return await apiPost<any>(`/classic/bookmarks/${bookId}`, payload)
+    return await apiPost<unknown>(`/classic/bookmarks/${bookId}`, payload)
   },
   async removeBookmark(id: string) {
-    return await apiDelete<any>(`/classic/bookmarks/${id}`)
+    return await apiDelete<unknown>(`/classic/bookmarks/${id}`)
   },
 
   // ── 读书笔记（真实 CRUD，需登录） ──
@@ -796,9 +880,9 @@ export const classicsApi = {
     const path = bookId
       ? `/classic/notes?bookId=${bookId}&pageSize=100`
       : '/classic/notes?pageSize=100'
-    const res = await apiGetPaged<any>(path)
+    const res = await apiGetPaged<RawNote>(path)
     return res.items.map((n) => ({
-      id: n.id, bookId: n.bookId, bookTitle: n.book?.title || '', bookAuthor: '',
+      id: n.id || '', bookId: n.bookId || '', bookTitle: n.book?.title || '', bookAuthor: '',
       dynasty: '', chapter: n.chapter?.title || '', originalText: '',
       noteContent: n.content || '', tags: [], page: 0,
       createdAt: (n.createdAt || '').slice(0, 16).replace('T', ' '),
@@ -806,12 +890,12 @@ export const classicsApi = {
     }))
   },
   async addNote(bookId: string, payload: { chapterId: string; content: string }) {
-    return await apiPost<any>(`/classic/notes/${bookId}`, payload)
+    return await apiPost<unknown>(`/classic/notes/${bookId}`, payload)
   },
   async updateNote(id: string, content: string) {
-    return await apiPut<any>(`/classic/notes/${id}`, { content })
+    return await apiPut<unknown>(`/classic/notes/${id}`, { content })
   },
   async removeNote(id: string) {
-    return await apiDelete<any>(`/classic/notes/${id}`)
+    return await apiDelete<unknown>(`/classic/notes/${id}`)
   },
 }

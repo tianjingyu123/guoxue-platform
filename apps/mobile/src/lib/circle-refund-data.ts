@@ -36,9 +36,59 @@ export interface RefundRequestItem {
   createdAt: string
 }
 
-function num(v: any): number { const x = Number(v); return Number.isFinite(x) ? x : 0 }
+/* —— 后端原始响应类型（容错适配用，仅声明 adapter 实际访问到的字段） —— */
+/** 后端退款申请行（id/状态/时间为列表必有项，声明为必填以免直赋必填视图字段时报 possibly-undefined） */
+interface RawRefundItem {
+  id: string
+  circleId: string
+  circleName?: string
+  userId?: string
+  userNickname?: string
+  userAvatar?: string
+  paidAmount?: number | string
+  dailyCost?: number | string
+  usedDays?: number | string
+  refundBase?: number | string
+  feeAmount?: number | string
+  actualRefund?: number | string
+  reason?: string
+  ownerStatus: string
+  adminStatus: string
+  refundStatus: string
+  ownerRejectReason?: string | null
+  adminRejectReason?: string | null
+  createdAt: string
+}
+/** 退款金额预览原始响应 */
+interface RawRefundPreview {
+  orderId?: string | null
+  paidAmount?: number | string
+  dailyCost?: number | string
+  usedDays?: number | string
+  refundBase?: number | string
+  feeAmount?: number | string
+  actualRefund?: number | string
+  feeRate?: number | string
+}
+/** 钱包流水原始条目 */
+interface RawWalletTxn {
+  type: string
+  amount?: number | string
+  balanceAfter?: number | string
+  remark?: string
+  createdAt: string
+}
+/** 钱包原始响应 */
+interface RawWallet {
+  balance?: number | string
+  transactions?: RawWalletTxn[]
+}
+/** 列表类响应：可能是裸数组或 {data:[]} 包装 */
+type RawRefundListResp = RawRefundItem[] | { data?: RawRefundItem[] }
 
-function adaptItem(x: any): RefundRequestItem {
+function num(v: unknown): number { const x = Number(v); return Number.isFinite(x) ? x : 0 }
+
+function adaptItem(x: RawRefundItem): RefundRequestItem {
   return {
     id: x.id,
     circleId: x.circleId,
@@ -62,14 +112,14 @@ function adaptItem(x: any): RefundRequestItem {
   }
 }
 
-function pickArray(r: any): any[] {
+function pickArray(r: RawRefundListResp | null | undefined): RawRefundItem[] {
   return Array.isArray(r) ? r : (r?.data ?? [])
 }
 
 export const refundApi = {
   /** 退款金额预览 — GET /circle-refund/preview/:circleId（业务不可退时后端抛错带 message） */
   preview: async (circleId: string): Promise<RefundPreview> => {
-    const r = await apiGet<any>(`/circle-refund/preview/${circleId}`)
+    const r = await apiGet<RawRefundPreview>(`/circle-refund/preview/${circleId}`)
     return {
       orderId: r?.orderId ?? null,
       paidAmount: num(r?.paidAmount),
@@ -86,11 +136,11 @@ export const refundApi = {
     apiPost(`/circle-refund/apply/${circleId}`, { reason }),
   /** 我的退款申请 — GET /circle-refund/my */
   myRefunds: async (): Promise<RefundRequestItem[]> => {
-    try { return pickArray(await apiGet<any>('/circle-refund/my')).map(adaptItem) } catch { return [] }
+    try { return pickArray(await apiGet<RawRefundListResp>('/circle-refund/my')).map(adaptItem) } catch { return [] }
   },
   /** 圈主待审退款 — GET /circle-refund/owner-pending */
   ownerPending: async (): Promise<RefundRequestItem[]> => {
-    try { return pickArray(await apiGet<any>('/circle-refund/owner-pending')).map(adaptItem) } catch { return [] }
+    try { return pickArray(await apiGet<RawRefundListResp>('/circle-refund/owner-pending')).map(adaptItem) } catch { return [] }
   },
   /** 圈主审核 — POST /circle-refund/:id/owner-review */
   ownerReview: (id: string, approve: boolean, rejectReason?: string) =>
@@ -98,11 +148,11 @@ export const refundApi = {
   /** 我的余额钱包 — GET /circle-refund/wallet */
   wallet: async (): Promise<WalletInfo> => {
     try {
-      const r = await apiGet<any>('/circle-refund/wallet')
+      const r = await apiGet<RawWallet>('/circle-refund/wallet')
       const txns = Array.isArray(r?.transactions) ? r.transactions : []
       return {
         balance: num(r?.balance),
-        transactions: txns.map((t: any) => ({
+        transactions: txns.map((t: RawWalletTxn) => ({
           type: t.type, amount: num(t.amount), balanceAfter: num(t.balanceAfter),
           remark: t.remark ?? '', createdAt: t.createdAt,
         })),

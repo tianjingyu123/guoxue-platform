@@ -78,6 +78,24 @@ export interface YangpanInput {
   daylightSaving?: boolean
 }
 
+/* —— 后端排盘记录原始结构（非 export，容错适配用；对齐后端持久化记录字段） —— */
+/** 后端持久化的阳盘排盘历史/详情记录 */
+interface RawYangpanRecord {
+  id: string
+  inputParams: YangpanInput
+  resultData: YangpanResult
+  clientName: string
+  clientBirth: string
+  createdAt: string
+}
+/** 排盘历史分页响应 */
+interface RawYangpanHistory {
+  records: RawYangpanRecord[]
+  total: number
+  page: number
+  pageSize: number
+}
+
 // ── API ──
 
 export const yangpanApi = {
@@ -92,14 +110,14 @@ export const yangpanApi = {
   },
 
   /** 获取单条记录 — GET /paipan/yangpan/:id（需登录） */
-  async detail(id: string): Promise<{ id: string; inputParams: any; resultData: YangpanResult; clientName: string; clientBirth: string; createdAt: string }> {
-    return await apiGet<any>(`/paipan/yangpan/${id}`)
+  async detail(id: string): Promise<RawYangpanRecord> {
+    return await apiGet<RawYangpanRecord>(`/paipan/yangpan/${id}`)
   },
 
   /** 获取排盘历史 — GET /paipan/yangpan/history（空/失败返回空列表走空态） */
-  async history(page = 1, pageSize = 20): Promise<{ records: any[]; total: number; page: number; pageSize: number }> {
+  async history(page = 1, pageSize = 20): Promise<RawYangpanHistory> {
     try {
-      return await apiGet<{ records: any[]; total: number; page: number; pageSize: number }>(`/paipan/yangpan/history?page=${page}&pageSize=${pageSize}`)
+      return await apiGet<RawYangpanHistory>(`/paipan/yangpan/history?page=${page}&pageSize=${pageSize}`)
     } catch { return { records: [], total: 0, page, pageSize } }
   },
 }

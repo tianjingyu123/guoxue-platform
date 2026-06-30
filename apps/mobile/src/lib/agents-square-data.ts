@@ -106,12 +106,19 @@ function formatConvTime(iso?: string): string {
   return `${mo}-${day}`
 }
 
+/* —— 后端原始响应类型（容错适配用，字段全 optional，仅声明 adapter 访问到的） —— */
+interface RawBot { id?: string | number; name?: string; avatar?: string; intro?: string; type?: string; isFree?: boolean; price?: number | string; voiceEnabled?: boolean; createdAt?: string }
+interface RawRankingBot { id?: string | number; name?: string; intro?: string; avatar?: string; type?: string }
+interface RawConversation { conversationId?: string; botConfigId?: string; botName?: string; botAvatar?: string; botType?: string; lastMessage?: string; lastQuery?: string; lastTime?: string; messageCount?: number }
+
 /** 兼容数组 / 分页信封返回 */
-function unwrap(res: any): any[] {
-  return Array.isArray(res) ? res : (res?.rows ?? res?.items ?? [])
+function unwrap<T = Record<string, unknown>>(res: unknown): T[] {
+  if (Array.isArray(res)) return res as T[]
+  const o = res as { rows?: T[]; items?: T[] } | null
+  return o?.rows ?? o?.items ?? []
 }
 
-function mapSquareBot(b: any, i: number): SquareBot {
+function mapSquareBot(b: RawBot, i: number): SquareBot {
   const type = b.type || ''
   const capabilities: string[] = []
   if (b.voiceEnabled) capabilities.push('语音对话')
@@ -142,14 +149,14 @@ export function formatCount(num: number): string {
 export const agentsSquareApi = {
   /** 广场智能体列表 —— GET /bots */
   async getHotBots(): Promise<SquareBot[]> {
-    const res = await apiGet<any>('/bots')
-    return unwrap(res).map(mapSquareBot)
+    const res = await apiGet<unknown>('/bots')
+    return unwrap<RawBot>(res).map(mapSquareBot)
   },
 
   /** 智能体热度榜 —— GET /bots/ranking */
   async getRanking(): Promise<RankingAgent[]> {
-    const res = await apiGet<any>('/bots/ranking')
-    return unwrap(res).map((b: any) => ({
+    const res = await apiGet<unknown>('/bots/ranking')
+    return unwrap<RawRankingBot>(res).map((b: RawRankingBot) => ({
       id: String(b.id),
       name: b.name || '未命名智能体',
       description: b.intro || '',
@@ -166,8 +173,8 @@ export const agentsSquareApi = {
 
   /** 对话历史 —— GET /bots/my-conversations（按 conversationId 聚合的我的会话） */
   async getConversations(): Promise<AgentConversation[]> {
-    const res = await apiGet<any>('/bots/my-conversations')
-    return unwrap(res).map((c: any) => ({
+    const res = await apiGet<unknown>('/bots/my-conversations')
+    return unwrap<RawConversation>(res).map((c: RawConversation) => ({
       id: String(c.conversationId),
       conversationId: String(c.conversationId),
       botConfigId: String(c.botConfigId),

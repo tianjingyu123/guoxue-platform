@@ -63,10 +63,32 @@ export interface MicroPageView {
   components: MicroPageComponentView[]
 }
 
+/** discover 各态卡片数据的并集（字段全 optional，仅声明 adaptFeed 实际访问到的字段） */
+interface RawFeedData {
+  // id 各卡片必有 → 声明为必填，直接赋给输出必填 id 字段，避免 possibly-undefined
+  id: string | number
+  title?: string
+  name?: string
+  cover?: string
+  avatar?: string
+  author?: string
+  teacher?: string
+  host?: string
+  price?: number
+  sales?: number
+  students?: number
+  viewers?: number
+  useCount?: number
+  readers?: number
+  plays?: number
+  likes?: number
+  status?: string
+}
+
 /** discover 多态 FeedItem（{kind,data}）→ 扁平 StationFeedCard */
 function adaptFeed(items: FeedItem[]): StationFeedCard[] {
   return items.map((it) => {
-    const d = it.data as any
+    const d = it.data as RawFeedData
     switch (it.kind) {
       case 'product': return { id: d.id, type: 'product', title: d.title || '', cover: d.cover || '', author: '', price: d.price, viewers: d.sales }
       case 'course': return { id: d.id, type: 'course', title: d.title || '', cover: d.cover || '', author: d.teacher || '', price: d.price, viewers: d.students }
@@ -117,12 +139,42 @@ export function formatStatNumber(num: number): string {
   return String(n)
 }
 
+/* —— 后端原始响应类型（容错适配用，字段宽松全 optional，仅声明 adapter 实际访问到的字段） —— */
+/** getBrandWithTemplate 内嵌模板原始结构 */
+interface RawStationTemplate {
+  templateId?: string
+  id?: string
+  name?: string
+  desc?: string
+  hero?: string | null
+  tabs?: string[]
+  modules?: string[]
+  showSections?: string[]
+}
+/** GET /station/brand/:code/template 原始响应（id/code 后端必返，声明为必填直供输出必填字段） */
+interface RawStationBrandResp {
+  id: string
+  code: string
+  name?: string
+  logo?: string
+  intro?: string
+  themeColor?: string
+  template?: RawStationTemplate | null
+}
+/** GET /station/brand/:code/micro-page 原始响应 */
+interface RawMicroPageResp {
+  id?: string
+  name?: string
+  status?: string
+  components?: MicroPageComponentView[]
+}
+
 // ===== stationHomeApi — 分站首页数据 API 层（全真连） =====
 export const stationHomeApi = {
   /** 分站品牌+模板 — GET /station/brand/:code/template（含缓存·千人千面渲染入口） */
   async getBrand(code: string): Promise<StationBrandFull> {
-    const r = await apiGet<any>(`/station/brand/${encodeURIComponent(code)}/template`)
-    const t = r?.template || {}
+    const r = await apiGet<RawStationBrandResp>(`/station/brand/${encodeURIComponent(code)}/template`)
+    const t: RawStationTemplate = r?.template || {}
     return {
       id: r.id,
       code: r.code,
@@ -143,7 +195,7 @@ export const stationHomeApi = {
   },
   /** 当前登录站长自己的分站码（无 code 参数时用于站长预览自己的分站） */
   async getMyStationCode(): Promise<string> {
-    const s = await apiGet<any>('/station/my')
+    const s = await apiGet<{ code?: string }>('/station/my')
     return s?.code || ''
   },
   /** 分站精选内容流 — 复用平台真实推荐流（分站是平台内容的品牌化入口），拍平为统一卡片 */
@@ -153,7 +205,7 @@ export const stationHomeApi = {
   },
   /** 分站已发布微页面 — GET /station/brand/:code/micro-page（无已发布页返回 null → 回退模板默认楼层） */
   async getMicroPage(code: string): Promise<MicroPageView | null> {
-    const r = await apiGet<any>(`/station/brand/${encodeURIComponent(code)}/micro-page`)
+    const r = await apiGet<RawMicroPageResp | null>(`/station/brand/${encodeURIComponent(code)}/micro-page`)
     if (!r || !r.id) return null
     const components: MicroPageComponentView[] = Array.isArray(r.components) ? r.components : []
     return {

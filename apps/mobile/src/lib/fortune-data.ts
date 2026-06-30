@@ -154,8 +154,30 @@ function summaryByLevel(level: FortuneLevel): string {
   }
 }
 
-function adaptFortune(record: any): DailyFortune {
-  const c = record?.fortuneContent || {}
+/* —— 后端原始响应类型（容错适配用，字段全 optional + 宽松类型，仅声明实际访问到的字段） —— */
+interface RawFortuneContent {
+  overall?: number | string
+  career?: number | string
+  love?: number | string
+  wealth?: number | string
+  health?: number | string
+  advice?: string
+}
+/** 后端 FortuneRecord 原始响应 */
+interface RawFortuneRecord {
+  fortuneContent?: RawFortuneContent | null
+  period?: string
+  advice?: string
+  luckyColor?: string
+  luckyNumber?: number
+  luckyDirection?: string
+}
+/** 排盘工具 / 引导卡原始响应（透传给页面，字段未约束，用索引签名宽松声明） */
+interface RawFortuneTool { [key: string]: unknown }
+interface RawFortuneGuideCard { [key: string]: unknown }
+
+function adaptFortune(record: RawFortuneRecord): DailyFortune {
+  const c: RawFortuneContent = record?.fortuneContent || {}
   const overallScore = Number(c.overall ?? 0)
   const overallLevel = getLevel(overallScore)
   const dateStr = record?.period || todayISO()
@@ -196,12 +218,12 @@ function adaptFortune(record: any): DailyFortune {
 export const fortuneApi = {
   /** 今日运势 — GET /fortune/today */
   async getToday(): Promise<DailyFortune> {
-    return adaptFortune(await apiGet<any>('/fortune/today'))
+    return adaptFortune(await apiGet<RawFortuneRecord>('/fortune/today'))
   },
 
   /** 指定日期运势 — GET /fortune/daily/:date（后端按登录用户，缺失即确定性生成） */
   async getByDate(dateStr: string): Promise<DailyFortune> {
-    return adaptFortune(await apiGet<any>(`/fortune/daily/${dateStr}`))
+    return adaptFortune(await apiGet<RawFortuneRecord>(`/fortune/daily/${dateStr}`))
   },
 
   /** 订阅运势推送 — POST /fortune/subscribe（fortuneType + pushChannel） */
@@ -211,13 +233,14 @@ export const fortuneApi = {
   },
 
   /** 排盘工具首页聚合 — GET /fortune/tools */
-  async getTools(): Promise<any[]> {
-    const data = await apiGet<any>('/fortune/tools')
-    return Array.isArray(data?.tools) ? data.tools : (Array.isArray(data) ? data : [])
+  async getTools(): Promise<RawFortuneTool[]> {
+    const data = await apiGet<{ tools?: RawFortuneTool[] } | RawFortuneTool[]>('/fortune/tools')
+    if (Array.isArray(data)) return data
+    return Array.isArray(data?.tools) ? data.tools : []
   },
 
   /** 排盘引导卡 — GET /fortune/guide-card */
-  async getGuideCard(): Promise<any | null> {
-    return await apiGet<any>('/fortune/guide-card')
+  async getGuideCard(): Promise<RawFortuneGuideCard | null> {
+    return await apiGet<RawFortuneGuideCard | null>('/fortune/guide-card')
   },
 }

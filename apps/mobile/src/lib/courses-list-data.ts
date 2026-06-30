@@ -43,25 +43,52 @@ export interface FlashSaleCourse {
 
 // ============ 适配器 ============
 
-function toNum(v: any): number { const x = Number(v); return Number.isFinite(x) ? x : 0 }
+/* —— 后端原始响应类型（容错适配用，字段宽松全 optional，仅声明 adapter 实际访问到的字段） —— */
+/** 后端课程原始响应（/courses 列表项） */
+interface RawCourse {
+  id?: string
+  title?: string
+  cover?: string
+  price?: number | string
+  originalPrice?: number | string
+  studentCount?: number | string
+  intro?: string
+  categoryLevel1?: string
+  circle?: { name?: string } | null
+  user?: { nickname?: string; avatar?: string } | null
+  _count?: { chapters?: number } | null
+}
+/** 后端限时优惠课程原始响应（/courses/flash-sale 的 courses 项） */
+interface RawFlashCourse {
+  id?: string
+  title?: string
+  salePrice?: number | string
+  originalPrice?: number | string
+  discount?: number | string
+}
+/** 后端一级分类 tab 原始响应（/courses/category-tabs 项） */
+interface RawCategoryTab { name?: string }
+
+function toNum(v: unknown): number { const x = Number(v); return Number.isFinite(x) ? x : 0 }
 
 /** 取课程数组（后端 /courses 返回 { courses } 包裹，兼容数组/items/list） */
-function toCourseList(d: any): any[] {
-  if (Array.isArray(d)) return d
-  return d?.courses ?? d?.items ?? d?.list ?? []
+function toCourseList<T = unknown>(d: unknown): T[] {
+  if (Array.isArray(d)) return d as T[]
+  const o = d as { courses?: T[]; items?: T[]; list?: T[] } | null | undefined
+  return o?.courses ?? o?.items ?? o?.list ?? []
 }
 
 /** 单课程分类名（列表端点未返回 categoryLevel1 → 退到 circle.name；都无→空） */
-function courseCategory(c: any): string {
+function courseCategory(c: RawCourse): string {
   return c.categoryLevel1 || c.circle?.name || ''
 }
 
 /** 后端课程 → 前端课程卡 */
-function adaptCard(c: any): CourseCardData & { category: string; free: boolean } {
+function adaptCard(c: RawCourse): CourseCardData & { category: string; free: boolean } {
   const price = toNum(c.price)
   const orig = toNum(c.originalPrice)
   return {
-    id: c.id,
+    id: c.id || '',
     title: c.title || '',
     cover: c.cover || '',
     coverRatio: '3:4',
@@ -95,7 +122,7 @@ export const coursesListApi = {
     if (free) qs.push('free=true')
     if (sort) qs.push(`sort=${sort}`)
     // /courses 含分页行键 courses → 拦截器转 {data:数组,pagination}，用 apiGetPaged 保留 total
-    const { items, total } = await apiGetPaged<any>(`/courses?${qs.join('&')}`)
+    const { items, total } = await apiGetPaged<RawCourse>(`/courses?${qs.join('&')}`)
     return { items: items.map(adaptCard), total }
   },
 
@@ -104,23 +131,23 @@ export const coursesListApi = {
    * 无任何分类时仅返回「全部」（诚实降级）。
    */
   async getCategoryTabs(): Promise<CourseListCategory[]> {
-    const list = await apiGet<any[]>('/courses/category-tabs')
+    const list = await apiGet<RawCategoryTab[]>('/courses/category-tabs')
     const arr = Array.isArray(list) ? list : []
-    return [{ id: 'all', name: '全部' }, ...arr.map((c: any) => ({ id: c.name, name: c.name }))]
+    return [{ id: 'all', name: '全部' }, ...arr.map((c: RawCategoryTab) => ({ id: c.name || '', name: c.name || '' }))]
   },
 
   /**
    * 推荐 Banner — 后端无专门推荐端点，复用 GET /courses?sort=popular 取学习人数最高的前 3 条。
    */
   async getRecommended(): Promise<RecommendedCourse[]> {
-    const res = await apiGet<any>('/courses?page=1&pageSize=3&sort=popular')
-    return toCourseList(res)
+    const res = await apiGet<unknown>('/courses?page=1&pageSize=3&sort=popular')
+    return toCourseList<RawCourse>(res)
       .slice(0, 3)
-      .map((c: any) => {
+      .map((c: RawCourse) => {
         const price = toNum(c.price)
         const orig = toNum(c.originalPrice)
         return {
-          id: c.id,
+          id: c.id || '',
           title: c.title || '',
           subtitle: String(c.intro || '').slice(0, 20),
           price,
@@ -137,17 +164,17 @@ export const coursesListApi = {
    * 折算为「x.x折」；倒计时按会话当日 23:59:59 派生 offsetMs。
    */
   async getFlashSale(): Promise<FlashSaleCourse[]> {
-    const res = await apiGet<any>('/courses/flash-sale')
+    const res = await apiGet<{ courses?: RawFlashCourse[] }>('/courses/flash-sale')
     const courses = Array.isArray(res?.courses) ? res.courses : []
     const now = new Date()
     const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59).getTime()
     const offsetMs = Math.max(0, endOfDay - now.getTime())
-    return courses.map((c: any) => {
+    return courses.map((c: RawFlashCourse) => {
       const orig = toNum(c.originalPrice)
       const price = toNum(c.salePrice)
       const pct = toNum(c.discount) // 占原价百分比，如 25 → 2.5折
       return {
-        id: c.id,
+        id: c.id || '',
         title: c.title || '',
         price,
         originalPrice: orig,

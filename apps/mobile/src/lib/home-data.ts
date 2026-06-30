@@ -266,11 +266,17 @@ export function adaptFeedItem(f: ApiFeedItem): FeedItem {
 
 // ============ API 层 ============
 
+/** 后端 GET /home 原始响应（容错适配用，字段宽松全 optional，仅声明 adapter 实际访问到的字段） */
+interface RawHomeResponse {
+  banners?: BannerItem[]
+  feed?: ApiFeedItem[]
+}
+
 export const homeApi = {
   /** 获取首页数据 — GET /home（后端返回 {banners,feed,...}，feed 为扁平项，需适配） */
   async getHome(): Promise<{ banners: BannerItem[]; feed: RenderItem[] }> {
     try {
-      const data = await apiGet<any>('/home')
+      const data = await apiGet<RawHomeResponse>('/home')
       const banners: BannerItem[] =
         Array.isArray(data?.banners) && data.banners.length ? data.banners : defaultBanners
       const rawFeed: ApiFeedItem[] = Array.isArray(data?.feed) ? data.feed : []

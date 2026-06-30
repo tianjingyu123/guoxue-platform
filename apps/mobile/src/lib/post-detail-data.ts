@@ -232,7 +232,7 @@ export const REWARD_ALL = [5, 10, 20, 50, 100, 200, 500, 1000]
 // ─────────────────────────── API ───────────────────────────
 
 /** ISO → 相对时间 */
-function relTime(iso?: string): string {
+function relTime(iso?: string | null): string {
   if (!iso) return ''
   const t = new Date(iso).getTime()
   if (Number.isNaN(t)) return String(iso)
@@ -257,10 +257,58 @@ function mapPostType(t?: string): PostDetail['type'] {
   return 'normal'
 }
 
+/* —— 后端原始响应类型（容错适配用，字段宽松全 optional，仅声明 adapter 实际访问到的字段） —— */
+/** 后端用户精简信息（帖子/评论作者） */
+interface RawUserLite {
+  id?: string
+  nickname?: string
+  avatar?: string
+  title?: string
+}
+/** 后端帖子详情原始响应 */
+interface RawPost {
+  id?: string
+  type?: string
+  circleId?: string
+  circle?: { id?: string; name?: string } | null
+  title?: string
+  content?: string
+  images?: string[]
+  user?: RawUserLite | null
+  userId?: string
+  createdAt?: string | null
+  likeCount?: number
+  likes?: number
+  isTop?: boolean
+  isEssence?: boolean
+}
+/** 后端评论回复原始响应 */
+interface RawReply {
+  id?: string
+  content?: string
+  user?: RawUserLite | null
+  userId?: string
+  createdAt?: string | null
+  likeCount?: number
+  likes?: number
+}
+/** 后端评论原始响应（含回复数组） */
+interface RawComment {
+  id?: string
+  content?: string
+  user?: RawUserLite | null
+  userId?: string
+  createdAt?: string | null
+  likeCount?: number
+  likes?: number
+  isPinned?: boolean
+  replies?: RawReply[]
+}
+
 /** 后端帖子详情 → 前端 PostDetail（后端无的富字段留空，页面隐藏） */
-function adaptPostDetail(p: any, commentsCount = 0): PostDetail {
+function adaptPostDetail(p: RawPost, commentsCount = 0): PostDetail {
   return {
-    id: p.id,
+    id: p.id || '',
     type: mapPostType(p.type),
     circleId: p.circleId ?? p.circle?.id ?? '',
     circleName: p.circle?.name ?? '',
@@ -296,9 +344,9 @@ function adaptPostDetail(p: any, commentsCount = 0): PostDetail {
 }
 
 /** 后端评论回复 → 前端 CommentReply */
-function adaptReply(r: any): CommentReply {
+function adaptReply(r: RawReply): CommentReply {
   return {
-    id: r.id,
+    id: r.id || '',
     content: r.content ?? '',
     author: { id: r.user?.id ?? r.userId ?? '', name: r.user?.nickname ?? '匿名', avatar: r.user?.avatar ?? '' },
     createdAt: relTime(r.createdAt),
@@ -308,9 +356,9 @@ function adaptReply(r: any): CommentReply {
 }
 
 /** 后端评论 → 前端 Comment */
-function adaptComment(c: any): Comment {
+function adaptComment(c: RawComment): Comment {
   return {
-    id: c.id,
+    id: c.id || '',
     content: c.content ?? '',
     author: { id: c.user?.id ?? c.userId ?? '', name: c.user?.nickname ?? '匿名', avatar: c.user?.avatar ?? '', title: c.user?.title },
     createdAt: relTime(c.createdAt),
@@ -325,8 +373,8 @@ export const postDetailApi = {
   /** 帖子详情（含评论数）— GET /circles/:id/posts/:postId + /comment/count */
   getDetail: async (circleId: string, postId: string): Promise<PostDetail> => {
     const [p, cnt] = await Promise.all([
-      apiGet<any>(`/circles/${circleId}/posts/${postId}`),
-      apiGet<any>(`/comment/count?targetType=POST&targetId=${postId}`).catch(() => 0),
+      apiGet<RawPost>(`/circles/${circleId}/posts/${postId}`),
+      apiGet<number | { count?: number }>(`/comment/count?targetType=POST&targetId=${postId}`).catch(() => 0),
     ])
     const count = typeof cnt === 'number' ? cnt : (cnt?.count ?? 0)
     return adaptPostDetail(p, count)
@@ -334,29 +382,29 @@ export const postDetailApi = {
   /** 帖子评论列表 — GET /comment?targetType=POST&targetId=（无评论时返回 []，页面空态） */
   getComments: async (postId: string): Promise<Comment[]> => {
     try {
-      const r = await apiGet<any>(`/comment?targetType=POST&targetId=${postId}`)
-      const arr = Array.isArray(r) ? r : (r?.data ?? r?.comments ?? r?.items ?? [])
+      const r = await apiGet<RawComment[] | { data?: RawComment[]; comments?: RawComment[]; items?: RawComment[] }>(`/comment?targetType=POST&targetId=${postId}`)
+      const arr: RawComment[] = Array.isArray(r) ? r : (r?.data ?? r?.comments ?? r?.items ?? [])
       return arr.map(adaptComment)
     } catch { return [] }
   },
 
   // ───────── 互动（写操作，需登录；apiPost 自动加 token + 剥信封） ─────────
 
-  /** 帖子点赞/取消（toggle）— POST /interaction/like */
-  toggleLike: (postId: string): Promise<any> =>
-    apiPost<any>('/interaction/like', { targetType: 'POST', targetId: postId }),
+  /** 帖子点赞/取消（toggle）— POST /interaction/like。返回结构后端不定，页面仅 await 不取值 → unknown */
+  toggleLike: (postId: string): Promise<unknown> =>
+    apiPost<unknown>('/interaction/like', { targetType: 'POST', targetId: postId }),
 
   /** 帖子收藏/取消（toggle）— POST /interaction/collect */
-  toggleCollect: (postId: string): Promise<any> =>
-    apiPost<any>('/interaction/collect', { targetType: 'POST', targetId: postId }),
+  toggleCollect: (postId: string): Promise<unknown> =>
+    apiPost<unknown>('/interaction/collect', { targetType: 'POST', targetId: postId }),
 
   /** 关注/取消关注作者 — POST /interaction/follow */
-  toggleFollow: (userId: string): Promise<any> =>
-    apiPost<any>('/interaction/follow', { followedUserId: userId }),
+  toggleFollow: (userId: string): Promise<unknown> =>
+    apiPost<unknown>('/interaction/follow', { followedUserId: userId }),
 
   /** 发评论/回复 — POST /interaction/comment（parentId 用于回复）。读评论仍走 /comment */
-  createComment: (postId: string, content: string, parentId?: string): Promise<any> =>
-    apiPost<any>('/interaction/comment', {
+  createComment: (postId: string, content: string, parentId?: string): Promise<unknown> =>
+    apiPost<unknown>('/interaction/comment', {
       targetType: 'POST',
       targetId: postId,
       content,
@@ -364,21 +412,25 @@ export const postDetailApi = {
     }),
 
   /** 评论点赞/取消（toggle）— POST /interaction/like，targetType=COMMENT */
-  toggleCommentLike: (commentId: string): Promise<any> =>
-    apiPost<any>('/interaction/like', { targetType: 'COMMENT', targetId: commentId }),
+  toggleCommentLike: (commentId: string): Promise<unknown> =>
+    apiPost<unknown>('/interaction/like', { targetType: 'COMMENT', targetId: commentId }),
 
   /** 检查当前用户对帖子的点赞状态 — GET /interaction/like/check（详情不返回点赞态） */
   checkPostLiked: async (postId: string): Promise<boolean> => {
     try {
-      const r = await apiGet<any>(`/interaction/like/check?targetType=POST&targetIds=${postId}`)
       // 后端返回已点赞的 targetId 字符串数组；兼容对象数组 / 字典等其他形态
-      const data = r?.data ?? r
+      const r = await apiGet<unknown>(`/interaction/like/check?targetType=POST&targetIds=${postId}`)
+      const data = (r && typeof r === 'object' && 'data' in r) ? (r as { data?: unknown }).data : r
       if (Array.isArray(data)) {
-        return data.some((x: any) => String(x?.targetId ?? x?.id ?? x) === String(postId))
+        return data.some((x) => {
+          const o = x as { targetId?: string; id?: string } | string
+          return String((o as { targetId?: string })?.targetId ?? (o as { id?: string })?.id ?? o) === String(postId)
+        })
       }
       if (data && typeof data === 'object') {
-        const v = data[postId] ?? data[String(postId)]
-        return !!(typeof v === 'object' ? (v?.liked ?? v?.isLiked) : v)
+        const dict = data as Record<string, unknown>
+        const v = dict[postId] ?? dict[String(postId)]
+        return !!(typeof v === 'object' && v !== null ? ((v as { liked?: unknown; isLiked?: unknown }).liked ?? (v as { isLiked?: unknown }).isLiked) : v)
       }
       return !!data
     } catch { return false }

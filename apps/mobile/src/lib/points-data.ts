@@ -67,8 +67,12 @@ export const pointsHistory: PointsHistoryItem[] = [
   { id: 4, title: '购买课程', points: 199, time: '昨天 09:00', type: 'earn' },
 ]
 
+/* —— 后端原始响应类型（容错适配用，字段全 optional） —— */
+interface RawPointsProduct { id?: string | number; type?: string; title?: string; points?: number | string; icon?: string; stock?: number | string; color?: string }
+interface RawPointsRecord { id?: number | string; amount?: number | string; type?: string; description?: string; source?: string; createdAt?: string }
+
 // 后端 PointsProduct → 前端 PointsExchangeItem（type 大写→小写）
-function adaptPointsProduct(p: any): PointsExchangeItem {
+function adaptPointsProduct(p: RawPointsProduct): PointsExchangeItem {
   return {
     id: String(p.id),
     type: String(p.type || '').toLowerCase() as ExchangeType,
@@ -88,8 +92,8 @@ export const exchangeTypeLabels: Record<ExchangeType, string> = {
 }
 
 // ============ 适配（后端 PointsRecord → 前端 PointsHistoryItem）============
-function formatPointsTime(v: any): string {
-  const d = new Date(v)
+function formatPointsTime(v?: string): string {
+  const d = new Date(v ?? '')
   if (Number.isNaN(d.getTime())) return ''
   const now = new Date()
   const p = (n: number) => String(n).padStart(2, '0')
@@ -99,11 +103,11 @@ function formatPointsTime(v: any): string {
   if (d.toDateString() === y.toDateString()) return `昨天 ${hm}`
   return `${p(d.getMonth() + 1)}-${p(d.getDate())} ${hm}`
 }
-function adaptPointsRecord(r: any): PointsHistoryItem {
+function adaptPointsRecord(r: RawPointsRecord): PointsHistoryItem {
   const amt = Number(r.amount ?? 0)
   const isEarn = String(r.type ?? '').toUpperCase() === 'EARN' || amt >= 0
   return {
-    id: r.id,
+    id: r.id ?? '',
     title: r.description || r.source || (isEarn ? '积分获取' : '积分消费'),
     points: amt,
     time: formatPointsTime(r.createdAt),
@@ -133,14 +137,14 @@ export const pointsApi = {
 
   /** 获取积分历史 —— GET /users/me/points/records（后端 {items:PointsRecord[]} → 适配） */
   async getHistory(): Promise<PointsHistoryItem[]> {
-    const res = await apiGet<{ items?: any[] } | any[]>('/users/me/points/records')
+    const res = await apiGet<{ items?: RawPointsRecord[] } | RawPointsRecord[]>('/users/me/points/records')
     const list = Array.isArray(res) ? res : (res?.items ?? [])
     return list.map(adaptPointsRecord)
   },
 
   /** 获取积分兑换商品 —— GET /users/me/points/products（积分商城真实商品） */
   async getExchangeItems(): Promise<PointsExchangeItem[]> {
-    const res = await apiGet<any[]>('/users/me/points/products')
+    const res = await apiGet<RawPointsProduct[]>('/users/me/points/products')
     return Array.isArray(res) ? res.map(adaptPointsProduct) : []
   },
 

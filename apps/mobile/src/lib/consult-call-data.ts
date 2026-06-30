@@ -25,13 +25,16 @@ export interface ConsultCallRecord {
   expertAvatar?: string | null
 }
 
+/** 通话发起/控制接口的后端响应（含 TRTC 配置或更新后的通话记录，真机 SDK 联调前无强类型消费方，宽松占位） */
+interface CallActionResult { [k: string]: unknown }
+
 export const callApi = {
   /** 我的通话记录 GET /consult-calls/my */
   myCalls: () => apiGet<ConsultCallRecord[]>('/consult-calls/my'),
   /** 发起通话（预扣 + 返回 TRTC 配置）POST /consult-calls/initiate */
   initiate: (body: { circleId: string; expertId: string; type: 'VOICE' | 'VIDEO' }) =>
-    apiPost<any>('/consult-calls/initiate', body),
-  accept: (id: string) => apiPost<any>(`/consult-calls/${id}/accept`),
-  end: (id: string) => apiPost<any>(`/consult-calls/${id}/end`),
-  cancel: (id: string, reason?: 'MISSED' | 'REFUNDED') => apiPost<any>(`/consult-calls/${id}/cancel`, { reason }),
+    apiPost<CallActionResult>('/consult-calls/initiate', body),
+  accept: (id: string) => apiPost<CallActionResult>(`/consult-calls/${id}/accept`),
+  end: (id: string) => apiPost<CallActionResult>(`/consult-calls/${id}/end`),
+  cancel: (id: string, reason?: 'MISSED' | 'REFUNDED') => apiPost<CallActionResult>(`/consult-calls/${id}/cancel`, { reason }),
 }

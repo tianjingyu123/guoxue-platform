@@ -1140,6 +1140,83 @@ export const liveManageStatusConfig: Record<string, { label: string; color: stri
 
 // ============ API 层 ============
 
+/* —— 后端原始响应类型（容错适配用，字段宽松，仅声明 adapter 实际访问到的字段；不 export） —— */
+interface RawLiveUser { nickname?: string; avatar?: string }
+/** 后端直播间原始响应 */
+interface RawLiveRoom {
+  id?: string
+  title?: string
+  cover?: string | null
+  user?: RawLiveUser | null
+  viewCount?: number
+  status?: string
+  chargeType?: string
+  chargePrice?: number | string | null
+  startTime?: string
+  endTime?: string
+  hasProducts?: boolean
+  _count?: { products?: number } | null
+}
+/** GET /live/rooms 列表（裸数组或包装对象） */
+interface RawLiveRoomList { rooms?: RawLiveRoom[]; data?: RawLiveRoom[] }
+/** GET /live/my-rooms 经营聚合 */
+interface RawMyRoomsStats { monthCount?: number; totalViews?: number; endedCount?: number }
+interface RawMyRooms { stats?: RawMyRoomsStats; rooms?: RawLiveRoom[] }
+/** 主播/回放列表包装（Array.isArray 守卫在运行时处理裸数组分支） */
+interface RawHostsResp { items?: LiveHost[] }
+interface RawReplaysResp { items?: LiveReplay[] }
+/** 回放首页条目原始响应 */
+interface RawReplayHomeItem {
+  id?: string | number; title?: string; cover?: string
+  hostName?: string; hostAvatar?: string; duration?: number | string
+  viewers?: number | string; category?: string
+}
+/** GET /live/end/:id */
+interface RawEndRoom {
+  id?: string | number; title?: string; cover?: string
+  hostName?: string; hostAvatar?: string; hostFollowers?: number | string
+  tags?: string[]; viewerCount?: number | string; peakViewers?: number | string
+  likeCount?: number | string; giftCoin?: number | string; duration?: number | string
+  hasReplay?: boolean
+}
+interface RawEndResp { room?: RawEndRoom; recommendLives?: LiveEndRecommendLive[]; recommendCourses?: typeof liveEndRecommendCourses }
+/** GET /live/console/:id */
+interface RawConsole {
+  title?: string; stats?: typeof consoleLiveStats; danmaku?: ConsoleDanmaku[]
+  requests?: ConsoleConnectRequest[]; products?: ConsoleProduct[]; script?: ConsoleScript[]
+}
+/** GET /live/stream-config */
+interface RawStreamConfig {
+  roomId?: string; roomTitle?: string; streamUrl?: string; streamKey?: string; playUrl?: string
+  recommendedSettings?: { resolution?: string; bitrate?: string; fps?: number | string; encoder?: string } | null
+}
+/** GET /live/team */
+interface RawTeam { members?: TeamMember[]; available?: AvailableMember[] }
+/** GET /live/settings */
+interface RawLiveSettings { profile?: typeof liveSettingProfile; notify?: typeof liveSettingNotifyDefault; privacy?: typeof liveSettingPrivacyDefault }
+/** GET /live/earnings */
+interface RawEarnings { ranges?: LiveEarningRange[]; stats?: LiveEarningStats; records?: LiveEarningRecord[] }
+/** GET /live/reviews */
+interface RawReviews { dist?: LiveReviewDist[]; reviews?: LiveReview[] }
+/* —— 直播数据复盘 getAnalytics 的后端多端点原始响应 —— */
+interface RawDashboardOverview {
+  title?: string; startTime?: string; viewCount?: number; peakOnline?: number
+  gmv?: number; orderCount?: number; commentCount?: number
+  totalGiftCoin?: number; giftCount?: number; status?: string
+}
+/** 分钟趋势点（用于算术/比较，数值字段声明为 number） */
+interface RawTrendPoint { minute: string; online: number; orders: number; gmv: number }
+interface RawDashboardTrends { trends?: RawTrendPoint[] }
+/** 带货商品聚合（revenue/sales 用于算术/排序，声明为 number 避免 possibly-undefined） */
+interface RawDashboardProduct { productId?: string | number; title?: string; sales: number; revenue: number }
+interface RawDashboardProducts { products?: RawDashboardProduct[] }
+interface RawGiftByType { name: string; count: number; totalCoin: number }
+interface RawInteractions { giftsByType?: RawGiftByType[] }
+interface RawReportSummary { avgOnline?: number; durationMinutes?: number; totalComments?: number; totalLikes?: number }
+interface RawReport { summary?: RawReportSummary }
+interface RawCompare { changes?: Record<string, string>; previous?: unknown }
+interface RawAudience { gender?: string }
+
 /** 后端 LiveStatus（WAITING/LIVING/ENDED/REPLAY）→ 前端（live/upcoming/replay） */
 function mapLiveStatus(s: string): LiveStatus {
   const u = String(s || '').toUpperCase()
@@ -1157,16 +1234,16 @@ function fmtLiveTime(iso?: string): string | undefined {
 }
 
 /** 后端直播间 → 前端 LiveItem（type/orientation 后端无→默认；价格按 chargeType） */
-function adaptLiveItem(r: any): LiveItem {
+function adaptLiveItem(r: RawLiveRoom): LiveItem {
   return {
-    id: r.id,
+    id: r.id || '',
     title: r.title || '',
     cover: r.cover || '',
     hostName: r.user?.nickname || '',
     hostAvatar: r.user?.avatar || '',
     viewerCount: r.viewCount ?? 0,
     type: 'knowledge',
-    status: mapLiveStatus(r.status),
+    status: mapLiveStatus(r.status || ''),
     orientation: 'horizontal',
     priceType: (r.chargeType && String(r.chargeType).toUpperCase() !== 'FREE') ? 'paid' : 'free',
     price: r.chargePrice != null ? Number(r.chargePrice) : undefined,
@@ -1179,8 +1256,8 @@ export const liveApi = {
   /** 直播广场列表 — GET /live/rooms（适配）；tab 客户端过滤 */
   async getPlaza(tab?: string): Promise<LiveItem[]> {
     try {
-      const res = await apiGet<any>('/live/rooms?pageSize=30')
-      const arr = Array.isArray(res) ? res : (res?.rooms ?? res?.data ?? [])
+      const res = await apiGet<RawLiveRoom[] | RawLiveRoomList>('/live/rooms?pageSize=30')
+      const arr: RawLiveRoom[] = Array.isArray(res) ? res : (res?.rooms ?? res?.data ?? [])
       let items: LiveItem[] = arr.map(adaptLiveItem)
       if (tab && tab !== '全部') {
         const typeMap: Record<string, string> = { '知识授课': 'knowledge', '电商带货': 'commerce' }
@@ -1197,7 +1274,7 @@ export const liveApi = {
   /** 直播间详情 — GET /live/rooms/:id（适配） */
   async getWatch(id: string): Promise<LiveItem | undefined> {
     try {
-      return adaptLiveItem(await apiGet<any>(`/live/rooms/${id}`))
+      return adaptLiveItem(await apiGet<RawLiveRoom>(`/live/rooms/${id}`))
     } catch {
       return liveList.find(item => item.id === id)
     }
@@ -1207,7 +1284,7 @@ export const liveApi = {
   async getHosts(filter?: string): Promise<LiveHost[]> {
     try {
       const url = filter ? `/live/hosts?filter=${encodeURIComponent(filter)}` : '/live/hosts'
-      const res = await apiGet<any>(url)
+      const res = await apiGet<RawHostsResp>(url)
       const arr = res?.items ?? (Array.isArray(res) ? res : [])
       return (arr.length ? arr : liveHosts) as LiveHost[]
     } catch {
@@ -1219,7 +1296,7 @@ export const liveApi = {
   async getReplays(sort?: string): Promise<LiveReplay[]> {
     try {
       const url = sort ? `/live/replays?sort=${encodeURIComponent(sort)}` : '/live/replays'
-      const res = await apiGet<any>(url)
+      const res = await apiGet<RawReplaysResp>(url)
       const arr = res?.items ?? (Array.isArray(res) ? res : [])
       return (arr.length ? arr : liveReplays) as LiveReplay[]
     } catch {
@@ -1241,18 +1318,18 @@ export const liveApi = {
     categories: ReplayCategory[]; hotItems: ReplayHomeItem[]; list: ReplayHomeItem[]; hotSearches: string[]
   }> {
     // 后端无 replay-home 聚合端点、回放也无分类维度 → 用 GET /live/replays 组合「最新+热门」，分类不做假筛选
-    const toItem = (r: any): ReplayHomeItem => ({
+    const toItem = (r: RawReplayHomeItem): ReplayHomeItem => ({
       id: String(r?.id || ''), title: r?.title || '', cover: r?.cover || '',
       hostName: r?.hostName || '', hostAvatar: r?.hostAvatar || '',
       duration: Number(r?.duration) || 0, views: Number(r?.viewers) || 0,
       category: r?.category || '', isHot: false,
     })
     const [latest, popular] = await Promise.all([
-      apiGet<any>('/live/replays').catch(() => ({ items: [] })),
-      apiGet<any>('/live/replays?sortBy=popular').catch(() => ({ items: [] })),
+      apiGet<{ items?: RawReplayHomeItem[] }>('/live/replays').catch(() => ({ items: [] as RawReplayHomeItem[] })),
+      apiGet<{ items?: RawReplayHomeItem[] }>('/live/replays?sortBy=popular').catch(() => ({ items: [] as RawReplayHomeItem[] })),
     ])
     const list = (Array.isArray(latest?.items) ? latest.items : []).map(toItem)
-    const hotItems = (Array.isArray(popular?.items) ? popular.items : []).slice(0, 5).map((r: any) => ({ ...toItem(r), isHot: true }))
+    const hotItems = (Array.isArray(popular?.items) ? popular.items : []).slice(0, 5).map((r: RawReplayHomeItem) => ({ ...toItem(r), isHot: true }))
     return {
       categories: [], // 后端回放无分类维度 → 不做假分类筛选（页面分类区随之隐藏）
       hotItems,
@@ -1274,8 +1351,8 @@ export const liveApi = {
   async getEndRoom(id: string): Promise<{
     room: LiveEndRoom; recommendLives: LiveEndRecommendLive[]; recommendCourses: typeof liveEndRecommendCourses
   }> {
-    const data = await apiGet<any>(`/live/end/${id}`)
-    const r = data?.room || {}
+    const data = await apiGet<RawEndResp>(`/live/end/${id}`)
+    const r: RawEndRoom = data?.room || {}
     const room: LiveEndRoom = {
       id: String(r.id || ''),
       title: r.title || '',
@@ -1327,8 +1404,8 @@ export const liveApi = {
     }
     // 后端直播状态 → 前端管理页状态（后端无「草稿」概念）
     const statusMap: Record<string, LiveManageItem['status']> = { WAITING: 'preview', LIVING: 'live', ENDED: 'ended', REPLAY: 'ended' }
-    const adapt = (r: any): LiveManageItem => {
-      const status = statusMap[r.status] || 'ended'
+    const adapt = (r: RawLiveRoom): LiveManageItem => {
+      const status = statusMap[r.status || ''] || 'ended'
       let duration = '-'
       if (status === 'live') duration = '进行中'
       else if (r.startTime && r.endTime) {
@@ -1336,8 +1413,8 @@ export const liveApi = {
         if (mins > 0) duration = mins >= 60 ? `${Math.floor(mins / 60)}小时${mins % 60}分` : `${mins}分钟`
       }
       return {
-        id: r.id,
-        title: r.title,
+        id: r.id || '',
+        title: r.title || '',
         type: r.hasProducts ? 'commerce' : 'knowledge',
         status,
         scheduledTime: fmtLiveTime(r.startTime) || '',
@@ -1350,7 +1427,7 @@ export const liveApi = {
       }
     }
     try {
-      const data = await apiGet<{ stats?: any; rooms?: any[] }>('/live/my-rooms')
+      const data = await apiGet<RawMyRooms>('/live/my-rooms')
       return { stats: buildStats(data?.stats), list: (data?.rooms || []).map(adapt) }
     } catch {
       // 未登录 / 无直播间 → 空概览 + 空列表（页面走空态，不回退假数据）
@@ -1364,7 +1441,7 @@ export const liveApi = {
     products: ConsoleProduct[]; script: ConsoleScript[]
   }> {
     try {
-      const data = await apiGet<any>(`/live/console/${id}`)
+      const data = await apiGet<RawConsole>(`/live/console/${id}`)
       return {
         title: data?.title || '',
         stats: data?.stats || consoleLiveStats,
@@ -1381,7 +1458,7 @@ export const liveApi = {
 
   /** 获取OBS推流配置与实时状态 — GET /live/stream-config（未推流时为离线态，实时指标由推流引擎上报） */
   async getObsStream(): Promise<typeof obsStreamData> {
-    const cfg = await apiGet<any>('/live/stream-config')
+    const cfg = await apiGet<RawStreamConfig>('/live/stream-config')
     const rs = cfg?.recommendedSettings || {}
     return {
       serverUrl: cfg?.streamUrl || '',
@@ -1402,17 +1479,17 @@ export const liveApi = {
     const fmtTime = (iso?: string) => { if (!iso) return ''; const d = new Date(iso); return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}` }
     const statusMap: Record<string, ScheduleItem['status']> = { WAITING: 'scheduled', LIVING: 'live', ENDED: 'completed', REPLAY: 'completed' }
     try {
-      const data = await apiGet<{ rooms?: any[] }>('/live/my-rooms')
-      return (data?.rooms || []).map((r: any): ScheduleItem => {
-        const status = statusMap[r.status] || 'completed'
+      const data = await apiGet<RawMyRooms>('/live/my-rooms')
+      return (data?.rooms || []).map((r: RawLiveRoom): ScheduleItem => {
+        const status = statusMap[r.status || ''] || 'completed'
         let duration = 90 // 待开播无结束时间，用默认时长
         if (r.startTime && r.endTime) {
           const m = Math.round((new Date(r.endTime).getTime() - new Date(r.startTime).getTime()) / 60000)
           if (m > 0) duration = m
         }
         return {
-          id: r.id,
-          title: r.title,
+          id: r.id || '',
+          title: r.title || '',
           date: fmtDate(r.startTime),
           time: fmtTime(r.startTime),
           duration,
@@ -1432,7 +1509,7 @@ export const liveApi = {
   /** 获取团队成员 — GET /live/team */
   async getTeam(): Promise<{ members: TeamMember[]; available: AvailableMember[] }> {
     try {
-      const data = await apiGet<any>('/live/team')
+      const data = await apiGet<RawTeam>('/live/team')
       return { members: data?.members || [], available: data?.available || [] }
     } catch {
       // 未登录 / 无团队 → 空（页面走空态，不回退假mock）
@@ -1456,17 +1533,17 @@ export const liveApi = {
     const trendOf = (c?: string): 'up' | 'down' | 'flat' => { if (!c) return 'flat'; const n = parseFloat(c); return n > 0 ? 'up' : n < 0 ? 'down' : 'flat' }
 
     const [overview, trends, products, interactions, report, compare, audienceRaw] = await Promise.all([
-      apiGet<any>(`/live/rooms/${id}/dashboard/overview`),
-      apiGet<any>(`/live/rooms/${id}/dashboard/trends`),
-      apiGet<any>(`/live/rooms/${id}/dashboard/products`),
-      apiGet<any>(`/live/rooms/${id}/dashboard/interactions`),
-      apiGet<any>(`/live/rooms/${id}/report`),
-      apiGet<any>(`/live/rooms/${id}/compare`).catch(() => null),
-      apiGet<any>(`/live/rooms/${id}/dashboard/audience`).catch(() => null),
+      apiGet<RawDashboardOverview>(`/live/rooms/${id}/dashboard/overview`),
+      apiGet<RawDashboardTrends>(`/live/rooms/${id}/dashboard/trends`),
+      apiGet<RawDashboardProducts>(`/live/rooms/${id}/dashboard/products`),
+      apiGet<RawInteractions>(`/live/rooms/${id}/dashboard/interactions`),
+      apiGet<RawReport>(`/live/rooms/${id}/report`),
+      apiGet<RawCompare>(`/live/rooms/${id}/compare`).catch(() => null),
+      apiGet<RawAudience>(`/live/rooms/${id}/dashboard/audience`).catch(() => null),
     ])
 
-    const sum: any = report?.summary || {}
-    const ch: any = compare?.changes || {}
+    const sum: RawReportSummary = report?.summary || {}
+    const ch: Record<string, string> = compare?.changes || {}
     const hasPrev = !!compare?.previous
     const stat = (label: string, value: string, icon: string, key: string): CoreStat => ({
       label, value, icon,
@@ -1475,8 +1552,8 @@ export const liveApi = {
     })
 
     // 关键时刻：从分钟趋势派生真实可解释的节点（峰值/首单/成交高峰）
-    const tr: any[] = trends?.trends || []
-    const keyMoments: any[] = []
+    const tr: RawTrendPoint[] = trends?.trends || []
+    const keyMoments: { time: string; event: string; desc: string }[] = []
     if (tr.length) {
       const peak = tr.reduce((a, b) => (b.online > a.online ? b : a), tr[0])
       keyMoments.push({ time: hm(peak.minute), event: '人气峰值', desc: `在线人数达到峰值 ${peak.online} 人` })
@@ -1487,7 +1564,7 @@ export const liveApi = {
     }
 
     // 观众画像：解析后端「男X / 女Y」为占比；无画像字段则留空（页面隐藏空卡）
-    const gender: any[] = []
+    const gender: { label: string; value: number; color: string }[] = []
     const gstr: string | undefined = audienceRaw?.gender
     if (gstr && gstr !== '--') {
       const m = gstr.match(/男\s*(\d+)\s*\/\s*女\s*(\d+)/)
@@ -1502,15 +1579,16 @@ export const liveApi = {
 
     // 数据洞察：基于真实指标生成（非写死假文本）
     const insights: string[] = []
-    const ov: any = overview || {}
+    const ov: RawDashboardOverview = overview || {}
     if (ov.peakOnline) insights.push(`本场峰值在线 ${ov.peakOnline} 人，累计观看 ${wan(ov.viewCount || 0)} 人次，平均在线 ${sum.avgOnline || 0} 人。`)
     if (ov.orderCount) {
-      const top = (products?.products || []).slice().sort((a: any, b: any) => b.revenue - a.revenue)[0]
+      const top = (products?.products || []).slice().sort((a: RawDashboardProduct, b: RawDashboardProduct) => b.revenue - a.revenue)[0]
       insights.push(`直播带货成交 ${ov.orderCount} 单，GMV ¥${ov.gmv}${top ? `，「${top.title}」最畅销（售 ${top.sales} 件）` : ''}。`)
     }
     if (ov.totalGiftCoin) insights.push(`收到打赏 ${ov.giftCount} 次共 ${ov.totalGiftCoin} 金币，弹幕互动 ${ov.commentCount} 条。`)
 
     return {
+      // info 字面量仅构造展示所需子集（缺 id/endTime/status，与 typeof analyticsLiveInfo 不完全一致）→ as any
       info: {
         title: overview?.title || '',
         startTime: overview?.startTime ? (fmtLiveTime(overview.startTime) || '') : '',
@@ -1527,23 +1605,24 @@ export const liveApi = {
         // 降采样至约 30 个点，避免柱状图过密
         const step = Math.max(1, Math.ceil(tr.length / 30))
         return tr.filter((_, i) => i % step === 0).map((t) => ({ time: hm(t.minute), value: t.online }))
-      })() as any,
-      keyMoments: keyMoments as any,
-      audience: { gender, age: [], region: [], source: [] } as any,
+      })(),
+      keyMoments,
+      audience: { gender, age: [], region: [], source: [] },
       interaction: {
         danmaku: sum.totalComments || overview?.commentCount || 0,
         likes: sum.totalLikes || 0,
         comments: overview?.commentCount || 0,
         shares: 0,
-        gifts: (interactions?.giftsByType || []).map((g: any) => ({ name: g.name, count: g.count, amount: g.totalCoin })),
-      } as any,
-      wordCloud: [] as any,
-      productStats: (products?.products || []).map((p: any) => ({
+        gifts: (interactions?.giftsByType || []).map((g: RawGiftByType) => ({ name: g.name, count: g.count, amount: g.totalCoin })),
+      },
+      wordCloud: [],
+      // productStats 的 id 取后端 productId（string|number）与 typeof analyticsProductStats 的 id:number 不一致 → as any
+      productStats: (products?.products || []).map((p: RawDashboardProduct) => ({
         id: p.productId, name: p.title, clicks: 0, orders: p.sales, amount: p.revenue, conversion: 0,
       })) as any,
-      replay: { isPublic: overview?.status === 'REPLAY', isPaid: false, playCount: 0, playDuration: '', revenue: 0 } as any,
+      replay: { isPublic: overview?.status === 'REPLAY', isPaid: false, playCount: 0, playDuration: '', revenue: 0 },
       insights,
-    } as any
+    }
   },
 
   /** 获取收益数据 — GET /live/earnings */
@@ -1552,7 +1631,7 @@ export const liveApi = {
   }> {
     try {
       const url = range ? `/live/earnings?range=${encodeURIComponent(range ?? "")}` : '/live/earnings'
-      const data = await apiGet<any>(url)
+      const data = await apiGet<RawEarnings>(url)
       return {
         ranges: data?.ranges || liveEarningRanges,
         stats: data?.stats || { total: 0, reward: 0, goods: 0, trend: 0 },
@@ -1580,7 +1659,7 @@ export const liveApi = {
   async getReviews(filter?: string): Promise<{ dist: LiveReviewDist[]; reviews: LiveReview[] }> {
     try {
       const url = filter && filter !== 'all' ? `/live/reviews?filter=${encodeURIComponent(filter)}` : '/live/reviews'
-      const data = await apiGet<any>(url)
+      const data = await apiGet<RawReviews>(url)
       return { dist: data?.dist || [], reviews: data?.reviews || [] }
     } catch {
       // 未登录 / 无评价 → 空（页面走空态，不回退假mock）
@@ -1592,7 +1671,7 @@ export const liveApi = {
   async getSettings(): Promise<{
     profile: typeof liveSettingProfile; notify: typeof liveSettingNotifyDefault; privacy: typeof liveSettingPrivacyDefault
   }> {
-    const data = await apiGet<any>('/live/settings')
+    const data = await apiGet<RawLiveSettings>('/live/settings')
     return {
       profile: data?.profile || liveSettingProfile,
       notify: data?.notify || liveSettingNotifyDefault,
@@ -1606,8 +1685,8 @@ export const liveApi = {
   }> {
     if (true) return { room: verticalLiveRoom, comments: verticalLiveComments, products: verticalLiveProducts }
     try {
-      const data = await apiGet<any>(`/live/vertical/${id}`)
-      return data as any
+      const data = await apiGet<{ room: typeof verticalLiveRoom; comments: VerticalLiveComment[]; products: VerticalLiveProduct[] }>(`/live/vertical/${id}`)
+      return data
     } catch {
       return { room: verticalLiveRoom, comments: verticalLiveComments, products: verticalLiveProducts }
     }
@@ -1620,8 +1699,8 @@ export const liveApi = {
   }> {
     if (true) return { room: horizontalLiveRoom, slides: horizontalSlides, questions: horizontalQuestions, messages: horizontalMessages, files: horizontalFiles }
     try {
-      const data = await apiGet<any>(`/live/horizontal/${id}`)
-      return data as any
+      const data = await apiGet<{ room: HorizontalLiveRoom; slides: HorizontalSlide[]; questions: HorizontalQuestion[]; messages: HorizontalMessage[]; files: HorizontalFile[] }>(`/live/horizontal/${id}`)
+      return data
     } catch {
       return { room: horizontalLiveRoom, slides: horizontalSlides, questions: horizontalQuestions, messages: horizontalMessages, files: horizontalFiles }
     }
@@ -1633,8 +1712,8 @@ export const liveApi = {
   }> {
     if (true) return { stats: hostLiveStats, rooms: hostLiveRooms, trend: hostLiveTrend }
     try {
-      const data = await apiGet<any>('/live/host-data')
-      return data as any
+      const data = await apiGet<{ stats: HostLiveStats; rooms: HostLiveRoom[]; trend: HostLiveTrend[] }>('/live/host-data')
+      return data
     } catch {
       return { stats: hostLiveStats, rooms: hostLiveRooms, trend: hostLiveTrend }
     }
@@ -1646,8 +1725,8 @@ export const liveApi = {
   }> {
     if (true) return { room: liveWatchRoom, comments: liveWatchComments, products: liveWatchProducts }
     try {
-      const data = await apiGet<any>(`/live/watch-room/${id}`)
-      return data as any
+      const data = await apiGet<{ room: typeof liveWatchRoom; comments: VerticalLiveComment[]; products: VerticalLiveProduct[] }>(`/live/watch-room/${id}`)
+      return data
     } catch {
       return { room: liveWatchRoom, comments: liveWatchComments, products: liveWatchProducts }
     }
@@ -1657,8 +1736,8 @@ export const liveApi = {
   async getGifts(): Promise<{ gifts: LiveGift[]; balance: number }> {
     if (true) return { gifts: liveGifts, balance: liveCoinBalance }
     try {
-      const data = await apiGet<any>('/live/gifts')
-      return data as any
+      const data = await apiGet<{ gifts: LiveGift[]; balance: number }>('/live/gifts')
+      return data
     } catch {
       return { gifts: liveGifts, balance: liveCoinBalance }
     }
@@ -1666,7 +1745,7 @@ export const liveApi = {
 
   /** 获取推流配置 — GET /live/stream-config */
   async getStreamConfig(): Promise<StreamConfig> {
-    const cfg = await apiGet<any>('/live/stream-config')
+    const cfg = await apiGet<RawStreamConfig>('/live/stream-config')
     const rs = cfg?.recommendedSettings || {}
     return {
       roomId: cfg?.roomId || '',

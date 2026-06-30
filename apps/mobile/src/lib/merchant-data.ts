@@ -225,8 +225,8 @@ export const merchantBackendApi = {
     return apiGetPaged<MerchantProduct>(`/merchant-backend/products?${q.toString()}`)
   },
   getProduct: (id: string) => apiGet<MerchantProduct>(`/merchant-backend/products/${id}`),
-  createProduct: (data: Record<string, any>) => apiPost<MerchantProduct>('/merchant-backend/products', data),
-  updateProduct: (id: string, data: Record<string, any>) => apiPut<MerchantProduct>(`/merchant-backend/products/${id}`, data),
+  createProduct: (data: Record<string, unknown>) => apiPost<MerchantProduct>('/merchant-backend/products', data),
+  updateProduct: (id: string, data: Record<string, unknown>) => apiPut<MerchantProduct>(`/merchant-backend/products/${id}`, data),
   deleteProduct: (id: string) => apiDelete(`/merchant-backend/products/${id}`),
   listProduct: (id: string) => apiPost(`/merchant-backend/products/${id}/list`, {}),
   unlistProduct: (id: string) => apiPost(`/merchant-backend/products/${id}/unlist`, {}),
@@ -275,7 +275,8 @@ export const merchantBackendApi = {
     apiGetPaged<MerchantCustomer>(`/merchant-backend/customers?page=${params?.page ?? 1}&pageSize=${params?.pageSize ?? 20}`),
   getNotices: () => apiGet<MerchantNotice[]>('/merchant-backend/notices'),
   getInquiries: (params?: { page?: number; pageSize?: number }) =>
-    apiGetPaged<any>(`/merchant-backend/inquiries?page=${params?.page ?? 1}&pageSize=${params?.pageSize ?? 20}`),
+    // 后端咨询子系统未实现（诚实降级返回空），结构未定 → 用宽松记录类型占位
+    apiGetPaged<Record<string, unknown>>(`/merchant-backend/inquiries?page=${params?.page ?? 1}&pageSize=${params?.pageSize ?? 20}`),
   getContentStats: () => apiGet<MerchantContentStats>('/merchant-backend/content-stats'),
 }
 

@@ -46,8 +46,23 @@ function toYmd(d?: string | null): string {
   return d ? String(d).slice(0, 10) : ''
 }
 
+/* —— 后端原始响应类型（容错适配用，字段宽松全 optional，仅声明 adapter 实际访问到的字段） —— */
+/** GET /station/:id 或 /station/my 原始响应（id 后端必返，声明为必填直供输出必填字段） */
+interface RawStation {
+  id: string
+  name?: string
+  logo?: string
+  themeColor?: string
+  heroImages?: string[]
+  lockedUsers?: number | string | null
+  intro?: string
+  user?: { nickname?: string; avatar?: string } | null
+  createdAt?: string | null
+  expireAt?: string | null
+}
+
 /** 将后端 station 记录映射为分站首页配置 */
-function mapStation(s: any): StationConfig {
+function mapStation(s: RawStation): StationConfig {
   const heroImages: string[] = Array.isArray(s.heroImages) && s.heroImages.length
     ? s.heroImages
     : [DEFAULT_HERO]
@@ -78,7 +93,7 @@ export const stationDetailApi = {
    */
   async getStationConfig(stationId?: string): Promise<StationConfig> {
     const path = stationId ? `/station/${stationId}` : '/station/my'
-    const s = await apiGet<any>(path)
+    const s = await apiGet<RawStation>(path)
     return mapStation(s)
   },
 

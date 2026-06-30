@@ -22,7 +22,7 @@ interface RecommendVO {
   excerpt?: string
   tags?: string[]
   reason?: string
-  metadata?: Record<string, any>
+  metadata?: Record<string, unknown>
 }
 
 interface RecommendResponse {

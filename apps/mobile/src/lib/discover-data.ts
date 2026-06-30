@@ -96,24 +96,50 @@ export const feedItems: FeedItem[] = [
 // ============ API 层 ============
 
 // ─── 后端发现页 sections（多类型聚合）→ 前端混排 FeedItem[] ───
-function dNum(v: any): number { const x = Number(v); return Number.isFinite(x) ? x : 0 }
+/* —— 后端原始响应类型（容错适配用，字段全 optional，仅声明 adapter 实际访问到的字段） —— */
+/** 后端 section item 统计字段 */
+interface RawFeedStats {
+  price?: number | string
+  studentCount?: number | string
+  salesCount?: number | string
+  viewCount?: number | string
+  likeCount?: number | string
+}
+/** 后端发现页 section item 原始结构（{id,title,cover,type,intro,tags,stats}） */
+interface RawFeedItemData {
+  id?: string
+  type?: string
+  title?: string
+  cover?: string
+  intro?: string
+  tags?: string[]
+  stats?: RawFeedStats | null
+}
+/** 后端发现页响应：{sections:[{type,items}]} 或 {items} 或数组 */
+interface RawDiscoverSection { type?: string; items?: RawFeedItemData[] }
+interface RawDiscoverWrap { sections?: RawDiscoverSection[]; items?: RawFeedItemData[] }
+type RawDiscoverData = RawDiscoverWrap | RawFeedItemData[]
+
+function dNum(v: unknown): number { const x = Number(v); return Number.isFinite(x) ? x : 0 }
 /** 后端 section item（{id,title,cover,type,intro,tags,stats}）→ 前端 FeedItem */
-function adaptFeedItem(it: any): FeedItem | null {
+function adaptFeedItem(it: RawFeedItemData): FeedItem | null {
   const t = it?.type || ''
-  if (t === 'course') return { kind: 'course', data: { id: it.id, title: it.title || '', cover: it.cover || '', coverRatio: '1:1', teacher: '', teacherAvatar: '', price: dNum(it.stats?.price), students: dNum(it.stats?.studentCount), lessons: 0 } }
-  if (t === 'product') return { kind: 'product', data: { id: it.id, title: it.title || '', cover: it.cover || '', coverRatio: '3:4', price: dNum(it.stats?.price), sales: dNum(it.stats?.salesCount) } }
-  if (t === 'classic') return { kind: 'classic', data: { id: it.id, title: it.title || '', author: it.tags?.[0] || '', description: it.intro || '', readers: dNum(it.stats?.viewCount) } }
-  if (t === 'bot') return { kind: 'agent', data: { id: it.id, name: it.title || '', avatar: it.cover || '', description: it.intro || '', useCount: 0 } }
-  if (t === 'content' || t === 'video' || t === 'article') return { kind: 'video', data: { id: it.id, title: it.title || '', cover: it.cover || '', coverRatio: '3:4', author: '', plays: dNum(it.stats?.viewCount), likes: dNum(it.stats?.likeCount), duration: '' } }
+  if (t === 'course') return { kind: 'course', data: { id: it.id || '', title: it.title || '', cover: it.cover || '', coverRatio: '1:1', teacher: '', teacherAvatar: '', price: dNum(it.stats?.price), students: dNum(it.stats?.studentCount), lessons: 0 } }
+  if (t === 'product') return { kind: 'product', data: { id: it.id || '', title: it.title || '', cover: it.cover || '', coverRatio: '3:4', price: dNum(it.stats?.price), sales: dNum(it.stats?.salesCount) } }
+  if (t === 'classic') return { kind: 'classic', data: { id: it.id || '', title: it.title || '', author: it.tags?.[0] || '', description: it.intro || '', readers: dNum(it.stats?.viewCount) } }
+  if (t === 'bot') return { kind: 'agent', data: { id: it.id || '', name: it.title || '', avatar: it.cover || '', description: it.intro || '', useCount: 0 } }
+  if (t === 'content' || t === 'video' || t === 'article') return { kind: 'video', data: { id: it.id || '', title: it.title || '', cover: it.cover || '', coverRatio: '3:4', author: '', plays: dNum(it.stats?.viewCount), likes: dNum(it.stats?.likeCount), duration: '' } }
   return null
 }
 /** 后端 {sections:[{type,items}]} 或 {items}/数组 → 交错混排 FeedItem[] */
-function adaptDiscoverFeed(res: any): FeedItem[] {
+function adaptDiscoverFeed(res: RawDiscoverData | null): FeedItem[] {
+  // res 可能是 {sections}/{items} 对象、item 数组或 null；wrap 取出对象形态以便访问 sections/items
+  const wrap: RawDiscoverWrap | null = Array.isArray(res) ? null : res
   let buckets: FeedItem[][] = []
-  if (Array.isArray(res?.sections)) {
-    buckets = res.sections.map((sec: any) => (sec.items || []).map(adaptFeedItem).filter((x: FeedItem | null): x is FeedItem => x !== null))
+  if (Array.isArray(wrap?.sections)) {
+    buckets = wrap!.sections!.map((sec: RawDiscoverSection) => (sec.items || []).map(adaptFeedItem).filter((x: FeedItem | null): x is FeedItem => x !== null))
   } else {
-    const arr = Array.isArray(res) ? res : (res?.items ?? [])
+    const arr: RawFeedItemData[] = Array.isArray(res) ? res : (wrap?.items ?? [])
     buckets = [arr.map(adaptFeedItem).filter((x: FeedItem | null): x is FeedItem => x !== null)]
   }
   const out: FeedItem[] = []
@@ -133,7 +159,7 @@ export const discoverApi = {
     const filtered = !!category && category !== 'all'
     try {
       const qs = filtered ? `&categoryLevel1=${encodeURIComponent(category as string)}` : ''
-      const items = adaptDiscoverFeed(await apiGet<any>(`/discover?pageSize=20${qs}`))
+      const items = adaptDiscoverFeed(await apiGet<RawDiscoverData>(`/discover?pageSize=20${qs}`))
       // 品类模式无数据 → 返回空（走 empty 态）；推荐模式兜底本地示例流
       return items.length ? items : (filtered ? [] : feedItems)
     } catch {
@@ -168,7 +194,7 @@ export const discoverApi = {
   /** 个性化推荐 — GET /discover/recommendations（同 sections 适配） */
   async getRecommendations(): Promise<FeedItem[]> {
     try {
-      const items = adaptDiscoverFeed(await apiGet<any>('/discover/recommendations?pageSize=12'))
+      const items = adaptDiscoverFeed(await apiGet<RawDiscoverData>('/discover/recommendations?pageSize=12'))
       return items.length ? items : feedItems.slice(0, 6)
     } catch {
       return feedItems.slice(0, 6)

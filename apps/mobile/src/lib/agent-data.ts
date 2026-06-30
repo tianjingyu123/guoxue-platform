@@ -28,6 +28,7 @@ export interface ChatMessage {
 
 export interface RecommendItem {
   type: 'course' | 'circle' | 'product' | 'paipan'
+  // 推荐卡片载荷：course/circle/product/paipan 四类结构各异，页面按 type 动态渲染，保留 any
   data: any
 }
 
@@ -167,15 +168,23 @@ function shortTime(iso?: string): string {
 
 // ============ API 层 ============
 
+/* —— 后端原始响应类型（容错适配用，字段全 optional，仅声明 adapter 访问到的） —— */
+interface RawBot { id?: string | number; name?: string; intro?: string; type?: string; price?: number | string; dailyLimit?: number | string; voiceEnabled?: boolean }
+interface RawChatResp { content?: string; conversationId?: string; disclaimer?: string; recommendation?: Recommendation }
+interface RawChatHistoryMsg { role?: string; content?: string; time?: string }
+interface RawConversation { botConfigId?: string; conversationId?: string; botName?: string; botAvatar?: string; botType?: string; lastMessage?: string; lastQuery?: string; lastTime?: string; messageCount?: number }
+
 /** 兼容数组 / 分页信封返回 */
-function unwrap(res: any): any[] {
-  return Array.isArray(res) ? res : (res?.rows ?? res?.items ?? [])
+function unwrap<T = Record<string, unknown>>(res: unknown): T[] {
+  if (Array.isArray(res)) return res as T[]
+  const o = res as { rows?: T[]; items?: T[] } | null
+  return o?.rows ?? o?.items ?? []
 }
 
 /** 按类型解析具体智能体 id（取该类型/全部中的首个） */
 async function resolveBotId(type?: string): Promise<string> {
-  const res = await apiGet<any>(`/bots${type ? `?type=${encodeURIComponent(type)}` : ''}`)
-  const arr = unwrap(res)
+  const res = await apiGet<unknown>(`/bots${type ? `?type=${encodeURIComponent(type)}` : ''}`)
+  const arr = unwrap<RawBot>(res)
   if (!arr.length) {
     throw new Error(type === 'CUSTOMER_SERVICE' ? '暂无可用客服智能体' : '暂无可用智能体')
   }
@@ -192,7 +201,7 @@ const _agentConv: Record<string, string> = {}
 export const agentApi = {
   /** 智能体详情 —— GET /bots/:id */
   async getDetail(id: string): Promise<AgentDetail> {
-    const b = await apiGet<any>(`/bots/${id}`)
+    const b = await apiGet<RawBot>(`/bots/${id}`)
     return {
       id: String(b.id),
       name: b.name || '智能体',
@@ -212,7 +221,7 @@ export const agentApi = {
 
   /** 发送消息 —— POST /bots/:id/chat（真实 Coze 回复，附风险免责声明） */
   async sendMessage(agentId: string, content: string): Promise<{ text: string; disclaimer?: string; recommendation?: Recommendation }> {
-    const res = await apiPost<any>(`/bots/${agentId}/chat`, {
+    const res = await apiPost<RawChatResp>(`/bots/${agentId}/chat`, {
       query: content,
       conversationId: _agentConv[agentId] || undefined,
     })
@@ -232,9 +241,9 @@ export const agentApi = {
 
   /** 拉取某会话的历史消息 —— GET /bots/:id/chat-history/:conversationId（续聊回填） */
   async getChatHistory(agentId: string, conversationId: string): Promise<ChatMessage[]> {
-    const res = await apiGet<any>(`/bots/${agentId}/chat-history/${encodeURIComponent(conversationId)}`)
+    const res = await apiGet<RawChatHistoryMsg[]>(`/bots/${agentId}/chat-history/${encodeURIComponent(conversationId)}`)
     const arr = Array.isArray(res) ? res : []
-    return arr.map((m: any, i: number) => ({
+    return arr.map((m: RawChatHistoryMsg, i: number) => ({
       id: i,
       role: m.role === 'user' ? 'user' : 'assistant',
       content: m.content || '',
@@ -250,7 +259,7 @@ export const agentApi = {
   /** 智玄助手对话 —— 解析默认主智能体后 POST /bots/:id/chat */
   async sendZhixuanMessage(content: string): Promise<string> {
     if (!_zhixuanBotId) _zhixuanBotId = await resolveBotId()
-    const res = await apiPost<any>(`/bots/${_zhixuanBotId}/chat`, {
+    const res = await apiPost<RawChatResp>(`/bots/${_zhixuanBotId}/chat`, {
       query: content,
       conversationId: _zhixuanConv || undefined,
     })
@@ -266,7 +275,7 @@ export const agentApi = {
   /** 客服对话 —— 解析 CUSTOMER_SERVICE 类型智能体后 POST /bots/:id/chat */
   async sendCsMessage(content: string): Promise<string> {
     if (!_csBotId) _csBotId = await resolveBotId('CUSTOMER_SERVICE')
-    const res = await apiPost<any>(`/bots/${_csBotId}/chat`, {
+    const res = await apiPost<RawChatResp>(`/bots/${_csBotId}/chat`, {
       query: content,
       conversationId: _csConv || undefined,
     })
@@ -276,8 +285,8 @@ export const agentApi = {
 
   /** 对话历史 —— GET /bots/my-conversations（按 conversationId 聚合的我的会话） */
   async getHistory(): Promise<HistoryItem[]> {
-    const res = await apiGet<any>('/bots/my-conversations')
-    return unwrap(res).map((c: any, i: number) => ({
+    const res = await apiGet<unknown>('/bots/my-conversations')
+    return unwrap<RawConversation>(res).map((c: RawConversation, i: number) => ({
       id: i + 1,
       botConfigId: String(c.botConfigId),
       conversationId: String(c.conversationId),
@@ -293,7 +302,7 @@ export const agentApi = {
   },
 
   /** 推荐内容 —— 后端无对应端点，返回空走空态 */
-  async getRecommendations(): Promise<{ courses: any[]; circles: any[]; products: any[] }> {
+  async getRecommendations(): Promise<{ courses: unknown[]; circles: unknown[]; products: unknown[] }> {
     return { courses: [], circles: [], products: [] }
   },
 }

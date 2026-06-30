@@ -159,11 +159,68 @@ function mapRole(r?: string): 'owner' | 'admin' | 'member' {
   return u === 'OWNER' ? 'owner' : u === 'ADMIN' ? 'admin' : 'member'
 }
 
+/* —— 后端原始响应类型（容错适配用，字段宽松全 optional，仅声明 adapter 实际访问到的字段） —— */
+interface RawMembership { role?: string; expireAt?: string | null }
+/** 后端 /circles/:id 详情（prisma 扁平对象） */
+interface RawCircleDetail {
+  id?: string
+  name?: string
+  cover?: string | null
+  intro?: string
+  description?: string
+  tags?: string[]
+  category?: string
+  memberCount?: number
+  postCount?: number
+  _count?: { posts?: number } | null
+  membership?: RawMembership | null
+  todayActive?: number
+  createdAt?: string | Date | null
+  owner?: { id?: string; nickname?: string; name?: string; avatar?: string } | null
+  announcement?: string
+  type?: string
+  price?: number | string | null
+  needApproval?: boolean
+}
+/** 后端帖子项 */
+interface RawCirclePost {
+  id?: string
+  content?: string
+  title?: string
+  images?: string[]
+  user?: { id?: string; nickname?: string; avatar?: string; title?: string } | null
+  userId?: string
+  createdAt?: string
+  likeCount?: number
+  likes?: number
+  commentCount?: number
+  comments?: number
+  isLiked?: boolean
+  isTop?: boolean
+  isPinned?: boolean
+  isEssence?: boolean
+}
+/** /circles/:id/posts 响应（可能裸数组，由 Array.isArray 运行时分流） */
+interface RawPostsResp { posts?: RawCirclePost[]; data?: RawCirclePost[]; total?: number }
+/** 后端成员项 */
+interface RawCircleMember {
+  id?: string
+  userId?: string
+  user?: { id?: string; nickname?: string; avatar?: string } | null
+  title?: string
+  role?: string
+  joinedAt?: string
+  postCount?: number
+  posts?: number
+}
+/** /circles/:id/members 响应（可能裸数组，由 Array.isArray 运行时分流） */
+interface RawMembersResp { members?: RawCircleMember[]; data?: RawCircleMember[]; total?: number }
+
 /** 后端圈子详情（prisma 扁平对象）→ 前端 CircleDetail */
-function adaptDetail(c: any): CircleDetail {
+function adaptDetail(c: RawCircleDetail): CircleDetail {
   return {
-    id: c.id,
-    name: c.name,
+    id: c.id || '',
+    name: c.name || '',
     cover: c.cover || '',
     description: c.intro ?? c.description ?? '',
     category: Array.isArray(c.tags) ? (c.tags[0] ?? '') : (c.category ?? ''),
@@ -189,9 +246,9 @@ function adaptDetail(c: any): CircleDetail {
 }
 
 /** 后端帖子 → 前端 CirclePost */
-function adaptPost(p: any): CirclePost {
+function adaptPost(p: RawCirclePost): CirclePost {
   return {
-    id: p.id,
+    id: p.id || '',
     content: (p.content ?? p.title ?? '').trim(),
     images: Array.isArray(p.images) ? p.images : [],
     author: {
@@ -210,9 +267,9 @@ function adaptPost(p: any): CirclePost {
 }
 
 /** 后端成员 → 前端 CircleMember */
-function adaptMember(m: any): CircleMember {
+function adaptMember(m: RawCircleMember): CircleMember {
   return {
-    id: m.user?.id ?? m.userId ?? m.id,
+    id: m.user?.id ?? m.userId ?? m.id ?? '',
     name: m.user?.nickname ?? '成员',
     avatar: m.user?.avatar ?? '',
     title: m.title,
@@ -225,19 +282,19 @@ function adaptMember(m: any): CircleMember {
 // ─── API（detail 主数据真连，失败抛出走页面 error 态；次要数据失败/后端无接口走空态隐藏，不展示假数据） ───
 export const circleDetailApi = {
   detail: async (id: string): Promise<CircleDetail> => {
-    return adaptDetail(await apiGet<any>(`/circles/${id}`))
+    return adaptDetail(await apiGet<RawCircleDetail>(`/circles/${id}`))
   },
   posts: async (id: string): Promise<{ data: CirclePost[]; total: number }> => {
     try {
-      const r = await apiGet<any>(`/circles/${id}/posts`)
-      const arr = Array.isArray(r) ? r : (r?.posts ?? r?.data ?? [])
+      const r = await apiGet<RawPostsResp>(`/circles/${id}/posts`)
+      const arr: RawCirclePost[] = Array.isArray(r) ? r : (r?.posts ?? r?.data ?? [])
       return { data: arr.map(adaptPost), total: r?.total ?? arr.length }
     } catch { return { data: [], total: 0 } }
   },
   listMembers: async (id: string): Promise<{ data: CircleMember[]; total: number }> => {
     try {
-      const r = await apiGet<any>(`/circles/${id}/members`)
-      const arr = Array.isArray(r) ? r : (r?.members ?? r?.data ?? [])
+      const r = await apiGet<RawMembersResp>(`/circles/${id}/members`)
+      const arr: RawCircleMember[] = Array.isArray(r) ? r : (r?.members ?? r?.data ?? [])
       return { data: arr.map(adaptMember), total: r?.total ?? arr.length }
     } catch { return { data: [], total: 0 } }
   },

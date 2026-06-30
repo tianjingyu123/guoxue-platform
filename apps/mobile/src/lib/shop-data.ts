@@ -519,8 +519,8 @@ export const flashNotices = [
 export const flashEndOffsetMs = 2 * 60 * 60 * 1000
 
 /** 取首个进行中秒杀场次（后端 /marketing/flash-sales/active 返回数组） */
-async function fetchActiveFlashSale(): Promise<any | null> {
-  const list = await apiGet<any[]>('/marketing/flash-sales/active')
+async function fetchActiveFlashSale(): Promise<RawFlashSale | null> {
+  const list = await apiGet<RawFlashSale[]>('/marketing/flash-sales/active')
   return list && list.length > 0 ? list[0] : null
 }
 
@@ -795,17 +795,17 @@ export const cartGroups: CartSellerGroup[] = [
   },
 ]
 /** 后端 Redis 购物车项 → 前端 FlatCartItem（规格 Json 转可读字符串） */
-function formatSkuSpecs(specs: any): string {
+function formatSkuSpecs(specs: unknown): string {
   if (!specs) return ''
   if (typeof specs === 'string') return specs
   if (Array.isArray(specs)) return specs.join(' / ')
   if (typeof specs === 'object') return Object.values(specs).join(' / ')
   return ''
 }
-function adaptCartItem(it: any): FlatCartItem {
+function adaptCartItem(it: RawCartItem): FlatCartItem {
   return {
-    id: it.id,
-    productId: it.productId,
+    id: it.id || '',
+    productId: it.productId || '',
     productName: it.product?.title || '商品已失效',
     productCover: it.product?.image || '',
     skuName: formatSkuSpecs(it.sku?.specs),
@@ -1474,13 +1474,43 @@ export const shopExchangeAddresses: ShopExchangeAddress[] = [
 
 // ============ API 层 ============
 
+/* ─── 后端原始响应类型（容错适配用，字段全 optional，仅声明 adapter 实际访问到的，宽松类型） ─── */
+interface RawShopSku { id?: string; specs?: unknown; skuCode?: string; price?: number | string; stock?: number | string }
+interface RawShopMerchant { id?: string; shopName?: string; shopLogo?: string | null; shopIntro?: string | null; rating?: number | string; totalSales?: number | string; totalOrders?: number | string; productCount?: number | string }
+interface RawShopProduct {
+  id?: string; title?: string; intro?: string; detail?: string
+  images?: string[]; videoUrl?: string
+  price?: number | string; effectivePrice?: number; originalPrice?: number | string
+  salesCount?: number; stock?: number | string; tags?: string[]
+  categoryLevel1?: string; hasPromotion?: boolean; promotionTag?: string
+  createdAt?: string
+  merchant?: RawShopMerchant | null
+  skus?: RawShopSku[]
+}
+interface RawShopReview { id?: string; user?: { nickname?: string; avatar?: string } | null; rating?: number; content?: string; images?: string[]; reply?: string | null; repliedAt?: string | null; createdAt?: string }
+interface RawReviewStats { average?: number; count?: number; withImages?: number; distribution?: Record<string, number> }
+interface RawGroupBuyProduct { title?: string; image?: string; originalPrice?: number | string; price?: number | string; intro?: string }
+interface RawGroupBuyMember { avatar?: string; nickname?: string; isLeader?: boolean; joinedAt?: string }
+interface RawGroupBuyGroup { groupId?: string; members?: RawGroupBuyMember[]; currentMembers?: number; minMembers?: number }
+interface RawGroupBuy { id?: string; product?: RawGroupBuyProduct | null; groupPrice?: number | string; minMembers?: number; joinedCount?: number; _count?: { participants?: number }; expireMinutes?: number; groups?: RawGroupBuyGroup[] }
+interface RawMyGroupBuy { groupBuyId?: string; groupBuy?: { productId?: string; groupPrice?: number | string; minMembers?: number; expireMinutes?: number } | null; joinedCount?: number; product?: RawGroupBuyProduct | null; status?: string; isLeader?: boolean }
+interface RawGroupResult { product?: RawGroupBuyProduct | null; members?: RawGroupBuyMember[]; paidAt?: string; orderId?: string; refundedAt?: string; refundAmount?: number | string; minMembers?: number; currentMembers?: number; groupId?: string }
+interface RawCartItem { id?: string; productId?: string; product?: { title?: string; image?: string } | null; sku?: { specs?: unknown } | null; skuId?: string; unitPrice?: number | string; originalPrice?: number | string; quantity?: number; stock?: number; isValid?: boolean; invalidReason?: string }
+interface RawAddress { id?: string; name?: string; contactName?: string; phone?: string; contactPhone?: string; province?: string; city?: string; district?: string; address?: string; detail?: string; isDefault?: boolean }
+interface RawCoupon { id?: string; name?: string; type?: string; value?: number | string; minAmount?: number | string; validEnd?: string; scope?: string; discountRate?: number | string; discountAmount?: number | string; totalCount?: number; usedCount?: number }
+interface RawUserCoupon { id?: string; couponId?: string; used?: boolean; coupon?: RawCoupon | null }
+interface RawCategoryNode { id?: string; name?: string; children?: { id?: string; name?: string }[] }
+interface RawFlashItem { productId?: string; product?: { title?: string; image?: string; originalPrice?: number | string; price?: number | string } | null; flashPrice?: number | string; stock?: number; sold?: number }
+interface RawFlashSale { id?: string; name?: string; startTime?: string; endTime?: string; items?: RawFlashItem[] }
+interface RawShopOrder { id?: string; targetId?: string; skuId?: string; status?: string; amount?: number | string; payAmount?: number | string; product?: { id?: string; title?: string; cover?: string } | null; sku?: { skuName?: string } | null }
+
 // ───────── 后端商品适配（前端 /shop 单数 → 后端 /shop/products）─────────
-function shopNum(v: any): number { const x = Number(v); return Number.isFinite(x) ? x : 0 }
+function shopNum(v: unknown): number { const x = Number(v); return Number.isFinite(x) ? x : 0 }
 /** 后端商品 → 前端首页推荐卡 ShopRecProduct */
-function adaptRecProduct(p: any): ShopRecProduct {
+function adaptRecProduct(p: RawShopProduct): ShopRecProduct {
   const price = p.effectivePrice ?? shopNum(p.price)
   return {
-    id: p.id,
+    id: p.id || '',
     name: p.title || '',
     cover: (Array.isArray(p.images) && p.images[0]) || '',
     price,
@@ -1493,10 +1523,10 @@ function adaptRecProduct(p: any): ShopRecProduct {
   }
 }
 /** 后端商品详情 → 前端 ProductDetail（specs/reviews/coupon 后端结构不同→默认空，页面降级） */
-function adaptProductDetail(p: any): ProductDetail {
+function adaptProductDetail(p: RawShopProduct): ProductDetail {
   const price = p.effectivePrice ?? shopNum(p.price)
   return {
-    id: p.id,
+    id: p.id || '',
     title: p.title || '',
     subtitle: p.intro || '',
     images: Array.isArray(p.images) ? p.images : [],
@@ -1513,13 +1543,13 @@ function adaptProductDetail(p: any): ProductDetail {
     reviews: [],
     description: p.detail || p.intro || '',
     merchant: p.merchant
-      ? { id: p.merchant.id, shopName: p.merchant.shopName, shopLogo: p.merchant.shopLogo || undefined }
+      ? { id: p.merchant.id || '', shopName: p.merchant.shopName || '', shopLogo: p.merchant.shopLogo || undefined }
       : null,
   }
 }
 
 /** ISO → 'YYYY-MM-DD'（评价展示日期，多端无 dayjs） */
-function shopFmtDate(iso?: string): string {
+function shopFmtDate(iso?: string | null): string {
   if (!iso) return ''
   const d = new Date(iso)
   if (isNaN(d.getTime())) return ''
@@ -1528,9 +1558,9 @@ function shopFmtDate(iso?: string): string {
 }
 
 /** 后端商品评价（含 user/reply）→ 前端 ShopProductReview */
-function adaptShopReview(r: any): ShopProductReview {
+function adaptShopReview(r: RawShopReview): ShopProductReview {
   return {
-    id: r.id,
+    id: r.id || '',
     userName: r.user?.nickname || '匿名用户',
     avatar: r.user?.avatar || '',
     rating: r.rating ?? 5,
@@ -1545,8 +1575,8 @@ function adaptShopReview(r: any): ShopProductReview {
 }
 
 /** 后端评价 stats {average,count,distribution:{1..5}} → 前端 {average,total,withImages,distribution[5..1]} */
-function adaptReviewStats(stats: any, reviews: any[]) {
-  const dist = stats?.distribution || {}
+function adaptReviewStats(stats: RawReviewStats | null | undefined, reviews: RawShopReview[]) {
+  const dist: Record<string, number> = stats?.distribution || {}
   const total = stats?.count ?? reviews.length
   // 优先用后端全量「有图」计数（分页后当页聚合不准）；后端缺失时回退当页统计
   const withImages = stats?.withImages ?? reviews.filter((r) => Array.isArray(r.images) && r.images.length > 0).length
@@ -1558,11 +1588,11 @@ function adaptReviewStats(stats: any, reviews: any[]) {
 }
 
 /** 后端商品 → 前端 ShopProductDetail（规格表后端无→空降级；shipping 取平台默认包邮） */
-function adaptShopProductDetail(p: any, stats?: any): ShopProductDetail {
+function adaptShopProductDetail(p: RawShopProduct, stats?: RawReviewStats | null): ShopProductDetail {
   const price = p.effectivePrice ?? shopNum(p.price)
   const skus: ShopProductSku[] = Array.isArray(p.skus)
-    ? p.skus.map((s: any) => ({
-        id: s.id,
+    ? p.skus.map((s: RawShopSku) => ({
+        id: s.id || '',
         name: s.specs && typeof s.specs === 'object' && !Array.isArray(s.specs)
           ? Object.values(s.specs).filter(Boolean).join(' ') || (s.skuCode || '规格')
           : (s.skuCode || '规格'),
@@ -1573,7 +1603,7 @@ function adaptShopProductDetail(p: any, stats?: any): ShopProductDetail {
       }))
     : []
   return {
-    id: p.id,
+    id: p.id || '',
     name: p.title || '',
     price,
     originalPrice: shopNum(p.originalPrice) || price,
@@ -1601,11 +1631,11 @@ const GROUP_BUY_RULES = [
 ]
 
 /** 后端进行中拼团活动 → 前端 GroupBuyItem */
-function adaptGroupBuyItem(g: any): GroupBuyItem {
+function adaptGroupBuyItem(g: RawGroupBuy): GroupBuyItem {
   const joined = g.joinedCount ?? g._count?.participants ?? 0
   const minMembers = g.minMembers ?? 2
   return {
-    id: g.id,
+    id: g.id || '',
     title: g.product?.title || '拼团商品',
     cover: g.product?.image || '',
     price: shopNum(g.groupPrice),
@@ -1618,17 +1648,17 @@ function adaptGroupBuyItem(g: any): GroupBuyItem {
 }
 
 /** 后端我的拼团参与记录 → 前端 MyGroupBuyItem */
-function adaptMyGroupBuy(r: any): MyGroupBuyItem {
-  const gb = r.groupBuy || {}
+function adaptMyGroupBuy(r: RawMyGroupBuy): MyGroupBuyItem {
+  const gb: NonNullable<RawMyGroupBuy['groupBuy']> = r.groupBuy || {}
   const joined = r.joinedCount ?? 0
   const statusMap: Record<string, MyGroupBuyItem['status']> = { WAITING: 'pending', SUCCESS: 'success', REFUNDED: 'failed' }
   return {
-    id: r.groupBuyId,
+    id: r.groupBuyId || '',
     productId: gb.productId || '',
     productName: r.product?.title || '拼团商品',
     productCover: r.product?.image || '',
     price: shopNum(gb.groupPrice),
-    status: statusMap[r.status] || 'pending',
+    status: statusMap[r.status || ''] || 'pending',
     memberCount: joined,
     minMembers: gb.minMembers ?? 2,
     currentMembers: joined,
@@ -1646,7 +1676,7 @@ function fmtDateTime(s?: string | null): string {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
 }
 /** 后端拼团结果(my-result) → 成功结果页（成团时间取支付时间·后端无单独成团时间；发货预估为业务承诺文案） */
-function adaptGroupBuySuccess(r: any) {
+function adaptGroupBuySuccess(r: RawGroupResult) {
   const price = shopNum(r?.product?.price)
   const originalPrice = shopNum(r?.product?.originalPrice)
   return {
@@ -1655,21 +1685,21 @@ function adaptGroupBuySuccess(r: any) {
     price,
     originalPrice,
     savedAmount: Math.round((originalPrice - price) * 100) / 100,
-    members: (r?.members || []).map((m: any) => ({ avatar: m.avatar || '' })),
+    members: (r?.members || []).map((m: RawGroupBuyMember) => ({ avatar: m.avatar || '' })),
     completedAt: fmtDateTime(r?.paidAt),
     orderId: r?.orderId || '',
     estimatedShipDate: '付款后 3 个工作日内',
   }
 }
 /** 后端拼团结果(my-result) → 失败结果页（reason 统一 timeout·后端仅超时未成团一种失败；退款状态由 refundedAt 派生） */
-function adaptGroupBuyFail(r: any) {
+function adaptGroupBuyFail(r: RawGroupResult) {
   return {
     productCover: r?.product?.image || '',
     productName: r?.product?.title || '',
     price: shopNum(r?.product?.price),
     minMembers: r?.minMembers || 2,
     currentMembers: r?.currentMembers || 0,
-    members: (r?.members || []).map((m: any) => ({ avatar: m.avatar || '' })),
+    members: (r?.members || []).map((m: RawGroupBuyMember) => ({ avatar: m.avatar || '' })),
     reason: 'timeout',
     failedAt: fmtDateTime(r?.refundedAt || r?.paidAt),
     refundAmount: shopNum(r?.refundAmount),
@@ -1681,9 +1711,9 @@ function adaptGroupBuyFail(r: any) {
 }
 
 /** 后端拼团详情 → 前端 GroupBuyDetailData（rules 为静态配置，description 取商品简介） */
-function adaptGroupBuyDetailData(gb: any): GroupBuyDetailData {
+function adaptGroupBuyDetailData(gb: RawGroupBuy): GroupBuyDetailData {
   return {
-    id: gb.id,
+    id: gb.id || '',
     title: gb.product?.title || '拼团商品',
     cover: gb.product?.image || '',
     price: shopNum(gb.groupPrice),
@@ -1695,18 +1725,18 @@ function adaptGroupBuyDetailData(gb: any): GroupBuyDetailData {
 }
 
 /** 后端进行中的团（按 groupId 聚合）→ 前端 ActiveGroup[]（团长 joinedAt + 活动时长 推算剩余时间） */
-function adaptActiveGroups(groups: any[], expireMinutes?: number): ActiveGroup[] {
+function adaptActiveGroups(groups: RawGroupBuyGroup[], expireMinutes?: number): ActiveGroup[] {
   const winMs = (expireMinutes ?? 0) * 60000
   const now = Date.now()
   return (groups || []).map((g) => {
-    const members = g.members || []
-    const leader = members.find((m: any) => m.isLeader) || members[0]
-    const others = members.filter((m: any) => m !== leader)
+    const members: RawGroupBuyMember[] = g.members || []
+    const leader = members.find((m: RawGroupBuyMember) => m.isLeader) || members[0]
+    const others = members.filter((m: RawGroupBuyMember) => m !== leader)
     const startMs = leader?.joinedAt ? new Date(leader.joinedAt).getTime() : now
     return {
-      id: g.groupId,
+      id: g.groupId || '',
       owner: { name: leader?.nickname || '团长', avatar: leader?.avatar || '' },
-      members: others.map((m: any) => ({ name: m.nickname || '团员', avatar: m.avatar || '' })),
+      members: others.map((m: RawGroupBuyMember) => ({ name: m.nickname || '团员', avatar: m.avatar || '' })),
       currentMembers: g.currentMembers ?? members.length,
       minMembers: g.minMembers ?? 2,
       endOffsetMs: Math.max(0, startMs + winMs - now),
@@ -1715,9 +1745,9 @@ function adaptActiveGroups(groups: any[], expireMinutes?: number): ActiveGroup[]
 }
 
 /** 后端商品 → 前端 ProductCardData（mall 首页推荐卡片） */
-function adaptProductCard(p: any): ProductCardData {
+function adaptProductCard(p: RawShopProduct): ProductCardData {
   return {
-    id: p.id,
+    id: p.id || '',
     title: p.title || '',
     cover: p.images?.[0] || '',
     price: shopNum(p.effectivePrice ?? p.price),
@@ -1737,9 +1767,9 @@ const MALL_CATEGORY_SORT_OPTIONS = [
 ]
 
 /** 后端商品 → 前端 CategoryProduct（mall 分类页·category 取 categoryLevel1 真实标签） */
-function adaptCategoryProduct(p: any): CategoryProduct {
+function adaptCategoryProduct(p: RawShopProduct): CategoryProduct {
   return {
-    id: p.id,
+    id: p.id || '',
     name: p.title || '',
     price: shopNum(p.effectivePrice ?? p.price),
     originalPrice: shopNum(p.originalPrice ?? p.price),
@@ -1760,9 +1790,9 @@ const MALL_REVIEW_SORT_OPTIONS = [
 ]
 
 /** 后端商品评价 → 前端 FullReview（后端无 level/spec/tags/likes，诚实降级；reply 取后端回复） */
-function adaptMallReview(r: any): FullReview {
+function adaptMallReview(r: RawShopReview): FullReview {
   return {
-    id: r.id,
+    id: r.id || '',
     user: { name: r.user?.nickname || '匿名用户', avatar: r.user?.avatar || '', level: '' },
     rating: r.rating ?? 5,
     content: r.content || '',
@@ -1777,9 +1807,9 @@ function adaptMallReview(r: any): FullReview {
 
 export const shopApi = {
   /** 商城首页 — 商品列表 GET /shop/products 真连 + 运营字段用前端配置（后端无聚合 BFF）*/
-  async getHome(): Promise<any> {
+  async getHome() {
     try {
-      const res = await apiGet<any>('/shop/products?pageSize=30')
+      const res = await apiGet<RawShopProduct[] | { products?: RawShopProduct[]; data?: RawShopProduct[] }>('/shop/products?pageSize=30')
       const arr = Array.isArray(res) ? res : (res?.products ?? res?.data ?? [])
       const recProducts: ShopRecProduct[] = arr.map(adaptRecProduct)
       if (!recProducts.length) throw new Error('empty')
@@ -1792,7 +1822,7 @@ export const shopApi = {
   /** 商品详情 — GET /shop/products/:id */
   async getProduct(id: string): Promise<ProductDetail> {
     try {
-      return adaptProductDetail(await apiGet<any>(`/shop/products/${id}`))
+      return adaptProductDetail(await apiGet<RawShopProduct>(`/shop/products/${id}`))
     } catch {
       return getProductDetail(id)
     }
@@ -1800,11 +1830,11 @@ export const shopApi = {
 
   /** C 端店铺主页 — 商家信息 + 在售商品（GET /shop/store/:merchantId）。失败抛给页面走三态，不回退假数据 */
   async getStore(merchantId: string, page = 1, pageSize = 20): Promise<StoreData> {
-    const res = await apiGet<any>(`/shop/store/${merchantId}?page=${page}&pageSize=${pageSize}`)
-    const m = res?.merchant || {}
+    const res = await apiGet<{ merchant?: RawShopMerchant; products?: RawShopProduct[]; total?: number | string }>(`/shop/store/${merchantId}?page=${page}&pageSize=${pageSize}`)
+    const m: RawShopMerchant = res?.merchant || {}
     return {
       merchant: {
-        id: m.id,
+        id: m.id || '',
         shopName: m.shopName || '',
         shopLogo: m.shopLogo || undefined,
         shopIntro: m.shopIntro || undefined,
@@ -1814,8 +1844,8 @@ export const shopApi = {
         productCount: shopNum(m.productCount),
       },
       products: Array.isArray(res?.products)
-        ? res.products.map((p: any): StoreProduct => ({
-            id: p.id,
+        ? res.products.map((p: RawShopProduct): StoreProduct => ({
+            id: p.id || '',
             title: p.title || '',
             cover: Array.isArray(p.images) ? p.images[0] : undefined,
             price: p.effectivePrice ?? shopNum(p.price),
@@ -1828,22 +1858,22 @@ export const shopApi = {
 
   /** 获取商品分类树 — GET /shop/categories/tree（公开），适配为 ShopCategoryNode（icon 按名称派生） */
   async getCategories(): Promise<ShopCategoryNode[]> {
-    const data = await apiGet<any>('/shop/categories/tree')
+    const data = await apiGet<RawCategoryNode[] | { items?: RawCategoryNode[] }>('/shop/categories/tree')
     const arr = Array.isArray(data) ? data : (data?.items || [])
-    return arr.map((c: any) => ({
+    return arr.map((c: RawCategoryNode) => ({
       id: c.id,
       name: c.name,
-      icon: shopCatIcon(c.name),
-      children: (c.children || []).map((ch: any) => ({ id: ch.id, name: ch.name })),
+      icon: shopCatIcon(c.name || ''),
+      children: (c.children || []).map((ch: { id?: string; name?: string }) => ({ id: ch.id, name: ch.name })),
     })) as ShopCategoryNode[]
   },
 
   /** 获取某分类下商品 — GET /shop/categories/:id/products */
   async getCategoryProducts(categoryId: string): Promise<ShopCategoryProduct[]> {
     if (!categoryId) return []
-    const res = await apiGet<any>(`/shop/categories/${categoryId}/products?pageSize=50`)
+    const res = await apiGet<RawShopProduct[] | { items?: RawShopProduct[] }>(`/shop/categories/${categoryId}/products?pageSize=50`)
     const items = Array.isArray(res) ? res : (res?.items || [])
-    return items.map((p: any) => ({
+    return items.map((p: RawShopProduct) => ({
       id: p.id,
       name: p.title,
       cover: p.images?.[0] || '',
@@ -1857,12 +1887,12 @@ export const shopApi = {
   async getFlashSale(): Promise<typeof shopFlashSale> {
     const sale = await fetchActiveFlashSale()
     if (!sale) return { id: '', title: '限时秒杀', durationSec: 0, products: [] }
-    const endOffsetMs = Math.max(0, new Date(sale.endTime).getTime() - Date.now())
+    const endOffsetMs = Math.max(0, new Date(sale.endTime ?? '').getTime() - Date.now())
     return {
-      id: sale.id,
+      id: sale.id || '',
       title: sale.name || '限时秒杀',
       durationSec: Math.floor(endOffsetMs / 1000),
-      products: (sale.items || []).map((it: any) => ({
+      products: (sale.items || []).map((it: RawFlashItem) => ({
         id: it.productId,
         name: it.product?.title || '商品',
         cover: it.product?.image || '',
@@ -1874,12 +1904,12 @@ export const shopApi = {
 
   /** 获取进行中拼团（首页拼团专区/营销区） — GET /marketing/group-buys/active */
   async getActiveGroupBuys(): Promise<Array<{ id: string; cover: string; title: string; need: number; joined: number; groupPrice: number; originalPrice: number }>> {
-    const list = await apiGet<any[]>('/marketing/group-buys/active')
+    const list = await apiGet<RawGroupBuy[]>('/marketing/group-buys/active')
     return (list || []).map((g) => ({
-      id: g.id,
+      id: g.id || '',
       cover: g.product?.image || '',
       title: g.product?.title || '拼团商品',
-      need: g.minMembers,
+      need: g.minMembers ?? 2,
       joined: g.joinedCount ?? g._count?.participants ?? 0,
       groupPrice: Number(g.groupPrice),
       originalPrice: Number(g.product?.originalPrice ?? g.product?.price ?? g.groupPrice),
@@ -1890,44 +1920,44 @@ export const shopApi = {
   async getFlashSaleFull(): Promise<{ timeSlots: FlashTimeSlot[]; products: FlashProduct[]; notices: string[]; endOffsetMs: number }> {
     const sale = await fetchActiveFlashSale()
     if (!sale) return { timeSlots: [], products: [], notices: [], endOffsetMs: 0 }
-    const products: FlashProduct[] = (sale.items || []).map((it: any) => ({
-      id: it.productId,
+    const products: FlashProduct[] = (sale.items || []).map((it: RawFlashItem) => ({
+      id: it.productId || '',
       name: it.product?.title || '商品',
       cover: it.product?.image || '',
       price: Number(it.flashPrice),
       originalPrice: Number(it.product?.originalPrice ?? it.product?.price ?? it.flashPrice),
-      stock: it.stock,
-      sold: it.sold,
+      stock: it.stock ?? 0,
+      sold: it.sold ?? 0,
     }))
-    const startHour = new Date(sale.startTime).getHours()
+    const startHour = new Date(sale.startTime ?? '').getHours()
     const hh = String(startHour).padStart(2, '0')
     const timeSlots: FlashTimeSlot[] = [{ id: String(startHour), label: `${hh}:00`, time: `${hh}:00:00` }]
     const notices = products.slice(0, 3).map((p) => `「${p.name}」秒杀价 ¥${p.price}，限时抢购`)
-    const endOffsetMs = Math.max(0, new Date(sale.endTime).getTime() - Date.now())
+    const endOffsetMs = Math.max(0, new Date(sale.endTime ?? '').getTime() - Date.now())
     return { timeSlots, products, notices, endOffsetMs }
   },
 
   /** 获取购物车 — GET /shop/cart（Redis 购物车，扁平结构） */
   async getCart(): Promise<{ items: FlatCartItem[] }> {
-    const res = await apiGet<any>('/shop/cart')
+    const res = await apiGet<{ items?: RawCartItem[] }>('/shop/cart')
     return { items: (res?.items || []).map(adaptCartItem) }
   },
 
   /** 加入购物车 — POST /shop/cart，返回最新购物车 */
   async addToCart(productId: string, quantity = 1, skuId?: string): Promise<{ items: FlatCartItem[] }> {
-    const res = await apiPost<any>('/shop/cart', { productId, skuId, quantity })
+    const res = await apiPost<{ items?: RawCartItem[] }>('/shop/cart', { productId, skuId, quantity })
     return { items: (res?.items || []).map(adaptCartItem) }
   },
 
   /** 更新购物车商品数量 — PUT /shop/cart/:itemId，返回最新购物车 */
   async updateCartItem(itemId: string, quantity: number): Promise<{ items: FlatCartItem[] }> {
-    const res = await apiPut<any>(`/shop/cart/${itemId}`, { quantity })
+    const res = await apiPut<{ items?: RawCartItem[] }>(`/shop/cart/${itemId}`, { quantity })
     return { items: (res?.items || []).map(adaptCartItem) }
   },
 
   /** 移除购物车商品 — DELETE /shop/cart/:itemId，返回最新购物车 */
   async removeCartItem(itemId: string): Promise<{ items: FlatCartItem[] }> {
-    const res = await apiDelete<any>(`/shop/cart/${itemId}`)
+    const res = await apiDelete<{ items?: RawCartItem[] }>(`/shop/cart/${itemId}`)
     return { items: (res?.items || []).map(adaptCartItem) }
   },
 
@@ -1938,8 +1968,8 @@ export const shopApi = {
 
   /** 获取 SKU 维度购物车 — GET /shop/cart（后端购物车本就含 skuId） */
   async getSkuCart(): Promise<SkuCartItem[]> {
-    const res = await apiGet<any>('/shop/cart')
-    return (res?.items || []).map((it: any) => ({
+    const res = await apiGet<{ items?: RawCartItem[] }>('/shop/cart')
+    return (res?.items || []).map((it: RawCartItem) => ({
       id: it.id,
       productId: it.productId,
       productName: it.product?.title || '商品已失效',
@@ -1969,8 +1999,8 @@ export const shopApi = {
     let items: CheckoutItem[] = []
     if (opts?.productId) {
       // 立即购买（单品）：拉商品详情，可选 SKU
-      const p = await apiGet<any>(`/shop/products/${opts.productId}`)
-      const sku = opts.skuId && Array.isArray(p?.skus) ? p.skus.find((s: any) => s.id === opts.skuId) : null
+      const p = await apiGet<RawShopProduct>(`/shop/products/${opts.productId}`)
+      const sku = opts.skuId && Array.isArray(p?.skus) ? p.skus.find((s: RawShopSku) => s.id === opts.skuId) : null
       const price = sku ? shopNum(sku.price) : shopNum(p?.effectivePrice ?? p?.price)
       items = [{
         id: opts.skuId || p?.id || opts.productId,
@@ -1994,20 +2024,20 @@ export const shopApi = {
       }))
     }
     // 2) 收货地址（后端 detail → 前端 address）
-    const addrRes = await apiGet<any>('/shop/addresses').catch(() => [])
-    const addresses: ShippingAddress[] = (Array.isArray(addrRes) ? addrRes : addrRes?.items || []).map((a: any) => ({
-      id: a.id, name: a.name || '', phone: a.phone || '',
+    const addrRes = await apiGet<RawAddress[] | { items?: RawAddress[] }>('/shop/addresses').catch(() => [])
+    const addresses: ShippingAddress[] = (Array.isArray(addrRes) ? addrRes : addrRes?.items || []).map((a: RawAddress) => ({
+      id: a.id || '', name: a.name || '', phone: a.phone || '',
       province: a.province || '', city: a.city || '', district: a.district || '',
       address: a.detail || a.address || '', isDefault: !!a.isDefault,
     }))
     // 3) 可用券（未用 + 未过期 + 满足门槛），按当前金额预估抵扣（最终以后端 createOrder 重算为准）
     const goodsTotal = items.reduce((s, i) => s + i.price * i.quantity, 0)
-    const myRes = await apiGet<any[]>('/shop/coupons/my').catch(() => [])
+    const myRes = await apiGet<RawUserCoupon[]>('/shop/coupons/my').catch(() => [])
     const now = Date.now()
     const coupons: CheckoutCoupon[] = (myRes || [])
-      .filter((uc: any) => !uc.used && (!uc.coupon?.validEnd || new Date(uc.coupon.validEnd).getTime() > now))
-      .map((uc: any) => {
-        const c = uc.coupon || {}
+      .filter((uc: RawUserCoupon) => !uc.used && (!uc.coupon?.validEnd || new Date(uc.coupon.validEnd).getTime() > now))
+      .map((uc: RawUserCoupon) => {
+        const c: RawCoupon = uc.coupon || {}
         const minAmount = Number(c.minAmount ?? 0)
         let value = 0
         if (c.type === 'DISCOUNT') {
@@ -2016,7 +2046,7 @@ export const shopApi = {
         } else {
           value = Number(c.discountAmount ?? c.value ?? 0)
         }
-        return { id: uc.id, name: c.name || '优惠券', value, minAmount }
+        return { id: uc.id || '', name: c.name || '优惠券', value, minAmount }
       })
       .filter((c: CheckoutCoupon) => c.minAmount <= goodsTotal)
     return { items, addresses, coupons, payMethods: checkoutPayMethods, invoiceOptions }
@@ -2027,7 +2057,7 @@ export const shopApi = {
    * 注意 amount 字段语义=购买数量（后端约定），金额由后端依统一定价引擎计算。
    */
   async createOrder(payload: { type?: string; targetId: string; skuId?: string; quantity?: number; couponId?: string; addressId?: string }): Promise<{ id: string; amount: number; status: string }> {
-    const res = await apiPost<any>('/shop/orders', {
+    const res = await apiPost<{ id?: string; amount?: number | string; status?: string }>('/shop/orders', {
       type: payload.type || 'PRODUCT',
       targetId: payload.targetId,
       skuId: payload.skuId || undefined,
@@ -2035,12 +2065,12 @@ export const shopApi = {
       couponId: payload.couponId || undefined,
       addressId: payload.addressId || undefined,
     })
-    return { id: res.id, amount: shopNum(res.amount), status: res.status || 'PENDING' }
+    return { id: res.id || '', amount: shopNum(res.amount), status: res.status || 'PENDING' }
   },
 
   /** 发起微信 Native 扫码支付 — POST /shop/orders/:id/pay/native（返回 code_url 二维码；本地无商户证书会失败，走错误态） */
-  async payOrderNative(orderId: string): Promise<{ codeUrl?: string; raw: any }> {
-    const res = await apiPost<any>(`/shop/orders/${orderId}/pay/native`, {})
+  async payOrderNative(orderId: string): Promise<{ codeUrl?: string; raw: unknown }> {
+    const res = await apiPost<{ code_url?: string; codeUrl?: string }>(`/shop/orders/${orderId}/pay/native`, {})
     return { codeUrl: res?.code_url || res?.codeUrl, raw: res }
   },
 
@@ -2049,7 +2079,7 @@ export const shopApi = {
    * 不用 /payment-status（依赖微信查单·本地不通），改读订单 status：微信回调或管理员确认支付后置 PAID，本地可验证闭环。
    */
   async getOrderPayState(orderId: string): Promise<{ status: string; paid: boolean }> {
-    const res = await apiGet<any>(`/shop/orders/${orderId}`)
+    const res = await apiGet<{ status?: string }>(`/shop/orders/${orderId}`)
     const status = res?.status || 'PENDING'
     return { status, paid: ['PAID', 'SHIPPED', 'COMPLETED'].includes(status) }
   },
@@ -2061,16 +2091,16 @@ export const shopApi = {
   },
 
   /** 获取优惠券详情 — GET /shop/coupons/:id（后端无规则/适用商品，页面 v-if 降级） */
-  async getCouponDetail(id: string): Promise<any> {
-    const c = await apiGet<any>(`/shop/coupons/${id}`)
+  async getCouponDetail(id: string) {
+    const c = await apiGet<RawCoupon>(`/shop/coupons/${id}`)
     return {
-      id: c.id,
+      id: c.id || '',
       name: c.name || '优惠券',
-      type: adaptCouponType(c.type),
-      value: adaptCouponValue(c.type, Number(c.value)),
+      type: adaptCouponType(c.type || ''),
+      value: adaptCouponValue(c.type || '', Number(c.value)),
       minAmount: Number(c.minAmount ?? 0),
       expireAt: fmtCouponDate(c.validEnd),
-      scope: [COUPON_SCOPE_LABELS[c.scope] || '全场通用'],
+      scope: [COUPON_SCOPE_LABELS[c.scope || ''] || '全场通用'],
       description: c.name || '',
       rules: [] as string[],
       applicableItems: [] as CouponApplicableItem[],
@@ -2079,19 +2109,19 @@ export const shopApi = {
 
   /** 获取我的优惠券 — GET /shop/coupons/my（UserCoupon[] include coupon） */
   async getMyCoupons(): Promise<{ coupons: MyCoupon[]; tabs: typeof couponTabs }> {
-    const list = await apiGet<any[]>('/shop/coupons/my')
+    const list = await apiGet<RawUserCoupon[]>('/shop/coupons/my')
     const now = Date.now()
     const coupons: MyCoupon[] = (list || []).map((uc) => {
-      const c = uc.coupon || {}
+      const c: RawCoupon = uc.coupon || {}
       const expired = c.validEnd ? new Date(c.validEnd).getTime() < now : false
       return {
-        id: uc.id,
+        id: uc.id || '',
         name: c.name || '优惠券',
-        type: adaptCouponType(c.type),
-        value: adaptCouponValue(c.type, Number(c.value)),
+        type: adaptCouponType(c.type || ''),
+        value: adaptCouponValue(c.type || '', Number(c.value)),
         minAmount: Number(c.minAmount ?? 0),
         expireAt: fmtCouponDate(c.validEnd),
-        scope: [COUPON_SCOPE_LABELS[c.scope] || '全场通用'],
+        scope: [COUPON_SCOPE_LABELS[c.scope || ''] || '全场通用'],
         status: uc.used ? 'used' : expired ? 'expired' : 'unused',
       }
     })
@@ -2101,19 +2131,19 @@ export const shopApi = {
   /** 获取领券中心 — GET /shop/coupons（ACTIVE 券，叠加我的已领状态） */
   async getCenterCoupons(): Promise<CenterCoupon[]> {
     const [listRes, myList] = await Promise.all([
-      apiGet<any>('/shop/coupons?pageSize=50'),
-      apiGet<any[]>('/shop/coupons/my').catch(() => [] as any[]),
+      apiGet<{ coupons?: RawCoupon[] }>('/shop/coupons?pageSize=50'),
+      apiGet<RawUserCoupon[]>('/shop/coupons/my').catch(() => [] as RawUserCoupon[]),
     ])
-    const claimedIds = new Set((myList || []).map((uc: any) => uc.couponId))
+    const claimedIds = new Set((myList || []).map((uc: RawUserCoupon) => uc.couponId))
     const coupons = listRes?.coupons || []
-    return coupons.map((c: any) => ({
+    return coupons.map((c: RawCoupon) => ({
       id: c.id,
       name: c.name || '优惠券',
-      type: adaptCouponType(c.type),
-      value: adaptCouponValue(c.type, Number(c.value)),
+      type: adaptCouponType(c.type || ''),
+      value: adaptCouponValue(c.type || '', Number(c.value)),
       minAmount: Number(c.minAmount ?? 0),
       expireAt: fmtCouponDate(c.validEnd),
-      scope: [COUPON_SCOPE_LABELS[c.scope] || '全场通用'],
+      scope: [COUPON_SCOPE_LABELS[c.scope || ''] || '全场通用'],
       stock: c.totalCount === -1 ? 9999 : c.totalCount,
       claimed: c.usedCount ?? 0,
       isClaimed: claimedIds.has(c.id),
@@ -2126,15 +2156,15 @@ export const shopApi = {
   },
 
   /** 获取换货数据 — GET /shop/exchange */
-  async getExchange(orderId?: string): Promise<any> {
+  async getExchange(orderId?: string) {
     // 换货 = 售后(type=exchange)：商品来自订单、地址来自用户地址、原因为 UI 配置；提交走 after-sale
     const [order, addrRes] = await Promise.all([
-      orderId ? apiGet<any>(`/shop/orders/${orderId}`).catch(() => null) : Promise.resolve(null),
-      apiGet<any>('/shop/addresses').catch(() => []),
+      orderId ? apiGet<RawShopOrder>(`/shop/orders/${orderId}`).catch(() => null) : Promise.resolve(null),
+      apiGet<RawAddress[] | { items?: RawAddress[] }>('/shop/addresses').catch(() => []),
     ])
     const addrArr = Array.isArray(addrRes) ? addrRes : (addrRes?.items || [])
-    const addresses: ShopExchangeAddress[] = addrArr.map((a: any) => ({
-      id: a.id,
+    const addresses: ShopExchangeAddress[] = addrArr.map((a: RawAddress) => ({
+      id: a.id || '',
       name: a.name || a.contactName || '',
       phone: a.phone || a.contactPhone || '',
       province: a.province || '',
@@ -2148,10 +2178,10 @@ export const shopApi = {
       // 拉商品 SKU（换不同规格用；订单行未携带 SKU 列表）
       let skus: { id: string; name: string; price: number }[] = []
       try {
-        const p = await apiGet<any>(`/shop/products/${order.product.id}`)
+        const p = await apiGet<RawShopProduct>(`/shop/products/${order.product.id}`)
         skus = Array.isArray(p?.skus)
-          ? p.skus.map((s: any) => ({
-              id: s.id,
+          ? p.skus.map((s: RawShopSku) => ({
+              id: s.id || '',
               name: s.specs && typeof s.specs === 'object' && !Array.isArray(s.specs)
                 ? Object.values(s.specs).filter(Boolean).join(' ') || (s.skuCode || '规格')
                 : (s.skuCode || '规格'),
@@ -2160,7 +2190,7 @@ export const shopApi = {
           : []
       } catch { skus = [] }
       products.push({
-        id: order.product.id || order.targetId,
+        id: order.product.id || order.targetId || '',
         name: order.product.title || '商品',
         cover: order.product.cover || '',
         skuId: order.skuId || '',
@@ -2183,8 +2213,8 @@ export const shopApi = {
   /** 获取拼团列表 — GET /shop/group-buy */
   async getGroupBuyList(): Promise<{ list: GroupBuyItem[]; myList: MyGroupBuyItem[] }> {
     const [active, my] = await Promise.all([
-      apiGet<any[]>('/marketing/group-buys/active'),
-      apiGet<any[]>('/marketing/group-buys/my').catch(() => []), // 未登录/无记录降级空（非假数据）
+      apiGet<RawGroupBuy[]>('/marketing/group-buys/active'),
+      apiGet<RawMyGroupBuy[]>('/marketing/group-buys/my').catch(() => []), // 未登录/无记录降级空（非假数据）
     ])
     return {
       list: (active || []).map(adaptGroupBuyItem),
@@ -2194,33 +2224,33 @@ export const shopApi = {
 
   /** 获取拼团详情 — GET /shop/group-buy/:id */
   async getGroupBuyDetail(_id: string): Promise<{ detail: GroupBuyDetailData; activeGroups: ActiveGroup[] }> {
-    const gb = await apiGet<any>(`/marketing/group-buys/${_id}/detail`)
+    const gb = await apiGet<RawGroupBuy>(`/marketing/group-buys/${_id}/detail`)
     return {
       detail: adaptGroupBuyDetailData(gb),
-      activeGroups: adaptActiveGroups(gb?.groups, gb?.expireMinutes),
+      activeGroups: adaptActiveGroups(gb?.groups || [], gb?.expireMinutes),
     }
   },
 
   /** 参与拼团 — POST /marketing/group-buys/:id/join（返回拼团订单，走支付链路；groupId 传则加入已有团，否则开新团） */
   async joinGroupBuy(groupBuyId: string, groupId?: string): Promise<{ orderId: string; amount: number; groupId: string }> {
-    const res = await apiPost<any>(`/marketing/group-buys/${groupBuyId}/join`, groupId ? { groupId } : {})
-    return { orderId: res.orderId, amount: shopNum(res.amount), groupId: res.groupId }
+    const res = await apiPost<{ orderId?: string; amount?: number | string; groupId?: string }>(`/marketing/group-buys/${groupBuyId}/join`, groupId ? { groupId } : {})
+    return { orderId: res.orderId || '', amount: shopNum(res.amount), groupId: res.groupId || '' }
   },
 
   /** 拼团成功结果页数据 — GET /marketing/group-buys/:id/my-result（按我的参与状态派生·SUCCESS） */
-  async getGroupBuySuccess(groupBuyId: string): Promise<any> {
-    const r = await apiGet<any>(`/marketing/group-buys/${groupBuyId}/my-result`)
+  async getGroupBuySuccess(groupBuyId: string) {
+    const r = await apiGet<RawGroupResult>(`/marketing/group-buys/${groupBuyId}/my-result`)
     return adaptGroupBuySuccess(r)
   },
 
   /** 拼团失败结果页数据 — GET /marketing/group-buys/:id/my-result（按我的参与状态派生·REFUNDED/未成团） */
-  async getGroupBuyFail(groupBuyId: string): Promise<any> {
-    const r = await apiGet<any>(`/marketing/group-buys/${groupBuyId}/my-result`)
+  async getGroupBuyFail(groupBuyId: string) {
+    const r = await apiGet<RawGroupResult>(`/marketing/group-buys/${groupBuyId}/my-result`)
     return adaptGroupBuyFail(r)
   },
 
   /** 获取支付方式 — GET /shop/payment-methods */
-  async getPaymentMethods(): Promise<any> {
+  async getPaymentMethods(): Promise<{ boundMethods: BoundPaymentMethod[]; addOptions: typeof addPaymentOptions }> {
     // 平台支付在下单时直接选择微信/支付宝，后端无「预绑定支付方式」模型 → 诚实降级为空（页面提示无需绑定）
     return { boundMethods: [], addOptions: [] }
   },
@@ -2228,9 +2258,9 @@ export const shopApi = {
   /** 获取shop商品详情 — GET /shop/product/:id */
   async getShopProductDetail(_id: string): Promise<{ product: ShopProductDetail; reviews: ShopProductReview[] }> {
     const [p, reviewsRes] = await Promise.all([
-      apiGet<any>(`/shop/products/${_id}`),
+      apiGet<RawShopProduct>(`/shop/products/${_id}`),
       // 评价为次要内容，失败降级空评价（非假数据），不阻断商品详情
-      apiGet<any>(`/shop/products/${_id}/reviews?pageSize=50`).catch(() => ({ reviews: [], stats: null })),
+      apiGet<{ reviews?: RawShopReview[]; stats?: RawReviewStats | null }>(`/shop/products/${_id}/reviews?pageSize=50`).catch(() => ({ reviews: [], stats: null })),
     ])
     const reviews = (reviewsRes?.reviews || []).map(adaptShopReview)
     return { product: adaptShopProductDetail(p, reviewsRes?.stats), reviews }
@@ -2241,11 +2271,11 @@ export const shopApi = {
   async getShopReviews(
     _id: string,
     params?: { filter?: string; page?: number; pageSize?: number },
-  ): Promise<{ stats: any; items: ShopProductReview[]; total: number }> {
+  ): Promise<{ stats: ReturnType<typeof adaptReviewStats>; items: ShopProductReview[]; total: number }> {
     const { filter, page = 1, pageSize = 20 } = params || {}
     const qs: string[] = [`page=${page}`, `pageSize=${pageSize}`]
     if (filter && filter !== 'all') qs.push(`filter=${filter}`)
-    const res = await apiGet<any>(`/shop/products/${_id}/reviews?${qs.join('&')}`)
+    const res = await apiGet<{ reviews?: RawShopReview[]; stats?: RawReviewStats; total?: number }>(`/shop/products/${_id}/reviews?${qs.join('&')}`)
     const rawReviews = res?.reviews || []
     return {
       stats: adaptReviewStats(res?.stats, rawReviews),
@@ -2255,9 +2285,9 @@ export const shopApi = {
   },
 
   /** 获取mall首页 — GET /mall */
-  async getMallHome(): Promise<any> {
+  async getMallHome() {
     // 商品真连 /shop/products；banners/quickEntries/categories 为运营 UI 配置（后端无 banner CMS/聚合 BFF，同 getHome 约定）
-    const res = await apiGet<any>('/shop/products?pageSize=30')
+    const res = await apiGet<RawShopProduct[] | { products?: RawShopProduct[]; items?: RawShopProduct[] }>('/shop/products?pageSize=30')
     const arr = Array.isArray(res) ? res : (res?.products ?? res?.items ?? [])
     const products: ProductCardData[] = arr.map(adaptProductCard)
     return {
@@ -2273,14 +2303,14 @@ export const shopApi = {
 
   /** 获取mall分类 — GET /mall/categories */
   /** 商城分类页 tab + 排序选项（分类从后端聚合端点取，不受分页影响） */
-  async getMallCategoryTabs(): Promise<{ tabs: any[]; sortOptions: any[] }> {
-    const list = await apiGet<any[]>('/shop/products/category-tabs')
+  async getMallCategoryTabs(): Promise<{ tabs: { id: string; name: string; count: number }[]; sortOptions: typeof MALL_CATEGORY_SORT_OPTIONS }> {
+    const list = await apiGet<{ name?: string; count?: number }[]>('/shop/products/category-tabs')
     const arr = Array.isArray(list) ? list : []
     const total = arr.reduce((s, c) => s + (c.count || 0), 0)
     return {
       tabs: [
         { id: 'all', name: '全部', count: total },
-        ...arr.map((c: any) => ({ id: c.name, name: c.name, count: c.count })),
+        ...arr.map((c) => ({ id: c.name || '', name: c.name || '', count: c.count ?? 0 })),
       ],
       sortOptions: MALL_CATEGORY_SORT_OPTIONS,
     }
@@ -2298,17 +2328,17 @@ export const shopApi = {
     if (priceMax) qs.push(`priceMax=${priceMax}`)
     if (sort && sort !== 'default') qs.push(`sort=${sort}`)
     // listProducts 返回 {products,total,page,pageSize} 被拦截器转为 {data:数组,pagination}，用 apiGetPaged 保留 total
-    const { items, total } = await apiGetPaged<any>(`/shop/products?${qs.join('&')}`)
+    const { items, total } = await apiGetPaged<RawShopProduct>(`/shop/products?${qs.join('&')}`)
     return { items: items.map(adaptCategoryProduct), total }
   },
 
   /** 获取mall评价 — GET /mall/product/:id/reviews */
-  async getMallReviews(_id: string, page = 1, sort?: string, pageSize = 20): Promise<any> {
+  async getMallReviews(_id: string, page = 1, sort?: string, pageSize = 20) {
     const sortQs = sort && sort !== 'default' ? `&sort=${sort}` : ''
-    const res = await apiGet<any>(`/shop/products/${_id}/reviews?page=${page}&pageSize=${pageSize}${sortQs}`)
+    const res = await apiGet<{ reviews?: RawShopReview[]; stats?: RawReviewStats }>(`/shop/products/${_id}/reviews?page=${page}&pageSize=${pageSize}${sortQs}`)
     const raw = res?.reviews || []
-    const stats = res?.stats || {}
-    const dist = stats.distribution || {}
+    const stats: RawReviewStats = res?.stats || {}
+    const dist: Record<string, number> = stats.distribution || {}
     const total = stats.count ?? raw.length
     const good = (dist[5] ?? dist['5'] ?? 0) + (dist[4] ?? dist['4'] ?? 0)
     return {

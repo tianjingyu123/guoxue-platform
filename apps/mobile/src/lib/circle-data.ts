@@ -68,15 +68,92 @@ export const mockCircles: Circle[] = [
   { id: '8', name: '书法艺术', cover: 'https://picsum.photos/400/300?random=108', description: '书法练习与鉴赏', category: 'shufa', members: 7800, posts: 2340, isJoined: false, todayActive: 68 },
 ]
 
+/* —— 后端原始响应类型（容错适配用，字段宽松全 optional，仅声明 adapter 实际访问到的字段） —— */
+interface RawCircle {
+  id?: string
+  name?: string
+  cover?: string | null
+  intro?: string
+  description?: string
+  category?: string
+  tags?: string[]
+  memberCount?: number
+  members?: number
+  postCount?: number
+  posts?: number
+  isJoined?: boolean
+  todayActive?: number
+  rank?: number
+  type?: string
+  isPaid?: boolean
+  price?: number | string
+}
+/** /circles 与 /circles/my 列表响应（可能是裸数组，由 Array.isArray 运行时分流） */
+interface RawCircleListResp { data?: RawCircle[]; circles?: RawCircle[] }
+
+/** /circles/ranking 排行榜项 */
+interface RawRankingCircle {
+  id?: string | number
+  rank?: number | string
+  name?: string
+  cover?: string
+  memberCount?: number | string
+  postCount?: number | string
+  categoryLevel1?: string
+  owner?: { nickname?: string } | null
+}
+interface RawRankingResp { items?: RawRankingCircle[]; data?: RawRankingCircle[] }
+
+/** /live/scheduled 直播预告项 */
+interface RawLive {
+  id?: string
+  title?: string
+  user?: { nickname?: string; avatar?: string } | null
+  startTime?: string
+  viewCount?: number
+  circle?: { id?: string; name?: string } | null
+  circleId?: string
+}
+interface RawLiveResp { rooms?: RawLive[]; data?: RawLive[] }
+
+/** /circles/activities 今日动态项 */
+interface RawActivity {
+  id?: string
+  title?: string
+  circle?: { id?: string; name?: string } | null
+  user?: { nickname?: string } | null
+  createdAt?: string
+}
+interface RawActivityResp { data?: RawActivity[] }
+
+/** /circles/hot-posts 热门帖子项 */
+interface RawHotPost {
+  id?: string
+  circleId?: string
+  circle?: { id?: string; name?: string } | null
+  user?: { nickname?: string; avatar?: string; title?: string } | null
+  content?: string
+  title?: string
+  images?: string[]
+  likes?: number
+  comments?: number
+  createdAt?: string
+  isPinned?: boolean
+}
+interface RawHotPostResp { data?: RawHotPost[] }
+
+/** /circles/my-stats 我的圈子汇总 */
+interface RawMyStats { joinedCount?: number | string; postCount?: number | string; likeReceived?: number | string }
+
 /**
  * 后端圈子项 → 前端 Circle 字段适配。
  * 后端返回 {memberCount,postCount,intro,tags,type,price,owner}，前端期望 {members,posts,description,category,isJoined}。
  * 后端列表无 category（用 tags）/isJoined（需登录判断），分别用 tags 首项 / false 兜底。
  */
-function adaptCircle(c: any): Circle {
+function adaptCircle(c: RawCircle): Circle {
   return {
-    id: c.id,
-    name: c.name,
+    id: c.id || '',
+    name: c.name || '',
     cover: c.cover || '',
     description: c.intro ?? c.description ?? '',
     category: c.category ?? (Array.isArray(c.tags) ? c.tags[0] : '') ?? '',
@@ -123,9 +200,9 @@ function formatStartTime(iso?: string): string {
 }
 
 /** 后端 LiveRoom（/live/scheduled） → 前端 UpcomingLive */
-function adaptLive(r: any): UpcomingLive {
+function adaptLive(r: RawLive): UpcomingLive {
   return {
-    id: r.id,
+    id: r.id || '',
     title: r.title || '',
     host: r.user?.nickname || '',
     avatar: r.user?.avatar || '',
@@ -137,9 +214,9 @@ function adaptLive(r: any): UpcomingLive {
 }
 
 /** 后端今日动态（/circles/activities，语义为「圈子今日新帖」） → 前端 TodayActivity */
-function adaptActivity(a: any): TodayActivity {
+function adaptActivity(a: RawActivity): TodayActivity {
   return {
-    id: a.id,
+    id: a.id || '',
     type: 'post',
     title: a.title || '',
     circleId: a.circle?.id || '',
@@ -150,9 +227,9 @@ function adaptActivity(a: any): TodayActivity {
 }
 
 /** 后端热门帖子（/circles/hot-posts） → 前端 HotPost */
-function adaptHotPost(p: any): HotPost {
+function adaptHotPost(p: RawHotPost): HotPost {
   return {
-    id: p.id,
+    id: p.id || '',
     circleId: p.circleId || p.circle?.id || '',
     circleName: p.circle?.name || '',
     author: { name: p.user?.nickname || '匿名', avatar: p.user?.avatar || '', title: p.user?.title },
@@ -172,7 +249,7 @@ export const circleApi = {
       const qs: string[] = []
       if (params?.category) qs.push(`category=${encodeURIComponent(params.category)}`)
       if (params?.keyword) qs.push(`keyword=${encodeURIComponent(params.keyword)}`)
-      const res = await apiGet<any>(`/circles${qs.length ? '?' + qs.join('&') : ''}`)
+      const res = await apiGet<RawCircle[] | RawCircleListResp>(`/circles${qs.length ? '?' + qs.join('&') : ''}`)
       // apiGet 已剥离信封，res 即后端 data（圈子数组）
       const arr = Array.isArray(res) ? res : (res?.data ?? res?.circles ?? [])
       return { data: arr.map(adaptCircle), total: arr.length }
@@ -183,7 +260,7 @@ export const circleApi = {
   },
   my: async (): Promise<Circle[]> => {
     try {
-      const res = await apiGet<any>('/circles/my')
+      const res = await apiGet<RawCircle[] | RawCircleListResp>('/circles/my')
       const arr = Array.isArray(res) ? res : (res?.data ?? [])
       return arr.map(adaptCircle)
     } catch {
@@ -196,9 +273,9 @@ export const circleApi = {
    */
   getRanking: async (sortBy: RankSortBy = 'memberCount'): Promise<RankingCircle[]> => {
     try {
-      const res = await apiGet<any>(`/circles/ranking?sortBy=${sortBy}&pageSize=20`)
-      const arr = res?.items ?? (Array.isArray(res) ? res : (res?.data ?? []))
-      return arr.map((c: any, i: number): RankingCircle => ({
+      const res = await apiGet<RawRankingResp>(`/circles/ranking?sortBy=${sortBy}&pageSize=20`)
+      const arr: RawRankingCircle[] = res?.items ?? (Array.isArray(res) ? res : (res?.data ?? []))
+      return arr.map((c: RawRankingCircle, i: number): RankingCircle => ({
         id: String(c.id),
         rank: Number(c.rank) || i + 1,
         name: c.name || '',
@@ -215,7 +292,7 @@ export const circleApi = {
   /** 直播预告（全平台即将开始的直播；后端无未来直播时返回 []，页面空态隐藏） */
   getUpcomingLives: async (): Promise<UpcomingLive[]> => {
     try {
-      const res = await apiGet<any>('/live/scheduled')
+      const res = await apiGet<RawLive[] | RawLiveResp>('/live/scheduled')
       const arr = Array.isArray(res) ? res : (res?.rooms ?? res?.data ?? [])
       return arr.map(adaptLive)
     } catch {
@@ -225,7 +302,7 @@ export const circleApi = {
   /** 今日活动（圈子今日新动态；后端今日无新帖时返回 []，页面空态隐藏） */
   getActivities: async (): Promise<TodayActivity[]> => {
     try {
-      const res = await apiGet<any>('/circles/activities')
+      const res = await apiGet<RawActivity[] | RawActivityResp>('/circles/activities')
       const arr = Array.isArray(res) ? res : (res?.data ?? [])
       return arr.map(adaptActivity)
     } catch {
@@ -234,14 +311,14 @@ export const circleApi = {
   },
   /** 圈子活动列表（抛错版，供活动列表页做 loading/error/empty 三态；errors 上抛由页面捕获） */
   listActivities: async (limit = 20): Promise<TodayActivity[]> => {
-    const res = await apiGet<any>(`/circles/activities?limit=${limit}`)
+    const res = await apiGet<RawActivity[] | RawActivityResp>(`/circles/activities?limit=${limit}`)
     const arr = Array.isArray(res) ? res : (res?.data ?? [])
     return arr.map(adaptActivity)
   },
   /** 全平台热门帖子（跨圈子按热度排序；失败返回 []，页面空态隐藏） */
   getHotPosts: async (): Promise<HotPost[]> => {
     try {
-      const res = await apiGet<any>('/circles/hot-posts')
+      const res = await apiGet<RawHotPost[] | RawHotPostResp>('/circles/hot-posts')
       const arr = Array.isArray(res) ? res : (res?.data ?? [])
       return arr.map(adaptHotPost)
     } catch {
@@ -251,7 +328,7 @@ export const circleApi = {
   /** 我的圈子数据汇总（已加入/发帖/获赞，真实聚合；失败返回全 0 占位） */
   getMyStats: async (): Promise<MyCircleStats> => {
     try {
-      const res = await apiGet<any>('/circles/my-stats')
+      const res = await apiGet<RawMyStats>('/circles/my-stats')
       return {
         joinedCount: Number(res?.joinedCount) || 0,
         postCount: Number(res?.postCount) || 0,

@@ -33,8 +33,19 @@ export interface CircleGuest {
   totalEarned: number
 }
 
+/* —— 后端原始响应类型（容错适配用，仅声明 adapter 实际访问到的字段；id 可能为 number 故宽松） —— */
+interface RawGuest {
+  id?: string | number
+  userId?: string | number
+  user?: { id?: string | number; nickname?: string; avatar?: string } | null
+  shareRate?: number | string
+  totalEarned?: number | string
+}
+/** 嘉宾列表响应：裸数组或 {data:[]} / {guests:[]} 包装 */
+type RawGuestsResp = RawGuest[] | { data?: RawGuest[]; guests?: RawGuest[] }
+
 /** 后端原始条目 → 前端 CircleGuest（做空值兜底，避免脏数据导致渲染异常） */
-function adaptGuest(g: any): CircleGuest {
+function adaptGuest(g: RawGuest): CircleGuest {
   return {
     id: String(g?.id ?? ''),
     userId: String(g?.userId ?? g?.user?.id ?? ''),
@@ -54,7 +65,7 @@ export const circleGuestsApi = {
    * 失败抛错，由页面捕获走 error 态（不返回假数据）。
    */
   list: async (): Promise<CircleGuest[]> => {
-    const res = await apiGet<any>('/circle-backend/guests')
+    const res = await apiGet<RawGuestsResp>('/circle-backend/guests')
     const arr = Array.isArray(res) ? res : (res?.data ?? res?.guests ?? [])
     return arr.map(adaptGuest)
   },

@@ -108,8 +108,44 @@ export interface MyJoinRequestItem {
   circleCover: string
 }
 
-function num(v: any): number { const x = Number(v); return Number.isFinite(x) ? x : 0 }
-function pickArray(r: any): any[] { return Array.isArray(r) ? r : (r?.data ?? []) }
+function num(v: unknown): number { const x = Number(v); return Number.isFinite(x) ? x : 0 }
+/** 兼容「裸数组」或「{data:[]}」两种响应形态，统一取出数组 */
+function pickArray<T>(r: T[] | { data?: T[] } | null | undefined): T[] { return Array.isArray(r) ? r : (r?.data ?? []) }
+
+/* —— 后端原始响应类型（容错适配用，字段宽松全 optional，仅声明 adapter 实际访问到的字段） —— */
+/** GET /circles/:id/checkin/calendar（days 声明为必有数组以避开 r.days.map 的 possibly-undefined，运行时仍由 Array.isArray 守卫） */
+interface RawCalendar {
+  month?: string
+  today?: string
+  checkedToday?: boolean
+  checkinStreak?: number | string
+  totalCheckins?: number | string
+  days: { date: string; expGained?: number | string }[]
+}
+/** 入圈申请项（圈主视角）；映射到必填视图字段的项声明为必有 */
+interface RawJoinRequest {
+  id: string
+  circleId: string
+  userId: string
+  status: 'PENDING' | 'APPROVED' | 'REJECTED'
+  message?: string
+  reviewedBy?: string | null
+  reviewedAt?: string | null
+  createdAt: string
+  userNickname?: string
+  userAvatar?: string
+}
+/** 我的入圈申请项（申请人视角） */
+interface RawMyJoinRequest {
+  id: string
+  circleId: string
+  status: 'PENDING' | 'APPROVED' | 'REJECTED'
+  message?: string
+  reviewedAt?: string | null
+  createdAt: string
+  circleName?: string
+  circleCover?: string
+}
 
 // ── API ─────────────────────────────────────────────
 
@@ -120,14 +156,14 @@ export const growthApi = {
   /** 我本月签到日历 — GET /circles/:id/checkin/calendar?month=YYYY-MM */
   calendar: async (circleId: string, month?: string): Promise<CalendarData> => {
     const qs = month ? `?month=${month}` : ''
-    const r = await apiGet<any>(`/circles/${circleId}/checkin/calendar${qs}`)
+    const r = await apiGet<RawCalendar>(`/circles/${circleId}/checkin/calendar${qs}`)
     return {
       month: r?.month ?? '',
       today: r?.today ?? '',
       checkedToday: !!r?.checkedToday,
       checkinStreak: num(r?.checkinStreak),
       totalCheckins: num(r?.totalCheckins),
-      days: Array.isArray(r?.days) ? r.days.map((d: any) => ({ date: d.date, expGained: num(d.expGained) })) : [],
+      days: Array.isArray(r?.days) ? r.days.map((d) => ({ date: d.date, expGained: num(d.expGained) })) : [],
     }
   },
 
@@ -139,7 +175,7 @@ export const growthApi = {
 
   /** 入圈申请列表（圈主权限） — GET /circles/:id/join-requests */
   joinRequests: async (circleId: string): Promise<JoinRequestItem[]> => {
-    return pickArray(await apiGet<any>(`/circles/${circleId}/join-requests`)).map((x: any) => ({
+    return pickArray(await apiGet<RawJoinRequest[] | { data?: RawJoinRequest[] }>(`/circles/${circleId}/join-requests`)).map((x) => ({
       id: x.id,
       circleId: x.circleId,
       userId: x.userId,
@@ -159,7 +195,7 @@ export const growthApi = {
 
   /** 我的入圈申请列表（申请人视角） — GET /circles/my-join-requests */
   myJoinRequests: async (): Promise<MyJoinRequestItem[]> => {
-    return pickArray(await apiGet<any>(`/circles/my-join-requests`)).map((x: any) => ({
+    return pickArray(await apiGet<RawMyJoinRequest[] | { data?: RawMyJoinRequest[] }>(`/circles/my-join-requests`)).map((x) => ({
       id: x.id,
       circleId: x.circleId,
       status: x.status,

@@ -95,12 +95,15 @@ export const AGENT_AVATAR_GRADIENT: Record<string, [string, string]> = {
 
 // ============ API 层 ============
 
+/** 后端 /paipan/tools 原始响应（可能为 { items } 包裹或裸数组，字段宽松） */
+interface RawToolsResp { items?: Tool[] }
+
 export const toolsApi = {
   /** 获取排盘工具列表 — GET /paipan/tools */
   async getTools(): Promise<Tool[]> {
     if (true) return tools
     try {
-      const data = await apiGet<any>('/paipan/tools')
+      const data = await apiGet<RawToolsResp>('/paipan/tools')
       return (data?.items || data) as Tool[]
     } catch {
       return tools

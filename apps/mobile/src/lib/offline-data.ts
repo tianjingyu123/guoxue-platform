@@ -77,7 +77,7 @@ export interface MyRegistration {
 export interface StationDetail extends Station {
   courses: OfflineCourse[]
   products: { id: string; name: string; price: string | number; stock: number; status: string }[]
-  teacherBookings?: any[]
+  teacherBookings?: unknown[] // 后端透传、形状未建模且无页面消费 → unknown 占位
 }
 
 export interface OfflineCourseDetail extends OfflineCourse {
@@ -233,13 +233,13 @@ export const offlineApi = {
   },
 
   /** 创建师资预约 POST /offline/stations/:id/teacher-bookings */
-  createBooking(stationId: string, data: { teacherId: string; bookingDate: string; courseId?: string; price?: number; remark?: string }): Promise<any> {
-    return apiPost<any>(`/offline/stations/${stationId}/teacher-bookings`, data)
+  createBooking(stationId: string, data: { teacherId: string; bookingDate: string; courseId?: string; price?: number; remark?: string }): Promise<unknown> {
+    return apiPost<unknown>(`/offline/stations/${stationId}/teacher-bookings`, data)
   },
 
   /** 扫码/签到码签到 POST /offline/courses/sign-in?stationId */
-  signIn(stationId: string, qrCode: string): Promise<any> {
-    return apiPost<any>(`/offline/courses/sign-in?stationId=${stationId}`, { qrCode })
+  signIn(stationId: string, qrCode: string): Promise<unknown> {
+    return apiPost<unknown>(`/offline/courses/sign-in?stationId=${stationId}`, { qrCode })
   },
 }
 
@@ -322,8 +322,8 @@ export const offlineManageApi = {
   },
 
   /** 扫码核销学员报名 POST /offline/courses/sign-in?stationId */
-  signIn(stationId: string, qrCode: string): Promise<any> {
-    return apiPost<any>(`/offline/courses/sign-in?stationId=${stationId}`, { qrCode })
+  signIn(stationId: string, qrCode: string): Promise<unknown> {
+    return apiPost<unknown>(`/offline/courses/sign-in?stationId=${stationId}`, { qrCode })
   },
 
   /** 商品列表 GET /offline/stations/:id/products（products 拆包→数组）*/
@@ -342,8 +342,8 @@ export const offlineManageApi = {
   },
 
   /** 下架商品 DELETE /offline/products/:productId */
-  deleteProduct(productId: string): Promise<any> {
-    return apiDelete<any>(`/offline/products/${productId}`)
+  deleteProduct(productId: string): Promise<unknown> {
+    return apiDelete<unknown>(`/offline/products/${productId}`)
   },
 
   /** 研究院签约讲师库 GET /institute/signed-lecturers（驿站引入用）*/

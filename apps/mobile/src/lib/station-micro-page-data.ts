@@ -60,7 +60,7 @@ export function componentIcon(type: string): string {
 export const microPageApi = {
   /** 我的分站微页面列表 */
   async getMy(): Promise<MicroPage[]> {
-    const res = await apiGet<any>('/station/micro-page/my')
+    const res = await apiGet<MicroPage[] | { items?: MicroPage[] }>('/station/micro-page/my')
     return Array.isArray(res) ? res : (res?.items || [])
   },
   /** 微页面详情（含楼层组件） */

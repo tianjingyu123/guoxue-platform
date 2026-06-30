@@ -72,6 +72,24 @@ export interface QimenInput {
   lng?: number
 }
 
+/* —— 后端排盘记录原始结构（非 export，容错适配用；对齐后端持久化记录字段） —— */
+/** 后端持久化的奇门排盘历史/详情记录 */
+interface RawQimenRecord {
+  id: string
+  inputParams: QimenInput
+  resultData: QimenResult
+  clientName: string
+  clientBirth: string
+  createdAt: string
+}
+/** 排盘历史分页响应 */
+interface RawQimenHistory {
+  records: RawQimenRecord[]
+  total: number
+  page: number
+  pageSize: number
+}
+
 // ── API ──
 
 export const qimenApi = {
@@ -86,14 +104,14 @@ export const qimenApi = {
   },
 
   /** 获取单条记录 — GET /paipan/qimen/:id（需登录） */
-  async detail(id: string): Promise<{ id: string; inputParams: any; resultData: QimenResult; clientName: string; clientBirth: string; createdAt: string }> {
-    return await apiGet<any>(`/paipan/qimen/${id}`)
+  async detail(id: string): Promise<RawQimenRecord> {
+    return await apiGet<RawQimenRecord>(`/paipan/qimen/${id}`)
   },
 
   /** 获取排盘历史 — GET /paipan/qimen/history（空/失败返回空列表走空态） */
-  async history(page = 1, pageSize = 20): Promise<{ records: any[]; total: number; page: number; pageSize: number }> {
+  async history(page = 1, pageSize = 20): Promise<RawQimenHistory> {
     try {
-      return await apiGet<{ records: any[]; total: number; page: number; pageSize: number }>(`/paipan/qimen/history?page=${page}&pageSize=${pageSize}`)
+      return await apiGet<RawQimenHistory>(`/paipan/qimen/history?page=${page}&pageSize=${pageSize}`)
     } catch { return { records: [], total: 0, page, pageSize } }
   },
 }

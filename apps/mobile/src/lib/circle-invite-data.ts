@@ -16,7 +16,27 @@ export interface InviteCodeItem {
   expiresAt?: string
 }
 
-function adaptCode(c: any): InviteCodeItem {
+/* —— 后端原始响应类型（容错适配用，仅声明 adapter 实际访问到的字段） —— */
+/** 后端邀请码原始条目（id/code/createdAt 必有，直赋必填视图字段） */
+interface RawInviteCode {
+  id: string
+  code: string
+  maxUses?: number | string
+  useCount?: number | string
+  usedCount?: number | string
+  expiredAt?: string
+  expiresAt?: string
+  createdAt: string
+}
+/** 邀请码列表响应：裸数组或 {data:[]} / {codes:[]} 包装 */
+type RawInviteCodeResp = RawInviteCode[] | { data?: RawInviteCode[]; codes?: RawInviteCode[] }
+/** 邀请统计响应：{total} 或 {data:{total}} */
+interface RawInviteStatsResp {
+  total?: number | string
+  data?: { total?: number | string }
+}
+
+function adaptCode(c: RawInviteCode): InviteCodeItem {
   const maxUses = Number(c.maxUses) || 0
   const usedCount = Number(c.useCount ?? c.usedCount) || 0
   const expiresAt = c.expiredAt || c.expiresAt || undefined
@@ -30,7 +50,7 @@ export const inviteApi = {
   /** 我的邀请码列表 — GET /circles/:id/invite-codes */
   listCodes: async (circleId: string): Promise<InviteCodeItem[]> => {
     try {
-      const res = await apiGet<any>(`/circles/${circleId}/invite-codes`)
+      const res = await apiGet<RawInviteCodeResp>(`/circles/${circleId}/invite-codes`)
       const arr = Array.isArray(res) ? res : (res?.data ?? res?.codes ?? [])
       return arr.map(adaptCode)
     } catch { return [] }
@@ -38,7 +58,7 @@ export const inviteApi = {
   /** 邀请统计（总邀请人数）— GET /circles/:id/invitation-stats */
   getTotalInvited: async (circleId: string): Promise<number> => {
     try {
-      const res = await apiGet<any>(`/circles/${circleId}/invitation-stats`)
+      const res = await apiGet<RawInviteStatsResp>(`/circles/${circleId}/invitation-stats`)
       const d = res?.data ?? res
       return Number(d?.total) || 0
     } catch { return 0 }

@@ -29,12 +29,15 @@ export function botTypeLabel(type: string): string {
   return TYPE_LABEL[type] || '通用助手'
 }
 
+/** 后端 BotConfig 原始响应（字段全 optional，仅声明 adapter 访问到的） */
+interface RawBot { id?: string | number; name?: string; avatar?: string; intro?: string; type?: string; isFree?: boolean; price?: number | string; createdAt?: string }
+
 export const botApi = {
   /** 智能体列表 GET /bots?type= */
   async list(type?: string): Promise<BotItem[]> {
-    const res = await apiGet<any>(`/bots${type ? `?type=${encodeURIComponent(type)}` : ''}`)
+    const res = await apiGet<RawBot[] | { rows?: RawBot[]; items?: RawBot[] }>(`/bots${type ? `?type=${encodeURIComponent(type)}` : ''}`)
     const arr = Array.isArray(res) ? res : (res?.rows ?? res?.items ?? [])
-    return arr.map((b: any) => ({
+    return arr.map((b: RawBot) => ({
       id: String(b.id),
       name: b.name || '未命名智能体',
       avatar: b.avatar || '',

@@ -37,6 +37,9 @@ export interface CertificationContext {
   identityVerified: boolean
 }
 
+/** 后端 /auth/me 原始响应（此处仅取实名核验字段，宽松 optional） */
+interface RawAuthMe { identityVerified?: boolean }
+
 function toStatus(cert: TeacherCertification | null): CertStatus {
   if (!cert) return 'none'
   const s = String(cert.status || '').toUpperCase()
@@ -56,7 +59,7 @@ export const teacherApi = {
   async getCertificationContext(): Promise<CertificationContext> {
     const [cert, me] = await Promise.all([
       apiGet<TeacherCertification | null>('/teacher/certification'),
-      apiGet<any>('/auth/me'),
+      apiGet<RawAuthMe>('/auth/me'),
     ])
     return {
       cert: cert ?? null,

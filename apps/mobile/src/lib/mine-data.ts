@@ -751,9 +751,201 @@ export const walletTxRecords: WalletTxRecord[] = [
   { id: '6', type: 'expense', category: 'transfer', title: '打赏作者', description: '打赏文章《八字命理基础》', amount: -20, balance: 2298, createdAt: '2024-01-10 20:30' },
 ]
 
+/* ============================================================
+   后端原始响应类型（容错适配用·不 export·字段宽松仅声明 adapter 实际访问到的）
+   说明：喂给 new Date()/格式化函数或被强转为 number 的字段（如各 createdAt、各 id）
+        类型收窄为必填，以满足 TS 构造/算术约束（后端这些字段恒返回，等价于原 any 行为）
+   ============================================================ */
+/** GET /auth/me 当前用户原始资料 */
+interface RawMe {
+  id?: string | number
+  phone?: string | null
+  email?: string | null
+  nickname?: string | null
+  avatar?: string | null
+  bio?: string | null
+  gender?: number | null
+  birthday?: string | null
+  interestCategories?: string[]
+  identityVerified?: boolean
+  paymentPasswordSet?: boolean
+}
+/** 后端 VirtualCoinTransaction 原始项 */
+interface RawWalletTx {
+  id?: string | number
+  amountCoin?: number | string
+  amount?: number | string
+  scene?: string | null
+  description?: string | null
+  balanceAfter?: number | string
+  balance?: number | string
+  createdAt: string
+  refId?: string | null
+}
+/** 已存收款账户原始项 */
+interface RawSavedAccount {
+  method?: WithdrawMethod
+  alipayAccount?: string
+  alipayName?: string
+  bankName?: string
+  bankAccount?: string
+  bankHolder?: string
+}
+/** GET /users/wallet/withdraw-info 原始响应 */
+interface RawWithdrawInfo {
+  availableBalance?: number | string
+  minWithdraw?: number | string
+  maxWithdraw?: number | string
+  feeRate?: number | string
+  minFee?: number | string
+  savedAccounts?: RawSavedAccount[]
+}
+/** GET /users/wallet/recharge-options 原始项 */
+interface RawRechargeOption {
+  amountCoin?: number | string
+  coins?: number | string
+  amountRmb?: number | string
+  price?: number | string
+  bonus?: number | string
+}
+/** 后端 BrowseHistory 原始项 */
+interface RawBrowseHistory {
+  id?: string | number
+  targetType: string
+  title?: string | null
+  cover?: string | null
+  createdAt: string
+}
+/** 后端 Blacklist 原始项 */
+interface RawBlacklist {
+  id: string | number
+  blockedUserId: number
+  blockedUser?: { id?: number; nickname?: string | null; avatar?: string | null } | null
+  createdAt?: string | null
+}
+/** 青少年模式 settings 原始结构 */
+interface RawTeenSettings {
+  dailyLimitMinutes?: number | string
+  blockStartHour?: number | string
+  blockEndHour?: number | string
+  contentFilter?: string
+  guardianPassword?: string | null
+}
+/** GET /users/me/teen-mode 原始响应 */
+interface RawTeenMode {
+  enabled?: boolean
+  settings?: RawTeenSettings | null
+}
+/** 后端 Feedback 原始项 */
+interface RawFeedback {
+  id: string | number
+  type?: string
+  content?: string | null
+  status?: string
+  reply?: string | null
+  createdAt?: string | null
+}
+/** GET /users/delete-account/info 原始响应 */
+interface RawDeleteAccountInfo {
+  phone?: string | null
+  reasons?: { id: string; label: string }[]
+  dataItems?: { icon: string; label: string; color: string }[]
+  assets?: { balance?: number | string; points?: number | string; coupons?: number | string; memberDays?: number | string } | null
+}
+/** 点赞/收藏多态目标作者 */
+interface RawTargetAuthor { nickname?: string | null; avatar?: string | null }
+/** 后端点赞项原始结构（target 多态详情，已删为 null） */
+interface RawLike {
+  id: string | number
+  targetId: string | number
+  targetType?: string
+  createdAt: string
+  target?: { id: string | number; type?: string; title?: string | null; author?: RawTargetAuthor | null } | null
+}
+/** 后端我的评论项原始结构 */
+interface RawComment {
+  id: string | number
+  targetId: string | number
+  targetType?: string
+  content?: string | null
+  createdAt: string
+  likeCount?: number | string
+  replyCount?: number | string
+  hasReply?: boolean
+  target?: { id: string | number; type?: string; title?: string | null; cover?: string | null } | null
+}
+/** 后端收到的评论项原始结构 */
+interface RawReceivedComment {
+  id: string | number
+  userId?: string | number
+  targetId: string | number
+  targetType?: string
+  content?: string | null
+  createdAt: string
+  isReplied?: boolean
+  user?: { nickname?: string | null; avatar?: string | null } | null
+  target?: { id: string | number; type?: string; title?: string | null } | null
+  myReply?: { content?: string | null; createdAt: string } | null
+}
+/** 后端收藏项原始结构（target-resolver 已补全，已删为 null） */
+interface RawFavorite {
+  id?: string | number
+  targetId?: string | number
+  targetType: string
+  createdAt: string
+  target?: { type?: string; title?: string | null; cover?: string | null; author?: { nickname?: string | null } | null } | null
+}
+/** 后端 Notification 原始项 */
+interface RawNotification {
+  id?: string | number
+  type?: string | null
+  title?: string | null
+  content?: string | null
+  createdAt: string
+  isRead?: boolean
+  targetType?: string | null
+  targetId?: string | null
+}
+/** GET /courses/my 报名项内嵌课程 */
+interface RawCourseLite {
+  id?: string | number
+  title?: string | null
+  cover?: string | null
+  user?: { nickname?: string | null } | null
+}
+interface RawCourseEnrollment { course?: RawCourseLite | null }
+interface RawMyCourses { courses?: RawCourseEnrollment[] }
+/** GET /courses/study-plan 原始响应 */
+interface RawStudyPlan {
+  streak?: number | string
+  courses?: { courseId?: string | number; id?: string | number; totalLessons?: number | string; completedLessons?: number | string }[]
+}
+/** GET /courses/dashboard 原始响应 */
+interface RawDashboard {
+  recentProgress?: { course?: { id?: string | number } | null; courseId?: string | number; chapter?: { title?: string } | null; updatedAt?: string }[]
+}
+/** 关注/粉丝列表用户原始项 */
+interface RawFollowUser { id?: string | number; nickname?: string | null; avatar?: string | null }
+/** GET /users/:id/following|followers 原始响应 */
+interface RawFollowWrap { following?: RawFollowUser[]; followers?: RawFollowUser[] }
+/** GET /member/status 原始响应 */
+interface RawMemberStatus {
+  memberLevel?: string
+  isActive?: boolean
+  remainingDays?: number | string
+  memberExpire?: string | null
+}
+/** GET /member/plans 原始项 */
+interface RawMemberPlan {
+  level?: string
+  name?: string
+  price?: number | string
+  benefits?: string[]
+}
+
 // ============ 钱包适配（后端 users/wallet/* 真实结构 → 前端类型）============
 /** ISO/日期 → 'YYYY-MM-DD HH:mm'（交易记录页按此切片做月份过滤/分组，格式不可变） */
-function formatDateTime(v: any): string {
+function formatDateTime(v: string | number | Date): string {
   const d = new Date(v)
   if (Number.isNaN(d.getTime())) return ''
   const p = (n: number) => String(n).padStart(2, '0')
@@ -764,7 +956,7 @@ const _txCatTitle: Record<WalletTxCategory, string> = {
   recharge: '充值', withdraw: '提现', transfer: '转账', other: '账户变动',
 }
 /** 后端 VirtualCoinTransaction → 前端 WalletTxRecord（收支按 amountCoin 正负，类别按 scene 关键词归类，无则 other） */
-function adaptWalletTx(t: any): WalletTxRecord {
+function adaptWalletTx(t: RawWalletTx): WalletTxRecord {
   const amt = Number(t.amountCoin ?? t.amount ?? 0)
   const scene = String(t.scene ?? '').toLowerCase()
   const category: WalletTxCategory =
@@ -788,7 +980,7 @@ function adaptWalletTx(t: any): WalletTxRecord {
   }
 }
 /** 后端已存收款账户 accountInfo(Record) → 前端 WithdrawAccount（缺 method 时按字段推断） */
-function adaptSavedAccount(a: any): WithdrawAccount {
+function adaptSavedAccount(a: RawSavedAccount): WithdrawAccount {
   const method: WithdrawMethod = a?.method || (a?.bankAccount || a?.bankName ? 'bank' : 'alipay')
   return { method, ...(a || {}) }
 }
@@ -824,7 +1016,7 @@ export interface MineProfileData {
   identityVerified: boolean
   paymentPasswordSet: boolean
 }
-function adaptProfile(me: any): MineProfileData {
+function adaptProfile(me: RawMe): MineProfileData {
   return {
     phone: maskPhone(me?.phone),
     phoneFull: me?.phone || '',
@@ -864,7 +1056,7 @@ function historyDateLabel(d: Date): { date: string; label: string } {
   return { date, label }
 }
 /** 后端 BrowseHistory[] → 前端按日期分组的 HistoryGroup[] */
-function adaptHistory(items: any[]): HistoryGroup[] {
+function adaptHistory(items: RawBrowseHistory[]): HistoryGroup[] {
   const map = new Map<string, HistoryGroup>()
   for (const it of items) {
     const created = new Date(it.createdAt)
@@ -885,9 +1077,10 @@ function adaptHistory(items: any[]): HistoryGroup[] {
 }
 
 /** 后端 Blacklist 项 → 前端 BlacklistItem */
-function adaptBlacklist(b: any): BlacklistItem {
+function adaptBlacklist(b: RawBlacklist): BlacklistItem {
   const u = b.blockedUser ?? {}
   return {
+    // b.id 后端为数字主键，非数字时原样回退（宽松值塞进 number 字段，保留 as any 不破坏运行时）
     id: Number.isFinite(+b.id) ? +b.id : (b.id as any),
     userId: u.id ?? b.blockedUserId,
     nickname: u.nickname || '未知用户',
@@ -897,8 +1090,8 @@ function adaptBlacklist(b: any): BlacklistItem {
 }
 
 /** 后端青少年模式 {enabled,settings} → 前端 TeenModeSettings */
-function adaptTeenMode(r: any): TeenModeSettings {
-  const s = r?.settings ?? {}
+function adaptTeenMode(r: RawTeenMode): TeenModeSettings {
+  const s: RawTeenSettings = r?.settings ?? {}
   return {
     enabled: !!r?.enabled,
     dailyLimit: Number(s.dailyLimitMinutes ?? 40),
@@ -911,11 +1104,12 @@ function adaptTeenMode(r: any): TeenModeSettings {
 }
 
 /** 后端 Feedback 记录 → 前端 HistoryFeedbackItem（后端无独立 title，取内容首行） */
-function adaptFeedbackHistory(f: any): HistoryFeedbackItem {
+function adaptFeedbackHistory(f: RawFeedback): HistoryFeedbackItem {
   const content = f.content || ''
   const firstLine = content.split('\n')[0]
   const title = firstLine.length > 20 ? `${firstLine.slice(0, 20)}…` : (firstLine || '反馈')
   return {
+    // f.id 后端为数字主键，非数字时原样回退（宽松值塞进 number 字段，保留 as any 不破坏运行时）
     id: Number.isFinite(+f.id) ? +f.id : (f.id as any),
     type: f.type || 'other',
     title,
@@ -928,7 +1122,7 @@ function adaptFeedbackHistory(f: any): HistoryFeedbackItem {
 
 // ============ 互动（点赞/评论/收到的评论）适配 ============
 /** ISO/日期 → 'YYYY-MM-DD'（点赞列表只显示到日） */
-function formatDate(v: any): string {
+function formatDate(v: string | number | Date): string {
   const d = new Date(v)
   if (Number.isNaN(d.getTime())) return ''
   const p = (n: number) => String(n).padStart(2, '0')
@@ -949,7 +1143,7 @@ function normCommentType(t?: string): CommentTargetType {
   return 'article'
 }
 /** 后端点赞项（含 target 多态详情，已删为 null）→ 前端 LikeItem */
-function adaptLike(it: any): LikeItem {
+function adaptLike(it: RawLike): LikeItem {
   const tgt = it.target
   const type = normLikeType(tgt?.type ?? it.targetType)
   if (tgt) {
@@ -968,7 +1162,7 @@ function adaptLike(it: any): LikeItem {
   return { id: it.id, createdAt: formatDate(it.createdAt), target: { id: it.targetId, type, title: '内容已删除' } }
 }
 /** 后端我的评论项（含 target/replyCount/hasReply）→ 前端 MyCommentItem */
-function adaptMyComment(it: any): MyCommentItem {
+function adaptMyComment(it: RawComment): MyCommentItem {
   const tgt = it.target
   const type = normCommentType(tgt?.type ?? it.targetType)
   return {
@@ -984,7 +1178,7 @@ function adaptMyComment(it: any): MyCommentItem {
   }
 }
 /** 后端收到的评论项（含 user/target/isReplied/myReply）→ 前端 ReceivedCommentItem */
-function adaptReceivedComment(it: any): ReceivedCommentItem {
+function adaptReceivedComment(it: RawReceivedComment): ReceivedCommentItem {
   const tgt = it.target
   const type = normCommentType(tgt?.type ?? it.targetType)
   return {
@@ -1079,7 +1273,7 @@ export interface MembershipItem {
 const _favTypeName: Record<string, string> = {
   course: '课程', article: '文章', video: '视频', product: '商品', circle_post: '帖子', comment: '评论',
 }
-function adaptFavorite(it: any): FavItem {
+function adaptFavorite(it: RawFavorite): FavItem {
   const tgt = it.target
   const rawType = String(tgt?.type ?? it.targetType ?? '').toLowerCase()
   const type = (['course', 'article', 'video', 'product', 'circle_post', 'comment'].includes(rawType) ? rawType : 'article') as FavType
@@ -1097,7 +1291,7 @@ function adaptFavorite(it: any): FavItem {
 }
 
 /* —— 通知适配（后端 type → 前端 kind/category/跳转） —— */
-function relativeTime(v: any): string {
+function relativeTime(v: string | number | Date): string {
   const d = new Date(v)
   if (Number.isNaN(d.getTime())) return ''
   const diff = Date.now() - d.getTime()
@@ -1130,7 +1324,7 @@ function notifyLink(targetType?: string | null, targetId?: string | null): strin
   }
   return map[t] || ''
 }
-function adaptNotification(n: any): NotifyItem {
+function adaptNotification(n: RawNotification): NotifyItem {
   const meta = _notifyMeta[String(n.type || '').toUpperCase()] || { kind: 'system' as NotifyKind, category: '通知' }
   return {
     id: String(n.id),
@@ -1149,7 +1343,7 @@ function adaptNotification(n: any): NotifyItem {
 export const mineApi = {
   /** 获取当前用户资料 —— GET /auth/me（脱敏展示 + phoneFull 供发码） */
   async getProfile(): Promise<MineProfileData> {
-    const me = await apiGet<any>('/auth/me')
+    const me = await apiGet<RawMe>('/auth/me')
     return adaptProfile(me)
   },
 
@@ -1173,8 +1367,8 @@ export const mineApi = {
   /** 获取账号安全项 —— /auth/me + /auth/devices 真实数据组装（后端无聚合端点，无的字段诚实降级） */
   async getSecurityItems(): Promise<{ login: SecurityItem[]; payment: SecurityItem[]; device: SecurityItem[]; score: { label: string; done: boolean }[] }> {
     const [me, devices] = await Promise.all([
-      apiGet<any>('/auth/me'),
-      apiGet<any[]>('/auth/devices').catch(() => [] as any[]),
+      apiGet<RawMe>('/auth/me'),
+      apiGet<unknown[]>('/auth/devices').catch(() => [] as unknown[]),
     ])
     const hasPhone = !!me?.phone
     const hasEmail = !!me?.email
@@ -1239,7 +1433,7 @@ export const mineApi = {
 
   /** 获取黑名单 —— GET /users/blacklist/list（后端 {items:[{id,blockedUser}]} → 适配） */
   async getBlacklist(): Promise<BlacklistItem[]> {
-    const res = await apiGet<{ items?: any[] } | any[]>('/users/blacklist/list')
+    const res = await apiGet<{ items?: RawBlacklist[] } | RawBlacklist[]>('/users/blacklist/list')
     const list = Array.isArray(res) ? res : (res?.items ?? [])
     return list.map(adaptBlacklist)
   },
@@ -1258,7 +1452,7 @@ export const mineApi = {
 
   /** 获取青少年模式设置 —— GET /users/me/teen-mode（{enabled,settings} → 适配） */
   async getTeenMode(): Promise<TeenModeSettings> {
-    const r = await apiGet<any>('/users/me/teen-mode')
+    const r = await apiGet<RawTeenMode>('/users/me/teen-mode')
     return adaptTeenMode(r)
   },
 
@@ -1281,7 +1475,7 @@ export const mineApi = {
     dataItems: { icon: string; label: string; color: string }[]
     assets: { balance: number; points: number; coupons: number; memberDays: number }
   }> {
-    const r = await apiGet<any>('/users/delete-account/info')
+    const r = await apiGet<RawDeleteAccountInfo>('/users/delete-account/info')
     return {
       phone: r?.phone || '',
       reasons: Array.isArray(r?.reasons) ? r.reasons : deleteAccountReasons,
@@ -1333,9 +1527,9 @@ export const mineApi = {
 
   /** 获取充值选项 —— GET /users/wallet/recharge-options（后端 {amountRmb,amountCoin,bonus} → 前端 {coins,price,bonus}） */
   async getRechargeOptions(): Promise<RechargeOption[]> {
-    const res = await apiGet<any[]>('/users/wallet/recharge-options')
+    const res = await apiGet<RawRechargeOption[]>('/users/wallet/recharge-options')
     const list = Array.isArray(res) ? res : []
-    return list.map((t: any, i: number) => ({
+    return list.map((t: RawRechargeOption, i: number) => ({
       coins: Number(t.amountCoin ?? t.coins ?? 0),
       price: Number(t.amountRmb ?? t.price ?? 0),
       bonus: Number(t.bonus ?? 0),
@@ -1346,7 +1540,7 @@ export const mineApi = {
   /** 充值 —— POST /users/wallet/recharge（微信/支付宝/云闪付；演示模式下单后模拟到账） */
   async recharge(_amountCoin: number, _payMethod: string): Promise<{ success: boolean; message: string }> {
     try {
-      const res = await apiPost<any>('/users/wallet/recharge', { amountCoin: _amountCoin, payMethod: _payMethod })
+      const res = await apiPost<{ message?: string }>('/users/wallet/recharge', { amountCoin: _amountCoin, payMethod: _payMethod })
       return { success: true, message: res?.message || '充值成功' }
     } catch (e: any) {
       return { success: false, message: e?.message || '充值失败' }
@@ -1355,14 +1549,14 @@ export const mineApi = {
 
   /** 获取交易记录 —— GET /users/wallet/transactions（后端 {transactions:VirtualCoinTransaction[]} → 适配） */
   async getTransactions(_type?: string): Promise<WalletTxRecord[]> {
-    const res = await apiGet<{ transactions?: any[] } | any[]>(`/users/wallet/transactions${_type ? `?type=${encodeURIComponent(_type)}` : ''}`)
+    const res = await apiGet<{ transactions?: RawWalletTx[] } | RawWalletTx[]>(`/users/wallet/transactions${_type ? `?type=${encodeURIComponent(_type)}` : ''}`)
     const list = Array.isArray(res) ? res : (res?.transactions ?? [])
     return list.map(adaptWalletTx)
   },
 
   /** 获取提现信息 —— GET /users/wallet/withdraw-info（冻结/在途后端无→0，页面降级；savedAccounts 适配） */
   async getWithdrawInfo(): Promise<WithdrawBalanceInfo> {
-    const r = await apiGet<any>('/users/wallet/withdraw-info')
+    const r = await apiGet<RawWithdrawInfo>('/users/wallet/withdraw-info')
     return {
       availableBalance: Number(r.availableBalance ?? 0),
       frozenBalance: 0,
@@ -1440,28 +1634,28 @@ export const mineApi = {
 
   /** 获取浏览历史 —— GET /users/history（后端 {items:BrowseHistory[]} → 按日期分组适配） */
   async getHistory(): Promise<HistoryGroup[]> {
-    const res = await apiGet<{ items?: any[] } | any[]>('/users/history?page=1&pageSize=50')
+    const res = await apiGet<{ items?: RawBrowseHistory[] } | RawBrowseHistory[]>('/users/history?page=1&pageSize=50')
     const list = Array.isArray(res) ? res : (res?.items ?? [])
     return adaptHistory(list)
   },
 
   /** 获取我的点赞 —— GET /users/me/likes（后端 {items} 含多态 target 详情 → 适配，目标已删降级） */
   async getMyLikes(_filter?: string): Promise<LikeItem[]> {
-    const res = await apiGet<{ items?: any[] } | any[]>('/users/me/likes?page=1&pageSize=50')
+    const res = await apiGet<{ items?: RawLike[] } | RawLike[]>('/users/me/likes?page=1&pageSize=50')
     const list = Array.isArray(res) ? res : (res?.items ?? [])
     return list.map(adaptLike)
   },
 
   /** 获取我的评论 —— GET /users/me/comments（后端 {items} 含 target/replyCount/hasReply → 适配） */
   async getMyComments(page = 1, pageSize = 20): Promise<MyCommentItem[]> {
-    const res = await apiGet<{ items?: any[] } | any[]>(`/users/me/comments?page=${page}&pageSize=${pageSize}`)
+    const res = await apiGet<{ items?: RawComment[] } | RawComment[]>(`/users/me/comments?page=${page}&pageSize=${pageSize}`)
     const list = Array.isArray(res) ? res : (res?.items ?? [])
     return list.map(adaptMyComment)
   },
 
   /** 获取收到的评论 —— GET /users/me/received-comments（后端 {items} 含 user/target/isReplied/myReply → 适配） */
   async getReceivedComments(): Promise<ReceivedCommentItem[]> {
-    const res = await apiGet<{ items?: any[] } | any[]>('/users/me/received-comments?page=1&pageSize=50')
+    const res = await apiGet<{ items?: RawReceivedComment[] } | RawReceivedComment[]>('/users/me/received-comments?page=1&pageSize=50')
     const list = Array.isArray(res) ? res : (res?.items ?? [])
     return list.map(adaptReceivedComment)
   },
@@ -1474,7 +1668,7 @@ export const mineApi = {
 
   /** 获取历史反馈 —— GET /users/feedback/history（后端 Feedback[] 无 title → 适配） */
   async getFeedbackHistory(): Promise<HistoryFeedbackItem[]> {
-    const res = await apiGet<any[]>('/users/feedback/history')
+    const res = await apiGet<RawFeedback[]>('/users/feedback/history')
     return Array.isArray(res) ? res.map(adaptFeedbackHistory) : []
   },
 
@@ -1523,16 +1717,16 @@ export const mineApi = {
 
   /** 当前登录用户ID —— GET /auth/me（关注列表等公共端点需显式 :id） */
   async getMyUserId(): Promise<string> {
-    const me = await apiGet<any>('/auth/me')
+    const me = await apiGet<RawMe>('/auth/me')
     return me?.id ? String(me.id) : ''
   },
 
   /** 我的课程 —— GET /courses/my + /courses/study-plan + /courses/dashboard 组合 */
   async getMyCourses(): Promise<MyCoursesResult> {
     const [my, plan, dash] = await Promise.all([
-      apiGet<any>('/courses/my?page=1&pageSize=50'),
-      apiGet<any>('/courses/study-plan').catch(() => null),
-      apiGet<any>('/courses/dashboard').catch(() => null),
+      apiGet<RawMyCourses>('/courses/my?page=1&pageSize=50'),
+      apiGet<RawStudyPlan>('/courses/study-plan').catch(() => null),
+      apiGet<RawDashboard>('/courses/dashboard').catch(() => null),
     ])
     const progressByCourse = new Map<string, { total: number; done: number }>()
     for (const c of (plan?.courses ?? [])) {
@@ -1546,9 +1740,9 @@ export const mineApi = {
       }
     }
     const courses: MyCourseItem[] = (my?.courses ?? [])
-      .filter((o: any) => o.course)
-      .map((o: any) => {
-        const c = o.course
+      .filter((o: RawCourseEnrollment) => o.course)
+      .map((o: RawCourseEnrollment) => {
+        const c = o.course! // filter 已保证 course 非空
         const prog = progressByCourse.get(String(c.id))
         const total = prog?.total ?? 0
         const done = prog?.done ?? 0
@@ -1577,7 +1771,7 @@ export const mineApi = {
 
   /** 我的收藏 —— GET /interaction/collect（多态 target 已补全，已删降级） */
   async getFavorites(): Promise<FavItem[]> {
-    const res = await apiGet<{ items?: any[] }>('/interaction/collect?page=1&pageSize=50')
+    const res = await apiGet<{ items?: RawFavorite[] }>('/interaction/collect?page=1&pageSize=50')
     const list = Array.isArray(res?.items) ? res!.items! : []
     return list.map(adaptFavorite)
   },
@@ -1593,11 +1787,11 @@ export const mineApi = {
     const uid = await this.getMyUserId()
     if (!uid) return { following: [], followers: [] }
     const [fg, fr] = await Promise.all([
-      apiGet<any>(`/users/${uid}/following?page=1&pageSize=100`),
-      apiGet<any>(`/users/${uid}/followers?page=1&pageSize=100`),
+      apiGet<RawFollowWrap>(`/users/${uid}/following?page=1&pageSize=100`),
+      apiGet<RawFollowWrap>(`/users/${uid}/followers?page=1&pageSize=100`),
     ])
-    const followingUsers: any[] = fg?.following ?? []
-    const followerUsers: any[] = fr?.followers ?? []
+    const followingUsers: RawFollowUser[] = fg?.following ?? []
+    const followerUsers: RawFollowUser[] = fr?.followers ?? []
     const followingIds = new Set(followingUsers.map((u) => String(u.id)))
     const followerIds = new Set(followerUsers.map((u) => String(u.id)))
     const following: FollowUserItem[] = followingUsers.map((u) => ({
@@ -1625,7 +1819,7 @@ export const mineApi = {
 
   /** 通知列表 —— GET /notifications */
   async getNotifications(): Promise<NotifyItem[]> {
-    const res = await apiGet<{ notifications?: any[] }>('/notifications?page=1&pageSize=50')
+    const res = await apiGet<{ notifications?: RawNotification[] }>('/notifications?page=1&pageSize=50')
     const list = Array.isArray(res?.notifications) ? res!.notifications! : []
     return list.map(adaptNotification)
   },
@@ -1655,12 +1849,12 @@ export const mineApi = {
   /** 我的会员权益 —— GET /member/status + /member/plans（仅平台VIP） */
   async getMemberships(): Promise<MembershipItem[]> {
     const [status, plans] = await Promise.all([
-      apiGet<any>('/member/status'),
-      apiGet<any[]>('/member/plans').catch(() => [] as any[]),
+      apiGet<RawMemberStatus>('/member/status'),
+      apiGet<RawMemberPlan[]>('/member/plans').catch(() => [] as RawMemberPlan[]),
     ])
     if (!status || status.memberLevel === 'NONE') return []
     const planList = Array.isArray(plans) ? plans : []
-    const config = planList.find((p: any) => p.level === status.memberLevel)
+    const config = planList.find((p: RawMemberPlan) => p.level === status.memberLevel)
     const isLifetime = status.memberLevel === 'LIFETIME' || status.remainingDays === -1
     const daysLeft = isLifetime ? -1 : Number(status.remainingDays ?? 0)
     const st: 'active' | 'expiring' | 'expired' =

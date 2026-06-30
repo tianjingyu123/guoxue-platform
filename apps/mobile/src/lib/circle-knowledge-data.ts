@@ -26,21 +26,39 @@ function deriveTitle(content: string): string {
   return first.length > 24 ? first.slice(0, 24) + '…' : (first || '知识条目')
 }
 
-function adapt(k: any): KnowledgeItem {
+/* —— 后端原始响应类型（容错适配用，仅声明 adapter 实际访问到的字段） —— */
+/** 后端知识块原始条目（id 必有，直赋必填视图字段） */
+interface RawKnowledge {
+  id: string
+  content?: string
+  sourceType?: string
+  addedAt?: string
+  createdAt?: string
+  qualityScore?: number
+  similarityScore?: number
+}
+/** 知识列表响应：裸数组或 {items/data/list:[]} 包装 */
+interface RawKnowledgeResp {
+  items?: RawKnowledge[]
+  data?: RawKnowledge[]
+  list?: RawKnowledge[]
+}
+
+function adapt(k: RawKnowledge): KnowledgeItem {
   const content = k.content || ''
   return {
     id: k.id,
     title: deriveTitle(content),
     summary: content.length > 80 ? content.slice(0, 80) + '…' : content,
     content,
-    sourceLabel: SOURCE_LABEL[k.sourceType] || '其他',
+    sourceLabel: SOURCE_LABEL[k.sourceType || ''] || '其他',
     createdAt: k.addedAt || k.createdAt || '',
     qualityScore: typeof k.qualityScore === 'number' ? k.qualityScore : undefined,
     similarityScore: typeof k.similarityScore === 'number' ? k.similarityScore : undefined,
   }
 }
 
-function pickArray(res: any): any[] {
+function pickArray(res: RawKnowledge[] | RawKnowledgeResp | null | undefined): RawKnowledge[] {
   return Array.isArray(res) ? res : (res?.items ?? res?.data ?? res?.list ?? [])
 }
 
@@ -48,13 +66,13 @@ export const knowledgeApi = {
   /** 已入库知识条目 — GET /circles/:id/knowledge */
   list: async (circleId: string): Promise<KnowledgeItem[]> => {
     try {
-      return pickArray(await apiGet<any>(`/circles/${circleId}/knowledge?pageSize=50`)).map(adapt)
+      return pickArray(await apiGet<RawKnowledge[] | RawKnowledgeResp>(`/circles/${circleId}/knowledge?pageSize=50`)).map(adapt)
     } catch { return [] }
   },
   /** 待审核候选 — GET /circles/:id/knowledge/candidates */
   candidates: async (circleId: string): Promise<KnowledgeItem[]> => {
     try {
-      return pickArray(await apiGet<any>(`/circles/${circleId}/knowledge/candidates?pageSize=50`)).map(adapt)
+      return pickArray(await apiGet<RawKnowledge[] | RawKnowledgeResp>(`/circles/${circleId}/knowledge/candidates?pageSize=50`)).map(adapt)
     } catch { return [] }
   },
   /** 确认候选入库 */

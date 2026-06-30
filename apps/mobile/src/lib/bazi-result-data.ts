@@ -89,15 +89,56 @@ const _mockClassicsContent: Record<string, { title: string; original: string; tr
 // 后端 GET /paipan/bazi/calculate（calcBaziPreview，真实排盘算法）输出结构与组件期望(_mockBaziData)不同，
 // 此适配做精确字段映射；后端无的字段（每柱自坐/真太阳时/节气）降级为空，组件侧 v-if 隐藏（不造假）。
 
+/* —— 后端排盘算法原始响应类型（容错适配用，字段全 optional + 宽松类型，仅声明 adapter 实际访问到的字段；只加类型注解，不动算法/数据/常量值） —— */
+interface RawCangGan { gan?: string; shiShen?: string }
+interface RawBaziPillar {
+  gan?: string
+  zhi?: string
+  ganShiShen?: string
+  zhiShiShen?: string
+  cangGan?: RawCangGan[]
+  nayin?: string
+  xingYun?: string
+}
+interface RawPalace { gan?: string; zhi?: string; nayin?: string }
+interface RawShenSha { name?: string; pillar?: string }
+interface RawWuXingEnergy { mu?: number; huo?: number; tu?: number; jin?: number; shui?: number }
+interface RawLiuNian { year?: number; ganZhi?: string; ganShiShen?: string; zhiShiShen?: string; age?: number }
+interface RawDaYun {
+  startYear: number
+  endYear: number
+  tianGan?: string
+  diZhi?: string
+  ganShiShen?: string
+  zhiShiShen?: string
+  liuNian?: RawLiuNian[]
+}
+interface RawBaziResponse {
+  siZhu?: Record<string, RawBaziPillar>
+  kongWang?: string
+  shenSha?: RawShenSha[]
+  wuXingEnergy?: RawWuXingEnergy
+  qiYun?: { daYun?: RawDaYun[]; desc?: string } | null
+  shengXiao?: string
+  lunarDate?: string
+  taiYuan?: RawPalace
+  mingGong?: RawPalace
+  shenGong?: RawPalace
+  fenXiTiShi?: Record<string, string[]> | null
+  geJu?: unknown
+}
+/** 八字古籍参考内容原始响应 */
+interface RawClassicContent { title?: string; original?: string; translation?: string }
+
 const _PILLAR_BE = { year: 'nian', month: 'yue', day: 'ri', hour: 'shi' } as const
 const _SS_PILLAR_FE: Record<string, string> = { nian: 'year', yue: 'month', ri: 'day', shi: 'hour' }
 const _WX_STATES = ['旺', '相', '休', '囚', '死']
 
-function _adaptPillar(p: any, kongWang: string, isDay: boolean) {
+function _adaptPillar(p: RawBaziPillar, kongWang: string, isDay: boolean) {
   return {
     shiShen: isDay ? '日元' : (p?.ganShiShen || ''), // 日柱天干为日主本身，显示「日元」
     gan: p?.gan || '', zhi: p?.zhi || '',
-    cangGan: Array.isArray(p?.cangGan) ? p.cangGan.map((c: any) => ({ gan: c.gan, shen: c.shiShen })) : [],
+    cangGan: Array.isArray(p?.cangGan) ? p.cangGan.map((c: RawCangGan) => ({ gan: c.gan, shen: c.shiShen })) : [],
     naYin: p?.nayin || '',
     diShi: p?.xingYun || '', // 后端 xingYun = 十二长生地势
     ziZuo: '', // 后端无每柱自坐 → 降级（组件不渲染自坐行）
@@ -106,34 +147,34 @@ function _adaptPillar(p: any, kongWang: string, isDay: boolean) {
   }
 }
 
-export function adaptBazi(raw: any) {
-  const sz = raw?.siZhu || {}
+export function adaptBazi(raw: RawBaziResponse) {
+  const sz: Record<string, RawBaziPillar> = raw?.siZhu || {}
   const kw = raw?.kongWang || ''
-  const siZhu: Record<string, any> = {}
+  const siZhu: Record<string, ReturnType<typeof _adaptPillar>> = {}
   for (const [fe, be] of Object.entries(_PILLAR_BE)) {
     siZhu[fe] = _adaptPillar(sz[be], kw, be === 'ri')
   }
   // 神煞按柱分组（后端扁平 [{name,pillar}]）
   const shenSha: Record<string, string[]> = { year: [], month: [], day: [], hour: [] }
   for (const s of (Array.isArray(raw?.shenSha) ? raw.shenSha : [])) {
-    const fe = _SS_PILLAR_FE[s?.pillar]
+    const fe = _SS_PILLAR_FE[s?.pillar || '']
     if (fe && s?.name) shenSha[fe].push(s.name)
   }
   // 五行旺衰：后端 wuXingEnergy 为分数 → 按高低映射 旺/相/休/囚/死
-  const we = raw?.wuXingEnergy || {}
-  const wx: Array<[string, number]> = [['木', +we.mu || 0], ['火', +we.huo || 0], ['土', +we.tu || 0], ['金', +we.jin || 0], ['水', +we.shui || 0]]
+  const we: RawWuXingEnergy = raw?.wuXingEnergy || {}
+  const wx: Array<[string, number]> = [['木', Number(we.mu) || 0], ['火', Number(we.huo) || 0], ['土', Number(we.tu) || 0], ['金', Number(we.jin) || 0], ['水', Number(we.shui) || 0]]
   const wuxingState: Record<string, string> = {}
   ;[...wx].sort((a, b) => b[1] - a[1]).forEach(([el], i) => { wuxingState[el] = _WX_STATES[i] })
   // 大运 + 流年（当前大运的逐年）
   const nowYear = new Date().getFullYear()
-  const dyRaw: any[] = Array.isArray(raw?.qiYun?.daYun) ? raw.qiYun.daYun : []
-  const daYun = dyRaw.map((d: any) => ({
+  const dyRaw: RawDaYun[] = Array.isArray(raw?.qiYun?.daYun) ? (raw?.qiYun?.daYun as RawDaYun[]) : []
+  const daYun = dyRaw.map((d: RawDaYun) => ({
     year: d.startYear, gan: d.tianGan, zhi: d.diZhi,
     shiShen: d.ganShiShen, shiShenZhi: d.zhiShiShen,
     active: nowYear >= d.startYear && nowYear <= d.endYear,
   }))
-  const activeDy = dyRaw.find((d: any) => nowYear >= d.startYear && nowYear <= d.endYear) || dyRaw[0]
-  const liuNian = (Array.isArray(activeDy?.liuNian) ? activeDy.liuNian : []).map((n: any) => {
+  const activeDy = dyRaw.find((d: RawDaYun) => nowYear >= d.startYear && nowYear <= d.endYear) || dyRaw[0]
+  const liuNian = (Array.isArray(activeDy?.liuNian) ? activeDy.liuNian : []).map((n: RawLiuNian) => {
     const gz = String(n?.ganZhi || '')
     return {
       year: n.year, gan: gz[0] || '', zhi: gz.slice(1) || '',
@@ -141,9 +182,9 @@ export function adaptBazi(raw: any) {
       age: n.age, active: n.year === nowYear,
     }
   })
-  const palace = (p: any) => ({ gan: p?.gan || '', zhi: p?.zhi || '', naYin: p?.nayin || '' })
+  const palace = (p: RawPalace | undefined) => ({ gan: p?.gan || '', zhi: p?.zhi || '', naYin: p?.nayin || '' })
   // 刑冲合害（后端 fenXiTiShi）→ 前端 relations（分析模式「提示」区）
-  const fx = raw?.fenXiTiShi || {}
+  const fx: Record<string, string[]> = raw?.fenXiTiShi || {}
   const fxArr = (...keys: string[]) => keys.flatMap((k) => (Array.isArray(fx[k]) ? fx[k] : []))
   const relations = {
     tianGan: fxArr('ganHe'), // 天干合
@@ -178,22 +219,24 @@ export const baziApi = {
       hour: String(input.hour), minute: String(input.minute ?? 0),
       gender: input.gender,
     }).toString()
-    return adaptBazi(await apiGet<any>('/paipan/bazi/calculate?' + params))
+    return adaptBazi(await apiGet<RawBaziResponse>('/paipan/bazi/calculate?' + params))
   },
 
-  /** 古籍参考内容 */
-  async classicsRef(bookId: string) {
+  /** 古籍参考内容（返回确定的视图模型，供页面直接渲染） */
+  async classicsRef(bookId: string): Promise<{ title: string; original: string; translation: string } | null> {
     if (true) return _mockClassicsContent[bookId] || null
     try {
-      const data = await apiGet<any>(`/paipan/bazi/classics/${bookId}`)
-      return data || _mockClassicsContent[bookId] || null
+      const data = await apiGet<RawClassicContent>(`/paipan/bazi/classics/${bookId}`)
+      return data
+        ? { title: data.title || '', original: data.original || '', translation: data.translation || '' }
+        : (_mockClassicsContent[bookId] || null)
     } catch { return _mockClassicsContent[bookId] || null }
   },
 
   /** 保存排盘记录 */
-  async save(input: any) {
+  async save(input: Record<string, unknown>) {
     if (true) return { id: 'mock-bazi-id' }
-    try { return await apiGet<any>('/paipan/bazi/save') }
+    try { return await apiGet<{ id?: string }>('/paipan/bazi/save') }
     catch { return { id: 'mock-bazi-id' } }
   },
 }

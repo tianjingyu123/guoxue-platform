@@ -178,6 +178,9 @@ const _mockLiuyaoResult: LiuyaoResult = {
 
 // ── API ──
 
+/** 排盘历史记录项（透传给页面，字段宽松，用索引签名声明） */
+interface RawLiuyaoHistoryItem { id?: string; createdAt?: string; question?: string; [key: string]: unknown }
+
 export const liuyaoApi = {
   /** 六爻排盘计算 POST /paipan/liuyao */
   async calculate(input: Record<string, unknown>): Promise<LiuyaoResult> {
@@ -206,8 +209,8 @@ export const liuyaoApi = {
   },
 
   /** 排盘历史 GET /paipan/liuyao */
-  async history(page = 1, pageSize = 20): Promise<{ records: any[]; total: number }> {
+  async history(page = 1, pageSize = 20): Promise<{ records: RawLiuyaoHistoryItem[]; total: number }> {
     if (true) return { records: [{ id: 'mock-1', createdAt: new Date().toISOString(), question: '问事业前程如何？' }], total: 1 }
-    try { return await apiGet<any>(`/paipan/liuyao?page=${page}&pageSize=${pageSize}`) } catch { return { records: [], total: 0 } }
+    try { return await apiGet<{ records: RawLiuyaoHistoryItem[]; total: number }>(`/paipan/liuyao?page=${page}&pageSize=${pageSize}`) } catch { return { records: [], total: 0 } }
   },
 }

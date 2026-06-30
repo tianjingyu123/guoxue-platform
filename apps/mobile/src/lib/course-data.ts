@@ -115,14 +115,70 @@ export interface WorkResult {
 // ============ API 层 ============
 
 // ───────── 后端字段适配（前端 /course 单数 → 后端 /courses 复数 + 结构适配）─────────
-function toNum(v: any): number { const x = Number(v); return Number.isFinite(x) ? x : 0 }
+
+/* —— 后端原始响应类型（容错适配用，字段宽松全 optional，仅声明 adapter 实际访问到的字段） —— */
+/** 后端 User 精简字段（讲师/学员/作者通用） */
+interface RawUserLite { id?: string; nickname?: string; avatar?: string }
+/** 后端 _count 聚合 */
+interface RawCount { chapters?: number; reviews?: number; answers?: number }
+/** 后端课程原始响应 */
+interface RawCourse {
+  id?: string
+  title?: string
+  cover?: string | null
+  intro?: string
+  price?: number | string
+  originalPrice?: number | string
+  studentCount?: number
+  type?: string
+  auditStatus?: string
+  circleId?: string | null
+  categoryLevel1?: string
+  circle?: { name?: string } | null
+  user?: RawUserLite | null
+  chapters?: unknown[]
+  _count?: RawCount | null
+}
+/** 后端课程评分聚合 */
+interface RawRating { avgRating?: number }
+/** 后端章节原始响应 */
+interface RawChapter {
+  id?: string
+  title?: string
+  duration?: number | string
+  freeTrial?: boolean
+  sortOrder?: number
+  courseId?: string
+  course?: { id?: string; title?: string } | null
+  mediaUrl?: string
+  content?: string
+}
+/** 后端学习进度记录 */
+interface RawProgress { chapterId?: string; completed?: boolean; progress?: number | string; updatedAt?: string | null }
+/** 后端课程评价 */
+interface RawReview { id?: string; user?: RawUserLite | null; rating?: number | string; content?: string; reply?: string; createdAt?: string | null }
+/** 后端课程提问 */
+interface RawQuestion { id?: string; content?: string; user?: RawUserLite | null; chapter?: { title?: string } | null; createdAt?: string | null; answerCount?: number; status?: string; _count?: RawCount | null }
+/** 后端作业（含 user/chapter/course join） */
+interface RawWork { id?: string; userId?: string; user?: RawUserLite | null; chapterId?: string; chapter?: { title?: string } | null; course?: { title?: string } | null; content?: string; createdAt?: string | null; score?: number | null; feedback?: string }
+/** 后端结业证书 */
+interface RawCertificate { id?: string; courseId?: string; courseName?: string; studentName?: string; completedAt?: string; certificateNo?: string; instructor?: string; totalHours?: number | string; score?: number | null }
+/** 后端限时特惠课程 */
+interface RawSaleCourse { id?: string; title?: string; instructor?: string; cover?: string; originalPrice?: number | string; salePrice?: number | string; discount?: number | string; students?: number | string; rating?: number | string; sessionId?: string; sold?: number | string; total?: number | string; category?: string }
+/** 后端学习计划中的课程 */
+interface RawPlannedCourse { id?: string; courseId?: string; title?: string; cover?: string; totalLessons?: number | string; completedLessons?: number | string; scheduledDays?: number[]; order?: number | string }
+/** 后端我创建的课程（讲师管理台） */
+interface RawCreatedCourse { id?: string; title?: string; cover?: string | null; type?: string; price?: number | string; auditStatus?: string; studentCount?: number; circleId?: string | null; createdAt?: string | null; _count?: RawCount | null }
+
+function toNum(v: unknown): number { const x = Number(v); return Number.isFinite(x) ? x : 0 }
 
 /** 后端课程 → 前端课程卡 Course */
-function adaptCourseCard(c: any): Course {
+function adaptCourseCard(c: RawCourse): Course {
   const price = toNum(c.price)
   const orig = toNum(c.originalPrice)
   return {
-    id: c.id,
+    // id 由后端真实返回理论恒在，补 || '' 满足 Course.id 必填类型
+    id: c.id || '',
     title: c.title || '',
     cover: c.cover || '',
     coverRatio: '1:1',
@@ -141,11 +197,11 @@ function adaptCourseCard(c: any): Course {
 }
 
 /** 后端课程详情 → 前端 CourseDetail（objectives/suitable 后端无→空，页面隐藏） */
-function adaptCourseDetail(c: any, rating?: any): CourseDetail {
+function adaptCourseDetail(c: RawCourse, rating?: RawRating | null): CourseDetail {
   const price = toNum(c.price)
   const orig = toNum(c.originalPrice)
   return {
-    id: c.id,
+    id: c.id || '',
     title: c.title || '',
     cover: c.cover || '',
     instructor: { id: c.user?.id || '', name: c.user?.nickname || '讲师', avatar: c.user?.avatar || '', title: '主讲老师' },
@@ -166,22 +222,22 @@ function adaptCourseDetail(c: any, rating?: any): CourseDetail {
 }
 
 /** 后端单级章节 → 前端「章-课时」结构（后端每章节包成一个含单课时的章） */
-function adaptChapters(arr: any): CourseChapter[] {
-  const list = Array.isArray(arr) ? arr : (arr?.items ?? [])
-  return list.map((ch: any) => ({
-    id: ch.id,
+function adaptChapters(arr: unknown): CourseChapter[] {
+  const list = Array.isArray(arr) ? (arr as RawChapter[]) : ((arr as { items?: RawChapter[] })?.items ?? [])
+  return list.map((ch) => ({
+    id: ch.id || '',
     title: ch.title || '',
     duration: toNum(ch.duration),
     isFree: !!ch.freeTrial,
-    lessons: [{ id: ch.id, title: ch.title || '', duration: toNum(ch.duration), isFree: !!ch.freeTrial }],
+    lessons: [{ id: ch.id || '', title: ch.title || '', duration: toNum(ch.duration), isFree: !!ch.freeTrial }],
   }))
 }
 
 /** 后端评价 → 前端 CourseReview */
-function adaptReviews(arr: any): CourseReview[] {
-  const list = Array.isArray(arr) ? arr : (arr?.reviews ?? arr?.items ?? [])
-  return list.map((r: any) => ({
-    id: r.id,
+function adaptReviews(arr: unknown): CourseReview[] {
+  const list = Array.isArray(arr) ? (arr as RawReview[]) : ((arr as { reviews?: RawReview[]; items?: RawReview[] })?.reviews ?? (arr as { items?: RawReview[] })?.items ?? [])
+  return list.map((r) => ({
+    id: r.id || '',
     user: { id: r.user?.id || '', name: r.user?.nickname || '匿名', avatar: r.user?.avatar || '' },
     rating: toNum(r.rating),
     content: r.content || '',
@@ -190,20 +246,21 @@ function adaptReviews(arr: any): CourseReview[] {
   }))
 }
 
-/** 取列表（后端可能返回数组或 {list/items} 包裹） */
-function toList(data: any): any[] {
-  if (Array.isArray(data)) return data
-  return data?.list ?? data?.items ?? data?.courses ?? []
+/** 取列表（后端可能返回数组或 {list/items/courses} 包裹），泛型化避免 any[] */
+function toList<T = unknown>(data: unknown): T[] {
+  if (Array.isArray(data)) return data as T[]
+  const d = data as { list?: T[]; items?: T[]; courses?: T[] } | null | undefined
+  return d?.list ?? d?.items ?? d?.courses ?? []
 }
 
 /** 后端作业(含 user/chapter join) → 前端 WorkSubmission（图片从 content 末尾 markdown 提取） */
-function adaptWorkSubmission(w: any): WorkSubmission {
+function adaptWorkSubmission(w: RawWork): WorkSubmission {
   const images: string[] = []
   const content = String(w.content || '')
     .replace(/!\[作业图片\]\(([^)]+)\)/g, (_m: string, url: string) => { images.push(url); return '' })
     .trim()
   return {
-    id: w.id,
+    id: w.id || '',
     student: { id: w.user?.id || w.userId || '', name: w.user?.nickname || '学员', avatar: w.user?.avatar || '' },
     chapterId: w.chapterId || '',
     chapterTitle: w.chapter?.title || '',
@@ -237,13 +294,13 @@ export const courseApi = {
 
   /** 我创建的课程（讲师管理台）— GET /courses/created（含审核状态/章节·评价计数；空→空态，错→错误态） */
   async getCreatedCourses(page = 1, pageSize = 20): Promise<{ items: CreatedCourse[]; total: number }> {
-    const res = await apiGetPaged<any>(`/courses/created?page=${page}&pageSize=${pageSize}`)
+    const res = await apiGetPaged<RawCreatedCourse>(`/courses/created?page=${page}&pageSize=${pageSize}`)
     return {
       items: res.items.map((c) => ({
-        id: c.id,
-        title: c.title,
+        id: c.id || '',
+        title: c.title || '',
         cover: c.cover || '',
-        type: c.type,
+        type: c.type || '',
         price: Number(c.price ?? 0),
         auditStatus: c.auditStatus || 'PENDING',
         studentCount: c.studentCount ?? 0,
@@ -261,9 +318,19 @@ export const courseApi = {
     apiPut(`/courses/reviews/${reviewId}/reply`, { reply }),
 
   /** 课程首页 — GET /courses 列表 + 前端派生（banner/分类=运营配置；错误传播给页面三态，不回退假数据）*/
-  async getHome(): Promise<any> {
-    const res = await apiGet<any>('/courses?pageSize=50')
-    const courses: Course[] = toList(res).map(adaptCourseCard)
+  async getHome(): Promise<{
+    banners: BannerItem[]
+    categories: CourseCategory[]
+    featured: Course[]
+    ranking: Course[]
+    flashSale: Course[]
+    free: Course[]
+    newCourses: Course[]
+    allCourses: Course[]
+    feedFilters: typeof feedFilters
+  }> {
+    const res = await apiGet<unknown>('/courses?pageSize=50')
+    const courses: Course[] = toList<RawCourse>(res).map(adaptCourseCard)
     return {
       banners: courseBanners,
       categories: categoryNav,
@@ -280,33 +347,33 @@ export const courseApi = {
   /** 课程详情 — GET /courses/:id (+ /rating)；错误传播给页面三态 */
   async getDetail(id: string): Promise<CourseDetail> {
     const [c, rating] = await Promise.all([
-      apiGet<any>(`/courses/${id}`),
-      apiGet<any>(`/courses/${id}/rating`).catch(() => null),
+      apiGet<RawCourse>(`/courses/${id}`),
+      apiGet<RawRating>(`/courses/${id}/rating`).catch(() => null),
     ])
     return adaptCourseDetail(c, rating)
   },
 
   /** 课程章节 — GET /courses/:id/chapters（空→空态，错→错误态，不回退假数据） */
   async getChapters(id: string): Promise<CourseChapter[]> {
-    return adaptChapters(await apiGet<any>(`/courses/${id}/chapters`))
+    return adaptChapters(await apiGet<unknown>(`/courses/${id}/chapters`))
   },
 
   /** 课程评价 — GET /courses/:id/reviews（空→空态，错→错误态） */
   async getReviews(id: string): Promise<CourseReview[]> {
-    return adaptReviews(await apiGet<any>(`/courses/${id}/reviews`))
+    return adaptReviews(await apiGet<unknown>(`/courses/${id}/reviews`))
   },
 
   /** 学习进度概览 — 合并 GET /courses/:id/chapters + /progress + 课程标题 */
   async getProgress(id: string): Promise<CourseProgress> {
     const [chapters, progress, course] = await Promise.all([
-      apiGet<any>(`/courses/${id}/chapters`),
-      apiGet<any>(`/courses/${id}/progress`),
-      apiGet<any>(`/courses/${id}`).catch(() => null),
+      apiGet<unknown>(`/courses/${id}/chapters`),
+      apiGet<unknown>(`/courses/${id}/progress`),
+      apiGet<RawCourse>(`/courses/${id}`).catch(() => null),
     ])
-    const chList = toList(chapters)
-    const prog = toList(progress)
+    const chList = toList<RawChapter>(chapters)
+    const prog = toList<RawProgress>(progress)
     const total = chList.length
-    const completed = prog.filter((p: any) => p.completed).length
+    const completed = prog.filter((p) => p.completed).length
     return {
       id,
       title: course?.title || '',
@@ -319,18 +386,18 @@ export const courseApi = {
   /** 带学习状态的章节列表 — 合并 GET /courses/:id/chapters + /progress（后端单级章节包成「章含一课时」） */
   async getProgressChapters(id: string): Promise<ProgressChapter[]> {
     const [chapters, progress] = await Promise.all([
-      apiGet<any>(`/courses/${id}/chapters`),
-      apiGet<any>(`/courses/${id}/progress`).catch(() => []),
+      apiGet<unknown>(`/courses/${id}/chapters`),
+      apiGet<unknown>(`/courses/${id}/progress`).catch(() => []),
     ])
-    const chList = toList(chapters).sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
-    const progMap = new Map<string, any>(toList(progress).map((p: any) => [p.chapterId, p]))
-    return chList.map((ch: any) => {
-      const p = progMap.get(ch.id)
+    const chList = toList<RawChapter>(chapters).sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+    const progMap = new Map<string, RawProgress>(toList<RawProgress>(progress).map((p): [string, RawProgress] => [p.chapterId || '', p]))
+    return chList.map((ch) => {
+      const p = progMap.get(ch.id || '')
       let status: LessonStatus
       if (p?.completed) status = 'completed'
-      else if (p && p.progress > 0) status = 'in-progress'
+      else if (p && toNum(p.progress) > 0) status = 'in-progress'
       else status = 'available' // 无逐章购买信息时不臆造 locked，访问权由章节内容接口服务端兜底
-      return { id: ch.id, title: ch.title || '', lessons: [{ id: ch.id, title: ch.title || '', duration: toNum(ch.duration), status }] }
+      return { id: ch.id || '', title: ch.title || '', lessons: [{ id: ch.id || '', title: ch.title || '', duration: toNum(ch.duration), status }] }
     })
   },
 
@@ -343,38 +410,38 @@ export const courseApi = {
     questions: LearnQuestion[]
   }> {
     const [course, chaptersRaw, progressRaw, questionsRaw] = await Promise.all([
-      apiGet<any>(`/courses/${id}`),
-      apiGet<any>(`/courses/${id}/chapters`),
-      apiGet<any>(`/courses/${id}/progress`).catch(() => []),
-      apiGet<any>(`/courses/${id}/questions`).catch(() => ({ questions: [] })),
+      apiGet<RawCourse>(`/courses/${id}`),
+      apiGet<unknown>(`/courses/${id}/chapters`),
+      apiGet<unknown>(`/courses/${id}/progress`).catch(() => []),
+      apiGet<{ questions?: RawQuestion[] }>(`/courses/${id}/questions`).catch(() => ({ questions: [] })),
     ])
-    const chs = toList(chaptersRaw).sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
-    const prog = toList(progressRaw)
-    const progMap = new Map<string, any>(prog.map((p: any) => [p.chapterId, p]))
-    const completedIds = prog.filter((p: any) => p.completed).map((p: any) => p.chapterId)
+    const chs = toList<RawChapter>(chaptersRaw).sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+    const prog = toList<RawProgress>(progressRaw)
+    const progMap = new Map<string, RawProgress>(prog.map((p): [string, RawProgress] => [p.chapterId || '', p]))
+    const completedIds = prog.filter((p) => p.completed).map((p) => p.chapterId || '')
     const totalLessons = chs.length
-    const totalDuration = chs.reduce((s: number, c: any) => s + toNum(c.duration), 0)
+    const totalDuration = chs.reduce((s: number, c) => s + toNum(c.duration), 0)
     const learnCourseData: LearnCourse = {
-      id: course.id, title: course.title || '', cover: course.cover || '',
+      id: course.id || '', title: course.title || '', cover: course.cover || '',
       instructor: { id: course.user?.id || '', name: course.user?.nickname || '讲师', avatar: course.user?.avatar || '', title: '主讲老师' },
       totalLessons, totalDuration,
     }
-    const sortedProg = [...prog].sort((a: any, b: any) => new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime())
+    const sortedProg = [...prog].sort((a, b) => new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime())
     const lastP = sortedProg[0]
-    const lastCh = (lastP ? chs.find((c: any) => c.id === lastP.chapterId) : chs[0]) || chs[0]
+    const lastCh = (lastP ? chs.find((c) => c.id === lastP.chapterId) : chs[0]) || chs[0]
     const learnProgressData: LearnProgress = {
       courseId: id, completedLessons: completedIds, totalLessons,
       progressPercent: totalLessons ? Math.round((completedIds.length / totalLessons) * 100) : 0,
-      lastLesson: lastCh ? { id: lastCh.id, chapterId: lastCh.id, title: lastCh.title || '' } : { id: '', chapterId: '', title: '' },
+      lastLesson: lastCh ? { id: lastCh.id || '', chapterId: lastCh.id || '', title: lastCh.title || '' } : { id: '', chapterId: '', title: '' },
       studyTime: 0,
     }
-    const learnChaptersData: LearnChapter[] = chs.map((ch: any) => ({
-      id: ch.id, title: ch.title || '', duration: toNum(ch.duration), isFree: !!ch.freeTrial,
-      lessons: [{ id: ch.id, title: ch.title || '', duration: toNum(ch.duration), isFree: !!ch.freeTrial, isCompleted: !!progMap.get(ch.id)?.completed }],
+    const learnChaptersData: LearnChapter[] = chs.map((ch) => ({
+      id: ch.id || '', title: ch.title || '', duration: toNum(ch.duration), isFree: !!ch.freeTrial,
+      lessons: [{ id: ch.id || '', title: ch.title || '', duration: toNum(ch.duration), isFree: !!ch.freeTrial, isCompleted: !!progMap.get(ch.id || '')?.completed }],
     }))
-    const qList = questionsRaw?.questions ?? toList(questionsRaw)
-    const learnQuestionsData: LearnQuestion[] = qList.map((q: any) => ({
-      id: q.id, content: q.content || '',
+    const qList = questionsRaw?.questions ?? toList<RawQuestion>(questionsRaw)
+    const learnQuestionsData: LearnQuestion[] = qList.map((q) => ({
+      id: q.id || '', content: q.content || '',
       author: { id: q.user?.id || '', name: q.user?.nickname || '匿名', avatar: q.user?.avatar || '' },
       chapterTitle: q.chapter?.title || '',
       createdAt: q.createdAt ? String(q.createdAt).slice(0, 10) : '',
@@ -386,60 +453,60 @@ export const courseApi = {
 
   /** 课时播放内容 — GET /courses/chapters/:chapterId/content（需购买/会员，服务端鉴权）+ 兄弟章节做前后课时 */
   async getPlayerContent(lessonId: string): Promise<ChapterContent> {
-    const ch = await apiGet<any>(`/courses/chapters/${lessonId}/content`)
+    const ch = await apiGet<RawChapter>(`/courses/chapters/${lessonId}/content`)
     const courseId = ch.courseId || ch.course?.id || ''
     const [chapters, course, progress] = await Promise.all([
-      courseId ? apiGet<any>(`/courses/${courseId}/chapters`).catch(() => []) : Promise.resolve([]),
-      courseId ? apiGet<any>(`/courses/${courseId}`).catch(() => null) : Promise.resolve(null),
-      courseId ? apiGet<any>(`/courses/${courseId}/progress`).catch(() => []) : Promise.resolve([]),
+      courseId ? apiGet<unknown>(`/courses/${courseId}/chapters`).catch(() => []) : Promise.resolve([]),
+      courseId ? apiGet<RawCourse>(`/courses/${courseId}`).catch(() => null) : Promise.resolve(null),
+      courseId ? apiGet<unknown>(`/courses/${courseId}/progress`).catch(() => []) : Promise.resolve([]),
     ])
-    const list = toList(chapters).sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
-    const idx = list.findIndex((c: any) => c.id === lessonId)
+    const list = toList<RawChapter>(chapters).sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+    const idx = list.findIndex((c) => c.id === lessonId)
     const prev = idx > 0 ? list[idx - 1] : undefined
     const next = idx >= 0 && idx < list.length - 1 ? list[idx + 1] : undefined
-    const myProg = toList(progress).find((p: any) => p.chapterId === lessonId)
+    const myProg = toList<RawProgress>(progress).find((p) => p.chapterId === lessonId)
     const duration = toNum(ch.duration)
     return {
-      id: ch.id,
+      id: ch.id || '',
       title: ch.title || '',
       courseId,
       courseTitle: course?.title || '',
       videoUrl: ch.mediaUrl || ch.content || '',
       duration,
       currentProgress: myProg ? Math.round((toNum(myProg.progress) / 100) * duration) : 0,
-      nextLesson: next ? { id: next.id, title: next.title || '', chapterId: next.id } : undefined,
-      prevLesson: prev ? { id: prev.id, title: prev.title || '', chapterId: prev.id } : undefined,
+      nextLesson: next ? { id: next.id || '', title: next.title || '', chapterId: next.id || '' } : undefined,
+      prevLesson: prev ? { id: prev.id || '', title: prev.title || '', chapterId: prev.id || '' } : undefined,
     }
   },
 
   /** 播放页章节目录 — GET /courses/:id/chapters + /progress（单级章节包成「章含一课时」） */
   async getPlayerChapters(id: string): Promise<PlayerChapter[]> {
     const [chapters, progress] = await Promise.all([
-      apiGet<any>(`/courses/${id}/chapters`),
-      apiGet<any>(`/courses/${id}/progress`).catch(() => []),
+      apiGet<unknown>(`/courses/${id}/chapters`),
+      apiGet<unknown>(`/courses/${id}/progress`).catch(() => []),
     ])
-    const chList = toList(chapters).sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
-    const progMap = new Map<string, any>(toList(progress).map((p: any) => [p.chapterId, p]))
-    return chList.map((ch: any) => ({
-      id: ch.id,
+    const chList = toList<RawChapter>(chapters).sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+    const progMap = new Map<string, RawProgress>(toList<RawProgress>(progress).map((p): [string, RawProgress] => [p.chapterId || '', p]))
+    return chList.map((ch) => ({
+      id: ch.id || '',
       title: ch.title || '',
       duration: toNum(ch.duration),
       isFree: !!ch.freeTrial,
-      lessons: [{ id: ch.id, title: ch.title || '', duration: toNum(ch.duration), isFree: !!ch.freeTrial, isCompleted: !!progMap.get(ch.id)?.completed }],
+      lessons: [{ id: ch.id || '', title: ch.title || '', duration: toNum(ch.duration), isFree: !!ch.freeTrial, isCompleted: !!progMap.get(ch.id || '')?.completed }],
     }))
   },
 
   /** 限时特惠场次 — GET /courses/flash-sale（折扣课派生，单场进行中） */
   async getSaleSessions(): Promise<SaleSession[]> {
-    const d = await apiGet<any>('/courses/flash-sale')
-    return (d.sessions ?? []) as SaleSession[]
+    const d = await apiGet<{ sessions?: SaleSession[]; courses?: RawSaleCourse[] }>('/courses/flash-sale')
+    return d.sessions ?? []
   },
 
   /** 特惠课程 — GET /courses/flash-sale */
   async getSaleCourses(sessionId?: string): Promise<SaleCourse[]> {
-    const d = await apiGet<any>('/courses/flash-sale')
-    const list: SaleCourse[] = (d.courses ?? []).map((c: any) => ({
-      id: c.id, title: c.title || '', instructor: c.instructor || '讲师', cover: c.cover || '',
+    const d = await apiGet<{ sessions?: SaleSession[]; courses?: RawSaleCourse[] }>('/courses/flash-sale')
+    const list: SaleCourse[] = (d.courses ?? []).map((c) => ({
+      id: c.id || '', title: c.title || '', instructor: c.instructor || '讲师', cover: c.cover || '',
       originalPrice: toNum(c.originalPrice), salePrice: toNum(c.salePrice), discount: toNum(c.discount),
       students: toNum(c.students), rating: toNum(c.rating), sessionId: c.sessionId || 'active',
       sold: toNum(c.sold), total: toNum(c.total), category: c.category || '',
@@ -449,9 +516,9 @@ export const courseApi = {
 
   /** 待购课程信息 — GET /courses/:id 取子集 */
   async getPurchaseCourse(id: string): Promise<PurchaseCourse> {
-    const c = await apiGet<any>(`/courses/${id}`)
+    const c = await apiGet<RawCourse>(`/courses/${id}`)
     return {
-      id: c.id,
+      id: c.id || '',
       title: c.title || '',
       cover: c.cover || '',
       instructorName: c.user?.nickname || '讲师',
@@ -468,10 +535,10 @@ export const courseApi = {
 
   /** 结业证书 — GET /courses/:id/certificate（未学完则后端 403→页面错误态提示） */
   async getCertificate(id: string): Promise<Certificate> {
-    const c = await apiGet<any>(`/courses/${id}/certificate`)
+    const c = await apiGet<RawCertificate>(`/courses/${id}/certificate`)
     return {
-      id: c.id,
-      courseId: c.courseId,
+      id: c.id || '',
+      courseId: c.courseId || '',
       courseName: c.courseName || '',
       studentName: c.studentName || '',
       completedAt: c.completedAt || '',
@@ -489,11 +556,11 @@ export const courseApi = {
     streak: number
     checkInLevels: number[]
   }> {
-    const d = await apiGet<any>('/courses/study-plan')
+    const d = await apiGet<{ goal?: StudyGoal; courses?: RawPlannedCourse[]; streak?: number; checkInLevels?: number[] }>('/courses/study-plan')
     return {
       goal: d.goal ?? { daysPerWeek: 5, minutesPerDay: 30 },
-      courses: (d.courses ?? []).map((c: any) => ({
-        id: c.id, courseId: c.courseId, title: c.title || '', cover: c.cover || '',
+      courses: (d.courses ?? []).map((c) => ({
+        id: c.id || '', courseId: c.courseId || '', title: c.title || '', cover: c.cover || '',
         totalLessons: toNum(c.totalLessons), completedLessons: toNum(c.completedLessons),
         scheduledDays: c.scheduledDays ?? [], order: toNum(c.order),
       })),
@@ -504,9 +571,9 @@ export const courseApi = {
 
   /** 作业要求 — 后端无作业题库，取真实章节/课程名 + 通用提交指引（非臆造具体题目） */
   async getWorkRequirement(chapterId: string): Promise<WorkRequirement> {
-    const ch = await apiGet<any>(`/courses/chapters/${chapterId}/content`)
+    const ch = await apiGet<RawChapter>(`/courses/chapters/${chapterId}/content`)
     const courseId = ch.courseId || ch.course?.id || ''
-    const course = courseId ? await apiGet<any>(`/courses/${courseId}`).catch(() => null) : null
+    const course = courseId ? await apiGet<RawCourse>(`/courses/${courseId}`).catch(() => null) : null
     return {
       id: chapterId,
       title: `${ch.title || '本章'} · 课后作业`,
@@ -520,20 +587,20 @@ export const courseApi = {
 
   /** 作业提交列表 — GET /courses/:id/works（后端已 join user/chapter） */
   async getWorkSubmissions(id: string): Promise<WorkSubmission[]> {
-    const data = await apiGet<any>(`/courses/${id}/works`)
-    return toList(data).map(adaptWorkSubmission)
+    const data = await apiGet<unknown>(`/courses/${id}/works`)
+    return toList<RawWork>(data).map(adaptWorkSubmission)
   },
 
   /** 作业批改结果 — GET /courses/works/:workId（gradedAt/批改人名/建议 后端暂无→降级） */
   async getWorkResult(workId: string): Promise<WorkResult> {
-    const w = await apiGet<any>(`/courses/works/${workId}`)
+    const w = await apiGet<RawWork>(`/courses/works/${workId}`)
     const images: string[] = []
     const content = String(w.content || '')
       .replace(/!\[作业图片\]\(([^)]+)\)/g, (_m: string, url: string) => { images.push(url); return '' })
       .trim()
     const graded = w.score != null
     return {
-      id: w.id,
+      id: w.id || '',
       chapterId: w.chapterId || '',
       status: graded ? 'graded' : 'pending',
       chapterTitle: w.chapter?.title || '',

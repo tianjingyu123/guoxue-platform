@@ -286,10 +286,20 @@ export const videoSearchResults: VideoSearchResult[] = [
 
 // ============ API 层 ============
 
+/* —— 后端原始响应类型（容错适配用，字段全 optional，仅声明 adapter 访问到的） —— */
+interface RawVideoProduct { id?: string | number; title?: string; name?: string; price?: number | string; originalPrice?: number | string; images?: string[]; image?: string; cover?: string; salesCount?: number; sales?: number; commission?: number | string; stock?: number }
+interface RawVideo {
+  id?: string; title?: string
+  user?: { id?: string; nickname?: string; avatar?: string } | null
+  coverUrl?: string; videoUrl?: string
+  likeCount?: number; likes?: number; commentCount?: number; comments?: number; shareCount?: number; shares?: number
+  products?: RawVideoProduct[]
+}
+
 /** 后端视频 → 前端 VideoItem（全屏流；followers/verified/music/hotComments 后端无→默认） */
-function adaptVideoItem(v: any): VideoItem {
+function adaptVideoItem(v: RawVideo): VideoItem {
   return {
-    id: v.id,
+    id: v.id || '',
     title: v.title || '',
     author: {
       id: v.user?.id || '',
@@ -308,7 +318,7 @@ function adaptVideoItem(v: any): VideoItem {
     isCollected: false,
     music: '原声',
     products: Array.isArray(v.products)
-      ? v.products.map((p: any) => ({ id: p.id, name: p.title || p.name || '', price: Number(p.price) || 0, originalPrice: Number(p.originalPrice) || 0, image: (Array.isArray(p.images) && p.images[0]) || p.image || '', sales: p.salesCount ?? p.sales ?? 0 }))
+      ? v.products.map((p: RawVideoProduct) => ({ id: String(p.id ?? ''), name: p.title || p.name || '', price: Number(p.price) || 0, originalPrice: Number(p.originalPrice) || 0, image: (Array.isArray(p.images) && p.images[0]) || p.image || '', sales: p.salesCount ?? p.sales ?? 0 }))
       : [],
     hotComments: [],
   }
@@ -316,14 +326,14 @@ function adaptVideoItem(v: any): VideoItem {
 
 export const videoApi = {
   /** 发布视频 — POST /videos（错误传播给页面） */
-  async publish(data: Record<string, any>): Promise<any> {
+  async publish(data: Record<string, unknown>): Promise<unknown> {
     return await apiPost('/videos', data)
   },
 
   /** 视频列表（全屏流）— GET /videos */
-  async list(_params?: Record<string, any>): Promise<VideoItem[]> {
+  async list(_params?: Record<string, unknown>): Promise<VideoItem[]> {
     try {
-      const res = await apiGet<any>('/videos?pageSize=50')
+      const res = await apiGet<RawVideo[] | { videos?: RawVideo[]; data?: RawVideo[] }>('/videos?pageSize=50')
       const arr = Array.isArray(res) ? res : (res?.videos ?? res?.data ?? [])
       const seen = new Set<string>()
       const r = arr.map(adaptVideoItem).filter((v: VideoItem) => { if (seen.has(v.title)) return false; seen.add(v.title); return true })
@@ -336,14 +346,14 @@ export const videoApi = {
   /** 视频详情 — GET /videos/:id */
   async getById(id: string): Promise<VideoItem | null> {
     try {
-      return adaptVideoItem(await apiGet<any>(`/videos/${id}`))
+      return adaptVideoItem(await apiGet<RawVideo>(`/videos/${id}`))
     } catch {
       return mockVideos.find((v) => v.id === id) || null
     }
   },
 
   /** 编辑视频 — PUT /videos/:id（错误传播） */
-  async update(id: string, data: Record<string, any>): Promise<any> {
+  async update(id: string, data: Record<string, unknown>): Promise<unknown> {
     return await apiPut(`/videos/${id}`, data)
   },
 
@@ -360,12 +370,12 @@ export const videoApi = {
   },
 
   /** 瀑布流列表 — GET /videos/items（后端结构已对齐 VideoListItem；seed 有大量重复→按标题去重） */
-  async listItems(_params?: Record<string, any>): Promise<VideoListItem[]> {
+  async listItems(_params?: Record<string, unknown>): Promise<VideoListItem[]> {
     try {
-      const res = await apiGet<any>('/videos/items?pageSize=50')
+      const res = await apiGet<VideoListItem[] | { data?: VideoListItem[]; items?: VideoListItem[] }>('/videos/items?pageSize=50')
       const arr = Array.isArray(res) ? res : (res?.data ?? res?.items ?? [])
       const seen = new Set<string>()
-      const deduped = arr.filter((v: any) => { const k = v.title || v.id; if (seen.has(k)) return false; seen.add(k); return true })
+      const deduped = arr.filter((v: VideoListItem) => { const k = v.title || v.id; if (seen.has(k)) return false; seen.add(k); return true })
       return deduped.length ? deduped : videoListItems
     } catch {
       return videoListItems
@@ -373,17 +383,17 @@ export const videoApi = {
   },
 
   /** 搜索视频 — GET /videos/search（错误传播给页面三态） */
-  async search(_params?: Record<string, any>): Promise<VideoSearchResult[]> {
-    const res = await apiGet<any>('/videos/search')
+  async search(_params?: Record<string, unknown>): Promise<VideoSearchResult[]> {
+    const res = await apiGet<RawVideo[] | { videos?: RawVideo[]; items?: RawVideo[] }>('/videos/search')
     const arr = Array.isArray(res) ? res : (res?.videos ?? res?.items ?? [])
     return arr.map(adaptVideoItem) as unknown as VideoSearchResult[]
   },
 
   /** 商品库列表 — GET /videos/products（带货选品；commission 后端无→降级0） */
-  async getProductLibrary(_params?: Record<string, any>): Promise<PublishProduct[]> {
-    const res = await apiGet<any>('/videos/products')
+  async getProductLibrary(_params?: Record<string, unknown>): Promise<PublishProduct[]> {
+    const res = await apiGet<RawVideoProduct[] | { items?: RawVideoProduct[]; data?: RawVideoProduct[] }>('/videos/products')
     const arr = Array.isArray(res) ? res : (res?.items ?? res?.data ?? [])
-    return arr.map((p: any) => ({
+    return arr.map((p: RawVideoProduct) => ({
       id: String(p.id),
       name: p.title || p.name || '',
       cover: (Array.isArray(p.images) && p.images[0]) || p.cover || '',

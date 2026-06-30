@@ -142,10 +142,23 @@ export interface PoemComment {
 // API 层：真连后端 /poetry，错误抛出由页面三态处理
 // ============================================
 
+/* —— 后端原始响应类型（容错适配用，字段宽松全 optional，仅声明实际访问到的字段，不 export） —— */
+/** 后端诗词首页原始响应（GET /poetry/home） */
+interface RawPoetryHome {
+  todayPoem?: TodayPoem
+  poems?: PoemItem[]
+  poets?: PoetItem[]
+}
+/** 后端诗词详情原始响应（GET /poetry/:id；poem 直接透传给视图模型） */
+interface RawPoetryDetail {
+  poem: PoemDetail
+  translations?: string[]
+}
+
 export const poetryApi = {
   /** 首页 — 每日一首 + 热门列表 + 诗人列表 */
   async home(): Promise<{ todayPoem: TodayPoem; poems: PoemItem[]; poets: PoetItem[] }> {
-    const data = await apiGet<any>('/poetry/home')
+    const data = await apiGet<RawPoetryHome>('/poetry/home')
     return {
       todayPoem: data?.todayPoem ?? { id: '', title: '', author: '', dynasty: '', lines: [], tags: [], likes: 0 },
       poems: Array.isArray(data?.poems) ? data.poems : [],
@@ -167,7 +180,7 @@ export const poetryApi = {
 
   /** 诗词详情（登录时附带 isLiked/isBookmarked） */
   async detail(id: string): Promise<{ poem: PoemDetail; translations: string[] }> {
-    const data = await apiGet<any>(`/poetry/${id}`)
+    const data = await apiGet<RawPoetryDetail>(`/poetry/${id}`)
     return {
       poem: data.poem,
       translations: Array.isArray(data?.translations) ? data.translations : [],

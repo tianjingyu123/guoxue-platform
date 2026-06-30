@@ -129,19 +129,55 @@ export interface MembershipRefundInfo {
   actualRefund: number // 实退金额（扣手续费后）
 }
 
-function num(v: any): number {
+/* —— 后端原始响应类型（容错适配用，仅声明 adapter 实际访问到的字段） —— */
+/** 后端 CircleRefundRequest 行（id/circleId/userId 列表必有，声明必填以免直赋必填视图字段时报 possibly-undefined） */
+interface RawExitRow {
+  id: string
+  circleId: string
+  circleName?: string
+  userId: string
+  userNickname?: string
+  userAvatar?: string
+  paidAmount?: number | string
+  dailyCost?: number | string
+  usedDays?: number | string
+  refundBase?: number | string
+  actualRefund?: number | string
+  reason?: string
+  ownerStatus?: string
+  adminStatus?: string
+  refundStatus?: string
+  ownerRejectReason?: string | null
+  adminRejectReason?: string | null
+  createdAt?: string | null
+  ownerReviewedAt?: string | null
+  adminReviewedAt?: string | null
+  refundedAt?: string | null
+}
+/** 退款预览原始响应 */
+interface RawExitPreview {
+  paidAmount?: number | string
+  dailyCost?: number | string
+  usedDays?: number | string
+  refundBase?: number | string
+  feeRate?: number | string
+  feeAmount?: number | string
+  actualRefund?: number | string
+}
+
+function num(v: unknown): number {
   const n = Number(v)
   return Number.isFinite(n) ? n : 0
 }
 
-function ymd(v: any): string {
+function ymd(v?: string | number | null): string {
   if (!v) return ''
   const d = new Date(v)
   return Number.isNaN(d.getTime()) ? '' : d.toISOString().slice(0, 10)
 }
 
 // 后端三状态字段 → 前端单一 stage
-function deriveStage(row: any): ExitStage {
+function deriveStage(row: RawExitRow): ExitStage {
   if (row.refundStatus === 'refunded') return 'refunded'
   if (row.refundStatus === 'failed') return 'rejected'
   if (row.refundStatus === 'refunding' || row.adminStatus === 'approved') return 'refunding'
@@ -151,7 +187,7 @@ function deriveStage(row: any): ExitStage {
 
 // 后端 CircleRefundRequest 行 → 前端 ExitApplication
 // currentUser=true 时为「我的申请」（后端不返回昵称/头像，固定显示「我」）
-function mapRefundRow(row: any, currentUser: boolean): ExitApplication {
+function mapRefundRow(row: RawExitRow, currentUser: boolean): ExitApplication {
   const paidAmount = num(row.paidAmount)
   const refundBase = num(row.refundBase)
   const usedDays = num(row.usedDays)
@@ -202,7 +238,7 @@ export const exitApi = {
    * 注：后端无 /circles/:id/membership 端点，真实来源为退款预览接口（按使用天数核算）。
    */
   async getMembership(circleId: string): Promise<MembershipRefundInfo> {
-    const data = await apiGet<any>(`/circle-refund/preview/${circleId}`)
+    const data = await apiGet<RawExitPreview>(`/circle-refund/preview/${circleId}`)
     return {
       circleId,
       paidAmount: num(data.paidAmount),
@@ -221,14 +257,14 @@ export const exitApi = {
    * 注：后端无圈主侧「已处理历史」端点，已处理记录依赖本次会话内审核后的乐观更新。
    */
   async getExitRequests(circleId?: string): Promise<ExitApplication[]> {
-    const rows = await apiGet<any[]>('/circle-refund/owner-pending')
+    const rows = await apiGet<RawExitRow[]>('/circle-refund/owner-pending')
     const list = (Array.isArray(rows) ? rows : []).map((r) => mapRefundRow(r, false))
     return circleId ? list.filter((r) => r.circleId === circleId) : list
   },
 
   /** 我的退出申请 — GET /circle-refund/my */
   async getMyExitApps(): Promise<ExitApplication[]> {
-    const rows = await apiGet<any[]>('/circle-refund/my')
+    const rows = await apiGet<RawExitRow[]>('/circle-refund/my')
     return (Array.isArray(rows) ? rows : []).map((r) => mapRefundRow(r, true))
   },
 

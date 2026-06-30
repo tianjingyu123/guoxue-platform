@@ -114,8 +114,17 @@ function parseMarkdownSections(md: string): LegalSection[] {
   return sections.filter((s) => s.title || s.blocks.length)
 }
 
+/* —— 后端原始响应类型（容错适配用，字段宽松全 optional，仅声明 adapter 实际访问到的字段，不 export） —— */
+/** 后端法律文档原始响应（GET /system/legal/:type，LegalDocument 表） */
+interface RawLegalRow {
+  publishedAt?: string | null
+  title?: string
+  version?: string
+  content?: string
+}
+
 // 后端行 → 前端 LegalDoc
-function adaptDoc(row: any, type: string): LegalDoc {
+function adaptDoc(row: RawLegalRow, type: string): LegalDoc {
   const published = row?.publishedAt ? String(row.publishedAt).slice(0, 10) : ''
   return {
     type,
@@ -145,7 +154,7 @@ export const legalApi = {
   async getDoc(type: string): Promise<LegalDoc | null> {
     const backendType = TYPE_MAP[type]
     if (!backendType) return null
-    const row = await apiGet<any>(`/system/legal/${backendType}`)
+    const row = await apiGet<RawLegalRow | null>(`/system/legal/${backendType}`)
     if (!row) return null
     return adaptDoc(row, type)
   },

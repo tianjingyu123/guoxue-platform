@@ -49,8 +49,15 @@ export interface OrderResult {
   id: string
   orderNo?: string
   amount?: number
+  // 透传后端下单响应的其余字段（各业务返回结构不同），保留 any 索引签名供页面动态读取
   [k: string]: any
 }
+
+/* —— 后端各下单接口原始响应（字段全 optional，仅声明 adapter 访问到的） —— */
+interface RawCircleJoinResp { orderId?: string; id?: string; orderNo?: string; priceYuan?: number }
+interface RawCoursePurchaseResp { id?: string; orderId?: string; orderNo?: string; amount?: number }
+/** 聚合支付/支付状态网关原始响应（H5 跳转/扫码字段，页面按渠道取用） */
+interface PaymentGatewayResult { h5Url?: string; payUrl?: string; qrCode?: string; codeUrl?: string; code_url?: string; outTradeNo?: string; status?: string; paid?: boolean; [k: string]: unknown }
 
 export const purchaseApi = {
   /**
@@ -63,12 +70,12 @@ export const purchaseApi = {
     const channel = params.channel ?? 'wechat'
     if (params.type === 'CIRCLE') {
       // 传非 COIN 的 payMethod，强制走现金下单（圈子只能现金，不走虚拟币）
-      const r = await apiPost<any>(`/circles/${params.targetId}/join/prepare`, { payMethod: CIRCLE_PAY_METHOD[channel] })
-      return { id: r?.orderId || r?.id || '', orderNo: r?.orderNo, amount: r?.priceYuan, ...r }
+      const r = await apiPost<RawCircleJoinResp>(`/circles/${params.targetId}/join/prepare`, { payMethod: CIRCLE_PAY_METHOD[channel] })
+      return { id: r?.orderId || r?.id || '', orderNo: r?.orderNo, amount: r?.priceYuan, ...r } as OrderResult
     }
     if (params.type === 'COURSE') {
-      const r = await apiPost<any>(`/courses/${params.targetId}/purchase`, {})
-      return { id: r?.id || r?.orderId || '', orderNo: r?.orderNo, amount: r?.amount, ...r }
+      const r = await apiPost<RawCoursePurchaseResp>(`/courses/${params.targetId}/purchase`, {})
+      return { id: r?.id || r?.orderId || '', orderNo: r?.orderNo, amount: r?.amount, ...r } as OrderResult
     }
     return apiPost<OrderResult>('/shop/orders', params)
   },
@@ -78,9 +85,9 @@ export const purchaseApi = {
    * 返回 { h5Url, payUrl, qrCode, outTradeNo }：H5 端跳 h5Url/payUrl，PC 端展示 qrCode。
    */
   payByChannel: (orderId: string, channel: PayChannel) =>
-    apiPost<any>('/huifu/pay', { orderId, payType: HUIFU_PAY_TYPE[channel] }),
+    apiPost<PaymentGatewayResult>('/huifu/pay', { orderId, payType: HUIFU_PAY_TYPE[channel] }),
   /** 拉起微信 Native 扫码支付（PC 兜底）— POST /shop/orders/:id/pay/native */
-  payNative: (orderId: string) => apiPost<any>(`/shop/orders/${orderId}/pay/native`, {}),
+  payNative: (orderId: string) => apiPost<PaymentGatewayResult>(`/shop/orders/${orderId}/pay/native`, {}),
   /** 查询订单支付状态 — GET /shop/orders/:id/payment-status */
-  paymentStatus: (orderId: string) => apiGet<any>(`/shop/orders/${orderId}/payment-status`),
+  paymentStatus: (orderId: string) => apiGet<PaymentGatewayResult>(`/shop/orders/${orderId}/payment-status`),
 }

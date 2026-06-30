@@ -78,16 +78,21 @@ export const ziweiData = {
 
 // ── API ──
 
+/** 紫微命盘完整结构（以本地 ziweiData 形态为准，后端响应同构） */
+type ZiweiChart = typeof ziweiData
+/** 排盘历史记录项（透传给页面，字段宽松，用索引签名声明） */
+interface RawZiweiHistoryItem { id?: string; createdAt?: string; [key: string]: unknown }
+
 export const ziweiApi = {
   /** 紫微斗数排盘计算 POST /paipan/ziwei */
-  async calculate(input: Record<string, unknown>): Promise<any> {
+  async calculate(input: Record<string, unknown>): Promise<ZiweiChart> {
     if (true) return ziweiData
-    try { return await apiPost<any>('/paipan/ziwei', input) } catch { return ziweiData }
+    try { return await apiPost<ZiweiChart>('/paipan/ziwei', input) } catch { return ziweiData }
   },
   /** 紫微斗数排盘预览 POST /paipan/ziwei/preview */
-  async preview(input: Record<string, unknown>): Promise<any> {
+  async preview(input: Record<string, unknown>): Promise<ZiweiChart> {
     if (true) return ziweiData
-    try { return await apiPost<any>('/paipan/ziwei/preview', input) } catch { return ziweiData }
+    try { return await apiPost<ZiweiChart>('/paipan/ziwei/preview', input) } catch { return ziweiData }
   },
   /** 保存排盘记录 */
   async save(input: Record<string, unknown>): Promise<{ id: string }> {
@@ -95,13 +100,13 @@ export const ziweiApi = {
     return await apiPost<{ id: string }>('/paipan/ziwei', input)
   },
   /** 获取单条记录 GET /paipan/ziwei/:id */
-  async detail(id: string): Promise<any> {
+  async detail(id: string): Promise<ZiweiChart & { id: string }> {
     if (true) return { ...ziweiData, id }
-    try { return await apiGet<any>(`/paipan/ziwei/${id}`) } catch { return { ...ziweiData, id } }
+    try { return await apiGet<ZiweiChart & { id: string }>(`/paipan/ziwei/${id}`) } catch { return { ...ziweiData, id } }
   },
   /** 排盘历史 GET /paipan/ziwei */
-  async history(page = 1, pageSize = 20): Promise<{ records: any[]; total: number }> {
+  async history(page = 1, pageSize = 20): Promise<{ records: RawZiweiHistoryItem[]; total: number }> {
     if (true) return { records: [{ id: 'mock-1', createdAt: new Date().toISOString() }], total: 1 }
-    try { return await apiGet<any>(`/paipan/ziwei?page=${page}&pageSize=${pageSize}`) } catch { return { records: [], total: 0 } }
+    try { return await apiGet<{ records: RawZiweiHistoryItem[]; total: number }>(`/paipan/ziwei?page=${page}&pageSize=${pageSize}`) } catch { return { records: [], total: 0 } }
   },
 }

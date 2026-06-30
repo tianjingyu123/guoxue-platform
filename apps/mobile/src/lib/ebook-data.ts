@@ -430,20 +430,96 @@ export const ebookReaderThemes = {
 
 // ===================== API 层（真连 /ebook，错误抛出走三态，不回退假 mock）=====================
 const _EBOOK_COLOR_NAMES: EbookCoverColor[] = ['blue', 'green', 'purple', 'brown', 'red', 'teal']
-/** 后端无封面色字段 → 由 id 稳定派生一个 CoverColor，跨页一致 */
-function ebookColorName(seed: string): EbookCoverColor {
+/** 后端无封面色字段 → 由 id 稳定派生一个 CoverColor，跨页一致（seed 默认 '' 容错可空 id） */
+function ebookColorName(seed = ''): EbookCoverColor {
   let h = 0
   for (let i = 0; i < (seed || '').length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0
   return _EBOOK_COLOR_NAMES[h % _EBOOK_COLOR_NAMES.length]
 }
-function ebookColorHex(seed: string): string {
+function ebookColorHex(seed = ''): string {
   return EBOOK_COVER[ebookColorName(seed)].from
 }
+
+/* —— 后端原始响应类型（容错适配用，字段宽松全 optional，仅声明 adapter 实际访问到的字段） —— */
+/** 后端电子书精简结构（书城列表 / 收藏 / 书架内嵌 ebook） */
+interface RawEbookLite {
+  id?: string
+  title?: string
+  author?: string
+  price?: number | string
+  originalPrice?: number | string
+  totalChapters?: number
+  memberFree?: boolean
+  category?: { name?: string } | null
+}
+/** 后端电子书列表项（/ebook/books） */
+interface RawEbook extends RawEbookLite {
+  purchaseCount?: number
+  categoryLevel1?: string
+}
+/** 后端电子书章节（详情 chapters / 阅读器章节正文） */
+interface RawEbookChapter {
+  id?: string
+  title?: string
+  pageStart?: number
+  pageEnd?: number
+  freeTrial?: boolean
+  content?: string
+  ebookId?: string
+}
+/** 后端电子书详情（/ebook/books/:id） */
+interface RawEbookDetail extends RawEbookLite {
+  purchaseCount?: number
+  purchased?: boolean
+  favorited?: boolean
+  description?: string
+  chapters?: RawEbookChapter[]
+}
+/** 后端购买记录（/ebook/purchases） */
+interface RawPurchase {
+  id?: string
+  ebook?: RawEbookLite | null
+  ebookId?: string
+  paidAt?: string
+  amount?: number | string
+}
+/** 后端阅读进度（/ebook/my-progress） */
+interface RawProgress {
+  ebookId?: string
+  progress?: number
+  currentChapter?: number
+  updatedAt?: string
+}
+/** 后端书签项（/ebook/bookmarks） */
+interface RawEbookBookmark {
+  id?: string
+  ebookId?: string
+  ebook?: { title?: string } | null
+  chapterId?: string
+  chapter?: { title?: string } | null
+  note?: string
+  page?: number
+  createdAt?: string
+}
+/** 后端笔记项（/ebook/notes） */
+interface RawEbookNote {
+  id?: string
+  ebookId?: string
+  ebook?: { title?: string } | null
+  chapterId?: string
+  chapter?: { title?: string } | null
+  content?: string
+  createdAt?: string
+}
+/** 后端收藏项（/ebook/favorites，含内嵌 ebook） */
+interface RawEbookFavoriteWrap { ebook: RawEbookLite }
+/** 后端段落翻译（/ebook/translate，notes 为注释字符串数组） */
+interface RawEbookTranslate { translated?: string; translation?: string; notes?: string[] }
 
 export const ebookApi = {
   /** 分类列表 */
   async categories() {
-    const data = await apiGet<any>('/ebook/categories')
+    const data = await apiGet<unknown>('/ebook/categories')
     return Array.isArray(data) ? data : []
   },
 
@@ -452,10 +528,10 @@ export const ebookApi = {
     const p: string[] = ['pageSize=50']
     if (opts?.categoryId && opts.categoryId !== 'all') p.push(`categoryId=${opts.categoryId}`)
     if (opts?.keyword) p.push(`keyword=${encodeURIComponent(opts.keyword)}`)
-    const data = await apiGet<any>(`/ebook/books?${p.join('&')}`)
-    const books: any[] = Array.isArray(data?.books) ? data.books : []
+    const data = await apiGet<{ books?: RawEbook[] }>(`/ebook/books?${p.join('&')}`)
+    const books: RawEbook[] = Array.isArray(data?.books) ? data.books : []
     return books.map((b) => ({
-      id: b.id, title: b.title, author: b.author || '佚名',
+      id: b.id || '', title: b.title || '', author: b.author || '佚名',
       color: ebookColorName(b.id),
       price: Number(b.price) || 0, originalPrice: Number(b.originalPrice) || 0,
       rating: 4.6 + ((b.id?.charCodeAt(0) || 0) % 4) / 10,
@@ -469,10 +545,10 @@ export const ebookApi = {
 
   /** 电子书详情（真连 /ebook/books/:id，含 chapters + purchased） */
   async detail(id: string): Promise<{ book: EbookDetail; discussions: DiscussionItemType[] }> {
-    const data = await apiGet<any>(`/ebook/books/${id}`)
-    const chapters: any[] = Array.isArray(data?.chapters) ? data.chapters : []
+    const data = await apiGet<RawEbookDetail>(`/ebook/books/${id}`)
+    const chapters: RawEbookChapter[] = Array.isArray(data?.chapters) ? data.chapters : []
     const book: EbookDetail = {
-      id: data.id, title: data.title, subtitle: data.category?.name || '',
+      id: data.id || '', title: data.title || '', subtitle: data.category?.name || '',
       author: data.author || '佚名', authorTitle: '',
       coverColor: ebookColorHex(data.id),
       price: Number(data.price) || 0, originalPrice: Number(data.originalPrice) || 0,
@@ -482,7 +558,7 @@ export const ebookApi = {
       isMemberFree: !!data.memberFree, hasPreview: chapters.some((c) => c.freeTrial),
       isPurchased: !!data.purchased, isFavorite: !!data.favorited, description: data.description || '',
       chapters: chapters.map((c) => ({
-        id: c.id, title: c.title, pageCount: Math.max(0, (c.pageEnd || 0) - (c.pageStart || 0)), isFree: !!c.freeTrial,
+        id: c.id || '', title: c.title || '', pageCount: Math.max(0, (c.pageEnd || 0) - (c.pageStart || 0)), isFree: !!c.freeTrial,
       })),
       relatedBooks: [],
     }
@@ -492,17 +568,17 @@ export const ebookApi = {
   /** 我的书架（已购书 + 阅读进度合并，真连 /ebook/purchases + /ebook/my-progress） */
   async bookshelf(): Promise<EbookShelfBook[]> {
     const [data, progData] = await Promise.all([
-      apiGet<any>('/ebook/purchases?pageSize=100'),
-      apiGet<any>('/ebook/my-progress').catch(() => []),
+      apiGet<{ purchases?: RawPurchase[] }>('/ebook/purchases?pageSize=100'),
+      apiGet<RawProgress[]>('/ebook/my-progress').catch(() => []),
     ])
-    const purchases: any[] = Array.isArray(data?.purchases) ? data.purchases : []
-    const progList: any[] = Array.isArray(progData) ? progData : []
-    const progMap = new Map<string, any>(progList.map((p) => [p.ebookId, p]))
+    const purchases: RawPurchase[] = Array.isArray(data?.purchases) ? data.purchases : []
+    const progList: RawProgress[] = Array.isArray(progData) ? progData : []
+    const progMap = new Map<string | undefined, RawProgress>(progList.map((p) => [p.ebookId, p]))
     return purchases.map((p) => {
       const bookId = p.ebook?.id || p.ebookId
       const prog = progMap.get(bookId)
       return {
-        id: bookId, title: p.ebook?.title || '',
+        id: bookId || '', title: p.ebook?.title || '',
         author: p.ebook?.author || '佚名', coverColor: ebookColorHex(bookId),
         progress: prog?.progress || 0,
         currentChapter: prog?.currentChapter || 0,
@@ -518,10 +594,10 @@ export const ebookApi = {
 
   /** 书签（真连 /ebook/bookmarks） */
   async bookmarks(bookId?: string): Promise<EbookBookmark[]> {
-    const data = await apiGet<any>(`/ebook/bookmarks${bookId ? `?ebookId=${bookId}` : ''}`)
-    const items: any[] = Array.isArray(data?.bookmarks) ? data.bookmarks : []
+    const data = await apiGet<{ bookmarks?: RawEbookBookmark[] }>(`/ebook/bookmarks${bookId ? `?ebookId=${bookId}` : ''}`)
+    const items: RawEbookBookmark[] = Array.isArray(data?.bookmarks) ? data.bookmarks : []
     return items.map((b) => ({
-      id: b.id, bookId: b.ebookId, bookTitle: b.ebook?.title || '',
+      id: b.id || '', bookId: b.ebookId || '', bookTitle: b.ebook?.title || '',
       bookCoverColor: ebookColorHex(b.ebookId),
       chapterId: b.chapterId || '', chapterTitle: b.chapter?.title || '',
       text: b.note || '', pageNum: b.page || 0,
@@ -529,19 +605,19 @@ export const ebookApi = {
     }))
   },
   async addBookmark(bookId: string, payload: { chapterId?: string; page: number; note?: string }) {
-    return apiPost<any>(`/ebook/bookmarks/${bookId}`, payload)
+    return apiPost<unknown>(`/ebook/bookmarks/${bookId}`, payload)
   },
   async removeBookmark(id: string) {
-    return apiDelete<any>(`/ebook/bookmarks/${id}`)
+    return apiDelete<unknown>(`/ebook/bookmarks/${id}`)
   },
 
   /** 笔记（真连 /ebook/notes） */
   async notes(bookId?: string): Promise<EbookNote[]> {
-    const data = await apiGet<any>(`/ebook/notes${bookId ? `?ebookId=${bookId}` : ''}`)
-    const items: any[] = Array.isArray(data?.notes) ? data.notes : []
+    const data = await apiGet<{ notes?: RawEbookNote[] }>(`/ebook/notes${bookId ? `?ebookId=${bookId}` : ''}`)
+    const items: RawEbookNote[] = Array.isArray(data?.notes) ? data.notes : []
     return items.map((n) => ({
-      id: n.id, type: 'note' as EbookNoteType,
-      bookId: n.ebookId, bookTitle: n.ebook?.title || '',
+      id: n.id || '', type: 'note' as EbookNoteType,
+      bookId: n.ebookId || '', bookTitle: n.ebook?.title || '',
       bookCoverColor: ebookColorHex(n.ebookId),
       chapterId: n.chapterId || '', chapterTitle: n.chapter?.title || '',
       selectedText: '', noteContent: n.content || '',
@@ -549,20 +625,20 @@ export const ebookApi = {
     }))
   },
   async addNote(bookId: string, payload: { chapterId?: string; content: string; page?: number }) {
-    return apiPost<any>(`/ebook/notes/${bookId}`, payload)
+    return apiPost<unknown>(`/ebook/notes/${bookId}`, payload)
   },
   async updateNote(id: string, payload: { content?: string }) {
-    return apiPut<any>(`/ebook/notes/${id}`, payload)
+    return apiPut<unknown>(`/ebook/notes/${id}`, payload)
   },
   async removeNote(id: string) {
-    return apiDelete<any>(`/ebook/notes/${id}`)
+    return apiDelete<unknown>(`/ebook/notes/${id}`)
   },
 
   /** 结算信息（真连 /ebook/books/:id） */
   async checkoutInfo(id: string): Promise<EbookCheckoutBook> {
-    const data = await apiGet<any>(`/ebook/books/${id}`)
+    const data = await apiGet<RawEbookDetail>(`/ebook/books/${id}`)
     return {
-      id: data.id, title: data.title, author: data.author || '佚名',
+      id: data.id || '', title: data.title || '', author: data.author || '佚名',
       coverColor: ebookColorHex(data.id),
       price: Number(data.price) || 0, originalPrice: Number(data.originalPrice) || 0,
       isMemberFree: !!data.memberFree,
@@ -571,16 +647,16 @@ export const ebookApi = {
 
   /** 购买（真下单·后端直接记录已购→可读） */
   async purchase(bookId: string) {
-    return apiPost<any>(`/ebook/purchase/${bookId}`, {})
+    return apiPost<unknown>(`/ebook/purchase/${bookId}`, {})
   },
 
   /** 订单/支付成功信息（购买后展示，组合 book + 购买记录） */
   async orderInfo(bookId: string) {
     const [book, purData] = await Promise.all([
-      apiGet<any>(`/ebook/books/${bookId}`),
-      apiGet<any>('/ebook/purchases?pageSize=100').catch(() => null),
+      apiGet<RawEbookDetail>(`/ebook/books/${bookId}`),
+      apiGet<{ purchases?: RawPurchase[] }>('/ebook/purchases?pageSize=100').catch(() => null),
     ])
-    const list: any[] = Array.isArray(purData?.purchases) ? purData.purchases : []
+    const list: RawPurchase[] = Array.isArray(purData?.purchases) ? purData.purchases : []
     const pur = list.find((p) => (p.ebook?.id || p.ebookId) === bookId)
     return {
       orderNo: pur?.id ? `EB${String(pur.id).slice(0, 10).toUpperCase()}` : '',
@@ -593,14 +669,14 @@ export const ebookApi = {
 
   /** 阅读器章节列表（来自 detail 的 chapters） */
   async readerChapters(bookId: string): Promise<EbookReaderChapter[]> {
-    const data = await apiGet<any>(`/ebook/books/${bookId}`)
-    const chapters: any[] = Array.isArray(data?.chapters) ? data.chapters : []
-    return chapters.map((c) => ({ id: c.id, title: c.title, current: false }))
+    const data = await apiGet<RawEbookDetail>(`/ebook/books/${bookId}`)
+    const chapters: RawEbookChapter[] = Array.isArray(data?.chapters) ? data.chapters : []
+    return chapters.map((c) => ({ id: c.id || '', title: c.title || '', current: false }))
   },
 
   /** 阅读器章节内容（真连 /ebook/chapters/:id，需购买/会员或试读章） */
   async readerChapter(_bookId: string, chapterId: string) {
-    const data = await apiGet<any>(`/ebook/chapters/${chapterId}`)
+    const data = await apiGet<RawEbookChapter>(`/ebook/chapters/${chapterId}`)
     return {
       id: data.id, bookId: data.ebookId, title: data.title,
       totalChapters: 0, currentChapter: 0, content: data.content || '',
@@ -609,30 +685,30 @@ export const ebookApi = {
 
   // ── 阅读进度 / AI / 阅读时长 ──
   async getProgress(bookId: string) {
-    return apiGet<any>(`/ebook/progress/${bookId}`)
+    return apiGet<unknown>(`/ebook/progress/${bookId}`)
   },
   async saveProgress(bookId: string, payload: { chapterId?: string; progress?: number; currentPage?: number }) {
-    return apiPut<any>(`/ebook/progress/${bookId}`, payload)
+    return apiPut<unknown>(`/ebook/progress/${bookId}`, payload)
   },
   /** 段落 AI 翻译（古文→现代/外文） */
   async translate(text: string, targetLang?: string) {
-    return apiPost<any>('/ebook/translate', { text, targetLang })
+    return apiPost<RawEbookTranslate>('/ebook/translate', { text, targetLang })
   },
   /** 古文查词 */
   async lookup(word: string) {
-    return apiPost<any>('/ebook/lookup', { word })
+    return apiPost<unknown>('/ebook/lookup', { word })
   },
   async recordSession(bookId: string, duration: number, pages: number) {
-    return apiPost<any>('/ebook/reading-session', { ebookId: bookId, duration, pages })
+    return apiPost<unknown>('/ebook/reading-session', { ebookId: bookId, duration, pages })
   },
 
   // ── 收藏（真连 /ebook/favorites）──
   /** 我的收藏列表 */
   async favorites(): Promise<EbookStoreBook[]> {
-    const data = await apiGet<any>('/ebook/favorites?pageSize=100')
-    const items: any[] = Array.isArray(data?.items) ? data.items : []
+    const data = await apiGet<{ items?: RawEbookFavoriteWrap[] }>('/ebook/favorites?pageSize=100')
+    const items: RawEbookFavoriteWrap[] = Array.isArray(data?.items) ? data.items : []
     return items.map(({ ebook: b }) => ({
-      id: b.id, title: b.title, author: b.author || '佚名',
+      id: b.id || '', title: b.title || '', author: b.author || '佚名',
       color: ebookColorName(b.id),
       price: Number(b.price) || 0, originalPrice: Number(b.originalPrice) || 0,
       rating: 4.7, reviewCount: 0, salesCount: 0,
@@ -643,10 +719,10 @@ export const ebookApi = {
   },
   /** 收藏 */
   async addFavorite(bookId: string) {
-    return apiPost<any>(`/ebook/favorites/${bookId}`, {})
+    return apiPost<unknown>(`/ebook/favorites/${bookId}`, {})
   },
   /** 取消收藏 */
   async removeFavorite(bookId: string) {
-    return apiDelete<any>(`/ebook/favorites/${bookId}`)
+    return apiDelete<unknown>(`/ebook/favorites/${bookId}`)
   },
 }
