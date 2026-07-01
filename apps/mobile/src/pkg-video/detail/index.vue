@@ -120,7 +120,7 @@
       </view>
 
       <!-- 评论 -->
-      <view class="vp__act" @tap="showComments = true">
+      <view class="vp__act" @tap="openComments">
         <view class="vp__act-circle">
           <AppIcon name="message-circle" :size="42" color="#ffffff" />
         </view>
@@ -178,19 +178,34 @@
           <view @tap="showComments = false"><AppIcon name="x" :size="36" color="#999" /></view>
         </view>
         <scroll-view scroll-y class="sheet__body">
-          <view v-for="(c, i) in currentVideo.hotComments" :key="i" class="cmt">
-            <view class="cmt__avatar"><text class="cmt__avatar-txt">{{ c.user.charAt(0) }}</text></view>
+          <text v-if="commentsLoading" class="sheet__more">加载中...</text>
+          <text v-else-if="comments.length === 0" class="sheet__empty">还没有评论，快来抢沙发</text>
+          <view v-for="c in comments" :key="c.id" class="cmt">
+            <image v-if="c.avatar" lazy-load class="cmt__avatar" :src="c.avatar" mode="aspectFill" />
+            <view v-else class="cmt__avatar"><text class="cmt__avatar-txt">{{ c.user.charAt(0) }}</text></view>
             <view class="cmt__main">
               <text class="cmt__user">{{ c.user }}</text>
               <text class="cmt__content">{{ c.content }}</text>
               <view class="cmt__ops">
-                <view class="cmt__like"><AppIcon name="heart" :size="26" color="#999" /><text class="cmt__like-txt">{{ c.likes }}</text></view>
-                <text class="cmt__reply">回复</text>
+                <view class="cmt__like" @tap="onLikeComment(c)"><AppIcon name="heart" :size="26" color="#999" /><text class="cmt__like-txt">{{ c.likes }}</text></view>
               </view>
             </view>
           </view>
-          <text class="sheet__more">— 更多评论请在App中查看 —</text>
         </scroll-view>
+        <!-- 评论输入 -->
+        <view class="cmt-input" :style="{ paddingBottom: 'calc(' + safeBottom + 'px + 16rpx)' }">
+          <input
+            class="cmt-input__field"
+            v-model="commentText"
+            placeholder="说点什么..."
+            placeholder-class="cmt-input__ph"
+            confirm-type="send"
+            @confirm="onPostComment"
+          />
+          <view class="cmt-input__send" :class="{ 'cmt-input__send--on': commentText.trim() && !postingComment }" @tap="onPostComment">
+            <text class="cmt-input__send-txt">{{ postingComment ? '发送中' : '发送' }}</text>
+          </view>
+        </view>
       </view>
     </view>
 
@@ -257,13 +272,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { onLoad, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
 import { useShare } from '@/composables/useShare'
 import { onMounted } from 'vue'
-import { videoApi, formatVideoNumber as fmt, type VideoItem, type VideoProduct } from '@/lib/video-data'
+import { videoApi, formatVideoNumber as fmt, type VideoItem, type VideoProduct, type VideoComment } from '@/lib/video-data'
 
 interface CartItem { productId: string; quantity: number; product: VideoProduct }
 
@@ -450,10 +465,64 @@ async function onCollect() {
     v.isCollected = prev // 失败回滚
   }
 }
-// 关注：后端暂无 follow 端点（P2）→ 本地乐观切换，待后端补齐再真连
-function onFollow() {
+// 关注：真连 POST/DELETE /users/:id/follow（乐观切换 + 失败回滚）
+async function onFollow() {
   const v = currentVideo.value
-  if (v) v.author.isFollowed = !v.author.isFollowed
+  if (!v?.author?.id) return
+  const prev = v.author.isFollowed
+  v.author.isFollowed = !prev
+  try {
+    if (prev) await videoApi.unfollowAuthor(v.author.id)
+    else await videoApi.followAuthor(v.author.id)
+  } catch {
+    v.author.isFollowed = prev // 失败回滚
+  }
+}
+
+// 切换视频时刷新真实关注态（后端列表默认 isFollowed=false）
+watch(() => currentVideo.value?.id, async () => {
+  const v = currentVideo.value
+  if (!v?.author?.id) return
+  try { v.author.isFollowed = await videoApi.isFollowing(v.author.id) } catch { /* 未登录/失败保持默认 */ }
+})
+
+// ===== 评论子系统（真连通用 comment 端点）=====
+const comments = ref<VideoComment[]>([])
+const commentsLoading = ref(false)
+const commentText = ref('')
+const postingComment = ref(false)
+
+async function loadComments() {
+  const v = currentVideo.value
+  if (!v) return
+  commentsLoading.value = true
+  try { comments.value = await videoApi.getComments(v.id) }
+  catch { comments.value = [] }
+  finally { commentsLoading.value = false }
+}
+function openComments() {
+  showComments.value = true
+  loadComments()
+}
+async function onPostComment() {
+  const text = commentText.value.trim()
+  const v = currentVideo.value
+  if (!text || !v || postingComment.value) return
+  postingComment.value = true
+  try {
+    await videoApi.postComment(v.id, text)
+    commentText.value = ''
+    v.comments += 1
+    await loadComments()
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '评论失败', icon: 'none' })
+  } finally {
+    postingComment.value = false
+  }
+}
+async function onLikeComment(c: VideoComment) {
+  c.likes += 1 // 乐观
+  try { await videoApi.likeComment(c.id) } catch { c.likes -= 1 }
 }
 
 function addToCart(product: VideoProduct) {
@@ -574,6 +643,14 @@ function onBack() {
 .cmt__like { display: flex; align-items: center; gap: 6rpx; }
 .cmt__like-txt { font-size: 22rpx; color: var(--text-muted, #999); }
 .cmt__reply { font-size: 22rpx; color: var(--text-muted, #999); }
+
+/* 评论输入 */
+.cmt-input { display: flex; align-items: center; gap: 16rpx; padding: 16rpx 28rpx; border-top: 1rpx solid var(--border, #eee); }
+.cmt-input__field { flex: 1; height: 68rpx; padding: 0 28rpx; background: var(--surface-sunken, #f2f2f2); border-radius: 999rpx; font-size: 26rpx; color: var(--text, #1a1a1a); }
+.cmt-input__ph { color: var(--text-muted, #999); }
+.cmt-input__send { flex-shrink: 0; padding: 14rpx 32rpx; border-radius: 999rpx; background: var(--surface-sunken, #ddd); }
+.cmt-input__send--on { background: var(--brand); }
+.cmt-input__send-txt { font-size: 26rpx; color: #fff; }
 
 /* 商品 */
 .prod { display: flex; gap: 20rpx; padding: 20rpx; background: var(--surface-sunken, #f7f7f7); border-radius: 20rpx; margin-bottom: 18rpx; }

@@ -20,6 +20,16 @@ export interface VideoHotComment {
   likes: number
 }
 
+/** 视频评论（真连通用 comment 端点·targetType=VIDEO） */
+export interface VideoComment {
+  id: string
+  user: string
+  avatar: string
+  content: string
+  likes: number
+  createdAt: string
+}
+
 export interface VideoAuthor {
   id: string
   name: string
@@ -277,6 +287,11 @@ interface RawVideo {
   likeCount?: number; likes?: number; commentCount?: number; comments?: number; shareCount?: number; shares?: number
   products?: RawVideoProduct[]
 }
+/** 通用评论原始响应（GET /comment·targetType=VIDEO） */
+interface RawComment {
+  id?: string; content?: string; likeCount?: number; createdAt?: string
+  user?: { id?: string; nickname?: string; avatar?: string } | null
+}
 
 /** 后端视频 → 前端 VideoItem（全屏流；followers/verified/music/hotComments 后端无→默认） */
 function adaptVideoItem(v: RawVideo): VideoItem {
@@ -393,5 +408,49 @@ export const videoApi = {
       commission: Number(p.commission) || 0,
       stock: p.stock ?? 0,
     }))
+  },
+
+  // ───────── 评论子系统（P2·复用通用 comment 端点·targetType=VIDEO）─────────
+
+  /** 视频评论列表 — GET /comment?targetType=VIDEO&targetId=（错误传播三态） */
+  async getComments(videoId: string, page = 1, pageSize = 20): Promise<VideoComment[]> {
+    const res = await apiGet<{ data?: RawComment[] } | RawComment[]>(`/comment?targetType=VIDEO&targetId=${videoId}&page=${page}&pageSize=${pageSize}`)
+    const arr = Array.isArray(res) ? res : (res?.data ?? [])
+    return arr.map((c: RawComment): VideoComment => ({
+      id: c.id || '',
+      user: c.user?.nickname || '匿名用户',
+      avatar: c.user?.avatar || '',
+      content: c.content || '',
+      likes: c.likeCount ?? 0,
+      createdAt: c.createdAt || '',
+    }))
+  },
+
+  /** 发表视频评论 — POST /comment（后端过内容审核·返回新评论） */
+  async postComment(videoId: string, content: string): Promise<void> {
+    await apiPost('/comment', { targetType: 'VIDEO', targetId: videoId, content })
+  },
+
+  /** 点赞评论 — POST /comment/:id/like */
+  async likeComment(commentId: string): Promise<void> {
+    await apiPost(`/comment/${commentId}/like`)
+  },
+
+  // ───────── 关注作者（P2·复用 user follow 端点）─────────
+
+  /** 是否已关注作者 — GET /users/:id/is-following（后端返回 {isFollowing}） */
+  async isFollowing(userId: string): Promise<boolean> {
+    const res = await apiGet<{ isFollowing?: boolean; following?: boolean }>(`/users/${userId}/is-following`)
+    return !!(res?.isFollowing ?? res?.following)
+  },
+
+  /** 关注作者 — POST /users/:id/follow */
+  async followAuthor(userId: string): Promise<void> {
+    await apiPost(`/users/${userId}/follow`)
+  },
+
+  /** 取关作者 — DELETE /users/:id/follow */
+  async unfollowAuthor(userId: string): Promise<void> {
+    await apiDelete(`/users/${userId}/follow`)
   },
 }
