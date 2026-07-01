@@ -1876,10 +1876,13 @@ export const liveApi = {
     return { room, comments: [], products: [] }
   },
 
-  /** 获取礼物列表 — GET /live/gifts(公开) + GET /coin/balance(余额·未登录降级0) */
+  /**
+   * 获取礼物列表 — GET /live/gifts(公开) + GET /coin/balance(余额·未登录降级0)
+   * 礼物面板为次要 UI：两个接口均容错降级，任一失败不抛错拖垮直播间页面。
+   */
   async getGifts(): Promise<{ gifts: LiveGift[]; balance: number }> {
     const [rawGifts, bal] = await Promise.all([
-      apiGet<RawGift[] | { items?: RawGift[]; gifts?: RawGift[] }>('/live/gifts'),
+      apiGet<RawGift[] | { items?: RawGift[]; gifts?: RawGift[] }>('/live/gifts').catch(() => [] as RawGift[]),
       apiGet<RawCoinBalance>('/coin/balance').catch(() => null),
     ])
     const arr = Array.isArray(rawGifts) ? rawGifts : (rawGifts?.items ?? rawGifts?.gifts ?? [])
