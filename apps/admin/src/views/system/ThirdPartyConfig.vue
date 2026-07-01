@@ -3,7 +3,7 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { systemApi } from '@/api'
 
-interface Field { key: string; label: string; sensitive: boolean; placeholder: string; hint: string }
+interface Field { key: string; label: string; sensitive: boolean; placeholder: string; hint: string; multiline: boolean }
 interface Service { key: string; label: string; category: string; enabled: boolean; note: string; fields: Field[] }
 
 const loading = ref(false)
@@ -68,7 +68,7 @@ async function saveService(svc: Service) {
   try {
     // 保险：保存前从真实 DOM 输入框同步值，防浏览器自动填充/某些输入不触发 v-model 导致存空
     svc.fields.forEach((f) => {
-      const inp = document.querySelector<HTMLInputElement>(`input[name="tpc-${svc.key}-${f.key}"]`)
+      const inp = document.querySelector<HTMLInputElement | HTMLTextAreaElement>(`[name="tpc-${svc.key}-${f.key}"]`)
       if (inp && inp.value && !inp.value.startsWith('****')) formData[svc.key][f.key] = inp.value
     })
     await systemApi.setConfig(`third_party.${svc.key}`, { value: JSON.stringify(formData[svc.key]) })
@@ -170,7 +170,8 @@ async function saveService(svc: Service) {
               >
                 <el-input
                   v-model="formData[svc.key][f.key]"
-                  type="text"
+                  :type="f.multiline ? 'textarea' : 'text'"
+                  :rows="f.multiline ? 5 : undefined"
                   :name="`tpc-${svc.key}-${f.key}`"
                   autocomplete="off"
                   data-lpignore="true"

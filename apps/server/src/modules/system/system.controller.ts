@@ -44,6 +44,7 @@ export class SystemController {
           sensitive: !!f.sensitive,
           placeholder: f.placeholder ?? "",
           hint: f.hint ?? "",
+          multiline: !!f.multiline,
         })),
       })),
     };

@@ -16,6 +16,7 @@ export interface ConfigField {
   sensitive?: boolean; // 敏感字段：加密 + 掩码
   placeholder?: string;
   hint?: string; // 「去哪找/怎么填」说明，前端显示在字段下方
+  multiline?: boolean; // 多行文本（如私钥/证书 PEM），前端用 textarea
 }
 
 export interface ThirdPartyService {
@@ -34,7 +35,8 @@ const S = (
   sensitive = false,
   hint = "",
   placeholder = "",
-): ConfigField => ({ key, label, env, sensitive, hint, placeholder });
+  multiline = false,
+): ConfigField => ({ key, label, env, sensitive, hint, placeholder, multiline });
 
 export const THIRD_PARTY_SERVICES: ThirdPartyService[] = [
   // ───────── 支付 ─────────
@@ -45,7 +47,7 @@ export const THIRD_PARTY_SERVICES: ThirdPartyService[] = [
       S("mchId", "商户号", "WECHAT_PAY_MCH_ID", false, "商户平台→账户中心→商户信息→商户号（10位数字）"),
       S("apiV3Key", "APIv3 密钥", "WECHAT_PAY_API_V3_KEY", true, "商户平台→账户中心→API安全→APIv3密钥（自己设一个32位字符串并牢记）"),
       S("serialNo", "证书序列号", "WECHAT_PAY_SERIAL_NO", false, "商户平台→账户中心→API安全→申请API证书后，证书详情里的序列号"),
-      S("privateKey", "商户私钥内容", "WECHAT_PAY_PRIVATE_KEY", true, "用记事本打开申请证书时下载的 apiclient_key.pem 文件，把全部内容（含 -----BEGIN PRIVATE KEY----- 到 -----END PRIVATE KEY----- 所有行）复制粘贴进来"),
+      S("privateKey", "商户私钥内容", "WECHAT_PAY_PRIVATE_KEY", true, "用记事本打开申请证书时下载的 apiclient_key.pem 文件，把全部内容（含 -----BEGIN PRIVATE KEY----- 到 -----END PRIVATE KEY----- 所有行）复制粘贴进来", "", true),
       S("notifyUrl", "支付回调地址", "WECHAT_PAY_NOTIFY_URL", false, "填 https://api.rebugx.cn/api/v1/pay/wechat/notify"),
       S("refundNotifyUrl", "退款回调地址", "WECHAT_PAY_REFUND_NOTIFY_URL", false, "填 https://api.rebugx.cn/api/v1/pay/wechat/refund-notify"),
     ],
@@ -55,8 +57,8 @@ export const THIRD_PARTY_SERVICES: ThirdPartyService[] = [
     note: "在支付宝开放平台 open.alipay.com 创建应用。密钥用官方「支付宝密钥工具」生成。",
     fields: [
       S("appId", "应用 AppID", "ALIPAY_APP_ID", false, "开放平台→控制台→我的应用→APPID（16位数字）"),
-      S("privateKey", "应用私钥", "ALIPAY_PRIVATE_KEY", true, "用支付宝「密钥工具」生成的『应用私钥』（一长串，不是公钥）"),
-      S("publicKey", "支付宝公钥", "ALIPAY_PUBLIC_KEY", true, "开放平台→应用→接口加签方式→『支付宝公钥』（平台给你的，不是你自己的公钥）"),
+      S("privateKey", "应用私钥", "ALIPAY_PRIVATE_KEY", true, "用支付宝「密钥工具」生成的『应用私钥』（一长串，不是公钥）", "", true),
+      S("publicKey", "支付宝公钥", "ALIPAY_PUBLIC_KEY", true, "开放平台→应用→接口加签方式→『支付宝公钥』（平台给你的，不是你自己的公钥）", "", true),
       S("notifyUrl", "异步通知地址", "ALIPAY_NOTIFY_URL", false, "填 https://api.rebugx.cn/api/v1/pay/alipay/notify"),
     ],
   },
@@ -67,8 +69,8 @@ export const THIRD_PARTY_SERVICES: ThirdPartyService[] = [
       S("merchantId", "商户号", "HUIFU_MERCHANT_ID", false, "汇付分配的商户号（huifuId）"),
       S("appId", "应用号", "HUIFU_APP_ID", false, "汇付分配的应用号（sysId/appId）"),
       S("secretKey", "密钥", "HUIFU_SECRET_KEY", true, "汇付分配的密钥"),
-      S("rsaPrivateKey", "RSA 私钥", "HUIFU_RSA_PRIVATE_KEY", true, "你方生成并在汇付后台登记公钥后，对应的RSA私钥"),
-      S("rsaPublicKey", "RSA 公钥", "HUIFU_RSA_PUBLIC_KEY", true, "汇付的RSA公钥（用于验签）"),
+      S("rsaPrivateKey", "RSA 私钥", "HUIFU_RSA_PRIVATE_KEY", true, "你方生成并在汇付后台登记公钥后，对应的RSA私钥", "", true),
+      S("rsaPublicKey", "RSA 公钥", "HUIFU_RSA_PUBLIC_KEY", true, "汇付的RSA公钥（用于验签）", "", true),
       S("notifyUrl", "回调地址", "HUIFU_NOTIFY_URL", false, "填 https://api.rebugx.cn/api/v1/pay/huifu/notify"),
     ],
   },
