@@ -12,7 +12,15 @@
     <template v-else>
     <!-- 视频背景 -->
     <view class="video-bg">
-      <image lazy-load class="video-img" :src="room.hostAvatar" mode="aspectFill" />
+      <!-- 低延时直播画面（FLV）；未开播/加载时退回主播头像背景 -->
+      <LivePlayer
+        v-if="playUrl"
+        :flv-url="playUrl.flv"
+        :hls-url="playUrl.hls"
+        object-fit="cover"
+        class="video-player"
+      />
+      <image v-else lazy-load class="video-img" :src="room.hostAvatar" mode="aspectFill" />
       <view class="video-mask" />
     </view>
 
@@ -236,6 +244,7 @@ import { ref, computed, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import QuickBuySheet, { type QuickBuyProduct } from '@/components/live/quick-buy-sheet.vue'
+import LivePlayer from '@/components/live/live-player.vue'
 import { goBack } from '@/utils/router'
 import {
   liveApi,
@@ -252,6 +261,12 @@ const comments = ref<any[]>([])
 const products = ref<VerticalLiveProduct[]>([])
 const gifts = ref<LiveGift[]>([])
 const coinBalance = ref(0)
+
+// 低延时播放地址（C1）；仅直播中后端返回，未开播抛错→保持头像背景
+const playUrl = ref<{ flv: string; hls: string } | null>(null)
+async function fetchPlayUrl(roomId: string) {
+  try { playUrl.value = await liveApi.getPlayUrl(roomId) } catch { playUrl.value = null }
+}
 
 async function fetchData(roomId: string) {
   loading.value = true
@@ -281,7 +296,9 @@ const viewerCount = ref(0)
 const likeCount = ref(0)
 
 onLoad((opts) => {
-  fetchData(opts?.id || '1')
+  const roomId = opts?.id || '1'
+  fetchData(roomId)
+  fetchPlayUrl(roomId)
 })
 
 onMounted(() => {
@@ -395,6 +412,12 @@ function onPaid() { showProductDetail.value = false }
   inset: 0;
 }
 .video-img {
+  width: 100%;
+  height: 100%;
+}
+.video-player {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
 }

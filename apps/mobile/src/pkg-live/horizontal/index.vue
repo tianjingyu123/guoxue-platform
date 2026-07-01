@@ -65,7 +65,15 @@
 
           <!-- 讲师视频画面（showVideo=true 铺满；否则缩为右下角小窗） -->
           <view class="teacher-cam" :class="{ 'teacher-cam--pip': !showVideo }">
-            <view class="teacher-cam__inner">
+            <!-- 低延时直播画面（FLV）；未开播/加载时退回占位 -->
+            <LivePlayer
+              v-if="playUrl"
+              :flv-url="playUrl.flv"
+              :hls-url="playUrl.hls"
+              object-fit="contain"
+              class="teacher-cam__player"
+            />
+            <view v-else class="teacher-cam__inner">
               <view class="teacher-cam__avatar">
                 <image lazy-load class="teacher-cam__img" :src="room.hostAvatar" mode="aspectFill" />
               </view>
@@ -326,6 +334,7 @@
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
+import LivePlayer from '@/components/live/live-player.vue'
 import { goBack } from '@/utils/router'
 import { liveApi } from '@/lib/live-data'
 
@@ -339,6 +348,12 @@ const slides = ref<any[]>([])
 const questions = ref<any[]>([])
 const messages = ref<any[]>([])
 const files = ref<any[]>([])
+
+// 低延时播放地址（C1）；仅直播中后端返回，未开播抛错→保持占位
+const playUrl = ref<{ flv: string; hls: string } | null>(null)
+async function fetchPlayUrl(roomId: string) {
+  try { playUrl.value = await liveApi.getPlayUrl(roomId) } catch { playUrl.value = null }
+}
 
 async function fetchData(roomId: string) {
   loading.value = true
@@ -412,6 +427,7 @@ function onDownloadFile(_id: string) {}
 onLoad((opts) => {
   const roomId = opts?.id || '1'
   fetchData(roomId)
+  fetchPlayUrl(roomId)
 })
 </script>
 
@@ -608,6 +624,10 @@ onLoad((opts) => {
   align-items: center;
   justify-content: center;
   background: linear-gradient(135deg, #1f2937, #111827);
+}
+.teacher-cam__player {
+  width: 100%;
+  height: 100%;
 }
 .teacher-cam__avatar {
   width: 80px;
