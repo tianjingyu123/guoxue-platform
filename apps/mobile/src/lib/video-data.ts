@@ -330,26 +330,28 @@ export const videoApi = {
     return await apiPost('/videos', data)
   },
 
-  /** 视频列表（全屏流）— GET /videos */
+  /** 视频列表（全屏流）— GET /videos（错误传播给页面三态，不回退假 mock） */
   async list(_params?: Record<string, unknown>): Promise<VideoItem[]> {
-    try {
-      const res = await apiGet<RawVideo[] | { videos?: RawVideo[]; data?: RawVideo[] }>('/videos?pageSize=50')
-      const arr = Array.isArray(res) ? res : (res?.videos ?? res?.data ?? [])
-      const seen = new Set<string>()
-      const r = arr.map(adaptVideoItem).filter((v: VideoItem) => { if (seen.has(v.title)) return false; seen.add(v.title); return true })
-      return r.length ? r : mockVideos
-    } catch {
-      return mockVideos
-    }
+    const res = await apiGet<RawVideo[] | { videos?: RawVideo[]; data?: RawVideo[] }>('/videos?pageSize=50')
+    const arr = Array.isArray(res) ? res : (res?.videos ?? res?.data ?? [])
+    const seen = new Set<string>()
+    return arr.map(adaptVideoItem).filter((v: VideoItem) => { if (seen.has(v.title)) return false; seen.add(v.title); return true })
   },
 
-  /** 视频详情 — GET /videos/:id */
+  /** 视频详情 — GET /videos/:id（错误传播） */
   async getById(id: string): Promise<VideoItem | null> {
-    try {
-      return adaptVideoItem(await apiGet<RawVideo>(`/videos/${id}`))
-    } catch {
-      return mockVideos.find((v) => v.id === id) || null
-    }
+    return adaptVideoItem(await apiGet<RawVideo>(`/videos/${id}`))
+  },
+
+  /** 收藏切换 — POST /videos/:id/collect（后端返回 {collected}） */
+  async collect(id: string): Promise<{ success: boolean; isCollected: boolean }> {
+    const res = await apiPost<{ collected: boolean }>(`/videos/${id}/collect`)
+    return { success: true, isCollected: !!res?.collected }
+  },
+
+  /** 记录分享 — POST /videos/:id/share */
+  async share(id: string): Promise<void> {
+    await apiPost(`/videos/${id}/share`)
   },
 
   /** 编辑视频 — PUT /videos/:id（错误传播） */
@@ -382,11 +384,18 @@ export const videoApi = {
     }
   },
 
-  /** 搜索视频 — GET /videos/search（错误传播给页面三态） */
-  async search(_params?: Record<string, unknown>): Promise<VideoSearchResult[]> {
-    const res = await apiGet<RawVideo[] | { videos?: RawVideo[]; items?: RawVideo[] }>('/videos/search')
-    const arr = Array.isArray(res) ? res : (res?.videos ?? res?.items ?? [])
-    return arr.map(adaptVideoItem) as unknown as VideoSearchResult[]
+  /**
+   * 搜索视频 — GET /videos/search?keyword=（错误传播给页面三态）
+   * 后端 items 字段已对齐 VideoSearchResult(id/title/author/authorAvatar/cover/duration/views/publishedAt/category)，直接返回。
+   */
+  async search(params: { keyword?: string; category?: string; page?: number; pageSize?: number } = {}): Promise<VideoSearchResult[]> {
+    const q = new URLSearchParams()
+    if (params.keyword) q.set('keyword', params.keyword)
+    if (params.category) q.set('category', params.category)
+    q.set('page', String(params.page ?? 1))
+    q.set('pageSize', String(params.pageSize ?? 20))
+    const res = await apiGet<{ items?: VideoSearchResult[] } | VideoSearchResult[]>(`/videos/search?${q.toString()}`)
+    return Array.isArray(res) ? res : (res?.items ?? [])
   },
 
   /** 商品库列表 — GET /videos/products（带货选品；commission 后端无→降级0） */

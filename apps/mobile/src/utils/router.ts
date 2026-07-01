@@ -248,7 +248,7 @@ const ROUTE_MAP: Record<string, string> = {
   '/splash': '/pkg-common/splash/index',
   '/poster': '/pkg-common/poster/index',
   '/result': '/pkg-common/result/index',
-  '/publish/video': '/pkg-video/edit-publish/index',
+  '/publish/video': '/pkg-video/publish/index',
   '/teacher/dashboard': '/pkg-creator/teacher-dashboard/index',
   '/teacher-certification': '/pkg-creator/teacher-certification/index',
   '/my-circles': '/pkg-circle/my-circles/index',

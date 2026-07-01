@@ -1287,12 +1287,6 @@
           "style": {
             "navigationStyle": "custom"
           }
-        },
-        {
-          "path": "edit-publish/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
         }
       ]
     },

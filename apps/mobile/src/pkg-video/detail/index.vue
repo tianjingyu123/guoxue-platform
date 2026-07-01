@@ -6,6 +6,17 @@
     @touchend="onTouchEnd"
   >
     <customer-service-fab />
+    <!-- 三态：加载/失败/空 -->
+    <view v-if="loading || error || !currentVideo" class="vp__state">
+      <text v-if="loading" class="vp__state-txt">加载中...</text>
+      <block v-else-if="error">
+        <text class="vp__state-txt">{{ error }}</text>
+        <view class="vp__state-btn" @tap="retry"><text class="vp__state-btn-txt">重试</text></view>
+      </block>
+      <text v-else class="vp__state-txt">暂无视频</text>
+    </view>
+
+    <template v-if="currentVideo">
     <!-- 视频容器：支持上下滑动 -->
     <view class="vp__stage">
       <!-- 上一个视频预览 -->
@@ -157,6 +168,7 @@
         <AppIcon name="chevron-up" :size="28" color="rgba(255,255,255,0.6)" />
       </view>
     </view>
+    </template>
 
     <!-- 评论弹层 -->
     <view v-if="showComments" class="sheet-mask" @tap="showComments = false">
@@ -250,7 +262,8 @@ import { onLoad, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
 import { useShare } from '@/composables/useShare'
-import { mockVideos, formatVideoNumber as fmt, type VideoItem, type VideoProduct } from '@/lib/video-data'
+import { onMounted } from 'vue'
+import { videoApi, formatVideoNumber as fmt, type VideoItem, type VideoProduct } from '@/lib/video-data'
 
 interface CartItem { productId: string; quantity: number; product: VideoProduct }
 
@@ -260,10 +273,30 @@ const statusBarHeight = ref(sysInfo.statusBarHeight || 0)
 const safeBottom = ref(sysInfo.safeAreaInsets?.bottom || 0)
 const windowH = ref(sysInfo.windowHeight || 0)
 
-// ===== 数据（默认渲染真实 mock；@data-needs 由 Claude 接入） =====
-// @data-needs: 视频流，参数 id(来自 onLoad)，GET 返回 VideoItem[]
-const videos = ref<VideoItem[]>(mockVideos.map((v) => ({ ...v })))
+// ===== 数据（真连全屏视频流）=====
+const videos = ref<VideoItem[]>([])
 const currentIndex = ref(0)
+const loading = ref(true)
+const error = ref('')
+const pendingId = ref('') // onLoad 传入的目标视频 id，加载后定位
+
+async function loadFeed() {
+  loading.value = true
+  error.value = ''
+  try {
+    const list = await videoApi.list()
+    videos.value = list
+    if (pendingId.value) {
+      const idx = list.findIndex((v) => v.id === pendingId.value)
+      if (idx !== -1) currentIndex.value = idx
+    }
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败，请重试'
+  } finally {
+    loading.value = false
+  }
+}
+function retry() { loadFeed() }
 
 // ===== 播放/UI 状态 =====
 const isPlaying = ref(true)
@@ -301,20 +334,20 @@ function layerStyle(offset: number) {
 }
 
 onLoad((opts) => {
-  const id = opts?.id
-  if (id) {
-    const idx = videos.value.findIndex((v) => v.id === String(id))
-    if (idx !== -1) currentIndex.value = idx
-  }
+  if (opts?.id) pendingId.value = String(opts.id)
 })
+onMounted(loadFeed)
 
 // 微信原生分享（分享当前正在播放的视频）
 const { toAppMessage, toTimeline } = useShare()
-onShareAppMessage(() => toAppMessage({
-  title: currentVideo.value?.title || '国学视频',
-  path: `/video/${currentVideo.value?.id || ''}`,
-  cover: currentVideo.value?.coverUrl,
-}))
+onShareAppMessage(() => {
+  if (currentVideo.value?.id) videoApi.share(currentVideo.value.id).catch(() => {}) // 记录分享数（不阻塞）
+  return toAppMessage({
+    title: currentVideo.value?.title || '国学视频',
+    path: `/video/${currentVideo.value?.id || ''}`,
+    cover: currentVideo.value?.coverUrl,
+  })
+})
 onShareTimeline(() => toTimeline({
   title: currentVideo.value?.title || '国学视频',
   path: `/video/${currentVideo.value?.id || ''}`,
@@ -390,16 +423,37 @@ function onSingleTap(e: { changedTouches?: Array<{ clientX?: number; clientY?: n
   }, 300)
 }
 
-function onLike() {
+// 点赞：乐观更新 UI + 真连 POST /videos/:id/like（后端去重返 {liked}）
+async function onLike() {
   const v = currentVideo.value
-  v.isLiked = !v.isLiked
+  if (!v) return
+  const prev = v.isLiked
+  v.isLiked = !prev
   v.likes += v.isLiked ? 1 : -1
+  try {
+    const res = await videoApi.like(v.id)
+    if (res.isLiked !== v.isLiked) { v.isLiked = res.isLiked; v.likes += res.isLiked ? 1 : -1 }
+  } catch {
+    v.isLiked = prev; v.likes += prev ? 1 : -1 // 失败回滚
+  }
 }
-function onCollect() {
-  currentVideo.value.isCollected = !currentVideo.value.isCollected
+// 收藏：乐观更新 + 真连 POST /videos/:id/collect
+async function onCollect() {
+  const v = currentVideo.value
+  if (!v) return
+  const prev = v.isCollected
+  v.isCollected = !prev
+  try {
+    const res = await videoApi.collect(v.id)
+    v.isCollected = res.isCollected
+  } catch {
+    v.isCollected = prev // 失败回滚
+  }
 }
+// 关注：后端暂无 follow 端点（P2）→ 本地乐观切换，待后端补齐再真连
 function onFollow() {
-  currentVideo.value.author.isFollowed = !currentVideo.value.author.isFollowed
+  const v = currentVideo.value
+  if (v) v.author.isFollowed = !v.author.isFollowed
 }
 
 function addToCart(product: VideoProduct) {
@@ -431,6 +485,10 @@ function onBack() {
   background: #000;
   overflow: hidden;
 }
+.vp__state { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24rpx; z-index: 30; }
+.vp__state-txt { color: rgba(255,255,255,0.8); font-size: 28rpx; }
+.vp__state-btn { padding: 14rpx 44rpx; background: var(--brand); border-radius: 999rpx; }
+.vp__state-btn-txt { color: #fff; font-size: 26rpx; }
 .vp__stage { position: absolute; inset: 0; overflow: hidden; }
 .vp__layer { position: absolute; inset: 0; width: 100%; height: 100%; }
 .vp__cover { width: 100%; height: 100%; }
