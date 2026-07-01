@@ -233,7 +233,10 @@ export class EbookService {
     return !!record;
   }
 
-  async getMyPurchases(userId: string, page = 1, pageSize = 20) {
+  async getMyPurchases(userId: string, pageRaw?: number, pageSizeRaw?: number) {
+    // 防御：ValidationPipe(transform) 把缺省的 `@Query() page?: number` 转成 NaN，会绕过解构默认值 → skip:NaN/take 缺失致 500
+    const page = Number.isFinite(+pageRaw!) && +pageRaw! > 0 ? +pageRaw! : 1;
+    const pageSize = Number.isFinite(+pageSizeRaw!) && +pageSizeRaw! > 0 ? +pageSizeRaw! : 20;
     const where = { userId };
     const [purchases, total] = await Promise.all([
       this.prisma.ebookPurchase.findMany({
@@ -306,7 +309,10 @@ export class EbookService {
   // ═══════════════════════════════════════════
 
   async listBookmarks(userId: string, params?: { ebookId?: string; page?: number; pageSize?: number }) {
-    const { ebookId, page = 1, pageSize = 20 } = params || {};
+    const { ebookId, page: pageRaw, pageSize: pageSizeRaw } = params || {};
+    // 防御：transform 缺省 → NaN，绕过解构默认值致 skip:NaN/take 缺失 500
+    const page = Number.isFinite(+pageRaw!) && +pageRaw! > 0 ? +pageRaw! : 1;
+    const pageSize = Number.isFinite(+pageSizeRaw!) && +pageSizeRaw! > 0 ? +pageSizeRaw! : 20;
     const where: Prisma.EbookBookmarkWhereInput = { userId };
     if (ebookId) where.ebookId = ebookId;
     const [bookmarks, total] = await Promise.all([
@@ -345,7 +351,10 @@ export class EbookService {
   // ═══════════════════════════════════════════
 
   async listNotes(userId: string, params?: { ebookId?: string; page?: number; pageSize?: number }) {
-    const { ebookId, page = 1, pageSize = 20 } = params || {};
+    const { ebookId, page: pageRaw, pageSize: pageSizeRaw } = params || {};
+    // 防御：transform 缺省 → NaN，绕过解构默认值致 skip:NaN/take 缺失 500
+    const page = Number.isFinite(+pageRaw!) && +pageRaw! > 0 ? +pageRaw! : 1;
+    const pageSize = Number.isFinite(+pageSizeRaw!) && +pageSizeRaw! > 0 ? +pageSizeRaw! : 20;
     const where: Prisma.EbookNoteWhereInput = { userId };
     if (ebookId) where.ebookId = ebookId;
     const [notes, total] = await Promise.all([
