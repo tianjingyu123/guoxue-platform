@@ -686,6 +686,7 @@ export const taskApi = {
 export const systemApi = {
   // 配置管理
   listConfigs: () => api.get("/system/configs"),
+  getThirdPartySchema: () => api.get("/system/third-party-schema"),
   setConfig: (key: string, data: { value: string; description?: string }) =>
     api.put(`/system/configs/${key}`, data),
   deleteConfig: (key: string) => api.delete(`/system/configs/${key}`),

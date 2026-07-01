@@ -15,6 +15,7 @@ import { Response, Request } from "express";
 import * as fs from "fs";
 import { SetConfigDto, CreateConfigDto, ToggleMaintenanceDto, ToggleAutomationDto, ExportUsersDto, ExportOrdersDto, ExportContentsDto, ExportAuditLogsDto, ExportEarningsDto, UpsertPageContentDto, CreateSiteNoticeDto, UpdateSiteNoticeDto, RollbackConfigDto, UpsertMemberConfigDto, ExportExcelDto } from "./system.dto";
 import { SkipFormat } from "../../common/skip-format.decorator";
+import { THIRD_PARTY_SERVICES } from "../../config/third-party-services";
 
 @ApiTags("系统配置")
 @Controller("system")
@@ -23,6 +24,28 @@ export class SystemController {
     private readonly systemService: SystemService,
     private readonly exportService: ExportService,
   ) {}
+
+  @Get("third-party-schema")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "第三方密钥配置 schema（驱动后台动态渲染，不含值）" })
+  @ApiBearerAuth()
+  getThirdPartySchema() {
+    return {
+      services: THIRD_PARTY_SERVICES.map((s) => ({
+        key: s.key,
+        label: s.label,
+        category: s.category,
+        enabled: s.enabled !== false,
+        fields: s.fields.map((f) => ({
+          key: f.key,
+          label: f.label,
+          sensitive: !!f.sensitive,
+          placeholder: f.placeholder ?? "",
+        })),
+      })),
+    };
+  }
 
   @Get("configs")
   @UseGuards(JwtAuthGuard, RolesGuard)
