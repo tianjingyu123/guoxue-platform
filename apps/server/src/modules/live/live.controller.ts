@@ -3,6 +3,7 @@ import { Request } from "express";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiResponse } from "@nestjs/swagger";
 import { SkipFormat } from "../../common/skip-format.decorator";
 import { LiveService } from "./live.service";
+import { LiveQualityService } from "./live-quality.service";
 import { CreateRoomDto, UpdateRoomDto, MicManageDto, SlideCreateDto, MuteUserDto, FlashSaleDto, CreateGiftDto, UpdateGiftDto, SendGiftDto, SendCommentDto } from "./live.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
@@ -20,7 +21,10 @@ type AuthRequest = Omit<Request, "user"> & {
 @ApiTags("直播")
 @Controller("live")
 export class LiveController {
-  constructor(private svc: LiveService) {}
+  constructor(
+    private svc: LiveService,
+    private qualitySvc: LiveQualityService,
+  ) {}
 
   // ───────── 直播间 CRUD ─────────
 
@@ -531,6 +535,46 @@ export class LiveController {
   @ApiResponse({ status: 404, description: "资源不存在" })
   giftRanking(@Param("id") id: string) {
     return this.svc.giftRanking(id);
+  }
+
+  // ───────── 画质分档商业化（C5·时长包/额度）─────────
+
+  @Get("quality-packages")
+  @ApiOperation({ summary: "画质时长包列表（高清/超清·公开）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  listQualityPackages() {
+    return this.qualitySvc.listPackages();
+  }
+
+  @Get("quota")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "我的画质额度（高清/超清剩余分钟）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiBearerAuth()
+  getMyQuota(@Req() req: AuthRequest) {
+    return this.qualitySvc.getQuota(req.user.id);
+  }
+
+  @Get("quota/records")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "我的画质额度流水（购买/核销明细）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiBearerAuth()
+  getMyQuotaRecords(@Req() req: AuthRequest, @Query("page") page = 1, @Query("pageSize") pageSize = 20) {
+    return this.qualitySvc.listRecords(req.user.id, +page, +pageSize);
+  }
+
+  @Post("quality-packages/:id/purchase")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "购买画质时长包（国学币支付·原子扣币增额度）" })
+  @ApiResponse({ status: 201, description: "购买成功" })
+  @ApiResponse({ status: 400, description: "余额不足/时长包不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiBearerAuth()
+  purchaseQualityPackage(@Param("id") id: string, @Req() req: AuthRequest) {
+    return this.qualitySvc.purchasePackage(req.user.id, id);
   }
 
   // ───────── 评论与点赞 ─────────

@@ -1,6 +1,7 @@
 import { Test } from "@nestjs/testing";
 import { LiveController } from "./live.controller";
 import { LiveService } from "./live.service";
+import { LiveQualityService } from "./live-quality.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { TencentCallbackGuard } from "../../common/tencent-callback.guard";
@@ -40,6 +41,14 @@ const mockLiveSvc = {
   handleLiveEvent: jest.fn(),
   handleAuditCallback: jest.fn().mockResolvedValue({ success: true }),
   listAuditLogs: jest.fn().mockResolvedValue([{ id: "log1", result: "PASS" }]),
+  giftRanking: jest.fn().mockResolvedValue([]),
+};
+
+const mockQualitySvc = {
+  listPackages: jest.fn().mockResolvedValue([{ id: "p1", quality: "hd" }]),
+  getQuota: jest.fn().mockResolvedValue({ hdMinutes: 600, uhdMinutes: 0 }),
+  listRecords: jest.fn().mockResolvedValue({ records: [], total: 0 }),
+  purchasePackage: jest.fn().mockResolvedValue({ hdMinutes: 1200, uhdMinutes: 0 }),
 };
 
 describe("LiveController", () => {
@@ -48,7 +57,10 @@ describe("LiveController", () => {
   beforeAll(async () => {
     const mod = await Test.createTestingModule({
       controllers: [LiveController],
-      providers: [{ provide: LiveService, useValue: mockLiveSvc }],
+      providers: [
+        { provide: LiveService, useValue: mockLiveSvc },
+        { provide: LiveQualityService, useValue: mockQualitySvc },
+      ],
     })
       .overrideGuard(JwtAuthGuard).useValue({ canActivate: () => true })
       .overrideGuard(RolesGuard).useValue({ canActivate: () => true })

@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
 import { LiveService } from "./live.service";
+import { LiveQualityService } from "./live-quality.service";
 import { LiveStreamService } from "./live-stream.service";
 import { LiveController } from "./live.controller";
 import { LiveDashboardController } from "./live-dashboard.controller";
@@ -12,7 +13,7 @@ import { CoinModule } from "../coin/coin.module";
 @Module({
   imports: [WebhookModule, CoinModule],
   controllers: [LiveController, LiveDashboardController],
-  providers: [LiveService, LiveStreamService, LiveDashboardService, LiveDataCollectorService, LiveReportService],
+  providers: [LiveService, LiveQualityService, LiveStreamService, LiveDashboardService, LiveDataCollectorService, LiveReportService],
   exports: [LiveService, LiveStreamService],
 })
 export class LiveModule {}

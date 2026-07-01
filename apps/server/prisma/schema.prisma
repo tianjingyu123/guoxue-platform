@@ -1212,6 +1212,49 @@ model LiveRoom {
   @@index([hostUserId, status])
 }
 
+/// 直播画质时长包 — 主播购买高清/超清转码时长额度（分档商业化 C5·1元=10国学币）
+model LiveQualityPackage {
+  id        String   @id @default(uuid())
+  name      String // 展示名，如「高清 10 小时包」
+  quality   String // hd(720p) / uhd(1080p)
+  minutes   Int // 时长（分钟）
+  priceCoin Int // 售价（国学币）
+  priceYuan Decimal  @db.Decimal(10, 2) // 挂牌价（元，展示用）
+  sortOrder Int      @default(0)
+  status    String   @default("ACTIVE") // ACTIVE / INACTIVE
+  createdAt DateTime @default(now())
+
+  @@index([status, quality])
+}
+
+/// 主播画质额度账户 — 高清/超清剩余转码分钟数（购买增额、开播/转码核销扣减）
+model LiveQuotaAccount {
+  id         String   @id @default(uuid())
+  userId     String   @unique
+  hdMinutes  Int      @default(0) // 高清剩余分钟
+  uhdMinutes Int      @default(0) // 超清剩余分钟
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([userId])
+}
+
+/// 画质额度流水 — 购买/核销明细（对账用）
+model LiveQuotaRecord {
+  id        String   @id @default(uuid())
+  userId    String
+  type      String // PURCHASE(购买) / CONSUME(核销)
+  quality   String // hd / uhd
+  minutes   Int // 变动分钟（购买为正、核销为负）
+  costCoin  Int      @default(0) // 购买花费币数（核销为0）
+  packageId String? // 关联时长包
+  roomId    String? // 核销关联直播间
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([userId, type])
+}
+
 /// 直播评价 — 观众对直播间的评分与评价（主播端「评价管理」）
 model LiveReview {
   id        String   @id @default(cuid())
@@ -2955,6 +2998,7 @@ enum CoinScene {
   PEEK_ANSWER // 围观答案
   AUDIO_CALL // 音频连麦
   LIVE_GIFT // 直播打赏
+  LIVE_QUALITY_PACKAGE // 直播画质时长包购买
   BOT_CALL // 智能体调用
   REFUND // 退款
   PLATFORM_GRANT // 平台赠送
