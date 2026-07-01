@@ -104,9 +104,10 @@ export class ThirdPartyConfigLoader {
     const existing = existingRow ? this.safeParse(this.safeDecrypt(existingRow.configValue)) : {};
     const merged: Record<string, string> = { ...existing };
     for (const f of this.fieldsOf(serviceKey)) {
-      const v = incoming[f.key];
-      if (v !== undefined && v !== null && String(v) !== "" && !isMasked(String(v))) {
-        merged[f.key] = String(v); // 仅当传入非空、非掩码时才更新
+      const raw = incoming[f.key];
+      const v = raw === undefined || raw === null ? "" : String(raw).trim(); // 自动去首尾空格，杜绝复制粘贴带空格/换行导致域名/密钥失效
+      if (v !== "" && !isMasked(v)) {
+        merged[f.key] = v; // 仅当传入非空、非掩码时才更新
       }
     }
     return encrypt(JSON.stringify(merged));
