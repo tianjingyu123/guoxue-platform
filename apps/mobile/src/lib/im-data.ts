@@ -3,6 +3,7 @@
  * v0 迁移：会话列表/聊天/通知三页公用
  */
 import { apiGet, apiPost, apiPut, useMock } from '@/utils/request'
+import type { TimMessage } from '@/composables/useTim'
 
 const AVATAR = (seed: string) => `https://api.dicebear.com/7.x/avataaars/svg?seed=${seed}`
 
@@ -12,7 +13,7 @@ export type MessageType = 'text' | 'image' | 'voice' | 'video' | 'file' | 'syste
 export interface LastMessage {
   type: MessageType
   content: string
-  senderId: number
+  senderId: string
   senderName?: string
   time: string
 }
@@ -20,7 +21,8 @@ export interface LastMessage {
 export interface ConversationItem {
   id: string
   type: ConversationType
-  targetId: number
+  /** 单聊=对端 user.id（腾讯 IM identifier，字符串）；群聊=群ID */
+  targetId: string
   targetName: string
   targetAvatar: string
   memberCount?: number
@@ -37,10 +39,10 @@ export const mockConversations: ConversationItem[] = [
   {
     id: 'conv_1',
     type: 'private',
-    targetId: 101,
+    targetId: '101',
     targetName: '张明德',
     targetAvatar: AVATAR('im-101'),
-    lastMessage: { type: 'text', content: '好的，那我们明天下午3点见面详谈', senderId: 101, time: '10:30' },
+    lastMessage: { type: 'text', content: '好的，那我们明天下午3点见面详谈', senderId: '101', time: '10:30' },
     unreadCount: 3,
     isPinned: true,
     isMuted: false,
@@ -49,11 +51,11 @@ export const mockConversations: ConversationItem[] = [
   {
     id: 'conv_2',
     type: 'group',
-    targetId: 201,
+    targetId: '201',
     targetName: '国学研习群',
     targetAvatar: AVATAR('im-201'),
     memberCount: 128,
-    lastMessage: { type: 'text', content: '今天的八字讲座非常精彩', senderId: 102, senderName: '李老师', time: '09:45' },
+    lastMessage: { type: 'text', content: '今天的八字讲座非常精彩', senderId: '102', senderName: '李老师', time: '09:45' },
     unreadCount: 12,
     isPinned: true,
     isMuted: false,
@@ -62,10 +64,10 @@ export const mockConversations: ConversationItem[] = [
   {
     id: 'conv_3',
     type: 'service',
-    targetId: 0,
+    targetId: '0',
     targetName: '智能客服',
     targetAvatar: AVATAR('im-service'),
-    lastMessage: { type: 'text', content: '您好，有什么可以帮助您的？', senderId: 0, time: '昨天' },
+    lastMessage: { type: 'text', content: '您好，有什么可以帮助您的？', senderId: '0', time: '昨天' },
     unreadCount: 0,
     isPinned: false,
     isMuted: false,
@@ -74,10 +76,10 @@ export const mockConversations: ConversationItem[] = [
   {
     id: 'conv_4',
     type: 'private',
-    targetId: 103,
+    targetId: '103',
     targetName: '王老师',
     targetAvatar: AVATAR('im-103'),
-    lastMessage: { type: 'image', content: '[图片]', senderId: 103, time: '昨天' },
+    lastMessage: { type: 'image', content: '[图片]', senderId: '103', time: '昨天' },
     unreadCount: 0,
     isPinned: false,
     isMuted: true,
@@ -86,10 +88,10 @@ export const mockConversations: ConversationItem[] = [
   {
     id: 'conv_5',
     type: 'system',
-    targetId: 0,
+    targetId: '0',
     targetName: '系统通知',
     targetAvatar: AVATAR('im-system'),
-    lastMessage: { type: 'system', content: '您购买的课程《八字入门》已开放学习', senderId: 0, time: '前天' },
+    lastMessage: { type: 'system', content: '您购买的课程《八字入门》已开放学习', senderId: '0', time: '前天' },
     unreadCount: 1,
     isPinned: false,
     isMuted: false,
@@ -98,10 +100,10 @@ export const mockConversations: ConversationItem[] = [
   {
     id: 'conv_6',
     type: 'private',
-    targetId: 104,
+    targetId: '104',
     targetName: '赵师兄',
     targetAvatar: AVATAR('im-104'),
-    lastMessage: { type: 'voice', content: '[语音消息] 0:15', senderId: 104, time: '周一' },
+    lastMessage: { type: 'voice', content: '[语音消息] 0:15', senderId: '104', time: '周一' },
     unreadCount: 0,
     isPinned: false,
     isMuted: false,
@@ -111,11 +113,11 @@ export const mockConversations: ConversationItem[] = [
   {
     id: 'conv_7',
     type: 'group',
-    targetId: 202,
+    targetId: '202',
     targetName: '风水学习交流',
     targetAvatar: AVATAR('im-202'),
     memberCount: 56,
-    lastMessage: { type: 'text', content: '请问这个户型怎么看？', senderId: 105, senderName: '新人小白', time: '周日' },
+    lastMessage: { type: 'text', content: '请问这个户型怎么看？', senderId: '105', senderName: '新人小白', time: '周日' },
     unreadCount: 0,
     isPinned: false,
     isMuted: true,
@@ -171,7 +173,7 @@ export interface ChatProduct {
 
 export interface ChatMessage {
   id: string
-  senderId: number
+  senderId: string
   senderName: string
   senderAvatar: string
   type: 'text' | 'image' | 'voice' | 'card'
@@ -183,6 +185,26 @@ export interface ChatMessage {
   isWithdrawn: boolean
   createdAt: string
   timestamp: number
+  /** 是否本人发送（腾讯 SDK flow==='out'）；单聊页据此判断气泡左右 */
+  isSelf?: boolean
+}
+
+/** 腾讯 IM SDK 消息 → 页面 ChatMessage（最小闭环：文本；其他类型占位提示） */
+export function timToChatMessage(m: TimMessage): ChatMessage {
+  const isText = m.type === 'TIMTextElem'
+  return {
+    id: m.ID,
+    senderId: m.from,
+    senderName: m.nick || '',
+    senderAvatar: m.avatar || '',
+    type: 'text',
+    content: isText ? (m.payload?.text || '') : '[暂不支持的消息类型]',
+    status: 'read',
+    isWithdrawn: false,
+    createdAt: formatMessageTime(m.time * 1000),
+    timestamp: m.time * 1000,
+    isSelf: m.flow === 'out',
+  }
 }
 
 export const CURRENT_USER_ID = 0
@@ -205,17 +227,17 @@ export const mockChatTarget: ChatTarget = {
 const HOUR = 3600000
 // @data-needs: 聊天历史, 参数 {targetId, beforeMsgId, limit}, 返回 {messages:[ChatMessage], hasMore}
 export const mockChatHistory: ChatMessage[] = [
-  { id: 'msg_1', senderId: 101, senderName: '张明德', senderAvatar: AVA_101, type: 'text', content: '您好，请问有什么可以帮您的？', status: 'read', isWithdrawn: false, createdAt: '2026-06-03 09:00', timestamp: Date.now() - HOUR * 2 },
-  { id: 'msg_2', senderId: 0, senderName: '我', senderAvatar: AVA_ME, type: 'text', content: '老师好，我想咨询一下八字命盘的问题', status: 'read', isWithdrawn: false, createdAt: '2026-06-03 09:05', timestamp: Date.now() - HOUR * 1.9 },
-  { id: 'msg_3', senderId: 101, senderName: '张明德', senderAvatar: AVA_101, type: 'text', content: '好的，请您提供一下出生的年月日时，最好是农历和具体时辰', status: 'read', isWithdrawn: false, createdAt: '2026-06-03 09:08', timestamp: Date.now() - HOUR * 1.8 },
-  { id: 'msg_4', senderId: 0, senderName: '我', senderAvatar: AVA_ME, type: 'text', content: '我是1990年农历三月初八，上午9点左右出生的', status: 'read', isWithdrawn: false, createdAt: '2026-06-03 09:15', timestamp: Date.now() - HOUR * 1.7 },
-  { id: 'msg_5', senderId: 101, senderName: '张明德', senderAvatar: AVA_101, type: 'image', content: '', image: { url: '', thumbnail: '', width: 400, height: 300 }, status: 'read', isWithdrawn: false, createdAt: '2026-06-03 09:25', timestamp: Date.now() - HOUR * 1.5 },
-  { id: 'msg_6', senderId: 101, senderName: '张明德', senderAvatar: AVA_101, type: 'text', content: '这是您的八字命盘，我来为您详细解读一下：\n\n您是庚午年生人，日主为甲木...', status: 'read', isWithdrawn: false, createdAt: '2026-06-03 09:30', timestamp: Date.now() - HOUR * 1.4 },
-  { id: 'msg_7', senderId: 101, senderName: '张明德', senderAvatar: AVA_101, type: 'voice', content: '', voice: { url: '', duration: 45 }, status: 'read', isWithdrawn: false, createdAt: '2026-06-03 09:35', timestamp: Date.now() - HOUR * 1.3 },
-  { id: 'msg_8', senderId: 0, senderName: '我', senderAvatar: AVA_ME, type: 'text', content: '太感谢老师了，分析得很详细！请问有没有推荐的学习资料？', status: 'read', isWithdrawn: false, createdAt: '2026-06-03 10:00', timestamp: Date.now() - HOUR },
-  { id: 'msg_9', senderId: 101, senderName: '张明德', senderAvatar: AVA_101, type: 'card', content: '', product: { id: 1001, title: '八字命理入门到精通', cover: '', price: 199, originalPrice: 299 }, status: 'read', isWithdrawn: false, createdAt: '2026-06-03 10:05', timestamp: Date.now() - HOUR * 0.9 },
-  { id: 'msg_10', senderId: 101, senderName: '张明德', senderAvatar: AVA_101, type: 'text', content: '推荐这门课程给您，是我亲自录制的，从基础到实战都有讲解', status: 'read', isWithdrawn: false, createdAt: '2026-06-03 10:06', timestamp: Date.now() - HOUR * 0.85 },
-  { id: 'msg_11', senderId: 0, senderName: '我', senderAvatar: AVA_ME, type: 'text', content: '好的，那我们明天下午3点见面详谈', status: 'delivered', isWithdrawn: false, createdAt: '2026-06-03 10:30', timestamp: Date.now() - 1800000 },
+  { id: 'msg_1', senderId: '101', senderName: '张明德', senderAvatar: AVA_101, type: 'text', content: '您好，请问有什么可以帮您的？', status: 'read', isWithdrawn: false, createdAt: '2026-06-03 09:00', timestamp: Date.now() - HOUR * 2 },
+  { id: 'msg_2', senderId: '0', senderName: '我', senderAvatar: AVA_ME, type: 'text', content: '老师好，我想咨询一下八字命盘的问题', status: 'read', isWithdrawn: false, createdAt: '2026-06-03 09:05', timestamp: Date.now() - HOUR * 1.9 },
+  { id: 'msg_3', senderId: '101', senderName: '张明德', senderAvatar: AVA_101, type: 'text', content: '好的，请您提供一下出生的年月日时，最好是农历和具体时辰', status: 'read', isWithdrawn: false, createdAt: '2026-06-03 09:08', timestamp: Date.now() - HOUR * 1.8 },
+  { id: 'msg_4', senderId: '0', senderName: '我', senderAvatar: AVA_ME, type: 'text', content: '我是1990年农历三月初八，上午9点左右出生的', status: 'read', isWithdrawn: false, createdAt: '2026-06-03 09:15', timestamp: Date.now() - HOUR * 1.7 },
+  { id: 'msg_5', senderId: '101', senderName: '张明德', senderAvatar: AVA_101, type: 'image', content: '', image: { url: '', thumbnail: '', width: 400, height: 300 }, status: 'read', isWithdrawn: false, createdAt: '2026-06-03 09:25', timestamp: Date.now() - HOUR * 1.5 },
+  { id: 'msg_6', senderId: '101', senderName: '张明德', senderAvatar: AVA_101, type: 'text', content: '这是您的八字命盘，我来为您详细解读一下：\n\n您是庚午年生人，日主为甲木...', status: 'read', isWithdrawn: false, createdAt: '2026-06-03 09:30', timestamp: Date.now() - HOUR * 1.4 },
+  { id: 'msg_7', senderId: '101', senderName: '张明德', senderAvatar: AVA_101, type: 'voice', content: '', voice: { url: '', duration: 45 }, status: 'read', isWithdrawn: false, createdAt: '2026-06-03 09:35', timestamp: Date.now() - HOUR * 1.3 },
+  { id: 'msg_8', senderId: '0', senderName: '我', senderAvatar: AVA_ME, type: 'text', content: '太感谢老师了，分析得很详细！请问有没有推荐的学习资料？', status: 'read', isWithdrawn: false, createdAt: '2026-06-03 10:00', timestamp: Date.now() - HOUR },
+  { id: 'msg_9', senderId: '101', senderName: '张明德', senderAvatar: AVA_101, type: 'card', content: '', product: { id: 1001, title: '八字命理入门到精通', cover: '', price: 199, originalPrice: 299 }, status: 'read', isWithdrawn: false, createdAt: '2026-06-03 10:05', timestamp: Date.now() - HOUR * 0.9 },
+  { id: 'msg_10', senderId: '101', senderName: '张明德', senderAvatar: AVA_101, type: 'text', content: '推荐这门课程给您，是我亲自录制的，从基础到实战都有讲解', status: 'read', isWithdrawn: false, createdAt: '2026-06-03 10:06', timestamp: Date.now() - HOUR * 0.85 },
+  { id: 'msg_11', senderId: '0', senderName: '我', senderAvatar: AVA_ME, type: 'text', content: '好的，那我们明天下午3点见面详谈', status: 'delivered', isWithdrawn: false, createdAt: '2026-06-03 10:30', timestamp: Date.now() - 1800000 },
 ]
 
 /** 消息时间标签格式化 */
@@ -254,32 +276,7 @@ export interface ChatPermission {
   reason?: string
 }
 
-/** 聊天权限（好友关系控制） */
-export function getChatPermission(
-  target: Pick<ChatTarget, 'id' | 'isBlocked' | 'isFollowed' | 'followsMe' | 'relation'>,
-  messages: Pick<ChatMessage, 'senderId' | 'isWithdrawn'>[],
-  currentUserId: number,
-): ChatPermission {
-  if (target.isBlocked) {
-    return { state: 'blocked', canSend: false, hint: '你已将对方加入黑名单，无法发送消息', reason: 'blocked' }
-  }
-  if (target.relation === 'circle_owner' || target.relation === 'circle_member') {
-    return { state: 'unrestricted', canSend: true, hint: '' }
-  }
-  if (target.isFollowed && target.followsMe) {
-    return { state: 'unrestricted', canSend: true, hint: '你们已互相关注，可以自由聊天了' }
-  }
-  const valid = messages.filter((m) => !m.isWithdrawn)
-  const myMessages = valid.filter((m) => m.senderId === currentUserId)
-  const theirMessages = valid.filter((m) => m.senderId === target.id || m.senderId !== currentUserId)
-  if (theirMessages.length > 0) {
-    return { state: 'replied', canSend: true, hint: '对方已回复，你们可以继续聊天了' }
-  }
-  if (myMessages.length >= 1) {
-    return { state: 'waiting_reply', canSend: false, hint: '消息已发送，等待对方回复...', reason: 'waiting_reply' }
-  }
-  return { state: 'can_greet', canSend: true, hint: '你们还未互相关注，发送消息需要对方回复后才能继续聊天' }
-}
+// 注：旧的前端本地权限推断 getChatPermission 已删除，私信权限统一由后端 /im/relation/:id 判定（toChatPermission）
 
 // ============ 私信社交策略（后端 /im/relation/:id 真连） ============
 

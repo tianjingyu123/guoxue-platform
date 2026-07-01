@@ -152,7 +152,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
 import {
@@ -160,18 +160,26 @@ import {
   formatMessageTime,
   shouldShowTimeLabel,
   toChatPermission,
-  CURRENT_USER_ID,
+  timToChatMessage,
   type ChatMessage,
   type ChatPermission,
 } from '@/lib/im-data'
+import { useTim, type TimMessage } from '@/composables/useTim'
 
-const props = defineProps<{ targetId: string }>()
+// name/avatar 由跳转来源（会话列表/用户主页私信按钮）经 query 传入做对端展示；无则从收到的消息补齐
+const props = defineProps<{ targetId: string; name?: string; avatar?: string }>()
 
 const statusBarHeight = ref(0)
+const tim = useTim()
 
 // 数据状态
-// target 为详情对象，模板裸访问多个字段（avatar/nickname/isOnline/isBlocked 等），收敛 any 会触发大量字段/null 报错，保留 any
-const target = ref<any>({})
+// target 为对端展示对象，模板裸访问多个字段（avatar/nickname/isOnline/isBlocked 等），保留 any
+const target = ref<any>({
+  nickname: props.name ? decodeURIComponent(props.name) : '对方',
+  avatar: props.avatar ? decodeURIComponent(props.avatar) : '',
+  isOnline: false,
+  isBlocked: false,
+})
 const messages = ref<ChatMessage[]>([])
 const loading = ref(true)
 const error = ref('')
@@ -182,24 +190,42 @@ const inputText = ref('')
 const showMorePanel = ref(false)
 const showHeaderMenu = ref(false)
 
+let unsubscribe: (() => void) | null = null
+
 async function loadData() {
   loading.value = true
   error.value = ''
   try {
-    const [chatTarget, chatHistory] = await Promise.all([
-      imApi.getChatTarget(Number(props.targetId)),
-      imApi.getChatHistory(Number(props.targetId)),
-    ])
-    target.value = chatTarget
-    messages.value = chatHistory.messages
+    // 登录 TIM（user-sig + account import + login）→ 拉单聊历史
+    await tim.ensureLogin()
+    const res = await tim.getC2CHistory(props.targetId)
+    messages.value = res.messageList.map(timToChatMessage)
+    fillTargetFromMessages(res.messageList)
+    await tim.setC2CRead(props.targetId)
   } catch (e) {
-    error.value = (e as Error)?.message || '加载聊天数据失败，请重试'
+    error.value = (e as Error)?.message || '连接消息服务失败，请重试'
     loading.value = false
     return
   }
+  // 订阅实时新消息（仅本会话对端发来的）
+  unsubscribe = tim.onMessage((msgs) => {
+    const mine = msgs.filter((m) => m.conversationID === `C2C${props.targetId}`)
+    if (!mine.length) return
+    messages.value.push(...mine.map(timToChatMessage))
+    fillTargetFromMessages(mine)
+    tim.setC2CRead(props.targetId)
+  })
   // 私信权限真连后端 /im/relation/:id；单独获取，失败保守降级（禁止发送）不阻塞整页
   await refreshPermission()
   loading.value = false
+}
+
+// 对端昵称/头像：优先 query 传入，否则从收到的消息补齐（无独立资料端点时的诚实来源）
+function fillTargetFromMessages(msgs: TimMessage[]) {
+  const incoming = msgs.find((m) => m.flow === 'in')
+  if (!incoming) return
+  if (!props.name && incoming.nick) target.value.nickname = incoming.nick
+  if (!props.avatar && incoming.avatar) target.value.avatar = incoming.avatar
 }
 
 // 拉取与目标用户的私信关系权限（驱动输入框可用态与提示）
@@ -214,9 +240,12 @@ async function refreshPermission() {
 onMounted(() => {
   loadData()
 })
+onUnmounted(() => {
+  if (unsubscribe) unsubscribe()
+})
 
 function isMine(m: ChatMessage) {
-  return m.senderId === CURRENT_USER_ID
+  return !!m.isSelf
 }
 function showTime(m: ChatMessage, prev?: ChatMessage) {
   return shouldShowTimeLabel(m.timestamp, prev?.timestamp)
@@ -259,19 +288,20 @@ function toggleMorePanel() {
   showMorePanel.value = !showMorePanel.value
 }
 
-// @data-needs: 发送文字消息, 参数 {targetId, type:'text', content}, 返回 {messageId}
+// 发送文字消息：走 TIM SDK sendMessage（实时下发对端）
 async function handleSendText() {
   if (!inputText.value.trim() || !permission.value.canSend || submitting.value) return
   const content = inputText.value.trim()
   inputText.value = ''
   submitting.value = true
   try {
-    const msg = await imApi.sendMessage(Number(props.targetId), content, 'text')
-    if (msg) {
-      messages.value.push(msg)
-      // 发送成功后刷新权限：未互关时剩余条数会随发送递减
-      await refreshPermission()
-    }
+    const sdkMsg = await tim.sendText(props.targetId, content)
+    messages.value.push(timToChatMessage(sdkMsg))
+    // 发送成功后刷新权限：未互关时剩余条数会随发送递减
+    await refreshPermission()
+  } catch (e) {
+    inputText.value = content // 发送失败回填输入框
+    uni.showToast({ title: (e as Error)?.message || '发送失败，请重试', icon: 'none' })
   } finally {
     submitting.value = false
   }
