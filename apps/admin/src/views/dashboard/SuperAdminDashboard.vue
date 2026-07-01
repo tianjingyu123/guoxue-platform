@@ -185,8 +185,11 @@ async function load() {
     const abnormal = healthList.value.filter((x) => x.status !== "ok").length
     badges.value = { "/system/third-party": abnormal }
 
-    // 报警取前 3 条
-    const list = alertRes.data ?? []
+    // 报警取前 3 条（后端返回 {alerts:[],total,...} 对象，非裸数组，需取 .alerts）
+    const rawAlert = alertRes.data
+    const list: AlertItem[] = Array.isArray(rawAlert)
+      ? rawAlert
+      : ((rawAlert as { alerts?: AlertItem[] })?.alerts ?? [])
     alerts.value = list.slice(0, 3).map((a: AlertItem) => ({
       text: a.text, count: a.count, level: a.level ?? "warning",
     }))
