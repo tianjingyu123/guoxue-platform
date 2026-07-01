@@ -33,6 +33,7 @@ export class LiveService {
       hostUserId: dto.hostUserId || userId,
       hostType: dto.circleId ? "CIRCLE_OWNER" : "STATION_MASTER",
       coHostIds: dto.coHostIds || [],
+      quality: dto.quality || "basic",
       chargeType: dto.chargeType || "FREE",
       chargePrice: dto.chargePrice,
       status: "WAITING",
@@ -124,8 +125,13 @@ export class LiveService {
     if (!room) throw new BusinessException(ErrorCode.LIVE_ROOM_NOT_FOUND);
     if (room.status !== "LIVING") throw new BusinessException(ErrorCode.BAD_REQUEST, "直播未开始或已结束");
 
-    const streamKey = `room_${id}`;
-    return this.stream.genPlayUrlWithAuth(streamKey, userId);
+    // 分档播放：basic=原流(零转码成本)；hd/uhd=腾讯云转码流(推流后自动产出 {stream}_{模板名})
+    // 转码模板已在生产创建并绑定 test.rebugx.com/live：hd720 / hd1080
+    const baseKey = `room_${id}`;
+    const quality = (room as { quality?: string }).quality || "basic";
+    const streamKey =
+      quality === "hd" ? `${baseKey}_hd720` : quality === "uhd" ? `${baseKey}_hd1080` : baseKey;
+    return { ...this.stream.genPlayUrlWithAuth(streamKey, userId), quality };
   }
 
   async endRoom(id: string) {

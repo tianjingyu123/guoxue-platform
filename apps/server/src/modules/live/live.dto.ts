@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsNumber, IsArray, IsInt, Min, Max, MinLength } from "class-validator";
+import { IsString, IsOptional, IsNumber, IsArray, IsInt, IsIn, Min, Max, MinLength } from "class-validator";
 import { Type } from "class-transformer";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 
@@ -27,6 +27,10 @@ export class CreateRoomDto {
   @ApiPropertyOptional({ description: "副播用户ID列表" })
   @IsOptional() @IsArray()
   coHostIds?: string[];
+
+  @ApiPropertyOptional({ description: "画质档: basic(标清免费)/hd(720p转码)/uhd(1080p转码)", enum: ["basic", "hd", "uhd"] })
+  @IsOptional() @IsString() @IsIn(["basic", "hd", "uhd"])
+  quality?: string;
 
   @ApiPropertyOptional({ description: "收费类型: FREE/PAID/CIRCLE_ONLY/MEMBER_FREE" })
   @IsOptional() @IsString()

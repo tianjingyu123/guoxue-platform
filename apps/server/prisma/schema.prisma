@@ -1177,6 +1177,7 @@ model LiveRoom {
   trtcRoomId  String? // TRTC房间ID
   imGroupId   String?
   status      LiveStatus   @default(WAITING)
+  quality     String       @default("basic") // 画质档：basic(标清·免费·不转码) / hd(720p转码) / uhd(1080p转码)
   viewCount   Int          @default(0)
   chargeType  String       @default("FREE") // FREE, PAID, CIRCLE_ONLY, MEMBER_FREE
   chargePrice Decimal?     @db.Decimal(10, 2)
