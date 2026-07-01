@@ -290,12 +290,13 @@ import QuickBuySheet, { type QuickBuyProduct } from '@/components/live/quick-buy
 import LivePlayer from '@/components/live/live-player.vue'
 import { type LiveGift } from '@/lib/live-gifts'
 import { goBack } from '@/utils/router'
+import { useTim, type TimMessage } from '@/composables/useTim'
 import {
   liveWatchRoom,
-  liveWatchRankList,
   liveApi,
   type VerticalLiveComment,
   type VerticalLiveProduct,
+  type LiveWatchRankItem,
 } from '@/lib/live-data'
 
 // ===== 系统信息（状态栏） =====
@@ -308,9 +309,32 @@ const error = ref('')
 const room = ref<any>({ ...liveWatchRoom })
 const comments = ref<VerticalLiveComment[]>([])
 const products = ref<VerticalLiveProduct[]>([])
-const rankList = ref([...liveWatchRankList])
+const rankList = ref<LiveWatchRankItem[]>([])
 const coinBalance = ref(0)
 const isFollowing = ref(false)
+
+// ===== 弹幕：TIM 群实时收发（容错降级：TIM 未就绪不崩，弹幕区留空）=====
+const tim = useTim()
+let danmakuGroupId = ''
+let offTimMessage: (() => void) | null = null
+
+/** 加入弹幕群 + 订阅群消息上屏（仅直播中且有 imGroupId 时） */
+async function joinDanmaku(groupId: string) {
+  if (!groupId) return
+  danmakuGroupId = groupId
+  try {
+    await tim.joinGroup(groupId)
+    offTimMessage = tim.onMessage((msgs: TimMessage[]) => {
+      const fresh = msgs.filter((m) => m.conversationType === 'GROUP' && m.to === danmakuGroupId && m.payload?.text)
+      if (!fresh.length) return
+      fresh.forEach((m) => {
+        comments.value.push({ id: m.ID, userName: m.nick || '观众', content: m.payload.text || '', type: 'text' })
+      })
+      if (comments.value.length > 80) comments.value.splice(0, comments.value.length - 80)
+      scrollDanmakuToBottom()
+    })
+  } catch { /* TIM 未就绪 → 弹幕降级只读空态，不阻断观看 */ }
+}
 
 // ===== 低延时播放地址（C1）=====
 const playUrl = ref<{ flv: string; hls: string } | null>(null)
@@ -337,6 +361,8 @@ async function fetchRoomData(roomId: string) {
     room.value = { ...liveWatchRoom, ...data.room }
     comments.value = data.comments
     products.value = data.products
+    // 直播中且有弹幕群 → 加入 TIM 群实时弹幕
+    if (room.value.imGroupId) joinDanmaku(room.value.imGroupId)
   } catch (e) {
     error.value = (e as Error)?.message || '加载失败，请重试'
   } finally {
@@ -344,16 +370,27 @@ async function fetchRoomData(roomId: string) {
   }
 }
 
+// 后端礼物清单（用于把 GiftPanel 的展示礼物按名映射到真实 uuid，供 sendGift 真扣费）
+const backendGifts = ref<{ id: string; name: string; price: number }[]>([])
 async function fetchGifts() {
   try {
     const data = await liveApi.getGifts()
     coinBalance.value = data.balance
+    backendGifts.value = data.gifts.map((g) => ({ id: g.id, name: g.name, price: g.price }))
   } catch {}
+}
+
+/** 打赏榜真连 — GET /live/rooms/:id/gift-ranking（无打赏则空列表） */
+async function fetchRanking(roomId: string) {
+  try {
+    rankList.value = await liveApi.getGiftRanking(roomId)
+  } catch { rankList.value = [] }
 }
 
 function retry() {
   fetchRoomData(room.value.id)
   fetchGifts()
+  fetchRanking(room.value.id)
 }
 
 // ===== UI 状态（弹窗开关、临时输入，仅 UI 层） =====
@@ -381,10 +418,6 @@ const shareChannels = [
 
 let heartId = 0
 let flyerId = 0
-let bannerId = 0
-let danmakuTimer: ReturnType<typeof setInterval> | null = null
-let systemTimer: ReturnType<typeof setInterval> | null = null
-let saleTimer: ReturnType<typeof setInterval> | null = null
 
 function formatCount(n: number): string {
   if (n >= 10000) return (n / 10000).toFixed(1) + '万'
@@ -401,19 +434,28 @@ function onFollow() {
   // @data-needs: 关注/取关接口, POST /api/live/{id}/follow
 }
 
-function onSendComment() {
-  // @data-needs: 发送弹幕接口；此处仅做 UI 上屏与清空
-  if (commentText.value.trim()) {
-    comments.value.push({ id: 'local-' + Date.now(), userName: '我', content: commentText.value.trim(), type: 'text' })
-    commentText.value = ''
-    scrollDanmakuToBottom()
-  }
+let sendingComment = false
+async function onSendComment() {
+  const text = commentText.value.trim()
+  if (!text || sendingComment) { showCommentInput.value = false; return }
+  sendingComment = true
+  // 乐观上屏 + 清空
+  comments.value.push({ id: 'local-' + Date.now(), userName: '我', content: text, type: 'text' })
+  commentText.value = ''
+  scrollDanmakuToBottom()
   showCommentInput.value = false
+  try {
+    // 弹幕走 TIM 群实时下发给其他观众；同时后端持久化（并行，互不阻塞）
+    if (danmakuGroupId) await tim.sendGroupText(danmakuGroupId, text)
+    liveApi.sendComment(room.value.id, text).catch(() => {})
+  } catch { /* TIM 发送失败 → 已本地上屏，静默降级 */ }
+  finally { sendingComment = false }
 }
 
 function onTapLike() {
   spawnHeart()
-  // @data-needs: 点赞计数上报, POST /api/live/{id}/like
+  // 点赞计数上报（fire-and-forget，失败不影响飘心动画）
+  liveApi.likeRoom(room.value.id).catch(() => {})
 }
 
 function spawnHeart() {
@@ -424,25 +466,41 @@ function spawnHeart() {
   }, 3000)
 }
 
-function onSendGift(gift: LiveGift) {
-  // UI：飘屏 + 弹幕 + 扣余额（前端即时反馈）
+let sendingGift = false
+async function onSendGift(gift: LiveGift) {
+  if (sendingGift) return
   const count = 1
-  const fid = ++flyerId
-  giftFlyers.value.push({ id: fid, user: '我', avatar: room.value.hostAvatar, giftName: gift.name, giftIcon: gift.icon, count })
-  setTimeout(() => {
-    giftFlyers.value = giftFlyers.value.filter((g) => g.id !== fid)
-  }, 4000)
-  comments.value.push({
-    id: 'gift-' + Date.now(),
-    userName: '我',
-    content: `送出 ${gift.name}`,
-    type: 'gift',
-    giftInfo: { name: gift.name, icon: gift.icon, count },
-  })
-  scrollDanmakuToBottom()
-  coinBalance.value = Math.max(0, coinBalance.value - gift.price * count)
+  // 送礼前余额校验（后端事务也会校验，这里做即时反馈）
+  if (coinBalance.value < gift.price * count) {
+    uni.showToast({ title: '国学币余额不足', icon: 'none' })
+    return
+  }
+  // 按名映射到后端礼物取真实 uuid（后端未配同名礼物则无法真扣费）
+  const backendGift = backendGifts.value.find((g) => g.name === gift.name)
+  if (!backendGift) {
+    uni.showToast({ title: '该礼物暂不可用', icon: 'none' })
+    return
+  }
+  sendingGift = true
   showGiftPanel.value = false
-  // @data-needs: 送礼接口, POST /api/live/{id}/gift, 校验并扣减国学币余额
+  try {
+    // 真实送礼：后端事务扣国学币 + 记打赏
+    await liveApi.sendGift(room.value.id, backendGift.id, count)
+    // 成功后飘屏 + 弹幕 + 扣余额
+    const fid = ++flyerId
+    giftFlyers.value.push({ id: fid, user: '我', avatar: room.value.hostAvatar, giftName: gift.name, giftIcon: gift.icon, count })
+    setTimeout(() => { giftFlyers.value = giftFlyers.value.filter((g) => g.id !== fid) }, 4000)
+    comments.value.push({ id: 'gift-' + Date.now(), userName: '我', content: `送出 ${gift.name}`, type: 'gift', giftInfo: { name: gift.name, icon: gift.icon, count } })
+    scrollDanmakuToBottom()
+    coinBalance.value = Math.max(0, coinBalance.value - gift.price * count)
+    // 送礼后刷新打赏榜 + 通过 TIM 群广播（让其他观众看到）
+    fetchRanking(room.value.id)
+    if (danmakuGroupId) tim.sendGroupText(danmakuGroupId, `送出 ${gift.name} x${count}`).catch(() => {})
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '送礼失败', icon: 'none' })
+  } finally {
+    sendingGift = false
+  }
 }
 
 function openQuickBuy(p: VerticalLiveProduct) {
@@ -465,52 +523,13 @@ function scrollDanmakuToBottom() {
   danmakuScrollTop.value = danmakuScrollTop.value + 9999
 }
 
-// ===== 模拟实时数据（弹幕/系统消息/电商已售）——原型 setInterval 行为，UI 演示用 =====
-// @data-needs: 实际由 WebSocket 推送替换以下定时器
-function startSimulators() {
-  const danmakuPool = [
-    { name: '易学爱好者', content: '讲得太好了！' },
-    { name: '命理初学', content: '老师这个怎么看大运？' },
-    { name: '紫微门人', content: '666' },
-    { name: '风水小白', content: '感谢老师分享' },
-    { name: '国学传承', content: '受益匪浅' },
-  ]
-  danmakuTimer = setInterval(() => {
-    const r = danmakuPool[Math.floor(Math.random() * danmakuPool.length)]
-    comments.value.push({ id: 'sim-' + Date.now(), userName: r.name, content: r.content, type: 'text' })
-    if (comments.value.length > 50) comments.value.splice(0, comments.value.length - 50)
-    scrollDanmakuToBottom()
-  }, 3000)
-
-  const sysPool = [
-    { type: 'enter', user: '玄学新人', content: '进入了直播间' },
-    { type: 'gift', user: '易道弟子', content: '送出了 太极', giftIcon: '☯️' },
-  ]
-  systemTimer = setInterval(() => {
-    const r = sysPool[Math.floor(Math.random() * sysPool.length)]
-    const id = ++bannerId
-    systemBanners.value.push({ id, ...r })
-    setTimeout(() => {
-      systemBanners.value = systemBanners.value.filter((b) => b.id !== id)
-    }, 4000)
-  }, 5000)
-
-  if (room.value.type === 'commerce') {
-    const buyers = ['福气满满', '招财进宝', '玄学新人', '易道弟子']
-    saleTimer = setInterval(() => {
-      const u = buyers[Math.floor(Math.random() * buyers.length)]
-      saleNotif.value = `${u} 刚刚购买了商品`
-      setTimeout(() => { saleNotif.value = '' }, 3000)
-    }, 6000)
-  }
-}
-
 onLoad((opts) => {
   const roomId = opts?.id || '1'
   if (opts?.type === 'commerce') room.value.type = 'commerce'
   fetchRoomData(roomId)
   fetchPlayUrl(roomId)
   fetchGifts()
+  fetchRanking(roomId)
 })
 
 onMounted(() => {
@@ -518,13 +537,12 @@ onMounted(() => {
     const sys = uni.getSystemInfoSync()
     statusBarHeight.value = sys.statusBarHeight || 0
   } catch (e) {}
-  startSimulators()
 })
 
 onUnmounted(() => {
-  if (danmakuTimer) clearInterval(danmakuTimer)
-  if (systemTimer) clearInterval(systemTimer)
-  if (saleTimer) clearInterval(saleTimer)
+  // 退订 TIM 群消息 + 退出弹幕群
+  if (offTimMessage) offTimMessage()
+  if (danmakuGroupId) tim.quitGroup(danmakuGroupId)
 })
 </script>
 
