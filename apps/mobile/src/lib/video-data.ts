@@ -224,24 +224,6 @@ export interface VideoListItem {
   isHot: boolean
 }
 
-export const videoListItems: VideoListItem[] = [
-  { id: '1', title: '八字命理入门：教你看懂自己的命盘 #八字 #命理入门', coverUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=500&fit=crop', duration: 68, author: { name: '易学张老师', avatar: 'https://api.dicebear.com/7.x/notionists/svg?seed=teacher1' }, likes: 12680, plays: 89000, hasProduct: true, isHot: true },
-  { id: '2', title: '紫微斗数：你的命宫主星是什么？', coverUrl: 'https://images.unsplash.com/photo-1519681393784-d120267933ba?w=400&h=600&fit=crop', duration: 95, author: { name: '紫微林师傅', avatar: 'https://api.dicebear.com/7.x/notionists/svg?seed=teacher2' }, likes: 8920, plays: 56000, hasProduct: false, isHot: false },
-  { id: '3', title: '风水布局：客厅财位怎么找？这几点必须注意', coverUrl: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=400&h=450&fit=crop', duration: 120, author: { name: '风水大师王', avatar: 'https://api.dicebear.com/7.x/notionists/svg?seed=master1' }, likes: 23500, plays: 156000, hasProduct: true, isHot: true },
-  { id: '4', title: '姓名学：名字里这几个字最旺运势！', coverUrl: 'https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=400&h=550&fit=crop', duration: 85, author: { name: '姓名学专家陈', avatar: 'https://api.dicebear.com/7.x/notionists/svg?seed=expert1' }, likes: 45600, plays: 289000, hasProduct: true, isHot: true },
-  { id: '5', title: '奇门遁甲入门：什么是九宫八门？', coverUrl: 'https://images.unsplash.com/photo-1534447677768-be436bb09401?w=400&h=480&fit=crop', duration: 156, author: { name: '奇门张师傅', avatar: 'https://api.dicebear.com/7.x/notionists/svg?seed=qimen' }, likes: 6780, plays: 42000, hasProduct: false, isHot: false },
-  { id: '6', title: '面相学：从眉毛看一个人的性格和运势', coverUrl: 'https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=400&h=520&fit=crop', duration: 78, author: { name: '面相大师李', avatar: 'https://api.dicebear.com/7.x/notionists/svg?seed=face' }, likes: 18900, plays: 123000, hasProduct: true, isHot: false },
-  { id: '7', title: '六爻预测：如何起卦？新手必看教程', coverUrl: 'https://images.unsplash.com/photo-1516796181074-bf453fbfa3e6?w=400&h=600&fit=crop', duration: 145, author: { name: '六爻王老师', avatar: 'https://api.dicebear.com/7.x/notionists/svg?seed=liuyao' }, likes: 5600, plays: 34000, hasProduct: false, isHot: false },
-  { id: '8', title: '手相入门：生命线、智慧线、感情线怎么看', coverUrl: 'https://images.unsplash.com/photo-1544027993-37dbfe43562a?w=400&h=480&fit=crop', duration: 92, author: { name: '手相师小周', avatar: 'https://api.dicebear.com/7.x/notionists/svg?seed=palm' }, likes: 28900, plays: 198000, hasProduct: true, isHot: true },
-]
-
-export const videoHotTopics = [
-  { id: '1', name: '八字入门', count: '128万' },
-  { id: '2', name: '风水布局', count: '89万' },
-  { id: '3', name: '取名改名', count: '56万' },
-  { id: '4', name: '面相手相', count: '45万' },
-]
-
 // ===== 搜索页（/videos/search）数据 —— 照搬原型 app/videos/search/page.tsx =====
 export interface VideoSearchResult {
   id: string
@@ -371,17 +353,18 @@ export const videoApi = {
     return { success: true, isLiked: !!res?.liked }
   },
 
-  /** 瀑布流列表 — GET /videos/items（后端结构已对齐 VideoListItem；seed 有大量重复→按标题去重） */
-  async listItems(_params?: Record<string, unknown>): Promise<VideoListItem[]> {
-    try {
-      const res = await apiGet<VideoListItem[] | { data?: VideoListItem[]; items?: VideoListItem[] }>('/videos/items?pageSize=50')
-      const arr = Array.isArray(res) ? res : (res?.data ?? res?.items ?? [])
-      const seen = new Set<string>()
-      const deduped = arr.filter((v: VideoListItem) => { const k = v.title || v.id; if (seen.has(k)) return false; seen.add(k); return true })
-      return deduped.length ? deduped : videoListItems
-    } catch {
-      return videoListItems
-    }
+  /**
+   * 瀑布流列表 — GET /videos/items（后端结构已对齐 VideoListItem；seed 有大量重复→按标题去重）
+   * sort: recommend(默认)/hot/follow —— 三 tab 各驱动不同查询；错误传播给页面三态，不回退假 mock。
+   */
+  async listItems(params?: { sort?: string }): Promise<VideoListItem[]> {
+    const q = new URLSearchParams()
+    q.set('pageSize', '50')
+    if (params?.sort) q.set('sort', params.sort)
+    const res = await apiGet<VideoListItem[] | { data?: VideoListItem[]; items?: VideoListItem[] }>(`/videos/items?${q.toString()}`)
+    const arr = Array.isArray(res) ? res : (res?.data ?? res?.items ?? [])
+    const seen = new Set<string>()
+    return arr.filter((v: VideoListItem) => { const k = v.title || v.id; if (seen.has(k)) return false; seen.add(k); return true })
   },
 
   /**

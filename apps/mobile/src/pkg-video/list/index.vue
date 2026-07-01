@@ -18,7 +18,7 @@
           :key="tab.id"
           class="vl-tab"
           :class="{ active: activeTab === tab.id }"
-          @tap="activeTab = tab.id"
+          @tap="switchTab(tab.id)"
         >
           <text class="vl-tab-label">{{ tab.label }}</text>
           <view v-if="activeTab === tab.id" class="vl-tab-bar" />
@@ -26,24 +26,32 @@
       </view>
     </view>
 
-    <!-- 热门话题横栏 -->
-    <scroll-view class="vl-topics" scroll-x :show-scrollbar="false">
-      <view class="vl-topics-inner">
-        <view
-          v-for="topic in hotTopics"
-          :key="topic.id"
-          class="vl-topic"
-          @tap="goTopic"
-        >
-          <AppIcon name="flame" :size="26" color="#c41e3a" />
-          <text class="vl-topic-name">#{{ topic.name }}</text>
-          <text class="vl-topic-count">{{ topic.count }}</text>
-        </view>
+    <!-- 加载态 -->
+    <view v-if="loading" class="vl-state">
+      <view class="vl-spinner" />
+      <text class="vl-state-txt">加载中…</text>
+    </view>
+
+    <!-- 错误态 -->
+    <view v-else-if="error" class="vl-state">
+      <AppIcon name="alert-circle" :size="64" color="#c41e3a" />
+      <text class="vl-state-txt">{{ errorMsg }}</text>
+      <view class="vl-retry" @tap="reload">
+        <text class="vl-retry-txt">重试</text>
       </view>
-    </scroll-view>
+    </view>
+
+    <!-- 空态 -->
+    <view v-else-if="videoListItems.length === 0" class="vl-state">
+      <AppIcon name="video" :size="64" color="#D1D5DB" />
+      <text class="vl-state-txt">{{ activeTab === 'follow' ? '还没有关注的创作者' : '暂无视频' }}</text>
+      <view v-if="activeTab === 'follow'" class="vl-retry" @tap="switchTab('recommend')">
+        <text class="vl-retry-txt">去发现</text>
+      </view>
+    </view>
 
     <!-- 双列瀑布流 -->
-    <view class="vl-masonry">
+    <view v-else class="vl-masonry">
       <view class="vl-col">
         <view
           v-for="video in leftColumn"
@@ -144,7 +152,6 @@ import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
 import {
   videoApi,
-  videoHotTopics,
   formatVideoNumber,
   formatDuration,
   type VideoListItem,
@@ -153,17 +160,45 @@ import {
 const statusBarHeight = ref(0)
 uni.getSystemInfo({ success: (r) => { statusBarHeight.value = r.statusBarHeight || 0 } })
 
-// 瀑布流数据：真实接口 GET /videos/items
-const videoListItems = ref<VideoListItem[]>([])
-onMounted(async () => { videoListItems.value = await videoApi.listItems() })
-
-const tabs = [
-  { id: 'follow' as const, label: '关注' },
-  { id: 'recommend' as const, label: '推荐' },
-  { id: 'hot' as const, label: '热门' },
+type TabId = 'recommend' | 'follow' | 'hot'
+const tabs: { id: TabId; label: string }[] = [
+  { id: 'follow', label: '关注' },
+  { id: 'recommend', label: '推荐' },
+  { id: 'hot', label: '热门' },
 ]
-const activeTab = ref<'recommend' | 'follow' | 'hot'>('recommend')
-const hotTopics = videoHotTopics
+const activeTab = ref<TabId>('recommend')
+
+// 瀑布流数据 + 三态：真实接口 GET /videos/items?sort=（三 tab 各驱动不同查询）
+const videoListItems = ref<VideoListItem[]>([])
+const loading = ref(false)
+const error = ref(false)
+const errorMsg = ref('')
+
+async function loadVideos(tab: TabId) {
+  loading.value = true
+  error.value = false
+  try {
+    videoListItems.value = await videoApi.listItems({ sort: tab })
+  } catch (e) {
+    error.value = true
+    errorMsg.value = (e as { message?: string })?.message || '加载失败，请重试'
+    videoListItems.value = []
+  } finally {
+    loading.value = false
+  }
+}
+
+// 切换 tab：重置为当前 tab 并重拉数据（避免残留上个 tab 的列表）
+function switchTab(tab: TabId) {
+  if (tab === activeTab.value && !error.value) return
+  activeTab.value = tab
+  loadVideos(tab)
+}
+function reload() {
+  loadVideos(activeTab.value)
+}
+
+onMounted(() => { loadVideos(activeTab.value) })
 
 // 双列瀑布流：原型用 CSS columns-2,按文档顺序顺序填充前后两半(非奇偶交替)
 // 左列=前半[0..3]，右列=后半[4..7]
@@ -189,9 +224,6 @@ function goPublish() {
 }
 function goDetail(id: string) {
   navigateTo(`/video/${id}`)
-}
-function goTopic() {
-  uni.showToast({ title: '话题页开发中', icon: 'none' })
 }
 </script>
 
@@ -259,20 +291,32 @@ function goTopic() {
   border-radius: 999rpx;
 }
 
-/* 热门话题 */
-.vl-topics { width: 100%; white-space: nowrap; }
-.vl-topics-inner { display: inline-flex; gap: 16rpx; padding: 24rpx 32rpx; }
-.vl-topic {
-  flex-shrink: 0;
-  display: inline-flex;
+/* 三态：加载/错误/空 */
+.vl-state {
+  display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 12rpx;
-  padding: 12rpx 24rpx;
-  border-radius: 999rpx;
-  background-color: rgba(196, 30, 58, 0.1);
+  justify-content: center;
+  gap: 20rpx;
+  padding: 160rpx 48rpx;
 }
-.vl-topic-name { font-size: 24rpx; font-weight: 500; color: var(--brand); }
-.vl-topic-count { font-size: 20rpx; color: rgba(196, 30, 58, 0.6); }
+.vl-state-txt { font-size: 26rpx; color: #9CA3AF; text-align: center; }
+.vl-spinner {
+  width: 56rpx;
+  height: 56rpx;
+  border: 6rpx solid #F0F0F0;
+  border-top-color: var(--brand);
+  border-radius: 50%;
+  animation: vl-spin 0.8s linear infinite;
+}
+@keyframes vl-spin { to { transform: rotate(360deg); } }
+.vl-retry {
+  margin-top: 8rpx;
+  padding: 16rpx 48rpx;
+  border-radius: 999rpx;
+  background-color: var(--brand);
+}
+.vl-retry-txt { font-size: 26rpx; color: #ffffff; }
 
 /* 瀑布流 */
 .vl-masonry { display: flex; gap: 16rpx; padding: 0 16rpx; }

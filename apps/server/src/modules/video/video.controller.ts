@@ -9,6 +9,7 @@ import {
   UploadSignatureDto, PlaybackStatsQueryDto, AuditVideoDto,
 } from "./video.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
+import { OptionalAuthGuard } from "../../common/optional-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
 import { TencentCallbackGuard } from "../../common/tencent-callback.guard";
@@ -40,10 +41,16 @@ export class VideoController {
   // ───────── 瀑布流列表/搜索/商品库（公开，必须在 :id 之前）─────────
 
   @Get("items")
-  @ApiOperation({ summary: "视频瀑布流列表（含作者/播放量/热度标记）" })
+  @UseGuards(OptionalAuthGuard)
+  @ApiOperation({ summary: "视频瀑布流列表（含作者/播放量/热度标记；sort=recommend|hot|follow）" })
   @ApiResponse({ status: 200, description: "返回瀑布流格式视频列表" })
-  listItems(@Query("page") page = 1, @Query("pageSize") pageSize = 20) {
-    return this.svc.listItems(+page, +pageSize);
+  listItems(
+    @Req() req: Request,
+    @Query("page") page = 1,
+    @Query("pageSize") pageSize = 20,
+    @Query("sort") sort?: string,
+  ) {
+    return this.svc.listItems(+page, +pageSize, { sort, followerId: req.user?.id });
   }
 
   @Get("search")

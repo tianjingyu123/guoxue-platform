@@ -303,11 +303,35 @@ export class VideoService {
 
   // ───────── 瀑布流列表 / 搜索 / 商品库 ─────────
 
-  /** 视频瀑布流列表 — 返回 VideoListItem 格式 */
-  async listItems(page: number, pageSize: number) {
+  /**
+   * 视频瀑布流列表 — 返回 VideoListItem 格式
+   * sort: recommend(默认)=播放量优先 / hot=点赞优先 / follow=已关注作者(需登录，未登录或未关注→空)
+   */
+  async listItems(page: number, pageSize: number, opts?: { sort?: string; followerId?: string }) {
+    const where: Prisma.VideoWhereInput = { status: "PUBLISHED" };
+
+    // 关注 tab：仅拉取已关注作者的视频；未登录或未关注任何人 → 空列表（前端引导登录/去关注）
+    if (opts?.sort === "follow") {
+      if (!opts.followerId) return [];
+      const follows = await this.prisma.follow.findMany({
+        where: { userId: opts.followerId },
+        select: { followedUserId: true },
+      });
+      const authorIds = follows.map((f) => f.followedUserId);
+      if (authorIds.length === 0) return [];
+      where.userId = { in: authorIds };
+    }
+
+    const orderBy: Prisma.VideoOrderByWithRelationInput =
+      opts?.sort === "hot"
+        ? { likeCount: "desc" }
+        : opts?.sort === "follow"
+          ? { createdAt: "desc" }
+          : { viewCount: "desc" };
+
     const videos = await this.prisma.video.findMany({
-      where: { status: "PUBLISHED" },
-      orderBy: { viewCount: "desc" },
+      where,
+      orderBy,
       skip: (page - 1) * pageSize,
       take: pageSize,
       include: {
