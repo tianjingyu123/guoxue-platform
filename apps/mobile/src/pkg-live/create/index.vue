@@ -54,6 +54,31 @@
         </view>
       </view>
 
+      <!-- 画质档位（C5 分档商业化） -->
+      <view class="card">
+        <view class="quality-head">
+          <text class="label quality-label">画质档位 <text class="req">*</text></text>
+          <text class="quality-buy-link" @tap="goBuyPackage">购买时长包</text>
+        </view>
+        <view class="type-grid quality-grid">
+          <view
+            v-for="q in qualityOptions"
+            :key="q.value"
+            class="type-card"
+            :class="{ 'type-active': quality === q.value }"
+            @tap="quality = q.value"
+          >
+            <text class="type-name" :class="{ 'type-name-active': quality === q.value }">{{ q.label }}</text>
+            <text class="type-desc">{{ q.desc }}</text>
+            <text v-if="q.value !== 'basic'" class="quality-quota">剩余 {{ q.value === 'hd' ? quota.hdMinutes : quota.uhdMinutes }} 分钟</text>
+          </view>
+        </view>
+        <view v-if="quality !== 'basic' && remainingForSelected <= 0" class="quality-warn">
+          <AppIcon name="info" :size="30" color="#d97706" />
+          <text class="quality-warn-txt">当前档位额度不足，开播将自动降级为标清（免费）</text>
+        </view>
+      </view>
+
       <!-- 封面上传 -->
       <view class="card">
         <text class="label">直播封面 <text class="req">*</text></text>
@@ -180,8 +205,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
-import { goBack } from '@/utils/router'
-import { liveApi, type LiveCategory } from '@/lib/live-data'
+import { goBack, navigateTo } from '@/utils/router'
+import { liveApi, type LiveCategory, type LiveQuota } from '@/lib/live-data'
 
 // 三态UI
 const loading = ref(true)
@@ -189,6 +214,21 @@ const error = ref('')
 
 // UI 临时状态
 const liveMode = ref<'vertical' | 'horizontal'>('vertical')
+
+// 画质档位（C5）
+const quality = ref<'basic' | 'hd' | 'uhd'>('basic')
+const quota = ref<LiveQuota>({ hdMinutes: 0, uhdMinutes: 0 })
+const qualityOptions = [
+  { value: 'basic' as const, label: '标清', desc: '免费·延时2-3s' },
+  { value: 'hd' as const, label: '高清 720P', desc: '转码·消耗额度' },
+  { value: 'uhd' as const, label: '超清 1080P', desc: '转码·消耗额度' },
+]
+const remainingForSelected = computed(() =>
+  quality.value === 'hd' ? quota.value.hdMinutes : quality.value === 'uhd' ? quota.value.uhdMinutes : Infinity,
+)
+function goBuyPackage() {
+  navigateTo('/pkg-live/quality-packages/index')
+}
 const liveType = ref<'knowledge' | 'ecommerce'>('knowledge')
 const title = ref('')
 const description = ref('')
@@ -211,6 +251,8 @@ async function fetchData() {
   error.value = ''
   try {
     categories.value = await liveApi.getCategories()
+    // 画质额度：需登录，未登录降级为 0（不阻断开播·选高清超清额度不足会降级标清）
+    quota.value = await liveApi.getQuota().catch(() => ({ hdMinutes: 0, uhdMinutes: 0 }))
   } catch (e) {
     error.value = (e as Error)?.message || '加载失败，请重试'
   } finally {
@@ -236,7 +278,7 @@ async function onCreate() {
   }
   submitting.value = true
   try {
-    await liveApi.createRoom({ title: title.value.trim(), chargeType: 'FREE' })
+    await liveApi.createRoom({ title: title.value.trim(), chargeType: 'FREE', quality: quality.value })
     uni.showToast({ title: '创建成功', icon: 'success' })
     setTimeout(() => goBack(), 800)
   } catch (e) {
@@ -450,6 +492,19 @@ async function onCreate() {
   text-decoration: underline;
   margin-top: 8rpx;
 }
+
+/* 画质档位（C5） */
+.quality-head { display: flex; align-items: center; justify-content: space-between; }
+.quality-label { margin-bottom: 24rpx; }
+.quality-buy-link { font-size: 24rpx; color: var(--brand); }
+.quality-grid { grid-template-columns: 1fr 1fr 1fr; }
+.quality-quota { display: block; font-size: 20rpx; color: #C9A96E; margin-top: 8rpx; }
+.quality-warn {
+  margin-top: 24rpx; padding: 20rpx 24rpx;
+  background: #fffbeb; border: 1rpx solid #fde68a; border-radius: 20rpx;
+  display: flex; align-items: center; gap: 12rpx;
+}
+.quality-warn-txt { flex: 1; font-size: 22rpx; color: #b45309; }
 
 /* 封面上传 */
 .cover-upload {

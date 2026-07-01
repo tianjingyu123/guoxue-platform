@@ -1110,6 +1110,12 @@
           }
         },
         {
+          "path": "quality-packages/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
           "path": "preview/index",
           "style": {
             "navigationStyle": "custom"

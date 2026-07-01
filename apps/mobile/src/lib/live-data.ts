@@ -676,6 +676,20 @@ export const liveGifts: LiveGift[] = [
 // 用户国学币余额（mock）
 export const liveCoinBalance = 2680
 
+// ============ 画质分档商业化（C5·时长包/额度）============
+export interface LiveQualityPackage {
+  id: string
+  name: string
+  quality: 'hd' | 'uhd'
+  minutes: number
+  priceCoin: number
+  priceYuan: number
+}
+export interface LiveQuota {
+  hdMinutes: number
+  uhdMinutes: number
+}
+
 // ============ 创作者后台 · 直播中控制台 (/creator/live/console) ============
 // @data-needs: 直播实时数据流（在线/观看/打赏/带货等），由后端 WebSocket 推送
 export const consoleLiveStats = {
@@ -1177,6 +1191,8 @@ interface RawLiveSlide { id?: string; title?: string; url?: string; type?: strin
 interface RawCoinBalance { balance?: number }
 /** GET /live/rooms/:id/gift-ranking 单项 */
 interface RawGiftRankItem { userId?: string; nickname?: string; avatar?: string; totalCoin?: number }
+/** GET /live/quality-packages 单项 */
+interface RawQualityPackage { id?: string; name?: string; quality?: string; minutes?: number; priceCoin?: number; priceYuan?: number | string }
 /** GET /live/rooms 列表（裸数组或包装对象） */
 interface RawLiveRoomList { rooms?: RawLiveRoom[]; data?: RawLiveRoom[] }
 /** GET /live/my-rooms 经营聚合 */
@@ -1419,9 +1435,33 @@ export const liveApi = {
     return liveCreateCategories
   },
 
-  /** 创建直播间 — POST /live/rooms（预约直播，status=WAITING） */
-  async createRoom(payload: { title: string; cover?: string; startTime?: string; chargeType?: string }): Promise<{ id: string }> {
+  /** 创建直播间 — POST /live/rooms（预约直播，status=WAITING；quality 画质档 basic/hd/uhd） */
+  async createRoom(payload: { title: string; cover?: string; startTime?: string; chargeType?: string; quality?: string }): Promise<{ id: string }> {
     return await apiPost<{ id: string }>('/live/rooms', payload)
+  },
+
+  // ───────── 画质分档商业化（C5·时长包/额度）─────────
+
+  /** 时长包列表 — GET /live/quality-packages（公开） */
+  async getQualityPackages(): Promise<LiveQualityPackage[]> {
+    const arr = await apiGet<RawQualityPackage[]>('/live/quality-packages')
+    return (Array.isArray(arr) ? arr : []).map((p) => ({
+      id: p.id || '', name: p.name || '', quality: (p.quality === 'uhd' ? 'uhd' : 'hd'),
+      minutes: Number(p.minutes) || 0, priceCoin: Number(p.priceCoin) || 0,
+      priceYuan: Number(p.priceYuan) || 0,
+    }))
+  },
+
+  /** 我的画质额度 — GET /live/quota（高清/超清剩余分钟；未登录抛错交页面三态） */
+  async getQuota(): Promise<LiveQuota> {
+    const q = await apiGet<{ hdMinutes?: number; uhdMinutes?: number }>('/live/quota')
+    return { hdMinutes: Number(q?.hdMinutes) || 0, uhdMinutes: Number(q?.uhdMinutes) || 0 }
+  },
+
+  /** 购买时长包 — POST /live/quality-packages/:id/purchase（返回购买后额度） */
+  async purchaseQualityPackage(packageId: string): Promise<LiveQuota> {
+    const q = await apiPost<{ hdMinutes?: number; uhdMinutes?: number }>(`/live/quality-packages/${packageId}/purchase`)
+    return { hdMinutes: Number(q?.hdMinutes) || 0, uhdMinutes: Number(q?.uhdMinutes) || 0 }
   },
 
   /** 获取直播管理列表 — GET /live/manage */
