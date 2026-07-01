@@ -6,6 +6,7 @@ import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { CoinService } from "../coin/coin.service";
 import { RevenueService } from "../revenue/revenue.service";
+import { AuditService } from "../audit/audit.service";
 
 @Injectable()
 export class QuestionService {
@@ -14,6 +15,7 @@ export class QuestionService {
     private prisma: PrismaService,
     private coin: CoinService,
     private revenue: RevenueService,
+    private audit: AuditService,
   ) {}
 
   /** 发起付费提问（扣币与建记录同一事务，防丢钱） */
@@ -36,6 +38,12 @@ export class QuestionService {
       where: { circleId: dto.circleId, userId: dto.answererId },
     });
     if (!member) throw new BusinessException(ErrorCode.BAD_REQUEST, "回答者不在该圈子中");
+
+    // 内容审核（先审后发；置于扣币事务前，违规内容不扣币）
+    await this.audit.moderateTextOrThrow([dto.questionTitle, dto.question].filter(Boolean).join(" "), {
+      scene: "PAID_QUESTION",
+      userId,
+    });
 
     const questionText = dto.questionTitle
       ? `【${dto.questionTitle}】${dto.question}`
@@ -76,6 +84,13 @@ export class QuestionService {
     if (!question) throw new BusinessException(ErrorCode.NOT_FOUND, "问题不存在");
     if (question.answererId !== answererId) throw new BusinessException(ErrorCode.FORBIDDEN, "只有被提问者可以回答");
     if (question.status !== "PENDING") throw new BusinessException(ErrorCode.BAD_REQUEST, "问题状态不允许回答");
+
+    // 内容审核（回答文本，先审后发）
+    await this.audit.moderateTextOrThrow(dto.answer, {
+      scene: "PAID_ANSWER",
+      userId: answererId,
+      dataId: questionId,
+    });
 
     const answerText = dto.answerAudioUrl
       ? `${dto.answer}\n[音频回复: ${dto.answerAudioUrl}]`

@@ -4,6 +4,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { FeatureFlagService } from "../feature-flag/feature-flag.service";
 import { NotificationService } from "../notification/notification.service";
 import { SystemService } from "../system/system.service";
+import { AuditService } from "../audit/audit.service";
 import { BusinessException } from "../../common/business.exception";
 
 const mockFeatureFlag = { isEnabled: jest.fn().mockResolvedValue(true) };
@@ -46,6 +47,7 @@ describe("MerchantService", () => {
         { provide: FeatureFlagService, useValue: mockFeatureFlag },
         { provide: NotificationService, useValue: mockNotification },
         { provide: SystemService, useValue: mockSystemService },
+        { provide: AuditService, useValue: { moderateTextOrThrow: jest.fn().mockResolvedValue(undefined) } },
       ],
     }).compile();
     svc = mod.get(MerchantService);

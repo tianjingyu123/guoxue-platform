@@ -3,6 +3,7 @@ import { ArticleService } from "./article.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { RecommendService } from "../recommend/recommend.service";
+import { AuditService } from "../audit/audit.service";
 import { BusinessException } from "../../common/business.exception";
 
 const mockPrisma = {
@@ -43,6 +44,7 @@ describe("ArticleService", () => {
         { provide: PrismaService, useValue: mockPrisma },
         { provide: RedisService, useValue: mockRedis },
         { provide: RecommendService, useValue: mockRecommend },
+        { provide: AuditService, useValue: { moderateTextOrThrow: jest.fn().mockResolvedValue(undefined) } },
       ],
     }).compile();
     svc = mod.get(ArticleService);

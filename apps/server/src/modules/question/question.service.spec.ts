@@ -3,6 +3,7 @@ import { QuestionService } from "./question.service"
 import { PrismaService } from "../../prisma/prisma.service"
 import { CoinService } from "../coin/coin.service"
 import { RevenueService } from "../revenue/revenue.service"
+import { AuditService } from "../audit/audit.service"
 import { BusinessException } from "../../common/business.exception"
 
 const txProxy = new Proxy({} as any, {
@@ -32,6 +33,11 @@ const mockRevenue = {
   record: jest.fn().mockResolvedValue({ id: "e1" }),
 }
 
+const mockAudit = {
+  // 审核通过（resolve）即放行；不通过场景由 audit 模块自身测试覆盖
+  moderateTextOrThrow: jest.fn().mockResolvedValue(undefined),
+}
+
 describe("QuestionService", () => {
   let svc: QuestionService
 
@@ -42,6 +48,7 @@ describe("QuestionService", () => {
         { provide: PrismaService, useValue: mockPrisma },
         { provide: CoinService, useValue: mockCoin },
         { provide: RevenueService, useValue: mockRevenue },
+        { provide: AuditService, useValue: mockAudit },
       ],
     }).compile()
     svc = mod.get(QuestionService)

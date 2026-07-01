@@ -19,9 +19,10 @@ import { CoinModule } from "../coin/coin.module";
 import { WebhookModule } from "../webhook/webhook.module";
 import { HuifuModule } from "../huifu/huifu.module";
 import { PricingModule } from "../pricing/pricing.module";
+import { AuditModule } from "../audit/audit.module";
 
 @Module({
-  imports: [CommissionModule, SystemModule, CoinModule, WebhookModule, HuifuModule, PricingModule],
+  imports: [CommissionModule, SystemModule, CoinModule, WebhookModule, HuifuModule, PricingModule, AuditModule],
   controllers: [ShopController, AddressController, ProductCategoryController],
   providers: [ShopService, ShopCouponService, WechatPayService, AlipayService, UnionpayService, PaymentProviderFactory, LogisticsService, AddressService, ProductCategoryService, ActiveUserGuard, StationIsolationGuard],
   exports: [ShopService, ShopCouponService, WechatPayService, AlipayService, UnionpayService, LogisticsService, AddressService, ProductCategoryService],

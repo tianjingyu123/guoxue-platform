@@ -10,6 +10,7 @@ import { UnionpayService } from "./unionpay.service"
 import { CoinService } from "../coin/coin.service"
 import { WebhookService } from "../webhook/webhook.service"
 import { RedisService } from "../../redis/redis.service"
+import { AuditService } from "../audit/audit.service"
 import { BusinessException } from "../../common/business.exception"
 
 const mockWechatPay = {
@@ -167,6 +168,7 @@ describe("ShopService", () => {
         { provide: "HuifuService", useValue: mockHuifu },
         { provide: CoinService, useValue: mockCoin },
         { provide: WebhookService, useValue: mockWebhook },
+        { provide: AuditService, useValue: { moderateTextOrThrow: jest.fn().mockResolvedValue(undefined) } },
       ],
     }).compile()
     svc = mod.get(ShopService)

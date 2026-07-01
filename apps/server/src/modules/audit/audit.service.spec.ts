@@ -2,6 +2,8 @@ import { Test } from "@nestjs/testing"
 import { AuditService } from "./audit.service"
 import { PrismaService } from "../../prisma/prisma.service"
 import { ModerationService } from "./moderation.service"
+import { ModerationAiService } from "./moderation-ai.service"
+import { SensitiveWordService } from "./sensitive-word.service"
 
 const mockPrisma = {
   auditLog: {
@@ -17,6 +19,16 @@ const mockModeration = {
   isImagePass: jest.fn(),
   isTextPass: jest.fn(),
   getBlockedLabels: jest.fn(),
+  getTextSuggestion: jest.fn(),
+}
+
+const mockModerationAi = {
+  available: false,
+  review: jest.fn(),
+}
+
+const mockSensitiveWord = {
+  check: jest.fn().mockReturnValue([]),
 }
 
 describe("AuditService", () => {
@@ -28,6 +40,8 @@ describe("AuditService", () => {
         AuditService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: ModerationService, useValue: mockModeration },
+        { provide: ModerationAiService, useValue: mockModerationAi },
+        { provide: SensitiveWordService, useValue: mockSensitiveWord },
       ],
     }).compile()
     svc = mod.get(AuditService)
@@ -74,7 +88,7 @@ describe("AuditService", () => {
   describe("moderateText", () => {
     it("文本审核通过", async () => {
       mockModeration.textModeration.mockResolvedValue({ Suggestion: "Pass" })
-      mockModeration.isTextPass.mockReturnValue(true)
+      mockModeration.getTextSuggestion.mockReturnValue("Pass")
       mockModeration.getBlockedLabels.mockReturnValue([])
       mockPrisma.auditLog.create.mockResolvedValue({})
       const result = await svc.moderateText("正常内容")
@@ -83,7 +97,7 @@ describe("AuditService", () => {
 
     it("文本审核不通过", async () => {
       mockModeration.textModeration.mockResolvedValue({ Suggestion: "Block" })
-      mockModeration.isTextPass.mockReturnValue(false)
+      mockModeration.getTextSuggestion.mockReturnValue("Block")
       mockModeration.getBlockedLabels.mockReturnValue(["Abuse"])
       mockPrisma.auditLog.create.mockResolvedValue({})
       const result = await svc.moderateText("违规内容")

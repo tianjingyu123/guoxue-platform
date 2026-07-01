@@ -6,6 +6,7 @@ import { NotificationModule } from "../notification/notification.module";
 import { SystemModule } from "../system/system.module";
 import { ShopModule } from "../shop/shop.module";
 import { CommissionModule } from "../commission/commission.module";
+import { AuditModule } from "../audit/audit.module";
 import { MerchantService } from "./merchant.service";
 import { MerchantDepositService } from "./merchant-deposit.service";
 import { MerchantAgreementService } from "./merchant-agreement.service";
@@ -24,6 +25,7 @@ import { MerchantAdminController } from "./merchant-admin.controller";
     SystemModule,
     ShopModule,
     CommissionModule,
+    AuditModule,
   ],
   controllers: [MerchantController, MerchantBackendController, MerchantAdminController],
   providers: [MerchantService, MerchantDepositService, MerchantAgreementService, MerchantSettlementService, MerchantGuard],

@@ -4,8 +4,10 @@ import { VodService } from "./vod.service";
 import { VideoCreatorService } from "./video-creator.service";
 import { VideoController } from "./video.controller";
 import { VideoCreatorController } from "./video-creator.controller";
+import { AuditModule } from "../audit/audit.module";
 
 @Module({
+  imports: [AuditModule],
   controllers: [VideoController, VideoCreatorController],
   providers: [VideoService, VodService, VideoCreatorService],
   exports: [VideoService, VodService, VideoCreatorService],

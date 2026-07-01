@@ -11,9 +11,10 @@ import { LiveModule } from "../live/live.module";
 import { NotificationModule } from "../notification/notification.module";
 import { AiGatewayModule } from "../ai-gateway/ai-gateway.module";
 import { PricingModule } from "../pricing/pricing.module";
+import { AuditModule } from "../audit/audit.module";
 
 @Module({
-  imports: [SystemModule, LiveModule, NotificationModule, AiGatewayModule, PricingModule],
+  imports: [SystemModule, LiveModule, NotificationModule, AiGatewayModule, PricingModule, AuditModule],
   controllers: [CourseController, CourseAdminController],
   providers: [CourseService, CourseSchedulerService, MemberGuard, CourseCreatorGuard, StationIsolationGuard],
   exports: [CourseService],

@@ -5,6 +5,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { FeatureFlagService } from "../feature-flag/feature-flag.service";
 import { NotificationService } from "../notification/notification.service";
 import { SystemService } from "../system/system.service";
+import { AuditService } from "../audit/audit.service";
 import { MERCHANT_CONFIG_KEYS, MERCHANT_FEATURE_FLAGS } from "./merchant.types";
 import { encrypt, decrypt, maskIdCard, maskPhone } from "../../common/crypto.util";
 import {
@@ -21,6 +22,7 @@ export class MerchantService {
     private readonly featureFlag: FeatureFlagService,
     private readonly notification: NotificationService,
     private readonly systemService: SystemService,
+    private readonly audit: AuditService,
   ) {}
 
   // ─── 入驻申请 ───
@@ -28,6 +30,12 @@ export class MerchantService {
   async createApplication(userId: string, dto: CreateMerchantApplyDto) {
     const existing = await this.prisma.merchant.findUnique({ where: { userId } });
     if (existing) throw new BusinessException(ErrorCode.MERCHANT_ALREADY_EXISTS, "您已提交过入驻申请");
+
+    // 统一内容审核：店铺名 + 店铺简介（三层漏斗，违规抛异常，空串自动跳过）
+    await this.audit.moderateTextOrThrow(
+      [dto.shopName, dto.shopIntro].filter(Boolean).join(" "),
+      { scene: "MERCHANT_APPLICATION", userId },
+    );
 
     return this.prisma.merchant.create({
       data: {
@@ -73,6 +81,12 @@ export class MerchantService {
     if (merchant.status !== "PENDING_REVIEW" && merchant.status !== "REVIEW_FAILED") {
       throw new BusinessException(ErrorCode.MERCHANT_STATUS_INVALID, "当前状态不可修改");
     }
+
+    // 统一内容审核：店铺名 + 店铺简介（违规抛异常，空串自动跳过）
+    await this.audit.moderateTextOrThrow(
+      [dto.shopName, dto.shopIntro].filter(Boolean).join(" "),
+      { scene: "MERCHANT_EDIT", userId, dataId: merchant.id },
+    );
 
     // 身份证号若更新则加密入库（其余字段透传）
     const { idCardNumber, ...rest } = dto;

@@ -7,6 +7,7 @@ import { isUniqueConstraintError } from "../../common/prisma-errors";
 import { RedisService } from "../../redis/redis.service";
 import { AiGatewayService } from "../ai-gateway/ai-gateway.service";
 import { UnifiedPricingService } from "../pricing/unified-pricing.service";
+import { AuditService } from "../audit/audit.service";
 import {
   CreateCourseDto, UpdateCourseDto,
   CreateChapterDto, UpdateChapterDto,
@@ -24,6 +25,7 @@ export class CourseService {
     private redis: RedisService,
     private aiGateway: AiGatewayService,
     private unifiedPricing: UnifiedPricingService,
+    private auditService: AuditService,
   ) {}
 
   // ═══════════════════ 课程 CRUD ═══════════════════
@@ -878,6 +880,9 @@ ${chapterCtx}
       throw new BusinessException(ErrorCode.BAD_REQUEST, "评分范围为1-5星");
     }
 
+    // 统一内容审核（违规抛异常）
+    await this.auditService.moderateTextOrThrow(dto.content, { scene: "COURSE_REVIEW", userId, dataId: courseId });
+
     const review = await this.prisma.courseReview.create({
       data: {
         courseId,
@@ -966,6 +971,8 @@ ${chapterCtx}
     if (review.course.userId !== userId) {
       throw new BusinessException(ErrorCode.FORBIDDEN, "只能回复自己课程的评价");
     }
+    // 统一内容审核（违规抛异常）
+    await this.auditService.moderateTextOrThrow(reply, { scene: "REVIEW_REPLY", userId, dataId: reviewId });
     const updated = await this.prisma.courseReview.update({
       where: { id: reviewId },
       data: { reply: reply.trim() } as any,
@@ -1421,6 +1428,9 @@ ${candidateList}
       if (!chapter || chapter.courseId !== courseId) throw new BusinessException(ErrorCode.BAD_REQUEST, "章节不属于该课程");
     }
 
+    // 统一内容审核（违规抛异常）
+    await this.auditService.moderateTextOrThrow(dto.question, { scene: "COURSE_QUESTION", userId, dataId: courseId });
+
     // AI 自动标签分类（基于问题关键词）
     const autoTags = this.classifyQuestion(dto.question);
 
@@ -1442,6 +1452,9 @@ ${candidateList}
     const qa = await this.prisma.courseQa.findUnique({ where: { id: qaId } });
     if (!qa) throw new BusinessException(ErrorCode.NOT_FOUND, "问答不存在");
     if (qa.status === "CLOSED") throw new BusinessException(ErrorCode.BAD_REQUEST, "该问题已关闭");
+
+    // 统一内容审核（违规抛异常）
+    await this.auditService.moderateTextOrThrow(dto.answer, { scene: "COURSE_ANSWER", userId: answererId, dataId: qaId });
 
     return this.prisma.courseQa.update({
       where: { id: qaId },

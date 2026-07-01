@@ -15,6 +15,7 @@ import { CoinService } from "../coin/coin.service";
 import { CommissionService } from "../commission/commission.service";
 import { UnifiedPricingService } from "../pricing/unified-pricing.service";
 import { NotificationService } from "../notification/notification.service";
+import { AuditService } from "../audit/audit.service";
 import { CreateCircleDto, UpdateCircleDto, CreatePostDto, JoinCircleDto, UpdateMemberRoleDto } from "./circle.dto";
 import { Prisma, CircleMemberRole, CircleType, PostType } from "@prisma/client";
 
@@ -25,6 +26,7 @@ export class CircleService {
     private prisma: PrismaService,
     private redis: RedisService,
     private unifiedPricing: UnifiedPricingService,
+    private audit: AuditService,
     @Optional() private coinService?: CoinService,
     @Optional() private commissionService?: CommissionService,
     @Optional() private notificationService?: NotificationService,
@@ -33,6 +35,12 @@ export class CircleService {
   // ───────── 圈子 CRUD ─────────
 
   async create(ownerId: string, dto: CreateCircleDto) {
+    // 内容审核（圈子名称+简介，先审后建）
+    await this.audit.moderateTextOrThrow([dto.name, dto.intro].filter(Boolean).join(" "), {
+      scene: "CIRCLE",
+      userId: ownerId,
+    });
+
     const circle = await this.prisma.circle.create({
       data: {
         name: dto.name,
@@ -65,6 +73,12 @@ export class CircleService {
 
   async update(circleId: string, userId: string, dto: UpdateCircleDto) {
     await this.checkOwnership(circleId, userId);
+    // 内容审核（编辑后重新过审名称+简介）
+    await this.audit.moderateTextOrThrow([dto.name, dto.intro].filter(Boolean).join(" "), {
+      scene: "CIRCLE_EDIT",
+      userId,
+      dataId: circleId,
+    });
     // needApproval 是绕过 prisma generate 锁的新列，prisma client 不认识 → 从 dto 抽出单独原生更新
     const { needApproval, ...rest } = dto as UpdateCircleDto & { needApproval?: boolean };
     const updated = await this.prisma.circle.update({
@@ -231,6 +245,12 @@ export class CircleService {
 
   async setAnnouncement(circleId: string, userId: string, content: string, isTop?: boolean) {
     await this.checkAdmin(circleId, userId);
+    // 内容审核（公告文本，先审后发）
+    await this.audit.moderateTextOrThrow(content, {
+      scene: "CIRCLE_ANNOUNCEMENT",
+      userId,
+      dataId: circleId,
+    });
     if (isTop) {
       await this.prisma.circleAnnouncement.updateMany({
         where: { circleId, isTop: true },
@@ -948,6 +968,12 @@ export class CircleService {
   async createPost(circleId: string, userId: string, dto: CreatePostDto) {
     await this.ensureMember(circleId, userId);
 
+    // 内容审核（标题+正文，先审后发）
+    await this.audit.moderateTextOrThrow([dto.title, dto.content].filter(Boolean).join(" "), {
+      scene: "CIRCLE_POST",
+      userId,
+    });
+
     const post = await this.prisma.post.create({
       data: {
         circleId,
@@ -1012,6 +1038,13 @@ export class CircleService {
     const post = await this.prisma.post.findUnique({ where: { id: postId } });
     if (!post) throw new BusinessException(ErrorCode.NOT_FOUND, "帖子不存在");
     if (post.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能编辑自己的帖子");
+
+    // 内容审核（编辑后重新过审，仅审有变更的文本字段）
+    await this.audit.moderateTextOrThrow([dto.title, dto.content].filter(Boolean).join(" "), {
+      scene: "CIRCLE_POST",
+      userId,
+      dataId: postId,
+    });
 
     return this.prisma.post.update({ where: { id: postId }, data: dto as Prisma.PostUpdateInput });
   }

@@ -1,6 +1,7 @@
 import { Test } from "@nestjs/testing";
 import { CommentService } from "./comment.service";
 import { PrismaService } from "../../prisma/prisma.service";
+import { AuditService } from "../audit/audit.service";
 import { BusinessException } from "../../common/business.exception";
 
 const mockPrisma = {
@@ -28,7 +29,11 @@ describe("CommentService", () => {
 
   beforeAll(async () => {
     const mod = await Test.createTestingModule({
-      providers: [CommentService, { provide: PrismaService, useValue: mockPrisma }],
+      providers: [
+        CommentService,
+        { provide: PrismaService, useValue: mockPrisma },
+        { provide: AuditService, useValue: { moderateTextOrThrow: jest.fn().mockResolvedValue(undefined) } },
+      ],
     }).compile();
     svc = mod.get(CommentService);
   });

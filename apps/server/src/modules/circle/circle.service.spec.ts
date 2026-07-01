@@ -3,6 +3,7 @@ import { CircleService } from "./circle.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { UnifiedPricingService } from "../pricing/unified-pricing.service";
+import { AuditService } from "../audit/audit.service";
 import { BusinessException } from "../../common/business.exception";
 
 const mockPrisma = {
@@ -66,6 +67,8 @@ describe("CircleService", () => {
         { provide: PrismaService, useValue: mockPrisma },
         { provide: RedisService, useValue: mockRedis },
         { provide: UnifiedPricingService, useValue: mockUnifiedPricing },
+        // 内容审核：默认放行（resolve），拦截逻辑由 audit 模块自身测试覆盖
+        { provide: AuditService, useValue: { moderateTextOrThrow: jest.fn().mockResolvedValue(undefined) } },
       ],
     }).compile();
     svc = mod.get(CircleService);

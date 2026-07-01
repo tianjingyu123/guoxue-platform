@@ -7,6 +7,7 @@ import { MemberLevel, Prisma, RoleType, UserStatus } from "@prisma/client";
 import { maskPhone } from "../../common/crypto.util";
 import { safePagination } from "../../common/pagination";
 import { isUniqueConstraintError } from "../../common/prisma-errors";
+import { AuditService } from "../audit/audit.service";
 
 @Injectable()
 export class UserService {
@@ -15,6 +16,7 @@ export class UserService {
   constructor(
     private prisma: PrismaService,
     private redis: RedisService,
+    private audit: AuditService,
   ) {}
 
   async getUserById(userId: string) {
@@ -147,6 +149,12 @@ export class UserService {
   // ───────── 个人资料 ─────────
 
   async updateProfile(userId: string, dto: { nickname?: string; avatar?: string; bio?: string; gender?: number; interestCategories?: string[] }) {
+    // 统一内容审核：昵称 + 个性签名，防不当昵称/签名（空串自动跳过）
+    await this.audit.moderateTextOrThrow(
+      [dto.nickname, dto.bio].filter(Boolean).join(" "),
+      { scene: "USER_PROFILE", userId },
+    );
+
     return this.prisma.user.update({
       where: { id: userId },
       data: {

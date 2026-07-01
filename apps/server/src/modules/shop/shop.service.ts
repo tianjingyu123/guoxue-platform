@@ -15,6 +15,7 @@ const ORDER_LIST_CACHE_TTL = 60;
 /** 缓存前缀 */
 const CACHE_PREFIX = "shop:";
 import { CommissionService } from "../commission/commission.service";
+import { AuditService } from "../audit/audit.service";
 import { UnifiedPricingService } from "../pricing/unified-pricing.service";
 import { WechatPayService } from "./wechat-pay.service";
 import { AlipayService } from "./alipay.service";
@@ -46,6 +47,7 @@ export class ShopService {
     private unionpay: UnionpayService,
     private paymentFactory: PaymentProviderFactory,
     private webhook: WebhookService,
+    private audit: AuditService,
     @Optional() private huifu?: HuifuService,
     @Inject(CommissionService) private commissionSvc?: CommissionService,
     @Inject(CoinService) private coinSvc?: CoinService,
@@ -54,6 +56,11 @@ export class ShopService {
   // ═══════════════════ 商品管理 ═══════════════════
 
   async createProduct(userId: string, dto: CreateProductDto) {
+    // 内容审核：商品标题+简介+详情（违规抛异常，写库前拦截）
+    await this.audit.moderateTextOrThrow(
+      [dto.title, dto.intro, dto.detail].filter(Boolean).join(" "),
+      { scene: "PRODUCT", userId },
+    );
     const { skus, ...rest } = dto;
     const data: Prisma.ProductCreateInput = {
       title: rest.title,
@@ -82,6 +89,12 @@ export class ShopService {
     const product = await this.prisma.product.findUnique({ where: { id: productId } });
     if (!product) throw new BusinessException(ErrorCode.PRODUCT_NOT_FOUND, "商品不存在");
     if (product.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能修改自己的商品");
+
+    // 内容审核：改动的标题+简介+详情（违规抛异常，写库前拦截）
+    await this.audit.moderateTextOrThrow(
+      [dto.title, dto.intro, dto.detail].filter(Boolean).join(" "),
+      { scene: "PRODUCT_EDIT", userId, dataId: productId },
+    );
 
     const data: Prisma.ProductUpdateInput = {};
     if (dto.title !== undefined) data.title = dto.title;
@@ -1515,6 +1528,13 @@ export class ShopService {
     if (dto.rating < 1 || dto.rating > 5) {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "评分范围为 1-5 星");
     }
+
+    // 内容审核：评价正文（违规抛异常，写库前拦截）
+    await this.audit.moderateTextOrThrow(dto.content, {
+      scene: "PRODUCT_REVIEW",
+      userId,
+      dataId: productId,
+    });
 
     return this.prisma.productReview.create({
       data: {

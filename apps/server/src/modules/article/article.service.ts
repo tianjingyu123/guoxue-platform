@@ -7,6 +7,7 @@ import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { RecommendService } from "../recommend/recommend.service";
+import { AuditService } from "../audit/audit.service";
 import { paginated } from "../../common/pagination";
 
 import { CreateArticleDto, UpdateArticleDto, AddRecommendDto } from "./article.dto";
@@ -19,11 +20,18 @@ export class ArticleService {
     private prisma: PrismaService,
     private redis: RedisService,
     private recommend: RecommendService,
+    private audit: AuditService,
   ) {}
 
   async create(circleId: string, userId: string, dto: CreateArticleDto) {
     // 验证是圈主或管理员
     await this.ensureCircleAdmin(circleId, userId);
+
+    // 内容审核（标题+正文+摘要）
+    await this.audit.moderateTextOrThrow(
+      [dto.title, dto.content, dto.excerpt].filter(Boolean).join(" "),
+      { scene: "ARTICLE", userId },
+    );
 
     const article = await this.prisma.article.create({
       data: {
@@ -48,6 +56,12 @@ export class ArticleService {
     const article = await this.prisma.article.findUnique({ where: { id: articleId } });
     if (!article) throw new BusinessException(ErrorCode.ARTICLE_NOT_FOUND, "文章不存在");
     if (article.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能编辑自己的文章");
+
+    // 内容审核（标题+正文+摘要）
+    await this.audit.moderateTextOrThrow(
+      [dto.title, dto.content, dto.excerpt].filter(Boolean).join(" "),
+      { scene: "ARTICLE_EDIT", userId, dataId: articleId },
+    );
 
     const updated = await this.prisma.article.update({
       where: { id: articleId },
@@ -290,6 +304,12 @@ export class ArticleService {
   }
 
   async saveDraft(userId: string, dto: CreateArticleDto) {
+    // 内容审核（标题+正文+摘要）
+    await this.audit.moderateTextOrThrow(
+      [dto.title, dto.content, dto.excerpt].filter(Boolean).join(" "),
+      { scene: "ARTICLE_DRAFT", userId },
+    );
+
     return this.prisma.article.create({
       data: {
         userId,
@@ -308,6 +328,13 @@ export class ArticleService {
     const article = await this.prisma.article.findUnique({ where: { id } });
     if (!article) throw new BusinessException(ErrorCode.ARTICLE_NOT_FOUND, "草稿不存在");
     if (article.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能编辑自己的草稿");
+
+    // 内容审核（标题+正文+摘要）
+    await this.audit.moderateTextOrThrow(
+      [dto.title, dto.content, dto.excerpt].filter(Boolean).join(" "),
+      { scene: "ARTICLE_DRAFT_EDIT", userId, dataId: id },
+    );
+
     return this.prisma.article.update({ where: { id }, data: dto as Prisma.ArticleUpdateInput });
   }
 

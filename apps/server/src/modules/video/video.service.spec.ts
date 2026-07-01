@@ -2,6 +2,7 @@ import { Test } from "@nestjs/testing";
 import { VideoService } from "./video.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import { VodService } from "./vod.service";
+import { AuditService } from "../audit/audit.service";
 import { BusinessException } from "../../common/business.exception";
 
 const mockPrisma = {
@@ -54,6 +55,7 @@ describe("VideoService", () => {
         VideoService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: VodService, useValue: mockVod },
+        { provide: AuditService, useValue: { moderateTextOrThrow: jest.fn().mockResolvedValue(undefined) } },
       ],
     }).compile();
     svc = mod.get(VideoService);

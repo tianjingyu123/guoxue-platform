@@ -7,6 +7,7 @@ import { Prisma } from "@prisma/client";
 import { safePagination } from "../../common/pagination";
 import { Cacheable } from "../../common/cache.decorator";
 import { resolveTargets, targetKey } from "../interaction/target-resolver";
+import { AuditService } from "../audit/audit.service";
 
 export interface ReplyNode {
   id: string;
@@ -17,7 +18,10 @@ export interface ReplyNode {
 @Injectable()
 export class CommentService {
   private readonly logger = new Logger(CommentService.name);
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private audit: AuditService,
+  ) {}
 
   async create(userId: string, dto: CreateCommentDto) {
     if (dto.parentId) {
@@ -30,6 +34,8 @@ export class CommentService {
         throw new BusinessException(ErrorCode.COMMENT_FORBIDDEN, "回复评论与目标不匹配");
       }
     }
+
+    await this.audit.moderateTextOrThrow(dto.content, { scene: "COMMENT", userId, dataId: dto.targetId });
 
     const comment = await this.prisma.comment.create({
       data: {
@@ -122,6 +128,8 @@ export class CommentService {
     const comment = await this.prisma.comment.findUnique({ where: { id: commentId } });
     if (!comment) throw new BusinessException(ErrorCode.COMMENT_NOT_FOUND, "评论不存在");
     if (comment.userId !== userId) throw new BusinessException(ErrorCode.COMMENT_FORBIDDEN, "只能编辑自己的评论");
+
+    await this.audit.moderateTextOrThrow(dto.content, { scene: "COMMENT_EDIT", userId, dataId: commentId });
 
     return this.prisma.comment.update({
       where: { id: commentId },

@@ -2,6 +2,8 @@ import { Injectable, Logger } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { ModerationService } from "./moderation.service";
+import { ModerationAiService } from "./moderation-ai.service";
+import { SensitiveWordService } from "./sensitive-word.service";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 
@@ -12,6 +14,8 @@ export class AuditService {
   constructor(
     private prisma: PrismaService,
     private moderation: ModerationService,
+    private moderationAi: ModerationAiService,
+    private sensitiveWord: SensitiveWordService,
   ) {}
 
   log(params: {
@@ -96,7 +100,8 @@ export class AuditService {
   /** 审核文本 */
   async moderateText(content: string, bizType?: string, dataId?: string) {
     const result = await this.moderation.textModeration({ content, bizType, dataId });
-    const passed = this.moderation.isTextPass(result);
+    const suggestion = this.moderation.getTextSuggestion(result);
+    const passed = suggestion === "Pass";
     const labels = passed ? [] : this.moderation.getBlockedLabels(result);
 
     await this.prisma.auditLog.create({
@@ -104,11 +109,109 @@ export class AuditService {
         action: passed ? "TEXT_PASS" : "TEXT_BLOCK",
         targetType: "TEXT",
         targetId: dataId || content.slice(0, 50),
-        detail: JSON.stringify({ passed, labels }),
+        detail: JSON.stringify({ passed, suggestion, labels }),
       },
     });
 
-    return { passed, labels, raw: result };
+    return { passed, suggestion, labels, raw: result };
+  }
+
+  /**
+   * 统一 UGC 文本审核编排（三层漏斗，先审后发拦截）
+   *
+   * 第1层：本地敏感词库（<1ms，覆盖国学领域诈骗话术）——命中即硬拦截
+   * 第2层：腾讯云 TMS（网络调用，覆盖色情/暴力/涉政）——三档：
+   *        · Pass  → 放行
+   *        · Block → 拦截
+   *        · Review（疑似）→ 交第3层复审（不直接拦，防误杀）
+   * 第3层：DeepSeek 语义复审（仅对 Review 内容，降成本）——block 拦截 / pass 放行
+   *
+   * 容错策略：
+   * - 本地词库命中 → 硬拦截（本地零依赖，不放行）
+   * - 腾讯云 Block / DeepSeek block → 拦截
+   * - 腾讯云网络/密钥异常 → **fail-open 放行**并记日志，避免第三方抖动导致全站发不出内容
+   * - DeepSeek 未配置/超时/解析失败 → **fail-open 放行** Review 内容，记 CONTENT_REVIEW_FALLBACK
+   *   日志待人工复审（Review 仅"疑似"非确定违规，与整体 fail-open 基调一致）
+   *
+   * @param content 待审文本（自动 trim；空串直接放行）
+   * @param opts.scene 业务场景标识（如 "CIRCLE_POST" / "COMMENT" / "PAID_QUESTION"）
+   * @param opts.userId 提交人（用于审计定位）
+   * @param opts.dataId 关联业务ID
+   */
+  async moderateTextOrThrow(
+    content: string | undefined | null,
+    opts: { scene: string; userId?: string; dataId?: string } = { scene: "UGC" },
+  ): Promise<void> {
+    const text = (content ?? "").trim();
+    if (!text) return;
+
+    // 第1层：本地敏感词库（命中即硬拦截）
+    const hits = this.sensitiveWord.check(text);
+    if (hits.length > 0) {
+      await this.log({
+        userId: opts.userId,
+        action: "CONTENT_BLOCK_LOCAL",
+        targetType: opts.scene,
+        targetId: opts.dataId,
+        detail: JSON.stringify({ hits, sample: text.slice(0, 100) }),
+      }).catch((err) => this.logger.warn("审核日志写入失败", err));
+      throw new BusinessException(
+        ErrorCode.CONTENT_MODERATION_BLOCKED,
+        "内容包含违规信息，请修改后重试",
+      );
+    }
+
+    // 第2层：腾讯云 TMS（网络调用，异常时 fail-open）
+    let suggestion: "Pass" | "Review" | "Block";
+    let labels: string[];
+    try {
+      const result = await this.moderateText(text, opts.scene, opts.dataId);
+      suggestion = result.suggestion;
+      labels = result.labels;
+    } catch (err) {
+      if (err instanceof BusinessException) throw err;
+      this.logger.warn(`腾讯云文本审核异常，fail-open 放行 [scene=${opts.scene}]`, err);
+      return;
+    }
+
+    if (suggestion === "Pass") return;
+    if (suggestion === "Block") {
+      throw new BusinessException(
+        ErrorCode.CONTENT_MODERATION_BLOCKED,
+        "内容未通过安全审核，请修改后重试",
+      );
+    }
+
+    // suggestion === "Review"：第3层 DeepSeek 语义复审
+    const verdict = await this.moderationAi.review(text, { labels, scene: opts.scene });
+
+    if (verdict?.decision === "block") {
+      await this.log({
+        userId: opts.userId,
+        action: "CONTENT_BLOCK_AI",
+        targetType: opts.scene,
+        targetId: opts.dataId,
+        detail: JSON.stringify({ category: verdict.category, reason: verdict.reason, labels, sample: text.slice(0, 100) }),
+      }).catch((err) => this.logger.warn("审核日志写入失败", err));
+      throw new BusinessException(
+        ErrorCode.CONTENT_MODERATION_BLOCKED,
+        "内容未通过安全审核，请修改后重试",
+      );
+    }
+
+    if (verdict?.decision === "pass") {
+      // 大模型判正常，救回一条本会被误杀的疑似内容
+      return;
+    }
+
+    // verdict === null：DeepSeek 未配置/超时/解析失败 → fail-open 放行 + 标记待人工复审
+    await this.log({
+      userId: opts.userId,
+      action: "CONTENT_REVIEW_FALLBACK",
+      targetType: opts.scene,
+      targetId: opts.dataId,
+      detail: JSON.stringify({ labels, aiAvailable: this.moderationAi.available, sample: text.slice(0, 100) }),
+    }).catch((err) => this.logger.warn("审核日志写入失败", err));
   }
 
   async list(params: {

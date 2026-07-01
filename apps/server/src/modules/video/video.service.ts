@@ -6,6 +6,7 @@ import { VodService } from "./vod.service";
 import { Cacheable, CacheEvict } from "../../common/cache.decorator";
 import { Prisma } from "@prisma/client";
 import { isUniqueConstraintError } from "../../common/prisma-errors";
+import { AuditService } from "../audit/audit.service";
 
 @Injectable()
 export class VideoService {
@@ -14,10 +15,12 @@ export class VideoService {
   constructor(
     private prisma: PrismaService,
     private vod: VodService,
+    private auditService: AuditService,
   ) {}
 
   @CacheEvict({ key: "video:list:*", pattern: true })
   async create(userId: string, dto: { circleId?: string; title?: string; videoUrl: string; coverUrl?: string; duration?: number; stationId?: string }) {
+    await this.auditService.moderateTextOrThrow([dto.title].filter(Boolean).join(" "), { scene: "VIDEO", userId });
     return this.prisma.video.create({
       data: {
         userId,
@@ -37,6 +40,7 @@ export class VideoService {
     const video = await this.prisma.video.findUnique({ where: { id }, select: { userId: true } });
     if (!video) throw new BusinessException(ErrorCode.NOT_FOUND, "视频不存在");
     if (video.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能修改自己的视频");
+    await this.auditService.moderateTextOrThrow([dto.title].filter(Boolean).join(" "), { scene: "VIDEO_EDIT", userId, dataId: id });
     return this.prisma.video.update({ where: { id }, data: dto as Prisma.VideoUpdateInput });
   }
 

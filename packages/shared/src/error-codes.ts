@@ -32,6 +32,7 @@ export enum ErrorCode {
   // ───── 内容 CONTENT (202xxx) ─────
   CONTENT_NOT_FOUND       = 202001,
   CONTENT_STATUS_INVALID  = 202002,
+  CONTENT_MODERATION_BLOCKED = 202003,
 
   // ───── 文章 ARTICLE (203xxx) ─────
   ARTICLE_NOT_FOUND       = 203001,
