@@ -45,7 +45,7 @@ export const THIRD_PARTY_SERVICES: ThirdPartyService[] = [
       S("mchId", "商户号", "WECHAT_PAY_MCH_ID", false, "商户平台→账户中心→商户信息→商户号（10位数字）"),
       S("apiV3Key", "APIv3 密钥", "WECHAT_PAY_API_V3_KEY", true, "商户平台→账户中心→API安全→APIv3密钥（自己设一个32位字符串并牢记）"),
       S("serialNo", "证书序列号", "WECHAT_PAY_SERIAL_NO", false, "商户平台→账户中心→API安全→申请API证书后，证书详情里的序列号"),
-      S("privateKeyPath", "商户私钥路径", "WECHAT_PAY_PRIVATE_KEY_PATH", true, "申请API证书时下载的 apiclient_key.pem 文件（需放到服务器，路径找技术）"),
+      S("privateKey", "商户私钥内容", "WECHAT_PAY_PRIVATE_KEY", true, "用记事本打开申请证书时下载的 apiclient_key.pem 文件，把全部内容（含 -----BEGIN PRIVATE KEY----- 到 -----END PRIVATE KEY----- 所有行）复制粘贴进来"),
       S("notifyUrl", "支付回调地址", "WECHAT_PAY_NOTIFY_URL", false, "填 https://api.rebugx.cn/api/v1/pay/wechat/notify"),
       S("refundNotifyUrl", "退款回调地址", "WECHAT_PAY_REFUND_NOTIFY_URL", false, "填 https://api.rebugx.cn/api/v1/pay/wechat/refund-notify"),
     ],
