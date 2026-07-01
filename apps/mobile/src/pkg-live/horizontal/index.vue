@@ -331,11 +331,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onUnmounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import LivePlayer from '@/components/live/live-player.vue'
 import { goBack } from '@/utils/router'
+import { useTim, type TimMessage } from '@/composables/useTim'
 import { liveApi } from '@/lib/live-data'
 
 // ===== 直播间数据 =====
@@ -348,6 +349,34 @@ const slides = ref<any[]>([])
 const questions = ref<any[]>([])
 const messages = ref<any[]>([])
 const files = ref<any[]>([])
+
+// ===== 实时聊天：TIM 群收发（容错降级：TIM 未就绪不崩，聊天区留空）=====
+const tim = useTim()
+let danmakuGroupId = ''
+let offTimMessage: (() => void) | null = null
+
+/** 当前时刻 HH:MM（聊天消息时间戳，横屏消息结构含 time 字段） */
+function nowTime(): string {
+  const d = new Date()
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+}
+
+/** 加入聊天群 + 订阅群消息上屏（仅有 imGroupId 时） */
+async function joinChat(groupId: string) {
+  if (!groupId) return
+  danmakuGroupId = groupId
+  try {
+    await tim.joinGroup(groupId)
+    offTimMessage = tim.onMessage((msgs: TimMessage[]) => {
+      const fresh = msgs.filter((m) => m.conversationType === 'GROUP' && m.to === danmakuGroupId && m.payload?.text)
+      if (!fresh.length) return
+      fresh.forEach((m) => {
+        messages.value.push({ id: m.ID, userName: m.nick || '观众', content: m.payload.text || '', time: nowTime() })
+      })
+      if (messages.value.length > 80) messages.value.splice(0, messages.value.length - 80)
+    })
+  } catch { /* TIM 未就绪 → 聊天降级只读空态，不阻断授课观看 */ }
+}
 
 // 低延时播放地址（C1）；仅直播中后端返回，未开播抛错→保持占位
 const playUrl = ref<{ flv: string; hls: string } | null>(null)
@@ -365,6 +394,9 @@ async function fetchData(roomId: string) {
     questions.value = data.questions
     messages.value = data.messages
     files.value = data.files
+    likeCount.value = data.room.likes || 0
+    // 有聊天群 → 加入 TIM 群实时收发
+    if (data.room.imGroupId) joinChat(data.room.imGroupId)
   } catch (e) {
     error.value = (e as Error)?.message || '加载失败，请重试'
   } finally {
@@ -406,7 +438,14 @@ function onToggleMute() { isMuted.value = !isMuted.value }
 function onSelectSlide(num: number) { followSlide.value = false; currentSlideNum.value = num }
 function onPrevSlide() { currentSlideNum.value = Math.max(1, currentSlideNum.value - 1) }
 function onNextSlide() { currentSlideNum.value = Math.min(slides.value.length, currentSlideNum.value + 1) }
-function onLike() { if (!liked.value) { liked.value = true; likeCount.value += 1 } }
+function onLike() {
+  if (!liked.value) {
+    liked.value = true
+    likeCount.value += 1
+    // 点赞计数上报（fire-and-forget，失败不影响 UI）
+    liveApi.likeRoom(room.value.id).catch(() => {})
+  }
+}
 // @data-needs: 举手连麦申请流程（applying→waiting→connected），由后端信令推进
 function onApplyMic() {
   if (micStatus.value === 'none') {
@@ -416,8 +455,22 @@ function onApplyMic() {
     micStatus.value = 'none'
   }
 }
-// @data-needs: 发送聊天消息，入参 content，成功后清空并追加
-function onSendChat() { chatDraft.value = '' }
+// 发送聊天消息：TIM 群实时下发给其他观众 + 后端持久化，乐观上屏
+let sendingChat = false
+async function onSendChat() {
+  const text = chatDraft.value.trim()
+  if (!text || sendingChat) { chatDraft.value = ''; return }
+  sendingChat = true
+  // 乐观上屏 + 清空
+  messages.value.push({ id: 'local-' + Date.now(), userName: '我', content: text, time: nowTime() })
+  chatDraft.value = ''
+  try {
+    // 弹幕走 TIM 群实时下发；同时后端持久化（并行，互不阻塞）
+    if (danmakuGroupId) await tim.sendGroupText(danmakuGroupId, text)
+    liveApi.sendComment(room.value.id, text).catch(() => {})
+  } catch { /* TIM 发送失败 → 已本地上屏，静默降级 */ }
+  finally { sendingChat = false }
+}
 // @data-needs: 提交提问，入参 content + isPublic
 function onSubmitQuestion() { questionDraft.value = '' }
 function onShare() {}
@@ -428,6 +481,12 @@ onLoad((opts) => {
   const roomId = opts?.id || '1'
   fetchData(roomId)
   fetchPlayUrl(roomId)
+})
+
+onUnmounted(() => {
+  // 退订 TIM 群消息 + 退出聊天群
+  if (offTimMessage) offTimMessage()
+  if (danmakuGroupId) tim.quitGroup(danmakuGroupId)
 })
 </script>
 

@@ -7,7 +7,7 @@
     </view>
     <view v-else-if="error" class="state-overlay">
       <text class="state-txt">{{ error }}</text>
-      <view class="state-retry" @tap="fetchData('1')"><text class="state-retry-txt">重试</text></view>
+      <view class="state-retry" @tap="retry"><text class="state-retry-txt">重试</text></view>
     </view>
     <template v-else>
     <!-- 视频背景 -->
@@ -240,12 +240,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onUnmounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import QuickBuySheet, { type QuickBuyProduct } from '@/components/live/quick-buy-sheet.vue'
 import LivePlayer from '@/components/live/live-player.vue'
 import { goBack } from '@/utils/router'
+import { useTim, type TimMessage } from '@/composables/useTim'
 import {
   liveApi,
   type VerticalLiveProduct,
@@ -256,11 +257,34 @@ const loading = ref(true)
 const error = ref('')
 // 模板裸访问大量房间字段，保留 any 避免收敛触发大量报错
 const room = ref<any>({})
-// 评论列表，元素结构由后端返回，保留 any[]
+// 评论列表，元素结构由后端/TIM 返回，保留 any[]
 const comments = ref<any[]>([])
 const products = ref<VerticalLiveProduct[]>([])
+// 礼物清单直接来自后端 getGifts（含真实 uuid），送礼时直接取 gift.id
 const gifts = ref<LiveGift[]>([])
 const coinBalance = ref(0)
+
+// ===== 弹幕：TIM 群实时收发（容错降级：TIM 未就绪不崩，弹幕区留空）=====
+const tim = useTim()
+let danmakuGroupId = ''
+let offTimMessage: (() => void) | null = null
+
+/** 加入弹幕群 + 订阅群消息上屏（仅直播中且有 imGroupId 时） */
+async function joinDanmaku(groupId: string) {
+  if (!groupId) return
+  danmakuGroupId = groupId
+  try {
+    await tim.joinGroup(groupId)
+    offTimMessage = tim.onMessage((msgs: TimMessage[]) => {
+      const fresh = msgs.filter((m) => m.conversationType === 'GROUP' && m.to === danmakuGroupId && m.payload?.text)
+      if (!fresh.length) return
+      fresh.forEach((m) => {
+        comments.value.push({ id: m.ID, userName: m.nick || '观众', content: m.payload.text || '', type: 'text' })
+      })
+      if (comments.value.length > 80) comments.value.splice(0, comments.value.length - 80)
+    })
+  } catch { /* TIM 未就绪 → 弹幕降级留空，不阻断观看 */ }
+}
 
 // 低延时播放地址（C1）；仅直播中后端返回，未开播抛错→保持头像背景
 const playUrl = ref<{ flv: string; hls: string } | null>(null)
@@ -283,6 +307,8 @@ async function fetchData(roomId: string) {
     coinBalance.value = giftsData.balance
     viewerCount.value = roomData.room.viewerCount || 0
     likeCount.value = roomData.room.likeCount || 0
+    // 直播中且有弹幕群 → 加入 TIM 群实时弹幕
+    if (room.value.imGroupId) joinDanmaku(room.value.imGroupId)
   } catch (e) {
     error.value = (e as Error)?.message || '加载失败，请重试'
   } finally {
@@ -295,15 +321,24 @@ const isFollowing = ref(false)
 const viewerCount = ref(0)
 const likeCount = ref(0)
 
+const currentRoomId = ref('1')
 onLoad((opts) => {
-  const roomId = opts?.id || '1'
-  fetchData(roomId)
-  fetchPlayUrl(roomId)
+  currentRoomId.value = opts?.id || '1'
+  fetchData(currentRoomId.value)
+  fetchPlayUrl(currentRoomId.value)
 })
 
-onMounted(() => {
-  // 初始值在 fetchData 后更新
+function retry() {
+  fetchData(currentRoomId.value)
+  fetchPlayUrl(currentRoomId.value)
+}
+
+onUnmounted(() => {
+  // 退订 TIM 群消息 + 退出弹幕群
+  if (offTimMessage) offTimMessage()
+  if (danmakuGroupId) tim.quitGroup(danmakuGroupId)
 })
+
 const floatingHearts = ref<{ id: number; x: number; scale: number }[]>([])
 const giftAnimations = ref<{ id: number; gift: LiveGift; user: string }[]>([])
 const commentInput = ref('')
@@ -336,12 +371,12 @@ function formatCount(count: number) {
   return count.toString()
 }
 
-// ===== 交互（UI 占位，业务逻辑由 Claude Code 对接）=====
-// @data-needs: 关注/取关主播接口
+// ===== 交互 =====
+// @data-needs: 关注/取关主播接口（后端未提供，UI 本地态占位）
 function onToggleFollow() { isFollowing.value = !isFollowing.value }
-// @data-needs: 分享直播间
+// @data-needs: 分享直播间（uni.share 待接入）
 function onShare() {}
-// 双击点赞 + 飘心动画（@data-needs: 上报点赞数）
+// 双击点赞 + 飘心动画（点赞计数 fire-and-forget 上报，失败不影响动画）
 function onDoubleTap() {
   likeCount.value++
   const id = Date.now() + Math.random()
@@ -349,33 +384,67 @@ function onDoubleTap() {
   setTimeout(() => {
     floatingHearts.value = floatingHearts.value.filter((h) => h.id !== id)
   }, 1500)
+  if (room.value.id) liveApi.likeRoom(room.value.id).catch(() => {})
 }
 function onOpenCommentInput() { showCommentInput.value = true }
 function onCloseCommentInput() { showCommentInput.value = false }
-// @data-needs: 发送弹幕接口，入参 content
-function onSendComment() {
-  if (!commentInput.value.trim()) return
-  comments.value.push({ id: Date.now().toString(), userName: '我', content: commentInput.value, type: 'text' })
+// 发弹幕：走 TIM 群实时下发 + 后端持久化（并行），乐观上屏，防重
+let sendingComment = false
+async function onSendComment() {
+  const text = commentInput.value.trim()
+  if (!text || sendingComment) { showCommentInput.value = false; return }
+  sendingComment = true
+  comments.value.push({ id: 'local-' + Date.now(), userName: '我', content: text, type: 'text' })
   commentInput.value = ''
   showCommentInput.value = false
+  try {
+    if (danmakuGroupId) await tim.sendGroupText(danmakuGroupId, text)
+    liveApi.sendComment(room.value.id, text).catch(() => {})
+  } catch { /* TIM 发送失败 → 已本地上屏，静默降级 */ }
+  finally { sendingComment = false }
 }
 function onOpenGiftPanel() { showGiftPanel.value = true }
 function onCloseGiftPanel() { showGiftPanel.value = false }
-// @data-needs: 送礼接口，入参 giftId，扣减 coinBalance
-function onSendGift(gift: LiveGift) {
-  const id = Date.now() + Math.random()
-  giftAnimations.value.push({ id, gift, user: '我' })
-  comments.value.push({
-    id: Date.now().toString(),
-    userName: '我',
-    content: '',
-    type: 'gift',
-    giftInfo: { name: gift.name, icon: gift.icon, count: 1 },
-  })
-  setTimeout(() => {
-    giftAnimations.value = giftAnimations.value.filter((g) => g.id !== id)
-  }, 3000)
+// 送礼真连：后端事务扣国学币 + 记打赏，成功后再飘屏/扣余额；防重
+let sendingGift = false
+async function onSendGift(gift: LiveGift) {
+  if (sendingGift) return
+  const count = 1
+  // 送礼前余额校验（后端事务也会校验，这里做即时反馈）
+  if (coinBalance.value < gift.price * count) {
+    uni.showToast({ title: '国学币余额不足', icon: 'none' })
+    return
+  }
+  // gifts 列表直接来自后端 getGifts，gift.id 即真实礼物 uuid
+  if (!gift.id) {
+    uni.showToast({ title: '该礼物暂不可用', icon: 'none' })
+    return
+  }
+  sendingGift = true
   showGiftPanel.value = false
+  try {
+    await liveApi.sendGift(room.value.id, gift.id, count)
+    // 成功后飘屏 + 弹幕 + 扣余额
+    const id = Date.now() + Math.random()
+    giftAnimations.value.push({ id, gift, user: '我' })
+    setTimeout(() => {
+      giftAnimations.value = giftAnimations.value.filter((g) => g.id !== id)
+    }, 3000)
+    comments.value.push({
+      id: Date.now().toString(),
+      userName: '我',
+      content: '',
+      type: 'gift',
+      giftInfo: { name: gift.name, icon: gift.icon, count },
+    })
+    coinBalance.value = Math.max(0, coinBalance.value - gift.price * count)
+    // 通过 TIM 群广播，让其他观众看到
+    if (danmakuGroupId) tim.sendGroupText(danmakuGroupId, `送出 ${gift.name} x${count}`).catch(() => {})
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '送礼失败', icon: 'none' })
+  } finally {
+    sendingGift = false
+  }
 }
 // @data-needs: 跳转充值页/充值弹窗
 function onRecharge() {}
