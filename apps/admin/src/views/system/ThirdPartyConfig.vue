@@ -66,6 +66,11 @@ const categories = computed(() => {
 async function saveService(svc: Service) {
   saving.value = true
   try {
+    // 保险：保存前从真实 DOM 输入框同步值，防浏览器自动填充/某些输入不触发 v-model 导致存空
+    svc.fields.forEach((f) => {
+      const inp = document.querySelector<HTMLInputElement>(`input[name="tpc-${svc.key}-${f.key}"]`)
+      if (inp && inp.value && !inp.value.startsWith('****')) formData[svc.key][f.key] = inp.value
+    })
     await systemApi.setConfig(`third_party.${svc.key}`, { value: JSON.stringify(formData[svc.key]) })
     ElMessage.success(`${svc.label} 已保存并生效`)
     await load() // 重新加载显示最新掩码
@@ -165,10 +170,11 @@ async function saveService(svc: Service) {
               >
                 <el-input
                   v-model="formData[svc.key][f.key]"
-                  :type="f.sensitive ? 'password' : 'text'"
-                  :show-password="f.sensitive"
+                  type="text"
                   :name="`tpc-${svc.key}-${f.key}`"
-                  autocomplete="new-password"
+                  autocomplete="off"
+                  data-lpignore="true"
+                  data-form-type="other"
                   :placeholder="f.placeholder || (f.sensitive ? '留空或掩码则不修改' : '')"
                 />
                 <div
