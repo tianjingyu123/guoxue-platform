@@ -322,6 +322,7 @@ export const verticalLiveRoom = {
   viewerCount: 8920,
   likeCount: 32100,
   onlineAvatars: ['/static/marketing/course.png', '/static/marketing/course.png', '/static/marketing/course.png'],
+  imGroupId: '', // TIM 弹幕群 ID（真连时由后端房间返回，用于加入群收发弹幕）
 }
 export const verticalLiveComments: VerticalLiveComment[] = [
   { id: '1', userName: '系统', content: '欢迎来到直播间，请文明观看', type: 'system' },
@@ -341,11 +342,13 @@ export const liveWatchRoom = {
   title: '紫微斗数命盘解析直播',
   hostName: '云中子道长',
   hostAvatar: '/static/marketing/course.png',
+  hostId: '',
   followers: 12800,
   viewerCount: 3256,
   likeCount: 18900,
   isFollowing: false,
   onlineAvatars: ['/static/marketing/course.png', '/static/marketing/course.png', '/static/marketing/course.png'],
+  imGroupId: '', // TIM 弹幕群 ID
 }
 // 原型 mockDanmaku 全部为普通弹幕(type:normal)，无"系统/欢迎"项；系统消息走 liveWatchSystemPool 横幅
 export const liveWatchComments: VerticalLiveComment[] = [
@@ -605,6 +608,7 @@ export interface HorizontalLiveRoom {
   likes: number
   duration: string
   category: string
+  imGroupId?: string // TIM 弹幕群 ID
 }
 export interface HorizontalSlide { id: string; pageNum: number; title: string; thumbnail: string }
 export interface HorizontalQuestion {
@@ -1157,6 +1161,22 @@ interface RawLiveRoom {
   hasProducts?: boolean
   _count?: { products?: number } | null
 }
+/** GET /live/rooms/:id 详情（getRoom·含 imGroupId/products 关联/主播资料） */
+interface RawLiveRoomDetail extends RawLiveRoom {
+  imGroupId?: string | null
+  hostUserId?: string
+  likeCount?: number
+  user?: (RawLiveUser & { id?: string }) | null
+  products?: { id?: string; productId?: string }[] | null
+}
+/** GET /live/gifts 单项（Gift 模型：priceCoin→前端 price·level 档位） */
+interface RawGift { id?: string; name?: string; icon?: string | null; priceCoin?: number; level?: string }
+/** GET /live/rooms/:id/slides 单项（LiveSlide：url→thumbnail） */
+interface RawLiveSlide { id?: string; title?: string; url?: string; type?: string; sortOrder?: number }
+/** GET /coin/balance */
+interface RawCoinBalance { balance?: number }
+/** GET /live/rooms/:id/gift-ranking 单项 */
+interface RawGiftRankItem { userId?: string; nickname?: string; avatar?: string; totalCoin?: number }
 /** GET /live/rooms 列表（裸数组或包装对象） */
 interface RawLiveRoomList { rooms?: RawLiveRoom[]; data?: RawLiveRoom[] }
 /** GET /live/my-rooms 经营聚合 */
@@ -1250,6 +1270,11 @@ function adaptLiveItem(r: RawLiveRoom): LiveItem {
     productCount: r._count?.products ?? undefined,
     scheduledTime: fmtLiveTime(r.startTime),
   }
+}
+
+/** 后端礼物 Gift → 前端 LiveGift（priceCoin→price；icon 后端可空） */
+function adaptGift(g: RawGift): LiveGift {
+  return { id: g.id || '', name: g.name || '', icon: g.icon || '', price: Number(g.priceCoin) || 0 }
 }
 
 export const liveApi = {
@@ -1688,68 +1713,137 @@ export const liveApi = {
     }
   },
 
-  /** 获取竖屏直播间数据 — GET /live/vertical/:id */
+  /**
+   * 获取竖屏直播间数据 — 前端组装 GET /live/rooms/:id（房间+主播+商品关联）
+   * 弹幕(comments)走 TIM 群实时收发·初始为空；商品详情后端关联表无字段 → 降级空(页面商品区隐藏)。
+   * 错误传播给页面三态，不回退假 mock。
+   */
   async getVerticalRoom(id: string): Promise<{
     room: typeof verticalLiveRoom; comments: VerticalLiveComment[]; products: VerticalLiveProduct[]
   }> {
-    if (true) return { room: verticalLiveRoom, comments: verticalLiveComments, products: verticalLiveProducts }
-    try {
-      const data = await apiGet<{ room: typeof verticalLiveRoom; comments: VerticalLiveComment[]; products: VerticalLiveProduct[] }>(`/live/vertical/${id}`)
-      return data
-    } catch {
-      return { room: verticalLiveRoom, comments: verticalLiveComments, products: verticalLiveProducts }
+    const r = await apiGet<RawLiveRoomDetail>(`/live/rooms/${id}`)
+    const room: typeof verticalLiveRoom = {
+      id: r.id || id,
+      title: r.title || '',
+      hostName: r.user?.nickname || '',
+      hostAvatar: r.user?.avatar || '',
+      hostLevel: 0, // 后端无主播等级 → 降级
+      followers: 0, // 后端房间未聚合粉丝数 → 降级
+      viewerCount: r.viewCount ?? 0,
+      likeCount: r.likeCount ?? 0,
+      onlineAvatars: [], // 后端无在线头像列表 → 降级(页面 v-for 不渲染)
+      imGroupId: r.imGroupId || '',
     }
+    return { room, comments: [], products: [] }
   },
 
-  /** 获取横屏直播间数据 — GET /live/horizontal/:id */
+  /**
+   * 获取横屏直播间数据 — 前端组装 GET /live/rooms/:id + GET /live/rooms/:id/slides(课件)
+   * 聊天(messages)走 TIM 群·初始空；问答/资料下载后端无聚合源 → 降级空(页面对应区隐藏)。
+   */
   async getHorizontalRoom(id: string): Promise<{
     room: HorizontalLiveRoom; slides: HorizontalSlide[]; questions: HorizontalQuestion[]
     messages: HorizontalMessage[]; files: HorizontalFile[]
   }> {
-    if (true) return { room: horizontalLiveRoom, slides: horizontalSlides, questions: horizontalQuestions, messages: horizontalMessages, files: horizontalFiles }
-    try {
-      const data = await apiGet<{ room: HorizontalLiveRoom; slides: HorizontalSlide[]; questions: HorizontalQuestion[]; messages: HorizontalMessage[]; files: HorizontalFile[] }>(`/live/horizontal/${id}`)
-      return data
-    } catch {
-      return { room: horizontalLiveRoom, slides: horizontalSlides, questions: horizontalQuestions, messages: horizontalMessages, files: horizontalFiles }
+    const [r, rawSlides] = await Promise.all([
+      apiGet<RawLiveRoomDetail>(`/live/rooms/${id}`),
+      apiGet<RawLiveSlide[] | { slides?: RawLiveSlide[] }>(`/live/rooms/${id}/slides`).catch(() => [] as RawLiveSlide[]),
+    ])
+    const slideArr = Array.isArray(rawSlides) ? rawSlides : (rawSlides?.slides ?? [])
+    const room: HorizontalLiveRoom = {
+      id: r.id || id,
+      title: r.title || '',
+      hostName: r.user?.nickname || '',
+      hostAvatar: r.user?.avatar || '',
+      hostTitle: '', // 后端房间无主播头衔 → 降级
+      followers: 0,
+      viewers: r.viewCount ?? 0,
+      likes: r.likeCount ?? 0,
+      duration: '', // 时长依赖运行时 → 降级
+      category: '',
+      imGroupId: r.imGroupId || '',
     }
+    const slides: HorizontalSlide[] = slideArr.map((s, i) => ({
+      id: s.id || String(i), pageNum: i + 1, title: s.title || '', thumbnail: s.url || '',
+    }))
+    return { room, slides, questions: [], messages: [], files: [] }
   },
 
-  /** 获取主播数据中心 — GET /live/host-data */
+  /**
+   * 获取主播数据中心 — 前端组装 GET /live/my-rooms(经营概览+房间) + GET /live/earnings(收益)
+   * 30 天趋势后端无按天源 → 降级空(页面趋势图隐藏)。未登录 → 抛错走页面三态。
+   */
   async getHostData(): Promise<{
     stats: HostLiveStats; rooms: HostLiveRoom[]; trend: HostLiveTrend[]
   }> {
-    if (true) return { stats: hostLiveStats, rooms: hostLiveRooms, trend: hostLiveTrend }
-    try {
-      const data = await apiGet<{ stats: HostLiveStats; rooms: HostLiveRoom[]; trend: HostLiveTrend[] }>('/live/host-data')
-      return data
-    } catch {
-      return { stats: hostLiveStats, rooms: hostLiveRooms, trend: hostLiveTrend }
+    const [my, earn] = await Promise.all([
+      apiGet<RawMyRooms>('/live/my-rooms'),
+      apiGet<RawEarnings>('/live/earnings').catch(() => null),
+    ])
+    const s = my?.stats
+    const totalRevenue = Number(earn?.stats?.total) || 0
+    const rooms: HostLiveRoom[] = (my?.rooms || []).map((r: RawLiveRoom): HostLiveRoom => {
+      const ended = String(r.status || '').toUpperCase() === 'ENDED' || String(r.status || '').toUpperCase() === 'REPLAY'
+      let duration = 0
+      if (r.startTime && r.endTime) {
+        const m = Math.round((new Date(r.endTime).getTime() - new Date(r.startTime).getTime()) / 60000)
+        if (m > 0) duration = m
+      }
+      return {
+        id: r.id || '', title: r.title || '', cover: r.cover || '',
+        status: ended ? 'ended' : 'preview',
+        dateText: fmtLiveTime(r.startTime) || '',
+        duration, views: r.viewCount || 0,
+        gifts: 0, // 单场打赏依赖运行时聚合 → 降级
+        revenue: 0,
+      }
+    })
+    const stats: HostLiveStats = {
+      totalViews: s?.totalViews ?? 0,
+      totalRevenue,
+      avgDuration: 0,
+      fansGrowth: 0,
+      totalRooms: (my?.rooms || []).length,
+      totalGifts: 0,
+      viewsGrowthRate: 0,
+      revenueGrowthRate: Number(earn?.stats?.trend) || 0,
     }
+    return { stats, rooms, trend: [] }
   },
 
-  /** 获取直播间观看页数据 — GET /live/watch-room/:id */
+  /**
+   * 获取直播间观看页数据 — 前端组装 GET /live/rooms/:id
+   * 弹幕(comments)走 TIM 群·初始空；商品详情关联表无字段 → 降级空。
+   */
   async getWatchRoom(id: string): Promise<{
     room: typeof liveWatchRoom; comments: VerticalLiveComment[]; products: VerticalLiveProduct[]
   }> {
-    if (true) return { room: liveWatchRoom, comments: liveWatchComments, products: liveWatchProducts }
-    try {
-      const data = await apiGet<{ room: typeof liveWatchRoom; comments: VerticalLiveComment[]; products: VerticalLiveProduct[] }>(`/live/watch-room/${id}`)
-      return data
-    } catch {
-      return { room: liveWatchRoom, comments: liveWatchComments, products: liveWatchProducts }
+    const r = await apiGet<RawLiveRoomDetail>(`/live/rooms/${id}`)
+    const room: typeof liveWatchRoom = {
+      id: r.id || id,
+      type: (Array.isArray(r.products) && r.products.length ? 'commerce' : 'knowledge'),
+      title: r.title || '',
+      hostName: r.user?.nickname || '',
+      hostAvatar: r.user?.avatar || '',
+      hostId: r.user?.id || r.hostUserId || '',
+      followers: 0,
+      viewerCount: r.viewCount ?? 0,
+      likeCount: r.likeCount ?? 0,
+      isFollowing: false, // 后端房间未返回关注态 → 降级(页面按钮默认未关注)
+      onlineAvatars: [],
+      imGroupId: r.imGroupId || '',
     }
+    return { room, comments: [], products: [] }
   },
 
-  /** 获取礼物列表 — GET /live/gifts */
+  /** 获取礼物列表 — GET /live/gifts(公开) + GET /coin/balance(余额·未登录降级0) */
   async getGifts(): Promise<{ gifts: LiveGift[]; balance: number }> {
-    if (true) return { gifts: liveGifts, balance: liveCoinBalance }
-    try {
-      const data = await apiGet<{ gifts: LiveGift[]; balance: number }>('/live/gifts')
-      return data
-    } catch {
-      return { gifts: liveGifts, balance: liveCoinBalance }
-    }
+    const [rawGifts, bal] = await Promise.all([
+      apiGet<RawGift[] | { items?: RawGift[]; gifts?: RawGift[] }>('/live/gifts'),
+      apiGet<RawCoinBalance>('/coin/balance').catch(() => null),
+    ])
+    const arr = Array.isArray(rawGifts) ? rawGifts : (rawGifts?.items ?? rawGifts?.gifts ?? [])
+    return { gifts: arr.map(adaptGift), balance: Number(bal?.balance) || 0 }
   },
 
   /** 获取推流配置 — GET /live/stream-config */
@@ -1769,5 +1863,33 @@ export const liveApi = {
         encoder: rs.encoder || '',
       },
     }
+  },
+
+  // ───────── 直播间互动写操作（弹幕走 TIM 群·此处为业务侧持久化/计费）─────────
+
+  /** 发送礼物 — POST /live/rooms/:id/gifts（后端事务扣国学币 + 记打赏，返回打赏记录） */
+  async sendGift(roomId: string, giftId: string, quantity = 1): Promise<{ totalCoin: number }> {
+    const rec = await apiPost<{ totalCoin?: number }>(`/live/rooms/${roomId}/gifts`, { giftId, quantity })
+    return { totalCoin: Number(rec?.totalCoin) || 0 }
+  },
+
+  /** 直播间打赏榜 — GET /live/rooms/:id/gift-ranking（适配为 {rank,user,amount}） */
+  async getGiftRanking(roomId: string): Promise<LiveWatchRankItem[]> {
+    const arr = await apiGet<RawGiftRankItem[]>(`/live/rooms/${roomId}/gift-ranking`)
+    return (Array.isArray(arr) ? arr : []).map((g, i) => ({
+      rank: i + 1,
+      user: g.nickname || '匿名用户',
+      amount: Number(g.totalCoin) || 0,
+    }))
+  },
+
+  /** 直播点赞 — POST /live/rooms/:id/like */
+  async likeRoom(roomId: string): Promise<void> {
+    await apiPost(`/live/rooms/${roomId}/like`)
+  },
+
+  /** 发送直播评论/弹幕（业务侧持久化，与 TIM 群实时下发并行） — POST /live/rooms/:id/comment */
+  async sendComment(roomId: string, content: string): Promise<void> {
+    await apiPost(`/live/rooms/${roomId}/comment`, { content })
   },
 }

@@ -113,5 +113,51 @@ export function useTim() {
     return () => { messageHandlers.delete(handler) }
   }
 
-  return { isReady, isLoggedIn, ensureLogin, sendText, getC2CHistory, setC2CRead, onMessage }
+  // ───────── 直播弹幕：TIM 群消息（复用同一单例 + MESSAGE_RECEIVED 订阅）─────────
+
+  /** 加入 TIM 群（直播弹幕群）；已在群内(10013)视为成功。groupId 空时静默跳过 */
+  async function joinGroup(groupId: string): Promise<void> {
+    if (!groupId) return
+    await ensureLogin()
+    try {
+      await chat!.joinGroup({ groupID: groupId, type: TIM!.TYPES.GRP_AVCHATROOM })
+    } catch (e: unknown) {
+      // 10013=已是群成员；AVChatRoom 直播群允许匿名进出，其余错误吞掉不阻断观看
+      const code = (e as { code?: number })?.code
+      if (code !== 10013) { /* 进群失败不阻断：弹幕降级为只读/占位 */ }
+    }
+  }
+
+  /** 退出 TIM 群（页面卸载时调用）；失败静默 */
+  async function quitGroup(groupId: string): Promise<void> {
+    if (!groupId || !isLoggedIn.value || !chat) return
+    try { await chat.quitGroup(groupId) } catch { /* ignore */ }
+  }
+
+  /** 发送群弹幕文本，返回 SDK 落地消息对象 */
+  async function sendGroupText(groupId: string, text: string): Promise<TimMessage> {
+    await ensureLogin()
+    const sdk = TIM!
+    const c = chat!
+    const message = c.createTextMessage({
+      to: groupId,
+      conversationType: sdk.TYPES.CONV_GROUP,
+      payload: { text },
+    })
+    const res = await c.sendMessage(message)
+    return res.data.message as unknown as TimMessage
+  }
+
+  /** 拉取群历史弹幕（分页游标 nextReqMessageID） */
+  async function getGroupHistory(groupId: string, nextReqMessageID?: string): Promise<{ messageList: TimMessage[]; nextReqMessageID: string; isCompleted: boolean }> {
+    await ensureLogin()
+    const c = chat!
+    const res = await c.getMessageList({ conversationID: `GROUP${groupId}`, nextReqMessageID })
+    return res.data as unknown as { messageList: TimMessage[]; nextReqMessageID: string; isCompleted: boolean }
+  }
+
+  return {
+    isReady, isLoggedIn, ensureLogin, sendText, getC2CHistory, setC2CRead, onMessage,
+    joinGroup, quitGroup, sendGroupText, getGroupHistory,
+  }
 }
