@@ -19,17 +19,25 @@ export class VideoService {
   ) {}
 
   @CacheEvict({ key: "video:list:*", pattern: true })
-  async create(userId: string, dto: { circleId?: string; title?: string; videoUrl: string; coverUrl?: string; duration?: number; stationId?: string }) {
-    await this.auditService.moderateTextOrThrow([dto.title].filter(Boolean).join(" "), { scene: "VIDEO", userId });
+  async create(userId: string, dto: { circleId?: string; title?: string; description?: string; videoUrl: string; coverUrl?: string; duration?: number; tags?: string[]; isPrivate?: boolean; products?: string[]; stationId?: string }) {
+    await this.auditService.moderateTextOrThrow([dto.title, dto.description].filter(Boolean).join(" "), { scene: "VIDEO", userId });
+    // 带货商品去重 + 限 5 件
+    const productIds = Array.from(new Set((dto.products ?? []).filter(Boolean))).slice(0, 5);
     return this.prisma.video.create({
       data: {
         userId,
         circleId: dto.circleId,
         title: dto.title,
+        description: dto.description,
         videoUrl: dto.videoUrl,
         coverUrl: dto.coverUrl,
         duration: dto.duration,
+        tags: (dto.tags ?? []).slice(0, 5),
+        isPrivate: dto.isPrivate ?? false,
         stationId: dto.stationId || undefined,
+        products: productIds.length
+          ? { create: productIds.map((productId, i) => ({ productId, sortOrder: i })) }
+          : undefined,
       },
     });
   }

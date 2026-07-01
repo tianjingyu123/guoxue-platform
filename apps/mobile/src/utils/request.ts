@@ -161,6 +161,45 @@ export function uploadImage(filePath: string): Promise<string> {
   })
 }
 
+/**
+ * 上传视频 — POST /upload/video（multipart，字段名 file，需登录，最大 200MB）
+ * @param filePath uni.chooseVideo 返回的 tempFilePath
+ * @param onProgress 上传进度回调（0-100）
+ * 返回视频可访问 URL（后端 UploadResult.url）。
+ */
+export function uploadVideo(filePath: string, onProgress?: (percent: number) => void): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const token = getToken()
+    const task = uni.uploadFile({
+      url: `${BASE_URL}${PREFIX}/upload/video`,
+      filePath,
+      name: 'file',
+      header: token ? { Authorization: `Bearer ${token}` } : {},
+      success: (res) => {
+        if (res.statusCode === 401) {
+          handleUnauthorized()
+          reject(new Error('未登录或登录已过期'))
+          return
+        }
+        try {
+          const body = JSON.parse(res.data) as ApiResponse<{ url: string }>
+          if (body && body.code === 200 && body.data?.url) {
+            resolve(body.data.url)
+          } else {
+            reject(new Error(body?.message || `上传失败(${res.statusCode})`))
+          }
+        } catch (e) {
+          reject(new Error('上传响应解析失败'))
+        }
+      },
+      fail: (err) => reject(new Error(err.errMsg || '上传失败')),
+    })
+    if (onProgress && task && typeof task.onProgressUpdate === 'function') {
+      task.onProgressUpdate((p: { progress: number }) => onProgress(p.progress))
+    }
+  })
+}
+
 /** 选择并上传单张图片，返回 URL（封装 uni.chooseImage + uploadImage） */
 export function chooseAndUploadImage(): Promise<string> {
   return new Promise((resolve, reject) => {

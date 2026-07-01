@@ -42,36 +42,30 @@
 
       <view class="vp-edit-preview">
         <view class="vp-edit-video">
-          <view class="vp-edit-play" @tap="isPlaying = !isPlaying">
-            <view v-if="!isPlaying" class="vp-edit-playbtn">
-              <AppIcon name="play" :size="64" color="#ffffff" />
-            </view>
-          </view>
+          <video
+            v-if="videoTempPath"
+            :src="videoTempPath"
+            class="vp-edit-video-el"
+            :show-center-play-btn="true"
+            object-fit="contain"
+          />
         </view>
       </view>
 
       <view class="vp-edit-cover">
         <view class="vp-edit-cover-head">
-          <text class="vp-edit-cover-label">选择封面</text>
-          <view class="vp-edit-cover-upload">
+          <text class="vp-edit-cover-label">视频封面</text>
+          <view class="vp-edit-cover-upload" @tap="pickCover">
             <AppIcon name="upload" :size="32" color="#c41e3a" />
-            <text class="vp-edit-cover-upload-txt">上传封面</text>
+            <text class="vp-edit-cover-upload-txt">{{ uploadingCover ? '上传中...' : '上传封面' }}</text>
           </view>
         </view>
-        <scroll-view scroll-x class="vp-edit-frames" :show-scrollbar="false">
-          <view
-            v-for="(f, idx) in mockFrames"
-            :key="idx"
-            class="vp-edit-frame"
-            :class="{ active: coverFrameIndex === idx }"
-            @tap="coverFrameIndex = idx"
-          >
-            <view class="vp-edit-frame-img" :style="{ backgroundColor: f }" />
-            <view v-if="coverFrameIndex === idx" class="vp-edit-frame-check">
-              <AppIcon name="check" :size="40" color="#ffffff" />
-            </view>
+        <view class="vp-edit-cover-preview">
+          <image v-if="coverPreview" :src="coverPreview" class="vp-edit-cover-img" mode="aspectFill" />
+          <view v-else class="vp-edit-cover-ph">
+            <text class="vp-edit-cover-ph-txt">未设封面时将使用视频首帧</text>
           </view>
-        </scroll-view>
+        </view>
       </view>
     </view>
 
@@ -92,8 +86,9 @@
         <view class="vp-pub-section">
           <view class="vp-pub-titlecard">
             <view class="vp-pub-cover">
-              <view class="vp-pub-cover-img" :style="{ backgroundColor: mockFrames[coverFrameIndex] }" />
-              <view class="vp-pub-cover-dur">00:30</view>
+              <image v-if="coverPreview" :src="coverPreview" class="vp-pub-cover-img" mode="aspectFill" />
+              <view v-else class="vp-pub-cover-img vp-pub-cover-ph" />
+              <view class="vp-pub-cover-dur">{{ durationText }}</view>
             </view>
             <textarea
               v-model="title"
@@ -317,6 +312,7 @@ import { onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { videoApi, publishHotTags, type PublishProduct } from '@/lib/video-data'
+import { uploadVideo, uploadImage, chooseAndUploadImage } from '@/utils/request'
 
 const statusBarHeight = ref(0)
 try {
@@ -327,11 +323,13 @@ try {
 const rootStyle = computed(() => ({}))
 
 const step = ref<'select' | 'edit' | 'publish'>('select')
-const isPlaying = ref(false)
-const coverFrameIndex = ref(0)
 
-// 模拟视频帧（原型从真实视频提取，uni H5 无法选本地文件，用占位灰阶帧）
-const mockFrames = ['#3a3a3a', '#4a4540', '#52453a', '#3f4a45', '#454552', '#4a3f3f', '#3a4552', '#504a3a']
+// 选中的真实视频
+const videoTempPath = ref('') // 本地临时路径（预览+上传）
+const videoDuration = ref(0) // 秒
+const coverTempPath = ref('') // chooseVideo 返回的缩略图（小程序支持，H5 无）
+const coverUploadedUrl = ref('') // 用户手动上传的封面（已是可访问 URL）
+const uploadingCover = ref(false)
 
 const title = ref('')
 const description = ref('')
@@ -364,15 +362,53 @@ const uploadProgress = ref(0)
 const estimatedCommission = computed(() =>
   selectedProducts.value.reduce((sum, p) => sum + (p.price * (p.commission || 10)) / 100, 0),
 )
+const coverPreview = computed(() => coverUploadedUrl.value || coverTempPath.value)
+const durationText = computed(() => {
+  const s = Math.round(videoDuration.value)
+  const m = Math.floor(s / 60)
+  const ss = s % 60
+  return `${String(m).padStart(2, '0')}:${String(ss).padStart(2, '0')}`
+})
 
 const submitting = ref(false)
 
+function chooseVideo(sourceType: 'album' | 'camera') {
+  uni.chooseVideo({
+    sourceType: [sourceType],
+    compressed: true,
+    maxDuration: 60,
+    success: (res: { tempFilePath?: string; duration?: number; thumbTempFilePath?: string }) => {
+      videoTempPath.value = res.tempFilePath || ''
+      videoDuration.value = res.duration || 0
+      coverTempPath.value = res.thumbTempFilePath || ''
+      coverUploadedUrl.value = ''
+      if (!videoTempPath.value) {
+        uni.showToast({ title: '未获取到视频', icon: 'none' })
+        return
+      }
+      step.value = 'edit'
+    },
+    fail: () => {},
+  })
+}
 function pickFromAlbum() {
-  // uni H5 无法真正提取帧，直接进入编辑步骤展示流程
-  step.value = 'edit'
+  chooseVideo('album')
 }
 function onShoot() {
-  uni.showToast({ title: '请使用相册选择', icon: 'none' })
+  chooseVideo('camera')
+}
+
+async function pickCover() {
+  if (uploadingCover.value) return
+  uploadingCover.value = true
+  try {
+    coverUploadedUrl.value = await chooseAndUploadImage()
+  } catch (e) {
+    const msg = (e as Error)?.message
+    if (msg && msg !== '已取消') uni.showToast({ title: msg, icon: 'none' })
+  } finally {
+    uploadingCover.value = false
+  }
 }
 
 function addTag() {
@@ -414,6 +450,10 @@ function searchProducts() {
 
 async function handlePublish() {
   if (uploading.value || submitting.value) return
+  if (!videoTempPath.value) {
+    uni.showToast({ title: '请先选择视频', icon: 'none' })
+    return
+  }
   if (!title.value.trim()) {
     titleError.value = '请输入视频标题'
     return
@@ -425,26 +465,39 @@ async function handlePublish() {
   titleError.value = ''
   uploading.value = true
   submitting.value = true
+  uploadProgress.value = 0
   try {
-    // 模拟上传进度
-    for (let i = 0; i <= 80; i += 10) {
-      await new Promise((r) => setTimeout(r, 200))
-      uploadProgress.value = i
+    // 1. 真实上传视频到后端（真进度，占 0-90%）
+    const videoUrl = await uploadVideo(videoTempPath.value, (p) => {
+      uploadProgress.value = Math.min(90, Math.round(p * 0.9))
+    })
+    // 2. 封面：优先用户上传的封面，其次视频缩略图（若平台提供）
+    let coverUrl = coverUploadedUrl.value
+    if (!coverUrl && coverTempPath.value) {
+      try {
+        coverUrl = await uploadImage(coverTempPath.value)
+      } catch {
+        // 封面上传失败不阻断发布，后端封面留空由详情页兜底
+      }
     }
-    // 调用真实 API 发布
+    uploadProgress.value = 95
+    // 3. 发布（字段对齐后端 CreateVideoDto）
     await videoApi.publish({
-      title: title.value,
-      description: description.value,
+      title: title.value.trim(),
+      description: description.value.trim() || undefined,
+      videoUrl,
+      coverUrl: coverUrl || undefined,
+      duration: Math.round(videoDuration.value) || undefined,
       tags: tags.value,
-      isPublic: isPublic.value,
+      isPrivate: !isPublic.value,
       products: selectedProducts.value.map((p) => p.id),
     })
     uploadProgress.value = 100
-    await new Promise((r) => setTimeout(r, 400))
+    await new Promise((r) => setTimeout(r, 300))
     uni.showToast({ title: '发布成功', icon: 'success' })
     setTimeout(() => navigateTo('/videos'), 600)
-  } catch {
-    uni.showToast({ title: '发布失败，请重试', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '发布失败，请重试', icon: 'none' })
   } finally {
     uploading.value = false
     submitting.value = false
@@ -572,27 +625,25 @@ async function handlePublish() {
 .vp-edit-cover-label { color: #ffffff; font-size: 26rpx; }
 .vp-edit-cover-upload { display: flex; align-items: center; gap: 8rpx; }
 .vp-edit-cover-upload-txt { color: var(--brand); font-size: 26rpx; }
-.vp-edit-frames { white-space: nowrap; }
-.vp-edit-frame {
-  display: inline-block;
-  position: relative;
-  width: 112rpx;
-  height: 168rpx;
+.vp-edit-video-el { width: 100%; height: 100%; }
+.vp-edit-cover-preview {
+  width: 160rpx;
+  height: 240rpx;
   border-radius: 16rpx;
   overflow: hidden;
-  margin-right: 16rpx;
-  box-sizing: border-box;
+  background-color: #0a0a0a;
 }
-.vp-edit-frame.active { border: 4rpx solid var(--brand); }
-.vp-edit-frame-img { width: 100%; height: 100%; }
-.vp-edit-frame-check {
-  position: absolute;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background-color: rgba(196, 30, 58, 0.2);
+.vp-edit-cover-img { width: 100%; height: 100%; }
+.vp-edit-cover-ph {
+  width: 100%;
+  height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 0 12rpx;
+  box-sizing: border-box;
 }
+.vp-edit-cover-ph-txt { color: rgba(255, 255, 255, 0.5); font-size: 20rpx; text-align: center; }
 
 /* ===== 发布设置 ===== */
 .vp-publish {
@@ -651,6 +702,7 @@ async function handlePublish() {
   flex-shrink: 0;
 }
 .vp-pub-cover-img { width: 100%; height: 100%; }
+.vp-pub-cover-ph { background-color: #e8e3db; }
 .vp-pub-cover-dur {
   position: absolute;
   bottom: 8rpx;

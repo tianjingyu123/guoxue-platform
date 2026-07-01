@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { IsString, IsOptional, IsInt, IsNumber, IsArray, Min, Max, ValidateNested, MinLength, IsIn } from "class-validator";
+import { IsString, IsOptional, IsInt, IsNumber, IsArray, IsBoolean, Min, Max, ValidateNested, MinLength, IsIn } from "class-validator";
 import { Type } from "class-transformer";
 
 export class CreateVideoDto {
@@ -10,6 +10,10 @@ export class CreateVideoDto {
   @ApiPropertyOptional({ description: "视频标题" })
   @IsOptional() @IsString()
   title?: string;
+
+  @ApiPropertyOptional({ description: "视频描述/简介" })
+  @IsOptional() @IsString()
+  description?: string;
 
   @ApiProperty({ description: "视频URL" })
   @IsString()
@@ -23,6 +27,18 @@ export class CreateVideoDto {
   @ApiPropertyOptional({ description: "时长（秒）" })
   @IsOptional() @IsInt()
   duration?: number;
+
+  @ApiPropertyOptional({ description: "话题标签（最多5个）" })
+  @IsOptional() @IsArray() @IsString({ each: true })
+  tags?: string[];
+
+  @ApiPropertyOptional({ description: "是否仅自己可见" })
+  @IsOptional() @IsBoolean()
+  isPrivate?: boolean;
+
+  @ApiPropertyOptional({ description: "关联带货商品ID列表（最多5件）" })
+  @IsOptional() @IsArray() @IsString({ each: true })
+  products?: string[];
 
   @ApiPropertyOptional({ description: "所属分站ID" })
   @IsOptional() @IsString()
