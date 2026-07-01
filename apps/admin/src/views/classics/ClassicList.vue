@@ -491,7 +491,7 @@ async function fetchBooks() {
     const params: Record<string, string | number> = { pageSize: 100 };
     if (categoryFilter.value) params.category = categoryFilter.value;
     const { data } = await classicApi.list(params);
-    books.value = data.books || data || [];
+    books.value = data.items || data.books || [];
   } catch {
     ElMessage.error("加载古籍列表失败");
   } finally {
@@ -550,7 +550,7 @@ const chForm = reactive({ id: "", title: "", content: "", translation: "", annot
 async function openChapters(row: BookRow) {
   currentBookId.value = row.id!;
   const { data } = await classicApi.getChapters(row.id!);
-  chapters.value = data.chapters || [];
+  chapters.value = data.items || data.chapters || [];
   chapterVisible.value = true;
 }
 

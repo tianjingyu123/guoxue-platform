@@ -321,7 +321,7 @@ async function fetchFinance() {
 async function fetchMembers() {
   try {
     const { data } = await instituteApi.listMembers({ pageSize: 200 });
-    memberOptions.value = data.members || data.data || [];
+    memberOptions.value = data.items || data.members || data.data || [];
   } catch {}
 }
 

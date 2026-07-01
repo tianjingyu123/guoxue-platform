@@ -598,7 +598,7 @@ async function fetchList() {
   loadError.value = false;
   try {
     const { data } = await stationApi.list({ page: page.value, pageSize });
-    stations.value = data.stations || [];
+    stations.value = data.items || data.stations || [];
     total.value = data.total || 0;
   } catch {
     stations.value = [];
@@ -772,7 +772,7 @@ async function fetchOperators() {
   operatorsLoading.value = true;
   try {
     const { data } = await stationApi.operatorList({ page: operatorPage.value, pageSize: operatorPageSize });
-    operators.value = data.operators || [];
+    operators.value = data.items || data.operators || [];
     operatorTotal.value = data.total || 0;
   } finally {
     operatorsLoading.value = false;

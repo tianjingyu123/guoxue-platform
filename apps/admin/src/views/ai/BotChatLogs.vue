@@ -192,7 +192,7 @@ async function fetchList() {
     const params: Record<string, string | number> = { page: page.value, pageSize: 20 }
     if (keyword.value) params.keyword = keyword.value
     const { data } = await aiAdminApi.listChatLogs(params)
-    list.value = data.list || data.data || []; total.value = data.total || 0
+    list.value = data.items || data.list || data.data || []; total.value = data.total || 0
   } catch { loadErr.value = true; list.value = [] } finally { loading.value = false }
 }
 

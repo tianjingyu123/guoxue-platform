@@ -306,7 +306,7 @@ async function fetchHistory() {
     const params: Record<string, string | number> = { page: page.value, pageSize };
     if (typeFilter.value) params.type = typeFilter.value;
     const { data } = await renewalApi.getAdminHistory(params);
-    historyList.value = data.records || [];
+    historyList.value = data.items || data.records || [];
     historyTotal.value = data.total || 0;
   } catch {
     historyList.value = [];

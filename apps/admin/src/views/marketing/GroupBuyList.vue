@@ -314,7 +314,7 @@ const form = reactive({ name: '', productId: '', minMembers: 2, groupPrice: 0, e
 const participantsVis = ref(false); const participantsLoading = ref(false); const participants = ref<ParticipantRow[]>([])
 
 onMounted(() => { fetchList(); loadPages() })
-async function loadPages() { try { const { data } = await marketingApi.listPages(); pages.value = data.pages || data.items || data.data || [] } catch { /* 忽略 */ } }
+async function loadPages() { try { const { data } = await marketingApi.listPages(); pages.value = data.items || data.pages || data.data || [] } catch { /* 忽略 */ } }
 function formatDate(d: string) { return d ? new Date(d).toLocaleString() : '-' }
 
 async function fetchList() {
@@ -338,7 +338,7 @@ async function del(id: string) { try { await ElMessageBox.confirm('确定删除�
 
 async function openParticipants(row: GroupBuyRow) {
   participantsVis.value = true; participantsLoading.value = true
-  try { const { data } = await marketingApi.getGroupBuyParticipants(row.id); participants.value = data.participants || data.data || [] } catch { participants.value = [] } finally { participantsLoading.value = false }
+  try { const { data } = await marketingApi.getGroupBuyParticipants(row.id); participants.value = data.items || data.participants || data.data || [] } catch { participants.value = [] } finally { participantsLoading.value = false }
 }
 </script>
 <style scoped>.page { padding: 16px; } .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; } .toolbar h3 { margin: 0; font-size: 18px; color: var(--color-text-title); }</style>

@@ -518,7 +518,7 @@ async function fetchList() {
     if (filters.city) params.city = filters.city;
     if (filters.status) params.status = filters.status;
     const { data } = await offlineApi.list(params);
-    venues.value = data.stations || [];
+    venues.value = data.items || data.stations || [];
     total.value = data.total || 0;
   } catch {
     venues.value = [];

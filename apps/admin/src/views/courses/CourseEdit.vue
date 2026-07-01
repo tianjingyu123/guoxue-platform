@@ -1520,7 +1520,7 @@ async function fetchStudents() {
   studentLoading.value = true
   try {
     const { data } = await courseApi.getStudents(courseId, { page: studentPage.value, pageSize: studentPageSize.value })
-    students.value = data.students || []
+    students.value = data.items || data.students || []
     studentTotal.value = data.total || 0
   } finally { studentLoading.value = false }
 }
@@ -1578,7 +1578,7 @@ async function fetchReviews() {
   reviewLoading.value = true
   try {
     const { data } = await courseApi.getAllReviews(courseId, { page: reviewPage.value, pageSize: reviewPageSize.value, status: reviewFilter.value || undefined })
-    reviews.value = data.reviews || []
+    reviews.value = data.items || data.reviews || []
     reviewTotal.value = data.total || 0
   } finally { reviewLoading.value = false }
 }
@@ -1620,7 +1620,7 @@ async function fetchQas() {
     if (qaFilter.status) params.status = qaFilter.status
     if (qaFilter.tag) params.tag = qaFilter.tag
     const { data } = await courseApi.getQuestions(courseId, params)
-    qas.value = data.questions || []
+    qas.value = data.items || data.questions || []
     qaTotal.value = data.total || 0
   } finally { qaLoading.value = false }
 }
@@ -1628,7 +1628,7 @@ async function fetchQas() {
 async function fetchQaTags() {
   try {
     const { data } = await courseApi.getQuestionTags(courseId)
-    qaTags.value = data.tags || []
+    qaTags.value = data.items || data.tags || []
   } catch { /* skip */ }
 }
 

@@ -153,7 +153,7 @@ async function fetchLatest() {
 async function fetchList() {
   loading.value = true
   loadError.value = false
-  try { const { data } = await api.get('/system/backup/list'); list.value = data.files || data.data || [] } catch { loadError.value = true; list.value = []; ElMessage.error('加载失败，请重试') } finally { loading.value = false }
+  try { const { data } = await api.get('/system/backup/list'); list.value = data.items || data.files || data.data || [] } catch { loadError.value = true; list.value = []; ElMessage.error('加载失败，请重试') } finally { loading.value = false }
 }
 
 async function manualBackup() {

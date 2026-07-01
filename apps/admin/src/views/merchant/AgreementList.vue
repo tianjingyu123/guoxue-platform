@@ -176,8 +176,8 @@ async function fetchList() {
   error.value = false
   try {
     const res = await merchantApi.getAgreements({ page: page.value, pageSize: 20 })
-    const data = res.data as { list?: AgreementRow[]; total?: number }
-    list.value = data.list || []
+    const data = res.data as { items?: AgreementRow[]; list?: AgreementRow[]; total?: number }
+    list.value = data.items || data.list || []
     total.value = data.total || 0
   } catch (e) {
     error.value = true

@@ -352,7 +352,7 @@ async function fetchGifts() {
   loadError.value = false
   try {
     const { data } = await api.get(GIFT_BASE, { params: { page: page.value, pageSize: 20 } })
-    giftList.value = data.gifts || data.data || []
+    giftList.value = data.items || data.gifts || data.data || []
     total.value = data.total || 0
   } catch { loadError.value = true; giftList.value = []; ElMessage.error('加载失败，请重试') } finally { loading.value = false }
 }

@@ -41,7 +41,7 @@ async function doCalc() {
   loading.value = true
   error.value = false
   try {
-    result.value = await paipanApi.ziweiPreview({ ...form })
+    result.value = (await paipanApi.ziweiPreview({ ...form })).data
   } catch {
     error.value = true
     ElMessage.error('排盘失败，请稍后重试')

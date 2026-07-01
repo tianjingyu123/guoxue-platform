@@ -3,8 +3,8 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { systemApi } from '@/api'
 
-interface Field { key: string; label: string; sensitive: boolean; placeholder: string }
-interface Service { key: string; label: string; category: string; enabled: boolean; fields: Field[] }
+interface Field { key: string; label: string; sensitive: boolean; placeholder: string; hint: string }
+interface Service { key: string; label: string; category: string; enabled: boolean; note: string; fields: Field[] }
 
 const loading = ref(false)
 const loadError = ref(false)
@@ -127,9 +127,15 @@ async function saveService(svc: Service) {
                 size="small"
                 type="info"
               >
-                待开发
+                可暂缓
               </el-tag>
             </template>
+            <p
+              v-if="svc.note"
+              class="svc-note"
+            >
+              {{ svc.note }}
+            </p>
             <el-form
               label-width="150px"
               label-position="left"
@@ -145,6 +151,12 @@ async function saveService(svc: Service) {
                   :show-password="f.sensitive"
                   :placeholder="f.placeholder || (f.sensitive ? '留空或掩码则不修改' : '')"
                 />
+                <div
+                  v-if="f.hint"
+                  class="field-hint"
+                >
+                  {{ f.hint }}
+                </div>
               </el-form-item>
               <el-form-item>
                 <el-button
@@ -169,4 +181,6 @@ async function saveService(svc: Service) {
 .hint { color: #909399; font-size: 12px; }
 .svc-card { margin-bottom: 14px; }
 .svc-title { font-weight: 600; margin-right: 8px; }
+.svc-note { color: #606266; font-size: 13px; line-height: 1.6; margin: 0 0 14px; padding: 8px 12px; background: #f4f4f5; border-radius: 4px; border-left: 3px solid #409eff; }
+.field-hint { color: #909399; font-size: 12px; line-height: 1.5; margin-top: 4px; }
 </style>

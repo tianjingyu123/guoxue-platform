@@ -101,8 +101,8 @@ async function fetchList() {
     if (search.value) params.keyword = search.value;
     const res = await merchantBackendApi.listCustomers(params);
     // 兼容两种响应包装：{ data: {...} } 或直接返回 data
-    const data = (res as { data?: { list?: CustomerRow[]; data?: CustomerRow[]; total?: number } }).data ?? (res as { list?: CustomerRow[]; data?: CustomerRow[]; total?: number });
-    list.value = data.list || data.data || [];
+    const data = (res as { data?: { items?: CustomerRow[]; list?: CustomerRow[]; data?: CustomerRow[]; total?: number } }).data ?? (res as { items?: CustomerRow[]; list?: CustomerRow[]; data?: CustomerRow[]; total?: number });
+    list.value = data.items || data.list || data.data || [];
     total.value = data.total || 0;
   } catch (e) {
     error.value = true;

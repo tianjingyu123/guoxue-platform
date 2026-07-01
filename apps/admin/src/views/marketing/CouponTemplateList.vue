@@ -411,12 +411,12 @@ function typeLabel(t: string) {
 }
 
 onMounted(() => { fetchList(); loadPages() })
-async function loadPages() { try { const { data } = await marketingApi.listPages(); pages.value = data.pages || data.items || data.data || [] } catch { /* 忽略 */ } }
+async function loadPages() { try { const { data } = await marketingApi.listPages(); pages.value = data.items || data.pages || data.data || [] } catch { /* 忽略 */ } }
 function formatDate(d: string) { return d ? new Date(d).toLocaleString() : '-' }
 
 async function fetchList() {
   loading.value = true; error.value = false
-  try { const { data } = await marketingApi.listCoupons({ page: page.value, pageSize: 20 }); list.value = data.coupons || data.data || []; total.value = data.total || 0 } catch { list.value = []; error.value = true } finally { loading.value = false }
+  try { const { data } = await marketingApi.listCoupons({ page: page.value, pageSize: 20 }); list.value = data.items || data.coupons || data.data || []; total.value = data.total || 0 } catch { list.value = []; error.value = true } finally { loading.value = false }
 }
 
 function openCreate() { editingId.value = ''; Object.assign(form, { name: '', type: 'FIXED', faceValue: 10, threshold: 100, totalCount: 0, startTime: '', endTime: '', scope: 'GLOBAL', scopePageId: '' }); vis.value = true }
@@ -472,7 +472,7 @@ async function doGrant() {
 
 async function openRecords(row: CouponRow) {
   recordsVis.value = true; recordsLoading.value = true
-  try { const { data } = await marketingApi.getCouponRecords(row.id); records.value = data.records || data.data || [] } catch { records.value = [] } finally { recordsLoading.value = false }
+  try { const { data } = await marketingApi.getCouponRecords(row.id); records.value = data.items || data.records || data.data || [] } catch { records.value = [] } finally { recordsLoading.value = false }
 }
 </script>
 <style scoped>.page { padding: 16px; } .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; } .toolbar h3 { margin: 0; font-size: 18px; color: var(--color-text-title); }</style>

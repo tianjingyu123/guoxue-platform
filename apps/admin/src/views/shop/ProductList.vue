@@ -456,7 +456,7 @@ async function fetchList() {
   error.value = false
   try {
     const { data } = await productApi.list({ page: page.value, pageSize: 20 })
-    products.value = data.products; total.value = data.total
+    products.value = data.items || data.products || []; total.value = data.total || 0
   } catch {
     products.value = []; total.value = 0; error.value = true
   } finally { loading.value = false }
@@ -537,7 +537,7 @@ async function handleDelete(id: string) {
 async function openSkus(row: ProductRow | null) {
   if (!row) return
   skuProduct.value = row
-  try { const { data } = await productApi.detail(row.id ?? ''); skus.value = data.skus || [] } catch { skus.value = [] }
+  try { const { data } = await productApi.detail(row.id ?? ''); skus.value = data.items || data.skus || [] } catch { skus.value = [] }
   skuVisible.value = true
 }
 

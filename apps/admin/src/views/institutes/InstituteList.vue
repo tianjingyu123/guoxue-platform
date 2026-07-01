@@ -358,7 +358,7 @@ async function fetchList() {
     if (statusFilter.value) params.status = statusFilter.value;
     if (roleFilter.value) params.role = roleFilter.value;
     const { data } = await instituteApi.listMembers(params);
-    list.value = data.members || [];
+    list.value = data.items || data.members || [];
     total.value = data.total || 0;
   } catch {
     loadError.value = true;

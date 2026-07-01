@@ -187,7 +187,7 @@ const history = ref<any[]>([])
 onMounted(async () => {
   try {
     const { data } = await notificationApi.list({ page: 1, pageSize: 20 })
-    history.value = data.notifications || data.data || []
+    history.value = data.items || data.notifications || data.data || []
   } catch { history.value = [] }
 })
 

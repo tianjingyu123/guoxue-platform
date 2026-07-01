@@ -308,7 +308,7 @@ async function fetchList() {
     const params: any = { pageSize: 100 };
     if (statusFilter.value) params.status = statusFilter.value;
     const { data } = await videoApi.list(params);
-    list.value = data.videos || data || [];
+    list.value = data.items || data.videos || [];
   } catch {
     loadError.value = true;
     list.value = [];

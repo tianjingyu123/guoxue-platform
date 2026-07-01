@@ -314,7 +314,7 @@ async function fetchList() {
   error.value = false
   try {
     const { data } = await api.get('/admin/recommend/rules', { params: { page: page.value, pageSize: 20 } })
-    list.value = data.rules || data.data || []
+    list.value = data.items || data.rules || data.data || []
     total.value = data.total || 0
   } catch {
     error.value = true

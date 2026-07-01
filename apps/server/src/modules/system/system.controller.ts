@@ -37,11 +37,13 @@ export class SystemController {
         label: s.label,
         category: s.category,
         enabled: s.enabled !== false,
+        note: s.note ?? "",
         fields: s.fields.map((f) => ({
           key: f.key,
           label: f.label,
           sensitive: !!f.sensitive,
           placeholder: f.placeholder ?? "",
+          hint: f.hint ?? "",
         })),
       })),
     };

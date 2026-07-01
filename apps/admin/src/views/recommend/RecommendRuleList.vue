@@ -306,7 +306,7 @@ async function fetchList() {
   try {
     const res = await recommendRuleApi.list({ page: page.value, pageSize: 20 })
     const data = res.data as { list?: RuleRow[]; items?: RuleRow[]; total?: number }
-    list.value = data.list || data.items || []
+    list.value = data.items || data.list || []
     total.value = data.total || 0
   } catch {
     error.value = true

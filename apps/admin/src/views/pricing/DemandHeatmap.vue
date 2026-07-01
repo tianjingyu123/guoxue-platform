@@ -216,7 +216,7 @@ async function fetchData() {
     if (filterType.value) params.targetType = filterType.value;
     if (filterLevel.value) params.demandLevel = filterLevel.value;
     const res = await pricingApi.getDemand(params);
-    list.value = res.data.list || res.data.rows || [];
+    list.value = res.data.items || res.data.list || res.data.rows || [];
     total.value = res.data.total || 0;
   } catch {
     list.value = [];

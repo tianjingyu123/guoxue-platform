@@ -497,7 +497,7 @@ async function fetchList() {
       params.dateTo = dateRange.value[1];
     }
     const { data } = await userApi.list(params);
-    list.value = data.users || data || [];
+    list.value = data.items || data.users || [];
     total.value = data.total || 0;
   } finally { loading.value = false; }
 }

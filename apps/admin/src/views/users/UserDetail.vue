@@ -671,13 +671,13 @@ async function onTabChange(tab: string) {
     orderLoading.value = true
     try {
       const { data } = await orderApi.list({ page: 1, pageSize: 50 })
-      orders.value = data.orders || data.data || []
+      orders.value = data.items || data.orders || data.data || []
     } catch { orders.value = [] } finally { orderLoading.value = false }
   }
   if (tab === 'circles' && circles.value.length === 0) {
     try {
       const { data } = await circleApi.list({ userId, page: 1, pageSize: 50 }).catch(() => ({ data: { circles: [] } }))
-      circles.value = data.circles || data.data || []
+      circles.value = data.items || data.circles || data.data || []
     } catch { circles.value = [] }
   }
   if (tab === 'certifications' && certifications.value.length === 0) {
@@ -745,7 +745,7 @@ async function assignRole() {
     ElMessage.success('角色已分配')
     newRole.value = ''
     const { data } = await userApi.detail(userId)
-    userRoles.value = data.roles || []
+    userRoles.value = data.items || data.roles || []
   } catch { } finally { assigning.value = false }
 }
 
@@ -755,7 +755,7 @@ async function removeRole(row: any) {
     await userApi.removeRole(userId, row.roleType, row.bindId)
     ElMessage.success('已移除')
     const { data } = await userApi.detail(userId)
-    userRoles.value = data.roles || []
+    userRoles.value = data.items || data.roles || []
   } catch {}
 }
 

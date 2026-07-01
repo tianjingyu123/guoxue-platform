@@ -180,7 +180,7 @@ async function fetchList() {
       page: page.value, pageSize: pageSize.value,
       status: filterStatus.value || undefined,
     });
-    list.value = data.withdrawals || [];
+    list.value = data.items || data.withdrawals || [];
     total.value = data.total || 0;
   } catch {
     list.value = [];

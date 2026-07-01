@@ -302,7 +302,7 @@ async function fetchList() {
       params.endDate = filters.dateRange[1]
     }
     const { data } = await orderApi.list(params)
-    list.value = data.orders || data.data || []
+    list.value = data.items || data.orders || data.data || []
     total.value = data.total || 0
   } catch {
     list.value = []

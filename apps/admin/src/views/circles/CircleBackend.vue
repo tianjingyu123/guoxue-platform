@@ -312,7 +312,7 @@ async function fetchCircles() {
   loadError.value = false;
   try {
     const { data } = await circleBackendApi.adminCircles({ page: page.value, pageSize });
-    circleList.value = data.circles || [];
+    circleList.value = data.items || data.circles || [];
     circleTotal.value = data.total || 0;
   } catch { loadError.value = true; } finally { loading.value = false; }
 }

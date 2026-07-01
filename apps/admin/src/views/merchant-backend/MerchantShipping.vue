@@ -302,8 +302,8 @@ async function fetchList() {
     if (filterStatus.value) params.status = filterStatus.value;
     const res = await merchantBackendApi.listOrders(params);
     // 兼容两种响应包装：{ data: {...} } 或直接返回 data
-    const data = (res as { data?: { list?: ShipOrderRow[]; data?: ShipOrderRow[]; total?: number } }).data ?? (res as { list?: ShipOrderRow[]; data?: ShipOrderRow[]; total?: number });
-    list.value = data.list || data.data || [];
+    const data = (res as { data?: { items?: ShipOrderRow[]; list?: ShipOrderRow[]; data?: ShipOrderRow[]; total?: number } }).data ?? (res as { items?: ShipOrderRow[]; list?: ShipOrderRow[]; data?: ShipOrderRow[]; total?: number });
+    list.value = data.items || data.list || data.data || [];
     total.value = data.total || 0;
   } catch (e) {
     error.value = true;

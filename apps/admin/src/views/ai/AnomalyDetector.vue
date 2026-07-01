@@ -376,7 +376,7 @@ async function runAllChecks() {
   try {
     const res = await aiAnomalyApi.checkAll()
     const data = res.data || {}
-    lastReports.value = data.reports || []
+    lastReports.value = data.items || data.reports || []
     reports.value = lastReports.value
     aiReport.value = data.aiReport || ''
     if (lastReports.value.length > 0) {

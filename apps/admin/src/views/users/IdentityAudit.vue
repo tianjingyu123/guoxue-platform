@@ -179,7 +179,7 @@ async function fetchList() {
   loading.value = true
   try {
     const { data } = await identityApi.list({ page: page.value, pageSize: 20, status: activeTab.value })
-    list.value = data.list || data.data || []
+    list.value = data.items || data.list || data.data || []
     total.value = data.total || 0
   } catch { list.value = [] } finally { loading.value = false }
 }

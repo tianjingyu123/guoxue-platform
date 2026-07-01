@@ -334,7 +334,7 @@ function openSchedule(row: TeacherRow) {
   scheduleVis.value = true
 }
 async function fetchSchedule() {
-  try { const { data } = await api.get(`/offline/admin/teachers/${scheduleTeacherId.value}/schedule`, { params: { month: scheduleMonth.value } }); schedule.value = data.schedule || data.data || [] } catch { schedule.value = [] }
+  try { const { data } = await api.get(`/offline/admin/teachers/${scheduleTeacherId.value}/schedule`, { params: { month: scheduleMonth.value } }); schedule.value = data.items || data.schedule || data.data || [] } catch { schedule.value = [] }
   try { const { data } = await api.get('/offline/admin/schedule/conflicts', { params: { teacherId: scheduleTeacherId.value, date: scheduleMonth.value + '-01' } }); conflictMsg.value = data.conflicts?.length ? `${data.conflicts.length} 个冲突` : '' } catch { conflictMsg.value = '' }
 }
 

@@ -399,7 +399,7 @@ function onTabChange(tab: string) {
 
 async function fetchApprovals() {
   loading.value = true; loadErr.value = false
-  try { const { data } = await aiAdminApi.listCircleAssistants(); list.value = data.approvals || data.data || [] } catch { loadErr.value = true; list.value = [] } finally { loading.value = false }
+  try { const { data } = await aiAdminApi.listCircleAssistants(); list.value = data.items || data.approvals || data.data || [] } catch { loadErr.value = true; list.value = [] } finally { loading.value = false }
 }
 
 async function approveBot(row: ApprovalRow) {
@@ -421,7 +421,7 @@ async function rejectBot(row: ApprovalRow) {
 async function fetchKnowledge() {
   if (!knowledgeCircleId.value) return
   kLoading.value = true; kErr.value = false
-  try { const { data } = await aiAdminApi.getKnowledgeBase(knowledgeCircleId.value); kList.value = data.entries || data.data || [] } catch { kErr.value = true; kList.value = [] } finally { kLoading.value = false }
+  try { const { data } = await aiAdminApi.getKnowledgeBase(knowledgeCircleId.value); kList.value = data.items || data.entries || data.data || [] } catch { kErr.value = true; kList.value = [] } finally { kLoading.value = false }
 }
 
 function openKnowledgeCreate() { kEditingId.value = ''; Object.assign(kForm, { title: '', content: '' }); kVis.value = true }

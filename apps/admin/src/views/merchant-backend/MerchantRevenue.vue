@@ -231,8 +231,8 @@ async function fetchSettlements() {
   try {
     const res = await merchantBackendApi.listSettlements({ page: page.value, pageSize: 20 });
     // 兼容两种响应包装：{ data: {...} } 或直接返回 data
-    const data = (res as { data?: { list?: SettlementRow[]; data?: SettlementRow[]; total?: number } }).data ?? (res as { list?: SettlementRow[]; data?: SettlementRow[]; total?: number });
-    list.value = data.list || data.data || [];
+    const data = (res as { data?: { items?: SettlementRow[]; list?: SettlementRow[]; data?: SettlementRow[]; total?: number } }).data ?? (res as { items?: SettlementRow[]; list?: SettlementRow[]; data?: SettlementRow[]; total?: number });
+    list.value = data.items || data.list || data.data || [];
     total.value = data.total || 0;
   } catch (e) {
     error.value = true;

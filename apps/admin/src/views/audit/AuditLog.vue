@@ -173,7 +173,7 @@ onMounted(async () => {
 async function loadActions() {
   try {
     const { data } = await auditApi.getActions();
-    actionList.value = data.actions || [];
+    actionList.value = data.items || data.actions || [];
   } catch { /* */ }
 }
 
@@ -193,7 +193,7 @@ async function fetchList() {
       params.endDate = dateRange.value[1];
     }
     const { data } = await auditApi.list(params);
-    list.value = data.logs || [];
+    list.value = data.items || data.logs || [];
     total.value = data.total || 0;
   } catch {
     error.value = true;

@@ -251,7 +251,7 @@ async function fetchList() {
   loadError.value = false;
   try {
     const { data } = await circleApi.list({ pageSize: 100 });
-    list.value = data.circles || data || [];
+    list.value = data.items || data.circles || [];
   } catch {
     loadError.value = true;
     ElMessage.error("加载圈子列表失败");

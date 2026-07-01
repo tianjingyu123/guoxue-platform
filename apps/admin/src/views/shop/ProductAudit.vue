@@ -294,7 +294,7 @@ async function fetchList() {
     if (status.value) params.status = status.value
     if (categoryId.value) params.categoryId = categoryId.value
     const { data } = await api.get('/shop/products', { params })
-    products.value = data.products || []
+    products.value = data.items || data.products || []
     total.value = data.total || 0
   } catch {
     products.value = []

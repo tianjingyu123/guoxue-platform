@@ -710,7 +710,7 @@ async function openBindCircle(row: BotRow) {
   bindForm.circleId = "";
   try {
     const { data } = await circleApi.list({ pageSize: 200 });
-    circleList.value = data.circles || (Array.isArray(data) ? data : []);
+    circleList.value = data.items || data.circles || (Array.isArray(data) ? data : []);
     bindDialogVisible.value = true;
   } catch {
   }

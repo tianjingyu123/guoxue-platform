@@ -189,8 +189,8 @@ async function fetchList() {
   try {
     const res = await merchantBackendApi.listViolations({ page: page.value, pageSize: 20 });
     // 兼容两种响应包装：{ data: {...} } 或直接返回 data
-    const data = (res as { data?: { list?: ViolationRow[]; data?: ViolationRow[]; total?: number } }).data ?? (res as { list?: ViolationRow[]; data?: ViolationRow[]; total?: number });
-    list.value = data.list || data.data || [];
+    const data = (res as { data?: { items?: ViolationRow[]; list?: ViolationRow[]; data?: ViolationRow[]; total?: number } }).data ?? (res as { items?: ViolationRow[]; list?: ViolationRow[]; data?: ViolationRow[]; total?: number });
+    list.value = data.items || data.list || data.data || [];
     total.value = data.total || 0;
   } catch (e) {
     error.value = true;

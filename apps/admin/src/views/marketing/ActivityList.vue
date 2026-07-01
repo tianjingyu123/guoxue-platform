@@ -251,7 +251,7 @@ function formatDate(d: string) { return d ? new Date(d).toLocaleString() : '-' }
 
 async function fetchList() {
   loading.value = true; error.value = false
-  try { const { data } = await marketingApi.listActivities({ page: page.value, pageSize: 20 }); list.value = data.activities || data.data || []; total.value = data.total || 0 } catch { list.value = []; error.value = true } finally { loading.value = false }
+  try { const { data } = await marketingApi.listActivities({ page: page.value, pageSize: 20 }); list.value = data.items || data.activities || data.data || []; total.value = data.total || 0 } catch { list.value = []; error.value = true } finally { loading.value = false }
 }
 function openCreate() { editingId.value = ''; Object.assign(form, { name: '', type: '', description: '', startTime: '', endTime: '' }); vis.value = true }
 function openEdit(row: ActivityRow) { editingId.value = row.id; Object.assign(form, { name: row.name, type: row.type || '', description: row.description || '', startTime: row.startTime || '', endTime: row.endTime || '' }); vis.value = true }

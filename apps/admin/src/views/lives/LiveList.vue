@@ -287,7 +287,7 @@ async function fetchList() {
     const params: Record<string, string | number> = { pageSize: 100 };
     if (statusFilter.value) params.status = statusFilter.value;
     const { data } = await liveApi.rooms(params);
-    list.value = data.rooms || data || [];
+    list.value = data.items || data.rooms || [];
   } catch {
     loadError.value = true;
     list.value = [];

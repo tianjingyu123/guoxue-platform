@@ -367,7 +367,7 @@ const courseOptions = ref<CourseOption[]>([]); const courseSearchLoading = ref(f
 const circleOptions = ref<CircleOption[]>([]); const circleSearchLoading = ref(false)
 
 onMounted(() => { fetchList(); loadPages() })
-async function loadPages() { try { const { data } = await marketingApi.listPages(); pages.value = data.pages || data.items || data.data || [] } catch { /* 忽略 */ } }
+async function loadPages() { try { const { data } = await marketingApi.listPages(); pages.value = data.items || data.pages || data.data || [] } catch { /* 忽略 */ } }
 const activeCount = computed(() => list.value.filter((d: DiscountRow) => d.status === 'ACTIVE').length)
 const inactiveCount = computed(() => list.value.filter((d: DiscountRow) => d.status !== 'ACTIVE').length)
 

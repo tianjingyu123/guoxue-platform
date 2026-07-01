@@ -240,7 +240,7 @@ async function fetchList() {
     if (filterCategory.value) params.category = filterCategory.value;
     if (filterStatus.value) params.status = filterStatus.value;
     const res = await bountyApi.listQuestions(params);
-    list.value = res.data.list || res.data.rows || [];
+    list.value = res.data.items || res.data.list || res.data.rows || [];
     total.value = res.data.total || 0;
   } catch {
     error.value = true;

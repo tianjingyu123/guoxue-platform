@@ -124,8 +124,8 @@ async function fetchList() {
     if (filterType.value) params.type = filterType.value;
     const res = await merchantBackendApi.listAfterSales(params);
     // 兼容两种响应包装：{ data: {...} } 或直接返回 data
-    const data = (res as { data?: { list?: AfterSalesRow[]; data?: AfterSalesRow[]; total?: number } }).data ?? (res as { list?: AfterSalesRow[]; data?: AfterSalesRow[]; total?: number });
-    list.value = data.list || data.data || [];
+    const data = (res as { data?: { items?: AfterSalesRow[]; list?: AfterSalesRow[]; data?: AfterSalesRow[]; total?: number } }).data ?? (res as { items?: AfterSalesRow[]; list?: AfterSalesRow[]; data?: AfterSalesRow[]; total?: number });
+    list.value = data.items || data.list || data.data || [];
     total.value = data.total || 0;
   } catch (e) {
     error.value = true;

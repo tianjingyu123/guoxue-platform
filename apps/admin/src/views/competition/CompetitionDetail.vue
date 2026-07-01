@@ -1334,7 +1334,7 @@ async function fetchRegistrations() {
     const params: Record<string, string | number> = { page: regPage.value, pageSize: regPageSize.value };
     if (regFilter.status) params.status = regFilter.status;
     const { data } = await competitionApi.listRegistrations(competitionId, params);
-    registrations.value = data.data || [];
+    registrations.value = data.items || data.data || [];
     regTotal.value = data.total || 0;
   } finally { regLoading.value = false }
 }

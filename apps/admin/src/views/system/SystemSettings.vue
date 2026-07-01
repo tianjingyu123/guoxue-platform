@@ -183,7 +183,7 @@ async function fetchConfigs() {
   loadError.value = false;
   try {
     const { data } = await systemApi.listConfigs();
-    configs.value = data.configs || [];
+    configs.value = data.items || data.configs || [];
   } catch {
     loadError.value = true;
     configs.value = [];

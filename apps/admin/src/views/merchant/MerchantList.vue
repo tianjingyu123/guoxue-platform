@@ -369,8 +369,8 @@ async function fetchList() {
     if (filterStatus.value) params.status = filterStatus.value
     if (keyword.value) params.keyword = keyword.value
     const res = await merchantApi.list(params)
-    const data = res.data as { list?: MerchantRow[]; total?: number }
-    list.value = data.list || []
+    const data = res.data as { items?: MerchantRow[]; list?: MerchantRow[]; total?: number }
+    list.value = data.items || data.list || []
     total.value = data.total || 0
   } catch (e) {
     error.value = true

@@ -444,7 +444,7 @@ async function fetchList() {
     if (filterStatus.value) params.status = filterStatus.value
     const res = await ebookApi.listBooks(params)
     const data = res.data as any
-    list.value = data.list || data.items || []
+    list.value = data.items || data.list || []
     total.value = data.total || 0
   } catch {
     error.value = true

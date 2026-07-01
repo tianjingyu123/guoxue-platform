@@ -1406,7 +1406,7 @@ function formatDate(d: string) { return d ? new Date(d).toLocaleString() : '-' }
 async function fetchList() {
   loading.value = true
   error.value = false
-  try { const { data } = await marketingApi.listPages(); list.value = data.pages || data.data || []; total.value = data.total || 0 } catch { list.value = []; error.value = true } finally { loading.value = false }
+  try { const { data } = await marketingApi.listPages(); list.value = data.items || data.pages || data.data || []; total.value = data.total || 0 } catch { list.value = []; error.value = true } finally { loading.value = false }
 }
 
 function openCreate() { editingId.value = ''; Object.assign(form, { name: '', route: '', description: '', entryVisible: false, entryTitle: '', entryIcon: '', entrySort: 0 }); vis.value = true }
@@ -1457,7 +1457,7 @@ async function del(id: string) {
 // ───────── 组件管理（列表模式） ─────────
 async function openComponents(row: PageRow) {
   currentPageId.value = row.id
-  try { const { data } = await marketingApi.getPage(row.id); components.value = data.components || [] } catch { components.value = [] }
+  try { const { data } = await marketingApi.getPage(row.id); components.value = data.items || data.components || [] } catch { components.value = [] }
   compVis.value = true
 }
 
@@ -1535,7 +1535,7 @@ async function saveComp() {
     }
     ElMessage.success('已保存'); compFormVis.value = false
     const { data } = await marketingApi.getPage(currentPageId.value)
-    components.value = data.components || []
+    components.value = data.items || data.components || []
   } catch { ElMessage.error('组件保存失败') } finally { compSaving.value = false }
 }
 
@@ -1545,7 +1545,7 @@ async function delComp(compId: string) {
     await marketingApi.deletePageComponent(currentPageId.value, compId)
     ElMessage.success('已删除')
     const { data } = await marketingApi.getPage(currentPageId.value)
-    components.value = data.components || []
+    components.value = data.items || data.components || []
   } catch { /* 用户取消 */ }
 }
 
@@ -1777,7 +1777,7 @@ async function openPreview(row: PageRow) {
   previewPageVis.value = true
   try {
     const { data } = await marketingApi.getPage(row.id)
-    previewPageComps.value = data.components || []
+    previewPageComps.value = data.items || data.components || []
   } catch { previewPageComps.value = [] }
 }
 </script>

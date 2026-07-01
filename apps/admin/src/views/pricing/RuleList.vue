@@ -345,7 +345,7 @@ async function fetchList() {
   error.value = false;
   try {
     const res = await pricingApi.getRules({ page: page.value, pageSize: pageSize.value });
-    list.value = res.data.list || res.data.rows || [];
+    list.value = res.data.items || res.data.list || res.data.rows || [];
     total.value = res.data.total || 0;
   } catch {
     list.value = [];

@@ -205,7 +205,7 @@ async function fetchList() {
     if (typeFilter.value) params.type = typeFilter.value;
     if (statusFilter.value) params.status = statusFilter.value;
     const { data } = await orderCenterApi.adminList(params);
-    list.value = data.orders || [];
+    list.value = data.items || data.orders || [];
     total.value = data.total || 0;
   } catch {
     list.value = [];

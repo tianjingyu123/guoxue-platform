@@ -185,7 +185,7 @@ async function fetchList() {
     const params: Record<string, string | number> = { page: page.value, pageSize };
     if (statusFilter.value) params.status = statusFilter.value;
     const { data } = await teacherRequestApi.adminList(params);
-    list.value = data.data || [];
+    list.value = data.items || data.data || [];
     total.value = data.total || 0;
   } catch {
     list.value = [];

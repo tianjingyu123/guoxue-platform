@@ -417,7 +417,7 @@ async function fetchList() {
     if (keyword.value) params.keyword = keyword.value;
     if (typeFilter.value) params.type = typeFilter.value;
     const { data } = await bundleApi.list(params);
-    list.value = data.bundles || [];
+    list.value = data.items || data.bundles || [];
     total.value = data.total || 0;
   } catch {
     list.value = [];

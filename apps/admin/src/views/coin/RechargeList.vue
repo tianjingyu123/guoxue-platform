@@ -251,7 +251,7 @@ async function fetchList() {
       pageSize.value,
       filterUserId.value || undefined,
     );
-    list.value = data.recharges || data.list || [];
+    list.value = data.items || data.recharges || data.list || [];
     total.value = data.total || 0;
   } catch {
     list.value = [];
