@@ -14,7 +14,8 @@ echo ""
 # 规则：页面只能导入 xxxApi 对象、类型(interface/type)、工具函数(非数据)
 # 禁止导入：mock 数组、mock 对象、mock 常量
 MOCK_PATTERNS=(
-  # live-data.ts
+  # live-data.ts（仅 mock 业务数据；不含 UI 配置常量——OBS教程/FAQ/tab标签/评价标签/播放倍速/热搜词
+  #   等为纯前端运营配置，非"掩盖后端错误的假数据"，同 mine/order/shop-data 的处理）
   'liveList' 'liveHosts' 'liveReplays' 'liveCreateCategories'
   'verticalLiveRoom' 'verticalLiveComments' 'verticalLiveProducts'
   'horizontalLiveRoom' 'horizontalSlides' 'horizontalQuestions'
@@ -22,11 +23,10 @@ MOCK_PATTERNS=(
   'liveWatchRoom' 'liveWatchComments' 'liveWatchRankList' 'liveWatchProducts'
   'livePreviewRoom' 'liveEndRoom' 'liveEndRecommendLives' 'liveEndRecommendCourses'
   'hostLiveStats' 'hostLiveRooms' 'hostLiveTrend'
-  'streamConfig' 'obsConfigSteps' 'streamConfigFaq'
-  'obsGuideSteps' 'obsGuideRequirements' 'obsGuideFaq'
-  'replayCategories' 'replayHotItems' 'replayHomeList' 'replayHotSearches'
-  'replayDetail' 'replayCommentAspects' 'replayCommentTagsByRating' 'replayCommentLabels'
-  'liveTabs' 'liveCoinBalance' 'playbackSpeeds'
+  'streamConfig'
+  'replayCategories' 'replayHotItems' 'replayHomeList'
+  'replayDetail'
+  'liveCoinBalance'
   # course-data.ts
   'allCourses' 'courseBanners' 'categoryNav' 'featured' 'ranking'
   'flashSaleCourses' 'freeCourses' 'newCourses' 'feedFilters'
