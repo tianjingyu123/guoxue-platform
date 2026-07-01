@@ -77,6 +77,8 @@ export const useAuthStore = defineStore("auth", () => {
     const { data } = await authApi.login({ phone, password });
     token.value = data.accessToken ?? data.access_token;
     localStorage.setItem("token", token.value!);
+    const rt = data.refreshToken ?? data.refresh_token;
+    if (rt) localStorage.setItem("refresh_token", rt);
     await fetchProfile();
     await fetchMenus();
   }

@@ -15,6 +15,7 @@ api.interceptors.request.use((config) => {
 });
 
 let refreshing = false;
+let refreshQueue: Array<(token: string) => void> = [];
 
 /** 展示错误消息：多条用通知框，单条用顶部提示 */
 function showError(msg: string | string[]) {
@@ -46,11 +47,55 @@ api.interceptors.response.use(
   },
   async (err) => {
     const status = err.response?.status;
+    const original = err.config;
 
-    if (status === 401 && !refreshing && !err.config?.url?.includes("/auth/login")) {
+    if (status === 401 && original && !original._retry
+        && !original.url?.includes("/auth/login") && !original.url?.includes("/auth/refresh")) {
+      original._retry = true;
+
+      // 已有刷新在进行：排队等新 token 后重试（避免并发把一次性 refreshToken 用废）
+      if (refreshing) {
+        return new Promise((resolve, reject) => {
+          refreshQueue.push((newToken: string) => {
+            if (newToken) {
+              original.headers.Authorization = `Bearer ${newToken}`;
+              resolve(api(original));
+            } else {
+              reject(err);
+            }
+          });
+        });
+      }
+
       refreshing = true;
+      const refreshToken = localStorage.getItem("refresh_token");
+      if (refreshToken) {
+        try {
+          // 用独立 axios 调续期，避免拦截器递归
+          const resp = await axios.post("/api/v1/auth/refresh", { refreshToken });
+          const body = resp.data?.data ?? resp.data;
+          const newToken = body.accessToken ?? body.access_token;
+          if (newToken) {
+            localStorage.setItem("token", newToken);
+            const newRt = body.refreshToken ?? body.refresh_token;
+            if (newRt) localStorage.setItem("refresh_token", newRt);
+            refreshing = false;
+            refreshQueue.forEach((cb) => cb(newToken));
+            refreshQueue = [];
+            original.headers.Authorization = `Bearer ${newToken}`;
+            return api(original); // 无感重试原请求
+          }
+        } catch {
+          // 续期失败（refreshToken 也过期），走下面登出
+        }
+      }
+      // 无续期令牌或续期失败 → 登出
+      refreshing = false;
+      refreshQueue.forEach((cb) => cb(""));
+      refreshQueue = [];
       ElMessage.warning("登录已过期，请重新登录");
       localStorage.removeItem("token");
+      localStorage.removeItem("refresh_token");
       localStorage.removeItem("user_roles");
       const currentPath = window.location.pathname;
       const loginPath = import.meta.env.BASE_URL + "login";
