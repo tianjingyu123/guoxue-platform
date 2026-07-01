@@ -267,6 +267,15 @@ export class JsapiPayDto {
   notifyUrl?: string;
 }
 
+export class RechargeJsapiDto {
+  @ApiProperty({ description: "充值国学币数量" })
+  @Type(() => Number)
+  @IsInt()
+  @IsPositive()
+  @Max(1000000)
+  amountCoin: number;
+}
+
 export class NativePayDto {
   @ApiPropertyOptional({ description: "回调通知地址" })
   @IsOptional() @IsString()

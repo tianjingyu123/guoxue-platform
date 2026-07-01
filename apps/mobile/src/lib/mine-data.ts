@@ -306,6 +306,15 @@ export interface RechargeOption {
   bonus: number
   popular?: boolean
 }
+/** 微信 JSAPI 支付参数（uni.requestPayment 所需，后端 signJsapiConfig 生成） */
+export interface WechatPayParams {
+  appId: string
+  timeStamp: string
+  nonceStr: string
+  package: string
+  signType: string
+  paySign: string
+}
 export type WalletTxType = 'recharge' | 'spend' | 'bonus' | 'refund'
 export interface WalletTransaction {
   id: string
@@ -1545,6 +1554,15 @@ export const mineApi = {
     } catch (e: any) {
       return { success: false, message: e?.message || '充值失败' }
     }
+  },
+
+  /**
+   * 微信小程序充值下单 —— POST /shop/recharge/jsapi
+   * 返回 uni.requestPayment 所需支付参数；openid 由后端从微信授权查取。
+   * 到账由支付回调异步完成（幂等），支付成功后需刷新余额。错误传播给页面。
+   */
+  async rechargeWechat(amountCoin: number): Promise<{ payParams: WechatPayParams }> {
+    return await apiPost<{ payParams: WechatPayParams }>('/shop/recharge/jsapi', { amountCoin })
   },
 
   /** 获取交易记录 —— GET /users/wallet/transactions（后端 {transactions:VirtualCoinTransaction[]} → 适配） */

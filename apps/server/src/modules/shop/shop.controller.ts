@@ -16,7 +16,7 @@ import {
   CreateCouponV2Dto, CreateReviewDto, UpdateLogisticsDto,
   CreateFreightTemplateDto, UpdateFreightTemplateDto, ReplyReviewDto,
   ProductListQueryDto, OrderListQueryDto,
-  CreateSkuDto, JsapiPayDto, NativePayDto, RefundOrderDto,
+  CreateSkuDto, JsapiPayDto, NativePayDto, RefundOrderDto, RechargeJsapiDto,
   AddToCartDto, AdminPayOrderDto, AlipayRefundDto,
   UnionpayRefundDto, ApplyAfterSaleDto, ModerateProductDto,
 } from "./shop.dto";
@@ -257,6 +257,17 @@ export class ShopController {
     @Body() body: JsapiPayDto,
   ) {
     return this.shop.createJsapiPayment(req.user.id, body.openid, id, body.notifyUrl);
+  }
+
+  @Post("recharge/jsapi")
+  @UseGuards(JwtAuthGuard, StrictRedisThrottleGuard)
+  @ApiOperation({ summary: "国学币充值-微信小程序JSAPI下单（openid 由后端从微信授权查取）" })
+  @ApiResponse({ status: 201, description: "返回 uni.requestPayment 所需支付参数" })
+  @ApiResponse({ status: 400, description: "金额错误/未绑定微信" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiBearerAuth()
+  async rechargeJsapi(@Req() req: AuthRequest, @Body() body: RechargeJsapiDto) {
+    return this.shop.createCoinRechargeJsapi(req.user.id, body.amountCoin);
   }
 
   @Post("orders/:id/pay/native")

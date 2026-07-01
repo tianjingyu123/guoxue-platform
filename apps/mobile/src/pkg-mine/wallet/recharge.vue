@@ -61,6 +61,24 @@ const totalCoins = computed(() => {
   return o ? o.coins + o.bonus : 0
 })
 
+/** 微信小程序真实支付：拿支付参数 → uni.requestPayment（到账由回调异步完成） */
+async function payByWechatMp(amountCoin: number) {
+  const { payParams } = await mineApi.rechargeWechat(amountCoin)
+  await new Promise<void>((resolve, reject) => {
+    uni.requestPayment({
+      provider: 'wxpay',
+      timeStamp: payParams.timeStamp,
+      nonceStr: payParams.nonceStr,
+      package: payParams.package,
+      signType: payParams.signType as 'MD5' | 'HMAC-SHA256' | 'RSA',
+      paySign: payParams.paySign,
+      success: () => resolve(),
+      fail: (err: { errMsg?: string }) => reject(new Error(err?.errMsg?.includes('cancel') ? '支付已取消' : (err?.errMsg || '支付失败'))),
+    })
+  })
+  uni.showToast({ title: '支付成功，到账处理中', icon: 'success' })
+}
+
 async function handleSubmit() {
   if (selectedAmount.value <= 0 || isSubmitting.value) return
   isSubmitting.value = true
@@ -68,6 +86,14 @@ async function handleSubmit() {
     const selectedOpt = options.value.find(o => o.coins === selectedCoins.value)
     // 到账币数：档位=基础币+赠送币；自定义=金额(元)×10
     const amountCoin = selectedOpt ? (selectedOpt.coins + selectedOpt.bonus) : (parseInt(customAmount.value) || 0) * 10
+    // #ifdef MP-WEIXIN
+    // 微信小程序内且选微信支付：走真实微信支付
+    if (payMethod.value === 'wechat') {
+      await payByWechatMp(amountCoin)
+      return
+    }
+    // #endif
+    // 其他端/其他支付方式：演示模式（下单+模拟到账，真实渠道待各端接入）
     const res = await mineApi.recharge(amountCoin, payMethod.value)
     uni.showToast({ title: res.message, icon: res.success ? 'success' : 'none' })
   } catch (e) {
@@ -84,10 +110,15 @@ async function handleSubmit() {
     <view v-else-if="error" class="error-state"><text>{{ error }}</text><view class="retry-btn" @tap="retry">重试</view></view>
     <template v-else>
     <view class="body">
-      <!-- 功能即将开放提示（后端虚拟币充值支付端点尚未接入） -->
+      <!-- 支付环境提示：微信小程序内为真实微信支付，其他环境为演示模拟到账 -->
       <view class="cs-banner">
         <app-icon name="alert-circle" :size="28" color="#C9A96E" />
-        <text class="cs-banner-txt">演示模式：当前为模拟到账，真实支付待接入微信/支付宝/云闪付渠道</text>
+        <!-- #ifdef MP-WEIXIN -->
+        <text class="cs-banner-txt">微信支付：将唤起微信完成真实支付，到账稍有延迟（以支付回调为准）</text>
+        <!-- #endif -->
+        <!-- #ifndef MP-WEIXIN -->
+        <text class="cs-banner-txt">演示模式：当前环境为模拟到账，真实微信支付请在微信小程序内进行</text>
+        <!-- #endif -->
       </view>
 
       <!-- 说明文字 -->

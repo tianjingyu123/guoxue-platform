@@ -805,6 +805,27 @@ export class ShopService {
     return result.paySign;
   }
 
+  /**
+   * 国学币充值 —— 微信小程序 JSAPI 下单。
+   * openid 从用户的微信授权记录（Auth provider=WECHAT）查取，避免前端处理 openid。
+   * 未绑定微信（如仅手机号登录）时诚实报错，前端据此降级为演示/引导。
+   * 到账由支付回调 handlePaymentNotify → CoinService.handleRechargeCallback 完成（幂等），此处不预扣不加币。
+   */
+  async createCoinRechargeJsapi(userId: string, amountCoin: number) {
+    if (!amountCoin || amountCoin <= 0) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "充值金额必须大于0");
+    }
+    const wechatAuth = await this.prisma.auth.findFirst({
+      where: { userId, provider: "WECHAT" },
+      select: { openId: true },
+    });
+    if (!wechatAuth?.openId) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "未绑定微信，请在微信小程序内使用微信登录后再充值");
+    }
+    const payParams = await this.createRechargePayment(userId, wechatAuth.openId, amountCoin);
+    return { payParams };
+  }
+
   /** 验签+解密支付回调 */
   async verifyAndDecryptNotify(
     signature: string, rawBody: string, timestamp: string, nonce: string, serialNo: string,
