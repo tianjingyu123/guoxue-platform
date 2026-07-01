@@ -48,6 +48,7 @@ export class ModerationService {
       action,
       version: "2020-12-29",
       payload: params,
+      region: process.env.CONTENT_MODERATION_REGION || process.env.COS_REGION || "ap-guangzhou",
     });
 
     const resp = await fetch(`https://${host}`, {

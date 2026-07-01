@@ -17,6 +17,7 @@ export interface ConfigField {
   placeholder?: string;
   hint?: string; // 「去哪找/怎么填」说明，前端显示在字段下方
   multiline?: boolean; // 多行文本（如私钥/证书 PEM），前端用 textarea
+  resolveFile?: boolean; // 值可为"内容"或"服务器文件路径"：加载时若检测为存在的文件路径，自动读取文件内容写入 env
 }
 
 export interface ThirdPartyService {
@@ -36,7 +37,8 @@ const S = (
   hint = "",
   placeholder = "",
   multiline = false,
-): ConfigField => ({ key, label, env, sensitive, hint, placeholder, multiline });
+  resolveFile = false,
+): ConfigField => ({ key, label, env, sensitive, hint, placeholder, multiline, resolveFile });
 
 export const THIRD_PARTY_SERVICES: ThirdPartyService[] = [
   // ───────── 支付 ─────────
@@ -47,7 +49,7 @@ export const THIRD_PARTY_SERVICES: ThirdPartyService[] = [
       S("mchId", "商户号", "WECHAT_PAY_MCH_ID", false, "商户平台→账户中心→商户信息→商户号（10位数字）"),
       S("apiV3Key", "APIv3 密钥", "WECHAT_PAY_API_V3_KEY", true, "商户平台→账户中心→API安全→APIv3密钥（自己设一个32位字符串并牢记）"),
       S("serialNo", "证书序列号", "WECHAT_PAY_SERIAL_NO", false, "商户平台→账户中心→API安全→申请API证书后，证书详情里的序列号"),
-      S("privateKey", "商户私钥内容", "WECHAT_PAY_PRIVATE_KEY", true, "用记事本打开申请证书时下载的 apiclient_key.pem 文件，把全部内容（含 -----BEGIN PRIVATE KEY----- 到 -----END PRIVATE KEY----- 所有行）复制粘贴进来", "", true),
+      S("privateKey", "商户私钥（内容或路径）", "WECHAT_PAY_PRIVATE_KEY", true, "两种填法任选其一：① 用记事本打开 apiclient_key.pem，全选复制内容粘贴进来；② 或直接填服务器上证书文件的完整路径（如 /opt/guoxue/certs/apiclient_key.pem）。系统会自动识别是内容还是路径。", "", true, true),
       S("notifyUrl", "支付回调地址", "WECHAT_PAY_NOTIFY_URL", false, "填 https://api.rebugx.cn/api/v1/pay/wechat/notify"),
       S("refundNotifyUrl", "退款回调地址", "WECHAT_PAY_REFUND_NOTIFY_URL", false, "填 https://api.rebugx.cn/api/v1/pay/wechat/refund-notify"),
     ],
@@ -57,8 +59,8 @@ export const THIRD_PARTY_SERVICES: ThirdPartyService[] = [
     note: "在支付宝开放平台 open.alipay.com 创建应用。密钥用官方「支付宝密钥工具」生成。",
     fields: [
       S("appId", "应用 AppID", "ALIPAY_APP_ID", false, "开放平台→控制台→我的应用→APPID（16位数字）"),
-      S("privateKey", "应用私钥", "ALIPAY_PRIVATE_KEY", true, "用支付宝「密钥工具」生成的『应用私钥』（一长串，不是公钥）", "", true),
-      S("publicKey", "支付宝公钥", "ALIPAY_PUBLIC_KEY", true, "开放平台→应用→接口加签方式→『支付宝公钥』（平台给你的，不是你自己的公钥）", "", true),
+      S("privateKey", "应用私钥（内容或路径）", "ALIPAY_PRIVATE_KEY", true, "填『应用私钥』内容（支付宝密钥工具生成，一长串），或服务器上私钥文件的完整路径。系统自动识别。", "", true, true),
+      S("publicKey", "支付宝公钥（内容或路径）", "ALIPAY_PUBLIC_KEY", true, "填『支付宝公钥』内容（平台给你的），或服务器上公钥文件的完整路径。系统自动识别。", "", true, true),
       S("notifyUrl", "异步通知地址", "ALIPAY_NOTIFY_URL", false, "填 https://api.rebugx.cn/api/v1/pay/alipay/notify"),
     ],
   },
@@ -69,8 +71,8 @@ export const THIRD_PARTY_SERVICES: ThirdPartyService[] = [
       S("merchantId", "商户号", "HUIFU_MERCHANT_ID", false, "汇付分配的商户号（huifuId）"),
       S("appId", "应用号", "HUIFU_APP_ID", false, "汇付分配的应用号（sysId/appId）"),
       S("secretKey", "密钥", "HUIFU_SECRET_KEY", true, "汇付分配的密钥"),
-      S("rsaPrivateKey", "RSA 私钥", "HUIFU_RSA_PRIVATE_KEY", true, "你方生成并在汇付后台登记公钥后，对应的RSA私钥", "", true),
-      S("rsaPublicKey", "RSA 公钥", "HUIFU_RSA_PUBLIC_KEY", true, "汇付的RSA公钥（用于验签）", "", true),
+      S("rsaPrivateKey", "RSA 私钥（内容或路径）", "HUIFU_RSA_PRIVATE_KEY", true, "填 RSA 私钥内容，或服务器上私钥文件的完整路径。系统自动识别。", "", true, true),
+      S("rsaPublicKey", "RSA 公钥（内容或路径）", "HUIFU_RSA_PUBLIC_KEY", true, "填汇付 RSA 公钥内容，或服务器上公钥文件的完整路径。系统自动识别。", "", true, true),
       S("notifyUrl", "回调地址", "HUIFU_NOTIFY_URL", false, "填 https://api.rebugx.cn/api/v1/pay/huifu/notify"),
     ],
   },
@@ -149,6 +151,20 @@ export const THIRD_PARTY_SERVICES: ThirdPartyService[] = [
     ],
   },
   {
+    key: "tencent_content_security", label: "腾讯云内容安全（审核）", category: "腾讯云",
+    note: "文本/图片内容审核（天御 TMS/IMS）。★复用上方「腾讯云(通用)」的 SecretId/SecretKey，无需单独填密钥；在腾讯云控制台开通『内容安全』即可用。下面地域一般不用改。",
+    fields: [
+      S("region", "服务地域", "CONTENT_MODERATION_REGION", false, "默认复用 COS 的地域（如 ap-guangzhou）；仅当内容安全在其它地域开通时才需改", "ap-guangzhou"),
+    ],
+  },
+  {
+    key: "tencent_identity", label: "腾讯云实名认证", category: "腾讯云",
+    note: "身份证OCR / 人脸核身。★复用上方「腾讯云(通用)」的 SecretId/SecretKey，无需单独填密钥；在腾讯云控制台开通『慧眼/人脸核身』即可用。下面地域一般不用改。",
+    fields: [
+      S("region", "服务地域", "IDENTITY_REGION", false, "默认复用 COS 的地域（如 ap-guangzhou）", "ap-guangzhou"),
+    ],
+  },
+  {
     key: "tencent_map", label: "腾讯地图", category: "腾讯云", enabled: false,
     note: "腾讯位置服务，用于定位/选点。控制台：lbs.qq.com。（地图功能可暂缓）",
     fields: [
@@ -218,8 +234,8 @@ export const THIRD_PARTY_SERVICES: ThirdPartyService[] = [
 ];
 
 /** 服务 key → 字段 env 映射（loader 用）。展开数组。 */
-export function getEnvMappings(): Array<{ serviceKey: string; fieldKey: string; envNames: string[]; sensitive: boolean }> {
-  const out: Array<{ serviceKey: string; fieldKey: string; envNames: string[]; sensitive: boolean }> = [];
+export function getEnvMappings(): Array<{ serviceKey: string; fieldKey: string; envNames: string[]; sensitive: boolean; resolveFile: boolean }> {
+  const out: Array<{ serviceKey: string; fieldKey: string; envNames: string[]; sensitive: boolean; resolveFile: boolean }> = [];
   for (const svc of THIRD_PARTY_SERVICES) {
     for (const f of svc.fields) {
       out.push({
@@ -227,6 +243,7 @@ export function getEnvMappings(): Array<{ serviceKey: string; fieldKey: string; 
         fieldKey: f.key,
         envNames: Array.isArray(f.env) ? f.env : [f.env],
         sensitive: !!f.sensitive,
+        resolveFile: !!f.resolveFile,
       });
     }
   }

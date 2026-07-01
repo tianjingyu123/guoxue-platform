@@ -1,4 +1,5 @@
 import { Injectable, Logger } from "@nestjs/common";
+import * as fs from "fs";
 import { PrismaService } from "../../prisma/prisma.service";
 import { encrypt, decrypt } from "../../common/crypto.util";
 import { THIRD_PARTY_SERVICES, getEnvMappings, ConfigField } from "../../config/third-party-services";
@@ -45,6 +46,29 @@ export class ThirdPartyConfigLoader {
     }
   }
 
+  /**
+   * resolveFile 字段：兼容"填内容"与"填服务器文件路径"两种，谁配都不会错位。
+   * - 含 PEM/密钥头（BEGIN…KEY）→ 判为内容，直接用
+   * - 形似绝对路径（/、~ 或 盘符开头、单行、非超长）且文件存在 → 读取该文件内容
+   * - 其余原样返回
+   */
+  private resolveFileValue(val: string): string {
+    if (val.includes("BEGIN") && val.includes("KEY")) return val; // PEM 内容，直接用
+    const looksLikePath = /^([/~]|[A-Za-z]:[\\/])/.test(val) && !val.includes("\n") && val.length < 500;
+    if (looksLikePath) {
+      try {
+        if (fs.existsSync(val)) {
+          this.logger.log(`resolveFile：检测到文件路径，读取密钥内容 ${val}`);
+          return fs.readFileSync(val, "utf-8");
+        }
+        this.logger.warn(`resolveFile：路径不存在，按内容处理 ${val}`);
+      } catch (e) {
+        this.logger.warn(`resolveFile：读取文件失败 ${val}：${(e as Error).message}`);
+      }
+    }
+    return val;
+  }
+
   /** 启动/保存后：把 DB 里所有 third_party.* 配置解密写回 process.env（兼容多套 env 命名） */
   async syncToEnv(): Promise<number> {
     let configs: Array<{ configKey: string; configValue: string }>;
@@ -62,7 +86,8 @@ export class ThirdPartyConfigLoader {
       for (const m of mappings.filter((x) => x.serviceKey === serviceKey)) {
         const val = obj[m.fieldKey];
         if (val !== undefined && val !== null && String(val) !== "") {
-          for (const envName of m.envNames) process.env[envName] = String(val);
+          const finalVal = m.resolveFile ? this.resolveFileValue(String(val)) : String(val);
+          for (const envName of m.envNames) process.env[envName] = finalVal;
           written++;
         }
       }

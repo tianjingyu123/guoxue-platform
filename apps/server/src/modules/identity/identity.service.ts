@@ -60,6 +60,7 @@ export class IdentityService {
       action,
       version,
       payload: params,
+      region: process.env.IDENTITY_REGION || process.env.COS_REGION || "ap-guangzhou",
     });
 
     const resp = await fetch(`https://${host}`, {
