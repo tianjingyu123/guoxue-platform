@@ -139,7 +139,25 @@ async function saveService(svc: Service) {
             <el-form
               label-width="150px"
               label-position="left"
+              autocomplete="off"
             >
+              <!-- 诱捕字段：吸收浏览器自动填充，防止真实密钥框被填入登录账号密码 -->
+              <input
+                type="text"
+                name="username"
+                autocomplete="username"
+                class="autofill-trap"
+                tabindex="-1"
+                aria-hidden="true"
+              >
+              <input
+                type="password"
+                name="password"
+                autocomplete="current-password"
+                class="autofill-trap"
+                tabindex="-1"
+                aria-hidden="true"
+              >
               <el-form-item
                 v-for="f in svc.fields"
                 :key="f.key"
@@ -149,6 +167,8 @@ async function saveService(svc: Service) {
                   v-model="formData[svc.key][f.key]"
                   :type="f.sensitive ? 'password' : 'text'"
                   :show-password="f.sensitive"
+                  :name="`tpc-${svc.key}-${f.key}`"
+                  autocomplete="new-password"
                   :placeholder="f.placeholder || (f.sensitive ? '留空或掩码则不修改' : '')"
                 />
                 <div
@@ -183,4 +203,5 @@ async function saveService(svc: Service) {
 .svc-title { font-weight: 600; margin-right: 8px; }
 .svc-note { color: #606266; font-size: 13px; line-height: 1.6; margin: 0 0 14px; padding: 8px 12px; background: #f4f4f5; border-radius: 4px; border-left: 3px solid #409eff; }
 .field-hint { color: #909399; font-size: 12px; line-height: 1.5; margin-top: 4px; }
+.autofill-trap { position: absolute; top: -9999px; left: -9999px; width: 0; height: 0; opacity: 0; pointer-events: none; }
 </style>
