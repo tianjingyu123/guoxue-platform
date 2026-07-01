@@ -1253,6 +1253,15 @@ function adaptLiveItem(r: RawLiveRoom): LiveItem {
 }
 
 export const liveApi = {
+  /**
+   * 获取观众拉流地址 — GET /live/rooms/:id/play-url
+   * 返回 { flv, hls }：flv 低延时(2-3s·小程序/App live-player + H5 flv.js)，hls 兜底。
+   * 后端仅在直播 LIVING 时返回，未开播/已结束会抛错 → 交页面按未直播态处理。
+   */
+  async getPlayUrl(roomId: string): Promise<{ flv: string; hls: string }> {
+    return await apiGet<{ flv: string; hls: string }>(`/live/rooms/${roomId}/play-url`)
+  },
+
   /** 直播广场列表 — GET /live/rooms（适配）；tab 客户端过滤 */
   async getPlaza(tab?: string): Promise<LiveItem[]> {
     try {

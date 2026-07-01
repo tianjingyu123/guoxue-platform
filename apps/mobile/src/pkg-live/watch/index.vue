@@ -16,13 +16,21 @@
     <template v-else>
     <!-- 直播画面背景（占位渐变，接入推流后替换） -->
     <view class="watch__stage">
+      <!-- 低延时直播画面（FLV·小程序/App live-player + H5 flv.js） -->
+      <LivePlayer
+        v-if="playUrl"
+        :flv-url="playUrl.flv"
+        :hls-url="playUrl.hls"
+        object-fit="contain"
+        class="watch__stage-player"
+      />
       <view class="watch__stage-mask" />
-      <!-- 画面占位（接入推流后移除） -->
-      <view class="watch__stage-ph">
+      <!-- 未直播/加载中占位 -->
+      <view v-if="!playUrl" class="watch__stage-ph">
         <view class="watch__stage-ph-icon">
           <AppIcon :name="room.type === 'commerce' ? 'shopping-bag' : 'book-open'" :size="88" color="rgba(255,255,255,0.5)" />
         </view>
-        <text class="watch__stage-ph-txt">直播画面</text>
+        <text class="watch__stage-ph-txt">{{ playHint }}</text>
       </view>
     </view>
 
@@ -279,6 +287,7 @@ import Disclaimer from '@/components/compliance/disclaimer.vue'
 import GiftPanel from '@/components/live/gift-panel.vue'
 import MicConnectSheet from '@/components/live/mic-connect-sheet.vue'
 import QuickBuySheet, { type QuickBuyProduct } from '@/components/live/quick-buy-sheet.vue'
+import LivePlayer from '@/components/live/live-player.vue'
 import { type LiveGift } from '@/lib/live-gifts'
 import { goBack } from '@/utils/router'
 import {
@@ -302,6 +311,20 @@ const products = ref<VerticalLiveProduct[]>([])
 const rankList = ref([...liveWatchRankList])
 const coinBalance = ref(0)
 const isFollowing = ref(false)
+
+// ===== 低延时播放地址（C1）=====
+const playUrl = ref<{ flv: string; hls: string } | null>(null)
+const playHint = ref('直播即将开始')
+
+// 拉取观众播放地址：仅直播中后端才返回；未开播/已结束抛错→保持占位提示
+async function fetchPlayUrl(roomId: string) {
+  try {
+    playUrl.value = await liveApi.getPlayUrl(roomId)
+  } catch (e) {
+    playUrl.value = null
+    playHint.value = (e as Error)?.message?.includes('结束') ? '直播已结束' : '直播未开始'
+  }
+}
 
 // 讲解中的商品（电商直播浮卡）
 const explainingProduct = computed(() => products.value.find((p) => p.isExplaining) || null)
@@ -486,6 +509,7 @@ onLoad((opts) => {
   const roomId = opts?.id || '1'
   if (opts?.type === 'commerce') room.value.type = 'commerce'
   fetchRoomData(roomId)
+  fetchPlayUrl(roomId)
   fetchGifts()
 })
 
@@ -527,6 +551,12 @@ onUnmounted(() => {
   position: absolute;
   inset: 0;
   background: linear-gradient(to bottom, #111827, #1f2937, #111827);
+}
+.watch__stage-player {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
 }
 .watch__stage-mask {
   position: absolute;
