@@ -77,7 +77,7 @@
           <view class="dash-link-btn" @tap="copyLink"><app-icon :name="copied ? 'check' : 'copy'" :size="30" :color="copied ? '#16a34a' : '#666'" /></view>
           <view class="dash-link-btn primary" @tap="toastSoon"><app-icon name="qr-code" :size="30" color="#ffffff" /></view>
         </view>
-        <text class="dash-link-hint">通过此链接注册的站长将加入您的团队，您可获得5%团队奖励</text>
+        <text class="dash-link-hint">通过此链接注册的站长将加入您的团队，您按运营商等级比例获得团队管理奖</text>
       </view>
     </view>
 

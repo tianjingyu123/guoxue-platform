@@ -206,8 +206,13 @@ function thumbBg(t: PosterTemplate) {
   return { background: t.bg }
 }
 
-// 推广链接：用真实分站 code
-const promoLink = computed(() => station.value.code ? `https://rebu.com/s/${station.value.code}` : '')
+// 推广链接：真实 H5 地址 + 分站 code 作 ref（统一归因参数·注册绑定归属/下单临时归因均识别）
+const promoLink = computed(() => {
+  if (!station.value.code) return ''
+  // import.meta.env 在 uni-app 下缺少类型声明，保留 as any
+  const base = (import.meta as any).env?.VITE_H5_URL || ''
+  return `${base}/#/pages/index/index?ref=${station.value.code}`
+})
 
 // 诚实降级：前端暂无 canvas 海报截图链路，不伪造下载
 function handleSave() {

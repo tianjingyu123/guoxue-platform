@@ -3,6 +3,7 @@
  * 负责前端 UI 的数据格式与后端 API 响应的适配
  */
 import { apiPost, useMock } from '@/utils/request'
+import { getTempReferrer } from '@/utils/referral'
 
 export interface UserInfo {
   id: string
@@ -76,7 +77,8 @@ export const authApi = {
       if (params.password) {
         data = await apiPost<RawAuthData>('/auth/login/phone', { phone: params.phone, password: params.password })
       } else {
-        data = await apiPost<RawAuthData>('/auth/login/sms', { phone: params.phone, code: params.code })
+        // 短信登录含新用户自动注册：携带最近分享者作为归属绑定依据（后端仅在新注册时生效）
+        data = await apiPost<RawAuthData>('/auth/login/sms', { phone: params.phone, code: params.code, referrerCode: getTempReferrer() })
       }
       return adaptAuthResult(data)
     } catch (e: any) {
@@ -91,6 +93,8 @@ export const authApi = {
         phone: params.phone,
         password: params.password,
         nickname: params.nickname,
+        // 推荐归因：注册时绑定永久归属分站（值=分享者用户ID或分站推广码，后端解析）
+        referrerCode: getTempReferrer(),
       })
       return adaptAuthResult(data)
     } catch (e: any) {

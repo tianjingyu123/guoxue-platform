@@ -86,7 +86,7 @@ const showShare = ref(false)
 const shareLink = computed(() => {
   // import.meta.env 在 uni-app 下缺少类型声明，保留 as any
   const base = (import.meta as any).env?.VITE_H5_URL || ''
-  return `${base}/#/pkg-operator/station-home/index?s=${stationCode.value}`
+  return `${base}/#/pkg-operator/station-home/index?ref=${stationCode.value}`
 })
 function handleShare() { showShare.value = true }
 function closeShare() { showShare.value = false }

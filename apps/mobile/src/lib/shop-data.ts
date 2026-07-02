@@ -4,6 +4,7 @@
  */
 import type { ProductCardData } from '@/lib/card-utils'
 import { apiGet, apiGetPaged, apiPost, apiPut, apiDelete, useMock } from '@/utils/request'
+import { getTempReferrer } from '@/utils/referral'
 
 const P = '/static/images/products'
 
@@ -2064,6 +2065,8 @@ export const shopApi = {
       amount: Math.max(1, Number(payload.quantity) || 1),
       couponId: payload.couponId || undefined,
       addressId: payload.addressId || undefined,
+      // 推荐归因：携带最近分享链接的临时推荐人（7天窗口·临时优先于永久归属，永久归属由后端回填）
+      tempReferrerId: getTempReferrer(),
     })
     return { id: res.id || '', amount: shopNum(res.amount), status: res.status || 'PENDING' }
   },

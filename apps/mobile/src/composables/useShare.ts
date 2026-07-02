@@ -13,6 +13,7 @@
  */
 import { navigateTo } from '@/utils/router'
 import { track } from '@/composables/useTrack'
+import { withRef } from '@/utils/referral'
 
 export interface ShareContent {
   title: string
@@ -24,16 +25,18 @@ export interface ShareContent {
 }
 
 export function useShare() {
-  /** 生成 onShareAppMessage 返回值（好友/群） */
+  /** 生成 onShareAppMessage 返回值（好友/群）；路径自动携带分享者 ref（推荐归因·全平台唯一分享链接） */
   function toAppMessage(c: ShareContent) {
+    const path = withRef(c.path)
     track.share('app_message', c.path)
-    return { title: c.title, path: c.path, imageUrl: c.cover }
+    return { title: c.title, path, imageUrl: c.cover }
   }
 
-  /** 生成 onShareTimeline 返回值（朋友圈） */
+  /** 生成 onShareTimeline 返回值（朋友圈）；query 自动携带分享者 ref */
   function toTimeline(c: ShareContent) {
+    const path = withRef(c.path)
     track.share('timeline', c.path)
-    const query = c.path.includes('?') ? c.path.split('?')[1] : ''
+    const query = path.includes('?') ? path.split('?')[1] : ''
     return { title: c.title, query, imageUrl: c.cover }
   }
 

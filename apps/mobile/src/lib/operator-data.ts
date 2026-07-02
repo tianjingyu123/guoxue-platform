@@ -337,7 +337,7 @@ export const stationPanelBalance = {
 }
 
 export const stationPanelQuickActions: StationPanelQuickAction[] = [
-  { id: 'promote', label: '推广中心', icon: 'share', path: '/station/promote', description: '生成推广链接/二维码/临时推荐' },
+  { id: 'promote', label: '推广中心', icon: 'share', path: '/station/promote', description: '生成推广链接与二维码' },
   { id: 'team', label: '团队管理', icon: 'users', path: '/station/team', badge: 5, description: '查看和管理团队成员' },
   { id: 'materials', label: '推广素材', icon: 'image', path: '/station/materials', description: '获取推广海报和文案' },
   { id: 'config', label: '分站配置', icon: 'settings', path: '/station/config', description: '自定义分站设置' },

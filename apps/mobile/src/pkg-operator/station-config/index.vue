@@ -336,7 +336,7 @@ async function handleSave() {
 function copyShareLink() {
   // import.meta.env 在 uni-app 下缺少类型声明，保留 as any
   const base = (import.meta as any).env?.VITE_H5_URL || ''
-  const link = `${base}/#/pages/index/index?s=${config.value.code}`
+  const link = `${base}/#/pages/index/index?ref=${config.value.code}`
   uni.setClipboardData({ data: link, success: () => uni.showToast({ title: '推广链接已复制', icon: 'none' }) })
 }
 

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onLaunch, onShow, onHide, onError } from '@dcloudio/uni-app'
 import { track } from '@/composables/useTrack'
+import { captureRefFromQuery, captureRefFromUrl } from '@/utils/referral'
 
 /** 从跳转参数中取出页面路径（去 query），用于全局 page_view 埋点 */
 function pickUrl(args: string | { url?: string }): string {
@@ -8,24 +9,38 @@ function pickUrl(args: string | { url?: string }): string {
   return url ? String(url).split('?')[0] : ''
 }
 
-onLaunch(() => {
+onLaunch((options?: { query?: Record<string, unknown> }) => {
+  // 推荐归因：冷启动落地页携带 ref（分享链接）时记录最近分享者
+  try {
+    captureRefFromQuery(options?.query)
+  } catch {
+    /* 归因失败不影响启动 */
+  }
   // 全局路由埋点：拦截四类跳转，统一上报 page_view（一处接入、全局覆盖，无需逐页改）
   ;['navigateTo', 'redirectTo', 'reLaunch', 'switchTab'].forEach((api) => {
     uni.addInterceptor(api, {
       invoke(args: { url?: string }) {
-        // 埋点拦截器自身异常绝不能影响跳转放行
+        // 埋点/归因拦截器自身异常绝不能影响跳转放行
         try {
           const path = pickUrl(args)
           if (path) track.pageView(path)
+          captureRefFromUrl(typeof args === 'string' ? args : args?.url)
         } catch {
-          /* 埋点失败静默忽略 */
+          /* 失败静默忽略 */
         }
         // 不返回 false，正常放行跳转
       },
     })
   })
 })
-onShow(() => {})
+// 热启动（小程序从分享卡片再次进入）同样捕获 ref
+onShow((options?: { query?: Record<string, unknown> }) => {
+  try {
+    captureRefFromQuery(options?.query)
+  } catch {
+    /* 归因失败不影响显示 */
+  }
+})
 // 切后台主动 flush 埋点队列，避免残留事件丢失
 onHide(() => { track.flushNow() })
 // 全局未捕获错误兜底（小程序/App 运行时错误、未处理 Promise rejection）
