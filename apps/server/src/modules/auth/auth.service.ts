@@ -114,6 +114,8 @@ export class AuthService {
       include: { auths: { where: { provider: "PASSWORD" } } },
     });
     if (!user) {
+      // 恒定耗时：用户不存在时也执行一次等价 bcrypt 比较，消除"是否注册"的时序枚举侧信道
+      await bcrypt.compare(dto.password, "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy");
       await this.bumpLoginFail(dto.phone);
       throw new BusinessException(ErrorCode.AUTH_PASSWORD_WRONG, "手机号或密码错误");
     }
