@@ -1,7 +1,11 @@
-/** 安全分页参数：限制 pageSize 上限防止数据库过载 */
+/** 安全分页参数：归一化非法/NaN/负数输入，限制 pageSize 上限防止数据库过载 */
 export function safePagination(page?: number | string, pageSize?: number | string, maxPageSize = 100) {
-  const p = Math.max(1, +(page || 1))
-  const ps = Math.min(maxPageSize, Math.max(1, +(pageSize || 20)))
+  // Number.isFinite 兜住非数字串（如 "abc" → NaN）与缺省 → 回退默认；有限值再钳位下限/上限，
+  // 避免 skip:NaN 或负数 skip 直进 Prisma 抛 PrismaClientValidationError
+  const rawP = Number(page)
+  const rawPs = Number(pageSize)
+  const p = Number.isFinite(rawP) ? Math.max(1, Math.floor(rawP)) : 1
+  const ps = Number.isFinite(rawPs) ? Math.min(maxPageSize, Math.max(1, Math.floor(rawPs))) : 20
   return { page: p, pageSize: ps, skip: (p - 1) * ps }
 }
 

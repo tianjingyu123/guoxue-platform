@@ -15,7 +15,7 @@ import { setAlertHandler } from "./common/alert";
 import { WeworkService } from "./modules/notification/wework.service";
 import { RedisService } from "./redis/redis.service";
 import { AllExceptionsFilter } from "./common/http-exception.filter";
-import { PrismaExceptionFilter } from "./common/prisma-exception.filter";
+import { PrismaExceptionFilter, PrismaValidationExceptionFilter } from "./common/prisma-exception.filter";
 import { chineseValidationExceptionFactory } from "./common/validation-chinese";
 import { LoggingInterceptor } from "./common/logging.interceptor";
 import { TracingInterceptor } from "./common/tracing.interceptor";
@@ -93,7 +93,7 @@ async function bootstrap() {
     new AuditInterceptor(app.get(AuditService)),
   );
   app.useGlobalGuards(new RedisThrottleGuard(app.get(RedisService)));
-  app.useGlobalFilters(new PrismaExceptionFilter(), new AllExceptionsFilter());
+  app.useGlobalFilters(new PrismaExceptionFilter(), new PrismaValidationExceptionFilter(), new AllExceptionsFilter());
   app.useGlobalPipes(
     new SanitizePipe(),
     new ValidationPipe({

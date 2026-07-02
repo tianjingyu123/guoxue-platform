@@ -36,6 +36,14 @@ describe("pagination", () => {
       const result = safePagination(2, 15);
       expect(result.skip).toBe(15);
     });
+
+    it("非数字串归一化为默认（防 skip:NaN 进 Prisma）", () => {
+      expect(safePagination("abc", "xyz")).toEqual({ page: 1, pageSize: 20, skip: 0 });
+    });
+
+    it("NaN 归一化为默认", () => {
+      expect(safePagination(NaN, NaN)).toEqual({ page: 1, pageSize: 20, skip: 0 });
+    });
   });
 
   describe("paginated", () => {

@@ -3,6 +3,7 @@ import {
   Catch,
   ArgumentsHost,
   HttpStatus,
+  Logger,
 } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 
@@ -82,6 +83,34 @@ export class PrismaExceptionFilter implements ExceptionFilter {
       message,
       timestamp: Date.now(),
       path: ctx.getRequest().url,
+    });
+  }
+}
+
+/**
+ * Prisma 查询参数校验错误过滤器。
+ *
+ * `PrismaClientValidationError` 与 P2xxx（KnownRequestError）不是同一类，此前漏网
+ * 直落 AllExceptionsFilter → 500。它绝大多数由用户传入非法数值/日期参数（如
+ * `?page=abc` → skip:NaN、无效日期进 DateTime 字段）触发，应返回 400 而非 500。
+ * 仍打 warn 日志，以便区分极少数"服务端构造了坏查询"的真实 bug。
+ */
+@Catch(Prisma.PrismaClientValidationError)
+export class PrismaValidationExceptionFilter implements ExceptionFilter {
+  private readonly logger = new Logger(PrismaValidationExceptionFilter.name);
+
+  catch(exception: Prisma.PrismaClientValidationError, host: ArgumentsHost) {
+    const ctx = host.switchToHttp();
+    const response = ctx.getResponse();
+    const request = ctx.getRequest();
+    const tail = exception.message?.split("\n").filter(Boolean).pop() ?? exception.message;
+    this.logger.warn(`Prisma 查询参数校验失败 ${request.method} ${request.url}: ${tail}`);
+
+    response.status(HttpStatus.BAD_REQUEST).json({
+      code: HttpStatus.BAD_REQUEST,
+      message: "请求参数有误，请检查分页或筛选条件",
+      timestamp: Date.now(),
+      path: request.url,
     });
   }
 }
