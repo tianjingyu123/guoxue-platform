@@ -15,12 +15,19 @@ const mockPrisma = {
   },
   station: { findMany: jest.fn(), findUnique: jest.fn() },
   stationOffline: { findMany: jest.fn(), findFirst: jest.fn() },
-  stationEarning: { aggregate: jest.fn(), count: jest.fn() },
+  stationEarning: { aggregate: jest.fn(), count: jest.fn(), groupBy: jest.fn() },
   stationOrder: { aggregate: jest.fn() },
   stationProduct: { count: jest.fn() },
   stationTeacherBooking: { count: jest.fn() },
   referralRelation: { findMany: jest.fn() },
-  order: { groupBy: jest.fn() },
+  order: { groupBy: jest.fn(), count: jest.fn() },
+  circle: { findMany: jest.fn(), findUnique: jest.fn() },
+  circleMember: { count: jest.fn(), findMany: jest.fn() },
+  post: { count: jest.fn() },
+  course: { findMany: jest.fn(), count: jest.fn() },
+  courseReview: { count: jest.fn() },
+  userRole: { findMany: jest.fn() },
+  operator: { findMany: jest.fn(), findFirst: jest.fn() },
 };
 
 const DROP_RULE = {
@@ -112,6 +119,29 @@ describe("AdvisorService", () => {
       expect(mockPrisma.advisorInsight.create.mock.calls[0][0].data.content).toBe("有 2 件商品库存不足");
     });
 
+    it("圈主活跃度探针 + 动作 {{subjectId}} 占位渲染", async () => {
+      mockPrisma.advisorRule.findMany.mockResolvedValue([
+        {
+          ...DROP_RULE,
+          ruleKey: "circle_activity_drop",
+          roleType: "CIRCLE_OWNER",
+          metric: "circle_activity_drop",
+          condition: { thresholdPct: 40 },
+          suggestion: "发帖下降 {{dropPct}}%",
+          actions: [{ label: "去发起话题", type: "NAVIGATE", target: "/pkg-circle/circles/editor?circleId={{subjectId}}" }],
+        },
+      ]);
+      mockPrisma.circle.findMany.mockResolvedValue([{ id: "c-1" }]);
+      mockPrisma.post.count
+        .mockResolvedValueOnce(2) // 近7天
+        .mockResolvedValueOnce(10); // 前7天 → 降80%
+      const result = await svc.evaluateAll();
+      expect(result.generated).toBe(1);
+      const created = mockPrisma.advisorInsight.create.mock.calls[0][0].data;
+      expect(created.content).toBe("发帖下降 80%");
+      expect(created.actions[0].target).toBe("/pkg-circle/circles/editor?circleId=c-1");
+    });
+
     it("未知探针的规则跳过不抛错", async () => {
       mockPrisma.advisorRule.findMany.mockResolvedValue([{ ...DROP_RULE, metric: "no_such_probe" }]);
       mockPrisma.station.findMany.mockResolvedValue([{ id: "st-1" }]);
@@ -153,7 +183,7 @@ describe("AdvisorService", () => {
       const result = await svc.listInsights("u-1", "STATION_MASTER");
       expect(result.insights).toHaveLength(1);
       const where = mockPrisma.advisorInsight.findMany.mock.calls[0][0].where;
-      expect(where.subjectId).toBe("st-1");
+      expect(where.subjectId).toEqual({ in: ["st-1"] });
       expect(where.status.in).toEqual(["OPEN", "READ"]);
     });
 

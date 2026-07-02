@@ -7,7 +7,7 @@
 import { apiGet, apiPost } from '@/utils/request'
 
 /** 顾问建议面向的角色类型 */
-export type AdvisorRoleType = 'STATION_MASTER' | 'STATION_OFFLINE_OWNER'
+export type AdvisorRoleType = 'STATION_MASTER' | 'STATION_OFFLINE_OWNER' | 'CIRCLE_OWNER' | 'LECTURER' | 'OPERATOR'
 
 /** 建议严重级别 */
 export type AdvisorSeverity = 'INFO' | 'WARN' | 'CRITICAL'

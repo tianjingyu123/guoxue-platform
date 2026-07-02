@@ -75,6 +75,79 @@ const RULES = [
       "驿站近7天营收 ¥{{last7}}，比前一周（¥{{prev7}}）下降 {{dropPct}}%。建议查看近期课程排期是否偏少，或发起一场体验课/沙龙拉动到店。",
     actions: [{ label: "去排课程", type: "NAVIGATE", target: "/pkg-offline/manage-courses/index" }],
   },
+  // ── 圈主（T2-P3）──
+  {
+    roleType: "CIRCLE_OWNER",
+    ruleKey: "circle_activity_drop",
+    metric: "circle_activity_drop",
+    condition: { thresholdPct: 40 },
+    severity: "WARN",
+    suggestion:
+      "圈子近7天发帖 {{last7}} 条，比前一周（{{prev7}} 条）下降 {{dropPct}}%。建议发起一个话题讨论（如八字案例解析、经典共读打卡）重新激活氛围。",
+    actions: [{ label: "去发起话题", type: "NAVIGATE", target: "/pkg-circle/circles/editor?circleId={{subjectId}}" }],
+  },
+  {
+    roleType: "CIRCLE_OWNER",
+    ruleKey: "circle_member_growth_stall",
+    metric: "circle_member_growth_stall",
+    condition: { days: 14, minMembers: 10 },
+    severity: "INFO",
+    suggestion:
+      "圈子已连续 {{days}} 天没有新成员加入（当前 {{total}} 人）。建议把圈内一篇优质内容分享到站外，或请活跃成员帮忙转发拉新。",
+    actions: [{ label: "查看圈子数据", type: "NAVIGATE", target: "/pkg-circle/circles/dashboard?id={{subjectId}}" }],
+  },
+  {
+    roleType: "CIRCLE_OWNER",
+    ruleKey: "circle_zero_join_revenue",
+    metric: "circle_zero_join_revenue",
+    condition: { days: 30 },
+    severity: "INFO",
+    suggestion:
+      "您的付费圈子近 {{days}} 天没有新付费加入。建议检查入圈介绍是否清晰展示了权益价值，或用一场免费直播/公开内容为圈子引流。",
+    actions: [{ label: "查看圈子数据", type: "NAVIGATE", target: "/pkg-circle/circles/dashboard?id={{subjectId}}" }],
+  },
+  // ── 讲师（T2-P3）──
+  {
+    roleType: "LECTURER",
+    ruleKey: "teacher_new_bad_review",
+    metric: "teacher_new_bad_review",
+    condition: { days: 7, maxRating: 2 },
+    severity: "WARN",
+    suggestion:
+      "近 {{days}} 天您的课程收到 {{count}} 条低分评价。及时回复能显著挽回口碑——建议逐条查看并真诚回应学员的具体问题。",
+    actions: [{ label: "去看评价", type: "NAVIGATE", target: "/pkg-creator/course-reviews/index" }],
+  },
+  {
+    roleType: "LECTURER",
+    ruleKey: "teacher_no_new_content",
+    metric: "teacher_no_new_content",
+    condition: { days: 45 },
+    severity: "INFO",
+    suggestion:
+      "您已 {{days}} 天没有发布新课程。持续更新是学员关注度的关键——哪怕一节短课或一次答疑直播，都能有效维持活跃。",
+    actions: [{ label: "去讲师中心", type: "NAVIGATE", target: "/pkg-creator/teacher-dashboard/index" }],
+  },
+  // ── 运营商（T2-P3）──
+  {
+    roleType: "OPERATOR",
+    ruleKey: "operator_dormant_stations",
+    metric: "operator_dormant_stations",
+    condition: { days: 30 },
+    severity: "WARN",
+    suggestion:
+      "您名下 {{total}} 位站长中有 {{dormant}} 位近 {{days}} 天零业绩。建议逐一联系了解困难，分享一份本周热销素材包帮他们重新开张。",
+    actions: [{ label: "查看沉寂站长", type: "NAVIGATE", target: "/pkg-operator/dormant/index" }],
+  },
+  {
+    roleType: "OPERATOR",
+    ruleKey: "operator_new_station_stall",
+    metric: "operator_new_station_stall",
+    condition: { days: 14 },
+    severity: "WARN",
+    suggestion:
+      "有 {{stalled}} 位新站长加入 {{days}} 天仍未产生首笔佣金。新人首单是留存的分水岭——建议一对一辅导：帮他们完成分站装修并发出第一条推广。",
+    actions: [{ label: "查看团队", type: "NAVIGATE", target: "/pkg-operator/team/index" }],
+  },
 ];
 
 async function main() {

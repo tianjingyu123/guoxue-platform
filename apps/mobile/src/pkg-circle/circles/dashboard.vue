@@ -17,6 +17,7 @@ import { onLoad } from '@dcloudio/uni-app'
 import { computed, ref } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import AlmanacBar from '@/components/workbench/almanac-bar.vue'
+import AdvisorCard from '@/components/workbench/advisor-card.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import {
   computeCircleHealth,
@@ -212,6 +213,9 @@ onLoad((query) => {
     <scroll-view v-else scroll-y class="db-body">
       <!-- 今日宜忌轻栏（自包含拉取，失败自动隐藏；db-body 自带 24rpx 内边距，故去掉左右外边距） -->
       <almanac-bar margin="0 0 24rpx" />
+
+      <!-- 经营顾问（自包含，无建议自动隐藏） -->
+      <advisor-card role-type="CIRCLE_OWNER" />
 
       <!-- 圈子健康度（前端纯函数用 overview 真实数据合成，权重见 lib 注释） -->
       <view v-if="health" class="db-health">

@@ -39,6 +39,9 @@
       <!-- 今日宜忌轻栏（自包含拉取，失败自动隐藏；对齐本页 32rpx 侧边留白） -->
       <almanac-bar margin="32rpx 32rpx 0" />
 
+      <!-- 经营顾问（自包含，无建议自动隐藏；对齐本页侧边留白） -->
+      <view style="margin: 24rpx 32rpx 0"><advisor-card role-type="OPERATOR" /></view>
+
       <!-- 数据概览 -->
       <view class="op-sec">
         <view class="op-overview">
@@ -160,6 +163,7 @@
 import { ref, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import AlmanacBar from '@/components/workbench/almanac-bar.vue'
+import AdvisorCard from '@/components/workbench/advisor-card.vue'
 import { navigateTo } from '@/utils/router'
 import {
   operatorApi,

@@ -184,6 +184,128 @@ export class AdvisorService {
         ? { hit: true, facts: { last7: round2(last7), prev7: round2(prev7), dropPct } }
         : { hit: false };
     },
+
+    // ── 圈主（T2-P3）──
+
+    /** 圈子发帖量周环比下滑（前7天≥5帖才有统计意义） */
+    circle_activity_drop: async (circleId, cond) => {
+      const threshold = cond.thresholdPct ?? 40;
+      const now = Date.now();
+      const [last7, prev7] = await Promise.all([
+        this.prisma.post.count({ where: { circleId, createdAt: { gte: new Date(now - 7 * DAY_MS) } } }),
+        this.prisma.post.count({
+          where: { circleId, createdAt: { gte: new Date(now - 14 * DAY_MS), lt: new Date(now - 7 * DAY_MS) } },
+        }),
+      ]);
+      if (prev7 < 5) return { hit: false };
+      const dropPct = round2(((prev7 - last7) / prev7) * 100);
+      return dropPct >= threshold
+        ? { hit: true, facts: { last7, prev7, dropPct } }
+        : { hit: false };
+    },
+
+    /** 圈子成员增长停滞：连续 N 天零新成员（成员数达一定规模才提醒） */
+    circle_member_growth_stall: async (circleId, cond) => {
+      const days = cond.days ?? 14;
+      const minMembers = cond.minMembers ?? 10;
+      const total = await this.prisma.circleMember.count({ where: { circleId } });
+      if (total < minMembers) return { hit: false };
+      const newcomers = await this.prisma.circleMember.count({
+        where: { circleId, joinedAt: { gte: new Date(Date.now() - days * DAY_MS) } },
+      });
+      return newcomers === 0 ? { hit: true, facts: { days, total } } : { hit: false };
+    },
+
+    /** 付费圈 30 天零入圈收入（圈子创建满 30 天才评估） */
+    circle_zero_join_revenue: async (circleId, cond) => {
+      const days = cond.days ?? 30;
+      const circle = await this.prisma.circle.findUnique({
+        where: { id: circleId },
+        select: { price: true, createdAt: true },
+      });
+      if (!circle || Number(circle.price) <= 0) return { hit: false };
+      if (circle.createdAt > new Date(Date.now() - days * DAY_MS)) return { hit: false };
+      const paid = await this.prisma.order.count({
+        where: { type: "CIRCLE_JOIN", targetId: circleId, status: "PAID", createdAt: { gte: new Date(Date.now() - days * DAY_MS) } },
+      });
+      return paid === 0 ? { hit: true, facts: { days } } : { hit: false };
+    },
+
+    // ── 讲师（T2-P3·主体=讲师 userId）──
+
+    /** 近 N 天出现低分差评（≤2星） */
+    teacher_new_bad_review: async (teacherUserId, cond) => {
+      const days = cond.days ?? 7;
+      const maxRating = cond.maxRating ?? 2;
+      const courses = await this.prisma.course.findMany({
+        where: { userId: teacherUserId },
+        select: { id: true },
+        take: 500,
+      });
+      if (courses.length === 0) return { hit: false };
+      const count = await this.prisma.courseReview.count({
+        where: {
+          courseId: { in: courses.map((c) => c.id) },
+          rating: { lte: maxRating },
+          status: "PUBLISHED",
+          createdAt: { gte: new Date(Date.now() - days * DAY_MS) },
+        },
+      });
+      return count > 0 ? { hit: true, facts: { count, days } } : { hit: false };
+    },
+
+    /** 讲师连续 N 天未发布新课（已有课程的活跃讲师才提醒） */
+    teacher_no_new_content: async (teacherUserId, cond) => {
+      const days = cond.days ?? 45;
+      const total = await this.prisma.course.count({ where: { userId: teacherUserId } });
+      if (total === 0) return { hit: false };
+      const recent = await this.prisma.course.count({
+        where: { userId: teacherUserId, createdAt: { gte: new Date(Date.now() - days * DAY_MS) } },
+      });
+      return recent === 0 ? { hit: true, facts: { days, total } } : { hit: false };
+    },
+
+    // ── 运营商（T2-P3）──
+
+    /** 沉寂站长：名下站长近 N 天零佣金的数量 */
+    operator_dormant_stations: async (operatorId, cond) => {
+      const days = cond.days ?? 30;
+      const stations = await this.prisma.station.findMany({
+        where: { operatorId, status: "ACTIVE" },
+        select: { id: true },
+        take: 500,
+      });
+      if (stations.length === 0) return { hit: false };
+      const active = await this.prisma.stationEarning.groupBy({
+        by: ["stationId"],
+        where: {
+          stationId: { in: stations.map((s) => s.id) },
+          createdAt: { gte: new Date(Date.now() - days * DAY_MS) },
+          earned: { gt: 0 },
+        },
+      });
+      const dormant = stations.length - active.length;
+      return dormant >= 1
+        ? { hit: true, facts: { dormant, total: stations.length, days } }
+        : { hit: false };
+    },
+
+    /** 新站长开局停滞：加入 N 天内仍零佣金的新站长数量 */
+    operator_new_station_stall: async (operatorId, cond) => {
+      const days = cond.days ?? 14;
+      const newStations = await this.prisma.station.findMany({
+        where: { operatorId, status: "ACTIVE", createdAt: { gte: new Date(Date.now() - days * DAY_MS) } },
+        select: { id: true },
+        take: 200,
+      });
+      if (newStations.length === 0) return { hit: false };
+      const earned = await this.prisma.stationEarning.groupBy({
+        by: ["stationId"],
+        where: { stationId: { in: newStations.map((s) => s.id) }, earned: { gt: 0 } },
+      });
+      const stalled = newStations.length - earned.length;
+      return stalled > 0 ? { hit: true, facts: { stalled, days } } : { hit: false };
+    },
   };
 
   private async sumStationEarning(stationId: string, gte: Date, lt: Date) {
@@ -233,7 +355,7 @@ export class AdvisorService {
     return { evaluated, generated };
   }
 
-  /** 角色 → 主体清单（MVP 覆盖站长/驿站，其余角色 P3 扩展） */
+  /** 角色 → 主体清单（cron 评估用；P3 起覆盖五角色） */
   private async listSubjects(roleType: string): Promise<string[]> {
     if (roleType === "STATION_MASTER") {
       const rows = await this.prisma.station.findMany({ where: { status: "ACTIVE" }, select: { id: true }, take: 2000 });
@@ -241,6 +363,18 @@ export class AdvisorService {
     }
     if (roleType === "STATION_OFFLINE_OWNER") {
       const rows = await this.prisma.stationOffline.findMany({ where: { status: "ACTIVE" }, select: { id: true }, take: 2000 });
+      return rows.map((r) => r.id);
+    }
+    if (roleType === "CIRCLE_OWNER") {
+      const rows = await this.prisma.circle.findMany({ where: { deletedAt: null }, select: { id: true }, take: 2000 });
+      return rows.map((r) => r.id);
+    }
+    if (roleType === "LECTURER") {
+      const rows = await this.prisma.userRole.findMany({ where: { roleType: "LECTURER" }, select: { userId: true }, take: 2000 });
+      return [...new Set(rows.map((r) => r.userId))];
+    }
+    if (roleType === "OPERATOR") {
+      const rows = await this.prisma.operator.findMany({ where: { status: "ACTIVE" }, select: { id: true }, take: 2000 });
       return rows.map((r) => r.id);
     }
     return [];
@@ -280,6 +414,8 @@ export class AdvisorService {
     if (!result.hit) return false;
 
     const content = await this.renderContent(rule, result.facts || {});
+    // 动作目标支持 {{subjectId}} 占位（多主体角色如圈主需要带圈子ID跳转）
+    const actions = JSON.parse(JSON.stringify(rule.actions).replace(/\{\{subjectId\}\}/g, subjectId)) as object;
     await this.prisma.advisorInsight.create({
       data: {
         ruleKey: rule.ruleKey,
@@ -288,7 +424,7 @@ export class AdvisorService {
         severity: rule.severity,
         facts: result.facts || {},
         content,
-        actions: rule.actions as object,
+        actions,
       },
     });
     return true;
@@ -358,24 +494,39 @@ export class AdvisorService {
 
   // ───────── 工作台读取与状态流转 ─────────
 
-  /** 当前用户按角色解析主体ID（服务端解析，杜绝越权读他人建议） */
-  async resolveSubjectId(userId: string, roleType: string): Promise<string | null> {
+  /** 当前用户按角色解析主体ID列表（服务端解析，杜绝越权读他人建议；圈主可拥有多个圈子） */
+  async resolveSubjectIds(userId: string, roleType: string): Promise<string[]> {
     if (roleType === "STATION_MASTER") {
       const s = await this.prisma.station.findUnique({ where: { userId }, select: { id: true } });
-      return s?.id ?? null;
+      return s ? [s.id] : [];
     }
     if (roleType === "STATION_OFFLINE_OWNER") {
       const s = await this.prisma.stationOffline.findFirst({ where: { ownerUserId: userId }, select: { id: true } });
-      return s?.id ?? null;
+      return s ? [s.id] : [];
     }
-    return null;
+    if (roleType === "CIRCLE_OWNER") {
+      const rows = await this.prisma.circleMember.findMany({
+        where: { userId, role: "OWNER" },
+        select: { circleId: true },
+        take: 20,
+      });
+      return rows.map((r) => r.circleId);
+    }
+    if (roleType === "LECTURER") {
+      return [userId]; // 讲师主体即本人
+    }
+    if (roleType === "OPERATOR") {
+      const op = await this.prisma.operator.findFirst({ where: { userId }, select: { id: true } });
+      return op ? [op.id] : [];
+    }
+    return [];
   }
 
   async listInsights(userId: string, roleType: string) {
-    const subjectId = await this.resolveSubjectId(userId, roleType);
-    if (!subjectId) return { insights: [] };
+    const subjectIds = await this.resolveSubjectIds(userId, roleType);
+    if (subjectIds.length === 0) return { insights: [] };
     const insights = await this.prisma.advisorInsight.findMany({
-      where: { roleType, subjectId, status: { in: ["OPEN", "READ"] } },
+      where: { roleType, subjectId: { in: subjectIds }, status: { in: ["OPEN", "READ"] } },
       orderBy: [{ createdAt: "desc" }],
       take: 10,
     });
@@ -386,8 +537,8 @@ export class AdvisorService {
     const insight = await this.prisma.advisorInsight.findUnique({ where: { id: insightId } });
     if (!insight) throw new BusinessException(ErrorCode.NOT_FOUND, "建议不存在");
     // 归属校验：只能操作自己主体的建议
-    const subjectId = await this.resolveSubjectId(userId, insight.roleType);
-    if (!subjectId || subjectId !== insight.subjectId) {
+    const subjectIds = await this.resolveSubjectIds(userId, insight.roleType);
+    if (!subjectIds.includes(insight.subjectId)) {
       throw new BusinessException(ErrorCode.FORBIDDEN, "无权操作该建议");
     }
     const statusMap = { read: "READ", act: "ACTED", dismiss: "DISMISSED" } as const;
