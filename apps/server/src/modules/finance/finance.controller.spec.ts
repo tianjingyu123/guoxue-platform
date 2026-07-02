@@ -107,7 +107,7 @@ describe("FinanceController", () => {
   });
 
   it("PUT /finance/settlements/:id/pay — 打款结算", async () => {
-    const result = await ctrl.paySettlement("s1");
+    const result = await ctrl.paySettlement("s1", mockReq());
     expect(result.status).toBe("PAID");
   });
 
@@ -129,7 +129,7 @@ describe("FinanceController", () => {
   });
 
   it("POST /finance/withdrawals/:id/pay — 确认打款", async () => {
-    const result: any = await ctrl.confirmWithdrawalPay("w1");
+    const result: any = await ctrl.confirmWithdrawalPay("w1", mockReq());
     expect(result!.status).toBe("PAID");
   });
 

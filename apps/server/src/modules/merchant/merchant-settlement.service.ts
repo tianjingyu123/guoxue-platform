@@ -148,9 +148,16 @@ export class MerchantSettlementService {
   }
 
   /** 标记结算已支付 */
-  async paySettlement(id: string, dto: PaySettlementDto) {
-    const settlement = await this.prisma.merchantSettlement.findUnique({ where: { id } });
+  async paySettlement(id: string, dto: PaySettlementDto, operatorId: string) {
+    const settlement = await this.prisma.merchantSettlement.findUnique({
+      where: { id },
+      include: { merchant: { select: { userId: true } } },
+    });
     if (!settlement) throw new BusinessException(ErrorCode.NOT_FOUND, "结算单不存在");
+    // 防自审自批：不得给自己名下的商家结算单打款
+    if (settlement.merchant?.userId === operatorId) {
+      throw new BusinessException(ErrorCode.FORBIDDEN, "不能给自己的商家结算单打款");
+    }
     if (settlement.status !== "PENDING") {
       throw new BusinessException(ErrorCode.MERCHANT_STATUS_INVALID, "只能支付待处理状态的结算单");
     }

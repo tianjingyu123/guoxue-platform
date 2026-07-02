@@ -183,18 +183,22 @@ describe("CommissionService", () => {
 
   describe("auditWithdrawal", () => {
     it("审核通过", async () => {
-      mockPrisma.withdrawal.findUnique.mockResolvedValue({ id: "w-1", status: "PENDING" });
+      mockPrisma.withdrawal.findUnique.mockResolvedValue({ id: "w-1", userId: "user-1", status: "PENDING" });
       mockPrisma.withdrawal.update.mockResolvedValue({ id: "w-1", status: "APPROVED" });
-      const result = await svc.auditWithdrawal("w-1", { status: "APPROVED" });
+      const result = await svc.auditWithdrawal("w-1", { status: "APPROVED" }, "admin1");
       expect(result.status).toBe("APPROVED");
     });
     it("不存在抛出 NotFoundException", async () => {
       mockPrisma.withdrawal.findUnique.mockResolvedValue(null);
-      await expect(svc.auditWithdrawal("w-1", { status: "APPROVED" })).rejects.toThrow(BusinessException);
+      await expect(svc.auditWithdrawal("w-1", { status: "APPROVED" }, "admin1")).rejects.toThrow(BusinessException);
     });
     it("已处理记录不可重复审核", async () => {
-      mockPrisma.withdrawal.findUnique.mockResolvedValue({ id: "w-1", status: "APPROVED" });
-      await expect(svc.auditWithdrawal("w-1", { status: "PAID" })).rejects.toThrow(BusinessException);
+      mockPrisma.withdrawal.findUnique.mockResolvedValue({ id: "w-1", userId: "user-1", status: "APPROVED" });
+      await expect(svc.auditWithdrawal("w-1", { status: "PAID" }, "admin1")).rejects.toThrow(BusinessException);
+    });
+    it("不能审核自己的提现申请（防自审自批）", async () => {
+      mockPrisma.withdrawal.findUnique.mockResolvedValue({ id: "w-1", userId: "user-1", status: "PENDING" });
+      await expect(svc.auditWithdrawal("w-1", { status: "APPROVED" }, "user-1")).rejects.toThrow(BusinessException);
     });
   });
 

@@ -61,6 +61,8 @@ export class MerchantDepositService {
   async refundDeposit(merchantId: string, operatorId: string, dto: RefundDepositDto) {
     const merchant = await this.prisma.merchant.findUnique({ where: { id: merchantId } });
     if (!merchant) throw new BusinessException(ErrorCode.MERCHANT_NOT_FOUND, "商家不存在");
+    // 防自审自批：不得给自己名下的商家退还保证金
+    if (merchant.userId === operatorId) throw new BusinessException(ErrorCode.FORBIDDEN, "不能给自己的商家退还保证金");
 
     const refundAmount = dto.amount ?? Number(merchant.depositAmount ?? 0);
 

@@ -95,7 +95,8 @@ describe("CommissionController", () => {
 
   it("PUT /commission/admin/withdrawals/:id — 审核提现", async () => {
     const dto: any = { status: "APPROVED", remark: "已打款" };
-    const result: any = await ctrl.auditWithdrawal("w1", dto);
+    const req: any = { user: { id: "admin1" } };
+    const result: any = await ctrl.auditWithdrawal("w1", dto, req);
     expect(result.status).toBe("APPROVED");
   });
 

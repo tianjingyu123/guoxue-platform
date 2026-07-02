@@ -96,6 +96,11 @@ describe("MerchantDepositService", () => {
       expect(result.type).toBe("REFUND");
       expect(result.status).toBe("SUCCESS");
     });
+
+    it("不能给自己名下的商家退还保证金（防自审自批）", async () => {
+      mockPrisma.merchant.findUnique.mockResolvedValue({ id: "m1", userId: "u1", depositAmount: 2000 });
+      await expect(svc.refundDeposit("m1", "u1", {})).rejects.toThrow(BusinessException);
+    });
   });
 
   describe("adjustDeposit", () => {

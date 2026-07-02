@@ -103,11 +103,16 @@ describe("MerchantSettlementService", () => {
 
   describe("paySettlement", () => {
     it("paidAmount 规整到分写入", async () => {
-      mockPrisma.merchantSettlement.findUnique.mockResolvedValue({ id: "s1", status: "PENDING" });
+      mockPrisma.merchantSettlement.findUnique.mockResolvedValue({ id: "s1", status: "PENDING", merchant: { userId: "u1" } });
       mockPrisma.merchantSettlement.update.mockImplementation((args: any) => Promise.resolve(args.data));
-      const result: any = await svc.paySettlement("s1", { amount: 1049.385, remark: "结清" } as any);
+      const result: any = await svc.paySettlement("s1", { amount: 1049.385, remark: "结清" } as any, "admin1");
       expect(result.paidAmount).toBe(1049.39); // 1049.385 → 规整到分
       expect(result.status).toBe("PAID");
+    });
+
+    it("不能给自己名下的商家结算单打款（防自审自批）", async () => {
+      mockPrisma.merchantSettlement.findUnique.mockResolvedValue({ id: "s1", status: "PENDING", merchant: { userId: "u1" } });
+      await expect(svc.paySettlement("s1", { amount: 100 } as any, "u1")).rejects.toThrow(BusinessException);
     });
   });
 

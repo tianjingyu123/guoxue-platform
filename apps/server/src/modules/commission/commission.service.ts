@@ -413,9 +413,11 @@ export class CommissionService {
     return { withdrawals: decoded, total, page, pageSize };
   }
 
-  async auditWithdrawal(id: string, dto: { status: string; remark?: string }) {
+  async auditWithdrawal(id: string, dto: { status: string; remark?: string }, reviewerId: string) {
     const w = await this.prisma.withdrawal.findUnique({ where: { id } });
     if (!w) throw new BusinessException(ErrorCode.NOT_FOUND, "提现记录不存在");
+    // 防自审自批：受益人不得审核自己的提现申请
+    if (w.userId === reviewerId) throw new BusinessException(ErrorCode.FORBIDDEN, "不能审核自己的提现申请");
     if (w.status !== "PENDING") throw new BusinessException(ErrorCode.BAD_REQUEST, "该记录已处理");
 
     return this.prisma.withdrawal.update({

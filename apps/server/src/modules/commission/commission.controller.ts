@@ -169,8 +169,8 @@ export class CommissionController {
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
-  auditWithdrawal(@Param("id") id: string, @Body() dto: WithdrawalAuditDto) {
-    return this.svc.auditWithdrawal(id, dto);
+  auditWithdrawal(@Param("id") id: string, @Body() dto: WithdrawalAuditDto, @Req() req: Request) {
+    return this.svc.auditWithdrawal(id, dto, req.user.id);
   }
 
   // ───────── 推荐链接 ─────────

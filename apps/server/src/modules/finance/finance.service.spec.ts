@@ -193,29 +193,39 @@ describe("FinanceService", () => {
 
   describe("approveSettlement", () => {
     it("审批结算单成功", async () => {
-      mockPrisma.settlementOrder.findUnique.mockResolvedValue({ id: "s1", status: "PENDING" });
+      mockPrisma.settlementOrder.findUnique.mockResolvedValue({ id: "s1", userId: "u1", status: "PENDING" });
       mockPrisma.settlementOrder.update.mockResolvedValue({ id: "s1", status: "APPROVED" });
       const result = await svc.approveSettlement("s1", "admin1");
       expect(result.status).toBe("APPROVED");
     });
 
     it("非PENDING状态无法审批", async () => {
-      mockPrisma.settlementOrder.findUnique.mockResolvedValue({ id: "s1", status: "APPROVED" });
+      mockPrisma.settlementOrder.findUnique.mockResolvedValue({ id: "s1", userId: "u1", status: "APPROVED" });
       await expect(svc.approveSettlement("s1", "admin1")).rejects.toThrow(BusinessException);
+    });
+
+    it("不能审批自己的结算单（防自审自批）", async () => {
+      mockPrisma.settlementOrder.findUnique.mockResolvedValue({ id: "s1", userId: "u1", status: "PENDING" });
+      await expect(svc.approveSettlement("s1", "u1")).rejects.toThrow(BusinessException);
     });
   });
 
   describe("paySettlement", () => {
     it("打款成功", async () => {
-      mockPrisma.settlementOrder.findUnique.mockResolvedValue({ id: "s1", status: "APPROVED" });
+      mockPrisma.settlementOrder.findUnique.mockResolvedValue({ id: "s1", userId: "u1", status: "APPROVED" });
       mockPrisma.settlementOrder.update.mockResolvedValue({ id: "s1", status: "PAID" });
-      const result = await svc.paySettlement("s1");
+      const result = await svc.paySettlement("s1", "admin1");
       expect(result.status).toBe("PAID");
     });
 
     it("非APPROVED状态无法打款", async () => {
-      mockPrisma.settlementOrder.findUnique.mockResolvedValue({ id: "s1", status: "PENDING" });
-      await expect(svc.paySettlement("s1")).rejects.toThrow(BusinessException);
+      mockPrisma.settlementOrder.findUnique.mockResolvedValue({ id: "s1", userId: "u1", status: "PENDING" });
+      await expect(svc.paySettlement("s1", "admin1")).rejects.toThrow(BusinessException);
+    });
+
+    it("不能给自己的结算单打款（防自审自批）", async () => {
+      mockPrisma.settlementOrder.findUnique.mockResolvedValue({ id: "s1", userId: "u1", status: "APPROVED" });
+      await expect(svc.paySettlement("s1", "u1")).rejects.toThrow(BusinessException);
     });
   });
 
@@ -224,15 +234,20 @@ describe("FinanceService", () => {
   describe("approveWithdrawal", () => {
     it("批准提现成功", async () => {
       mockPrisma.withdrawalApplication.updateMany.mockResolvedValue({ count: 1 });
-      mockPrisma.withdrawalApplication.findUnique.mockResolvedValue({ id: "w1", status: "APPROVED" });
+      mockPrisma.withdrawalApplication.findUnique.mockResolvedValue({ id: "w1", userId: "u1", status: "APPROVED" });
       const result = await svc.approveWithdrawal("w1", "admin1");
       expect(result?.status).toBe("APPROVED");
     });
 
     it("非PENDING状态无法批准（原子拦截）", async () => {
       mockPrisma.withdrawalApplication.updateMany.mockResolvedValue({ count: 0 });
-      mockPrisma.withdrawalApplication.findUnique.mockResolvedValue({ id: "w1", status: "APPROVED" });
+      mockPrisma.withdrawalApplication.findUnique.mockResolvedValue({ id: "w1", userId: "u1", status: "APPROVED" });
       await expect(svc.approveWithdrawal("w1", "admin1")).rejects.toThrow(BusinessException);
+    });
+
+    it("不能审批自己的提现（防自审自批）", async () => {
+      mockPrisma.withdrawalApplication.findUnique.mockResolvedValue({ id: "w1", userId: "u1", status: "PENDING" });
+      await expect(svc.approveWithdrawal("w1", "u1")).rejects.toThrow(BusinessException);
     });
   });
 
@@ -248,15 +263,20 @@ describe("FinanceService", () => {
   describe("confirmWithdrawalPay", () => {
     it("确认打款成功", async () => {
       mockPrisma.withdrawalApplication.updateMany.mockResolvedValue({ count: 1 });
-      mockPrisma.withdrawalApplication.findUnique.mockResolvedValue({ id: "w1", status: "PAID" });
-      const result = await svc.confirmWithdrawalPay("w1");
+      mockPrisma.withdrawalApplication.findUnique.mockResolvedValue({ id: "w1", userId: "u1", status: "PAID" });
+      const result = await svc.confirmWithdrawalPay("w1", "admin1");
       expect(result?.status).toBe("PAID");
     });
 
     it("非APPROVED状态无法打款（原子拦截）", async () => {
       mockPrisma.withdrawalApplication.updateMany.mockResolvedValue({ count: 0 });
-      mockPrisma.withdrawalApplication.findUnique.mockResolvedValue({ id: "w1", status: "PENDING" });
-      await expect(svc.confirmWithdrawalPay("w1")).rejects.toThrow(BusinessException);
+      mockPrisma.withdrawalApplication.findUnique.mockResolvedValue({ id: "w1", userId: "u1", status: "PENDING" });
+      await expect(svc.confirmWithdrawalPay("w1", "admin1")).rejects.toThrow(BusinessException);
+    });
+
+    it("不能给自己的提现打款（防自审自批）", async () => {
+      mockPrisma.withdrawalApplication.findUnique.mockResolvedValue({ id: "w1", userId: "u1", status: "APPROVED" });
+      await expect(svc.confirmWithdrawalPay("w1", "u1")).rejects.toThrow(BusinessException);
     });
   });
 

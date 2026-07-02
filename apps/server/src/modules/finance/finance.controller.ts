@@ -234,8 +234,8 @@ export class FinanceController {
   @ApiResponse({ status: 404, description: "资源不存在" })
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiResponse({ status: 403, description: "无权限" })
-  paySettlement(@Param("id") id: string) {
-    return this.svc.paySettlement(id);
+  paySettlement(@Param("id") id: string, @Req() req: Request) {
+    return this.svc.paySettlement(id, req.user.id);
   }
 
   // ───────── 4. 提现审批 ─────────
@@ -295,8 +295,8 @@ export class FinanceController {
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiResponse({ status: 403, description: "无权限" })
-  confirmWithdrawalPay(@Param("id") id: string) {
-    return this.svc.confirmWithdrawalPay(id);
+  confirmWithdrawalPay(@Param("id") id: string, @Req() req: Request) {
+    return this.svc.confirmWithdrawalPay(id, req.user.id);
   }
 
   // ───────── 6. 资金冻结/解冻 ─────────

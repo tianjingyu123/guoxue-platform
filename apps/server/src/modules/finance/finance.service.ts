@@ -383,6 +383,8 @@ export class FinanceService {
   async approveSettlement(id: string, adminId: string) {
     const settlement = await this.prisma.settlementOrder.findUnique({ where: { id } });
     if (!settlement) throw new BusinessException(ErrorCode.NOT_FOUND, "结算单不存在");
+    // 防自审自批：受益人不得审批自己的结算单
+    if (settlement.userId === adminId) throw new BusinessException(ErrorCode.FORBIDDEN, "不能审批自己的结算单");
     if (settlement.status !== "PENDING") throw new BusinessException(ErrorCode.BAD_REQUEST, "当前状态不允许审批");
 
     return this.prisma.settlementOrder.update({
@@ -391,9 +393,11 @@ export class FinanceService {
     });
   }
 
-  async paySettlement(id: string) {
+  async paySettlement(id: string, operatorId: string) {
     const settlement = await this.prisma.settlementOrder.findUnique({ where: { id } });
     if (!settlement) throw new BusinessException(ErrorCode.NOT_FOUND, "结算单不存在");
+    // 防自审自批：受益人不得给自己的结算单打款
+    if (settlement.userId === operatorId) throw new BusinessException(ErrorCode.FORBIDDEN, "不能给自己的结算单打款");
     if (settlement.status !== "APPROVED") throw new BusinessException(ErrorCode.BAD_REQUEST, "当前状态不允许打款");
 
     return this.prisma.settlementOrder.update({
@@ -444,6 +448,9 @@ export class FinanceService {
   }
 
   async approveWithdrawal(id: string, adminId: string, reviewNote?: string) {
+    // 防自审自批：受益人不得审批自己的提现申请
+    const app = await this.prisma.withdrawalApplication.findUnique({ where: { id } });
+    if (app && app.userId === adminId) throw new BusinessException(ErrorCode.FORBIDDEN, "不能审批自己的提现");
     return this.transitWithdrawal(
       id,
       "PENDING",
@@ -457,7 +464,10 @@ export class FinanceService {
     return this.transitWithdrawal(id, "PENDING", "REJECTED", { reviewedBy: adminId, reviewNote }, "当前状态不允许驳回");
   }
 
-  async confirmWithdrawalPay(id: string) {
+  async confirmWithdrawalPay(id: string, adminId: string) {
+    // 防自审自批：受益人不得给自己的提现打款
+    const app = await this.prisma.withdrawalApplication.findUnique({ where: { id } });
+    if (app && app.userId === adminId) throw new BusinessException(ErrorCode.FORBIDDEN, "不能给自己的提现打款");
     return this.transitWithdrawal(id, "APPROVED", "PAID", {}, "当前状态不允许打款");
   }
 

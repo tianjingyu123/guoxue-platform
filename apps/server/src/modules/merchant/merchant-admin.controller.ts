@@ -220,8 +220,8 @@ export class MerchantAdminController {
   @ApiOperation({ summary: "标记结算已支付" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
-  paySettlement(@Param("settlementId") sid: string, @Body() dto: PaySettlementDto) {
-    return this.settlementService.paySettlement(sid, dto);
+  paySettlement(@Param("settlementId") sid: string, @Req() req: AuthRequest, @Body() dto: PaySettlementDto) {
+    return this.settlementService.paySettlement(sid, dto, req.user.id);
   }
 
   @Post(":id/settlements/:settlementId/cancel")
