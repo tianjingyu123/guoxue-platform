@@ -650,6 +650,8 @@ export class LiveService {
 
   /** 删除课件 */
   async removeSlide(slideId: string) {
+    const existing = await this.prisma.liveSlide.findUnique({ where: { id: slideId } });
+    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "幻灯片不存在");
     await this.prisma.liveSlide.delete({ where: { id: slideId } });
     return { success: true };
   }

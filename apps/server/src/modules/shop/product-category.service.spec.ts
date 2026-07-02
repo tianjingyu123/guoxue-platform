@@ -4,7 +4,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 
 const mockPrisma = {
   productCategory: {
-    findMany: jest.fn(), create: jest.fn(), update: jest.fn(), delete: jest.fn(),
+    findMany: jest.fn(), findUnique: jest.fn(), create: jest.fn(), update: jest.fn(), delete: jest.fn(),
     count: jest.fn().mockResolvedValue(10), // 已有数据，跳过 seed
   },
   product: { findMany: jest.fn(), count: jest.fn() },
@@ -51,18 +51,40 @@ describe("ProductCategoryService", () => {
     });
   });
 
+  describe("adminUpdate", () => {
+    it("更新分类信息", async () => {
+      mockPrisma.productCategory.findUnique.mockResolvedValue({ id: "c1", name: "书籍" });
+      mockPrisma.productCategory.update.mockResolvedValue({ id: "c1", name: "国学书籍" });
+
+      const result = await svc.adminUpdate("c1", { name: "国学书籍" });
+      expect(result.name).toBe("国学书籍");
+    });
+
+    it("分类不存在抛出异常", async () => {
+      mockPrisma.productCategory.findUnique.mockResolvedValue(null);
+      await expect(svc.adminUpdate("no-cat", { name: "X" })).rejects.toThrow("不存在");
+    });
+  });
+
   describe("adminDelete", () => {
     it("分类下有商品时拒绝删除", async () => {
+      mockPrisma.productCategory.findUnique.mockResolvedValue({ id: "c1", name: "书籍" });
       mockPrisma.product.count.mockResolvedValue(5);
       await expect(svc.adminDelete("c1")).rejects.toThrow("无法删除");
     });
 
     it("分类下无商品时成功删除", async () => {
+      mockPrisma.productCategory.findUnique.mockResolvedValue({ id: "c1", name: "书籍" });
       mockPrisma.product.count.mockResolvedValue(0);
       mockPrisma.productCategory.delete.mockResolvedValue({ id: "c1" });
 
       const result = await svc.adminDelete("c1");
       expect(result).toEqual({ id: "c1" });
+    });
+
+    it("分类不存在抛出异常", async () => {
+      mockPrisma.productCategory.findUnique.mockResolvedValue(null);
+      await expect(svc.adminDelete("no-cat")).rejects.toThrow("不存在");
     });
   });
 });

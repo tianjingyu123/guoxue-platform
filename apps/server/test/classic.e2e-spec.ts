@@ -140,6 +140,7 @@ describe("Classic E2E", () => {
   describe("PUT /api/v1/classic/books/:id", () => {
     it("更新书籍信息", async () => {
       stubUser("u1", ["SUPER_ADMIN"])
+      prisma.classicBook.findUnique.mockResolvedValue({ id: "b1", title: "论语" })
       prisma.classicBook.update.mockResolvedValue({
         id: "b1", title: "论语修订版", author: "孔子及弟子",
       })
@@ -159,6 +160,7 @@ describe("Classic E2E", () => {
   describe("DELETE /api/v1/classic/books/:id", () => {
     it("删除成功", async () => {
       stubUser("u1", ["SUPER_ADMIN"])
+      prisma.classicBook.findUnique.mockResolvedValue({ id: "b1", title: "论语" })
       prisma.classicBook.delete.mockResolvedValue({ id: "b1" })
 
       await request(app.getHttpServer())

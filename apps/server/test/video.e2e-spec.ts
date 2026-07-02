@@ -223,6 +223,7 @@ describe("Video E2E", () => {
     it("收藏视频成功", async () => {
       const token = jwt.sign({ sub: "u1" })
       prisma.user.findUnique.mockResolvedValue({ id: "u1", status: "ACTIVE", roles: [{ roleType: "SUPER_ADMIN" }] })
+      prisma.video.findUnique.mockResolvedValue({ id: "v1" })
       prisma.collect.findFirst.mockResolvedValue(null)
       prisma.collect.create.mockResolvedValue({ id: "c1" })
       prisma.video.update.mockResolvedValue({})
@@ -242,6 +243,7 @@ describe("Video E2E", () => {
     it("记录分享成功", async () => {
       const token = jwt.sign({ sub: "u1" })
       prisma.user.findUnique.mockResolvedValue({ id: "u1", status: "ACTIVE", roles: [{ roleType: "SUPER_ADMIN" }] })
+      prisma.video.findUnique.mockResolvedValue({ id: "v1" })
       prisma.video.update.mockResolvedValue({ id: "v1", shareCount: 5 })
 
       const res = await request(app.getHttpServer())

@@ -402,6 +402,9 @@ export class StationService {
     const config = dto.templateConfig ?? {};
     const mergedConfig = { ...tpl, ...config };
 
+    const existing = await this.prisma.station.findUnique({ where: { id: stationId } });
+    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "分站不存在");
+
     const updated = await this.prisma.station.update({
       where: { id: stationId },
       data: {
@@ -478,6 +481,8 @@ export class StationService {
     if (dto.miniAppId !== undefined) data.miniAppId = dto.miniAppId;
     if (dto.mpAppId !== undefined) data.mpAppId = dto.mpAppId;
     if (dto.miniPages) data.miniPages = dto.miniPages as any;
+    const existing = await this.prisma.operator.findUnique({ where: { id: operatorId } });
+    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "运营商不存在");
     return this.prisma.operator.update({ where: { id: operatorId }, data });
   }
 

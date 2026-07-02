@@ -328,6 +328,8 @@ export class CoinService {
 
   /** 删除礼物（管理员） */
   async deleteGift(giftId: string) {
+    const existing = await this.prisma.gift.findUnique({ where: { id: giftId } });
+    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "礼物不存在");
     await this.prisma.gift.delete({ where: { id: giftId } });
     return { success: true };
   }

@@ -43,10 +43,14 @@ export class InstituteContentService {
   }
 
   async update(id: string, dto: { title?: string; content?: string; summary?: string; price?: number; status?: string }) {
+    const existing = await this.prisma.instituteContent.findUnique({ where: { id } });
+    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "书院内容不存在");
     return this.prisma.instituteContent.update({ where: { id }, data: dto });
   }
 
   async delete(id: string) {
+    const existing = await this.prisma.instituteContent.findUnique({ where: { id } });
+    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "书院内容不存在");
     return this.prisma.instituteContent.update({ where: { id }, data: { status: "ARCHIVED" } });
   }
 

@@ -102,6 +102,8 @@ export class ClassicCommentaryService {
     const data: any = { ...dto };
     if (dto.content) data.contentHash = this.hashContent(dto.content);
 
+    const existing = await this.prisma.classicCommentary.findUnique({ where: { id } });
+    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "注疏不存在");
     return this.prisma.classicCommentary.update({ where: { id }, data });
   }
 

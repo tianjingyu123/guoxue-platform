@@ -75,6 +75,7 @@ describe("BotService", () => {
 
   describe("update", () => {
     it("更新智能体成功", async () => {
+      mockPrisma.botConfig.findUnique.mockResolvedValue({ id: "b1", name: "旧名称" });
       mockPrisma.botConfig.update.mockResolvedValue({ id: "b1", name: "新名称" });
       const result = await svc.update("b1", { name: "新名称" });
       expect(result.name).toBe("新名称");
@@ -83,6 +84,7 @@ describe("BotService", () => {
 
   describe("delete", () => {
     it("删除智能体成功", async () => {
+      mockPrisma.botConfig.findUnique.mockResolvedValue({ id: "b1", name: "助手" });
       mockPrisma.botConfig.delete.mockResolvedValue({});
       const result = await svc.delete("b1");
       expect(result.success).toBe(true);
@@ -211,6 +213,7 @@ describe("BotService", () => {
 
   describe("deleteKnowledge", () => {
     it("删除知识库条目成功（管理端，无圈主校验）", async () => {
+      mockPrisma.botKnowledgeBase.findUnique.mockResolvedValue({ id: "k1" });
       mockPrisma.botKnowledgeBase.delete.mockResolvedValue({});
       const result = await svc.deleteKnowledge("k1");
       expect(result.success).toBe(true);

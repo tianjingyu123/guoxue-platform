@@ -43,12 +43,16 @@ export class BotService {
   }
 
   async update(id: string, dto: UpdateBotDto) {
+    const existing = await this.prisma.botConfig.findUnique({ where: { id } });
+    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "智能体配置不存在");
     const data: Prisma.BotConfigUpdateInput = { ...dto };
     if (dto.apiKey) data.apiKey = encrypt(dto.apiKey);
     return this.prisma.botConfig.update({ where: { id }, data });
   }
 
   async delete(id: string) {
+    const existing = await this.prisma.botConfig.findUnique({ where: { id } });
+    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "智能体配置不存在");
     await this.prisma.botConfig.delete({ where: { id } });
     return { success: true };
   }
@@ -150,6 +154,8 @@ export class BotService {
 
   /** 删除知识库条目（管理端调用，无圈主校验，由 RolesGuard 兜底） */
   async deleteKnowledge(knowledgeId: string) {
+    const existing = await this.prisma.botKnowledgeBase.findUnique({ where: { id: knowledgeId } });
+    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "知识库条目不存在");
     await this.prisma.botKnowledgeBase.delete({ where: { id: knowledgeId } });
     return { success: true };
   }
@@ -450,6 +456,8 @@ export class BotService {
   /** 更新圈主助理知识库条目 */
   async updateBotKnowledge(knowledgeId: string, dto: { question?: string; answer?: string }) {
     this.logger.log(`更新圈主助理知识库: knowledgeId=${knowledgeId}`);
+    const existing = await this.prisma.botKnowledgeBase.findUnique({ where: { id: knowledgeId } });
+    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "知识库条目不存在");
     const data: Prisma.BotKnowledgeBaseUpdateInput = {};
     if (dto.question !== undefined) data.title = dto.question;
     if (dto.answer !== undefined) data.content = dto.answer;

@@ -144,17 +144,18 @@ export class EbookService {
   }
 
   async updateChapter(id: string, dto: UpdateChapterDto) {
+    const existing = await this.prisma.ebookChapter.findUnique({ where: { id } });
+    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "电子书章节不存在");
     return this.prisma.ebookChapter.update({ where: { id }, data: dto });
   }
 
   async deleteChapter(id: string) {
     const ch = await this.prisma.ebookChapter.findUnique({ where: { id } });
-    if (ch) {
-      await this.prisma.ebook.update({
-        where: { id: ch.ebookId },
-        data: { totalChapters: { increment: -1 } },
-      });
-    }
+    if (!ch) throw new BusinessException(ErrorCode.NOT_FOUND, "电子书章节不存在");
+    await this.prisma.ebook.update({
+      where: { id: ch.ebookId },
+      data: { totalChapters: { increment: -1 } },
+    });
     return this.prisma.ebookChapter.delete({ where: { id } });
   }
 

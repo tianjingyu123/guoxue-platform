@@ -42,10 +42,14 @@ export class AdminReferralService {
     if (dto.commissionRate != null) data.commissionRate = dto.commissionRate;
     if (dto.validFrom) data.validFrom = new Date(dto.validFrom);
     if (dto.validTo) data.validTo = new Date(dto.validTo);
+    const existing = await this.prisma.temporaryReferralConfig.findUnique({ where: { id } });
+    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "临时推荐配置不存在");
     return this.prisma.temporaryReferralConfig.update({ where: { id }, data });
   }
 
   async delete(id: string) {
+    const existing = await this.prisma.temporaryReferralConfig.findUnique({ where: { id } });
+    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "临时推荐配置不存在");
     return this.prisma.temporaryReferralConfig.delete({ where: { id } });
   }
 

@@ -171,6 +171,8 @@ export class UserService {
   // ───────── 用户状态管理 ─────────
 
   async updateUserStatus(userId: string, status: string) {
+    const existing = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "用户不存在");
     return this.prisma.user.update({
       where: { id: userId },
       data: { status: status as UserStatus },

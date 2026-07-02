@@ -9,6 +9,7 @@ const mockPrisma = {
   legalDocument: {
     findFirst: jest.fn(),
     findMany: jest.fn(),
+    findUnique: jest.fn(),
     create: jest.fn(),
     update: jest.fn(),
     delete: jest.fn(),
@@ -72,12 +73,14 @@ describe("LegalController", () => {
     });
 
     it("更新法律文件", async () => {
+      mockPrisma.legalDocument.findUnique.mockResolvedValue({ id: "l1", type: "terms", title: "用户协议" });
       mockPrisma.legalDocument.update.mockResolvedValue({ id: "l1", status: "PUBLISHED" });
       const result: any = await ctrl.adminUpdate("l1", { status: "PUBLISHED" } as any);
       expect(result.status).toBe("PUBLISHED");
     });
 
     it("删除法律文件", async () => {
+      mockPrisma.legalDocument.findUnique.mockResolvedValue({ id: "l1", type: "terms", title: "用户协议" });
       mockPrisma.legalDocument.delete.mockResolvedValue({ id: "l1" });
       await ctrl.adminDelete("l1");
       expect(mockPrisma.legalDocument.delete).toHaveBeenCalledWith({ where: { id: "l1" } });

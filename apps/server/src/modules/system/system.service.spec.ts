@@ -3,6 +3,7 @@ import { SystemService } from "./system.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { AuditService } from "../audit/audit.service";
+import { ThirdPartyConfigLoader } from "./third-party-config.loader";
 
 const mockPrisma = {
   configSystem: { findMany: jest.fn(), findUnique: jest.fn(), upsert: jest.fn(), delete: jest.fn() },
@@ -10,6 +11,12 @@ const mockPrisma = {
 };
 const mockRedis = { get: jest.fn(), set: jest.fn(), del: jest.fn(), getJson: jest.fn(), setJson: jest.fn() };
 const mockAudit = { log: jest.fn() };
+const mockThirdParty = {
+  isThirdPartyKey: jest.fn().mockReturnValue(false),
+  buildDisplayValue: jest.fn((_k: string, v: string) => v),
+  buildStoredValue: jest.fn(async (_k: string, v: string) => v),
+  syncToEnv: jest.fn().mockResolvedValue(undefined),
+};
 
 describe("SystemService", () => {
   let svc: SystemService;
@@ -21,6 +28,7 @@ describe("SystemService", () => {
         { provide: PrismaService, useValue: mockPrisma },
         { provide: RedisService, useValue: mockRedis },
         { provide: AuditService, useValue: mockAudit },
+        { provide: ThirdPartyConfigLoader, useValue: mockThirdParty },
       ],
     }).compile();
     svc = mod.get(SystemService);
@@ -71,6 +79,7 @@ describe("SystemService", () => {
 
   describe("deleteConfig", () => {
     it("删除配置并失效缓存", async () => {
+      mockPrisma.configSystem.findUnique.mockResolvedValue({ configKey: "key_to_delete", configValue: "v" });
       mockPrisma.configSystem.delete.mockResolvedValue({ configKey: "key_to_delete" });
       await svc.deleteConfig("key_to_delete");
       expect(mockRedis.del).toHaveBeenCalledWith("sys:config:key_to_delete");

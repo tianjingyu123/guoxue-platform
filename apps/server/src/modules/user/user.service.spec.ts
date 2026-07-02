@@ -207,12 +207,14 @@ describe("UserService", () => {
 
   describe("updateUserStatus", () => {
     it("禁用用户", async () => {
+      mockPrisma.user.findUnique.mockResolvedValue({ id: "u1", nickname: "张三", status: "ACTIVE" });
       mockPrisma.user.update.mockResolvedValue({ id: "u1", nickname: "张三", status: "DISABLED" });
       const result = await svc.updateUserStatus("u1", "DISABLED");
       expect(result.status).toBe("DISABLED");
     });
 
     it("启用用户", async () => {
+      mockPrisma.user.findUnique.mockResolvedValue({ id: "u1", nickname: "张三", status: "DISABLED" });
       mockPrisma.user.update.mockResolvedValue({ id: "u1", nickname: "张三", status: "ACTIVE" });
       const result = await svc.updateUserStatus("u1", "ACTIVE");
       expect(result.status).toBe("ACTIVE");

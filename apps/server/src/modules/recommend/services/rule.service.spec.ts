@@ -6,6 +6,7 @@ import { RedisService } from "../../../redis/redis.service";
 const mockPrisma = {
   recommendRule: {
     findMany: jest.fn(),
+    findUnique: jest.fn(),
     findUniqueOrThrow: jest.fn(),
     create: jest.fn(),
     update: jest.fn(),
@@ -151,6 +152,7 @@ describe("RuleService", () => {
 
     it("updateRule — 更新规则并清除缓存", async () => {
       const mockRule = { id: "r1", scene: "GUESS_LIKE", ruleType: "BOOST", priority: 5 };
+      mockPrisma.recommendRule.findUnique.mockResolvedValue({ id: "r1", scene: "ALL", ruleType: "BOOST" });
       mockPrisma.recommendRule.update.mockResolvedValue(mockRule);
       const result = await svc.updateRule("r1", { scene: "GUESS_LIKE" } as any);
       expect(result).toEqual(mockRule);
@@ -159,6 +161,7 @@ describe("RuleService", () => {
     });
 
     it("deleteRule — 删除规则并清除缓存", async () => {
+      mockPrisma.recommendRule.findUnique.mockResolvedValue({ id: "r1", scene: "ALL", ruleType: "BOOST" });
       mockPrisma.recommendRule.delete.mockResolvedValue(undefined);
       await svc.deleteRule("r1");
       expect(mockPrisma.recommendRule.delete).toHaveBeenCalledWith({ where: { id: "r1" } });

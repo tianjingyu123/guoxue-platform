@@ -81,6 +81,8 @@ export class TenantService {
   }
 
   async update(id: string, dto: UpdateTenantDto) {
+    const existing = await this.prisma.tenant.findUnique({ where: { id } });
+    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "租户不存在");
     const data: any = { ...dto };
     if (dto.expireAt !== undefined) data.expireAt = dto.expireAt ? new Date(dto.expireAt) : null;
     if (dto.plan !== undefined) data.plan = dto.plan;
@@ -118,6 +120,8 @@ export class TenantService {
   }
 
   async regenerateApiKey(id: string) {
+    const existing = await this.prisma.tenant.findUnique({ where: { id } });
+    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "租户不存在");
     const newKey = `GX_${createHash("sha256").update(randomUUID()).digest("hex").slice(0, 32)}`;
     await this.prisma.tenant.update({
       where: { id },
@@ -127,6 +131,8 @@ export class TenantService {
   }
 
   async deleteTenant(id: string) {
+    const existing = await this.prisma.tenant.findUnique({ where: { id } });
+    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "租户不存在");
     await this.prisma.tenantApiCall.deleteMany({ where: { tenantId: id } });
     await this.prisma.tenantUsageRecord.deleteMany({ where: { tenantId: id } });
     await this.prisma.tenant.delete({ where: { id } });

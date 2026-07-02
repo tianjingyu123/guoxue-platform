@@ -115,12 +115,14 @@ describe("TenantService", () => {
 
   describe("update", () => {
     it("更新租户信息", async () => {
+      prisma.tenant.findUnique.mockResolvedValue({ id: "t1", name: "旧名称" });
       prisma.tenant.update.mockResolvedValue({ id: "t1", name: "新名称" });
       const result = await svc.update("t1", { name: "新名称" });
       expect(result.name).toBe("新名称");
     });
 
     it("更新过期时间", async () => {
+      prisma.tenant.findUnique.mockResolvedValue({ id: "t1", name: "租户A" });
       prisma.tenant.update.mockResolvedValue({ id: "t1", expireAt: new Date("2027-01-01") });
       const result = await svc.update("t1", { expireAt: "2027-01-01" });
       expect(result.expireAt).toBeDefined();
@@ -145,6 +147,7 @@ describe("TenantService", () => {
 
   describe("regenerateApiKey", () => {
     it("重新生成API Key", async () => {
+      prisma.tenant.findUnique.mockResolvedValue({ id: "t1", name: "租户A" });
       prisma.tenant.update.mockResolvedValue({ id: "t1" });
       const result = await svc.regenerateApiKey("t1");
       expect(result.apiKey).toMatch(/^GX_/);
@@ -153,6 +156,7 @@ describe("TenantService", () => {
 
   describe("deleteTenant", () => {
     it("删除租户及其关联数据", async () => {
+      prisma.tenant.findUnique.mockResolvedValue({ id: "t1", name: "租户A" });
       prisma.tenantApiCall.deleteMany.mockResolvedValue({ count: 10 });
       prisma.tenantUsageRecord.deleteMany.mockResolvedValue({ count: 5 });
       prisma.tenant.delete.mockResolvedValue({ id: "t1" });

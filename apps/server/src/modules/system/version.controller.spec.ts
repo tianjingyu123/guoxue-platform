@@ -9,6 +9,7 @@ const mockPrisma = {
   appVersion: {
     findFirst: jest.fn(),
     findMany: jest.fn(),
+    findUnique: jest.fn(),
     create: jest.fn(),
     update: jest.fn(),
     delete: jest.fn(),
@@ -70,12 +71,14 @@ describe("VersionController", () => {
     });
 
     it("更新版本信息", async () => {
+      mockPrisma.appVersion.findUnique.mockResolvedValue({ id: "v1", platform: "ios", version: "1.0.0" });
       mockPrisma.appVersion.update.mockResolvedValue({ id: "v1", forceUpdate: true });
       const result: any = await ctrl.adminUpdate("v1", { forceUpdate: true } as any);
       expect(result.forceUpdate).toBe(true);
     });
 
     it("删除版本", async () => {
+      mockPrisma.appVersion.findUnique.mockResolvedValue({ id: "v1", platform: "ios", version: "1.0.0" });
       mockPrisma.appVersion.delete.mockResolvedValue({ id: "v1" });
       await ctrl.adminDelete("v1");
       expect(mockPrisma.appVersion.delete).toHaveBeenCalledWith({ where: { id: "v1" } });

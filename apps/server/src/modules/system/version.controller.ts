@@ -5,6 +5,8 @@ import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
 import { CreateAppVersionDto, UpdateAppVersionDto } from "./dto/version.dto";
+import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
 
 @ApiTags("版本更新")
 @Controller("system/version")
@@ -59,7 +61,9 @@ export class VersionController {
   @ApiResponse({ status: 404, description: "资源不存在" })
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiResponse({ status: 403, description: "无权限" })
-  adminUpdate(@Param("id") id: string, @Body() dto: UpdateAppVersionDto) {
+  async adminUpdate(@Param("id") id: string, @Body() dto: UpdateAppVersionDto) {
+    const existing = await this.prisma.appVersion.findUnique({ where: { id } });
+    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "版本记录不存在");
     return this.prisma.appVersion.update({ where: { id }, data: dto });
   }
 
@@ -73,7 +77,9 @@ export class VersionController {
   @ApiResponse({ status: 404, description: "资源不存在" })
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiResponse({ status: 403, description: "无权限" })
-  adminDelete(@Param("id") id: string) {
+  async adminDelete(@Param("id") id: string) {
+    const existing = await this.prisma.appVersion.findUnique({ where: { id } });
+    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "版本记录不存在");
     return this.prisma.appVersion.delete({ where: { id } });
   }
 

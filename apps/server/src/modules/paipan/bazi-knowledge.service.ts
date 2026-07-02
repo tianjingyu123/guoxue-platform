@@ -1,6 +1,8 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 import { VectorService } from "../ai-gateway/vector.service";
+import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
 
 /** 八字知识分类 */
 export const BAZI_CATEGORIES = [
@@ -101,6 +103,8 @@ export class BaziKnowledgeService {
     source?: string;
     status?: string;
   }) {
+    const existing = await this.prisma.baziKnowledge.findUnique({ where: { id } });
+    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "八字知识不存在");
     const data: any = { ...dto };
     if (dto.content) data.contentHash = this.hashContent(dto.content);
     return this.prisma.baziKnowledge.update({ where: { id }, data });
@@ -108,6 +112,8 @@ export class BaziKnowledgeService {
 
   /** 删除知识条目 */
   async delete(id: string) {
+    const existing = await this.prisma.baziKnowledge.findUnique({ where: { id } });
+    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "八字知识不存在");
     return this.prisma.baziKnowledge.delete({ where: { id } });
   }
 

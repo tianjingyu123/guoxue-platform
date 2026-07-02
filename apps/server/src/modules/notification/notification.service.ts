@@ -233,6 +233,8 @@ export class NotificationService {
 
   /** 删除通知（管理员） */
   async delete(notificationId: string) {
+    const existing = await this.prisma.notification.findUnique({ where: { id: notificationId } });
+    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "通知不存在");
     await this.prisma.notification.delete({ where: { id: notificationId } });
     return { success: true };
   }

@@ -3,6 +3,8 @@ import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../../prisma/prisma.service";
 import { RedisService } from "../../../redis/redis.service";
 import { CreateRecommendRuleDto, UpdateRecommendRuleDto } from "../recommend.dto";
+import { BusinessException } from "../../../common/business.exception";
+import { ErrorCode } from "../../../common/error-codes";
 
 export interface ActiveRule {
   id: string;
@@ -132,6 +134,8 @@ export class RuleService {
   }
 
   async updateRule(id: string, dto: UpdateRecommendRuleDto) {
+    const existing = await this.prisma.recommendRule.findUnique({ where: { id } });
+    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "推荐规则不存在");
     const rule = await this.prisma.recommendRule.update({
       where: { id },
       data: {
@@ -152,6 +156,8 @@ export class RuleService {
   }
 
   async deleteRule(id: string) {
+    const existing = await this.prisma.recommendRule.findUnique({ where: { id } });
+    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "推荐规则不存在");
     await this.prisma.recommendRule.delete({ where: { id } });
     await this.clearCache();
   }

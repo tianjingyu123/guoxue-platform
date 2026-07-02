@@ -8,6 +8,7 @@ import { RolesGuard } from "../../common/roles.guard";
 const mockPrisma = {
   topicTag: {
     findMany: jest.fn(),
+    findUnique: jest.fn(),
     create: jest.fn(),
     update: jest.fn(),
     delete: jest.fn(),
@@ -86,12 +87,14 @@ describe("TagController", () => {
     });
 
     it("编辑标签", async () => {
+      mockPrisma.topicTag.findUnique.mockResolvedValue({ id: "t1", name: "原标签" });
       mockPrisma.topicTag.update.mockResolvedValue({ id: "t1", name: "修改后" });
       const result: any = await ctrl.adminUpdate("t1", { name: "修改后" } as any);
       expect(result.name).toBe("修改后");
     });
 
     it("删除标签", async () => {
+      mockPrisma.topicTag.findUnique.mockResolvedValue({ id: "t1", name: "待删标签" });
       mockPrisma.topicTag.delete.mockResolvedValue({ id: "t1" });
       await ctrl.adminDelete("t1");
       expect(mockPrisma.topicTag.delete).toHaveBeenCalledWith({ where: { id: "t1" } });

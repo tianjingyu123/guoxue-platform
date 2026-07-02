@@ -67,6 +67,8 @@ export class SystemService {
   }
 
   async deleteConfig(key: string) {
+    const existing = await this.prisma.configSystem.findUnique({ where: { configKey: key } });
+    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "配置项不存在");
     const result = await this.prisma.configSystem.delete({ where: { configKey: key } });
     await this.redis.del(CONFIG_CACHE_PREFIX + key);
     await this.redis.del(CONFIG_CACHE_PREFIX + "all");
@@ -314,6 +316,8 @@ export class SystemService {
     endTime?: string;
   }) {
     this.logger.log(`更新全站公告: id=${id}`);
+    const existing = await this.prisma.siteNotice.findUnique({ where: { id } });
+    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "站内公告不存在");
     const data: Record<string, unknown> = {};
     if (dto.title !== undefined) data.title = dto.title;
     if (dto.content !== undefined) data.content = dto.content;
@@ -331,6 +335,8 @@ export class SystemService {
   /** 删除全站公告 */
   async deleteSiteNotice(id: string) {
     this.logger.log(`删除全站公告: id=${id}`);
+    const existing = await this.prisma.siteNotice.findUnique({ where: { id } });
+    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "站内公告不存在");
     await this.prisma.siteNotice.delete({ where: { id } });
     return { success: true };
   }

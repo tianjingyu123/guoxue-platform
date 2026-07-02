@@ -231,6 +231,7 @@ describe("EbookService", () => {
 
   describe("updateChapter", () => {
     it("updates chapter", async () => {
+      mockPrisma.ebookChapter.findUnique.mockResolvedValue({ id: "ch1", ebookId: "b1" });
       mockPrisma.ebookChapter.update.mockResolvedValue({ id: "ch1", title: "updated chapter" });
       const result = await svc.updateChapter("ch1", { title: "updated chapter" });
       expect(result.title).toBe("updated chapter");

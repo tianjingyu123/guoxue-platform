@@ -12,6 +12,7 @@ describe("PricingService", () => {
     prisma = {
       pricingRule: {
         findMany: jest.fn(),
+        findUnique: jest.fn(),
         create: jest.fn(),
         update: jest.fn(),
         delete: jest.fn(),
@@ -188,17 +189,29 @@ describe("PricingService", () => {
 
   describe("updateRule", () => {
     it("更新定价规则", async () => {
+      prisma.pricingRule.findUnique.mockResolvedValue({ id: "r1", name: "原规则", strategy: "FIXED" });
       prisma.pricingRule.update.mockResolvedValue({ id: "r1", name: "已更新" });
       const result = await svc.updateRule("r1", { name: "已更新" });
       expect(result.name).toBe("已更新");
+    });
+
+    it("规则不存在抛出异常", async () => {
+      prisma.pricingRule.findUnique.mockResolvedValue(null);
+      await expect(svc.updateRule("no-rule", { name: "X" })).rejects.toThrow("不存在");
     });
   });
 
   describe("deleteRule", () => {
     it("删除定价规则", async () => {
+      prisma.pricingRule.findUnique.mockResolvedValue({ id: "r1", name: "待删除规则", strategy: "FIXED" });
       prisma.pricingRule.delete.mockResolvedValue({ id: "r1" });
       const result = await svc.deleteRule("r1");
       expect(result.success).toBe(true);
+    });
+
+    it("规则不存在抛出异常", async () => {
+      prisma.pricingRule.findUnique.mockResolvedValue(null);
+      await expect(svc.deleteRule("no-rule")).rejects.toThrow("不存在");
     });
   });
 

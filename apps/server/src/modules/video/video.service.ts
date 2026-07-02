@@ -138,6 +138,9 @@ export class VideoService {
   /** 收藏/取消收藏视频 */
   @CacheEvict({ key: (args) => `video:collected:${args[0]}:*`, pattern: true })
   async toggleCollect(userId: string, videoId: string) {
+    const video = await this.prisma.video.findUnique({ where: { id: videoId } });
+    if (!video) throw new BusinessException(ErrorCode.NOT_FOUND, "视频不存在");
+
     const existing = await this.prisma.collect.findFirst({
       where: { userId, targetType: "VIDEO", targetId: videoId },
     });
@@ -158,6 +161,8 @@ export class VideoService {
 
   /** 记录分享 */
   async recordShare(id: string) {
+    const existing = await this.prisma.video.findUnique({ where: { id } });
+    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "视频不存在");
     return this.prisma.video.update({
       where: { id },
       data: { shareCount: { increment: 1 } },

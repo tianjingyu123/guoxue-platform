@@ -42,6 +42,7 @@ describe("StationService", () => {
 
   describe("updateStation", () => {
     it("更新成功并清除缓存", async () => {
+      mockPrisma.station.findUnique.mockResolvedValue({ id: "s-1", name: "旧名称", code: "gx001" });
       mockPrisma.station.update.mockResolvedValue({ id: "s-1", name: "新名称", code: "gx001" });
       mockRedis.del.mockResolvedValue(undefined);
       const result = await svc.updateStation("s-1", { name: "新名称" });

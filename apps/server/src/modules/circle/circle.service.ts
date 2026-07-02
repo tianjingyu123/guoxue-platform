@@ -912,6 +912,10 @@ export class CircleService {
         }),
       ]);
     } else {
+      const existing = await this.prisma.circleMember.findUnique({
+        where: { circleId_userId: { circleId, userId: targetUserId } },
+      });
+      if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "该用户不是圈子成员");
       await this.prisma.circleMember.update({
         where: { circleId_userId: { circleId, userId: targetUserId } },
         data: { role: dto.role as CircleMemberRole },

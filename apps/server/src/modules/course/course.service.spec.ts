@@ -278,6 +278,7 @@ describe("CourseService", () => {
   describe("updateChapter", () => {
     it("更新章节成功", async () => {
       mockPrisma.course.findUnique.mockResolvedValue({ id: "co1", userId: "u1" });
+      mockPrisma.courseChapter.findUnique.mockResolvedValue({ id: "ch1", courseId: "co1" });
       mockPrisma.courseChapter.update.mockResolvedValue({ id: "ch1", title: "更新后" });
       const result = await svc.updateChapter("ch1", "co1", "u1", { title: "更新后" });
       expect(result.title).toBe("更新后");
@@ -287,6 +288,7 @@ describe("CourseService", () => {
   describe("deleteChapter", () => {
     it("删除章节成功", async () => {
       mockPrisma.course.findUnique.mockResolvedValue({ id: "co1", userId: "u1" });
+      mockPrisma.courseChapter.findUnique.mockResolvedValue({ id: "ch1", courseId: "co1" });
       mockPrisma.courseChapter.delete.mockResolvedValue({});
       const result = await svc.deleteChapter("ch1", "co1", "u1");
       expect(result.success).toBe(true);

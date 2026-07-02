@@ -254,6 +254,8 @@ export class InstituteService {
     if (!MGMT_ROLES.includes(role as InstituteRole)) {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "仅可任命主席/副主席/秘书长");
     }
+    const existing = await this.prisma.instituteMember.findUnique({ where: { id: memberId } });
+    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "书院成员不存在");
     return this.prisma.instituteMember.update({
       where: { id: memberId },
       data: { role: role as InstituteRole },
@@ -335,6 +337,8 @@ export class InstituteService {
 
   async recommendToTalentPool(userId: string, memberId: string, lecturerLevel: string) {
     await this.assertManagement(userId);
+    const existing = await this.prisma.instituteMember.findUnique({ where: { id: memberId } });
+    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "书院成员不存在");
     return this.prisma.instituteMember.update({
       where: { id: memberId },
       data: { lecturerLevel },
@@ -354,6 +358,8 @@ export class InstituteService {
   }
 
   async updateTaskTemplate(id: string, dto: { taskType?: string; title?: string; description?: string; requiredCount?: number; periodUnit?: string; sortOrder?: number; status?: string }) {
+    const existing = await this.prisma.instituteTaskTemplate.findUnique({ where: { id } });
+    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "任务模板不存在");
     return this.prisma.instituteTaskTemplate.update({ where: { id }, data: dto });
   }
 

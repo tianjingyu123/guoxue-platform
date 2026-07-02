@@ -1,6 +1,8 @@
 import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiResponse } from "@nestjs/swagger";
 import { PrismaService } from "../../prisma/prisma.service";
+import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
@@ -95,7 +97,9 @@ export class TagController {
   @ApiResponse({ status: 404, description: "资源不存在" })
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiResponse({ status: 403, description: "无权限" })
-  adminUpdate(@Param("id") id: string, @Body() dto: UpdateTagDto) {
+  async adminUpdate(@Param("id") id: string, @Body() dto: UpdateTagDto) {
+    const existing = await this.prisma.topicTag.findUnique({ where: { id } });
+    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "标签不存在");
     return this.prisma.topicTag.update({ where: { id }, data: dto });
   }
 
@@ -109,7 +113,9 @@ export class TagController {
   @ApiResponse({ status: 404, description: "资源不存在" })
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiResponse({ status: 403, description: "无权限" })
-  adminDelete(@Param("id") id: string) {
+  async adminDelete(@Param("id") id: string) {
+    const existing = await this.prisma.topicTag.findUnique({ where: { id } });
+    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "标签不存在");
     return this.prisma.topicTag.delete({ where: { id } });
   }
 }

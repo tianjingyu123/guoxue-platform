@@ -81,6 +81,8 @@ export class ShopCouponService {
   }
 
   async deleteCoupon(id: string) {
+    const existing = await this.prisma.coupon.findUnique({ where: { id } });
+    if (!existing) throw new BusinessException(ErrorCode.COUPON_INVALID, "优惠券不存在");
     await this.prisma.coupon.delete({ where: { id } });
     return { success: true };
   }
@@ -222,6 +224,8 @@ export class ShopCouponService {
   }
 
   async processAfterSale(id: string, action: string, remark?: string) {
+    const existing = await this.prisma.afterSale.findUnique({ where: { id } });
+    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "售后单不存在");
     const status = action === "approve" ? "APPROVED" : action === "reject" ? "REJECTED" : "PROCESSING";
     const data: any = { status };
     if (remark) data.logistics = remark;

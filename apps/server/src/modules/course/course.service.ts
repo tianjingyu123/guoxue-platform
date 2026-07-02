@@ -233,6 +233,8 @@ export class CourseService {
 
   async updateChapter(chapterId: string, courseId: string, userId: string, dto: UpdateChapterDto) {
     await this.ensureOwner(courseId, userId);
+    const existing = await this.prisma.courseChapter.findUnique({ where: { id: chapterId } });
+    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "课程章节不存在");
     return this.prisma.courseChapter.update({
       where: { id: chapterId },
       data: dto as Prisma.CourseChapterUpdateInput,
@@ -241,6 +243,8 @@ export class CourseService {
 
   async deleteChapter(chapterId: string, courseId: string, userId: string) {
     await this.ensureOwner(courseId, userId);
+    const existing = await this.prisma.courseChapter.findUnique({ where: { id: chapterId } });
+    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "课程章节不存在");
     await this.prisma.courseChapter.delete({ where: { id: chapterId } });
     return { success: true };
   }

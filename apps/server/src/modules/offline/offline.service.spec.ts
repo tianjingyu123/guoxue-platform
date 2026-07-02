@@ -17,6 +17,7 @@ const mockPrisma = {
     count: jest.fn(),
   },
   instituteMember: {
+    findUnique: jest.fn(),
     findMany: jest.fn(),
     count: jest.fn(),
     update: jest.fn(),
@@ -126,12 +127,14 @@ describe("OfflineService", () => {
 
   describe("auditStation", () => {
     it("审核驿站成功", async () => {
+      mockPrisma.stationOffline.findUnique.mockResolvedValue({ id: "s1", status: "PENDING" });
       mockPrisma.stationOffline.update.mockResolvedValue({ id: "s1", status: "APPROVED" });
       const result = await svc.auditStation("s1", "APPROVED");
       expect(result.status).toBe("APPROVED");
     });
 
     it("驳回驿站成功", async () => {
+      mockPrisma.stationOffline.findUnique.mockResolvedValue({ id: "s1", status: "PENDING" });
       mockPrisma.stationOffline.update.mockResolvedValue({ id: "s1", status: "REJECTED" });
       const result = await svc.auditStation("s1", "REJECTED");
       expect(result.status).toBe("REJECTED");
@@ -199,6 +202,7 @@ describe("OfflineService", () => {
 
   describe("updateMember", () => {
     it("更新成员信息成功", async () => {
+      mockPrisma.instituteMember.findUnique.mockResolvedValue({ id: "m1", role: "STUDENT", status: "ACTIVE" });
       mockPrisma.instituteMember.update.mockResolvedValue({ id: "m1", role: "SCHOLAR", status: "ACTIVE" });
       const result = await svc.updateMember("m1", { role: "SCHOLAR", status: "ACTIVE" });
       expect(result.role).toBe("SCHOLAR");

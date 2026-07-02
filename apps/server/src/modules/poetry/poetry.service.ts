@@ -624,6 +624,8 @@ export class PoetryService {
     });
   }
   async adminDeleteCategory(id: string) {
+    const exist = await this.prisma.poetryCategory.findUnique({ where: { id }, select: { id: true } });
+    if (!exist) throw new NotFoundException("诗词分类不存在");
     const count = await this.prisma.poetry.count({ where: { categoryId: id } });
     if (count > 0) throw new BadRequestException(`该分类下还有 ${count} 首诗词，请先移出后再删除`);
     await this.prisma.poetryCategory.delete({ where: { id } });

@@ -69,10 +69,14 @@ export class ProductCategoryService implements OnModuleInit {
   }
 
   async adminUpdate(id: string, dto: { name?: string; sortOrder?: number; icon?: string; status?: string }) {
+    const existing = await this.prisma.productCategory.findUnique({ where: { id } });
+    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "商品分类不存在");
     return this.prisma.productCategory.update({ where: { id }, data: dto });
   }
 
   async adminDelete(id: string) {
+    const existing = await this.prisma.productCategory.findUnique({ where: { id } });
+    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "商品分类不存在");
     const count = await this.prisma.product.count({ where: { categoryId: id } });
     if (count > 0) throw new BusinessException(ErrorCode.BAD_REQUEST, `该分类下有 ${count} 个商品，无法删除`);
     return this.prisma.productCategory.delete({ where: { id } });

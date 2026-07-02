@@ -1,5 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { Cron } from "@nestjs/schedule";
+import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 
@@ -109,10 +111,14 @@ export class PricingService {
   }
 
   async updateRule(id: string, body: any) {
+    const existing = await this.prisma.pricingRule.findUnique({ where: { id } });
+    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "定价规则不存在");
     return this.prisma.pricingRule.update({ where: { id }, data: body });
   }
 
   async deleteRule(id: string) {
+    const existing = await this.prisma.pricingRule.findUnique({ where: { id } });
+    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "定价规则不存在");
     await this.prisma.pricingRule.delete({ where: { id } });
     return { success: true };
   }

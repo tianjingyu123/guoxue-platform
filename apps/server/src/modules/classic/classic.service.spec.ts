@@ -81,6 +81,7 @@ describe("ClassicService", () => {
 
   describe("updateBook", () => {
     it("更新书籍成功", async () => {
+      mockPrisma.classicBook.findUnique.mockResolvedValue({ id: "b1", title: "论语" });
       mockPrisma.classicBook.update.mockResolvedValue({ id: "b1", title: "新标题" });
       const result = await svc.updateBook("b1", { title: "新标题" });
       expect(result.title).toBe("新标题");
@@ -89,6 +90,7 @@ describe("ClassicService", () => {
 
   describe("deleteBook", () => {
     it("删除书籍成功", async () => {
+      mockPrisma.classicBook.findUnique.mockResolvedValue({ id: "b1", title: "论语" });
       mockPrisma.classicBook.delete.mockResolvedValue({ id: "b1" });
       const result = await svc.deleteBook("b1");
       expect(result.id).toBe("b1");
@@ -121,6 +123,7 @@ describe("ClassicService", () => {
 
   describe("updateChapter", () => {
     it("更新章节成功", async () => {
+      mockPrisma.classicChapter.findUnique.mockResolvedValue({ id: "ch-1", title: "学而篇" });
       mockPrisma.classicChapter.update.mockResolvedValue({ id: "ch-1", title: "新标题" });
       const result = await svc.updateChapter("ch-1", { title: "新标题" });
       expect(result.title).toBe("新标题");

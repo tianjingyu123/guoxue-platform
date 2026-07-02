@@ -171,6 +171,7 @@ describe("VideoService", () => {
 
   describe("toggleCollect", () => {
     it("未收藏时收藏视频", async () => {
+      mockPrisma.video.findUnique.mockResolvedValue({ id: "v1" });
       mockPrisma.collect.findFirst.mockResolvedValue(null);
       mockPrisma.collect.create.mockResolvedValue({ id: "c1" });
       mockPrisma.video.update.mockResolvedValue({});
@@ -179,6 +180,7 @@ describe("VideoService", () => {
     });
 
     it("已收藏时取消收藏", async () => {
+      mockPrisma.video.findUnique.mockResolvedValue({ id: "v1" });
       mockPrisma.collect.findFirst.mockResolvedValue({ id: "c1" });
       mockPrisma.collect.delete.mockResolvedValue({});
       mockPrisma.video.update.mockResolvedValue({});

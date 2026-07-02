@@ -2,6 +2,8 @@ import { Injectable, Logger, NotFoundException, BadRequestException } from "@nes
 import { randomInt } from "crypto";
 import { PrismaService } from "../../prisma/prisma.service";
 import { GradingEngineService } from "./grading-engine.service";
+import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
 
 @Injectable()
 export class CompetitionService {
@@ -95,6 +97,8 @@ export class CompetitionService {
   }
 
   async updateRound(id: string, dto: any) {
+    const existing = await this.prisma.competitionRound.findUnique({ where: { id } });
+    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "赛程不存在");
     return this.prisma.competitionRound.update({ where: { id }, data: dto });
   }
 
@@ -112,6 +116,8 @@ export class CompetitionService {
   }
 
   async updateQuestion(id: string, dto: any) {
+    const existing = await this.prisma.competitionQuestion.findUnique({ where: { id } });
+    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "赛题不存在");
     return this.prisma.competitionQuestion.update({ where: { id }, data: dto });
   }
 
@@ -227,6 +233,8 @@ export class CompetitionService {
   }
 
   async updateRegistration(id: string, status?: string) {
+    const existing = await this.prisma.competitionRegistration.findUnique({ where: { id } });
+    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "报名记录不存在");
     return this.prisma.competitionRegistration.update({
       where: { id },
       data: status ? { status: status as any } : {},
@@ -543,10 +551,14 @@ export class CompetitionService {
   }
 
   async deleteRound(id: string) {
+    const existing = await this.prisma.competitionRound.findUnique({ where: { id } });
+    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "赛程不存在");
     await this.prisma.competitionRound.delete({ where: { id } });
   }
 
   async deleteQuestion(id: string) {
+    const existing = await this.prisma.competitionQuestion.findUnique({ where: { id } });
+    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "赛题不存在");
     await this.prisma.competitionQuestion.delete({ where: { id } });
   }
 

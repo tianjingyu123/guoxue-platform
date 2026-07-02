@@ -104,9 +104,15 @@ describe("ShopCouponService", () => {
 
   describe("deleteCoupon", () => {
     it("删除优惠券", async () => {
+      mockCoupon.findUnique.mockResolvedValue({ id: "c1" });
       mockCoupon.delete.mockResolvedValue({});
       const result = await svc.deleteCoupon("c1");
       expect(result.success).toBe(true);
+    });
+
+    it("券不存在抛出异常", async () => {
+      mockCoupon.findUnique.mockResolvedValue(null);
+      await expect(svc.deleteCoupon("no-coupon")).rejects.toThrow("不存在");
     });
   });
 
@@ -232,15 +238,22 @@ describe("ShopCouponService", () => {
 
   describe("processAfterSale", () => {
     it("审批通过", async () => {
+      mockPrisma.afterSale.findUnique.mockResolvedValue({ id: "as1", status: "PENDING" });
       mockPrisma.afterSale.update.mockResolvedValue({ id: "as1", status: "APPROVED" });
       const result = await svc.processAfterSale("as1", "approve");
       expect(result.status).toBe("APPROVED");
     });
 
     it("审批拒绝", async () => {
+      mockPrisma.afterSale.findUnique.mockResolvedValue({ id: "as1", status: "PENDING" });
       mockPrisma.afterSale.update.mockResolvedValue({ id: "as1", status: "REJECTED" });
       const result = await svc.processAfterSale("as1", "reject");
       expect(result.status).toBe("REJECTED");
+    });
+
+    it("售后单不存在抛出异常", async () => {
+      mockPrisma.afterSale.findUnique.mockResolvedValue(null);
+      await expect(svc.processAfterSale("no-as", "approve")).rejects.toThrow("不存在");
     });
   });
 

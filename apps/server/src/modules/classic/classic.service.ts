@@ -93,12 +93,16 @@ export class ClassicService {
   }
 
   async updateBook(id: string, dto: Prisma.ClassicBookUpdateInput) {
+    const existing = await this.prisma.classicBook.findUnique({ where: { id } });
+    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "古籍不存在");
     const book = await this.prisma.classicBook.update({ where: { id }, data: dto });
     await this.redis.delByPattern("classic:books:*");
     return book;
   }
 
   async deleteBook(id: string) {
+    const existing = await this.prisma.classicBook.findUnique({ where: { id } });
+    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "古籍不存在");
     const book = await this.prisma.classicBook.delete({ where: { id } });
     await this.redis.delByPattern("classic:books:*");
     return book;
@@ -155,6 +159,8 @@ export class ClassicService {
   }
 
   async updateChapter(id: string, dto: Prisma.ClassicChapterUpdateInput) {
+    const existing = await this.prisma.classicChapter.findUnique({ where: { id } });
+    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "章节不存在");
     return this.prisma.classicChapter.update({ where: { id }, data: dto });
   }
 

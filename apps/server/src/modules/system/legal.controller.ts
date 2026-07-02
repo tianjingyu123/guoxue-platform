@@ -5,6 +5,8 @@ import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
 import { CreateLegalDto, UpdateLegalDto } from "./dto/legal.dto";
+import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
 
 @ApiTags("法律文件")
 @Controller("system/legal")
@@ -56,7 +58,9 @@ export class LegalController {
   @ApiResponse({ status: 404, description: "资源不存在" })
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiResponse({ status: 403, description: "无权限" })
-  adminUpdate(@Param("id") id: string, @Body() dto: UpdateLegalDto) {
+  async adminUpdate(@Param("id") id: string, @Body() dto: UpdateLegalDto) {
+    const existing = await this.prisma.legalDocument.findUnique({ where: { id } });
+    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "法律文档不存在");
     return this.prisma.legalDocument.update({ where: { id }, data: dto });
   }
 
@@ -70,7 +74,9 @@ export class LegalController {
   @ApiResponse({ status: 404, description: "资源不存在" })
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiResponse({ status: 403, description: "无权限" })
-  adminDelete(@Param("id") id: string) {
+  async adminDelete(@Param("id") id: string) {
+    const existing = await this.prisma.legalDocument.findUnique({ where: { id } });
+    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "法律文档不存在");
     return this.prisma.legalDocument.delete({ where: { id } });
   }
 }
