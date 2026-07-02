@@ -6067,3 +6067,44 @@ model LedgerEntry {
   @@index([status, availableAt])
   @@index([scene, createdAt])
 }
+
+// ─────────────────────────────────────────────────
+// 智能商业顾问（T2）：诊断规则 + 建议实例
+// ─────────────────────────────────────────────────
+
+/// 顾问规则（后台可运营）：一条规则 = 一类经营问题的检测器
+model AdvisorRule {
+  id         String   @id @default(uuid())
+  roleType   String // CIRCLE_OWNER / LECTURER / STATION_MASTER / OPERATOR / STATION_OFFLINE_OWNER
+  ruleKey    String   @unique // 如 station_earning_wow_drop / offline_stock_low
+  metric     String // 探针名（AdvisorService PROBES 支持的 key）
+  condition  Json // 探针参数 { thresholdPct, days, ... }
+  severity   String   @default("INFO") // INFO / WARN / CRITICAL
+  suggestion String // 模板建议文案（{{占位符}} 用 facts 渲染；P2 接 AI 个性化）
+  actions    Json // [{ label, type: "NAVIGATE", target }]
+  enabled    Boolean  @default(true)
+  updatedBy  String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([roleType, enabled])
+}
+
+/// 顾问建议实例：每日 cron 按规则评估生成，工作台「经营顾问」卡拉取
+model AdvisorInsight {
+  id        String    @id @default(uuid())
+  ruleKey   String
+  roleType  String
+  subjectId String // 主体ID（分站ID/驿站ID/圈子ID/讲师userId）
+  severity  String
+  facts     Json // 结构化事实 { current, baseline, deltaPct, ... }
+  content   String // 最终建议文案
+  actions   Json
+  status    String    @default("OPEN") // OPEN / READ / ACTED / DISMISSED / EXPIRED
+  actedAt   DateTime?
+  feedback  Json? // 效果回访（P2：7天后回填指标变化）
+  createdAt DateTime  @default(now())
+
+  @@index([roleType, subjectId, status])
+  @@index([ruleKey, subjectId, createdAt])
+}
