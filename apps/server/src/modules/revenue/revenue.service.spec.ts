@@ -10,6 +10,9 @@ const mockPrisma = {
     aggregate: jest.fn(),
     groupBy: jest.fn(),
   },
+  settlementRule: {
+    findUnique: jest.fn(),
+  },
 }
 
 describe("RevenueService", () => {
@@ -30,16 +33,32 @@ describe("RevenueService", () => {
   })
 
   describe("record", () => {
-    it("使用默认分佣比例记录收益", async () => {
+    it("规则表未配置时回退默认分佣比例", async () => {
+      mockPrisma.settlementRule.findUnique.mockResolvedValue(null)
       mockPrisma.userEarning.create.mockResolvedValue({ id: "e1", amountRmb: 8 })
       const result = await svc.record({ userId: "u1", scene: "QUESTION", refId: "q1", amountCoin: 100 })
       expect(result.amountRmb).toBe(8)
+      expect(mockPrisma.userEarning.create.mock.calls[0][0].data.rate).toBe(0.8)
     })
 
-    it("使用自定义分佣比例", async () => {
+    it("优先读 SettlementRule 的 PROVIDER 比例", async () => {
+      mockPrisma.settlementRule.findUnique.mockResolvedValue({
+        enabled: true,
+        splits: [
+          { role: "PROVIDER", rate: 0.65 },
+          { role: "PLATFORM", rate: 0.35 },
+        ],
+      })
+      mockPrisma.userEarning.create.mockResolvedValue({ id: "e3" })
+      await svc.record({ userId: "u1", scene: "PEEK", refId: "p1", amountCoin: 100 })
+      expect(mockPrisma.userEarning.create.mock.calls[0][0].data.rate).toBe(0.65)
+    })
+
+    it("使用自定义分佣比例（调用方显式传入优先于规则表）", async () => {
       mockPrisma.userEarning.create.mockResolvedValue({ id: "e2", amountRmb: 5 })
       const result = await svc.record({ userId: "u1", scene: "LIVE_GIFT", refId: "g1", amountCoin: 100, rate: 0.5 })
       expect(result.amountRmb).toBe(5)
+      expect(mockPrisma.settlementRule.findUnique).not.toHaveBeenCalled()
     })
   })
 

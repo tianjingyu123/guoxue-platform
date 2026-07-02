@@ -3,7 +3,7 @@ import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { COIN_TO_RMB } from "../../common/constants";
 
-// 分佣比例（可通过 CommissionConfig 动态读取，此处为默认值）
+// 分佣比例回退默认值（优先读 SettlementRule 场景规则表，未配置时回退此处）
 const DEFAULT_RATES = {
   QUESTION: 0.8,   // 回答者 80%
   PEEK:    0.7,   // 围观回答者 70%
@@ -11,9 +11,32 @@ const DEFAULT_RATES = {
   LIVE_GIFT: 0.5,  // 主播 50%（平台 50%·2026-07-01 业务规则）
 };
 
+const RATE_CACHE_TTL_MS = 60_000;
+
 @Injectable()
 export class RevenueService {
+  private rateCache = new Map<string, { rate: number | null; expires: number }>();
+
   constructor(private prisma: PrismaService) {}
+
+  /** T1-P1 配置收编：优先读 SettlementRule 中 PROVIDER 分成比例；规则缺失/异常回退硬编码默认值，不阻塞收益入账 */
+  private async lookupProviderRate(scene: string): Promise<number | null> {
+    const cached = this.rateCache.get(scene);
+    if (cached && cached.expires > Date.now()) return cached.rate;
+    let rate: number | null = null;
+    try {
+      const rule = await this.prisma.settlementRule.findUnique({ where: { scene } });
+      if (rule?.enabled) {
+        const splits = rule.splits as Array<{ role: string; rate: number }> | null;
+        const provider = splits?.find((s) => s.role === "PROVIDER");
+        if (provider && provider.rate > 0 && provider.rate <= 1) rate = provider.rate;
+      }
+    } catch {
+      // 规则表不可用时静默回退默认值
+    }
+    this.rateCache.set(scene, { rate, expires: Date.now() + RATE_CACHE_TTL_MS });
+    return rate;
+  }
 
   /**
    * 记录收益并返回记录
@@ -25,7 +48,7 @@ export class RevenueService {
     amountCoin: number;
     rate?: number;
   }, tx?: Prisma.TransactionClient) {
-    const rate = params.rate ?? DEFAULT_RATES[params.scene];
+    const rate = params.rate ?? (await this.lookupProviderRate(params.scene)) ?? DEFAULT_RATES[params.scene];
     const amountRmb = (params.amountCoin / COIN_TO_RMB) * rate;
 
     // 支持传入事务客户端，使收益入账与扣费在同一事务（如送礼：扣赠礼者币 + 主播入账原子化）
