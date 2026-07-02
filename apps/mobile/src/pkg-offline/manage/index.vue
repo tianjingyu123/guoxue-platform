@@ -65,6 +65,9 @@
           </view>
         </view>
 
+        <!-- 经营顾问建议（自包含拉取，空/失败自动隐藏） -->
+        <advisor-card role-type="STATION_OFFLINE_OWNER" />
+
         <!-- 累计收益 -->
         <view class="mg-income-card">
           <view class="mg-income-row">
@@ -170,6 +173,7 @@
 import { ref, computed } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
+import AdvisorCard from '@/components/workbench/advisor-card.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import {
   offlineManageApi, stationStatusLabel, num, fmtDate, fmtCourseTime,

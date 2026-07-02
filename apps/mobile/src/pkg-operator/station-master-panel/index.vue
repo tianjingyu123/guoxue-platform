@@ -64,6 +64,9 @@
         </view>
       </view>
 
+      <!-- 经营顾问建议（自包含拉取，空/失败自动隐藏） -->
+      <advisor-card role-type="STATION_MASTER" />
+
       <!-- 收益余额 -->
       <view class="smp-card">
         <view class="smp-balance-head">
@@ -156,6 +159,7 @@
 import { ref, computed, onMounted } from 'vue'
 import AppNavBar from '@/components/common/app-nav-bar.vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import AdvisorCard from '@/components/workbench/advisor-card.vue'
 import { navigateTo } from '@/utils/router'
 import {
   operatorApi,
