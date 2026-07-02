@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsInt, IsNumber, IsBoolean, IsObject, IsArray, MinLength } from "class-validator";
+import { IsString, IsDateString, IsOptional, IsInt, IsNumber, IsBoolean, IsObject, IsArray, MinLength } from "class-validator";
 import { ApiProperty } from "@nestjs/swagger";
 
 /** 更新角色权限入参（防止裸内联类型绕过校验） */
@@ -42,10 +42,10 @@ export class SetConfigDto {
 }
 
 export class ExportUsersDto {
-  @IsOptional() @IsString()
+  @IsOptional() @IsDateString()
   startDate?: string;
 
-  @IsOptional() @IsString()
+  @IsOptional() @IsDateString()
   endDate?: string;
 
   @IsOptional() @IsString()
@@ -53,10 +53,10 @@ export class ExportUsersDto {
 }
 
 export class ExportOrdersDto {
-  @IsOptional() @IsString()
+  @IsOptional() @IsDateString()
   startDate?: string;
 
-  @IsOptional() @IsString()
+  @IsOptional() @IsDateString()
   endDate?: string;
 
   @IsOptional() @IsString()
@@ -67,10 +67,10 @@ export class ExportOrdersDto {
 }
 
 export class ExportContentsDto {
-  @IsOptional() @IsString()
+  @IsOptional() @IsDateString()
   startDate?: string;
 
-  @IsOptional() @IsString()
+  @IsOptional() @IsDateString()
   endDate?: string;
 
   @IsOptional() @IsString()
@@ -78,10 +78,10 @@ export class ExportContentsDto {
 }
 
 export class ExportAuditLogsDto {
-  @IsOptional() @IsString()
+  @IsOptional() @IsDateString()
   startDate?: string;
 
-  @IsOptional() @IsString()
+  @IsOptional() @IsDateString()
   endDate?: string;
 
   @IsOptional() @IsString()
@@ -92,10 +92,10 @@ export class ExportEarningsDto {
   @IsOptional() @IsString()
   stationId?: string;
 
-  @IsOptional() @IsString()
+  @IsOptional() @IsDateString()
   startDate?: string;
 
-  @IsOptional() @IsString()
+  @IsOptional() @IsDateString()
   endDate?: string;
 }
 
@@ -132,10 +132,10 @@ export class CreateSiteNoticeDto {
   @IsOptional() @IsBoolean()
   isActive?: boolean;
 
-  @IsOptional() @IsString()
+  @IsOptional() @IsDateString()
   startTime?: string;
 
-  @IsOptional() @IsString()
+  @IsOptional() @IsDateString()
   endTime?: string;
 }
 
@@ -152,10 +152,10 @@ export class UpdateSiteNoticeDto {
   @IsOptional() @IsBoolean()
   isActive?: boolean;
 
-  @IsOptional() @IsString()
+  @IsOptional() @IsDateString()
   startTime?: string;
 
-  @IsOptional() @IsString()
+  @IsOptional() @IsDateString()
   endTime?: string;
 }
 

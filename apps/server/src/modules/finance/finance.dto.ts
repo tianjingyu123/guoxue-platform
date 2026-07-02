@@ -1,4 +1,4 @@
-import { MinLength,  IsOptional, IsString, IsNumber, IsIn, Min } from "class-validator";
+import { MinLength,  IsOptional, IsString, IsDateString, IsNumber, IsIn, Min } from "class-validator";
 import { Type } from "class-transformer";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 
@@ -15,7 +15,7 @@ export class CreateReconciliationDto {
   source?: string;
 
   @IsOptional()
-  @IsString()
+  @IsDateString()
   billDate?: string;
 }
 
@@ -137,11 +137,11 @@ export class GenerateSettlementDto {
   period?: string;
 
   @IsOptional()
-  @IsString()
+  @IsDateString()
   startDate?: string;
 
   @IsOptional()
-  @IsString()
+  @IsDateString()
   endDate?: string;
 }
 

@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsArray, IsNumber, IsObject, IsIn, IsBoolean, IsNotEmpty, Min, Max } from "class-validator";
+import { IsString, IsDateString, IsOptional, IsArray, IsNumber, IsObject, IsIn, IsBoolean, IsNotEmpty, Min, Max } from "class-validator";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 
 export class PublishEventDto {
@@ -48,12 +48,12 @@ export class QueryEventDto {
 
   @ApiPropertyOptional({ description: "开始日期" })
   @IsOptional()
-  @IsString()
+  @IsDateString()
   startDate?: string;
 
   @ApiPropertyOptional({ description: "结束日期" })
   @IsOptional()
-  @IsString()
+  @IsDateString()
   endDate?: string;
 
   @ApiPropertyOptional({ description: "每页数量", default: 50 })

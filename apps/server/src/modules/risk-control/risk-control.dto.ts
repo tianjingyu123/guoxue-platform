@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsInt, IsBoolean, Min, IsObject, MinLength, IsIn } from "class-validator";
+import { IsString, IsDateString, IsOptional, IsInt, IsBoolean, Min, IsObject, MinLength, IsIn } from "class-validator";
 import { Type } from "class-transformer";
 import { ApiPropertyOptional } from "@nestjs/swagger";
 
@@ -106,11 +106,11 @@ export class UserTimelineQueryDto extends PaginationDto {
   action?: string;
 
   @ApiPropertyOptional({ description: "起始时间（ISO 字符串）" })
-  @IsOptional() @IsString()
+  @IsOptional() @IsDateString()
   dateFrom?: string;
 
   @ApiPropertyOptional({ description: "截止时间（ISO 字符串）" })
-  @IsOptional() @IsString()
+  @IsOptional() @IsDateString()
   dateTo?: string;
 }
 

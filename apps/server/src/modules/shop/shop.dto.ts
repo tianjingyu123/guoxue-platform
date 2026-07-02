@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsInt, IsNumber, IsEnum, IsArray, Min, Max, IsBoolean, IsObject, MinLength, MaxLength, IsPositive } from "class-validator";
+import { IsString, IsDateString, IsOptional, IsInt, IsNumber, IsEnum, IsArray, Min, Max, IsBoolean, IsObject, MinLength, MaxLength, IsPositive } from "class-validator";
 import { Type } from "class-transformer";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 
@@ -314,11 +314,11 @@ export class OrderListQueryDto {
   userId?: string;
 
   @ApiPropertyOptional({ description: "开始日期（YYYY-MM-DD）" })
-  @IsOptional() @IsString()
+  @IsOptional() @IsDateString()
   startDate?: string;
 
   @ApiPropertyOptional({ description: "结束日期（YYYY-MM-DD）" })
-  @IsOptional() @IsString()
+  @IsOptional() @IsDateString()
   endDate?: string;
 }
 
