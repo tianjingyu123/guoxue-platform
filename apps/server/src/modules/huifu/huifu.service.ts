@@ -341,9 +341,9 @@ export class HuifuService {
 
       const transactionId = (body.huifu_order_id || body.transaction_id) as string;
 
-      // 更新订单状态
-      await this.prisma.order.update({
-        where: { id: order.id },
+      // CAS 状态翻转：仅当仍为 PENDING 时置 PAID，防并发/回调重投重复处理(不依赖 redis 锁存活)
+      const flipped = await this.prisma.order.updateMany({
+        where: { id: order.id, status: "PENDING" },
         data: {
           status: "PAID",
           paidAt: new Date(),
@@ -351,6 +351,10 @@ export class HuifuService {
           payMethod: "HUIFU",
         },
       });
+      if (flipped.count === 0) {
+        this.logger.warn(`汇付回调订单状态已变更，跳过重复处理: ${outTradeNo}`);
+        return;
+      }
 
       // 更新分账记录
       await this.prisma.huifuSplitRecord.updateMany({

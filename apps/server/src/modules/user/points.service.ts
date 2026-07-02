@@ -51,16 +51,18 @@ export class PointsService {
   }
 
   async spendPoints(userId: string, amount: number, source: string, description?: string) {
-    const points = await this.getPoints(userId);
-    if (points.balance < amount) throw new BusinessException(ErrorCode.COIN_BALANCE_INSUFFICIENT, "积分不足");
-    const updated = await this.prisma.userPoints.update({
-      where: { userId },
-      data: { balance: { decrement: amount }, totalSpent: { increment: amount } },
+    return this.prisma.$transaction(async (tx) => {
+      // 原子 CAS 扣积分 + 同事务写流水：防并发透支、防扣了积分漏流水
+      const dec = await tx.userPoints.updateMany({
+        where: { userId, balance: { gte: amount } },
+        data: { balance: { decrement: amount }, totalSpent: { increment: amount } },
+      });
+      if (dec.count === 0) throw new BusinessException(ErrorCode.COIN_BALANCE_INSUFFICIENT, "积分不足");
+      await tx.pointsRecord.create({
+        data: { userId, amount, type: "SPEND", source, description },
+      });
+      return tx.userPoints.findUnique({ where: { userId } });
     });
-    await this.prisma.pointsRecord.create({
-      data: { userId, amount, type: "SPEND", source, description },
-    });
-    return updated;
   }
 
   // ───────── 积分商城 ─────────

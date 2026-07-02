@@ -18,6 +18,7 @@ const mockPrisma = {
     findUnique: jest.fn(),
     findFirst: jest.fn(),
     update: jest.fn(),
+    updateMany: jest.fn(),
   },
 };
 
@@ -159,7 +160,7 @@ describe("HuifuService", () => {
       mockPrisma.order.findFirst.mockResolvedValue({
         id: "order-1", status: "PENDING",
       });
-      mockPrisma.order.update.mockResolvedValue({});
+      mockPrisma.order.updateMany.mockResolvedValue({ count: 1 });
       mockPrisma.huifuSplitRecord.updateMany.mockResolvedValue({ count: 1 });
 
       await svc.handleNotify({
@@ -168,8 +169,8 @@ describe("HuifuService", () => {
         huifu_order_id: "HUIFU-ORDER-1",
       });
 
-      expect(mockPrisma.order.update).toHaveBeenCalledWith({
-        where: { id: "order-1" },
+      expect(mockPrisma.order.updateMany).toHaveBeenCalledWith({
+        where: { id: "order-1", status: "PENDING" },
         data: expect.objectContaining({ status: "PAID", payMethod: "HUIFU" }),
       });
       expect(mockRedis.del).toHaveBeenCalledWith("huifu:cb:HF003");

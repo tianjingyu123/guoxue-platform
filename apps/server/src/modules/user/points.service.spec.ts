@@ -2,12 +2,14 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { PointsService } from "./points.service";
 import { PrismaService } from "../../prisma/prisma.service";
 
-const mockPrisma = {
-  userPoints: { findUnique: jest.fn(), create: jest.fn(), upsert: jest.fn(), update: jest.fn() },
+const mockPrisma: any = {
+  userPoints: { findUnique: jest.fn(), create: jest.fn(), upsert: jest.fn(), update: jest.fn(), updateMany: jest.fn() },
   pointsRecord: { findMany: jest.fn(), count: jest.fn(), create: jest.fn() },
   growthValue: { findUnique: jest.fn(), create: jest.fn(), upsert: jest.fn(), update: jest.fn() },
   growthRecord: { findMany: jest.fn(), count: jest.fn(), create: jest.fn() },
 };
+// 事务代理：把 tx 直接映射到 mockPrisma
+mockPrisma.$transaction = (fn: any) => fn(mockPrisma);
 
 describe("PointsService", () => {
   let svc: PointsService;
@@ -71,18 +73,21 @@ describe("PointsService", () => {
   });
 
   describe("spendPoints", () => {
-    it("积分不足时抛出异常", async () => {
-      mockPrisma.userPoints.findUnique.mockResolvedValue({ userId: "u1", balance: 10 });
+    it("积分不足时抛出异常（CAS count=0）", async () => {
+      mockPrisma.userPoints.updateMany.mockResolvedValue({ count: 0 });
       await expect(svc.spendPoints("u1", 100, "exchange")).rejects.toThrow("积分不足");
     });
 
-    it("积分充足时成功消费", async () => {
-      mockPrisma.userPoints.findUnique.mockResolvedValue({ userId: "u1", balance: 100 });
-      mockPrisma.userPoints.update.mockResolvedValue({ userId: "u1", balance: 50 });
+    it("积分充足时成功消费（原子 CAS）", async () => {
+      mockPrisma.userPoints.updateMany.mockResolvedValue({ count: 1 });
       mockPrisma.pointsRecord.create.mockResolvedValue({});
+      mockPrisma.userPoints.findUnique.mockResolvedValue({ userId: "u1", balance: 50 });
 
       const result = await svc.spendPoints("u1", 50, "exchange");
       expect(result).toEqual({ userId: "u1", balance: 50 });
+      expect(mockPrisma.userPoints.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { userId: "u1", balance: { gte: 50 } } }),
+      );
     });
   });
 
