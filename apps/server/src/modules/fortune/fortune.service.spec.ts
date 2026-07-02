@@ -155,9 +155,9 @@ describe("FortuneService", () => {
       expect(result!.id).toBe("r1");
     });
 
-    it("运势记录不存在时抛出异常", async () => {
+    it("周期日期无效时抛出异常", async () => {
       prisma.fortuneRecord.findUnique.mockResolvedValue(null);
-      await expect(svc.getFortuneByPeriod("u1", "DAILY", "2026-01-01"))
+      await expect(svc.getFortuneByPeriod("u1", "DAILY", "非法日期"))
         .rejects.toThrow(BusinessException);
     });
   });
@@ -175,7 +175,7 @@ describe("FortuneService", () => {
       prisma.fortuneRecord.findMany.mockResolvedValue([{ id: "r1" }]);
       prisma.fortuneRecord.count.mockResolvedValue(1);
       const result = await svc.adminListRecords(1, 20);
-      expect(result.records).toHaveLength(1);
+      expect(result.items).toHaveLength(1);
       expect(result.total).toBe(1);
     });
 

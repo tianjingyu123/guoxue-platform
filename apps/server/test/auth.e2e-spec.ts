@@ -68,8 +68,8 @@ describe("Auth E2E", () => {
       const hash = await bcrypt.hash("123456", 10)
 
       prisma.user.findUnique.mockImplementation((args: any) => {
-        // phoneLogin 中的查询：按手机号查用户，include auths
-        if (args?.where?.phone === "13800138000") {
+        // phoneLogin 中的查询：按 phoneHash 查用户，include auths
+        if (args?.where?.phoneHash) {
           return {
             id: "u1", nickname: "张三", phone: "13800138000", status: "ACTIVE",
             auths: [{ id: "a1", provider: "PASSWORD", credential: hash }],

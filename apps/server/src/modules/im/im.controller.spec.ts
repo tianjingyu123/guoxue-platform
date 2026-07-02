@@ -1,6 +1,7 @@
 import { Test } from "@nestjs/testing";
 import { ImController } from "./im.controller";
 import { ImService } from "./im.service";
+import { ImPolicyService } from "./im-policy.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 
 const mockImSvc = {
@@ -33,7 +34,10 @@ describe("ImController", () => {
   beforeAll(async () => {
     const mod = await Test.createTestingModule({
       controllers: [ImController],
-      providers: [{ provide: ImService, useValue: mockImSvc }],
+      providers: [
+        { provide: ImService, useValue: mockImSvc },
+        { provide: ImPolicyService, useValue: {} },
+      ],
     })
       .overrideGuard(JwtAuthGuard).useValue({ canActivate: () => true })
       .compile();

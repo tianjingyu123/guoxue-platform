@@ -139,8 +139,13 @@ describe("EmailService", () => {
     it("用模板发送并替换变量", async () => {
       const tpl = { id: "t1", name: "Welcome", subject: "欢迎 {{name}}", html: "<p>你好 {{name}}</p>", createdAt: new Date().toISOString() };
       mockPrisma.configSystem.findUnique.mockResolvedValue({ configValue: JSON.stringify([tpl]) });
-      const result = await svc.sendWithTemplate("t1", "a@b.com", { name: "张三" });
-      // SMTP无真实连接时会失败，但变量替换逻辑在send之前
+      // 删除SMTP配置让send快速返回，避免真实网络连接（同邻近「模板不存在」用例的隔离方式）
+      delete process.env.SMTP_HOST;
+      delete process.env.SMTP_USER;
+      const mod2 = await buildModule();
+      const s2 = mod2.get(EmailService);
+      const result = await s2.sendWithTemplate("t1", "a@b.com", { name: "张三" });
+      // 变量替换逻辑在send之前，未配置SMTP时send返回失败
       expect(result.success).toBe(false); // 邮件服务未配置或无SMTP
     });
   });

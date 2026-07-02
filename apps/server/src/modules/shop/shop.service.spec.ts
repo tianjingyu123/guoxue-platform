@@ -144,6 +144,7 @@ const mockPaymentFactory = {
   getProvider: jest.fn().mockReturnValue(mockWechatPay),
   refund: jest.fn().mockResolvedValue({ status: "SUCCESS" }),
   queryOrder: jest.fn().mockResolvedValue({ trade_state: "SUCCESS" }),
+  isConfigured: jest.fn().mockReturnValue(true),
 }
 
 const mockHuifu = {

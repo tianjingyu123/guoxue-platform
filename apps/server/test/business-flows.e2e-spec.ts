@@ -76,7 +76,7 @@ describe("核心业务流程 E2E", () => {
       // Step 3: 退出后用手机号+密码重新登录
       const hash = bcrypt ? await bcrypt.hash("Pass1234", 10) : "$2a$10$dummyhash"
       prisma.user.findUnique.mockImplementation((args: any) => {
-        if (args?.where?.phone === "13800000001") {
+        if (args?.where?.phoneHash) {
           return {
             id: "u-flow-1", nickname: "测试用户A", phone: "13800000001", status: "ACTIVE",
             auths: [{ id: "a1", provider: "PASSWORD", credential: hash }],

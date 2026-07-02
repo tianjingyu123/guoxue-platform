@@ -70,9 +70,10 @@ describe("FortuneController", () => {
   });
 
   it("GET /fortune/:type/:period — 按周期查询运势", async () => {
-    const result = await ctrl.getByPeriod("love", "month");
+    const req: any = { user: { id: "u1" } };
+    const result = await ctrl.getByPeriod(req, "love", "month");
     expect(result).toBeDefined();
-    expect(mockFortuneSvc.getFortuneByPeriod).toHaveBeenCalledWith("system", "love", "month");
+    expect(mockFortuneSvc.getFortuneByPeriod).toHaveBeenCalledWith("u1", "love", "month");
   });
 
   it("POST /fortune/admin/push-all — 推送全部运势", async () => {

@@ -1,11 +1,25 @@
 import { Test } from "@nestjs/testing";
 import { ImService } from "./im.service";
 import { TlsSigService } from "./tlssig.service";
+import { ImPolicyService } from "./im-policy.service";
 
 const mockTlsSig = {
   getAppId: jest.fn().mockReturnValue(1400000000),
   genUserSig: jest.fn().mockReturnValue("test-user-sig"),
   genAdminSig: jest.fn().mockReturnValue("test-admin-sig"),
+};
+
+// 私信关系策略：默认允许发送、开放全部富媒体权限（不阻断被测的发送/群组用例）
+const mockPolicy = {
+  evaluateC2C: jest.fn().mockResolvedValue({
+    relation: "mutual",
+    canSend: true,
+    remaining: -1,
+    mediaPerms: { image: true, voice: true, file: true },
+    hint: "",
+  }),
+  incrementSent: jest.fn().mockResolvedValue(undefined),
+  resetOnReply: jest.fn().mockResolvedValue(undefined),
 };
 
 const imOk = { ErrorCode: 0, ActionStatus: "OK" };
@@ -30,6 +44,7 @@ describe("ImService", () => {
       providers: [
         ImService,
         { provide: TlsSigService, useValue: mockTlsSig },
+        { provide: ImPolicyService, useValue: mockPolicy },
       ],
     }).compile();
     svc = mod.get(ImService);
@@ -183,6 +198,7 @@ describe("ImService", () => {
         providers: [
           ImService,
           { provide: TlsSigService, useValue: mockTlsSig },
+          { provide: ImPolicyService, useValue: mockPolicy },
         ],
       }).compile();
       const badSvc = mod.get(ImService);

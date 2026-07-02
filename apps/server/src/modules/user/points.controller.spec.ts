@@ -11,7 +11,7 @@ const mockSvc = {
   getPointsRecords: jest.fn(),
   getGrowth: jest.fn(),
   getGrowthRecords: jest.fn(),
-  spendPoints: jest.fn(),
+  exchangeProduct: jest.fn(),
 };
 
 const mockInteraction = {
@@ -89,11 +89,11 @@ describe("PointsController", () => {
 
   describe("POST points/exchange", () => {
     it("积分兑换", async () => {
-      mockSvc.spendPoints.mockResolvedValue({ balance: 50 });
-      const dto = { amount: 50, targetType: "COURSE", targetId: "c1" };
+      mockSvc.exchangeProduct.mockResolvedValue({ balance: 50 });
+      const dto = { productId: "p1" };
       const result = await ctrl.exchange(mockReq, dto);
       expect(result.balance).toBe(50);
-      expect(mockSvc.spendPoints).toHaveBeenCalledWith("u1", 50, "EXCHANGE", "兑换COURSE:c1");
+      expect(mockSvc.exchangeProduct).toHaveBeenCalledWith("u1", "p1");
     });
   });
 });

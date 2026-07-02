@@ -178,7 +178,7 @@ describe("AuthService", () => {
       mockPrisma.user.findUnique.mockResolvedValue(profile);
       mockPrisma.merchant.findUnique.mockResolvedValue(null);
       const result = await svc.getProfile("user-1");
-      expect(result).toEqual({ ...profile, permissions: [], merchant: null });
+      expect(result).toEqual({ ...profile, paymentPasswordSet: false, permissions: [], merchant: null });
     });
   });
 
