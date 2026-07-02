@@ -4,6 +4,24 @@ import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
 import { Prisma } from "@prisma/client";
 import { WechatPayService } from "../shop/wechat-pay.service";
+import { maskBankCard, maskName, maskAlipay, maskPhone, maskIdCard } from "../../common/crypto.util";
+
+/** 脱敏提现收款账户(accountInfo Json)——防管理端审批列表批量泄露完整卡号/账户。
+ *  管理员打款如需完整账户应走独立的"解密+审计"接口，而非列表明文。 */
+function maskAccountInfo(info: unknown): unknown {
+  if (!info || typeof info !== "object") return info;
+  const out: Record<string, unknown> = { ...(info as Record<string, unknown>) };
+  for (const [k, v] of Object.entries(out)) {
+    if (typeof v !== "string" || !v) continue;
+    const key = k.toLowerCase();
+    if (key.includes("alipay")) out[k] = maskAlipay(v);
+    else if (key.includes("card") || key.includes("account") || key.includes("bankno") || key.includes("cardno")) out[k] = maskBankCard(v);
+    else if (key.includes("idcard") || key.includes("idnum")) out[k] = maskIdCard(v);
+    else if (key.includes("holder") || key === "name" || key.includes("realname")) out[k] = maskName(v);
+    else if (key.includes("phone") || key.includes("mobile")) out[k] = maskPhone(v);
+  }
+  return out;
+}
 
 /** 账单中解析出的订单记录 */
 interface BillEntry {
@@ -421,7 +439,9 @@ export class FinanceService {
       }),
       this.prisma.withdrawalApplication.count({ where }),
     ]);
-    return { withdrawals, total, page: dto.page, pageSize: dto.pageSize };
+    // PII 脱敏：批量列表不返回完整收款账户
+    const masked = withdrawals.map((w) => ({ ...w, accountInfo: maskAccountInfo(w.accountInfo) }));
+    return { withdrawals: masked, total, page: dto.page, pageSize: dto.pageSize };
   }
 
   /**

@@ -10,7 +10,7 @@ import { calcZiwei, type ZiweiInput, type ZiweiResult } from "@guoxue/ziwei-engi
 import { calculateQimenYang, calculateQimenYin } from "../tool-registry/calculators/qimen.calculator";
 import type { QimenResult } from "@guoxue/shared";
 import { createHash } from "node:crypto";
-import { encrypt, decrypt } from "../../common/crypto.util";
+import { encrypt, decrypt, maskPhone } from "../../common/crypto.util";
 
 /** 排盘结果缓存 TTL（秒，24 小时） */
 const CACHE_TTL = 86400;
@@ -578,7 +578,11 @@ export class PaipanService {
       this.prisma.paipanRecord.count({ where }),
     ])
 
-    return { records: this.decryptRecords(records), total, page, pageSize }
+    // PII 脱敏：管理端批量列表脱敏用户手机号(生辰为审核核心数据故保留)
+    const decrypted = this.decryptRecords(records).map((r: any) =>
+      r.user?.phone ? { ...r, user: { ...r.user, phone: maskPhone(r.user.phone) } } : r,
+    )
+    return { records: decrypted, total, page, pageSize }
   }
 
   /** 管理员查看单条排盘记录详情（不限所有者，已解密 clientBirth，覆盖全部类型） */
@@ -599,7 +603,10 @@ export class PaipanService {
 
     if (!record) throw new BusinessException(ErrorCode.PAIPAN_RECORD_NOT_FOUND, "排盘记录不存在")
 
-    return this.decryptRecord(record)
+    const decrypted: any = this.decryptRecord(record)
+    // PII 脱敏：管理端脱敏用户手机号(生辰为审核核心数据故保留)
+    if (decrypted.user?.phone) decrypted.user = { ...decrypted.user, phone: maskPhone(decrypted.user.phone) }
+    return decrypted
   }
 
   // ────────── 案例库 ──────────
