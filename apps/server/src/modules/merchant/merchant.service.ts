@@ -562,6 +562,8 @@ export class MerchantService {
   // ─── 违规管理（管理端） ───
 
   async createViolation(merchantId: string, dto: CreateViolationDto, handlerId: string) {
+    const merchant = await this.prisma.merchant.findUnique({ where: { id: merchantId } });
+    if (!merchant) throw new BusinessException(ErrorCode.MERCHANT_NOT_FOUND, "商家不存在");
     return this.prisma.merchantViolation.create({
       data: {
         merchantId, type: dto.type as any, title: dto.title,
@@ -572,6 +574,8 @@ export class MerchantService {
   }
 
   async handleViolation(violationId: string, dto: HandleViolationDto, handlerId: string) {
+    const violation = await this.prisma.merchantViolation.findUnique({ where: { id: violationId } });
+    if (!violation) throw new BusinessException(ErrorCode.NOT_FOUND, "违规记录不存在");
     return this.prisma.merchantViolation.update({
       where: { id: violationId },
       data: { status: dto.status as any, handledBy: handlerId, handledAt: new Date() },
