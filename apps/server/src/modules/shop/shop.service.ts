@@ -1106,8 +1106,11 @@ export class ShopService {
 
   /** 支付宝退款（金额单位：元）*/
   async alipayRefund(params: { outTradeNo: string; refundAmount: number; outRefundNo: string; reason?: string }) {
-    await this.assertRefundAmountValid(params.outTradeNo, params.refundAmount);
-    return this.alipay.refund(params);
+    const order = await this.assertRefundAmountValid(params.outTradeNo, params.refundAmount);
+    const result = await this.alipay.refund(params);
+    // 网关退款成功后统一记账（此前遗漏→退款后订单仍 PAID、佣金不冲正、仍被结算给商家）
+    await this.applyRefundedBookkeeping(order.id, Number(order.amount), params.reason);
+    return result;
   }
 
   /** 银联订单查询 */
@@ -1117,8 +1120,10 @@ export class ShopService {
 
   /** 银联退款（金额单位：分）*/
   async unionpayRefund(params: { outTradeNo: string; outRefundNo: string; amount: number; origQryId?: string }) {
-    await this.assertRefundAmountValid(params.outTradeNo, params.amount / RMB_TO_FEN);
-    return this.unionpay.refund(params);
+    const order = await this.assertRefundAmountValid(params.outTradeNo, params.amount / RMB_TO_FEN);
+    const result = await this.unionpay.refund(params);
+    await this.applyRefundedBookkeeping(order.id, Number(order.amount));
+    return result;
   }
 
   /**
@@ -1141,6 +1146,28 @@ export class ShopService {
     if (refundRmb > paid + 1e-6) {
       throw new BusinessException(ErrorCode.BAD_REQUEST, `退款金额不可超过订单实付金额（${paid.toFixed(2)} 元）`);
     }
+    return order;
+  }
+
+  /**
+   * 退款成功后的统一记账（幂等）：CAS 置 REFUNDED → 失缓存 → 冲正分佣 → webhook。
+   * 供 refundOrder / alipayRefund / unionpayRefund 复用，避免"退款后订单仍 PAID、
+   * 佣金不冲正、仍被结算给商家"的重复出账。CAS 保证并发/重投下只冲正一次。
+   */
+  private async applyRefundedBookkeeping(orderId: string, amount: number, reason?: string) {
+    const res = await this.prisma.order.updateMany({
+      where: { id: orderId, status: { in: ["PAID", "SHIPPED", "COMPLETED"] } },
+      data: { status: "REFUNDED", refundedAt: new Date() },
+    });
+    if (res.count === 0) return; // 已退款/状态不符 → 幂等跳过，不重复冲正
+    await this.redis.del(`${CACHE_PREFIX}order:${orderId}`);
+    if (this.commissionSvc) {
+      this.commissionSvc.reverseCommission(orderId).catch((e) =>
+        this.logger.error(`分佣冲正失败, 订单: ${orderId}`, e),
+      );
+    }
+    this.webhook.fire("ORDER_REFUNDED", { orderId, amount, reason: reason || "用户申请退款" })
+      .catch((err) => this.logger.warn("Webhook ORDER_REFUNDED 发送失败", err));
   }
 
   // ═══════════════════ 汇付天下支付 ═══════════════════
@@ -1277,25 +1304,7 @@ export class ShopService {
       }
 
       if (result.status === "SUCCESS" || result.status === "PROCESSING") {
-        await this.prisma.order.update({
-          where: { id: orderId },
-          data: { status: "REFUNDED", refundedAt: new Date() },
-        });
-        // 失效订单缓存，避免退款后 getOrder 仍返回陈旧的 PAID 状态（与其它变更方法一致）
-        await this.redis.del(`${CACHE_PREFIX}order:${orderId}`);
-
-        // 冲正分佣（异步，失败不影响退款结果）
-        if (this.commissionSvc) {
-          this.commissionSvc.reverseCommission(orderId).catch((e) =>
-            this.logger.error(`分佣冲正失败, 订单: ${orderId}`, e)
-          );
-        }
-
-        this.webhook.fire("ORDER_REFUNDED", {
-          orderId,
-          amount: Number(order.amount),
-          reason: reason || "用户申请退款",
-        }).catch((err) => this.logger.warn("Webhook ORDER_REFUNDED 发送失败", err));
+        await this.applyRefundedBookkeeping(orderId, Number(order.amount), reason);
       }
 
       return result;
