@@ -173,6 +173,13 @@ export const THIRD_PARTY_SERVICES: ThirdPartyService[] = [
     ],
   },
   {
+    key: "tencent_asr", label: "腾讯云语音识别（ASR·语音转写）", category: "腾讯云",
+    note: "语音转文字（一句话识别），用于圈子/评论等语音内容转写。★复用上方「腾讯云(通用)」的 SecretId/SecretKey，无需在此单独填密钥；只需登录腾讯云控制台开通『语音识别 ASR』服务即可生效。未开通/未配通用密钥时，系统自动回退为 AI 网关文本模拟。",
+    fields: [
+      S("engineType", "识别引擎", ["TENCENT_ASR_ENGINE"], false, "一般不用改：中文填 16k_zh、英文填 16k_en（留空按语言自动选择）", "16k_zh"),
+    ],
+  },
+  {
     key: "tencent_map", label: "腾讯地图", category: "腾讯云", enabled: false,
     note: "腾讯位置服务，用于定位/选点。控制台：lbs.qq.com。（地图功能可暂缓）",
     fields: [

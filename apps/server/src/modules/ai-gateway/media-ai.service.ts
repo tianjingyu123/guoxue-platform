@@ -149,7 +149,7 @@ export class MediaAiService {
         payload: {
           ProjectId: 0,
           SubServiceType: 2,
-          EngSerViceType: (params.language || "zh-CN").includes("en") ? "16k_en" : "16k_zh",
+          EngSerViceType: process.env.TENCENT_ASR_ENGINE || ((params.language || "zh-CN").includes("en") ? "16k_en" : "16k_zh"),
           SourceType: 1,
           Url: params.audioUrl,
           VoiceFormat: "mp3",
