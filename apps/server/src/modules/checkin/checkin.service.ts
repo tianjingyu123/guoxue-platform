@@ -1,8 +1,9 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, Optional } from "@nestjs/common";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
 import { PointsService } from "../user/points.service";
+import { UserGrowthService } from "../user-growth/user-growth.service";
 import { CheckInCalendarQueryDto } from "./checkin.dto";
 
 @Injectable()
@@ -12,6 +13,7 @@ export class CheckinService {
   constructor(
     private prisma: PrismaService,
     private pointsService: PointsService,
+    @Optional() private userGrowth?: UserGrowthService,
   ) {}
 
   /** 每日签到 */
@@ -54,6 +56,9 @@ export class CheckinService {
 
     // 积分真正入账（PointsService 内部有独立的 upsert + 流水记录）
     await this.pointsService.earnPoints(userId, rewardPoints, "CHECKIN", `连续签到第${consecutiveDays}天`);
+
+    // 成长体系：加学分 + 同步连续天数 + 成就评估（内部自吞错误，不影响签到主流程）
+    await this.userGrowth?.onCheckin(userId, consecutiveDays);
 
     return { consecutiveDays, rewardPoints, date: today };
   }
@@ -147,6 +152,9 @@ export class CheckinService {
       where: { id: taskId },
       data: { doneCount: task.doneCount + 1, completed: true, completedAt: new Date() },
     });
+
+    // 成长体系：完成每日任务加学分（自吞错误不影响主流程）
+    await this.userGrowth?.addExp(userId, 10, `TASK_${task.taskType}`);
 
     return { completed: true, rewardPoints: updated.rewardPoints };
   }

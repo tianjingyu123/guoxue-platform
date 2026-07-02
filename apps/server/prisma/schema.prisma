@@ -6090,6 +6090,35 @@ model AdvisorRule {
   @@index([roleType, enabled])
 }
 
+// ─────────────────────────────────────────────────
+// 平台级成长体系（T4 游戏化·2026-07-03）：学分/功名等级/连续学习/成就
+// 与圈子级 growth（CircleMemberGrowth）互不干扰；积分（UserPoints）是可消费货币，学分（totalExp）是不可消费的成长值
+// ─────────────────────────────────────────────────
+
+/// 用户成长档案：学分与功名等级（书童→童生→秀才→…→宗师，阶梯定义在 user-growth.service）
+model UserGrowth {
+  id              String    @id @default(uuid())
+  userId          String    @unique
+  totalExp        Int       @default(0) // 累计学分（只增不减）
+  level           Int       @default(1)
+  currentStreak   Int       @default(0) // 当前连续学习天数（与签到联动）
+  maxStreak       Int       @default(0)
+  lastCheckinDate DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+/// 成就记录（成就定义为代码常量，沿用圈子徽章范式；分享卡=V1 裂变载体）
+model UserAchievement {
+  id       String   @id @default(uuid())
+  userId   String
+  code     String
+  earnedAt DateTime @default(now())
+
+  @@unique([userId, code])
+  @@index([userId, earnedAt])
+}
+
 /// 顾问建议实例：每日 cron 按规则评估生成，工作台「经营顾问」卡拉取
 model AdvisorInsight {
   id        String    @id @default(uuid())
