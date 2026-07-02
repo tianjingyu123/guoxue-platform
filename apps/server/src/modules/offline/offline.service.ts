@@ -9,6 +9,13 @@ import { isUniqueConstraintError } from "../../common/prisma-errors";
 export class OfflineService {
   constructor(private prisma: PrismaService) {}
 
+  /** 校验调用者是目标驿站拥有者，防跨驿站越权 */
+  private async assertStationOwner(userId: string, stationId: string) {
+    const station = await this.prisma.stationOffline.findUnique({ where: { id: stationId }, select: { ownerUserId: true } });
+    if (!station) throw new BusinessException(ErrorCode.NOT_FOUND, "驿站不存在");
+    if (station.ownerUserId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "无权操作该驿站");
+  }
+
   // ───────── 线下驿站 ─────────
 
   async createStation(dto: { name: string; city: string; address: string; phone: string; cover?: string; depositAmount?: number }, userId: string) {
@@ -93,7 +100,8 @@ export class OfflineService {
 
   // ───────── 线下课程 ─────────
 
-  async createOfflineCourse(dto: { stationId: string; title: string; cover?: string; intro?: string; teacherId?: string; price?: number; maxStudents: number; startTime: string; endTime: string; location: string }) {
+  async createOfflineCourse(userId: string, dto: { stationId: string; title: string; cover?: string; intro?: string; teacherId?: string; price?: number; maxStudents: number; startTime: string; endTime: string; location: string }) {
+    await this.assertStationOwner(userId, dto.stationId);
     return this.prisma.offlineCourse.create({
       data: {
         ...dto,
@@ -256,7 +264,8 @@ export class OfflineService {
 
   // ───────── 驿站商品 ─────────
 
-  async createProduct(stationId: string, dto: { name: string; price: number; stock?: number; isPlatform?: boolean }) {
+  async createProduct(userId: string, stationId: string, dto: { name: string; price: number; stock?: number; isPlatform?: boolean }) {
+    await this.assertStationOwner(userId, stationId);
     return this.prisma.stationProduct.create({
       data: {
         stationId,
@@ -268,9 +277,10 @@ export class OfflineService {
     });
   }
 
-  async updateProduct(productId: string, dto: { name?: string; price?: number; stock?: number; status?: string }) {
+  async updateProduct(userId: string, productId: string, dto: { name?: string; price?: number; stock?: number; status?: string }) {
     const existing = await this.prisma.stationProduct.findUnique({ where: { id: productId } });
     if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "驿站商品不存在");
+    await this.assertStationOwner(userId, existing.stationId);
     return this.prisma.stationProduct.update({ where: { id: productId }, data: dto });
   }
 
@@ -292,15 +302,17 @@ export class OfflineService {
     return { products, total, page, pageSize };
   }
 
-  async deleteProduct(productId: string) {
+  async deleteProduct(userId: string, productId: string) {
     const existing = await this.prisma.stationProduct.findUnique({ where: { id: productId } });
     if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "驿站商品不存在");
+    await this.assertStationOwner(userId, existing.stationId);
     return this.prisma.stationProduct.update({ where: { id: productId }, data: { status: "INACTIVE" } });
   }
 
   // ───────── 师资预约 ─────────
 
-  async createTeacherBooking(stationId: string, dto: { teacherId: string; courseId?: string; bookingDate: string; remark?: string }) {
+  async createTeacherBooking(userId: string, stationId: string, dto: { teacherId: string; courseId?: string; bookingDate: string; remark?: string }) {
+    await this.assertStationOwner(userId, stationId);
     return this.prisma.stationTeacherBooking.create({
       data: {
         stationId,
@@ -312,18 +324,20 @@ export class OfflineService {
     });
   }
 
-  async confirmBooking(bookingId: string) {
+  async confirmBooking(userId: string, bookingId: string) {
     const existing = await this.prisma.stationTeacherBooking.findUnique({ where: { id: bookingId } });
     if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "预约记录不存在");
+    await this.assertStationOwner(userId, existing.stationId);
     return this.prisma.stationTeacherBooking.update({
       where: { id: bookingId },
       data: { status: "CONFIRMED" },
     });
   }
 
-  async cancelBooking(bookingId: string) {
+  async cancelBooking(userId: string, bookingId: string) {
     const existing = await this.prisma.stationTeacherBooking.findUnique({ where: { id: bookingId } });
     if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "预约记录不存在");
+    await this.assertStationOwner(userId, existing.stationId);
     return this.prisma.stationTeacherBooking.update({
       where: { id: bookingId },
       data: { status: "CANCELLED" },
@@ -399,9 +413,10 @@ export class OfflineService {
     return { orders, total, page, pageSize };
   }
 
-  async updateOrderStatus(orderId: string, status: string) {
+  async updateOrderStatus(userId: string, orderId: string, status: string) {
     const existing = await this.prisma.stationOrder.findUnique({ where: { id: orderId } });
     if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "驿站订单不存在");
+    await this.assertStationOwner(userId, existing.stationId);
     return this.prisma.stationOrder.update({ where: { id: orderId }, data: { status } });
   }
 
@@ -573,7 +588,8 @@ export class OfflineService {
   }
 
   /** 从研究院签约讲师库引入讲师到本驿站（研究院→驿站师资供给闭环）*/
-  async createTeacherFromSigned(stationId: string, sourceUserId: string, specialties?: string[], bio?: string) {
+  async createTeacherFromSigned(userId: string, stationId: string, sourceUserId: string, specialties?: string[], bio?: string) {
+    await this.assertStationOwner(userId, stationId);
     const member = await this.prisma.instituteMember.findUnique({
       where: { userId: sourceUserId },
       select: { lecturerLevel: true, status: true, user: { select: { nickname: true, avatar: true } } },

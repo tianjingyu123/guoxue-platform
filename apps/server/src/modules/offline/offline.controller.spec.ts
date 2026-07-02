@@ -89,8 +89,9 @@ describe("OfflineController", () => {
 
   // ─── 线下课程 ───
   it("POST /offline/courses — 创建课程", async () => {
+    const req: any = { user: { id: "u1" } };
     const dto: any = { title: "线下国学课", stationId: "s1" };
-    const result: any = await ctrl.createCourse(dto);
+    const result: any = await ctrl.createCourse(req, dto);
     expect(result.title).toBe("线下国学课");
   });
 
@@ -129,14 +130,16 @@ describe("OfflineController", () => {
 
   // ─── 驿站商品 ───
   it("POST /offline/stations/:id/products — 添加商品", async () => {
+    const req: any = { user: { id: "u1" } };
     const dto: any = { name: "驿站商品", price: 99 };
-    const result: any = await ctrl.createProduct("s1", dto);
+    const result: any = await ctrl.createProduct(req, "s1", dto);
     expect(result.name).toBe("驿站商品");
   });
 
   it("PUT /offline/products/:productId — 更新商品", async () => {
+    const req: any = { user: { id: "u1" } };
     const dto: any = { name: "更新商品", price: 129 };
-    const result: any = await ctrl.updateProduct("p1", dto);
+    const result: any = await ctrl.updateProduct(req, "p1", dto);
     expect(result.name).toBe("更新商品");
   });
 
@@ -146,24 +149,28 @@ describe("OfflineController", () => {
   });
 
   it("DELETE /offline/products/:productId — 下架商品", async () => {
-    const result: any = await ctrl.deleteProduct("p1");
+    const req: any = { user: { id: "u1" } };
+    const result: any = await ctrl.deleteProduct(req, "p1");
     expect(result.success).toBe(true);
   });
 
   // ─── 师资预约 ───
   it("POST /offline/stations/:id/teacher-bookings — 创建预约", async () => {
+    const req: any = { user: { id: "u1" } };
     const dto: any = { teacherId: "u2", date: "2025-06-01" };
-    const result: any = await ctrl.createTeacherBooking("s1", dto);
+    const result: any = await ctrl.createTeacherBooking(req, "s1", dto);
     expect(result.id).toBe("tb1");
   });
 
   it("PUT /offline/teacher-bookings/:bookingId/confirm — 确认预约", async () => {
-    const result: any = await ctrl.confirmBooking("tb1");
+    const req: any = { user: { id: "u1" } };
+    const result: any = await ctrl.confirmBooking(req, "tb1");
     expect(result.status).toBe("CONFIRMED");
   });
 
   it("PUT /offline/teacher-bookings/:bookingId/cancel — 取消预约", async () => {
-    const result: any = await ctrl.cancelBooking("tb1");
+    const req: any = { user: { id: "u1" } };
+    const result: any = await ctrl.cancelBooking(req, "tb1");
     expect(result.status).toBe("CANCELLED");
   });
 
@@ -186,8 +193,9 @@ describe("OfflineController", () => {
   });
 
   it("PUT /offline/orders/:orderId — 更新订单状态", async () => {
+    const req: any = { user: { id: "u1" } };
     const dto = { status: "PAID" };
-    const result: any = await ctrl.updateOrderStatus("o1", dto);
+    const result: any = await ctrl.updateOrderStatus(req, "o1", dto);
     expect(result.status).toBe("PAID");
   });
 

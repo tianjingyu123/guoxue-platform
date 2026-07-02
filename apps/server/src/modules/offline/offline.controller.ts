@@ -118,8 +118,8 @@ export class OfflineController {
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
-  createCourse(@Body() dto: CreateOfflineCourseDto) {
-    return this.svc.createOfflineCourse(dto);
+  createCourse(@Req() req: Request, @Body() dto: CreateOfflineCourseDto) {
+    return this.svc.createOfflineCourse(req.user.id, dto);
   }
 
   @Get("courses")
@@ -263,8 +263,8 @@ export class OfflineController {
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
-  createProduct(@Param("id") id: string, @Body() dto: CreateProductDto) {
-    return this.svc.createProduct(id, dto);
+  createProduct(@Req() req: Request, @Param("id") id: string, @Body() dto: CreateProductDto) {
+    return this.svc.createProduct(req.user.id, id, dto);
   }
 
   @Put("products/:productId")
@@ -274,8 +274,8 @@ export class OfflineController {
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
-  updateProduct(@Param("productId") productId: string, @Body() dto: UpdateProductDto) {
-    return this.svc.updateProduct(productId, dto);
+  updateProduct(@Req() req: Request, @Param("productId") productId: string, @Body() dto: UpdateProductDto) {
+    return this.svc.updateProduct(req.user.id, productId, dto);
   }
 
   @Get("stations/:id/products")
@@ -294,8 +294,8 @@ export class OfflineController {
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
-  deleteProduct(@Param("productId") productId: string) {
-    return this.svc.deleteProduct(productId);
+  deleteProduct(@Req() req: Request, @Param("productId") productId: string) {
+    return this.svc.deleteProduct(req.user.id, productId);
   }
 
   // ───────── 师资预约 ─────────
@@ -307,8 +307,8 @@ export class OfflineController {
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
-  createTeacherBooking(@Param("id") id: string, @Body() dto: CreateTeacherBookingDto) {
-    return this.svc.createTeacherBooking(id, dto);
+  createTeacherBooking(@Req() req: Request, @Param("id") id: string, @Body() dto: CreateTeacherBookingDto) {
+    return this.svc.createTeacherBooking(req.user.id, id, dto);
   }
 
   @Put("teacher-bookings/:bookingId/confirm")
@@ -318,8 +318,8 @@ export class OfflineController {
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
-  confirmBooking(@Param("bookingId") bookingId: string) {
-    return this.svc.confirmBooking(bookingId);
+  confirmBooking(@Req() req: Request, @Param("bookingId") bookingId: string) {
+    return this.svc.confirmBooking(req.user.id, bookingId);
   }
 
   @Put("teacher-bookings/:bookingId/cancel")
@@ -329,8 +329,8 @@ export class OfflineController {
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
-  cancelBooking(@Param("bookingId") bookingId: string) {
-    return this.svc.cancelBooking(bookingId);
+  cancelBooking(@Req() req: Request, @Param("bookingId") bookingId: string) {
+    return this.svc.cancelBooking(req.user.id, bookingId);
   }
 
   @Get("stations/:id/teacher-bookings")
@@ -389,8 +389,8 @@ export class OfflineController {
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
-  updateOrderStatus(@Param("orderId") orderId: string, @Body() dto: UpdateOrderStatusDto) {
-    return this.svc.updateOrderStatus(orderId, dto.status);
+  updateOrderStatus(@Req() req: Request, @Param("orderId") orderId: string, @Body() dto: UpdateOrderStatusDto) {
+    return this.svc.updateOrderStatus(req.user.id, orderId, dto.status);
   }
 
   // ───────── 结算 ─────────
@@ -454,8 +454,8 @@ export class OfflineController {
   @ApiResponse({ status: 404, description: "驿站不存在" })
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
-  createTeacherFromSigned(@Param("id") stationId: string, @Body() dto: CreateTeacherFromSignedDto) {
-    return this.svc.createTeacherFromSigned(stationId, dto.sourceUserId, dto.specialties, dto.bio);
+  createTeacherFromSigned(@Req() req: Request, @Param("id") stationId: string, @Body() dto: CreateTeacherFromSignedDto) {
+    return this.svc.createTeacherFromSigned(req.user.id, stationId, dto.sourceUserId, dto.specialties, dto.bio);
   }
 
   @Get("admin/teachers")
@@ -585,7 +585,7 @@ export class OfflineController {
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   cancelTeacherBooking(@Req() req: Request, @Param("bookingId") bookingId: string) {
-    return this.svc.cancelBooking(bookingId);
+    return this.svc.cancelBooking(req.user.id, bookingId);
   }
 
   // ───────── 研究院管理 ─────────

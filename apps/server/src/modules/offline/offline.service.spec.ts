@@ -143,8 +143,9 @@ describe("OfflineService", () => {
 
   describe("createOfflineCourse", () => {
     it("创建线下课程成功", async () => {
+      mockPrisma.stationOffline.findUnique.mockResolvedValue({ ownerUserId: "u1" });
       mockPrisma.offlineCourse.create.mockResolvedValue({ id: "oc1", title: "易经面授课" });
-      const result = await svc.createOfflineCourse({
+      const result = await svc.createOfflineCourse("u1", {
         stationId: "s1", title: "易经面授课", maxStudents: 30,
         startTime: "2026-06-01T09:00:00Z", endTime: "2026-06-01T17:00:00Z", location: "北京国学馆",
       });
@@ -152,14 +153,24 @@ describe("OfflineService", () => {
     });
 
     it("未指定 price 时默认 0", async () => {
+      mockPrisma.stationOffline.findUnique.mockResolvedValue({ ownerUserId: "u1" });
       mockPrisma.offlineCourse.create.mockImplementation(({ data }) =>
         Promise.resolve({ id: "oc1", ...data }),
       );
-      const result = await svc.createOfflineCourse({
+      const result = await svc.createOfflineCourse("u1", {
         stationId: "s1", title: "课程", maxStudents: 20,
         startTime: "2026-06-01T09:00:00Z", endTime: "2026-06-01T17:00:00Z", location: "地点",
       });
       expect(result.price).toBe(0);
+    });
+
+    it("非驿站拥有者创建课程抛出 FORBIDDEN", async () => {
+      mockPrisma.stationOffline.findUnique.mockResolvedValue({ ownerUserId: "owner" });
+      await expect(svc.createOfflineCourse("attacker", {
+        stationId: "s1", title: "课程", maxStudents: 20,
+        startTime: "2026-06-01T09:00:00Z", endTime: "2026-06-01T17:00:00Z", location: "地点",
+      })).rejects.toThrow(BusinessException);
+      expect(mockPrisma.offlineCourse.create).not.toHaveBeenCalled();
     });
   });
 
