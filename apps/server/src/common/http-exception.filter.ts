@@ -63,6 +63,11 @@ export class AllExceptionsFilter implements ExceptionFilter {
           message = AllExceptionsFilter.DEFAULT_MSG_ZH[raw as string] || raw;
         }
       }
+    } else if (exception instanceof Error && exception.name === "PrismaClientValidationError") {
+      // 用户传入非法数值/日期参数导致查询构造失败(如 ?page=abc → skip:NaN) → 归 400 而非 500。
+      // 用 name 判断而非 instanceof，避免 @prisma/client 多副本导致的类身份不匹配。
+      status = HttpStatus.BAD_REQUEST;
+      message = "请求参数有误，请检查分页或筛选条件";
     } else if (exception instanceof Error) {
       // 第三方库/未知错误 — 不泄露内部错误详情
       message = "服务器内部错误，请稍后重试";

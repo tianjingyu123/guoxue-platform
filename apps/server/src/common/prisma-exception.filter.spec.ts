@@ -1,33 +1,46 @@
 import { ArgumentsHost, HttpStatus } from "@nestjs/common";
-import { Prisma } from "@prisma/client";
-import { PrismaValidationExceptionFilter } from "./prisma-exception.filter";
 
-describe("PrismaValidationExceptionFilter", () => {
-  function mockHost(): { host: ArgumentsHost; status: jest.Mock; json: jest.Mock } {
+jest.mock("./pino-logger.service", () => ({
+  PinoLoggerService: {
+    getInstance: () => ({ raw: () => ({ error: jest.fn(), warn: jest.fn(), info: jest.fn() }) }),
+  },
+}));
+jest.mock("./alert", () => ({ sendAlert: jest.fn() }));
+jest.mock("./request-context", () => ({ RequestContext: { traceId: () => "test-trace" } }));
+
+import { AllExceptionsFilter } from "./http-exception.filter";
+
+describe("AllExceptionsFilter — PrismaClientValidationError 归一 400", () => {
+  function mockHost() {
     const json = jest.fn();
     const status = jest.fn().mockReturnValue({ json });
+    const setHeader = jest.fn();
     const host = {
       switchToHttp: () => ({
-        getResponse: () => ({ status }),
-        getRequest: () => ({ url: "/api/v1/shop/orders/my?page=abc", method: "GET" }),
+        getResponse: () => ({ status, json, setHeader, headersSent: false }),
+        getRequest: () => ({ url: "/api/v1/circles?page=abc", method: "GET" }),
       }),
     } as unknown as ArgumentsHost;
     return { host, status, json };
   }
 
-  it("将 PrismaClientValidationError 映射为 400 而非 500", () => {
-    const filter = new PrismaValidationExceptionFilter();
+  it("skip:NaN 类查询构造错误(PrismaClientValidationError)映射为 400 而非 500", () => {
+    const filter = new AllExceptionsFilter();
     const { host, status, json } = mockHost();
-    const err = new Prisma.PrismaClientValidationError(
-      "Invalid `prisma.order.findMany()` invocation\nArgument `skip`: Got invalid value NaN",
-      { clientVersion: "6.19.3" } as unknown as ConstructorParameters<typeof Prisma.PrismaClientValidationError>[1],
-    );
+    // 真实运行时该错误 name === "PrismaClientValidationError"
+    const err = new Error("Invalid `prisma.circle.findMany()` invocation\nArgument `skip` is missing.");
+    err.name = "PrismaClientValidationError";
 
     filter.catch(err, host);
 
     expect(status).toHaveBeenCalledWith(HttpStatus.BAD_REQUEST);
-    expect(json).toHaveBeenCalledWith(
-      expect.objectContaining({ code: HttpStatus.BAD_REQUEST, path: expect.stringContaining("page=abc") }),
-    );
+    expect(json).toHaveBeenCalledWith(expect.objectContaining({ code: HttpStatus.BAD_REQUEST }));
+  });
+
+  it("普通未知 Error 仍为 500", () => {
+    const filter = new AllExceptionsFilter();
+    const { host, status } = mockHost();
+    filter.catch(new Error("boom"), host);
+    expect(status).toHaveBeenCalledWith(HttpStatus.INTERNAL_SERVER_ERROR);
   });
 });
