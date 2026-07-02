@@ -15,14 +15,6 @@ export interface OperatorBenefit {
   highlight: boolean
 }
 
-export interface EarningCase {
-  name: string
-  days: number
-  earnings: number
-  teamSize: number
-  soldQuota: number
-}
-
 export interface FaqItem {
   q: string
   a: string
@@ -43,9 +35,9 @@ export const operatorPricing = {
 export const planComparison: PlanCompareRow[] = [
   { feature: '专属分站入口', station: true, operator: true },
   { feature: '入圈费用分佣', station: '10%-30%', operator: '15%-35%' },
-  { feature: '分站名额', station: '1个（自用）', operator: '6个（自用1+售卖5）' },
+  { feature: '分站名额', station: '1个（自用）', operator: '6个（自用1+推荐5）' },
   { feature: '团队管理', station: false, operator: true },
-  { feature: '下级站长分佣', station: false, operator: '5%' },
+  { feature: '团队管理奖', station: false, operator: '按等级比例' },
   { feature: '专属培训', station: false, operator: true },
   { feature: '优先客服', station: false, operator: true },
   { feature: '线下活动', station: false, operator: true },
@@ -56,35 +48,22 @@ export const operatorBenefits: OperatorBenefit[] = [
   { icon: 'award', title: '开通专属分站', desc: '分站名称显示在首页，提升标识性', highlight: true },
   { icon: 'trending-up', title: '分享赚佣金', desc: '分享商品/课程/会员等，购买成功获得佣金', highlight: true },
   { icon: 'wallet', title: '自购也省钱', desc: '自己购买平台内容同样获得返佣', highlight: true },
-  { icon: 'layers', title: '5个销售名额', desc: '赠送5个销售金额全返的分站推荐名额', highlight: true },
+  { icon: 'layers', title: '5个推荐名额', desc: '可推荐5位符合条件的用户申请开通站长（需平台审核）', highlight: true },
   { icon: 'users', title: '管理奖励', desc: '管理分站得相应比例的管理奖', highlight: true },
   { icon: 'gift', title: '赠送视频课程', desc: '国学视频课程免费学习', highlight: false },
   { icon: 'book-open', title: '赠送精装书籍', desc: '精装国学书籍一套', highlight: false },
 ]
 
-// 收益案例
-export const operatorEarningCases: EarningCase[] = [
-  { name: '张***运营', days: 365, earnings: 86800, teamSize: 12, soldQuota: 8 },
-  { name: '李***商', days: 180, earnings: 32500, teamSize: 6, soldQuota: 4 },
-  { name: '王***营', days: 90, earnings: 18600, teamSize: 3, soldQuota: 2 },
-]
-
 // 常见问题
 export const operatorFaqs: FaqItem[] = [
-  { q: '运营商和站长有什么区别？', a: '运营商是更高级别的合作伙伴，拥有6个分站名额，可以发展和管理站长团队，享受团队分佣收益。' },
-  { q: '6个分站名额如何使用？', a: '1个自用建立分站，剩余5个可以999元/个的价格售卖给他人，售卖收入100%归您。' },
-  { q: '下级站长的分佣怎么算？', a: '您招募的站长产生的入圈分佣，您额外获得5%的团队奖励。' },
-  { q: '已经是站长可以升级吗？', a: '可以，补差价4000元即可升级为运营商，原站长权益继续有效。' },
+  { q: '运营商和站长有什么区别？', a: '站长专注自有分站的推广运营；运营商在此基础上可组建和管理站长团队，为团队提供培训与运营支持，并按名下站长的推广佣金获得一定比例的团队管理奖。' },
+  { q: '6个分站名额如何使用？', a: '1个自用建立分站，其余5个为站长推荐名额：您可推荐符合条件的用户申请开通站长（需平台审核）。站长服务费由平台统一收取，名额本身不产生转让收益。' },
+  { q: '团队管理奖怎么算？', a: '您团队内站长因真实推广产生的佣金，平台按您的运营商等级比例向您发放团队管理奖。管理奖仅基于真实商品与服务交易，且计酬不超过两级：您不参与下级运营商管理奖收入的任何分成，仅对其个人分站（站长角色）的推广佣金计管理奖。' },
+  { q: '已经是站长可以升级吗？', a: '可以，补差价即可升级为运营商，原站长权益继续有效。' },
+  { q: '收益有保障吗？可以退出吗？', a: '推广收益取决于您的实际推广效果，平台不承诺任何固定收益。您可随时申请终止合作，剩余服务期费用按协议约定处理。' },
 ]
 
 // ===== 加入站长页数据（对齐原型 app/join/station）=====
-
-export interface StationEarningCase {
-  name: string
-  days: number
-  earnings: number
-  users: number
-}
 
 // 价格
 export const stationPricing = {
@@ -102,17 +81,12 @@ export const stationBenefits: OperatorBenefit[] = [
   { icon: 'star', title: '专属海报', desc: '生成推广海报和二维码', highlight: false },
 ]
 
-// 站长收益案例（对齐原型 earningCases）
-export const stationEarningCases: StationEarningCase[] = [
-  { name: '易***师', days: 180, earnings: 12680, users: 256 },
-  { name: '国***阁', days: 90, earnings: 5680, users: 128 },
-  { name: '命***堂', days: 365, earnings: 28900, users: 512 },
-]
-
 // 站长常见问题（对齐原型 faqs）
 export const stationFaqs: FaqItem[] = [
+  { q: '999元费用包含什么？', a: '为分站SaaS服务年费，由平台统一收取，包含：专属分站主页与微页面工具、推广素材与海报生成、数据看板、智能站长助理及配套培训服务。' },
   { q: '站长权益有效期多久？', a: '站长权益有效期为1年，到期后可续费继续享有权益。' },
-  { q: '分佣比例是多少？', a: '入圈费用分佣比例为10%-30%，具体根据圈子类型和平台政策而定。' },
+  { q: '分佣比例是多少？', a: '入圈费用分佣比例为10%-30%，具体根据圈子类型和平台政策而定。佣金仅基于真实的商品与服务交易结算。' },
+  { q: '成为站长一定能赚钱吗？', a: '不能保证。推广佣金取决于真实的推广效果与用户消费，平台不承诺任何固定回报，请理性评估后加入。' },
   { q: '可以升级为运营商吗？', a: '可以，补差价即可升级为运营商，享受更多权益和名额。' },
   { q: '通过运营商链接购买有区别吗？', a: '价格相同，区别是您将归属该运营商团队，享受团队支持。' },
 ]
@@ -134,6 +108,9 @@ export const operatorAgreementSections: AgreementSection[] = [
   { title: '第六条 费用结算', content: '平台与运营商的收益分成比例为：平台25%，运营商75%。结算周期为自然月，次月1日起可申请提现。' },
   { title: '第七条 违约处理', content: '若运营商违反本协议，平台有权进行警告、限制功能或封禁账户等处理。情节严重的将移交司法部门处理。' },
   { title: '第八条 协议变更', content: '平台保留修改本协议的权利。重大修改会提前30天通知运营商。继续使用平台即视为接受新协议。' },
+  { title: '第九条 计酬合规', content: '平台各项推广计酬均以真实商品与服务交易为唯一基础，计酬层级不超过两级。运营商团队管理奖仅针对名下站长（含下级运营商个人分站的站长角色收入）的推广佣金计算；运营商不参与下级运营商管理奖收入的任何分成，任何形式的第三层级计酬均被禁止。严禁以发展人员数量作为计酬依据，严禁自买自卖、虚假交易套取佣金。违反者平台有权取消计酬资格并追回已发放款项。' },
+  { title: '第十条 宣传规范', content: '运营商在推广中不得使用"保证收益""稳赚""躺赚""回本"等承诺性、夸大性表述，不得虚构收益案例。平台不承诺任何固定收益，推广收益取决于真实的推广效果。' },
+  { title: '第十一条 退出与终止', content: '运营商可随时申请终止合作。终止后团队管理关系解除，已产生的合规收益照常结算，剩余服务期费用按本协议及平台规则处理。' },
 ]
 
 // 运营商协议提示
@@ -149,6 +126,8 @@ export const stationAgreementSections: AgreementSection[] = [
   { title: '第六条 收益分配', content: '站长的收益来源包括：直播打赏、商品销售、广告收入等。平台按照不同收益类型进行分成，具体比例见《收益分成协议》。' },
   { title: '第七条 社区管理', content: '站长应维护社区健康环境，禁止骚扰、诋毁等行为。平台有权干预和处理严重违规的社区。' },
   { title: '第八条 违约处理', content: '违反本协议的站长将被暂停发布功能、降低流量或解除合作。严重违规将被永久封禁。' },
+  { title: '第九条 计酬合规', content: '站长推广佣金仅基于真实商品与服务交易结算，计酬层级不超过两级。严禁自买自卖、虚假交易套取佣金，严禁以"保证收益""躺赚"等承诺性表述开展宣传。平台不承诺任何固定收益。' },
+  { title: '第十条 退出与终止', content: '站长可随时申请终止合作。终止后分站绑定关系按平台规则解除，已产生的合规收益照常结算，剩余服务期费用按本协议及平台规则处理。' },
 ]
 
 // 站长协议提示
@@ -753,13 +732,11 @@ export const operatorApi = {
   async getOperatorPricing() { return operatorPricing },
   async getPlanComparison() { return planComparison },
   async getOperatorBenefits() { return operatorBenefits },
-  async getOperatorEarningCases() { return operatorEarningCases },
   async getOperatorFaqs() { return operatorFaqs },
 
   // === 站长入驻 (用于 join-station 页·静态运营文案) ===
   async getStationPricing() { return stationPricing },
   async getStationBenefits() { return stationBenefits },
-  async getStationEarningCases() { return stationEarningCases },
   async getStationFaqs() { return stationFaqs },
 
   // === 协议 (用于 agreement-operator, agreement-station 页·静态条款) ===

@@ -122,7 +122,7 @@
           <text class="poster-btn-txt" style="color:#fff">复制推广链接</text>
         </view>
       </view>
-      <text class="poster-tip">复制专属推广链接邀请好友，好友通过您的链接加入平台后将永久归属您的分站</text>
+      <text class="poster-tip">复制专属推广链接邀请好友，好友通过您的链接注册后将与您的分站建立绑定关系（权益有效期内）</text>
     </view>
     </template>
   </view>

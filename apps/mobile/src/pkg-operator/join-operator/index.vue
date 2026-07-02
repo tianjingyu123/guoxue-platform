@@ -7,7 +7,6 @@ import {
   operatorApi,
   type PlanCompareRow,
   type OperatorBenefit,
-  type EarningCase,
   type FaqItem,
 } from '@/lib/operator-data'
 
@@ -16,7 +15,6 @@ const error = ref('')
 const pricing = ref({ price: 0, originalPrice: 0, quotaUnitPrice: 0, quotaCount: 0, quotaValue: 0 })
 const planComparison = ref<PlanCompareRow[]>([])
 const operatorBenefits = ref<OperatorBenefit[]>([])
-const operatorEarningCases = ref<EarningCase[]>([])
 const operatorFaqs = ref<FaqItem[]>([])
 const expandedFaq = ref<number | null>(null)
 const agreed = ref(false)
@@ -24,21 +22,18 @@ const submitting = ref(false)
 
 const price = computed(() => pricing.value.price)
 const originalPrice = computed(() => pricing.value.originalPrice)
-const quotaValue = computed(() => pricing.value.quotaValue)
 
 async function fetchData() {
   try {
-    const [p, pc, b, ec, f] = await Promise.all([
+    const [p, pc, b, f] = await Promise.all([
       operatorApi.getOperatorPricing(),
       operatorApi.getPlanComparison(),
       operatorApi.getOperatorBenefits(),
-      operatorApi.getOperatorEarningCases(),
       operatorApi.getOperatorFaqs(),
     ])
     pricing.value = p
     planComparison.value = pc
     operatorBenefits.value = b
-    operatorEarningCases.value = ec
     operatorFaqs.value = f
   } catch (e) {
     error.value = (e as Error)?.message || '加载失败'
@@ -69,9 +64,6 @@ async function onSubmit() {
   }
 }
 
-function fmt(n: number) {
-  return n.toLocaleString('en-US')
-}
 </script>
 
 <template>
@@ -110,7 +102,7 @@ function fmt(n: number) {
           </view>
           <view class="hero-gift">
             <AppIcon name="gift" :size="22" color="#fff" />
-            <text class="hero-gift-text">赠送6个分站名额（价值¥{{ quotaValue }}）</text>
+            <text class="hero-gift-text">含6个分站名额（1个自用 + 5个推荐）</text>
           </view>
         </view>
       </view>
@@ -131,10 +123,10 @@ function fmt(n: number) {
             <view class="quota-item">
               <view class="quota-ic quota-ic-gold"><AppIcon name="gift" :size="32" color="#C9A96E" /></view>
               <text class="quota-num quota-num-gold">5个</text>
-              <text class="quota-desc">可售卖 ¥999/个</text>
+              <text class="quota-desc">推荐名额</text>
             </view>
           </view>
-          <text class="quota-tip">售卖5个名额即可回本 ¥4,995，后续收益都是纯利润</text>
+          <text class="quota-tip">推荐名额用于邀请新站长加入您的团队（需平台审核）；站长服务费由平台统一收取，名额不产生转让收益</text>
         </view>
       </view>
 
@@ -192,29 +184,6 @@ function fmt(n: number) {
                   <text v-else class="cmp-dash">-</text>
                 </template>
                 <text v-else class="cmp-val-operator">{{ item.operator }}</text>
-              </view>
-            </view>
-          </view>
-        </view>
-      </view>
-
-      <!-- 收益案例 -->
-      <view class="px">
-        <view class="card">
-          <view class="card-title">
-            <AppIcon name="sparkles" :size="28" color="#C9A96E" />
-            <text class="card-title-text">运营商收益案例</text>
-          </view>
-          <view class="case-list">
-            <view v-for="(item, i) in operatorEarningCases" :key="i" class="case-item">
-              <view class="case-ic"><AppIcon name="building-2" :size="28" color="#7c3aed" /></view>
-              <view class="case-body">
-                <text class="case-name">{{ item.name }}</text>
-                <text class="case-meta">入驻{{ item.days }}天 · 团队{{ item.teamSize }}人 · 已售{{ item.soldQuota }}个名额</text>
-              </view>
-              <view class="case-right">
-                <text class="case-earn">¥{{ fmt(item.earnings) }}</text>
-                <text class="case-earn-label">累计收益</text>
               </view>
             </view>
           </view>

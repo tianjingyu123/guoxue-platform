@@ -86,7 +86,7 @@
         </view>
         <view class="quota-rule">
           <view class="quota-rule-num bg-success"><text class="quota-rule-num-txt c-success">2</text></view>
-          <view class="quota-rule-body"><text class="quota-rule-title">分享销售</text><text class="quota-rule-desc">分享购买链接，用户支付¥{{ data.price }}后自动开通站长权益，款项100%归您所有</text></view>
+          <view class="quota-rule-body"><text class="quota-rule-title">推荐加入</text><text class="quota-rule-desc">分享推荐链接，用户申请并经平台审核、支付站长服务费（¥{{ data.price }}，由平台统一收取）后开通站长权益，加入您的团队</text></view>
         </view>
         <view class="quota-rule">
           <view class="quota-rule-num bg-gold"><text class="quota-rule-num-txt c-gold">3</text></view>
@@ -94,11 +94,11 @@
         </view>
         <view class="quota-rule">
           <view class="quota-rule-num bg-info"><text class="quota-rule-num-txt c-info">4</text></view>
-          <view class="quota-rule-body"><text class="quota-rule-title">团队奖励</text><text class="quota-rule-desc">通过您分配的名额开通的站长，其产生的入圈分佣，您额外获得5%管理奖励</text></view>
+          <view class="quota-rule-body"><text class="quota-rule-title">团队管理奖</text><text class="quota-rule-desc">通过您分配的名额开通的站长，其因真实推广产生的佣金，平台按您的运营商等级比例向您发放团队管理奖（计酬不超过两级，不含下级运营商的管理奖收入）</text></view>
         </view>
         <view class="quota-warn">
           <app-icon name="alert-circle" :size="28" color="#b45309" />
-          <text class="quota-warn-txt">名额一经分配无法收回，请谨慎操作。如需更多名额，可联系平台客服购买。</text>
+          <text class="quota-warn-txt">名额一经分配无法收回，请谨慎操作。如需更多名额，可联系平台客服申请。</text>
         </view>
       </view>
     </view>
@@ -106,16 +106,16 @@
     <!-- 分享链接弹窗 -->
     <view v-if="showQrDialog" class="quota-mask" @tap.self="showQrDialog = false">
       <view class="quota-dialog">
-        <text class="quota-dialog-title">分享购买链接</text>
-        <text class="quota-dialog-desc">用户通过此链接购买后自动成为您团队的站长</text>
+        <text class="quota-dialog-title">分享推荐链接</text>
+        <text class="quota-dialog-desc">用户通过此链接申请开通站长，经平台审核后加入您的团队</text>
         <view class="quota-link-box"><text class="quota-link-txt">{{ saleLink }}</text></view>
         <view class="quota-qr-box">
           <app-icon name="qr-code" :size="100" color="#ccc" />
           <text class="quota-qr-hint">购买二维码</text>
         </view>
         <view class="quota-price-info">
-          <text class="quota-price-txt">购买价格：<text class="c-primary">¥{{ data.price }}</text></text>
-          <text class="quota-price-sub">款项100%归您所有</text>
+          <text class="quota-price-txt">站长服务费：<text class="c-primary">¥{{ data.price }}</text></text>
+          <text class="quota-price-sub">由平台统一收取</text>
         </view>
         <view class="quota-dialog-footer">
           <view class="quota-dialog-btn outline" @tap="copyLink"><app-icon :name="copied ? 'check' : 'copy'" :size="26" color="#333" /><text class="quota-dialog-btn-txt">复制链接</text></view>

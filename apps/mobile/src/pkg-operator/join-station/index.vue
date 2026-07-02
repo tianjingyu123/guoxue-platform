@@ -78,40 +78,15 @@
               <text class="js-comm-val green">10%-30%</text>
             </view>
             <view class="js-comm-row">
-              <text class="js-comm-label">用户永久归属</text>
-              <text class="js-comm-val green">终身绑定</text>
+              <text class="js-comm-label">用户关系绑定</text>
+              <text class="js-comm-val green">权益有效期内</text>
             </view>
             <view class="js-comm-row">
               <text class="js-comm-label">结算周期</text>
               <text class="js-comm-val dark">每月15日</text>
             </view>
           </view>
-          <text class="js-comm-note">* 用户通过您的分站链接注册后永久归属您，其入圈消费您都将获得分佣</text>
-        </view>
-      </view>
-
-      <!-- 站长收益案例 -->
-      <view class="js-sec">
-        <view class="js-card">
-          <view class="js-card-title">
-            <app-icon name="sparkles" :size="28" color="#C9A96E" />
-            <text class="js-card-title-text">站长收益案例</text>
-          </view>
-          <view class="js-cases">
-            <view v-for="(c, i) in stationEarningCases" :key="i" class="js-case">
-              <view class="js-case-icon">
-                <app-icon name="award" :size="36" color="#16a34a" />
-              </view>
-              <view class="js-case-body">
-                <text class="js-case-name">{{ c.name }}</text>
-                <text class="js-case-meta">入驻{{ c.days }}天 · {{ c.users }}位用户</text>
-              </view>
-              <view class="js-case-right">
-                <text class="js-case-earn">¥{{ c.earnings.toLocaleString() }}</text>
-                <text class="js-case-label">累计收益</text>
-              </view>
-            </view>
-          </view>
+          <text class="js-comm-note">* 用户通过您的分站链接注册后与您的分站建立绑定关系，权益有效期内其入圈消费按平台规则计算分佣。佣金仅基于真实交易结算，收益取决于实际推广效果，平台不承诺任何固定收益</text>
         </view>
       </view>
 
@@ -188,7 +163,6 @@ import { navigateTo } from '@/utils/router'
 import {
   operatorApi,
   type OperatorBenefit,
-  type StationEarningCase,
   type FaqItem,
 } from '@/lib/operator-data'
 
@@ -196,7 +170,6 @@ const loading = ref(true)
 const error = ref('')
 const stationPricing = ref({ price: 0, originalPrice: 0 })
 const stationBenefits = ref<OperatorBenefit[]>([])
-const stationEarningCases = ref<StationEarningCase[]>([])
 const stationFaqs = ref<FaqItem[]>([])
 const inviteCode = ref('')
 const expandedFaq = ref<number | null>(null)
@@ -205,15 +178,13 @@ const submitting = ref(false)
 
 async function fetchData() {
   try {
-    const [p, b, ec, f] = await Promise.all([
+    const [p, b, f] = await Promise.all([
       operatorApi.getStationPricing(),
       operatorApi.getStationBenefits(),
-      operatorApi.getStationEarningCases(),
       operatorApi.getStationFaqs(),
     ])
     stationPricing.value = p
     stationBenefits.value = b
-    stationEarningCases.value = ec
     stationFaqs.value = f
   } catch (e) {
     error.value = (e as Error)?.message || '加载失败'
