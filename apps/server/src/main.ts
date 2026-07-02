@@ -11,6 +11,7 @@ import { RedisThrottleGuard } from "./common/redis-throttle.guard";
 import { serverConfig } from "./config/server-config";
 import { cryptoSelfTest, setDecryptAlertHandler } from "./common/crypto.util";
 import { ThirdPartyConfigLoader } from "./modules/system/third-party-config.loader";
+import { PrismaService } from "./prisma/prisma.service";
 import { setAlertHandler } from "./common/alert";
 import { WeworkService } from "./modules/notification/wework.service";
 import { RedisService } from "./redis/redis.service";
@@ -36,6 +37,24 @@ async function bootstrap() {
   cryptoSelfTest();
 
   const logger = PinoLoggerService.getInstance();
+
+  // ⚠️ 在创建应用【之前】把后台第三方密钥(DB)同步到 process.env。
+  // 原因：部分模块在实例化(create 期间)时就读 env 决定行为——如 upload 存储 provider 工厂
+  // 按 COS_SECRET_ID 选 CosStorageProvider 还是本地存储、CosStorageProvider 构造时即建客户端。
+  // 若同步晚于 create(原在 listen 前)，后台配置的 COS/等密钥永不生效(只会走 .env 兜底/本地存储)。
+  try {
+    const { PrismaClient } = await import("@prisma/client");
+    const bootPrisma = new PrismaClient();
+    try {
+      const n = await new ThirdPartyConfigLoader(bootPrisma as unknown as PrismaService).syncToEnv();
+      logger.raw().info(`启动前已同步 ${n} 项后台第三方密钥到 env`);
+    } finally {
+      await bootPrisma.$disconnect();
+    }
+  } catch (e) {
+    logger.raw().warn(`启动前第三方密钥同步失败，使用 .env 兜底：${(e as Error)?.message}`);
+  }
+
   const app = await NestFactory.create<NestExpressApplication>(AppGraphqlModule, { logger });
 
   // B2: 注入解密失败告警通道 — decrypt 遇 GCM 认证失败（疑似密钥错配）时经企微告警；无 webhook 时降级为日志
