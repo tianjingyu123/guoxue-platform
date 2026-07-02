@@ -11,6 +11,7 @@ import { Prisma, LiveStatus } from "@prisma/client";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { CoinService } from "../coin/coin.service";
+import { RevenueService } from "../revenue/revenue.service";
 
 @Injectable()
 export class LiveService {
@@ -22,6 +23,7 @@ export class LiveService {
     private stream: LiveStreamService,
     private webhook: WebhookService,
     @Optional() private coin?: CoinService,
+    @Optional() private revenue?: RevenueService,
   ) {}
 
   async createRoom(userId: string, dto: CreateRoomDto) {
@@ -887,7 +889,7 @@ export class LiveService {
         }, tx);
       }
 
-      return tx.giftRecord.create({
+      const giftRecord = await tx.giftRecord.create({
         data: {
           userId,
           liveRoomId: roomId,
@@ -901,6 +903,17 @@ export class LiveService {
           gift: { select: { id: true, name: true, icon: true, level: true } },
         },
       });
+
+      // 打赏分账：主播实时入账 50%（平台留 50%·2026-07-01 业务规则），记为可提现 RMB 收益（同一事务·原子）
+      // 赠礼者虚拟币不可提现/退款，主播打赏收入 RMB 可提现（走 UserEarning → 提现流）
+      if (this.revenue && room.hostUserId && room.hostUserId !== userId) {
+        await this.revenue.record(
+          { userId: room.hostUserId, scene: "LIVE_GIFT", refId: giftRecord.id, amountCoin: totalCoin, rate: 0.5 },
+          tx,
+        );
+      }
+
+      return giftRecord;
     });
 
     return record;

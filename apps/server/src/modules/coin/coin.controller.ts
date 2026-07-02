@@ -2,7 +2,7 @@ import { Controller, Get, Post, Put, Delete, Body, Param, Query, Req, UseGuards,
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from "@nestjs/swagger";
 import { Request } from "express";
 import { CoinService } from "./coin.service";
-import { AdminRechargeDto, SpendDto, CreateGiftDto, SendGiftDto } from "./coin.dto";
+import { AdminRechargeDto, AdminRefundDto, SpendDto, CreateGiftDto, SendGiftDto } from "./coin.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
 import { ActiveUserGuard } from "../../common/active-user.guard";
@@ -58,6 +58,19 @@ export class CoinController {
   @ApiResponse({ status: 403, description: "无权限" })
   adminRecharge(@Body() dto: AdminRechargeDto, @Req() req: Request) {
     return this.coin.requestRecharge(dto, req.user.id);
+  }
+
+  @Post("admin/refund")
+  @Auditable({ action: "管理员发起虚拟币退款", targetType: "COIN" })
+  @UseGuards(JwtAuthGuard, RolesGuard, StrictRedisThrottleGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "CUSTOMER_SERVICE")
+  @ApiOperation({ summary: "管理员/客服发起虚拟币退款申请", description: "虚拟币默认不可退款；客诉等场景由管理人员发起退款（可协商金额），经财务审批通过后退回用户账户" })
+  @ApiResponse({ status: 201, description: "已提交审批" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
+  adminRefund(@Body() dto: AdminRefundDto, @Req() req: Request) {
+    return this.coin.requestRefund(dto, req.user.id);
   }
 
   @Get("admin/transactions")

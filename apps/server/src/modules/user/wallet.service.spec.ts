@@ -14,6 +14,7 @@ import { BusinessException } from "../../common/business.exception";
 const mockPrisma: any = {
   userEarning: { aggregate: jest.fn() },
   withdrawalApplication: { aggregate: jest.fn(), create: jest.fn(), findMany: jest.fn() },
+  configSystem: { findMany: jest.fn().mockResolvedValue([]) },
 };
 const mockCoin: any = {
   // 故意把虚拟币余额设得很高：用来证明提现【不再】依赖虚拟币余额

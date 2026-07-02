@@ -1,4 +1,5 @@
 import { Injectable } from "@nestjs/common";
+import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { COIN_TO_RMB } from "../../common/constants";
 
@@ -7,7 +8,7 @@ const DEFAULT_RATES = {
   QUESTION: 0.8,   // 回答者 80%
   PEEK:    0.7,   // 围观回答者 70%
   AUDIO_CALL: 0.7, // 连麦嘉宾 70%
-  LIVE_GIFT: 0.6,  // 主播 60%
+  LIVE_GIFT: 0.5,  // 主播 50%（平台 50%·2026-07-01 业务规则）
 };
 
 @Injectable()
@@ -23,11 +24,13 @@ export class RevenueService {
     refId: string;
     amountCoin: number;
     rate?: number;
-  }) {
+  }, tx?: Prisma.TransactionClient) {
     const rate = params.rate ?? DEFAULT_RATES[params.scene];
     const amountRmb = (params.amountCoin / COIN_TO_RMB) * rate;
 
-    return this.prisma.userEarning.create({
+    // 支持传入事务客户端，使收益入账与扣费在同一事务（如送礼：扣赠礼者币 + 主播入账原子化）
+    const db = tx ?? this.prisma;
+    return db.userEarning.create({
       data: {
         userId: params.userId,
         scene: params.scene,

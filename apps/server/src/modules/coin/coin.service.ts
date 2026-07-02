@@ -48,6 +48,23 @@ export class CoinService {
     });
   }
 
+  /**
+   * 管理员/客服发起虚拟币退款申请（客诉退款/协商金额退款）。
+   * 虚拟币默认不可退款，仅在客诉等场景由管理人员发起、经财务审批后执行（职责分离·防自审自批）。
+   */
+  async requestRefund(dto: { userId: string; amountCoin: number; description?: string }, requestedBy: string) {
+    if (!dto.userId) throw new BusinessException(ErrorCode.BAD_REQUEST, "请指定用户ID");
+    if (!dto.amountCoin || dto.amountCoin <= 0) throw new BusinessException(ErrorCode.COIN_AMOUNT_INVALID, "退款币数必须大于0");
+    if (!this.fundApproval) throw new BusinessException(ErrorCode.BAD_REQUEST, "审批服务不可用");
+    return this.fundApproval.create({
+      type: "COIN_REFUND",
+      payload: { userId: dto.userId, amountCoin: dto.amountCoin, description: dto.description || "客诉退款" },
+      amount: dto.amountCoin,
+      summary: `国学币退款 ${dto.amountCoin} 币到账（用户 ${dto.userId}）— ${dto.description || "客诉退款"}`,
+      requestedBy,
+    });
+  }
+
   /** 获取或创建虚拟币账户 */
   async getOrCreateAccount(userId: string) {
     let account = await this.prisma.virtualCoinAccount.findUnique({ where: { userId } });

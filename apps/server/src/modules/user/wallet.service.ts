@@ -9,6 +9,12 @@ import { Prisma } from "@prisma/client";
 /** 提现门槛与上限（元），与 PRD 一致 */
 const MIN_WITHDRAW_RMB = 100;
 const MAX_WITHDRAW_RMB = 50000;
+/** 提现手续费 */
+const WITHDRAW_FEE_RATE = 0.006;
+const WITHDRAW_MIN_FEE = 1;
+/** 代扣代缴税款配置键（后台可配） */
+const TAX_ENABLED_KEY = "finance.tax.enabled";
+const TAX_RATE_KEY = "finance.tax.rate";
 /** 计算可提现余额时视为"占用额度"的提现状态（驳回 REJECTED 自动释放额度，无需退款补偿） */
 const OCCUPYING_WITHDRAW_STATUSES = ["PENDING", "APPROVED", "PAID"];
 
@@ -63,9 +69,31 @@ export class WalletService {
     return balance > 0 ? balance : 0;
   }
 
+  /**
+   * 读取代扣代缴税款配置（后台系统配置·管理员开关控制是否扣税、可配扣税比例）。
+   * 未配置或关闭时税率为 0；个人/企业统一按配置比例执行。
+   */
+  private async getTaxConfig(): Promise<{ enabled: boolean; rate: number }> {
+    const rows = await this.prisma.configSystem.findMany({
+      where: { configKey: { in: [TAX_ENABLED_KEY, TAX_RATE_KEY] } },
+    });
+    const map = new Map(rows.map((r) => [r.configKey, r.configValue]));
+    const enabled = map.get(TAX_ENABLED_KEY) === "true";
+    const rate = Number(map.get(TAX_RATE_KEY) ?? "0");
+    return { enabled, rate: enabled && Number.isFinite(rate) && rate > 0 && rate < 1 ? rate : 0 };
+  }
+
+  /** 计算某提现总额的手续费/税款/实际到账 */
+  private computeWithdrawBreakdown(amount: number, taxRate: number) {
+    const fee = Math.max(WITHDRAW_MIN_FEE, Math.round(amount * WITHDRAW_FEE_RATE * 100) / 100);
+    const taxAmount = Math.round(amount * taxRate * 100) / 100;
+    const actualAmount = Math.round((amount - fee - taxAmount) * 100) / 100;
+    return { fee, taxAmount, actualAmount };
+  }
+
   /** 提现信息 */
   async getWithdrawInfo(userId: string) {
-    const [availableBalance, savedAccounts] = await Promise.all([
+    const [availableBalance, savedAccounts, tax] = await Promise.all([
       this.getWithdrawableBalance(userId),
       this.prisma.withdrawalApplication.findMany({
         where: { userId, status: "PAID" },
@@ -73,14 +101,17 @@ export class WalletService {
         orderBy: { createdAt: "desc" },
         take: 5,
       }),
+      this.getTaxConfig(),
     ]);
 
     return {
       availableBalance,
       minWithdraw: MIN_WITHDRAW_RMB,
       maxWithdraw: MAX_WITHDRAW_RMB,
-      feeRate: 0.006,
-      minFee: 1,
+      feeRate: WITHDRAW_FEE_RATE,
+      minFee: WITHDRAW_MIN_FEE,
+      taxEnabled: tax.enabled,
+      taxRate: tax.rate, // 代扣代缴税率（0 表示未开启扣税）
       savedAccounts: savedAccounts.map((a) => a.accountInfo as Record<string, unknown>),
     };
   }
@@ -121,17 +152,28 @@ export class WalletService {
         );
       }
 
+      // 代扣代缴：按后台配置计算手续费与税款，落库快照便于对账/申报
+      const tax = await this.getTaxConfig();
+      const { fee, taxAmount, actualAmount } = this.computeWithdrawBreakdown(data.amount, tax.rate);
+      if (actualAmount <= 0) {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "扣除手续费与税款后实际到账为 0，请提高提现金额");
+      }
+
       const application = await this.prisma.withdrawalApplication.create({
         data: {
           userId,
           amount: data.amount,
+          fee,
+          taxAmount,
+          taxRate: tax.rate,
+          actualAmount,
           payMethod: data.method,
           accountInfo: data.account,
           status: "PENDING",
         },
       });
 
-      return { success: true, id: application.id, status: "PENDING" };
+      return { success: true, id: application.id, status: "PENDING", amount: data.amount, fee, taxAmount, actualAmount };
     } finally {
       await this.redis.del(lockKey);
     }

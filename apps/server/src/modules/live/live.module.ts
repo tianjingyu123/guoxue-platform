@@ -9,9 +9,10 @@ import { LiveDataCollectorService } from "./live-data-collector.service";
 import { LiveReportService } from "./live-report.service";
 import { WebhookModule } from "../webhook/webhook.module";
 import { CoinModule } from "../coin/coin.module";
+import { RevenueModule } from "../revenue/revenue.module";
 
 @Module({
-  imports: [WebhookModule, CoinModule],
+  imports: [WebhookModule, CoinModule, RevenueModule],
   controllers: [LiveController, LiveDashboardController],
   providers: [LiveService, LiveQualityService, LiveStreamService, LiveDashboardService, LiveDataCollectorService, LiveReportService],
   exports: [LiveService, LiveStreamService],

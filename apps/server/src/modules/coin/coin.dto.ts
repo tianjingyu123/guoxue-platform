@@ -35,6 +35,23 @@ export class AdminRechargeDto {
   description?: string;
 }
 
+export class AdminRefundDto {
+  @ApiProperty({ description: "退款到账用户ID" })
+  @IsString()
+  @MinLength(1)
+  userId: string;
+
+  @ApiProperty({ description: "退款币数（可为协商金额）", example: 100, minimum: 1 })
+  @IsInt()
+  @Min(1)
+  amountCoin: number;
+
+  @ApiPropertyOptional({ description: "退款原因/协商说明（客诉必填便于备查）" })
+  @IsOptional()
+  @IsString()
+  description?: string;
+}
+
 export class SpendDto {
   @ApiProperty({ description: "消费币数", example: 50, minimum: 1 })
   @IsInt()

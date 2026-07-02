@@ -136,8 +136,16 @@ export const THIRD_PARTY_SERVICES: ThirdPartyService[] = [
   },
   {
     key: "tencent_vod", label: "腾讯云点播 VOD", category: "腾讯云", enabled: false,
-    note: "视频点播VOD（长视频存储/转码）。控制台：云点播→应用管理。（短视频功能尚在对接，可暂缓）",
+    note: "视频点播VOD（长视频/短视频的服务端存储与转码）。控制台：云点播→应用管理。与下方『短视频 SDK』配合使用（VOD 负责存储转码，SDK 负责端上采集编辑）。",
     fields: [S("subAppId", "子应用 ID", "VOD_SUB_APP_ID", false, "云点播控制台→应用管理→子应用→应用ID")],
+  },
+  {
+    key: "tencent_ugsv", label: "腾讯云短视频 SDK（UGSV）", category: "腾讯云", enabled: false,
+    note: "短视频客户端 SDK（腾讯云 UGSV，负责移动端/小程序的短视频采集、拍摄、剪辑、特效）。控制台：云点播→应用管理→分发播放设置→短视频 License（或 视立方 License 管理）申请后获取 Licence URL 与 Key。端上初始化 SDK 必填；配合上方『点播 VOD』做上传与转码。",
+    fields: [
+      S("licenceUrl", "Licence URL", ["UGSV_LICENCE_URL", "TENCENT_UGSV_LICENCE_URL"], false, "视立方/短视频 License 管理→申请后生成的授权 URL（形如 https://license.vod2.myqcloud.com/license/v2/xxxxx/v_cube.license）"),
+      S("licenceKey", "Licence Key", ["UGSV_LICENCE_KEY", "TENCENT_UGSV_LICENCE_KEY"], true, "与 Licence URL 配对的授权 Key（License 管理页可查看）"),
+    ],
   },
   {
     key: "tencent_cos", label: "腾讯云 COS 存储", category: "腾讯云",
