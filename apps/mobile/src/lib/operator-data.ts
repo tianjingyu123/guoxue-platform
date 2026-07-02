@@ -47,7 +47,7 @@ export const planComparison: PlanCompareRow[] = [
 export const operatorBenefits: OperatorBenefit[] = [
   { icon: 'award', title: '开通专属分站', desc: '分站名称显示在首页，提升标识性', highlight: true },
   { icon: 'trending-up', title: '分享赚佣金', desc: '分享商品/课程/会员等，购买成功获得佣金', highlight: true },
-  { icon: 'wallet', title: '自购也省钱', desc: '自己购买平台内容同样获得返佣', highlight: true },
+  { icon: 'wallet', title: '自购也省钱', desc: '自购下单直接按优惠价立减（不产生佣金，退款按实付价退）', highlight: true },
   { icon: 'layers', title: '5个推荐名额', desc: '可推荐5位符合条件的用户申请开通站长（需平台审核）', highlight: true },
   { icon: 'users', title: '管理奖励', desc: '管理分站得相应比例的管理奖', highlight: true },
   { icon: 'gift', title: '赠送视频课程', desc: '国学视频课程免费学习', highlight: false },
@@ -76,7 +76,7 @@ export const stationBenefits: OperatorBenefit[] = [
   { icon: 'award', title: '专属分站入口', desc: '分站名称显示在首页，提升标识性', highlight: true },
   { icon: 'trending-up', title: '分享赚佣金', desc: '分享商品/课程/会员等，购买成功获得佣金', highlight: true },
   { icon: 'gift', title: '服务费让利承诺', desc: '累计收入不足服务费十倍，次年免收年费；累计收入达5万元，全额返还已缴服务费并永久豁免后续年费', highlight: true },
-  { icon: 'wallet', title: '自购也省钱', desc: '自己购买平台内容同样获得返佣', highlight: true },
+  { icon: 'wallet', title: '自购也省钱', desc: '自购下单直接按优惠价立减（不产生佣金，退款按实付价退）', highlight: true },
   { icon: 'gift', title: '赠送视频课程', desc: '国学视频课程免费学习', highlight: false },
   { icon: 'book-open', title: '赠送精装书籍', desc: '精装国学书籍一套', highlight: false },
   { icon: 'star', title: '专属海报', desc: '生成推广海报和二维码', highlight: false },
@@ -607,6 +607,7 @@ interface RawStationMy {
   monthEarning?: number | string
   monthOrders?: number | string
   lockedUsers?: number | string
+  selfPurchaseSaved?: number | string
 }
 /** GET /station/dashboard/overview 站长仪表盘概览 */
 interface RawStationDashOverview { monthEarned?: number | string; monthAmount?: number | string; monthOrders?: number | string }
@@ -654,6 +655,7 @@ export interface StationBalanceInfo {
   pendingSettlement: number
   nextSettleDate: string
   remainingDays: number
+  selfPurchaseSaved: number // 自购已省（站长自购下单直接立减的累计金额）
 }
 
 // 站长收益明细（对齐后端 StationEarning：佣金流水，无 status/标题/来源用户等虚构字段）
@@ -854,6 +856,7 @@ export const operatorApi = {
       pendingSettlement: toNum(timer.pendingSettlement),
       nextSettleDate: timer.nextSettleDate || '',
       remainingDays: toNum(timer.remainingDays),
+      selfPurchaseSaved: toNum(my.selfPurchaseSaved),
     }
   },
   // 站长收益明细（GET /station/my/earnings；earnings 非分页 row key → 不拆包，apiGet 取 .earnings）

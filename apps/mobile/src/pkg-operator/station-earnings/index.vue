@@ -68,6 +68,10 @@
             <text class="earn-ov-stat-val">{{ overview.remainingDays > 0 ? overview.remainingDays + '天后' : '—' }}</text>
           </view>
         </view>
+        <view v-if="overview.selfPurchaseSaved > 0" class="earn-ov-saved">
+          <app-icon name="gift" :size="28" color="rgba(255,255,255,0.85)" />
+          <text class="earn-ov-saved-txt">自购已省 ¥{{ overview.selfPurchaseSaved.toFixed(2) }} · 站长自购下单直接立减</text>
+        </view>
       </view>
 
       <!-- 收益明细 -->
@@ -150,7 +154,7 @@ const error = ref('')
 const notOpened = ref(false)
 
 const overview = ref<StationBalanceInfo>({
-  totalEarning: 0, monthEarning: 0, pendingSettlement: 0, nextSettleDate: '', remainingDays: 0,
+  totalEarning: 0, monthEarning: 0, pendingSettlement: 0, nextSettleDate: '', remainingDays: 0, selfPurchaseSaved: 0,
 })
 const earnings = ref<StationEarningItem[]>([])
 const total = ref(0)
@@ -280,6 +284,9 @@ onMounted(load)
 .earn-ov-stat-head { display: flex; align-items: center; gap: 8rpx; margin-bottom: 8rpx; }
 .earn-ov-stat-label { font-size: 22rpx; color: rgba(255, 255, 255, 0.7); }
 .earn-ov-stat-val { font-size: 30rpx; font-weight: 600; color: #fff; }
+
+.earn-ov-saved { margin-top: 16rpx; display: flex; align-items: center; gap: 10rpx; padding: 14rpx 20rpx; background: rgba(255, 255, 255, 0.14); border-radius: 12rpx; }
+.earn-ov-saved-txt { font-size: 24rpx; color: rgba(255, 255, 255, 0.92); }
 
 .earn-section-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 16rpx; }
 .earn-section-title { font-size: 32rpx; font-weight: 600; color: #111827; }
