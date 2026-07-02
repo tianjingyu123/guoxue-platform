@@ -74,6 +74,8 @@ export class MerchantAgreementService {
   }
 
   async deleteAgreement(id: string) {
+    const agreement = await this.prisma.merchantAgreement.findUnique({ where: { id } });
+    if (!agreement) throw new BusinessException(ErrorCode.NOT_FOUND, "协议不存在");
     await this.prisma.merchantAgreement.delete({ where: { id } });
   }
 

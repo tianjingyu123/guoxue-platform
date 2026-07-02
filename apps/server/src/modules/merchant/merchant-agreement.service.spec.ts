@@ -97,8 +97,15 @@ describe("MerchantAgreementService", () => {
 
   describe("deleteAgreement", () => {
     it("删除协议成功", async () => {
+      mockPrisma.merchantAgreement.findUnique.mockResolvedValue({ id: "a1", version: "1.0" });
       mockPrisma.merchantAgreement.delete.mockResolvedValue({});
       await expect(svc.deleteAgreement("a1")).resolves.toBeUndefined();
+    });
+
+    it("协议不存在时抛 404", async () => {
+      mockPrisma.merchantAgreement.findUnique.mockResolvedValue(null);
+      await expect(svc.deleteAgreement("nope")).rejects.toThrow(BusinessException);
+      expect(mockPrisma.merchantAgreement.delete).not.toHaveBeenCalled();
     });
   });
 });
