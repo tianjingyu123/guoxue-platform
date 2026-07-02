@@ -25,7 +25,8 @@ const groups: EntryGroup[] = [
     entries: [
       { id: 'paipan',   name: '排盘',   icon: 'layout-grid',    color: '#1890FF', bg: 'rgba(24,144,255,0.1)',  url: '/pages/paipan/index' },
       { id: 'fortune',  name: '运势',   icon: 'compass',        color: '#9B59B6', bg: 'rgba(155,89,182,0.1)',  url: '/pkg-fortune/index/index' },
-      { id: 'mall',     name: '商城',   icon: 'shopping-bag',   color: '#C41E3A', bg: 'rgba(196,30,58,0.1)',   url: '/pkg-mall/home/index', badge: '热' },
+      // 无痕商业化铁律：C 端心智区不放营销感角标（「热」已撤·2026-07-03 经营哲学）
+      { id: 'mall',     name: '商城',   icon: 'shopping-bag',   color: '#C41E3A', bg: 'rgba(196,30,58,0.1)',   url: '/pkg-mall/home/index' },
       { id: 'live',     name: '直播',   icon: 'radio',          color: '#E74C3C', bg: 'rgba(231,76,60,0.1)',   url: '/pkg-live/plaza/index' },
       { id: 'more',     name: '更多',   icon: 'more-horizontal',color: '#666666', bg: 'rgba(102,102,102,0.1)', url: '/pages/discover/index' },
     ],
