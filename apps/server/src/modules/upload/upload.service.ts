@@ -25,6 +25,8 @@ export class UploadService {
   async uploadMany(files: Express.Multer.File[]): Promise<UploadResult[]> {
     if (!files || files.length === 0) throw new BusinessException(ErrorCode.BAD_REQUEST, "未选择文件");
     if (files.length > 9) throw new BusinessException(ErrorCode.BAD_REQUEST, "单次最多上传9个文件");
+    // 与单文件上传一致：逐个做 MIME 白名单 + 大小 + 魔数校验，防伪造 Content-Type 绕过
+    files.forEach((f) => this.validateImage(f));
     const results = await Promise.all(files.map((f) => this.provider.upload(f)));
     return results;
   }

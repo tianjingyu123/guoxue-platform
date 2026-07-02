@@ -656,7 +656,9 @@ export class MerchantService {
       WHERE o."merchantId" = $1
     `, merchantId);
 
-    return { list: result, total: countResult[0]?.cnt || 0, page, pageSize };
+    // PII 脱敏：商家(非平台管理员)不应看到客户完整手机号，与 enrichOrders 的 buyerPhone 一致
+    const masked = result.map((r) => ({ ...r, phone: r.phone ? maskPhone(r.phone) : null }));
+    return { list: masked, total: countResult[0]?.cnt || 0, page, pageSize };
   }
 
   /** 平台通知 — 返回活跃站点公告 */
