@@ -128,6 +128,61 @@ describe("CommissionService", () => {
     });
   });
 
+  describe("calculateOperatorBonus 两级计酬合规", () => {
+    // 通过 calculateAndRecord 间接触发：站长佣金(一级) + 唯一一笔管理奖(二级)，禁止第三层
+    function mockCourseConfig() {
+      mockPrisma.commissionConfig.findUnique.mockImplementation(({ where }: any) =>
+        Promise.resolve(where.configKey.startsWith("operator_") ? null : { configKey: where.configKey, rateA: 0.1 }),
+      );
+      mockPrisma.stationEarning.create.mockResolvedValue({ id: "earning-1" });
+    }
+
+    it("普通站长的分站：管理奖归其运营商，且单笔订单仅一笔管理奖", async () => {
+      mockCourseConfig();
+      mockPrisma.station.findUnique
+        .mockResolvedValueOnce({ id: "station-1", userId: "st-user", totalEarning: 0 })
+        .mockResolvedValueOnce({ userId: "st-user", operatorId: "op-1" });
+      mockPrisma.operator.findUnique.mockResolvedValue({
+        id: "op-1", userId: "op-user", level: "GOLD", parentOperatorId: "op-0", status: "ACTIVE",
+      });
+      await svc.calculateAndRecord("order-1", "COURSE", 100, "referrer-1");
+      expect(mockPrisma.operatorEarning.create).toHaveBeenCalledTimes(1);
+      const arg = mockPrisma.operatorEarning.create.mock.calls[0][0];
+      expect(arg.data.operatorId).toBe("op-1");
+      expect(arg.data.source).toBe("MGMT_BONUS");
+      expect(arg.data.earned).toBe(1.2); // 站长佣金10 × GOLD 12%
+      expect(arg.data.sourceOperatorId).toBeUndefined();
+    });
+
+    it("运营商自营分站：管理奖上浮给上级运营商（上级只对下级站长角色收入计酬）", async () => {
+      mockCourseConfig();
+      mockPrisma.station.findUnique
+        .mockResolvedValueOnce({ id: "station-1", userId: "op-user", totalEarning: 0 })
+        .mockResolvedValueOnce({ userId: "op-user", operatorId: "op-1" });
+      mockPrisma.operator.findUnique
+        .mockResolvedValueOnce({ id: "op-1", userId: "op-user", level: "GOLD", parentOperatorId: "op-0", status: "ACTIVE" })
+        .mockResolvedValueOnce({ id: "op-0", userId: "parent-user", level: "GOLD", parentOperatorId: null, status: "ACTIVE" });
+      await svc.calculateAndRecord("order-1", "COURSE", 100, "referrer-1");
+      expect(mockPrisma.operatorEarning.create).toHaveBeenCalledTimes(1);
+      const arg = mockPrisma.operatorEarning.create.mock.calls[0][0];
+      expect(arg.data.operatorId).toBe("op-0");
+      expect(arg.data.source).toBe("MGMT_BONUS");
+      expect(arg.data.sourceOperatorId).toBe("op-1"); // 审计追溯下级运营商
+    });
+
+    it("顶级运营商自营分站：无管理奖（平台留存），不产生任何计酬", async () => {
+      mockCourseConfig();
+      mockPrisma.station.findUnique
+        .mockResolvedValueOnce({ id: "station-1", userId: "op-user", totalEarning: 0 })
+        .mockResolvedValueOnce({ userId: "op-user", operatorId: "op-1" });
+      mockPrisma.operator.findUnique.mockResolvedValue({
+        id: "op-1", userId: "op-user", level: "GOLD", parentOperatorId: null, status: "ACTIVE",
+      });
+      await svc.calculateAndRecord("order-1", "COURSE", 100, "referrer-1");
+      expect(mockPrisma.operatorEarning.create).not.toHaveBeenCalled();
+    });
+  });
+
   describe("getStationEarnings", () => {
     it("返回分页收益列表", async () => {
       mockPrisma.stationEarning.findMany.mockResolvedValue([{ id: "e1", earned: 10 }]);

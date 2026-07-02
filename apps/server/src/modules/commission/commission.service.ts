@@ -16,11 +16,11 @@ const MAX_WITHDRAW_RMB = 50000;
 /** 计算可提现余额时视为"占用额度"的提现状态（PENDING 也占额度，防重复提现；REJECTED 自动释放） */
 const OCCUPYING_WITHDRAW_STATUSES = ["PENDING", "APPROVED", "PAID"];
 
-const OPERATOR_MGMT_RATES: Record<string, { mgmt: number; upper: number }> = {
-  SILVER: { mgmt: 0.08, upper: 0.02 },
-  GOLD: { mgmt: 0.12, upper: 0.03 },
-  DIAMOND: { mgmt: 0.15, upper: 0.04 },
-  BLACK_GOLD: { mgmt: 0.20, upper: 0.05 },
+const OPERATOR_MGMT_RATES: Record<string, { mgmt: number }> = {
+  SILVER: { mgmt: 0.08 },
+  GOLD: { mgmt: 0.12 },
+  DIAMOND: { mgmt: 0.15 },
+  BLACK_GOLD: { mgmt: 0.20 },
 };
 
 @Injectable()
@@ -495,10 +495,16 @@ export class CommissionService {
 
   // ───────── 运营商管理奖计算 ─────────
 
+  /**
+   * 计酬合规硬约束（《禁止传销条例》）：单笔订单的推广计酬不得超过两级 ——
+   * ① 站长推广佣金（StationEarning）② 本方法产生的唯一一笔管理奖（MGMT_BONUS）。
+   * 运营商自营分站（站长即运营商本人）的管理奖归其上级运营商：上级只对下级的
+   * 「站长角色收入」计酬，不得对下级的管理奖收入再计酬，禁止任何形式的第三层计酬。
+   */
   private async calculateOperatorBonus(stationId: string, orderId: string, stationEarned: number) {
     const station = await this.prisma.station.findUnique({
       where: { id: stationId },
-      select: { operatorId: true },
+      select: { userId: true, operatorId: true },
     });
     if (!station?.operatorId) return;
 
@@ -508,93 +514,59 @@ export class CommissionService {
     });
     if (!operator || operator.status !== "ACTIVE") return;
 
-    const rates = await this.lookupMgmtRates(operator.level);
+    // 确定管理奖唯一受益人：自营分站上浮给上级运营商，普通分站归属其运营商
+    let beneficiary = operator;
+    if (operator.userId === station.userId) {
+      if (!operator.parentOperatorId) return; // 顶级运营商自营分站：无管理奖，平台留存
+      const parentOp = await this.prisma.operator.findUnique({
+        where: { id: operator.parentOperatorId },
+        select: { id: true, userId: true, level: true, parentOperatorId: true, status: true },
+      });
+      if (!parentOp || parentOp.status !== "ACTIVE") return;
+      beneficiary = parentOp;
+    }
+
+    const rates = await this.lookupMgmtRates(beneficiary.level);
     if (!rates) return;
 
-    // 一级管理奖：运营商从名下站长佣金中获得管理奖
     const mgmtEarned = Math.round(stationEarned * rates.mgmt * 100) / 100;
-    if (mgmtEarned > 0) {
-      await this.prisma.operatorEarning.create({
-        data: {
-          operatorId: operator.id,
-          orderId,
-          source: "MGMT_BONUS",
-          amount: stationEarned,
-          rate: rates.mgmt,
-          earned: mgmtEarned,
-          sourceStationId: stationId,
-        },
-      });
-      await this.prisma.operator.update({
-        where: { id: operator.id },
-        data: { totalEarning: { increment: mgmtEarned } },
-      });
-      this.prisma.notification.create({
-        data: {
-          userId: operator.userId,
-          type: "EARNING",
-          title: "运营商管理奖",
-          content: `您获得管理奖 ¥${mgmtEarned.toFixed(2)}（站长佣金 ¥${stationEarned.toFixed(2)}×${(rates.mgmt * 100).toFixed(0)}%）`,
-          targetType: "OPERATOR_EARNING",
-          targetId: orderId,
-        },
-      }).catch((err) => this.logger.warn("管理奖通知发送失败", err));
-    }
+    if (mgmtEarned <= 0) return;
 
-    // 二级管理奖：上级运营商从下级运营商的直推佣金中获得管理奖
-    if (!operator.parentOperatorId) return;
-    const parentOp = await this.prisma.operator.findUnique({
-      where: { id: operator.parentOperatorId },
-      select: { id: true, userId: true, level: true, status: true },
+    await this.prisma.operatorEarning.create({
+      data: {
+        operatorId: beneficiary.id,
+        orderId,
+        source: "MGMT_BONUS",
+        amount: stationEarned,
+        rate: rates.mgmt,
+        earned: mgmtEarned,
+        sourceStationId: stationId,
+        // 自营分站上浮时记录下级运营商，供审计追溯
+        sourceOperatorId: beneficiary.id !== operator.id ? operator.id : undefined,
+      },
     });
-    if (!parentOp || parentOp.status !== "ACTIVE") return;
-
-    const parentRates = await this.lookupMgmtRates(parentOp.level);
-    if (!parentRates) return;
-
-    const upperEarned = Math.round(stationEarned * parentRates.upper * 100) / 100;
-    if (upperEarned > 0) {
-      await this.prisma.operatorEarning.create({
-        data: {
-          operatorId: parentOp.id,
-          orderId,
-          source: "UPPER_MGMT_BONUS",
-          amount: stationEarned,
-          rate: parentRates.upper,
-          earned: upperEarned,
-          sourceStationId: stationId,
-          sourceOperatorId: operator.id,
-        },
-      });
-      await this.prisma.operator.update({
-        where: { id: parentOp.id },
-        data: { totalEarning: { increment: upperEarned } },
-      });
-      this.prisma.notification.create({
-        data: {
-          userId: parentOp.userId,
-          type: "EARNING",
-          title: "上级管理奖",
-          content: `您获得上级管理奖 ¥${upperEarned.toFixed(2)}（下级站长佣金 ¥${stationEarned.toFixed(2)}×${(parentRates.upper * 100).toFixed(0)}%）`,
-          targetType: "OPERATOR_EARNING",
-          targetId: orderId,
-        },
-      }).catch((err) => this.logger.warn("上级管理奖通知发送失败", err));
-    }
+    await this.prisma.operator.update({
+      where: { id: beneficiary.id },
+      data: { totalEarning: { increment: mgmtEarned } },
+    });
+    this.prisma.notification.create({
+      data: {
+        userId: beneficiary.userId,
+        type: "EARNING",
+        title: "运营商管理奖",
+        content: `您获得管理奖 ¥${mgmtEarned.toFixed(2)}（站长佣金 ¥${stationEarned.toFixed(2)}×${(rates.mgmt * 100).toFixed(0)}%）`,
+        targetType: "OPERATOR_EARNING",
+        targetId: orderId,
+      },
+    }).catch((err) => this.logger.warn("管理奖通知发送失败", err));
   }
 
   /** 优先从 CommissionConfig 读取管理奖比例，未配置时回退到 PRD 硬编码默认值 */
-  private async lookupMgmtRates(level: string): Promise<{ mgmt: number; upper: number } | null> {
-    const [mgmtCfg, upperCfg] = await Promise.all([
-      this.prisma.commissionConfig.findUnique({ where: { configKey: `operator_${level}` } }),
-      this.prisma.commissionConfig.findUnique({ where: { configKey: `operator_upper_${level}` } }),
-    ]);
-
+  private async lookupMgmtRates(level: string): Promise<{ mgmt: number } | null> {
+    const mgmtCfg = await this.prisma.commissionConfig.findUnique({ where: { configKey: `operator_${level}` } });
     const mgmt = mgmtCfg?.rateC ? Number(mgmtCfg.rateC) : OPERATOR_MGMT_RATES[level]?.mgmt;
-    const upper = upperCfg?.rateA ? Number(upperCfg.rateA) : OPERATOR_MGMT_RATES[level]?.upper;
-
-    if (!mgmt && !upper) return null;
-    return { mgmt: mgmt || 0, upper: upper || 0 };
+    if (!mgmt) return null;
+    return { mgmt };
   }
 
   // ───────── 运营商收益查询 ─────────

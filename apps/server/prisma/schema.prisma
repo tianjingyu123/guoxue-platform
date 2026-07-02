@@ -2048,12 +2048,12 @@ model OperatorEarning {
   id               String   @id @default(uuid())
   operatorId       String
   orderId          String
-  source           String // MGMT_BONUS / UPPER_MGMT_BONUS
+  source           String // MGMT_BONUS（唯一计酬来源，计酬≤两级硬约束；历史数据可能残留已废止的 UPPER_MGMT_BONUS）
   amount           Decimal  @db.Decimal(10, 2) // 订单原始金额
   rate             Decimal  @db.Decimal(5, 4) // 管理奖比例
   earned           Decimal  @db.Decimal(10, 2) // 实际所得
   sourceStationId  String? // 产生佣金的站点
-  sourceOperatorId String? // 产生佣金的下级运营商（仅UPPER_MGMT_BONUS）
+  sourceOperatorId String? // 自营分站管理奖上浮至上级时，记录产生佣金的下级运营商（审计追溯）
   createdAt        DateTime @default(now())
 
   operator Operator @relation(fields: [operatorId], references: [id], onDelete: Cascade)
