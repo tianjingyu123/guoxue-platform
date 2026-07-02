@@ -147,4 +147,23 @@ describe("AuditService", () => {
       expect(result).toHaveLength(2)
     })
   })
+
+  describe("moderateTextOrThrow 审核服务不可用时 fail-open", () => {
+    it("腾讯审核凭证失效/API失败(THIRD_AI_FAILED)时放行，不阻断 UGC", async () => {
+      const { BusinessException } = require("../../common/business.exception")
+      const { ErrorCode } = require("../../common/error-codes")
+      mockSensitiveWord.check.mockReturnValue([]) // 本地词库不命中
+      mockModeration.textModeration.mockRejectedValue(
+        new BusinessException(ErrorCode.THIRD_AI_FAILED, "tms TextModeration 失败: 凭证无效"),
+      )
+      // 不应抛异常（fail-open 放行）
+      await expect(svc.moderateTextOrThrow("正常内容", { scene: "UGC" })).resolves.toBeUndefined()
+    })
+
+    it("本地敏感词命中时硬拦截（仍抛 BLOCKED）", async () => {
+      mockSensitiveWord.check.mockReturnValue(["违禁词"])
+      await expect(svc.moderateTextOrThrow("含违禁词的内容", { scene: "UGC" })).rejects.toThrow()
+      mockSensitiveWord.check.mockReturnValue([])
+    })
+  })
 })

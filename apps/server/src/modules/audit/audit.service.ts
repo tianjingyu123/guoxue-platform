@@ -169,8 +169,10 @@ export class AuditService {
       suggestion = result.suggestion;
       labels = result.labels;
     } catch (err) {
-      if (err instanceof BusinessException) throw err;
-      this.logger.warn(`腾讯云文本审核异常，fail-open 放行 [scene=${opts.scene}]`, err);
+      // 仅当「内容违规」才拦截；审核服务本身不可用/密钥失效(THIRD_AI_FAILED 等基础设施异常)必须 fail-open 放行，
+      // 否则腾讯云凭证未配/失效时会把全部 UGC(发帖/评价/评论)硬阻断为 502，用户完全无法发布内容。
+      if (err instanceof BusinessException && err.errorCode === ErrorCode.CONTENT_MODERATION_BLOCKED) throw err;
+      this.logger.warn(`腾讯云文本审核不可用，fail-open 放行 [scene=${opts.scene}]`, err instanceof Error ? err.message : err);
       return;
     }
 
