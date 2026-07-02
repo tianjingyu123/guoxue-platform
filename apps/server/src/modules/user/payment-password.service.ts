@@ -66,6 +66,8 @@ export class PaymentPasswordService {
 
     // 验证成功：清除失败计数
     await this.redis.del(`paypwd:fail:${userId}`);
+    // 写短时效凭证(3分钟)：供提现等敏感资金操作服务端二次校验，防绕过客户端直接调用
+    await this.redis.set(`paypwd:verified:${userId}`, "1", 180);
     return { ok: true };
   }
 

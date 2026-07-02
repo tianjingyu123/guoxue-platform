@@ -138,6 +138,14 @@ export class WalletService {
       throw new BusinessException(ErrorCode.BAD_REQUEST, `单次提现金额不可超过${MAX_WITHDRAW_RMB}元`);
     }
 
+    // 提现二次验证：必须持有近期通过支付密码验证写入的凭证(前端"验密→提现"流程)，
+    // 服务端强制校验，防止绕过客户端单侧校验直接调提现端点盗刷。单次消费。
+    const verifiedKey = `paypwd:verified:${userId}`;
+    if (!(await this.redis.get(verifiedKey))) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "请先验证支付密码后再提现");
+    }
+    await this.redis.del(verifiedKey);
+
     const lockKey = `withdraw:lock:${userId}`;
     const locked = await this.redis.setNX(lockKey, "1", 10);
     if (!locked) {

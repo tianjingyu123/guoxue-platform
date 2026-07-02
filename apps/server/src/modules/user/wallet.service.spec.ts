@@ -21,6 +21,8 @@ const mockCoin: any = {
   getBalance: jest.fn().mockResolvedValue({ balance: 999999, totalRecharged: 999999, totalSpent: 0 }),
 };
 const mockRedis: any = {
+  get: jest.fn(),
+  set: jest.fn(),
   setNX: jest.fn(),
   del: jest.fn(),
 };
@@ -44,7 +46,16 @@ describe("WalletService 提现（基于收益）", () => {
     jest.clearAllMocks();
     mockRedis.setNX.mockResolvedValue(true);
     mockRedis.del.mockResolvedValue(undefined);
+    mockRedis.get.mockResolvedValue("1"); // 默认已持有支付密码验证凭证
     mockCoin.getBalance.mockResolvedValue({ balance: 999999, totalRecharged: 999999, totalSpent: 0 });
+  });
+
+  it("未验证支付密码时拒绝提现（防绕过客户端直接调端点）", async () => {
+    mockRedis.get.mockResolvedValue(null); // 无验证凭证
+    await expect(
+      svc.submitWithdraw("u1", { amount: 200, method: "WECHAT", account: { no: "x" } }),
+    ).rejects.toThrow("请先验证支付密码");
+    expect(mockPrisma.withdrawalApplication.create).not.toHaveBeenCalled();
   });
 
   it("收益不足时拒绝提现（即使虚拟币余额很高也不能提）", async () => {
