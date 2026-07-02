@@ -91,7 +91,7 @@ describe("Content E2E", () => {
     it("创建成功", async () => {
       const token = jwt.sign({ sub: "u1" })
       prisma.user.findUnique.mockResolvedValue({
-        id: "u1", status: "ACTIVE", roles: [{ roleType: "ADMIN" }],
+        id: "u1", status: "ACTIVE", roles: [{ roleType: "OPERATION_ADMIN" }],
       })
       prisma.content.create.mockResolvedValue({
         id: "new1", title: "新文章", type: "ARTICLE", status: "PUBLISHED",

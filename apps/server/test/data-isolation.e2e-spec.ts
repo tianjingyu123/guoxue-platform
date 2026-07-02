@@ -199,7 +199,7 @@ describe("Data Isolation E2E", () => {
       const token = jwt.sign({ sub: "u1" })
 
       prisma.user.findUnique.mockResolvedValue({
-        id: "u1", status: "ACTIVE", roles: [{ roleType: "ADMIN" }],
+        id: "u1", status: "ACTIVE", roles: [{ roleType: "OPERATION_ADMIN" }],
       })
       prisma.content.create.mockResolvedValue({
         id: "new1", title: "分站内容", stationId: STATION_A,
