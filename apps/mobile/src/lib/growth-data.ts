@@ -1,6 +1,6 @@
 // 成长中心数据层（平台级学分/功名等级/连续学习/成就墙）
 // 后端真源（已读源码核实，勿臆造）：
-//   GET  /users/me/growth          user-growth.controller.ts → UserGrowthService.getMyGrowth
+//   GET  /users/me/growth-profile  user-growth.controller.ts → UserGrowthService.getMyGrowth（/users/me/growth 被旧成长值系统占用）
 //   POST /users/me/checkin         checkin.controller.ts → CheckinService.checkIn（重复签到抛「今日已签到」）
 //   GET  /users/me/checkin/status  checkin.controller.ts → CheckinService.getStatus
 // 三端点均需登录（JwtAuthGuard），401 由 request 层统一处理。
@@ -24,7 +24,7 @@ export interface GrowthAchievement {
   earnedAt: string | null
 }
 
-/** 我的成长档案（GET /users/me/growth 响应） */
+/** 我的成长档案（GET /users/me/growth-profile 响应） */
 export interface GrowthProfile {
   totalExp: number
   level: number
@@ -71,7 +71,7 @@ export function resolveAchievementIcon(icon: string): string {
 /** 成长中心 API（真连后端，无 mock 回退；错误向上抛给页面走三态） */
 export const growthApi = {
   /** 我的成长档案（学分/等级/连续天数/成就墙/全部阶梯） */
-  me: () => apiGet<GrowthProfile>('/users/me/growth'),
+  me: () => apiGet<GrowthProfile>('/users/me/growth-profile'),
 
   /** 今日学习打卡（重复打卡后端报「今日已签到」） */
   checkin: () => apiPost<CheckinResult>('/users/me/checkin'),

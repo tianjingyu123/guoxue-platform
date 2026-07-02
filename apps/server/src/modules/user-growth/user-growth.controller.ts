@@ -5,7 +5,8 @@ import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { UserGrowthService } from "./user-growth.service";
 
 @ApiTags("成长体系")
-@Controller("users/me/growth")
+// 注意：/users/me/growth 已被旧成长值系统占用（points.controller @Get("growth")），此处用 growth-profile 避免路由冲突
+@Controller("users/me/growth-profile")
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
 export class UserGrowthController {
