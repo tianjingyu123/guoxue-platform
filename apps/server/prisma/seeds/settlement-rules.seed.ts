@@ -78,35 +78,52 @@ const RULES: Array<{
   {
     scene: "MEMBER_PURCHASE",
     splits: [
-      { role: "STATION", rate: 0.1, basis: "GROSS", category: "COMMISSION" },
-      { role: "PLATFORM", rate: 0.9, basis: "GROSS", category: "PLATFORM" },
+      { role: "STATION", rate: 0.2, basis: "GROSS", category: "COMMISSION" },
+      { role: "PLATFORM", rate: 0.8, basis: "GROSS", category: "PLATFORM" },
     ],
     bufferDays: 7,
     enabled: false,
-    remark: "会员推广分佣（已拍板开通，比例暂定10%，P2-b 订单接线时确认并启用）",
+    remark: "会员推广分佣（默认20%·2026-07-02 拍板·后台可改）；会员权益产品化待定，P2-b 接线时启用",
+  },
+  {
+    scene: "COIN_RECHARGE",
+    splits: [
+      { role: "STATION", rate: 0.2, basis: "GROSS", category: "COMMISSION" },
+      { role: "PLATFORM", rate: 0.8, basis: "GROSS", category: "PLATFORM" },
+    ],
+    bufferDays: 7,
+    enabled: false,
+    remark: "虚拟币充值推广分佣（默认20%·2026-07-02 拍板·后台可改），P2-b 充值链路接线时启用",
   },
 ];
 
 async function main() {
   for (const r of RULES) {
-    await prisma.settlementRule.upsert({
-      where: { scene: r.scene },
-      create: {
-        scene: r.scene,
-        splits: r.splits,
-        bufferDays: r.bufferDays,
-        requireApproval: true,
-        approvalThreshold: APPROVAL_THRESHOLD,
-        enabled: r.enabled ?? true,
-        remark: r.remark,
-        updatedBy: "seed:settlement-rules",
-      },
-      update: {
-        // 幂等重跑只补缺省，不覆盖后台可能已人工调整的 splits/比例
-        remark: r.remark,
-      },
-    });
-    console.log(`✓ ${r.scene}`);
+    const existing = await prisma.settlementRule.findUnique({ where: { scene: r.scene } });
+    if (!existing) {
+      await prisma.settlementRule.create({
+        data: {
+          scene: r.scene,
+          splits: r.splits,
+          bufferDays: r.bufferDays,
+          requireApproval: true,
+          approvalThreshold: APPROVAL_THRESHOLD,
+          enabled: r.enabled ?? true,
+          remark: r.remark,
+          updatedBy: "seed:settlement-rules",
+        },
+      });
+      console.log(`✓ 创建 ${r.scene}`);
+    } else if (existing.updatedBy === "seed:settlement-rules") {
+      // 仅覆盖未被后台人工调整过的规则；人工改过（updatedBy 非种子）则不动比例
+      await prisma.settlementRule.update({
+        where: { scene: r.scene },
+        data: { splits: r.splits, bufferDays: r.bufferDays, remark: r.remark },
+      });
+      console.log(`✓ 更新 ${r.scene}（未被人工修改，按种子刷新）`);
+    } else {
+      console.log(`- 跳过 ${r.scene}（已被 ${existing.updatedBy} 人工调整）`);
+    }
   }
   const count = await prisma.settlementRule.count();
   console.log(`SettlementRule 共 ${count} 条`);
