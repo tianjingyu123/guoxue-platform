@@ -61,6 +61,8 @@ export class OfflineService {
   }
 
   async auditStation(id: string, status: string) {
+    const existing = await this.prisma.stationOffline.findUnique({ where: { id } });
+    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "驿站不存在");
     return this.prisma.stationOffline.update({ where: { id }, data: { status } });
   }
 

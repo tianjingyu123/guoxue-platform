@@ -522,6 +522,8 @@ export class InstituteService {
   }
 
   async updateEvent(id: string, dto: { status?: string; title?: string; description?: string; location?: string }) {
+    const existing = await this.prisma.instituteEvent.findUnique({ where: { id } });
+    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "活动不存在");
     return this.prisma.instituteEvent.update({ where: { id }, data: dto as Prisma.InstituteEventUpdateInput });
   }
 

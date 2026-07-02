@@ -42,6 +42,7 @@ export class CompetitionService {
   }
 
   async finishCompetition(id: string) {
+    await this.getCompetitionOrThrow(id);
     return this.prisma.competition.update({
       where: { id },
       data: { status: "FINISHED", finishedAt: new Date() },

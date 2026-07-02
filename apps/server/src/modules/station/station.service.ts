@@ -107,6 +107,8 @@ export class StationService {
   }
 
   async updateStation(id: string, dto: UpdateStationDto) {
+    const existing = await this.prisma.station.findUnique({ where: { id } });
+    if (!existing) throw new BusinessException(ErrorCode.STATION_NOT_FOUND, "分站不存在");
     const updated = await this.prisma.station.update({ where: { id }, data: dto as any });
     // 清除品牌缓存
     await this.redis.del(`station:brand:id:${id}`);
