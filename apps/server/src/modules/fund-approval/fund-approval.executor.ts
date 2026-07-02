@@ -31,6 +31,11 @@ export class FundApprovalExecutor {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "该审批单已处理");
     }
 
+    // 职责分离（防自审自批）：不得审批自己发起的资金操作，否则单人可发起+批准=凭空造币/套现
+    if (approval.requestedBy && approval.requestedBy === reviewerId) {
+      throw new BusinessException(ErrorCode.FORBIDDEN, "不能审批自己发起的资金操作，请由其他审批人处理");
+    }
+
     if (!approve) {
       const ok = await this.approvals.claim(id, "REJECTED", reviewerId, note);
       if (!ok) throw new BusinessException(ErrorCode.BAD_REQUEST, "该审批单已处理");
