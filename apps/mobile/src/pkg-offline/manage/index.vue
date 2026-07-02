@@ -41,6 +41,9 @@
           </view>
         </view>
 
+        <!-- 今日宜忌轻栏（自包含拉取，失败自动隐藏；本页留白为 px 体系，故显式传 margin） -->
+        <almanac-bar margin="12px 16px 0" />
+
         <!-- 经营数据 -->
         <view class="mg-stats-card">
           <view class="mg-stats-title-row">
@@ -174,6 +177,7 @@ import { ref, computed } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import AdvisorCard from '@/components/workbench/advisor-card.vue'
+import AlmanacBar from '@/components/workbench/almanac-bar.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import {
   offlineManageApi, stationStatusLabel, num, fmtDate, fmtCourseTime,

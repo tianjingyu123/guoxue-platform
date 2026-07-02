@@ -36,6 +36,9 @@
     </view>
     <!-- 正常内容 -->
     <scroll-view v-else scroll-y class="op-scroll">
+      <!-- 今日宜忌轻栏（自包含拉取，失败自动隐藏；对齐本页 32rpx 侧边留白） -->
+      <almanac-bar margin="32rpx 32rpx 0" />
+
       <!-- 数据概览 -->
       <view class="op-sec">
         <view class="op-overview">
@@ -156,6 +159,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import AlmanacBar from '@/components/workbench/almanac-bar.vue'
 import { navigateTo } from '@/utils/router'
 import {
   operatorApi,

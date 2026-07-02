@@ -70,6 +70,9 @@
 
     <!-- 认证讲师：课程管理台 -->
     <view v-else class="td-body">
+      <!-- 今日宜忌轻栏（自包含拉取，失败自动隐藏；td-body 自带 24rpx 内边距，故去掉左右外边距） -->
+      <almanac-bar margin="0 0 20rpx" />
+
       <!-- 数据概览（全部来自真实课程数据） -->
       <view class="td-grid">
         <view class="td-stat">
@@ -164,6 +167,7 @@
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
+import AlmanacBar from '@/components/workbench/almanac-bar.vue'
 import { navigateTo, goBack } from '@/utils/router'
 import { teacherApi, type CertStatus } from '@/lib/teacher-data'
 import { courseApi, type CreatedCourse } from '@/lib/course-data'

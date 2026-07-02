@@ -46,6 +46,9 @@
         </view>
       </view>
 
+      <!-- 今日宜忌轻栏（自包含拉取，失败自动隐藏） -->
+      <almanac-bar />
+
       <!-- 数据概览 -->
       <view class="smp-card">
         <text class="smp-card-title">数据概览</text>
@@ -66,6 +69,9 @@
 
       <!-- 经营顾问建议（自包含拉取，空/失败自动隐藏） -->
       <advisor-card role-type="STATION_MASTER" />
+
+      <!-- 近30天推广转化漏斗（自包含拉取，失败或全 0 自动隐藏） -->
+      <funnel-card />
 
       <!-- 收益余额 -->
       <view class="smp-card">
@@ -160,6 +166,8 @@ import { ref, computed, onMounted } from 'vue'
 import AppNavBar from '@/components/common/app-nav-bar.vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import AdvisorCard from '@/components/workbench/advisor-card.vue'
+import FunnelCard from '@/components/workbench/funnel-card.vue'
+import AlmanacBar from '@/components/workbench/almanac-bar.vue'
 import { navigateTo } from '@/utils/router'
 import {
   operatorApi,

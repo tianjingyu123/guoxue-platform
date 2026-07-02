@@ -36,6 +36,54 @@ export interface AdvisorInsight {
   createdAt: string
 }
 
+/** 站长推广转化漏斗（后端 GET /track/funnel，主体=当前登录站长，非站长会抛"你还没有开通分站"） */
+export interface StationFunnel {
+  /** 统计天数（默认30，最大90） */
+  days: number
+  /** 分享链接点击数 */
+  clicks: number
+  /** 新用户注册数（推荐关系归因） */
+  registrations: number
+  /** 下单用户数（去重） */
+  buyers: number
+}
+
+/**
+ * 今日万年历（后端 GET /wannianli/today 返回 DayDetail，此处仅声明轻栏展示所需子集）
+ * 真实字段名以 apps/server/src/modules/wannianli/wannianli.service.ts 的 DayDetail 为准：
+ * lunarDate 形如「丙午年闰5月18日」；riGanZhi 形如「甲子」；yi/ji 为字符串数组。
+ */
+export interface AlmanacToday {
+  /** 公历日期 YYYY-MM-DD */
+  solarDate: string
+  /** 农历日期（含干支年，如「丙午年5月18日」） */
+  lunarDate: string
+  /** 日干支（如「甲子」） */
+  riGanZhi: string
+  /** 节气（当日无节气则缺省） */
+  jieQi?: string
+  /** 宜（后端为数组，出于兼容也允许字符串） */
+  yi: string[] | string
+  /** 忌（同上） */
+  ji: string[] | string
+}
+
+/** 站长推广漏斗 API（无 mock 回退，失败向上抛，由组件决定隐藏降级） */
+export const funnelApi = {
+  /** 拉取当前登录站长近 N 天的推广转化漏斗（默认30天） */
+  get(days = 30): Promise<StationFunnel> {
+    return apiGet<StationFunnel>(`/track/funnel?days=${days}`)
+  },
+}
+
+/** 万年历轻量 API（工作台今日宜忌轻栏用；无 mock 回退） */
+export const almanacApi = {
+  /** 今日万年历（库中无当日数据时后端返回 null） */
+  today(): Promise<AlmanacToday | null> {
+    return apiGet<AlmanacToday | null>('/wannianli/today')
+  },
+}
+
 export const advisorApi = {
   /** 拉取当前登录用户在指定角色下的经营建议列表 */
   async list(roleType: AdvisorRoleType): Promise<AdvisorInsight[]> {
