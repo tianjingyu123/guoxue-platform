@@ -294,7 +294,12 @@ const isHealthProduct = computed(() => {
 })
 
 async function fetchProductData() {
-  if (!productId.value || productId.value === '1') return
+  if (!productId.value || productId.value === '1') {
+    // 缺少/非法商品 ID：显式落错误态，避免卡在骨架屏白屏
+    loading.value = false
+    error.value = '商品不存在'
+    return
+  }
   error.value = ''
   loading.value = true
   try {
@@ -322,6 +327,7 @@ onLoad(async (q) => {
     await fetchProductData()
   } else {
     loading.value = false
+    error.value = '商品不存在'
   }
 })
 

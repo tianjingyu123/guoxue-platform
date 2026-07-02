@@ -162,9 +162,13 @@ async function fetchData(id: string) {
 }
 
 onLoad((options) => {
-  if (options?.id) {
-    collectionId.value = options.id
+  // 缺少书单 ID（默认 '1' 为 mock 残留）：显式落错误态，避免空内容白屏
+  if (!options?.id || options.id === '1') {
+    loading.value = false
+    error.value = '书单不存在'
+    return
   }
+  collectionId.value = options.id
   fetchData(collectionId.value)
 })
 
