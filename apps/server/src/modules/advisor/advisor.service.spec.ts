@@ -120,6 +120,32 @@ describe("AdvisorService", () => {
     });
   });
 
+  describe("collectFeedback — 效果回访", () => {
+    it("采纳7天后复跑探针：不再命中即回填 resolved=true", async () => {
+      mockPrisma.advisorInsight.findMany.mockResolvedValue([
+        { id: "i1", ruleKey: "station_earning_wow_drop", subjectId: "st-1", feedback: null },
+      ]);
+      mockPrisma.advisorRule.findMany.mockResolvedValue([DROP_RULE]);
+      mockPrisma.stationEarning.aggregate
+        .mockResolvedValueOnce({ _sum: { earned: 120 } }) // 近7天已回升
+        .mockResolvedValueOnce({ _sum: { earned: 100 } });
+      mockPrisma.advisorInsight.update.mockResolvedValue({});
+      const result = await svc.collectFeedback();
+      expect(result.updated).toBe(1);
+      const fb = mockPrisma.advisorInsight.update.mock.calls[0][0].data.feedback;
+      expect(fb.resolved).toBe(true);
+    });
+
+    it("已回填过的建议跳过", async () => {
+      mockPrisma.advisorInsight.findMany.mockResolvedValue([
+        { id: "i1", ruleKey: "station_earning_wow_drop", subjectId: "st-1", feedback: { resolved: true } },
+      ]);
+      const result = await svc.collectFeedback();
+      expect(result.updated).toBe(0);
+      expect(mockPrisma.advisorInsight.update).not.toHaveBeenCalled();
+    });
+  });
+
   describe("listInsights / transition — 归属安全", () => {
     it("按当前用户解析主体拉取建议", async () => {
       mockPrisma.station.findUnique.mockResolvedValue({ id: "st-1" });

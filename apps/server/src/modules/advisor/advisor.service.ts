@@ -31,6 +31,61 @@ export class AdvisorService {
 
   constructor(private prisma: PrismaService) {}
 
+  // ───────── AI 个性化文案（T2-P2）─────────
+
+  /** AI 开关：需配置 DEEPSEEK_API_KEY，且可用 ADVISOR_AI_ENABLED=false 关闭；单测环境强制关闭 */
+  private aiEnabled(): boolean {
+    return (
+      !!process.env.DEEPSEEK_API_KEY &&
+      process.env.ADVISOR_AI_ENABLED !== "false" &&
+      process.env.NODE_ENV !== "test"
+    );
+  }
+
+  /** 生成建议文案：优先 AI 个性化（6 秒超时），失败/未配置降级为模板渲染 */
+  private async renderContent(
+    rule: { ruleKey: string; suggestion: string },
+    facts: Record<string, string | number>,
+  ): Promise<string> {
+    const fallback = this.renderTemplate(rule.suggestion, facts);
+    if (!this.aiEnabled()) return fallback;
+    try {
+      const resp = await fetch(
+        `${process.env.DEEPSEEK_BASE_URL || "https://api.deepseek.com"}/v1/chat/completions`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${process.env.DEEPSEEK_API_KEY}`,
+          },
+          body: JSON.stringify({
+            model: process.env.DEEPSEEK_MODEL || "deepseek-chat",
+            messages: [
+              {
+                role: "system",
+                content:
+                  "你是国学传统文化平台的经营顾问。基于给定的诊断事实，用不超过90字的中文输出一条具体、温和、专业的经营建议：先陈述关键数据事实，再给一个可立即执行的行动建议。禁止承诺收益，禁止夸大，不要寒暄，不要 markdown 格式。",
+              },
+              {
+                role: "user",
+                content: `诊断类型：${rule.ruleKey}\n事实数据：${JSON.stringify(facts)}\n参考模板：${fallback}`,
+              },
+            ],
+            temperature: 0.4,
+            max_tokens: 200,
+          }),
+          signal: AbortSignal.timeout(6000),
+        },
+      );
+      if (!resp.ok) return fallback;
+      const data = (await resp.json()) as { choices?: { message?: { content?: string } }[] };
+      const text = data?.choices?.[0]?.message?.content?.trim();
+      return text && text.length >= 10 ? text.slice(0, 200) : fallback;
+    } catch {
+      return fallback; // AI 不可用绝不阻塞建议生成
+    }
+  }
+
   // ───────── 探针库：metric 名 → 评估函数 ─────────
 
   private readonly PROBES: Record<
@@ -224,7 +279,7 @@ export class AdvisorService {
     const result = await probe(subjectId, (rule.condition as Record<string, number>) || {});
     if (!result.hit) return false;
 
-    const content = this.renderTemplate(rule.suggestion, result.facts || {});
+    const content = await this.renderContent(rule, result.facts || {});
     await this.prisma.advisorInsight.create({
       data: {
         ruleKey: rule.ruleKey,
@@ -239,11 +294,66 @@ export class AdvisorService {
     return true;
   }
 
-  /** {{key}} 占位符渲染（P2 升级为 AI 个性化，模板保留为降级路径） */
+  /** {{key}} 占位符渲染（AI 个性化的降级路径） */
   renderTemplate(template: string, facts: Record<string, string | number>): string {
     return template.replace(/\{\{(\w+)\}\}/g, (_, key: string) =>
       facts[key] !== undefined ? String(facts[key]) : `{{${key}}}`,
     );
+  }
+
+  // ───────── 效果回访（T2-P2）─────────
+
+  /** 每日 7AM：对采纳满 7 天的建议复跑探针，回填问题是否解决（反哺规则有效性统计） */
+  @Cron("0 7 * * *")
+  async feedbackCron() {
+    try {
+      const result = await this.collectFeedback();
+      if (result.updated > 0) this.logger.log(`效果回访完成：回填 ${result.updated} 条建议反馈`);
+    } catch (e) {
+      this.logger.error("效果回访执行失败", e as Error);
+    }
+  }
+
+  async collectFeedback() {
+    // 采纳时间落在 [8天前, 7天前) 窗口且尚未回填的建议
+    const acted = await this.prisma.advisorInsight.findMany({
+      where: {
+        status: "ACTED",
+        actedAt: { gte: new Date(Date.now() - 8 * DAY_MS), lt: new Date(Date.now() - 7 * DAY_MS) },
+      },
+      take: 200,
+    });
+    const pending = acted.filter((a) => !a.feedback);
+    if (pending.length === 0) return { updated: 0 };
+
+    const rules = await this.prisma.advisorRule.findMany({
+      where: { ruleKey: { in: [...new Set(pending.map((a) => a.ruleKey))] } },
+    });
+    const ruleMap = new Map(rules.map((r) => [r.ruleKey, r]));
+
+    let updated = 0;
+    for (const insight of pending) {
+      const rule = ruleMap.get(insight.ruleKey);
+      const probe = rule ? this.PROBES[rule.metric] : undefined;
+      if (!rule || !probe) continue;
+      try {
+        const after = await probe(insight.subjectId, (rule.condition as Record<string, number>) || {});
+        await this.prisma.advisorInsight.update({
+          where: { id: insight.id },
+          data: {
+            feedback: {
+              resolved: !after.hit, // 探针不再命中 = 问题已解决
+              factsAfter: after.facts ?? {},
+              checkedAt: new Date().toISOString(),
+            },
+          },
+        });
+        updated++;
+      } catch (e) {
+        this.logger.warn(`效果回访失败(insight=${insight.id})`, e as Error);
+      }
+    }
+    return { updated };
   }
 
   // ───────── 工作台读取与状态流转 ─────────
