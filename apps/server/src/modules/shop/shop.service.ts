@@ -911,31 +911,7 @@ export class ShopService {
       } finally {
         await this.redis.del(orderLockKey);
       }
-      if (this.commissionSvc) {
-        try {
-          await this.commissionSvc.calculateAndRecord(
-            orderId,
-            order.type,
-            Number(order.amount),
-            order.referrerId || undefined,
-            order.tempReferrerId || undefined,
-          );
-        } catch (e) {
-          this.logger.error("分佣计算失败", e);
-        }
-        // 平台费记录
-        try {
-          const fee = await this.commissionSvc.calculatePlatformFee(order.type, Number(order.amount));
-          if (fee) {
-            await this.commissionSvc.recordPlatformFee({
-              type: order.type, sourceId: orderId, sourceAmount: Number(order.amount),
-              platformRate: fee.platformRate, platformFee: fee.platformFee,
-            });
-          }
-        } catch (e) {
-          this.logger.error("平台费记录失败", e);
-        }
-      }
+      await this.recordOrderCommissionAndFee({ ...order, id: orderId });
 
       this.logger.log(`订单 ${orderId} 支付成功, 微信交易号: ${transactionId}`);
     } finally {
@@ -967,6 +943,34 @@ export class ShopService {
   }
 
   /** 统一支付完成处理（支付宝/银联） */
+  /**
+   * 订单支付成功后统一记账：分佣 + 平台费。
+   * 微信/汇付回调已记，此 helper 供支付宝/银联/线下确认(adminPayOrder)复用，避免账目漏记。
+   * 事务外执行，失败仅记日志不影响订单状态。
+   */
+  private async recordOrderCommissionAndFee(order: { id: string; type: string; amount: unknown; referrerId?: string | null; tempReferrerId?: string | null }) {
+    if (!this.commissionSvc) return;
+    try {
+      await this.commissionSvc.calculateAndRecord(
+        order.id, order.type, Number(order.amount),
+        order.referrerId || undefined, order.tempReferrerId || undefined,
+      );
+    } catch (e) {
+      this.logger.error("分佣计算失败", e);
+    }
+    try {
+      const fee = await this.commissionSvc.calculatePlatformFee(order.type, Number(order.amount));
+      if (fee) {
+        await this.commissionSvc.recordPlatformFee({
+          type: order.type, sourceId: order.id, sourceAmount: Number(order.amount),
+          platformRate: fee.platformRate, platformFee: fee.platformFee,
+        });
+      }
+    } catch (e) {
+      this.logger.error("平台费记录失败", e);
+    }
+  }
+
   private async completePayment(outTradeNo: string, payMethod: string, tradeNo: string, success: boolean) {
     if (!success) {
       this.logger.log(`支付未成功: ${outTradeNo}, 方式: ${payMethod}`);
@@ -1007,17 +1011,8 @@ export class ShopService {
         await this.redis.del(orderLockKey);
       }
 
-      // 分佣计算（事务外，失败可重试不影响订单状态）
-      if (this.commissionSvc) {
-        try {
-          await this.commissionSvc.calculateAndRecord(
-            order.id, order.type, Number(order.amount),
-            order.referrerId || undefined, order.tempReferrerId || undefined,
-          );
-        } catch (e) {
-          this.logger.error("分佣计算失败", e);
-        }
-      }
+      // 分佣 + 平台费（事务外，失败可重试不影响订单状态；此前支付宝/银联漏记平台费）
+      await this.recordOrderCommissionAndFee(order);
 
       // 触发 Webhook（fire-and-forget，不阻塞主流程）
       this.webhook.fire("ORDER_PAID", {
@@ -1381,11 +1376,15 @@ export class ShopService {
     const order = await this.prisma.order.findUnique({ where: { id: orderId } });
     if (!order || order.status !== "PENDING") throw new BusinessException(ErrorCode.ORDER_STATUS_INVALID, "仅待支付订单可确认支付");
 
-    await this.prisma.order.update({
-      where: { id: orderId },
+    // CAS 状态翻转防并发重复确认
+    const flipped = await this.prisma.order.updateMany({
+      where: { id: orderId, status: "PENDING" },
       data: { status: "PAID", paidAt: new Date(), payTransactionId },
     });
+    if (flipped.count === 0) throw new BusinessException(ErrorCode.ORDER_STATUS_INVALID, "订单状态已变更");
     await this.redis.del(`${CACHE_PREFIX}order:${orderId}`);
+    // 线下确认收款同样记分佣 + 平台费（与网关支付路径一致，避免账目漏记）
+    await this.recordOrderCommissionAndFee(order);
     // 拼团订单：管理员确认支付后同样触发成团结算（本地无微信证书时用此路径验证闭环）
     await this.settleGroupBuyIfNeeded(orderId).catch((e) => this.logger.error(`拼团成团结算失败 order=${orderId}`, e));
     this.logger.log(`管理员 ${operatorId} 手动确认支付: ${orderId}, 流水号: ${payTransactionId}`);

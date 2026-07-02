@@ -1585,6 +1585,13 @@ export class CircleService {
       description: `打赏帖子: ${post.title || "无标题"}`,
     });
 
+    // 分账：作者入账 50%，平台留成 50%（业务决策）。作者入账失败不回滚打赏，仅记日志。
+    const authorShare = Math.floor(amount / 2);
+    if (authorShare > 0) {
+      await this.coinService.refund(post.userId, authorShare, `帖子打赏收入: ${post.title || "无标题"}`)
+        .catch((err) => this.logger.warn("打赏作者入账失败", err));
+    }
+
     // 通知帖子作者
     if (this.notificationService) {
       this.notificationService.send(post.userId, {
