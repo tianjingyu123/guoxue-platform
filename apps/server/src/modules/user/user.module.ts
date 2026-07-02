@@ -16,9 +16,10 @@ import { CoinModule } from "../coin/coin.module";
 import { InteractionModule } from "../interaction/interaction.module";
 import { CommentModule } from "../comment/comment.module";
 import { AuditModule } from "../audit/audit.module";
+import { SmsModule } from "../sms/sms.module";
 
 @Module({
-  imports: [SystemModule, CoinModule, InteractionModule, CommentModule, AuditModule],
+  imports: [SystemModule, CoinModule, InteractionModule, CommentModule, AuditModule, SmsModule],
   controllers: [UserController, PaymentPasswordController, PointsController, TeenModeController, FeedbackController, WalletController],
   providers: [UserService, PaymentPasswordService, PointsService, TeenModeService, FeedbackService, WalletService],
   exports: [UserService, PointsService],

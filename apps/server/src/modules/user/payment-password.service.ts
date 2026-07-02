@@ -3,6 +3,7 @@ import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
+import { SmsService } from "../sms/sms.service";
 import * as bcrypt from "bcryptjs";
 
 @Injectable()
@@ -10,6 +11,7 @@ export class PaymentPasswordService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
+    private readonly sms: SmsService,
   ) {}
 
   private readonly SALT_ROUNDS = 10;
@@ -67,10 +69,14 @@ export class PaymentPasswordService {
     return { ok: true };
   }
 
-  /** 重置支付密码（controller 层需先校验短信验证码） */
+  /** 重置支付密码（忘记旧密码时，凭注册手机号短信验证码重置） */
   async resetPassword(userId: string, newPassword: string, smsCode: string) {
-    if (!smsCode || smsCode.length !== 6) throw new BusinessException(ErrorCode.BAD_REQUEST, "短信验证码未校验");
     if (!/^\d{6}$/.test(newPassword)) throw new BusinessException(ErrorCode.BAD_REQUEST, "支付密码需为6位数字");
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { phone: true } });
+    if (!user?.phone) throw new BusinessException(ErrorCode.BAD_REQUEST, "当前未绑定手机号，无法通过短信重置");
+    // 真校验短信验证码(scene 与前端 sendPhoneCode 一致=RESET_PAY_PWD)，
+    // 防止仅凭会话就绕过短信二次验证重置支付密码；verifyCode 失败会抛异常
+    await this.sms.verifyCode(user.phone, smsCode, "RESET_PAY_PWD");
     const hash = await bcrypt.hash(newPassword, this.SALT_ROUNDS);
     await this.prisma.user.update({ where: { id: userId }, data: { paymentPasswordHash: hash } });
     return { ok: true };

@@ -2,6 +2,7 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { PaymentPasswordService } from "./payment-password.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
+import { SmsService } from "../sms/sms.service";
 import * as bcrypt from "bcryptjs";
 
 const mockPrisma = {
@@ -14,6 +15,10 @@ const mockRedis = {
   del: jest.fn().mockResolvedValue(1),
 };
 
+const mockSms = {
+  verifyCode: jest.fn().mockResolvedValue(true),
+};
+
 describe("PaymentPasswordService", () => {
   let svc: PaymentPasswordService;
 
@@ -23,6 +28,7 @@ describe("PaymentPasswordService", () => {
         PaymentPasswordService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: RedisService, useValue: mockRedis },
+        { provide: SmsService, useValue: mockSms },
       ],
     }).compile();
     svc = mod.get(PaymentPasswordService);
@@ -95,14 +101,29 @@ describe("PaymentPasswordService", () => {
   });
 
   describe("resetPassword", () => {
-    it("成功重置密码（smsCode 已由 controller 预先校验）", async () => {
+    it("短信验证码校验通过后成功重置", async () => {
+      mockPrisma.user.findUnique.mockResolvedValue({ phone: "13800138000" });
+      mockSms.verifyCode.mockResolvedValue(true);
       mockPrisma.user.update.mockResolvedValue({});
+
       const result = await svc.resetPassword("u1", "654321", "123456");
+
       expect(result).toEqual({ ok: true });
+      // 必须以 RESET_PAY_PWD 场景真校验短信码，而非仅判长度
+      expect(mockSms.verifyCode).toHaveBeenCalledWith("13800138000", "123456", "RESET_PAY_PWD");
     });
 
-    it("空短信验证码应抛出异常", async () => {
-      await expect(svc.resetPassword("u1", "654321", "")).rejects.toThrow("短信验证码未校验");
+    it("短信验证码错误时抛异常且不重置", async () => {
+      mockPrisma.user.findUnique.mockResolvedValue({ phone: "13800138000" });
+      mockSms.verifyCode.mockRejectedValue(new Error("验证码错误"));
+
+      await expect(svc.resetPassword("u1", "654321", "000000")).rejects.toThrow("验证码错误");
+      expect(mockPrisma.user.update).not.toHaveBeenCalled();
+    });
+
+    it("未绑定手机号无法短信重置", async () => {
+      mockPrisma.user.findUnique.mockResolvedValue({ phone: null });
+      await expect(svc.resetPassword("u1", "654321", "123456")).rejects.toThrow("未绑定手机号");
     });
   });
 });
