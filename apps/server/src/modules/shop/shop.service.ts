@@ -430,10 +430,26 @@ export class ShopService {
       };
     }
 
+    // ── 推荐归因（2026-07-02 拍板）──
+    // 全平台单一分享链接（ref=分享者用户ID或分站推广码）：最近分享者=临时推荐人（前端7天窗口传入），
+    // 优先于永久归属分站；永久归属由服务端从 ReferralRelation 回填，不信任前端传入的 referrerId。
+    const tempReferrerId = await this.resolveReferrerUserId(dto.tempReferrerId, userId);
+    let permanentReferrerId: string | null = null;
+    try {
+      const relation = await this.prisma.referralRelation.findFirst({
+        where: { userId, referrerType: "STATION_MASTER", relationStatus: "ACTIVE" },
+        orderBy: { createdAt: "asc" },
+        select: { referrerId: true },
+      });
+      permanentReferrerId = relation?.referrerId ?? null;
+    } catch {
+      /* 归属查询失败不阻塞下单，按无永久归属处理 */
+    }
+    const effectiveReferrerId = tempReferrerId || permanentReferrerId;
+
     // 站长自购立减（2026-07-02 拍板）：站长本人购买（无推荐人或推荐人为本人）直接按佣金比例立减成交，
     // 不产生佣金；退款按实付价退。杜绝自购返佣/刷单套利。
     let selfPurchaseRate = 0;
-    const effectiveReferrerId = dto.tempReferrerId || dto.referrerId;
     if (this.commissionSvc && (!effectiveReferrerId || effectiveReferrerId === userId)) {
       try {
         const ownStation = await this.prisma.station.findFirst({
@@ -503,8 +519,8 @@ export class ShopService {
           merchantId,
           addressId: dto.addressId,
           shippingInfo: shippingInfo as any,
-          referrerId: selfDiscount > 0 ? null : dto.referrerId,
-          tempReferrerId: selfDiscount > 0 ? null : dto.tempReferrerId,
+          referrerId: selfDiscount > 0 ? null : permanentReferrerId,
+          tempReferrerId: selfDiscount > 0 ? null : tempReferrerId,
           selfDiscount: selfDiscount > 0 ? selfDiscount : null,
           status: "PENDING",
         },
@@ -964,6 +980,24 @@ export class ShopService {
     if (data.respCode !== "00") return;
     const outTradeNo = data.outTradeNo as string;
     await this.completePayment(outTradeNo, "UNIONPAY", data.tradeNo as string, true);
+  }
+
+  /**
+   * 解析归因 ref 值（分享者用户ID 或 分站推广码）→ 推荐人 userId。
+   * 无效值静默丢弃（按无临时推荐人处理）；ref=买家本人时保留（供自购立减判定）。
+   */
+  private async resolveReferrerUserId(ref: string | undefined | null, buyerId: string): Promise<string | null> {
+    if (!ref) return null;
+    if (ref === buyerId) return buyerId;
+    try {
+      const user = await this.prisma.user.findUnique({ where: { id: ref }, select: { id: true } });
+      if (user) return user.id;
+      const station = await this.prisma.station.findUnique({ where: { code: ref }, select: { userId: true, status: true } });
+      if (station?.status === "ACTIVE") return station.userId;
+    } catch {
+      /* 解析失败按无推荐人处理 */
+    }
+    return null;
   }
 
   /** 统一支付完成处理（支付宝/银联） */

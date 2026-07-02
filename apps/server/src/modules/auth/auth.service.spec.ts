@@ -89,7 +89,7 @@ describe("AuthService", () => {
       mockPrisma.user.findUnique.mockResolvedValue(null);
       (bcrypt.hash as jest.Mock).mockResolvedValue("hashed");
       mockPrisma.user.create.mockResolvedValue({ id: "user-2", nickname: "李四", phone: "13900000000" });
-      mockPrisma.station.findUnique.mockResolvedValue({ id: "station-1", userId: "referrer-1", code: "ABC123" });
+      mockPrisma.station.findUnique.mockResolvedValue({ id: "station-1", userId: "referrer-1", code: "ABC123", status: "ACTIVE" });
       mockPrisma.referralRelation.create.mockResolvedValue({});
       mockPrisma.userRole.findMany.mockResolvedValue([]);
       mockJwt.sign.mockReturnValue("token");
@@ -248,7 +248,7 @@ describe("AuthService", () => {
       mockSms.verifyCode.mockResolvedValue(true);
       mockPrisma.user.findUnique.mockResolvedValue(null); // 用户不存在
       mockPrisma.user.create.mockResolvedValue({ id: "user-3", nickname: "用户8000", phone: "13800008000" });
-      mockPrisma.station.findUnique.mockResolvedValue({ id: "s1", userId: "ref-1", code: "INVITE" });
+      mockPrisma.station.findUnique.mockResolvedValue({ id: "s1", userId: "ref-1", code: "INVITE", status: "ACTIVE" });
       mockPrisma.referralRelation.create.mockResolvedValue({});
       mockPrisma.userRole.findMany.mockResolvedValue([]);
       mockJwt.sign.mockReturnValue("token");

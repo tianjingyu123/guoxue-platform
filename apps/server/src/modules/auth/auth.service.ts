@@ -536,17 +536,29 @@ export class AuthService {
     };
   }
 
+  /**
+   * 注册归属绑定（永久归属真源=ReferralRelation）。
+   * referrerCode 兼容两种取值（全平台单一分享链接的 ref 参数）：分站推广码 或 分享者用户ID（须为站长）。
+   */
   private async bindReferral(userId: string, referrerCode: string) {
-    const station = await this.prisma.station.findUnique({ where: { code: referrerCode } });
-    if (station) {
-      await this.prisma.referralRelation.create({
-        data: {
-          userId,
-          referrerId: station.userId,
-          referrerType: "STATION_MASTER",
-          sourceChannel: "INVITE_CODE",
-        },
-      });
+    let station = await this.prisma.station.findUnique({ where: { code: referrerCode } });
+    if (!station) {
+      station = await this.prisma.station.findUnique({ where: { userId: referrerCode } });
+    }
+    if (station && station.status === "ACTIVE" && station.userId !== userId) {
+      await this.prisma.referralRelation
+        .create({
+          data: {
+            userId,
+            referrerId: station.userId,
+            referrerType: "STATION_MASTER",
+            sourceChannel: "INVITE_CODE",
+          },
+        })
+        .catch((e) => {
+          // @@unique([userId, referrerId]) 重复绑定幂等忽略
+          this.logger?.warn?.(`归属绑定跳过(user=${userId})`, e);
+        });
     }
   }
 
