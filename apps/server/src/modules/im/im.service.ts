@@ -178,6 +178,11 @@ export class ImService {
 
   /** 在群内发送消息 */
   async sendGroupMsg(groupId: string, text: string, fromUserId?: string) {
+    // 越权防护：真实用户发言前校验其为该群成员（fromUserId 缺省时为系统/管理员消息，放行）
+    if (fromUserId) {
+      const isMember = await this.isGroupMember(groupId, fromUserId);
+      if (!isMember) throw new BusinessException(ErrorCode.FORBIDDEN, "非群成员，无法发送群消息");
+    }
     return this.callImApi("group_open_http_svc/send_group_msg", {
       GroupId: groupId,
       From_Account: fromUserId || this.adminId,

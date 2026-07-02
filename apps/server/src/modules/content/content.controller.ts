@@ -9,10 +9,7 @@ import { SystemService } from "../system/system.service";
 import { CreateContentDto, UpdateContentDto, ContentListQueryDto, BatchUpdateStatusDto } from "./content.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { OptionalAuthGuard } from "../../common/optional-auth.guard";
-import { ActiveUserGuard } from "../../common/active-user.guard";
 import { StationIsolationGuard } from "../../common/station-isolation.guard";
-import { FeatureFlagGuard } from "../../common/feature-flag.guard";
-import { RequireFeature } from "../../common/feature-flag.decorator";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
 import { Auditable } from "../../common/audit.decorator";
@@ -27,12 +24,14 @@ export class ContentController {
   ) {}
 
   @Post()
-  @UseGuards(JwtAuthGuard, ActiveUserGuard, FeatureFlagGuard)
-  @RequireFeature("content_publish")
+  @Auditable({ action: "创建内容", targetType: "CONTENT" })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "创建内容" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   async create(@Body() dto: CreateContentDto, @Req() req: Request) {
     const result = await this.content.create(dto);

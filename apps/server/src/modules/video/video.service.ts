@@ -169,8 +169,11 @@ export class VideoService {
     });
   }
 
-  /** 添加商品关联 */
-  async addProduct(videoId: string, productId: string) {
+  /** 添加商品关联 — 需校验视频归属，防越权操作他人视频 */
+  async addProduct(userId: string, videoId: string, productId: string) {
+    const video = await this.prisma.video.findUnique({ where: { id: videoId }, select: { userId: true } });
+    if (!video) throw new BusinessException(ErrorCode.NOT_FOUND, "视频不存在");
+    if (video.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能操作自己的视频");
     return this.prisma.videoProduct.upsert({
       where: { videoId_productId: { videoId, productId } },
       create: { videoId, productId },
@@ -178,8 +181,11 @@ export class VideoService {
     });
   }
 
-  /** 移除商品关联 */
-  async removeProduct(videoId: string, productId: string) {
+  /** 移除商品关联 — 需校验视频归属 */
+  async removeProduct(userId: string, videoId: string, productId: string) {
+    const video = await this.prisma.video.findUnique({ where: { id: videoId }, select: { userId: true } });
+    if (!video) throw new BusinessException(ErrorCode.NOT_FOUND, "视频不存在");
+    if (video.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能操作自己的视频");
     await this.prisma.videoProduct.deleteMany({ where: { videoId, productId } });
     return { success: true };
   }

@@ -310,8 +310,8 @@ export class VideoController {
   @ApiBearerAuth()
   @ApiResponse({ status: 201, description: "关联成功" })
   @ApiResponse({ status: 401, description: "未认证" })
-  addProduct(@Param("id") id: string, @Param("productId") productId: string) {
-    return this.svc.addProduct(id, productId);
+  addProduct(@Param("id") id: string, @Param("productId") productId: string, @Req() req: Request) {
+    return this.svc.addProduct(req.user.id, id, productId);
   }
 
   @Delete(":id/products/:productId")
@@ -320,8 +320,8 @@ export class VideoController {
   @ApiBearerAuth()
   @ApiResponse({ status: 200, description: "移除成功" })
   @ApiResponse({ status: 401, description: "未认证" })
-  removeProduct(@Param("id") id: string, @Param("productId") productId: string) {
-    return this.svc.removeProduct(id, productId);
+  removeProduct(@Param("id") id: string, @Param("productId") productId: string, @Req() req: Request) {
+    return this.svc.removeProduct(req.user.id, id, productId);
   }
 
 }

@@ -179,14 +179,16 @@ describe("VideoController", () => {
   });
 
   it("POST /videos/:id/products/:productId — 关联商品", async () => {
-    const result: any = await ctrl.addProduct("v1", "p1");
+    const req: any = { user: { id: "u1" } };
+    const result: any = await ctrl.addProduct("v1", "p1", req);
     expect(result.id).toBe("vp1");
-    expect(mockVideoSvc.addProduct).toHaveBeenCalledWith("v1", "p1");
+    expect(mockVideoSvc.addProduct).toHaveBeenCalledWith("u1", "v1", "p1");
   });
 
   it("DELETE /videos/:id/products/:productId — 移除关联", async () => {
-    const result: any = await ctrl.removeProduct("v1", "p1");
+    const req: any = { user: { id: "u1" } };
+    const result: any = await ctrl.removeProduct("v1", "p1", req);
     expect(result.success).toBe(true);
-    expect(mockVideoSvc.removeProduct).toHaveBeenCalledWith("v1", "p1");
+    expect(mockVideoSvc.removeProduct).toHaveBeenCalledWith("u1", "v1", "p1");
   });
 });
