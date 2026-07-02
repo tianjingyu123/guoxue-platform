@@ -1258,19 +1258,31 @@ export class ShopService {
       // 通过支付工厂统一路由退款（新增渠道无需修改此处）
       const payMethod = order.payMethod || "WECHAT";
       const outTradeNo = order.payTransactionId || outRefundNo;
-      const result = await this.paymentFactory.refund(payMethod, {
-        outTradeNo,
-        outRefundNo,
-        totalYuan: Number(order.amount),
-        totalFen,
-        reason: reason || "用户申请退款",
-      });
+
+      // 支付网关未配置（如管理员线下确认支付的订单、或本环境未接入网关）时无法调用网关退款，
+      // 降级为「线下退款」：标记 REFUNDED + 冲正分佣，由财务线下打款。
+      // 否则会因缺密钥抛「No key provided to sign」导致退款 500 崩溃。
+      let result: { status: string };
+      if (!this.paymentFactory.isConfigured(payMethod)) {
+        this.logger.warn(`支付渠道 ${payMethod} 未配置，订单 ${orderId} 降级为线下退款（标记 REFUNDED，需财务线下打款）`);
+        result = { status: "SUCCESS" };
+      } else {
+        result = await this.paymentFactory.refund(payMethod, {
+          outTradeNo,
+          outRefundNo,
+          totalYuan: Number(order.amount),
+          totalFen,
+          reason: reason || "用户申请退款",
+        });
+      }
 
       if (result.status === "SUCCESS" || result.status === "PROCESSING") {
         await this.prisma.order.update({
           where: { id: orderId },
           data: { status: "REFUNDED", refundedAt: new Date() },
         });
+        // 失效订单缓存，避免退款后 getOrder 仍返回陈旧的 PAID 状态（与其它变更方法一致）
+        await this.redis.del(`${CACHE_PREFIX}order:${orderId}`);
 
         // 冲正分佣（异步，失败不影响退款结果）
         if (this.commissionSvc) {

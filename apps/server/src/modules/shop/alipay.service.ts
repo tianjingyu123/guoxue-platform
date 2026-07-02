@@ -41,6 +41,11 @@ export class AlipayService {
     }
   }
 
+  /** 支付渠道是否已配置（缺密钥则无法签名/退款，调用方据此降级为线下处理） */
+  get isConfigured(): boolean {
+    return !!(this.appId && this.privateKey);
+  }
+
   // ───────── 签名与请求 ─────────
 
   /** 构建参数字符串（按key字母排序） */

@@ -48,6 +48,11 @@ export class UnionpayService {
     }
   }
 
+  /** 支付渠道是否已配置（缺密钥则无法签名/退款，调用方据此降级为线下处理） */
+  get isConfigured(): boolean {
+    return !!(this.merId && this.privateKey);
+  }
+
   /** 从PFX/P12文件提取私钥（简化实现：OpenSSL提取） */
   private loadPfx(pfxBuf: Buffer, password: string): { privateKey: string; cert: string } {
     const { spawnSync } = require("child_process");

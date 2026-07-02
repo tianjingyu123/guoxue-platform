@@ -43,6 +43,11 @@ export class WechatPayService {
     }
   }
 
+  /** 支付渠道是否已配置（缺密钥则无法签名/退款，调用方据此降级为线下处理） */
+  get isConfigured(): boolean {
+    return !!(this.mchId && this.privateKey);
+  }
+
   // ───────── V3 签名与请求 ─────────
 
   /** 生成 V3 Authorization 头 */

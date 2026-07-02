@@ -75,4 +75,14 @@ export class PaymentProviderFactory {
     const adapter = this.adapters.get(channel) || this.adapters.get("WECHAT")!;
     return adapter.refund(params);
   }
+
+  /** 指定渠道的支付网关是否已配置密钥（未配置时无法调用网关退款，调用方应降级为线下退款） */
+  isConfigured(channel: string): boolean {
+    switch ((channel || "WECHAT").toUpperCase()) {
+      case "ALIPAY": return this.alipay.isConfigured;
+      case "UNIONPAY": return this.unionpay.isConfigured;
+      case "WECHAT":
+      default: return this.wechatPay.isConfigured;
+    }
+  }
 }
