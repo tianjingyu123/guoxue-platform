@@ -6022,3 +6022,47 @@ model FundApproval {
   @@index([status, createdAt])
   @@map("fund_approval")
 }
+
+// ─────────────────────────────────────────────────
+// 统一结算引擎（T1）：场景规则 + 统一分账总账
+// 合规硬约束见 modules/settlement/settlement.service.ts（L1-L5 铁律）
+// ─────────────────────────────────────────────────
+
+/// 结算场景规则：每个资金场景一条，splits 定义各角色分成；修改须走 FundApproval(COMMISSION_CONFIG)
+model SettlementRule {
+  id                String   @id @default(uuid())
+  scene             String   @unique // QUESTION / PEEK / AUDIO_CALL / LIVE_GIFT / CONSULT_CALL / MEMBER_PURCHASE / COURSE_ORDER ...
+  splits            Json // [{ role, rate, basis: GROSS|PARENT_SPLIT, category: COMMISSION|SERVICE|PLATFORM, parentRole? }]
+  bufferDays        Int      @default(7) // 结算缓冲期天数（0=实时可提）
+  requireApproval   Boolean  @default(false) // 大额人工复核开关
+  approvalThreshold Decimal? @db.Decimal(10, 2) // 单笔收益冻结复核阈值（元）
+  enabled           Boolean  @default(true)
+  remark            String?
+  updatedBy         String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+/// 统一分账总账（影子账本起步）：每笔分账一条，正=入账 负=冲正；可提现口径最终以 SETTLED 为准
+model LedgerEntry {
+  id              String   @id @default(uuid())
+  scene           String
+  refType         String // 交易凭据类型：ORDER / GIFT_RECORD / CONSULT_CALL / QUESTION ...（真实交易计酬铁律）
+  refId           String
+  beneficiaryType String // USER / STATION / OPERATOR / MERCHANT / PLATFORM
+  beneficiaryId   String
+  role            String // PROVIDER / CIRCLE_OWNER / STATION / OPERATOR / PLATFORM
+  category        String // COMMISSION 推广计酬 / SERVICE 劳务对价 / PLATFORM 平台留存
+  amount          Decimal  @db.Decimal(12, 2)
+  rate            Decimal  @db.Decimal(5, 4)
+  status          String   @default("PENDING") // PENDING / SETTLED / FROZEN / REVERSED
+  availableAt     DateTime // 缓冲期到期时间，过期由 settlePending 批量置为 SETTLED
+  batchId         String?
+  reason          String? // 冻结/冲正原因
+  createdAt       DateTime @default(now())
+
+  @@index([refType, refId])
+  @@index([beneficiaryType, beneficiaryId, status])
+  @@index([status, availableAt])
+  @@index([scene, createdAt])
+}
