@@ -1,26 +1,33 @@
 <script setup lang="ts">
 /**
  * 圈子数据看板（真连后端）
- * 概览KPI卡(成员/活跃/本月新增) + 活跃贡献者TOP5 + 热门内容TOP5 + 收益构成
+ * 健康度分数卡 + 概览KPI卡(成员/活跃/本月新增) + 近30天趋势 + 流失预警 +
+ * 待回复提问入口 + 活跃贡献者TOP5 + 热门内容TOP5 + 收益构成
  *
  * 数据来源：
  * - overview / revenue：/circle-backend/*（后端取当前圈主的圈子，不传 circleId）
  * - contributors / hotPosts：/circles/:id/leaderboard、/circles/:id/hot-content（需 circleId）
+ * - trends / churn / pendingQuestions：/circles/:id/dashboard/*（需 circleId，圈主鉴权）
+ * - 健康度：前端纯函数用 overview 真实字段加权合成（见 computeCircleHealth 注释），无编造数据
  *
- * 说明：后端无「近30天趋势」「流失预警」端点，且无任何随机/真实趋势统计来源 →
- *      原型这两块整块删除（禁止用随机数/假数据填充）。
- *      KPI 增长率、总帖子数、总收益、贡献者点赞数、帖子浏览量后端均无来源 → 一律降级隐藏。
+ * 说明：KPI 增长率、总帖子数、贡献者点赞数、帖子浏览量后端均无来源 → 一律降级隐藏。
+ *      三个 dashboard 扩展接口用 Promise.allSettled 逐项容错，单项失败只隐藏对应区块不拖垮整页。
  */
 import { onLoad } from '@dcloudio/uni-app'
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import {
+  computeCircleHealth,
   dashboardApi,
-  type DashboardOverview,
-  type DashboardRevenue,
+  fillTrendDays,
+  type DashboardChurnWarning,
   type DashboardContributor,
   type DashboardHotPost,
+  type DashboardOverview,
+  type DashboardPendingQuestion,
+  type DashboardRevenue,
+  type DashboardTrendPoint,
 } from '@/lib/circle-dashboard-data'
 
 const circleId = ref('')
@@ -35,6 +42,48 @@ const overview = ref<DashboardOverview | null>(null)
 const revenue = ref<DashboardRevenue | null>(null)
 const contributors = ref<DashboardContributor[]>([])
 const hotPosts = ref<DashboardHotPost[]>([])
+
+// 近30天趋势（补齐为连续30天）；null = 接口失败/未加载 → 整块隐藏
+const trendDays = ref<DashboardTrendPoint[] | null>(null)
+// 趋势图指标切换：新增成员 / 收入
+const trendMetric = ref<'newMembers' | 'revenue'>('newMembers')
+// 流失预警；null = 接口失败 → 整块隐藏；count=0 → 也隐藏（无预警即无噪音）
+const churn = ref<DashboardChurnWarning | null>(null)
+// 待回复提问；null = 接口失败 → 入口卡隐藏
+const pendingQuestions = ref<DashboardPendingQuestion[] | null>(null)
+
+// 圈子健康度（纯函数合成，权重见 lib 内中文注释）
+const health = computed(() => (overview.value ? computeCircleHealth(overview.value) : null))
+const HEALTH_COLORS: Record<string, string> = {
+  excellent: '#52C41A',
+  good: '#4A90D9',
+  normal: '#FA8C16',
+  warn: '#FF4D4F',
+}
+
+// 趋势图：当前指标下各柱高度百分比（纯 view 宽/高实现，不引第三方图表库）
+const trendBars = computed(() => {
+  const days = trendDays.value || []
+  const max = Math.max(...days.map((d) => d[trendMetric.value]), 0)
+  return days.map((d) => ({
+    date: d.date,
+    value: d[trendMetric.value],
+    // 有数据的柱至少 4% 高度保证可见；全 0 时高度为 0
+    percent: max > 0 ? Math.max(Math.round((d[trendMetric.value] / max) * 100), d[trendMetric.value] > 0 ? 4 : 0) : 0,
+  }))
+})
+// 近30天是否有任何数据（全 0 则展示轻空态）
+const trendHasData = computed(() => (trendDays.value || []).some((d) => d.newMembers > 0 || d.revenue > 0))
+// 近30天合计（当前指标）
+const trendTotal = computed(() =>
+  (trendDays.value || []).reduce((sum, d) => sum + d[trendMetric.value], 0),
+)
+// 横轴首尾日期标签（MM-DD）
+const trendAxis = computed(() => {
+  const days = trendDays.value || []
+  if (!days.length) return { start: '', end: '' }
+  return { start: days[0].date.slice(5), end: days[days.length - 1].date.slice(5) }
+})
 
 // KPI 卡：仅后端真实可得三项（无增长率来源，故不展示 growth）
 const KPI_META = [
@@ -75,9 +124,21 @@ async function loadAll() {
       ])
       contributors.value = contrib
       hotPosts.value = hot
+      // 趋势/流失预警/待回复提问：allSettled 逐项容错，单项失败仅隐藏对应区块，不拖垮整页
+      const [trendRes, churnRes, pqRes] = await Promise.allSettled([
+        dashboardApi.trends(circleId.value),
+        dashboardApi.churnWarning(circleId.value),
+        dashboardApi.pendingQuestions(circleId.value),
+      ])
+      trendDays.value = trendRes.status === 'fulfilled' ? fillTrendDays(trendRes.value, 30) : null
+      churn.value = churnRes.status === 'fulfilled' ? churnRes.value : null
+      pendingQuestions.value = pqRes.status === 'fulfilled' ? pqRes.value : null
     } else {
       contributors.value = []
       hotPosts.value = []
+      trendDays.value = null
+      churn.value = null
+      pendingQuestions.value = null
     }
   } catch (e) {
     error.value = (e as Error)?.message || '加载失败'
@@ -108,6 +169,11 @@ async function refresh() {
 function openPost(id: string) {
   if (!id) return
   navigateTo(`/pkg-circle/circles/post?id=${id}&circleId=${circleId.value}`)
+}
+// 跳转到提问详情页（圈主可在详情页直接回答/拒答）
+function openQuestion(id: string) {
+  if (!id) return
+  navigateTo(`/pkg-circle/circles/question-detail?id=${id}`)
 }
 
 onLoad((query) => {
@@ -143,6 +209,23 @@ onLoad((query) => {
     </view>
 
     <scroll-view v-else scroll-y class="db-body">
+      <!-- 圈子健康度（前端纯函数用 overview 真实数据合成，权重见 lib 注释） -->
+      <view v-if="health" class="db-health">
+        <view class="db-health-score-wrap">
+          <text class="db-health-score" :style="{ color: HEALTH_COLORS[health.level] }">{{ health.score }}</text>
+          <text class="db-health-unit">分</text>
+        </view>
+        <view class="db-health-info">
+          <view class="db-health-head">
+            <text class="db-health-title">圈子健康度</text>
+            <view class="db-health-track">
+              <view class="db-health-fill" :style="{ width: health.score + '%', background: HEALTH_COLORS[health.level] }" />
+            </view>
+          </view>
+          <text class="db-health-comment">{{ health.comment }}</text>
+        </view>
+      </view>
+
       <!-- 概览卡片 -->
       <view class="db-kpis">
         <view v-for="k in KPI_META" :key="k.key" class="db-kpi">
@@ -154,6 +237,83 @@ onLoad((query) => {
             <text class="db-kpi-value">{{ fmtNum(overview?.[k.key] || 0) }}</text>
           </view>
         </view>
+      </view>
+
+      <!-- 近30天趋势（接口失败整块隐藏；有接口但全 0 展示轻空态） -->
+      <view v-if="trendDays" class="db-card">
+        <view class="db-card-head">
+          <text class="db-card-title">近30天趋势</text>
+          <view class="db-trend-tabs">
+            <view class="db-trend-tab" :class="{ on: trendMetric === 'newMembers' }" @tap="trendMetric = 'newMembers'">
+              <text class="db-trend-tab-t" :class="{ on: trendMetric === 'newMembers' }">新增成员</text>
+            </view>
+            <view class="db-trend-tab" :class="{ on: trendMetric === 'revenue' }" @tap="trendMetric = 'revenue'">
+              <text class="db-trend-tab-t" :class="{ on: trendMetric === 'revenue' }">收入</text>
+            </view>
+          </view>
+        </view>
+        <template v-if="trendHasData">
+          <text class="db-trend-total">
+            近30天{{ trendMetric === 'newMembers' ? '新增成员' : '入圈收入' }}合计
+            {{ trendMetric === 'newMembers' ? fmtNum(trendTotal) + ' 人' : '¥' + fmtNum(trendTotal) }}
+          </text>
+          <view class="db-chart">
+            <view
+              v-for="(b, i) in trendBars"
+              :key="b.date"
+              class="db-bar"
+              :class="{ last: i === trendBars.length - 1 }"
+              :style="{ height: b.percent + '%' }"
+            />
+          </view>
+          <view class="db-chart-axis">
+            <text class="db-axis-t">{{ trendAxis.start }}</text>
+            <text class="db-axis-t">{{ trendAxis.end }}</text>
+          </view>
+        </template>
+        <view v-else class="db-empty"><text class="db-empty-t">近30天暂无新增与收入</text></view>
+      </view>
+
+      <!-- 待回复提问入口卡（无待回复则隐藏，避免噪音） -->
+      <view v-if="pendingQuestions && pendingQuestions.length" class="db-card">
+        <view class="db-card-head">
+          <view class="db-pq-head-l">
+            <text class="db-card-title">待回复提问</text>
+            <view class="db-pq-badge"><text class="db-pq-badge-t">{{ pendingQuestions.length }}</text></view>
+          </view>
+          <text class="db-pq-tip">及时回复可提升口碑</text>
+        </view>
+        <view class="db-list">
+          <view v-for="q in pendingQuestions" :key="q.id" class="db-pq-item" @tap="openQuestion(q.id)">
+            <view class="db-pq-info">
+              <text class="db-pq-title">{{ q.title }}</text>
+              <text class="db-pq-meta">{{ q.askerName }} · 悬赏 {{ q.priceCoin }} 币</text>
+            </view>
+            <app-icon name="chevron-right" :size="28" color="#bbbbbb" />
+          </view>
+        </view>
+      </view>
+
+      <!-- 流失预警（近14天不活跃；无预警或接口失败则隐藏） -->
+      <view v-if="churn && churn.count > 0" class="db-churn">
+        <view class="db-churn-head">
+          <app-icon name="alert-triangle" :size="30" color="#FA8C16" />
+          <text class="db-churn-title">流失预警</text>
+          <view class="db-churn-count"><text class="db-churn-count-t">{{ churn.count }} 人</text></view>
+        </view>
+        <view class="db-churn-list">
+          <view v-for="m in churn.atRisk.slice(0, 5)" :key="m.userId" class="db-churn-item">
+            <view class="db-churn-avatar">
+              <image v-if="m.avatar" lazy-load class="db-churn-avatar-img" :src="m.avatar" mode="aspectFill" />
+              <text v-else class="db-churn-avatar-t">{{ m.name[0] }}</text>
+            </view>
+            <view class="db-churn-info">
+              <text class="db-churn-name">{{ m.name }}</text>
+              <text class="db-churn-days">近14天无发帖/评论</text>
+            </view>
+          </view>
+        </view>
+        <text v-if="churn.count > 5" class="db-churn-more">另有 {{ churn.count - 5 }} 位成员近期不活跃</text>
       </view>
 
       <!-- 活跃贡献者 -->
@@ -277,8 +437,10 @@ onLoad((query) => {
 .db-churn-count-t { font-size: 20rpx; color: #ffffff; }
 .db-churn-list { display: flex; flex-direction: column; gap: 12rpx; }
 .db-churn-item { display: flex; align-items: center; gap: 16rpx; padding: 16rpx; background: rgba(255,255,255,0.6); border-radius: 16rpx; }
-.db-churn-avatar { width: 56rpx; height: 56rpx; border-radius: 999rpx; background: #faf8f5; display: flex; align-items: center; justify-content: center; }
+.db-churn-avatar { width: 56rpx; height: 56rpx; border-radius: 999rpx; background: #faf8f5; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.db-churn-avatar-img { width: 100%; height: 100%; }
 .db-churn-avatar-t { font-size: 24rpx; color: #999999; }
+.db-churn-more { display: block; margin-top: 12rpx; font-size: 22rpx; color: #d48806; text-align: center; }
 .db-churn-info { flex: 1; }
 .db-churn-name { display: block; font-size: 26rpx; color: #2c2c2c; }
 .db-churn-days { display: block; font-size: 22rpx; color: #999999; margin-top: 2rpx; }
@@ -293,6 +455,28 @@ onLoad((query) => {
 .db-revenue-track { height: 16rpx; background: #f5f5f5; border-radius: 999rpx; overflow: hidden; }
 .db-revenue-fill { height: 100%; border-radius: 999rpx; }
 .db-spacer { height: 40rpx; }
+/* 健康度分数卡 */
+.db-health { display: flex; align-items: center; gap: 28rpx; background: #ffffff; border-radius: 24rpx; padding: 28rpx 24rpx; box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.04); margin-bottom: 24rpx; }
+.db-health-score-wrap { display: flex; align-items: baseline; flex-shrink: 0; }
+.db-health-score { font-size: 64rpx; font-weight: 700; line-height: 1; }
+.db-health-unit { font-size: 22rpx; color: #999999; margin-left: 4rpx; }
+.db-health-info { flex: 1; min-width: 0; }
+.db-health-head { display: flex; align-items: center; gap: 16rpx; margin-bottom: 10rpx; }
+.db-health-title { font-size: 28rpx; font-weight: 600; color: #2c2c2c; flex-shrink: 0; }
+.db-health-track { flex: 1; height: 12rpx; background: #f5f5f5; border-radius: 999rpx; overflow: hidden; }
+.db-health-fill { height: 100%; border-radius: 999rpx; transition: width 0.4s ease; }
+.db-health-comment { display: block; font-size: 22rpx; color: #999999; }
+/* 近30天趋势 */
+.db-trend-total { display: block; font-size: 22rpx; color: #666666; margin-bottom: 16rpx; }
+/* 待回复提问入口卡 */
+.db-pq-head-l { display: flex; align-items: center; gap: 12rpx; }
+.db-pq-badge { min-width: 36rpx; height: 36rpx; padding: 0 10rpx; border-radius: 999rpx; background: var(--brand); display: flex; align-items: center; justify-content: center; }
+.db-pq-badge-t { font-size: 20rpx; font-weight: 600; color: #ffffff; }
+.db-pq-tip { font-size: 22rpx; color: #999999; }
+.db-pq-item { display: flex; align-items: center; gap: 12rpx; padding: 16rpx; background: #faf8f5; border-radius: 16rpx; }
+.db-pq-info { flex: 1; min-width: 0; }
+.db-pq-title { display: block; font-size: 26rpx; color: #2c2c2c; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.db-pq-meta { display: block; font-size: 22rpx; color: #999999; margin-top: 4rpx; }
 .db-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20rpx; }
 .db-state-t { font-size: 26rpx; color: #999999; }
 .db-state-btn { margin-top: 8rpx; padding: 14rpx 48rpx; background: var(--brand); border-radius: 999rpx; }

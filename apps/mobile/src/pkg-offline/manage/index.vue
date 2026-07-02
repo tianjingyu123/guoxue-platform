@@ -82,6 +82,64 @@
           <view class="mg-withdraw" @tap="onWithdraw"><text class="mg-withdraw-text">申请提现</text></view>
         </view>
 
+        <!-- 待办与预警（三类待办均空则整块隐藏） -->
+        <view v-if="todoCount > 0" class="mg-todo-card">
+          <view class="mg-sec-head">
+            <text class="mg-sec-title">待办与预警</text>
+            <text class="mg-sec-badge">{{ todoCount }}</text>
+          </view>
+          <!-- 库存预警 → 商品管理 -->
+          <view v-for="a in stockAlerts" :key="'stock-' + a.id" class="mg-todo-row" @tap="goProducts">
+            <view class="mg-todo-dot warn"><app-icon name="alert-triangle" :size="14" color="#ea580c" /></view>
+            <view class="mg-todo-main">
+              <text class="mg-todo-text">「{{ a.name }}」库存告急</text>
+              <text class="mg-todo-sub">仅剩 {{ a.stock }} 件 · 建议尽快补货</text>
+            </view>
+            <app-icon name="chevron-right" :size="16" color="#c9beb2" />
+          </view>
+          <!-- 待确认讲师预约 → 讲师预约管理 -->
+          <view v-for="b in pendingBookings" :key="'booking-' + b.id" class="mg-todo-row" @tap="goTeachers">
+            <view class="mg-todo-dot book"><app-icon name="users" :size="14" color="#9333ea" /></view>
+            <view class="mg-todo-main">
+              <text class="mg-todo-text">{{ b.teacher?.name || '讲师' }} 的预约待确认</text>
+              <text class="mg-todo-sub">预约日期 {{ fmtDate(b.bookingDate) }}</text>
+            </view>
+            <app-icon name="chevron-right" :size="16" color="#c9beb2" />
+          </view>
+          <!-- 即将开课（7天内） → 课程管理 -->
+          <view v-for="c in upcomingCourses" :key="'upcoming-' + c.id" class="mg-todo-row" @tap="goCourses">
+            <view class="mg-todo-dot soon"><app-icon name="clock" :size="14" color="#16a34a" /></view>
+            <view class="mg-todo-main">
+              <text class="mg-todo-text">「{{ c.title }}」即将开课</text>
+              <text class="mg-todo-sub">{{ fmtCourseTime(c.startTime) }} · {{ c.location }} · 已报名 {{ c._count?.registrations ?? 0 }} 人</text>
+            </view>
+            <app-icon name="chevron-right" :size="16" color="#c9beb2" />
+          </view>
+        </view>
+
+        <!-- 热销排行（课程/商品均空则整块隐藏） -->
+        <view v-if="courseRanking.length || productRanking.length" class="mg-rank-card">
+          <view class="mg-sec-head">
+            <text class="mg-sec-title">热销排行</text>
+          </view>
+          <view v-if="courseRanking.length" class="mg-rank-group">
+            <text class="mg-rank-group-title">最受欢迎课程</text>
+            <view v-for="(r, i) in courseRanking" :key="'crank-' + r.id" class="mg-rank-row">
+              <text class="mg-rank-no" :class="{ top: i < 3 }">{{ i + 1 }}</text>
+              <text class="mg-rank-name">{{ r.title }}</text>
+              <text class="mg-rank-val">{{ r.registrations }} 人报名</text>
+            </view>
+          </view>
+          <view v-if="productRanking.length" class="mg-rank-group">
+            <text class="mg-rank-group-title">热销商品</text>
+            <view v-for="(r, i) in productRanking" :key="'prank-' + r.id" class="mg-rank-row">
+              <text class="mg-rank-no" :class="{ top: i < 3 }">{{ i + 1 }}</text>
+              <text class="mg-rank-name">{{ r.name }}</text>
+              <text class="mg-rank-val">售 {{ r.sales }} 单 · ¥{{ num(r.amount).toLocaleString() }}</text>
+            </view>
+          </view>
+        </view>
+
         <!-- 功能宫格 -->
         <view class="mg-grid">
           <view v-for="m in modules" :key="m.key" class="mg-grid-item" @tap="onModule(m)">
@@ -109,11 +167,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
-import { offlineManageApi, stationStatusLabel, num, type MyStation, type DashboardStats } from '@/lib/offline-data'
+import {
+  offlineManageApi, stationStatusLabel, num, fmtDate, fmtCourseTime,
+  type MyStation, type DashboardStats,
+  type StockAlertItem, type PendingBookingItem, type UpcomingCourseItem, type CourseRankItem, type ProductRankItem,
+} from '@/lib/offline-data'
 
 const statusBarHeight = ref(0)
 try {
@@ -125,6 +187,14 @@ const loading = ref(true)
 const errMsg = ref('')
 const station = ref<MyStation | null>(null)
 const stats = ref<DashboardStats | null>(null)
+
+// 待办与预警（三类）+ 热销排行（课程/商品 TOP5）
+const stockAlerts = ref<StockAlertItem[]>([])
+const pendingBookings = ref<PendingBookingItem[]>([])
+const upcomingCourses = ref<UpcomingCourseItem[]>([])
+const courseRanking = ref<CourseRankItem[]>([])
+const productRanking = ref<ProductRankItem[]>([])
+const todoCount = computed(() => stockAlerts.value.length + pendingBookings.value.length + upcomingCourses.value.length)
 
 const modules = [
   { key: 'courses', label: '课程管理', icon: 'graduation-cap', color: '#c41e3a', bg: 'rgba(196,30,58,0.1)' },
@@ -141,7 +211,26 @@ async function load() {
   try {
     const s = await offlineManageApi.getMyStation()
     station.value = s
-    if (s) stats.value = await offlineManageApi.getDashboard(s.id)
+    if (s) {
+      // 主数据 + 待办预警/排行并行拉取；后 5 项用 allSettled 分项容错，单项失败置空态不拖垮整页
+      const [dashboard, ...extras] = await Promise.allSettled([
+        offlineManageApi.getDashboard(s.id),
+        offlineManageApi.getStockAlerts(),
+        offlineManageApi.getPendingBookings(),
+        offlineManageApi.getUpcomingCourses(),
+        offlineManageApi.getCourseRanking(),
+        offlineManageApi.getProductRanking(),
+      ])
+      // 经营概览是页面主体：失败仍走整页错误态（保持既有机制）
+      if (dashboard.status === 'rejected') throw dashboard.reason
+      stats.value = dashboard.value as DashboardStats
+      const pick = <T>(r: PromiseSettledResult<unknown>): T[] => (r.status === 'fulfilled' && Array.isArray(r.value) ? (r.value as T[]) : [])
+      stockAlerts.value = pick<StockAlertItem>(extras[0])
+      pendingBookings.value = pick<PendingBookingItem>(extras[1])
+      upcomingCourses.value = pick<UpcomingCourseItem>(extras[2])
+      courseRanking.value = pick<CourseRankItem>(extras[3]).slice(0, 5)
+      productRanking.value = pick<ProductRankItem>(extras[4]).slice(0, 5)
+    }
   } catch (e) {
     const msg = (e as Error)?.message
     errMsg.value = msg?.includes('未登录') ? '请先登录' : (msg || '加载失败')
@@ -162,6 +251,11 @@ function onModule(m: { key: string }) {
   else if (m.key === 'marketing') uni.showToast({ title: '营销工具即将开放', icon: 'none' })
   else if (m.key === 'income') uni.showToast({ title: '收益明细与提现即将开放', icon: 'none' })
 }
+// 待办条目跳转对应管理页（复用宫格既有路径）
+function goProducts() { if (station.value) navigateTo(`/offline/manage/products?stationId=${station.value.id}`) }
+function goTeachers() { if (station.value) navigateTo(`/offline/manage/teachers?stationId=${station.value.id}`) }
+function goCourses() { if (station.value) navigateTo(`/offline/manage/courses?stationId=${station.value.id}`) }
+
 function onWithdraw() { uni.showToast({ title: '提现功能即将开放', icon: 'none' }) }
 function onOperator() { uni.showToast({ title: '高级运营商推广权益即将开放', icon: 'none' }) }
 </script>
@@ -211,6 +305,31 @@ function onOperator() { uni.showToast({ title: '高级运营商推广权益即�
 .mg-income-val { font-size: 15px; font-weight: 600; color: #2a1f1a; }
 .mg-withdraw { margin-top: 10px; height: 40px; background: rgba(154,46,37,0.08); border-radius: 8px; display: flex; align-items: center; justify-content: center; }
 .mg-withdraw-text { font-size: 14px; color: #9a2e25; font-weight: 500; }
+
+/* 待办与预警 / 热销排行 通用区块头 */
+.mg-sec-head { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.mg-sec-title { font-size: 15px; font-weight: 700; color: #2a1f1a; }
+.mg-sec-badge { min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: #9a2e25; color: #fff; font-size: 11px; font-weight: 600; display: flex; align-items: center; justify-content: center; }
+
+.mg-todo-card { margin: 12px 16px; padding: 16px; background: #fff; border-radius: 14px; }
+.mg-todo-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid #f3ede2; }
+.mg-todo-row:last-child { border-bottom: none; padding-bottom: 2px; }
+.mg-todo-dot { width: 30px; height: 30px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.mg-todo-dot.warn { background: #fff7ed; }
+.mg-todo-dot.book { background: #faf5ff; }
+.mg-todo-dot.soon { background: #f0fdf4; }
+.mg-todo-main { flex: 1; min-width: 0; }
+.mg-todo-text { display: block; font-size: 13px; font-weight: 500; color: #2a1f1a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mg-todo-sub { display: block; font-size: 11px; color: #9ca3af; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.mg-rank-card { margin: 12px 16px; padding: 16px; background: #fff; border-radius: 14px; }
+.mg-rank-group { margin-top: 10px; }
+.mg-rank-group-title { display: block; font-size: 12px; color: #6b5d4f; font-weight: 600; margin-bottom: 4px; }
+.mg-rank-row { display: flex; align-items: center; gap: 10px; padding: 7px 0; }
+.mg-rank-no { width: 20px; height: 20px; border-radius: 6px; background: #f3ede2; color: #6b5d4f; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.mg-rank-no.top { background: rgba(154,46,37,0.1); color: #9a2e25; }
+.mg-rank-name { flex: 1; min-width: 0; font-size: 13px; color: #2a1f1a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mg-rank-val { font-size: 11px; color: #9ca3af; flex-shrink: 0; }
 
 .mg-grid { margin: 12px 16px; padding: 16px 8px; background: #fff; border-radius: 14px; display: flex; flex-wrap: wrap; }
 .mg-grid-item { width: 33.33%; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 12px 0; }

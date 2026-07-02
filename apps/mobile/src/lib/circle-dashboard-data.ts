@@ -11,8 +11,10 @@
  *     无点赞数字段 → likes 不提供。
  * - GET /circles/:id/hot-content?limit=5    → [{ id,title,user:{nickname},likeCount,commentCount,hotScore,createdAt }]
  *     无浏览量字段 → views 不提供。
- *
- * 后端无「近30天趋势」与「流失预警」端点 → 页面整块删除，绝不用随机数/假数据填充。
+ * - GET /circles/:id/dashboard/trends            → { trends: [{ date, newMembers, revenue }] }（近30天，仅含有数据的日期）
+ * - GET /circles/:id/dashboard/churn-warning     → { atRisk: [{ userId,nickname,avatar }], count }（近14天不活跃成员）
+ * - GET /circles/:id/dashboard/pending-questions → { questions: [{ id,questionTitle,question,priceCoin,createdAt,asker:{id,nickname} }] }
+ *     后端无「不活跃天数」逐人字段 → 仅展示名单与总数，不编造天数。
  */
 import { apiGet } from '@/utils/request'
 
@@ -51,6 +53,41 @@ export interface DashboardHotPost {
   commentCount: number
 }
 
+/** 近30天趋势单日数据点 */
+export interface DashboardTrendPoint {
+  /** 日期（YYYY-MM-DD） */
+  date: string
+  /** 当日新增成员数 */
+  newMembers: number
+  /** 当日入圈费收入（元） */
+  revenue: number
+}
+
+/** 流失预警成员 */
+export interface DashboardChurnMember {
+  userId: string
+  name: string
+  avatar: string
+}
+
+/** 流失预警（近14天无发帖/评论的成员） */
+export interface DashboardChurnWarning {
+  /** 预警成员名单（后端最多返回 20 人） */
+  atRisk: DashboardChurnMember[]
+  /** 不活跃成员总数 */
+  count: number
+}
+
+/** 待回复付费提问 */
+export interface DashboardPendingQuestion {
+  id: string
+  title: string
+  /** 提问悬赏（虚拟币） */
+  priceCoin: number
+  askerName: string
+  createdAt: string
+}
+
 // ─── 后端原始返回类型（仅声明本层用到的字段） ───
 interface RawOverview {
   memberCount?: number
@@ -76,6 +113,24 @@ interface RawHotPost {
   user?: { nickname?: string | null } | null
   likeCount?: number
   commentCount?: number
+}
+interface RawTrendPoint {
+  date?: string
+  newMembers?: number
+  revenue?: number | string
+}
+interface RawChurnMember {
+  userId?: string
+  nickname?: string | null
+  avatar?: string | null
+}
+interface RawPendingQuestion {
+  id?: string
+  questionTitle?: string | null
+  question?: string | null
+  priceCoin?: number
+  createdAt?: string
+  asker?: { id?: string; nickname?: string | null } | null
 }
 
 // ─── 工具 ───
@@ -134,4 +189,106 @@ export const dashboardApi = {
       commentCount: num(p.commentCount),
     }))
   },
+
+  /** 近30天成员增长+收入趋势（需 circleId；后端仅返回有数据的日期，补齐由页面/纯函数处理） */
+  async trends(circleId: string): Promise<DashboardTrendPoint[]> {
+    const raw = await apiGet<{ trends?: RawTrendPoint[] }>(`/circles/${circleId}/dashboard/trends`)
+    const list = Array.isArray(raw?.trends) ? raw.trends : []
+    return list.map((t) => ({
+      date: t.date || '',
+      newMembers: num(t.newMembers),
+      revenue: num(t.revenue),
+    }))
+  },
+
+  /** 成员流失预警：近14天无发帖/评论的成员（需 circleId） */
+  async churnWarning(circleId: string): Promise<DashboardChurnWarning> {
+    const raw = await apiGet<{ atRisk?: RawChurnMember[]; count?: number }>(
+      `/circles/${circleId}/dashboard/churn-warning`,
+    )
+    const list = Array.isArray(raw?.atRisk) ? raw.atRisk : []
+    return {
+      atRisk: list.map((m) => ({
+        userId: m.userId || '',
+        name: m.nickname || '匿名用户',
+        avatar: m.avatar || '',
+      })),
+      count: num(raw?.count),
+    }
+  },
+
+  /** 待回复付费提问（需 circleId；后端最多返回 20 条 PENDING） */
+  async pendingQuestions(circleId: string): Promise<DashboardPendingQuestion[]> {
+    const raw = await apiGet<{ questions?: RawPendingQuestion[] }>(
+      `/circles/${circleId}/dashboard/pending-questions`,
+    )
+    const list = Array.isArray(raw?.questions) ? raw.questions : []
+    return list.map((q) => ({
+      id: q.id || '',
+      // 优先用标题，无标题则截取正文前 40 字兜底
+      title: q.questionTitle || (q.question || '').slice(0, 40) || '无标题提问',
+      priceCoin: num(q.priceCoin),
+      askerName: q.asker?.nickname || '匿名用户',
+      createdAt: q.createdAt || '',
+    }))
+  },
+}
+
+// ─── 纯函数：趋势补齐 & 健康度合成 ───
+
+/**
+ * 将后端稀疏的趋势点（仅含有数据的日期）补齐为连续 N 天序列（缺失日填 0）。
+ * 纯函数：不依赖外部状态，方便单测与图表按固定天数渲染。
+ */
+export function fillTrendDays(points: DashboardTrendPoint[], days = 30): DashboardTrendPoint[] {
+  const map = new Map(points.map((p) => [p.date, p]))
+  const result: DashboardTrendPoint[] = []
+  const today = new Date()
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date(today)
+    d.setDate(d.getDate() - i)
+    const key = d.toISOString().slice(0, 10)
+    const hit = map.get(key)
+    result.push({ date: key, newMembers: hit?.newMembers || 0, revenue: hit?.revenue || 0 })
+  }
+  return result
+}
+
+/** 圈子健康度结果 */
+export interface CircleHealth {
+  /** 0-100 综合分 */
+  score: number
+  /** 一句话评语 */
+  comment: string
+  /** 分档：excellent/good/normal/warn */
+  level: 'excellent' | 'good' | 'normal' | 'warn'
+}
+
+/**
+ * 圈子健康度合成（纯函数，仅用后端 overview 真实字段加权，前端不编造任何数据）。
+ *
+ * 权重说明（合计 100 分）：
+ * - 活跃率 55 分：活跃成员/总成员。社群的生命线是活跃，权重最大；活跃率 100% 得满分。
+ * - 增长势能 30 分：本月新增/总成员，按 10% 封顶折算满分（月增 10% 已是相当健康的拉新速度，
+ *   封顶可防止小圈子靠一两个新人虚高）。
+ * - 规模分 15 分：总成员/200 封顶折算满分。适度奖励规模，避免 3 人小圈拿到与千人圈同等的分数。
+ */
+export function computeCircleHealth(ov: DashboardOverview): CircleHealth {
+  // 无成员：直接 0 分，给出起步引导
+  if (!ov || ov.memberCount <= 0) {
+    return { score: 0, comment: '圈子尚无成员，先邀请首批种子用户吧', level: 'warn' }
+  }
+  // 活跃率（0~1）
+  const activeRate = Math.min(ov.activeMembers / ov.memberCount, 1)
+  // 增长势能：本月新增占比，10% 封顶记满
+  const growthRate = Math.min(ov.monthNewMembers / ov.memberCount / 0.1, 1)
+  // 规模分：200 人封顶记满
+  const scaleRate = Math.min(ov.memberCount / 200, 1)
+
+  const score = Math.round(activeRate * 55 + growthRate * 30 + scaleRate * 15)
+
+  if (score >= 85) return { score, comment: '圈子生机勃勃，保持当前内容与运营节奏', level: 'excellent' }
+  if (score >= 70) return { score, comment: '整体健康，可加强拉新或激活沉睡成员再上一层', level: 'good' }
+  if (score >= 50) return { score, comment: '活跃度有提升空间，试试发起话题、活动或答疑互动', level: 'normal' }
+  return { score, comment: '圈子活跃度偏低，建议尽快策划活动唤醒成员', level: 'warn' }
 }

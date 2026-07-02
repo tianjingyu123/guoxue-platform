@@ -281,6 +281,40 @@ export interface SignedLecturer {
 }
 export type LecturerLevelStr = 'NONE' | 'PREPARATORY' | 'JUNIOR' | 'SENIOR' | 'SIGNED'
 
+// ===== 工作台待办与排行（/offline/dashboard/* 由后端从 JWT 反查驿站，无需传 stationId）=====
+export interface StockAlertItem {
+  id: string
+  name: string
+  stock: number
+  price: string | number
+}
+export interface PendingBookingItem {
+  id: string
+  teacherId: string
+  bookingDate: string
+  createdAt: string
+  teacher?: { name: string } | null
+}
+export interface UpcomingCourseItem {
+  id: string
+  title: string
+  startTime: string
+  location: string
+  _count?: { registrations: number }
+}
+export interface CourseRankItem {
+  id: string
+  title: string
+  cover: string | null
+  registrations: number
+}
+export interface ProductRankItem {
+  id: string
+  name: string
+  sales: number
+  amount: string | number | null
+}
+
 export interface CreateCoursePayload {
   stationId: string
   title: string
@@ -360,5 +394,37 @@ export const offlineManageApi = {
   async getStationTeachers(stationId: string): Promise<StationTeacherLite[]> {
     const d = await apiGet<{ teachers: StationTeacherLite[] }>(`/offline/stations/${stationId}/teachers`)
     return d?.teachers || []
+  },
+
+  // ===== 工作台待办与排行（错误向上抛，由页面分项容错）=====
+
+  /** 库存预警商品（库存<=5）GET /offline/dashboard/stock-alerts → {alerts,count} */
+  async getStockAlerts(): Promise<StockAlertItem[]> {
+    const d = await apiGet<{ alerts: StockAlertItem[]; count: number }>('/offline/dashboard/stock-alerts')
+    return d?.alerts || []
+  },
+
+  /** 待确认讲师预约 GET /offline/dashboard/pending-bookings → {bookings} */
+  async getPendingBookings(): Promise<PendingBookingItem[]> {
+    const d = await apiGet<{ bookings: PendingBookingItem[] }>('/offline/dashboard/pending-bookings')
+    return d?.bookings || []
+  },
+
+  /** 即将开课（未来7天）GET /offline/dashboard/upcoming-courses → {courses} */
+  async getUpcomingCourses(): Promise<UpcomingCourseItem[]> {
+    const d = await apiGet<{ courses: UpcomingCourseItem[] }>('/offline/dashboard/upcoming-courses')
+    return d?.courses || []
+  },
+
+  /** 最受欢迎课程排行 GET /offline/dashboard/course-ranking → {ranking} */
+  async getCourseRanking(): Promise<CourseRankItem[]> {
+    const d = await apiGet<{ ranking: CourseRankItem[] }>('/offline/dashboard/course-ranking')
+    return d?.ranking || []
+  },
+
+  /** 热销商品排行 GET /offline/dashboard/product-ranking → {ranking} */
+  async getProductRanking(): Promise<ProductRankItem[]> {
+    const d = await apiGet<{ ranking: ProductRankItem[] }>('/offline/dashboard/product-ranking')
+    return d?.ranking || []
   },
 }
