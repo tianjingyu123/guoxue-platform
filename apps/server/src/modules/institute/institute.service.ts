@@ -72,6 +72,11 @@ export class InstituteService {
     const institute = await this.prisma.institute.findFirst();
     if (!institute) throw new BusinessException(ErrorCode.NOT_FOUND, "研究院尚未建立");
 
+    // 越权防护：管理层角色只能由现任管理层经 assignMemberRole 任命，禁止自助申请时自封
+    if (MGMT_ROLES.includes(dto.role as InstituteRole)) {
+      throw new BusinessException(ErrorCode.FORBIDDEN, "管理层角色（主席/副主席/秘书长）只能由现任管理层任命，不能自助申请");
+    }
+
     // 默认一年有效期
     const expireAt = new Date(`${dto.joinYear}-12-31T23:59:59`);
 
@@ -192,9 +197,10 @@ export class InstituteService {
   private async assertManagement(userId: string) {
     const member = await this.prisma.instituteMember.findUnique({
       where: { userId },
-      select: { id: true, instituteId: true, role: true },
+      select: { id: true, instituteId: true, role: true, status: true },
     });
-    if (!member || !MGMT_ROLES.includes(member.role as InstituteRole)) {
+    // 必须是 ACTIVE 的管理层——防止 PENDING 记录（可自助创建）绕过授权
+    if (!member || member.status !== "ACTIVE" || !MGMT_ROLES.includes(member.role as InstituteRole)) {
       throw new BusinessException(ErrorCode.FORBIDDEN, "仅研究院管理层可操作");
     }
     return member;
@@ -242,6 +248,7 @@ export class InstituteService {
     await this.assertManagement(userId);
     const member = await this.prisma.instituteMember.findUnique({ where: { id: memberId } });
     if (!member) throw new BusinessException(ErrorCode.NOT_FOUND, "成员不存在");
+    if (member.userId === userId) throw new BusinessException(ErrorCode.FORBIDDEN, "不能审批自己的成员申请");
 
     return this.prisma.instituteMember.update({
       where: { id: memberId },
@@ -339,6 +346,7 @@ export class InstituteService {
     await this.assertManagement(userId);
     const existing = await this.prisma.instituteMember.findUnique({ where: { id: memberId } });
     if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "书院成员不存在");
+    if (existing.userId === userId) throw new BusinessException(ErrorCode.FORBIDDEN, "不能推荐自己进入人才库");
     return this.prisma.instituteMember.update({
       where: { id: memberId },
       data: { lecturerLevel },

@@ -60,6 +60,22 @@ describe("InstituteService", () => {
         data: expect.objectContaining({ userId: "u1", tasksRequired: 3 }),
       }));
     });
+
+    it("不能自助申请管理层角色（越权防护）", async () => {
+      prisma.instituteMember.findUnique.mockResolvedValue(null);
+      await expect(svc.join("u1", { role: "PRESIDENT", joinYear: 2026 })).rejects.toThrow(BusinessException);
+      expect(prisma.instituteMember.create).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("approveMember（自审自批防护）", () => {
+    it("不能审批自己的成员申请", async () => {
+      prisma.instituteMember.findUnique
+        .mockResolvedValueOnce({ id: "mgr", instituteId: "i1", role: "PRESIDENT", status: "ACTIVE" })
+        .mockResolvedValueOnce({ id: "m1", userId: "u1", status: "PENDING" });
+      await expect(svc.approveMember("u1", "m1", "ACTIVE")).rejects.toThrow(BusinessException);
+      expect(prisma.instituteMember.update).not.toHaveBeenCalled();
+    });
   });
 
   describe("getMember", () => {
@@ -143,7 +159,7 @@ describe("InstituteService", () => {
 
   describe("createEvent / listEvents", () => {
     it("创建活动", async () => {
-      prisma.instituteMember.findUnique.mockResolvedValue({ id: "m1", instituteId: "i1", role: "PRESIDENT" });
+      prisma.instituteMember.findUnique.mockResolvedValue({ id: "m1", instituteId: "i1", role: "PRESIDENT", status: "ACTIVE" });
       prisma.instituteEvent.create.mockResolvedValue({ id: "e1", title: "讲座" });
       const result = await svc.createEvent("u1", { title: "讲座", type: "LECTURE", scheduleAt: new Date().toISOString() });
       expect(result.id).toBe("e1");
