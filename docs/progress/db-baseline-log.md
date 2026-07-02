@@ -46,3 +46,19 @@
 | UPDATE "public"."Post" SET "status" = $1, "scheduledAt" =  | 2174 | 55 | 0.025 | 13044 | 0 | 100.0 |
 | SELECT $1 | 8455 | 47 | 0.006 | 0 | 0 | — |
 | UPDATE "public"."Course" SET "auditStatus" = $1, "createdA | 2174 | 44 | 0.02 | 2174 | 0 | 100.0 |
+
+## 2026-07-02T16:00:02.753Z
+基线重置于 Mon Jun 29 2026 20:41:38 GMT-0700 (Pacific Daylight Time) ｜ 全库缓存命中率 98.05%
+
+| query | calls | total_ms | mean_ms | hit | read | hit% |
+|---|--:|--:|--:|--:|--:|--:|
+| SELECT "public"."ClassicChapter"."id", "public"."ClassicCh | 52167 | 119787 | 2.296 | 2570764 | 1172057 | 68.7 |
+| UPDATE "public"."Content" SET "status" = $1, "scheduledAt" | 3545 | 478 | 0.135 | 88600 | 26 | 100.0 |
+| INSERT INTO "public"."AuditLog" ("id","userId","executor", | 96 | 272 | 2.831 | 8944 | 201 | 97.8 |
+| INSERT INTO "public"."ConfigSystem" ("id","configKey","con | 159 | 168 | 1.055 | 4306 | 89 | 98.0 |
+| SELECT "public"."Article"."id", "public"."Article"."viewCo | 709 | 124 | 0.174 | 13716 | 68 | 99.5 |
+| CREATE INDEX "ClassicChapter_deletedAt_idx" ON "ClassicCha | 1 | 115 | 115.175 | 21702 | 15 | 99.9 |
+| UPDATE "public"."Post" SET "status" = $1, "scheduledAt" =  | 3545 | 93 | 0.026 | 21264 | 6 | 100.0 |
+| SELECT $1 | 13791 | 76 | 0.005 | 0 | 0 | — |
+| UPDATE "public"."Course" SET "auditStatus" = $1, "createdA | 3545 | 73 | 0.021 | 3544 | 1 | 100.0 |
+| SELECT "public"."AudioCallRecord"."id", "public"."AudioCal | 3544 | 68 | 0.019 | 5454 | 0 | 100.0 |
