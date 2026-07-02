@@ -47,6 +47,14 @@ export class PaipanController {
   }
 
   /** 八字排盘 GET 接口（兼容前端 /paipan/bazi/calculate 调用） */
+  /** 校验八字数值入参：非有限整数或越界时，有 fallback 回退默认、否则抛 400（防 NaN 直入排盘引擎致 500） */
+  private parseBaziInt(v: unknown, min: number, max: number, name: string, fallback?: number): number {
+    const n = Number(v);
+    if (Number.isInteger(n) && n >= min && n <= max) return n;
+    if (fallback !== undefined) return fallback;
+    throw new BusinessException(ErrorCode.BAD_REQUEST, `参数 ${name} 无效`);
+  }
+
   @Get("bazi/calculate")
   @UseGuards(StrictRedisThrottleGuard)
   @Header("Cache-Control", "public, max-age=600")
@@ -60,8 +68,11 @@ export class PaipanController {
     @Query("gender") gender?: string,
   ) {
     return this.paipan.calcBaziPreview({
-      year: +(year || 1983), month: +(month || 6), day: +(day || 18),
-      hour: +(hour || 14), minute: +(minute || 0),
+      year: this.parseBaziInt(year, 1900, 2100, "year", 1983),
+      month: this.parseBaziInt(month, 1, 12, "month", 6),
+      day: this.parseBaziInt(day, 1, 31, "day", 18),
+      hour: this.parseBaziInt(hour, 0, 23, "hour", 14),
+      minute: this.parseBaziInt(minute, 0, 59, "minute", 0),
       gender: (gender === "女" ? "女" : "男"),
     } as BaziInputDto);
   }
@@ -80,8 +91,11 @@ export class PaipanController {
     @Query("gender") gender?: string,
   ) {
     return this.paipan.calcBaziPreview({
-      year: +year, month: +month, day: +day, hour: +hour,
-      minute: minute ? +minute : 0,
+      year: this.parseBaziInt(year, 1900, 2100, "year"),
+      month: this.parseBaziInt(month, 1, 12, "month"),
+      day: this.parseBaziInt(day, 1, 31, "day"),
+      hour: this.parseBaziInt(hour, 0, 23, "hour"),
+      minute: this.parseBaziInt(minute, 0, 59, "minute", 0),
       gender: (gender === "female" ? "女" : "男"),
     } as BaziInputDto);
   }
