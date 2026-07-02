@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
+import { RedisService } from "../../redis/redis.service";
 import { SystemService } from "../system/system.service";
 import { MERCHANT_CONFIG_KEYS } from "./merchant.types";
 import {
@@ -16,6 +17,7 @@ export class MerchantSettlementService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly systemService: SystemService,
+    private readonly redis: RedisService,
   ) {}
 
   /** 商家收入概览 */
@@ -63,6 +65,12 @@ export class MerchantSettlementService {
 
   /** 生成结算单：将一个周期内的已完成订单聚合为一条结算记录 */
   async generateSettlement(merchantId: string, dto: GenerateSettlementDto) {
+    // 串行化同商家的结算单生成：防并发 TOCTOU(findFirst 查重与 create 之间无原子性)生成重复结算单
+    const lockKey = `settlement:gen:${merchantId}`;
+    if (!(await this.redis.setNX(lockKey, "1", 15))) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "结算单生成处理中，请稍后再试");
+    }
+    try {
     const merchant = await this.prisma.merchant.findUnique({ where: { id: merchantId } });
     if (!merchant) throw new BusinessException(ErrorCode.MERCHANT_NOT_FOUND, "商家不存在");
 
@@ -119,6 +127,9 @@ export class MerchantSettlementService {
         status: "PENDING",
       },
     });
+    } finally {
+      await this.redis.del(lockKey);
+    }
   }
 
   /** 结算记录列表 */

@@ -1268,7 +1268,7 @@ export class ShopService {
   async refundOrder(orderId: string, reason?: string) {
     // 分布式锁防并发重复退款
     const lockKey = `refund:lock:${orderId}`;
-    const locked = await this.redis.setNX(lockKey, "1", 30);
+    const locked = await this.redis.setNX(lockKey, "1", 120); // 覆盖网关退款可能的较长耗时
     if (!locked) {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "退款正在处理中，请勿重复操作");
     }
@@ -1280,7 +1280,8 @@ export class ShopService {
       }
 
       const totalFen = Math.round(Number(order.amount) * RMB_TO_FEN);
-      const outRefundNo = `RF${Date.now()}${orderId.slice(0, 8)}`;
+      // 稳定退款单号(按订单)：并发/重试时网关据 outRefundNo 幂等去重，防锁超时后二次退款到账
+      const outRefundNo = `RF${orderId}`;
 
       // 通过支付工厂统一路由退款（新增渠道无需修改此处）
       const payMethod = order.payMethod || "WECHAT";

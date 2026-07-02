@@ -1,8 +1,14 @@
 import { Test } from "@nestjs/testing";
 import { MerchantSettlementService } from "./merchant-settlement.service";
 import { PrismaService } from "../../prisma/prisma.service";
+import { RedisService } from "../../redis/redis.service";
 import { SystemService } from "../system/system.service";
 import { BusinessException } from "../../common/business.exception";
+
+const mockRedis = {
+  setNX: jest.fn().mockResolvedValue(true),
+  del: jest.fn().mockResolvedValue(undefined),
+};
 
 const mockSystemService = {
   getConfig: jest.fn().mockResolvedValue({ configKey: "merchant_commission_rate", configValue: "0.85" }),
@@ -23,12 +29,17 @@ describe("MerchantSettlementService", () => {
         MerchantSettlementService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: SystemService, useValue: mockSystemService },
+        { provide: RedisService, useValue: mockRedis },
       ],
     }).compile();
     svc = mod.get(MerchantSettlementService);
   });
 
-  beforeEach(() => { jest.clearAllMocks(); });
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockRedis.setNX.mockResolvedValue(true);
+    mockRedis.del.mockResolvedValue(undefined);
+  });
 
   describe("getRevenueOverview", () => {
     it("返回收入概览", async () => {
