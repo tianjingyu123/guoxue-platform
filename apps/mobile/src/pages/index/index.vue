@@ -7,6 +7,7 @@ import BottomNav from '@/components/bottom-nav/bottom-nav.vue'
 import QuickEntryGrid from '@/components/home/quick-entry-grid.vue'
 import HomeBanner from '@/components/home/home-banner.vue'
 import DailyVerse from '@/components/home/daily-verse.vue'
+import DailyStudy from '@/components/home/daily-study.vue'
 import PaipanGuideCard from '@/components/home/paipan-guide-card.vue'
 import MarketingCard from '@/components/home/marketing-card.vue'
 import FeedCard from '@/components/home/feed-card.vue'
@@ -98,8 +99,11 @@ function backToTop() {
       <!-- Banner 轮播 -->
       <home-banner :banners="banners" />
 
-      <!-- 十宫格功能入口 -->
+      <!-- 金刚区功能入口（学 / 用 双分组） -->
       <quick-entry-grid />
+
+      <!-- 今日学一点（按兴趣主题每日推 3 条真实内容，失败/空整体隐藏） -->
+      <daily-study />
 
       <!-- 排盘引导大卡 -->
       <paipan-guide-card v-if="SHOW_PAIPAN_CARD" />

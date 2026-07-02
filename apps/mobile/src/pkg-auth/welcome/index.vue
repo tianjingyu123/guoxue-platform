@@ -13,7 +13,7 @@
 
       <!-- 欢迎标题 -->
       <view class="title-wrap" :class="{ 'fade-in': showTitle }">
-        <text class="title">{{ userName ? userName + '，' : '' }}欢迎来到国学世界</text>
+        <text class="title">欢迎来到国学世界</text>
       </view>
 
       <!-- Slogan -->
@@ -26,14 +26,9 @@
         hover-class="btn-hover"
         @tap="handleNavigate"
       >
-        <template v-if="loading">
-          <text class="btn-text">加载中…</text>
-        </template>
-        <template v-else>
-          <text class="btn-text">开始探索</text>
-          <AppIcon name="arrow-right" :size="16" color="#ffffff" />
-          <text class="btn-count">({{ countdown }}s)</text>
-        </template>
+        <text class="btn-text">开始探索</text>
+        <AppIcon name="arrow-right" :size="16" color="#ffffff" />
+        <text class="btn-count">({{ countdown }}s)</text>
       </view>
 
       <!-- 装饰分隔线 -->
@@ -56,6 +51,7 @@ import { ref, onMounted, onUnmounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo, reLaunch } from '@/utils/router'
 import { BRAND } from '@/lib/brand'
+import { hasSelectedInterests } from '@/utils/interests'
 
 const logoSrc = ref('/images/logo.jpg')
 const slogan = BRAND.slogan
@@ -66,30 +62,17 @@ const countdown = ref(3)
 const showTitle = ref(false)
 const showSlogan = ref(false)
 const showButton = ref(false)
-const loading = ref(true)
-const userName = ref('')
-const hasInterests = ref<boolean | null>(null)
 
 let timers: ReturnType<typeof setTimeout>[] = []
 let countdownTimer: ReturnType<typeof setInterval> | null = null
 let navigated = false
 
-// 取用户资料（mock：无后端时给默认值，演示完整欢迎态）
-function loadProfile() {
-  // 原型走 authApi.getProfile()，此处 mock
-  setTimeout(() => {
-    userName.value = '道友'
-    hasInterests.value = true
-    loading.value = false
-  }, 300)
-}
-
 function handleNavigate() {
-  if (loading.value || navigated) return
+  if (navigated) return
   navigated = true
   if (countdownTimer) clearInterval(countdownTimer)
-  // 有兴趣标签进首页，否则进兴趣引导（兴趣引导页未迁，统一回首页兜底）
-  if (hasInterests.value) {
+  // 本地真源判断：已选过兴趣主题直接进首页，未选过进兴趣引导（单步 6 主题卡）
+  if (hasSelectedInterests()) {
     reLaunch('/')
   } else {
     navigateTo('/interests-guide')
@@ -97,7 +80,6 @@ function handleNavigate() {
 }
 
 onMounted(() => {
-  loadProfile()
   // 渐入动画序列
   timers.push(setTimeout(() => (showTitle.value = true), 1000))
   timers.push(setTimeout(() => (showSlogan.value = true), 1500))

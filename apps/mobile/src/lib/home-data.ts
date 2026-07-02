@@ -1,6 +1,7 @@
 /** 首页数据层（1:1 迁移自原型 components/home-feed.tsx + home/home-banner.tsx + common/daily-verse） */
 
-import { apiGet, useMock } from '@/utils/request'
+import { apiGet, apiGetPaged, useMock } from '@/utils/request'
+import { getEffectiveThemes } from '@/utils/interests'
 
 // ============================================
 // Banner 轮播数据
@@ -264,6 +265,100 @@ export function adaptFeedItem(f: ApiFeedItem): FeedItem {
   } as FeedItem
 }
 
+// ============================================
+// 今日学一点（首页信息架构重构 · 按用户兴趣主题每日推 3 条真实内容）
+// 主题 → 内容类型映射：经典研读→古籍 / 诗词书画→诗词 / 命理易学→课程；
+// 其余主题回退到未用过的类型，保证 3 张卡类型不重复。
+// ============================================
+export interface DailyStudyItem {
+  themeLabel: string
+  title: string
+  summary: string
+  path: string
+}
+
+type StudyKind = 'classic' | 'poem' | 'course'
+
+/** 主题 key → 首选内容类型（yangsheng/minsu/yayi 无专属内容池，各回退一类） */
+const THEME_KIND_MAP: Record<string, StudyKind> = {
+  jingdian: 'classic',
+  shici: 'poem',
+  yixue: 'course',
+  yangsheng: 'course',
+  minsu: 'classic',
+  yayi: 'poem',
+}
+
+/** 一年中的第几天（做「每日轮换」的稳定随机源） */
+function dayOfYear(date = new Date()): number {
+  return Math.floor((date.getTime() - new Date(date.getFullYear(), 0, 0).getTime()) / 86400000)
+}
+
+/** 古籍卡 — GET /classics/ranking?sort=hot（classics-bff 热门榜），按日轮换取 1 本 */
+async function fetchClassicStudy(themeLabel: string): Promise<DailyStudyItem> {
+  const data = await apiGet<{ books?: { id?: string; title?: string; author?: string; dynasty?: string }[] }>(
+    '/classics/ranking?sort=hot',
+  )
+  const books = Array.isArray(data?.books) ? data.books.filter((b) => b?.id && b?.title) : []
+  if (!books.length) throw new Error('无古籍数据')
+  const b = books[dayOfYear() % books.length]
+  return {
+    themeLabel,
+    title: `《${b.title}》`,
+    summary: [b.dynasty, b.author].filter(Boolean).join(' · ') || '历代传世经典，今日读一篇',
+    path: `/pkg-classics/detail/index?id=${b.id}`,
+  }
+}
+
+/** 诗词卡 — GET /poetry/home 的「每日一首」（后端天然按日更新），失败回退热门列表首位 */
+async function fetchPoemStudy(themeLabel: string): Promise<DailyStudyItem> {
+  const data = await apiGet<{
+    todayPoem?: { id?: string; title?: string; author?: string; dynasty?: string; lines?: string[] }
+    poems?: { id?: string; title?: string; author?: string; dynasty?: string; preview?: string }[]
+  }>('/poetry/home')
+  const t = data?.todayPoem
+  if (t?.id && t.title) {
+    const firstLines = Array.isArray(t.lines) ? t.lines.slice(0, 2).join('') : ''
+    return {
+      themeLabel,
+      title: t.title,
+      summary: firstLines || [t.dynasty, t.author].filter(Boolean).join(' · '),
+      path: `/pkg-poetry/detail/index?id=${t.id}`,
+    }
+  }
+  const poems = Array.isArray(data?.poems) ? data.poems.filter((p) => p?.id && p?.title) : []
+  if (!poems.length) throw new Error('无诗词数据')
+  const p = poems[dayOfYear() % poems.length]
+  return {
+    themeLabel,
+    title: p.title || '',
+    summary: p.preview || [p.dynasty, p.author].filter(Boolean).join(' · '),
+    path: `/pkg-poetry/detail/index?id=${p.id}`,
+  }
+}
+
+/** 课程卡 — GET /courses?sort=popular（分页拦截器 → apiGetPaged），按日轮换取 1 门 */
+async function fetchCourseStudy(themeLabel: string): Promise<DailyStudyItem> {
+  const { items } = await apiGetPaged<{ id?: string; title?: string; intro?: string }>(
+    '/courses?page=1&pageSize=5&sort=popular',
+  )
+  const courses = (Array.isArray(items) ? items : []).filter((c) => c?.id && c?.title)
+  if (!courses.length) throw new Error('无课程数据')
+  const c = courses[dayOfYear() % courses.length]
+  return {
+    themeLabel,
+    title: c.title || '',
+    summary: c.intro || '热门好课，每天进步一点',
+    path: `/pkg-course/detail/index?id=${c.id}`,
+  }
+}
+
+const STUDY_FETCHERS: Record<StudyKind, (themeLabel: string) => Promise<DailyStudyItem>> = {
+  classic: fetchClassicStudy,
+  poem: fetchPoemStudy,
+  course: fetchCourseStudy,
+}
+
 // ============ API 层 ============
 
 /** 后端 GET /home 原始响应（容错适配用，字段宽松全 optional，仅声明 adapter 实际访问到的字段） */
@@ -287,5 +382,29 @@ export const homeApi = {
     } catch {
       return { banners: defaultBanners, feed: buildFeedItems() }
     }
+  },
+
+  /**
+   * 今日学一点 — 按用户所选兴趣主题（getEffectiveThemes 前 3 个）各拉 1 条真实内容。
+   * 三张卡类型不重复（首选类型被占则回退到未用类型）；
+   * 任一子请求失败跳过该条（Promise.allSettled），全失败返回 []（组件整体隐藏）。
+   */
+  async getDailyStudy(): Promise<DailyStudyItem[]> {
+    const themes = getEffectiveThemes().slice(0, 3)
+    const usedKinds = new Set<StudyKind>()
+    const fallbackOrder: StudyKind[] = ['classic', 'poem', 'course']
+    const tasks = themes.map((t) => {
+      let kind: StudyKind = THEME_KIND_MAP[t.key] || 'course'
+      if (usedKinds.has(kind)) {
+        // 类型冲突时回退到未用过的一类，保证 3 张卡类型不重复
+        kind = fallbackOrder.find((k) => !usedKinds.has(k)) || kind
+      }
+      usedKinds.add(kind)
+      return STUDY_FETCHERS[kind](t.label)
+    })
+    const settled = await Promise.allSettled(tasks)
+    return settled
+      .filter((r): r is PromiseFulfilledResult<DailyStudyItem> => r.status === 'fulfilled')
+      .map((r) => r.value)
   },
 }

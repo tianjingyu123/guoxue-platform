@@ -21,6 +21,17 @@ const feedItems = ref<FeedItem[]>([])
 const allCats = ref<{ id: string; label: string }[]>([])
 const hotWords = ref<string[]>([])
 
+// —— 发现页瘦身（董事长拍板）——
+// ① 更多玩法：剔除与首页金刚区（课程/圈子/古籍馆/商城/直播/运势/排盘/智能体/诗词）重复的入口，
+//    只保留发现页特有的玩法（赛事/视频/榜单）
+const HOME_GRID_DUP_IDS = ['course', 'mall', 'classics', 'agent', 'circles', 'live']
+const morePlays = coreEntries.filter((e) => !HOME_GRID_DUP_IDS.includes(e.id))
+// ② B/C 分层：C 端「学习互动」组保留原位；B 端「经营变现」组下沉为页面底部折叠区「事业与合作」
+const cServiceGroups = serviceGroups.filter((g) => g.title !== '经营变现')
+const bizGroup = serviceGroups.find((g) => g.title === '经营变现')
+const bizExpanded = ref(false)
+function toggleBiz() { bizExpanded.value = !bizExpanded.value }
+
 // 瀑布流：按索引奇偶分两列
 const colLeft = computed(() => feedItems.value.filter((_, i) => i % 2 === 0))
 const colRight = computed(() => feedItems.value.filter((_, i) => i % 2 === 1))
@@ -105,11 +116,15 @@ function goColumn(_href: string) { toastComingSoon() }
       </scroll-view>
     </view>
 
-    <!-- 核心入口宫格 -->
-    <view class="grid-section">
+    <!-- 更多玩法（仅发现页特有入口，与首页金刚区去重） -->
+    <view class="grid-section svc-section">
+      <view class="svc-head">
+        <view class="svc-bar" />
+        <text class="svc-title">更多玩法</text>
+      </view>
       <view class="grid">
         <view
-          v-for="entry in coreEntries" :key="entry.id"
+          v-for="entry in morePlays" :key="entry.id"
           class="grid-item" @tap="goEntry(entry.href)"
         >
           <view class="grid-icon">
@@ -120,9 +135,9 @@ function goColumn(_href: string) { toastComingSoon() }
       </view>
     </view>
 
-    <!-- 全部服务矩阵（覆盖所有已完工分包，消除入口孤岛） -->
+    <!-- C 端服务矩阵（学习互动，B 端经营组已下沉页面底部折叠区） -->
     <view
-      v-for="group in serviceGroups" :key="group.title"
+      v-for="group in cServiceGroups" :key="group.title"
       class="grid-section svc-section"
     >
       <view class="svc-head">
@@ -236,6 +251,29 @@ function goColumn(_href: string) { toastComingSoon() }
       </view>
     </view>
 
+    <!-- 事业与合作（B 端入口折叠区：默认收起一行，与 C 端内容彻底分层） -->
+    <view v-if="bizGroup" class="biz-section">
+      <view class="biz-head" @tap="toggleBiz">
+        <view class="biz-head-left">
+          <AppIcon name="briefcase" :size="30" color="#8a8378" />
+          <text class="biz-title">事业与合作</text>
+          <text class="biz-sub">{{ bizGroup.items.map((i) => i.label).join(' · ') }}</text>
+        </view>
+        <AppIcon :name="bizExpanded ? 'chevron-up' : 'chevron-down'" :size="28" color="#999999" />
+      </view>
+      <view v-if="bizExpanded" class="grid biz-grid">
+        <view
+          v-for="item in bizGroup.items" :key="item.id"
+          class="grid-item" @tap="goEntry(item.href)"
+        >
+          <view class="grid-icon biz-icon">
+            <AppIcon :name="item.icon" :size="44" color="#8a8378" />
+          </view>
+          <text class="grid-label">{{ item.label }}</text>
+        </view>
+      </view>
+    </view>
+
     <bottom-nav active="discover" />
   </view>
 </template>
@@ -316,4 +354,13 @@ function goColumn(_href: string) { toastComingSoon() }
 .feed-end { display: flex; align-items: center; justify-content: center; gap: 24rpx; padding: 48rpx 0; }
 .end-line { width: 80rpx; height: 2rpx; background: var(--line, #e4ddd0); }
 .end-txt { font-size: 26rpx; color: var(--text-soft, #999); }
+
+/* 事业与合作（B 端折叠区，低调灰调与 C 端区分） */
+.biz-section { margin: 24rpx 32rpx 0; border-radius: 24rpx; background: var(--surface, #fff); overflow: hidden; }
+.biz-head { display: flex; align-items: center; justify-content: space-between; padding: 28rpx 28rpx; }
+.biz-head-left { display: flex; align-items: center; gap: 12rpx; min-width: 0; }
+.biz-title { font-size: 28rpx; font-weight: 600; color: var(--text, #555); flex-shrink: 0; }
+.biz-sub { font-size: 22rpx; color: var(--text-soft, #999); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.biz-grid { padding: 28rpx 16rpx 0; border-top: 2rpx solid var(--line, #f0ece4); }
+.biz-icon { background: rgba(138, 131, 120, 0.08); }
 </style>
