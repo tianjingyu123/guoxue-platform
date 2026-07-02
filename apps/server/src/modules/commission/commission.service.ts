@@ -10,6 +10,7 @@ import { MemoryCache } from "../../common/cache.util";
 import { encrypt, decrypt, maskBankCard, maskName, maskAlipay } from "../../common/crypto.util";
 import { RedisService } from "../../redis/redis.service";
 import { FundApprovalService } from "../fund-approval/fund-approval.service";
+import { SettlementService } from "../settlement/settlement.service";
 
 /** 提现上限（元），与钱包提现口径一致 */
 const MAX_WITHDRAW_RMB = 50000;
@@ -34,6 +35,7 @@ export class CommissionService {
     private redis: RedisService,
     @Optional() private systemService?: SystemService,
     @Optional() private fundApproval?: FundApprovalService,
+    @Optional() private settlement?: SettlementService,
   ) {}
 
   // ───────── 分佣比例变更审批（发起端，不立即生效） ─────────
@@ -117,6 +119,7 @@ export class CommissionService {
     referrerId?: string,
     tempReferrerId?: string,
     stationId?: string,
+    payerId?: string, // 付款人（统一总账自买自卖校验用；缺省时回查 Order）
   ) {
     // 确定配置key
     const configKey = this.mapTypeToConfigKey(type);
@@ -171,7 +174,36 @@ export class CommissionService {
     }).catch((err) => this.logger.warn("收益通知发送失败", err));
 
     // ───────── 运营商管理奖 ─────────
-    await this.calculateOperatorBonus(station.id, orderId, earned);
+    const bonus = await this.calculateOperatorBonus(station.id, orderId, earned);
+
+    // ───────── T1-P2b 统一总账影子双写（不影响现有资金路径，失败仅记日志）─────────
+    // 过渡期比例以本方法实际使用值 rateOverride 传入，保证总账与实付一致；P2-c 切换后以 SettlementRule 为真源
+    if (this.settlement) {
+      try {
+        let effectivePayerId = payerId;
+        if (!effectivePayerId) {
+          const order = await this.prisma.order
+            .findUnique({ where: { id: orderId }, select: { userId: true } })
+            .catch(() => null);
+          effectivePayerId = order?.userId ?? "";
+        }
+        await this.settlement.settle({
+          scene: this.mapTypeToScene(type),
+          refType: "ORDER",
+          refId: orderId,
+          amount,
+          payerId: effectivePayerId,
+          parties: {
+            STATION: { type: "STATION", id: station.id, userId: station.userId, rateOverride: rate },
+            ...(bonus
+              ? { OPERATOR: { type: "OPERATOR", id: bonus.operatorId, userId: bonus.userId, rateOverride: bonus.rate } }
+              : {}),
+          },
+        });
+      } catch (e) {
+        this.logger.warn(`统一总账影子双写失败(order=${orderId})`, e);
+      }
+    }
 
     return earning;
   }
@@ -198,7 +230,7 @@ export class CommissionService {
       return null;
     }
 
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       if (stationEarning) {
         await tx.stationEarning.create({
           data: {
@@ -253,6 +285,13 @@ export class CommissionService {
 
       return { reversed: true };
     });
+
+    // T1-P2b 统一总账同步冲正（幂等，失败仅记日志不阻断退款）
+    this.settlement
+      ?.reverse("ORDER", orderId, "订单退款冲正")
+      .catch((e) => this.logger.warn(`统一总账冲正失败(order=${orderId})`, e));
+
+    return result;
   }
 
   // ───────── 分站收益查询 ─────────
@@ -501,36 +540,40 @@ export class CommissionService {
    * 运营商自营分站（站长即运营商本人）的管理奖归其上级运营商：上级只对下级的
    * 「站长角色收入」计酬，不得对下级的管理奖收入再计酬，禁止任何形式的第三层计酬。
    */
-  private async calculateOperatorBonus(stationId: string, orderId: string, stationEarned: number) {
+  private async calculateOperatorBonus(
+    stationId: string,
+    orderId: string,
+    stationEarned: number,
+  ): Promise<{ operatorId: string; userId: string; rate: number; earned: number } | null> {
     const station = await this.prisma.station.findUnique({
       where: { id: stationId },
       select: { userId: true, operatorId: true },
     });
-    if (!station?.operatorId) return;
+    if (!station?.operatorId) return null;
 
     const operator = await this.prisma.operator.findUnique({
       where: { id: station.operatorId },
       select: { id: true, userId: true, level: true, parentOperatorId: true, status: true },
     });
-    if (!operator || operator.status !== "ACTIVE") return;
+    if (!operator || operator.status !== "ACTIVE") return null;
 
     // 确定管理奖唯一受益人：自营分站上浮给上级运营商，普通分站归属其运营商
     let beneficiary = operator;
     if (operator.userId === station.userId) {
-      if (!operator.parentOperatorId) return; // 顶级运营商自营分站：无管理奖，平台留存
+      if (!operator.parentOperatorId) return null; // 顶级运营商自营分站：无管理奖，平台留存
       const parentOp = await this.prisma.operator.findUnique({
         where: { id: operator.parentOperatorId },
         select: { id: true, userId: true, level: true, parentOperatorId: true, status: true },
       });
-      if (!parentOp || parentOp.status !== "ACTIVE") return;
+      if (!parentOp || parentOp.status !== "ACTIVE") return null;
       beneficiary = parentOp;
     }
 
     const rates = await this.lookupMgmtRates(beneficiary.level);
-    if (!rates) return;
+    if (!rates) return null;
 
     const mgmtEarned = Math.round(stationEarned * rates.mgmt * 100) / 100;
-    if (mgmtEarned <= 0) return;
+    if (mgmtEarned <= 0) return null;
 
     await this.prisma.operatorEarning.create({
       data: {
@@ -559,6 +602,21 @@ export class CommissionService {
         targetId: orderId,
       },
     }).catch((err) => this.logger.warn("管理奖通知发送失败", err));
+
+    return { operatorId: beneficiary.id, userId: beneficiary.userId, rate: rates.mgmt, earned: mgmtEarned };
+  }
+
+  /** 订单类型 → 统一结算引擎场景 */
+  private mapTypeToScene(type: string): string {
+    const map: Record<string, string> = {
+      COURSE: "COURSE_ORDER",
+      PRODUCT: "PRODUCT_ORDER",
+      MEMBER: "MEMBER_PURCHASE",
+      CIRCLE_JOIN: "CIRCLE_JOIN",
+      BOT: "BOT_CALL",
+      MERCHANT_PRODUCT: "MERCHANT_PRODUCT_ORDER",
+    };
+    return map[type] || "PRODUCT_ORDER";
   }
 
   /** 优先从 CommissionConfig 读取管理奖比例，未配置时回退到 PRD 硬编码默认值 */

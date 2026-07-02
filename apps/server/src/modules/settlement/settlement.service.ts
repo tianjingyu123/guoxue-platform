@@ -11,6 +11,9 @@ export interface SplitDef {
   basis: "GROSS" | "PARENT_SPLIT";
   category: "COMMISSION" | "SERVICE" | "PLATFORM";
   parentRole?: string; // basis=PARENT_SPLIT 时计酬基数来源角色（须先于本条出现）
+  /** 自买自卖策略：BLOCK 默认拦截；ALLOW_FLAG 用于明示产品能力「自购返佣」的场景——照常入账但打标，
+   *  打标收益不计入让利承诺累计收入等达标口径（防自购刷返还） */
+  selfDeal?: "BLOCK" | "ALLOW_FLAG";
 }
 
 /** 各角色分账主体（业务方调用时提供） */
@@ -18,6 +21,8 @@ export interface SettleParty {
   type: "USER" | "STATION" | "OPERATOR" | "MERCHANT" | "PLATFORM";
   id: string;
   userId?: string; // 主体对应的自然人（自买自卖校验用）
+  /** 过渡期比例覆盖：以现有真源（如 CommissionConfig.rateA/运营商等级比例）为准，保证总账与实付一致；P2-c 切换后移除 */
+  rateOverride?: number;
 }
 
 export interface SettleParams {
@@ -91,30 +96,48 @@ export class SettlementService {
     const threshold = rule.approvalThreshold !== null ? Number(rule.approvalThreshold) : null;
 
     const rows: Prisma.LedgerEntryCreateManyInput[] = [];
-    const computed = new Map<string, number>(); // role -> 分账金额（PARENT_SPLIT 基数）
+    const computed = new Map<string, number>(); // role -> 实际分账金额（PARENT_SPLIT 基数；未成交=0）
     for (const s of splits) {
-      const base = s.basis === "PARENT_SPLIT" ? (computed.get(s.parentRole ?? "") ?? 0) : params.amount;
-      const amount = round2(base * s.rate);
-      computed.set(s.role, amount);
-      if (amount <= 0) continue;
-
       const party: SettleParty | undefined =
         s.role === "PLATFORM" ? { type: "PLATFORM", id: "PLATFORM" } : params.parties[s.role];
+      const base = s.basis === "PARENT_SPLIT" ? (computed.get(s.parentRole ?? "") ?? 0) : params.amount;
       if (!party) {
-        this.logger.warn(`场景 ${params.scene} 角色 ${s.role} 未提供分账主体，该笔留存平台`);
+        computed.set(s.role, 0); // 未提供主体则该角色未成交，下游 PARENT_SPLIT 基数为 0
+        if (base > 0) this.logger.warn(`场景 ${params.scene} 角色 ${s.role} 未提供分账主体，该笔留存平台`);
         continue;
       }
 
-      // L3：自买自卖 —— 佣金类目下付款人即受益人则不发放
-      if (s.category === "COMMISSION" && party.userId && party.userId === params.payerId) {
-        this.logger.warn(
-          `SELF_DEAL 拦截：${params.scene}/${s.role} 付款人与受益人同一(${params.payerId})，佣金不发放`,
-        );
+      const rate = party.rateOverride ?? s.rate;
+      if (!(rate > 0 && rate <= 1)) {
+        computed.set(s.role, 0);
+        this.logger.warn(`场景 ${params.scene} 角色 ${s.role} 比例非法(${rate})，跳过该笔分账`);
         continue;
+      }
+      const amount = round2(base * rate);
+      computed.set(s.role, amount);
+      if (amount <= 0) continue;
+
+      // L3：自买自卖 —— 佣金类目下付款人即受益人默认不发放；
+      // 明示产品能力「自购返佣」的场景配置 selfDeal=ALLOW_FLAG：照常入账但打标
+      let selfPurchase = false;
+      if (s.category === "COMMISSION" && party.userId && party.userId === params.payerId) {
+        if (s.selfDeal === "ALLOW_FLAG") {
+          selfPurchase = true;
+        } else {
+          computed.set(s.role, 0);
+          this.logger.warn(
+            `SELF_DEAL 拦截：${params.scene}/${s.role} 付款人与受益人同一(${params.payerId})，佣金不发放`,
+          );
+          continue;
+        }
       }
 
       // L4：大额冻结复核
       const frozen = rule.requireApproval && threshold !== null && amount >= threshold;
+      const reasons = [
+        frozen ? `单笔≥${threshold}元，冻结待人工复核` : null,
+        selfPurchase ? "SELF_PURCHASE 自购返佣（不计入让利承诺累计收入）" : null,
+      ].filter(Boolean) as string[];
       rows.push({
         scene: params.scene,
         refType: params.refType,
@@ -124,10 +147,10 @@ export class SettlementService {
         role: s.role,
         category: s.category,
         amount,
-        rate: s.rate,
+        rate,
         status: frozen ? "FROZEN" : "PENDING",
         availableAt,
-        reason: frozen ? `单笔≥${threshold}元，冻结待人工复核` : null,
+        reason: reasons.length ? reasons.join("；") : null,
       });
     }
 

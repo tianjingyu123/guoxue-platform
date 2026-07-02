@@ -948,12 +948,13 @@ export class ShopService {
    * 微信/汇付回调已记，此 helper 供支付宝/银联/线下确认(adminPayOrder)复用，避免账目漏记。
    * 事务外执行，失败仅记日志不影响订单状态。
    */
-  private async recordOrderCommissionAndFee(order: { id: string; type: string; amount: unknown; referrerId?: string | null; tempReferrerId?: string | null }) {
+  private async recordOrderCommissionAndFee(order: { id: string; type: string; amount: unknown; userId?: string | null; referrerId?: string | null; tempReferrerId?: string | null }) {
     if (!this.commissionSvc) return;
     try {
       await this.commissionSvc.calculateAndRecord(
         order.id, order.type, Number(order.amount),
         order.referrerId || undefined, order.tempReferrerId || undefined,
+        undefined, order.userId || undefined,
       );
     } catch (e) {
       this.logger.error("分佣计算失败", e);
@@ -1220,6 +1221,7 @@ export class ShopService {
           await this.commissionSvc.calculateAndRecord(
             order.id, order.type, Number(order.amount),
             order.referrerId || undefined, order.tempReferrerId || undefined,
+            undefined, order.userId || undefined,
           );
         } catch (e) {
           this.logger.error("汇付支付分佣计算失败", e);

@@ -6,9 +6,10 @@ import { ActiveUserGuard } from "../../common/active-user.guard";
 import { WebhookModule } from "../webhook/webhook.module";
 import { SystemModule } from "../system/system.module";
 import { FundApprovalCoreModule } from "../fund-approval/fund-approval-core.module";
+import { SettlementModule } from "../settlement/settlement.module";
 
 @Module({
-  imports: [PrismaModule, WebhookModule, SystemModule, FundApprovalCoreModule],
+  imports: [PrismaModule, WebhookModule, SystemModule, FundApprovalCoreModule, SettlementModule],
   controllers: [CommissionController],
   providers: [CommissionService, ActiveUserGuard],
   exports: [CommissionService],

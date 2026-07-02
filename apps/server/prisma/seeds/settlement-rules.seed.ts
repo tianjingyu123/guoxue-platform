@@ -21,7 +21,15 @@ type Split = {
   basis: "GROSS" | "PARENT_SPLIT";
   category: "COMMISSION" | "SERVICE" | "PLATFORM";
   parentRole?: string;
+  selfDeal?: "BLOCK" | "ALLOW_FLAG"; // 自购策略：订单类=ALLOW_FLAG（自购返佣是明示产品能力·打标不计让利承诺）；充值必须 BLOCK（防套利）
 };
+
+/** 订单类场景通用 splits：过渡期实际比例以 CommissionConfig.rateA/运营商等级比例运行时 override 为准，此处 rate 为文档默认 */
+const ORDER_SPLITS: Split[] = [
+  { role: "STATION", rate: 0.2, basis: "GROSS", category: "COMMISSION", selfDeal: "ALLOW_FLAG" },
+  { role: "OPERATOR", rate: 0.1, basis: "PARENT_SPLIT", parentRole: "STATION", category: "COMMISSION" },
+];
+const ORDER_REMARK = "订单推广分佣（影子双写）：实际比例以 CommissionConfig/运营商等级为真源 rateOverride 传入，P2-c 切换后以本规则为准";
 
 const RULES: Array<{
   scene: string;
@@ -78,23 +86,30 @@ const RULES: Array<{
   {
     scene: "MEMBER_PURCHASE",
     splits: [
-      { role: "STATION", rate: 0.2, basis: "GROSS", category: "COMMISSION" },
+      { role: "STATION", rate: 0.2, basis: "GROSS", category: "COMMISSION", selfDeal: "ALLOW_FLAG" },
       { role: "PLATFORM", rate: 0.8, basis: "GROSS", category: "PLATFORM" },
     ],
     bufferDays: 7,
     enabled: false,
-    remark: "会员推广分佣（默认20%·2026-07-02 拍板·后台可改）；会员权益产品化待定，P2-b 接线时启用",
+    remark: "会员推广分佣（默认20%·2026-07-02 拍板·后台可改）；会员权益产品化待定，定稿后启用",
   },
   {
     scene: "COIN_RECHARGE",
     splits: [
+      // 自购充值严禁返佣（selfDeal 默认 BLOCK）：否则自充可套取20%可提现佣金形成套利环路
       { role: "STATION", rate: 0.2, basis: "GROSS", category: "COMMISSION" },
       { role: "PLATFORM", rate: 0.8, basis: "GROSS", category: "PLATFORM" },
     ],
     bufferDays: 7,
     enabled: false,
-    remark: "虚拟币充值推广分佣（默认20%·2026-07-02 拍板·后台可改），P2-b 充值链路接线时启用",
+    remark: "虚拟币充值推广分佣（默认20%·2026-07-02 拍板·后台可改），充值链路接线时启用；自购充值不返佣（防套利）",
   },
+  // ── 订单类场景（P2-b 影子双写接线）──
+  { scene: "COURSE_ORDER", splits: ORDER_SPLITS, bufferDays: 7, remark: ORDER_REMARK },
+  { scene: "PRODUCT_ORDER", splits: ORDER_SPLITS, bufferDays: 7, remark: ORDER_REMARK },
+  { scene: "CIRCLE_JOIN", splits: ORDER_SPLITS, bufferDays: 7, remark: ORDER_REMARK },
+  { scene: "BOT_CALL", splits: ORDER_SPLITS, bufferDays: 7, remark: ORDER_REMARK },
+  { scene: "MERCHANT_PRODUCT_ORDER", splits: ORDER_SPLITS, bufferDays: 7, remark: ORDER_REMARK },
 ];
 
 async function main() {

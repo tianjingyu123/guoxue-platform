@@ -140,6 +140,48 @@ describe("SettlementService", () => {
       expect(rows.find((r: any) => r.role === "PROVIDER").amount).toBe(50); // 服务放行
     });
 
+    it("rateOverride：过渡期以调用方传入比例为准（总账与实付一致）", async () => {
+      mockPrisma.settlementRule.findUnique.mockResolvedValue({
+        ...QUESTION_RULE,
+        scene: "COURSE_ORDER",
+        splits: [
+          { role: "STATION", rate: 0.2, basis: "GROSS", category: "COMMISSION", selfDeal: "ALLOW_FLAG" },
+          { role: "OPERATOR", rate: 0.1, basis: "PARENT_SPLIT", parentRole: "STATION", category: "COMMISSION" },
+        ],
+      });
+      mockPrisma.ledgerEntry.findMany.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
+      await svc.settle(
+        baseParams({
+          scene: "COURSE_ORDER",
+          parties: {
+            STATION: { type: "STATION", id: "st-1", userId: "st-user", rateOverride: 0.3 },
+            OPERATOR: { type: "OPERATOR", id: "op-1", userId: "op-user", rateOverride: 0.12 },
+          },
+        }),
+      );
+      const rows = mockPrisma.ledgerEntry.createMany.mock.calls[0][0].data;
+      expect(rows.find((r: any) => r.role === "STATION").amount).toBe(30); // 100×override 30%
+      expect(rows.find((r: any) => r.role === "OPERATOR").amount).toBe(3.6); // 30×override 12%
+    });
+
+    it("L3-ALLOW_FLAG：自购返佣场景照常入账但打标", async () => {
+      mockPrisma.settlementRule.findUnique.mockResolvedValue({
+        ...QUESTION_RULE,
+        splits: [{ role: "STATION", rate: 0.2, basis: "GROSS", category: "COMMISSION", selfDeal: "ALLOW_FLAG" }],
+      });
+      mockPrisma.ledgerEntry.findMany.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
+      await svc.settle(
+        baseParams({
+          payerId: "same-user",
+          parties: { STATION: { type: "STATION", id: "st-1", userId: "same-user" } },
+        }),
+      );
+      const rows = mockPrisma.ledgerEntry.createMany.mock.calls[0][0].data;
+      expect(rows).toHaveLength(1);
+      expect(rows[0].amount).toBe(20);
+      expect(rows[0].reason).toContain("SELF_PURCHASE");
+    });
+
     it("L4：单笔达到阈值冻结待复核", async () => {
       mockPrisma.settlementRule.findUnique.mockResolvedValue(QUESTION_RULE);
       mockPrisma.ledgerEntry.findMany.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
