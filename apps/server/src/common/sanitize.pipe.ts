@@ -36,6 +36,10 @@ export class SanitizePipe implements PipeTransform {
 
   transform(value: unknown, metadata: ArgumentMetadata): unknown {
     if (metadata.type === "param") return value; // 不处理路由参数
+    // 不处理自定义装饰器参数（@UploadedFile 文件对象 / @User 等）：
+    // 文件对象的 mimetype/originalname 若被 HTML 转义（image/png→image&#x2F;png）会导致上传白名单校验失败
+    if (metadata.type === "custom") return value;
+    if (Buffer.isBuffer(value)) return value; // 不递归二进制 Buffer（避免破坏文件内容）
     if (typeof value === "string") {
       if (metadata.data && SKIP_FIELDS.has(metadata.data)) return value;
       return this.escape(value);
