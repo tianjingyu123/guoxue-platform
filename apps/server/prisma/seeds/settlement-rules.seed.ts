@@ -21,12 +21,13 @@ type Split = {
   basis: "GROSS" | "PARENT_SPLIT";
   category: "COMMISSION" | "SERVICE" | "PLATFORM";
   parentRole?: string;
-  selfDeal?: "BLOCK" | "ALLOW_FLAG"; // 自购策略：订单类=ALLOW_FLAG（自购返佣是明示产品能力·打标不计让利承诺）；充值必须 BLOCK（防套利）
 };
+
+// 自购规则（2026-07-02 拍板）：站长自购在下单时直接立减、不产生佣金（退款退实付价）；引擎 L3 对佣金类目硬拦截自买自卖
 
 /** 订单类场景通用 splits：过渡期实际比例以 CommissionConfig.rateA/运营商等级比例运行时 override 为准，此处 rate 为文档默认 */
 const ORDER_SPLITS: Split[] = [
-  { role: "STATION", rate: 0.2, basis: "GROSS", category: "COMMISSION", selfDeal: "ALLOW_FLAG" },
+  { role: "STATION", rate: 0.2, basis: "GROSS", category: "COMMISSION" },
   { role: "OPERATOR", rate: 0.1, basis: "PARENT_SPLIT", parentRole: "STATION", category: "COMMISSION" },
 ];
 const ORDER_REMARK = "订单推广分佣（影子双写）：实际比例以 CommissionConfig/运营商等级为真源 rateOverride 传入，P2-c 切换后以本规则为准";
@@ -86,7 +87,7 @@ const RULES: Array<{
   {
     scene: "MEMBER_PURCHASE",
     splits: [
-      { role: "STATION", rate: 0.2, basis: "GROSS", category: "COMMISSION", selfDeal: "ALLOW_FLAG" },
+      { role: "STATION", rate: 0.2, basis: "GROSS", category: "COMMISSION" },
       { role: "PLATFORM", rate: 0.8, basis: "GROSS", category: "PLATFORM" },
     ],
     bufferDays: 7,

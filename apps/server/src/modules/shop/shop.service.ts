@@ -430,6 +430,22 @@ export class ShopService {
       };
     }
 
+    // 站长自购立减（2026-07-02 拍板）：站长本人购买（无推荐人或推荐人为本人）直接按佣金比例立减成交，
+    // 不产生佣金；退款按实付价退。杜绝自购返佣/刷单套利。
+    let selfPurchaseRate = 0;
+    const effectiveReferrerId = dto.tempReferrerId || dto.referrerId;
+    if (this.commissionSvc && (!effectiveReferrerId || effectiveReferrerId === userId)) {
+      try {
+        const ownStation = await this.prisma.station.findFirst({
+          where: { userId, status: "ACTIVE" },
+          select: { id: true },
+        });
+        if (ownStation) selfPurchaseRate = (await this.commissionSvc.getStationRate(dto.type)) ?? 0;
+      } catch (e) {
+        this.logger.warn("站长自购立减查询失败，按原价下单", e);
+      }
+    }
+
     return this.prisma.$transaction(async (tx) => {
       // 优惠券校验与折扣计算（服务端计算，防篡改）
       if (dto.couponId) {
@@ -466,6 +482,13 @@ export class ShopService {
         });
       }
 
+      // 站长自购立减：在券后价基础上按佣金比例立减，并清空推荐关系（佣金天然不产生）
+      let selfDiscount = 0;
+      if (selfPurchaseRate > 0) {
+        selfDiscount = Math.round(actualAmount * selfPurchaseRate * 100) / 100;
+        actualAmount = Math.max(0.01, Math.round((actualAmount - selfDiscount) * 100) / 100);
+      }
+
       const order = await tx.order.create({
         data: {
           userId,
@@ -480,8 +503,9 @@ export class ShopService {
           merchantId,
           addressId: dto.addressId,
           shippingInfo: shippingInfo as any,
-          referrerId: dto.referrerId,
-          tempReferrerId: dto.tempReferrerId,
+          referrerId: selfDiscount > 0 ? null : dto.referrerId,
+          tempReferrerId: selfDiscount > 0 ? null : dto.tempReferrerId,
+          selfDiscount: selfDiscount > 0 ? selfDiscount : null,
           status: "PENDING",
         },
       });

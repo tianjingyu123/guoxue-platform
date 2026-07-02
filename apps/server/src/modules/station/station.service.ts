@@ -164,6 +164,15 @@ export class StationService {
     return agg._sum.earned || 0;
   }
 
+  /** 站长自购累计已省（下单立减金额之和，仅统计已支付订单，退款单不计） */
+  async sumSelfPurchaseSaved(userId: string) {
+    const agg = await this.prisma.order.aggregate({
+      where: { userId, selfDiscount: { gt: 0 }, status: { in: ["PAID", "SHIPPED", "COMPLETED"] } },
+      _sum: { selfDiscount: true },
+    });
+    return agg._sum.selfDiscount || 0;
+  }
+
   /** 通过推广码获取分站品牌配置（公开接口，千人千面渲染，10分钟缓存） */
   async getBrandByCode(code: string) {
     const cacheKey = `station:brand:code:${code}`;

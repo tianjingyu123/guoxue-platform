@@ -136,6 +136,21 @@ export class CommissionService {
 
     if (!station) return null;
 
+    // 站长自购不产生佣金（2026-07-02 拍板：自购已在下单时直接立减·此处防御性拦截历史/旁路订单）
+    let effectivePayerId = payerId;
+    if (!effectivePayerId) {
+      try {
+        const order = await this.prisma.order.findUnique({ where: { id: orderId }, select: { userId: true } });
+        effectivePayerId = order?.userId ?? "";
+      } catch {
+        effectivePayerId = "";
+      }
+    }
+    if (effectivePayerId && effectivePayerId === station.userId) {
+      this.logger.log(`订单 ${orderId} 为站长自购，不产生佣金`);
+      return null;
+    }
+
     const rate = Number(config.rateA); // 站长佣金比例
     // 规整到分（四舍五入），与本文件管理奖/平台抽成一致，避免 JS 浮点尾数（如 99.9*0.7）污染分账与累加
     const earned = Math.round(amount * rate * 100) / 100;
@@ -180,13 +195,6 @@ export class CommissionService {
     // 过渡期比例以本方法实际使用值 rateOverride 传入，保证总账与实付一致；P2-c 切换后以 SettlementRule 为真源
     if (this.settlement) {
       try {
-        let effectivePayerId = payerId;
-        if (!effectivePayerId) {
-          const order = await this.prisma.order
-            .findUnique({ where: { id: orderId }, select: { userId: true } })
-            .catch(() => null);
-          effectivePayerId = order?.userId ?? "";
-        }
         await this.settlement.settle({
           scene: this.mapTypeToScene(type),
           refType: "ORDER",
@@ -604,6 +612,15 @@ export class CommissionService {
     }).catch((err) => this.logger.warn("管理奖通知发送失败", err));
 
     return { operatorId: beneficiary.id, userId: beneficiary.userId, rate: rates.mgmt, earned: mgmtEarned };
+  }
+
+  /** 站长佣金比例（rateA）按订单类型查询（供下单自购立减复用）；未配置返回 null */
+  async getStationRate(type: string): Promise<number | null> {
+    const config = await this.prisma.commissionConfig.findUnique({
+      where: { configKey: this.mapTypeToConfigKey(type) },
+    });
+    const rate = config ? Number(config.rateA) : 0;
+    return rate > 0 && rate < 1 ? rate : null;
   }
 
   /** 订单类型 → 统一结算引擎场景 */

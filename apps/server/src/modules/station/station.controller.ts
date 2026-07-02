@@ -39,13 +39,14 @@ export class StationController {
     const now = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
-    const [lockedUsers, monthOrders, monthEarning] = await Promise.all([
+    const [lockedUsers, monthOrders, monthEarning, selfPurchaseSaved] = await Promise.all([
       this.svc.countLockedUsers(station.id),
       this.svc.countMonthOrders(station.id, monthStart),
       this.svc.sumMonthEarnings(station.id, monthStart),
+      this.svc.sumSelfPurchaseSaved(req.user.id),
     ]);
 
-    return { ...station, lockedUsers, monthOrders, monthEarning };
+    return { ...station, lockedUsers, monthOrders, monthEarning, selfPurchaseSaved };
   }
 
   @Put("my")

@@ -11,9 +11,6 @@ export interface SplitDef {
   basis: "GROSS" | "PARENT_SPLIT";
   category: "COMMISSION" | "SERVICE" | "PLATFORM";
   parentRole?: string; // basis=PARENT_SPLIT 时计酬基数来源角色（须先于本条出现）
-  /** 自买自卖策略：BLOCK 默认拦截；ALLOW_FLAG 用于明示产品能力「自购返佣」的场景——照常入账但打标，
-   *  打标收益不计入让利承诺累计收入等达标口径（防自购刷返还） */
-  selfDeal?: "BLOCK" | "ALLOW_FLAG";
 }
 
 /** 各角色分账主体（业务方调用时提供） */
@@ -117,27 +114,18 @@ export class SettlementService {
       computed.set(s.role, amount);
       if (amount <= 0) continue;
 
-      // L3：自买自卖 —— 佣金类目下付款人即受益人默认不发放；
-      // 明示产品能力「自购返佣」的场景配置 selfDeal=ALLOW_FLAG：照常入账但打标
-      let selfPurchase = false;
+      // L3：自买自卖 —— 佣金类目下付款人即受益人不发放
+      // （站长自购的业务规则为「下单直接立减、不产生佣金」，此处为防御性硬拦截）
       if (s.category === "COMMISSION" && party.userId && party.userId === params.payerId) {
-        if (s.selfDeal === "ALLOW_FLAG") {
-          selfPurchase = true;
-        } else {
-          computed.set(s.role, 0);
-          this.logger.warn(
-            `SELF_DEAL 拦截：${params.scene}/${s.role} 付款人与受益人同一(${params.payerId})，佣金不发放`,
-          );
-          continue;
-        }
+        computed.set(s.role, 0);
+        this.logger.warn(
+          `SELF_DEAL 拦截：${params.scene}/${s.role} 付款人与受益人同一(${params.payerId})，佣金不发放`,
+        );
+        continue;
       }
 
       // L4：大额冻结复核
       const frozen = rule.requireApproval && threshold !== null && amount >= threshold;
-      const reasons = [
-        frozen ? `单笔≥${threshold}元，冻结待人工复核` : null,
-        selfPurchase ? "SELF_PURCHASE 自购返佣（不计入让利承诺累计收入）" : null,
-      ].filter(Boolean) as string[];
       rows.push({
         scene: params.scene,
         refType: params.refType,
@@ -150,7 +138,7 @@ export class SettlementService {
         rate,
         status: frozen ? "FROZEN" : "PENDING",
         availableAt,
-        reason: reasons.length ? reasons.join("；") : null,
+        reason: frozen ? `单笔≥${threshold}元，冻结待人工复核` : null,
       });
     }
 
