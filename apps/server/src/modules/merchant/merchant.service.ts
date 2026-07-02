@@ -497,9 +497,13 @@ export class MerchantService {
   }
 
   async approveRefund(merchantId: string, orderId: string) {
-    return this.prisma.order.updateMany({
-      where: { id: orderId, merchantId }, data: { status: "REFUNDED", refundedAt: new Date() },
+    const order = await this.prisma.order.findFirst({ where: { id: orderId, merchantId } });
+    if (!order) throw new BusinessException(ErrorCode.BAD_REQUEST, "订单不存在");
+    if (order.status === "REFUNDED") throw new BusinessException(ErrorCode.BAD_REQUEST, "订单已退款");
+    await this.prisma.order.update({
+      where: { id: orderId }, data: { status: "REFUNDED", refundedAt: new Date() },
     });
+    return { success: true };
   }
 
   async rejectRefund(merchantId: string, orderId: string, reason: string) {
