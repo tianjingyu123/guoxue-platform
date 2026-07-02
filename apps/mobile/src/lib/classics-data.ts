@@ -834,7 +834,8 @@ export const classicsApi = {
 
   // ── 书架（基于真实阅读进度，需登录） ──
   async bookshelf() {
-    const data = await apiGet<{ items?: RawContinueItem[] }>('/classic/continue-reading?limit=100')
+    // limit 上限为后端 @Max(50)，请求 100 会 400
+    const data = await apiGet<{ items?: RawContinueItem[] }>('/classic/continue-reading?limit=50')
     const items: RawContinueItem[] = Array.isArray(data?.items) ? data.items : []
     const books: ShelfBook[] = items.map((r) => ({
       id: r.book?.id || '', title: r.book?.title || '', author: r.book?.author || '佚名',
