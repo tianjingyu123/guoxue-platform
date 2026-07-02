@@ -11,7 +11,7 @@ const mockSystemService = {
 const mockPrisma: any = {
   merchant: { findUnique: jest.fn(), update: jest.fn() },
   order: { aggregate: jest.fn() },
-  merchantSettlement: { findFirst: jest.fn(), create: jest.fn(), findUnique: jest.fn(), update: jest.fn() },
+  merchantSettlement: { findFirst: jest.fn(), create: jest.fn(), findUnique: jest.fn(), update: jest.fn(), updateMany: jest.fn() },
 };
 
 describe("MerchantSettlementService", () => {
@@ -102,12 +102,23 @@ describe("MerchantSettlementService", () => {
   });
 
   describe("paySettlement", () => {
-    it("paidAmount 规整到分写入", async () => {
-      mockPrisma.merchantSettlement.findUnique.mockResolvedValue({ id: "s1", status: "PENDING", merchant: { userId: "u1" } });
-      mockPrisma.merchantSettlement.update.mockImplementation((args: any) => Promise.resolve(args.data));
+    it("paidAmount 规整到分写入（CAS 原子翻转）", async () => {
+      mockPrisma.merchantSettlement.findUnique
+        .mockResolvedValueOnce({ id: "s1", status: "PENDING", merchant: { userId: "u1" } }) // 预检
+        .mockResolvedValueOnce({ id: "s1", status: "PAID", paidAmount: 1049.39 }); // CAS 后返回
+      mockPrisma.merchantSettlement.updateMany.mockResolvedValue({ count: 1 });
       const result: any = await svc.paySettlement("s1", { amount: 1049.385, remark: "结清" } as any, "admin1");
       expect(result.paidAmount).toBe(1049.39); // 1049.385 → 规整到分
       expect(result.status).toBe("PAID");
+      expect(mockPrisma.merchantSettlement.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: "s1", status: "PENDING" } }),
+      );
+    });
+
+    it("并发下状态已被翻转时拒绝（CAS count=0）", async () => {
+      mockPrisma.merchantSettlement.findUnique.mockResolvedValue({ id: "s1", status: "PENDING", merchant: { userId: "u1" } });
+      mockPrisma.merchantSettlement.updateMany.mockResolvedValue({ count: 0 });
+      await expect(svc.paySettlement("s1", { amount: 100 } as any, "admin1")).rejects.toThrow("结算单状态已变更");
     });
 
     it("不能给自己名下的商家结算单打款（防自审自批）", async () => {

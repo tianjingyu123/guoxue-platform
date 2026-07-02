@@ -162,8 +162,9 @@ export class MerchantSettlementService {
       throw new BusinessException(ErrorCode.MERCHANT_STATUS_INVALID, "只能支付待处理状态的结算单");
     }
 
-    return this.prisma.merchantSettlement.update({
-      where: { id },
+    // 原子 CAS：仅当仍为 PENDING 时翻转为 PAID，防两个管理员并发确认打款导致对同一结算单重复线下打款
+    const res = await this.prisma.merchantSettlement.updateMany({
+      where: { id, status: "PENDING" },
       data: {
         status: "PAID",
         paidAt: new Date(),
@@ -171,6 +172,10 @@ export class MerchantSettlementService {
         remark: dto.remark,
       },
     });
+    if (res.count === 0) {
+      throw new BusinessException(ErrorCode.MERCHANT_STATUS_INVALID, "结算单状态已变更，请刷新后重试");
+    }
+    return this.prisma.merchantSettlement.findUnique({ where: { id } });
   }
 
   /** 取消结算单 */

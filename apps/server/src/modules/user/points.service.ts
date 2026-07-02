@@ -86,14 +86,14 @@ export class PointsService {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "该商品已兑完");
     }
     return this.prisma.$transaction(async (tx) => {
-      const points = await tx.userPoints.findUnique({ where: { userId } });
-      if (!points || points.balance < product.points) {
-        throw new BusinessException(ErrorCode.COIN_BALANCE_INSUFFICIENT, "积分不足");
-      }
-      await tx.userPoints.update({
-        where: { userId },
+      // 原子 CAS 扣积分：仅当余额充足时扣减，防并发读-改-写透支/双花(库存已 CAS，余额此前遗漏)
+      const dec = await tx.userPoints.updateMany({
+        where: { userId, balance: { gte: product.points } },
         data: { balance: { decrement: product.points }, totalSpent: { increment: product.points } },
       });
+      if (dec.count === 0) {
+        throw new BusinessException(ErrorCode.COIN_BALANCE_INSUFFICIENT, "积分不足");
+      }
       await tx.pointsRecord.create({
         data: { userId, amount: product.points, type: "SPEND", source: "EXCHANGE", description: `兑换${product.title}` },
       });
@@ -116,7 +116,8 @@ export class PointsService {
       const record = await tx.pointsExchangeRecord.create({
         data: { userId, productId, pointsCost: product.points, status: "PENDING", reward },
       });
-      return { success: true, recordId: record.id, reward, balance: points.balance - product.points };
+      const after = await tx.userPoints.findUnique({ where: { userId }, select: { balance: true } });
+      return { success: true, recordId: record.id, reward, balance: after?.balance ?? 0 };
     });
   }
 
