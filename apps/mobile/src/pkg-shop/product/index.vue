@@ -256,6 +256,7 @@ import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { goBack, navigateTo } from '@/utils/router'
 import { shopApi, type ShopProductSku } from '@/lib/shop-data'
+import { track } from '@/composables/useTrack'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
 
 const statusBarHeight = ref(0)
@@ -267,6 +268,8 @@ const error = ref('')
 const product = ref<any>(null)
 const reviews = ref<any[]>([]) // 评价预览：本页未导入 ShopProductReview，模板裸访问，保留 any
 const productId = ref('1')
+// view_content 埋点防重复标记（重试/刷新只上报一次）
+const viewTracked = ref(false)
 
 const currentImage = ref(0)
 const isFavorite = ref(false)
@@ -307,6 +310,11 @@ async function fetchProductData() {
     product.value = result.product
     reviews.value = result.reviews || []
     selectedSku.value = product.value?.skus?.[0] || null
+    // 内容浏览埋点：详情加载成功才上报（真实标题），每次进入页面只上报一次（重试不重复）
+    if (!viewTracked.value && product.value) {
+      viewTracked.value = true
+      track.custom('view_content', { type: 'product', id: productId.value, title: product.value.name })
+    }
   } catch (e) {
     error.value = (e as Error)?.message || '加载失败'
   } finally {

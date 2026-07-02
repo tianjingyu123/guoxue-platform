@@ -22,6 +22,8 @@ const chapters = ref<any[]>([])
 // 评价列表，模板裸访问 user/rating 等字段，保留 any
 const reviews = ref<any[]>([])
 const recItems = ref<RecommendItem[]>([])
+// view_content 埋点防重复标记（重试/刷新只上报一次）
+const viewTracked = ref(false)
 
 // 纯 UI 状态
 const activeTab = ref<'intro' | 'chapters' | 'reviews'>('intro')
@@ -79,6 +81,11 @@ async function loadData() {
     course.value = detail
     chapters.value = chaps
     reviews.value = revs
+    // 内容浏览埋点：详情加载成功才上报（真实标题），每次进入页面只上报一次（重试不重复）
+    if (!viewTracked.value && detail) {
+      viewTracked.value = true
+      track.custom('view_content', { type: 'course', id: courseId.value, title: detail.title })
+    }
     // 详情加载成功后拉取推荐（内置降级，无需 try/catch）
     recItems.value = await recommendApi.getForScene('course_detail', String(courseId.value))
   } catch (e) {

@@ -1451,6 +1451,12 @@
       "root": "pkg-operator",
       "pages": [
         {
+          "path": "customers/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
           "path": "join-operator/index",
           "style": {
             "navigationStyle": "custom"

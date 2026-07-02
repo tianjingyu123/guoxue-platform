@@ -338,6 +338,7 @@ export const stationPanelBalance = {
 
 export const stationPanelQuickActions: StationPanelQuickAction[] = [
   { id: 'promote', label: '推广中心', icon: 'share', path: '/station/promote', description: '生成推广链接与二维码' },
+  { id: 'customers', label: '客户洞察', icon: 'users', path: '/pkg-operator/customers/index', description: '了解客户兴趣，精准跟进' },
   { id: 'team', label: '团队管理', icon: 'users', path: '/station/team', badge: 5, description: '查看和管理团队成员' },
   { id: 'materials', label: '推广素材', icon: 'image', path: '/station/materials', description: '获取推广海报和文案' },
   { id: 'config', label: '分站配置', icon: 'settings', path: '/station/config', description: '自定义分站设置' },
@@ -1120,5 +1121,80 @@ export const operatorApi = {
           : { type: 'warn' as const, text: '本月暂无收益，建议关怀唤醒' },
       }
     })
+  },
+}
+
+// ===== 客户洞察（智能名片·用于 customers 页）=====
+// 后端聚合分站归属客户的埋点行为/订单数据，按最近活跃排序；非站长报"你还没有开通分站"
+
+/** 归属客户名片（GET /station/my/customers 适配后） */
+export interface StationCustomer {
+  userId: string
+  nickname: string
+  avatar: string
+  /** 绑定归属时间 */
+  boundAt: string
+  /** 最近活跃时间（空=近期无行为） */
+  lastActiveAt: string
+  /** 近30天行为数 */
+  events30d: number
+  /** 订单数 */
+  orderCount: number
+  /** 累计消费（元） */
+  totalSpent: number
+  /** 兴趣标签（由行为聚合推断） */
+  interests: string[]
+}
+
+/** 客户行为时间线条目（GET /station/my/customers/:id/timeline，summary 已是人话） */
+export interface CustomerTimelineEvent {
+  action: string
+  path: string
+  summary: string
+  occurredAt: string
+}
+
+/* —— 后端原始响应（宽松容错，不 export） —— */
+interface RawStationCustomer {
+  userId?: string | number
+  nickname?: string
+  avatar?: string
+  boundAt?: string | null
+  lastActiveAt?: string | null
+  events30d?: number | string
+  orderCount?: number | string
+  totalSpent?: number | string
+  interests?: string[]
+}
+interface RawCustomersResp { customers?: RawStationCustomer[]; total?: number }
+interface RawTimelineEvent { action?: string; path?: string; summary?: string; occurredAt?: string }
+interface RawTimelineResp { events?: RawTimelineEvent[] }
+
+export const customerApi = {
+  /** 归属客户列表（分页，按最近活跃排序；错误直接抛给页面走三态） */
+  async list(page = 1, pageSize = 20): Promise<{ items: StationCustomer[]; total: number }> {
+    const res = await apiGet<RawCustomersResp>(`/station/my/customers?page=${page}&pageSize=${pageSize}`)
+    const items = (res?.customers || []).map((c): StationCustomer => ({
+      userId: String(c.userId ?? ''),
+      nickname: c.nickname || '匿名用户',
+      avatar: c.avatar || '',
+      boundAt: c.boundAt || '',
+      lastActiveAt: c.lastActiveAt || '',
+      events30d: toNum(c.events30d),
+      orderCount: toNum(c.orderCount),
+      totalSpent: toNum(c.totalSpent),
+      interests: Array.isArray(c.interests) ? c.interests : [],
+    }))
+    return { items, total: res?.total || 0 }
+  },
+  /** 单个客户行为时间线（点击卡片展开时按需请求） */
+  async timeline(userId: string): Promise<CustomerTimelineEvent[]> {
+    const res = await apiGet<RawTimelineResp>(`/station/my/customers/${userId}/timeline`)
+    return (res?.events || []).map((e): CustomerTimelineEvent => ({
+      action: e.action || '',
+      path: e.path || '',
+      summary: e.summary || '',
+      occurredAt: e.occurredAt || '',
+    }))
   },
 }
