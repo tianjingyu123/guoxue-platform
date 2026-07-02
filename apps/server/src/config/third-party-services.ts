@@ -239,6 +239,19 @@ export const THIRD_PARTY_SERVICES: ThirdPartyService[] = [
     note: "内部定时任务回调验签，自己设一串随机字符串即可，不用去任何平台申请。",
     fields: [S("webhookSecret", "Cron Webhook Secret", "CRON_WEBHOOK_SECRET", true, "自定义一串随机字符串（如32位字母数字），用于定时任务回调验签")],
   },
+  {
+    key: "einvoice", label: "电子发票（诺诺/百望等）", category: "财务", enabled: false,
+    note: "开票中心的第三方电子发票服务（如诺诺网/百望云/航信）。配置并启用后，用户线上申请开票可全自动开具并线上交付（回传 PDF/OFD 下载链接与发票号）；未配置时开票中心仍可由财务人工开票。请到票据服务商开通接口获取 AppKey/AppSecret 与销方信息。",
+    fields: [
+      S("provider", "服务商", ["EINVOICE_PROVIDER"], false, "票据服务商标识，如 nuonuo（诺诺）/ baiwang（百望）/ aisino（航信）"),
+      S("appKey", "AppKey", ["EINVOICE_APP_KEY"], false, "服务商开放平台申请的应用 AppKey"),
+      S("appSecret", "AppSecret", ["EINVOICE_APP_SECRET"], true, "与 AppKey 配对的密钥"),
+      S("sellerTaxNo", "销方税号", ["EINVOICE_SELLER_TAX_NO"], false, "平台开票主体的统一社会信用代码/税号"),
+      S("sellerName", "销方名称", ["EINVOICE_SELLER_NAME"], false, "平台开票主体的公司全称"),
+      S("apiBase", "接口地址", ["EINVOICE_API_BASE"], false, "服务商开放接口的 Base URL（沙箱/生产按服务商文档填）"),
+      S("autoIssue", "全自动开票", ["EINVOICE_AUTO_ISSUE"], false, "填 true 则用户申请后自动开票并交付；填 false 或留空则需财务人工确认后开票", "false"),
+    ],
+  },
 ];
 
 /** 服务 key → 字段 env 映射（loader 用）。展开数组。 */
