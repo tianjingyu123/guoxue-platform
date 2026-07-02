@@ -61,6 +61,24 @@ export class StationController {
     return this.svc.updateStation(station.id, dto);
   }
 
+  @Get("my/customers")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "客户洞察：归属客户画像列表（活跃/消费/兴趣标签·智能名片）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  async getMyCustomers(@Req() req: Request, @Query("page") page = 1, @Query("pageSize") pageSize = 20) {
+    const station = await this.svc.getStationByUserId(req.user.id);
+    if (!station) throw new BusinessException(ErrorCode.NOT_FOUND, "你还没有开通分站");
+    return this.svc.listCustomers(req.user.id, +page, Math.min(50, +pageSize));
+  }
+
+  @Get("my/customers/:id/timeline")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "客户洞察：单个归属客户最近行为时间线（归属校验防越权）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  async getMyCustomerTimeline(@Req() req: Request, @Param("id") id: string) {
+    return this.svc.getCustomerTimeline(req.user.id, id);
+  }
+
   @Get("my/earnings")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "我的分站收益明细（自服务）" })
