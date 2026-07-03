@@ -23,12 +23,25 @@
       <template v-else-if="data">
         <!-- 欢迎 + 进度环 -->
         <view class="ob-hero">
+          <!-- #ifndef MP -->
+          <!-- H5/App：conic-gradient 按占比着色 -->
           <view class="ob-ring" :style="ringStyle">
             <view class="ob-ring-inner">
               <text class="ob-ring-num">{{ data.progress.done }}/{{ data.progress.total }}</text>
               <text class="ob-ring-label">已完成</text>
             </view>
           </view>
+          <!-- #endif -->
+          <!-- #ifdef MP -->
+          <!-- 小程序不支持 conic-gradient：降级为纯色边框环，进度由中心数字呈现 -->
+          <view class="ob-ring ob-ring-mp">
+            <view class="ob-ring-inner">
+              <text class="ob-ring-num">{{ data.progress.done }}/{{ data.progress.total }}</text>
+              <text class="ob-ring-label">已完成</text>
+            </view>
+          </view>
+          <!-- #endif -->
+
           <view class="ob-hero-text">
             <text class="ob-hero-title">{{ data.stationName }}</text>
             <text class="ob-hero-sub">开业第 {{ data.openDays }} 天 · {{ heroCopy }}</text>
@@ -203,6 +216,8 @@ function goSop() {
 /* 欢迎 + 进度环 */
 .ob-hero { margin: 12px 16px; padding: 20px 16px; background: linear-gradient(135deg, #9a2e25, #b8453a); border-radius: 14px; display: flex; align-items: center; gap: 16px; }
 .ob-ring { width: 84px; height: 84px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+/* 小程序降级：conic-gradient 不着色 → 纯色边框环 */
+.ob-ring-mp { box-sizing: border-box; border: 8px solid #ffd9a0; background: rgba(255,255,255,0.18); }
 .ob-ring-inner { width: 68px; height: 68px; border-radius: 50%; background: #9f352b; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; }
 .ob-ring-num { font-size: 17px; font-weight: 700; color: #fff; }
 .ob-ring-label { font-size: 10px; color: rgba(255,255,255,0.75); }

@@ -91,7 +91,7 @@
             :class="{ 'toc-item-sub': item.level !== 2, 'toc-item-active': activeSection === item.id }"
             @tap="goSection(item.id)"
           >
-            <app-icon name="chevron-right" :size="16" :color="activeSection === item.id ? '#c41e3a' : '#999999'" />
+            <app-icon name="chevron-right" :size="16" :color="activeSection === item.id ? '#9a2e25' : '#999999'" />
             <text class="toc-item-text">{{ item.title }}</text>
           </view>
         </scroll-view>
@@ -202,7 +202,7 @@ const goSection = (id: string) => {
 }
 .state-btn {
   padding: 16rpx 48rpx;
-  background-color: var(--brand);
+  background-color: #9a2e25;
   border-radius: 12rpx;
 }
 .state-btn-text {
@@ -346,7 +346,7 @@ const goSection = (id: string) => {
   padding-left: 48rpx;
 }
 .toc-item-active {
-  background-color: rgba(196, 30, 58, 0.1);
+  background-color: rgba(154, 46, 37, 0.1);
 }
 .toc-item-text {
   font-size: 28rpx;
@@ -358,6 +358,6 @@ const goSection = (id: string) => {
   font-weight: 400;
 }
 .toc-item-active .toc-item-text {
-  color: var(--brand);
+  color: #9a2e25;
 }
 </style>

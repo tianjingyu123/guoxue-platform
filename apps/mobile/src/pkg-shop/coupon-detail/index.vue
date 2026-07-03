@@ -16,23 +16,15 @@
           <text class="retry-btn-text">重试</text>
         </view>
       </view>
+      <!-- 券不存在/已失效 -->
+      <view v-else-if="!coupon.id" class="state-wrap">
+        <app-icon name="ticket" :size="56" color="#d1c9bb" />
+        <text class="state-text">优惠券不存在或已失效</text>
+      </view>
       <!-- 内容 -->
       <template v-else>
-      <!-- 大卡片 -->
-      <view class="big-card">
-        <view class="bc-head">
-          <view class="bc-value">
-            <text class="bc-num">{{ coupon.value }}</text>
-            <text class="bc-unit">元</text>
-          </view>
-          <view class="bc-right">
-            <text class="bc-min">满{{ coupon.minAmount }}元可用</text>
-            <text class="bc-expire">至 {{ coupon.expireAt }}</text>
-          </view>
-        </view>
-        <view class="bc-divider" />
-        <text class="bc-desc">{{ coupon.description }}</text>
-      </view>
+      <!-- 大卡片（面值/门槛/有效期，复用公共组件）-->
+      <coupon-item mode="detail" :coupon="coupon" />
 
       <!-- 券码 -->
       <view class="code-card">
@@ -46,8 +38,8 @@
         </view>
       </view>
 
-      <!-- 使用说明 -->
-      <view class="rules-card">
+      <!-- 使用说明（后端无规则时诚实隐藏空壳）-->
+      <view v-if="coupon.rules?.length" class="rules-card">
         <text class="rules-title">使用说明</text>
         <view class="rules">
           <view v-for="(r, i) in coupon.rules" :key="i" class="rule">
@@ -57,8 +49,8 @@
         </view>
       </view>
 
-      <!-- 适用商品 -->
-      <view class="apply-card">
+      <!-- 适用商品（后端无适用清单时诚实隐藏空壳）-->
+      <view v-if="coupon.applicableItems?.length" class="apply-card">
         <view class="apply-head">
           <text class="apply-title">适用商品/课程</text>
         </view>
@@ -94,6 +86,7 @@
 import { ref, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { navigateTo } from '@/utils/router'
+import CouponItem from '@/components/shop/coupon-item.vue'
 import { shopApi, type CouponApplicableItem } from '@/lib/shop-data'
 
 const couponId = ref('')
@@ -165,56 +158,7 @@ function goUse() {
 .body {
   padding: 24rpx;
 }
-.big-card {
-  background: linear-gradient(90deg, var(--brand), #e74c57);
-  border-radius: 24rpx;
-  padding: 48rpx;
-  margin-bottom: 24rpx;
-  box-shadow: 0 12rpx 32rpx rgba(196, 30, 58, 0.2);
-}
-.bc-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-}
-.bc-value {
-  display: flex;
-  flex-direction: column;
-}
-.bc-num {
-  font-size: 72rpx;
-  font-weight: 700;
-  color: #fff;
-  line-height: 1;
-}
-.bc-unit {
-  font-size: 24rpx;
-  color: rgba(255, 255, 255, 0.9);
-  margin-top: 8rpx;
-}
-.bc-right {
-  text-align: right;
-}
-.bc-min {
-  font-size: 26rpx;
-  color: #fff;
-  display: block;
-}
-.bc-expire {
-  font-size: 22rpx;
-  color: rgba(255, 255, 255, 0.9);
-  margin-top: 8rpx;
-  display: block;
-}
-.bc-divider {
-  height: 1rpx;
-  background: rgba(255, 255, 255, 0.3);
-  margin: 24rpx 0;
-}
-.bc-desc {
-  font-size: 26rpx;
-  color: #fff;
-}
+/* 大卡片样式已抽到 @/components/shop/coupon-item.vue（detail 模式）*/
 .code-card {
   display: flex;
   align-items: center;
