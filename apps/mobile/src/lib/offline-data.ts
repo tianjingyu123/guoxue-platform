@@ -198,6 +198,126 @@ export const bookingStatusStyle: Record<BookingStatus, { color: string; bg: stri
   CANCELLED: { color: '#6b7280', bg: '#f3f4f6' },
 }
 
+// ===== 驿站活动（StationEvent·T8-P1a）=====
+export type StationEventType = 'YAJI' | 'SALON' | 'READING' | 'SOLAR_TERM' | 'EXPERIENCE'
+
+export const eventTypeLabel: Record<StationEventType, string> = {
+  YAJI: '雅集', SALON: '沙龙', READING: '读书会', SOLAR_TERM: '节气活动', EXPERIENCE: '体验课',
+}
+export function getEventTypeLabel(type?: string | null): string {
+  if (!type) return '活动'
+  return eventTypeLabel[type as StationEventType] || '活动'
+}
+export const eventTypeFilters: { value: StationEventType | 'all'; label: string }[] = [
+  { value: 'all', label: '全部' },
+  { value: 'YAJI', label: '雅集' },
+  { value: 'SALON', label: '沙龙' },
+  { value: 'READING', label: '读书会' },
+  { value: 'SOLAR_TERM', label: '节气活动' },
+  { value: 'EXPERIENCE', label: '体验课' },
+]
+export const eventTypeStyle: Record<StationEventType, { color: string; bg: string }> = {
+  YAJI: { color: '#9333ea', bg: '#faf5ff' },
+  SALON: { color: '#2563eb', bg: '#eff6ff' },
+  READING: { color: '#16a34a', bg: '#f0fdf4' },
+  SOLAR_TERM: { color: '#ea580c', bg: '#fff7ed' },
+  EXPERIENCE: { color: '#0891b2', bg: '#ecfeff' },
+}
+export function getEventTypeStyle(type?: string | null): { color: string; bg: string } {
+  return eventTypeStyle[type as StationEventType] || { color: '#6b7280', bg: '#f3f4f6' }
+}
+
+export interface StationEvent {
+  id: string
+  stationId: string
+  title: string
+  type: StationEventType | string
+  cover: string | null
+  intro: string | null
+  price: string | number
+  maxAttendees: number
+  startTime: string
+  endTime: string
+  location: string
+  status: string // DRAFT/PUBLISHED/CANCELLED/FINISHED
+  circleId?: string | null
+  photos?: string[] | null
+  _count?: { registrations: number }
+  station?: { id: string; name: string; address?: string; phone?: string; city?: string }
+}
+
+export interface EventRegistration {
+  id: string
+  eventId: string
+  userId: string
+  status: string // REGISTERED/SIGNED_IN/CANCELLED
+  qrCode: string | null
+  signedAt: string | null
+}
+
+/** 活动详情（GET /offline/events/:id·photos=回顾照片·myRegistration 登录时返回） */
+export interface StationEventDetail extends StationEvent {
+  photos?: string[] | null
+  myRegistration?: EventRegistration | null
+}
+
+/** 我的活动报名（GET /offline/my-event-registrations 项） */
+export interface MyEventRegistration extends EventRegistration {
+  event: StationEvent & { station?: { id: string; name: string; address?: string; phone?: string } }
+}
+
+/** 活动派生报名状态（与课程同构：状态机 + 时间/容量推导，复用 courseStatusLabel/Style 展示） */
+export function deriveEventStatus(e: StationEvent): DerivedCourseStatus {
+  if (e.status === 'CANCELLED') return 'cancelled'
+  if (e.status === 'DRAFT') return 'draft'
+  if (e.status === 'FINISHED') return 'ended'
+  const now = Date.now()
+  const start = new Date(e.startTime).getTime()
+  const end = new Date(e.endTime).getTime()
+  if (now > end) return 'ended'
+  if (now >= start && now <= end) return 'ongoing'
+  const registered = e._count?.registrations ?? 0
+  if (e.maxAttendees > 0 && registered >= e.maxAttendees) return 'full'
+  return 'enrolling'
+}
+
+/** B 端原始状态标签/色（全状态列表用） */
+export const eventStatusLabel: Record<string, string> = {
+  DRAFT: '草稿', PUBLISHED: '已发布', CANCELLED: '已取消', FINISHED: '已结束',
+}
+export const eventStatusStyle: Record<string, { color: string; bg: string }> = {
+  DRAFT: { color: '#6b7280', bg: '#f3f4f6' },
+  PUBLISHED: { color: '#16a34a', bg: '#f0fdf4' },
+  CANCELLED: { color: '#dc2626', bg: '#fef2f2' },
+  FINISHED: { color: '#0891b2', bg: '#ecfeff' },
+}
+
+/** 起止时间人话（同日=「7月5日 14:00 - 16:00」，跨日=「2026-07-05 至 2026-07-06」） */
+export function eventTimeRange(startTime?: string | null, endTime?: string | null): string {
+  if (!startTime) return ''
+  const s = new Date(startTime)
+  const e = new Date(endTime || startTime)
+  if (isNaN(s.getTime())) return ''
+  const p = (n: number) => String(n).padStart(2, '0')
+  if (s.toDateString() === e.toDateString()) {
+    return `${fmtCourseTime(startTime)} - ${p(e.getHours())}:${p(e.getMinutes())}`
+  }
+  return `${fmtDate(startTime)} 至 ${fmtDate(endTime)}`
+}
+
+// ===== 统一经营日历（GET /offline/dashboard/calendar）=====
+export type CalendarItemKind = 'course' | 'event' | 'booking'
+export interface CalendarItem {
+  kind: CalendarItemKind
+  id: string
+  title: string
+  startTime: string
+  endTime?: string | null
+  status?: string
+}
+/** 日期(YYYY-MM-DD) → 当日安排列表 */
+export type CalendarDays = Record<string, CalendarItem[]>
+
 // ============ API 层 ============
 export const offlineApi = {
   /** 驿站发现（用户端）GET /offline/stations/discover → {stations,total} */
@@ -270,6 +390,38 @@ export const offlineApi = {
   /** 提交课后评价 POST /offline/courses/:id/reviews（仅本人已签到·一报名一评·业务异常 message 直接 toast） */
   submitCourseReview(courseId: string, data: { rating: number; content?: string }): Promise<CourseReview> {
     return apiPost<CourseReview>(`/offline/courses/${courseId}/reviews`, data)
+  },
+
+  // ===== 驿站活动 C 端（T8-P1a）=====
+
+  /** 活动列表（PUBLISHED）GET /offline/events?stationId&type&page&pageSize → 分页 {items,total} */
+  getEvents(params?: { stationId?: string; type?: StationEventType | string; page?: number; pageSize?: number }): Promise<{ items: StationEvent[]; total: number }> {
+    const q = new URLSearchParams()
+    if (params?.stationId) q.set('stationId', params.stationId)
+    if (params?.type && params.type !== 'all') q.set('type', String(params.type))
+    q.set('page', String(params?.page || 1))
+    q.set('pageSize', String(params?.pageSize || 20))
+    return apiGetPaged<StationEvent>(`/offline/events?${q.toString()}`)
+  },
+
+  /** 活动详情 GET /offline/events/:id（含 photos 回顾照片 + 登录时 myRegistration） */
+  getEvent(id: string): Promise<StationEventDetail> {
+    return apiGet<StationEventDetail>(`/offline/events/${id}`)
+  },
+
+  /** 活动报名 POST /offline/events/:id/register（业务异常 message 直接 toast） */
+  registerEvent(eventId: string): Promise<EventRegistration> {
+    return apiPost<EventRegistration>(`/offline/events/${eventId}/register`)
+  },
+
+  /** 取消活动报名 POST /offline/events/:id/cancel-registration */
+  cancelEventRegistration(eventId: string): Promise<{ success?: boolean }> {
+    return apiPost<{ success?: boolean }>(`/offline/events/${eventId}/cancel-registration`)
+  },
+
+  /** 我的活动报名记录 GET /offline/my-event-registrations */
+  getMyEventRegistrations(page = 1, pageSize = 20): Promise<{ items: MyEventRegistration[]; total: number }> {
+    return apiGetPaged<MyEventRegistration>(`/offline/my-event-registrations?page=${page}&pageSize=${pageSize}`)
   },
 }
 
@@ -462,6 +614,58 @@ export const offlineManageApi = {
   createStudyCircle(courseId: string): Promise<{ circleId: string }> {
     return apiPost<{ circleId: string }>(`/offline/dashboard/courses/${courseId}/study-circle`)
   },
+
+  // ===== 驿站活动 B 端（T8-P1a·dashboard 端点由后端从 JWT 反查驿站）=====
+
+  /** 全状态活动列表 GET /offline/dashboard/events → 分页 {items,total} */
+  getManageEvents(page = 1, pageSize = 100): Promise<{ items: StationEvent[]; total: number }> {
+    return apiGetPaged<StationEvent>(`/offline/dashboard/events?page=${page}&pageSize=${pageSize}`)
+  },
+
+  /** 创建活动 POST /offline/dashboard/events */
+  createEvent(data: CreateEventPayload): Promise<StationEvent> {
+    return apiPost<StationEvent>('/offline/dashboard/events', data)
+  },
+
+  /** 更新活动 PUT /offline/dashboard/events/:id */
+  updateEvent(eventId: string, data: Partial<CreateEventPayload>): Promise<StationEvent> {
+    return apiPut<StationEvent>(`/offline/dashboard/events/${eventId}`, data)
+  },
+
+  /** 活动状态流转 PUT /offline/dashboard/events/:id/status（action: publish|cancel|finish） */
+  updateEventStatus(eventId: string, action: 'publish' | 'cancel' | 'finish'): Promise<StationEvent> {
+    return apiPut<StationEvent>(`/offline/dashboard/events/${eventId}/status`, { action })
+  },
+
+  /** 活动扫码/凭证码核销 POST /offline/dashboard/events/sign-in */
+  eventSignIn(qrCode: string): Promise<unknown> {
+    return apiPost<unknown>('/offline/dashboard/events/sign-in', { qrCode })
+  },
+
+  /** 更新活动回顾照片 PUT /offline/dashboard/events/:id/photos（URL 数组·≤30） */
+  updateEventPhotos(eventId: string, photos: string[]): Promise<StationEvent> {
+    return apiPut<StationEvent>(`/offline/dashboard/events/${eventId}/photos`, { photos })
+  },
+
+  /** 统一经营日历 GET /offline/dashboard/calendar?month=YYYY-MM → { days } */
+  async getCalendar(month: string): Promise<CalendarDays> {
+    const d = await apiGet<{ days?: CalendarDays }>(`/offline/dashboard/calendar?month=${month}`)
+    return d?.days || {}
+  },
+}
+
+/** 创建/编辑活动载荷（B 端表单） */
+export interface CreateEventPayload {
+  stationId?: string
+  title: string
+  type: StationEventType
+  intro?: string
+  cover?: string
+  price?: number
+  maxAttendees: number
+  startTime: string
+  endTime: string
+  location: string
 }
 
 // ===== 学员洞察（智能名片·用于 pkg-offline/students 页）=====

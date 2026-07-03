@@ -1795,6 +1795,24 @@
           "style": {
             "navigationStyle": "custom"
           }
+        },
+        {
+          "path": "events/detail",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "manage-events/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "manage-calendar/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
         }
       ]
     },

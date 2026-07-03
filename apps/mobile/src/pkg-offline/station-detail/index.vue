@@ -64,6 +64,33 @@
           </view>
         </view>
 
+        <!-- 近期活动（PUBLISHED 未结束前 5 场·横滑，空则不渲染） -->
+        <view v-if="upcomingEvents.length" class="sd-events">
+          <view class="sd-events-head">
+            <text class="sd-events-title">近期活动</text>
+            <text class="sd-events-more" @tap="goEvents">全部</text>
+          </view>
+          <scroll-view scroll-x class="sd-events-scroll" :show-scrollbar="false">
+            <view class="sd-events-row">
+              <view v-for="e in upcomingEvents" :key="e.id" class="sd-event-card" @tap="goEvent(e.id)">
+                <view class="sd-event-cover">
+                  <image lazy-load v-if="e.cover" :src="e.cover" class="sd-event-cover-img" mode="aspectFill" />
+                  <app-icon v-else name="sparkles" :size="24" color="#d8b48a" />
+                  <text class="sd-event-type" :style="{ color: getEventTypeStyle(e.type).color, background: getEventTypeStyle(e.type).bg }">{{ getEventTypeLabel(e.type) }}</text>
+                </view>
+                <view class="sd-event-info">
+                  <text class="sd-event-name">{{ e.title }}</text>
+                  <text class="sd-event-time">{{ fmtCourseTime(e.startTime) }}</text>
+                  <view class="sd-event-bottom">
+                    <text class="sd-event-price">{{ num(e.price) === 0 ? '免费' : '¥' + num(e.price) }}</text>
+                    <text class="sd-event-reg">{{ e._count?.registrations ?? 0 }}/{{ e.maxAttendees }}</text>
+                  </view>
+                </view>
+              </view>
+            </view>
+          </scroll-view>
+        </view>
+
         <!-- Tab 切换 -->
         <view class="sd-tabs">
           <view
@@ -185,7 +212,8 @@ import { useShare } from '@/composables/useShare'
 import {
   offlineApi, getStationTypeLabel, getFacilityInfo, stationStatusLabel,
   deriveCourseStatus, courseStatusLabel, courseStatusStyle, fmtCourseTime, num,
-  type StationDetail, type StationTeacherLite,
+  getEventTypeLabel, getEventTypeStyle,
+  type StationDetail, type StationTeacherLite, type StationEvent,
 } from '@/lib/offline-data'
 
 const statusBarHeight = ref(0)
@@ -199,6 +227,7 @@ const errMsg = ref('')
 const stationId = ref('')
 const station = ref<StationDetail | null>(null)
 const teachers = ref<StationTeacherLite[]>([])
+const upcomingEvents = ref<StationEvent[]>([])
 
 type TabType = 'intro' | 'courses' | 'products' | 'instructors'
 const tabs: { value: TabType; label: string; icon: string }[] = [
@@ -214,12 +243,18 @@ async function load() {
   loading.value = true
   errMsg.value = ''
   try {
-    const [s, t] = await Promise.all([
+    const [s, t, ev] = await Promise.all([
       offlineApi.getStation(stationId.value),
       offlineApi.getStationTeachers(stationId.value).catch(() => []),
+      // 近期活动为增益区块：失败/空不阻塞详情，不渲染即诚实降级
+      offlineApi.getEvents({ stationId: stationId.value, page: 1, pageSize: 20 }).catch(() => ({ items: [] as StationEvent[], total: 0 })),
     ])
     station.value = s
     teachers.value = t
+    const nowTs = Date.now()
+    upcomingEvents.value = ev.items
+      .filter((e) => e.status === 'PUBLISHED' && new Date(e.endTime).getTime() > nowTs)
+      .slice(0, 5)
   } catch (e) {
     errMsg.value = (e as Error)?.message || '加载失败'
     station.value = null
@@ -258,6 +293,8 @@ function onCall() {
   if (station.value?.phone) uni.makePhoneCall({ phoneNumber: station.value.phone }).catch(() => {})
 }
 function goCourse(id: string) { navigateTo(`/offline/courses/${id}`) }
+function goEvent(id: string) { navigateTo(`/pkg-offline/events/detail?id=${id}`) }
+function goEvents() { navigateTo(`/offline/events?stationId=${stationId.value}`) }
 function goBooking(teacherId?: string) {
   const base = `/offline/teacher-booking?stationId=${stationId.value}`
   navigateTo(teacherId ? `${base}&teacherId=${teacherId}` : base)
@@ -299,6 +336,23 @@ function goBooking(teacherId?: string) {
 .sd-hour.closed { color: #9ca3af; }
 .sd-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
 .sd-tag { padding: 3px 10px; font-size: 12px; color: #6b7280; background: #f3f4f6; border-radius: 6px; }
+/* ===== 近期活动横滑区 ===== */
+.sd-events { background: #fff; margin-top: 8px; padding: 14px 0 16px; }
+.sd-events-head { display: flex; align-items: center; justify-content: space-between; padding: 0 16px 10px; }
+.sd-events-title { font-size: 15px; font-weight: 600; color: #1a1a1a; }
+.sd-events-more { font-size: 12px; color: var(--brand); }
+.sd-events-scroll { white-space: nowrap; }
+.sd-events-row { display: flex; gap: 10px; padding: 0 16px; }
+.sd-event-card { flex-shrink: 0; width: 168px; background: #faf9f6; border: 1px solid #f0ece3; border-radius: 12px; overflow: hidden; }
+.sd-event-cover { position: relative; width: 100%; height: 84px; background: #f3f0ea; display: flex; align-items: center; justify-content: center; }
+.sd-event-cover-img { width: 100%; height: 100%; }
+.sd-event-type { position: absolute; top: 6px; left: 6px; padding: 1px 8px; font-size: 10px; border-radius: 4px; }
+.sd-event-info { padding: 8px 10px 10px; }
+.sd-event-name { display: block; font-size: 13px; font-weight: 500; color: #1a1a1a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sd-event-time { display: block; font-size: 11px; color: #9ca3af; margin-top: 3px; }
+.sd-event-bottom { display: flex; align-items: center; justify-content: space-between; margin-top: 6px; }
+.sd-event-price { font-size: 13px; font-weight: 600; color: var(--brand); }
+.sd-event-reg { font-size: 10px; color: #9ca3af; }
 .sd-tabs { position: sticky; top: 48px; z-index: 40; display: flex; background: #fff; border-bottom: 1px solid #ededed; margin-top: 8px; }
 .sd-tab { flex: 1; display: flex; align-items: center; justify-content: center; gap: 4px; padding: 12px 0; border-bottom: 2px solid transparent; }
 .sd-tab.active { border-bottom-color: var(--brand); }
