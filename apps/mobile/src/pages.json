@@ -69,6 +69,22 @@
           }
         },
         {
+          "path": "couple/invite",
+          "style": { "navigationStyle": "custom" }
+        },
+        {
+          "path": "couple/accept",
+          "style": { "navigationStyle": "custom" }
+        },
+        {
+          "path": "couple/result",
+          "style": { "navigationStyle": "custom" }
+        },
+        {
+          "path": "couple/mine",
+          "style": { "navigationStyle": "custom" }
+        },
+        {
           "path": "bazi/result",
           "style": {
             "navigationStyle": "custom"

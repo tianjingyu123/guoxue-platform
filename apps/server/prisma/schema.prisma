@@ -68,6 +68,8 @@ model User {
   videos               Video[]
   paipanRecords        PaipanRecord[]
   aiAnalysisRecords    AiAnalysisRecord[]
+  coupleChartsInitiated CoupleChart[] @relation("CoupleChartInitiator")
+  coupleChartsPartnered CoupleChart[] @relation("CoupleChartPartner")
   toolRecords          ToolRecord[]
   toolFavorites        ToolFavorite[]
   toolShares           ToolShare[]
@@ -1530,6 +1532,32 @@ model PaipanRecord {
   @@index([userId, paipanType, createdAt])
   @@index([createdAt])
   @@index([paipanType])
+}
+
+// V4 双人合盘（合婚/合作盘裂变）——邀请授权流 + R3 最小授权
+// 发起方只有自己的盘，必须拉对方进来授权；双方唯一共享内容=合婚报告文本
+// 生辰/原始盘绝不互相暴露（任何端点都不返回对方 recordId/四柱/生辰）
+model CoupleChart {
+  id                String   @id @default(uuid())
+  initiatorId       String                        // 发起方 userId
+  partnerId         String?                        // 被邀请方 userId（授权后填）
+  status            String   @default("PENDING_INVITE") // PENDING_INVITE | AUTHORIZED | REJECTED | EXPIRED
+  initiatorRecordId String                        // 发起方自己的 BAZI 盘 id（裸 String，无 FK）
+  partnerRecordId   String?                        // 对方授权时提供的 BAZI 盘 id（裸 String，无 FK）
+  inviteToken       String                         // 邀请链接令牌（随机 32 位 hex）·唯一约束见 @@unique
+  analysisId        String?                        // 关联 AiAnalysisRecord.id（合婚报告）
+  initiatorDeleted  Boolean  @default(false)       // 发起方单侧软删可见性
+  partnerDeleted    Boolean  @default(false)       // 被邀请方单侧软删可见性
+  expiresAt         DateTime                       // 邀请过期时间（now + 7 天）
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  initiator User  @relation("CoupleChartInitiator", fields: [initiatorId], references: [id])
+  partner   User? @relation("CoupleChartPartner", fields: [partnerId], references: [id])
+
+  @@index([initiatorId])
+  @@index([partnerId])
+  @@unique([inviteToken])
 }
 
 // 用户自定义分组（跨排盘工具）

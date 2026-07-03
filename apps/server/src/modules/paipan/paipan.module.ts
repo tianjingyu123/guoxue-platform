@@ -2,6 +2,8 @@ import { Module } from "@nestjs/common";
 import { PaipanService } from "./paipan.service";
 import { PaipanController } from "./paipan.controller";
 import { PaipanAiService } from "./paipan-ai.service";
+import { CoupleService } from "./couple.service";
+import { CoupleController } from "./couple.controller";
 import { BaziKnowledgeService } from "./bazi-knowledge.service";
 import { BaziKnowledgeController } from "./bazi-knowledge.controller";
 import { BaziKnowledgeSeeder } from "./bazi-knowledge-seeder.service";
@@ -13,8 +15,8 @@ import { CoinModule } from "../coin/coin.module";
 
 @Module({
   imports: [AiGatewayModule, CoinModule],
-  controllers: [PaipanController, BaziKnowledgeController, ZiweiKnowledgeController],
-  providers: [PaipanService, PaipanAiService, BaziKnowledgeService, BaziKnowledgeSeeder, ZiweiKnowledgeService, ZiweiKnowledgeSeeder],
+  controllers: [PaipanController, CoupleController, BaziKnowledgeController, ZiweiKnowledgeController],
+  providers: [PaipanService, PaipanAiService, CoupleService, BaziKnowledgeService, BaziKnowledgeSeeder, ZiweiKnowledgeService, ZiweiKnowledgeSeeder],
   exports: [PaipanService, PaipanAiService, BaziKnowledgeService, ZiweiKnowledgeService],
 })
 export class PaipanModule {}
