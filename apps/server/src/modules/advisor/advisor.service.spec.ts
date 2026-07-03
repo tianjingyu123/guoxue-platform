@@ -4,7 +4,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { BusinessException } from "../../common/business.exception";
 
 const mockPrisma = {
-  advisorRule: { findMany: jest.fn() },
+  advisorRule: { findMany: jest.fn(), findUnique: jest.fn(), create: jest.fn(), update: jest.fn() },
   advisorInsight: {
     findFirst: jest.fn(),
     findMany: jest.fn(),
@@ -206,6 +206,102 @@ describe("AdvisorService", () => {
       const arg = mockPrisma.advisorInsight.update.mock.calls[0][0];
       expect(arg.data.status).toBe("ACTED");
       expect(arg.data.actedAt).toBeInstanceOf(Date);
+    });
+  });
+
+  describe("规则后台管理（C7）", () => {
+    const createDto = (overrides: Record<string, unknown> = {}) =>
+      ({
+        roleType: "STATION_MASTER",
+        ruleKey: "test_rule",
+        metric: "station_earning_wow_drop",
+        condition: { thresholdPct: 30 },
+        severity: "WARN",
+        suggestion: "近7天下降 {{dropPct}}%",
+        actions: [{ label: "去看数据", type: "NAVIGATE", target: "/x" }],
+        ...overrides,
+      }) as any;
+
+    it("listRules：按 roleType, ruleKey 排序返回 { items }", async () => {
+      mockPrisma.advisorRule.findMany.mockResolvedValue([{ id: "r1" }, { id: "r2" }]);
+      const result = await svc.listRules();
+      expect(result.items).toHaveLength(2);
+      expect(mockPrisma.advisorRule.findMany).toHaveBeenCalledWith({
+        orderBy: [{ roleType: "asc" }, { ruleKey: "asc" }],
+      });
+    });
+
+    it("创建成功：updatedBy 写入管理员 userId，severity 缺省 INFO", async () => {
+      mockPrisma.advisorRule.findUnique.mockResolvedValue(null);
+      mockPrisma.advisorRule.create.mockResolvedValue({ id: "r1", ruleKey: "test_rule" });
+      const result = await svc.createRule(createDto({ severity: undefined }), "admin-1");
+      expect(result.id).toBe("r1");
+      const data = mockPrisma.advisorRule.create.mock.calls[0][0].data;
+      expect(data.updatedBy).toBe("admin-1");
+      expect(data.severity).toBe("INFO");
+      expect(data.metric).toBe("station_earning_wow_drop");
+    });
+
+    it("ruleKey 冲突抛业务异常，不落库", async () => {
+      mockPrisma.advisorRule.findUnique.mockResolvedValue({ id: "exists", ruleKey: "test_rule" });
+      await expect(svc.createRule(createDto(), "admin-1")).rejects.toThrow(/已存在/);
+      expect(mockPrisma.advisorRule.create).not.toHaveBeenCalled();
+    });
+
+    it("metric 不是合法探针（PROBES 无此 key）拒绝创建", async () => {
+      await expect(svc.createRule(createDto({ metric: "no_such_probe" }), "admin-1")).rejects.toThrow(
+        /探针 no_such_probe 不存在/,
+      );
+      expect(mockPrisma.advisorRule.create).not.toHaveBeenCalled();
+    });
+
+    it("severity 非法（非 INFO/WARN/CRITICAL）拒绝", async () => {
+      await expect(svc.createRule(createDto({ severity: "FATAL" }), "admin-1")).rejects.toThrow(
+        /severity 只允许/,
+      );
+      mockPrisma.advisorRule.findUnique.mockResolvedValue({ id: "r1", ruleKey: "test_rule" });
+      await expect(svc.updateRule("r1", { severity: "URGENT" } as any, "admin-1")).rejects.toThrow(
+        /severity 只允许/,
+      );
+      expect(mockPrisma.advisorRule.create).not.toHaveBeenCalled();
+      expect(mockPrisma.advisorRule.update).not.toHaveBeenCalled();
+    });
+
+    it("actions 结构非法（元素缺 label/type）拒绝", async () => {
+      await expect(
+        svc.createRule(createDto({ actions: [{ type: "NAVIGATE" }] }), "admin-1"),
+      ).rejects.toThrow(/label/);
+      await expect(svc.createRule(createDto({ actions: ["not-object"] }), "admin-1")).rejects.toThrow(
+        /必须是对象/,
+      );
+      expect(mockPrisma.advisorRule.create).not.toHaveBeenCalled();
+    });
+
+    it("更新禁止修改 ruleKey", async () => {
+      await expect(
+        svc.updateRule("r1", { ruleKey: "another_key", enabled: false } as any, "admin-1"),
+      ).rejects.toThrow(/禁止修改/);
+      expect(mockPrisma.advisorRule.update).not.toHaveBeenCalled();
+    });
+
+    it("更新成功：仅更新传入字段且 updatedBy 写管理员 userId；非法 metric 拒绝", async () => {
+      mockPrisma.advisorRule.findUnique.mockResolvedValue({ id: "r1", ruleKey: "test_rule" });
+      mockPrisma.advisorRule.update.mockResolvedValue({ id: "r1", enabled: false });
+      await svc.updateRule("r1", { enabled: false, severity: "CRITICAL" } as any, "admin-2");
+      const arg = mockPrisma.advisorRule.update.mock.calls[0][0];
+      expect(arg.where).toEqual({ id: "r1" });
+      expect(arg.data).toEqual({ updatedBy: "admin-2", enabled: false, severity: "CRITICAL" });
+
+      await expect(svc.updateRule("r1", { metric: "bad_probe" } as any, "admin-2")).rejects.toThrow(
+        /不存在/,
+      );
+    });
+
+    it("更新不存在的规则抛业务异常", async () => {
+      mockPrisma.advisorRule.findUnique.mockResolvedValue(null);
+      await expect(svc.updateRule("no-such", { enabled: false } as any, "admin-1")).rejects.toThrow(
+        BusinessException,
+      );
     });
   });
 });

@@ -1,8 +1,10 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { Cron } from "@nestjs/schedule";
+import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
+import { ADVISOR_SEVERITIES, CreateAdvisorRuleDto, UpdateAdvisorRuleDto } from "./advisor.dto";
 
 /** 探针返回：hit=命中规则（需生成建议），facts=结构化事实（渲染文案用） */
 export interface ProbeResult {
@@ -549,5 +551,123 @@ export class AdvisorService {
         ...(action === "act" ? { actedAt: new Date() } : {}),
       },
     });
+  }
+
+  // ───────── 规则后台管理（C7）—— 管理逻辑放本 service：metric 校验需访问私有 PROBES ─────────
+
+  /** 规则列表（按 roleType, ruleKey 排序） */
+  async listRules() {
+    const items = await this.prisma.advisorRule.findMany({
+      orderBy: [{ roleType: "asc" }, { ruleKey: "asc" }],
+    });
+    return { items };
+  }
+
+  /** 创建规则（ruleKey 唯一；metric 必须是 PROBES 支持的探针；updatedBy 写管理员 userId） */
+  async createRule(dto: CreateAdvisorRuleDto, adminId: string) {
+    this.validateMetric(dto.metric);
+    this.validateSeverity(dto.severity ?? "INFO");
+    this.validateActions(dto.actions ?? []);
+    const ruleKey = dto.ruleKey.trim();
+    if (!ruleKey) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "ruleKey 不能为空");
+    }
+
+    const existing = await this.prisma.advisorRule.findUnique({ where: { ruleKey } });
+    if (existing) {
+      throw new BusinessException(ErrorCode.CONFLICT, `规则键 ${ruleKey} 已存在，请编辑现有规则`);
+    }
+
+    const rule = await this.prisma.advisorRule.create({
+      data: {
+        roleType: dto.roleType,
+        ruleKey,
+        metric: dto.metric,
+        condition: dto.condition as Prisma.InputJsonValue,
+        severity: dto.severity ?? "INFO",
+        suggestion: dto.suggestion,
+        actions: (dto.actions ?? []) as Prisma.InputJsonValue,
+        enabled: dto.enabled ?? true,
+        updatedBy: adminId,
+      },
+    });
+    this.logger.log(`[规则管理] 管理员 ${adminId} 创建顾问规则 ruleKey=${ruleKey} metric=${dto.metric}`);
+    return rule;
+  }
+
+  /** 更新规则（禁止改 ruleKey/roleType；updatedBy 写管理员 userId） */
+  async updateRule(id: string, dto: UpdateAdvisorRuleDto, adminId: string) {
+    // 防御性拒绝：DTO 层已不收 ruleKey/roleType（forbidNonWhitelisted 400），此处再拦一道
+    const raw = dto as Record<string, unknown>;
+    if ("ruleKey" in raw) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "ruleKey 是规则唯一键，禁止修改");
+    }
+    if ("roleType" in raw) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "roleType 是主体解析键，禁止修改");
+    }
+
+    const existing = await this.prisma.advisorRule.findUnique({ where: { id } });
+    if (!existing) {
+      throw new BusinessException(ErrorCode.NOT_FOUND, "顾问规则不存在");
+    }
+
+    const data: Prisma.AdvisorRuleUpdateInput = { updatedBy: adminId };
+    if (dto.metric !== undefined) {
+      this.validateMetric(dto.metric);
+      data.metric = dto.metric;
+    }
+    if (dto.condition !== undefined) data.condition = dto.condition as Prisma.InputJsonValue;
+    if (dto.severity !== undefined) {
+      this.validateSeverity(dto.severity);
+      data.severity = dto.severity;
+    }
+    if (dto.suggestion !== undefined) data.suggestion = dto.suggestion;
+    if (dto.actions !== undefined) {
+      this.validateActions(dto.actions);
+      data.actions = dto.actions as Prisma.InputJsonValue;
+    }
+    if (dto.enabled !== undefined) data.enabled = dto.enabled;
+
+    const rule = await this.prisma.advisorRule.update({ where: { id }, data });
+    this.logger.log(
+      `[规则管理] 管理员 ${adminId} 更新顾问规则 ruleKey=${existing.ruleKey} 变更=${JSON.stringify(dto)}`,
+    );
+    return rule;
+  }
+
+  /** severity 只允许 INFO / WARN / CRITICAL（DTO @IsIn 之外的服务层强校验，防绕过 DTO 调用） */
+  private validateSeverity(severity: string) {
+    if (!(ADVISOR_SEVERITIES as readonly string[]).includes(severity)) {
+      throw new BusinessException(
+        ErrorCode.BAD_REQUEST,
+        `severity 只允许 ${ADVISOR_SEVERITIES.join("/")}，收到：${severity}`,
+      );
+    }
+  }
+
+  /** metric 必须是探针库支持的 key（否则规则永远评估不到，配置时即拒） */
+  private validateMetric(metric: string) {
+    if (!this.PROBES[metric]) {
+      throw new BusinessException(
+        ErrorCode.BAD_REQUEST,
+        `探针 ${metric} 不存在，可用探针：${Object.keys(this.PROBES).join(", ")}`,
+      );
+    }
+  }
+
+  /** actions 结构校验：数组，每项为含非空 label/type 字符串的对象（{ label, type, target? }） */
+  private validateActions(actions: unknown[]) {
+    for (let i = 0; i < actions.length; i++) {
+      const item = actions[i] as Record<string, unknown>;
+      if (typeof item !== "object" || item === null || Array.isArray(item)) {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, `actions[${i}] 必须是对象`);
+      }
+      if (typeof item.label !== "string" || item.label.trim() === "") {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, `actions[${i}].label 必须是非空字符串`);
+      }
+      if (typeof item.type !== "string" || item.type.trim() === "") {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, `actions[${i}].type 必须是非空字符串`);
+      }
+    }
   }
 }
