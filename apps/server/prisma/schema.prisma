@@ -3011,6 +3011,8 @@ enum CoinScene {
   PLATFORM_GRANT // 平台赠送
   BOUNTY // 悬赏咨询
   BOUNTY_UNFREEZE // 悬赏解冻
+  POST_REWARD // 帖子打赏（2026-07-03 补：代码早在用但枚举缺失，落库被 DB 拒）
+  CONSULT_CALL_PREPAY // 咨询通话预扣（同上）
 }
 
 model VirtualCoinTransaction {

@@ -86,8 +86,9 @@ export class BotService {
     }
     if (!this.coin) throw new BusinessException(ErrorCode.BAD_REQUEST, "计费服务不可用");
     await this.coin.spend(userId, {
+      // scene 必须是 CoinScene 枚举合法值（曾误写 BOT_USES 致真实落库被 DB 拒绝、购包 500）
       amountCoin: bot.pricePer10Coin,
-      scene: "BOT_USES",
+      scene: "BOT_CALL",
       refId: botConfigId,
       description: `购买「${bot.name}」追问包(10次)`,
     });

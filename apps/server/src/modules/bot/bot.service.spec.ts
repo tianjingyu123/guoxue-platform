@@ -110,7 +110,7 @@ describe("BotService", () => {
       (svc as any).coin = mockCoin;
       mockPrisma.userBotQuota.upsert.mockResolvedValue({ id: "q1", paidRemaining: 10 });
       const result = await svc.purchaseUses("b1", "u1");
-      expect(mockCoin.spend).toHaveBeenCalledWith("u1", expect.objectContaining({ amountCoin: 100, scene: "BOT_USES" }));
+      expect(mockCoin.spend).toHaveBeenCalledWith("u1", expect.objectContaining({ amountCoin: 100, scene: "BOT_CALL" }));
       expect(result).toEqual({ purchased: 10, paidRemaining: 10 });
     });
 
