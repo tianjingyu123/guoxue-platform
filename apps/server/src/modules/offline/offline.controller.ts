@@ -242,17 +242,22 @@ export class OfflineController {
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "非该驿站主" })
   @ApiBearerAuth()
-  signInCourse(@Body() dto: SignInCourseDto, @Query("stationId") stationId: string) {
-    return this.svc.signInCourse(stationId, dto.qrCode);
+  signInCourse(@Req() req: Request, @Body() dto: SignInCourseDto, @Query("stationId") stationId: string) {
+    return this.svc.signInCourse(req.user.id, stationId, dto.qrCode);
   }
 
   @Get("courses/:id/registrations")
-  @ApiOperation({ summary: "课程报名列表" })
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "课程报名列表（驿站主经营后台）" })
   @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "非该驿站主" })
   @ApiResponse({ status: 404, description: "资源不存在" })
-  listRegistrations(@Param("id") id: string, @Query("page") page?: number, @Query("pageSize") pageSize?: number) {
-    return this.svc.listRegistrations(id, Number(page) || 1, Number(pageSize) || 20);
+  @ApiBearerAuth()
+  listRegistrations(@Req() req: Request, @Param("id") id: string, @Query("page") page?: number, @Query("pageSize") pageSize?: number) {
+    return this.svc.listRegistrations(req.user.id, id, Number(page) || 1, Number(pageSize) || 20);
   }
 
   // ───────── 课后评价（T8 OMO） ─────────
@@ -316,12 +321,16 @@ export class OfflineController {
   }
 
   @Get("stations/:id/products")
-  @ApiOperation({ summary: "驿站商品列表" })
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "驿站商品列表（驿站主经营后台）" })
   @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "非该驿站主" })
   @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiBearerAuth()
   @ApiQuery({ name: "status", required: false })
-  listProducts(@Param("id") id: string, @Query("status") status?: string, @Query("page") page?: number, @Query("pageSize") pageSize?: number) {
-    return this.svc.listProducts(id, { status, page, pageSize });
+  listProducts(@Req() req: Request, @Param("id") id: string, @Query("status") status?: string, @Query("page") page?: number, @Query("pageSize") pageSize?: number) {
+    return this.svc.listProducts(req.user.id, id, { status, page, pageSize });
   }
 
   @Delete("products/:productId")
@@ -371,21 +380,26 @@ export class OfflineController {
   }
 
   @Get("stations/:id/teacher-bookings")
-  @ApiOperation({ summary: "师资预约列表" })
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "师资预约列表（驿站主经营后台）" })
   @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "非该驿站主" })
   @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiBearerAuth()
   @ApiQuery({ name: "teacherId", required: false })
   @ApiQuery({ name: "status", required: false })
   @ApiQuery({ name: "page", required: false, type: Number })
   @ApiQuery({ name: "pageSize", required: false, type: Number })
   listTeacherBookings(
+    @Req() req: Request,
     @Param("id") id: string,
     @Query("teacherId") teacherId?: string,
     @Query("status") status?: string,
     @Query("page") page = 1,
     @Query("pageSize") pageSize = 20,
   ) {
-    return this.svc.listTeacherBookings(id, { teacherId, status, page: +page, pageSize: +pageSize });
+    return this.svc.listTeacherBookings(req.user.id, id, { teacherId, status, page: +page, pageSize: +pageSize });
   }
 
   // ───────── 订单 ─────────
@@ -402,21 +416,26 @@ export class OfflineController {
   }
 
   @Get("stations/:id/orders")
-  @ApiOperation({ summary: "驿站订单列表" })
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "驿站订单列表（驿站主经营后台）" })
   @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "非该驿站主" })
   @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiBearerAuth()
   @ApiQuery({ name: "orderType", required: false })
   @ApiQuery({ name: "status", required: false })
   @ApiQuery({ name: "page", required: false, type: Number })
   @ApiQuery({ name: "pageSize", required: false, type: Number })
   listOrders(
+    @Req() req: Request,
     @Param("id") id: string,
     @Query("orderType") orderType?: string,
     @Query("status") status?: string,
     @Query("page") page = 1,
     @Query("pageSize") pageSize = 20,
   ) {
-    return this.svc.listOrders(id, { orderType, status, page: +page, pageSize: +pageSize });
+    return this.svc.listOrders(req.user.id, id, { orderType, status, page: +page, pageSize: +pageSize });
   }
 
   @Put("orders/:orderId")
@@ -446,13 +465,17 @@ export class OfflineController {
   }
 
   @Get("stations/:id/settlements")
-  @ApiOperation({ summary: "结算记录" })
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "结算记录（驿站主经营后台）" })
   @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "非该驿站主" })
   @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiBearerAuth()
   @ApiQuery({ name: "page", required: false, type: Number })
   @ApiQuery({ name: "pageSize", required: false, type: Number })
-  listSettlements(@Param("id") id: string, @Query("page") page = 1, @Query("pageSize") pageSize = 20) {
-    return this.svc.listSettlements(id, +page, +pageSize);
+  listSettlements(@Req() req: Request, @Param("id") id: string, @Query("page") page = 1, @Query("pageSize") pageSize = 20) {
+    return this.svc.listSettlements(req.user.id, id, +page, +pageSize);
   }
 
   @Put("settlements/:settlementId/settle")

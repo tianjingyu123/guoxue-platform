@@ -356,9 +356,12 @@ export class CoinService {
     });
 
     // 平台抽成 + 圈主收益（fire-and-forget）
+    // 换算：CircleRevenue 以「元」为口径（circle_join 传的是 priceYuan），礼物按币值除以币率转元。
+    // 曾误用乘法致收益放大 coinRate(=10) 倍，污染圈主分成账目与研究院「创收」准入门槛，已修。
     if (this.commission) {
       const coinRate = await this.getCoinRate();
-      this.recordGiftCommission(liveRoomId, record.id, gift.priceCoin * quantity * coinRate).catch(
+      const giftAmountYuan = coinRate > 0 ? (gift.priceCoin * quantity) / coinRate : 0;
+      this.recordGiftCommission(liveRoomId, record.id, giftAmountYuan).catch(
         (err) => this.logger.warn("礼物抽成记录失败", err),
       );
     }

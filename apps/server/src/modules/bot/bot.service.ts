@@ -85,17 +85,24 @@ export class BotService {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "该智能体免费使用，无需购买");
     }
     if (!this.coin) throw new BusinessException(ErrorCode.BAD_REQUEST, "计费服务不可用");
-    await this.coin.spend(userId, {
-      // scene 必须是 CoinScene 枚举合法值（曾误写 BOT_USES 致真实落库被 DB 拒绝、购包 500）
-      amountCoin: bot.pricePer10Coin,
-      scene: "BOT_CALL",
-      refId: botConfigId,
-      description: `购买「${bot.name}」追问包(10次)`,
-    });
-    const quota = await this.prisma.userBotQuota.upsert({
-      where: { userId_botConfigId: { userId, botConfigId } },
-      create: { userId, botConfigId, paidRemaining: 10 },
-      update: { paidRemaining: { increment: 10 } },
+    // 扣币与配额发放原子化（同一事务）：扣币成功后崩溃则回滚，杜绝「钱扣包未到」
+    const quota = await this.prisma.$transaction(async (tx) => {
+      await this.coin!.spend(
+        userId,
+        {
+          // scene 必须是 CoinScene 枚举合法值（曾误写 BOT_USES 致真实落库被 DB 拒绝、购包 500）
+          amountCoin: bot.pricePer10Coin!,
+          scene: "BOT_CALL",
+          refId: botConfigId,
+          description: `购买「${bot.name}」追问包(10次)`,
+        },
+        tx,
+      );
+      return tx.userBotQuota.upsert({
+        where: { userId_botConfigId: { userId, botConfigId } },
+        create: { userId, botConfigId, paidRemaining: 10 },
+        update: { paidRemaining: { increment: 10 } },
+      });
     });
     return { purchased: 10, paidRemaining: quota.paidRemaining };
   }

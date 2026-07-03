@@ -24,6 +24,7 @@ const mockPrisma = {
   offlineCourseRegistration: {
     create: jest.fn(),
     findUnique: jest.fn(),
+    findFirst: jest.fn(),
     findMany: jest.fn(),
     update: jest.fn(),
     count: jest.fn(),
@@ -48,6 +49,22 @@ const mockPrisma = {
     findMany: jest.fn(),
     count: jest.fn(),
     update: jest.fn(),
+  },
+  stationProduct: {
+    findMany: jest.fn(),
+    count: jest.fn(),
+  },
+  stationTeacherBooking: {
+    findMany: jest.fn(),
+    count: jest.fn(),
+  },
+  stationOrder: {
+    findMany: jest.fn(),
+    count: jest.fn(),
+  },
+  stationSettlement: {
+    findMany: jest.fn(),
+    count: jest.fn(),
   },
   $queryRaw: jest.fn(),
   $transaction: jest.fn(),
@@ -475,6 +492,116 @@ describe("OfflineService", () => {
       expect(mockReminder.notifyCancelled).toHaveBeenCalledWith("u1",
         expect.objectContaining({ id: "oc1" }),
       );
+    });
+  });
+
+  // ───────── T11 P0：驿站经营后台读端点越权修复（归属校验） ─────────
+  describe("经营后台读端点归属校验（T11 越权修复）", () => {
+    const OWNER = "owner1";
+    const ATTACKER = "attacker";
+    const asOwnedBy = (uid: string) => mockPrisma.stationOffline.findUnique.mockResolvedValue({ ownerUserId: uid });
+
+    describe("signInCourse", () => {
+      it("驿站主可扫码签到", async () => {
+        asOwnedBy(OWNER);
+        mockPrisma.offlineCourseRegistration.findFirst.mockResolvedValue({ id: "reg1", status: "REGISTERED", course: {} });
+        mockPrisma.offlineCourseRegistration.update.mockResolvedValue({ id: "reg1", status: "SIGNED_IN" });
+        const result = await svc.signInCourse(OWNER, "s1", "QR_x");
+        expect(result.status).toBe("SIGNED_IN");
+      });
+      it("非驿站主签到抛 FORBIDDEN 且不查签到码", async () => {
+        asOwnedBy(OWNER);
+        await expect(svc.signInCourse(ATTACKER, "s1", "QR_x")).rejects.toThrow(BusinessException);
+        expect(mockPrisma.offlineCourseRegistration.findFirst).not.toHaveBeenCalled();
+      });
+    });
+
+    describe("listRegistrations", () => {
+      it("驿站主查报名列表：脱敏且不含 qrCode", async () => {
+        mockPrisma.offlineCourse.findUnique.mockResolvedValue({ stationId: "s1" });
+        asOwnedBy(OWNER);
+        mockPrisma.offlineCourseRegistration.findMany.mockResolvedValue([
+          { id: "reg1", userId: "u9", status: "SIGNED_IN", signedAt: new Date(), createdAt: new Date() },
+        ]);
+        mockPrisma.offlineCourseRegistration.count.mockResolvedValue(1);
+        mockPrisma.user.findMany.mockResolvedValue([{ id: "u9", nickname: "学员甲", avatar: "a.png" }]);
+        const result = await svc.listRegistrations(OWNER, "oc1");
+        // select 收敛：断言未请求 qrCode
+        const selectArg = mockPrisma.offlineCourseRegistration.findMany.mock.calls[0][0].select;
+        expect(selectArg.qrCode).toBeUndefined();
+        expect(result.registrations[0]).not.toHaveProperty("qrCode");
+        expect(result.registrations[0].user).toEqual({ nickname: "学员甲", avatar: "a.png" });
+      });
+      it("课程不存在抛 NOT_FOUND", async () => {
+        mockPrisma.offlineCourse.findUnique.mockResolvedValue(null);
+        await expect(svc.listRegistrations(OWNER, "bad")).rejects.toThrow(BusinessException);
+      });
+      it("非驿站主抛 FORBIDDEN 且不查报名", async () => {
+        mockPrisma.offlineCourse.findUnique.mockResolvedValue({ stationId: "s1" });
+        asOwnedBy(OWNER);
+        await expect(svc.listRegistrations(ATTACKER, "oc1")).rejects.toThrow(BusinessException);
+        expect(mockPrisma.offlineCourseRegistration.findMany).not.toHaveBeenCalled();
+      });
+    });
+
+    describe("listProducts", () => {
+      it("驿站主查商品列表", async () => {
+        asOwnedBy(OWNER);
+        mockPrisma.stationProduct.findMany.mockResolvedValue([{ id: "p1" }]);
+        mockPrisma.stationProduct.count.mockResolvedValue(1);
+        const result = await svc.listProducts(OWNER, "s1");
+        expect(result.total).toBe(1);
+      });
+      it("非驿站主抛 FORBIDDEN 且不查商品", async () => {
+        asOwnedBy(OWNER);
+        await expect(svc.listProducts(ATTACKER, "s1")).rejects.toThrow(BusinessException);
+        expect(mockPrisma.stationProduct.findMany).not.toHaveBeenCalled();
+      });
+    });
+
+    describe("listTeacherBookings", () => {
+      it("驿站主查预约列表", async () => {
+        asOwnedBy(OWNER);
+        mockPrisma.stationTeacherBooking.findMany.mockResolvedValue([{ id: "b1" }]);
+        mockPrisma.stationTeacherBooking.count.mockResolvedValue(1);
+        const result = await svc.listTeacherBookings(OWNER, "s1");
+        expect(result.total).toBe(1);
+      });
+      it("非驿站主抛 FORBIDDEN 且不查预约", async () => {
+        asOwnedBy(OWNER);
+        await expect(svc.listTeacherBookings(ATTACKER, "s1")).rejects.toThrow(BusinessException);
+        expect(mockPrisma.stationTeacherBooking.findMany).not.toHaveBeenCalled();
+      });
+    });
+
+    describe("listOrders", () => {
+      it("驿站主查订单列表", async () => {
+        asOwnedBy(OWNER);
+        mockPrisma.stationOrder.findMany.mockResolvedValue([{ id: "o1" }]);
+        mockPrisma.stationOrder.count.mockResolvedValue(1);
+        const result = await svc.listOrders(OWNER, "s1");
+        expect(result.total).toBe(1);
+      });
+      it("非驿站主抛 FORBIDDEN 且不查订单", async () => {
+        asOwnedBy(OWNER);
+        await expect(svc.listOrders(ATTACKER, "s1")).rejects.toThrow(BusinessException);
+        expect(mockPrisma.stationOrder.findMany).not.toHaveBeenCalled();
+      });
+    });
+
+    describe("listSettlements", () => {
+      it("驿站主查结算记录", async () => {
+        asOwnedBy(OWNER);
+        mockPrisma.stationSettlement.findMany.mockResolvedValue([{ id: "st1" }]);
+        mockPrisma.stationSettlement.count.mockResolvedValue(1);
+        const result = await svc.listSettlements(OWNER, "s1");
+        expect(result.total).toBe(1);
+      });
+      it("非驿站主抛 FORBIDDEN 且不查结算", async () => {
+        asOwnedBy(OWNER);
+        await expect(svc.listSettlements(ATTACKER, "s1")).rejects.toThrow(BusinessException);
+        expect(mockPrisma.stationSettlement.findMany).not.toHaveBeenCalled();
+      });
     });
   });
 });

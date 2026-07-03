@@ -37,6 +37,8 @@ const mockPrisma = {
   },
   user: { findUnique: jest.fn() },
   userBotQuota: { upsert: jest.fn(), update: jest.fn(), updateMany: jest.fn(), findUnique: jest.fn() },
+  // 购包扣币与配额发放同事务：透传 tx=mockPrisma，回调内 tx.userBotQuota 即复用上方 mock
+  $transaction: jest.fn(async (cb: (tx: unknown) => unknown) => cb(mockPrisma)),
 };
 
 const mockCoze = {};
@@ -110,7 +112,9 @@ describe("BotService", () => {
       (svc as any).coin = mockCoin;
       mockPrisma.userBotQuota.upsert.mockResolvedValue({ id: "q1", paidRemaining: 10 });
       const result = await svc.purchaseUses("b1", "u1");
-      expect(mockCoin.spend).toHaveBeenCalledWith("u1", expect.objectContaining({ amountCoin: 100, scene: "BOT_CALL" }));
+      // 扣币与充值在同一事务：spend 末参透传 tx
+      expect(mockCoin.spend).toHaveBeenCalledWith("u1", expect.objectContaining({ amountCoin: 100, scene: "BOT_CALL" }), expect.anything());
+      expect(mockPrisma.$transaction).toHaveBeenCalled();
       expect(result).toEqual({ purchased: 10, paidRemaining: 10 });
     });
 

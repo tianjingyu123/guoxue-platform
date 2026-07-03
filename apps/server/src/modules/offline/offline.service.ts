@@ -266,7 +266,8 @@ export class OfflineService {
     return updated;
   }
 
-  async signInCourse(stationId: string, qrCode: string) {
+  async signInCourse(operatorUserId: string, stationId: string, qrCode: string) {
+    await this.assertStationOwner(operatorUserId, stationId);
     const reg = await this.prisma.offlineCourseRegistration.findFirst({
       where: { qrCode, course: { stationId } },
       include: { course: true },
@@ -281,18 +282,42 @@ export class OfflineService {
     });
   }
 
-  async listRegistrations(courseId: string, page = 1, pageSize = 20) {
+  async listRegistrations(operatorUserId: string, courseId: string, page = 1, pageSize = 20) {
+    // 越权校验：先由 courseId 反查所属驿站，再校验调用者为驿站主
+    const course = await this.prisma.offlineCourse.findUnique({ where: { id: courseId }, select: { stationId: true } });
+    if (!course) throw new BusinessException(ErrorCode.NOT_FOUND, "课程不存在");
+    await this.assertStationOwner(operatorUserId, course.stationId);
+
     const where = { courseId };
     const [registrations, total] = await Promise.all([
       this.prisma.offlineCourseRegistration.findMany({
         where,
+        // 收敛 select：剔除 qrCode（泄露会导致伪造签到），仅出经营后台所需字段
+        select: {
+          id: true,
+          userId: true,
+          status: true,
+          signedAt: true,
+          createdAt: true,
+        },
         skip: (page - 1) * pageSize,
         take: pageSize,
         orderBy: { createdAt: "asc" },
       }),
       this.prisma.offlineCourseRegistration.count({ where }),
     ]);
-    return { registrations, total, page, pageSize };
+
+    // OfflineCourseRegistration 无 User 关联，批量补全昵称头像（脱敏：仅昵称+avatar）
+    const userIds = [...new Set(registrations.map((r) => r.userId))];
+    const users = userIds.length
+      ? await this.prisma.user.findMany({ where: { id: { in: userIds } }, select: { id: true, nickname: true, avatar: true } })
+      : [];
+    const userMap = new Map(users.map((u) => [u.id, u]));
+    const items = registrations.map((r) => ({
+      ...r,
+      user: { nickname: userMap.get(r.userId)?.nickname || "学员", avatar: userMap.get(r.userId)?.avatar || null },
+    }));
+    return { registrations: items, total, page, pageSize };
   }
 
   // ───────── 课后评价（T8 OMO） ─────────
@@ -444,7 +469,8 @@ export class OfflineService {
     return this.prisma.stationProduct.update({ where: { id: productId }, data: dto });
   }
 
-  async listProducts(stationId: string, params?: { status?: string; page?: number; pageSize?: number }) {
+  async listProducts(operatorUserId: string, stationId: string, params?: { status?: string; page?: number; pageSize?: number }) {
+    await this.assertStationOwner(operatorUserId, stationId);
     const { status } = params || {};
     const page = Number(params?.page) || 1;
     const pageSize = Number(params?.pageSize) || 20;
@@ -504,7 +530,8 @@ export class OfflineService {
     });
   }
 
-  async listTeacherBookings(stationId: string, params?: { teacherId?: string; status?: string; page?: number; pageSize?: number }) {
+  async listTeacherBookings(operatorUserId: string, stationId: string, params?: { teacherId?: string; status?: string; page?: number; pageSize?: number }) {
+    await this.assertStationOwner(operatorUserId, stationId);
     const { teacherId, status, page = 1, pageSize = 20 } = params || {};
     const where: Prisma.StationTeacherBookingWhereInput = { stationId };
     if (teacherId) where.teacherId = teacherId;
@@ -556,7 +583,8 @@ export class OfflineService {
     });
   }
 
-  async listOrders(stationId: string, params?: { orderType?: string; status?: string; page?: number; pageSize?: number }) {
+  async listOrders(operatorUserId: string, stationId: string, params?: { orderType?: string; status?: string; page?: number; pageSize?: number }) {
+    await this.assertStationOwner(operatorUserId, stationId);
     const { orderType, status, page = 1, pageSize = 20 } = params || {};
     const where: Prisma.StationOrderWhereInput = { stationId };
     if (orderType) where.orderType = orderType;
@@ -597,7 +625,8 @@ export class OfflineService {
     });
   }
 
-  async listSettlements(stationId: string, page = 1, pageSize = 20) {
+  async listSettlements(operatorUserId: string, stationId: string, page = 1, pageSize = 20) {
+    await this.assertStationOwner(operatorUserId, stationId);
     const where = { stationId };
     const [settlements, total] = await Promise.all([
       this.prisma.stationSettlement.findMany({

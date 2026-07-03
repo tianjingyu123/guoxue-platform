@@ -118,14 +118,18 @@ describe("OfflineController", () => {
   });
 
   it("POST /offline/courses/sign-in — 扫码签到", async () => {
+    const req: any = { user: { id: "u1" } };
     const dto: any = { qrCode: "QR_CODE_123" };
-    const result: any = await ctrl.signInCourse(dto, "s1");
+    const result: any = await ctrl.signInCourse(req, dto, "s1");
     expect(result.signedIn).toBe(true);
+    expect(mockOfflineSvc.signInCourse).toHaveBeenCalledWith("u1", "s1", "QR_CODE_123");
   });
 
   it("GET /offline/courses/:id/registrations — 报名列表", async () => {
-    const result: any = await ctrl.listRegistrations("oc1", 1, 20);
+    const req: any = { user: { id: "u1" } };
+    const result: any = await ctrl.listRegistrations(req, "oc1", 1, 20);
     expect(result).toHaveLength(1);
+    expect(mockOfflineSvc.listRegistrations).toHaveBeenCalledWith("u1", "oc1", 1, 20);
   });
 
   // ─── 驿站商品 ───
@@ -144,8 +148,10 @@ describe("OfflineController", () => {
   });
 
   it("GET /offline/stations/:id/products — 商品列表", async () => {
-    const result: any = await ctrl.listProducts("s1", "ACTIVE", 1, 20);
+    const req: any = { user: { id: "u1" } };
+    const result: any = await ctrl.listProducts(req, "s1", "ACTIVE", 1, 20);
     expect(result).toHaveLength(1);
+    expect(mockOfflineSvc.listProducts).toHaveBeenCalledWith("u1", "s1", { status: "ACTIVE", page: 1, pageSize: 20 });
   });
 
   it("DELETE /offline/products/:productId — 下架商品", async () => {
@@ -175,8 +181,10 @@ describe("OfflineController", () => {
   });
 
   it("GET /offline/stations/:id/teacher-bookings — 预约列表", async () => {
-    const result: any = await ctrl.listTeacherBookings("s1", "u2", "PENDING", 1 as any, 20 as any);
+    const req: any = { user: { id: "u1" } };
+    const result: any = await ctrl.listTeacherBookings(req, "s1", "u2", "PENDING", 1 as any, 20 as any);
     expect(result).toHaveLength(1);
+    expect(mockOfflineSvc.listTeacherBookings).toHaveBeenCalledWith("u1", "s1", { teacherId: "u2", status: "PENDING", page: 1, pageSize: 20 });
   });
 
   // ─── 订单 ───
@@ -188,8 +196,10 @@ describe("OfflineController", () => {
   });
 
   it("GET /offline/stations/:id/orders — 订单列表", async () => {
-    const result: any = await ctrl.listOrders("s1", "PRODUCT", "PAID", 1 as any, 20 as any);
+    const req: any = { user: { id: "u1" } };
+    const result: any = await ctrl.listOrders(req, "s1", "PRODUCT", "PAID", 1 as any, 20 as any);
     expect(result).toHaveLength(1);
+    expect(mockOfflineSvc.listOrders).toHaveBeenCalledWith("u1", "s1", { orderType: "PRODUCT", status: "PAID", page: 1, pageSize: 20 });
   });
 
   it("PUT /offline/orders/:orderId — 更新订单状态", async () => {
@@ -207,8 +217,10 @@ describe("OfflineController", () => {
   });
 
   it("GET /offline/stations/:id/settlements — 结算记录", async () => {
-    const result: any = await ctrl.listSettlements("s1", 1 as any, 20 as any);
+    const req: any = { user: { id: "u1" } };
+    const result: any = await ctrl.listSettlements(req, "s1", 1 as any, 20 as any);
     expect(result).toHaveLength(1);
+    expect(mockOfflineSvc.listSettlements).toHaveBeenCalledWith("u1", "s1", 1, 20);
   });
 
   it("PUT /offline/settlements/:settlementId/settle — 执行结算", async () => {
