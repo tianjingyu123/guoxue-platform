@@ -101,6 +101,23 @@
         </template>
       </el-table-column>
       <el-table-column
+        label="追问定价"
+        width="110"
+        align="center"
+      >
+        <template #default="{ row }">
+          <!-- AI 计费：0=免费不限，>0 显示 币/10次 -->
+          <el-tag
+            v-if="!row.pricePer10Coin"
+            type="success"
+            size="small"
+          >
+            免费
+          </el-tag>
+          <span v-else>{{ row.pricePer10Coin }} 币/10次</span>
+        </template>
+      </el-table-column>
+      <el-table-column
         prop="dailyLimit"
         label="日限额"
         width="70"
@@ -247,6 +264,27 @@
             />
           </el-form-item>
         </template>
+        <!-- AI 计费：会员免费；非会员 freeUses 次试用 → pricePer10Coin 币购追问包（10次/包） -->
+        <el-form-item label="免费试用次数">
+          <el-input-number
+            v-model="form.freeUses"
+            :min="0"
+            :step="1"
+            step-strictly
+          />
+          <span class="field-hint">每用户免费追问次数</span>
+        </el-form-item>
+        <el-form-item label="追问包定价">
+          <el-input-number
+            v-model="form.pricePer10Coin"
+            :min="0"
+            :step="1"
+            step-strictly
+          />
+          <span class="field-hint">
+            币/10次 · {{ form.pricePer10Coin > 0 ? `约合 ${perUsePrice} 币/次` : '0=免费不限' }}
+          </span>
+        </el-form-item>
         <el-form-item label="日限额">
           <el-input-number
             v-model="form.dailyLimit"
@@ -495,7 +533,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from "vue";
+import { ref, reactive, computed, onMounted } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import PageHeader from "@/components/PageHeader.vue";
 import { botApi, circleApi } from "@/api";
@@ -514,6 +552,10 @@ interface BotRow {
   price?: number;
   monthlyPrice?: number;
   sortOrder?: number;
+  /** AI 计费：每用户免费追问次数 */
+  freeUses?: number;
+  /** AI 计费：追问包定价（国学币/10次），0=免费不限 */
+  pricePer10Coin?: number;
 }
 /** Bot 知识库条目 */
 interface BotKnowledge { id: string; title?: string; content?: string; sourceType?: string }
@@ -549,6 +591,14 @@ const form = reactive({
   price: 0,
   monthlyPrice: 0,
   sortOrder: 0,
+  freeUses: 0,
+  pricePer10Coin: 0,
+});
+
+/** 追问包约合单价（币/次·定价透明化旁注） */
+const perUsePrice = computed(() => {
+  const p = (form.pricePer10Coin || 0) / 10;
+  return Number.isInteger(p) ? String(p) : p.toFixed(1);
 });
 
 // ---- 详情对话框 ----
@@ -600,6 +650,8 @@ function resetForm() {
   form.price = 0;
   form.monthlyPrice = 0;
   form.sortOrder = 0;
+  form.freeUses = 0;
+  form.pricePer10Coin = 0;
 }
 
 function openCreate() {
@@ -623,6 +675,8 @@ function openEdit(row: BotRow) {
   form.price = row.price ?? 0;
   form.monthlyPrice = row.monthlyPrice ?? 0;
   form.sortOrder = row.sortOrder ?? 0;
+  form.freeUses = row.freeUses ?? 0;
+  form.pricePer10Coin = row.pricePer10Coin ?? 0;
   formDialogVisible.value = true;
 }
 
@@ -635,10 +689,17 @@ async function saveForm() {
   try {
     const payload = { ...form };
     if (isEditing.value) {
+      // PUT /bots/:id（UpdateBotDto 已含 freeUses/pricePer10Coin，直传）
       await botApi.update(editingId.value, payload);
       ElMessage.success("已更新");
     } else {
-      await botApi.create(payload);
+      // 后端 CreateBotDto 未收录计费字段（全局 forbidNonWhitelisted 会 400），
+      // 故新建时剥离，创建成功后补一次 PUT 写入计费定价
+      const { freeUses, pricePer10Coin, ...createPayload } = payload;
+      const { data: created } = await botApi.create(createPayload);
+      if ((freeUses > 0 || pricePer10Coin > 0) && created?.id) {
+        await botApi.update(String(created.id), { freeUses, pricePer10Coin });
+      }
       ElMessage.success("已创建");
     }
     formDialogVisible.value = false;
@@ -734,6 +795,12 @@ async function handleBindCircle() {
 
 <style scoped>
 .page { padding: 0; }
+/* 计费字段旁注（定价透明化） */
+.field-hint {
+  margin-left: 10px;
+  font-size: 12px;
+  color: var(--el-text-color-secondary, #909399);
+}
 .section-title {
   margin: 20px 0 10px;
   font-size: 15px;

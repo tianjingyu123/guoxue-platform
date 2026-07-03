@@ -11,6 +11,7 @@ import {
   agentApi, chatWelcome, nowTime,
   type ChatMessage, type RecommendItem, type Recommendation,
 } from '@/lib/agent-data'
+import { botApi, type BotQuota } from '@/lib/bot-data'
 
 const loading = ref(true)
 const error = ref('')
@@ -31,9 +32,52 @@ const freeRemaining = ref(0)
 const showMenu = ref(false)
 const scrollId = ref('')
 
+// ───── AI 计费：追问额度（GET /bots/:id/quota）─────
+const quota = ref<BotQuota | null>(null)
+// 耗尽购买弹窗
+const showPurchaseModal = ref(false)
+// 购买防重复提交
+const purchasing = ref(false)
+
 let streamTimer: ReturnType<typeof setInterval> | null = null
 
 const showQuick = computed(() => messages.value.length <= 1)
+
+/** 免费试用剩余次数 */
+const trialLeft = computed(() => {
+  const q = quota.value
+  return q ? Math.max(0, q.freeUses - q.freeUsed) : 0
+})
+
+/**
+ * 额度提示条状态：
+ * hidden=不显示（免费智能体/额度未拉到） member=会员畅享
+ * trial=试用期内 pack=有追问包 exhausted=均已用完
+ */
+const quotaState = computed<'hidden' | 'member' | 'trial' | 'pack' | 'exhausted'>(() => {
+  const q = quota.value
+  if (!q || q.pricePer10Coin <= 0) return 'hidden' // 免费智能体或未登录拉不到额度 → 不打扰
+  if (q.memberFree) return 'member'
+  if (trialLeft.value > 0) return 'trial'
+  if (q.paidRemaining > 0) return 'pack'
+  return 'exhausted'
+})
+
+/** 约合单价（币/次·定价透明化），整数不带小数 */
+const perUsePrice = computed(() => {
+  const p = (quota.value?.pricePer10Coin ?? 0) / 10
+  return Number.isInteger(p) ? String(p) : p.toFixed(1)
+})
+
+/** 拉取追问额度（失败静默：未登录/免费智能体均不打扰对话主流程） */
+async function refreshQuota() {
+  if (!agentId.value) return
+  try {
+    quota.value = await botApi.getQuota(agentId.value)
+  } catch (_e) {
+    quota.value = null
+  }
+}
 
 async function loadData() {
   loading.value = true
@@ -69,6 +113,9 @@ async function loadData() {
 
     // 携带预填问题（广场「大家都在问」入口 ?q= 透传）
     if (opts.q) inputValue.value = decodeURIComponent(opts.q)
+
+    // 追问额度（不阻塞主加载，失败静默）
+    refreshQuota()
   } catch (e) {
     error.value = (e as Error)?.message || '加载失败'
   } finally {
@@ -116,10 +163,53 @@ async function handleSend() {
       // disclaimer 为后端下发的 AI 风险免责声明（合规要求），随该条 assistant 消息保存并展示
       messages.value.push({ id, role: 'assistant', content: '', time: nowTime(), isStreaming: true, disclaimer })
       simulateStreaming(reply, id, recommendation)
-    } catch (_e) {
+      // 发送成功：本地余量同步减 1（试用优先，其次追问包，与后端 consumeQuota 消耗顺序一致）
+      const q = quota.value
+      if (q && q.pricePer10Coin > 0 && !q.memberFree) {
+        if (q.freeUsed < q.freeUses) q.freeUsed += 1
+        else if (q.paidRemaining > 0) q.paidRemaining -= 1
+      }
+    } catch (e) {
       isTyping.value = false
+      const msg = (e as Error)?.message || ''
+      if (msg.includes('追问次数已用完')) {
+        // 额度耗尽：刷新额度并弹购买引导弹窗
+        refreshQuota()
+        showPurchaseModal.value = true
+      } else if (msg) {
+        uni.showToast({ title: msg, icon: 'none' })
+      }
     }
   }, 600)
+}
+
+// ───── 耗尽购买弹窗：购买追问包 / 开通会员 ─────
+
+/** 购买追问包（10次/包·防重复提交；余额不足 → 提示并跳充值页） */
+async function doPurchase() {
+  if (purchasing.value) return
+  purchasing.value = true
+  try {
+    await botApi.purchaseUses(agentId.value)
+    uni.showToast({ title: '已到账 10 次', icon: 'success' })
+    await refreshQuota()
+    showPurchaseModal.value = false
+  } catch (e) {
+    const msg = (e as Error)?.message || '购买失败'
+    uni.showToast({ title: msg, icon: 'none' })
+    // 国学币余额不足 → 引导去充值页
+    if (msg.includes('余额不足')) {
+      setTimeout(() => navigateTo('/wallet/recharge'), 600)
+    }
+  } finally {
+    purchasing.value = false
+  }
+}
+
+/** 开通会员畅享全部智能体 → 会员中心 */
+function goMember() {
+  showPurchaseModal.value = false
+  navigateTo('/vip')
 }
 
 function handleQuick(q: string) {
@@ -192,8 +282,8 @@ onUnmounted(() => {
           </view>
         </view>
       </view>
-      <!-- 消耗提示 -->
-      <view class="usage-bar">
+      <!-- 消耗提示（旧「元/次」计费展示；启用国学币追问包计费后由底部额度条替代，避免双重定价误导） -->
+      <view v-if="quotaState === 'hidden'" class="usage-bar">
         <view class="usage-left"><AppIcon name="zap" :size="26" color="#c9a96e" /><text class="usage-txt">剩余免费次数：<text class="usage-num">{{ freeRemaining }}</text> 次</text></view>
         <view class="usage-right">
           <text class="usage-price"><AppIcon name="message-square" :size="22" color="#999" />{{ agentDetail.pricePerChat }}元/次</text>
@@ -277,12 +367,46 @@ onUnmounted(() => {
       </view>
     </view>
 
+    <!-- 追问额度轻提示条（仅付费计费智能体展示，不打扰免费对话） -->
+    <view v-if="quotaState === 'member'" class="quota-bar quota-bar-vip">
+      <AppIcon name="crown" :size="24" color="#c9a96e" /><text class="quota-vip-txt">会员畅享</text>
+    </view>
+    <view v-else-if="quotaState === 'trial'" class="quota-bar">
+      <AppIcon name="zap" :size="24" color="#c9a96e" /><text class="quota-txt">免费试用剩 <text class="quota-num">{{ trialLeft }}</text> 次</text>
+    </view>
+    <view v-else-if="quotaState === 'pack'" class="quota-bar">
+      <AppIcon name="package" :size="24" color="#c9a96e" /><text class="quota-txt">追问包剩 <text class="quota-num">{{ quota?.paidRemaining }}</text> 次</text>
+    </view>
+    <view v-else-if="quotaState === 'exhausted'" class="quota-bar">
+      <AppIcon name="zap" :size="24" color="#bbb" /><text class="quota-txt">免费次数已用完</text>
+      <view class="quota-buy-btn" @tap="showPurchaseModal = true"><text class="quota-buy-txt">购买追问包</text></view>
+    </view>
+
     <!-- 底部输入 -->
     <view class="input-bar safe-pb">
       <textarea class="input" v-model="inputValue" placeholder="输入您的问题..." :maxlength="-1" auto-height :show-confirm-bar="false" />
       <view class="send-btn" :class="{ disabled: !inputValue.trim() || isTyping }" @tap="handleSend()"><AppIcon name="send" :size="34" color="#ffffff" /></view>
     </view>
     <view class="disclaimer safe-pb">此内容由AI生成，仅供参考，不构成专业建议</view>
+
+    <!-- 耗尽购买弹窗（额度用完时居中弹出） -->
+    <view v-if="showPurchaseModal" class="pm-mask" @tap="showPurchaseModal = false">
+      <view class="pm-card" @tap.stop>
+        <text class="pm-title">继续追问</text>
+        <text class="pm-desc">购买追问包继续与『{{ agentDetail.name }}』对话</text>
+        <view class="pm-price-row">
+          <text class="pm-price">{{ quota?.pricePer10Coin }} 币 / 10 次</text>
+          <text class="pm-per">约合 {{ perUsePrice }} 币/次</text>
+        </view>
+        <view class="pm-btn pm-btn-buy" :class="{ 'pm-btn-disabled': purchasing }" @tap="doPurchase">
+          <text class="pm-btn-buy-txt">{{ purchasing ? '购买中...' : '购买追问包' }}</text>
+        </view>
+        <view class="pm-btn pm-btn-vip" @tap="goMember">
+          <AppIcon name="crown" :size="28" color="#c9a96e" /><text class="pm-btn-vip-txt">开通会员畅享</text>
+        </view>
+        <view class="pm-cancel" @tap="showPurchaseModal = false"><text class="pm-cancel-txt">暂不</text></view>
+      </view>
+    </view>
   </view>
 </template>
 
@@ -385,6 +509,32 @@ onUnmounted(() => {
 .quick-label { font-size: 22rpx; color: #999; }
 .quick-list { display: flex; flex-wrap: wrap; gap: 16rpx; }
 .quick-chip { font-size: 24rpx; color: #1a1a1a; padding: 12rpx 24rpx; border-radius: 999rpx; background: rgba(0,0,0,0.04); }
+
+/* 追问额度轻提示条（低调不打扰对话） */
+.quota-bar { flex-shrink: 0; display: flex; align-items: center; gap: 8rpx; padding: 10rpx 24rpx; background: rgba(201,169,110,0.06); border-top: 1rpx solid #f5f5f5; }
+.quota-txt { font-size: 22rpx; color: #999; }
+.quota-num { color: #c9a96e; font-weight: 700; }
+.quota-bar-vip { background: linear-gradient(90deg, rgba(201,169,110,0.12), rgba(201,169,110,0.04)); }
+.quota-vip-txt { font-size: 22rpx; color: #c9a96e; font-weight: 600; }
+.quota-buy-btn { margin-left: auto; padding: 6rpx 24rpx; border-radius: 999rpx; background: #c9a96e; }
+.quota-buy-txt { font-size: 22rpx; color: #fff; }
+
+/* 耗尽购买弹窗 */
+.pm-mask { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 100; display: flex; align-items: center; justify-content: center; }
+.pm-card { width: 560rpx; background: #fff; border-radius: 28rpx; padding: 48rpx 40rpx 32rpx; display: flex; flex-direction: column; align-items: center; }
+.pm-title { font-size: 34rpx; font-weight: 700; color: #1a1a1a; }
+.pm-desc { margin-top: 16rpx; font-size: 26rpx; color: #666; line-height: 1.5; text-align: center; }
+.pm-price-row { margin-top: 28rpx; display: flex; align-items: baseline; gap: 16rpx; }
+.pm-price { font-size: 34rpx; font-weight: 700; color: #c41e3a; }
+.pm-per { font-size: 22rpx; color: #999; }
+.pm-btn { margin-top: 24rpx; width: 100%; height: 84rpx; border-radius: 999rpx; display: flex; align-items: center; justify-content: center; gap: 8rpx; }
+.pm-btn-buy { background: var(--brand); }
+.pm-btn-buy-txt { font-size: 28rpx; color: #fff; font-weight: 600; }
+.pm-btn-disabled { opacity: 0.5; }
+.pm-btn-vip { margin-top: 16rpx; background: rgba(201,169,110,0.12); border: 1rpx solid rgba(201,169,110,0.4); }
+.pm-btn-vip-txt { font-size: 28rpx; color: #c9a96e; font-weight: 600; }
+.pm-cancel { margin-top: 20rpx; padding: 12rpx 32rpx; }
+.pm-cancel-txt { font-size: 26rpx; color: #999; }
 
 /* 输入栏 */
 .input-bar { flex-shrink: 0; display: flex; align-items: flex-end; gap: 16rpx; padding: 16rpx 24rpx 8rpx; border-top: 1rpx solid #ececec; background: #fff; }
