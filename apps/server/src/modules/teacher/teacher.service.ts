@@ -71,6 +71,81 @@ export class TeacherService {
     });
   }
 
+  /**
+   * 讲师公开主页（无需登录）。仅认证通过(APPROVED)的讲师可见，否则 404。
+   * 聚合：昵称/头像 + 认证头衔/简介 + 线上课程(按学习人数前6) + 课程评价均分
+   *      + 线下授课驿站（StationTeacher.sourceUserId 反查，仅在岗讲师×运营中驿站）。
+   * 脱敏：只回公开展示字段，不含手机号/证件/realName 等任何敏感信息。
+   */
+  async getPublicProfile(userId: string) {
+    const cert = await this.prisma.teacherCertification.findUnique({
+      where: { userId },
+      select: { verifiedTitle: true, intro: true, status: true },
+    });
+    if (!cert || cert.status !== "APPROVED") {
+      throw new BusinessException(ErrorCode.NOT_FOUND, "该讲师暂未开通公开主页");
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, nickname: true, avatar: true },
+    });
+    if (!user) throw new BusinessException(ErrorCode.NOT_FOUND, "讲师不存在");
+
+    // 仅公开已过审、未删除的课程
+    const courseWhere = { userId, auditStatus: "APPROVED", deletedAt: null };
+    const [courses, courseCount, studentAgg, ratingAgg, stationLinks] = await Promise.all([
+      this.prisma.course.findMany({
+        where: courseWhere,
+        select: { id: true, title: true, cover: true, price: true, studentCount: true, type: true },
+        orderBy: { studentCount: "desc" },
+        take: 6,
+      }),
+      this.prisma.course.count({ where: courseWhere }),
+      this.prisma.course.aggregate({ where: courseWhere, _sum: { studentCount: true } }),
+      this.prisma.courseReview.aggregate({
+        where: { status: "PUBLISHED", course: courseWhere },
+        _avg: { rating: true },
+        _count: { rating: true },
+      }),
+      this.prisma.stationTeacher.findMany({
+        where: { sourceUserId: userId, status: "ACTIVE", station: { status: "ACTIVE" } },
+        select: { station: { select: { id: true, name: true, city: true, cover: true, type: true } } },
+      }),
+    ]);
+
+    // 驿站去重（正常一站一条，防御性处理历史脏数据）
+    const seen = new Set<string>();
+    const offlineStations: { id: string; name: string; city: string; cover: string | null; type: string | null }[] = [];
+    for (const link of stationLinks) {
+      if (!link.station || seen.has(link.station.id)) continue;
+      seen.add(link.station.id);
+      offlineStations.push(link.station);
+    }
+
+    const reviewCount = ratingAgg._count.rating;
+    const stats: { courseCount: number; studentCount: number; avgRating?: number; reviewCount?: number } = {
+      courseCount,
+      studentCount: studentAgg._sum.studentCount ?? 0,
+    };
+    // 无评价时省略 avgRating（诚实降级，前端 v-if 隐藏评分位）
+    if (reviewCount > 0 && ratingAgg._avg.rating != null) {
+      stats.avgRating = Math.round(Number(ratingAgg._avg.rating) * 10) / 10;
+      stats.reviewCount = reviewCount;
+    }
+
+    return {
+      userId: user.id,
+      nickname: user.nickname,
+      avatar: user.avatar,
+      verifiedTitle: cert.verifiedTitle,
+      intro: cert.intro,
+      stats,
+      courses,
+      offlineStations,
+    };
+  }
+
   // ═══════════════════ 管理端 — 讲师认证审核 ═══════════════════
 
   /** 管理员：讲师认证列表（可按状态过滤，含申请人信息） */

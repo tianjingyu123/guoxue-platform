@@ -64,6 +64,12 @@ function onPurchased() {
   uni.showToast({ title: '购买成功', icon: 'success' })
 }
 function onStartLearning() { navigateTo(`/courses/${course.value?.id}/learn`) }
+/** 讲师公开主页（讲师 userId 缺失时不可点；未认证讲师由主页 404 错误态诚实提示） */
+function goTeacherProfile() {
+  const uid = course.value?.instructor?.id
+  if (!uid) return
+  navigateTo(`/pkg-creator/teacher-profile/index?userId=${uid}`)
+}
 const ratingBars = computed(() => [5, 4, 3, 2, 1].map((star) => {
   const count = reviews.value.filter((r) => r.rating === star).length
   return { star, percent: reviews.value.length ? (count / reviews.value.length) * 100 : 0 }
@@ -169,15 +175,15 @@ onMounted(() => {
       </view>
     </view>
 
-    <!-- 讲师信息 -->
+    <!-- 讲师信息（有讲师 userId 时可点击进公开主页，无则不可点） -->
     <view class="inst-wrap">
-      <view class="inst-card" @tap="navigateTo(`/instructor/${course.instructor.id}`)">
+      <view class="inst-card" @tap="goTeacherProfile">
         <image lazy-load class="inst-avatar" :src="course.instructor.avatar" mode="aspectFill" />
         <view class="inst-info">
           <text class="inst-name">{{ course.instructor.name }}</text>
           <text class="inst-title">{{ course.instructor.title }}</text>
         </view>
-        <text class="inst-link">查看主页 &gt;</text>
+        <text v-if="course.instructor.id" class="inst-link">查看主页 &gt;</text>
       </view>
     </view>
 

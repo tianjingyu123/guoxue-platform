@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Req, UseGuards } from "@nestjs/common";
+import { Controller, Get, Post, Body, Param, Req, UseGuards } from "@nestjs/common";
 import { Request } from "express";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from "@nestjs/swagger";
 import { TeacherService } from "./teacher.service";
@@ -31,5 +31,19 @@ export class TeacherController {
   @ApiResponse({ status: 409, description: "已认证或审核中，不可重复提交" })
   apply(@Req() req: AuthRequest, @Body() dto: ApplyCertificationDto) {
     return this.teacher.applyCertification(req.user.id, dto);
+  }
+}
+
+@ApiTags("讲师认证")
+@Controller("teachers")
+export class TeacherPublicController {
+  constructor(private teacher: TeacherService) {}
+
+  @Get(":userId/profile")
+  @ApiOperation({ summary: "讲师公开主页（公开·仅认证通过讲师；聚合课程/评价/线下驿站，全脱敏）" })
+  @ApiResponse({ status: 200, description: "成功返回公开主页" })
+  @ApiResponse({ status: 404, description: "讲师不存在或未通过认证" })
+  getPublicProfile(@Param("userId") userId: string) {
+    return this.teacher.getPublicProfile(userId);
   }
 }

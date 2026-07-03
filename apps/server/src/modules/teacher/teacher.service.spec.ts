@@ -12,6 +12,13 @@ const mockPrisma = {
     create: jest.fn(),
     update: jest.fn(),
   },
+  course: {
+    findMany: jest.fn(),
+    count: jest.fn(),
+    aggregate: jest.fn(),
+  },
+  courseReview: { aggregate: jest.fn() },
+  stationTeacher: { findMany: jest.fn() },
 };
 
 describe("TeacherService", () => {
@@ -80,6 +87,77 @@ describe("TeacherService", () => {
       const res = await svc.applyCertification("u1", dto);
       expect(res.status).toBe("PENDING");
       expect(mockPrisma.teacherCertification.update).toHaveBeenCalled();
+    });
+  });
+
+  describe("getPublicProfile（讲师公开主页）", () => {
+    /** 布好一套 APPROVED 讲师的聚合底座（各用例按需覆写） */
+    function primeAggregates() {
+      mockPrisma.course.findMany.mockResolvedValue([
+        { id: "c1", title: "论语精读", cover: "x.jpg", price: "99", studentCount: 120, type: "VIDEO" },
+      ]);
+      mockPrisma.course.count.mockResolvedValue(3);
+      mockPrisma.course.aggregate.mockResolvedValue({ _sum: { studentCount: 350 } });
+      mockPrisma.courseReview.aggregate.mockResolvedValue({ _avg: { rating: 4.66 }, _count: { rating: 21 } });
+      mockPrisma.stationTeacher.findMany.mockResolvedValue([
+        { station: { id: "s1", name: "明德馆", city: "北京", cover: null, type: "academy" } },
+      ]);
+    }
+
+    it("无认证记录 → 404", async () => {
+      mockPrisma.teacherCertification.findUnique.mockResolvedValue(null);
+      await expect(svc.getPublicProfile("u1")).rejects.toBeInstanceOf(BusinessException);
+    });
+
+    it("认证未通过(PENDING) → 404", async () => {
+      mockPrisma.teacherCertification.findUnique.mockResolvedValue({ status: "PENDING" });
+      await expect(svc.getPublicProfile("u1")).rejects.toBeInstanceOf(BusinessException);
+    });
+
+    it("认证通过但用户不存在 → 404", async () => {
+      mockPrisma.teacherCertification.findUnique.mockResolvedValue({ status: "APPROVED", verifiedTitle: "认证讲师", intro: "x" });
+      mockPrisma.user.findUnique.mockResolvedValue(null);
+      await expect(svc.getPublicProfile("u1")).rejects.toBeInstanceOf(BusinessException);
+    });
+
+    it("APPROVED → 聚合返回（脱敏：无手机号/证件字段）", async () => {
+      mockPrisma.teacherCertification.findUnique.mockResolvedValue({ status: "APPROVED", verifiedTitle: "国学名师", intro: "十年教学" });
+      mockPrisma.user.findUnique.mockResolvedValue({ id: "u1", nickname: "王老师", avatar: "a.jpg" });
+      primeAggregates();
+      const res = await svc.getPublicProfile("u1");
+      expect(res.userId).toBe("u1");
+      expect(res.verifiedTitle).toBe("国学名师");
+      expect(res.stats).toEqual({ courseCount: 3, studentCount: 350, avgRating: 4.7, reviewCount: 21 });
+      expect(res.courses).toHaveLength(1);
+      expect(res.offlineStations).toEqual([{ id: "s1", name: "明德馆", city: "北京", cover: null, type: "academy" }]);
+      expect(JSON.stringify(res)).not.toMatch(/phone|realName|idCard/);
+      // 只聚合已过审未删除课程
+      expect(mockPrisma.course.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { userId: "u1", auditStatus: "APPROVED", deletedAt: null }, take: 6 }),
+      );
+    });
+
+    it("无评价 → 省略 avgRating/reviewCount（诚实降级）", async () => {
+      mockPrisma.teacherCertification.findUnique.mockResolvedValue({ status: "APPROVED", verifiedTitle: "讲师", intro: null });
+      mockPrisma.user.findUnique.mockResolvedValue({ id: "u1", nickname: "王老师", avatar: null });
+      primeAggregates();
+      mockPrisma.courseReview.aggregate.mockResolvedValue({ _avg: { rating: null }, _count: { rating: 0 } });
+      const res = await svc.getPublicProfile("u1");
+      expect(res.stats).toEqual({ courseCount: 3, studentCount: 350 });
+      expect("avgRating" in res.stats).toBe(false);
+    });
+
+    it("驿站按 id 去重", async () => {
+      mockPrisma.teacherCertification.findUnique.mockResolvedValue({ status: "APPROVED", verifiedTitle: "讲师", intro: null });
+      mockPrisma.user.findUnique.mockResolvedValue({ id: "u1", nickname: "王老师", avatar: null });
+      primeAggregates();
+      mockPrisma.stationTeacher.findMany.mockResolvedValue([
+        { station: { id: "s1", name: "明德馆", city: "北京", cover: null, type: "academy" } },
+        { station: { id: "s1", name: "明德馆", city: "北京", cover: null, type: "academy" } },
+        { station: { id: "s2", name: "崇文馆", city: "上海", cover: null, type: "center" } },
+      ]);
+      const res = await svc.getPublicProfile("u1");
+      expect(res.offlineStations.map((s) => s.id)).toEqual(["s1", "s2"]);
     });
   });
 
