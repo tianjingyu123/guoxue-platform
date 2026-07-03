@@ -6,13 +6,14 @@ import { OfflineEventService } from "./offline-event.service";
 import { OfflineStationDashboardController } from "./offline-station-dashboard.controller";
 import { OfflineStationDashboardService } from "./offline-station-dashboard.service";
 import { OfflineReminderService } from "./offline-reminder.service";
+import { OfflineOnboardingService } from "./offline-onboarding.service";
 import { TrackModule } from "../track/track.module";
 import { NotificationModule } from "../notification/notification.module";
 
 @Module({
   imports: [TrackModule, NotificationModule], // 学员洞察复用公共 InsightService（画像聚合/时间线摘要）；通知触点复用 NotificationService
   controllers: [OfflineController, OfflineEventController, OfflineStationDashboardController],
-  providers: [OfflineService, OfflineEventService, OfflineStationDashboardService, OfflineReminderService],
-  exports: [OfflineService, OfflineEventService, OfflineStationDashboardService, OfflineReminderService],
+  providers: [OfflineService, OfflineEventService, OfflineStationDashboardService, OfflineReminderService, OfflineOnboardingService],
+  exports: [OfflineService, OfflineEventService, OfflineStationDashboardService, OfflineReminderService, OfflineOnboardingService],
 })
 export class OfflineModule {}

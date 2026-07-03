@@ -141,6 +141,8 @@ const TYPE_MAP: Record<string, string> = {
   'user-agreement': 'agreement',
   'privacy-policy': 'privacy',
   community: 'community',
+  // 驿站经营 SOP 手册（B 端经营指引，种子 legal-documents.seed.ts 入库，GET 端点对 type 无枚举限制）
+  sop_offline: 'sop_offline',
 }
 
 // ============ API 层 ============

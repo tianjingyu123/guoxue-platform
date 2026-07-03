@@ -187,6 +187,64 @@ export class AdvisorService {
         : { hit: false };
     },
 
+    /**
+     * 驿站开业阶段探针（T8-P1b 加盟 SOP）：驿站创建满 minDays 天后按 checkKind 检查冷启动指标。
+     * condition: { minDays, checkKind, threshold? }
+     * - checkKind="content"       ：课程数<1 或 商品数<1（首个内容未上架）
+     * - checkKind="registrations" ：累计有效报名 < threshold（默认 5）
+     * - checkKind="events"        ：已举办活动（PUBLISHED/FINISHED）< threshold（默认 1）
+     * 规则数据化：7/30/90 天三条规则共用本探针，仅 condition 不同。
+     */
+    offline_onboarding: async (stationOfflineId, cond) => {
+      const minDays = cond.minDays ?? 7;
+      const station = await this.prisma.stationOffline.findUnique({
+        where: { id: stationOfflineId },
+        select: { createdAt: true },
+      });
+      if (!station) return { hit: false };
+      const ageDays = Math.floor((Date.now() - station.createdAt.getTime()) / DAY_MS);
+      if (ageDays < minDays) return { hit: false };
+
+      const kind = String((cond as Record<string, unknown>).checkKind ?? "content");
+      if (kind === "content") {
+        const [courses, products] = await Promise.all([
+          this.prisma.offlineCourse.count({ where: { stationId: stationOfflineId } }),
+          this.prisma.stationProduct.count({ where: { stationId: stationOfflineId, status: "ACTIVE" } }),
+        ]);
+        if (courses < 1 || products < 1) {
+          const facts: Record<string, number> = { ageDays, courses, products };
+          return { hit: true, facts };
+        }
+        return { hit: false };
+      }
+      if (kind === "registrations") {
+        const threshold = cond.threshold ?? 5;
+        const count = await this.prisma.offlineCourseRegistration.count({
+          where: {
+            course: { stationId: stationOfflineId },
+            status: { in: ["REGISTERED", "SIGNED_IN"] },
+          },
+        });
+        if (count < threshold) {
+          const facts: Record<string, number> = { ageDays, count, threshold };
+          return { hit: true, facts };
+        }
+        return { hit: false };
+      }
+      if (kind === "events") {
+        const threshold = cond.threshold ?? 1;
+        const count = await this.prisma.stationEvent.count({
+          where: { stationId: stationOfflineId, status: { in: ["PUBLISHED", "FINISHED"] } },
+        });
+        if (count < threshold) {
+          const facts: Record<string, number> = { ageDays, count, threshold };
+          return { hit: true, facts };
+        }
+        return { hit: false };
+      }
+      return { hit: false }; // 未知 checkKind：宁静默不误报
+    },
+
     // ── 圈主（T2-P3）──
 
     /** 圈子发帖量周环比下滑（前7天≥5帖才有统计意义） */

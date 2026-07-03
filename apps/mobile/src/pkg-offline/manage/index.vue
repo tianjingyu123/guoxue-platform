@@ -205,6 +205,7 @@ const productRanking = ref<ProductRankItem[]>([])
 const todoCount = computed(() => stockAlerts.value.length + pendingBookings.value.length + upcomingCourses.value.length)
 
 const modules = [
+  { key: 'onboarding', label: '开业指南', icon: 'compass', color: '#9a2e25', bg: 'rgba(154,46,37,0.08)' },
   { key: 'courses', label: '课程管理', icon: 'graduation-cap', color: '#c41e3a', bg: 'rgba(196,30,58,0.1)' },
   { key: 'events', label: '活动管理', icon: 'calendar-plus', color: '#dc2626', bg: '#fef2f2' },
   { key: 'calendar', label: '经营日历', icon: 'calendar-days', color: '#0d9488', bg: '#f0fdfa' },
@@ -255,7 +256,8 @@ onShow(() => { if (station.value) load() })
 function onModule(m: { key: string }) {
   if (!station.value) return
   const sid = station.value.id
-  if (m.key === 'courses') navigateTo(`/offline/manage/courses?stationId=${sid}`)
+  if (m.key === 'onboarding') navigateTo('/pkg-offline/onboarding/index')
+  else if (m.key === 'courses') navigateTo(`/offline/manage/courses?stationId=${sid}`)
   else if (m.key === 'events') navigateTo(`/pkg-offline/manage-events/index?stationId=${sid}`)
   else if (m.key === 'calendar') navigateTo('/pkg-offline/manage-calendar/index')
   else if (m.key === 'checkin') navigateTo(`/offline/manage/checkin?stationId=${sid}`)

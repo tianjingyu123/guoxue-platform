@@ -171,7 +171,8 @@
           <!-- 讲师 -->
           <view v-else class="sd-instructors">
             <view v-if="teachers.length === 0" class="sd-tab-empty"><text class="sd-tab-empty-text">暂无驻场讲师</text></view>
-            <view v-for="ins in teachers" :key="ins.id" class="sd-instructor">
+            <!-- 签约讲师（有平台 userId）可点击进讲师公开主页；驿站自建讲师无主页不可点 -->
+            <view v-for="ins in teachers" :key="ins.id" class="sd-instructor" @tap="goTeacherProfile(ins)">
               <image lazy-load v-if="ins.avatar" :src="ins.avatar" class="sd-avatar-img lg" mode="aspectFill" />
               <view v-else class="sd-avatar lg"><text class="sd-avatar-text">{{ ins.name[0] }}</text></view>
               <view class="sd-ins-info">
@@ -181,7 +182,7 @@
                 </view>
                 <text class="sd-ins-spec">{{ ins.specialties.length ? ins.specialties.join(' · ') : '国学讲师' }}</text>
               </view>
-              <view class="sd-ins-btn" @tap="goBooking(ins.id)"><text class="sd-ins-btn-text">预约</text></view>
+              <view class="sd-ins-btn" @tap.stop="goBooking(ins.id)"><text class="sd-ins-btn-text">预约</text></view>
             </view>
           </view>
         </view>
@@ -295,6 +296,12 @@ function onCall() {
 function goCourse(id: string) { navigateTo(`/offline/courses/${id}`) }
 function goEvent(id: string) { navigateTo(`/pkg-offline/events/detail?id=${id}`) }
 function goEvents() { navigateTo(`/offline/events?stationId=${stationId.value}`) }
+/** 讲师公开主页：仅签约讲师（sourceUserId 非空=平台认证讲师）可点，自建讲师无主页不跳转 */
+function goTeacherProfile(ins: StationTeacherLite) {
+  if (!ins.sourceUserId) return
+  navigateTo(`/pkg-creator/teacher-profile/index?userId=${ins.sourceUserId}`)
+}
+
 function goBooking(teacherId?: string) {
   const base = `/offline/teacher-booking?stationId=${stationId.value}`
   navigateTo(teacherId ? `${base}&teacherId=${teacherId}` : base)

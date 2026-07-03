@@ -1813,6 +1813,18 @@
           "style": {
             "navigationStyle": "custom"
           }
+        },
+        {
+          "path": "onboarding/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "sop/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
         }
       ]
     },
@@ -2695,6 +2707,12 @@
       "pages": [
         {
           "path": "teacher-dashboard/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "teacher-profile/index",
           "style": {
             "navigationStyle": "custom"
           }

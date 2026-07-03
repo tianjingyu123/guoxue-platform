@@ -75,6 +75,43 @@ const RULES = [
       "驿站近7天营收 ¥{{last7}}，比前一周（¥{{prev7}}）下降 {{dropPct}}%。建议查看近期课程排期是否偏少，或发起一场体验课/沙龙拉动到店。",
     actions: [{ label: "去排课程", type: "NAVIGATE", target: "/pkg-offline/manage-courses/index" }],
   },
+  // ── 驿站开业阶段规则（T8-P1b 加盟 SOP·共用 offline_onboarding 探针，仅 condition 不同）──
+  {
+    roleType: "STATION_OFFLINE_OWNER",
+    ruleKey: "offline_onboarding_d7",
+    metric: "offline_onboarding",
+    condition: { minDays: 7, checkKind: "content" },
+    severity: "INFO",
+    suggestion:
+      "驿站已开业 {{ageDays}} 天，目前课程 {{courses}} 门、在售商品 {{products}} 件。首个课程/商品是获客的起点——建议本周完成首次上架，让驿站主页「有内容可看、有课程可报」。",
+    actions: [
+      { label: "查看开业指南", type: "NAVIGATE", target: "/pkg-offline/onboarding/index" },
+      { label: "去排课程", type: "NAVIGATE", target: "/pkg-offline/manage-courses/index" },
+    ],
+  },
+  {
+    roleType: "STATION_OFFLINE_OWNER",
+    ruleKey: "offline_onboarding_d30",
+    metric: "offline_onboarding",
+    condition: { minDays: 30, checkKind: "registrations", threshold: 5 },
+    severity: "WARN",
+    suggestion:
+      "驿站开业 {{ageDays}} 天，累计有效报名 {{count}} 人（目标 {{threshold}} 人）。首月冷启动三件事：把课程分享到本地社群、办一场免费体验课、邀请到店客人现场扫码报名——开业指南里有完整打法。",
+    actions: [{ label: "查看开业指南", type: "NAVIGATE", target: "/pkg-offline/onboarding/index" }],
+  },
+  {
+    roleType: "STATION_OFFLINE_OWNER",
+    ruleKey: "offline_onboarding_d90",
+    metric: "offline_onboarding",
+    condition: { minDays: 90, checkKind: "events", threshold: 1 },
+    severity: "INFO",
+    suggestion:
+      "驿站已运营 {{ageDays}} 天，还没有举办过一场活动。一场雅集/读书会是激活会员、带动口碑传播的最好方式——建议本月安排一场，用回顾照片墙沉淀二次传播素材。",
+    actions: [
+      { label: "去办活动", type: "NAVIGATE", target: "/pkg-offline/manage-events/index" },
+      { label: "查看开业指南", type: "NAVIGATE", target: "/pkg-offline/onboarding/index" },
+    ],
+  },
   // ── 圈主（T2-P3）──
   {
     roleType: "CIRCLE_OWNER",

@@ -2,6 +2,7 @@ import { Controller, Get, Param, Query, Req, UseGuards, NotFoundException } from
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from "@nestjs/swagger";
 import { Request } from "express";
 import { OfflineStationDashboardService } from "./offline-station-dashboard.service";
+import { OfflineOnboardingService } from "./offline-onboarding.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { PrismaService } from "../../prisma/prisma.service";
 
@@ -12,6 +13,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 export class OfflineStationDashboardController {
   constructor(
     private readonly svc: OfflineStationDashboardService,
+    private readonly onboarding: OfflineOnboardingService,
     private readonly prisma: PrismaService,
   ) {}
 
@@ -76,6 +78,13 @@ export class OfflineStationDashboardController {
   @ApiResponse({ status: 200, description: "成功" })
   async getUpcomingCourses(@Req() req: Request) {
     return this.svc.getUpcomingCourses(await this.getStationId(req));
+  }
+
+  @Get("onboarding")
+  @ApiOperation({ summary: "开业 SOP 进度（T8-P1b）：三阶段清单 done 判定 + 总进度（引导项不计分母）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  async getOnboarding(@Req() req: Request) {
+    return this.onboarding.getOnboarding(await this.getStationId(req));
   }
 
   @Get("students")

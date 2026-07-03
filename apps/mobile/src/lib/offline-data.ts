@@ -652,6 +652,32 @@ export const offlineManageApi = {
     const d = await apiGet<{ days?: CalendarDays }>(`/offline/dashboard/calendar?month=${month}`)
     return d?.days || {}
   },
+
+  /** 开业 SOP 进度 GET /offline/dashboard/onboarding（T8-P1b·驿站主·错误抛给页面走三态） */
+  getOnboarding(): Promise<OnboardingData> {
+    return apiGet<OnboardingData>('/offline/dashboard/onboarding')
+  },
+}
+
+// ===== 开业 SOP 进度（T8-P1b·GET /offline/dashboard/onboarding）=====
+
+/** 开业清单项：done=null 表示无法自动检测的引导项（前端渲染为引导而非勾选，不计入进度分母） */
+export interface OnboardingItem {
+  key: string
+  title: string
+  done: boolean | null
+}
+export interface OnboardingStage {
+  key: string // setup / operate / growth
+  title: string
+  items: OnboardingItem[]
+}
+export interface OnboardingData {
+  stationName: string
+  /** 开业天数（自驿站创建） */
+  openDays: number
+  stages: OnboardingStage[]
+  progress: { done: number; total: number }
 }
 
 /** 创建/编辑活动载荷（B 端表单） */
