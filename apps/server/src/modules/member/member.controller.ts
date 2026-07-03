@@ -3,6 +3,8 @@ import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiResponse } from "@ne
 import { Request } from "express";
 import { MemberService } from "./member.service";
 import { SystemService } from "../system/system.service";
+import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
 import { GrantMemberDto } from "./member.dto";
@@ -31,12 +33,12 @@ export class MemberController {
   @UseGuards(JwtAuthGuard, FeatureFlagGuard, StrictRedisThrottleGuard)
   @RequireFeature("member_purchase")
   @ApiBearerAuth()
-  @ApiOperation({ summary: "购买会员" })
-  @ApiResponse({ status: 201, description: "创建成功" })
-  @ApiResponse({ status: 400, description: "参数校验失败" })
-  @ApiResponse({ status: 401, description: "未登录" })
-  purchase(@Req() req: Request, @Param("planId") planId: string) {
-    return this.memberService.purchase(req.user.id, planId);
+  @ApiOperation({ summary: "【已停用】购买会员 — 已升级为在线支付订单链路" })
+  @ApiResponse({ status: 400, description: "端点已停用" })
+  purchase(@Req() _req: Request, @Param("planId") _planId: string) {
+    // 资金安全（2026-07-03 修复）：本端点不校验支付即直接开通会员（免费开终身漏洞），已废弃。
+    // 正规链路 = POST /shop/orders(type=MEMBER, targetId=planId) → 在线支付 → 回调 processMemberPaid 开通。
+    throw new BusinessException(ErrorCode.BAD_REQUEST, "会员开通已升级为在线支付：请在会员页选择套餐并完成支付");
   }
 
   @Get("status")
@@ -52,12 +54,11 @@ export class MemberController {
   @Post("renew/:planId")
   @UseGuards(JwtAuthGuard, StrictRedisThrottleGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: "续费会员" })
-  @ApiResponse({ status: 201, description: "创建成功" })
-  @ApiResponse({ status: 400, description: "参数校验失败" })
-  @ApiResponse({ status: 401, description: "未登录" })
-  renew(@Req() req: Request, @Param("planId") planId: string) {
-    return this.memberService.renew(req.user.id, planId);
+  @ApiOperation({ summary: "【已停用】续费会员 — 已升级为在线支付订单链路" })
+  @ApiResponse({ status: 400, description: "端点已停用" })
+  renew(@Req() _req: Request, @Param("planId") _planId: string) {
+    // 资金安全（2026-07-03 修复）：与 purchase 同因废弃（不校验支付即续期）。续费同走订单支付链路。
+    throw new BusinessException(ErrorCode.BAD_REQUEST, "会员续费已升级为在线支付：请在会员页选择套餐并完成支付");
   }
 
   @Get("benefits")

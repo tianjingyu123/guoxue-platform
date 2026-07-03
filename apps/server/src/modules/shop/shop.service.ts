@@ -1110,7 +1110,7 @@ export class ShopService {
   };
 
   /** 事务内更新订单状态为 PAID + 按类型触发后处理 */
-  private async processPaidOrder(order: { id: string; type: string; userId: string; amount: any; referrerId?: string | null }, payMethod: string, tradeNo: string) {
+  private async processPaidOrder(order: { id: string; type: string; userId: string; amount: any; targetId?: string | null; referrerId?: string | null }, payMethod: string, tradeNo: string) {
     await this.prisma.$transaction(async (tx) => {
       const result = await tx.order.updateMany({
         where: { id: order.id, status: "PENDING" },
@@ -1133,9 +1133,15 @@ export class ShopService {
     await this.settleGroupBuyIfNeeded(order.id).catch((e) => this.logger.error(`拼团成团结算失败 order=${order.id}`, e));
   }
 
-  /** MEMBER 支付后处理 — 升级会员等级 + 记录购买 */
+  /** MEMBER 支付后处理 — 按订单套餐（targetId=MemberConfig.id）定档开通 + 记录购买 */
   private async processMemberPaid(order: Order, tx: any) {
-    const memberLevel = this.resolveMemberLevel(Number(order.amount));
+    // 定档真源=下单时选择的套餐；仅历史订单缺套餐时按金额兜底（阈值对齐 2026-07 定价）
+    let memberLevel: string | null = null;
+    if (order.targetId) {
+      const plan = await tx.memberConfig.findUnique({ where: { id: order.targetId } });
+      if (plan) memberLevel = plan.level;
+    }
+    if (!memberLevel) memberLevel = this.resolveMemberLevel(Number(order.amount));
     const expiresAt = this.calcMemberExpiry(memberLevel);
     await tx.user.update({
       where: { id: order.userId },
@@ -1986,9 +1992,10 @@ export class ShopService {
 
   // ═══════════════════ 会员辅助 ═══════════════════
 
+  /** 金额→等级兜底（仅历史无套餐订单用；阈值对齐 2026-07 定价：月199/年999/终身3949） */
   private resolveMemberLevel(amount: number): string {
-    if (amount >= 9999) return "LIFETIME";
-    if (amount >= 365) return "YEARLY";
+    if (amount >= 3000) return "LIFETIME";
+    if (amount >= 900) return "YEARLY";
     return "MONTHLY";
   }
 

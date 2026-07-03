@@ -52,11 +52,10 @@ describe("MemberController", () => {
       expect(mockService.getPlans).toHaveBeenCalled();
     });
 
-    it("POST purchase/:planId → 购买会员", async () => {
+    it("POST purchase/:planId → 已停用（资金安全：不校验支付即开通，改走订单支付链路）", async () => {
       const req = { user: { id: "u1" } } as any;
-      const res = await ctrl.purchase(req, "plan1");
-      expect(res).toHaveProperty("id");
-      expect(mockService.purchase).toHaveBeenCalledWith("u1", "plan1");
+      expect(() => ctrl.purchase(req, "plan1")).toThrow(/在线支付/);
+      expect(mockService.purchase).not.toHaveBeenCalled();
     });
 
     it("GET status → 查询会员状态", async () => {
@@ -66,11 +65,10 @@ describe("MemberController", () => {
       expect(mockService.getStatus).toHaveBeenCalledWith("u1");
     });
 
-    it("POST renew/:planId → 续费会员", async () => {
+    it("POST renew/:planId → 已停用（与 purchase 同因改走订单支付链路）", async () => {
       const req = { user: { id: "u1" } } as any;
-      const res = await ctrl.renew(req, "plan2");
-      expect(res).toHaveProperty("id");
-      expect(mockService.renew).toHaveBeenCalledWith("u1", "plan2");
+      expect(() => ctrl.renew(req, "plan2")).toThrow(/在线支付/);
+      expect(mockService.renew).not.toHaveBeenCalled();
     });
 
     it("GET benefits → 获取会员权益", async () => {
