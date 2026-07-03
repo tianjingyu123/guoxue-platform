@@ -100,6 +100,20 @@ describe("Paipan DTO 校验", () => {
       const dto = Object.assign(new AnalyzeDto(), {});
       const errors = await validate(dto); expect(errors.length).toBeGreaterThan(0);
     });
+    it("合法 school（ziping/mangpai/xinpai）通过", async () => {
+      for (const school of ["ziping", "mangpai", "xinpai"]) {
+        const dto = Object.assign(new AnalyzeDto(), { recordId: "rec-1", school });
+        const errors = await validate(dto); expect(errors.length).toBe(0);
+      }
+    });
+    it("非法 school 值报错（400）", async () => {
+      const dto = Object.assign(new AnalyzeDto(), { recordId: "rec-1", school: "qimen" });
+      const errors = await validate(dto); expect(errors.length).toBeGreaterThan(0);
+    });
+    it("school 缺省（通用分析）通过", async () => {
+      const dto = Object.assign(new AnalyzeDto(), { recordId: "rec-1" });
+      const errors = await validate(dto); expect(errors.length).toBe(0);
+    });
   });
   describe("AnalysisQueryDto", () => {
     it("空对象通过", async () => {

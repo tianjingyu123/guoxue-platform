@@ -5,6 +5,12 @@ import type { ZiweiResult } from "@guoxue/ziwei-engine";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { MetricsService } from "../../common/metrics.service";
+import { RedisService } from "../../redis/redis.service";
+import { getSchool } from "./bazi-schools";
+
+/** 通用八字分析的 system prompt（保持现行行为，一个字不改） */
+const GENERAL_SYSTEM_PROMPT =
+  "你是一位精通中国传统八字命理学的资深专家，擅长根据八字排盘结果进行详细专业的命理分析。请用简体中文回答，语言专业但通俗易懂，多举实例，给出实用的人生建议。";
 
 /**
  * AI 排盘解析服务
@@ -18,6 +24,7 @@ export class PaipanAiService {
 
   constructor(
     private prisma: PrismaService,
+    private redis: RedisService,
     @Optional() @Inject(MetricsService) private metrics?: MetricsService,
   ) {
     this.apiKey = process.env.DEEPSEEK_API_KEY || "";
@@ -28,13 +35,19 @@ export class PaipanAiService {
    * @param userId 用户 ID
    * @param paipanRecordId 排盘记录 ID
    * @param baziResult 排盘结果
+   * @param school 流派 id（ziping/mangpai/xinpai）；缺省=现行通用分析，行为完全不变
    * @returns 分析结果
    */
   async analyzeBazi(
     userId: string,
     paipanRecordId: string,
     baziResult: BaziResult,
+    school?: string,
   ) {
+    // AI 师徒：传入流派时走多流派虚拟师父点评分支（缺省=通用分析，全兼容）
+    if (school) {
+      return this.analyzeBaziBySchool(userId, paipanRecordId, baziResult, school);
+    }
     // 检查是否已有分析记录，避免重复调用 API
     const existing = await this.prisma.aiAnalysisRecord.findFirst({
       where: { userId, paipanRecordId, analyzeType: "GENERAL" },
@@ -91,6 +104,109 @@ export class PaipanAiService {
     };
   }
 
+  /** 每用户每日流派点评合计上限（默认 10 次，可用环境变量覆盖） */
+  private schoolDailyLimit(): number {
+    const n = parseInt(process.env.PAIPAN_SCHOOL_ANALYZE_FREE_DAILY || "10", 10);
+    return Number.isInteger(n) && n > 0 ? n : 10;
+  }
+
+  /**
+   * AI 师徒：多流派虚拟师父点评
+   *
+   * - 缓存键含 school：同一命盘不同流派各自独立缓存，不互相命中
+   * - 每日限额：每用户每日流派点评合计上限（Redis 计数，按天过期），缓存命中不计数
+   * - 复用 AiAnalysisRecord 存储，analyzeType=BAZI_SCHOOL，记录 school 字段
+   */
+  async analyzeBaziBySchool(
+    userId: string,
+    paipanRecordId: string,
+    baziResult: BaziResult,
+    school: string,
+  ) {
+    const schoolDef = getSchool(school);
+    if (!schoolDef) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, `不支持的流派：${school}`);
+    }
+
+    // 缓存：同盘同流派已有点评直接返回（缓存键含 school，不同流派不互相命中）
+    const existing = await this.prisma.aiAnalysisRecord.findFirst({
+      where: { userId, paipanRecordId, analyzeType: "BAZI_SCHOOL", school },
+    });
+    if (existing) {
+      return {
+        id: existing.id,
+        school: schoolDef.id,
+        master: schoolDef.master,
+        schoolName: schoolDef.name,
+        analysisContent: existing.analysisContent,
+        createdAt: existing.createdAt,
+        isCached: true,
+      };
+    }
+
+    // 每日限额：每用户每日流派点评（school 非空）合计上限，Redis key 按天过期
+    const now = new Date();
+    const dateKey = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}`;
+    const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+    const ttlSeconds = Math.max(60, Math.ceil((endOfDay.getTime() - now.getTime()) / 1000));
+    const { count } = await this.redis.incrWithTtl(
+      `paipan:school-analyze:${userId}:${dateKey}`,
+      ttlSeconds,
+    );
+    if (count > this.schoolDailyLimit()) {
+      throw new BusinessException(ErrorCode.RATE_LIMITED, "今日请师父看盘次数已用完，明日再来");
+    }
+
+    // 无 API Key 返回友好提示（与通用分析行为一致）
+    if (!this.apiKey) {
+      const record = await this.prisma.aiAnalysisRecord.create({
+        data: {
+          userId,
+          paipanRecordId,
+          analyzeType: "BAZI_SCHOOL",
+          school: schoolDef.id,
+          analysisContent: "AI解析服务暂未配置，请联系管理员",
+          isCached: false,
+        },
+      });
+      return {
+        id: record.id,
+        school: schoolDef.id,
+        master: schoolDef.master,
+        schoolName: schoolDef.name,
+        analysisContent: record.analysisContent,
+        createdAt: record.createdAt,
+        isCached: false,
+      };
+    }
+
+    // 构建流派 prompt 并调用 API（师父人设写入 system prompt）
+    const prompt = schoolDef.buildPrompt(baziResult);
+    const { content, tokenUsage } = await this.callDeepSeek(prompt, schoolDef.systemPrompt);
+
+    const record = await this.prisma.aiAnalysisRecord.create({
+      data: {
+        userId,
+        paipanRecordId,
+        analyzeType: "BAZI_SCHOOL",
+        school: schoolDef.id,
+        analysisContent: content,
+        tokenUsage: tokenUsage as any,
+        isCached: false,
+      },
+    });
+
+    return {
+      id: record.id,
+      school: schoolDef.id,
+      master: schoolDef.master,
+      schoolName: schoolDef.name,
+      analysisContent: record.analysisContent,
+      createdAt: record.createdAt,
+      isCached: false,
+    };
+  }
+
   /** 根据分析记录 ID 获取单条分析 */
   async getAnalysisRecord(id: string, userId: string) {
     const record = await this.prisma.aiAnalysisRecord.findFirst({
@@ -110,14 +226,20 @@ export class PaipanAiService {
     return record;
   }
 
-  /** 根据排盘记录 ID 获取 AI 分析结果 */
-  async getAnalysisByPaipanRecord(paipanRecordId: string, userId: string) {
+  /**
+   * 根据排盘记录 ID 获取 AI 分析结果
+   * @param school 指定流派时返回该流派点评；缺省时排除流派点评，维持通用分析的现行语义
+   */
+  async getAnalysisByPaipanRecord(paipanRecordId: string, userId: string, school?: string) {
     const record = await this.prisma.aiAnalysisRecord.findFirst({
-      where: { paipanRecordId, userId },
+      where: school
+        ? { paipanRecordId, userId, analyzeType: "BAZI_SCHOOL", school }
+        : { paipanRecordId, userId, NOT: { analyzeType: "BAZI_SCHOOL" } },
       select: {
         id: true,
         paipanRecordId: true,
         analyzeType: true,
+        school: true,
         analysisContent: true,
         modelName: true,
         tokenUsage: true,
@@ -126,7 +248,39 @@ export class PaipanAiService {
       },
     });
     if (!record) throw new BusinessException(ErrorCode.NOT_FOUND, "该排盘记录暂无 AI 分析结果");
-    return record;
+    return {
+      ...record,
+      master: record.school ? getSchool(record.school)?.master ?? null : null,
+    };
+  }
+
+  /**
+   * 获取某排盘记录的全部 AI 分析（通用 + 各流派点评，含 school/master 标注）
+   * 供前端多流派对照展示
+   */
+  async getAnalysesByPaipanRecord(paipanRecordId: string, userId: string) {
+    const records = await this.prisma.aiAnalysisRecord.findMany({
+      where: { paipanRecordId, userId },
+      select: {
+        id: true,
+        paipanRecordId: true,
+        analyzeType: true,
+        school: true,
+        analysisContent: true,
+        isCached: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: "asc" },
+    });
+    const items = records.map((r) => {
+      const schoolDef = r.school ? getSchool(r.school) : undefined;
+      return {
+        ...r,
+        master: schoolDef?.master ?? null,
+        schoolName: schoolDef?.name ?? null,
+      };
+    });
+    return { items, total: items.length };
   }
 
   /** 获取用户 AI 分析历史 */
@@ -427,8 +581,11 @@ ${fenXiLines.join("\n") || "无显著合冲刑害关系"}
 6. **综合建议**：配对总分（满分100）、相处注意事项、最佳婚配时机。`;
   }
 
-  /** 调用 DeepSeek API */
-  async callDeepSeek(prompt: string): Promise<{ content: string; tokenUsage: { promptTokens: number; completionTokens: number } }> {
+  /**
+   * 调用 DeepSeek API
+   * @param systemPrompt 可选的 system prompt（流派点评传入师父人设）；缺省=通用八字专家，现行行为不变
+   */
+  async callDeepSeek(prompt: string, systemPrompt: string = GENERAL_SYSTEM_PROMPT): Promise<{ content: string; tokenUsage: { promptTokens: number; completionTokens: number } }> {
     const start = Date.now();
     try {
       const response = await fetch("https://api.deepseek.com/v1/chat/completions", {
@@ -440,11 +597,7 @@ ${fenXiLines.join("\n") || "无显著合冲刑害关系"}
         body: JSON.stringify({
           model: "deepseek-chat",
           messages: [
-            {
-              role: "system",
-              content:
-                "你是一位精通中国传统八字命理学的资深专家，擅长根据八字排盘结果进行详细专业的命理分析。请用简体中文回答，语言专业但通俗易懂，多举实例，给出实用的人生建议。",
-            },
+            { role: "system", content: systemPrompt },
             { role: "user", content: prompt },
           ],
           max_tokens: 4096,

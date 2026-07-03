@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { IsString, IsInt, IsOptional, Min, Max, IsIn, MinLength } from "class-validator";
 import { Type } from "class-transformer";
+import { BAZI_SCHOOL_IDS } from "./bazi-schools";
 
 export class BaziInputDto {
   @ApiPropertyOptional({ description: "姓名" })
@@ -190,6 +191,14 @@ export class AnalyzeDto {
   @IsString()
   @MinLength(1)
   recordId: string;
+
+  @ApiPropertyOptional({
+    description: "AI 师徒流派 id（ziping=子平格局派/mangpai=盲派/xinpai=新派应用），缺省=通用分析",
+    enum: BAZI_SCHOOL_IDS,
+  })
+  @IsOptional()
+  @IsIn([...BAZI_SCHOOL_IDS])
+  school?: string;
 }
 
 /** 八字合婚输入 DTO */

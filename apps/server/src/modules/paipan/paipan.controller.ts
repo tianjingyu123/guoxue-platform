@@ -157,19 +157,31 @@ export class PaipanController {
       req.user.id,
       dto.recordId,
       record.resultData as unknown as BaziResult,
+      dto.school,
     );
   }
 
-  /** 获取排盘记录的 AI 分析结果 */
+  /** 获取排盘记录的 AI 分析结果（可选 school 查询流派点评） */
   @Get("bazi/:id/analysis")
   @UseGuards(JwtAuthGuard)
-  @ApiOperation({ summary: "获取八字AI分析结果" })
+  @ApiOperation({ summary: "获取八字AI分析结果（?school=可查指定流派点评）" })
   @ApiBearerAuth()
   @ApiResponse({ status: 200, description: "成功返回分析结果" })
   @ApiResponse({ status: 401, description: "未认证" })
   @ApiResponse({ status: 404, description: "分析不存在" })
-  baziGetAnalysis(@Param("id") id: string, @Req() req: Request) {
-    return this.paipanAi.getAnalysisByPaipanRecord(id, req.user.id);
+  baziGetAnalysis(@Param("id") id: string, @Req() req: Request, @Query("school") school?: string) {
+    return this.paipanAi.getAnalysisByPaipanRecord(id, req.user.id, school);
+  }
+
+  /** 获取某排盘记录的全部 AI 分析（通用+各流派点评，含 school/master 标注，供对照展示） */
+  @Get("records/:id/analyses")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "获取排盘记录的全部AI分析（含流派师父标注）" })
+  @ApiBearerAuth()
+  @ApiResponse({ status: 200, description: "成功返回分析列表" })
+  @ApiResponse({ status: 401, description: "未认证" })
+  getRecordAnalyses(@Param("id") id: string, @Req() req: Request) {
+    return this.paipanAi.getAnalysesByPaipanRecord(id, req.user.id);
   }
 
   /** 我的 AI 分析历史 */
