@@ -10,7 +10,7 @@ import {
   CreateFlashSaleItemDto, UpdateFlashSaleItemDto,
   CreateGroupBuyDto, UpdateGroupBuyDto, GroupBuyFilterDto,
   CreateCouponTemplateDto, UpdateCouponTemplateDto, CouponFilterDto,
-  GrantCouponDto, BatchGrantCouponDto, CouponRecordFilterDto,
+  GrantCouponDto, BatchGrantCouponDto, CouponRecordFilterDto, MyCouponFilterDto,
   CreateDiscountDto, UpdateDiscountDto, DiscountFilterDto,
   CreateMarketingPageDto, UpdateMarketingPageDto,
   CreatePageComponentDto, UpdatePageComponentDto, SortComponentsDto,
@@ -333,6 +333,43 @@ export class MarketingController {
   @ApiQuery({ name: "status", required: false, type: String, description: "状态筛选" })
   getCouponRecords(@Param("id") id: string, @Query() dto: CouponRecordFilterDto) {
     return this.marketing.getCouponRecords(id, dto);
+  }
+
+  // ═══════════════════════════════════════
+  // 优惠券中心（用户端·主动领券）
+  // ═══════════════════════════════════════
+
+  @Get("coupons/available")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "可领取的优惠券模板列表（用户端·含剩余量与本人已领数）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiBearerAuth()
+  listAvailableCoupons(@Req() req: Request) {
+    return this.marketing.listAvailableCoupons(req.user.id);
+  }
+
+  @Post("coupons/templates/:id/claim")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "领取优惠券（用户端·原子扣库存防超发·每人限领校验）" })
+  @ApiResponse({ status: 201, description: "领取成功，返回券记录 couponId" })
+  @ApiResponse({ status: 400, description: "已抢完/已达领取上限/活动未开始或已结束" })
+  @ApiResponse({ status: 404, description: "优惠券模板不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiBearerAuth()
+  claimCoupon(@Req() req: Request, @Param("id") id: string) {
+    return this.marketing.claimCouponTemplate(req.user.id, id);
+  }
+
+  @Get("coupons/my")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "我的优惠券列表（用户端·可按 UNUSED/USED/EXPIRED 筛选）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiBearerAuth()
+  @ApiQuery({ name: "status", required: false, enum: ["UNUSED", "USED", "EXPIRED"], description: "券状态筛选" })
+  getMyCoupons(@Req() req: Request, @Query() dto: MyCouponFilterDto) {
+    return this.marketing.getMyCoupons(req.user.id, dto);
   }
 
   // ═══════════════════════════════════════

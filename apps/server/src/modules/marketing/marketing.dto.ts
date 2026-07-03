@@ -1,6 +1,6 @@
 import {
   IsString, IsOptional, IsInt, IsNumber, IsArray, IsBoolean,
-  Min, Max, IsDateString, MinLength, MaxLength, ArrayNotEmpty,
+  Min, Max, IsDateString, MinLength, MaxLength, ArrayNotEmpty, IsIn,
 } from "class-validator";
 import { Type } from "class-transformer";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
@@ -373,6 +373,14 @@ export class CouponRecordFilterDto extends PaginationDto {
   @IsOptional()
   @IsString()
   status?: string; // UNUSED / USED / EXPIRED
+}
+
+/** 我的优惠券筛选（用户端） */
+export class MyCouponFilterDto {
+  @ApiPropertyOptional({ description: "券状态筛选", enum: ["UNUSED", "USED", "EXPIRED"] })
+  @IsOptional()
+  @IsIn(["UNUSED", "USED", "EXPIRED"])
+  status?: string;
 }
 
 // ════════════════════════════════════════

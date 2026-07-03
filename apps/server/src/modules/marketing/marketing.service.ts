@@ -13,7 +13,7 @@ import {
   CreateFlashSaleItemDto, UpdateFlashSaleItemDto,
   CreateGroupBuyDto, UpdateGroupBuyDto, GroupBuyFilterDto,
   CreateCouponTemplateDto, UpdateCouponTemplateDto, CouponFilterDto,
-  GrantCouponDto, BatchGrantCouponDto, CouponRecordFilterDto,
+  GrantCouponDto, BatchGrantCouponDto, CouponRecordFilterDto, MyCouponFilterDto,
   CreateDiscountDto, UpdateDiscountDto, DiscountFilterDto,
   CreateMarketingPageDto, UpdateMarketingPageDto,
   CreatePageComponentDto, UpdatePageComponentDto, SortComponentsDto,
@@ -471,6 +471,164 @@ export class MarketingService {
     ]);
 
     return { items, total, page, pageSize };
+  }
+
+  // ═══════════════════════════════════════
+  // 优惠券中心（用户端·主动领券）
+  // ═══════════════════════════════════════
+
+  /**
+   * 每人限领数。CouponTemplate 模型无 perUserLimit 字段（本次不改 schema），
+   * 固定每人限领 1 张，按该用户在此模板下的历史领取记录总数计（含已使用/已过期）。
+   * 并发兜底：CouponRecord @@unique([couponId, userId, status]) 唯一约束防同状态重复插入。
+   */
+  private static readonly COUPON_PER_USER_LIMIT = 1;
+
+  /** 领取后有效期截止时间 = 领取时间 + 模板 validDays 天 */
+  private couponExpiresAt(claimedAt: Date, validDays: number): Date {
+    return new Date(claimedAt.getTime() + validDays * 86_400_000);
+  }
+
+  /**
+   * 可领券模板列表（用户端）。
+   * 「可领」判定规则：status=ACTIVE 且当前时间在 [startTime, endTime] 领取窗口内
+   * （CouponTemplate 无独立"上架"字段，以 status + 领取时间窗联合判定）。
+   */
+  async listAvailableCoupons(userId: string) {
+    const now = new Date();
+    const templates = await this.prisma.couponTemplate.findMany({
+      where: { status: "ACTIVE", startTime: { lte: now }, endTime: { gte: now } },
+      orderBy: { createdAt: "desc" },
+    });
+
+    // 当前用户在各模板下的已领数（含已使用/已过期，与限领口径一致）
+    const claimedGroups = templates.length
+      ? await this.prisma.couponRecord.groupBy({
+          by: ["couponId"],
+          where: { userId, couponId: { in: templates.map((t) => t.id) } },
+          _count: { _all: true },
+        })
+      : [];
+    const claimedMap = new Map(claimedGroups.map((g) => [g.couponId, g._count._all]));
+
+    const items = templates.map((t) => {
+      const claimed = claimedMap.get(t.id) ?? 0;
+      const remaining = t.totalCount > 0 ? Math.max(0, t.totalCount - t.claimedCount) : null;
+      return {
+        id: t.id,
+        name: t.name,
+        type: t.type, // FIXED=满减 / PERCENT=折扣 / SHIPPING=免邮
+        faceValue: Number(t.faceValue),
+        threshold: t.threshold != null ? Number(t.threshold) : null,
+        totalCount: t.totalCount, // 0=不限量
+        remaining, // 剩余可领量，null=不限量
+        perUserLimit: MarketingService.COUPON_PER_USER_LIMIT,
+        claimed, // 当前用户已领数（前端据此置灰"已领取"）
+        claimable: (remaining === null || remaining > 0) && claimed < MarketingService.COUPON_PER_USER_LIMIT,
+        startTime: t.startTime, // 领取开始时间
+        endTime: t.endTime, // 领取结束时间
+        validDays: t.validDays, // 领取后有效期（天）
+        applicableScope: t.applicableScope ?? null,
+      };
+    });
+
+    return { items };
+  }
+
+  /**
+   * 用户主动领取一张优惠券。
+   * 原子性：事务内「每人限领 count 校验 + 条件更新扣库存（CAS：仅 claimedCount < totalCount 时递增）+ 建领取记录」，
+   * 任一步失败整体回滚；并发双击由 CouponRecord 唯一约束 (couponId,userId,status) 兜底（P2002 转业务异常）。
+   * 创建路径与 admin grant/batch-grant 完全一致（CouponRecord status=UNUSED），下单用券链路兼容。
+   */
+  async claimCouponTemplate(userId: string, templateId: string) {
+    const template = await this.prisma.couponTemplate.findUnique({ where: { id: templateId } });
+    if (!template) throw new BusinessException(ErrorCode.NOT_FOUND, "优惠券模板不存在");
+
+    const now = new Date();
+    if (template.status !== "ACTIVE") {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "该优惠券活动未开始或已结束");
+    }
+    if (now < template.startTime) throw new BusinessException(ErrorCode.BAD_REQUEST, "活动未开始");
+    if (now > template.endTime) throw new BusinessException(ErrorCode.BAD_REQUEST, "活动已结束");
+
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        // 每人限领校验（事务内 count；唯一约束二次兜底并发）
+        const claimed = await tx.couponRecord.count({ where: { couponId: templateId, userId } });
+        if (claimed >= MarketingService.COUPON_PER_USER_LIMIT) {
+          throw new BusinessException(ErrorCode.BAD_REQUEST, "已达领取上限");
+        }
+
+        // 原子库存扣减：条件更新，仅剩余>0 时递增 claimedCount，防超发
+        if (template.totalCount > 0) {
+          const updated = await tx.couponTemplate.updateMany({
+            where: { id: templateId, claimedCount: { lt: template.totalCount } },
+            data: { claimedCount: { increment: 1 } },
+          });
+          if (updated.count === 0) throw new BusinessException(ErrorCode.BAD_REQUEST, "优惠券已抢完");
+        } else {
+          // totalCount=0 不限量，直接计数
+          await tx.couponTemplate.update({
+            where: { id: templateId },
+            data: { claimedCount: { increment: 1 } },
+          });
+        }
+
+        // 与 grantCoupon/batchGrantCoupon 同一创建路径
+        const record = await tx.couponRecord.create({
+          data: { couponId: templateId, userId, status: "UNUSED" },
+        });
+
+        this.logger.log(`用户领券成功: user=${userId} template=${templateId} record=${record.id}`);
+        return {
+          couponId: record.id,
+          templateId,
+          name: template.name,
+          expiresAt: this.couponExpiresAt(record.claimedAt, template.validDays),
+        };
+      });
+    } catch (err: unknown) {
+      // 并发双击：唯一约束 (couponId,userId,status) 冲突
+      if ((err as { code?: string })?.code === "P2002") {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "已达领取上限");
+      }
+      throw err;
+    }
+  }
+
+  /**
+   * 我的优惠券列表（用户端）。
+   * EXPIRED 为派生态：status=UNUSED 但已过 claimedAt+validDays 的记录按 EXPIRED 返回/筛选。
+   */
+  async getMyCoupons(userId: string, dto: MyCouponFilterDto) {
+    const records = await this.prisma.couponRecord.findMany({
+      where: { userId },
+      include: { coupon: true },
+      orderBy: { claimedAt: "desc" },
+    });
+
+    const now = Date.now();
+    const items = records.map((r) => {
+      const expiresAt = this.couponExpiresAt(r.claimedAt, r.coupon?.validDays ?? 0);
+      const status = r.status === "UNUSED" && expiresAt.getTime() < now ? "EXPIRED" : r.status;
+      return {
+        id: r.id, // 券记录 id（下单用券/claim 返回的 couponId 即此 id）
+        templateId: r.couponId,
+        name: r.coupon?.name ?? null,
+        type: r.coupon?.type ?? null,
+        faceValue: r.coupon ? Number(r.coupon.faceValue) : null,
+        threshold: r.coupon?.threshold != null ? Number(r.coupon.threshold) : null,
+        applicableScope: r.coupon?.applicableScope ?? null,
+        status, // UNUSED / USED / EXPIRED（含时间派生过期）
+        claimedAt: r.claimedAt,
+        usedAt: r.usedAt,
+        expiresAt,
+      };
+    });
+
+    const filtered = dto.status ? items.filter((i) => i.status === dto.status) : items;
+    return { items: filtered, total: filtered.length };
   }
 
   // ═══════════════════════════════════════

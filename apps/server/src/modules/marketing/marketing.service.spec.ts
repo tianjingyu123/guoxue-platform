@@ -25,9 +25,9 @@ const makeMockPrisma = () => {
     groupBuyParticipant: { findMany: jest.fn(), findFirst: jest.fn(), create: jest.fn(), count: jest.fn() },
     couponTemplate: {
       create: jest.fn(), findMany: jest.fn(), findUnique: jest.fn(),
-      update: jest.fn(), count: jest.fn(),
+      update: jest.fn(), updateMany: jest.fn(), count: jest.fn(),
     },
-    couponRecord: { create: jest.fn(), createMany: jest.fn(), findMany: jest.fn(), count: jest.fn() },
+    couponRecord: { create: jest.fn(), createMany: jest.fn(), findMany: jest.fn(), count: jest.fn(), groupBy: jest.fn() },
     discountActivity: {
       create: jest.fn(), findMany: jest.fn(), findUnique: jest.fn(),
       update: jest.fn(), delete: jest.fn(), count: jest.fn(),
@@ -228,6 +228,149 @@ describe("MarketingService", () => {
       mockPrisma.couponRecord.count.mockResolvedValue(0);
       const result = await svc.getCouponRecords("ct1", {});
       expect(result.items).toHaveLength(0);
+    });
+  });
+
+  // ─── 优惠券中心（用户端·主动领券） ───
+
+  describe("listAvailableCoupons", () => {
+    it("只查进行中的上架模板并标记本人已领数", async () => {
+      mockPrisma.couponTemplate.findMany.mockResolvedValue([
+        {
+          id: "ct1", name: "满100减20", type: "FIXED", faceValue: 20, threshold: 100,
+          totalCount: 100, claimedCount: 40, validDays: 7, applicableScope: null,
+          startTime: new Date("2026-01-01"), endTime: new Date("2099-01-01"),
+        },
+        {
+          id: "ct2", name: "不限量券", type: "PERCENT", faceValue: 0.9, threshold: null,
+          totalCount: 0, claimedCount: 5, validDays: 30, applicableScope: null,
+          startTime: new Date("2026-01-01"), endTime: new Date("2099-01-01"),
+        },
+      ]);
+      mockPrisma.couponRecord.groupBy.mockResolvedValue([{ couponId: "ct1", _count: { _all: 1 } }]);
+
+      const result = await svc.listAvailableCoupons("u1");
+
+      // 过滤条件：ACTIVE + 领取时间窗
+      const where = mockPrisma.couponTemplate.findMany.mock.calls[0][0].where;
+      expect(where.status).toBe("ACTIVE");
+      expect(where.startTime.lte).toBeInstanceOf(Date);
+      expect(where.endTime.gte).toBeInstanceOf(Date);
+
+      expect(result.items).toHaveLength(2);
+      const [c1, c2] = result.items;
+      expect(c1.remaining).toBe(60);
+      expect(c1.claimed).toBe(1);
+      expect(c1.claimable).toBe(false); // 每人限领1张，已领1张 → 不可再领
+      expect(c2.remaining).toBeNull(); // totalCount=0 不限量
+      expect(c2.claimed).toBe(0);
+      expect(c2.claimable).toBe(true);
+    });
+  });
+
+  describe("claimCouponTemplate", () => {
+    const activeTemplate = {
+      id: "ct1", name: "满100减20", type: "FIXED", faceValue: 20, threshold: 100,
+      totalCount: 100, claimedCount: 40, validDays: 7, status: "ACTIVE",
+      startTime: new Date("2026-01-01"), endTime: new Date("2099-01-01"),
+    };
+
+    it("领取成功返回券记录 couponId", async () => {
+      mockPrisma.couponTemplate.findUnique.mockResolvedValue(activeTemplate);
+      mockPrisma.couponRecord.count.mockResolvedValue(0);
+      mockPrisma.couponTemplate.updateMany.mockResolvedValue({ count: 1 });
+      mockPrisma.couponRecord.create.mockResolvedValue({
+        id: "cr1", couponId: "ct1", userId: "u1", status: "UNUSED", claimedAt: new Date("2026-07-02"),
+      });
+
+      const result = await svc.claimCouponTemplate("u1", "ct1");
+
+      expect(result.couponId).toBe("cr1");
+      expect(result.expiresAt).toEqual(new Date(new Date("2026-07-02").getTime() + 7 * 86_400_000));
+      // 原子 CAS：条件更新仅剩余>0 时扣减
+      expect(mockPrisma.couponTemplate.updateMany).toHaveBeenCalledWith({
+        where: { id: "ct1", claimedCount: { lt: 100 } },
+        data: { claimedCount: { increment: 1 } },
+      });
+      // 与 grant 同一创建路径
+      expect(mockPrisma.couponRecord.create).toHaveBeenCalledWith({
+        data: { couponId: "ct1", userId: "u1", status: "UNUSED" },
+      });
+    });
+
+    it("库存耗尽（条件更新未命中）拒绝领取", async () => {
+      mockPrisma.couponTemplate.findUnique.mockResolvedValue(activeTemplate);
+      mockPrisma.couponRecord.count.mockResolvedValue(0);
+      mockPrisma.couponTemplate.updateMany.mockResolvedValue({ count: 0 });
+      await expect(svc.claimCouponTemplate("u1", "ct1")).rejects.toThrow("优惠券已抢完");
+      expect(mockPrisma.couponRecord.create).not.toHaveBeenCalled();
+    });
+
+    it("超每人限领拒绝领取", async () => {
+      mockPrisma.couponTemplate.findUnique.mockResolvedValue(activeTemplate);
+      mockPrisma.couponRecord.count.mockResolvedValue(1);
+      await expect(svc.claimCouponTemplate("u1", "ct1")).rejects.toThrow("已达领取上限");
+      expect(mockPrisma.couponTemplate.updateMany).not.toHaveBeenCalled();
+    });
+
+    it("领取期已结束拒绝领取", async () => {
+      mockPrisma.couponTemplate.findUnique.mockResolvedValue({
+        ...activeTemplate, startTime: new Date("2025-01-01"), endTime: new Date("2025-02-01"),
+      });
+      await expect(svc.claimCouponTemplate("u1", "ct1")).rejects.toThrow("活动已结束");
+    });
+
+    it("活动未开始拒绝领取", async () => {
+      mockPrisma.couponTemplate.findUnique.mockResolvedValue({
+        ...activeTemplate, startTime: new Date("2099-01-01"), endTime: new Date("2099-02-01"),
+      });
+      await expect(svc.claimCouponTemplate("u1", "ct1")).rejects.toThrow("活动未开始");
+    });
+
+    it("非 ACTIVE 状态模板拒绝领取", async () => {
+      mockPrisma.couponTemplate.findUnique.mockResolvedValue({ ...activeTemplate, status: "DRAFT" });
+      await expect(svc.claimCouponTemplate("u1", "ct1")).rejects.toThrow(BusinessException);
+    });
+
+    it("模板不存在抛出异常", async () => {
+      mockPrisma.couponTemplate.findUnique.mockResolvedValue(null);
+      await expect(svc.claimCouponTemplate("u1", "nope")).rejects.toThrow("优惠券模板不存在");
+    });
+
+    it("并发双击唯一约束冲突（P2002）转已达领取上限", async () => {
+      mockPrisma.couponTemplate.findUnique.mockResolvedValue(activeTemplate);
+      mockPrisma.couponRecord.count.mockResolvedValue(0);
+      mockPrisma.couponTemplate.updateMany.mockResolvedValue({ count: 1 });
+      const p2002 = Object.assign(new Error("Unique constraint failed"), { code: "P2002" });
+      mockPrisma.couponRecord.create.mockRejectedValue(p2002);
+      await expect(svc.claimCouponTemplate("u1", "ct1")).rejects.toThrow("已达领取上限");
+    });
+  });
+
+  describe("getMyCoupons", () => {
+    it("返回我的券并派生时间过期为 EXPIRED，支持状态筛选", async () => {
+      const tpl = { name: "满100减20", type: "FIXED", faceValue: 20, threshold: 100, validDays: 7, applicableScope: null };
+      mockPrisma.couponRecord.findMany.mockResolvedValue([
+        { id: "cr1", couponId: "ct1", userId: "u1", status: "UNUSED", usedAt: null, claimedAt: new Date(), coupon: tpl },
+        { id: "cr2", couponId: "ct1", userId: "u1", status: "UNUSED", usedAt: null, claimedAt: new Date("2020-01-01"), coupon: tpl },
+        { id: "cr3", couponId: "ct1", userId: "u1", status: "USED", usedAt: new Date(), claimedAt: new Date(), coupon: tpl },
+      ]);
+
+      const all = await svc.getMyCoupons("u1", {});
+      expect(all.total).toBe(3);
+      expect(all.items.map((i) => i.status)).toEqual(["UNUSED", "EXPIRED", "USED"]);
+      expect(all.items[0].name).toBe("满100减20");
+      expect(all.items[0].faceValue).toBe(20);
+      expect(all.items[0].threshold).toBe(100);
+      expect(all.items[0].expiresAt).toBeInstanceOf(Date);
+
+      const unused = await svc.getMyCoupons("u1", { status: "UNUSED" });
+      expect(unused.items).toHaveLength(1);
+      expect(unused.items[0].id).toBe("cr1");
+
+      const expired = await svc.getMyCoupons("u1", { status: "EXPIRED" });
+      expect(expired.items).toHaveLength(1);
+      expect(expired.items[0].id).toBe("cr2");
     });
   });
 
