@@ -695,6 +695,7 @@ model Course {
   categoryLevel1 String? // 一级品类
   categoryLevel2 String? // 二级品类
   auditStatus    String     @default("PENDING")
+  memberFree     Boolean    @default(false) // 会员专属精品课：有效会员免费学习（2026-07-03 会员权益拍板）
   validityDays   Int        @default(0) // 购买后有效期（天），0=永久
   scheduledAt    DateTime? // 定时发布时间
   stationId      String? // 分站数据隔离（null = 平台级）

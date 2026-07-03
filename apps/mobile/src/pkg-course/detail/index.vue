@@ -352,6 +352,8 @@ onMounted(() => {
           <text class="price-sym">¥</text>
           <text class="price-now">{{ course.price }}</text>
           <text class="price-old">¥{{ course.originalPrice }}</text>
+          <!-- 会员精品课标识（有效会员打开即可学，checkAccess 已放行） -->
+          <text v-if="course.memberFree" class="member-free-tag">会员免费</text>
         </view>
       </view>
       <view class="buy-cta" @tap="hasAccess ? onStartLearning() : onPurchase()">
@@ -529,6 +531,7 @@ onMounted(() => {
 .price-sym { font-size: 24rpx; color: var(--brand); }
 .price-now { font-size: 48rpx; font-weight: 700; color: var(--brand); }
 .price-old { font-size: 24rpx; color: #999; text-decoration: line-through; }
+.member-free-tag { margin-left: 12rpx; padding: 4rpx 14rpx; font-size: 22rpx; color: #a9741a; background: #fbf3e2; border: 1rpx solid #eadcb8; border-radius: 8rpx; }
 .buy-cta { padding: 0 64rpx; height: 88rpx; background: linear-gradient(to right, var(--brand), #E74C3C); border-radius: 999rpx; display: flex; align-items: center; justify-content: center; }
 .buy-cta-txt { font-size: 30rpx; font-weight: 700; color: #fff; }
 

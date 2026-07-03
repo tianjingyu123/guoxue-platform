@@ -144,6 +144,12 @@
                       <span style="font-size:11px;color:#999;margin-left:8px">0=永久</span>
                     </el-form-item>
                   </el-col>
+                  <el-col v-if="isEdit" :span="8">
+                    <el-form-item label="会员精品课">
+                      <el-switch v-model="memberFree" @change="onMemberFreeChange" />
+                      <span style="font-size:11px;color:#999;margin-left:8px">有效会员免费学习（即时生效）</span>
+                    </el-form-item>
+                  </el-col>
                 </el-row>
                 <el-row :gutter="16">
                   <el-col :span="8">
@@ -1248,6 +1254,18 @@ interface CourseStats {
 interface StudentDetailData { progresses?: unknown[]; works?: unknown[] }
 
 // ─── 基本信息表单 ───
+// 会员精品课标记（独立端点即时生效，不随表单保存）
+const memberFree = ref(false)
+async function onMemberFreeChange(val: boolean) {
+  try {
+    await courseApi.setMemberFree(courseId, val)
+    ElMessage.success(val ? '已标记为会员精品课' : '已取消会员精品课')
+  } catch {
+    memberFree.value = !val // 失败回滚开关
+    ElMessage.error('设置失败（仅平台运营可操作）')
+  }
+}
+
 const form = reactive({
   title: '',
   cover: '',
@@ -1401,6 +1419,7 @@ onMounted(async () => {
       circleId: data.circleId || '',
       stationId: data.stationId || '',
     })
+    memberFree.value = !!data.memberFree
     await loadChapters()
   }
   await fetchCategories()

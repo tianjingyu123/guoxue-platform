@@ -712,14 +712,17 @@ ${chapterCtx}
     }
   }
 
-  /** 检查用户是否有课程访问权限（含有效期检查） */
+  /** 检查用户是否有课程访问权限（含有效期检查；会员专属精品课对有效会员免费） */
   async checkAccess(userId: string, courseId: string): Promise<boolean> {
     const course = await this.prisma.course.findUnique({
       where: { id: courseId },
-      select: { price: true, userId: true, validityDays: true },
+      select: { price: true, userId: true, validityDays: true, memberFree: true },
     });
     if (!course) return false;
     if (Number(course.price) === 0 || course.userId === userId) return true;
+
+    // 会员权益（2026-07-03 拍板）：memberFree 课程对有效会员直接放行，无需下单
+    if (course.memberFree && (await this.isActiveMember(userId))) return true;
 
     const order = await this.prisma.order.findFirst({
       where: { userId, type: "COURSE", targetId: courseId, status: { in: ["PAID", "COMPLETED"] } },
@@ -733,6 +736,28 @@ ${chapterCtx}
     }
 
     return true;
+  }
+
+  /** 会员精品课标记（平台运营专属：精品课遴选是平台与讲师协商的运营决策，讲师端不可自标蹭会员流量） */
+  async setMemberFree(operatorUserId: string, courseId: string, memberFree: boolean) {
+    const admin = await this.prisma.userRole.findFirst({
+      where: { userId: operatorUserId, roleType: { in: ["SUPER_ADMIN", "OPERATION_ADMIN"] } },
+      select: { id: true },
+    });
+    if (!admin) throw new BusinessException(ErrorCode.FORBIDDEN, "仅平台运营可设置会员精品课");
+    const course = await this.prisma.course.findUnique({ where: { id: courseId }, select: { id: true } });
+    if (!course) throw new BusinessException(ErrorCode.COURSE_NOT_FOUND, "课程不存在");
+    return this.prisma.course.update({ where: { id: courseId }, data: { memberFree }, select: { id: true, memberFree: true } });
+  }
+
+  /** 是否有效会员（终身会员 memberExpire 为空；到期视为失效） */
+  private async isActiveMember(userId: string): Promise<boolean> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { memberLevel: true, memberExpire: true },
+    });
+    if (!user?.memberLevel || user.memberLevel === "NONE") return false;
+    return !user.memberExpire || user.memberExpire > new Date();
   }
 
   /** 检查用户课程是否过期 */

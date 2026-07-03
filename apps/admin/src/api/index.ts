@@ -200,6 +200,8 @@ export const courseApi = {
   batchAudit: (ids: string[], status: string) => api.put("/courses/batch/audit", { ids, status }),
   forceDelete: (id: string) => api.delete(`/courses/${id}/force`),
   forceStatus: (id: string, status: string) => api.put(`/courses/${id}/status`, { status }),
+  // 会员精品课标记（平台运营专属·2026-07-03 会员权益拍板）
+  setMemberFree: (id: string, memberFree: boolean) => api.put(`/courses/${id}/member-free`, { memberFree }),
   // 章节
   getChapters: (id: string) => api.get(`/courses/${id}/chapters`),
   addChapter: (id: string, data: Record<string, unknown>) => api.post(`/courses/${id}/chapters`, data),

@@ -42,6 +42,7 @@ export interface CourseDetail {
   id: string; title: string; cover: string; instructor: CourseInstructor
   price: number; originalPrice: number; students: number; rating: number
   chapters: number; category: string; tag?: string; isFree: boolean
+  memberFree: boolean // 会员专属精品课（有效会员免费学习·2026-07-03 会员权益）
   description: string; objectives: string[]; suitable: string[]
   isEnrolled: boolean; progress: number
 }
@@ -213,6 +214,7 @@ function adaptCourseDetail(c: RawCourse, rating?: RawRating | null): CourseDetai
     category: c.categoryLevel1 || '',
     tag: undefined,
     isFree: price === 0,
+    memberFree: !!(c as { memberFree?: boolean }).memberFree,
     description: c.intro || '',
     objectives: [],
     suitable: [],

@@ -206,6 +206,25 @@ export class CourseController {
     return result;
   }
 
+  @Put(":id/member-free")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "标记/取消会员专属精品课（平台运营专用·讲师不可自标）" })
+  @ApiBearerAuth()
+  @ApiResponse({ status: 200, description: "设置成功" })
+  @ApiResponse({ status: 403, description: "仅平台运营可操作" })
+  async setMemberFree(@Param("id") id: string, @Req() req: AuthRequest, @Body() body: { memberFree?: boolean }) {
+    const result = await this.course.setMemberFree(req.user.id, id, !!body?.memberFree);
+    this.systemService.logAudit({
+      userId: req.user?.id,
+      action: "UPDATE",
+      targetType: "COURSE",
+      targetId: id,
+      detail: `会员精品课标记: ${!!body?.memberFree}`,
+      ip: req.ip,
+    }).catch((err) => this.logger.warn("审计日志记录失败", err));
+    return result;
+  }
+
   @Delete(":id")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "删除课程" })
