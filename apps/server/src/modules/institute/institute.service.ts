@@ -37,6 +37,9 @@ export interface LecturerRankingsResponse {
   updatedAt: string;
 }
 
+/** 研究院保证金固定金额（元）——服务端定价，杜绝客户端传任意/负数金额 */
+const INSTITUTE_DEFAULT_DEPOSIT = 10000;
+
 @Injectable()
 export class InstituteService {
   constructor(
@@ -246,7 +249,7 @@ export class InstituteService {
         role: dto.role as InstituteRole,
         seatType,
         joinYear: dto.joinYear,
-        deposit: dto.deposit || 10000,
+        deposit: INSTITUTE_DEFAULT_DEPOSIT, // 服务端固定，不信客户端
         tasksRequired: 3,
         status: "PENDING", // 申请入会先进入待审核，管理层通过后转 ACTIVE
         expireAt,

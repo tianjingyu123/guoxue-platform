@@ -167,8 +167,11 @@ export class ShopCouponService {
     if (!["PAID", "SHIPPED", "COMPLETED"].includes(order.status)) {
       throw new BusinessException(ErrorCode.ORDER_STATUS_INVALID, "当前订单状态不可申请售后");
     }
+    // 退款金额上限=订单实付：防客户端传超额金额（一旦接自动退款即成资金损失，现在就 clamp）
+    const orderAmount = Number(order.amount);
+    const refundAmount = amount != null ? Math.min(amount, orderAmount) : orderAmount;
     return this.prisma.afterSale.create({
-      data: { orderId, userId, type, reason, amount: amount || Number(order.amount), status: "PENDING" },
+      data: { orderId, userId, type, reason, amount: refundAmount, status: "PENDING" },
     });
   }
 

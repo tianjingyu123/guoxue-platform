@@ -40,39 +40,7 @@ describe("MemberService", () => {
     });
   });
 
-  describe("purchase", () => {
-    it("购买月卡会员成功", async () => {
-      prisma.memberConfig.findUnique.mockResolvedValue({ id: "p1", level: "MONTHLY", price: 29, isActive: true });
-      prisma.user.findUnique.mockResolvedValue({ id: "u1", memberLevel: "NONE" });
-      prisma.$transaction.mockResolvedValue([{ id: "mp1" }]);
-
-      const result = await svc.purchase("u1", "p1");
-      expect(result.level).toBe("MONTHLY");
-      expect(result.amount).toBe(29);
-      expect(result.expireAt).toBeDefined();
-    });
-
-    it("购买终身会员 expireAt 为 null", async () => {
-      prisma.memberConfig.findUnique.mockResolvedValue({ id: "p3", level: "LIFETIME", price: 999, isActive: true });
-      prisma.user.findUnique.mockResolvedValue({ id: "u1", memberLevel: "NONE" });
-      prisma.$transaction.mockResolvedValue([{ id: "mp2" }]);
-
-      const result = await svc.purchase("u1", "p3");
-      expect(result.level).toBe("LIFETIME");
-      expect(result.expireAt).toBeNull();
-    });
-
-    it("套餐已下架时抛出异常", async () => {
-      prisma.memberConfig.findUnique.mockResolvedValue(null);
-      await expect(svc.purchase("u1", "invalid-plan")).rejects.toThrow(BusinessException);
-    });
-
-    it("用户不存在时抛出异常", async () => {
-      prisma.memberConfig.findUnique.mockResolvedValue({ id: "p1", level: "MONTHLY", price: 29, isActive: true });
-      prisma.user.findUnique.mockResolvedValue(null);
-      await expect(svc.purchase("u1", "p1")).rejects.toThrow(BusinessException);
-    });
-  });
+  // purchase 测试已随方法删除（T11 埋雷清理·免费开会员漏洞源，正规链路走 shop 订单+支付回调）
 
   describe("getStatus", () => {
     it("活跃会员返回 isActive=true", async () => {
@@ -105,21 +73,7 @@ describe("MemberService", () => {
     });
   });
 
-  describe("renew", () => {
-    it("续费成功", async () => {
-      prisma.user.findUnique.mockResolvedValue({ id: "u1", memberLevel: "MONTHLY" });
-      prisma.memberConfig.findUnique.mockResolvedValue({ id: "p1", level: "MONTHLY", price: 29, isActive: true });
-      prisma.$transaction.mockResolvedValue([{ id: "mp3" }]);
-
-      const result = await svc.renew("u1", "p1");
-      expect(result.level).toBe("MONTHLY");
-    });
-
-    it("非会员续费抛出异常", async () => {
-      prisma.user.findUnique.mockResolvedValue({ id: "u1", memberLevel: "NONE" });
-      await expect(svc.renew("u1", "p1")).rejects.toThrow(BusinessException);
-    });
-  });
+  // renew 测试已随方法删除（同 purchase）
 
   describe("grantMember", () => {
     it("管理员授予指定天数会员", async () => {

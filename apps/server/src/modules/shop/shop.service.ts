@@ -1203,10 +1203,24 @@ export class ShopService {
       if (plan) memberLevel = plan.level;
     }
     if (!memberLevel) memberLevel = this.resolveMemberLevel(Number(order.amount));
-    const expiresAt = this.calcMemberExpiry(memberLevel);
+
+    // 有效期内复购不吞剩余天数：从「当前未到期到期日」起算叠加（已过期/终身除外）；
+    // 等级只升不降：已是终身则保持终身，避免高档买低档被覆盖降档。
+    const current = await tx.user.findUnique({
+      where: { id: order.userId },
+      select: { memberLevel: true, memberExpire: true },
+    });
+    const now = new Date();
+    const base = current?.memberExpire && current.memberExpire > now ? current.memberExpire : now;
+    let expiresAt = this.calcMemberExpiry(memberLevel, base);
+    let finalLevel = memberLevel;
+    if (current?.memberLevel === "LIFETIME") {
+      finalLevel = "LIFETIME";
+      expiresAt = null; // 终身不可被降级为有期限
+    }
     await tx.user.update({
       where: { id: order.userId },
-      data: { memberLevel: memberLevel as MemberLevel, memberExpire: expiresAt },
+      data: { memberLevel: finalLevel as MemberLevel, memberExpire: expiresAt },
     });
     await tx.memberPurchase.create({
       data: {
@@ -2113,14 +2127,14 @@ export class ShopService {
     return "MONTHLY";
   }
 
-  private calcMemberExpiry(level: string): Date | null {
+  private calcMemberExpiry(level: string, from?: Date): Date | null {
     if (level === "LIFETIME") return null;
-    const now = new Date();
+    const base = new Date(from ?? new Date()); // 从 from 起算叠加（复购续期不吞剩余天数）
     if (level === "YEARLY") {
-      now.setFullYear(now.getFullYear() + 1);
+      base.setFullYear(base.getFullYear() + 1);
     } else {
-      now.setMonth(now.getMonth() + 1);
+      base.setMonth(base.getMonth() + 1);
     }
-    return now;
+    return base;
   }
 }

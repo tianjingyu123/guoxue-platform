@@ -14,7 +14,7 @@ const mockPrisma = {
   notification: { create: jest.fn().mockReturnValue({ catch: jest.fn() }) },
   withdrawal: { create: jest.fn(), findMany: jest.fn(), count: jest.fn(), findUnique: jest.fn(), update: jest.fn(), aggregate: jest.fn() },
   referralLink: { create: jest.fn(), findMany: jest.fn(), findUnique: jest.fn(), update: jest.fn() },
-  platformFeeRecord: { findMany: jest.fn(), createMany: jest.fn() },
+  platformFeeRecord: { findMany: jest.fn(), findFirst: jest.fn(), createMany: jest.fn() },
   $transaction: jest.fn().mockImplementation((cb: any) => cb(mockPrisma)),
 };
 const mockWebhook = { fire: jest.fn().mockResolvedValue(undefined) };

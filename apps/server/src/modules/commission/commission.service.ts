@@ -239,7 +239,8 @@ export class CommissionService {
     // 幂等守卫：已存在冲正记录(earned<0)则跳过——防 fire-and-forget 重投 / 退款回调重投 / 重复倒扣为负
     const alreadyReversed =
       (await this.prisma.stationEarning.findFirst({ where: { orderId, earned: { lt: 0 } } })) ??
-      (await this.prisma.operatorEarning.findFirst({ where: { orderId, earned: { lt: 0 } } }));
+      (await this.prisma.operatorEarning.findFirst({ where: { orderId, earned: { lt: 0 } } })) ??
+      (await this.prisma.platformFeeRecord.findFirst({ where: { sourceId: orderId, type: "REFUND" } }));
     if (alreadyReversed) {
       this.logger.log(`订单 ${orderId} 已冲正，跳过重复冲正`);
       return null;
@@ -251,8 +252,9 @@ export class CommissionService {
       this.prisma.platformFeeRecord.findMany({ where: { sourceId: orderId } }),
     ]);
 
-    if (!stationEarning && operatorEarnings.length === 0) {
-      this.logger.log(`订单 ${orderId} 无分佣记录，跳过冲正`);
+    // 平台费冲正缺口修复：无推荐人但有平台费的订单，也须冲正 platformFeeRecord（否则退款后平台收入虚高）
+    if (!stationEarning && operatorEarnings.length === 0 && platformFees.length === 0) {
+      this.logger.log(`订单 ${orderId} 无分佣/平台费记录，跳过冲正`);
       return null;
     }
 

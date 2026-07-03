@@ -13,10 +13,7 @@ export class JoinInstituteDto {
   @IsInt()
   joinYear: number;
 
-  @ApiPropertyOptional({ description: "保证金金额（元）", default: 10000 })
-  @Type(() => Number)
-  @IsOptional() @IsNumber()
-  deposit?: number;
+  // 保证金金额由服务端固定（防客户端传任意/负数金额），不从 body 收取
 
   @ApiPropertyOptional({ description: "席位类型：LECTURE讲席（分享席·积分考核）/ STUDY研修席（学习席）", default: "LECTURE" })
   @IsOptional() @IsString()
@@ -178,10 +175,11 @@ export class CreateDividendDto {
   @IsString()
   type: string;
 
-  @ApiProperty({ description: "金额" })
+  @ApiProperty({ description: "金额（元·单笔上限 100 万·仍走 FundApproval 人工审批）" })
   @Type(() => Number)
   @IsNumber()
   @Min(0)
+  @Max(1000000)
   amount: number;
 
   @ApiPropertyOptional({ description: "说明" })

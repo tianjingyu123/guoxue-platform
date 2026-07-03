@@ -18,37 +18,9 @@ export class MemberService {
     });
   }
 
-  /** 购买会员 */
-  async purchase(userId: string, planId: string) {
-    const plan = await this.prisma.memberConfig.findUnique({ where: { id: planId } });
-    if (!plan || !plan.isActive) {
-      throw new BusinessException(ErrorCode.NOT_FOUND, "套餐不存在或已下架");
-    }
-
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
-    if (!user) throw new BusinessException(ErrorCode.NOT_FOUND, "用户不存在");
-
-    const now = new Date();
-    let expireAt: Date | null = null;
-    switch (plan.level) {
-      case "MONTHLY": expireAt = new Date(now); expireAt.setMonth(expireAt.getMonth() + 1); break;
-      case "YEARLY":  expireAt = new Date(now); expireAt.setFullYear(expireAt.getFullYear() + 1); break;
-      case "LIFETIME": expireAt = null; break;
-    }
-
-    const [purchase] = await this.prisma.$transaction([
-      this.prisma.memberPurchase.create({
-        data: { userId, memberType: plan.level as any, amount: plan.price, paidAt: now, expireAt },
-      }),
-      this.prisma.user.update({
-        where: { id: userId },
-        data: { memberLevel: plan.level as any, memberExpire: expireAt },
-      }),
-    ]);
-
-    this.logger.log(`用户 ${userId} 购买会员 ${plan.level}`);
-    return { id: purchase.id, level: plan.level, amount: plan.price, expireAt };
-  }
+  // purchase()/renew() 已删除（2026-07-03 T11 埋雷清理）：二者不校验支付即直接开通会员，
+  // 属免费开会员漏洞源。正规链路=POST /shop/orders(type=MEMBER)→在线支付→回调 processMemberPaid。
+  // 控制器端点已改为抛错桩，此处删除服务实现防复活。
 
   /** 查询我的会员状态 */
   async getStatus(userId: string) {
@@ -71,42 +43,6 @@ export class MemberService {
       isActive,
       remainingDays,
     };
-  }
-
-  /** 续费会员 */
-  async renew(userId: string, planId: string) {
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
-    if (!user || user.memberLevel === "NONE") {
-      throw new BusinessException(ErrorCode.BAD_REQUEST, "你还不是会员，请先购买");
-    }
-
-    const plan = await this.prisma.memberConfig.findUnique({ where: { id: planId } });
-    if (!plan || !plan.isActive) {
-      throw new BusinessException(ErrorCode.NOT_FOUND, "套餐不存在或已下架");
-    }
-
-    const now = new Date();
-    // 基于当前到期时间累加（已过期则从当前时间算起）
-    const baseDate = user.memberExpire && user.memberExpire > now ? user.memberExpire : now;
-    let expireAt: Date | null = null;
-    switch (plan.level) {
-      case "MONTHLY": expireAt = new Date(baseDate); expireAt.setMonth(expireAt.getMonth() + 1); break;
-      case "YEARLY":  expireAt = new Date(baseDate); expireAt.setFullYear(expireAt.getFullYear() + 1); break;
-      case "LIFETIME": expireAt = null; break;
-    }
-
-    const [purchase] = await this.prisma.$transaction([
-      this.prisma.memberPurchase.create({
-        data: { userId, memberType: plan.level as any, amount: plan.price, paidAt: now, expireAt },
-      }),
-      this.prisma.user.update({
-        where: { id: userId },
-        data: { memberLevel: plan.level as any, memberExpire: expireAt },
-      }),
-    ]);
-
-    this.logger.log(`用户 ${userId} 续费会员 ${plan.level}`);
-    return { id: purchase.id, level: plan.level, amount: plan.price, expireAt };
   }
 
   // ═══════════════════ 管理员方法 ═══════════════════
