@@ -67,6 +67,16 @@
       </view>
 
       <view class="pc-field">
+        <text class="pc-label">课程分类</text>
+        <picker mode="selector" :range="categoryLabels" :value="categoryIndex" @change="onCategoryChange">
+          <view class="pc-picker">
+            <text class="pc-picker-text">{{ categoryLabels[categoryIndex] }}</text>
+            <AppIcon name="chevron-down" :size="18" color="#bbb" />
+          </view>
+        </picker>
+      </view>
+
+      <view class="pc-field">
         <text class="pc-label">售价（元）</text>
         <input
           class="pc-input"
@@ -75,6 +85,13 @@
           placeholder-class="pc-ph"
           :value="form.price"
           @input="(e: any) => form.price = e.detail.value"
+        />
+        <!-- T3 定价参考卡（供给侧·仅类目维度·平台不干预定价） -->
+        <PricingReferenceCard
+          bizType="COURSE"
+          :categoryLevel1="form.categoryLevel1"
+          :currentPrice="Number(form.price) || undefined"
+          @adopt="onAdoptPrice"
         />
       </view>
 
@@ -122,6 +139,7 @@
 import { ref, computed, reactive } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
+import PricingReferenceCard from '@/components/pricing-reference-card.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { chooseAndUploadImage } from '@/utils/request'
 import { teacherApi, type CertStatus } from '@/lib/teacher-data'
@@ -138,18 +156,36 @@ const typeValues = ['VIDEO', 'AUDIO', 'TEXT', 'EBOOK', 'COMBO']
 const typeLabels = ['视频课程', '音频课程', '图文课程', '电子书', '组合课程']
 const typeIndex = ref(0)
 
+// 课程分类（一级品类 categoryLevel1）：首项为空占位，选空则不触发定价参考。
+// 为纯 UI 配置常量（同 productCategories），非 mock 业务数据。
+const categoryValues = ['', '国学经典', '诗词歌赋', '易经命理', '书法国画', '茶道香道', '中医养生', '传统礼仪', '历史哲学']
+const categoryLabels = ['请选择分类', '国学经典', '诗词歌赋', '易经命理', '书法国画', '茶道香道', '中医养生', '传统礼仪', '历史哲学']
+const categoryIndex = ref(0)
+
 const form = reactive({
   title: '',
   cover: '',
   price: '',
   validityDays: '',
   intro: '',
+  categoryLevel1: '',
 })
 
 const uploadingCover = ref(false)
 
 function onTypeChange(e: { detail: { value: string } }) {
   typeIndex.value = Number(e.detail.value)
+}
+
+function onCategoryChange(e: { detail: { value: string } }) {
+  categoryIndex.value = Number(e.detail.value)
+  form.categoryLevel1 = categoryValues[categoryIndex.value]
+}
+
+// 采纳定价参考的中位价（仅填入售价，不自动提交，定价权仍在用户）
+function onAdoptPrice(median: number) {
+  form.price = String(median)
+  uni.showToast({ title: `已填入 ¥${median}`, icon: 'none' })
 }
 
 async function chooseCover() {
@@ -188,6 +224,7 @@ async function onSubmit() {
       price: form.price ? Number(form.price) : 0,
       intro: form.intro.trim() || undefined,
       cover: form.cover || undefined,
+      categoryLevel1: form.categoryLevel1 || undefined,
     })
     uni.showToast({ title: '已提交审核', icon: 'success' })
     setTimeout(() => goBack(), 800)

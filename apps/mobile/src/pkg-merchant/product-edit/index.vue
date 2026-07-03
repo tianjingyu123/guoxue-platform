@@ -79,6 +79,13 @@
                 <input class="pe-input" type="number" v-model="form.stock" placeholder="请输入库存数量" placeholder-class="pe-ph" />
               </view>
             </view>
+            <!-- T3 定价参考卡（供给侧·仅类目维度·平台不干预定价） -->
+            <PricingReferenceCard
+              bizType="PRODUCT"
+              :categoryLevel1="form.categoryId"
+              :currentPrice="Number(form.price) || undefined"
+              @adopt="onAdoptPrice"
+            />
           </view>
 
           <!-- 分类与标签 -->
@@ -157,6 +164,7 @@
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
+import PricingReferenceCard from '@/components/pricing-reference-card.vue'
 import { navigateTo, goBack } from '@/utils/router'
 import { merchantBackendApi, productCategories } from '@/lib/merchant-data'
 
@@ -225,6 +233,11 @@ function removeImage(i: number) {
 function pickCategory(id: string) {
   form.value.categoryId = id
   showCatPicker.value = false
+}
+// 采纳定价参考的中位价（仅填入售价，不自动提交，定价权仍在用户）
+function onAdoptPrice(median: number) {
+  form.value.price = String(median)
+  uni.showToast({ title: `已填入 ¥${median}`, icon: 'none' })
 }
 function addTag() {
   const t = newTag.value.trim()
