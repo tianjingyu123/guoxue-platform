@@ -2,6 +2,7 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { ForbiddenException } from "@nestjs/common";
 import { CircleDashboardService } from "./circle-dashboard.service";
 import { PrismaService } from "../../prisma/prisma.service";
+import { InsightService } from "../track/insight.service";
 
 const mockPrisma = {
   circle: { findUnique: jest.fn() },
@@ -16,6 +17,12 @@ const mockPrisma = {
   circleKnowledgeCandidate: { findMany: jest.fn() },
 };
 
+// 公共画像服务 mock（聚合逻辑在 InsightService 自己的 spec 覆盖，此处只验证委托与归属校验）
+const mockInsight = {
+  buildCustomerProfiles: jest.fn(),
+  getTimeline: jest.fn(),
+};
+
 // 调用方传入的当前用户（圈主），归属校验通过用
 const UID = "owner1";
 
@@ -24,7 +31,11 @@ describe("CircleDashboardService", () => {
 
   beforeAll(async () => {
     const mod: TestingModule = await Test.createTestingModule({
-      providers: [CircleDashboardService, { provide: PrismaService, useValue: mockPrisma }],
+      providers: [
+        CircleDashboardService,
+        { provide: PrismaService, useValue: mockPrisma },
+        { provide: InsightService, useValue: mockInsight },
+      ],
     }).compile();
     svc = mod.get(CircleDashboardService);
   });
@@ -203,6 +214,92 @@ describe("CircleDashboardService", () => {
 
       expect(result.questions).toHaveLength(1);
       expect(result.questions[0].questionTitle).toBe("求教");
+    });
+  });
+
+  describe("getMembersInsight", () => {
+    it("返回成员画像列表（排除圈主·委托 InsightService 聚合·合并圈内角色）", async () => {
+      mockPrisma.circleMember.findMany.mockResolvedValue([
+        { userId: "u1", joinedAt: new Date("2026-06-01"), role: "ADMIN" },
+        { userId: "u2", joinedAt: new Date("2026-06-10"), role: "MEMBER" },
+      ]);
+      mockPrisma.circleMember.count.mockResolvedValue(2);
+      mockInsight.buildCustomerProfiles.mockResolvedValue([
+        { userId: "u2", nickname: "李四", avatar: null, boundAt: new Date("2026-06-10"), lastActiveAt: new Date(), events30d: 8, orderCount: 1, totalSpent: 99, interests: ["诗词"] },
+        { userId: "u1", nickname: "张三", avatar: "a.jpg", boundAt: new Date("2026-06-01"), lastActiveAt: null, events30d: 0, orderCount: 0, totalSpent: 0, interests: [] },
+      ]);
+
+      const result = await svc.getMembersInsight("c1", UID, 1, 20);
+
+      expect(result.total).toBe(2);
+      expect(result.customers).toHaveLength(2);
+      // 圈子语境附加角色标签
+      expect(result.customers[0]).toMatchObject({ userId: "u2", role: "MEMBER" });
+      expect(result.customers[1]).toMatchObject({ userId: "u1", role: "ADMIN" });
+      // 归属查询排除圈主本人（role=OWNER）
+      expect(mockPrisma.circleMember.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { circleId: "c1", role: { not: "OWNER" } } }),
+      );
+      // 聚合委托公共 InsightService，boundAt=joinedAt
+      expect(mockInsight.buildCustomerProfiles).toHaveBeenCalledWith([
+        { userId: "u1", boundAt: new Date("2026-06-01") },
+        { userId: "u2", boundAt: new Date("2026-06-10") },
+      ]);
+    });
+
+    it("非圈主/管理员访问抛出 ForbiddenException", async () => {
+      mockPrisma.circleMember.findUnique.mockResolvedValue({ role: "MEMBER" });
+      await expect(svc.getMembersInsight("c1", "other")).rejects.toThrow(ForbiddenException);
+      expect(mockInsight.buildCustomerProfiles).not.toHaveBeenCalled();
+    });
+
+    it("非法分页参数（NaN）回落默认值，防 Prisma skip:NaN", async () => {
+      mockPrisma.circleMember.findMany.mockResolvedValue([]);
+      mockPrisma.circleMember.count.mockResolvedValue(0);
+      mockInsight.buildCustomerProfiles.mockResolvedValue([]);
+
+      await svc.getMembersInsight("c1", UID, NaN, NaN);
+
+      expect(mockPrisma.circleMember.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ skip: 0, take: 20 }),
+      );
+    });
+  });
+
+  describe("getMemberTimeline", () => {
+    it("返回本圈成员的行为时间线（委托 InsightService）", async () => {
+      // 第一次 findUnique：归属校验（圈主）；第二次：目标成员在册校验
+      mockPrisma.circleMember.findUnique
+        .mockResolvedValueOnce({ role: "OWNER" })
+        .mockResolvedValueOnce({ role: "MEMBER" });
+      mockInsight.getTimeline.mockResolvedValue({ events: [{ action: "search", summary: "搜索了「易经」" }] });
+
+      const result = await svc.getMemberTimeline("c1", UID, "u2");
+
+      expect(result.events).toHaveLength(1);
+      expect(mockInsight.getTimeline).toHaveBeenCalledWith("u2", 30);
+    });
+
+    it("目标用户不是本圈成员时抛出 ForbiddenException（防越权窥探）", async () => {
+      mockPrisma.circleMember.findUnique
+        .mockResolvedValueOnce({ role: "OWNER" }) // 圈主校验通过
+        .mockResolvedValueOnce(null); // 目标不在圈内
+      await expect(svc.getMemberTimeline("c1", UID, "outsider")).rejects.toThrow(ForbiddenException);
+      expect(mockInsight.getTimeline).not.toHaveBeenCalled();
+    });
+
+    it("目标为圈主本人时抛出 ForbiddenException", async () => {
+      mockPrisma.circleMember.findUnique
+        .mockResolvedValueOnce({ role: "OWNER" })
+        .mockResolvedValueOnce({ role: "OWNER" });
+      await expect(svc.getMemberTimeline("c1", UID, UID)).rejects.toThrow(ForbiddenException);
+      expect(mockInsight.getTimeline).not.toHaveBeenCalled();
+    });
+
+    it("非圈主调用抛出 ForbiddenException", async () => {
+      mockPrisma.circleMember.findUnique.mockResolvedValue({ role: "MEMBER" });
+      await expect(svc.getMemberTimeline("c1", "other", "u2")).rejects.toThrow(ForbiddenException);
+      expect(mockInsight.getTimeline).not.toHaveBeenCalled();
     });
   });
 

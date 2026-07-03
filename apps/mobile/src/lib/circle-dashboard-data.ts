@@ -15,6 +15,10 @@
  * - GET /circles/:id/dashboard/churn-warning     → { atRisk: [{ userId,nickname,avatar }], count }（近14天不活跃成员）
  * - GET /circles/:id/dashboard/pending-questions → { questions: [{ id,questionTitle,question,priceCoin,createdAt,asker:{id,nickname} }] }
  *     后端无「不活跃天数」逐人字段 → 仅展示名单与总数，不编造天数。
+ * - GET /circles/:id/dashboard/members-insight?page&pageSize → { customers: [成员画像], total }
+ *     画像聚合复用后端公共 InsightService（同站长客户洞察），额外带 role 圈内角色；排除圈主本人。
+ * - GET /circles/:id/dashboard/members-insight/:userId/timeline → { events: [{ action,path,summary,occurredAt }] }
+ *     summary 已是后端人话摘要；仅本圈成员可查，越权 403。
  */
 import { apiGet } from '@/utils/request'
 
@@ -88,6 +92,35 @@ export interface DashboardPendingQuestion {
   createdAt: string
 }
 
+/** 成员洞察·智能名片（GET /circles/:id/dashboard/members-insight 适配后） */
+export interface CircleMemberInsight {
+  userId: string
+  nickname: string
+  avatar: string
+  /** 圈内角色（PARTNER/ADMIN/GUEST/VOLUNTEER/MEMBER，圈主本人已被后端排除） */
+  role: string
+  /** 入圈时间 */
+  boundAt: string
+  /** 最近活跃时间（空=近期无行为） */
+  lastActiveAt: string
+  /** 近30天行为数 */
+  events30d: number
+  /** 订单数 */
+  orderCount: number
+  /** 累计消费（元） */
+  totalSpent: number
+  /** 兴趣标签（由行为聚合推断，最多3个） */
+  interests: string[]
+}
+
+/** 成员行为时间线条目（summary 已是后端人话摘要） */
+export interface MemberTimelineEvent {
+  action: string
+  path: string
+  summary: string
+  occurredAt: string
+}
+
 // ─── 后端原始返回类型（仅声明本层用到的字段） ───
 interface RawOverview {
   memberCount?: number
@@ -132,6 +165,21 @@ interface RawPendingQuestion {
   createdAt?: string
   asker?: { id?: string; nickname?: string | null } | null
 }
+interface RawMemberInsight {
+  userId?: string | number
+  nickname?: string | null
+  avatar?: string | null
+  role?: string | null
+  boundAt?: string | null
+  lastActiveAt?: string | null
+  events30d?: number | string
+  orderCount?: number | string
+  totalSpent?: number | string
+  interests?: string[]
+}
+interface RawMembersInsightResp { customers?: RawMemberInsight[]; total?: number }
+interface RawMemberTimelineEvent { action?: string; path?: string; summary?: string; occurredAt?: string }
+interface RawMemberTimelineResp { events?: RawMemberTimelineEvent[] }
 
 // ─── 工具 ───
 const num = (v: unknown): number => {
@@ -230,6 +278,43 @@ export const dashboardApi = {
       priceCoin: num(q.priceCoin),
       askerName: q.asker?.nickname || '匿名用户',
       createdAt: q.createdAt || '',
+    }))
+  },
+
+  /** 成员洞察：本圈成员画像列表（分页，按最近活跃排序；错误直接抛给页面走三态） */
+  async membersInsight(
+    circleId: string,
+    page = 1,
+    pageSize = 20,
+  ): Promise<{ items: CircleMemberInsight[]; total: number }> {
+    const raw = await apiGet<RawMembersInsightResp>(
+      `/circles/${circleId}/dashboard/members-insight?page=${page}&pageSize=${pageSize}`,
+    )
+    const items = (raw?.customers || []).map((c): CircleMemberInsight => ({
+      userId: String(c.userId ?? ''),
+      nickname: c.nickname || '匿名用户',
+      avatar: c.avatar || '',
+      role: c.role || 'MEMBER',
+      boundAt: c.boundAt || '',
+      lastActiveAt: c.lastActiveAt || '',
+      events30d: num(c.events30d),
+      orderCount: num(c.orderCount),
+      totalSpent: num(c.totalSpent),
+      interests: Array.isArray(c.interests) ? c.interests : [],
+    }))
+    return { items, total: raw?.total || 0 }
+  },
+
+  /** 成员洞察：单个成员行为时间线（点击卡片展开时按需请求） */
+  async memberTimeline(circleId: string, userId: string): Promise<MemberTimelineEvent[]> {
+    const raw = await apiGet<RawMemberTimelineResp>(
+      `/circles/${circleId}/dashboard/members-insight/${userId}/timeline`,
+    )
+    return (raw?.events || []).map((e): MemberTimelineEvent => ({
+      action: e.action || '',
+      path: e.path || '',
+      summary: e.summary || '',
+      occurredAt: e.occurredAt || '',
     }))
   },
 }

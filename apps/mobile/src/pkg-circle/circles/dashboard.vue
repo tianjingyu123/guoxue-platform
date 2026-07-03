@@ -177,6 +177,11 @@ function openQuestion(id: string) {
   if (!id) return
   navigateTo(`/pkg-circle/circles/question-detail?id=${id}`)
 }
+// 跳转到成员洞察（智能名片，需带圈子 id）
+function openMembersInsight() {
+  if (!circleId.value) return
+  navigateTo(`/pkg-circle/circles/members-insight?id=${circleId.value}`)
+}
 
 onLoad((query) => {
   circleId.value = (query?.id as string) || ''
@@ -280,6 +285,16 @@ onLoad((query) => {
           </view>
         </template>
         <view v-else class="db-empty"><text class="db-empty-t">近30天暂无新增与收入</text></view>
+      </view>
+
+      <!-- 成员洞察入口（智能名片：成员活跃/消费/兴趣画像，需 circleId） -->
+      <view v-if="circleId" class="db-card db-mi-entry" @tap="openMembersInsight">
+        <view class="db-mi-icon"><app-icon name="users" :size="34" color="#C41E3A" /></view>
+        <view class="db-mi-info">
+          <text class="db-mi-title">成员洞察</text>
+          <text class="db-mi-sub">了解成员兴趣与消费画像，精准运营</text>
+        </view>
+        <app-icon name="chevron-right" :size="28" color="#bbbbbb" />
       </view>
 
       <!-- 待回复提问入口卡（无待回复则隐藏，避免噪音） -->
@@ -476,6 +491,12 @@ onLoad((query) => {
 .db-health-comment { display: block; font-size: 22rpx; color: #999999; }
 /* 近30天趋势 */
 .db-trend-total { display: block; font-size: 22rpx; color: #666666; margin-bottom: 16rpx; }
+/* 成员洞察入口卡 */
+.db-mi-entry { display: flex; align-items: center; gap: 18rpx; }
+.db-mi-icon { width: 72rpx; height: 72rpx; border-radius: 20rpx; background: #fdecef; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.db-mi-info { flex: 1; min-width: 0; }
+.db-mi-title { display: block; font-size: 30rpx; font-weight: 600; color: #2c2c2c; }
+.db-mi-sub { display: block; font-size: 22rpx; color: #999999; margin-top: 4rpx; }
 /* 待回复提问入口卡 */
 .db-pq-head-l { display: flex; align-items: center; gap: 12rpx; }
 .db-pq-badge { min-width: 36rpx; height: 36rpx; padding: 0 10rpx; border-radius: 999rpx; background: var(--brand); display: flex; align-items: center; justify-content: center; }

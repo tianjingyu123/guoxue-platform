@@ -824,6 +824,12 @@
           }
         },
         {
+          "path": "circles/members-insight",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
           "path": "circles/announcements",
           "style": {
             "navigationStyle": "custom"
@@ -1780,6 +1786,12 @@
         },
         {
           "path": "manage-teachers/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "students/index",
           "style": {
             "navigationStyle": "custom"
           }

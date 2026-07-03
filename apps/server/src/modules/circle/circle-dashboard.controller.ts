@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Req, UseGuards } from "@nestjs/common";
+import { Controller, Get, Param, Query, Req, UseGuards } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from "@nestjs/swagger";
 import { Request } from "express";
 import { CircleDashboardService } from "./circle-dashboard.service";
@@ -81,6 +81,29 @@ export class CircleDashboardController {
   @ApiResponse({ status: 404, description: "资源不存在" })
   getPendingQuestions(@Param("id") id: string, @Req() req: Request) {
     return this.svc.getPendingQuestions(id, req.user.id);
+  }
+
+  @Get(":id/dashboard/members-insight")
+  @ApiOperation({ summary: "成员洞察：本圈成员画像列表（活跃/消费/兴趣标签·智能名片）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 403, description: "无权访问该圈子数据" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  getMembersInsight(
+    @Param("id") id: string,
+    @Req() req: Request,
+    @Query("page") page = 1,
+    @Query("pageSize") pageSize = 20,
+  ) {
+    return this.svc.getMembersInsight(id, req.user.id, +page, Math.min(50, +pageSize));
+  }
+
+  @Get(":id/dashboard/members-insight/:userId/timeline")
+  @ApiOperation({ summary: "成员洞察：单个成员最近行为时间线（归属校验防越权）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 403, description: "无权访问该圈子数据/该用户不是本圈成员" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  getMemberTimeline(@Param("id") id: string, @Param("userId") userId: string, @Req() req: Request) {
+    return this.svc.getMemberTimeline(id, req.user.id, userId);
   }
 
   @Get(":id/dashboard/knowledge-candidates")

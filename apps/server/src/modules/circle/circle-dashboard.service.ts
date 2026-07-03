@@ -1,10 +1,14 @@
 import { Injectable, NotFoundException, ForbiddenException } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 import { Cacheable } from "../../common/cache.decorator";
+import { InsightService } from "../track/insight.service";
 
 @Injectable()
 export class CircleDashboardService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly insight: InsightService,
+  ) {}
 
   /**
    * 归属校验（防 IDOR 越权）：当前用户必须是该圈子的圈主或管理员（OWNER/PARTNER/ADMIN），
@@ -307,6 +311,54 @@ export class CircleDashboardService {
       take: 20,
     });
     return { questions };
+  }
+
+  // ───────── 成员洞察（智能名片·复制自站长客户洞察）─────────
+  // 合规边界：仅圈主/管理员可查看本圈成员的社群经营分析数据；排除圈主本人（role=OWNER）；
+  // 不返回手机号等敏感字段（InsightService 已保证）；时间线仅限本圈成员，防越权窥探。
+  // 画像聚合/时间线摘要委托公共 InsightService（站长/驿站/圈主复用同一套），本层只做归属+分页。
+
+  /** 成员画像列表：最近活跃/30天行为量/消费力/兴趣标签TOP3，boundAt=joinedAt，附加圈内角色 */
+  async getMembersInsight(circleId: string, userId: string, page = 1, pageSize = 20) {
+    await this.assertCircleOwner(circleId, userId);
+    // 防御归一化：缺省/非法分页参数（如 NaN）一律回落默认值，防 Prisma skip:NaN
+    const safePage = Math.max(1, Number(page) || 1);
+    const safeSize = Math.min(50, Math.max(1, Number(pageSize) || 20));
+
+    const where = { circleId, role: { not: "OWNER" as const } };
+    const [members, total] = await Promise.all([
+      this.prisma.circleMember.findMany({
+        where,
+        select: { userId: true, joinedAt: true, role: true },
+        orderBy: { joinedAt: "desc" },
+        skip: (safePage - 1) * safeSize,
+        take: safeSize,
+      }),
+      this.prisma.circleMember.count({ where }),
+    ]);
+
+    const profiles = await this.insight.buildCustomerProfiles(
+      members.map((m) => ({ userId: m.userId, boundAt: m.joinedAt })),
+    );
+    // 画像基础字段之外，圈子语境补充成员角色标签（合伙人/管理员/嘉宾等）
+    const roleMap = new Map(members.map((m) => [m.userId, m.role]));
+    return {
+      customers: profiles.map((p) => ({ ...p, role: roleMap.get(p.userId) || "MEMBER" })),
+      total,
+    };
+  }
+
+  /** 单个成员最近行为时间线（先校验圈主身份 + 目标必须是本圈在册成员且非圈主，防越权窥探） */
+  async getMemberTimeline(circleId: string, userId: string, memberUserId: string, limit = 30) {
+    await this.assertCircleOwner(circleId, userId);
+    const member = await this.prisma.circleMember.findUnique({
+      where: { circleId_userId: { circleId, userId: memberUserId } },
+      select: { role: true },
+    });
+    if (!member || member.role === "OWNER") {
+      throw new ForbiddenException("该用户不是本圈成员");
+    }
+    return this.insight.getTimeline(memberUserId, limit);
   }
 
   async getKnowledgeCandidates(circleId: string, userId: string) {
