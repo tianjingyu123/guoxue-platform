@@ -2101,6 +2101,7 @@ model StationOffline {
   teachers        StationTeacher[]
   teacherBookings StationTeacherBooking[]
   settlements     StationSettlement[]
+  events          StationEvent[]
 }
 
 model OfflineCourse {
@@ -2162,6 +2163,47 @@ model OfflineCourseRegistration {
   course OfflineCourse @relation(fields: [courseId], references: [id], onDelete: Cascade)
 
   @@unique([courseId, userId])
+  @@index([userId])
+}
+
+// ───────── 驿站活动系统（T8 OMO P1a）─────────
+
+model StationEvent {
+  id           String   @id @default(uuid())
+  stationId    String
+  title        String
+  type         String // YAJI雅集 / SALON沙龙 / READING读书会 / SOLAR_TERM节气活动 / EXPERIENCE体验课
+  cover        String?
+  intro        String?
+  price        Decimal  @default(0) @db.Decimal(10, 2) // 本期免费报名，价格字段留支付门控后启用
+  maxAttendees Int
+  startTime    DateTime
+  endTime      DateTime
+  location     String
+  status       String   @default("DRAFT") // DRAFT / PUBLISHED / CANCELLED / FINISHED
+  photos       Json? // 回顾照片墙（URL 数组，≤30 张，FINISHED/进行后可传）
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  station       StationOffline             @relation(fields: [stationId], references: [id])
+  registrations StationEventRegistration[]
+
+  @@index([stationId, startTime])
+  @@index([status, startTime])
+}
+
+model StationEventRegistration {
+  id        String    @id @default(uuid())
+  eventId   String
+  userId    String
+  status    String    @default("REGISTERED") // REGISTERED / SIGNED_IN / CANCELLED
+  qrCode    String?
+  signedAt  DateTime?
+  createdAt DateTime  @default(now())
+
+  event StationEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, userId])
   @@index([userId])
 }
 

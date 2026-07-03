@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsInt, IsNumber, IsBoolean, IsIn, MinLength, MaxLength, Min, Max } from "class-validator";
+import { IsString, IsOptional, IsInt, IsNumber, IsBoolean, IsIn, IsArray, ArrayMaxSize, MinLength, MaxLength, Min, Max } from "class-validator";
 import { Type } from "class-transformer";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 
@@ -239,6 +239,113 @@ export class CreateTeacherRequestDto {
 export class RespondTeacherRequestDto {
   @ApiProperty({ description: "响应状态" })
   status: string;
+}
+
+// ───────── 驿站活动系统（T8 OMO P1a） ─────────
+
+/** 活动类型：YAJI雅集 / SALON沙龙 / READING读书会 / SOLAR_TERM节气活动 / EXPERIENCE体验课 */
+export const STATION_EVENT_TYPES = ["YAJI", "SALON", "READING", "SOLAR_TERM", "EXPERIENCE"] as const;
+
+export class CreateStationEventDto {
+  @ApiProperty({ description: "活动标题" })
+  @IsString()
+  @MinLength(1)
+  @MaxLength(50)
+  title: string;
+
+  @ApiProperty({ description: "活动类型: YAJI雅集/SALON沙龙/READING读书会/SOLAR_TERM节气活动/EXPERIENCE体验课", enum: STATION_EVENT_TYPES })
+  @IsString() @IsIn([...STATION_EVENT_TYPES])
+  type: string;
+
+  @ApiPropertyOptional({ description: "封面图" })
+  @IsOptional() @IsString()
+  cover?: string;
+
+  @ApiPropertyOptional({ description: "活动详情介绍" })
+  @IsOptional() @IsString()
+  intro?: string;
+
+  @ApiPropertyOptional({ description: "价格（本期免费报名，字段留支付门控后启用）", default: 0 })
+  @IsOptional() @Type(() => Number) @IsNumber() @Min(0)
+  price?: number;
+
+  @ApiProperty({ description: "最大参与人数" })
+  @Type(() => Number) @IsInt() @Min(1)
+  maxAttendees: number;
+
+  @ApiProperty({ description: "开场时间" })
+  @IsString()
+  @MinLength(1)
+  startTime: string;
+
+  @ApiProperty({ description: "结束时间" })
+  @IsString()
+  @MinLength(1)
+  endTime: string;
+
+  @ApiProperty({ description: "活动地点" })
+  @IsString()
+  @MinLength(1)
+  location: string;
+}
+
+export class UpdateStationEventDto {
+  @ApiPropertyOptional({ description: "活动标题" })
+  @IsOptional() @IsString() @MinLength(1) @MaxLength(50)
+  title?: string;
+
+  @ApiPropertyOptional({ description: "活动类型", enum: STATION_EVENT_TYPES })
+  @IsOptional() @IsString() @IsIn([...STATION_EVENT_TYPES])
+  type?: string;
+
+  @ApiPropertyOptional({ description: "封面图" })
+  @IsOptional() @IsString()
+  cover?: string;
+
+  @ApiPropertyOptional({ description: "活动详情介绍" })
+  @IsOptional() @IsString()
+  intro?: string;
+
+  @ApiPropertyOptional({ description: "价格" })
+  @IsOptional() @Type(() => Number) @IsNumber() @Min(0)
+  price?: number;
+
+  @ApiPropertyOptional({ description: "最大参与人数" })
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1)
+  maxAttendees?: number;
+
+  @ApiPropertyOptional({ description: "开场时间" })
+  @IsOptional() @IsString()
+  startTime?: string;
+
+  @ApiPropertyOptional({ description: "结束时间" })
+  @IsOptional() @IsString()
+  endTime?: string;
+
+  @ApiPropertyOptional({ description: "活动地点" })
+  @IsOptional() @IsString()
+  location?: string;
+}
+
+export class UpdateStationEventStatusDto {
+  @ApiProperty({ description: "状态操作: publish发布/cancel取消（群发通知报名者）/finish结束", enum: ["publish", "cancel", "finish"] })
+  @IsString() @IsIn(["publish", "cancel", "finish"])
+  action: "publish" | "cancel" | "finish";
+}
+
+export class SignInEventDto {
+  @ApiProperty({ description: "活动签到码/QR码" })
+  @IsString()
+  @MinLength(1)
+  qrCode: string;
+}
+
+export class UpdateEventPhotosDto {
+  @ApiProperty({ description: "回顾照片 URL 数组（最多 30 张）", type: [String] })
+  @IsArray()
+  @ArrayMaxSize(30)
+  @IsString({ each: true })
+  photos: string[];
 }
 
 // ───────── 课后评价（T8 OMO） ─────────
