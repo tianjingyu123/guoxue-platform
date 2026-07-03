@@ -1,4 +1,4 @@
-import { Controller, Get, Req, UseGuards, NotFoundException } from "@nestjs/common";
+import { Controller, Get, Param, Query, Req, UseGuards, NotFoundException } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from "@nestjs/swagger";
 import { Request } from "express";
 import { OfflineStationDashboardService } from "./offline-station-dashboard.service";
@@ -76,5 +76,19 @@ export class OfflineStationDashboardController {
   @ApiResponse({ status: 200, description: "成功" })
   async getUpcomingCourses(@Req() req: Request) {
     return this.svc.getUpcomingCourses(await this.getStationId(req));
+  }
+
+  @Get("students")
+  @ApiOperation({ summary: "学员洞察：本驿站报名学员画像列表（活跃/消费/兴趣标签·智能名片）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  async getStudents(@Req() req: Request, @Query("page") page = 1, @Query("pageSize") pageSize = 20) {
+    return this.svc.listStudents(req.user.id, +page || 1, Math.min(50, +pageSize || 20));
+  }
+
+  @Get("students/:id/timeline")
+  @ApiOperation({ summary: "学员洞察：单个报名学员最近行为时间线（归属校验防越权）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  async getStudentTimeline(@Req() req: Request, @Param("id") id: string) {
+    return this.svc.getStudentTimeline(req.user.id, id);
   }
 }

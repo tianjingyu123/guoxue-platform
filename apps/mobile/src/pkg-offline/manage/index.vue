@@ -209,6 +209,7 @@ const modules = [
   { key: 'checkin', label: '签到核销', icon: 'qr-code', color: '#16a34a', bg: '#f0fdf4' },
   { key: 'products', label: '商品管理', icon: 'shopping-bag', color: '#2563eb', bg: '#eff6ff' },
   { key: 'teachers', label: '讲师预约', icon: 'users', color: '#9333ea', bg: '#faf5ff' },
+  { key: 'students', label: '学员洞察', icon: 'user-check', color: '#d4a017', bg: '#fff8e6' },
   { key: 'marketing', label: '营销工具', icon: 'megaphone', color: '#ea580c', bg: '#fff7ed' },
   { key: 'income', label: '收益管理', icon: 'wallet', color: '#0891b2', bg: '#ecfeff' },
 ]
@@ -256,6 +257,7 @@ function onModule(m: { key: string }) {
   else if (m.key === 'checkin') navigateTo(`/offline/manage/checkin?stationId=${sid}`)
   else if (m.key === 'products') navigateTo(`/offline/manage/products?stationId=${sid}`)
   else if (m.key === 'teachers') navigateTo(`/offline/manage/teachers?stationId=${sid}`)
+  else if (m.key === 'students') navigateTo('/pkg-offline/students/index')
   else if (m.key === 'marketing') uni.showToast({ title: '营销工具即将开放', icon: 'none' })
   else if (m.key === 'income') uni.showToast({ title: '收益明细与提现即将开放', icon: 'none' })
 }

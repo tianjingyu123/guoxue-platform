@@ -428,3 +428,79 @@ export const offlineManageApi = {
     return d?.ranking || []
   },
 }
+
+// ===== 学员洞察（智能名片·用于 pkg-offline/students 页）=====
+// 后端聚合本驿站报名学员（去重）的埋点行为/订单数据，按最近活跃排序；
+// 非驿站运营者报「未找到关联驿站」；仅供经营分析，不含手机号等敏感字段。
+
+/** 报名学员名片（GET /offline/dashboard/students 适配后） */
+export interface StationStudent {
+  userId: string
+  nickname: string
+  avatar: string
+  /** 归属建立时间（最早一次报名） */
+  boundAt: string
+  /** 最近活跃时间（空=近期无行为） */
+  lastActiveAt: string
+  /** 近30天行为数 */
+  events30d: number
+  /** 订单数 */
+  orderCount: number
+  /** 累计消费（元） */
+  totalSpent: number
+  /** 兴趣标签（由行为聚合推断） */
+  interests: string[]
+}
+
+/** 学员行为时间线条目（GET /offline/dashboard/students/:id/timeline，summary 已是人话） */
+export interface StudentTimelineEvent {
+  action: string
+  path: string
+  summary: string
+  occurredAt: string
+}
+
+/* —— 后端原始响应（宽松容错，不 export） —— */
+interface RawStationStudent {
+  userId?: string | number
+  nickname?: string
+  avatar?: string
+  boundAt?: string | null
+  lastActiveAt?: string | null
+  events30d?: number | string
+  orderCount?: number | string
+  totalSpent?: number | string
+  interests?: string[]
+}
+interface RawStudentsResp { customers?: RawStationStudent[]; total?: number }
+interface RawStudentTimelineEvent { action?: string; path?: string; summary?: string; occurredAt?: string }
+interface RawStudentTimelineResp { events?: RawStudentTimelineEvent[] }
+
+export const studentInsightApi = {
+  /** 报名学员列表（分页，按最近活跃排序；错误直接抛给页面走三态） */
+  async list(page = 1, pageSize = 20): Promise<{ items: StationStudent[]; total: number }> {
+    const res = await apiGet<RawStudentsResp>(`/offline/dashboard/students?page=${page}&pageSize=${pageSize}`)
+    const items = (res?.customers || []).map((c): StationStudent => ({
+      userId: String(c.userId ?? ''),
+      nickname: c.nickname || '匿名学员',
+      avatar: c.avatar || '',
+      boundAt: c.boundAt || '',
+      lastActiveAt: c.lastActiveAt || '',
+      events30d: num(c.events30d),
+      orderCount: num(c.orderCount),
+      totalSpent: num(c.totalSpent),
+      interests: Array.isArray(c.interests) ? c.interests : [],
+    }))
+    return { items, total: res?.total || 0 }
+  },
+  /** 单个学员行为时间线（点击卡片展开时按需请求） */
+  async timeline(userId: string): Promise<StudentTimelineEvent[]> {
+    const res = await apiGet<RawStudentTimelineResp>(`/offline/dashboard/students/${userId}/timeline`)
+    return (res?.events || []).map((e): StudentTimelineEvent => ({
+      action: e.action || '',
+      path: e.path || '',
+      summary: e.summary || '',
+      occurredAt: e.occurredAt || '',
+    }))
+  },
+}

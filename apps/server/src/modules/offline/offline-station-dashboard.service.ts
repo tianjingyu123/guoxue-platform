@@ -1,9 +1,67 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
+import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
+import { InsightService } from "../track/insight.service";
+
+/** 有效报名状态（学员归属判定口径）：已报名 / 已签到；CANCELLED 不算 */
+const VALID_REG_STATUS = ["REGISTERED", "SIGNED_IN"];
 
 @Injectable()
 export class OfflineStationDashboardService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly insight: InsightService,
+  ) {}
+
+  // ───────── 学员洞察（智能名片）─────────
+  // 合规边界：仅驿站运营者本人可查本驿站报名学员（OfflineCourseRegistration）；
+  // 不返回手机号等敏感字段（InsightService 已保证）；时间线仅供经营分析使用。
+  // 画像聚合/时间线摘要委托公共 InsightService（与站长/圈主同一套）。
+
+  /** 归属校验：查当前用户名下驿站，无则 NOT_FOUND（与 station 侧「你还没有开通分站」同款模式） */
+  private async resolveOwnedStationId(ownerUserId: string): Promise<string> {
+    const station = await this.prisma.stationOffline.findFirst({
+      where: { ownerUserId },
+      select: { id: true },
+    });
+    if (!station) throw new BusinessException(ErrorCode.NOT_FOUND, "未找到关联驿站，请先创建驿站");
+    return station.id;
+  }
+
+  /**
+   * 学员洞察列表：本驿站报名学员（去重）画像 —— 最近活跃/30天行为量/消费力/兴趣标签TOP3。
+   * boundAt = 该学员最早一条报名的 createdAt；total = 去重学员总数；聚合委托 InsightService。
+   */
+  async listStudents(ownerUserId: string, page = 1, pageSize = 20) {
+    const stationId = await this.resolveOwnedStationId(ownerUserId);
+    // 一个学员可能报多门课：按 userId 去重，取最早报名时间作为归属建立时间
+    const grouped = await this.prisma.offlineCourseRegistration.groupBy({
+      by: ["userId"],
+      where: { status: { in: VALID_REG_STATUS }, course: { stationId } },
+      _min: { createdAt: true },
+    });
+    grouped.sort(
+      (a, b) => (b._min.createdAt?.getTime() || 0) - (a._min.createdAt?.getTime() || 0),
+    );
+    const total = grouped.length;
+    const pageItems = grouped.slice((page - 1) * pageSize, page * pageSize);
+    const customers = await this.insight.buildCustomerProfiles(
+      pageItems.map((g) => ({ userId: g.userId, boundAt: g._min.createdAt ?? null })),
+    );
+    return { customers, total };
+  }
+
+  /** 单个学员的最近行为时间线（先校验其确为本驿站报名学员，防越权窥探） */
+  async getStudentTimeline(ownerUserId: string, studentUserId: string, limit = 30) {
+    const stationId = await this.resolveOwnedStationId(ownerUserId);
+    const registration = await this.prisma.offlineCourseRegistration.findFirst({
+      where: { userId: studentUserId, status: { in: VALID_REG_STATUS }, course: { stationId } },
+      select: { id: true },
+    });
+    if (!registration) throw new BusinessException(ErrorCode.FORBIDDEN, "该用户不是本驿站报名学员");
+    return this.insight.getTimeline(studentUserId, limit);
+  }
 
   async getOverview(stationId: string) {
     const now = new Date();
