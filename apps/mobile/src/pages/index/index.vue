@@ -35,6 +35,18 @@ async function fetchData() {
   } finally {
     loading.value = false
   }
+  // 首屏（/home 热门 feed）已渲染，再异步用 AI 个性化流增强；失败/空静默保留原 feed，不拖慢首屏
+  personalize()
+}
+
+/** AI 个性化增强：登录用户拉 smart-feed 替换 feed 排序；未登录/失败/空则静默保留 /home feed */
+async function personalize() {
+  try {
+    const feed = await homeApi.getPersonalizedFeed()
+    if (feed.length) renderItems.value = feed
+  } catch {
+    /* 静默：保留已渲染的热门/静态 feed */
+  }
 }
 
 function retry() {

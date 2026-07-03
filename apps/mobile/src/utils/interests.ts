@@ -47,9 +47,39 @@ export function hasSelectedInterests(): boolean {
   return getInterestThemes().length > 0
 }
 
-/** 取主题定义（用于首页「今日学一点」按主题拉内容；未选时返回默认前 3 个主题） */
-export function getEffectiveThemes(): InterestTheme[] {
+/** 一年中的第几天（稳定的「每日轮换」随机源，每天变化一次） */
+function dayOfYear(date: Date): number {
+  return Math.floor((date.getTime() - new Date(date.getFullYear(), 0, 0).getTime()) / 86400000)
+}
+
+/**
+ * 无用户选择时的默认主题：按 dayOfYear 每日轮换六主题，并做时段感知：
+ * - 清晨 6:00–11:59 → 从「经典研读」（启蒙类）起头；
+ * - 夜晚 18:00–23:59 → 从「命理易学」（进阶类）起头；
+ * - 其余时段 → 按当天 dayOfYear % 6 起头。
+ * 从起点连续取 3 个（环绕），保证每天/不同时段呈现不同组合。
+ */
+function rotateDefaultThemes(now: Date): InterestTheme[] {
+  const n = INTEREST_THEMES.length // 6
+  let start = dayOfYear(now) % n
+  const hour = now.getHours()
+  if (hour >= 6 && hour < 12) {
+    const i = INTEREST_THEMES.findIndex((t) => t.key === 'jingdian')
+    if (i >= 0) start = i
+  } else if (hour >= 18 && hour < 24) {
+    const i = INTEREST_THEMES.findIndex((t) => t.key === 'yixue')
+    if (i >= 0) start = i
+  }
+  return [0, 1, 2].map((k) => INTEREST_THEMES[(start + k) % n])
+}
+
+/**
+ * 取主题定义（用于首页「今日学一点」按主题拉内容）。
+ * - 用户已选：优先返回用户所选主题；
+ * - 未选：按 dayOfYear + 时段轮换默认三主题（每天不同，早晚有别），而非恒取前三个。
+ */
+export function getEffectiveThemes(now: Date = new Date()): InterestTheme[] {
   const keys = getInterestThemes()
   const picked = INTEREST_THEMES.filter((t) => keys.includes(t.key))
-  return picked.length > 0 ? picked : INTEREST_THEMES.slice(0, 3)
+  return picked.length > 0 ? picked : rotateDefaultThemes(now)
 }

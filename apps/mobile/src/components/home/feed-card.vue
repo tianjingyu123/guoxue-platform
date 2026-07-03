@@ -56,6 +56,7 @@ function go() {
       post: `/pages/post/detail?id=${it.id}`,
       poem: `/pages/poetry/detail?id=${it.id}`,
       poem_daily: `/pages/poetry/detail?id=${it.id}`,
+      classic: `/pkg-classics/detail/index?id=${it.id}`,
     }
     if (it.type === 'circle') {
       navigateTo(
@@ -256,6 +257,19 @@ const theme = computed(() => agentThemes[agent.value?.type ?? 'general'] ?? agen
         <text class="join-btn" :class="{ joined: item.isMember }">{{ item.isMember ? '已加入' : '加入' }}</text>
       </view>
     </view>
+  </view>
+
+  <!-- ============ 通用兜底卡（AI 信息流稀疏项：古籍/无封面课程/商品等，保证不留空白） ============ -->
+  <view v-else-if="item" class="card card-press text-card" @tap="go">
+    <view class="text-head">
+      <text class="mini-badge" :style="{ background: (badge || typeConfig.article).bg }">{{ (badge || typeConfig.article).label }}</text>
+      <view v-if="item.author" class="author">
+        <view class="avatar"><text class="avatar-char">{{ avatarChar }}</text></view>
+        <text class="author-name">{{ item.author }}</text>
+      </view>
+    </view>
+    <text class="title-serif clamp-3">{{ item.title }}</text>
+    <text v-if="item.excerpt || item.content" class="text-body clamp-5">{{ item.excerpt || item.content }}</text>
   </view>
 </template>
 

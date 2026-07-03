@@ -72,6 +72,28 @@ describe("SmartFeedController", () => {
     });
   });
 
+  describe("getSmartFeedOptional", () => {
+    it("登录用户返回个性化信息流", async () => {
+      svc.getFeed.mockResolvedValue(feedResult);
+      const result = await ctrl.getSmartFeedOptional(mockReq("u1"));
+      expect(svc.getFeed).toHaveBeenCalledWith("u1", 1, 20);
+      expect(result).toEqual(feedResult);
+    });
+
+    it("未登录返回空信息流（热门降级），不调用 getFeed", async () => {
+      const result = await ctrl.getSmartFeedOptional({} as any);
+      expect(svc.getFeed).not.toHaveBeenCalled();
+      expect(result.items).toEqual([]);
+      expect(result.userSegment).toBe("anonymous");
+    });
+
+    it("自定义分页参数透传", async () => {
+      svc.getFeed.mockResolvedValue(feedResult);
+      await ctrl.getSmartFeedOptional(mockReq("u1"), 2, 10);
+      expect(svc.getFeed).toHaveBeenCalledWith("u1", 2, 10);
+    });
+  });
+
   describe("refreshFeed", () => {
     it("刷新AI智能信息流，重新生成排序", async () => {
       svc.getFeed.mockResolvedValue(feedResult);

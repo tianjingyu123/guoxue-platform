@@ -1,6 +1,7 @@
 /** 首页数据层（1:1 迁移自原型 components/home-feed.tsx + home/home-banner.tsx + common/daily-verse） */
 
 import { apiGet, apiGetPaged, useMock } from '@/utils/request'
+import { getToken } from '@/utils/storage'
 import { getEffectiveThemes } from '@/utils/interests'
 
 // ============================================
@@ -138,6 +139,7 @@ export const typeConfig: Record<string, { label: string; bg: string }> = {
   ebook: { label: '电子书', bg: 'rgba(46,107,138,0.9)' },
   poem: { label: '诗词', bg: 'rgba(122,90,32,0.9)' },
   poem_daily: { label: '每日一首', bg: 'rgba(122,90,32,0.9)' },
+  classic: { label: '古籍', bg: 'rgba(107,74,42,0.9)' },
 }
 
 // 封面比例 → aspect ratio 数值字符串（用于 image 容器 padding-top / aspect-ratio）
@@ -251,6 +253,17 @@ export interface ApiFeedItem {
   createdAt?: string
   tag?: string
   [k: string]: unknown
+}
+
+/** smart-feed.service 返回的信息流原始项（用户分层 + AI 排序后） */
+export interface SmartFeedRawItem {
+  id: string
+  type: string
+  title?: string
+  subtitle?: string
+  cover?: string | null
+  score?: number
+  reason?: string
 }
 
 /** 后端扁平 feed 项 → 前端 FeedItem。透传后端已有字段（将来后端补 author/likes/price 等自动生效）。 */
@@ -381,6 +394,32 @@ export const homeApi = {
       return { banners, feed }
     } catch {
       return { banners: defaultBanners, feed: buildFeedItems() }
+    }
+  },
+
+  /**
+   * AI 个性化信息流 — GET /recommend/smart-feed/feed（OptionalAuth）。
+   * 用户分层（新/进阶/高消费）+ DeepSeek 排序。作为首页 feed 的「个性化增强层」：
+   * 首屏先渲染 /home 热门 feed（快），再异步用本方法替换为个性化排序（慢但更准）。
+   * - 未登录：不发请求（个性化需 userId），返回 []，由 /home 热门 feed 承载。
+   * - 失败/超时/空：返回 []，静默回退，保留已渲染的 /home 或静态 feed，绝不白屏。
+   */
+  async getPersonalizedFeed(page = 1, pageSize = 20): Promise<RenderItem[]> {
+    if (!getToken()) return []
+    try {
+      const data = await apiGet<{ items?: SmartFeedRawItem[] }>(
+        `/recommend/smart-feed/feed?page=${page}&pageSize=${pageSize}`,
+      )
+      const raw = Array.isArray(data?.items) ? data.items : []
+      if (!raw.length) return []
+      // smart-feed 项为扁平结构 { id,type,title,subtitle,cover,score,reason }，
+      // subtitle 映射为 excerpt 供卡片展示；类型透传（feed-card 有兜底卡渲染稀疏项）。
+      const adapted = raw.map((f) =>
+        adaptFeedItem({ id: f.id, type: f.type, title: f.title, cover: f.cover ?? null, excerpt: f.subtitle }),
+      )
+      return buildRenderItems(adapted)
+    } catch {
+      return []
     }
   },
 
