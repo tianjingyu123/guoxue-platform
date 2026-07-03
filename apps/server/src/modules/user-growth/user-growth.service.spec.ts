@@ -5,7 +5,9 @@ import { PrismaService } from "../../prisma/prisma.service";
 const mockPrisma = {
   userGrowth: { upsert: jest.fn(), update: jest.fn(), findUnique: jest.fn() },
   userAchievement: { findMany: jest.fn(), createMany: jest.fn() },
+  userTitle: { findMany: jest.fn(), findUnique: jest.fn(), findFirst: jest.fn(), createMany: jest.fn(), update: jest.fn(), updateMany: jest.fn() },
   mentorship: { findFirst: jest.fn(), update: jest.fn() },
+  $transaction: jest.fn(),
 };
 
 describe("UserGrowthService", () => {
@@ -22,6 +24,13 @@ describe("UserGrowthService", () => {
     jest.clearAllMocks();
     mockPrisma.userAchievement.findMany.mockResolvedValue([]);
     mockPrisma.userAchievement.createMany.mockResolvedValue({ count: 0 });
+    // 称号体系默认：未获任何称号、无佩戴
+    mockPrisma.userTitle.findMany.mockResolvedValue([]);
+    mockPrisma.userTitle.findUnique.mockResolvedValue(null);
+    mockPrisma.userTitle.findFirst.mockResolvedValue(null);
+    mockPrisma.userTitle.createMany.mockResolvedValue({ count: 0 });
+    mockPrisma.userTitle.updateMany.mockResolvedValue({ count: 0 });
+    mockPrisma.$transaction.mockResolvedValue([]);
     // 默认无 ACTIVE 师父（传道值钩子不触发）
     mockPrisma.mentorship.findFirst.mockResolvedValue(null);
     mockPrisma.mentorship.update.mockResolvedValue({});

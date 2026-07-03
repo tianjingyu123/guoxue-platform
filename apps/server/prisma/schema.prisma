@@ -6327,6 +6327,19 @@ model UserAchievement {
   @@index([userId, earnedAt])
 }
 
+/// 平台级称号（B1 游戏化打磨 · 2026-07-03）：可收集可佩戴的荣誉头衔（等级里程碑/特殊成就自动颁发·幂等）。
+/// 与 GrowthValue.levelName（当前等级名）区别：称号是永久收藏品，用户可选一枚佩戴展示。纯荣誉不可兑现。
+model UserTitle {
+  id       String   @id @default(uuid())
+  userId   String
+  code     String // TITLES 目录 code
+  equipped Boolean  @default(false) // 每用户至多一枚佩戴（应用层保证）
+  earnedAt DateTime @default(now())
+
+  @@unique([userId, code])
+  @@index([userId, equipped])
+}
+
 /// 顾问建议实例：每日 cron 按规则评估生成，工作台「经营顾问」卡拉取
 model AdvisorInsight {
   id        String    @id @default(uuid())

@@ -47,6 +47,10 @@
           <view class="rank-name-wrap">
             <text class="rank-name">{{ growth.levelName }}</text>
             <view class="rank-badge">Lv.{{ growth.level }}</view>
+            <view v-if="growth.equippedTitle" class="rank-title-chip">
+              <AppIcon name="crown" :size="24" color="#8a5a16" />
+              <text class="rank-title-chip-text">{{ growth.equippedTitle.name }}</text>
+            </view>
           </view>
           <view class="rank-exp">
             <AppIcon name="sparkles" :size="30" color="#8a6d3b" />
@@ -116,7 +120,43 @@
         </scroll-view>
       </view>
 
-      <!-- 4. 成就墙 -->
+      <!-- 4. 称号（独立加载·失败不阻塞主档案） -->
+      <view class="section">
+        <view class="section-head">
+          <AppIcon name="crown" :size="34" color="#b4432f" />
+          <text class="section-title">称号</text>
+          <text v-if="titles.length > 0" class="section-count">
+            已获得 {{ titleEarnedCount }}/{{ titles.length }}
+          </text>
+        </view>
+        <!-- 称号区轻 loading -->
+        <view v-if="titlesLoading" class="title-state">
+          <text class="title-state-text">称号加载中…</text>
+        </view>
+        <!-- 称号区轻错误 + 重试 -->
+        <view v-else-if="titlesError" class="title-state">
+          <text class="title-state-text">{{ titlesError }}</text>
+          <view class="title-retry-btn" @tap="loadTitles">重试</view>
+        </view>
+        <!-- 称号网格 -->
+        <view v-else class="title-grid">
+          <view
+            v-for="t in titles"
+            :key="t.code"
+            class="title-cell"
+            :class="{ earned: t.earned, equipped: t.equipped, busy: titleSubmitting === t.code }"
+            @tap="onTapTitle(t)"
+          >
+            <text class="title-name">{{ t.name }}</text>
+            <text v-if="!t.earned" class="title-desc">{{ t.desc }}</text>
+            <text v-else-if="t.equipped" class="title-hint on">佩戴中 · 点击卸下</text>
+            <text v-else class="title-hint">点击佩戴</text>
+            <view v-if="t.equipped" class="title-equipped-tag">佩戴中</view>
+          </view>
+        </view>
+      </view>
+
+      <!-- 5. 成就墙 -->
       <view class="section">
         <view class="section-head">
           <AppIcon name="award" :size="34" color="#b4432f" />
@@ -146,7 +186,7 @@
         </view>
       </view>
 
-      <!-- 5. 师徒传承入口 -->
+      <!-- 6. 师徒传承入口 -->
       <view class="mentor-entry" @tap="goMentorship">
         <view class="mentor-entry-icon">
           <AppIcon name="users" :size="46" color="#b8862d" />
@@ -159,7 +199,7 @@
       </view>
     </view>
 
-    <!-- 6. 成就分享卡弹层（V1 裂变） -->
+    <!-- 7. 成就分享卡弹层（V1 裂变） -->
     <view v-if="shareAch" class="share-mask" @tap="closeShare">
       <view class="share-card" @tap.stop>
         <view class="share-card-deco" />
@@ -197,6 +237,7 @@ import {
   resolveAchievementIcon,
   type GrowthProfile,
   type GrowthAchievement,
+  type GrowthTitle,
   type CheckinStatus,
 } from '@/lib/growth-data'
 
@@ -229,8 +270,57 @@ async function loadAll() {
   }
 }
 
+// ── 称号（独立加载·失败不阻塞主档案·区块内轻错误+重试） ──
+const titles = ref<GrowthTitle[]>([])
+const titlesLoading = ref(true)
+const titlesError = ref('')
+/** 当前正在佩戴/卸下操作的称号 code（''=空闲·防重复提交） */
+const titleSubmitting = ref('')
+
+const titleEarnedCount = computed(() => titles.value.filter((t) => t.earned).length)
+
+/** 拉取称号目录（与主档案并行·错误只影响本区块） */
+async function loadTitles() {
+  titlesLoading.value = true
+  titlesError.value = ''
+  try {
+    titles.value = await growthApi.titles()
+  } catch (e) {
+    titlesError.value = e instanceof Error ? e.message : '称号加载失败'
+  } finally {
+    titlesLoading.value = false
+  }
+}
+
+/** 点击称号：已获得未佩戴→佩戴；佩戴中→卸下；未获得→不可点（置灰展示条件） */
+async function onTapTitle(t: GrowthTitle) {
+  if (!t.earned || titleSubmitting.value) return
+  titleSubmitting.value = t.code
+  try {
+    if (t.equipped) {
+      await growthApi.unequipTitle()
+      t.equipped = false
+      if (growth.value) growth.value.equippedTitle = null
+      uni.showToast({ title: '已卸下', icon: 'none' })
+    } else {
+      await growthApi.equipTitle(t.code)
+      // 每用户至多一枚：本地同步取消其它称号的佩戴态
+      titles.value.forEach((x) => {
+        x.equipped = x.code === t.code
+      })
+      if (growth.value) growth.value.equippedTitle = { code: t.code, name: t.name }
+      uni.showToast({ title: '已佩戴', icon: 'none' })
+    }
+  } catch (e) {
+    uni.showToast({ title: e instanceof Error ? e.message : '操作失败', icon: 'none' })
+  } finally {
+    titleSubmitting.value = ''
+  }
+}
+
 onLoad(() => {
   loadAll()
+  loadTitles()
 })
 
 function goLogin() {
@@ -288,6 +378,7 @@ async function onCheckin() {
   try {
     const res = await growthApi.checkin()
     uni.showToast({ title: `+${res.rewardPoints} 积分·连续 ${res.consecutiveDays} 天`, icon: 'none' })
+    loadTitles() // 连续打卡可能新解锁称号（如七日不辍）
     await loadAll() // 打卡后刷新学分/连续天数/成就（可能新解锁）
   } catch (e) {
     const msg = e instanceof Error ? e.message : '打卡失败'
@@ -481,6 +572,23 @@ function copyInviteLink() {
   color: #f6e2b8;
   font-size: 24rpx;
   font-weight: 600;
+}
+/* 佩戴称号小徽章（功名卡内） */
+.rank-title-chip {
+  display: flex;
+  align-items: center;
+  gap: 6rpx;
+  padding: 6rpx 18rpx;
+  border-radius: 999rpx;
+  background: rgba(255, 255, 255, 0.6);
+  border: 2rpx solid rgba(138, 90, 22, 0.35);
+}
+.rank-title-chip-text {
+  font-size: 24rpx;
+  font-weight: 600;
+  color: #8a5a16;
+  letter-spacing: 2rpx;
+  font-family: serif;
 }
 .rank-exp {
   display: flex;
@@ -685,7 +793,93 @@ function copyInviteLink() {
   }
 }
 
-/* 4. 成就墙 */
+/* 4. 称号 */
+.title-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20rpx;
+  padding: 40rpx 0 24rpx;
+}
+.title-state-text {
+  font-size: 24rpx;
+  color: #b0a690;
+}
+.title-retry-btn {
+  padding: 10rpx 48rpx;
+  border-radius: 999rpx;
+  border: 2rpx solid #c9a96e;
+  color: #8a6d3b;
+  font-size: 24rpx;
+  font-weight: 500;
+}
+.title-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20rpx;
+}
+.title-cell {
+  position: relative;
+  width: calc(33.333% - 14rpx);
+  box-sizing: border-box;
+  border-radius: 18rpx;
+  padding: 26rpx 16rpx 22rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8rpx;
+  background: #f7f4ec;
+  border: 2rpx solid transparent;
+}
+/* 已获得：暖金可点 */
+.title-cell.earned {
+  background: linear-gradient(160deg, #fff9e6, #fdf3d8);
+  border-color: rgba(201, 169, 110, 0.45);
+}
+/* 佩戴中：品牌红描边 + 角标（明显选中态） */
+.title-cell.equipped {
+  border-color: #b4432f;
+  box-shadow: 0 4rpx 14rpx rgba(180, 67, 47, 0.18);
+}
+.title-cell.busy {
+  opacity: 0.6;
+}
+.title-name {
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #b0a690;
+  letter-spacing: 4rpx;
+  font-family: serif;
+}
+.title-cell.earned .title-name {
+  color: #6d4914;
+}
+.title-desc {
+  font-size: 20rpx;
+  color: #b0a690;
+  text-align: center;
+  line-height: 1.5;
+}
+.title-hint {
+  font-size: 20rpx;
+  color: #c9a96e;
+  &.on {
+    color: #b4432f;
+    font-weight: 500;
+  }
+}
+.title-equipped-tag {
+  position: absolute;
+  top: 0;
+  right: 0;
+  padding: 4rpx 14rpx;
+  border-radius: 0 16rpx 0 16rpx;
+  background: #b4432f;
+  color: #fff;
+  font-size: 18rpx;
+}
+
+/* 5. 成就墙 */
 .ach-grid {
   display: flex;
   flex-wrap: wrap;

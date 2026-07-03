@@ -338,7 +338,6 @@ export class SharedReadingService {
   // ── 结算（惰性触发·发学分·防重发） ──
   /**
    * 持久化各成员完成快照，并为「已完成且未发过奖」的成员发放学分（rewardedAt 原子占位防重）。
-   * user-growth 无公开成就颁发方法 → 共读结业成就当前跳过（见报告）。
    */
   private async settle(groupId: string, stats: MemberStat[], allCompleted: boolean) {
     for (const s of stats) {
@@ -355,6 +354,10 @@ export class SharedReadingService {
         });
         if (claimed.count === 1) {
           await this.userGrowth.addExp(s.userId, SHARED_READING_REWARD_EXP, "shared_reading");
+          // 共读结业成就（幂等直建·B1 补齐：此前常量已定义但从未颁发）
+          await this.prisma.userAchievement
+            .createMany({ data: [{ userId: s.userId, code: SHARED_READING_ACHIEVEMENT }], skipDuplicates: true })
+            .catch(() => undefined);
           s.rewardedAt = new Date();
         }
       }

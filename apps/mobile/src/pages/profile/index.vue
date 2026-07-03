@@ -8,6 +8,7 @@ import {
   allRoleTypes, roleHref, type UserRole,
 } from '@/lib/profile-data'
 import { recommendApi } from '@/lib/recommend-data'
+import { growthApi } from '@/lib/growth-data'
 import type { RecommendItem } from '@/components/common/recommend-section.vue'
 
 const loading = ref(true)
@@ -69,8 +70,22 @@ async function fetchData() {
   }
 }
 
+// 佩戴中的称号（成长中心平台级称号体系·独立请求与主档案并行）
+const equippedTitle = ref<{ code: string; name: string } | null>(null)
+
+/** 拉取佩戴称号（失败静默不显示，绝不影响主档案加载） */
+async function fetchEquippedTitle() {
+  try {
+    const growth = await growthApi.me()
+    equippedTitle.value = growth.equippedTitle
+  } catch {
+    equippedTitle.value = null // 静默降级：称号非关键信息
+  }
+}
+
 onMounted(() => {
   fetchData()
+  fetchEquippedTitle()
 })
 
 // 身份切换确认弹窗
@@ -163,6 +178,9 @@ async function handleCheckIn() {
             <view v-if="userData.isVip" class="vip-badge">
               <AppIcon name="crown" :size="22" color="#ffffff" />
               <text class="vip-txt">{{ userData.vipLevel }}</text>
+            </view>
+            <view v-if="equippedTitle" class="title-chip" @tap="go('/pkg-mine/achievements/index')">
+              <text class="title-chip-txt">{{ equippedTitle.name }}</text>
             </view>
           </view>
           <view class="stat-row">
@@ -363,6 +381,9 @@ async function handleCheckIn() {
 .uname { font-family: var(--font-serif); font-size: 40rpx; font-weight: 700; color: #2c2c2c; }
 .vip-badge { display: flex; align-items: center; gap: 4rpx; padding: 2rpx 12rpx; border-radius: 999rpx; background: linear-gradient(to right, #C9A96E, #D4B87D); }
 .vip-txt { font-size: 20rpx; color: #fff; }
+/* 佩戴称号（小印章式标签·点击进成长中心） */
+.title-chip { padding: 2rpx 12rpx; border: 2rpx solid var(--brand); border-radius: 8rpx; background: rgba(196,30,58,0.06); }
+.title-chip-txt { font-family: var(--font-serif); font-size: 20rpx; font-weight: 600; color: var(--brand); letter-spacing: 2rpx; }
 .stat-row { display: flex; align-items: center; gap: 28rpx; margin-top: 16rpx; }
 .stat-item { display: flex; align-items: baseline; gap: 6rpx; }
 .stat-num { font-size: 32rpx; font-weight: 700; color: #2c2c2c; }

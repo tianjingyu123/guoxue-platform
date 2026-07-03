@@ -28,6 +28,8 @@ const mockPrisma = {
     deleteMany: jest.fn(),
     groupBy: jest.fn(),
   },
+  // 共读结业成就直建（B1）
+  userAchievement: { createMany: jest.fn().mockResolvedValue({ count: 1 }) },
 };
 
 const mockGrowth = { addExp: jest.fn().mockResolvedValue(undefined) };
