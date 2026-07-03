@@ -24,6 +24,7 @@ import { PaymentProviderFactory } from "./payment-factory";
 import { HuifuService } from "../huifu/huifu.service";
 import { CoinService } from "../coin/coin.service";
 import { WebhookService } from "../webhook/webhook.service";
+import { MemberBenefitService } from "../member/member-benefit.service";
 import { COIN_TO_RMB, RMB_TO_FEN } from "../../common/constants";
 import {
   CreateProductDto, UpdateProductDto, CreateOrderDto,
@@ -48,6 +49,7 @@ export class ShopService {
     private paymentFactory: PaymentProviderFactory,
     private webhook: WebhookService,
     private audit: AuditService,
+    private memberBenefit: MemberBenefitService,
     @Optional() private huifu?: HuifuService,
     @Inject(CommissionService) private commissionSvc?: CommissionService,
     @Inject(CoinService) private coinSvc?: CoinService,
@@ -1194,15 +1196,18 @@ export class ShopService {
     await this.settleGroupBuyIfNeeded(order.id).catch((e) => this.logger.error(`拼团成团结算失败 order=${order.id}`, e));
   }
 
-  /** MEMBER 支付后处理 — 按订单套餐（targetId=MemberConfig.id）定档开通 + 记录购买 */
+  /** MEMBER 支付后处理 — 按订单套餐（targetId=MemberConfig.id）定档开通 + 记录购买 + 发首月权益 */
   private async processMemberPaid(order: Order, tx: any) {
     // 定档真源=下单时选择的套餐；仅历史订单缺套餐时按金额兜底（阈值对齐 2026-07 定价）
-    let memberLevel: string | null = null;
+    let planLevel: string | null = null;
     if (order.targetId) {
       const plan = await tx.memberConfig.findUnique({ where: { id: order.targetId } });
-      if (plan) memberLevel = plan.level;
+      if (plan) planLevel = plan.level;
     }
-    if (!memberLevel) memberLevel = this.resolveMemberLevel(Number(order.amount));
+    if (!planLevel) planLevel = this.resolveMemberLevel(Number(order.amount));
+    // 连续包年是 YEARLY 的计费变体：用户等级记 YEARLY + 打 autoRenew 标记
+    const isAutoRenew = planLevel === "YEARLY_AUTO";
+    const memberLevel = isAutoRenew ? "YEARLY" : planLevel;
 
     // 有效期内复购不吞剩余天数：从「当前未到期到期日」起算叠加（已过期/终身除外）；
     // 等级只升不降：已是终身则保持终身，避免高档买低档被覆盖降档。
@@ -1212,7 +1217,7 @@ export class ShopService {
     });
     const now = new Date();
     const base = current?.memberExpire && current.memberExpire > now ? current.memberExpire : now;
-    let expiresAt = this.calcMemberExpiry(memberLevel, base);
+    let expiresAt = this.calcMemberExpiry(planLevel, base);
     let finalLevel = memberLevel;
     if (current?.memberLevel === "LIFETIME") {
       finalLevel = "LIFETIME";
@@ -1220,7 +1225,11 @@ export class ShopService {
     }
     await tx.user.update({
       where: { id: order.userId },
-      data: { memberLevel: finalLevel as MemberLevel, memberExpire: expiresAt },
+      data: {
+        memberLevel: finalLevel as MemberLevel,
+        memberExpire: expiresAt,
+        ...(isAutoRenew ? { memberAutoRenew: true } : {}),
+      },
     });
     await tx.memberPurchase.create({
       data: {
@@ -1232,6 +1241,8 @@ export class ShopService {
         expireAt: expiresAt,
       },
     });
+    // 权益③首月发放（同事务原子；月度 cron 按 member_monthly_YYYYMM 幂等，本月不会重复发）
+    await this.memberBenefit.grantMonthlyBenefits(order.userId, planLevel, tx);
   }
 
   /** 支付宝订单查询 */
@@ -2122,16 +2133,21 @@ export class ShopService {
 
   /** 金额→等级兜底（仅历史无套餐订单用；阈值对齐 2026-07 定价：月199/年999/终身3949） */
   private resolveMemberLevel(amount: number): string {
+    // 仅历史无 targetId 订单兜底：≥3000 旧终身 / ≥900 旧年卡 / ≥148 新年卡(含连续包年) / ≥49 季卡 / 其余月卡
     if (amount >= 3000) return "LIFETIME";
     if (amount >= 900) return "YEARLY";
+    if (amount >= 148) return "YEARLY";
+    if (amount >= 49) return "QUARTERLY";
     return "MONTHLY";
   }
 
   private calcMemberExpiry(level: string, from?: Date): Date | null {
     if (level === "LIFETIME") return null;
     const base = new Date(from ?? new Date()); // 从 from 起算叠加（复购续期不吞剩余天数）
-    if (level === "YEARLY") {
+    if (level === "YEARLY" || level === "YEARLY_AUTO") {
       base.setFullYear(base.getFullYear() + 1);
+    } else if (level === "QUARTERLY") {
+      base.setMonth(base.getMonth() + 3);
     } else {
       base.setMonth(base.getMonth() + 1);
     }

@@ -21,6 +21,7 @@ enum UserStatus {
 enum MemberLevel {
   NONE
   MONTHLY
+  QUARTERLY
   YEARLY
   LIFETIME
 }
@@ -38,6 +39,7 @@ model User {
   birthday            DateTime?
   memberLevel         MemberLevel @default(NONE)
   memberExpire        DateTime?
+  memberAutoRenew     Boolean     @default(false) // 连续包年标记（papay 代扣就绪前=到期提醒按续费价续费）
   paymentPasswordHash String?
   interestCategories  String[]    @default([]) // 用户兴趣品类
   identityVerified    Boolean     @default(false) // 实名认证状态
@@ -4434,16 +4436,19 @@ model ConfigVersion {
 }
 
 model MemberConfig {
-  id            String   @id @default(uuid())
-  level         String   @unique // MONTHLY/YEARLY/LIFETIME
-  name          String // 显示名称
-  price         Decimal  @db.Decimal(10, 2)
-  coinBonus     Int      @default(0) // 每月赠送国学币
-  benefits      Json? // 权益列表
-  maxBorrowDays Int      @default(30) // 电子书最大借阅天数
-  isActive      Boolean  @default(true)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id              String   @id @default(uuid())
+  level           String   @unique // MONTHLY/QUARTERLY/YEARLY/YEARLY_AUTO/LIFETIME(停售)
+  name            String // 显示名称
+  price           Decimal  @db.Decimal(10, 2)
+  coinBonus       Int      @default(0) // 每月赠送国学币（书院会员改为赠积分，保留兼容）
+  monthlyPoints   Int      @default(0) // 每月赠送积分
+  monthlyCouponId String? // 每月赠券模板 id（CouponTemplate，空=不发券）
+  sort            Int      @default(0) // 展示排序
+  benefits        Json? // 权益列表
+  maxBorrowDays   Int      @default(30) // 电子书最大借阅天数
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }
 
 // ─────────────────────────────────────────────────

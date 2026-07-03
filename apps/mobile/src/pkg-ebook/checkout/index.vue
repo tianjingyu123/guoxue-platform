@@ -33,10 +33,15 @@
           <text class="book-title">{{ book.title }}</text>
           <text class="book-author">{{ book.author }}</text>
           <text class="book-tip">数字商品 · 购买后永久可读</text>
-          <view v-if="book.isMemberFree" class="member-row">
+          <!-- 书院会员权益②：付费精品电子书全场畅读 -->
+          <view v-if="isMember" class="member-row">
             <AppIcon name="crown" :size="28" :color="C.member" />
-            <text class="member-tx">会员可免费领取</text>
-            <text class="member-link">开通会员</text>
+            <text class="member-tx">书院会员 · 本书畅读免费</text>
+          </view>
+          <view v-else class="member-row">
+            <AppIcon name="crown" :size="28" :color="C.member" />
+            <text class="member-tx">书院会员可畅读全场付费电子书</text>
+            <text class="member-link" @tap="goVip">开通会员</text>
           </view>
         </view>
       </view>
@@ -49,9 +54,13 @@
             <text class="price-label">商品原价</text>
             <text class="price-del">¥{{ book.originalPrice }}</text>
           </view>
-          <view class="price-row">
-            <text class="price-label">限时优惠</text>
+          <view v-if="book.originalPrice > book.price" class="price-row">
+            <text class="price-label">优惠</text>
             <text class="price-free">-¥{{ book.originalPrice - book.price }}</text>
+          </view>
+          <view v-if="isMember" class="price-row">
+            <text class="price-label">书院会员畅读</text>
+            <text class="price-free">-¥{{ book.price }}</text>
           </view>
           <view class="price-total">
             <text class="price-total-label">实付金额</text>
@@ -100,8 +109,8 @@
           <text class="pay-btn-tx">支付中...</text>
         </view>
         <view v-else class="pay-btn-inner">
-          <AppIcon name="lock" :size="32" color="#ffffff" />
-          <text class="pay-btn-tx">立即支付</text>
+          <AppIcon :name="isMember ? 'crown' : 'lock'" :size="32" color="#ffffff" />
+          <text class="pay-btn-tx">{{ isMember ? '免费领取' : '立即支付' }}</text>
         </view>
       </view>
     </view>
@@ -117,6 +126,8 @@ import {
   ebookPayMethods,
   type EbookCheckoutBook,
 } from '@/lib/ebook-data'
+import { vipApi } from '@/lib/vip-data'
+import { navigateTo } from '@/utils/router'
 import { getToken } from '@/utils/storage'
 
 const C = {
@@ -130,6 +141,7 @@ const bookId = ref('1')
 const payMethods = ebookPayMethods
 const payMethod = ref('wechat')
 const isProcessing = ref(false)
+const isMember = ref(false)
 
 async function fetchData(id: string) {
   loading.value = true
@@ -144,9 +156,25 @@ async function fetchData(id: string) {
   }
 }
 
-onLoad((q = {}) => { fetchData(q?.id || '1') })
+// 会员状态（书院会员全场畅读；查询失败按非会员展示，不阻塞下单）
+async function loadMemberStatus() {
+  if (!getToken()) return
+  try {
+    const st = await vipApi.getStatus()
+    isMember.value = st.level !== 'none' && !st.isExpired
+  } catch {
+    isMember.value = false
+  }
+}
 
-const finalPrice = computed(() => book.value.price || 0)
+onLoad((q = {}) => {
+  fetchData(q?.id || '1')
+  loadMemberStatus()
+})
+
+const finalPrice = computed(() => (isMember.value ? 0 : book.value.price || 0))
+
+function goVip() { navigateTo('/vip') }
 
 function goBack() {
   uni.navigateBack()

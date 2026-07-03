@@ -6,7 +6,7 @@
       <view class="mc-head-cell mc-head-free"><text class="mc-head-free-txt">普通用户</text></view>
       <view class="mc-head-cell mc-head-vip">
         <app-icon name="crown" :size="32" color="#F59E0B" />
-        <text class="mc-head-vip-txt">VIP会员</text>
+        <text class="mc-head-vip-txt">书院会员</text>
       </view>
     </view>
 
@@ -49,21 +49,20 @@
     <view class="mc-cta">
       <view class="mc-save">
         <app-icon name="trending-up" :size="32" color="#16A34A" />
-        <text class="mc-save-txt">开通VIP后预计每年可省 <text class="mc-save-num">¥{{ savedAmount }}</text></text>
+        <text class="mc-save-txt">年卡 ¥168，折合每天不到 <text class="mc-save-num">5 毛</text></text>
       </view>
       <view class="mc-btn" @tap="emit('select-vip')">
         <app-icon name="crown" :size="32" color="#FFFFFF" />
-        <text class="mc-btn-txt">立即开通VIP</text>
-        <text class="mc-btn-badge">限时优惠</text>
+        <text class="mc-btn-txt">开通书院会员</text>
       </view>
       <view class="mc-guard">
         <view class="mc-guard-item">
           <app-icon name="shield" :size="24" color="#16A34A" />
-          <text class="mc-guard-txt">7天无理由退款</text>
+          <text class="mc-guard-txt">全员同价 公开档位</text>
         </view>
         <view class="mc-guard-item">
           <app-icon name="clock" :size="24" color="#8A8478" />
-          <text class="mc-guard-txt">即开即用</text>
+          <text class="mc-guard-txt">支付后即开即用</text>
         </view>
       </view>
     </view>
@@ -80,19 +79,14 @@ interface BenefitItem { name: string; icon: string; free: string | boolean; vip:
 const emit = defineEmits<{ (e: 'select-vip'): void }>()
 
 const expanded = ref(false)
-const savedAmount = 1268
 
+// 书院会员五项终版权益（2026-07-03 拍板）：只列真实存在的权益，不虚构
 const benefits: BenefitItem[] = [
-  { name: '免费课程', icon: 'book-open', free: '20+', vip: '500+', highlight: true },
-  { name: 'AI对话次数', icon: 'bot', free: '5次/天', vip: '无限', highlight: true },
-  { name: '古籍阅读', icon: 'book-open', free: '部分', vip: '全部' },
-  { name: '直播回放', icon: 'radio', free: '48小时', vip: '永久' },
-  { name: '商城折扣', icon: 'shopping-bag', free: false, vip: '95折' },
-  { name: '每月国学币', icon: 'gift', free: '0', vip: '100', highlight: true },
-  { name: '排盘功能', icon: 'sparkles', free: '基础', vip: '高级' },
+  { name: 'AI 伴读·白话对照', icon: 'bot', free: '每日限次', vip: '不限量', highlight: true },
+  { name: '付费精品电子书', icon: 'book-open', free: '单本购买', vip: '全场畅读', highlight: true },
+  { name: '每月赠积分·优惠券', icon: 'gift', free: false, vip: true, highlight: true },
+  { name: '会员专属标识', icon: 'crown', free: false, vip: true },
   { name: '专属客服', icon: 'users', free: false, vip: true },
-  { name: '专属标识', icon: 'crown', free: false, vip: true },
-  { name: '优先连麦', icon: 'radio', free: false, vip: true },
 ]
 
 const displayBenefits = computed(() => expanded.value ? benefits : benefits.slice(0, 6))

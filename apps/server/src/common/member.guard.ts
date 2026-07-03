@@ -7,8 +7,9 @@ import { MEMBER_LEVELS_KEY } from "./member.decorator";
 const MEMBER_HIERARCHY: Record<MemberLevel, number> = {
   NONE: 0,
   MONTHLY: 1,
-  YEARLY: 2,
-  LIFETIME: 3,
+  QUARTERLY: 2,
+  YEARLY: 3,
+  LIFETIME: 4,
 };
 
 /**

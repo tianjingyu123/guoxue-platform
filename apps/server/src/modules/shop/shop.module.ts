@@ -20,9 +20,10 @@ import { WebhookModule } from "../webhook/webhook.module";
 import { HuifuModule } from "../huifu/huifu.module";
 import { PricingModule } from "../pricing/pricing.module";
 import { AuditModule } from "../audit/audit.module";
+import { MemberModule } from "../member/member.module";
 
 @Module({
-  imports: [CommissionModule, SystemModule, CoinModule, WebhookModule, HuifuModule, PricingModule, AuditModule],
+  imports: [CommissionModule, SystemModule, CoinModule, WebhookModule, HuifuModule, PricingModule, AuditModule, MemberModule],
   controllers: [ShopController, AddressController, ProductCategoryController],
   providers: [ShopService, ShopCouponService, WechatPayService, AlipayService, UnionpayService, PaymentProviderFactory, LogisticsService, AddressService, ProductCategoryService, ActiveUserGuard, StationIsolationGuard],
   exports: [ShopService, ShopCouponService, WechatPayService, AlipayService, UnionpayService, LogisticsService, AddressService, ProductCategoryService],

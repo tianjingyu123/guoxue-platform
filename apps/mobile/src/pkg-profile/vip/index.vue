@@ -44,8 +44,8 @@
             </view>
             <view class="card-head-text">
               <view class="card-title-row">
-                <text class="card-title">{{ data.status.level !== 'none' ? memberLevelName : '热卜国学VIP' }}</text>
-                <text v-if="data.status.level !== 'none'" class="card-badge">{{ data.status.level }}</text>
+                <text class="card-title">{{ data.status.level !== 'none' ? memberLevelName : '书院会员' }}</text>
+                <text v-if="data.status.level !== 'none'" class="card-badge">{{ memberLevelLabel(data.status.level) }}</text>
               </view>
               <text class="card-sub">
                 {{ data.status.level !== 'none'
@@ -59,19 +59,19 @@
             </view>
           </view>
 
-          <!-- 核心数据 -->
+          <!-- 核心数据（对应五项权益中的前三项） -->
           <view class="card-stats">
             <view class="stat-col">
-              <text class="stat-num">500+</text>
-              <text class="stat-label">免费课程</text>
+              <text class="stat-num">不限量</text>
+              <text class="stat-label">AI 伴读·白话对照</text>
             </view>
             <view class="stat-col">
-              <text class="stat-num">无限</text>
-              <text class="stat-label">AI对话</text>
+              <text class="stat-num">畅读</text>
+              <text class="stat-label">付费精品电子书</text>
             </view>
             <view class="stat-col">
-              <text class="stat-num">{{ selectedPlan?.coinBonus ?? 0 }}</text>
-              <text class="stat-label">每月赠国学币</text>
+              <text class="stat-num">{{ selectedPlan?.monthlyPoints ?? 0 }}</text>
+              <text class="stat-label">每月赠积分</text>
             </view>
           </view>
         </view>
@@ -107,7 +107,8 @@
             :class="selectedPlan?.id === plan.id ? 'plan-selected' : 'plan-normal'"
             @tap="selectedPlan = plan"
           >
-            <view v-if="plan.popular" class="plan-tag tag-popular">推荐</view>
+            <view v-if="plan.popular" class="plan-tag tag-popular">主推</view>
+            <view v-else-if="plan.autoRenew" class="plan-tag tag-auto">更划算</view>
 
             <text class="plan-duration">{{ plan.durationName }}</text>
             <view class="plan-price-row">
@@ -122,6 +123,10 @@
             </view>
           </view>
         </view>
+        <!-- 连续包年说明（诚实降级：代扣能力开通前=到期提醒按续费价续费） -->
+        <text v-if="selectedPlan?.autoRenew" class="auto-renew-note">
+          连续包年：首年 ¥{{ selectedPlan.price }} 开通；自动扣费能力开通前，到期我们会提醒你以 ¥{{ selectedPlan.price }} 优惠价续费，不会不经确认扣款。
+        </text>
       </view>
 
       <!-- 会员权益（真源 MemberConfig.benefits） -->
@@ -309,7 +314,7 @@ import AppSkeleton from '@/components/common/app-skeleton.vue'
 import MembershipComparison from '@/components/marketing/membership-comparison.vue'
 import { navigateTo } from '@/utils/router'
 import { track } from '@/composables/useTrack'
-import { vipApi } from '@/lib/vip-data'
+import { vipApi, memberLevelLabel } from '@/lib/vip-data'
 import type { VipPlan, VipMemberStatus, VipAgreement } from '@/lib/vip-data'
 import { shopApi } from '@/lib/shop-data'
 
@@ -326,9 +331,10 @@ const payMethods: PayMethodItem[] = [
 
 // 常见问题（静态运营文案，非业务数据）
 const faqs = [
+  { q: '连续包年会自动扣款吗？', a: '自动扣费能力开通前不会自动扣款：到期前我们会提醒你，由你确认后以 ¥148 优惠价续费。' },
+  { q: '免费用户能用 AI 伴读吗？', a: '可以，每天有免费次数；开通书院会员后 AI 伴读与白话对照不限量。' },
   { q: '开通后可以退款吗？', a: '会员服务一经开通，暂不支持退款，请确认后购买。' },
-  { q: '会员可以多设备登录吗？', a: '同一账号最多支持3台设备同时登录。' },
-  { q: '会员到期后权益还在吗？', a: '到期后会员权益将失效，但已下载的内容可继续保留。' },
+  { q: '会员到期后权益还在吗？', a: '到期后会员权益将失效，已购买的内容不受影响。' },
 ]
 
 // 权益卡图标轮换（纯展示层，权益文案来自后端 MemberConfig.benefits）
@@ -359,12 +365,12 @@ let pollTimer: ReturnType<typeof setTimeout> | null = null
 
 const currentPlanGroup = computed(() => data.value?.planGroups.find(g => g.level === selectedLevel.value))
 
-// 当前会员等级对应的套餐名（会员卡片标题用）
+// 当前会员等级对应的套餐名（会员卡片标题用；LIFETIME 已停售不在套餐列表，走档位名兜底）
 const memberLevelName = computed(() => {
   const lv = data.value?.status.level
-  if (!lv || lv === 'none') return '热卜国学VIP'
+  if (!lv || lv === 'none') return '书院会员'
   const plan = data.value?.planGroups[0]?.plans.find(p => p.level === lv)
-  return plan?.name || '平台会员'
+  return plan?.name || `书院会员·${memberLevelLabel(lv).replace('会员', '')}`
 })
 
 // 当前选中套餐的权益（后端 benefits 字符串数组 → 权益卡）
@@ -376,10 +382,11 @@ const displayBenefits = computed(() =>
   })),
 )
 
-// 已是同档有效会员 → 按钮文案为「续费」
+// 已是同档有效会员 → 按钮文案为「续费」（连续包年档对齐 YEARLY 身份）
 const isRenew = computed(() => {
   const st = data.value?.status
-  return !!st && st.level !== 'none' && !st.isExpired && selectedPlan.value?.level === st.level
+  const planLevel = selectedPlan.value?.level === 'YEARLY_AUTO' ? 'YEARLY' : selectedPlan.value?.level
+  return !!st && st.level !== 'none' && !st.isExpired && planLevel === st.level
 })
 
 // 加载套餐（必需）与会员状态（未登录/异常按无会员展示，不阻塞套餐）
@@ -390,7 +397,7 @@ async function loadData() {
     const [plans, status] = await Promise.all([
       vipApi.getPlans(),
       vipApi.getStatus().catch((): VipMemberStatus => ({
-        level: 'none', isExpired: false, isLifetime: false, expireAt: '', daysLeft: 0,
+        level: 'none', isExpired: false, isLifetime: false, expireAt: '', daysLeft: 0, autoRenew: false,
       })),
     ])
     if (!plans.length) {
@@ -402,8 +409,8 @@ async function loadData() {
       status,
       planGroups: [{
         level: 'vip',
-        levelName: '热卜国学VIP',
-        description: '一份会员，畅享课程/古籍/AI/购物全平台特权',
+        levelName: '书院会员',
+        description: 'AI 伴读不限量 · 付费电子书畅读 · 每月赠积分与优惠券 · 专属标识与客服',
         plans,
       }],
     }
@@ -608,13 +615,15 @@ onUnmounted(stopPolling)
 .level-btn-txt { font-size: 28rpx; font-weight: 500; color: #2C2C2C; }
 .level-btn-txt-active { color: #FFFFFF; }
 
-/* 套餐选择 */
-.plan-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 24rpx; margin-top: 24rpx; }
+/* 套餐选择（四档 2×2） */
+.plan-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24rpx; margin-top: 24rpx; }
+.auto-renew-note { font-size: 22rpx; color: #8A8478; line-height: 1.6; margin-top: 16rpx; display: block; }
 .plan-card { position: relative; overflow: hidden; border-radius: 16rpx; padding: 24rpx 16rpx; background: #FFFFFF; }
 .plan-normal { border: 2rpx solid #E8E3DB; }
 .plan-selected { border: 4rpx solid #C9A96E; background: rgba(201,169,110,0.05); }
 .plan-tag { position: absolute; top: 0; right: 0; padding: 4rpx 16rpx; font-size: 20rpx; font-weight: 500; border-bottom-left-radius: 16rpx; }
 .tag-popular { background: #C9A96E; color: #FFFFFF; }
+.tag-auto { background: rgba(22,163,74,0.9); color: #FFFFFF; }
 .plan-duration { font-size: 28rpx; font-weight: 500; color: #2C2C2C; text-align: center; display: block; }
 .plan-price-row { display: flex; align-items: baseline; justify-content: center; gap: 2rpx; margin-top: 16rpx; }
 .plan-yuan { font-size: 22rpx; color: #8A8478; }

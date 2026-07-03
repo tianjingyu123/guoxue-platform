@@ -101,11 +101,12 @@ const _roleTypeMap: Record<string, UserRole> = {
   STATION_MASTER: 'station_owner',
 }
 
-// 会员等级标签
+// 会员等级标签（书院会员·2026-07-03 档位改版）
 const _memberLevelLabel: Record<string, string> = {
-  MONTHLY: '月度会员',
-  YEARLY: '年度会员',
-  LIFETIME: '永久会员',
+  MONTHLY: '书院会员·月卡',
+  QUARTERLY: '书院会员·季卡',
+  YEARLY: '书院会员·年卡',
+  LIFETIME: '书院会员·终身',
 }
 
 /* —— 后端原始响应类型（容错适配用，字段全 optional，仅声明 adapter 实际访问到的字段） —— */
@@ -131,14 +132,17 @@ interface RawCheckin {
 /** /auth/me + 签到状态 → 个人中心主页数据 */
 function adaptProfile(me: RawMe, checkin: RawCheckin | null): ProfileData {
   const level = String(me?.memberLevel ?? 'NONE')
-  const isVip = level !== 'NONE'
   let vipExpiry = ''
   let vipDaysLeft = 0
+  let expired = false
   if (me?.memberExpire) {
     const exp = new Date(me.memberExpire)
     vipExpiry = exp.toISOString().split('T')[0]
     vipDaysLeft = Math.max(0, Math.ceil((exp.getTime() - Date.now()) / 86400000))
+    expired = exp.getTime() <= Date.now()
   }
+  // 已过期不再展示会员徽章（此前只看 level 忽略到期时间）
+  const isVip = level !== 'NONE' && !expired
   // 后端仅返回 { roleType, bindId }，无业务名称 → name 留空诚实降级
   const roles: RoleEntry[] = (me?.roles ?? [])
     .map((r: RawRole): RoleEntry | null => {

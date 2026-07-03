@@ -2,6 +2,7 @@ import { Controller, Get, Post, Put, Delete, Body, Param, Query, Req, Res, UseGu
 import { Request } from "express";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiResponse } from "@nestjs/swagger";
 import { EbookService } from "./ebook.service";
+import { MemberBenefitService } from "../member/member-benefit.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { SkipFormat } from "../../common/skip-format.decorator";
 import { RolesGuard } from "../../common/roles.guard";
@@ -18,7 +19,10 @@ import {
 @ApiTags("电子书")
 @Controller("ebook")
 export class EbookController {
-  constructor(private svc: EbookService) {}
+  constructor(
+    private svc: EbookService,
+    private memberBenefit: MemberBenefitService,
+  ) {}
 
   // ── 分类（公开） ──
   @Get("categories")
@@ -296,7 +300,8 @@ export class EbookController {
   @ApiOperation({ summary: "段落AI翻译（古文→现代/外文）" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
-  translateText(@Body() dto: TranslateEbookDto) {
+  async translateText(@Req() req: Request, @Body() dto: TranslateEbookDto) {
+    await this.memberBenefit.consumeAiQuota(req.user.id); // 权益①：会员不限量，免费用户每日限次
     return this.svc.translateText(dto);
   }
 
@@ -307,7 +312,8 @@ export class EbookController {
   @ApiOperation({ summary: "古文查词（选中文本→释义）" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
-  lookupWord(@Body() dto: LookupWordDto) {
+  async lookupWord(@Req() req: Request, @Body() dto: LookupWordDto) {
+    await this.memberBenefit.consumeAiQuota(req.user.id);
     return this.svc.lookupWord(dto);
   }
 

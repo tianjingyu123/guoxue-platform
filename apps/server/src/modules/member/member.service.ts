@@ -26,7 +26,7 @@ export class MemberService {
   async getStatus(userId: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { memberLevel: true, memberExpire: true },
+      select: { memberLevel: true, memberExpire: true, memberAutoRenew: true },
     });
     if (!user) throw new BusinessException(ErrorCode.NOT_FOUND, "用户不存在");
 
@@ -42,7 +42,23 @@ export class MemberService {
       memberExpire: user.memberExpire?.toISOString() ?? null,
       isActive,
       remainingDays,
+      autoRenew: user.memberAutoRenew,
     };
+  }
+
+  /** 我的会员购买记录 */
+  async getMyPurchases(userId: string, page = 1, pageSize = 20) {
+    const [items, total] = await Promise.all([
+      this.prisma.memberPurchase.findMany({
+        where: { userId },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        orderBy: { paidAt: "desc" },
+        select: { id: true, memberType: true, amount: true, paidAt: true, expireAt: true },
+      }),
+      this.prisma.memberPurchase.count({ where: { userId } }),
+    ]);
+    return { items, total, page, pageSize };
   }
 
   // ═══════════════════ 管理员方法 ═══════════════════

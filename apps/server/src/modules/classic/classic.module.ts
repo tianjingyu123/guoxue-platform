@@ -22,10 +22,11 @@ import { BaziClassicController } from "./classic-bazi.controller";
 import { ClassicKnowledgeController } from "./classic-knowledge.controller";
 import { AiGatewayModule } from "../ai-gateway/ai-gateway.module";
 import { RedisModule } from "../../redis/redis.module";
+import { MemberModule } from "../member/member.module";
 import { serverConfig } from "../../config/server-config";
 
 @Module({
-  imports: [JwtModule.register({ secret: serverConfig.jwtSecret }), AiGatewayModule, RedisModule],
+  imports: [JwtModule.register({ secret: serverConfig.jwtSecret }), AiGatewayModule, RedisModule, MemberModule],
   controllers: [ClassicController, ClassicsBffController, ClassicImageController, ClassicFontController, ClassicQaController, ClassicCommentaryController, BaziClassicController, ClassicKnowledgeController],
   providers: [
     ClassicService, ClassicCompanionService, ClassicsBffService, ClassicImageService, ClassicQaService, ClassicIndexTask,

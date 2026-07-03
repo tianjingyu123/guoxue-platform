@@ -167,16 +167,13 @@ export class EbookService {
     const book = await this.prisma.ebook.findUnique({ where: { id: ebookId } });
     if (!book) throw new BusinessException(ErrorCode.EBOOK_NOT_FOUND);
 
-    // 会员免费
-    if (book.memberFree) {
-      const user = await this.prisma.user.findUnique({ where: { id: userId } });
-      if (user?.memberLevel && user.memberLevel !== "NONE" && (!user.memberExpire || user.memberExpire > new Date())) {
-        return this.prisma.ebookPurchase.upsert({
-          where: { userId_ebookId: { userId, ebookId } },
-          create: { userId, ebookId, amount: 0 },
-          update: {},
-        });
-      }
+    // 书院会员权益②：付费精品电子书全场畅读，0 元领取式记录（保留阅读入口语义）
+    if (await this.isActiveMember(userId)) {
+      return this.prisma.ebookPurchase.upsert({
+        where: { userId_ebookId: { userId, ebookId } },
+        create: { userId, ebookId, amount: 0 },
+        update: {},
+      });
     }
 
     const amount = Number(book.price);
@@ -218,20 +215,26 @@ export class EbookService {
 
     const book = await this.prisma.ebook.findUnique({ where: { id: ebookId } });
     if (!book) return false;
-    if (Number(book.price) <= 0 || book.memberFree) return true;
+    // 修复：此前 memberFree 在此短路，导致标记书对「非会员」也免费放行
+    if (Number(book.price) <= 0) return true;
 
-    // 会员免费
-    if (book.memberFree) {
-      const user = await this.prisma.user.findUnique({ where: { id: userId } });
-      if (user?.memberLevel && user.memberLevel !== "NONE" && (!user.memberExpire || user.memberExpire > new Date())) {
-        return true;
-      }
-    }
+    // 书院会员权益②：有效会员全场畅读（不再限于单本 memberFree 标记）
+    if (await this.isActiveMember(userId)) return true;
 
     const record = await this.prisma.ebookPurchase.findUnique({
       where: { userId_ebookId: { userId, ebookId } },
     });
     return !!record;
+  }
+
+  /** 会员有效性判定（与 MemberBenefitService.isActiveMember 同语义的本地实现，避免模块耦合） */
+  private async isActiveMember(userId: string): Promise<boolean> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { memberLevel: true, memberExpire: true },
+    });
+    if (!user?.memberLevel || user.memberLevel === "NONE") return false;
+    return !user.memberExpire || user.memberExpire > new Date();
   }
 
   async getMyPurchases(userId: string, pageRaw?: number, pageSizeRaw?: number) {

@@ -2,6 +2,7 @@ import { Controller, Get, Post, Param, Req, UseGuards, Body, Query, Logger } fro
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiResponse } from "@nestjs/swagger";
 import { Request } from "express";
 import { MemberService } from "./member.service";
+import { MemberBenefitService } from "./member-benefit.service";
 import { SystemService } from "../system/system.service";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
@@ -19,6 +20,7 @@ export class MemberController {
   private readonly logger = new Logger(MemberController.name);
   constructor(
     private readonly memberService: MemberService,
+    private readonly benefitService: MemberBenefitService,
     private readonly systemService: SystemService,
   ) {}
 
@@ -59,6 +61,28 @@ export class MemberController {
   renew(@Req() _req: Request, @Param("planId") _planId: string) {
     // 资金安全（2026-07-03 修复）：与 purchase 同因废弃（不校验支付即续期）。续费同走订单支付链路。
     throw new BusinessException(ErrorCode.BAD_REQUEST, "会员续费已升级为在线支付：请在会员页选择套餐并完成支付");
+  }
+
+  @Get("ai-quota")
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "我的 AI 伴读额度（会员不限量；免费用户每日限次）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  getAiQuota(@Req() req: Request) {
+    return this.benefitService.getAiQuota(req.user.id);
+  }
+
+  @Get("purchases")
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "我的会员购买记录" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiQuery({ name: "page", required: false })
+  @ApiQuery({ name: "pageSize", required: false })
+  getMyPurchases(@Req() req: Request, @Query("page") page = 1, @Query("pageSize") pageSize = 20) {
+    return this.memberService.getMyPurchases(req.user.id, +page, +pageSize);
   }
 
   @Get("benefits")

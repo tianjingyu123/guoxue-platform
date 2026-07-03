@@ -14,6 +14,15 @@
       </view>
     </view>
 
+    <!-- AI 额度提示（会员不限量；免费用户每日限次·真源 GET /member/ai-quota） -->
+    <view v-if="quota" class="cp-quota">
+      <app-icon name="sparkles" :size="24" :color="quota.isMember ? '#C9A96E' : '#8a7a99'" />
+      <text class="cp-quota-txt">
+        {{ quota.isMember ? '书院会员 · AI 伴读不限量' : `今日免费伴读剩余 ${quota.remaining} 次` }}
+      </text>
+      <text v-if="!quota.isMember" class="cp-quota-link" @tap="goVip">会员不限量</text>
+    </view>
+
     <!-- 消息区域 -->
     <scroll-view class="cp-body" scroll-y :scroll-into-view="scrollAnchor">
       <!-- 开场：介绍 + 引导问题 -->
@@ -87,6 +96,18 @@
           </view>
         </view>
 
+        <!-- 额度用尽 → 会员引导（价值时刻的自然引子，非打断式弹窗） -->
+        <view v-if="quotaExhausted" class="cp-upsell">
+          <app-icon name="crown" :size="40" color="#C9A96E" />
+          <view class="cp-upsell-body">
+            <text class="cp-upsell-title">今日免费伴读次数已用完</text>
+            <text class="cp-upsell-desc">开通书院会员，AI 伴读与白话对照不限量，明日免费次数也会照常刷新。</text>
+          </view>
+          <view class="cp-upsell-btn" @tap="goVip">
+            <text class="cp-upsell-btn-txt">了解会员</text>
+          </view>
+        </view>
+
         <view id="cp-bottom" class="cp-bottom-anchor" />
       </view>
     </scroll-view>
@@ -120,6 +141,8 @@ import { ref, computed, nextTick } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { classicsApi } from '@/lib/classics-data'
+import { vipApi } from '@/lib/vip-data'
+import { navigateTo } from '@/utils/router'
 import { getToken } from '@/utils/storage'
 
 interface CompanionMessage {
@@ -140,6 +163,23 @@ const inputValue = ref('')
 const isLoading = ref(false)
 const scrollAnchor = ref('')
 
+// —— AI 额度（书院会员权益①：会员不限量，免费用户每日限次）——
+const quota = ref<{ isMember: boolean; dailyLimit: number; remaining: number } | null>(null)
+const quotaExhausted = ref(false)
+
+async function loadQuota() {
+  if (!getToken()) return // 未登录不打扰，发送时才引导登录
+  try {
+    const q = await vipApi.getAiQuota()
+    quota.value = { isMember: q.isMember, dailyLimit: q.dailyLimit, remaining: q.remaining }
+    quotaExhausted.value = !q.isMember && q.remaining <= 0
+  } catch {
+    quota.value = null // 额度查询失败不影响对话主流程
+  }
+}
+
+function goVip() { navigateTo('/vip') }
+
 const headerSub = computed(() => {
   if (bookTitle.value && chapterTitle.value) return `《${bookTitle.value}》· ${chapterTitle.value}`
   if (bookTitle.value) return `《${bookTitle.value}》`
@@ -151,6 +191,7 @@ onLoad((q: Record<string, string> = {}) => {
   if (q.bookTitle) bookTitle.value = decodeURIComponent(q.bookTitle)
   if (q.chapterTitle) chapterTitle.value = decodeURIComponent(q.chapterTitle)
   loadPrompts()
+  loadQuota()
 })
 
 async function loadPrompts() {
@@ -219,8 +260,19 @@ async function handleSend() {
       content: r?.answer || '抱歉，我暂时无法回答，请换个角度再问问。',
       disclaimer: r?.disclaimer,
     })
+    // 免费用户成功一次消耗一次额度，本地同步减
+    if (quota.value && !quota.value.isMember) {
+      quota.value = { ...quota.value, remaining: Math.max(0, quota.value.remaining - 1) }
+      quotaExhausted.value = quota.value.remaining <= 0
+    }
   } catch (e) {
-    messages.value.push({ id: (Date.now() + 1).toString(), role: 'assistant', content: (e as Error)?.message || 'AI 暂时无法回答，请稍后重试。' })
+    const msg = (e as Error)?.message || 'AI 暂时无法回答，请稍后重试。'
+    // 后端限次错误（引导语含“书院会员”）→ 展示会员引导卡而非裸错误
+    if (msg.includes('已用完') || msg.includes('书院会员')) {
+      quotaExhausted.value = true
+      if (quota.value) quota.value = { ...quota.value, remaining: 0 }
+    }
+    messages.value.push({ id: (Date.now() + 1).toString(), role: 'assistant', content: msg })
   } finally {
     isLoading.value = false
     scrollToBottom()
@@ -283,6 +335,42 @@ function copyMsg(content: string) {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* AI 额度提示条 */
+.cp-quota {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  padding: 12rpx 32rpx;
+  background: rgba(201, 169, 110, 0.08);
+  border-bottom: 2rpx solid rgba(201, 169, 110, 0.15);
+}
+.cp-quota-txt {
+  flex: 1;
+  font-size: 22rpx;
+  color: #8a7a99;
+}
+.cp-quota-link {
+  font-size: 22rpx;
+  color: #C9A96E;
+  font-weight: 500;
+}
+
+/* 额度用尽会员引导卡 */
+.cp-upsell {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  padding: 28rpx;
+  border-radius: 24rpx;
+  background: rgba(201, 169, 110, 0.08);
+  border: 2rpx solid rgba(201, 169, 110, 0.3);
+}
+.cp-upsell-body { flex: 1; min-width: 0; }
+.cp-upsell-title { font-size: 28rpx; font-weight: 500; color: #1a1a1a; display: block; }
+.cp-upsell-desc { font-size: 22rpx; color: #8A8478; line-height: 1.6; margin-top: 8rpx; display: block; }
+.cp-upsell-btn { padding: 14rpx 28rpx; border-radius: 999rpx; background: #C9A96E; flex-shrink: 0; }
+.cp-upsell-btn-txt { font-size: 24rpx; color: #FFFFFF; }
 
 /* 消息区域 */
 .cp-body {

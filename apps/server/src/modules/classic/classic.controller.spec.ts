@@ -4,6 +4,7 @@ import { ClassicService } from "./classic.service";
 import { ClassicLibrarySeeder } from "./classic-library-seeder.service";
 import { ClassicDaizhigeSeeder } from "./classic-daizhige-seeder.service";
 import { ClassicCompanionService } from "./classic-companion.service";
+import { MemberBenefitService } from "../member/member-benefit.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 
 const mockClassicSvc = {
@@ -53,6 +54,13 @@ const mockCompanion = {
   chat: jest.fn().mockResolvedValue({ answer: "...", disclaimer: "..." }),
 };
 
+const mockMemberBenefit = {
+  isActiveMember: jest.fn().mockResolvedValue(false),
+  consumeAiQuota: jest.fn().mockResolvedValue({ isMember: false, remaining: 9 }),
+  getAiQuota: jest.fn().mockResolvedValue({ isMember: false, dailyLimit: 10, usedToday: 0, remaining: 10 }),
+  grantMonthlyBenefits: jest.fn().mockResolvedValue(true),
+};
+
 describe("ClassicController", () => {
   let ctrl: ClassicController;
 
@@ -64,6 +72,7 @@ describe("ClassicController", () => {
         { provide: ClassicLibrarySeeder, useValue: mockSeeder },
         { provide: ClassicDaizhigeSeeder, useValue: mockDaizhigeSeeder },
         { provide: ClassicCompanionService, useValue: mockCompanion },
+        { provide: MemberBenefitService, useValue: mockMemberBenefit },
       ],
     })
       .overrideGuard(JwtAuthGuard).useValue({ canActivate: () => true })
@@ -169,17 +178,21 @@ describe("ClassicController", () => {
     expect(mockClassicSvc.deleteBookmark).toHaveBeenCalledWith("bm1", "u1");
   });
 
-  it("POST /classic/dictionary/lookup — 字典查询", async () => {
-    const dto = { word: "仁" };
-    const result = await ctrl.dictionaryLookup(dto);
+  it("POST /classic/dictionary/lookup — 字典查询（消耗 AI 额度）", async () => {
+    const req: any = { user: { id: "u1" } };
+    const dto: any = { word: "仁" };
+    const result = await ctrl.dictionaryLookup(req, dto);
     expect(result.word).toBe("仁");
+    expect(mockMemberBenefit.consumeAiQuota).toHaveBeenCalledWith("u1");
     expect(mockClassicSvc.dictionaryLookup).toHaveBeenCalledWith("仁");
   });
 
-  it("POST /classic/translate — 白话翻译", async () => {
-    const dto = { text: "学而时习之" };
-    const result = await ctrl.translate(dto);
+  it("POST /classic/translate — 白话翻译（消耗 AI 额度）", async () => {
+    const req: any = { user: { id: "u1" } };
+    const dto: any = { text: "学而时习之" };
+    const result = await ctrl.translate(req, dto);
     expect(result.translation).toBeTruthy();
+    expect(mockMemberBenefit.consumeAiQuota).toHaveBeenCalledWith("u1");
     expect(mockClassicSvc.translateClassical).toHaveBeenCalledWith(dto);
   });
 

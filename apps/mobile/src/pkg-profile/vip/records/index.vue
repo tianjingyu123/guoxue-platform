@@ -1,113 +1,89 @@
 <template>
   <view class="page">
-    <app-nav-bar title="VIP 开通记录" :back-icon="'arrow-left'" :back-size="40" :title-align="'left'" :bar-height="96" />
+    <app-nav-bar title="开通记录" :back-icon="'arrow-left'" :back-size="40" :title-align="'left'" :bar-height="96" />
 
-    <!-- 筛选 Tabs -->
-    <scroll-view scroll-x class="tabs-scroll" :show-scrollbar="false">
-      <view class="tabs-row">
-        <view
-          v-for="t in tabs"
-          :key="t.key"
-          class="tab"
-          :class="filter === t.key ? 'tab-active' : 'tab-normal'"
-          @tap="filter = t.key"
-        >
-          <text class="tab-txt" :class="{ 'tab-txt-active': filter === t.key }">{{ t.label }}</text>
-        </view>
-      </view>
-    </scroll-view>
-
-    <!-- 记录列表 -->
-    <view class="list">
-      <view v-for="rec in filtered" :key="rec.id" class="rec-card">
-        <view class="rec-head">
-          <view class="rec-head-left">
-            <app-icon name="crown" :size="32" :color="levelCfg[rec.level].color" />
-            <text class="rec-level" :style="{ color: levelCfg[rec.level].color, background: levelCfg[rec.level].bg }">{{ levelCfg[rec.level].label }}</text>
-            <text class="rec-plan">{{ rec.plan }}</text>
-          </view>
-          <view class="rec-type" :style="{ color: typeCfg[rec.type].cls }">
-            <app-icon :name="typeCfg[rec.type].icon" :size="24" :color="typeCfg[rec.type].cls" />
-            <text class="rec-type-txt">{{ typeCfg[rec.type].label }}</text>
-          </view>
-        </view>
-        <view class="rec-grid">
-          <text class="rec-field">金额：<text class="rec-amount">{{ rec.amount }}</text></text>
-          <text class="rec-field">渠道：{{ rec.channel }}</text>
-          <text class="rec-field">开始：{{ rec.startDate }}</text>
-          <text class="rec-field">到期：{{ rec.endDate }}</text>
-        </view>
-        <text class="rec-time">{{ rec.createdAt }}</text>
-      </view>
-
-      <text v-if="filtered.length === 0" class="empty">暂无记录</text>
+    <!-- 骨架屏 -->
+    <view v-if="loading" class="list">
+      <app-skeleton v-for="i in 3" :key="i" width="100%" height="220rpx" radius="24rpx" mb="24rpx" />
     </view>
 
+    <!-- 错误态 -->
+    <app-error v-else-if="error" :message="error" @retry="load" />
+
+    <!-- 记录列表（真源 GET /member/purchases） -->
+    <view v-else class="list">
+      <view v-for="rec in records" :key="rec.id" class="rec-card">
+        <view class="rec-head">
+          <view class="rec-head-left">
+            <app-icon name="crown" :size="32" color="#C9A96E" />
+            <text class="rec-level">{{ rec.levelName }}</text>
+          </view>
+          <text class="rec-amount">{{ rec.amount > 0 ? `¥${rec.amount.toFixed(2)}` : '赠送/领取' }}</text>
+        </view>
+        <view class="rec-grid">
+          <text class="rec-field">开通：{{ rec.paidAt || '—' }}</text>
+          <text class="rec-field">到期：{{ rec.expireAt || '永久有效' }}</text>
+        </view>
+      </view>
+
+      <!-- 空态 -->
+      <view v-if="records.length === 0" class="empty">
+        <app-icon name="crown" :size="72" color="#C9C4BB" />
+        <text class="empty-txt">还没有开通记录</text>
+        <view class="empty-btn" @tap="goVip">
+          <text class="empty-btn-txt">了解书院会员</text>
+        </view>
+      </view>
+    </view>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, onMounted } from 'vue'
 import AppNavBar from '@/components/common/app-nav-bar.vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppError from '@/components/common/app-error.vue'
+import AppSkeleton from '@/components/common/app-skeleton.vue'
+import { navigateTo } from '@/utils/router'
+import { vipApi } from '@/lib/vip-data'
+import type { VipPurchaseRecord } from '@/lib/vip-data'
 
-type RecordType = 'all' | 'purchase' | 'renew' | 'gift'
-interface VipRecord {
-  id: string; type: 'purchase' | 'renew' | 'gift'; level: 'basic' | 'pro' | 'premium'
-  plan: string; amount: string; channel: string; startDate: string; endDate: string; createdAt: string
+const records = ref<VipPurchaseRecord[]>([])
+const loading = ref(true)
+const error = ref<string | null>(null)
+
+async function load() {
+  loading.value = true
+  error.value = null
+  try {
+    const res = await vipApi.getPurchases(1, 50)
+    records.value = res.items
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : '加载失败，请重试'
+  } finally {
+    loading.value = false
+  }
 }
 
-// @data-needs: 接入会员开通记录接口（数值照抄原型 mockRecords）
-const mockRecords: VipRecord[] = [
-  { id: '1', type: 'purchase', level: 'pro', plan: '年度会员', amount: '¥198.00', channel: '微信支付', startDate: '2024-01-20', endDate: '2025-01-20', createdAt: '2024-01-20 10:32' },
-  { id: '2', type: 'renew', level: 'pro', plan: '年度续费', amount: '¥168.00', channel: '支付宝', startDate: '2023-01-18', endDate: '2024-01-18', createdAt: '2023-01-18 15:20' },
-  { id: '3', type: 'gift', level: 'basic', plan: '月度礼品', amount: '¥0.00', channel: '赠送', startDate: '2022-11-05', endDate: '2022-12-05', createdAt: '2022-11-05 09:15' },
-  { id: '4', type: 'purchase', level: 'basic', plan: '月度会员', amount: '¥28.00', channel: '余额支付', startDate: '2022-10-01', endDate: '2022-11-01', createdAt: '2022-10-01 20:05' },
-]
+function goVip() { navigateTo('/vip') }
 
-const levelCfg: Record<string, { label: string; color: string; bg: string }> = {
-  basic: { label: '基础会员', color: '#D97706', bg: 'rgba(245,158,11,0.1)' },
-  pro: { label: '专业会员', color: '#9333EA', bg: 'rgba(168,85,247,0.1)' },
-  premium: { label: '至尊会员', color: '#EA580C', bg: 'rgba(249,115,22,0.1)' },
-}
-const typeCfg: Record<string, { label: string; icon: string; cls: string }> = {
-  purchase: { label: '购买', icon: 'credit-card', cls: '#C41E3A' },
-  renew: { label: '续费', icon: 'refresh-cw', cls: '#16A34A' },
-  gift: { label: '赠送', icon: 'crown', cls: '#F59E0B' },
-}
-const tabs: { key: RecordType; label: string }[] = [
-  { key: 'all', label: '全部' },
-  { key: 'purchase', label: '购买' },
-  { key: 'renew', label: '续费' },
-  { key: 'gift', label: '赠送' },
-]
-
-const filter = ref<RecordType>('all')
-const filtered = computed(() => filter.value === 'all' ? mockRecords : mockRecords.filter(r => r.type === filter.value))
+onMounted(load)
 </script>
 
 <style lang="scss" scoped>
 .page { min-height: 100vh; background: #FAF8F5; }
 
-.tabs-scroll { white-space: nowrap; padding: 32rpx 32rpx 16rpx; }
-.tabs-row { display: inline-flex; gap: 16rpx; }
-.tab { flex-shrink: 0; padding: 12rpx 24rpx; border-radius: 999rpx; white-space: nowrap; }
-.tab-active { background: var(--brand); }
-.tab-normal { background: #F0EDE8; }
-.tab-txt { font-size: 28rpx; font-weight: 500; color: #2C2C2C; }
-.tab-txt-active { color: #FFFFFF; }
-
-.list { padding: 16rpx 32rpx 160rpx; display: flex; flex-direction: column; gap: 24rpx; }
+.list { padding: 32rpx 32rpx 160rpx; display: flex; flex-direction: column; gap: 24rpx; }
 .rec-card { background: #FFFFFF; border: 2rpx solid #E8E3DB; border-radius: 24rpx; padding: 32rpx; }
-.rec-head { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 24rpx; }
+.rec-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24rpx; }
 .rec-head-left { display: flex; align-items: center; gap: 16rpx; }
-.rec-level { font-size: 22rpx; font-weight: 500; padding: 4rpx 16rpx; border-radius: 999rpx; }
-.rec-plan { font-size: 28rpx; font-weight: 500; color: #2C2C2C; }
-.rec-type { display: flex; align-items: center; gap: 8rpx; }
-.rec-type-txt { font-size: 22rpx; }
+.rec-level { font-size: 28rpx; font-weight: 500; color: #2C2C2C; }
+.rec-amount { font-size: 30rpx; font-weight: 600; color: var(--brand); }
 .rec-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12rpx 0; }
-.rec-field { font-size: 22rpx; color: #8A8478; }
-.rec-amount { color: var(--brand); font-weight: 600; }
-.rec-time { font-size: 20rpx; color: #8A8478; margin-top: 16rpx; text-align: right; display: block; }
-.empty { text-align: center; font-size: 28rpx; color: #8A8478; padding: 128rpx 0; }
+.rec-field { font-size: 24rpx; color: #8A8478; }
+
+.empty { display: flex; flex-direction: column; align-items: center; padding: 128rpx 0; gap: 24rpx; }
+.empty-txt { font-size: 28rpx; color: #8A8478; }
+.empty-btn { padding: 16rpx 48rpx; border-radius: 999rpx; background: var(--brand); }
+.empty-btn-txt { font-size: 26rpx; color: #FFFFFF; }
 </style>

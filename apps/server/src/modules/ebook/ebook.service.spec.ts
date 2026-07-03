@@ -253,6 +253,7 @@ describe("EbookService", () => {
   describe("purchase", () => {
     it("successful purchase", async () => {
       mockPrisma.ebook.findUnique.mockResolvedValue({ id: "b1", price: 99, memberFree: false });
+      mockPrisma.user.findUnique.mockResolvedValue({ memberLevel: "NONE", memberExpire: null }); // 非会员
       mockPrisma.ebookPurchase.findUnique.mockResolvedValue(null);
       mockPrisma.ebookPurchase.create.mockResolvedValue({ id: "p1", amount: 99 });
       mockPrisma.ebook.update.mockResolvedValue({});
@@ -262,23 +263,30 @@ describe("EbookService", () => {
 
     it("free ebook redeemed", async () => {
       mockPrisma.ebook.findUnique.mockResolvedValue({ id: "b1", price: 0, memberFree: false });
+      mockPrisma.user.findUnique.mockResolvedValue({ memberLevel: "NONE", memberExpire: null }); // 非会员
       mockPrisma.ebookPurchase.upsert.mockResolvedValue({ id: "p1", amount: 0 });
       const result = await svc.purchase("u1", "b1");
       expect(result.id).toBe("p1");
     });
 
-    it("member-free ebook for member", async () => {
-      mockPrisma.ebook.findUnique.mockResolvedValue({ id: "b1", price: 99, memberFree: true });
+    it("active member redeems any paid ebook at 0 yuan (书院会员全场畅读)", async () => {
+      mockPrisma.ebook.findUnique.mockResolvedValue({ id: "b1", price: 99, memberFree: false });
       mockPrisma.user.findUnique.mockResolvedValue({
-        id: "u1", memberLevel: "GOLD", memberExpire: new Date(Date.now() + 86400000),
+        id: "u1", memberLevel: "YEARLY", memberExpire: new Date(Date.now() + 86400000),
       });
       mockPrisma.ebookPurchase.upsert.mockResolvedValue({ id: "p1", amount: 0 });
       const result = await svc.purchase("u1", "b1");
       expect(result.id).toBe("p1");
+      // 会员路径走 0 元 upsert 领取，不走付费 create
+      expect(mockPrisma.ebookPurchase.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({ create: { userId: "u1", ebookId: "b1", amount: 0 } }),
+      );
+      expect(mockPrisma.ebookPurchase.create).not.toHaveBeenCalled();
     });
 
     it("already purchased throws", async () => {
       mockPrisma.ebook.findUnique.mockResolvedValue({ id: "b1", price: 99, memberFree: false });
+      mockPrisma.user.findUnique.mockResolvedValue({ memberLevel: "NONE", memberExpire: null }); // 非会员
       mockPrisma.ebookPurchase.findUnique.mockResolvedValue({ id: "p1" });
       await expect(svc.purchase("u1", "b1")).rejects.toThrow(BusinessException);
     });
@@ -301,17 +309,28 @@ describe("EbookService", () => {
       expect(result).toBe(true);
     });
 
-    it("member-free with active member returns true", async () => {
-      mockPrisma.ebook.findUnique.mockResolvedValue({ id: "b1", price: 99, memberFree: true });
+    it("active member can read any paid ebook (全场畅读，不再看 memberFree)", async () => {
+      mockPrisma.ebook.findUnique.mockResolvedValue({ id: "b1", price: 99, memberFree: false });
       mockPrisma.user.findUnique.mockResolvedValue({
-        id: "u1", memberLevel: "GOLD", memberExpire: new Date(Date.now() + 86400000),
+        id: "u1", memberLevel: "YEARLY", memberExpire: new Date(Date.now() + 86400000),
       });
       const result = await svc.checkAccess("b1", "u1");
       expect(result).toBe(true);
+      // 会员路径无需查购买记录
+      expect(mockPrisma.ebookPurchase.findUnique).not.toHaveBeenCalled();
+    });
+
+    it("memberFree book does NOT grant access to non-member without purchase (修复非会员免费放行漏洞)", async () => {
+      mockPrisma.ebook.findUnique.mockResolvedValue({ id: "b1", price: 99, memberFree: true });
+      mockPrisma.user.findUnique.mockResolvedValue({ memberLevel: "NONE", memberExpire: null }); // 非会员
+      mockPrisma.ebookPurchase.findUnique.mockResolvedValue(null);
+      const result = await svc.checkAccess("b1", "u1");
+      expect(result).toBe(false);
     });
 
     it("purchased returns true", async () => {
       mockPrisma.ebook.findUnique.mockResolvedValue({ id: "b1", price: 99, memberFree: false });
+      mockPrisma.user.findUnique.mockResolvedValue({ memberLevel: "NONE", memberExpire: null }); // 非会员
       mockPrisma.ebookPurchase.findUnique.mockResolvedValue({ id: "p1" });
       const result = await svc.checkAccess("b1", "u1");
       expect(result).toBe(true);
@@ -319,6 +338,7 @@ describe("EbookService", () => {
 
     it("not purchased returns false", async () => {
       mockPrisma.ebook.findUnique.mockResolvedValue({ id: "b1", price: 99, memberFree: false });
+      mockPrisma.user.findUnique.mockResolvedValue({ memberLevel: "NONE", memberExpire: null }); // 非会员
       mockPrisma.ebookPurchase.findUnique.mockResolvedValue(null);
       const result = await svc.checkAccess("b1", "u1");
       expect(result).toBe(false);

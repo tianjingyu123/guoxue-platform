@@ -11,6 +11,7 @@ import { CoinService } from "../coin/coin.service"
 import { WebhookService } from "../webhook/webhook.service"
 import { RedisService } from "../../redis/redis.service"
 import { AuditService } from "../audit/audit.service"
+import { MemberBenefitService } from "../member/member-benefit.service"
 import { BusinessException } from "../../common/business.exception"
 
 const mockWechatPay = {
@@ -158,6 +159,13 @@ const mockHuifu = {
   createOrder: jest.fn().mockResolvedValue({ huifuId: "h1" }),
 }
 
+const mockMemberBenefit = {
+  isActiveMember: jest.fn().mockResolvedValue(false),
+  consumeAiQuota: jest.fn().mockResolvedValue({ isMember: false, remaining: 9 }),
+  getAiQuota: jest.fn().mockResolvedValue({ isMember: false, dailyLimit: 10, usedToday: 0, remaining: 10 }),
+  grantMonthlyBenefits: jest.fn().mockResolvedValue(true),
+}
+
 describe("ShopService", () => {
   let svc: ShopService
 
@@ -177,6 +185,7 @@ describe("ShopService", () => {
         { provide: CoinService, useValue: mockCoin },
         { provide: WebhookService, useValue: mockWebhook },
         { provide: AuditService, useValue: { moderateTextOrThrow: jest.fn().mockResolvedValue(undefined) } },
+        { provide: MemberBenefitService, useValue: mockMemberBenefit },
       ],
     }).compile()
     svc = mod.get(ShopService)

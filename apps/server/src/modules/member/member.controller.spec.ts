@@ -1,6 +1,7 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { MemberController } from "./member.controller";
 import { MemberService } from "./member.service";
+import { MemberBenefitService } from "./member-benefit.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
@@ -10,12 +11,19 @@ import { SystemService } from "../system/system.service";
 
 const mockRedis = { incrWithTtl: jest.fn().mockResolvedValue(1) };
 const mockSystemSvc = { logAudit: jest.fn().mockResolvedValue(undefined) };
+const mockMemberBenefit = {
+  isActiveMember: jest.fn().mockResolvedValue(false),
+  consumeAiQuota: jest.fn().mockResolvedValue({ isMember: false, remaining: 9 }),
+  getAiQuota: jest.fn().mockResolvedValue({ isMember: false, dailyLimit: 10, usedToday: 0, remaining: 10 }),
+  grantMonthlyBenefits: jest.fn().mockResolvedValue(true),
+};
 const mockService = {
   getPlans: jest.fn().mockResolvedValue([{ id: "1", level: "MONTHLY", name: "月度会员", price: 29 }]),
   purchase: jest.fn().mockResolvedValue({ id: "p1", level: "MONTHLY", amount: 29, expireAt: null }),
   getStatus: jest.fn().mockResolvedValue({ memberLevel: "MONTHLY", isActive: true, remainingDays: 15 }),
   renew: jest.fn().mockResolvedValue({ id: "p2", level: "MONTHLY", amount: 29, expireAt: null }),
   getBenefits: jest.fn().mockResolvedValue({ level: "MONTHLY", benefits: ["折扣", "免邮"] }),
+  getMyPurchases: jest.fn().mockResolvedValue({ items: [{ id: "p1" }], total: 1, page: 1, pageSize: 20 }),
   getAdminPurchases: jest.fn().mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 20 }),
   getMemberStats: jest.fn().mockResolvedValue({ totalMembers: 100, totalRevenue: 5000, byLevel: {} }),
   grantMember: jest.fn().mockResolvedValue({ userId: "u1", level: "MONTHLY", expireAt: null }),
@@ -30,6 +38,7 @@ describe("MemberController", () => {
       controllers: [MemberController],
       providers: [
         { provide: MemberService, useValue: mockService },
+        { provide: MemberBenefitService, useValue: mockMemberBenefit },
         { provide: RedisService, useValue: mockRedis },
         { provide: SystemService, useValue: mockSystemSvc },
       ],
@@ -76,6 +85,20 @@ describe("MemberController", () => {
       const res = await ctrl.getBenefits(req);
       expect(res.benefits).toContain("折扣");
       expect(mockService.getBenefits).toHaveBeenCalledWith("u1");
+    });
+
+    it("GET ai-quota → 我的 AI 伴读额度（直通 benefitService）", async () => {
+      const req = { user: { id: "u1" } } as any;
+      const res = await ctrl.getAiQuota(req);
+      expect(res).toEqual({ isMember: false, dailyLimit: 10, usedToday: 0, remaining: 10 });
+      expect(mockMemberBenefit.getAiQuota).toHaveBeenCalledWith("u1");
+    });
+
+    it("GET purchases → 我的会员购买记录（直通 memberService）", async () => {
+      const req = { user: { id: "u1" } } as any;
+      const res = await ctrl.getMyPurchases(req, 1, 20);
+      expect(res.total).toBe(1);
+      expect(mockService.getMyPurchases).toHaveBeenCalledWith("u1", 1, 20);
     });
   });
 

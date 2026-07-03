@@ -5,6 +5,7 @@ import { ClassicService } from "./classic.service";
 import { ClassicLibrarySeeder } from "./classic-library-seeder.service";
 import { ClassicDaizhigeSeeder } from "./classic-daizhige-seeder.service";
 import { ClassicCompanionService } from "./classic-companion.service";
+import { MemberBenefitService } from "../member/member-benefit.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { ThrottleGuard } from "../../common/throttle.guard";
 import { RolesGuard } from "../../common/roles.guard";
@@ -20,6 +21,7 @@ export class ClassicController {
     private seeder: ClassicLibrarySeeder,
     private daizhigeSeeder: ClassicDaizhigeSeeder,
     private companion: ClassicCompanionService,
+    private memberBenefit: MemberBenefitService,
   ) {}
 
   // ── 书籍（公开） ──
@@ -305,7 +307,8 @@ export class ClassicController {
   @ApiOperation({ summary: "古籍字典查询（AI，需登录）" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
-  async dictionaryLookup(@Body() dto: DictionaryLookupDto) {
+  async dictionaryLookup(@Req() req: Request, @Body() dto: DictionaryLookupDto) {
+    await this.memberBenefit.consumeAiQuota(req.user.id); // 权益①：会员不限量，免费用户每日限次
     return this.svc.dictionaryLookup(dto.word);
   }
 
@@ -316,7 +319,8 @@ export class ClassicController {
   @ApiOperation({ summary: "文言→白话翻译（AI，需登录）" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
-  async translate(@Body() dto: TranslateDto) {
+  async translate(@Req() req: Request, @Body() dto: TranslateDto) {
+    await this.memberBenefit.consumeAiQuota(req.user.id);
     return this.svc.translateClassical(dto);
   }
 
@@ -327,7 +331,8 @@ export class ClassicController {
   @ApiOperation({ summary: "古籍AI助手问答（AI，需登录）" })
   @ApiResponse({ status: 201, description: "成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
-  async ask(@Body() dto: AskClassicDto) {
+  async ask(@Req() req: Request, @Body() dto: AskClassicDto) {
+    await this.memberBenefit.consumeAiQuota(req.user.id);
     return this.svc.askClassic(dto.question);
   }
 
@@ -348,7 +353,8 @@ export class ClassicController {
   @ApiResponse({ status: 201, description: "成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 404, description: "章节不存在" })
-  companionChat(@Req() req: Request, @Body() dto: CompanionChatDto) {
+  async companionChat(@Req() req: Request, @Body() dto: CompanionChatDto) {
+    await this.memberBenefit.consumeAiQuota(req.user.id);
     return this.companion.chat(
       { chapterId: dto.chapterId, question: dto.question, history: dto.history },
       req.user?.id,
