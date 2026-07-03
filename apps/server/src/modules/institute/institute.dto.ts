@@ -248,3 +248,28 @@ export class RecommendToTalentDto {
   @IsString()
   lecturerLevel: string;
 }
+
+export class CreateBoardGroupDto {
+  @ApiProperty({ description: "小组名（≤20 字·圈名为「私董会·{name}」）", example: "破局一组" })
+  @IsString()
+  @MinLength(1)
+  @MaxLength(20)
+  name: string;
+
+  @ApiPropertyOptional({ description: "当期课题/小组主题（≤100 字）" })
+  @IsOptional() @IsString()
+  @MaxLength(100)
+  topic?: string;
+
+  @ApiProperty({ description: "组长 userId（即圈主·须为本院 ACTIVE 讲席成员）" })
+  @IsString()
+  @MinLength(1)
+  leaderId: string;
+
+  @ApiPropertyOptional({ description: "满员软约束（6-20 人）", default: 12 })
+  @Type(() => Number)
+  @IsOptional() @IsInt()
+  @Min(6)
+  @Max(20)
+  memberLimit?: number;
+}

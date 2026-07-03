@@ -1654,6 +1654,12 @@
           }
         },
         {
+          "path": "board-groups/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
           "path": "instructors/index",
           "style": {
             "navigationStyle": "custom"

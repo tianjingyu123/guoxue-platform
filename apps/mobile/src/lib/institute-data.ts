@@ -315,6 +315,23 @@ export const contentTypeIcon: Record<InstituteContentType, string> = {
   ARTICLE: 'file-text', VIDEO: 'video', DOCUMENT: 'file',
 }
 
+// ───── 私董会小组（T9-P1·私密子圈承载·设计 §3.6.5）─────
+export interface BoardGroup {
+  id: string
+  name: string
+  /** 当期议题（轮流出题机制的当前课题）*/
+  topic: string | null
+  /** 承载小组的私密圈 id：入组申请/日常交互均走圈子（needApproval 由组长审批）*/
+  circleId: string
+  leader: { userId: string; nickname: string; avatar: string | null }
+  memberCount: number
+  memberLimit: number
+  /** 当前登录用户是否已在组内 */
+  joined: boolean
+  /** ACTIVE 运行中 / DISBANDED 已解散 */
+  status: string
+}
+
 // ============ 标签 / 色彩映射 ============
 export const roleLabel: Record<InstituteRole, string> = {
   PRESIDENT: '院长', VICE_PRESIDENT: '副院长', SECRETARY_GENERAL: '秘书长',
@@ -564,6 +581,23 @@ export const instituteApi = {
   /** 发放分红/奖励 POST /institute/manage/dividends */
   createDividend(data: { userId: string; type: DividendType; amount: number; description?: string; period?: string }): Promise<InstituteDividend> {
     return apiPost<InstituteDividend>('/institute/manage/dividends', data)
+  },
+
+  // ───── 私董会小组（T9-P1·私密子圈承载）─────
+  /** 小组列表（院内成员可见·403=非院内成员）GET /institute/board-groups */
+  async getBoardGroups(): Promise<BoardGroup[]> {
+    const d = await apiGet<{ items: BoardGroup[] }>('/institute/board-groups')
+    return d?.items || []
+  },
+
+  /** 创建小组（管理层·建组=建私密圈·leaderId 须为讲席成员）POST /institute/manage/board-groups */
+  createBoardGroup(data: { name: string; topic?: string; leaderId: string; memberLimit?: number }): Promise<{ id: string; circleId: string }> {
+    return apiPost<{ id: string; circleId: string }>('/institute/manage/board-groups', data)
+  },
+
+  /** 解散小组（管理层）PUT /institute/manage/board-groups/:id/disband */
+  disbandBoardGroup(id: string): Promise<{ success: boolean }> {
+    return apiPut<{ success: boolean }>(`/institute/manage/board-groups/${encodeURIComponent(id)}/disband`)
   },
 
   // ───── 大师讲堂付费知识库（T9-P0b）─────

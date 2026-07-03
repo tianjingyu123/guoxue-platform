@@ -2,6 +2,7 @@ import { Test } from "@nestjs/testing";
 import { InstituteController } from "./institute.controller";
 import { InstituteService } from "./institute.service";
 import { InstituteAssessmentService } from "./institute-assessment.service";
+import { InstituteBoardService } from "./institute-board.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 
@@ -22,6 +23,12 @@ const mockInstituteSvc = {
   getRankings: jest.fn().mockResolvedValue({ items: [{ rank: 1, userId: "u1", score: 100 }], updatedAt: "2026-07-03T00:00:00.000Z" }),
 };
 
+const mockBoardSvc = {
+  createBoardGroup: jest.fn().mockResolvedValue({ id: "bg1", circleId: "c1" }),
+  listBoardGroups: jest.fn().mockResolvedValue({ items: [] }),
+  disbandBoardGroup: jest.fn().mockResolvedValue({ success: true, message: "已解散" }),
+};
+
 const mockAssessmentSvc = {
   getEligibility: jest.fn().mockResolvedValue({ seatType: "LECTURE", eligible: true, checks: [] }),
   getMyAssessment: jest.fn().mockResolvedValue({ year: 2026, points: 120, tier: "FULL_REFUND", quarterPoints: [30, 30, 30, 30], offline: { met: true, detail: [] }, pointItems: [] }),
@@ -37,6 +44,7 @@ describe("InstituteController", () => {
       providers: [
         { provide: InstituteService, useValue: mockInstituteSvc },
         { provide: InstituteAssessmentService, useValue: mockAssessmentSvc },
+        { provide: InstituteBoardService, useValue: mockBoardSvc },
       ],
     })
       .overrideGuard(JwtAuthGuard).useValue({ canActivate: () => true })

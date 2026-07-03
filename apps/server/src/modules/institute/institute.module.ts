@@ -4,13 +4,14 @@ import { InstituteController } from "./institute.controller";
 import { InstituteContentController, InstituteContentPublicController } from "./content.controller";
 import { InstituteContentService } from "./content.service";
 import { InstituteAssessmentService } from "./institute-assessment.service";
+import { InstituteBoardService } from "./institute-board.service";
 import { FundApprovalCoreModule } from "../fund-approval/fund-approval-core.module";
 import { CoinModule } from "../coin/coin.module";
 
 @Module({
   imports: [FundApprovalCoreModule, CoinModule],
   controllers: [InstituteController, InstituteContentController, InstituteContentPublicController],
-  providers: [InstituteService, InstituteContentService, InstituteAssessmentService],
-  exports: [InstituteService, InstituteContentService, InstituteAssessmentService],
+  providers: [InstituteService, InstituteContentService, InstituteAssessmentService, InstituteBoardService],
+  exports: [InstituteService, InstituteContentService, InstituteAssessmentService, InstituteBoardService],
 })
 export class InstituteModule {}

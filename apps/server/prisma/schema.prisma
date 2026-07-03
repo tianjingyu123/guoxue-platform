@@ -374,6 +374,7 @@ model Circle {
   inviteCodes         CircleInviteCode[]
   invitations         CircleInvitation[]
   institute           Institute?
+  boardGroup          InstituteBoardGroup?
   circleRevenueSplits CircleRevenueSplit[]
   circleGuestEarnings CircleGuestEarning[]
   events             CircleEvent[]
@@ -2321,11 +2322,12 @@ model Institute {
 
   circle  Circle?           @relation(fields: [circleId], references: [id])
   admin   User              @relation(fields: [adminUserId], references: [id])
-  members   InstituteMember[]
-  events    InstituteEvent[]
-  courses   InstituteCourse[]
-  revenues  InstituteRevenue[]
-  dividends InstituteDividend[]
+  members     InstituteMember[]
+  events      InstituteEvent[]
+  courses     InstituteCourse[]
+  revenues    InstituteRevenue[]
+  dividends   InstituteDividend[]
+  boardGroups InstituteBoardGroup[]
 
   @@index([adminUserId])
   @@index([status])
@@ -2398,6 +2400,26 @@ model InstituteMember {
   @@index([userId])
   @@index([role, status])
   @@index([joinYear])
+}
+
+// 私董会小组（T9 §3.6.5：6-12 人闭门小组·轮流出题·众人拆解事业课题·承载=私密子圈，一组一圈）
+model InstituteBoardGroup {
+  id          String   @id @default(uuid())
+  instituteId String // 归属研究院
+  circleId    String   @unique // 承载私密圈（FREE + needApproval，圈主=组长）
+  name        String // 小组名（≤20 字，圈名为「私董会·{name}」）
+  topic       String? // 当期课题/小组主题
+  leaderId    String // 组长 userId（即圈主·须为本院 ACTIVE 讲席成员）
+  memberLimit Int      @default(12) // 满员软约束（6-20·入组硬闸在圈主审批，列表满员标注 full）
+  status      String   @default("ACTIVE") // ACTIVE, DISBANDED
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  institute Institute @relation(fields: [instituteId], references: [id])
+  circle    Circle    @relation(fields: [circleId], references: [id])
+
+  @@index([instituteId, status])
+  @@index([leaderId])
 }
 
 // 研究院分享积分流水（T9-P1 考核制度 V5：分享行为自动/人工记分，负分=人工纠错）

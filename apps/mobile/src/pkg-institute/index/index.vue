@@ -135,6 +135,20 @@
         </view>
       </view>
 
+      <!-- 私董会入口（T9-P1·闭门共研小组） -->
+      <view class="section">
+        <view class="board-entry" @tap="goBoardGroups">
+          <view class="board-icon">
+            <app-icon name="users" :size="22" color="#e8dcc3" />
+          </view>
+          <view class="board-info">
+            <text class="board-title">私董会</text>
+            <text class="board-sub">6-12 人闭门小组 · 轮流出题 · 众人拆解经营课题</text>
+          </view>
+          <app-icon name="chevron-right" :size="16" color="#8b8fa3" />
+        </view>
+      </view>
+
       <!-- 近期活动 -->
       <view class="section">
         <view class="section-head">
@@ -277,6 +291,7 @@ function goApply() { navigateTo('/institute/member-apply') }
 function goMy() { navigateTo('/institute/my-tasks') }
 function goRankings() { navigateTo('/pkg-institute/rankings/index') }
 function goContents() { navigateTo('/pkg-institute/contents/index') }
+function goBoardGroups() { navigateTo('/pkg-institute/board-groups/index') }
 </script>
 
 <style scoped>
@@ -380,6 +395,12 @@ function goContents() { navigateTo('/pkg-institute/contents/index') }
 .lecture-title { display: block; font-size: 14px; font-weight: 600; color: #1a1a1a; }
 .lecture-sub { display: block; font-size: 11px; color: #9ca3af; margin-top: 2px; }
 .rankings-medal { width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, #f3e7cf, #c9a96e); display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(201,169,110,0.35); }
+/* 私董会入口（墨青底金标·闭门质感） */
+.board-entry { display: flex; align-items: center; gap: 12px; background: linear-gradient(135deg, #2b2f3a, #3d3428); border-radius: 12px; padding: 14px 16px; }
+.board-icon { width: 40px; height: 40px; border-radius: 10px; background: rgba(201,169,110,0.24); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.board-info { flex: 1; min-width: 0; }
+.board-title { display: block; font-size: 14px; font-weight: 600; color: #fff; }
+.board-sub { display: block; font-size: 11px; color: rgba(255,255,255,0.55); margin-top: 2px; }
 .rankings-info { flex: 1; min-width: 0; }
 .rankings-title { display: block; font-size: 14px; font-weight: 600; color: #7a5f33; }
 .rankings-sub { display: block; font-size: 11px; color: #a98d5f; margin-top: 2px; }

@@ -3,7 +3,8 @@ import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiResponse } from "@ne
 import { Request } from "express";
 import { InstituteService } from "./institute.service";
 import { InstituteAssessmentService } from "./institute-assessment.service";
-import { JoinInstituteDto, CreateTaskDto, CreateEventDto, UpdateEventDto, UpdateLecturerLevelDto, CreateTaskTemplateDto, CreateDividendDto, ApproveMemberDto, AssignRoleDto, UpdateMemberDto, RecommendToTalentDto, AddSharePointDto, InviteMemberDto } from "./institute.dto";
+import { InstituteBoardService } from "./institute-board.service";
+import { JoinInstituteDto, CreateTaskDto, CreateEventDto, UpdateEventDto, UpdateLecturerLevelDto, CreateTaskTemplateDto, CreateDividendDto, ApproveMemberDto, AssignRoleDto, UpdateMemberDto, RecommendToTalentDto, AddSharePointDto, InviteMemberDto, CreateBoardGroupDto } from "./institute.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
@@ -14,6 +15,7 @@ export class InstituteController {
   constructor(
     private svc: InstituteService,
     private assessment: InstituteAssessmentService,
+    private board: InstituteBoardService,
   ) {}
 
   // ════════════════════════════════════════
@@ -295,6 +297,46 @@ export class InstituteController {
   @ApiBearerAuth()
   recommendToTalent(@Req() req: Request, @Param("id") id: string, @Body() dto: RecommendToTalentDto) {
     return this.svc.recommendToTalentPool(req.user.id, id, dto.lecturerLevel);
+  }
+
+  // ════════════════════════════════════════
+  // 私董会小组（T9 §3.6.5·承载=私密子圈）
+  // ════════════════════════════════════════
+
+  @Get("board-groups")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "私董会小组列表（本院 ACTIVE 成员可见·实时人数/满员/已入组标注·入组走圈子详情 join 审批流）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "仅研究院成员可查看" })
+  @ApiBearerAuth()
+  listBoardGroups(@Req() req: Request) {
+    return this.board.listBoardGroups(req.user.id);
+  }
+
+  @Post("manage/board-groups")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "创建私董会小组（研究院管理层·建私密圈 FREE+needApproval·圈主=组长（本院 ACTIVE 讲席））" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败/组长非本院讲席成员" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "仅研究院管理层可操作" })
+  @ApiBearerAuth()
+  createBoardGroup(@Req() req: Request, @Body() dto: CreateBoardGroupDto) {
+    return this.board.createBoardGroup(req.user.id, dto);
+  }
+
+  @Put("manage/board-groups/:id/disband")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "解散私董会小组（研究院管理层·标记 DISBANDED·圈子本体保留由圈主自管）" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "小组已解散" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "仅研究院管理层可操作" })
+  @ApiResponse({ status: 404, description: "小组不存在" })
+  @ApiBearerAuth()
+  disbandBoardGroup(@Req() req: Request, @Param("id") id: string) {
+    return this.board.disbandBoardGroup(req.user.id, id);
   }
 
   // ════════════════════════════════════════

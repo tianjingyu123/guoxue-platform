@@ -80,6 +80,33 @@
           </view>
         </view>
 
+        <!-- 私董会小组 -->
+        <view v-else-if="activeTab === 'board'" class="list">
+          <view class="board-create-btn" @tap="openCreateGroup">
+            <app-icon name="users" :size="16" color="#fff" />
+            <text class="grant-btn-t">创建私董会小组</text>
+          </view>
+          <text class="board-hint">建组即自动创建私密圈（组长审批入组）· 组长须为讲席成员</text>
+
+          <text class="sub-title">现有小组</text>
+          <view v-if="boardErr" class="mini-empty">
+            <text class="mini-empty-text">{{ boardErr }}</text>
+            <view class="retry-btn" @tap="loadBoardGroups"><text class="retry-text">重试</text></view>
+          </view>
+          <view v-else-if="boardGroups.length === 0" class="mini-empty"><text class="mini-empty-text">暂无私董会小组</text></view>
+          <view v-for="g in boardGroups" :key="g.id" class="m-card">
+            <view class="bg-head">
+              <text class="bg-name">{{ g.name }}</text>
+              <text class="bg-status" :class="g.status === 'ACTIVE' ? 'bg-status-on' : 'bg-status-off'">{{ g.status === 'ACTIVE' ? '运行中' : '已解散' }}</text>
+            </view>
+            <text v-if="g.topic" class="bg-topic">议题：{{ g.topic }}</text>
+            <text class="m-meta">组长 {{ g.leader.nickname || '成员' }} · 成员 {{ g.memberCount }}/{{ g.memberLimit }}</text>
+            <view v-if="g.status === 'ACTIVE'" class="m-ops">
+              <view class="op-btn op-btn-danger" :class="{ 'act-disabled': disbandingId === g.id }" @tap="onDisband(g)"><text class="op-btn-danger-t">解散小组</text></view>
+            </view>
+          </view>
+        </view>
+
         <!-- 财务分红 -->
         <view v-else class="list">
           <view class="fin-card">
@@ -140,6 +167,43 @@
         </view>
       </view>
     </view>
+
+    <!-- 创建私董会小组弹窗 -->
+    <view v-if="createOpen" class="mask" @tap="createOpen = false">
+      <view class="sheet" @tap.stop>
+        <view class="sheet-head">
+          <text class="sheet-title">创建私董会小组</text>
+          <view @tap="createOpen = false"><app-icon name="x" :size="20" color="#1a1a1a" /></view>
+        </view>
+        <view class="sheet-body">
+          <view class="field">
+            <text class="field-label">组名</text>
+            <input class="field-input" v-model="groupForm.name" maxlength="30" placeholder="如：戊组 · 事业共研" placeholder-class="ph" />
+          </view>
+          <view class="field">
+            <text class="field-label">首期议题（选填）</text>
+            <input class="field-input" v-model="groupForm.topic" maxlength="60" placeholder="如：线下驿站的获客与留存" placeholder-class="ph" />
+          </view>
+          <view class="field">
+            <text class="field-label">组长</text>
+            <picker mode="selector" :range="memberNames" @change="onPickLeader">
+              <view class="picker-box"><text class="picker-text">{{ groupForm.leaderId ? leaderName : '请选择在册成员' }}</text><app-icon name="chevron-down" :size="16" color="#9ca3af" /></view>
+            </picker>
+            <text class="field-note">组长须为讲席（LECTURE）成员，非讲席提交将被驳回</text>
+          </view>
+          <view class="field">
+            <text class="field-label">人数上限</text>
+            <picker mode="selector" :range="limitOptions" @change="onPickLimit">
+              <view class="picker-box"><text class="picker-text">{{ groupForm.memberLimit }} 人</text><app-icon name="chevron-down" :size="16" color="#9ca3af" /></view>
+            </picker>
+            <text class="field-note">建议 6-12 人（闭门小组最佳规模），默认 12 人</text>
+          </view>
+          <view class="submit-btn" :class="{ 'submit-disabled': !canCreate || creating }" @tap="doCreateGroup">
+            <text class="submit-btn-t">{{ creating ? '创建中…' : '创建小组' }}</text>
+          </view>
+        </view>
+      </view>
+    </view>
   </view>
 </template>
 
@@ -152,7 +216,7 @@ import {
   instituteApi, roleLabel, roleColor, lecturerLevelLabel, lecturerLevelColor,
   dividendTypeLabel, memberName, num, fmtDate, MGMT_ROLES,
   type ManageOverview, type FinanceOverview, type InstituteMember,
-  type InstituteRole, type LecturerLevel, type DividendType,
+  type InstituteRole, type LecturerLevel, type DividendType, type BoardGroup,
 } from '@/lib/institute-data'
 
 const statusBarHeight = ref(0)
@@ -166,9 +230,10 @@ try {
 const tabs = [
   { key: 'audit' as const, label: '待审批' },
   { key: 'members' as const, label: '成员管理' },
+  { key: 'board' as const, label: '私董会' },
   { key: 'finance' as const, label: '财务分红' },
 ]
-const activeTab = ref<'audit' | 'members' | 'finance'>('audit')
+const activeTab = ref<'audit' | 'members' | 'board' | 'finance'>('audit')
 
 const loading = ref(true)
 const errMsg = ref('')
@@ -192,6 +257,8 @@ async function load() {
     finance.value = fin
     pending.value = pend
     members.value = mem
+    // 私董会小组独立加载：失败不拖垮整页，tab 内展示错误+重试
+    loadBoardGroups()
   } catch (e) {
     errMsg.value = (e as Error)?.message?.includes('管理层') ? '仅研究院管理层可访问本页' : ((e as Error)?.message || '加载失败')
   } finally {
@@ -254,6 +321,81 @@ function onRecommend(m: InstituteMember) {
         await load()
       } catch (e) {
         uni.showToast({ title: (e as Error)?.message || '操作失败', icon: 'none' })
+      }
+    },
+  })
+}
+
+// ── 私董会小组（T9-P1·建组=建私密圈）──
+const boardGroups = ref<BoardGroup[]>([])
+const boardErr = ref('')
+const disbandingId = ref('')
+
+async function loadBoardGroups() {
+  boardErr.value = ''
+  try {
+    boardGroups.value = await instituteApi.getBoardGroups()
+  } catch (e) {
+    boardErr.value = (e as Error)?.message || '小组列表加载失败'
+  }
+}
+
+const createOpen = ref(false)
+const creating = ref(false)
+const groupForm = ref({ name: '', topic: '', leaderId: '', memberLimit: 12 })
+/** 人数上限 6-20 人 */
+const limitOptions = Array.from({ length: 15 }, (_, i) => `${i + 6} 人`)
+const leaderName = computed(() => memberName(members.value.find((m) => m.userId === groupForm.value.leaderId)?.user))
+const canCreate = computed(() => !!groupForm.value.name.trim() && !!groupForm.value.leaderId)
+
+function openCreateGroup() {
+  groupForm.value = { name: '', topic: '', leaderId: '', memberLimit: 12 }
+  createOpen.value = true
+}
+function onPickLeader(e: { detail: { value: number } }) {
+  const idx = Number(e.detail.value)
+  groupForm.value.leaderId = members.value[idx]?.userId || ''
+}
+function onPickLimit(e: { detail: { value: number } }) {
+  groupForm.value.memberLimit = Number(e.detail.value) + 6
+}
+async function doCreateGroup() {
+  if (!canCreate.value || creating.value) return
+  creating.value = true
+  try {
+    await instituteApi.createBoardGroup({
+      name: groupForm.value.name.trim(),
+      topic: groupForm.value.topic.trim() || undefined,
+      leaderId: groupForm.value.leaderId,
+      memberLimit: groupForm.value.memberLimit,
+    })
+    uni.showToast({ title: '小组已创建', icon: 'success' })
+    createOpen.value = false
+    await loadBoardGroups()
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '创建失败', icon: 'none' })
+  } finally {
+    creating.value = false
+  }
+}
+function onDisband(g: BoardGroup) {
+  if (disbandingId.value) return
+  uni.showModal({
+    title: '解散小组',
+    content: `确认解散「${g.name}」？解散后小组私密圈将停止运营，成员不再可见。`,
+    confirmText: '解散',
+    confirmColor: '#dc2626',
+    success: async (res) => {
+      if (!res.confirm) return
+      disbandingId.value = g.id
+      try {
+        await instituteApi.disbandBoardGroup(g.id)
+        uni.showToast({ title: '已解散', icon: 'success' })
+        await loadBoardGroups()
+      } catch (e) {
+        uni.showToast({ title: (e as Error)?.message || '操作失败', icon: 'none' })
+      } finally {
+        disbandingId.value = ''
       }
     },
   })
@@ -355,6 +497,19 @@ async function doGrant() {
 .m-ops { display: flex; gap: 8px; margin-top: 12px; justify-content: flex-end; }
 .op-btn { padding: 6px 16px; border: 1px solid var(--brand); border-radius: 8px; }
 .op-btn-t { font-size: 12px; color: var(--brand); }
+
+/* 私董会小组 */
+.board-create-btn { display: flex; align-items: center; justify-content: center; gap: 6px; height: 44px; background: var(--brand); border-radius: 10px; }
+.board-hint { display: block; font-size: 11px; color: #9ca3af; margin-top: 8px; text-align: center; }
+.bg-head { display: flex; align-items: center; gap: 8px; }
+.bg-name { flex: 1; min-width: 0; font-size: 15px; font-weight: 600; color: #1a1a1a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bg-status { font-size: 11px; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+.bg-status-on { color: #16a34a; background: #f0fdf4; }
+.bg-status-off { color: #9ca3af; background: #f3f4f6; }
+.bg-topic { display: block; font-size: 12px; color: #4b5563; margin-top: 6px; }
+.op-btn-danger { border-color: #dc2626; }
+.op-btn-danger-t { font-size: 12px; color: #dc2626; }
+.field-note { display: block; font-size: 11px; color: #9ca3af; margin-top: 6px; }
 
 .fin-card { background: #fff; border-radius: 12px; padding: 16px; }
 .fin-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; }
