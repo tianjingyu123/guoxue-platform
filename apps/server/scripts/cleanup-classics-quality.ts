@@ -29,6 +29,14 @@ interface Doomed {
 }
 
 async function main() {
+  // 规则 D（先于 A-C）：删除殆知阁爬虫导航垃圾章（每书 1 章"浏览传统典籍"目录页，8600 章）
+  if (!DRY_RUN) {
+    const junk = await prisma.$executeRawUnsafe(
+      `DELETE FROM "ClassicChapter" WHERE content LIKE '殆知阁%中国古典文献%' OR content LIKE '%浏览\n传统典籍，\n探索\n中华文化宝库%'`,
+    );
+    console.log(`规则D：删除爬虫导航垃圾章 ${junk} 条`);
+  }
+
   // 书单引用的书强制保护（bookIds 为 Json 数组无外键）
   const bookLists = await prisma.classicBookList.findMany({ select: { bookIds: true } });
   const protectedIds = new Set<string>();
@@ -66,7 +74,7 @@ async function main() {
     const rules: string[] = [];
     if (ch >= 3 && shortCh / ch >= 0.7) rules.push("A空壳书");
     if (totalLen < 2000 && ch >= 3) rules.push("B1多章残书");
-    if (totalLen < 500) rules.push("B2极小残篇");
+    if (totalLen < 500) rules.push("B2极小残篇"); // 含规则D删净后变 0 章的书
     if (maxLen >= 50_000 && totalLen < maxLen * 0.1 && ch <= maxCh * 0.2) rules.push("C重复残缺版");
     if (rules.length) doomed.push({ id: r.id, title: r.title, source: r.source, ch, totalLen, rules });
   }
