@@ -13,6 +13,7 @@ import {
   CreateStationOrderDto, CreateSettlementDto,
   AuditCourseDto,
   UpdateOrderStatusDto, CreateTeacherRequestDto, RespondTeacherRequestDto,
+  CreateCourseReviewDto,
 } from "./offline.dto";
 import { CreateTeacherDto, UpdateTeacherDto, SetAvailabilityDto, CreateTeacherFromSignedDto } from "./dto/teacher.dto";
 
@@ -252,6 +253,42 @@ export class OfflineController {
   @ApiResponse({ status: 404, description: "资源不存在" })
   listRegistrations(@Param("id") id: string, @Query("page") page?: number, @Query("pageSize") pageSize?: number) {
     return this.svc.listRegistrations(id, Number(page) || 1, Number(pageSize) || 20);
+  }
+
+  // ───────── 课后评价（T8 OMO） ─────────
+
+  @Post("courses/:id/reviews")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "发表课后评价（需本人已签到，一课一评）" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "未签到不能评/已评价过本课程/参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiBearerAuth()
+  createCourseReview(@Req() req: Request, @Param("id") id: string, @Body() dto: CreateCourseReviewDto) {
+    return this.svc.createCourseReview(req.user.id, id, dto);
+  }
+
+  @Get("courses/:id/reviews")
+  @ApiOperation({ summary: "课程评价列表（公开分页，仅昵称+头像脱敏返回）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiQuery({ name: "page", required: false, type: Number })
+  @ApiQuery({ name: "pageSize", required: false, type: Number })
+  listCourseReviews(@Param("id") id: string, @Query("page") page?: number, @Query("pageSize") pageSize?: number) {
+    return this.svc.listCourseReviews(id, Number(page) || 1, Number(pageSize) || 20);
+  }
+
+  // ───────── 课后同学圈（T8 OMO·驿站主经营后台） ─────────
+
+  @Post("dashboard/courses/:id/study-circle")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "为课程创建同学圈（驿站主·幂等：已建则直接返回 circleId）" })
+  @ApiResponse({ status: 201, description: "创建成功/已存在，返回 { circleId }" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "非该驿站主" })
+  @ApiResponse({ status: 404, description: "课程不存在" })
+  @ApiBearerAuth()
+  createStudyCircle(@Req() req: Request, @Param("id") id: string) {
+    return this.svc.createStudyCircle(req.user.id, id);
   }
 
   // ───────── 驿站商品 ─────────

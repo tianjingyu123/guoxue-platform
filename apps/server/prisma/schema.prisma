@@ -2122,13 +2122,32 @@ model OfflineCourse {
   auditReason   String?
   isRecommended Boolean   @default(false)
   recommendedAt DateTime?
+  circleId      String? // 课后同学圈（T8 OMO：建圈后回写，幂等依据）
   createdAt     DateTime  @default(now())
 
   station       StationOffline              @relation(fields: [stationId], references: [id])
   registrations OfflineCourseRegistration[]
+  reviews       OfflineCourseReview[]
 
   @@index([stationId, startTime])
   @@index([auditStatus])
+}
+
+model OfflineCourseReview {
+  id             String   @id @default(uuid())
+  courseId       String
+  stationId      String // 冗余驿站 id，便于驿站维度评分聚合
+  userId         String
+  registrationId String   @unique // 一条报名记录只能评一次（防二评）
+  rating         Int // 1-5 星
+  content        String?
+  createdAt      DateTime @default(now())
+
+  course OfflineCourse @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@index([courseId, createdAt])
+  @@index([stationId])
+  @@index([userId])
 }
 
 model OfflineCourseRegistration {

@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsInt, IsNumber, IsBoolean, IsIn, MinLength } from "class-validator";
+import { IsString, IsOptional, IsInt, IsNumber, IsBoolean, IsIn, MinLength, MaxLength, Min, Max } from "class-validator";
 import { Type } from "class-transformer";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 
@@ -239,4 +239,16 @@ export class CreateTeacherRequestDto {
 export class RespondTeacherRequestDto {
   @ApiProperty({ description: "响应状态" })
   status: string;
+}
+
+// ───────── 课后评价（T8 OMO） ─────────
+
+export class CreateCourseReviewDto {
+  @ApiProperty({ description: "评分 1-5 星" })
+  @Type(() => Number) @IsInt() @Min(1) @Max(5)
+  rating: number;
+
+  @ApiPropertyOptional({ description: "评价内容（≤500字）" })
+  @IsOptional() @IsString() @MaxLength(500)
+  content?: string;
 }
