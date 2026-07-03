@@ -58,6 +58,9 @@ export class FeedItemDto {
 
   @ApiPropertyOptional({ description: "摘要" })
   excerpt?: string;
+
+  @ApiPropertyOptional({ description: "创建时间（ISO，质量提权后的排序基准仍返回原始值）" })
+  createdAt?: string;
 }
 
 export class HomeResponseDto {

@@ -1,6 +1,7 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, Optional } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
+import { ContentQualityService } from "../content-quality/content-quality.service";
 import { BannerDto, DailyVerseDto, FeedItemDto, HomeResponseDto } from "./home.dto";
 
 /** 首页缓存 TTL（秒）— 全站最高频接口，短缓存即可大幅降压 */
@@ -15,6 +16,7 @@ export class HomeService {
   constructor(
     private prisma: PrismaService,
     private redis: RedisService,
+    @Optional() private contentQuality?: ContentQualityService,
   ) {}
 
   async getHome(params: { page: number; pageSize: number; userId?: string }): Promise<HomeResponseDto> {
@@ -142,7 +144,24 @@ export class HomeService {
         ...videos.map((v) => ({ id: v.id, type: "video" as const, title: v.title ?? undefined, cover: v.coverUrl ?? undefined, createdAt: v.createdAt.toISOString(), tag: "视频" })),
       ];
 
-      // 内容已按各自维度排序（最新/最热），按类型分组呈现
+      // 质量流量倾斜（T7）：文章/帖子按 AI 质量分调整「等效时间」——A 级 +48h 提权、D 级 -48h 沉底；
+      // 随后全量按等效时间倒序，形成统一混排（提权失败静默不影响 feed）
+      const offsetKey = (type: string, id: string) => `${type}:${id}`;
+      let boost = new Map<string, number>();
+      if (this.contentQuality) {
+        boost = await this.contentQuality.getBoostMap([
+          ...articles.map((a) => ({ type: "ARTICLE", id: a.id })),
+          ...posts.map((p) => ({ type: "POST", id: p.id })),
+        ]);
+      }
+      const effectiveTime = (it: FeedItemDto): number => {
+        const base = it.createdAt ? new Date(it.createdAt).getTime() : 0;
+        if (it.type === "article") return base + (boost.get(offsetKey("ARTICLE", it.id)) ?? 0);
+        if (it.type === "circle_post") return base + (boost.get(offsetKey("POST", it.id)) ?? 0);
+        return base;
+      };
+      items.sort((a, b) => effectiveTime(b) - effectiveTime(a));
+
       const total = items.length;
       const paged = items.slice((page - 1) * pageSize, page * pageSize);
 

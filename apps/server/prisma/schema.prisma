@@ -6108,6 +6108,25 @@ model UserGrowth {
   updatedAt       DateTime  @updatedAt
 }
 
+/// AI 内容质量评分（T7·四维：深度/原创/实用/吸引，各 0-25 总分 0-100）：高分流量倾斜、低分降权
+model ContentQualityScore {
+  id          String   @id @default(uuid())
+  targetType  String // ARTICLE / POST
+  targetId    String
+  depth       Int
+  originality Int
+  utility     Int
+  appeal      Int
+  total       Int // 四维之和 0-100
+  grade       String // A(>=80) / B(>=60) / C(>=40) / D(<40)
+  reason      String? // AI 一句话评语（后台可见）
+  model       String? // 打分模型标识
+  scoredAt    DateTime @default(now())
+
+  @@unique([targetType, targetId])
+  @@index([targetType, total])
+}
+
 /// 成就记录（成就定义为代码常量，沿用圈子徽章范式；分享卡=V1 裂变载体）
 model UserAchievement {
   id       String   @id @default(uuid())
