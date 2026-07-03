@@ -55,6 +55,7 @@ const mockPrisma: any = {
     if (Array.isArray(arg)) return Promise.all(arg);
     return arg(mockPrisma);
   }),
+  $executeRaw: jest.fn().mockResolvedValue(1),
   product: {
     create: jest.fn(),
     findUnique: jest.fn(),
@@ -85,6 +86,11 @@ const mockPrisma: any = {
     update: jest.fn(),
     updateMany: jest.fn().mockResolvedValue({ count: 1 }),
     count: jest.fn(),
+    aggregate: jest.fn().mockResolvedValue({ _sum: { quantity: 0 } }),
+  },
+  flashSaleItem: {
+    findFirst: jest.fn(),
+    updateMany: jest.fn().mockResolvedValue({ count: 1 }),
   },
   orderLogistics: {
     findUnique: jest.fn(),
@@ -336,6 +342,131 @@ describe("ShopService", () => {
       expect(mockPrisma.productSku.updateMany).toHaveBeenCalledWith(
         expect.objectContaining({ data: { stock: { increment: 3 } } }),
       )
+    })
+  })
+
+  // ═══════════════════ 秒杀资金链路（两道闸 + 回补） ═══════════════════
+
+  describe("秒杀资金链路", () => {
+    const flashPricing = {
+      productId: "p1",
+      effectivePrice: 9.9,
+      originalPrice: 99,
+      appliedPromotion: { type: "FLASH_SALE", id: "fs1", name: "秒杀", priority: 100, price: 9.9 },
+      activePromotions: [],
+      hasPromotion: true,
+    }
+
+    function setupFlashOrder(limitCount = 5) {
+      mockUnifiedPricing.calculateEffectivePrice.mockResolvedValue(flashPricing)
+      mockPrisma.product.findUnique.mockResolvedValue({ id: "p1", price: 99, status: "ON_SALE" })
+      mockPrisma.flashSaleItem.findFirst.mockResolvedValue({ id: "fi1", limitCount })
+      mockPrisma.order.aggregate.mockResolvedValue({ _sum: { quantity: 0 } })
+      mockPrisma.$executeRaw.mockResolvedValue(1)
+      mockPrisma.order.create.mockResolvedValue({ id: "o-flash", status: "PENDING" })
+    }
+
+    it("秒杀正常成交：秒杀条目量与商品库存双扣", async () => {
+      setupFlashOrder()
+      const result = await svc.createOrder("u1", { type: "PRODUCT", targetId: "p1", amount: 2 })
+      expect(result.id).toBe("o-flash")
+      // 闸2: 秒杀条目量原子扣减（raw 条件 UPDATE）
+      expect(mockPrisma.$executeRaw).toHaveBeenCalledTimes(1)
+      // 原有商品库存 CAS 扣减不受影响（两道闸并存）
+      expect(mockPrisma.product.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: "p1", stock: { gte: 2 } },
+          data: { stock: { decrement: 2 } },
+        }),
+      )
+      // 订单落库带活动标记与数量
+      expect(mockPrisma.order.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ promotionType: "FLASH_SALE", promotionId: "fs1", quantity: 2 }),
+        }),
+      )
+    })
+
+    it("秒杀条目量耗尽：拒绝下单且不创建订单", async () => {
+      setupFlashOrder()
+      mockPrisma.$executeRaw.mockResolvedValue(0) // sold + qty > stock，条件 UPDATE 影响 0 行
+      await expect(
+        svc.createOrder("u1", { type: "PRODUCT", targetId: "p1", amount: 1 }),
+      ).rejects.toThrow("秒杀商品已抢完")
+      expect(mockPrisma.order.create).not.toHaveBeenCalled()
+    })
+
+    it("超出每人限购：拒绝下单且不扣秒杀量", async () => {
+      setupFlashOrder(2)
+      mockPrisma.order.aggregate.mockResolvedValue({ _sum: { quantity: 2 } }) // 已买满 2 件
+      await expect(
+        svc.createOrder("u1", { type: "PRODUCT", targetId: "p1", amount: 1 }),
+      ).rejects.toThrow("超出每人限购 2 件")
+      expect(mockPrisma.$executeRaw).not.toHaveBeenCalled()
+      expect(mockPrisma.order.create).not.toHaveBeenCalled()
+    })
+
+    it("limitCount=0 不限购：不统计历史订单直接成交", async () => {
+      setupFlashOrder(0)
+      const result = await svc.createOrder("u1", { type: "PRODUCT", targetId: "p1", amount: 3 })
+      expect(result.id).toBe("o-flash")
+      expect(mockPrisma.order.aggregate).not.toHaveBeenCalled()
+      expect(mockPrisma.$executeRaw).toHaveBeenCalledTimes(1)
+    })
+
+    it("非秒杀订单：完全不触碰 FlashSaleItem", async () => {
+      mockUnifiedPricing.calculateEffectivePrice.mockResolvedValue({
+        productId: "p1", effectivePrice: 99, originalPrice: 99,
+        appliedPromotion: null, activePromotions: [], hasPromotion: false,
+      })
+      mockPrisma.product.findUnique.mockResolvedValue({ id: "p1", price: 99, status: "ON_SALE" })
+      mockPrisma.order.create.mockResolvedValue({ id: "o-normal", status: "PENDING" })
+      const result = await svc.createOrder("u1", { type: "PRODUCT", targetId: "p1", amount: 1 })
+      expect(result.id).toBe("o-normal")
+      expect(mockPrisma.flashSaleItem.findFirst).not.toHaveBeenCalled()
+      expect(mockPrisma.$executeRaw).not.toHaveBeenCalled()
+      // 常规商品库存扣减照常执行
+      expect(mockPrisma.product.updateMany).toHaveBeenCalled()
+    })
+
+    it("取消秒杀订单：回补 FlashSaleItem.sold", async () => {
+      mockPrisma.order.findUnique.mockResolvedValue({
+        id: "o1", userId: "u1", status: "PENDING", type: "PRODUCT",
+        targetId: "p1", skuId: null, quantity: 2,
+        promotionType: "FLASH_SALE", promotionId: "fs1",
+      })
+      mockPrisma.flashSaleItem.updateMany.mockResolvedValue({ count: 1 })
+      await svc.cancelOrder("o1", "u1")
+      expect(mockPrisma.flashSaleItem.updateMany).toHaveBeenCalledWith({
+        where: { flashSaleId: "fs1", productId: "p1", sold: { gte: 2 } },
+        data: { sold: { decrement: 2 } },
+      })
+    })
+
+    it("取消回补防负数：sold 不足时归零兜底", async () => {
+      mockPrisma.order.findUnique.mockResolvedValue({
+        id: "o1", userId: "u1", status: "PENDING", type: "PRODUCT",
+        targetId: "p1", skuId: null, quantity: 5,
+        promotionType: "FLASH_SALE", promotionId: "fs1",
+      })
+      mockPrisma.flashSaleItem.updateMany
+        .mockResolvedValueOnce({ count: 0 }) // sold < 5，带 gte 守卫的 decrement 未命中
+        .mockResolvedValueOnce({ count: 1 })
+      await svc.cancelOrder("o1", "u1")
+      expect(mockPrisma.flashSaleItem.updateMany).toHaveBeenNthCalledWith(2, {
+        where: { flashSaleId: "fs1", productId: "p1", sold: { gt: 0 } },
+        data: { sold: 0 },
+      })
+    })
+
+    it("取消非秒杀订单：不触碰 FlashSaleItem", async () => {
+      mockPrisma.order.findUnique.mockResolvedValue({
+        id: "o1", userId: "u1", status: "PENDING", type: "PRODUCT",
+        targetId: "p1", skuId: null, quantity: 1,
+        promotionType: null, promotionId: null,
+      })
+      await svc.cancelOrder("o1", "u1")
+      expect(mockPrisma.flashSaleItem.updateMany).not.toHaveBeenCalled()
     })
   })
 

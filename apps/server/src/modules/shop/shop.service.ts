@@ -505,6 +505,47 @@ export class ShopService {
         actualAmount = Math.max(0.01, Math.round((actualAmount - selfDiscount) * 100) / 100);
       }
 
+      // ── 秒杀两道闸（每人限购 + 秒杀条目量原子扣减）──
+      // FlashSaleItem 按 @@unique([flashSaleId, productId]) 唯一定位；
+      // 与下方 Product/SKU 库存 CAS 扣减并存：两道闸都通过才成交。
+      if (promotionType === "FLASH_SALE" && promotionId) {
+        const flashItem = await tx.flashSaleItem.findFirst({
+          where: { flashSaleId: promotionId, productId: dto.targetId },
+          select: { id: true, limitCount: true },
+        });
+        if (!flashItem) {
+          throw new BusinessException(ErrorCode.FLASH_SALE_NOT_FOUND, "秒杀商品不存在");
+        }
+
+        // 闸1: 每人限购（limitCount > 0 才限购）：统计该用户同活动有效订单（未取消/未退款）已购数量
+        if (flashItem.limitCount > 0) {
+          const bought = await tx.order.aggregate({
+            where: {
+              userId,
+              promotionType: "FLASH_SALE",
+              promotionId,
+              targetId: dto.targetId,
+              status: { notIn: ["CANCELLED", "REFUNDED"] },
+            },
+            _sum: { quantity: true },
+          });
+          const boughtQty = bought._sum.quantity ?? 0;
+          if (boughtQty + qty > flashItem.limitCount) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, `超出每人限购 ${flashItem.limitCount} 件`);
+          }
+        }
+
+        // 闸2: 原子扣减秒杀条目量（Prisma 不支持列间比较，用条件 UPDATE：sold + qty <= stock 才成交）
+        const flashDeducted = await tx.$executeRaw`
+          UPDATE "FlashSaleItem"
+          SET "sold" = "sold" + ${qty}, "updatedAt" = NOW()
+          WHERE "id" = ${flashItem.id} AND "sold" + ${qty} <= "stock"
+        `;
+        if (flashDeducted === 0) {
+          throw new BusinessException(ErrorCode.PRODUCT_OUT_OF_STOCK, "秒杀商品已抢完");
+        }
+      }
+
       const order = await tx.order.create({
         data: {
           userId,
@@ -1517,6 +1558,11 @@ export class ShopService {
           }
         }
 
+        // 秒杀订单：同步回补秒杀条目已售量（防负数：sold ≥ quantity 才 decrement，不足则归零兜底）
+        if (order.promotionType === "FLASH_SALE" && order.promotionId && order.targetId) {
+          await this.restoreFlashSaleSold(tx, order.promotionId, order.targetId, order.quantity);
+        }
+
         // 释放优惠券
         if (order.couponId) {
           await tx.userCoupon.updateMany({
@@ -1534,6 +1580,29 @@ export class ShopService {
     }
   }
 
+  /**
+   * 回补秒杀条目已售量（订单取消/超时取消时与 Product.stock 回补对称执行）。
+   * 防负数：sold ≥ qty 才 decrement；不足时归零兜底（不允许出现负已售）。
+   */
+  private async restoreFlashSaleSold(
+    tx: Prisma.TransactionClient,
+    flashSaleId: string,
+    productId: string,
+    qty: number,
+  ) {
+    const dec = await tx.flashSaleItem.updateMany({
+      where: { flashSaleId, productId, sold: { gte: qty } },
+      data: { sold: { decrement: qty } },
+    });
+    if (dec.count === 0) {
+      // sold 不足 qty（理论上不应发生）：归零兜底，避免负数
+      await tx.flashSaleItem.updateMany({
+        where: { flashSaleId, productId, sold: { gt: 0 } },
+        data: { sold: 0 },
+      });
+    }
+  }
+
   // ───────── 超时未支付自动取消 ─────────
 
   /**
@@ -1547,7 +1616,7 @@ export class ShopService {
 
     const expiredOrders = await this.prisma.order.findMany({
       where: { status: "PENDING", createdAt: { lt: cutoff } },
-      select: { id: true, type: true, skuId: true, targetId: true, couponId: true },
+      select: { id: true, type: true, skuId: true, targetId: true, couponId: true, quantity: true, promotionType: true, promotionId: true },
       take: 100,
     });
 
@@ -1573,11 +1642,11 @@ export class ShopService {
 
         if (result.count === 0) return;
 
-        // 聚合 SKU 库存恢复
+        // 聚合 SKU 库存恢复（按下单数量 quantity 回补，与 createOrder 扣减对称）
         const skuCounts = new Map<string, number>();
         for (const o of expiredOrders) {
           if (lockedIds.includes(o.id) && o.type !== "MEMBER" && o.skuId) {
-            skuCounts.set(o.skuId, (skuCounts.get(o.skuId) || 0) + 1);
+            skuCounts.set(o.skuId, (skuCounts.get(o.skuId) || 0) + o.quantity);
           }
         }
         for (const [skuId, count] of skuCounts) {
@@ -1587,11 +1656,11 @@ export class ShopService {
           });
         }
 
-        // 聚合商品库存恢复
+        // 聚合商品库存恢复（按下单数量 quantity 回补，与 createOrder 扣减对称）
         const productCounts = new Map<string, number>();
         for (const o of expiredOrders) {
           if (lockedIds.includes(o.id) && o.type !== "MEMBER" && !o.skuId && o.targetId) {
-            productCounts.set(o.targetId, (productCounts.get(o.targetId) || 0) + 1);
+            productCounts.set(o.targetId, (productCounts.get(o.targetId) || 0) + o.quantity);
           }
         }
         for (const [targetId, count] of productCounts) {
@@ -1599,6 +1668,23 @@ export class ShopService {
             where: { id: targetId },
             data: { stock: { increment: count } },
           });
+        }
+
+        // 聚合秒杀条目已售量回补（与取消单量对称·防负数见 restoreFlashSaleSold）
+        const flashCounts = new Map<string, { flashSaleId: string; productId: string; qty: number }>();
+        for (const o of expiredOrders) {
+          if (lockedIds.includes(o.id) && o.promotionType === "FLASH_SALE" && o.promotionId && o.targetId) {
+            const key = `${o.promotionId}:${o.targetId}`;
+            const prev = flashCounts.get(key);
+            flashCounts.set(key, {
+              flashSaleId: o.promotionId,
+              productId: o.targetId,
+              qty: (prev?.qty || 0) + o.quantity,
+            });
+          }
+        }
+        for (const { flashSaleId, productId, qty } of flashCounts.values()) {
+          await this.restoreFlashSaleSold(tx, flashSaleId, productId, qty);
         }
 
         // 批量释放优惠券
