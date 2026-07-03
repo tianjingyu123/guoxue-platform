@@ -35,6 +35,14 @@
         <!-- 基本信息 -->
         <view class="sd-info">
           <text class="sd-name">{{ station.name }}</text>
+          <!-- 评分聚合（无 rating 字段=暂无评价 → 诚实不渲染） -->
+          <view v-if="station.rating" class="sd-rating-row">
+            <view class="sd-stars">
+              <app-icon v-for="s in 5" :key="s" name="star" :size="14" :color="s <= ratingRounded ? '#f59e0b' : '#e5e7eb'" :fill="s <= ratingRounded" />
+            </view>
+            <text class="sd-rating-avg">{{ station.rating.avg.toFixed(1) }}</text>
+            <text class="sd-rating-count">· {{ station.rating.count }} 条评价</text>
+          </view>
           <view class="sd-row">
             <app-icon name="map-pin" :size="16" color="#9ca3af" />
             <text class="sd-row-text">{{ station.city }} · {{ station.address }}</text>
@@ -169,10 +177,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { ref, computed } from 'vue'
+import { onLoad, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
+import { useShare } from '@/composables/useShare'
 import {
   offlineApi, getStationTypeLabel, getFacilityInfo, stationStatusLabel,
   deriveCourseStatus, courseStatusLabel, courseStatusStyle, fmtCourseTime, num,
@@ -223,6 +232,28 @@ onLoad((q) => {
   load()
 })
 
+const ratingRounded = computed(() => Math.round(station.value?.rating?.avg || 0))
+
+// 微信原生分享（好友/朋友圈）—— 路径由 useShare 自动携带分享者 ref（推广归因）
+const { toAppMessage, toTimeline } = useShare()
+const shareTitle = () => station.value?.name || '国学驿站'
+const shareSummary = () => {
+  const intro = station.value?.intro || ''
+  return intro.length > 40 ? intro.slice(0, 40) + '…' : intro || undefined
+}
+onShareAppMessage(() => toAppMessage({
+  title: shareTitle(),
+  summary: shareSummary(),
+  path: `/offline/stations/${stationId.value}`,
+  cover: station.value?.cover || undefined,
+}))
+onShareTimeline(() => toTimeline({
+  title: shareTitle(),
+  summary: shareSummary(),
+  path: `/offline/stations/${stationId.value}`,
+  cover: station.value?.cover || undefined,
+}))
+
 function onCall() {
   if (station.value?.phone) uni.makePhoneCall({ phoneNumber: station.value.phone }).catch(() => {})
 }
@@ -254,6 +285,10 @@ function goBooking(teacherId?: string) {
 .sd-cover-status { position: absolute; top: 12px; right: 12px; padding: 3px 10px; font-size: 12px; color: #fff; background: rgba(0,0,0,0.5); border-radius: 6px; }
 .sd-info { padding: 16px; background: #fff; }
 .sd-name { font-size: 20px; font-weight: 700; color: #1a1a1a; }
+.sd-rating-row { display: flex; align-items: center; gap: 6px; margin-top: 8px; }
+.sd-stars { display: flex; align-items: center; gap: 2px; }
+.sd-rating-avg { font-size: 14px; font-weight: 700; color: #f59e0b; }
+.sd-rating-count { font-size: 12px; color: #9ca3af; }
 .sd-row { display: flex; align-items: flex-start; gap: 8px; margin-top: 12px; }
 .sd-row-text { flex: 1; font-size: 13px; color: #6b7280; line-height: 1.5; }
 .sd-phone { margin-top: 8px; }

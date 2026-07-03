@@ -127,6 +127,64 @@
               </view>
             </view>
           </view>
+
+          <!-- 课程同学圈入口（有 circleId 才显示） -->
+          <view v-if="course.circleId" class="cd-circle-card" @tap="goCircle">
+            <view class="cd-circle-icon"><app-icon name="users" :size="22" color="#c41e3a" /></view>
+            <view class="cd-circle-info">
+              <text class="cd-circle-title">课程同学圈</text>
+              <text class="cd-circle-desc">和同学继续交流</text>
+            </view>
+            <app-icon name="chevron-right" :size="18" color="#9ca3af" />
+          </view>
+
+          <!-- 学员评价 -->
+          <view class="cd-card cd-reviews">
+            <view class="cd-rev-head">
+              <text class="cd-rev-sec-title">学员评价</text>
+              <view v-if="canReview" class="cd-write-btn" @tap="openReview"><text class="cd-write-btn-text">写评价</text></view>
+            </view>
+
+            <view v-if="reviewsTotal > 0" class="cd-rev-summary">
+              <view class="cd-stars">
+                <app-icon v-for="s in 5" :key="s" name="star" :size="16" :color="s <= roundedAvg ? '#f59e0b' : '#e5e7eb'" :fill="s <= roundedAvg" />
+              </view>
+              <text class="cd-rev-avg">{{ avgRating.toFixed(1) }}</text>
+              <text class="cd-rev-count">· {{ reviewsTotal }} 条评价</text>
+            </view>
+
+            <!-- 三态 -->
+            <view v-if="reviewsLoading" class="cd-rev-state"><view class="spinner sm" /><text class="cd-state-text">评价加载中…</text></view>
+            <view v-else-if="reviewsError" class="cd-rev-state">
+              <text class="cd-state-text">{{ reviewsError }}</text>
+              <view class="retry-btn" @tap="loadReviews(true)"><text class="retry-text">重试</text></view>
+            </view>
+            <view v-else-if="reviews.length === 0" class="cd-rev-state"><text class="cd-state-text">暂无评价，签到学员可率先点评</text></view>
+
+            <template v-else>
+              <view v-for="(r, i) in displayedReviews" :key="r.id || i" class="cd-rev-item">
+                <image lazy-load v-if="r.avatar" :src="r.avatar" class="cd-rev-avatar-img" mode="aspectFill" />
+                <view v-else class="cd-rev-avatar"><text class="cd-rev-avatar-text">{{ (r.nickname || '学')[0] }}</text></view>
+                <view class="cd-rev-main">
+                  <view class="cd-rev-row">
+                    <text class="cd-rev-name">{{ r.nickname || '学员' }}</text>
+                    <text class="cd-rev-date">{{ fmtDate(r.createdAt) }}</text>
+                  </view>
+                  <view class="cd-stars">
+                    <app-icon v-for="s in 5" :key="s" name="star" :size="12" :color="s <= r.rating ? '#f59e0b' : '#e5e7eb'" :fill="s <= r.rating" />
+                  </view>
+                  <text v-if="r.content" class="cd-rev-content">{{ r.content }}</text>
+                </view>
+              </view>
+
+              <view v-if="!reviewsExpanded && reviewsTotal > 3" class="cd-rev-more" @tap="expandReviews">
+                <text class="cd-rev-more-text">查看全部 {{ reviewsTotal }} 条评价</text>
+              </view>
+              <view v-else-if="reviewsExpanded && hasMoreReviews" class="cd-rev-more" @tap="loadMoreReviews">
+                <text class="cd-rev-more-text">{{ reviewsLoadingMore ? '加载中…' : '加载更多' }}</text>
+              </view>
+            </template>
+          </view>
         </view>
         <view class="cd-safe" />
       </scroll-view>
@@ -172,6 +230,33 @@
         </view>
       </view>
 
+      <!-- 写评价弹层 -->
+      <view v-if="showReviewModal" class="cd-modal-mask" @tap="closeReview">
+        <view class="cd-modal" @tap.stop>
+          <view class="cd-modal-head">
+            <text class="cd-modal-title">评价课程</text>
+            <view @tap="closeReview"><app-icon name="x" :size="20" color="#1a1a1a" /></view>
+          </view>
+          <view class="cd-rate-row">
+            <view v-for="s in 5" :key="s" class="cd-rate-star" @tap="reviewRating = s">
+              <app-icon name="star" :size="32" :color="s <= reviewRating ? '#f59e0b' : '#e5e7eb'" :fill="s <= reviewRating" />
+            </view>
+          </view>
+          <text class="cd-rate-label">{{ ratingLabels[reviewRating - 1] || '点击星星评分' }}</text>
+          <textarea
+            v-model="reviewContent"
+            class="cd-rev-textarea"
+            :maxlength="500"
+            placeholder="分享你的上课体验（选填，500字以内）"
+            placeholder-class="cd-rev-ph"
+          />
+          <text class="cd-rev-counter">{{ reviewContent.length }}/500</text>
+          <view class="cd-modal-btn submit" :class="{ disabled: reviewSubmitting }" @tap="submitReview">
+            <text class="cd-modal-btn-text submit">{{ reviewSubmitting ? '提交中…' : '提交评价' }}</text>
+          </view>
+        </view>
+      </view>
+
       <!-- 取消报名确认 -->
       <view v-if="showCancelConfirm" class="cd-modal-mask" @tap="showCancelConfirm = false">
         <view class="cd-modal" @tap.stop>
@@ -192,10 +277,10 @@
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
-import { goBack } from '@/utils/router'
+import { goBack, navigateTo } from '@/utils/router'
 import {
-  offlineApi, deriveCourseStatus, courseStatusLabel, courseStatusStyle, fmtCourseTime, num,
-  type OfflineCourseDetail, type CourseRegistration,
+  offlineApi, deriveCourseStatus, courseStatusLabel, courseStatusStyle, fmtCourseTime, fmtDate, num,
+  type OfflineCourseDetail, type CourseRegistration, type CourseReview,
 } from '@/lib/offline-data'
 
 const statusBarHeight = ref(0)
@@ -229,12 +314,110 @@ const isFull = computed(() => derivedStatus.value === 'full')
 const isEnrolled = computed(() => !!myReg.value && myReg.value.status !== 'CANCELLED')
 const canEnroll = computed(() => derivedStatus.value === 'enrolling' && !isEnrolled.value)
 
+// ===== 学员评价 =====
+const REVIEW_PAGE_SIZE = 10
+const reviews = ref<CourseReview[]>([])
+const reviewsTotal = ref(0)
+const reviewsLoading = ref(false)
+const reviewsLoadingMore = ref(false)
+const reviewsError = ref('')
+const reviewsPage = ref(1)
+const reviewsExpanded = ref(false)
+
+const showReviewModal = ref(false)
+const reviewRating = ref(5)
+const reviewContent = ref('')
+const reviewSubmitting = ref(false)
+const ratingLabels = ['很差', '一般', '还行', '满意', '非常满意']
+
+/** 本人已签到才可写评价（是否已评过由后端一报名一评校验，异常 message 直接 toast） */
+const canReview = computed(() => myReg.value?.status === 'SIGNED_IN')
+const displayedReviews = computed(() => (reviewsExpanded.value ? reviews.value : reviews.value.slice(0, 3)))
+const avgRating = computed(() => {
+  if (!reviews.value.length) return 0
+  return reviews.value.reduce((s, r) => s + (r.rating || 0), 0) / reviews.value.length
+})
+const roundedAvg = computed(() => Math.round(avgRating.value))
+const hasMoreReviews = computed(() => reviews.value.length < reviewsTotal.value)
+
+async function loadReviews(reset = false) {
+  if (!courseId.value) return
+  if (reset) { reviewsPage.value = 1; reviewsExpanded.value = false }
+  reviewsLoading.value = true
+  reviewsError.value = ''
+  try {
+    const d = await offlineApi.getCourseReviews(courseId.value, 1, REVIEW_PAGE_SIZE)
+    reviews.value = d.items
+    reviewsTotal.value = d.total
+  } catch (e) {
+    reviewsError.value = (e as Error)?.message || '评价加载失败'
+  } finally {
+    reviewsLoading.value = false
+  }
+}
+
+function expandReviews() { reviewsExpanded.value = true }
+
+async function loadMoreReviews() {
+  if (reviewsLoadingMore.value || !hasMoreReviews.value) return
+  reviewsLoadingMore.value = true
+  try {
+    const d = await offlineApi.getCourseReviews(courseId.value, reviewsPage.value + 1, REVIEW_PAGE_SIZE)
+    reviewsPage.value += 1
+    reviews.value = [...reviews.value, ...d.items]
+    reviewsTotal.value = d.total
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '加载失败', icon: 'none' })
+  } finally {
+    reviewsLoadingMore.value = false
+  }
+}
+
+function openReview() {
+  reviewRating.value = 5
+  reviewContent.value = ''
+  showReviewModal.value = true
+}
+function closeReview() {
+  if (reviewSubmitting.value) return
+  showReviewModal.value = false
+}
+
+async function submitReview() {
+  if (reviewSubmitting.value) return
+  if (reviewRating.value < 1 || reviewRating.value > 5) { uni.showToast({ title: '请选择评分', icon: 'none' }); return }
+  if (reviewContent.value.length > 500) { uni.showToast({ title: '评价内容不能超过500字', icon: 'none' }); return }
+  reviewSubmitting.value = true
+  try {
+    const content = reviewContent.value.trim()
+    await offlineApi.submitCourseReview(courseId.value, { rating: reviewRating.value, content: content || undefined })
+    showReviewModal.value = false
+    uni.showToast({ title: '评价成功', icon: 'success' })
+    await loadReviews(true)
+  } catch (e) {
+    // 业务异常（未签到不能评/已评价过）message 直接 toast
+    uni.showToast({ title: (e as Error)?.message || '评价失败', icon: 'none' })
+  } finally {
+    reviewSubmitting.value = false
+  }
+}
+
+function goCircle() {
+  if (course.value?.circleId) navigateTo(`/pkg-circle/circles/detail?id=${course.value.circleId}`)
+}
+
 async function load() {
   if (!courseId.value) { loading.value = false; errMsg.value = '缺少课程参数'; return }
   loading.value = true
   errMsg.value = ''
   try {
-    course.value = await offlineApi.getCourse(courseId.value)
+    const [c, reg] = await Promise.all([
+      offlineApi.getCourse(courseId.value),
+      // 未登录/未报名不阻塞详情展示 → 归 null 诚实降级
+      offlineApi.getMyRegistration(courseId.value).catch(() => null),
+    ])
+    course.value = c
+    myReg.value = reg
   } catch (e) {
     errMsg.value = (e as Error)?.message || '加载失败'
     course.value = null
@@ -245,6 +428,7 @@ async function load() {
 onLoad((q) => {
   courseId.value = q && q.id ? String(q.id) : ''
   load()
+  loadReviews(true)
 })
 
 async function onEnroll() {
@@ -342,6 +526,45 @@ async function onCancel() {
 .cd-tags { display: flex; flex-wrap: wrap; gap: 8px; }
 .cd-tag { padding: 3px 10px; font-size: 12px; color: #6b7280; background: #f3f4f6; border-radius: 6px; }
 .cd-safe { height: 88px; }
+/* ===== 同学圈入口卡 ===== */
+.cd-circle-card { display: flex; align-items: center; gap: 12px; background: #fff; border-radius: 12px; padding: 16px; }
+.cd-circle-icon { width: 44px; height: 44px; border-radius: 999px; background: rgba(196,30,58,0.08); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.cd-circle-info { flex: 1; min-width: 0; }
+.cd-circle-title { display: block; font-size: 15px; font-weight: 600; color: #1a1a1a; }
+.cd-circle-desc { display: block; font-size: 12px; color: #9ca3af; margin-top: 2px; }
+/* ===== 学员评价 ===== */
+.cd-rev-head { display: flex; align-items: center; justify-content: space-between; }
+.cd-rev-sec-title { font-size: 15px; font-weight: 600; color: #1a1a1a; }
+.cd-write-btn { padding: 4px 14px; border: 1px solid var(--brand); border-radius: 999px; }
+.cd-write-btn-text { font-size: 12px; color: var(--brand); }
+.cd-rev-summary { display: flex; align-items: center; gap: 6px; margin-top: 12px; }
+.cd-stars { display: flex; align-items: center; gap: 2px; }
+.cd-rev-avg { font-size: 15px; font-weight: 700; color: #f59e0b; }
+.cd-rev-count { font-size: 12px; color: #9ca3af; }
+.cd-rev-state { padding: 20px 0; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.spinner.sm { width: 20px; height: 20px; border-width: 2px; }
+.cd-rev-item { display: flex; gap: 10px; padding: 14px 0; border-bottom: 1px solid #f3f4f6; }
+.cd-rev-item:last-of-type { border-bottom: none; }
+.cd-rev-avatar { width: 36px; height: 36px; border-radius: 999px; background: #e8ddd0; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.cd-rev-avatar-img { width: 36px; height: 36px; border-radius: 999px; flex-shrink: 0; }
+.cd-rev-avatar-text { font-size: 14px; color: #9a2e25; font-weight: 600; }
+.cd-rev-main { flex: 1; min-width: 0; }
+.cd-rev-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+.cd-rev-name { font-size: 13px; font-weight: 500; color: #1a1a1a; }
+.cd-rev-date { font-size: 11px; color: #9ca3af; }
+.cd-rev-content { display: block; font-size: 13px; color: #4b5563; line-height: 1.6; margin-top: 6px; word-break: break-all; }
+.cd-rev-more { display: flex; justify-content: center; padding: 12px 0 2px; }
+.cd-rev-more-text { font-size: 13px; color: var(--brand); }
+/* ===== 写评价弹层 ===== */
+.cd-rate-row { display: flex; align-items: center; justify-content: center; gap: 10px; margin: 8px 0 6px; }
+.cd-rate-star { padding: 4px; }
+.cd-rate-label { font-size: 13px; color: #f59e0b; margin-bottom: 14px; }
+.cd-rev-textarea { width: 100%; box-sizing: border-box; min-height: 110px; padding: 12px; background: #f9f7f3; border: 1px solid #e8e2d8; border-radius: 10px; font-size: 14px; color: #1a1a1a; }
+.cd-rev-ph { color: #9ca3af; }
+.cd-rev-counter { align-self: flex-end; font-size: 11px; color: #9ca3af; margin-top: 6px; }
+.cd-modal-btn.submit { background: var(--brand); border: none; }
+.cd-modal-btn.submit.disabled { background: #d1a5ac; }
+.cd-modal-btn-text.submit { color: #fff; font-weight: 500; }
 .cd-footer { position: fixed; bottom: 0; left: 0; right: 0; display: flex; align-items: center; gap: 12px; padding: 12px 16px; padding-bottom: calc(12px + env(safe-area-inset-bottom)); background: #fff; border-top: 1px solid #ededed; }
 .cd-foot-btn { flex: 1; height: 44px; display: flex; align-items: center; justify-content: center; gap: 8px; border-radius: 8px; }
 .cd-foot-btn.ghost { border: 1px solid #e5e7eb; }

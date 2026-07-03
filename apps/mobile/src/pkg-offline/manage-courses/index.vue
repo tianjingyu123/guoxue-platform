@@ -34,7 +34,13 @@
               <text class="mc-price">{{ num(c.price) === 0 ? '免费' : '¥' + num(c.price) }}</text>
               <text class="mc-reg">报名 {{ c._count?.registrations ?? 0 }}/{{ c.maxStudents }}</text>
             </view>
-            <view class="mc-reg-btn" @tap="goCheckin(c.id)"><text class="mc-reg-btn-text">报名核销</text></view>
+            <view class="mc-foot-actions">
+              <view v-if="c.circleId" class="mc-reg-btn" @tap="goCircle(c.circleId)"><text class="mc-reg-btn-text">查看同学圈</text></view>
+              <view v-else class="mc-reg-btn" :class="{ disabled: circleSubmittingId === c.id }" @tap="onCreateCircle(c)">
+                <text class="mc-reg-btn-text">{{ circleSubmittingId === c.id ? '创建中…' : '建同学圈' }}</text>
+              </view>
+              <view class="mc-reg-btn" @tap="goCheckin(c.id)"><text class="mc-reg-btn-text">报名核销</text></view>
+            </view>
           </view>
           <text v-if="c.auditStatus === 'REJECTED' && c.auditReason" class="mc-reject">驳回原因：{{ c.auditReason }}</text>
         </view>
@@ -200,6 +206,40 @@ async function submit() {
 function goCheckin(courseId: string) {
   navigateTo(`/offline/manage/checkin?stationId=${stationId.value}&courseId=${courseId}`)
 }
+
+// ===== 课后同学圈（一键建圈·幂等） =====
+const circleSubmittingId = ref('')
+
+function goCircle(circleId?: string | null) {
+  if (circleId) navigateTo(`/pkg-circle/circles/detail?id=${circleId}`)
+}
+
+function onCreateCircle(c: OfflineCourse) {
+  if (circleSubmittingId.value) return
+  uni.showModal({
+    title: '创建课程同学圈',
+    content: `将为《${c.title}》创建免费同学圈，报名学员可加入交流。确认创建？`,
+    confirmText: '创建',
+    cancelText: '再想想',
+    success: (res) => { if (res.confirm) createCircle(c) },
+  })
+}
+
+async function createCircle(c: OfflineCourse) {
+  if (circleSubmittingId.value) return
+  circleSubmittingId.value = c.id
+  try {
+    const d = await offlineManageApi.createStudyCircle(c.id)
+    // 就地更新按钮态为「查看同学圈」
+    const target = courses.value.find((x) => x.id === c.id)
+    if (target) target.circleId = d.circleId
+    uni.showToast({ title: '同学圈已创建', icon: 'success' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '创建失败', icon: 'none' })
+  } finally {
+    circleSubmittingId.value = ''
+  }
+}
 </script>
 
 <style scoped>
@@ -226,7 +266,9 @@ function goCheckin(courseId: string) {
 .mc-foot-stat { display: flex; align-items: baseline; gap: 12px; }
 .mc-price { font-size: 16px; font-weight: 700; color: #9a2e25; }
 .mc-reg { font-size: 12px; color: #6b7280; }
+.mc-foot-actions { display: flex; align-items: center; gap: 8px; }
 .mc-reg-btn { padding: 6px 14px; background: rgba(154,46,37,0.08); border-radius: 8px; }
+.mc-reg-btn.disabled { opacity: 0.6; }
 .mc-reg-btn-text { font-size: 13px; color: #9a2e25; }
 .mc-reject { display: block; font-size: 12px; color: #dc2626; margin-top: 8px; }
 .mc-safe { height: 24px; }

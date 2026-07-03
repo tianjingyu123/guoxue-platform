@@ -81,6 +81,12 @@
         <view v-else class="ck-card ck-done">
           <app-icon name="check-circle-2" :size="48" color="#16a34a" />
           <text class="ck-done-text">签到完成，祝学习愉快</text>
+          <!-- 课程同学圈引导（课程有 circleId 才显示） -->
+          <view v-if="reg.course.circleId" class="ck-circle-btn" @tap="goCircle">
+            <app-icon name="users" :size="16" color="#fff" />
+            <text class="ck-circle-btn-text">加入课程同学圈</text>
+          </view>
+          <text v-if="reg.course.circleId" class="ck-circle-hint">和同学继续交流学习心得</text>
         </view>
 
         <!-- 联系驿站 -->
@@ -137,6 +143,10 @@ function goCourse() {
 function onCall() {
   if (reg.value?.course.station?.phone) uni.makePhoneCall({ phoneNumber: reg.value.course.station.phone }).catch(() => {})
 }
+function goCircle() {
+  const circleId = reg.value?.course.circleId
+  if (circleId) navigateTo(`/pkg-circle/circles/detail?id=${circleId}`)
+}
 </script>
 
 <style lang="scss" scoped>
@@ -182,6 +192,9 @@ function onCall() {
 
 .ck-done { padding: 32px 16px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
 .ck-done-text { font-size: 14px; color: #16a34a; }
+.ck-circle-btn { margin-top: 4px; height: 42px; padding: 0 28px; background: var(--brand); border-radius: 999px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+.ck-circle-btn-text { font-size: 14px; color: #fff; font-weight: 500; }
+.ck-circle-hint { font-size: 12px; color: #9ca3af; }
 
 .ck-call-btn { height: 44px; background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; display: flex; align-items: center; justify-content: center; gap: 8px; }
 .ck-call-text { font-size: 14px; color: #4b5563; }

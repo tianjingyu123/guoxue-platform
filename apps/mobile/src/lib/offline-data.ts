@@ -1,7 +1,7 @@
 // 线下驿站板块数据层 —— 真连 @guoxue/server /offline/*
 // 定位：平台线下服务终端（线上引流·线下交付）。驿站=地级市线下场地，研究院签约讲师授课。
 // 后端 StationOffline 为准，原型虚构字段(评分/距离/坐标/营业评价)已诚实降级。
-import { apiGet, apiPost, apiPut, apiDelete } from '@/utils/request'
+import { apiGet, apiGetPaged, apiPost, apiPut, apiDelete } from '@/utils/request'
 
 export type StationType = 'center' | 'academy' | 'studio' | 'partner'
 
@@ -51,8 +51,26 @@ export interface OfflineCourse {
   status: string
   auditStatus: string
   auditReason?: string | null
+  /** 课程同学圈（可选·有值=已建圈，跳 /pkg-circle/circles/detail?id=） */
+  circleId?: string | null
   _count?: { registrations: number }
   station?: { id: string; name: string; address?: string; phone?: string; city?: string }
+}
+
+/** 课后评价（GET /offline/courses/:id/reviews 分页项·昵称头像后端已脱敏） */
+export interface CourseReview {
+  id?: string
+  rating: number // 1-5
+  content: string | null
+  createdAt: string
+  nickname: string
+  avatar: string | null
+}
+
+/** 驿站评分聚合（驿站详情可选字段·无评价时后端省略→前端不渲染） */
+export interface StationRating {
+  avg: number
+  count: number
 }
 
 export interface CourseRegistration {
@@ -78,6 +96,8 @@ export interface StationDetail extends Station {
   courses: OfflineCourse[]
   products: { id: string; name: string; price: string | number; stock: number; status: string }[]
   teacherBookings?: unknown[] // 后端透传、形状未建模且无页面消费 → unknown 占位
+  /** 评分聚合（可选·无评价时字段不存在→不渲染评分区） */
+  rating?: StationRating
 }
 
 export interface OfflineCourseDetail extends OfflineCourse {
@@ -240,6 +260,16 @@ export const offlineApi = {
   /** 扫码/签到码签到 POST /offline/courses/sign-in?stationId */
   signIn(stationId: string, qrCode: string): Promise<unknown> {
     return apiPost<unknown>(`/offline/courses/sign-in?stationId=${stationId}`, { qrCode })
+  },
+
+  /** 课程评价分页 GET /offline/courses/:id/reviews?page&pageSize（公开·错误抛给页面走三态） */
+  getCourseReviews(courseId: string, page = 1, pageSize = 10): Promise<{ items: CourseReview[]; total: number }> {
+    return apiGetPaged<CourseReview>(`/offline/courses/${courseId}/reviews?page=${page}&pageSize=${pageSize}`)
+  },
+
+  /** 提交课后评价 POST /offline/courses/:id/reviews（仅本人已签到·一报名一评·业务异常 message 直接 toast） */
+  submitCourseReview(courseId: string, data: { rating: number; content?: string }): Promise<CourseReview> {
+    return apiPost<CourseReview>(`/offline/courses/${courseId}/reviews`, data)
   },
 }
 
@@ -426,6 +456,11 @@ export const offlineManageApi = {
   async getProductRanking(): Promise<ProductRankItem[]> {
     const d = await apiGet<{ ranking: ProductRankItem[] }>('/offline/dashboard/product-ranking')
     return d?.ranking || []
+  },
+
+  /** 一键创建课程同学圈 POST /offline/dashboard/courses/:id/study-circle（驿站主·幂等，已建圈返回既有 circleId） */
+  createStudyCircle(courseId: string): Promise<{ circleId: string }> {
+    return apiPost<{ circleId: string }>(`/offline/dashboard/courses/${courseId}/study-circle`)
   },
 }
 
