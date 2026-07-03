@@ -14,7 +14,7 @@
         v-for="t in couponTabs"
         :key="t.key"
         class="tab"
-        @tap="activeTab = t.key"
+        @tap="switchTab(t.key)"
       >
         <text class="tab-text" :class="{ 'tab-text--on': activeTab === t.key }">{{ t.label }}</text>
         <text v-if="t.key === 'unused' && unusedCount" class="tab-badge">{{ unusedCount }}</text>
@@ -49,16 +49,20 @@
         </view>
         <text class="cb-sub">精选优惠券，领取后可在结算时使用</text>
       </view>
+      <view v-if="!centerList.length" class="empty">
+        <app-icon name="ticket" :size="72" color="#e8e3db" />
+        <text class="empty-text">暂无可领优惠券，敬请期待</text>
+      </view>
       <view
         v-for="c in centerList"
         :key="c.id"
         class="coupon"
-        :class="{ 'coupon--claimed': c.isClaimed }"
+        :class="{ 'coupon--claimed': isDone(c) }"
       >
         <view class="coupon-value coupon-value--active">
           <view class="cv-top" />
           <text class="cv-amount">{{ formatCouponValue(c) }}</text>
-          <text class="cv-min">满{{ c.minAmount }}可用</text>
+          <text class="cv-min">{{ c.minAmount > 0 ? `满${c.minAmount}可用` : '无门槛' }}</text>
         </view>
         <view class="coupon-info">
           <view class="ci-main">
@@ -66,18 +70,18 @@
             <view class="ci-scopes">
               <text v-for="s in c.scope" :key="s" class="ci-scope">{{ s }}</text>
             </view>
-            <view class="ci-meta">
+            <view v-if="c.expireAt" class="ci-meta">
               <app-icon name="clock" :size="22" color="#999" />
               <text class="ci-meta-text">有效期至 {{ c.expireAt }}</text>
             </view>
-            <text class="ci-claimed">已领 {{ c.claimed }}/{{ c.stock }}</text>
+            <text v-if="stockText(c)" class="ci-claimed">{{ stockText(c) }}</text>
           </view>
           <view
             class="claim-btn"
-            :class="{ 'claim-btn--done': c.isClaimed }"
+            :class="{ 'claim-btn--done': isDone(c) }"
             @tap="claim(c)"
           >
-            <text class="claim-text">{{ claimingId === c.id ? '领取中...' : c.isClaimed ? '已领取' : '立即领取' }}</text>
+            <text class="claim-text">{{ claimText(c) }}</text>
           </view>
         </view>
       </view>
@@ -88,7 +92,7 @@
       <view v-if="!filtered.length" class="empty">
         <app-icon name="ticket" :size="72" color="#e8e3db" />
         <text class="empty-text">{{ emptyText }}</text>
-        <view v-if="activeTab === 'unused'" class="empty-btn" @tap="activeTab = 'center'">
+        <view v-if="activeTab === 'unused'" class="empty-btn" @tap="switchTab('center')">
           <text class="empty-btn-text">去领券</text>
         </view>
       </view>
@@ -101,7 +105,7 @@
         <view class="coupon-value" :class="c.status === 'unused' ? 'coupon-value--active' : 'coupon-value--gray'">
           <view v-if="c.status === 'unused'" class="cv-top" />
           <text class="cv-amount" :class="{ 'cv-amount--gray': c.status !== 'unused' }">{{ formatCouponValue(c) }}</text>
-          <text class="cv-min">满{{ c.minAmount }}可用</text>
+          <text class="cv-min">{{ c.minAmount > 0 ? `满${c.minAmount}可用` : '无门槛' }}</text>
         </view>
         <view class="coupon-info">
           <view class="ci-main">
@@ -114,7 +118,7 @@
                 :class="{ 'ci-scope--gray': c.status !== 'unused' }"
               >{{ s }}</text>
             </view>
-            <view class="ci-meta">
+            <view v-if="c.expireAt" class="ci-meta">
               <app-icon name="clock" :size="22" color="#999" />
               <text class="ci-meta-text">有效期至 {{ c.expireAt }}</text>
             </view>
@@ -136,77 +140,117 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { goBack, navigateTo } from '@/utils/router'
-import { shopApi, formatCouponValue, type CenterCoupon } from '@/lib/shop-data'
+import {
+  couponApi,
+  couponTabs,
+  formatCouponValue,
+  type CouponTemplate,
+  type MyCouponItem,
+  type MyCouponStatus,
+} from '@/lib/coupon-data'
 
-const activeTab = ref('unused')
-const myList = ref<any[]>([]) // 我的券(getMyCoupons().coupons)：含 status 等字段，无导出 item interface，保留 any
-const centerList = ref<CenterCoupon[]>([])
-const couponTabs = ref<any[]>([]) // 券分类 tab(key/label)：lib 内联结构无导出 interface，保留 any
+type TabKey = MyCouponStatus | 'center'
+
+const activeTab = ref<TabKey>('unused')
+const centerList = ref<CouponTemplate[]>([])
+const centerLoaded = ref(false)
+// 我的券按状态懒加载缓存：null = 未加载（切到该 tab 时拉取）
+const myLists = ref<Record<MyCouponStatus, MyCouponItem[] | null>>({ unused: null, used: null, expired: null })
 const claimingId = ref<string | null>(null)
 const loading = ref(true)
 const error = ref('')
 const submitting = ref(false)
 
-onMounted(async () => {
+/** 按 tab 懒加载：center 走 available，我的券走 my?status=（宽松归一化见 coupon-data） */
+async function loadTab(tab: TabKey, force = false) {
+  const need = tab === 'center' ? force || !centerLoaded.value : force || myLists.value[tab] === null
+  if (!need) return
   loading.value = true
   error.value = ''
   try {
-    const [myRes, centerRes] = await Promise.all([
-      shopApi.getMyCoupons(),
-      shopApi.getCenterCoupons(),
-    ])
-    myList.value = myRes.coupons
-    couponTabs.value = myRes.tabs
-    centerList.value = centerRes
-  } catch (_e) {
-    error.value = '加载失败，请重试'
+    if (tab === 'center') {
+      centerList.value = await couponApi.getAvailable()
+      centerLoaded.value = true
+    } else {
+      myLists.value[tab] = await couponApi.getMy(tab)
+    }
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败，请重试'
   } finally {
     loading.value = false
   }
-})
-
-function retry() {
-  loading.value = true
-  error.value = ''
-  Promise.all([
-    shopApi.getMyCoupons(),
-    shopApi.getCenterCoupons(),
-  ]).then(([myRes, centerRes]) => {
-    myList.value = myRes.coupons
-    couponTabs.value = myRes.tabs
-    centerList.value = centerRes
-  }).catch(() => {
-    error.value = '加载失败，请重试'
-  }).finally(() => {
-    loading.value = false
-  })
 }
 
-const unusedCount = computed(() => myList.value.filter((c) => c.status === 'unused').length)
-const filtered = computed(() => myList.value.filter((c) => c.status === activeTab.value))
+function switchTab(key: TabKey) {
+  activeTab.value = key
+  error.value = ''
+  loadTab(key)
+}
+
+function retry() {
+  loadTab(activeTab.value, true)
+}
+
+onMounted(() => {
+  loadTab('unused')
+})
+
+const unusedCount = computed(() => (myLists.value.unused || []).length)
+const filtered = computed(() =>
+  activeTab.value === 'center' ? [] : myLists.value[activeTab.value] || [],
+)
 const emptyText = computed(() =>
   activeTab.value === 'unused' ? '暂无可用优惠券' : activeTab.value === 'used' ? '暂无已使用优惠券' : '暂无过期优惠券',
 )
 
-async function claim(c: CenterCoupon) {
-  if (c.isClaimed || claimingId.value === c.id || submitting.value) return
+/* ── 领券中心状态判定 ── */
+function soldOut(c: CouponTemplate) {
+  return c.remaining === 0
+}
+function reachedLimit(c: CouponTemplate) {
+  // perUserLimit=0 表后端未提供限领数（shop 体系）：持有未使用券即视为已领（后端会拒绝重复领取）
+  return c.perUserLimit > 0 ? c.claimed >= c.perUserLimit : c.claimed > 0
+}
+function isDone(c: CouponTemplate) {
+  return soldOut(c) || reachedLimit(c)
+}
+function claimText(c: CouponTemplate) {
+  if (claimingId.value === c.id) return '领取中...'
+  if (reachedLimit(c)) return '已领取'
+  if (soldOut(c)) return '已抢完'
+  return '立即领取'
+}
+function stockText(c: CouponTemplate) {
+  // 限领数缺失（perUserLimit=0，shop 体系无此字段）时诚实隐藏，不编造「每人限领1张」
+  const limit = c.perUserLimit >= 1 ? `每人限领${c.perUserLimit}张` : ''
+  const stock = c.remaining >= 0 ? `剩余 ${c.remaining} 张` : ''
+  return [stock, limit].filter(Boolean).join(' · ')
+}
+
+async function claim(c: CouponTemplate) {
+  if (isDone(c) || submitting.value) return
   submitting.value = true
   claimingId.value = c.id
   try {
-    await shopApi.claimCoupon(c.id)
-    c.isClaimed = true
+    await couponApi.claim(c.id)
+    // 本地即时回写领取状态（claimed/剩余量），避免整页刷新闪烁
     c.claimed += 1
-    // 同步刷新「我的券」，确保未使用列表与角标即时更新
-    const myRes = await shopApi.getMyCoupons()
-    myList.value = myRes.coupons
+    if (c.remaining > 0) c.remaining -= 1
     uni.showToast({ title: '领取成功', icon: 'success' })
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '领取失败', icon: 'none' })
+    // 同步刷新「未使用」券包，确保列表与角标即时更新；失败则置空待切 tab 重拉
+    try {
+      myLists.value.unused = await couponApi.getMy('unused')
+    } catch {
+      myLists.value.unused = null
+    }
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '领取失败', icon: 'none' })
   } finally {
     claimingId.value = null
     submitting.value = false
   }
 }
+
 function goUse() {
   navigateTo('/shop')
 }

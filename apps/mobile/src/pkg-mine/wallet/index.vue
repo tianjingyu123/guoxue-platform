@@ -118,6 +118,20 @@ function notReady() {
         </view>
       </view>
 
+      <!-- 优惠券入口（领券中心 / 我的券包） -->
+      <view class="entry-card" @tap="navigateTo('/shop/coupons')">
+        <view class="entry-left">
+          <view class="entry-icon">
+            <AppIcon name="ticket" :size="20" color="#C41E3A" />
+          </view>
+          <view class="entry-body">
+            <text class="entry-title">优惠券</text>
+            <text class="entry-sub">领券中心 · 我的券包</text>
+          </view>
+        </view>
+        <AppIcon name="chevron-right" :size="20" color="#8a8178" />
+      </view>
+
       <!-- 快速充值 -->
       <view class="section">
         <text class="section-title">快速充值</text>
@@ -195,6 +209,13 @@ function notReady() {
 .stat-card { background: #fff; border-radius: 20rpx; padding: 28rpx; text-align: center; }
 .stat-label { display: block; font-size: 22rpx; color: #8a8178; margin-bottom: 10rpx; }
 .stat-val { display: block; font-size: 40rpx; font-weight: 700; color: #2C2C2C; }
+
+.entry-card { display: flex; align-items: center; justify-content: space-between; background: #fff; border-radius: 20rpx; padding: 26rpx 28rpx; margin-top: 24rpx; }
+.entry-left { display: flex; align-items: center; gap: 20rpx; }
+.entry-icon { width: 72rpx; height: 72rpx; border-radius: 50%; background: rgba(196,30,58,0.08); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.entry-body { display: flex; flex-direction: column; gap: 4rpx; }
+.entry-title { font-size: 28rpx; font-weight: 600; color: #2C2C2C; }
+.entry-sub { font-size: 22rpx; color: #8a8178; }
 
 .section { margin-top: 36rpx; }
 .section-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20rpx; }
