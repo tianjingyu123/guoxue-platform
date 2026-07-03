@@ -152,6 +152,10 @@
             <text v-else-if="t.equipped" class="title-hint on">佩戴中 · 点击卸下</text>
             <text v-else class="title-hint">点击佩戴</text>
             <view v-if="t.equipped" class="title-equipped-tag">佩戴中</view>
+            <!-- 已获称号分享入口（.stop 不触发佩戴交互） -->
+            <view v-if="t.earned" class="title-share" @tap.stop="openCard('title', t)">
+              <AppIcon name="share-2" :size="26" color="#b4432f" />
+            </view>
           </view>
         </view>
       </view>
@@ -169,7 +173,7 @@
             :key="a.code"
             class="ach-cell"
             :class="{ earned: a.earned }"
-            @tap="a.earned && openShare(a)"
+            @tap="a.earned && openCard('achievement', a)"
           >
             <view class="ach-icon">
               <AppIcon
@@ -199,44 +203,51 @@
       </view>
     </view>
 
-    <!-- 7. 成就分享卡弹层（V1 裂变） -->
-    <view v-if="shareAch" class="share-mask" @tap="closeShare">
-      <view class="share-card" @tap.stop>
-        <view class="share-card-deco" />
-        <view class="share-ach-icon">
-          <AppIcon :name="resolveAchievementIcon(shareAch.icon)" :size="80" color="#b8862d" />
+    <!-- 7. 学习成就卡 canvas 弹层（V1 裂变·仿节气卡范式） -->
+    <view v-if="cardVisible" class="card-overlay" @tap="closeCard">
+      <view class="card-modal" @tap.stop>
+        <view class="card-canvas-wrap">
+          <canvas
+            canvas-id="growthCard"
+            class="card-canvas"
+            :style="{ width: canvasW + 'px', height: canvasH + 'px' }"
+          />
         </view>
-        <text class="share-ach-name">{{ shareAch.name }}</text>
-        <text class="share-ach-desc">{{ shareAch.desc }}</text>
-        <view class="share-divider" />
-        <text class="share-level-line">我在热卜国学修行到「{{ growth?.levelName }}」</text>
-        <text class="share-brand">热卜国学 · 与君同修</text>
-
-        <!-- 分享给好友：小程序用原生转发按钮，H5/App 复制邀请链接 -->
-        <!-- #ifdef MP-WEIXIN -->
-        <button class="share-btn-main" open-type="share">分享给好友</button>
-        <!-- #endif -->
-        <!-- #ifndef MP-WEIXIN -->
-        <view class="share-btn-main" @tap="copyInviteLink">分享给好友</view>
-        <!-- #endif -->
-        <view class="share-btn-close" @tap="closeShare">关闭</view>
+        <view class="card-actions">
+          <!-- 小程序：原生转发（onShareAppMessage 带 uid/code/type + ref） -->
+          <!-- #ifdef MP-WEIXIN -->
+          <button class="card-btn share" open-type="share">
+            <text class="card-btn-txt">分享给好友</text>
+          </button>
+          <!-- #endif -->
+          <!-- H5/App：复制带 ref 的落地页链接 -->
+          <!-- #ifndef MP-WEIXIN -->
+          <view class="card-btn share" @tap="copyShareLink">
+            <text class="card-btn-txt">复制分享链接</text>
+          </view>
+          <!-- #endif -->
+          <view class="card-btn save" :class="{ disabled: saving }" @tap="onSaveCard">
+            <text class="card-btn-txt">{{ saving ? '保存中…' : '保存到相册' }}</text>
+          </view>
+        </view>
+        <text class="card-close" @tap="closeCard">关闭</text>
       </view>
     </view>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, getCurrentInstance, nextTick } from 'vue'
 import { onLoad, onShareAppMessage } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, reLaunch, navigateTo } from '@/utils/router'
+import { getUserInfo } from '@/utils/storage'
 import { withRef } from '@/utils/referral'
 import { useShare } from '@/composables/useShare'
 import {
   growthApi,
   resolveAchievementIcon,
   type GrowthProfile,
-  type GrowthAchievement,
   type GrowthTitle,
   type CheckinStatus,
 } from '@/lib/growth-data'
@@ -319,6 +330,14 @@ async function onTapTitle(t: GrowthTitle) {
 }
 
 onLoad(() => {
+  // 成就卡画布尺寸按屏宽自适应（与节气卡同范式）
+  uni.getSystemInfo({
+    success: (e) => {
+      const w = Math.min(320, Math.max(260, (e.windowWidth || 375) - 100))
+      canvasW.value = Math.round(w)
+      canvasH.value = Math.round(w * 1.4)
+    },
+  })
   loadAll()
   loadTitles()
 })
@@ -394,34 +413,198 @@ async function onCheckin() {
   }
 }
 
-// ── 成就分享卡（V1 裂变） ───────────────────────────
-const shareAch = ref<GrowthAchievement | null>(null)
+// ── 学习成就卡 canvas 弹层（V1 裂变·仿节气卡范式） ──
+const instance = getCurrentInstance()?.proxy
 
-function openShare(a: GrowthAchievement) {
-  shareAch.value = a
+/** 卡片主体（成就/称号统一为 code+name+desc+earnedAt） */
+interface CardItem {
+  code: string
+  name: string
+  desc: string
+  earnedAt: string | null
 }
-function closeShare() {
-  shareAch.value = null
+const cardVisible = ref(false)
+const cardType = ref<'achievement' | 'title'>('achievement')
+const cardItem = ref<CardItem | null>(null)
+const saving = ref(false)
+const canvasW = ref(300)
+const canvasH = ref(420)
+
+/** 当前登录用户 id（分享落地页 uid 参数；页面已过登录态才可打开卡） */
+function myUserId(): string {
+  const id = getUserInfo<{ id?: string | number }>()?.id
+  return id === undefined || id === null ? '' : String(id)
 }
 
-// 微信小程序原生转发：分享卡内 open-type="share" 按钮触发；路径经 withRef 自动带 ref 归因
+/** 落地页原型路径（uid=分享者·code/type=成就卡；ref 由 withRef/toAppMessage 追加） */
+function cardPath(): string {
+  const it = cardItem.value
+  if (!it) return '/pkg-common/growth-card/index'
+  return `/pkg-common/growth-card/index?uid=${encodeURIComponent(myUserId())}&code=${encodeURIComponent(it.code)}&type=${cardType.value}`
+}
+
+/** 打开成就卡（已获成就点击 / 已获称号分享图标） */
+function openCard(type: 'achievement' | 'title', item: CardItem) {
+  if (!myUserId()) {
+    uni.showToast({ title: '请先登录', icon: 'none' })
+    return
+  }
+  cardType.value = type
+  cardItem.value = { code: item.code, name: item.name, desc: item.desc, earnedAt: item.earnedAt }
+  cardVisible.value = true
+  nextTick(() => setTimeout(drawCard, 60))
+}
+
+function closeCard() {
+  cardVisible.value = false
+}
+
+/** 手绘学习成就卡（暖金底+品牌头+成就名+desc+连续天数/功名+slogan+邀请语） */
+function drawCard() {
+  const it = cardItem.value
+  const g = growth.value
+  if (!it) return
+  const W = canvasW.value
+  const H = canvasH.value
+  const ctx = uni.createCanvasContext('growthCard', instance)
+
+  // 暖金底
+  ctx.setFillStyle('#faf3e6')
+  ctx.fillRect(0, 0, W, H)
+  // 品牌头（暖金深色块）
+  const headH = 84
+  ctx.setFillStyle('#b8862d')
+  ctx.fillRect(0, 0, W, headH)
+  ctx.setFillStyle('rgba(255,255,255,0.9)')
+  ctx.setFontSize(13)
+  ctx.setTextAlign('center')
+  ctx.fillText('热卜国学 · 学习成就', W / 2, 34)
+  ctx.setFillStyle('#ffffff')
+  ctx.setFontSize(12)
+  const dateLine = it.earnedAt ? ` · ${fmtDate(it.earnedAt)} 达成` : ''
+  ctx.fillText(`${cardType.value === 'title' ? '称号' : '成就'}${dateLine}`, W / 2, 60)
+
+  // 成就/称号大名
+  ctx.setFillStyle('#5c431a')
+  ctx.setFontSize(38)
+  ctx.fillText(it.name, W / 2, headH + 72)
+
+  // desc（自动换行·至多 2 行）
+  ctx.setFillStyle('#8a6d3b')
+  ctx.setFontSize(14)
+  drawWrapped(ctx, it.desc, W / 2, headH + 110, W - 56, 24, 2)
+
+  // 分隔线
+  ctx.setStrokeStyle('rgba(184,134,45,0.35)')
+  ctx.setLineWidth(1)
+  ctx.beginPath()
+  ctx.moveTo(36, headH + 156)
+  ctx.lineTo(W - 36, headH + 156)
+  ctx.stroke()
+
+  // 连续学习 + 功名（徽章形式）
+  const badgeY = headH + 178
+  ctx.setFillStyle('#b4432f')
+  roundRect(ctx, W / 2 - 118, badgeY, 112, 32, 16)
+  ctx.fill()
+  ctx.setFillStyle('#b5843f')
+  roundRect(ctx, W / 2 + 6, badgeY, 112, 32, 16)
+  ctx.fill()
+  ctx.setFillStyle('#ffffff')
+  ctx.setFontSize(13)
+  ctx.fillText(`连续学习 ${g?.currentStreak ?? 0} 天`, W / 2 - 62, badgeY + 21)
+  ctx.fillText(`功名·${g?.levelName ?? '书童'}`, W / 2 + 62, badgeY + 21)
+
+  // slogan
+  ctx.setFillStyle('#8a6d3b')
+  ctx.setFontSize(14)
+  ctx.fillText('每天学一点，日日有精进', W / 2, badgeY + 74)
+
+  // 底部邀请语
+  ctx.setFillStyle('#b09a7c')
+  ctx.setFontSize(12)
+  ctx.fillText('长按识别/点开链接，和我一起学', W / 2, H - 28)
+
+  ctx.draw()
+}
+
+function roundRect(ctx: UniApp.CanvasContext, x: number, y: number, w: number, h: number, r: number) {
+  ctx.beginPath()
+  ctx.moveTo(x + r, y)
+  ctx.lineTo(x + w - r, y)
+  ctx.arcTo(x + w, y, x + w, y + r, r)
+  ctx.lineTo(x + w, y + h - r)
+  ctx.arcTo(x + w, y + h, x + w - r, y + h, r)
+  ctx.lineTo(x + r, y + h)
+  ctx.arcTo(x, y + h, x, y + h - r, r)
+  ctx.lineTo(x, y + r)
+  ctx.arcTo(x, y, x + r, y, r)
+  ctx.closePath()
+}
+
+function drawWrapped(ctx: UniApp.CanvasContext, text: string, cx: number, top: number, maxW: number, lineH: number, maxLines: number) {
+  const chars = (text || '').split('')
+  const lines: string[] = []
+  let line = ''
+  for (const ch of chars) {
+    const test = line + ch
+    if (ctx.measureText(test).width > maxW && line) {
+      lines.push(line)
+      line = ch
+      if (lines.length === maxLines - 1) break
+    } else {
+      line = test
+    }
+  }
+  if (line && lines.length < maxLines) lines.push(line)
+  const consumed = lines.join('').length
+  if (consumed < chars.length && lines.length) {
+    let last = lines[lines.length - 1]
+    while (last && ctx.measureText(last + '…').width > maxW) last = last.slice(0, -1)
+    lines[lines.length - 1] = last + '…'
+  }
+  lines.forEach((l, i) => ctx.fillText(l, cx, top + i * lineH))
+}
+
+/** 保存成就卡到相册（saving 防重复） */
+function onSaveCard() {
+  if (saving.value) return
+  saving.value = true
+  uni.canvasToTempFilePath({
+    canvasId: 'growthCard',
+    success: (res) => {
+      uni.saveImageToPhotosAlbum({
+        filePath: res.tempFilePath,
+        success: () => uni.showToast({ title: '已保存到相册', icon: 'success' }),
+        fail: () => uni.showToast({ title: '保存失败，请检查相册权限', icon: 'none' }),
+        complete: () => { saving.value = false },
+      })
+    },
+    fail: () => {
+      uni.showToast({ title: '成就卡生成失败，请重试', icon: 'none' })
+      saving.value = false
+    },
+  }, instance)
+}
+
+// 微信小程序原生转发：卡内 open-type="share" 触发；path 经 toAppMessage/withRef 自动带 ref 归因（埋点在 useShare 内置）
 const { toAppMessage } = useShare()
 onShareAppMessage(() =>
   toAppMessage({
-    title: shareAch.value
-      ? `我在热卜国学获得了「${shareAch.value.name}」成就，邀你同修`
+    title: cardItem.value
+      ? `我在热卜国学获得了「${cardItem.value.name}」${cardType.value === 'title' ? '称号' : '成就'}，邀你同修`
       : `我在热卜国学修行到「${growth.value?.levelName ?? '书童'}」，邀你同修`,
-    path: '/pkg-mine/achievements/index',
+    path: cardItem.value ? cardPath() : '/pkg-mine/achievements/index',
   }),
 )
 
-/** H5/App 端：复制邀请文案 + 带 ref 的完整 H5 链接到剪贴板 */
-function copyInviteLink() {
-  const link = withRef('https://api.rebugx.cn/h5/#/pkg-mine/achievements/index')
-  const text = `我在热卜国学获得了「${shareAch.value?.name ?? ''}」成就，邀你同修！${link}`
+/** H5/App 端：复制邀请文案 + 带 ref 的完整落地页链接（withRef 按 query 有无自动拼 &ref=/?ref=） */
+function copyShareLink() {
+  const link = withRef(`https://api.rebugx.cn/h5/#${cardPath()}`)
+  const text = `我在热卜国学获得了「${cardItem.value?.name ?? ''}」${cardType.value === 'title' ? '称号' : '成就'}，邀你同修！${link}`
   uni.setClipboardData({
     data: text,
-    success: () => uni.showToast({ title: '邀请链接已复制，去粘贴给好友吧', icon: 'none' }),
+    success: () => uni.showToast({ title: '分享链接已复制，去粘贴给好友吧', icon: 'none' }),
   })
 }
 </script>
@@ -878,6 +1061,15 @@ function copyInviteLink() {
   color: #fff;
   font-size: 18rpx;
 }
+/* 已获称号分享小图标（左上角·与右上佩戴角标错开；热区放大好点按） */
+.title-share {
+  position: absolute;
+  top: 0;
+  left: 0;
+  padding: 10rpx 14rpx;
+  border-radius: 16rpx 0 16rpx 0;
+  background: rgba(180, 67, 47, 0.08);
+}
 
 /* 5. 成就墙 */
 .ach-grid {
@@ -983,101 +1175,69 @@ function copyInviteLink() {
   color: #8a6d3b;
 }
 
-/* 6. 成就分享卡弹层 */
-.share-mask {
+/* 7. 学习成就卡 canvas 弹层 */
+.card-overlay {
   position: fixed;
   inset: 0;
   z-index: 99;
-  background: rgba(30, 25, 20, 0.55);
+  background: rgba(30, 25, 20, 0.6);
   display: flex;
   align-items: center;
   justify-content: center;
 }
-.share-card {
-  position: relative;
-  width: 600rpx;
-  border-radius: 32rpx;
-  background: #fffdf8;
-  padding: 64rpx 48rpx 40rpx;
+.card-modal {
   display: flex;
   flex-direction: column;
   align-items: center;
+}
+.card-canvas-wrap {
+  border-radius: 24rpx;
   overflow: hidden;
+  box-shadow: 0 16rpx 48rpx rgba(0, 0, 0, 0.35);
 }
-/* 顶部暖金装饰条 */
-.share-card-deco {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 12rpx;
-  background: linear-gradient(90deg, #dfb166, #b4432f, #dfb166);
+.card-canvas {
+  display: block;
+  background: #faf3e6;
 }
-.share-ach-icon {
-  width: 152rpx;
-  height: 152rpx;
-  border-radius: 50%;
-  background: linear-gradient(160deg, #fff9e6, #f6e2b8);
-  border: 3rpx solid rgba(201, 169, 110, 0.5);
+.card-actions {
   display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.share-ach-name {
-  margin-top: 24rpx;
-  font-size: 40rpx;
-  font-weight: 700;
-  color: #2d2a26;
-  letter-spacing: 4rpx;
-}
-.share-ach-desc {
-  margin-top: 12rpx;
-  font-size: 24rpx;
-  color: #999;
-  text-align: center;
-}
-.share-divider {
-  width: 100%;
-  height: 2rpx;
-  margin: 32rpx 0;
-  background: repeating-linear-gradient(90deg, rgba(201, 169, 110, 0.4) 0 12rpx, transparent 12rpx 24rpx);
-}
-.share-level-line {
-  font-size: 28rpx;
-  color: #8a6d3b;
-  font-weight: 500;
-}
-.share-brand {
-  margin-top: 10rpx;
-  font-size: 22rpx;
-  color: #c9a96e;
-  letter-spacing: 2rpx;
-}
-.share-btn-main {
+  gap: 24rpx;
   margin-top: 40rpx;
-  width: 100%;
-  height: 88rpx;
-  line-height: 88rpx;
+}
+.card-btn {
+  min-width: 240rpx;
+  height: 84rpx;
+  line-height: 84rpx;
+  padding: 0 36rpx;
   text-align: center;
   border-radius: 999rpx;
-  background: linear-gradient(135deg, #d9542b, #b4432f);
-  color: #fff;
-  font-size: 30rpx;
-  font-weight: 600;
   border: none;
+  box-sizing: border-box;
   &::after {
     border: none;
   }
+  &.share {
+    background: linear-gradient(135deg, #d9542b, #b4432f);
+  }
+  &.save {
+    background: linear-gradient(135deg, #ecc98a, #dfb166);
+    .card-btn-txt {
+      color: #5c431a;
+    }
+  }
+  &.disabled {
+    opacity: 0.6;
+  }
 }
-.share-btn-close {
-  margin-top: 20rpx;
-  width: 100%;
-  height: 80rpx;
-  line-height: 80rpx;
-  text-align: center;
-  border-radius: 999rpx;
-  color: #999;
+.card-btn-txt {
   font-size: 28rpx;
-  background: #f0ece3;
+  font-weight: 600;
+  color: #fff;
+}
+.card-close {
+  margin-top: 32rpx;
+  padding: 16rpx 64rpx;
+  font-size: 28rpx;
+  color: rgba(255, 255, 255, 0.85);
 }
 </style>

@@ -130,4 +130,32 @@ describe("UserGrowthService", () => {
       expect(result).toMatchObject({ totalExp: 0, level: 1, levelName: "书童", currentStreak: 0 });
     });
   });
+
+  describe("getPublicGrowthCard — 公开成就卡（V1 裂变）", () => {
+    it("真实获得的成就返回展示字段（昵称/成就名/连续天数/功名）", async () => {
+      (mockPrisma as any).userAchievement.findUnique = jest.fn().mockResolvedValue({
+        userId: "u1", code: "streak_7", earnedAt: new Date("2026-07-01"),
+      });
+      (mockPrisma as any).user = {
+        findUnique: jest.fn().mockResolvedValue({ nickname: "子墨", avatar: "a.png" }),
+      };
+      mockPrisma.userGrowth.findUnique.mockResolvedValue({
+        userId: "u1", totalExp: 200, level: 3, currentStreak: 8, maxStreak: 8,
+        lastCheckinDate: new Date(),
+      });
+      const card = await svc.getPublicGrowthCard("u1", "streak_7", "achievement");
+      expect(card).toMatchObject({
+        nickname: "子墨", name: "七日不辍", type: "achievement",
+        currentStreak: 8, levelName: "秀才",
+      });
+    });
+
+    it("未获得的成就/不存在的 code 均 404，不泄漏任何信息", async () => {
+      (mockPrisma as any).userAchievement.findUnique = jest.fn().mockResolvedValue(null);
+      await expect(svc.getPublicGrowthCard("u1", "streak_7", "achievement")).rejects.toThrow("成就卡不存在");
+      await expect(svc.getPublicGrowthCard("u1", "no_such_code", "achievement")).rejects.toThrow("成就卡不存在");
+      mockPrisma.userTitle.findUnique.mockResolvedValue(null);
+      await expect(svc.getPublicGrowthCard("u1", "t_xiucai", "title")).rejects.toThrow("成就卡不存在");
+    });
+  });
 });

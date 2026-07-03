@@ -2771,6 +2771,12 @@
           "style": {
             "navigationStyle": "custom"
           }
+        },
+        {
+          "path": "growth-card/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
         }
       ]
     },

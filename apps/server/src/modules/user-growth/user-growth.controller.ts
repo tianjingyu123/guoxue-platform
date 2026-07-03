@@ -1,8 +1,9 @@
-import { Body, Controller, Get, Post, Req, UseGuards } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from "@nestjs/swagger";
+import { Body, Controller, Get, Param, Post, Query, Req, UseGuards } from "@nestjs/common";
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse, ApiQuery } from "@nestjs/swagger";
 import { IsString, MaxLength } from "class-validator";
 import { Request } from "express";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
+import { ThrottleGuard } from "../../common/throttle.guard";
 import { UserGrowthService } from "./user-growth.service";
 
 class EquipTitleDto {
@@ -46,5 +47,26 @@ export class UserGrowthController {
   @ApiResponse({ status: 201, description: "成功" })
   async unequipTitle(@Req() req: Request) {
     return this.svc.unequipTitle(req.user.id);
+  }
+}
+
+@ApiTags("成长体系")
+@Controller("growth-card")
+export class GrowthCardController {
+  constructor(private readonly svc: UserGrowthService) {}
+
+  @Get(":userId")
+  @UseGuards(ThrottleGuard)
+  @ApiOperation({ summary: "公开成就卡（V1 学习成就卡裂变·分享落地页数据·仅真实获得的成就/称号）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 404, description: "成就卡不存在" })
+  @ApiQuery({ name: "code", required: true, description: "成就/称号 code" })
+  @ApiQuery({ name: "type", required: false, description: "achievement(默认) | title" })
+  async publicCard(
+    @Param("userId") userId: string,
+    @Query("code") code: string,
+    @Query("type") type?: string,
+  ) {
+    return this.svc.getPublicGrowthCard(userId, code, type === "title" ? "title" : "achievement");
   }
 }

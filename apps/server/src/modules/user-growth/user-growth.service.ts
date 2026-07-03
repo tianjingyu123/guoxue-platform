@@ -289,6 +289,61 @@ export class UserGrowthService {
     return { equipped: null };
   }
 
+  /**
+   * 公开成就卡（V1 学习成就卡裂变·分享落地页数据源）：
+   * 仅当该用户真实获得过该成就/称号才返回；只暴露非敏感展示字段（昵称/头像本就公开于圈子等场景）。
+   */
+  async getPublicGrowthCard(userId: string, code: string, type: "achievement" | "title") {
+    let name: string | undefined;
+    let desc: string | undefined;
+    let earnedAt: Date | null = null;
+
+    if (type === "title") {
+      const def = TITLES.find((t) => t.code === code);
+      if (!def) throw new BusinessException(ErrorCode.NOT_FOUND, "成就卡不存在");
+      const owned = await this.prisma.userTitle.findUnique({ where: { userId_code: { userId, code } } });
+      if (!owned) throw new BusinessException(ErrorCode.NOT_FOUND, "成就卡不存在");
+      name = def.name;
+      desc = def.desc;
+      earnedAt = owned.earnedAt;
+    } else {
+      const def = ACHIEVEMENTS.find((a) => a.code === code);
+      if (!def) throw new BusinessException(ErrorCode.NOT_FOUND, "成就卡不存在");
+      const owned = await this.prisma.userAchievement.findUnique({ where: { userId_code: { userId, code } } });
+      if (!owned) throw new BusinessException(ErrorCode.NOT_FOUND, "成就卡不存在");
+      name = def.name;
+      desc = def.desc;
+      earnedAt = owned.earnedAt;
+    }
+
+    const [user, profile] = await Promise.all([
+      this.prisma.user.findUnique({ where: { id: userId }, select: { nickname: true, avatar: true } }),
+      this.prisma.userGrowth.findUnique({ where: { userId } }),
+    ]);
+    if (!user) throw new BusinessException(ErrorCode.NOT_FOUND, "成就卡不存在");
+    const lv = this.levelOf(profile?.totalExp ?? 0);
+    // 连续天数口径与 getMyGrowth 一致：断签超 1 天按 0 展示
+    let streak = profile?.currentStreak ?? 0;
+    if (profile?.lastCheckinDate) {
+      const days = Math.floor((Date.now() - profile.lastCheckinDate.getTime()) / DAY_MS);
+      if (days > 1) streak = 0;
+    }
+    return {
+      nickname: user.nickname,
+      avatar: user.avatar,
+      type,
+      code,
+      name,
+      desc,
+      earnedAt,
+      currentStreak: streak,
+      maxStreak: profile?.maxStreak ?? 0,
+      level: lv.level,
+      levelName: lv.name,
+      totalExp: profile?.totalExp ?? 0,
+    };
+  }
+
   /** 我的成长档案（等级/称号/进度/连续天数/成就概览） */
   async getMyGrowth(userId: string) {
     const profile = await this.prisma.userGrowth.findUnique({ where: { userId } });

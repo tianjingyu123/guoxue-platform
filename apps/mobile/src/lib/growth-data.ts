@@ -7,6 +7,7 @@
 //   POST /users/me/growth-profile/titles/equip    佩戴称号 body { code }（未获得返回 400·每用户至多一枚）
 //   POST /users/me/growth-profile/titles/unequip  卸下称号
 // 以上端点均需登录（JwtAuthGuard），401 由 request 层统一处理。
+//   GET  /growth-card/:userId?code=&type=  公开成就卡（V1 裂变落地页·无需登录·未获得该成就/称号返回 404）
 
 import { apiGet, apiPost } from '@/utils/request'
 
@@ -51,6 +52,23 @@ export interface GrowthTitle {
   earned: boolean
   equipped: boolean
   earnedAt: string | null
+}
+
+/** 公开成就卡（GET /growth-card/:userId 响应·V1 学习成就卡裂变落地页数据） */
+export interface GrowthCard {
+  nickname: string
+  /** 头像 URL；用户未设置时为 null（适配层归一） */
+  avatar: string | null
+  type: 'achievement' | 'title'
+  code: string
+  name: string
+  desc: string
+  earnedAt: string | null
+  currentStreak: number
+  maxStreak: number
+  level: number
+  levelName: string
+  totalExp: number
 }
 
 /** 打卡结果（POST /users/me/checkin 响应） */
@@ -106,4 +124,17 @@ export const growthApi = {
 
   /** 查询今日打卡状态 */
   checkinStatus: () => apiGet<CheckinStatus>('/users/me/checkin/status'),
+
+  /** 公开成就卡（无需登录·好友分享落地页；该用户未获得该成就/称号时后端 404，错误向上抛走三态） */
+  publicCard: async (
+    userId: string,
+    code: string,
+    type: 'achievement' | 'title',
+  ): Promise<GrowthCard> => {
+    const card = await apiGet<GrowthCard>(
+      `/growth-card/${encodeURIComponent(userId)}?code=${encodeURIComponent(code)}&type=${type}`,
+    )
+    // 容错：avatar 缺省归一为 null，避免 undefined 泄漏到视图层
+    return { ...card, avatar: card.avatar ?? null }
+  },
 }
