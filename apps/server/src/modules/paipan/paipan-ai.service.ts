@@ -6,6 +6,7 @@ import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { MetricsService } from "../../common/metrics.service";
 import { RedisService } from "../../redis/redis.service";
+import { CoinService } from "../coin/coin.service";
 import { getSchool } from "./bazi-schools";
 
 /** 通用八字分析的 system prompt（保持现行行为，一个字不改） */
@@ -26,6 +27,7 @@ export class PaipanAiService {
     private prisma: PrismaService,
     private redis: RedisService,
     @Optional() @Inject(MetricsService) private metrics?: MetricsService,
+    @Optional() private coin?: CoinService,
   ) {
     this.apiKey = process.env.DEEPSEEK_API_KEY || "";
   }
@@ -110,6 +112,22 @@ export class PaipanAiService {
     return Number.isInteger(n) && n > 0 ? n : 10;
   }
 
+  /** 追加流派点评单价（国学币/次，默认 30，可用环境变量覆盖——2026-07-03 用户拍板） */
+  private schoolPriceCoin(): number {
+    const n = parseInt(process.env.PAIPAN_SCHOOL_PRICE_COIN || "30", 10);
+    return Number.isInteger(n) && n > 0 ? n : 30;
+  }
+
+  /** 是否有效会员（终身会员 memberExpire 为空；到期视为失效）——与 bot.service.consumeQuota 同款判定 */
+  private async isActiveMember(userId: string): Promise<boolean> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { memberLevel: true, memberExpire: true },
+    });
+    if (!user?.memberLevel || user.memberLevel === "NONE") return false;
+    return !user.memberExpire || user.memberExpire > new Date();
+  }
+
   /**
    * AI 师徒：多流派虚拟师父点评
    *
@@ -180,21 +198,71 @@ export class PaipanAiService {
       };
     }
 
+    // ── 计费闸门（2026-07-03 用户拍板）：每盘首份流派点评免费（任选一派，体验钩子）；
+    //    追加其他流派 → 有效会员免费 / 非会员扣国学币（单价 PAIPAN_SCHOOL_PRICE_COIN，默认 30 币/次）──
+    const priceCoin = this.schoolPriceCoin();
+    let chargeCoin = 0;
+    const schoolCount = await this.prisma.aiAnalysisRecord.count({
+      where: { userId, paipanRecordId, analyzeType: "BAZI_SCHOOL" },
+    });
+    if (schoolCount > 0 && !(await this.isActiveMember(userId))) {
+      if (!this.coin) {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "计费服务不可用，请稍后再试");
+      }
+      // 调 AI 前预检余额：明知不足不烧 AI 成本（最终扣减仍以事务内原子扣减为准，防并发透支）
+      const { balance } = await this.coin.getBalance(userId);
+      if (balance < priceCoin) {
+        throw new BusinessException(
+          ErrorCode.COIN_BALANCE_INSUFFICIENT,
+          `国学币不足，追加师父点评需 ${priceCoin} 币`,
+        );
+      }
+      chargeCoin = priceCoin;
+    }
+
     // 构建流派 prompt 并调用 API（师父人设写入 system prompt）
     const prompt = schoolDef.buildPrompt(baziResult);
     const { content, tokenUsage } = await this.callDeepSeek(prompt, schoolDef.systemPrompt);
 
-    const record = await this.prisma.aiAnalysisRecord.create({
-      data: {
-        userId,
-        paipanRecordId,
-        analyzeType: "BAZI_SCHOOL",
-        school: schoolDef.id,
-        analysisContent: content,
-        tokenUsage: tokenUsage as any,
-        isCached: false,
-      },
-    });
+    // AI 成功后再扣币：扣币与分析记录创建包在同一事务（原子）——
+    // 扣币失败（并发把余额花光）→ 整体回滚，不落记录不返回结果；AI 失败则根本未扣币，无需退币
+    let record: { id: string; analysisContent: string; createdAt: Date };
+    try {
+      record = await this.prisma.$transaction(async (tx) => {
+        if (chargeCoin > 0) {
+          await this.coin!.spend(
+            userId,
+            {
+              amountCoin: chargeCoin,
+              scene: "BOT_CALL",
+              refId: paipanRecordId,
+              description: `AI师徒·${schoolDef.master}（${schoolDef.name}）追加点评`,
+            },
+            tx,
+          );
+        }
+        return tx.aiAnalysisRecord.create({
+          data: {
+            userId,
+            paipanRecordId,
+            analyzeType: "BAZI_SCHOOL",
+            school: schoolDef.id,
+            analysisContent: content,
+            tokenUsage: tokenUsage as any,
+            isCached: false,
+          },
+        });
+      });
+    } catch (err) {
+      // 统一余额不足文案（并发透支兜底路径），message 带单价供前端 toast
+      if (err instanceof BusinessException && err.errorCode === ErrorCode.COIN_BALANCE_INSUFFICIENT) {
+        throw new BusinessException(
+          ErrorCode.COIN_BALANCE_INSUFFICIENT,
+          `国学币不足，追加师父点评需 ${priceCoin} 币`,
+        );
+      }
+      throw err;
+    }
 
     return {
       id: record.id,
@@ -204,6 +272,7 @@ export class PaipanAiService {
       analysisContent: record.analysisContent,
       createdAt: record.createdAt,
       isCached: false,
+      costCoin: chargeCoin,
     };
   }
 
@@ -256,22 +325,25 @@ export class PaipanAiService {
 
   /**
    * 获取某排盘记录的全部 AI 分析（通用 + 各流派点评，含 school/master 标注）
-   * 供前端多流派对照展示
+   * 供前端多流派对照展示；附 pricing 计费元数据（首份免费/单价/会员），供前端追加点评确认弹窗
    */
   async getAnalysesByPaipanRecord(paipanRecordId: string, userId: string) {
-    const records = await this.prisma.aiAnalysisRecord.findMany({
-      where: { paipanRecordId, userId },
-      select: {
-        id: true,
-        paipanRecordId: true,
-        analyzeType: true,
-        school: true,
-        analysisContent: true,
-        isCached: true,
-        createdAt: true,
-      },
-      orderBy: { createdAt: "asc" },
-    });
+    const [records, isMember] = await Promise.all([
+      this.prisma.aiAnalysisRecord.findMany({
+        where: { paipanRecordId, userId },
+        select: {
+          id: true,
+          paipanRecordId: true,
+          analyzeType: true,
+          school: true,
+          analysisContent: true,
+          isCached: true,
+          createdAt: true,
+        },
+        orderBy: { createdAt: "asc" },
+      }),
+      this.isActiveMember(userId),
+    ]);
     const items = records.map((r) => {
       const schoolDef = r.school ? getSchool(r.school) : undefined;
       return {
@@ -280,7 +352,16 @@ export class PaipanAiService {
         schoolName: schoolDef?.name ?? null,
       };
     });
-    return { items, total: items.length };
+    return {
+      items,
+      total: items.length,
+      pricing: {
+        // 该盘尚无任何流派点评 → 下一份免费（体验钩子）
+        firstFree: !records.some((r) => r.analyzeType === "BAZI_SCHOOL"),
+        priceCoin: this.schoolPriceCoin(),
+        isMember,
+      },
+    };
   }
 
   /** 获取用户 AI 分析历史 */

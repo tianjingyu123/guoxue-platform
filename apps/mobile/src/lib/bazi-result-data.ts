@@ -242,6 +242,25 @@ export interface SchoolAnalysisRecord {
   /** 点评正文（免责声明已由后端置于正文头部） */
   analysisContent: string
   createdAt?: string
+  /** 本次实际消耗国学币（首份/会员免费=0；analyze 响应携带） */
+  costCoin?: number
+}
+
+/** 流派点评计费元数据（GET /paipan/records/:id/analyses 响应携带·2026-07-03 计费开闸） */
+export interface SchoolAnalysisPricing {
+  /** 该盘尚无任何流派点评 → 下一份免费（体验钩子） */
+  firstFree: boolean
+  /** 追加点评单价（国学币/次，后端环境变量可配） */
+  priceCoin: number
+  /** 是否有效会员（会员畅享全部流派点评） */
+  isMember: boolean
+}
+
+/** 该盘全部分析 + 计费元数据（listAnalyses 返回结构） */
+export interface SchoolAnalysesResult {
+  items: SchoolAnalysisRecord[]
+  /** 旧版后端无此字段时为 null（前端按保守策略处理） */
+  pricing: SchoolAnalysisPricing | null
 }
 
 /** 排盘输入（calculate/createRecord 共用） */
@@ -287,17 +306,17 @@ export const baziApi = {
 
   /**
    * 请流派虚拟师父看盘（POST /paipan/bazi/analyze + school）。
-   * 超日限额后端抛业务异常（message=「今日请师父看盘次数已用完，明日再来」），错误消息直接 toast 展示。
+   * 业务异常（限额「今日请师父看盘次数已用完」/计费「国学币不足，追加师父点评需 X 币」）message 直接 toast 展示。
    */
   async analyzeSchool(recordId: string, school: BaziSchoolId): Promise<SchoolAnalysisRecord> {
     return apiPost<SchoolAnalysisRecord>('/paipan/bazi/analyze', { recordId, school })
   },
 
-  /** 该盘全部分析记录（GET /paipan/records/:id/analyses，回显已请过的师父点评） */
-  async listAnalyses(recordId: string): Promise<SchoolAnalysisRecord[]> {
-    const res = await apiGet<SchoolAnalysisRecord[] | { items?: SchoolAnalysisRecord[] }>(`/paipan/records/${recordId}/analyses`)
-    if (Array.isArray(res)) return res
-    return Array.isArray(res?.items) ? res.items : []
+  /** 该盘全部分析记录 + 计费元数据（GET /paipan/records/:id/analyses，回显已请过的师父点评） */
+  async listAnalyses(recordId: string): Promise<SchoolAnalysesResult> {
+    const res = await apiGet<SchoolAnalysisRecord[] | { items?: SchoolAnalysisRecord[]; pricing?: SchoolAnalysisPricing }>(`/paipan/records/${recordId}/analyses`)
+    if (Array.isArray(res)) return { items: res, pricing: null }
+    return { items: Array.isArray(res?.items) ? res.items : [], pricing: res?.pricing ?? null }
   },
 
   /** 古籍参考内容（返回确定的视图模型，供页面直接渲染） */

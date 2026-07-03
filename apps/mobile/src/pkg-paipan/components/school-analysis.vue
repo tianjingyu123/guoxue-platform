@@ -14,6 +14,7 @@ import {
   type BaziCalcInput,
   type SchoolMaster,
   type SchoolAnalysisRecord,
+  type SchoolAnalysisPricing,
 } from '@/lib/bazi-result-data'
 
 const props = withDefaults(defineProps<{
@@ -30,6 +31,8 @@ const historyLoading = ref(false)
 const historyError = ref('')
 const analyzing = reactive<Record<string, boolean>>({})
 const activeSchool = ref<BaziSchoolId | ''>('')
+/** 计费元数据（首份免费/单价/会员）——listAnalyses 响应携带；null=尚未拉到（保守按需补拉） */
+const pricing = ref<SchoolAnalysisPricing | null>(null)
 
 // ── 派生 ──
 const masterMap = computed(() => new Map(BAZI_SCHOOL_MASTERS.map((m) => [m.school as string, m])))
@@ -63,13 +66,15 @@ function fmtTime(t?: string) {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
 }
 
-// ── 回显：进页拉该盘已有分析记录 ──
+// ── 回显：进页拉该盘已有分析记录（含计费元数据） ──
 async function loadHistory() {
   if (!recordId.value) return
   historyLoading.value = true
   historyError.value = ''
   try {
-    analyses.value = await baziApi.listAnalyses(recordId.value)
+    const res = await baziApi.listAnalyses(recordId.value)
+    analyses.value = res.items
+    pricing.value = res.pricing
     if (!activeSchool.value && comparedSchools.value.length) activeSchool.value = comparedSchools.value[0].school
   } catch (e) {
     historyError.value = (e as Error)?.message || '点评记录加载失败'
@@ -78,6 +83,14 @@ async function loadHistory() {
   }
 }
 onMounted(loadHistory)
+
+/** 静默补拉计费元数据（懒建记录后 pricing 尚未拉到时用；失败不打扰，走保守确认策略） */
+async function ensurePricing() {
+  if (pricing.value || !recordId.value) return
+  try {
+    pricing.value = (await baziApi.listAnalyses(recordId.value)).pricing
+  } catch { /* 拉不到时按保守策略（非会员）弹确认 */ }
+}
 
 // ── 懒创建排盘记录（多卡片并发只建一条） ──
 let recordPromise: Promise<{ id: string }> | null = null
@@ -92,17 +105,40 @@ function ensureRecord(): Promise<{ id: string }> {
   return recordPromise
 }
 
+// ── 计费确认（2026-07-03 计费开闸：首份免费·会员免费·非会员追加扣国学币） ──
+function confirmCharge(m: SchoolMaster, price: number): Promise<boolean> {
+  return new Promise((resolve) => {
+    uni.showModal({
+      title: '追加师父点评',
+      content: `追加请${m.master}看盘将消耗 ${price} 国学币，确定？`,
+      confirmText: '确定',
+      cancelText: '再想想',
+      success: (r) => resolve(!!r.confirm),
+      fail: () => resolve(false),
+    })
+  })
+}
+
 // ── 请师父看盘 ──
 async function askMaster(m: SchoolMaster) {
   if (analyzing[m.school]) return // 防重复提交
   if (analyzedMap.value.has(m.school)) {
-    activeSchool.value = m.school // 已点评 → 直接切到该派对照
+    activeSchool.value = m.school // 已点评 → 直接切到该派对照（缓存命中，后端不收费不计限额）
     return
   }
   analyzing[m.school] = true
   try {
     const { id } = await ensureRecord()
     recordId.value = id
+    // 追加点评（该盘已有流派点评）且非会员 → 弹确认（首份/会员直接调用）
+    const isFirst = analyzedMap.value.size === 0 && (pricing.value?.firstFree ?? true)
+    if (!isFirst) {
+      await ensurePricing()
+      if (!pricing.value?.isMember) {
+        const price = pricing.value?.priceCoin ?? 30
+        if (!(await confirmCharge(m, price))) return
+      }
+    }
     const rec = await baziApi.analyzeSchool(id, m.school)
     const normalized: SchoolAnalysisRecord = {
       ...rec,
@@ -111,8 +147,13 @@ async function askMaster(m: SchoolMaster) {
     }
     analyses.value = [...analyses.value.filter((a) => a.school !== normalized.school), normalized]
     activeSchool.value = m.school
+    // 本盘已有点评 → 后续为追加；扣了币诚实提示
+    if (pricing.value) pricing.value = { ...pricing.value, firstFree: false }
+    if ((rec?.costCoin ?? 0) > 0) {
+      uni.showToast({ title: `已消耗 ${rec.costCoin} 国学币`, icon: 'none' })
+    }
   } catch (e) {
-    // 含限额业务异常（今日请师父看盘次数已用完，明日再来）——直接展示后端 message
+    // 业务异常（限额「今日请师父看盘次数已用完」/「国学币不足，追加师父点评需 X 币」）——直接展示后端 message
     uni.showToast({ title: (e as Error)?.message || '点评失败，请稍后再试', icon: 'none' })
   } finally {
     analyzing[m.school] = false
@@ -145,6 +186,18 @@ async function askMaster(m: SchoolMaster) {
           <text class="m-status-text">{{ STATUS_TEXT[statusOf(m)] }}</text>
         </view>
       </view>
+    </view>
+
+    <!-- 计费说明：会员金标 / 非会员首份免费提示 -->
+    <view class="sa-note">
+      <template v-if="pricing?.isMember">
+        <app-icon name="crown" :size="24" color="#c9a96e" />
+        <text class="sa-note-vip">会员畅享</text>
+        <text class="sa-note-text">全部流派点评免费</text>
+      </template>
+      <text v-else class="sa-note-text">
+        首份点评免费 · 会员畅享全部流派{{ pricing && !pricing.isMember ? ` · 追加 ${pricing.priceCoin} 币/次` : '' }}
+      </text>
     </view>
 
     <!-- 对照区：三态（回显加载 / 加载失败 / 空引导）+ 分段 tab 展示 -->
@@ -204,6 +257,10 @@ async function askMaster(m: SchoolMaster) {
 .m-status-text { font-size: 18rpx; color: var(--text-soft); }
 .m-status-analyzing .m-status-text { color: var(--brand); }
 .m-status-done .m-status-text { color: #fff; }
+/* 计费说明（会员金标风格与全站一致 #c9a96e） */
+.sa-note { display: flex; align-items: center; justify-content: center; gap: 8rpx; margin-top: 16rpx; }
+.sa-note-text { font-size: 20rpx; color: var(--text-soft); text-align: center; }
+.sa-note-vip { font-size: 20rpx; color: #c9a96e; font-weight: 600; }
 /* 三态 */
 .sa-state { display: flex; flex-direction: column; align-items: center; gap: 16rpx; padding: 40rpx 0 24rpx; }
 .sa-state-text { font-size: 24rpx; color: var(--text-soft); }

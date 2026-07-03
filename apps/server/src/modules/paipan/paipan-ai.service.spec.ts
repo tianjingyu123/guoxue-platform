@@ -2,6 +2,7 @@ import { Test } from "@nestjs/testing"
 import { PaipanAiService } from "./paipan-ai.service"
 import { PrismaService } from "../../prisma/prisma.service"
 import { RedisService } from "../../redis/redis.service"
+import { CoinService } from "../coin/coin.service"
 import { BusinessException } from "../../common/business.exception"
 import { SCHOOL_DISCLAIMER } from "./bazi-schools"
 
@@ -12,10 +13,20 @@ const mockPrisma = {
     findMany: jest.fn(),
     count: jest.fn(),
   },
+  user: {
+    findUnique: jest.fn(),
+  },
+  // 事务：把同一个 aiAnalysisRecord mock 透传给回调（spend 用注入的 coin mock，不走 tx）
+  $transaction: jest.fn(),
 }
 
 const mockRedis = {
   incrWithTtl: jest.fn(),
+}
+
+const mockCoin = {
+  getBalance: jest.fn(),
+  spend: jest.fn(),
 }
 
 const mockBaziResult: any = {
@@ -49,6 +60,7 @@ describe("PaipanAiService", () => {
         PaipanAiService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: RedisService, useValue: mockRedis },
+        { provide: CoinService, useValue: mockCoin },
       ],
     }).compile()
     svc = mod.get(PaipanAiService)
@@ -57,6 +69,14 @@ describe("PaipanAiService", () => {
   beforeEach(() => {
     jest.clearAllMocks()
     mockRedis.incrWithTtl.mockResolvedValue({ count: 1, ttl: 86400 })
+    // 计费默认场景：该盘尚无流派点评（首份免费）· 非会员 · 余额充足 · 扣币成功
+    mockPrisma.aiAnalysisRecord.count.mockResolvedValue(0)
+    mockPrisma.user.findUnique.mockResolvedValue(null)
+    mockCoin.getBalance.mockResolvedValue({ balance: 1000 })
+    mockCoin.spend.mockResolvedValue({})
+    mockPrisma.$transaction.mockImplementation(async (fn: (tx: unknown) => unknown) =>
+      fn({ aiAnalysisRecord: mockPrisma.aiAnalysisRecord }),
+    )
   })
 
   describe("analyzeBazi", () => {
@@ -217,6 +237,128 @@ describe("PaipanAiService", () => {
     })
   })
 
+  describe("流派点评计费闸门（2026-07-03 拍板：首份免费·会员免费·非会员 30 币/次）", () => {
+    function mockFetchOk(content = "流派点评内容") {
+      const fetchMock = jest.fn().mockResolvedValue({
+        ok: true,
+        json: jest.fn().mockResolvedValue({
+          choices: [{ message: { content } }],
+          usage: { prompt_tokens: 100, completion_tokens: 200 },
+        }),
+      })
+      global.fetch = fetchMock as any
+      return fetchMock
+    }
+
+    beforeEach(() => {
+      mockPrisma.aiAnalysisRecord.findFirst.mockResolvedValue(null) // 无缓存
+      mockPrisma.aiAnalysisRecord.create.mockResolvedValue({
+        id: "r-bill", analysisContent: "流派点评内容", createdAt: new Date(),
+      })
+    })
+
+    it("首份流派点评免费：不查会员不扣币（体验钩子）", async () => {
+      mockPrisma.aiAnalysisRecord.count.mockResolvedValue(0) // 该盘尚无任何流派点评
+      mockFetchOk()
+
+      const result: any = await svc.analyzeBazi("u1", "p1", mockBaziResult, "ziping")
+
+      expect(result.costCoin).toBe(0)
+      expect(mockCoin.getBalance).not.toHaveBeenCalled()
+      expect(mockCoin.spend).not.toHaveBeenCalled()
+      expect(mockPrisma.aiAnalysisRecord.create).toHaveBeenCalled()
+    })
+
+    it("有效会员追加点评免费：不扣币", async () => {
+      mockPrisma.aiAnalysisRecord.count.mockResolvedValue(1) // 已有一份流派点评（追加）
+      mockPrisma.user.findUnique.mockResolvedValue({ memberLevel: "GOLD", memberExpire: null }) // 终身会员
+      mockFetchOk()
+
+      const result: any = await svc.analyzeBazi("u1", "p1", mockBaziResult, "mangpai")
+
+      expect(result.costCoin).toBe(0)
+      expect(mockCoin.spend).not.toHaveBeenCalled()
+      expect(mockPrisma.aiAnalysisRecord.create).toHaveBeenCalled()
+    })
+
+    it("非会员追加点评扣币成功：AI 成功后事务内 spend+建记录（默认 30 币）", async () => {
+      mockPrisma.aiAnalysisRecord.count.mockResolvedValue(1)
+      mockPrisma.user.findUnique.mockResolvedValue({ memberLevel: "NONE", memberExpire: null })
+      mockCoin.getBalance.mockResolvedValue({ balance: 100 })
+      const fetchMock = mockFetchOk()
+
+      const result: any = await svc.analyzeBazi("u1", "p1", mockBaziResult, "xinpai")
+
+      // 扣币在 AI 调用之后、与建记录同一事务内（第三参传 tx）
+      expect(fetchMock).toHaveBeenCalled()
+      expect(mockPrisma.$transaction).toHaveBeenCalled()
+      expect(mockCoin.spend).toHaveBeenCalledWith(
+        "u1",
+        expect.objectContaining({ amountCoin: 30, scene: "BOT_CALL", refId: "p1" }),
+        expect.anything(),
+      )
+      expect(result.costCoin).toBe(30)
+      expect(mockPrisma.aiAnalysisRecord.create).toHaveBeenCalled()
+    })
+
+    it("会员已过期视为非会员：照常扣币", async () => {
+      mockPrisma.aiAnalysisRecord.count.mockResolvedValue(1)
+      mockPrisma.user.findUnique.mockResolvedValue({
+        memberLevel: "GOLD",
+        memberExpire: new Date(Date.now() - 86400_000), // 昨天过期
+      })
+      mockFetchOk()
+
+      const result: any = await svc.analyzeBazi("u1", "p1", mockBaziResult, "mangpai")
+
+      expect(result.costCoin).toBe(30)
+      expect(mockCoin.spend).toHaveBeenCalled()
+    })
+
+    it("国学币不足：调 AI 前预检拒绝，message 带单价，无记录残留", async () => {
+      mockPrisma.aiAnalysisRecord.count.mockResolvedValue(2)
+      mockCoin.getBalance.mockResolvedValue({ balance: 5 }) // 余额不足 30
+      const fetchMock = jest.fn()
+      global.fetch = fetchMock as any
+
+      await expect(svc.analyzeBazi("u1", "p1", mockBaziResult, "ziping"))
+        .rejects.toThrow("国学币不足，追加师父点评需 30 币")
+      // 明知不足不烧 AI 成本，且不落任何记录
+      expect(fetchMock).not.toHaveBeenCalled()
+      expect(mockCoin.spend).not.toHaveBeenCalled()
+      expect(mockPrisma.aiAnalysisRecord.create).not.toHaveBeenCalled()
+    })
+
+    it("并发透支兜底：事务内扣币失败整体回滚，不落记录（统一余额不足文案）", async () => {
+      mockPrisma.aiAnalysisRecord.count.mockResolvedValue(1)
+      mockCoin.getBalance.mockResolvedValue({ balance: 100 }) // 预检通过
+      const { ErrorCode } = await import("../../common/error-codes")
+      mockCoin.spend.mockRejectedValue(new BusinessException(ErrorCode.COIN_BALANCE_INSUFFICIENT, "虚拟币余额不足"))
+      mockFetchOk()
+
+      await expect(svc.analyzeBazi("u1", "p1", mockBaziResult, "ziping"))
+        .rejects.toThrow("国学币不足，追加师父点评需 30 币")
+      // spend 在 create 之前抛出 → 记录未创建（真实事务下即便已创建也会回滚）
+      expect(mockPrisma.aiAnalysisRecord.create).not.toHaveBeenCalled()
+    })
+
+    it("单价走环境变量 PAIPAN_SCHOOL_PRICE_COIN", async () => {
+      process.env.PAIPAN_SCHOOL_PRICE_COIN = "50"
+      try {
+        mockPrisma.aiAnalysisRecord.count.mockResolvedValue(1)
+        mockCoin.getBalance.mockResolvedValue({ balance: 40 }) // 够默认价 30，但不够 50
+        const fetchMock = jest.fn()
+        global.fetch = fetchMock as any
+
+        await expect(svc.analyzeBazi("u1", "p1", mockBaziResult, "ziping"))
+          .rejects.toThrow("国学币不足，追加师父点评需 50 币")
+        expect(fetchMock).not.toHaveBeenCalled()
+      } finally {
+        delete process.env.PAIPAN_SCHOOL_PRICE_COIN
+      }
+    })
+  })
+
   describe("getAnalysesByPaipanRecord", () => {
     it("返回该盘全部分析并标注 school/master", async () => {
       mockPrisma.aiAnalysisRecord.findMany.mockResolvedValue([
@@ -232,6 +374,17 @@ describe("PaipanAiService", () => {
       expect(mockPrisma.aiAnalysisRecord.findMany).toHaveBeenCalledWith(
         expect.objectContaining({ where: { paipanRecordId: "p1", userId: "u1" } }),
       )
+      // pricing 元数据：已有流派点评 → firstFree=false；非会员；默认单价 30
+      expect(result.pricing).toEqual({ firstFree: false, priceCoin: 30, isMember: false })
+    })
+
+    it("pricing：该盘尚无流派点评时 firstFree=true·会员时 isMember=true", async () => {
+      mockPrisma.aiAnalysisRecord.findMany.mockResolvedValue([
+        { id: "a1", paipanRecordId: "p1", analyzeType: "GENERAL", school: null, analysisContent: "通用", isCached: false, createdAt: new Date() },
+      ])
+      mockPrisma.user.findUnique.mockResolvedValue({ memberLevel: "GOLD", memberExpire: null })
+      const result = await svc.getAnalysesByPaipanRecord("p1", "u1")
+      expect(result.pricing).toEqual({ firstFree: true, priceCoin: 30, isMember: true })
     })
   })
 
