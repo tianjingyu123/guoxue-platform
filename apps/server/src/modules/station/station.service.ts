@@ -4,6 +4,7 @@ import { ErrorCode } from "../../common/error-codes";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
+import { InsightService } from "../track/insight.service";
 import { CreateStationDto, UpdateStationDto, CreateOperatorDto, SetStationTemplateDto, UpdateOperatorBrandDto, ApplyStationDto } from "./station.dto";
 
 /** 模版定义 */
@@ -62,6 +63,7 @@ export class StationService {
   constructor(
     private prisma: PrismaService,
     private redis: RedisService,
+    private insight: InsightService,
   ) {}
 
   private readonly BRAND_TTL = 600; // 品牌配置缓存10分钟
@@ -176,21 +178,7 @@ export class StationService {
   // ───────── 客户洞察（T2 增强·智能名片）─────────
   // 合规边界：仅站长本人可查其归属关系（ReferralRelation）内的用户；聚合兴趣画像为主，
   // 不返回手机号等敏感字段；行为时间线仅限归属客户且供经营分析使用。
-
-  /** 浏览路径 → 兴趣模块标签（page_view 只有模块级路径；内容级兴趣由 view_content 事件提供） */
-  private static readonly MODULE_LABELS: Array<[string, string]> = [
-    ["pkg-shop", "商城"], ["course", "课程"], ["pkg-circle", "圈子"], ["pkg-live", "直播"],
-    ["classic", "古籍"], ["poetry", "诗词"], ["ebook", "电子书"], ["paipan", "命理工具"],
-    ["fortune", "命理工具"], ["pkg-video", "短视频"], ["competition", "赛事"], ["offline", "线下驿站"],
-  ];
-
-  private pathToModuleLabel(path?: string | null): string | null {
-    if (!path) return null;
-    for (const [prefix, label] of StationService.MODULE_LABELS) {
-      if (path.includes(prefix)) return label;
-    }
-    return null;
-  }
+  // 画像聚合/时间线摘要已下沉公共 InsightService（驿站/圈主复用同一套）。
 
   /** 归属客户画像列表：最近活跃/30天行为量/消费力/兴趣标签（搜索词+浏览模块+内容标题聚合） */
   async listCustomers(ownerUserId: string, page = 1, pageSize = 20) {
@@ -203,81 +191,9 @@ export class StationService {
       }),
       this.prisma.referralRelation.count({ where }),
     ]);
-    const userIds = relations.map((r) => r.userId);
-    if (userIds.length === 0) return { customers: [], total };
-
-    const since30 = new Date(Date.now() - 30 * 86_400_000);
-    const [users, activity, purchases, interestEvents] = await Promise.all([
-      this.prisma.user.findMany({
-        where: { id: { in: userIds } },
-        select: { id: true, nickname: true, avatar: true },
-      }),
-      this.prisma.trackEvent.groupBy({
-        by: ["userId"],
-        where: { userId: { in: userIds }, occurredAt: { gte: since30 } },
-        _count: true,
-        _max: { occurredAt: true },
-      }),
-      this.prisma.order.groupBy({
-        by: ["userId"],
-        where: { userId: { in: userIds }, status: { in: ["PAID", "SHIPPED", "COMPLETED"] } },
-        _count: true,
-        _sum: { amount: true },
-      }),
-      this.prisma.trackEvent.findMany({
-        where: { userId: { in: userIds }, action: { in: ["search", "view_content", "page_view"] }, occurredAt: { gte: since30 } },
-        select: { userId: true, action: true, path: true, payload: true },
-        orderBy: { occurredAt: "desc" },
-        take: 1500,
-      }),
-    ]);
-
-    const userMap = new Map(users.map((u) => [u.id, u]));
-    const actMap = new Map(activity.map((a) => [a.userId, a]));
-    const buyMap = new Map(purchases.map((p) => [p.userId, p]));
-
-    // 兴趣聚合：搜索词权重3 > 内容标题权重2 > 浏览模块权重1，取 TOP3
-    const interestMap = new Map<string, Map<string, number>>();
-    const bump = (uid: string, tag: string, w: number) => {
-      if (!tag) return;
-      const m = interestMap.get(uid) ?? new Map<string, number>();
-      m.set(tag, (m.get(tag) || 0) + w);
-      interestMap.set(uid, m);
-    };
-    for (const e of interestEvents) {
-      if (!e.userId) continue;
-      const payload = (e.payload ?? {}) as Record<string, unknown>;
-      if (e.action === "search" && typeof payload.keyword === "string") {
-        bump(e.userId, String(payload.keyword).slice(0, 12), 3);
-      } else if (e.action === "view_content" && typeof payload.title === "string") {
-        bump(e.userId, String(payload.title).slice(0, 12), 2);
-      } else {
-        const label = this.pathToModuleLabel(e.path ?? (payload.path as string | undefined));
-        if (label) bump(e.userId, label, 1);
-      }
-    }
-
-    const customers = relations.map((r) => {
-      const act = actMap.get(r.userId);
-      const buy = buyMap.get(r.userId);
-      const tags = [...(interestMap.get(r.userId) ?? new Map())]
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 3)
-        .map(([tag]) => tag);
-      return {
-        userId: r.userId,
-        nickname: userMap.get(r.userId)?.nickname || "用户",
-        avatar: userMap.get(r.userId)?.avatar || null,
-        boundAt: r.createdAt,
-        lastActiveAt: act?._max.occurredAt || null,
-        events30d: act?._count || 0,
-        orderCount: buy?._count || 0,
-        totalSpent: Number(buy?._sum.amount || 0),
-        interests: tags,
-      };
-    });
-    // 最近活跃优先展示，便于站长优先跟进「热」客户
-    customers.sort((a, b) => (b.lastActiveAt?.getTime?.() || 0) - (a.lastActiveAt?.getTime?.() || 0));
+    const customers = await this.insight.buildCustomerProfiles(
+      relations.map((r) => ({ userId: r.userId, boundAt: r.createdAt })),
+    );
     return { customers, total };
   }
 
@@ -288,36 +204,7 @@ export class StationService {
       select: { id: true },
     });
     if (!relation) throw new BusinessException(ErrorCode.FORBIDDEN, "该用户不是您的归属客户");
-
-    const events = await this.prisma.trackEvent.findMany({
-      where: { userId: customerId },
-      select: { action: true, path: true, payload: true, occurredAt: true },
-      orderBy: { occurredAt: "desc" },
-      take: Math.min(50, limit),
-    });
-    return {
-      events: events.map((e) => ({
-        action: e.action,
-        path: e.path,
-        // 只透出经营分析所需的轻量字段，不透传完整 payload
-        summary: this.summarizeEvent(e.action, (e.payload ?? {}) as Record<string, unknown>, e.path),
-        occurredAt: e.occurredAt,
-      })),
-    };
-  }
-
-  /** 行为事件 → 人话摘要 */
-  private summarizeEvent(action: string, payload: Record<string, unknown>, path?: string | null): string {
-    if (action === "search" && payload.keyword) return `搜索了「${String(payload.keyword).slice(0, 20)}」`;
-    if (action === "view_content" && payload.title) {
-      const typeLabel = payload.type === "course" ? "课程" : payload.type === "product" ? "商品" : "内容";
-      return `浏览了${typeLabel}「${String(payload.title).slice(0, 24)}」`;
-    }
-    if (action === "purchase") return "完成了一笔购买";
-    if (action === "share") return "分享了内容";
-    if (action === "ref_click") return "点开了一条分享链接";
-    const label = this.pathToModuleLabel(path ?? (payload.path as string | undefined));
-    return label ? `逛了逛${label}` : "浏览了页面";
+    return this.insight.getTimeline(customerId, limit);
   }
 
   /** 通过推广码获取分站品牌配置（公开接口，千人千面渲染，10分钟缓存） */

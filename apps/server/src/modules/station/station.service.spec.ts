@@ -2,6 +2,7 @@ import { Test } from "@nestjs/testing";
 import { StationService } from "./station.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
+import { InsightService } from "../track/insight.service";
 import { BusinessException } from "../../common/business.exception";
 
 const mockPrisma = {
@@ -25,6 +26,7 @@ describe("StationService", () => {
         StationService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: RedisService, useValue: mockRedis },
+        { provide: InsightService, useValue: { buildCustomerProfiles: jest.fn().mockResolvedValue([]), getTimeline: jest.fn().mockResolvedValue({ events: [] }) } },
       ],
     }).compile();
     svc = mod.get(StationService);

@@ -11,9 +11,10 @@ import { StationPaipanSyncService } from "./station-paipan-sync.service";
 import { StationMicroPageController } from "./station-micro-page.controller";
 import { RedisModule } from "../../redis/redis.module";
 import { MarketingModule } from "../marketing/marketing.module";
+import { TrackModule } from "../track/track.module";
 
 @Module({
-  imports: [RedisModule, MarketingModule],
+  imports: [RedisModule, MarketingModule, TrackModule],
   controllers: [StationController, AdminReferralController, PromotionController, StationDashboardController, OperatorDashboardController, StationMicroPageController],
   providers: [StationService, AdminReferralService, PromotionService, StationDashboardService, StationPaipanSyncService],
   exports: [StationService, AdminReferralService, PromotionService, StationDashboardService, StationPaipanSyncService],
