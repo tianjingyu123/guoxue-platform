@@ -38,6 +38,29 @@ describe("CommissionService", () => {
   beforeEach(() => { jest.clearAllMocks(); });
 
   describe("reverseCommission", () => {
+    it("并发冲正：抢不到分布式锁时幂等跳过，不重复倒扣（防双入口双倍 decrement）", async () => {
+      mockRedis.setNX.mockResolvedValueOnce(false); // 另一路正在冲正
+      const result = await svc.reverseCommission("order1");
+      expect(result).toBeNull();
+      // 未进入锁体：不查记录、不写冲正
+      expect(mockPrisma.stationEarning.findFirst).not.toHaveBeenCalled();
+      expect(mockPrisma.stationEarning.create).not.toHaveBeenCalled();
+      expect(mockPrisma.operatorEarning.createMany).not.toHaveBeenCalled();
+    });
+
+    it("单次冲正：抢到锁后正常执行并在结束时释放锁", async () => {
+      mockPrisma.stationEarning.findFirst
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ stationId: "s1", earned: 10, rate: 0.1 });
+      mockPrisma.operatorEarning.findFirst.mockResolvedValue(null);
+      mockPrisma.operatorEarning.findMany.mockResolvedValue([]);
+      mockPrisma.platformFeeRecord.findMany.mockResolvedValue([]);
+      const result = await svc.reverseCommission("order1");
+      expect(result).toEqual({ reversed: true });
+      expect(mockRedis.setNX).toHaveBeenCalledWith("commission:reverse:order1", "1", 30);
+      expect(mockRedis.del).toHaveBeenCalledWith("commission:reverse:order1");
+    });
+
     it("已冲正则幂等跳过，不重复倒扣", async () => {
       mockPrisma.stationEarning.findFirst.mockResolvedValue({ id: "se-r", earned: -10 });
       const result = await svc.reverseCommission("order1");

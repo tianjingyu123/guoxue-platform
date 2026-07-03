@@ -32,7 +32,7 @@ const mockShopSvc = {
   completeOrder: jest.fn().mockResolvedValue({ id: "o1", status: "COMPLETED" }),
   refundOrder: jest.fn().mockResolvedValue({ id: "o1", status: "REFUNDING" }),
   verifyAndDecryptNotify: jest.fn().mockResolvedValue({ valid: true, data: { outTradeNo: "o1" } }),
-  handlePaymentNotify: jest.fn().mockResolvedValue(undefined),
+  handlePaymentNotify: jest.fn().mockResolvedValue(true),
   verifyAlipayNotify: jest.fn().mockResolvedValue({ valid: true, data: {} }),
   handleAlipayNotify: jest.fn().mockResolvedValue(undefined),
   verifyUnionpayNotify: jest.fn().mockResolvedValue({ valid: true, data: {} }),

@@ -146,6 +146,16 @@ describe("InstituteContentService（C 端·大师讲堂付费知识库）", () =
       expect(prisma.instituteContentPurchase.create).not.toHaveBeenCalled();
     });
 
+    it("并发防重购：越过 count 校验后唯一约束冲突(P2002)转已购买（事务回滚不重复扣币）", async () => {
+      const { Prisma } = await import("@prisma/client");
+      const p2002 = new Prisma.PrismaClientKnownRequestError("Unique constraint failed", {
+        code: "P2002",
+        clientVersion: "x",
+      } as any);
+      prisma.instituteContentPurchase.create.mockRejectedValue(p2002);
+      await expect(svc.purchase("c1", "u1")).rejects.toThrow(/已购买/);
+    });
+
     it("免费内容(price=0)无需购买直接拒绝", async () => {
       prisma.instituteContent.findUnique.mockResolvedValue({ ...article, price: "0" });
       await expect(svc.purchase("c1", "u1")).rejects.toThrow(/免费/);

@@ -1628,6 +1628,10 @@ model AiAnalysisRecord {
   user         User          @relation(fields: [userId], references: [id])
   paipanRecord PaipanRecord? @relation(fields: [paipanRecordId], references: [id])
 
+  // 防并发双扣：同用户同盘同流派点评仅一份（T11 C-6·配套 manual-sql 20260703_t11_unique_constraints.sql）
+  // 注：Postgres 唯一索引对 NULL 不去重——通用分析(school=null)与合婚(paipanRecordId=固定串)不受约束，正合语义；
+  //     仅流派点评(BAZI_SCHOOL·school 非空·paipanRecordId 非空)受约束
+  @@unique([userId, paipanRecordId, analyzeType, school])
   @@index([userId, analyzeType, createdAt])
   @@index([createdAt])
   @@index([scene, createdAt])
@@ -4924,6 +4928,8 @@ model InstituteContentPurchase {
 
   content InstituteContent @relation(fields: [contentId], references: [id], onDelete: Cascade)
 
+  // 防并发双扣：一人一内容仅一条购买记录（T11 C-6·配套 manual-sql 20260703_t11_unique_constraints.sql）
+  @@unique([contentId, userId])
   @@index([contentId])
   @@index([userId])
 }

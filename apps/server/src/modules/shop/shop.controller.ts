@@ -388,8 +388,9 @@ export class ShopController {
     if (!valid || !data) {
       return { code: "FAIL", message: error || "验签失败" };
     }
-    await this.shop.handlePaymentNotify(data);
-    return { code: "SUCCESS", message: "OK" };
+    // 只有确凿处理才回 SUCCESS；未处理(锁竞争等)回 FAIL 让微信重试，避免"已收款未入账却停止重试"
+    const ack = await this.shop.handlePaymentNotify(data);
+    return ack ? { code: "SUCCESS", message: "OK" } : { code: "FAIL", message: "处理中，请重试" };
   }
 
   @Post("alipay/notify")

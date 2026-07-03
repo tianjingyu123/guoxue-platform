@@ -492,10 +492,12 @@ export class ShopService {
         }
         actualAmount = Math.round(actualAmount * 100) / 100;
 
-        await tx.userCoupon.update({
-          where: { id: dto.couponId },
+        // 条件更新防并发双花：仅当券仍 used:false 才置为已用；两并发单只有一个 count>0
+        const claimed = await tx.userCoupon.updateMany({
+          where: { id: dto.couponId, userId, used: false },
           data: { used: true, usedAt: new Date() },
         });
+        if (claimed.count === 0) throw new BusinessException(ErrorCode.COUPON_INVALID, "优惠券不存在或已被使用");
       }
 
       // 站长自购立减：在券后价基础上按佣金比例立减，并清空推荐关系（佣金天然不产生）
@@ -920,16 +922,21 @@ export class ShopService {
     return this.wechatPay.verifyAndDecryptNotify(signHeader, rawBody) as Promise<{ valid: boolean; data?: Record<string, unknown>; error?: string }>;
   }
 
-  /** 处理微信支付回调（统一入口） */
-  async handlePaymentNotify(body: Record<string, unknown>) {
+  /**
+   * 处理微信支付回调（统一入口）。
+   * 返回 true=已确凿处理(向渠道回 SUCCESS 停止重试)；false=未能处理(回 FAIL 让渠道重试)。
+   * 铁律：只有在"确定不需要再处理"时才返回 true——锁竞争/加锁失败返回 false 让渠道重试，
+   * 避免"渠道已收款但本地未入账却回 SUCCESS"导致订单卡死。
+   */
+  async handlePaymentNotify(body: Record<string, unknown>): Promise<boolean> {
     const outTradeNo = body.out_trade_no as string;
     const lockKey = `pay:lock:${outTradeNo}`;
 
-    // 分布式锁防并发重复处理
+    // 分布式锁防并发重复处理：抢不到=另一处理中，让渠道稍后重试（勿谎报成功）
     const locked = await this.redis.setNX(lockKey, "1", 30);
     if (!locked) {
-      this.logger.warn(`支付回调重复处理被拦截: ${outTradeNo}`);
-      return;
+      this.logger.warn(`支付回调并发处理中，交给渠道重试: ${outTradeNo}`);
+      return false;
     }
 
     try {
@@ -944,15 +951,15 @@ export class ShopService {
         attach = {};
       }
 
-      // 虚拟币充值回调 → 转发给 CoinService
+      // 虚拟币充值回调 → 转发给 CoinService（其内部幂等）
       if (attach.type === "COIN_RECHARGE" && this.coinSvc) {
         await this.coinSvc.handleRechargeCallback(body);
-        return;
+        return true;
       }
 
       if (body.trade_state !== "SUCCESS") {
         this.logger.log(`支付未成功: ${outTradeNo}, 状态: ${body.trade_state}`);
-        return;
+        return true; // 非成功态无需处理，也无需渠道重试
       }
 
       // 商城订单回调 — 避免双重查询
@@ -967,26 +974,38 @@ export class ShopService {
       }
 
       if (!orderId) {
-        this.logger.error(`找不到对应的订单: ${outTradeNo}`);
-        return;
+        // 收到款但找不到订单：重试无益，落错误台账人工对账
+        this.logger.error(`【资金对账】收到支付成功回调但找不到订单: ${outTradeNo}, transactionId: ${transactionId}`);
+        return true;
       }
 
       // 只有 attach 提供了 orderId 才需要另外查询（已通过 payTransactionId 查到的直接复用）
       if (!order) {
         order = await this.prisma.order.findUnique({ where: { id: orderId } });
       }
-      if (!order || order.status !== "PENDING") return;
+      if (!order) {
+        this.logger.error(`【资金对账】回调订单不存在: ${orderId}, outTradeNo: ${outTradeNo}`);
+        return true;
+      }
+      if (order.status === "CANCELLED") {
+        // 关键：订单已被超时 cron 取消却又收到支付成功——钱货两空风险，落错误台账人工/自动退款
+        this.logger.error(
+          `【资金对账·需退款】已取消订单收到支付成功回调: order=${orderId}, outTradeNo=${outTradeNo}, transactionId=${transactionId}`,
+        );
+        return true;
+      }
+      if (order.status !== "PENDING") return true; // 已支付等终态，幂等返回
 
       const orderLockKey = await this.acquireOrderLock(orderId);
-      if (!orderLockKey) return;
+      if (!orderLockKey) return false; // 订单锁抢不到，让渠道重试
 
       try {
         await this.processPaidOrder(order, "WECHAT", transactionId);
       } catch (e: unknown) {
-        if (e instanceof BusinessException && e.message === "订单状态已变更") return;
+        if (e instanceof BusinessException && e.message === "订单状态已变更") return true;
         if (isUniqueConstraintError(e)) {
           this.logger.warn(`支付回调重复处理(DB约束拦截): ${outTradeNo}, transactionId: ${transactionId}`);
-          return;
+          return true;
         }
         throw e;
       } finally {
@@ -995,6 +1014,7 @@ export class ShopService {
       await this.recordOrderCommissionAndFee({ ...order, id: orderId });
 
       this.logger.log(`订单 ${orderId} 支付成功, 微信交易号: ${transactionId}`);
+      return true;
     } finally {
       await this.redis.del(lockKey);
     }
@@ -1635,17 +1655,27 @@ export class ShopService {
     try {
       // Phase 2：单事务批量更新（库存/优惠券按 skuId/productId/couponId 聚合）
       await this.prisma.$transaction(async (tx) => {
-        const result = await tx.order.updateMany({
+        // 关键：回补必须只针对「本次实际被取消的订单」，而非「锁到的订单」——
+        // findMany 与本事务之间的间隙里若有订单完成支付（status→PAID），它仍在 lockedIds 中，
+        // 但不会被 updateMany(status:PENDING) 翻转；若按 lockedIds 回补会把已付款订单的库存/券也回补
+        // （超卖+已用券复活）。故先在事务内锁定「仍 PENDING」的确定名单，只对该名单翻转与回补。
+        const toCancel = await tx.order.findMany({
           where: { id: { in: lockedIds }, status: "PENDING" },
+          select: { id: true, type: true, skuId: true, targetId: true, couponId: true, quantity: true, promotionType: true, promotionId: true },
+        });
+        if (toCancel.length === 0) return;
+        const cancelIds = toCancel.map((o) => o.id);
+
+        const result = await tx.order.updateMany({
+          where: { id: { in: cancelIds }, status: "PENDING" },
           data: { status: "CANCELLED" },
         });
-
         if (result.count === 0) return;
 
         // 聚合 SKU 库存恢复（按下单数量 quantity 回补，与 createOrder 扣减对称）
         const skuCounts = new Map<string, number>();
-        for (const o of expiredOrders) {
-          if (lockedIds.includes(o.id) && o.type !== "MEMBER" && o.skuId) {
+        for (const o of toCancel) {
+          if (o.type !== "MEMBER" && o.skuId) {
             skuCounts.set(o.skuId, (skuCounts.get(o.skuId) || 0) + o.quantity);
           }
         }
@@ -1658,8 +1688,8 @@ export class ShopService {
 
         // 聚合商品库存恢复（按下单数量 quantity 回补，与 createOrder 扣减对称）
         const productCounts = new Map<string, number>();
-        for (const o of expiredOrders) {
-          if (lockedIds.includes(o.id) && o.type !== "MEMBER" && !o.skuId && o.targetId) {
+        for (const o of toCancel) {
+          if (o.type !== "MEMBER" && !o.skuId && o.targetId) {
             productCounts.set(o.targetId, (productCounts.get(o.targetId) || 0) + o.quantity);
           }
         }
@@ -1672,8 +1702,8 @@ export class ShopService {
 
         // 聚合秒杀条目已售量回补（与取消单量对称·防负数见 restoreFlashSaleSold）
         const flashCounts = new Map<string, { flashSaleId: string; productId: string; qty: number }>();
-        for (const o of expiredOrders) {
-          if (lockedIds.includes(o.id) && o.promotionType === "FLASH_SALE" && o.promotionId && o.targetId) {
+        for (const o of toCancel) {
+          if (o.promotionType === "FLASH_SALE" && o.promotionId && o.targetId) {
             const key = `${o.promotionId}:${o.targetId}`;
             const prev = flashCounts.get(key);
             flashCounts.set(key, {
@@ -1687,10 +1717,8 @@ export class ShopService {
           await this.restoreFlashSaleSold(tx, flashSaleId, productId, qty);
         }
 
-        // 批量释放优惠券
-        const couponIds = expiredOrders
-          .filter(o => lockedIds.includes(o.id) && o.couponId)
-          .map(o => o.couponId!);
+        // 批量释放优惠券（仅本次取消订单持有的）
+        const couponIds = toCancel.filter((o) => o.couponId).map((o) => o.couponId!);
         if (couponIds.length > 0) {
           await tx.userCoupon.updateMany({
             where: { id: { in: couponIds }, used: true },

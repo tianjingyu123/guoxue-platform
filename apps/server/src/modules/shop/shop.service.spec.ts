@@ -108,6 +108,7 @@ const mockPrisma: any = {
     findFirst: jest.fn(),
     findMany: jest.fn(),
     update: jest.fn(),
+    updateMany: jest.fn().mockResolvedValue({ count: 1 }),
   },
   user: {
     update: jest.fn(),
@@ -290,9 +291,12 @@ describe("ShopService", () => {
           scopeId: null,
         },
       })
-      mockPrisma.userCoupon.update.mockResolvedValue({})
+      // C-1：核销改条件更新 updateMany(used:false) 防并发双花
+      mockPrisma.userCoupon.updateMany.mockResolvedValue({ count: 1 })
       await svc.createOrder("u1", { type: "PRODUCT", targetId: "p1", amount: 99, couponId: "c1" })
-      expect(mockPrisma.userCoupon.update).toHaveBeenCalled()
+      expect(mockPrisma.userCoupon.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: expect.objectContaining({ id: "c1", used: false }) }),
+      )
     })
   })
 

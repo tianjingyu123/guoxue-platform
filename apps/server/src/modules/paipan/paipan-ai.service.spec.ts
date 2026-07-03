@@ -342,6 +342,28 @@ describe("PaipanAiService", () => {
       expect(mockPrisma.aiAnalysisRecord.create).not.toHaveBeenCalled()
     })
 
+    it("并发防重：同盘同流派唯一约束冲突(P2002)返回已存在记录，不重复扣币", async () => {
+      mockPrisma.aiAnalysisRecord.count.mockResolvedValue(0) // 首份免费路径（chargeCoin=0）
+      mockPrisma.aiAnalysisRecord.findFirst
+        .mockResolvedValueOnce(null) // 缓存查询未命中 → 继续生成
+        .mockResolvedValueOnce({ id: "dup-1", analysisContent: "已存在点评", createdAt: new Date() }) // 冲突后回查
+      const { Prisma } = await import("@prisma/client")
+      const p2002 = new Prisma.PrismaClientKnownRequestError("Unique constraint failed", {
+        code: "P2002",
+        clientVersion: "x",
+      } as any)
+      mockPrisma.aiAnalysisRecord.create.mockRejectedValue(p2002)
+      mockFetchOk()
+
+      const result: any = await svc.analyzeBazi("u1", "p1", mockBaziResult, "ziping")
+
+      // 事务整体回滚（未扣币）→ 幂等返回已落库的那一份
+      expect(result.id).toBe("dup-1")
+      expect(result.isCached).toBe(true)
+      expect(result.costCoin).toBe(0)
+      expect(mockCoin.spend).not.toHaveBeenCalled()
+    })
+
     it("单价走环境变量 PAIPAN_SCHOOL_PRICE_COIN", async () => {
       process.env.PAIPAN_SCHOOL_PRICE_COIN = "50"
       try {

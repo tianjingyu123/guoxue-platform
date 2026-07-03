@@ -218,6 +218,24 @@ export class CommissionService {
 
   /** 退款时冲正分佣 — 逆向 station 收益 + operator 管理奖 + 平台抽成，同一事务 */
   async reverseCommission(orderId: string) {
+    // 分布式锁串行化同一订单的冲正：两入口（applyRefundedBookkeeping / handleRefundNotify 微信退款回调）
+    // 并发到达时，findFirst(earned<0) 幂等判定非原子 → 双份负记录 + totalEarning 双倍 decrement。
+    // 抢不到锁说明另一路正在冲正，直接幂等跳过；锁内保留 findFirst 判定作二次保险。
+    const lockKey = `commission:reverse:${orderId}`;
+    const locked = await this.redis.setNX(lockKey, "1", 30);
+    if (!locked) {
+      this.logger.log(`订单 ${orderId} 冲正处理中（并发跳过）`);
+      return null;
+    }
+    try {
+      return await this.doReverseCommission(orderId);
+    } finally {
+      await this.redis.del(lockKey);
+    }
+  }
+
+  /** reverseCommission 锁内实际执行体（幂等判定 + 事务冲正） */
+  private async doReverseCommission(orderId: string) {
     // 幂等守卫：已存在冲正记录(earned<0)则跳过——防 fire-and-forget 重投 / 退款回调重投 / 重复倒扣为负
     const alreadyReversed =
       (await this.prisma.stationEarning.findFirst({ where: { orderId, earned: { lt: 0 } } })) ??

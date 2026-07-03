@@ -7,6 +7,7 @@ import { ErrorCode } from "../../common/error-codes";
 import { MetricsService } from "../../common/metrics.service";
 import { RedisService } from "../../redis/redis.service";
 import { CoinService } from "../coin/coin.service";
+import { isUniqueConstraintError } from "../../common/prisma-errors";
 import { getSchool } from "./bazi-schools";
 
 /** 通用八字分析的 system prompt（保持现行行为，一个字不改） */
@@ -254,6 +255,25 @@ export class PaipanAiService {
         });
       });
     } catch (err) {
+      // 并发防重：同盘同流派唯一约束冲突（P2002）——两请求同时越过缓存查询各自生成点评时触发。
+      // 事务整体回滚（扣币在事务内，天然不重复扣币），幂等返回已落库的那一份点评。
+      if (isUniqueConstraintError(err)) {
+        const dup = await this.prisma.aiAnalysisRecord.findFirst({
+          where: { userId, paipanRecordId, analyzeType: "BAZI_SCHOOL", school },
+        });
+        if (dup) {
+          return {
+            id: dup.id,
+            school: schoolDef.id,
+            master: schoolDef.master,
+            schoolName: schoolDef.name,
+            analysisContent: dup.analysisContent,
+            createdAt: dup.createdAt,
+            isCached: true,
+            costCoin: 0,
+          };
+        }
+      }
       // 统一余额不足文案（并发透支兜底路径），message 带单价供前端 toast
       if (err instanceof BusinessException && err.errorCode === ErrorCode.COIN_BALANCE_INSUFFICIENT) {
         throw new BusinessException(

@@ -3,6 +3,7 @@ import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
 import { CoinService } from "../coin/coin.service";
+import { isUniqueConstraintError } from "../../common/prisma-errors";
 
 /** C 端列表摘要截断长度（未购可见的试读） */
 const SUMMARY_LEN = 100;
@@ -207,30 +208,38 @@ export class InstituteContentService {
     if (price <= 0) throw new BusinessException(ErrorCode.BAD_REQUEST, "免费内容无需购买，可直接阅读");
     if (!this.coin) throw new BusinessException(ErrorCode.BAD_REQUEST, "支付服务暂不可用，请稍后再试");
 
-    return this.prisma.$transaction(async (tx) => {
-      // 防重购：模型无 (contentId,userId) 唯一约束，事务内 count 校验
-      const dup = await tx.instituteContentPurchase.count({ where: { contentId: id, userId } });
-      if (dup > 0) throw new BusinessException(ErrorCode.INTERACTION_DUPLICATE, "已购买过该内容，可直接阅读");
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        // 防重购：事务内 count 校验（早拒不烧扣币），并发兜底靠 (contentId,userId) 唯一约束 → 见下方 P2002 捕获
+        const dup = await tx.instituteContentPurchase.count({ where: { contentId: id, userId } });
+        if (dup > 0) throw new BusinessException(ErrorCode.INTERACTION_DUPLICATE, "已购买过该内容，可直接阅读");
 
-      try {
-        await this.coin!.spend(
-          userId,
-          { amountCoin: price, scene: "PEEK_ANSWER", refId: id, description: `购买大师讲堂「${c.title}」` },
-          tx,
-        );
-      } catch (e) {
-        if (e instanceof BusinessException && e.errorCode === ErrorCode.COIN_BALANCE_INSUFFICIENT) {
-          // 余额不足带价格，前端据此引导充值
-          throw new BusinessException(ErrorCode.COIN_BALANCE_INSUFFICIENT, `国学币余额不足，本内容需 ${price} 币，请先充值`);
+        try {
+          await this.coin!.spend(
+            userId,
+            { amountCoin: price, scene: "PEEK_ANSWER", refId: id, description: `购买大师讲堂「${c.title}」` },
+            tx,
+          );
+        } catch (e) {
+          if (e instanceof BusinessException && e.errorCode === ErrorCode.COIN_BALANCE_INSUFFICIENT) {
+            // 余额不足带价格，前端据此引导充值
+            throw new BusinessException(ErrorCode.COIN_BALANCE_INSUFFICIENT, `国学币余额不足，本内容需 ${price} 币，请先充值`);
+          }
+          throw e;
         }
-        throw e;
-      }
 
-      const record = await tx.instituteContentPurchase.create({
-        data: { contentId: id, userId, price: c.price },
+        const record = await tx.instituteContentPurchase.create({
+          data: { contentId: id, userId, price: c.price },
+        });
+        this.logger.log(`用户 ${userId} 购买研究院内容 ${id}（${price} 币）`);
+        return { purchased: true, price, purchaseId: record.id, purchasedAt: record.purchasedAt };
       });
-      this.logger.log(`用户 ${userId} 购买研究院内容 ${id}（${price} 币）`);
-      return { purchased: true, price, purchaseId: record.id, purchasedAt: record.purchasedAt };
-    });
+    } catch (e) {
+      // 并发防重购兜底：两请求同时越过 count 校验时，唯一约束触发 P2002 → 事务整体回滚（扣币在事务内，天然不重复扣币），转"已购买"业务异常
+      if (isUniqueConstraintError(e)) {
+        throw new BusinessException(ErrorCode.INTERACTION_DUPLICATE, "已购买过该内容，可直接阅读");
+      }
+      throw e;
+    }
   }
 }
