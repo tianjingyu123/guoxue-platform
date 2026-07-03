@@ -17,7 +17,7 @@
         <app-icon name="flame" :size="40" color="#f59e0b" />
         <view class="bc-tips-body">
           <text class="bc-tips-title">发布须知</text>
-          <text class="bc-tips-text">悬赏发布后将冻结对应国学币，采纳满意答案后自动结算。若无满意回答，到期后退回钱包。</text>
+          <text class="bc-tips-text">悬赏发布后将冻结对应国学币，采纳满意答案后自动结算给答主。若撤销或长期无人回答，赏金将退回钱包。</text>
         </view>
       </view>
 
@@ -53,7 +53,7 @@
           v-model="description"
           class="bc-textarea"
           :class="{ 'bc-input-error': errors.description }"
-          placeholder="详细描述你的问题，提供更多背景信息有助于获得更好的回答（20-500字）"
+          placeholder="详细描述你的问题，可提供出生日期、地点等背景信息，有助于获得更好的回答（20-500字）"
           :maxlength="500"
           @input="errors.description = ''"
         />
@@ -67,16 +67,22 @@
         </view>
       </view>
 
-      <!-- Supplementary -->
+      <!-- Images -->
       <view class="bc-card">
-        <text class="bc-label">补充说明</text>
-        <text class="bc-sublabel">可提供出生日期、地点等具体信息（选填）</text>
-        <textarea
-          v-model="content"
-          class="bc-textarea"
-          placeholder="补充具体信息..."
-          :maxlength="500"
-        />
+        <text class="bc-label">配图（选填，最多9张）</text>
+        <view class="bc-upload-grid">
+          <view v-for="(img, index) in images" :key="index" class="bc-upload-item">
+            <image :src="img" class="bc-upload-img" mode="aspectFill" />
+            <view class="bc-upload-remove" @tap="removeImage(index)">
+              <app-icon name="x" :size="20" color="#ffffff" />
+            </view>
+          </view>
+          <view v-if="images.length < 9" class="bc-upload-add" @tap="addImage">
+            <app-icon v-if="!uploading" name="image" :size="36" color="#999999" />
+            <text v-else class="bc-upload-add-text">上传中</text>
+            <text v-if="!uploading" class="bc-upload-add-text">{{ images.length }}/9</text>
+          </view>
+        </view>
       </view>
 
       <!-- Amount -->
@@ -117,76 +123,21 @@
         </view>
       </view>
 
-      <!-- Expire -->
-      <view class="bc-card">
-        <view class="bc-label-row bc-label-icon">
-          <app-icon name="clock" :size="32" color="#c9a96e" />
-          <text class="bc-label">有效期</text>
-        </view>
-        <view class="bc-expire-grid">
-          <view
-            v-for="opt in expireOptions"
-            :key="opt.value"
-            class="bc-expire-item"
-            :class="{ 'bc-expire-item-active': expireDays === opt.value }"
-            @tap="expireDays = opt.value"
-          >
-            <text class="bc-expire-label" :class="{ 'bc-expire-label-active': expireDays === opt.value }">{{ opt.label }}</text>
-            <text class="bc-expire-desc">{{ opt.desc }}</text>
-          </view>
-        </view>
-      </view>
-
-      <!-- Category & Tags -->
+      <!-- Category -->
       <view class="bc-card">
         <view class="bc-label-row bc-label-icon">
           <app-icon name="tag" :size="32" color="#c9a96e" />
-          <text class="bc-label">分类标签（选填）</text>
+          <text class="bc-label">分类</text>
         </view>
         <view class="bc-cat-wrap">
           <view
             v-for="cat in categoryOptions"
-            :key="cat"
+            :key="cat.key"
             class="bc-cat"
-            :class="{ 'bc-cat-active': category === cat }"
-            @tap="toggleCategory(cat)"
+            :class="{ 'bc-cat-active': category === cat.key }"
+            @tap="category = cat.key"
           >
-            <text class="bc-cat-text" :class="{ 'bc-cat-text-active': category === cat }">{{ cat }}</text>
-          </view>
-        </view>
-        <view v-if="tags.length" class="bc-tag-wrap">
-          <view v-for="tag in tags" :key="tag" class="bc-tag" @tap="removeTag(tag)">
-            <text class="bc-tag-text">#{{ tag }} ×</text>
-          </view>
-        </view>
-        <view class="bc-tag-input-row">
-          <input
-            v-model="tagInput"
-            class="bc-tag-input"
-            placeholder="添加标签（最多5个，回车确认）"
-            :disabled="tags.length >= 5"
-            @confirm="addTag"
-          />
-          <view class="bc-tag-add" :class="{ 'bc-tag-add-disabled': !tagInput.trim() || tags.length >= 5 }" @tap="addTag">
-            <text class="bc-tag-add-text">添加</text>
-          </view>
-        </view>
-      </view>
-
-      <!-- Visibility -->
-      <view class="bc-card">
-        <view class="bc-vis-row">
-          <view class="bc-vis-left">
-            <view class="bc-vis-icon" :class="isPublic ? 'bc-vis-icon-public' : 'bc-vis-icon-private'">
-              <app-icon :name="isPublic ? 'globe' : 'lock'" :size="36" :color="isPublic ? '#16a34a' : '#999999'" />
-            </view>
-            <view>
-              <text class="bc-vis-title">{{ isPublic ? '公开悬赏' : '定向悬赏' }}</text>
-              <text class="bc-vis-desc">{{ isPublic ? '所有人均可查看并回答' : '仅特定答主可查看' }}</text>
-            </view>
-          </view>
-          <view class="bc-switch" :class="{ 'bc-switch-on': isPublic }" @tap="isPublic = !isPublic">
-            <view class="bc-switch-knob" :class="{ 'bc-switch-knob-on': isPublic }" />
+            <text class="bc-cat-text" :class="{ 'bc-cat-text-active': category === cat.key }">{{ cat.label }}</text>
           </view>
         </view>
       </view>
@@ -218,21 +169,17 @@
             <text class="bc-modal-line-value">{{ title }}</text>
           </view>
           <view class="bc-modal-line">
-            <text class="bc-modal-line-label">有效期</text>
-            <text class="bc-modal-line-value">{{ expireDays }}天</text>
-          </view>
-          <view class="bc-modal-line">
-            <text class="bc-modal-line-label">可见范围</text>
-            <text class="bc-modal-line-value">{{ isPublic ? '公开' : '定向' }}</text>
+            <text class="bc-modal-line-label">分类</text>
+            <text class="bc-modal-line-value">{{ categoryLabel }}</text>
           </view>
           <view class="bc-modal-line bc-modal-line-total">
             <text class="bc-modal-total-label">悬赏金额</text>
             <text class="bc-modal-total-value">{{ finalAmount }} 国学币</text>
           </view>
         </view>
-        <view class="bc-modal-pay" :class="{ 'bc-modal-pay-loading': loading }" @tap="confirmPay">
-          <app-icon v-if="!loading" name="check-circle" :size="32" color="#ffffff" />
-          <text class="bc-modal-pay-text">{{ loading ? '处理中...' : '确认支付 ' + finalAmount + ' 国学币' }}</text>
+        <view class="bc-modal-pay" :class="{ 'bc-modal-pay-loading': submitting }" @tap="confirmPay">
+          <app-icon v-if="!submitting" name="check-circle" :size="32" color="#ffffff" />
+          <text class="bc-modal-pay-text">{{ submitting ? '处理中...' : '确认支付 ' + finalAmount + ' 国学币' }}</text>
         </view>
         <view class="bc-modal-cancel" @tap="showPayConfirm = false">
           <text class="bc-modal-cancel-text">取消</text>
@@ -245,18 +192,16 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { navigateTo, navigateBack } from '@/utils/router'
+import { chooseAndUploadImage } from '@/utils/request'
+import {
+  bountyApi,
+  BOUNTY_CATEGORY_OPTIONS,
+  BOUNTY_CATEGORY_LABEL,
+  type BountyCategory,
+} from '@/lib/bounty-data'
 
 const amountPresets = [10, 20, 50, 100, 200, 500]
-const expireOptions = [
-  { value: 3, label: '3天', desc: '快速解答' },
-  { value: 7, label: '7天', desc: '推荐' },
-  { value: 14, label: '14天', desc: '复杂问题' },
-  { value: 30, label: '30天', desc: '长期悬赏' },
-]
-const categoryOptions = [
-  '易经周易', '风水堪舆', '八字命理', '梅花易数', '六爻预测',
-  '紫微斗数', '面相手相', '奇门遁甲', '太乙神数', '其他',
-]
+const categoryOptions = BOUNTY_CATEGORY_OPTIONS
 
 const statusBarHeight = ref(0)
 try {
@@ -264,24 +209,20 @@ try {
   statusBarHeight.value = info.statusBarHeight || 0
 } catch (e) {}
 
-const balance = ref(200)
-
 const title = ref('')
 const description = ref('')
-const content = ref('')
+const images = ref<string[]>([])
+const uploading = ref(false)
 const selectedAmount = ref(50)
 const customAmount = ref('')
 const isCustom = ref(false)
-const expireDays = ref(7)
-const category = ref('')
-const tags = ref<string[]>([])
-const tagInput = ref('')
-const isPublic = ref(true)
+const category = ref<BountyCategory>('BAZI')
 const showPayConfirm = ref(false)
-const loading = ref(false)
+const submitting = ref(false)
 const errors = ref<Record<string, string>>({})
 
 const finalAmount = computed(() => (isCustom.value ? parseInt(customAmount.value) || 0 : selectedAmount.value))
+const categoryLabel = computed(() => BOUNTY_CATEGORY_LABEL[category.value])
 
 function selectAmount(amount: number) {
   selectedAmount.value = amount
@@ -292,28 +233,31 @@ function enableCustom() {
   isCustom.value = true
   errors.value.amount = ''
 }
-function toggleCategory(cat: string) {
-  category.value = category.value === cat ? '' : cat
-}
-function addTag() {
-  const tag = tagInput.value.trim().replace(/^#/, '')
-  if (tag && !tags.value.includes(tag) && tags.value.length < 5) {
-    tags.value.push(tag)
-    tagInput.value = ''
+
+async function addImage() {
+  if (images.value.length >= 9 || uploading.value) return
+  uploading.value = true
+  try {
+    const url = await chooseAndUploadImage()
+    images.value = [...images.value, url].slice(0, 9)
+  } catch (e: any) {
+    if (e?.message && e.message !== '已取消') uni.showToast({ title: e.message, icon: 'none' })
+  } finally {
+    uploading.value = false
   }
 }
-function removeTag(tag: string) {
-  tags.value = tags.value.filter(t => t !== tag)
+function removeImage(index: number) {
+  images.value = images.value.filter((_, i) => i !== index)
 }
 
 function validate() {
   const e: Record<string, string> = {}
   if (!title.value.trim()) e.title = '请填写悬赏标题'
-  else if (title.value.length < 10) e.title = '标题至少10个字'
+  else if (title.value.trim().length < 10) e.title = '标题至少10个字'
   if (!description.value.trim()) e.description = '请填写问题描述'
-  else if (description.value.length < 20) e.description = '描述至少20个字'
+  else if (description.value.trim().length < 20) e.description = '描述至少20个字'
   if (finalAmount.value < 10) e.amount = '最低悬赏金额为10国学币'
-  if (finalAmount.value > 10000) e.amount = '最高悬赏金额为10000国学币'
+  else if (finalAmount.value > 10000) e.amount = '最高悬赏金额为10000国学币'
   errors.value = e
   return Object.keys(e).length === 0
 }
@@ -323,26 +267,37 @@ function handleSubmit() {
   showPayConfirm.value = true
 }
 
-function confirmPay() {
-  if (finalAmount.value > balance.value) {
-    showPayConfirm.value = false
-    uni.showModal({
-      title: '国学币余额不足',
-      content: `本次需 ${finalAmount.value} 国学币，当前余额 ${balance.value}，是否前往充值？`,
-      confirmText: '去充值',
-      success: (res) => {
-        if (res.confirm) navigateTo('/wallet/recharge')
-      },
+async function confirmPay() {
+  if (submitting.value) return
+  submitting.value = true
+  try {
+    await bountyApi.create({
+      title: title.value.trim(),
+      description: description.value.trim(),
+      bountyCoin: finalAmount.value,
+      category: category.value,
+      images: images.value,
     })
-    return
-  }
-  loading.value = true
-  setTimeout(() => {
-    loading.value = false
     showPayConfirm.value = false
     uni.showToast({ title: '发布成功', icon: 'success' })
     setTimeout(() => navigateTo('/bounty'), 800)
-  }, 800)
+  } catch (e: any) {
+    showPayConfirm.value = false
+    const msg = e?.message || '发布失败'
+    // 余额不足给充值引导，其余异常直接 toast 后端 message
+    if (msg.includes('余额') || msg.includes('不足')) {
+      uni.showModal({
+        title: '国学币余额不足',
+        content: `本次需 ${finalAmount.value} 国学币，余额不足，是否前往充值？`,
+        confirmText: '去充值',
+        success: (res) => { if (res.confirm) navigateTo('/wallet/recharge') },
+      })
+    } else {
+      uni.showToast({ title: msg, icon: 'none' })
+    }
+  } finally {
+    submitting.value = false
+  }
 }
 
 function goBack() {
@@ -446,12 +401,6 @@ function goBack() {
 .bc-required {
   color: var(--brand);
 }
-.bc-sublabel {
-  display: block;
-  font-size: 22rpx;
-  color: #999999;
-  margin: 8rpx 0 24rpx;
-}
 .bc-input {
   width: 100%;
   font-size: 28rpx;
@@ -493,6 +442,51 @@ function goBack() {
   color: #ef4444;
 }
 .bc-count {
+  font-size: 22rpx;
+  color: #999999;
+}
+
+/* Upload */
+.bc-upload-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16rpx;
+  margin-top: 24rpx;
+}
+.bc-upload-item {
+  position: relative;
+  width: 160rpx;
+  height: 160rpx;
+}
+.bc-upload-img {
+  width: 100%;
+  height: 100%;
+  border-radius: 16rpx;
+}
+.bc-upload-remove {
+  position: absolute;
+  top: -8rpx;
+  right: -8rpx;
+  width: 40rpx;
+  height: 40rpx;
+  border-radius: 999rpx;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.bc-upload-add {
+  width: 160rpx;
+  height: 160rpx;
+  border: 2rpx dashed #e8e3db;
+  border-radius: 16rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8rpx;
+}
+.bc-upload-add-text {
   font-size: 22rpx;
   color: #999999;
 }
@@ -560,45 +554,11 @@ function goBack() {
   margin-left: 16rpx;
 }
 
-/* Expire */
-.bc-expire-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 16rpx;
-}
-.bc-expire-item {
-  padding: 24rpx 0;
-  text-align: center;
-  border-radius: 24rpx;
-  background: #faf8f5;
-  border: 2rpx solid #e8e3db;
-}
-.bc-expire-item-active {
-  background: rgba(196, 30, 58, 0.05);
-  border-color: var(--brand);
-}
-.bc-expire-label {
-  display: block;
-  font-size: 28rpx;
-  font-weight: 600;
-  color: #2c2c2c;
-}
-.bc-expire-label-active {
-  color: var(--brand);
-}
-.bc-expire-desc {
-  display: block;
-  font-size: 20rpx;
-  color: #999999;
-  margin-top: 4rpx;
-}
-
-/* Category & Tags */
+/* Category */
 .bc-cat-wrap {
   display: flex;
   flex-wrap: wrap;
   gap: 16rpx;
-  margin-bottom: 24rpx;
 }
 .bc-cat {
   padding: 12rpx 24rpx;
@@ -611,116 +571,11 @@ function goBack() {
   border-color: var(--brand);
 }
 .bc-cat-text {
-  font-size: 22rpx;
+  font-size: 24rpx;
   color: #666666;
 }
 .bc-cat-text-active {
   color: #ffffff;
-}
-.bc-tag-wrap {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 16rpx;
-  margin-bottom: 16rpx;
-}
-.bc-tag {
-  padding: 12rpx 24rpx;
-  border-radius: 999rpx;
-  background: rgba(201, 169, 110, 0.1);
-  border: 2rpx solid rgba(201, 169, 110, 0.3);
-}
-.bc-tag-text {
-  font-size: 22rpx;
-  color: #c9a96e;
-}
-.bc-tag-input-row {
-  display: flex;
-  gap: 16rpx;
-}
-.bc-tag-input {
-  flex: 1;
-  font-size: 28rpx;
-  background: #faf8f5;
-  border-radius: 24rpx;
-  padding: 20rpx 24rpx;
-  border: 2rpx solid transparent;
-  box-sizing: border-box;
-}
-.bc-tag-add {
-  padding: 20rpx 32rpx;
-  background: #faf8f5;
-  border: 2rpx solid #e8e3db;
-  border-radius: 24rpx;
-}
-.bc-tag-add-disabled {
-  opacity: 0.4;
-}
-.bc-tag-add-text {
-  font-size: 28rpx;
-  color: #666666;
-}
-
-/* Visibility */
-.bc-vis-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-.bc-vis-left {
-  display: flex;
-  align-items: center;
-  gap: 24rpx;
-}
-.bc-vis-icon {
-  width: 72rpx;
-  height: 72rpx;
-  border-radius: 999rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.bc-vis-icon-public {
-  background: #f0fdf4;
-}
-.bc-vis-icon-private {
-  background: #faf8f5;
-}
-.bc-vis-title {
-  display: block;
-  font-size: 28rpx;
-  font-weight: 500;
-  color: #2c2c2c;
-}
-.bc-vis-desc {
-  display: block;
-  font-size: 22rpx;
-  color: #999999;
-  margin-top: 4rpx;
-}
-.bc-switch {
-  width: 88rpx;
-  height: 48rpx;
-  border-radius: 999rpx;
-  background: #e8e3db;
-  position: relative;
-  transition: background 0.2s;
-}
-.bc-switch-on {
-  background: var(--brand);
-}
-.bc-switch-knob {
-  position: absolute;
-  top: 4rpx;
-  left: 4rpx;
-  width: 40rpx;
-  height: 40rpx;
-  border-radius: 999rpx;
-  background: #ffffff;
-  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.15);
-  transition: transform 0.2s;
-}
-.bc-switch-knob-on {
-  transform: translateX(40rpx);
 }
 
 /* Bottom */

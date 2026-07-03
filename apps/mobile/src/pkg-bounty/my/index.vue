@@ -24,7 +24,7 @@
     </view>
 
     <!-- Stats Card -->
-    <view v-if="!loading && bounties.length" class="bm-stats-wrap">
+    <view v-if="!loading && !error && bounties.length" class="bm-stats-wrap">
       <view class="bm-stats">
         <view class="bm-stats-head">
           <app-icon name="gift" :size="32" color="#ffffff" />
@@ -36,16 +36,16 @@
             <text class="bm-stat-label">总数</text>
           </view>
           <view class="bm-stat">
-            <text class="bm-stat-num">{{ stats.open }}</text>
+            <text class="bm-stat-num">{{ stats.ongoing }}</text>
             <text class="bm-stat-label">进行中</text>
           </view>
           <view class="bm-stat">
-            <text class="bm-stat-num">{{ stats.resolved }}</text>
-            <text class="bm-stat-label">已解决</text>
+            <text class="bm-stat-num">{{ stats.settled }}</text>
+            <text class="bm-stat-label">已采纳</text>
           </view>
           <view class="bm-stat">
-            <text class="bm-stat-num">¥{{ stats.totalAmount }}</text>
-            <text class="bm-stat-label">{{ activeTab === 'posted' ? '总投入' : '总收益' }}</text>
+            <text class="bm-stat-num">{{ stats.totalAmount }}</text>
+            <text class="bm-stat-label">{{ activeTab === 'posted' ? '总投入(币)' : '总收益(币)' }}</text>
           </view>
         </view>
       </view>
@@ -89,12 +89,11 @@
         >
           <view class="bm-card-top">
             <view class="bm-status" :class="'bm-status-' + bounty.status">
-              <app-icon :name="statusConfig[bounty.status].icon" :size="26" :color="statusConfig[bounty.status].color" />
-              <text class="bm-status-text" :style="{ color: statusConfig[bounty.status].color }">{{ statusConfig[bounty.status].label }}</text>
+              <text class="bm-status-text" :class="'bm-status-text-' + bounty.status">{{ statusLabel(bounty.status) }}</text>
             </view>
             <view class="bm-amount">
               <app-icon name="gift" :size="30" color="#d97706" />
-              <text class="bm-amount-text">¥{{ bounty.amount }}</text>
+              <text class="bm-amount-text">{{ bounty.bountyCoin }} 币</text>
             </view>
           </view>
 
@@ -102,39 +101,36 @@
           <text class="bm-card-desc">{{ bounty.description }}</text>
 
           <view class="bm-card-meta">
-            <template v-if="activeTab === 'posted'">
-              <view class="bm-meta-item">
-                <app-icon name="message-square" :size="28" color="#999999" />
-                <text class="bm-meta-text">{{ bounty.answerCount }}个回答</text>
-              </view>
-              <view v-if="bounty.status === 'open'" class="bm-meta-item">
-                <app-icon name="clock" :size="28" color="#f97316" />
-                <text class="bm-meta-text bm-meta-warn">{{ getRemainTime(bounty.expireAt) }}</text>
-              </view>
-            </template>
-            <template v-else>
-              <text class="bm-meta-text">{{ formatTimeAgo(bounty.createdAt) }}回答</text>
-              <view v-if="bounty.status === 'resolved'" class="bm-meta-item">
-                <app-icon name="check-circle" :size="28" color="#16a34a" />
-                <text class="bm-meta-text bm-meta-green">已被采纳</text>
-              </view>
-            </template>
+            <text v-if="categoryLabel(bounty.category)" class="bm-cat">{{ categoryLabel(bounty.category) }}</text>
+            <text class="bm-meta-text">{{ formatBountyTime(bounty.createdAt) }}</text>
           </view>
 
-          <!-- Actions -->
+          <!-- Actions（提问者视角） -->
           <view v-if="activeTab === 'posted'" class="bm-actions">
-            <view v-if="bounty.status === 'answered'" class="bm-act-settle" @tap.stop="settle(bounty.id)">
-              <app-icon name="wallet" :size="28" color="#ffffff" />
-              <text class="bm-act-settle-text">结算悬赏</text>
+            <view
+              v-if="bounty.status === 'ANSWERED'"
+              class="bm-act-settle"
+              :class="{ 'bm-act-disabled': actioningId === bounty.id }"
+              @tap.stop="settle(bounty.id)"
+            >
+              <app-icon name="award" :size="28" color="#ffffff" />
+              <text class="bm-act-settle-text">{{ actioningId === bounty.id ? '处理中...' : '采纳结算' }}</text>
             </view>
-            <view v-else-if="bounty.status === 'expired' || bounty.status === 'cancelled'" class="bm-act-repost" @tap.stop="repost(bounty.id)">
-              <app-icon name="refresh-cw" :size="28" color="#ffffff" />
-              <text class="bm-act-repost-text">重新发布</text>
+            <view
+              v-else-if="bounty.status === 'OPEN' || bounty.status === 'CLAIMED'"
+              class="bm-act-refund"
+              :class="{ 'bm-act-disabled': actioningId === bounty.id }"
+              @tap.stop="refund(bounty.id)"
+            >
+              <app-icon name="rotate-ccw" :size="28" color="#ffffff" />
+              <text class="bm-act-refund-text">{{ actioningId === bounty.id ? '处理中...' : '撤销退款' }}</text>
             </view>
-            <text v-else-if="bounty.status === 'open' && bounty.answerCount === 0" class="bm-act-waiting">等待回答中...</text>
-            <view v-else-if="bounty.status === 'open' && bounty.answerCount > 0" class="bm-act-view" @tap.stop="toDetail(bounty.id)">
-              <text class="bm-act-view-text">查看回答</text>
-            </view>
+          </view>
+          <!-- Actions（答主视角） -->
+          <view v-else class="bm-actions">
+            <text v-if="bounty.status === 'SETTLED'" class="bm-act-earned">已采纳 · 获赏 {{ bounty.bountyCoin }} 币</text>
+            <text v-else-if="bounty.status === 'ANSWERED'" class="bm-act-waiting">回答已提交，等待采纳</text>
+            <text v-else-if="bounty.status === 'CLAIMED'" class="bm-act-waiting">待作答</text>
           </view>
         </view>
       </template>
@@ -145,30 +141,19 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { navigateTo, navigateBack } from '@/utils/router'
-
-interface Bounty {
-  id: string
-  title: string
-  description: string
-  amount: number
-  status: 'open' | 'answered' | 'resolved' | 'expired' | 'cancelled'
-  answerCount: number
-  createdAt: string
-  expireAt: string
-}
+import {
+  bountyApi,
+  formatBountyTime,
+  BOUNTY_STATUS_LABEL,
+  BOUNTY_CATEGORY_LABEL,
+  type BountyQuestion,
+  type BountyStatus,
+} from '@/lib/bounty-data'
 
 const tabs = [
   { key: 'posted' as const, label: '我发布的' },
   { key: 'answered' as const, label: '我回答的' },
 ]
-
-const statusConfig: Record<string, { label: string; color: string; icon: string }> = {
-  open: { label: '进行中', color: '#2563eb', icon: 'clock' },
-  answered: { label: '待采纳', color: '#ea580c', icon: 'message-square' },
-  resolved: { label: '已解决', color: '#16a34a', icon: 'check-circle' },
-  expired: { label: '已过期', color: '#999999', icon: 'x-circle' },
-  cancelled: { label: '已取消', color: '#bbbbbb', icon: 'x-circle' },
-}
 
 const statusBarHeight = ref(0)
 try {
@@ -179,26 +164,26 @@ try {
 const activeTab = ref<'posted' | 'answered'>('posted')
 const loading = ref(true)
 const error = ref(false)
-const bounties = ref<Bounty[]>([])
+const bounties = ref<BountyQuestion[]>([])
+const actioningId = ref('')
 
-const postedData: Bounty[] = [
-  { id: '1', title: '求解八字命盘中的财运分析方法', description: '想了解如何从八字命盘中分析一个人的财运走势...', amount: 50, status: 'answered', answerCount: 3, createdAt: '2024-01-15T10:00:00Z', expireAt: '2024-01-22T10:00:00Z' },
-  { id: '2', title: '风水布局中如何化解尖角煞？', description: '家里客厅有一个突出的墙角对着沙发...', amount: 30, status: 'resolved', answerCount: 5, createdAt: '2024-01-10T08:00:00Z', expireAt: '2024-01-17T08:00:00Z' },
-  { id: '3', title: '梅花易数起卦时间问题请教', description: '用梅花易数起卦时，如果是别人问事...', amount: 20, status: 'open', answerCount: 0, createdAt: '2024-01-18T15:00:00Z', expireAt: '2024-02-18T15:00:00Z' },
-  { id: '4', title: '六爻预测中的用神取用问题', description: '在六爻预测中，如何准确判断用神？', amount: 100, status: 'expired', answerCount: 0, createdAt: '2023-12-20T09:00:00Z', expireAt: '2023-12-27T09:00:00Z' },
-]
-const answeredData: Bounty[] = [
-  { id: '5', title: '紫微斗数命宫主星的判断方法', description: '请教如何快速判断命宫主星...', amount: 60, status: 'resolved', answerCount: 4, createdAt: '2024-01-12T11:00:00Z', expireAt: '2024-01-19T11:00:00Z' },
-  { id: '6', title: '奇门遁甲值符值使如何排布？', description: '奇门起局时值符值使的排布规则...', amount: 80, status: 'open', answerCount: 2, createdAt: '2024-01-16T14:00:00Z', expireAt: '2024-02-16T14:00:00Z' },
-]
+function statusLabel(s: string): string {
+  return BOUNTY_STATUS_LABEL[s as BountyStatus] || s
+}
+function categoryLabel(c: string): string {
+  return BOUNTY_CATEGORY_LABEL[c as keyof typeof BOUNTY_CATEGORY_LABEL] || ''
+}
 
-function loadBounties() {
+async function loadBounties() {
   loading.value = true
   error.value = false
-  setTimeout(() => {
-    bounties.value = activeTab.value === 'posted' ? postedData : answeredData
+  try {
+    bounties.value = await bountyApi.mine(activeTab.value)
+  } catch (e) {
+    error.value = true
+  } finally {
     loading.value = false
-  }, 400)
+  }
 }
 
 function switchTab(key: 'posted' | 'answered') {
@@ -207,44 +192,72 @@ function switchTab(key: 'posted' | 'answered') {
   loadBounties()
 }
 
-const stats = computed(() => ({
-  total: bounties.value.length,
-  open: bounties.value.filter(b => b.status === 'open').length,
-  resolved: bounties.value.filter(b => b.status === 'resolved').length,
-  totalAmount: bounties.value.reduce((sum, b) => sum + b.amount, 0),
-}))
+const stats = computed(() => {
+  const list = bounties.value
+  const settled = list.filter((b) => b.status === 'SETTLED')
+  return {
+    total: list.length,
+    ongoing: list.filter((b) => b.status === 'OPEN' || b.status === 'CLAIMED' || b.status === 'ANSWERED').length,
+    settled: settled.length,
+    // 提问者=已采纳的总投入；答主=已采纳的总收益
+    totalAmount: settled.reduce((sum, b) => sum + b.bountyCoin, 0),
+  }
+})
 
-function settle(id: string) {
-  uni.showToast({ title: '结算成功', icon: 'success' })
+async function settle(id: string) {
+  if (actioningId.value) return
+  const ok = await new Promise<boolean>((resolve) => {
+    uni.showModal({
+      title: '采纳并解付赏金',
+      content: '采纳后赏金将解付给答主，此操作不可撤销。',
+      confirmText: '确认采纳',
+      success: (r) => resolve(!!r.confirm),
+      fail: () => resolve(false),
+    })
+  })
+  if (!ok) return
+  actioningId.value = id
+  try {
+    await bountyApi.settle(id)
+    uni.showToast({ title: '已采纳', icon: 'success' })
+    await loadBounties()
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '采纳失败', icon: 'none' })
+  } finally {
+    actioningId.value = ''
+  }
 }
-function repost(id: string) {
-  navigateTo(`/bounty/create?repost=${id}`)
+
+async function refund(id: string) {
+  if (actioningId.value) return
+  const ok = await new Promise<boolean>((resolve) => {
+    uni.showModal({
+      title: '撤销悬赏',
+      content: '撤销后冻结的赏金将退回你的钱包。',
+      confirmText: '确认撤销',
+      success: (r) => resolve(!!r.confirm),
+      fail: () => resolve(false),
+    })
+  })
+  if (!ok) return
+  actioningId.value = id
+  try {
+    await bountyApi.refund(id)
+    uni.showToast({ title: '已撤销，赏金已退回', icon: 'success' })
+    await loadBounties()
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '退款失败', icon: 'none' })
+  } finally {
+    actioningId.value = ''
+  }
 }
+
 function toDetail(id: string) {
   navigateTo(`/bounty/${id}`)
 }
 function toCreate() {
   navigateTo('/bounty/create')
 }
-
-function formatTimeAgo(dateStr: string) {
-  const diff = Date.now() - new Date(dateStr).getTime()
-  const days = Math.floor(diff / (1000 * 60 * 60 * 24))
-  if (days > 30) return `${Math.floor(days / 30)}个月前`
-  if (days > 0) return `${days}天前`
-  const hours = Math.floor(diff / (1000 * 60 * 60))
-  if (hours > 0) return `${hours}小时前`
-  return '刚刚'
-}
-function getRemainTime(expireAt: string) {
-  const diff = new Date(expireAt).getTime() - Date.now()
-  if (diff <= 0) return '已过期'
-  const days = Math.floor(diff / (1000 * 60 * 60 * 24))
-  const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
-  if (days > 0) return `剩余${days}天${hours}小时`
-  return `剩余${hours}小时`
-}
-
 function goBack() {
   navigateBack()
 }
@@ -387,15 +400,24 @@ loadBounties()
   padding: 8rpx 20rpx;
   border-radius: 999rpx;
 }
-.bm-status-open { background: #eff6ff; }
-.bm-status-answered { background: #fff7ed; }
-.bm-status-resolved { background: #f0fdf4; }
-.bm-status-expired { background: #f3f4f6; }
-.bm-status-cancelled { background: #f9fafb; }
+.bm-status-OPEN { background: #f0fdf4; }
+.bm-status-CLAIMED { background: #eff6ff; }
+.bm-status-ANSWERED { background: #fff7ed; }
+.bm-status-SETTLED { background: #eff6ff; }
+.bm-status-REFUNDED { background: #f3f4f6; }
+.bm-status-CLOSED { background: #f9fafb; }
+.bm-status-EXPIRED { background: #f3f4f6; }
 .bm-status-text {
   font-size: 22rpx;
   font-weight: 500;
 }
+.bm-status-text-OPEN { color: #16a34a; }
+.bm-status-text-CLAIMED { color: #2563eb; }
+.bm-status-text-ANSWERED { color: #ea580c; }
+.bm-status-text-SETTLED { color: #2563eb; }
+.bm-status-text-REFUNDED { color: #999999; }
+.bm-status-text-CLOSED { color: #999999; }
+.bm-status-text-EXPIRED { color: #999999; }
 .bm-amount {
   display: flex;
   align-items: center;
@@ -420,24 +442,29 @@ loadBounties()
   color: #999999;
   line-height: 1.5;
   margin-bottom: 24rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 .bm-card-meta {
   display: flex;
   align-items: center;
-  gap: 32rpx;
+  gap: 16rpx;
   margin-bottom: 24rpx;
 }
-.bm-meta-item {
-  display: flex;
-  align-items: center;
-  gap: 8rpx;
+.bm-cat {
+  font-size: 22rpx;
+  color: var(--brand);
+  background: rgba(196, 30, 58, 0.08);
+  padding: 4rpx 16rpx;
+  border-radius: 8rpx;
 }
 .bm-meta-text {
   font-size: 22rpx;
   color: #999999;
 }
-.bm-meta-warn { color: #f97316; }
-.bm-meta-green { color: #16a34a; }
 
 /* Actions */
 .bm-actions {
@@ -447,6 +474,9 @@ loadBounties()
   gap: 16rpx;
   padding-top: 24rpx;
   border-top: 2rpx solid rgba(240, 240, 239, 0.8);
+}
+.bm-act-disabled {
+  opacity: 0.6;
 }
 .bm-act-settle {
   display: flex;
@@ -461,15 +491,15 @@ loadBounties()
   font-weight: 500;
   color: #ffffff;
 }
-.bm-act-repost {
+.bm-act-refund {
   display: flex;
   align-items: center;
   gap: 12rpx;
   padding: 16rpx 32rpx;
-  background: var(--brand);
+  background: #f59e0b;
   border-radius: 16rpx;
 }
-.bm-act-repost-text {
+.bm-act-refund-text {
   font-size: 26rpx;
   font-weight: 500;
   color: #ffffff;
@@ -478,15 +508,10 @@ loadBounties()
   font-size: 22rpx;
   color: #999999;
 }
-.bm-act-view {
-  padding: 16rpx 32rpx;
-  background: #f59e0b;
-  border-radius: 16rpx;
-}
-.bm-act-view-text {
-  font-size: 26rpx;
+.bm-act-earned {
+  font-size: 24rpx;
   font-weight: 500;
-  color: #ffffff;
+  color: #16a34a;
 }
 
 /* Empty */

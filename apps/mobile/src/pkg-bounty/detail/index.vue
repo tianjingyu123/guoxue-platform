@@ -8,9 +8,17 @@
           <app-icon name="chevron-left" :size="40" color="#2c2c2c" />
         </view>
         <text class="bd-header-title">悬赏详情</text>
-        <view class="bd-icon-btn">
+        <!-- 分享外溢裂变：微信原生转发，H5/App 复制带 ref 链接 -->
+        <!-- #ifdef MP-WEIXIN -->
+        <button class="bd-icon-btn bd-share-btn" open-type="share">
+          <app-icon name="share-2" :size="40" color="#2c2c2c" />
+        </button>
+        <!-- #endif -->
+        <!-- #ifndef MP-WEIXIN -->
+        <view class="bd-icon-btn" @tap="copyShareLink">
           <app-icon name="share-2" :size="40" color="#2c2c2c" />
         </view>
+        <!-- #endif -->
       </view>
     </view>
 
@@ -38,159 +46,134 @@
           <view class="bd-amount-row">
             <view class="bd-amount-left">
               <app-icon name="gift" :size="40" color="#d97706" />
-              <text class="bd-amount-num">¥{{ bounty.amount }}</text>
+              <text class="bd-amount-num">{{ bounty.bountyCoin }} 币</text>
             </view>
             <view class="bd-status" :class="'bd-status-' + bounty.status">
-              <text class="bd-status-text" :class="'bd-status-text-' + bounty.status">{{ statusConfig[bounty.status].label }}</text>
+              <text class="bd-status-text" :class="'bd-status-text-' + bounty.status">{{ statusLabel(bounty.status) }}</text>
             </view>
           </view>
-          <view v-if="bounty.status === 'open'" class="bd-remain">
+          <view v-if="bounty.status === 'CLAIMED' && bounty.lockExpireAt" class="bd-remain">
             <app-icon name="clock" :size="28" color="#b45309" />
-            <text class="bd-remain-text">{{ getRemainingTime(bounty.expireAt) }}</text>
+            <text class="bd-remain-text">答主答题期限 {{ remainingLockTime(bounty.lockExpireAt) }}</text>
           </view>
         </view>
 
-        <!-- Poster -->
-        <view class="bd-poster">
-          <view class="bd-poster-avatar">
-            <image lazy-load v-if="bounty.poster.avatar" :src="bounty.poster.avatar" class="bd-poster-img" mode="aspectFill" />
-            <app-icon v-else name="user" :size="40" color="#c41e3a" />
-          </view>
-          <view class="bd-poster-body">
-            <text class="bd-poster-name">{{ bounty.poster.name }}</text>
-            <text class="bd-poster-time">{{ formatDate(bounty.createdAt) }} 发布</text>
-          </view>
+        <!-- Meta -->
+        <view class="bd-meta">
+          <text v-if="categoryLabel(bounty.category)" class="bd-cat">{{ categoryLabel(bounty.category) }}</text>
+          <text class="bd-poster-time">{{ formatBountyDateTime(bounty.createdAt) }} 发布</text>
         </view>
 
         <!-- Title & Content -->
         <view class="bd-content-block">
           <text class="bd-content-title">{{ bounty.title }}</text>
-          <text class="bd-content-text">{{ bounty.content }}</text>
+          <text class="bd-content-text">{{ bounty.description }}</text>
         </view>
 
-        <!-- Tags -->
-        <view v-if="bounty.tags && bounty.tags.length" class="bd-tags">
-          <text v-for="(tag, i) in bounty.tags" :key="i" class="bd-tag">#{{ tag }}</text>
-        </view>
-
-        <!-- Stats -->
-        <view class="bd-stats">
-          <view class="bd-stat">
-            <app-icon name="eye" :size="30" color="#999999" />
-            <text class="bd-stat-text">{{ bounty.viewCount }} 浏览</text>
-          </view>
-          <view class="bd-stat">
-            <app-icon name="message-circle" :size="30" color="#999999" />
-            <text class="bd-stat-text">{{ bounty.answerCount }} 回答</text>
-          </view>
+        <!-- Question Images -->
+        <view v-if="bounty.images && bounty.images.length" class="bd-imgs">
+          <image
+            v-for="(img, i) in bounty.images"
+            :key="i"
+            :src="img"
+            class="bd-img"
+            mode="widthFix"
+            @tap="previewImage(bounty.images, i)"
+          />
         </view>
       </view>
 
-      <!-- Answers -->
+      <!-- Answer -->
       <view class="bd-answers">
         <view class="bd-answers-head">
-          <text class="bd-answers-title">全部回答 <text class="bd-answers-count">({{ bounty.answers.length }})</text></text>
+          <text class="bd-answers-title">答主回答</text>
         </view>
 
-        <view v-if="bounty.answers.length === 0" class="bd-answers-empty">
+        <!-- 未有回答 -->
+        <view v-if="!hasAnswer" class="bd-answers-empty">
           <app-icon name="message-circle" :size="80" color="#cccccc" />
-          <text class="bd-answers-empty-text">暂无回答，快来抢答吧</text>
+          <text class="bd-answers-empty-text">{{ answerEmptyHint }}</text>
         </view>
 
-        <view v-else class="bd-answer-list">
-          <view v-for="answer in bounty.answers" :key="answer.id" class="bd-answer">
-            <!-- Answer Header -->
-            <view class="bd-answer-head">
-              <view class="bd-answer-avatar">
-                <image lazy-load v-if="answer.author.avatar" :src="answer.author.avatar" class="bd-answer-img" mode="aspectFill" />
-                <app-icon v-else name="user" :size="40" color="#2563eb" />
-              </view>
-              <view class="bd-answer-meta">
-                <view class="bd-answer-meta-top">
-                  <text class="bd-answer-name">{{ answer.author.name }}</text>
-                  <view v-if="answer.author.title" class="bd-answer-badge">
-                    <text class="bd-answer-badge-text">{{ answer.author.title }}</text>
-                  </view>
-                  <view v-if="answer.isAccepted" class="bd-accepted">
-                    <app-icon name="check-circle" :size="24" color="#16a34a" />
-                    <text class="bd-accepted-text">已采纳</text>
-                  </view>
+        <!-- 已有回答（单一答主） -->
+        <view v-else class="bd-answer">
+          <view class="bd-answer-head">
+            <view class="bd-answer-avatar">
+              <app-icon name="user" :size="40" color="#2563eb" />
+            </view>
+            <view class="bd-answer-meta">
+              <view class="bd-answer-meta-top">
+                <text class="bd-answer-name">答主</text>
+                <view v-if="bounty.status === 'SETTLED'" class="bd-accepted">
+                  <app-icon name="check-circle" :size="24" color="#16a34a" />
+                  <text class="bd-accepted-text">已采纳</text>
                 </view>
-                <text class="bd-answer-time">{{ formatDateTime(answer.createdAt) }}</text>
               </view>
+              <text v-if="bounty.answeredAt" class="bd-answer-time">{{ formatBountyDateTime(bounty.answeredAt) }}</text>
             </view>
+          </view>
 
-            <!-- Answer Content -->
-            <text class="bd-answer-content">{{ answer.content }}</text>
+          <text class="bd-answer-content">{{ bounty.answer }}</text>
 
-            <!-- Answer Actions -->
-            <view class="bd-answer-actions">
-              <view
-                class="bd-like"
-                :class="{ 'bd-like-active': answer.isLiked }"
-                @tap="likeAnswer(answer.id)"
-              >
-                <app-icon name="thumbs-up" :size="28" :color="answer.isLiked ? '#c41e3a' : '#999999'" />
-                <text class="bd-like-text" :class="{ 'bd-like-text-active': answer.isLiked }">{{ answer.likes }}</text>
-              </view>
-              <view
-                v-if="isPoster && bounty.status === 'open' && !answer.isAccepted && !bounty.acceptedAnswerId"
-                class="bd-accept-btn"
-                @tap="acceptAnswer(answer.id)"
-              >
-                <app-icon name="award" :size="28" color="#ffffff" />
-                <text class="bd-accept-btn-text">采纳答案</text>
-              </view>
-            </view>
+          <!-- Answer Images -->
+          <view v-if="bounty.answerImages && bounty.answerImages.length" class="bd-imgs">
+            <image
+              v-for="(img, i) in bounty.answerImages"
+              :key="i"
+              :src="img"
+              class="bd-img"
+              mode="widthFix"
+              @tap="previewImage(bounty.answerImages, i)"
+            />
           </view>
         </view>
       </view>
     </template>
 
-    <!-- Answer Form Modal -->
-    <view v-if="showAnswerForm" class="bd-modal-mask">
-      <view class="bd-modal">
-        <view class="bd-modal-head">
-          <text class="bd-modal-cancel" @tap="showAnswerForm = false">取消</text>
-          <text class="bd-modal-title">写回答</text>
-          <text
-            class="bd-modal-submit"
-            :class="{ 'bd-modal-submit-disabled': submitting || answerContent.length < 20 }"
-            @tap="submitAnswer"
-          >{{ submitting ? '提交中...' : '提交' }}</text>
-        </view>
-        <view class="bd-modal-body">
-          <textarea
-            v-model="answerContent"
-            class="bd-modal-textarea"
-            placeholder="请输入您的回答，至少20字..."
-            :maxlength="2000"
-          />
-          <text class="bd-modal-counter">{{ answerContent.length }}/2000</text>
-        </view>
-      </view>
-    </view>
-
     <!-- Bottom Actions -->
     <view v-if="bounty" class="bd-bottom">
-      <view v-if="isPoster" class="bd-bottom-row">
-        <view v-if="bounty.status === 'open' && bounty.acceptedAnswerId" class="bd-btn-primary" @tap="settle">
-          <text class="bd-btn-primary-text">结算悬赏</text>
+      <!-- 提问者视角 -->
+      <view v-if="isAsker" class="bd-bottom-row">
+        <view
+          v-if="bounty.status === 'ANSWERED'"
+          class="bd-btn-primary"
+          :class="{ 'bd-btn-disabled': submitting }"
+          @tap="onSettle"
+        >
+          <app-icon name="award" :size="32" color="#ffffff" />
+          <text class="bd-btn-primary-text">{{ submitting ? '处理中...' : '采纳并解付赏金' }}</text>
         </view>
-        <view v-if="bounty.status === 'expired' && bounty.answers.length === 0" class="bd-btn-warn" @tap="refund">
-          <text class="bd-btn-warn-text">申请退款</text>
+        <view
+          v-else-if="bounty.status === 'OPEN' || bounty.status === 'CLAIMED'"
+          class="bd-btn-warn"
+          :class="{ 'bd-btn-disabled': submitting }"
+          @tap="onRefund"
+        >
+          <text class="bd-btn-warn-text">{{ submitting ? '处理中...' : '撤销悬赏并退款' }}</text>
         </view>
-        <view v-if="bounty.status === 'open' && !bounty.acceptedAnswerId" class="bd-btn-muted" @tap="toQa">
-          <text class="bd-btn-muted-text">查看更多回答</text>
+        <view v-else class="bd-btn-done">
+          <text class="bd-btn-done-text">{{ statusLabel(bounty.status) }}</text>
         </view>
       </view>
+
+      <!-- 答主/围观者视角 -->
       <view v-else class="bd-bottom-row">
-        <view v-if="bounty.status === 'open' && !hasAnswered" class="bd-btn-primary" @tap="showAnswerForm = true">
+        <view v-if="bounty.status === 'OPEN'" class="bd-btn-primary" @tap="toAnswer">
           <app-icon name="send" :size="32" color="#ffffff" />
-          <text class="bd-btn-primary-text">我要回答</text>
+          <text class="bd-btn-primary-text">我要抢答</text>
         </view>
-        <view v-if="hasAnswered" class="bd-btn-done">
-          <text class="bd-btn-done-text">已提交回答</text>
+        <view v-else-if="bounty.status === 'CLAIMED' && isAnswerer" class="bd-btn-primary" @tap="toAnswer">
+          <app-icon name="edit-3" :size="32" color="#ffffff" />
+          <text class="bd-btn-primary-text">提交我的回答</text>
+        </view>
+        <view v-else-if="bounty.status === 'CLAIMED'" class="bd-btn-done">
+          <text class="bd-btn-done-text">已被其他答主抢答</text>
+        </view>
+        <view v-else-if="bounty.status === 'ANSWERED' && isAnswerer" class="bd-btn-done">
+          <text class="bd-btn-done-text">回答已提交，等待采纳</text>
+        </view>
+        <view v-else class="bd-btn-done">
+          <text class="bd-btn-done-text">{{ statusLabel(bounty.status) }}</text>
         </view>
       </view>
     </view>
@@ -199,42 +182,20 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 import { navigateTo, navigateBack } from '@/utils/router'
-
-interface BountyAnswer {
-  id: string
-  content: string
-  author: { id: string; name: string; avatar: string; title?: string }
-  likes: number
-  isLiked: boolean
-  isAccepted: boolean
-  createdAt: string
-}
-interface BountyDetail {
-  id: string
-  title: string
-  description: string
-  content: string
-  amount: number
-  status: 'open' | 'answered' | 'resolved' | 'expired' | 'cancelled'
-  poster: { id: string; name: string; avatar: string }
-  answerCount: number
-  viewCount: number
-  category: string
-  tags: string[]
-  createdAt: string
-  expireAt: string
-  acceptedAnswerId?: string
-  answers: BountyAnswer[]
-}
-
-const statusConfig: Record<string, { label: string }> = {
-  open: { label: '进行中' },
-  answered: { label: '已回答' },
-  resolved: { label: '已解决' },
-  expired: { label: '已过期' },
-  cancelled: { label: '已取消' },
-}
+import { useShare } from '@/composables/useShare'
+import { withRef } from '@/utils/referral'
+import {
+  bountyApi,
+  getMyUserId,
+  formatBountyDateTime,
+  remainingLockTime,
+  BOUNTY_STATUS_LABEL,
+  BOUNTY_CATEGORY_LABEL,
+  type BountyQuestion,
+  type BountyStatus,
+} from '@/lib/bounty-data'
 
 const statusBarHeight = ref(0)
 try {
@@ -243,129 +204,137 @@ try {
 } catch (e) {}
 
 const bountyId = ref('')
-const currentUserId = 'user-123'
-const bounty = ref<BountyDetail | null>(null)
+const myId = getMyUserId()
+const bounty = ref<BountyQuestion | null>(null)
 const loading = ref(true)
 const error = ref(false)
-const showAnswerForm = ref(false)
-const answerContent = ref('')
 const submitting = ref(false)
 
-function loadBounty() {
+function statusLabel(s: string): string {
+  return BOUNTY_STATUS_LABEL[s as BountyStatus] || s
+}
+function categoryLabel(c: string): string {
+  return BOUNTY_CATEGORY_LABEL[c as keyof typeof BOUNTY_CATEGORY_LABEL] || ''
+}
+
+const isAsker = computed(() => !!myId && bounty.value?.askerId === myId)
+const isAnswerer = computed(() => !!myId && bounty.value?.answererId === myId)
+const hasAnswer = computed(() => !!bounty.value?.answer && (bounty.value?.status === 'ANSWERED' || bounty.value?.status === 'SETTLED'))
+const answerEmptyHint = computed(() => {
+  const s = bounty.value?.status
+  if (s === 'OPEN') return '暂无人抢答，快来抢答赢赏金'
+  if (s === 'CLAIMED') return '答主已接单，正在作答中'
+  return '暂无回答'
+})
+
+async function loadBounty() {
   loading.value = true
   error.value = false
-  setTimeout(() => {
-    bounty.value = {
-      id: bountyId.value || '1',
-      title: '如何理解《易经》中的"元亨利贞"？',
-      description: '想深入了解《易经》乾卦中"元亨利贞"四德的含义',
-      content: '我最近在学习《易经》，对于乾卦的"元亨利贞"这四个字理解不深。\n\n1. 这四个字分别代表什么意思？\n2. 它们之间有什么内在联系？\n3. 在实际生活中如何运用这四德？\n\n希望能得到详细的解答，最好能结合具体案例说明。',
-      amount: 50,
-      status: 'open',
-      poster: { id: 'user-456', name: '国学爱好者', avatar: '' },
-      answerCount: 3,
-      viewCount: 128,
-      category: '易经研究',
-      tags: ['易经', '乾卦', '四德'],
-      createdAt: '2024-01-15T10:00:00Z',
-      expireAt: '2024-01-22T10:00:00Z',
-      answers: [
-        {
-          id: 'answer-1',
-          content: '"元亨利贞"是《易经》乾卦的卦辞，被称为"四德"。\n\n元：开始、首创、生长之德。代表万物之始，是创造的源动力。\n\n亨：通达、顺利、亨通之德。代表事物发展顺畅，如日中天。\n\n利：有利、适宜、收获之德。代表成熟收获，获得利益。\n\n贞：正固、坚守、纯正之德。代表守正不阿，坚持正道。\n\n这四德代表了事物发展的四个阶段，也是为人处世的四种品德。',
-          author: { id: 'user-789', name: '周易大师', avatar: '', title: '易学讲师' },
-          likes: 24,
-          isLiked: false,
-          isAccepted: false,
-          createdAt: '2024-01-15T14:30:00Z',
-        },
-        {
-          id: 'answer-2',
-          content: '简单来说，元是创始，亨是通达，利是和谐，贞是正固。这四个字概括了天道运行和人生处世的基本原则。',
-          author: { id: 'user-101', name: '传统文化研究者', avatar: '' },
-          likes: 8,
-          isLiked: true,
-          isAccepted: false,
-          createdAt: '2024-01-16T09:00:00Z',
-        },
-      ],
-    }
+  try {
+    bounty.value = await bountyApi.detail(bountyId.value)
+  } catch (e) {
+    error.value = true
+  } finally {
     loading.value = false
-  }, 400)
+  }
 }
 
-const isPoster = computed(() => bounty.value?.poster.id === currentUserId)
-const hasAnswered = computed(() => bounty.value?.answers.some(a => a.author.id === currentUserId))
+function previewImage(urls: string[], current: number) {
+  uni.previewImage({ urls, current: urls[current] })
+}
 
-function submitAnswer() {
-  if (answerContent.value.trim().length < 20 || submitting.value) return
+function toAnswer() {
+  navigateTo(`/bounty/answer?id=${bountyId.value}`)
+}
+
+async function onSettle() {
+  if (submitting.value || !bounty.value) return
+  const res = await new Promise<boolean>((resolve) => {
+    uni.showModal({
+      title: '采纳并解付赏金',
+      content: `采纳后 ${bounty.value!.bountyCoin} 国学币将解付给答主，此操作不可撤销。`,
+      confirmText: '确认采纳',
+      success: (r) => resolve(!!r.confirm),
+      fail: () => resolve(false),
+    })
+  })
+  if (!res) return
   submitting.value = true
-  setTimeout(() => {
-    answerContent.value = ''
-    showAnswerForm.value = false
+  try {
+    await bountyApi.settle(bountyId.value)
+    uni.showToast({ title: '已采纳，赏金已解付', icon: 'success' })
+    await loadBounty()
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '采纳失败', icon: 'none' })
+  } finally {
     submitting.value = false
-    uni.showToast({ title: '回答已提交', icon: 'success' })
-    loadBounty()
-  }, 600)
+  }
 }
 
-function acceptAnswer(answerId: string) {
-  if (!bounty.value) return
-  bounty.value.acceptedAnswerId = answerId
-  bounty.value.answers = bounty.value.answers.map(a =>
-    a.id === answerId ? { ...a, isAccepted: true } : a,
-  )
-  uni.showToast({ title: '已采纳', icon: 'success' })
-}
-
-function likeAnswer(answerId: string) {
-  if (!bounty.value) return
-  bounty.value.answers = bounty.value.answers.map(a =>
-    a.id === answerId
-      ? { ...a, isLiked: !a.isLiked, likes: a.isLiked ? a.likes - 1 : a.likes + 1 }
-      : a,
-  )
-}
-
-function settle() {
-  uni.showToast({ title: '结算成功', icon: 'success' })
-}
-function refund() {
-  uni.showToast({ title: '已申请退款', icon: 'success' })
-}
-function toQa() {
-  navigateTo('/qa')
-}
-
-function formatDate(dateStr: string) {
-  const d = new Date(dateStr)
-  return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`
-}
-function formatDateTime(dateStr: string) {
-  const d = new Date(dateStr)
-  const pad = (n: number) => (n < 10 ? '0' + n : '' + n)
-  return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()} ${pad(d.getHours())}:${pad(d.getMinutes())}`
-}
-function getRemainingTime(expireAt: string) {
-  const diff = new Date(expireAt).getTime() - Date.now()
-  if (diff <= 0) return '已过期'
-  const days = Math.floor(diff / (1000 * 60 * 60 * 24))
-  const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
-  if (days > 0) return `剩余 ${days} 天 ${hours} 小时`
-  return `剩余 ${hours} 小时`
+async function onRefund() {
+  if (submitting.value || !bounty.value) return
+  const res = await new Promise<boolean>((resolve) => {
+    uni.showModal({
+      title: '撤销悬赏',
+      content: `撤销后冻结的 ${bounty.value!.bountyCoin} 国学币将退回你的钱包。`,
+      confirmText: '确认撤销',
+      success: (r) => resolve(!!r.confirm),
+      fail: () => resolve(false),
+    })
+  })
+  if (!res) return
+  submitting.value = true
+  try {
+    await bountyApi.refund(bountyId.value)
+    uni.showToast({ title: '已撤销，赏金已退回', icon: 'success' })
+    await loadBounty()
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '退款失败', icon: 'none' })
+  } finally {
+    submitting.value = false
+  }
 }
 
 function goBack() {
   navigateBack()
 }
 
+// ============ 分享外溢裂变（V7）============
+// 好问题分享到站外，钩子=好奇+挑战+赏金诱惑；path 指向本悬赏详情，好友点开被吸引来答题/围观 → 需注册=拉新
+const shareTitle = computed(() => {
+  const b = bounty.value
+  if (!b) return '悬赏求答：一道有意思的国学题，你会吗？'
+  // 有赏金则突出赏金（虚拟币悬赏机制·仅展示不涉资金逻辑），否则用「悬赏求答」钩子
+  return b.bountyCoin > 0
+    ? `${b.bountyCoin}币悬赏这道国学题，你会吗？`
+    : `悬赏求答：${b.title}`
+})
+// 分享落地=本悬赏详情页；withRef 在 useShare/H5 链接内自动追加分享者 ref 归因
+const sharePath = computed(() => `/pkg-bounty/detail/index?id=${bounty.value?.id || bountyId.value}`)
+
+const { toAppMessage, toTimeline } = useShare()
+// 微信小程序原生转发（右上角菜单 / open-type="share" 按钮触发）
+onShareAppMessage(() => toAppMessage({ title: shareTitle.value, path: sharePath.value }))
+onShareTimeline(() => toTimeline({ title: shareTitle.value, path: sharePath.value }))
+
+/** H5/App 端：复制带 ref 的完整链接 + 外溢文案到剪贴板（好友点开自动记归因） */
+function copyShareLink() {
+  const link = withRef(`https://api.rebugx.cn/h5/#${sharePath.value}`)
+  const text = `${shareTitle.value} 来热卜国学答题赢赏金 👉 ${link}`
+  uni.setClipboardData({
+    data: text,
+    success: () => uni.showToast({ title: '分享文案已复制，快发给好友吧', icon: 'none' }),
+    fail: () => uni.showToast({ title: '复制失败，请重试', icon: 'none' }),
+  })
+}
+
 try {
   const pages = getCurrentPages()
   const cur = pages[pages.length - 1] as unknown as { options?: Record<string, string>; $page?: { options?: Record<string, string> } }
   const opts = cur?.options || cur?.$page?.options || {}
-  bountyId.value = opts.id || '1'
+  bountyId.value = opts.id || ''
 } catch (e) {
-  bountyId.value = '1'
+  bountyId.value = ''
 }
 
 loadBounty()
@@ -406,6 +375,17 @@ loadBounty()
   font-size: 30rpx;
   font-weight: 500;
   color: #2c2c2c;
+}
+/* 原生 share 按钮复位（去默认边框/背景/内边距，与 view 版图标按钮视觉一致） */
+.bd-share-btn {
+  padding: 0;
+  margin: 0;
+  line-height: normal;
+  background: transparent;
+  border: none;
+}
+.bd-share-btn::after {
+  border: none;
 }
 
 /* Loading / Notfound */
@@ -456,7 +436,6 @@ loadBounty()
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 24rpx;
 }
 .bd-amount-left {
   display: flex;
@@ -472,64 +451,51 @@ loadBounty()
   padding: 8rpx 24rpx;
   border-radius: 999rpx;
 }
-.bd-status-open { background: #f0fdf4; }
-.bd-status-answered { background: #eff6ff; }
-.bd-status-resolved { background: rgba(196, 30, 58, 0.1); }
-.bd-status-expired { background: #f5f5f4; }
-.bd-status-cancelled { background: #f5f5f4; }
+.bd-status-OPEN { background: #f0fdf4; }
+.bd-status-CLAIMED { background: #eff6ff; }
+.bd-status-ANSWERED { background: #fff7ed; }
+.bd-status-SETTLED { background: rgba(196, 30, 58, 0.1); }
+.bd-status-REFUNDED { background: #f5f5f4; }
+.bd-status-CLOSED { background: #f5f5f4; }
+.bd-status-EXPIRED { background: #f5f5f4; }
 .bd-status-text {
   font-size: 26rpx;
   font-weight: 500;
 }
-.bd-status-text-open { color: #16a34a; }
-.bd-status-text-answered { color: #2563eb; }
-.bd-status-text-resolved { color: var(--brand); }
-.bd-status-text-expired { color: #999999; }
-.bd-status-text-cancelled { color: #999999; }
+.bd-status-text-OPEN { color: #16a34a; }
+.bd-status-text-CLAIMED { color: #2563eb; }
+.bd-status-text-ANSWERED { color: #ea580c; }
+.bd-status-text-SETTLED { color: var(--brand); }
+.bd-status-text-REFUNDED { color: #999999; }
+.bd-status-text-CLOSED { color: #999999; }
+.bd-status-text-EXPIRED { color: #999999; }
 .bd-remain {
   display: flex;
   align-items: center;
   gap: 8rpx;
+  margin-top: 24rpx;
 }
 .bd-remain-text {
   font-size: 26rpx;
   color: #b45309;
 }
 
-/* Poster */
-.bd-poster {
+/* Meta */
+.bd-meta {
   display: flex;
   align-items: center;
-  gap: 24rpx;
+  gap: 16rpx;
 }
-.bd-poster-avatar {
-  width: 80rpx;
-  height: 80rpx;
-  border-radius: 999rpx;
-  background: linear-gradient(135deg, rgba(196, 30, 58, 0.2), rgba(196, 30, 58, 0.05));
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-}
-.bd-poster-img {
-  width: 100%;
-  height: 100%;
-}
-.bd-poster-body {
-  flex: 1;
-}
-.bd-poster-name {
-  display: block;
-  font-size: 26rpx;
-  font-weight: 500;
-  color: #2c2c2c;
+.bd-cat {
+  font-size: 22rpx;
+  color: var(--brand);
+  background: rgba(196, 30, 58, 0.08);
+  padding: 6rpx 16rpx;
+  border-radius: 8rpx;
 }
 .bd-poster-time {
-  display: block;
   font-size: 22rpx;
   color: #999999;
-  margin-top: 4rpx;
 }
 
 /* Content */
@@ -548,33 +514,17 @@ loadBounty()
   line-height: 1.7;
   white-space: pre-wrap;
 }
-.bd-tags {
+
+/* Images */
+.bd-imgs {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: 16rpx;
 }
-.bd-tag {
-  padding: 8rpx 16rpx;
+.bd-img {
+  width: 100%;
+  border-radius: 16rpx;
   background: #f5f5f4;
-  border-radius: 8rpx;
-  font-size: 22rpx;
-  color: #999999;
-}
-.bd-stats {
-  display: flex;
-  align-items: center;
-  gap: 32rpx;
-  padding-top: 24rpx;
-  border-top: 2rpx solid #f0f0ef;
-}
-.bd-stat {
-  display: flex;
-  align-items: center;
-  gap: 8rpx;
-}
-.bd-stat-text {
-  font-size: 26rpx;
-  color: #999999;
 }
 
 /* Answers */
@@ -590,9 +540,6 @@ loadBounty()
   font-weight: 500;
   color: #2c2c2c;
 }
-.bd-answers-count {
-  color: #999999;
-}
 .bd-answers-empty {
   display: flex;
   flex-direction: column;
@@ -604,19 +551,16 @@ loadBounty()
   font-size: 26rpx;
   color: #999999;
 }
-.bd-answer-list {
-  display: flex;
-  flex-direction: column;
-}
 .bd-answer {
   padding: 32rpx;
-  border-bottom: 2rpx solid #f0f0ef;
+  display: flex;
+  flex-direction: column;
+  gap: 24rpx;
 }
 .bd-answer-head {
   display: flex;
   align-items: flex-start;
   gap: 24rpx;
-  margin-bottom: 24rpx;
 }
 .bd-answer-avatar {
   width: 80rpx;
@@ -627,11 +571,6 @@ loadBounty()
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  overflow: hidden;
-}
-.bd-answer-img {
-  width: 100%;
-  height: 100%;
 }
 .bd-answer-meta {
   flex: 1;
@@ -647,15 +586,6 @@ loadBounty()
   font-size: 26rpx;
   font-weight: 500;
   color: #2c2c2c;
-}
-.bd-answer-badge {
-  padding: 2rpx 12rpx;
-  background: rgba(196, 30, 58, 0.1);
-  border-radius: 8rpx;
-}
-.bd-answer-badge-text {
-  font-size: 20rpx;
-  color: var(--brand);
 }
 .bd-accepted {
   display: flex;
@@ -681,104 +611,6 @@ loadBounty()
   color: rgba(44, 44, 44, 0.8);
   line-height: 1.7;
   white-space: pre-wrap;
-  margin-bottom: 24rpx;
-}
-.bd-answer-actions {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-.bd-like {
-  display: flex;
-  align-items: center;
-  gap: 12rpx;
-  padding: 12rpx 24rpx;
-  background: #f5f5f4;
-  border-radius: 999rpx;
-}
-.bd-like-active {
-  background: rgba(196, 30, 58, 0.1);
-}
-.bd-like-text {
-  font-size: 26rpx;
-  color: #999999;
-}
-.bd-like-text-active {
-  color: var(--brand);
-}
-.bd-accept-btn {
-  display: flex;
-  align-items: center;
-  gap: 12rpx;
-  padding: 12rpx 24rpx;
-  background: var(--brand);
-  border-radius: 999rpx;
-}
-.bd-accept-btn-text {
-  font-size: 26rpx;
-  color: #ffffff;
-}
-
-/* Modal */
-.bd-modal-mask {
-  position: fixed;
-  inset: 0;
-  z-index: 50;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: flex-end;
-}
-.bd-modal {
-  width: 100%;
-  background: #ffffff;
-  border-radius: 32rpx 32rpx 0 0;
-  max-height: 80vh;
-  display: flex;
-  flex-direction: column;
-}
-.bd-modal-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 24rpx 32rpx;
-  border-bottom: 2rpx solid #f0f0ef;
-}
-.bd-modal-cancel {
-  font-size: 28rpx;
-  color: #999999;
-}
-.bd-modal-title {
-  font-size: 30rpx;
-  font-weight: 500;
-  color: #2c2c2c;
-}
-.bd-modal-submit {
-  font-size: 28rpx;
-  font-weight: 500;
-  color: var(--brand);
-}
-.bd-modal-submit-disabled {
-  opacity: 0.5;
-}
-.bd-modal-body {
-  padding: 32rpx;
-}
-.bd-modal-textarea {
-  width: 100%;
-  height: 320rpx;
-  padding: 24rpx;
-  background: #f5f5f4;
-  border-radius: 24rpx;
-  font-size: 28rpx;
-  color: #2c2c2c;
-  box-sizing: border-box;
-}
-.bd-modal-counter {
-  display: block;
-  text-align: right;
-  font-size: 22rpx;
-  color: #999999;
-  margin-top: 16rpx;
 }
 
 /* Bottom */
@@ -794,6 +626,9 @@ loadBounty()
 .bd-bottom-row {
   display: flex;
   gap: 24rpx;
+}
+.bd-btn-disabled {
+  opacity: 0.6;
 }
 .bd-btn-primary {
   flex: 1;
@@ -823,20 +658,6 @@ loadBounty()
   font-size: 30rpx;
   font-weight: 500;
   color: #ffffff;
-}
-.bd-btn-muted {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 88rpx;
-  background: #f5f5f4;
-  border-radius: 24rpx;
-}
-.bd-btn-muted-text {
-  font-size: 30rpx;
-  font-weight: 500;
-  color: #2c2c2c;
 }
 .bd-btn-done {
   flex: 1;

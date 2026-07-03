@@ -19,6 +19,9 @@
       <view class="ba-sk-block ba-sk-h240" />
     </view>
 
+    <!-- Error -->
+    <app-error v-else-if="error" title="悬赏加载失败" desc="网络异常，请稍后重试" @retry="loadBounty" />
+
     <view v-else-if="!bounty" class="ba-notfound">
       <text class="ba-notfound-text">悬赏不存在</text>
     </view>
@@ -32,80 +35,85 @@
               <view class="ba-ref-gift">
                 <app-icon name="gift" :size="32" color="#ffffff" />
               </view>
-              <text class="ba-ref-amount-text">¥{{ bounty.amount }}</text>
+              <text class="ba-ref-amount-text">{{ bounty.bountyCoin }} 币</text>
             </view>
-            <view class="ba-ref-remain">
+            <view v-if="bounty.status === 'CLAIMED' && bounty.lockExpireAt" class="ba-ref-remain">
               <app-icon name="clock" :size="24" color="#d97706" />
-              <text class="ba-ref-remain-text">剩余 {{ getRemainingTime() }}</text>
+              <text class="ba-ref-remain-text">{{ remainingLockTime(bounty.lockExpireAt) }}</text>
             </view>
           </view>
           <text class="ba-ref-title">{{ bounty.title }}</text>
           <text class="ba-ref-desc">{{ bounty.description }}</text>
           <view class="ba-ref-foot">
-            <image lazy-load :src="bounty.poster.avatar" class="ba-ref-avatar" mode="aspectFill" />
-            <text class="ba-ref-meta">{{ bounty.poster.name }} 发布</text>
-            <text class="ba-ref-dot">·</text>
-            <text class="ba-ref-meta">{{ bounty.answerCount }} 人已回答</text>
+            <text v-if="categoryLabel" class="ba-ref-cat">{{ categoryLabel }}</text>
           </view>
         </view>
 
-        <!-- Answer Input -->
-        <view class="ba-input-card">
-          <view class="ba-input-head">
-            <app-icon name="send" :size="32" color="#c41e3a" />
-            <text class="ba-input-title">我的回答</text>
-          </view>
-          <textarea
-            v-model="content"
-            class="ba-textarea"
-            placeholder="请输入您的回答，至少20字...&#10;&#10;提示：详细、专业的回答更容易被采纳获得悬赏"
-            :maxlength="2000"
-            @input="error = ''"
-          />
-          <!-- Image Upload -->
-          <view class="ba-upload">
-            <view class="ba-upload-label">
-              <app-icon name="image" :size="28" color="#999999" />
-              <text class="ba-upload-label-text">添加配图（选填，最多9张）</text>
+        <!-- 不可回答提示（他人已抢 / 已结束 / 提问者本人） -->
+        <view v-if="!canAnswer" class="ba-blocked">
+          <app-icon name="alert-circle" :size="40" color="#ea580c" />
+          <text class="ba-blocked-text">{{ blockedReason }}</text>
+        </view>
+
+        <template v-else>
+          <!-- Answer Input -->
+          <view class="ba-input-card">
+            <view class="ba-input-head">
+              <app-icon name="send" :size="32" color="#c41e3a" />
+              <text class="ba-input-title">我的回答</text>
             </view>
-            <view class="ba-upload-grid">
-              <view v-for="(img, index) in images" :key="index" class="ba-upload-item">
-                <image lazy-load :src="img" class="ba-upload-img" mode="aspectFill" />
-                <view class="ba-upload-remove" @tap="removeImage(index)">
-                  <app-icon name="x" :size="20" color="#ffffff" />
+            <textarea
+              v-model="content"
+              class="ba-textarea"
+              placeholder="请输入您的回答，至少20字...&#10;&#10;提示：详细、专业的回答更容易被采纳获得赏金"
+              :maxlength="2000"
+              @input="error2 = ''"
+            />
+            <!-- Image Upload -->
+            <view class="ba-upload">
+              <view class="ba-upload-label">
+                <app-icon name="image" :size="28" color="#999999" />
+                <text class="ba-upload-label-text">添加配图（选填，最多9张）</text>
+              </view>
+              <view class="ba-upload-grid">
+                <view v-for="(img, index) in images" :key="index" class="ba-upload-item">
+                  <image :src="img" class="ba-upload-img" mode="aspectFill" />
+                  <view class="ba-upload-remove" @tap="removeImage(index)">
+                    <app-icon name="x" :size="20" color="#ffffff" />
+                  </view>
+                </view>
+                <view v-if="images.length < 9" class="ba-upload-add" @tap="addImage">
+                  <app-icon v-if="!uploading" name="image" :size="36" color="#999999" />
+                  <text class="ba-upload-add-text">{{ uploading ? '上传中' : images.length + '/9' }}</text>
                 </view>
               </view>
-              <view v-if="images.length < 9" class="ba-upload-add" @tap="addImage">
-                <app-icon name="image" :size="36" color="#999999" />
-                <text class="ba-upload-add-text">{{ images.length }}/9</text>
-              </view>
             </view>
           </view>
-        </view>
 
-        <!-- Tips -->
-        <view class="ba-tips">
-          <text class="ba-tips-title">回答提示</text>
-          <view class="ba-tips-list">
-            <text class="ba-tips-item">• 请认真回答问题，详细、专业的回答更容易被采纳</text>
-            <text class="ba-tips-item">• 回答被采纳后，您将获得全部悬赏金额</text>
-            <text class="ba-tips-item">• 如有多人回答，发布者将选择最佳答案采纳</text>
-            <text class="ba-tips-item">• 禁止发布违规内容，违者将被封禁</text>
+          <!-- Tips -->
+          <view class="ba-tips">
+            <text class="ba-tips-title">回答提示</text>
+            <view class="ba-tips-list">
+              <text class="ba-tips-item">• 提交回答即视为抢答该悬赏，一条悬赏仅一位答主</text>
+              <text class="ba-tips-item">• 回答被提问者采纳后，赏金将全额结算给你</text>
+              <text class="ba-tips-item">• 请认真作答，详细、专业的回答更容易被采纳</text>
+              <text class="ba-tips-item">• 禁止发布违规内容，违者将被封禁</text>
+            </view>
           </view>
-        </view>
 
-        <!-- Error -->
-        <view v-if="error" class="ba-error">
-          <app-icon name="alert-circle" :size="28" color="#ef4444" />
-          <text class="ba-error-text">{{ error }}</text>
-        </view>
+          <!-- Error -->
+          <view v-if="error2" class="ba-error">
+            <app-icon name="alert-circle" :size="28" color="#ef4444" />
+            <text class="ba-error-text">{{ error2 }}</text>
+          </view>
+        </template>
       </view>
 
       <!-- Bottom -->
-      <view class="ba-bottom">
+      <view v-if="canAnswer" class="ba-bottom">
         <view class="ba-bottom-info">
           <text class="ba-bottom-words">回答字数：<text :class="content.length < 20 ? 'ba-words-red' : 'ba-words-green'">{{ content.length }}</text>/2000</text>
-          <text class="ba-bottom-reward">可获悬赏：<text class="ba-reward-num">¥{{ bounty.amount }}</text></text>
+          <text class="ba-bottom-reward">可获赏金：<text class="ba-reward-num">{{ bounty.bountyCoin }} 币</text></text>
         </view>
         <view
           class="ba-submit"
@@ -121,19 +129,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { navigateTo, navigateBack } from '@/utils/router'
-
-interface Bounty {
-  id: string
-  title: string
-  description: string
-  amount: number
-  poster: { id: string; name: string; avatar: string }
-  answerCount: number
-  viewCount: number
-  expireAt: string
-}
+import { chooseAndUploadImage } from '@/utils/request'
+import {
+  bountyApi,
+  getMyUserId,
+  remainingLockTime,
+  BOUNTY_CATEGORY_LABEL,
+  type BountyQuestion,
+} from '@/lib/bounty-data'
 
 const statusBarHeight = ref(0)
 try {
@@ -142,75 +147,91 @@ try {
 } catch (e) {}
 
 const bountyId = ref('')
-const bounty = ref<Bounty | null>(null)
+const myId = getMyUserId()
+const bounty = ref<BountyQuestion | null>(null)
 const content = ref('')
 const images = ref<string[]>([])
+const uploading = ref(false)
 const loading = ref(true)
 const submitting = ref(false)
-const error = ref('')
+const error = ref(false)   // 加载错误态
+const error2 = ref('')     // 表单/提交错误提示
 
-function loadBounty() {
+const categoryLabel = computed(() =>
+  bounty.value ? BOUNTY_CATEGORY_LABEL[bounty.value.category as keyof typeof BOUNTY_CATEGORY_LABEL] || '' : '',
+)
+
+// 可回答：OPEN（可抢答）或 CLAIMED 且我是答主（已抢答·继续作答）
+const canAnswer = computed(() => {
+  const b = bounty.value
+  if (!b) return false
+  if (b.askerId === myId) return false
+  if (b.status === 'OPEN') return true
+  if (b.status === 'CLAIMED' && b.answererId === myId) return true
+  return false
+})
+const blockedReason = computed(() => {
+  const b = bounty.value
+  if (!b) return ''
+  if (b.askerId === myId) return '不能回答自己发布的悬赏'
+  if (b.status === 'CLAIMED') return '该悬赏已被其他答主抢答'
+  if (b.status === 'ANSWERED') return '该悬赏已有回答，等待提问者采纳'
+  return '该悬赏已结束，无法回答'
+})
+
+async function loadBounty() {
   loading.value = true
-  setTimeout(() => {
-    bounty.value = {
-      id: bountyId.value || '1',
-      title: '如何理解《易经》中的乾卦与坤卦的关系？',
-      description: '最近在学习易经，对于乾卦和坤卦的关系有些困惑，希望有大师能够详细解答一下这两卦之间的联系和区别，以及在实际应用中如何把握。',
-      amount: 100,
-      poster: { id: '1', name: '学易新手', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=xy1' },
-      answerCount: 3,
-      viewCount: 156,
-      expireAt: '2024-01-22T10:00:00Z',
-    }
+  error.value = false
+  try {
+    bounty.value = await bountyApi.detail(bountyId.value)
+  } catch (e) {
+    error.value = true
+  } finally {
     loading.value = false
-  }, 400)
+  }
 }
 
-function addImage() {
-  if (images.value.length >= 9) {
-    error.value = '最多上传9张图片'
-    return
+async function addImage() {
+  if (images.value.length >= 9 || uploading.value) return
+  uploading.value = true
+  try {
+    const url = await chooseAndUploadImage()
+    images.value = [...images.value, url].slice(0, 9)
+    error2.value = ''
+  } catch (e: any) {
+    if (e?.message && e.message !== '已取消') uni.showToast({ title: e.message, icon: 'none' })
+  } finally {
+    uploading.value = false
   }
-  uni.chooseImage({
-    count: 9 - images.value.length,
-    success: (res) => {
-      const paths = res.tempFilePaths || []
-      images.value = [...images.value, ...paths].slice(0, 9)
-      error.value = ''
-    },
-  })
 }
 function removeImage(index: number) {
   images.value = images.value.filter((_, i) => i !== index)
 }
 
-function submit() {
-  if (!content.value.trim()) {
-    error.value = '请输入回答内容'
-    return
-  }
-  if (content.value.length < 20) {
-    error.value = '回答内容至少20字'
-    return
-  }
+async function submit() {
   if (submitting.value) return
+  if (content.value.trim().length < 20) {
+    error2.value = '回答内容至少20字'
+    return
+  }
   submitting.value = true
-  error.value = ''
-  setTimeout(() => {
-    submitting.value = false
+  error2.value = ''
+  try {
+    // OPEN 需先抢答锁定答主身份，再提交回答；CLAIMED（我已抢）直接提交
+    if (bounty.value?.status === 'OPEN') {
+      await bountyApi.claim(bountyId.value)
+    }
+    await bountyApi.answer(bountyId.value, {
+      answer: content.value.trim(),
+      images: images.value,
+    })
     uni.showToast({ title: '提交成功', icon: 'success' })
     setTimeout(() => navigateTo(`/bounty/${bountyId.value}`), 800)
-  }, 700)
-}
-
-function getRemainingTime() {
-  if (!bounty.value) return ''
-  const diff = new Date(bounty.value.expireAt).getTime() - Date.now()
-  if (diff <= 0) return '已截止'
-  const days = Math.floor(diff / (1000 * 60 * 60 * 24))
-  const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
-  if (days > 0) return `${days}天${hours}小时`
-  return `${hours}小时`
+  } catch (e: any) {
+    error2.value = e?.message || '提交失败，请重试'
+  } finally {
+    submitting.value = false
+  }
 }
 
 function goBack() {
@@ -221,9 +242,9 @@ try {
   const pages = getCurrentPages()
   const cur = pages[pages.length - 1] as unknown as { options?: Record<string, string>; $page?: { options?: Record<string, string> } }
   const opts = cur?.options || cur?.$page?.options || {}
-  bountyId.value = opts.id || '1'
+  bountyId.value = opts.id || ''
 } catch (e) {
-  bountyId.value = '1'
+  bountyId.value = ''
 }
 
 loadBounty()
@@ -366,19 +387,26 @@ loadBounty()
   align-items: center;
   gap: 12rpx;
 }
-.ba-ref-avatar {
-  width: 40rpx;
-  height: 40rpx;
-  border-radius: 999rpx;
-  background: #ececec;
-}
-.ba-ref-meta {
+.ba-ref-cat {
   font-size: 22rpx;
-  color: #999999;
+  color: #d97706;
+  background: rgba(217, 119, 6, 0.1);
+  padding: 4rpx 16rpx;
+  border-radius: 8rpx;
 }
-.ba-ref-dot {
-  font-size: 22rpx;
-  color: #999999;
+
+/* Blocked */
+.ba-blocked {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  padding: 40rpx 32rpx;
+  background: #fff7ed;
+  border-radius: 24rpx;
+}
+.ba-blocked-text {
+  font-size: 28rpx;
+  color: #ea580c;
 }
 
 /* Input Card */

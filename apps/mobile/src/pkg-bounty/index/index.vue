@@ -37,7 +37,6 @@
       <template v-if="loading">
         <view v-for="i in 3" :key="i" class="bp-skeleton">
           <view class="bp-sk-row">
-            <view class="bp-sk-avatar" />
             <view class="bp-sk-body">
               <view class="bp-sk-line bp-sk-w25" />
               <view class="bp-sk-line bp-sk-w75" />
@@ -71,16 +70,12 @@
         >
           <!-- Card Header -->
           <view class="bp-card-head">
-            <image lazy-load :src="bounty.poster.avatar" class="bp-avatar" mode="aspectFill" />
             <view class="bp-card-meta">
-              <view class="bp-card-meta-top">
-                <text class="bp-poster-name">{{ bounty.poster.name }}</text>
-                <text class="bp-time">{{ formatTime(bounty.createdAt) }}</text>
-              </view>
-              <text v-if="bounty.category" class="bp-category">{{ bounty.category }}</text>
+              <text v-if="categoryLabel(bounty.category)" class="bp-category">{{ categoryLabel(bounty.category) }}</text>
+              <text class="bp-time">{{ formatBountyTime(bounty.createdAt) }}</text>
             </view>
             <view class="bp-status" :class="'bp-status-' + bounty.status">
-              <text class="bp-status-text" :class="'bp-status-text-' + bounty.status">{{ statusConfig[bounty.status].label }}</text>
+              <text class="bp-status-text" :class="'bp-status-text-' + bounty.status">{{ statusLabel(bounty.status) }}</text>
             </view>
           </view>
 
@@ -88,30 +83,21 @@
           <text class="bp-card-title">{{ bounty.title }}</text>
           <text class="bp-card-desc">{{ bounty.description }}</text>
 
-          <!-- Tags -->
-          <view v-if="bounty.tags && bounty.tags.length" class="bp-tags">
-            <text v-for="tag in bounty.tags" :key="tag" class="bp-tag">#{{ tag }}</text>
-          </view>
-
           <!-- Footer -->
           <view class="bp-card-foot">
             <view class="bp-stats">
-              <view class="bp-stat">
-                <app-icon name="eye" :size="28" color="#999999" />
-                <text class="bp-stat-text">{{ bounty.viewCount }}</text>
+              <view v-if="bounty.status === 'ANSWERED'" class="bp-stat bp-stat-warn">
+                <app-icon name="message-square" :size="28" color="#f97316" />
+                <text class="bp-stat-text bp-stat-text-warn">已有回答待采纳</text>
               </view>
-              <view class="bp-stat">
-                <app-icon name="message-square" :size="28" color="#999999" />
-                <text class="bp-stat-text">{{ bounty.answerCount }}个回答</text>
-              </view>
-              <view v-if="bounty.status === 'open'" class="bp-stat bp-stat-warn">
-                <app-icon name="clock" :size="28" color="#f97316" />
-                <text class="bp-stat-text bp-stat-text-warn">{{ getRemainingTime(bounty.expireAt) }}</text>
+              <view v-else-if="bounty.status === 'CLAIMED'" class="bp-stat">
+                <app-icon name="clock" :size="28" color="#999999" />
+                <text class="bp-stat-text">答主答题中</text>
               </view>
             </view>
             <view class="bp-amount">
               <app-icon name="coins" :size="32" color="#c41e3a" />
-              <text class="bp-amount-text">¥{{ bounty.amount }}</text>
+              <text class="bp-amount-text">{{ bounty.bountyCoin }} 币</text>
             </view>
           </view>
         </view>
@@ -123,37 +109,17 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { navigateTo, navigateBack } from '@/utils/router'
+import {
+  bountyApi,
+  formatBountyTime,
+  BOUNTY_STATUS_LABEL,
+  BOUNTY_CATEGORY_LABEL,
+  BOUNTY_STATUS_TABS,
+  type BountyQuestion,
+  type BountyStatus,
+} from '@/lib/bounty-data'
 
-interface Bounty {
-  id: string
-  title: string
-  description: string
-  amount: number
-  status: 'open' | 'answered' | 'resolved' | 'expired' | 'cancelled'
-  poster: { id: string; name: string; avatar: string }
-  answerCount: number
-  viewCount: number
-  category?: string
-  tags?: string[]
-  createdAt: string
-  expireAt: string
-  resolvedAt?: string
-}
-
-const statusTabs = [
-  { key: 'all', label: '全部' },
-  { key: 'open', label: '进行中' },
-  { key: 'resolved', label: '已解决' },
-  { key: 'expired', label: '已过期' },
-]
-
-const statusConfig: Record<string, { label: string }> = {
-  open: { label: '进行中' },
-  answered: { label: '待采纳' },
-  resolved: { label: '已解决' },
-  expired: { label: '已过期' },
-  cancelled: { label: '已取消' },
-}
+const statusTabs = BOUNTY_STATUS_TABS
 
 const statusBarHeight = ref(0)
 try {
@@ -161,123 +127,35 @@ try {
   statusBarHeight.value = info.statusBarHeight || 0
 } catch (e) {}
 
-const activeTab = ref('all')
+const activeTab = ref<'' | BountyStatus>('')
 const loading = ref(true)
 const error = ref(false)
-const bounties = ref<Bounty[]>([])
+const bounties = ref<BountyQuestion[]>([])
 
-const allBounties: Bounty[] = [
-  {
-    id: '1',
-    title: '求解八字命盘中的财运分析方法',
-    description: '想了解如何从八字命盘中分析一个人的财运走势，包括正财、偏财的判断方法...',
-    amount: 50,
-    status: 'open',
-    poster: { id: 'u1', name: '易学初学者', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=u1' },
-    answerCount: 3,
-    viewCount: 128,
-    category: '八字',
-    tags: ['财运', '命盘分析'],
-    createdAt: '2024-01-15T10:00:00Z',
-    expireAt: '2024-01-22T10:00:00Z',
-  },
-  {
-    id: '2',
-    title: '风水布局中如何化解尖角煞？',
-    description: '家里客厅有一个突出的墙角对着沙发，听说这是尖角煞，请问有什么化解方法？',
-    amount: 30,
-    status: 'resolved',
-    poster: { id: 'u2', name: '风水爱好者', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=u2' },
-    answerCount: 5,
-    viewCount: 256,
-    category: '风水',
-    tags: ['家居风水', '化煞'],
-    createdAt: '2024-01-14T08:00:00Z',
-    expireAt: '2024-01-21T08:00:00Z',
-    resolvedAt: '2024-01-16T14:00:00Z',
-  },
-  {
-    id: '3',
-    title: '梅花易数起卦时间问题请教',
-    description: '用梅花易数起卦时，如果是别人问事，应该用问卦人的时间还是起卦人的时间？',
-    amount: 20,
-    status: 'answered',
-    poster: { id: 'u3', name: '梅花学徒', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=u3' },
-    answerCount: 2,
-    viewCount: 89,
-    category: '梅花易数',
-    tags: ['起卦', '时间'],
-    createdAt: '2024-01-13T15:00:00Z',
-    expireAt: '2024-01-20T15:00:00Z',
-  },
-  {
-    id: '4',
-    title: '六爻预测中的用神取用问题',
-    description: '在六爻预测中，如何准确判断用神？特别是测事业和财运时的用神取法...',
-    amount: 100,
-    status: 'open',
-    poster: { id: 'u4', name: '六爻研究者', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=u4' },
-    answerCount: 1,
-    viewCount: 312,
-    category: '六爻',
-    tags: ['用神', '预测技巧'],
-    createdAt: '2024-01-12T09:00:00Z',
-    expireAt: '2024-01-19T09:00:00Z',
-  },
-  {
-    id: '5',
-    title: '奇门遁甲中的三奇六仪如何理解？',
-    description: '刚开始学习奇门遁甲，对三奇六仪的概念比较模糊，希望能有详细的解释...',
-    amount: 40,
-    status: 'expired',
-    poster: { id: 'u5', name: '奇门新手', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=u5' },
-    answerCount: 0,
-    viewCount: 45,
-    category: '奇门遁甲',
-    tags: ['基础概念', '入门'],
-    createdAt: '2024-01-01T10:00:00Z',
-    expireAt: '2024-01-08T10:00:00Z',
-  },
-]
-
-function loadBounties() {
-  loading.value = true
-  error.value = false
-  const filtered = activeTab.value === 'all'
-    ? allBounties
-    : allBounties.filter(b => b.status === activeTab.value)
-  setTimeout(() => {
-    bounties.value = filtered
-    loading.value = false
-  }, 400)
+function statusLabel(s: string): string {
+  return BOUNTY_STATUS_LABEL[s as BountyStatus] || s
+}
+function categoryLabel(c: string): string {
+  return BOUNTY_CATEGORY_LABEL[c as keyof typeof BOUNTY_CATEGORY_LABEL] || ''
 }
 
-function switchTab(key: string) {
+async function loadBounties() {
+  loading.value = true
+  error.value = false
+  try {
+    const res = await bountyApi.list({ page: 1, pageSize: 20, status: activeTab.value || undefined })
+    bounties.value = res.questions
+  } catch (e) {
+    error.value = true
+  } finally {
+    loading.value = false
+  }
+}
+
+function switchTab(key: '' | BountyStatus) {
   if (activeTab.value === key) return
   activeTab.value = key
   loadBounties()
-}
-
-function formatTime(dateStr: string) {
-  const date = new Date(dateStr)
-  const now = new Date()
-  const diff = now.getTime() - date.getTime()
-  const days = Math.floor(diff / (1000 * 60 * 60 * 24))
-  if (days === 0) return '今天'
-  if (days === 1) return '昨天'
-  if (days < 7) return `${days}天前`
-  return `${date.getMonth() + 1}/${date.getDate()}`
-}
-
-function getRemainingTime(expireAt: string) {
-  const expire = new Date(expireAt)
-  const now = new Date()
-  const diff = expire.getTime() - now.getTime()
-  if (diff <= 0) return '已过期'
-  const days = Math.floor(diff / (1000 * 60 * 60 * 24))
-  const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
-  if (days > 0) return `剩余${days}天`
-  return `剩余${hours}小时`
 }
 
 function goBack() {
@@ -391,12 +269,6 @@ loadBounties()
   align-items: flex-start;
   gap: 24rpx;
 }
-.bp-sk-avatar {
-  width: 80rpx;
-  height: 80rpx;
-  border-radius: 999rpx;
-  background: #ececec;
-}
 .bp-sk-body {
   flex: 1;
   display: flex;
@@ -453,36 +325,25 @@ loadBounties()
 }
 .bp-card-head {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
+  justify-content: space-between;
   gap: 24rpx;
   margin-bottom: 24rpx;
 }
-.bp-avatar {
-  width: 80rpx;
-  height: 80rpx;
-  border-radius: 999rpx;
-  flex-shrink: 0;
-  background: #ececec;
-}
 .bp-card-meta {
-  flex: 1;
-  min-width: 0;
-}
-.bp-card-meta-top {
   display: flex;
   align-items: center;
   gap: 16rpx;
-}
-.bp-poster-name {
-  font-size: 26rpx;
-  font-weight: 500;
-  color: #2c2c2c;
-}
-.bp-time {
-  font-size: 22rpx;
-  color: #999999;
+  min-width: 0;
 }
 .bp-category {
+  font-size: 22rpx;
+  color: #c41e3a;
+  background: rgba(196, 30, 58, 0.08);
+  padding: 4rpx 16rpx;
+  border-radius: 8rpx;
+}
+.bp-time {
   font-size: 22rpx;
   color: #999999;
 }
@@ -491,19 +352,23 @@ loadBounties()
   padding: 4rpx 16rpx;
   border-radius: 999rpx;
 }
-.bp-status-open { background: #f0fdf4; }
-.bp-status-answered { background: #fff7ed; }
-.bp-status-resolved { background: #eff6ff; }
-.bp-status-expired { background: #f5f5f4; }
-.bp-status-cancelled { background: #f5f5f4; }
+.bp-status-OPEN { background: #f0fdf4; }
+.bp-status-CLAIMED { background: #eff6ff; }
+.bp-status-ANSWERED { background: #fff7ed; }
+.bp-status-SETTLED { background: #eff6ff; }
+.bp-status-REFUNDED { background: #f5f5f4; }
+.bp-status-CLOSED { background: #f5f5f4; }
+.bp-status-EXPIRED { background: #f5f5f4; }
 .bp-status-text {
   font-size: 22rpx;
 }
-.bp-status-text-open { color: #16a34a; }
-.bp-status-text-answered { color: #ea580c; }
-.bp-status-text-resolved { color: #2563eb; }
-.bp-status-text-expired { color: #999999; }
-.bp-status-text-cancelled { color: #999999; }
+.bp-status-text-OPEN { color: #16a34a; }
+.bp-status-text-CLAIMED { color: #2563eb; }
+.bp-status-text-ANSWERED { color: #ea580c; }
+.bp-status-text-SETTLED { color: #2563eb; }
+.bp-status-text-REFUNDED { color: #999999; }
+.bp-status-text-CLOSED { color: #999999; }
+.bp-status-text-EXPIRED { color: #999999; }
 
 .bp-card-title {
   display: block;
@@ -519,19 +384,11 @@ loadBounties()
   color: #999999;
   line-height: 1.5;
   margin-bottom: 24rpx;
-}
-.bp-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 16rpx;
-  margin-bottom: 24rpx;
-}
-.bp-tag {
-  padding: 4rpx 16rpx;
-  background: #f5f5f4;
-  border-radius: 8rpx;
-  font-size: 22rpx;
-  color: #999999;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 .bp-card-foot {
   display: flex;
