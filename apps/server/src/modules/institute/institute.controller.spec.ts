@@ -1,6 +1,7 @@
 import { Test } from "@nestjs/testing";
 import { InstituteController } from "./institute.controller";
 import { InstituteService } from "./institute.service";
+import { InstituteAssessmentService } from "./institute-assessment.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 
@@ -17,7 +18,14 @@ const mockInstituteSvc = {
   createEvent: jest.fn().mockResolvedValue({ id: "e1", title: "学术讲座" }),
   listEvents: jest.fn().mockResolvedValue([{ id: "e1", title: "学术讲座" }]),
   updateEvent: jest.fn().mockResolvedValue({ id: "e1", status: "CANCELLED" }),
+  inviteMember: jest.fn().mockResolvedValue({ id: "m-vip", status: "ACTIVE", feeExempt: true }),
   getRankings: jest.fn().mockResolvedValue({ items: [{ rank: 1, userId: "u1", score: 100 }], updatedAt: "2026-07-03T00:00:00.000Z" }),
+};
+
+const mockAssessmentSvc = {
+  getEligibility: jest.fn().mockResolvedValue({ seatType: "LECTURE", eligible: true, checks: [] }),
+  getMyAssessment: jest.fn().mockResolvedValue({ year: 2026, points: 120, tier: "FULL_REFUND", quarterPoints: [30, 30, 30, 30], offline: { met: true, detail: [] }, pointItems: [] }),
+  addManualPoints: jest.fn().mockResolvedValue({ id: "sp1", points: 20 }),
 };
 
 describe("InstituteController", () => {
@@ -26,7 +34,10 @@ describe("InstituteController", () => {
   beforeAll(async () => {
     const mod = await Test.createTestingModule({
       controllers: [InstituteController],
-      providers: [{ provide: InstituteService, useValue: mockInstituteSvc }],
+      providers: [
+        { provide: InstituteService, useValue: mockInstituteSvc },
+        { provide: InstituteAssessmentService, useValue: mockAssessmentSvc },
+      ],
     })
       .overrideGuard(JwtAuthGuard).useValue({ canActivate: () => true })
       .overrideGuard(RolesGuard).useValue({ canActivate: () => true })
@@ -117,6 +128,44 @@ describe("InstituteController", () => {
     expect(mockInstituteSvc.getRankings).toHaveBeenCalledWith(2026);
     await ctrl.getRankings(undefined);
     expect(mockInstituteSvc.getRankings).toHaveBeenLastCalledWith(undefined);
+  });
+
+  it("GET /institute/eligibility — 入会资格校验（seatType 透传）", async () => {
+    const req: any = { user: { id: "u1" } };
+    const result: any = await ctrl.getEligibility(req, "STUDY");
+    expect(result.eligible).toBe(true);
+    expect(mockAssessmentSvc.getEligibility).toHaveBeenCalledWith("u1", "STUDY");
+  });
+
+  it("GET /institute/my/assessment — 我的年度考核", async () => {
+    const req: any = { user: { id: "u1" } };
+    const result: any = await ctrl.myAssessment(req);
+    expect(result.tier).toBe("FULL_REFUND");
+    expect(mockAssessmentSvc.getMyAssessment).toHaveBeenCalledWith("u1");
+  });
+
+  it("POST /institute/manage/members/:id/points — 人工记分", async () => {
+    const req: any = { user: { id: "u-mgr" } };
+    const dto: any = { points: 20, pointType: "INSTITUTE_SALON" };
+    const result: any = await ctrl.addMemberPoints(req, "m1", dto);
+    expect(result.id).toBe("sp1");
+    expect(mockAssessmentSvc.addManualPoints).toHaveBeenCalledWith("u-mgr", "m1", dto);
+  });
+
+  it("POST /institute/admin/members/invite — 特邀席位（操作者透传·直接 ACTIVE）", async () => {
+    const req: any = { user: { id: "u-admin" } };
+    const dto: any = { userId: "u-vip", seatType: "LECTURE", feeExempt: true, remark: "名师站台" };
+    const result: any = await ctrl.inviteMember(req, dto);
+    expect(result.status).toBe("ACTIVE");
+    expect(result.feeExempt).toBe(true);
+    expect(mockInstituteSvc.inviteMember).toHaveBeenCalledWith("u-admin", dto);
+  });
+
+  it("特邀端点仅平台管理角色可用（@Roles 元数据=SUPER_ADMIN/OPERATION_ADMIN·RolesGuard 对其余角色 403）", () => {
+    const roles = Reflect.getMetadata("roles", InstituteController.prototype.inviteMember);
+    expect(roles).toEqual(["SUPER_ADMIN", "OPERATION_ADMIN"]);
+    const guards = Reflect.getMetadata("__guards__", InstituteController.prototype.inviteMember);
+    expect(guards).toEqual(expect.arrayContaining([JwtAuthGuard, RolesGuard]));
   });
 
   it("PUT /institute/events/:id — 更新活动", async () => {

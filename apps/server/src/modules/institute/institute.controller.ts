@@ -2,7 +2,8 @@ import { Controller, Get, Post, Put, Body, Param, Query, Req, UseGuards } from "
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiResponse } from "@nestjs/swagger";
 import { Request } from "express";
 import { InstituteService } from "./institute.service";
-import { JoinInstituteDto, CreateTaskDto, CreateEventDto, UpdateEventDto, UpdateLecturerLevelDto, CreateTaskTemplateDto, CreateDividendDto, ApproveMemberDto, AssignRoleDto, UpdateMemberDto, RecommendToTalentDto } from "./institute.dto";
+import { InstituteAssessmentService } from "./institute-assessment.service";
+import { JoinInstituteDto, CreateTaskDto, CreateEventDto, UpdateEventDto, UpdateLecturerLevelDto, CreateTaskTemplateDto, CreateDividendDto, ApproveMemberDto, AssignRoleDto, UpdateMemberDto, RecommendToTalentDto, AddSharePointDto, InviteMemberDto } from "./institute.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
@@ -10,7 +11,10 @@ import { Roles } from "../../common/roles.decorator";
 @ApiTags("研究院")
 @Controller("institute")
 export class InstituteController {
-  constructor(private svc: InstituteService) {}
+  constructor(
+    private svc: InstituteService,
+    private assessment: InstituteAssessmentService,
+  ) {}
 
   // ════════════════════════════════════════
   // 公开页
@@ -108,6 +112,17 @@ export class InstituteController {
   // 成员 — 加入
   // ════════════════════════════════════════
 
+  @Get("eligibility")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "入会资格自动校验（讲席五维/研修席三维·T9-P1）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiQuery({ name: "seatType", required: false, description: "席位类型 LECTURE（默认）/ STUDY" })
+  @ApiBearerAuth()
+  getEligibility(@Req() req: Request, @Query("seatType") seatType?: string) {
+    return this.assessment.getEligibility(req.user.id, seatType);
+  }
+
   @Post("members")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "申请加入研究院" })
@@ -163,6 +178,17 @@ export class InstituteController {
   @ApiBearerAuth()
   requestDepositRefund(@Req() req: Request) {
     return this.svc.requestDepositRefund(req.user.id);
+  }
+
+  @Get("my/assessment")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "我的年度考核（积分/季度线/线下三选一/四档判定·V5）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 404, description: "不是研究院成员" })
+  @ApiBearerAuth()
+  myAssessment(@Req() req: Request) {
+    return this.assessment.getMyAssessment(req.user.id);
   }
 
   @Get("my/dividends")
@@ -244,6 +270,19 @@ export class InstituteController {
   @ApiBearerAuth()
   createDividend(@Req() req: Request, @Body() dto: CreateDividendDto) {
     return this.svc.requestDividend(req.user.id, dto);
+  }
+
+  @Post("manage/members/:id/points")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "人工记分/积分调整（研究院管理层·可负分纠错·记录操作者）" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "仅研究院管理层可操作" })
+  @ApiResponse({ status: 404, description: "成员不存在" })
+  @ApiBearerAuth()
+  addMemberPoints(@Req() req: Request, @Param("id") id: string, @Body() dto: AddSharePointDto) {
+    return this.assessment.addManualPoints(req.user.id, id, dto);
   }
 
   @Put("manage/members/:id/recommend")
@@ -328,6 +367,20 @@ export class InstituteController {
   // ════════════════════════════════════════
   // 管理员接口
   // ════════════════════════════════════════
+
+  @Post("admin/members/invite")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "特邀席位：名师破格引入（平台管理·跳过全部准入门槛·可设永久免会费·操作留痕）" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败/已是研究院成员" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
+  @ApiResponse({ status: 404, description: "被特邀用户不存在" })
+  @ApiBearerAuth()
+  inviteMember(@Req() req: Request, @Body() dto: InviteMemberDto) {
+    return this.svc.inviteMember(req.user.id, dto);
+  }
 
   @Put("members/:id")
   @UseGuards(JwtAuthGuard, RolesGuard)

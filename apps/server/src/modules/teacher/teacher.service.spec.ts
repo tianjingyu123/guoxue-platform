@@ -19,7 +19,7 @@ const mockPrisma = {
   },
   courseReview: { aggregate: jest.fn() },
   stationTeacher: { findMany: jest.fn() },
-  instituteMember: { findUnique: jest.fn() },
+  instituteMember: { findFirst: jest.fn() },
 };
 
 describe("TeacherService", () => {
@@ -103,7 +103,7 @@ describe("TeacherService", () => {
       mockPrisma.stationTeacher.findMany.mockResolvedValue([
         { station: { id: "s1", name: "明德馆", city: "北京", cover: null, type: "academy" } },
       ]);
-      mockPrisma.instituteMember.findUnique.mockResolvedValue(null);
+      mockPrisma.instituteMember.findFirst.mockResolvedValue(null);
     }
 
     it("无认证记录 → 404", async () => {
@@ -153,14 +153,16 @@ describe("TeacherService", () => {
       mockPrisma.teacherCertification.findUnique.mockResolvedValue({ status: "APPROVED", verifiedTitle: "讲师", intro: null });
       mockPrisma.user.findUnique.mockResolvedValue({ id: "u1", nickname: "王老师", avatar: null });
       primeAggregates();
-      mockPrisma.instituteMember.findUnique.mockResolvedValue({ lecturerLevel: "SIGNED", status: "ACTIVE" });
+      mockPrisma.instituteMember.findFirst.mockResolvedValue({ lecturerLevel: "SIGNED", status: "ACTIVE" });
       const res: any = await svc.getPublicProfile("u1");
       expect(res.institute).toEqual({ signed: true, lecturerLevel: "SIGNED" });
-      // 只查展示位，不带押金等资金字段
-      expect(mockPrisma.instituteMember.findUnique).toHaveBeenCalledWith({
-        where: { userId: "u1" },
-        select: { lecturerLevel: true, status: true },
-      });
+      // 只查展示位，不带押金等资金字段（T9-P1 多院化后 findFirst）
+      expect(mockPrisma.instituteMember.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { userId: "u1" },
+          select: { lecturerLevel: true, status: true },
+        }),
+      );
     });
 
     it("非研究院成员 → 省略 institute 字段（诚实降级）", async () => {
@@ -175,7 +177,7 @@ describe("TeacherService", () => {
       mockPrisma.teacherCertification.findUnique.mockResolvedValue({ status: "APPROVED", verifiedTitle: "讲师", intro: null });
       mockPrisma.user.findUnique.mockResolvedValue({ id: "u1", nickname: "王老师", avatar: null });
       primeAggregates();
-      mockPrisma.instituteMember.findUnique.mockResolvedValue({ lecturerLevel: "SIGNED", status: "GRADUATED" });
+      mockPrisma.instituteMember.findFirst.mockResolvedValue({ lecturerLevel: "SIGNED", status: "GRADUATED" });
       const res: any = await svc.getPublicProfile("u1");
       expect("institute" in res).toBe(false);
     });

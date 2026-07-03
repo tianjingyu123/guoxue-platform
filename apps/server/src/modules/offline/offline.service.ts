@@ -750,8 +750,9 @@ export class OfflineService {
   /** 从研究院签约讲师库引入讲师到本驿站（研究院→驿站师资供给闭环）*/
   async createTeacherFromSigned(userId: string, stationId: string, sourceUserId: string, specialties?: string[], bio?: string) {
     await this.assertStationOwner(userId, stationId);
-    const member = await this.prisma.instituteMember.findUnique({
-      where: { userId: sourceUserId },
+    // T9-P1 多院化：userId 不再全局唯一（@@unique([instituteId,userId])），改 findFirst 取有效签约会籍
+    const member = await this.prisma.instituteMember.findFirst({
+      where: { userId: sourceUserId, lecturerLevel: "SIGNED", status: "ACTIVE" },
       select: { lecturerLevel: true, status: true, user: { select: { nickname: true, avatar: true } } },
     });
     if (!member || member.lecturerLevel !== "SIGNED" || member.status !== "ACTIVE") {

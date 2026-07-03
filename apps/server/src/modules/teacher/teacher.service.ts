@@ -113,8 +113,10 @@ export class TeacherService {
         select: { station: { select: { id: true, name: true, city: true, cover: true, type: true } } },
       }),
       // 研究院会籍（T9-P0a 签约金标）：仅取等级/状态两个展示位，不含押金等资金字段
-      this.prisma.instituteMember.findUnique({
+      // T9-P1 多院化：userId 不再全局唯一，findFirst 优先取 SIGNED 会籍（金标语义）
+      this.prisma.instituteMember.findFirst({
         where: { userId },
+        orderBy: [{ lecturerLevel: "desc" }, { joinedAt: "asc" }],
         select: { lecturerLevel: true, status: true },
       }),
     ]);

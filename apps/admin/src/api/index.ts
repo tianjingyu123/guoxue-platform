@@ -553,6 +553,8 @@ export const instituteApi = {
   listMembers: (params?: Record<string, unknown>) => api.get("/institute/members", { params }),
   getMember: (id: string) => api.get(`/institute/members/${id}`),
   updateMember: (id: string, data: Record<string, unknown>) => api.put(`/institute/members/${id}`, data),
+  // 特邀席位：名师破格引入（跳过准入门槛·可设永久免会费·T9-P1 §3.2 V6）
+  inviteMember: (data: Record<string, unknown>) => api.post("/institute/admin/members/invite", data),
   setLecturerLevel: (id: string, level: string) => api.put(`/institute/members/${id}/lecturer-level`, { level }),
   verifyTask: (taskId: string) => api.post(`/institute/tasks/${taskId}/verify`),
   createEvent: (data: Record<string, unknown>) => api.post("/institute/events", data),

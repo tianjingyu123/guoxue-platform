@@ -138,6 +138,116 @@ export interface ApplyMemberPayload {
   role: string
   joinYear: number
   deposit?: number
+  /** 双轨席位（T9-P1）：LECTURE 讲席（分享考核）/ STUDY 研修席（专注研学） */
+  seatType?: SeatType
+}
+
+// ───── 研究院制度落地（T9-P1·双轨席位+积分考核·设计 §3.1-3.3）─────
+export type SeatType = 'LECTURE' | 'STUDY'
+/** 考核四档（V5 真源）：全返 / 半返 / 保籍 / 转席风险 */
+export type AssessmentTier = 'FULL_REFUND' | 'HALF_REFUND' | 'KEEP' | 'AT_RISK'
+
+/** 准入门槛单项自检结果 */
+export interface EligibilityCheck {
+  key: string
+  label: string
+  pass: boolean
+  current: number
+  required: number
+}
+export interface EligibilityResult {
+  eligible: boolean
+  checks: EligibilityCheck[]
+}
+
+/** 线下分享指标单项（三选一达标）*/
+export interface OfflineIndicatorItem { type: string; count: number; required: number }
+/** 积分流水单条 */
+export interface AssessmentPointItem { pointType: string; points: number; remark: string | null; createdAt: string }
+/** 我的年度考核（GET /institute/my/assessment）*/
+export interface MyAssessment {
+  year: number
+  points: number
+  /** 四季度积分 [q1,q2,q3,q4]·每季 15 分最低线 */
+  quarterPoints: number[]
+  offline: { met: boolean; detail: OfflineIndicatorItem[] }
+  tier: AssessmentTier
+  pointItems: AssessmentPointItem[]
+}
+
+export const seatTypeLabel: Record<SeatType, string> = {
+  LECTURE: '讲席（分享席）', STUDY: '研修席（学习席）',
+}
+/** 档位预测徽章：金（全返）/ 银（半返）/ 灰（保籍）/ 红（转席风险）*/
+export const assessmentTierMeta: Record<AssessmentTier, { label: string; color: string; bg: string; icon: string }> = {
+  FULL_REFUND: { label: '预计全额返还', color: '#b8860b', bg: 'rgba(212,160,23,0.14)', icon: 'trophy' },
+  HALF_REFUND: { label: '预计返还 50%', color: '#64748b', bg: '#f1f5f9', icon: 'medal' },
+  KEEP: { label: '保籍达标', color: '#6b7280', bg: '#f3f4f6', icon: 'shield-check' },
+  AT_RISK: { label: '有转席风险', color: '#dc2626', bg: '#fef2f2', icon: 'alert-triangle' },
+}
+/** 积分类型中文标签（§3.3 积分表·未知类型回退原文）*/
+export const pointTypeLabel: Record<string, string> = {
+  STATION_OFFLINE: '驿站线下授课', STATION_COURSE: '驿站线下授课',
+  SALON: '院内沙龙主讲', LIVE: '直播公开课',
+  ARTICLE: '深度文章/案例', OFFLINE_EVENT: '大型线下分享',
+  MENTOR: '带教研修成员', MENTORING: '带教研修成员',
+  QA: '院内答疑', QUESTION_ANSWER: '院内答疑',
+}
+export const pointTypeText = (t: string) => pointTypeLabel[t] || t
+/** 线下指标中文标签（三选一·未知类型回退原文）*/
+export const offlineIndicatorLabel: Record<string, string> = {
+  FLAGSHIP_STATION: '旗舰驿站线下分享', FLAGSHIP: '旗舰驿站线下分享',
+  MONTHLY_SALON: '平台月度沙龙主讲', SALON: '平台月度沙龙主讲',
+  QUARTERLY_EVENT: '季度高规格分享会主讲', QUARTERLY: '季度高规格分享会主讲',
+}
+export const offlineIndicatorText = (t: string) => offlineIndicatorLabel[t] || t
+
+/** 席位对比卡文案（§3.1 双轨席位制）*/
+export const seatOptions: { value: SeatType; name: string; tagline: string; accent: string; accentBg: string; points: { icon: string; text: string }[] }[] = [
+  {
+    value: 'LECTURE',
+    name: '讲席',
+    tagline: '分享席 · 以讲促学，考核返费',
+    accent: '#c41e3a',
+    accentBg: 'rgba(196,30,58,0.06)',
+    points: [
+      { icon: 'mic', text: '义务：年度分享积分考核（100 分达标线 · 季度 15 分最低线）' },
+      { icon: 'coins', text: '年费：考核达标返还 50%–100%（积分+线下双达标可全额返还）' },
+      { icon: 'graduation-cap', text: '权益：讲师五级培养通道 → 签约进驿站授课 + 影响力榜单 + 带教资格' },
+      { icon: 'refresh-cw', text: '考核不达标自动转研修席（籍在不驱逐）' },
+    ],
+  },
+  {
+    value: 'STUDY',
+    name: '研修席',
+    tagline: '学习席 · 专注研学，不担考核',
+    accent: '#2563eb',
+    accentBg: 'rgba(37,99,235,0.05)',
+    points: [
+      { icon: 'book-open', text: '义务：无分享考核，专注研学' },
+      { icon: 'coins', text: '年费：全额缴纳（高端学习社群年费，不予返还）' },
+      { icon: 'users', text: '权益：全部分享内容 + 活动 + 圈层社交网络' },
+      { icon: 'star', text: '优先咨询/约课权，后续可申请转讲席' },
+    ],
+  },
+]
+
+/** 门槛未达引导文案（按 key/label 关键词匹配·未命中回退通用文案）*/
+const eligibilityGuidanceRules: { re: RegExp; text: string }[] = [
+  { re: /owner|guest|role|圈主|嘉宾|身份/i, text: '先成为一个圈子的圈主或分享嘉宾——研究院的门槛正是圈子经营的晋升目标' },
+  { re: /member|size|scale|成员|规模/i, text: '先把圈子做起来——这正是研究院的意义' },
+  { re: /content|article|work|quality|作品|文章|质量/i, text: '持续产出优质内容，让作品替你说话' },
+  { re: /activ|interact|活跃|互动|发帖/i, text: '近 90 天保持圈子发帖与互动，活跃是影响力的地基' },
+  { re: /revenue|income|earn|创收|收入|经营/i, text: '圈子/课程创收是市场认可的证明，先深耕经营' },
+  { re: /recommend|推荐/i, text: '找一位在院成员为你推荐（每人每年限荐 2 名）' },
+  { re: /real|verif|实名/i, text: '先完成实名认证' },
+  { re: /day|regist|注册/i, text: '平台注册需满 90 天，先沉淀一段时间' },
+]
+export function eligibilityGuidance(check: Pick<EligibilityCheck, 'key' | 'label'>): string {
+  for (const r of eligibilityGuidanceRules) {
+    if (r.re.test(check.key) || r.re.test(check.label)) return r.text
+  }
+  return '继续积累，达到门槛后即可申请'
 }
 
 // ───── 讲师影响力榜单（T9-P0a·公开·四维透明计分，不含收入）─────
@@ -308,7 +418,7 @@ export const memberApplyRoles: { value: string; label: string; desc: string }[] 
   { value: 'TYPE_B', label: '深造成员', desc: '以学习深造为主，暂不承担分享任务' },
 ]
 export const applySpecialtyOptions = ['八字命理', '紫微斗数', '风水堪舆', '周易六爻', '奇门遁甲', '姓名学', '梅花易数', '手相面相', '塔罗占卜', '其他']
-export const memberApplySteps = ['了解机制', '填写资料', '缴纳会费', '提交完成']
+export const memberApplySteps = ['了解机制', '选择席位', '填写资料', '缴纳会费', '提交完成']
 /** 加入须知（来自定位文档：付费准入、分享退费机制）*/
 export const memberApplyNotices = [
   { icon: 'wallet', title: '统一会费', desc: '全员缴纳相同年度会费（10000 元/年），交费即可加入，不做事前资格筛选' },
@@ -379,9 +489,19 @@ export const instituteApi = {
     return apiGet<InstituteEvent>(`/institute/events/${id}`)
   },
 
-  /** 申请加入 POST /institute/members */
+  /** 申请加入 POST /institute/members（body 含 seatType·门槛不合格 400 message 带未通过项）*/
   applyMember(data: ApplyMemberPayload): Promise<InstituteMember> {
     return apiPost<InstituteMember>('/institute/members', data)
+  },
+
+  /** 席位准入门槛自检（T9-P1·五维/三维逐项）GET /institute/eligibility?seatType= */
+  checkEligibility(seatType: SeatType): Promise<EligibilityResult> {
+    return apiGet<EligibilityResult>(`/institute/eligibility?seatType=${seatType}`)
+  },
+
+  /** 我的年度考核（T9-P1·积分+四季度+线下指标+档位预测+流水）GET /institute/my/assessment */
+  getMyAssessment(): Promise<MyAssessment> {
+    return apiGet<MyAssessment>('/institute/my/assessment')
   },
 
   /** 我的会籍（含任务进度/押金状态）GET /institute/my，未入会返回 null */

@@ -82,7 +82,7 @@ model User {
   station              Station?
   operator             Operator?
   stationOffline       StationOffline?
-  instituteMember      InstituteMember?
+  instituteMembers     InstituteMember[] // 分院制：一人可入多院（T9-P1）
   sentReports          Report[]                 @relation("Reporter")
   feedbacks            Feedback[]
   followings           Follow[]                 @relation("Follower")
@@ -2373,8 +2373,9 @@ model InstituteCourseRegistration {
 model InstituteMember {
   id              String        @id @default(uuid())
   instituteId     String // 归属研究院
-  userId          String        @unique
+  userId          String
   role            InstituteRole
+  seatType        String        @default("LECTURE") // LECTURE讲席（分享席·年度积分考核） / STUDY研修席（学习席·无分享考核）——T9-P1 双轨席位制
   deposit         Decimal       @default(0) @db.Decimal(10, 2) // 保证金
   depositRefunded Boolean       @default(false) // 是否已退保证金
   expireAt        DateTime?     // 年度会员到期时间
@@ -2383,14 +2384,39 @@ model InstituteMember {
   tasksRequired   Int           @default(3) // 年度任务要求
   lecturerLevel   String        @default("NONE") // NONE, PREPARATORY, JUNIOR, SENIOR, SIGNED
   status          String        @default("ACTIVE") // ACTIVE, GRADUATED, SUSPENDED
+  feeExempt       Boolean       @default(false) // 永久免会费（特邀名师·豁免返还与转席逻辑·分享积分照记·T9-P1 特邀席位 §3.2 V6）
+  invitedBy       String?       // 特邀操作者 userId（非空即特邀成员·操作留痕）
+  inviteRemark    String?       // 特邀备注（引入缘由留痕）
   joinedAt        DateTime      @default(now())
 
-  user      User            @relation(fields: [userId], references: [id])
-  institute Institute       @relation(fields: [instituteId], references: [id])
-  tasks     InstituteTask[]
+  user        User                  @relation(fields: [userId], references: [id])
+  institute   Institute             @relation(fields: [instituteId], references: [id])
+  tasks       InstituteTask[]
+  sharePoints InstituteSharePoint[]
 
+  @@unique([instituteId, userId]) // 分院制：一人可入多院，同院内唯一（V4 拍板·取代原 userId 全局唯一）
+  @@index([userId])
   @@index([role, status])
   @@index([joinYear])
+}
+
+// 研究院分享积分流水（T9-P1 考核制度 V5：分享行为自动/人工记分，负分=人工纠错）
+model InstituteSharePoint {
+  id          String   @id @default(uuid())
+  instituteId String
+  memberId    String
+  userId      String
+  pointType   String // OFFLINE_STATION旗舰驿站分享 / SALON_MONTHLY月度沙龙 / QUARTERLY_EVENT季度高规格会 / INSTITUTE_SALON院内沙龙 / LIVE_COURSE直播课 / ARTICLE文章 / MENTORING带教 / QA答疑 / MANUAL人工调整
+  points      Int // 积分（可负·人工纠错）
+  refId       String? // 关联来源ID（如 InstituteEvent.id·自动记分幂等查重键）
+  remark      String? // 备注
+  verifiedBy  String? // 人工记分/质量验证操作者用户ID
+  createdAt   DateTime @default(now())
+
+  member InstituteMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([memberId, createdAt])
+  @@index([userId])
 }
 
 // 研究院年度任务

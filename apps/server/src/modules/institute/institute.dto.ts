@@ -1,4 +1,4 @@
-import { IsString, IsInt, IsOptional, IsNumber, Min, MinLength, IsIn } from "class-validator";
+import { IsString, IsInt, IsOptional, IsNumber, IsBoolean, Min, Max, MinLength, MaxLength, IsIn, NotEquals } from "class-validator";
 import { Type } from "class-transformer";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 
@@ -17,6 +17,59 @@ export class JoinInstituteDto {
   @Type(() => Number)
   @IsOptional() @IsNumber()
   deposit?: number;
+
+  @ApiPropertyOptional({ description: "席位类型：LECTURE讲席（分享席·积分考核）/ STUDY研修席（学习席）", default: "LECTURE" })
+  @IsOptional() @IsString()
+  @IsIn(["LECTURE", "STUDY"])
+  seatType?: string;
+}
+
+export class InviteMemberDto {
+  @ApiProperty({ description: "被特邀用户ID" })
+  @IsString()
+  @MinLength(1)
+  userId: string;
+
+  @ApiPropertyOptional({ description: "席位类型：LECTURE讲席（默认）/ STUDY研修席", default: "LECTURE" })
+  @IsOptional() @IsString()
+  @IsIn(["LECTURE", "STUDY"])
+  seatType?: string;
+
+  @ApiPropertyOptional({ description: "永久免会费（名师破格·豁免返还与转席·分享积分照记）", default: false })
+  @IsOptional() @IsBoolean()
+  feeExempt?: boolean;
+
+  @ApiPropertyOptional({ description: "特邀备注（引入缘由·操作留痕）" })
+  @IsOptional() @IsString()
+  @MaxLength(500)
+  remark?: string;
+}
+
+export class AddSharePointDto {
+  @ApiPropertyOptional({
+    description: "积分类型（缺省 MANUAL）: OFFLINE_STATION/SALON_MONTHLY/QUARTERLY_EVENT/INSTITUTE_SALON/LIVE_COURSE/ARTICLE/MENTORING/QA/MANUAL",
+    default: "MANUAL",
+  })
+  @IsOptional() @IsString()
+  @IsIn(["OFFLINE_STATION", "SALON_MONTHLY", "QUARTERLY_EVENT", "INSTITUTE_SALON", "LIVE_COURSE", "ARTICLE", "MENTORING", "QA", "MANUAL"])
+  pointType?: string;
+
+  @ApiProperty({ description: "积分（非零整数·可负=人工纠错）", example: 20 })
+  @Type(() => Number)
+  @IsInt()
+  @NotEquals(0)
+  @Min(-1000)
+  @Max(1000)
+  points: number;
+
+  @ApiPropertyOptional({ description: "关联来源ID（如活动ID）" })
+  @IsOptional() @IsString()
+  refId?: string;
+
+  @ApiPropertyOptional({ description: "备注" })
+  @IsOptional() @IsString()
+  @MaxLength(500)
+  remark?: string;
 }
 
 export class CreateTaskDto {

@@ -5,6 +5,8 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { Prisma, InstituteRole } from "@prisma/client";
 import { FundApprovalService } from "../fund-approval/fund-approval.service";
+import { InstituteAssessmentService } from "./institute-assessment.service";
+import { isUniqueConstraintError } from "../../common/prisma-errors";
 
 const MGMT_ROLES: InstituteRole[] = ["PRESIDENT", "VICE_PRESIDENT", "SECRETARY_GENERAL"];
 
@@ -41,6 +43,7 @@ export class InstituteService {
     private prisma: PrismaService,
     @Optional() private fundApproval?: FundApprovalService,
     @Optional() private redis?: RedisService,
+    @Optional() private assessment?: InstituteAssessmentService,
   ) {}
 
   // ════════════════════════════════════════
@@ -208,26 +211,40 @@ export class InstituteService {
   // 加入
   // ════════════════════════════════════════
 
-  async join(userId: string, dto: { role: string; joinYear: number; deposit?: number }) {
-    const existing = await this.prisma.instituteMember.findUnique({ where: { userId } });
-    if (existing) throw new BusinessException(ErrorCode.BAD_REQUEST, "已是研究院成员");
-
+  async join(userId: string, dto: { role: string; joinYear: number; deposit?: number; seatType?: string }) {
     const institute = await this.prisma.institute.findFirst();
     if (!institute) throw new BusinessException(ErrorCode.NOT_FOUND, "研究院尚未建立");
+
+    // 多院化约束（V4 拍板）：同院内一人一席（复合唯一 instituteId+userId），跨院可多入
+    const existing = await this.prisma.instituteMember.findFirst({
+      where: { instituteId: institute.id, userId },
+    });
+    if (existing) throw new BusinessException(ErrorCode.BAD_REQUEST, "已是研究院成员");
 
     // 越权防护：管理层角色只能由现任管理层经 assignMemberRole 任命，禁止自助申请时自封
     if (MGMT_ROLES.includes(dto.role as InstituteRole)) {
       throw new BusinessException(ErrorCode.FORBIDDEN, "管理层角色（主席/副主席/秘书长）只能由现任管理层任命，不能自助申请");
     }
 
+    // T9-P1 双轨席位：讲席五维/研修席三维准入·服务端强制校验（不合格 400 带未通过项）
+    const seatType = dto.seatType === "STUDY" ? "STUDY" : "LECTURE";
+    if (this.assessment) {
+      const elig = await this.assessment.getEligibility(userId, seatType);
+      if (!elig.eligible) {
+        const failed = elig.checks.filter((c) => !c.pass).map((c) => c.label).join("；");
+        throw new BusinessException(ErrorCode.BAD_REQUEST, `入会条件未满足：${failed}`);
+      }
+    }
+
     // 默认一年有效期
     const expireAt = new Date(`${dto.joinYear}-12-31T23:59:59`);
 
-    return this.prisma.instituteMember.create({
+    const member = await this.prisma.instituteMember.create({
       data: {
         instituteId: institute.id,
         userId,
         role: dto.role as InstituteRole,
+        seatType,
         joinYear: dto.joinYear,
         deposit: dto.deposit || 10000,
         tasksRequired: 3,
@@ -236,6 +253,86 @@ export class InstituteService {
       },
       include: { user: { select: { id: true, nickname: true, avatar: true } } },
     });
+
+    // 圈层社交地基（§3.6.5）：研究院有专属大圈时，入会自动入圈（幂等）
+    if (institute.circleId) {
+      await this.autoJoinInstituteCircle(institute.circleId, userId);
+    }
+    return member;
+  }
+
+  /**
+   * 特邀席位（§3.2 V6·平台管理角色专用）：名师破格引入——跳过全部准入门槛（不走 eligibility），
+   * 直接建 ACTIVE 会籍；feeExempt=true 时 deposit=0 且无到期时间（永久免会费·豁免返还与转席，
+   * 分享积分照记进榜单）；invitedBy/inviteRemark 操作留痕。
+   */
+  async inviteMember(
+    operatorUserId: string,
+    dto: { userId: string; seatType?: string; feeExempt?: boolean; remark?: string },
+  ) {
+    const institute = await this.prisma.institute.findFirst();
+    if (!institute) throw new BusinessException(ErrorCode.NOT_FOUND, "研究院尚未建立");
+
+    const user = await this.prisma.user.findUnique({ where: { id: dto.userId }, select: { id: true } });
+    if (!user) throw new BusinessException(ErrorCode.NOT_FOUND, "被特邀用户不存在");
+
+    // 同院重复会籍拒（复合唯一 instituteId+userId 语义）
+    const existing = await this.prisma.instituteMember.findFirst({
+      where: { instituteId: institute.id, userId: dto.userId },
+    });
+    if (existing) throw new BusinessException(ErrorCode.BAD_REQUEST, "该用户已是研究院成员");
+
+    const seatType = dto.seatType === "STUDY" ? "STUDY" : "LECTURE";
+    const feeExempt = dto.feeExempt === true;
+    const joinYear = new Date().getFullYear();
+
+    let member;
+    try {
+      member = await this.prisma.instituteMember.create({
+        data: {
+          instituteId: institute.id,
+          userId: dto.userId,
+          role: "TYPE_A", // 特邀名师按潜力讲师角色入册（管理层角色仍须任命流程）
+          seatType,
+          joinYear,
+          deposit: feeExempt ? 0 : 10000,
+          feeExempt,
+          invitedBy: operatorUserId,
+          inviteRemark: dto.remark || null,
+          tasksRequired: 3,
+          status: "ACTIVE", // 特邀直接生效，无需审核
+          expireAt: feeExempt ? null : new Date(`${joinYear}-12-31T23:59:59`),
+        },
+        include: { user: { select: { id: true, nickname: true, avatar: true } } },
+      });
+    } catch (e: unknown) {
+      // 并发防重：复合唯一约束冲突 = 已有会籍
+      if (isUniqueConstraintError(e)) throw new BusinessException(ErrorCode.BAD_REQUEST, "该用户已是研究院成员");
+      throw e;
+    }
+
+    // 复用入会自动入专属大圈（幂等）
+    if (institute.circleId) {
+      await this.autoJoinInstituteCircle(institute.circleId, dto.userId);
+    }
+    return member;
+  }
+
+  /** 入会自动入研究院专属大圈（prisma 直建 CircleMember·照圈子模块字段惯例·幂等） */
+  private async autoJoinInstituteCircle(circleId: string, userId: string) {
+    const exist = await this.prisma.circleMember.findUnique({
+      where: { circleId_userId: { circleId, userId } },
+    });
+    if (exist) return;
+    try {
+      await this.prisma.$transaction([
+        this.prisma.circleMember.create({ data: { circleId, userId, role: "MEMBER" } }),
+        this.prisma.circle.update({ where: { id: circleId }, data: { memberCount: { increment: 1 } } }),
+      ]);
+    } catch (e: unknown) {
+      // 并发下唯一约束冲突 = 已在圈内，幂等忽略
+      if (!isUniqueConstraintError(e)) throw e;
+    }
   }
 
   // ════════════════════════════════════════
@@ -243,8 +340,10 @@ export class InstituteService {
   // ════════════════════════════════════════
 
   async getMyDashboard(userId: string) {
-    const member = await this.prisma.instituteMember.findUnique({
+    // 多院化：userId 不再全局唯一，按最早加入的会籍展示（现阶段单院数据行为不变）
+    const member = await this.prisma.instituteMember.findFirst({
       where: { userId },
+      orderBy: { joinedAt: "asc" },
       include: {
         institute: { select: { id: true, name: true } },
         tasks: { orderBy: { createdAt: "desc" } },
@@ -278,8 +377,10 @@ export class InstituteService {
   }
 
   async getMyTasks(userId: string) {
-    const member = await this.prisma.instituteMember.findUnique({
+    // 多院化：findFirst（按最早会籍·现阶段单院行为不变）
+    const member = await this.prisma.instituteMember.findFirst({
       where: { userId },
+      orderBy: { joinedAt: "asc" },
       select: { id: true },
     });
     if (!member) throw new BusinessException(ErrorCode.NOT_FOUND, "不是研究院成员");
@@ -299,8 +400,10 @@ export class InstituteService {
   }
 
   async requestDepositRefund(userId: string) {
-    const member = await this.prisma.instituteMember.findUnique({
+    // 多院化：findFirst（按最早会籍·现阶段单院行为不变）
+    const member = await this.prisma.instituteMember.findFirst({
       where: { userId },
+      orderBy: { joinedAt: "asc" },
       include: { tasks: true },
     });
     if (!member) throw new BusinessException(ErrorCode.NOT_FOUND, "不是研究院成员");
@@ -338,12 +441,12 @@ export class InstituteService {
   // ════════════════════════════════════════
 
   private async assertManagement(userId: string) {
-    const member = await this.prisma.instituteMember.findUnique({
-      where: { userId },
+    // 多院化：直接按「ACTIVE 管理层会籍」查找（findFirst·防止 PENDING 记录绕过授权的语义不变）
+    const member = await this.prisma.instituteMember.findFirst({
+      where: { userId, status: "ACTIVE", role: { in: MGMT_ROLES } },
       select: { id: true, instituteId: true, role: true, status: true },
     });
-    // 必须是 ACTIVE 的管理层——防止 PENDING 记录（可自助创建）绕过授权
-    if (!member || member.status !== "ACTIVE" || !MGMT_ROLES.includes(member.role as InstituteRole)) {
+    if (!member) {
       throw new BusinessException(ErrorCode.FORBIDDEN, "仅研究院管理层可操作");
     }
     return member;
@@ -681,7 +784,19 @@ export class InstituteService {
   async updateEvent(id: string, dto: { status?: string; title?: string; description?: string; location?: string }) {
     const existing = await this.prisma.instituteEvent.findUnique({ where: { id } });
     if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "活动不存在");
-    return this.prisma.instituteEvent.update({ where: { id }, data: dto as Prisma.InstituteEventUpdateInput });
+    const updated = await this.prisma.instituteEvent.update({ where: { id }, data: dto as Prisma.InstituteEventUpdateInput });
+
+    // T9-P1 自动记分挂点：状态首次流转到 COMPLETED 时给讲师记分享积分（refId=eventId 幂等查重）
+    if (this.assessment && dto.status === "COMPLETED" && existing.status !== "COMPLETED") {
+      await this.assessment.awardEventPointsForCompletedEvent({
+        id: updated.id,
+        type: updated.type,
+        title: updated.title,
+        lecturerId: updated.lecturerId,
+        instituteId: updated.instituteId,
+      });
+    }
+    return updated;
   }
 
   // ───────── 选拔路径 ─────────

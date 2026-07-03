@@ -1,5 +1,6 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { InstituteService } from "./institute.service";
+import { InstituteAssessmentService } from "./institute-assessment.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { BusinessException } from "../../common/business.exception";
@@ -8,14 +9,16 @@ describe("InstituteService", () => {
   let svc: InstituteService;
   let prisma: any;
   let redis: any;
+  let assessment: any;
 
   beforeEach(async () => {
     prisma = {
       institute: {
-        findFirst: jest.fn().mockResolvedValue({ id: "i1", name: "国学研究院" }),
+        findFirst: jest.fn().mockResolvedValue({ id: "i1", name: "国学研究院", circleId: null }),
       },
       instituteMember: {
         findUnique: jest.fn(),
+        findFirst: jest.fn(),
         findMany: jest.fn(),
         create: jest.fn(),
         update: jest.fn(),
@@ -28,6 +31,7 @@ describe("InstituteService", () => {
       },
       instituteEvent: {
         create: jest.fn(),
+        findUnique: jest.fn(),
         findMany: jest.fn(),
         update: jest.fn(),
         count: jest.fn(),
@@ -36,10 +40,25 @@ describe("InstituteService", () => {
       stationTeacher: {
         groupBy: jest.fn().mockResolvedValue([]),
       },
+      circleMember: {
+        findUnique: jest.fn(),
+        create: jest.fn(),
+      },
+      circle: {
+        update: jest.fn(),
+      },
+      user: {
+        findUnique: jest.fn().mockResolvedValue({ id: "u-vip" }),
+      },
+      $transaction: jest.fn(async (arg: any) => (Array.isArray(arg) ? Promise.all(arg) : arg(prisma))),
     };
     redis = {
       getJson: jest.fn().mockResolvedValue(null),
       setJson: jest.fn().mockResolvedValue(undefined),
+    };
+    assessment = {
+      getEligibility: jest.fn().mockResolvedValue({ seatType: "LECTURE", eligible: true, checks: [] }),
+      awardEventPointsForCompletedEvent: jest.fn().mockResolvedValue(null),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -47,45 +66,193 @@ describe("InstituteService", () => {
         InstituteService,
         { provide: PrismaService, useValue: prisma },
         { provide: RedisService, useValue: redis },
+        { provide: InstituteAssessmentService, useValue: assessment },
       ],
     }).compile();
 
     svc = module.get<InstituteService>(InstituteService);
   });
 
-  describe("join", () => {
-    it("已是成员时报错", async () => {
-      prisma.instituteMember.findUnique.mockResolvedValue({ id: "m1" });
+  describe("join（T9-P1 双轨席位+多院约束+自动入圈）", () => {
+    it("已是成员时报错（同院重复拒·复合唯一语义）", async () => {
+      prisma.instituteMember.findFirst.mockResolvedValue({ id: "m1" });
       await expect(svc.join("u1", { role: "TYPE_A", joinYear: 2026 })).rejects.toThrow(BusinessException);
+      // 存在性检查按 (instituteId, userId) 复合语义查——同人在别院的会籍不拦截（一人可入多院）
+      expect(prisma.instituteMember.findFirst).toHaveBeenCalledWith({
+        where: { instituteId: "i1", userId: "u1" },
+      });
     });
 
-    it("成功加入研究院", async () => {
-      prisma.instituteMember.findUnique.mockResolvedValue(null);
+    it("成功加入研究院（默认讲席 LECTURE·服务端强制资格校验）", async () => {
+      prisma.instituteMember.findFirst.mockResolvedValue(null);
       prisma.instituteMember.create.mockResolvedValue({
-        id: "m1", userId: "u1", role: "TYPE_A", joinYear: 2026, deposit: 10000,
+        id: "m1", userId: "u1", role: "TYPE_A", seatType: "LECTURE", joinYear: 2026, deposit: 10000,
         user: { id: "u1", nickname: "Alice", avatar: null },
       });
       const result = await svc.join("u1", { role: "TYPE_A", joinYear: 2026 });
       expect(result.id).toBe("m1");
+      expect(assessment.getEligibility).toHaveBeenCalledWith("u1", "LECTURE");
       expect(prisma.instituteMember.create).toHaveBeenCalledWith(expect.objectContaining({
-        data: expect.objectContaining({ userId: "u1", tasksRequired: 3 }),
+        data: expect.objectContaining({ userId: "u1", seatType: "LECTURE", tasksRequired: 3 }),
       }));
     });
 
+    it("资格不合格 → 400 且带未通过项，不创建成员", async () => {
+      prisma.instituteMember.findFirst.mockResolvedValue(null);
+      assessment.getEligibility.mockResolvedValue({
+        seatType: "LECTURE",
+        eligible: false,
+        checks: [
+          { key: "circleScale", label: "圈子规模：成员≥50人", pass: false, current: 12, required: 50 },
+          { key: "revenue", label: "经营：圈子/课程累计创收≥5000元", pass: false, current: 800, required: 5000 },
+          { key: "circleRole", label: "身份", pass: true, current: 1, required: 1 },
+        ],
+      });
+      await expect(svc.join("u1", { role: "TYPE_A", joinYear: 2026 }))
+        .rejects.toThrow(/入会条件未满足.*圈子规模.*创收/);
+      expect(prisma.instituteMember.create).not.toHaveBeenCalled();
+    });
+
+    it("研修席入会（seatType=STUDY 透传资格校验与落库）", async () => {
+      prisma.instituteMember.findFirst.mockResolvedValue(null);
+      prisma.instituteMember.create.mockResolvedValue({ id: "m2", seatType: "STUDY", user: {} });
+      assessment.getEligibility.mockResolvedValue({ seatType: "STUDY", eligible: true, checks: [] });
+      await svc.join("u1", { role: "TYPE_B", joinYear: 2026, seatType: "STUDY" });
+      expect(assessment.getEligibility).toHaveBeenCalledWith("u1", "STUDY");
+      expect(prisma.instituteMember.create).toHaveBeenCalledWith(expect.objectContaining({
+        data: expect.objectContaining({ seatType: "STUDY" }),
+      }));
+    });
+
+    it("研究院有专属大圈 → 入会自动建 CircleMember(MEMBER) 并增计数", async () => {
+      prisma.institute.findFirst.mockResolvedValue({ id: "i1", name: "国学研究院", circleId: "big-c" });
+      prisma.instituteMember.findFirst.mockResolvedValue(null);
+      prisma.instituteMember.create.mockResolvedValue({ id: "m1", user: {} });
+      prisma.circleMember.findUnique.mockResolvedValue(null);
+      prisma.circleMember.create.mockResolvedValue({ id: "cm1" });
+      prisma.circle.update.mockResolvedValue({});
+      await svc.join("u1", { role: "TYPE_A", joinYear: 2026 });
+      expect(prisma.circleMember.create).toHaveBeenCalledWith({
+        data: { circleId: "big-c", userId: "u1", role: "MEMBER" },
+      });
+      expect(prisma.circle.update).toHaveBeenCalledWith(
+        expect.objectContaining({ data: { memberCount: { increment: 1 } } }),
+      );
+    });
+
+    it("自动入圈幂等：已在圈内则不重复建", async () => {
+      prisma.institute.findFirst.mockResolvedValue({ id: "i1", name: "国学研究院", circleId: "big-c" });
+      prisma.instituteMember.findFirst.mockResolvedValue(null);
+      prisma.instituteMember.create.mockResolvedValue({ id: "m1", user: {} });
+      prisma.circleMember.findUnique.mockResolvedValue({ id: "cm-exist" });
+      await svc.join("u1", { role: "TYPE_A", joinYear: 2026 });
+      expect(prisma.circleMember.create).not.toHaveBeenCalled();
+      expect(prisma.$transaction).not.toHaveBeenCalled();
+    });
+
     it("不能自助申请管理层角色（越权防护）", async () => {
-      prisma.instituteMember.findUnique.mockResolvedValue(null);
+      prisma.instituteMember.findFirst.mockResolvedValue(null);
       await expect(svc.join("u1", { role: "PRESIDENT", joinYear: 2026 })).rejects.toThrow(BusinessException);
       expect(prisma.instituteMember.create).not.toHaveBeenCalled();
     });
   });
 
+  describe("inviteMember（T9-P1 特邀席位·名师破格引入）", () => {
+    it("特邀成功：跳过全部准入门槛（不调 eligibility）·直接 ACTIVE·免会费 deposit=0 无到期·留痕", async () => {
+      prisma.instituteMember.findFirst.mockResolvedValue(null);
+      prisma.instituteMember.create.mockResolvedValue({
+        id: "m-vip", userId: "u-vip", feeExempt: true, status: "ACTIVE", user: { id: "u-vip", nickname: "名师" },
+      });
+      const res = await svc.inviteMember("u-admin", { userId: "u-vip", feeExempt: true, remark: "冷启动名师站台" });
+      expect(res.id).toBe("m-vip");
+      // 命门：特邀=破格，绝不触发五维/三维资格校验
+      expect(assessment.getEligibility).not.toHaveBeenCalled();
+      expect(prisma.instituteMember.create).toHaveBeenCalledWith(expect.objectContaining({
+        data: expect.objectContaining({
+          userId: "u-vip",
+          status: "ACTIVE", // 直接生效无需审核
+          deposit: 0, // 免会费 → 0 保证金
+          feeExempt: true,
+          expireAt: null, // 永久免会费 → 无到期时间
+          invitedBy: "u-admin", // 操作留痕
+          inviteRemark: "冷启动名师站台",
+          seatType: "LECTURE",
+        }),
+      }));
+    });
+
+    it("非免会费特邀：deposit 走默认 10000 且有年度到期时间", async () => {
+      prisma.instituteMember.findFirst.mockResolvedValue(null);
+      prisma.instituteMember.create.mockResolvedValue({ id: "m-vip2", user: {} });
+      await svc.inviteMember("u-admin", { userId: "u-vip", seatType: "STUDY" });
+      expect(prisma.instituteMember.create).toHaveBeenCalledWith(expect.objectContaining({
+        data: expect.objectContaining({
+          deposit: 10000,
+          feeExempt: false,
+          seatType: "STUDY",
+          expireAt: expect.any(Date),
+        }),
+      }));
+    });
+
+    it("重复会籍 → 400 拒绝，不创建", async () => {
+      prisma.instituteMember.findFirst.mockResolvedValue({ id: "m-exist" });
+      await expect(svc.inviteMember("u-admin", { userId: "u-vip" })).rejects.toThrow("该用户已是研究院成员");
+      expect(prisma.instituteMember.create).not.toHaveBeenCalled();
+    });
+
+    it("被特邀用户不存在 → 404", async () => {
+      prisma.user.findUnique.mockResolvedValue(null);
+      await expect(svc.inviteMember("u-admin", { userId: "u-ghost" })).rejects.toThrow("被特邀用户不存在");
+      expect(prisma.instituteMember.create).not.toHaveBeenCalled();
+    });
+
+    it("研究院有专属大圈 → 特邀成员复用幂等自动入圈", async () => {
+      prisma.institute.findFirst.mockResolvedValue({ id: "i1", name: "国学研究院", circleId: "big-c" });
+      prisma.instituteMember.findFirst.mockResolvedValue(null);
+      prisma.instituteMember.create.mockResolvedValue({ id: "m-vip", user: {} });
+      prisma.circleMember.findUnique.mockResolvedValue(null);
+      prisma.circleMember.create.mockResolvedValue({ id: "cm1" });
+      await svc.inviteMember("u-admin", { userId: "u-vip", feeExempt: true });
+      expect(prisma.circleMember.create).toHaveBeenCalledWith({
+        data: { circleId: "big-c", userId: "u-vip", role: "MEMBER" },
+      });
+    });
+  });
+
   describe("approveMember（自审自批防护）", () => {
     it("不能审批自己的成员申请", async () => {
-      prisma.instituteMember.findUnique
-        .mockResolvedValueOnce({ id: "mgr", instituteId: "i1", role: "PRESIDENT", status: "ACTIVE" })
-        .mockResolvedValueOnce({ id: "m1", userId: "u1", status: "PENDING" });
+      prisma.instituteMember.findFirst.mockResolvedValue({ id: "mgr", instituteId: "i1", role: "PRESIDENT", status: "ACTIVE" });
+      prisma.instituteMember.findUnique.mockResolvedValue({ id: "m1", userId: "u1", status: "PENDING" });
       await expect(svc.approveMember("u1", "m1", "ACTIVE")).rejects.toThrow(BusinessException);
       expect(prisma.instituteMember.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("updateEvent（T9-P1 活动完成自动记分挂点）", () => {
+    it("状态首次流转 COMPLETED → 触发讲师自动记分", async () => {
+      prisma.instituteEvent.findUnique.mockResolvedValue({ id: "e1", status: "ONGOING" });
+      prisma.instituteEvent.update.mockResolvedValue({
+        id: "e1", status: "COMPLETED", type: "SALON", title: "院内沙龙", lecturerId: "uL", instituteId: "i1",
+      });
+      await svc.updateEvent("e1", { status: "COMPLETED" });
+      expect(assessment.awardEventPointsForCompletedEvent).toHaveBeenCalledWith({
+        id: "e1", type: "SALON", title: "院内沙龙", lecturerId: "uL", instituteId: "i1",
+      });
+    });
+
+    it("已是 COMPLETED 再更新 → 不重复触发记分", async () => {
+      prisma.instituteEvent.findUnique.mockResolvedValue({ id: "e1", status: "COMPLETED" });
+      prisma.instituteEvent.update.mockResolvedValue({ id: "e1", status: "COMPLETED", type: "SALON" });
+      await svc.updateEvent("e1", { status: "COMPLETED" });
+      expect(assessment.awardEventPointsForCompletedEvent).not.toHaveBeenCalled();
+    });
+
+    it("非 COMPLETED 更新（如改标题）→ 不触发记分", async () => {
+      prisma.instituteEvent.findUnique.mockResolvedValue({ id: "e1", status: "SCHEDULED" });
+      prisma.instituteEvent.update.mockResolvedValue({ id: "e1", status: "SCHEDULED", type: "SALON" });
+      await svc.updateEvent("e1", { title: "新标题" });
+      expect(assessment.awardEventPointsForCompletedEvent).not.toHaveBeenCalled();
     });
   });
 
@@ -170,7 +337,7 @@ describe("InstituteService", () => {
 
   describe("createEvent / listEvents", () => {
     it("创建活动", async () => {
-      prisma.instituteMember.findUnique.mockResolvedValue({ id: "m1", instituteId: "i1", role: "PRESIDENT", status: "ACTIVE" });
+      prisma.instituteMember.findFirst.mockResolvedValue({ id: "m1", instituteId: "i1", role: "PRESIDENT", status: "ACTIVE" });
       prisma.instituteEvent.create.mockResolvedValue({ id: "e1", title: "讲座" });
       const result = await svc.createEvent("u1", { title: "讲座", type: "LECTURE", scheduleAt: new Date().toISOString() });
       expect(result.id).toBe("e1");

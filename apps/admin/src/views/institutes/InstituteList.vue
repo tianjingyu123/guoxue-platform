@@ -57,6 +57,12 @@
         >
           查询
         </el-button>
+        <el-button
+          type="warning"
+          @click="openInvite"
+        >
+          特邀名师
+        </el-button>
       </div>
     </div>
 
@@ -85,10 +91,26 @@
     >
       <el-table-column
         label="姓名"
-        width="130"
+        width="180"
       >
         <template #default="{ row }">
           {{ row.user?.nickname || '-' }}
+          <el-tag
+            v-if="row.invitedBy"
+            type="warning"
+            size="small"
+            effect="plain"
+          >
+            特邀
+          </el-tag>
+          <el-tag
+            v-if="row.feeExempt"
+            type="success"
+            size="small"
+            effect="plain"
+          >
+            免会费
+          </el-tag>
         </template>
       </el-table-column>
       <el-table-column
@@ -294,6 +316,76 @@
         </el-button>
       </template>
     </el-dialog>
+
+    <!-- 特邀名师弹窗（破格引入·跳过全部准入门槛） -->
+    <el-dialog
+      v-model="inviteVisible"
+      title="特邀名师"
+      width="460px"
+    >
+      <el-alert
+        type="warning"
+        :closable="false"
+        show-icon
+        style="margin-bottom:14px"
+        title="破格引入：跳过全部准入门槛，直接生效"
+        description="免会费成员自动豁免年费返还与转席考核，分享积分照记进榜单；操作将留痕。"
+      />
+      <el-form
+        :model="inviteForm"
+        label-width="100px"
+      >
+        <el-form-item
+          label="用户ID"
+          required
+        >
+          <el-input
+            v-model="inviteForm.userId"
+            placeholder="被特邀用户的 userId"
+            clearable
+          />
+        </el-form-item>
+        <el-form-item label="席位类型">
+          <el-select
+            v-model="inviteForm.seatType"
+            style="width:100%"
+          >
+            <el-option
+              label="讲席（分享席）"
+              value="LECTURE"
+            />
+            <el-option
+              label="研修席（学习席）"
+              value="STUDY"
+            />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="永久免会费">
+          <el-switch v-model="inviteForm.feeExempt" />
+        </el-form-item>
+        <el-form-item label="备注">
+          <el-input
+            v-model="inviteForm.remark"
+            type="textarea"
+            :rows="2"
+            maxlength="500"
+            placeholder="引入缘由（留痕，选填）"
+          />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="inviteVisible = false">
+          取消
+        </el-button>
+        <el-button
+          type="warning"
+          :loading="inviting"
+          @click="submitInvite"
+        >
+          确认特邀
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -312,6 +404,10 @@ interface InstituteMemberRow {
   tasksRequired?: number;
   tasksCompleted?: number;
   joinedAt?: string;
+  /** 特邀操作者 userId（非空即特邀成员） */
+  invitedBy?: string | null;
+  /** 永久免会费（特邀名师） */
+  feeExempt?: boolean;
 }
 const list = ref<InstituteMemberRow[]>([]);
 const loading = ref(false);
@@ -327,6 +423,11 @@ const dialogVisible = ref(false);
 const saving = ref(false);
 const editingRow = ref<InstituteMemberRow | null>(null);
 const editForm = reactive({ role: "TYPE_A", status: "ACTIVE", deposit: 0, tasksRequired: 3 });
+
+// 特邀名师（破格引入·跳过准入门槛·调 POST /institute/admin/members/invite）
+const inviteVisible = ref(false);
+const inviting = ref(false);
+const inviteForm = reactive({ userId: "", seatType: "LECTURE", feeExempt: true, remark: "" });
 
 function roleLabel(r: string) {
   const m: Record<string, string> = { INITIATOR: "发起人", TYPE_A: "潜力讲师", TYPE_B: "深造者" };
@@ -391,6 +492,37 @@ async function saveEdit() {
     fetchList();
   } finally {
     saving.value = false;
+  }
+}
+
+function openInvite() {
+  inviteForm.userId = "";
+  inviteForm.seatType = "LECTURE";
+  inviteForm.feeExempt = true;
+  inviteForm.remark = "";
+  inviteVisible.value = true;
+}
+
+async function submitInvite() {
+  if (inviting.value) return;
+  const userId = inviteForm.userId.trim();
+  if (!userId) {
+    ElMessage.warning("请填写被特邀用户的 userId");
+    return;
+  }
+  inviting.value = true;
+  try {
+    await instituteApi.inviteMember({
+      userId,
+      seatType: inviteForm.seatType,
+      feeExempt: inviteForm.feeExempt,
+      ...(inviteForm.remark.trim() ? { remark: inviteForm.remark.trim() } : {}),
+    });
+    ElMessage.success("特邀成功，会籍已直接生效");
+    inviteVisible.value = false;
+    fetchList();
+  } finally {
+    inviting.value = false;
   }
 }
 
