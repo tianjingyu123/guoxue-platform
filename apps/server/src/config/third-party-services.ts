@@ -46,6 +46,7 @@ export const THIRD_PARTY_SERVICES: ThirdPartyService[] = [
     key: "wechat_pay", label: "微信支付", category: "支付",
     note: "在微信支付商户平台 pay.weixin.qq.com 申请。注意：这是「商户号」体系，和小程序的 AppID 是两回事。",
     fields: [
+      S("appId", "绑定 AppID", "WECHAT_PAY_APP_ID", false, "与商户号完成绑定的小程序/公众号 AppID（未填时自动使用「微信小程序」卡片的 AppID）"),
       S("mchId", "商户号", "WECHAT_PAY_MCH_ID", false, "商户平台→账户中心→商户信息→商户号（10位数字）"),
       S("apiV3Key", "APIv3 密钥", "WECHAT_PAY_API_V3_KEY", true, "商户平台→账户中心→API安全→APIv3密钥（自己设一个32位字符串并牢记）"),
       S("serialNo", "证书序列号", "WECHAT_PAY_SERIAL_NO", false, "商户平台→账户中心→API安全→申请API证书后，证书详情里的序列号"),
@@ -180,8 +181,8 @@ export const THIRD_PARTY_SERVICES: ThirdPartyService[] = [
     ],
   },
   {
-    key: "tencent_map", label: "腾讯地图", category: "腾讯云", enabled: false,
-    note: "腾讯位置服务，用于定位/选点。控制台：lbs.qq.com。（地图功能可暂缓）",
+    key: "tencent_map", label: "腾讯地图", category: "腾讯云",
+    note: "腾讯位置服务，用于定位/选点/同城。控制台：lbs.qq.com（创建 Key 时建议勾选 WebService API；若开了签名校验须同时填 SK）。",
     fields: [
       S("key", "开发密钥 Key", "TENCENT_MAP_KEY", false, "腾讯位置服务控制台→应用管理→我的应用→Key"),
       S("sk", "签名 SK", "TENCENT_MAP_SK", true, "创建Key时若开启了『签名校验』，填对应SK；否则留空"),

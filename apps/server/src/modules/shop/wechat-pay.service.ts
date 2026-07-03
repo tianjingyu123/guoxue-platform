@@ -27,7 +27,8 @@ export class WechatPayService {
     this.mchId = process.env.WECHAT_PAY_MCH_ID || "";
     this.serialNo = process.env.WECHAT_PAY_SERIAL_NO || "";
     this.apiV3Key = process.env.WECHAT_PAY_API_V3_KEY || "";
-    this.appId = process.env.WECHAT_APP_ID || "";
+    // AppID 回退链：支付专用 → 小程序 → 开放平台（微信支付必须携带与商户号绑定的 AppID）
+    this.appId = process.env.WECHAT_PAY_APP_ID || process.env.WECHAT_MINI_APP_ID || process.env.WECHAT_APP_ID || "";
 
     // 私钥可以从文件路径读取或直接环境变量
     const keyPath = process.env.WECHAT_PAY_PRIVATE_KEY_PATH || "";
