@@ -6340,3 +6340,39 @@ model AdvisorInsight {
   @@index([roleType, subjectId, status])
   @@index([ruleKey, subjectId, createdAt])
 }
+
+/// V3 共读拼团（纯学习激励·无资金）：一组用户约定共读某古籍并在周期内完成目标章节
+/// 与商城 GroupBuy（支付拼团）物理隔离；奖励是 user-growth 荣誉学分，不可兑现。无 FK（拉取式对接进度）。
+model SharedReadingGroup {
+  id             String    @id @default(uuid())
+  classicBookId  String // 关联古籍 ClassicBook.id（无 FK·拉取式）
+  bookTitle      String // 冗余书名（避免每次联查）
+  initiatorId    String // 发起人 User.id
+  targetChapters Int // 目标完成章节数
+  minMembers     Int       @default(3)
+  maxMembers     Int       @default(5)
+  durationDays   Int       @default(7)
+  startAt        DateTime? // 开读时间（转 READING 时写入）
+  deadline       DateTime? // 截止时间（startAt + durationDays）
+  status         String    @default("RECRUITING") // RECRUITING | READING | COMPLETED | EXPIRED
+  inviteToken    String    @unique // 邀请分享 token（随机32位）
+  createdAt      DateTime  @default(now())
+
+  @@index([status])
+  @@index([initiatorId])
+}
+
+/// 共读组成员：完成进度快照由 GET 详情时实时统计（拉取式），结算时持久化+发奖
+model SharedReadingMember {
+  id                String    @id @default(uuid())
+  groupId           String
+  userId            String
+  isLeader          Boolean   @default(false)
+  joinedAt          DateTime  @default(now())
+  completedChapters Int       @default(0) // 已完成目标内章节数（结算时持久化）
+  completed         Boolean   @default(false)
+  rewardedAt        DateTime? // 学分发放时间（防重发）
+
+  @@unique([groupId, userId])
+  @@index([groupId])
+}

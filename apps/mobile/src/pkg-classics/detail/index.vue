@@ -94,6 +94,20 @@
         </view>
       </view>
 
+      <!-- 发起共读拼团（结伴同修·纯学习激励） -->
+      <view class="cd-sec">
+        <view class="cd-card cd-coread" @tap="toSharedReading">
+          <view class="cd-coread-icon">
+            <app-icon name="users" :size="38" color="#ffffff" />
+          </view>
+          <view class="cd-coread-body">
+            <text class="cd-coread-title">发起共读拼团</text>
+            <text class="cd-coread-sub">邀 3-5 位书友结伴共读 · 达成得学分与结业卡</text>
+          </view>
+          <app-icon name="chevron-right" :size="36" color="#cccccc" />
+        </view>
+      </view>
+
       <!-- 目录 -->
       <view class="cd-sec">
         <view class="cd-sec-head">
@@ -287,6 +301,12 @@ function goBack() {
 }
 function onShare() {
   uni.showToast({ title: '分享', icon: 'none' })
+}
+function toSharedReading() {
+  if (!book.value) return
+  uni.navigateTo({
+    url: `/pkg-classics/shared-reading/create?bookId=${book.value.id}&bookTitle=${encodeURIComponent(book.value.title)}`,
+  })
 }
 function toReader(chapterId?: string) {
   if (!book.value) return
@@ -531,6 +551,38 @@ async function toBook(id: string) {
   color: var(--foreground);
 }
 .cd-audio-sub {
+  display: block;
+  font-size: 24rpx;
+  color: var(--muted-foreground);
+  margin-top: 4rpx;
+}
+.cd-coread {
+  display: flex;
+  align-items: center;
+  gap: 24rpx;
+  padding: 32rpx;
+}
+.cd-coread-icon {
+  width: 88rpx;
+  height: 88rpx;
+  border-radius: 999rpx;
+  background: var(--brand);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.cd-coread-body {
+  flex: 1;
+  min-width: 0;
+}
+.cd-coread-title {
+  display: block;
+  font-size: 30rpx;
+  font-weight: 600;
+  color: var(--foreground);
+}
+.cd-coread-sub {
   display: block;
   font-size: 24rpx;
   color: var(--muted-foreground);

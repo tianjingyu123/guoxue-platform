@@ -577,6 +577,22 @@
           }
         },
         {
+          "path": "shared-reading/create",
+          "style": { "navigationStyle": "custom" }
+        },
+        {
+          "path": "shared-reading/detail",
+          "style": { "navigationStyle": "custom" }
+        },
+        {
+          "path": "shared-reading/invite",
+          "style": { "navigationStyle": "custom" }
+        },
+        {
+          "path": "shared-reading/mine",
+          "style": { "navigationStyle": "custom" }
+        },
+        {
           "path": "category/index",
           "style": {
             "navigationStyle": "custom"
