@@ -1,7 +1,7 @@
 // 文化研究院（institute）数据层 —— 真连 @guoxue/server /institute/*
 // 定位：精英师资筛选培养体系（付费准入→分享任务考核→押金退费→签约讲师→驿站供给）
 // 后端模型为准，原型虚构字段（讲师评分/学员数/圈子统计）已剔除，按真实数据维度呈现。
-import { apiGet, apiPost, apiPut } from '@/utils/request'
+import { apiGet, apiGetPaged, apiPost, apiPut } from '@/utils/request'
 
 // ============ 后端对齐枚举 ============
 export type InstituteRole = 'INITIATOR' | 'TYPE_A' | 'TYPE_B' | 'PRESIDENT' | 'VICE_PRESIDENT' | 'SECRETARY_GENERAL'
@@ -138,6 +138,71 @@ export interface ApplyMemberPayload {
   role: string
   joinYear: number
   deposit?: number
+}
+
+// ───── 讲师影响力榜单（T9-P0a·公开·四维透明计分，不含收入）─────
+export interface RankingDims {
+  /** 年度任务完成（权重 40%）0-100 */
+  tasks: number
+  /** 授课活动场次（权重 30%）0-100 */
+  events: number
+  /** 驿站覆盖数（权重 20%）0-100 */
+  stations: number
+  /** 资历年限（权重 10%·5 年封顶）0-100 */
+  seniority: number
+}
+export interface RankingItem {
+  rank: number
+  userId: string
+  nickname: string
+  avatar: string | null
+  lecturerLevel: LecturerLevel
+  /** 加权总分 0-100（1 位小数） */
+  score: number
+  dims: RankingDims
+  tasksCompleted: number
+  eventCount: number
+  stationCount: number
+  joinYear: number
+}
+export interface RankingsResponse {
+  items: RankingItem[]
+  updatedAt: string
+}
+
+// ───── 大师讲堂付费知识库（T9-P0b·国学币购买·已购永久可读）─────
+export type InstituteContentType = 'ARTICLE' | 'VIDEO' | 'DOCUMENT'
+
+export interface InstituteContentItem {
+  id: string
+  contentType: InstituteContentType
+  title: string
+  /** 国学币价格（整数币·0=免费） */
+  price: number
+  /** 未购可见的试读摘要（ARTICLE 截正文前 100 字；VIDEO/DOCUMENT 仅简介） */
+  summary: string
+  purchaseCount: number
+  createdAt: string
+  /** 登录时的已购标记（免费内容恒为 true） */
+  purchased: boolean
+}
+
+export interface InstituteContentDetail extends InstituteContentItem {
+  /** 已购/免费=全量正文（VIDEO/DOCUMENT 为资源 URL）；未购 ARTICLE=前 200 字试读，未购 VIDEO/DOCUMENT 为空串 */
+  content: string
+  author: UserBrief | null
+}
+
+export const contentTypeLabel: Record<InstituteContentType, string> = {
+  ARTICLE: '文章', VIDEO: '视频', DOCUMENT: '文档',
+}
+export const contentTypeColor: Record<InstituteContentType, { color: string; bg: string }> = {
+  ARTICLE: { color: '#16a34a', bg: '#f0fdf4' },
+  VIDEO: { color: '#c41e3a', bg: 'rgba(196,30,58,0.1)' },
+  DOCUMENT: { color: '#2563eb', bg: '#eff6ff' },
+}
+export const contentTypeIcon: Record<InstituteContentType, string> = {
+  ARTICLE: 'file-text', VIDEO: 'video', DOCUMENT: 'file',
 }
 
 // ============ 标签 / 色彩映射 ============
@@ -287,6 +352,11 @@ export const instituteApi = {
     return apiGet<MemberDetail>(`/institute/members/${id}`)
   },
 
+  /** 讲师影响力榜单（公开·默认当年）GET /institute/rankings?year= */
+  getRankings(year?: number): Promise<RankingsResponse> {
+    return apiGet<RankingsResponse>(`/institute/rankings${year ? `?year=${year}` : ''}`)
+  },
+
   /** 讲师库（签约/评级成员）GET /institute/talent-pool */
   async getTalentPool(level?: string): Promise<TalentTeacher[]> {
     const q = level ? `?level=${level}&pageSize=100` : '?pageSize=100'
@@ -374,5 +444,25 @@ export const instituteApi = {
   /** 发放分红/奖励 POST /institute/manage/dividends */
   createDividend(data: { userId: string; type: DividendType; amount: number; description?: string; period?: string }): Promise<InstituteDividend> {
     return apiPost<InstituteDividend>('/institute/manage/dividends', data)
+  },
+
+  // ───── 大师讲堂付费知识库（T9-P0b）─────
+  /** 内容列表（公开·仅 PUBLISHED·登录附带已购标）GET /institute/contents */
+  getContents(params: { type?: InstituteContentType; page?: number; pageSize?: number }): Promise<{ items: InstituteContentItem[]; total: number }> {
+    const q = new URLSearchParams()
+    if (params.type) q.set('type', params.type)
+    q.set('page', String(params.page ?? 1))
+    q.set('pageSize', String(params.pageSize ?? 20))
+    return apiGetPaged<InstituteContentItem>(`/institute/contents?${q.toString()}`)
+  },
+
+  /** 内容详情（未购试读/已购全量）GET /institute/contents/:id */
+  getContent(id: string): Promise<InstituteContentDetail> {
+    return apiGet<InstituteContentDetail>(`/institute/contents/${encodeURIComponent(id)}`)
+  },
+
+  /** 购买内容（国学币扣减·已购永久可读）POST /institute/contents/:id/purchase */
+  purchaseContent(id: string): Promise<{ purchased: boolean; price: number; purchaseId: string }> {
+    return apiPost<{ purchased: boolean; price: number; purchaseId: string }>(`/institute/contents/${encodeURIComponent(id)}/purchase`)
   },
 }

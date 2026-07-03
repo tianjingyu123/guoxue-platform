@@ -94,7 +94,7 @@ export class TeacherService {
 
     // 仅公开已过审、未删除的课程
     const courseWhere = { userId, auditStatus: "APPROVED", deletedAt: null };
-    const [courses, courseCount, studentAgg, ratingAgg, stationLinks] = await Promise.all([
+    const [courses, courseCount, studentAgg, ratingAgg, stationLinks, instituteMember] = await Promise.all([
       this.prisma.course.findMany({
         where: courseWhere,
         select: { id: true, title: true, cover: true, price: true, studentCount: true, type: true },
@@ -111,6 +111,11 @@ export class TeacherService {
       this.prisma.stationTeacher.findMany({
         where: { sourceUserId: userId, status: "ACTIVE", station: { status: "ACTIVE" } },
         select: { station: { select: { id: true, name: true, city: true, cover: true, type: true } } },
+      }),
+      // 研究院会籍（T9-P0a 签约金标）：仅取等级/状态两个展示位，不含押金等资金字段
+      this.prisma.instituteMember.findUnique({
+        where: { userId },
+        select: { lecturerLevel: true, status: true },
       }),
     ]);
 
@@ -143,6 +148,10 @@ export class TeacherService {
       stats,
       courses,
       offlineStations,
+      // 研究院签约金标（T9-P0a）：在册(ACTIVE)成员补 institute 字段，非成员省略（前端 v-if 诚实降级）
+      ...(instituteMember && instituteMember.status === "ACTIVE"
+        ? { institute: { signed: instituteMember.lecturerLevel === "SIGNED", lecturerLevel: instituteMember.lecturerLevel } }
+        : {}),
     };
   }
 

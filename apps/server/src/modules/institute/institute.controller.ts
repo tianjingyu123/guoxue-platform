@@ -96,6 +96,14 @@ export class InstituteController {
     return this.svc.getSignedLecturers();
   }
 
+  @Get("rankings")
+  @ApiOperation({ summary: "讲师影响力榜单（公开·默认当年·任务40%+授课30%+驿站20%+资历10%·不含收入）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiQuery({ name: "year", required: false, type: Number, description: "榜单年度（默认当年）" })
+  getRankings(@Query("year") year?: string) {
+    return this.svc.getRankings(year ? +year : undefined);
+  }
+
   // ════════════════════════════════════════
   // 成员 — 加入
   // ════════════════════════════════════════

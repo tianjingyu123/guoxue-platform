@@ -1,11 +1,13 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { InstituteService } from "./institute.service";
 import { PrismaService } from "../../prisma/prisma.service";
+import { RedisService } from "../../redis/redis.service";
 import { BusinessException } from "../../common/business.exception";
 
 describe("InstituteService", () => {
   let svc: InstituteService;
   let prisma: any;
+  let redis: any;
 
   beforeEach(async () => {
     prisma = {
@@ -29,13 +31,22 @@ describe("InstituteService", () => {
         findMany: jest.fn(),
         update: jest.fn(),
         count: jest.fn(),
+        groupBy: jest.fn().mockResolvedValue([]),
       },
+      stationTeacher: {
+        groupBy: jest.fn().mockResolvedValue([]),
+      },
+    };
+    redis = {
+      getJson: jest.fn().mockResolvedValue(null),
+      setJson: jest.fn().mockResolvedValue(undefined),
     };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         InstituteService,
         { provide: PrismaService, useValue: prisma },
+        { provide: RedisService, useValue: redis },
       ],
     }).compile();
 
@@ -180,6 +191,96 @@ describe("InstituteService", () => {
       ]);
       const result = await svc.getSigningCandidates();
       expect(result.length).toBe(1);
+    });
+  });
+
+  describe("getRankings（讲师影响力榜单·T9-P0a）", () => {
+    const YEAR = 2026;
+
+    /** 两名在册讲师：A 满维度（任务4/授课3/驿站2/资历≥5年），B 半程（任务2/授课0/驿站1/当年新入） */
+    function primeTwoMembers() {
+      prisma.instituteMember.findMany.mockResolvedValue([
+        { userId: "uA", lecturerLevel: "SIGNED", tasksCompleted: 4, joinYear: YEAR - 9, user: { id: "uA", nickname: "甲师", avatar: "a.jpg" } },
+        { userId: "uB", lecturerLevel: "JUNIOR", tasksCompleted: 2, joinYear: YEAR, user: { id: "uB", nickname: "乙师", avatar: null } },
+      ]);
+      prisma.instituteEvent.groupBy.mockResolvedValue([
+        { lecturerId: "uA", _count: { _all: 3 } },
+      ]);
+      prisma.stationTeacher.groupBy.mockResolvedValue([
+        { sourceUserId: "uA", _count: { _all: 2 } },
+        { sourceUserId: "uB", _count: { _all: 1 } },
+      ]);
+    }
+
+    it("聚合计分：归一化 + 40/30/20/10 加权，按总分排名", async () => {
+      primeTwoMembers();
+      const res = await svc.getRankings(YEAR);
+      expect(res.items).toHaveLength(2);
+
+      const [first, second] = res.items;
+      // A 每个维度都是全员最大值 → 四维全 100 → 总分 100
+      expect(first.rank).toBe(1);
+      expect(first.userId).toBe("uA");
+      expect(first.dims).toEqual({ tasks: 100, events: 100, stations: 100, seniority: 100 });
+      expect(first.score).toBe(100);
+      // B：任务 2/4=50，授课 0，驿站 1/2=50，资历 1/5 年=20 → 0.4*50+0.3*0+0.2*50+0.1*20=32
+      expect(second.rank).toBe(2);
+      expect(second.userId).toBe("uB");
+      expect(second.dims).toEqual({ tasks: 50, events: 0, stations: 50, seniority: 20 });
+      expect(second.score).toBe(32);
+      // 明细计数透明可解释
+      expect(first.tasksCompleted).toBe(4);
+      expect(first.eventCount).toBe(3);
+      expect(first.stationCount).toBe(2);
+      expect(res.updatedAt).toBeTruthy();
+      // 聚合对象过滤：仅 ACTIVE 且 lecturerLevel≠NONE
+      expect(prisma.instituteMember.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { status: "ACTIVE", lecturerLevel: { notIn: ["NONE"] } } }),
+      );
+    });
+
+    it("公开榜单不含任何收入/资金字段（合规红线）", async () => {
+      primeTwoMembers();
+      const res = await svc.getRankings(YEAR);
+      const json = JSON.stringify(res);
+      expect(json).not.toMatch(/deposit|dividend|revenue|income|amount|earning|balance|phone/i);
+    });
+
+    it("无符合条件成员 → 空榜（不再触发聚合查询）", async () => {
+      prisma.instituteMember.findMany.mockResolvedValue([]);
+      const res = await svc.getRankings(YEAR);
+      expect(res.items).toEqual([]);
+      expect(res.updatedAt).toBeTruthy();
+      expect(prisma.instituteEvent.groupBy).not.toHaveBeenCalled();
+      expect(prisma.stationTeacher.groupBy).not.toHaveBeenCalled();
+    });
+
+    it("Redis 缓存命中 → 直接返回，不查库", async () => {
+      const cached = { items: [{ rank: 1, userId: "uX" }], updatedAt: "2026-07-03T00:00:00.000Z" };
+      redis.getJson.mockResolvedValue(cached);
+      const res = await svc.getRankings(YEAR);
+      expect(res).toEqual(cached);
+      expect(redis.getJson).toHaveBeenCalledWith(`institute:rankings:${YEAR}`);
+      expect(prisma.instituteMember.findMany).not.toHaveBeenCalled();
+    });
+
+    it("缓存未命中 → 计算后写缓存（key 含年份·TTL 1h）", async () => {
+      primeTwoMembers();
+      await svc.getRankings(YEAR);
+      expect(redis.setJson).toHaveBeenCalledWith(
+        `institute:rankings:${YEAR}`,
+        expect.objectContaining({ items: expect.any(Array) }),
+        3600,
+      );
+    });
+
+    it("缺省/非法年份回落到当年", async () => {
+      prisma.instituteMember.findMany.mockResolvedValue([]);
+      const nowYear = new Date().getFullYear();
+      await svc.getRankings();
+      expect(redis.getJson).toHaveBeenCalledWith(`institute:rankings:${nowYear}`);
+      await svc.getRankings(NaN);
+      expect(redis.getJson).toHaveBeenLastCalledWith(`institute:rankings:${nowYear}`);
     });
   });
 });

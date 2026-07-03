@@ -59,6 +59,13 @@ export interface TeacherProfileStation {
   type?: string | null
 }
 
+/** 研究院会籍徽章（T9-P0a·后端仅对在册成员返回，非成员省略） */
+export interface TeacherInstituteBadge {
+  /** 是否研究院签约讲师（lecturerLevel=SIGNED）→ 页头显示金标 */
+  signed: boolean
+  lecturerLevel: string
+}
+
 export interface TeacherPublicProfile {
   userId: string
   nickname: string
@@ -68,6 +75,8 @@ export interface TeacherPublicProfile {
   stats: { courseCount: number; studentCount: number; avgRating?: number; reviewCount?: number }
   courses: TeacherProfileCourse[]
   offlineStations: TeacherProfileStation[]
+  /** 研究院签约金标（非研究院成员省略，页面 v-if 诚实降级） */
+  institute?: TeacherInstituteBadge
 }
 
 /** 后端原始响应（Decimal price 序列化为字符串，宽松 optional 防御） */
@@ -80,6 +89,7 @@ interface RawTeacherProfile {
   stats?: { courseCount?: number; studentCount?: number; avgRating?: number; reviewCount?: number }
   courses?: Array<{ id?: string; title?: string; cover?: string | null; price?: number | string; studentCount?: number; type?: string }>
   offlineStations?: Array<{ id?: string; name?: string; city?: string; cover?: string | null; type?: string | null }>
+  institute?: { signed?: boolean; lecturerLevel?: string }
 }
 
 function toStatus(cert: TeacherCertification | null): CertStatus {
@@ -145,6 +155,10 @@ export const teacherApi = {
         cover: s.cover || '',
         type: s.type,
       })),
+      // 研究院签约金标：后端省略即省略（保留诚实降级语义，页面 v-if 隐藏）
+      ...(raw.institute
+        ? { institute: { signed: !!raw.institute.signed, lecturerLevel: raw.institute.lecturerLevel || 'NONE' } }
+        : {}),
     }
   },
 }

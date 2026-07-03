@@ -2,16 +2,45 @@ import { Injectable, Optional } from "@nestjs/common";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
+import { RedisService } from "../../redis/redis.service";
 import { Prisma, InstituteRole } from "@prisma/client";
 import { FundApprovalService } from "../fund-approval/fund-approval.service";
 
 const MGMT_ROLES: InstituteRole[] = ["PRESIDENT", "VICE_PRESIDENT", "SECRETARY_GENERAL"];
+
+/** 讲师影响力榜单缓存 TTL（1 小时） */
+const RANKINGS_CACHE_TTL = 3600;
+/** 资历满分封顶年限（≥5 年满分） */
+const SENIORITY_CAP_YEARS = 5;
+
+/** 榜单条目（公开·不含任何收入/资金字段） */
+export interface LecturerRankingItem {
+  rank: number;
+  userId: string;
+  nickname: string;
+  avatar: string | null;
+  lecturerLevel: string;
+  /** 加权总分 0-100，1 位小数 */
+  score: number;
+  /** 四维分值（各自归一化到 0-100，1 位小数）：任务40% + 授课30% + 驿站20% + 资历10% */
+  dims: { tasks: number; events: number; stations: number; seniority: number };
+  tasksCompleted: number;
+  eventCount: number;
+  stationCount: number;
+  joinYear: number;
+}
+
+export interface LecturerRankingsResponse {
+  items: LecturerRankingItem[];
+  updatedAt: string;
+}
 
 @Injectable()
 export class InstituteService {
   constructor(
     private prisma: PrismaService,
     @Optional() private fundApproval?: FundApprovalService,
+    @Optional() private redis?: RedisService,
   ) {}
 
   // ════════════════════════════════════════
@@ -59,6 +88,120 @@ export class InstituteService {
       this.prisma.instituteMember.count({ where }),
     ]);
     return { teachers, total, page, pageSize };
+  }
+
+  // ───────── 讲师影响力榜单（T9-P0a·公开·学术榜单不谈钱：不聚合不返回任何收入字段）─────────
+
+  /**
+   * 讲师影响力榜单（默认当年，Redis 缓存 1h）。
+   * 聚合对象：ACTIVE 且 lecturerLevel≠NONE 的研究院成员。
+   * 计分：各维度归一化到 0-100 后加权 —— 任务完成 40% + 授课场次 30% + 驿站覆盖 20% + 资历年限 10%（封顶 5 年满分）。
+   */
+  async getRankings(year?: number): Promise<LecturerRankingsResponse> {
+    const nowYear = new Date().getFullYear();
+    // 参数防御：非法/越界年份回落到当年
+    const y = year && Number.isFinite(year) && year >= 2000 && year <= nowYear + 1 ? Math.floor(year) : nowYear;
+
+    const cacheKey = `institute:rankings:${y}`;
+    if (this.redis) {
+      const cached = await this.redis.getJson<LecturerRankingsResponse>(cacheKey);
+      if (cached) return cached;
+    }
+
+    const data = await this.buildRankings(y);
+    if (this.redis) await this.redis.setJson(cacheKey, data, RANKINGS_CACHE_TTL);
+    return data;
+  }
+
+  private async buildRankings(year: number): Promise<LecturerRankingsResponse> {
+    const updatedAt = new Date().toISOString();
+
+    const members = await this.prisma.instituteMember.findMany({
+      where: { status: "ACTIVE", lecturerLevel: { notIn: ["NONE"] } },
+      select: {
+        userId: true,
+        lecturerLevel: true,
+        tasksCompleted: true,
+        joinYear: true,
+        user: { select: { id: true, nickname: true, avatar: true } },
+      },
+    });
+    if (!members.length) return { items: [], updatedAt };
+
+    const userIds = members.map((m) => m.userId);
+    const yearStart = new Date(year, 0, 1);
+    const yearEnd = new Date(year + 1, 0, 1);
+
+    // 当年授课场次（含已排期/进行中/已完成，不含已取消）+ 在岗驿站覆盖数
+    const [eventGroups, stationGroups] = await Promise.all([
+      this.prisma.instituteEvent.groupBy({
+        by: ["lecturerId"],
+        where: {
+          lecturerId: { in: userIds },
+          status: { in: ["COMPLETED", "ONGOING", "SCHEDULED"] },
+          scheduleAt: { gte: yearStart, lt: yearEnd },
+        },
+        _count: { _all: true },
+      }),
+      this.prisma.stationTeacher.groupBy({
+        by: ["sourceUserId"],
+        where: { sourceUserId: { in: userIds }, status: "ACTIVE" },
+        _count: { _all: true },
+      }),
+    ]);
+    const eventMap = new Map<string, number>();
+    for (const g of eventGroups) if (g.lecturerId) eventMap.set(g.lecturerId, g._count._all);
+    const stationMap = new Map<string, number>();
+    for (const g of stationGroups) if (g.sourceUserId) stationMap.set(g.sourceUserId, g._count._all);
+
+    const rows = members.map((m) => {
+      const eventCount = eventMap.get(m.userId) || 0;
+      const stationCount = stationMap.get(m.userId) || 0;
+      // 资历年限：加入当年即算 1 年，封顶 5 年
+      const seniorityYears = Math.min(Math.max(year - m.joinYear + 1, 0), SENIORITY_CAP_YEARS);
+      return { member: m, eventCount, stationCount, seniorityYears };
+    });
+
+    const maxTasks = Math.max(...rows.map((r) => r.member.tasksCompleted), 1);
+    const maxEvents = Math.max(...rows.map((r) => r.eventCount), 1);
+    const maxStations = Math.max(...rows.map((r) => r.stationCount), 1);
+
+    const round1 = (n: number) => Math.round(n * 10) / 10;
+
+    const scored = rows.map((r) => {
+      const dims = {
+        tasks: round1((r.member.tasksCompleted / maxTasks) * 100),
+        events: round1((r.eventCount / maxEvents) * 100),
+        stations: round1((r.stationCount / maxStations) * 100),
+        seniority: round1((r.seniorityYears / SENIORITY_CAP_YEARS) * 100),
+      };
+      const score = round1(dims.tasks * 0.4 + dims.events * 0.3 + dims.stations * 0.2 + dims.seniority * 0.1);
+      return { ...r, dims, score };
+    });
+
+    // 总分降序；同分按任务数降序、资历（加入年份早者）优先
+    scored.sort(
+      (a, b) =>
+        b.score - a.score ||
+        b.member.tasksCompleted - a.member.tasksCompleted ||
+        a.member.joinYear - b.member.joinYear,
+    );
+
+    const items: LecturerRankingItem[] = scored.map((r, i) => ({
+      rank: i + 1,
+      userId: r.member.userId,
+      nickname: r.member.user?.nickname || "研究院讲师",
+      avatar: r.member.user?.avatar ?? null,
+      lecturerLevel: r.member.lecturerLevel,
+      score: r.score,
+      dims: r.dims,
+      tasksCompleted: r.member.tasksCompleted,
+      eventCount: r.eventCount,
+      stationCount: r.stationCount,
+      joinYear: r.member.joinYear,
+    }));
+
+    return { items, updatedAt };
   }
 
   // ════════════════════════════════════════

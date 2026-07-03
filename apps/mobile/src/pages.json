@@ -1636,6 +1636,24 @@
           }
         },
         {
+          "path": "rankings/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "contents/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "contents/detail",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
           "path": "instructors/index",
           "style": {
             "navigationStyle": "custom"

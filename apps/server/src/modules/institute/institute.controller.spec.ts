@@ -17,6 +17,7 @@ const mockInstituteSvc = {
   createEvent: jest.fn().mockResolvedValue({ id: "e1", title: "学术讲座" }),
   listEvents: jest.fn().mockResolvedValue([{ id: "e1", title: "学术讲座" }]),
   updateEvent: jest.fn().mockResolvedValue({ id: "e1", status: "CANCELLED" }),
+  getRankings: jest.fn().mockResolvedValue({ items: [{ rank: 1, userId: "u1", score: 100 }], updatedAt: "2026-07-03T00:00:00.000Z" }),
 };
 
 describe("InstituteController", () => {
@@ -108,6 +109,14 @@ describe("InstituteController", () => {
     const result: any = await ctrl.listEvents("LECTURE", "UPCOMING", "true", 1 as any, 20 as any);
     expect(result).toHaveLength(1);
     expect(mockInstituteSvc.listEvents).toHaveBeenCalled();
+  });
+
+  it("GET /institute/rankings — 讲师影响力榜单（公开·year 透传数字化）", async () => {
+    const result: any = await ctrl.getRankings("2026");
+    expect(result.items).toHaveLength(1);
+    expect(mockInstituteSvc.getRankings).toHaveBeenCalledWith(2026);
+    await ctrl.getRankings(undefined);
+    expect(mockInstituteSvc.getRankings).toHaveBeenLastCalledWith(undefined);
   });
 
   it("PUT /institute/events/:id — 更新活动", async () => {

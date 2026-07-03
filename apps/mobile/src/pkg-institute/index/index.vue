@@ -107,6 +107,34 @@
         <view v-else class="mini-empty"><text class="mini-empty-text">暂无讲师入库</text></view>
       </view>
 
+      <!-- 讲师影响力榜单入口（T9-P0a·四维透明计分） -->
+      <view class="section">
+        <view class="rankings-entry" @tap="goRankings">
+          <view class="rankings-medal">
+            <app-icon name="trophy" :size="22" color="#7a5f33" />
+          </view>
+          <view class="rankings-info">
+            <text class="rankings-title">讲师影响力榜单</text>
+            <text class="rankings-sub">任务 · 授课 · 驿站 · 资历 四维透明计分</text>
+          </view>
+          <app-icon name="chevron-right" :size="16" color="#c9a96e" />
+        </view>
+      </view>
+
+      <!-- 大师讲堂入口（T9-P0b·付费知识库） -->
+      <view class="section">
+        <view class="lecture-entry" @tap="goContents">
+          <view class="lecture-icon">
+            <app-icon name="book-open" :size="22" color="#c41e3a" />
+          </view>
+          <view class="lecture-info">
+            <text class="lecture-title">大师讲堂</text>
+            <text class="lecture-sub">研究院讲师沉淀的文章 · 视频 · 文档知识库</text>
+          </view>
+          <app-icon name="chevron-right" :size="16" color="#9ca3af" />
+        </view>
+      </view>
+
       <!-- 近期活动 -->
       <view class="section">
         <view class="section-head">
@@ -247,6 +275,8 @@ function goEvents() { navigateTo('/institute/events') }
 function goEvent(id: string) { navigateTo('/institute/events/' + id) }
 function goApply() { navigateTo('/institute/member-apply') }
 function goMy() { navigateTo('/institute/my-tasks') }
+function goRankings() { navigateTo('/pkg-institute/rankings/index') }
+function goContents() { navigateTo('/pkg-institute/contents/index') }
 </script>
 
 <style scoped>
@@ -342,6 +372,17 @@ function goMy() { navigateTo('/institute/my-tasks') }
 .mini-empty { padding: 24px 0; display: flex; justify-content: center; }
 .mini-empty-text { font-size: 13px; color: #9ca3af; }
 .my-entry { display: flex; align-items: center; justify-content: space-between; background: #fff; border: 1px solid #ececec; border-radius: 12px; padding: 14px 16px; }
+/* 影响力榜单入口（全站金标风格 #c9a96e） */
+.rankings-entry { display: flex; align-items: center; gap: 12px; background: linear-gradient(135deg, #fdf9f0, #f6ecd8); border: 1px solid rgba(201,169,110,0.55); border-radius: 12px; padding: 14px 16px; }
+.lecture-entry { display: flex; align-items: center; gap: 12px; background: linear-gradient(135deg, #fdf5f6, #faeaed); border: 1px solid rgba(196,30,58,0.18); border-radius: 12px; padding: 14px 16px; }
+.lecture-icon { width: 40px; height: 40px; border-radius: 10px; background: rgba(196,30,58,0.08); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.lecture-info { flex: 1; min-width: 0; }
+.lecture-title { display: block; font-size: 14px; font-weight: 600; color: #1a1a1a; }
+.lecture-sub { display: block; font-size: 11px; color: #9ca3af; margin-top: 2px; }
+.rankings-medal { width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, #f3e7cf, #c9a96e); display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(201,169,110,0.35); }
+.rankings-info { flex: 1; min-width: 0; }
+.rankings-title { display: block; font-size: 14px; font-weight: 600; color: #7a5f33; }
+.rankings-sub { display: block; font-size: 11px; color: #a98d5f; margin-top: 2px; }
 .my-entry-left { display: flex; align-items: center; gap: 12px; }
 .my-entry-title { display: block; font-size: 14px; font-weight: 600; color: #1a1a1a; }
 .my-entry-sub { display: block; font-size: 11px; color: #9ca3af; margin-top: 2px; }

@@ -98,9 +98,16 @@ onLoad((options) => {
         </view>
         <view class="hd-info">
           <text class="hd-name">{{ profile.nickname }}</text>
-          <view class="hd-badge">
-            <app-icon name="award" :size="24" color="#8a6d3b" />
-            <text class="hd-badge-text">{{ profile.verifiedTitle }}</text>
+          <view class="hd-badges">
+            <view class="hd-badge">
+              <app-icon name="award" :size="24" color="#8a6d3b" />
+              <text class="hd-badge-text">{{ profile.verifiedTitle }}</text>
+            </view>
+            <!-- 研究院签约金标（T9-P0a·仅 SIGNED 显示，非成员后端省略字段） -->
+            <view v-if="profile.institute && profile.institute.signed" class="hd-badge hd-badge-gold">
+              <app-icon name="badge-check" :size="24" color="#7a5f33" />
+              <text class="hd-badge-gold-text">研究院签约讲师</text>
+            </view>
           </view>
         </view>
       </view>
@@ -225,13 +232,21 @@ onLoad((options) => {
 }
 .hd-info { flex: 1; min-width: 0; }
 .hd-name { font-size: 42rpx; font-weight: 700; color: #1F1F1F; display: block; }
+.hd-badges { display: flex; flex-wrap: wrap; align-items: center; gap: 12rpx; margin-top: 14rpx; }
 .hd-badge {
   display: inline-flex; align-items: center; gap: 8rpx;
-  margin-top: 14rpx; padding: 8rpx 20rpx;
+  padding: 8rpx 20rpx;
   background: linear-gradient(135deg, #FBF3E0, #F3E3C3);
   border: 1rpx solid #E6D3A8; border-radius: 999rpx;
 }
 .hd-badge-text { font-size: 24rpx; font-weight: 600; color: #8a6d3b; }
+/* 研究院签约金标：全站金标风格 #c9a96e */
+.hd-badge-gold {
+  background: linear-gradient(135deg, #f3e7cf, #c9a96e);
+  border: 1rpx solid #c9a96e;
+  box-shadow: 0 2rpx 8rpx rgba(201, 169, 110, 0.35);
+}
+.hd-badge-gold-text { font-size: 24rpx; font-weight: 700; color: #7a5f33; }
 .hd-intro { font-size: 27rpx; line-height: 1.7; color: #6B7280; margin-top: 24rpx; display: block; }
 
 /* 数据条 */
