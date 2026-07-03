@@ -2,6 +2,7 @@ import { Test } from "@nestjs/testing";
 import { SettlementReconcileService } from "./settlement-reconcile.service";
 import { SettlementService } from "./settlement.service";
 import { PrismaService } from "../../prisma/prisma.service";
+import { RedisService } from "../../redis/redis.service";
 
 const mockPrisma = {
   ledgerEntry: { groupBy: jest.fn() },
@@ -11,6 +12,7 @@ const mockPrisma = {
   notification: { createMany: jest.fn() },
 };
 const mockSettlement = { settlePending: jest.fn() };
+const mockRedis = { runExclusive: jest.fn((_k: string, _t: number, fn: () => unknown) => fn()) };
 
 describe("SettlementReconcileService", () => {
   let svc: SettlementReconcileService;
@@ -20,6 +22,7 @@ describe("SettlementReconcileService", () => {
       providers: [
         SettlementReconcileService,
         { provide: PrismaService, useValue: mockPrisma },
+        { provide: RedisService, useValue: mockRedis },
         { provide: SettlementService, useValue: mockSettlement },
       ],
     }).compile();

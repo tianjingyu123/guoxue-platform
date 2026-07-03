@@ -1,6 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { Cron, CronExpression } from "@nestjs/schedule";
 import { PrismaService } from "../../prisma/prisma.service";
+import { RedisService } from "../../redis/redis.service";
 import { SettlementService } from "./settlement.service";
 
 /** 金额比对容差（元）：分账按分规整，差额超过 1 分即视为错账 */
@@ -21,20 +22,25 @@ export class SettlementReconcileService {
 
   constructor(
     private prisma: PrismaService,
+    private redis: RedisService,
     private settlement: SettlementService,
   ) {}
 
   @Cron(CronExpression.EVERY_HOUR)
   async settlePendingHourly() {
-    try {
-      await this.settlement.settlePending();
-    } catch (e) {
-      this.logger.error("结算批处理失败", e as Error);
-    }
+    // 多实例分布式锁：结算批处理涉及资金入账，绝不能两实例并发跑同批 PENDING（重复结算）
+    await this.redis.runExclusive("settle_pending_hourly", 3600, async () => {
+      try {
+        await this.settlement.settlePending();
+      } catch (e) {
+        this.logger.error("结算批处理失败", e as Error);
+      }
+    });
   }
 
   @Cron("0 2 * * *")
   async reconcileDaily() {
+    await this.redis.runExclusive("settle_reconcile_daily", 3600, async () => {
     try {
       const result = await this.reconcileOrders(RECONCILE_WINDOW_DAYS);
       if (result.mismatched.length > 0) {
@@ -49,6 +55,7 @@ export class SettlementReconcileService {
     } catch (e) {
       this.logger.error("结算对账执行失败", e as Error);
     }
+    });
   }
 
   /**

@@ -205,22 +205,28 @@ export class BountyService {
 
   @Cron(CronExpression.EVERY_HOUR)
   async processExpiredLocks() {
-    const expired = await this.prisma.bountyQuestion.findMany({
-      where: { status: "CLAIMED", lockExpireAt: { lt: new Date() } },
-      select: { id: true },
-    });
-    if (expired.length > 0) {
-      await this.prisma.bountyQuestion.updateMany({
-        where: { id: { in: expired.map((q) => q.id) } },
-        data: { status: "OPEN", answererId: null, lockExpireAt: null },
+    await this.redis.runExclusive("bounty_expired_locks", 600, async () => {
+      const expired = await this.prisma.bountyQuestion.findMany({
+        where: { status: "CLAIMED", lockExpireAt: { lt: new Date() } },
+        select: { id: true },
       });
-      this.logger.log(`释放超时悬赏: ${expired.length}`);
-    }
+      if (expired.length > 0) {
+        await this.prisma.bountyQuestion.updateMany({
+          where: { id: { in: expired.map((q) => q.id) } },
+          data: { status: "OPEN", answererId: null, lockExpireAt: null },
+        });
+        this.logger.log(`释放超时悬赏: ${expired.length}`);
+      }
+    });
   }
 
-  /** 每天检查超过30天无人抢答的悬赏，自动退款 */
+  /** 每天检查超过30天无人抢答的悬赏，自动退款（多实例锁防重复退款/双解冻） */
   @Cron(CronExpression.EVERY_DAY_AT_3AM)
   async processExpiredBounties() {
+    await this.redis.runExclusive("bounty_expired_bounties", 1800, () => this._processExpiredBounties());
+  }
+
+  private async _processExpiredBounties() {
     const thirtyDaysAgo = new Date(Date.now() - 30 * 86400 * 1000);
     const expired = await this.prisma.bountyQuestion.findMany({
       where: {

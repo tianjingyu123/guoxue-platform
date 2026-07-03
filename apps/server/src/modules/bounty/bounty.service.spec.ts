@@ -19,7 +19,9 @@ describe("BountyService", () => {
     };
 
     // BountyService 中 CoinService 是 @Optional forwardRef，直接 new 绕过 DI 解析
-    svc = new BountyService(prisma, {} as any);
+    // 第二参=RedisService：cron 锁 runExclusive 透传执行 fn（单测不测锁竞争）
+    const redis = { runExclusive: (_k: string, _t: number, fn: () => unknown) => fn() };
+    svc = new BountyService(prisma, redis as any);
   });
 
   describe("createQuestion", () => {

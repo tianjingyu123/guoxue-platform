@@ -133,6 +133,21 @@ export class RedisService implements OnModuleDestroy {
     this.memory.delete(key);
   }
 
+  /**
+   * 分布式互斥执行（cron 多实例防重复）：抢到 `cron:lock:{name}` 锁才执行 fn，抢不到直接跳过。
+   * ttl 应略大于任务最坏执行时长，防持锁进程崩溃后锁长期不释放。返回 fn 结果或 undefined(未抢到锁)。
+   */
+  async runExclusive<T>(name: string, ttlSeconds: number, fn: () => Promise<T>): Promise<T | undefined> {
+    const lockKey = `cron:lock:${name}`;
+    const locked = await this.setNX(lockKey, "1", ttlSeconds);
+    if (!locked) return undefined;
+    try {
+      return await fn();
+    } finally {
+      await this.del(lockKey);
+    }
+  }
+
   /** Redis Pub/Sub 发布（仅真实连接可用，内存模式静默忽略） */
   async publish(channel: string, message: string): Promise<number> {
     const conn = await this.getConn();

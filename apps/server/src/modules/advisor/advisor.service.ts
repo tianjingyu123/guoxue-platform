@@ -2,6 +2,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import { Cron } from "@nestjs/schedule";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
+import { RedisService } from "../../redis/redis.service";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { ADVISOR_SEVERITIES, CreateAdvisorRuleDto, UpdateAdvisorRuleDto } from "./advisor.dto";
@@ -31,7 +32,10 @@ const round2 = (n: number) => Math.round(n * 100) / 100;
 export class AdvisorService {
   private readonly logger = new Logger(AdvisorService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private redis: RedisService,
+  ) {}
 
   // ───────── AI 个性化文案（T2-P2）─────────
 
@@ -389,12 +393,15 @@ export class AdvisorService {
   /** 每日 6AM 全量评估（同主体同规则 7 天冷却；每主体每日最多 3 条） */
   @Cron("0 6 * * *")
   async evaluateAllCron() {
-    try {
-      const result = await this.evaluateAll();
-      this.logger.log(`顾问引擎评估完成：${result.evaluated} 次探针，生成 ${result.generated} 条建议`);
-    } catch (e) {
-      this.logger.error("顾问引擎评估失败", e as Error);
-    }
+    // 多实例分布式锁：防两实例并发评估致重复建议（冷却判定 read-then-write 非原子）
+    await this.redis.runExclusive("advisor_evaluate_all", 3600, async () => {
+      try {
+        const result = await this.evaluateAll();
+        this.logger.log(`顾问引擎评估完成：${result.evaluated} 次探针，生成 ${result.generated} 条建议`);
+      } catch (e) {
+        this.logger.error("顾问引擎评估失败", e as Error);
+      }
+    });
   }
 
   async evaluateAll() {
@@ -502,12 +509,14 @@ export class AdvisorService {
   /** 每日 7AM：对采纳满 7 天的建议复跑探针，回填问题是否解决（反哺规则有效性统计） */
   @Cron("0 7 * * *")
   async feedbackCron() {
-    try {
-      const result = await this.collectFeedback();
-      if (result.updated > 0) this.logger.log(`效果回访完成：回填 ${result.updated} 条建议反馈`);
-    } catch (e) {
-      this.logger.error("效果回访执行失败", e as Error);
-    }
+    await this.redis.runExclusive("advisor_feedback", 3600, async () => {
+      try {
+        const result = await this.collectFeedback();
+        if (result.updated > 0) this.logger.log(`效果回访完成：回填 ${result.updated} 条建议反馈`);
+      } catch (e) {
+        this.logger.error("效果回访执行失败", e as Error);
+      }
+    });
   }
 
   async collectFeedback() {

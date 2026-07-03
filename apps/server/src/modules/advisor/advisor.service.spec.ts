@@ -1,7 +1,11 @@
 import { Test } from "@nestjs/testing";
 import { AdvisorService } from "./advisor.service";
 import { PrismaService } from "../../prisma/prisma.service";
+import { RedisService } from "../../redis/redis.service";
 import { BusinessException } from "../../common/business.exception";
+
+// cron 多实例锁：透传执行 fn（单测不测锁竞争，直接放行）
+const mockRedis = { runExclusive: jest.fn((_k: string, _t: number, fn: () => unknown) => fn()) };
 
 const mockPrisma = {
   advisorRule: { findMany: jest.fn(), findUnique: jest.fn(), create: jest.fn(), update: jest.fn() },
@@ -46,7 +50,7 @@ describe("AdvisorService", () => {
 
   beforeAll(async () => {
     const mod = await Test.createTestingModule({
-      providers: [AdvisorService, { provide: PrismaService, useValue: mockPrisma }],
+      providers: [AdvisorService, { provide: PrismaService, useValue: mockPrisma }, { provide: RedisService, useValue: mockRedis }],
     }).compile();
     svc = mod.get(AdvisorService);
   });
