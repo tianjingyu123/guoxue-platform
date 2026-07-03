@@ -44,14 +44,16 @@
             </view>
             <view class="card-head-text">
               <view class="card-title-row">
-                <text class="card-title">{{ data.status.level !== 'none' ? data.status.levelName : '热卜国学VIP' }}</text>
-                <text v-if="data.status.level !== 'none'" class="card-badge">{{ data.status.level.toUpperCase() }}</text>
+                <text class="card-title">{{ data.status.level !== 'none' ? memberLevelName : '热卜国学VIP' }}</text>
+                <text v-if="data.status.level !== 'none'" class="card-badge">{{ data.status.level }}</text>
               </view>
               <text class="card-sub">
                 {{ data.status.level !== 'none'
-                  ? (data.status.isExpired
-                    ? '会员已过期'
-                    : `有效期至 ${data.status.expireAt}，还剩 ${data.status.daysLeft} 天`)
+                  ? (data.status.isLifetime
+                    ? '终身会员 · 永久有效'
+                    : (data.status.isExpired
+                      ? '会员已过期'
+                      : `有效期至 ${data.status.expireAt}，还剩 ${data.status.daysLeft} 天`))
                   : '解锁全部特权，畅享国学智慧' }}
               </text>
             </view>
@@ -68,21 +70,9 @@
               <text class="stat-label">AI对话</text>
             </view>
             <view class="stat-col">
-              <text class="stat-num">{{ data.status.points }}</text>
-              <text class="stat-label">会员积分</text>
+              <text class="stat-num">{{ selectedPlan?.coinBonus ?? 0 }}</text>
+              <text class="stat-label">每月赠国学币</text>
             </view>
-          </view>
-
-          <!-- 自动续费 -->
-          <view v-if="data.status.level !== 'none'" class="card-autorenew">
-            <text class="autorenew-label">自动续费</text>
-            <switch
-              :checked="data.status.autoRenew"
-              :disabled="autoRenewLoading"
-              color="rgba(255,255,255,0.3)"
-              style="transform: scale(0.85);"
-              @change="onToggleAutoRenew"
-            />
           </view>
         </view>
       </view>
@@ -106,7 +96,7 @@
         <text v-if="currentPlanGroup" class="section-desc">{{ currentPlanGroup.description }}</text>
       </view>
 
-      <!-- 套餐选择 -->
+      <!-- 套餐选择（真源 GET /member/plans·MemberConfig） -->
       <view class="section">
         <text class="section-title">选择套餐</text>
         <view class="plan-grid">
@@ -118,15 +108,14 @@
             @tap="selectedPlan = plan"
           >
             <view v-if="plan.popular" class="plan-tag tag-popular">推荐</view>
-            <view v-else-if="plan.discount" class="plan-tag tag-discount">{{ plan.discount }}</view>
 
             <text class="plan-duration">{{ plan.durationName }}</text>
             <view class="plan-price-row">
               <text class="plan-yuan">¥</text>
               <text class="plan-price">{{ plan.price }}</text>
             </view>
-            <text v-if="plan.originalPrice > plan.price" class="plan-original">¥{{ plan.originalPrice }}</text>
-            <text class="plan-daily">¥{{ plan.dailyPrice }}/天</text>
+            <text v-if="plan.dailyPrice" class="plan-daily">¥{{ plan.dailyPrice }}/天</text>
+            <text v-else class="plan-daily">一次开通 永久有效</text>
 
             <view v-if="selectedPlan?.id === plan.id" class="plan-check">
               <app-icon name="check" :size="24" color="#FFFFFF" />
@@ -135,26 +124,16 @@
         </view>
       </view>
 
-      <!-- 会员权益 -->
-      <view class="section">
+      <!-- 会员权益（真源 MemberConfig.benefits） -->
+      <view v-if="displayBenefits.length" class="section">
         <text class="section-title">会员专属权益</text>
         <view class="benefit-grid">
-          <view
-            v-for="benefit in data.benefits"
-            :key="benefit.id"
-            class="benefit-card"
-            :class="{ 'benefit-off': !benefit.levels.includes(selectedLevel) }"
-          >
-            <view class="benefit-icon" :class="{ 'benefit-icon-off': !benefit.levels.includes(selectedLevel) }">
-              <app-icon
-                :name="benefitIconName(benefit.icon)"
-                :size="40"
-                :color="benefit.levels.includes(selectedLevel) ? '#C9A96E' : '#8A8478'"
-              />
+          <view v-for="benefit in displayBenefits" :key="benefit.id" class="benefit-card">
+            <view class="benefit-icon">
+              <app-icon :name="benefit.icon" :size="40" color="#C9A96E" />
             </view>
             <view class="benefit-text">
               <text class="benefit-title">{{ benefit.title }}</text>
-              <text class="benefit-desc">{{ benefit.description }}</text>
             </view>
           </view>
         </view>
@@ -167,28 +146,6 @@
           <text class="section-title">权益对比</text>
         </view>
         <membership-comparison @select-vip="showPaySheet = true" />
-      </view>
-
-      <!-- 用户评价 -->
-      <view class="section">
-        <text class="section-title">会员评价</text>
-        <view class="review-list">
-          <view v-for="(review, idx) in reviews" :key="idx" class="review-card">
-            <view class="review-avatar">
-              <text class="review-avatar-txt">{{ review.avatar }}</text>
-            </view>
-            <view class="review-body">
-              <view class="review-head">
-                <text class="review-name">{{ review.name }}</text>
-                <view class="review-stars">
-                  <app-icon v-for="i in 5" :key="i" name="star" :size="24" color="#C9A96E" :fill="true" />
-                </view>
-              </view>
-              <text class="review-content">{{ review.content }}</text>
-              <text class="review-days">已开通{{ review.days }}天</text>
-            </view>
-          </view>
-        </view>
       </view>
 
       <!-- 常见问题 -->
@@ -212,42 +169,131 @@
             <text class="buy-price">{{ selectedPlan.price }}</text>
             <text class="buy-duration">/{{ selectedPlan.durationName }}</text>
           </view>
-          <text class="buy-original">原价 ¥{{ selectedPlan.originalPrice }}</text>
+          <text class="buy-plan-name">{{ selectedPlan.name }}</text>
         </view>
         <view class="buy-btn" @tap="showPaySheet = true">
-          <text class="buy-btn-txt">{{ data.status.level === selectedLevel && !data.status.isExpired ? '续费' : '立即开通' }}</text>
+          <text class="buy-btn-txt">{{ isRenew ? '续费' : '立即开通' }}</text>
         </view>
       </view>
     </view>
 
     <!-- 支付方式选择 Sheet -->
-    <view v-if="showPaySheet" class="sheet-mask" @tap="showPaySheet = false">
+    <view v-if="showPaySheet" class="sheet-mask" @tap="closePaySheet">
       <view class="sheet" @tap.stop>
-        <text class="sheet-title">选择支付方式</text>
-        <view v-if="selectedPlan" class="sheet-summary">
-          <text class="sheet-plan">{{ selectedPlan.levelName }} · {{ selectedPlan.durationName }}</text>
-          <text class="sheet-amount"><text class="sheet-amount-yuan">¥</text>{{ selectedPlan.price }}</text>
-        </view>
-
-        <view class="pay-list">
-          <view
-            v-for="m in payMethods"
-            :key="m.key"
-            class="pay-item"
-            @tap="paymentMethod = m.key"
-          >
-            <view class="pay-radio" :class="{ 'pay-radio-on': paymentMethod === m.key }">
-              <view v-if="paymentMethod === m.key" class="pay-radio-dot" />
+        <!-- 状态B：已发起微信 Native 支付，展示扫码引导 + 轮询支付结果 -->
+        <view v-if="payPending">
+          <text class="sheet-title">请使用微信扫码支付</text>
+          <view class="sheet-summary">
+            <text class="sheet-plan">{{ selectedPlan?.name }} · {{ selectedPlan?.durationName }}</text>
+            <text class="sheet-amount"><text class="sheet-amount-yuan">¥</text>{{ payPending.amount }}</text>
+          </view>
+          <view class="pending-box">
+            <text class="pending-tip">复制以下支付链接，在微信中打开完成支付（二维码渲染后续接入）：</text>
+            <text class="pending-url" :selectable="true">{{ payPending.codeUrl }}</text>
+            <view class="pending-copy" @tap="copyCodeUrl">
+              <text class="pending-copy-txt">复制支付链接</text>
             </view>
-            <view class="pay-logo" :style="{ background: m.color }">
-              <text class="pay-logo-txt">{{ m.short }}</text>
+            <view class="pending-poll">
+              <view class="pending-dot" />
+              <text class="pending-poll-txt">正在等待支付结果（{{ pollCount }}/{{ POLL_MAX }}），支付成功后自动开通</text>
             </view>
-            <text class="pay-name">{{ m.label }}</text>
+          </view>
+          <view class="sheet-cancel" @tap="closePaySheet">
+            <text class="sheet-cancel-txt">关闭（稍后可在购买记录中查看）</text>
           </view>
         </view>
 
-        <view class="sheet-confirm" :class="{ disabled: purchasing }" @tap="handlePurchase">
-          <text class="sheet-confirm-txt">{{ purchasing ? '处理中...' : '确认支付' }}</text>
+        <!-- 状态A：选择支付方式 + 协议勾选 -->
+        <view v-else>
+          <text class="sheet-title">选择支付方式</text>
+          <view v-if="selectedPlan" class="sheet-summary">
+            <text class="sheet-plan">{{ selectedPlan.name }} · {{ selectedPlan.durationName }}</text>
+            <text class="sheet-amount"><text class="sheet-amount-yuan">¥</text>{{ selectedPlan.price }}</text>
+          </view>
+
+          <view class="pay-list">
+            <view
+              v-for="m in payMethods"
+              :key="m.key"
+              class="pay-item"
+              :class="{ 'pay-item-disabled': !m.enabled }"
+              @tap="selectPayMethod(m)"
+            >
+              <view class="pay-radio" :class="{ 'pay-radio-on': paymentMethod === m.key && m.enabled }">
+                <view v-if="paymentMethod === m.key && m.enabled" class="pay-radio-dot" />
+              </view>
+              <view class="pay-logo" :style="{ background: m.color }">
+                <text class="pay-logo-txt">{{ m.short }}</text>
+              </view>
+              <text class="pay-name">{{ m.label }}</text>
+              <text v-if="!m.enabled" class="pay-soon">即将开通</text>
+            </view>
+          </view>
+
+          <!-- 会员服务协议勾选 -->
+          <view class="agree-row">
+            <view class="agree-check" :class="{ 'agree-check-on': agreementChecked }" @tap="agreementChecked = !agreementChecked">
+              <app-icon v-if="agreementChecked" name="check" :size="22" color="#FFFFFF" />
+            </view>
+            <text class="agree-txt" @tap="agreementChecked = !agreementChecked">已阅读并同意</text>
+            <text class="agree-link" @tap.stop="openAgreement">《会员服务协议》</text>
+          </view>
+
+          <view
+            class="sheet-confirm"
+            :class="{ disabled: purchasing || !agreementChecked }"
+            @tap="handlePurchase"
+          >
+            <text class="sheet-confirm-txt">{{ purchasing ? '处理中...' : '确认支付' }}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 会员服务协议弹层（真源 GET /system/legal/member） -->
+    <view v-if="showAgreement" class="sheet-mask agreement-mask" @tap="showAgreement = false">
+      <view class="agreement-sheet" @tap.stop>
+        <view class="agreement-head">
+          <text class="agreement-title">{{ agreement?.title || '会员服务协议' }}</text>
+          <text v-if="agreement?.version" class="agreement-version">版本 {{ agreement.version }}</text>
+        </view>
+
+        <!-- 协议加载中 -->
+        <view v-if="agreementLoading" class="agreement-state">
+          <text class="agreement-state-txt">协议加载中...</text>
+        </view>
+        <!-- 协议加载失败 → 重试 -->
+        <view v-else-if="agreementError" class="agreement-state">
+          <text class="agreement-state-txt">{{ agreementError }}</text>
+          <view class="agreement-retry" @tap="loadAgreement">
+            <text class="agreement-retry-txt">重试</text>
+          </view>
+        </view>
+        <!-- 协议正文（滚动阅读） -->
+        <scroll-view v-else scroll-y class="agreement-scroll">
+          <text class="agreement-content">{{ agreement?.content }}</text>
+        </scroll-view>
+
+        <view
+          class="sheet-confirm agreement-confirm"
+          :class="{ disabled: agreementLoading || !!agreementError }"
+          @tap="confirmAgreementRead"
+        >
+          <text class="sheet-confirm-txt">我已阅读</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 支付渠道未就绪提示（诚实降级，不假装成功） -->
+    <view v-if="payUnavailable" class="modal-mask" @tap="payUnavailable = false">
+      <view class="modal-card" @tap.stop>
+        <view class="modal-icon">
+          <app-icon name="shield" :size="56" color="#C9A96E" />
+        </view>
+        <text class="modal-title">支付渠道正在开通中</text>
+        <text class="modal-desc">微信支付商户资质审核中，暂时无法在线支付，敬请期待。</text>
+        <view class="modal-btn" @tap="payUnavailable = false">
+          <text class="modal-btn-txt">我知道了</text>
         </view>
       </view>
     </view>
@@ -255,7 +301,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import AppNavBar from '@/components/common/app-nav-bar.vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import AppError from '@/components/common/app-error.vue'
@@ -263,143 +309,262 @@ import AppSkeleton from '@/components/common/app-skeleton.vue'
 import MembershipComparison from '@/components/marketing/membership-comparison.vue'
 import { navigateTo } from '@/utils/router'
 import { track } from '@/composables/useTrack'
+import { vipApi } from '@/lib/vip-data'
+import type { VipPlan, VipMemberStatus, VipAgreement } from '@/lib/vip-data'
+import { shopApi } from '@/lib/shop-data'
 
-type VipLevel = 'none' | 'basic' | 'pro' | 'premium'
-interface VipPlan {
-  id: string; level: VipLevel; levelName: string; duration: number; durationName: string
-  originalPrice: number; price: number; dailyPrice: number; discount?: string; popular?: boolean; features: string[]
-}
-interface VipPlanGroup { level: VipLevel; levelName: string; description: string; plans: VipPlan[] }
-interface VipBenefit { id: string; icon: string; title: string; description: string; levels: VipLevel[] }
-interface VipStatus {
-  level: VipLevel; levelName: string; expireAt: string; isExpired: boolean
-  daysLeft: number; autoRenew: boolean; points: number; growthValue: number
-}
-interface VipCenterData { status: VipStatus; benefits: VipBenefit[]; planGroups: VipPlanGroup[] }
+// —— 页面数据结构（planGroups 渲染骨架保持不变，数据真源为 GET /member/plans）——
+interface VipPlanGroup { level: string; levelName: string; description: string; plans: VipPlan[] }
+interface VipCenterData { status: VipMemberStatus; planGroups: VipPlanGroup[] }
 
-// @data-needs: 接入 lib/api/vip.ts getVipCenterData/purchaseVip/toggleAutoRenew（数值照抄原型 mock）
-const mockStatus: VipStatus = {
-  level: 'pro', levelName: '专业会员', expireAt: '2026-12-31', isExpired: false,
-  daysLeft: 211, autoRenew: true, points: 3680, growthValue: 4520,
-}
-const mockBenefits: VipBenefit[] = [
-  { id: '1', icon: 'crown', title: '身份标识', description: '专属会员头像框和昵称徽章', levels: ['basic', 'pro', 'premium'] },
-  { id: '2', icon: 'video', title: '视频加速', description: '视频播放免广告，支持2倍速', levels: ['basic', 'pro', 'premium'] },
-  { id: '3', icon: 'download', title: '离线下载', description: '课程视频支持离线观看', levels: ['pro', 'premium'] },
-  { id: '4', icon: 'discount', title: '购课优惠', description: '课程购买享9折优惠', levels: ['basic', 'pro', 'premium'] },
-  { id: '5', icon: 'gift', title: '专属礼包', description: '每月领取会员专属礼包', levels: ['pro', 'premium'] },
-  { id: '6', icon: 'customer-service', title: '专属客服', description: '1对1专属客服服务', levels: ['premium'] },
-  { id: '7', icon: 'book', title: '古籍阅读', description: '解锁全部古籍内容', levels: ['pro', 'premium'] },
-  { id: '8', icon: 'calculator', title: '高级排盘', description: '解锁所有排盘工具', levels: ['premium'] },
-]
-const mockPlanGroups: VipPlanGroup[] = [
-  {
-    level: 'basic', levelName: '基础会员', description: '入门首选，享基础权益',
-    plans: [
-      { id: 'basic_1', level: 'basic', levelName: '基础会员', duration: 1, durationName: '月付', originalPrice: 28, price: 28, dailyPrice: 0.93, features: ['免广告', '9折购课'] },
-      { id: 'basic_3', level: 'basic', levelName: '基础会员', duration: 3, durationName: '季付', originalPrice: 84, price: 68, dailyPrice: 0.76, discount: '8.1折', features: ['免广告', '9折购课'] },
-      { id: 'basic_12', level: 'basic', levelName: '基础会员', duration: 12, durationName: '年付', originalPrice: 336, price: 198, dailyPrice: 0.54, discount: '5.9折', popular: true, features: ['免广告', '9折购课'] },
-    ],
-  },
-  {
-    level: 'pro', levelName: '专业会员', description: '进阶学习，权益全面升级',
-    plans: [
-      { id: 'pro_1', level: 'pro', levelName: '专业会员', duration: 1, durationName: '月付', originalPrice: 68, price: 68, dailyPrice: 2.27, features: ['全部基础权益', '离线下载', '古籍阅读', '每月礼包'] },
-      { id: 'pro_3', level: 'pro', levelName: '专业会员', duration: 3, durationName: '季付', originalPrice: 204, price: 168, dailyPrice: 1.87, discount: '8.2折', features: ['全部基础权益', '离线下载', '古籍阅读', '每月礼包'] },
-      { id: 'pro_12', level: 'pro', levelName: '专业会员', duration: 12, durationName: '年付', originalPrice: 816, price: 498, dailyPrice: 1.36, discount: '6.1折', popular: true, features: ['全部基础权益', '离线下载', '古籍阅读', '每月礼包'] },
-    ],
-  },
-  {
-    level: 'premium', levelName: '尊享会员', description: '顶级权益，专属尊贵体验',
-    plans: [
-      { id: 'premium_1', level: 'premium', levelName: '尊享会员', duration: 1, durationName: '月付', originalPrice: 128, price: 128, dailyPrice: 4.27, features: ['全部专业权益', '高级排盘', '专属客服', '优先体验'] },
-      { id: 'premium_3', level: 'premium', levelName: '尊享会员', duration: 3, durationName: '季付', originalPrice: 384, price: 328, dailyPrice: 3.64, discount: '8.5折', features: ['全部专业权益', '高级排盘', '专属客服', '优先体验'] },
-      { id: 'premium_12', level: 'premium', levelName: '尊享会员', duration: 12, durationName: '年付', originalPrice: 1536, price: 998, dailyPrice: 2.74, discount: '6.5折', popular: true, features: ['全部专业权益', '高级排盘', '专属客服', '优先体验'] },
-    ],
-  },
+// 支付方式：后端仅有微信支付创建端点（pay/native 扫码），支付宝无创建支付端点 → 置灰诚实标注
+interface PayMethodItem { key: 'wechat' | 'alipay'; label: string; short: string; color: string; enabled: boolean }
+const payMethods: PayMethodItem[] = [
+  { key: 'wechat', label: '微信支付', short: '微', color: '#22C55E', enabled: true },
+  { key: 'alipay', label: '支付宝', short: '支', color: '#3B82F6', enabled: false },
 ]
 
-// 权益图标映射（照抄原型 benefitIcons）
-const benefitIconMap: Record<string, string> = {
-  crown: 'crown', video: 'bot', download: 'book-open', gift: 'gift',
-  book: 'book-open', calculator: 'zap', 'customer-service': 'shield', discount: 'shopping-bag',
-}
-function benefitIconName(icon: string) { return benefitIconMap[icon] || 'gift' }
-
-const payMethods = [
-  { key: 'wechat' as const, label: '微信支付', short: '微', color: '#22C55E' },
-  { key: 'alipay' as const, label: '支付宝', short: '支', color: '#3B82F6' },
-  { key: 'unionpay' as const, label: '云闪付', short: '云', color: '#EF4444' },
-  { key: 'huifu' as const, label: '汇付天下', short: '汇', color: '#F97316' },
-]
-
-const reviews = [
-  { name: '易*明', avatar: '易', content: '开通年度会员后，学习效率提升很多，课程质量很高！', days: 128 },
-  { name: '张*华', avatar: '张', content: 'AI智能体太好用了，排盘解读很专业，物超所值。', days: 56 },
-]
+// 常见问题（静态运营文案，非业务数据）
 const faqs = [
   { q: '开通后可以退款吗？', a: '会员服务一经开通，暂不支持退款，请确认后购买。' },
   { q: '会员可以多设备登录吗？', a: '同一账号最多支持3台设备同时登录。' },
   { q: '会员到期后权益还在吗？', a: '到期后会员权益将失效，但已下载的内容可继续保留。' },
 ]
 
+// 权益卡图标轮换（纯展示层，权益文案来自后端 MemberConfig.benefits）
+const BENEFIT_ICONS = ['crown', 'book-open', 'gift', 'zap', 'shield', 'shopping-bag', 'bot', 'star']
+
 const data = ref<VipCenterData | null>(null)
 const loading = ref(true)
 const error = ref<string | null>(null)
-const selectedLevel = ref<VipLevel>('pro')
+const selectedLevel = ref('vip')
 const selectedPlan = ref<VipPlan | null>(null)
 const showPaySheet = ref(false)
-const paymentMethod = ref<'wechat' | 'alipay' | 'unionpay' | 'huifu'>('wechat')
+const paymentMethod = ref<'wechat' | 'alipay'>('wechat')
 const purchasing = ref(false)
-const autoRenewLoading = ref(false)
+
+// —— 会员协议 ——
+const agreementChecked = ref(false)
+const showAgreement = ref(false)
+const agreement = ref<VipAgreement | null>(null)
+const agreementLoading = ref(false)
+const agreementError = ref<string | null>(null)
+
+// —— 支付进行中（微信 Native 扫码 + 轮询订单状态）——
+const payPending = ref<{ orderId: string; codeUrl: string; amount: number } | null>(null)
+const payUnavailable = ref(false)
+const POLL_MAX = 40 // 最多轮询 40 次（每 3s 一次，约 2 分钟）
+const pollCount = ref(0)
+let pollTimer: ReturnType<typeof setTimeout> | null = null
 
 const currentPlanGroup = computed(() => data.value?.planGroups.find(g => g.level === selectedLevel.value))
 
-function loadData() {
+// 当前会员等级对应的套餐名（会员卡片标题用）
+const memberLevelName = computed(() => {
+  const lv = data.value?.status.level
+  if (!lv || lv === 'none') return '热卜国学VIP'
+  const plan = data.value?.planGroups[0]?.plans.find(p => p.level === lv)
+  return plan?.name || '平台会员'
+})
+
+// 当前选中套餐的权益（后端 benefits 字符串数组 → 权益卡）
+const displayBenefits = computed(() =>
+  (selectedPlan.value?.benefits || []).map((title, i) => ({
+    id: `b-${i}`,
+    title,
+    icon: BENEFIT_ICONS[i % BENEFIT_ICONS.length],
+  })),
+)
+
+// 已是同档有效会员 → 按钮文案为「续费」
+const isRenew = computed(() => {
+  const st = data.value?.status
+  return !!st && st.level !== 'none' && !st.isExpired && selectedPlan.value?.level === st.level
+})
+
+// 加载套餐（必需）与会员状态（未登录/异常按无会员展示，不阻塞套餐）
+async function loadData() {
   loading.value = true
   error.value = null
-  setTimeout(() => {
-    data.value = { status: mockStatus, benefits: mockBenefits, planGroups: mockPlanGroups }
-    const defaultLevel = data.value.status.level !== 'none' ? data.value.status.level : 'pro'
-    selectedLevel.value = defaultLevel
-    const group = data.value.planGroups.find(g => g.level === defaultLevel)
-    selectedPlan.value = group?.plans.find(p => p.popular) || group?.plans[0] || null
+  try {
+    const [plans, status] = await Promise.all([
+      vipApi.getPlans(),
+      vipApi.getStatus().catch((): VipMemberStatus => ({
+        level: 'none', isExpired: false, isLifetime: false, expireAt: '', daysLeft: 0,
+      })),
+    ])
+    if (!plans.length) {
+      error.value = '会员套餐暂未配置，请稍后再来'
+      data.value = null
+      return
+    }
+    data.value = {
+      status,
+      planGroups: [{
+        level: 'vip',
+        levelName: '热卜国学VIP',
+        description: '一份会员，畅享课程/古籍/AI/购物全平台特权',
+        plans,
+      }],
+    }
+    selectedLevel.value = 'vip'
+    selectedPlan.value = plans.find(p => p.popular) || plans[0] || null
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : '加载失败，请重试'
+    data.value = null
+  } finally {
     loading.value = false
-  }, 500)
+  }
 }
 
-function selectLevel(level: VipLevel) {
+function selectLevel(level: string) {
   selectedLevel.value = level
   const group = data.value?.planGroups.find(g => g.level === level)
   selectedPlan.value = group?.plans.find(p => p.popular) || group?.plans[0] || null
 }
 
-function handlePurchase() {
-  if (!selectedPlan.value || purchasing.value) return
-  // @data-needs: 接入 use-payment-bindings 判断渠道是否已绑定，未绑定则引导绑定弹窗
-  purchasing.value = true
-  setTimeout(() => {
-    track.purchase({ type: 'vip', planId: selectedPlan.value?.id, level: selectedPlan.value?.level, amount: selectedPlan.value?.price })
-    uni.showToast({ title: '购买成功', icon: 'success' })
-    showPaySheet.value = false
-    purchasing.value = false
-    loadData()
-  }, 800)
+function selectPayMethod(m: PayMethodItem) {
+  if (!m.enabled) {
+    uni.showToast({ title: `${m.label}即将开通，敬请期待`, icon: 'none' })
+    return
+  }
+  paymentMethod.value = m.key
 }
 
-function onToggleAutoRenew(e: any /* uni 表单事件经 vue-tsc 按原生签名校验，参数须 any */) {
-  const enabled = e.detail.value
-  autoRenewLoading.value = true
-  setTimeout(() => {
-    if (data.value) data.value.status.autoRenew = enabled
-    uni.showToast({ title: enabled ? '已开启自动续费' : '已关闭自动续费', icon: 'none' })
-    autoRenewLoading.value = false
-  }, 300)
+// —— 会员服务协议 ——
+function openAgreement() {
+  showAgreement.value = true
+  if (!agreement.value && !agreementLoading.value) loadAgreement()
+}
+
+async function loadAgreement() {
+  agreementLoading.value = true
+  agreementError.value = null
+  try {
+    const doc = await vipApi.getAgreement()
+    if (!doc) {
+      agreementError.value = '协议文档暂未发布，请稍后重试'
+      return
+    }
+    agreement.value = doc
+  } catch {
+    agreementError.value = '协议加载失败，请检查网络后重试'
+  } finally {
+    agreementLoading.value = false
+  }
+}
+
+// 底部「我已阅读」→ 关闭协议弹层并自动勾选
+function confirmAgreementRead() {
+  if (agreementLoading.value || agreementError.value) return
+  showAgreement.value = false
+  agreementChecked.value = true
+}
+
+// —— 真实购买链路：创建订单 → 发起微信 Native 支付 → 轮询订单状态 ——
+async function handlePurchase() {
+  if (purchasing.value || !selectedPlan.value) return
+  if (!agreementChecked.value) {
+    uni.showToast({ title: '请先阅读并同意会员服务协议', icon: 'none' })
+    return
+  }
+  purchasing.value = true
+  try {
+    // 1) 创建会员订单（服务端按 MemberConfig 真价计费；amount 语义=数量，固定 1）
+    const order = await shopApi.createOrder({
+      type: 'MEMBER',
+      targetId: selectedPlan.value.id,
+      quantity: 1,
+    })
+    if (!order.id) throw new Error('订单创建失败')
+    // 2) 发起微信 Native 扫码支付（商户资质审核中时该调用会失败 → 诚实降级提示）
+    const pay = await shopApi.payOrderNative(order.id)
+    if (pay.codeUrl) {
+      payPending.value = { orderId: order.id, codeUrl: pay.codeUrl, amount: order.amount }
+      startPolling(order.id)
+    } else {
+      // 未返回 code_url 同样视为渠道未就绪，不假装成功
+      payUnavailable.value = true
+    }
+  } catch {
+    // 支付渠道未就绪（当前微信支付 AppID 审核中必现）→ 诚实提示，订单保留在购买记录中
+    payUnavailable.value = true
+  } finally {
+    purchasing.value = false
+  }
+}
+
+// 每 3s 轮询一次订单状态，最多 POLL_MAX 次；PAID 后开通成功
+function startPolling(orderId: string) {
+  stopPolling()
+  pollCount.value = 0
+  const tick = async () => {
+    pollCount.value++
+    try {
+      const st = await shopApi.getOrderPayState(orderId)
+      if (st.paid) {
+        onPaid(orderId)
+        return
+      }
+    } catch {
+      // 单次查询失败不中断轮询
+    }
+    if (pollCount.value >= POLL_MAX) {
+      uni.showToast({ title: '未检测到支付结果，可稍后在购买记录中查看', icon: 'none' })
+      payPending.value = null
+      showPaySheet.value = false
+      return
+    }
+    pollTimer = setTimeout(tick, 3000)
+  }
+  pollTimer = setTimeout(tick, 3000)
+}
+
+function stopPolling() {
+  if (pollTimer) {
+    clearTimeout(pollTimer)
+    pollTimer = null
+  }
+}
+
+// 支付成功：埋点（仅真正 PAID 后触发）+ 提示 + 刷新会员状态
+function onPaid(orderId: string) {
+  stopPolling()
+  track.purchase({
+    type: 'vip',
+    orderId,
+    planId: selectedPlan.value?.id,
+    level: selectedPlan.value?.level,
+    amount: payPending.value?.amount ?? selectedPlan.value?.price,
+  })
+  payPending.value = null
+  showPaySheet.value = false
+  uni.showToast({ title: '开通成功', icon: 'success' })
+  loadData()
+}
+
+function copyCodeUrl() {
+  const url = payPending.value?.codeUrl
+  if (!url) return
+  uni.setClipboardData({
+    data: url,
+    success: () => uni.showToast({ title: '支付链接已复制', icon: 'none' }),
+  })
+}
+
+// 关闭支付弹层：若扫码支付进行中则停止轮询（订单保留，可在购买记录中继续）
+function closePaySheet() {
+  if (payPending.value) {
+    stopPolling()
+    payPending.value = null
+  }
+  showPaySheet.value = false
 }
 
 function go(path: string) { navigateTo(path) }
 
 onMounted(loadData)
+onUnmounted(stopPolling)
 </script>
 
 <style lang="scss" scoped>
@@ -428,9 +593,6 @@ onMounted(loadData)
 .stat-num { font-size: 44rpx; font-weight: 700; color: #FFFFFF; display: block; }
 .stat-label { font-size: 22rpx; color: rgba(255,255,255,0.7); margin-top: 4rpx; display: block; }
 
-.card-autorenew { display: flex; align-items: center; justify-content: space-between; margin-top: 32rpx; padding-top: 32rpx; border-top: 2rpx solid rgba(255,255,255,0.2); }
-.autorenew-label { font-size: 28rpx; color: rgba(255,255,255,0.8); }
-
 /* section */
 .section { margin-top: 48rpx; }
 .section-title { font-size: 32rpx; font-weight: 600; color: #2C2C2C; }
@@ -442,10 +604,7 @@ onMounted(loadData)
 .level-row { display: inline-flex; gap: 16rpx; padding-bottom: 16rpx; }
 .level-btn { flex-shrink: 0; height: 72rpx; padding: 0 32rpx; border-radius: 16rpx; display: flex; align-items: center; justify-content: center; white-space: nowrap; }
 .level-outline { background: #FFFFFF; border: 2rpx solid #E8E3DB; }
-.level-active.lvl-basic { background: #F59E0B; }
-.level-active.lvl-pro { background: #A855F7; }
-.level-active.lvl-premium { background: linear-gradient(90deg, #FBBF24, #F97316); }
-.level-active.lvl-none { background: #E8E3DB; }
+.level-active.lvl-vip { background: linear-gradient(90deg in oklab, #C9A96E, var(--brand)); }
 .level-btn-txt { font-size: 28rpx; font-weight: 500; color: #2C2C2C; }
 .level-btn-txt-active { color: #FFFFFF; }
 
@@ -456,36 +615,19 @@ onMounted(loadData)
 .plan-selected { border: 4rpx solid #C9A96E; background: rgba(201,169,110,0.05); }
 .plan-tag { position: absolute; top: 0; right: 0; padding: 4rpx 16rpx; font-size: 20rpx; font-weight: 500; border-bottom-left-radius: 16rpx; }
 .tag-popular { background: #C9A96E; color: #FFFFFF; }
-.tag-discount { background: #EF4444; color: #FFFFFF; }
 .plan-duration { font-size: 28rpx; font-weight: 500; color: #2C2C2C; text-align: center; display: block; }
 .plan-price-row { display: flex; align-items: baseline; justify-content: center; gap: 2rpx; margin-top: 16rpx; }
 .plan-yuan { font-size: 22rpx; color: #8A8478; }
 .plan-price { font-size: 48rpx; font-weight: 700; color: var(--brand); }
-.plan-original { font-size: 22rpx; color: #8A8478; text-decoration: line-through; text-align: center; margin-top: 8rpx; display: block; }
 .plan-daily { font-size: 22rpx; color: #C9A96E; text-align: center; margin-top: 8rpx; display: block; }
 .plan-check { position: absolute; top: 16rpx; left: 16rpx; width: 40rpx; height: 40rpx; border-radius: 50%; background: #C9A96E; display: flex; align-items: center; justify-content: center; }
 
 /* 会员权益 */
 .benefit-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24rpx; margin-top: 24rpx; }
-.benefit-card { display: flex; align-items: flex-start; gap: 24rpx; padding: 24rpx; border-radius: 16rpx; background: rgba(201,169,110,0.05); border: 2rpx solid rgba(201,169,110,0.3); }
-.benefit-off { opacity: 0.5; background: #FFFFFF; border: 2rpx solid #E8E3DB; }
+.benefit-card { display: flex; align-items: center; gap: 24rpx; padding: 24rpx; border-radius: 16rpx; background: rgba(201,169,110,0.05); border: 2rpx solid rgba(201,169,110,0.3); }
 .benefit-icon { width: 80rpx; height: 80rpx; border-radius: 16rpx; background: rgba(201,169,110,0.2); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.benefit-icon-off { background: #F0EDE8; }
 .benefit-text { flex: 1; min-width: 0; }
-.benefit-title { font-size: 28rpx; font-weight: 500; color: #2C2C2C; display: block; }
-.benefit-desc { font-size: 22rpx; color: #8A8478; margin-top: 4rpx; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-
-/* 评价 */
-.review-list { display: flex; flex-direction: column; gap: 24rpx; margin-top: 24rpx; }
-.review-card { display: flex; align-items: flex-start; gap: 24rpx; padding: 24rpx; background: #FFFFFF; border-radius: 16rpx; }
-.review-avatar { width: 80rpx; height: 80rpx; border-radius: 50%; background: rgba(201,169,110,0.2); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.review-avatar-txt { font-size: 28rpx; font-weight: 500; color: #C9A96E; }
-.review-body { flex: 1; min-width: 0; }
-.review-head { display: flex; align-items: center; justify-content: space-between; }
-.review-name { font-size: 28rpx; font-weight: 500; color: #2C2C2C; }
-.review-stars { display: flex; align-items: center; gap: 2rpx; }
-.review-content { font-size: 22rpx; color: #8A8478; margin-top: 8rpx; display: block; line-height: 1.5; }
-.review-days { font-size: 22rpx; color: #8A8478; margin-top: 16rpx; display: block; }
+.benefit-title { font-size: 28rpx; font-weight: 500; color: #2C2C2C; display: block; line-height: 1.4; }
 
 /* FAQ */
 .faq-card { background: #FFFFFF; border-radius: 16rpx; margin-top: 24rpx; }
@@ -502,7 +644,7 @@ onMounted(loadData)
 .buy-yuan { font-size: 28rpx; color: #8A8478; }
 .buy-price { font-size: 60rpx; font-weight: 700; color: var(--brand); }
 .buy-duration { font-size: 28rpx; color: #8A8478; }
-.buy-original { font-size: 22rpx; color: #8A8478; text-decoration: line-through; }
+.buy-plan-name { font-size: 22rpx; color: #8A8478; }
 .buy-btn { padding: 0 64rpx; height: 96rpx; border-radius: 999rpx; background: linear-gradient(90deg in oklab, #C9A96E, var(--brand)); display: flex; align-items: center; justify-content: center; box-shadow: 0 8rpx 24rpx rgba(201,169,110,0.3); }
 .buy-btn-txt { font-size: 30rpx; font-weight: 500; color: #FFFFFF; }
 
@@ -516,13 +658,58 @@ onMounted(loadData)
 .sheet-amount-yuan { font-size: 32rpx; }
 .pay-list { display: flex; flex-direction: column; gap: 24rpx; }
 .pay-item { display: flex; align-items: center; gap: 24rpx; padding: 24rpx; border: 2rpx solid #E8E3DB; border-radius: 16rpx; }
+.pay-item-disabled { opacity: 0.5; }
 .pay-radio { width: 36rpx; height: 36rpx; border-radius: 50%; border: 2rpx solid #C9C4BB; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .pay-radio-on { border-color: var(--brand); }
 .pay-radio-dot { width: 20rpx; height: 20rpx; border-radius: 50%; background: var(--brand); }
 .pay-logo { width: 64rpx; height: 64rpx; border-radius: 12rpx; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .pay-logo-txt { font-size: 24rpx; font-weight: 700; color: #FFFFFF; }
-.pay-name { font-size: 28rpx; color: #2C2C2C; }
-.sheet-confirm { margin-top: 48rpx; height: 96rpx; border-radius: 16rpx; background: var(--brand); display: flex; align-items: center; justify-content: center; }
-.sheet-confirm.disabled { opacity: 0.6; }
+.pay-name { font-size: 28rpx; color: #2C2C2C; flex: 1; }
+.pay-soon { font-size: 22rpx; color: #8A8478; background: #F0EDE8; padding: 4rpx 16rpx; border-radius: 999rpx; }
+.sheet-confirm { margin-top: 32rpx; height: 96rpx; border-radius: 16rpx; background: var(--brand); display: flex; align-items: center; justify-content: center; }
+.sheet-confirm.disabled { opacity: 0.5; }
 .sheet-confirm-txt { font-size: 30rpx; font-weight: 500; color: #FFFFFF; }
+.sheet-cancel { margin-top: 24rpx; height: 88rpx; border-radius: 16rpx; border: 2rpx solid #E8E3DB; display: flex; align-items: center; justify-content: center; }
+.sheet-cancel-txt { font-size: 28rpx; color: #8A8478; }
+
+/* 协议勾选行 */
+.agree-row { display: flex; align-items: center; margin-top: 32rpx; }
+.agree-check { width: 36rpx; height: 36rpx; border-radius: 50%; border: 2rpx solid #C9C4BB; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-right: 12rpx; }
+.agree-check-on { background: var(--brand); border-color: var(--brand); }
+.agree-txt { font-size: 26rpx; color: #8A8478; }
+.agree-link { font-size: 26rpx; color: var(--brand); }
+
+/* 协议弹层 */
+.agreement-mask { z-index: 300; }
+.agreement-sheet { width: 100%; height: 78vh; background: #FFFFFF; border-radius: 32rpx 32rpx 0 0; padding: 32rpx; padding-bottom: calc(32rpx + env(safe-area-inset-bottom)); display: flex; flex-direction: column; }
+.agreement-head { text-align: center; padding-bottom: 24rpx; border-bottom: 2rpx solid #E8E3DB; }
+.agreement-title { font-size: 32rpx; font-weight: 600; color: #2C2C2C; display: block; }
+.agreement-version { font-size: 22rpx; color: #8A8478; margin-top: 8rpx; display: block; }
+.agreement-scroll { flex: 1; min-height: 0; margin-top: 24rpx; }
+.agreement-content { font-size: 26rpx; color: #4A4A4A; line-height: 1.8; white-space: pre-wrap; word-break: break-all; }
+.agreement-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24rpx; }
+.agreement-state-txt { font-size: 26rpx; color: #8A8478; }
+.agreement-retry { padding: 12rpx 48rpx; border-radius: 999rpx; border: 2rpx solid var(--brand); }
+.agreement-retry-txt { font-size: 26rpx; color: var(--brand); }
+.agreement-confirm { flex-shrink: 0; }
+
+/* 扫码支付进行中 */
+.pending-box { margin-top: 8rpx; padding: 24rpx; background: #FAF8F5; border-radius: 16rpx; }
+.pending-tip { font-size: 24rpx; color: #8A8478; line-height: 1.6; display: block; }
+.pending-url { font-size: 22rpx; color: #2C2C2C; margin-top: 16rpx; display: block; word-break: break-all; line-height: 1.5; }
+.pending-copy { margin-top: 24rpx; height: 72rpx; border-radius: 12rpx; border: 2rpx solid var(--brand); display: flex; align-items: center; justify-content: center; }
+.pending-copy-txt { font-size: 26rpx; color: var(--brand); }
+.pending-poll { display: flex; align-items: center; gap: 12rpx; margin-top: 24rpx; }
+.pending-dot { width: 16rpx; height: 16rpx; border-radius: 50%; background: #16A34A; animation: pulse 1.2s ease-in-out infinite; }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+.pending-poll-txt { font-size: 22rpx; color: #8A8478; flex: 1; }
+
+/* 支付渠道未就绪弹窗 */
+.modal-mask { position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 400; display: flex; align-items: center; justify-content: center; }
+.modal-card { width: 560rpx; background: #FFFFFF; border-radius: 24rpx; padding: 48rpx 40rpx; display: flex; flex-direction: column; align-items: center; }
+.modal-icon { width: 112rpx; height: 112rpx; border-radius: 50%; background: rgba(201,169,110,0.12); display: flex; align-items: center; justify-content: center; }
+.modal-title { font-size: 32rpx; font-weight: 600; color: #2C2C2C; margin-top: 24rpx; }
+.modal-desc { font-size: 26rpx; color: #8A8478; line-height: 1.7; margin-top: 16rpx; text-align: center; }
+.modal-btn { margin-top: 40rpx; width: 100%; height: 88rpx; border-radius: 16rpx; background: var(--brand); display: flex; align-items: center; justify-content: center; }
+.modal-btn-txt { font-size: 28rpx; font-weight: 500; color: #FFFFFF; }
 </style>
