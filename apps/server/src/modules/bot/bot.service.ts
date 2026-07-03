@@ -1,4 +1,4 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, Optional } from "@nestjs/common";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { Prisma } from "@prisma/client";
@@ -10,6 +10,7 @@ import { Cacheable } from "../../common/cache.decorator";
 import { safePagination } from "../../common/pagination";
 import { RISK_DISCLAIMER } from "../../common/ai-disclaimer";
 import { RecommendationService } from "./recommendation.service";
+import { CoinService } from "../coin/coin.service";
 
 @Injectable()
 export class BotService {
@@ -19,7 +20,84 @@ export class BotService {
     private prisma: PrismaService,
     private coze: CozeService,
     private reco: RecommendationService,
+    @Optional() private coin?: CoinService,
   ) {}
+
+  // ───────── AI 计费（2026-07-03 拍板）：会员免费；非会员 freeUses 次试用 → pricePer10Coin 币购追问包（10次/包）─────────
+
+  /** 是否有效会员（终身会员 memberExpire 为空；到期视为失效） */
+  private async isActiveMember(userId: string): Promise<boolean> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { memberLevel: true, memberExpire: true },
+    });
+    if (!user?.memberLevel || user.memberLevel === "NONE") return false;
+    return !user.memberExpire || user.memberExpire > new Date();
+  }
+
+  /** 追问额度检查与消耗（chat 与 chat/stream 共用）；耗尽抛出购买/开通会员引导 */
+  async consumeQuota(botConfigId: string, userId: string): Promise<"free_bot" | "member" | "trial" | "paid"> {
+    const bot = await this.getBotOrThrow(botConfigId);
+    if (!bot.pricePer10Coin || bot.pricePer10Coin <= 0) return "free_bot"; // 免费智能体（仍受既有 dailyLimit 约束）
+    if (await this.isActiveMember(userId)) return "member"; // 会员权益：全部智能体免费
+
+    const quota = await this.prisma.userBotQuota.upsert({
+      where: { userId_botConfigId: { userId, botConfigId } },
+      create: { userId, botConfigId },
+      update: {},
+    });
+    if (quota.freeUsed < (bot.freeUses ?? 0)) {
+      await this.prisma.userBotQuota.update({ where: { id: quota.id }, data: { freeUsed: { increment: 1 } } });
+      return "trial";
+    }
+    // 原子条件扣减，防并发透支
+    const consumed = await this.prisma.userBotQuota.updateMany({
+      where: { id: quota.id, paidRemaining: { gt: 0 } },
+      data: { paidRemaining: { decrement: 1 } },
+    });
+    if (consumed.count > 0) return "paid";
+    throw new BusinessException(
+      ErrorCode.BAD_REQUEST,
+      `免费追问次数已用完：可购买追问包（${bot.pricePer10Coin}币/10次），或开通会员畅享全部智能体`,
+    );
+  }
+
+  /** 我的追问额度（对话页展示余量与定价） */
+  async getQuota(botConfigId: string, userId: string) {
+    const bot = await this.getBotOrThrow(botConfigId);
+    const [memberFree, quota] = await Promise.all([
+      this.isActiveMember(userId),
+      this.prisma.userBotQuota.findUnique({ where: { userId_botConfigId: { userId, botConfigId } } }),
+    ]);
+    return {
+      memberFree,
+      pricePer10Coin: bot.pricePer10Coin ?? 0,
+      freeUses: bot.freeUses ?? 0,
+      freeUsed: quota?.freeUsed ?? 0,
+      paidRemaining: quota?.paidRemaining ?? 0,
+    };
+  }
+
+  /** 购买追问包（10 次/包·扣国学币，CoinService 原子扣减余额不足自抛） */
+  async purchaseUses(botConfigId: string, userId: string) {
+    const bot = await this.getBotOrThrow(botConfigId);
+    if (!bot.pricePer10Coin || bot.pricePer10Coin <= 0) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "该智能体免费使用，无需购买");
+    }
+    if (!this.coin) throw new BusinessException(ErrorCode.BAD_REQUEST, "计费服务不可用");
+    await this.coin.spend(userId, {
+      amountCoin: bot.pricePer10Coin,
+      scene: "BOT_USES",
+      refId: botConfigId,
+      description: `购买「${bot.name}」追问包(10次)`,
+    });
+    const quota = await this.prisma.userBotQuota.upsert({
+      where: { userId_botConfigId: { userId, botConfigId } },
+      create: { userId, botConfigId, paidRemaining: 10 },
+      update: { paidRemaining: { increment: 10 } },
+    });
+    return { purchased: 10, paidRemaining: quota.paidRemaining };
+  }
 
   // ───────── Bot配置 CRUD ─────────
 
@@ -204,6 +282,9 @@ export class BotService {
     if (!bot.isFree && dailyCount >= bot.dailyLimit) {
       throw new BusinessException(ErrorCode.BAD_REQUEST, `今日对话次数已达上限（${bot.dailyLimit}次）`);
     }
+
+    // AI 计费（2026-07-03 拍板）：会员免费/试用/追问包，额度耗尽在此拦截
+    await this.consumeQuota(botConfigId, userId);
 
     const result = await this.coze.chat({
       botId: bot.botId,

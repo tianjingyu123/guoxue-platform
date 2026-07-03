@@ -5,6 +5,13 @@ import { CozeService } from "./coze.service";
 import { RecommendationService } from "./recommendation.service";
 import { BusinessException } from "../../common/business.exception";
 
+// consumeQuota/purchaseUses 经 getBotOrThrow 解密 apiKey，spec 中用透传 mock 避免真实密文依赖
+jest.mock("../../common/crypto.util", () => ({
+  ...jest.requireActual("../../common/crypto.util"),
+  decrypt: jest.fn((v: string) => v),
+  encrypt: jest.fn((v: string) => v),
+}));
+
 const mockPrisma = {
   botConfig: {
     create: jest.fn(),
@@ -28,6 +35,8 @@ const mockPrisma = {
   circle: {
     findUnique: jest.fn(),
   },
+  user: { findUnique: jest.fn() },
+  userBotQuota: { upsert: jest.fn(), update: jest.fn(), updateMany: jest.fn(), findUnique: jest.fn() },
 };
 
 const mockCoze = {};
@@ -49,6 +58,67 @@ describe("BotService", () => {
   });
 
   beforeEach(() => { jest.clearAllMocks(); });
+
+  describe("consumeQuota — AI 计费（会员免费/试用/追问包）", () => {
+    const PAID_BOT = { id: "b1", name: "命理助手", botId: "coze-1", apiKey: "enc", pricePer10Coin: 100, freeUses: 3, status: "ACTIVE" };
+    const asBot = (b: object) => mockPrisma.botConfig.findUnique.mockResolvedValue(b);
+    const asNonMember = () => mockPrisma.user.findUnique.mockResolvedValue({ memberLevel: "NONE", memberExpire: null });
+
+    it("免费智能体（pricePer10Coin=0）直接放行", async () => {
+      asBot({ ...PAID_BOT, pricePer10Coin: 0 });
+      expect(await svc.consumeQuota("b1", "u1")).toBe("free_bot");
+      expect(mockPrisma.userBotQuota.upsert).not.toHaveBeenCalled();
+    });
+
+    it("有效会员免费（终身会员 memberExpire 为空）", async () => {
+      asBot(PAID_BOT);
+      mockPrisma.user.findUnique.mockResolvedValue({ memberLevel: "LIFETIME", memberExpire: null });
+      expect(await svc.consumeQuota("b1", "u1")).toBe("member");
+    });
+
+    it("非会员试用期内消耗免费次数", async () => {
+      asBot(PAID_BOT);
+      asNonMember();
+      mockPrisma.userBotQuota.upsert.mockResolvedValue({ id: "q1", freeUsed: 1, paidRemaining: 0 });
+      expect(await svc.consumeQuota("b1", "u1")).toBe("trial");
+      expect(mockPrisma.userBotQuota.update).toHaveBeenCalledWith(
+        expect.objectContaining({ data: { freeUsed: { increment: 1 } } }),
+      );
+    });
+
+    it("试用用完扣追问包（原子条件扣减）", async () => {
+      asBot(PAID_BOT);
+      asNonMember();
+      mockPrisma.userBotQuota.upsert.mockResolvedValue({ id: "q1", freeUsed: 3, paidRemaining: 5 });
+      mockPrisma.userBotQuota.updateMany.mockResolvedValue({ count: 1 });
+      expect(await svc.consumeQuota("b1", "u1")).toBe("paid");
+    });
+
+    it("额度耗尽抛出购买/会员引导", async () => {
+      asBot(PAID_BOT);
+      asNonMember();
+      mockPrisma.userBotQuota.upsert.mockResolvedValue({ id: "q1", freeUsed: 3, paidRemaining: 0 });
+      mockPrisma.userBotQuota.updateMany.mockResolvedValue({ count: 0 });
+      await expect(svc.consumeQuota("b1", "u1")).rejects.toThrow(/追问包|会员/);
+    });
+  });
+
+  describe("purchaseUses — 购买追问包", () => {
+    it("扣币并充入10次", async () => {
+      mockPrisma.botConfig.findUnique.mockResolvedValue({ id: "b1", name: "命理助手", botId: "coze-1", apiKey: "enc", pricePer10Coin: 100, status: "ACTIVE" });
+      const mockCoin = { spend: jest.fn().mockResolvedValue({}) };
+      (svc as any).coin = mockCoin;
+      mockPrisma.userBotQuota.upsert.mockResolvedValue({ id: "q1", paidRemaining: 10 });
+      const result = await svc.purchaseUses("b1", "u1");
+      expect(mockCoin.spend).toHaveBeenCalledWith("u1", expect.objectContaining({ amountCoin: 100, scene: "BOT_USES" }));
+      expect(result).toEqual({ purchased: 10, paidRemaining: 10 });
+    });
+
+    it("免费智能体不可购买", async () => {
+      mockPrisma.botConfig.findUnique.mockResolvedValue({ id: "b1", name: "x", botId: "coze-1", apiKey: "enc", pricePer10Coin: 0, status: "ACTIVE" });
+      await expect(svc.purchaseUses("b1", "u1")).rejects.toThrow(/免费/);
+    });
+  });
 
   describe("create", () => {
     it("创建智能体成功", async () => {

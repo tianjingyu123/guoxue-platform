@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsBoolean, IsInt, IsNumber, MinLength } from "class-validator";
+import { IsString, IsOptional, IsBoolean, IsInt, IsNumber, Min, MinLength } from "class-validator";
 
 export class CreateBotDto {
   @IsString()
@@ -72,6 +72,14 @@ export class UpdateBotDto {
 
   @IsOptional() @IsBoolean()
   voiceEnabled?: boolean;
+
+  /** AI 计费（2026-07-03 拍板）：每用户免费追问次数 */
+  @IsOptional() @IsInt() @Min(0)
+  freeUses?: number;
+
+  /** AI 计费：每 10 次追问价格（国学币·0=免费不限） */
+  @IsOptional() @IsInt() @Min(0)
+  pricePer10Coin?: number;
 }
 
 export class BindBotToCircleDto {

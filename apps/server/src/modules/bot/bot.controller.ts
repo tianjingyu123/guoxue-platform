@@ -216,6 +216,25 @@ export class BotController {
 
   // ───────── COZE 对话 ─────────
 
+  @Get(":id/quota")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "我的追问额度（会员免费/试用剩余/追问包余量/定价）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiBearerAuth()
+  quota(@Req() req: Request, @Param("id") id: string) {
+    return this.svc.getQuota(id, req.user.id);
+  }
+
+  @Post(":id/purchase-uses")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "购买追问包（10次/包·扣国学币）" })
+  @ApiResponse({ status: 201, description: "购买成功" })
+  @ApiResponse({ status: 400, description: "余额不足或该智能体免费" })
+  @ApiBearerAuth()
+  purchaseUses(@Req() req: Request, @Param("id") id: string) {
+    return this.svc.purchaseUses(id, req.user.id);
+  }
+
   @Post(":id/chat")
   @UseGuards(JwtAuthGuard, StrictRedisThrottleGuard)
   @ApiOperation({ summary: "智能体对话（非流式）" })
@@ -245,6 +264,8 @@ export class BotController {
     @Param("id") id: string,
     @Body() dto: ChatDto,
   ) {
+    // AI 计费：额度检查先于 SSE 头，耗尽时以普通错误响应返回购买引导
+    await this.svc.consumeQuota(id, req.user.id);
     const bot = await this.svc.getBotForChat(id);
 
     res.setHeader("Content-Type", "text/event-stream");

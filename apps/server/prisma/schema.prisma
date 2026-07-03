@@ -1442,8 +1442,11 @@ model BotConfig {
   apiKey       String // Coze API Key (加密存储)
   isFree       Boolean  @default(true)
   dailyLimit   Int      @default(5) // 每日免费次数
-  price        Decimal? @db.Decimal(10, 2) // 付费调用单价
+  price        Decimal? @db.Decimal(10, 2) // 付费调用单价（旧字段·未接计费）
   monthlyPrice Decimal? @db.Decimal(10, 2)
+  // AI 计费（2026-07-03 拍板）：会员免费；非会员每用户 freeUses 次免费试用，用完按 pricePer10Coin 购买追问包（10次/包）
+  freeUses      Int @default(3) // 每用户累计免费追问次数
+  pricePer10Coin Int @default(0) // 每 10 次追问价格（国学币·0=该智能体免费不限）
   sortOrder    Int      @default(0)
   voiceEnabled Boolean? @default(false) // Coze 语音通话开关
   status       String   @default("ACTIVE")
@@ -6107,6 +6110,19 @@ model UserGrowth {
   lastCheckinDate DateTime?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
+}
+
+/// 用户-智能体追问额度（AI 计费·2026-07-03 拍板）：免费试用消耗 + 已购追问包余量
+model UserBotQuota {
+  id            String   @id @default(uuid())
+  userId        String
+  botConfigId   String
+  freeUsed      Int      @default(0)
+  paidRemaining Int      @default(0)
+  updatedAt     DateTime @updatedAt
+  createdAt     DateTime @default(now())
+
+  @@unique([userId, botConfigId])
 }
 
 /// AI 内容质量评分（T7·四维：深度/原创/实用/吸引，各 0-25 总分 0-100）：高分流量倾斜、低分降权
