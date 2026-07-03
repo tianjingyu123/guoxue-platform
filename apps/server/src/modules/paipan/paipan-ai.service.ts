@@ -365,7 +365,11 @@ export class PaipanAiService {
 
   /** 构建紫微斗数专业分析 prompt */
   private buildZiweiPrompt(result: ZiweiResult): string {
-    const { input, wuXingJu, mingGong, gongWei, siHua, shenGong, geShi } = result;
+    const { wuXingJu, mingGong, gongWei, siHua, shenGong, geShi } = result;
+    // 存库 resultData 脱敏后 input 可能仅剩重组的 {name,gender,birth}，逐行防御（此前 undefined 直接 500）
+    const input = (result.input ?? {}) as Partial<ZiweiResult["input"]> & { birth?: string };
+    const birthLine = input.year != null ? `${input.year}年${input.month}月${input.day}日 ${input.hour}时` : input.birth || "未详";
+    const lunarLine = input.lunarYearGan ? `${input.lunarYearGan}${input.lunarYearZhi}年${input.lunarMonth}月${input.lunarDay}日 ${input.lunarHour}时` : "未详";
 
     const gongLines = gongWei.map((g) => {
       const stars = g.stars.map((s) => `${s.name}(${s.wuXing}${s.liangJi === "吉" ? "吉" : s.liangJi === "凶" ? "凶" : ""})`).join("、");
@@ -376,9 +380,9 @@ export class PaipanAiService {
 
 ## 出生信息
 - 姓名：${input.name || "未知"}
-- 性别：${input.gender}
-- 出生时间：${input.year}年${input.month}月${input.day}日 ${input.hour}时
-- 农历：${input.lunarYearGan}${input.lunarYearZhi}年${input.lunarMonth}月${input.lunarDay}日 ${input.lunarHour}时
+- 性别：${input.gender || "未详"}
+- 出生时间：${birthLine}
+- 农历：${lunarLine}
 - 五行局：${wuXingJu}
 - 命宫：${mingGong.name}（${mingGong.gan}${mingGong.zhi}）
 - 身宫：${shenGong}
@@ -415,7 +419,12 @@ ${geShi.length > 0 ? geShi.join("、") : "无特殊格局"}
 
   /** 构建专业八字分析 prompt */
   private buildPrompt(result: BaziResult): string {
-    const { input, siZhu, qiYun, shenSha, geJu, wuXingEnergy, kongWang, shengXiao, fenXiTiShi, taiYuan, mingGong, shenGong } = result;
+    const { siZhu, qiYun, shenSha, geJu, wuXingEnergy, kongWang, shengXiao, fenXiTiShi, taiYuan, mingGong, shenGong } = result;
+    // 存库 resultData 脱敏后 input 可能仅剩重组的 {name,gender,birth}，逐行防御（此前 undefined 直接 500）
+    const input = (result.input ?? {}) as Partial<BaziResult["input"]> & { birth?: string };
+    const birthLine = input.year != null
+      ? `${input.year}年${input.month}月${input.day}日 ${input.hour}时${input.minute ?? 0}分`
+      : input.birth || "未详";
 
     // 格式化一柱
     const fmtPillar = (p: typeof siZhu.nian) =>
@@ -461,8 +470,8 @@ ${geShi.length > 0 ? geShi.join("、") : "无特殊格局"}
 
 ## 出生信息
 - 姓名：${input.name || "未知"}
-- 性别：${input.gender}
-- 出生时间：${input.year}年${input.month}月${input.day}日 ${input.hour}时${input.minute}分
+- 性别：${input.gender || "未详"}
+- 出生时间：${birthLine}
 - 生肖：${shengXiao}
 
 ## 四柱八字
@@ -552,18 +561,23 @@ ${fenXiLines.join("\n") || "无显著合冲刑害关系"}
     const fmt = (p: typeof male.siZhu.nian) => `${p.gan}${p.zhi}（${p.nayin}）`;
     const m = male;
     const f = female;
+    // 存库 resultData 脱敏后 input 可能仅剩重组的 {name,gender,birth}，逐行防御
+    const birthOf = (r: BaziResult) => {
+      const i = (r.input ?? {}) as Partial<BaziResult["input"]> & { birth?: string };
+      return i.year != null ? `${i.year}年${i.month}月${i.day}日 ${i.hour}时` : i.birth || "未详";
+    };
 
     return `你是精通中国传统八字合婚的资深命理专家，请根据以下两人的八字排盘进行合婚分析。
 
 ## 男方八字
-- 出生：${m.input.year}年${m.input.month}月${m.input.day}日 ${m.input.hour}时
+- 出生：${birthOf(m)}
 - 四柱：${fmt(m.siZhu.nian)} ${fmt(m.siZhu.yue)} ${fmt(m.siZhu.ri)} ${fmt(m.siZhu.shi)}
 - 日主：${m.siZhu.ri.gan}
 - 格局：${m.geJu?.name || "未定"}  用神：${m.geJu?.yongShen || "未定"}
 - 五行：木${m.wuXingEnergy?.mu || 0}% 火${m.wuXingEnergy?.huo || 0}% 土${m.wuXingEnergy?.tu || 0}% 金${m.wuXingEnergy?.jin || 0}% 水${m.wuXingEnergy?.shui || 0}%
 
 ## 女方八字
-- 出生：${f.input.year}年${f.input.month}月${f.input.day}日 ${f.input.hour}时
+- 出生：${birthOf(f)}
 - 四柱：${fmt(f.siZhu.nian)} ${fmt(f.siZhu.yue)} ${fmt(f.siZhu.ri)} ${fmt(f.siZhu.shi)}
 - 日主：${f.siZhu.ri.gan}
 - 格局：${f.geJu?.name || "未定"}  用神：${f.geJu?.yongShen || "未定"}

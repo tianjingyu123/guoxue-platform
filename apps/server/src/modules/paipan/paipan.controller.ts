@@ -21,6 +21,29 @@ import { BaziInputDto, BaziRecordQueryDto, AdminRecordQueryDto, ZiweiInputDto, Q
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
+
+/**
+ * 存库的 resultData 经 sanitizeResult 脱敏后不含 input（生辰单独加密于 clientBirth），
+ * 而 AI prompt 构建需要 input——从 inputParams/clientName/解密后的 clientBirth 重组补回。
+ * （此前八字/紫微/合婚 AI 分析对已存记录一直因 input undefined 而 500，本函数是统一修复点）
+ */
+function hydrateInput(record: {
+  resultData: unknown;
+  clientName?: string | null;
+  clientBirth?: string | null;
+  inputParams?: unknown;
+}): unknown {
+  const rd = (record.resultData ?? {}) as Record<string, unknown>;
+  if (!rd.input) {
+    const ip = (record.inputParams ?? {}) as Record<string, unknown>;
+    rd.input = {
+      name: record.clientName || ip.name || "",
+      gender: ip.gender || "",
+      birth: record.clientBirth || "",
+    };
+  }
+  return rd;
+}
 import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
@@ -156,7 +179,7 @@ export class PaipanController {
     return this.paipanAi.analyzeBazi(
       req.user.id,
       dto.recordId,
-      record.resultData as unknown as BaziResult,
+      hydrateInput(record) as unknown as BaziResult,
       dto.school,
     );
   }
@@ -265,7 +288,7 @@ export class PaipanController {
     return this.paipanAi.analyzeZiwei(
       req.user.id,
       dto.recordId,
-      record.resultData as unknown as ZiweiResult,
+      hydrateInput(record) as unknown as ZiweiResult,
     );
   }
 
@@ -301,8 +324,8 @@ export class PaipanController {
     ]);
     return this.paipanAi.analyzeHehun(
       req.user.id,
-      maleRecord.resultData as unknown as BaziResult,
-      femaleRecord.resultData as unknown as BaziResult,
+      hydrateInput(maleRecord) as unknown as BaziResult,
+      hydrateInput(femaleRecord) as unknown as BaziResult,
     );
   }
 

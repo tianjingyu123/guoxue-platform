@@ -38,7 +38,12 @@ export interface BaziSchool {
  * 通用 prompt 保持一个字不改。
  */
 export function formatBaziChart(result: BaziResult): string {
-  const { input, siZhu, qiYun, shenSha, geJu, wuXingEnergy, kongWang, shengXiao, fenXiTiShi, taiYuan, mingGong, shenGong } = result;
+  const { siZhu, qiYun, shenSha, geJu, wuXingEnergy, kongWang, shengXiao, fenXiTiShi, taiYuan, mingGong, shenGong } = result;
+  // 存库 resultData 脱敏后 input 可能仅剩重组的 {name,gender,birth}（无 year 等细分字段），逐行防御
+  const input = (result.input ?? {}) as Partial<BaziResult["input"]> & { birth?: string };
+  const birthLine = input.year != null
+    ? `${input.year}年${input.month}月${input.day}日 ${input.hour}时${input.minute ?? 0}分`
+    : input.birth || "未详";
 
   const fmtPillar = (p: typeof siZhu.nian) => `${p.gan}${p.zhi}（${p.nayin}）`;
 
@@ -72,9 +77,9 @@ export function formatBaziChart(result: BaziResult): string {
   if (fenXiTiShi.sanXing.length) fenXiLines.push(`三刑：${fenXiTiShi.sanXing.join("、")}`);
 
   return `## 出生信息
-- 姓名：${input.name || "未知"}
-- 性别：${input.gender}
-- 出生时间：${input.year}年${input.month}月${input.day}日 ${input.hour}时${input.minute}分
+- 姓名：${input.name || "缘主"}
+- 性别：${input.gender || "未详"}
+- 出生时间：${birthLine}
 - 生肖：${shengXiao}
 
 ## 四柱八字
