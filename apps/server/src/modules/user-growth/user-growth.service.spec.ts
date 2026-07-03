@@ -5,6 +5,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 const mockPrisma = {
   userGrowth: { upsert: jest.fn(), update: jest.fn(), findUnique: jest.fn() },
   userAchievement: { findMany: jest.fn(), createMany: jest.fn() },
+  mentorship: { findFirst: jest.fn(), update: jest.fn() },
 };
 
 describe("UserGrowthService", () => {
@@ -21,6 +22,9 @@ describe("UserGrowthService", () => {
     jest.clearAllMocks();
     mockPrisma.userAchievement.findMany.mockResolvedValue([]);
     mockPrisma.userAchievement.createMany.mockResolvedValue({ count: 0 });
+    // 默认无 ACTIVE 师父（传道值钩子不触发）
+    mockPrisma.mentorship.findFirst.mockResolvedValue(null);
+    mockPrisma.mentorship.update.mockResolvedValue({});
   });
 
   describe("levelOf — 功名阶梯", () => {
@@ -57,6 +61,39 @@ describe("UserGrowthService", () => {
     it("内部异常自吞不外抛（不影响签到主流程）", async () => {
       mockPrisma.userGrowth.upsert.mockRejectedValue(new Error("db down"));
       await expect(svc.onCheckin("u1", 1)).resolves.toBeUndefined();
+    });
+  });
+
+  describe("传道值钩子 — 徒弟成长反哺师父荣誉（R1 合规·纯荣誉）", () => {
+    it("徒弟打卡 → 师父传道值 +2（双写 UserGrowth + Mentorship）", async () => {
+      mockPrisma.userGrowth.upsert.mockResolvedValue({ userId: "d1", totalExp: 10, maxStreak: 1, level: 1 });
+      mockPrisma.userGrowth.findUnique.mockResolvedValue({ userId: "d1", totalExp: 20, level: 1, currentStreak: 1, maxStreak: 1 });
+      mockPrisma.mentorship.findFirst.mockResolvedValue({ id: "m1", mentorId: "mentor1" });
+      await svc.onCheckin("d1", 1);
+      // 师父荣誉总和 +2
+      expect(mockPrisma.userGrowth.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { userId: "mentor1" },
+          update: { mentorshipPoints: { increment: 2 } },
+        }),
+      );
+      // 归属明细 +2
+      expect(mockPrisma.mentorship.update).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: "m1" }, data: { mentorshipPoints: { increment: 2 } } }),
+      );
+    });
+
+    it("徒弟无 ACTIVE 师父 → 不产生任何传道值加值", async () => {
+      mockPrisma.userGrowth.upsert.mockResolvedValue({ userId: "d2", totalExp: 10, maxStreak: 1, level: 1 });
+      mockPrisma.userGrowth.findUnique.mockResolvedValue({ userId: "d2", totalExp: 20, level: 1, currentStreak: 1, maxStreak: 1 });
+      mockPrisma.mentorship.findFirst.mockResolvedValue(null);
+      await svc.onCheckin("d2", 1);
+      // 无师父：mentorship.update 不应被调用，也不应有 mentor 的传道值 upsert
+      expect(mockPrisma.mentorship.update).not.toHaveBeenCalled();
+      const mentorAward = mockPrisma.userGrowth.upsert.mock.calls.find(
+        (c) => c[0]?.update?.mentorshipPoints,
+      );
+      expect(mentorAward).toBeUndefined();
     });
   });
 

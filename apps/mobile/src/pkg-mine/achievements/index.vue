@@ -145,9 +145,21 @@
           </view>
         </view>
       </view>
+
+      <!-- 5. 师徒传承入口 -->
+      <view class="mentor-entry" @tap="goMentorship">
+        <view class="mentor-entry-icon">
+          <AppIcon name="users" :size="46" color="#b8862d" />
+        </view>
+        <view class="mentor-entry-info">
+          <text class="mentor-entry-title">师徒传承</text>
+          <text class="mentor-entry-sub">拜师问道 · 开门收徒 · 传道值荣誉榜</text>
+        </view>
+        <AppIcon name="chevron-right" :size="36" color="#c9a96e" />
+      </view>
     </view>
 
-    <!-- 5. 成就分享卡弹层（V1 裂变） -->
+    <!-- 6. 成就分享卡弹层（V1 裂变） -->
     <view v-if="shareAch" class="share-mask" @tap="closeShare">
       <view class="share-card" @tap.stop>
         <view class="share-card-deco" />
@@ -177,7 +189,7 @@
 import { ref, computed } from 'vue'
 import { onLoad, onShareAppMessage } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
-import { goBack, reLaunch } from '@/utils/router'
+import { goBack, reLaunch, navigateTo } from '@/utils/router'
 import { withRef } from '@/utils/referral'
 import { useShare } from '@/composables/useShare'
 import {
@@ -223,6 +235,11 @@ onLoad(() => {
 
 function goLogin() {
   reLaunch('/pkg-auth/login/index')
+}
+
+/** 进入师徒传承中心 */
+function goMentorship() {
+  navigateTo('/pkg-mine/mentorship/index')
 }
 
 // ── 功名卡派生数据 ──────────────────────────────────
@@ -733,7 +750,46 @@ function copyInviteLink() {
   font-size: 20rpx;
 }
 
-/* 5. 成就分享卡弹层 */
+/* 5. 师徒传承入口 */
+.mentor-entry {
+  display: flex;
+  align-items: center;
+  gap: 24rpx;
+  margin-top: 32rpx;
+  padding: 32rpx;
+  border-radius: 24rpx;
+  background: linear-gradient(135deg, #fff9e6, #fdf3d8);
+  border: 2rpx solid rgba(201, 169, 110, 0.4);
+  box-shadow: 0 4rpx 16rpx rgba(184, 134, 45, 0.08);
+}
+.mentor-entry-icon {
+  width: 88rpx;
+  height: 88rpx;
+  border-radius: 50%;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4rpx 12rpx rgba(184, 134, 45, 0.15);
+  flex-shrink: 0;
+}
+.mentor-entry-info {
+  flex: 1;
+  min-width: 0;
+}
+.mentor-entry-title {
+  font-size: 32rpx;
+  font-weight: 700;
+  color: #2d2a26;
+}
+.mentor-entry-sub {
+  display: block;
+  margin-top: 8rpx;
+  font-size: 23rpx;
+  color: #8a6d3b;
+}
+
+/* 6. 成就分享卡弹层 */
 .share-mask {
   position: fixed;
   inset: 0;

@@ -23,6 +23,8 @@ export const ACHIEVEMENTS: Array<{ code: string; name: string; desc: string; ico
   { code: "level_xiucai", name: "秀才及第", desc: "晋升「秀才」", icon: "award" },
   { code: "level_juren", name: "举人登科", desc: "晋升「举人」", icon: "trophy" },
   { code: "exp_1000", name: "千里之行", desc: "累计学分达 1000", icon: "footprints" },
+  { code: "mentor_graduate", name: "桃李成蹊", desc: "有徒弟学成出师", icon: "graduation-cap" },
+  { code: "graduated_disciple", name: "学成出师", desc: "达成出师·感念师恩", icon: "scroll" },
 ];
 
 const DAY_MS = 86_400_000;
@@ -78,13 +80,45 @@ export class UserGrowthService {
       const fresh = await this.prisma.userGrowth.findUnique({ where: { userId } });
       if (fresh) {
         const lv = this.levelOf(fresh.totalExp);
+        const leveledUp = lv.level > fresh.level;
         if (lv.level !== fresh.level) {
           await this.prisma.userGrowth.update({ where: { userId }, data: { level: lv.level } });
         }
         await this.evaluateAchievements(userId, { totalExp: fresh.totalExp, level: lv.level, streak: consecutiveDays });
+        // 师徒传承钩子：徒弟打卡 → 师父 +2；徒弟晋升 → 师父 +20（自吞不阻断主流程）
+        await this.awardMentorPoints(userId, 2);
+        if (leveledUp) await this.awardMentorPoints(userId, 20);
       }
     } catch (e) {
       this.logger.warn(`成长档案更新失败(user=${userId})`, e as Error);
+    }
+  }
+
+  /**
+   * 师徒传承·传道值钩子（纯荣誉·R1 合规）：徒弟成长时给其 ACTIVE 师父双写传道值。
+   * 直接查 Mentorship 表（不注入 MentorshipService）以规避模块循环依赖；
+   * 自带 try/catch 自吞，绝不阻断成长主流程；传道值不可兑换任何财物。
+   */
+  private async awardMentorPoints(discipleId: string, points: number) {
+    if (points <= 0) return;
+    try {
+      const m = await this.prisma.mentorship.findFirst({
+        where: { discipleId, status: "ACTIVE" },
+        select: { id: true, mentorId: true },
+      });
+      if (!m) return; // 无 ACTIVE 师父不加
+      // 师父荣誉总和（UserGrowth）+ 该徒归属明细（Mentorship）双写
+      await this.prisma.userGrowth.upsert({
+        where: { userId: m.mentorId },
+        create: { userId: m.mentorId, mentorshipPoints: points },
+        update: { mentorshipPoints: { increment: points } },
+      });
+      await this.prisma.mentorship.update({
+        where: { id: m.id },
+        data: { mentorshipPoints: { increment: points } },
+      });
+    } catch (e) {
+      this.logger.warn(`传道值钩子失败(disciple=${discipleId})`, e as Error);
     }
   }
 
@@ -99,11 +133,17 @@ export class UserGrowthService {
       });
       // 重查拿 increment 后的最新学分再算等级（upsert 返回值不含最新 increment 结果的保证）
       const fresh = await this.prisma.userGrowth.findUnique({ where: { userId } });
-      const lv = this.levelOf(fresh?.totalExp ?? exp);
+      const newTotal = fresh?.totalExp ?? exp;
+      const lv = this.levelOf(newTotal);
+      const leveledUp = fresh ? lv.level > fresh.level : false;
       if (fresh && lv.level !== fresh.level) {
         await this.prisma.userGrowth.update({ where: { userId }, data: { level: lv.level } });
       }
       await this.evaluateAchievements(userId, { totalExp: fresh?.totalExp ?? 0, level: lv.level, streak: fresh?.currentStreak ?? 0 });
+      // 师徒传承钩子：徒弟学分每满 100 → 师父 +5（检测跨百）；晋升 → 师父 +20
+      const crossedHundreds = Math.floor(newTotal / 100) - Math.floor((newTotal - exp) / 100);
+      if (crossedHundreds > 0) await this.awardMentorPoints(userId, 5 * crossedHundreds);
+      if (leveledUp) await this.awardMentorPoints(userId, 20);
     } catch (e) {
       this.logger.warn(`加学分失败(user=${userId})`, e as Error);
     }

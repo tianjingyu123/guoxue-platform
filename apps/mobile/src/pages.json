@@ -1878,6 +1878,18 @@
           }
         },
         {
+          "path": "mentorship/index",
+          "style": { "navigationStyle": "custom" }
+        },
+        {
+          "path": "mentorship/accept",
+          "style": { "navigationStyle": "custom" }
+        },
+        {
+          "path": "mentorship/ranking",
+          "style": { "navigationStyle": "custom" }
+        },
+        {
           "path": "security/index",
           "style": {
             "navigationStyle": "custom"

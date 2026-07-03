@@ -6255,8 +6255,28 @@ model UserGrowth {
   currentStreak   Int       @default(0) // 当前连续学习天数（与签到联动）
   maxStreak       Int       @default(0)
   lastCheckinDate DateTime?
+  mentorshipPoints Int      @default(0) // 师徒传承·传道值（纯荣誉·累计各徒弟贡献·不可兑换任何财物）
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
+}
+
+/// 师徒传承关系（V5·纯荣誉体系）
+/// 合规隔离铁律：完全独立于 ReferralRelation/commission/settlement 计酬链路，
+/// 拜师不产生任何资金关系，传道值不可兑换现金/国学币/任何财物，师徒单层不嵌套计酬。
+/// 「一人一师」约束按 ACTIVE 计（应用层校验：无 ACTIVE 师父方可拜师），
+/// GRADUATED 出师后不占位、可再拜新师，故不加表级 @@unique([discipleId])。
+model Mentorship {
+  id               String    @id @default(uuid())
+  mentorId         String // 师父 userId
+  discipleId       String // 徒弟 userId
+  status           String    @default("ACTIVE") // ACTIVE | GRADUATED
+  mentorshipPoints Int       @default(0) // 该徒弟累计为师父贡献的传道值（归属明细）
+  disciplePledge   String? // 拜师寄语
+  createdAt        DateTime  @default(now())
+  graduatedAt      DateTime?
+
+  @@index([mentorId])
+  @@index([discipleId])
 }
 
 /// 用户-智能体追问额度（AI 计费·2026-07-03 拍板）：免费试用消耗 + 已购追问包余量
