@@ -1,6 +1,6 @@
 /** 八字结果页示例数据（从原型 result/page.tsx 1:1 迁移） */
 import { GAN_SHI_SHEN } from './bazi-constants'
-import { apiGet, useMock } from '@/utils/request'
+import { apiGet, apiPost, useMock } from '@/utils/request'
 
 const _mockBaziData = {
   name: '未知', gender: '男', zodiac: '猪', qianKun: '乾造', birthYear: 1983,
@@ -211,15 +211,93 @@ export function adaptBazi(raw: RawBaziResponse) {
   }
 }
 
+// ───────── AI 师徒 · 流派虚拟师父点评（T6 §三） ─────────
+
+/** 八字流派 id（与后端 BAZI_SCHOOLS 注册表一一对应） */
+export type BaziSchoolId = 'ziping' | 'mangpai' | 'xinpai'
+
+/** 师父卡片（前端展示常量，非业务数据；与后端 SCHOOLS 常量对应） */
+export interface SchoolMaster {
+  school: BaziSchoolId
+  /** 虚拟师父名号 */
+  master: string
+  /** 流派名 */
+  schoolName: string
+  /** 一句人设 */
+  motto: string
+}
+
+export const BAZI_SCHOOL_MASTERS: SchoolMaster[] = [
+  { school: 'ziping', master: '衡真先生', schoolName: '子平格局派', motto: '以月令定格局，观成败救应——传统命学正宗理路' },
+  { school: 'mangpai', master: '琴鹤先生', schoolName: '盲派', motto: '象法做功，直断应期——江湖盲师口传心法' },
+  { school: 'xinpai', master: '明澈先生', schoolName: '新派应用', motto: '十神心理与现实决策——说人话的现代命理' },
+]
+
+/** 单条流派点评记录（POST /paipan/bazi/analyze 与 GET /paipan/records/:id/analyses 共用视图结构） */
+export interface SchoolAnalysisRecord {
+  /** 流派 id；后端通用分析（无流派）可能为空 */
+  school?: string | null
+  /** 虚拟师父名号 */
+  master?: string | null
+  /** 点评正文（免责声明已由后端置于正文头部） */
+  analysisContent: string
+  createdAt?: string
+}
+
+/** 排盘输入（calculate/createRecord 共用） */
+export interface BaziCalcInput {
+  name?: string
+  gender: string
+  year: number
+  month: number
+  day: number
+  hour: number
+  minute?: number
+  place?: string
+}
+
 export const baziApi = {
   /** 八字排盘结果（真连 GET /paipan/bazi/calculate，真实算法 + adaptBazi 适配，失败抛错走页面 error 态） */
-  async calculate(input: { name?: string; gender: string; year: number; month: number; day: number; hour: number; minute?: number; place?: string }) {
+  async calculate(input: BaziCalcInput) {
     const params = new URLSearchParams({
       year: String(input.year), month: String(input.month), day: String(input.day),
       hour: String(input.hour), minute: String(input.minute ?? 0),
       gender: input.gender,
     }).toString()
     return adaptBazi(await apiGet<RawBaziResponse>('/paipan/bazi/calculate?' + params))
+  },
+
+  /**
+   * 排盘并保存记录（POST /paipan/bazi，需登录）——流派点评的前置步骤：拿 paipanRecordId。
+   * 未登录时 401 由 request 层统一跳登录（与页面既有 AI 分析行为一致）。
+   */
+  async createRecord(input: BaziCalcInput): Promise<{ id: string }> {
+    const res = await apiPost<{ id?: string }>('/paipan/bazi', {
+      name: input.name || undefined,
+      gender: input.gender,
+      year: input.year,
+      month: input.month,
+      day: input.day,
+      hour: input.hour,
+      minute: input.minute ?? 0,
+    })
+    if (!res?.id) throw new Error('保存排盘记录失败')
+    return { id: res.id }
+  },
+
+  /**
+   * 请流派虚拟师父看盘（POST /paipan/bazi/analyze + school）。
+   * 超日限额后端抛业务异常（message=「今日请师父看盘次数已用完，明日再来」），错误消息直接 toast 展示。
+   */
+  async analyzeSchool(recordId: string, school: BaziSchoolId): Promise<SchoolAnalysisRecord> {
+    return apiPost<SchoolAnalysisRecord>('/paipan/bazi/analyze', { recordId, school })
+  },
+
+  /** 该盘全部分析记录（GET /paipan/records/:id/analyses，回显已请过的师父点评） */
+  async listAnalyses(recordId: string): Promise<SchoolAnalysisRecord[]> {
+    const res = await apiGet<SchoolAnalysisRecord[] | { items?: SchoolAnalysisRecord[] }>(`/paipan/records/${recordId}/analyses`)
+    if (Array.isArray(res)) return res
+    return Array.isArray(res?.items) ? res.items : []
   },
 
   /** 古籍参考内容（返回确定的视图模型，供页面直接渲染） */

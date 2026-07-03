@@ -10,6 +10,7 @@ import TraditionalMode from '@/components/bazi/traditional-mode.vue'
 import AnalysisMode from '@/components/bazi/analysis-mode.vue'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
 import NotesPanel from '@/components/bazi/notes-panel.vue'
+import SchoolAnalysis from '../components/school-analysis.vue'
 import { baziApi } from '@/lib/bazi-result-data'
 import { navigateBack } from '@/utils/router'
 
@@ -20,6 +21,8 @@ const loading = ref(true)
 const error = ref('')
 // 八字排盘结果为复杂嵌套结构，字段众多且未定型，保留 any
 const baziResult = ref<any>(null)
+// 已保存的排盘记录 id（从历史等入口带入时回显该盘师父点评）
+const recordIdFromQuery = ref('')
 
 const userInput = reactive({
   name: '', gender: '男',
@@ -49,6 +52,7 @@ async function loadResult(q: Record<string, string> = {}) {
 }
 
 onLoad((q: Record<string, string> = {}) => {
+  if (q.id) recordIdFromQuery.value = q.id
   if (q.name) userInput.name = decodeURIComponent(q.name)
   if (q.gender) userInput.gender = decodeURIComponent(q.gender)
   if (q.year) userInput.year = Number(q.year)
@@ -126,6 +130,8 @@ function onShare() {
       <template v-else>
         <traditional-mode v-if="activeMode === 'traditional'" :data="data" @edit="openEdit" />
         <analysis-mode v-else :data="data" @edit="openEdit" />
+        <!-- AI 师徒 · 请师父看盘（流派虚拟师父点评对照，T6 §三） -->
+        <school-analysis :input="userInput" :record-id="recordIdFromQuery" />
         <view class="disc-wrap"><disclaimer variant="fortune" tone="card" /></view>
       </template>
     </scroll-view>
