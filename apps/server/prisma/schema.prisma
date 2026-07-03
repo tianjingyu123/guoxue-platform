@@ -6376,3 +6376,15 @@ model SharedReadingMember {
   @@unique([groupId, userId])
   @@index([groupId])
 }
+
+/// V8 节气仪式参与记录（纯荣誉·无资金）：每人每节气每年一条，防重；无 FK
+model SolarTermParticipation {
+  id             String   @id @default(cuid())
+  userId         String
+  termName       String // 节气名（中文，与 calcAllJieQi 键一致）
+  year           Int
+  participatedAt DateTime @default(now())
+
+  @@unique([userId, termName, year])
+  @@index([userId])
+}

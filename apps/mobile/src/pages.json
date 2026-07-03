@@ -2481,6 +2481,10 @@
           }
         },
         {
+          "path": "solar-term/index",
+          "style": { "navigationStyle": "custom" }
+        },
+        {
           "path": "categories/index",
           "style": {
             "navigationStyle": "custom"

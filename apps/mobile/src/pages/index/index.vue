@@ -6,6 +6,7 @@ import AppHeader from '@/components/app-header/app-header.vue'
 import BottomNav from '@/components/bottom-nav/bottom-nav.vue'
 import QuickEntryGrid from '@/components/home/quick-entry-grid.vue'
 import HomeBanner from '@/components/home/home-banner.vue'
+import SolarTermBanner from '@/components/home/solar-term-banner.vue'
 import DailyVerse from '@/components/home/daily-verse.vue'
 import DailyStudy from '@/components/home/daily-study.vue'
 import PaipanGuideCard from '@/components/home/paipan-guide-card.vue'
@@ -110,6 +111,9 @@ function backToTop() {
     >
       <!-- Banner 轮播 -->
       <home-banner :banners="banners" />
+
+      <!-- 节气日横幅（仅节气日显示·入口进节气仪式页） -->
+      <solar-term-banner />
 
       <!-- 金刚区功能入口（学 / 用 双分组） -->
       <quick-entry-grid />
