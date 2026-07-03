@@ -812,6 +812,7 @@ export const shopApi = {
   updateCoupon: (id: string, data: Record<string, unknown>) => api.put(`/shop/coupons/${id}`, data),
   deleteCoupon: (id: string) => api.delete(`/shop/coupons/${id}`),
   updateCouponStatus: (id: string, status: string) => api.put(`/shop/coupons/${id}/status`, { status }),
+  batchGrantCoupon: (id: string, userIds: string[]) => api.post(`/shop/coupons/${id}/batch-grant`, { userIds }),
   // 物流
   getLogistics: (orderId: string) => api.get(`/shop/orders/${orderId}/logistics`),
   updateLogistics: (orderId: string, data: Record<string, unknown>) => api.put(`/shop/orders/${orderId}/logistics`, data),

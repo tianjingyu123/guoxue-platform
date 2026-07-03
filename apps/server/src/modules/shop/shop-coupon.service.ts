@@ -126,6 +126,31 @@ export class ShopCouponService {
     return this.prisma.userCoupon.create({ data: { userId, couponId } });
   }
 
+  /**
+   * 批量发放优惠券（券体系统一后 admin 唯一批量发放口，替代 marketing 模板 batch-grant）。
+   * 每人一张；已持有该券未使用的用户跳过；返回发放/跳过统计。
+   */
+  async batchGrantCoupon(couponId: string, userIds: string[]) {
+    const coupon = await this.prisma.coupon.findUnique({ where: { id: couponId } });
+    if (!coupon) throw new BusinessException(ErrorCode.COUPON_INVALID, "优惠券不存在");
+    if (coupon.status !== "ACTIVE") throw new BusinessException(ErrorCode.COUPON_INVALID, "优惠券已失效");
+    if (new Date() > coupon.validEnd) throw new BusinessException(ErrorCode.COUPON_EXPIRED, "优惠券已过期");
+
+    const unique = [...new Set(userIds)];
+    const holders = await this.prisma.userCoupon.findMany({
+      where: { couponId, used: false, userId: { in: unique } },
+      select: { userId: true },
+    });
+    const holderSet = new Set(holders.map((h) => h.userId));
+    const targets = unique.filter((id) => !holderSet.has(id));
+    if (targets.length) {
+      await this.prisma.userCoupon.createMany({
+        data: targets.map((userId) => ({ userId, couponId })),
+      });
+    }
+    return { granted: targets.length, skipped: unique.length - targets.length };
+  }
+
   async getUserCoupons(userId: string) {
     return this.prisma.userCoupon.findMany({
       where: { userId, used: false },

@@ -18,7 +18,7 @@ import {
   ProductListQueryDto, OrderListQueryDto,
   CreateSkuDto, JsapiPayDto, NativePayDto, RefundOrderDto, RechargeJsapiDto,
   AddToCartDto, AdminPayOrderDto, AlipayRefundDto,
-  UnionpayRefundDto, ApplyAfterSaleDto, ModerateProductDto,
+  UnionpayRefundDto, ApplyAfterSaleDto, ModerateProductDto, BatchGrantShopCouponDto,
 } from "./shop.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
@@ -669,6 +669,18 @@ export class ShopController {
   @ApiBearerAuth()
   grantCoupon(@Param("id") id: string, @Body("userId") userId: string) {
     return this.couponSvc.grantCoupon(id, userId);
+  }
+
+  @Post("coupons/:id/batch-grant")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "GOODS_AUDITOR")
+  @ApiOperation({ summary: "批量发放优惠券（券体系统一后的唯一批量发放口）" })
+  @ApiResponse({ status: 201, description: "发放完成，返回 granted/skipped 统计" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 403, description: "无权限" })
+  @ApiBearerAuth()
+  batchGrantCoupon(@Param("id") id: string, @Body() dto: BatchGrantShopCouponDto) {
+    return this.couponSvc.batchGrantCoupon(id, dto.userIds);
   }
 
   // ───────── 运费模板 ─────────

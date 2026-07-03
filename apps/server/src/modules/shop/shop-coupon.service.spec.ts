@@ -15,7 +15,7 @@ const mockCoupon = {
 
 const mockPrisma = {
   coupon: mockCoupon,
-  userCoupon: { findFirst: jest.fn(), create: jest.fn(), findMany: jest.fn() },
+  userCoupon: { findFirst: jest.fn(), create: jest.fn(), findMany: jest.fn(), createMany: jest.fn() },
   order: { findUnique: jest.fn() },
   afterSale: { create: jest.fn(), findMany: jest.fn(), count: jest.fn(), findUnique: jest.fn(), update: jest.fn() },
   $transaction: jest.fn().mockImplementation((fn: (prisma: typeof mockPrisma) => unknown) => fn(mockPrisma)),
@@ -34,6 +34,40 @@ describe("ShopCouponService", () => {
   beforeEach(() => jest.clearAllMocks());
 
   it("应被定义", () => expect(svc).toBeDefined());
+
+  describe("batchGrantCoupon", () => {
+    const activeCoupon = { id: "c1", status: "ACTIVE", validEnd: new Date(Date.now() + 86400000) };
+
+    it("去重发放并跳过已持有未用者", async () => {
+      mockCoupon.findUnique.mockResolvedValue(activeCoupon);
+      mockPrisma.userCoupon.findMany.mockResolvedValue([{ userId: "u2" }]);
+      mockPrisma.userCoupon.createMany.mockResolvedValue({ count: 2 });
+      const result = await svc.batchGrantCoupon("c1", ["u1", "u2", "u3", "u1"]);
+      expect(result).toEqual({ granted: 2, skipped: 1 });
+      expect(mockPrisma.userCoupon.createMany).toHaveBeenCalledWith({
+        data: [{ userId: "u1", couponId: "c1" }, { userId: "u3", couponId: "c1" }],
+      });
+    });
+
+    it("券已失效拒绝发放", async () => {
+      mockCoupon.findUnique.mockResolvedValue({ ...activeCoupon, status: "DISABLED" });
+      await expect(svc.batchGrantCoupon("c1", ["u1"])).rejects.toThrow("优惠券已失效");
+      expect(mockPrisma.userCoupon.createMany).not.toHaveBeenCalled();
+    });
+
+    it("券已过期拒绝发放", async () => {
+      mockCoupon.findUnique.mockResolvedValue({ ...activeCoupon, validEnd: new Date(Date.now() - 1000) });
+      await expect(svc.batchGrantCoupon("c1", ["u1"])).rejects.toThrow("优惠券已过期");
+    });
+
+    it("全部已持有时不执行创建", async () => {
+      mockCoupon.findUnique.mockResolvedValue(activeCoupon);
+      mockPrisma.userCoupon.findMany.mockResolvedValue([{ userId: "u1" }]);
+      const result = await svc.batchGrantCoupon("c1", ["u1"]);
+      expect(result).toEqual({ granted: 0, skipped: 1 });
+      expect(mockPrisma.userCoupon.createMany).not.toHaveBeenCalled();
+    });
+  });
 
   describe("createCoupon", () => {
     it("创建满减券", async () => {

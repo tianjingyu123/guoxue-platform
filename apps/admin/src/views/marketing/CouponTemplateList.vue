@@ -1,5 +1,12 @@
 <template>
   <div class="page">
+    <el-alert
+      type="warning"
+      :closable="false"
+      show-icon
+      style="margin-bottom:12px"
+      title="本模板体系发放的券不与商城下单核销打通（历史体系保留查看）。新建/发放优惠券请使用「商城 → 优惠券管理」，该处发放的券可直接下单抵扣。"
+    />
     <div class="toolbar">
       <h3>优惠券模板</h3><el-button
         type="primary"

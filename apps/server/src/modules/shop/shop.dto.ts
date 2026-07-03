@@ -1,4 +1,4 @@
-import { IsString, IsDateString, IsOptional, IsInt, IsNumber, IsEnum, IsArray, Min, Max, IsBoolean, IsObject, MinLength, MaxLength, IsPositive } from "class-validator";
+import { IsString, IsDateString, IsOptional, IsInt, IsNumber, IsEnum, IsArray, ArrayNotEmpty, ArrayMaxSize, Min, Max, IsBoolean, IsObject, MinLength, MaxLength, IsPositive } from "class-validator";
 import { Type } from "class-transformer";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 
@@ -640,4 +640,14 @@ export class UpdateCategoryDto {
   @ApiPropertyOptional({ description: "状态" })
   @IsOptional() @IsString()
   status?: string;
+}
+
+/** 批量发放优惠券（券体系统一后的唯一批量发放口） */
+export class BatchGrantShopCouponDto {
+  @ApiProperty({ description: "目标用户 ID 列表（去重后每人一张，已持有未用者跳过）", type: [String] })
+  @IsArray()
+  @ArrayNotEmpty({ message: "用户列表不能为空" })
+  @ArrayMaxSize(500, { message: "单次最多发放 500 人" })
+  @IsString({ each: true })
+  userIds: string[];
 }

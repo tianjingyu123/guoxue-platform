@@ -341,7 +341,7 @@ export class MarketingController {
 
   @Get("coupons/available")
   @UseGuards(JwtAuthGuard)
-  @ApiOperation({ summary: "可领取的优惠券模板列表（用户端·含剩余量与本人已领数）" })
+  @ApiOperation({ summary: "[已废弃·此体系不通下单核销，C端请用 /shop/coupons] 可领取的优惠券模板列表", deprecated: true })
   @ApiResponse({ status: 200, description: "成功" })
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
@@ -351,7 +351,7 @@ export class MarketingController {
 
   @Post("coupons/templates/:id/claim")
   @UseGuards(JwtAuthGuard)
-  @ApiOperation({ summary: "领取优惠券（用户端·原子扣库存防超发·每人限领校验）" })
+  @ApiOperation({ summary: "[已废弃·此体系不通下单核销，C端请用 /shop/coupons/:id/claim] 领取优惠券", deprecated: true })
   @ApiResponse({ status: 201, description: "领取成功，返回券记录 couponId" })
   @ApiResponse({ status: 400, description: "已抢完/已达领取上限/活动未开始或已结束" })
   @ApiResponse({ status: 404, description: "优惠券模板不存在" })
@@ -363,7 +363,7 @@ export class MarketingController {
 
   @Get("coupons/my")
   @UseGuards(JwtAuthGuard)
-  @ApiOperation({ summary: "我的优惠券列表（用户端·可按 UNUSED/USED/EXPIRED 筛选）" })
+  @ApiOperation({ summary: "[已废弃·此体系不通下单核销，C端请用 /shop/coupons/my] 我的优惠券列表", deprecated: true })
   @ApiResponse({ status: 200, description: "成功" })
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()

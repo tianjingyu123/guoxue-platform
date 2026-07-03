@@ -107,10 +107,19 @@
       </el-table-column>
       <el-table-column
         label="操作"
-        width="220"
+        width="290"
         fixed="right"
       >
         <template #default="{ row }">
+          <el-button
+            size="small"
+            type="primary"
+            plain
+            :disabled="row.status !== 'ACTIVE'"
+            @click="openGrant(row)"
+          >
+            发放
+          </el-button>
           <el-button
             size="small"
             @click="openEdit(row)"
@@ -143,6 +152,37 @@
       style="margin-top:16px;justify-content:flex-end"
       @current-change="fetchList"
     />
+
+    <!-- 批量发放弹窗（券体系统一后的唯一发放口：直发用户券包，下单即可核销） -->
+    <el-dialog
+      v-model="grantVisible"
+      :title="`发放优惠券：${grantTarget?.name || ''}`"
+      width="560px"
+    >
+      <el-alert
+        type="info"
+        :closable="false"
+        show-icon
+        style="margin-bottom:12px"
+        title="发放后立即进入用户券包，下单可直接抵扣；已持有本券未使用的用户将自动跳过"
+      />
+      <el-input
+        v-model="grantUserIdsText"
+        type="textarea"
+        :rows="6"
+        placeholder="输入目标用户 ID，逗号或换行分隔，单次最多 500 人"
+      />
+      <template #footer>
+        <el-button @click="grantVisible = false">取消</el-button>
+        <el-button
+          type="primary"
+          :loading="granting"
+          @click="submitGrant"
+        >
+          确认发放
+        </el-button>
+      </template>
+    </el-dialog>
 
     <!-- 创建/编辑弹窗 -->
     <el-dialog
@@ -361,6 +401,36 @@ const toggling = ref(false)
 const deleting = ref(false)
 
 const dialogVisible = ref(false)
+
+// 批量发放
+const grantVisible = ref(false)
+const grantTarget = ref<{ id?: string; name?: string } | null>(null)
+const grantUserIdsText = ref('')
+const granting = ref(false)
+
+function openGrant(row: { id?: string; name?: string }) {
+  grantTarget.value = row
+  grantUserIdsText.value = ''
+  grantVisible.value = true
+}
+
+async function submitGrant() {
+  if (granting.value) return
+  const userIds = grantUserIdsText.value.split(/[\s,，;；]+/).map((s) => s.trim()).filter(Boolean)
+  if (!userIds.length) { ElMessage.warning('请输入至少一个用户 ID'); return }
+  if (userIds.length > 500) { ElMessage.warning('单次最多发放 500 人'); return }
+  granting.value = true
+  try {
+    const { data } = await shopApi.batchGrantCoupon(grantTarget.value?.id ?? '', userIds)
+    ElMessage.success(`发放完成：成功 ${data?.granted ?? 0} 人，跳过 ${data?.skipped ?? 0} 人（已持有）`)
+    grantVisible.value = false
+    fetchList()
+  } catch {
+    // 错误由响应拦截器统一提示
+  } finally {
+    granting.value = false
+  }
+}
 const editingId = ref('')
 
 const form = reactive({
