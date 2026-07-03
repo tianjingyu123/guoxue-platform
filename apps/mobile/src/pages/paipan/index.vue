@@ -77,6 +77,23 @@ onMounted(() => { fetchTools() })
         </view>
       </view>
 
+      <!-- 双人合盘入口（合婚裂变） -->
+      <view class="section-px couple-wrap">
+        <view class="couple-card" @tap="navigateTo('/pkg-paipan/couple/invite')">
+          <view class="couple-icon">
+            <app-icon name="heart" :size="48" color="#ffffff" />
+          </view>
+          <view class="couple-text">
+            <view class="couple-title-row">
+              <text class="couple-title">双人合盘</text>
+              <text class="couple-badge">缘分合婚</text>
+            </view>
+            <text class="couple-sub">邀 TA 授权自己的盘，共测缘分合婚</text>
+          </view>
+          <app-icon name="chevron-right" :size="40" color="rgba(255,255,255,0.6)" />
+        </view>
+      </view>
+
       <!-- 排盘工具加载骨架 -->
       <view v-if="loading" class="section-px section-tools">
         <view class="sec-head">
@@ -218,6 +235,28 @@ onMounted(() => { fetchTools() })
   background: rgba(255,255,255,0.2); border-radius: 999rpx;
 }
 .ai-sub { display: block; font-size: 28rpx; color: rgba(255,255,255,0.8); margin-top: 4rpx; }
+
+/* 双人合盘入口 */
+.couple-wrap { padding-top: 24rpx; }
+.couple-card {
+  position: relative; overflow: hidden;
+  border-radius: 32rpx; padding: 28rpx 32rpx;
+  display: flex; align-items: center; gap: 24rpx;
+  background: linear-gradient(135deg, #d1477a, #c41e3a);
+}
+.couple-icon {
+  width: 96rpx; height: 96rpx; border-radius: 24rpx;
+  background: rgba(255,255,255,0.2);
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.couple-text { flex: 1; min-width: 0; }
+.couple-title-row { display: flex; align-items: center; gap: 16rpx; }
+.couple-title { font-size: 32rpx; font-weight: 700; color: #fff; }
+.couple-badge {
+  padding: 2rpx 16rpx; font-size: 20rpx; color: #fff;
+  background: rgba(255,255,255,0.2); border-radius: 999rpx;
+}
+.couple-sub { display: block; font-size: 26rpx; color: rgba(255,255,255,0.85); margin-top: 6rpx; }
 
 /* 分区标题 */
 .section-tools { padding-top: 48rpx; }
