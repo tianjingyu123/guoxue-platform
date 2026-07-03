@@ -568,6 +568,12 @@ const routes = [
         component: () => import("@/views/finance/FundApprovalCenter.vue"),
         meta: { title: "资金审批中心", roles: ["SUPER_ADMIN", "FINANCE_ADMIN"] },
       },
+      {
+        path: "finance/settlement-rules",
+        name: "SettlementRuleList",
+        component: () => import("@/views/finance/SettlementRuleList.vue"),
+        meta: { title: "分佣规则", roles: ["SUPER_ADMIN", "FINANCE_ADMIN"] },
+      },
       // === 风控 ===
       {
         path: "risk/rules",
@@ -1268,6 +1274,12 @@ const routes = [
         name: "OperationRobot",
         component: () => import("@/views/operation/OperationRobot.vue"),
         meta: { title: "运营机器人", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
+      },
+      {
+        path: "advisor/rules",
+        name: "AdvisorRuleList",
+        component: () => import("@/views/advisor/RuleList.vue"),
+        meta: { title: "顾问规则", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
       },
       // === 搜索 ===
       {

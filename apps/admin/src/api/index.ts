@@ -1947,4 +1947,22 @@ export const tenantAdminApi = {
     api.get(`/admin/tenants/${id}/logs`, { params }),
 };
 
+// ───────── 分佣结算规则（C7 规则管理） ─────────
+export const settlementRuleApi = {
+  // GET /settlement/rules → { items: SettlementRule[] }
+  listRules: () => api.get("/settlement/rules"),
+  createRule: (data: Record<string, unknown>) => api.post("/settlement/rules", data),
+  // PUT body 不含 scene（后端禁改场景标识）
+  updateRule: (id: string, data: Record<string, unknown>) => api.put(`/settlement/rules/${id}`, data),
+};
+
+// ───────── 智能顾问规则（C7 规则管理） ─────────
+export const advisorRuleApi = {
+  // GET /advisor/rules → { items: AdvisorRule[] }
+  listRules: () => api.get("/advisor/rules"),
+  createRule: (data: Record<string, unknown>) => api.post("/advisor/rules", data),
+  // PUT body 不含 ruleKey（后端禁改规则键）
+  updateRule: (id: string, data: Record<string, unknown>) => api.put(`/advisor/rules/${id}`, data),
+};
+
 export default api;
