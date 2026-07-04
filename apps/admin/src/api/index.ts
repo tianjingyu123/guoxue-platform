@@ -1059,6 +1059,16 @@ export const sensitiveWordApi = {
   check: (text: string) => api.post("/audit/sensitive-words/check", { text }),
 };
 
+// 合规违禁词扫描（合-P1）
+export const complianceScanApi = {
+  trigger: () => api.post("/audit/compliance-scan"),
+  records: (params?: { level?: string; status?: string; targetType?: string; word?: string; page?: number; pageSize?: number }) =>
+    api.get("/audit/compliance-scan/records", { params }),
+  stats: () => api.get("/audit/compliance-scan/stats"),
+  updateStatus: (id: string, status: "RESOLVED" | "IGNORED" | "OPEN") =>
+    api.put(`/audit/compliance-scan/records/${id}/status`, { status }),
+};
+
 // Webhook管理
 export const webhookApi = {
   list: (event?: string) => api.get("/webhooks", { params: event ? { event } : {} }),

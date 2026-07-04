@@ -1,4 +1,4 @@
-import { IsString, IsDateString, IsOptional, IsInt, IsArray, ArrayNotEmpty, MinLength } from "class-validator";
+import { IsString, IsDateString, IsOptional, IsInt, IsArray, ArrayNotEmpty, MinLength, IsIn } from "class-validator";
 import { Type } from "class-transformer";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 
@@ -64,6 +64,18 @@ export class AddSensitiveWordDto {
   @IsString()
   @MinLength(1)
   word: string;
+
+  @ApiPropertyOptional({ description: "分类", enum: ["GENERAL", "COMPLIANCE_A", "COMPLIANCE_B"], default: "GENERAL" })
+  @IsOptional() @IsIn(["GENERAL", "COMPLIANCE_A", "COMPLIANCE_B"])
+  category?: "GENERAL" | "COMPLIANCE_A" | "COMPLIANCE_B";
+
+  @ApiPropertyOptional({ description: "B 级替换建议" })
+  @IsOptional() @IsString()
+  replacement?: string;
+
+  @ApiPropertyOptional({ description: "备注（豁免边界说明等）" })
+  @IsOptional() @IsString()
+  remark?: string;
 }
 
 export class AddSensitiveWordsDto {
@@ -72,6 +84,42 @@ export class AddSensitiveWordsDto {
   @ArrayNotEmpty()
   @IsString({ each: true })
   words: string[];
+
+  @ApiPropertyOptional({ description: "分类", enum: ["GENERAL", "COMPLIANCE_A", "COMPLIANCE_B"], default: "GENERAL" })
+  @IsOptional() @IsIn(["GENERAL", "COMPLIANCE_A", "COMPLIANCE_B"])
+  category?: "GENERAL" | "COMPLIANCE_A" | "COMPLIANCE_B";
+}
+
+export class ComplianceScanQueryDto {
+  @ApiPropertyOptional({ description: "级别 A/B" })
+  @IsOptional() @IsIn(["A", "B"])
+  level?: string;
+
+  @ApiPropertyOptional({ description: "状态 OPEN/RESOLVED/IGNORED" })
+  @IsOptional() @IsIn(["OPEN", "RESOLVED", "IGNORED"])
+  status?: string;
+
+  @ApiPropertyOptional({ description: "内容域类型" })
+  @IsOptional() @IsString()
+  targetType?: string;
+
+  @ApiPropertyOptional({ description: "命中词（模糊）" })
+  @IsOptional() @IsString()
+  word?: string;
+
+  @ApiPropertyOptional({ description: "页码", default: 1 })
+  @IsOptional() @Type(() => Number) @IsInt()
+  page?: number;
+
+  @ApiPropertyOptional({ description: "每页条数", default: 20 })
+  @IsOptional() @Type(() => Number) @IsInt()
+  pageSize?: number;
+}
+
+export class ComplianceScanStatusDto {
+  @ApiProperty({ description: "处置状态", enum: ["RESOLVED", "IGNORED", "OPEN"] })
+  @IsIn(["RESOLVED", "IGNORED", "OPEN"])
+  status: "RESOLVED" | "IGNORED" | "OPEN";
 }
 
 export class CheckSensitiveDto {

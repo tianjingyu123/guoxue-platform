@@ -848,6 +848,12 @@ const routes = [
         meta: { title: "敏感词管理", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
       },
       {
+        path: "system/compliance-scan",
+        name: "ComplianceScan",
+        component: () => import("@/views/system/ComplianceScan.vue"),
+        meta: { title: "合规扫描", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"] },
+      },
+      {
         path: "system/webhooks",
         name: "WebhookList",
         component: () => import("@/views/system/WebhookList.vue"),

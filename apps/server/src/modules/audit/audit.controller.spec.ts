@@ -3,6 +3,7 @@ import { AuditController } from "./audit.controller";
 import { AuditService } from "./audit.service";
 import { ReportService } from "./report.service";
 import { SensitiveWordService } from "./sensitive-word.service";
+import { ComplianceScanService } from "./compliance-scan.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 
@@ -23,10 +24,18 @@ const mockReportSvc = {
 
 const mockSensitiveWordSvc = {
   listWords: jest.fn().mockReturnValue(["违禁词1", "违禁词2"]),
+  listEntries: jest.fn().mockReturnValue([{ word: "违禁词1", category: "GENERAL", replacement: null, remark: null, enabled: true }]),
   addWord: jest.fn().mockReturnValue({ success: true }),
   addWords: jest.fn().mockReturnValue({ count: 5 }),
   removeWord: jest.fn().mockReturnValue({ success: true }),
   check: jest.fn().mockReturnValue(["违禁词1"]),
+};
+
+const mockComplianceScanSvc = {
+  scanAll: jest.fn().mockResolvedValue({ totalHits: 3, created: 2, createdByLevel: { A: 1, B: 1 }, hitsByLevel: { A: 2, B: 1 } }),
+  listRecords: jest.fn().mockResolvedValue({ items: [{ id: "r1", word: "改运", level: "A", status: "OPEN" }], total: 1, page: 1, pageSize: 20 }),
+  stats: jest.fn().mockResolvedValue({ open: { A: 1, B: 0 }, resolved: { A: 0, B: 0 }, ignored: { A: 0, B: 0 } }),
+  updateStatus: jest.fn().mockResolvedValue({ id: "r1", status: "RESOLVED" }),
 };
 
 describe("AuditController", () => {
@@ -39,6 +48,7 @@ describe("AuditController", () => {
         { provide: AuditService, useValue: mockAuditSvc },
         { provide: ReportService, useValue: mockReportSvc },
         { provide: SensitiveWordService, useValue: mockSensitiveWordSvc },
+        { provide: ComplianceScanService, useValue: mockComplianceScanSvc },
       ],
     })
       .overrideGuard(JwtAuthGuard).useValue({ canActivate: () => true })
@@ -113,6 +123,30 @@ describe("AuditController", () => {
   it("POST /audit/sensitive-words/check — 检测敏感词", async () => {
     const result: any = await ctrl.checkSensitive({ text: "包含违禁词1的内容" });
     expect(result.hasSensitive).toBe(true);
+  });
+
+  it("POST /audit/compliance-scan — 手动触发合规扫描", async () => {
+    const result: any = await ctrl.triggerComplianceScan();
+    expect(result.created).toBe(2);
+    expect(mockComplianceScanSvc.scanAll).toHaveBeenCalled();
+  });
+
+  it("GET /audit/compliance-scan/records — 复核队列列表", async () => {
+    const result: any = await ctrl.listComplianceRecords({ level: "A", status: "OPEN" } as any);
+    expect(result.total).toBe(1);
+    expect(mockComplianceScanSvc.listRecords).toHaveBeenCalledWith(expect.objectContaining({ level: "A" }));
+  });
+
+  it("GET /audit/compliance-scan/stats — 扫描统计", async () => {
+    const result: any = await ctrl.complianceStats();
+    expect(result.open.A).toBe(1);
+  });
+
+  it("PUT /audit/compliance-scan/records/:id/status — 处置记录", async () => {
+    const req: any = { user: { id: "admin-1" } };
+    const result: any = await ctrl.updateComplianceStatus(req, "r1", { status: "RESOLVED" });
+    expect(result.status).toBe("RESOLVED");
+    expect(mockComplianceScanSvc.updateStatus).toHaveBeenCalledWith("r1", "RESOLVED", "admin-1");
   });
 
   it("GET /audit/operation-logs — 操作日志", async () => {

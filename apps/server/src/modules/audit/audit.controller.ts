@@ -4,11 +4,12 @@ import { Request } from "express";
 import { ThrottleGuard } from "../../common/throttle.guard";
 import { AuditService } from "./audit.service";
 import { ReportService, CreateReportDto, HandleReportDto } from "./report.service";
-import { SensitiveWordService } from "./sensitive-word.service";
+import { SensitiveWordService, SensitiveCategory } from "./sensitive-word.service";
+import { ComplianceScanService } from "./compliance-scan.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
-import { AuditListQueryDto, ModerateImageDto, ModerateTextDto, OperationLogListQueryDto, AddSensitiveWordDto, AddSensitiveWordsDto, CheckSensitiveDto } from "./audit.dto";
+import { AuditListQueryDto, ModerateImageDto, ModerateTextDto, OperationLogListQueryDto, AddSensitiveWordDto, AddSensitiveWordsDto, CheckSensitiveDto, ComplianceScanQueryDto, ComplianceScanStatusDto } from "./audit.dto";
 
 @ApiTags("审核与审计")
 @Controller("audit")
@@ -17,6 +18,7 @@ export class AuditController {
     private svc: AuditService,
     private report: ReportService,
     private sensitiveWord: SensitiveWordService,
+    private complianceScan: ComplianceScanService,
   ) {}
 
   @Get()
@@ -121,8 +123,11 @@ export class AuditController {
   @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
-  listSensitiveWords() {
-    return { words: this.sensitiveWord.listWords() };
+  listSensitiveWords(@Query("category") category?: string) {
+    return {
+      words: this.sensitiveWord.listWords(),
+      entries: this.sensitiveWord.listEntries(category as SensitiveCategory | undefined),
+    };
   }
 
   @Post("sensitive-words")
@@ -135,7 +140,7 @@ export class AuditController {
   @ApiBearerAuth()
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   addSensitiveWord(@Body() body: AddSensitiveWordDto) {
-    return this.sensitiveWord.addWord(body.word);
+    return this.sensitiveWord.addWord(body.word, body.category ?? "GENERAL", body.replacement, body.remark);
   }
 
   @Post("sensitive-words/batch")
@@ -148,7 +153,7 @@ export class AuditController {
   @ApiBearerAuth()
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   addSensitiveWords(@Body() body: AddSensitiveWordsDto) {
-    return this.sensitiveWord.addWords(body.words);
+    return this.sensitiveWord.addWords(body.words, body.category ?? "GENERAL");
   }
 
   @Delete("sensitive-words/:word")
@@ -172,6 +177,57 @@ export class AuditController {
   checkSensitive(@Body() body: CheckSensitiveDto) {
     const hits = this.sensitiveWord.check(body.text);
     return { hasSensitive: hits.length > 0, hits };
+  }
+
+  // ─── 合规违禁词扫描（合-P1）───
+
+  @Post("compliance-scan")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @ApiOperation({ summary: "手动触发全站合规扫描（产出扫描报告与复核队列记录）" })
+  @ApiResponse({ status: 201, description: "扫描完成，返回报告" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
+  @ApiBearerAuth()
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR")
+  triggerComplianceScan() {
+    return this.complianceScan.scanAll();
+  }
+
+  @Get("compliance-scan/records")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @ApiOperation({ summary: "合规扫描记录列表（复核队列）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
+  @ApiBearerAuth()
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR")
+  listComplianceRecords(@Query() q: ComplianceScanQueryDto) {
+    return this.complianceScan.listRecords(q);
+  }
+
+  @Get("compliance-scan/stats")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @ApiOperation({ summary: "合规扫描统计（按状态×级别）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
+  @ApiBearerAuth()
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR")
+  complianceStats() {
+    return this.complianceScan.stats();
+  }
+
+  @Put("compliance-scan/records/:id/status")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @ApiOperation({ summary: "处置合规扫描记录（RESOLVED已整改/IGNORED误报忽略/OPEN重开）" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
+  @ApiBearerAuth()
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR")
+  updateComplianceStatus(@Req() req: Request, @Param("id") id: string, @Body() dto: ComplianceScanStatusDto) {
+    return this.complianceScan.updateStatus(id, dto.status, req.user.id);
   }
 
   // ─── 平台操作日志 ───

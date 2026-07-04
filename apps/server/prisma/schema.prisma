@@ -2744,6 +2744,49 @@ model AuditLog {
 }
 
 // ─────────────────────────────────────────────────
+// 敏感词库（合-P1：DB 真源·分级·合规词带替换建议）
+// ─────────────────────────────────────────────────
+
+model SensitiveWord {
+  id          String   @id @default(uuid())
+  word        String   @unique
+  category    String   @default("GENERAL") // GENERAL(通用拦截)/COMPLIANCE_A(合规A级·禁止)/COMPLIANCE_B(合规B级·替换建议)
+  replacement String? // B 级替换建议（如 算命→命理文化分析）
+  enabled     Boolean  @default(true)
+  remark      String? // 备注（如豁免边界说明）
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([category, enabled])
+}
+
+// ─────────────────────────────────────────────────
+// 合规扫描记录（合-P1：DB 内容域违禁词扫描报告·admin 复核队列）
+// 豁免规则：古籍/诗词正文域（ClassicChapter/Poetry）为引用豁免域，不入扫描范围
+// ─────────────────────────────────────────────────
+
+model ComplianceScanRecord {
+  id         String    @id @default(uuid())
+  scanAt     DateTime  @default(now()) // 首次发现时间
+  targetType String // PRODUCT/COURSE/POST/COUPON_TEMPLATE/MARKETING_PAGE/MARKETING_PAGE_COMPONENT
+  targetId   String
+  field      String // 命中字段（title/intro/detail/content/name/description/config）
+  word       String // 命中的违禁词
+  level      String // A(禁止·建议下架整改)/B(替换建议·人工确认)
+  suggestion String? // 处置建议（B 级为替换建议文案）
+  snippet    String? // 命中上下文片段（便于复核定位）
+  status     String    @default("OPEN") // OPEN/RESOLVED/IGNORED
+  resolvedBy String? // 处理人
+  resolvedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@unique([targetType, targetId, field, word]) // 幂等：同目标同字段同词不重复产出
+  @@index([status, level, scanAt])
+  @@index([targetType, targetId])
+}
+
+// ─────────────────────────────────────────────────
 // 系统配置与通知
 // ─────────────────────────────────────────────────
 
