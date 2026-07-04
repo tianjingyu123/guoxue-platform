@@ -13,10 +13,33 @@ interface FeedItem {
   reason: string;
 }
 
+/** 时段（按请求时刻·Asia/Shanghai 时区） */
+export type TimeSlot = "morning" | "afternoon" | "evening";
+
+/**
+ * 时段→内容类型族 加权映射表（常量·便于调整）
+ *
+ * - morning  早 5-11 时：轻内容类（文章/帖子·晨间碎片阅读；运势/宜忌/签到由首页固定卡片承载，不在 feed 类型内）
+ * - afternoon 午 11-17 时：诗词/古籍/短内容休闲类（classic 覆盖古籍诗词·post 短内容）
+ * - evening  晚 17-24 时（0-5 顺延晚间）：课程/学习计划/深度长文类（course/ebook 深度学习内容）
+ *
+ * 未命中的类型（circle/product 等）权重保持 1 不变。
+ */
+const TIME_SLOT_BOOSTED_TYPES: Record<TimeSlot, ReadonlyArray<FeedItem["type"]>> = {
+  morning: ["article", "post"],
+  afternoon: ["classic", "post"],
+  evening: ["course", "ebook"],
+};
+
+/** 时段族基础权重乘子 */
+const TIME_SLOT_BOOST_FACTOR = 1.3;
+
 export interface SmartFeedResult {
   userId: string;
   userSegment: string;
   items: FeedItem[];
+  /** 当前时段（Asia/Shanghai）·getFeed 恒返回；声明可选以兼容匿名降级等旧构造 */
+  timeSlot?: TimeSlot;
   generatedAt: string;
 }
 
@@ -41,6 +64,7 @@ export class SmartFeedService {
   /** 获取智能信息流 */
   async getFeed(userId: string, page = 1, pageSize = 20): Promise<SmartFeedResult> {
     const segment = await this.classifyUser(userId);
+    const timeSlot = this.resolveTimeSlot();
 
     let items: FeedItem[] = [];
     switch (segment) {
@@ -57,6 +81,9 @@ export class SmartFeedService {
         items = await this.getDefaultFeed(userId, pageSize);
     }
 
+    // 时段因子：作为基础权重乘子在 AI 重排之前生效；AI 不可用时降级路径同样保留时段排序
+    items = this.applyTimeSlotWeight(items, timeSlot);
+
     if (items.length > 3) {
       items = await this.aiRankItems(userId, items, segment);
     }
@@ -65,8 +92,39 @@ export class SmartFeedService {
       userId,
       userSegment: segment,
       items: items.slice((page - 1) * pageSize, page * pageSize),
+      timeSlot,
       generatedAt: new Date().toISOString(),
     };
+  }
+
+  /** 按请求时刻求当前时段（Asia/Shanghai 时区·与服务器本地时区无关） */
+  private resolveTimeSlot(now: Date = new Date()): TimeSlot {
+    const hour = Number(
+      new Intl.DateTimeFormat("en-US", {
+        timeZone: "Asia/Shanghai",
+        hour: "2-digit",
+        hourCycle: "h23",
+      }).format(now),
+    );
+    if (hour >= 5 && hour < 11) return "morning";
+    if (hour >= 11 && hour < 17) return "afternoon";
+    return "evening"; // 17-24 及 0-5 顺延晚间
+  }
+
+  /**
+   * 应用时段族基础权重乘子并按加权分稳定排序
+   *
+   * score 为 0 的候选取基准 1 再乘因子，保证乘子对纯热度型 feed（score 全 0）同样生效；
+   * 同权重项保持原有相对顺序（稳定排序），不破坏各分层策略自身的编排。
+   */
+  private applyTimeSlotWeight(items: FeedItem[], slot: TimeSlot): FeedItem[] {
+    const boosted = new Set<FeedItem["type"]>(TIME_SLOT_BOOSTED_TYPES[slot]);
+    return items
+      .map((item): FeedItem => {
+        const factor = boosted.has(item.type) ? TIME_SLOT_BOOST_FACTOR : 1;
+        return { ...item, score: (item.score || 1) * factor };
+      })
+      .sort((a, b) => b.score - a.score);
   }
 
   /** 用户分层 */
