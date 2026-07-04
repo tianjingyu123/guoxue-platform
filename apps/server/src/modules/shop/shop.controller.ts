@@ -9,6 +9,7 @@ import { ActiveUserGuard } from "../../common/active-user.guard";
 import { StationIsolationGuard } from "../../common/station-isolation.guard";
 import { ShopService } from "./shop.service";
 import { ShopCouponService } from "./shop-coupon.service";
+import { AfterSaleSlaService } from "./after-sale-sla.service";
 import { LogisticsService } from "./logistics.service";
 import { SystemService } from "../system/system.service";
 import {
@@ -41,6 +42,7 @@ export class ShopController {
   constructor(
     private shop: ShopService,
     private couponSvc: ShopCouponService,
+    private afterSaleSla: AfterSaleSlaService,
     private logistics: LogisticsService,
     private systemService: SystemService,
   ) {}
@@ -914,7 +916,8 @@ export class ShopController {
   @ApiQuery({ name: "pageSize", required: false })
   @ApiQuery({ name: "status", required: false })
   listAfterSales(@Query("page") page = 1, @Query("pageSize") pageSize = 20, @Query("status") status?: string) {
-    return this.couponSvc.listAfterSales(+page, +pageSize, status);
+    // F5 投诉 SLA：列表行附 slaDueAt/slaOverdue（createdAt+24h 推导）与 fastRefundEligible（结算缓冲期标注）
+    return this.afterSaleSla.listWithSla(+page, +pageSize, status);
   }
 
   @Put("admin/after-sales/:id/process")

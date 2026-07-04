@@ -17,9 +17,38 @@ const tools = ref<Tool[]>([])
 const loading = ref(true)
 const error = ref('')
 
-const displayTools = computed(() => (showAllTools.value ? tools.value : tools.value.slice(0, 32)))
+// ── R4 合规（微信小程序无占卜类目）：仅展示层差异，路由/数据/逻辑不动 ──
+// 纯占卜/风水测算类工具在 MP 端隐藏入口（页面保留）；八字排盘类改民俗/历法表述
+let pageTitle = '排盘工具'
+let secToolsTitle = '排盘工具'
+let aiTitle = 'AI 智能解盘'
+let aiSub = '输入命盘信息，AI 为您深度解析'
+let disclaimerText = '平台命理工具仅供传统文化爱好者研究学习，排盘与分析结果不构成任何决策建议。'
+let MP_HIDDEN_TOOL_IDS: string[] = []
+let MP_TOOL_RENAME: Record<string, string> = {}
+let MP_VISIBLE_AGENT_IDS: string[] | null = null
+// #ifdef MP-WEIXIN
+pageTitle = '民俗文化研究'
+secToolsTitle = '传统历法工具'
+aiTitle = 'AI 文化解读'
+aiSub = '输入干支信息，AI 为您做传统文化解读'
+disclaimerText = '平台民俗文化工具仅供传统文化爱好者研究学习，结果不构成任何决策建议。'
+MP_HIDDEN_TOOL_IDS = [
+  'liuyao', 'meihua', 'daliuren', 'xiaoliuren', 'jinkoujue', 'zhuge', 'kongming', 'taiyi',
+  'jinqianke', 'xiaocheng', 'yinqimen', 'mingli-qimen', 'ziwei', 'phone-analysis',
+  'name-analysis', 'flying-star', 'bazhai', 'feigong', 'qimen-chuanren', 'shanxiang-qimen', 'direction-map',
+]
+MP_TOOL_RENAME = { 'bazi': '干支历法', 'bazi-analysis': '干支解析', 'qimen': '奇门研究', 'yangming': '阳盘研究' }
+MP_VISIBLE_AGENT_IDS = ['classic-expert', 'study-assistant']
+// #endif
+
+const visibleTools = computed(() => tools.value
+  .filter((t) => !MP_HIDDEN_TOOL_IDS.includes(t.id))
+  .map((t) => (MP_TOOL_RENAME[t.id] ? { ...t, name: MP_TOOL_RENAME[t.id] } : t)))
+const displayTools = computed(() => (showAllTools.value ? visibleTools.value : visibleTools.value.slice(0, 32)))
 const displayMedical = computed(() => (showMedical.value ? medicalTools : medicalTools.slice(0, 8)))
-const displayAgents = computed(() => agents.slice(0, 6))
+const displayAgents = computed(() =>
+  (MP_VISIBLE_AGENT_IDS ? agents.filter((a) => (MP_VISIBLE_AGENT_IDS as string[]).includes(a.id)) : agents).slice(0, 6))
 
 function gradientStyle(avatar: string) {
   const g = AGENT_AVATAR_GRADIENT[avatar] || AGENT_AVATAR_GRADIENT.master
@@ -49,7 +78,7 @@ onMounted(() => { fetchTools() })
     <customer-service-fab />
     <!-- 顶部标题栏 -->
     <view class="header">
-      <text class="header-title">排盘工具</text>
+      <text class="header-title">{{ pageTitle }}</text>
       <view class="header-action" @tap="navigateTo('/paipan/history?name=%E5%8E%86%E5%8F%B2%E8%AE%B0%E5%BD%95')">
         <app-icon name="history" :size="40" color="#999999" />
       </view>
@@ -67,17 +96,18 @@ onMounted(() => { fetchTools() })
             </view>
             <view class="ai-text">
               <view class="ai-title-row">
-                <text class="ai-title">AI 智能解盘</text>
+                <text class="ai-title">{{ aiTitle }}</text>
                 <text class="ai-badge">新功能</text>
               </view>
-              <text class="ai-sub">输入命盘信息，AI 为您深度解析</text>
+              <text class="ai-sub">{{ aiSub }}</text>
             </view>
             <app-icon name="chevron-right" :size="40" color="rgba(255,255,255,0.6)" />
           </view>
         </view>
       </view>
 
-      <!-- 双人合盘入口（合婚裂变） -->
+      <!-- 双人合盘入口（合婚裂变）· R4 合规：小程序端隐藏（页面保留） -->
+      <!-- #ifndef MP-WEIXIN -->
       <view class="section-px couple-wrap">
         <view class="couple-card" @tap="navigateTo('/pkg-paipan/couple/invite')">
           <view class="couple-icon">
@@ -93,11 +123,12 @@ onMounted(() => { fetchTools() })
           <app-icon name="chevron-right" :size="40" color="rgba(255,255,255,0.6)" />
         </view>
       </view>
+      <!-- #endif -->
 
       <!-- 排盘工具加载骨架 -->
       <view v-if="loading" class="section-px section-tools">
         <view class="sec-head">
-          <text class="sec-title">排盘工具</text>
+          <text class="sec-title">{{ secToolsTitle }}</text>
         </view>
         <view class="grid">
           <view v-for="i in 8" :key="'sk-'+i" class="cell">
@@ -118,7 +149,7 @@ onMounted(() => { fetchTools() })
       <!-- 排盘工具网格 -->
       <view v-else class="section-px section-tools">
         <view class="sec-head">
-          <text class="sec-title">排盘工具</text>
+          <text class="sec-title">{{ secToolsTitle }}</text>
           <view class="sec-link" @tap="navigateTo('/paipan/history?name=%E5%8E%86%E5%8F%B2%E8%AE%B0%E5%BD%95')">
             <text class="sec-link-text">历史记录</text>
             <app-icon name="chevron-right" :size="28" color="#c41e3a" />
@@ -133,7 +164,7 @@ onMounted(() => { fetchTools() })
             <text class="cell-name">{{ tool.name }}</text>
           </view>
         </view>
-        <view v-if="tools.length > 32" class="toggle" @tap="showAllTools = !showAllTools">
+        <view v-if="visibleTools.length > 32" class="toggle" @tap="showAllTools = !showAllTools">
           <text class="toggle-text">{{ showAllTools ? '收起' : '展开更多' }}</text>
           <app-icon :name="showAllTools ? 'chevron-up' : 'chevron-down'" :size="32" color="#999999" />
         </view>
@@ -186,7 +217,7 @@ onMounted(() => { fetchTools() })
 
       <!-- 合规提示 -->
       <view class="section-px disclaimer">
-        <text class="disclaimer-text">平台命理工具仅供传统文化爱好者研究学习，排盘与分析结果不构成任何决策建议。</text>
+        <text class="disclaimer-text">{{ disclaimerText }}</text>
       </view>
     </scroll-view>
 

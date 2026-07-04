@@ -3,7 +3,15 @@
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
 
-const tags = ['八字', '紫微', '六爻', '奇门']
+// R4 合规：小程序端无占卜类目，改「民俗文化研究」表述（仅展示文案·路由不变）
+let cardTitle = '排盘工具'
+let cardDesc = '易学工具大全，算法精准，功能全面'
+let tags = ['八字', '紫微', '六爻', '奇门']
+// #ifdef MP-WEIXIN
+cardTitle = '民俗文化研究'
+cardDesc = '传统历法与民俗文化研究工具'
+tags = ['干支', '历法', '节气', '民俗']
+// #endif
 </script>
 
 <template>
@@ -21,10 +29,10 @@ const tags = ['八字', '紫微', '六爻', '奇门']
       <!-- 文案 -->
       <view class="copy">
         <view class="title-row">
-          <text class="title">排盘工具</text>
+          <text class="title">{{ cardTitle }}</text>
           <text class="free-tag">免费使用</text>
         </view>
-        <text class="desc">易学工具大全，算法精准，功能全面</text>
+        <text class="desc">{{ cardDesc }}</text>
         <view class="tags">
           <text v-for="t in tags" :key="t" class="tag">{{ t }}</text>
         </view>

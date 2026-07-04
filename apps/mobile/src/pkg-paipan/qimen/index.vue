@@ -5,6 +5,14 @@ import AppIcon from '@/components/common/app-icon.vue'
 import DatePickerModal from '@/components/bazi/date-picker-modal.vue'
 import { navigateTo } from '@/utils/router'
 
+// R4 合规：小程序端无占卜类目，标题改文化研究表述（仅展示文案·路由/逻辑不变）
+let hdrTitle = '热卜奇门遁甲'
+let bannerTitle = '奇门遁甲'
+// #ifdef MP-WEIXIN
+hdrTitle = '奇门文化研究'
+bannerTitle = '奇门文化研究'
+// #endif
+
 type PanMethod = 'zhuan' | 'fei'
 type FlyMethod = 'yangshun' | 'yinyang'
 type StartMethod = 'chaibu' | 'maoshan' | 'zhirun' | 'custom'
@@ -88,14 +96,14 @@ function handleSubmit() {
         <view class="hdr-back" @tap="navigateTo('/paipan')">
           <app-icon name="chevron-left" :size="40" color="var(--text-ink)" />
         </view>
-        <text class="hdr-title">热卜奇门遁甲</text>
+        <text class="hdr-title">{{ hdrTitle }}</text>
         <view class="hdr-spacer" />
       </view>
     </view>
 
     <!-- 标题横幅 -->
     <view class="banner">
-      <text class="banner-title">奇门遁甲</text>
+      <text class="banner-title">{{ bannerTitle }}</text>
       <view class="banner-share">
         <app-icon name="share-2" :size="28" color="rgba(255,255,255,0.9)" />
         <text class="banner-share-text">分享</text>

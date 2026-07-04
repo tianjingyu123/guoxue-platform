@@ -9,10 +9,16 @@ const props = defineProps<{ active: string }>()
 const BRAND_RED = '#c41e3a'
 const MUTED = '#999999'
 
+// R4 合规：小程序端无占卜类目，「排盘」tab 改「民俗」表述（仅展示文案·路由不变）
+let paipanLabel = '排盘'
+// #ifdef MP-WEIXIN
+paipanLabel = '民俗'
+// #endif
+
 const tabs = [
   { id: 'home', label: '首页', icon: 'home', url: '/pages/index/index' },
   { id: 'circle', label: '圈子', icon: 'users', url: '/pages/circles/index' },
-  { id: 'paipan', label: '排盘', icon: '', url: '/pages/paipan/index' },
+  { id: 'paipan', label: paipanLabel, icon: '', url: '/pages/paipan/index' },
   { id: 'discover', label: '发现', icon: 'shopping-bag', url: '/pages/discover/index' },
   { id: 'profile', label: '我的', icon: 'user', url: '/pages/profile/index' },
 ]

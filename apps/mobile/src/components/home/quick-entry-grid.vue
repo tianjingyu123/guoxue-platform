@@ -8,6 +8,14 @@ interface Entry { id: string; name: string; icon: string; color: string; bg: str
 // 去掉原「圈子」入口（已有独立 tabBar），9 宫 = 学 4 + 用 5
 interface EntryGroup { key: string; label: string; entries: Entry[] }
 
+// R4 合规：小程序端无占卜类目，「排盘/运势」入口改民俗/历法表述（仅展示文案·路由不变）
+let paipanName = '排盘'
+let fortuneName = '运势'
+// #ifdef MP-WEIXIN
+paipanName = '民俗研究'
+fortuneName = '历法参考'
+// #endif
+
 const groups: EntryGroup[] = [
   {
     key: 'study',
@@ -23,8 +31,8 @@ const groups: EntryGroup[] = [
     key: 'life',
     label: '用',
     entries: [
-      { id: 'paipan',   name: '排盘',   icon: 'layout-grid',    color: '#1890FF', bg: 'rgba(24,144,255,0.1)',  url: '/pages/paipan/index' },
-      { id: 'fortune',  name: '运势',   icon: 'compass',        color: '#9B59B6', bg: 'rgba(155,89,182,0.1)',  url: '/pkg-fortune/index/index' },
+      { id: 'paipan',   name: paipanName,  icon: 'layout-grid', color: '#1890FF', bg: 'rgba(24,144,255,0.1)',  url: '/pages/paipan/index' },
+      { id: 'fortune',  name: fortuneName, icon: 'compass',     color: '#9B59B6', bg: 'rgba(155,89,182,0.1)',  url: '/pkg-fortune/index/index' },
       // 无痕商业化铁律：C 端心智区不放营销感角标（「热」已撤·2026-07-03 经营哲学）
       { id: 'mall',     name: '商城',   icon: 'shopping-bag',   color: '#C41E3A', bg: 'rgba(196,30,58,0.1)',   url: '/pkg-mall/home/index' },
       { id: 'live',     name: '直播',   icon: 'radio',          color: '#E74C3C', bg: 'rgba(231,76,60,0.1)',   url: '/pkg-live/plaza/index' },

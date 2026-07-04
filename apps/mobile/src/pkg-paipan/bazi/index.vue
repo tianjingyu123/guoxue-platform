@@ -7,6 +7,12 @@ import Disclaimer from '@/components/compliance/disclaimer.vue'
 import { navigateBack, navigateTo } from '@/utils/router'
 
 function goHistory() { navigateTo('/paipan/bazi/history') }
+
+// R4 合规：小程序端无占卜类目，标题改历法表述（仅展示文案·路由/逻辑不变）
+let hdrTitle = '热卜八字'
+// #ifdef MP-WEIXIN
+hdrTitle = '干支历法'
+// #endif
 </script>
 
 <template>
@@ -18,7 +24,7 @@ function goHistory() { navigateTo('/paipan/bazi/history') }
           <app-icon name="chevron-left" :size="36" color="rgba(255,255,255,0.85)" />
           <text class="hdr-back-text">返回</text>
         </view>
-        <text class="hdr-title">热卜八字</text>
+        <text class="hdr-title">{{ hdrTitle }}</text>
         <view class="hdr-history" @tap="goHistory">
           <app-icon name="clock-3" :size="28" color="#ffffff" />
           <text class="hdr-history-text">记录</text>

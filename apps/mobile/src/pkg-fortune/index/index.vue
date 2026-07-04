@@ -15,6 +15,12 @@ try {
   statusBarHeight.value = 0
 }
 
+// R4 合规：小程序端无占卜类目，标题改历法参考表述（仅展示文案·路由/逻辑不变）
+let navTitle = '每日运势'
+// #ifdef MP-WEIXIN
+navTitle = '传统历法参考'
+// #endif
+
 const currentDate = ref(todayISO())
 const loading = ref(true)
 const error = ref('')
@@ -67,7 +73,7 @@ function retry() {
       </view>
       <view class="nav-title">
         <app-icon name="sparkles" :size="36" color="#c41e3a" />
-        <text class="nav-title-text">每日运势</text>
+        <text class="nav-title-text">{{ navTitle }}</text>
       </view>
       <view class="nav-btn" />
     </view>

@@ -112,6 +112,48 @@
           </el-tag>
         </template>
       </el-table-column>
+      <!-- F5 投诉 SLA：24h 首响倒计时（超时红色·后端 createdAt+24h 推导） -->
+      <el-table-column
+        label="首响SLA"
+        width="110"
+      >
+        <template #default="{ row }">
+          <span
+            v-if="row.status === 'PENDING' && row.slaDueAt"
+            :style="{ color: slaColor(row), fontWeight: slaOverdue(row) ? '700' : '400', fontSize: '12px' }"
+          >
+            {{ slaText(row) }}
+          </span>
+          <span
+            v-else
+            style="color:#999;font-size:12px"
+          >—</span>
+        </template>
+      </el-table-column>
+      <!-- 缓冲期内订单（钱还在平台未结算）标注可快速退款——仅提示·资金动作人工 -->
+      <el-table-column
+        label="快速退款"
+        width="90"
+      >
+        <template #default="{ row }">
+          <el-tooltip
+            v-if="row.fastRefundEligible"
+            content="订单资金仍在结算缓冲期内（未结算给商家），投诉成立可走快速退款通道；资金操作需人工执行"
+            placement="top"
+          >
+            <el-tag
+              type="success"
+              size="small"
+            >
+              可快速退款
+            </el-tag>
+          </el-tooltip>
+          <span
+            v-else
+            style="color:#999;font-size:12px"
+          >—</span>
+        </template>
+      </el-table-column>
       <el-table-column
         label="申请时间"
         width="100"
@@ -167,6 +209,15 @@
       :title="dialogAction === 'approve' ? '同意售后' : '拒绝售后'"
       width="420px"
     >
+      <!-- 快速退款通道标注：投诉成立处置处提示（只标注·不自动退款） -->
+      <el-alert
+        v-if="dialogAction === 'approve' && processRow?.fastRefundEligible"
+        type="success"
+        :closable="false"
+        show-icon
+        style="margin-bottom:12px"
+        title="可快速退款：该订单资金仍在结算缓冲期内（未结算给商家），退款不涉追回，可走快速退款通道。资金操作需人工在结算/财务侧执行。"
+      />
       <el-form label-width="60px">
         <el-form-item label="备注">
           <el-input
@@ -194,7 +245,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { ref, onMounted, onUnmounted } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { api } from "@/api";
 
@@ -207,6 +258,11 @@ interface AfterSaleRow {
   amount?: number | string;
   status?: string;
   createdAt?: string;
+  /** F5 投诉 SLA（后端 createdAt+24h 推导） */
+  slaDueAt?: string | null;
+  slaOverdue?: boolean;
+  /** 订单资金仍在结算缓冲期内（可快速退款标注·仅提示） */
+  fastRefundEligible?: boolean;
 }
 
 const loading = ref(false);
@@ -221,6 +277,30 @@ const dialogVisible = ref(false);
 const dialogAction = ref("");
 const processRemark = ref("");
 const processId = ref("");
+const processRow = ref<AfterSaleRow | null>(null);
+
+// ── F5 投诉 SLA：24h 首响倒计时（30s 刷新一次·超时红色） ──
+const nowTick = ref(Date.now());
+let slaTimer: number | undefined;
+
+function slaOverdue(row: AfterSaleRow) {
+  return !!row.slaDueAt && new Date(row.slaDueAt).getTime() <= nowTick.value;
+}
+
+function slaText(row: AfterSaleRow) {
+  if (!row.slaDueAt) return "—";
+  const diff = new Date(row.slaDueAt).getTime() - nowTick.value;
+  const abs = Math.abs(diff);
+  const h = Math.floor(abs / 3_600_000);
+  const m = Math.floor((abs % 3_600_000) / 60_000);
+  return diff > 0 ? `剩 ${h}h${m}m` : `超时 ${h}h${m}m`;
+}
+
+function slaColor(row: AfterSaleRow) {
+  if (slaOverdue(row)) return "#f56c6c"; // 超时红色
+  const remain = new Date(row.slaDueAt as string).getTime() - nowTick.value;
+  return remain < 4 * 3_600_000 ? "#e6a23c" : "#606266"; // 临期橙色
+}
 
 function typeLabel(t: string) {
   const map: Record<string, string> = { refund: "退款", return: "退货", exchange: "换货" };
@@ -243,7 +323,14 @@ function statusType(s: string) {
   return map[s] || "info";
 }
 
-onMounted(() => fetchList());
+onMounted(() => {
+  fetchList();
+  slaTimer = window.setInterval(() => { nowTick.value = Date.now(); }, 30_000);
+});
+
+onUnmounted(() => {
+  if (slaTimer) window.clearInterval(slaTimer);
+});
 
 async function fetchList() {
   loading.value = true;
@@ -268,6 +355,7 @@ async function fetchList() {
 
 function handleProcess(row: AfterSaleRow, action: string) {
   processId.value = row.id ?? "";
+  processRow.value = row;
   dialogAction.value = action;
   processRemark.value = "";
   dialogVisible.value = true;

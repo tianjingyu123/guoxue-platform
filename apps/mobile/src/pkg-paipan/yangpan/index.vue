@@ -6,6 +6,12 @@ import DatePickerModal from '@/components/bazi/date-picker-modal.vue'
 import LocationPickerModal from '@/components/bazi/location-picker-modal.vue'
 import { navigateTo } from '@/utils/router'
 
+// R4 合规：小程序端无占卜类目，标题改历法研究表述（仅展示文案·路由/逻辑不变）
+let yangpanTitle = '阳盘命理奇门'
+// #ifdef MP-WEIXIN
+yangpanTitle = '阳盘历法研究'
+// #endif
+
 type Gender = 'male' | 'female'
 type PanMethod = 'zhuan' | 'fei'
 type JigongMethod = 'kungong' | 'yanggenyin'
@@ -81,14 +87,14 @@ function handleSubmit() {
         <view class="hdr-back" @tap="navigateTo('/paipan')">
           <app-icon name="chevron-left" :size="40" color="var(--text-ink)" />
         </view>
-        <text class="hdr-title">阳盘命理奇门</text>
+        <text class="hdr-title">{{ yangpanTitle }}</text>
         <view class="hdr-spacer" />
       </view>
     </view>
 
     <!-- 标题横幅 -->
     <view class="banner">
-      <text class="banner-title">阳盘命理奇门</text>
+      <text class="banner-title">{{ yangpanTitle }}</text>
       <view class="banner-share">
         <app-icon name="share-2" :size="28" color="rgba(255,255,255,0.9)" />
         <text class="banner-share-text">分享</text>
