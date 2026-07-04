@@ -997,6 +997,7 @@ model Order {
   status           OrderStatus @default(PENDING)
   referrerId       String? // 永久推荐人
   tempReferrerId   String? // 临时推荐人
+  tempRefSubjectType String? // 临时归因命中的渠道主体类型（佣-V2-P2）：STATION / CIRCLE / OFFLINE_STATION·NULL=非渠道点击归因（现行 dto 传入/无临时归因）·分佣时据此路由受益人
   payMethod        String? // WECHAT, ALIPAY
   payTransactionId String?
   paidAt           DateTime?
@@ -6511,6 +6512,25 @@ model LedgerEntry {
   @@index([beneficiaryType, beneficiaryId, status])
   @@index([status, availableAt])
   @@index([scene, createdAt])
+}
+
+/// 渠道主体临时链接点击（佣-V2-P2·2026-07-04 拍板）：
+/// 三类可锁佣渠道主体（STATION 分站 / CIRCLE 圈子 / OFFLINE_STATION 驿站）的推广链接点击落库，
+/// 7 天有效窗·同 user+subject+target 重复点击更新 clickedAt/expiresAt（last-click 语义·不堆行）。
+/// 下单归因：取该用户对该商品（targetId 精确优先，其次 SHOP_ALL）未过期最新一条 → Order.tempReferrerId
+model ChannelClick {
+  id                String   @id @default(cuid())
+  subjectType       String // STATION / CIRCLE / OFFLINE_STATION
+  subjectId         String // 渠道主体id（Station.id / Circle.id / StationOffline.id）
+  beneficiaryUserId String // 受益人userId（站长/圈主/驿站主·点击时解析好，下单时直接用）
+  userId            String // 被触达用户
+  targetType        String // PRODUCT / SHOP_ALL(全店) 等
+  targetId          String?
+  clickedAt         DateTime @default(now())
+  expiresAt         DateTime // clickedAt + 7天
+
+  @@index([userId, targetType, targetId, clickedAt])
+  @@index([expiresAt])
 }
 
 // ─────────────────────────────────────────────────

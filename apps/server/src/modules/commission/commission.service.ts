@@ -143,7 +143,44 @@ export class CommissionService {
     const effectiveReferrerId = tempReferrerId || referrerId;
     if (!effectiveReferrerId) return null;
 
-    // 查找推荐人的分站
+    // 佣-V2-P1：PRODUCT 类订单需 order.targetId 查逐品佣金率；
+    // 佣-V2-P2：临时归因命中时需 order.tempRefSubjectType 路由受益人；与付款人回查合并为一次查询
+    const needProductRate = type === "PRODUCT";
+    let effectivePayerId = payerId;
+    let orderTargetId: string | null = null;
+    let channelSubjectType: string | null = null;
+    if (!effectivePayerId || needProductRate || tempReferrerId) {
+      try {
+        const order = await this.prisma.order.findUnique({
+          where: { id: orderId },
+          select: { userId: true, targetId: true, tempRefSubjectType: true },
+        });
+        if (!effectivePayerId) effectivePayerId = order?.userId ?? "";
+        orderTargetId = order?.targetId ?? null;
+        channelSubjectType = order?.tempRefSubjectType ?? null;
+      } catch {
+        effectivePayerId = effectivePayerId || "";
+      }
+    }
+
+    // ── 佣-V2-P2 渠道主体受益人路由（2026-07-04 拍板·设计 §3.3）──
+    // 临时归因命中 CIRCLE/OFFLINE_STATION 渠道：佣金受益人=tempReferrerId（点击时解析好的圈主/驿站主），
+    // 落账走统一总账 LedgerEntry（role=CIRCLE/OFFLINE_STATION），不建 StationEarning、不派运营商管理奖
+    // （管理奖仅 STATION 渠道向上派生·两级计酬合规见设计 §五）。subjectType=STATION 或空 → 现行分站路径。
+    if (tempReferrerId && (channelSubjectType === "CIRCLE" || channelSubjectType === "OFFLINE_STATION")) {
+      return this.recordChannelBeneficiaryCommission({
+        orderId,
+        type,
+        amount,
+        beneficiaryUserId: tempReferrerId,
+        subjectType: channelSubjectType,
+        payerId: effectivePayerId,
+        configRateA: Number(config.rateA),
+        orderTargetId,
+      });
+    }
+
+    // 查找推荐人的分站（现行 STATION 路径）
     const station = stationId
       ? await this.prisma.station.findUnique({ where: { id: stationId } })
       : await this.prisma.station.findUnique({ where: { userId: effectiveReferrerId } });
@@ -151,45 +188,13 @@ export class CommissionService {
     if (!station) return null;
 
     // 站长自购不产生佣金（2026-07-02 拍板：自购已在下单时直接立减·此处防御性拦截历史/旁路订单）
-    // 佣-V2-P1：PRODUCT 类订单还需 order.targetId 查逐品佣金率，与付款人回查合并为一次查询
-    const needProductRate = type === "PRODUCT";
-    let effectivePayerId = payerId;
-    let orderTargetId: string | null = null;
-    if (!effectivePayerId || needProductRate) {
-      try {
-        const order = await this.prisma.order.findUnique({
-          where: { id: orderId },
-          select: { userId: true, targetId: true },
-        });
-        if (!effectivePayerId) effectivePayerId = order?.userId ?? "";
-        orderTargetId = order?.targetId ?? null;
-      } catch {
-        effectivePayerId = effectivePayerId || "";
-      }
-    }
     if (effectivePayerId && effectivePayerId === station.userId) {
       this.logger.log(`订单 ${orderId} 为站长自购，不产生佣金`);
       return null;
     }
 
-    // 佣-V2-P1 佣金取值链（2026-07-04 拍板）：PRODUCT 类订单优先用逐品站长佣金率
-    // Product.commissionRate（0-1 小数·空=未逐品配置），回落类型级默认 CommissionConfig.rateA；
-    // 非 PRODUCT 类订单逻辑不变（直接用 rateA）
-    let rate = Number(config.rateA); // 站长佣金比例
-    if (needProductRate && orderTargetId) {
-      try {
-        const product = await this.prisma.product.findUnique({
-          where: { id: orderTargetId },
-          select: { commissionRate: true },
-        });
-        if (product?.commissionRate != null) {
-          const productRate = Number(product.commissionRate);
-          if (productRate >= 0 && productRate < 1) rate = productRate;
-        }
-      } catch {
-        // 逐品率查询失败回落类型默认，不阻断分佣
-      }
-    }
+    // 佣-V2-P1 佣金取值链（2026-07-04 拍板）：PRODUCT 类订单优先用逐品站长佣金率，回落类型默认 rateA
+    const rate = await this.resolveEffectiveRate(type, orderTargetId, Number(config.rateA));
     // 规整到分（四舍五入），与本文件管理奖/平台抽成一致，避免 JS 浮点尾数（如 99.9*0.7）污染分账与累加
     const earned = Math.round(amount * rate * 100) / 100;
 
@@ -254,6 +259,118 @@ export class CommissionService {
     return earning;
   }
 
+  /**
+   * 佣-V2-P1 佣金取值链：PRODUCT 类订单逐品率 Product.commissionRate（0-1 小数·空=未逐品配置）
+   * 覆盖类型级默认 CommissionConfig.rateA；非 PRODUCT 订单直接用 rateA。查询失败回落默认，不阻断分佣。
+   */
+  private async resolveEffectiveRate(type: string, orderTargetId: string | null, rateA: number): Promise<number> {
+    let rate = rateA;
+    if (type === "PRODUCT" && orderTargetId) {
+      try {
+        const product = await this.prisma.product.findUnique({
+          where: { id: orderTargetId },
+          select: { commissionRate: true },
+        });
+        if (product?.commissionRate != null) {
+          const productRate = Number(product.commissionRate);
+          if (productRate >= 0 && productRate < 1) rate = productRate;
+        }
+      } catch {
+        // 逐品率查询失败回落类型默认，不阻断分佣
+      }
+    }
+    return rate;
+  }
+
+  /**
+   * 佣-V2-P2：CIRCLE / OFFLINE_STATION 渠道佣金入账（2026-07-04 拍板·设计 §3.3）。
+   * 受益人=点击时解析好的圈主/驿站主 userId；落账走统一总账 LedgerEntry
+   * （beneficiaryType=USER·role=CIRCLE/OFFLINE_STATION·category=COMMISSION），
+   * 状态机复用现有缓冲期/审批阈值/settlePending/reverse（该场景 SettlementRule 存在则对齐，
+   * 缺省零缓冲=与 StationEarning 即时入账口径一致）。
+   * 不建 StationEarning、不派运营商管理奖（管理奖仅 STATION 渠道·两级计酬合规）。
+   */
+  private async recordChannelBeneficiaryCommission(params: {
+    orderId: string;
+    type: string;
+    amount: number;
+    beneficiaryUserId: string;
+    subjectType: string; // CIRCLE / OFFLINE_STATION
+    payerId?: string;
+    configRateA: number;
+    orderTargetId: string | null;
+  }) {
+    const { orderId, type, amount, beneficiaryUserId, subjectType, payerId, configRateA, orderTargetId } = params;
+
+    // 渠道主体自购不产生佣金（与站长路径同口径防御性拦截）
+    if (payerId && payerId === beneficiaryUserId) {
+      this.logger.log(`订单 ${orderId} 为渠道主体自购，不产生佣金`);
+      return null;
+    }
+
+    const rate = await this.resolveEffectiveRate(type, orderTargetId, configRateA);
+    const earned = Math.round(amount * rate * 100) / 100;
+    if (earned <= 0) return null;
+
+    const scene = this.mapTypeToScene(type);
+
+    // 幂等守卫：同订单同渠道角色已有正向佣金则返回既有记录（支付回调可能重入）
+    const existing = await this.prisma.ledgerEntry.findFirst({
+      where: { refType: "ORDER", refId: orderId, role: subjectType, category: "COMMISSION", amount: { gt: 0 } },
+    });
+    if (existing) return existing;
+
+    // 缓冲期/审批阈值对齐统一结算引擎该场景规则
+    let bufferDays = 0;
+    let requireApproval = false;
+    let threshold: number | null = null;
+    try {
+      const rule = await this.prisma.settlementRule.findUnique({ where: { scene } });
+      if (rule?.enabled) {
+        bufferDays = rule.bufferDays;
+        requireApproval = rule.requireApproval;
+        threshold = rule.approvalThreshold !== null ? Number(rule.approvalThreshold) : null;
+      }
+    } catch {
+      // 规则查询失败按零缓冲入账
+    }
+
+    const now = new Date();
+    const frozen = requireApproval && threshold !== null && earned >= threshold;
+    const entry = await this.prisma.ledgerEntry.create({
+      data: {
+        scene,
+        refType: "ORDER",
+        refId: orderId,
+        beneficiaryType: "USER",
+        beneficiaryId: beneficiaryUserId,
+        role: subjectType, // CIRCLE / OFFLINE_STATION
+        category: "COMMISSION",
+        amount: earned,
+        rate,
+        status: frozen ? "FROZEN" : "PENDING",
+        availableAt: new Date(now.getTime() + bufferDays * 86_400_000),
+        reason: frozen ? `单笔≥${threshold}元，冻结待人工复核` : null,
+      },
+    });
+
+    // 收益通知（fire-and-forget，不阻塞主流程）
+    this.prisma.notification
+      .create({
+        data: {
+          userId: beneficiaryUserId,
+          type: "EARNING",
+          title: subjectType === "CIRCLE" ? "圈子推广收益" : "驿站推广收益",
+          content: `您获得一笔 ${type} 推广佣金 ¥${earned.toFixed(2)}（订单金额 ¥${amount}，比例 ${(rate * 100).toFixed(1)}%）`,
+          targetType: type,
+          targetId: orderId,
+        },
+      })
+      .catch((err) => this.logger.warn("渠道收益通知发送失败", err));
+
+    return entry;
+  }
+
   /** 退款时冲正分佣 — 逆向 station 收益 + operator 管理奖 + 平台抽成，同一事务 */
   async reverseCommission(orderId: string) {
     // 分布式锁串行化同一订单的冲正：两入口（applyRefundedBookkeeping / handleRefundNotify 微信退款回调）
@@ -292,7 +409,12 @@ export class CommissionService {
 
     // 平台费冲正缺口修复：无推荐人但有平台费的订单，也须冲正 platformFeeRecord（否则退款后平台收入虚高）
     if (!stationEarning && operatorEarnings.length === 0 && platformFees.length === 0) {
-      this.logger.log(`订单 ${orderId} 无分佣/平台费记录，跳过冲正`);
+      // 佣-V2-P2：CIRCLE/OFFLINE_STATION 渠道佣金只落 LedgerEntry（无 StationEarning 等旧表记录），
+      // 仍须冲正统一总账（reverse 自身幂等·无正向分账时空转无副作用）
+      this.settlement
+        ?.reverse("ORDER", orderId, "订单退款冲正")
+        .catch((e) => this.logger.warn(`统一总账冲正失败(order=${orderId})`, e));
+      this.logger.log(`订单 ${orderId} 无旧表分佣/平台费记录，跳过旧表冲正`);
       return null;
     }
 

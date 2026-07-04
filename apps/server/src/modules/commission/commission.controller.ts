@@ -2,9 +2,10 @@ import { Controller, Get, Post, Put, Body, Param, Query, Req, UseGuards } from "
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiBody, ApiResponse } from "@nestjs/swagger";
 import { Request } from "express";
 import { CommissionService } from "./commission.service";
-import { ConfigUpdateDto, WithdrawalApplyDto, WithdrawalAuditDto, CreateReferralDto, CommissionRateDto } from "./commission.dto";
+import { ChannelClickService } from "./channel-click.service";
+import { ConfigUpdateDto, WithdrawalApplyDto, WithdrawalAuditDto, CreateReferralDto, CommissionRateDto, ChannelClickDto } from "./commission.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
-import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
+import { RedisThrottleGuard, StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
 import { ActiveUserGuard } from "../../common/active-user.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
@@ -20,6 +21,7 @@ import { Auditable } from "../../common/audit.decorator";
 export class CommissionController {
   constructor(
     private svc: CommissionService,
+    private channelClick: ChannelClickService,
     private prisma: PrismaService,
   ) {}
 
@@ -201,6 +203,19 @@ export class CommissionController {
   @ApiResponse({ status: 200, description: "成功" })
   trackClick(@Param("code") code: string) {
     return this.svc.trackClick(code);
+  }
+
+  // ───────── 渠道主体临时链接点击（佣-V2-P2） ─────────
+
+  @Post("channel-click")
+  @UseGuards(JwtAuthGuard, RedisThrottleGuard)
+  @ApiOperation({ summary: "上报渠道主体推广链接点击（7天窗 last-click 归因·渠道资格校验失败静默 accepted:false）" })
+  @ApiResponse({ status: 201, description: "成功（accepted 表示是否落库）" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiBearerAuth()
+  recordChannelClick(@Req() req: Request, @Body() dto: ChannelClickDto) {
+    return this.channelClick.recordClick(req.user.id, dto);
   }
 
   // ───────── 新增：分佣配置快捷管理 ─────────

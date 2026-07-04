@@ -1,10 +1,11 @@
 import { Test } from "@nestjs/testing";
 import { CommissionController } from "./commission.controller";
 import { CommissionService } from "./commission.service";
+import { ChannelClickService } from "./channel-click.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
-import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
+import { RedisThrottleGuard, StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
 import { FeatureFlagGuard } from "../../common/feature-flag.guard";
 import { ActiveUserGuard } from "../../common/active-user.guard";
 
@@ -27,6 +28,10 @@ const mockCommissionSvc = {
   getOperatorBalance: jest.fn().mockResolvedValue({ totalEarned: 0, balance: 0 }),
 };
 
+const mockChannelClickSvc = {
+  recordClick: jest.fn().mockResolvedValue({ accepted: true }),
+};
+
 describe("CommissionController", () => {
   let ctrl: CommissionController;
 
@@ -35,11 +40,13 @@ describe("CommissionController", () => {
       controllers: [CommissionController],
       providers: [
         { provide: CommissionService, useValue: mockCommissionSvc },
+        { provide: ChannelClickService, useValue: mockChannelClickSvc },
         { provide: PrismaService, useValue: { station: { findUnique: jest.fn() }, operator: { findUnique: jest.fn() }, circle: { findUnique: jest.fn() } } },
       ],
     })
       .overrideGuard(JwtAuthGuard).useValue({ canActivate: () => true })
       .overrideGuard(RolesGuard).useValue({ canActivate: () => true })
+      .overrideGuard(RedisThrottleGuard).useValue({ canActivate: () => true })
       .overrideGuard(StrictRedisThrottleGuard).useValue({ canActivate: () => true })
       .overrideGuard(FeatureFlagGuard).useValue({ canActivate: () => true })
       .overrideGuard(ActiveUserGuard).useValue({ canActivate: () => true })
@@ -116,6 +123,14 @@ describe("CommissionController", () => {
   it("GET /commission/track/:code — 跟踪点击", async () => {
     const result: any = await ctrl.trackClick("REF001");
     expect(result.tracked).toBe(true);
+  });
+
+  it("POST /commission/channel-click — 渠道点击上报（佣-V2-P2）", async () => {
+    const req: any = { user: { id: "u1" } };
+    const dto: any = { subjectType: "CIRCLE", subjectId: "c1", targetType: "PRODUCT", targetId: "p1" };
+    const result: any = await ctrl.recordChannelClick(req, dto);
+    expect(result.accepted).toBe(true);
+    expect(mockChannelClickSvc.recordClick).toHaveBeenCalledWith("u1", dto);
   });
 
   it("GET /commission/config — 分佣配置总览", async () => {

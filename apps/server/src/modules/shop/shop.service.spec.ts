@@ -154,6 +154,10 @@ const mockPrisma: any = {
   referralRelation: {
     findFirst: jest.fn().mockResolvedValue(null),
   },
+  // 佣-V2-P2 渠道主体临时链接归因（默认无点击记录·灰度开关默认关=configSystem 缺省 null）
+  channelClick: {
+    findFirst: jest.fn().mockResolvedValue(null),
+  },
 }
 
 const mockCommission = {
@@ -406,13 +410,16 @@ describe("ShopService", () => {
       })
     })
 
-    it("无归因不生成：giftCardMeta 为 undefined 且不触碰全局开关配置", async () => {
+    it("无归因不生成：giftCardMeta 为 undefined 且不触碰贺卡全局开关配置", async () => {
       setupProductOrder()
       const result = await svc.createOrder("u1", { type: "PRODUCT", targetId: "p1", amount: 1 })
       expect(result.id).toBe("o-gift")
       const data = mockPrisma.order.create.mock.calls[0][0].data
       expect(data.giftCardMeta).toBeUndefined()
-      expect(mockPrisma.configSystem.findUnique).not.toHaveBeenCalled()
+      // 佣-V2-P2 后 createOrder 固定会查一次归因灰度开关（commission_v2_attribution），只断言贺卡开关未查
+      const giftCardCalls = mockPrisma.configSystem.findUnique.mock.calls
+        .filter((c: any) => c[0]?.where?.configKey === "shop.gift_card.enabled")
+      expect(giftCardCalls).toHaveLength(0)
     })
 
     it("全局开关关闭（shop.gift_card.enabled=false）：归因单也不生成贺卡", async () => {
@@ -425,6 +432,105 @@ describe("ShopService", () => {
       const data = mockPrisma.order.create.mock.calls[0][0].data
       expect(data.tempReferrerId).toBe("ref1") // 归因照常保留，只是不附贺卡
       expect(data.giftCardMeta).toBeUndefined()
+    })
+  })
+
+  // ═══════════════════ 渠道主体临时链接归因（佣-V2-P2） ═══════════════════
+
+  describe("佣-V2-P2 渠道归因（灰度开关 commission_v2_attribution·last-click 7天窗）", () => {
+    function setupChannelOrder() {
+      mockUnifiedPricing.calculateEffectivePrice.mockResolvedValue({
+        productId: "p1", effectivePrice: 100, originalPrice: 100,
+        appliedPromotion: null, activePromotions: [], hasPromotion: false,
+      })
+      mockPrisma.product.findUnique.mockResolvedValue({ id: "p1", price: 100, status: "ON_SALE" })
+      mockPrisma.order.create.mockResolvedValue({ id: "o-ch", status: "PENDING" })
+    }
+    /** 灰度开关 mock：commission_v2_attribution 按 on 返回，其余配置键（贺卡等）返回 null=默认 */
+    function setAttributionFlag(on: boolean) {
+      mockPrisma.configSystem.findUnique.mockImplementation(({ where }: any) =>
+        Promise.resolve(where?.configKey === "commission_v2_attribution" ? { configValue: on ? "true" : "false" } : null),
+      )
+    }
+
+    // mockImplementation/mockResolvedValue 会跨 clearAllMocks 存活，本组结束后还原默认（开关关·无点击）
+    afterEach(() => {
+      mockPrisma.configSystem.findUnique.mockReset()
+      mockPrisma.channelClick.findFirst.mockReset()
+      mockPrisma.channelClick.findFirst.mockResolvedValue(null)
+    })
+
+    it("开关关：不查 ChannelClick，完全走旧逻辑（回滚路径·tempRefSubjectType 不写）", async () => {
+      setupChannelOrder()
+      setAttributionFlag(false)
+      await svc.createOrder("u1", { type: "PRODUCT", targetId: "p1", amount: 1 })
+      expect(mockPrisma.channelClick.findFirst).not.toHaveBeenCalled()
+      const data = mockPrisma.order.create.mock.calls[0][0].data
+      expect(data.tempReferrerId).toBeNull()
+      expect(data.tempRefSubjectType).toBeNull()
+    })
+
+    it("开关开+精确命中：tempReferrerId=渠道受益人·tempRefSubjectType 落库·查询带过期过滤", async () => {
+      setupChannelOrder()
+      setAttributionFlag(true)
+      mockPrisma.channelClick.findFirst.mockResolvedValueOnce({ beneficiaryUserId: "circle-owner", subjectType: "CIRCLE" })
+      mockPrisma.user.findUnique.mockResolvedValue({ id: "circle-owner", nickname: "圈主" }) // 贺卡组装
+      await svc.createOrder("u1", { type: "PRODUCT", targetId: "p1", amount: 1 })
+      const data = mockPrisma.order.create.mock.calls[0][0].data
+      expect(data.tempReferrerId).toBe("circle-owner")
+      expect(data.tempRefSubjectType).toBe("CIRCLE")
+      // 7 天窗：查询侧只取未过期记录（expiresAt > now），过期点击天然不生效
+      expect(mockPrisma.channelClick.findFirst.mock.calls[0][0].where).toEqual(
+        expect.objectContaining({ userId: "u1", targetId: "p1", expiresAt: { gt: expect.any(Date) } }),
+      )
+    })
+
+    it("开关开+渠道命中优先于前端传入的临时推荐人（服务端受信任来源·last-click 抢佣）", async () => {
+      setupChannelOrder()
+      setAttributionFlag(true)
+      mockPrisma.user.findUnique.mockResolvedValue({ id: "ref1", nickname: "分享者" }) // dto ref 可解析为真实用户
+      mockPrisma.channelClick.findFirst.mockResolvedValueOnce({ beneficiaryUserId: "station-master", subjectType: "STATION" })
+      await svc.createOrder("u1", { type: "PRODUCT", targetId: "p1", amount: 1, tempReferrerId: "ref1" })
+      const data = mockPrisma.order.create.mock.calls[0][0].data
+      expect(data.tempReferrerId).toBe("station-master")
+      expect(data.tempRefSubjectType).toBe("STATION")
+    })
+
+    it("开关开+无精确命中：SHOP_ALL 全店链接兜底", async () => {
+      setupChannelOrder()
+      setAttributionFlag(true)
+      mockPrisma.channelClick.findFirst
+        .mockResolvedValueOnce(null) // targetId 精确匹配未命中
+        .mockResolvedValueOnce({ beneficiaryUserId: "offline-owner", subjectType: "OFFLINE_STATION" })
+      mockPrisma.user.findUnique.mockResolvedValue({ id: "offline-owner", nickname: "驿站主" })
+      await svc.createOrder("u1", { type: "PRODUCT", targetId: "p1", amount: 1 })
+      expect(mockPrisma.channelClick.findFirst).toHaveBeenCalledTimes(2)
+      expect(mockPrisma.channelClick.findFirst.mock.calls[1][0].where).toEqual(
+        expect.objectContaining({ targetType: "SHOP_ALL" }),
+      )
+      const data = mockPrisma.order.create.mock.calls[0][0].data
+      expect(data.tempReferrerId).toBe("offline-owner")
+      expect(data.tempRefSubjectType).toBe("OFFLINE_STATION")
+    })
+
+    it("开关开+全部无命中：现行归因逻辑不变（dto 传入的临时推荐人照常生效）", async () => {
+      setupChannelOrder()
+      setAttributionFlag(true)
+      mockPrisma.user.findUnique.mockResolvedValue({ id: "ref1", nickname: "分享者" })
+      await svc.createOrder("u1", { type: "PRODUCT", targetId: "p1", amount: 1, tempReferrerId: "ref1" })
+      const data = mockPrisma.order.create.mock.calls[0][0].data
+      expect(data.tempReferrerId).toBe("ref1")
+      expect(data.tempRefSubjectType).toBeNull()
+    })
+
+    it("开关开+命中但受益人=买家本人：忽略该点击（防御·点击侧已拦自点）", async () => {
+      setupChannelOrder()
+      setAttributionFlag(true)
+      mockPrisma.channelClick.findFirst.mockResolvedValue({ beneficiaryUserId: "u1", subjectType: "CIRCLE" })
+      await svc.createOrder("u1", { type: "PRODUCT", targetId: "p1", amount: 1 })
+      const data = mockPrisma.order.create.mock.calls[0][0].data
+      expect(data.tempReferrerId).toBeNull()
+      expect(data.tempRefSubjectType).toBeNull()
     })
   })
 

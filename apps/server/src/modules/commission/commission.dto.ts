@@ -1,4 +1,4 @@
-import { MinLength, IsOptional, IsString, IsNumber, IsIn, IsPositive, Max } from "class-validator";
+import { MinLength, MaxLength, IsOptional, IsString, IsNumber, IsIn, IsPositive, Max } from "class-validator";
 import { ApiProperty } from "@nestjs/swagger";
 
 export class ConfigUpdateDto {
@@ -56,6 +56,25 @@ export class CreateReferralDto {
 
   @IsOptional() @IsString()
   channel?: string;
+}
+
+/** 渠道主体临时链接点击上报（佣-V2-P2） */
+export class ChannelClickDto {
+  @ApiProperty({ description: "渠道主体类型", enum: ["STATION", "CIRCLE", "OFFLINE_STATION"] })
+  @IsString() @IsIn(["STATION", "CIRCLE", "OFFLINE_STATION"])
+  subjectType: string;
+
+  @ApiProperty({ description: "渠道主体ID（Station.id / Circle.id / StationOffline.id）" })
+  @IsString() @MinLength(1) @MaxLength(64)
+  subjectId: string;
+
+  @ApiProperty({ description: "推广目标类型：PRODUCT 单品 / SHOP_ALL 全店 等" })
+  @IsString() @MinLength(1) @MaxLength(32)
+  targetType: string;
+
+  @ApiProperty({ description: "推广目标ID（targetType=SHOP_ALL 时可空）", required: false })
+  @IsOptional() @IsString() @MaxLength(64)
+  targetId?: string;
 }
 
 export class CommissionRateDto {

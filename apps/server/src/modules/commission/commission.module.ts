@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 import { CommissionController } from "./commission.controller";
 import { CommissionService } from "./commission.service";
+import { ChannelClickService } from "./channel-click.service";
 import { PrismaModule } from "../../prisma/prisma.module";
 import { ActiveUserGuard } from "../../common/active-user.guard";
 import { WebhookModule } from "../webhook/webhook.module";
@@ -11,7 +12,7 @@ import { SettlementModule } from "../settlement/settlement.module";
 @Module({
   imports: [PrismaModule, WebhookModule, SystemModule, FundApprovalCoreModule, SettlementModule],
   controllers: [CommissionController],
-  providers: [CommissionService, ActiveUserGuard],
-  exports: [CommissionService],
+  providers: [CommissionService, ChannelClickService, ActiveUserGuard],
+  exports: [CommissionService, ChannelClickService],
 })
 export class CommissionModule {}

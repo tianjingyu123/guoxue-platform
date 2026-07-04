@@ -17,6 +17,8 @@ const mockPrisma = {
   withdrawal: { create: jest.fn(), findMany: jest.fn(), count: jest.fn(), findUnique: jest.fn(), update: jest.fn(), aggregate: jest.fn() },
   referralLink: { create: jest.fn(), findMany: jest.fn(), findUnique: jest.fn(), update: jest.fn() },
   platformFeeRecord: { findMany: jest.fn(), findFirst: jest.fn(), createMany: jest.fn() },
+  ledgerEntry: { findFirst: jest.fn(), create: jest.fn() },
+  settlementRule: { findUnique: jest.fn() },
   $transaction: jest.fn().mockImplementation((cb: any) => cb(mockPrisma)),
 };
 const mockWebhook = { fire: jest.fn().mockResolvedValue(undefined) };
@@ -307,6 +309,102 @@ describe("CommissionService", () => {
       const arg = mockPrisma.operatorEarning.create.mock.calls[0][0];
       expect(arg.data.rate).toBe(0.1); // 非 GOLD 12%
       expect(arg.data.earned).toBe(10);
+    });
+  });
+
+  describe("佣-V2-P2 渠道主体受益人路由（CIRCLE/OFFLINE_STATION → LedgerEntry）", () => {
+    /** PRODUCT 订单 100 元·rateA 20%·临时归因命中渠道主体（Order.tempRefSubjectType） */
+    function mockChannelOrder(subjectType: string, orderUserId = "buyer-1") {
+      mockPrisma.commissionConfig.findUnique.mockResolvedValue({ configKey: "product_platform", rateA: 0.2 });
+      mockPrisma.order.findUnique.mockResolvedValue({ userId: orderUserId, targetId: "prod-1", tempRefSubjectType: subjectType });
+      mockPrisma.product.findUnique.mockResolvedValue({ commissionRate: null });
+      mockPrisma.ledgerEntry.findFirst.mockResolvedValue(null);
+      mockPrisma.settlementRule.findUnique.mockResolvedValue(null);
+      mockPrisma.ledgerEntry.create.mockImplementation(({ data }: any) => Promise.resolve({ id: "le-1", ...data }));
+    }
+
+    it("CIRCLE 渠道：佣金入 LedgerEntry role=CIRCLE·不建 StationEarning·不派管理奖", async () => {
+      mockChannelOrder("CIRCLE");
+      const result = await svc.calculateAndRecord("order-1", "PRODUCT", 100, undefined, "circle-owner");
+      expect(result).toBeTruthy();
+      const arg = mockPrisma.ledgerEntry.create.mock.calls[0][0];
+      expect(arg.data.role).toBe("CIRCLE");
+      expect(arg.data.beneficiaryType).toBe("USER");
+      expect(arg.data.beneficiaryId).toBe("circle-owner");
+      expect(arg.data.category).toBe("COMMISSION");
+      expect(arg.data.amount).toBe(20); // 100 × 0.2
+      expect(arg.data.status).toBe("PENDING");
+      expect(mockPrisma.stationEarning.create).not.toHaveBeenCalled();
+      expect(mockPrisma.operatorEarning.create).not.toHaveBeenCalled(); // 管理奖仅 STATION 渠道派生
+      expect(mockPrisma.station.findUnique).not.toHaveBeenCalled(); // 不走分站路径
+    });
+
+    it("OFFLINE_STATION 渠道：role=OFFLINE_STATION·受益人=驿站主", async () => {
+      mockChannelOrder("OFFLINE_STATION");
+      await svc.calculateAndRecord("order-1", "PRODUCT", 100, undefined, "offline-owner");
+      const arg = mockPrisma.ledgerEntry.create.mock.calls[0][0];
+      expect(arg.data.role).toBe("OFFLINE_STATION");
+      expect(arg.data.beneficiaryId).toBe("offline-owner");
+      expect(mockPrisma.stationEarning.create).not.toHaveBeenCalled();
+      expect(mockPrisma.operatorEarning.create).not.toHaveBeenCalled();
+    });
+
+    it("渠道主体自购（付款人=受益人）：不产生佣金", async () => {
+      mockChannelOrder("CIRCLE", "circle-owner"); // 订单付款人即圈主
+      const result = await svc.calculateAndRecord("order-1", "PRODUCT", 100, undefined, "circle-owner");
+      expect(result).toBeNull();
+      expect(mockPrisma.ledgerEntry.create).not.toHaveBeenCalled();
+    });
+
+    it("幂等：同订单同渠道角色已有正向佣金则返回既有记录不重复入账", async () => {
+      mockChannelOrder("CIRCLE");
+      mockPrisma.ledgerEntry.findFirst.mockResolvedValue({ id: "le-exist", role: "CIRCLE", amount: 20 });
+      const result: any = await svc.calculateAndRecord("order-1", "PRODUCT", 100, undefined, "circle-owner");
+      expect(result.id).toBe("le-exist");
+      expect(mockPrisma.ledgerEntry.create).not.toHaveBeenCalled();
+    });
+
+    it("逐品率 Product.commissionRate 对渠道佣金同样生效", async () => {
+      mockChannelOrder("CIRCLE");
+      mockPrisma.product.findUnique.mockResolvedValue({ commissionRate: 0.35 });
+      await svc.calculateAndRecord("order-1", "PRODUCT", 100, undefined, "circle-owner");
+      const arg = mockPrisma.ledgerEntry.create.mock.calls[0][0];
+      expect(arg.data.rate).toBe(0.35);
+      expect(arg.data.amount).toBe(35);
+    });
+
+    it("SettlementRule 存在时对齐缓冲期与大额冻结", async () => {
+      mockChannelOrder("CIRCLE");
+      mockPrisma.settlementRule.findUnique.mockResolvedValue({
+        enabled: true, bufferDays: 7, requireApproval: true, approvalThreshold: 10,
+      });
+      await svc.calculateAndRecord("order-1", "PRODUCT", 100, undefined, "circle-owner");
+      const arg = mockPrisma.ledgerEntry.create.mock.calls[0][0];
+      expect(arg.data.status).toBe("FROZEN"); // 20 ≥ 阈值 10
+      expect(arg.data.availableAt.getTime()).toBeGreaterThan(Date.now() + 6 * 86_400_000);
+    });
+
+    it("tempRefSubjectType=STATION：走现行分站路径（StationEarning·不落渠道 LedgerEntry）", async () => {
+      mockPrisma.commissionConfig.findUnique.mockResolvedValue({ configKey: "product_platform", rateA: 0.2 });
+      mockPrisma.order.findUnique.mockResolvedValue({ userId: "buyer-1", targetId: "prod-1", tempRefSubjectType: "STATION" });
+      mockPrisma.product.findUnique.mockResolvedValue({ commissionRate: null });
+      mockPrisma.station.findUnique.mockResolvedValue({ id: "station-1", userId: "st-user", totalEarning: 0 });
+      mockPrisma.stationEarning.create.mockResolvedValue({ id: "earning-1" });
+      await svc.calculateAndRecord("order-1", "PRODUCT", 100, undefined, "st-user");
+      expect(mockPrisma.stationEarning.create).toHaveBeenCalled();
+      expect(mockPrisma.ledgerEntry.create).not.toHaveBeenCalled();
+    });
+
+    it("tempRefSubjectType 为空（现行 dto 传入临时推荐人）：走现行分站路径不受影响", async () => {
+      mockPrisma.commissionConfig.findUnique.mockResolvedValue({ configKey: "product_platform", rateA: 0.2 });
+      mockPrisma.order.findUnique.mockResolvedValue({ userId: "buyer-1", targetId: "prod-1", tempRefSubjectType: null });
+      mockPrisma.product.findUnique.mockResolvedValue({ commissionRate: null });
+      mockPrisma.station.findUnique.mockResolvedValue({ id: "station-1", userId: "st-user", totalEarning: 0 });
+      mockPrisma.stationEarning.create.mockResolvedValue({ id: "earning-1" });
+      const result = await svc.calculateAndRecord("order-1", "PRODUCT", 100, undefined, "st-user");
+      expect(result).toBeTruthy();
+      expect(mockPrisma.stationEarning.create).toHaveBeenCalled();
+      expect(mockPrisma.ledgerEntry.create).not.toHaveBeenCalled();
     });
   });
 

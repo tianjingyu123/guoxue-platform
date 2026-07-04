@@ -486,7 +486,24 @@ export class ShopService {
     // ── 推荐归因（2026-07-02 拍板）──
     // 全平台单一分享链接（ref=分享者用户ID或分站推广码）：最近分享者=临时推荐人（前端7天窗口传入），
     // 优先于永久归属分站；永久归属由服务端从 ReferralRelation 回填，不信任前端传入的 referrerId。
-    const tempReferrerId = await this.resolveReferrerUserId(dto.tempReferrerId, userId);
+    let tempReferrerId = await this.resolveReferrerUserId(dto.tempReferrerId, userId);
+    // ── 佣-V2-P2 渠道主体临时链接归因（2026-07-04 拍板·设计 §3.2）──
+    // 灰度开关 ConfigSystem[commission_v2_attribution]="true" 才启用（关=完全走上面现行逻辑·回滚路径）。
+    // 服务端受信任来源：查 ChannelClick（该用户对该商品 targetId 精确优先，其次 SHOP_ALL 全店）
+    // 未过期记录中 clickedAt 最新一条 → tempReferrerId=点击时解析好的渠道受益人（last-click 抢佣）；
+    // 无命中 → 现行归因逻辑不变。查询失败不阻塞下单。
+    let tempRefSubjectType: string | null = null;
+    try {
+      if (await this.isChannelAttributionEnabled()) {
+        const click = await this.findLatestChannelClick(userId, dto.targetId);
+        if (click && click.beneficiaryUserId !== userId) {
+          tempReferrerId = click.beneficiaryUserId;
+          tempRefSubjectType = click.subjectType;
+        }
+      }
+    } catch (e) {
+      this.logger.warn("渠道点击归因查询失败，回落现行归因逻辑", e);
+    }
     let permanentReferrerId: string | null = null;
     try {
       const relation = await this.prisma.referralRelation.findFirst({
@@ -630,6 +647,7 @@ export class ShopService {
           shippingInfo: shippingInfo as any,
           referrerId: selfDiscount > 0 ? null : permanentReferrerId,
           tempReferrerId: selfDiscount > 0 ? null : tempReferrerId,
+          tempRefSubjectType: selfDiscount > 0 ? null : tempRefSubjectType, // 渠道主体类型（佣-V2-P2·分佣受益人路由依据·与推荐关系同生共灭）
           selfDiscount: selfDiscount > 0 ? selfDiscount : null,
           giftCardMeta: selfDiscount > 0 ? undefined : giftCardMeta, // 白标贺卡任务（供-P2·与推荐关系同生共灭）
           status: "PENDING",
@@ -1175,6 +1193,45 @@ export class ShopService {
       this.prisma.operator.findFirst({ where: { userId, status: "ACTIVE" }, select: { id: true } }),
     ]);
     return Boolean(station || circle || offlineStation || teacherCert || operator);
+  }
+
+  /** 佣-V2-P2 归因灰度开关键（ConfigSystem·"true" 才启用新判定·缺省/其他值=旧逻辑·回滚路径） */
+  private static readonly CHANNEL_ATTRIBUTION_FLAG = "commission_v2_attribution";
+
+  /** 佣-V2-P2：渠道归因灰度开关是否开启（默认 false=完全走现行归因逻辑） */
+  private async isChannelAttributionEnabled(): Promise<boolean> {
+    try {
+      const row = await this.prisma.configSystem.findUnique({
+        where: { configKey: ShopService.CHANNEL_ATTRIBUTION_FLAG },
+        select: { configValue: true },
+      });
+      return row?.configValue?.trim().toLowerCase() === "true";
+    } catch {
+      return false; // 开关查询失败视为关闭，走旧逻辑
+    }
+  }
+
+  /**
+   * 佣-V2-P2：查该用户对该商品的最新有效渠道点击（last-click·7天窗在写入侧钉死 expiresAt）。
+   * targetId 精确匹配优先（单品链接），其次 SHOP_ALL 全店链接兜底。
+   */
+  private async findLatestChannelClick(
+    userId: string,
+    targetId: string,
+  ): Promise<{ beneficiaryUserId: string; subjectType: string } | null> {
+    const now = new Date();
+    const select = { beneficiaryUserId: true, subjectType: true } as const;
+    const exact = await this.prisma.channelClick.findFirst({
+      where: { userId, targetId, expiresAt: { gt: now } },
+      orderBy: { clickedAt: "desc" },
+      select,
+    });
+    if (exact) return exact;
+    return this.prisma.channelClick.findFirst({
+      where: { userId, targetType: "SHOP_ALL", expiresAt: { gt: now } },
+      orderBy: { clickedAt: "desc" },
+      select,
+    });
   }
 
   private async resolveReferrerUserId(ref: string | undefined | null, buyerId: string): Promise<string | null> {
