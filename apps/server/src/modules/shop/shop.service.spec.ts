@@ -134,11 +134,32 @@ const mockPrisma: any = {
     create: jest.fn(),
     updateMany: jest.fn().mockResolvedValue({ count: 0 }),
   },
+  // 供-P3 自购立减泛化涉及的分销角色模型（默认全 null=普通用户·测试内用 mockResolvedValueOnce 命中角色）
+  station: {
+    findFirst: jest.fn().mockResolvedValue(null),
+    findUnique: jest.fn().mockResolvedValue(null),
+  },
+  circle: {
+    findFirst: jest.fn().mockResolvedValue(null),
+  },
+  stationOffline: {
+    findFirst: jest.fn().mockResolvedValue(null),
+  },
+  teacherCertification: {
+    findFirst: jest.fn().mockResolvedValue(null),
+  },
+  operator: {
+    findFirst: jest.fn().mockResolvedValue(null),
+  },
+  referralRelation: {
+    findFirst: jest.fn().mockResolvedValue(null),
+  },
 }
 
 const mockCommission = {
   calculateAndRecord: jest.fn().mockResolvedValue(undefined),
   reverseCommission: jest.fn().mockResolvedValue({ reversed: true }),
+  getStationRate: jest.fn().mockResolvedValue(0.25),
 }
 
 const mockUnifiedPricing = {
@@ -404,6 +425,98 @@ describe("ShopService", () => {
       const data = mockPrisma.order.create.mock.calls[0][0].data
       expect(data.tempReferrerId).toBe("ref1") // 归因照常保留，只是不附贺卡
       expect(data.giftCardMeta).toBeUndefined()
+    })
+  })
+
+  // ═══════════════════ 自购立减泛化（供-P3） ═══════════════════
+
+  describe("自购立减泛化（供-P3·全分销角色）", () => {
+    /** 常规实物订单基础 mock（无秒杀·无优惠券·直推佣金比例 25%） */
+    function setupSelfPurchaseOrder() {
+      mockUnifiedPricing.calculateEffectivePrice.mockResolvedValue({
+        productId: "p1", effectivePrice: 100, originalPrice: 100,
+        appliedPromotion: null, activePromotions: [], hasPromotion: false,
+      })
+      mockPrisma.product.findUnique.mockResolvedValue({ id: "p1", price: 100, status: "ON_SALE" })
+      mockPrisma.order.create.mockResolvedValue({ id: "o-self", status: "PENDING" })
+      mockCommission.getStationRate.mockResolvedValue(0.25)
+    }
+
+    // 五角色矩阵：任一角色成立即享自购立减（比例统一 rateA）
+    it.each([
+      ["站长", "station"],
+      ["圈主", "circle"],
+      ["驿站运营者", "stationOffline"],
+      ["认证从业者", "teacherCertification"],
+      ["运营商", "operator"],
+    ])("%s 自购：按 rateA 立减且清空推荐关系（不产佣金·不生成贺卡）", async (_role, model) => {
+      setupSelfPurchaseOrder()
+      ;(mockPrisma as any)[model].findFirst.mockResolvedValueOnce({ id: "r1" })
+
+      const result = await svc.createOrder("u1", { type: "PRODUCT", targetId: "p1", amount: 1 })
+      expect(result.id).toBe("o-self")
+      const data = mockPrisma.order.create.mock.calls[0][0].data
+      expect(data.selfDiscount).toBe(25) // 100 × 0.25
+      expect(data.amount).toBe(75) // 立减后实付
+      expect(data.referrerId).toBeNull() // 防套利：推荐关系清空 → 佣金天然不产生
+      expect(data.tempReferrerId).toBeNull()
+      expect(data.giftCardMeta).toBeUndefined() // 自购单不生成白标贺卡
+    })
+
+    it("防套利：分销角色用自己的 ref 下单（ref=本人）→ 立减且归因清空，不产佣金", async () => {
+      setupSelfPurchaseOrder()
+      mockPrisma.circle.findFirst.mockResolvedValueOnce({ id: "c1" })
+
+      await svc.createOrder("u1", { type: "PRODUCT", targetId: "p1", amount: 1, tempReferrerId: "u1" })
+      const data = mockPrisma.order.create.mock.calls[0][0].data
+      expect(data.selfDiscount).toBe(25)
+      expect(data.amount).toBe(75)
+      expect(data.referrerId).toBeNull()
+      expect(data.tempReferrerId).toBeNull()
+    })
+
+    it("经他人分享购买：不立减·归因保留（佣金归推荐人·与自购互斥）", async () => {
+      setupSelfPurchaseOrder()
+      // 外部推荐人 → 自购立减分支整体跳过（即便买家自身是分销角色）
+      mockPrisma.user.findUnique.mockResolvedValue({ id: "ref9", nickname: "王老师" })
+      mockPrisma.configSystem.findUnique.mockResolvedValue(null)
+
+      await svc.createOrder("u1", { type: "PRODUCT", targetId: "p1", amount: 1, tempReferrerId: "ref9" })
+      const data = mockPrisma.order.create.mock.calls[0][0].data
+      expect(data.selfDiscount).toBeNull()
+      expect(data.amount).toBe(100)
+      expect(data.tempReferrerId).toBe("ref9")
+    })
+
+    it("普通用户（无任何分销角色）：不立减按原价", async () => {
+      setupSelfPurchaseOrder()
+      await svc.createOrder("u1", { type: "PRODUCT", targetId: "p1", amount: 1 })
+      const data = mockPrisma.order.create.mock.calls[0][0].data
+      expect(data.selfDiscount).toBeNull()
+      expect(data.amount).toBe(100)
+      expect(mockCommission.getStationRate).not.toHaveBeenCalled()
+    })
+
+    it("佣金比例未配置（rateA=null）：分销角色也不立减", async () => {
+      setupSelfPurchaseOrder()
+      mockPrisma.station.findFirst.mockResolvedValueOnce({ id: "s1" })
+      mockCommission.getStationRate.mockResolvedValueOnce(null)
+
+      await svc.createOrder("u1", { type: "PRODUCT", targetId: "p1", amount: 1 })
+      const data = mockPrisma.order.create.mock.calls[0][0].data
+      expect(data.selfDiscount).toBeNull()
+      expect(data.amount).toBe(100)
+    })
+
+    it("角色查询失败：按原价下单不阻塞交易", async () => {
+      setupSelfPurchaseOrder()
+      mockPrisma.station.findFirst.mockRejectedValueOnce(new Error("db down"))
+
+      const result = await svc.createOrder("u1", { type: "PRODUCT", targetId: "p1", amount: 1 })
+      expect(result.id).toBe("o-self")
+      const data = mockPrisma.order.create.mock.calls[0][0].data
+      expect(data.selfDiscount).toBeNull()
+      expect(data.amount).toBe(100)
     })
   })
 

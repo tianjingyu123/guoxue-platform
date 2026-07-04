@@ -500,18 +500,17 @@ export class ShopService {
     }
     const effectiveReferrerId = tempReferrerId || permanentReferrerId;
 
-    // 站长自购立减（2026-07-02 拍板）：站长本人购买（无推荐人或推荐人为本人）直接按佣金比例立减成交，
-    // 不产生佣金；退款按实付价退。杜绝自购返佣/刷单套利。
+    // 分销角色自购立减（2026-07-02 拍板站长版·供-P3 泛化到全部分销角色）：
+    // 站长/圈主/驿站运营者/认证从业者/运营商本人购买（无推荐人或推荐人为本人）直接按直推佣金比例立减成交
+    // （比例=CommissionConfig.rateA·后台可配），不产生佣金；退款按实付价退。杜绝自购返佣/刷单套利。
     let selfPurchaseRate = 0;
     if (this.commissionSvc && (!effectiveReferrerId || effectiveReferrerId === userId)) {
       try {
-        const ownStation = await this.prisma.station.findFirst({
-          where: { userId, status: "ACTIVE" },
-          select: { id: true },
-        });
-        if (ownStation) selfPurchaseRate = (await this.commissionSvc.getStationRate(dto.type)) ?? 0;
+        if (await this.isDistributorSelfPurchaseEligible(userId)) {
+          selfPurchaseRate = (await this.commissionSvc.getStationRate(dto.type)) ?? 0;
+        }
       } catch (e) {
-        this.logger.warn("站长自购立减查询失败，按原价下单", e);
+        this.logger.warn("分销角色自购立减查询失败，按原价下单", e);
       }
     }
 
@@ -567,7 +566,7 @@ export class ShopService {
         if (claimed.count === 0) throw new BusinessException(ErrorCode.COUPON_INVALID, "优惠券不存在或已被使用");
       }
 
-      // 站长自购立减：在券后价基础上按佣金比例立减，并清空推荐关系（佣金天然不产生）
+      // 分销角色自购立减（供-P3 泛化）：在券后价基础上按直推佣金比例立减，并清空推荐关系（佣金天然不产生）
       let selfDiscount = 0;
       if (selfPurchaseRate > 0) {
         selfDiscount = Math.round(actualAmount * selfPurchaseRate * 100) / 100;
@@ -1157,6 +1156,25 @@ export class ShopService {
       this.logger.warn("白标贺卡信息组装失败，本单不附贺卡", e);
       return null;
     }
+  }
+
+  /**
+   * 自购立减资格判定（供-P3 泛化·2026-07-04）：
+   * 复用站长自购立减机制，扩展到全部分销角色——任一角色成立即享（比例统一取 CommissionConfig.rateA·后台可配）：
+   * ① 站长（Station ACTIVE）② 圈主（Circle ACTIVE 且未软删）③ 驿站运营者（StationOffline ACTIVE）
+   * ④ 认证从业者（TeacherCertification APPROVED）⑤ 运营商（Operator ACTIVE）。
+   * 防套利与站长版一致：立减单清空推荐关系（referrerId/tempReferrerId 置空）→ 佣金天然不产生；
+   * 白标贺卡不生成；退款按实付价退。查询失败由调用方兜底按原价下单，不阻塞交易。
+   */
+  private async isDistributorSelfPurchaseEligible(userId: string): Promise<boolean> {
+    const [station, circle, offlineStation, teacherCert, operator] = await Promise.all([
+      this.prisma.station.findFirst({ where: { userId, status: "ACTIVE" }, select: { id: true } }),
+      this.prisma.circle.findFirst({ where: { ownerId: userId, status: "ACTIVE", deletedAt: null }, select: { id: true } }),
+      this.prisma.stationOffline.findFirst({ where: { ownerUserId: userId, status: "ACTIVE" }, select: { id: true } }),
+      this.prisma.teacherCertification.findFirst({ where: { userId, status: "APPROVED" }, select: { id: true } }),
+      this.prisma.operator.findFirst({ where: { userId, status: "ACTIVE" }, select: { id: true } }),
+    ]);
+    return Boolean(station || circle || offlineStation || teacherCert || operator);
   }
 
   private async resolveReferrerUserId(ref: string | undefined | null, buyerId: string): Promise<string | null> {
