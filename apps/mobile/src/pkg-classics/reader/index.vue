@@ -3,6 +3,8 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { onLoad, onPageScroll, onUnload, onHide } from '@dcloudio/uni-app'
 import { classicsApi } from '@/lib/classics-data'
 import { getToken } from '@/utils/storage'
+import TouchpointCard from '@/components/common/touchpoint-card.vue'
+import { touchpointApi, type TouchpointResult } from '@/lib/touchpoint-data'
 
 interface ChapterRef { id: string; title: string }
 
@@ -116,11 +118,19 @@ async function fetchBook(id: string, chapterId?: string) {
     let idx = chapterId ? chapters.value.findIndex((c) => c.id === chapterId) : 0
     if (idx < 0) idx = 0
     await loadChapter(idx, false)
+    loadTouchpoint()
   } catch (e) {
     error.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
   }
+}
+
+// ── 无痕商业化触点 #1 古籍精讲课（classic_course·场景标签上线前服务端返回空→v-if 天然隐藏） ──
+// 每次进书拉一次（静默降级）；卡为章末文档流内静态小卡，不悬浮不弹出，不打断阅读
+const tp = ref<TouchpointResult | null>(null)
+async function loadTouchpoint() {
+  tp.value = await touchpointApi.get('classic_course', { bookId: bookId.value, bookTitle: bookTitle.value })
 }
 
 async function loadChapter(idx: number, scrollTop = true) {
@@ -309,6 +319,8 @@ onLoad((q) => {
           <app-icon name="sparkles" :size="26" :color="subColor" />
           <text class="rd-tip-txt">读到不懂之处，轻点该句即可获得 AI 白话对照与注释</text>
         </view>
+        <!-- 触点 #1 古籍精讲课：章末读完位·文档流内静态卡（不悬浮不遮挡）·服务端无卡则不渲染 -->
+        <touchpoint-card v-if="tp?.card" :card="tp.card" scene="classic_course" />
         <!-- 章节切换 -->
         <view class="rd-chapter-nav">
           <view class="rd-cn-btn" :class="{ 'rd-cn-disabled': !hasPrev }" @tap="goPrev">

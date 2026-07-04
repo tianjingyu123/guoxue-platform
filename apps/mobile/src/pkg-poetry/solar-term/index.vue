@@ -76,6 +76,9 @@
         <text class="next-tip">节气当日回来参与仪式，得限定成就</text>
       </view>
 
+      <!-- 触点 #4 节气礼盒：仪式参与区块之后·服务端无卡（场景标签未上线）则不渲染 -->
+      <touchpoint-card v-if="tp?.card" :card="tp.card" scene="jieqi_gift" />
+
       <!-- ─── 集齐进度区 ─── -->
       <view class="collect-card">
         <text class="collect-title">节气集齐进度</text>
@@ -160,6 +163,8 @@ import { getToken } from '@/utils/storage'
 import { captureRefFromQuery, withRef } from '@/utils/referral'
 import { drawQrToCanvas } from '@/utils/qrcode'
 import { useShare } from '@/composables/useShare'
+import TouchpointCard from '@/components/common/touchpoint-card.vue'
+import { touchpointApi, type TouchpointResult } from '@/lib/touchpoint-data'
 import {
   solarTermApi,
   achievementLabel,
@@ -229,6 +234,15 @@ async function load() {
   }
   // 集齐进度需登录，独立拉取（失败不影响主内容）
   loadMy()
+  loadTouchpoint()
+}
+
+// ── 无痕商业化触点 #4 节气礼盒（jieqi_gift·供应链场景标签上线前服务端返回空→v-if 天然隐藏） ──
+const tp = ref<TouchpointResult | null>(null)
+async function loadTouchpoint() {
+  // 节气日带上当期节气名，供服务端场景标签召回（如「节气时令」礼盒）
+  const ctx = isTermDay.value && current.value ? { term: current.value.name } : undefined
+  tp.value = await touchpointApi.get('jieqi_gift', ctx)
 }
 
 async function loadMy() {

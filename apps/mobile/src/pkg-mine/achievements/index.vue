@@ -120,6 +120,9 @@
         </scroll-view>
       </view>
 
+      <!-- 触点 #8 晋级进阶课：功名与称号之间的「晋级价值时刻」位·服务端无卡则不渲染 -->
+      <touchpoint-card v-if="tp?.card" :card="tp.card" scene="levelup_course" />
+
       <!-- 4. 称号（独立加载·失败不阻塞主档案） -->
       <view class="section">
         <view class="section-head">
@@ -240,6 +243,7 @@
 import { ref, computed, getCurrentInstance, nextTick } from 'vue'
 import { onLoad, onShareAppMessage } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
+import TouchpointCard from '@/components/common/touchpoint-card.vue'
 import { goBack, reLaunch, navigateTo } from '@/utils/router'
 import { getUserInfo } from '@/utils/storage'
 import { withRef } from '@/utils/referral'
@@ -252,6 +256,7 @@ import {
   type GrowthTitle,
   type CheckinStatus,
 } from '@/lib/growth-data'
+import { touchpointApi, type TouchpointResult } from '@/lib/touchpoint-data'
 
 // ── 三态 ──────────────────────────────────────────
 const loading = ref(true)
@@ -330,6 +335,13 @@ async function onTapTitle(t: GrowthTitle) {
   }
 }
 
+// ── 无痕商业化触点 #8 晋级进阶课（levelup_course·服务端裁决·空则 v-if 隐藏） ──
+// 成长档案无「最近学习品类」字段，按规范拿不到就不传 ctx；view 埋点由卡组件渲染时上报
+const tp = ref<TouchpointResult | null>(null)
+async function loadTouchpoint() {
+  tp.value = await touchpointApi.get('levelup_course')
+}
+
 onLoad(() => {
   // 成就卡画布尺寸按屏宽自适应（与节气卡同范式）
   uni.getSystemInfo({
@@ -341,6 +353,7 @@ onLoad(() => {
   })
   loadAll()
   loadTitles()
+  loadTouchpoint()
 })
 
 function goLogin() {
