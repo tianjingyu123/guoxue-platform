@@ -167,6 +167,42 @@ function adaptCircle(c: RawCircle): Circle {
   }
 }
 
+/** /circles/my 返回 CircleMember[]，含 role + 嵌套 circle（后端 getMyCircles 结构） */
+interface RawMyCircleMember {
+  id?: string
+  role?: string
+  circle?: {
+    id?: string
+    name?: string
+    cover?: string | null
+    type?: string
+    memberCount?: number | string
+    postCount?: number | string
+    updatedAt?: string
+  } | null
+}
+
+/** CircleMemberRole(OWNER/PARTNER/ADMIN/GUEST/VOLUNTEER/MEMBER) → 前端三档角色 */
+function mapMemberRole(role?: string): MyCircleRole {
+  const r = (role || '').toUpperCase()
+  if (r === 'OWNER') return 'owner'
+  if (r === 'ADMIN' || r === 'PARTNER') return 'admin'
+  return 'member'
+}
+
+/** CircleMember 记录 → 前端 MyCircle（取嵌套 circle 字段 + 成员角色） */
+function adaptMyCircle(m: RawMyCircleMember): MyCircle {
+  const c = m.circle ?? {}
+  return {
+    id: c.id || '',
+    name: c.name || '',
+    cover: c.cover || '',
+    role: mapMemberRole(m.role),
+    memberCount: Number(c.memberCount) || 0,
+    postCount: Number(c.postCount) || 0,
+  }
+}
+
 /** ISO 时间 → 相对时间「x分钟前 / x小时前 / x天前 / M月D日」 */
 function relativeTime(iso?: string): string {
   if (!iso) return ''
@@ -338,8 +374,30 @@ export const circleApi = {
       return { joinedCount: 0, postCount: 0, likeReceived: 0 }
     }
   },
+  /**
+   * 我加入的圈子（含成员角色，真连 GET /circles/my）。
+   * 后端返回 CircleMember[]（嵌套 circle + role）；错误上抛供页面三态，不回退假数据。
+   */
+  getMyCircles: async (): Promise<MyCircle[]> => {
+    const res = await apiGet<RawMyCircleMember[] | { data?: RawMyCircleMember[] }>('/circles/my')
+    const arr = Array.isArray(res) ? res : (res?.data ?? [])
+    return arr.map(adaptMyCircle).filter((c) => c.id)
+  },
   join: (id: string) => apiPost<{ success: boolean }>(`/circles/${id}/join`),
   leave: (id: string) => apiPost<{ success: boolean }>(`/circles/${id}/leave`),
+}
+
+/** 我的圈子角色（后端 CircleMemberRole 归并为三档展示） */
+export type MyCircleRole = 'owner' | 'admin' | 'member'
+
+/** 我加入的圈子（my-circles 页卡片，仅含后端真实字段） */
+export interface MyCircle {
+  id: string
+  name: string
+  cover: string
+  role: MyCircleRole
+  memberCount: number
+  postCount: number
 }
 
 /** 我的圈子数据汇总 */

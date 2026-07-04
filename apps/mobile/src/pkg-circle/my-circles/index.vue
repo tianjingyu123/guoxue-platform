@@ -21,41 +21,37 @@
         </view>
         <view class="overview-stats">
           <view class="stat-item">
-            <text class="stat-num">{{ stats.totalCircles }}</text>
+            <text class="stat-num">{{ totalCircles }}</text>
             <text class="stat-label">已加入</text>
           </view>
           <view class="stat-item">
-            <text class="stat-num">{{ stats.totalPosts }}</text>
+            <text class="stat-num">{{ stats.postCount }}</text>
             <text class="stat-label">发帖数</text>
           </view>
           <view class="stat-item">
-            <text class="stat-num">{{ formatK(stats.totalLikes) }}</text>
+            <text class="stat-num">{{ formatK(stats.likeReceived) }}</text>
             <text class="stat-label">获赞数</text>
-          </view>
-          <view class="stat-item">
-            <text class="stat-num">{{ stats.totalExp }}</text>
-            <text class="stat-label">总经验</text>
           </view>
         </view>
         <view class="overview-roles">
           <view class="role-stat">
             <view class="role-stat-top">
               <AppIcon name="crown" :size="16" color="#FDE047" />
-              <text class="role-stat-num">{{ stats.asOwner }}</text>
+              <text class="role-stat-num">{{ roleCounts.owner }}</text>
             </view>
             <text class="role-stat-label">圈主</text>
           </view>
           <view class="role-stat">
             <view class="role-stat-top">
               <AppIcon name="shield" :size="16" color="#93C5FD" />
-              <text class="role-stat-num">{{ stats.asAdmin }}</text>
+              <text class="role-stat-num">{{ roleCounts.admin }}</text>
             </view>
             <text class="role-stat-label">管理员</text>
           </view>
           <view class="role-stat">
             <view class="role-stat-top">
               <AppIcon name="user" :size="16" color="#86EFAC" />
-              <text class="role-stat-num">{{ stats.asMember }}</text>
+              <text class="role-stat-num">{{ roleCounts.member }}</text>
             </view>
             <text class="role-stat-label">成员</text>
           </view>
@@ -93,16 +89,39 @@
 
       <!-- 圈子列表 -->
       <view class="circle-list">
-        <view v-if="filteredCircles.length === 0" class="empty">
+        <!-- 加载态 -->
+        <view v-if="loading" class="skeleton-wrap">
+          <view v-for="i in 3" :key="i" class="skeleton-card">
+            <view class="sk-cover" />
+            <view class="sk-lines">
+              <view class="sk-line sk-line-lg" />
+              <view class="sk-line sk-line-sm" />
+            </view>
+          </view>
+        </view>
+
+        <!-- 错误态 -->
+        <view v-else-if="error" class="state-box">
+          <view class="empty-icon">
+            <AppIcon name="alert-circle" :size="32" color="#999" />
+          </view>
+          <text class="empty-text">加载失败，请稍后重试</text>
+          <text class="empty-link" @tap="load">点击重试</text>
+        </view>
+
+        <!-- 空态 -->
+        <view v-else-if="filteredCircles.length === 0" class="state-box">
           <view class="empty-icon">
             <AppIcon name="users" :size="32" color="#999" />
           </view>
-          <text class="empty-text">暂无圈子</text>
-          <text class="empty-link" @tap="navigateTo('/circles')">去发现圈子</text>
+          <text class="empty-text">{{ myCircles.length === 0 ? '你还没有加入任何圈子' : '没有符合条件的圈子' }}</text>
+          <text class="empty-link" @tap="navigateTo('/circles')">去圈子广场逛逛</text>
         </view>
 
+        <!-- 列表 -->
         <view
           v-for="circle in filteredCircles"
+          v-else
           :key="circle.id"
           class="circle-card"
           @tap="navigateTo(`/circles/${circle.id}`)"
@@ -110,9 +129,6 @@
           <view class="circle-cover-wrap">
             <view class="circle-cover" :style="{ background: coverColor(circle.name) }">
               <text class="circle-cover-text">{{ circle.name.slice(0, 1) }}</text>
-            </view>
-            <view v-if="circle.unreadCount > 0" class="unread-badge">
-              <text class="unread-text">{{ circle.unreadCount > 99 ? '99+' : circle.unreadCount }}</text>
             </view>
           </view>
 
@@ -130,25 +146,14 @@
                 <AppIcon name="users" :size="14" color="#999" />
                 <text class="meta-text">{{ circle.memberCount }}人</text>
               </view>
-              <view v-if="circle.todayActive > 0" class="meta-item hot">
-                <AppIcon name="flame" :size="14" color="#FF6B35" />
-                <text class="meta-text hot">今日{{ circle.todayActive }}动态</text>
+              <view class="meta-item">
+                <AppIcon name="file-text" :size="14" color="#999" />
+                <text class="meta-text">{{ circle.postCount }}帖</text>
               </view>
-            </view>
-
-            <text class="circle-latest">{{ circle.latestPost }}</text>
-
-            <view class="circle-level">
-              <text class="level-tag">Lv.{{ circle.level }}</text>
-              <view class="level-bar">
-                <view class="level-fill" :style="{ width: `${(circle.exp % 500) / 5}%` }" />
-              </view>
-              <text class="level-exp">{{ circle.exp }}exp</text>
             </view>
           </view>
 
           <view class="circle-right">
-            <text class="circle-time">{{ circle.lastActive }}</text>
             <view
               v-if="circle.role === 'owner'"
               class="manage-btn"
@@ -188,52 +193,53 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
+import { circleApi, type MyCircle, type MyCircleRole } from '@/lib/circle-data'
 
-type Role = 'owner' | 'admin' | 'member'
-
-interface Circle {
-  id: string
-  name: string
-  type: string
-  price: number
-  role: Role
-  memberCount: number
-  todayActive: number
-  latestPost: string
-  unreadCount: number
-  lastActive: string
-  level: number
-  exp: number
-}
+const loading = ref(true)
+const error = ref(false)
+const myCircles = ref<MyCircle[]>([])
+// 后端 /circles/my-stats 聚合：发帖数 / 累计获赞（已加入数与角色分布从列表实时派生）
+const stats = ref<{ postCount: number; likeReceived: number }>({ postCount: 0, likeReceived: 0 })
 
 const searchQuery = ref('')
-const activeFilter = ref<'all' | Role>('all')
+const activeFilter = ref<'all' | MyCircleRole>('all')
 
-const myCircles = ref<Circle[]>([
-  { id: '1', name: '八字命理研习社', type: 'paid', price: 199, role: 'owner', memberCount: 1280, todayActive: 56, latestPost: '周易大师发布了新文章《八字中的十神关系详解》', unreadCount: 5, lastActive: '10分钟前', level: 5, exp: 1280 },
-  { id: '2', name: '紫微斗数学院', type: 'paid', price: 299, role: 'admin', memberCount: 856, todayActive: 32, latestPost: '张玄风：今天的直播课程大家记得准时参加', unreadCount: 12, lastActive: '30分钟前', level: 4, exp: 960 },
-  { id: '3', name: '风水堪舆交流群', type: 'free', price: 0, role: 'member', memberCount: 2560, todayActive: 128, latestPost: '陈风水分享了一个案例《商铺选址的风水要点》', unreadCount: 0, lastActive: '1小时前', level: 3, exp: 450 },
-  { id: '4', name: '易经六十四卦研习', type: 'paid', price: 99, role: 'member', memberCount: 680, todayActive: 18, latestPost: '今日话题：乾卦与坤卦的关系', unreadCount: 3, lastActive: '2小时前', level: 2, exp: 180 },
-])
-
-const stats = {
-  totalCircles: 4,
-  asOwner: 1,
-  asAdmin: 1,
-  asMember: 2,
-  totalPosts: 156,
-  totalLikes: 2800,
-  totalExp: 2870,
+async function load() {
+  loading.value = true
+  error.value = false
+  try {
+    const [circles, s] = await Promise.all([
+      circleApi.getMyCircles(),
+      circleApi.getMyStats(),
+    ])
+    myCircles.value = circles
+    stats.value = { postCount: s.postCount, likeReceived: s.likeReceived }
+  } catch {
+    error.value = true
+  } finally {
+    loading.value = false
+  }
 }
+onMounted(load)
+
+// 已加入总数（列表长度，权威口径）
+const totalCircles = computed(() => myCircles.value.length)
+
+// 角色分布：从真实列表派生（后端 CircleMember.role 已映射为三档）
+const roleCounts = computed(() => {
+  const c = { owner: 0, admin: 0, member: 0 }
+  for (const x of myCircles.value) c[x.role]++
+  return c
+})
 
 const filterTabs = computed(() => [
-  { id: 'all' as const, label: '全部', count: stats.totalCircles },
-  { id: 'owner' as const, label: '我创建的', count: stats.asOwner },
-  { id: 'admin' as const, label: '我管理的', count: stats.asAdmin },
-  { id: 'member' as const, label: '我加入的', count: stats.asMember },
+  { id: 'all' as const, label: '全部', count: totalCircles.value },
+  { id: 'owner' as const, label: '我创建的', count: roleCounts.value.owner },
+  { id: 'admin' as const, label: '我管理的', count: roleCounts.value.admin },
+  { id: 'member' as const, label: '我加入的', count: roleCounts.value.member },
 ])
 
 const filteredCircles = computed(() =>
@@ -255,13 +261,13 @@ function coverColor(name: string) {
   return coverPalette[sum % coverPalette.length]
 }
 
-function roleIcon(role: Role) {
+function roleIcon(role: MyCircleRole) {
   return role === 'owner' ? 'crown' : role === 'admin' ? 'shield' : 'user'
 }
-function roleLabel(role: Role) {
+function roleLabel(role: MyCircleRole) {
   return role === 'owner' ? '圈主' : role === 'admin' ? '管理员' : '成员'
 }
-function roleColor(role: Role) {
+function roleColor(role: MyCircleRole) {
   return role === 'owner' ? '#C9A96E' : role === 'admin' ? '#1890FF' : '#52C41A'
 }
 </script>
@@ -595,11 +601,46 @@ function roleColor(role: Role) {
   align-items: center;
   justify-content: center;
 }
-.empty {
+.state-box {
   display: flex;
   flex-direction: column;
   align-items: center;
   padding: 96rpx 0;
+}
+.skeleton-wrap {
+  padding-top: 8rpx;
+}
+.skeleton-card {
+  display: flex;
+  gap: 24rpx;
+  padding: 28rpx;
+  margin-bottom: 24rpx;
+  background: #fff;
+  border-radius: 24rpx;
+}
+.sk-cover {
+  width: 112rpx;
+  height: 112rpx;
+  border-radius: 24rpx;
+  background: #efeae2;
+}
+.sk-lines {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 20rpx;
+}
+.sk-line {
+  height: 24rpx;
+  border-radius: 12rpx;
+  background: #efeae2;
+}
+.sk-line-lg {
+  width: 60%;
+}
+.sk-line-sm {
+  width: 35%;
 }
 .empty-icon {
   width: 128rpx;

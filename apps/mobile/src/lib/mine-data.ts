@@ -1757,7 +1757,10 @@ export const mineApi = {
         recentByCourse.set(cid, { lastLesson: p.chapter?.title, lastStudyAt: p.updatedAt })
       }
     }
-    const courses: MyCourseItem[] = (my?.courses ?? [])
+    // ResponseInterceptor 把后端 {courses,total,page,pageSize} 分页结构重塑为数组，
+    // 故 data 运行时是数组而非 {courses}。两种形态都兼容，防止已购课程被丢弃。
+    const myList: RawCourseEnrollment[] = Array.isArray(my) ? my : (my?.courses ?? [])
+    const courses: MyCourseItem[] = myList
       .filter((o: RawCourseEnrollment) => o.course)
       .map((o: RawCourseEnrollment) => {
         const c = o.course! // filter 已保证 course 非空
