@@ -1976,4 +1976,11 @@ export const advisorRuleApi = {
   updateRule: (id: string, data: Record<string, unknown>) => api.put(`/advisor/rules/${id}`, data),
 };
 
+// ============ 前端错误监控（G4·埋点 action=error 聚合） ============
+export const trackErrorApi = {
+  // GET /track/errors?days=&page=&pageSize= → { days, total, last24h, byDay, topMessages, items, page, pageSize }
+  getErrors: (params?: { days?: number; page?: number; pageSize?: number }) =>
+    api.get("/track/errors", { params }),
+};
+
 export default api;

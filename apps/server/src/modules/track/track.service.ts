@@ -75,4 +75,68 @@ export class TrackService {
       buyers: buyerGroups.length,
     };
   }
+
+  /**
+   * 前端错误监控（G4）：App.onError 全局埋点 action=error 的聚合视图。
+   * 错误量级预期低（异常才有），findMany 全窗口取回后 JS 聚合即可；payload.msg 截断归并防高基数。
+   */
+  async getErrorMonitor(days = 7, page = 1, pageSize = 20) {
+    const since = new Date(Date.now() - days * 86_400_000);
+    const dayAgo = new Date(Date.now() - 86_400_000);
+    const [windowRows, total, last24h] = await Promise.all([
+      this.prisma.trackEvent.findMany({
+        where: { action: "error", createdAt: { gte: since } },
+        select: { path: true, payload: true, createdAt: true },
+        orderBy: { createdAt: "desc" },
+        take: 5000, // 聚合上限保险（错误洪峰时只聚合最近5000条）
+      }),
+      this.prisma.trackEvent.count({ where: { action: "error", createdAt: { gte: since } } }),
+      this.prisma.trackEvent.count({ where: { action: "error", createdAt: { gte: dayAgo } } }),
+    ]);
+
+    // 按日趋势（自然日·补零）
+    const byDayMap = new Map<string, number>();
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date(Date.now() - i * 86_400_000);
+      byDayMap.set(d.toISOString().slice(0, 10), 0);
+    }
+    // 按消息 TOP（msg 截断 120 字归并）
+    const byMsg = new Map<string, { count: number; lastAt: Date; samplePath: string | null }>();
+    for (const r of windowRows) {
+      const day = r.createdAt.toISOString().slice(0, 10);
+      if (byDayMap.has(day)) byDayMap.set(day, (byDayMap.get(day) ?? 0) + 1);
+      const msg = String((r.payload as Record<string, unknown> | null)?.msg ?? "未知错误").slice(0, 120);
+      const cur = byMsg.get(msg);
+      if (cur) {
+        cur.count++;
+        if (r.createdAt > cur.lastAt) cur.lastAt = r.createdAt;
+      } else {
+        byMsg.set(msg, { count: 1, lastAt: r.createdAt, samplePath: r.path });
+      }
+    }
+    const topMessages = [...byMsg.entries()]
+      .map(([msg, v]) => ({ msg, ...v }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10);
+
+    // 明细分页
+    const items = await this.prisma.trackEvent.findMany({
+      where: { action: "error", createdAt: { gte: since } },
+      select: { id: true, userId: true, path: true, payload: true, occurredAt: true, createdAt: true },
+      orderBy: { createdAt: "desc" },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+    });
+
+    return {
+      days,
+      total,
+      last24h,
+      byDay: [...byDayMap.entries()].map(([date, count]) => ({ date, count })),
+      topMessages,
+      items,
+      page,
+      pageSize,
+    };
+  }
 }

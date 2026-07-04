@@ -936,6 +936,12 @@ const routes = [
         component: () => import("@/views/system/SiteNoticeList.vue"),
         meta: { title: "全站公告管理", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
       },
+      {
+        path: "system/error-monitor",
+        name: "ErrorMonitor",
+        component: () => import("@/views/system/ErrorMonitor.vue"),
+        meta: { title: "错误监控", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
+      },
       // === 互动管理 ===
       {
         path: "comments",

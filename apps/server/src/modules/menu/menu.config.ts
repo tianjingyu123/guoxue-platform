@@ -354,6 +354,7 @@ export const MENU_CONFIG: MenuItem[] = [
       { title: "操作日志", path: "/system/operation-logs" },
       { title: "配置版本", path: "/system/config-versions" },
       { title: "审计日志", path: "/audit-logs" },
+      { title: "错误监控", path: "/system/error-monitor", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
       { title: "搜索权重", path: "/system/search-weights" },
       { title: "首页模块配置", path: "/system/homepage-config", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
       { title: "全站公告", path: "/system/site-notices", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
