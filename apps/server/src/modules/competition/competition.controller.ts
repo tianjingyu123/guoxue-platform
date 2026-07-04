@@ -6,6 +6,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from "@nestjs/swagg
 import { Request } from "express";
 import { CompetitionService } from "./competition.service";
 import { CompetitionAdminService } from "./competition-admin.service";
+import { StageFlowService } from "./stage-flow.service";
 import {
   CreateCompetitionDto, UpdateCompetitionDto, CreateRoundDto, UpdateRoundDto,
   CreateQuestionDto, UpdateQuestionDto, BatchCreateQuestionDto,
@@ -29,6 +30,7 @@ export class CompetitionAdminController {
   constructor(
     private readonly service: CompetitionService,
     private readonly adminService: CompetitionAdminService,
+    private readonly stageFlow: StageFlowService,
   ) {}
 
   @Post()
@@ -65,6 +67,23 @@ export class CompetitionAdminController {
   @ApiResponse({ status: 404, description: "资源不存在" })
   generateStages(@Param("id") id: string) {
     return this.adminService.generateStages(id);
+  }
+
+  @Post(":id/stages/:seq/advance")
+  @ApiOperation({ summary: "人工强制推进阶段（兜底·状态机单步·审计留痕）" })
+  @ApiResponse({ status: 201, description: "推进成功" })
+  @ApiResponse({ status: 400, description: "阶段不可推进或推进失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  advanceStage(@Param("id") id: string, @Param("seq") seq: string, @Req() req: Request) {
+    return this.stageFlow.forceAdvance(id, Number(seq), req.user.id, req.ip);
+  }
+
+  @Get(":id/flow-status")
+  @ApiOperation({ summary: "赛程流转进程监控（各阶段状态/名单规模/晋级淘汰计数）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  flowStatus(@Param("id") id: string) {
+    return this.stageFlow.getFlowStatus(id);
   }
 
   @Post(":id/generate-paper")

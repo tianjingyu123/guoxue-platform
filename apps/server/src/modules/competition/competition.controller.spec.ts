@@ -4,6 +4,7 @@ import { RoleType } from "@prisma/client";
 import { CompetitionAdminController, CompetitionPublicController, CompetitionJudgeController } from "./competition.controller";
 import { CompetitionService } from "./competition.service";
 import { CompetitionAdminService } from "./competition-admin.service";
+import { StageFlowService } from "./stage-flow.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 
@@ -49,6 +50,11 @@ const mockAdminService: Record<string, jest.Mock> = {
   generatePaper: jest.fn(),
 };
 
+const mockStageFlow: Record<string, jest.Mock> = {
+  forceAdvance: jest.fn(),
+  getFlowStatus: jest.fn(),
+};
+
 const mockGuard: CanActivate = { canActivate: () => true };
 
 describe("CompetitionAdminController", () => {
@@ -60,6 +66,7 @@ describe("CompetitionAdminController", () => {
       providers: [
         { provide: CompetitionService, useValue: mockService },
         { provide: CompetitionAdminService, useValue: mockAdminService },
+        { provide: StageFlowService, useValue: mockStageFlow },
       ],
     })
       .overrideGuard(JwtAuthGuard).useValue(mockGuard)
@@ -97,6 +104,21 @@ describe("CompetitionAdminController", () => {
     const result: any = await ctrl.generateStages("comp1");
     expect(result.created).toBe(2);
     expect(mockAdminService.generateStages).toHaveBeenCalledWith("comp1");
+  });
+
+  it("人工强制推进阶段（透传 seq 数字与操作者）", async () => {
+    mockStageFlow.forceAdvance.mockResolvedValue({ from: "JUDGING", to: "DONE", transitioned: true } as any);
+    const req: any = { user: { id: "admin1" }, ip: "127.0.0.1" };
+    const result: any = await ctrl.advanceStage("comp1", "2", req);
+    expect(result.to).toBe("DONE");
+    expect(mockStageFlow.forceAdvance).toHaveBeenCalledWith("comp1", 2, "admin1", "127.0.0.1");
+  });
+
+  it("赛程流转进程监控", async () => {
+    mockStageFlow.getFlowStatus.mockResolvedValue({ currentSeq: 1, stages: [] } as any);
+    const result: any = await ctrl.flowStatus("comp1");
+    expect(result.currentSeq).toBe(1);
+    expect(mockStageFlow.getFlowStatus).toHaveBeenCalledWith("comp1");
   });
 
   it("AI组卷", async () => {
