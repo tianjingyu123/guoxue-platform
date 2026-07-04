@@ -7,6 +7,7 @@ const mockPrisma = {
   configSystem: { findMany: jest.fn() },
   course: { findFirst: jest.fn() },
   courseProgress: { findMany: jest.fn() },
+  product: { findFirst: jest.fn() },
 };
 const mockRedis = { incrWithTtl: jest.fn() };
 
@@ -96,11 +97,56 @@ describe("TouchpointService（无痕商业化触点·克制引擎）", () => {
     expect(mockRedis.incrWithTtl).not.toHaveBeenCalled();
   });
 
-  it("已登记未实现的场景诚实降级 show:false（如 jieqi_gift）", async () => {
-    expect(TOUCHPOINTS.jieqi_gift.status).toBe("pending");
-    const res = await svc.getTouchpoint("jieqi_gift", "u1");
+  it("已登记未实现的场景诚实降级 show:false（如 classic_course）", async () => {
+    expect(TOUCHPOINTS.classic_course.status).toBe("pending");
+    const res = await svc.getTouchpoint("classic_course", "u1");
     expect(res).toEqual({ show: false });
     expect(mockPrisma.course.findFirst).not.toHaveBeenCalled();
+    expect(mockPrisma.product.findFirst).not.toHaveBeenCalled();
+  });
+
+  describe("jieqi_gift（供-P1 场景取货已接线）", () => {
+    it("status 已落为 implemented", () => {
+      expect(TOUCHPOINTS.jieqi_gift.status).toBe("implemented");
+    });
+
+    it("取「节气时令」在售商品 1 个（销量优先）·reason=「{节气名}·应时雅物」·链接商品详情", async () => {
+      mockPrisma.product.findFirst.mockResolvedValue({
+        id: "p1",
+        title: "冬至暖香礼盒",
+        images: ["https://cdn.example.com/p1.webp", "https://cdn.example.com/p1-2.webp"],
+      });
+
+      const res = await svc.getTouchpoint("jieqi_gift", "u1", "u1", { term: "冬至" });
+
+      expect(res.show).toBe(true);
+      expect(res.card).toEqual({
+        skuType: "product",
+        skuId: "p1",
+        title: "冬至暖香礼盒",
+        reason: "冬至·应时雅物",
+        cover: "https://cdn.example.com/p1.webp",
+        link: "/pkg-shop/detail?id=p1",
+      });
+      // 召回条件：在售 + 未删 + sceneTags 含「节气时令」·销量优先
+      const args = mockPrisma.product.findFirst.mock.calls[0][0];
+      expect(args.where).toEqual({ status: "ON_SALE", deletedAt: null, sceneTags: { has: "节气时令" } });
+      expect(args.orderBy[0]).toEqual({ salesCount: "desc" });
+    });
+
+    it("ctx 无节气名时 reason 回落「节气·应时雅物」", async () => {
+      mockPrisma.product.findFirst.mockResolvedValue({ id: "p2", title: "节气香囊", images: [] });
+      const res = await svc.getTouchpoint("jieqi_gift", "u1");
+      expect(res.show).toBe(true);
+      expect(res.card?.reason).toBe("节气·应时雅物");
+      expect(res.card?.cover).toBe("");
+    });
+
+    it("无「节气时令」在售商品时 show:false（相关性硬门槛·宁缺勿滥）", async () => {
+      mockPrisma.product.findFirst.mockResolvedValue(null);
+      const res = await svc.getTouchpoint("jieqi_gift", "u1", "u1", { term: "小雪" });
+      expect(res).toEqual({ show: false });
+    });
   });
 
   it("匿名用户（无 userId）不查已学课程，仍可召回", async () => {

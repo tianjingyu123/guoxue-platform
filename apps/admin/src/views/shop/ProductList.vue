@@ -64,6 +64,24 @@
           {{ statusLabel(row.status) }}
         </el-tag>
       </template>
+      <template #sceneTags="{ row }">
+        <template v-if="row.sceneTags?.length">
+          <el-tag
+            v-for="t in row.sceneTags"
+            :key="t"
+            size="small"
+            type="warning"
+            effect="plain"
+            class="scene-tag"
+          >
+            {{ t }}
+          </el-tag>
+        </template>
+        <span
+          v-else
+          class="no-img"
+        >—</span>
+      </template>
       <template #actions="{ row }">
         <el-button
           size="small"
@@ -205,6 +223,22 @@
             </el-form-item>
           </el-col>
         </el-row>
+        <el-form-item label="场景标签">
+          <el-select
+            v-model="form.sceneTags"
+            multiple
+            clearable
+            placeholder="按客户人生场景打标（可多选·保存即生效）"
+            style="width:100%"
+          >
+            <el-option
+              v-for="t in SCENE_TAG_OPTIONS"
+              :key="t"
+              :label="t"
+              :value="t"
+            />
+          </el-select>
+        </el-form-item>
         <el-form-item label="图片">
           <div class="images-area">
             <div
@@ -383,6 +417,9 @@ import ImageUpload from '@/components/ImageUpload.vue'
 import DataTable from '@/components/DataTable.vue'
 import PageHeader from "@/components/PageHeader.vue"
 
+/** 场景标签白名单（供-P1·与后端 shop.dto PRODUCT_SCENE_TAGS 七值对齐） */
+const SCENE_TAG_OPTIONS = ['乔迁新居', '合婚嫁娶', '开业大吉', '本命年', '学业考试', '长辈寿诞', '节气时令'] as const
+
 /** 商品行（字段宽松 optional） */
 interface ProductRow {
   id?: string
@@ -393,6 +430,7 @@ interface ProductRow {
   salesCount?: number
   status?: string
   images?: string[]
+  sceneTags?: string[]
 }
 /** SKU 行（字段宽松 optional） */
 interface SkuRow {
@@ -417,6 +455,7 @@ const editingId = ref('')
 const form = reactive({
   title: '', intro: '', detail: '', price: 0, originalPrice: 0, stock: 0,
   cover: '', category: '', images: [] as string[], status: 'ON_SALE' as string,
+  sceneTags: [] as string[],
 })
 const dialogFormRef = ref<FormInstance>()
 const dialogRules = {
@@ -443,6 +482,7 @@ const columns = [
   { prop: "stock", label: "库存", width: 70 },
   { prop: "salesCount", label: "销量", width: 70 },
   { prop: "status", label: "状态", width: 90, slot: "status" },
+  { prop: "sceneTags", label: "场景标签", minWidth: 150, slot: "sceneTags" },
 ]
 
 onMounted(() => fetchList())
@@ -472,7 +512,7 @@ async function uploadImage(options: { file: File }) {
 }
 
 function resetForm() {
-  Object.assign(form, { title: '', intro: '', detail: '', price: 0, originalPrice: 0, stock: 0, cover: '', category: '', images: [], status: 'ON_SALE' })
+  Object.assign(form, { title: '', intro: '', detail: '', price: 0, originalPrice: 0, stock: 0, cover: '', category: '', images: [], status: 'ON_SALE', sceneTags: [] })
   editingId.value = ''; imgUrl.value = ''
 }
 
@@ -486,6 +526,7 @@ async function openEdit(row: ProductRow) {
     price: Number(p.price) || 0, originalPrice: Number(p.originalPrice) || 0,
     stock: p.stock || 0, cover: p.cover || '', category: p.category || '',
     images: p.images || [], status: p.status || 'ON_SALE',
+    sceneTags: p.sceneTags || [],
   })
   dialogVisible.value = true; nextTick(() => initEditor())
 }
@@ -507,9 +548,22 @@ function initEditor() {
 async function saveProduct() {
   saving.value = true
   try {
-    const payload = { ...form }
-    if (editingId.value) { await productApi.update(editingId.value, payload); ElMessage.success('已更新') }
-    else { await productApi.create(payload); ElMessage.success('已创建') }
+    if (editingId.value) {
+      // 更新按 UpdateProductDto 白名单显式取字段（后端 forbidNonWhitelisted·多传即 400·打标即生效）
+      const payload = {
+        title: form.title, intro: form.intro, detail: form.detail, images: form.images,
+        price: form.price, stock: form.stock, status: form.status, sceneTags: form.sceneTags,
+      }
+      await productApi.update(editingId.value, payload); ElMessage.success('已更新')
+    } else {
+      // 创建按 CreateProductDto 白名单（无 status 字段·新建默认待审，用列表"上架"按钮流转）
+      const payload = {
+        title: form.title, intro: form.intro, detail: form.detail, images: form.images,
+        price: form.price, originalPrice: form.originalPrice, stock: form.stock,
+        cover: form.cover, category: form.category, sceneTags: form.sceneTags,
+      }
+      await productApi.create(payload); ElMessage.success('已创建')
+    }
     dialogVisible.value = false; fetchList()
   } catch { /* */ } finally { saving.value = false }
 }
@@ -569,6 +623,7 @@ async function delSku(skuId: string) {
 <style scoped>
 .product-page { padding: 0; }
 .thumb { width: 48px; height: 48px; object-fit: cover; border-radius: 4px; }
+.scene-tag { margin: 0 4px 2px 0; }
 .no-img { color: var(--color-text-placeholder); font-size: 11px; }
 .editor-box { min-height: 180px; max-height: 400px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px; }
 .images-area { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end; }

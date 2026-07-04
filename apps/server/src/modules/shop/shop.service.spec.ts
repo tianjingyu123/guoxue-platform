@@ -240,6 +240,41 @@ describe("ShopService", () => {
     })
   })
 
+  describe("listProductsByScene（供-P1 场景取货）", () => {
+    it("白名单校验：非法场景标签抛 BusinessException（不查库）", async () => {
+      await expect(svc.listProductsByScene("开运化解")).rejects.toThrow(BusinessException)
+      expect(mockPrisma.product.findMany).not.toHaveBeenCalled()
+    })
+
+    it("在售+含标签·销量优先上架时间兜底·默认取 6", async () => {
+      mockPrisma.product.findMany.mockResolvedValue([
+        { id: "p1", title: "冬至礼盒", intro: null, images: [], price: "199.00", originalPrice: null, salesCount: 88, sceneTags: ["节气时令"], createdAt: new Date() },
+      ])
+      const result = await svc.listProductsByScene("节气时令")
+      expect(result).toHaveLength(1)
+      expect(result[0].price).toBe(199)
+      expect(result[0].originalPrice).toBe(199) // 无原价回落现价
+      const args = mockPrisma.product.findMany.mock.calls[0][0]
+      expect(args.where).toEqual({ status: "ON_SALE", deletedAt: null, sceneTags: { has: "节气时令" } })
+      expect(args.orderBy).toEqual([{ salesCount: "desc" }, { createdAt: "desc" }])
+      expect(args.take).toBe(6)
+    })
+
+    it("limit 归一化：非法值回落 6·超上限夹取 50", async () => {
+      mockPrisma.product.findMany.mockResolvedValue([])
+      await svc.listProductsByScene("本命年", NaN)
+      expect(mockPrisma.product.findMany.mock.calls[0][0].take).toBe(6)
+      await svc.listProductsByScene("本命年", 999)
+      expect(mockPrisma.product.findMany.mock.calls[1][0].take).toBe(50)
+    })
+
+    it("空态：无匹配商品返回空数组", async () => {
+      mockPrisma.product.findMany.mockResolvedValue([])
+      const result = await svc.listProductsByScene("学业考试")
+      expect(result).toEqual([])
+    })
+  })
+
   describe("updateProduct", () => {
     it("更新商品成功", async () => {
       mockPrisma.product.findUnique.mockResolvedValue({ id: "p1", userId: "u1" })
@@ -251,6 +286,13 @@ describe("ShopService", () => {
     it("商品不存在抛出 NotFoundException", async () => {
       mockPrisma.product.findUnique.mockResolvedValue(null)
       await expect(svc.updateProduct("u1", "no", { title: "x" })).rejects.toThrow(BusinessException)
+    })
+
+    it("场景打标即生效：sceneTags 持久化到 update data（供-P1）", async () => {
+      mockPrisma.product.findUnique.mockResolvedValue({ id: "p1", userId: "u1" })
+      mockPrisma.product.update.mockResolvedValue({ id: "p1", sceneTags: ["节气时令", "长辈寿诞"] })
+      await svc.updateProduct("u1", "p1", { sceneTags: ["节气时令", "长辈寿诞"] } as any)
+      expect(mockPrisma.product.update.mock.calls[0][0].data.sceneTags).toEqual(["节气时令", "长辈寿诞"])
     })
   })
 

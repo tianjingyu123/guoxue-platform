@@ -72,6 +72,17 @@ export class ShopController {
     return this.shop.listProductCategoryL1();
   }
 
+  @Get("products/by-scene")
+  @ApiOperation({ summary: "按场景标签取货（供-P1·无痕商业化触点接线口·公开）" })
+  @ApiQuery({ name: "tag", required: true, description: "场景标签（白名单七值：乔迁新居/合婚嫁娶/开业大吉/本命年/学业考试/长辈寿诞/节气时令）" })
+  @ApiQuery({ name: "limit", required: false, type: Number, description: "取货数量（默认 6·上限 50）" })
+  @ApiResponse({ status: 200, description: "成功（无匹配商品返回空数组）" })
+  @ApiResponse({ status: 400, description: "非法场景标签" })
+  listProductsByScene(@Query("tag") tag: string, @Query("limit") limit?: string) {
+    // 注意：本路由必须声明在 products/:id 之前，否则 by-scene 会被 :id 吞掉
+    return this.shop.listProductsByScene(tag, limit !== undefined ? Number(limit) : undefined);
+  }
+
   @Get("products/:id")
   @UseGuards(OptionalAuthGuard, StationIsolationGuard)
   @ApiOperation({ summary: "获取商品详情（含统一活动价格）" })

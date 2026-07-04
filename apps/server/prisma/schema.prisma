@@ -899,6 +899,7 @@ model Product {
   images         String[]     @default([])
   videoUrl       String?
   tags           String[]     @default([])
+  sceneTags      String[]     @default([]) // 场景标签（销售视角·白名单七值：乔迁新居/合婚嫁娶/开业大吉/本命年/学业考试/长辈寿诞/节气时令）供-P1
   price          Decimal      @db.Decimal(10, 2)
   originalPrice  Decimal?     @db.Decimal(10, 2) // 原始标价，永不随活动变化
   stock          Int          @default(0)

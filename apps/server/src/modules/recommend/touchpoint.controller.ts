@@ -36,8 +36,18 @@ export class TouchpointController {
   /** ctx JSON 解析：畸形输入静默忽略（触点永不因参数报错） */
   private parseCtx(ctx?: string): Record<string, unknown> | undefined {
     if (!ctx) return undefined;
+    // 全局 SanitizePipe 会把查询串中的 &<>"'/ 转义为 HTML 实体（{"term":"冬至"} → {&quot;term&quot;:…}）
+    // 导致 JSON.parse 恒失败、ctx 恒丢失（levelup_course 的 category / jieqi_gift 的 term 均收不到）。
+    // 此处先还原实体再解析；解析后的值仅用于 Prisma 参数化查询与文案拼接，无 XSS 注入面。
+    const raw = ctx
+      .replace(/&quot;/g, '"')
+      .replace(/&#x27;/g, "'")
+      .replace(/&#x2F;/g, "/")
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .replace(/&amp;/g, "&");
     try {
-      const parsed = JSON.parse(ctx);
+      const parsed = JSON.parse(raw);
       return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : undefined;
     } catch {
       return undefined;

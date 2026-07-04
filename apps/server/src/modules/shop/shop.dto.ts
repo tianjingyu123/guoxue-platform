@@ -1,4 +1,4 @@
-import { IsString, IsDateString, IsOptional, IsInt, IsNumber, IsEnum, IsArray, ArrayNotEmpty, ArrayMaxSize, Min, Max, IsBoolean, IsObject, MinLength, MaxLength, IsPositive } from "class-validator";
+import { IsString, IsDateString, IsOptional, IsInt, IsNumber, IsEnum, IsArray, ArrayNotEmpty, ArrayMaxSize, Min, Max, IsBoolean, IsObject, IsIn, MinLength, MaxLength, IsPositive } from "class-validator";
 import { Type } from "class-transformer";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 
@@ -7,6 +7,15 @@ export enum ProductStatus {
   ON_SALE = "ON_SALE",
   OFF_SHELF = "OFF_SHELF",
 }
+
+/**
+ * 场景标签白名单（供-P1·按"客户人生场景"组织的销售视角标签，可多挂）
+ * 设计真源：docs/design/商城供应链重构-B2B2C设计-20260704.md §三
+ */
+export const PRODUCT_SCENE_TAGS = [
+  "乔迁新居", "合婚嫁娶", "开业大吉", "本命年", "学业考试", "长辈寿诞", "节气时令",
+] as const;
+export type ProductSceneTag = (typeof PRODUCT_SCENE_TAGS)[number];
 
 export class CreateProductDto {
   @ApiPropertyOptional({ description: "所属圈子ID" })
@@ -66,6 +75,10 @@ export class CreateProductDto {
   @ApiPropertyOptional({ description: "所属驿站ID" })
   @IsOptional() @IsString()
   stationId?: string;
+
+  @ApiPropertyOptional({ description: "场景标签（白名单七值·可多挂）", enum: PRODUCT_SCENE_TAGS, isArray: true })
+  @IsOptional() @IsArray() @ArrayMaxSize(7) @IsIn(PRODUCT_SCENE_TAGS, { each: true })
+  sceneTags?: ProductSceneTag[];
 }
 
 export class UpdateProductDto {
@@ -97,6 +110,10 @@ export class UpdateProductDto {
   @ApiPropertyOptional({ description: "商品状态", enum: ProductStatus })
   @IsOptional() @IsEnum(ProductStatus)
   status?: ProductStatus;
+
+  @ApiPropertyOptional({ description: "场景标签（白名单七值·可多挂·打标即生效）", enum: PRODUCT_SCENE_TAGS, isArray: true })
+  @IsOptional() @IsArray() @ArrayMaxSize(7) @IsIn(PRODUCT_SCENE_TAGS, { each: true })
+  sceneTags?: ProductSceneTag[];
 }
 
 export class CreateSkuDto {

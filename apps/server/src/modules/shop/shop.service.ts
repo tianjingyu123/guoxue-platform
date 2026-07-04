@@ -31,6 +31,7 @@ import {
   CreateReviewDto, UpdateLogisticsDto,
   CreateFreightTemplateDto, UpdateFreightTemplateDto,
   ProductListQueryDto, OrderListQueryDto,
+  PRODUCT_SCENE_TAGS,
 } from "./shop.dto";
 
 @Injectable()
@@ -76,6 +77,7 @@ export class ShopService {
     if (rest.intro) data.intro = rest.intro;
     if (rest.images) data.images = rest.images;
     if (rest.videoUrl) data.videoUrl = rest.videoUrl;
+    if (rest.sceneTags) data.sceneTags = rest.sceneTags;
     if (rest.stationId) data.station = { connect: { id: rest.stationId } };
     if (skus) {
       data.skus = { create: skus.map(s => ({ specs: s.specs, price: s.price, stock: s.stock ?? 0, skuCode: s.skuCode ?? null })) };
@@ -106,6 +108,7 @@ export class ShopService {
     if (dto.price !== undefined) data.price = dto.price;
     if (dto.stock !== undefined) data.stock = dto.stock;
     if (dto.status !== undefined) data.status = dto.status;
+    if (dto.sceneTags !== undefined) data.sceneTags = dto.sceneTags; // 场景打标即生效（白名单已在 DTO 校验）
 
     const updated = await this.prisma.product.update({
       where: { id: productId },
@@ -268,6 +271,33 @@ export class ShopService {
       .filter(g => g.categoryLevel1)
       .map(g => ({ name: g.categoryLevel1 as string, count: g._count._all }))
       .sort((a, b) => b.count - a.count);
+  }
+
+  /**
+   * 场景取货（供-P1·无痕商业化触点接线口）：
+   * 在售 + 含指定场景标签的商品，销量优先、上架时间兜底，默认取 6 个。
+   * tag 必须命中白名单七值（非法标签直接 400·防任意标签探测）；无结果返回空数组（诚实空态）。
+   */
+  async listProductsByScene(tag: string, limit = 6) {
+    if (!(PRODUCT_SCENE_TAGS as readonly string[]).includes(tag)) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, `非法场景标签，可选：${PRODUCT_SCENE_TAGS.join("/")}`);
+    }
+    // limit 归一化：非法/NaN 回落默认 6，夹取 1..50（公开端点防大页拖库）
+    const take = Math.min(Math.max(Math.trunc(limit) || 6, 1), 50);
+    const products = await this.prisma.product.findMany({
+      where: { status: "ON_SALE", deletedAt: null, sceneTags: { has: tag } },
+      select: {
+        id: true, title: true, intro: true, images: true,
+        price: true, originalPrice: true, salesCount: true, sceneTags: true, createdAt: true,
+      },
+      orderBy: [{ salesCount: "desc" }, { createdAt: "desc" }],
+      take,
+    });
+    return products.map(p => ({
+      ...p,
+      price: Number(p.price),
+      originalPrice: p.originalPrice != null ? Number(p.originalPrice) : Number(p.price),
+    }));
   }
 
   /** C 端店铺主页 — 商家公开信息 + 在售商品列表（仅已开通 ACTIVE 商家可见） */

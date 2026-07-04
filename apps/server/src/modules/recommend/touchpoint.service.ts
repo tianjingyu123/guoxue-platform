@@ -53,8 +53,8 @@ export interface TouchpointMeta {
  * 触点场景枚举（设计文档§二注册表·每页至多一个触点=页面注册制，一页一个 scene）
  */
 export const TOUCHPOINTS: Record<string, TouchpointMeta> = {
-  /** #4 节气日 → 节气礼盒（SKU源=商品池场景标签「节气时令」·标签功能未上线前返回空） */
-  jieqi_gift: { label: "节气礼盒", skuSource: "商品池场景标签「节气时令」", status: "pending" },
+  /** #4 节气日 → 节气礼盒（SKU源=商品池场景标签「节气时令」·供-P1 已接线 Product.sceneTags） */
+  jieqi_gift: { label: "节气礼盒", skuSource: "商品池场景标签「节气时令」", status: "implemented" },
   /** #8 晋级/成就时刻 → 进阶之路：下一门课（本批参考实现） */
   levelup_course: { label: "晋级进阶课", skuSource: "课程库按分类推进阶", status: "implemented" },
   /** #1 古籍读到精彩处 → 本书相关名师精讲课 */
@@ -146,9 +146,35 @@ export class TouchpointService {
     switch (scene) {
       case "levelup_course":
         return this.resolveLevelupCourse(userId, ctx);
+      case "jieqi_gift":
+        return this.resolveJieqiGift(ctx);
       default:
         return null;
     }
+  }
+
+  /**
+   * #4 节气礼盒（供-P1 接线）：
+   * 节气日 → sceneTags 含「节气时令」的在售商品取 1 个（销量优先·上架时间兜底）。
+   * ctx.term = 当前节气名（如「冬至」）用于 reason 文案；无货返回 null（相关性硬门槛·宁缺勿滥）。
+   */
+  private async resolveJieqiGift(ctx?: Record<string, unknown>): Promise<TouchpointCard | null> {
+    const term = typeof ctx?.term === "string" && ctx.term ? ctx.term : "节气";
+    const product = await this.prisma.product.findFirst({
+      where: { status: "ON_SALE", deletedAt: null, sceneTags: { has: "节气时令" } },
+      select: { id: true, title: true, images: true },
+      orderBy: [{ salesCount: "desc" }, { createdAt: "desc" }],
+    });
+    if (!product) return null;
+
+    return {
+      skuType: "product",
+      skuId: product.id,
+      title: product.title,
+      reason: `${term}·应时雅物`,
+      cover: product.images?.[0] || "",
+      link: `/pkg-shop/detail?id=${product.id}`,
+    };
   }
 
   /**
