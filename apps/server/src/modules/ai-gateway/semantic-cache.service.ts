@@ -16,6 +16,18 @@ const EXACT_TTL = 86400;
 const SIMILARITY_THRESHOLD = 0.88;
 const DEFAULT_EXPIRY_HOURS = 72;
 
+/**
+ * 按场景覆写持久缓存有效期（小时）。
+ * "固定原文→固定输出"类场景（点句白话/查词/诗词赏析）译文永远不变，
+ * 长效缓存后每段原文终身只花一次 AI 费，成本上限=库内句子总数，不随用户量增长。
+ * 取 1 年而非永久：保留 prompt/模型升级后全量刷新的机会。
+ */
+const SCENE_EXPIRY_HOURS: Record<string, number> = {
+  classic_translate: 24 * 365,
+  classic_dictionary: 24 * 365,
+  poetry_appreciation: 24 * 365,
+};
+
 function normalizeQuery(query: string): string {
   return query.trim().replace(/\s+/g, " ").toLowerCase();
 }
@@ -65,6 +77,24 @@ export class SemanticCacheService {
       this.logger.debug(`L0 精确命中: scene=${scene}`);
       this.bumpHitCount(scene, hash).catch((err) => this.logger.warn("命中计数更新失败", err));
       return cached.response;
+    }
+
+    // L0.5: DB 精确哈希匹配（Redis 24h 过期后长效持久层仍可精确命中·不依赖向量质量）
+    try {
+      const exact = await this.prisma.aiCacheEntry.findFirst({
+        where: { scene, queryHash: hash, expiresAt: { gt: new Date() } },
+        select: { response: true, model: true },
+      });
+      if (exact?.response) {
+        this.logger.debug(`L0.5 持久层精确命中: scene=${scene}`);
+        await this.redis
+          .setJson(redisKey, { response: exact.response, model: exact.model } as CacheEntry, EXACT_TTL)
+          .catch((err) => this.logger.warn("语义缓存回写失败", err));
+        this.bumpHitCount(scene, hash).catch((err) => this.logger.warn("命中计数更新失败", err));
+        return exact.response;
+      }
+    } catch (err: any) {
+      this.logger.warn(`持久层精确匹配查询失败: ${err.message}`);
     }
 
     // L1: PostgreSQL 向量相似度搜索
@@ -117,7 +147,8 @@ export class SemanticCacheService {
     model: string,
     tokenUsage?: Record<string, number>,
   ): Promise<void> {
-    const expiresAt = new Date(Date.now() + DEFAULT_EXPIRY_HOURS * 3600_000);
+    const expiryHours = SCENE_EXPIRY_HOURS[scene] ?? DEFAULT_EXPIRY_HOURS;
+    const expiresAt = new Date(Date.now() + expiryHours * 3600_000);
 
     let vectorJson: string | null = null;
     try {
