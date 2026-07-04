@@ -26,6 +26,7 @@ const mockCommissionSvc = {
   updateCommissionConfig: jest.fn().mockResolvedValue({ type: "course", rate: 0.4 }),
   getOperatorEarnings: jest.fn().mockResolvedValue({ earnings: [], total: 0, page: 1, pageSize: 20, totalEarned: 0 }),
   getOperatorBalance: jest.fn().mockResolvedValue({ totalEarned: 0, balance: 0 }),
+  getStationPreemptedOrders: jest.fn().mockResolvedValue({ list: [{ orderId: "abcdefgh****", amount: 88.8, subjectType: "CIRCLE" }], total: 1, page: 1, pageSize: 20 }),
 };
 
 const mockChannelClickSvc = {
@@ -80,6 +81,15 @@ describe("CommissionController", () => {
     const req: any = { user: { id: "u1", roles: ["SUPER_ADMIN"] } };
     const result: any = await ctrl.getStationBalance(req, "s1");
     expect(result.available).toBe(5000);
+  });
+
+  it("GET /commission/station/preempted — 被临时抢佣明细（佣-V2-P4·以登录人 userId 查本人分站）", async () => {
+    const req: any = { user: { id: "st-user" } };
+    const result: any = await ctrl.getStationPreempted(req, 2 as any, 10 as any);
+    expect(result.total).toBe(1);
+    expect(result.list[0].orderId).toBe("abcdefgh****");
+    // 只能查自己分站：service 以 req.user.id 定位，分页参数数值化传导
+    expect(mockCommissionSvc.getStationPreemptedOrders).toHaveBeenCalledWith("st-user", 2, 10);
   });
 
   it("POST /commission/withdrawal — 申请提现", async () => {

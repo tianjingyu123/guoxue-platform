@@ -85,6 +85,7 @@ export class OperatorDashboardController {
   constructor(
     private readonly prisma: PrismaService,
     private readonly teamTask: TeamTaskService,
+    private readonly dashboard: StationDashboardService,
   ) {}
 
   private async getOperatorStations(req: Request) {
@@ -141,6 +142,14 @@ export class OperatorDashboardController {
   async getQuotaUsage(@Req() req: Request) {
     const { operator, stations } = await this.getOperatorStations(req);
     return { used: stations.length, total: operator?.containQuota || 0 };
+  }
+
+  @Get("mgmt-report")
+  @ApiOperation({ summary: "管理奖新口径月报（佣-V2-P4·本月名下站长佣金合计×我的比率(mgmtRate??渠道默认10%/20%)·按站长分组明细·线下高级标识）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 403, description: "非运营商" })
+  async getMgmtReport(@Req() req: Request) {
+    return this.dashboard.getOperatorMgmtReport(req.user.id);
   }
 
   // ───────── 自服务 API ─────────

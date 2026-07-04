@@ -84,6 +84,23 @@ export class CommissionController {
     return this.svc.getStationBalance(stationId);
   }
 
+  @Get("station/preempted")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "站长\"被临时抢佣\"透明化明细（佣-V2-P4·永久归属我分站但被临时链接抢佣的订单·orderId打码·不暴露抢佣者身份）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 403, description: "非站长" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiBearerAuth()
+  @ApiQuery({ name: "page", required: false, type: Number, description: "页码" })
+  @ApiQuery({ name: "pageSize", required: false, type: Number, description: "每页数量" })
+  getStationPreempted(
+    @Req() req: Request,
+    @Query("page") page = 1,
+    @Query("pageSize") pageSize = 20,
+  ) {
+    return this.svc.getStationPreemptedOrders(req.user.id, +page, +pageSize);
+  }
+
   // ───────── 运营商收益 ─────────
 
   @Get("operator-earnings/:operatorId")

@@ -3,6 +3,7 @@ import { CommissionService } from "./commission.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import { WebhookService } from "../webhook/webhook.service";
 import { RedisService } from "../../redis/redis.service";
+import { UserGrowthService } from "../user-growth/user-growth.service";
 import { BusinessException } from "../../common/business.exception";
 
 const mockPrisma = {
@@ -10,7 +11,7 @@ const mockPrisma = {
   stationEarning: { create: jest.fn(), findMany: jest.fn(), count: jest.fn(), aggregate: jest.fn(), findFirst: jest.fn() },
   station: { findUnique: jest.fn(), update: jest.fn() },
   operator: { findUnique: jest.fn(), update: jest.fn() },
-  order: { findUnique: jest.fn() },
+  order: { findUnique: jest.fn(), findFirst: jest.fn(), findMany: jest.fn(), count: jest.fn() },
   product: { findUnique: jest.fn() },
   operatorEarning: { create: jest.fn(), createMany: jest.fn(), findMany: jest.fn(), count: jest.fn(), aggregate: jest.fn(), findFirst: jest.fn() },
   notification: { create: jest.fn().mockReturnValue({ catch: jest.fn() }) },
@@ -23,6 +24,7 @@ const mockPrisma = {
 };
 const mockWebhook = { fire: jest.fn().mockResolvedValue(undefined) };
 const mockRedis = { setNX: jest.fn().mockResolvedValue(true), del: jest.fn(), get: jest.fn().mockResolvedValue(null), set: jest.fn() };
+const mockGrowth = { addExp: jest.fn().mockResolvedValue(undefined) };
 
 describe("CommissionService", () => {
   let svc: CommissionService;
@@ -34,6 +36,7 @@ describe("CommissionService", () => {
         { provide: PrismaService, useValue: mockPrisma },
         { provide: WebhookService, useValue: mockWebhook },
         { provide: RedisService, useValue: mockRedis },
+        { provide: UserGrowthService, useValue: mockGrowth },
       ],
     }).compile();
     svc = mod.get(CommissionService);
@@ -405,6 +408,115 @@ describe("CommissionService", () => {
       expect(result).toBeTruthy();
       expect(mockPrisma.stationEarning.create).toHaveBeenCalled();
       expect(mockPrisma.ledgerEntry.create).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("佣-V2-P4 非渠道分享成交 → 创作/推广积分（替代现金佣金）", () => {
+    /** COURSE 订单·推荐人存在但查无 Station 且无 tempRefSubjectType（普通用户分享） */
+    function mockNonChannelOrder(buyerId = "buyer-1") {
+      mockPrisma.commissionConfig.findUnique.mockResolvedValue({ configKey: "course_basic", rateA: 0.1 });
+      mockPrisma.order.findUnique.mockResolvedValue({ userId: buyerId, targetId: "course-1", tempRefSubjectType: null });
+      mockPrisma.station.findUnique.mockResolvedValue(null); // 推荐人非站长
+      mockPrisma.order.findFirst.mockResolvedValue(null); // 无历史同推荐人已支付单（首单）
+    }
+
+    it("非渠道推荐发积分：档位=订单金额（元）向下取整×2（99.9元→198分）·不产生现金佣金", async () => {
+      mockNonChannelOrder();
+      const result = await svc.calculateAndRecord("order-1", "COURSE", 99.9, "friend-1");
+      expect(result).toBeNull(); // 无现金佣金
+      expect(mockGrowth.addExp).toHaveBeenCalledWith("friend-1", 198, "share_conversion");
+      expect(mockPrisma.stationEarning.create).not.toHaveBeenCalled();
+      expect(mockPrisma.ledgerEntry.create).not.toHaveBeenCalled();
+    });
+
+    it("积分封顶 200 分/单：500 元订单 → 发 200 分（非 1000）", async () => {
+      mockNonChannelOrder();
+      await svc.calculateAndRecord("order-1", "COURSE", 500, "friend-1");
+      expect(mockGrowth.addExp).toHaveBeenCalledWith("friend-1", 200, "share_conversion");
+    });
+
+    it("渠道主体（推荐人有 Station）不发积分：走现金佣金主路径", async () => {
+      mockPrisma.commissionConfig.findUnique.mockResolvedValue({ configKey: "course_basic", rateA: 0.1 });
+      mockPrisma.order.findUnique.mockResolvedValue({ userId: "buyer-1", targetId: "course-1", tempRefSubjectType: null });
+      mockPrisma.station.findUnique.mockResolvedValue({ id: "station-1", userId: "st-user", totalEarning: 0 });
+      mockPrisma.stationEarning.create.mockResolvedValue({ id: "earning-1" });
+      const result = await svc.calculateAndRecord("order-1", "COURSE", 100, "st-user");
+      expect(result).toBeTruthy();
+      expect(mockPrisma.stationEarning.create).toHaveBeenCalled(); // 现金佣金
+      expect(mockGrowth.addExp).not.toHaveBeenCalled(); // 不发积分
+    });
+
+    it("同一（买家,推荐人）仅首单计：历史已有同推荐人已支付单则不发", async () => {
+      mockNonChannelOrder();
+      mockPrisma.order.findFirst.mockResolvedValue({ id: "prior-order" }); // 已有首单
+      const result = await svc.calculateAndRecord("order-2", "COURSE", 100, "friend-1");
+      expect(result).toBeNull();
+      expect(mockGrowth.addExp).not.toHaveBeenCalled();
+      // 首单判定查询：排除本单·限已支付态·同推荐人（永久或临时）
+      const arg = mockPrisma.order.findFirst.mock.calls[0][0];
+      expect(arg.where.id).toEqual({ not: "order-2" });
+      expect(arg.where.userId).toBe("buyer-1");
+      expect(arg.where.OR).toEqual([{ tempReferrerId: "friend-1" }, { referrerId: "friend-1" }]);
+    });
+
+    it("自购（推荐人=买家）不发积分", async () => {
+      mockNonChannelOrder("friend-1"); // 买家即推荐人
+      const result = await svc.calculateAndRecord("order-1", "COURSE", 100, "friend-1");
+      expect(result).toBeNull();
+      expect(mockGrowth.addExp).not.toHaveBeenCalled();
+      expect(mockPrisma.order.findFirst).not.toHaveBeenCalled(); // 自购直接短路，不查首单
+    });
+
+    it("addExp 抛错不阻断分佣主流程（静默返回 null 不抛出）", async () => {
+      mockNonChannelOrder();
+      mockGrowth.addExp.mockRejectedValueOnce(new Error("growth service down"));
+      await expect(svc.calculateAndRecord("order-1", "COURSE", 100, "friend-1")).resolves.toBeNull();
+    });
+  });
+
+  describe("佣-V2-P4 站长被临时抢佣透明化明细（getStationPreemptedOrders）", () => {
+    it("非站长（查无分站）→ FORBIDDEN，只能查自己分站", async () => {
+      mockPrisma.station.findUnique.mockResolvedValue(null);
+      await expect(svc.getStationPreemptedOrders("user-x")).rejects.toThrow(BusinessException);
+      // 按调用者 userId 定位分站（本人）而非任意传入 stationId
+      expect(mockPrisma.station.findUnique).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { userId: "user-x" } }),
+      );
+    });
+
+    it("orderId 打码（仅前8位）·条件=归属我分站+tempReferrerId非空且≠我+已支付·不暴露抢佣者身份", async () => {
+      mockPrisma.station.findUnique.mockResolvedValue({ id: "st-1" });
+      mockPrisma.order.findMany.mockResolvedValue([
+        { id: "abcdefgh-1111-2222-3333-444444444444", amount: 88.8, tempRefSubjectType: "CIRCLE", createdAt: new Date("2026-07-01") },
+      ]);
+      mockPrisma.order.count.mockResolvedValue(1);
+      const result = await svc.getStationPreemptedOrders("st-user", 1, 20);
+      expect(result.total).toBe(1);
+      expect(result.list[0]).toEqual({
+        orderId: "abcdefgh****", // 打码
+        amount: 88.8,
+        subjectType: "CIRCLE",
+        createdAt: new Date("2026-07-01"),
+      });
+      expect(Object.keys(result.list[0])).not.toContain("tempReferrerId"); // 不暴露抢佣者身份
+      const where = mockPrisma.order.findMany.mock.calls[0][0].where;
+      expect(where.user).toEqual({ attributionStationId: "st-1" });
+      expect(where.tempReferrerId).toEqual({ not: null });
+      expect(where.NOT).toEqual({ tempReferrerId: "st-user" }); // 排除临时归因是我自己
+      expect(where.status).toEqual({ in: ["PAID", "SHIPPED", "COMPLETED"] });
+    });
+
+    it("分页参数正确传导（page=2/pageSize=10 → skip=10/take=10）", async () => {
+      mockPrisma.station.findUnique.mockResolvedValue({ id: "st-1" });
+      mockPrisma.order.findMany.mockResolvedValue([]);
+      mockPrisma.order.count.mockResolvedValue(23);
+      const result = await svc.getStationPreemptedOrders("st-user", 2, 10);
+      const arg = mockPrisma.order.findMany.mock.calls[0][0];
+      expect(arg.skip).toBe(10);
+      expect(arg.take).toBe(10);
+      expect(result.page).toBe(2);
+      expect(result.pageSize).toBe(10);
+      expect(result.total).toBe(23);
     });
   });
 

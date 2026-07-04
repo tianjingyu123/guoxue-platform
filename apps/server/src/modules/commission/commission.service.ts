@@ -12,6 +12,7 @@ import { RedisService } from "../../redis/redis.service";
 import { FundApprovalService } from "../fund-approval/fund-approval.service";
 import { SettlementService } from "../settlement/settlement.service";
 import { LedgerBalanceService } from "../settlement/ledger-balance.service";
+import { UserGrowthService } from "../user-growth/user-growth.service";
 
 /** 提现上限（元），与钱包提现口径一致 */
 const MAX_WITHDRAW_RMB = 50000;
@@ -37,6 +38,18 @@ const MGMT_RATE_DEFAULTS: Record<string, number> = {
   OFFLINE: 0.20, // 线下运营商（驿站赠送"高级线下运营商"）：名下站长推广佣金的 20%
 };
 
+/**
+ * 佣-V2-P4 非渠道用户分享成交积分档（2026-07-04 拍板·设计 §3.4）：
+ * 普通用户（非渠道主体）推荐无现金佣金，成交改发创作/推广积分 =
+ * 订单金额（元）向下取整 × 2，封顶 200 分/单（约=签到 5 分的 20-100 倍量级）。
+ */
+const SHARE_CONVERSION_EXP_PER_YUAN = 2;
+const SHARE_CONVERSION_EXP_CAP = 200;
+/** 分享成交积分的学分来源标识（UserGrowth 台账口径） */
+const SHARE_CONVERSION_SOURCE = "share_conversion";
+/** 首单判定视为"已成交"的订单状态（与分佣触发口径一致：支付后才计） */
+const SHARE_CONVERSION_PAID_STATUSES = ["PAID", "SHIPPED", "COMPLETED"] as const;
+
 @Injectable()
 export class CommissionService {
   private readonly logger = new Logger(CommissionService.name);
@@ -50,6 +63,7 @@ export class CommissionService {
     @Optional() private fundApproval?: FundApprovalService,
     @Optional() private settlement?: SettlementService,
     @Optional() private ledgerBalance?: LedgerBalanceService,
+    @Optional() private userGrowth?: UserGrowthService, // 佣-V2-P4 分享积分（单测缺 provider 时兜底跳过）
   ) {}
 
   // ───────── 分佣比例变更审批（发起端，不立即生效） ─────────
@@ -185,7 +199,15 @@ export class CommissionService {
       ? await this.prisma.station.findUnique({ where: { id: stationId } })
       : await this.prisma.station.findUnique({ where: { userId: effectiveReferrerId } });
 
-    if (!station) return null;
+    if (!station) {
+      // ── 佣-V2-P4 非渠道分享成交 → 创作/推广积分（2026-07-04 拍板·设计 §3.4）──
+      // 推荐人存在但非渠道主体（无 tempRefSubjectType 且查无 Station）：普通用户推荐无现金佣金，
+      // 改发积分奖励。失败静默，绝不阻断分佣主流程（本分支原本就是"静默无奖励"返回 null）。
+      if (!channelSubjectType) {
+        await this.awardShareConversionExp(orderId, effectiveReferrerId, effectivePayerId, amount);
+      }
+      return null;
+    }
 
     // 站长自购不产生佣金（2026-07-02 拍板：自购已在下单时直接立减·此处防御性拦截历史/旁路订单）
     if (effectivePayerId && effectivePayerId === station.userId) {
@@ -257,6 +279,42 @@ export class CommissionService {
     }
 
     return earning;
+  }
+
+  /**
+   * 佣-V2-P4 非渠道用户分享成交积分奖励（替代现金佣金·2026-07-04 拍板·设计 §3.4）。
+   * 积分档 = 订单金额（元）向下取整 × 2，封顶 200 分/单。
+   * 防刷：同一（买家, 推荐人）仅首单计（历史已支付订单同推荐人则跳过）；自购（推荐人=买家）不计。
+   * 全程 try/catch 静默：积分发放绝不阻断分佣主流程。
+   */
+  private async awardShareConversionExp(
+    orderId: string,
+    referrerId: string,
+    buyerId: string | undefined,
+    amount: number,
+  ): Promise<void> {
+    try {
+      if (!this.userGrowth) return; // 单测/裁剪部署缺 provider 兜底
+      if (!buyerId) return; // 无法确认买家身份则不发（防自购/重复判定失效）
+      if (buyerId === referrerId) return; // 自购不计
+      const exp = Math.min(Math.floor(amount) * SHARE_CONVERSION_EXP_PER_YUAN, SHARE_CONVERSION_EXP_CAP);
+      if (exp <= 0) return;
+      // 同一（买家, 推荐人）仅首单计：该买家历史已支付订单中已有同推荐人（永久或临时）则跳过
+      const prior = await this.prisma.order.findFirst({
+        where: {
+          id: { not: orderId },
+          userId: buyerId,
+          status: { in: [...SHARE_CONVERSION_PAID_STATUSES] },
+          OR: [{ tempReferrerId: referrerId }, { referrerId }],
+        },
+        select: { id: true },
+      });
+      if (prior) return;
+      await this.userGrowth.addExp(referrerId, exp, SHARE_CONVERSION_SOURCE);
+      this.logger.log(`非渠道分享成交积分：+${exp}（推荐人 ${referrerId}·订单 ${orderId}）`);
+    } catch (e) {
+      this.logger.warn(`分享成交积分发放失败(order=${orderId})，不阻断分佣主流程`, e as Error);
+    }
   }
 
   /**
@@ -506,6 +564,49 @@ export class CommissionService {
       page,
       pageSize,
       totalEarned: sumResult._sum.earned || 0,
+    };
+  }
+
+  /**
+   * 佣-V2-P4 站长"被临时抢佣"透明化明细（2026-07-04 拍板·设计 §四/§七防纠纷）。
+   * 口径：用户永久归属我的分站（User.attributionStationId=我的分站）、但订单被有效期内的
+   * 临时链接抢佣（tempReferrerId 非空且 ≠ 我）的已支付订单。
+   * 隐私：orderId 打码（前 8 位），只暴露抢佣渠道类型（tempRefSubjectType），
+   * 不暴露抢佣者身份细节（防纠纷升级）。仅站长本人可查（按 userId 定位自己的分站）。
+   */
+  async getStationPreemptedOrders(userId: string, page = 1, pageSize = 20) {
+    const station = await this.prisma.station.findUnique({
+      where: { userId },
+      select: { id: true },
+    });
+    if (!station) throw new BusinessException(ErrorCode.FORBIDDEN, "您不是站长，无法查看被抢佣明细");
+
+    const where: Prisma.OrderWhereInput = {
+      user: { attributionStationId: station.id }, // 买家永久归属我的分站
+      tempReferrerId: { not: null }, // 被临时链接归因
+      NOT: { tempReferrerId: userId }, // 排除临时归因也是我自己（未被抢）
+      status: { in: ["PAID", "SHIPPED", "COMPLETED"] }, // 只列实际产生佣金流向的已支付订单
+    };
+    const [orders, total] = await Promise.all([
+      this.prisma.order.findMany({
+        where,
+        select: { id: true, amount: true, tempRefSubjectType: true, createdAt: true },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        orderBy: { createdAt: "desc" },
+      }),
+      this.prisma.order.count({ where }),
+    ]);
+    return {
+      list: orders.map((o) => ({
+        orderId: `${o.id.slice(0, 8)}****`, // 打码：仅前 8 位
+        amount: Number(o.amount),
+        subjectType: o.tempRefSubjectType || "STATION", // 抢佣渠道类型（NULL=现行分站临时链接）
+        createdAt: o.createdAt,
+      })),
+      total,
+      page,
+      pageSize,
     };
   }
 

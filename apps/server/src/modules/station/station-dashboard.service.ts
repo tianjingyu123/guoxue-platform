@@ -1,5 +1,14 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, ForbiddenException } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
+
+/**
+ * 佣-V2 管理奖默认比率（与 commission.service 同口径·2026-07-04 拍板）：
+ * operator.mgmtRate 为空时按渠道类型取默认（ONLINE 10% / OFFLINE 20%）。
+ */
+const MGMT_RATE_DEFAULTS: Record<string, number> = {
+  ONLINE: 0.10,
+  OFFLINE: 0.20,
+};
 
 @Injectable()
 export class StationDashboardService {
@@ -96,6 +105,64 @@ export class StationDashboardService {
     return {
       silentUsers: Array.from(userMap.entries()).map(([id, info]) => ({ id, ...info })),
       count: userMap.size,
+    };
+  }
+
+  /**
+   * 佣-V2-P4 运营商管理奖新口径月报（2026-07-04 拍板·管理奖 = 站长实得佣金 × (mgmtRate ?? 渠道默认)）。
+   * 数据源 OperatorEarning（P1 改制后：amount=站长佣金额基数、rate=实际比率、earned=运营商所得），
+   * 本月直接聚合（含退款冲正负记录，自然净额）；明细按站长（sourceStationId）分组。
+   * channelType=OFFLINE 即"高级线下运营商"（20% 档）标识。
+   */
+  async getOperatorMgmtReport(userId: string) {
+    const operator = await this.prisma.operator.findFirst({
+      where: { userId },
+      select: { id: true, channelType: true, mgmtRate: true },
+    });
+    if (!operator) throw new ForbiddenException("当前用户不是运营商");
+
+    // 我的比率：逐运营商 mgmtRate 覆盖 → channelType 默认（ONLINE 0.10 / OFFLINE 0.20）
+    const mgmtRate =
+      operator.mgmtRate != null
+        ? Number(operator.mgmtRate)
+        : MGMT_RATE_DEFAULTS[operator.channelType] ?? MGMT_RATE_DEFAULTS.ONLINE;
+
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    const grouped = await this.prisma.operatorEarning.groupBy({
+      by: ["sourceStationId"],
+      where: { operatorId: operator.id, source: "MGMT_BONUS", createdAt: { gte: monthStart } },
+      _sum: { amount: true, earned: true },
+      _count: true,
+    });
+
+    const stationIds = grouped.map((g) => g.sourceStationId).filter((v): v is string => !!v);
+    const stations = stationIds.length
+      ? await this.prisma.station.findMany({ where: { id: { in: stationIds } }, select: { id: true, name: true } })
+      : [];
+    const nameMap = new Map(stations.map((s) => [s.id, s.name]));
+
+    const byStation = grouped
+      .map((g) => ({
+        stationId: g.sourceStationId,
+        stationName: g.sourceStationId ? (nameMap.get(g.sourceStationId) ?? null) : null,
+        stationCommission: Math.round(Number(g._sum.amount || 0) * 100) / 100, // 该站长本月实得佣金合计（管理奖基数）
+        mgmtEarned: Math.round(Number(g._sum.earned || 0) * 100) / 100, // 我从该站长获得的管理奖合计
+        orders: g._count,
+      }))
+      .sort((a, b) => b.mgmtEarned - a.mgmtEarned);
+
+    const monthStationCommission = Math.round(byStation.reduce((s, x) => s + x.stationCommission, 0) * 100) / 100;
+    const monthMgmtEarned = Math.round(byStation.reduce((s, x) => s + x.mgmtEarned, 0) * 100) / 100;
+
+    return {
+      channelType: operator.channelType, // ONLINE / OFFLINE
+      isOfflinePremium: operator.channelType === "OFFLINE", // 高级线下运营商标识（20% 档）
+      mgmtRate, // 我的管理奖比率（mgmtRate ?? 渠道默认 0.10/0.20）
+      monthStationCommission, // 本月名下站长佣金合计（计酬基数口径）
+      monthMgmtEarned, // 本月管理奖合计（实得口径·含冲正净额）
+      byStation, // 明细按站长分组
     };
   }
 
