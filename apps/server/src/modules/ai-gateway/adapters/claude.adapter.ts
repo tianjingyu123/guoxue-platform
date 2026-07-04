@@ -31,15 +31,13 @@ interface ClaudeStreamEvent {
 export class ClaudeAdapter implements AiModelAdapter {
   readonly provider = "anthropic";
   private readonly logger = new Logger(ClaudeAdapter.name);
-  private readonly baseUrl: string;
-  private readonly apiKey: string;
 
-  constructor() {
-    this.baseUrl = process.env.ANTHROPIC_BASE_URL || "https://api.anthropic.com";
-    this.apiKey = process.env.ANTHROPIC_API_KEY || "";
-    if (!this.apiKey) {
-      this.logger.warn("ANTHROPIC_API_KEY 未配置，Claude适配器将无法使用");
-    }
+  // 运行时读取：后台保存密钥后热生效，无需重启（此前构造快照）。
+  private get baseUrl(): string {
+    return process.env.ANTHROPIC_BASE_URL || "https://api.anthropic.com";
+  }
+  private get apiKey(): string {
+    return process.env.ANTHROPIC_API_KEY || "";
   }
 
   async chat(

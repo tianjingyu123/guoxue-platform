@@ -25,12 +25,13 @@ interface LocalModelResponse {
 export class LocalModelAdapter implements AiModelAdapter {
   readonly provider = "local";
   private readonly logger = new Logger(LocalModelAdapter.name);
-  private readonly baseUrl: string;
-  private readonly apiKey: string;
 
-  constructor() {
-    this.baseUrl = process.env.LOCAL_MODEL_BASE_URL || "http://localhost:11434/v1";
-    this.apiKey = process.env.LOCAL_MODEL_API_KEY || "";
+  // 运行时读取：后台保存密钥后热生效，无需重启（此前构造快照）。
+  private get baseUrl(): string {
+    return process.env.LOCAL_MODEL_BASE_URL || "http://localhost:11434/v1";
+  }
+  private get apiKey(): string {
+    return process.env.LOCAL_MODEL_API_KEY || "";
   }
 
   async chat(

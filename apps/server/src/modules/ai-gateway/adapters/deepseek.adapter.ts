@@ -17,15 +17,14 @@ interface DeepSeekResponse {
 export class DeepSeekAdapter implements AiModelAdapter {
   readonly provider = "deepseek";
   private readonly logger = new Logger(DeepSeekAdapter.name);
-  private readonly baseUrl: string;
-  private readonly apiKey: string;
 
-  constructor() {
-    this.baseUrl = process.env.DEEPSEEK_BASE_URL || "https://api.deepseek.com";
-    this.apiKey = process.env.DEEPSEEK_API_KEY || "";
-    if (!this.apiKey) {
-      this.logger.warn("DEEPSEEK_API_KEY 未配置，DeepSeek适配器将无法使用");
-    }
+  // 运行时读取：后台「第三方配置」保存密钥后，ThirdPartyConfigLoader 写入 process.env，
+  // getter 每次取最新值，无需重启即热生效（此前构造快照导致换密钥必须重启）。
+  private get baseUrl(): string {
+    return process.env.DEEPSEEK_BASE_URL || "https://api.deepseek.com";
+  }
+  private get apiKey(): string {
+    return process.env.DEEPSEEK_API_KEY || "";
   }
 
   async chat(
