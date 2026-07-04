@@ -30,6 +30,7 @@ describe("PricingService", () => {
     redis = {
       getJson: jest.fn().mockResolvedValue(null),
       setJson: jest.fn().mockResolvedValue(undefined),
+      runExclusive: jest.fn((_n: string, _t: number, fn: () => Promise<unknown>) => fn()),
     };
 
     const mod = await Test.createTestingModule({

@@ -22,6 +22,8 @@ export class RedisThrottleGuard implements CanActivate {
     private redis: RedisService,
     @Optional() private readonly limit: number = 30,
     @Optional() private readonly ttl: number = 60,
+    /** 计数键前缀：局部守卫须与全局守卫(rate:)区分，否则同请求双计数 */
+    @Optional() private readonly keyPrefix: string = "rate",
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -34,7 +36,7 @@ export class RedisThrottleGuard implements CanActivate {
     // 白名单 IP 不限流
     if (isWhitelisted(ip)) return true;
 
-    const key = `rate:${ip}`;
+    const key = `${this.keyPrefix}:${ip}`;
 
     const { count, ttl: remainingTtl } = await this.redis.incrWithTtl(key, this.ttl);
 

@@ -134,6 +134,10 @@ export class OfflineReminderService {
   /** 开课/开场提醒扫描：每 10 分钟一轮，两档窗口（24h/2h），课程+活动共享单轮总量 ≤500 */
   @Cron("*/10 * * * *")
   async scanAndRemind(): Promise<number> {
+    return (await this.redis.runExclusive("offline_scan_and_remind", 600, () => this._scanAndRemind())) ?? 0;
+  }
+
+  private async _scanAndRemind(): Promise<number> {
     const now = Date.now();
     const tiers = [
       { key: "h24", offsetMs: 24 * 3600 * 1000, title: "明天开课提醒", eventTitle: "明天活动提醒", label: "明天" },

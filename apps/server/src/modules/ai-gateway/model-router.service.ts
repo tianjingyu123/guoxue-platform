@@ -2,6 +2,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import { randomInt } from "crypto";
 import { SystemService } from "../system/system.service";
 import { PrismaService } from "../../prisma/prisma.service";
+import { RedisService } from "../../redis/redis.service";
 
 export type AiProvider = "deepseek" | "anthropic" | "alibaba" | "local";
 
@@ -71,13 +72,14 @@ export class ModelRouterService {
   private readonly logger = new Logger(ModelRouterService.name);
   private routingCache: ModelRoutingConfig | null = null;
   private cacheExpireAt = 0;
-  /** 月Token消耗缓存（场景→当月已消耗）*/
-  private monthlyUsage: Map<string, number> = new Map();
-  private usageExpireAt = 0;
+  /** 月Token消耗缓存键前缀（M4·入 Redis 多实例共享，防各实例内存计数导致预算封顶失准）*/
+  private static readonly USAGE_CACHE_PREFIX = "ai:budget:usage:";
+  private static readonly USAGE_CACHE_TTL = 300; // 5分钟
 
   constructor(
     private readonly systemService: SystemService,
     private readonly prisma: PrismaService,
+    private readonly redis: RedisService,
   ) {}
 
   /** 根据场景名解析路由配置（含灰度+预算控制+供应商） */
@@ -144,11 +146,13 @@ export class ModelRouterService {
     };
   }
 
-  /** 获取当月Token消耗 */
+  /** 获取当月Token消耗（Redis 缓存5分钟·多实例共享一份，预算封顶口径一致） */
   private async getMonthlyTokenUsage(scene: string): Promise<number> {
-    // 内存缓存5分钟
-    if (Date.now() < this.usageExpireAt) {
-      return this.monthlyUsage.get(scene) || 0;
+    const cacheKey = `${ModelRouterService.USAGE_CACHE_PREFIX}${scene}`;
+    const cached = await this.redis.get(cacheKey);
+    if (cached !== null) {
+      const parsed = Number(cached);
+      if (Number.isFinite(parsed)) return parsed;
     }
 
     const now = new Date();
@@ -169,8 +173,7 @@ export class ModelRouterService {
         );
 
       const total = Number(rawResult[0]?.total_prompt || 0) + Number(rawResult[0]?.total_completion || 0);
-      this.monthlyUsage.set(scene, total);
-      this.usageExpireAt = Date.now() + 300_000;
+      await this.redis.set(cacheKey, String(total), ModelRouterService.USAGE_CACHE_TTL);
       return total;
     } catch (err: any) {
       this.logger.warn(`获取Token消耗失败: ${err.message}`);
@@ -219,11 +222,10 @@ export class ModelRouterService {
   }
 
   /** 清除缓存（配置更新后调用） */
-  clearCache() {
+  async clearCache() {
     this.routingCache = null;
     this.cacheExpireAt = 0;
-    this.monthlyUsage.clear();
-    this.usageExpireAt = 0;
+    await this.redis.delByPattern(`${ModelRouterService.USAGE_CACHE_PREFIX}*`);
   }
 
   /** 获取所有场景的预算使用情况 */

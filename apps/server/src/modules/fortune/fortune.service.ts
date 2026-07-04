@@ -2,6 +2,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import { Cron } from "@nestjs/schedule";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
+import { RedisService } from "../../redis/redis.service";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 
@@ -124,12 +125,19 @@ function generateFortune(date: Date, userId: string): FortuneContent {
 export class FortuneService {
   private readonly logger = new Logger(FortuneService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private readonly redis: RedisService,
+  ) {}
 
   // ───────── 每日运势生成（7点执行） ─────────
 
   @Cron("0 7 * * *")
   async generateDailyFortunes() {
+    await this.redis.runExclusive("fortune_daily_gen", 1800, () => this._generateDailyFortunes());
+  }
+
+  private async _generateDailyFortunes() {
     this.logger.log("开始生成每日运势");
     const today = new Date();
     const todayStr = formatDate(today, "YYYY-MM-DD");
@@ -169,6 +177,10 @@ export class FortuneService {
 
   @Cron("0 8 * * 1")
   async generateWeeklyFortunes() {
+    await this.redis.runExclusive("fortune_weekly_gen", 1800, () => this._generateWeeklyFortunes());
+  }
+
+  private async _generateWeeklyFortunes() {
     this.logger.log("开始生成每周运势");
     const today = new Date();
     const period = getWeekPeriod(today);

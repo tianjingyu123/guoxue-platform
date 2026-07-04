@@ -71,7 +71,7 @@ describe("AdminModelRoutingController", () => {
   describe("updateConfig — 更新完整路由配置", () => {
     it("保存配置到 systemService 并清除缓存", async () => {
       systemService.setConfig.mockResolvedValue(mockConfigRecord);
-      modelRouter.clearCache.mockReturnValue(undefined);
+      modelRouter.clearCache.mockResolvedValue(undefined);
       const dto: UpdateRoutingConfigDto = {
         default: { model: "gpt-4" },
       };
@@ -114,7 +114,7 @@ describe("AdminModelRoutingController", () => {
       };
       modelRouter.getRoutingConfig.mockResolvedValue(existingConfig);
       systemService.setConfig.mockResolvedValue(mockConfigRecord);
-      modelRouter.clearCache.mockReturnValue(undefined);
+      modelRouter.clearCache.mockResolvedValue(undefined);
       const dto: UpdateSceneRoutingDto = { model: "claude-3" };
 
       const result = await ctrl.updateScene("general", dto, mockReq);

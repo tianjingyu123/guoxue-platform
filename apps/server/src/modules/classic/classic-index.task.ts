@@ -1,6 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { Cron, CronExpression } from "@nestjs/schedule";
 import { PrismaService } from "../../prisma/prisma.service";
+import { RedisService } from "../../redis/redis.service";
 import { VectorService } from "../ai-gateway/vector.service";
 
 /**
@@ -19,11 +20,18 @@ export class ClassicIndexTask {
   constructor(
     private readonly prisma: PrismaService,
     private readonly vector: VectorService,
+    private readonly redis: RedisService,
   ) {}
 
-  /** 每天凌晨 4:00 全量检查并索引未向量化的古籍章节 */
+  /** 每天凌晨 4:00 全量检查并索引未向量化的古籍章节（分布式锁防多实例重复） */
   @Cron(CronExpression.EVERY_DAY_AT_4AM)
   async indexClassicChapters() {
+    await this.redis.runExclusive("classic_index_chapters", 1800, () =>
+      this._indexClassicChapters(),
+    );
+  }
+
+  private async _indexClassicChapters() {
     this.logger.log("开始索引古籍章节...");
 
     // 获取所有古籍及其章节

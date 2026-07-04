@@ -1,6 +1,7 @@
 import { Injectable, Logger, Optional } from "@nestjs/common";
 import { Cron } from "@nestjs/schedule";
 import { PrismaService } from "../../prisma/prisma.service";
+import { RedisService } from "../../redis/redis.service";
 import { ContentExpService } from "../user-growth/content-exp.service";
 
 /** 单次 cron 最多评分条数（控制 AI 成本与时长） */
@@ -32,6 +33,7 @@ export class ContentQualityService {
   // ContentExpService @Optional：单测/裁剪场景缺席时评分照常，只是不发学分（生产由 module imports 保证注入）
   constructor(
     private prisma: PrismaService,
+    private readonly redis: RedisService,
     @Optional() private contentExp?: ContentExpService,
   ) {}
 
@@ -42,12 +44,14 @@ export class ContentQualityService {
   @Cron("30 * * * *")
   async scoreNewContentCron() {
     if (!this.aiEnabled()) return;
-    try {
-      const result = await this.scoreNewContent();
-      if (result.scored > 0) this.logger.log(`内容质量评分：本轮 ${result.scored} 条`);
-    } catch (e) {
-      this.logger.error("内容质量评分批次失败", e as Error);
-    }
+    await this.redis.runExclusive("content_quality_score_new_content", 1800, async () => {
+      try {
+        const result = await this.scoreNewContent();
+        if (result.scored > 0) this.logger.log(`内容质量评分：本轮 ${result.scored} 条`);
+      } catch (e) {
+        this.logger.error("内容质量评分批次失败", e as Error);
+      }
+    });
   }
 
   /** 扫描近 7 天未评分的文章/帖子，逐条打分（单轮限量） */

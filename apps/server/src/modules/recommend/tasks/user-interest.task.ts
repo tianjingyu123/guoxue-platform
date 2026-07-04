@@ -14,6 +14,10 @@ export class UserInterestTask {
 
   @Cron(CronExpression.EVERY_DAY_AT_3AM)
   async updateUserInterests() {
+    await this.redis.runExclusive("recommend_user_interest", 1800, () => this._updateUserInterests());
+  }
+
+  private async _updateUserInterests() {
     this.logger.log("开始更新用户兴趣标签...");
 
     // 从 UserBehavior 聚合近 90 天用户行为，按标签加权计算兴趣分数

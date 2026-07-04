@@ -1,6 +1,7 @@
 import { Injectable, Logger, Optional } from "@nestjs/common";
 import { Cron, CronExpression } from "@nestjs/schedule";
 import { PrismaService } from "../../prisma/prisma.service";
+import { RedisService } from "../../redis/redis.service";
 import { NotificationService } from "../notification/notification.service";
 
 @Injectable()
@@ -9,12 +10,19 @@ export class CourseSchedulerService {
 
   constructor(
     private prisma: PrismaService,
+    private readonly redis: RedisService,
     @Optional() private notification?: NotificationService,
   ) {}
 
-  /** 每分钟检查定时发布的课程 */
+  /** 每分钟检查定时发布的课程（分布式锁防多实例重复） */
   @Cron(CronExpression.EVERY_MINUTE)
   async publishScheduledCourses() {
+    await this.redis.runExclusive("course_publish_scheduled_courses", 600, () =>
+      this._publishScheduledCourses(),
+    );
+  }
+
+  private async _publishScheduledCourses() {
     try {
       const now = new Date();
       const result = await this.prisma.course.updateMany({
@@ -35,9 +43,16 @@ export class CourseSchedulerService {
     }
   }
 
-  /** 每天9点检查即将到期的课程，发送提醒 */
+  /** 每天9点检查即将到期的课程，发送提醒（分布式锁防多实例重复） */
   @Cron("0 9 * * *")
   async checkExpiringCourses() {
+    if (!this.notification) return;
+    await this.redis.runExclusive("course_check_expiring_courses", 600, () =>
+      this._checkExpiringCourses(),
+    );
+  }
+
+  private async _checkExpiringCourses() {
     if (!this.notification) return;
     try {
       // 获取所有有效期课程
@@ -104,9 +119,15 @@ export class CourseSchedulerService {
     }
   }
 
-  /** 每天凌晨2点巡检已过期课程（统计+日志，实际拦截在 checkAccess 中执行） */
+  /** 每天凌晨2点巡检已过期课程（统计+日志，实际拦截在 checkAccess 中执行·分布式锁防多实例重复） */
   @Cron("0 2 * * *")
   async handleExpiredCourses() {
+    await this.redis.runExclusive("course_handle_expired_courses", 600, () =>
+      this._handleExpiredCourses(),
+    );
+  }
+
+  private async _handleExpiredCourses() {
     try {
       const courses = await this.prisma.course.findMany({
         where: { validityDays: { gt: 0 }, auditStatus: "APPROVED" },

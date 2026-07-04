@@ -228,22 +228,24 @@ export class AiEventBusService {
     }
   }
 
-  /** 每日清理过期事件 */
+  /** 每日清理过期事件（分布式锁防多实例重复执行） */
   @Cron(CronExpression.EVERY_DAY_AT_4AM)
   async cleanupExpiredEvents(): Promise<void> {
-    try {
-      const cutoff = new Date(
-        Date.now() - EVENT_RETENTION_DAYS * 24 * 3600_000,
-      );
-      const result = await this.prisma.aiEvent.deleteMany({
-        where: { createdAt: { lt: cutoff } },
-      });
-      if (result.count > 0) {
-        this.logger.log(`清理过期事件: ${result.count} 条`);
+    await this.redis.runExclusive("ai_event_bus_cleanup_expired_events", 600, async () => {
+      try {
+        const cutoff = new Date(
+          Date.now() - EVENT_RETENTION_DAYS * 24 * 3600_000,
+        );
+        const result = await this.prisma.aiEvent.deleteMany({
+          where: { createdAt: { lt: cutoff } },
+        });
+        if (result.count > 0) {
+          this.logger.log(`清理过期事件: ${result.count} 条`);
+        }
+      } catch (err: any) {
+        this.logger.warn(`过期事件清理失败: ${err.message}`);
       }
-    } catch (err: any) {
-      this.logger.warn(`过期事件清理失败: ${err.message}`);
-    }
+    });
   }
 
   /** 统计最近24小时事件数量 */

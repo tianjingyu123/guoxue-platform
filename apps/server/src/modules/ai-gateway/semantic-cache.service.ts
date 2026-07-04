@@ -238,19 +238,21 @@ export class SemanticCacheService {
     });
   }
 
-  /** 每天凌晨清理过期语义缓存 */
+  /** 每天凌晨清理过期语义缓存（分布式锁防多实例重复执行） */
   @Cron(CronExpression.EVERY_DAY_AT_4AM)
   async cleanExpiredCache() {
-    try {
-      const result = await this.prisma.aiCacheEntry.deleteMany({
-        where: { expiresAt: { lt: new Date() } },
-      });
-      if (result.count > 0) {
-        this.logger.log(`清理过期语义缓存: ${result.count} 条`);
+    await this.redis.runExclusive("semantic_cache_cleanup", 600, async () => {
+      try {
+        const result = await this.prisma.aiCacheEntry.deleteMany({
+          where: { expiresAt: { lt: new Date() } },
+        });
+        if (result.count > 0) {
+          this.logger.log(`清理过期语义缓存: ${result.count} 条`);
+        }
+      } catch (err: any) {
+        this.logger.warn(`语义缓存清理失败: ${err.message}`);
       }
-    } catch (err: any) {
-      this.logger.warn(`语义缓存清理失败: ${err.message}`);
-    }
+    });
   }
 
   /** 获取缓存统计（管理接口） */

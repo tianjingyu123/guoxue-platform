@@ -60,10 +60,12 @@ export class PlatformKnowledgeService {
     }
   }
 
-  /** 定时汇聚（每天凌晨3点） */
+  /** 定时汇聚（每天凌晨3点·分布式锁防多实例重复执行） */
   @Cron("0 3 * * *")
   async scheduledAggregate() {
-    await this.aggregateAll();
+    await this.redis.runExclusive("platform_knowledge_scheduled_aggregate", 1800, async () => {
+      await this.aggregateAll();
+    });
   }
 
   /** 查询平台知识库 */

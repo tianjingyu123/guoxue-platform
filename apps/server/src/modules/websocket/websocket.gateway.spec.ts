@@ -2,6 +2,7 @@ import { Test } from "@nestjs/testing";
 import { AppGateway } from "./websocket.gateway";
 import { WsAuthService } from "./ws-auth.service";
 import { PrismaService } from "../../prisma/prisma.service";
+import { RedisService } from "../../redis/redis.service";
 
 const mockWsAuth = {
   extractUser: jest.fn(),
@@ -11,6 +12,37 @@ const mockPrisma = {
   user: { findUnique: jest.fn() },
 };
 
+// 内存假 Redis：在线态迁 Redis 后，用真实语义的假实现支撑原有行为断言
+const createFakeRedis = () => {
+  const sets = new Map<string, Set<string>>();
+  const kv = new Map<string, string>();
+  const counters = new Map<string, number>();
+  return {
+    sadd: jest.fn(async (k: string, m: string) => {
+      if (!sets.has(k)) sets.set(k, new Set());
+      const s = sets.get(k)!;
+      const had = s.has(m);
+      s.add(m);
+      return had ? 0 : 1;
+    }),
+    srem: jest.fn(async (k: string, m: string) => (sets.get(k)?.delete(m) ? 1 : 0)),
+    scard: jest.fn(async (k: string) => sets.get(k)?.size ?? 0),
+    smembers: jest.fn(async (k: string) => Array.from(sets.get(k) ?? [])),
+    sismember: jest.fn(async (k: string, m: string) => sets.get(k)?.has(m) ?? false),
+    incrBy: jest.fn(async (k: string, d: number) => {
+      const v = (counters.get(k) ?? 0) + d;
+      counters.set(k, v);
+      return v;
+    }),
+    set: jest.fn(async (k: string, v: string) => { kv.set(k, v); }),
+    get: jest.fn(async (k: string) => kv.get(k) ?? null),
+    del: jest.fn(async (k: string) => { kv.delete(k); sets.delete(k); counters.delete(k); }),
+    expire: jest.fn(async () => undefined),
+    reset() { sets.clear(); kv.clear(); counters.clear(); },
+  };
+};
+const fakeRedis = createFakeRedis();
+
 // Socket mock factory — 返回 any 避免 Socket<...> 完整类型报错
 const makeSocket = (overrides: Record<string, any> = {}): any => ({
   id: `socket-${Math.random().toString(36).slice(2, 6)}`,
@@ -18,6 +50,7 @@ const makeSocket = (overrides: Record<string, any> = {}): any => ({
     headers: { "x-forwarded-for": "1.2.3.4" },
     address: "1.2.3.4",
   },
+  data: {},
   emit: jest.fn(),
   join: jest.fn(),
   leave: jest.fn(),
@@ -40,6 +73,7 @@ describe("AppGateway", () => {
         AppGateway,
         { provide: WsAuthService, useValue: mockWsAuth },
         { provide: PrismaService, useValue: mockPrisma },
+        { provide: RedisService, useValue: fakeRedis },
       ],
     }).compile();
     gw = mod.get(AppGateway);
@@ -50,29 +84,28 @@ describe("AppGateway", () => {
     jest.clearAllMocks();
     mockServer.to.mockReturnThis(); // clearAllMocks 会重置 mockReturnThis，需重新设置
     // 重置网关内部状态，避免测试间累积
-    gw["onlineUsers"].clear();
     gw["socketMap"].clear();
-    gw["ipConnections"].clear();
     gw["eventRateLimit"].clear();
+    fakeRedis.reset();
   });
 
   // ═══════════════ 纯逻辑方法 ═══════════════
 
   describe("在线状态查询", () => {
-    it("getOnlineCount 初始为0", () => {
-      expect(gw.getOnlineCount()).toBe(0);
+    it("getOnlineCount 初始为0", async () => {
+      expect(await gw.getOnlineCount()).toBe(0);
     });
 
-    it("isUserOnline 返回false", () => {
-      expect(gw.isUserOnline("u1")).toBe(false);
+    it("isUserOnline 返回false", async () => {
+      expect(await gw.isUserOnline("u1")).toBe(false);
     });
 
-    it("getOnlineUsers 返回空数组", () => {
-      expect(gw.getOnlineUsers()).toEqual([]);
+    it("getOnlineUsers 返回空数组", async () => {
+      expect(await gw.getOnlineUsers()).toEqual([]);
     });
 
-    it("getOnlineUserIds 返回空数组", () => {
-      expect(gw.getOnlineUserIds()).toEqual([]);
+    it("getOnlineUserIds 返回空数组", async () => {
+      expect(await gw.getOnlineUserIds()).toEqual([]);
     });
   });
 
@@ -93,10 +126,10 @@ describe("AppGateway", () => {
   // ═══════════════ 连接管理 ═══════════════
 
   describe("handleConnection", () => {
-    it("认证失败断开连接", () => {
+    it("认证失败断开连接", async () => {
       mockWsAuth.extractUser.mockReturnValue(null);
       const client = makeSocket();
-      gw.handleConnection(client);
+      await gw.handleConnection(client);
       expect(client.emit).toHaveBeenCalledWith("auth_error", expect.any(Object));
       expect(client.disconnect).toHaveBeenCalledWith(true);
     });
@@ -119,8 +152,8 @@ describe("AppGateway", () => {
 
       expect(client.join).toHaveBeenCalledWith("user:u1");
       expect(client.emit).toHaveBeenCalledWith("welcome", expect.objectContaining({ userId: "u1" }));
-      expect(gw.isUserOnline("u1")).toBe(true);
-      expect(gw.getOnlineCount()).toBe(1);
+      expect(await gw.isUserOnline("u1")).toBe(true);
+      expect(await gw.getOnlineCount()).toBe(1);
     });
 
     it("管理员连接加入admin房间", async () => {
@@ -142,10 +175,10 @@ describe("AppGateway", () => {
       mockPrisma.user.findUnique.mockResolvedValue({ status: "ACTIVE" });
       const client = makeSocket({ id: "s3" });
       await gw.handleConnection(client);
-      expect(gw.getOnlineCount()).toBe(1);
+      expect(await gw.getOnlineCount()).toBe(1);
 
-      gw.handleDisconnect(client);
-      expect(gw.getOnlineCount()).toBe(0);
+      await gw.handleDisconnect(client);
+      expect(await gw.getOnlineCount()).toBe(0);
     });
   });
 
@@ -197,9 +230,9 @@ describe("AppGateway", () => {
   });
 
   describe("在线状态订阅", () => {
-    it("subscribe_presence 加入房间并返回当前状态", () => {
+    it("subscribe_presence 加入房间并返回当前状态", async () => {
       const client = makeSocket();
-      gw.handleSubscribePresence(client, "target-user");
+      await gw.handleSubscribePresence(client, "target-user");
       expect(client.join).toHaveBeenCalledWith("presence:target-user");
       expect(client.emit).toHaveBeenCalledWith("presence_update", { userId: "target-user", status: "offline" });
     });

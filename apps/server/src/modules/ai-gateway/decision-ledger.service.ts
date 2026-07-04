@@ -3,6 +3,7 @@ import { Cron, CronExpression } from "@nestjs/schedule";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
+import { RedisService } from "../../redis/redis.service";
 
 export interface AiDecisionRecord {
   agentId: string;
@@ -63,7 +64,10 @@ export class DecisionLedgerService {
   private readonly logger = new Logger(DecisionLedgerService.name);
   private readonly RETENTION_DAYS = 90;
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly redis: RedisService,
+  ) {}
 
   /** 记录 AI 决策 */
   async record(decision: AiDecisionRecord): Promise<string> {
@@ -321,21 +325,23 @@ export class DecisionLedgerService {
     };
   }
 
-  /** 定期清理过期决策（保留90天） */
+  /** 定期清理过期决策（保留90天·分布式锁防多实例重复执行） */
   @Cron(CronExpression.EVERY_DAY_AT_5AM)
   async cleanupOldDecisions(): Promise<void> {
-    try {
-      const cutoff = new Date(
-        Date.now() - this.RETENTION_DAYS * 24 * 3600_000,
-      );
-      const result = await this.prisma.aiDecision.deleteMany({
-        where: { createdAt: { lt: cutoff } },
-      });
-      if (result.count > 0) {
-        this.logger.log(`清理过期决策: ${result.count} 条`);
+    await this.redis.runExclusive("decision_ledger_cleanup_old_decisions", 600, async () => {
+      try {
+        const cutoff = new Date(
+          Date.now() - this.RETENTION_DAYS * 24 * 3600_000,
+        );
+        const result = await this.prisma.aiDecision.deleteMany({
+          where: { createdAt: { lt: cutoff } },
+        });
+        if (result.count > 0) {
+          this.logger.log(`清理过期决策: ${result.count} 条`);
+        }
+      } catch (err: any) {
+        this.logger.warn(`过期决策清理失败: ${err.message}`);
       }
-    } catch (err: any) {
-      this.logger.warn(`过期决策清理失败: ${err.message}`);
-    }
+    });
   }
 }

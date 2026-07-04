@@ -76,28 +76,30 @@ export class PricingService {
 
   @Cron("0 * * * *")
   async trackDemand() {
-    this.logger.log("执行需求统计");
-    const since24h = new Date(Date.now() - 24 * 3600 * 1000);
+    await this.redis.runExclusive("pricing_track_demand", 600, async () => {
+      this.logger.log("执行需求统计");
+      const since24h = new Date(Date.now() - 24 * 3600 * 1000);
 
-    const viewStats = await this.prisma.userBehavior.groupBy({
-      by: ["targetType"],
-      where: { behavior: "VIEW", createdAt: { gte: since24h } },
-      _count: true,
-    });
-
-    for (const stat of viewStats) {
-      if (!stat.targetType) continue;
-      const demandLevel = stat._count > 100 ? "HIGH" : stat._count > 30 ? "MEDIUM" : "LOW";
-      await this.prisma.pricingDemand.create({
-        data: {
-          targetType: stat.targetType,
-          targetId: "ALL",
-          viewCount24h: stat._count,
-          demandLevel,
-        },
+      const viewStats = await this.prisma.userBehavior.groupBy({
+        by: ["targetType"],
+        where: { behavior: "VIEW", createdAt: { gte: since24h } },
+        _count: true,
       });
-    }
-    this.logger.log(`需求统计完成: ${viewStats.length} 类型`);
+
+      for (const stat of viewStats) {
+        if (!stat.targetType) continue;
+        const demandLevel = stat._count > 100 ? "HIGH" : stat._count > 30 ? "MEDIUM" : "LOW";
+        await this.prisma.pricingDemand.create({
+          data: {
+            targetType: stat.targetType,
+            targetId: "ALL",
+            viewCount24h: stat._count,
+            demandLevel,
+          },
+        });
+      }
+      this.logger.log(`需求统计完成: ${viewStats.length} 类型`);
+    });
   }
 
   // ───────── 管理接口 ─────────

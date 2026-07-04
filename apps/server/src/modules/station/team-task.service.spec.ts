@@ -2,6 +2,7 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { BadRequestException, ForbiddenException, NotFoundException } from "@nestjs/common";
 import { TeamTaskService, CreateTeamTaskDto } from "./team-task.service";
 import { PrismaService } from "../../prisma/prisma.service";
+import { RedisService } from "../../redis/redis.service";
 
 const mockPrisma = {
   operator: { findFirst: jest.fn() },
@@ -27,7 +28,11 @@ describe("TeamTaskService（商-P2 团队任务下发）", () => {
 
   beforeEach(async () => {
     const mod: TestingModule = await Test.createTestingModule({
-      providers: [TeamTaskService, { provide: PrismaService, useValue: mockPrisma }],
+      providers: [
+        TeamTaskService,
+        { provide: PrismaService, useValue: mockPrisma },
+        { provide: RedisService, useValue: { runExclusive: jest.fn((_n: string, _t: number, fn: () => Promise<unknown>) => fn()) } },
+      ],
     }).compile();
     svc = mod.get(TeamTaskService);
     jest.clearAllMocks();

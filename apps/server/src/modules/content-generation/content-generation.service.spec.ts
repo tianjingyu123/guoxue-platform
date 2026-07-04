@@ -1,6 +1,7 @@
 import { Test } from "@nestjs/testing";
 import { ContentGenerationService } from "./content-generation.service";
 import { PrismaService } from "../../prisma/prisma.service";
+import { RedisService } from "../../redis/redis.service";
 import { AiGatewayService } from "../ai-gateway/ai-gateway.service";
 
 const mockPrisma = {
@@ -21,6 +22,10 @@ describe("ContentGenerationService", () => {
         ContentGenerationService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: AiGatewayService, useValue: mockGateway },
+        {
+          provide: RedisService,
+          useValue: { runExclusive: jest.fn((_n: string, _t: number, fn: () => Promise<unknown>) => fn()) },
+        },
       ],
     }).compile();
     svc = mod.get(ContentGenerationService);

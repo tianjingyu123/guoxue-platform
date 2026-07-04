@@ -244,28 +244,34 @@ export class TaskService {
     await this.redis.del(TASK_CACHE_PREFIX + id);
   }
 
-  /** 每小时清理：过期任务自动标记为 EXPIRED */
+  /** 每小时清理：过期任务自动标记为 EXPIRED（分布式锁防多实例重复执行） */
   @Cron(CronExpression.EVERY_HOUR)
   async cleanExpiredTasks() {
-    const now = new Date();
-    const result = await this.prisma.task.updateMany({
-      where: {
-        status: "PENDING",
-        expiresAt: { lte: now },
-      },
-      data: {
-        status: "EXPIRED",
-        errorLog: `任务过期自动关闭: ${now.toISOString()}`,
-      },
+    await this.redis.runExclusive("task_clean_expired", 600, async () => {
+      const now = new Date();
+      const result = await this.prisma.task.updateMany({
+        where: {
+          status: "PENDING",
+          expiresAt: { lte: now },
+        },
+        data: {
+          status: "EXPIRED",
+          errorLog: `任务过期自动关闭: ${now.toISOString()}`,
+        },
+      });
+      if (result.count > 0) {
+        this.logger.log(`过期任务清理: ${result.count} 个`);
+      }
     });
-    if (result.count > 0) {
-      this.logger.log(`过期任务清理: ${result.count} 个`);
-    }
   }
 
-  /** 每30分钟：超时 IN_PROGRESS 任务自动重分配 */
+  /** 每30分钟：超时 IN_PROGRESS 任务自动重分配（分布式锁防多实例重复执行） */
   @Cron("*/30 * * * *")
   async reassignTimedOutTasks() {
+    await this.redis.runExclusive("task_reassign_timed_out", 600, () => this._reassignTimedOutTasks());
+  }
+
+  private async _reassignTimedOutTasks() {
     const timeoutAt = new Date(Date.now() - 2 * 3600 * 1000); // 2小时超时
     const timedOutTasks = await this.prisma.task.findMany({
       where: {

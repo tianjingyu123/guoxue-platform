@@ -135,9 +135,26 @@ export class RedisService implements OnModuleDestroy {
 
   /**
    * 分布式互斥执行（cron 多实例防重复）：抢到 `cron:lock:{name}` 锁才执行 fn，抢不到直接跳过。
-   * ttl 应略大于任务最坏执行时长，防持锁进程崩溃后锁长期不释放。返回 fn 结果或 undefined(未抢到锁)。
+   * ttl 应略大于任务最坏执行时长，防持锁进程崩溃后锁长期不释放。返回 fn 结果或 undefined(未抢到锁/被拒跑)。
+   *
+   * M5 锁降级策略：Redis 不可用时 setNX 会降级为进程内存锁（多实例下不互斥）——
+   * 普通任务降级执行并告警；critical=true 的资金类任务（结算/对账/佣金/钱包）直接拒跑，
+   * 宁可延迟一轮也不冒重复入账风险。
    */
-  async runExclusive<T>(name: string, ttlSeconds: number, fn: () => Promise<T>): Promise<T | undefined> {
+  async runExclusive<T>(
+    name: string,
+    ttlSeconds: number,
+    fn: () => Promise<T>,
+    opts?: { critical?: boolean },
+  ): Promise<T | undefined> {
+    const conn = await this.getConn();
+    if (!conn) {
+      if (opts?.critical) {
+        this.logger.error(`【锁降级·拒跑】Redis 不可用，资金关键任务 ${name} 本轮拒绝执行（防多实例重复入账）`);
+        return undefined;
+      }
+      this.logger.warn(`【锁降级】Redis 不可用，任务 ${name} 以进程内存锁降级执行（多实例下不互斥）`);
+    }
     const lockKey = `cron:lock:${name}`;
     const locked = await this.setNX(lockKey, "1", ttlSeconds);
     if (!locked) return undefined;
@@ -279,6 +296,28 @@ export class RedisService implements OnModuleDestroy {
     if (conn) return conn.smembers(key);
     const s = this.setMemory.get(key);
     return s ? Array.from(s) : [];
+  }
+
+  async sismember(key: string, member: string): Promise<boolean> {
+    const conn = await this.getConn();
+    if (conn) return (await conn.sismember(key, member)) === 1;
+    return this.setMemory.get(key)?.has(member) ?? false;
+  }
+
+  /** 原子增减计数（delta 可为负），可选刷新 TTL。返回新值 */
+  async incrBy(key: string, delta: number, ttlSeconds?: number): Promise<number> {
+    const conn = await this.getConn();
+    if (conn) {
+      const val = await conn.incrby(key, delta);
+      if (ttlSeconds) await conn.expire(key, ttlSeconds);
+      return val;
+    }
+    const now = Date.now();
+    const raw = this.memory.get(key);
+    const current = raw && (raw.expiry <= 0 || now <= raw.expiry) ? parseInt(raw.value, 10) || 0 : 0;
+    const next = current + delta;
+    this.memory.set(key, { value: String(next), expiry: ttlSeconds ? now + ttlSeconds * 1000 : raw?.expiry ?? 0 });
+    return next;
   }
 
   /** 刷新键 TTL（内存降级下 set 类型无过期语义，仅对 string 键生效） */

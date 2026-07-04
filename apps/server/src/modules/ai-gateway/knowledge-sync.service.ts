@@ -2,6 +2,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
+import { RedisService } from "../../redis/redis.service";
 import { VectorService } from "./vector.service";
 import { Cron, CronExpression } from "@nestjs/schedule";
 import { serverConfig } from "../../config/server-config";
@@ -17,15 +18,22 @@ export class KnowledgeSyncService {
 
   constructor(
     private readonly prisma: PrismaService,
+    private readonly redis: RedisService,
     private readonly vector: VectorService,
   ) {
     // 从统一配置加载去重阈值
     this.similarityThreshold = serverConfig.knowledgeDedupThreshold;
   }
 
-  /** 每日凌晨4点：自动同步所有开通圈主助理的圈子知识库 */
+  /** 每日凌晨4点：自动同步所有开通圈主助理的圈子知识库（分布式锁防多实例重复执行） */
   @Cron(CronExpression.EVERY_DAY_AT_4AM)
   async autoSyncAll() {
+    await this.redis.runExclusive("knowledge_sync_auto_sync_all", 1800, () =>
+      this._autoSyncAll(),
+    );
+  }
+
+  private async _autoSyncAll() {
     if (this.isRunning) return;
     this.isRunning = true;
     this.logger.log("开始自动同步圈子知识库");

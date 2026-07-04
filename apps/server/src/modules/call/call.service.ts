@@ -192,15 +192,7 @@ export class CallService {
   /** 每分钟定时扣费（由定时任务调用，分布式锁防重叠） */
   @Cron(CronExpression.EVERY_MINUTE)
   async billingTick() {
-    const lockKey = "cron:lock:billing_tick";
-    const locked = await this.redis.setNX(lockKey, "1", 55);
-    if (!locked) return;
-
-    try {
-      await this._billingTickImpl();
-    } finally {
-      await this.redis.del(lockKey);
-    }
+    await this.redis.runExclusive("billing_tick", 55, () => this._billingTickImpl());
   }
 
   private async _billingTickImpl() {

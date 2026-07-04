@@ -1,6 +1,7 @@
 import { Test } from "@nestjs/testing";
 import { CourseSchedulerService } from "./course-scheduler.service";
 import { PrismaService } from "../../prisma/prisma.service";
+import { RedisService } from "../../redis/redis.service";
 import { NotificationService } from "../notification/notification.service";
 
 const mockPrisma = {
@@ -10,6 +11,10 @@ const mockPrisma = {
 
 const mockNotification = { batchSend: jest.fn() };
 
+const mockRedis = {
+  runExclusive: jest.fn((_n: string, _t: number, fn: () => Promise<unknown>) => fn()),
+};
+
 describe("CourseSchedulerService", () => {
   let svc: CourseSchedulerService;
 
@@ -18,6 +23,7 @@ describe("CourseSchedulerService", () => {
       providers: [
         CourseSchedulerService,
         { provide: PrismaService, useValue: mockPrisma },
+        { provide: RedisService, useValue: mockRedis },
         { provide: NotificationService, useValue: mockNotification },
       ],
     }).compile();
@@ -56,6 +62,7 @@ describe("CourseSchedulerService", () => {
         providers: [
           CourseSchedulerService,
           { provide: PrismaService, useValue: mockPrisma },
+          { provide: RedisService, useValue: mockRedis },
           // 不提供 NotificationService
         ],
       }).compile();

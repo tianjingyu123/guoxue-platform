@@ -1,6 +1,7 @@
 import { Test } from "@nestjs/testing";
 import { OperationEngineService } from "./operation-engine.service";
 import { PrismaService } from "../../prisma/prisma.service";
+import { RedisService } from "../../redis/redis.service";
 import { ContentGenerationService } from "../content-generation/content-generation.service";
 
 const mockPrisma = {
@@ -25,6 +26,7 @@ describe("OperationEngineService", () => {
         OperationEngineService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: ContentGenerationService, useValue: mockContentGeneration },
+        { provide: RedisService, useValue: { runExclusive: jest.fn((_n: string, _t: number, fn: () => Promise<unknown>) => fn()) } },
       ],
     }).compile();
     svc = mod.get(OperationEngineService);
@@ -196,10 +198,10 @@ describe("OperationEngineService", () => {
 
       const result = await svc.generateWeeklyBrief();
 
-      expect(result.newContent).toBe(42);
-      expect(result.newUsers).toBe(15);
-      expect(result.totalLikes).toBe(300);
-      expect(result.totalViews).toBe(5000);
+      expect(result!.newContent).toBe(42);
+      expect(result!.newUsers).toBe(15);
+      expect(result!.totalLikes).toBe(300);
+      expect(result!.totalViews).toBe(5000);
       expect(mockPrisma.configSystem.upsert).toHaveBeenCalledWith(
         expect.objectContaining({ where: { configKey: "weekly_operation_brief" } }),
       );

@@ -1,6 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { Cron, CronExpression } from "@nestjs/schedule";
 import { PrismaService } from "../../prisma/prisma.service";
+import { RedisService } from "../../redis/redis.service";
 import { AiEventBusService } from "./ai-event-bus.service";
 import { AiGatewayService } from "./ai-gateway.service";
 
@@ -45,6 +46,7 @@ export class AnomalyDetectorService {
 
   constructor(
     private readonly prisma: PrismaService,
+    private readonly redis: RedisService,
     private readonly eventBus: AiEventBusService,
     private readonly aiGateway: AiGatewayService,
   ) {
@@ -174,9 +176,15 @@ export class AnomalyDetectorService {
     return [...this.rules];
   }
 
-  /** 每日自动巡检 */
+  /** 每日自动巡检（分布式锁防多实例重复执行） */
   @Cron(CronExpression.EVERY_HOUR)
   async scheduledCheck(): Promise<void> {
+    await this.redis.runExclusive("anomaly_detector_scheduled_check", 1800, () =>
+      this._scheduledCheck(),
+    );
+  }
+
+  private async _scheduledCheck(): Promise<void> {
     try {
       const reports = await this.runAllRules();
       if (reports.length > 0) {

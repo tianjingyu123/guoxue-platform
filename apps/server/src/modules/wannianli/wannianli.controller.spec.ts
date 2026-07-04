@@ -1,6 +1,7 @@
 import { Test } from "@nestjs/testing";
 import { WannianliController } from "./wannianli.controller";
 import { WannianliService } from "./wannianli.service";
+import { ThrottleGuard } from "../../common/throttle.guard";
 
 describe("WannianliController", () => {
   let ctrl: WannianliController;
@@ -22,7 +23,9 @@ describe("WannianliController", () => {
           buildDayDetail: jest.fn(),
         },
       }],
-    }).compile();
+    })
+      .overrideGuard(ThrottleGuard).useValue({ canActivate: () => true })
+      .compile();
     ctrl = mod.get(WannianliController);
     svc = mod.get(WannianliService) as jest.Mocked<WannianliService>;
   });

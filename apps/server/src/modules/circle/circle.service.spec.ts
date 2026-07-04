@@ -42,6 +42,7 @@ const mockRedis = {
   setJson: jest.fn(),
   del: jest.fn(),
   delByPattern: jest.fn(),
+  runExclusive: jest.fn((_n: string, _t: number, fn: () => Promise<unknown>) => fn()),
 };
 
 describe("CircleService", () => {

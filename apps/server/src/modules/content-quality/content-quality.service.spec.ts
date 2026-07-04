@@ -1,6 +1,7 @@
 import { Test } from "@nestjs/testing";
 import { ContentQualityService } from "./content-quality.service";
 import { PrismaService } from "../../prisma/prisma.service";
+import { RedisService } from "../../redis/redis.service";
 
 const mockPrisma = {
   contentQualityScore: { findMany: jest.fn(), create: jest.fn() },
@@ -13,7 +14,14 @@ describe("ContentQualityService", () => {
 
   beforeAll(async () => {
     const mod = await Test.createTestingModule({
-      providers: [ContentQualityService, { provide: PrismaService, useValue: mockPrisma }],
+      providers: [
+        ContentQualityService,
+        { provide: PrismaService, useValue: mockPrisma },
+        {
+          provide: RedisService,
+          useValue: { runExclusive: jest.fn((_n: string, _t: number, fn: () => Promise<unknown>) => fn()) },
+        },
+      ],
     }).compile();
     svc = mod.get(ContentQualityService);
   });

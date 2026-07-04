@@ -1,5 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
+import { RedisService } from "../../redis/redis.service";
 import { Cron, CronExpression } from "@nestjs/schedule";
 import { ContentGenerationService } from "../content-generation/content-generation.service";
 
@@ -13,6 +14,7 @@ export class OperationEngineService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly contentGeneration: ContentGenerationService,
+    private readonly redis: RedisService,
   ) {}
 
   // ═══════════════════ 内容轮换推荐 ═══════════════════
@@ -20,6 +22,10 @@ export class OperationEngineService {
   /** 每日凌晨2点：轮换首页推荐内容 */
   @Cron(CronExpression.EVERY_DAY_AT_2AM)
   async rotateHomepageContent() {
+    await this.redis.runExclusive("operation_engine_rotate_homepage", 600, () => this._rotateHomepageContent());
+  }
+
+  private async _rotateHomepageContent() {
     if (this.rotating) { this.logger.warn("首页轮换正在执行中，跳过"); return; }
     this.rotating = true;
     try {
@@ -59,6 +65,10 @@ export class OperationEngineService {
   /** 每6小时检测空板块 */
   @Cron(CronExpression.EVERY_6_HOURS)
   async detectEmptyCategories() {
+    await this.redis.runExclusive("operation_engine_detect_empty_categories", 600, () => this._detectEmptyCategories());
+  }
+
+  private async _detectEmptyCategories() {
     if (this.detecting) { this.logger.warn("空板块检测正在执行中，跳过"); return; }
     this.detecting = true;
     try {
@@ -110,6 +120,10 @@ export class OperationEngineService {
   /** 每小时：根据互动数据标记热门内容 */
   @Cron(CronExpression.EVERY_HOUR)
   async markHotContent() {
+    return this.redis.runExclusive("operation_engine_mark_hot_content", 600, () => this._markHotContent());
+  }
+
+  private async _markHotContent() {
     if (this.marking) { this.logger.warn("热门标记正在执行中，跳过"); return; }
     this.marking = true;
     try {
@@ -217,6 +231,10 @@ export class OperationEngineService {
   /** 每周一生成运营简报 */
   @Cron("0 9 * * 1")
   async generateWeeklyBrief() {
+    return this.redis.runExclusive("operation_engine_weekly_brief", 600, () => this._generateWeeklyBrief());
+  }
+
+  private async _generateWeeklyBrief() {
     const now = new Date();
     const weekAgo = new Date(now.getTime() - 7 * 86400000);
     const fmtDate = (d: Date) => d.toISOString().slice(0, 10);

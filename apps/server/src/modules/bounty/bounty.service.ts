@@ -223,7 +223,7 @@ export class BountyService {
   /** 每天检查超过30天无人抢答的悬赏，自动退款（多实例锁防重复退款/双解冻） */
   @Cron(CronExpression.EVERY_DAY_AT_3AM)
   async processExpiredBounties() {
-    await this.redis.runExclusive("bounty_expired_bounties", 1800, () => this._processExpiredBounties());
+    await this.redis.runExclusive("bounty_expired_bounties", 1800, () => this._processExpiredBounties(), { critical: true });
   }
 
   private async _processExpiredBounties() {

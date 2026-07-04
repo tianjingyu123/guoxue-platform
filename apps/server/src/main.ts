@@ -8,6 +8,7 @@ import compression from "compression";
 import helmet from "helmet";
 import { AppGraphqlModule } from "./app-graphql.module";
 import { RedisThrottleGuard } from "./common/redis-throttle.guard";
+import { RedisIoAdapter } from "./common/redis-io.adapter";
 import { serverConfig } from "./config/server-config";
 import { cryptoSelfTest, setDecryptAlertHandler } from "./common/crypto.util";
 import { ThirdPartyConfigLoader } from "./modules/system/third-party-config.loader";
@@ -112,6 +113,11 @@ async function bootstrap() {
     new AuditInterceptor(app.get(AuditService)),
   );
   app.useGlobalGuards(new RedisThrottleGuard(app.get(RedisService)));
+
+  // websocket 跨实例广播（H2·cluster 前提）：Redis adapter 接入，不可用时降级单实例
+  const ioAdapter = new RedisIoAdapter(app);
+  await ioAdapter.connectToRedis();
+  app.useWebSocketAdapter(ioAdapter);
   app.useGlobalFilters(new PrismaExceptionFilter(), new AllExceptionsFilter());
   app.useGlobalPipes(
     new SanitizePipe(),

@@ -1,6 +1,7 @@
 import { Injectable, Logger, Optional } from "@nestjs/common";
 import { AiGatewayService } from "../ai-gateway/ai-gateway.service";
 import { PrismaService } from "../../prisma/prisma.service";
+import { RedisService } from "../../redis/redis.service";
 import { Cron, CronExpression } from "@nestjs/schedule";
 import { SystemService } from "../system/system.service";
 
@@ -108,6 +109,7 @@ export class ContentGenerationService {
   constructor(
     private readonly gateway: AiGatewayService,
     private readonly prisma: PrismaService,
+    private readonly redis: RedisService,
     // SystemModule 为 @Global 导出·@Optional 保证单测缺 provider 时回退默认品牌名
     @Optional() private readonly systemService?: SystemService,
   ) {}
@@ -199,9 +201,15 @@ export class ContentGenerationService {
     return { categoryLevel1, generated: results.length, results };
   }
 
-  /** 每日定时：检查空品类并自动补全（凌晨3点） */
+  /** 每日定时：检查空品类并自动补全（凌晨3点·分布式锁防多实例重复烧AI） */
   @Cron(CronExpression.EVERY_DAY_AT_3AM)
   async autoFillEmptyCategories() {
+    await this.redis.runExclusive("content_generation_auto_fill_empty_categories", 1800, () =>
+      this._autoFillEmptyCategories(),
+    );
+  }
+
+  private async _autoFillEmptyCategories() {
     if (this.isRunning) return;
     this.isRunning = true;
     this.logger.log("开始自动填充空品类");

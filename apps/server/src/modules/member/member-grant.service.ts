@@ -23,7 +23,7 @@ export class MemberGrantService {
 
   @Cron("0 0 9 1 * *")
   async monthlyGrantCron() {
-    await this.redis.runExclusive("member-monthly-grant", 600, () => this.runMonthlyGrant());
+    await this.redis.runExclusive("member-monthly-grant", 600, () => this.runMonthlyGrant(), { critical: true });
   }
 
   /** 月度权益发放主体（独立出来便于测试/手动补发） */

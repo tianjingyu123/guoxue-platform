@@ -20,6 +20,7 @@ describe("SemanticCacheService", () => {
   const mockRedis = {
     getJson: jest.fn(),
     setJson: jest.fn().mockResolvedValue(undefined),
+    runExclusive: jest.fn((_n: string, _t: number, fn: () => Promise<unknown>) => fn()),
   };
   const mockVector = {
     embed: jest.fn().mockResolvedValue([[0.1, 0.2, 0.3]]),

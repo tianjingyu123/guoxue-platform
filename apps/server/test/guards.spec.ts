@@ -42,36 +42,52 @@ describe("RolesGuard", () => {
   });
 });
 
+// M3 后 ThrottleGuard 走 RedisService.incrWithTtl 分布式计数：内存假实现保持限流语义可测
+function fakeRedis(): any {
+  const counters = new Map<string, { count: number; resetAt: number }>();
+  return {
+    incrWithTtl: jest.fn(async (key: string, ttlSeconds: number) => {
+      const now = Date.now();
+      const entry = counters.get(key);
+      if (!entry || now > entry.resetAt) {
+        counters.set(key, { count: 1, resetAt: now + ttlSeconds * 1000 });
+        return { count: 1, ttl: ttlSeconds };
+      }
+      entry.count++;
+      return { count: entry.count, ttl: Math.ceil((entry.resetAt - now) / 1000) };
+    }),
+  };
+}
+
 describe("ThrottleGuard", () => {
-  it("首次请求放行", () => {
-    const guard = new ThrottleGuard(5, 60);
-    expect(guard.canActivate(mockContext())).toBe(true);
+  it("首次请求放行", async () => {
+    const guard = new ThrottleGuard(fakeRedis());
+    expect(await guard.canActivate(mockContext())).toBe(true);
   });
 
-  it("在限额内多次请求放行", () => {
-    const guard = new ThrottleGuard(5, 60);
+  it("在限额内多次请求放行（默认 30 次/60 秒）", async () => {
+    const guard = new ThrottleGuard(fakeRedis());
     const ctx = mockContext();
-    for (let i = 0; i < 5; i++) {
-      expect(guard.canActivate(ctx)).toBe(true);
+    for (let i = 0; i < 30; i++) {
+      expect(await guard.canActivate(ctx)).toBe(true);
     }
   });
 
-  it("超限额抛出 429", () => {
-    const guard = new ThrottleGuard(2, 60);
+  it("超限额抛出 429", async () => {
+    const guard = new ThrottleGuard(fakeRedis());
     const ctx = mockContext();
-    guard.canActivate(ctx); // 1
-    guard.canActivate(ctx); // 2
-    expect(() => guard.canActivate(ctx)).toThrow();
+    for (let i = 0; i < 30; i++) await guard.canActivate(ctx);
+    await expect(guard.canActivate(ctx)).rejects.toThrow();
   });
 });
 
 describe("StrictThrottleGuard", () => {
-  it("默认每分钟 10 次", () => {
-    const guard = new StrictThrottleGuard();
+  it("默认每分钟 10 次", async () => {
+    const guard = new StrictThrottleGuard(fakeRedis());
     const ctx = mockContext();
     for (let i = 0; i < 10; i++) {
-      expect(guard.canActivate(ctx)).toBe(true);
+      expect(await guard.canActivate(ctx)).toBe(true);
     }
-    expect(() => guard.canActivate(ctx)).toThrow();
+    await expect(guard.canActivate(ctx)).rejects.toThrow();
   });
 });

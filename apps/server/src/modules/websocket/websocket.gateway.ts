@@ -7,13 +7,19 @@ import { Server, Socket } from "socket.io";
 import { Logger } from "@nestjs/common";
 import { WsAuthService } from "./ws-auth.service";
 import { PrismaService } from "../../prisma/prisma.service";
+import { RedisService } from "../../redis/redis.service";
 
-interface OnlineUser {
-  userId: string;
-  role: string;
-  nickname?: string;
-  socketIds: Set<string>; // 多端登录支持
-}
+/**
+ * 在线态 Redis 键（H2·cluster 跨实例共享）：
+ * - ws:online:users          set(userId)  全局在线用户集合
+ * - ws:online:sockets:{uid}  set(socketId) 该用户的全部连接（多端/跨实例）
+ * - ws:online:meta:{uid}     json {role,nickname}
+ * - ws:ip:{ip}               同 IP 连接计数
+ * 所有键带 TTL 兜底（实例崩溃残留自愈）；socketMap/eventRateLimit 留在进程内存是
+ * 正确决策——socket 生命周期归属本实例，跨实例无意义。
+ */
+const ONLINE_TTL = 6 * 3600;
+const IP_TTL = 3600;
 
 @WebSocketGateway({
   cors: {
@@ -30,21 +36,19 @@ export class AppGateway implements OnGatewayConnection, OnGatewayDisconnect {
   private readonly logger = new Logger(AppGateway.name);
   @WebSocketServer() server!: Server;
 
-  // userId → OnlineUser
-  private onlineUsers = new Map<string, OnlineUser>();
-  // socketId → userId
+  // socketId → userId（本实例连接，跨实例无意义故留内存）
   private socketMap = new Map<string, string>();
-  // IP → connection count (for throttling)
-  private ipConnections = new Map<string, number>();
-  // 每个 socket 的事件速率限制 key = `${socketId}:${eventName}`
+  // 每个 socket 的事件速率限制 key = `${socketId}:${eventName}`（本实例 socket 私有）
   private eventRateLimit = new Map<string, { count: number; resetAt: number }>();
 
   private readonly MAX_CONNECTIONS_PER_IP = 10;
-  private readonly MAX_GLOBAL_CONNECTIONS = 5000;
+  /** 单实例连接上限（cluster×N 时总容量随实例数扩展） */
+  private readonly MAX_INSTANCE_CONNECTIONS = 5000;
 
   constructor(
     private wsAuth: WsAuthService,
     private prisma: PrismaService,
+    private redis: RedisService,
   ) {}
 
   /** 事件级频率检查 */
@@ -62,29 +66,30 @@ export class AppGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   async handleConnection(client: Socket) {
-    // 全局连接数限制
-    if (this.socketMap.size >= this.MAX_GLOBAL_CONNECTIONS) {
-      this.logger.warn(`全局连接数已达上限 ${this.MAX_GLOBAL_CONNECTIONS}`);
+    // 单实例连接数限制
+    if (this.socketMap.size >= this.MAX_INSTANCE_CONNECTIONS) {
+      this.logger.warn(`实例连接数已达上限 ${this.MAX_INSTANCE_CONNECTIONS}`);
       client.emit("auth_error", { message: "服务器连接数已满，请稍后再试" });
       client.disconnect(true);
       return;
     }
 
-    // IP 限流
+    // IP 连接数限制（Redis 跨实例共享计数，防同 IP 分散到多实例绕限）
     const ip = (client.handshake.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim()
       || client.handshake.address || "unknown";
-    const ipCount = this.ipConnections.get(ip) || 0;
-    if (ipCount >= this.MAX_CONNECTIONS_PER_IP) {
+    const ipCount = await this.redis.incrBy(`ws:ip:${ip}`, 1, IP_TTL);
+    if (ipCount > this.MAX_CONNECTIONS_PER_IP) {
+      await this.redis.incrBy(`ws:ip:${ip}`, -1);
       this.logger.warn(`IP ${ip} 连接数超限 (${ipCount})`);
       client.emit("auth_error", { message: "连接过于频繁，请稍后再试" });
       client.disconnect(true);
       return;
     }
-    this.ipConnections.set(ip, ipCount + 1);
 
     // 认证
     const user = this.wsAuth.extractUser(client.handshake as unknown as Record<string, unknown>);
     if (!user) {
+      await this.redis.incrBy(`ws:ip:${ip}`, -1);
       this.logger.warn(`WebSocket连接被拒绝: ${client.id}`);
       client.emit("auth_error", { message: "认证失败" });
       client.disconnect(true);
@@ -97,22 +102,27 @@ export class AppGateway implements OnGatewayConnection, OnGatewayDisconnect {
       select: { status: true },
     });
     if (dbUser && (dbUser.status === "BANNED" || dbUser.status === "DISABLED")) {
+      await this.redis.incrBy(`ws:ip:${ip}`, -1);
       this.logger.warn(`被封禁/停用用户尝试连接: ${user.userId}`);
       client.emit("auth_error", { message: "账户已被限制，如有疑问请联系客服" });
       client.disconnect(true);
       return;
     }
 
-    // 记录在线
+    // 记录在线：本实例映射 + Redis 共享在线态；用户信息挂 socket.data 供事件处理直取
     this.socketMap.set(client.id, user.userId);
-    let online = this.onlineUsers.get(user.userId);
-    if (!online) {
-      online = { userId: user.userId, role: user.role, nickname: user.nickname, socketIds: new Set() };
-      this.onlineUsers.set(user.userId, online);
-      // 首次上线广播
+    client.data.userId = user.userId;
+    client.data.nickname = user.nickname;
+    client.data.role = user.role;
+
+    const firstOnline = (await this.redis.sadd("ws:online:users", user.userId)) === 1;
+    await this.redis.expire("ws:online:users", ONLINE_TTL);
+    await this.redis.sadd(`ws:online:sockets:${user.userId}`, client.id);
+    await this.redis.expire(`ws:online:sockets:${user.userId}`, ONLINE_TTL);
+    await this.redis.set(`ws:online:meta:${user.userId}`, JSON.stringify({ role: user.role, nickname: user.nickname }), ONLINE_TTL);
+    if (firstOnline) {
       this.broadcastPresence(user.userId, "online");
     }
-    online.socketIds.add(client.id);
 
     // 加入个人房间
     client.join(`user:${user.userId}`);
@@ -123,13 +133,13 @@ export class AppGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.logger.log(`WS连接: ${user.nickname || user.userId} (${client.id}, IP: ${ip})`);
     client.emit("welcome", {
       userId: user.userId,
-      onlineCount: this.onlineUsers.size,
+      onlineCount: await this.getOnlineCount(),
       message: "连接成功",
     });
-    this.broadcastOnlineCount();
+    await this.broadcastOnlineCount();
   }
 
-  handleDisconnect(client: Socket) {
+  async handleDisconnect(client: Socket) {
     const userId = this.socketMap.get(client.id);
     this.socketMap.delete(client.id);
 
@@ -138,26 +148,24 @@ export class AppGateway implements OnGatewayConnection, OnGatewayDisconnect {
       if (key.startsWith(`${client.id}:`)) this.eventRateLimit.delete(key);
     }
 
-    // IP 计数递减
+    // IP 计数递减（负值=崩溃残留误差，直接清零自愈）
     const ip = (client.handshake.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim()
       || client.handshake.address || "unknown";
-    const ipCount = this.ipConnections.get(ip) || 1;
-    if (ipCount <= 1) this.ipConnections.delete(ip);
-    else this.ipConnections.set(ip, ipCount - 1);
+    const remain = await this.redis.incrBy(`ws:ip:${ip}`, -1);
+    if (remain <= 0) await this.redis.del(`ws:ip:${ip}`);
 
     if (!userId) return;
 
-    const online = this.onlineUsers.get(userId);
-    if (online) {
-      online.socketIds.delete(client.id);
-      if (online.socketIds.size === 0) {
-        this.onlineUsers.delete(userId);
-        this.broadcastPresence(userId, "offline");
-        this.logger.log(`WS用户离线: ${online.nickname || userId}`);
-      }
+    await this.redis.srem(`ws:online:sockets:${userId}`, client.id);
+    if ((await this.redis.scard(`ws:online:sockets:${userId}`)) === 0) {
+      await this.redis.del(`ws:online:sockets:${userId}`);
+      await this.redis.del(`ws:online:meta:${userId}`);
+      await this.redis.srem("ws:online:users", userId);
+      this.broadcastPresence(userId, "offline");
+      this.logger.log(`WS用户离线: ${client.data?.nickname || userId}`);
     }
 
-    this.broadcastOnlineCount();
+    await this.broadcastOnlineCount();
   }
 
   // ───────── 客户端事件 ─────────
@@ -201,11 +209,11 @@ export class AppGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   /** 订阅某个用户的上线/下线状态 */
   @SubscribeMessage("subscribe_presence")
-  handleSubscribePresence(@ConnectedSocket() client: Socket, @MessageBody() targetUserId: string) {
+  async handleSubscribePresence(@ConnectedSocket() client: Socket, @MessageBody() targetUserId: string) {
     if (typeof targetUserId !== "string" || targetUserId.length > 100) return;
     const room = `presence:${targetUserId}`;
     client.join(room);
-    const isOnline = this.onlineUsers.has(targetUserId);
+    const isOnline = await this.isUserOnline(targetUserId);
     client.emit("presence_update", { userId: targetUserId, status: isOnline ? "online" : "offline" });
   }
 
@@ -261,11 +269,10 @@ export class AppGateway implements OnGatewayConnection, OnGatewayDisconnect {
     if (!userId || typeof roomId !== "string" || roomId.length > 100) return;
     const room = `live:${roomId}`;
     client.join(room);
-    // 广播用户进入
-    const online = this.getOnlineUsers().find(u => u.userId === userId);
+    // 广播用户进入（用户信息在连接时挂到 socket.data，避免跨实例查询）
     this.server.to(room).emit("live:user_joined", {
       userId,
-      nickname: online?.nickname,
+      nickname: client.data?.nickname,
       timestamp: Date.now(),
     });
     client.emit("live:joined", { roomId });
@@ -291,10 +298,9 @@ export class AppGateway implements OnGatewayConnection, OnGatewayDisconnect {
     if (!this.checkEventRate(client.id, "live:chat", 10, 1000)) return;
     if (!userId || !data?.roomId || !data?.content) return;
     const room = `live:${data.roomId}`;
-    const online = this.getOnlineUsers().find(u => u.userId === userId);
     this.server.to(room).emit("live:chat", {
       userId,
-      nickname: online?.nickname || "用户",
+      nickname: client.data?.nickname || "用户",
       content: data.content.slice(0, 500),
       timestamp: Date.now(),
     });
@@ -310,10 +316,9 @@ export class AppGateway implements OnGatewayConnection, OnGatewayDisconnect {
     if (!this.checkEventRate(client.id, "live:gift", 5, 2000)) return;
     if (!userId || !data?.roomId || !data?.giftId) return;
     const room = `live:${data.roomId}`;
-    const online = this.getOnlineUsers().find(u => u.userId === userId);
     this.server.to(room).emit("live:gift", {
       userId,
-      nickname: online?.nickname || "用户",
+      nickname: client.data?.nickname || "用户",
       giftId: data.giftId,
       giftName: data.giftName,
       giftIcon: data.giftIcon,
@@ -400,31 +405,37 @@ export class AppGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.server.to(`presence:${userId}`).emit("presence_update", { userId, status });
   }
 
-  private broadcastOnlineCount() {
-    this.server.emit("online_count", { count: this.onlineUsers.size });
+  private async broadcastOnlineCount() {
+    this.server.emit("online_count", { count: await this.getOnlineCount() });
   }
 
-  // ───────── 查询 ─────────
+  // ───────── 查询（Redis 共享在线态·跨实例一致） ─────────
 
-  getOnlineUsers(): Array<{ userId: string; role: string; nickname?: string; deviceCount: number }> {
-    return Array.from(this.onlineUsers.values()).map((u) => ({
-      userId: u.userId,
-      role: u.role,
-      nickname: u.nickname,
-      deviceCount: u.socketIds.size,
-    }));
+  async getOnlineUsers(): Promise<Array<{ userId: string; role: string; nickname?: string; deviceCount: number }>> {
+    const userIds = await this.redis.smembers("ws:online:users");
+    const result: Array<{ userId: string; role: string; nickname?: string; deviceCount: number }> = [];
+    for (const userId of userIds) {
+      const [metaRaw, deviceCount] = await Promise.all([
+        this.redis.get(`ws:online:meta:${userId}`),
+        this.redis.scard(`ws:online:sockets:${userId}`),
+      ]);
+      let meta: { role?: string; nickname?: string } = {};
+      try { meta = metaRaw ? JSON.parse(metaRaw) : {}; } catch { /* 忽略脏数据 */ }
+      result.push({ userId, role: meta.role || "USER", nickname: meta.nickname, deviceCount });
+    }
+    return result;
   }
 
-  isUserOnline(userId: string): boolean {
-    return this.onlineUsers.has(userId);
+  async isUserOnline(userId: string): Promise<boolean> {
+    return this.redis.sismember("ws:online:users", userId);
   }
 
-  getOnlineCount(): number {
-    return this.onlineUsers.size;
+  async getOnlineCount(): Promise<number> {
+    return this.redis.scard("ws:online:users");
   }
 
   /** 获取在线用户ID集合 */
-  getOnlineUserIds(): string[] {
-    return Array.from(this.onlineUsers.keys());
+  async getOnlineUserIds(): Promise<string[]> {
+    return this.redis.smembers("ws:online:users");
   }
 }

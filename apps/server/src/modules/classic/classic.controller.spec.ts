@@ -6,6 +6,7 @@ import { ClassicDaizhigeSeeder } from "./classic-daizhige-seeder.service";
 import { ClassicCompanionService } from "./classic-companion.service";
 import { MemberBenefitService } from "../member/member-benefit.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
+import { ThrottleGuard } from "../../common/throttle.guard";
 
 const mockClassicSvc = {
   listBooks: jest.fn().mockResolvedValue({ books: [{ id: "b1", title: "论语" }], total: 1, page: 1, pageSize: 20 }),
@@ -76,6 +77,7 @@ describe("ClassicController", () => {
       ],
     })
       .overrideGuard(JwtAuthGuard).useValue({ canActivate: () => true })
+      .overrideGuard(ThrottleGuard).useValue({ canActivate: () => true })
       .compile();
     ctrl = mod.get(ClassicController);
   });

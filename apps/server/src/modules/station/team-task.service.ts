@@ -2,6 +2,7 @@ import { Injectable, Logger, BadRequestException, ForbiddenException, NotFoundEx
 import { Cron } from "@nestjs/schedule";
 import { IsString, IsNotEmpty, IsOptional, IsIn, IsInt, Min, IsDateString, IsArray, MaxLength } from "class-validator";
 import { PrismaService } from "../../prisma/prisma.service";
+import { RedisService } from "../../redis/redis.service";
 
 // ─────────────────────────────────────────────────
 // 商-P2 运营商团队任务下发（指挥室）
@@ -51,7 +52,10 @@ const GMV_ORDER_STATUSES = ["PAID", "SHIPPED", "COMPLETED"] as const;
 export class TeamTaskService {
   private readonly logger = new Logger(TeamTaskService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly redis: RedisService,
+  ) {}
 
   /** 解析当前用户的运营商身份（非运营商 403） */
   private async getOperator(userId: string) {
@@ -209,22 +213,24 @@ export class TeamTaskService {
 
   // ───────── 进度自动结算 ─────────
 
-  /** 每日 03:00 结算全部 OPEN 任务进度（CLOSED 不再更新） */
+  /** 每日 03:00 结算全部 OPEN 任务进度（CLOSED 不再更新）·分布式锁防多实例重复结算 */
   @Cron("0 3 * * *")
   async dailyRecalc() {
-    const tasks = await this.prisma.teamTask.findMany({
-      where: { status: "OPEN" },
-      include: { progresses: true },
-    });
-    let updated = 0;
-    for (const task of tasks) {
-      try {
-        updated += await this.recalcTask(task);
-      } catch (err) {
-        this.logger.warn(`团队任务进度结算失败 task=${task.id}: ${(err as Error)?.message}`);
+    await this.redis.runExclusive("station_team_task_daily_recalc", 600, async () => {
+      const tasks = await this.prisma.teamTask.findMany({
+        where: { status: "OPEN" },
+        include: { progresses: true },
+      });
+      let updated = 0;
+      for (const task of tasks) {
+        try {
+          updated += await this.recalcTask(task);
+        } catch (err) {
+          this.logger.warn(`团队任务进度结算失败 task=${task.id}: ${(err as Error)?.message}`);
+        }
       }
-    }
-    this.logger.log(`团队任务进度结算完成：${tasks.length} 个任务，更新 ${updated} 条进度`);
+      this.logger.log(`团队任务进度结算完成：${tasks.length} 个任务，更新 ${updated} 条进度`);
+    });
   }
 
   /**

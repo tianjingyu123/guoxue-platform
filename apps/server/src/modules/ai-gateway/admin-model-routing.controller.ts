@@ -35,7 +35,7 @@ export class AdminModelRoutingController {
     const u = req.user as { nickname?: string; id?: string };
     const updatedBy = u?.nickname || u?.id;
     await this.systemService.setConfig("ai_model_routing", JSON.stringify(dto), "AI模型路由配置", updatedBy);
-    this.modelRouter.clearCache();
+    await this.modelRouter.clearCache();
     return { ok: true };
   }
 
@@ -53,7 +53,7 @@ export class AdminModelRoutingController {
     config.scenes[scene] = dto;
     const u = req.user as { nickname?: string; id?: string };
     await this.systemService.setConfig("ai_model_routing", JSON.stringify(config), `更新场景: ${scene}`, u?.nickname || u?.id);
-    this.modelRouter.clearCache();
+    await this.modelRouter.clearCache();
     return { ok: true, scene };
   }
 

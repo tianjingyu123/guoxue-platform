@@ -716,9 +716,15 @@ export class CircleService {
     };
   }
 
-  /** 每日定时清理过期成员 */
+  /** 每日定时清理过期成员（分布式锁防多实例重复） */
   @Cron(CronExpression.EVERY_DAY_AT_3AM)
   async cleanupExpiredMembers() {
+    await this.redis.runExclusive("circle_cleanup_expired_members", 600, () =>
+      this._cleanupExpiredMembers(),
+    );
+  }
+
+  private async _cleanupExpiredMembers() {
     const expired = await this.prisma.circleMember.findMany({
       where: {
         expireAt: { lt: new Date() },
@@ -777,9 +783,15 @@ export class CircleService {
     this.logger.log(`已清理 ${expired.length} 个过期圈子成员`);
   }
 
-  /** 到期前提醒（提前7天/3天/1天） */
+  /** 到期前提醒（提前7天/3天/1天·分布式锁防多实例重复） */
   @Cron(CronExpression.EVERY_DAY_AT_10AM)
   async sendExpirationReminders() {
+    await this.redis.runExclusive("circle_send_expiration_reminders", 600, () =>
+      this._sendExpirationReminders(),
+    );
+  }
+
+  private async _sendExpirationReminders() {
     const remindDays = [7, 3, 1];
     for (const days of remindDays) {
       const targetDate = new Date(Date.now() + days * 24 * 60 * 60 * 1000);

@@ -6,6 +6,7 @@ import { SensitiveWordService } from "./sensitive-word.service";
 import { ComplianceScanService } from "./compliance-scan.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
+import { ThrottleGuard } from "../../common/throttle.guard";
 
 const mockAuditSvc = {
   list: jest.fn().mockResolvedValue([{ id: "log1", action: "CREATE" }]),
@@ -53,6 +54,7 @@ describe("AuditController", () => {
     })
       .overrideGuard(JwtAuthGuard).useValue({ canActivate: () => true })
       .overrideGuard(RolesGuard).useValue({ canActivate: () => true })
+      .overrideGuard(ThrottleGuard).useValue({ canActivate: () => true })
       .compile();
     ctrl = mod.get(AuditController);
   });

@@ -4,6 +4,7 @@ import { BusinessException } from "../../common/business.exception";
 describe("FortuneService", () => {
   let svc: FortuneService;
   let prisma: any;
+  let redis: any;
 
   beforeEach(() => {
     prisma = {
@@ -28,7 +29,11 @@ describe("FortuneService", () => {
       },
     };
 
-    svc = new FortuneService(prisma);
+    redis = {
+      runExclusive: jest.fn((_n: string, _t: number, fn: () => Promise<unknown>) => fn()),
+    };
+
+    svc = new FortuneService(prisma, redis);
   });
 
   describe("generateDailyFortunes", () => {

@@ -1,6 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { Cron, CronExpression } from "@nestjs/schedule";
 import { PrismaService } from "../../prisma/prisma.service";
+import { RedisService } from "../../redis/redis.service";
 import { CircleKnowledgeService } from "./circle-knowledge.service";
 import { RagService } from "../ai-gateway/rag.service";
 
@@ -18,11 +19,18 @@ export class CircleKnowledgeTask {
     private readonly prisma: PrismaService,
     private readonly knowledge: CircleKnowledgeService,
     private readonly rag: RagService,
+    private readonly redis: RedisService,
   ) {}
 
-  /** 每日自动扫描精华帖入库 */
+  /** 每日自动扫描精华帖入库（分布式锁防多实例重复） */
   @Cron(CronExpression.EVERY_DAY_AT_3AM)
   async scanEssencePosts() {
+    await this.redis.runExclusive("circle_knowledge_scan_essence_posts", 1800, () =>
+      this._scanEssencePosts(),
+    );
+  }
+
+  private async _scanEssencePosts() {
     this.logger.log("开始扫描精华帖...");
     const posts = await this.prisma.post.findMany({
       where: { isEssence: true, status: "PUBLISHED" },
@@ -46,9 +54,15 @@ export class CircleKnowledgeTask {
     this.logger.log(`精华帖扫描完成: ${posts.length} 篇, 新增候选 ${added} 条`);
   }
 
-  /** 每6小时扫描近期优质内容 */
+  /** 每6小时扫描近期优质内容（分布式锁防多实例重复） */
   @Cron("0 */6 * * *")
   async scanRecentPosts() {
+    await this.redis.runExclusive("circle_knowledge_scan_recent_posts", 1800, () =>
+      this._scanRecentPosts(),
+    );
+  }
+
+  private async _scanRecentPosts() {
     this.logger.log("开始扫描近期优质内容...");
     const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
     const posts = await this.prisma.post.findMany({
@@ -79,12 +93,14 @@ export class CircleKnowledgeTask {
     this.logger.log(`近期内容扫描完成: ${posts.length} 篇, 新增候选 ${added} 条`);
   }
 
-  /** 每小时对新入库的知识条目做向量索引 */
+  /** 每小时对新入库的知识条目做向量索引（分布式锁防多实例重复） */
   @Cron(CronExpression.EVERY_HOUR)
   async indexPendingVectors() {
-    const count = await this.rag.indexUnindexed(50);
-    if (count > 0) {
-      this.logger.log(`向量索引完成: ${count} 条`);
-    }
+    await this.redis.runExclusive("circle_knowledge_index_pending_vectors", 1800, async () => {
+      const count = await this.rag.indexUnindexed(50);
+      if (count > 0) {
+        this.logger.log(`向量索引完成: ${count} 条`);
+      }
+    });
   }
 }

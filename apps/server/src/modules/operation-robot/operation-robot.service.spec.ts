@@ -3,6 +3,7 @@ import { OperationRobotService } from "./operation-robot.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import { AiGatewayService } from "../ai-gateway/ai-gateway.service";
 import { SystemService } from "../system/system.service";
+import { RedisService } from "../../redis/redis.service";
 
 const mockPrisma = {
   configSystem: { findUnique: jest.fn(), upsert: jest.fn() },
@@ -33,6 +34,7 @@ describe("OperationRobotService", () => {
         { provide: PrismaService, useValue: mockPrisma },
         { provide: AiGatewayService, useValue: mockGateway },
         { provide: SystemService, useValue: mockSystemSvc },
+        { provide: RedisService, useValue: { runExclusive: jest.fn((_n: string, _t: number, fn: () => Promise<unknown>) => fn()) } },
       ],
     }).compile();
     svc = mod.get(OperationRobotService);

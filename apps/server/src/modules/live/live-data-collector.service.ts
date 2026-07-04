@@ -14,10 +14,10 @@ export class LiveDataCollectorService {
 
   @Cron("* * * * *")
   async collectMinuteData() {
-    const lockKey = "cron:lock:live_data_collect";
-    const locked = await this.redis.setNX(lockKey, "1", 55);
-    if (!locked) return;
+    await this.redis.runExclusive("live_data_collect", 600, () => this._collectMinuteData());
+  }
 
+  private async _collectMinuteData() {
     const liveRooms = await this.prisma.liveRoom.findMany({
       where: { status: "LIVING" },
       select: { id: true },

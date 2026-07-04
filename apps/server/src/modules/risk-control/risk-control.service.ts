@@ -3,6 +3,7 @@ import { Cron, CronExpression } from "@nestjs/schedule";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
+import { RedisService } from "../../redis/redis.service";
 import { Prisma, UserStatus } from "@prisma/client";
 import { maskPhone } from "../../common/crypto.util";
 
@@ -10,7 +11,10 @@ import { maskPhone } from "../../common/crypto.util";
 export class RiskControlService {
   private readonly logger = new Logger(RiskControlService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private readonly redis: RedisService,
+  ) {}
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   //  1. 预警规则 CRUD
@@ -212,6 +216,10 @@ export class RiskControlService {
    * - 退款率异常（UserBehaviorLog 中退款订单占比过高）
    */
   @Cron(CronExpression.EVERY_DAY_AT_3AM)
+  async scanFraudCron() {
+    await this.redis.runExclusive("risk_control_scan_fraud", 600, () => this.scanFraud());
+  }
+
   async scanFraud() {
     this.logger.log("开始刷单扫描...");
     const results: Array<{ type: string; confidence: number; evidence: Record<string, any>; userId?: string }> = [];

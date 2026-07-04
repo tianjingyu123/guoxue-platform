@@ -4,6 +4,7 @@ import { PricingService } from "./pricing.service";
 import { UnifiedPricingService } from "./unified-pricing.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
+import { ThrottleGuard } from "../../common/throttle.guard";
 
 const mockPricingSvc = {
   calculatePrice: jest.fn().mockResolvedValue({ finalPrice: 50, originalPrice: 100, discount: 0.5 }),
@@ -32,6 +33,7 @@ describe("PricingController", () => {
     })
       .overrideGuard(JwtAuthGuard).useValue({ canActivate: () => true })
       .overrideGuard(RolesGuard).useValue({ canActivate: () => true })
+      .overrideGuard(ThrottleGuard).useValue({ canActivate: () => true })
       .compile();
     ctrl = mod.get(PricingController);
   });

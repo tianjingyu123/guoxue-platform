@@ -1,6 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { Cron } from "@nestjs/schedule";
 import { PrismaService } from "../../../prisma/prisma.service";
+import { RedisService } from "../../../redis/redis.service";
 import { SemanticTaggerService } from "../services/semantic-tagger.service";
 
 /**
@@ -16,26 +17,29 @@ export class SemanticTagTask {
   constructor(
     private readonly prisma: PrismaService,
     private readonly tagger: SemanticTaggerService,
+    private readonly redis: RedisService,
   ) {}
 
-  /** 每 2 小时执行一次语义打标 */
+  /** 每 2 小时执行一次语义打标（分布式锁防多实例重复调用 LLM） */
   @Cron("0 */2 * * *")
   async autoTagUntagged() {
-    this.logger.log("开始自动语义打标...");
+    await this.redis.runExclusive("recommend_semantic_tag", 1800, async () => {
+      this.logger.log("开始自动语义打标...");
 
-    let totalTagged = 0;
+      let totalTagged = 0;
 
-    try {
-      totalTagged += await this.tagCourses();
-      totalTagged += await this.tagArticles();
-      totalTagged += await this.tagProducts();
-      totalTagged += await this.tagCircles();
-      totalTagged += await this.tagVideos();
-    } catch (err: any) {
-      this.logger.error(`语义打标任务异常: ${err.message}`);
-    }
+      try {
+        totalTagged += await this.tagCourses();
+        totalTagged += await this.tagArticles();
+        totalTagged += await this.tagProducts();
+        totalTagged += await this.tagCircles();
+        totalTagged += await this.tagVideos();
+      } catch (err: any) {
+        this.logger.error(`语义打标任务异常: ${err.message}`);
+      }
 
-    this.logger.log(`语义打标完成: 共处理 ${totalTagged} 条内容`);
+      this.logger.log(`语义打标完成: 共处理 ${totalTagged} 条内容`);
+    });
   }
 
   private async tagCourses(): Promise<number> {

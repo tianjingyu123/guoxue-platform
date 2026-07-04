@@ -17,7 +17,10 @@ const mockPrisma = {
     create: jest.fn(),
   },
 };
-const mockRedis = { del: jest.fn().mockResolvedValue(undefined) };
+const mockRedis = {
+  del: jest.fn().mockResolvedValue(undefined),
+  runExclusive: jest.fn((_n: string, _t: number, fn: () => Promise<unknown>) => fn()),
+};
 
 describe("TaskService", () => {
   let svc: TaskService;

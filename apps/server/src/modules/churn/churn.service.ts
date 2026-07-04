@@ -1,6 +1,7 @@
 import { Injectable, Logger, Optional } from "@nestjs/common";
 import { Cron } from "@nestjs/schedule";
 import { PrismaService } from "../../prisma/prisma.service";
+import { RedisService } from "../../redis/redis.service";
 import { Prisma } from "@prisma/client";
 import { SmsService } from "../sms/sms.service";
 import { NotificationService } from "../notification/notification.service";
@@ -14,6 +15,7 @@ export class ChurnService {
 
   constructor(
     private prisma: PrismaService,
+    private readonly redis: RedisService,
     @Optional() private smsService?: SmsService,
     @Optional() private notificationService?: NotificationService,
   ) {}
@@ -22,6 +24,12 @@ export class ChurnService {
 
   @Cron("0 6 * * *")
   async dailyChurnCalculation() {
+    await this.redis.runExclusive("churn_daily_churn_calculation", 1800, () =>
+      this._dailyChurnCalculation(),
+    );
+  }
+
+  private async _dailyChurnCalculation() {
     this.logger.log("开始每日流失评分计算");
     const now = new Date();
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 86400 * 1000);
@@ -174,9 +182,15 @@ export class ChurnService {
     }
   }
 
-  /** 每小时执行：处理 PENDING 流失干预动作 */
+  /** 每小时执行：处理 PENDING 流失干预动作（分布式锁防多实例重复执行） */
   @Cron("0 * * * *")
   async processChurnActions() {
+    await this.redis.runExclusive("churn_process_churn_actions", 600, () =>
+      this._processChurnActions(),
+    );
+  }
+
+  private async _processChurnActions() {
     const actions = await this.prisma.churnAction.findMany({
       where: { status: "PENDING" },
       take: 100,

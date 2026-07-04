@@ -35,7 +35,7 @@ export class SettlementReconcileService {
       } catch (e) {
         this.logger.error("结算批处理失败", e as Error);
       }
-    });
+    }, { critical: true });
   }
 
   @Cron("0 2 * * *")

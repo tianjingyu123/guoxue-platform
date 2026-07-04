@@ -1,6 +1,7 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { ChurnService } from "./churn.service";
 import { PrismaService } from "../../prisma/prisma.service";
+import { RedisService } from "../../redis/redis.service";
 
 const mockPrisma = {
   user: { findMany: jest.fn() },
@@ -22,6 +23,7 @@ describe("ChurnService", () => {
       providers: [
         ChurnService,
         { provide: PrismaService, useValue: mockPrisma },
+        { provide: RedisService, useValue: { runExclusive: jest.fn((_n: string, _t: number, fn: () => Promise<unknown>) => fn()) } },
       ],
     }).compile();
     svc = mod.get(ChurnService);

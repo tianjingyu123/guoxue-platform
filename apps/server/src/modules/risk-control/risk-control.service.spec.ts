@@ -1,6 +1,7 @@
 import { Test } from "@nestjs/testing";
 import { RiskControlService } from "./risk-control.service";
 import { PrismaService } from "../../prisma/prisma.service";
+import { RedisService } from "../../redis/redis.service";
 import { BusinessException } from "../../common/business.exception";
 
 const mockPrisma: any = {
@@ -53,6 +54,7 @@ describe("RiskControlService", () => {
       providers: [
         RiskControlService,
         { provide: PrismaService, useValue: mockPrisma },
+        { provide: RedisService, useValue: { runExclusive: jest.fn((_n: string, _t: number, fn: () => Promise<unknown>) => fn()) } },
       ],
     }).compile();
     svc = mod.get(RiskControlService);

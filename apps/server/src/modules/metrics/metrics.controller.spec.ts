@@ -2,6 +2,7 @@ import { Test } from "@nestjs/testing";
 import { MetricsController } from "./metrics.controller";
 import { MetricsService } from "../../common/metrics.service";
 import { AiInsightService } from "./ai-insight.service";
+import { ThrottleGuard } from "../../common/throttle.guard";
 
 const mockAiInsight = {} as any;
 
@@ -17,7 +18,9 @@ describe("MetricsController", () => {
     const mod = await Test.createTestingModule({
       controllers: [MetricsController],
       providers: [{ provide: MetricsService, useValue: mockMetricsSvc }, { provide: AiInsightService, useValue: mockAiInsight }],
-    }).compile();
+    })
+      .overrideGuard(ThrottleGuard).useValue({ canActivate: () => true })
+      .compile();
     ctrl = mod.get(MetricsController);
   });
 

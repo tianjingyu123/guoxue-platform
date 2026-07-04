@@ -21,6 +21,10 @@ export class CollabMatrixTask {
 
   @Cron(CronExpression.EVERY_HOUR)
   async buildSimilarityMatrix() {
+    await this.redis.runExclusive("recommend_collab_matrix", 1800, () => this._buildSimilarityMatrix());
+  }
+
+  private async _buildSimilarityMatrix() {
     this.logger.log("开始构建协同过滤相似度矩阵...");
 
     // 从 Order 表中提取 item-item 共现数据

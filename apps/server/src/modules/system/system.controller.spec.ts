@@ -3,6 +3,7 @@ import { SystemController } from "./system.controller";
 import { SystemService } from "./system.service";
 import { ExportService } from "./export.service";
 import { RolesGuard } from "../../common/roles.guard";
+import { ThrottleGuard } from "../../common/throttle.guard";
 
 const mockSystemSvc = {
   getAllConfigs: jest.fn().mockResolvedValue([]),
@@ -53,6 +54,7 @@ describe("SystemController", () => {
       ],
     })
       .overrideGuard(RolesGuard).useValue({ canActivate: () => true })
+      .overrideGuard(ThrottleGuard).useValue({ canActivate: () => true })
       .compile();
     ctrl = mod.get(SystemController);
   });

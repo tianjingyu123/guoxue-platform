@@ -1,6 +1,7 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { KnowledgeSyncService } from "./knowledge-sync.service";
 import { PrismaService } from "../../prisma/prisma.service";
+import { RedisService } from "../../redis/redis.service";
 import { VectorService } from "./vector.service";
 import { BusinessException } from "../../common/business.exception";
 
@@ -45,6 +46,7 @@ describe("KnowledgeSyncService", () => {
       providers: [
         KnowledgeSyncService,
         { provide: PrismaService, useValue: prisma },
+        { provide: RedisService, useValue: { runExclusive: jest.fn((_n: string, _t: number, fn: () => Promise<unknown>) => fn()) } },
         { provide: VectorService, useValue: vector },
       ],
     }).compile();

@@ -2,6 +2,7 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { ModelRouterService } from "./model-router.service";
 import { SystemService } from "../system/system.service";
 import { PrismaService } from "../../prisma/prisma.service";
+import { RedisService } from "../../redis/redis.service";
 import { randomInt } from "crypto";
 
 // 源码用 crypto.randomInt 做灰度随机，jest.mock 在编译前拦截
@@ -47,12 +48,23 @@ describe("ModelRouterService", () => {
   beforeEach(async () => {
     mockSystem = { getConfig: jest.fn() } as any;
     mockPrisma = { $queryRawUnsafe: jest.fn() } as any;
+    // 预算缓存已入 Redis（M4）：内存 kv 假实现保持缓存语义可测
+    const kv = new Map<string, string>();
+    const mockRedis = {
+      get: jest.fn(async (k: string) => kv.get(k) ?? null),
+      set: jest.fn(async (k: string, v: string) => { kv.set(k, v); }),
+      delByPattern: jest.fn(async (pattern: string) => {
+        const prefix = pattern.replace(/\*$/, "");
+        for (const k of kv.keys()) if (k.startsWith(prefix)) kv.delete(k);
+      }),
+    };
 
     const mod: TestingModule = await Test.createTestingModule({
       providers: [
         ModelRouterService,
         { provide: SystemService, useValue: mockSystem },
         { provide: PrismaService, useValue: mockPrisma },
+        { provide: RedisService, useValue: mockRedis },
       ],
     }).compile();
 
@@ -152,7 +164,7 @@ describe("ModelRouterService", () => {
       ]);
 
       await svc.resolve("chat");
-      svc.clearCache();
+      await svc.clearCache();
       await svc.resolve("chat");
 
       expect(mockSystem.getConfig).toHaveBeenCalledTimes(2);

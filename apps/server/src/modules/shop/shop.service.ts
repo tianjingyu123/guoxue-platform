@@ -1916,6 +1916,11 @@ export class ShopService {
    */
   @Cron(CronExpression.EVERY_5_MINUTES, { name: "autoCancelExpiredOrders" })
   async autoCancelExpiredOrders() {
+    // H3 批级互斥：多实例下只一个实例扫描（订单级 setNX 锁仍在，双保险）
+    await this.redis.runExclusive("shop_auto_cancel_expired", 240, () => this._autoCancelExpiredOrders());
+  }
+
+  private async _autoCancelExpiredOrders() {
     const cutoff = new Date(Date.now() - 30 * 60 * 1000);
 
     const expiredOrders = await this.prisma.order.findMany({

@@ -15,6 +15,7 @@ const mockPrisma = {
 
 const mockRedis = {
   setNX: jest.fn(),
+  runExclusive: jest.fn((_n: string, _t: number, fn: () => Promise<unknown>) => fn()),
 };
 
 const mockNotification = {

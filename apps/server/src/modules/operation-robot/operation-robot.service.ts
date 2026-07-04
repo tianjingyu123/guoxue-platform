@@ -1,5 +1,6 @@
 import { Injectable, Logger, OnModuleInit } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
+import { RedisService } from "../../redis/redis.service";
 import { AiGatewayService } from "../ai-gateway/ai-gateway.service";
 import { SystemService } from "../system/system.service";
 import { BusinessException } from "../../common/business.exception";
@@ -43,6 +44,7 @@ export class OperationRobotService implements OnModuleInit {
     private readonly prisma: PrismaService,
     private readonly gateway: AiGatewayService,
     private readonly systemService: SystemService,
+    private readonly redis: RedisService,
   ) {}
 
   /** 外部调用的初始化入口 */
@@ -117,6 +119,10 @@ export class OperationRobotService implements OnModuleInit {
 
   @Cron(CronExpression.EVERY_HOUR)
   async likeBotTask() {
+    await this.redis.runExclusive("operation_robot_like_bot", 600, () => this._likeBotTask());
+  }
+
+  private async _likeBotTask() {
     const cfg = this.robotConfigs.get("like_bot");
     if (!cfg?.enabled) return;
 
@@ -151,6 +157,10 @@ export class OperationRobotService implements OnModuleInit {
 
   @Cron(CronExpression.EVERY_2_HOURS)
   async commentBotTask() {
+    await this.redis.runExclusive("operation_robot_comment_bot", 1800, () => this._commentBotTask());
+  }
+
+  private async _commentBotTask() {
     const cfg = this.robotConfigs.get("comment_bot");
     if (!cfg?.enabled) return;
 
@@ -199,6 +209,10 @@ export class OperationRobotService implements OnModuleInit {
 
   @Cron(CronExpression.EVERY_12_HOURS)
   async signinBotTask() {
+    await this.redis.runExclusive("operation_robot_signin_bot", 600, () => this._signinBotTask());
+  }
+
+  private async _signinBotTask() {
     const cfg = this.robotConfigs.get("signin_bot");
     if (!cfg?.enabled) return;
 
@@ -246,6 +260,10 @@ export class OperationRobotService implements OnModuleInit {
 
   @Cron(CronExpression.EVERY_DAY_AT_10AM)
   async questionBotTask() {
+    await this.redis.runExclusive("operation_robot_question_bot", 1800, () => this._questionBotTask());
+  }
+
+  private async _questionBotTask() {
     const cfg = this.robotConfigs.get("question_bot");
     if (!cfg?.enabled) return;
 

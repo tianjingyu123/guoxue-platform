@@ -46,7 +46,7 @@ describe("CallService", () => {
       providers: [
         CallService,
         { provide: PrismaService, useValue: prisma },
-        { provide: RedisService, useValue: { setNX: jest.fn().mockResolvedValue(true), del: jest.fn() } },
+        { provide: RedisService, useValue: { setNX: jest.fn().mockResolvedValue(true), del: jest.fn(), runExclusive: jest.fn((_n: string, _t: number, fn: () => Promise<unknown>) => fn()) } },
         { provide: CoinService, useValue: coin },
         { provide: RevenueService, useValue: revenue },
         { provide: TrtcService, useValue: trtc },

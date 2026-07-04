@@ -15,10 +15,10 @@ export class ScheduleService {
   /** 每分钟检查到期内容并自动发布（Redis分布式锁防多实例重叠） */
   @Cron(CronExpression.EVERY_MINUTE)
   async publishScheduled() {
-    const lockKey = "cron:lock:publish_scheduled";
-    const locked = await this.redis.setNX(lockKey, "1", 55);
-    if (!locked) return;
+    await this.redis.runExclusive("content_publish_scheduled", 600, () => this._publishScheduled());
+  }
 
+  private async _publishScheduled() {
     try {
       const now = new Date();
       const published: string[] = [];
@@ -56,8 +56,6 @@ export class ScheduleService {
       }
     } catch (err: any) {
       this.logger.error(`定时发布失败: ${err.message}`);
-    } finally {
-      await this.redis.del(lockKey);
     }
   }
 }

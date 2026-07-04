@@ -22,6 +22,10 @@ export class CtrCalcTask {
 
   @Cron(CronExpression.EVERY_HOUR)
   async calcStrategyCtr() {
+    await this.redis.runExclusive("recommend_ctr_calc", 600, () => this._calcStrategyCtr());
+  }
+
+  private async _calcStrategyCtr() {
     // 计算过去 7 天各策略的 CTR
     const since = new Date();
     since.setDate(since.getDate() - 7);

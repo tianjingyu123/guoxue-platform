@@ -14,6 +14,10 @@ export class TrendCalcTask {
 
   @Cron("*/5 * * * *")
   async calcPlatformTrending() {
+    await this.redis.runExclusive("recommend_trend_calc", 600, () => this._calcPlatformTrending());
+  }
+
+  private async _calcPlatformTrending() {
     this.logger.log("刷新全平台热度排行...");
 
     const [articles, courses, products, circles] = await Promise.all([
