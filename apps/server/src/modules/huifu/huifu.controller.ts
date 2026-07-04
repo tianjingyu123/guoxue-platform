@@ -52,6 +52,18 @@ export class HuifuController {
     return { enabled };
   }
 
+  @Get("ping")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "汇付连通性探针（商户基本信息查询·不抛异常）" })
+  @ApiResponse({ status: 200, description: "成功（ok=true 表示通道可用）" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
+  ping() {
+    return this.svc.ping();
+  }
+
   // ───────── 支付 ─────────
 
   @Post("pay")
@@ -66,19 +78,21 @@ export class HuifuController {
   }
 
   @Post("notify")
-  @ApiOperation({ summary: "汇付天下支付回调（公开接口）" })
+  @ApiOperation({ summary: "汇付斗拱支付异步通知（公开接口·sign 在通知体内）" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
-  async handleNotify(@Body() body: Record<string, unknown>, @Headers("X-HF-Signature") signature?: string) {
+  async handleNotify(@Body() body: Record<string, unknown>, @Headers("X-HF-Signature") headerSign?: string) {
+    // 斗拱异步通知：POST 表单/JSON 含 resp_data(JSON字符串) 与 sign（兼容旧 header 签名）
+    const signature = (typeof body?.sign === "string" ? body.sign : "") || headerSign;
     if (!signature) {
-      return { resp_code: "FAIL", resp_msg: "缺少签名" };
+      return { resp_code: "FAIL", resp_desc: "缺少签名" };
     }
     const isValid = await this.svc.verifyNotify(body, signature);
     if (!isValid) {
-      return { resp_code: "FAIL", resp_msg: "签名验证失败" };
+      return { resp_code: "FAIL", resp_desc: "签名验证失败" };
     }
     await this.svc.handleNotify(body);
-    return { resp_code: "10000", resp_msg: "成功" };
+    return { resp_code: "00000000", resp_desc: "成功" };
   }
 
   @Post("query")

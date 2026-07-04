@@ -13,6 +13,7 @@ const mockSvc = {
   getAllConfigs: jest.fn(),
   setConfig: jest.fn(),
   isEnabled: jest.fn(),
+  ping: jest.fn(),
   queryBalance: jest.fn(),
   downloadBill: jest.fn(),
 };
@@ -52,17 +53,36 @@ describe("HuifuController", () => {
   });
 
   describe("回调", () => {
-    it("验签通过应返回成功", async () => {
+    it("验签通过应返回成功（斗拱 sign 在通知体内）", async () => {
       mockSvc.verifyNotify.mockResolvedValue(true);
-      const result = await ctrl.handleNotify({ out_trade_no: "HF001" }, "valid-signature");
-      expect(result.resp_code).toBe("10000");
-      expect(result.resp_msg).toBe("成功");
+      const body = { resp_data: '{"trans_stat":"S","req_seq_id":"HF001"}', sign: "valid-signature" };
+      const result = await ctrl.handleNotify(body);
+      expect(result.resp_code).toBe("00000000");
+      expect(result.resp_desc).toBe("成功");
+      expect(mockSvc.verifyNotify).toHaveBeenCalledWith(body, "valid-signature");
+      expect(mockSvc.handleNotify).toHaveBeenCalledWith(body);
     });
 
     it("验签失败应返回失败", async () => {
       mockSvc.verifyNotify.mockResolvedValue(false);
-      const result = await ctrl.handleNotify({ out_trade_no: "HF001" }, "invalid-signature");
+      const result = await ctrl.handleNotify({ resp_data: "{}", sign: "invalid-signature" });
       expect(result.resp_code).toBe("FAIL");
+      expect(mockSvc.handleNotify).not.toHaveBeenCalled();
+    });
+
+    it("缺少签名应直接拒绝", async () => {
+      const result = await ctrl.handleNotify({ resp_data: "{}" });
+      expect(result.resp_code).toBe("FAIL");
+      expect(mockSvc.verifyNotify).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("连通性探针", () => {
+    it("ping 应透传服务结果", async () => {
+      mockSvc.ping.mockResolvedValue({ ok: true, respCode: "00000000", respDesc: "成功", merchantName: "测试商户" });
+      const result = await ctrl.ping();
+      expect(result.ok).toBe(true);
+      expect(result.merchantName).toBe("测试商户");
     });
   });
 
@@ -117,10 +137,10 @@ describe("HuifuController", () => {
       expect(result.balance).toBe(100000);
     });
 
-    it("下载账单", async () => {
-      mockSvc.downloadBill.mockResolvedValue({ bill_url: "https://bill.example.com" });
-      const result = await ctrl.downloadBill("2026-05-15");
-      expect(result.bill_url).toBe("https://bill.example.com");
+    it("下载账单（斗拱对账接口未接入·诚实降级）", async () => {
+      mockSvc.downloadBill.mockRejectedValue(new Error("汇付对账单下载暂未接入斗拱协议"));
+      await expect(ctrl.downloadBill("2026-05-15")).rejects.toThrow("暂未接入");
+      expect(mockSvc.downloadBill).toHaveBeenCalledWith("2026-05-15");
     });
   });
 });

@@ -67,14 +67,15 @@ export const THIRD_PARTY_SERVICES: ThirdPartyService[] = [
   },
   {
     key: "huifu", label: "汇付天下", category: "支付",
-    note: "汇付天下（斗拱）分账支付。签约后在汇付商户后台获取，密钥找汇付对接人。",
+    note: "汇付斗拱（BsPay）聚合支付+分账。斗拱控制台 console.huifu.com→开发设置→开发者信息 获取商户号(huifu_id)/系统号(sys_id)/产品号(product_id)与 RSA 密钥对；接口走 v2 JSON 网关，SHA256withRSA 签名。",
     fields: [
       S("merchantId", "商户号", "HUIFU_MERCHANT_ID", false, "汇付分配的商户号（huifuId）"),
-      S("appId", "应用号", "HUIFU_APP_ID", false, "汇付分配的应用号（sysId/appId）"),
-      S("secretKey", "密钥", "HUIFU_SECRET_KEY", true, "汇付分配的密钥"),
+      S("appId", "系统号 sys_id", "HUIFU_APP_ID", false, "斗拱控制台·开发设置·开发者信息中查看（直连商户常与商户号相同）"),
+      S("productId", "产品号 product_id", "HUIFU_PRODUCT_ID", false, "斗拱控制台·开发设置·开发者信息中查看"),
+      S("secretKey", "密钥", "HUIFU_SECRET_KEY", true, "斗拱走RSA签名·此字段暂留空即可"),
       S("rsaPrivateKey", "RSA 私钥（内容或路径）", "HUIFU_RSA_PRIVATE_KEY", true, "填 RSA 私钥内容，或服务器上私钥文件的完整路径。系统自动识别。", "", true, true),
       S("rsaPublicKey", "RSA 公钥（内容或路径）", "HUIFU_RSA_PUBLIC_KEY", true, "填汇付 RSA 公钥内容，或服务器上公钥文件的完整路径。系统自动识别。", "", true, true),
-      S("notifyUrl", "回调地址", "HUIFU_NOTIFY_URL", false, "填 https://api.rebugx.cn/api/v1/pay/huifu/notify"),
+      S("notifyUrl", "回调地址", "HUIFU_NOTIFY_URL", false, "填 https://api.rebugx.cn/api/v1/huifu/notify"),
     ],
   },
   {

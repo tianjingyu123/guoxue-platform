@@ -8,8 +8,14 @@ import { HuifuPayDto, HuifuSplitDto, HuifuRefundDto } from "./huifu.dto";
 import { FundApprovalService } from "../fund-approval/fund-approval.service";
 
 /**
- * 汇付天下支付分账服务
- * 使用 RSA-SHA256 签名，纯原生 HTTP 调用
+ * 汇付斗拱（BsPay）支付分账服务 — v2 真实协议
+ *
+ * 传输层规格（依官方 bspay-go-sdk 核实）：
+ * - 网关 https://api.huifu.com，一律 POST JSON
+ * - 请求体 { sys_id, product_id, sign, data }
+ * - 签名：data 去空字段 → 按 key 字母序递归排序的紧凑 JSON → SHA256withRSA(PKCS1v15) → base64
+ * - 响应 { data, sign }：用汇付公钥对响应体中 data 字段的「原始 JSON 子串」验签（验签失败仅告警不阻断）
+ * - 业务码：data.resp_code === "00000000" 为成功
  * 文档: https://paas.huifu.com
  */
 @Injectable()
@@ -18,6 +24,9 @@ export class HuifuService {
   private readonly baseUrl: string;
   private configCache: Map<string, string> = new Map();
   private certCacheTime = 0;
+
+  /** 斗拱业务成功码 */
+  private static readonly RESP_SUCCESS = "00000000";
 
   constructor(
     private prisma: PrismaService,
@@ -71,6 +80,7 @@ export class HuifuService {
     const envMap: Record<string, string | undefined> = {
       merchantId: process.env.HUIFU_MERCHANT_ID,
       appId: process.env.HUIFU_APP_ID,
+      productId: process.env.HUIFU_PRODUCT_ID,
       secretKey: process.env.HUIFU_SECRET_KEY,
       rsaPrivateKey: process.env.HUIFU_RSA_PRIVATE_KEY,
       rsaPublicKey: process.env.HUIFU_RSA_PUBLIC_KEY,
@@ -107,6 +117,87 @@ export class HuifuService {
     return !!(merchantId && rsaPrivateKey);
   }
 
+  // ───────── 协议工具 ─────────
+
+  /** 请求日期 yyyyMMdd */
+  private reqDate(d: Date = new Date()): string {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}${m}${day}`;
+  }
+
+  /** 唯一请求流水号（uuid 去横线） */
+  private reqSeqId(): string {
+    return randomUUID().replace(/-/g, "");
+  }
+
+  /** 删除 data 中值为空(空串/null/undefined)的字段（斗拱签名前置步骤①） */
+  private removeEmpty(data: Record<string, unknown>): Record<string, unknown> {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(data)) {
+      if (v === "" || v === null || v === undefined) continue;
+      out[k] = v;
+    }
+    return out;
+  }
+
+  /** 按 key 字母序递归排序（数组保序）后的紧凑 JSON（斗拱签名前置步骤②） */
+  private sortedCompactJson(value: unknown): string {
+    return JSON.stringify(this.deepSortKeys(value));
+  }
+
+  private deepSortKeys(value: unknown): unknown {
+    if (Array.isArray(value)) return value.map((v) => this.deepSortKeys(v));
+    if (value !== null && typeof value === "object") {
+      const src = value as Record<string, unknown>;
+      const sorted: Record<string, unknown> = {};
+      for (const k of Object.keys(src).sort()) sorted[k] = this.deepSortKeys(src[k]);
+      return sorted;
+    }
+    return value;
+  }
+
+  /**
+   * 从响应原文中截取某字段的「原始 JSON 对象子串」（花括号配平·跳过字符串内花括号）。
+   * 斗拱响应验签必须用原文子串（非重排序后的 JSON）。
+   */
+  private extractRawJsonField(rawText: string, field: string): string | null {
+    const keyToken = `"${field}"`;
+    let idx = rawText.indexOf(keyToken);
+    while (idx !== -1) {
+      let i = idx + keyToken.length;
+      while (i < rawText.length && /\s/.test(rawText[i])) i++;
+      if (rawText[i] === ":") {
+        i++;
+        while (i < rawText.length && /\s/.test(rawText[i])) i++;
+        if (rawText[i] === "{") {
+          let depth = 0;
+          let inStr = false;
+          let esc = false;
+          for (let j = i; j < rawText.length; j++) {
+            const ch = rawText[j];
+            if (inStr) {
+              if (esc) esc = false;
+              else if (ch === "\\") esc = true;
+              else if (ch === '"') inStr = false;
+            } else if (ch === '"') {
+              inStr = true;
+            } else if (ch === "{") {
+              depth++;
+            } else if (ch === "}") {
+              depth--;
+              if (depth === 0) return rawText.slice(i, j + 1);
+            }
+          }
+          return null; // 花括号未配平
+        }
+      }
+      idx = rawText.indexOf(keyToken, idx + 1);
+    }
+    return null;
+  }
+
   // ───────── RSA 签名 ─────────
 
   private normalizePrivateKey(raw: string): string {
@@ -125,60 +216,77 @@ export class HuifuService {
     return key;
   }
 
-  /** 生成 RSA-SHA256 签名 */
-  private sign(signStr: string): string {
-    const rawKey = this.configCache.get("rsaPrivateKey") || "";
+  /** 商户私钥 SHA256withRSA(PKCS1v15) 签名，输出 base64 */
+  private async signData(signStr: string): Promise<string> {
+    const rawKey = await this.getConfig("rsaPrivateKey");
     if (!rawKey) {
-      throw new BusinessException(ErrorCode.BAD_REQUEST, "汇付天下RSA私钥未配置，请先在支付配置中设置rsaPrivateKey");
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "汇付RSA私钥未配置，请先在后台第三方配置中设置rsaPrivateKey");
     }
     const privateKey = this.normalizePrivateKey(rawKey);
     try {
-      const signer = createSign("sha256WithRSAEncryption");
+      const signer = createSign("RSA-SHA256");
       signer.update(signStr, "utf-8");
       return signer.sign(privateKey, "base64");
     } catch (err) {
       this.logger.error("RSA签名失败，请检查私钥格式是否正确", (err as Error).message);
-      throw new BusinessException(ErrorCode.BAD_REQUEST, "RSA签名失败，请检查汇付天下私钥格式");
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "RSA签名失败，请检查汇付私钥格式");
     }
   }
 
-  /** 验签 */
-  private verify(signStr: string, signature: string): boolean {
-    const rawKey = this.configCache.get("rsaPublicKey") || "";
-    const publicKey = this.normalizePublicKey(rawKey);
-    const verifier = createVerify("sha256WithRSAEncryption");
-    verifier.update(signStr, "utf-8");
-    return verifier.verify(publicKey, signature, "base64");
+  /** 汇付公钥验签（响应/回调）——异常一律返回 false，不抛出 */
+  private async verifyData(signStr: string, signature: string): Promise<boolean> {
+    const rawKey = await this.getConfig("rsaPublicKey");
+    if (!rawKey) return false;
+    try {
+      const verifier = createVerify("RSA-SHA256");
+      verifier.update(signStr, "utf-8");
+      return verifier.verify(this.normalizePublicKey(rawKey), signature, "base64");
+    } catch (err) {
+      this.logger.warn(`汇付验签异常: ${(err as Error).message}`);
+      return false;
+    }
   }
 
-  // ───────── HTTP 调用 ─────────
+  // ───────── HTTP 调用（斗拱 v2 协议） ─────────
 
+  /**
+   * 调用斗拱 v2 接口。
+   * 组包 { sys_id, product_id, sign, data } → POST JSON → 验签响应 → 返回响应 data 对象。
+   * 业务码非 00000000 时记录错误但不抛出（调用方可读 resp_code/resp_desc）。
+   */
   private async callApi(
-    method: "GET" | "POST",
     path: string,
-    body?: Record<string, unknown>,
+    data: Record<string, unknown>,
   ): Promise<Record<string, unknown>> {
     const merchantId = await this.getConfig("merchantId");
-    const bodyStr = body ? JSON.stringify(body) : "";
-    const timestamp = Math.floor(Date.now() / 1000).toString();
-    const nonce = randomUUID().replace(/-/g, "");
-    const signStr = `${method}\n${path}\n${timestamp}\n${nonce}\n${bodyStr}`;
-    const signature = this.sign(signStr);
+    const sysId = (await this.getConfig("appId")) || merchantId;
+    const productId = await this.getConfig("productId");
+    if (!productId) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "汇付产品号 product_id 未配置，请到后台「第三方配置→汇付天下」填写");
+    }
+
+    // ① 删除空字段 ② key 字母序紧凑 JSON ③ RSA-SHA256 签名
+    const cleaned = this.removeEmpty(data);
+    const signSrc = this.sortedCompactJson(cleaned);
+    const sign = await this.signData(signSrc);
+
+    const bodyStr = JSON.stringify({
+      sys_id: sysId,
+      product_id: productId,
+      sign,
+      data: cleaned,
+    });
 
     const start = Date.now();
 
     try {
       const resp = await fetch(`${this.baseUrl}${path}`, {
-        method,
+        method: "POST",
         headers: {
           "Content-Type": "application/json",
           "Accept": "application/json",
-          "X-HF-MerchantId": merchantId,
-          "X-HF-Timestamp": timestamp,
-          "X-HF-Nonce": nonce,
-          "X-HF-Signature": signature,
         },
-        body: bodyStr || undefined,
+        body: bodyStr,
         signal: AbortSignal.timeout(15000),
       });
 
@@ -191,22 +299,26 @@ export class HuifuService {
         throw new BusinessException(ErrorCode.PAY_FAILED, "汇付API响应异常");
       }
 
-      // 验签
-      const respSign = (resp.headers.get("X-HF-Signature") || result?.sign || "") as string;
-      if (respSign && result?.resp_code !== undefined) {
-        const respData = JSON.stringify(result.resp_data || result.data || {});
-        const verifyStr = `${timestamp}\n${nonce}\n${respData}`;
-        if (!this.verify(verifyStr, respSign)) {
-          this.logger.warn(`汇付API验签失败: ${path}`);
+      const respData = (result?.data && typeof result.data === "object"
+        ? result.data
+        : {}) as Record<string, unknown>;
+
+      // 验签：用汇付公钥对响应体中 data 字段的「原始 JSON 子串」验签；失败仅告警不阻断
+      const respSign = typeof result?.sign === "string" ? result.sign : "";
+      if (respSign) {
+        const rawData = this.extractRawJsonField(raw, "data");
+        if (!rawData || !(await this.verifyData(rawData, respSign))) {
+          this.logger.warn(`汇付API响应验签失败: ${path}`);
         }
       }
 
-      if (result.resp_code && result.resp_code !== "10000" && result.resp_code !== "000000") {
-        this.logger.error(`汇付API错误: ${path}`, result);
-        return result;
+      // 业务码判定：00000000 为成功
+      const respCode = respData.resp_code as string | undefined;
+      if (respCode && respCode !== HuifuService.RESP_SUCCESS) {
+        this.logger.error(`汇付API业务失败: ${path} resp_code=${respCode} resp_desc=${respData.resp_desc}`);
       }
 
-      return result;
+      return respData;
     } catch (err: unknown) {
       const duration = Date.now() - start;
       this.logger.error(`汇付API调用异常: ${path} (${duration}ms)`, (err as Error).message);
@@ -214,9 +326,65 @@ export class HuifuService {
     }
   }
 
+  /**
+   * 取原交易请求日期 org_req_date：
+   * 优先从 rawRequest 里取当初的 req_date（req_seq_id 匹配时才可信，分账确认会覆写 rawRequest），
+   * 否则用记录 createdAt 格式化。
+   */
+  private orgReqDateOf(
+    record: { createdAt: Date; rawRequest?: unknown },
+    expectSeqId?: string,
+  ): string {
+    const raw = record.rawRequest as Record<string, unknown> | null | undefined;
+    if (
+      raw && typeof raw === "object" &&
+      typeof raw.req_date === "string" &&
+      (!expectSeqId || raw.req_seq_id === expectSeqId)
+    ) {
+      return raw.req_date;
+    }
+    return this.reqDate(new Date(record.createdAt));
+  }
+
+  /** 斗拱交易状态 → 平台分账/退款状态 */
+  private mapTransStat(stat: unknown): string {
+    if (stat === "S") return "SUCCESS";
+    if (stat === "F") return "FAILED";
+    return "PROCESSING";
+  }
+
+  // ───────── 连通性探针 ─────────
+
+  /**
+   * 连通性探针：调「商户基本信息查询 /v2/merchant/basicdata/query」。
+   * 任何网络/签名/配置异常均捕获，返回 { ok:false, respDesc }，探针不抛异常。
+   */
+  async ping(): Promise<{ ok: boolean; respCode?: string; respDesc?: string; merchantName?: string }> {
+    try {
+      const merchantId = await this.getConfig("merchantId");
+      if (!merchantId) return { ok: false, respDesc: "汇付商户号未配置，请到后台「第三方配置→汇付天下」填写" };
+
+      const data = {
+        huifu_id: merchantId,
+        req_date: this.reqDate(),
+        req_seq_id: this.reqSeqId(),
+      };
+      const result = await this.callApi("/v2/merchant/basicdata/query", data);
+      const respCode = result.resp_code as string | undefined;
+      return {
+        ok: respCode === HuifuService.RESP_SUCCESS,
+        respCode,
+        respDesc: result.resp_desc as string | undefined,
+        merchantName: (result.reg_name || result.short_name) as string | undefined,
+      };
+    } catch (err: unknown) {
+      return { ok: false, respDesc: (err as Error).message || "汇付连通性探测失败" };
+    }
+  }
+
   // ───────── 支付 ─────────
 
-  /** 创建汇付支付（H5/JSAPI/Native） */
+  /** 创建汇付支付（JSAPI 聚合下单 /v2/trade/payment/jspay） */
   async createPayment(userId: string, dto: HuifuPayDto) {
     const order = await this.prisma.order.findUnique({
       where: { id: dto.orderId },
@@ -231,37 +399,43 @@ export class HuifuService {
 
     const merchantId = await this.getConfig("merchantId");
     const notifyUrl = await this.getConfig("notifyUrl");
+    // 商户订单号即斗拱 req_seq_id（查询/退款用 org_req_seq_id 回溯，保持自洽）
     const outTradeNo = `HF${Date.now()}${dto.orderId.slice(0, 8)}`;
-    const totalAmount = Math.round(Number(order.amount) * 100); // 转分
 
-    const body: Record<string, unknown> = {
-      merchant_id: merchantId,
-      out_trade_no: outTradeNo,
-      total_amount: totalAmount,
-      subject: `国学平台-${order.type}`,
-      body: `订单${dto.orderId.slice(0, 12)}`,
-      notify_url: notifyUrl || `${process.env.API_BASE_URL || ""}/api/v1/huifu/notify`,
-      pay_type: dto.payType || "WECHAT_H5",
-      expire_time: "30m",
+    // 渠道 → 斗拱 jspay trade_type（T_MINIAPP 微信小程序预留）
+    const tradeTypeMap: Record<string, string> = {
+      WECHAT_H5: "T_JSAPI",
+      WECHAT_JSAPI: "T_JSAPI",
+      WECHAT_MINIAPP: "T_MINIAPP", // 预留
+      ALIPAY: "A_JSAPI",
+      UNIONPAY: "U_JSAPI",
     };
+    const tradeType = tradeTypeMap[dto.payType || "WECHAT_JSAPI"] || "T_JSAPI";
 
-    // 微信公众号内 JSAPI 支付：仅当走微信渠道且携带 openid 时才转 JSAPI，
-    // 避免用户选支付宝/云闪付时被 openid 误覆盖成微信支付。
-    if (dto.openid && String(body.pay_type).startsWith("WECHAT")) {
-      body.openid = dto.openid;
-      body.pay_type = "WECHAT_JSAPI";
+    const data: Record<string, unknown> = {
+      huifu_id: merchantId,
+      req_date: this.reqDate(),
+      req_seq_id: outTradeNo,
+      trade_type: tradeType,
+      trans_amt: Number(order.amount).toFixed(2), // 元·两位小数字符串
+      goods_desc: `国学平台-${order.type}`,
+      notify_url: notifyUrl || `${process.env.API_BASE_URL || ""}/api/v1/huifu/notify`,
+    };
+    // 微信 JSAPI/小程序需要 openid
+    if (dto.openid && tradeType.startsWith("T_")) {
+      data.wx_data = { sub_openid: dto.openid };
     }
 
-    const result = await this.callApi("POST", "/v1/trade/payment", body);
+    const result = await this.callApi("/v2/trade/payment/jspay", data);
 
-    // 保存分账记录
+    // 保存分账记录（hf_seq_id 为汇付全局流水号）
     await this.prisma.huifuSplitRecord.create({
       data: {
         orderId: dto.orderId,
-        huifuOrderId: result.huifu_order_id as string,
+        huifuOrderId: (result.hf_seq_id as string) || null,
         outTradeNo,
         totalAmount: Number(order.amount),
-        rawRequest: body as any,
+        rawRequest: data as any,
         rawResponse: result as any,
       },
     });
@@ -274,14 +448,15 @@ export class HuifuService {
 
     return {
       outTradeNo,
-      payUrl: result.pay_url,
-      h5Url: result.h5_url,
-      qrCode: result.qr_code,
+      payInfo: (result.pay_info as string) || null, // JSAPI 调起参数（JSON 字符串）
+      payUrl: (result.pay_url as string) || null, // 兼容保留
+      h5Url: (result.h5_url as string) || null, // 兼容保留
+      qrCode: (result.qr_code as string) || null, // 兼容保留
       raw: result,
     };
   }
 
-  /** 查询支付状态 */
+  /** 查询支付状态（/v2/trade/payment/scanpay/query） */
   async queryPayment(outTradeNo: string, userId: string) {
     // 校验该支付单归属当前用户，防止越权查询/探测他人订单（userId 必传，fail-closed）
     const order = await this.prisma.order.findFirst({
@@ -291,27 +466,56 @@ export class HuifuService {
     if (!order || order.userId !== userId) {
       throw new BusinessException(ErrorCode.ORDER_NOT_FOUND, "订单不存在");
     }
+    const record = await this.prisma.huifuSplitRecord.findUnique({
+      where: { outTradeNo },
+    });
+    if (!record) {
+      throw new BusinessException(ErrorCode.NOT_FOUND, "找不到支付记录");
+    }
     const merchantId = await this.getConfig("merchantId");
-    const body = { merchant_id: merchantId, out_trade_no: outTradeNo };
-    return this.callApi("POST", "/v1/trade/query", body);
+    const data = {
+      huifu_id: merchantId,
+      org_req_date: this.orgReqDateOf(record, outTradeNo),
+      org_req_seq_id: outTradeNo,
+    };
+    return this.callApi("/v2/trade/payment/scanpay/query", data);
   }
 
   // ───────── 回调处理 ─────────
 
-  /** 验证汇付回调签名 */
-  async verifyNotify(body: Record<string, unknown>, signature: string): Promise<boolean> {
-    const respData = JSON.stringify(body.resp_data || body.data || {});
-    const timestamp = body.timestamp as string || "";
-    const nonce = body.nonce as string || "";
-    const verifyStr = `${timestamp}\n${nonce}\n${respData}`;
-    return this.verify(verifyStr, signature);
+  /**
+   * 验证汇付异步通知签名。
+   * 斗拱通知含 resp_data（JSON 字符串）与 sign：用汇付公钥对 resp_data 原串验签。
+   */
+  async verifyNotify(body: Record<string, unknown>, signature?: string): Promise<boolean> {
+    const sign = signature || (typeof body.sign === "string" ? body.sign : "");
+    if (!sign) return false;
+    const respData = body.resp_data ?? body.data;
+    const signStr = typeof respData === "string" ? respData : JSON.stringify(respData ?? {});
+    return this.verifyData(signStr, sign);
   }
 
-  /** 处理支付回调 */
+  /** 处理支付回调（resp_data 内 trans_stat==="S" 为成功） */
   async handleNotify(body: Record<string, unknown>): Promise<void> {
-    const outTradeNo = body.out_trade_no as string;
+    // 解析 resp_data（JSON 字符串或对象），兼容平铺字段
+    let payload: Record<string, unknown>;
+    const respData = body.resp_data ?? body.data;
+    if (typeof respData === "string") {
+      try {
+        payload = JSON.parse(respData);
+      } catch (_err) {
+        this.logger.warn("汇付回调 resp_data 非合法JSON");
+        return;
+      }
+    } else if (respData && typeof respData === "object") {
+      payload = respData as Record<string, unknown>;
+    } else {
+      payload = body;
+    }
+
+    const outTradeNo = (payload.req_seq_id || payload.out_trade_no) as string;
     if (!outTradeNo) {
-      this.logger.warn("汇付回调缺少 out_trade_no");
+      this.logger.warn("汇付回调缺少 req_seq_id");
       return;
     }
 
@@ -324,9 +528,9 @@ export class HuifuService {
     }
 
     try {
-      const tradeStatus = body.trade_status || body.status;
-      if (tradeStatus !== "SUCCESS" && tradeStatus !== "TRADE_SUCCESS") {
-        this.logger.log(`汇付支付未成功: ${outTradeNo}, 状态: ${tradeStatus}`);
+      const transStat = payload.trans_stat;
+      if (transStat !== "S") {
+        this.logger.log(`汇付支付未成功: ${outTradeNo}, trans_stat: ${transStat}`);
         return;
       }
 
@@ -339,7 +543,7 @@ export class HuifuService {
         return;
       }
 
-      const transactionId = (body.huifu_order_id || body.transaction_id) as string;
+      const transactionId = (payload.hf_seq_id || payload.huifu_order_id) as string;
 
       // CAS 状态翻转：仅当仍为 PENDING 时置 PAID，防并发/回调重投重复处理(不依赖 redis 锁存活)
       const flipped = await this.prisma.order.updateMany({
@@ -361,7 +565,7 @@ export class HuifuService {
         where: { outTradeNo },
         data: {
           huifuOrderId: transactionId,
-          rawResponse: body as any,
+          rawResponse: payload as any,
         },
       });
 
@@ -373,7 +577,7 @@ export class HuifuService {
 
   // ───────── 分账 ─────────
 
-  /** 发起分账 */
+  /** 发起分账（延时分账确认 /v2/trade/payment/delaytrans/confirm） */
   async createSplit(dto: HuifuSplitDto) {
     // 支持扁平字段简写：receiverId + receiverName → receivers 数组
     let receivers = dto.receivers || [];
@@ -395,36 +599,40 @@ export class HuifuService {
     }
 
     const merchantId = await this.getConfig("merchantId");
-    const totalSplitAmount = receivers.reduce((sum, r) => sum + r.amount, 0);
 
-    const body: Record<string, unknown> = {
-      merchant_id: merchantId,
-      out_trade_no: splitRecord.outTradeNo,
-      out_order_no: `SPLIT${Date.now()}`,
-      total_amount: Math.round(totalSplitAmount * 100),
-      receivers: receivers.map((r) => ({
-        acct_id: r.acctId,
-        amount: Math.round(r.amount * 100),
-        name: r.name,
-        remark: r.remark || "国学平台分账",
-      })),
-      unfreeze_unsplit: dto.unfreezeUnsplit ?? true,
+    const data: Record<string, unknown> = {
+      huifu_id: merchantId,
+      req_date: this.reqDate(),
+      req_seq_id: this.reqSeqId(),
+      org_req_date: this.orgReqDateOf(splitRecord, splitRecord.outTradeNo),
+      org_req_seq_id: splitRecord.outTradeNo,
+      acct_split_bunch: {
+        acct_infos: receivers.map((r) => ({
+          huifu_id: r.acctId,
+          div_amt: r.amount.toFixed(2), // 元·两位小数字符串
+        })),
+      },
     };
 
-    const result = await this.callApi("POST", "/v1/trade/split", body);
+    const result = await this.callApi("/v2/trade/payment/delaytrans/confirm", data);
+
+    const splitStatus =
+      result.resp_code === HuifuService.RESP_SUCCESS && result.trans_stat === "S"
+        ? "SUCCESS"
+        : "PROCESSING";
 
     // 更新分账记录
     await this.prisma.huifuSplitRecord.update({
       where: { orderId: dto.orderId },
       data: {
-        splitStatus: (result.split_status as string) === "SUCCESS" ? "SUCCESS" : "PROCESSING",
+        splitStatus,
         receivers: receivers.map((r) => ({
           acctId: r.acctId,
           amount: r.amount,
           name: r.name,
-          status: "PROCESSING",
+          status: splitStatus === "SUCCESS" ? "SUCCESS" : "PROCESSING",
         })),
-        rawRequest: body as any,
+        rawRequest: data as any,
         rawResponse: result as any,
         splitAt: new Date(),
       },
@@ -432,12 +640,12 @@ export class HuifuService {
 
     return {
       orderId: dto.orderId,
-      splitStatus: result.split_status || "PROCESSING",
+      splitStatus,
       raw: result,
     };
   }
 
-  /** 查询分账结果 */
+  /** 查询分账结果（/v2/trade/trans/split/query） */
   async querySplit(orderId: string) {
     const splitRecord = await this.prisma.huifuSplitRecord.findUnique({
       where: { orderId },
@@ -447,23 +655,29 @@ export class HuifuService {
     }
 
     const merchantId = await this.getConfig("merchantId");
-    const body = { merchant_id: merchantId, out_trade_no: splitRecord.outTradeNo };
-    const result = await this.callApi("POST", "/v1/trade/split/query", body);
+    const data = {
+      huifu_id: merchantId,
+      org_req_date: this.orgReqDateOf(splitRecord, splitRecord.outTradeNo),
+      org_req_seq_id: splitRecord.outTradeNo,
+    };
+    const result = await this.callApi("/v2/trade/trans/split/query", data);
 
     // 更新状态
-    if (result.split_status) {
+    let splitStatus = splitRecord.splitStatus;
+    if (result.trans_stat !== undefined) {
+      splitStatus = this.mapTransStat(result.trans_stat);
       await this.prisma.huifuSplitRecord.update({
         where: { orderId },
-        data: { splitStatus: result.split_status as string, rawResponse: result as any },
+        data: { splitStatus, rawResponse: result as any },
       });
     }
 
-    return { orderId, splitStatus: result.split_status, raw: result };
+    return { orderId, splitStatus, raw: result };
   }
 
   // ───────── 退款 ─────────
 
-  /** 申请退款 */
+  /** 申请退款（/v2/trade/payment/scanpay/refund） */
   async createRefund(dto: HuifuRefundDto) {
     const orderId = dto.orderId || dto.outTradeNo;
     if (!orderId) throw new BusinessException(ErrorCode.BAD_REQUEST, "请提供订单ID或交易号");
@@ -478,37 +692,41 @@ export class HuifuService {
     const merchantId = await this.getConfig("merchantId");
     const outRefundNo = `RF${Date.now()}${orderId.slice(0, 8)}`;
 
-    const body: Record<string, unknown> = {
-      merchant_id: merchantId,
-      out_trade_no: splitRecord.outTradeNo,
-      out_refund_no: outRefundNo,
-      refund_amount: Math.round(dto.amount * 100),
-      refund_reason: dto.reason || "用户申请退款",
+    const data: Record<string, unknown> = {
+      huifu_id: merchantId,
+      req_date: this.reqDate(),
+      req_seq_id: outRefundNo,
+      org_req_date: this.orgReqDateOf(splitRecord, splitRecord.outTradeNo),
+      org_req_seq_id: splitRecord.outTradeNo,
+      ord_amt: dto.amount.toFixed(2), // 元·两位小数字符串
+      remark: dto.reason || "用户申请退款",
     };
 
-    const result = await this.callApi("POST", "/v1/trade/refund", body);
+    const result = await this.callApi("/v2/trade/payment/scanpay/refund", data);
 
     return {
       orderId: dto.orderId,
       outRefundNo,
-      refundStatus: result.refund_status || "PROCESSING",
+      refundStatus: this.mapTransStat(result.trans_stat),
       raw: result,
     };
   }
 
   // ───────── 账单查询 ─────────
 
-  /** 查询商户余额 */
+  /** 查询商户余额（/v2/trade/acctpayment/balance/query） */
   async queryBalance() {
     const merchantId = await this.getConfig("merchantId");
-    const body = { merchant_id: merchantId };
-    return this.callApi("POST", "/v1/account/balance", body);
+    const data = {
+      huifu_id: merchantId,
+      req_date: this.reqDate(),
+      req_seq_id: this.reqSeqId(),
+    };
+    return this.callApi("/v2/trade/acctpayment/balance/query", data);
   }
 
-  /** 下载账单 */
-  async downloadBill(billDate: string) {
-    const merchantId = await this.getConfig("merchantId");
-    const body = { merchant_id: merchantId, bill_date: billDate };
-    return this.callApi("POST", "/v1/bill/download", body);
+  /** 下载账单 — 斗拱对账单接口尚未接入，诚实降级（原 /v1/bill/download 为虚构路径） */
+  async downloadBill(_billDate: string): Promise<never> {
+    throw new BusinessException(ErrorCode.BAD_REQUEST, "汇付对账单下载暂未接入斗拱协议，请在斗拱控制台查看对账文件");
   }
 }
