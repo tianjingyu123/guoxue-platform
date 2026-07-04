@@ -25,13 +25,12 @@ const duration = ref(0)
 const playbackRate = ref(1)
 const showControls = ref(true)
 const showChapterDrawer = ref(false)
-const showNotePanel = ref(false)
 const showQuestionPanel = ref(false)
 const showSpeedMenu = ref(false)
 const isAudioMode = ref(false)
 const isPipMode = ref(false)
-const noteContent = ref('')
 const questionContent = ref('')
+const submittingQuestion = ref(false)
 const speeds = [0.5, 0.75, 1, 1.25, 1.5, 2]
 const currentLessonId = ref('')
 
@@ -49,13 +48,19 @@ function switchLesson(id: string) {
   showChapterDrawer.value = false
   navigateTo(`/courses/${content.value?.courseId}/player?lesson=${id}`)
 }
-function submitNote() {
-  if (!noteContent.value.trim()) return
-  uni.showToast({ title: '笔记已保存', icon: 'success' }); noteContent.value = ''; showNotePanel.value = false
-}
-function submitQuestion() {
-  if (!questionContent.value.trim()) return
-  uni.showToast({ title: '问题已提交', icon: 'success' }); questionContent.value = ''; showQuestionPanel.value = false
+async function submitQuestion() {
+  if (!questionContent.value.trim() || submittingQuestion.value) return
+  submittingQuestion.value = true
+  try {
+    await courseApi.askQuestion(courseId.value, questionContent.value.trim(), lessonId.value || undefined)
+    uni.showToast({ title: '问题已提交', icon: 'success' })
+    questionContent.value = ''
+    showQuestionPanel.value = false
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '提交失败，请重试', icon: 'none' })
+  } finally {
+    submittingQuestion.value = false
+  }
 }
 function lessonLocked(chapter: PlayerChapter, lesson: PlayerChapterLesson) { return !lesson.isFree && !chapter.isFree }
 
@@ -63,12 +68,17 @@ async function loadData() {
   loading.value = true
   error.value = ''
   try {
-    const [playerContent, playerChapters] = await Promise.all([
-      courseApi.getPlayerContent(lessonId.value),
-      courseApi.getPlayerChapters(courseId.value),
-    ])
-    content.value = playerContent
+    if (!courseId.value) throw new Error('缺少课程参数，请从课程页进入')
+    const playerChapters = await courseApi.getPlayerChapters(courseId.value)
     chapters.value = playerChapters
+    // 深链/分享未带 lesson 参数时，回退到目录中第一个课时（不再用占位 '1' 打后端）
+    if (!lessonId.value) {
+      const first = playerChapters.flatMap((c) => c.lessons || [])[0]
+      if (!first?.id) throw new Error('该课程暂无可播放的课时')
+      lessonId.value = first.id
+      currentLessonId.value = first.id
+    }
+    content.value = await courseApi.getPlayerContent(lessonId.value)
   } catch (e) {
     error.value = (e as Error)?.message || '加载失败'
   } finally {
@@ -77,8 +87,8 @@ async function loadData() {
 }
 
 onLoad((options) => {
-  lessonId.value = options?.lesson || '1'
-  courseId.value = options?.id || '1'
+  lessonId.value = options?.lesson || ''
+  courseId.value = options?.id || ''
   currentLessonId.value = lessonId.value
 })
 
@@ -180,9 +190,7 @@ onMounted(() => {
         <view class="func-btn" @tap="showChapterDrawer = true">
           <app-icon name="list" :size="30" color="#ffffff" /><text class="func-txt">目录</text>
         </view>
-        <view class="func-btn" @tap="showNotePanel = true">
-          <app-icon name="file-text" :size="30" color="#ffffff" /><text class="func-txt">笔记</text>
-        </view>
+        <!-- 笔记：后端暂无课程笔记写端点，入口移除（原为假 toast 不落库）——端点就绪后恢复 -->
         <view class="func-btn" @tap="showQuestionPanel = true">
           <app-icon name="message-circle" :size="30" color="#ffffff" /><text class="func-txt">提问</text>
         </view>
@@ -226,26 +234,6 @@ onMounted(() => {
       </view>
     </view>
 
-    <!-- 笔记面板 -->
-    <view v-if="showNotePanel" class="sheet-modal">
-      <view class="sheet-mask" @tap="showNotePanel = false" />
-      <view class="dark-sheet">
-        <view class="dark-sheet-hdr">
-          <text class="dark-sheet-title">记笔记</text>
-          <view @tap="showNotePanel = false"><app-icon name="x" :size="36" color="#ffffff" /></view>
-        </view>
-        <view class="dark-sheet-body">
-          <text class="note-time">当前时间点: {{ formatTime(currentTime) }}</text>
-          <textarea v-model="noteContent" class="dark-input" placeholder="写下你的学习笔记..." placeholder-class="dark-ph" />
-        </view>
-        <view class="dark-sheet-foot">
-          <view class="dark-submit" :class="{ disabled: !noteContent.trim() }" @tap="submitNote">
-            <text class="dark-submit-txt">保存笔记</text>
-          </view>
-        </view>
-      </view>
-    </view>
-
     <!-- 提问面板 -->
     <view v-if="showQuestionPanel" class="sheet-modal">
       <view class="sheet-mask" @tap="showQuestionPanel = false" />
@@ -258,8 +246,8 @@ onMounted(() => {
           <textarea v-model="questionContent" class="dark-input" placeholder="描述你的问题，老师会尽快回复..." placeholder-class="dark-ph" />
         </view>
         <view class="dark-sheet-foot">
-          <view class="dark-submit" :class="{ disabled: !questionContent.trim() }" @tap="submitQuestion">
-            <text class="dark-submit-txt">提交问题</text>
+          <view class="dark-submit" :class="{ disabled: !questionContent.trim() || submittingQuestion }" @tap="submitQuestion">
+            <text class="dark-submit-txt">{{ submittingQuestion ? '提交中...' : '提交问题' }}</text>
           </view>
         </view>
       </view>
@@ -342,7 +330,6 @@ onMounted(() => {
 .dark-sheet-hdr { padding: 24rpx; border-bottom: 1rpx solid #27272A; display: flex; align-items: center; justify-content: space-between; }
 .dark-sheet-title { font-size: 28rpx; font-weight: 500; color: #fff; }
 .dark-sheet-body { padding: 24rpx; }
-.note-time { display: block; font-size: 22rpx; color: #71717A; margin-bottom: 16rpx; }
 .dark-input { width: 100%; height: 256rpx; background: #27272A; border-radius: 16rpx; padding: 24rpx; font-size: 26rpx; color: #fff; box-sizing: border-box; }
 .dark-ph { color: #71717A; }
 .dark-sheet-foot { padding: 24rpx; border-top: 1rpx solid #27272A; }

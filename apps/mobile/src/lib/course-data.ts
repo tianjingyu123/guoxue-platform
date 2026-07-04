@@ -453,6 +453,11 @@ export const courseApi = {
     return { course: learnCourseData, progress: learnProgressData, chapters: learnChaptersData, notes: [], questions: learnQuestionsData }
   },
 
+  /** 学生提问 — POST /courses/:id/questions（需登录·后端 AskQuestionDto={question,chapterId?}） */
+  async askQuestion(courseId: string, question: string, chapterId?: string): Promise<void> {
+    await apiPost(`/courses/${courseId}/questions`, chapterId ? { question, chapterId } : { question })
+  },
+
   /** 课时播放内容 — GET /courses/chapters/:chapterId/content（需购买/会员，服务端鉴权）+ 兄弟章节做前后课时 */
   async getPlayerContent(lessonId: string): Promise<ChapterContent> {
     const ch = await apiGet<RawChapter>(`/courses/chapters/${lessonId}/content`)

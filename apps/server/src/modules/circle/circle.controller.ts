@@ -116,6 +116,14 @@ export class CircleController {
     return this.circle.getGlobalHotPosts(+limit);
   }
 
+  @Get("posts/:postId")
+  @ApiOperation({ summary: "获取帖子详情（无圈子上下文·按 postId 反查）", description: "供分享/搜索等只有帖子 id 的入口使用，响应含 circle 供前端回填" })
+  @ApiResponse({ status: 200, description: "成功返回帖子详情" })
+  @ApiResponse({ status: 404, description: "帖子不存在" })
+  getPostDetailById(@Param("postId") postId: string) {
+    return this.circle.getPostDetail(postId);
+  }
+
   @Get("activities")
   @ApiOperation({ summary: "今日活动", description: "今日新增帖子和即将开始的直播等动态" })
   @ApiQuery({ name: "limit", required: false, type: Number, description: "返回条数，默认5" })

@@ -61,6 +61,8 @@ async function loadData() {
   try {
     const p = await postDetailApi.getDetail(circleId.value, postId.value)
     post.value = p
+    // 分享/搜索入口只带帖子 id 时，从详情响应回填 circleId（进圈按钮/圈主课触点依赖它）
+    if (!circleId.value && p.circleId) circleId.value = p.circleId
     mdBlocks.value = parseMarkdown(p.content)
     isLiked.value = p.isLiked
     // 收藏：后端无单帖收藏态查询端点 → 保持初始 false，靠乐观更新维护本次会话内状态

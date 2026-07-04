@@ -247,7 +247,19 @@ export interface VideoSearchResult {
   category: string
 }
 
-export const videoHotKeywords = ['八字入门', '紫微斗数', '奇门遁甲', '风水布局', '易经', '流年运势', '命理基础', '面相手相']
+/** 视频语境搜索引导词（真实热搜为空/失败时的兜底；原硬编码命理词与视频语境不符已换） */
+export const videoFallbackKeywords = ['国学讲座', '古籍导读', '诗词朗诵', '养生功法', '茶道文化', '书法教学', '太极拳', '汉服礼仪']
+
+/** 热门搜索词 — GET /search/hot（全站真实搜索频次+运营兜底）；失败/空回退视频语境引导词 */
+export async function fetchVideoHotKeywords(): Promise<string[]> {
+  try {
+    const data = await apiGet<Array<{ keyword?: string }>>('/search/hot?limit=8')
+    const words = (Array.isArray(data) ? data : []).map((r) => r?.keyword || '').filter(Boolean)
+    return words.length ? words : videoFallbackKeywords
+  } catch {
+    return videoFallbackKeywords
+  }
+}
 
 // ===== 发布页（/videos/publish）数据 —— 照搬原型 app/videos/publish/page.tsx myProductLibrary/hotTags =====
 export interface PublishProduct {

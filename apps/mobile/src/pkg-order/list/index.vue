@@ -40,9 +40,9 @@
             <text class="order-no">订单号: {{ order.orderNo }}</text>
             <view class="copy-btn" @tap.stop="copyNo(order.orderNo)"><app-icon name="copy" :size="26" color="#999999" /></view>
           </view>
-          <view class="status" :style="{ color: cfg(order.status).color }">
-            <app-icon :name="cfg(order.status).icon" :size="28" :color="cfg(order.status).color" />
-            <text class="status-text">{{ cfg(order.status).label }}</text>
+          <view class="status" :style="{ color: cfg2(order).color }">
+            <app-icon :name="cfg2(order).icon" :size="28" :color="cfg2(order).color" />
+            <text class="status-text">{{ cfg2(order).label }}</text>
           </view>
         </view>
 
@@ -80,6 +80,11 @@
             </template>
             <template v-else-if="order.status === 'pending_ship'">
               <view v-if="order.canCancel" class="btn ghost" @tap="askCancel(order.id)"><text>取消订单</text></view>
+            </template>
+            <!-- 虚拟订单（课程/会员）：无物流/收货/实物售后操作，课程给学习入口 -->
+            <template v-else-if="order.isVirtual && (order.status === 'pending_receive' || order.status === 'completed')">
+              <view v-if="order.canReview" class="btn outline" @tap="goReview(order.id)"><text>去评价</text></view>
+              <view v-if="order.orderType === 'COURSE'" class="btn primary" @tap="goLearn(order)"><text>立即学习</text></view>
             </template>
             <template v-else-if="order.status === 'pending_receive'">
               <view class="btn ghost" @tap="goLogistics(order.id)"><text>查看物流</text></view>
@@ -161,6 +166,17 @@ function selectTab(key: string) {
 
 function cfg(status: string) {
   return orderStatusConfig[status] || orderStatusConfig.completed
+}
+/** 按订单类型修正状态展示：虚拟订单（课程/会员）付款即交付，不显示实物「待发货/待收货」 */
+function cfg2(order: OrderListItem) {
+  if (order.isVirtual && (order.status === 'pending_ship' || order.status === 'pending_receive')) {
+    return { ...cfg('completed'), label: '已开通' }
+  }
+  return cfg(order.status)
+}
+function goLearn(order: OrderListItem) {
+  const cid = order.products[0]?.id
+  if (cid) navigateTo(`/courses/${cid}/learn`)
 }
 function copyNo(no: string) {
   uni.setClipboardData({ data: no, success: () => uni.showToast({ title: '已复制', icon: 'none' }) })

@@ -370,10 +370,13 @@ function adaptComment(c: RawComment): Comment {
 }
 
 export const postDetailApi = {
-  /** 帖子详情（含评论数）— GET /circles/:id/posts/:postId + /comment/count */
+  /** 帖子详情（含评论数）— GET /circles/:id/posts/:postId + /comment/count。
+   *  缺 circleId 的入口（分享/搜索只带帖子 id）走无圈反查端点 GET /circles/posts/:postId，
+   *  避免拼出 /circles//posts/ 双斜杠 404；circleId 可从返回的 PostDetail.circleId 回填。 */
   getDetail: async (circleId: string, postId: string): Promise<PostDetail> => {
+    const url = circleId ? `/circles/${circleId}/posts/${postId}` : `/circles/posts/${postId}`
     const [p, cnt] = await Promise.all([
-      apiGet<RawPost>(`/circles/${circleId}/posts/${postId}`),
+      apiGet<RawPost>(url),
       apiGet<number | { count?: number }>(`/comment/count?targetType=POST&targetId=${postId}`).catch(() => 0),
     ])
     const count = typeof cnt === 'number' ? cnt : (cnt?.count ?? 0)

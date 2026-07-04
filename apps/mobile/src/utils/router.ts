@@ -251,6 +251,11 @@ const ROUTE_MAP: Record<string, string> = {
   '/teacher/dashboard': '/pkg-creator/teacher-dashboard/index',
   '/teacher-certification': '/pkg-creator/teacher-certification/index',
   '/my-circles': '/pkg-circle/my-circles/index',
+  // 圈子静态子页（必须有静态别名，否则被动态 /circles/:id 抢占当成圈子 id → 详情错误页）
+  '/circles/create': '/pkg-circle/circles/create',
+  '/circles/stats': '/pkg-circle/circles/stats',
+  '/circles/activities': '/pkg-circle/circles/activities',
+  '/circles/badges': '/pkg-circle/circles/badges',
   '/rankings': '/pkg-circle/rankings/index',
   '/articles': '/pkg-circle/articles/index',
   // 扫码结果（接 ?content= query，9种类型解析，从 offline/checkin 等扫码入口调起）

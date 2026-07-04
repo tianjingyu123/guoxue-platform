@@ -38,9 +38,9 @@
       </view>
     </view>
 
-    <!-- 物流入口 -->
+    <!-- 物流入口（虚拟商品订单无物流） -->
     <view
-      v-if="order.logistics && order.status !== 'pending_pay' && order.status !== 'cancelled'"
+      v-if="!order.isVirtual && order.logistics && order.status !== 'pending_pay' && order.status !== 'cancelled'"
       class="card logistics-entry"
       @tap="goLogistics"
     >
@@ -84,7 +84,7 @@
       </view>
       <view v-if="order.status === 'completed' || order.status === 'pending_receive'" class="quick-acts">
         <view v-if="order.canReview" class="quick primary" @tap="goReview"><app-icon name="star" :size="30" color="#C41E3A" /><text>评价晒单</text></view>
-        <view class="quick ghost" @tap="goAfterSale"><app-icon name="undo-2" :size="30" color="#666666" /><text>申请售后</text></view>
+        <view v-if="!order.isVirtual" class="quick ghost" @tap="goAfterSale"><app-icon name="undo-2" :size="30" color="#666666" /><text>申请售后</text></view>
       </view>
     </view>
 
@@ -93,7 +93,7 @@
       <text class="card-title">价格明细</text>
       <view class="price-rows">
         <view class="price-row"><text class="pr-label">商品总额</text><text class="pr-value">¥{{ order.totalAmount.toFixed(2) }}</text></view>
-        <view class="price-row"><text class="pr-label">运费</text><text class="pr-value">包邮</text></view>
+        <view v-if="!order.isVirtual" class="price-row"><text class="pr-label">运费</text><text class="pr-value">包邮</text></view>
         <view v-if="order.coupon" class="price-row"><text class="pr-label">{{ order.coupon.name }}</text><text class="pr-value red">-¥{{ order.coupon.discount.toFixed(2) }}</text></view>
         <view class="price-row total"><text class="pr-label bold">实付金额</text><text class="pr-pay">¥{{ order.payAmount.toFixed(2) }}</text></view>
       </view>
@@ -125,6 +125,11 @@
           <view class="fbtn ghost"><text>取消订单</text></view>
           <view class="fbtn primary" @tap="goPay"><text>去支付</text></view>
         </template>
+        <!-- 虚拟订单（课程/会员）：付款即交付，无物流/收货操作；课程给学习入口 -->
+        <template v-else-if="order.isVirtual && order.status !== 'cancelled'">
+          <view v-if="order.canReview" class="fbtn outline" @tap="goReview"><text>去评价</text></view>
+          <view v-if="isCourseOrder" class="fbtn primary" @tap="goLearn"><text>立即学习</text></view>
+        </template>
         <template v-else-if="order.status === 'pending_receive'">
           <view class="fbtn ghost" @tap="goLogistics"><text>查看物流</text></view>
           <view class="fbtn primary" @tap="confirmReceive"><text>确认收货</text></view>
@@ -151,9 +156,8 @@ import { ref, computed, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
-import { orderApi, detailSteps, detailStatusConfig, type OrderDetail } from '@/lib/order-data'
+import { orderApi, detailSteps, virtualDetailSteps, detailStatusConfig, virtualPaidStatus, type OrderDetail } from '@/lib/order-data'
 
-const steps = detailSteps
 const loading = ref(false)
 const error = ref('')
 const order = ref<OrderDetail | null>(null)
@@ -161,10 +165,24 @@ const copied = ref(false)
 const orderId = ref('1')
 const submitting = ref(false)
 
+// 虚拟商品订单（课程/会员等）：三段步骤，付款即交付；实物走四段物流步骤
+const steps = computed(() => (order.value?.isVirtual ? virtualDetailSteps : detailSteps))
+
 const status = computed(() => {
   if (!order.value) return detailStatusConfig.pending_pay
-  return detailStatusConfig[order.value.status] || detailStatusConfig.pending_pay
+  const o = order.value
+  // 虚拟订单已支付/「待收货」态 → 已开通（不展示实物发货语义）
+  if (o.isVirtual && (o.status === 'pending_ship' || o.status === 'pending_receive')) return virtualPaidStatus
+  const cfg = detailStatusConfig[o.status] || detailStatusConfig.pending_pay
+  // 虚拟订单步骤只有 3 段，completed 的 step=4 需夹到 3
+  return o.isVirtual ? { ...cfg, step: Math.min(cfg.step, 3) } : cfg
 })
+
+const isCourseOrder = computed(() => order.value?.orderType === 'COURSE')
+function goLearn() {
+  const cid = order.value?.products[0]?.id
+  if (cid) navigateTo(`/courses/${cid}/learn`)
+}
 
 const retry = () => { error.value = ''; loadData() }
 async function loadData() {

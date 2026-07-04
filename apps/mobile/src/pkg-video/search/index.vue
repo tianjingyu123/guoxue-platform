@@ -124,10 +124,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
-import { videoApi, videoHotKeywords, type VideoSearchResult } from '@/lib/video-data'
+import { videoApi, videoFallbackKeywords, fetchVideoHotKeywords, type VideoSearchResult } from '@/lib/video-data'
 
 const statusBarHeight = ref(0)
 uni.getSystemInfo({ success: (r) => { statusBarHeight.value = r.statusBarHeight || 0 } })
@@ -138,7 +138,9 @@ const searched = ref(false)
 const loading = ref(false)
 const error = ref('')
 const results = ref<VideoSearchResult[]>([])
-const hotKeywords = videoHotKeywords
+// 真连 /search/hot（全站真实热搜），失败/空回退视频语境引导词
+const hotKeywords = ref<string[]>(videoFallbackKeywords)
+onMounted(async () => { hotKeywords.value = await fetchVideoHotKeywords() })
 
 // 搜索历史持久化（uni.storage）
 const history = ref<string[]>((() => {

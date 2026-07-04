@@ -29,6 +29,10 @@ export interface OrderListItem {
   id: string
   orderNo: string
   status: OrderStatus
+  /** 后端 OrderType（PRODUCT/COURSE/MEMBER/...），仅 PRODUCT 为实物 */
+  orderType: string
+  /** 虚拟商品订单（课程/会员等）：无物流/发货/收货语义 */
+  isVirtual: boolean
   totalAmount: number
   payAmount: number
   createdAt: string
@@ -149,6 +153,13 @@ export const detailSteps = [
   { key: 'completed', label: '交易完成' },
 ]
 
+/** 虚拟商品订单（课程/会员等）步骤：付款即交付，无「商家发货」环节 */
+export const virtualDetailSteps = [
+  { key: 'created', label: '提交订单' },
+  { key: 'paid', label: '付款成功' },
+  { key: 'completed', label: '开通完成' },
+]
+
 export const detailStatusConfig: Record<string, { icon: string; color: string; bg: string; text: string; step: number }> = {
   pending_pay: { icon: 'clock', color: '#C41E3A', bg: 'rgba(196,30,58,0.1)', text: '待付款', step: 1 },
   pending_ship: { icon: 'package', color: '#F59E0B', bg: 'rgba(245,158,11,0.1)', text: '待发货', step: 2 },
@@ -157,6 +168,9 @@ export const detailStatusConfig: Record<string, { icon: string; color: string; b
   cancelled: { icon: 'x-circle', color: '#6B7280', bg: 'rgba(107,114,128,0.1)', text: '已取消', step: 0 },
   after_sale: { icon: 'refresh-cw', color: '#F59E0B', bg: 'rgba(245,158,11,0.1)', text: '售后中', step: 3 },
 }
+
+/** 虚拟订单已支付态的状态卡覆盖（付款即开通，不显示「待发货」） */
+export const virtualPaidStatus = { icon: 'check-circle', color: '#10B981', bg: 'rgba(16,185,129,0.1)', text: '已开通', step: 3 }
 
 /* ============================================================
    四、物流详情（app/orders/logistics）
@@ -181,6 +195,12 @@ export const logisticsStatusMap: Record<string, { label: string; color: string }
   delivering: { label: '派送中', color: '#F97316' },
   delivered: { label: '已送达', color: '#22C55E' },
   signed: { label: '已签收', color: '#16A34A' },
+  // 无物流记录时 status 回落到订单状态（adaptLogistics）——补齐订单态词条，避免已取消订单显示「运输中」
+  paid: { label: '待发货', color: '#F59E0B' },
+  shipped: { label: '运输中', color: '#C41E3A' },
+  completed: { label: '已签收', color: '#16A34A' },
+  cancelled: { label: '订单已取消', color: '#6B7280' },
+  refunded: { label: '已退款', color: '#6B7280' },
 }
 
 /* ============================================================
@@ -392,8 +412,9 @@ const typeText = (t?: string) => (t ? AFTERSALE_TYPE_LABEL[t] || t : '')
 function toOrderProduct(o: RawOrder): OrderProduct {
   return {
     id: o.product?.id || o.targetId || '',
-    name: o.product?.title || '商品',
-    cover: o.product?.cover || '',
+    // 非实物订单（课程/会员等）无 product 关联，用订单标题兜底，避免显示成「商品」
+    name: o.product?.title || o.title || (o.memberType ? `会员 · ${o.memberType}` : '商品'),
+    cover: o.product?.cover || o.cover || '',
     skuName: o.sku?.skuName || '',
     price: num(o.payAmount ?? o.amount),
     quantity: 1,
@@ -401,10 +422,14 @@ function toOrderProduct(o: RawOrder): OrderProduct {
 }
 
 function adaptOrderListItem(o: RawOrder): OrderListItem {
+  const orderType = o.orderType || 'PRODUCT'
+  const isVirtual = orderType !== 'PRODUCT'
   return {
     id: o.id || '',
     orderNo: shortNo(o.id),
     status: ORDER_STATUS_MAP[o.status || ''] || 'completed',
+    orderType,
+    isVirtual,
     totalAmount: num(o.originalAmount ?? o.amount),
     payAmount: num(o.payAmount ?? o.amount),
     createdAt: fmtTime(o.createdAt),
@@ -413,7 +438,7 @@ function adaptOrderListItem(o: RawOrder): OrderListItem {
     completedAt: o.completedAt ? fmtTime(o.completedAt) : undefined,
     products: [toOrderProduct(o)],
     canCancel: o.status === 'PENDING',
-    canConfirm: o.status === 'SHIPPED',
+    canConfirm: o.status === 'SHIPPED' && !isVirtual, // 虚拟商品无「确认收货」语义
     canReview: o.status === 'COMPLETED',
     hasAfterSale: o.status === 'REFUNDED',
   }

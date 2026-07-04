@@ -8,7 +8,6 @@ import GroupBuyInfoCard from '@/components/marketing/group-buy-info-card.vue'
 import CouponClaimCard from '@/components/marketing/coupon-claim-card.vue'
 import { navigateBack, navigateTo } from '@/utils/router'
 import { shopApi } from '@/lib/shop-data'
-import { purchaseApi } from '@/lib/purchase-data'
 import { recommendApi } from '@/lib/recommend-data'
 import type { RecommendItem } from '@/components/common/recommend-section.vue'
 
@@ -103,23 +102,12 @@ async function addToCart() {
     submitting.value = false
   }
 }
-async function buyNow() {
-  if (submitting.value || !product.value) return
-  submitting.value = true
-  try {
-    const order = await purchaseApi.createOrder({
-      type: 'PRODUCT',
-      targetId: String(product.value.id),
-      amount: Number(selectedSpecs.value['数量']) || 1,
-    })
-    showSpecPanel.value = false
-    uni.showToast({ title: '订单已提交', icon: 'success' })
-    setTimeout(() => navigateTo(`/pkg-order/detail/index?id=${order.id}`), 800)
-  } catch (e) {
-    uni.showToast({ title: (e as Error)?.message || '下单失败', icon: 'none' })
-  } finally {
-    submitting.value = false
-  }
+function buyNow() {
+  if (!product.value) return
+  // 实物商品必须经结算页确认收货地址/优惠券后再建单（此前直接 createOrder 跳过了地址确认）
+  const qty = Number(selectedSpecs.value['数量']) || 1
+  showSpecPanel.value = false
+  navigateTo(`/shop/checkout?productId=${product.value.id}&quantity=${qty}`)
 }
 function goReviews() { navigateTo('/mall/product/reviews') }
 function goCart() { navigateTo('/shop/cart') }

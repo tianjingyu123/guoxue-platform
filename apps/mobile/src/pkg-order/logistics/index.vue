@@ -112,7 +112,8 @@ async function loadData() {
 function retry() { loadData() }
 
 const statusMeta = computed(
-  () => logisticsStatusMap[data.value?.status] || { label: '运输中', color: '#C41E3A' },
+  // 未知状态用中性文案兜底，不虚构「运输中」
+  () => logisticsStatusMap[data.value?.status] || { label: '暂无物流信息', color: '#6B7280' },
 )
 
 onLoad((q) => {

@@ -26,6 +26,7 @@ const activeTab = ref<TabKey>('catalog')
 const expanded = ref<Record<string, boolean>>({ c1: true, c2: true })
 const showAskModal = ref(false)
 const askContent = ref('')
+const submittingAsk = ref(false)
 
 // 进度环参数
 const ringSize = 80
@@ -45,11 +46,20 @@ function chapterDone(c: LearnChapter) { return c.lessons.filter((l) => l.isCompl
 function onLessonClick(lessonId: string) { navigateTo(`/courses/${course.value?.id}/player?lesson=${lessonId}`) }
 function fmtTimestamp(s: number) { return `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}` }
 function fmtStudyTime(min: number) { return `${Math.floor(min / 60)}小时${min % 60}分钟` }
-function submitQuestion() {
-  if (!askContent.value.trim()) return
-  uni.showToast({ title: '问题已提交', icon: 'success' })
-  askContent.value = ''
-  showAskModal.value = false
+async function submitQuestion() {
+  if (!askContent.value.trim() || submittingAsk.value) return
+  submittingAsk.value = true
+  try {
+    await courseApi.askQuestion(courseId.value, askContent.value.trim())
+    uni.showToast({ title: '问题已提交', icon: 'success' })
+    askContent.value = ''
+    showAskModal.value = false
+    loadData() // 刷新问答列表让新问题立即可见
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '提交失败，请重试', icon: 'none' })
+  } finally {
+    submittingAsk.value = false
+  }
 }
 function lessonIcon(chapter: LearnChapter, lesson: LearnLesson) {
   if (lesson.isCompleted) return { name: 'check-circle', color: '#C41E3A' }
@@ -251,9 +261,9 @@ onMounted(() => {
           v-model="askContent" class="ask-input" placeholder="请输入您的问题..."
           placeholder-class="ask-ph" :maxlength="-1"
         />
-        <view class="submit-btn" :class="{ disabled: !askContent.trim() }" @tap="submitQuestion">
+        <view class="submit-btn" :class="{ disabled: !askContent.trim() || submittingAsk }" @tap="submitQuestion">
           <app-icon name="send" :size="28" color="#ffffff" />
-          <text class="submit-txt">提交问题</text>
+          <text class="submit-txt">{{ submittingAsk ? '提交中...' : '提交问题' }}</text>
         </view>
       </view>
     </view>
