@@ -701,6 +701,7 @@ model Course {
   categoryLevel2 String? // 二级品类
   auditStatus    String     @default("PENDING")
   memberFree     Boolean    @default(false) // 会员专属精品课：有效会员免费学习（2026-07-03 会员权益拍板）
+  courseOrigin   String? // 课程来源标识：INSTITUTE_LECTURE=研究院大师讲座归档（研-P1·分享回放沉淀为付费知识库）；null=普通课程
   validityDays   Int        @default(0) // 购买后有效期（天），0=永久
   scheduledAt    DateTime? // 定时发布时间
   stationId      String? // 分站数据隔离（null = 平台级）
@@ -725,6 +726,7 @@ model Course {
   @@index([stationId])
   @@index([type, auditStatus])
   @@index([circleId, auditStatus, createdAt])
+  @@index([courseOrigin])
 }
 
 model CourseChapter {

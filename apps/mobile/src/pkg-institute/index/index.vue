@@ -121,6 +121,20 @@
         </view>
       </view>
 
+      <!-- 大师讲座入口（研-P1·分享回放沉淀·研究院出品课程频道） -->
+      <view class="section">
+        <view class="lectures-entry" @tap="goLectures">
+          <view class="lectures-icon">
+            <app-icon name="landmark" :size="22" color="#fff" />
+          </view>
+          <view class="lecture-info">
+            <text class="lecture-title">大师讲座</text>
+            <text class="lecture-sub">分享回放沉淀 · 研究院出品精品讲座频道</text>
+          </view>
+          <app-icon name="chevron-right" :size="16" color="#9ca3af" />
+        </view>
+      </view>
+
       <!-- 大师讲堂入口（T9-P0b·付费知识库） -->
       <view class="section">
         <view class="lecture-entry" @tap="goContents">
@@ -291,6 +305,7 @@ function goApply() { navigateTo('/institute/member-apply') }
 function goMy() { navigateTo('/institute/my-tasks') }
 function goRankings() { navigateTo('/pkg-institute/rankings/index') }
 function goContents() { navigateTo('/pkg-institute/contents/index') }
+function goLectures() { navigateTo('/pkg-institute/lectures/index') }
 function goBoardGroups() { navigateTo('/pkg-institute/board-groups/index') }
 </script>
 
@@ -389,6 +404,10 @@ function goBoardGroups() { navigateTo('/pkg-institute/board-groups/index') }
 .my-entry { display: flex; align-items: center; justify-content: space-between; background: #fff; border: 1px solid #ececec; border-radius: 12px; padding: 14px 16px; }
 /* 影响力榜单入口（全站金标风格 #c9a96e） */
 .rankings-entry { display: flex; align-items: center; gap: 12px; background: linear-gradient(135deg, #fdf9f0, #f6ecd8); border: 1px solid rgba(201,169,110,0.55); border-radius: 12px; padding: 14px 16px; }
+.lectures-entry { display: flex; align-items: center; gap: 12px; background: linear-gradient(135deg, #7c1423, #a4283c); border: 1px solid rgba(196,30,58,0.3); border-radius: 12px; padding: 14px 16px; }
+.lectures-entry .lecture-title { color: #fff; }
+.lectures-entry .lecture-sub { color: rgba(255,255,255,0.72); }
+.lectures-icon { width: 40px; height: 40px; border-radius: 10px; background: rgba(255,255,255,0.14); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .lecture-entry { display: flex; align-items: center; gap: 12px; background: linear-gradient(135deg, #fdf5f6, #faeaed); border: 1px solid rgba(196,30,58,0.18); border-radius: 12px; padding: 14px 16px; }
 .lecture-icon { width: 40px; height: 40px; border-radius: 10px; background: rgba(196,30,58,0.08); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .lecture-info { flex: 1; min-width: 0; }

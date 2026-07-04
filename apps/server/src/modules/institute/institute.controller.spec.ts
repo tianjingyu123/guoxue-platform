@@ -3,6 +3,7 @@ import { InstituteController } from "./institute.controller";
 import { InstituteService } from "./institute.service";
 import { InstituteAssessmentService } from "./institute-assessment.service";
 import { InstituteBoardService } from "./institute-board.service";
+import { LectureArchiveService } from "./lecture-archive.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 
@@ -29,6 +30,11 @@ const mockBoardSvc = {
   disbandBoardGroup: jest.fn().mockResolvedValue({ success: true, message: "已解散" }),
 };
 
+const mockLectureSvc = {
+  listLectures: jest.fn().mockResolvedValue({ items: [{ id: "c1", title: "阳明心学与现代经营" }], total: 1, page: 1, pageSize: 20 }),
+  archiveLecture: jest.fn().mockResolvedValue({ id: "c1", courseOrigin: "INSTITUTE_LECTURE", auditStatus: "PENDING" }),
+};
+
 const mockAssessmentSvc = {
   getEligibility: jest.fn().mockResolvedValue({ seatType: "LECTURE", eligible: true, checks: [] }),
   getMyAssessment: jest.fn().mockResolvedValue({ year: 2026, points: 120, tier: "FULL_REFUND", quarterPoints: [30, 30, 30, 30], offline: { met: true, detail: [] }, pointItems: [] }),
@@ -45,6 +51,7 @@ describe("InstituteController", () => {
         { provide: InstituteService, useValue: mockInstituteSvc },
         { provide: InstituteAssessmentService, useValue: mockAssessmentSvc },
         { provide: InstituteBoardService, useValue: mockBoardSvc },
+        { provide: LectureArchiveService, useValue: mockLectureSvc },
       ],
     })
       .overrideGuard(JwtAuthGuard).useValue({ canActivate: () => true })
@@ -68,6 +75,20 @@ describe("InstituteController", () => {
     const result: any = await ctrl.myMembership(req);
     expect(result.role).toBe("LECTURER");
     expect(mockInstituteSvc.getMyDashboard).toHaveBeenCalledWith("u1");
+  });
+
+  it("GET /institute/lectures — 大师讲座列表（公开·分页透传）", async () => {
+    const result: any = await ctrl.listLectures(2 as any, 10 as any);
+    expect(result.items).toHaveLength(1);
+    expect(mockLectureSvc.listLectures).toHaveBeenCalledWith(2, 10);
+  });
+
+  it("POST /institute/lectures/archive — 归档大师讲座", async () => {
+    const req: any = { user: { id: "u-mgr" } };
+    const dto: any = { videoUrl: "https://vod.example.com/replay.mp4", lecturerUserId: "u-lect", title: "阳明心学与现代经营" };
+    const result: any = await ctrl.archiveLecture(req, dto);
+    expect(result.courseOrigin).toBe("INSTITUTE_LECTURE");
+    expect(mockLectureSvc.archiveLecture).toHaveBeenCalledWith("u-mgr", dto);
   });
 
   it("GET /institute/members — 成员列表", async () => {

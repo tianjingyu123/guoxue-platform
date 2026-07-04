@@ -315,6 +315,27 @@ export const contentTypeIcon: Record<InstituteContentType, string> = {
   ARTICLE: 'file-text', VIDEO: 'video', DOCUMENT: 'file',
 }
 
+// ───── 大师讲座知识库（研-P1·分享回放沉淀为付费课程·复用课程系统）─────
+/** 讲座条目 = Course(courseOrigin=INSTITUTE_LECTURE)·点击跳课程详情页复用播放/购买全能力 */
+export interface LectureItem {
+  id: string
+  title: string
+  cover: string | null
+  intro: string | null
+  /** 定价（元·0=免费·定价模式待拍板） */
+  price: number
+  studentCount: number
+  createdAt: string
+  /** 讲师徽章信息：研究院讲师等级 + 线上认证头衔（无则诚实降级 NONE/null） */
+  lecturer: {
+    id: string
+    nickname: string
+    avatar: string | null
+    lecturerLevel: LecturerLevel
+    verifiedTitle: string | null
+  }
+}
+
 // ───── 私董会小组（T9-P1·私密子圈承载·设计 §3.6.5）─────
 export interface BoardGroup {
   id: string
@@ -618,5 +639,14 @@ export const instituteApi = {
   /** 购买内容（国学币扣减·已购永久可读）POST /institute/contents/:id/purchase */
   purchaseContent(id: string): Promise<{ purchased: boolean; price: number; purchaseId: string }> {
     return apiPost<{ purchased: boolean; price: number; purchaseId: string }>(`/institute/contents/${encodeURIComponent(id)}/purchase`)
+  },
+
+  // ───── 大师讲座知识库（研-P1·回放沉淀·复用课程系统）─────
+  /** 讲座列表（公开·仅过审·附讲师徽章）GET /institute/lectures */
+  getLectures(params: { page?: number; pageSize?: number }): Promise<{ items: LectureItem[]; total: number }> {
+    const q = new URLSearchParams()
+    q.set('page', String(params.page ?? 1))
+    q.set('pageSize', String(params.pageSize ?? 20))
+    return apiGetPaged<LectureItem>(`/institute/lectures?${q.toString()}`)
   },
 }

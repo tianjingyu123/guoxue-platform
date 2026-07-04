@@ -271,3 +271,48 @@ export class CreateBoardGroupDto {
   @Max(20)
   memberLimit?: number;
 }
+
+/** 研-P1 大师讲座归档：选定回放（直接 URL 或直播间回放）→ 沉淀为 Course(courseOrigin=INSTITUTE_LECTURE) */
+export class ArchiveLectureDto {
+  @ApiPropertyOptional({ description: "回放视频 URL（与 liveRoomId 二选一，同传以本字段为准）" })
+  @IsOptional() @IsString()
+  @MaxLength(1000)
+  videoUrl?: string;
+
+  @ApiPropertyOptional({ description: "直播间 ID（取其 replayUrl 作回放·与 videoUrl 二选一）" })
+  @IsOptional() @IsString()
+  liveRoomId?: string;
+
+  @ApiProperty({ description: "讲师 userId（须为本院 ACTIVE 成员·讲座课程归属该讲师名下）" })
+  @IsString()
+  @MinLength(1)
+  lecturerUserId: string;
+
+  @ApiProperty({ description: "讲座标题", example: "阳明心学与现代经营" })
+  @IsString()
+  @MinLength(1)
+  @MaxLength(100)
+  title: string;
+
+  @ApiPropertyOptional({ description: "讲座简介" })
+  @IsOptional() @IsString()
+  @MaxLength(2000)
+  intro?: string;
+
+  @ApiPropertyOptional({ description: "封面图 URL" })
+  @IsOptional() @IsString()
+  @MaxLength(1000)
+  cover?: string;
+
+  @ApiPropertyOptional({ description: "讲义资料 URL（归档为第二章节）" })
+  @IsOptional() @IsString()
+  @MaxLength(1000)
+  materialUrl?: string;
+
+  @ApiPropertyOptional({ description: "定价（元·0=免费·定价模式待拍板）", default: 0 })
+  @Type(() => Number)
+  @IsOptional() @IsNumber()
+  @Min(0)
+  @Max(9999)
+  price?: number;
+}

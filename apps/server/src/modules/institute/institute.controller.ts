@@ -4,7 +4,8 @@ import { Request } from "express";
 import { InstituteService } from "./institute.service";
 import { InstituteAssessmentService } from "./institute-assessment.service";
 import { InstituteBoardService } from "./institute-board.service";
-import { JoinInstituteDto, CreateTaskDto, CreateEventDto, UpdateEventDto, UpdateLecturerLevelDto, CreateTaskTemplateDto, CreateDividendDto, ApproveMemberDto, AssignRoleDto, UpdateMemberDto, RecommendToTalentDto, AddSharePointDto, InviteMemberDto, CreateBoardGroupDto } from "./institute.dto";
+import { LectureArchiveService } from "./lecture-archive.service";
+import { JoinInstituteDto, CreateTaskDto, CreateEventDto, UpdateEventDto, UpdateLecturerLevelDto, CreateTaskTemplateDto, CreateDividendDto, ApproveMemberDto, AssignRoleDto, UpdateMemberDto, RecommendToTalentDto, AddSharePointDto, InviteMemberDto, CreateBoardGroupDto, ArchiveLectureDto } from "./institute.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
@@ -16,6 +17,7 @@ export class InstituteController {
     private svc: InstituteService,
     private assessment: InstituteAssessmentService,
     private board: InstituteBoardService,
+    private lectureArchive: LectureArchiveService,
   ) {}
 
   // ════════════════════════════════════════
@@ -100,6 +102,27 @@ export class InstituteController {
   @ApiResponse({ status: 200, description: "成功" })
   getSignedLecturers() {
     return this.svc.getSignedLecturers();
+  }
+
+  @Get("lectures")
+  @ApiOperation({ summary: "大师讲座列表（公开·研-P1·Course.courseOrigin=INSTITUTE_LECTURE·仅过审·附讲师徽章信息）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiQuery({ name: "page", required: false, type: Number })
+  @ApiQuery({ name: "pageSize", required: false, type: Number })
+  listLectures(@Query("page") page = 1, @Query("pageSize") pageSize = 20) {
+    return this.lectureArchive.listLectures(+page, +pageSize);
+  }
+
+  @Post("lectures/archive")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "归档大师讲座（研究院管理层·选回放/直播间→沉淀为讲座课程·auditStatus 走课程审核流）" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败/无回放/讲师非本院成员/重复归档" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "仅研究院管理层可操作" })
+  @ApiBearerAuth()
+  archiveLecture(@Req() req: Request, @Body() dto: ArchiveLectureDto) {
+    return this.lectureArchive.archiveLecture(req.user.id, dto);
   }
 
   @Get("rankings")

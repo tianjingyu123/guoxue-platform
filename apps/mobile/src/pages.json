@@ -1686,6 +1686,12 @@
           }
         },
         {
+          "path": "lectures/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
           "path": "board-groups/index",
           "style": {
             "navigationStyle": "custom"
