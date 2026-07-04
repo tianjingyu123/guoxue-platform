@@ -809,13 +809,31 @@ export const classicsApi = {
   async companionPrompts(chapterId: string): Promise<{ bookTitle: string; chapterTitle: string; prompts: string[] }> {
     return await apiGet<{ bookTitle: string; chapterTitle: string; prompts: string[] }>(`/classic/companion/prompts?chapterId=${chapterId}`)
   },
-  /** 伴读多轮对话（带当前章节上下文）：{ answer, disclaimer } */
+  /** 伴读多轮对话（带当前章节上下文·登录用户服务端持久记忆）：{ answer, disclaimer } */
   async companionChat(
     chapterId: string,
     question: string,
     history?: { role: string; content: string }[],
   ): Promise<{ answer: string; disclaimer: string }> {
     return await apiPost<{ answer: string; disclaimer: string }>('/classic/companion/chat', { chapterId, question, history })
+  },
+  /** 伴读会话恢复（E3 带记忆·需登录）：本书近期历史，跨章节/跨登录续聊 */
+  async companionSession(chapterId: string): Promise<{
+    bookId: string
+    hasMemory: boolean
+    messageCount?: number
+    messages: { role: string; content: string; chapterId?: string | null; createdAt?: string }[]
+  }> {
+    return await apiGet<{
+      bookId: string
+      hasMemory: boolean
+      messageCount?: number
+      messages: { role: string; content: string; chapterId?: string | null; createdAt?: string }[]
+    }>(`/classic/companion/session?chapterId=${chapterId}`)
+  },
+  /** 清空本书伴读记忆（需登录） */
+  async companionReset(chapterId: string): Promise<{ reset: boolean }> {
+    return await apiPost<{ reset: boolean }>('/classic/companion/reset', { chapterId })
   },
 
   // ── 阅读进度（需登录） ──

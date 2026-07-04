@@ -3047,6 +3047,31 @@ model ClassicFavorite {
   @@index([userId])
 }
 
+/// 识典伴读会话（E3 多轮带记忆·2026-07-03）：每用户每书一条，跨章节/跨登录持续陪读。
+/// summary=滚动记忆摘要（每积累一批对话异步压缩，注入后续对话让 AI「记得」此前共读内容）。
+model ClassicCompanionSession {
+  id           String   @id @default(uuid())
+  userId       String
+  bookId       String
+  summary      String? // 滚动记忆摘要（AI 压缩生成）
+  messageCount Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([userId, bookId])
+}
+
+model ClassicCompanionMessage {
+  id        String   @id @default(uuid())
+  sessionId String
+  role      String // user / assistant
+  content   String
+  chapterId String? // 提问时所在章节（跨章追溯用）
+  createdAt DateTime @default(now())
+
+  @@index([sessionId, createdAt])
+}
+
 // ─────────────────────────────────────────────────
 // 分佣系统
 // ─────────────────────────────────────────────────

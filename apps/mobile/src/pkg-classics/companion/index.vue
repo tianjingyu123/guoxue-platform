@@ -59,6 +59,11 @@
 
       <!-- 对话消息列表 -->
       <view v-else class="cp-msgs">
+        <!-- 记忆恢复提示（E3） -->
+        <view v-if="memoryRestored" class="cp-memory-tip">
+          <app-icon name="book-open" :size="24" color="#8a7a99" />
+          <text class="cp-memory-tip-txt">已接续你与本书的共读记忆，伴读记得之前聊过的内容</text>
+        </view>
         <view
           v-for="m in messages"
           :key="m.id"
@@ -180,6 +185,27 @@ async function loadQuota() {
 
 function goVip() { navigateTo('/vip') }
 
+// —— E3 带记忆：进页恢复本书共读历史（跨章节/跨登录续聊）——
+const memoryRestored = ref(false)
+
+async function loadSession() {
+  if (!getToken() || !chapterId.value) return
+  try {
+    const s = await classicsApi.companionSession(chapterId.value)
+    if (s.hasMemory && s.messages.length && messages.value.length === 0) {
+      messages.value = s.messages.map((m, i) => ({
+        id: `h-${i}`,
+        role: m.role === 'assistant' ? 'assistant' : 'user',
+        content: m.content,
+      }))
+      memoryRestored.value = true
+      scrollToBottom()
+    }
+  } catch {
+    // 会话恢复失败不影响新对话
+  }
+}
+
 const headerSub = computed(() => {
   if (bookTitle.value && chapterTitle.value) return `《${bookTitle.value}》· ${chapterTitle.value}`
   if (bookTitle.value) return `《${bookTitle.value}》`
@@ -192,6 +218,7 @@ onLoad((q: Record<string, string> = {}) => {
   if (q.chapterTitle) chapterTitle.value = decodeURIComponent(q.chapterTitle)
   loadPrompts()
   loadQuota()
+  loadSession()
 })
 
 async function loadPrompts() {
@@ -216,7 +243,20 @@ function goBack() {
 function clearChat() {
   if (!messages.value.length) return
   uni.showModal({
-    title: '清空对话', content: '确定清空当前伴读对话吗？', confirmColor: '#C41E3A', success: (r) => { if (r.confirm) messages.value = [] },
+    title: '清空对话',
+    content: memoryRestored.value
+      ? '将清空与本书的全部共读记忆（含历史对话），重新开始。确定吗？'
+      : '确定清空当前伴读对话吗？',
+    confirmColor: '#C41E3A',
+    success: (r) => {
+      if (!r.confirm) return
+      messages.value = []
+      memoryRestored.value = false
+      // 登录用户同步清服务端记忆（失败静默，本地已清）
+      if (getToken() && chapterId.value) {
+        classicsApi.companionReset(chapterId.value).catch(() => undefined)
+      }
+    },
   })
 }
 
@@ -354,6 +394,22 @@ function copyMsg(content: string) {
   font-size: 22rpx;
   color: #C9A96E;
   font-weight: 500;
+}
+
+/* 记忆恢复提示（E3） */
+.cp-memory-tip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10rpx;
+  padding: 14rpx 24rpx;
+  border-radius: 999rpx;
+  background: rgba(107, 91, 122, 0.06);
+  align-self: center;
+}
+.cp-memory-tip-txt {
+  font-size: 22rpx;
+  color: #8a7a99;
 }
 
 /* 额度用尽会员引导卡 */

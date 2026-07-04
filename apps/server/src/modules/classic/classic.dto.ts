@@ -195,8 +195,15 @@ export class CompanionChatDto {
   @Length(1, 1000)
   question: string;
 
-  @ApiPropertyOptional({ description: "多轮对话历史 [{role:'user'|'assistant', content}]" })
+  @ApiPropertyOptional({ description: "多轮对话历史（登录用户以服务端持久会话为准，此参数仅未登录兜底）" })
   @IsOptional()
   @IsArray()
   history?: { role: string; content: string }[];
+}
+
+export class CompanionResetDto {
+  @ApiProperty({ description: "当前阅读章节ID（服务端解析所属书并清空该书伴读记忆）" })
+  @IsString()
+  @Length(1, 64)
+  chapterId: string;
 }

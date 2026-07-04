@@ -11,7 +11,7 @@ import { ThrottleGuard } from "../../common/throttle.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
 import { SkipFormat } from "../../common/skip-format.decorator";
-import { CreateBookDto, UpdateBookDto, CreateChapterDto, UpdateChapterDto, UpdateProgressDto, CreateBookmarkDto, UpdateBookmarkDto, BookListQueryDto, DictionaryLookupDto, TranslateDto, ContinueReadingQueryDto, CreateAnnotationDto, CreateNoteDto, UpdateNoteDto, AskClassicDto, CompanionChatDto } from "./classic.dto";
+import { CreateBookDto, UpdateBookDto, CreateChapterDto, UpdateChapterDto, UpdateProgressDto, CreateBookmarkDto, UpdateBookmarkDto, BookListQueryDto, DictionaryLookupDto, TranslateDto, ContinueReadingQueryDto, CreateAnnotationDto, CreateNoteDto, UpdateNoteDto, AskClassicDto, CompanionChatDto, CompanionResetDto } from "./classic.dto";
 
 @ApiTags("经典")
 @Controller("classic")
@@ -359,6 +359,27 @@ export class ClassicController {
       { chapterId: dto.chapterId, question: dto.question, history: dto.history },
       req.user?.id,
     );
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @Get("companion/session")
+  @ApiOperation({ summary: "伴读会话恢复（E3 带记忆）：本书记忆状态+近期历史" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 404, description: "章节不存在" })
+  @ApiQuery({ name: "chapterId", required: true, description: "当前阅读章节ID（服务端解析所属书）" })
+  companionSession(@Req() req: Request, @Query("chapterId") chapterId: string) {
+    return this.companion.getSession(req.user.id, chapterId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @Post("companion/reset")
+  @ApiOperation({ summary: "清空本书伴读记忆（重新开始共读）" })
+  @ApiResponse({ status: 201, description: "成功" })
+  @ApiResponse({ status: 404, description: "章节不存在" })
+  companionReset(@Req() req: Request, @Body() dto: CompanionResetDto) {
+    return this.companion.resetSession(req.user.id, dto.chapterId);
   }
 
   // ── 继续阅读 ──
