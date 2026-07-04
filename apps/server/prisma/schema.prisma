@@ -5672,6 +5672,13 @@ model Competition {
   prizeType       PrizeType         @default(CASH) // 奖品类型
   prizeConfig     Json? // 奖品分配规则 [{rank, title, prize, prizeItem, prizeType, description}]
   invitationShare Int               @default(0) // 邀请分润比例（千分比，如50=5%）
+  // ── 二期·赛事创建系统（赛-P1）增量 ──
+  format                  String  @default("QUIZ") // 赛制：QUIZ答题 | LIVE_PK直播PK | HYBRID混合
+  stagesConfig            Json? // 阶段配置数组 [{seq,name,format,startAt,endAt,advanceRule:{type:"count"|"percent",value}}]
+  judgePanel              Json? // 评审团 [{userId,title,weight}]
+  voteWeight              Float   @default(0.2) // 观众票权重（0-0.3）
+  prizes                  Json? // 奖品配置（二期结构化：[{rank,title,prize,description}]）
+  shareCommitmentRequired Boolean @default(false) // 报名是否必须勾选《赛后分享承诺》
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
   publishedAt     DateTime?
@@ -5684,12 +5691,34 @@ model Competition {
   rankings      CompetitionRanking[]
   invitations   CompetitionInvitation[]
   articles      CompetitionArticle[]
+  stages        CompetitionStage[]
 
   @@index([type])
   @@index([status])
   @@index([level])
   @@index([organizerId])
   @@index([createdAt])
+}
+
+// 赛事阶段（二期·状态机驱动的多阶段赛程，由 stagesConfig 生成）
+model CompetitionStage {
+  id            String   @id @default(cuid())
+  competitionId String
+  seq           Int // 阶段序号（1 起递增）
+  name          String // 阶段名称，如"海选·答题"
+  format        String   @default("QUIZ") // 阶段赛制：QUIZ | LIVE_PK
+  startAt       DateTime // 阶段开始时间
+  endAt         DateTime // 阶段结束时间
+  advanceRule   Json? // 晋级规则 {type:"count"|"percent", value:Int}（最后阶段可空）
+  status        String   @default("PENDING") // PENDING | RUNNING | JUDGING | DONE
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  competition Competition @relation(fields: [competitionId], references: [id], onDelete: Cascade)
+
+  @@unique([competitionId, seq])
+  @@index([competitionId, status])
+  @@index([status, startAt])
 }
 
 model CompetitionRound {

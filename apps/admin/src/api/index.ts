@@ -1611,6 +1611,11 @@ export const competitionApi = {
   publish: (id: string) => api.post(`/admin/competitions/${id}/publish`),
   start: (id: string) => api.post(`/admin/competitions/${id}/start`),
   finish: (id: string) => api.post(`/admin/competitions/${id}/finish`),
+  // 二期·赛事创建系统：阶段与AI组卷
+  getStages: (id: string) => api.get(`/admin/competitions/${id}/stages`),
+  generateStages: (id: string) => api.post(`/admin/competitions/${id}/stages/generate`),
+  generatePaper: (id: string, data: { count: number; difficultyMix?: { easy?: number; medium?: number; hard?: number }; categories?: string[] }) =>
+    api.post(`/admin/competitions/${id}/generate-paper`, data),
   createRound: (id: string, data: Record<string, unknown>) => api.post(`/admin/competitions/${id}/rounds`, data),
   listRounds: (id: string) => api.get(`/admin/competitions/${id}/rounds`),
   addQuestion: (id: string, data: Record<string, unknown>) => api.post(`/admin/competitions/${id}/questions`, data),

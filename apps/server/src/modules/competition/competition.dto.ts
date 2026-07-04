@@ -1,7 +1,24 @@
-import { IsString, IsOptional, IsBoolean, IsInt, IsEnum, IsArray, Min, Max } from "class-validator";
+import { IsString, IsOptional, IsBoolean, IsInt, IsEnum, IsArray, IsIn, IsNumber, Min, Max } from "class-validator";
 import { Type } from "class-transformer";
 import { ApiPropertyOptional } from "@nestjs/swagger";
 import { CompetitionType, CompetitionLevel, PrizeType, ScoringModel, QuestionType } from "@prisma/client";
+
+/** 阶段配置项（stagesConfig 数组元素·深度校验在 CompetitionAdminService） */
+export interface StageConfigItem {
+  seq?: number; // 可省略，按数组顺序 1 起补齐
+  name: string;
+  format?: string; // QUIZ | LIVE_PK，默认 QUIZ
+  startAt: string;
+  endAt: string;
+  advanceRule?: { type: "count" | "percent"; value: number }; // 最后阶段可空
+}
+
+/** 评审团成员（judgePanel 数组元素） */
+export interface JudgePanelItem {
+  userId: string;
+  title?: string; // 头衔
+  weight?: number; // 权重（默认均分）
+}
 
 /** 创建赛事 */
 export class CreateCompetitionDto {
@@ -86,6 +103,40 @@ export class CreateCompetitionDto {
   @Min(0)
   @Max(1000)
   invitationShare?: number;
+
+  // ── 二期·赛事创建系统增量 ──
+
+  @ApiPropertyOptional({ description: "赛制 QUIZ|LIVE_PK|HYBRID" })
+  @IsOptional()
+  @IsIn(["QUIZ", "LIVE_PK", "HYBRID"])
+  format?: string;
+
+  @ApiPropertyOptional({ description: "阶段配置数组（时间不重叠递增·晋级规则合法）" })
+  @IsOptional()
+  @IsArray()
+  stagesConfig?: StageConfigItem[];
+
+  @ApiPropertyOptional({ description: "评审团 [{userId,title,weight}]" })
+  @IsOptional()
+  @IsArray()
+  judgePanel?: JudgePanelItem[];
+
+  @ApiPropertyOptional({ description: "观众票权重 0-0.3" })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(0.3)
+  voteWeight?: number;
+
+  @ApiPropertyOptional({ description: "奖品配置 [{rank,title,prize,description}]" })
+  @IsOptional()
+  @IsArray()
+  prizes?: Record<string, any>[];
+
+  @ApiPropertyOptional({ description: "报名是否必须勾选《赛后分享承诺》" })
+  @IsOptional()
+  @IsBoolean()
+  shareCommitmentRequired?: boolean;
 }
 
 /** 更新赛程（所有字段可选） */
@@ -416,6 +467,63 @@ export class UpdateCompetitionDto {
   @IsOptional()
   @IsString()
   status?: string;
+
+  // ── 二期·赛事创建系统增量 ──
+
+  @IsOptional()
+  @IsIn(["QUIZ", "LIVE_PK", "HYBRID"])
+  format?: string;
+
+  @IsOptional()
+  @IsArray()
+  stagesConfig?: StageConfigItem[];
+
+  @IsOptional()
+  @IsArray()
+  judgePanel?: JudgePanelItem[];
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(0.3)
+  voteWeight?: number;
+
+  @IsOptional()
+  @IsArray()
+  prizes?: Record<string, any>[];
+
+  @IsOptional()
+  @IsBoolean()
+  shareCommitmentRequired?: boolean;
+}
+
+/** 难度分布（AI组卷） */
+export class DifficultyMixDto {
+  @IsOptional() @IsNumber() @Min(0)
+  easy?: number; // 难度1-2占比权重
+
+  @IsOptional() @IsNumber() @Min(0)
+  medium?: number; // 难度3占比权重
+
+  @IsOptional() @IsNumber() @Min(0)
+  hard?: number; // 难度4-5占比权重
+}
+
+/** AI组卷（纯规则：按难度/分类分布从题库随机抽题） */
+export class GeneratePaperDto {
+  @IsInt()
+  @Min(1)
+  @Max(200)
+  count!: number;
+
+  @IsOptional()
+  @Type(() => DifficultyMixDto)
+  difficultyMix?: DifficultyMixDto;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  categories?: string[]; // 匹配题目 tags（知识点标签）
 }
 
 /** 查询排名 */

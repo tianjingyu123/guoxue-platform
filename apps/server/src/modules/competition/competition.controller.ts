@@ -5,12 +5,14 @@ import {
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from "@nestjs/swagger";
 import { Request } from "express";
 import { CompetitionService } from "./competition.service";
+import { CompetitionAdminService } from "./competition-admin.service";
 import {
   CreateCompetitionDto, UpdateCompetitionDto, CreateRoundDto, UpdateRoundDto,
   CreateQuestionDto, UpdateQuestionDto, BatchCreateQuestionDto,
   SubmitAnswerDto, GradeAnswerDto, SubmitScoreDto,
   QueryCompetitionDto, QueryRankingDto,
   UpdateRegistrationDto, RegisterCompetitionDto, BatchSubmitAnswerDto,
+  GeneratePaperDto,
 } from "./competition.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
@@ -24,23 +26,54 @@ import { Roles } from "../../common/roles.decorator";
 @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
 @ApiBearerAuth()
 export class CompetitionAdminController {
-  constructor(private readonly service: CompetitionService) {}
+  constructor(
+    private readonly service: CompetitionService,
+    private readonly adminService: CompetitionAdminService,
+  ) {}
 
   @Post()
-  @ApiOperation({ summary: "创建赛事" })
+  @ApiOperation({ summary: "创建赛事（含 stagesConfig/judgePanel 校验）" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   create(@Body() dto: CreateCompetitionDto) {
-    return this.service.createCompetition(dto);
+    return this.adminService.createCompetition(dto);
   }
 
   @Put(":id")
-  @ApiOperation({ summary: "更新赛事" })
+  @ApiOperation({ summary: "更新赛事（未开赛可改）" })
   @ApiResponse({ status: 200, description: "更新成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 404, description: "资源不存在" })
   update(@Param("id") id: string, @Body() dto: UpdateCompetitionDto) {
-    return this.service.updateCompetition(id, dto);
+    return this.adminService.updateCompetition(id, dto);
+  }
+
+  // ── 阶段（二期·赛事创建系统） ──
+
+  @Get(":id/stages")
+  @ApiOperation({ summary: "阶段列表" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  getStages(@Param("id") id: string) {
+    return this.adminService.getStages(id);
+  }
+
+  @Post(":id/stages/generate")
+  @ApiOperation({ summary: "按 stagesConfig 生成阶段（幂等可重跑）" })
+  @ApiResponse({ status: 201, description: "生成成功" })
+  @ApiResponse({ status: 400, description: "阶段配置不合法" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  generateStages(@Param("id") id: string) {
+    return this.adminService.generateStages(id);
+  }
+
+  @Post(":id/generate-paper")
+  @ApiOperation({ summary: "AI组卷（纯规则：按难度/分类分布从题库随机抽题）" })
+  @ApiResponse({ status: 201, description: "组卷成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败或题库为空" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  generatePaper(@Param("id") id: string, @Body() dto: GeneratePaperDto) {
+    return this.adminService.generatePaper(id, dto);
   }
 
   @Post(":id/publish")

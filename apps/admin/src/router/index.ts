@@ -1255,7 +1255,7 @@ const routes = [
       {
         path: "competitions/create",
         name: "CompetitionCreate",
-        component: () => import("@/views/competition/CompetitionEdit.vue"),
+        component: () => import("@/views/competition/CompetitionCreate.vue"),
         meta: { hidden: true, title: "新建赛事", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
       },
       {

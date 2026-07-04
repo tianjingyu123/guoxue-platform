@@ -3,6 +3,7 @@ import { CanActivate } from "@nestjs/common";
 import { RoleType } from "@prisma/client";
 import { CompetitionAdminController, CompetitionPublicController, CompetitionJudgeController } from "./competition.controller";
 import { CompetitionService } from "./competition.service";
+import { CompetitionAdminService } from "./competition-admin.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 
@@ -40,6 +41,14 @@ const mockService: Record<string, jest.Mock> = {
   manualGrade: jest.fn(),
 };
 
+const mockAdminService: Record<string, jest.Mock> = {
+  createCompetition: jest.fn(),
+  updateCompetition: jest.fn(),
+  getStages: jest.fn(),
+  generateStages: jest.fn(),
+  generatePaper: jest.fn(),
+};
+
 const mockGuard: CanActivate = { canActivate: () => true };
 
 describe("CompetitionAdminController", () => {
@@ -48,7 +57,10 @@ describe("CompetitionAdminController", () => {
   beforeAll(async () => {
     const mod = await Test.createTestingModule({
       controllers: [CompetitionAdminController],
-      providers: [{ provide: CompetitionService, useValue: mockService }],
+      providers: [
+        { provide: CompetitionService, useValue: mockService },
+        { provide: CompetitionAdminService, useValue: mockAdminService },
+      ],
     })
       .overrideGuard(JwtAuthGuard).useValue(mockGuard)
       .overrideGuard(RolesGuard).useValue(mockGuard)
@@ -60,16 +72,38 @@ describe("CompetitionAdminController", () => {
 
   it("应被定义", () => expect(ctrl).toBeDefined());
 
-  it("创建赛事", async () => {
-    mockService.createCompetition.mockResolvedValue({ id: "comp1" } as any);
+  it("创建赛事（走 AdminService·含 stagesConfig 校验）", async () => {
+    mockAdminService.createCompetition.mockResolvedValue({ id: "comp1" } as any);
     const result: any = await ctrl.create({ title: "国学大赛" } as any);
     expect(result.id).toBe("comp1");
+    expect(mockAdminService.createCompetition).toHaveBeenCalled();
   });
 
-  it("更新赛事", async () => {
-    mockService.updateCompetition.mockResolvedValue({ id: "comp1" } as any);
+  it("更新赛事（走 AdminService·未开赛可改）", async () => {
+    mockAdminService.updateCompetition.mockResolvedValue({ id: "comp1" } as any);
     const result: any = await ctrl.update("comp1", { title: "新标题" } as any);
     expect(result.id).toBe("comp1");
+    expect(mockAdminService.updateCompetition).toHaveBeenCalledWith("comp1", { title: "新标题" });
+  });
+
+  it("阶段列表", async () => {
+    mockAdminService.getStages.mockResolvedValue([{ id: "st1", seq: 1 }] as any);
+    const result: any = await ctrl.getStages("comp1");
+    expect(result).toHaveLength(1);
+  });
+
+  it("生成阶段（幂等）", async () => {
+    mockAdminService.generateStages.mockResolvedValue({ created: 2, updated: 0, stages: [] } as any);
+    const result: any = await ctrl.generateStages("comp1");
+    expect(result.created).toBe(2);
+    expect(mockAdminService.generateStages).toHaveBeenCalledWith("comp1");
+  });
+
+  it("AI组卷", async () => {
+    mockAdminService.generatePaper.mockResolvedValue({ total: 10, questions: [] } as any);
+    const result: any = await ctrl.generatePaper("comp1", { count: 10 } as any);
+    expect(result.total).toBe(10);
+    expect(mockAdminService.generatePaper).toHaveBeenCalledWith("comp1", { count: 10 });
   });
 
   it("发布赛事", async () => {
