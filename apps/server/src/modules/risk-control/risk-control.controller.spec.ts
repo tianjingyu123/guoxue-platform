@@ -1,6 +1,7 @@
 import { Test } from "@nestjs/testing";
 import { RiskControlController } from "./risk-control.controller";
 import { RiskControlService } from "./risk-control.service";
+import { DistributionRiskService } from "./distribution-risk.service";
 import { RolesGuard } from "../../common/roles.guard";
 import { FeatureFlagGuard } from "../../common/feature-flag.guard";
 
@@ -30,6 +31,19 @@ const mockSvc = {
   getDeviceFingerprintsByUser: jest.fn().mockResolvedValue({ devices: [], suspiciousCount: 0 }),
 };
 
+const mockDistributionRisk = {
+  scanAll: jest.fn().mockResolvedValue({
+    scanAt: "2026-07-06T02:30:00.000Z",
+    durationMs: 10,
+    wordScan: { stationsScanned: 1, pagesScanned: 1, componentsScanned: 0, hits: 0, alerts: 0 },
+    batchBind: 0,
+    quickOrder: 0,
+    mutualReferral: 1,
+    bindSurge: 0,
+    alertsCreated: 1,
+  }),
+};
+
 describe("RiskControlController", () => {
   let ctrl: RiskControlController;
 
@@ -38,6 +52,7 @@ describe("RiskControlController", () => {
       controllers: [RiskControlController],
       providers: [
         { provide: RiskControlService, useValue: mockSvc },
+        { provide: DistributionRiskService, useValue: mockDistributionRisk },
       ],
     })
       .overrideGuard(RolesGuard).useValue({ canActivate: () => true })
@@ -115,6 +130,14 @@ describe("RiskControlController", () => {
   it("PUT /risk-control/fraud-detections/:id/dismiss — 标记误报", async () => {
     const result = await ctrl.dismissFraudDetection("f1");
     expect(result.status).toBe("DISMISSED");
+  });
+
+  // ─── 分销风控 ───
+
+  it("POST /risk-control/distribution-scan — 触发分销风控扫描", async () => {
+    const result = await ctrl.distributionScan();
+    expect(result.alertsCreated).toBe(1);
+    expect(mockDistributionRisk.scanAll).toHaveBeenCalledTimes(1);
   });
 
   // ─── 用户行为时间线 ───

@@ -2,6 +2,7 @@ import { Request } from "express";
 import { Controller, Get, Post, Put, Delete, Body, Query, Param, Req, UseGuards } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from "@nestjs/swagger";
 import { RiskControlService } from "./risk-control.service";
+import { DistributionRiskService } from "./distribution-risk.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { FeatureFlagGuard } from "../../common/feature-flag.guard";
@@ -25,7 +26,10 @@ import {
 @ApiTags("风控中心")
 @Controller("risk-control")
 export class RiskControlController {
-  constructor(private svc: RiskControlService) {}
+  constructor(
+    private svc: RiskControlService,
+    private distributionRisk: DistributionRiskService,
+  ) {}
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   //  1. 预警规则 CRUD（仅超级管理员）
@@ -201,6 +205,23 @@ export class RiskControlController {
   @ApiBearerAuth()
   dismissFraudDetection(@Param("id") id: string) {
     return this.svc.dismissFraudDetection(id);
+  }
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  //  3.5 分销风控（商-P1·违禁词扫描 + 归因异常四规则）
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  @Post("distribution-scan")
+  @Auditable({ action: "分销风控扫描", targetType: "RISK_ALERT" })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "手动触发分销风控扫描（违禁词+归因异常四规则·与日检 02:30 cron 共用）" })
+  @ApiResponse({ status: 201, description: "扫描完成，返回报告" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
+  @ApiBearerAuth()
+  distributionScan() {
+    return this.distributionRisk.scanAll();
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
