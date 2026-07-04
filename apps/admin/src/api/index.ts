@@ -296,6 +296,10 @@ export const dashboardApi = {
   station: (id: string) => api.get(`/dashboard/station/${id}`),
   offline: (id: string) => api.get(`/dashboard/offline/${id}`),
   generateDailyReport: () => api.post("/dashboard/report/daily"),
+  // 运营看板（看-P1·DashboardDaily 天级聚合）
+  daily: (days = 30) => api.get("/dashboard/daily", { params: { days } }),
+  today: () => api.get("/dashboard/today"),
+  rebuild: (date?: string) => api.post("/dashboard/rebuild", null, { params: date ? { date } : {} }),
 };
 
 // 圈子

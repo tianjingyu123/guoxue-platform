@@ -6431,3 +6431,12 @@ model SolarTermParticipation {
   @@unique([userId, termName, year])
   @@index([userId])
 }
+
+/// 运营看板天级聚合表（看-P1）：每日 00:30 cron 聚合昨日指标写一行，看板查询永不打原始大表；
+/// date 为 Asia/Shanghai 日期串 YYYY-MM-DD（唯一·upsert 幂等）；metrics 按「能便宜聚合到的先做」诚实降级，取不到的字段省略
+model DashboardDaily {
+  id        String   @id @default(uuid())
+  date      String   @unique // Asia/Shanghai 日期 YYYY-MM-DD
+  metrics   Json // { dau, pv, newUsers, d1Retention?, gmv, ordersPaid, memberNew, commissionSum, moduleHeat: [{path,pv}], errors24h }
+  createdAt DateTime @default(now())
+}

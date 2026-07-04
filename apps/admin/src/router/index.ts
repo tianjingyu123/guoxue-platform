@@ -803,6 +803,31 @@ const routes = [
         component: () => import("@/views/dashboard/StationData.vue"),
         meta: { title: "分站数据", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN"] },
       },
+      // === 运营看板（看-P1·DashboardDaily 天级聚合） ===
+      {
+        path: "dashboard/overview",
+        name: "OpsDashboardOverview",
+        component: () => import("@/views/dashboard/Overview.vue"),
+        meta: { title: "运营看板·总览", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN"] },
+      },
+      {
+        path: "dashboard/growth",
+        name: "OpsDashboardGrowth",
+        component: () => import("@/views/dashboard/Growth.vue"),
+        meta: { title: "运营看板·增长", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN"] },
+      },
+      {
+        path: "dashboard/revenue",
+        name: "OpsDashboardRevenue",
+        component: () => import("@/views/dashboard/Revenue.vue"),
+        meta: { title: "运营看板·收入", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN"] },
+      },
+      {
+        path: "dashboard/health",
+        name: "OpsDashboardHealth",
+        component: () => import("@/views/dashboard/Health.vue"),
+        meta: { title: "运营看板·健康", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN"] },
+      },
       // === 系统设置 ===
       {
         path: "system/referrals",

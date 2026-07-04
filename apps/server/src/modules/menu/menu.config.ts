@@ -256,6 +256,7 @@ export const MENU_CONFIG: MenuItem[] = [
     icon: "DataAnalysis",
     roles: ALL_ADMIN,
     children: [
+      { title: "运营看板", path: "/dashboard/overview", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN"] },
       { title: "平台总览", path: "/data/platform" },
       { title: "圈子数据", path: "/data/circle" },
       { title: "课程数据", path: "/data/course" },
