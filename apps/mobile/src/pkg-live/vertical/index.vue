@@ -228,13 +228,6 @@
       </view>
     </view>
 
-    <!-- ========== 半屏确认订单 ========== -->
-    <QuickBuySheet
-      :open="showProductDetail && !!selectedProduct"
-      :product="quickBuyProduct"
-      @close="onCloseProductDetail"
-      @paid="onPaid"
-    />
     </template>
   </view>
 </template>
@@ -243,9 +236,8 @@
 import { ref, computed, onUnmounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
-import QuickBuySheet, { type QuickBuyProduct } from '@/components/live/quick-buy-sheet.vue'
 import LivePlayer from '@/components/live/live-player.vue'
-import { goBack } from '@/utils/router'
+import { goBack, navigateTo } from '@/utils/router'
 import { useTim, type TimMessage } from '@/composables/useTim'
 import {
   liveApi,
@@ -345,26 +337,8 @@ const commentInput = ref('')
 const showCommentInput = ref(false)
 const showGiftPanel = ref(false)
 const showProductList = ref(false)
-const showProductDetail = ref(false)
-const selectedProduct = ref<VerticalLiveProduct | null>(null)
 
 const currentProduct = computed(() => products.value.find((p) => p.isExplaining) || products.value[0])
-
-// 当前选中商品 → QuickBuySheet 入参（附带规格）
-const quickBuyProduct = computed<QuickBuyProduct | null>(() => {
-  const p = selectedProduct.value
-  if (!p) return null
-  return {
-    id: p.id,
-    name: p.name,
-    cover: p.cover,
-    price: p.price,
-    originalPrice: p.originalPrice,
-    stock: p.stock,
-    sold: p.sold,
-    skus: ['标准装', '豪华装', '套装'],
-  }
-})
 
 function formatCount(count: number) {
   if (count >= 10000) return `${(count / 10000).toFixed(1)}万`
@@ -450,14 +424,14 @@ async function onSendGift(gift: LiveGift) {
 function onRecharge() {}
 function onOpenProductList() { showProductList.value = true }
 function onCloseProductList() { showProductList.value = false }
+/**
+ * 购买（佣-V2-P3 补齐·与 watch 端同款）：直跳真实结算页并带 LIVE 内容来源，
+ * 原 QuickBuySheet 为纯 UI 假支付（onPay 空实现·从未接线），按数据流铁律改走真实下单链路。
+ */
 function onOpenProductDetail(product: VerticalLiveProduct) {
-  selectedProduct.value = product
-  showProductDetail.value = true
   showProductList.value = false
+  navigateTo(`/pkg-shop/checkout/index?productId=${product.id}&quantity=1&sourceContentType=LIVE&sourceContentId=${room.value.id}`)
 }
-function onCloseProductDetail() { showProductDetail.value = false }
-// @data-needs: 支付成功回调，返回直播间继续观看
-function onPaid() { showProductDetail.value = false }
 </script>
 
 <style scoped>

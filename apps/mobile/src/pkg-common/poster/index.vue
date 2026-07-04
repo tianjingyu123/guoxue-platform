@@ -26,11 +26,12 @@
             <text class="poster-title">{{ sceneConfig.title }}</text>
             <text class="poster-subtitle">{{ sceneConfig.subtitle }}</text>
 
-            <!-- 用户信息 -->
+            <!-- 用户信息（真实登录用户·未登录回退通用署名） -->
             <view class="poster-user">
-              <view class="user-avatar">李</view>
+              <image v-if="userAvatar" class="user-avatar user-avatar-img" :src="userAvatar" mode="aspectFill" />
+              <view v-else class="user-avatar">{{ userInitial }}</view>
               <view class="user-info">
-                <text class="user-name">李易安</text>
+                <text class="user-name">{{ userName }}</text>
                 <text class="user-desc">邀请你一起探索国学</text>
               </view>
             </view>
@@ -129,6 +130,7 @@ import { onLoad } from '@dcloudio/uni-app'
 import { goBack } from '@/utils/router'
 import AppIcon from '@/components/common/app-icon.vue'
 import { BRAND } from '@/lib/brand'
+import { mineApi } from '@/lib/mine-data'
 
 type SceneKey = 'invite' | 'course' | 'circle' | 'paipan'
 
@@ -162,9 +164,18 @@ const showShareMenu = ref(false)
 const sceneConfig = computed(() => sceneConfigs[scene.value] || sceneConfigs.invite)
 const logoColor = computed(() => (selectedTemplate.value === 'modern' ? '#fff' : '#C41E3A'))
 
+// 海报署名用真实登录用户（原硬编码演示用户"李易安"违反数据流铁律）；未登录/失败回退通用署名
+const userName = ref('国学同道')
+const userAvatar = ref('')
+const userInitial = computed(() => (userName.value || '友').slice(0, 1))
+
 onLoad((options?: Record<string, string>) => {
   const s = options?.scene as SceneKey
   if (s && sceneConfigs[s]) scene.value = s
+  mineApi.getProfile().then((p) => {
+    if (p?.nickname) userName.value = p.nickname
+    if (p?.avatar) userAvatar.value = p.avatar
+  }).catch(() => { /* 未登录保持通用署名 */ })
 })
 
 function handleSave() {
@@ -297,6 +308,9 @@ function handleSave() {
   justify-content: center;
   font-size: 30rpx;
   font-weight: 600;
+}
+.user-avatar-img {
+  background: #f5f5f4;
 }
 
 .user-info { flex: 1; }
