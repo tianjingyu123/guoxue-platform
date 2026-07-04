@@ -61,6 +61,11 @@ const mockPrisma = {
   stationTeacher: {
     findMany: jest.fn(),
   },
+  // 佣-V2-P3 驿站开通赠"高级线下运营商"
+  operator: {
+    findUnique: jest.fn(),
+    create: jest.fn(),
+  },
   teacherCertification: {
     findMany: jest.fn(),
   },
@@ -219,6 +224,85 @@ describe("OfflineService", () => {
       mockPrisma.stationOffline.update.mockResolvedValue({ id: "s1", status: "REJECTED" });
       const result = await svc.auditStation("s1", "REJECTED");
       expect(result.status).toBe("REJECTED");
+      expect(mockPrisma.operator.findUnique).not.toHaveBeenCalled(); // 非 ACTIVE 不触发赠送
+    });
+  });
+
+  // ═══════════ 佣-V2-P3 驿站开通赠"高级线下运营商"（拍板规则3·幂等） ═══════════
+
+  describe("auditStation → grantOfflineOperator（佣-V2-P3）", () => {
+    it("首次激活：创建 OFFLINE 运营商（level=BLACK_GOLD·status=ACTIVE·mgmtRate 留空=渠道默认20%）并回链 operatorId", async () => {
+      mockPrisma.stationOffline.findUnique.mockResolvedValue({ id: "s1", status: "PENDING", ownerUserId: "owner1", operatorId: null });
+      mockPrisma.stationOffline.update
+        .mockResolvedValueOnce({ id: "s1", status: "ACTIVE", ownerUserId: "owner1", operatorId: null }) // 审核置 ACTIVE
+        .mockResolvedValueOnce({ id: "s1", operatorId: "op-new" }); // 回链
+      mockPrisma.operator.findUnique.mockResolvedValue(null); // 驿站主尚无运营商身份
+      mockPrisma.operator.create.mockResolvedValue({ id: "op-new", channelType: "OFFLINE" });
+
+      const result: any = await svc.auditStation("s1", "ACTIVE");
+
+      const createData = mockPrisma.operator.create.mock.calls[0][0].data;
+      expect(createData).toEqual(
+        expect.objectContaining({ userId: "owner1", level: "BLACK_GOLD", channelType: "OFFLINE", status: "ACTIVE" }),
+      );
+      expect(createData.mgmtRate).toBeUndefined(); // 留空 → 按 OFFLINE 渠道默认 20%
+      // 回链 StationOffline.operatorId
+      expect(mockPrisma.stationOffline.update.mock.calls[1][0]).toEqual(
+        expect.objectContaining({ where: { id: "s1" }, data: { operatorId: "op-new" } }),
+      );
+      expect(result.operatorGrant).toEqual(expect.objectContaining({ granted: true, operatorId: "op-new" }));
+    });
+
+    it("重复激活（operatorId 已回链）：幂等跳过，不查不建运营商", async () => {
+      mockPrisma.stationOffline.findUnique.mockResolvedValue({ id: "s1", status: "ACTIVE", ownerUserId: "owner1", operatorId: "op-1" });
+      mockPrisma.stationOffline.update.mockResolvedValue({ id: "s1", status: "ACTIVE", ownerUserId: "owner1", operatorId: "op-1" });
+
+      const result: any = await svc.auditStation("s1", "ACTIVE");
+
+      expect(mockPrisma.operator.findUnique).not.toHaveBeenCalled();
+      expect(mockPrisma.operator.create).not.toHaveBeenCalled();
+      expect(mockPrisma.stationOffline.update).toHaveBeenCalledTimes(1); // 仅审核更新，无回链写入
+      expect(result.operatorGrant.granted).toBe(false);
+      expect(result.operatorGrant.operatorId).toBe("op-1");
+    });
+
+    it("驿站主已是 ONLINE 运营商：不重复建、不动其线上身份、不回链，返回值注明冲突", async () => {
+      mockPrisma.stationOffline.findUnique.mockResolvedValue({ id: "s1", status: "PENDING", ownerUserId: "owner1", operatorId: null });
+      mockPrisma.stationOffline.update.mockResolvedValue({ id: "s1", status: "ACTIVE", ownerUserId: "owner1", operatorId: null });
+      mockPrisma.operator.findUnique.mockResolvedValue({ id: "op-online", channelType: "ONLINE" });
+
+      const result: any = await svc.auditStation("s1", "ACTIVE");
+
+      expect(mockPrisma.operator.create).not.toHaveBeenCalled();
+      expect(mockPrisma.stationOffline.update).toHaveBeenCalledTimes(1); // 不回链
+      expect(result.operatorGrant.granted).toBe(false);
+      expect(result.operatorGrant.reason).toContain("线上运营商");
+    });
+
+    it("驿站主已是 OFFLINE 运营商（无回链）：不重复建，仅补回链", async () => {
+      mockPrisma.stationOffline.findUnique.mockResolvedValue({ id: "s1", status: "PENDING", ownerUserId: "owner1", operatorId: null });
+      mockPrisma.stationOffline.update
+        .mockResolvedValueOnce({ id: "s1", status: "ACTIVE", ownerUserId: "owner1", operatorId: null })
+        .mockResolvedValueOnce({ id: "s1", operatorId: "op-off" });
+      mockPrisma.operator.findUnique.mockResolvedValue({ id: "op-off", channelType: "OFFLINE" });
+
+      const result: any = await svc.auditStation("s1", "ACTIVE");
+
+      expect(mockPrisma.operator.create).not.toHaveBeenCalled();
+      expect(mockPrisma.stationOffline.update.mock.calls[1][0].data).toEqual({ operatorId: "op-off" });
+      expect(result.operatorGrant).toEqual(expect.objectContaining({ granted: false, operatorId: "op-off" }));
+    });
+
+    it("赠送流程异常：不阻塞驿站审核，operatorGrant 注明失败", async () => {
+      mockPrisma.stationOffline.findUnique.mockResolvedValue({ id: "s1", status: "PENDING", ownerUserId: "owner1", operatorId: null });
+      mockPrisma.stationOffline.update.mockResolvedValue({ id: "s1", status: "ACTIVE", ownerUserId: "owner1", operatorId: null });
+      mockPrisma.operator.findUnique.mockRejectedValue(new Error("db down"));
+
+      const result: any = await svc.auditStation("s1", "ACTIVE");
+
+      expect(result.status).toBe("ACTIVE");
+      expect(result.operatorGrant.granted).toBe(false);
+      expect(result.operatorGrant.reason).toContain("失败");
     });
   });
 

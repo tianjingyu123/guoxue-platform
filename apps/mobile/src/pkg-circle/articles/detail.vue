@@ -13,6 +13,7 @@ import {
   articleApi, recommendRoute,
   type ArticleDetail, type ArticleComment, type ArticleRecommendCard,
 } from '@/lib/article-data'
+import { setOrderSource } from '@/lib/shop-data'
 
 const articleId = ref('')
 const loading = ref(true)
@@ -70,6 +71,9 @@ onMounted(load)
 function openArticle(id: string) { navigateTo('/articles/' + id) }
 function openCircle() { if (article.value?.sourceCircle) navigateTo('/circles/' + article.value.sourceCircle.id) }
 function openRecommend(c: ArticleRecommendCard) {
+  // 佣-V2-P3：文章推荐商品 → 记录 ARTICLE 内容来源（经商品详情中转无法 URL 逐层透传，
+  // 由数据层会话暂存·绑定该商品·下单时随 createOrder 落库纯记录）
+  if (c.recommendType === 'PRODUCT' && c.targetId) setOrderSource('ARTICLE', articleId.value, c.targetId)
   const r = recommendRoute(c)
   if (r) navigateTo(r); else toastComingSoon()
 }

@@ -998,6 +998,8 @@ model Order {
   referrerId       String? // 永久推荐人
   tempReferrerId   String? // 临时推荐人
   tempRefSubjectType String? // 临时归因命中的渠道主体类型（佣-V2-P2）：STATION / CIRCLE / OFFLINE_STATION·NULL=非渠道点击归因（现行 dto 传入/无临时归因）·分佣时据此路由受益人
+  sourceContentType String? // 内容来源类型（佣-V2-P3·设计§3.1）：LIVE / ARTICLE / VIDEO·纯记录下单入口的内容场景（不改金额/库存/支付）
+  sourceContentId   String? // 内容来源ID（LiveRoom.id / Article.id / Video.id·与 sourceContentType 成对出现）
   payMethod        String? // WECHAT, ALIPAY
   payTransactionId String?
   paidAt           DateTime?
@@ -2184,6 +2186,7 @@ model StationOffline {
   ownerUserId   String   @unique
   depositAmount Decimal  @default(0) @db.Decimal(10, 2)
   status        String   @default("PENDING") // PENDING, ACTIVE, DISABLED
+  operatorId    String? // 驿站开通(ACTIVE)时系统赠送的"高级线下运营商"回链（Operator.id·channelType=OFFLINE·佣-V2-P3·拍板规则3）
   // ── 品牌主页（驿-P1·驿站对外"店面"）──
   brandStory         String? // 驿站故事（品牌主页正文）
   photos             String[] @default([]) // 品牌相册（环境照片墙 URL）

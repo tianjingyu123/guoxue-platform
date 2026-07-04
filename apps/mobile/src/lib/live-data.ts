@@ -349,6 +349,7 @@ export const liveWatchRoom = {
   isFollowing: false,
   onlineAvatars: ['/static/marketing/course.png', '/static/marketing/course.png', '/static/marketing/course.png'],
   imGroupId: '', // TIM 弹幕群 ID
+  circleId: '', // 发起直播的圈子 ID（佣-V2-P3：进房上报圈子渠道点击/购买带 LIVE 来源）
 }
 // 原型 mockDanmaku 全部为普通弹幕(type:normal)，无"系统/欢迎"项；系统消息走 liveWatchSystemPool 横幅
 export const liveWatchComments: VerticalLiveComment[] = [
@@ -1180,8 +1181,14 @@ interface RawLiveRoomDetail extends RawLiveRoom {
   imGroupId?: string | null
   hostUserId?: string
   likeCount?: number
+  circleId?: string | null // 发起直播的圈子（佣-V2-P3 内容场景归因：直播购买佣金归圈子）
   user?: (RawLiveUser & { id?: string }) | null
   products?: { id?: string; productId?: string }[] | null
+}
+/** GET /shop/products/:id 精简形状（直播带货商品充实用·仅声明访问到的字段） */
+interface RawLiveShopProduct {
+  id?: string; title?: string; price?: number | string; originalPrice?: number | string | null
+  effectivePrice?: number | string; images?: string[]; cover?: string | null; stock?: number; salesCount?: number
 }
 /** GET /live/gifts 单项（Gift 模型：priceCoin→前端 price·level 档位） */
 interface RawGift { id?: string; name?: string; icon?: string | null; priceCoin?: number; level?: string }
@@ -1872,9 +1879,40 @@ export const liveApi = {
       isFollowing: false, // 后端房间未返回关注态 → 降级(页面按钮默认未关注)
       onlineAvatars: [],
       imGroupId: r.imGroupId || '',
+      circleId: r.circleId || '', // 佣-V2-P3：进房渠道点击上报 + 购买 LIVE 来源归因
       status: r.status || '', // 房间状态(WAITING/LIVING/ENDED/REPLAY)→供未开播占位文案精确判断
     }
-    return { room, comments: [], products: [] }
+    // 带货商品充实（佣-V2-P3 顺带修通）：关联表仅存 productId → 逐个拉商品详情组装带货列表
+    // （限 10 件·单件失败跳过·全部失败=空态与此前降级一致，不阻断直播间加载）
+    const rawProds = Array.isArray(r.products) ? r.products.slice(0, 10) : []
+    const enriched = await Promise.all(rawProds.map(async (lp, i): Promise<VerticalLiveProduct | null> => {
+      const pid = lp.productId || ''
+      if (!pid) return null
+      try {
+        const p = await apiGet<RawLiveShopProduct>(`/shop/products/${pid}`)
+        return {
+          id: pid,
+          name: p?.title || '商品',
+          cover: (Array.isArray(p?.images) && p.images[0]) || p?.cover || '',
+          price: Number(p?.effectivePrice ?? p?.price) || 0,
+          originalPrice: Number(p?.originalPrice ?? p?.price) || 0,
+          stock: p?.stock ?? 0,
+          sold: p?.salesCount ?? 0,
+          isExplaining: i === 0, // 关联表无讲解中标记 → 首件视为讲解中（与主播控制台口径一致）
+        }
+      } catch { return null } // 商品已删/下架 → 跳过该件
+    }))
+    return { room, comments: [], products: enriched.filter((p): p is VerticalLiveProduct => !!p) }
+  },
+
+  /**
+   * 直播间渠道点击上报（佣-V2-P3）— POST /commission/channel-click。
+   * 进直播间 ≈ 该圈子全店(SHOP_ALL)渠道点击（7天窗 last-click 归因）；
+   * 无圈子不调（诚实降级），未登录/资格不符/失败均静默不打扰观看。
+   */
+  async reportCircleChannelClick(circleId: string): Promise<void> {
+    if (!circleId) return
+    try { await apiPost('/commission/channel-click', { subjectType: 'CIRCLE', subjectId: circleId, targetType: 'SHOP_ALL' }) } catch { /* 静默 */ }
   },
 
   /**

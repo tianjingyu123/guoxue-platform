@@ -259,9 +259,6 @@
     <!-- 连麦 -->
     <MicConnectSheet :open="showMicSheet" :host-name="room.hostName" @close="showMicSheet = false" />
 
-    <!-- 快速购买 -->
-    <QuickBuySheet :open="showQuickBuy" :product="quickBuyProduct" @close="showQuickBuy = false" />
-
     <!-- 分享 -->
     <view v-if="showShare" class="modal-mask modal-mask--bottom" @tap="showShare = false">
       <view class="share-sheet" @tap.stop>
@@ -286,10 +283,10 @@ import AppIcon from '@/components/common/app-icon.vue'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
 import GiftPanel from '@/components/live/gift-panel.vue'
 import MicConnectSheet from '@/components/live/mic-connect-sheet.vue'
-import QuickBuySheet, { type QuickBuyProduct } from '@/components/live/quick-buy-sheet.vue'
 import LivePlayer from '@/components/live/live-player.vue'
 import { type LiveGift } from '@/lib/live-gifts'
-import { goBack } from '@/utils/router'
+import { goBack, navigateTo } from '@/utils/router'
+import { getToken } from '@/utils/storage'
 import { useTim, type TimMessage } from '@/composables/useTim'
 import {
   liveWatchRoom,
@@ -370,6 +367,8 @@ async function fetchRoomData(roomId: string) {
     products.value = data.products
     // 直播中且有弹幕群 → 加入 TIM 群实时弹幕
     if (room.value.imGroupId) joinDanmaku(room.value.imGroupId)
+    // 佣-V2-P3：进直播间视同该圈子全店渠道点击（仅已登录且直播间关联圈子才上报·失败静默不扰观看）
+    if (getToken() && room.value.circleId) liveApi.reportCircleChannelClick(room.value.circleId)
   } catch (e) {
     error.value = (e as Error)?.message || '加载失败，请重试'
   } finally {
@@ -407,9 +406,7 @@ const showRank = ref(false)
 const showProductList = ref(false)
 const showGiftPanel = ref(false)
 const showMicSheet = ref(false)
-const showQuickBuy = ref(false)
 const showShare = ref(false)
-const quickBuyProduct = ref<QuickBuyProduct | null>(null)
 
 const danmakuScrollTop = ref(0)
 const floatingHearts = ref<Array<{ id: number; left: number; duration: number }>>([])
@@ -510,9 +507,13 @@ async function onSendGift(gift: LiveGift) {
   }
 }
 
+/**
+ * 购买（佣-V2-P3）：直跳真实结算页并带 LIVE 内容来源（sourceContentType/Id 随下单落库·直播购买归因发起圈子）。
+ * 原 QuickBuySheet 为纯 UI 假支付（onPay 空实现·从未接线），按数据流铁律改走真实下单链路。
+ */
 function openQuickBuy(p: VerticalLiveProduct) {
-  quickBuyProduct.value = p
-  showQuickBuy.value = true
+  showProductList.value = false
+  navigateTo(`/pkg-shop/checkout/index?productId=${p.id}&quantity=1&sourceContentType=LIVE&sourceContentId=${room.value.id}`)
 }
 
 function onShare(_key: string) {

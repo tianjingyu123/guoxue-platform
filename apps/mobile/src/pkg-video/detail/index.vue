@@ -296,10 +296,11 @@
 import { ref, computed, watch, getCurrentInstance } from 'vue'
 import { onLoad, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
-import { goBack } from '@/utils/router'
+import { goBack, navigateTo } from '@/utils/router'
 import { useShare } from '@/composables/useShare'
 import { onMounted } from 'vue'
 import { videoApi, formatVideoNumber as fmt, type VideoItem, type VideoProduct, type VideoComment } from '@/lib/video-data'
+import { shopApi } from '@/lib/shop-data'
 
 interface CartItem { productId: string; quantity: number; product: VideoProduct }
 
@@ -378,6 +379,18 @@ let lastTapTime = 0
 const currentVideo = computed(() => videos.value[currentIndex.value])
 const prevVideo = computed(() => (currentIndex.value > 0 ? videos.value[currentIndex.value - 1] : null))
 const nextVideo = computed(() => (currentIndex.value < videos.value.length - 1 ? videos.value[currentIndex.value + 1] : null))
+
+// ===== 带货商品懒加载（佣-V2-P3）：列表接口不含带货关联，切到某视频时按需拉取组装 =====
+const productsFetched = new Set<string>()
+async function loadProducts(v: VideoItem) {
+  if (!v || v.products.length || productsFetched.has(v.id)) return
+  productsFetched.add(v.id)
+  try {
+    const ps = await videoApi.getVideoProducts(v.id)
+    if (ps.length) v.products = ps
+  } catch { /* 无带货/接口失败 → 保持空，不展示同款好物入口（诚实降级） */ }
+}
+watch(currentVideo, (v) => { if (v) loadProducts(v) }, { immediate: true })
 
 const cartTotal = computed(() => cart.value.reduce((s, i) => s + i.quantity, 0))
 const cartAmount = computed(() => cart.value.reduce((s, i) => s + i.quantity * i.product.price, 0))
@@ -586,8 +599,33 @@ function updateQty(productId: string, delta: number) {
   item.quantity += delta
   if (item.quantity <= 0) cart.value = cart.value.filter((i) => i.productId !== productId)
 }
-function onCheckout() {
-  uni.showToast({ title: '结算功能开发中', icon: 'none' })
+/**
+ * 去结算（佣-V2-P3）：本地选购同步到服务端购物车 → 跳真实结算页，URL 带 VIDEO 内容来源
+ * （sourceContentType/Id 透传到 createOrder 落库·纯记录内容场景归因）。
+ */
+const checkingOut = ref(false)
+async function onCheckout() {
+  if (checkingOut.value) return
+  if (!cart.value.length) return
+  const vid = currentVideo.value?.id || ''
+  checkingOut.value = true
+  try {
+    // 结算页购物车模式按服务端购物车项 id 取货 → 先把本地选购写入服务端购物车
+    let latest: { id: string; productId: string }[] = []
+    for (const it of cart.value) {
+      const res = await shopApi.addToCart(it.productId, it.quantity)
+      latest = res.items
+    }
+    const wanted = new Set(cart.value.map((i) => i.productId))
+    const ids = latest.filter((i) => wanted.has(i.productId)).map((i) => i.id)
+    if (!ids.length) { uni.showToast({ title: '商品已失效，无法结算', icon: 'none' }); return }
+    showCart.value = false
+    navigateTo(`/pkg-shop/checkout/index?items=${ids.join(',')}&sourceContentType=VIDEO&sourceContentId=${vid}`)
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '结算失败，请重试', icon: 'none' })
+  } finally {
+    checkingOut.value = false
+  }
 }
 
 function onBack() {

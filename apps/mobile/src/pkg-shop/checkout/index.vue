@@ -166,6 +166,9 @@ const submitting = ref(false)
 
 // 结算来源：立即购买(productId+skuId+quantity) 或 购物车结算(itemIds)
 const source = ref<{ productId?: string; skuId?: string; quantity?: number; itemIds?: string[] }>({})
+// 内容场景来源（佣-V2-P3）：直播/文章/视频入口购买时 URL 透传，下单随 createOrder 落库（纯记录）
+const contentSource = ref<{ type?: string; id?: string }>({})
+const SOURCE_TYPES = ['LIVE', 'ARTICLE', 'VIDEO']
 
 const goodsTotal = computed(() => items.value.reduce((s: number, i: any) => s + i.price * i.quantity, 0))
 const payTotal = computed(() => Math.max(0, goodsTotal.value - (selectedCoupon.value?.value || 0)))
@@ -195,6 +198,10 @@ onLoad((q) => {
     quantity: q?.quantity ? Number(q.quantity) : undefined,
     itemIds: q?.items ? String(q.items).split(',').filter(Boolean) : undefined,
   }
+  // 内容来源白名单校验后透传（成对才生效）
+  const srcType = String(q?.sourceContentType || '')
+  const srcId = String(q?.sourceContentId || '')
+  if (SOURCE_TYPES.includes(srcType) && srcId) contentSource.value = { type: srcType, id: srcId }
 })
 
 // 15分钟倒计时
@@ -236,6 +243,9 @@ async function submitOrder() {
         quantity: it.quantity,
         couponId: i === 0 ? couponId : undefined,
         addressId: currentAddress.value.id,
+        // 内容场景来源（佣-V2-P3）：直播/文章/视频入口透传，随订单落库
+        sourceContentType: contentSource.value.type,
+        sourceContentId: contentSource.value.id,
       })
       orders.push({ id: order.id, amount: order.amount })
     }

@@ -158,6 +158,10 @@ const mockPrisma: any = {
   channelClick: {
     findFirst: jest.fn().mockResolvedValue(null),
   },
+  // 佣-V2-P3 直播来源→圈子受益人解析（默认查无房间）
+  liveRoom: {
+    findUnique: jest.fn().mockResolvedValue(null),
+  },
 }
 
 const mockCommission = {
@@ -550,6 +554,110 @@ describe("ShopService", () => {
       setAttributionFlag(true)
       mockPrisma.channelClick.findFirst.mockResolvedValue({ beneficiaryUserId: "u1", subjectType: "CIRCLE" })
       await svc.createOrder("u1", { type: "PRODUCT", targetId: "p1", amount: 1 })
+      const data = mockPrisma.order.create.mock.calls[0][0].data
+      expect(data.tempReferrerId).toBeNull()
+      expect(data.tempRefSubjectType).toBeNull()
+    })
+  })
+
+  // ═══════════════════ 内容场景归因（佣-V2-P3） ═══════════════════
+
+  describe("佣-V2-P3 内容场景归因（Order 来源字段·直播视同圈子渠道点击）", () => {
+    function setupSourceOrder() {
+      mockUnifiedPricing.calculateEffectivePrice.mockResolvedValue({
+        productId: "p1", effectivePrice: 100, originalPrice: 100,
+        appliedPromotion: null, activePromotions: [], hasPromotion: false,
+      })
+      mockPrisma.product.findUnique.mockResolvedValue({ id: "p1", price: 100, status: "ON_SALE" })
+      mockPrisma.order.create.mockResolvedValue({ id: "o-src", status: "PENDING" })
+    }
+    /** 灰度开关 mock：commission_v2_attribution 按 on 返回，其余配置键（贺卡等）返回 null=默认 */
+    function setAttributionFlag(on: boolean) {
+      mockPrisma.configSystem.findUnique.mockImplementation(({ where }: any) =>
+        Promise.resolve(where?.configKey === "commission_v2_attribution" ? { configValue: on ? "true" : "false" } : null),
+      )
+    }
+
+    afterEach(() => {
+      mockPrisma.configSystem.findUnique.mockReset()
+      mockPrisma.channelClick.findFirst.mockReset()
+      mockPrisma.channelClick.findFirst.mockResolvedValue(null)
+      mockPrisma.liveRoom.findUnique.mockReset()
+      mockPrisma.liveRoom.findUnique.mockResolvedValue(null)
+      mockPrisma.circle.findFirst.mockReset()
+      mockPrisma.circle.findFirst.mockResolvedValue(null)
+    })
+
+    it("带来源下单：sourceContentType/Id 纯记录落库（开关关也落·不影响归因）", async () => {
+      setupSourceOrder()
+      setAttributionFlag(false)
+      await svc.createOrder("u1", { type: "PRODUCT", targetId: "p1", amount: 1, sourceContentType: "VIDEO", sourceContentId: "v1" })
+      const data = mockPrisma.order.create.mock.calls[0][0].data
+      expect(data.sourceContentType).toBe("VIDEO")
+      expect(data.sourceContentId).toBe("v1")
+      expect(data.tempReferrerId).toBeNull()
+    })
+
+    it("来源字段成对校验：只传 type 不传 id → 两者均不落库", async () => {
+      setupSourceOrder()
+      setAttributionFlag(false)
+      await svc.createOrder("u1", { type: "PRODUCT", targetId: "p1", amount: 1, sourceContentType: "ARTICLE" })
+      const data = mockPrisma.order.create.mock.calls[0][0].data
+      expect(data.sourceContentType).toBeNull()
+      expect(data.sourceContentId).toBeNull()
+    })
+
+    it("开关开+直播来源命中圈子：tempReferrerId=圈主·tempRefSubjectType=CIRCLE（直播视同渠道点击·优先于 ChannelClick）", async () => {
+      setupSourceOrder()
+      setAttributionFlag(true)
+      // ChannelClick 命中站长，但直播更接近成交 → 圈主覆盖
+      mockPrisma.channelClick.findFirst.mockResolvedValueOnce({ beneficiaryUserId: "station-master", subjectType: "STATION" })
+      mockPrisma.liveRoom.findUnique.mockResolvedValueOnce({ circleId: "c1" })
+      mockPrisma.circle.findFirst.mockResolvedValueOnce({ ownerId: "circle-owner" })
+      mockPrisma.user.findUnique.mockResolvedValue({ id: "circle-owner", nickname: "圈主" }) // 贺卡组装
+      await svc.createOrder("u1", { type: "PRODUCT", targetId: "p1", amount: 1, sourceContentType: "LIVE", sourceContentId: "live1" })
+      // 圈子资格校验：仅 ACTIVE 未删圈生效
+      expect(mockPrisma.circle.findFirst.mock.calls[0][0].where).toEqual(
+        expect.objectContaining({ id: "c1", status: "ACTIVE", deletedAt: null }),
+      )
+      const data = mockPrisma.order.create.mock.calls[0][0].data
+      expect(data.tempReferrerId).toBe("circle-owner")
+      expect(data.tempRefSubjectType).toBe("CIRCLE")
+      expect(data.sourceContentType).toBe("LIVE")
+      expect(data.sourceContentId).toBe("live1")
+    })
+
+    it("开关关：直播来源不做受益人路由（不查 LiveRoom），来源字段照常落库（回滚路径）", async () => {
+      setupSourceOrder()
+      setAttributionFlag(false)
+      await svc.createOrder("u1", { type: "PRODUCT", targetId: "p1", amount: 1, sourceContentType: "LIVE", sourceContentId: "live1" })
+      expect(mockPrisma.liveRoom.findUnique).not.toHaveBeenCalled()
+      const data = mockPrisma.order.create.mock.calls[0][0].data
+      expect(data.tempReferrerId).toBeNull()
+      expect(data.tempRefSubjectType).toBeNull()
+      expect(data.sourceContentType).toBe("LIVE")
+    })
+
+    it("开关开+直播间无圈子：静默跳过（不报错·无临时归因·来源仍落库）", async () => {
+      setupSourceOrder()
+      setAttributionFlag(true)
+      mockPrisma.liveRoom.findUnique.mockResolvedValueOnce({ circleId: null })
+      await svc.createOrder("u1", { type: "PRODUCT", targetId: "p1", amount: 1, sourceContentType: "LIVE", sourceContentId: "live1" })
+      // 无 circleId → 不做圈子受益人查询（circle.findFirst 后续仅被自购资格检查以 ownerId 条件调用，非本查询）
+      const circleIdQueries = mockPrisma.circle.findFirst.mock.calls.filter((c: any[]) => c[0]?.where?.id)
+      expect(circleIdQueries).toHaveLength(0)
+      const data = mockPrisma.order.create.mock.calls[0][0].data
+      expect(data.tempReferrerId).toBeNull()
+      expect(data.tempRefSubjectType).toBeNull()
+      expect(data.sourceContentType).toBe("LIVE")
+    })
+
+    it("开关开+圈主=买家本人：不写临时归因（防自佣）", async () => {
+      setupSourceOrder()
+      setAttributionFlag(true)
+      mockPrisma.liveRoom.findUnique.mockResolvedValueOnce({ circleId: "c1" })
+      mockPrisma.circle.findFirst.mockResolvedValueOnce({ ownerId: "u1" })
+      await svc.createOrder("u1", { type: "PRODUCT", targetId: "p1", amount: 1, sourceContentType: "LIVE", sourceContentId: "live1" })
       const data = mockPrisma.order.create.mock.calls[0][0].data
       expect(data.tempReferrerId).toBeNull()
       expect(data.tempRefSubjectType).toBeNull()

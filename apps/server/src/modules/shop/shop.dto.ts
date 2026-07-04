@@ -180,6 +180,14 @@ export class CreateOrderDto {
   @ApiPropertyOptional({ description: "临时推荐人ID" })
   @IsOptional() @IsString()
   tempReferrerId?: string;
+
+  @ApiPropertyOptional({ description: "内容来源类型（佣-V2-P3）：LIVE 直播间 / ARTICLE 文章 / VIDEO 短视频", enum: ["LIVE", "ARTICLE", "VIDEO"] })
+  @IsOptional() @IsString() @IsIn(["LIVE", "ARTICLE", "VIDEO"])
+  sourceContentType?: string;
+
+  @ApiPropertyOptional({ description: "内容来源ID（LiveRoom.id / Article.id / Video.id·与 sourceContentType 成对传入）" })
+  @IsOptional() @IsString() @MaxLength(64)
+  sourceContentId?: string;
 }
 
 export class CreateCouponDto {

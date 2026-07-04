@@ -291,7 +291,9 @@ export const videoSearchResults: VideoSearchResult[] = [
 // ============ API 层 ============
 
 /* —— 后端原始响应类型（容错适配用，字段全 optional，仅声明 adapter 访问到的） —— */
-interface RawVideoProduct { id?: string | number; title?: string; name?: string; price?: number | string; originalPrice?: number | string; images?: string[]; image?: string; cover?: string; salesCount?: number; sales?: number; commission?: number | string; stock?: number }
+interface RawVideoProduct { id?: string | number; productId?: string; title?: string; name?: string; price?: number | string; originalPrice?: number | string; images?: string[]; image?: string; cover?: string; salesCount?: number; sales?: number; commission?: number | string; stock?: number }
+/** GET /shop/products/:id 精简形状（视频带货商品充实用·仅声明访问到的字段） */
+interface RawShopProductLite { id?: string; title?: string; price?: number | string; originalPrice?: number | string | null; effectivePrice?: number | string; images?: string[]; cover?: string | null; salesCount?: number }
 interface RawVideo {
   id?: string; title?: string
   user?: { id?: string; nickname?: string; avatar?: string } | null
@@ -326,8 +328,9 @@ function adaptVideoItem(v: RawVideo): VideoItem {
     isLiked: false,
     isCollected: false,
     music: '原声',
+    // id 取 productId（VideoProduct 关联行的 id 是关联表主键，非商品 id·购买/加购要用商品 id）
     products: Array.isArray(v.products)
-      ? v.products.map((p: RawVideoProduct) => ({ id: String(p.id ?? ''), name: p.title || p.name || '', price: Number(p.price) || 0, originalPrice: Number(p.originalPrice) || 0, image: (Array.isArray(p.images) && p.images[0]) || p.image || '', sales: p.salesCount ?? p.sales ?? 0 }))
+      ? v.products.map((p: RawVideoProduct) => ({ id: String(p.productId ?? p.id ?? ''), name: p.title || p.name || '', price: Number(p.price) || 0, originalPrice: Number(p.originalPrice) || 0, image: (Array.isArray(p.images) && p.images[0]) || p.image || '', sales: p.salesCount ?? p.sales ?? 0 }))
       : [],
     hotComments: [],
   }
@@ -350,6 +353,31 @@ export const videoApi = {
   /** 视频详情 — GET /videos/:id（错误传播） */
   async getById(id: string): Promise<VideoItem | null> {
     return adaptVideoItem(await apiGet<RawVideo>(`/videos/${id}`))
+  },
+
+  /**
+   * 视频带货商品（佣-V2-P3）— GET /videos/:id 关联行仅存 productId → 逐件拉 /shop/products/:id 组装。
+   * 限 5 件（后端发布侧上限）·单件失败/已下架跳过·全部失败=空态（与此前空列表一致，不阻断播放）。
+   */
+  async getVideoProducts(id: string): Promise<VideoProduct[]> {
+    const v = await apiGet<RawVideo>(`/videos/${id}`)
+    const rows = Array.isArray(v?.products) ? v.products.slice(0, 5) : []
+    const enriched = await Promise.all(rows.map(async (row): Promise<VideoProduct | null> => {
+      const pid = String(row.productId ?? '')
+      if (!pid) return null
+      try {
+        const p = await apiGet<RawShopProductLite>(`/shop/products/${pid}`)
+        return {
+          id: pid,
+          name: p?.title || '商品',
+          price: Number(p?.effectivePrice ?? p?.price) || 0,
+          originalPrice: Number(p?.originalPrice ?? p?.price) || 0,
+          image: (Array.isArray(p?.images) && p.images[0]) || p?.cover || '',
+          sales: p?.salesCount ?? 0,
+        }
+      } catch { return null }
+    }))
+    return enriched.filter((p): p is VideoProduct => !!p)
   },
 
   /** 收藏切换 — POST /videos/:id/collect（后端返回 {collected}） */

@@ -506,12 +506,25 @@ export class ShopService {
     // 未过期记录中 clickedAt 最新一条 → tempReferrerId=点击时解析好的渠道受益人（last-click 抢佣）；
     // 无命中 → 现行归因逻辑不变。查询失败不阻塞下单。
     let tempRefSubjectType: string | null = null;
+    // ── 佣-V2-P3 内容来源（拍板规则6）：纯记录下单入口的内容场景（LIVE/ARTICLE/VIDEO·成对才落库·不改金额库存支付）
+    const sourceContentType = dto.sourceContentType && dto.sourceContentId ? dto.sourceContentType : null;
+    const sourceContentId = sourceContentType ? dto.sourceContentId ?? null : null;
     try {
       if (await this.isChannelAttributionEnabled()) {
         const click = await this.findLatestChannelClick(userId, dto.targetId);
         if (click && click.beneficiaryUserId !== userId) {
           tempReferrerId = click.beneficiaryUserId;
           tempRefSubjectType = click.subjectType;
+        }
+        // ── 佣-V2-P3：直播间购买视同圈子渠道点击（设计§3.2-4·直播更接近成交，优先级不低于 ChannelClick 查询结果）。
+        // 直播→LiveRoom.circleId→圈主为受益人；无圈子/圈主即买家本人 → 静默跳过不覆盖。
+        // ARTICLE/VIDEO 本批只落来源字段不做受益人路由（作者渠道身份判定在 P4 积分侧统一处理）。
+        if (sourceContentType === "LIVE" && sourceContentId) {
+          const circleOwner = await this.resolveLiveCircleOwner(sourceContentId);
+          if (circleOwner && circleOwner !== userId) {
+            tempReferrerId = circleOwner;
+            tempRefSubjectType = "CIRCLE";
+          }
         }
       }
     } catch (e) {
@@ -661,6 +674,8 @@ export class ShopService {
           referrerId: selfDiscount > 0 ? null : permanentReferrerId,
           tempReferrerId: selfDiscount > 0 ? null : tempReferrerId,
           tempRefSubjectType: selfDiscount > 0 ? null : tempRefSubjectType, // 渠道主体类型（佣-V2-P2·分佣受益人路由依据·与推荐关系同生共灭）
+          sourceContentType, // 内容来源（佣-V2-P3·纯记录·自购单也保留来源便于内容转化统计）
+          sourceContentId,
           selfDiscount: selfDiscount > 0 ? selfDiscount : null,
           giftCardMeta: selfDiscount > 0 ? undefined : giftCardMeta, // 白标贺卡任务（供-P2·与推荐关系同生共灭）
           status: "PENDING",
@@ -1245,6 +1260,28 @@ export class ShopService {
       orderBy: { clickedAt: "desc" },
       select,
     });
+  }
+
+  /**
+   * 佣-V2-P3：解析直播间所属圈子的圈主（直播购买视同圈子渠道点击的受益人）。
+   * LiveRoom.circleId 为圈子归属字段（schema 已核实）；房间无圈子/圈子非 ACTIVE/查询失败均返回 null（静默跳过）。
+   */
+  private async resolveLiveCircleOwner(liveRoomId: string): Promise<string | null> {
+    try {
+      const room = await this.prisma.liveRoom.findUnique({
+        where: { id: liveRoomId },
+        select: { circleId: true },
+      });
+      if (!room?.circleId) return null;
+      const circle = await this.prisma.circle.findFirst({
+        where: { id: room.circleId, status: "ACTIVE", deletedAt: null },
+        select: { ownerId: true },
+      });
+      return circle?.ownerId ?? null;
+    } catch (e) {
+      this.logger.warn("直播间圈子受益人解析失败，跳过直播来源归因", e);
+      return null;
+    }
   }
 
   private async resolveReferrerUserId(ref: string | undefined | null, buyerId: string): Promise<string | null> {

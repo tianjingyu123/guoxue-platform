@@ -240,7 +240,60 @@ export class OfflineService {
   async auditStation(id: string, status: string) {
     const existing = await this.prisma.stationOffline.findUnique({ where: { id } });
     if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "驿站不存在");
-    return this.prisma.stationOffline.update({ where: { id }, data: { status } });
+    const updated = await this.prisma.stationOffline.update({ where: { id }, data: { status } });
+    // 佣-V2-P3（拍板规则3）：驿站开通(ACTIVE)时系统赠送"高级线下运营商"。幂等·失败不阻塞审核（仅注明）。
+    if (status === "ACTIVE") {
+      const operatorGrant = await this.grantOfflineOperator(updated.id, updated.ownerUserId, updated.operatorId ?? null)
+        .catch((e) => ({ granted: false, reason: `赠送线下运营商失败（不影响驿站开通）：${(e as Error)?.message || String(e)}` }));
+      return { ...updated, operatorGrant };
+    }
+    return updated;
+  }
+
+  /**
+   * 佣-V2-P3（拍板规则3）：驿站开通时幂等赠送"高级线下运营商"并回链 StationOffline.operatorId。
+   * - 已回链 operatorId → 直接跳过（重复激活幂等）；
+   * - 驿站主无 Operator 行 → 创建 channelType=OFFLINE（level=BLACK_GOLD：旧等级率 20% 与 OFFLINE
+   *   默认管理奖 20% 口径一致，等级已废止为展示/历史口径·mgmtRate 留空=按渠道默认 20%）并回链；
+   * - 已是 OFFLINE 运营商 → 不重复建，仅补回链；
+   * - 已是 ONLINE 运营商 → 保持不动（不自动覆盖线上身份·避免影响其名下分站管理奖口径），返回值注明。
+   */
+  private async grantOfflineOperator(stationId: string, ownerUserId: string, linkedOperatorId: string | null) {
+    if (linkedOperatorId) {
+      return { granted: false, operatorId: linkedOperatorId, reason: "已赠送过线下运营商（operatorId 已回链），跳过" };
+    }
+    let operator = await this.prisma.operator.findUnique({
+      where: { userId: ownerUserId },
+      select: { id: true, channelType: true },
+    });
+    const created = !operator;
+    if (!operator) {
+      try {
+        operator = await this.prisma.operator.create({
+          data: { userId: ownerUserId, level: "BLACK_GOLD", channelType: "OFFLINE", status: "ACTIVE" },
+          select: { id: true, channelType: true },
+        });
+      } catch (e) {
+        if (!isUniqueConstraintError(e)) throw e;
+        // 并发重复激活：另一请求已建 → 复查复用（幂等）
+        operator = await this.prisma.operator.findUnique({
+          where: { userId: ownerUserId },
+          select: { id: true, channelType: true },
+        });
+        if (!operator) throw e;
+      }
+    }
+    if (operator.channelType === "ONLINE") {
+      return {
+        granted: false,
+        operatorId: operator.id,
+        reason: "驿站主已是线上运营商（channelType=ONLINE），保持线上身份不自动转线下·未回链（冲突需人工处理）",
+      };
+    }
+    await this.prisma.stationOffline.update({ where: { id: stationId }, data: { operatorId: operator.id } });
+    return created
+      ? { granted: true, operatorId: operator.id }
+      : { granted: false, operatorId: operator.id, reason: "驿站主已是线下运营商，不重复创建·仅补回链" };
   }
 
   // ───────── 驿站发现（用户端） ─────────

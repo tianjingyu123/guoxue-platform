@@ -9,6 +9,29 @@ import { getTempReferrer } from '@/utils/referral'
 const P = '/static/images/products'
 
 /* ============================================================
+   内容来源暂存（佣-V2-P3）：文章/内容页 → 商品详情 → 结算的间接购买链路
+   无法在中间页 URL 逐层透传，改为会话内暂存（30 分钟窗·绑定具体商品防误归因）。
+   直播/视频直跳结算走 URL 参数显式透传，不依赖本暂存。
+   ============================================================ */
+const ORDER_SOURCE_TTL_MS = 30 * 60 * 1000
+let pendingOrderSource: { type: 'LIVE' | 'ARTICLE' | 'VIDEO'; id: string; productId: string; at: number } | null = null
+
+/** 记录内容场景购买意图（在内容页跳商品详情时调用）：type=来源类型·id=内容ID·productId=目标商品（仅该商品下单时生效） */
+export function setOrderSource(type: 'LIVE' | 'ARTICLE' | 'VIDEO', id: string, productId: string): void {
+  if (!type || !id || !productId) return
+  pendingOrderSource = { type, id, productId, at: Date.now() }
+}
+
+/** 读取匹配目标商品且未过期的暂存来源（不清除：同场景多次下单同归因·last-set 覆盖） */
+function peekOrderSource(targetId: string): { type: string; id: string } | null {
+  const s = pendingOrderSource
+  if (!s) return null
+  if (Date.now() - s.at > ORDER_SOURCE_TTL_MS) { pendingOrderSource = null; return null }
+  if (s.productId !== targetId) return null
+  return { type: s.type, id: s.id }
+}
+
+/* ============================================================
    一、mall 首页（商城首页 · 卡片库驱动）
    ============================================================ */
 
@@ -2056,8 +2079,13 @@ export const shopApi = {
   /**
    * 创建订单 — POST /shop/orders（单商品；服务端重算金额防篡改、按数量计价、扣库存、绑定收货地址快照）。
    * 注意 amount 字段语义=购买数量（后端约定），金额由后端依统一定价引擎计算。
+   * 内容来源（佣-V2-P3）：显式传入 sourceContentType/Id 优先（直播/视频直跳结算 URL 透传）；
+   * 未显式传入时回落会话内暂存来源（文章→商品详情→结算的间接链路），仅当商品匹配才带上。
    */
-  async createOrder(payload: { type?: string; targetId: string; skuId?: string; quantity?: number; couponId?: string; addressId?: string }): Promise<{ id: string; amount: number; status: string }> {
+  async createOrder(payload: { type?: string; targetId: string; skuId?: string; quantity?: number; couponId?: string; addressId?: string; sourceContentType?: string; sourceContentId?: string }): Promise<{ id: string; amount: number; status: string }> {
+    const source = (payload.sourceContentType && payload.sourceContentId)
+      ? { type: payload.sourceContentType, id: payload.sourceContentId }
+      : peekOrderSource(payload.targetId)
     const res = await apiPost<{ id?: string; amount?: number | string; status?: string }>('/shop/orders', {
       type: payload.type || 'PRODUCT',
       targetId: payload.targetId,
@@ -2067,6 +2095,9 @@ export const shopApi = {
       addressId: payload.addressId || undefined,
       // 推荐归因：携带最近分享链接的临时推荐人（7天窗口·临时优先于永久归属，永久归属由后端回填）
       tempReferrerId: getTempReferrer(),
+      // 内容来源（佣-V2-P3·纯记录）：LIVE/ARTICLE/VIDEO 场景下单归因
+      sourceContentType: source?.type,
+      sourceContentId: source?.id,
     })
     return { id: res.id || '', amount: shopNum(res.amount), status: res.status || 'PENDING' }
   },
