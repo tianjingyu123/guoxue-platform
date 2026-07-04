@@ -1,7 +1,8 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, Optional, OnModuleInit } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 import { AiGatewayService } from "../ai-gateway/ai-gateway.service";
 import { PushService } from "./push.service";
+import { SystemService } from "../system/system.service";
 
 interface SmartPushDecision {
   shouldPush: boolean;
@@ -18,14 +19,28 @@ interface SmartPushDecision {
  * 在现有 PushService 基础上增加 AI 决策层。
  */
 @Injectable()
-export class SmartPushService {
+export class SmartPushService implements OnModuleInit {
   private readonly logger = new Logger(SmartPushService.name);
+  /** 品牌名缓存（defaultTitle 为同步调用点·启动时从 BrandConfig 拉取一次·失败保留默认口径） */
+  private brandName = "热卜国学";
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly gateway: AiGatewayService,
     private readonly push: PushService,
+    // SystemModule 为 @Global 导出·@Optional 保证单测缺 provider 时回退默认品牌名
+    @Optional() private readonly systemService?: SystemService,
   ) {}
+
+  async onModuleInit() {
+    try {
+      const cfg = await this.systemService?.getBrandConfig();
+      const name = (cfg as { siteName?: string } | undefined)?.siteName;
+      if (name) this.brandName = name;
+    } catch {
+      // 拉取失败保留内置默认值，不影响启动
+    }
+  }
 
   /** AI 决策是否推送 + 生成文案 */
   async decidePush(
@@ -142,7 +157,7 @@ export class SmartPushService {
       course_update: "课程更新提醒",
       event_notice: "活动通知",
     };
-    return titles[type] || "热卜国学";
+    return titles[type] || this.brandName;
   }
 
   private defaultContent(type: string, _context?: Record<string, string>): string {

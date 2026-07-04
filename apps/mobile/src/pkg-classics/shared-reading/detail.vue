@@ -11,6 +11,7 @@ import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo, navigateBack } from '@/utils/router'
 import { getToken, getUserInfo } from '@/utils/storage'
 import { useShare } from '@/composables/useShare'
+import { BRAND } from '@/lib/brand'
 import {
   sharedReadingApi,
   SHARED_READING_STATUS_LABEL,
@@ -182,7 +183,7 @@ function drawCert() {
   ctx.setFillStyle('rgba(255,255,255,0.9)')
   ctx.setFontSize(12)
   ctx.setTextAlign('center')
-  ctx.fillText('热卜国学 · 古籍共读', W / 2, 42)
+  ctx.fillText(`${BRAND.name} · 古籍共读`, W / 2, 42)
   ctx.setFillStyle('#ffffff')
   ctx.setFontSize(28)
   ctx.fillText('共 读 结 业 卡', W / 2, 82)
@@ -230,7 +231,7 @@ function drawCert() {
   ctx.fillText('扫码开启你的古籍共读之旅', W / 2, H - 40)
   ctx.setFillStyle('#c41e3a')
   ctx.setFontSize(13)
-  ctx.fillText('热卜国学', W / 2, H - 20)
+  ctx.fillText(BRAND.name, W / 2, H - 20)
 
   ctx.draw()
 }

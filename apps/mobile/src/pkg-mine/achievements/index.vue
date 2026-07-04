@@ -249,6 +249,7 @@ import { getUserInfo } from '@/utils/storage'
 import { withRef } from '@/utils/referral'
 import { drawQrToCanvas } from '@/utils/qrcode'
 import { useShare } from '@/composables/useShare'
+import { BRAND } from '@/lib/brand'
 import {
   growthApi,
   resolveAchievementIcon,
@@ -492,7 +493,7 @@ function drawCard() {
   ctx.setFillStyle('rgba(255,255,255,0.9)')
   ctx.setFontSize(13)
   ctx.setTextAlign('center')
-  ctx.fillText('热卜国学 · 学习成就', W / 2, 34)
+  ctx.fillText(`${BRAND.name} · 学习成就`, W / 2, 34)
   ctx.setFillStyle('#ffffff')
   ctx.setFontSize(12)
   const dateLine = it.earnedAt ? ` · ${fmtDate(it.earnedAt)} 达成` : ''
@@ -636,8 +637,8 @@ const { toAppMessage } = useShare()
 onShareAppMessage(() =>
   toAppMessage({
     title: cardItem.value
-      ? `我在热卜国学获得了「${cardItem.value.name}」${cardType.value === 'title' ? '称号' : '成就'}，邀你同修`
-      : `我在热卜国学修行到「${growth.value?.levelName ?? '书童'}」，邀你同修`,
+      ? `我在${BRAND.name}获得了「${cardItem.value.name}」${cardType.value === 'title' ? '称号' : '成就'}，邀你同修`
+      : `我在${BRAND.name}修行到「${growth.value?.levelName ?? '书童'}」，邀你同修`,
     path: cardItem.value ? cardPath() : '/pkg-mine/achievements/index',
   }),
 )
@@ -650,7 +651,7 @@ function shareLink(): string {
 /** H5/App 端：复制邀请文案 + 带 ref 的完整落地页链接（withRef 按 query 有无自动拼 &ref=/?ref=） */
 function copyShareLink() {
   const link = shareLink()
-  const text = `我在热卜国学获得了「${cardItem.value?.name ?? ''}」${cardType.value === 'title' ? '称号' : '成就'}，邀你同修！${link}`
+  const text = `我在${BRAND.name}获得了「${cardItem.value?.name ?? ''}」${cardType.value === 'title' ? '称号' : '成就'}，邀你同修！${link}`
   uni.setClipboardData({
     data: text,
     success: () => uni.showToast({ title: '分享链接已复制，去粘贴给好友吧', icon: 'none' }),

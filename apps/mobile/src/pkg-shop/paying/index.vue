@@ -74,7 +74,7 @@
         <app-icon name="shield" :size="30" color="#999999" />
         <text class="safe-text">支付环境安全 · 资金加密保护</text>
       </view>
-      <text class="brand-tip">热卜国学 提供安全支付保障</text>
+      <text class="brand-tip">{{ BRAND.name }} 提供安全支付保障</text>
     </view>
   </view>
 </template>
@@ -85,6 +85,7 @@ import { onLoad } from '@dcloudio/uni-app'
 import { redirectTo, navigateTo } from '@/utils/router'
 import { shopApi } from '@/lib/shop-data'
 import { track } from '@/composables/useTrack'
+import { BRAND } from '@/lib/brand'
 
 type Status = 'loading' | 'paying' | 'success' | 'failed' | 'timeout' | 'cancelled'
 

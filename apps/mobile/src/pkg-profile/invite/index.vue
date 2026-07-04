@@ -124,7 +124,7 @@
         <view class="poster">
           <view class="poster-top">
             <view class="poster-logo"><text class="poster-logo-txt">卜</text></view>
-            <text class="poster-brand">热卜国学</text>
+            <text class="poster-brand">{{ BRAND.name }}</text>
             <text class="poster-sub">探索易学智慧</text>
           </view>
           <view class="poster-mid">
@@ -149,6 +149,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { navigateTo } from '@/utils/router'
+import { BRAND } from '@/lib/brand'
 
 const inviteCode = 'REBU2024'
 const copied = ref(false)

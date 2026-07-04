@@ -374,6 +374,7 @@ import { ElMessage } from "element-plus";
 import { ChatUI } from '@/components/ChatUI'
 import type { ChatUIConfig } from '@/components/ChatUI/types'
 import { systemApi, api } from "@/api";
+import { BRAND } from "@/lib/brand";
 
 // 对话监控行
 interface ConversationRow {
@@ -467,7 +468,7 @@ async function loadFaq() {
     if (Object.keys(faqData.value).length === 0) {
       faqData.value = {
         "平台使用": [
-          { q: "如何注册账号？", a: "打开热卜国学APP，点击「我的」→「立即登录」→输入手机号获取验证码即可注册。" },
+          { q: "如何注册账号？", a: `打开${BRAND.name}APP，点击「我的」→「立即登录」→输入手机号获取验证码即可注册。` },
           { q: "忘记密码怎么办？", a: "登录页点击「忘记密码」→输入手机号→获取验证码→设置新密码即可。" },
           { q: "如何成为会员？", a: "进入「我的」→「会员中心」→选择适合您的会员等级→完成支付即可享受会员权益。" },
         ],
@@ -476,7 +477,7 @@ async function loadFaq() {
           { q: "内容可以离线阅读吗？", a: "部分内容支持缓存，点击内容详情页的「下载」按钮即可离线阅读。会员用户享有更多缓存权限。" },
         ],
         "支付退款": [
-          { q: "支持哪些支付方式？", a: "热卜国学平台支持微信支付和汇付天下支付，未来将支持更多支付方式。" },
+          { q: "支持哪些支付方式？", a: `${BRAND.name}平台支持微信支付和汇付天下支付，未来将支持更多支付方式。` },
           { q: "如何申请退款？", a: "请在订单详情页点击「申请退款」，填写退款原因后提交。退款需人工审核，将在1-3个工作日内处理。" },
         ],
       };

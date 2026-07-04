@@ -1,7 +1,8 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, Optional } from "@nestjs/common";
 import { Observable } from "rxjs";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
+import { SystemService } from "../system/system.service";
 
 /**
  * COZE 智能体 API 服务
@@ -21,6 +22,21 @@ import { ErrorCode } from "../../common/error-codes";
 export class CozeService {
   private readonly logger = new Logger(CozeService.name);
   private readonly baseUrl = "https://api.coze.cn/v3";
+
+  constructor(
+    // SystemModule 为 @Global 导出·@Optional 保证单测缺 provider 时回退默认品牌名
+    @Optional() private readonly systemService?: SystemService,
+  ) {}
+
+  /** 品牌名（后台 BrandConfig 可配·拉取失败/未注入时兜底"热卜国学"，与历史口径一致） */
+  private async getBrandName(): Promise<string> {
+    try {
+      const cfg = await this.systemService?.getBrandConfig();
+      return (cfg as { siteName?: string } | undefined)?.siteName || "热卜国学";
+    } catch {
+      return "热卜国学";
+    }
+  }
 
   // ───────── 对话 ─────────
 
@@ -328,7 +344,7 @@ export class CozeService {
     const body: Record<string, unknown> = {
       name: params.name,
       description: params.description || "",
-      prompt_info: params.prompt || `你是热卜国学平台的${params.name}，请根据用户需求提供专业服务。`,
+      prompt_info: params.prompt || `你是${await this.getBrandName()}平台的${params.name}，请根据用户需求提供专业服务。`,
     };
 
     if (params.spaceId)               body.space_id = params.spaceId;

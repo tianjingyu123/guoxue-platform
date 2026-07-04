@@ -9,6 +9,7 @@ import App from "./App.vue";
 import router from "./router";
 import permission from "./directives/permission";
 import i18n from "./locales";
+import { hydrateBrandConfig } from "./lib/brand";
 
 const app = createApp(App);
 
@@ -34,4 +35,6 @@ app.use(router);
 app.use(i18n);
 app.use(ElementPlus, { locale: undefined });
 app.directive("permission", permission);
+// 启动时水合品牌配置（失败用内置默认值）
+hydrateBrandConfig();
 app.mount("#app");

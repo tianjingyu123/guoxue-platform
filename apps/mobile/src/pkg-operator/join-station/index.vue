@@ -26,7 +26,7 @@
             <app-icon name="zap" :size="22" color="#ffffff" />
             <text class="js-hero-badge-text">限时优惠</text>
           </view>
-          <text class="js-hero-title">成为热卜分站站长</text>
+          <text class="js-hero-title">成为{{ BRAND.nameShort }}分站站长</text>
           <text class="js-hero-sub">建立专属入口，享受平台分佣收益</text>
           <view class="js-hero-price">
             <text class="js-hero-price-now">¥{{ stationPricing.price }}</text>
@@ -160,6 +160,7 @@ import { ref, onMounted } from 'vue'
 import AppNavBar from '@/components/common/app-nav-bar.vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
+import { BRAND } from '@/lib/brand'
 import {
   operatorApi,
   type OperatorBenefit,

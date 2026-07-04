@@ -6,17 +6,20 @@
       'brand-logo--light': theme === 'light',
     }"
   >
-    <!-- 印章外框 -->
+    <!-- 印章外框（印章两字由品牌简称驱动） -->
     <div class="logo-seal">
-      <span class="logo-char">热</span>
-      <span class="logo-char">卜</span>
+      <span
+        v-for="(ch, i) in sealChars"
+        :key="i"
+        class="logo-char"
+      >{{ ch }}</span>
     </div>
     <!-- 品牌文字 -->
     <div
       v-if="!compact"
       class="logo-text"
     >
-      <span class="logo-name">{{ title }}</span>
+      <span class="logo-name">{{ displayTitle }}</span>
       <span
         v-if="subtitle"
         class="logo-sub"
@@ -26,16 +29,24 @@
 </template>
 
 <script setup lang="ts">
-withDefaults(defineProps<{
+import { computed } from 'vue'
+import { BRAND } from '@/lib/brand'
+
+const props = withDefaults(defineProps<{
   title?: string
   subtitle?: string
   compact?: boolean
   theme?: 'dark' | 'light'
 }>(), {
-  title: '热卜国学',
+  title: '',
   subtitle: '',
   theme: 'dark',
 })
+
+// 印章两字：取品牌简称前两字
+const sealChars = computed(() => BRAND.nameShort.split('').slice(0, 2))
+// 显示标题：外部传入优先，缺省回落品牌全称
+const displayTitle = computed(() => props.title || BRAND.name)
 </script>
 
 <style scoped>

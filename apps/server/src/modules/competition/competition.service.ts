@@ -1,9 +1,10 @@
-import { Injectable, Logger, NotFoundException, BadRequestException } from "@nestjs/common";
+import { Injectable, Logger, NotFoundException, BadRequestException, Optional } from "@nestjs/common";
 import { randomInt } from "crypto";
 import { PrismaService } from "../../prisma/prisma.service";
 import { GradingEngineService } from "./grading-engine.service";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
+import { SystemService } from "../system/system.service";
 
 @Injectable()
 export class CompetitionService {
@@ -12,7 +13,19 @@ export class CompetitionService {
   constructor(
     private prisma: PrismaService,
     private gradingEngine: GradingEngineService,
+    // SystemModule 为 @Global 导出·@Optional 保证单测缺 provider 时回退默认品牌名
+    @Optional() private readonly systemService?: SystemService,
   ) {}
+
+  /** 品牌名（后台 BrandConfig 可配·拉取失败/未注入时兜底"热卜国学"，与历史口径一致） */
+  private async getBrandName(): Promise<string> {
+    try {
+      const cfg = await this.systemService?.getBrandConfig();
+      return (cfg as { siteName?: string } | undefined)?.siteName || "热卜国学";
+    } catch {
+      return "热卜国学";
+    }
+  }
 
   // ═══════════════════ 赛事管理 ═══════════════════
 
@@ -457,6 +470,7 @@ export class CompetitionService {
       ELIMINATED: "参赛纪念",
     };
     const statusLabel = statusLabels[ranking.status] || "参赛纪念";
+    const brandName = await this.getBrandName();
 
     const certHtml = `<!DOCTYPE html>
 <html lang="zh-CN">
@@ -479,7 +493,7 @@ export class CompetitionService {
 <div class="cert">
   <div class="cert-header">
     <h1>获 奖 证 书</h1>
-    <p>热卜国学传统文化平台</p>
+    <p>${brandName}传统文化平台</p>
   </div>
   <div class="cert-body">
     <p class="info">兹证明</p>
@@ -492,7 +506,7 @@ export class CompetitionService {
     <p>颁发日期：${new Date().toLocaleDateString("zh-CN")}</p>
     <p>证书编号：${ranking.id.slice(0, 8).toUpperCase()}</p>
   </div>
-  <div class="cert-stamp">热卜国学</div>
+  <div class="cert-stamp">${brandName}</div>
 </div>
 </body></html>`;
 

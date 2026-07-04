@@ -9,7 +9,7 @@
       <div class="brand">
         <BrandLogo
           :compact="isCollapse"
-          title="热卜国学"
+          :title="BRAND.name"
           subtitle="管理后台"
         />
       </div>
@@ -118,6 +118,7 @@ import SidebarMenu from "@/components/SidebarMenu.vue";
 import ConnectionStatus from "@/components/ConnectionStatus.vue";
 import BrandLogo from "@/components/BrandLogo.vue";
 import { api } from "@/api";
+import { BRAND } from "@/lib/brand";
 
 const router = useRouter();
 const route = useRoute();

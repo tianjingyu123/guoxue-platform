@@ -186,6 +186,7 @@ import { onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 import { navigateTo, navigateBack } from '@/utils/router'
 import { useShare } from '@/composables/useShare'
 import { withRef } from '@/utils/referral'
+import { BRAND } from '@/lib/brand'
 import {
   bountyApi,
   getMyUserId,
@@ -320,7 +321,7 @@ onShareTimeline(() => toTimeline({ title: shareTitle.value, path: sharePath.valu
 /** H5/App 端：复制带 ref 的完整链接 + 外溢文案到剪贴板（好友点开自动记归因） */
 function copyShareLink() {
   const link = withRef(`https://api.rebugx.cn/h5/#${sharePath.value}`)
-  const text = `${shareTitle.value} 来热卜国学答题赢赏金 👉 ${link}`
+  const text = `${shareTitle.value} 来${BRAND.name}答题赢赏金 👉 ${link}`
   uni.setClipboardData({
     data: text,
     success: () => uni.showToast({ title: '分享文案已复制，快发给好友吧', icon: 'none' }),

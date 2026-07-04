@@ -65,7 +65,7 @@
         </view>
         <view class="me-info">
           <view class="me-title-row">
-            <text class="me-title">热卜智能助手</text>
+            <text class="me-title">{{ BRAND.nameShort }}智能助手</text>
             <text class="me-online">在线</text>
           </view>
           <text class="me-desc">有任何问题都可以问我，我来帮您解答</text>
@@ -182,6 +182,7 @@
 import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
+import { BRAND } from '@/lib/brand'
 import {
   agentsSquareApi,
   formatCount,

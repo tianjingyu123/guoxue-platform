@@ -91,7 +91,7 @@
 
     <footer class="bs-footer">
       <span>更新：{{ data.updatedAt ? new Date(data.updatedAt).toLocaleString('zh-CN') : '--' }}</span>
-      <span class="watermark">热卜国学 · 交易大屏 · {{ nowStr.slice(0, 10) }}</span>
+      <span class="watermark">{{ BRAND.name }} · 交易大屏 · {{ nowStr.slice(0, 10) }}</span>
     </footer>
   </div>
 </template>
@@ -101,6 +101,7 @@ import { ref, onMounted, onBeforeUnmount, nextTick } from "vue";
 import { useRoute } from "vue-router";
 import { bigscreenApi } from "@/api";
 import * as echarts from "echarts";
+import { BRAND } from "@/lib/brand";
 
 const route = useRoute();
 /** 交易大屏聚合数据（字段宽松 optional，仅声明模板/脚本实际访问字段） */

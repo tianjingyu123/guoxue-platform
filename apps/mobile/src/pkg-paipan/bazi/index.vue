@@ -5,11 +5,12 @@ import BaziInputForm from '@/components/bazi/input-form.vue'
 import InstantBazi from '@/components/bazi/instant-bazi.vue'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
 import { navigateBack, navigateTo } from '@/utils/router'
+import { BRAND } from '@/lib/brand'
 
 function goHistory() { navigateTo('/paipan/bazi/history') }
 
 // R4 合规：小程序端无占卜类目，标题改历法表述（仅展示文案·路由/逻辑不变）
-let hdrTitle = '热卜八字'
+let hdrTitle = `${BRAND.nameShort}八字`
 // #ifdef MP-WEIXIN
 hdrTitle = '干支历法'
 // #endif

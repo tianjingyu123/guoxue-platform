@@ -163,6 +163,7 @@ import { getToken } from '@/utils/storage'
 import { captureRefFromQuery, withRef } from '@/utils/referral'
 import { drawQrToCanvas } from '@/utils/qrcode'
 import { useShare } from '@/composables/useShare'
+import { BRAND } from '@/lib/brand'
 import TouchpointCard from '@/components/common/touchpoint-card.vue'
 import { touchpointApi, type TouchpointResult } from '@/lib/touchpoint-data'
 import {
@@ -215,7 +216,7 @@ const ringStyle = computed(() => {
 
 /** 分享文案：节气日用当期节气，否则用通用文案 */
 const shareTitle = computed(() =>
-  current.value ? `今日${current.value.name}·我在热卜国学过节气` : '热卜国学·二十四节气仪式',
+  current.value ? `今日${current.value.name}·我在${BRAND.name}过节气` : `${BRAND.name}·二十四节气仪式`,
 )
 
 async function load() {
@@ -338,7 +339,7 @@ function drawCard() {
   ctx.setFillStyle('rgba(255,255,255,0.85)')
   ctx.setFontSize(12)
   ctx.setTextAlign('center')
-  ctx.fillText('热卜国学 · 二十四节气仪式', W / 2, 34)
+  ctx.fillText(`${BRAND.name} · 二十四节气仪式`, W / 2, 34)
   ctx.setFillStyle('#ffffff')
   ctx.setFontSize(15)
   ctx.fillText(`${year} 年`, W / 2, 66)

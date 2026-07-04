@@ -10,6 +10,7 @@ import BottomNav from '@/components/bottom-nav/bottom-nav.vue'
 import { homeApi, type RenderItem } from '@/lib/home-data'
 import { stationDetailApi } from '@/lib/station-detail-data'
 import { navigateTo } from '@/utils/router'
+import { BRAND } from '@/lib/brand'
 
 const loading = ref(true)
 const error = ref('')
@@ -104,7 +105,7 @@ function toastSoon() {
         <view class="sd-brandbar-left">
           <view class="sd-brand-logo"><text class="sd-brand-logo-txt">{{ station.name?.charAt(0) }}</text></view>
           <text class="sd-brand-name">{{ station.name }}</text>
-          <text class="sd-brand-tag">热卜国学</text>
+          <text class="sd-brand-tag">{{ BRAND.name }}</text>
         </view>
         <view class="sd-brandbar-my" @tap="toastSoon"><text class="sd-brandbar-my-txt">我的分站 ›</text></view>
       </view>

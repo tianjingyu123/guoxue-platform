@@ -209,6 +209,7 @@
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { goBack, navigateTo, reLaunch } from '@/utils/router'
+import { BRAND } from '@/lib/brand'
 
 const statusBarHeight = ref(20)
 const safeBottom = ref(0)
@@ -252,7 +253,7 @@ const certData = computed(() => ({
     { label: '完成章节', value: `${courseData.value.chaptersCount}节` },
     { label: '获得积分', value: `${courseData.value.earnedPoints}` },
   ],
-  aiComment: `在热卜国学完成了《${courseData.value.title}》，探寻东方智慧的旅程，刚刚开始。`,
+  aiComment: `在${BRAND.name}完成了《${courseData.value.title}》，探寻东方智慧的旅程，刚刚开始。`,
   serialNo: `RB${courseData.value.completedAt.replace(/-/g, '')}${String(courseData.value.id).padStart(2, '0')}`,
   instructor: courseData.value.instructor,
 }))

@@ -4,9 +4,10 @@ import { ref, reactive, onMounted, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import DatePickerModal from '@/components/bazi/date-picker-modal.vue'
 import { navigateTo } from '@/utils/router'
+import { BRAND } from '@/lib/brand'
 
 // R4 合规：小程序端无占卜类目，标题改文化研究表述（仅展示文案·路由/逻辑不变）
-let hdrTitle = '热卜奇门遁甲'
+let hdrTitle = `${BRAND.nameShort}奇门遁甲`
 let bannerTitle = '奇门遁甲'
 // #ifdef MP-WEIXIN
 hdrTitle = '奇门文化研究'

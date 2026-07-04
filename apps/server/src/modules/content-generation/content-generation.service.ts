@@ -1,7 +1,8 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, Optional } from "@nestjs/common";
 import { AiGatewayService } from "../ai-gateway/ai-gateway.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import { Cron, CronExpression } from "@nestjs/schedule";
+import { SystemService } from "../system/system.service";
 
 /** 品类标签树默认值（一级→二级），运行时优先读 system_config(category_tree) */
 const DEFAULT_CATEGORY_TREE: Record<string, string[]> = {
@@ -30,7 +31,7 @@ const CONTENT_TEMPLATES = {
   knowledge_base: {
     label: "基础知识库",
     countPerCat: 3,
-    prompt: (level1: string, level2: string) => {
+    prompt: (level1: string, level2: string, _brandName: string) => {
       let extra = "";
       if (level1 === "中医养生") extra = `\n**重要：文章结尾必须附加以下免责声明：**\n${TCM_DISCLAIMER}`;
       if (level1 === "易经智慧") extra = `\n**重要：文章结尾必须附加以下定位声明：**\n${ICHING_POSITIONING}`;
@@ -41,7 +42,7 @@ const CONTENT_TEMPLATES = {
   classics: {
     label: "经典精华库",
     countPerCat: 5,
-    prompt: (level1: string, level2: string) => {
+    prompt: (level1: string, level2: string, _brandName: string) => {
       let extra = "";
       if (level1 === "中医养生") extra = `\n**重要：结尾必须附加免责声明：**\n${TCM_DISCLAIMER}`;
       if (level1 === "易经智慧") extra = `\n**重要：结尾必须附加定位声明：**\n${ICHING_POSITIONING}`;
@@ -51,8 +52,8 @@ const CONTENT_TEMPLATES = {
   tutorial: {
     label: "玩法教程库",
     countPerCat: 2,
-    prompt: (level1: string, level2: string) =>
-      `请为"${level1}—${level2}"撰写一篇平台使用教程（约500字），告诉用户如何在国学平台上学习/体验该领域内容。标题格式：如何在热卜国学平台学XX`,
+    prompt: (level1: string, level2: string, brandName: string) =>
+      `请为"${level1}—${level2}"撰写一篇平台使用教程（约500字），告诉用户如何在国学平台上学习/体验该领域内容。标题格式：如何在${brandName}平台学XX`,
   },
 };
 
@@ -107,7 +108,19 @@ export class ContentGenerationService {
   constructor(
     private readonly gateway: AiGatewayService,
     private readonly prisma: PrismaService,
+    // SystemModule 为 @Global 导出·@Optional 保证单测缺 provider 时回退默认品牌名
+    @Optional() private readonly systemService?: SystemService,
   ) {}
+
+  /** 品牌名（后台 BrandConfig 可配·拉取失败/未注入时兜底"热卜国学"，与历史口径一致） */
+  private async getBrandName(): Promise<string> {
+    try {
+      const cfg = await this.systemService?.getBrandConfig();
+      return (cfg as { siteName?: string } | undefined)?.siteName || "热卜国学";
+    } catch {
+      return "热卜国学";
+    }
+  }
 
   /** 获取品类标签树（优先读 system_config，回退默认值） */
   private async loadCategoryTree(): Promise<Record<string, string[]>> {
@@ -138,11 +151,12 @@ export class ContentGenerationService {
     }
 
     const results: Array<{ level2: string; type: string; title: string }> = [];
+    const brandName = await this.getBrandName();
 
     for (const level2 of level2List) {
       for (const type of types) {
         const template = CONTENT_TEMPLATES[TEMPLATE_KEY_MAP[type]];
-        const prompt = template.prompt(categoryLevel1, level2);
+        const prompt = template.prompt(categoryLevel1, level2, brandName);
         const count = template.countPerCat;
 
         for (let i = 0; i < count; i++) {

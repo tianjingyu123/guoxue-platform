@@ -1,9 +1,11 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, Optional } from "@nestjs/common";
 import { AiGatewayService } from "./ai-gateway.service";
 import { VectorService } from "./vector.service";
 import { AiMessage } from "./adapters/base.adapter";
+import { SystemService } from "../system/system.service";
 
-const CUSTOMER_SERVICE_PROMPT = `你是热卜国学平台的智能客服助手。你的职责是帮助用户解决平台使用问题。
+/** 客服系统提示词（品牌名走 BrandConfig 注入·其余语义一字不动） */
+const buildCustomerServicePrompt = (brandName: string) => `你是${brandName}平台的智能客服助手。你的职责是帮助用户解决平台使用问题。
 
 规则：
 1. 优先根据提供的知识库内容回答，不要编造信息
@@ -20,7 +22,19 @@ export class CustomerServiceService {
   constructor(
     private readonly gateway: AiGatewayService,
     private readonly vector: VectorService,
+    // SystemModule 为 @Global 导出·@Optional 保证单测缺 provider 时回退默认品牌名
+    @Optional() private readonly systemService?: SystemService,
   ) {}
+
+  /** 品牌名（后台 BrandConfig 可配·拉取失败/未注入时兜底"热卜国学"，与历史口径一致） */
+  private async getBrandName(): Promise<string> {
+    try {
+      const cfg = await this.systemService?.getBrandConfig();
+      return (cfg as { siteName?: string } | undefined)?.siteName || "热卜国学";
+    } catch {
+      return "热卜国学";
+    }
+  }
 
   /** 智能客服对话（非流式 + RAG） */
   async ask(
@@ -46,7 +60,7 @@ export class CustomerServiceService {
     }
 
     const messages: AiMessage[] = [
-      { role: "system", content: CUSTOMER_SERVICE_PROMPT },
+      { role: "system", content: buildCustomerServicePrompt(await this.getBrandName()) },
       ...(contextText ? [{ role: "system", content: `知识库内容：\n${contextText}` } as AiMessage] : []),
       ...(history || []),
       { role: "user", content: question },
@@ -92,7 +106,7 @@ export class CustomerServiceService {
     }
 
     const messages: AiMessage[] = [
-      { role: "system", content: CUSTOMER_SERVICE_PROMPT },
+      { role: "system", content: buildCustomerServicePrompt(await this.getBrandName()) },
       ...(contextText ? [{ role: "system", content: `知识库内容：\n${contextText}` } as AiMessage] : []),
       ...(history || []),
       { role: "user", content: question },

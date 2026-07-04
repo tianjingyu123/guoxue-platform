@@ -288,6 +288,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { sanitize } from '@/utils/sanitize'
 import { contentApi, courseApi, auditApi, contentGenerationApi } from '@/api'
+import { BRAND } from '@/lib/brand'
 
 const AI_TAGS = ['基础知识库', '经典精华库', '玩法教程库', 'AI生成', 'AI互动'];
 
@@ -333,7 +334,7 @@ function isAiContent(row: ContentRow): boolean {
   const title: string = row.title || '';
   return tags.some((t) => AI_TAGS.some((at) => t.includes(at))) ||
     title.includes('入门指南') || title.includes('名句精华') ||
-    title.includes('教程') || title.includes('如何在热卜');
+    title.includes('教程') || title.includes('如何在' + BRAND.nameShort);
 }
 
 onMounted(() => {

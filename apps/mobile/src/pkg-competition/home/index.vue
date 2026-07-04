@@ -120,6 +120,7 @@
 import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo, navigateBack } from '@/utils/router'
+import { BRAND } from '@/lib/brand'
 import {
   competitionApi, mapStatus, uiStatusConfig, typeLabel, levelInfo, topPrizeText, fmtDate,
   type Competition, type UiStatus,
@@ -171,7 +172,7 @@ function toCard(c: Competition): CardVM | null {
     participants: c._count?.registrations ?? 0, maxParticipants: c.maxParticipants || 0,
     startTime: fmtDate(firstRound?.startAt || c.startedAt || c.publishedAt),
     prize: topPrizeText(c),
-    organizer: c.organizerType === 'platform' ? '热卜平台' : c.organizerType === 'circle' ? '圈子主办' : '热卜平台',
+    organizer: c.organizerType === 'platform' ? `${BRAND.nameShort}平台` : c.organizerType === 'circle' ? '圈子主办' : `${BRAND.nameShort}平台`,
     tags: c.tags || [], type: c.type,
   }
 }

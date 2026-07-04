@@ -52,6 +52,7 @@ import AppIcon from '@/components/common/app-icon.vue'
 import { navigateBack } from '@/utils/router'
 import { withRef } from '@/utils/referral'
 import { drawQrToCanvas } from '@/utils/qrcode'
+import { BRAND } from '@/lib/brand'
 import {
   competitionApi, promotionLabel,
   type Competition, type Registration, type Ranking,
@@ -119,7 +120,7 @@ function draw() {
   ctx.setFillStyle('rgba(255,255,255,0.85)')
   ctx.setFontSize(12)
   ctx.setTextAlign('center')
-  ctx.fillText('热卜国学传统文化平台', W / 2, 34)
+  ctx.fillText(`${BRAND.name}传统文化平台`, W / 2, 34)
   // 赛事名（最多两行）
   ctx.setFillStyle('#ffffff')
   ctx.setFontSize(20)

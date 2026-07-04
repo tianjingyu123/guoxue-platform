@@ -8,6 +8,7 @@ import Disclaimer from '@/components/compliance/disclaimer.vue'
 import { navigateTo } from '@/utils/router'
 import { getToken } from '@/utils/storage'
 import { qimenApi, type QimenResult, type QimenInput } from '@/lib/qimen-data'
+import { BRAND } from '@/lib/brand'
 
 // ─── 奇门常量 ───
 const PALACE_ORDER = [4, 9, 2, 3, 5, 7, 8, 1, 6] // 洛书九宫: 巽离坤/震中兑/艮坎乾
@@ -241,7 +242,7 @@ function saveMatter() { q.matter = editedMatter.value; showEditMatter.value = fa
     <view class="hdr">
       <view class="hdr-inner">
         <view class="hdr-back" @tap="navigateTo('/paipan/qimen')"><app-icon name="chevron-left" :size="40" color="var(--text-ink)" /></view>
-        <text class="hdr-title">热卜奇门遁甲</text>
+        <text class="hdr-title">{{ BRAND.nameShort }}奇门遁甲</text>
         <view class="hdr-share"><app-icon name="share-2" :size="32" color="var(--text-soft)" /></view>
       </view>
     </view>

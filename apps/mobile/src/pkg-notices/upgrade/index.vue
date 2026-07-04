@@ -11,7 +11,7 @@
 
       <view class="hero-center">
         <view class="hero-logo">
-          <text class="hero-logo-text">热卜</text>
+          <text class="hero-logo-text">{{ BRAND.nameShort }}</text>
         </view>
         <text class="hero-label">版本更新</text>
         <text class="hero-version">v{{ notice.version }}</text>
@@ -149,6 +149,7 @@
 import { ref, onUnmounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { navigateBack } from '@/utils/router'
+import { BRAND } from '@/lib/brand'
 
 interface UpgradeItem { title: string; description?: string }
 

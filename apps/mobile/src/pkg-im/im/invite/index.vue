@@ -189,6 +189,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { navigateTo } from '@/utils/router'
+import { BRAND } from '@/lib/brand'
 
 type TabType = 'link' | 'qrcode' | 'poster'
 
@@ -210,7 +211,7 @@ const posterConfig = ref({
   userName: '国学爱好者',
   inviteCode: 'ABC123',
   title: '邀请好友，共享国学智慧',
-  subtitle: '扫码加入热卜，开启国学之旅',
+  subtitle: `扫码加入${BRAND.nameShort}，开启国学之旅`,
   benefits: ['好友注册即得10积分', '好友首次付费返佣10%', '好友开通会员再得20元'],
   backgroundImages: ['背景1', '背景2', '背景3'],
 })

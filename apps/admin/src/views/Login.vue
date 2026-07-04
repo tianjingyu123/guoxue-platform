@@ -2,7 +2,7 @@
   <div class="login-page">
     <el-card class="login-card">
       <div class="login-logo">
-        <BrandLogo title="热卜国学" subtitle="管理后台" theme="light" />
+        <BrandLogo :title="BRAND.name" subtitle="管理后台" theme="light" />
       </div>
       <el-form
         :model="form"
@@ -42,6 +42,7 @@ import { ref } from "vue";
 import { useRouter } from "vue-router";
 import { useAuthStore } from "@/store/auth";
 import BrandLogo from "@/components/BrandLogo.vue";
+import { BRAND } from "@/lib/brand";
 
 const router = useRouter();
 const auth = useAuthStore();

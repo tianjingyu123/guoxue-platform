@@ -92,7 +92,7 @@
 
     <footer class="bs-footer">
       <span>更新：{{ data.updatedAt ? new Date(data.updatedAt).toLocaleString('zh-CN') : '--' }}</span>
-      <span class="watermark">热卜国学 · 内容大屏 · {{ nowStr.slice(0, 10) }}</span>
+      <span class="watermark">{{ BRAND.name }} · 内容大屏 · {{ nowStr.slice(0, 10) }}</span>
     </footer>
   </div>
 </template>
@@ -101,6 +101,7 @@
 import { ref, onMounted, onBeforeUnmount } from "vue";
 import { useRoute } from "vue-router";
 import { bigscreenApi } from "@/api";
+import { BRAND } from "@/lib/brand";
 
 /** 创作者贡献项 */
 interface CreatorItem { userId?: string; nickname?: string; articleCount?: number }

@@ -1,4 +1,4 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, Optional } from "@nestjs/common";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
@@ -8,6 +8,7 @@ import { RedisService } from "../../redis/redis.service";
 import { AiGatewayService } from "../ai-gateway/ai-gateway.service";
 import { UnifiedPricingService } from "../pricing/unified-pricing.service";
 import { AuditService } from "../audit/audit.service";
+import { SystemService } from "../system/system.service";
 import {
   CreateCourseDto, UpdateCourseDto,
   CreateChapterDto, UpdateChapterDto,
@@ -26,7 +27,19 @@ export class CourseService {
     private aiGateway: AiGatewayService,
     private unifiedPricing: UnifiedPricingService,
     private auditService: AuditService,
+    // SystemModule 为 @Global 导出·@Optional 保证单测缺 provider 时回退默认品牌名
+    @Optional() private readonly systemService?: SystemService,
   ) {}
+
+  /** 品牌名（后台 BrandConfig 可配·拉取失败/未注入时兜底"热卜国学"，与历史口径一致） */
+  private async getBrandName(): Promise<string> {
+    try {
+      const cfg = await this.systemService?.getBrandConfig();
+      return (cfg as { siteName?: string } | undefined)?.siteName || "热卜国学";
+    } catch {
+      return "热卜国学";
+    }
+  }
 
   // ═══════════════════ 课程 CRUD ═══════════════════
 
@@ -500,7 +513,7 @@ export class CourseService {
       ? `关联章节：${work.chapter.title}。章节内容参考：${(work.chapter.content || '').slice(0, 600)}`
       : '';
 
-    const systemPrompt = `你是热卜国学平台的课程助教，负责批改学员作业。
+    const systemPrompt = `你是${await this.getBrandName()}平台的课程助教，负责批改学员作业。
 课程：${work.course.title}
 类型：${work.course.type}
 ${chapterCtx}
@@ -617,7 +630,7 @@ ${chapterCtx}
       ? `关联章节：${chapterInfo.title}。章节内容参考：${(chapterInfo.content || "").slice(0, 600)}`
       : "";
 
-    const systemPrompt = `你是热卜国学平台的课程助教，负责批改学员作业。
+    const systemPrompt = `你是${await this.getBrandName()}平台的课程助教，负责批改学员作业。
 课程：${courseTitle}
 类型：${courseType}
 ${chapterCtx}
@@ -1505,7 +1518,7 @@ ${candidateList}
     if (qa.status === "CLOSED") throw new BusinessException(ErrorCode.BAD_REQUEST, "该问题已关闭");
 
     const chapterCtx = qa.chapter ? `关联章节：${qa.chapter.title}。章节内容摘要：${(qa.chapter.content || '').slice(0, 500)}` : '';
-    const systemPrompt = `你是热卜国学平台的课程助教，负责回答学员关于课程的问题。
+    const systemPrompt = `你是${await this.getBrandName()}平台的课程助教，负责回答学员关于课程的问题。
 课程名称：${qa.course.title}
 课程类型：${qa.course.type}
 课程简介：${qa.course.intro || '暂无'}

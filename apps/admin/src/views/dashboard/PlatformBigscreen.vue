@@ -116,7 +116,7 @@
 
     <footer class="bs-footer">
       <span>数据更新时间：{{ data.updatedAt ? new Date(data.updatedAt).toLocaleString('zh-CN') : '--' }}</span>
-      <span class="watermark">热卜国学 · 数据大屏 · {{ nowStr.slice(0, 10) }}</span>
+      <span class="watermark">{{ BRAND.name }} · 数据大屏 · {{ nowStr.slice(0, 10) }}</span>
     </footer>
   </div>
 </template>
@@ -125,6 +125,7 @@
 import { ref, computed, onMounted, onBeforeUnmount } from "vue";
 import { useRoute } from "vue-router";
 import { bigscreenApi } from "@/api";
+import { BRAND } from "@/lib/brand";
 
 const route = useRoute();
 /** 平台综合大屏聚合数据（字段宽松 optional，仅声明模板实际访问字段） */

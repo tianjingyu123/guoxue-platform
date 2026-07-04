@@ -64,7 +64,7 @@
 
       <!-- 底部提示 -->
       <view class="ai-modal-footer">
-        <text class="ai-footer-text">AI回答基于热卜国学知识库生成，仅供参考</text>
+        <text class="ai-footer-text">AI回答基于{{ BRAND.name }}知识库生成，仅供参考</text>
       </view>
     </view>
 
@@ -75,6 +75,7 @@
 import { ref } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { aiSearchApi } from '@/lib/ai-search-data'
+import { BRAND } from '@/lib/brand'
 
 const props = defineProps<{
   isOpen: boolean

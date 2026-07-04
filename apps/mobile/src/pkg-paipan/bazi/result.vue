@@ -13,6 +13,7 @@ import NotesPanel from '@/components/bazi/notes-panel.vue'
 import SchoolAnalysis from '../components/school-analysis.vue'
 import { baziApi } from '@/lib/bazi-result-data'
 import { navigateBack } from '@/utils/router'
+import { BRAND } from '@/lib/brand'
 
 const activeMode = ref<'traditional' | 'analysis'>('traditional')
 const showEditModal = ref(false)
@@ -104,7 +105,7 @@ function onShare() {
     <view class="hdr">
       <view class="hdr-bar">
         <view class="hdr-back" @tap="navigateBack()"><app-icon name="chevron-left" :size="40" color="#666666" /></view>
-        <text class="hdr-title">热卜八字</text>
+        <text class="hdr-title">{{ BRAND.nameShort }}八字</text>
         <view class="hdr-actions">
           <view class="hdr-act" @tap="openNotes"><app-icon name="book-open" :size="34" color="#9ca3af" /></view>
           <view class="hdr-act" @tap="onShare"><app-icon name="share-2" :size="34" color="#9ca3af" /></view>

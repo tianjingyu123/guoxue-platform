@@ -44,7 +44,7 @@
             <view class="poster-logo" :style="{ background: station.themeColor }">
               <text class="poster-logo-txt">{{ station.name.charAt(0) }}</text>
             </view>
-            <text class="poster-brand" :style="{ color: tpl.textColor }">热卜国学</text>
+            <text class="poster-brand" :style="{ color: tpl.textColor }">{{ BRAND.name }}</text>
           </view>
 
           <!-- 主内容 -->
@@ -133,6 +133,7 @@ import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo, navigateBack } from '@/utils/router'
 import { operatorApi } from '@/lib/operator-data'
+import { BRAND } from '@/lib/brand'
 
 const statusBarHeight = ref(20)
 try {

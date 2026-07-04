@@ -7,7 +7,7 @@
       </view>
       <view class="nav-title-wrap">
         <AppIcon name="trophy" :size="20" color="#fff" />
-        <text class="nav-title">热卜榜单</text>
+        <text class="nav-title">{{ BRAND.nameShort }}榜单</text>
       </view>
     </view>
 
@@ -165,6 +165,7 @@
 import { ref } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
+import { BRAND } from '@/lib/brand'
 
 const activeCategory = ref('circles')
 const timeRange = ref<'week' | 'month' | 'total'>('week')

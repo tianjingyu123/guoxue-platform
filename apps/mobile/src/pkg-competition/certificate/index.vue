@@ -36,7 +36,7 @@
             <!-- 抬头 -->
             <view class="cert-header">
               <text class="cert-title">获 奖 证 书</text>
-              <text class="cert-sub">热卜国学传统文化平台</text>
+              <text class="cert-sub">{{ BRAND.name }}传统文化平台</text>
             </view>
             <!-- 正文 -->
             <view class="cert-body">
@@ -52,7 +52,7 @@
               <text class="cert-foot-txt">证书编号：{{ certNo }}</text>
             </view>
             <!-- 红章 -->
-            <view class="cert-stamp"><text class="cert-stamp-txt">热卜国学</text></view>
+            <view class="cert-stamp"><text class="cert-stamp-txt">{{ BRAND.name }}</text></view>
           </view>
         </view>
       </view>
@@ -78,6 +78,7 @@ import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo, navigateBack } from '@/utils/router'
+import { BRAND } from '@/lib/brand'
 import {
   competitionApi, promotionLabel, fmtDate,
   type Competition, type Registration, type Ranking,

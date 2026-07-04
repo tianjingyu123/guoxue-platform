@@ -91,7 +91,7 @@
 
       <!-- 发布信息 -->
       <view class="publish-info">
-        <text class="publish-text">由 热卜平台 发布</text>
+        <text class="publish-text">由 {{ BRAND.nameShort }}平台 发布</text>
         <text class="publish-text">发布时间：{{ notice.publishedAt }}</text>
       </view>
     </view>
@@ -113,6 +113,7 @@
 import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { navigateBack } from '@/utils/router'
+import { BRAND } from '@/lib/brand'
 
 type NoticeType = 'system' | 'update' | 'activity' | 'maintenance' | 'policy'
 

@@ -85,7 +85,7 @@
 
     <footer class="bs-footer">
       <span>更新：{{ data.updatedAt ? new Date(data.updatedAt).toLocaleString('zh-CN') : '--' }}</span>
-      <span class="watermark">热卜国学 · AI大屏 · {{ nowStr.slice(0, 10) }}</span>
+      <span class="watermark">{{ BRAND.name }} · AI大屏 · {{ nowStr.slice(0, 10) }}</span>
     </footer>
   </div>
 </template>
@@ -95,6 +95,7 @@ import { ref, onMounted, onBeforeUnmount, nextTick } from "vue";
 import { useRoute } from "vue-router";
 import { bigscreenApi } from "@/api";
 import * as echarts from "echarts";
+import { BRAND } from "@/lib/brand";
 
 /** 场景调用分布项 */
 interface SceneItem { scene?: string; count?: number }

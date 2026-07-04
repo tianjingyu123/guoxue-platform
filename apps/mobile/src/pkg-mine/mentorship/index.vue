@@ -161,7 +161,7 @@
         <text class="share-ach-desc">一同修习国学，共研经典之道</text>
         <view class="share-divider" />
         <text class="share-level-line">让更多同修拜入师门，传道值随弟子成长而增</text>
-        <text class="share-brand">热卜国学 · 师徒传承</text>
+        <text class="share-brand">{{ BRAND.name }} · 师徒传承</text>
 
         <!-- #ifdef MP-WEIXIN -->
         <button class="share-btn-main" open-type="share">分享招徒帖</button>
@@ -182,7 +182,7 @@
         <text class="share-ach-desc">十年寒窗，今朝学成，谢师恩、启新程</text>
         <view class="share-divider" />
         <text class="share-level-line">出师不忘师门，愿你他日亦为人师，薪火相传</text>
-        <text class="share-brand">热卜国学 · 师徒传承</text>
+        <text class="share-brand">{{ BRAND.name }} · 师徒传承</text>
         <view class="share-btn-close" @tap="closeGraduated">收下这份荣誉</view>
       </view>
     </view>
@@ -196,6 +196,7 @@ import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, reLaunch, navigateTo } from '@/utils/router'
 import { withRef } from '@/utils/referral'
 import { useShare } from '@/composables/useShare'
+import { BRAND } from '@/lib/brand'
 import {
   mentorshipApi,
   MENTORSHIP_STATUS_LABEL,

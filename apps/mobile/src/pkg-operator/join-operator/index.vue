@@ -3,6 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import AppNavBar from '@/components/common/app-nav-bar.vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
+import { BRAND } from '@/lib/brand'
 import {
   operatorApi,
   type PlanCompareRow,
@@ -94,7 +95,7 @@ async function onSubmit() {
             <AppIcon name="zap" :size="20" color="#fff" />
             <text class="hero-badge-text">限时特惠</text>
           </view>
-          <text class="hero-title">成为热卜运营商</text>
+          <text class="hero-title">成为{{ BRAND.nameShort }}运营商</text>
           <text class="hero-sub">获得6个分站名额，建立您的推广团队</text>
           <view class="hero-price">
             <text class="hero-price-now">¥{{ price }}</text>

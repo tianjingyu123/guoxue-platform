@@ -225,7 +225,7 @@
         <view class="apply-banner" @tap="goApply">
           <view class="apply-content">
             <text class="apply-title">成为讲师</text>
-            <text class="apply-desc">加入热卜研究院，分享你的专业知识</text>
+            <text class="apply-desc">加入{{ BRAND.nameShort }}研究院，分享你的专业知识</text>
             <view class="apply-btn">
               <text class="apply-btn-text">立即申请</text>
               <app-icon name="arrow-right" :size="14" color="#c41e3a" />
@@ -247,6 +247,7 @@ import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
+import { BRAND } from '@/lib/brand'
 import {
   instituteApi, lecturerLevelLabel, lecturerLevelColor,
   eventStatusLabel, eventStatusColor, eventTypeLabel, fmtDate, memberName,

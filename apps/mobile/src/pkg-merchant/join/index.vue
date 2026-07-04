@@ -21,7 +21,7 @@
             <AppIcon name="zap" :size="12" color="#ffffff" />
             <text>限时福利</text>
           </view>
-          <text class="mj-hero-title">入驻热卜平台</text>
+          <text class="mj-hero-title">入驻{{ BRAND.nameShort }}平台</text>
           <text class="mj-hero-sub">千万国学爱好者等你来，开启你的国学生意</text>
           <view class="mj-hero-btns">
             <view class="mj-hero-btn-primary" @tap="go('/merchant/apply')">
@@ -195,6 +195,7 @@
 import { ref } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo, goBack } from '@/utils/router'
+import { BRAND } from '@/lib/brand'
 
 const advantages = [
   { icon: 'users', title: '海量用户', desc: '千万级国学爱好者用户群体', highlight: '1000万+' },

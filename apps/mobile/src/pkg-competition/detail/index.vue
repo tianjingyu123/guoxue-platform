@@ -158,6 +158,7 @@ import { onLoad, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo, navigateBack } from '@/utils/router'
 import { useShare } from '@/composables/useShare'
+import { BRAND } from '@/lib/brand'
 import {
   competitionApi, mapStatus, uiStatusConfig, typeLabel, levelInfo, topPrizeText, fmtDate, yuan,
   roundTypeLabel,
@@ -185,7 +186,7 @@ const tabs = [
 
 const ui = computed(() => (comp.value ? mapStatus(comp.value.status) : null))
 const lv = computed(() => (comp.value ? levelInfo(comp.value.level, comp.value.organizerType) : { label: '', kind: 'platform' as const }))
-const organizer = computed(() => (comp.value?.organizerType === 'circle' ? '圈子主办' : '热卜平台'))
+const organizer = computed(() => (comp.value?.organizerType === 'circle' ? '圈子主办' : `${BRAND.nameShort}平台`))
 const participants = computed(() => comp.value?._count?.registrations ?? 0)
 const progressPct = computed(() => {
   if (!comp.value?.maxParticipants) return Math.min(100, participants.value > 0 ? 60 : 0)

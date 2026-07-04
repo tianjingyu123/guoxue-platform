@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, shallowRef, onMounted, type Component } from 'vue'
+import { BRAND } from '@/lib/brand'
 
 const loading = ref(true)
 const dashComp = shallowRef<Component | null>(null)
@@ -59,11 +60,11 @@ onMounted(async () => {
       <div class="welcome-card">
         <div class="welcome-decoration" />
         <div class="welcome-icon">🏮</div>
-        <h1 class="welcome-title">热卜国学</h1>
+        <h1 class="welcome-title">{{ BRAND.name }}</h1>
         <p class="welcome-subtitle">管理后台</p>
         <hr class="gold-divider">
         <p class="welcome-text">
-          欢迎使用热卜国学管理后台。<br>
+          欢迎使用{{ BRAND.name }}管理后台。<br>
           请通过左侧菜单选择管理功能。
         </p>
       </div>
