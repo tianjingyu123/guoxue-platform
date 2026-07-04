@@ -7,7 +7,9 @@ import { goBack } from '@/utils/router'
 import { useShare } from '@/composables/useShare'
 import { withRef } from '@/utils/referral'
 import AppIcon from '@/components/common/app-icon.vue'
+import TouchpointCard from '@/components/common/touchpoint-card.vue'
 import { courseApi } from '@/lib/course-data'
+import { touchpointApi, type TouchpointResult } from '@/lib/touchpoint-data'
 
 const instance = getCurrentInstance()?.proxy
 
@@ -31,12 +33,20 @@ function fmtDate(s: string) {
   return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`
 }
 
+// 触点 #9 证书下一课（服务端按同一级品类召回·排除本课与已购·show:false 或异常一律不渲染）
+const tp = ref<TouchpointResult | null>(null)
+async function loadTouchpoint() {
+  tp.value = await touchpointApi.get('cert_next_course', { courseId: courseId.value })
+}
+
 async function loadData() {
   loading.value = true
   error.value = ''
   try {
     const res = await courseApi.getCertificate(courseId.value)
     cert.value = res
+    // 触点不 await：失败静默不出，绝不阻塞证书展示
+    loadTouchpoint()
     // 数据就绪后预绘海报，保证「保存到相册」即时可导出
     await nextTick()
     setTimeout(drawPoster, 60)
@@ -310,6 +320,9 @@ onMounted(() => {
         </view>
       </view>
     </view>
+
+    <!-- 触点 #9 进阶之路·下一门：证书卡下方·服务端裁决无卡则不渲染（一页一触点） -->
+    <touchpoint-card v-if="tp?.card" :card="tp.card" scene="cert_next_course" />
 
     <!-- 证书信息 -->
     <view class="info-card">

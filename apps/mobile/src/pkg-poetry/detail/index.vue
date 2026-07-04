@@ -123,6 +123,9 @@
             <text class="pd-appr-label">人工赏析</text>
             <text class="pd-appr-text">{{ poem.appreciation }}</text>
           </view>
+
+          <!-- 触点 #3 诗词雅物：赏析读完位·服务端裁决无卡则不渲染（一页一触点） -->
+          <touchpoint-card v-if="tp?.card" :card="tp.card" scene="poetry_goods" />
         </view>
 
         <!-- 译文 -->
@@ -397,8 +400,10 @@ import { onLoad, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 import { useShare } from '@/composables/useShare'
 import { navigateTo, navigateBack } from '@/utils/router'
 import DiscussionSheet from '@/components/common/discussion-sheet.vue'
+import TouchpointCard from '@/components/common/touchpoint-card.vue'
 import type { DiscussionConfig, DiscussionItem } from '@/lib/discussion-types'
 import { poetryApi, type PoemDetail, type PoemComment } from '@/lib/poetry-data'
+import { touchpointApi, type TouchpointResult } from '@/lib/touchpoint-data'
 import { getToken } from '@/utils/storage'
 
 const statusBarHeight = ref(0)
@@ -449,9 +454,16 @@ async function fetchDetail(poemId: string) {
   }
 }
 
+// 触点 #3 诗词雅物（服务端裁决·show:false 或异常一律不渲染）
+const tp = ref<TouchpointResult | null>(null)
+async function loadTouchpoint() {
+  tp.value = await touchpointApi.get('poetry_goods')
+}
+
 onLoad((q: Record<string, string> = {}) => {
   currentId.value = q.id || '1'
   fetchDetail(currentId.value)
+  loadTouchpoint()
 })
 
 // 微信原生分享（诗词无封面图，省略 cover）

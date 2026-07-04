@@ -8,12 +8,14 @@
 import { ref, reactive, onUnmounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
+import TouchpointCard from '@/components/common/touchpoint-card.vue'
 import { goBack, navigateTo, toastComingSoon } from '@/utils/router'
 import {
   postDetailApi, parseMarkdown,
   REWARD_QUICK, REWARD_ALL,
   type PostDetail, type Comment, type MdBlock,
 } from '@/lib/post-detail-data'
+import { touchpointApi, type TouchpointResult } from '@/lib/touchpoint-data'
 
 const circleId = ref('')
 const postId = ref('')
@@ -69,6 +71,8 @@ async function loadData() {
     comments.value = await postDetailApi.getComments(postId.value)
     // 详情不返回当前用户点赞态 → 单独查询补上 isLiked（失败保持 false，不阻断页面）
     isLiked.value = await postDetailApi.checkPostLiked(postId.value)
+    // 触点 #6 圈主的课（不 await·失败静默不出，绝不阻塞正文）
+    loadTouchpoint(p)
   } catch {
     error.value = '加载失败，请重试'
   } finally {
@@ -76,6 +80,15 @@ async function loadData() {
   }
 }
 function retry() { loadData() }
+
+// 触点 #6 圈子课程（服务端按 circleId→圈主→APPROVED 课召回·show:false 或异常一律不渲染）
+const tp = ref<TouchpointResult | null>(null)
+async function loadTouchpoint(p: PostDetail) {
+  tp.value = await touchpointApi.get('circle_course', {
+    circleId: circleId.value,
+    postAuthorId: p.author.id,
+  })
+}
 
 // ─── 音频播放器（跨端；后端暂无音频，逻辑保留兼容将来） ───
 const isPlaying = ref(false)
@@ -326,6 +339,9 @@ onUnmounted(() => { if (audioCtx) { try { audioCtx.destroy() } catch {} } })
             <view v-if="img.caption" class="pd-img-cap"><text class="pd-img-cap-t">{{ img.caption }}</text></view>
           </view>
         </view>
+
+        <!-- 触点 #6 圈主的课：正文尾·服务端裁决无卡则不渲染（一页一触点·帖质量分门槛留服务端后续加） -->
+        <touchpoint-card v-if="tp?.card" :card="tp.card" scene="circle_course" />
 
         <!-- 打赏区（后端暂无打赏统计 → 隐藏，待打赏数据接入后显示） -->
         <view v-if="post.reward || post.rewardCount" class="pd-reward">

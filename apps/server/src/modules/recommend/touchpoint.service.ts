@@ -59,12 +59,12 @@ export const TOUCHPOINTS: Record<string, TouchpointMeta> = {
   levelup_course: { label: "晋级进阶课", skuSource: "课程库按分类推进阶", status: "implemented" },
   /** #1 古籍读到精彩处 → 本书相关名师精讲课 */
   classic_course: { label: "古籍精讲", skuSource: "本书相关课程", status: "pending" },
-  /** #3 诗词赏析页 → 应景雅物 */
-  poetry_goods: { label: "诗词雅物", skuSource: "商品池场景标签（文房/香品/茶器）", status: "pending" },
-  /** #6 圈子优质讨论 → 圈主的课程/入圈 */
-  circle_course: { label: "圈子课程", skuSource: "圈主课程/入圈", status: "pending" },
-  /** #9 结业证书页 → 同系列下一课 */
-  cert_next_course: { label: "证书下一课", skuSource: "同系列课程", status: "pending" },
+  /** #3 诗词赏析页 → 应景雅物（触-P3） */
+  poetry_goods: { label: "诗词雅物", skuSource: "商品池雅物类目（文创/文房/香道/茶具）·场景标签兜底", status: "implemented" },
+  /** #6 圈子优质讨论 → 圈主的课程（触-P3） */
+  circle_course: { label: "圈子课程", skuSource: "圈主（Circle.ownerId）的已过审课程", status: "implemented" },
+  /** #9 结业证书页 → 同系列下一课（触-P3） */
+  cert_next_course: { label: "证书下一课", skuSource: "同一级品类课程（排除本课与已购）", status: "implemented" },
   /** #10 咨询结束回执 → 从业者推荐的应景商品（依赖 CRM） */
   consult_goods: { label: "咨询回执商品", skuSource: "从业者推荐（CRM 白标）", status: "pending" },
   /** #5 AI 伴读额度上限 → 书院会员（已在伴读页落地·仅登记） */
@@ -75,6 +75,12 @@ export const TOUCHPOINTS: Record<string, TouchpointMeta> = {
 
 /** 全局开关 ConfigSystem key */
 const GLOBAL_SWITCH_KEY = "touchpoint.enabled";
+/**
+ * 雅物类目关键词（触-P3 #3 诗词雅物·已按生产 ProductCategory 侦察定稿）：
+ * 一级类目实为「文创/文房/香道/茶具」（设计稿写作「香品/茶器」），
+ * 「香/茶」宽匹配同时覆盖二级类目（线香/香炉/香道工具/茶壶/茶杯/茶席等）。
+ */
+const ELEGANT_CATEGORY_KEYWORDS = ["文创", "文房", "香", "茶"];
 /** 频控窗口：24h */
 const FREQ_TTL_SECONDS = 24 * 3600;
 /** 频控阈值：24h 最多曝光 1 次 */
@@ -135,7 +141,7 @@ export class TouchpointService {
     }
   }
 
-  /** 按场景召回触点卡（本批仅 levelup_course·其余诚实降级返回 null） */
+  /** 按场景召回触点卡（未实现场景诚实降级返回 null） */
   private async resolveCard(
     scene: string,
     meta: TouchpointMeta,
@@ -148,9 +154,145 @@ export class TouchpointService {
         return this.resolveLevelupCourse(userId, ctx);
       case "jieqi_gift":
         return this.resolveJieqiGift(ctx);
+      case "poetry_goods":
+        return this.resolvePoetryGoods();
+      case "circle_course":
+        return this.resolveCircleCourse(ctx);
+      case "cert_next_course":
+        return this.resolveCertNextCourse(userId, ctx);
       default:
         return null;
     }
+  }
+
+  /**
+   * #3 诗词雅物（触-P3）：
+   * 诗词赏析读完位 → 商品池「雅物类目」（文创/文房/香道/茶具·含二级类目）在售商品销量第一；
+   * 类目未命中时兜底取 sceneTags 有任意场景标的在售商品；仍无货返回 null（相关性硬门槛·宁缺勿滥）。
+   */
+  private async resolvePoetryGoods(): Promise<TouchpointCard | null> {
+    const productSelect = { id: true, title: true, images: true } as const;
+
+    // ① 类目召回：匹配雅物类目（一级命中时连带其二级子类目·商品实际挂在二级类目上）
+    let product: { id: string; title: string; images: string[] } | null = null;
+    const matched = await this.prisma.productCategory.findMany({
+      where: { status: "ACTIVE", OR: ELEGANT_CATEGORY_KEYWORDS.map((k) => ({ name: { contains: k } })) },
+      select: { id: true },
+    });
+    if (matched.length) {
+      const children = await this.prisma.productCategory.findMany({
+        where: { parentId: { in: matched.map((c) => c.id) } },
+        select: { id: true },
+      });
+      const categoryIds = [...new Set([...matched, ...children].map((c) => c.id))];
+      product = await this.prisma.product.findFirst({
+        where: { status: "ON_SALE", deletedAt: null, categoryId: { in: categoryIds } },
+        select: productSelect,
+        orderBy: [{ salesCount: "desc" }, { createdAt: "desc" }],
+      });
+    }
+
+    // ② 兜底：类目体系未命中 → sceneTags 有任意场景标的在售商品（供-P1 白名单标签）
+    if (!product) {
+      product = await this.prisma.product.findFirst({
+        where: { status: "ON_SALE", deletedAt: null, sceneTags: { isEmpty: false } },
+        select: productSelect,
+        orderBy: [{ salesCount: "desc" }, { createdAt: "desc" }],
+      });
+    }
+    if (!product) return null;
+
+    return {
+      skuType: "product",
+      skuId: product.id,
+      title: product.title,
+      reason: "读诗之余·案头雅物",
+      cover: product.images?.[0] || "",
+      link: `/pkg-shop/detail?id=${product.id}`,
+    };
+  }
+
+  /**
+   * #6 圈子课程（触-P3）：
+   * 优质帖尾 → 圈主（Circle.ownerId）的已过审（APPROVED）课程销量第一。
+   * ctx.circleId 必传；圈不存在/圈主无课返回 null（宁缺勿滥）。
+   */
+  private async resolveCircleCourse(ctx?: Record<string, unknown>): Promise<TouchpointCard | null> {
+    const circleId = typeof ctx?.circleId === "string" && ctx.circleId ? ctx.circleId : undefined;
+    if (!circleId) return null;
+
+    const circle = await this.prisma.circle.findFirst({
+      where: { id: circleId, deletedAt: null },
+      select: { ownerId: true },
+    });
+    if (!circle) return null;
+
+    const course = await this.prisma.course.findFirst({
+      where: { userId: circle.ownerId, auditStatus: "APPROVED", deletedAt: null },
+      select: { id: true, title: true, cover: true },
+      orderBy: { studentCount: "desc" },
+    });
+    if (!course) return null;
+
+    return {
+      skuType: "course",
+      skuId: course.id,
+      title: course.title,
+      reason: "圈主的系统课",
+      cover: course.cover || "",
+      link: `/courses/${course.id}`,
+    };
+  }
+
+  /**
+   * #9 证书下一课（触-P3）：
+   * 结业证书页 → 同一级品类（categoryLevel1）下销量第一、且非本课、用户未购的已过审课程。
+   * ctx.courseId 必传；本课无一级品类或无同类下一课返回 null（宁缺勿滥）。
+   */
+  private async resolveCertNextCourse(
+    userId?: string,
+    ctx?: Record<string, unknown>,
+  ): Promise<TouchpointCard | null> {
+    const courseId = typeof ctx?.courseId === "string" && ctx.courseId ? ctx.courseId : undefined;
+    if (!courseId) return null;
+
+    const current = await this.prisma.course.findUnique({
+      where: { id: courseId },
+      select: { categoryLevel1: true },
+    });
+    // 本课不存在或无一级品类 → 「同系列」无从谈起，宁可不出
+    if (!current?.categoryLevel1) return null;
+
+    // 排除本课 + 用户已购课程（口径与 course.service checkAccess 一致：PAID/COMPLETED 订单）
+    const excludeIds = new Set<string>([courseId]);
+    if (userId) {
+      const orders = await this.prisma.order.findMany({
+        where: { userId, type: "COURSE", status: { in: ["PAID", "COMPLETED"] } },
+        select: { targetId: true },
+      });
+      for (const o of orders) if (o.targetId) excludeIds.add(o.targetId);
+    }
+
+    const next = await this.prisma.course.findFirst({
+      where: {
+        auditStatus: "APPROVED",
+        deletedAt: null,
+        categoryLevel1: current.categoryLevel1,
+        id: { notIn: [...excludeIds] },
+      },
+      select: { id: true, title: true, cover: true },
+      orderBy: { studentCount: "desc" },
+    });
+    if (!next) return null;
+
+    return {
+      skuType: "course",
+      skuId: next.id,
+      title: next.title,
+      reason: "进阶之路·下一门",
+      cover: next.cover || "",
+      link: `/courses/${next.id}`,
+    };
   }
 
   /**
