@@ -35,7 +35,28 @@
         :style="curLayerStyle"
         @tap="onSingleTap"
       >
+        <!-- 封面作为播放器 poster/兜底：视频未就绪或无视频源时展示 -->
         <image lazy-load class="vp__cover" :src="currentVideo.coverUrl" mode="aspectFill" />
+        <!-- 视频播放器：有真实 videoUrl 且未出错时挂载（H5=原生 video，小程序/App=原生组件）-->
+        <video
+          v-if="currentVideo.videoUrl && !playError"
+          id="vp-player"
+          class="vp__video"
+          :src="currentVideo.videoUrl"
+          :muted="isMuted"
+          :controls="false"
+          :show-center-play-btn="false"
+          :show-play-btn="false"
+          :show-fullscreen-btn="false"
+          :show-progress="false"
+          :enable-progress-gesture="false"
+          :loop="true"
+          autoplay
+          object-fit="cover"
+          @play="onVideoPlay"
+          @pause="onVideoPause"
+          @error="onVideoError"
+        />
         <!-- 暂停图标 -->
         <view v-if="!isPlaying" class="vp__pause">
           <view class="vp__pause-btn">
@@ -272,7 +293,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, getCurrentInstance } from 'vue'
 import { onLoad, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
@@ -316,6 +337,30 @@ function retry() { loadFeed() }
 // ===== 播放/UI 状态 =====
 const isPlaying = ref(true)
 const isMuted = ref(false)
+const playError = ref(false) // 视频源加载失败 → 隐藏 player 回退到封面
+
+// ===== 播放器控制（uni video context）=====
+const instance = getCurrentInstance()
+let videoCtx: ReturnType<typeof uni.createVideoContext> | null = null
+function getVideoCtx() {
+  if (!videoCtx) {
+    try { videoCtx = uni.createVideoContext('vp-player', instance?.proxy || undefined) } catch { videoCtx = null }
+  }
+  return videoCtx
+}
+function togglePlay() {
+  // 无真实视频源：仅切换占位播放态（封面模式）
+  if (!currentVideo.value?.videoUrl || playError.value) {
+    isPlaying.value = !isPlaying.value
+    return
+  }
+  const ctx = getVideoCtx()
+  if (isPlaying.value) { ctx?.pause(); isPlaying.value = false }
+  else { ctx?.play(); isPlaying.value = true }
+}
+function onVideoPlay() { isPlaying.value = true }
+function onVideoPause() { isPlaying.value = false }
+function onVideoError() { playError.value = true; isPlaying.value = false }
 const showComments = ref(false)
 const showProducts = ref(false)
 const showCart = ref(false)
@@ -432,7 +477,7 @@ function onSingleTap(e: { changedTouches?: Array<{ clientX?: number; clientY?: n
   lastTapTime = now
   setTimeout(() => {
     if (lastTapTime !== 0 && Date.now() - lastTapTime >= 280) {
-      isPlaying.value = !isPlaying.value
+      togglePlay()
       lastTapTime = 0
     }
   }, 300)
@@ -481,6 +526,9 @@ async function onFollow() {
 
 // 切换视频时刷新真实关注态（后端列表默认 isFollowed=false）
 watch(() => currentVideo.value?.id, async () => {
+  // 切换到新视频：重置播放器状态，新的 videoUrl 触发 autoplay
+  playError.value = false
+  isPlaying.value = true
   const v = currentVideo.value
   if (!v?.author?.id) return
   try { v.author.isFollowed = await videoApi.isFollowing(v.author.id) } catch { /* 未登录/失败保持默认 */ }
@@ -561,13 +609,15 @@ function onBack() {
 .vp__stage { position: absolute; inset: 0; overflow: hidden; }
 .vp__layer { position: absolute; inset: 0; width: 100%; height: 100%; }
 .vp__cover { width: 100%; height: 100%; }
+/* 播放器覆盖在封面之上；pointer-events:none 让单击/上下滑手势穿透到父层由脚本统一控制 */
+.vp__video { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; }
 .vp__shade {
-  position: absolute; inset: 0; pointer-events: none;
+  position: absolute; inset: 0; pointer-events: none; z-index: 2;
   background: linear-gradient(to bottom, rgba(0,0,0,0.3), transparent 35%, transparent 65%, rgba(0,0,0,0.6));
 }
-.vp__pause { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.2); }
+.vp__pause { position: absolute; inset: 0; z-index: 2; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.2); }
 .vp__pause-btn { width: 140rpx; height: 140rpx; border-radius: 999rpx; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; }
-.vp__heart { position: absolute; animation: float-heart 1s ease-out forwards; pointer-events: none; }
+.vp__heart { position: absolute; z-index: 3; animation: float-heart 1s ease-out forwards; pointer-events: none; }
 @keyframes float-heart {
   0% { transform: scale(0) translateY(0); opacity: 1; }
   50% { transform: scale(1.2) translateY(-50px); opacity: 1; }
