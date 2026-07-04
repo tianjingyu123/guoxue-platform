@@ -28,12 +28,15 @@ import { SmartFeedService } from "./smart-feed.service";
 import { SmartFeedController } from "./smart-feed.controller";
 import { SemanticTaggerService } from "./services/semantic-tagger.service";
 import { SemanticTagTask } from "./tasks/semantic-tag.task";
+import { TouchpointService } from "./touchpoint.service";
+import { TouchpointController } from "./touchpoint.controller";
 import { AiGatewayModule } from "../ai-gateway/ai-gateway.module";
 import { StationPickModule } from "../station-pick/station-pick.module";
 
 @Module({
   imports: [AiGatewayModule, StationPickModule],
-  controllers: [SmartFeedController, RecommendController, RecommendRuleController, AbTestController],
+  // ⚠️ TouchpointController 必须排在 RecommendController 之前（其 @Get(":scene") 通配会拦截 /recommend/touchpoint）
+  controllers: [SmartFeedController, TouchpointController, RecommendController, RecommendRuleController, AbTestController],
   providers: [
     RecommendService,
     BehaviorService,
@@ -60,6 +63,7 @@ import { StationPickModule } from "../station-pick/station-pick.module";
     SmartFeedService,
     SemanticTaggerService,
     SemanticTagTask,
+    TouchpointService,
   ],
   exports: [
     RecommendService,
