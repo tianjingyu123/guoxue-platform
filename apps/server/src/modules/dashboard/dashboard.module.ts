@@ -12,11 +12,14 @@ import { BigScreenAuthService } from "./bigscreen-auth.service";
 import { BigScreenAuthGuard } from "./bigscreen-auth.guard";
 import { DashboardDailyController } from "./dashboard-daily.controller";
 import { DashboardDailyService } from "./dashboard-daily.service";
+import { DailyBriefController } from "./daily-brief.controller";
+import { DailyBriefService } from "./daily-brief.service";
+import { AiGatewayModule } from "../ai-gateway/ai-gateway.module";
 import { serverConfig } from "../../config/server-config";
 
 @Module({
-  imports: [JwtModule.register({ secret: serverConfig.jwtSecret })],
-  controllers: [DashboardController, CockpitController, BigScreenController, BigScreenTokenController, DashboardDailyController],
-  providers: [DashboardService, EntityDashboardService, RoleDashboardService, CockpitService, BigScreenService, BigScreenAuthService, BigScreenAuthGuard, DashboardDailyService],
+  imports: [JwtModule.register({ secret: serverConfig.jwtSecret }), AiGatewayModule],
+  controllers: [DashboardController, CockpitController, BigScreenController, BigScreenTokenController, DashboardDailyController, DailyBriefController],
+  providers: [DashboardService, EntityDashboardService, RoleDashboardService, CockpitService, BigScreenService, BigScreenAuthService, BigScreenAuthGuard, DashboardDailyService, DailyBriefService],
 })
 export class DashboardModule {}
