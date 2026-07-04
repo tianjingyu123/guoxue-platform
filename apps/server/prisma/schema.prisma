@@ -4706,6 +4706,29 @@ model MerchantAgreement {
   @@index([merchantId])
 }
 
+/// 商家履约日指标（履-P1）：每日凌晨 cron 聚合昨日，date=YYYY-MM-DD(Asia/Shanghai)
+/// 数据源：Order(paidAt/shippedAt)、AfterSale(refund/return·经 orderId 关联)、
+/// ProductReview(经 Product.userId 关联商家)、Report(targetType=PRODUCT/USER 视为投诉)
+/// 取不到的字段诚实 null（如 qcPassRate：抽检 QcRecord 表尚未建，二期补）
+model MerchantMetric {
+  id             String   @id @default(uuid())
+  merchantId     String
+  date           String // YYYY-MM-DD（Asia/Shanghai）
+  ordersCount    Int      @default(0) // 当日支付订单数（paidAt 当日·非 PENDING/CANCELLED）
+  shipOnTimeRate Decimal? @db.Decimal(5, 4) // 当日发货订单中 paidAt→shippedAt ≤48h 的占比；当日无发货则 null
+  avgShipHours   Decimal? @db.Decimal(8, 2) // 当日发货订单平均发货时效（小时）；无发货则 null
+  refundRate     Decimal? @db.Decimal(5, 4) // 当日退款申请数 ÷ 当日订单数；当日无订单则 null
+  returnRate     Decimal? @db.Decimal(5, 4) // 当日退货申请数 ÷ 当日订单数；当日无订单则 null
+  avgRating      Decimal? @db.Decimal(3, 2) // 当日新增商品评价均分；无评价则 null
+  complaintCount Int      @default(0) // 当日针对该商家商品/商家本人的举报（投诉）数
+  qcPassRate     Decimal? @db.Decimal(5, 4) // 抽检合格率·暂无数据源·诚实 null（QcRecord 二期）
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([merchantId, date])
+  @@index([date])
+}
+
 // ─────────────────────────────────────────────────
 // 圈主助理知识库（pgvector）
 // ─────────────────────────────────────────────────

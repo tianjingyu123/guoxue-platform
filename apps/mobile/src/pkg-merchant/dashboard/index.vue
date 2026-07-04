@@ -82,6 +82,46 @@
         </view>
       </view>
 
+      <!-- 履约健康（近7日·独立三态，不阻塞主数据） -->
+      <view class="dash-section">
+        <view class="dash-card">
+          <view class="dash-card-head dash-mb">
+            <text class="dash-card-title">履约健康</text>
+            <text class="dash-metric-sub">近 7 日</text>
+          </view>
+          <view v-if="metricsLoading" class="dash-metric-state">
+            <text class="dash-metric-state-txt">加载中…</text>
+          </view>
+          <view v-else-if="metricsError" class="dash-metric-state">
+            <text class="dash-metric-state-txt">{{ metricsError }}</text>
+            <view class="dash-metric-retry" @tap="loadMetrics"><text>重试</text></view>
+          </view>
+          <view v-else-if="!metrics || metrics.items.length === 0" class="dash-metric-state">
+            <text class="dash-metric-state-txt">暂无履约数据，指标于每日凌晨聚合生成</text>
+          </view>
+          <view v-else class="dash-metric-grid">
+            <view class="dash-metric-cell">
+              <text class="dash-metric-value" :class="rateClass(metrics.summary.shipOnTimeRate, 0.9, true)">
+                {{ pct(metrics.summary.shipOnTimeRate) }}
+              </text>
+              <text class="dash-metric-label">按时发货率</text>
+            </view>
+            <view class="dash-metric-cell">
+              <text class="dash-metric-value" :class="rateClass(metrics.summary.refundRate, 0.15, false)">
+                {{ pct(metrics.summary.refundRate) }}
+              </text>
+              <text class="dash-metric-label">退款率</text>
+            </view>
+            <view class="dash-metric-cell">
+              <text class="dash-metric-value">
+                {{ metrics.summary.avgRating === null ? '—' : Number(metrics.summary.avgRating).toFixed(1) }}
+              </text>
+              <text class="dash-metric-label">评价均分</text>
+            </view>
+          </view>
+        </view>
+      </view>
+
       <!-- 待处理事项 -->
       <view class="dash-section">
         <view class="dash-card">
@@ -152,6 +192,7 @@ import {
   type MerchantProfile,
   type MerchantNotice,
   type MerchantStatus,
+  type MerchantMetricsResp,
 } from '@/lib/merchant-data'
 
 const statusBarHeight = ref(0)
@@ -160,6 +201,11 @@ const error = ref('')
 const dashboard = ref<MerchantDashboard | null>(null)
 const profile = ref<MerchantProfile | null>(null)
 const notices = ref<MerchantNotice[]>([])
+
+// 履约健康卡（独立三态，失败不阻塞工作台主数据）
+const metricsLoading = ref(true)
+const metricsError = ref('')
+const metrics = ref<MerchantMetricsResp | null>(null)
 
 const actions = [
   { label: '商品管理', icon: 'package', color: '#c41e3a', bg: '#fee2e2', path: '/merchant/products' },
@@ -183,6 +229,32 @@ const statusInfo = computed(() => statusTextMap[profile.value?.status ?? 'ACTIVE
 
 function money(v: string | number): string {
   return Number(v ?? 0).toFixed(2)
+}
+
+/** 率 → 百分比展示；null（数据取不到）诚实显示 — */
+function pct(v: string | number | null): string {
+  if (v === null || v === undefined) return '—'
+  return `${(Number(v) * 100).toFixed(1)}%`
+}
+
+/** 指标着色：higherBetter=true 时低于阈值标红（如按时发货率）；false 时高于阈值标红（如退款率） */
+function rateClass(v: string | number | null, threshold: number, higherBetter: boolean): string {
+  if (v === null || v === undefined) return ''
+  const n = Number(v)
+  const bad = higherBetter ? n < threshold : n > threshold
+  return bad ? 'dash-metric-bad' : 'dash-metric-good'
+}
+
+async function loadMetrics() {
+  metricsLoading.value = true
+  metricsError.value = ''
+  try {
+    metrics.value = await merchantBackendApi.getMyMetrics(7)
+  } catch (e) {
+    metricsError.value = (e as Error)?.message || '履约数据加载失败'
+  } finally {
+    metricsLoading.value = false
+  }
 }
 
 async function load() {
@@ -215,6 +287,7 @@ function go(path: string) {
 onMounted(() => {
   uni.getSystemInfo({ success: (e) => { statusBarHeight.value = e.statusBarHeight || 0 } })
   load()
+  loadMetrics()
 })
 </script>
 
@@ -274,6 +347,18 @@ onMounted(() => {
 .dash-notice-time { font-size: 12px; color: #9ca3af; margin-top: 2px; }
 .dash-notice-empty { padding: 24px 0; display: flex; justify-content: center; }
 .dash-notice-empty-txt { font-size: 13px; color: #9ca3af; }
+
+.dash-metric-sub { font-size: 12px; color: #9ca3af; }
+.dash-metric-grid { display: flex; }
+.dash-metric-cell { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 8px 0; }
+.dash-metric-value { font-size: 20px; font-weight: 700; color: #1a1a1a; }
+.dash-metric-value.dash-metric-good { color: #16a34a; }
+.dash-metric-value.dash-metric-bad { color: #dc2626; }
+.dash-metric-label { font-size: 12px; color: #6b7280; margin-top: 4px; }
+.dash-metric-state { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 16px 0; }
+.dash-metric-state-txt { font-size: 13px; color: #9ca3af; text-align: center; }
+.dash-metric-retry { padding: 4px 16px; border: 1px solid #d1d5db; border-radius: 6px; }
+.dash-metric-retry text { font-size: 12px; color: #1a1a1a; }
 
 .dash-state { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 64px 24px; }
 .dash-state-txt { font-size: 14px; color: #9ca3af; text-align: center; }

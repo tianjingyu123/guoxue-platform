@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Body, Req, UseGuards } from "@nestjs/common";
+import { Controller, Get, Post, Put, Body, Query, Req, UseGuards } from "@nestjs/common";
 import { Request } from "express";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from "@nestjs/swagger";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
@@ -7,6 +7,8 @@ import { RequireFeature } from "../../common/feature-flag.decorator";
 import { MerchantService } from "./merchant.service";
 import { MerchantDepositService } from "./merchant-deposit.service";
 import { MerchantAgreementService } from "./merchant-agreement.service";
+import { MerchantMetricService } from "./merchant-metric.service";
+import { MerchantGuard } from "./merchant.guard";
 import {
   CreateMerchantApplyDto, UpdateMerchantApplyDto,
   PayDepositDto, SignAgreementDto,
@@ -25,7 +27,19 @@ export class MerchantController {
     private readonly merchantService: MerchantService,
     private readonly depositService: MerchantDepositService,
     private readonly agreementService: MerchantAgreementService,
+    private readonly metricService: MerchantMetricService,
   ) {}
+
+  @Get("my/metrics")
+  @ApiOperation({ summary: "商家本人履约健康指标（近 N 日·履-P1）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  // 方法级覆盖类级 ONBOARDING 开关：本端点属经营后台能力；MerchantGuard=模块现有商家身份守卫（ACTIVE 商家·挂 request.merchant）
+  @RequireFeature(MERCHANT_FEATURE_FLAGS.BACKEND)
+  @UseGuards(MerchantGuard)
+  getMyMetrics(@Req() req: AuthRequest, @Query("days") days?: string) {
+    const merchant = (req as unknown as { merchant: { id: string } }).merchant;
+    return this.metricService.getMyMetrics(merchant.id, days);
+  }
 
   @Post("apply")
   @ApiOperation({ summary: "提交入驻申请" })

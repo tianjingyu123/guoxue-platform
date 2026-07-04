@@ -278,6 +278,41 @@ export const merchantBackendApi = {
     // 后端咨询子系统未实现（诚实降级返回空），结构未定 → 用宽松记录类型占位
     apiGetPaged<Record<string, unknown>>(`/merchant-backend/inquiries?page=${params?.page ?? 1}&pageSize=${params?.pageSize ?? 20}`),
   getContentStats: () => apiGet<MerchantContentStats>('/merchant-backend/content-stats'),
+
+  // 履约健康（履-P1·后端 GET /merchant/my/metrics·MerchantGuard 商家身份校验）
+  getMyMetrics: (days = 7) => apiGet<MerchantMetricsResp>(`/merchant/my/metrics?days=${days}`),
+}
+
+// ───────── 履约健康指标（履-P1） ─────────
+
+/** 单日履约指标（率类字段后端取不到时诚实 null，页面 v-if 降级） */
+export interface MerchantMetricItem {
+  date: string // YYYY-MM-DD
+  ordersCount: number
+  shipOnTimeRate: string | number | null // Decimal 序列化可能为字符串
+  avgShipHours: string | number | null
+  refundRate: string | number | null
+  returnRate: string | number | null
+  avgRating: string | number | null
+  complaintCount: number
+  qcPassRate: string | number | null
+}
+
+export interface MerchantMetricsSummary {
+  ordersCount: number
+  shipOnTimeRate: number | null
+  avgShipHours: number | null
+  refundRate: number | null
+  returnRate: number | null
+  avgRating: number | null
+  complaintCount: number
+  qcPassRate: number | null
+}
+
+export interface MerchantMetricsResp {
+  days: number
+  items: MerchantMetricItem[]
+  summary: MerchantMetricsSummary
 }
 
 // ───────── UI 配置常量（非 mock 数据，纯展示映射，页面可直接 import） ─────────
