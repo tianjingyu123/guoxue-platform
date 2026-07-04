@@ -37,6 +37,8 @@ describe("SmartFeedService", () => {
       classicBook: { findMany: jest.fn().mockResolvedValue([mockClassic]) },
       ebook: { findMany: jest.fn().mockResolvedValue([mockEbook]) },
       product: { findMany: jest.fn().mockResolvedValue([mockProduct]) },
+      // 内容质量分（创-P1）：默认无评分记录 → 质量因子不生效（既有用例回归不受影响）
+      contentQualityScore: { findMany: jest.fn().mockResolvedValue([]) },
     };
     recommend = { personalized: jest.fn().mockResolvedValue([]) };
     // 默认 AI 不可用 → 走降级路径（同样应带时段因子）
@@ -104,6 +106,44 @@ describe("SmartFeedService", () => {
 
       expect(result.timeSlot).toBe("evening");
       expect(result.items[0].type).toBe("course");
+    });
+  });
+
+  describe("内容质量排序因子（创-P1·任务八接线）", () => {
+    it("高分 article 获质量加权：score = 1×(1+0.3×90/100)×1.3（早间加权族·置顶）", async () => {
+      setSystemTimeUtc("2026-07-03T00:00:00Z"); // 上海 08:00 morning
+      prisma.contentQualityScore.findMany.mockResolvedValue([
+        { targetType: "ARTICLE", targetId: "a1", total: 90 },
+      ]);
+
+      const result = await svc.getFeed("u1");
+
+      const article = result.items.find((i) => i.type === "article")!;
+      expect(article.score).toBeCloseTo(1 * (1 + 0.3 * 0.9) * 1.3);
+      expect(result.items[0].type).toBe("article");
+    });
+
+    it("<40 分内容软限流：不删除、不加权、整体沉底（即使属时段加权族）", async () => {
+      setSystemTimeUtc("2026-07-03T00:00:00Z"); // 早间 article 本是加权族
+      prisma.contentQualityScore.findMany.mockResolvedValue([
+        { targetType: "ARTICLE", targetId: "a1", total: 30 },
+      ]);
+
+      const result = await svc.getFeed("u1");
+
+      // 仍在列表中（软限流·不删除），但排在最后
+      expect(result.items.some((i) => i.type === "article")).toBe(true);
+      expect(result.items[result.items.length - 1].type).toBe("article");
+    });
+
+    it("质量分查询失败按无因子降级：feed 正常返回、时段排序不受影响", async () => {
+      setSystemTimeUtc("2026-07-03T00:00:00Z");
+      prisma.contentQualityScore.findMany.mockRejectedValue(new Error("db"));
+
+      const result = await svc.getFeed("u1");
+
+      expect(result.items[0].type).toBe("article");
+      expect(result.items[0].score).toBeCloseTo(1.3);
     });
   });
 

@@ -34,6 +34,11 @@ const TIME_SLOT_BOOSTED_TYPES: Record<TimeSlot, ReadonlyArray<FeedItem["type"]>>
 /** 时段族基础权重乘子 */
 const TIME_SLOT_BOOST_FACTOR = 1.3;
 
+/** 内容质量排序因子权重（创-P1·任务八接线）：加权乘子 = 1 + 0.3 × (total/100)，满分内容最多 +30% */
+const QUALITY_WEIGHT = 0.3;
+/** 低分软限流阈值：<40 分不加权并沉底（不删除） */
+const QUALITY_LOW_THRESHOLD = 40;
+
 export interface SmartFeedResult {
   userId: string;
   userSegment: string;
@@ -81,11 +86,20 @@ export class SmartFeedService {
         items = await this.getDefaultFeed(userId, pageSize);
     }
 
+    // 质量因子（创-P1·任务八接线）：qualityScore 作为排序因子（权重 0.3）·<40 分标记软限流
+    const { items: qualityWeighted, lowQuality } = await this.applyQualityWeight(items);
+
     // 时段因子：作为基础权重乘子在 AI 重排之前生效；AI 不可用时降级路径同样保留时段排序
-    items = this.applyTimeSlotWeight(items, timeSlot);
+    items = this.applyTimeSlotWeight(qualityWeighted, timeSlot);
 
     if (items.length > 3) {
       items = await this.aiRankItems(userId, items, segment);
+    }
+
+    // 低分软限流：<40 分内容整体沉底（放在 AI 重排之后执行，保证最终序仍沉底）
+    if (lowQuality.size > 0) {
+      const isLow = (i: FeedItem) => lowQuality.has(`${i.type}:${i.id}`);
+      items = [...items.filter((i) => !isLow(i)), ...items.filter(isLow)];
     }
 
     return {
@@ -125,6 +139,42 @@ export class SmartFeedService {
         return { ...item, score: (item.score || 1) * factor };
       })
       .sort((a, b) => b.score - a.score);
+  }
+
+  /**
+   * 内容质量排序因子（创-P1·任务八接线）：
+   * - 已评分的 article/post（ContentQualityScore 只覆盖这两型）：score ×(1 + 0.3×total/100)
+   * - <40 分：不加权并标记软限流（排序沉底）。诚实说明：feed 候选无「关注关系」上下文（各分层策略为
+   *   热度/精华/推荐混排，不区分关注流），设计给的两个备选中「仅关注者可见」在此查询结构下不可行，
+   *   故取「排序沉底」实现——内容不删除、不隐藏，仅排到列表末尾。
+   * - 未评分内容不动；质量查询失败按无因子降级，不影响 feed 可用性。
+   */
+  private async applyQualityWeight(
+    items: FeedItem[],
+  ): Promise<{ items: FeedItem[]; lowQuality: Set<string> }> {
+    const lowQuality = new Set<string>();
+    const targets = items.filter((i) => i.type === "article" || i.type === "post");
+    if (targets.length === 0) return { items, lowQuality };
+    try {
+      const rows = await this.prisma.contentQualityScore.findMany({
+        where: { OR: targets.map((t) => ({ targetType: t.type.toUpperCase(), targetId: t.id })) },
+        select: { targetType: true, targetId: true, total: true },
+      });
+      const totalMap = new Map(rows.map((r) => [`${r.targetType.toLowerCase()}:${r.targetId}`, r.total]));
+      const weighted = items.map((item): FeedItem => {
+        const total = totalMap.get(`${item.type}:${item.id}`);
+        if (total === undefined) return item; // 未评分不动
+        if (total < QUALITY_LOW_THRESHOLD) {
+          lowQuality.add(`${item.type}:${item.id}`);
+          return item; // 低分不加权（沉底在 getFeed 末段统一执行）
+        }
+        return { ...item, score: (item.score || 1) * (1 + QUALITY_WEIGHT * (total / 100)) };
+      });
+      return { items: weighted, lowQuality };
+    } catch (err) {
+      this.logger.warn(`质量因子加权失败，按无因子降级: ${(err as Error).message}`);
+      return { items, lowQuality };
+    }
   }
 
   /** 用户分层 */

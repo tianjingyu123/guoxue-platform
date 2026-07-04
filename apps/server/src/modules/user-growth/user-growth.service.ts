@@ -38,6 +38,8 @@ export const ACHIEVEMENTS: Array<{ code: string; name: string; desc: string; ico
   { code: "solar_term_24", name: "廿四全勤", desc: "集齐全部 24 节气", icon: "sparkles" },
   // 共读拼团（V3·shared-reading 结算时颁发）
   { code: "shared_reading_complete", name: "以文会友", desc: "完成一次组队共读", icon: "users" },
+  // 创作激励（创-P1·content-exp.service 在内容质量评分 ≥80 时颁发）
+  { code: "content_quality_star", name: "妙笔生花", desc: "首篇质量评分达 80 分的内容", icon: "feather" },
 ];
 
 /**
@@ -62,6 +64,8 @@ export const TITLES: Array<{
   { code: "t_taoli", name: "桃李满门", desc: "有徒弟学成出师", requires: { achievement: "mentor_graduate" } },
   { code: "t_zhishi", name: "知时节", desc: "集齐 12 个节气", requires: { achievement: "solar_term_12" } },
   { code: "t_huiyou", name: "以文会友", desc: "完成组队共读", requires: { achievement: "shared_reading_complete" } },
+  // 创作激励（创-P1）：以「妙笔生花」成就为前置——创作出 80+ 分优质内容即得
+  { code: "t_wenhao", name: "文豪", desc: "创作出评分 80 分以上的优质内容", requires: { achievement: "content_quality_star" } },
 ];
 
 const DAY_MS = 86_400_000;

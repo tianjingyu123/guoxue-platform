@@ -1,6 +1,7 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, Optional } from "@nestjs/common";
 import { Cron } from "@nestjs/schedule";
 import { PrismaService } from "../../prisma/prisma.service";
+import { ContentExpService } from "../user-growth/content-exp.service";
 
 /** 单次 cron 最多评分条数（控制 AI 成本与时长） */
 const BATCH_LIMIT = 30;
@@ -28,7 +29,11 @@ export interface QualityScore {
 export class ContentQualityService {
   private readonly logger = new Logger(ContentQualityService.name);
 
-  constructor(private prisma: PrismaService) {}
+  // ContentExpService @Optional：单测/裁剪场景缺席时评分照常，只是不发学分（生产由 module imports 保证注入）
+  constructor(
+    private prisma: PrismaService,
+    @Optional() private contentExp?: ContentExpService,
+  ) {}
 
   private aiEnabled(): boolean {
     return !!process.env.DEEPSEEK_API_KEY && process.env.NODE_ENV !== "test";
@@ -79,7 +84,7 @@ export class ContentQualityService {
     for (const item of todo) {
       const score = await this.scoreText(item.text);
       if (!score) continue;
-      await this.prisma.contentQualityScore
+      const created = await this.prisma.contentQualityScore
         .create({
           data: {
             targetType: item.type,
@@ -88,8 +93,12 @@ export class ContentQualityService {
             model: process.env.DEEPSEEK_MODEL || "deepseek-chat",
           },
         })
-        .catch(() => undefined); // 并发重复评分冲突幂等忽略
+        .catch(() => null); // 并发重复评分冲突幂等忽略
       scored++;
+      // 创作激励钩子（创-P1）：评分落库成功后发内容学分（内部幂等+自吞异常，不阻断评分批次）
+      if (created && this.contentExp) {
+        await this.contentExp.onContentScored(item.type, item.id, score.total);
+      }
     }
     return { scored, candidates: todo.length };
   }

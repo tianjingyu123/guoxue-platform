@@ -1,5 +1,5 @@
 import { Test } from "@nestjs/testing";
-import { UserGrowthService } from "./user-growth.service";
+import { UserGrowthService, ACHIEVEMENTS, TITLES } from "./user-growth.service";
 import { PrismaService } from "../../prisma/prisma.service";
 
 const mockPrisma = {
@@ -128,6 +128,39 @@ describe("UserGrowthService", () => {
       mockPrisma.userAchievement.findMany.mockResolvedValue([]);
       const result = await svc.getMyGrowth("u-new");
       expect(result).toMatchObject({ totalExp: 0, level: 1, levelName: "书童", currentStreak: 0 });
+    });
+  });
+
+  describe("创作激励（创-P1）— 妙笔生花成就与文豪称号", () => {
+    it("目录含 content_quality_star 成就与 t_wenhao 称号（achievement 前置）", () => {
+      const star = ACHIEVEMENTS.find((a) => a.code === "content_quality_star");
+      expect(star?.name).toBe("妙笔生花");
+      const wenhao = TITLES.find((t) => t.code === "t_wenhao");
+      expect(wenhao?.name).toBe("文豪");
+      expect(wenhao?.requires).toEqual({ achievement: "content_quality_star" });
+    });
+
+    it("已获「妙笔生花」成就的用户在称号评估时获颁 t_wenhao（getMyTitles 惰性补评）", async () => {
+      mockPrisma.userGrowth.findUnique.mockResolvedValue({
+        userId: "u1", totalExp: 10, level: 1, currentStreak: 0, maxStreak: 0, lastCheckinDate: null,
+      });
+      mockPrisma.userAchievement.findMany.mockResolvedValue([{ code: "content_quality_star" }]);
+
+      await svc.getMyTitles("u1");
+
+      const call = mockPrisma.userTitle.createMany.mock.calls[0][0];
+      expect(call.data.map((d: any) => d.code)).toContain("t_wenhao");
+    });
+
+    it("未获前置成就则不颁 t_wenhao", async () => {
+      mockPrisma.userGrowth.findUnique.mockResolvedValue({
+        userId: "u2", totalExp: 10, level: 1, currentStreak: 0, maxStreak: 0, lastCheckinDate: null,
+      });
+      mockPrisma.userAchievement.findMany.mockResolvedValue([]);
+
+      await svc.getMyTitles("u2");
+
+      expect(mockPrisma.userTitle.createMany).not.toHaveBeenCalled();
     });
   });
 

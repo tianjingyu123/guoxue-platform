@@ -5,9 +5,32 @@ import { PointsService } from "./points.service";
 import { InteractionService } from "../interaction/interaction.service";
 import { CommentService } from "../comment/comment.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
+import { ThrottleGuard } from "../../common/throttle.guard";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { SpendPointsDto } from "./dto/points.dto";
+import { ContentExpService } from "../user-growth/content-exp.service";
+
+/**
+ * 创作榜（创-P1 创作激励）：公开端点 GET /users/creation-rankings。
+ * 路由侦察结论：UserController 的 GET users/:id 通配路由会遮蔽同前缀静态段，而 UserModule 在
+ * app.module 中先于 UserGrowthModule 注册——挂 user-growth 侧必被遮蔽。故挂在本文件（points controller 侧），
+ * 并在 user.module 控制器数组中置于 UserController 之前，确保静态路由先注册。
+ */
+@ApiTags("成长体系")
+@Controller("users")
+export class CreationRankingsController {
+  constructor(private readonly contentExp: ContentExpService) {}
+
+  @Get("creation-rankings")
+  @UseGuards(ThrottleGuard)
+  @ApiOperation({ summary: "创作榜（周/月·质量加权内容学分 Top20·公开）" })
+  @ApiQuery({ name: "period", required: false, description: "week(默认·近7天) | month(近30天)" })
+  @ApiResponse({ status: 200, description: "成功" })
+  creationRankings(@Query("period") period?: string) {
+    return this.contentExp.getCreationRankings(period === "month" ? "month" : "week");
+  }
+}
 
 @ApiTags("积分成长")
 @Controller("users/me")
