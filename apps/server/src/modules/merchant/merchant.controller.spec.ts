@@ -5,6 +5,8 @@ import { MerchantDepositService } from "./merchant-deposit.service";
 import { MerchantAgreementService } from "./merchant-agreement.service";
 import { FeatureFlagGuard } from "../../common/feature-flag.guard";
 import { FeatureFlagService } from "../feature-flag/feature-flag.service";
+import { MerchantGuard } from "./merchant.guard";
+import { MerchantMetricService } from "./merchant-metric.service";
 
 const mockMerchantSvc = {
   createApplication: jest.fn().mockResolvedValue({ id: "m1", status: "PENDING_REVIEW" }),
@@ -32,9 +34,12 @@ describe("MerchantController", () => {
         { provide: MerchantService, useValue: mockMerchantSvc },
         { provide: MerchantDepositService, useValue: mockDepositSvc },
         { provide: MerchantAgreementService, useValue: mockAgreementSvc },
+        // 履-P1 新端点 my/metrics 的依赖
+        { provide: MerchantMetricService, useValue: { getMyMetrics: jest.fn().mockResolvedValue({ days: [], summary: {} }) } },
       ],
     })
       .overrideGuard(FeatureFlagGuard).useValue({ canActivate: () => true })
+      .overrideGuard(MerchantGuard).useValue({ canActivate: () => true })
       .compile();
     ctrl = mod.get(MerchantController);
   });
