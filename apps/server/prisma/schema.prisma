@@ -6603,3 +6603,71 @@ model MarketingContent {
 
   @@index([userId, createdAt])
 }
+
+// ─────────────────────────────────────────────────
+// 课-P3 客户经营 CRM（服务环）—— 设计 docs/design/课题一补完-从业者全链路SaaS工具链-20260704.md §四
+// 合规红线（设计即合规）：客户数据归从业者私有（全部查询强制 ownerId 隔离）；
+// phoneEnc/birthEnc 走 M4 AES-256-GCM 加密存储；平台层禁跨从业者聚合个体（R3）；
+// 禁导出端点（防数据贩卖）；客户可要求删除 → 硬删 + AuditLog 留痕。
+// ─────────────────────────────────────────────────
+
+/// 客户档案（归属从业者·ownerId 逻辑关联 User 不建 FK，与 AdvisorInsight 同范式）
+model ClientBook {
+  id           String    @id @default(cuid())
+  ownerId      String // 归属从业者 userId（数据隔离主键·所有查询必须带）
+  name         String // 客户称呼/昵称
+  phoneEnc     String? // 手机号密文（M4 AES-256-GCM·展示时 decrypt，列表脱敏）
+  birthEnc     String? // 生辰密文（M4·明文格式 YYYY-MM-DD[ HH:mm]·仅用于生日/流年提醒）
+  gender       String? // male / female
+  tags         String[]  @default([]) // 客户标签（如 事业/婚恋/老客）
+  source       String    @default("manual") // manual手工 / card名片 / order订单归因
+  sourceUserId String? // 订单归因入库时的平台买家 userId（判「已入库」防重复建议·手工客户为空）
+  lastServeAt  DateTime? // 最近服务时间（RFM·R·由服务记录聚合回写）
+  serveCount   Int       @default(0) // 服务次数（RFM·F）
+  totalSpend   Decimal   @default(0) @db.Decimal(12, 2) // 累计消费（RFM·M）
+  notes        String? // 从业者私人备注
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  serveLogs ClientServeLog[]
+  reminders ClientReminder[]
+
+  @@unique([ownerId, sourceUserId]) // 同一买家对同一从业者只入库一次（NULL 不受约束·手工客户不限）
+  @@index([ownerId, createdAt])
+  @@index([ownerId, lastServeAt])
+}
+
+/// 服务记录：写入后在同事务内聚合回写 ClientBook 的 lastServeAt/serveCount/totalSpend
+model ClientServeLog {
+  id        String   @id @default(cuid())
+  clientId  String
+  ownerId   String // 冗余归属·隔离校验双保险（避免 join 才能判归属）
+  type      String // consult咨询 / course课程 / product商品 / paipan排盘
+  amount    Decimal? @db.Decimal(10, 2) // 本次服务金额（可空·免费服务）
+  summary   String // 服务摘要（≤200 字）
+  servedAt  DateTime @default(now())
+  createdAt DateTime @default(now())
+
+  client ClientBook @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId, servedAt])
+  @@index([ownerId, servedAt])
+}
+
+/// 客户提醒：cron 幂等生成（生日/立春流年/复购·大运切换=TODO 需盘存档深度联动）；aiDraft 按需生成（便宜档·失败降级模板话术）
+model ClientReminder {
+  id        String    @id @default(cuid())
+  clientId  String
+  ownerId   String
+  kind      String // BIRTHDAY生日 / LICHUN立春流年 / REPURCHASE复购 / DAYUN大运切换(暂不生成)
+  dueAt     DateTime // 应跟进日期（生日=当年生日当天·立春=当年2月4日·复购=生成当日）
+  status    String    @default("PENDING") // PENDING / DONE
+  aiDraft   String? // AI 草拟话术（按需生成·合规定性约束内置 prompt）
+  doneAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  client ClientBook @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([ownerId, status, dueAt])
+  @@index([clientId, kind, dueAt])
+}

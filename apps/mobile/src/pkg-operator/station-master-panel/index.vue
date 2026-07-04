@@ -73,6 +73,9 @@
       <!-- 今日发什么（课-P1 获客环·自包含拉取三态，点选题弹AI生成层） -->
       <marketing-topics-card />
 
+      <!-- 客户待跟进（课-P3 服务环·自包含拉取，空/失败自动隐藏） -->
+      <crm-reminder-card />
+
       <!-- 近30天推广转化漏斗（自包含拉取，失败或全 0 自动隐藏） -->
       <funnel-card />
 
@@ -170,6 +173,7 @@ import AppNavBar from '@/components/common/app-nav-bar.vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import AdvisorCard from '@/components/workbench/advisor-card.vue'
 import MarketingTopicsCard from '@/components/workbench/marketing-topics-card.vue'
+import CrmReminderCard from '@/components/workbench/crm-reminder-card.vue'
 import FunnelCard from '@/components/workbench/funnel-card.vue'
 import AlmanacBar from '@/components/workbench/almanac-bar.vue'
 import { navigateTo } from '@/utils/router'

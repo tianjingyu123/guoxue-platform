@@ -2180,6 +2180,24 @@
           "style": {
             "navigationStyle": "custom"
           }
+        },
+        {
+          "path": "crm/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "crm/detail",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "crm/edit",
+          "style": {
+            "navigationStyle": "custom"
+          }
         }
       ]
     },
