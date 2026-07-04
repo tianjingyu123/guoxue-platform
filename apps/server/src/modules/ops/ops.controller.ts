@@ -6,6 +6,7 @@ import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
 import { RequireAutomation } from "../../common/require-automation.decorator";
 import { OpsService } from "./ops.service";
+import { InspectionService } from "./inspection.service";
 import { ClaimOpsTaskDto, CompleteOpsTaskDto, CreateOpsTaskDto, QueryOpsTaskDto, ReviewOpsTaskDto } from "./ops.dto";
 
 /** 数字员工运营 OS — 任务池（OS-P1）：数字员工与真人从同一池取任务 */
@@ -15,7 +16,20 @@ import { ClaimOpsTaskDto, CompleteOpsTaskDto, CreateOpsTaskDto, QueryOpsTaskDto,
 @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
 @ApiBearerAuth()
 export class OpsController {
-  constructor(private readonly opsService: OpsService) {}
+  constructor(
+    private readonly opsService: OpsService,
+    private readonly inspectionService: InspectionService,
+  ) {}
+
+  @Post("inspect")
+  @Roles("SUPER_ADMIN")
+  @ApiOperation({ summary: "手动触发每日巡检（五项检查+分级处置，返回巡检报告·SUPER_ADMIN）" })
+  @ApiResponse({ status: 201, description: "巡检完成，返回巡检报告（同时落一条 completed 巡检日志任务）" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
+  async inspect() {
+    return this.inspectionService.runInspection("MANUAL");
+  }
 
   @Get("tasks")
   @ApiOperation({ summary: "任务池列表（status/type/priority 筛选 + 分页）" })
