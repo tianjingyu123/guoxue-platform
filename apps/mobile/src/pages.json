@@ -1345,7 +1345,8 @@
         { "path": "score-detail/index", "style": { "navigationStyle": "custom" } },
         { "path": "certificate/index", "style": { "navigationStyle": "custom" } },
         { "path": "poster/index", "style": { "navigationStyle": "custom" } },
-        { "path": "archive/index", "style": { "navigationStyle": "custom" } }
+        { "path": "archive/index", "style": { "navigationStyle": "custom" } },
+        { "path": "talents/index", "style": { "navigationStyle": "custom" } }
       ]
     },
     {

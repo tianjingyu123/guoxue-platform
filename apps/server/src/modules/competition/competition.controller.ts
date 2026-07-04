@@ -7,6 +7,7 @@ import { Request } from "express";
 import { CompetitionService } from "./competition.service";
 import { CompetitionAdminService } from "./competition-admin.service";
 import { StageFlowService } from "./stage-flow.service";
+import { TalentService } from "./talent.service";
 import {
   CreateCompetitionDto, UpdateCompetitionDto, CreateRoundDto, UpdateRoundDto,
   CreateQuestionDto, UpdateQuestionDto, BatchCreateQuestionDto,
@@ -301,7 +302,10 @@ export class CompetitionAdminController {
 @ApiTags("赛事")
 @Controller("competitions")
 export class CompetitionPublicController {
-  constructor(private readonly service: CompetitionService) {}
+  constructor(
+    private readonly service: CompetitionService,
+    private readonly talent: TalentService,
+  ) {}
 
   @Get()
   @ApiOperation({ summary: "赛事列表（公开）" })
@@ -309,6 +313,25 @@ export class CompetitionPublicController {
   list(@Query() query: QueryCompetitionDto) {
     // 公开只展示已发布及之后状态的赛事
     return this.service.listCompetitions({ ...query, status: query.status || undefined });
+  }
+
+  // ── 人才库（二期·赛-P4）——静态路径须先于 :id 声明，否则被详情通配吞掉 ──
+
+  @Get("talents")
+  @ApiOperation({ summary: "赛事人才榜（公开·脱敏昵称头像+战绩·含讲师认证标）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  listTalents(@Query("page") page?: string, @Query("pageSize") pageSize?: string) {
+    return this.talent.listTalents(page, pageSize);
+  }
+
+  @Get("talents/me")
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "我的赛事战绩档案（完整轨迹+榜上位次+认证状态）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  myTalentProfile(@Req() req: Request) {
+    return this.talent.getMyProfile(req.user.id);
   }
 
   @Get(":id")

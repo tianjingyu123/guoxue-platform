@@ -5,6 +5,7 @@ import { CompetitionAdminController, CompetitionPublicController, CompetitionJud
 import { CompetitionService } from "./competition.service";
 import { CompetitionAdminService } from "./competition-admin.service";
 import { StageFlowService } from "./stage-flow.service";
+import { TalentService } from "./talent.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 
@@ -53,6 +54,11 @@ const mockAdminService: Record<string, jest.Mock> = {
 const mockStageFlow: Record<string, jest.Mock> = {
   forceAdvance: jest.fn(),
   getFlowStatus: jest.fn(),
+};
+
+const mockTalent: Record<string, jest.Mock> = {
+  listTalents: jest.fn(),
+  getMyProfile: jest.fn(),
 };
 
 const mockGuard: CanActivate = { canActivate: () => true };
@@ -224,7 +230,10 @@ describe("CompetitionPublicController", () => {
   beforeAll(async () => {
     const mod = await Test.createTestingModule({
       controllers: [CompetitionPublicController],
-      providers: [{ provide: CompetitionService, useValue: mockService }],
+      providers: [
+        { provide: CompetitionService, useValue: mockService },
+        { provide: TalentService, useValue: mockTalent },
+      ],
     })
       .overrideGuard(JwtAuthGuard).useValue(mockGuard)
       .compile();
@@ -293,6 +302,20 @@ describe("CompetitionPublicController", () => {
     mockService.getCertificateHtml.mockResolvedValue("<html>证书</html>" as any);
     const result: any = await ctrl.viewCertificate("rank1");
     expect(result).toContain("证书");
+  });
+
+  it("人才榜（公开·透传分页）", async () => {
+    mockTalent.listTalents.mockResolvedValue({ rows: [], total: 0, page: 1, pageSize: 20, _paginated: true } as any);
+    const result: any = await ctrl.listTalents("1", "20");
+    expect(result.total).toBe(0);
+    expect(mockTalent.listTalents).toHaveBeenCalledWith("1", "20");
+  });
+
+  it("我的战绩档案（JWT·取当前用户）", async () => {
+    mockTalent.getMyProfile.mockResolvedValue({ userId: "u1", talentScore: 102 } as any);
+    const result: any = await ctrl.myTalentProfile({ user: { id: "u1", roles: [] as RoleType[] } } as any);
+    expect(result.talentScore).toBe(102);
+    expect(mockTalent.getMyProfile).toHaveBeenCalledWith("u1");
   });
 });
 

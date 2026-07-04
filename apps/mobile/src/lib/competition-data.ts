@@ -120,6 +120,45 @@ export interface MyResults {
   rankings: Ranking[]
 }
 
+// ─────────── 人才库（二期·赛-P4） ───────────
+/** 战绩徽章（公开榜只回奖牌；我的档案回完整轨迹含 PARTICIPANT） */
+export interface TalentMedal {
+  competitionId: string
+  title: string
+  status: PromotionStatus | 'PARTICIPANT'
+  rank?: number | null
+  score?: number
+  finishedAt?: string
+}
+
+/** 人才榜条目（后端已脱敏：昵称掩码·只出头像与战绩） */
+export interface TalentItem {
+  position: number
+  userId: string
+  nickname: string
+  avatar?: string | null
+  bestRank?: number | null
+  totalCompetitions: number
+  totalWins: number
+  talentScore: number
+  medals: TalentMedal[]
+  isCertified: boolean
+  verifiedTitle?: string | null
+}
+
+/** 我的战绩档案 */
+export interface MyTalentProfile {
+  userId: string
+  bestRank?: number | null
+  totalCompetitions: number
+  totalWins: number
+  talentScore: number
+  badges: TalentMedal[]
+  position?: number | null
+  isCertified: boolean
+  verifiedTitle?: string | null
+}
+
 export interface PaperAnswerItem { questionId: string; answer: Record<string, any>; duration?: number }
 export interface BatchSubmitResult {
   totalScore: number
@@ -239,6 +278,17 @@ export const competitionApi = {
   /** 单题提交（登录） */
   submitAnswer(roundId: string, body: { registrationId: string; roundId: string; questionId: string; answer: Record<string, any>; duration?: number }) {
     return apiPost(`/competitions/rounds/${roundId}/submit`, body)
+  },
+  /** 人才榜（公开·脱敏·按 talentScore 降序） */
+  talents(params: { page?: number; pageSize?: number } = {}) {
+    const q = new URLSearchParams()
+    q.set('page', String(params.page ?? 1))
+    q.set('pageSize', String(params.pageSize ?? 50))
+    return apiGetPaged<TalentItem>(`/competitions/talents?${q.toString()}`)
+  },
+  /** 我的战绩档案（登录） */
+  myTalent() {
+    return apiGet<MyTalentProfile>('/competitions/talents/me')
   },
   /** 电子证书 HTML（公开，返回 base64） */
   async certificateHtml(rankingId: string): Promise<string> {

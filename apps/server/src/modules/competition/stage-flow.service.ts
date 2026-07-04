@@ -2,6 +2,7 @@ import { Injectable, Logger, NotFoundException, BadRequestException } from "@nes
 import { Cron, CronExpression } from "@nestjs/schedule";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
+import { TalentService } from "./talent.service";
 
 /** 晋级规则（与 stagesConfig.advanceRule 契约一致，P1 已做入库校验） */
 interface AdvanceRule {
@@ -78,6 +79,7 @@ export class StageFlowService {
   constructor(
     private prisma: PrismaService,
     private redis: RedisService,
+    private talent: TalentService,
   ) {}
 
   // ═══════════════════ cron 入口 ═══════════════════
@@ -395,6 +397,10 @@ export class StageFlowService {
       where: { id: stage.competitionId, status: { in: [...FLOWABLE_COMPETITION_STATUS] } },
       data: { status: "FINISHED", finishedAt: new Date() },
     });
+
+    // 赛-P4 人才沉淀：收官后重算参赛者 talent 档案（badges 判重幂等·失败不阻塞收官）
+    await this.talent.recalcForCompetition(stage.competitionId).catch((err: Error) =>
+      this.logger.error(`人才档案重算失败 competition=${stage.competitionId}: ${err.message}`));
 
     const label: Record<string, string> = {
       CHAMPION: "冠军",

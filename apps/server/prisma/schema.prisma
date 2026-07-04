@@ -139,6 +139,7 @@ model User {
   competitionInvitations  CompetitionInvitation[] @relation("CompetitionInviterLink")
   competitionInvitedBy    CompetitionInvitation[] @relation("CompetitionInviteeLink")
   competitionArticles     CompetitionArticle[]
+  competitionTalent       CompetitionTalent?
   specialTeacher          SpecialTeacher?
   inviteCode              CompetitionInviteCode?  @relation(fields: [competitionInviteCodeId], references: [id])
   competitionInviteCodeId String?
@@ -6013,6 +6014,23 @@ model CompetitionArticle {
   @@index([competitionId])
   @@index([isFeatured])
   @@index([qualityRating])
+}
+
+// 赛事人才档案（二期·赛-P4 人才沉淀：赛事 FINISHED 收官时重算·生态出口=人才→讲师转化）
+model CompetitionTalent {
+  id                String   @id @default(cuid())
+  userId            String   @unique // 一人一档
+  bestRank          Int? // 历史最好名次（1=冠军；null=尚无终榜名次）
+  totalCompetitions Int      @default(0) // 累计参赛数（收官赛事计数·badges 判重防重复累计）
+  totalWins         Int      @default(0) // 累计夺冠数
+  talentScore       Int      @default(0) // 人才积分：冠军100/亚军60/季军40/每次晋级10/参与2 加权累计
+  badges            Json     @default("[]") // 战绩徽章 [{competitionId,title,status,rank,score,finishedAt}]（含 competitionId 判重幂等）
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([talentScore])
 }
 
 // 特约老师评定记录

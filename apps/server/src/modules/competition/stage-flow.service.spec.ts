@@ -1,6 +1,7 @@
 import { Test } from "@nestjs/testing";
 import { BadRequestException, NotFoundException } from "@nestjs/common";
 import { StageFlowService } from "./stage-flow.service";
+import { TalentService } from "./talent.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 
@@ -48,6 +49,11 @@ const mockRedis = {
   runExclusive: jest.fn((_n: string, _t: number, fn: () => Promise<unknown>) => fn()),
 };
 
+// 赛-P4 人才沉淀（收官处接线·失败不阻塞收官）
+const mockTalent = {
+  recalcForCompetition: jest.fn().mockResolvedValue({ processed: 0, skipped: 0 }),
+};
+
 const COMP = { id: "c1", title: "经学杯", status: "PUBLISHED" };
 const now = new Date("2026-07-04T12:00:00Z");
 const hoursAgo = (h: number) => new Date(now.getTime() - h * 3600 * 1000);
@@ -87,6 +93,7 @@ describe("StageFlowService", () => {
         StageFlowService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: RedisService, useValue: mockRedis },
+        { provide: TalentService, useValue: mockTalent },
       ],
     }).compile();
     service = mod.get(StageFlowService);
@@ -112,6 +119,7 @@ describe("StageFlowService", () => {
       typeof arg === "function" ? arg(mockPrisma) : Promise.all(arg));
     mockRedis.setNX.mockResolvedValue(true);
     mockRedis.runExclusive.mockImplementation((_n: string, _t: number, fn: () => Promise<unknown>) => fn());
+    mockTalent.recalcForCompetition.mockResolvedValue({ processed: 0, skipped: 0 });
   });
 
   // ═══════ cron 入口 ═══════

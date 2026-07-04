@@ -5,7 +5,10 @@
       <view class="nav-inner">
         <view class="nav-btn" @click="goBack"><app-icon name="arrow-left" :size="20" color="#fff" /></view>
         <text class="nav-title">赛事中心</text>
-        <text class="nav-link" @click="go('/competition/archive')">往届</text>
+        <view class="nav-links">
+          <text class="nav-link" @click="go('/pkg-competition/talents/index')">人才榜</text>
+          <text class="nav-link" @click="go('/competition/archive')">往届</text>
+        </view>
       </view>
     </view>
 
@@ -209,6 +212,7 @@ onMounted(() => {
 .nav-inner { height: 44px; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; }
 .nav-btn { width: 32px; height: 32px; display: flex; align-items: center; }
 .nav-title { color: #fff; font-size: 16px; font-weight: 500; }
+.nav-links { display: flex; align-items: center; gap: 12px; }
 .nav-link { color: rgba(255,255,255,0.8); font-size: 14px; }
 .scroll { width: 100%; }
 .search-wrap { padding: 12px 16px; background: #fff; border-bottom: 1rpx solid #eee; }
