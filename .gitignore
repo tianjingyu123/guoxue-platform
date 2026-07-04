@@ -74,3 +74,5 @@ v0-compare/
 .claude-tmp-*
 .api-sync/
 apps/server/scripts/classics-prod-payload.json*
+
+*.bundle
