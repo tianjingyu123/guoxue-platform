@@ -4617,6 +4617,8 @@ model Merchant {
   reviewedBy      String? // 审核人ID
   reviewedAt      DateTime? // 审核时间
   remark          String? // 内部备注
+  creditScore     Int            @default(60) // 信用分（0-100·履-P2 周更 cron 按 30 日 MerchantMetric 算得·新商家 60 分起评）
+  creditGrade     String         @default("B") // 信用等级 A/B/C/D（A≥85/B70-84/C55-69/D<55·默认 B 为设计拍板的新商家起始待遇）
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
 
@@ -4734,6 +4736,19 @@ model MerchantMetric {
 
   @@unique([merchantId, date])
   @@index([date])
+}
+
+/// 商家信用分变动日志（履-P2）：周更 cron 每周每商家一条，factors 存算分因子明细（透明可复算）
+/// 与 MerchantMetric 同范式：不建 Merchant 关系字段，merchantId 索引查询
+model MerchantCreditLog {
+  id         String   @id @default(uuid())
+  merchantId String
+  oldScore   Int // 变动前信用分
+  newScore   Int // 变动后信用分
+  factors    Json // 因子明细：{ windowDays, weekKey, observation, factors: { ship/refundReturn/rating/complaint/qc/tenure } }
+  createdAt  DateTime @default(now())
+
+  @@index([merchantId])
 }
 
 // ─────────────────────────────────────────────────

@@ -182,17 +182,19 @@ export class ShopService {
 
     // 商家公开信息（用于详情页「进店」入口）。商品经创建者 userId 归属商家（Product.userId = Merchant.userId）；
     // 自营商品（创建者非商家）或商家未开通 ACTIVE 则为 null，前端据此诚实降级隐藏入口。
-    let merchant: { id: string; shopName: string; shopLogo: string | null } | null = null;
+    let merchant: { id: string; shopName: string; shopLogo: string | null; creditGrade: string } | null = null;
     if (product.userId) {
       merchant = await this.prisma.merchant.findFirst({
         where: { userId: product.userId, status: "ACTIVE" },
-        select: { id: true, shopName: true, shopLogo: true },
+        select: { id: true, shopName: true, shopLogo: true, creditGrade: true },
       });
     }
 
     return {
       ...product,
       merchant,
+      // 严选标（履-P2 权益挂钩）：商家信用 A 级即严选，前端商品详情展示「严选」标识
+      isSelected: merchant?.creditGrade === "A",
       price: Number(product.price),
       originalPrice: Number(product.price),
       baseListPrice: product.originalPrice ? Number(product.originalPrice) : undefined,
@@ -220,6 +222,10 @@ export class ShopService {
     }
 
     // 排序下沉：销量/价格升降/最新；default 同最新
+    // TODO(履-P2·流量加权)：设计§三 A 级商家商品应在推荐/默认排序中加权。Prisma orderBy 无法按
+    // 「商家(经 Product.userId 关联 Merchant.creditGrade)」跨表加权，需 $queryRaw JOIN 或引入推荐层
+    // 排序服务，且须叠加「观察期新商家(<30 天)不参与加权」条件——接线复杂，留 P3/推荐课题单独做。
+    // 本批已交付①严选标(isSelected)与②结算周期，A 级权益先以显性标识生效。
     const orderBy: Prisma.ProductOrderByWithRelationInput =
       sort === "sales" ? { salesCount: "desc" }
       : sort === "price_asc" ? { price: "asc" }
@@ -245,6 +251,18 @@ export class ShopService {
     );
     const priceMap = new Map(pricingResults.map(r => [r.productId, r]));
 
+    // 严选标（履-P2 权益挂钩）：批量查本页商品供应商中信用 A 级的 ACTIVE 商家（经 Product.userId 归属），
+    // 商品卡附 isSelected；自营/无商家归属的商品不带标（诚实 false）
+    const ownerIds = [...new Set(products.map(p => p.userId).filter((v): v is string => !!v))];
+    const selectedOwners = ownerIds.length
+      ? new Set(
+          (await this.prisma.merchant.findMany({
+            where: { userId: { in: ownerIds }, status: "ACTIVE", creditGrade: "A" },
+            select: { userId: true },
+          })).map(m => m.userId),
+        )
+      : new Set<string>();
+
     const enriched = products.map(p => {
       const up = priceMap.get(p.id);
       return {
@@ -254,6 +272,7 @@ export class ShopService {
         effectivePrice: up?.effectivePrice ?? Number(p.price),
         hasPromotion: up?.hasPromotion ?? false,
         promotionTag: up?.promotionTag,
+        isSelected: !!p.userId && selectedOwners.has(p.userId),
       };
     });
 
@@ -306,7 +325,7 @@ export class ShopService {
       where: { id: merchantId, status: "ACTIVE" },
       select: {
         id: true, userId: true, shopName: true, shopLogo: true, shopIntro: true,
-        rating: true, totalSales: true, totalOrders: true, openedAt: true,
+        rating: true, totalSales: true, totalOrders: true, openedAt: true, creditGrade: true,
       },
     });
     if (!merchant) throw new BusinessException(ErrorCode.NOT_FOUND, "店铺不存在或未开通");
@@ -341,6 +360,8 @@ export class ShopService {
         totalOrders: merchant.totalOrders,
         openedAt: merchant.openedAt,
         productCount: total,
+        // 严选标（履-P2 权益挂钩）：A 级店铺主页展示「严选」信任背书
+        isSelected: merchant.creditGrade === "A",
       },
       products: enriched,
       total,

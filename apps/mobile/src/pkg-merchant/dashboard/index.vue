@@ -122,6 +122,41 @@
         </view>
       </view>
 
+      <!-- 信用评级（履-P2·独立三态，不阻塞主数据） -->
+      <view class="dash-section">
+        <view class="dash-card">
+          <view class="dash-card-head dash-mb">
+            <text class="dash-card-title">信用评级</text>
+            <text v-if="credit && credit.logs.length" class="dash-more-txt" @tap="creditPopupOpen = true">变动明细</text>
+          </view>
+          <view v-if="creditLoading" class="dash-metric-state">
+            <text class="dash-metric-state-txt">加载中…</text>
+          </view>
+          <view v-else-if="creditError" class="dash-metric-state">
+            <text class="dash-metric-state-txt">{{ creditError }}</text>
+            <view class="dash-metric-retry" @tap="loadCredit"><text>重试</text></view>
+          </view>
+          <template v-else-if="credit">
+            <view class="dash-credit-row">
+              <view class="dash-credit-score-wrap">
+                <text class="dash-credit-score">{{ credit.creditScore }}</text>
+                <text class="dash-credit-score-unit">分</text>
+              </view>
+              <view class="dash-credit-grade" :style="{ color: gradeUi.color, background: gradeUi.bg }">
+                <text class="dash-credit-grade-txt">{{ gradeUi.label }}</text>
+              </view>
+            </view>
+            <view class="dash-credit-benefits">
+              <text class="dash-credit-benefit">结算 T+{{ credit.benefits.settlementCycleDays }}</text>
+              <text class="dash-credit-benefit">抽检{{ credit.benefits.qcFrequency }}</text>
+              <text v-if="credit.benefits.selectedBadge" class="dash-credit-benefit dash-credit-benefit-hl">严选标</text>
+            </view>
+            <text v-if="credit.observation" class="dash-credit-obs">新店观察期（开店 30 天内）：正常计分，暂不参与流量加权</text>
+            <text v-else-if="!credit.logs.length" class="dash-credit-obs">信用分每周一凌晨按近 30 日履约数据更新</text>
+          </template>
+        </view>
+      </view>
+
       <!-- 待处理事项 -->
       <view class="dash-section">
         <view class="dash-card">
@@ -179,6 +214,34 @@
         </view>
       </view>
     </template>
+
+    <!-- 信用变动明细弹层（周更 log·因子透明可复算） -->
+    <view v-if="creditPopupOpen" class="dash-pop-mask" @tap="creditPopupOpen = false">
+      <view class="dash-pop" @tap.stop>
+        <view class="dash-pop-head">
+          <text class="dash-pop-title">信用变动明细</text>
+          <view class="dash-pop-close" @tap="creditPopupOpen = false">
+            <AppIcon name="x" :size="20" color="#6b7280" />
+          </view>
+        </view>
+        <scroll-view scroll-y class="dash-pop-body">
+          <view v-for="log in credit?.logs ?? []" :key="log.id" class="dash-pop-log">
+            <view class="dash-pop-log-head">
+              <text class="dash-pop-log-week">{{ log.factors?.weekKey || fmtDate(log.createdAt) }} 周评估</text>
+              <text class="dash-pop-log-delta" :class="deltaClass(log)">
+                {{ log.oldScore }} → {{ log.newScore }}
+              </text>
+            </view>
+            <view v-if="log.factors?.factors" class="dash-pop-factors">
+              <view v-for="(fd, key) in log.factors.factors" :key="key" class="dash-pop-factor">
+                <text class="dash-pop-factor-name">{{ creditFactorNames[key] || key }}</text>
+                <text class="dash-pop-factor-score">{{ fd.score }}/{{ fd.weight }}{{ fd.neutral ? '（中性）' : '' }}</text>
+              </view>
+            </view>
+          </view>
+        </scroll-view>
+      </view>
+    </view>
   </view>
 </template>
 
@@ -193,6 +256,10 @@ import {
   type MerchantNotice,
   type MerchantStatus,
   type MerchantMetricsResp,
+  type MerchantCreditResp,
+  type MerchantCreditLogItem,
+  creditGradeConfig,
+  creditFactorNames,
 } from '@/lib/merchant-data'
 
 const statusBarHeight = ref(0)
@@ -206,6 +273,13 @@ const notices = ref<MerchantNotice[]>([])
 const metricsLoading = ref(true)
 const metricsError = ref('')
 const metrics = ref<MerchantMetricsResp | null>(null)
+
+// 信用评级卡（履-P2·独立三态，失败不阻塞工作台主数据）
+const creditLoading = ref(true)
+const creditError = ref('')
+const credit = ref<MerchantCreditResp | null>(null)
+const creditPopupOpen = ref(false)
+const gradeUi = computed(() => creditGradeConfig[credit.value?.creditGrade ?? 'B'] ?? creditGradeConfig.B)
 
 const actions = [
   { label: '商品管理', icon: 'package', color: '#c41e3a', bg: '#fee2e2', path: '/merchant/products' },
@@ -243,6 +317,29 @@ function rateClass(v: string | number | null, threshold: number, higherBetter: b
   const n = Number(v)
   const bad = higherBetter ? n < threshold : n > threshold
   return bad ? 'dash-metric-bad' : 'dash-metric-good'
+}
+
+function fmtDate(iso: string): string {
+  return (iso || '').slice(0, 10)
+}
+
+/** 分数变动着色：升绿降红，持平默认 */
+function deltaClass(log: MerchantCreditLogItem): string {
+  if (log.newScore > log.oldScore) return 'dash-pop-up'
+  if (log.newScore < log.oldScore) return 'dash-pop-down'
+  return ''
+}
+
+async function loadCredit() {
+  creditLoading.value = true
+  creditError.value = ''
+  try {
+    credit.value = await merchantBackendApi.getMyCredit()
+  } catch (e) {
+    creditError.value = (e as Error)?.message || '信用数据加载失败'
+  } finally {
+    creditLoading.value = false
+  }
 }
 
 async function loadMetrics() {
@@ -288,6 +385,7 @@ onMounted(() => {
   uni.getSystemInfo({ success: (e) => { statusBarHeight.value = e.statusBarHeight || 0 } })
   load()
   loadMetrics()
+  loadCredit()
 })
 </script>
 
@@ -359,6 +457,34 @@ onMounted(() => {
 .dash-metric-state-txt { font-size: 13px; color: #9ca3af; text-align: center; }
 .dash-metric-retry { padding: 4px 16px; border: 1px solid #d1d5db; border-radius: 6px; }
 .dash-metric-retry text { font-size: 12px; color: #1a1a1a; }
+
+.dash-credit-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.dash-credit-score-wrap { display: flex; align-items: baseline; gap: 4px; }
+.dash-credit-score { font-size: 32px; font-weight: 700; color: #1a1a1a; }
+.dash-credit-score-unit { font-size: 12px; color: #6b7280; }
+.dash-credit-grade { padding: 4px 12px; border-radius: 999px; }
+.dash-credit-grade-txt { font-size: 14px; font-weight: 600; color: inherit; }
+.dash-credit-benefits { display: flex; flex-wrap: wrap; gap: 8px; }
+.dash-credit-benefit { font-size: 11px; color: #6b7280; background: #f3f4f6; padding: 3px 8px; border-radius: 4px; }
+.dash-credit-benefit-hl { color: #b45309; background: #fef3c7; font-weight: 600; }
+.dash-credit-obs { display: block; font-size: 11px; color: #9ca3af; margin-top: 10px; }
+
+.dash-pop-mask { position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 999; display: flex; align-items: flex-end; }
+.dash-pop { width: 100%; background: #fff; border-radius: 16px 16px 0 0; padding: 16px; max-height: 70vh; display: flex; flex-direction: column; }
+.dash-pop-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.dash-pop-title { font-size: 16px; font-weight: 600; color: #1a1a1a; }
+.dash-pop-close { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; }
+.dash-pop-body { flex: 1; overflow: hidden; max-height: 56vh; }
+.dash-pop-log { border: 1px solid #f3f4f6; border-radius: 10px; padding: 12px; margin-bottom: 10px; }
+.dash-pop-log-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.dash-pop-log-week { font-size: 13px; font-weight: 600; color: #1a1a1a; }
+.dash-pop-log-delta { font-size: 13px; font-weight: 600; color: #6b7280; }
+.dash-pop-log-delta.dash-pop-up { color: #16a34a; }
+.dash-pop-log-delta.dash-pop-down { color: #dc2626; }
+.dash-pop-factors { display: flex; flex-direction: column; gap: 4px; }
+.dash-pop-factor { display: flex; align-items: center; justify-content: space-between; }
+.dash-pop-factor-name { font-size: 12px; color: #6b7280; }
+.dash-pop-factor-score { font-size: 12px; color: #1a1a1a; }
 
 .dash-state { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 64px 24px; }
 .dash-state-txt { font-size: 14px; color: #9ca3af; text-align: center; }

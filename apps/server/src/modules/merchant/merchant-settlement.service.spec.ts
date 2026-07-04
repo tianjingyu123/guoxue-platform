@@ -75,10 +75,15 @@ describe("MerchantSettlementService", () => {
   });
 
   describe("generateSettlement", () => {
-    const dto = { periodStart: "2026-06-01", periodEnd: "2026-06-30" };
+    const DAY_MS = 86_400_000;
+    // 相对日期：周期结束于 30 天前，任何等级的 T+N 结算周期校验都能通过（避免固定日期随时间流逝翻绿翻红）
+    const dto = {
+      periodStart: new Date(Date.now() - 60 * DAY_MS).toISOString(),
+      periodEnd: new Date(Date.now() - 30 * DAY_MS).toISOString(),
+    };
 
     it("含分金额不丢分：分账两者之和严格等于总额", async () => {
-      mockPrisma.merchant.findUnique.mockResolvedValue({ id: "m1", commissionRate: 0.85 });
+      mockPrisma.merchant.findUnique.mockResolvedValue({ id: "m1", commissionRate: 0.85, creditGrade: "B" });
       mockPrisma.merchantSettlement.findFirst.mockResolvedValue(null); // 无重叠
       // 订单总额 ¥1234.56（含分），旧逻辑会截整到 1235 元丢分
       mockPrisma.order.aggregate.mockResolvedValue({ _sum: { amount: 1234.56 }, _count: 10 });
@@ -99,16 +104,59 @@ describe("MerchantSettlementService", () => {
     });
 
     it("周期内无可结算订单抛出异常", async () => {
-      mockPrisma.merchant.findUnique.mockResolvedValue({ id: "m1", commissionRate: 0.85 });
+      mockPrisma.merchant.findUnique.mockResolvedValue({ id: "m1", commissionRate: 0.85, creditGrade: "B" });
       mockPrisma.merchantSettlement.findFirst.mockResolvedValue(null);
       mockPrisma.order.aggregate.mockResolvedValue({ _sum: { amount: 0 }, _count: 0 });
       await expect(svc.generateSettlement("m1", dto as any)).rejects.toThrow(BusinessException);
     });
 
     it("周期重叠已有结算单则拒绝重复生成", async () => {
-      mockPrisma.merchant.findUnique.mockResolvedValue({ id: "m1", commissionRate: 0.85 });
+      mockPrisma.merchant.findUnique.mockResolvedValue({ id: "m1", commissionRate: 0.85, creditGrade: "B" });
       mockPrisma.merchantSettlement.findFirst.mockResolvedValue({ id: "s-exist" });
       await expect(svc.generateSettlement("m1", dto as any)).rejects.toThrow(BusinessException);
+    });
+
+    // ── 履-P2 信用等级结算周期（T+N）挂钩 ──
+
+    it("B 级 T+7：周期结束日在 5 天前 → 未过沉淀期被拒", async () => {
+      mockPrisma.merchant.findUnique.mockResolvedValue({ id: "m1", commissionRate: 0.85, creditGrade: "B" });
+      const recent = {
+        periodStart: new Date(Date.now() - 15 * DAY_MS).toISOString(),
+        periodEnd: new Date(Date.now() - 5 * DAY_MS).toISOString(),
+      };
+      await expect(svc.generateSettlement("m1", recent as any)).rejects.toThrow("T+7");
+      // 校验发生在查重/聚合之前
+      expect(mockPrisma.merchantSettlement.findFirst).not.toHaveBeenCalled();
+    });
+
+    it("A 级 T+3：同样结束于 5 天前的周期 → 允许生成（回款提速权益）", async () => {
+      mockPrisma.merchant.findUnique.mockResolvedValue({ id: "m1", commissionRate: 0.85, creditGrade: "A" });
+      mockPrisma.merchantSettlement.findFirst.mockResolvedValue(null);
+      mockPrisma.order.aggregate.mockResolvedValue({ _sum: { amount: 100 }, _count: 1 });
+      mockPrisma.merchantSettlement.create.mockImplementation((args: any) => Promise.resolve(args.data));
+      const recent = {
+        periodStart: new Date(Date.now() - 15 * DAY_MS).toISOString(),
+        periodEnd: new Date(Date.now() - 5 * DAY_MS).toISOString(),
+      };
+      const result: any = await svc.generateSettlement("m1", recent as any);
+      expect(result.totalRevenue).toBe(100);
+    });
+
+    it("D 级 T+14：周期结束日在 10 天前 → 结算延长被拒；缺 creditGrade 回落 B 档", async () => {
+      const recent = {
+        periodStart: new Date(Date.now() - 20 * DAY_MS).toISOString(),
+        periodEnd: new Date(Date.now() - 10 * DAY_MS).toISOString(),
+      };
+      mockPrisma.merchant.findUnique.mockResolvedValue({ id: "m1", commissionRate: 0.85, creditGrade: "D" });
+      await expect(svc.generateSettlement("m1", recent as any)).rejects.toThrow("T+14");
+
+      // 历史行未回填 creditGrade（undefined）→ 回落默认 B 档 T+7，10 天前的结束日可过校验
+      mockPrisma.merchant.findUnique.mockResolvedValue({ id: "m1", commissionRate: 0.85 });
+      mockPrisma.merchantSettlement.findFirst.mockResolvedValue(null);
+      mockPrisma.order.aggregate.mockResolvedValue({ _sum: { amount: 100 }, _count: 1 });
+      mockPrisma.merchantSettlement.create.mockImplementation((args: any) => Promise.resolve(args.data));
+      const result: any = await svc.generateSettlement("m1", recent as any);
+      expect(result.totalRevenue).toBe(100);
     });
   });
 

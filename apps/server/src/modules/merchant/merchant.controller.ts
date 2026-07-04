@@ -8,6 +8,7 @@ import { MerchantService } from "./merchant.service";
 import { MerchantDepositService } from "./merchant-deposit.service";
 import { MerchantAgreementService } from "./merchant-agreement.service";
 import { MerchantMetricService } from "./merchant-metric.service";
+import { MerchantCreditService } from "./merchant-credit.service";
 import { MerchantGuard } from "./merchant.guard";
 import {
   CreateMerchantApplyDto, UpdateMerchantApplyDto,
@@ -28,6 +29,7 @@ export class MerchantController {
     private readonly depositService: MerchantDepositService,
     private readonly agreementService: MerchantAgreementService,
     private readonly metricService: MerchantMetricService,
+    private readonly creditService: MerchantCreditService,
   ) {}
 
   @Get("my/metrics")
@@ -39,6 +41,17 @@ export class MerchantController {
   getMyMetrics(@Req() req: AuthRequest, @Query("days") days?: string) {
     const merchant = (req as unknown as { merchant: { id: string } }).merchant;
     return this.metricService.getMyMetrics(merchant.id, days);
+  }
+
+  @Get("my/credit")
+  @ApiOperation({ summary: "商家本人信用分与等级权益（含变动 log 明细·履-P2）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  // 同 my/metrics：方法级覆盖类级 ONBOARDING 开关，MerchantGuard 校验 ACTIVE 商家身份
+  @RequireFeature(MERCHANT_FEATURE_FLAGS.BACKEND)
+  @UseGuards(MerchantGuard)
+  getMyCredit(@Req() req: AuthRequest) {
+    const merchant = (req as unknown as { merchant: { id: string } }).merchant;
+    return this.creditService.getMyCredit(merchant.id);
   }
 
   @Post("apply")

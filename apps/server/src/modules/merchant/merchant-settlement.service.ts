@@ -5,6 +5,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { SystemService } from "../system/system.service";
 import { MERCHANT_CONFIG_KEYS } from "./merchant.types";
+import { MERCHANT_GRADE_BENEFITS, type CreditGrade } from "./merchant-credit.service";
 import {
   SetCommissionRateDto,
   GenerateSettlementDto,
@@ -76,6 +77,19 @@ export class MerchantSettlementService {
 
     const periodStart = new Date(dto.periodStart);
     const periodEnd = new Date(dto.periodEnd);
+
+    // 结算周期按信用等级（履-P2 权益挂钩·设计§三）：A 级 T+3 / B·C 级 T+7 / D 级 T+14。
+    // T+N 语义 = 周期结束日须早于 now-N 天，订单沉淀 N 天（覆盖退款窗口）后才可入结算单；A 级商家回款提速。
+    const grade: CreditGrade = (merchant.creditGrade as CreditGrade) in MERCHANT_GRADE_BENEFITS
+      ? (merchant.creditGrade as CreditGrade)
+      : "B";
+    const cycleDays = MERCHANT_GRADE_BENEFITS[grade].settlementCycleDays;
+    if (periodEnd.getTime() > Date.now() - cycleDays * 86_400_000) {
+      throw new BusinessException(
+        ErrorCode.BAD_REQUEST,
+        `按商家信用等级 ${grade}，结算周期为 T+${cycleDays}：结算周期结束日须早于 ${cycleDays} 天前`,
+      );
+    }
 
     // 检查是否有重叠的结算单
     const existing = await this.prisma.merchantSettlement.findFirst({

@@ -285,6 +285,9 @@ export const merchantBackendApi = {
 
   // 履约健康（履-P1·后端 GET /merchant/my/metrics·MerchantGuard 商家身份校验）
   getMyMetrics: (days = 7) => apiGet<MerchantMetricsResp>(`/merchant/my/metrics?days=${days}`),
+
+  // 信用评级（履-P2·后端 GET /merchant/my/credit·分数/等级/权益 + 周更变动 log 明细）
+  getMyCredit: () => apiGet<MerchantCreditResp>('/merchant/my/credit'),
 }
 
 // ───────── 履约健康指标（履-P1） ─────────
@@ -317,6 +320,71 @@ export interface MerchantMetricsResp {
   days: number
   items: MerchantMetricItem[]
   summary: MerchantMetricsSummary
+}
+
+// ───────── 信用评级（履-P2） ─────────
+
+export type MerchantCreditGrade = 'A' | 'B' | 'C' | 'D'
+
+/** 单因子明细（log.factors.factors 内条目·后端算分透明可复算） */
+export interface MerchantCreditFactorDetail {
+  weight: number
+  value: number | null // 因子原始值（率/均分/月数），缺数据 null
+  score: number
+  neutral: boolean // 是否缺数据中性处理
+  note?: string
+}
+
+export interface MerchantCreditLogItem {
+  id: string
+  oldScore: number
+  newScore: number
+  factors: {
+    windowDays: number
+    weekKey: string // 评估所属周的周一 YYYY-MM-DD
+    observation: boolean
+    factors: {
+      ship: MerchantCreditFactorDetail
+      refundReturn: MerchantCreditFactorDetail
+      rating: MerchantCreditFactorDetail
+      complaint: MerchantCreditFactorDetail
+      qc: MerchantCreditFactorDetail
+      tenure: MerchantCreditFactorDetail
+    }
+  }
+  createdAt: string
+}
+
+export interface MerchantCreditResp {
+  creditScore: number
+  creditGrade: MerchantCreditGrade
+  observation: boolean // 新商家观察期（<30 天·不参与流量加权）
+  benefits: {
+    label: string
+    settlementCycleDays: number
+    qcFrequency: string
+    trafficBoost: boolean
+    selectedBadge: boolean
+  }
+  logs: MerchantCreditLogItem[]
+}
+
+/** 信用等级展示映射（纯展示配置，非 mock 数据） */
+export const creditGradeConfig: Record<MerchantCreditGrade, { label: string; color: string; bg: string }> = {
+  A: { label: 'A 严选', color: '#b45309', bg: '#fef3c7' },
+  B: { label: 'B 良好', color: '#15803d', bg: '#dcfce7' },
+  C: { label: 'C 观察', color: '#c2410c', bg: '#ffedd5' },
+  D: { label: 'D 高危', color: '#b91c1c', bg: '#fee2e2' },
+}
+
+/** 因子中文名（信用明细弹层展示） */
+export const creditFactorNames: Record<string, string> = {
+  ship: '发货时效',
+  refundReturn: '退款退货',
+  rating: '评价均分',
+  complaint: '投诉率',
+  qc: '品质抽检',
+  tenure: '经营时长',
 }
 
 // ───────── UI 配置常量（非 mock 数据，纯展示映射，页面可直接 import） ─────────
