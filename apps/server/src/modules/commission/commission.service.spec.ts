@@ -10,6 +10,8 @@ const mockPrisma = {
   stationEarning: { create: jest.fn(), findMany: jest.fn(), count: jest.fn(), aggregate: jest.fn(), findFirst: jest.fn() },
   station: { findUnique: jest.fn(), update: jest.fn() },
   operator: { findUnique: jest.fn(), update: jest.fn() },
+  order: { findUnique: jest.fn() },
+  product: { findUnique: jest.fn() },
   operatorEarning: { create: jest.fn(), createMany: jest.fn(), findMany: jest.fn(), count: jest.fn(), aggregate: jest.fn(), findFirst: jest.fn() },
   notification: { create: jest.fn().mockReturnValue({ catch: jest.fn() }) },
   withdrawal: { create: jest.fn(), findMany: jest.fn(), count: jest.fn(), findUnique: jest.fn(), update: jest.fn(), aggregate: jest.fn() },
@@ -166,14 +168,14 @@ describe("CommissionService", () => {
         .mockResolvedValueOnce({ id: "station-1", userId: "st-user", totalEarning: 0 })
         .mockResolvedValueOnce({ userId: "st-user", operatorId: "op-1" });
       mockPrisma.operator.findUnique.mockResolvedValue({
-        id: "op-1", userId: "op-user", level: "GOLD", parentOperatorId: "op-0", status: "ACTIVE",
+        id: "op-1", userId: "op-user", level: "GOLD", parentOperatorId: "op-0", status: "ACTIVE", channelType: "ONLINE", mgmtRate: null,
       });
       await svc.calculateAndRecord("order-1", "COURSE", 100, "referrer-1");
       expect(mockPrisma.operatorEarning.create).toHaveBeenCalledTimes(1);
       const arg = mockPrisma.operatorEarning.create.mock.calls[0][0];
       expect(arg.data.operatorId).toBe("op-1");
       expect(arg.data.source).toBe("MGMT_BONUS");
-      expect(arg.data.earned).toBe(1.2); // 站长佣金10 × GOLD 12%
+      expect(arg.data.earned).toBe(1); // 站长佣金10 × ONLINE 默认10%（V2改制·等级率作废·2026-07-04拍板）
       expect(arg.data.sourceOperatorId).toBeUndefined();
     });
 
@@ -203,6 +205,108 @@ describe("CommissionService", () => {
       });
       await svc.calculateAndRecord("order-1", "COURSE", 100, "referrer-1");
       expect(mockPrisma.operatorEarning.create).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("佣-V2-P1 商品级佣金（Product.commissionRate 取值链）", () => {
+    function mockStation() {
+      mockPrisma.station.findUnique.mockResolvedValue({ id: "station-1", userId: "st-user", totalEarning: 0 });
+      mockPrisma.stationEarning.create.mockResolvedValue({ id: "earning-1" });
+    }
+
+    it("PRODUCT 订单：逐品 commissionRate 覆盖类型默认 rateA", async () => {
+      mockPrisma.commissionConfig.findUnique.mockResolvedValue({ configKey: "product_platform", rateA: 0.2 });
+      mockStation();
+      mockPrisma.order.findUnique.mockResolvedValue({ userId: "buyer-1", targetId: "prod-1" });
+      mockPrisma.product.findUnique.mockResolvedValue({ commissionRate: 0.35 });
+      await svc.calculateAndRecord("order-1", "PRODUCT", 100, "referrer-1");
+      expect(mockPrisma.product.findUnique).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: "prod-1" } }),
+      );
+      const arg = mockPrisma.stationEarning.create.mock.calls[0][0];
+      expect(arg.data.rate).toBe(0.35);
+      expect(arg.data.earned).toBe(35);
+    });
+
+    it("PRODUCT 订单：commissionRate 为空回落类型默认 rateA", async () => {
+      mockPrisma.commissionConfig.findUnique.mockResolvedValue({ configKey: "product_platform", rateA: 0.2 });
+      mockStation();
+      mockPrisma.order.findUnique.mockResolvedValue({ userId: "buyer-1", targetId: "prod-1" });
+      mockPrisma.product.findUnique.mockResolvedValue({ commissionRate: null });
+      await svc.calculateAndRecord("order-1", "PRODUCT", 100, "referrer-1");
+      const arg = mockPrisma.stationEarning.create.mock.calls[0][0];
+      expect(arg.data.rate).toBe(0.2);
+      expect(arg.data.earned).toBe(20);
+    });
+
+    it("PRODUCT 订单：越界逐品率（≥1）视为无效回落 rateA", async () => {
+      mockPrisma.commissionConfig.findUnique.mockResolvedValue({ configKey: "product_platform", rateA: 0.2 });
+      mockStation();
+      mockPrisma.order.findUnique.mockResolvedValue({ userId: "buyer-1", targetId: "prod-1" });
+      mockPrisma.product.findUnique.mockResolvedValue({ commissionRate: 1.5 });
+      await svc.calculateAndRecord("order-1", "PRODUCT", 100, "referrer-1");
+      const arg = mockPrisma.stationEarning.create.mock.calls[0][0];
+      expect(arg.data.rate).toBe(0.2);
+      expect(arg.data.earned).toBe(20);
+    });
+
+    it("非 PRODUCT 订单不受逐品率影响（不查 Product）", async () => {
+      mockPrisma.commissionConfig.findUnique.mockResolvedValue({ configKey: "course_basic", rateA: 0.2 });
+      mockStation();
+      mockPrisma.product.findUnique.mockResolvedValue({ commissionRate: 0.99 });
+      await svc.calculateAndRecord("order-1", "COURSE", 100, "referrer-1", undefined, undefined, "buyer-1");
+      expect(mockPrisma.product.findUnique).not.toHaveBeenCalled();
+      const arg = mockPrisma.stationEarning.create.mock.calls[0][0];
+      expect(arg.data.rate).toBe(0.2);
+      expect(arg.data.earned).toBe(20);
+    });
+  });
+
+  describe("佣-V2-P1 管理奖改制（基数=站长实得佣金·比率=mgmtRate??渠道默认）", () => {
+    // 订单 1000 × rateA 10% → 站长佣金 100（管理奖基数）
+    function mockBase(operator: Record<string, unknown>) {
+      mockPrisma.commissionConfig.findUnique.mockResolvedValue({ configKey: "course_basic", rateA: 0.1 });
+      mockPrisma.stationEarning.create.mockResolvedValue({ id: "earning-1" });
+      mockPrisma.order.findUnique.mockResolvedValue({ userId: "buyer-1", targetId: "course-1" });
+      mockPrisma.station.findUnique
+        .mockResolvedValueOnce({ id: "station-1", userId: "st-user", totalEarning: 0 })
+        .mockResolvedValueOnce({ userId: "st-user", operatorId: "op-1" });
+      mockPrisma.operator.findUnique.mockResolvedValue(operator);
+    }
+
+    it("ONLINE 运营商默认 10%：站长佣金 100 → 管理奖 10", async () => {
+      mockBase({ id: "op-1", userId: "op-user", parentOperatorId: null, status: "ACTIVE", channelType: "ONLINE", mgmtRate: null });
+      await svc.calculateAndRecord("order-1", "COURSE", 1000, "referrer-1");
+      expect(mockPrisma.operatorEarning.create).toHaveBeenCalledTimes(1);
+      const arg = mockPrisma.operatorEarning.create.mock.calls[0][0];
+      expect(arg.data.amount).toBe(100); // 基数=站长实得佣金额（非订单原始金额 1000）
+      expect(arg.data.rate).toBe(0.1);
+      expect(arg.data.earned).toBe(10);
+    });
+
+    it("OFFLINE 运营商默认 20%：站长佣金 100 → 管理奖 20", async () => {
+      mockBase({ id: "op-1", userId: "op-user", parentOperatorId: null, status: "ACTIVE", channelType: "OFFLINE", mgmtRate: null });
+      await svc.calculateAndRecord("order-1", "COURSE", 1000, "referrer-1");
+      const arg = mockPrisma.operatorEarning.create.mock.calls[0][0];
+      expect(arg.data.amount).toBe(100);
+      expect(arg.data.rate).toBe(0.2);
+      expect(arg.data.earned).toBe(20);
+    });
+
+    it("mgmtRate 覆盖优先于 channelType 默认：0.15 → 管理奖 15", async () => {
+      mockBase({ id: "op-1", userId: "op-user", parentOperatorId: null, status: "ACTIVE", channelType: "OFFLINE", mgmtRate: 0.15 });
+      await svc.calculateAndRecord("order-1", "COURSE", 1000, "referrer-1");
+      const arg = mockPrisma.operatorEarning.create.mock.calls[0][0];
+      expect(arg.data.rate).toBe(0.15);
+      expect(arg.data.earned).toBe(15);
+    });
+
+    it("等级率(8/12/15/20%)不再参与计算：GOLD 等级 ONLINE 运营商仍按 10%", async () => {
+      mockBase({ id: "op-1", userId: "op-user", level: "GOLD", parentOperatorId: null, status: "ACTIVE", channelType: "ONLINE", mgmtRate: null });
+      await svc.calculateAndRecord("order-1", "COURSE", 1000, "referrer-1");
+      const arg = mockPrisma.operatorEarning.create.mock.calls[0][0];
+      expect(arg.data.rate).toBe(0.1); // 非 GOLD 12%
+      expect(arg.data.earned).toBe(10);
     });
   });
 

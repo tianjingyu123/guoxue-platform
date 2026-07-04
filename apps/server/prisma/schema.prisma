@@ -906,6 +906,7 @@ model Product {
   sceneTags      String[]     @default([]) // 场景标签（销售视角·白名单七值：乔迁新居/合婚嫁娶/开业大吉/本命年/学业考试/长辈寿诞/节气时令）供-P1
   price          Decimal      @db.Decimal(10, 2)
   originalPrice  Decimal?     @db.Decimal(10, 2) // 原始标价，永不随活动变化
+  commissionRate Decimal?     @db.Decimal(5, 4) // 逐品站长推广佣金率（0-1小数·空=用类型默认 CommissionConfig.rateA）佣-V2-P1
   stock          Int          @default(0)
   salesCount     Int          @default(0)
   isPlatform     Boolean      @default(true)
@@ -2056,6 +2057,8 @@ model Operator {
   parentOperatorId String?
   totalEarning     Decimal       @default(0) @db.Decimal(12, 2)
   status           String        @default("ACTIVE")
+  channelType      String        @default("ONLINE") // 渠道类型：ONLINE 线上运营商 / OFFLINE 线下运营商（驿站开通赠送"高级线下运营商"）佣-V2-P1
+  mgmtRate         Decimal?      @db.Decimal(5, 4) // 管理奖比率（基数=名下站长实得佣金额·空=按 channelType 默认 ONLINE 0.10 / OFFLINE 0.20）佣-V2-P1
   // 运营商独立小程序
   miniAppId        String? // 独立小程序 AppId
   mpAppId          String? // 公众号 AppId

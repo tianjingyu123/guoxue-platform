@@ -2020,9 +2020,10 @@ async function main() {
   const commissionCount = await prisma.commissionConfig.count();
   if (commissionCount === 0) {
     const commissionConfigs = [
-      { configKey: "course_basic", configName: "引流课(0-79元)", rateA: 0.50, rateB: 0.50, description: "讲师50% / 平台50%" },
-      { configKey: "course_premium", configName: "常规课(80-399元)", rateA: 0.60, rateB: 0.40, description: "讲师60% / 平台40%" },
-      { configKey: "course_high", configName: "高阶课(400+)", rateA: 0.70, rateB: 0.30, description: "讲师70% / 平台30%" },
+      // 课程/讲座类推广佣金默认 20%（2026-07-04 拍板§一-1第7条·后台可调·佣-V2-P1）
+      { configKey: "course_basic", configName: "引流课(0-79元)", rateA: 0.20, rateB: 0.50, description: "站长推广佣金20%（2026-07-04拍板·后台可调）" },
+      { configKey: "course_premium", configName: "常规课(80-399元)", rateA: 0.20, rateB: 0.40, description: "站长推广佣金20%（2026-07-04拍板·后台可调）" },
+      { configKey: "course_high", configName: "高阶课(400+)", rateA: 0.20, rateB: 0.30, description: "站长推广佣金20%（2026-07-04拍板·后台可调）" },
       { configKey: "product_platform", configName: "平台自营商品", rateA: 0.20, rateB: 0.80, description: "站长20% / 平台80%" },
       { configKey: "product_circle", configName: "圈主自有商品", rateA: 0.80, rateB: 0.20, description: "圈主80% / 站长20%" },
       { configKey: "station_course", configName: "分站课程推广", rateA: 0.15, rateB: 0.85, description: "站长15% / 平台85%" },

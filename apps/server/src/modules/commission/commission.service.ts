@@ -18,11 +18,23 @@ const MAX_WITHDRAW_RMB = 50000;
 /** 计算可提现余额时视为"占用额度"的提现状态（PENDING 也占额度，防重复提现；REJECTED 自动释放） */
 const OCCUPYING_WITHDRAW_STATUSES = ["PENDING", "APPROVED", "PAID"];
 
+/**
+ * 【已废止·仅作历史参考】运营商等级管理奖率（V2 改制前按 Operator.level 取率）。
+ * V2 改制后（2026-07-04 拍板·docs/progress/董事长拍板记录-20260704晚.md §一-1）：
+ * 管理奖比率 = operator.mgmtRate ?? channelType 默认（ONLINE 10% / OFFLINE 20%），
+ * 等级率不再参与计算，本常量保留供审计/回溯历史数据口径。
+ */
 const OPERATOR_MGMT_RATES: Record<string, { mgmt: number }> = {
   SILVER: { mgmt: 0.08 },
   GOLD: { mgmt: 0.12 },
   DIAMOND: { mgmt: 0.15 },
   BLACK_GOLD: { mgmt: 0.20 },
+};
+
+/** V2 管理奖默认比率（基数=站长实得佣金额·operator.mgmtRate 为空时按渠道类型取默认） */
+const MGMT_RATE_DEFAULTS: Record<string, number> = {
+  ONLINE: 0.10, // 线上运营商：名下站长推广佣金的 10%
+  OFFLINE: 0.20, // 线下运营商（驿站赠送"高级线下运营商"）：名下站长推广佣金的 20%
 };
 
 @Injectable()
@@ -139,13 +151,20 @@ export class CommissionService {
     if (!station) return null;
 
     // 站长自购不产生佣金（2026-07-02 拍板：自购已在下单时直接立减·此处防御性拦截历史/旁路订单）
+    // 佣-V2-P1：PRODUCT 类订单还需 order.targetId 查逐品佣金率，与付款人回查合并为一次查询
+    const needProductRate = type === "PRODUCT";
     let effectivePayerId = payerId;
-    if (!effectivePayerId) {
+    let orderTargetId: string | null = null;
+    if (!effectivePayerId || needProductRate) {
       try {
-        const order = await this.prisma.order.findUnique({ where: { id: orderId }, select: { userId: true } });
-        effectivePayerId = order?.userId ?? "";
+        const order = await this.prisma.order.findUnique({
+          where: { id: orderId },
+          select: { userId: true, targetId: true },
+        });
+        if (!effectivePayerId) effectivePayerId = order?.userId ?? "";
+        orderTargetId = order?.targetId ?? null;
       } catch {
-        effectivePayerId = "";
+        effectivePayerId = effectivePayerId || "";
       }
     }
     if (effectivePayerId && effectivePayerId === station.userId) {
@@ -153,7 +172,24 @@ export class CommissionService {
       return null;
     }
 
-    const rate = Number(config.rateA); // 站长佣金比例
+    // 佣-V2-P1 佣金取值链（2026-07-04 拍板）：PRODUCT 类订单优先用逐品站长佣金率
+    // Product.commissionRate（0-1 小数·空=未逐品配置），回落类型级默认 CommissionConfig.rateA；
+    // 非 PRODUCT 类订单逻辑不变（直接用 rateA）
+    let rate = Number(config.rateA); // 站长佣金比例
+    if (needProductRate && orderTargetId) {
+      try {
+        const product = await this.prisma.product.findUnique({
+          where: { id: orderTargetId },
+          select: { commissionRate: true },
+        });
+        if (product?.commissionRate != null) {
+          const productRate = Number(product.commissionRate);
+          if (productRate >= 0 && productRate < 1) rate = productRate;
+        }
+      } catch {
+        // 逐品率查询失败回落类型默认，不阻断分佣
+      }
+    }
     // 规整到分（四舍五入），与本文件管理奖/平台抽成一致，避免 JS 浮点尾数（如 99.9*0.7）污染分账与累加
     const earned = Math.round(amount * rate * 100) / 100;
 
@@ -164,7 +200,7 @@ export class CommissionService {
           stationId: station!.id,
           orderId,
           amount,
-          rate: config.rateA,
+          rate, // 实际生效比例（逐品率或类型默认·佣-V2-P1）
           earned,
           type,
         },
@@ -573,6 +609,11 @@ export class CommissionService {
    * ① 站长推广佣金（StationEarning）② 本方法产生的唯一一笔管理奖（MGMT_BONUS）。
    * 运营商自营分站（站长即运营商本人）的管理奖归其上级运营商：上级只对下级的
    * 「站长角色收入」计酬，不得对下级的管理奖收入再计酬，禁止任何形式的第三层计酬。
+   *
+   * 佣-V2-P1 改制（2026-07-04 拍板）：管理奖 = 站长实得佣金额 × (operator.mgmtRate ??
+   * channelType 默认：ONLINE 10% / OFFLINE 20%)。原等级率(8/12/15/20%)与
+   * CommissionConfig operator_<level> 覆盖均不再参与计算。管理奖为平台额外支出，
+   * 不从站长佣金中扣减（保持现行口径）。
    */
   private async calculateOperatorBonus(
     stationId: string,
@@ -587,7 +628,7 @@ export class CommissionService {
 
     const operator = await this.prisma.operator.findUnique({
       where: { id: station.operatorId },
-      select: { id: true, userId: true, level: true, parentOperatorId: true, status: true },
+      select: { id: true, userId: true, parentOperatorId: true, status: true, channelType: true, mgmtRate: true },
     });
     if (!operator || operator.status !== "ACTIVE") return null;
 
@@ -597,16 +638,20 @@ export class CommissionService {
       if (!operator.parentOperatorId) return null; // 顶级运营商自营分站：无管理奖，平台留存
       const parentOp = await this.prisma.operator.findUnique({
         where: { id: operator.parentOperatorId },
-        select: { id: true, userId: true, level: true, parentOperatorId: true, status: true },
+        select: { id: true, userId: true, parentOperatorId: true, status: true, channelType: true, mgmtRate: true },
       });
       if (!parentOp || parentOp.status !== "ACTIVE") return null;
       beneficiary = parentOp;
     }
 
-    const rates = await this.lookupMgmtRates(beneficiary.level);
-    if (!rates) return null;
+    // 比率取值链：逐运营商 mgmtRate 覆盖 → channelType 默认（ONLINE 0.10 / OFFLINE 0.20）
+    const mgmtRate =
+      beneficiary.mgmtRate != null
+        ? Number(beneficiary.mgmtRate)
+        : MGMT_RATE_DEFAULTS[beneficiary.channelType] ?? MGMT_RATE_DEFAULTS.ONLINE;
+    if (mgmtRate <= 0) return null;
 
-    const mgmtEarned = Math.round(stationEarned * rates.mgmt * 100) / 100;
+    const mgmtEarned = Math.round(stationEarned * mgmtRate * 100) / 100;
     if (mgmtEarned <= 0) return null;
 
     await this.prisma.operatorEarning.create({
@@ -614,8 +659,10 @@ export class CommissionService {
         operatorId: beneficiary.id,
         orderId,
         source: "MGMT_BONUS",
+        // 字段语义（改制前后一致·佣-V2-P1 复核）：amount=计酬基数即站长实得佣金额，
+        // rate=实际管理奖比率，earned=运营商所得
         amount: stationEarned,
-        rate: rates.mgmt,
+        rate: mgmtRate,
         earned: mgmtEarned,
         sourceStationId: stationId,
         // 自营分站上浮时记录下级运营商，供审计追溯
@@ -631,16 +678,20 @@ export class CommissionService {
         userId: beneficiary.userId,
         type: "EARNING",
         title: "运营商管理奖",
-        content: `您获得管理奖 ¥${mgmtEarned.toFixed(2)}（站长佣金 ¥${stationEarned.toFixed(2)}×${(rates.mgmt * 100).toFixed(0)}%）`,
+        content: `您获得管理奖 ¥${mgmtEarned.toFixed(2)}（站长佣金 ¥${stationEarned.toFixed(2)}×${(mgmtRate * 100).toFixed(0)}%）`,
         targetType: "OPERATOR_EARNING",
         targetId: orderId,
       },
     }).catch((err) => this.logger.warn("管理奖通知发送失败", err));
 
-    return { operatorId: beneficiary.id, userId: beneficiary.userId, rate: rates.mgmt, earned: mgmtEarned };
+    return { operatorId: beneficiary.id, userId: beneficiary.userId, rate: mgmtRate, earned: mgmtEarned };
   }
 
-  /** 站长佣金比例（rateA）按订单类型查询（供下单自购立减复用）；未配置返回 null */
+  /**
+   * 站长佣金比例（rateA）按订单类型查询（供下单自购立减复用）；未配置返回 null。
+   * 注：逐品率 Product.commissionRate（佣-V2-P1）仅在 calculateAndRecord 分佣时生效，
+   * 自购立减暂仍按类型默认 rateA（逐品化自购立减留待后续任务包拍板）。
+   */
   async getStationRate(type: string): Promise<number | null> {
     const config = await this.prisma.commissionConfig.findUnique({
       where: { configKey: this.mapTypeToConfigKey(type) },
@@ -662,13 +713,8 @@ export class CommissionService {
     return map[type] || "PRODUCT_ORDER";
   }
 
-  /** 优先从 CommissionConfig 读取管理奖比例，未配置时回退到 PRD 硬编码默认值 */
-  private async lookupMgmtRates(level: string): Promise<{ mgmt: number } | null> {
-    const mgmtCfg = await this.prisma.commissionConfig.findUnique({ where: { configKey: `operator_${level}` } });
-    const mgmt = mgmtCfg?.rateC ? Number(mgmtCfg.rateC) : OPERATOR_MGMT_RATES[level]?.mgmt;
-    if (!mgmt) return null;
-    return { mgmt };
-  }
+  // 注：原 lookupMgmtRates(level)（CommissionConfig operator_<level> 覆盖 → OPERATOR_MGMT_RATES
+  // 等级率）已随 V2 管理奖改制废止（2026-07-04 拍板），比率取值见 calculateOperatorBonus。
 
   // ───────── 运营商收益查询 ─────────
 
