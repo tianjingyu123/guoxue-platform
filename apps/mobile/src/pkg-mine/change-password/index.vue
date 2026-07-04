@@ -1,8 +1,12 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
-import { goBack } from '@/utils/router'
+import { goBack, navigateTo } from '@/utils/router'
 import { mineApi, pwdRules, calcPwdStrength } from '@/lib/mine-data'
+
+function goForgot() {
+  navigateTo('/pkg-auth/forgot-password/index')
+}
 
 const oldPwd = ref('')
 const newPwd = ref('')
@@ -85,6 +89,8 @@ async function handleSubmit() {
               </view>
             </view>
             <text v-if="errors.oldPwd" class="err">{{ errors.oldPwd }}</text>
+            <!-- 短信注册用户无原密码：走验证码设置密码通道 -->
+            <text class="forgot-link" @tap="goForgot">没有密码或忘记了？用验证码设置</text>
           </view>
 
           <view class="field">
@@ -243,6 +249,11 @@ async function handleSubmit() {
 .err {
   font-size: 22rpx;
   color: #ef4444;
+}
+.forgot-link {
+  margin-top: 8rpx;
+  font-size: 24rpx;
+  color: #c41e3a;
 }
 .strength {
   display: flex;

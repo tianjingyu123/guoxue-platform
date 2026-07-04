@@ -424,13 +424,19 @@ export class AuthService {
     const auth = await this.prisma.auth.findFirst({
       where: { userId: user.id, provider: "PASSWORD" },
     });
-    if (!auth) throw new BusinessException(ErrorCode.BAD_REQUEST, "账号未设置密码，请使用短信登录");
 
     const newHash = await bcrypt.hash(dto.password, 10);
-    await this.prisma.auth.update({
-      where: { id: auth.id },
-      data: { credential: newHash },
-    });
+    if (!auth) {
+      // 短信注册用户无 PASSWORD 凭据行：验证码已核验，本通道兼作「首次设置密码」
+      await this.prisma.auth.create({
+        data: { userId: user.id, provider: "PASSWORD", credential: newHash },
+      });
+    } else {
+      await this.prisma.auth.update({
+        where: { id: auth.id },
+        data: { credential: newHash },
+      });
+    }
 
     await this.revokeAllRefreshTokens(user.id);
     return { success: true, message: "密码已重置" };
