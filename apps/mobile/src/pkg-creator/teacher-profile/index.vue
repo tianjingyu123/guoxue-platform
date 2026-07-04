@@ -1,15 +1,18 @@
 <script setup lang="ts">
 /**
- * 讲师公开主页（T8-P1b·可分享品牌页）
+ * 讲师公开主页（T8-P1b·可分享品牌页 → 课-P2 升级为从业者智能名片页）
  * 数据源：GET /teachers/:userId/profile（公开·仅认证通过讲师，404=未开通）
- * 入口：课程详情讲师卡 / 驿站详情师资卡（签约讲师）/ 分享链接
+ * 入口：课程详情讲师卡 / 驿站详情师资卡（签约讲师）/ 分享链接 / 名片海报二维码
+ * 名片能力：进页 ref 归因（本页即归因落地页）+ 页首原生分享 + canvas 名片海报（真二维码带 ref）
  */
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { onLoad, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 import { navigateTo, goBack } from '@/utils/router'
 import { useShare } from '@/composables/useShare'
+import { captureRefFromQuery, withRef } from '@/utils/referral'
 import AppIcon from '@/components/common/app-icon.vue'
 import TeacherCertBadge from '@/components/common/teacher-cert-badge.vue'
+import NameCardPoster from '@/components/common/name-card-poster.vue'
 import { teacherApi, type TeacherPublicProfile } from '@/lib/teacher-data'
 
 const loading = ref(true)
@@ -46,6 +49,33 @@ const stationTypeLabel: Record<string, string> = {
 function goCourse(id: string) { navigateTo(`/courses/${id}`) }
 function goStation(id: string) { navigateTo(`/offline/stations/${id}`) }
 
+// ───────── 名片海报（课-P2·通用组件 name-card-poster） ─────────
+
+const posterVisible = ref(false)
+function openPoster() { posterVisible.value = true }
+function closePoster() { posterVisible.value = false }
+
+/** 认证头衔文字（研究院签约/等级 + 线上头衔·与 teacher-cert-badge 展示语义一致） */
+const cardTitle = computed(() => {
+  const p = profile.value
+  if (!p) return ''
+  const levelLabel: Record<string, string> = {
+    PREPARATORY: '研究院储备讲师', JUNIOR: '研究院初级讲师', SENIOR: '研究院高级讲师',
+  }
+  const parts: string[] = []
+  if (p.institute) {
+    if (p.institute.signed || p.institute.lecturerLevel === 'SIGNED') parts.push('研究院签约讲师')
+    else if (levelLabel[p.institute.lecturerLevel]) parts.push(levelLabel[p.institute.lecturerLevel])
+  }
+  if (p.verifiedTitle && !parts.includes(p.verifiedTitle)) parts.push(p.verifiedTitle)
+  return parts.join(' · ')
+})
+
+/** 名片二维码内容 = 本名片页 H5 链接（withRef 追加分享者 ref·本页 onLoad captureRef 完成归因闭环） */
+const cardLink = computed(() =>
+  withRef(`https://api.rebugx.cn/h5/#/pkg-creator/teacher-profile/index?userId=${encodeURIComponent(userId.value)}`),
+)
+
 // 微信原生分享（好友/朋友圈），toAppMessage/toTimeline 内部自动携带分享者 ref（推荐归因）
 const { toAppMessage, toTimeline } = useShare()
 onShareAppMessage(() => toAppMessage({
@@ -60,6 +90,8 @@ onShareTimeline(() => toTimeline({
 }))
 
 onLoad((options) => {
+  // 名片页即归因落地页：扫码/点链进页先记录分享者 ref（7 天临时推荐人）
+  captureRefFromQuery(options as Record<string, unknown>)
   userId.value = options?.userId ? String(options.userId) : ''
   loadData()
 })
@@ -129,6 +161,18 @@ onLoad((options) => {
           </view>
         </template>
       </view>
+
+      <!-- 名片动作（课-P2）：原生分享（withRef 归因）+ 保存名片海报 -->
+      <view class="card-actions-row">
+        <button class="share-btn" open-type="share">
+          <app-icon name="share-2" :size="30" color="#ffffff" />
+          <text class="share-btn-txt">分享名片</text>
+        </button>
+        <view class="poster-btn" @tap="openPoster">
+          <app-icon name="image" :size="30" color="#8b5a2b" />
+          <text class="poster-btn-txt">保存名片海报</text>
+        </view>
+      </view>
     </view>
 
     <!-- 线上课程 -->
@@ -186,6 +230,16 @@ onLoad((options) => {
     </view>
 
     <view class="safe-bottom" />
+
+    <!-- 名片海报弹层（课-P2·通用组件·二维码=本页 H5 链接带 ref） -->
+    <name-card-poster
+      :visible="posterVisible"
+      :name="profile.nickname"
+      :title="cardTitle"
+      :intro="profile.intro"
+      :link="cardLink"
+      @close="closePoster"
+    />
   </view>
 </template>
 
@@ -239,6 +293,21 @@ onLoad((options) => {
 .stat-rating { display: flex; align-items: center; gap: 4rpx; }
 .stat-label { font-size: 20rpx; color: #9CA3AF; }
 .stat-divider { width: 1rpx; height: 48rpx; background: #EBEBEB; }
+
+/* 名片动作行（课-P2） */
+.card-actions-row { display: flex; align-items: center; gap: 20rpx; margin-top: 24rpx; }
+.share-btn {
+  flex: 1; display: flex; align-items: center; justify-content: center; gap: 10rpx;
+  height: 76rpx; margin: 0; padding: 0; line-height: 1;
+  background: #8b5a2b; border-radius: 999rpx;
+}
+.share-btn::after { border: none; }
+.share-btn-txt { font-size: 28rpx; font-weight: 600; color: #ffffff; }
+.poster-btn {
+  flex: 1; display: flex; align-items: center; justify-content: center; gap: 10rpx;
+  height: 76rpx; background: #fdf3e7; border: 1rpx solid #e6d3a8; border-radius: 999rpx;
+}
+.poster-btn-txt { font-size: 28rpx; font-weight: 600; color: #8b5a2b; }
 
 /* 分区 */
 .section { margin-top: 16rpx; background: #ffffff; padding: 28rpx 32rpx; }
