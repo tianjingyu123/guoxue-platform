@@ -243,6 +243,7 @@ import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, reLaunch, navigateTo } from '@/utils/router'
 import { getUserInfo } from '@/utils/storage'
 import { withRef } from '@/utils/referral'
+import { drawQrToCanvas } from '@/utils/qrcode'
 import { useShare } from '@/composables/useShare'
 import {
   growthApi,
@@ -502,28 +503,58 @@ function drawCard() {
   ctx.lineTo(W - 36, headH + 156)
   ctx.stroke()
 
-  // 连续学习 + 功名（徽章形式）
+  // ── 右下角真二维码（与「复制分享链接」同源：uid/code/type + ref 归因·失败静默降级） ──
+  const qrSize = 88
+  const qrX = W - qrSize - 20
+  const qrY = H - qrSize - 38
+  const hasQr = drawQrToCanvas(ctx, shareLink(), qrX, qrY, qrSize, {
+    caption: '长按识别 · 一起学',
+    captionColor: '#b09a7c',
+  })
+
   const badgeY = headH + 178
-  ctx.setFillStyle('#b4432f')
-  roundRect(ctx, W / 2 - 118, badgeY, 112, 32, 16)
-  ctx.fill()
-  ctx.setFillStyle('#b5843f')
-  roundRect(ctx, W / 2 + 6, badgeY, 112, 32, 16)
-  ctx.fill()
-  ctx.setFillStyle('#ffffff')
-  ctx.setFontSize(13)
-  ctx.fillText(`连续学习 ${g?.currentStreak ?? 0} 天`, W / 2 - 62, badgeY + 21)
-  ctx.fillText(`功名·${g?.levelName ?? '书童'}`, W / 2 + 62, badgeY + 21)
+  if (hasQr) {
+    // 有二维码：徽章改左列竖排 + slogan 左下（右侧让位二维码）
+    const bx = 24
+    const bw = 118
+    ctx.setFillStyle('#b4432f')
+    roundRect(ctx, bx, badgeY, bw, 30, 15)
+    ctx.fill()
+    ctx.setFillStyle('#b5843f')
+    roundRect(ctx, bx, badgeY + 40, bw, 30, 15)
+    ctx.fill()
+    ctx.setFillStyle('#ffffff')
+    ctx.setFontSize(12)
+    ctx.fillText(`连续学习 ${g?.currentStreak ?? 0} 天`, bx + bw / 2, badgeY + 20)
+    ctx.fillText(`功名·${g?.levelName ?? '书童'}`, bx + bw / 2, badgeY + 60)
+    ctx.setTextAlign('left')
+    ctx.setFillStyle('#8a6d3b')
+    ctx.setFontSize(11)
+    ctx.fillText('每天学一点，日日有精进', bx, Math.min(badgeY + 108, H - 20))
+    ctx.setTextAlign('center')
+  } else {
+    // 静默降级：无二维码维持原居中构图
+    ctx.setFillStyle('#b4432f')
+    roundRect(ctx, W / 2 - 118, badgeY, 112, 32, 16)
+    ctx.fill()
+    ctx.setFillStyle('#b5843f')
+    roundRect(ctx, W / 2 + 6, badgeY, 112, 32, 16)
+    ctx.fill()
+    ctx.setFillStyle('#ffffff')
+    ctx.setFontSize(13)
+    ctx.fillText(`连续学习 ${g?.currentStreak ?? 0} 天`, W / 2 - 62, badgeY + 21)
+    ctx.fillText(`功名·${g?.levelName ?? '书童'}`, W / 2 + 62, badgeY + 21)
 
-  // slogan
-  ctx.setFillStyle('#8a6d3b')
-  ctx.setFontSize(14)
-  ctx.fillText('每天学一点，日日有精进', W / 2, badgeY + 74)
+    // slogan
+    ctx.setFillStyle('#8a6d3b')
+    ctx.setFontSize(14)
+    ctx.fillText('每天学一点，日日有精进', W / 2, badgeY + 74)
 
-  // 底部邀请语
-  ctx.setFillStyle('#b09a7c')
-  ctx.setFontSize(12)
-  ctx.fillText('长按识别/点开链接，和我一起学', W / 2, H - 28)
+    // 底部邀请语
+    ctx.setFillStyle('#b09a7c')
+    ctx.setFontSize(12)
+    ctx.fillText('长按识别/点开链接，和我一起学', W / 2, H - 28)
+  }
 
   ctx.draw()
 }
@@ -598,9 +629,14 @@ onShareAppMessage(() =>
   }),
 )
 
+/** 成就卡完整落地链接（H5 复制分享与卡面二维码共用同一构造·withRef 带 ref 归因） */
+function shareLink(): string {
+  return withRef(`https://api.rebugx.cn/h5/#${cardPath()}`)
+}
+
 /** H5/App 端：复制邀请文案 + 带 ref 的完整落地页链接（withRef 按 query 有无自动拼 &ref=/?ref=） */
 function copyShareLink() {
-  const link = withRef(`https://api.rebugx.cn/h5/#${cardPath()}`)
+  const link = shareLink()
   const text = `我在热卜国学获得了「${cardItem.value?.name ?? ''}」${cardType.value === 'title' ? '称号' : '成就'}，邀你同修！${link}`
   uni.setClipboardData({
     data: text,

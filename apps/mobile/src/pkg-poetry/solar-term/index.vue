@@ -157,7 +157,8 @@ import { ref, computed, getCurrentInstance, nextTick } from 'vue'
 import { onLoad, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 import { navigateTo, goBack } from '@/utils/router'
 import { getToken } from '@/utils/storage'
-import { captureRefFromQuery } from '@/utils/referral'
+import { captureRefFromQuery, withRef } from '@/utils/referral'
+import { drawQrToCanvas } from '@/utils/qrcode'
 import { useShare } from '@/composables/useShare'
 import {
   solarTermApi,
@@ -293,6 +294,11 @@ function currentBadge(): string {
   return '应时·初参'
 }
 
+/** 节气页分享落地链接（卡面二维码内容·withRef 带我的 ref 归因，与小程序转发路径一致） */
+function shareLink(): string {
+  return withRef('https://api.rebugx.cn/h5/#/pkg-poetry/solar-term/index')
+}
+
 function openCard() {
   cardVisible.value = true
   nextTick(() => setTimeout(drawCard, 60))
@@ -339,25 +345,56 @@ function drawCard() {
   ctx.setFontSize(16)
   ctx.fillText(badge, W / 2, badgeY + 23)
 
-  // 应景诗
-  if (poem) {
-    ctx.setFillStyle('#6b5b45')
-    ctx.setFontSize(15)
-    drawWrapped(ctx, poem, W / 2, headH + 190, W - 56, 26, 2)
+  // ── 右下角真二维码（节气页落地链接·带 ref 归因·失败静默降级） ──
+  const qrSize = 88
+  const qrX = W - qrSize - 20
+  const qrY = Math.max(H - qrSize - 36, headH + 158)
+  const hasQr = drawQrToCanvas(ctx, shareLink(), qrX, qrY, qrSize, {
+    caption: '长按识别 · 一起学',
+    captionColor: '#b09a7c',
+  })
+
+  if (hasQr) {
+    // 有二维码：应景诗/集齐进度/slogan 左对齐上移，右侧让位二维码
+    const compact = H < 400 // 窄屏画布更矮，压缩行数与行距
+    ctx.setTextAlign('left')
+    if (poem) {
+      ctx.setFillStyle('#6b5b45')
+      ctx.setFontSize(14)
+      drawWrapped(ctx, poem, 24, headH + 186, qrX - 34, 24, compact ? 1 : 2)
+    }
+    const py = compact ? headH + 210 : headH + 240
+    ctx.setFillStyle('#a8895f')
+    ctx.setFontSize(12)
+    ctx.fillText('节气集齐进度', 24, py)
+    ctx.setFillStyle('#8b5a2b')
+    ctx.setFontSize(26)
+    ctx.fillText(`${uniqueTerms.value} / 24`, 24, py + 34)
+    ctx.setFillStyle('#b09a7c')
+    ctx.setFontSize(11)
+    ctx.fillText('应时而作 · 顺天而行', 24, py + 56)
+    ctx.setTextAlign('center')
+  } else {
+    // 静默降级：无二维码维持原居中构图
+    if (poem) {
+      ctx.setFillStyle('#6b5b45')
+      ctx.setFontSize(15)
+      drawWrapped(ctx, poem, W / 2, headH + 190, W - 56, 26, 2)
+    }
+
+    // 集齐进度
+    ctx.setFillStyle('#a8895f')
+    ctx.setFontSize(13)
+    ctx.fillText('节气集齐进度', W / 2, H - 96)
+    ctx.setFillStyle('#8b5a2b')
+    ctx.setFontSize(30)
+    ctx.fillText(`${uniqueTerms.value} / 24`, W / 2, H - 60)
+
+    // slogan
+    ctx.setFillStyle('#b09a7c')
+    ctx.setFontSize(12)
+    ctx.fillText('应时而作 · 顺天而行', W / 2, H - 24)
   }
-
-  // 集齐进度
-  ctx.setFillStyle('#a8895f')
-  ctx.setFontSize(13)
-  ctx.fillText('节气集齐进度', W / 2, H - 96)
-  ctx.setFillStyle('#8b5a2b')
-  ctx.setFontSize(30)
-  ctx.fillText(`${uniqueTerms.value} / 24`, W / 2, H - 60)
-
-  // slogan
-  ctx.setFillStyle('#b09a7c')
-  ctx.setFontSize(12)
-  ctx.fillText('应时而作 · 顺天而行', W / 2, H - 24)
 
   ctx.draw()
 }

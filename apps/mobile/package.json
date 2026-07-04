@@ -26,6 +26,7 @@
     "@tencentcloud/chat": "^3.6.6",
     "flv.js": "^1.6.2",
     "pinia": "^2.2.0",
+    "uqrcodejs": "^4.0.7",
     "vue": "^3.5.0",
     "vue-i18n": "9.1.9"
   },

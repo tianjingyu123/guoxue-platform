@@ -50,6 +50,8 @@ import { ref, computed, getCurrentInstance, nextTick } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateBack } from '@/utils/router'
+import { withRef } from '@/utils/referral'
+import { drawQrToCanvas } from '@/utils/qrcode'
 import {
   competitionApi, promotionLabel,
   type Competition, type Registration, type Ranking,
@@ -155,25 +157,29 @@ function draw() {
     ctx.fillText('邀你同台竞技', W / 2, cardY + 98)
   }
 
-  // ── 底部二维码占位 ──
-  const qrSize = 80
+  // ── 底部真二维码（赛事详情落地链接·带 ref 归因·失败静默降级） ──
+  const qrSize = 88
   const qrX = (W - qrSize) / 2
-  const qrY = cardY + cardH + 28
-  ctx.setFillStyle('#e5e7eb')
-  ctx.fillRect(qrX, qrY, qrSize, qrSize)
-  ctx.setFillStyle('#9ca3af')
-  ctx.setFontSize(11)
-  ctx.setTextAlign('center')
-  ctx.fillText('扫码参与赛事', W / 2, qrY + qrSize + 18)
-  // 诚实占位说明（无真实二维码生成接口）
-  ctx.setFillStyle('#c4b59a')
-  ctx.setFontSize(9)
-  ctx.fillText('（二维码占位 · 上线后接入）', W / 2, qrY + qrSize + 34)
+  const qrY = H - qrSize - 28 // 锚定底部：下方留 caption 一行
+  const hasQr = drawQrToCanvas(
+    ctx,
+    withRef(`https://api.rebugx.cn/h5/#/pkg-competition/detail/index?id=${encodeURIComponent(compId.value)}`),
+    qrX,
+    qrY,
+    qrSize,
+    { caption: '长按识别 · 一起学', captionColor: '#8a6d4a' },
+  )
 
-  // ── slogan ──
   ctx.setFillStyle('#8a6d4a')
   ctx.setFontSize(12)
-  ctx.fillText('以文会友 · 传承国学之美', W / 2, H - 18)
+  ctx.setTextAlign('center')
+  if (hasQr) {
+    // slogan 上移到二维码上方（原底部位置让给 caption）
+    ctx.fillText('扫码参与赛事 · 以文会友', W / 2, qrY - 18)
+  } else {
+    // 静默降级：无二维码维持原 slogan 构图
+    ctx.fillText('以文会友 · 传承国学之美', W / 2, H - 18)
+  }
 
   ctx.draw()
 }
@@ -247,10 +253,10 @@ onLoad((q) => {
     success: (e) => {
       statusBarHeight.value = e.statusBarHeight || 0
       sysH.value = e.windowHeight || 667
-      // 按屏宽适配画布尺寸（保持 2:3 竖版比例）
+      // 按屏宽适配画布尺寸（保持 2:3 竖版比例·最小高 450 保证底部二维码区不溢出）
       const w = Math.min(320, Math.max(260, (e.windowWidth || 375) - 80))
       canvasW.value = Math.round(w)
-      canvasH.value = Math.round(w * 1.5)
+      canvasH.value = Math.max(Math.round(w * 1.5), 450)
     },
   })
   load()
