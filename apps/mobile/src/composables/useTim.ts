@@ -11,11 +11,14 @@
  * - **动态 import**：@tencentcloud/chat 是 Web SDK，仅在真正用到（H5）时加载，避免非 H5 端构建期静态求值。
  * - **登录去重**：并发 ensureLogin 复用同一 Promise。
  * - identifier = 后端 user.id（字符串，非 number）。
+ * - **login ≠ ready**：真机实测 `chat.login()` resolve 后 SDK 仍处于"登录中"，立即调
+ *   getMessageList 等接口报 "sdk not ready"（2999）。必须等 SDK_READY 事件后才可收发。
  *
- * ⚠️ 沙箱无法运行验证：需真实 IM_APP_ID + 两个真账号在 H5 实时收发验证。
+ * ✅ 2026-07-04 真机联调通过（生产 H5 双账号 A/B 实时互发，appId 1600149724）。
  */
 import { ref } from 'vue'
 import { apiPost } from '@/utils/request'
+import { getUserInfo } from '@/utils/storage'
 
 type TimModule = typeof import('@tencentcloud/chat').default
 type TimChat = ReturnType<TimModule['create']>
@@ -34,6 +37,28 @@ export interface TimMessage {
   avatar?: string
 }
 
+/** SDK 会话对象（只声明用到的字段；conversationID 形如 C2C{userID} / GROUP{groupID} / @TIM#SYSTEM） */
+export interface TimConversation {
+  conversationID: string
+  /** C2C | GROUP | @TIM#SYSTEM */
+  type: string
+  unreadCount: number
+  isPinned: boolean
+  /** AcceptAndNotify | AcceptNotNotify | Discard */
+  messageRemindType: string
+  remark?: string
+  draftText?: string
+  userProfile?: { userID: string; nick?: string; avatar?: string }
+  groupProfile?: { groupID: string; name?: string; avatar?: string; memberNum?: number }
+  lastMessage?: {
+    lastTime: number
+    messageForShow?: string
+    fromAccount?: string
+    type?: string
+    nick?: string
+  }
+}
+
 let TIM: TimModule | null = null
 let chat: TimChat | null = null
 let loginPromise: Promise<void> | null = null
@@ -41,8 +66,14 @@ let loginPromise: Promise<void> | null = null
 const isReady = ref(false)
 const isLoggedIn = ref(false)
 
+/** 等待 SDK_READY 的挂起回调（login resolve 后 SDK 仍未 ready，见文件头注释） */
+let readyWaiters: Array<() => void> = []
+
 type MsgHandler = (messages: TimMessage[]) => void
 const messageHandlers = new Set<MsgHandler>()
+
+type ConvHandler = (conversations: TimConversation[]) => void
+const convHandlers = new Set<ConvHandler>()
 
 async function loadSdk(): Promise<TimModule> {
   if (!TIM) TIM = (await import('@tencentcloud/chat')).default
@@ -53,13 +84,31 @@ function ensureClient(sdkAppId: number, sdk: TimModule): TimChat {
   if (chat) return chat
   chat = sdk.create({ SDKAppID: sdkAppId })
   chat.setLogLevel(1) // 1=release（仅告警/错误）
-  chat.on(sdk.EVENT.SDK_READY, () => { isReady.value = true })
-  chat.on(sdk.EVENT.KICKED_OUT, () => { isLoggedIn.value = false; loginPromise = null })
+  chat.on(sdk.EVENT.SDK_READY, () => {
+    isReady.value = true
+    readyWaiters.forEach((r) => r())
+    readyWaiters = []
+  })
+  chat.on(sdk.EVENT.SDK_NOT_READY, () => { isReady.value = false })
+  chat.on(sdk.EVENT.KICKED_OUT, () => { isLoggedIn.value = false; isReady.value = false; loginPromise = null })
   chat.on(sdk.EVENT.MESSAGE_RECEIVED, (event: { data: TimMessage[] }) => {
     const msgs = event.data || []
     messageHandlers.forEach((h) => h(msgs))
   })
+  chat.on(sdk.EVENT.CONVERSATION_LIST_UPDATED, (event: { data: TimConversation[] }) => {
+    const list = event.data || []
+    convHandlers.forEach((h) => h(list))
+  })
   return chat
+}
+
+/** login resolve 后等 SDK_READY（超时给出可重试的友好错误，而非透传 SDK 2999） */
+function waitSdkReady(timeoutMs = 15000): Promise<void> {
+  if (isReady.value) return Promise.resolve()
+  return new Promise<void>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('消息服务连接超时，请重试')), timeoutMs)
+    readyWaiters.push(() => { clearTimeout(timer); resolve() })
+  })
 }
 
 export function useTim() {
@@ -72,8 +121,16 @@ export function useTim() {
       const { appId, userId, userSig } = await apiPost<{ appId: number; userId: string; userSig: string }>('/im/user-sig', {})
       const c = ensureClient(appId, sdk)
       // 账号导入幂等：已导入会报错，忽略即可，不阻断登录
-      try { await apiPost('/im/account/import', {}) } catch { /* already imported */ }
+      // （后端 ImportAccountDto 要求 userId 必填——空 body 会被 ValidationPipe 400，真机联调实测）
+      // ⚠️ 必须带昵称/头像：后端 Nick 兜底是 userId，不带会把腾讯侧昵称覆盖成 UUID（真机联调实测）
+      const u = getUserInfo<{ nickname?: string; avatar?: string }>() || {}
+      const body: Record<string, string> = { userId }
+      if (u.nickname) body.nickname = u.nickname
+      if (u.avatar) body.avatar = u.avatar
+      try { await apiPost('/im/account/import', body) } catch { /* already imported */ }
       await c.login({ userID: userId, userSig })
+      // 关键：login resolve ≠ ready，立即调消息接口会报 "sdk not ready"，必须等 SDK_READY
+      await waitSdkReady()
       isLoggedIn.value = true
     })().catch((e) => { loginPromise = null; throw e })
     return loginPromise
@@ -111,6 +168,44 @@ export function useTim() {
   function onMessage(handler: MsgHandler): () => void {
     messageHandlers.add(handler)
     return () => { messageHandlers.delete(handler) }
+  }
+
+  // ───────── 会话列表（SDK 为真源：列表/未读/置顶/免打扰/删除）─────────
+
+  /** 拉取会话列表（含未读数/置顶/免打扰状态） */
+  async function getConversationList(): Promise<TimConversation[]> {
+    await ensureLogin()
+    const res = await chat!.getConversationList()
+    return ((res.data?.conversationList || []) as unknown) as TimConversation[]
+  }
+
+  /** 订阅会话列表变化（新消息/已读/置顶等都会触发），返回取消订阅函数 */
+  function onConversationsUpdated(handler: ConvHandler): () => void {
+    convHandlers.add(handler)
+    return () => { convHandlers.delete(handler) }
+  }
+
+  /** 置顶/取消置顶会话 */
+  async function pinConversation(conversationID: string, isPinned: boolean): Promise<void> {
+    await ensureLogin()
+    await chat!.pinConversation({ conversationID, isPinned })
+  }
+
+  /** 会话免打扰开关（C2C 用 userIDList，群聊用 groupID） */
+  async function setConversationMute(target: { type: 'C2C' | 'GROUP'; id: string }, mute: boolean): Promise<void> {
+    await ensureLogin()
+    const messageRemindType = mute ? TIM!.TYPES.MSG_REMIND_ACPT_NOT_NOTE : TIM!.TYPES.MSG_REMIND_ACPT_AND_NOTE
+    if (target.type === 'GROUP') {
+      await chat!.setMessageRemindType({ groupID: target.id, messageRemindType })
+    } else {
+      await chat!.setMessageRemindType({ userIDList: [target.id], messageRemindType })
+    }
+  }
+
+  /** 删除会话（同时清空本地聊天记录） */
+  async function deleteConversation(conversationID: string): Promise<void> {
+    await ensureLogin()
+    await chat!.deleteConversation(conversationID)
   }
 
   // ───────── 直播弹幕：TIM 群消息（复用同一单例 + MESSAGE_RECEIVED 订阅）─────────
@@ -158,6 +253,7 @@ export function useTim() {
 
   return {
     isReady, isLoggedIn, ensureLogin, sendText, getC2CHistory, setC2CRead, onMessage,
+    getConversationList, onConversationsUpdated, pinConversation, setConversationMute, deleteConversation,
     joinGroup, quitGroup, sendGroupText, getGroupHistory,
   }
 }

@@ -150,19 +150,22 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import {
   imApi,
   getMessageSummary,
   convTypeIcon,
+  timConvToConversationItem,
   type ConversationItem,
   type ConversationType,
   type LastMessage,
 } from '@/lib/im-data'
+import { useTim } from '@/composables/useTim'
 
 const statusBarHeight = ref(0)
+const tim = useTim()
 
 // 列表数据
 const conversations = ref<ConversationItem[]>([])
@@ -175,6 +178,8 @@ const searchKeyword = ref('')
 const showActions = ref(false)
 const showDeleteConfirm = ref(false)
 const activeConv = ref<ConversationItem | null>(null)
+
+let unsubscribe: (() => void) | null = null
 
 async function loadData() {
   loading.value = true
@@ -190,6 +195,15 @@ async function loadData() {
 
 onMounted(() => {
   loadData()
+  // 实时刷新：新消息/已读/置顶等 SDK 会话变化直接驱动列表与未读角标
+  unsubscribe = tim.onConversationsUpdated((list) => {
+    conversations.value = list
+      .map(timConvToConversationItem)
+      .filter((c): c is ConversationItem => c !== null)
+  })
+})
+onUnmounted(() => {
+  if (unsubscribe) unsubscribe()
 })
 
 const totalUnread = computed(() => conversations.value.reduce((s, c) => s + c.unreadCount, 0))
@@ -218,7 +232,10 @@ function typeIcon(type: ConversationType) {
 
 function handleEnterChat(conv: ConversationItem) {
   if (conv.type === 'private') {
-    navigateTo(`/im/chat/${conv.targetId}`)
+    // 带上昵称/头像供聊天页导航栏即时展示（chat 页无独立对端资料端点）
+    navigateTo(
+      `/pkg-im/im/chat/index?targetId=${conv.targetId}&name=${encodeURIComponent(conv.targetName)}&avatar=${encodeURIComponent(conv.targetAvatar)}`,
+    )
   } else if (conv.type === 'group') {
     navigateTo(`/im/group-chat/${conv.targetId}`)
   } else if (conv.type === 'service') {
@@ -246,25 +263,58 @@ function openDeleteConfirm() {
   showDeleteConfirm.value = true
 }
 
-// @data-needs: 置顶/取消置顶会话, 参数 {convId, isPinned}, 返回 {code}
-function handleTogglePin() {
-  if (!activeConv.value) return
+// 会话操作真连 TIM SDK：先乐观更新本地态，失败回滚并提示
+const submitting = ref(false)
+
+async function handleTogglePin() {
+  if (!activeConv.value || submitting.value) return
   const c = conversations.value.find((x) => x.id === activeConv.value!.id)
-  if (c) c.isPinned = !c.isPinned
   showActions.value = false
+  if (!c) return
+  const next = !c.isPinned
+  submitting.value = true
+  c.isPinned = next
+  try {
+    await imApi.pinConversation(c.id, next)
+  } catch (e) {
+    c.isPinned = !next
+    uni.showToast({ title: (e as Error)?.message || '操作失败，请重试', icon: 'none' })
+  } finally {
+    submitting.value = false
+  }
 }
-// @data-needs: 会话免打扰开关, 参数 {convId, isMuted}, 返回 {code}
-function handleToggleMute() {
-  if (!activeConv.value) return
+
+async function handleToggleMute() {
+  if (!activeConv.value || submitting.value) return
   const c = conversations.value.find((x) => x.id === activeConv.value!.id)
-  if (c) c.isMuted = !c.isMuted
   showActions.value = false
+  if (!c) return
+  const next = !c.isMuted
+  submitting.value = true
+  c.isMuted = next
+  try {
+    await imApi.muteConversation(c, next)
+  } catch (e) {
+    c.isMuted = !next
+    uni.showToast({ title: (e as Error)?.message || '操作失败，请重试', icon: 'none' })
+  } finally {
+    submitting.value = false
+  }
 }
-// @data-needs: 删除会话, 参数 {convId}, 返回 {code}
-function handleDelete() {
-  if (!activeConv.value) return
-  conversations.value = conversations.value.filter((x) => x.id !== activeConv.value!.id)
+
+async function handleDelete() {
+  if (!activeConv.value || submitting.value) return
+  const conv = activeConv.value
   showDeleteConfirm.value = false
+  submitting.value = true
+  try {
+    await imApi.deleteConversation(conv.id)
+    conversations.value = conversations.value.filter((x) => x.id !== conv.id)
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '删除失败，请重试', icon: 'none' })
+  } finally {
+    submitting.value = false
+  }
 }
 </script>
 

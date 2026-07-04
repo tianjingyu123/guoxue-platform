@@ -2,8 +2,8 @@
  * IM 消息板块数据层（mock + 类型 + 工具）
  * v0 迁移：会话列表/聊天/通知三页公用
  */
-import { apiGet, apiPost, apiPut, useMock } from '@/utils/request'
-import type { TimMessage } from '@/composables/useTim'
+import { apiGet, apiPost, apiPut } from '@/utils/request'
+import { useTim, type TimMessage, type TimConversation } from '@/composables/useTim'
 
 const AVATAR = (seed: string) => `https://api.dicebear.com/7.x/avataaars/svg?seed=${seed}`
 
@@ -34,96 +34,56 @@ export interface ConversationItem {
   updatedAt: string
 }
 
-// @data-needs: 会话列表, 参数 {}, 返回 {list:[ConversationItem], totalUnread}
-export const mockConversations: ConversationItem[] = [
-  {
-    id: 'conv_1',
-    type: 'private',
-    targetId: '101',
-    targetName: '张明德',
-    targetAvatar: AVATAR('im-101'),
-    lastMessage: { type: 'text', content: '好的，那我们明天下午3点见面详谈', senderId: '101', time: '10:30' },
-    unreadCount: 3,
-    isPinned: true,
-    isMuted: false,
-    updatedAt: '2026-06-03T10:30:00',
-  },
-  {
-    id: 'conv_2',
-    type: 'group',
-    targetId: '201',
-    targetName: '国学研习群',
-    targetAvatar: AVATAR('im-201'),
-    memberCount: 128,
-    lastMessage: { type: 'text', content: '今天的八字讲座非常精彩', senderId: '102', senderName: '李老师', time: '09:45' },
-    unreadCount: 12,
-    isPinned: true,
-    isMuted: false,
-    updatedAt: '2026-06-03T09:45:00',
-  },
-  {
-    id: 'conv_3',
-    type: 'service',
-    targetId: '0',
-    targetName: '智能客服',
-    targetAvatar: AVATAR('im-service'),
-    lastMessage: { type: 'text', content: '您好，有什么可以帮助您的？', senderId: '0', time: '昨天' },
-    unreadCount: 0,
-    isPinned: false,
-    isMuted: false,
-    updatedAt: '2026-06-02T18:00:00',
-  },
-  {
-    id: 'conv_4',
-    type: 'private',
-    targetId: '103',
-    targetName: '王老师',
-    targetAvatar: AVATAR('im-103'),
-    lastMessage: { type: 'image', content: '[图片]', senderId: '103', time: '昨天' },
-    unreadCount: 0,
-    isPinned: false,
-    isMuted: true,
-    updatedAt: '2026-06-02T15:30:00',
-  },
-  {
-    id: 'conv_5',
-    type: 'system',
-    targetId: '0',
-    targetName: '系统通知',
-    targetAvatar: AVATAR('im-system'),
-    lastMessage: { type: 'system', content: '您购买的课程《八字入门》已开放学习', senderId: '0', time: '前天' },
-    unreadCount: 1,
-    isPinned: false,
-    isMuted: false,
-    updatedAt: '2026-06-01T12:00:00',
-  },
-  {
-    id: 'conv_6',
-    type: 'private',
-    targetId: '104',
-    targetName: '赵师兄',
-    targetAvatar: AVATAR('im-104'),
-    lastMessage: { type: 'voice', content: '[语音消息] 0:15', senderId: '104', time: '周一' },
-    unreadCount: 0,
-    isPinned: false,
-    isMuted: false,
-    draft: '关于上次讨论的问题...',
-    updatedAt: '2026-06-01T10:00:00',
-  },
-  {
-    id: 'conv_7',
-    type: 'group',
-    targetId: '202',
-    targetName: '风水学习交流',
-    targetAvatar: AVATAR('im-202'),
-    memberCount: 56,
-    lastMessage: { type: 'text', content: '请问这个户型怎么看？', senderId: '105', senderName: '新人小白', time: '周日' },
-    unreadCount: 0,
-    isPinned: false,
-    isMuted: true,
-    updatedAt: '2026-05-31T20:00:00',
-  },
-]
+/** SDK lastMessage.type → 前端 MessageType（文本以外显示占位摘要） */
+function timLastMsgType(t?: string): MessageType {
+  switch (t) {
+    case 'TIMImageElem': return 'image'
+    case 'TIMSoundElem': return 'voice'
+    case 'TIMVideoFileElem': return 'video'
+    case 'TIMFileElem': return 'file'
+    default: return 'text'
+  }
+}
+
+/** 腾讯 IM SDK 会话 → 页面 ConversationItem；系统会话(@TIM#SYSTEM)返回 null 由调用方过滤 */
+export function timConvToConversationItem(c: TimConversation): ConversationItem | null {
+  const last = c.lastMessage
+  const lastTimeMs = (last?.lastTime || 0) * 1000
+  const base = {
+    id: c.conversationID,
+    unreadCount: c.unreadCount || 0,
+    isPinned: !!c.isPinned,
+    isMuted: c.messageRemindType === 'AcceptNotNotify',
+    draft: c.draftText || undefined,
+    updatedAt: lastTimeMs ? new Date(lastTimeMs).toISOString() : new Date(0).toISOString(),
+    lastMessage: {
+      type: timLastMsgType(last?.type),
+      content: last?.messageForShow || '',
+      senderId: last?.fromAccount || '',
+      time: lastTimeMs ? formatMessageTime(lastTimeMs) : '',
+    } as LastMessage,
+  }
+  if (c.type === 'C2C' && c.userProfile) {
+    return {
+      ...base,
+      type: 'private',
+      targetId: c.userProfile.userID,
+      targetName: c.remark || c.userProfile.nick || c.userProfile.userID.slice(0, 8),
+      targetAvatar: c.userProfile.avatar || '',
+    }
+  }
+  if (c.type === 'GROUP' && c.groupProfile) {
+    return {
+      ...base,
+      type: 'group',
+      targetId: c.groupProfile.groupID,
+      targetName: c.groupProfile.name || c.groupProfile.groupID,
+      targetAvatar: c.groupProfile.avatar || '',
+      memberCount: c.groupProfile.memberNum,
+    }
+  }
+  return null // @TIM#SYSTEM 等系统会话不进会话列表
+}
 
 /** 会话列表中最后一条消息的摘要文本（与原型一致：senderName 存在则统一加前缀） */
 export function getMessageSummary(message: { type: string; content: string; senderName?: string }): string {
@@ -853,10 +813,28 @@ export const imApi = {
     return await apiGet<RelationPolicy>(`/im/relation/${targetId}`)
   },
 
-  /** 获取会话列表 */
+  /** 获取会话列表（TIM SDK 为真源：列表/未读/置顶/免打扰；错误向上抛走三态） */
   async getConversations(): Promise<ConversationItem[]> {
-    if (true) return mockConversations
-    try { return await apiGet<ConversationItem[]>('/im/conversations') } catch { return mockConversations }
+    const list = await useTim().getConversationList()
+    return list.map(timConvToConversationItem).filter((c): c is ConversationItem => c !== null)
+  },
+
+  /** 置顶/取消置顶会话（TIM SDK） */
+  async pinConversation(conversationID: string, isPinned: boolean): Promise<void> {
+    await useTim().pinConversation(conversationID, isPinned)
+  },
+
+  /** 会话免打扰开关（TIM SDK） */
+  async muteConversation(conv: ConversationItem, mute: boolean): Promise<void> {
+    await useTim().setConversationMute(
+      { type: conv.type === 'group' ? 'GROUP' : 'C2C', id: conv.targetId },
+      mute,
+    )
+  },
+
+  /** 删除会话（TIM SDK，聊天记录一并清除） */
+  async deleteConversation(conversationID: string): Promise<void> {
+    await useTim().deleteConversation(conversationID)
   },
 
   /** 获取聊天对象信息 */

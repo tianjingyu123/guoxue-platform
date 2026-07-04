@@ -167,7 +167,9 @@ import {
 import { useTim, type TimMessage } from '@/composables/useTim'
 
 // name/avatar 由跳转来源（会话列表/用户主页私信按钮）经 query 传入做对端展示；无则从收到的消息补齐
-const props = defineProps<{ targetId: string; name?: string; avatar?: string }>()
+// 兼容两种入参：?targetId=（直连完整路径）与 ?id=（utils/router DYNAMIC_ROUTES /im/chat/:id 与用户主页私信按钮传的都是 id）
+const props = defineProps<{ targetId?: string; id?: string; name?: string; avatar?: string }>()
+const peerId = computed(() => props.targetId || props.id || '')
 
 const statusBarHeight = ref(0)
 const tim = useTim()
@@ -195,13 +197,18 @@ let unsubscribe: (() => void) | null = null
 async function loadData() {
   loading.value = true
   error.value = ''
+  if (!peerId.value) {
+    error.value = '未指定聊天对象'
+    loading.value = false
+    return
+  }
   try {
     // 登录 TIM（user-sig + account import + login）→ 拉单聊历史
     await tim.ensureLogin()
-    const res = await tim.getC2CHistory(props.targetId)
+    const res = await tim.getC2CHistory(peerId.value)
     messages.value = res.messageList.map(timToChatMessage)
     fillTargetFromMessages(res.messageList)
-    await tim.setC2CRead(props.targetId)
+    await tim.setC2CRead(peerId.value)
   } catch (e) {
     error.value = (e as Error)?.message || '连接消息服务失败，请重试'
     loading.value = false
@@ -209,11 +216,11 @@ async function loadData() {
   }
   // 订阅实时新消息（仅本会话对端发来的）
   unsubscribe = tim.onMessage((msgs) => {
-    const mine = msgs.filter((m) => m.conversationID === `C2C${props.targetId}`)
+    const mine = msgs.filter((m) => m.conversationID === `C2C${peerId.value}`)
     if (!mine.length) return
     messages.value.push(...mine.map(timToChatMessage))
     fillTargetFromMessages(mine)
-    tim.setC2CRead(props.targetId)
+    tim.setC2CRead(peerId.value)
   })
   // 私信权限真连后端 /im/relation/:id；单独获取，失败保守降级（禁止发送）不阻塞整页
   await refreshPermission()
@@ -231,7 +238,7 @@ function fillTargetFromMessages(msgs: TimMessage[]) {
 // 拉取与目标用户的私信关系权限（驱动输入框可用态与提示）
 async function refreshPermission() {
   try {
-    permission.value = toChatPermission(await imApi.getRelationPolicy(props.targetId))
+    permission.value = toChatPermission(await imApi.getRelationPolicy(peerId.value))
   } catch {
     permission.value = { state: 'blocked', canSend: false, hint: '暂时无法确认会话权限，请稍后重试', reason: 'error' }
   }
@@ -295,7 +302,7 @@ async function handleSendText() {
   inputText.value = ''
   submitting.value = true
   try {
-    const sdkMsg = await tim.sendText(props.targetId, content)
+    const sdkMsg = await tim.sendText(peerId.value, content)
     messages.value.push(timToChatMessage(sdkMsg))
     // 发送成功后刷新权限：未互关时剩余条数会随发送递减
     await refreshPermission()
