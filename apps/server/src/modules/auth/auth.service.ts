@@ -44,12 +44,14 @@ export class AuthService {
     private permSvc: PermissionService,
   ) {}
 
-  /** 生成 accessToken（15分钟） + refreshToken（7天，存Redis可撤销） */
+  /** 生成 accessToken（2小时） + refreshToken（7天，存Redis可撤销） */
   private async generateTokenPair(userId: string) {
     const accessToken = this.jwt.sign({ sub: userId });
     const refreshToken = crypto.randomUUID();
-    // refreshToken 存 Redis，7 天过期，可用于主动撤销
+    // refreshToken 存 Redis，7 天过期；同时挂进用户维度索引，撤销时可精确删除
     await this.redis.set(`refresh:${refreshToken}`, userId, 7 * 24 * 3600);
+    await this.redis.sadd(`refresh:user:${userId}`, refreshToken);
+    await this.redis.expire(`refresh:user:${userId}`, 7 * 24 * 3600);
     return { accessToken, refreshToken };
   }
 
@@ -59,13 +61,25 @@ export class AuthService {
     if (!userId) throw new BusinessException(ErrorCode.AUTH_TOKEN_INVALID, "refreshToken 无效或已过期");
     // 轮换：删除旧 token 防止重放攻击
     await this.redis.del(`refresh:${refreshToken}`);
+    await this.redis.srem(`refresh:user:${userId}`, refreshToken);
+    // 封号用户不再续发（accessToken 侧由 JwtStrategy 拦截，此处断掉 refresh 链路）
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { status: true } });
+    if (!user || user.status === "DISABLED") {
+      throw new BusinessException(ErrorCode.AUTH_TOKEN_INVALID, "账号不可用");
+    }
     return this.generateTokenPair(userId);
   }
 
-  /** 撤销指定用户所有 refreshToken（修改密码/封号等场景） */
+  /** 撤销指定用户所有 refreshToken 并使已签发 accessToken 失效（修改密码/封号等场景） */
   async revokeAllRefreshTokens(userId: string) {
-    // 将用户加入黑名单，后续 refresh 时检查
-    await this.redis.set(`revoked:user:${userId}`, "1", 15 * 60); // 15分钟黑名单
+    // 精确删除该用户全部 refreshToken（旧 refresh 立即失效，不影响撤销后的新登录）
+    const tokens = await this.redis.smembers(`refresh:user:${userId}`);
+    for (const t of tokens) {
+      await this.redis.del(`refresh:${t}`);
+    }
+    await this.redis.del(`refresh:user:${userId}`);
+    // 记录撤销时刻，JwtStrategy 用 iat 比对拒绝撤销前签发的 accessToken；TTL 覆盖 accessToken 最长生命期(2h)
+    await this.redis.set(`revoked:user:${userId}`, String(Date.now()), 2 * 3600 + 60);
   }
 
   /** 生成仅 accessToken（兼容旧接口） */
@@ -412,6 +426,7 @@ export class AuthService {
       where: { id: auth.id },
       data: { credential: newHash },
     });
+    await this.revokeAllRefreshTokens(userId);
     return { success: true };
   }
 

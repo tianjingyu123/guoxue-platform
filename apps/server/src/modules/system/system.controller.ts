@@ -15,6 +15,7 @@ import { Response, Request } from "express";
 import * as fs from "fs";
 import { SetConfigDto, CreateConfigDto, ToggleMaintenanceDto, ToggleAutomationDto, ExportUsersDto, ExportOrdersDto, ExportContentsDto, ExportAuditLogsDto, ExportEarningsDto, UpsertPageContentDto, CreateSiteNoticeDto, UpdateSiteNoticeDto, RollbackConfigDto, UpsertMemberConfigDto, ExportExcelDto, UpdateBrandConfigDto } from "./system.dto";
 import { SkipFormat } from "../../common/skip-format.decorator";
+import { Auditable } from "../../common/audit.decorator";
 import { THIRD_PARTY_SERVICES } from "../../config/third-party-services";
 
 @ApiTags("系统配置")
@@ -68,6 +69,7 @@ export class SystemController {
   }
 
   @Post("configs")
+  @Auditable({ action: "系统配置创建（含第三方密钥）", targetType: "CONFIG" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "创建系统配置" })
@@ -95,6 +97,7 @@ export class SystemController {
   }
 
   @Put("configs/:key")
+  @Auditable({ action: "系统配置变更（含第三方密钥）", targetType: "CONFIG" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "更新系统配置" })
@@ -114,6 +117,7 @@ export class SystemController {
   }
 
   @Delete("configs/:key")
+  @Auditable({ action: "系统配置删除（含第三方密钥）", targetType: "CONFIG" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "删除系统配置" })

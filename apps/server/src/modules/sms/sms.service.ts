@@ -79,8 +79,9 @@ export class SmsService {
     }
   }
 
-  /** 是否为开发模式（无腾讯云凭证时走本地验证码） */
+  /** 是否为开发模式（无腾讯云凭证时走本地验证码）。生产环境显式断言关闭，防误配组合导致验证码进日志 */
   private isDevMode(): boolean {
+    if (process.env.NODE_ENV === "production") return false;
     return process.env.NODE_ENV === "development" && (!this.secretId || !this.secretKey || !this.appId);
   }
 
@@ -117,7 +118,7 @@ export class SmsService {
     // 开发模式：跳过腾讯云 API，验证码直接打印到控制台
     if (this.isDevMode()) {
       this.logger.warn(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
-      this.logger.warn(`[DEV] 验证码: ${code} → 手机号: ${phone} (场景: ${scene})`);
+      this.logger.warn(`[DEV] 验证码: ${code} → 手机号: ${maskPhone(phone)} (场景: ${scene})`);
       this.logger.warn(`[DEV] 此验证码 5 分钟内有效，可在登录/注册页使用`);
       this.logger.warn(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
       return { ok: true, message: "验证码已发送（开发模式，查看控制台获取验证码）" };

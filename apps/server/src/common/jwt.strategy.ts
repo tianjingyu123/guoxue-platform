@@ -4,6 +4,7 @@ import { ExtractJwt, Strategy } from "passport-jwt";
 import { Request } from "express";
 import * as jwt from "jsonwebtoken";
 import { PrismaService } from "../prisma/prisma.service";
+import { RedisService } from "../redis/redis.service";
 import { BusinessException } from "./business.exception";
 import { ErrorCode } from "./error-codes";
 
@@ -20,7 +21,10 @@ import { ErrorCode } from "./error-codes";
 export class JwtStrategy extends PassportStrategy(Strategy) {
   private readonly logger = new Logger(JwtStrategy.name);
 
-  constructor(private prisma: PrismaService) {
+  constructor(
+    private prisma: PrismaService,
+    private redis: RedisService,
+  ) {
     const currentSecret = process.env.JWT_SECRET;
     if (!currentSecret)
       throw new BusinessException(ErrorCode.INTERNAL_ERROR, "JWT_SECRET 环境变量未设置");
@@ -64,7 +68,12 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
 
-  async validate(payload: { sub: string }) {
+  async validate(payload: { sub: string; iat?: number }) {
+    // 改密/重置/封号会写入撤销时刻：撤销前签发的 accessToken 一律拒绝（M1 会话失效）
+    const revokedAt = await this.redis.get(`revoked:user:${payload.sub}`);
+    if (revokedAt && payload.iat && payload.iat * 1000 < Number(revokedAt)) {
+      throw new UnauthorizedException();
+    }
     const user = await this.prisma.user.findUnique({
       where: { id: payload.sub },
       include: { roles: true },

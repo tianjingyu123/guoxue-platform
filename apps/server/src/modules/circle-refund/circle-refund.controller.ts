@@ -5,6 +5,7 @@ import { CircleRefundService } from "./circle-refund.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
+import { Auditable } from "../../common/audit.decorator";
 
 @ApiTags("圈子退款")
 @Controller("circle-refund")
@@ -58,6 +59,7 @@ export class CircleRefundController {
   }
 
   @Post(":id/owner-review")
+  @Auditable({ action: "圈子退款圈主审核", targetType: "CIRCLE_REFUND" })
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "圈主审核退款（同意/驳回）" })
   @ApiBearerAuth()
@@ -79,6 +81,7 @@ export class CircleRefundController {
   }
 
   @Post(":id/admin-review")
+  @Auditable({ action: "圈子退款平台审核", targetType: "CIRCLE_REFUND" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "平台审核退款（管理员，同意/驳回）" })

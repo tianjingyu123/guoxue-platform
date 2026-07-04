@@ -5,7 +5,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { SmsService } from "../sms/sms.service";
 import { DeleteAccountDto, ChangePhoneDto } from "./auth.dto";
-import { buildPhoneFields, phoneHmac } from "../../common/crypto.util";
+import { buildPhoneFields, phoneHmac, maskPhone } from "../../common/crypto.util";
 import * as bcrypt from "bcryptjs";
 
 @Injectable()
@@ -94,7 +94,7 @@ export class AccountService {
       data: buildPhoneFields(dto.newPhone), // M4 灰度双写：phone + phoneHash + phoneEnc
     });
 
-    this.logger.log(`用户 ${userId} 更换手机号: ${user.phone} → ${dto.newPhone}`);
+    this.logger.log(`用户 ${userId} 更换手机号: ${maskPhone(user.phone)} → ${maskPhone(dto.newPhone)}`);
     return { message: "手机号更换成功", phone: dto.newPhone };
   }
 }

@@ -274,6 +274,24 @@ export class RedisService implements OnModuleDestroy {
     return s ? s.size : 0;
   }
 
+  async smembers(key: string): Promise<string[]> {
+    const conn = await this.getConn();
+    if (conn) return conn.smembers(key);
+    const s = this.setMemory.get(key);
+    return s ? Array.from(s) : [];
+  }
+
+  /** 刷新键 TTL（内存降级下 set 类型无过期语义，仅对 string 键生效） */
+  async expire(key: string, ttlSeconds: number): Promise<void> {
+    const conn = await this.getConn();
+    if (conn) {
+      await conn.expire(key, ttlSeconds);
+      return;
+    }
+    const entry = this.memory.get(key);
+    if (entry) entry.expiry = Date.now() + ttlSeconds * 1000;
+  }
+
   // ───────── 限流 ─────────
 
   /** 原子递增并设 TTL，用于分布式限流。返回 { count, ttl }，Redis 不可用时降级内存 */

@@ -543,6 +543,15 @@ export class HuifuService {
         return;
       }
 
+      // M2 金额比对：斗拱回调 trans_amt 单位为元；不符拒绝入账，落错误台账人工对账
+      const transAmt = parseFloat(String(payload.trans_amt ?? ""));
+      if (Number.isFinite(transAmt) && Math.abs(transAmt - Number(order.amount)) >= 0.01) {
+        this.logger.error(
+          `【资金对账·金额不符】汇付回调金额与订单金额不一致，拒绝入账: order=${order.id}, outTradeNo=${outTradeNo}, 回调金额=${transAmt}, 订单金额=${Number(order.amount)}`,
+        );
+        return;
+      }
+
       const transactionId = (payload.hf_seq_id || payload.huifu_order_id) as string;
 
       // CAS 状态翻转：仅当仍为 PENDING 时置 PAID，防并发/回调重投重复处理(不依赖 redis 锁存活)

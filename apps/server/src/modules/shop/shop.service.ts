@@ -1109,6 +1109,15 @@ export class ShopService {
       }
       if (order.status !== "PENDING") return true; // 已支付等终态，幂等返回
 
+      // M2 金额比对：微信 V3 解密报文 amount.total 单位为分；不符=确定性差异，重试无益，落错误台账人工对账
+      const wxTotal = (body.amount as Record<string, unknown> | undefined)?.total;
+      if (typeof wxTotal === "number" && Math.abs(wxTotal / 100 - Number(order.amount)) >= 0.01) {
+        this.logger.error(
+          `【资金对账·金额不符】微信回调金额与订单金额不一致，拒绝入账: order=${orderId}, outTradeNo=${outTradeNo}, 回调金额=${wxTotal / 100}, 订单金额=${Number(order.amount)}`,
+        );
+        return true;
+      }
+
       const orderLockKey = await this.acquireOrderLock(orderId);
       if (!orderLockKey) return false; // 订单锁抢不到，让渠道重试
 
@@ -1141,7 +1150,11 @@ export class ShopService {
   /** 处理支付宝回调 */
   async handleAlipayNotify(data: Record<string, unknown>) {
     const outTradeNo = data.outTradeNo as string;
-    await this.completePayment(outTradeNo, "ALIPAY", data.tradeNo as string, data.tradeStatus === "TRADE_SUCCESS");
+    await this.completePayment(
+      outTradeNo, "ALIPAY", data.tradeNo as string,
+      data.tradeStatus === "TRADE_SUCCESS",
+      Number(data.totalAmount), // 元
+    );
   }
 
   /** 银联回调验签 */
@@ -1153,7 +1166,10 @@ export class ShopService {
   async handleUnionpayNotify(data: Record<string, unknown>) {
     if (data.respCode !== "00") return;
     const outTradeNo = data.outTradeNo as string;
-    await this.completePayment(outTradeNo, "UNIONPAY", data.tradeNo as string, true);
+    await this.completePayment(
+      outTradeNo, "UNIONPAY", data.tradeNo as string, true,
+      Number(data.amount) / 100, // 银联回调金额单位为分
+    );
   }
 
   /**
@@ -1328,7 +1344,7 @@ export class ShopService {
     }
   }
 
-  private async completePayment(outTradeNo: string, payMethod: string, tradeNo: string, success: boolean) {
+  private async completePayment(outTradeNo: string, payMethod: string, tradeNo: string, success: boolean, callbackAmount?: number) {
     if (!success) {
       this.logger.log(`支付未成功: ${outTradeNo}, 方式: ${payMethod}`);
       return;
@@ -1351,6 +1367,14 @@ export class ShopService {
         return;
       }
       if (order.status !== "PENDING") return;
+
+      // M2 金额比对：验签只证明报文来自渠道，不证明买家付的是本单应付额（篡改下单金额/换单攻击面）
+      if (callbackAmount !== undefined && Math.abs(callbackAmount - Number(order.amount)) >= 0.01) {
+        this.logger.error(
+          `【资金对账·金额不符】回调金额与订单金额不一致，拒绝入账: order=${order.id}, outTradeNo=${outTradeNo}, 渠道=${payMethod}, 回调金额=${callbackAmount}, 订单金额=${Number(order.amount)}`,
+        );
+        return;
+      }
 
       const orderLockKey = await this.acquireOrderLock(order.id);
       if (!orderLockKey) return;

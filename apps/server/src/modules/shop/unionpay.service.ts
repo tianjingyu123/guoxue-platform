@@ -287,6 +287,7 @@ export class UnionpayService {
       return {
         valid: true,
         data: {
+          respCode: "00", // handleUnionpayNotify 以此判定成功，缺失会导致成功回调被拒不入账
           outTradeNo: orderId,
           tradeNo: params.queryId || params.query_id,
           amount: parseInt(params.txnAmt || params.txn_amt || "0"),

@@ -19,9 +19,10 @@ import { AuditModule } from "../audit/audit.module";
 import { SmsModule } from "../sms/sms.module";
 import { SettlementModule } from "../settlement/settlement.module";
 import { UserGrowthModule } from "../user-growth/user-growth.module";
+import { AuthModule } from "../auth/auth.module";
 
 @Module({
-  imports: [SystemModule, CoinModule, InteractionModule, CommentModule, AuditModule, SmsModule, SettlementModule, UserGrowthModule],
+  imports: [SystemModule, CoinModule, InteractionModule, CommentModule, AuditModule, SmsModule, SettlementModule, UserGrowthModule, AuthModule],
   // CreationRankingsController 必须置于 UserController 之前：GET users/creation-rankings 是静态段，
   // 若 users/:id 先注册会将其吞掉（Express 按注册序匹配）
   controllers: [CreationRankingsController, UserController, PaymentPasswordController, PointsController, TeenModeController, FeedbackController, WalletController],

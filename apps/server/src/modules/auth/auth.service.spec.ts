@@ -28,6 +28,10 @@ const mockRedis = {
   set: jest.fn(),
   get: jest.fn(),
   del: jest.fn(),
+  sadd: jest.fn(),
+  srem: jest.fn(),
+  smembers: jest.fn().mockResolvedValue([]),
+  expire: jest.fn(),
 };
 
 const mockWechat = {
@@ -237,9 +241,15 @@ describe("AuthService", () => {
   });
 
   describe("revokeAllRefreshTokens", () => {
-    it("设置用户刷新令牌黑名单", async () => {
+    it("删除用户全部 refreshToken 并记录撤销时刻", async () => {
+      mockRedis.smembers.mockResolvedValueOnce(["rt-1", "rt-2"]);
       await svc.revokeAllRefreshTokens("user-1");
-      expect(mockRedis.set).toHaveBeenCalledWith("revoked:user:user-1", "1", 15 * 60);
+      expect(mockRedis.smembers).toHaveBeenCalledWith("refresh:user:user-1");
+      expect(mockRedis.del).toHaveBeenCalledWith("refresh:rt-1");
+      expect(mockRedis.del).toHaveBeenCalledWith("refresh:rt-2");
+      expect(mockRedis.del).toHaveBeenCalledWith("refresh:user:user-1");
+      // 撤销时刻写入（JwtStrategy 用 iat 比对拒绝旧 accessToken），TTL 覆盖 accessToken 生命期
+      expect(mockRedis.set).toHaveBeenCalledWith("revoked:user:user-1", expect.any(String), 2 * 3600 + 60);
     });
   });
 

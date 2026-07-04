@@ -8,6 +8,7 @@ import { maskPhone } from "../../common/crypto.util";
 import { safePagination } from "../../common/pagination";
 import { isUniqueConstraintError } from "../../common/prisma-errors";
 import { AuditService } from "../audit/audit.service";
+import { AuthService } from "../auth/auth.service";
 
 @Injectable()
 export class UserService {
@@ -17,6 +18,7 @@ export class UserService {
     private prisma: PrismaService,
     private redis: RedisService,
     private audit: AuditService,
+    private auth: AuthService,
   ) {}
 
   async getUserById(userId: string) {
@@ -173,11 +175,14 @@ export class UserService {
   async updateUserStatus(userId: string, status: string) {
     const existing = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "用户不存在");
-    return this.prisma.user.update({
+    const updated = await this.prisma.user.update({
       where: { id: userId },
       data: { status: status as UserStatus },
       select: { id: true, nickname: true, status: true },
     });
+    // 封禁即踢下线：撤销全部 refreshToken + 已签发 accessToken（M1）
+    if (status === "DISABLED") await this.auth.revokeAllRefreshTokens(userId);
+    return updated;
   }
 
   async batchUpdateStatus(ids: string[], status: string) {
@@ -185,6 +190,9 @@ export class UserService {
       where: { id: { in: ids } },
       data: { status: status as UserStatus },
     });
+    if (status === "DISABLED") {
+      for (const id of ids) await this.auth.revokeAllRefreshTokens(id);
+    }
     return { updated: result.count };
   }
 

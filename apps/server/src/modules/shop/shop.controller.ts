@@ -107,6 +107,7 @@ export class ShopController {
   }
 
   @Put("products/:id")
+  @Auditable({ action: "商品编辑（含价格变更）", targetType: "PRODUCT" })
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "更新商品" })
   @ApiResponse({ status: 200, description: "更新成功" })

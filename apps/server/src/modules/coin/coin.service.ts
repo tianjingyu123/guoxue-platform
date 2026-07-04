@@ -440,6 +440,15 @@ export class CoinService {
 
       const amountRmb = amountCoin / (await this.getCoinRate());
 
+      // M2 金额比对：attach 是我方下单侧写入的期望值，入账前必须与微信实付金额(amount.total·分)核对
+      const wxTotal = (body.amount as Record<string, unknown> | undefined)?.total;
+      if (typeof wxTotal === "number" && Math.abs(wxTotal / 100 - amountRmb) >= 0.01) {
+        this.logger.error(
+          `【资金对账·金额不符】充值回调实付金额与应付金额不一致，拒绝入账: orderNo=${orderNo}, userId=${userId}, 实付=${wxTotal / 100}, 应付=${amountRmb}`,
+        );
+        return;
+      }
+
       await this.recharge(userId, {
         amountCoin,
         payMethod: "WECHAT",

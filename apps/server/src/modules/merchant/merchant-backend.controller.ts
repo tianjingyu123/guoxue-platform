@@ -2,6 +2,7 @@ import { Controller, Get, Post, Put, Delete, Body, Param, Query, Req, UseGuards 
 import { Request } from "express";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from "@nestjs/swagger";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
+import { Auditable } from "../../common/audit.decorator";
 import { MerchantService } from "./merchant.service";
 import { MerchantSettlementService } from "./merchant-settlement.service";
 import { MerchantGuard } from "./merchant.guard";
@@ -79,6 +80,7 @@ export class MerchantBackendController {
   }
 
   @Put("products/:id")
+  @Auditable({ action: "商家商品编辑（含价格变更）", targetType: "PRODUCT" })
   @ApiOperation({ summary: "更新商品" })
   @ApiResponse({ status: 200, description: "更新成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
