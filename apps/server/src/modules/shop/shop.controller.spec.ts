@@ -2,6 +2,7 @@ import { Test } from "@nestjs/testing";
 import { ShopController } from "./shop.controller";
 import { ShopService } from "./shop.service";
 import { ShopCouponService } from "./shop-coupon.service";
+import { AfterSaleSlaService } from "./after-sale-sla.service";
 import { LogisticsService } from "./logistics.service";
 import { SystemService } from "../system/system.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
@@ -92,6 +93,8 @@ describe("ShopController", () => {
         { provide: ShopCouponService, useValue: mockCouponSvc },
         { provide: LogisticsService, useValue: mockLogisticsSvc },
         { provide: SystemService, useValue: mockSystemSvc },
+        // 合-P2 售后SLA列表的依赖
+        { provide: AfterSaleSlaService, useValue: { listWithSla: jest.fn().mockResolvedValue({ items: [], total: 0 }) } },
       ],
     })
       .overrideGuard(JwtAuthGuard).useValue({ canActivate: () => true })
