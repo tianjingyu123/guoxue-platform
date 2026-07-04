@@ -13,7 +13,7 @@
         </view>
         <view class="group-text">
           <text class="group-name">{{ groupDetail.name }}</text>
-          <text class="group-status">{{ onlineCount }}人在线 / {{ groupDetail.memberCount }}人</text>
+          <text class="group-status">{{ groupDetail.memberCount }}人</text>
         </view>
       </view>
       <view class="icon-btn" @tap="showMembersSheet = true">
@@ -157,10 +157,6 @@
           <AppIcon name="copy" :size="20" color="#2c2c2c" />
           <text class="menu-label">复制</text>
         </view>
-        <view v-if="canWithdraw(selectedMessage)" class="menu-btn" @tap="handleWithdraw(selectedMessage)">
-          <AppIcon name="trash-2" :size="20" color="#2c2c2c" />
-          <text class="menu-label">撤回</text>
-        </view>
       </view>
     </view>
 
@@ -240,25 +236,28 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
 import {
   imApi,
   searchGroupMembersForAt,
   getGroupRoleName,
-  getGroupOnlineCount,
-  canWithdrawMessage,
+  timToGroupChatMessage,
   formatMessageTime,
   shouldShowTimeLabel,
-  CURRENT_USER_ID,
   type GroupChatMessage,
   type GroupMember,
+  type GroupRole,
 } from '@/lib/im-data'
+import { useTim } from '@/composables/useTim'
 
-const props = defineProps<{ groupId: string }>()
+// 兼容双入参：?groupId=（直连完整路径）与 ?id=（utils/router /im/group-chat/:id 映射为 id）
+const props = defineProps<{ groupId?: string; id?: string }>()
+const gid = computed(() => props.groupId || props.id || '')
 
 const statusBarHeight = ref(0)
+const tim = useTim()
 
 // 数据状态
 // groupDetail 为详情对象，模板裸访问多个字段（name/notice/memberCount/myRole/noticeDetail 等），收敛 any 会触发大量字段/null 报错，保留 any
@@ -276,44 +275,72 @@ const showMembersSheet = ref(false)
 const showNoticeSheet = ref(false)
 const showAtList = ref(false)
 const atSearchKeyword = ref('')
-const selectedAtMembers = ref<number[]>([])
+const selectedAtMembers = ref<string[]>([])
 const selectedMessage = ref<GroupChatMessage | null>(null)
+
+let unsubscribe: (() => void) | null = null
+
+// userID → 角色映射（用于给消息气泡补齐发送者角色徽标）
+const roleMap = computed(() => {
+  const m = new Map<string, GroupRole>()
+  members.value.forEach((x) => m.set(x.id, x.role))
+  return m
+})
+function enrichRole(m: GroupChatMessage): GroupChatMessage {
+  if (!m.senderRole) m.senderRole = roleMap.value.get(m.senderId)
+  return m
+}
 
 async function loadData() {
   loading.value = true
   error.value = ''
+  if (!gid.value) {
+    error.value = '未指定群聊'
+    loading.value = false
+    return
+  }
   try {
-    const [detail, chatHistory] = await Promise.all([
-      imApi.getGroupDetail(Number(props.groupId)),
-      imApi.getGroupChatHistory(Number(props.groupId)),
+    // 登录 TIM（user-sig + account import + login）→ 并行拉群资料/成员/历史
+    await tim.ensureLogin()
+    const [detail, memberList, history] = await Promise.all([
+      imApi.getGroupDetail(gid.value),
+      imApi.getGroupMembers(gid.value),
+      imApi.getGroupChatHistory(gid.value),
     ])
     groupDetail.value = detail
-    messages.value = chatHistory
-    const memberList = await imApi.getGroupMembers(Number(props.groupId))
     members.value = memberList
+    messages.value = history.messages.map(enrichRole)
+    await imApi.markGroupRead(gid.value)
   } catch (e) {
     error.value = (e as Error)?.message || '加载群聊数据失败，请重试'
-  } finally {
     loading.value = false
+    return
   }
+  // 订阅实时新消息（仅本群 GROUP{gid}）
+  unsubscribe = tim.onMessage((msgs) => {
+    const mine = msgs.filter((m) => m.conversationID === `GROUP${gid.value}`)
+    if (!mine.length) return
+    messages.value.push(...mine.map(timToGroupChatMessage).map(enrichRole))
+    imApi.markGroupRead(gid.value)
+  })
+  loading.value = false
 }
 
 onMounted(() => {
   loadData()
 })
+onUnmounted(() => {
+  if (unsubscribe) unsubscribe()
+})
 
-const onlineCount = computed(() => getGroupOnlineCount(members.value))
 const canAtAll = computed(() => groupDetail.value.myRole === 'owner' || groupDetail.value.myRole === 'admin')
-const atSearchResults = computed(() => searchGroupMembersForAt(atSearchKeyword.value))
+const atSearchResults = computed(() => searchGroupMembersForAt(members.value, atSearchKeyword.value))
 
 function isMine(m: GroupChatMessage) {
-  return m.senderId === CURRENT_USER_ID
+  return !!m.isSelf
 }
 function showTime(m: GroupChatMessage, prev?: GroupChatMessage) {
   return shouldShowTimeLabel(m.timestamp, prev?.timestamp)
-}
-function canWithdraw(m: GroupChatMessage) {
-  return m.senderId === CURRENT_USER_ID && canWithdrawMessage(m.timestamp)
 }
 
 // 绑定到 uni <input>，vue-tsc 按原生 input 事件签名校验，保留 any
@@ -359,29 +386,24 @@ function handleCopy(content: string) {
   uni.setClipboardData({ data: content, success: () => toast('已复制') })
   selectedMessage.value = null
 }
-function handleWithdraw(m: GroupChatMessage) {
-  const target = messages.value.find((x) => x.id === m.id)
-  if (target) target.isWithdrawn = true
-  toast('消息已撤回')
-  selectedMessage.value = null
-}
 
 function toast(title: string) {
   uni.showToast({ title, icon: 'none' })
 }
 
-// @data-needs: 发送群消息, 参数 {groupId, type:'text', content, atMembers?}, 返回 {messageId}
+// 发送群消息：走 TIM SDK sendMessage（实时下发群内成员）
 async function handleSend() {
   if (submitting.value) return
-  if (!inputText.value.trim() && selectedAtMembers.value.length === 0) return
   const content = inputText.value.trim()
+  if (!content) return
   inputText.value = ''
   submitting.value = true
   try {
-    const msg = await imApi.sendGroupMessage(Number(props.groupId), content)
-    if (msg) {
-      messages.value.push(msg)
-    }
+    const msg = await imApi.sendGroupMessage(gid.value, content)
+    messages.value.push(enrichRole(msg))
+  } catch (e) {
+    inputText.value = content // 发送失败回填输入框
+    toast((e as Error)?.message || '发送失败，请重试')
   } finally {
     submitting.value = false
   }

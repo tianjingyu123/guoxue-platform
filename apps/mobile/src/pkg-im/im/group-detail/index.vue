@@ -3,11 +3,11 @@ import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
+import { getUserInfo } from '@/utils/storage'
 import {
   imApi,
   getGroupPermissions,
   getGroupRoleName,
-  CURRENT_USER_ID,
   type GroupMember,
   type GroupSettings,
   type GroupRole,
@@ -16,13 +16,17 @@ import {
 const statusBarHeight = ref(0)
 uni.getSystemInfo({ success: (e) => { statusBarHeight.value = e.statusBarHeight || 0 } })
 
-const groupId = ref<number>(0)
+// 我的 userID（腾讯 IM identifier）：用于识别成员列表中的"我"，替代旧的固定 CURRENT_USER_ID=0
+const myUserId = getUserInfo<{ id?: string }>()?.id || ''
+
+const groupId = ref<string>('')
 // group 为详情对象，模板裸访问多个字段（avatar/name/memberCount/myRole/noticeDetail 等），收敛 any 会触发大量字段/null 报错，保留 any
 const group = ref<any>({})
 const members = ref<GroupMember[]>([])
 const settings = ref<GroupSettings>({} as GroupSettings)
 const loading = ref(true)
 const error = ref('')
+const submitting = ref(false)
 
 const permissions = computed(() => getGroupPermissions(group.value.myRole))
 
@@ -32,9 +36,9 @@ async function loadData() {
   error.value = ''
   try {
     const [detail, memberList, groupSettings] = await Promise.all([
-      imApi.getGroupDetail(Number(groupId.value)),
-      imApi.getGroupMembers(Number(groupId.value)),
-      imApi.getGroupSettings(Number(groupId.value)),
+      imApi.getGroupDetail(groupId.value),
+      imApi.getGroupMembers(groupId.value),
+      imApi.getGroupSettings(groupId.value),
     ])
     group.value = detail
     members.value = memberList
@@ -47,7 +51,7 @@ async function loadData() {
 }
 
 onLoad((options) => {
-  if (options && options.id) groupId.value = Number(options.id)
+  if (options && options.id) groupId.value = String(options.id)
   loadData()
 })
 
@@ -87,55 +91,83 @@ function toast(title: string) {
 }
 
 function handleCopyGroupId() {
-  uni.setClipboardData({ data: String(groupId.value), success: () => toast('群号已复制') })
+  uni.setClipboardData({ data: groupId.value, success: () => toast('群号已复制') })
 }
 
+// 群昵称修改属群管理范畴（需 TIM setGroupMemberNameCard），本切片聚焦消息收发闭环，暂不开放
 function handleSaveNickname() {
-  settings.value.myNickname = nicknameInput.value
   editingNickname.value = false
-  toast('昵称已更新')
+  toast('群昵称修改暂未开放')
 }
 
-// 绑定到 uni <switch>，vue-tsc 按原生 SVG/switch 事件签名校验，保留 any
-function handleToggleMute(e: any) {
-  settings.value.isMuted = e.detail.value
-  toast(settings.value.isMuted ? '已开启消息免打扰' : '已开启消息通知')
+// 消息免打扰：真连 TIM SDK（乐观更新 + 失败回滚）。绑定 uni <switch>，事件签名保留 any
+async function handleToggleMute(e: any) {
+  if (submitting.value) return
+  const next = !!e.detail.value
+  submitting.value = true
+  settings.value.isMuted = next
+  try {
+    await imApi.setGroupMute(groupId.value, next)
+    toast(next ? '已开启消息免打扰' : '已开启消息通知')
+  } catch (err) {
+    settings.value.isMuted = !next
+    toast((err as Error)?.message || '操作失败，请重试')
+  } finally {
+    submitting.value = false
+  }
 }
 
-// 同上，绑定到 uni <switch>，保留 any
-function handleTogglePin(e: any) {
-  settings.value.isPinned = e.detail.value
-  toast(settings.value.isPinned ? '已置顶' : '已取消置顶')
+// 置顶聊天：真连 TIM SDK（乐观更新 + 失败回滚）
+async function handleTogglePin(e: any) {
+  if (submitting.value) return
+  const next = !!e.detail.value
+  submitting.value = true
+  settings.value.isPinned = next
+  try {
+    await imApi.setGroupPin(groupId.value, next)
+    toast(next ? '已置顶' : '已取消置顶')
+  } catch (err) {
+    settings.value.isPinned = !next
+    toast((err as Error)?.message || '操作失败，请重试')
+  } finally {
+    submitting.value = false
+  }
 }
 
-function handleQuit() {
-  showQuitConfirm.value = false
-  toast('已退出群聊')
-  setTimeout(() => navigateTo('/im/group-list'), 600)
+// 退出群聊：真连 TIM SDK quitGroup（群主不可退出，走解散）
+async function handleQuit() {
+  if (submitting.value) return
+  submitting.value = true
+  try {
+    await imApi.quitGroup(groupId.value)
+    showQuitConfirm.value = false
+    toast('已退出群聊')
+    setTimeout(() => navigateTo('/im/group-list'), 600)
+  } catch (err) {
+    toast((err as Error)?.message || '退出失败，请重试')
+  } finally {
+    submitting.value = false
+  }
 }
 
+// 解散群聊属群管理范畴（群主权限 + 平台侧业务），本切片不做群管理全套，honest 降级
 function handleDismiss() {
   showDismissConfirm.value = false
-  toast('群聊已解散')
-  setTimeout(() => navigateTo('/im/group-list'), 600)
+  toast('解散群聊请在管理后台操作')
 }
 
 function openMemberMenu(member: GroupMember) {
-  if (member.id === CURRENT_USER_ID || member.role === 'owner') return
+  if (member.id === myUserId || member.role === 'owner') return
   if (!permissions.value.canRemoveMember && !permissions.value.canSetAdmin) return
   selectedMember.value = member
   showMemberMenu.value = true
 }
 
+// 设管理员/转让群主/移除成员均属群管理范畴（后端群管理为 ADMIN only，见记忆 guoxue-im-progress），
+// 本切片聚焦已存在群的消息收发闭环，honest 降级为提示，不做假成功
 function handleToggleAdmin() {
-  const m = selectedMember.value
-  if (!m) return
-  const isAdmin = m.role === 'admin'
-  members.value = members.value.map((x) =>
-    x.id === m.id ? { ...x, role: isAdmin ? 'member' : 'admin' } : x,
-  )
   showMemberMenu.value = false
-  toast(isAdmin ? '已取消管理员' : '已设为管理员')
+  toast('群管理功能暂未开放')
 }
 
 function openTransfer() {
@@ -144,7 +176,7 @@ function openTransfer() {
 }
 function handleTransfer() {
   showTransferConfirm.value = false
-  toast('群主已转让')
+  toast('群管理功能暂未开放')
 }
 
 function openRemove() {
@@ -152,12 +184,9 @@ function openRemove() {
   showRemoveConfirm.value = true
 }
 function handleRemoveMember() {
-  const m = selectedMember.value
-  if (!m) return
-  members.value = members.value.filter((x) => x.id !== m.id)
   showRemoveConfirm.value = false
   selectedMember.value = null
-  toast('已移除成员')
+  toast('群管理功能暂未开放')
 }
 
 function handleShowQrcode() {
@@ -339,7 +368,7 @@ function goInvite() {
               </view>
             </view>
             <view
-              v-if="member.id !== CURRENT_USER_ID && member.role !== 'owner' && (permissions.canRemoveMember || permissions.canSetAdmin)"
+              v-if="member.id !== myUserId && member.role !== 'owner' && (permissions.canRemoveMember || permissions.canSetAdmin)"
               class="drawer-more"
               @tap="openMemberMenu(member)"
             >

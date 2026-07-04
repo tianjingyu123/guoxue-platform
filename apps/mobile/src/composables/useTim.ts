@@ -59,6 +59,30 @@ export interface TimConversation {
   }
 }
 
+/** SDK 群资料对象（getGroupProfile 返回 group；只声明用到字段） */
+export interface TimGroup {
+  groupID: string
+  name?: string
+  avatar?: string
+  type?: string
+  ownerID?: string
+  memberCount?: number
+  maxMemberCount?: number
+  notification?: string
+  introduction?: string
+  /** 我在本群的资料：role=Owner|Admin|Member；messageRemindType 免打扰态；nameCard 群昵称 */
+  selfInfo?: { role?: string; messageRemindType?: string; nameCard?: string }
+}
+
+/** SDK 群成员对象（getGroupMemberList 返回 memberList；role=Owner|Admin|Member） */
+export interface TimGroupMember {
+  userID: string
+  nick?: string
+  nameCard?: string
+  avatar?: string
+  role?: string
+}
+
 let TIM: TimModule | null = null
 let chat: TimChat | null = null
 let loginPromise: Promise<void> | null = null
@@ -251,9 +275,39 @@ export function useTim() {
     return res.data as unknown as { messageList: TimMessage[]; nextReqMessageID: string; isCompleted: boolean }
   }
 
+  // ───────── 群聊社交：群资料/成员/名录/已读（群详情页 & 群聊页真源）─────────
+
+  /** 拉取群资料（名称/头像/公告/成员数/我的角色）——群详情/群设置真源 */
+  async function getGroupProfile(groupId: string): Promise<TimGroup> {
+    await ensureLogin()
+    const res = await chat!.getGroupProfile({ groupID: groupId })
+    return (res.data?.group as unknown) as TimGroup
+  }
+
+  /** 拉取群成员列表（单页 count，最多 500；本切片一次拉够，不做深分页） */
+  async function getGroupMemberList(groupId: string, offset = 0, count = 100): Promise<TimGroupMember[]> {
+    await ensureLogin()
+    const res = await chat!.getGroupMemberList({ groupID: groupId, count, offset })
+    return ((res.data?.memberList || []) as unknown) as TimGroupMember[]
+  }
+
+  /** 拉取我加入的群名录（不含未读/最后一条，需与会话列表合并补齐） */
+  async function getJoinedGroupList(): Promise<TimGroup[]> {
+    await ensureLogin()
+    const res = await chat!.getGroupList()
+    return ((res.data?.groupList || []) as unknown) as TimGroup[]
+  }
+
+  /** 将某群会话标记为已读 */
+  async function setGroupRead(groupId: string): Promise<void> {
+    if (!isLoggedIn.value || !chat) return
+    try { await chat.setMessageRead({ conversationID: `GROUP${groupId}` }) } catch { /* ignore */ }
+  }
+
   return {
     isReady, isLoggedIn, ensureLogin, sendText, getC2CHistory, setC2CRead, onMessage,
     getConversationList, onConversationsUpdated, pinConversation, setConversationMute, deleteConversation,
     joinGroup, quitGroup, sendGroupText, getGroupHistory,
+    getGroupProfile, getGroupMemberList, getJoinedGroupList, setGroupRead,
   }
 }

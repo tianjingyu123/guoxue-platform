@@ -208,7 +208,7 @@ function goBack() {
 function goCreateGroup() {
   navigateTo('/im/create-group')
 }
-function goGroupChat(id: number) {
+function goGroupChat(id: string) {
   navigateTo(`/im/group-chat/${id}`)
 }
 
@@ -219,29 +219,54 @@ function closeMenu() {
   menuGroup.value = null
 }
 
-function onTogglePin() {
-  // @data-needs: 调用 togglePinGroup 接口
-  const g = menuGroup.value
-  if (g) {
-    g.isPinned = !g.isPinned
-    groupList.value = [...groupList.value].sort((a, b) => {
-      if (a.isPinned && !b.isPinned) return -1
-      if (!a.isPinned && b.isPinned) return 1
-      return 0
-    })
-    uni.showToast({ title: g.isPinned ? '已置顶' : '已取消置顶', icon: 'none' })
-  }
-  closeMenu()
+const submitting = ref(false)
+
+function resort() {
+  groupList.value = [...groupList.value].sort((a, b) => {
+    if (a.isPinned && !b.isPinned) return -1
+    if (!a.isPinned && b.isPinned) return 1
+    return 0
+  })
 }
 
-function onToggleMute() {
-  // @data-needs: 调用 toggleMuteGroup 接口
+// 置顶：真连 TIM SDK（乐观更新 + 失败回滚）
+async function onTogglePin() {
   const g = menuGroup.value
-  if (g) {
-    g.isMuted = !g.isMuted
-    uni.showToast({ title: g.isMuted ? '已开启免打扰' : '已关闭免打扰', icon: 'none' })
-  }
   closeMenu()
+  if (!g || submitting.value) return
+  const next = !g.isPinned
+  submitting.value = true
+  g.isPinned = next
+  resort()
+  try {
+    await imApi.setGroupPin(g.id, next)
+    uni.showToast({ title: next ? '已置顶' : '已取消置顶', icon: 'none' })
+  } catch (e) {
+    g.isPinned = !next
+    resort()
+    uni.showToast({ title: (e as Error)?.message || '操作失败，请重试', icon: 'none' })
+  } finally {
+    submitting.value = false
+  }
+}
+
+// 免打扰：真连 TIM SDK（乐观更新 + 失败回滚）
+async function onToggleMute() {
+  const g = menuGroup.value
+  closeMenu()
+  if (!g || submitting.value) return
+  const next = !g.isMuted
+  submitting.value = true
+  g.isMuted = next
+  try {
+    await imApi.setGroupMute(g.id, next)
+    uni.showToast({ title: next ? '已开启免打扰' : '已关闭免打扰', icon: 'none' })
+  } catch (e) {
+    g.isMuted = !next
+    uni.showToast({ title: (e as Error)?.message || '操作失败，请重试', icon: 'none' })
+  } finally {
+    submitting.value = false
+  }
 }
 
 function onQuitTap() {
@@ -249,15 +274,26 @@ function onQuitTap() {
   menuGroup.value = null
 }
 
-function onQuitConfirm() {
-  // @data-needs: 调用 quitGroup / dismissGroup 接口
+// 退出群聊：真连 TIM SDK quitGroup；群主解散属群管理范畴，honest 降级
+async function onQuitConfirm() {
   const g = quitConfirm.value
-  if (g) {
+  quitConfirm.value = null
+  if (!g || submitting.value) return
+  if (g.myRole === 'owner') {
+    uni.showToast({ title: '解散群聊请在管理后台操作', icon: 'none' })
+    return
+  }
+  submitting.value = true
+  try {
+    await imApi.quitGroup(g.id)
     groupList.value = groupList.value.filter((x) => x.id !== g.id)
     if (searchResults.value) searchResults.value = searchResults.value.filter((x) => x.id !== g.id)
-    uni.showToast({ title: g.myRole === 'owner' ? '已解散群聊' : '已退出群聊', icon: 'none' })
+    uni.showToast({ title: '已退出群聊', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '退出失败，请重试', icon: 'none' })
+  } finally {
+    submitting.value = false
   }
-  quitConfirm.value = null
 }
 </script>
 

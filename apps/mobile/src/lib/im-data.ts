@@ -3,7 +3,7 @@
  * v0 迁移：会话列表/聊天/通知三页公用
  */
 import { apiGet, apiPost, apiPut } from '@/utils/request'
-import { useTim, type TimMessage, type TimConversation } from '@/composables/useTim'
+import { useTim, type TimMessage, type TimConversation, type TimGroup, type TimGroupMember } from '@/composables/useTim'
 
 const AVATAR = (seed: string) => `https://api.dicebear.com/7.x/avataaars/svg?seed=${seed}`
 
@@ -167,7 +167,6 @@ export function timToChatMessage(m: TimMessage): ChatMessage {
   }
 }
 
-export const CURRENT_USER_ID = 0
 const AVA_ME = AVATAR('me')
 const AVA_101 = AVATAR('im-101')
 
@@ -424,12 +423,13 @@ export const mockNotifyMessages: NotifyMessage[] = [
   { id: 'm12', type: 'service', category: '客服', title: '在线客服', content: '您好，关于您咨询的开光商品保养问题，我们已为您整理了详细说明，请查收。', time: '01月10日', isRead: true, link: '/pkg-agent/agent/customer-service' },
 ]
 
-// ============ 群聊 ============
+// ============ 群聊（腾讯 TIM SDK 为真源：群资料/成员/历史/收发；id 均为字符串 groupID/userID）============
 
 export type GroupRole = 'owner' | 'admin' | 'member'
 
 export interface GroupMember {
-  id: number
+  /** 腾讯 IM userID（字符串） */
+  id: string
   nickname: string
   remark?: string
   avatar: string
@@ -443,18 +443,21 @@ export interface GroupNoticeDetail {
 }
 
 export interface GroupDetail {
-  id: number
+  /** 腾讯 IM groupID（字符串） */
+  id: string
   name: string
   avatar: string
   memberCount: number
   notice?: string
   noticeDetail?: GroupNoticeDetail
   myRole: GroupRole
+  ownerId?: string
 }
 
 export interface GroupChatMessage {
   id: string
-  senderId: number
+  /** 发送者 userID（字符串） */
+  senderId: string
   senderName: string
   senderAvatar: string
   senderRole?: GroupRole
@@ -462,12 +465,14 @@ export interface GroupChatMessage {
   content: string
   image?: { url: string }
   voice?: { duration: number }
-  atMembers?: number[]
+  atMembers?: string[]
   atAll?: boolean
   status?: 'sending' | 'delivered' | 'read' | 'failed'
   isWithdrawn: boolean
   createdAt: string
   timestamp: number
+  /** 是否本人发送（SDK flow==='out'）；群聊气泡据此判断左右，不再依赖固定 CURRENT_USER_ID */
+  isSelf?: boolean
 }
 
 // 群角色中文名
@@ -482,60 +487,61 @@ export function getGroupRoleName(role?: GroupRole): string {
   }
 }
 
-// @data-needs: 群详情, GET 群信息(名称/头像/人数/公告/我的角色), 参数 {groupId}
-export const mockGroupDetail: GroupDetail = {
-  id: 1,
-  name: '八字命理交流群',
-  avatar: '/static/images/circles/circle-1.jpg',
-  memberCount: 186,
-  notice: '本群为八字命理学习交流群，请文明发言，禁止广告。每周三晚8点有免费答疑直播。',
-  noticeDetail: {
-    publisher: '玄机子（群主）',
-    publishedAt: '01月12日 20:00',
-    content:
-      '欢迎加入八字命理交流群！\n\n1. 本群为学习交流群，请文明发言，相互尊重。\n2. 禁止发布广告、外链及与命理无关的内容。\n3. 每周三晚8点有免费答疑直播，欢迎参与。\n4. 提问前请先查看群文件中的入门资料。\n\n祝大家学有所成！',
-  },
-  myRole: 'member',
+/** SDK 群角色（Owner|Admin|Member）→ 前端 GroupRole */
+function timGroupRole(r?: string): GroupRole {
+  const s = (r || '').toLowerCase()
+  if (s === 'owner') return 'owner'
+  if (s === 'admin') return 'admin'
+  return 'member'
 }
 
-const now = Date.now()
-
-// @data-needs: 群成员列表, GET 成员(头像/昵称/角色), 参数 {groupId}
-export const mockGroupMembers: GroupMember[] = [
-  { id: 101, nickname: '玄机子', avatar: '/static/images/circles/circle-1.jpg', role: 'owner' },
-  { id: 102, nickname: '清风道长', avatar: '/static/images/circles/circle-2.jpg', role: 'admin' },
-  { id: 103, nickname: '紫微星君', avatar: '/static/images/circles/circle-3.jpg', role: 'admin' },
-  { id: 104, nickname: '问道居士', avatar: '/static/images/circles/circle-4.jpg', role: 'member' },
-  { id: 105, nickname: '云水禅心', avatar: '/static/images/circles/circle-5.jpg', role: 'member' },
-  { id: 106, nickname: '易海拾贝', avatar: '/static/images/circles/circle-6.jpg', role: 'member' },
-  { id: 107, nickname: '观心明性', avatar: '/static/images/circles/circle-1.jpg', role: 'member' },
-  { id: 108, nickname: '抱朴守拙', avatar: '/static/images/circles/circle-2.jpg', role: 'member' },
-  { id: 109, nickname: '太乙真人', avatar: '/static/images/circles/circle-3.jpg', role: 'member' },
-  { id: 110, nickname: '一叶知秋', avatar: '/static/images/circles/circle-4.jpg', role: 'member' },
-]
-
-// @data-needs: 群聊历史消息, GET 分页, 参数 {groupId, page}
-export const mockGroupChatHistory: GroupChatMessage[] = [
-  { id: 'g1', senderId: 101, senderName: '玄机子', senderAvatar: '/static/images/circles/circle-1.jpg', senderRole: 'owner', type: 'text', content: '各位群友晚上好，今晚的答疑直播马上开始，欢迎大家踊跃提问。', isWithdrawn: false, createdAt: '', timestamp: now - 1000 * 60 * 60 },
-  { id: 'g2', senderId: 104, senderName: '问道居士', senderAvatar: '/static/images/circles/circle-4.jpg', senderRole: 'member', type: 'text', content: '请问老师，日主偏弱该如何取用神？', isWithdrawn: false, createdAt: '', timestamp: now - 1000 * 60 * 55 },
-  { id: 'g3', senderId: 102, senderName: '清风道长', senderAvatar: '/static/images/circles/circle-2.jpg', senderRole: 'admin', type: 'text', content: '日主偏弱一般以印星和比劫为用，具体还要看月令和组合。', isWithdrawn: false, createdAt: '', timestamp: now - 1000 * 60 * 50 },
-  { id: 'g4', senderId: 105, senderName: '云水禅心', senderAvatar: '/static/images/circles/circle-5.jpg', senderRole: 'member', type: 'text', content: '受教了，感谢道长解答。', isWithdrawn: false, createdAt: '', timestamp: now - 1000 * 60 * 48 },
-  { id: 'g5', senderId: 0, senderName: '我', senderAvatar: '/static/images/circles/circle-6.jpg', senderRole: 'member', type: 'text', content: '请问今晚直播回放会发到群里吗？', status: 'read', isWithdrawn: false, createdAt: '', timestamp: now - 1000 * 60 * 30 },
-  { id: 'g6', senderId: 101, senderName: '玄机子', senderAvatar: '/static/images/circles/circle-1.jpg', senderRole: 'owner', type: 'text', content: '会的，直播结束后我会把回放链接发到群公告。', atMembers: [0], isWithdrawn: false, createdAt: '', timestamp: now - 1000 * 60 * 28 },
-]
-
-export const GROUP_WITHDRAW_LIMIT_MS = 2 * 60 * 1000
-
-export function getGroupOnlineCount(members: GroupMember[]): number {
-  return members.filter((_, i) => i % 3 === 0).length
+/** 腾讯 IM 群资料 → 群详情（公告仅有纯文本，无发布人/时间元数据，诚实降级） */
+export function timToGroupDetail(g: TimGroup): GroupDetail {
+  const notice = g.notification || undefined
+  return {
+    id: g.groupID,
+    name: g.name || g.groupID,
+    avatar: g.avatar || '',
+    memberCount: g.memberCount || 0,
+    notice,
+    noticeDetail: notice ? { publisher: '', publishedAt: '', content: notice } : undefined,
+    myRole: timGroupRole(g.selfInfo?.role),
+    ownerId: g.ownerID,
+  }
 }
 
-// @ 成员搜索
-export function searchGroupMembersForAt(keyword: string): GroupMember[] {
+/** 腾讯 IM 群成员 → 前端 GroupMember（优先群名片 nameCard，其次昵称） */
+export function timToGroupMember(m: TimGroupMember): GroupMember {
+  return {
+    id: m.userID,
+    nickname: m.nameCard || m.nick || m.userID.slice(0, 8),
+    avatar: m.avatar || '',
+    role: timGroupRole(m.role),
+  }
+}
+
+/** 腾讯 IM 群消息 → 群聊气泡（最小闭环：文本；其他类型占位提示） */
+export function timToGroupChatMessage(m: TimMessage): GroupChatMessage {
+  const isText = m.type === 'TIMTextElem'
+  return {
+    id: m.ID,
+    senderId: m.from,
+    senderName: m.nick || m.from.slice(0, 8),
+    senderAvatar: m.avatar || '',
+    type: 'text',
+    content: isText ? (m.payload?.text || '') : '[暂不支持的消息类型]',
+    isWithdrawn: false,
+    createdAt: formatMessageTime(m.time * 1000),
+    timestamp: m.time * 1000,
+    isSelf: m.flow === 'out',
+  }
+}
+
+// @ 成员搜索（在已加载的群成员中过滤，不再依赖 mock）
+export function searchGroupMembersForAt(members: GroupMember[], keyword: string): GroupMember[] {
   const k = keyword.trim()
-  const list = mockGroupMembers.filter((m) => m.id !== CURRENT_USER_ID)
-  if (!k) return list
-  return list.filter((m) => (m.remark || m.nickname).includes(k))
+  if (!k) return members
+  return members.filter((m) => (m.remark || m.nickname).includes(k))
 }
 
 // ========== 群设置 / 群管理权限（群资料页）==========
@@ -556,21 +562,6 @@ export interface GroupPermissions {
   canDismiss: boolean
   canTransfer: boolean
 }
-
-// @data-needs: 我的群设置, GET, 参数 {groupId}
-export const mockGroupSettings: GroupSettings = {
-  myNickname: '',
-  isMuted: false,
-  isPinned: false,
-  showMemberNickname: true,
-  savedToContacts: true,
-}
-
-// 群资料页成员列表：我 + 群成员（"我"排在成员区，按角色排序由页面处理）
-export const mockGroupDetailMembers: GroupMember[] = [
-  { id: CURRENT_USER_ID, nickname: '我', avatar: '/static/images/circles/circle-6.jpg', role: 'member' },
-  ...mockGroupMembers,
-]
 
 // 根据我的角色计算群管理权限
 export function getGroupPermissions(myRole: GroupRole): GroupPermissions {
@@ -673,47 +664,21 @@ export function getLetterIndexList(groups: FriendGroup[]): string[] {
 // ========== 群聊列表相关 ==========
 
 export interface GroupListItem {
-  id: number
+  /** 腾讯 IM groupID（字符串） */
+  id: string
   name: string
   avatar: string
-  ownerId: number
-  ownerName: string
+  ownerId?: string
+  ownerName?: string
   memberCount: number
-  maxMembers: number
+  maxMembers?: number
   lastMessage?: { content: string; senderName: string; time: string }
   unreadCount: number
   isPinned: boolean
   isMuted: boolean
   myRole: GroupRole
   notice?: string
-  createdAt: string
-}
-
-const groupAvatar = (i: number) => `/static/images/circles/circle-${(i % 3) + 1}.jpg`
-
-// @data-needs: 群聊列表, 返回 GroupListItem[]
-export const mockGroupList: GroupListItem[] = [
-  { id: 1, name: '八字命理交流群', avatar: groupAvatar(0), ownerId: 101, ownerName: '张明德', memberCount: 128, maxMembers: 500, lastMessage: { content: '今天的课程讲得很好', senderName: '李老师', time: '10:30' }, unreadCount: 12, isPinned: true, isMuted: false, myRole: 'member', notice: '群规：文明交流，禁止广告', createdAt: '2026-01-15' },
-  { id: 2, name: '风水研究小组', avatar: groupAvatar(1), ownerId: 102, ownerName: '王风水', memberCount: 56, maxMembers: 200, lastMessage: { content: '[图片]', senderName: '小明', time: '09:45' }, unreadCount: 3, isPinned: false, isMuted: false, myRole: 'admin', createdAt: '2026-02-20' },
-  { id: 3, name: '紫微斗数学习群', avatar: groupAvatar(2), ownerId: 0, ownerName: '我', memberCount: 89, maxMembers: 200, lastMessage: { content: '有人在线吗？', senderName: '新成员', time: '昨天' }, unreadCount: 0, isPinned: true, isMuted: true, myRole: 'owner', notice: '欢迎加入紫微斗数学习群', createdAt: '2026-03-10' },
-  { id: 4, name: '国学爱好者俱乐部', avatar: groupAvatar(3), ownerId: 105, ownerName: '国学先生', memberCount: 256, maxMembers: 500, lastMessage: { content: '下周有线下活动，大家踊跃报名', senderName: '管理员', time: '昨天' }, unreadCount: 0, isPinned: false, isMuted: false, myRole: 'member', createdAt: '2025-12-01' },
-  { id: 5, name: '六爻预测实战群', avatar: groupAvatar(4), ownerId: 108, ownerName: '六爻大师', memberCount: 42, maxMembers: 100, unreadCount: 0, isPinned: false, isMuted: false, myRole: 'member', createdAt: '2026-04-05' },
-]
-
-// 群列表排序：置顶优先
-export function getSortedGroupList(): GroupListItem[] {
-  return [...mockGroupList].sort((a, b) => {
-    if (a.isPinned && !b.isPinned) return -1
-    if (!a.isPinned && b.isPinned) return 1
-    return 0
-  })
-}
-
-// 搜索群聊（按群名）
-export function searchGroupList(keyword: string): GroupListItem[] {
-  const k = keyword.trim()
-  if (!k) return getSortedGroupList()
-  return getSortedGroupList().filter((g) => g.name.includes(k))
+  createdAt?: string
 }
 
 // ========== 好友请求相关 ==========
@@ -874,34 +839,82 @@ export const imApi = {
     await apiPut('/notifications/read-all')
   },
 
-  /** 获取群详情 */
-  async getGroupDetail(_groupId: number): Promise<GroupDetail> {
-    if (true) return mockGroupDetail
-    try { return await apiGet<GroupDetail>(`/im/group/${_groupId}`) } catch { return mockGroupDetail }
+  /** 获取群详情（TIM SDK getGroupProfile；错误向上抛走三态） */
+  async getGroupDetail(groupId: string): Promise<GroupDetail> {
+    const g = await useTim().getGroupProfile(groupId)
+    return timToGroupDetail(g)
   },
 
-  /** 获取群成员列表 */
-  async getGroupMembers(_groupId: number): Promise<GroupMember[]> {
-    if (true) return mockGroupDetailMembers
-    try { return await apiGet<GroupMember[]>(`/im/group/${_groupId}/members`) } catch { return mockGroupDetailMembers }
+  /** 获取群成员列表（TIM SDK getGroupMemberList） */
+  async getGroupMembers(groupId: string): Promise<GroupMember[]> {
+    const list = await useTim().getGroupMemberList(groupId)
+    return list.map(timToGroupMember)
   },
 
-  /** 获取群聊历史消息 */
-  async getGroupChatHistory(_groupId: number): Promise<GroupChatMessage[]> {
-    if (true) return mockGroupChatHistory
-    try { return await apiGet<GroupChatMessage[]>(`/im/group/${_groupId}/messages`) } catch { return mockGroupChatHistory }
+  /** 获取群聊历史消息（TIM SDK getMessageList；分页游标 nextReqMessageID） */
+  async getGroupChatHistory(groupId: string, nextReqMessageID?: string): Promise<{ messages: GroupChatMessage[]; nextReqMessageID: string; isCompleted: boolean }> {
+    const res = await useTim().getGroupHistory(groupId, nextReqMessageID)
+    return {
+      messages: res.messageList.map(timToGroupChatMessage),
+      nextReqMessageID: res.nextReqMessageID,
+      isCompleted: res.isCompleted,
+    }
   },
 
-  /** 发送群消息 */
-  async sendGroupMessage(_groupId: number, _content: string): Promise<GroupChatMessage | null> {
-    if (true) return null
-    try { return await apiPost<GroupChatMessage>(`/im/group/${_groupId}/send`, { content: _content }) } catch { return null }
+  /** 发送群消息（TIM SDK sendMessage，实时下发群内成员），返回落地消息 */
+  async sendGroupMessage(groupId: string, content: string): Promise<GroupChatMessage> {
+    const msg = await useTim().sendGroupText(groupId, content)
+    return timToGroupChatMessage(msg)
   },
 
-  /** 获取群聊列表 */
+  /** 标记群会话已读（TIM SDK） */
+  async markGroupRead(groupId: string): Promise<void> {
+    await useTim().setGroupRead(groupId)
+  },
+
+  /** 退出群聊（TIM SDK quitGroup；群主不可退出，需解散） */
+  async quitGroup(groupId: string): Promise<void> {
+    await useTim().quitGroup(groupId)
+  },
+
+  /** 群会话置顶（TIM SDK；conversationID=GROUP{groupId}） */
+  async setGroupPin(groupId: string, isPinned: boolean): Promise<void> {
+    await useTim().pinConversation(`GROUP${groupId}`, isPinned)
+  },
+
+  /** 群会话免打扰（TIM SDK） */
+  async setGroupMute(groupId: string, mute: boolean): Promise<void> {
+    await useTim().setConversationMute({ type: 'GROUP', id: groupId }, mute)
+  },
+
+  /** 获取群聊列表（TIM SDK 群名录 + 会话列表合并补齐未读/最后一条） */
   async getGroupList(): Promise<GroupListItem[]> {
-    if (true) return getSortedGroupList()
-    try { return await apiGet<GroupListItem[]>('/im/groups') } catch { return getSortedGroupList() }
+    const tim = useTim()
+    const [groups, convs] = await Promise.all([tim.getJoinedGroupList(), tim.getConversationList()])
+    const convMap = new Map<string, TimConversation>()
+    for (const c of convs) {
+      if (c.type === 'GROUP' && c.groupProfile) convMap.set(c.groupProfile.groupID, c)
+    }
+    return groups.map((g) => {
+      const c = convMap.get(g.groupID)
+      const last = c?.lastMessage
+      const lastTimeMs = (last?.lastTime || 0) * 1000
+      return {
+        id: g.groupID,
+        name: g.name || g.groupID,
+        avatar: g.avatar || '',
+        ownerId: g.ownerID,
+        memberCount: g.memberCount || 0,
+        maxMembers: g.maxMemberCount,
+        lastMessage: last
+          ? { content: last.messageForShow || '', senderName: last.nick || '', time: lastTimeMs ? formatMessageTime(lastTimeMs) : '' }
+          : undefined,
+        unreadCount: c?.unreadCount || 0,
+        isPinned: !!c?.isPinned,
+        isMuted: c?.messageRemindType === 'AcceptNotNotify',
+        myRole: timGroupRole(g.selfInfo?.role),
+      }
+    })
   },
 
   /** 获取好友列表 */
@@ -922,15 +935,17 @@ export const imApi = {
     try { await apiPost(`/im/friend-requests/${_requestId}/${_action}`, {}); return true } catch { return false }
   },
 
-  /** 获取群设置 */
-  async getGroupSettings(_groupId: number): Promise<GroupSettings> {
-    if (true) return mockGroupSettings
-    try { return await apiGet<GroupSettings>(`/im/group/${_groupId}/settings`) } catch { return mockGroupSettings }
-  },
-
-  /** 获取群管理权限 */
-  async getGroupPermissions(_groupId: number): Promise<GroupPermissions> {
-    if (true) return getGroupPermissions(mockGroupDetail.myRole)
-    try { return await apiGet<GroupPermissions>(`/im/group/${_groupId}/permissions`) } catch { return getGroupPermissions(mockGroupDetail.myRole) }
+  /** 获取群设置（TIM SDK：群名片=我的群昵称，会话态=免打扰/置顶；成员昵称展示/保存通讯录 SDK 无对应项，默认开启诚实降级） */
+  async getGroupSettings(groupId: string): Promise<GroupSettings> {
+    const tim = useTim()
+    const [g, convs] = await Promise.all([tim.getGroupProfile(groupId), tim.getConversationList()])
+    const c = convs.find((x) => x.type === 'GROUP' && x.groupProfile?.groupID === groupId)
+    return {
+      myNickname: g.selfInfo?.nameCard || '',
+      isMuted: c?.messageRemindType === 'AcceptNotNotify',
+      isPinned: !!c?.isPinned,
+      showMemberNickname: true,
+      savedToContacts: true,
+    }
   },
 }
