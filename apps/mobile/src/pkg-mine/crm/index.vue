@@ -11,6 +11,16 @@
       </view>
 
       <template v-else>
+        <!-- 经营洞察入口（课-P4·统计聚合·无个体名单） -->
+        <view class="crm-ins-entry" @tap="navigateTo('/pkg-mine/crm/insights')">
+          <text class="crm-ins-entry-icon">📊</text>
+          <view class="crm-ins-entry-main">
+            <text class="crm-ins-entry-title">经营洞察</text>
+            <text class="crm-ins-entry-sub">服务结构 · 客群节律 · 商机雷达 · AI 建议</text>
+          </view>
+          <text class="crm-ins-entry-arrow">›</text>
+        </view>
+
         <!-- 提醒待办 -->
         <view v-if="reminders.length" class="crm-card">
           <view class="crm-card-head">
@@ -108,7 +118,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { onShow } from '@dcloudio/uni-app'
+import { onLoad, onShow } from '@dcloudio/uni-app'
 import AppNavBar from '@/components/common/app-nav-bar.vue'
 import { navigateTo } from '@/utils/router'
 import {
@@ -140,6 +150,12 @@ const tabs = computed(() => {
     { key: 'AT_RISK' as const, label: tierLabel.AT_RISK, count: tierCounts.value.AT_RISK },
     { key: 'DORMANT' as const, label: tierLabel.DORMANT, count: tierCounts.value.DORMANT },
   ]
+})
+
+// 洞察页商机雷达跳转带 tier 参数 → 直落对应分层 tab（洞察只挂数字，名单在本页）
+onLoad((query?: Record<string, string>) => {
+  const tier = query?.tier
+  if (tier && tier in RFM_TIER_LABEL) activeTier.value = tier as RfmTier
 })
 
 onShow(() => {
@@ -250,6 +266,13 @@ function fmtDate(s: string) {
 .crm-state-txt { font-size: 26rpx; color: #999; }
 .crm-retry { padding: 12rpx 48rpx; border-radius: 999rpx; background: #c41e3a; }
 .crm-retry-txt { font-size: 26rpx; color: #fff; }
+
+.crm-ins-entry { margin: 24rpx 24rpx 0; padding: 24rpx 28rpx; border-radius: 24rpx; background: linear-gradient(135deg, #fff7f2 0%, #fff 60%); border: 1rpx solid #f3e2e5; display: flex; align-items: center; gap: 20rpx; }
+.crm-ins-entry-icon { font-size: 40rpx; }
+.crm-ins-entry-main { flex: 1; min-width: 0; }
+.crm-ins-entry-title { font-size: 28rpx; font-weight: 700; color: #1a1a1a; }
+.crm-ins-entry-sub { display: block; margin-top: 4rpx; font-size: 22rpx; color: #999; }
+.crm-ins-entry-arrow { font-size: 36rpx; color: #c41e3a; }
 
 .crm-card { margin: 24rpx 24rpx 0; padding: 28rpx; border-radius: 24rpx; background: #fff; }
 .crm-card-head { display: flex; align-items: center; gap: 12rpx; margin-bottom: 8rpx; }

@@ -5,6 +5,7 @@ import {
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiResponse } from "@nestjs/swagger";
 import { Request } from "express";
 import { CrmService } from "./crm.service";
+import { InsightService } from "./insight.service";
 import {
   CreateClientDto, UpdateClientDto, ClientListQueryDto,
   CreateServeLogDto, UpdateServeLogDto, ReminderQueryDto, FromOrderDto,
@@ -21,7 +22,20 @@ import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
 export class CrmController {
-  constructor(private crm: CrmService) {}
+  constructor(
+    private crm: CrmService,
+    private insight: InsightService,
+  ) {}
+
+  // ───────── 经营洞察（课-P4·R3 只做本人客户池统计聚合，无个体名单）─────────
+
+  @Get("insights")
+  @ApiOperation({ summary: "经营洞察（服务结构/客群节律/商机雷达/AI建议·仅本人客户池聚合·R3 无个体字段）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  getInsights(@Req() req: Request) {
+    return this.insight.getInsights(req.user.id);
+  }
 
   // ───────── 订单归因入库询问（静态段先于 :id 声明）─────────
 

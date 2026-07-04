@@ -8,6 +8,7 @@
  *   POST/GET /crm/clients/:id/serve-logs · PUT/DELETE /crm/serve-logs/:id  服务记录
  *   GET    /crm/reminders?status=  · PUT /crm/reminders/:id/done · POST /crm/reminders/:id/draft
  *   GET    /crm/suggested-clients  · POST /crm/clients/from-order  订单归因入库询问
+ *   GET    /crm/insights                                经营洞察（课-P4·仅本人客户池统计聚合·R3 无个体名单）
  * 合规：后端无导出端点（设计红线）。无 mock 回退：请求失败错误向上抛，页面走三态。
  */
 import { apiGet, apiPost, apiPut, apiDelete } from '@/utils/request'
@@ -107,6 +108,32 @@ export interface CrmClientForm {
   notes?: string
 }
 
+/** 经营洞察·服务结构条目（近90天按服务类型聚合） */
+export interface CrmInsightServeItem {
+  type: string
+  label: string
+  count: number
+  amount: number
+  countPct: number
+  amountPct: number
+}
+
+/** 经营洞察（课-P4·全部为本人客户池统计聚合·R3 不含任何个体字段） */
+export interface CrmInsights {
+  totalClients: number
+  serve90: { totalCount: number; totalAmount: number; items: CrmInsightServeItem[] }
+  monthlyTrend: { month: string; count: number; amount: number }[]
+  /** 复购间隔（不同日期再次服务·样本不足=null） */
+  repurchase: { avgDays: number; medianDays: number; sampledClients: number } | null
+  radar: {
+    dormant: number
+    atRisk: number
+    birthdayThisMonth: number
+    lichun: { date: string; daysUntil: number; isNear: boolean }
+  }
+  advice: { text: string; source: 'ai' | 'template' }
+}
+
 export interface CrmServeLogForm {
   type: string
   amount?: number
@@ -159,6 +186,11 @@ export const crmApi = {
   /** AI 草拟跟进话术（后端便宜档·失败自动降级模板话术） */
   draftReminder(id: string): Promise<{ id: string; aiDraft: string }> {
     return apiPost<{ id: string; aiDraft: string }>(`/crm/reminders/${id}/draft`)
+  },
+
+  // ── 经营洞察（课-P4·统计聚合·无个体名单）──
+  insights(): Promise<CrmInsights> {
+    return apiGet<CrmInsights>('/crm/insights')
   },
 
   // ── 订单归因入库询问 ──
