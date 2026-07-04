@@ -311,6 +311,17 @@ interface RawLogisticsWrap {
     trackingData?: RawTrack[]
   } | null
 }
+/** 快递100 实时轨迹响应（GET /shop/logistics/track）
+ *  后端 LogisticsService.queryTrack 归一化后的结构：
+ *  { state, isCheck, company, logisticsNo, tracks:[{time,status,location}] }
+ *  未配置/查询失败时为 { state:'unknown', message } 且无 tracks。 */
+interface RawKuaidiResp {
+  state?: string
+  company?: string
+  logisticsNo?: string
+  message?: string
+  tracks?: { time?: string; status?: string; location?: string }[]
+}
 /** 后端 AfterSale(enriched) 原始响应 */
 interface RawAfterSale {
   id?: string
@@ -469,6 +480,29 @@ function adaptLogistics(orderId: string, raw: RawLogisticsWrap): LogisticsDetail
   }
 }
 
+/** 快递100 顶层 state（数字码）→ 前端物流状态键 */
+const kuaidiStateMap: Record<string, string> = {
+  '0': 'in_transit', // 在途
+  '1': 'picked', // 已揽收
+  '3': 'signed', // 已签收
+  '5': 'delivering', // 派件中
+}
+function mapKuaidiState(state?: string): string {
+  if (!state) return ''
+  return kuaidiStateMap[String(state).charAt(0)] || 'in_transit'
+}
+
+/** 快递100 实时轨迹 → 前端时间线（快递100返回已按时间倒序，最新在前） */
+function adaptKuaidiTracks(resp: RawKuaidiResp): LogisticsTrack[] {
+  return (resp?.tracks || []).map((t, i) => ({
+    status: '',
+    description: t.status || '', // 后端已归一为轨迹描述文本
+    time: fmtTime(t.time),
+    location: t.location || '',
+    isCurrent: i === 0,
+  }))
+}
+
 /** 后端 AfterSale(enriched) → 前端纠纷列表项 */
 function adaptDisputeListItem(a: RawAfterSale): DisputeListItem {
   return {
@@ -588,10 +622,29 @@ export const orderApi = {
     return (res?.orders || []).map(adaptUnifiedOrder)
   },
 
-  /** 物流详情 */
+  /** 物流详情
+   *  先取订单物流（收货信息 + DB 存储轨迹），再以快递100实时轨迹覆盖（best-effort）。
+   *  实时查询失败/未配置时回退 DB 存储的 trackingData，页面照常三态渲染。 */
   async logistics(orderId: string): Promise<LogisticsDetail> {
     const raw = await apiGet<RawLogisticsWrap>(`/shop/orders/${orderId}/logistics`)
-    return adaptLogistics(orderId, raw)
+    const detail = adaptLogistics(orderId, raw)
+    if (detail.trackingNo) {
+      try {
+        const qs =
+          `no=${encodeURIComponent(detail.trackingNo)}` +
+          (detail.company ? `&company=${encodeURIComponent(detail.company)}` : '')
+        const kd = await apiGet<RawKuaidiResp>(`/shop/logistics/track?${qs}`)
+        const live = adaptKuaidiTracks(kd)
+        if (live.length) {
+          detail.tracks = live
+          const mapped = mapKuaidiState(kd.state)
+          if (mapped) detail.status = mapped
+        }
+      } catch {
+        // 快递100查询失败 —— 保留 DB 存储轨迹作为兜底，不阻断页面
+      }
+    }
+    return detail
   },
 
   /** 加载订单可评价商品（评价页用，来自订单详情） */
