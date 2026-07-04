@@ -8,6 +8,8 @@ import {
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { SensitiveWordService } from "../audit/sensitive-word.service";
+import { SettlementFreezeService } from "../settlement/settlement-freeze.service";
+import { SystemService } from "../system/system.service";
 
 const MINUTE_MS = 60_000;
 const DAY_MS = 86_400_000;
@@ -21,6 +23,14 @@ const mockRedis = {
 const mockSensitiveWord = {
   getComplianceWords: jest.fn(),
   addWord: jest.fn().mockResolvedValue(undefined),
+};
+
+const mockSettlementFreeze = {
+  freezeBeneficiary: jest.fn(),
+};
+
+const mockSystem = {
+  isAutomationEnabled: jest.fn(),
 };
 
 const mockPrisma: any = {
@@ -50,6 +60,8 @@ describe("DistributionRiskService", () => {
         { provide: PrismaService, useValue: mockPrisma },
         { provide: RedisService, useValue: mockRedis },
         { provide: SensitiveWordService, useValue: mockSensitiveWord },
+        { provide: SettlementFreezeService, useValue: mockSettlementFreeze },
+        { provide: SystemService, useValue: mockSystem },
       ],
     }).compile();
     svc = mod.get(DistributionRiskService);
@@ -67,6 +79,8 @@ describe("DistributionRiskService", () => {
     mockPrisma.referralRelation.findMany.mockResolvedValue([]);
     mockPrisma.order.findMany.mockResolvedValue([]);
     mockPrisma.$queryRaw.mockResolvedValue([]);
+    mockSystem.isAutomationEnabled.mockResolvedValue(true);
+    mockSettlementFreeze.freezeBeneficiary.mockResolvedValue({ frozen: 0 });
   });
 
   // ── 违禁词兜底补词 ──
@@ -271,6 +285,78 @@ describe("DistributionRiskService", () => {
       expect(surge.level).toBe("WARN");
       expect(surge.detail.bindsCur7d).toBe(60);
       expect(surge.detail.bindsPrev7d).toBe(10);
+    });
+  });
+
+  // ── DANGER 规则自动冻结（商-P1 事后冻结接线）──
+  describe("自动冻结佣金（automation_enabled 门控）", () => {
+    it("开关开：秒下单 DANGER 触发 → 调 freezeBeneficiary(STATION,该站长) 且 payload 记 AUTO_FROZEN+行数", async () => {
+      const now = new Date("2026-07-06T02:30:00+08:00");
+      const { gte } = svc.yesterdayRange(now);
+      const bindAt = (m: number) => new Date(gte.getTime() + m * MINUTE_MS);
+      mockPrisma.referralRelation.findMany.mockResolvedValue(
+        [1, 2, 3, 4, 5].map((i) => ({ userId: `buyer${i}`, referrerId: "u1", createdAt: bindAt(i * 10) })),
+      );
+      mockPrisma.order.findMany.mockResolvedValue(
+        [1, 2, 3, 4, 5].map((i) => ({ userId: `buyer${i}`, createdAt: new Date(bindAt(i * 10).getTime() + 5 * MINUTE_MS) })),
+      );
+      mockPrisma.station.findMany.mockResolvedValue([{ id: "st1", userId: "u1" }]);
+      mockSettlementFreeze.freezeBeneficiary.mockResolvedValue({ frozen: 4 });
+
+      const created = await svc.checkQuickOrder(now);
+
+      expect(created).toBe(1);
+      expect(mockSystem.isAutomationEnabled).toHaveBeenCalled();
+      expect(mockSettlementFreeze.freezeBeneficiary).toHaveBeenCalledTimes(1);
+      expect(mockSettlementFreeze.freezeBeneficiary).toHaveBeenCalledWith(
+        "STATION",
+        "st1",
+        expect.stringContaining("u1"),
+        "SYSTEM:DISTRIBUTION_RISK",
+      );
+      const alert = mockPrisma.riskAlert.create.mock.calls[0][0].data;
+      expect(alert.detail.commissionFreeze).toBe("AUTO_FROZEN");
+      expect(alert.detail.commissionFrozenRows).toBe(4);
+      expect(alert.detail.commissionFrozenByStation).toEqual({ st1: 4 });
+    });
+
+    it("开关关：互刷 DANGER 触发 → 不动手，维持 MANUAL_REQUIRED", async () => {
+      mockSystem.isAutomationEnabled.mockResolvedValue(false);
+      mockPrisma.$queryRaw.mockResolvedValue([{ userA: "uA", userB: "uB" }]);
+      mockPrisma.station.findMany.mockResolvedValue([{ id: "stB", userId: "uB" }]);
+
+      const created = await svc.checkMutualReferral();
+
+      expect(created).toBe(1);
+      expect(mockSettlementFreeze.freezeBeneficiary).not.toHaveBeenCalled();
+      const alert = mockPrisma.riskAlert.create.mock.calls[0][0].data;
+      expect(alert.detail.commissionFreeze).toBe("MANUAL_REQUIRED");
+      expect(alert.detail.commissionFreezeNote).toContain("automation_enabled=false");
+    });
+
+    it("冻结调用失败：降级 MANUAL_REQUIRED 不阻断工单产出", async () => {
+      mockSettlementFreeze.freezeBeneficiary.mockRejectedValue(new Error("db down"));
+      mockPrisma.$queryRaw.mockResolvedValue([{ userA: "uA", userB: "uB" }]);
+      mockPrisma.station.findMany.mockResolvedValue([{ id: "stB", userId: "uB" }]);
+
+      const created = await svc.checkMutualReferral();
+
+      expect(created).toBe(1);
+      const alert = mockPrisma.riskAlert.create.mock.calls[0][0].data;
+      expect(alert.detail.commissionFreeze).toBe("MANUAL_REQUIRED");
+      expect(alert.detail.commissionFreezeNote).toContain("自动冻结失败");
+    });
+
+    it("推荐人无名下驿站：无 STATION 主体可冻 → MANUAL_REQUIRED 且不调冻结", async () => {
+      mockPrisma.$queryRaw.mockResolvedValue([{ userA: "uA", userB: "uB" }]);
+      mockPrisma.station.findMany.mockResolvedValue([]);
+
+      const created = await svc.checkMutualReferral();
+
+      expect(created).toBe(1);
+      expect(mockSettlementFreeze.freezeBeneficiary).not.toHaveBeenCalled();
+      const alert = mockPrisma.riskAlert.create.mock.calls[0][0].data;
+      expect(alert.detail.commissionFreeze).toBe("MANUAL_REQUIRED");
     });
   });
 

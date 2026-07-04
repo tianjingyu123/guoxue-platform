@@ -4,6 +4,8 @@ import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { SensitiveWordService } from "../audit/sensitive-word.service";
+import { SettlementFreezeService } from "../settlement/settlement-freeze.service";
+import { SystemService } from "../system/system.service";
 
 const DAY_MS = 86_400_000;
 const MINUTE_MS = 60_000;
@@ -93,12 +95,14 @@ export interface DistributionScanReport {
  * ③ 互刷：A 的推荐人是 B 且 B 的推荐人是 A（自环互相导佣）
  * ④ 单推荐人绑定量周环比 >5 倍且本周 ≥30（突增·上周为 0 时视为环比无穷大同样触发）
  *
- * ## 处置（工单制·诚实降级）
+ * ## 处置（工单制·DANGER 规则自动冻结）
  * - 触发 → RiskAlert（detail.category=DISTRIBUTION·type 带 DISTRIBUTION_ 前缀·level 按规则），
  *   admin 风控台 /risk-control/alerts 列表即工单队列（与履-P1 同范式：模块无通用工单 service，直接写行）
- * - 佣金冻结：侦察结论=统一结算引擎（settlement T1）**无 freeze(refId) 接口**（FROZEN 仅在
- *   settle 入账时按大额阈值触发，无事后按受益人冻结的实现），故不自造资金操作，
- *   仅在 payload 标注 commissionFreeze=MANUAL_REQUIRED 由人工在后台冻结复核
+ * - 佣金冻结：结算引擎已补事后冻结接口（SettlementFreezeService.freezeBeneficiary·PENDING→FROZEN
+ *   CAS 批量翻·P2-c 口径 FROZEN 不计可提现，冻结即扣）。互刷/秒下单两条 DANGER 规则触发时：
+ *   automation_enabled 开 → 自动冻结涉事站长 STATION 台账并在 payload 记 commissionFreeze=AUTO_FROZEN+冻结行数；
+ *   开关关/无名下驿站/冻结失败 → 维持 commissionFreeze=MANUAL_REQUIRED 由人工在后台冻结复核。
+ *   复核放行走 POST /settlement/unfreeze（仅解事后冻结行，大额审批冻结不受影响）。
  * - 页面自动下架属处罚体系后置动作（须与站长协议条款对齐·设计§四待拍板 3），本批只落工单
  */
 @Injectable()
@@ -110,6 +114,8 @@ export class DistributionRiskService {
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
     private readonly sensitiveWord: SensitiveWordService,
+    private readonly settlementFreeze: SettlementFreezeService,
+    private readonly system: SystemService,
   ) {}
 
   // ───────── 日检 cron ─────────
@@ -383,6 +389,12 @@ export class DistributionRiskService {
       if (quickUserIds.length < t.quickOrderMinCount || ratio <= t.quickOrderRatio) continue;
       if (!(await this.dedup(DISTRIBUTION_ALERT_TYPES.QUICK_ORDER, referrerId))) continue;
 
+      // DANGER 处置：automation_enabled 开 → 自动冻结该站长待结算佣金（无驿站/关/失败降级 MANUAL_REQUIRED）
+      const freezePayload = await this.autoFreezeCommission(
+        [stationBy.get(referrerId)?.id],
+        `分销风控自动冻结：绑定即下单刷佣特征（推荐人 ${referrerId}）`,
+      );
+
       await this.createAlert(
         DISTRIBUTION_ALERT_TYPES.QUICK_ORDER,
         "DANGER",
@@ -396,6 +408,7 @@ export class DistributionRiskService {
           quickUserIds: quickUserIds.slice(0, 50),
           windowMinutes: t.quickOrderWindowMinutes,
           thresholds: { minCount: t.quickOrderMinCount, ratio: t.quickOrderRatio },
+          ...freezePayload,
         },
       );
       created += 1;
@@ -424,6 +437,11 @@ export class DistributionRiskService {
       // 工单目标锚定字典序小者（去重键）；detail 里双方齐全，涉站信息一并给出
       if (await this.hasOpenAlert(DISTRIBUTION_ALERT_TYPES.MUTUAL_REFERRAL, p.userA)) continue;
       const station = stationBy.get(p.userA) ?? stationBy.get(p.userB);
+      // DANGER 处置：双方名下驿站（若有）均自动冻结（开关关/无驿站/失败降级 MANUAL_REQUIRED）
+      const freezePayload = await this.autoFreezeCommission(
+        [stationBy.get(p.userA)?.id, stationBy.get(p.userB)?.id],
+        `分销风控自动冻结：互刷（${p.userA} ↔ ${p.userB}）`,
+      );
       await this.createAlert(
         DISTRIBUTION_ALERT_TYPES.MUTUAL_REFERRAL,
         "DANGER",
@@ -434,6 +452,7 @@ export class DistributionRiskService {
           userB: p.userB,
           stationA: stationBy.get(p.userA)?.id ?? null,
           stationB: stationBy.get(p.userB)?.id ?? null,
+          ...freezePayload,
         },
       );
       created += 1;
@@ -530,6 +549,54 @@ export class DistributionRiskService {
     return this.redis.setNX(`distribution-risk:${type}:${key}`, "1", DISTRIBUTION_RISK_THRESHOLDS.dedupTtlSeconds);
   }
 
+  /**
+   * DANGER 规则自动冻结（互刷/秒下单）：automation_enabled 开 → 调结算引擎事后冻结接口
+   * 冻结涉事站长 STATION 台账（PENDING→FROZEN·P2-c 口径冻结即扣可提现），返回工单 payload 覆盖片段。
+   * 降级路径（均维持 MANUAL_REQUIRED，不阻断工单产出）：
+   * - 推荐人无名下驿站（无 STATION 台账主体可冻结）
+   * - automation_enabled=false（管理员一键接管已暂停自动化）
+   * - 冻结调用失败（DB 异常等）
+   */
+  private async autoFreezeCommission(
+    stationIds: Array<string | undefined>,
+    reason: string,
+  ): Promise<Record<string, unknown>> {
+    const targets = [...new Set(stationIds.filter((s): s is string => !!s))];
+    if (targets.length === 0) {
+      return {
+        commissionFreeze: "MANUAL_REQUIRED",
+        commissionFreezeNote: "推荐人无名下驿站（无 STATION 台账主体可自动冻结），请人工核实后在后台处置",
+      };
+    }
+    try {
+      if (!(await this.system.isAutomationEnabled())) {
+        return {
+          commissionFreeze: "MANUAL_REQUIRED",
+          commissionFreezeNote: "automation_enabled=false（管理员已暂停自动化），请人工在后台冻结该站长佣金待复核",
+        };
+      }
+      let frozenRows = 0;
+      const frozenByStation: Record<string, number> = {};
+      for (const stationId of targets) {
+        const r = await this.settlementFreeze.freezeBeneficiary("STATION", stationId, reason, "SYSTEM:DISTRIBUTION_RISK");
+        frozenRows += r.frozen;
+        frozenByStation[stationId] = r.frozen;
+      }
+      return {
+        commissionFreeze: "AUTO_FROZEN",
+        commissionFrozenRows: frozenRows,
+        commissionFrozenByStation: frozenByStation,
+        commissionFreezeNote: `已自动冻结站长待结算佣金 ${frozenRows} 行（复核放行走 POST /settlement/unfreeze·仅解事后冻结行）`,
+      };
+    } catch (e) {
+      this.logger.error(`分销风控自动冻结失败，降级 MANUAL_REQUIRED（${targets.join(",")}）`, e instanceof Error ? e.stack : String(e));
+      return {
+        commissionFreeze: "MANUAL_REQUIRED",
+        commissionFreezeNote: `自动冻结失败（${e instanceof Error ? e.message : String(e)}），请人工在后台冻结该站长佣金待复核`,
+      };
+    }
+  }
+
   /** 同目标同类是否已有 OPEN 工单（持续性条件的 DB 幂等：违禁词/互刷） */
   private async hasOpenAlert(type: string, targetId: string): Promise<boolean> {
     const existing = await this.prisma.riskAlert.findFirst({
@@ -541,7 +608,8 @@ export class DistributionRiskService {
 
   /**
    * 落工单（履-P1 范式：risk-control 无通用工单创建方法，直接写 RiskAlert 行）。
-   * detail 统一携带 category=DISTRIBUTION（分销风控类别标记）与佣金冻结降级标注。
+   * detail 统一携带 category=DISTRIBUTION（分销风控类别标记）；佣金冻结标注默认
+   * MANUAL_REQUIRED，DANGER 规则（互刷/秒下单）自动冻结成功时由调用方 detail 覆盖为 AUTO_FROZEN。
    */
   private createAlert(
     type: string,
@@ -560,10 +628,10 @@ export class DistributionRiskService {
         stationId: target.stationId ?? null,
         detail: {
           category: DISTRIBUTION_ALERT_CATEGORY,
-          ...detail,
-          // 侦察结论：统一结算引擎无 freeze(refId) 事后冻结接口，诚实降级为人工冻结标注
+          // 默认标注（可被 detail 覆盖）：非 DANGER 规则维持人工冻结工单制
           commissionFreeze: "MANUAL_REQUIRED",
-          commissionFreezeNote: "结算引擎暂无按受益人冻结接口，请人工在后台冻结该站长佣金待复核",
+          commissionFreezeNote: "请人工在后台冻结该站长佣金待复核（POST /settlement/freeze）",
+          ...detail,
         } as Prisma.InputJsonValue,
       },
     });

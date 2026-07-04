@@ -6,7 +6,9 @@ import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
 import { Auditable } from "../../common/audit.decorator";
 import { SettlementRuleAdminService } from "./settlement-rule-admin.service";
+import { SettlementFreezeService } from "./settlement-freeze.service";
 import { CreateSettlementRuleDto, UpdateSettlementRuleDto } from "./settlement-rule.dto";
+import { FreezeBeneficiaryDto } from "./settlement-freeze.dto";
 
 /**
  * 结算规则后台管理（C7）—— 资金敏感：仅超管/财务管理员。
@@ -16,7 +18,10 @@ import { CreateSettlementRuleDto, UpdateSettlementRuleDto } from "./settlement-r
 @ApiBearerAuth()
 @Controller("settlement")
 export class SettlementController {
-  constructor(private readonly adminSvc: SettlementRuleAdminService) {}
+  constructor(
+    private readonly adminSvc: SettlementRuleAdminService,
+    private readonly freezeSvc: SettlementFreezeService,
+  ) {}
 
   @Get("rules")
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -55,5 +60,31 @@ export class SettlementController {
   @ApiResponse({ status: 404, description: "规则不存在" })
   updateRule(@Req() req: Request, @Param("id") id: string, @Body() dto: UpdateSettlementRuleDto) {
     return this.adminSvc.updateRule(id, dto, req.user.id);
+  }
+
+  @Post("freeze")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN")
+  @Auditable({ action: "事后冻结受益人待结算佣金", targetType: "LEDGER_BENEFICIARY" })
+  @ApiOperation({ summary: "事后冻结：受益人全部 PENDING 台账行翻 FROZEN（不动已 SETTLED·幂等）" })
+  @ApiResponse({ status: 201, description: "成功，返回冻结行数" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
+  freeze(@Req() req: Request, @Body() dto: FreezeBeneficiaryDto) {
+    return this.freezeSvc.freezeBeneficiary(dto.beneficiaryType, dto.beneficiaryId, dto.reason, req.user.id);
+  }
+
+  @Post("unfreeze")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN")
+  @Auditable({ action: "解冻受益人佣金", targetType: "LEDGER_BENEFICIARY" })
+  @ApiOperation({ summary: "解冻：仅解事后冻结的行（reason 前缀标记）FROZEN→PENDING；大额审批冻结行不受影响" })
+  @ApiResponse({ status: 201, description: "成功，返回解冻行数" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
+  unfreeze(@Req() req: Request, @Body() dto: FreezeBeneficiaryDto) {
+    return this.freezeSvc.unfreezeBeneficiary(dto.beneficiaryType, dto.beneficiaryId, dto.reason, req.user.id);
   }
 }
