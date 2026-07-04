@@ -84,4 +84,25 @@ page {
   font-size: 28rpx;
   line-height: 1.6;
 }
+
+/* #ifdef H5 */
+/* 桌面浏览器打开 H5 时限宽居中（移动优先产品的业界标准壳）。
+   关键技巧：给 uni-app 容器加 transform 使其成为 fixed 子元素的包含块——
+   底部导航/悬浮球/弹窗等 position:fixed 元素随之被约束在壳内，无需逐组件适配。
+   小程序/App 端不受影响（条件编译）。真响应式(卡片重排/侧栏导航)在 backlog。 */
+@media screen and (min-width: 600px) {
+  body {
+    background: #ece7dc;
+  }
+  uni-app {
+    position: relative;
+    max-width: 480px;
+    min-height: 100vh;
+    margin: 0 auto;
+    transform: translateZ(0);
+    box-shadow: 0 0 48px rgba(60, 40, 20, 0.16);
+    background-color: var(--bg-paper, #faf8f5);
+  }
+}
+/* #endif */
 </style>
