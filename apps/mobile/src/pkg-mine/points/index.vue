@@ -9,7 +9,9 @@ import {
   type PointsExchangeItem,
 } from '@/lib/points-data'
 
-const loading = ref(false)
+// 初始即 loading：避免首帧先挂载 scroll-view、onMounted 置 loading 后又立刻卸载，
+// 触发 uni-app H5 scroll-view 异步设置 scrollTop 时节点已为 null 的报错（P2-1）
+const loading = ref(true)
 const error = ref('')
 const info = ref<PointsInfo>({ balance: 0, totalEarned: 0, totalSpent: 0, todayEarned: 0 })
 const tasks = ref<PointsTask[]>([])

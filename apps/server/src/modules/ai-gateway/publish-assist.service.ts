@@ -29,9 +29,22 @@ export class PublishAssistService {
 
   constructor(private readonly gateway: AiGatewayService) {}
 
+  /**
+   * 统一调用 AI 网关：上游（DeepSeek 等）失败时收敛为友好业务提示，
+   * 原始报错只记日志，绝不把供应商原始响应体透传给 C 端用户。
+   */
+  private async safeChat(req: Parameters<AiGatewayService["chat"]>[0]) {
+    try {
+      return await this.gateway.chat(req);
+    } catch (err) {
+      this.logger.error(`AI网关调用失败(scene=${req.scene}): ${(err as Error)?.message}`);
+      throw new BusinessException(ErrorCode.THIRD_AI_FAILED, "AI 服务暂时不可用，请稍后再试");
+    }
+  }
+
   /** AI文字润色 */
   async polishText(text: string, userId?: string) {
-    const result = await this.gateway.chat({
+    const result = await this.safeChat({
       scene: "publish_assist",
       userId,
       messages: [
@@ -45,7 +58,7 @@ export class PublishAssistService {
 
   /** AI标题优化 */
   async optimizeTitle(content: string, userId?: string) {
-    const result = await this.gateway.chat({
+    const result = await this.safeChat({
       scene: "publish_assist",
       userId,
       messages: [
@@ -60,7 +73,7 @@ export class PublishAssistService {
 
   /** AI标签推荐 */
   async suggestTags(content: string, userId?: string) {
-    const result = await this.gateway.chat({
+    const result = await this.safeChat({
       scene: "publish_assist",
       userId,
       messages: [
@@ -121,7 +134,7 @@ export class PublishAssistService {
     }
 
     // Fallback: 返回 AI 生成的文本设计提示词
-    const result = await this.gateway.chat({
+    const result = await this.safeChat({
       scene: "cover_generation",
       userId,
       messages: [

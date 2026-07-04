@@ -31,6 +31,15 @@ describe("PublishAssistService", () => {
       const result = await svc.polishText("原始文本");
       expect(result.polished).toBe("润色后的优美文本");
     });
+
+    it("上游AI报错时返回友好业务提示，不透传供应商原始响应体", async () => {
+      gateway.chat.mockRejectedValue(
+        new Error('DeepSeek API返回 402: {"error":{"message":"Insufficient Balance","type":"unknown_error"}}'),
+      );
+      const promise = svc.polishText("原始文本");
+      await expect(promise).rejects.toThrow("AI 服务暂时不可用，请稍后再试");
+      await expect(promise).rejects.not.toThrow(/DeepSeek|Insufficient|402/);
+    });
   });
 
   describe("optimizeTitle", () => {

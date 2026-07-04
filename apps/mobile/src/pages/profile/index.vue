@@ -227,6 +227,23 @@ async function handleCheckIn() {
       </view>
     </view>
 
+    <!-- ===== 书院会员常驻入口（非会员=开通引导·会员=等级/到期）===== -->
+    <view class="sec">
+      <view class="vip-entry" @tap="go('/pkg-mine/memberships/index')">
+        <view class="vip-entry-left">
+          <view class="vip-entry-icon"><AppIcon name="crown" :size="36" color="#ffffff" /></view>
+          <view class="vip-entry-info">
+            <text class="vip-entry-title">书院会员</text>
+            <text v-if="userData.isVip" class="vip-entry-sub">{{ userData.vipLevel || '会员' }}{{ userData.vipExpiry ? ' · ' + userData.vipExpiry + ' 到期' : '' }}</text>
+            <text v-else class="vip-entry-sub">AI 伴读 · 电子书畅读 · 专属权益</text>
+          </view>
+        </view>
+        <view class="vip-entry-btn">
+          <text class="vip-entry-btn-txt">{{ userData.isVip ? '查看权益' : '立即开通' }}</text>
+        </view>
+      </view>
+    </view>
+
     <!-- ===== 第三层：订单与售后区 ===== -->
     <view class="sec">
       <view class="card">
@@ -415,6 +432,16 @@ async function handleCheckIn() {
 .coin-label { font-size: 22rpx; color: rgba(201,169,110,0.9); font-weight: 500; margin-top: 12rpx; }
 .asset-num { font-size: 40rpx; font-weight: 700; color: #2c2c2c; line-height: 1; }
 .asset-label { font-size: 22rpx; color: #999; margin-top: 12rpx; }
+
+/* 书院会员常驻入口 */
+.vip-entry { display: flex; align-items: center; justify-content: space-between; padding: 24rpx 28rpx; background: linear-gradient(to right, #C9A96E, #D4B87D); border-radius: 24rpx; box-shadow: 0 2rpx 16rpx rgba(201,169,110,0.25); }
+.vip-entry-left { display: flex; align-items: center; gap: 20rpx; min-width: 0; }
+.vip-entry-icon { width: 72rpx; height: 72rpx; border-radius: 20rpx; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.vip-entry-info { min-width: 0; }
+.vip-entry-title { display: block; font-family: var(--font-serif); font-size: 30rpx; font-weight: 700; color: #fff; }
+.vip-entry-sub { display: block; font-size: 20rpx; color: rgba(255,255,255,0.85); margin-top: 4rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vip-entry-btn { flex-shrink: 0; padding: 12rpx 28rpx; background: #fff; border-radius: 999rpx; }
+.vip-entry-btn-txt { font-size: 24rpx; font-weight: 600; color: #C9A96E; }
 
 /* 第三层 订单 */
 .order-grid { display: flex; padding: 32rpx 0; }

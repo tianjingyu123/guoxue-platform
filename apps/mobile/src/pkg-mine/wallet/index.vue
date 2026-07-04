@@ -4,7 +4,9 @@ import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
 import { mineApi, type WalletInfo, type RechargeOption, type WalletTxRecord, type WalletTxCategory } from '@/lib/mine-data'
 
-const loading = ref(false)
+// 初始即 loading：避免首帧先挂载 scroll-view、onMounted 置 loading 后又立刻卸载，
+// 触发 uni-app H5 scroll-view 异步设置 scrollTop 时节点已为 null 的报错（P2-1）
+const loading = ref(true)
 const error = ref('')
 const info = ref<WalletInfo>({ balance: 0, rmb: 0, level: 0, growthValue: 0, nextLevelGrowth: 1, points: 0, totalRecharge: 0, totalSpent: 0 })
 const options = ref<RechargeOption[]>([])
