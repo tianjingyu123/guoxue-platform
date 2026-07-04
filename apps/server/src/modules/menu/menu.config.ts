@@ -354,6 +354,7 @@ export const MENU_CONFIG: MenuItem[] = [
       { title: "角色权限", path: "/system/role-permission" },
       { title: "功能开关", path: "/system/feature-flags" },
       { title: "第三方配置", path: "/system/third-party" },
+      { title: "品牌配置", path: "/system/brand" },
       { title: "操作日志", path: "/system/operation-logs" },
       { title: "配置版本", path: "/system/config-versions" },
       { title: "审计日志", path: "/audit-logs" },

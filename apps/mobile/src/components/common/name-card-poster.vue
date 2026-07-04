@@ -9,6 +9,7 @@
  */
 import { ref, watch, getCurrentInstance, nextTick } from 'vue'
 import { drawQrToCanvas } from '@/utils/qrcode'
+import { BRAND } from '@/lib/brand'
 
 const props = withDefaults(defineProps<{
   /** 弹层可见性（v-if 由父层控制亦可，此处内部 v-if visible） */
@@ -67,7 +68,7 @@ function drawCard() {
     ctx.setFillStyle('rgba(255,255,255,0.9)')
     ctx.setFontSize(13)
     ctx.setTextAlign('center')
-    ctx.fillText('热卜国学 · 从业者名片', W / 2, 44)
+    ctx.fillText(`${BRAND.name} · 从业者名片`, W / 2, 44)
 
     // 头像占位：骑跨品牌头下缘的圆（姓名首字）
     const avatarR = 34

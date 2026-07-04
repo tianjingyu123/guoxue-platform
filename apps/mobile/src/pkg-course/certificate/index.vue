@@ -10,6 +10,7 @@ import AppIcon from '@/components/common/app-icon.vue'
 import TouchpointCard from '@/components/common/touchpoint-card.vue'
 import { courseApi } from '@/lib/course-data'
 import { touchpointApi, type TouchpointResult } from '@/lib/touchpoint-data'
+import { BRAND } from '@/lib/brand'
 
 const instance = getCurrentInstance()?.proxy
 
@@ -59,7 +60,7 @@ async function loadData() {
 
 // ============ 分享给好友（裂变核心）============
 // 标题带「炫耀感+召唤感」，path 指向课程详情页；withRef 自动追加当前用户 ref，好友点开即归因
-const shareTitle = computed(() => `我在热卜国学完成了《${cert.value?.courseName || '国学好课'}》结课！`)
+const shareTitle = computed(() => `我在${BRAND.name}完成了《${cert.value?.courseName || '国学好课'}》结课！`)
 const sharePath = computed(() => `/courses/${cert.value?.courseId || courseId.value}`)
 
 const { toAppMessage, toTimeline } = useShare()
@@ -102,7 +103,7 @@ function drawPoster() {
   ctx.setFillStyle('rgba(255,255,255,0.9)')
   ctx.setFontSize(12)
   ctx.setTextAlign('center')
-  ctx.fillText('热卜国学传统文化平台', W / 2, 42)
+  ctx.fillText(`${BRAND.name}传统文化平台`, W / 2, 42)
   ctx.setFillStyle('#ffffff')
   ctx.setFontSize(30)
   ctx.fillText('结 业 证 书', W / 2, 82)
@@ -316,7 +317,7 @@ onMounted(() => {
             </view>
           </view>
           <text class="cert-no">证书编号：{{ cert.certificateNo }}</text>
-          <text class="cert-platform">热卜国学</text>
+          <text class="cert-platform">{{ BRAND.name }}</text>
         </view>
       </view>
     </view>

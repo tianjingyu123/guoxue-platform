@@ -18,13 +18,13 @@
         <view class="logo" :class="{ 'logo-in': logoAnimated }">
           <app-icon name="compass" :size="64" color="#C9A96E" />
         </view>
-        <text class="brand-name" :class="{ 'name-in': logoAnimated }">热卜国学</text>
-        <text class="slogan" :class="{ 'slogan-in': sloganVisible }">探寻东方智慧</text>
+        <text class="brand-name" :class="{ 'name-in': logoAnimated }">{{ BRAND.name }}</text>
+        <text class="slogan" :class="{ 'slogan-in': sloganVisible }">{{ BRAND.slogan }}</text>
       </view>
 
       <!-- 底部版权 -->
       <view class="copyright">
-        <text class="copyright-text">Copyright 2024 热卜国学 All Rights Reserved</text>
+        <text class="copyright-text">Copyright 2024 {{ BRAND.name }} All Rights Reserved</text>
       </view>
     </view>
 
@@ -36,7 +36,7 @@
         <view class="ad-brand-logo">
           <app-icon name="compass" :size="14" color="#C9A96E" />
         </view>
-        <text class="ad-brand-text">热卜国学</text>
+        <text class="ad-brand-text">{{ BRAND.name }}</text>
       </view>
     </view>
   </view>
@@ -47,6 +47,7 @@ import { ref, onUnmounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { reLaunch, navigateTo } from '@/utils/router'
 import AppIcon from '@/components/common/app-icon.vue'
+import { BRAND } from '@/lib/brand'
 
 interface SplashAd {
   id: string

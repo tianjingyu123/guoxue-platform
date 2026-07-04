@@ -7,6 +7,7 @@ import { ThirdPartyConfigLoader } from "./third-party-config.loader";
 
 const mockPrisma = {
   configSystem: { findMany: jest.fn(), findUnique: jest.fn(), upsert: jest.fn(), delete: jest.fn() },
+  brandConfig: { findUnique: jest.fn(), upsert: jest.fn() },
   auditLog: { findMany: jest.fn(), count: jest.fn() },
 };
 const mockRedis = { get: jest.fn(), set: jest.fn(), del: jest.fn(), getJson: jest.fn(), setJson: jest.fn() };
@@ -84,6 +85,44 @@ describe("SystemService", () => {
       await svc.deleteConfig("key_to_delete");
       expect(mockRedis.del).toHaveBeenCalledWith("sys:config:key_to_delete");
       expect(mockRedis.del).toHaveBeenCalledWith("sys:config:all");
+    });
+  });
+
+  describe("getBrandConfig（租-T0 品牌抽象）", () => {
+    it("无记录时返回内置默认值（不破坏现状口径）", async () => {
+      mockRedis.getJson.mockResolvedValue(null);
+      mockPrisma.brandConfig.findUnique.mockResolvedValue(null);
+      const result = await svc.getBrandConfig();
+      expect(result.siteName).toBe("热卜国学");
+      expect(result.siteNameShort).toBe("热卜");
+      expect(result.primaryColor).toBe("#c41e3a");
+      expect(mockRedis.setJson).toHaveBeenCalledWith("sys:config:brand", expect.objectContaining({ siteName: "热卜国学" }), expect.any(Number));
+    });
+    it("有记录时 DB 值覆盖默认值（改一处配置全端生效）", async () => {
+      mockRedis.getJson.mockResolvedValue(null);
+      mockPrisma.brandConfig.findUnique.mockResolvedValue({ id: "default", siteName: "道商世界", siteNameShort: "道商" });
+      const result = await svc.getBrandConfig();
+      expect(result.siteName).toBe("道商世界");
+      expect(result.slogan).toBe("探寻东方智慧"); // 未配置字段仍取默认值
+    });
+    it("命中缓存时不查库", async () => {
+      mockRedis.getJson.mockResolvedValue({ siteName: "缓存站名" });
+      const result = await svc.getBrandConfig();
+      expect(result.siteName).toBe("缓存站名");
+      expect(mockPrisma.brandConfig.findUnique).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("updateBrandConfig（租-T0 品牌抽象）", () => {
+    it("upsert 单行记录并失效缓存·undefined 字段不覆盖", async () => {
+      mockPrisma.brandConfig.upsert.mockResolvedValue({ id: "default", siteName: "道商世界" });
+      await svc.updateBrandConfig({ siteName: " 道商世界 ", slogan: undefined }, "admin");
+      expect(mockPrisma.brandConfig.upsert).toHaveBeenCalledWith({
+        where: { id: "default" },
+        create: { id: "default", siteName: "道商世界", updatedBy: "admin" },
+        update: { siteName: "道商世界", updatedBy: "admin" },
+      });
+      expect(mockRedis.del).toHaveBeenCalledWith("sys:config:brand");
     });
   });
 

@@ -1,6 +1,8 @@
 // 分享海报数据层（迁移自原型 lib/types/poster + lib/poster/templates + lib/brand + lib/api/poster）
 // @data-needs: 海报数据, 参数 type(invite|circle|post|article|live) + targetId, 返回 PosterData
 
+import { BRAND } from '@/lib/brand'
+
 export type PosterType = 'invite' | 'circle' | 'post' | 'article' | 'live'
 
 export interface PosterData {
@@ -111,13 +113,13 @@ export function getPosterTypeTitle(type: PosterType): string {
 const MOCK_POSTER: Record<PosterType, PosterData> = {
   invite: {
     type: 'invite',
-    title: '热卜国学',
+    title: BRAND.name,
     subtitle: '观天之道，执天之行',
     desc: '汇聚易学、命理、风水名师，与万千同好一同探寻传统智慧。',
     author: '张明远',
     authorAvatar: '/static/images/circles/circle-1.jpg',
     qrcode: '/static/images/poster-qrcode.webp',
-    qrLabel: '长按识别，加入热卜',
+    qrLabel: `长按识别，加入${BRAND.nameShort}`,
     tag: '邀请函',
   },
   circle: {

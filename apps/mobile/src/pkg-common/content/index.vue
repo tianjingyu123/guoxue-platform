@@ -62,6 +62,7 @@
 import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { goBack } from '@/utils/router'
+import { BRAND } from '@/lib/brand'
 
 interface ContentBlock {
   type: 'heading' | 'paragraph' | 'image' | 'list' | 'quote' | 'divider'
@@ -100,11 +101,11 @@ const contentData: Record<string, ContentData> = {
     actionText: '我已阅读并同意',
     content: [
       { type: 'heading', level: 2, text: '一、总则' },
-      { type: 'paragraph', text: '欢迎您使用「热卜国学」平台服务。本协议是您与热卜国学平台之间关于使用平台服务所订立的协议。请您仔细阅读本协议的全部内容。' },
+      { type: 'paragraph', text: `欢迎您使用「${BRAND.platformName}」平台服务。本协议是您与${BRAND.platformName}平台之间关于使用平台服务所订立的协议。请您仔细阅读本协议的全部内容。` },
       { type: 'paragraph', text: '如果您不同意本协议的任意内容，请您立即停止使用本平台服务。当您注册成功或以其他方式开始使用本平台服务时，即视为您已充分阅读、理解并同意接受本协议的全部内容。' },
       { type: 'divider' },
       { type: 'heading', level: 2, text: '二、服务内容' },
-      { type: 'paragraph', text: '热卜国学平台为用户提供以下服务：' },
+      { type: 'paragraph', text: `${BRAND.platformName}平台为用户提供以下服务：` },
       { type: 'list', items: [
         '排盘工具：提供八字、紫微斗数、风水等专业排盘服务',
         '知识社区：圈子、文章、短视频等内容服务',
@@ -128,7 +129,7 @@ const contentData: Record<string, ContentData> = {
       ] },
       { type: 'divider' },
       { type: 'heading', level: 2, text: '五、知识产权' },
-      { type: 'paragraph', text: '平台上所有内容（包括但不限于文字、图片、音频、视频、软件等）的知识产权归热卜国学平台或相关权利人所有。未经授权，任何人不得擅自使用。' },
+      { type: 'paragraph', text: `平台上所有内容（包括但不限于文字、图片、音频、视频、软件等）的知识产权归${BRAND.platformName}平台或相关权利人所有。未经授权，任何人不得擅自使用。` },
       { type: 'divider' },
       { type: 'heading', level: 2, text: '六、免责声明' },
       { type: 'paragraph', text: '本平台提供的命理分析、风水建议等内容仅供参考，不构成任何专业建议。用户应理性看待相关内容，自行承担使用风险。' },
@@ -143,7 +144,7 @@ const contentData: Record<string, ContentData> = {
     actionText: '我已阅读并同意',
     content: [
       { type: 'heading', level: 2, text: '引言' },
-      { type: 'paragraph', text: '热卜国学平台非常重视用户的隐私保护。本隐私政策旨在向您说明我们如何收集、使用、存储和保护您的个人信息。' },
+      { type: 'paragraph', text: `${BRAND.platformName}平台非常重视用户的隐私保护。本隐私政策旨在向您说明我们如何收集、使用、存储和保护您的个人信息。` },
       { type: 'divider' },
       { type: 'heading', level: 2, text: '一、信息收集' },
       { type: 'paragraph', text: '我们可能收集以下类型的信息：' },
@@ -174,7 +175,7 @@ const contentData: Record<string, ContentData> = {
     updatedAt: '2026-05-01',
     content: [
       { type: 'heading', level: 2, text: '关于平台服务升级的通知' },
-      { type: 'paragraph', text: '尊敬的热卜国学用户：' },
+      { type: 'paragraph', text: `尊敬的${BRAND.name}用户：` },
       { type: 'paragraph', text: '为提供更优质的服务体验，我们将于2026年5月15日进行系统升级维护。届时部分功能可能暂时无法使用，预计维护时间为4小时（00:00-04:00）。' },
       { type: 'image', caption: '升级内容示意图' },
       { type: 'heading', level: 3, text: '本次升级内容：' },
@@ -185,7 +186,7 @@ const contentData: Record<string, ContentData> = {
         '修复已知问题，提升系统稳定性',
       ] },
       { type: 'paragraph', text: '感谢您的理解与支持！如有疑问，请联系客服。' },
-      { type: 'quote', text: '热卜国学运营团队\n2026年5月1日' },
+      { type: 'quote', text: `${BRAND.name}运营团队\n2026年5月1日` },
     ],
   },
   'vip-rights': {
@@ -193,8 +194,8 @@ const contentData: Record<string, ContentData> = {
     type: 'guide',
     updatedAt: '2026-03-01',
     content: [
-      { type: 'heading', level: 2, text: '热卜国学VIP会员权益' },
-      { type: 'paragraph', text: '成为热卜国学VIP会员，解锁更多专属权益，开启国学学习之旅。' },
+      { type: 'heading', level: 2, text: `${BRAND.name}VIP会员权益` },
+      { type: 'paragraph', text: `成为${BRAND.name}VIP会员，解锁更多专属权益，开启国学学习之旅。` },
       { type: 'divider' },
       { type: 'heading', level: 3, text: '核心权益' },
       { type: 'list', items: [

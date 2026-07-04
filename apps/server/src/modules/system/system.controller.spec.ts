@@ -27,6 +27,8 @@ const mockSystemSvc = {
   upsertMemberConfig: jest.fn().mockResolvedValue({ id: "mc1" }),
   getPublicBanners: jest.fn().mockResolvedValue({ banners: [] }),
   getHomeConfig: jest.fn().mockResolvedValue({ layout: "default", paipanSlot: 6, featuredTags: [] }),
+  getBrandConfig: jest.fn().mockResolvedValue({ id: "default", siteName: "热卜国学", siteNameShort: "热卜" }),
+  updateBrandConfig: jest.fn().mockResolvedValue({ id: "default", siteName: "道商世界" }),
 };
 
 const mockExportSvc = {
@@ -95,6 +97,21 @@ describe("SystemController", () => {
   it("PUT /system/maintenance — 切换维护模式", async () => {
     const result: any = await ctrl.toggleMaintenance({ enabled: true });
     expect(result.maintenanceMode).toBe(true);
+  });
+
+  // ── 品牌配置（租-T0 品牌抽象） ──
+
+  it("GET /system/public/brand-config — 公开品牌配置", async () => {
+    const result: any = await ctrl.getBrandConfig();
+    expect(result.siteName).toBe("热卜国学");
+    expect(mockSystemSvc.getBrandConfig).toHaveBeenCalled();
+  });
+
+  it("PUT /system/brand-config — 更新品牌配置（带操作人）", async () => {
+    const req: any = { user: { id: "admin1", nickname: "管理员" } };
+    const result: any = await ctrl.updateBrandConfig({ siteName: "道商世界" } as any, req);
+    expect(result.siteName).toBe("道商世界");
+    expect(mockSystemSvc.updateBrandConfig).toHaveBeenCalledWith({ siteName: "道商世界" }, "管理员");
   });
 
   // ── 公开接口 ──

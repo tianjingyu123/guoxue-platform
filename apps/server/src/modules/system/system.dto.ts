@@ -1,4 +1,4 @@
-import { IsString, IsDateString, IsOptional, IsInt, IsNumber, IsBoolean, IsObject, IsArray, MinLength } from "class-validator";
+import { IsString, IsDateString, IsOptional, IsInt, IsNumber, IsBoolean, IsObject, IsArray, MinLength, MaxLength } from "class-validator";
 import { ApiProperty } from "@nestjs/swagger";
 
 /** 更新角色权限入参（防止裸内联类型绕过校验） */
@@ -20,6 +20,93 @@ export class CreateConfigDto {
 
   @IsOptional() @IsString()
   description?: string;
+}
+
+/** 更新品牌配置入参（租-T0 品牌抽象·所有字段可选·只更新传入字段） */
+export class UpdateBrandConfigDto {
+  @ApiProperty({ description: "站名（全称）", required: false })
+  @IsOptional() @IsString() @MaxLength(50)
+  siteName?: string;
+
+  @ApiProperty({ description: "站名（简称·印章两字）", required: false })
+  @IsOptional() @IsString() @MaxLength(10)
+  siteNameShort?: string;
+
+  @ApiProperty({ description: "英文名", required: false })
+  @IsOptional() @IsString() @MaxLength(50)
+  siteNameEn?: string;
+
+  @ApiProperty({ description: "主标语", required: false })
+  @IsOptional() @IsString() @MaxLength(100)
+  slogan?: string;
+
+  @ApiProperty({ description: "备用标语", required: false })
+  @IsOptional() @IsString() @MaxLength(100)
+  sloganAlt?: string;
+
+  @ApiProperty({ description: "副标题", required: false })
+  @IsOptional() @IsString() @MaxLength(100)
+  tagline?: string;
+
+  @ApiProperty({ description: "版权/页脚文案", required: false })
+  @IsOptional() @IsString() @MaxLength(100)
+  copyright?: string;
+
+  @ApiProperty({ description: "二维码引导语", required: false })
+  @IsOptional() @IsString() @MaxLength(100)
+  qrGuide?: string;
+
+  @ApiProperty({ description: "Logo 图片地址（空=内置印章 Logo）", required: false })
+  @IsOptional() @IsString() @MaxLength(500)
+  logoUrl?: string;
+
+  @ApiProperty({ description: "品牌主色（如 #c41e3a）", required: false })
+  @IsOptional() @IsString() @MaxLength(20)
+  primaryColor?: string;
+
+  @ApiProperty({ description: "主域名", required: false })
+  @IsOptional() @IsString() @MaxLength(200)
+  domain?: string;
+
+  @ApiProperty({ description: "H5 入口地址", required: false })
+  @IsOptional() @IsString() @MaxLength(500)
+  h5Url?: string;
+
+  @ApiProperty({ description: "客服电话", required: false })
+  @IsOptional() @IsString() @MaxLength(30)
+  servicePhone?: string;
+
+  @ApiProperty({ description: "客服邮箱", required: false })
+  @IsOptional() @IsString() @MaxLength(100)
+  serviceEmail?: string;
+
+  @ApiProperty({ description: "客服微信", required: false })
+  @IsOptional() @IsString() @MaxLength(50)
+  serviceWechat?: string;
+
+  @ApiProperty({ description: "协议主体：公司全称", required: false })
+  @IsOptional() @IsString() @MaxLength(100)
+  companyName?: string;
+
+  @ApiProperty({ description: "协议主体：平台名", required: false })
+  @IsOptional() @IsString() @MaxLength(50)
+  platformName?: string;
+
+  @ApiProperty({ description: "协议主体：网址", required: false })
+  @IsOptional() @IsString() @MaxLength(200)
+  websiteUrl?: string;
+
+  @ApiProperty({ description: "协议主体：联系人", required: false })
+  @IsOptional() @IsString() @MaxLength(50)
+  contactPerson?: string;
+
+  @ApiProperty({ description: "协议主体：联系电话", required: false })
+  @IsOptional() @IsString() @MaxLength(30)
+  contactPhone?: string;
+
+  @ApiProperty({ description: "协议主体：联系邮箱", required: false })
+  @IsOptional() @IsString() @MaxLength(100)
+  contactEmail?: string;
 }
 
 export class ToggleMaintenanceDto {

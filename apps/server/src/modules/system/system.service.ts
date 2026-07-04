@@ -75,6 +75,61 @@ export class SystemService {
     return result;
   }
 
+  // ───────── 品牌配置（租-T0 品牌抽象·单行表） ─────────
+
+  /** 品牌配置内置默认值（未在后台配置过时返回·与现状"热卜"口径一致，保证不破坏现状） */
+  private static readonly DEFAULT_BRAND_CONFIG = {
+    id: "default",
+    siteName: "热卜国学",
+    siteNameShort: "热卜",
+    siteNameEn: "REBU",
+    slogan: "探寻东方智慧",
+    sloganAlt: "观天地 · 明心性",
+    tagline: "国学知识平台",
+    copyright: "热卜国学 · 让国学回归生活",
+    qrGuide: "长按识别 · 开启国学之旅",
+    logoUrl: "",
+    primaryColor: "#c41e3a",
+    domain: "api.rebugx.cn",
+    h5Url: "https://api.rebugx.cn/h5/",
+    servicePhone: "",
+    serviceEmail: "",
+    serviceWechat: "",
+    companyName: "",
+    platformName: "热卜国学",
+    websiteUrl: "",
+    contactPerson: "",
+    contactPhone: "",
+    contactEmail: "",
+  };
+
+  /** 公开：获取品牌配置（全端品牌露出的唯一来源·无记录时返回内置默认值） */
+  async getBrandConfig() {
+    const cached = await this.redis.getJson<Record<string, string>>(CONFIG_CACHE_PREFIX + "brand");
+    if (cached) return cached;
+    const row = await this.prisma.brandConfig.findUnique({ where: { id: "default" } });
+    // merge 默认值：将来新增字段时旧记录也能拿到兜底值
+    const result = { ...SystemService.DEFAULT_BRAND_CONFIG, ...(row ?? {}) };
+    await this.redis.setJson(CONFIG_CACHE_PREFIX + "brand", result, CONFIG_CACHE_TTL);
+    return result;
+  }
+
+  /** 管理端：更新品牌配置（只更新传入字段·改一处配置全端生效） */
+  async updateBrandConfig(dto: Record<string, string | undefined>, updatedBy?: string) {
+    // 剔除 undefined，避免覆盖未传字段
+    const data: Record<string, string> = {};
+    for (const [k, v] of Object.entries(dto)) {
+      if (typeof v === "string") data[k] = v.trim();
+    }
+    const result = await this.prisma.brandConfig.upsert({
+      where: { id: "default" },
+      create: { id: "default", ...data, updatedBy },
+      update: { ...data, updatedBy },
+    });
+    await this.redis.del(CONFIG_CACHE_PREFIX + "brand");
+    return result;
+  }
+
   /** 获取多个公开配置（供前端/移动端使用） */
   async getPublicConfigs(keys: string[]) {
     const configs = await this.prisma.configSystem.findMany({

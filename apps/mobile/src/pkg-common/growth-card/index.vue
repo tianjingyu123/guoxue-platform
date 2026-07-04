@@ -64,7 +64,7 @@
         <text class="stat-sub">最长连续 {{ card.maxStreak }} 天 · 累计 {{ card.totalExp }} 学分</text>
 
         <text class="slogan">每天学一点，日日有精进</text>
-        <text class="brand">热卜国学 · 与君同修</text>
+        <text class="brand">{{ BRAND.name }} · 与君同修</text>
       </view>
 
       <!-- CTA -->
@@ -83,6 +83,7 @@ import { getToken } from '@/utils/storage'
 import { captureRefFromQuery } from '@/utils/referral'
 import { useShare } from '@/composables/useShare'
 import { growthApi, type GrowthCard } from '@/lib/growth-data'
+import { BRAND } from '@/lib/brand'
 
 // ── 三态 ──────────────────────────────────────────
 const loading = ref(true)
@@ -154,8 +155,8 @@ const { toAppMessage } = useShare()
 onShareAppMessage(() =>
   toAppMessage({
     title: card.value
-      ? `${card.value.nickname} 在热卜国学获得了「${card.value.name}」，邀你同修`
-      : '热卜国学 · 每天学一点，日日有精进',
+      ? `${card.value.nickname} 在${BRAND.name}获得了「${card.value.name}」，邀你同修`
+      : `${BRAND.name} · 每天学一点，日日有精进`,
     path: `/pkg-common/growth-card/index?uid=${encodeURIComponent(uid.value)}&code=${encodeURIComponent(code.value)}&type=${cardType.value}`,
   }),
 )

@@ -16,8 +16,8 @@
         <view class="logo-box">
           <image lazy-load class="logo-img" :src="logoSrc" mode="aspectFill" />
         </view>
-        <text class="app-title">热卜国学</text>
-        <text class="app-subtitle">探寻东方智慧</text>
+        <text class="app-title">{{ BRAND.name }}</text>
+        <text class="app-subtitle">{{ BRAND.slogan }}</text>
       </view>
 
       <!-- 登录方式切换 -->
@@ -163,6 +163,7 @@ import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { authApi } from '@/lib/auth-data'
 import { setToken, setUserInfo } from '@/utils/storage'
+import { BRAND } from '@/lib/brand'
 
 const statusBarHeight = ref(0)
 const logoSrc = ref('/images/logo.jpg')

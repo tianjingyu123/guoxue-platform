@@ -2859,6 +2859,36 @@ model ConfigSystem {
   createdAt   DateTime @default(now())
 }
 
+/// 品牌配置（多租户 T0 品牌抽象·单行表 id 固定 "default"）
+/// 全端品牌露出（站名/Logo/主色/客服/协议主体六项）的唯一配置来源，收敛散落的"热卜"硬编码
+model BrandConfig {
+  id            String   @id @default("default")
+  siteName      String   @default("热卜国学") // 站名（全称）
+  siteNameShort String   @default("热卜") // 站名（简称·印章两字）
+  siteNameEn    String   @default("REBU") // 英文名
+  slogan        String   @default("探寻东方智慧") // 主标语
+  sloganAlt     String   @default("观天地 · 明心性") // 备用标语
+  tagline       String   @default("国学知识平台") // 副标题
+  copyright     String   @default("热卜国学 · 让国学回归生活") // 版权/页脚文案
+  qrGuide       String   @default("长按识别 · 开启国学之旅") // 二维码引导语
+  logoUrl       String   @default("") // Logo 图片地址（空=使用内置印章 Logo）
+  primaryColor  String   @default("#c41e3a") // 品牌主色
+  domain        String   @default("api.rebugx.cn") // 主域名
+  h5Url         String   @default("https://api.rebugx.cn/h5/") // H5 入口地址
+  servicePhone  String   @default("") // 客服电话
+  serviceEmail  String   @default("") // 客服邮箱
+  serviceWechat String   @default("") // 客服微信
+  companyName   String   @default("") // 协议主体：公司全称
+  platformName  String   @default("热卜国学") // 协议主体：平台名
+  websiteUrl    String   @default("") // 协议主体：网址
+  contactPerson String   @default("") // 协议主体：联系人
+  contactPhone  String   @default("") // 协议主体：联系电话
+  contactEmail  String   @default("") // 协议主体：联系邮箱
+  updatedBy     String?
+  updatedAt     DateTime @updatedAt
+  createdAt     DateTime @default(now())
+}
+
 model Notification {
   id         String   @id @default(uuid())
   userId     String

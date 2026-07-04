@@ -37,7 +37,7 @@
                   <image lazy-load :src="posterData.authorAvatar" class="poster-card__avatar" mode="aspectFill" />
                   <view class="poster-card__author-info">
                     <text class="poster-card__author-name" :style="{ color: activeTheme.ink }">{{ posterData.author }}</text>
-                    <text class="poster-card__author-from" :style="{ color: activeTheme.sub }">来自 热卜国学</text>
+                    <text class="poster-card__author-from" :style="{ color: activeTheme.sub }">来自 {{ BRAND.name }}</text>
                   </view>
                 </view>
                 <view class="poster-card__qr">
@@ -134,6 +134,7 @@ import {
   type PosterType,
   type PosterData,
 } from '@/lib/poster-data'
+import { BRAND } from '@/lib/brand'
 
 const statusBarHeight = ref(0)
 const posterType = ref<PosterType>('invite')
@@ -228,7 +229,7 @@ function drawPoster() {
   ctx.setFillStyle(theme.sub)
   ctx.setFontSize(11)
   ctx.fillText(data.author, 32, H - 60)
-  ctx.fillText('来自 热卜国学', 32, H - 42)
+  ctx.fillText(`来自 ${BRAND.name}`, 32, H - 42)
 
   ctx.draw(false, () => {
     setTimeout(() => {
@@ -303,7 +304,7 @@ async function handleSave() {
   try {
     if (posterTempPath.value) {
       const a = document.createElement('a')
-      a.download = `热卜-${typeTitle.value}-${Date.now()}.png`
+      a.download = `${BRAND.nameShort}-${typeTitle.value}-${Date.now()}.png`
       a.href = posterTempPath.value
       a.click()
     }

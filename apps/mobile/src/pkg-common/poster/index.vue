@@ -18,7 +18,7 @@
             <view class="poster-logo">
               <app-icon :name="sceneConfig.icon" :size="28" :color="logoColor" />
             </view>
-            <text class="poster-brand">热卜国学</text>
+            <text class="poster-brand">{{ BRAND.name }}</text>
           </view>
 
           <!-- 内容 -->
@@ -52,7 +52,7 @@
             <view class="foot-logo">
               <app-icon name="compass" :size="16" :color="logoColor" />
             </view>
-            <text class="foot-text">热卜国学 · 探索易学智慧</text>
+            <text class="foot-text">{{ BRAND.name }} · 探索易学智慧</text>
           </view>
         </view>
       </view>
@@ -128,6 +128,7 @@ import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { goBack } from '@/utils/router'
 import AppIcon from '@/components/common/app-icon.vue'
+import { BRAND } from '@/lib/brand'
 
 type SceneKey = 'invite' | 'course' | 'circle' | 'paipan'
 

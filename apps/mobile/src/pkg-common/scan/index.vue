@@ -92,7 +92,7 @@
           <!-- 邀请注册 -->
           <view v-else-if="result.type === 'invite'" class="invite-box">
             <image lazy-load class="avatar avatar-center" :src="result.data.inviterAvatar" mode="aspectFill" />
-            <text class="invite-text"><text class="invite-name">{{ result.data.inviterName }}</text> 邀请您加入热卜</text>
+            <text class="invite-text"><text class="invite-name">{{ result.data.inviterName }}</text> 邀请您加入{{ BRAND.nameShort }}</text>
             <view class="benefits">
               <view v-for="(b, idx) in result.data.benefits" :key="idx" class="benefit-item">
                 <AppIcon name="check-circle-2" :size="16" color="#22c55e" />
@@ -156,6 +156,7 @@
 import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateBack, navigateTo, reLaunch } from '@/utils/router'
+import { BRAND } from '@/lib/brand'
 
 type ScanResultType =
   | 'friend' | 'group' | 'pay' | 'course' | 'article'
@@ -201,7 +202,7 @@ function parseQrCode(c: string): ScanResult {
       return { type: 'group', data: { groupId, name: '八字命理交流群', avatar: PLACEHOLDER, memberCount: 128, description: '探讨八字命理，共同学习进步' }, action: { label: '申请加入', handler: 'joinGroup' } }
     }
     if (c.includes('/pay/') || c.includes('pay=')) {
-      return { type: 'pay', data: { merchantId: '789', merchantName: '热卜国学', merchantAvatar: PLACEHOLDER }, action: { label: '立即付款', url: '/pay/transfer' } }
+      return { type: 'pay', data: { merchantId: '789', merchantName: BRAND.name, merchantAvatar: PLACEHOLDER }, action: { label: '立即付款', url: '/pay/transfer' } }
     }
     if (c.includes('/course/')) {
       const courseId = c.match(/course\/(\d+)/)?.[1] || '1'

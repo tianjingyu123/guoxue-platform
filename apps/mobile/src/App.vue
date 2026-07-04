@@ -2,6 +2,7 @@
 import { onLaunch, onShow, onHide, onError } from '@dcloudio/uni-app'
 import { track } from '@/composables/useTrack'
 import { captureRefFromQuery, captureRefFromUrl } from '@/utils/referral'
+import { hydrateBrandConfig } from '@/lib/brand'
 
 /** 从跳转参数中取出页面路径（去 query），用于全局 page_view 埋点 */
 function pickUrl(args: string | { url?: string }): string {
@@ -10,6 +11,8 @@ function pickUrl(args: string | { url?: string }): string {
 }
 
 onLaunch((options?: { query?: Record<string, unknown> }) => {
+  // 品牌配置水合（租-T0）：从后端拉取站名/标语/主色等，失败静默用内置默认值
+  hydrateBrandConfig()
   // 推荐归因：冷启动落地页携带 ref（分享链接）时记录最近分享者
   try {
     captureRefFromQuery(options?.query)

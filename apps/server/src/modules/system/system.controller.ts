@@ -13,7 +13,7 @@ import { SystemService } from "./system.service";
 import { ExportService } from "./export.service";
 import { Response, Request } from "express";
 import * as fs from "fs";
-import { SetConfigDto, CreateConfigDto, ToggleMaintenanceDto, ToggleAutomationDto, ExportUsersDto, ExportOrdersDto, ExportContentsDto, ExportAuditLogsDto, ExportEarningsDto, UpsertPageContentDto, CreateSiteNoticeDto, UpdateSiteNoticeDto, RollbackConfigDto, UpsertMemberConfigDto, ExportExcelDto } from "./system.dto";
+import { SetConfigDto, CreateConfigDto, ToggleMaintenanceDto, ToggleAutomationDto, ExportUsersDto, ExportOrdersDto, ExportContentsDto, ExportAuditLogsDto, ExportEarningsDto, UpsertPageContentDto, CreateSiteNoticeDto, UpdateSiteNoticeDto, RollbackConfigDto, UpsertMemberConfigDto, ExportExcelDto, UpdateBrandConfigDto } from "./system.dto";
 import { SkipFormat } from "../../common/skip-format.decorator";
 import { THIRD_PARTY_SERVICES } from "../../config/third-party-services";
 
@@ -235,6 +235,30 @@ export class SystemController {
     };
   }
 
+
+  // ───────── 品牌配置（租-T0 品牌抽象） ─────────
+
+  /** 公开接口：品牌配置（全端品牌露出统一来源·H5/小程序/admin 启动时拉取） */
+  @Get("public/brand-config")
+  @ApiOperation({ summary: "获取品牌配置（公开·站名/Logo/主色/客服/协议主体）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  async getBrandConfig() {
+    return this.systemService.getBrandConfig();
+  }
+
+  @Put("brand-config")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN")
+  @ApiOperation({ summary: "更新品牌配置（改一处配置全端生效）" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
+  @ApiBearerAuth()
+  async updateBrandConfig(@Body() dto: UpdateBrandConfigDto, @Req() req: Request) {
+    const u = req.user as { nickname?: string; id?: string } | undefined;
+    return this.systemService.updateBrandConfig({ ...dto }, u?.nickname || u?.id);
+  }
 
   /** 公开接口：关于我们 */
   @Get("about")

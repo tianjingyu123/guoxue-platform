@@ -926,6 +926,12 @@ const routes = [
         meta: { title: "第三方配置", roles: ["SUPER_ADMIN"] },
       },
       {
+        path: "system/brand",
+        name: "BrandConfig",
+        component: () => import("@/views/system/BrandConfig.vue"),
+        meta: { title: "品牌配置", roles: ["SUPER_ADMIN"] },
+      },
+      {
         path: "system/role-permission",
         name: "RolePermissionManage",
         component: () => import("@/views/system/RolePermissionManage.vue"),

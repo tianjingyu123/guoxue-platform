@@ -8,7 +8,7 @@
       <view class="logo-box">
         <image lazy-load class="logo-img" :src="logoSrc" mode="aspectFill" />
       </view>
-      <text class="hero-title">热卜国学</text>
+      <text class="hero-title">{{ BRAND.name }}</text>
       <text class="hero-slogan">传承智慧 · 启迪人生</text>
     </view>
 
@@ -18,7 +18,7 @@
     <view v-else class="content">
       <!-- 介绍 -->
       <text class="intro">
-        热卜国学是一个专注于中华传统文化传承与学习的综合性平台。我们汇聚了易经、风水、命理、中医养生等领域的专家学者，致力于让国学智慧以现代化的方式传播，帮助更多人了解和受益于中华传统文化的精髓。
+        {{ BRAND.name }}是一个专注于中华传统文化传承与学习的综合性平台。我们汇聚了易经、风水、命理、中医养生等领域的专家学者，致力于让国学智慧以现代化的方式传播，帮助更多人了解和受益于中华传统文化的精髓。
       </text>
 
       <!-- 数据展示 -->
@@ -52,18 +52,18 @@
         </view>
         <view class="contact-row">
           <text class="contact-label">客服邮箱</text>
-          <text class="contact-value">support@rebu.com</text>
+          <text class="contact-value">{{ BRAND.serviceEmail }}</text>
         </view>
         <view class="contact-row">
           <text class="contact-label">官方微信</text>
-          <text class="contact-value">rebu_guoxue</text>
+          <text class="contact-value">{{ BRAND.serviceWechat }}</text>
         </view>
       </view>
 
       <!-- 版本信息 -->
       <view class="version">
         <text class="version-text">版本 1.0.0</text>
-        <text class="version-text">Copyright © 2024 热卜国学</text>
+        <text class="version-text">Copyright © 2024 {{ BRAND.name }}</text>
       </view>
     </view>
   </view>
@@ -75,6 +75,7 @@ import AppIcon from '@/components/common/app-icon.vue'
 import AppNavBar from '@/components/common/app-nav-bar.vue'
 import { navigateTo } from '@/utils/router'
 import { mineApi } from '@/lib/mine-data'
+import { BRAND } from '@/lib/brand'
 
 // 热卜 logo（根 public 与 vue3 共享，:src 动态绑定避免 Vite 静态解析报错）
 const logoSrc = ref('/images/logo.jpg')

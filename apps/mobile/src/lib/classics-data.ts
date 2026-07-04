@@ -1,5 +1,6 @@
 import type { CoverColor } from '@/lib/classics-cover'
 import { apiGet, apiGetPaged, apiPost, apiPut, apiDelete } from '@/utils/request'
+import { BRAND } from '@/lib/brand'
 
 // ===================== 首页 classics/home =====================
 const _mockLibraryStats = [
@@ -531,7 +532,7 @@ const _mockCollectionsDetailData: Record<string, CollectionDetail> = {
     title: '国学经典必读',
     description: '入门必备，经典永流传。精选中华文化精髓，从周易到论语，带你走进国学的大门。',
     cover: 'amber',
-    curator: '热卜国学编辑部',
+    curator: `${BRAND.name}编辑部`,
     bookCount: 12,
     viewCount: 28600,
     tags: ['入门', '经典', '推荐'],
