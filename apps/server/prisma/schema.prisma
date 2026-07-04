@@ -6484,3 +6484,24 @@ model DashboardDaily {
   metrics   Json // { dau, pv, newUsers, d1Retention?, gmv, ordersPaid, memberNew, commissionSum, moduleHeat: [{path,pv}], errors24h }
   createdAt DateTime @default(now())
 }
+
+/// 课-P1 AI 获客内容套件：营销内容类型
+enum MarketingContentKind {
+  SHORT_VIDEO // 短视频脚本
+  MOMENTS // 朋友圈文案
+  XIAOHONGSHU // 小红书图文
+}
+
+/// 课-P1 AI 获客内容套件：从业者营销内容生成记录（AI 生成→过三层审核漏斗→落库·passedAudit=true 为过审留痕）；
+/// 内容尾部自动拼从业者 ref 归因短链；月限额按 (userId, 当月 createdAt) count 判定；无 FK
+model MarketingContent {
+  id          String               @id @default(cuid())
+  userId      String
+  kind        MarketingContentKind
+  topic       String // 选题/主题（≤100 字）
+  content     String // 生成的最终文案（含尾部 ref 短链）
+  passedAudit Boolean              @default(false)
+  createdAt   DateTime             @default(now())
+
+  @@index([userId, createdAt])
+}

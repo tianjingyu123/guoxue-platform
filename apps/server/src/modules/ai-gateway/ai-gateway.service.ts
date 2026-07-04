@@ -18,6 +18,8 @@ export interface GatewayChatRequest {
   userId?: string;
   messages: AiMessage[];
   options?: AiChatOptions;
+  /** 跳过语义缓存（创作型场景用：营销文案等要求每次生成都是新内容，且固定指令占比大易误命中） */
+  skipCache?: boolean;
 }
 
 @Injectable()
@@ -67,8 +69,8 @@ export class AiGatewayService {
       .map((m) => m.content)
       .join(" ");
 
-    // 1. 语义缓存查找
-    if (userQuery.length > 0) {
+    // 1. 语义缓存查找（创作型场景可通过 skipCache 跳过）
+    if (userQuery.length > 0 && !req.skipCache) {
       const cached = await this.semCache.lookup(req.scene, userQuery);
       if (cached) {
         this.logger.debug(`语义缓存命中: scene=${req.scene}`);
@@ -130,7 +132,7 @@ export class AiGatewayService {
       })
       .catch((err) => this.logger.warn("AI分析记录写入失败", err));
 
-    if (userQuery.length > 0 && result.content) {
+    if (userQuery.length > 0 && result.content && !req.skipCache) {
       this.semCache.store(req.scene, userQuery, result.content, actualModel).catch((err) => this.logger.warn("语义缓存存储失败", err));
     }
 
