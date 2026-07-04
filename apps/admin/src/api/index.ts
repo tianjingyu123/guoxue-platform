@@ -756,7 +756,7 @@ export const systemApi = {
   toggleMaintenance: (data: { enabled: boolean; message?: string }) =>
     api.put("/system/maintenance", data),
   getAutomationStatus: () => api.get("/system/automation/status"),
-  toggleAutomation: () => api.post("/system/automation/toggle"),
+  toggleAutomation: (data: { enabled: boolean }) => api.post("/system/automation/toggle", data),
   // 品类树
   getCategoryTree: () => api.get("/system/category-tree"),
   updateCategoryTree: (tree: Record<string, string[]>) =>
@@ -1067,6 +1067,17 @@ export const complianceScanApi = {
   stats: () => api.get("/audit/compliance-scan/stats"),
   updateStatus: (id: string, status: "RESOLVED" | "IGNORED" | "OPEN") =>
     api.put(`/audit/compliance-scan/records/${id}/status`, { status }),
+};
+
+// 数字员工运营 OS — 任务池（OS-P1）
+export const opsTaskApi = {
+  list: (params?: { status?: string; type?: string; priority?: string; page?: number; pageSize?: number }) =>
+    api.get("/ops/tasks", { params }),
+  create: (data: { type: string; title: string; priority?: string; payload?: Record<string, unknown>; needsApproval?: boolean }) =>
+    api.post("/ops/tasks", data),
+  claim: (id: string, executor?: string) => api.put(`/ops/tasks/${id}/claim`, executor ? { executor } : {}),
+  complete: (id: string, result?: Record<string, unknown>) => api.put(`/ops/tasks/${id}/complete`, { result }),
+  review: (id: string, reason: string) => api.put(`/ops/tasks/${id}/review`, { reason }),
 };
 
 // Webhook管理

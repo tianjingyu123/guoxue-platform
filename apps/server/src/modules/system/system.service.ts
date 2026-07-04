@@ -118,10 +118,14 @@ export class SystemService {
 
   async logAudit(data: {
     userId?: string;
+    /** 执行者标识："CLAUDE"（数字员工）| 用户ID/人名 —— 缺省时 AuditService 回退 userId/SYSTEM */
+    executor?: string;
     action: string;
     targetType?: string;
     targetId?: string;
     detail?: string;
+    /** 关键操作回滚快照（配置改动/下架/退款类）— admin 可据此一键撤销 */
+    rollbackData?: Record<string, any>;
     ip?: string;
   }) {
     return this.audit.log(data);

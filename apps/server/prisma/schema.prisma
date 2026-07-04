@@ -4924,6 +4924,30 @@ model TaskTransferLog {
 }
 
 // ─────────────────────────────────────────────────
+// 数字员工运营 OS — 任务池（OS-P1·设计§2.1）
+// 数字员工与真人从同一池取任务：完成/转交全记录，状态存 DB 不存脑内
+// ─────────────────────────────────────────────────
+
+model OpsTask {
+  id            String   @id @default(uuid())
+  type          String // INSPECT(巡检) | FIX(修复) | REVIEW(审核) | OPS(运营动作)
+  priority      String   @default("MEDIUM") // HIGH | MEDIUM | LOW
+  status        String   @default("pending") // pending | in_progress | completed | needs_review
+  title         String // 任务标题（列表可读）
+  executor      String? // "CLAUDE" | 用户ID/人名 —— 当前认领者
+  payload       Json     @default("{}") // 任务数据快照（换执行者可恢复现场）
+  result        Json? // 执行结果
+  reviewReason  String? // 转 needs_review 的原因
+  needsApproval Boolean  @default(false) // 高风险操作（退款/删数据/改价/资金）永远 true 走人工
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([status, priority])
+  @@index([type, status])
+  @@index([createdAt])
+}
+
+// ─────────────────────────────────────────────────
 // 自动化运营 — 权限系统
 // ─────────────────────────────────────────────────
 

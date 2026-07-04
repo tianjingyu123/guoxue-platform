@@ -854,6 +854,12 @@ const routes = [
         meta: { title: "合规扫描", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"] },
       },
       {
+        path: "system/ops-tasks",
+        name: "OpsTaskPool",
+        component: () => import("@/views/system/OpsTaskPool.vue"),
+        meta: { title: "任务池", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
+      },
+      {
         path: "system/webhooks",
         name: "WebhookList",
         component: () => import("@/views/system/WebhookList.vue"),
