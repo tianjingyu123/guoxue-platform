@@ -4,6 +4,7 @@ import { MerchantService } from "./merchant.service";
 import { MerchantDepositService } from "./merchant-deposit.service";
 import { MerchantAgreementService } from "./merchant-agreement.service";
 import { MerchantSettlementService } from "./merchant-settlement.service";
+import { MerchantPunishmentService } from "./merchant-punishment.service";
 import { RolesGuard } from "../../common/roles.guard";
 
 const mockMerchantSvc = {
@@ -32,6 +33,11 @@ const mockSettlementSvc = {
   setCommissionRate: jest.fn().mockResolvedValue({ id: "m1", commissionRate: 0.9 }),
   listSettlements: jest.fn().mockResolvedValue({ list: [], total: 0 }),
 };
+const mockPunishmentSvc = {
+  list: jest.fn().mockResolvedValue({ list: [], total: 0, page: 1, pageSize: 20 }),
+  createPunishment: jest.fn().mockResolvedValue({ id: "p1", type: "WARNING", status: "ACTIVE" }),
+  revoke: jest.fn().mockResolvedValue({ id: "p1", status: "REVOKED" }),
+};
 
 describe("MerchantAdminController", () => {
   let ctrl: MerchantAdminController;
@@ -44,6 +50,7 @@ describe("MerchantAdminController", () => {
         { provide: MerchantDepositService, useValue: mockDepositSvc },
         { provide: MerchantAgreementService, useValue: mockAgreementSvc },
         { provide: MerchantSettlementService, useValue: mockSettlementSvc },
+        { provide: MerchantPunishmentService, useValue: mockPunishmentSvc },
       ],
     })
       .overrideGuard(RolesGuard).useValue({ canActivate: () => true })
@@ -107,5 +114,26 @@ describe("MerchantAdminController", () => {
 
   it("DELETE /admin/merchants/agreements/:agreementId — 删除协议", async () => {
     await expect(ctrl.deleteAgreement("a1")).resolves.toBeUndefined();
+  });
+
+  it("GET /admin/merchants/punishments — 处罚记录列表（按商家筛）", async () => {
+    const result = await ctrl.listPunishments({ merchantId: "m1" });
+    expect(result.total).toBe(0);
+    expect(mockPunishmentSvc.list).toHaveBeenCalledWith({ merchantId: "m1" });
+  });
+
+  it("POST /admin/merchants/punishments — 执行处罚", async () => {
+    const result = await ctrl.createPunishment(mockReq(), { merchantId: "m1", type: "WARNING", reason: "首次超时聚集" });
+    expect(result.status).toBe("ACTIVE");
+    expect(mockPunishmentSvc.createPunishment).toHaveBeenCalledWith(
+      { merchantId: "m1", type: "WARNING", reason: "首次超时聚集" },
+      "admin1",
+    );
+  });
+
+  it("PUT /admin/merchants/punishments/:punishmentId/revoke — 撤销处罚", async () => {
+    const result = await ctrl.revokePunishment("p1", mockReq(), { reason: "申诉成立" });
+    expect(result.status).toBe("REVOKED");
+    expect(mockPunishmentSvc.revoke).toHaveBeenCalledWith("p1", "admin1", "申诉成立");
   });
 });

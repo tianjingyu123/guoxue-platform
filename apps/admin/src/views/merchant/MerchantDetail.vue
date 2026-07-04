@@ -352,6 +352,103 @@
         </el-table>
       </el-tab-pane>
 
+      <!-- 标签3.5: 处罚记录（履-P3） -->
+      <el-tab-pane
+        label="处罚记录"
+        name="punishments"
+      >
+        <div style="margin-bottom:12px">
+          <el-button
+            type="danger"
+            size="small"
+            @click="openPunishDialog"
+          >
+            执行处罚
+          </el-button>
+        </div>
+        <el-table
+          v-loading="punishmentsLoading"
+          :data="punishments"
+          stripe
+        >
+          <template #empty>
+            <el-empty description="暂无处罚记录" />
+          </template>
+          <el-table-column
+            label="类型"
+            width="110"
+          >
+            <template #default="{ row }">
+              <el-tag
+                :type="punishTagType(row.type)"
+                size="small"
+              >
+                {{ punishTypeLabel(row.type) }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column
+            prop="reason"
+            label="处罚原因"
+            min-width="180"
+            show-overflow-tooltip
+          />
+          <el-table-column
+            label="状态"
+            width="90"
+          >
+            <template #default="{ row }">
+              <el-tag
+                :type="row.status === 'ACTIVE' ? 'danger' : 'info'"
+                size="small"
+              >
+                {{ row.status === 'ACTIVE' ? '生效中' : '已撤销' }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="操作人"
+            width="120"
+          >
+            <template #default="{ row }">
+              {{ row.operatorId === 'SYSTEM' ? '系统自动' : row.operatorId }}
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="到期时间"
+            width="120"
+          >
+            <template #default="{ row }">
+              {{ formatDate(row.expiresAt) }}
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="处罚时间"
+            width="120"
+          >
+            <template #default="{ row }">
+              {{ formatDate(row.createdAt) }}
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="操作"
+            width="90"
+          >
+            <template #default="{ row }">
+              <el-button
+                v-if="row.status === 'ACTIVE'"
+                type="warning"
+                size="small"
+                text
+                @click="doRevokePunishment(row)"
+              >
+                撤销
+              </el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+      </el-tab-pane>
+
       <!-- 标签4: 保证金 -->
       <el-tab-pane
         label="保证金记录"
@@ -537,6 +634,99 @@
         </el-table>
       </el-tab-pane>
     </el-tabs>
+
+    <!-- 执行处罚对话框（履-P3·四类·二次确认） -->
+    <el-dialog
+      v-model="punishDialog"
+      title="执行处罚"
+      width="520px"
+    >
+      <el-alert
+        v-if="punishForm.type === 'CLEAR_OUT'"
+        title="清退仅做标记与停业，保证金/未结算货款不会自动清算，需人工处理"
+        type="warning"
+        :closable="false"
+        style="margin-bottom:12px"
+      />
+      <el-form
+        :model="punishForm"
+        label-width="90px"
+      >
+        <el-form-item
+          label="处罚类型"
+          required
+        >
+          <el-select
+            v-model="punishForm.type"
+            style="width:100%"
+          >
+            <el-option
+              label="警告（只记录+通知）"
+              value="WARNING"
+            />
+            <el-option
+              label="商品下架（指定涉事商品）"
+              value="PRODUCT_DOWN"
+            />
+            <el-option
+              label="暂停经营（店铺冻结+全部下架）"
+              value="SHOP_SUSPEND"
+            />
+            <el-option
+              label="标记清退（停业标记·资金人工处理）"
+              value="CLEAR_OUT"
+            />
+          </el-select>
+        </el-form-item>
+        <el-form-item
+          label="处罚原因"
+          required
+        >
+          <el-input
+            v-model="punishForm.reason"
+            type="textarea"
+            :rows="3"
+            maxlength="500"
+            placeholder="如：抽检不合格 / 30 天内 2 次三级处罚（同原因未撤销不可重复处罚）"
+          />
+        </el-form-item>
+        <el-form-item
+          v-if="punishForm.type === 'PRODUCT_DOWN'"
+          label="涉事商品"
+          required
+        >
+          <el-input
+            v-model="punishForm.productIdsText"
+            type="textarea"
+            :rows="3"
+            placeholder="商品ID，多个用换行或逗号分隔"
+          />
+        </el-form-item>
+        <el-form-item
+          v-if="punishForm.type === 'SHOP_SUSPEND'"
+          label="到期时间"
+        >
+          <el-date-picker
+            v-model="punishForm.expiresAt"
+            type="date"
+            placeholder="暂停到期日（7-30 天·到期需人工撤销恢复）"
+            style="width:100%"
+          />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="punishDialog = false">
+          取消
+        </el-button>
+        <el-button
+          type="danger"
+          :loading="saving"
+          @click="doCreatePunishment"
+        >
+          执行处罚
+        </el-button>
+      </template>
+    </el-dialog>
 
     <!-- 审核通过对话框 -->
     <el-dialog
@@ -930,6 +1120,8 @@ interface MerchantStats { totalSales?: number; totalOrders?: number; violationCo
 interface ViolationRow { id: string; type?: string; title?: string; penalty?: number; status?: string; createdAt?: string }
 /** 保证金记录行 */
 interface DepositRow { type?: string; amount?: number; payMethod?: string; status?: string; remark?: string; createdAt?: string }
+/** 处罚记录行（履-P3） */
+interface PunishmentRow { id: string; type?: string; reason?: string; status?: string; operatorId?: string; expiresAt?: string; createdAt?: string }
 /** 结算记录行 */
 interface SettlementRow {
   id: string
@@ -943,7 +1135,10 @@ interface SettlementRow {
   paidAt?: string
 }
 
-const activeTab = ref('info')
+// 支持从列表页「处罚」按钮直达处罚 Tab（?tab=punishments）
+const VALID_TABS = ['info', 'stats', 'violations', 'punishments', 'deposits', 'settlements']
+const initTab = typeof route.query.tab === 'string' && VALID_TABS.includes(route.query.tab) ? route.query.tab : 'info'
+const activeTab = ref(initTab)
 const loading = ref(false)
 const error = ref(false)
 const saving = ref(false)
@@ -971,6 +1166,11 @@ const adjustReason = ref('')
 const commissionDialog = ref(false)
 const commissionRate = ref(0.8)
 
+const punishments = ref<PunishmentRow[]>([])
+const punishmentsLoading = ref(false)
+const punishDialog = ref(false)
+const punishForm = ref({ type: 'WARNING', reason: '', productIdsText: '', expiresAt: '' as string | Date })
+
 const settlements = ref<SettlementRow[]>([])
 const settleDialog = ref(false)
 const settleForm = ref({ periodStart: '', periodEnd: '' })
@@ -985,6 +1185,7 @@ const STATUS_MAP: Record<string, string> = {
   AGREEMENT_PENDING: '待签署协议', ACTIVE: '已开通', SUSPENDED: '已暂停', CLOSED: '已关闭',
 }
 const VIOLATION_TYPE: Record<string, string> = { MINOR: '轻微', MODERATE: '中等', SEVERE: '严重' }
+const PUNISH_TYPE: Record<string, string> = { WARNING: '警告', PRODUCT_DOWN: '商品下架', SHOP_SUSPEND: '暂停经营', CLEAR_OUT: '标记清退' }
 const DEPOSIT_TYPE: Record<string, string> = { PAYMENT: '缴纳', REFUND: '退还', DEDUCTION: '扣罚', TOPUP: '补缴' }
 
 function statusLabel(s?: string) { return s ? (STATUS_MAP[s] || s) : '-' }
@@ -996,15 +1197,28 @@ function statusTagType(s?: string) {
 }
 function violationTypeLabel(t: string) { return VIOLATION_TYPE[t] || t }
 function violationTagType(t: string) { return t === 'SEVERE' ? 'danger' : t === 'MODERATE' ? 'warning' : 'info' }
+function punishTypeLabel(t?: string) { return t ? (PUNISH_TYPE[t] || t) : '-' }
+function punishTagType(t?: string) {
+  if (t === 'CLEAR_OUT') return 'danger'
+  if (t === 'SHOP_SUSPEND') return 'danger'
+  if (t === 'PRODUCT_DOWN') return 'warning'
+  return 'info'
+}
 function depositTypeLabel(t: string) { return DEPOSIT_TYPE[t] || t }
 function formatDate(d?: string) { return d ? new Date(d).toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' }) : '-' }
 
-onMounted(() => fetchDetail())
+onMounted(() => {
+  fetchDetail()
+  if (activeTab.value === 'punishments') fetchPunishments()
+  else if (activeTab.value === 'stats') fetchStats()
+  else if (activeTab.value === 'settlements') fetchSettlements()
+})
 
 // 切换Tab时懒加载数据
 watch(activeTab, (tab) => {
   if (tab === 'stats') fetchStats()
   else if (tab === 'settlements') fetchSettlements()
+  else if (tab === 'punishments') fetchPunishments()
 })
 
 async function fetchDetail() {
@@ -1090,6 +1304,76 @@ async function handleViolationAction(vid: string, status: string) {
     ElMessage.success(status === 'CONFIRMED' ? '违规已确认' : '违规已驳回')
     fetchDetail()
   } catch (e) { }
+  finally { saving.value = false }
+}
+
+// 处罚（履-P3）
+async function fetchPunishments() {
+  punishmentsLoading.value = true
+  try {
+    const res = await merchantApi.listPunishments({ merchantId: id, pageSize: 100 })
+    punishments.value = (res.data as { list?: PunishmentRow[] })?.list || []
+  } catch { /* 接口错误走全局提示 */ }
+  finally { punishmentsLoading.value = false }
+}
+
+function openPunishDialog() {
+  punishForm.value = { type: 'WARNING', reason: '', productIdsText: '', expiresAt: '' }
+  punishDialog.value = true
+}
+
+async function doCreatePunishment() {
+  if (saving.value) return
+  const { type, reason, productIdsText, expiresAt } = punishForm.value
+  if (!reason.trim()) { ElMessage.warning('请填写处罚原因'); return }
+  const productIds = productIdsText.split(/[\n,，、\s]+/).map(s => s.trim()).filter(Boolean)
+  if (type === 'PRODUCT_DOWN' && productIds.length === 0) { ElMessage.warning('商品下架需指定涉事商品ID'); return }
+
+  // 二次确认（处罚为高影响操作）
+  try {
+    await ElMessageBox.confirm(
+      `确定对「${merchant.value?.shopName || id}」执行【${punishTypeLabel(type)}】处罚吗？将通知商家并记录审计。`,
+      '处罚二次确认',
+      { type: 'warning', confirmButtonText: '确认执行', cancelButtonText: '再想想' },
+    )
+  } catch { return }
+
+  saving.value = true
+  try {
+    await merchantApi.createPunishment({
+      merchantId: id,
+      type,
+      reason: reason.trim(),
+      evidence: type === 'PRODUCT_DOWN' ? { productIds } : undefined,
+      expiresAt: expiresAt ? new Date(expiresAt).toISOString() : undefined,
+    })
+    ElMessage.success('处罚已执行')
+    punishDialog.value = false
+    fetchPunishments()
+    fetchDetail() // 暂停/清退会改商家状态，同步刷新
+  } catch (e) { /* 错误走全局提示 */ }
+  finally { saving.value = false }
+}
+
+async function doRevokePunishment(row: PunishmentRow) {
+  if (saving.value) return
+  let reason = ''
+  try {
+    const r = await ElMessageBox.prompt(
+      `确定撤销该「${punishTypeLabel(row.type)}」处罚吗？将按处罚时的快照恢复商品/商家状态（已被其他原因改变的会诚实跳过）。`,
+      '撤销处罚',
+      { type: 'warning', confirmButtonText: '确认撤销', cancelButtonText: '取消', inputPlaceholder: '撤销原因（可选，如申诉成立）' },
+    )
+    reason = (r.value || '').trim()
+  } catch { return }
+
+  saving.value = true
+  try {
+    await merchantApi.revokePunishment(row.id, reason ? { reason } : undefined)
+    ElMessage.success('处罚已撤销，状态已按快照恢复')
+    fetchPunishments()
+    fetchDetail()
+  } catch (e) { /* 错误走全局提示 */ }
   finally { saving.value = false }
 }
 

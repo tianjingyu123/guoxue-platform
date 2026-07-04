@@ -8,11 +8,13 @@ import { MerchantService } from "./merchant.service";
 import { MerchantDepositService } from "./merchant-deposit.service";
 import { MerchantAgreementService } from "./merchant-agreement.service";
 import { MerchantSettlementService } from "./merchant-settlement.service";
+import { MerchantPunishmentService } from "./merchant-punishment.service";
 import {
   MerchantListQueryDto, ApproveMerchantDto, RejectMerchantDto, UpdateMerchantStatusDto,
   CreateViolationDto, HandleViolationDto, RefundDepositDto, AdjustDepositDto,
   SetCommissionRateDto, PaySettlementDto, GenerateSettlementDto, SettlementListQueryDto,
   CreateAgreementDto, UpdateAgreementDto, PaginationDto,
+  CreatePunishmentDto, PunishmentListQueryDto, RevokePunishmentDto,
 } from "./merchant.dto";
 import { Auditable } from "../../common/audit.decorator";
 
@@ -29,7 +31,37 @@ export class MerchantAdminController {
     private readonly depositService: MerchantDepositService,
     private readonly agreementService: MerchantAgreementService,
     private readonly settlementService: MerchantSettlementService,
+    private readonly punishmentService: MerchantPunishmentService,
   ) {}
+
+  // ── 处罚管理（履-P3·必须在 :id 路由之前） ──
+
+  @Get("punishments")
+  @ApiOperation({ summary: "处罚记录列表（可按商家/状态/类型筛选）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  listPunishments(@Query() q: PunishmentListQueryDto) {
+    return this.punishmentService.list(q);
+  }
+
+  @Post("punishments")
+  @Auditable({ action: "商家处罚执行", targetType: "MERCHANT_PUNISHMENT" })
+  @ApiOperation({ summary: "执行处罚（WARNING/PRODUCT_DOWN/SHOP_SUSPEND/CLEAR_OUT）" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 409, description: "同原因处罚已存在且未撤销" })
+  createPunishment(@Req() req: AuthRequest, @Body() dto: CreatePunishmentDto) {
+    return this.punishmentService.createPunishment(dto, req.user.id);
+  }
+
+  @Put("punishments/:punishmentId/revoke")
+  @Auditable({ action: "商家处罚撤销", targetType: "MERCHANT_PUNISHMENT" })
+  @ApiOperation({ summary: "撤销处罚（按执行快照恢复原状态·已被其他原因改变的诚实跳过）" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 409, description: "该处罚已撤销" })
+  revokePunishment(@Param("punishmentId") pid: string, @Req() req: AuthRequest, @Body() dto: RevokePunishmentDto) {
+    return this.punishmentService.revoke(pid, req.user.id, dto.reason);
+  }
 
   // ── 协议管理（必须在 :id 路由之前） ──
 

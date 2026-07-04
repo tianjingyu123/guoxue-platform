@@ -153,6 +153,15 @@
           >
             详情
           </el-button>
+          <el-button
+            v-if="['ACTIVE', 'SUSPENDED'].includes(row.status)"
+            size="small"
+            text
+            type="danger"
+            @click="goPunish(row.id)"
+          >
+            处罚
+          </el-button>
           <template v-if="row.status === 'PENDING_REVIEW'">
             <el-button
               size="small"
@@ -378,6 +387,8 @@ async function fetchList() {
 }
 
 function goDetail(id: string) { router.push(`/merchants/${id}`) }
+// 直达详情页处罚 Tab（处罚操作与记录列表·履-P3）
+function goPunish(id: string) { router.push(`/merchants/${id}?tab=punishments`) }
 
 function openApprove(row: MerchantRow) {
   approveId.value = row.id

@@ -4802,6 +4802,26 @@ model MerchantCreditLog {
   @@index([merchantId])
 }
 
+/// 商家处罚记录（履-P3）：四类处罚 WARNING/PRODUCT_DOWN/SHOP_SUSPEND/CLEAR_OUT
+/// evidence 同时存输入证据与执行快照（涉事商品原状态清单/商家原状态），撤销按快照 CAS 恢复
+/// 与 MerchantMetric/MerchantCreditLog 同范式：不建 Merchant 关系字段，merchantId 索引查询
+model MerchantPunishment {
+  id         String    @id @default(uuid())
+  merchantId String
+  type       String // WARNING(警告) / PRODUCT_DOWN(商品下架) / SHOP_SUSPEND(暂停经营) / CLEAR_OUT(标记待清退)
+  reason     String // 处罚原因（幂等键成分：同商家+同类型+同原因且未撤销 → 不重复罚）
+  evidence   Json? // 证据+执行快照：{ productIds?, snapshot: { prevMerchantStatus?, merchantApplied?, products?: [{id, prevStatus, applied}] }, revoke?: {...} }
+  status     String    @default("ACTIVE") // ACTIVE(生效中) / REVOKED(已撤销)
+  expiresAt  DateTime? // 到期时间（如暂停经营 7-30 天·到期恢复当前走人工 revoke，自动到期恢复属后续批次·诚实注释）
+  operatorId String // 操作人（管理员ID；自动触发为 "SYSTEM"）
+  revokedBy  String? // 撤销人
+  revokedAt  DateTime? // 撤销时间
+  createdAt  DateTime  @default(now())
+
+  @@index([merchantId])
+  @@index([merchantId, status])
+}
+
 // ─────────────────────────────────────────────────
 // 圈主助理知识库（pgvector）
 // ─────────────────────────────────────────────────

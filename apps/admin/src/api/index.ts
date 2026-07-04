@@ -970,6 +970,13 @@ export const merchantApi = {
     api.post(`/admin/merchants/${id}/settlements/${settlementId}/pay`, data),
   cancelSettlement: (id: string, settlementId: string) =>
     api.post(`/admin/merchants/${id}/settlements/${settlementId}/cancel`),
+  // 处罚（履-P3）
+  listPunishments: (params?: { merchantId?: string; status?: string; type?: string; page?: number; pageSize?: number }) =>
+    api.get("/admin/merchants/punishments", { params }),
+  createPunishment: (data: { merchantId: string; type: string; reason: string; evidence?: Record<string, unknown>; expiresAt?: string }) =>
+    api.post("/admin/merchants/punishments", data),
+  revokePunishment: (punishmentId: string, data?: { reason?: string }) =>
+    api.put(`/admin/merchants/punishments/${punishmentId}/revoke`, data || {}),
 };
 
 // 商家后台（已入驻商家自己的管理端，路由 /merchant-backend/*）

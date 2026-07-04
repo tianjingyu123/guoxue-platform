@@ -295,6 +295,52 @@ export class PaySettlementDto {
   remark?: string;
 }
 
+// ─── 处罚（履-P3） ───
+
+export const PUNISHMENT_TYPE_VALUES = ["WARNING", "PRODUCT_DOWN", "SHOP_SUSPEND", "CLEAR_OUT"] as const;
+
+export class CreatePunishmentDto {
+  @ApiProperty({ description: "商家ID" })
+  @IsString() @MinLength(1)
+  merchantId: string;
+
+  @ApiProperty({ description: "处罚类型", enum: PUNISHMENT_TYPE_VALUES })
+  @IsIn(PUNISHMENT_TYPE_VALUES as unknown as string[])
+  type: (typeof PUNISHMENT_TYPE_VALUES)[number];
+
+  @ApiProperty({ description: "处罚原因（幂等键成分：同商家+同类型+同原因且未撤销不重复罚）" })
+  @IsString() @MinLength(2) @MaxLength(500)
+  reason: string;
+
+  @ApiPropertyOptional({ description: "证据材料（PRODUCT_DOWN 必须含 productIds: string[]）" })
+  @IsOptional()
+  evidence?: Record<string, unknown>;
+
+  @ApiPropertyOptional({ description: "处罚到期时间（如暂停经营 7-30 天·到期恢复当前走人工撤销）" })
+  @IsOptional() @IsDateString()
+  expiresAt?: string;
+}
+
+export class PunishmentListQueryDto extends PaginationDto {
+  @ApiPropertyOptional({ description: "按商家筛选" })
+  @IsOptional() @IsString()
+  merchantId?: string;
+
+  @ApiPropertyOptional({ description: "处罚状态：ACTIVE/REVOKED" })
+  @IsOptional() @IsIn(["ACTIVE", "REVOKED"])
+  status?: string;
+
+  @ApiPropertyOptional({ description: "处罚类型", enum: PUNISHMENT_TYPE_VALUES })
+  @IsOptional() @IsIn(PUNISHMENT_TYPE_VALUES as unknown as string[])
+  type?: string;
+}
+
+export class RevokePunishmentDto {
+  @ApiPropertyOptional({ description: "撤销原因" })
+  @IsOptional() @IsString() @MaxLength(500)
+  reason?: string;
+}
+
 // ─── 协议管理 ───
 
 export class CreateAgreementDto {
