@@ -11,6 +11,7 @@ import { encrypt, decrypt, maskBankCard, maskName, maskAlipay } from "../../comm
 import { RedisService } from "../../redis/redis.service";
 import { FundApprovalService } from "../fund-approval/fund-approval.service";
 import { SettlementService } from "../settlement/settlement.service";
+import { LedgerBalanceService } from "../settlement/ledger-balance.service";
 
 /** 提现上限（元），与钱包提现口径一致 */
 const MAX_WITHDRAW_RMB = 50000;
@@ -36,6 +37,7 @@ export class CommissionService {
     @Optional() private systemService?: SystemService,
     @Optional() private fundApproval?: FundApprovalService,
     @Optional() private settlement?: SettlementService,
+    @Optional() private ledgerBalance?: LedgerBalanceService,
   ) {}
 
   // ───────── 分佣比例变更审批（发起端，不立即生效） ─────────
@@ -362,7 +364,11 @@ export class CommissionService {
       _sum: { amount: true },
     });
 
-    const totalEarned = Number(station.totalEarning);
+    // P2-c：引擎口径转正后收益真源=LedgerEntry 净结算额（STATION）；开关关则旧口径 Station.totalEarning
+    const useLedger = this.ledgerBalance ? await this.ledgerBalance.isAuthoritative() : false;
+    const totalEarned = useLedger
+      ? await this.ledgerBalance!.getNetSettled("STATION", stationId)
+      : Number(station.totalEarning);
     const totalWithdrawn = Number(withdrawn._sum.amount || 0);
     return {
       totalEarned,
@@ -696,9 +702,14 @@ export class CommissionService {
       select: { totalEarning: true },
     });
     if (!operator) throw new BusinessException(ErrorCode.NOT_FOUND, "运营商不存在");
+    // P2-c：引擎口径转正后收益真源=LedgerEntry 净结算额（OPERATOR）；运营商暂无独立提现表，无占用扣减
+    const useLedger = this.ledgerBalance ? await this.ledgerBalance.isAuthoritative() : false;
+    const totalEarned = useLedger
+      ? await this.ledgerBalance!.getNetSettled("OPERATOR", operatorId)
+      : Number(operator.totalEarning);
     return {
-      totalEarned: Number(operator.totalEarning),
-      balance: Number(operator.totalEarning),
+      totalEarned,
+      balance: totalEarned,
     };
   }
 

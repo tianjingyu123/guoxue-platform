@@ -3,6 +3,7 @@ import { WalletService } from "./wallet.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import { CoinService } from "../coin/coin.service";
 import { RedisService } from "../../redis/redis.service";
+import { LedgerBalanceService } from "../settlement/ledger-balance.service";
 import { BusinessException } from "../../common/business.exception";
 
 /**
@@ -26,6 +27,11 @@ const mockRedis: any = {
   setNX: jest.fn(),
   del: jest.fn(),
 };
+// P2-c 引擎口径：默认开关关（旧口径），单独用例验证开关开时读 LedgerEntry 净额
+const mockLedgerBalance: any = {
+  isAuthoritative: jest.fn().mockResolvedValue(false),
+  getNetSettled: jest.fn().mockResolvedValue(0),
+};
 
 describe("WalletService 提现（基于收益）", () => {
   let svc: WalletService;
@@ -37,6 +43,7 @@ describe("WalletService 提现（基于收益）", () => {
         { provide: PrismaService, useValue: mockPrisma },
         { provide: CoinService, useValue: mockCoin },
         { provide: RedisService, useValue: mockRedis },
+        { provide: LedgerBalanceService, useValue: mockLedgerBalance },
       ],
     }).compile();
     svc = mod.get(WalletService);
@@ -113,5 +120,32 @@ describe("WalletService 提现（基于收益）", () => {
     const info = await svc.getWithdrawInfo("u1");
     expect(info.availableBalance).toBe(380); // 500 - 120
     expect(info.minWithdraw).toBe(100);
+  });
+
+  // ───────── P2-c 引擎口径转正（灰度开关） ─────────
+
+  it("开关开时可提现余额改读引擎净结算额（不再读 UserEarning）", async () => {
+    mockLedgerBalance.isAuthoritative.mockResolvedValue(true);
+    mockLedgerBalance.getNetSettled.mockResolvedValue(300);
+    mockPrisma.withdrawalApplication.aggregate.mockResolvedValue({ _sum: { amount: 100 } });
+    mockPrisma.withdrawalApplication.findMany.mockResolvedValue([]);
+
+    const info = await svc.getWithdrawInfo("u1");
+    expect(info.availableBalance).toBe(200); // 引擎净额300 - 占用100
+    expect(mockLedgerBalance.getNetSettled).toHaveBeenCalledWith("USER", "u1");
+    expect(mockPrisma.userEarning.aggregate).not.toHaveBeenCalled();
+    mockLedgerBalance.isAuthoritative.mockResolvedValue(false); // 还原默认
+    mockLedgerBalance.getNetSettled.mockResolvedValue(0);
+  });
+
+  it("开关关时保持旧口径（UserEarning），可随时回切", async () => {
+    mockLedgerBalance.isAuthoritative.mockResolvedValue(false);
+    mockPrisma.userEarning.aggregate.mockResolvedValue({ _sum: { amountRmb: 500 } });
+    mockPrisma.withdrawalApplication.aggregate.mockResolvedValue({ _sum: { amount: 0 } });
+    mockPrisma.withdrawalApplication.findMany.mockResolvedValue([]);
+
+    const info = await svc.getWithdrawInfo("u1");
+    expect(info.availableBalance).toBe(500);
+    expect(mockLedgerBalance.getNetSettled).not.toHaveBeenCalled();
   });
 });

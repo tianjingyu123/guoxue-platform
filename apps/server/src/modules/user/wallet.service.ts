@@ -4,6 +4,7 @@ import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
 import { CoinService } from "../coin/coin.service";
 import { RedisService } from "../../redis/redis.service";
+import { LedgerBalanceService } from "../settlement/ledger-balance.service";
 import { Prisma } from "@prisma/client";
 
 /** 提现门槛与上限（元），与 PRD 一致 */
@@ -24,6 +25,7 @@ export class WalletService {
     private prisma: PrismaService,
     private coin: CoinService,
     private redis: RedisService,
+    private ledgerBalance: LedgerBalanceService,
   ) {}
 
   /** 钱包余额概览（虚拟币，用于站内消费） */
@@ -54,18 +56,25 @@ export class WalletService {
   }
 
   /**
-   * 计算用户可提现余额（元）= 累计收益(UserEarning) - 进行中/已完成提现。
+   * 计算用户可提现余额（元）。
+   * P2-c 转正后（灰度开关开）：引擎口径 = LedgerEntry 净结算额(USER) − 占用中提现；
+   * 开关关：旧口径 = 累计收益(UserEarning) − 占用中提现（随时可回切）。
    * 注：充值的虚拟币(VirtualCoinAccount.balance)只能消费，不计入可提现额度。
    */
   private async getWithdrawableBalance(userId: string): Promise<number> {
-    const [earned, withdrawn] = await Promise.all([
-      this.prisma.userEarning.aggregate({ where: { userId }, _sum: { amountRmb: true } }),
+    const useLedger = await this.ledgerBalance.isAuthoritative();
+    const [earnedRmb, withdrawn] = await Promise.all([
+      useLedger
+        ? this.ledgerBalance.getNetSettled("USER", userId)
+        : this.prisma.userEarning
+            .aggregate({ where: { userId }, _sum: { amountRmb: true } })
+            .then((r) => Number(r._sum.amountRmb ?? 0)),
       this.prisma.withdrawalApplication.aggregate({
         where: { userId, status: { in: OCCUPYING_WITHDRAW_STATUSES } },
         _sum: { amount: true },
       }),
     ]);
-    const balance = Number(earned._sum.amountRmb ?? 0) - Number(withdrawn._sum.amount ?? 0);
+    const balance = earnedRmb - Number(withdrawn._sum.amount ?? 0);
     return balance > 0 ? balance : 0;
   }
 
