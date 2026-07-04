@@ -105,9 +105,10 @@
         <view class="tool-btn" @tap="handleImageUpload"><app-icon name="image" :size="20" color="#8a8a8a" /></view>
       </view>
       <view class="tool-ai">
-        <view class="ai-chip ai-purple" @tap="openAIPanel('polish')">
-          <app-icon name="sparkles" :size="12" color="#9333ea" />
-          <text class="ai-chip-text purple">润色</text>
+        <!-- 创-P3 创作助手抽屉入口（引用/命盘/案例/润色四合一·原独立润色并入第四 tab） -->
+        <view class="ai-chip ai-red" @tap="showAssist = true">
+          <app-icon name="sparkles" :size="12" color="#C41E3A" />
+          <text class="ai-chip-text red">创作助手</text>
         </view>
         <template v-if="type === 'article'">
           <view class="ai-chip ai-blue" @tap="openAIPanel('title')">
@@ -201,15 +202,6 @@
           </view>
 
           <template v-else>
-            <!-- 润色结果 -->
-            <view v-if="showAIPanel === 'polish' && aiResult" class="ai-section">
-              <view class="polish-box"><text class="polish-text">{{ aiResult.polished }}</text></view>
-              <view class="ai-actions">
-                <view class="ai-apply purple" @tap="applyPolish">应用润色</view>
-                <view class="ai-refresh" @tap="handleAIPolish"><app-icon name="refresh-cw" :size="16" color="#8a8a8a" /></view>
-              </view>
-            </view>
-
             <!-- 标题建议 -->
             <view v-if="showAIPanel === 'title' && aiResult" class="ai-section">
               <view
@@ -276,6 +268,16 @@
         </view>
       </view>
     </view>
+
+    <!-- 创-P3 创作助手抽屉（引用/命盘/案例/润色） -->
+    <creation-assist-drawer
+      :visible="showAssist"
+      :content="content"
+      :tags="selectedTopics"
+      @close="showAssist = false"
+      @insert="handleAssistInsert"
+      @apply-polish="handleAssistPolish"
+    />
   </view>
 </template>
 
@@ -286,6 +288,7 @@ import { navigateBack } from '@/utils/router'
 import { circleApi } from '@/lib/circle-data'
 import { articleApi, tagApi } from '@/lib/article-data'
 import { publishAssistApi } from '@/lib/publish-assist-data'
+import CreationAssistDrawer from '@/components/circle/creation-assist-drawer.vue'
 
 interface CircleItem { id: string; name: string; cover: string }
 
@@ -304,7 +307,8 @@ const tags = ref<{ id: string; name: string }[]>([])
 
 const showCircleSelect = ref(false)
 const showTopicSelect = ref(false)
-const showAIPanel = ref<'polish' | 'title' | 'tags' | 'cover' | null>(null)
+const showAssist = ref(false)   // 创-P3 创作助手抽屉
+const showAIPanel = ref<'title' | 'tags' | 'cover' | null>(null)
 const aiLoading = ref(false)
 // AI 返回结构不定（润色/标题/标签/封面各异），保守保留 any
 const aiResult = ref<any>(null)
@@ -314,7 +318,7 @@ const publishing = ref(false)
 
 const selectedCircleData = computed(() => circles.value.find(c => c.id === selectedCircle.value))
 const aiPanelTitle = computed(() => {
-  const m: Record<string, string> = { polish: 'AI润色', title: '标题优化', tags: '标签推荐', cover: '生成封面' }
+  const m: Record<string, string> = { title: '标题优化', tags: '标签推荐', cover: '生成封面' }
   return showAIPanel.value ? m[showAIPanel.value] : ''
 })
 
@@ -384,26 +388,25 @@ function toggleTopic(name: string) {
   else if (selectedTopics.value.length < 3) selectedTopics.value.push(name)
 }
 
-function openAIPanel(panel: 'polish' | 'title' | 'tags' | 'cover') {
+function openAIPanel(panel: 'title' | 'tags' | 'cover') {
   showAIPanel.value = panel
   aiResult.value = null
-  if (panel === 'polish') { if (content.value.trim()) handleAIPolish() }
-  else if (panel === 'title') handleAITitle()
+  if (panel === 'title') handleAITitle()
   else if (panel === 'tags') { if (content.value.trim()) handleAITags() }
   else if (panel === 'cover') coverPrompt.value = ''
 }
 
-async function handleAIPolish() {
-  if (!content.value.trim()) { uni.showToast({ title: '请先输入内容', icon: 'none' }); showAIPanel.value = null; return }
-  aiLoading.value = true
-  try {
-    const res = await publishAssistApi.polish(content.value)
-    aiResult.value = { polished: res.polished }
-  } catch (e) {
-    uni.showToast({ title: (e as Error)?.message || '润色失败', icon: 'none' })
-    showAIPanel.value = null
-  } finally { aiLoading.value = false }
+/** 创作助手插入：引用卡/命盘卡/案例卡文本追加到正文末尾（uni-app textarea 无跨端光标 API，与 insertFormat 同策略） */
+function handleAssistInsert(text: string) {
+  const cur = content.value.replace(/\s+$/, '')
+  content.value = cur ? `${cur}\n\n${text}\n` : `${text}\n`
 }
+
+/** 创作助手润色应用：整文替换（与原独立润色面板行为一致） */
+function handleAssistPolish(text: string) {
+  content.value = text
+}
+
 async function handleAITitle() {
   const base = content.value.trim() || title.value.trim()
   if (!base) { uni.showToast({ title: '请先输入内容', icon: 'none' }); showAIPanel.value = null; return }
@@ -438,7 +441,6 @@ async function handleAICover() {
   } finally { aiLoading.value = false }
 }
 
-function applyPolish() { content.value = aiResult.value.polished; showAIPanel.value = null }
 function applyTitle(s: string) { title.value = s; showAIPanel.value = null }
 function pickTag(tag: string) {
   if (!selectedTopics.value.includes(tag) && selectedTopics.value.length < 3) selectedTopics.value.push(tag)
@@ -678,12 +680,12 @@ async function handlePublish() {
   padding: 8rpx 16rpx;
   border-radius: 999rpx;
 }
-.ai-purple { background: rgba(168,85,247,0.1); }
+.ai-red { background: rgba(196,30,58,0.1); }
 .ai-blue { background: rgba(37,99,235,0.1); }
 .ai-green { background: rgba(5,150,105,0.1); }
 .ai-orange { background: rgba(234,88,12,0.1); }
 .ai-chip-text { font-size: 22rpx; }
-.ai-chip-text.purple { color: #9333ea; }
+.ai-chip-text.red { color: #C41E3A; }
 .ai-chip-text.blue { color: #2563eb; }
 .ai-chip-text.green { color: #059669; }
 .ai-chip-text.orange { color: #ea580c; }
@@ -767,8 +769,6 @@ async function handlePublish() {
 }
 .ai-loading-text { font-size: 26rpx; color: #8a8a8a; margin-top: 24rpx; }
 .ai-section { display: flex; flex-direction: column; gap: 32rpx; }
-.polish-box { padding: 24rpx; background: rgba(168,85,247,0.08); border-radius: 24rpx; }
-.polish-text { font-size: 28rpx; color: #1a1a1a; line-height: 1.6; white-space: pre-wrap; }
 .ai-actions { display: flex; gap: 16rpx; }
 .ai-apply {
   flex: 1;
@@ -778,7 +778,6 @@ async function handlePublish() {
   font-size: 28rpx;
   color: #fff;
 }
-.ai-apply.purple { background: #a855f7; }
 .ai-apply.orange { background: #f97316; }
 .ai-apply.green { background: #22c55e; }
 .ai-apply.full { flex: 1; }
