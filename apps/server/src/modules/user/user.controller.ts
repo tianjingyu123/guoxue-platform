@@ -112,6 +112,16 @@ export class UserController {
     return this.user.getUserStats(id);
   }
 
+  @Get(":id/public-profile")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "获取用户公开主页（脱敏·仅公开安全字段+认证徽章+关注关系）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  getPublicProfile(@Req() req: Request, @Param("id") id: string) {
+    return this.user.getPublicProfile(id, req.user?.id);
+  }
+
   @Get()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "CUSTOMER_SERVICE")

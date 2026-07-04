@@ -88,66 +88,57 @@ function currentUserId(): string {
 
 // ============ API 层 ============
 // 后端真实端点（apps/server user.controller）：
-//   GET    /users/:id              → 公开资料（nickname/avatar/bio/...）
-//   GET    /users/:id/stats        → 统计（articles/followers/following/totalLikes...）
-//   GET    /users/:id/is-following → { following }
-//   POST   /users/:id/follow       → 关注
-//   DELETE /users/:id/follow       → 取关
-// 后端无字段（coverImage/verified/verifiedTitle/level/levelName/isMutualFollow）→ 诚实降级
+//   GET    /users/:id/public-profile → 公开主页聚合（脱敏资料+认证徽章+统计+关注关系）
+//   POST   /users/:id/follow         → 关注（返回 { ...follow, isMutualFollow }）
+//   DELETE /users/:id/follow         → 取关
+// 后端无字段（coverImage/level/levelName）→ 前端诚实降级（页面 v-if 隐藏）
 
-/* —— 后端原始响应类型（容错适配用，字段全 optional，仅声明 adapter 实际访问到的字段） —— */
-/** 后端 GET /users/:id 公开资料原始响应 */
-interface RawUser {
-  id?: string | number
-  nickname?: string
-  avatar?: string
-  bio?: string
-}
-/** 后端 GET /users/:id/stats 统计原始响应 */
-interface RawUserStats {
-  following?: number
-  followers?: number
-  totalLikes?: number
+/* —— 后端 GET /users/:id/public-profile 原始响应类型（字段全 optional，容错适配用） —— */
+interface RawPublicProfile {
+  profile?: {
+    id?: string | number
+    nickname?: string
+    avatar?: string | null
+    bio?: string | null
+    verified?: boolean
+    verifiedTitle?: string | null
+  }
+  stats?: {
+    followingCount?: number
+    followerCount?: number
+    likeCount?: number
+  }
+  isFollowing?: boolean
+  isMutualFollow?: boolean
+  isSelf?: boolean
 }
 
 export const userProfileApi = {
-  /** 获取用户资料：聚合 资料 + 统计 + 是否已关注 */
+  /** 获取用户公开主页：脱敏资料 + 认证徽章 + 统计 + 关注关系（后端一次聚合） */
   async getProfile(userId: string) {
-    const [user, stats] = await Promise.all([
-      apiGet<RawUser>(`/users/${userId}`),
-      apiGet<RawUserStats>(`/users/${userId}/stats`),
-    ])
-
-    const isSelf = !!userId && currentUserId() === String(userId)
-
-    // is-following 仅作辅助信号：未登录/无权限时按「未关注」展示，不阻塞资料渲染
-    let isFollowing = false
-    if (!isSelf) {
-      try {
-        const r = await apiGet<{ following: boolean }>(`/users/${userId}/is-following`)
-        isFollowing = !!r?.following
-      } catch {
-        isFollowing = false
-      }
-    }
+    const raw = await apiGet<RawPublicProfile>(`/users/${userId}/public-profile`)
+    const p = raw?.profile
+    const s = raw?.stats
 
     const data: UserProfileResponse = {
       profile: {
-        id: String(user?.id ?? userId),
-        nickname: user?.nickname || '用户',
-        avatar: user?.avatar || '',
-        bio: user?.bio || undefined,
-        // 后端无以下字段 → 降级（页面 v-if 隐藏）
-        verified: false,
+        id: String(p?.id ?? userId),
+        nickname: p?.nickname || '用户',
+        avatar: p?.avatar || '',
+        bio: p?.bio || undefined,
+        verified: !!p?.verified,
+        verifiedTitle: p?.verifiedTitle || undefined,
+        // 后端无 coverImage/level/levelName → 降级（页面 v-if 隐藏）
       },
       stats: {
-        followingCount: stats?.following ?? 0,
-        followerCount: stats?.followers ?? 0,
-        likeCount: stats?.totalLikes ?? 0,
+        followingCount: s?.followingCount ?? 0,
+        followerCount: s?.followerCount ?? 0,
+        likeCount: s?.likeCount ?? 0,
       },
-      isFollowing,
-      isMutualFollow: false, // 后端无「互相关注」查询端点 → 降级
-      isSelf,
+      isFollowing: !!raw?.isFollowing,
+      isMutualFollow: !!raw?.isMutualFollow,
+      // 后端已按 viewer 计算 isSelf；未登录场景后端无 viewerId → false，前端用本地 id 兜底
+      isSelf: !!raw?.isSelf || (!!userId && currentUserId() === String(userId)),
     }
     return { code: 200, message: 'ok', data }
   },

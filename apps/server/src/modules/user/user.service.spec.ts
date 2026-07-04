@@ -28,6 +28,7 @@ const mockPrisma = {
   memberPurchase: {
     findMany: jest.fn(),
   },
+  teacherCertification: { findUnique: jest.fn() },
   article: { count: jest.fn() },
   course: { count: jest.fn() },
   circle: { count: jest.fn() },
@@ -241,6 +242,95 @@ describe("UserService", () => {
       expect(stats.following).toBe(20);
       expect(stats.totalLikes).toBe(100);
       expect(stats.totalCollects).toBe(30);
+    });
+  });
+
+  // ═══════════════════ getPublicProfile（C端公开主页·脱敏） ═══════════════════
+
+  describe("getPublicProfile", () => {
+    /** getUserStats 内部依赖的 7 个 count，统一置 0，避免污染断言 */
+    function stubStatsCounts() {
+      mockPrisma.article.count.mockResolvedValue(0);
+      mockPrisma.course.count.mockResolvedValue(0);
+      mockPrisma.circle.count.mockResolvedValue(0);
+      mockPrisma.follow.count.mockResolvedValue(0);
+      mockPrisma.like.count.mockResolvedValue(0);
+      mockPrisma.collect.count.mockResolvedValue(0);
+    }
+
+    it("只返回公开安全字段，不含手机号/会员等级/角色/状态等敏感信息", async () => {
+      mockPrisma.user.findUnique.mockResolvedValue({
+        id: "u1", nickname: "测试用户", avatar: "a.jpg", bio: "简介",
+      });
+      mockPrisma.teacherCertification.findUnique.mockResolvedValue(null);
+      stubStatsCounts();
+
+      const res = await svc.getPublicProfile("u1");
+
+      // 断言：select 只请求了公开字段
+      expect(mockPrisma.user.findUnique).toHaveBeenCalledWith({
+        where: { id: "u1" },
+        select: { id: true, nickname: true, avatar: true, bio: true },
+      });
+      // 断言：返回的 profile 不含任何敏感字段
+      expect(res.profile).toEqual({
+        id: "u1", nickname: "测试用户", avatar: "a.jpg", bio: "简介",
+        verified: false, verifiedTitle: undefined,
+      });
+      expect(res.profile).not.toHaveProperty("phone");
+      expect(res.profile).not.toHaveProperty("memberLevel");
+      expect(res.profile).not.toHaveProperty("roles");
+      expect(res.profile).not.toHaveProperty("status");
+      expect(res.profile).not.toHaveProperty("gender");
+    });
+
+    it("认证徽章：APPROVED + verifiedTitle 时 verified=true 并带头衔", async () => {
+      mockPrisma.user.findUnique.mockResolvedValue({ id: "u1", nickname: "老师", avatar: null, bio: null });
+      mockPrisma.teacherCertification.findUnique.mockResolvedValue({ status: "APPROVED", verifiedTitle: "国学讲师" });
+      stubStatsCounts();
+
+      const res = await svc.getPublicProfile("u1");
+      expect(res.profile.verified).toBe(true);
+      expect(res.profile.verifiedTitle).toBe("国学讲师");
+    });
+
+    it("认证徽章：PENDING 或无认证时 verified=false 且不泄露 verifiedTitle", async () => {
+      mockPrisma.user.findUnique.mockResolvedValue({ id: "u1", nickname: "老师", avatar: null, bio: null });
+      mockPrisma.teacherCertification.findUnique.mockResolvedValue({ status: "PENDING", verifiedTitle: "国学讲师" });
+      stubStatsCounts();
+
+      const res = await svc.getPublicProfile("u1");
+      expect(res.profile.verified).toBe(false);
+      expect(res.profile.verifiedTitle).toBeUndefined();
+    });
+
+    it("互相关注：双向 follow 存在时 isMutualFollow=true", async () => {
+      mockPrisma.user.findUnique.mockResolvedValue({ id: "u1", nickname: "甲", avatar: null, bio: null });
+      mockPrisma.teacherCertification.findUnique.mockResolvedValue(null);
+      stubStatsCounts();
+      // 两次 follow.findUnique：viewer→target、target→viewer 均命中
+      mockPrisma.follow.findUnique.mockResolvedValueOnce({ id: "f1" }).mockResolvedValueOnce({ id: "f2" });
+
+      const res = await svc.getPublicProfile("u1", "viewer");
+      expect(res.isFollowing).toBe(true);
+      expect(res.isMutualFollow).toBe(true);
+      expect(res.isSelf).toBe(false);
+    });
+
+    it("看自己主页 isSelf=true，且不查关注关系", async () => {
+      mockPrisma.user.findUnique.mockResolvedValue({ id: "u1", nickname: "我", avatar: null, bio: null });
+      mockPrisma.teacherCertification.findUnique.mockResolvedValue(null);
+      stubStatsCounts();
+
+      const res = await svc.getPublicProfile("u1", "u1");
+      expect(res.isSelf).toBe(true);
+      expect(res.isFollowing).toBe(false);
+      expect(mockPrisma.follow.findUnique).not.toHaveBeenCalled();
+    });
+
+    it("用户不存在抛出 BusinessException", async () => {
+      mockPrisma.user.findUnique.mockResolvedValue(null);
+      await expect(svc.getPublicProfile("nope")).rejects.toThrow(BusinessException);
     });
   });
 

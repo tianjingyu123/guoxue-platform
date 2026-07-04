@@ -204,6 +204,70 @@ export class UserService {
     return { articles, courses, circles, followers, following, totalLikes: likes, totalCollects: collects };
   }
 
+  // ───────── 公开主页（C端「看别人主页」·脱敏投影） ─────────
+
+  /**
+   * 公开用户主页：仅返回可对陌生人展示的安全字段。
+   * 严禁返回手机号/生辰/身份证/会员等级/角色/状态/绑定关系等敏感信息（R3 合规红线）。
+   * 认证徽章复用 TeacherCertification（status=APPROVED 且有 verifiedTitle）。
+   * @param userId  目标用户
+   * @param viewerId 当前登录用户（用于 isSelf / isFollowing / isMutualFollow）
+   */
+  async getPublicProfile(userId: string, viewerId?: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      // 只 select 公开安全字段
+      select: { id: true, nickname: true, avatar: true, bio: true },
+    });
+    if (!user) throw new BusinessException(ErrorCode.USER_NOT_FOUND, "用户不存在");
+
+    const isSelf = !!viewerId && viewerId === userId;
+    const canRelate = !!viewerId && !isSelf;
+
+    const [cert, stats, following, followedBack] = await Promise.all([
+      this.prisma.teacherCertification.findUnique({
+        where: { userId },
+        select: { status: true, verifiedTitle: true },
+      }),
+      this.getUserStats(userId),
+      canRelate
+        ? this.prisma.follow.findUnique({
+            where: { userId_followedUserId: { userId: viewerId!, followedUserId: userId } },
+            select: { id: true },
+          })
+        : Promise.resolve(null),
+      canRelate
+        ? this.prisma.follow.findUnique({
+            where: { userId_followedUserId: { userId, followedUserId: viewerId! } },
+            select: { id: true },
+          })
+        : Promise.resolve(null),
+    ]);
+
+    const verified = !!(cert && cert.status === "APPROVED" && cert.verifiedTitle);
+    const isFollowing = !!following;
+    const isMutualFollow = isFollowing && !!followedBack;
+
+    return {
+      profile: {
+        id: user.id,
+        nickname: user.nickname,
+        avatar: user.avatar,
+        bio: user.bio,
+        verified,
+        verifiedTitle: verified ? cert!.verifiedTitle : undefined,
+      },
+      stats: {
+        followingCount: stats.following,
+        followerCount: stats.followers,
+        likeCount: stats.totalLikes,
+      },
+      isFollowing,
+      isMutualFollow,
+      isSelf,
+    };
+  }
+
   // ───────── 关注系统 ─────────
 
   async follow(followerId: string, followedUserId: string) {
@@ -218,9 +282,15 @@ export class UserService {
     if (existing) throw new BusinessException(ErrorCode.BAD_REQUEST, "已关注该用户");
 
     try {
-      return await this.prisma.follow.create({
+      const created = await this.prisma.follow.create({
         data: { userId: followerId, followedUserId },
       });
+      // 反向关注检测：对方是否也关注了我 → 前端「互相关注」徽章即时点亮
+      const reverse = await this.prisma.follow.findUnique({
+        where: { userId_followedUserId: { userId: followedUserId, followedUserId: followerId } },
+        select: { id: true },
+      });
+      return { ...created, isMutualFollow: !!reverse };
     } catch (e: unknown) {
       if (isUniqueConstraintError(e)) throw new BusinessException(ErrorCode.BAD_REQUEST, "已关注该用户");
       throw e;
