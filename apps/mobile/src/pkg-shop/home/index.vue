@@ -2,7 +2,7 @@
 /** 购物板块首页 - 从原型 app/shop/page.tsx 1:1 迁移 */
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
-import { navigateTo, toastComingSoon } from '@/utils/router'
+import { navigateTo } from '@/utils/router'
 import { shopApi } from '@/lib/shop-data'
 
 const loading = ref(true)
@@ -81,7 +81,8 @@ const groupPct = computed(() => {
         <AppIcon name="shopping-bag" :size="36" color="#666666" />
         <text class="top-badge">3</text>
       </view>
-      <view class="top-btn" @tap="toastComingSoon">
+      <!-- 死入口大扫除：铃铛 → 消息中心（公告已并入消息中心，真实已注册页） -->
+      <view class="top-btn" @tap="navigateTo('/im/messages')">
         <AppIcon name="bell" :size="36" color="#666666" />
         <view class="top-dot" />
       </view>

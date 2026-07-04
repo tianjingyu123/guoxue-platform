@@ -9,7 +9,7 @@ import { ref, reactive, onUnmounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import TouchpointCard from '@/components/common/touchpoint-card.vue'
-import { goBack, navigateTo, toastComingSoon } from '@/utils/router'
+import { goBack, navigateTo } from '@/utils/router'
 import {
   postDetailApi, parseMarkdown,
   REWARD_QUICK, REWARD_ALL,
@@ -233,7 +233,8 @@ onUnmounted(() => { if (audioCtx) { try { audioCtx.destroy() } catch {} } })
     <view class="pd-hdr">
       <view class="pd-hdr-btn" @tap="goBack"><app-icon name="arrow-left" :size="40" color="#2C2C2C" /></view>
       <view class="pd-hdr-circle" @tap="openCircle"><text class="pd-hdr-name">{{ post?.circleName || '帖子' }}</text></view>
-      <view class="pd-hdr-btn" @tap="toastComingSoon"><app-icon name="more-horizontal" :size="40" color="#666666" /></view>
+      <!-- 死入口大扫除：原「更多」按钮无菜单实现，删除死入口、保留占位维持标题居中 -->
+      <view class="pd-hdr-btn" />
     </view>
 
     <!-- 加载态 -->

@@ -5,7 +5,7 @@ import AppIcon from '@/components/common/app-icon.vue'
 import ProductCard from '@/components/cards/product-card.vue'
 import LiveCard from '@/components/cards/live-card.vue'
 import MarketingZone from '@/components/mall/marketing-zone.vue'
-import { navigateTo, toastComingSoon } from '@/utils/router'
+import { navigateTo } from '@/utils/router'
 import { shopApi } from '@/lib/shop-data'
 import type { MallQuickEntry, MallBanner, MallLive, MallCategory } from '@/lib/shop-data'
 import type { ProductCardData } from '@/lib/card-utils'
@@ -89,7 +89,8 @@ function goCategory(id: string) { navigateTo(id === 'all' ? '/mall/category' : `
             <text class="sec-title">直播带货</text>
             <view class="live-dot" />
           </view>
-          <view class="sec-more" @tap="toastComingSoon">
+          <!-- 死入口大扫除：更多直播 → 直播广场（真实已注册页） -->
+          <view class="sec-more" @tap="navigateTo('/pkg-live/plaza/index')">
             <text class="sec-more-txt">更多</text>
             <AppIcon name="chevron-right" :size="24" color="#999999" />
           </view>

@@ -282,12 +282,13 @@ function avatarInitial(name?: string): string {
 
       <!-- 数据看板 -->
       <view class="up-stats">
-        <view class="up-stat" @tap="toastComingSoon">
+        <!-- 死入口大扫除：他人关注/粉丝列表页未建，移除死点击（与「获赞」一致仅作展示） -->
+        <view class="up-stat">
           <text class="up-stat-num">{{ formatCount(profile.stats.followingCount) }}</text>
           <text class="up-stat-label">关注</text>
         </view>
         <view class="up-stat-divider" />
-        <view class="up-stat" @tap="toastComingSoon">
+        <view class="up-stat">
           <text class="up-stat-num">{{ formatCount(profile.stats.followerCount) }}</text>
           <text class="up-stat-label">粉丝</text>
         </view>

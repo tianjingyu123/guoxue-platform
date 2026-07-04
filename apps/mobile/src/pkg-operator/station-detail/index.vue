@@ -9,6 +9,7 @@ import BackTop from '@/components/home/back-top.vue'
 import BottomNav from '@/components/bottom-nav/bottom-nav.vue'
 import { homeApi, type RenderItem } from '@/lib/home-data'
 import { stationDetailApi } from '@/lib/station-detail-data'
+import { navigateTo } from '@/utils/router'
 
 const loading = ref(true)
 const error = ref('')
@@ -109,7 +110,8 @@ function toastSoon() {
       </view>
       <!-- 搜索 Header -->
       <view class="sd-header">
-        <view class="sd-search" @tap="toastSoon">
+        <!-- 死入口大扫除：搜索框 → 全局搜索页（真实已注册页） -->
+        <view class="sd-search" @tap="navigateTo('/search')">
           <app-icon name="search" :size="32" color="#999" />
           <text class="sd-search-ph">搜索课程、圈子、文章...</text>
         </view>

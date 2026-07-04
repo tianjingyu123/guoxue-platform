@@ -241,6 +241,7 @@ function declineReco(msg: ChatMessage) {
 function openRecommend(item: RecommendItem) {
   if (item.type === 'course') navigateTo(`/courses/${item.data.id}`)
   else if (item.type === 'circle') navigateTo(`/circles/${item.data.id}`)
+  else if (item.type === 'product') navigateTo(`/shop/${item.data.id}`) // 死入口大扫除：商品推荐 → 商品详情页（真实已注册）
   else if (item.type === 'paipan') navigateTo('/paipan')
   else toastComingSoon()
 }

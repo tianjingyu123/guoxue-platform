@@ -159,9 +159,7 @@ async function submitComment() {
         <view class="nav-btn" @tap="toastComingSoon">
           <AppIcon name="share-2" :size="20" color="#2C2C2C" />
         </view>
-        <view class="nav-btn" @tap="toastComingSoon">
-          <AppIcon name="more-horizontal" :size="20" color="#2C2C2C" />
-        </view>
+        <!-- 死入口大扫除：原「更多」按钮无任何菜单实现，属残留占位已删除 -->
       </view>
     </view>
 

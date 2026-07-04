@@ -108,7 +108,8 @@
             </view>
             <text class="dash-member-date">加入于 {{ m.joinDate }}</text>
           </view>
-          <view class="dash-member-more" @tap="toastSoon"><app-icon name="more-horizontal" :size="32" color="#999" /></view>
+          <!-- 死入口大扫除：成员更多操作 → 团队管理页（真实已注册页） -->
+          <view class="dash-member-more" @tap="goTeam"><app-icon name="more-horizontal" :size="32" color="#999" /></view>
         </view>
         <view v-if="m.status === 'active'" class="dash-member-stats">
           <view class="dash-mstat"><text class="dash-mstat-num c-success">¥{{ m.earnings }}</text><text class="dash-mstat-label">本月收益</text></view>

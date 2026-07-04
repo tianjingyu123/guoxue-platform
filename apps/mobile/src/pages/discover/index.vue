@@ -8,7 +8,7 @@ import LiveCard from '@/components/cards/live-card.vue'
 import AgentCard from '@/components/cards/agent-card.vue'
 import ClassicCard from '@/components/cards/classic-card.vue'
 import VideoCard from '@/components/cards/video-card.vue'
-import { navigateTo, toastComingSoon } from '@/utils/router'
+import { navigateTo } from '@/utils/router'
 import {
   discoverApi, coreEntries, columns, serviceGroups,
   type FeedItem,
@@ -72,7 +72,8 @@ function goCategory(cat: { id: string; label: string }) {
   activeCategory.value = cat.id
   fetchFeed()
 }
-function goColumn(_href: string) { toastComingSoon() }
+// 专栏板卡：href 已改指真实板块页（courses-list/商城分类/古籍馆/圈子 tab），直接真跳转
+function goColumn(href: string) { navigateTo(href) }
 </script>
 
 <template>
@@ -161,10 +162,7 @@ function goColumn(_href: string) { toastComingSoon() }
     <view class="col-section">
       <view class="sec-head">
         <text class="sec-title">精选专栏</text>
-        <view class="sec-more" @tap="goColumn('/topic/全部专栏')">
-          <text class="sec-more-txt">更多</text>
-          <AppIcon name="chevron-right" :size="24" color="#999999" />
-        </view>
+        <!-- 死入口大扫除：原「更多」指向不存在的全部专栏聚合页，属残留占位已删除 -->
       </view>
       <scroll-view class="col-row" scroll-x :show-scrollbar="false">
         <view class="col-inner">

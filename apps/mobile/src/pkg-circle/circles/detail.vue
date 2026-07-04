@@ -214,7 +214,8 @@ function openAssistant() { navigateTo(`/pkg-circle/circles/assistant?circleId=${
       <view class="cd-nav">
         <view class="cd-nav-btn" @tap="goBack"><app-icon name="arrow-left" :size="40" color="#ffffff" /></view>
         <view class="cd-nav-right">
-          <view class="cd-nav-btn" @tap="toastComingSoon"><app-icon name="bell" :size="40" color="#ffffff" /></view>
+          <!-- 死入口大扫除：铃铛 → 圈子公告页（真实已注册页，复用 openAnnouncement） -->
+          <view class="cd-nav-btn" @tap="openAnnouncement"><app-icon name="bell" :size="40" color="#ffffff" /></view>
           <view class="cd-nav-btn" @tap="openShare"><app-icon name="share-2" :size="40" color="#ffffff" /></view>
         </view>
       </view>
@@ -306,10 +307,11 @@ function openAssistant() { navigateTo(`/pkg-circle/circles/assistant?circleId=${
         <view v-if="activities.length" class="cd-sec">
           <view class="cd-sec-head">
             <view class="cd-sec-title"><app-icon name="zap" :size="28" color="#FF6B35" /><text class="cd-sec-label">近期活动</text></view>
-            <view class="cd-sec-more" @tap="toastComingSoon"><text class="cd-more-txt">全部</text><app-icon name="chevron-right" :size="26" color="#999999" /></view>
+            <!-- 死入口大扫除：全部/条目 → 活动广场页（真实已注册页，聚合圈子活动） -->
+            <view class="cd-sec-more" @tap="navigateTo('/pkg-circle/circles/activities')"><text class="cd-more-txt">全部</text><app-icon name="chevron-right" :size="26" color="#999999" /></view>
           </view>
           <view class="cd-acts">
-            <view v-for="act in activities.slice(0, 2)" :key="act.id" class="cd-act" @tap="toastComingSoon">
+            <view v-for="act in activities.slice(0, 2)" :key="act.id" class="cd-act" @tap="navigateTo('/pkg-circle/circles/activities')">
               <view class="cd-act-icon" :class="act.type">
                 <app-icon :name="act.type === 'live' ? 'play' : act.type === 'checkin' ? 'check-circle' : 'book-open'" :size="32" :color="act.type === 'live' ? '#ef4444' : act.type === 'checkin' ? '#22c55e' : '#f97316'" />
               </view>
@@ -419,7 +421,8 @@ function openAssistant() { navigateTo(`/pkg-circle/circles/assistant?circleId=${
       <!-- 文章 Tab -->
       <view v-else-if="activeTab === 'articles'" class="cd-post-list">
         <template v-if="circleArticles.length">
-          <view v-for="a in circleArticles" :key="a.id" class="cd-article" @tap="toastComingSoon">
+          <!-- 死入口大扫除：文章条目 → 文章详情页（真实已注册页，onLoad 接 ?id=） -->
+          <view v-for="a in circleArticles" :key="a.id" class="cd-article" @tap="navigateTo(`/pkg-circle/articles/detail?id=${a.id}`)">
             <image lazy-load v-if="a.cover" :src="a.cover" class="cd-article-cover" mode="aspectFill" />
             <view class="cd-article-main">
               <view class="cd-article-title-row">

@@ -243,8 +243,7 @@ const ROUTE_MAP: Record<string, string> = {
   '/login/forgot-password': '/pkg-auth/forgot-password/index',
   '/renew': '/pkg-profile/renew/index',
   '/courses': '/pkg-course/market/index',
-  '/admin/user-audit': '/pkg-mine/user-audit/index',
-  '/admin/batch-coupon-send': '/pkg-mine/batch-coupon-send/index',
+  // （死入口大扫除：/admin/user-audit、/admin/batch-coupon-send 两条死映射已删——目标页已从 pkg-mine 路由移除且全库无调用方）
   '/splash': '/pkg-common/splash/index',
   '/poster': '/pkg-common/poster/index',
   '/result': '/pkg-common/result/index',

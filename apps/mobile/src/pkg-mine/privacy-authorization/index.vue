@@ -1,8 +1,15 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
-import { toastComingSoon } from '@/utils/router'
 import { mineApi, type AppPermission, type PermissionStatus } from '@/lib/mine-data'
+
+/** 前往系统设置（死入口大扫除：App→应用授权设置 / 小程序→授权面板；H5 无系统入口则提示）。运行时探测避免类型库版本差异 */
+function openSystemSettings() {
+  const api = uni as unknown as { openAppAuthorizeSetting?: () => void; openSetting?: () => void }
+  if (typeof api.openAppAuthorizeSetting === 'function') { api.openAppAuthorizeSetting(); return }
+  if (typeof api.openSetting === 'function') { api.openSetting(); return }
+  uni.showToast({ title: '请在手机系统设置中管理应用权限', icon: 'none' })
+}
 
 const permissions = ref<AppPermission[]>([])
 const loading = ref(true)
@@ -148,7 +155,7 @@ async function authorize(type: 'always' | 'while_using' | 'authorized' | 'deny')
       </view>
 
       <!-- 前往系统设置 -->
-      <view class="card single" @tap="toastComingSoon">
+      <view class="card single" @tap="openSystemSettings">
         <view class="row">
           <view class="row-icon icon-idle">
             <AppIcon name="settings" :size="20" color="#9b948a" />
@@ -204,7 +211,7 @@ async function authorize(type: 'always' | 'while_using' | 'authorized' | 'deny')
         <text class="dialog-desc">如需修改权限状态，请前往系统设置中的应用权限管理进行修改。</text>
         <view class="dialog-actions">
           <view class="dialog-btn ghost" @tap="showAuthorizedDialog = false"><text class="dialog-btn-text">取消</text></view>
-          <view class="dialog-btn solid" @tap="showAuthorizedDialog = false; toastComingSoon()"><text class="dialog-btn-text solid-text">前往设置</text></view>
+          <view class="dialog-btn solid" @tap="showAuthorizedDialog = false; openSystemSettings()"><text class="dialog-btn-text solid-text">前往设置</text></view>
         </view>
       </view>
     </view>

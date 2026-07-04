@@ -41,9 +41,6 @@ const txIcon: Record<WalletTxCategory, { icon: string; color: string }> = {
   other: { icon: 'help-circle', color: '#6B7280' },
 }
 
-function notReady() {
-  uni.showToast({ title: '功能开发中', icon: 'none' })
-}
 </script>
 
 <template>
