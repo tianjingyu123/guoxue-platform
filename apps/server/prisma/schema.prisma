@@ -93,6 +93,7 @@ model User {
   followers            Follow[]                 @relation("FollowedUser")
   referralUsers        ReferralRelation[]       @relation("ReferredUser")
   referralRefs         ReferralRelation[]       @relation("Referrer")
+  teamTaskProgresses   TeamTaskProgress[]       @relation("TeamTaskStationMaster")
   blacklistInitiators  Blacklist[]              @relation("BlacklistInitiator")
   blacklistTargets     Blacklist[]              @relation("BlacklistTarget")
   loginDevices         LoginDevice[]
@@ -2070,6 +2071,7 @@ model Operator {
   childOperators Operator[]        @relation("OperatorHierarchy")
   stations       Station[]         @relation("OperatorStations")
   earnings       OperatorEarning[]
+  teamTasks      TeamTask[]
 
   @@index([parentOperatorId])
 }
@@ -2106,6 +2108,55 @@ model OperatorEarning {
 
   @@index([operatorId, createdAt])
   @@index([orderId])
+}
+
+// ─────────────────────────────────────────────────
+// 运营商团队任务下发（商-P2 指挥室）
+// 合规红线 R1：任务奖励仅限荣誉/资源位，禁止现金奖励字段
+// ─────────────────────────────────────────────────
+
+enum TeamTaskType {
+  PROMOTE // 推广拉新：任务期内该站长 ref 新注册数（ReferralRelation）
+  RECRUIT // 招募站长：任务期内新增下级站长数
+  SALES // 销售冲刺：任务期内分站归因 GMV（元，取整）
+  CUSTOM // 自定义：站长手动标记完成
+}
+
+enum TeamTaskStatus {
+  OPEN
+  CLOSED
+}
+
+model TeamTask {
+  id          String         @id @default(uuid())
+  operatorId  String
+  title       String
+  desc        String? // 任务说明（奖励仅荣誉/资源位，创建时校验不得含现金类承诺）
+  type        TeamTaskType
+  targetValue Int? // 目标值（PROMOTE=人数/RECRUIT=站长数/SALES=元；CUSTOM 可空）
+  deadline    DateTime
+  status      TeamTaskStatus @default(OPEN)
+  createdAt   DateTime       @default(now())
+
+  operator   Operator           @relation(fields: [operatorId], references: [id], onDelete: Cascade)
+  progresses TeamTaskProgress[]
+
+  @@index([operatorId, status])
+  @@index([status, deadline])
+}
+
+model TeamTaskProgress {
+  id              String    @id @default(uuid())
+  taskId          String
+  stationMasterId String // 站长 userId（Station.userId）
+  currentValue    Int       @default(0)
+  completedAt     DateTime?
+
+  task          TeamTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  stationMaster User     @relation("TeamTaskStationMaster", fields: [stationMasterId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, stationMasterId])
+  @@index([stationMasterId])
 }
 
 // ─────────────────────────────────────────────────

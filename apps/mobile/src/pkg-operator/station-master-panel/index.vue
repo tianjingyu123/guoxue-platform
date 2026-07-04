@@ -76,6 +76,9 @@
       <!-- 客户待跟进（课-P3 服务环·自包含拉取，空/失败自动隐藏） -->
       <crm-reminder-card />
 
+      <!-- 团队任务（商-P2·运营商下发·自包含拉取三态，未入团队自动隐藏） -->
+      <team-task-card />
+
       <!-- 近30天推广转化漏斗（自包含拉取，失败或全 0 自动隐藏） -->
       <funnel-card />
 
@@ -174,6 +177,7 @@ import AppIcon from '@/components/common/app-icon.vue'
 import AdvisorCard from '@/components/workbench/advisor-card.vue'
 import MarketingTopicsCard from '@/components/workbench/marketing-topics-card.vue'
 import CrmReminderCard from '@/components/workbench/crm-reminder-card.vue'
+import TeamTaskCard from '@/components/workbench/team-task-card.vue'
 import FunnelCard from '@/components/workbench/funnel-card.vue'
 import AlmanacBar from '@/components/workbench/almanac-bar.vue'
 import { navigateTo } from '@/utils/router'

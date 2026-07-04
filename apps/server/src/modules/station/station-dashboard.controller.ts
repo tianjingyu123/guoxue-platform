@@ -1,7 +1,8 @@
-import { Controller, Get, Put, Body, Req, Query, UseGuards, NotFoundException, ForbiddenException } from "@nestjs/common";
+import { Controller, Get, Post, Put, Body, Param, Req, Query, UseGuards, NotFoundException, ForbiddenException } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiResponse } from "@nestjs/swagger";
 import { Request } from "express";
 import { StationDashboardService } from "./station-dashboard.service";
+import { TeamTaskService, CreateTeamTaskDto } from "./team-task.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { PrismaService } from "../../prisma/prisma.service";
 import { UpdateMyOperatorDto } from "./station.dto";
@@ -13,6 +14,7 @@ import { UpdateMyOperatorDto } from "./station.dto";
 export class StationDashboardController {
   constructor(
     private readonly svc: StationDashboardService,
+    private readonly teamTask: TeamTaskService,
     private readonly prisma: PrismaService,
   ) {}
 
@@ -57,6 +59,22 @@ export class StationDashboardController {
   async getSettlementTimer(@Req() req: Request) {
     return this.svc.getSettlementTimer(await this.getStationId(req));
   }
+
+  // ───────── 团队任务（商-P2·站长视角）─────────
+
+  @Get("team-tasks/my")
+  @ApiOperation({ summary: "我的团队任务（站长视角·仅本人进度）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  async getMyTeamTasks(@Req() req: Request) {
+    return this.teamTask.listMine(req.user.id);
+  }
+
+  @Put("team-tasks/:id/complete")
+  @ApiOperation({ summary: "标记自定义任务完成（仅 CUSTOM 类型·自动结算类型不允许手报）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  async completeTeamTask(@Req() req: Request, @Param("id") id: string) {
+    return this.teamTask.markComplete(req.user.id, id);
+  }
 }
 
 @ApiTags("运营商仪表盘")
@@ -64,7 +82,10 @@ export class StationDashboardController {
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
 export class OperatorDashboardController {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly teamTask: TeamTaskService,
+  ) {}
 
   private async getOperatorStations(req: Request) {
     const userId = req.user.id;
@@ -249,5 +270,29 @@ export class OperatorDashboardController {
       monthEarning: earningsMap.get(s.id) || 0,
       mgmtBonus: Math.round(Number(earningsMap.get(s.id) ?? 0) * 0.05 * 100) / 100,
     }));
+  }
+
+  // ───────── 团队任务下发（商-P2·运营商视角）─────────
+  // 合规红线 R1：任务奖励仅限荣誉/资源位，不含现金奖励字段
+
+  @Post("team-tasks")
+  @ApiOperation({ summary: "下发团队任务（校验目标站长归属本团队·奖励仅荣誉/资源位）" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  async createTeamTask(@Req() req: Request, @Body() body: CreateTeamTaskDto) {
+    return this.teamTask.create(req.user.id, body);
+  }
+
+  @Get("team-tasks")
+  @ApiOperation({ summary: "团队任务列表（运营商视角·带各站长进度与完成度聚合）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  async listTeamTasks(@Req() req: Request) {
+    return this.teamTask.listForOperator(req.user.id);
+  }
+
+  @Put("team-tasks/:id/close")
+  @ApiOperation({ summary: "关闭团队任务（关闭后进度不再更新）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  async closeTeamTask(@Req() req: Request, @Param("id") id: string) {
+    return this.teamTask.close(req.user.id, id);
   }
 }

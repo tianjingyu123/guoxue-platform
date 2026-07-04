@@ -1170,6 +1170,173 @@ interface RawCustomersResp { customers?: RawStationCustomer[]; total?: number }
 interface RawTimelineEvent { action?: string; path?: string; summary?: string; occurredAt?: string }
 interface RawTimelineResp { events?: RawTimelineEvent[] }
 
+// ===== 团队任务下发（商-P2 指挥室·运营商建任务/站长看进度）=====
+// 合规红线 R1：任务奖励仅限荣誉表彰/资源位，后端无现金奖励字段，文案含现金类承诺会被拒绝
+
+export type TeamTaskType = 'PROMOTE' | 'RECRUIT' | 'SALES' | 'CUSTOM'
+export type TeamTaskStatus = 'OPEN' | 'CLOSED'
+
+export const TEAM_TASK_TYPE_LABELS: Record<string, string> = {
+  PROMOTE: '推广拉新',
+  RECRUIT: '招募站长',
+  SALES: '销售冲刺',
+  CUSTOM: '自定义',
+}
+/** 各任务类型进度值单位（自动结算口径） */
+export const TEAM_TASK_UNIT: Record<string, string> = {
+  PROMOTE: '人',
+  RECRUIT: '人',
+  SALES: '元',
+  CUSTOM: '',
+}
+
+/** 站长视角：我的团队任务（GET /station/dashboard/team-tasks/my 适配后） */
+export interface MyTeamTask {
+  taskId: string
+  title: string
+  desc: string
+  type: TeamTaskType
+  targetValue: number | null
+  deadline: string
+  status: TeamTaskStatus
+  currentValue: number
+  completedAt: string | null
+  operatorName: string
+}
+
+/** 运营商视角：单站长进度行 */
+export interface TeamTaskProgressRow {
+  stationMasterId: string
+  stationName: string
+  nickname: string
+  currentValue: number
+  completedAt: string | null
+}
+
+/** 运营商视角：任务（GET /station/operator-dashboard/team-tasks 适配后） */
+export interface OperatorTeamTask {
+  id: string
+  title: string
+  desc: string
+  type: TeamTaskType
+  targetValue: number | null
+  deadline: string
+  status: TeamTaskStatus
+  createdAt: string
+  total: number
+  completedCount: number
+  completionRate: number
+  progresses: TeamTaskProgressRow[]
+}
+
+export interface CreateTeamTaskPayload {
+  title: string
+  desc?: string
+  type: TeamTaskType
+  targetValue?: number
+  deadline: string // ISO
+  stationMasterIds?: string[] // 缺省=全团队
+}
+
+/* —— 后端原始响应（宽松容错，不 export） —— */
+interface RawTeamTaskProgressRow {
+  stationMasterId?: string
+  stationName?: string
+  nickname?: string
+  currentValue?: number | string
+  completedAt?: string | null
+}
+interface RawOperatorTeamTask {
+  id: string
+  title?: string
+  desc?: string | null
+  type?: string
+  targetValue?: number | string | null
+  deadline?: string
+  status?: string
+  createdAt?: string
+  total?: number | string
+  completedCount?: number | string
+  completionRate?: number | string
+  progresses?: RawTeamTaskProgressRow[]
+}
+interface RawOperatorTeamTasksResp { items?: RawOperatorTeamTask[]; total?: number }
+interface RawMyTeamTask {
+  taskId?: string
+  title?: string
+  desc?: string | null
+  type?: string
+  targetValue?: number | string | null
+  deadline?: string
+  status?: string
+  currentValue?: number | string
+  completedAt?: string | null
+  operatorName?: string
+}
+interface RawMyTeamTasksResp { inTeam?: boolean; items?: RawMyTeamTask[] }
+
+function adaptProgressRow(p: RawTeamTaskProgressRow): TeamTaskProgressRow {
+  return {
+    stationMasterId: String(p.stationMasterId || ''),
+    stationName: p.stationName || '',
+    nickname: p.nickname || '',
+    currentValue: toNum(p.currentValue),
+    completedAt: p.completedAt || null,
+  }
+}
+
+export const teamTaskApi = {
+  /** 运营商：任务列表（带各站长进度与完成度聚合） */
+  async listForOperator(): Promise<OperatorTeamTask[]> {
+    const res = await apiGet<RawOperatorTeamTasksResp>('/station/operator-dashboard/team-tasks')
+    return (res?.items || []).map((t): OperatorTeamTask => ({
+      id: t.id,
+      title: t.title || '',
+      desc: t.desc || '',
+      type: (t.type as TeamTaskType) || 'CUSTOM',
+      targetValue: t.targetValue == null ? null : toNum(t.targetValue),
+      deadline: t.deadline || '',
+      status: (t.status as TeamTaskStatus) || 'OPEN',
+      createdAt: t.createdAt || '',
+      total: toNum(t.total),
+      completedCount: toNum(t.completedCount),
+      completionRate: toNum(t.completionRate),
+      progresses: (t.progresses || []).map(adaptProgressRow),
+    }))
+  },
+  /** 运营商：下发任务（缺省指派全团队站长） */
+  async create(payload: CreateTeamTaskPayload): Promise<void> {
+    await apiPost('/station/operator-dashboard/team-tasks', payload)
+  },
+  /** 运营商：关闭任务（关闭后进度不再更新） */
+  async close(id: string): Promise<void> {
+    await apiPut(`/station/operator-dashboard/team-tasks/${id}/close`, {})
+  },
+  /** 站长：我的团队任务（仅本人进度；inTeam=false 时工作台卡片整体隐藏） */
+  async listMine(): Promise<{ inTeam: boolean; items: MyTeamTask[] }> {
+    const res = await apiGet<RawMyTeamTasksResp>('/station/dashboard/team-tasks/my')
+    return {
+      inTeam: !!res?.inTeam,
+      items: (res?.items || []).map((t): MyTeamTask => ({
+        taskId: String(t.taskId || ''),
+        title: t.title || '',
+        desc: t.desc || '',
+        type: (t.type as TeamTaskType) || 'CUSTOM',
+        targetValue: t.targetValue == null ? null : toNum(t.targetValue),
+        deadline: t.deadline || '',
+        status: (t.status as TeamTaskStatus) || 'OPEN',
+        currentValue: toNum(t.currentValue),
+        completedAt: t.completedAt || null,
+        operatorName: t.operatorName || '',
+      })),
+    }
+  },
+  /** 站长：标记 CUSTOM 任务完成（自动结算类型后端会拒绝手报） */
+  async complete(taskId: string): Promise<void> {
+    await apiPut(`/station/dashboard/team-tasks/${taskId}/complete`, {})
+  },
+}
+
 export const customerApi = {
   /** 归属客户列表（分页，按最近活跃排序；错误直接抛给页面走三态） */
   async list(page = 1, pageSize = 20): Promise<{ items: StationCustomer[]; total: number }> {

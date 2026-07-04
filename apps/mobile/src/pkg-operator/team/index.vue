@@ -6,10 +6,15 @@ import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
 import {
   operatorApi,
+  teamTaskApi,
+  TEAM_TASK_TYPE_LABELS,
+  TEAM_TASK_UNIT,
   type StationTeamOverview,
   type StationTeamMember,
   type TeamMemberRanking,
   type StationSuccessCase,
+  type OperatorTeamTask,
+  type TeamTaskType,
 } from '@/lib/operator-data'
 
 const loading = ref(true)
@@ -22,12 +27,17 @@ const ranking = ref<TeamMemberRanking[]>([])
 const cases = ref<StationSuccessCase[]>([])
 const inviteLink = ref('')
 
-const activeTab = ref<'members' | 'ranking' | 'cases'>('members')
+const activeTab = ref<'members' | 'ranking' | 'cases' | 'tasks'>('members')
 const tabs = [
   { key: 'members' as const, label: '名下站长' },
   { key: 'ranking' as const, label: '业绩排行' },
   { key: 'cases' as const, label: '成功案例' },
+  { key: 'tasks' as const, label: '团队任务' },
 ]
+function switchTab(key: typeof activeTab.value) {
+  activeTab.value = key
+  if (key === 'tasks') loadTasks()
+}
 
 const memberFilter = ref<'all' | 'active' | 'silent'>('all')
 const filterOptions = [
@@ -68,6 +78,101 @@ async function retry() {
   await fetchData()
 }
 onMounted(fetchData)
+
+// ===== 团队任务（商-P2 指挥室下发）：懒加载 + 独立三态，不拖累主流程 =====
+const tasks = ref<OperatorTeamTask[]>([])
+const tasksLoading = ref(false)
+const tasksError = ref('')
+const tasksLoaded = ref(false)
+
+async function loadTasks(force = false) {
+  if (tasksLoading.value || (tasksLoaded.value && !force)) return
+  tasksLoading.value = true
+  tasksError.value = ''
+  try {
+    tasks.value = await teamTaskApi.listForOperator()
+    tasksLoaded.value = true
+  } catch (e) {
+    tasksError.value = (e as Error)?.message || '加载失败'
+  } finally {
+    tasksLoading.value = false
+  }
+}
+
+function taskTypeLabel(type: string) { return TEAM_TASK_TYPE_LABELS[type] || type }
+function taskUnit(type: string) { return TEAM_TASK_UNIT[type] || '' }
+function fmtDeadline(s: string) { return s ? String(s).slice(0, 10) : '' }
+
+// 关闭任务（关闭后进度不再更新）
+const closingId = ref('')
+function onCloseTask(t: OperatorTeamTask) {
+  if (closingId.value) return
+  uni.showModal({
+    title: '关闭任务',
+    content: '关闭后各站长进度将不再更新，确定关闭？',
+    success: async (r) => {
+      if (!r.confirm) return
+      closingId.value = t.id
+      try {
+        await teamTaskApi.close(t.id)
+        t.status = 'CLOSED'
+        uni.showToast({ title: '任务已关闭', icon: 'success' })
+      } catch (e) {
+        uni.showToast({ title: (e as Error)?.message || '操作失败', icon: 'none' })
+      } finally {
+        closingId.value = ''
+      }
+    },
+  })
+}
+
+// 发布任务（最小表单·缺省指派全团队；R1 红线：奖励仅荣誉/资源位）
+const showTaskForm = ref(false)
+const taskSubmitting = ref(false)
+const taskTypeOptions = (['PROMOTE', 'RECRUIT', 'SALES', 'CUSTOM'] as TeamTaskType[]).map((v) => ({ value: v, label: TEAM_TASK_TYPE_LABELS[v] }))
+const taskTypeHints: Record<string, string> = {
+  PROMOTE: '按任务期内站长推荐新注册数自动结算',
+  RECRUIT: '按任务期内站长新增下级站长数自动结算',
+  SALES: '按任务期内分站归因订单成交额（元）自动结算',
+  CUSTOM: '站长自行标记完成（如素材转发/学习任务）',
+}
+const taskForm = ref({ title: '', desc: '', type: 'PROMOTE' as TeamTaskType, targetValue: '', deadline: '' })
+const minDeadline = new Date(Date.now() + 86400_000).toISOString().slice(0, 10)
+
+function openTaskForm() {
+  taskForm.value = { title: '', desc: '', type: 'PROMOTE', targetValue: '', deadline: '' }
+  showTaskForm.value = true
+}
+function closeTaskForm() { if (!taskSubmitting.value) showTaskForm.value = false }
+function onDeadlineChange(e: { detail: { value: string } }) { taskForm.value.deadline = e.detail.value }
+
+async function submitTask() {
+  if (taskSubmitting.value) return
+  const f = taskForm.value
+  if (!f.title.trim()) return void uni.showToast({ title: '请填写任务标题', icon: 'none' })
+  if (!f.deadline) return void uni.showToast({ title: '请选择截止日期', icon: 'none' })
+  const target = Number(f.targetValue)
+  if (f.type !== 'CUSTOM' && (!Number.isInteger(target) || target < 1)) {
+    return void uni.showToast({ title: '请填写目标值（正整数）', icon: 'none' })
+  }
+  taskSubmitting.value = true
+  try {
+    await teamTaskApi.create({
+      title: f.title.trim(),
+      desc: f.desc.trim() || undefined,
+      type: f.type,
+      targetValue: f.type === 'CUSTOM' ? undefined : target,
+      deadline: new Date(`${f.deadline}T23:59:59`).toISOString(),
+    })
+    uni.showToast({ title: '任务已下发', icon: 'success' })
+    showTaskForm.value = false
+    await loadTasks(true)
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '下发失败，请重试', icon: 'none' })
+  } finally {
+    taskSubmitting.value = false
+  }
+}
 
 const showInvite = ref(false)
 function openInvite() { showInvite.value = true }
@@ -134,7 +239,7 @@ function rankClass(r: number) { return r === 1 ? 'r1' : r === 2 ? 'r2' : r === 3
 
       <!-- Tabs -->
       <view class="tm-tabs">
-        <view v-for="t in tabs" :key="t.key" class="tm-tab" :class="{ active: activeTab === t.key }" @tap="activeTab = t.key">
+        <view v-for="t in tabs" :key="t.key" class="tm-tab" :class="{ active: activeTab === t.key }" @tap="switchTab(t.key)">
           <text class="tm-tab-txt">{{ t.label }}</text>
         </view>
       </view>
@@ -180,7 +285,7 @@ function rankClass(r: number) { return r === 1 ? 'r1' : r === 2 ? 'r2' : r === 3
       </view>
 
       <!-- 成功案例 -->
-      <view v-else class="tm-content">
+      <view v-else-if="activeTab === 'cases'" class="tm-content">
         <view v-if="cases.length" class="tm-list">
           <view v-for="c in cases" :key="c.id" class="tm-case">
             <view class="tm-case-head">
@@ -194,8 +299,95 @@ function rankClass(r: number) { return r === 1 ? 'r1' : r === 2 ? 'r2' : r === 3
         <view v-else class="tm-empty"><app-icon name="award" :size="72" color="#d6ccbb" /><text class="tm-empty-txt">暂无成功案例</text></view>
       </view>
 
+      <!-- 团队任务（商-P2 指挥室下发） -->
+      <view v-else class="tm-content">
+        <view class="tt-new" @tap="openTaskForm">
+          <app-icon name="plus" :size="28" color="#fff" />
+          <text class="tt-new-txt">发布任务</text>
+        </view>
+        <view class="tt-r1"><text class="tt-r1-txt">合规提示：任务奖励仅限荣誉表彰/资源位展示，不得承诺现金奖励</text></view>
+
+        <!-- 任务列表三态 -->
+        <view v-if="tasksLoading" class="tm-state"><view v-for="i in 3" :key="i" class="tm-sk" /></view>
+        <view v-else-if="tasksError" class="tm-empty">
+          <app-icon name="alert-circle" :size="72" color="#ef4444" />
+          <text class="tm-empty-txt">{{ tasksError }}</text>
+          <view class="tm-state-btn" @tap="loadTasks(true)"><text>重试</text></view>
+        </view>
+        <view v-else-if="tasks.length" class="tm-list">
+          <view v-for="t in tasks" :key="t.id" class="tt-task">
+            <view class="tt-task-head">
+              <view class="tt-kind"><text class="tt-kind-txt">{{ taskTypeLabel(t.type) }}</text></view>
+              <text class="tt-task-title">{{ t.title }}</text>
+              <text class="tt-status" :class="t.status === 'OPEN' ? 'open' : 'closed'">{{ t.status === 'OPEN' ? '进行中' : '已关闭' }}</text>
+            </view>
+            <text v-if="t.desc" class="tt-task-desc">{{ t.desc }}</text>
+            <view class="tt-task-meta">
+              <text class="tt-meta-txt">截止 {{ fmtDeadline(t.deadline) }}</text>
+              <text class="tt-meta-txt">完成 <text class="tt-meta-strong">{{ t.completedCount }}/{{ t.total }}</text>（{{ t.completionRate }}%）</text>
+            </view>
+            <view class="tt-bar-track"><view class="tt-bar-fill" :style="{ width: t.completionRate + '%' }" /></view>
+            <!-- 各站长进度 -->
+            <view v-if="t.progresses.length" class="tt-rows">
+              <view v-for="p in t.progresses" :key="p.stationMasterId" class="tt-row">
+                <text class="tt-row-name">{{ p.stationName || p.nickname || '站长' }}</text>
+                <text class="tt-row-val">{{ p.currentValue }}<template v-if="t.targetValue">/{{ t.targetValue }}</template>{{ taskUnit(t.type) }}</text>
+                <text v-if="p.completedAt" class="tt-row-done">✓ 完成</text>
+              </view>
+            </view>
+            <view v-if="t.status === 'OPEN'" class="tt-close" :class="{ disabled: closingId === t.id }" @tap="onCloseTask(t)">
+              <text class="tt-close-txt">关闭任务</text>
+            </view>
+          </view>
+        </view>
+        <view v-else class="tm-empty"><app-icon name="target" :size="72" color="#d6ccbb" /><text class="tm-empty-txt">暂未下发任务，点击上方「发布任务」开始</text></view>
+      </view>
+
       <view class="tm-pad" />
     </scroll-view>
+
+    <!-- 发布任务弹层（最小表单·缺省指派全团队站长） -->
+    <view v-if="showTaskForm" class="tm-mask" @tap="closeTaskForm">
+      <view class="tm-sheet" @tap.stop>
+        <view class="tm-sheet-head">
+          <text class="tm-sheet-title">发布团队任务</text>
+          <view class="tm-sheet-close" @tap="closeTaskForm"><app-icon name="x" :size="40" color="#666" /></view>
+        </view>
+        <view class="tm-sheet-body">
+          <view class="tt-field">
+            <text class="tt-label">任务标题</text>
+            <input v-model="taskForm.title" class="tt-input" placeholder="如：七月拉新冲刺" :maxlength="50" />
+          </view>
+          <view class="tt-field">
+            <text class="tt-label">任务类型</text>
+            <view class="tt-types">
+              <view v-for="o in taskTypeOptions" :key="o.value" class="tt-type" :class="{ on: taskForm.type === o.value }" @tap="taskForm.type = o.value">
+                <text class="tt-type-txt">{{ o.label }}</text>
+              </view>
+            </view>
+            <text class="tt-hint">{{ taskTypeHints[taskForm.type] }}</text>
+          </view>
+          <view v-if="taskForm.type !== 'CUSTOM'" class="tt-field">
+            <text class="tt-label">目标值（{{ taskUnit(taskForm.type) }}）</text>
+            <input v-model="taskForm.targetValue" class="tt-input" type="number" placeholder="如：10" />
+          </view>
+          <view class="tt-field">
+            <text class="tt-label">截止日期</text>
+            <picker mode="date" :start="minDeadline" :value="taskForm.deadline" @change="onDeadlineChange">
+              <view class="tt-input tt-picker"><text :class="taskForm.deadline ? 'tt-picker-val' : 'tt-picker-ph'">{{ taskForm.deadline || '请选择截止日期' }}</text></view>
+            </picker>
+          </view>
+          <view class="tt-field">
+            <text class="tt-label">任务说明（选填）</text>
+            <textarea v-model="taskForm.desc" class="tt-textarea" placeholder="说明任务内容与荣誉奖励（如：完成者获月度之星表彰与首页资源位）" :maxlength="500" />
+          </view>
+          <view class="tt-r1"><text class="tt-r1-txt">奖励仅限荣誉表彰/资源位展示，文案含现金类承诺将被拒绝（合规红线）</text></view>
+          <view class="tm-copy" :class="{ disabled: taskSubmitting }" @tap="submitTask">
+            <text class="tm-copy-txt">{{ taskSubmitting ? '下发中...' : '下发任务（默认指派全部站长）' }}</text>
+          </view>
+        </view>
+      </view>
+    </view>
 
     <!-- 邀请弹层 -->
     <view v-if="showInvite" class="tm-mask" @tap="closeInvite">
@@ -318,5 +510,51 @@ function rankClass(r: number) { return r === 1 ? 'r1' : r === 2 ? 'r2' : r === 3
 .tm-link { margin-top: 24rpx; padding: 20rpx 24rpx; background: #f7f4ef; border-radius: 12rpx; }
 .tm-link-txt { font-size: 22rpx; color: #6b7280; word-break: break-all; }
 .tm-copy { margin-top: 24rpx; height: 88rpx; background: var(--brand); border-radius: 16rpx; display: flex; align-items: center; justify-content: center; }
+.tm-copy.disabled { opacity: 0.5; }
 .tm-copy-txt { font-size: 28rpx; color: #fff; font-weight: 600; }
+
+/* ===== 团队任务（商-P2）===== */
+.tt-new { display: flex; align-items: center; justify-content: center; gap: 8rpx; height: 80rpx; border-radius: 16rpx; background: var(--brand); margin-bottom: 16rpx; }
+.tt-new-txt { font-size: 28rpx; font-weight: 600; color: #fff; }
+.tt-r1 { padding: 14rpx 20rpx; border-radius: 12rpx; background: #fdf6ec; margin-bottom: 20rpx; }
+.tt-r1-txt { font-size: 20rpx; color: #b45309; line-height: 1.5; }
+
+.tt-task { padding: 24rpx; background: #fff; border-radius: 16rpx; border: 1rpx solid #EDE7DC; }
+.tt-task-head { display: flex; align-items: center; gap: 12rpx; }
+.tt-kind { padding: 2rpx 14rpx; border-radius: 8rpx; background: #F2ECE1; flex-shrink: 0; }
+.tt-kind-txt { font-size: 20rpx; font-weight: 600; color: #8a6d3b; }
+.tt-task-title { flex: 1; min-width: 0; font-size: 28rpx; font-weight: 600; color: #2C2C2C; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tt-status { font-size: 20rpx; padding: 2rpx 12rpx; border-radius: 6rpx; flex-shrink: 0; }
+.tt-status.open { background: #dcfce7; color: #16a34a; }
+.tt-status.closed { background: #f3f4f6; color: #9ca3af; }
+.tt-task-desc { display: block; margin-top: 10rpx; font-size: 22rpx; color: #8a8178; line-height: 1.5; }
+.tt-task-meta { display: flex; align-items: center; justify-content: space-between; margin-top: 16rpx; }
+.tt-meta-txt { font-size: 22rpx; color: #8a8178; }
+.tt-meta-strong { font-weight: 700; color: var(--brand); }
+.tt-bar-track { height: 12rpx; border-radius: 999rpx; background: #F2ECE1; overflow: hidden; margin-top: 12rpx; }
+.tt-bar-fill { height: 100%; border-radius: 999rpx; background: var(--brand); transition: width 0.3s; }
+
+.tt-rows { margin-top: 16rpx; border-top: 1rpx solid #f3ede2; }
+.tt-row { display: flex; align-items: center; gap: 16rpx; padding: 12rpx 0; }
+.tt-row-name { flex: 1; min-width: 0; font-size: 24rpx; color: #4b5563; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tt-row-val { font-size: 24rpx; font-weight: 600; color: #2C2C2C; }
+.tt-row-done { font-size: 22rpx; font-weight: 600; color: #16a34a; }
+.tt-close { margin-top: 16rpx; display: flex; align-items: center; justify-content: center; height: 64rpx; border-radius: 12rpx; border: 1rpx solid #EDE7DC; }
+.tt-close.disabled { opacity: 0.5; }
+.tt-close-txt { font-size: 24rpx; color: #8a8178; }
+
+/* 发布任务表单 */
+.tt-field { margin-bottom: 24rpx; }
+.tt-label { display: block; font-size: 24rpx; font-weight: 600; color: #4b5563; margin-bottom: 12rpx; }
+.tt-input { height: 80rpx; padding: 0 24rpx; border-radius: 12rpx; background: #f7f4ef; font-size: 26rpx; color: #2C2C2C; box-sizing: border-box; }
+.tt-picker { display: flex; align-items: center; }
+.tt-picker-val { font-size: 26rpx; color: #2C2C2C; }
+.tt-picker-ph { font-size: 26rpx; color: #9ca3af; }
+.tt-textarea { width: 100%; height: 140rpx; padding: 16rpx 24rpx; border-radius: 12rpx; background: #f7f4ef; font-size: 24rpx; color: #2C2C2C; box-sizing: border-box; }
+.tt-types { display: flex; flex-wrap: wrap; gap: 16rpx; }
+.tt-type { padding: 10rpx 28rpx; border-radius: 999rpx; background: #f7f4ef; border: 1rpx solid #EDE7DC; }
+.tt-type.on { background: var(--brand); border-color: var(--brand); }
+.tt-type-txt { font-size: 24rpx; color: #8a8178; }
+.tt-type.on .tt-type-txt { color: #fff; font-weight: 600; }
+.tt-hint { display: block; margin-top: 10rpx; font-size: 20rpx; color: #9ca3af; }
 </style>
