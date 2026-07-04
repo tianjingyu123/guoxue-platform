@@ -183,6 +183,7 @@ export const MENU_CONFIG: MenuItem[] = [
       { title: "财务报表", path: "/finance/reports" },
       { title: "资金冻结", path: "/finance/freeze" },
       { title: "资金审批中心", path: "/finance/fund-approval", roles: ["SUPER_ADMIN", "FINANCE_ADMIN"] },
+      { title: "分佣规则", path: "/finance/settlement-rules", roles: ["SUPER_ADMIN", "FINANCE_ADMIN"] },
       { title: "汇付天下支付", path: "/huifu", roles: ["SUPER_ADMIN", "FINANCE_ADMIN"] },
     ],
   },
@@ -213,6 +214,7 @@ export const MENU_CONFIG: MenuItem[] = [
     roles: ["SUPER_ADMIN", "OPERATION_ADMIN"],
     children: [
       { title: "智能体广场", path: "/ai/agent-marketplace" },
+      { title: "顾问规则", path: "/advisor/rules" },
       { title: "AI媒体处理", path: "/ai/media-processing" },
       { title: "对话日志", path: "/ai/chat-logs" },
       { title: "调用监控", path: "/ai/call-monitor" },
