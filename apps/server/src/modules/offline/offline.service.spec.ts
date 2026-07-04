@@ -58,6 +58,12 @@ const mockPrisma = {
     findMany: jest.fn(),
     count: jest.fn(),
   },
+  stationTeacher: {
+    findMany: jest.fn(),
+  },
+  teacherCertification: {
+    findMany: jest.fn(),
+  },
   stationOrder: {
     findMany: jest.fn(),
     count: jest.fn(),
@@ -602,6 +608,86 @@ describe("OfflineService", () => {
         await expect(svc.listSettlements(ATTACKER, "s1")).rejects.toThrow(BusinessException);
         expect(mockPrisma.stationSettlement.findMany).not.toHaveBeenCalled();
       });
+    });
+  });
+
+  // ───────── 品牌主页（驿-P1） ─────────
+
+  describe("getStationHome（品牌主页公开聚合）", () => {
+    const baseStation = {
+      id: "s1", name: "北京驿站", city: "北京", address: "东城区", phone: "010-1234",
+      cover: null, type: "center", intro: "简介", businessHours: null,
+      images: [], tags: [], facilities: [], status: "ACTIVE",
+      brandStory: "十年国学耕耘", photos: ["p1.jpg"], featuredTeacherIds: ["t2", "t1"],
+      owner: { id: "u1", nickname: "站长", avatar: null },
+    };
+
+    it("聚合基础+讲师阵容(按挑选顺序·签约讲师带认证徽章)+课程+评价", async () => {
+      mockPrisma.stationOffline.findUnique.mockResolvedValue(baseStation);
+      mockPrisma.stationTeacher.findMany.mockResolvedValue([
+        { id: "t1", name: "自建讲师", avatar: null, specialties: [], bio: null, sourceUserId: null },
+        { id: "t2", name: "签约讲师", avatar: null, specialties: ["易经"], bio: null, sourceUserId: "tu1" },
+      ]);
+      mockPrisma.teacherCertification.findMany.mockResolvedValue([{ userId: "tu1", verifiedTitle: "国学讲师" }]);
+      mockPrisma.instituteMember.findMany.mockResolvedValue([{ userId: "tu1", lecturerLevel: "SIGNED" }]);
+      mockPrisma.offlineCourse.findMany.mockResolvedValue([]);
+      mockPrisma.offlineCourseReview.aggregate.mockResolvedValue({ _avg: { rating: 4.66 }, _count: 3 });
+      mockPrisma.offlineCourseReview.findMany.mockResolvedValue([
+        { id: "r1", rating: 5, content: "很好", createdAt: new Date(), userId: "u9", course: { title: "论语课" } },
+      ]);
+      mockPrisma.user.findMany.mockResolvedValue([{ id: "u9", nickname: "学员甲", avatar: null }]);
+
+      const result = await svc.getStationHome("s1");
+      expect(result.station.brandStory).toBe("十年国学耕耘");
+      // 按 featuredTeacherIds 顺序：t2 在前
+      expect(result.featuredTeachers.map((t: { id: string }) => t.id)).toEqual(["t2", "t1"]);
+      const signed = result.featuredTeachers[0] as { verifiedTitle: string | null; institute?: { signed: boolean } };
+      expect(signed.verifiedTitle).toBe("国学讲师");
+      expect(signed.institute?.signed).toBe(true);
+      expect(result.rating).toEqual({ avg: 4.7, count: 3 });
+      expect(result.reviews[0].user.nickname).toBe("学员甲");
+      expect(result.reviews[0].courseTitle).toBe("论语课");
+    });
+
+    it("无评价时省略 rating 字段（诚实降级）", async () => {
+      mockPrisma.stationOffline.findUnique.mockResolvedValue({ ...baseStation, featuredTeacherIds: [] });
+      mockPrisma.stationTeacher.findMany.mockResolvedValue([]);
+      mockPrisma.offlineCourse.findMany.mockResolvedValue([]);
+      mockPrisma.offlineCourseReview.aggregate.mockResolvedValue({ _avg: { rating: null }, _count: 0 });
+      mockPrisma.offlineCourseReview.findMany.mockResolvedValue([]);
+      const result = await svc.getStationHome("s1");
+      expect("rating" in result).toBe(false);
+      expect(result.reviews).toEqual([]);
+    });
+
+    it("DISABLED 驿站不公开（404）", async () => {
+      mockPrisma.stationOffline.findUnique.mockResolvedValue({ ...baseStation, status: "DISABLED" });
+      await expect(svc.getStationHome("s1")).rejects.toThrow(BusinessException);
+    });
+  });
+
+  describe("updateStationBrand（驿站长更新品牌资料）", () => {
+    it("非驿站运营者抛 NOT_FOUND", async () => {
+      mockPrisma.stationOffline.findUnique.mockResolvedValue(null);
+      await expect(svc.updateStationBrand("nobody", { brandStory: "x" })).rejects.toThrow(BusinessException);
+      expect(mockPrisma.stationOffline.update).not.toHaveBeenCalled();
+    });
+
+    it("featuredTeacherIds 只收本驿站在岗讲师（防挂他站讲师·保持提交顺序）", async () => {
+      mockPrisma.stationOffline.findUnique.mockResolvedValue({ id: "s1" });
+      mockPrisma.stationTeacher.findMany.mockResolvedValue([{ id: "t1" }, { id: "t3" }]);
+      mockPrisma.stationOffline.update.mockImplementation(({ data }: { data: Record<string, unknown> }) =>
+        Promise.resolve({ id: "s1", ...data }));
+      const result = await svc.updateStationBrand("owner1", { featuredTeacherIds: ["t3", "t2-other-station", "t1"] });
+      expect(result.featuredTeacherIds).toEqual(["t3", "t1"]);
+    });
+
+    it("brandStory 空白串归一为 null", async () => {
+      mockPrisma.stationOffline.findUnique.mockResolvedValue({ id: "s1" });
+      mockPrisma.stationOffline.update.mockImplementation(({ data }: { data: Record<string, unknown> }) =>
+        Promise.resolve({ id: "s1", ...data }));
+      const result = await svc.updateStationBrand("owner1", { brandStory: "   " });
+      expect(result.brandStory).toBeNull();
     });
   });
 });

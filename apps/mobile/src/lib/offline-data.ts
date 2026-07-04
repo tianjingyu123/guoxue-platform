@@ -104,6 +104,44 @@ export interface OfflineCourseDetail extends OfflineCourse {
   registrations: CourseRegistration[]
 }
 
+// ===== 品牌主页（驿-P1·GET /offline/stations/:id/home）=====
+
+/** 讲师阵容项（签约讲师带 F1 认证徽章数据，自建讲师两字段为空 → 徽章组件诚实不渲染） */
+export interface BrandTeacher extends StationTeacherLite {
+  /** 线上认证头衔（TeacherCertification.verifiedTitle·APPROVED 才有） */
+  verifiedTitle?: string | null
+  /** 研究院会籍（在册成员才有·signed=签约金标） */
+  institute?: { signed: boolean; lecturerLevel: string } | null
+}
+
+/** 评价墙条目（按驿站聚合的课程评价·昵称头像后端已脱敏） */
+export interface StationHomeReview {
+  id: string
+  rating: number
+  content: string | null
+  createdAt: string
+  courseTitle: string
+  user: { nickname: string; avatar: string | null }
+}
+
+/** 品牌主页聚合数据 */
+export interface StationHomeData {
+  station: Station & {
+    /** 驿站故事（未配置为 null → 页面不渲染该区块） */
+    brandStory: string | null
+    /** 品牌相册（环境照片墙·空则回退 images/cover） */
+    photos: string[]
+    owner?: UserBrief
+  }
+  featuredTeachers: BrandTeacher[]
+  /** 特色课程表（近期未结束的已发布课程·≤6） */
+  courses: OfflineCourse[]
+  /** 评分聚合（无评价时字段不存在 → 诚实不渲染） */
+  rating?: StationRating
+  /** 最新评价（≤6·空数组=暂无评价） */
+  reviews: StationHomeReview[]
+}
+
 // 派生报名状态（后端无单独报名状态字段，按时间/容量/审核推导）
 export type DerivedCourseStatus = 'enrolling' | 'full' | 'ongoing' | 'ended' | 'cancelled' | 'draft'
 
@@ -335,6 +373,11 @@ export const offlineApi = {
     return apiGet<StationDetail>(`/offline/stations/${id}`)
   },
 
+  /** 驿站品牌主页聚合 GET /offline/stations/:id/home（公开·驿-P1） */
+  getStationHome(id: string): Promise<StationHomeData> {
+    return apiGet<StationHomeData>(`/offline/stations/${id}/home`)
+  },
+
   /** 课程列表 GET /offline/courses（不传 stationId=发现全部已发布；courses 命中拦截器拆包→数组）*/
   getCourses(stationId?: string): Promise<OfflineCourse[]> {
     const q = stationId ? `stationId=${stationId}&pageSize=100` : 'pageSize=100'
@@ -428,6 +471,17 @@ export const offlineApi = {
 // ============ B 端：驿站运营者经营后台 ============
 export interface MyStation extends Station {
   _count?: { courses: number; products: number; teachers: number; teacherBookings: number }
+  /** 品牌主页字段（驿-P1·GET /offline/stations/my 全行返回，编辑页回显用） */
+  brandStory?: string | null
+  photos?: string[]
+  featuredTeacherIds?: string[]
+}
+
+/** 更新品牌主页资料载荷（驿-P1·仅传要改的字段） */
+export interface UpdateBrandPayload {
+  brandStory?: string
+  photos?: string[]
+  featuredTeacherIds?: string[]
 }
 
 export interface DashboardStats {
@@ -514,6 +568,11 @@ export const offlineManageApi = {
   /** 我的驿站 GET /offline/stations/my（非驿站主返回 null）*/
   getMyStation(): Promise<MyStation | null> {
     return apiGet<MyStation | null>('/offline/stations/my')
+  },
+
+  /** 更新品牌主页资料 PUT /offline/stations/my/brand（驿-P1·驿站长本人） */
+  updateBrand(data: UpdateBrandPayload): Promise<{ id: string; brandStory: string | null; photos: string[]; featuredTeacherIds: string[] }> {
+    return apiPut<{ id: string; brandStory: string | null; photos: string[]; featuredTeacherIds: string[] }>('/offline/stations/my/brand', data)
   },
 
   /** 经营概览 GET /offline/stations/:id/revenue-dashboard */

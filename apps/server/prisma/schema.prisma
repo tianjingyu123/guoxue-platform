@@ -2125,6 +2125,10 @@ model StationOffline {
   ownerUserId   String   @unique
   depositAmount Decimal  @default(0) @db.Decimal(10, 2)
   status        String   @default("PENDING") // PENDING, ACTIVE, DISABLED
+  // ── 品牌主页（驿-P1·驿站对外"店面"）──
+  brandStory         String? // 驿站故事（品牌主页正文）
+  photos             String[] @default([]) // 品牌相册（环境照片墙 URL）
+  featuredTeacherIds String[] @default([]) // 讲师阵容（StationTeacher.id 数组·驿站长挑选展示顺序）
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 

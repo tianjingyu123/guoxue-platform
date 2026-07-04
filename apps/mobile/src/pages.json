@@ -1787,6 +1787,18 @@
           }
         },
         {
+          "path": "station-home/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "manage-brand/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
           "path": "courses/index",
           "style": {
             "navigationStyle": "custom"

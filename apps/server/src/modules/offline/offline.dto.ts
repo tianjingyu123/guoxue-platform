@@ -348,6 +348,28 @@ export class UpdateEventPhotosDto {
   photos: string[];
 }
 
+// ───────── 品牌主页（驿-P1） ─────────
+
+export class UpdateStationBrandDto {
+  @ApiPropertyOptional({ description: "驿站故事（品牌主页正文，≤3000字）" })
+  @IsOptional() @IsString() @MaxLength(3000)
+  brandStory?: string;
+
+  @ApiPropertyOptional({ description: "品牌相册 URL 数组（环境照片墙，最多 30 张）", type: [String] })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(30)
+  @IsString({ each: true })
+  photos?: string[];
+
+  @ApiPropertyOptional({ description: "讲师阵容（本驿站 StationTeacher.id 数组，按展示顺序，最多 12 位）", type: [String] })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(12)
+  @IsString({ each: true })
+  featuredTeacherIds?: string[];
+}
+
 // ───────── 课后评价（T8 OMO） ─────────
 
 export class CreateCourseReviewDto {

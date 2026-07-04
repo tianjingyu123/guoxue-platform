@@ -13,7 +13,7 @@ import {
   CreateStationOrderDto, CreateSettlementDto,
   AuditCourseDto,
   UpdateOrderStatusDto, CreateTeacherRequestDto, RespondTeacherRequestDto,
-  CreateCourseReviewDto,
+  CreateCourseReviewDto, UpdateStationBrandDto,
 } from "./offline.dto";
 import { CreateTeacherDto, UpdateTeacherDto, SetAvailabilityDto, CreateTeacherFromSignedDto } from "./dto/teacher.dto";
 
@@ -75,12 +75,32 @@ export class OfflineController {
     return this.svc.getMyStation(req.user.id);
   }
 
+  @Put("stations/my/brand")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "驿站长更新品牌主页资料（brandStory/photos/讲师阵容·驿-P1）" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 404, description: "非驿站运营者" })
+  @ApiBearerAuth()
+  updateMyStationBrand(@Req() req: Request, @Body() dto: UpdateStationBrandDto) {
+    return this.svc.updateStationBrand(req.user.id, dto);
+  }
+
   @Get("stations/:id")
   @ApiOperation({ summary: "驿站详情" })
   @ApiResponse({ status: 200, description: "成功" })
   @ApiResponse({ status: 404, description: "资源不存在" })
   getStation(@Param("id") id: string) {
     return this.svc.getStation(id);
+  }
+
+  @Get("stations/:id/home")
+  @ApiOperation({ summary: "驿站品牌主页聚合（公开·基础+故事相册+讲师阵容+特色课程+评价墙·驿-P1）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  getStationHome(@Param("id") id: string) {
+    return this.svc.getStationHome(id);
   }
 
   @Put("stations/:id/audit")
