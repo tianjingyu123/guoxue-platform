@@ -237,6 +237,12 @@ const routes = [
         component: () => import("@/views/courses/CourseCategoryManage.vue"),
         meta: { title: "课程分类管理", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
       },
+      {
+        path: "teacher/certifications",
+        name: "TeacherCertificationAudit",
+        component: () => import("@/views/teacher/TeacherCertificationAudit.vue"),
+        meta: { title: "讲师认证审核", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"] },
+      },
       // === 电子书 ===
       {
         path: "ebooks",

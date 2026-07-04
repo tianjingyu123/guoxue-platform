@@ -6,7 +6,9 @@ import { navigateTo, goBack } from '@/utils/router'
 import { useShare } from '@/composables/useShare'
 import AppIcon from '@/components/common/app-icon.vue'
 import PurchaseSheet from '@/components/common/purchase-sheet.vue'
+import TeacherCertBadge from '@/components/common/teacher-cert-badge.vue'
 import { courseApi } from '@/lib/course-data'
+import { teacherApi, type TeacherInstituteBadge } from '@/lib/teacher-data'
 import { recommendApi } from '@/lib/recommend-data'
 import { track } from '@/composables/useTrack'
 import type { RecommendItem } from '@/components/common/recommend-section.vue'
@@ -24,6 +26,8 @@ const reviews = ref<any[]>([])
 const recItems = ref<RecommendItem[]>([])
 // view_content 埋点防重复标记（重试/刷新只上报一次）
 const viewTracked = ref(false)
+// F1 认证分级：讲师认证徽章数据（课程详情响应不含认证字段·独立并行拉取，null=未认证/无讲师不显示）
+const instructorCert = ref<{ verifiedTitle: string; institute: TeacherInstituteBadge | null } | null>(null)
 
 // 纯 UI 状态
 const activeTab = ref<'intro' | 'chapters' | 'reviews'>('intro')
@@ -70,6 +74,18 @@ function goTeacherProfile() {
   if (!uid) return
   navigateTo(`/pkg-creator/teacher-profile/index?userId=${uid}`)
 }
+/** 讲师认证徽章（并行拉取·独立静默降级：未认证 404/网络错 → 不显示徽章，绝不阻塞课程主加载） */
+async function loadInstructorCert(uid?: string) {
+  instructorCert.value = null
+  if (!uid) return
+  try {
+    const p = await teacherApi.getPublicProfile(uid)
+    instructorCert.value = { verifiedTitle: p.verifiedTitle, institute: p.institute ?? null }
+  } catch {
+    // 诚实降级：讲师未开通公开主页（后端 404）→ 无徽章
+  }
+}
+
 const ratingBars = computed(() => [5, 4, 3, 2, 1].map((star) => {
   const count = reviews.value.filter((r) => r.rating === star).length
   return { star, percent: reviews.value.length ? (count / reviews.value.length) * 100 : 0 }
@@ -87,6 +103,8 @@ async function loadData() {
     course.value = detail
     chapters.value = chaps
     reviews.value = revs
+    // F1 认证分级：讲师徽章并行拉取（fire-and-forget·内部自 catch 静默降级）
+    void loadInstructorCert(detail?.instructor?.id)
     // 内容浏览埋点：详情加载成功才上报（真实标题），每次进入页面只上报一次（重试不重复）
     if (!viewTracked.value && detail) {
       viewTracked.value = true
@@ -180,7 +198,16 @@ onMounted(() => {
       <view class="inst-card" @tap="goTeacherProfile">
         <image lazy-load class="inst-avatar" :src="course.instructor.avatar" mode="aspectFill" />
         <view class="inst-info">
-          <text class="inst-name">{{ course.instructor.name }}</text>
+          <view class="inst-name-row">
+            <text class="inst-name">{{ course.instructor.name }}</text>
+            <!-- F1 认证徽章（讲师 userId 缺失/未认证时 instructorCert 为 null → 整体跳过） -->
+            <teacher-cert-badge
+              v-if="course.instructor.id && instructorCert"
+              size="sm"
+              :verified-title="instructorCert.verifiedTitle"
+              :institute="instructorCert.institute"
+            />
+          </view>
           <text class="inst-title">{{ course.instructor.title }}</text>
         </view>
         <text v-if="course.instructor.id" class="inst-link">查看主页 &gt;</text>
@@ -447,7 +474,8 @@ onMounted(() => {
 .inst-card { background: #fff; border-radius: 24rpx; padding: 32rpx; display: flex; align-items: center; gap: 24rpx; box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.04); }
 .inst-avatar { width: 96rpx; height: 96rpx; border-radius: 50%; background: #F2EFEA; }
 .inst-info { flex: 1; }
-.inst-name { display: block; font-size: 30rpx; font-weight: 500; color: #2C2C2C; }
+.inst-name-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12rpx; }
+.inst-name { font-size: 30rpx; font-weight: 500; color: #2C2C2C; }
 .inst-title { display: block; font-size: 24rpx; color: #999; margin-top: 4rpx; }
 .inst-link { font-size: 24rpx; color: var(--brand); }
 

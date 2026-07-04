@@ -21,7 +21,7 @@ export class TeacherAdminController {
 
   @Get("certifications")
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR")
   @ApiOperation({ summary: "讲师认证列表（管理员，可按状态过滤）" })
   @ApiBearerAuth()
   @ApiQuery({ name: "status", required: false, description: "PENDING / APPROVED / REJECTED" })
@@ -34,7 +34,7 @@ export class TeacherAdminController {
 
   @Put("certifications/:id/review")
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR")
   @ApiOperation({ summary: "审核讲师认证（通过 / 驳回）" })
   @ApiBearerAuth()
   @ApiResponse({ status: 200, description: "审核成功" })

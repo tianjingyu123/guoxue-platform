@@ -88,6 +88,7 @@ export const MENU_CONFIG: MenuItem[] = [
     children: [
       { title: "课程管理", path: "/courses" },
       { title: "课程分类", path: "/courses/categories", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
+      { title: "讲师认证审核", path: "/teacher/certifications", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"] },
     ],
   },
   {

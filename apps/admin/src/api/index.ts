@@ -1960,6 +1960,14 @@ export const settlementRuleApi = {
 };
 
 // ───────── 智能顾问规则（C7 规则管理） ─────────
+// ============ 讲师认证审核 ============
+export const teacherCertApi = {
+  // GET /teacher/certifications?status=&page=&pageSize= → { items, total, page, pageSize }
+  list: (params?: Record<string, unknown>) => api.get("/teacher/certifications", { params }),
+  // PUT /teacher/certifications/:id/review body { action: "APPROVE"|"REJECT", verifiedTitle?, rejectReason? }
+  review: (id: string, data: Record<string, unknown>) => api.put(`/teacher/certifications/${id}/review`, data),
+};
+
 export const advisorRuleApi = {
   // GET /advisor/rules → { items: AdvisorRule[] }
   listRules: () => api.get("/advisor/rules"),
