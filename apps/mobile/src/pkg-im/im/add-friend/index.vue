@@ -9,30 +9,36 @@
     </view>
 
     <view class="content">
-      <!-- 搜索栏 -->
+      <!-- 按账号添加 -->
       <view class="search-bar">
         <view class="search-input-wrap">
-          <AppIcon name="search" :size="32" color="#999999" class="search-icon" />
+          <AppIcon name="at-sign" :size="32" color="#999999" class="search-icon" />
           <input
             class="search-input"
             :value="query"
-            placeholder="搜索手机号 / 智玄号 / 昵称"
+            placeholder="输入对方账号 / 智玄号"
             placeholder-class="search-ph"
-            confirm-type="search"
+            confirm-type="send"
             @input="onInput"
-            @confirm="doSearch"
+            @confirm="onAdd"
           />
         </view>
-        <view class="search-btn" :class="{ 'btn-disabled': loading || !query.trim() }" @tap="doSearch">
-          <view v-if="loading" class="spin">
+        <view class="search-btn" :class="{ 'btn-disabled': submitting || !query.trim() }" @tap="onAdd">
+          <view v-if="submitting" class="spin">
             <AppIcon name="loader-2" :size="28" color="#ffffff" />
           </view>
-          <text v-else class="search-btn-text">搜索</text>
+          <text v-else class="search-btn-text">添加</text>
         </view>
       </view>
 
+      <!-- 说明：暂无公开用户搜索能力，仅支持按账号发起申请 -->
+      <view class="notice">
+        <AppIcon name="info" :size="28" color="#B45309" />
+        <text class="notice-text">输入对方账号或智玄号发起好友申请，对方同意后成为好友。</text>
+      </view>
+
       <!-- 其他方式 -->
-      <view v-if="!searched">
+      <view>
         <text class="section-title">其他方式</text>
         <view class="method-list">
           <view v-for="tip in TIPS" :key="tip.label" class="method-item">
@@ -46,41 +52,6 @@
           </view>
         </view>
       </view>
-
-      <!-- 搜索结果 -->
-      <view v-if="searched">
-        <text class="section-title">搜索结果</text>
-        <view v-if="results.length === 0" class="empty">
-          <text class="empty-text">未找到该用户</text>
-        </view>
-        <view v-else class="result-list">
-          <view v-for="user in results" :key="user.id" class="result-item">
-            <image lazy-load class="result-avatar" :src="user.avatar" mode="aspectFill" />
-            <view class="result-body">
-              <text class="result-name">{{ user.name }}</text>
-              <text class="result-bio">{{ user.bio }}</text>
-              <text class="result-mutual">{{ user.mutual }} 个共同好友</text>
-            </view>
-            <view
-              class="add-btn"
-              :class="user.added ? 'add-btn-done' : 'add-btn-default'"
-              @tap="!user.added && addFriend(user.id)"
-            >
-              <view v-if="sending[user.id]" class="spin">
-                <AppIcon name="loader-2" :size="28" color="#c41e3a" />
-              </view>
-              <template v-else-if="user.added">
-                <AppIcon name="check" :size="28" color="#2c2c2c" />
-                <text class="add-btn-text-done">已添加</text>
-              </template>
-              <template v-else>
-                <AppIcon name="user-plus" :size="28" color="#ffffff" />
-                <text class="add-btn-text">添加</text>
-              </template>
-            </view>
-          </view>
-        </view>
-      </view>
     </view>
   </view>
 </template>
@@ -89,53 +60,36 @@
 import { ref } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
-
-interface SearchUser {
-  id: string
-  name: string
-  avatar: string
-  bio: string
-  mutual: number
-  added: boolean
-}
+import { imApi } from '@/lib/im-data'
 
 const TIPS = [
   { icon: 'qr-code', label: '扫一扫', desc: '扫描好友二维码' },
   { icon: 'phone', label: '手机联系人', desc: '从通讯录添加好友' },
-  { icon: 'at-sign', label: '智玄号', desc: '通过智玄号搜索' },
+  { icon: 'at-sign', label: '智玄号', desc: '通过智玄号添加' },
 ]
 
 const query = ref('')
-const searched = ref(false)
-const loading = ref(false)
-const results = ref<SearchUser[]>([])
-const sending = ref<Record<string, boolean>>({})
+const submitting = ref(false)
 
 // 绑定到 uni <input>，vue-tsc 按原生 input 事件签名校验，保留 any
 function onInput(e: any) {
   query.value = e.detail.value
 }
 
-// @data-needs: 搜索用户, 参数 {keyword}, 返回 SearchUser[]
-async function doSearch() {
-  if (!query.value.trim() || loading.value) return
-  loading.value = true
-  await new Promise((r) => setTimeout(r, 800))
-  results.value = [
-    { id: '1', name: '周易大师', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80', bio: '八字命理研究者，从业二十年', mutual: 12, added: false },
-    { id: '2', name: '张玄风', avatar: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=80', bio: '紫微斗数专家 · 台湾传承', mutual: 5, added: false },
-  ]
-  searched.value = true
-  loading.value = false
-}
-
-// @data-needs: 发送好友申请, 参数 {userId}, 返回 {code}
-async function addFriend(id: string) {
-  sending.value = { ...sending.value, [id]: true }
-  await new Promise((r) => setTimeout(r, 800))
-  const u = results.value.find((x) => x.id === id)
-  if (u) u.added = true
-  sending.value = { ...sending.value, [id]: false }
+// 发起好友申请（真连 POST /im/friends）；防重复提交
+async function onAdd() {
+  const account = query.value.trim()
+  if (!account || submitting.value) return
+  submitting.value = true
+  try {
+    await imApi.addFriend(account)
+    uni.showToast({ title: '好友申请已发送', icon: 'none' })
+    query.value = ''
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '发送失败，请检查账号', icon: 'none' })
+  } finally {
+    submitting.value = false
+  }
 }
 </script>
 
@@ -225,6 +179,24 @@ async function addFriend(id: string) {
   font-size: 28rpx;
   font-weight: 500;
   color: #ffffff;
+}
+
+/* 说明条 */
+.notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 12rpx;
+  padding: 24rpx;
+  margin-bottom: 40rpx;
+  background: #FFFBEB;
+  border: 1rpx solid rgba(217, 119, 6, 0.25);
+  border-radius: 16rpx;
+}
+.notice-text {
+  flex: 1;
+  font-size: 24rpx;
+  line-height: 1.6;
+  color: #B45309;
 }
 
 /* 区块标题 */

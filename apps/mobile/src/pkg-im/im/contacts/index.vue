@@ -202,6 +202,7 @@ import {
 
 const loading = ref(true)
 const error = ref('')
+const allFriends = ref<FriendItem[]>([])
 const groups = ref<FriendGroup[]>([])
 const letterList = ref<string[]>([])
 const searchKeyword = ref('')
@@ -218,6 +219,7 @@ async function loadData() {
   error.value = ''
   try {
     const friends = await imApi.getFriends()
+    allFriends.value = friends
     const grouped = groupFriendsByLetter(friends)
     groups.value = grouped
     letterList.value = getLetterIndexList(grouped)
@@ -255,7 +257,7 @@ function onSearchInput(e: { detail: { value: string } }) {
   }
   isSearching.value = true
   setTimeout(() => {
-    searchResults.value = searchFriends(keyword)
+    searchResults.value = searchFriends(allFriends.value, keyword)
     isSearching.value = false
   }, 200)
 }

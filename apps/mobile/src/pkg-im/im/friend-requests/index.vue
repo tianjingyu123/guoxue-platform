@@ -162,10 +162,10 @@ onMounted(() => {
 })
 
 const showProcessed = ref(false)
-const processingIds = ref<number[]>([])
+const processingIds = ref<string[]>([])
 const approveAllLoading = ref(false)
 
-const rejectDialog = ref<{ open: boolean; requestId: number | null; userName: string }>({
+const rejectDialog = ref<{ open: boolean; requestId: string | null; userName: string }>({
   open: false,
   requestId: null,
   userName: '',
@@ -181,7 +181,7 @@ function statusText(status: FriendRequestStatus) {
 function goBack() {
   routerBack()
 }
-function goUser(id: number) {
+function goUser(id: string) {
   navigateTo(`/user/${id}`)
 }
 
@@ -200,6 +200,8 @@ async function handleApprove(req: FriendRequestItem) {
     pending.value = pending.value.filter((r) => r.id !== req.id)
     processed.value = [{ ...req, status: 'approved', processedAt: nowStr() }, ...processed.value]
     uni.showToast({ title: `已添加 ${req.fromUser.nickname} 为好友`, icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '操作失败，请重试', icon: 'none' })
   } finally {
     processingIds.value = processingIds.value.filter((id) => id !== req.id)
   }
@@ -227,8 +229,8 @@ async function handleReject() {
     pending.value = pending.value.filter((r) => r.id !== id)
     processed.value = [{ ...req, status: 'rejected', processedAt: nowStr(), rejectReason: reason }, ...processed.value]
     uni.showToast({ title: '已拒绝请求', icon: 'none' })
-  } catch {
-    // 忽略错误，UI 已关闭
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '操作失败，请重试', icon: 'none' })
   }
 }
 
@@ -236,16 +238,25 @@ async function handleReject() {
 async function handleApproveAll() {
   if (pending.value.length === 0 || approveAllLoading.value) return
   approveAllLoading.value = true
+  const now = nowStr()
+  const succeeded: FriendRequestItem[] = []
+  let failed = 0
   try {
     for (const req of [...pending.value]) {
-      await imApi.handleFriendRequest(req.id, 'approve')
+      try {
+        await imApi.handleFriendRequest(req.id, 'approve')
+        succeeded.push({ ...req, status: 'approved', processedAt: now })
+      } catch {
+        failed++
+      }
     }
-    const now = nowStr()
-    const approved = pending.value.map((r) => ({ ...r, status: 'approved' as FriendRequestStatus, processedAt: now }))
-    const count = approved.length
-    processed.value = [...approved, ...processed.value]
-    pending.value = []
-    uni.showToast({ title: `已添加${count}位好友`, icon: 'none' })
+    const okIds = new Set(succeeded.map((r) => r.id))
+    processed.value = [...succeeded, ...processed.value]
+    pending.value = pending.value.filter((r) => !okIds.has(r.id))
+    uni.showToast({
+      title: failed > 0 ? `已添加${succeeded.length}位，${failed}位失败` : `已添加${succeeded.length}位好友`,
+      icon: 'none',
+    })
   } finally {
     approveAllLoading.value = false
   }

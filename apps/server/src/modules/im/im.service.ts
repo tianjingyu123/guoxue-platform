@@ -11,6 +11,23 @@ export interface TimApiResponse {
   [key: string]: unknown;
 }
 
+/** 归一化好友项（前端通讯录直接消费；nick/avatar 来自资料，remark 来自 SNS 备注） */
+export interface ImFriend {
+  userId: string;
+  nick: string;
+  avatar: string;
+  remark: string;
+}
+
+/** 归一化待处理好友申请（来自 friend_get_pendency + 资料补全） */
+export interface ImPendingRequest {
+  userId: string;
+  nick: string;
+  avatar: string;
+  wording: string;
+  addTime: number;
+}
+
 @Injectable()
 export class ImService {
   private readonly logger = new Logger(ImService.name);
@@ -274,11 +291,61 @@ export class ImService {
     });
   }
 
-  /** 获取好友列表 */
-  async getFriendList(userId: string) {
-    return this.callImApi("sns/friend_get_list", {
+  /** 批量拉取用户昵称/头像（profile/portrait_get），返回 { [userId]: { nick, avatar } } */
+  private async getProfiles(
+    accounts: string[],
+  ): Promise<Record<string, { nick: string; avatar: string }>> {
+    const map: Record<string, { nick: string; avatar: string }> = {};
+    if (accounts.length === 0) return map;
+    const resp = (await this.callImApi("profile/portrait_get", {
+      To_Account: accounts,
+      TagList: ["Tag_Profile_IM_Nick", "Tag_Profile_IM_Image"],
+    })) as TimApiResponse;
+    const profileItems =
+      (resp.UserProfileItem as Array<{
+        To_Account?: string;
+        ProfileItem?: Array<{ Tag?: string; Value?: unknown }>;
+      }>) || [];
+    for (const p of profileItems) {
+      if (!p.To_Account) continue;
+      const nick = (p.ProfileItem || []).find((t) => t.Tag === "Tag_Profile_IM_Nick")?.Value;
+      const avatar = (p.ProfileItem || []).find((t) => t.Tag === "Tag_Profile_IM_Image")?.Value;
+      map[p.To_Account] = {
+        nick: typeof nick === "string" ? nick : "",
+        avatar: typeof avatar === "string" ? avatar : "",
+      };
+    }
+    return map;
+  }
+
+  /** 获取好友列表（拉取好友账号 + 批量补全昵称/头像/备注，归一化返回给前端通讯录） */
+  async getFriendList(userId: string): Promise<{ friends: ImFriend[] }> {
+    const listResp = (await this.callImApi("sns/friend_get", {
       From_Account: userId,
-    });
+      StartIndex: 0,
+    })) as TimApiResponse;
+    const items =
+      (listResp.UserDataItem as Array<{
+        To_Account?: string;
+        ValueItem?: Array<{ Tag?: string; Value?: unknown }>;
+      }>) || [];
+    const accounts: string[] = [];
+    const remarkMap: Record<string, string> = {};
+    for (const it of items) {
+      const acc = it.To_Account;
+      if (!acc) continue;
+      accounts.push(acc);
+      const remark = (it.ValueItem || []).find((v) => v.Tag === "Tag_SNS_IM_Remark")?.Value;
+      if (typeof remark === "string" && remark) remarkMap[acc] = remark;
+    }
+    const profiles = await this.getProfiles(accounts);
+    const friends: ImFriend[] = accounts.map((acc) => ({
+      userId: acc,
+      nick: profiles[acc]?.nick || "",
+      avatar: profiles[acc]?.avatar || "",
+      remark: remarkMap[acc] || "",
+    }));
+    return { friends };
   }
 
   /** 拉黑用户 */
@@ -332,11 +399,33 @@ export class ImService {
     });
   }
 
-  /** 获取待处理好友申请 */
-  async listPendingFriendRequests(userId: string) {
-    return this.callImApi("sns/friend_get_pendency", {
+  /** 获取待处理好友申请（拉取待处理申请 + 批量补全申请人昵称/头像，归一化返回） */
+  async listPendingFriendRequests(userId: string): Promise<{ pending: ImPendingRequest[] }> {
+    const resp = (await this.callImApi("sns/friend_get_pendency", {
       From_Account: userId,
-    });
+      PendencyType: "Pendency_Type_ComeIn",
+      StartTime: 0,
+    })) as TimApiResponse;
+    const items =
+      (resp.PendencyItem as Array<{
+        To_Account?: string;
+        AddWording?: string;
+        AddTime?: number;
+      }>) || [];
+    const accounts = items
+      .map((it) => it.To_Account)
+      .filter((a): a is string => !!a);
+    const profiles = await this.getProfiles(accounts);
+    const pending: ImPendingRequest[] = items
+      .filter((it): it is { To_Account: string; AddWording?: string; AddTime?: number } => !!it.To_Account)
+      .map((it) => ({
+        userId: it.To_Account,
+        nick: profiles[it.To_Account]?.nick || "",
+        avatar: profiles[it.To_Account]?.avatar || "",
+        wording: it.AddWording || "",
+        addTime: typeof it.AddTime === "number" ? it.AddTime : 0,
+      }));
+    return { pending };
   }
 
   // ───────── 群组详情 ─────────
@@ -366,9 +455,8 @@ export class ImService {
 
   /** 判断 targetUserId 是否为 userId 的好友（用于授权校验） */
   async isFriend(userId: string, targetUserId: string): Promise<boolean> {
-    const resp = (await this.getFriendList(userId)) as TimApiResponse;
-    const items = (resp.UserDataItem as Array<{ To_Account?: string }>) || [];
-    return items.some((it) => it.To_Account === targetUserId);
+    const { friends } = await this.getFriendList(userId);
+    return friends.some((f) => f.userId === targetUserId);
   }
 
   /** 判断 userId 是否为该群成员（用于授权校验） */

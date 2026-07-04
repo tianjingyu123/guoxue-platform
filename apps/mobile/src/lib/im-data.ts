@@ -2,10 +2,8 @@
  * IM 消息板块数据层（mock + 类型 + 工具）
  * v0 迁移：会话列表/聊天/通知三页公用
  */
-import { apiGet, apiPost, apiPut } from '@/utils/request'
+import { apiGet, apiPost, apiPut, apiDelete } from '@/utils/request'
 import { useTim, type TimMessage, type TimConversation, type TimGroup, type TimGroupMember } from '@/composables/useTim'
-
-const AVATAR = (seed: string) => `https://api.dicebear.com/7.x/avataaars/svg?seed=${seed}`
 
 export type ConversationType = 'private' | 'group' | 'service' | 'system'
 export type MessageType = 'text' | 'image' | 'voice' | 'video' | 'file' | 'system' | 'product'
@@ -107,21 +105,8 @@ export const convTypeIcon: Record<ConversationType, string | null> = {
   system: 'bell',
 }
 
-/* —— 单聊 chat —— */
+/* —— 单聊 chat（收发走腾讯 TIM SDK；此处仅保留消息模型与格式化工具）—— */
 export type MessageStatus = 'sending' | 'sent' | 'delivered' | 'read' | 'failed'
-
-export interface ChatTarget {
-  id: number
-  nickname: string
-  avatar: string
-  remark?: string
-  isOnline: boolean
-  lastActiveAt?: string
-  isBlocked: boolean
-  isFollowed: boolean
-  followsMe?: boolean
-  relation?: 'normal' | 'circle_owner' | 'circle_member'
-}
 
 export interface ChatProduct {
   id: number
@@ -166,38 +151,6 @@ export function timToChatMessage(m: TimMessage): ChatMessage {
     isSelf: m.flow === 'out',
   }
 }
-
-const AVA_ME = AVATAR('me')
-const AVA_101 = AVATAR('im-101')
-
-// @data-needs: 聊天对象信息, 参数 {targetId}, 返回 {ChatTarget}
-export const mockChatTarget: ChatTarget = {
-  id: 101,
-  nickname: '张明德',
-  avatar: AVA_101,
-  remark: '八字师傅',
-  isOnline: true,
-  isBlocked: false,
-  isFollowed: true,
-  followsMe: true,
-  relation: 'normal',
-}
-
-const HOUR = 3600000
-// @data-needs: 聊天历史, 参数 {targetId, beforeMsgId, limit}, 返回 {messages:[ChatMessage], hasMore}
-export const mockChatHistory: ChatMessage[] = [
-  { id: 'msg_1', senderId: '101', senderName: '张明德', senderAvatar: AVA_101, type: 'text', content: '您好，请问有什么可以帮您的？', status: 'read', isWithdrawn: false, createdAt: '2026-06-03 09:00', timestamp: Date.now() - HOUR * 2 },
-  { id: 'msg_2', senderId: '0', senderName: '我', senderAvatar: AVA_ME, type: 'text', content: '老师好，我想咨询一下八字命盘的问题', status: 'read', isWithdrawn: false, createdAt: '2026-06-03 09:05', timestamp: Date.now() - HOUR * 1.9 },
-  { id: 'msg_3', senderId: '101', senderName: '张明德', senderAvatar: AVA_101, type: 'text', content: '好的，请您提供一下出生的年月日时，最好是农历和具体时辰', status: 'read', isWithdrawn: false, createdAt: '2026-06-03 09:08', timestamp: Date.now() - HOUR * 1.8 },
-  { id: 'msg_4', senderId: '0', senderName: '我', senderAvatar: AVA_ME, type: 'text', content: '我是1990年农历三月初八，上午9点左右出生的', status: 'read', isWithdrawn: false, createdAt: '2026-06-03 09:15', timestamp: Date.now() - HOUR * 1.7 },
-  { id: 'msg_5', senderId: '101', senderName: '张明德', senderAvatar: AVA_101, type: 'image', content: '', image: { url: '', thumbnail: '', width: 400, height: 300 }, status: 'read', isWithdrawn: false, createdAt: '2026-06-03 09:25', timestamp: Date.now() - HOUR * 1.5 },
-  { id: 'msg_6', senderId: '101', senderName: '张明德', senderAvatar: AVA_101, type: 'text', content: '这是您的八字命盘，我来为您详细解读一下：\n\n您是庚午年生人，日主为甲木...', status: 'read', isWithdrawn: false, createdAt: '2026-06-03 09:30', timestamp: Date.now() - HOUR * 1.4 },
-  { id: 'msg_7', senderId: '101', senderName: '张明德', senderAvatar: AVA_101, type: 'voice', content: '', voice: { url: '', duration: 45 }, status: 'read', isWithdrawn: false, createdAt: '2026-06-03 09:35', timestamp: Date.now() - HOUR * 1.3 },
-  { id: 'msg_8', senderId: '0', senderName: '我', senderAvatar: AVA_ME, type: 'text', content: '太感谢老师了，分析得很详细！请问有没有推荐的学习资料？', status: 'read', isWithdrawn: false, createdAt: '2026-06-03 10:00', timestamp: Date.now() - HOUR },
-  { id: 'msg_9', senderId: '101', senderName: '张明德', senderAvatar: AVA_101, type: 'card', content: '', product: { id: 1001, title: '八字命理入门到精通', cover: '', price: 199, originalPrice: 299 }, status: 'read', isWithdrawn: false, createdAt: '2026-06-03 10:05', timestamp: Date.now() - HOUR * 0.9 },
-  { id: 'msg_10', senderId: '101', senderName: '张明德', senderAvatar: AVA_101, type: 'text', content: '推荐这门课程给您，是我亲自录制的，从基础到实战都有讲解', status: 'read', isWithdrawn: false, createdAt: '2026-06-03 10:06', timestamp: Date.now() - HOUR * 0.85 },
-  { id: 'msg_11', senderId: '0', senderName: '我', senderAvatar: AVA_ME, type: 'text', content: '好的，那我们明天下午3点见面详谈', status: 'delivered', isWithdrawn: false, createdAt: '2026-06-03 10:30', timestamp: Date.now() - 1800000 },
-]
 
 /** 消息时间标签格式化 */
 export function formatMessageTime(timestamp: number): string {
@@ -577,10 +530,11 @@ export function getGroupPermissions(myRole: GroupRole): GroupPermissions {
   }
 }
 
-// ========== 通讯录相关 ==========
+// ========== 通讯录相关（腾讯 IM 好友关系为真源，REST /im/friends）==========
 
 export interface FriendItem {
-  id: number
+  /** 腾讯 IM identifier（= user.id，字符串） */
+  id: string
   nickname: string
   avatar: string
   remark?: string
@@ -595,35 +549,55 @@ export interface FriendGroup {
   friends: FriendItem[]
 }
 
-const friendAvatar = (i: number) => `/static/images/circles/circle-${(i % 3) + 1}.jpg`
+/** 后端归一化好友项（GET /im/friends → { friends: ImFriendRaw[] }） */
+interface ImFriendRaw {
+  userId: string
+  nick: string
+  avatar: string
+  remark: string
+}
 
-// @data-needs: 通讯录好友列表(带拼音首字母), 返回 FriendItem[]
-export const mockFriendsWithPinyin: FriendItem[] = [
-  { id: 101, nickname: '安然', avatar: friendAvatar(0), isOnline: true, pinyinInitial: 'A', signature: '国学爱好者' },
-  { id: 102, nickname: '白云', avatar: friendAvatar(1), isOnline: false, pinyinInitial: 'B', lastActiveAt: '3小时前' },
-  { id: 103, nickname: '陈明', avatar: friendAvatar(2), isOnline: true, pinyinInitial: 'C', remark: '八字老师' },
-  { id: 104, nickname: '陈思远', avatar: friendAvatar(3), isOnline: false, pinyinInitial: 'C', lastActiveAt: '昨天' },
-  { id: 105, nickname: '丁一', avatar: friendAvatar(4), isOnline: true, pinyinInitial: 'D' },
-  { id: 106, nickname: '方圆', avatar: friendAvatar(5), isOnline: false, pinyinInitial: 'F', lastActiveAt: '2天前' },
-  { id: 107, nickname: '高远', avatar: friendAvatar(6), isOnline: true, pinyinInitial: 'G', signature: '风水师' },
-  { id: 108, nickname: '韩雪', avatar: friendAvatar(7), isOnline: false, pinyinInitial: 'H', remark: '易经学员' },
-  { id: 109, nickname: '黄晓明', avatar: friendAvatar(8), isOnline: true, pinyinInitial: 'H' },
-  { id: 110, nickname: '江涛', avatar: friendAvatar(9), isOnline: false, pinyinInitial: 'J', lastActiveAt: '1小时前' },
-  { id: 111, nickname: '李明德', avatar: friendAvatar(10), isOnline: true, pinyinInitial: 'L', remark: '张老师', signature: '传道授业' },
-  { id: 112, nickname: '刘思远', avatar: friendAvatar(11), isOnline: false, pinyinInitial: 'L' },
-  { id: 113, nickname: '马腾', avatar: friendAvatar(12), isOnline: true, pinyinInitial: 'M' },
-  { id: 114, nickname: '欧阳修', avatar: friendAvatar(13), isOnline: false, pinyinInitial: 'O', signature: '诗词爱好者' },
-  { id: 115, nickname: '秦风', avatar: friendAvatar(14), isOnline: true, pinyinInitial: 'Q' },
-  { id: 116, nickname: '孙悟空', avatar: friendAvatar(15), isOnline: false, pinyinInitial: 'S', lastActiveAt: '5分钟前' },
-  { id: 117, nickname: '唐三藏', avatar: friendAvatar(16), isOnline: true, pinyinInitial: 'T' },
-  { id: 118, nickname: '王老师', avatar: friendAvatar(17), isOnline: true, pinyinInitial: 'W', signature: '国学导师' },
-  { id: 119, nickname: '吴承恩', avatar: friendAvatar(18), isOnline: false, pinyinInitial: 'W' },
-  { id: 120, nickname: '徐志摩', avatar: friendAvatar(19), isOnline: false, pinyinInitial: 'X', lastActiveAt: '昨天' },
-  { id: 121, nickname: '杨过', avatar: friendAvatar(20), isOnline: true, pinyinInitial: 'Y' },
-  { id: 122, nickname: '张无忌', avatar: friendAvatar(21), isOnline: false, pinyinInitial: 'Z', remark: '武学爱好者' },
-  { id: 123, nickname: '周芷若', avatar: friendAvatar(22), isOnline: true, pinyinInitial: 'Z' },
-  { id: 124, nickname: '赵敏', avatar: friendAvatar(23), isOnline: false, pinyinInitial: 'Z', signature: '蒙古郡主' },
+/**
+ * 取名称首字的拼音首字母（A-Z），用于通讯录分组。纯函数。
+ * - 英文/数字 → 首字符大写；中文 → 按拼音归组；其余 → '#'
+ * - 中文归组用 localeCompare('zh-Hans-CN') 与各字母边界字比较（H5/浏览器按拼音排序）
+ */
+const PINYIN_BOUNDARIES: Array<[string, string]> = [
+  ['A', '阿'], ['B', '芭'], ['C', '擦'], ['D', '搭'], ['E', '蛾'], ['F', '发'],
+  ['G', '噶'], ['H', '哈'], ['J', '击'], ['K', '喀'], ['L', '垃'], ['M', '妈'],
+  ['N', '拿'], ['O', '哦'], ['P', '啪'], ['Q', '期'], ['R', '然'], ['S', '撒'],
+  ['T', '塌'], ['W', '挖'], ['X', '昔'], ['Y', '压'], ['Z', '匝'],
 ]
+
+export function pinyinInitial(name: string): string {
+  const ch = (name || '').trim().charAt(0)
+  if (!ch) return '#'
+  if (/[a-zA-Z]/.test(ch)) return ch.toUpperCase()
+  // 非中文（数字/符号/其他语言）统一归入 '#'
+  if (ch < '一' || ch > '鿿') return '#'
+  try {
+    let letter = '#'
+    for (const [ltr, boundary] of PINYIN_BOUNDARIES) {
+      if (ch.localeCompare(boundary, 'zh-Hans-CN') >= 0) letter = ltr
+    }
+    return letter
+  } catch {
+    return '#'
+  }
+}
+
+/** 后端归一化好友项 → 通讯录 FriendItem（昵称缺失时用账号前 8 位兜底；在线态后端未提供，诚实降级隐藏在线点） */
+function toFriendItem(f: ImFriendRaw): FriendItem {
+  const nickname = f.nick || f.userId.slice(0, 8)
+  return {
+    id: f.userId,
+    nickname,
+    avatar: f.avatar || '',
+    remark: f.remark || undefined,
+    isOnline: false,
+    pinyinInitial: pinyinInitial(f.remark || nickname),
+  }
+}
 
 // 按首字母分组好友
 export function groupFriendsByLetter(friends: FriendItem[]): FriendGroup[] {
@@ -646,13 +620,15 @@ export function groupFriendsByLetter(friends: FriendItem[]): FriendGroup[] {
   }))
 }
 
-// 搜索好友（昵称/备注/拼音首字母）
-export function searchFriends(keyword: string): FriendItem[] {
-  return mockFriendsWithPinyin.filter(
+// 搜索好友（在已加载的好友列表中按昵称/备注过滤；纯函数，不再依赖 mock）
+export function searchFriends(friends: FriendItem[], keyword: string): FriendItem[] {
+  const k = keyword.trim().toLowerCase()
+  if (!k) return []
+  return friends.filter(
     (f) =>
-      f.nickname.includes(keyword) ||
-      f.remark?.includes(keyword) ||
-      f.pinyinInitial?.toLowerCase() === keyword.toLowerCase(),
+      f.nickname.toLowerCase().includes(k) ||
+      (f.remark || '').toLowerCase().includes(k) ||
+      (f.pinyinInitial || '').toLowerCase() === k,
   )
 }
 
@@ -686,14 +662,16 @@ export interface GroupListItem {
 export type FriendRequestStatus = 'pending' | 'approved' | 'rejected' | 'expired'
 
 export interface FriendRequestUser {
-  id: number
+  /** 申请人腾讯 IM identifier（= user.id，字符串） */
+  id: string
   nickname: string
   avatar: string
   signature?: string
 }
 
 export interface FriendRequestItem {
-  id: number
+  /** 请求标识 = 申请人账号（腾讯无独立请求 id，以申请人账号唯一标识） */
+  id: string
   fromUser: FriendRequestUser
   message?: string
   status: FriendRequestStatus
@@ -704,56 +682,31 @@ export interface FriendRequestItem {
 
 export interface FriendRequestsResponse {
   pending: FriendRequestItem[]
+  /** 腾讯待处理接口不返回历史，已处理列表恒为空（客户端处理后本地追加） */
   processed: FriendRequestItem[]
   totalPending: number
 }
 
-// @data-needs: 好友请求列表
-export const mockFriendRequests: FriendRequestItem[] = [
-  {
-    id: 1,
-    fromUser: { id: 201, nickname: '周易爱好者', avatar: friendAvatar(0), signature: '研究周易五年，求交流' },
-    message: '您好，我是周易爱好者，想向您请教八字命理的问题',
-    status: 'pending',
-    createdAt: '2026-06-03 10:30',
-  },
-  {
-    id: 2,
-    fromUser: { id: 202, nickname: '风水学徒', avatar: friendAvatar(1), signature: '初学风水，多多指教' },
-    message: '老师好，看了您的风水课程很受启发',
-    status: 'pending',
-    createdAt: '2026-06-03 09:15',
-  },
-  {
-    id: 3,
-    fromUser: { id: 203, nickname: '国学新人', avatar: friendAvatar(2) },
-    status: 'pending',
-    createdAt: '2026-06-02 18:40',
-  },
-  {
-    id: 4,
-    fromUser: { id: 204, nickname: '紫微斗数研究者', avatar: friendAvatar(0), signature: '紫微斗数十年经验' },
-    message: '希望能加您好友，一起探讨紫微斗数',
-    status: 'approved',
-    createdAt: '2026-06-01 14:20',
-    processedAt: '2026-06-01 15:00',
-  },
-  {
-    id: 5,
-    fromUser: { id: 205, nickname: '测试用户', avatar: friendAvatar(1) },
-    message: '请加我好友',
-    status: 'rejected',
-    createdAt: '2026-05-30 10:00',
-    processedAt: '2026-05-30 12:00',
-    rejectReason: '暂时不加陌生人',
-  },
-]
+/** 后端归一化待处理申请项（GET /im/friends/pending → { pending: ImPendingRaw[] }） */
+interface ImPendingRaw {
+  userId: string
+  nick: string
+  avatar: string
+  wording: string
+  /** 秒级时间戳 */
+  addTime: number
+}
 
-// 获取好友请求列表（分待处理/已处理）
-export function getFriendRequestsData(): FriendRequestsResponse {
-  const pending = mockFriendRequests.filter((r) => r.status === 'pending')
-  const processed = mockFriendRequests.filter((r) => r.status !== 'pending')
-  return { pending, processed, totalPending: pending.length }
+/** 后端待处理申请 → 前端 FriendRequestItem */
+function toFriendRequestItem(p: ImPendingRaw): FriendRequestItem {
+  const nickname = p.nick || p.userId.slice(0, 8)
+  return {
+    id: p.userId,
+    fromUser: { id: p.userId, nickname, avatar: p.avatar || '' },
+    message: p.wording || undefined,
+    status: 'pending',
+    createdAt: p.addTime ? formatMessageTime(p.addTime * 1000) : '',
+  }
 }
 
 // 请求状态文本
@@ -800,24 +753,6 @@ export const imApi = {
   /** 删除会话（TIM SDK，聊天记录一并清除） */
   async deleteConversation(conversationID: string): Promise<void> {
     await useTim().deleteConversation(conversationID)
-  },
-
-  /** 获取聊天对象信息 */
-  async getChatTarget(_targetId: number): Promise<ChatTarget> {
-    if (true) return mockChatTarget
-    try { return await apiGet<ChatTarget>(`/im/chat-target/${_targetId}`) } catch { return mockChatTarget }
-  },
-
-  /** 获取聊天历史 */
-  async getChatHistory(_targetId: number, _beforeMsgId?: string, _limit?: number): Promise<{ messages: ChatMessage[]; hasMore: boolean }> {
-    if (true) return { messages: mockChatHistory, hasMore: false }
-    try { return await apiGet<{ messages: ChatMessage[]; hasMore: boolean }>(`/im/chat-history/${_targetId}`) } catch { return { messages: mockChatHistory, hasMore: false } }
-  },
-
-  /** 发送消息 */
-  async sendMessage(_targetId: number, _content: string, _type: string = 'text'): Promise<ChatMessage | null> {
-    if (true) return null
-    try { return await apiPost<ChatMessage>(`/im/send/${_targetId}`, { content: _content, type: _type }) } catch { return null }
   },
 
   /** 获取通知消息列表（真连 /notifications，映射为前端展示模型；错误向上抛走三态，不回退假数据） */
@@ -917,22 +852,35 @@ export const imApi = {
     })
   },
 
-  /** 获取好友列表 */
+  /** 获取好友列表（真连 GET /im/friends；错误向上抛走三态，不回退假数据） */
   async getFriends(): Promise<FriendItem[]> {
-    if (true) return mockFriendsWithPinyin
-    try { return await apiGet<FriendItem[]>('/im/friends') } catch { return mockFriendsWithPinyin }
+    const res = await apiGet<{ friends: ImFriendRaw[] }>('/im/friends')
+    return (res.friends || []).map(toFriendItem)
   },
 
-  /** 获取好友请求列表 */
+  /** 获取好友请求列表（真连 GET /im/friends/pending；腾讯无历史，processed 恒空） */
   async getFriendRequests(): Promise<FriendRequestsResponse> {
-    if (true) return getFriendRequestsData()
-    try { return await apiGet<FriendRequestsResponse>('/im/friend-requests') } catch { return getFriendRequestsData() }
+    const res = await apiGet<{ pending: ImPendingRaw[] }>('/im/friends/pending')
+    const pending = (res.pending || []).map(toFriendRequestItem)
+    return { pending, processed: [], totalPending: pending.length }
   },
 
-  /** 处理好友请求（同意/拒绝） */
-  async handleFriendRequest(_requestId: number, _action: 'approve' | 'reject'): Promise<boolean> {
-    if (true) return true
-    try { await apiPost(`/im/friend-requests/${_requestId}/${_action}`, {}); return true } catch { return false }
+  /**
+   * 处理好友请求（同意/拒绝）。fromUserId = 申请人账号（FriendRequestItem.id）。
+   * 真连 POST /im/friends/approve | /im/friends/reject（body: { toUserId }）；失败抛错由页面处理。
+   */
+  async handleFriendRequest(fromUserId: string, action: 'approve' | 'reject'): Promise<void> {
+    await apiPost(`/im/friends/${action}`, { toUserId: fromUserId })
+  },
+
+  /** 发起好友申请（真连 POST /im/friends）。toUserId = 对方账号；remark 可选备注 */
+  async addFriend(toUserId: string, remark?: string): Promise<void> {
+    await apiPost('/im/friends', { toUserId, remark })
+  },
+
+  /** 删除好友（真连 DELETE /im/friends/:toUserId） */
+  async removeFriend(toUserId: string): Promise<void> {
+    await apiDelete(`/im/friends/${toUserId}`)
   },
 
   /** 获取群设置（TIM SDK：群名片=我的群昵称，会话态=免打扰/置顶；成员昵称展示/保存通讯录 SDK 无对应项，默认开启诚实降级） */
