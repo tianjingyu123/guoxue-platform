@@ -116,6 +116,13 @@ export class UpdateProductDto {
   sceneTags?: ProductSceneTag[];
 }
 
+/** 商品站长推广佣金率设置（佣-V2-P1·仅平台运营可设·商家不可自设）。不传 commissionRate = 清除逐品配置回落类目默认 */
+export class SetCommissionRateDto {
+  @ApiPropertyOptional({ description: "站长推广佣金率（0-0.99 小数·如 0.15=15%）。不传=清除逐品配置，回落类目默认 rateA" })
+  @IsOptional() @IsNumber() @Min(0) @Max(0.99)
+  commissionRate?: number;
+}
+
 export class CreateSkuDto {
   @ApiPropertyOptional({ description: "规格名称（如 颜色:红色）" })
   @IsOptional() @IsString()

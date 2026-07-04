@@ -333,6 +333,28 @@ describe("ShopService", () => {
     })
   })
 
+  describe("setProductCommissionRate（佣-V2-P1·admin-only）", () => {
+    it("设置逐品佣金率成功", async () => {
+      mockPrisma.product.findUnique.mockResolvedValue({ id: "p1" })
+      mockPrisma.product.update.mockResolvedValue({ id: "p1", title: "商品", commissionRate: 0.15 })
+      const result = await svc.setProductCommissionRate("p1", 0.15)
+      expect(result.commissionRate).toBe(0.15)
+      expect(mockPrisma.product.update.mock.calls[0][0].data.commissionRate).toBe(0.15)
+    })
+
+    it("传 null 清除逐品配置回落类目默认", async () => {
+      mockPrisma.product.findUnique.mockResolvedValue({ id: "p1" })
+      mockPrisma.product.update.mockResolvedValue({ id: "p1", title: "商品", commissionRate: null })
+      await svc.setProductCommissionRate("p1", null)
+      expect(mockPrisma.product.update.mock.calls[0][0].data.commissionRate).toBeNull()
+    })
+
+    it("商品不存在抛 BusinessException", async () => {
+      mockPrisma.product.findUnique.mockResolvedValue(null)
+      await expect(svc.setProductCommissionRate("no", 0.2)).rejects.toThrow(BusinessException)
+    })
+  })
+
   // ═══════════════════ 订单管理 ═══════════════════
 
   describe("createOrder", () => {

@@ -137,6 +137,19 @@ export class ShopService {
     return updated;
   }
 
+  /** 设置商品站长推广佣金率（佣-V2-P1·admin-only 由 controller 守卫·null=清除逐品配置回落类目默认 rateA） */
+  async setProductCommissionRate(productId: string, rate: number | null) {
+    const product = await this.prisma.product.findUnique({ where: { id: productId }, select: { id: true } });
+    if (!product) throw new BusinessException(ErrorCode.PRODUCT_NOT_FOUND, "商品不存在");
+    const updated = await this.prisma.product.update({
+      where: { id: productId },
+      data: { commissionRate: rate },
+      select: { id: true, title: true, commissionRate: true },
+    });
+    await this.redis.del(`${CACHE_PREFIX}product:${productId}`);
+    return updated;
+  }
+
   /**
    * 商品品控巡检（事后抽查）
    * - takedown：违规下架（status → OFF_SHELF）

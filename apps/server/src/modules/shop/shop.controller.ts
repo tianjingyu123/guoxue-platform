@@ -19,7 +19,7 @@ import {
   ProductListQueryDto, OrderListQueryDto,
   CreateSkuDto, JsapiPayDto, NativePayDto, RefundOrderDto, RechargeJsapiDto,
   AddToCartDto, AdminPayOrderDto, AlipayRefundDto,
-  UnionpayRefundDto, ApplyAfterSaleDto, ModerateProductDto, BatchGrantShopCouponDto,
+  UnionpayRefundDto, ApplyAfterSaleDto, ModerateProductDto, SetCommissionRateDto, BatchGrantShopCouponDto,
 } from "./shop.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
@@ -131,6 +131,21 @@ export class ShopController {
   @ApiBearerAuth()
   updateProductStatus(@Param("id") id: string, @Body("status") status: string) {
     return this.shop.updateProductStatus(id, status);
+  }
+
+  @Put("products/:id/commission-rate")
+  @Auditable({ action: "商品佣金率设置", targetType: "PRODUCT" })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "设置商品站长推广佣金率（佣-V2·仅平台运营·不传=清除回落类目默认）" })
+  @ApiResponse({ status: 200, description: "设置成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
+  @ApiBearerAuth()
+  setCommissionRate(@Param("id") id: string, @Body() dto: SetCommissionRateDto) {
+    return this.shop.setProductCommissionRate(id, dto.commissionRate ?? null);
   }
 
   @Put("admin/products/:id/moderate")

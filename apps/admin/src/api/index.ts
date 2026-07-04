@@ -897,6 +897,9 @@ export const productApi = {
   create: (data: Record<string, unknown>) => api.post("/shop/products", data),
   update: (id: string, data: Record<string, unknown>) => api.put(`/shop/products/${id}`, data),
   updateStatus: (id: string, status: string) => api.put(`/shop/products/${id}/status`, { status }),
+  // 逐品站长推广佣金率（佣-V2·仅平台运营·rate 传 null=清除逐品配置回落类目默认）
+  setCommissionRate: (id: string, rate: number | null) =>
+    api.put(`/shop/products/${id}/commission-rate`, rate == null ? {} : { commissionRate: rate }),
   delete: (id: string) => api.delete(`/shop/products/${id}`),
   // SKU
   addSku: (productId: string, data: { name: string; price: number; stock: number; image?: string; attrs?: Record<string, string> }) =>

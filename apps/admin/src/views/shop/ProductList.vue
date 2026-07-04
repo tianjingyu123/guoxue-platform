@@ -198,6 +198,23 @@
             </el-form-item>
           </el-col>
         </el-row>
+        <!-- 逐品站长推广佣金（佣-V2·仅编辑态·按商品利润逐品定·2026-07-04拍板） -->
+        <el-form-item
+          v-if="editingId"
+          label="推广佣金"
+        >
+          <el-input-number
+            v-model="form.commissionRatePct"
+            :min="0"
+            :max="99"
+            :precision="1"
+            placeholder="留空=类目默认"
+            style="width:180px"
+          />
+          <span class="rate-hint">
+            %（站长推广佣金一档·留空用类目默认{{ form.commissionRatePct != null ? `·站长每单约得 ¥${((form.price * form.commissionRatePct) / 100).toFixed(2)}` : '' }}）
+          </span>
+        </el-form-item>
         <el-row :gutter="16">
           <el-col :span="8">
             <el-form-item label="原价">
@@ -456,6 +473,8 @@ const form = reactive({
   title: '', intro: '', detail: '', price: 0, originalPrice: 0, stock: 0,
   cover: '', category: '', images: [] as string[], status: 'ON_SALE' as string,
   sceneTags: [] as string[],
+  // 逐品站长推广佣金率（%显示·null=用类目默认·佣-V2·独立端点保存，与 UpdateProductDto 白名单无关）
+  commissionRatePct: null as number | null,
 })
 const dialogFormRef = ref<FormInstance>()
 const dialogRules = {
@@ -512,7 +531,7 @@ async function uploadImage(options: { file: File }) {
 }
 
 function resetForm() {
-  Object.assign(form, { title: '', intro: '', detail: '', price: 0, originalPrice: 0, stock: 0, cover: '', category: '', images: [], status: 'ON_SALE', sceneTags: [] })
+  Object.assign(form, { title: '', intro: '', detail: '', price: 0, originalPrice: 0, stock: 0, cover: '', category: '', images: [], status: 'ON_SALE', sceneTags: [], commissionRatePct: null })
   editingId.value = ''; imgUrl.value = ''
 }
 
@@ -527,6 +546,7 @@ async function openEdit(row: ProductRow) {
     stock: p.stock || 0, cover: p.cover || '', category: p.category || '',
     images: p.images || [], status: p.status || 'ON_SALE',
     sceneTags: p.sceneTags || [],
+    commissionRatePct: p.commissionRate != null ? Math.round(Number(p.commissionRate) * 10000) / 100 : null,
   })
   dialogVisible.value = true; nextTick(() => initEditor())
 }
@@ -554,7 +574,13 @@ async function saveProduct() {
         title: form.title, intro: form.intro, detail: form.detail, images: form.images,
         price: form.price, stock: form.stock, status: form.status, sceneTags: form.sceneTags,
       }
-      await productApi.update(editingId.value, payload); ElMessage.success('已更新')
+      await productApi.update(editingId.value, payload)
+      // 佣金率走独立 admin 端点（不在 UpdateProductDto 白名单·商家不可自设）·%转 0-1 小数
+      await productApi.setCommissionRate(
+        editingId.value,
+        form.commissionRatePct != null ? Math.round(form.commissionRatePct * 100) / 10000 : null,
+      )
+      ElMessage.success('已更新')
     } else {
       // 创建按 CreateProductDto 白名单（无 status 字段·新建默认待审，用列表"上架"按钮流转）
       const payload = {
@@ -626,6 +652,7 @@ async function delSku(skuId: string) {
 .scene-tag { margin: 0 4px 2px 0; }
 .no-img { color: var(--color-text-placeholder); font-size: 11px; }
 .editor-box { min-height: 180px; max-height: 400px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px; }
+.rate-hint { margin-left: 8px; font-size: 12px; color: #909399; }
 .images-area { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end; }
 .img-item { position: relative; width: 80px; height: 80px; }
 .img-item img { width: 100%; height: 100%; object-fit: cover; border-radius: 4px; }
