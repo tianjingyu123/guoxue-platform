@@ -145,7 +145,12 @@ const { list: orders, loading, error, isEmpty, loadStatus, refresh, loadMore } =
 })
 
 const retry = () => refresh()
-onLoad(() => refresh())
+// 支持 ?tab= 深链（我的页四状态入口直达对应筛选）
+onLoad((query?: Record<string, string>) => {
+  const tab = query?.tab
+  if (tab && statusTabs.some((t) => t.key === tab)) activeTab.value = tab
+  refresh()
+})
 onReachBottom(() => loadMore())
 
 function selectTab(key: string) {

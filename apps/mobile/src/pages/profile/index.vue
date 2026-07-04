@@ -94,6 +94,10 @@ const pendingRole = ref<{ type: UserRole; name: string; href: string } | null>(n
 function go(href: string) {
   navigateTo(href)
 }
+/** 我的页订单状态 key → 订单列表页 tab key */
+function orderTabOf(key: 'pending' | 'shipped' | 'received' | 'refund'): string {
+  return { pending: 'pending_pay', shipped: 'pending_ship', received: 'pending_receive', refund: 'after_sale' }[key]
+}
 function openRole(type: UserRole, name: string, id: string | number) {
   pendingRole.value = { type, name, href: roleHref(type, id) }
 }
@@ -160,7 +164,7 @@ async function handleCheckIn() {
             <AppIcon name="bell" :size="38" color="#2c2c2c" />
             <text v-if="totalMessages > 0" class="msg-badge">{{ totalMessages }}</text>
           </view>
-          <view class="round-btn" @tap="toastComingSoon"><AppIcon name="settings" :size="38" color="#2c2c2c" /></view>
+          <view class="round-btn" @tap="go('/pkg-mine/settings/index')"><AppIcon name="settings" :size="38" color="#2c2c2c" /></view>
         </view>
       </view>
 
@@ -184,11 +188,11 @@ async function handleCheckIn() {
             </view>
           </view>
           <view class="stat-row">
-            <view class="stat-item" @tap="toastComingSoon">
+            <view class="stat-item" @tap="go('/pkg-mine/follows/index')">
               <text class="stat-num">{{ userData.stats.following }}</text><text class="stat-label">关注</text>
             </view>
             <view class="stat-div" />
-            <view class="stat-item" @tap="toastComingSoon">
+            <view class="stat-item" @tap="go('/pkg-mine/follows/index?tab=followers')">
               <text class="stat-num">{{ userData.stats.followers }}</text><text class="stat-label">粉丝</text>
             </view>
             <view class="stat-div" />
@@ -207,15 +211,15 @@ async function handleCheckIn() {
     <view class="sec">
       <view class="asset-card">
         <view class="asset-grid">
-          <view class="asset-item" @tap="toastComingSoon">
+          <view class="asset-item" @tap="go('/pkg-mine/wallet/index')">
             <view class="asset-val"><AppIcon name="coins" :size="38" color="#C9A96E" /><text class="coin-num">{{ userData.coins }}</text></view>
             <text class="coin-label">国学币</text>
           </view>
-          <view class="asset-item asset-bd" @tap="toastComingSoon">
+          <view class="asset-item asset-bd" @tap="go('/pkg-shop/coupons/index')">
             <view class="asset-val"><AppIcon name="ticket" :size="30" color="#999999" /><text class="asset-num">{{ userData.coupons }}</text></view>
             <text class="asset-label">优惠券</text>
           </view>
-          <view class="asset-item asset-bd" @tap="toastComingSoon">
+          <view class="asset-item asset-bd" @tap="go('/pkg-mine/points/index')">
             <view class="asset-val"><AppIcon name="star" :size="30" color="#999999" /><text class="asset-num">{{ userData.points }}</text></view>
             <text class="asset-label">积分</text>
           </view>
@@ -228,10 +232,10 @@ async function handleCheckIn() {
       <view class="card">
         <view class="card-head">
           <text class="card-title">我的订单</text>
-          <view class="card-more" @tap="toastComingSoon"><text class="more-txt">查看全部订单</text><AppIcon name="chevron-right" :size="28" color="#999999" /></view>
+          <view class="card-more" @tap="go('/pkg-order/list/index')"><text class="more-txt">查看全部订单</text><AppIcon name="chevron-right" :size="28" color="#999999" /></view>
         </view>
         <view class="order-grid">
-          <view v-for="item in orderStatus" :key="item.key" class="order-item" @tap="toastComingSoon">
+          <view v-for="item in orderStatus" :key="item.key" class="order-item" @tap="go(`/pkg-order/list/index?tab=${orderTabOf(item.key)}`)">
             <view class="order-icon"><AppIcon :name="item.icon" :size="36" color="#999999" /></view>
             <text class="order-label">{{ item.label }}</text>
             <text v-if="item.count > 0" class="order-badge">{{ item.count }}</text>
@@ -312,7 +316,7 @@ async function handleCheckIn() {
 
     <!-- ===== 继续学习卡片 ===== -->
     <view v-if="userData.continueLearning" class="sec">
-      <view class="learn-card" @tap="toastComingSoon">
+      <view class="learn-card" @tap="go(`/pkg-course/detail/index?id=${userData.continueLearning?.id}`)">
         <view class="learn-cover"><AppIcon name="play" :size="44" color="#C41E3A" /></view>
         <view class="learn-info">
           <text class="learn-tag">继续学习</text>
@@ -333,7 +337,7 @@ async function handleCheckIn() {
     <view v-if="userData.isVip && userData.vipDaysLeft <= 30" class="vip-remind">
       <view class="vip-remind-card">
         <view class="vip-remind-left"><AppIcon name="crown" :size="36" color="#ffffff" /><text class="vip-remind-txt">会员还剩 {{ userData.vipDaysLeft }} 天到期</text></view>
-        <view class="vip-renew" @tap="toastComingSoon"><text class="vip-renew-txt">立即续费</text></view>
+        <view class="vip-renew" @tap="go('/pkg-mine/memberships/index')"><text class="vip-renew-txt">立即续费</text></view>
       </view>
     </view>
 
