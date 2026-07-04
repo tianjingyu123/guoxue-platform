@@ -360,6 +360,12 @@ const routes = [
         meta: { title: "订单管理", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN", "GOODS_AUDITOR"] },
       },
       {
+        path: "orders/gift-card-print",
+        name: "GiftCardPrint",
+        component: () => import("@/views/shop/GiftCardPrint.vue"),
+        meta: { title: "贺卡打印", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "GOODS_AUDITOR"] },
+      },
+      {
         path: "orders/refund",
         name: "RefundList",
         component: () => import("@/views/shop/RefundList.vue"),

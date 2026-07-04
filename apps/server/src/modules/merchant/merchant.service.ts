@@ -453,7 +453,11 @@ export class MerchantService {
     return { list: await this.enrichOrders(list), total, page, pageSize };
   }
 
-  /** 订单补全：商品标题/首图（targetId→Product）+ 买家脱敏昵称/手机号（userId→User） */
+  /**
+   * 订单补全：商品标题/首图（targetId→Product）+ 买家脱敏昵称/手机号（userId→User）。
+   * 白标贺卡（供-P2）：订单行自带 giftCardMeta（{fromName,blessing,qrRef}·发货时打印随包裹放入），
+   * 此处补 hasGiftCard 布尔位供列表视图轻量露出贺卡任务标记。
+   */
   private async enrichOrders<T extends { targetId: string; userId: string }>(orders: T[]) {
     if (orders.length === 0) return orders;
     const productIds = [...new Set(orders.map((o) => o.targetId))];
@@ -473,6 +477,7 @@ export class MerchantService {
         productImage: prod?.images?.[0] ?? null,
         buyerNickname: usr?.nickname ?? "用户",
         buyerPhone: usr?.phone ? maskPhone(usr.phone) : null,
+        hasGiftCard: Boolean((o as { giftCardMeta?: unknown }).giftCardMeta), // 白标贺卡任务标记（供-P2）
       };
     });
   }

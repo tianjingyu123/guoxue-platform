@@ -88,6 +88,32 @@
           </view>
         </view>
 
+        <!-- 白标贺卡任务（供-P2·归因订单才有，无则降级隐藏） -->
+        <view v-if="giftCard" class="od-card od-gift-card">
+          <view class="od-gift-head">
+            <AppIcon name="gift" :size="18" color="#C41E3A" />
+            <text class="od-card-title od-gift-title">贺卡任务</text>
+            <text class="od-gift-badge">发货请随包裹放入</text>
+          </view>
+          <view v-if="giftCard.fromName" class="od-info-row">
+            <text class="od-info-label">从业者署名</text>
+            <text class="od-info-val">{{ giftCard.fromName }}</text>
+          </view>
+          <view v-if="giftCard.blessing" class="od-gift-blessing">
+            <text class="od-gift-blessing-txt">「{{ giftCard.blessing }}」</text>
+          </view>
+          <view v-if="giftCard.qrRef" class="od-info-row">
+            <text class="od-info-label">名片码内容</text>
+            <view class="od-info-copy">
+              <text class="od-info-val od-gift-qr">{{ giftCard.qrRef }}</text>
+              <view class="od-copy-btn" @tap="copy(giftCard.qrRef)">
+                <AppIcon name="copy" :size="12" color="#6b7280" />
+              </view>
+            </view>
+          </view>
+          <text class="od-gift-hint">可在后台「订单管理 → 打印贺卡」打印 A6 贺卡（含名片二维码）</text>
+        </view>
+
         <!-- 金额明细（后端仅有订单总额，不伪造运费/数量） -->
         <view class="od-card">
           <text class="od-card-title">金额明细</text>
@@ -182,6 +208,10 @@
           <input class="od-ship-input" v-model="trackingNo" placeholder="请输入物流单号" placeholder-class="od-ph" />
           <text class="od-ship-hint">请仔细核对单号，填写错误将影响买家查询物流</text>
         </view>
+        <view v-if="giftCard" class="od-ship-gift-tip">
+          <AppIcon name="gift" :size="14" color="#C41E3A" />
+          <text class="od-ship-gift-txt">本单含贺卡任务（{{ giftCard.fromName || '从业者' }}），请打印后随包裹放入</text>
+        </view>
         <view v-if="order" class="od-ship-preview">
           <text class="od-ship-preview-label">发货商品</text>
           <view class="od-ship-preview-row">
@@ -274,6 +304,8 @@ async function load() {
 }
 
 const shipping = computed(() => order.value?.shippingInfo || null)
+/** 白标贺卡任务（供-P2）：归因订单才有，无则整卡降级隐藏 */
+const giftCard = computed(() => order.value?.giftCardMeta || null)
 const addressText = computed(() => {
   const s = shipping.value
   if (!s) return ''
@@ -432,6 +464,18 @@ function go(path: string) {
 .od-product-name { font-size: 14px; font-weight: 500; color: #1a1a1a; line-height: 1.4; }
 .od-product-meta { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; }
 .od-product-price { font-size: 14px; font-weight: 500; color: #1a1a1a; }
+
+/* 白标贺卡任务卡（供-P2） */
+.od-gift-card { border: 1px solid rgba(196, 30, 58, 0.18); }
+.od-gift-head { display: flex; align-items: center; gap: 6px; margin-bottom: 12px; }
+.od-gift-title { margin-bottom: 0; }
+.od-gift-badge { margin-left: auto; font-size: 11px; color: #C41E3A; background: rgba(196, 30, 58, 0.08); border-radius: 4px; padding: 2px 8px; }
+.od-gift-blessing { background: #faf7f2; border-radius: 8px; padding: 10px 12px; margin: 4px 0 8px; }
+.od-gift-blessing-txt { font-size: 13px; color: #6b5d48; line-height: 1.6; }
+.od-gift-qr { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.od-gift-hint { font-size: 12px; color: #9ca3af; margin-top: 8px; display: block; line-height: 1.5; }
+.od-ship-gift-tip { display: flex; align-items: center; gap: 6px; background: rgba(196, 30, 58, 0.06); border-radius: 8px; padding: 8px 12px; margin-bottom: 12px; }
+.od-ship-gift-txt { font-size: 12px; color: #C41E3A; line-height: 1.5; }
 
 .od-amount-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
 .od-divider { height: 1px; background: #f3f4f6; margin: 8px 0; }

@@ -990,6 +990,7 @@ model Order {
   shippingInfo     Json? // 下单时收货地址快照 {name,phone,province,city,district,detail}（地址表可改可删，订单存快照最可靠）
   groupId          String? // 拼团组ID（promotionType=GROUP_BUY 时标识具体团；支付成功后据此创建拼团参与者）
   selfDiscount     Decimal?    @db.Decimal(10, 2) // 站长自购立减金额（下单时按佣金比例直接立减·不产生佣金·用于"自购已省"统计）
+  giftCardMeta     Json? // 白标贺卡任务（供-P2）：{fromName 从业者署名, blessing 祝语·可选, qrRef 名片码内容}·归因实物订单下单时自动组装·全局开关 ConfigSystem shop.gift_card.enabled 默认开
   status           OrderStatus @default(PENDING)
   referrerId       String? // 永久推荐人
   tempReferrerId   String? // 临时推荐人

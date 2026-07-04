@@ -113,7 +113,11 @@ const mockPrisma: any = {
   },
   user: {
     update: jest.fn(),
+    findUnique: jest.fn(),
     findMany: jest.fn().mockResolvedValue([]),
+  },
+  configSystem: {
+    findUnique: jest.fn(),
   },
   memberPurchase: {
     create: jest.fn(),
@@ -348,6 +352,58 @@ describe("ShopService", () => {
       expect(mockPrisma.userCoupon.updateMany).toHaveBeenCalledWith(
         expect.objectContaining({ where: expect.objectContaining({ id: "c1", used: false }) }),
       )
+    })
+  })
+
+  // ═══════════════════ 白标贺卡（供-P2） ═══════════════════
+
+  describe("白标贺卡 giftCardMeta（供-P2）", () => {
+    /** 常规实物订单基础 mock（无秒杀·无优惠券） */
+    function setupProductOrder() {
+      mockUnifiedPricing.calculateEffectivePrice.mockResolvedValue({
+        productId: "p1", effectivePrice: 99, originalPrice: 99,
+        appliedPromotion: null, activePromotions: [], hasPromotion: false,
+      })
+      mockPrisma.product.findUnique.mockResolvedValue({ id: "p1", price: 99, status: "ON_SALE" })
+      mockPrisma.order.create.mockResolvedValue({ id: "o-gift", status: "PENDING" })
+    }
+
+    it("归因单自动生成贺卡任务：fromName=归因者昵称·qrRef=其名片页链接（带归因 ref）", async () => {
+      setupProductOrder()
+      // resolveReferrerUserId 与 buildGiftCardMeta 共用 user.findUnique
+      mockPrisma.user.findUnique.mockResolvedValue({ id: "ref1", nickname: "王老师" })
+      mockPrisma.configSystem.findUnique.mockResolvedValue(null) // 无配置行=默认开
+
+      const result = await svc.createOrder("u1", { type: "PRODUCT", targetId: "p1", amount: 1, tempReferrerId: "ref1" })
+      expect(result.id).toBe("o-gift")
+      const data = mockPrisma.order.create.mock.calls[0][0].data
+      expect(data.tempReferrerId).toBe("ref1")
+      expect(data.giftCardMeta).toEqual({
+        fromName: "王老师",
+        blessing: expect.any(String),
+        qrRef: expect.stringContaining("/pkg-creator/teacher-profile/index?userId=ref1&ref=ref1"),
+      })
+    })
+
+    it("无归因不生成：giftCardMeta 为 undefined 且不触碰全局开关配置", async () => {
+      setupProductOrder()
+      const result = await svc.createOrder("u1", { type: "PRODUCT", targetId: "p1", amount: 1 })
+      expect(result.id).toBe("o-gift")
+      const data = mockPrisma.order.create.mock.calls[0][0].data
+      expect(data.giftCardMeta).toBeUndefined()
+      expect(mockPrisma.configSystem.findUnique).not.toHaveBeenCalled()
+    })
+
+    it("全局开关关闭（shop.gift_card.enabled=false）：归因单也不生成贺卡", async () => {
+      setupProductOrder()
+      mockPrisma.user.findUnique.mockResolvedValue({ id: "ref1", nickname: "王老师" })
+      mockPrisma.configSystem.findUnique.mockResolvedValue({ configValue: "false" })
+
+      const result = await svc.createOrder("u1", { type: "PRODUCT", targetId: "p1", amount: 1, tempReferrerId: "ref1" })
+      expect(result.id).toBe("o-gift")
+      const data = mockPrisma.order.create.mock.calls[0][0].data
+      expect(data.tempReferrerId).toBe("ref1") // 归因照常保留，只是不附贺卡
+      expect(data.giftCardMeta).toBeUndefined()
     })
   })
 

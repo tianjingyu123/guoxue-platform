@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, reactive } from "vue";
+import { useRouter } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { orderApi } from "@/api";
 import { exportCSV } from "@/utils/export";
@@ -26,6 +27,8 @@ interface OrderRow {
   paidAt?: string;
   address?: OrderAddress;
   items?: OrderItemRow[];
+  /** 白标贺卡任务（供-P2）：归因订单自动生成，存在即可打印 A6 贺卡 */
+  giftCardMeta?: { fromName?: string; blessing?: string; qrRef?: string } | null;
 }
 
 const orders = ref<OrderRow[]>([]);
@@ -86,6 +89,13 @@ async function fetchList() {
 }
 
 function showDetail(row: OrderRow) { detailRow.value = row; detailVisible.value = true; }
+
+const router = useRouter();
+/** 白标贺卡打印（供-P2）：新标签页打开 A6 打印模板，供发货时打印随包裹放入 */
+function openGiftCardPrint(row: OrderRow) {
+  const href = router.resolve({ name: "GiftCardPrint", query: { orderId: row.id ?? "" } }).href;
+  window.open(href, "_blank");
+}
 
 async function handlePay(orderId: string) {
   try {
@@ -272,6 +282,15 @@ function exportData() {
           @click="showDetail(row)"
         >
           详情
+        </el-button>
+        <el-button
+          v-if="row.giftCardMeta"
+          size="small"
+          type="warning"
+          link
+          @click="openGiftCardPrint(row)"
+        >
+          打印贺卡
         </el-button>
         <template v-if="row.status === 'PENDING'">
           <el-button
@@ -462,6 +481,21 @@ function exportData() {
             :span="2"
           >
             {{ detailRow.targetId || '-' }}
+          </el-descriptions-item>
+          <el-descriptions-item
+            v-if="detailRow.giftCardMeta"
+            label="贺卡任务"
+            :span="2"
+          >
+            {{ detailRow.giftCardMeta.fromName || '国学甄选' }} 为您甄选
+            <el-button
+              size="small"
+              type="warning"
+              link
+              @click="openGiftCardPrint(detailRow)"
+            >
+              打印贺卡
+            </el-button>
           </el-descriptions-item>
         </el-descriptions>
 

@@ -113,11 +113,15 @@ export interface MerchantOrder {
   createdAt: string
   paidAt?: string | null
   shippedAt?: string | null
+  /** 白标贺卡任务（供-P2）：归因订单自动生成·发货时打印随包裹放入（admin 后台「订单管理→打印贺卡」出 A6 模板） */
+  giftCardMeta?: { fromName?: string; blessing?: string; qrRef?: string } | null
   // 以下为后端 enrich 字段
   productTitle?: string
   productImage?: string | null
   buyerNickname?: string
   buyerPhone?: string | null
+  /** 贺卡任务标记（后端 enrich·列表轻量露出） */
+  hasGiftCard?: boolean
 }
 
 export interface MerchantReview {
