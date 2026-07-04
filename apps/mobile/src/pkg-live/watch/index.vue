@@ -338,15 +338,22 @@ async function joinDanmaku(groupId: string) {
 
 // ===== 低延时播放地址（C1）=====
 const playUrl = ref<{ flv: string; hls: string } | null>(null)
-const playHint = ref('直播即将开始')
 
-// 拉取观众播放地址：仅直播中后端才返回；未开播/已结束抛错→保持占位提示
+// 未开播占位文案：由房间真实状态判定（后端 play-url 错误信息「直播未开始或已结束」两态同文，
+// 不能用字符串包含'结束'来区分，否则 WAITING 预告房会被误标为「已结束」）。
+const playHint = computed(() => {
+  const s = String(room.value?.status || '').toUpperCase()
+  if (s === 'ENDED' || s === 'REPLAY') return '直播已结束'
+  if (s === 'BANNED' || s === 'CANCELLED') return '直播已停止'
+  return '直播即将开始'
+})
+
+// 拉取观众播放地址：仅直播中后端才返回；未开播/已结束抛错→保持占位（文案走 playHint 按房间状态判定）
 async function fetchPlayUrl(roomId: string) {
   try {
     playUrl.value = await liveApi.getPlayUrl(roomId)
-  } catch (e) {
+  } catch {
     playUrl.value = null
-    playHint.value = (e as Error)?.message?.includes('结束') ? '直播已结束' : '直播未开始'
   }
 }
 

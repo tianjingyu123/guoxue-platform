@@ -1856,10 +1856,10 @@ export const liveApi = {
    * 弹幕(comments)走 TIM 群·初始空；商品详情关联表无字段 → 降级空。
    */
   async getWatchRoom(id: string): Promise<{
-    room: typeof liveWatchRoom; comments: VerticalLiveComment[]; products: VerticalLiveProduct[]
+    room: typeof liveWatchRoom & { status: string }; comments: VerticalLiveComment[]; products: VerticalLiveProduct[]
   }> {
     const r = await apiGet<RawLiveRoomDetail>(`/live/rooms/${id}`)
-    const room: typeof liveWatchRoom = {
+    const room: typeof liveWatchRoom & { status: string } = {
       id: r.id || id,
       type: (Array.isArray(r.products) && r.products.length ? 'commerce' : 'knowledge'),
       title: r.title || '',
@@ -1872,6 +1872,7 @@ export const liveApi = {
       isFollowing: false, // 后端房间未返回关注态 → 降级(页面按钮默认未关注)
       onlineAvatars: [],
       imGroupId: r.imGroupId || '',
+      status: r.status || '', // 房间状态(WAITING/LIVING/ENDED/REPLAY)→供未开播占位文案精确判断
     }
     return { room, comments: [], products: [] }
   },
