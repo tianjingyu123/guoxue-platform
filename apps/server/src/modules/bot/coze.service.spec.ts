@@ -107,12 +107,33 @@ describe("CozeService", () => {
       });
 
       const requestBody = JSON.parse(mockFetch.mock.calls[0][1].body);
-      expect(requestBody.additional_messages).toHaveLength(2);
+      // 历史 2 条 + 当前提问 1 条
+      expect(requestBody.additional_messages).toHaveLength(3);
       expect(requestBody.additional_messages[0]).toEqual({
         role: "user",
         content: "上一条消息",
         content_type: "text",
       });
+      expect(requestBody.additional_messages[2]).toEqual({
+        role: "user",
+        content: "你好",
+        content_type: "text",
+      });
+    });
+
+    it("当前提问 query 必须作为最后一条 user 消息发送（无历史时）", async () => {
+      mockFetch
+        .mockResolvedValueOnce({ json: async () => chatResponse })
+        .mockResolvedValueOnce({
+          json: async () => ({ code: 0, data: [assistantMessage] }),
+        });
+
+      await svc.chat(chatParams);
+
+      const requestBody = JSON.parse(mockFetch.mock.calls[0][1].body);
+      expect(requestBody.additional_messages).toEqual([
+        { role: "user", content: "你好", content_type: "text" },
+      ]);
     });
 
     it("创建对话 API 返回错误时抛出异常", async () => {

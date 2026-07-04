@@ -152,6 +152,9 @@ export class UpdateChapterDto {
 // ═══════════════ 阅读进度 ═══════════════
 
 export class UpdateProgressDto {
+  @ApiPropertyOptional({ description: "章节ID" })
+  @IsOptional() @IsString() chapterId?: string;
+
   @ApiPropertyOptional({ description: "阅读进度 0-100" })
   @IsOptional() @Type(() => Number) @IsInt() @Min(0) @Max(100) progress?: number;
 

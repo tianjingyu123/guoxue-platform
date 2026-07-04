@@ -50,14 +50,19 @@ export class CozeService {
     conversationId?: string;
     additionalParams?: Record<string, unknown>;
   }) {
+    // 历史消息在前，当前提问必须作为最后一条 user 消息追加——
+    // 否则 Coze 创建的 chat 没有新用户消息，永远不会产生回答，轮询必超时
     const body: Record<string, unknown> = {
       bot_id: params.botId,
       user_id: params.userId,
-      additional_messages: params.chatHistory?.map((m) => ({
-        role: m.role,
-        content: m.content,
-        content_type: "text",
-      })) || [],
+      additional_messages: [
+        ...(params.chatHistory?.map((m) => ({
+          role: m.role,
+          content: m.content,
+          content_type: "text",
+        })) || []),
+        { role: "user", content: params.query, content_type: "text" },
+      ],
       auto_save_history: true,
     };
 
