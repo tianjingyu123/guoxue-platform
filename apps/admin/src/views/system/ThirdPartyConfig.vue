@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { systemApi } from '@/api'
+import { systemApi, api } from '@/api'
 
 interface Field { key: string; label: string; sensitive: boolean; placeholder: string; hint: string; multiline: boolean }
 interface Service { key: string; label: string; category: string; enabled: boolean; note: string; fields: Field[] }
@@ -9,6 +9,25 @@ interface Service { key: string; label: string; category: string; enabled: boole
 const loading = ref(false)
 const loadError = ref(false)
 const saving = ref(false)
+// 汇付连通性探针（防重复+结果标签）
+const pinging = ref(false)
+const pingResult = ref<{ ok: boolean; respCode?: string; respDesc?: string; merchantName?: string } | null>(null)
+
+async function pingHuifu() {
+  if (pinging.value) return
+  pinging.value = true
+  pingResult.value = null
+  try {
+    const res = await api.get('/huifu/ping')
+    const d = (res as { data?: { data?: unknown } })?.data
+    const payload = ((d as { data?: unknown })?.data ?? d) as unknown
+    pingResult.value = (payload as { ok: boolean; respCode?: string; respDesc?: string; merchantName?: string }) || { ok: false, respDesc: '无响应' }
+  } catch (e) {
+    pingResult.value = { ok: false, respDesc: (e as Error)?.message || '请求失败' }
+  } finally {
+    pinging.value = false
+  }
+}
 const services = ref<Service[]>([])
 const activeTab = ref('')
 // formData[serviceKey][fieldKey] = value（掩码值/空值保存时后端不会覆盖真值）
@@ -193,6 +212,21 @@ async function saveService(svc: Service) {
                 >
                   保存并生效
                 </el-button>
+                <!-- 汇付连通性探针：调斗拱商户基本信息查询，返回真实应答码 -->
+                <el-button
+                  v-if="svc.key === 'huifu'"
+                  :loading="pinging"
+                  @click="pingHuifu"
+                >
+                  测试连通
+                </el-button>
+                <el-tag
+                  v-if="svc.key === 'huifu' && pingResult"
+                  :type="pingResult.ok ? 'success' : 'danger'"
+                  style="margin-left:8px"
+                >
+                  {{ pingResult.ok ? `✓ 已连通 ${pingResult.merchantName || ''}` : `未通：${pingResult.respCode || ''} ${pingResult.respDesc || ''}` }}
+                </el-tag>
               </el-form-item>
             </el-form>
           </el-card>
