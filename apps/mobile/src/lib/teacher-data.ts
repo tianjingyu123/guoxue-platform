@@ -66,6 +66,18 @@ export interface TeacherInstituteBadge {
   lecturerLevel: string
 }
 
+/** 讲师影响力指数（课题二工作台 P3·后端 computeTeacherInfluence） */
+export interface TeacherInfluence {
+  /** 综合影响力指数 0-100 */
+  score: number
+  /** 等级中文名 */
+  level: string
+  /** 等级枚举键（配色/图标用） */
+  levelKey: 'starter' | 'rising' | 'growing' | 'senior' | 'master'
+  /** 四维分解：学员规模/内容产出/口碑评分/信任背书 */
+  breakdown: { reach: number; output: number; reputation: number; trust: number }
+}
+
 export interface TeacherPublicProfile {
   userId: string
   nickname: string
@@ -73,6 +85,8 @@ export interface TeacherPublicProfile {
   verifiedTitle: string
   intro: string
   stats: { courseCount: number; studentCount: number; avgRating?: number; reviewCount?: number }
+  /** 影响力指数（后端必返回；前端兜底起步态） */
+  influence: TeacherInfluence
   courses: TeacherProfileCourse[]
   offlineStations: TeacherProfileStation[]
   /** 研究院签约金标（非研究院成员省略，页面 v-if 诚实降级） */
@@ -87,6 +101,12 @@ interface RawTeacherProfile {
   verifiedTitle?: string | null
   intro?: string | null
   stats?: { courseCount?: number; studentCount?: number; avgRating?: number; reviewCount?: number }
+  influence?: {
+    score?: number
+    level?: string
+    levelKey?: string
+    breakdown?: { reach?: number; output?: number; reputation?: number; trust?: number }
+  }
   courses?: Array<{ id?: string; title?: string; cover?: string | null; price?: number | string; studentCount?: number; type?: string }>
   offlineStations?: Array<{ id?: string; name?: string; city?: string; cover?: string | null; type?: string | null }>
   institute?: { signed?: boolean; lecturerLevel?: string }
@@ -139,6 +159,17 @@ export const teacherApi = {
         studentCount: Number(raw.stats?.studentCount ?? 0),
         // 后端无评价时省略 avgRating，此处原样保留省略语义（页面 v-if 隐藏评分位）
         ...(raw.stats?.avgRating != null ? { avgRating: Number(raw.stats.avgRating), reviewCount: Number(raw.stats.reviewCount ?? 0) } : {}),
+      },
+      influence: {
+        score: Number(raw.influence?.score ?? 0),
+        level: raw.influence?.level || '起步阶段',
+        levelKey: (raw.influence?.levelKey as TeacherInfluence['levelKey']) || 'starter',
+        breakdown: {
+          reach: Number(raw.influence?.breakdown?.reach ?? 0),
+          output: Number(raw.influence?.breakdown?.output ?? 0),
+          reputation: Number(raw.influence?.breakdown?.reputation ?? 0),
+          trust: Number(raw.influence?.breakdown?.trust ?? 0),
+        },
       },
       courses: (raw.courses || []).map((c) => ({
         id: c.id || '',

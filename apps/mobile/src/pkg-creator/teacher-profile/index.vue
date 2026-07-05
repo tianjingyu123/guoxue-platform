@@ -13,6 +13,7 @@ import { captureRefFromQuery, withRef } from '@/utils/referral'
 import AppIcon from '@/components/common/app-icon.vue'
 import TeacherCertBadge from '@/components/common/teacher-cert-badge.vue'
 import NameCardPoster from '@/components/common/name-card-poster.vue'
+import TeacherInfluenceCard from '@/components/common/teacher-influence-card.vue'
 import { teacherApi, buildTeacherCardTitle, buildTeacherCardStats, type TeacherPublicProfile } from '@/lib/teacher-data'
 
 const loading = ref(true)
@@ -163,6 +164,12 @@ onLoad((options) => {
       </view>
     </view>
 
+    <!-- 影响力指数（课题二工作台 P3·公开主页也展示，增强讲师品牌可信度） -->
+    <teacher-influence-card
+      class="profile-influence"
+      :influence="profile.influence"
+    />
+
     <!-- 线上课程 -->
     <view class="section">
       <view class="sec-head">
@@ -298,6 +305,9 @@ onLoad((options) => {
   height: 76rpx; background: #fdf3e7; border: 1rpx solid #e6d3a8; border-radius: 999rpx;
 }
 .poster-btn-txt { font-size: 28rpx; font-weight: 600; color: #8b5a2b; }
+
+/* 影响力卡（组件自带白底·此处仅控外边距，与 section 节奏一致） */
+.profile-influence { display: block; margin: 16rpx 24rpx 0; }
 
 /* 分区 */
 .section { margin-top: 16rpx; background: #ffffff; padding: 28rpx 32rpx; }

@@ -80,6 +80,13 @@
       <!-- 经营顾问（自包含，无建议自动隐藏） -->
       <advisor-card role-type="LECTURER" />
 
+      <!-- 影响力指数（课题二工作台 P3·预取公开主页数据·失败则不显示） -->
+      <teacher-influence-card
+        v-if="posterProfile"
+        class="td-influence"
+        :influence="posterProfile.influence"
+      />
+
       <!-- 数据概览（全部来自真实课程数据） -->
       <view class="td-grid">
         <view class="td-stat">
@@ -189,6 +196,7 @@ import AppIcon from '@/components/common/app-icon.vue'
 import AlmanacBar from '@/components/workbench/almanac-bar.vue'
 import AdvisorCard from '@/components/workbench/advisor-card.vue'
 import NameCardPoster from '@/components/common/name-card-poster.vue'
+import TeacherInfluenceCard from '@/components/common/teacher-influence-card.vue'
 import { navigateTo, goBack } from '@/utils/router'
 import { useShare } from '@/composables/useShare'
 import { withRef } from '@/utils/referral'
@@ -297,9 +305,14 @@ async function loadData() {
     teacherTitle.value = cert?.verifiedTitle || cert?.title || ''
     teacherIntro.value = cert?.intro || ''
     myUserId.value = cert?.userId || ''
-    // 仅认证讲师加载课程
+    // 仅认证讲师加载课程 + 预取公开主页（含影响力指数·失败静默不阻塞工作台）
     if (certStatus.value === 'approved') {
-      const res = await courseApi.getCreatedCourses(1, 50)
+      const [res] = await Promise.all([
+        courseApi.getCreatedCourses(1, 50),
+        myUserId.value
+          ? teacherApi.getPublicProfile(myUserId.value).then((p) => { posterProfile.value = p }).catch(() => {})
+          : Promise.resolve(),
+      ])
       courses.value = res.items
     }
   } catch (e) {
@@ -480,6 +493,9 @@ onLoad(() => {
   padding: 0 24rpx;
   margin-top: -24rpx;
 }
+
+/* 影响力卡外边距（组件自带白底） */
+.td-influence { display: block; margin-bottom: 24rpx; }
 
 /* 数据概览 */
 .td-grid {

@@ -5,6 +5,55 @@ import { ErrorCode } from "../../common/error-codes";
 import { ApplyCertificationDto } from "./teacher.dto";
 import { safePagination } from "../../common/pagination";
 
+/** 讲师影响力指数结构（课题二工作台 P3） */
+export interface TeacherInfluence {
+  /** 综合影响力指数 0-100 */
+  score: number;
+  /** 等级中文名 */
+  level: string;
+  /** 等级枚举键（前端配色/图标用） */
+  levelKey: "starter" | "rising" | "growing" | "senior" | "master";
+  /** 四维分解（各维当前得分，便于展示雷达/进度条与「哪一项可提升」） */
+  breakdown: { reach: number; output: number; reputation: number; trust: number };
+}
+
+/**
+ * 讲师影响力指数（0-100·课题二五角色工作台 P3）。
+ * 纯函数·无随机·全部基于公开可核对数据加权（符合 CLAUDE.md 禁纯随机/假算法）：
+ * - reach 学员规模 40：log10 缩放，约 2000 学员触顶（防头部碾压、尾部也有区分度）
+ * - output 内容产出 20：约 8 门课触顶
+ * - reputation 口碑评分 25：5 星满分；无评价记 0（口碑尚未建立·诚实不虚高）
+ * - trust 信任背书 15：评价条数 log10 缩放，约 100 条触顶
+ */
+export function computeTeacherInfluence(stats: {
+  courseCount: number;
+  studentCount: number;
+  avgRating?: number;
+  reviewCount?: number;
+}): TeacherInfluence {
+  const students = Math.max(0, stats.studentCount || 0);
+  const courses = Math.max(0, stats.courseCount || 0);
+  const rating = Math.max(0, Math.min(5, stats.avgRating ?? 0));
+  const reviews = Math.max(0, stats.reviewCount || 0);
+
+  const reach = Math.min(40, Math.round(Math.log10(students + 1) * 12));
+  const output = Math.min(20, Math.round(courses * 2.5));
+  const reputation = Math.min(25, Math.round((rating / 5) * 25));
+  const trust = Math.min(15, Math.round(Math.log10(reviews + 1) * 7.5));
+
+  const score = Math.min(100, reach + output + reputation + trust);
+  const { level, levelKey } = teacherInfluenceLevel(score);
+  return { score, level, levelKey, breakdown: { reach, output, reputation, trust } };
+}
+
+function teacherInfluenceLevel(score: number): { level: string; levelKey: TeacherInfluence["levelKey"] } {
+  if (score >= 80) return { level: "名师影响力", levelKey: "master" };
+  if (score >= 60) return { level: "资深影响力", levelKey: "senior" };
+  if (score >= 40) return { level: "成长影响力", levelKey: "growing" };
+  if (score >= 20) return { level: "新锐影响力", levelKey: "rising" };
+  return { level: "起步阶段", levelKey: "starter" };
+}
+
 @Injectable()
 export class TeacherService {
   constructor(private prisma: PrismaService) {}
@@ -149,6 +198,8 @@ export class TeacherService {
       verifiedTitle: cert.verifiedTitle,
       intro: cert.intro,
       stats,
+      // 影响力指数（课题二工作台 P3·纯函数·基于上方公开 stats 加权）
+      influence: computeTeacherInfluence(stats),
       courses,
       offlineStations,
       // 研究院签约金标（T9-P0a）：在册(ACTIVE)成员补 institute 字段，非成员省略（前端 v-if 诚实降级）

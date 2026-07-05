@@ -1,5 +1,5 @@
 import { Test } from "@nestjs/testing";
-import { TeacherService } from "./teacher.service";
+import { TeacherService, computeTeacherInfluence } from "./teacher.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import { BusinessException } from "../../common/business.exception";
 
@@ -248,5 +248,57 @@ describe("TeacherService", () => {
       const res = await svc.reviewCertification("t1", "REJECT", { rejectReason: "资质不足" });
       expect(res.status).toBe("REJECTED");
     });
+  });
+});
+
+describe("computeTeacherInfluence（讲师影响力指数·课题二工作台P3）", () => {
+  it("零数据讲师 → 0 分·起步阶段", () => {
+    const r = computeTeacherInfluence({ courseCount: 0, studentCount: 0 });
+    expect(r.score).toBe(0);
+    expect(r.levelKey).toBe("starter");
+    expect(r.breakdown).toEqual({ reach: 0, output: 0, reputation: 0, trust: 0 });
+  });
+
+  it("头部名师（大量学员+多课+满分口碑+大量评价）→ 触顶 100·名师影响力", () => {
+    const r = computeTeacherInfluence({ courseCount: 20, studentCount: 50000, avgRating: 5, reviewCount: 2000 });
+    expect(r.score).toBe(100);
+    expect(r.levelKey).toBe("master");
+    // 各维均触顶
+    expect(r.breakdown.reach).toBe(40);
+    expect(r.breakdown.output).toBe(20);
+    expect(r.breakdown.reputation).toBe(25);
+    expect(r.breakdown.trust).toBe(15);
+  });
+
+  it("无评价（口碑未建立）→ reputation/trust 记 0，不虚高", () => {
+    const r = computeTeacherInfluence({ courseCount: 4, studentCount: 100 });
+    expect(r.breakdown.reputation).toBe(0);
+    expect(r.breakdown.trust).toBe(0);
+    // 仅 reach + output 贡献
+    expect(r.score).toBe(r.breakdown.reach + r.breakdown.output);
+  });
+
+  it("对数缩放：学员越多得分递增但边际递减（防头部碾压）", () => {
+    const few = computeTeacherInfluence({ courseCount: 0, studentCount: 10 }).breakdown.reach;
+    const mid = computeTeacherInfluence({ courseCount: 0, studentCount: 1000 }).breakdown.reach;
+    const many = computeTeacherInfluence({ courseCount: 0, studentCount: 100000 }).breakdown.reach;
+    expect(few).toBeLessThan(mid);
+    expect(mid).toBeLessThanOrEqual(many);
+    expect(many).toBeLessThanOrEqual(40); // 触顶封顶
+  });
+
+  it("异常入参（负数/越界评分）稳健归一化，不产 NaN/越界", () => {
+    const r = computeTeacherInfluence({ courseCount: -5, studentCount: -100, avgRating: 9, reviewCount: -3 });
+    expect(Number.isFinite(r.score)).toBe(true);
+    expect(r.score).toBeGreaterThanOrEqual(0);
+    expect(r.score).toBeLessThanOrEqual(100);
+    expect(r.breakdown.reputation).toBeLessThanOrEqual(25); // avgRating 9 被钳到 5
+  });
+
+  it("分级边界：40→成长影响力、60→资深、80→名师", () => {
+    // 构造恰好落档的组合（output 20 + reputation 20 = 40 边界）
+    const growing = computeTeacherInfluence({ courseCount: 8, studentCount: 0, avgRating: 4, reviewCount: 0 });
+    expect(growing.score).toBeGreaterThanOrEqual(40);
+    expect(["growing", "senior", "master"]).toContain(growing.levelKey);
   });
 });
