@@ -51,8 +51,8 @@ export const THIRD_PARTY_SERVICES: ThirdPartyService[] = [
       S("apiV3Key", "APIv3 密钥", "WECHAT_PAY_API_V3_KEY", true, "商户平台→账户中心→API安全→APIv3密钥（自己设一个32位字符串并牢记）"),
       S("serialNo", "证书序列号", "WECHAT_PAY_SERIAL_NO", false, "商户平台→账户中心→API安全→申请API证书后，证书详情里的序列号"),
       S("privateKey", "商户私钥（内容或路径）", "WECHAT_PAY_PRIVATE_KEY", true, "两种填法任选其一：① 用记事本打开 apiclient_key.pem，全选复制内容粘贴进来；② 或直接填服务器上证书文件的完整路径（如 /opt/guoxue/certs/apiclient_key.pem）。系统会自动识别是内容还是路径。", "", true, true),
-      S("notifyUrl", "支付回调地址", "WECHAT_PAY_NOTIFY_URL", false, "填 https://api.rebugx.cn/api/v1/pay/wechat/notify"),
-      S("refundNotifyUrl", "退款回调地址", "WECHAT_PAY_REFUND_NOTIFY_URL", false, "填 https://api.rebugx.cn/api/v1/pay/wechat/refund-notify"),
+      S("notifyUrl", "支付回调地址", "WECHAT_PAY_NOTIFY_URL", false, "填 https://api.rebugx.cn/api/v1/shop/pay/notify"),
+      S("refundNotifyUrl", "退款回调地址", "WECHAT_PAY_REFUND_NOTIFY_URL", false, "填 https://api.rebugx.cn/api/v1/shop/refund/notify"),
     ],
   },
   {
@@ -62,7 +62,7 @@ export const THIRD_PARTY_SERVICES: ThirdPartyService[] = [
       S("appId", "应用 AppID", "ALIPAY_APP_ID", false, "开放平台→控制台→我的应用→APPID（16位数字）"),
       S("privateKey", "应用私钥（内容或路径）", "ALIPAY_PRIVATE_KEY", true, "填『应用私钥』内容（支付宝密钥工具生成，一长串），或服务器上私钥文件的完整路径。系统自动识别。", "", true, true),
       S("publicKey", "支付宝公钥（内容或路径）", "ALIPAY_PUBLIC_KEY", true, "填『支付宝公钥』内容（平台给你的），或服务器上公钥文件的完整路径。系统自动识别。", "", true, true),
-      S("notifyUrl", "异步通知地址", "ALIPAY_NOTIFY_URL", false, "填 https://api.rebugx.cn/api/v1/pay/alipay/notify"),
+      S("notifyUrl", "异步通知地址", "ALIPAY_NOTIFY_URL", false, "填 https://api.rebugx.cn/api/v1/shop/alipay/notify"),
     ],
   },
   {
@@ -85,7 +85,7 @@ export const THIRD_PARTY_SERVICES: ThirdPartyService[] = [
       S("merId", "商户号", "UNIONPAY_MER_ID", false, "银联分配的商户号（15位）"),
       S("pfxPath", "证书路径(.pfx)", "UNIONPAY_PFX_PATH", true, "银联签名证书 .pfx 文件（需放服务器，路径找技术）"),
       S("pfxPassword", "证书密码", "UNIONPAY_PFX_PASSWORD", true, "申请 .pfx 证书时设置的密码"),
-      S("notifyUrl", "后台通知地址", "UNIONPAY_NOTIFY_URL", false, "填 https://api.rebugx.cn/api/v1/pay/unionpay/notify"),
+      S("notifyUrl", "后台通知地址", "UNIONPAY_NOTIFY_URL", false, "填 https://api.rebugx.cn/api/v1/shop/unionpay/notify"),
     ],
   },
   // ───────── 腾讯云全家桶 ─────────
