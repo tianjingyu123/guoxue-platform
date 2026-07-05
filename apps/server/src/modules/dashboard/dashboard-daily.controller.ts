@@ -20,9 +20,9 @@ export class DashboardDailyController {
     private readonly funnel: FunnelDailyService,
   ) {}
 
-  @Get("funnel")
+  @Get("funnels/daily")
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
-  @ApiOperation({ summary: "转化漏斗近 N 日序列（F1_activation/F2_member/F3_commerce/F4_practitioner）" })
+  @ApiOperation({ summary: "转化漏斗近 N 日序列（F1_activation/F2_member/F3_commerce/F4_practitioner·D-T1·注意 /dashboard/funnel 是旧版单漏斗勿混）" })
   @ApiQuery({ name: "funnel", required: true, description: "漏斗键" })
   @ApiQuery({ name: "days", required: false, type: Number })
   @ApiResponse({ status: 200, description: "成功" })
@@ -32,7 +32,7 @@ export class DashboardDailyController {
     return this.funnel.series(funnel, days ? Number(days) : 14);
   }
 
-  @Post("funnel/rebuild")
+  @Post("funnels/daily/rebuild")
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "手动重算某日漏斗聚合（默认昨日·upsert 幂等）" })
   @ApiQuery({ name: "date", required: false, description: "YYYY-MM-DD，缺省为昨日" })
