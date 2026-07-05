@@ -32,10 +32,11 @@ export class TtsController {
   }
 
   /** 文本转语音 (GET, 方便作为 audio src 直接使用) */
+  // 公开只读：听书/朗读内容为库内公开经典，供 <audio>/InnerAudioContext 直接作为 src 拉取
+  // （端上无法给音频请求带 Authorization 头）。防滥用靠 Redis 缓存 + 文本长度上限。
   @Get("synthesize")
   @SkipFormat()
-  @UseGuards(JwtAuthGuard)
-  @ApiOperation({ summary: "文本转语音（GET）" })
+  @ApiOperation({ summary: "文本转语音（GET·公开·供音频 src 直连）" })
   @ApiResponse({ status: 200, description: "成功" })
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiQuery({ name: "text", required: true, type: String, description: "要合成的文本" })

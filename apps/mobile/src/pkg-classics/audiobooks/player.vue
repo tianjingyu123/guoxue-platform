@@ -19,24 +19,32 @@ const playing = ref(false)
 const speed = ref(1)
 const showChapters = ref(false)
 
-// 浏览器原生语音合成（H5/真机可用；小程序无 window → 降级提示）
-// uni 类型缺 Web Speech/DOM，保留 any
-const synth: any = (typeof window !== 'undefined' && (window as any).speechSynthesis) ? (window as any).speechSynthesis : null
-const ttsSupported = computed(() => !!synth)
-let zhVoice: any = null // uni 类型缺 Web Speech，保留 any
-function pickVoice() {
-  if (!synth) return
-  const voices: any[] = synth.getVoices() || [] // uni 类型缺 Web Speech，保留 any
-  zhVoice =
-    voices.find((v) => /zh[-_]?CN|cmn/i.test(v.lang)) ||
-    voices.find((v) => /^zh/i.test(v.lang)) ||
-    voices.find((v) => /chinese|中文|普通话/i.test(v.name)) ||
-    null
-}
-if (synth) {
-  pickVoice()
-  synth.onvoiceschanged = pickVoice
-}
+// 后端 TTS 合成 + InnerAudioContext 播放（全端可用：小程序/App/H5/微信内置浏览器）。
+// 病灶修复：原用浏览器 Web Speech(window.speechSynthesis)，移动端/微信 WebView 普遍不支持 → 真机听书点不了。
+// 改由后端 /tts/synthesize 合成 mp3（腾讯云 TTS·失败回退 Edge），前端逐句播放音频。
+const apiBase = ((import.meta as any).env?.VITE_API_URL || '') + '/api/v1'
+const voiceType = 'yunxi' // 男声叙事，适合经典诵读
+const ttsSupported = computed(() => true) // 后端合成，全端可用
+const audio = uni.createInnerAudioContext()
+let ended = false
+audio.onEnded(() => {
+  if (!playing.value || ended) return
+  if (curSentence.value < sentences.value.length - 1) {
+    curSentence.value++
+    scrollToCurrent()
+    speakCurrent()
+  } else if (hasNext.value) {
+    // 章末自动续读下一章
+    loadChapter(curIndex.value + 1, true)
+  } else {
+    playing.value = false
+  }
+})
+audio.onError(() => {
+  if (!playing.value) return
+  playing.value = false
+  uni.showToast({ title: '朗读加载失败，请重试', icon: 'none' })
+})
 
 const curChapter = computed(() => chapters.value[curIndex.value] || null)
 const hasPrev = computed(() => curIndex.value > 0)
@@ -91,47 +99,30 @@ async function loadChapter(idx: number, autoPlay = false) {
 
 // ── 朗读控制 ──
 function speakCurrent() {
-  if (!synth) return
   if (curSentence.value >= sentences.value.length) { playing.value = false; return }
-  // uni 类型缺 Web Speech/DOM，保留 as any
-  const u = new (window as any).SpeechSynthesisUtterance(sentences.value[curSentence.value])
-  if (zhVoice) u.voice = zhVoice
-  u.lang = 'zh-CN'
-  u.rate = speed.value
-  u.onend = () => {
-    if (!playing.value) return
-    if (curSentence.value < sentences.value.length - 1) {
-      curSentence.value++
-      scrollToCurrent()
-      speakCurrent()
-    } else if (hasNext.value) {
-      // 章末自动续读下一章
-      loadChapter(curIndex.value + 1, true)
-    } else {
-      playing.value = false
-    }
-  }
-  synth.speak(u)
+  const sentence = sentences.value[curSentence.value]
+  if (!sentence) { playing.value = false; return }
+  // 语速→rate 百分比（后端 Edge/腾讯云均按此解析）
+  const rate = `${Math.round((speed.value - 1) * 100)}%`
+  audio.src = `${apiBase}/tts/synthesize?text=${encodeURIComponent(sentence)}&voice=${voiceType}&rate=${encodeURIComponent(rate)}`
+  audio.play()
 }
 
 function play() {
-  if (!ttsSupported.value) {
-    uni.showToast({ title: '听书需在浏览器/H5端使用', icon: 'none' })
-    return
-  }
   if (!sentences.value.length) return
+  ended = false
   playing.value = true
-  synth.cancel()
   speakCurrent()
   scrollToCurrent()
 }
 function pause() {
   playing.value = false
-  if (synth) synth.cancel()
+  audio.pause()
 }
 function stop() {
   playing.value = false
-  if (synth) synth.cancel()
+  ended = true
+  audio.stop()
 }
 function togglePlay() {
   playing.value ? pause() : play()
@@ -139,13 +130,13 @@ function togglePlay() {
 function jumpSentence(i: number) {
   curSentence.value = Math.max(0, Math.min(i, sentences.value.length - 1))
   scrollToCurrent()
-  if (playing.value) { synth.cancel(); speakCurrent() }
+  if (playing.value) speakCurrent()
 }
 function prevSentence() { jumpSentence(curSentence.value - 1) }
 function nextSentence() { jumpSentence(curSentence.value + 1) }
 function changeSpeed() {
   speed.value = speed.value >= 2 ? 0.75 : +(speed.value + 0.25).toFixed(2)
-  if (playing.value) { synth.cancel(); speakCurrent() }
+  if (playing.value) speakCurrent()
 }
 function prevChapter() { if (hasPrev.value) loadChapter(curIndex.value - 1, playing.value) }
 function nextChapter() { if (hasNext.value) loadChapter(curIndex.value + 1, playing.value) }
@@ -166,7 +157,7 @@ function goBack() {
   uni.navigateBack({ fail: () => uni.navigateTo({ url: '/pkg-classics/audiobooks/index' }) })
 }
 
-onUnmounted(() => stop())
+onUnmounted(() => { stop(); audio.destroy() })
 
 onLoad((q) => {
   bookId.value = String(q?.id || q?.bookId || '')

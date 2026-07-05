@@ -21,6 +21,7 @@ describe("TtsService", () => {
   });
 
   beforeEach(() => { jest.clearAllMocks(); });
+  afterEach(() => { delete process.env.TENCENT_SECRET_ID; delete process.env.TENCENT_SECRET_KEY; });
 
   describe("synthesize", () => {
     it("缓存命中直接返回", async () => {
@@ -67,6 +68,33 @@ describe("TtsService", () => {
       const longText = "字".repeat(5000);
       await svc.synthesize({ text: longText });
       expect(mockFetch).toHaveBeenCalled();
+    });
+    it("配置腾讯云密钥时优先走腾讯云 TextToVoice", async () => {
+      process.env.TENCENT_SECRET_ID = "AKIDtest";
+      process.env.TENCENT_SECRET_KEY = "sk-test";
+      mockRedis.getBuffer.mockResolvedValue(null);
+      mockFetch.mockResolvedValue({
+        json: () => Promise.resolve({ Response: { Audio: Buffer.from("tc-audio").toString("base64") } }),
+      });
+      mockRedis.setBuffer.mockResolvedValue(undefined);
+      const result = await svc.synthesize({ text: "腾讯云测试" });
+      expect(result.audio.toString()).toBe("tc-audio");
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining("tts.tencentcloudapi.com"),
+        expect.objectContaining({ method: "POST" }),
+      );
+    });
+    it("腾讯云失败时降级 Edge TTS", async () => {
+      process.env.TENCENT_SECRET_ID = "AKIDtest";
+      process.env.TENCENT_SECRET_KEY = "sk-test";
+      mockRedis.getBuffer.mockResolvedValue(null);
+      mockFetch
+        .mockResolvedValueOnce({ json: () => Promise.resolve({ Response: { Error: { Code: "AuthFailure", Message: "bad" } } }) })
+        .mockResolvedValueOnce({ ok: true, arrayBuffer: () => Promise.resolve(new ArrayBuffer(10)) });
+      mockRedis.setBuffer.mockResolvedValue(undefined);
+      const result = await svc.synthesize({ text: "降级测试" });
+      expect(result.audio).toBeTruthy();
+      expect(mockFetch).toHaveBeenCalledTimes(2);
     });
   });
 
