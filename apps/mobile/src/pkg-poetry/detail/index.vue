@@ -665,65 +665,54 @@ async function generateAiRealtime() {
   }
 }
 
-// ── 朗读 TTS（浏览器原生逐句跟读，复用古籍馆范式） ──
-// 注：uni-app 类型未含 Web Speech API（speechSynthesis/SpeechSynthesisUtterance/Voice），下方相关 any 保留
-const synth: any = (typeof window !== 'undefined' && (window as any).speechSynthesis) ? (window as any).speechSynthesis : null
-const ttsSupported = computed(() => !!synth)
-let zhVoice: any = null // Web Speech 语音对象类型缺失，保留 any
-function pickVoice() {
-  if (!synth) return
-  const voices: any[] = synth.getVoices() || [] // SpeechSynthesisVoice[] 类型缺失，保留 any
-  zhVoice =
-    voices.find((v) => /zh[-_]?CN|cmn/i.test(v.lang)) ||
-    voices.find((v) => /^zh/i.test(v.lang)) ||
-    voices.find((v) => /chinese|中文|普通话/i.test(v.name)) ||
-    null
-}
-if (synth) {
-  pickVoice()
-  synth.onvoiceschanged = pickVoice
-}
+// ── 朗读 TTS（后端合成 mp3 + InnerAudioContext 逐句播放·全端可用）──
+// 病灶修复：原用浏览器 Web Speech(speechSynthesis)，移动端/微信 WebView 普遍不支持 → 真机朗读点不了。
+// 改由后端 /tts/synthesize 合成 mp3（腾讯云 TTS·失败回退 Edge），前端逐句播放音频。
+const apiBase = ((import.meta as any).env?.VITE_API_URL || '') + '/api/v1'
+const voiceType = 'yunxi' // 男声叙事
+const ttsSupported = computed(() => true) // 后端合成，全端可用
+const audio = uni.createInnerAudioContext()
 const isPlaying = ref(false)
 const curLine = ref(-1)
+audio.onEnded(() => {
+  if (!isPlaying.value) return
+  const lines = poem.value.content
+  if (curLine.value < lines.length - 1) {
+    curLine.value++
+    speakLine()
+  } else {
+    isPlaying.value = false
+    curLine.value = -1
+  }
+})
+audio.onError(() => {
+  if (!isPlaying.value) return
+  isPlaying.value = false
+  curLine.value = -1
+  uni.showToast({ title: '朗读加载失败，请重试', icon: 'none' })
+})
 
 function speakLine() {
-  if (!synth) return
   const lines = poem.value.content
   if (curLine.value >= lines.length) { isPlaying.value = false; curLine.value = -1; return }
-  // Web Speech 的 SpeechSynthesisUtterance 在 uni 类型中缺失，保留 as any
-  const u = new (window as any).SpeechSynthesisUtterance(lines[curLine.value].line)
-  if (zhVoice) u.voice = zhVoice
-  u.lang = 'zh-CN'
-  u.rate = 0.85
-  u.onend = () => {
-    if (!isPlaying.value) return
-    if (curLine.value < lines.length - 1) {
-      curLine.value++
-      speakLine()
-    } else {
-      isPlaying.value = false
-      curLine.value = -1
-    }
-  }
-  synth.speak(u)
+  const text = lines[curLine.value]?.line
+  if (!text) { isPlaying.value = false; curLine.value = -1; return }
+  // 诗词慢读（rate -15%）保留韵味
+  audio.src = `${apiBase}/tts/synthesize?text=${encodeURIComponent(text)}&voice=${voiceType}&rate=${encodeURIComponent('-15%')}`
+  audio.play()
 }
 
 function playTTS() {
-  if (!ttsSupported.value) {
-    uni.showToast({ title: '朗读需在浏览器/H5端使用', icon: 'none' })
-    return
-  }
   if (!poem.value.content.length) return
   isPlaying.value = true
   curLine.value = 0
-  synth.cancel()
   speakLine()
 }
 
 function stopTTS() {
   isPlaying.value = false
   curLine.value = -1
-  if (synth) synth.cancel()
+  audio.stop()
 }
 
 function toggleTTS() {
@@ -750,7 +739,8 @@ function shareCopy() {
 }
 
 onUnmounted(() => {
-  if (synth) synth.cancel()
+  audio.stop()
+  audio.destroy()
   if (aiTimer) clearInterval(aiTimer)
 })
 
