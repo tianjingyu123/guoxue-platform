@@ -4,6 +4,8 @@ import { ShopAttributionService } from "./shop-attribution.service"
 import { ShopProductService } from "./shop-product.service"
 import { ShopOrderService } from "./shop-order.service"
 import { ShopOrderLifecycleService } from "./shop-order-lifecycle.service"
+import { ShopPaymentService } from "./shop-payment.service"
+import { ShopRefundService } from "./shop-refund.service"
 import { PrismaService } from "../../prisma/prisma.service"
 import { CommissionService } from "../commission/commission.service"
 import { UnifiedPricingService } from "../pricing/unified-pricing.service"
@@ -214,6 +216,8 @@ describe("ShopService", () => {
         ShopProductService,
         ShopOrderService,
         ShopOrderLifecycleService,
+        ShopPaymentService,
+        ShopRefundService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: CommissionService, useValue: mockCommission },
         { provide: UnifiedPricingService, useValue: mockUnifiedPricing },
