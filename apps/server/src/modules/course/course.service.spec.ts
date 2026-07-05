@@ -1,5 +1,8 @@
 import { Test } from "@nestjs/testing";
 import { CourseService } from "./course.service";
+import { CourseRecommendService } from "./course-recommend.service";
+import { CourseAdminService } from "./course-admin.service";
+import { CourseCreatorService } from "./course-creator.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { AiGatewayService } from "../ai-gateway/ai-gateway.service";
@@ -83,6 +86,9 @@ describe("CourseService", () => {
     const mod = await Test.createTestingModule({
       providers: [
         CourseService,
+        CourseRecommendService,
+        CourseAdminService,
+        CourseCreatorService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: RedisService, useValue: mockRedis },
         { provide: AiGatewayService, useValue: mockAiGateway },

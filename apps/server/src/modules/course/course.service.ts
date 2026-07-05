@@ -10,6 +10,9 @@ import { AiGatewayService } from "../ai-gateway/ai-gateway.service";
 import { UnifiedPricingService } from "../pricing/unified-pricing.service";
 import { AuditService } from "../audit/audit.service";
 import { SystemService } from "../system/system.service";
+import { CourseRecommendService } from "./course-recommend.service";
+import { CourseAdminService } from "./course-admin.service";
+import { CourseCreatorService } from "./course-creator.service";
 import {
   CreateCourseDto, UpdateCourseDto,
   CreateChapterDto, UpdateChapterDto,
@@ -28,6 +31,9 @@ export class CourseService {
     private aiGateway: AiGatewayService,
     private unifiedPricing: UnifiedPricingService,
     private auditService: AuditService,
+    private recommendSvc: CourseRecommendService,
+    private adminSvc: CourseAdminService,
+    private creatorSvc: CourseCreatorService,
     // SystemModule 为 @Global 导出·@Optional 保证单测缺 provider 时回退默认品牌名
     @Optional() private readonly systemService?: SystemService,
   ) {}
@@ -976,57 +982,14 @@ ${chapterCtx}
     };
   }
 
-  // ═══════════════════ 讲师创作管理台 ═══════════════════
+  // ═══════════════════ 讲师创作管理台（委托 CourseCreatorService） ═══════════════════
 
-  /** 我创建的课程（讲师管理台，含章节/评价计数与审核状态） */
-  async getCreatedCourses(userId: string, rawPage = 1, rawPageSize = 20) {
-    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
-    const where: Prisma.CourseWhereInput = { userId, deletedAt: null };
-    const [items, total] = await Promise.all([
-      this.prisma.course.findMany({
-        where,
-        select: {
-          id: true,
-          title: true,
-          cover: true,
-          type: true,
-          price: true,
-          auditStatus: true,
-          studentCount: true,
-          circleId: true,
-          createdAt: true,
-          _count: { select: { chapters: true, reviews: true } },
-        },
-        skip,
-        take: pageSize,
-        orderBy: { createdAt: "desc" },
-      }),
-      this.prisma.course.count({ where }),
-    ]);
-    return { items, total, page, pageSize };
+  getCreatedCourses(userId: string, rawPage = 1, rawPageSize = 20) {
+    return this.creatorSvc.getCreatedCourses(userId, rawPage, rawPageSize);
   }
 
-  /** 讲师回复自己课程的评价（归属校验：只能回复自己创建课程下的评价） */
-  async replyReviewByCreator(reviewId: string, userId: string, reply: string) {
-    if (!reply || !reply.trim()) {
-      throw new BusinessException(ErrorCode.BAD_REQUEST, "回复内容不能为空");
-    }
-    const review = await this.prisma.courseReview.findUnique({
-      where: { id: reviewId },
-      include: { course: { select: { userId: true } } },
-    });
-    if (!review) throw new BusinessException(ErrorCode.NOT_FOUND, "评价不存在");
-    if (review.course.userId !== userId) {
-      throw new BusinessException(ErrorCode.FORBIDDEN, "只能回复自己课程的评价");
-    }
-    // 统一内容审核（违规抛异常）
-    await this.auditService.moderateTextOrThrow(reply, { scene: "REVIEW_REPLY", userId, dataId: reviewId });
-    const updated = await this.prisma.courseReview.update({
-      where: { id: reviewId },
-      data: { reply: reply.trim() } as any,
-    });
-    await this.redis.del(`courses:detail:${review.courseId}`);
-    return updated;
+  replyReviewByCreator(reviewId: string, userId: string, reply: string) {
+    return this.creatorSvc.replyReviewByCreator(reviewId, userId, reply);
   }
 
   // ═══════════════════ 学习看板 ═══════════════════
@@ -1168,304 +1131,67 @@ ${chapterCtx}
     };
   }
 
-  // ═══════════════════ 草稿管理（讲师端）═══════════════════
+  // ═══════════════════ 草稿管理（委托 CourseCreatorService） ═══════════════════
 
-  async getMyDrafts(userId: string, rawPage = 1, rawPageSize = 20) {
-    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
-    const where: Prisma.CourseWhereInput = { userId, auditStatus: "DRAFT" };
-    const [items, total] = await Promise.all([
-      this.prisma.course.findMany({
-        where,
-        select: { id: true, title: true, cover: true, intro: true, updatedAt: true },
-        skip,
-        take: pageSize,
-        orderBy: { updatedAt: "desc" },
-      }),
-      this.prisma.course.count({ where }),
-    ]);
-    return { items, total, page, pageSize };
+  getMyDrafts(userId: string, rawPage = 1, rawPageSize = 20) {
+    return this.creatorSvc.getMyDrafts(userId, rawPage, rawPageSize);
   }
 
-  async saveDraft(userId: string, dto: CreateCourseDto) {
-    return this.prisma.course.create({
-      data: {
-        userId,
-        circleId: dto.circleId,
-        title: dto.title || "未命名课程",
-        cover: dto.cover,
-        intro: dto.intro,
-        type: dto.type || "VIDEO",
-        price: dto.price ?? 0,
-        originalPrice: dto.originalPrice,
-        tags: dto.tags || [],
-        categoryLevel1: dto.categoryLevel1,
-        categoryLevel2: dto.categoryLevel2,
-        validityDays: dto.validityDays ?? 0,
-        scheduledAt: dto.scheduledAt ? new Date(dto.scheduledAt) : null,
-        stationId: dto.stationId,
-        auditStatus: "DRAFT",
-      },
-    });
+  saveDraft(userId: string, dto: CreateCourseDto) {
+    return this.creatorSvc.saveDraft(userId, dto);
   }
 
-  async updateDraft(id: string, userId: string, dto: UpdateCourseDto) {
-    const course = await this.prisma.course.findUnique({ where: { id } });
-    if (!course) throw new BusinessException(ErrorCode.COURSE_NOT_FOUND, "草稿不存在");
-    if (course.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能编辑自己的草稿");
-    return this.prisma.course.update({ where: { id }, data: dto as Prisma.CourseUpdateInput });
+  updateDraft(id: string, userId: string, dto: UpdateCourseDto) {
+    return this.creatorSvc.updateDraft(id, userId, dto);
   }
 
-  async deleteDraft(id: string, userId: string) {
-    const course = await this.prisma.course.findUnique({ where: { id } });
-    if (!course) throw new BusinessException(ErrorCode.COURSE_NOT_FOUND, "草稿不存在");
-    if (course.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能删除自己的草稿");
-    await this.prisma.course.delete({ where: { id } });
-    return { success: true };
+  deleteDraft(id: string, userId: string) {
+    return this.creatorSvc.deleteDraft(id, userId);
   }
 
-  async publishDraft(id: string, userId: string) {
-    const course = await this.prisma.course.findUnique({ where: { id } });
-    if (!course) throw new BusinessException(ErrorCode.COURSE_NOT_FOUND, "草稿不存在");
-    if (course.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能发布自己的草稿");
-    if (course.auditStatus !== "DRAFT") throw new BusinessException(ErrorCode.BAD_REQUEST, "该课程不是草稿");
-    const updated = await this.prisma.course.update({
-      where: { id },
-      data: { auditStatus: "PENDING" },
-    });
-    await this.redis.delByPattern("courses:list:*");
-    return updated;
+  publishDraft(id: string, userId: string) {
+    return this.creatorSvc.publishDraft(id, userId);
   }
 
-  // ═══════════════════ 管理端 — 学员管理 ═══════════════════
+  // ═══════════════════ 管理端（委托 CourseAdminService） ═══════════════════
 
-  /** 管理员查看课程学员列表 */
-  async getCourseStudents(courseId: string, rawPage = 1, rawPageSize = 20) {
-    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
-    const course = await this.prisma.course.findUnique({ where: { id: courseId }, select: { id: true } });
-    if (!course) throw new BusinessException(ErrorCode.COURSE_NOT_FOUND, "课程不存在");
-
-    const where: Prisma.OrderWhereInput = { type: "COURSE", targetId: courseId, status: { in: ["PAID", "COMPLETED"] } };
-    const [orders, total] = await Promise.all([
-      this.prisma.order.findMany({
-        where,
-        select: { id: true, userId: true, amount: true, paidAt: true },
-        skip,
-        take: pageSize,
-        orderBy: { paidAt: "desc" },
-      }),
-      this.prisma.order.count({ where }),
-    ]);
-
-    const userIds = orders.map(o => o.userId);
-    const [users, progresses] = await Promise.all([
-      userIds.length > 0 ? this.prisma.user.findMany({ where: { id: { in: userIds } }, select: { id: true, nickname: true, avatar: true } }) : [],
-      this.prisma.courseProgress.groupBy({ by: ["userId"], where: { courseId, userId: { in: userIds } }, _count: { id: true }, _sum: { progress: true } }),
-    ]);
-
-    const userMap = new Map<any, any>(users.map((u: any) => [u.id, u] as [string, any]));
-    const progressMap = new Map<any, any>(progresses.map((p: any) => [p.userId, { completedChapters: p._count.id, totalProgress: Math.round((p._sum.progress || 0) / Math.max(p._count.id, 1)) }] as [string, any]));
-
-    const students = orders.map(o => ({
-      orderId: o.id,
-      paidAt: o.paidAt,
-      amount: o.amount,
-      user: userMap.get(o.userId) || { id: o.userId, nickname: "未知", avatar: null },
-      progress: progressMap.get(o.userId) || { completedChapters: 0, totalProgress: 0 },
-    }));
-
-    return { students, total, page, pageSize };
+  getCourseStudents(courseId: string, rawPage = 1, rawPageSize = 20) {
+    return this.adminSvc.getCourseStudents(courseId, rawPage, rawPageSize);
   }
 
-  /** 管理员查看学生详细进度 */
-  async getStudentProgress(courseId: string, userId: string) {
-    const course = await this.prisma.course.findUnique({ where: { id: courseId }, select: { id: true } });
-    if (!course) throw new BusinessException(ErrorCode.COURSE_NOT_FOUND, "课程不存在");
-
-    const [progresses, works] = await Promise.all([
-      this.prisma.courseProgress.findMany({
-        where: { userId, courseId },
-        include: { chapter: { select: { id: true, title: true, sortOrder: true } } },
-        orderBy: { updatedAt: "desc" },
-      }),
-      this.prisma.courseWork.findMany({
-        where: { userId, courseId },
-        include: { chapter: { select: { id: true, title: true } } },
-        orderBy: { createdAt: "desc" },
-      }),
-    ]);
-
-    return { userId, courseId, progresses, works };
+  getStudentProgress(courseId: string, userId: string) {
+    return this.adminSvc.getStudentProgress(courseId, userId);
   }
 
-  // ═══════════════════ 管理端 — 批量操作 ═══════════════════
-
-  /** 批量审核课程 */
-  async batchAudit(ids: string[], status: string) {
-    if (!["APPROVED", "REJECTED"].includes(status)) throw new BusinessException(ErrorCode.BAD_REQUEST, "审核结果只能是 APPROVED 或 REJECTED");
-    const result = await this.prisma.course.updateMany({
-      where: { id: { in: ids }, auditStatus: "PENDING" },
-      data: { auditStatus: status },
-    });
-    await this.redis.delByPattern("courses:list:*");
-    return { affectedCount: result.count, status };
+  batchAudit(ids: string[], status: string) {
+    return this.adminSvc.batchAudit(ids, status);
   }
 
-  /** 管理员强制删除 */
-  async forceDelete(courseId: string) {
-    const course = await this.prisma.course.findUnique({ where: { id: courseId } });
-    if (!course) throw new BusinessException(ErrorCode.COURSE_NOT_FOUND, "课程不存在");
-    await this.prisma.course.delete({ where: { id: courseId } });
-    await Promise.all([this.redis.delByPattern("courses:list:*"), this.redis.del(`courses:detail:${courseId}`)]);
-    return { success: true };
+  forceDelete(courseId: string) {
+    return this.adminSvc.forceDelete(courseId);
   }
 
-  /** 管理员强制变更审核状态（上架/下架） */
-  async forceStatus(courseId: string, status: string) {
-    const course = await this.prisma.course.findUnique({ where: { id: courseId } });
-    if (!course) throw new BusinessException(ErrorCode.COURSE_NOT_FOUND, "课程不存在");
-    if (!["DRAFT", "PENDING", "APPROVED", "REJECTED"].includes(status)) throw new BusinessException(ErrorCode.BAD_REQUEST, "无效的状态值");
-    await this.prisma.course.update({ where: { id: courseId }, data: { auditStatus: status } });
-    await Promise.all([this.redis.delByPattern("courses:list:*"), this.redis.del(`courses:detail:${courseId}`)]);
-    return { success: true, status };
+  forceStatus(courseId: string, status: string) {
+    return this.adminSvc.forceStatus(courseId, status);
   }
 
-  // ═══════════════════ 管理端 — 评价管理 ═══════════════════
-
-  /** 管理员回复评价 */
-  async replyReview(reviewId: string, reply: string) {
-    const review = await this.prisma.courseReview.findUnique({ where: { id: reviewId } });
-    if (!review) throw new BusinessException(ErrorCode.NOT_FOUND, "评价不存在");
-    const updated = await this.prisma.courseReview.update({ where: { id: reviewId }, data: { reply } as any });
-    await this.redis.del(`courses:detail:${review.courseId}`);
-    return updated;
+  replyReview(reviewId: string, reply: string) {
+    return this.adminSvc.replyReview(reviewId, reply);
   }
 
-  /** 管理员隐藏/恢复评价 */
-  async toggleReviewStatus(reviewId: string, status: string) {
-    if (!["PUBLISHED", "HIDDEN"].includes(status)) throw new BusinessException(ErrorCode.BAD_REQUEST, "状态只能是 PUBLISHED 或 HIDDEN");
-    const review = await this.prisma.courseReview.findUnique({ where: { id: reviewId } });
-    if (!review) throw new BusinessException(ErrorCode.NOT_FOUND, "评价不存在");
-    const updated = await this.prisma.courseReview.update({ where: { id: reviewId }, data: { status } });
-    await this.redis.del(`courses:detail:${review.courseId}`);
-    return updated;
+  toggleReviewStatus(reviewId: string, status: string) {
+    return this.adminSvc.toggleReviewStatus(reviewId, status);
   }
 
-  /** 管理员查看所有评价（含隐藏） */
-  async listAllReviews(courseId: string, rawPage = 1, rawPageSize = 20, status?: string) {
-    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
-    const where: Prisma.CourseReviewWhereInput = { courseId };
-    if (status) where.status = status;
-    const [reviews, total] = await Promise.all([
-      this.prisma.courseReview.findMany({
-        where,
-        include: { user: { select: { id: true, nickname: true, avatar: true } } },
-        skip,
-        take: pageSize,
-        orderBy: { createdAt: "desc" },
-      }),
-      this.prisma.courseReview.count({ where }),
-    ]);
-    return { reviews, total, page, pageSize };
+  listAllReviews(courseId: string, rawPage = 1, rawPageSize = 20, status?: string) {
+    return this.adminSvc.listAllReviews(courseId, rawPage, rawPageSize, status);
   }
 
-  // ═══════════════════ 相关课程推荐 ═══════════════════
+  // ═══════════════════ 相关课程推荐（委托 CourseRecommendService） ═══════════════════
 
-  /** 获取相关课程（按标签+品类匹配） */
-  async getRelatedCourses(courseId: string, limit = 6, useAi = false) {
-    const course = await this.prisma.course.findUnique({
-      where: { id: courseId },
-      select: { id: true, title: true, intro: true, tags: true, categoryLevel1: true, categoryLevel2: true },
-    });
-    if (!course) throw new BusinessException(ErrorCode.COURSE_NOT_FOUND, "课程不存在");
-
-    const where: Prisma.CourseWhereInput = {
-      id: { not: courseId },
-      auditStatus: "APPROVED",
-    };
-    if (course.tags.length > 0) where.tags = { hasSome: course.tags };
-    else if (course.categoryLevel1) where.categoryLevel1 = course.categoryLevel1;
-
-    const fetchCount = useAi ? Math.min(limit * 3, 20) : limit;
-    let related = await this.prisma.course.findMany({
-      where,
-      select: { id: true, title: true, cover: true, type: true, price: true, studentCount: true },
-      take: fetchCount,
-      orderBy: { studentCount: "desc" },
-    });
-
-    // 不足时用同类热门补充
-    if (related.length < limit && course.categoryLevel1) {
-      const existingIds = [courseId, ...related.map(r => r.id)];
-      const fallback = await this.prisma.course.findMany({
-        where: { id: { notIn: existingIds }, auditStatus: "APPROVED", categoryLevel1: course.categoryLevel1 },
-        select: { id: true, title: true, cover: true, type: true, price: true, studentCount: true },
-        take: limit - related.length,
-        orderBy: { studentCount: "desc" },
-      });
-      related = [...related, ...fallback];
-    }
-
-    // AI 语义重排序
-    if (useAi && related.length > limit) {
-      try {
-        related = await this.aiReRank(course as any, related as any, limit) as any;
-      } catch (err: any) {
-        this.logger.warn(`AI 推荐重排序失败，回退默认排序: ${err.message}`);
-        related = related.slice(0, limit);
-      }
-    }
-
-    return related;
+  getRelatedCourses(courseId: string, limit = 6, useAi = false) {
+    return this.recommendSvc.getRelatedCourses(courseId, limit, useAi);
   }
-
-  /** AI 语义重排序：从候选课程中选出最相关的 topN */
-  private async aiReRank(
-    source: { id: string; title: string; intro?: string | null; tags?: string[]; categoryLevel1?: string | null; categoryLevel2?: string | null },
-    candidates: { id: string; title: string; cover?: string | null; type: string; price: any; studentCount: number }[],
-    topN: number,
-  ) {
-    const candidateList = candidates.map((c, i) => `${i + 1}. ${c.title}（${c.type || '课程'}）`).join("\n");
-    const prompt = `你是国学学习推荐专家。当前学员在学习课程「${source.title}」${source.intro ? `，简介：「${source.intro.slice(0, 200)}」` : ''}。
-
-请从以下候选课程中选出最相关的 ${topN} 门推荐。考虑因素：
-- 知识体系的关联性
-- 学习路径的递进关系
-- 学员兴趣延展
-
-候选课程列表：
-${candidateList}
-
-请只返回所选课程的序号（数字），用逗号分隔，例如：1,3,5,2,8。`;
-
-    const result = await this.aiGateway.chat({
-      scene: "course-recommend",
-      messages: [
-        { role: "system", content: "你是课程推荐专家。只返回数字序号，不返回其他内容。" },
-        { role: "user", content: prompt },
-      ],
-      options: { temperature: 0.3, maxTokens: 100 },
-    });
-
-    // 解析 AI 返回的序号
-    const indices = (result.content.match(/\d+/g) || []).map(Number).filter(n => n >= 1 && n <= candidates.length);
-    const seen = new Set<number>();
-    const reRanked = indices
-      .filter(n => !seen.has(n) && seen.add(n))
-      .map(n => candidates[n - 1])
-      .filter(Boolean)
-      .slice(0, topN);
-
-    // 如果 AI 返回不足，用原始排序填充
-    if (reRanked.length < topN) {
-      for (const c of candidates) {
-        if (reRanked.length >= topN) break;
-        if (!reRanked.find(r => r.id === c.id)) reRanked.push(c);
-      }
-    }
-
-    return reRanked;
-  }
-
   // ═══════════════════ 课程问答 ═══════════════════
 
   /** 学生提问 */
