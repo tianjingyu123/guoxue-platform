@@ -1,0 +1,509 @@
+import { Injectable, Inject, Logger } from "@nestjs/common";
+import { createHash } from "node:crypto";
+import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
+import { Prisma } from "@prisma/client";
+import { PrismaService } from "../../prisma/prisma.service";
+import { RedisService } from "../../redis/redis.service";
+import { UnifiedPricingService } from "../pricing/unified-pricing.service";
+import { CommissionService } from "../commission/commission.service";
+import { ShopAttributionService } from "./shop-attribution.service";
+import { CreateOrderDto, OrderListQueryDto } from "./shop.dto";
+
+/** 订单缓存 TTL */
+const ORDER_CACHE_TTL = 300;
+/** 订单列表缓存 TTL */
+const ORDER_LIST_CACHE_TTL = 60;
+/** 缓存前缀 */
+const CACHE_PREFIX = "shop:";
+
+/**
+ * 商城订单-下单与查询域（从 shop.service 拆出·纯搬家不改逻辑）。
+ * 职责：下单(含归因/秒杀/优惠券/自购立减)、拼团下单与成团结算、订单查询/列表补全。
+ * 归因逻辑委托 ShopAttributionService；订单履约/取消见 ShopOrderLifecycleService。
+ */
+@Injectable()
+export class ShopOrderService {
+  private readonly logger = new Logger(ShopOrderService.name);
+
+  constructor(
+    private prisma: PrismaService,
+    private redis: RedisService,
+    private unifiedPricing: UnifiedPricingService,
+    private attribution: ShopAttributionService,
+    @Inject(CommissionService) private commissionSvc?: CommissionService,
+  ) {}
+
+  async createOrder(userId: string, dto: CreateOrderDto) {
+    // 服务端计算实际金额，无视前端传入的 amount（防篡改）
+    let actualAmount = 0;
+    let promotionType: string | undefined;
+    let promotionId: string | undefined;
+    let supplierUserId: string | undefined;
+    let supplierType: string | undefined;
+
+    // 购买数量（仅实物 PRODUCT 生效；其他类型恒为 1，保持原行为不受影响）
+    const qty = dto.type === "PRODUCT" ? Math.max(1, Math.floor(Number(dto.amount) || 1)) : 1;
+
+    // 会员订单：从 MemberConfig 查询实际价格
+    if (dto.type === "MEMBER") {
+      const plan = await this.prisma.memberConfig.findUnique({ where: { id: dto.targetId } });
+      if (!plan) throw new BusinessException(ErrorCode.BAD_REQUEST, "会员方案不存在");
+      if (!plan.isActive) throw new BusinessException(ErrorCode.BAD_REQUEST, "该会员方案已停售");
+      actualAmount = Number(plan.price);
+    } else {
+      const productId = dto.targetId;
+      if (dto.skuId) {
+        const sku = await this.prisma.productSku.findUnique({
+          where: { id: dto.skuId },
+          select: { price: true, product: { select: { id: true, status: true, supplierType: true, userId: true } } },
+        });
+        if (!sku || sku.product.status !== "ON_SALE") {
+          throw new BusinessException(ErrorCode.BAD_REQUEST, "商品不可购买");
+        }
+        supplierType = sku.product.supplierType;
+        supplierUserId = sku.product.userId ?? undefined;
+      } else {
+        const product = await this.prisma.product.findUnique({
+          where: { id: productId },
+          select: { id: true, price: true, status: true, supplierType: true, userId: true },
+        });
+        if (!product || product.status !== "ON_SALE") {
+          throw new BusinessException(ErrorCode.BAD_REQUEST, "商品不可购买");
+        }
+        supplierType = product.supplierType;
+        supplierUserId = product.userId ?? undefined;
+      }
+
+      // 使用统一价格引擎计算活动价
+      const pricing = await this.unifiedPricing.calculateEffectivePrice(
+        productId, dto.skuId, userId, { pageId: (dto as any).pageId, scene: "checkout" },
+      );
+      // 金额 = 活动单价 × 数量（钱货严谨：多件按件计价，不可只算单件）
+      actualAmount = Math.round(pricing.effectivePrice * qty * 100) / 100;
+      if (pricing.appliedPromotion) {
+        promotionType = pricing.appliedPromotion.type;
+        promotionId = pricing.appliedPromotion.id;
+      }
+    }
+
+    // 商家商品：查找商家ID
+    let merchantId: string | undefined;
+    if (supplierType === "CERTIFIED_MERCHANT" && supplierUserId) {
+      const merchant = await this.prisma.merchant.findUnique({
+        where: { userId: supplierUserId },
+        select: { id: true },
+      });
+      merchantId = merchant?.id;
+    }
+
+    // 收货地址校验与快照（实物订单）：校验归属当前用户，存下单时快照（地址表可改可删，订单存快照最可靠）
+    let shippingInfo: Record<string, string> | undefined;
+    if (dto.addressId) {
+      const addr = await this.prisma.shippingAddress.findFirst({
+        where: { id: dto.addressId, userId },
+        select: { name: true, phone: true, province: true, city: true, district: true, detail: true },
+      });
+      if (!addr) throw new BusinessException(ErrorCode.BAD_REQUEST, "收货地址不存在或不属于当前用户");
+      shippingInfo = {
+        name: addr.name, phone: addr.phone, province: addr.province,
+        city: addr.city, district: addr.district, detail: addr.detail,
+      };
+    }
+
+    // ── 推荐归因（2026-07-02 拍板）──
+    // 全平台单一分享链接（ref=分享者用户ID或分站推广码）：最近分享者=临时推荐人（前端7天窗口传入），
+    // 优先于永久归属分站；永久归属由服务端从 ReferralRelation 回填，不信任前端传入的 referrerId。
+    let tempReferrerId = await this.attribution.resolveReferrerUserId(dto.tempReferrerId, userId);
+    // ── 佣-V2-P2 渠道主体临时链接归因（2026-07-04 拍板·设计 §3.2）──
+    // 灰度开关 ConfigSystem[commission_v2_attribution]="true" 才启用（关=完全走上面现行逻辑·回滚路径）。
+    // 服务端受信任来源：查 ChannelClick（该用户对该商品 targetId 精确优先，其次 SHOP_ALL 全店）
+    // 未过期记录中 clickedAt 最新一条 → tempReferrerId=点击时解析好的渠道受益人（last-click 抢佣）；
+    // 无命中 → 现行归因逻辑不变。查询失败不阻塞下单。
+    let tempRefSubjectType: string | null = null;
+    // ── 佣-V2-P3 内容来源（拍板规则6）：纯记录下单入口的内容场景（LIVE/ARTICLE/VIDEO·成对才落库·不改金额库存支付）
+    const sourceContentType = dto.sourceContentType && dto.sourceContentId ? dto.sourceContentType : null;
+    const sourceContentId = sourceContentType ? dto.sourceContentId ?? null : null;
+    try {
+      if (await this.attribution.isChannelAttributionEnabled()) {
+        const click = await this.attribution.findLatestChannelClick(userId, dto.targetId);
+        if (click && click.beneficiaryUserId !== userId) {
+          tempReferrerId = click.beneficiaryUserId;
+          tempRefSubjectType = click.subjectType;
+        }
+        // ── 佣-V2-P3：直播间购买视同圈子渠道点击（设计§3.2-4·直播更接近成交，优先级不低于 ChannelClick 查询结果）。
+        // 直播→LiveRoom.circleId→圈主为受益人；无圈子/圈主即买家本人 → 静默跳过不覆盖。
+        // ARTICLE/VIDEO 本批只落来源字段不做受益人路由（作者渠道身份判定在 P4 积分侧统一处理）。
+        if (sourceContentType === "LIVE" && sourceContentId) {
+          const circleOwner = await this.attribution.resolveLiveCircleOwner(sourceContentId);
+          if (circleOwner && circleOwner !== userId) {
+            tempReferrerId = circleOwner;
+            tempRefSubjectType = "CIRCLE";
+          }
+        }
+      }
+    } catch (e) {
+      this.logger.warn("渠道点击归因查询失败，回落现行归因逻辑", e);
+    }
+    let permanentReferrerId: string | null = null;
+    try {
+      const relation = await this.prisma.referralRelation.findFirst({
+        where: { userId, referrerType: "STATION_MASTER", relationStatus: "ACTIVE" },
+        orderBy: { createdAt: "asc" },
+        select: { referrerId: true },
+      });
+      permanentReferrerId = relation?.referrerId ?? null;
+    } catch {
+      /* 归属查询失败不阻塞下单，按无永久归属处理 */
+    }
+    const effectiveReferrerId = tempReferrerId || permanentReferrerId;
+
+    // 分销角色自购立减（2026-07-02 拍板站长版·供-P3 泛化到全部分销角色）：
+    // 站长/圈主/驿站运营者/认证从业者/运营商本人购买（无推荐人或推荐人为本人）直接按直推佣金比例立减成交
+    // （比例=CommissionConfig.rateA·后台可配），不产生佣金；退款按实付价退。杜绝自购返佣/刷单套利。
+    let selfPurchaseRate = 0;
+    if (this.commissionSvc && (!effectiveReferrerId || effectiveReferrerId === userId)) {
+      try {
+        if (await this.attribution.isDistributorSelfPurchaseEligible(userId)) {
+          selfPurchaseRate = (await this.commissionSvc.getStationRate(dto.type)) ?? 0;
+        }
+      } catch (e) {
+        this.logger.warn("分销角色自购立减查询失败，按原价下单", e);
+      }
+    }
+
+    // ── 白标贺卡（供-P2）──
+    // 实物订单归因到分销者时，自动组装贺卡任务 meta（从业者署名+祝语+名片二维码内容），
+    // 供应商发货时打印随包裹放入——每个包裹都是从业者的获客物料，也是平台的归因入口。
+    // 自购单（selfPurchaseRate>0 推荐关系会被清空）不生成；组装失败不阻塞下单。
+    let giftCardMeta: Prisma.InputJsonValue | undefined;
+    if (
+      dto.type === "PRODUCT" &&
+      selfPurchaseRate === 0 &&
+      effectiveReferrerId &&
+      effectiveReferrerId !== userId
+    ) {
+      giftCardMeta = (await this.attribution.buildGiftCardMeta(effectiveReferrerId)) ?? undefined;
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      // 优惠券校验与折扣计算（服务端计算，防篡改）
+      if (dto.couponId) {
+        const userCoupon = await tx.userCoupon.findFirst({
+          where: { id: dto.couponId, userId, used: false },
+          include: { coupon: true },
+        });
+        if (!userCoupon) throw new BusinessException(ErrorCode.COUPON_INVALID, "优惠券不存在或已被使用");
+
+        const coupon = userCoupon.coupon;
+        if (coupon.status !== "ACTIVE") throw new BusinessException(ErrorCode.COUPON_INVALID, "优惠券已失效");
+        const now = new Date();
+        if (now < coupon.validStart) throw new BusinessException(ErrorCode.COUPON_INVALID, "优惠券尚未生效");
+        if (now > coupon.validEnd) throw new BusinessException(ErrorCode.COUPON_EXPIRED, "优惠券已过期");
+        if (coupon.scope === "PRODUCT" && coupon.scopeId && coupon.scopeId !== dto.targetId) {
+          throw new BusinessException(ErrorCode.COUPON_INVALID, "优惠券不适用于该商品");
+        }
+        if (coupon.minAmount && actualAmount < Number(coupon.minAmount)) {
+          throw new BusinessException(ErrorCode.BAD_REQUEST, `不满足优惠券最低消费 ¥${Number(coupon.minAmount).toFixed(2)}`);
+        }
+
+        // 服务端计算优惠后金额
+        if (coupon.type === "FULL_REDUCE" || coupon.type === "NO_THRESHOLD") {
+          actualAmount = Math.max(0.01, actualAmount - Number(coupon.discountAmount || coupon.value || 0));
+        } else if (coupon.type === "DISCOUNT") {
+          const rate = Number(coupon.discountRate || (coupon.value ? Number(coupon.value) / 100 : 1));
+          actualAmount = Math.max(0.01, actualAmount * rate);
+        }
+        actualAmount = Math.round(actualAmount * 100) / 100;
+
+        // 条件更新防并发双花：仅当券仍 used:false 才置为已用；两并发单只有一个 count>0
+        const claimed = await tx.userCoupon.updateMany({
+          where: { id: dto.couponId, userId, used: false },
+          data: { used: true, usedAt: new Date() },
+        });
+        if (claimed.count === 0) throw new BusinessException(ErrorCode.COUPON_INVALID, "优惠券不存在或已被使用");
+      }
+
+      // 分销角色自购立减（供-P3 泛化）：在券后价基础上按直推佣金比例立减，并清空推荐关系（佣金天然不产生）
+      let selfDiscount = 0;
+      if (selfPurchaseRate > 0) {
+        selfDiscount = Math.round(actualAmount * selfPurchaseRate * 100) / 100;
+        actualAmount = Math.max(0.01, Math.round((actualAmount - selfDiscount) * 100) / 100);
+      }
+
+      // ── 秒杀两道闸（每人限购 + 秒杀条目量原子扣减）──
+      // FlashSaleItem 按 @@unique([flashSaleId, productId]) 唯一定位；
+      // 与下方 Product/SKU 库存 CAS 扣减并存：两道闸都通过才成交。
+      if (promotionType === "FLASH_SALE" && promotionId) {
+        const flashItem = await tx.flashSaleItem.findFirst({
+          where: { flashSaleId: promotionId, productId: dto.targetId },
+          select: { id: true, limitCount: true },
+        });
+        if (!flashItem) {
+          throw new BusinessException(ErrorCode.FLASH_SALE_NOT_FOUND, "秒杀商品不存在");
+        }
+
+        // 闸1: 每人限购（limitCount > 0 才限购）：统计该用户同活动有效订单（未取消/未退款）已购数量
+        if (flashItem.limitCount > 0) {
+          const bought = await tx.order.aggregate({
+            where: {
+              userId,
+              promotionType: "FLASH_SALE",
+              promotionId,
+              targetId: dto.targetId,
+              status: { notIn: ["CANCELLED", "REFUNDED"] },
+            },
+            _sum: { quantity: true },
+          });
+          const boughtQty = bought._sum.quantity ?? 0;
+          if (boughtQty + qty > flashItem.limitCount) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, `超出每人限购 ${flashItem.limitCount} 件`);
+          }
+        }
+
+        // 闸2: 原子扣减秒杀条目量（Prisma 不支持列间比较，用条件 UPDATE：sold + qty <= stock 才成交）
+        const flashDeducted = await tx.$executeRaw`
+          UPDATE "FlashSaleItem"
+          SET "sold" = "sold" + ${qty}, "updatedAt" = NOW()
+          WHERE "id" = ${flashItem.id} AND "sold" + ${qty} <= "stock"
+        `;
+        if (flashDeducted === 0) {
+          throw new BusinessException(ErrorCode.PRODUCT_OUT_OF_STOCK, "秒杀商品已抢完");
+        }
+      }
+
+      const order = await tx.order.create({
+        data: {
+          userId,
+          type: dto.type as any,
+          targetId: dto.targetId,
+          skuId: dto.skuId,
+          quantity: qty,
+          amount: actualAmount,
+          couponId: dto.couponId,
+          promotionType,
+          promotionId,
+          merchantId,
+          addressId: dto.addressId,
+          shippingInfo: shippingInfo as any,
+          referrerId: selfDiscount > 0 ? null : permanentReferrerId,
+          tempReferrerId: selfDiscount > 0 ? null : tempReferrerId,
+          tempRefSubjectType: selfDiscount > 0 ? null : tempRefSubjectType, // 渠道主体类型（佣-V2-P2·分佣受益人路由依据·与推荐关系同生共灭）
+          sourceContentType, // 内容来源（佣-V2-P3·纯记录·自购单也保留来源便于内容转化统计）
+          sourceContentId,
+          selfDiscount: selfDiscount > 0 ? selfDiscount : null,
+          giftCardMeta: selfDiscount > 0 ? undefined : giftCardMeta, // 白标贺卡任务（供-P2·与推荐关系同生共灭）
+          status: "PENDING",
+        },
+      });
+
+      // 扣减库存（非会员订单），带库存 >= 数量 约束防止超卖（按 qty 扣减，钱货严谨）
+      if (dto.type !== "MEMBER") {
+        if (dto.skuId) {
+          const skuResult = await tx.productSku.updateMany({
+            where: { id: dto.skuId, stock: { gte: qty } },
+            data: { stock: { decrement: qty } },
+          });
+          if (skuResult.count === 0) throw new BusinessException(ErrorCode.PRODUCT_OUT_OF_STOCK, "SKU库存不足");
+        } else {
+          const productResult = await tx.product.updateMany({
+            where: { id: dto.targetId, stock: { gte: qty } },
+            data: { stock: { decrement: qty } },
+          });
+          if (productResult.count === 0) throw new BusinessException(ErrorCode.PRODUCT_OUT_OF_STOCK, "商品库存不足");
+        }
+      }
+
+      return order;
+    });
+  }
+
+  /**
+   * 创建拼团订单（付费拼团：用拼团价 groupPrice 下单，标记 promotionType=GROUP_BUY + groupId，扣库存）。
+   * 由 marketing.joinGroupBuy 委托调用；支付成功后由 settleGroupBuyIfNeeded 创建参与者并判定成团。
+   */
+  async createGroupBuyOrder(userId: string, params: {
+    groupBuyId: string; productId: string; skuId?: string; groupPrice: number; groupId: string;
+  }) {
+    const product = await this.prisma.product.findUnique({
+      where: { id: params.productId },
+      select: { id: true, status: true, supplierType: true, userId: true },
+    });
+    if (!product || product.status !== "ON_SALE") {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "商品不可购买");
+    }
+    let merchantId: string | undefined;
+    if (product.supplierType === "CERTIFIED_MERCHANT" && product.userId) {
+      const merchant = await this.prisma.merchant.findUnique({
+        where: { userId: product.userId }, select: { id: true },
+      });
+      merchantId = merchant?.id;
+    }
+    const amount = Math.round(Number(params.groupPrice) * 100) / 100;
+    return this.prisma.$transaction(async (tx) => {
+      const order = await tx.order.create({
+        data: {
+          userId, type: "PRODUCT", targetId: params.productId, skuId: params.skuId,
+          amount, promotionType: "GROUP_BUY", promotionId: params.groupBuyId,
+          groupId: params.groupId, merchantId, status: "PENDING",
+        },
+      });
+      if (params.skuId) {
+        const r = await tx.productSku.updateMany({ where: { id: params.skuId, stock: { gte: 1 } }, data: { stock: { decrement: 1 } } });
+        if (r.count === 0) throw new BusinessException(ErrorCode.PRODUCT_OUT_OF_STOCK, "SKU库存不足");
+      } else {
+        const r = await tx.product.updateMany({ where: { id: params.productId, stock: { gte: 1 } }, data: { stock: { decrement: 1 } } });
+        if (r.count === 0) throw new BusinessException(ErrorCode.PRODUCT_OUT_OF_STOCK, "商品库存不足");
+      }
+      return order;
+    });
+  }
+
+  /**
+   * 拼团订单支付成功后结算：创建参与者(已付) + 判定成团（同团已付人数 ≥ minMembers → 全组 SUCCESS）。
+   * 幂等（按 orderId 防重复创建）；并发安全（不同订单的参与者创建互不冲突，成团 updateMany 幂等）。
+   */
+  async settleGroupBuyIfNeeded(orderId: string) {
+    const order = await this.prisma.order.findUnique({ where: { id: orderId } });
+    if (!order || order.promotionType !== "GROUP_BUY" || !order.promotionId || !order.groupId) return;
+    const exist = await this.prisma.groupBuyParticipant.findFirst({ where: { orderId } });
+    if (exist) return; // 幂等：该订单已创建参与者
+    const gb = await this.prisma.groupBuy.findUnique({ where: { id: order.promotionId } });
+    if (!gb) return;
+    const cnt = await this.prisma.groupBuyParticipant.count({ where: { groupId: order.groupId } });
+    await this.prisma.groupBuyParticipant.create({
+      data: {
+        groupBuyId: order.promotionId, userId: order.userId, groupId: order.groupId,
+        isLeader: cnt === 0, orderId: order.id, status: "WAITING",
+      },
+    });
+    const paidCount = await this.prisma.groupBuyParticipant.count({
+      where: { groupId: order.groupId, status: { in: ["WAITING", "SUCCESS"] } },
+    });
+    if (paidCount >= gb.minMembers) {
+      await this.prisma.groupBuyParticipant.updateMany({
+        where: { groupId: order.groupId, status: "WAITING" }, data: { status: "SUCCESS" },
+      });
+      this.logger.log(`拼团成团 groupId=${order.groupId} 人数=${paidCount}/${gb.minMembers}`);
+    }
+  }
+
+  async getOrder(orderId: string, userId?: string, isAdmin = false) {
+    const cacheKey = `${CACHE_PREFIX}order:${orderId}`;
+    let order = await this.redis.getJson<any>(cacheKey);
+    if (!order) {
+      order = await this.prisma.order.findUnique({
+        where: { id: orderId },
+        include: {
+          user: { select: { id: true, nickname: true } },
+        },
+      });
+      if (!order) throw new BusinessException(ErrorCode.NOT_FOUND, "订单不存在");
+      await this.redis.setJson(cacheKey, order, ORDER_CACHE_TTL);
+    }
+    if (!isAdmin && userId && order.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能查看自己的订单");
+
+    const [enriched] = await this.enrichOrders([order]);
+    return enriched;
+  }
+
+  private readonly VALID_ORDER_STATUSES = new Set(["PENDING", "PAID", "SHIPPED", "COMPLETED", "REFUNDED", "CANCELLED"]);
+
+  async listOrders(dto: OrderListQueryDto) {
+    const { page = 1, pageSize = 20, orderNo, type, status, userId, startDate, endDate } = dto;
+    const filterHash = createHash("sha1")
+      .update(`${orderNo || ""}|${type || ""}|${status || ""}|${userId || ""}|${startDate || ""}|${endDate || ""}`)
+      .digest("hex");
+    const cacheKey = `${CACHE_PREFIX}orders:${page}:${pageSize}:${filterHash}`;
+
+    // 简单查询走缓存
+    const cached = !orderNo && !startDate && !endDate ? await this.redis.getJson<any>(cacheKey) : null;
+    if (cached) return cached;
+
+    const where: Prisma.OrderWhereInput = {};
+    if (orderNo) where.id = { contains: orderNo };
+    if (type) where.type = type as any;
+    if (status && this.VALID_ORDER_STATUSES.has(status)) where.status = status as any;
+    if (userId) where.userId = userId;
+    if (startDate && endDate) {
+      where.createdAt = {
+        gte: new Date(startDate + "T00:00:00+08:00"),
+        lte: new Date(endDate + "T23:59:59+08:00"),
+      };
+    }
+
+    const [orders, total] = await Promise.all([
+      this.prisma.order.findMany({
+        where,
+        include: {
+          user: { select: { id: true, nickname: true } },
+        },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        orderBy: { createdAt: "desc" },
+      }),
+      this.prisma.order.count({ where }),
+    ]);
+
+    const data = { orders, total, page, pageSize };
+    await this.redis.setJson(cacheKey, data, ORDER_LIST_CACHE_TTL);
+    return data;
+  }
+
+  async getUserOrders(userId: string, page = 1, pageSize = 20, status?: string) {
+    const safeStatus = status && this.VALID_ORDER_STATUSES.has(status) ? status : undefined;
+    const cacheKey = `${CACHE_PREFIX}userOrders:${userId}:${page}:${pageSize}:${safeStatus || "all"}`;
+    const cached = await this.redis.getJson<any>(cacheKey);
+    if (cached) return cached;
+
+    const where: Prisma.OrderWhereInput = { userId };
+    if (safeStatus) where.status = safeStatus as any;
+    const [orders, total] = await Promise.all([
+      this.prisma.order.findMany({ where, skip: (page - 1) * pageSize, take: pageSize, orderBy: { createdAt: "desc" } }),
+      this.prisma.order.count({ where }),
+    ]);
+    const data = { orders: await this.enrichOrders(orders), total, page, pageSize };
+    await this.redis.setJson(cacheKey, data, ORDER_LIST_CACHE_TTL);
+    return data;
+  }
+
+  /**
+   * 批量补全订单的商品/SKU 信息，供 C 端订单列表与详情渲染。
+   * 原 Order 行仅含 targetId/skuId，无商品名/封面/规格，前端无法展示。
+   * 按 targetId join Product、skuId join ProductSku，附加 product/sku 字段（原字段全部透传，内部调用方不受影响）。
+   */
+  private async enrichOrders<T extends { targetId: string; skuId: string | null }>(orders: T[]) {
+    if (orders.length === 0) return [] as (T & { product: any; sku: any })[];
+
+    const productIds = [...new Set(orders.map(o => o.targetId).filter(Boolean))];
+    const products = productIds.length
+      ? await this.prisma.product.findMany({
+          where: { id: { in: productIds } },
+          select: { id: true, title: true, images: true, price: true },
+        })
+      : [];
+    const productMap = new Map(products.map(p => [p.id, p]));
+
+    const skuIds = orders.map(o => o.skuId).filter((s): s is string => !!s);
+    const skus = skuIds.length
+      ? await this.prisma.productSku.findMany({
+          where: { id: { in: skuIds } },
+          select: { id: true, specs: true, price: true },
+        })
+      : [];
+    const skuMap = new Map(skus.map(s => [s.id, s]));
+
+    return orders.map(o => {
+      const p = o.targetId ? productMap.get(o.targetId) : null;
+      const sku = o.skuId ? skuMap.get(o.skuId) : null;
+      const skuName = sku?.specs && typeof sku.specs === "object" && !Array.isArray(sku.specs)
+        ? Object.values(sku.specs as Record<string, unknown>).filter(Boolean).join(" ") || null
+        : null;
+      return {
+        ...o,
+        product: p ? { id: p.id, title: p.title, cover: p.images?.[0] || null, price: Number(p.price) } : null,
+        sku: sku ? { id: sku.id, skuName, price: Number(sku.price) } : null,
+      };
+    });
+  }
+}
