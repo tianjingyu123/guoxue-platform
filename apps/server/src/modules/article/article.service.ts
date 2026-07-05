@@ -8,7 +8,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { RecommendService } from "../recommend/recommend.service";
 import { AuditService } from "../audit/audit.service";
-import { paginated } from "../../common/pagination";
+import { safePagination, paginated } from "../../common/pagination";
 
 import { CreateArticleDto, UpdateArticleDto, AddRecommendDto } from "./article.dto";
 import { Prisma } from "@prisma/client";
@@ -148,7 +148,8 @@ export class ArticleService {
     auditStatus?: string;
     stationId?: string;
   }) {
-    const { page, pageSize, circleId, tag, isPushHome, auditStatus, stationId } = params;
+    const { circleId, tag, isPushHome, auditStatus, stationId } = params;
+    const { page, pageSize, skip } = safePagination(params.page, params.pageSize);
     const filterHash = `${circleId ?? ""}:${tag ?? ""}:${isPushHome ?? ""}:${auditStatus ?? ""}`;
     const cacheKey = `articles:list:${page}:${pageSize}:${filterHash}`;
 
@@ -174,7 +175,7 @@ export class ArticleService {
           user: { select: { id: true, nickname: true, avatar: true } },
           circle: { select: { id: true, name: true } },
         },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),
@@ -189,7 +190,7 @@ export class ArticleService {
   // ───────── 首页信息流 ─────────
 
   async getHomeFeed(params: { page: number; pageSize: number; userId?: string }) {
-    const { page, pageSize } = params;
+    const { page, pageSize, skip } = safePagination(params.page, params.pageSize);
     const where: Prisma.ArticleWhereInput = { isPushHome: true, auditStatus: "APPROVED" };
 
     // 热度加权：浏览量×1 + 点赞×2 + 收藏×3
@@ -203,7 +204,7 @@ export class ArticleService {
           user: { select: { id: true, nickname: true, avatar: true } },
           circle: { select: { id: true, name: true } },
         },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: [{ viewCount: "desc" }, { createdAt: "desc" }],
       }),
@@ -288,13 +289,14 @@ export class ArticleService {
 
   // ───────── 草稿管理 ─────────
 
-  async getMyDrafts(userId: string, page = 1, pageSize = 20) {
+  async getMyDrafts(userId: string, rawPage = 1, rawPageSize = 20) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
     const where: Prisma.ArticleWhereInput = { userId, auditStatus: "DRAFT" };
     const [items, total] = await Promise.all([
       this.prisma.article.findMany({
         where,
         select: { id: true, title: true, cover: true, excerpt: true, updatedAt: true },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { updatedAt: "desc" },
       }),
@@ -376,7 +378,8 @@ export class ArticleService {
 
   /** 管理端-列出所有草稿 */
   async listAllDrafts(params: { page?: number; pageSize?: number; circleId?: string }) {
-    const { page = 1, pageSize = 20, circleId } = params;
+    const { circleId } = params;
+    const { page, pageSize, skip } = safePagination(params.page, params.pageSize);
     const where: Prisma.ArticleWhereInput = { auditStatus: "DRAFT" };
     if (circleId) where.circleId = circleId;
     const [items, total] = await Promise.all([
@@ -386,7 +389,7 @@ export class ArticleService {
           user: { select: { id: true, nickname: true } },
           circle: { select: { id: true, name: true } },
         },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { updatedAt: "desc" },
       }),

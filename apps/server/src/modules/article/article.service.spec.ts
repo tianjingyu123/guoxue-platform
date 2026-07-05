@@ -244,4 +244,34 @@ describe("ArticleService", () => {
       await expect(svc.removeRecommend("invalid", "u1")).rejects.toThrow(BusinessException);
     });
   });
+
+  // 坏味道 P2-4：入参归一化（safePagination），防非法 page/pageSize 致 skip:NaN/负数进 Prisma 抛 500
+  describe("分页入参加固（P2-4）", () => {
+    it("listArticles: 非法 page/pageSize(NaN) 归一化第1页20条·skip 不为 NaN", async () => {
+      mockRedis.getJson.mockResolvedValue(null);
+      mockPrisma.article.findMany.mockResolvedValue([]);
+      mockPrisma.article.count.mockResolvedValue(0);
+      await svc.listArticles({ page: "abc" as any, pageSize: "xyz" as any });
+      const arg = mockPrisma.article.findMany.mock.calls.at(-1)![0];
+      expect(Number.isNaN(arg.skip)).toBe(false);
+      expect(arg.skip).toBe(0);
+      expect(arg.take).toBe(20);
+    });
+
+    it("getMyDrafts: 负数 page 归一化第1页·skip=0（响应结构不变）", async () => {
+      mockPrisma.article.findMany.mockResolvedValue([]);
+      mockPrisma.article.count.mockResolvedValue(0);
+      const r = await svc.getMyDrafts("u1", -5 as any, 10);
+      const arg = mockPrisma.article.findMany.mock.calls.at(-1)![0];
+      expect(arg.skip).toBe(0);
+      expect(r).toEqual({ items: [], total: 0, page: 1, pageSize: 10 });
+    });
+
+    it("listAllDrafts: pageSize 超上限钳至 100（防大页拖库）", async () => {
+      mockPrisma.article.findMany.mockResolvedValue([]);
+      mockPrisma.article.count.mockResolvedValue(0);
+      const r = await svc.listAllDrafts({ page: 1, pageSize: 9999 });
+      expect(r.pageSize).toBe(100);
+    });
+  });
 });
