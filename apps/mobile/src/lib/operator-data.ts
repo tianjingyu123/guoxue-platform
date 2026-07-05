@@ -366,6 +366,14 @@ export interface OperatorDashboardData {
   stats: { totalUsers: number; thisMonthUsers: number; conversionRate: number }
 }
 
+/** 运营商团队健康度（课题二工作台 P3·后端 computeTeamHealth） */
+export interface TeamHealth {
+  score: number
+  level: string
+  levelKey: 'dormant' | 'warning' | 'activating' | 'running' | 'healthy'
+  breakdown: { activity: number; performance: number; scale: number; orders: number }
+}
+
 export interface DashboardTeamMember {
   id: number | string
   name: string
@@ -922,6 +930,30 @@ export const operatorApi = {
         pending: 0, teamBonus: 0, quotaSales: 0,
       },
       stats: { totalUsers: 0, thisMonthUsers: 0, conversionRate: 0 },
+    }
+  },
+  /** 团队健康度（课题二工作台 P3·取 /overview 的 teamHealth·无/失败返回 null，页面 v-if 降级） */
+  async getTeamHealth(): Promise<TeamHealth | null> {
+    try {
+      const ov = await apiGet<{ teamHealth?: {
+        score?: number; level?: string; levelKey?: string
+        breakdown?: { activity?: number; performance?: number; scale?: number; orders?: number }
+      } }>('/station/operator-dashboard/overview')
+      const th = ov?.teamHealth
+      if (!th) return null
+      return {
+        score: Number(th.score ?? 0),
+        level: th.level || '预警·亟待启动',
+        levelKey: (th.levelKey as TeamHealth['levelKey']) || 'dormant',
+        breakdown: {
+          activity: Number(th.breakdown?.activity ?? 0),
+          performance: Number(th.breakdown?.performance ?? 0),
+          scale: Number(th.breakdown?.scale ?? 0),
+          orders: Number(th.breakdown?.orders ?? 0),
+        },
+      }
+    } catch {
+      return null
     }
   },
   async getDashboardTeamMembers(): Promise<DashboardTeamMember[]> {

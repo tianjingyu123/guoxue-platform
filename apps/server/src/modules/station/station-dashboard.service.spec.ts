@@ -1,5 +1,5 @@
 import { Test, TestingModule } from "@nestjs/testing";
-import { StationDashboardService } from "./station-dashboard.service";
+import { StationDashboardService, computeTeamHealth } from "./station-dashboard.service";
 import { PrismaService } from "../../prisma/prisma.service";
 
 const mockPrisma = {
@@ -119,5 +119,42 @@ describe("StationDashboardService", () => {
       expect(result.remainingDays).toBeGreaterThan(0);
       expect(result.pendingSettlement).toBe(1000);
     });
+  });
+});
+
+describe("computeTeamHealth（运营商团队健康度·课题二工作台P3）", () => {
+  it("无团队(total=0) → 0 分·预警", () => {
+    const r = computeTeamHealth({ totalStations: 0, activeStations: 0, monthTeamEarned: 0, monthTeamOrders: 0 });
+    expect(r.score).toBe(0);
+    expect(r.levelKey).toBe("dormant");
+  });
+
+  it("满员活跃+厚业绩+规模大 → 高分·健康", () => {
+    const r = computeTeamHealth({ totalStations: 40, activeStations: 40, monthTeamEarned: 40000, monthTeamOrders: 500 });
+    expect(r.score).toBeGreaterThanOrEqual(80);
+    expect(r.levelKey).toBe("healthy");
+    expect(r.breakdown.activity).toBe(45); // 全活跃触顶
+  });
+
+  it("半数沉寂 → 活跃分腰斩", () => {
+    const full = computeTeamHealth({ totalStations: 10, activeStations: 10, monthTeamEarned: 0, monthTeamOrders: 0 });
+    const half = computeTeamHealth({ totalStations: 10, activeStations: 5, monthTeamEarned: 0, monthTeamOrders: 0 });
+    expect(half.breakdown.activity).toBeLessThan(full.breakdown.activity);
+    expect(half.breakdown.activity).toBe(Math.round((5 / 10) * 45));
+  });
+
+  it("零业绩全活跃团队 → 有活跃分但无业绩分", () => {
+    const r = computeTeamHealth({ totalStations: 5, activeStations: 5, monthTeamEarned: 0, monthTeamOrders: 0 });
+    expect(r.breakdown.activity).toBe(45);
+    expect(r.breakdown.performance).toBe(0);
+    expect(r.breakdown.orders).toBe(0);
+  });
+
+  it("异常入参（活跃>总数/负数）稳健归一化，不越界", () => {
+    const r = computeTeamHealth({ totalStations: 10, activeStations: 999, monthTeamEarned: -100, monthTeamOrders: -5 });
+    expect(r.breakdown.activity).toBe(45); // active 被钳到 total
+    expect(r.score).toBeGreaterThanOrEqual(0);
+    expect(r.score).toBeLessThanOrEqual(100);
+    expect(Number.isFinite(r.score)).toBe(true);
   });
 });

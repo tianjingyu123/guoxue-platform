@@ -68,6 +68,31 @@
       </view>
     </view>
 
+    <!-- 团队健康度（课题二工作台 P3·失败/无数据不显示） -->
+    <view v-if="teamHealth" class="dash-sec">
+      <view class="dash-card dash-health">
+        <view class="dash-health-head">
+          <view class="dash-health-score-wrap">
+            <text class="dash-health-score" :class="'lv-' + teamHealth.levelKey">{{ teamHealth.score }}</text>
+            <text class="dash-health-unit">分</text>
+          </view>
+          <view class="dash-health-head-r">
+            <text class="dash-health-title">团队健康度</text>
+            <text class="dash-health-level" :class="'lv-' + teamHealth.levelKey">{{ teamHealth.level }}</text>
+          </view>
+        </view>
+        <view class="dash-health-dims">
+          <view v-for="d in healthDims" :key="d.key" class="dash-health-dim">
+            <view class="dash-health-dim-top">
+              <text class="dash-health-dim-label">{{ d.label }}</text>
+              <text class="dash-health-dim-val">{{ d.val }}/{{ d.max }}</text>
+            </view>
+            <view class="dash-health-bar"><view class="dash-health-bar-fill" :style="{ width: d.pct + '%' }" /></view>
+          </view>
+        </view>
+      </view>
+    </view>
+
     <!-- 推广链接 -->
     <view class="dash-sec">
       <view class="dash-card">
@@ -144,9 +169,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { navigateTo } from '@/utils/router'
-import { operatorApi, type OperatorDashboardData, type DashboardTeamMember, type DashboardQuotaRecord } from '@/lib/operator-data'
+import { operatorApi, type OperatorDashboardData, type DashboardTeamMember, type DashboardQuotaRecord, type TeamHealth } from '@/lib/operator-data'
 
 const loading = ref(true)
 const error = ref('')
@@ -158,22 +183,38 @@ const inviteLink = ref('')
 const activeTab = ref<'team' | 'quota'>('team')
 const copied = ref(false)
 const submitting = ref(false)
+const teamHealth = ref<TeamHealth | null>(null)
+
+// 团队健康度四维分解（与后端权重一致：活跃45/人均业绩35/规模12/订单8）
+const HEALTH_DIMS = [
+  { key: 'activity', label: '活跃占比', max: 45 },
+  { key: 'performance', label: '人均业绩', max: 35 },
+  { key: 'scale', label: '团队规模', max: 12 },
+  { key: 'orders', label: '订单活跃', max: 8 },
+] as const
+const healthDims = computed(() => {
+  const b = teamHealth.value?.breakdown
+  if (!b) return []
+  return HEALTH_DIMS.map((d) => ({ ...d, val: b[d.key], pct: Math.min(100, Math.round((b[d.key] / d.max) * 100)) }))
+})
 
 async function loadData() {
   loading.value = true
   error.value = ''
   notOpened.value = false
   try {
-    const [d, tm, qr, il] = await Promise.all([
+    const [d, tm, qr, il, th] = await Promise.all([
       operatorApi.getDashboardData(),
       operatorApi.getDashboardTeamMembers(),
       operatorApi.getDashboardQuotaRecords(),
       operatorApi.getDashboardInviteLink(),
+      operatorApi.getTeamHealth(),
     ])
     data.value = d
     teamMembers.value = tm
     quotaRecords.value = qr
     inviteLink.value = il
+    teamHealth.value = th
   } catch (e) {
     const msg = (e as Error)?.message || ''
     // 用户尚未开通运营商：后端抛错（含「不是运营商」等）→ 进入引导态而非错误态
@@ -235,6 +276,34 @@ function goJoin() { navigateTo('/pkg-operator/join-operator/index') }
 .dash-quota-more-txt { font-size: 22rpx; color: rgba(255,255,255,0.6); }
 .dash-quota-grid { display: flex; }
 .dash-quota-item { flex: 1; text-align: center; }
+
+/* 团队健康度卡（课题二工作台 P3） */
+.dash-health { padding: 28rpx 28rpx 8rpx; }
+.dash-health-head { display: flex; align-items: center; gap: 24rpx; padding-bottom: 24rpx; border-bottom: 2rpx solid #f0edf7; }
+.dash-health-score-wrap { display: flex; align-items: baseline; }
+.dash-health-score { font-size: 72rpx; font-weight: 800; line-height: 1; color: #7c3aed; }
+.dash-health-unit { font-size: 26rpx; color: #9ca3af; margin-left: 6rpx; }
+.dash-health-head-r { display: flex; flex-direction: column; gap: 12rpx; }
+.dash-health-title { font-size: 30rpx; font-weight: 600; color: #2d2a26; }
+.dash-health-level { align-self: flex-start; font-size: 22rpx; color: #fff; padding: 4rpx 18rpx; border-radius: 999rpx; background: #9ca3af; }
+/* 等级配色（与后端 levelKey 对齐） */
+.lv-healthy { color: #16a34a; }
+.dash-health-level.lv-healthy { background: #16a34a; color: #fff; }
+.lv-running { color: #2563eb; }
+.dash-health-level.lv-running { background: #2563eb; color: #fff; }
+.lv-activating { color: #7c3aed; }
+.dash-health-level.lv-activating { background: #7c3aed; color: #fff; }
+.lv-warning { color: #f59e0b; }
+.dash-health-level.lv-warning { background: #f59e0b; color: #fff; }
+.lv-dormant { color: #9ca3af; }
+.dash-health-level.lv-dormant { background: #9ca3af; color: #fff; }
+.dash-health-dims { display: flex; flex-direction: column; gap: 20rpx; margin-top: 24rpx; padding-bottom: 20rpx; }
+.dash-health-dim { display: flex; flex-direction: column; gap: 10rpx; }
+.dash-health-dim-top { display: flex; align-items: center; justify-content: space-between; }
+.dash-health-dim-label { font-size: 25rpx; color: #6b5b45; }
+.dash-health-dim-val { font-size: 23rpx; color: #9ca3af; }
+.dash-health-bar { height: 14rpx; background: #f0edf7; border-radius: 999rpx; overflow: hidden; }
+.dash-health-bar-fill { height: 100%; border-radius: 999rpx; background: #7c3aed; transition: width 0.4s ease; }
 .dash-quota-num { display: block; font-size: 44rpx; font-weight: 700; color: #fff; }
 .dash-quota-sub { font-size: 20rpx; color: rgba(255,255,255,0.6); }
 .c-success { color: #16a34a !important; }

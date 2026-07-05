@@ -10,6 +10,60 @@ const MGMT_RATE_DEFAULTS: Record<string, number> = {
   OFFLINE: 0.20,
 };
 
+/** 运营商团队健康度结构（课题二五角色工作台 P3） */
+export interface TeamHealth {
+  /** 综合健康度 0-100 */
+  score: number;
+  /** 等级中文名 */
+  level: string;
+  /** 等级枚举键（配色/图标用） */
+  levelKey: "dormant" | "warning" | "activating" | "running" | "healthy";
+  /** 四维分解：活跃占比/人均业绩/团队规模/订单活跃 */
+  breakdown: { activity: number; performance: number; scale: number; orders: number };
+}
+
+/**
+ * 运营商团队健康度（0-100·课题二工作台 P3）。
+ * 纯函数·无随机·基于团队真实经营数据加权（符合 CLAUDE.md 禁纯随机/假算法）：
+ * - activity 活跃站长占比 45（团队是否在动的核心信号）
+ * - performance 人均本月佣金 35（log10 缩放·业绩厚度）
+ * - scale 团队规模 12（log10）
+ * - orders 本月团队订单活跃 8（log10）
+ * 无团队(total=0) → 0 分·预警起步（诚实不虚高）。
+ */
+export function computeTeamHealth(input: {
+  totalStations: number;
+  activeStations: number;
+  monthTeamEarned: number;
+  monthTeamOrders: number;
+}): TeamHealth {
+  const total = Math.max(0, input.totalStations || 0);
+  if (total === 0) {
+    return { score: 0, level: "尚无团队", levelKey: "dormant", breakdown: { activity: 0, performance: 0, scale: 0, orders: 0 } };
+  }
+  const active = Math.max(0, Math.min(total, input.activeStations || 0));
+  const earned = Math.max(0, Number(input.monthTeamEarned) || 0);
+  const orders = Math.max(0, input.monthTeamOrders || 0);
+
+  const activity = Math.round((active / total) * 45);
+  const avgEarn = earned / total;
+  const performance = Math.min(35, Math.round(Math.log10(avgEarn + 1) * 17.5));
+  const scale = Math.min(12, Math.round(Math.log10(total + 1) * 8));
+  const ordersScore = Math.min(8, Math.round(Math.log10(orders + 1) * 4));
+
+  const score = Math.min(100, activity + performance + scale + ordersScore);
+  const { level, levelKey } = teamHealthLevel(score);
+  return { score, level, levelKey, breakdown: { activity, performance, scale, orders: ordersScore } };
+}
+
+function teamHealthLevel(score: number): { level: string; levelKey: TeamHealth["levelKey"] } {
+  if (score >= 80) return { level: "团队健康", levelKey: "healthy" };
+  if (score >= 60) return { level: "运转良好", levelKey: "running" };
+  if (score >= 40) return { level: "有待激活", levelKey: "activating" };
+  if (score >= 20) return { level: "亟需关注", levelKey: "warning" };
+  return { level: "预警·亟待启动", levelKey: "dormant" };
+}
+
 @Injectable()
 export class StationDashboardService {
   constructor(private readonly prisma: PrismaService) {}

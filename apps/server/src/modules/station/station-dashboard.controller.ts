@@ -1,7 +1,7 @@
 import { Controller, Get, Post, Put, Body, Param, Req, Query, UseGuards, NotFoundException, ForbiddenException } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiResponse } from "@nestjs/swagger";
 import { Request } from "express";
-import { StationDashboardService } from "./station-dashboard.service";
+import { StationDashboardService, computeTeamHealth } from "./station-dashboard.service";
 import { TeamTaskService, CreateTeamTaskDto } from "./team-task.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { PrismaService } from "../../prisma/prisma.service";
@@ -114,6 +114,14 @@ export class OperatorDashboardController {
 
     const activeCount = stations.filter(s => s.status === "ACTIVE").length;
 
+    // 团队健康度（课题二工作台 P3·纯函数·基于团队真实经营数据加权）
+    const teamHealth = computeTeamHealth({
+      totalStations: stations.length,
+      activeStations: activeCount,
+      monthTeamEarned: Number(earningsAgg._sum.earned || 0),
+      monthTeamOrders: earningsAgg._count,
+    });
+
     return {
       totalStations: stations.length,
       activeStations: activeCount,
@@ -123,6 +131,7 @@ export class OperatorDashboardController {
       monthTeamEarned: earningsAgg._sum.earned || 0,
       monthTeamAmount: earningsAgg._sum.amount || 0,
       monthTeamOrders: earningsAgg._count,
+      teamHealth,
     };
   }
 
