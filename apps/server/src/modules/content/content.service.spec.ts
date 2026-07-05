@@ -69,6 +69,13 @@ describe("ContentService", () => {
       const result = await svc.list({ keyword: "论语" });
       expect(result.total).toBe(0);
     });
+    it("page='abc' 时 skip 不为 NaN（归一化回归）", async () => {
+      mockPrisma.content.findMany.mockResolvedValue([]);
+      mockPrisma.content.count.mockResolvedValue(0);
+      await svc.list({ page: "abc" as any, pageSize: 20 });
+      const findManyArg = mockPrisma.content.findMany.mock.calls[0][0];
+      expect(Number.isNaN(findManyArg.skip)).toBe(false);
+    });
   });
 
   describe("detail", () => {

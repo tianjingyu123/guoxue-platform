@@ -63,6 +63,14 @@ describe("AdminDedupService", () => {
         }),
       );
     });
+
+    it("page 为非法字符串时 skip 不为 NaN", async () => {
+      mockPrisma.circleKnowledgeCandidate.findMany.mockResolvedValue([]);
+      mockPrisma.circleKnowledgeCandidate.count.mockResolvedValue(0);
+      await svc.listCandidates({ page: "abc" as any });
+      const findManyArg = mockPrisma.circleKnowledgeCandidate.findMany.mock.calls[0][0];
+      expect(Number.isNaN(findManyArg.skip)).toBe(false);
+    });
   });
 
   describe("getCandidate", () => {

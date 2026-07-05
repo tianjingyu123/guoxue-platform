@@ -7,6 +7,7 @@ import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { tc3Sign, TencentCloudResponse } from "../../common/tc3.util";
 import { MetricsService } from "../../common/metrics.service";
+import { safePagination } from "../../common/pagination";
 
 /**
  * 腾讯云短信 SMS 服务（纯原生API，不依赖SDK）
@@ -211,14 +212,15 @@ export class SmsService {
 
   // ───────── 管理端 ─────────
 
-  async getAdminLogs(page = 1, pageSize = 20, status?: string) {
+  async getAdminLogs(rawPage = 1, rawPageSize = 20, status?: string) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
     const where: any = {};
     if (status) where.status = status;
 
     const [logs, total] = await Promise.all([
       this.prisma.smsLog.findMany({
         where,
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),

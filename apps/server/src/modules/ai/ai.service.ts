@@ -5,6 +5,7 @@ import { MemoryCache } from "../../common/cache.util";
 import { PrismaService } from "../../prisma/prisma.service";
 import { tc3Sign } from "../../common/tc3.util";
 import { CircuitBreaker } from "../../common/circuit-breaker";
+import { safePagination } from "../../common/pagination";
 
 /**
  * 腾讯云 AI 能力服务（语音识别/OCR/NLP/翻译）
@@ -373,7 +374,8 @@ export class AiService {
   }
 
   /** 获取AI调用日志（分页） */
-  async getAiCallLogs(page: number, pageSize: number, service?: string) {
+  async getAiCallLogs(rawPage: number, rawPageSize: number, service?: string) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
     this.logger.log(`查询AI调用日志: page=${page}, pageSize=${pageSize}, service=${service || "all"}`);
     const where: Prisma.AiAnalysisRecordWhereInput = {};
     if (service) {
@@ -384,7 +386,7 @@ export class AiService {
       this.prisma.aiAnalysisRecord.findMany({
         where,
         orderBy: { createdAt: "desc" },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         include: {
           user: { select: { id: true, nickname: true, avatar: true } },

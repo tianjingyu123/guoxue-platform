@@ -217,4 +217,16 @@ describe("CircleKnowledgeService", () => {
       expect(result.filename).toContain("knowledge-");
     });
   });
+
+  // 坏味道 P2-4：入参归一化（safePagination），防非法 page/pageSize 致 skip:NaN/负数进 Prisma 抛 500
+  describe("分页入参加固（P2-4）", () => {
+    it("list: 非法 page(NaN) 归一化第1页·skip 不为 NaN", async () => {
+      mockPrisma.circleKnowledge.findMany.mockResolvedValue([]);
+      mockPrisma.circleKnowledge.count.mockResolvedValue(0);
+      await svc.list("c1", { page: "abc" as any, pageSize: 20 });
+      const arg = mockPrisma.circleKnowledge.findMany.mock.calls.at(-1)![0];
+      expect(Number.isNaN(arg.skip)).toBe(false);
+      expect(arg.skip).toBe(0);
+    });
+  });
 });

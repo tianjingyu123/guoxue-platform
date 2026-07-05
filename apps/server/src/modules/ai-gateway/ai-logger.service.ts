@@ -1,5 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
+import { safePagination } from "../../common/pagination";
 
 /**
  * AI 调用日志服务 — 将所有AI网关调用写入 AiAnalysisRecord 表
@@ -64,8 +65,7 @@ export class AiLoggerService {
     endDate?: string;
     keyword?: string;
   }) {
-    const page = params.page || 1;
-    const pageSize = params.pageSize || 20;
+    const { page, pageSize, skip } = safePagination(params.page, params.pageSize);
     const where: any = {};
 
     if (params.scenes && params.scenes.length > 0) {
@@ -88,7 +88,7 @@ export class AiLoggerService {
       this.prisma.aiAnalysisRecord.findMany({
         where,
         orderBy: { createdAt: "desc" },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         select: {
           id: true,

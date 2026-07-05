@@ -3,6 +3,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { MetricsService } from "../../common/metrics.service";
+import { safePagination } from "../../common/pagination";
 import { ALL_TOOLS } from "@guoxue/shared";
 import { buildBaziPrompt, buildZiWeiPrompt } from "./prompts/bazi-ziwei";
 import { buildQimenYangPrompt, buildQimenYangMingLiPrompt, buildQimenYinPrompt, buildQimenYinMingLiPrompt, buildShanXiangQimenPrompt, buildQimenChuanRenPrompt } from "./prompts/qimen";
@@ -129,7 +130,8 @@ export class ToolAiService {
   }
 
   /** 获取用户所有分析历史 */
-  async getUserHistory(userId: string, page = 1, pageSize = 20) {
+  async getUserHistory(userId: string, rawPage = 1, rawPageSize = 20) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
     const where = { userId };
     const [records, total] = await Promise.all([
       this.prisma.aiAnalysisRecord.findMany({
@@ -138,7 +140,7 @@ export class ToolAiService {
           id: true, paipanRecordId: true, toolId: true,
           analyzeType: true, isCached: true, createdAt: true,
         },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),

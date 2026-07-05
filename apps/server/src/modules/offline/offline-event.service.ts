@@ -5,6 +5,7 @@ import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { isUniqueConstraintError } from "../../common/prisma-errors";
 import { OfflineReminderService } from "./offline-reminder.service";
+import { safePagination } from "../../common/pagination";
 
 /** 回顾照片墙上限 */
 const MAX_EVENT_PHOTOS = 30;
@@ -226,7 +227,8 @@ export class OfflineEventService {
   }
 
   /** 我的活动报名列表（带活动与驿站简要信息） */
-  async listMyEventRegistrations(userId: string, page = 1, pageSize = 20) {
+  async listMyEventRegistrations(userId: string, rawPage = 1, rawPageSize = 20) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
     const where = { userId };
     const [registrations, total] = await Promise.all([
       this.prisma.stationEventRegistration.findMany({
@@ -240,7 +242,7 @@ export class OfflineEventService {
             },
           },
         },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),
@@ -351,8 +353,7 @@ export class OfflineEventService {
   /** B 端活动列表（本驿站全状态，可按 status 过滤） */
   async listDashboardEvents(userId: string, params?: { status?: string; page?: number; pageSize?: number }) {
     const stationId = await this.getMyStationId(userId);
-    const page = Number(params?.page) || 1;
-    const pageSize = Math.min(50, Number(params?.pageSize) || 20);
+    const { page, pageSize, skip } = safePagination(params?.page, params?.pageSize);
     const where: Prisma.StationEventWhereInput = { stationId };
     if (params?.status) where.status = params.status;
 
@@ -360,7 +361,7 @@ export class OfflineEventService {
       this.prisma.stationEvent.findMany({
         where,
         include: { _count: { select: { registrations: { where: this.activeRegWhere } } } },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { startTime: "desc" },
       }),

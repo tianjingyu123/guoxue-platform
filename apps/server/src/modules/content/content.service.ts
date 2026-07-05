@@ -6,6 +6,7 @@ import { RedisService } from "../../redis/redis.service";
 import { WebhookService } from "../webhook/webhook.service";
 import { CreateContentDto, UpdateContentDto, ContentListQueryDto } from "./content.dto";
 import { Content, Prisma } from "@prisma/client";
+import { safePagination } from "../../common/pagination";
 
 @Injectable()
 export class ContentService {
@@ -61,7 +62,8 @@ export class ContentService {
     return this.fetchList(q, page, pageSize);
   }
 
-  private async fetchList(q: ContentListQueryDto, page: number, pageSize: number) {
+  private async fetchList(q: ContentListQueryDto, rawPage: number, rawPageSize: number) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
     const where: Prisma.ContentWhereInput = {};
     if (q.type) where.type = q.type;
     if (q.status) where.status = q.status;
@@ -76,7 +78,7 @@ export class ContentService {
     const [data, total] = await Promise.all([
       this.prisma.content.findMany({
         where,
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),

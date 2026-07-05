@@ -10,6 +10,7 @@ import {
 import { Prisma } from "@prisma/client";
 import { isUniqueConstraintError } from "../../common/prisma-errors";
 import { resolveTargets, targetKey } from "./target-resolver";
+import { safePagination } from "../../common/pagination";
 
 @Injectable()
 export class InteractionService {
@@ -52,12 +53,13 @@ export class InteractionService {
     return this.prisma.like.count({ where: { targetType, targetId } });
   }
 
-  async getMyLikes(userId: string, page = 1, pageSize = 20) {
+  async getMyLikes(userId: string, rawPage = 1, rawPageSize = 20) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
     const where = { userId };
     const [likes, total] = await Promise.all([
       this.prisma.like.findMany({
         where,
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),
@@ -102,7 +104,8 @@ export class InteractionService {
   }
 
   async listComments(dto: CommentListQueryDto) {
-    const { targetType, targetId, page = 1, pageSize = 20, userId, status } = dto;
+    const { targetType, targetId, userId, status } = dto;
+    const { page, pageSize, skip } = safePagination(dto.page, dto.pageSize);
     const where: Prisma.CommentWhereInput = { parentId: null };
 
     if (targetType) where.targetType = targetType;
@@ -125,7 +128,7 @@ export class InteractionService {
           orderBy: { createdAt: "asc" },
         },
       },
-      skip: (page - 1) * pageSize,
+      skip,
       take: pageSize,
       orderBy: { createdAt: "desc" },
     });
@@ -174,12 +177,13 @@ export class InteractionService {
     return { collected: true };
   }
 
-  async getUserCollects(userId: string, page = 1, pageSize = 20) {
+  async getUserCollects(userId: string, rawPage = 1, rawPageSize = 20) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
     const where = { userId };
     const [collects, total] = await Promise.all([
       this.prisma.collect.findMany({
         where,
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),
@@ -226,13 +230,14 @@ export class InteractionService {
     return { followed: true };
   }
 
-  async getFollowers(userId: string, page = 1, pageSize = 20) {
+  async getFollowers(userId: string, rawPage = 1, rawPageSize = 20) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
     const where = { followedUserId: userId };
     const [followers, total] = await Promise.all([
       this.prisma.follow.findMany({
         where,
         include: { user: { select: { id: true, nickname: true, avatar: true } } },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),
@@ -241,13 +246,14 @@ export class InteractionService {
     return { followers, total, page, pageSize };
   }
 
-  async getFollowing(userId: string, page = 1, pageSize = 20) {
+  async getFollowing(userId: string, rawPage = 1, rawPageSize = 20) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
     const where = { userId };
     const [followings, total] = await Promise.all([
       this.prisma.follow.findMany({
         where,
         include: { followedUser: { select: { id: true, nickname: true, avatar: true } } },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),
@@ -270,7 +276,8 @@ export class InteractionService {
   }
 
   async listReports(dto: ReportListQueryDto) {
-    const { targetType, status, page = 1, pageSize = 20 } = dto;
+    const { targetType, status } = dto;
+    const { page, pageSize, skip } = safePagination(dto.page, dto.pageSize);
     const where: Prisma.ReportWhereInput = {};
     if (targetType) where.targetType = targetType;
     if (status) where.status = status;
@@ -279,7 +286,7 @@ export class InteractionService {
       this.prisma.report.findMany({
         where,
         include: { reporter: { select: { id: true, nickname: true } } },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),
@@ -432,7 +439,7 @@ export class InteractionService {
     userId: string,
     opts: { lat?: number; lng?: number; radius?: number; page: number; pageSize: number },
   ) {
-    const { page, pageSize } = opts;
+    const { page, pageSize, skip } = safePagination(opts.page, opts.pageSize);
     // 基于 StationOffline 同城匹配：找到与当前用户同城的线下驿站，返回驿站相关用户
     // 若无坐标数据，返回最近活跃用户
     const [nearbyUsers, total] = await Promise.all([
@@ -442,7 +449,7 @@ export class InteractionService {
           status: "ACTIVE",
         },
         select: { id: true, nickname: true, avatar: true, bio: true },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),

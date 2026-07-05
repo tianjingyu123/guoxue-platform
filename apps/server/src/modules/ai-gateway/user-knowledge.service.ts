@@ -1,5 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
+import { safePagination } from "../../common/pagination";
 
 /**
  * RAG Layer 4 — 用户知识画像服务
@@ -119,12 +120,13 @@ export class UserKnowledgeService {
   }
 
   /** 获取用户最近交互记录 */
-  async getInteractions(userId: string, page = 1, pageSize = 20) {
+  async getInteractions(userId: string, rawPage = 1, rawPageSize = 20) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
     const [items, total] = await Promise.all([
       this.prisma.userKnowledgeInteraction.findMany({
         where: { userId },
         orderBy: { createdAt: "desc" },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
       }),
       this.prisma.userKnowledgeInteraction.count({ where: { userId } }),

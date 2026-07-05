@@ -63,6 +63,14 @@ describe("BrowseHistoryService", () => {
         expect.objectContaining({ skip: 0, take: 20 }),
       );
     });
+
+    it("page='abc' 时 skip 不为 NaN（归一化回归）", async () => {
+      mockPrisma.browseHistory.findMany.mockResolvedValue([]);
+      mockPrisma.browseHistory.count.mockResolvedValue(0);
+      await svc.list("u1", { page: "abc" as any, pageSize: 20 });
+      const findManyArg = mockPrisma.browseHistory.findMany.mock.calls[0][0];
+      expect(Number.isNaN(findManyArg.skip)).toBe(false);
+    });
   });
 
   describe("remove", () => {

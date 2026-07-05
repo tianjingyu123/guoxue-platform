@@ -112,6 +112,14 @@ describe("BaziClassicQueryService", () => {
       expect(result.chapters).toHaveLength(1);
       expect(result.total).toBe(5);
     });
+
+    it("page='abc' 时 skip 不为 NaN（归一化回归）", async () => {
+      mockPrisma.classicChapter.findMany.mockResolvedValue([]);
+      mockPrisma.classicChapter.count.mockResolvedValue(0);
+      await svc.searchBaziClassics("关键词", "abc" as any);
+      const findManyArg = mockPrisma.classicChapter.findMany.mock.calls[0][0];
+      expect(Number.isNaN(findManyArg.skip)).toBe(false);
+    });
   });
 
   describe("listBaziBooks", () => {

@@ -123,6 +123,14 @@ describe("MiniService", () => {
         where: expect.objectContaining({ type: "POETRY" }),
       }));
     });
+
+    it("page 为非法字符串时 skip 不为 NaN", async () => {
+      prisma.content.findMany.mockResolvedValue([]);
+      prisma.content.count.mockResolvedValue(0);
+      await svc.getContents({ page: "abc" as any, pageSize: 10 });
+      const findManyArg = prisma.content.findMany.mock.calls[0][0];
+      expect(Number.isNaN(findManyArg.skip)).toBe(false);
+    });
   });
 
   describe("getContentDetail", () => {

@@ -72,6 +72,16 @@ describe("SmsService", () => {
       await expect(svc.verifyCode("13800138000", "123456")).rejects.toThrow("验证码已过期");
     });
   });
+
+  describe("getAdminLogs", () => {
+    it("page 为非法字符串时 skip 不为 NaN", async () => {
+      mockPrisma.smsLog.findMany.mockResolvedValue([]);
+      mockPrisma.smsLog.count.mockResolvedValue(0);
+      await svc.getAdminLogs("abc" as any);
+      const findManyArg = mockPrisma.smsLog.findMany.mock.calls[0][0];
+      expect(Number.isNaN(findManyArg.skip)).toBe(false);
+    });
+  });
 });
 
 import { RedisService } from "../../redis/redis.service";

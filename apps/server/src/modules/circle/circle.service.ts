@@ -9,6 +9,7 @@ import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { Cacheable } from "../../common/cache.decorator";
 import { isUniqueConstraintError } from "../../common/prisma-errors";
+import { safePagination } from "../../common/pagination";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { CoinService } from "../coin/coin.service";
@@ -153,7 +154,8 @@ export class CircleService {
     type?: string;
     stationId?: string;
   }) {
-    const { page, pageSize, keyword, tag, type, stationId } = params;
+    const { keyword, tag, type, stationId } = params;
+    const { page, pageSize, skip } = safePagination(params.page, params.pageSize);
     const filterHash = `${keyword ?? ""}:${tag ?? ""}:${type ?? ""}`;
     const cacheKey = `circles:list:${page}:${pageSize}:${filterHash}`;
 
@@ -180,7 +182,7 @@ export class CircleService {
           type: true, price: true, memberCount: true, postCount: true,
           owner: { select: { id: true, nickname: true, avatar: true } },
         },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { memberCount: "desc" },
       }),
@@ -263,13 +265,14 @@ export class CircleService {
     return { ...announcement, content: announcement.content, updatedAt: announcement.updatedAt.toISOString() };
   }
 
-  async listAnnouncements(circleId: string, page = 1, pageSize = 20) {
+  async listAnnouncements(circleId: string, rawPage = 1, rawPageSize = 20) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
     const [list, total] = await Promise.all([
       this.prisma.circleAnnouncement.findMany({
         where: { circleId },
         include: { user: { select: { id: true, nickname: true, avatar: true } } },
         orderBy: [{ isTop: "desc" }, { createdAt: "desc" }],
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
       }),
       this.prisma.circleAnnouncement.count({ where: { circleId } }),
@@ -962,14 +965,15 @@ export class CircleService {
     return { success: true };
   }
 
-  async listMembers(circleId: string, page = 1, pageSize = 20) {
+  async listMembers(circleId: string, rawPage = 1, rawPageSize = 20) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
     const [members, total] = await Promise.all([
       this.prisma.circleMember.findMany({
         where: { circleId },
         include: {
           user: { select: { id: true, nickname: true, avatar: true } },
         },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { joinedAt: "asc" },
       }),
@@ -1017,13 +1021,14 @@ export class CircleService {
   }
 
   /** 获取我的草稿列表 */
-  async getMyDrafts(userId: string, page = 1, pageSize = 20) {
+  async getMyDrafts(userId: string, rawPage = 1, rawPageSize = 20) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
     const where = { userId, status: "DRAFT" };
     const [posts, total] = await Promise.all([
       this.prisma.post.findMany({
         where,
         include: { circle: { select: { id: true, name: true } } },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { updatedAt: "desc" },
       }),
@@ -1086,7 +1091,8 @@ export class CircleService {
 
   @Cacheable({ key: (args: any[]) => `circle:posts:${args[0]}:${args[1]?.type || ""}:${args[1]?.isEssence || ""}:${args[1]?.page || 1}:${args[1]?.pageSize || 20}`, ttl: 15 })
   async getPosts(circleId: string, query: { type?: string; isEssence?: string; page?: number; pageSize?: number }) {
-    const { type, isEssence, page = 1, pageSize = 20 } = query;
+    const { type, isEssence } = query;
+    const { page, pageSize, skip } = safePagination(query.page, query.pageSize);
     const where: Prisma.PostWhereInput = { circleId, status: "PUBLISHED" };
 
     if (type) where.type = type as PostType;
@@ -1099,7 +1105,7 @@ export class CircleService {
         include: {
           user: { select: { id: true, nickname: true, avatar: true } },
         },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: [{ isTop: "desc" }, { createdAt: "desc" }],
       }),
@@ -1244,7 +1250,8 @@ export class CircleService {
   // ───────── 排行榜 ─────────
 
   @Cacheable({ key: (args: any[]) => `circle:ranking:${args[0]}:${args[1]}:${args[2] || "memberCount"}`, ttl: 30 })
-  async getCircleRanking(page = 1, pageSize = 20, sortBy?: string) {
+  async getCircleRanking(rawPage = 1, rawPageSize = 20, sortBy?: string) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
     const validSortBy = ["memberCount", "postCount", "activityScore"] as const;
     const sortField = validSortBy.includes(sortBy as any) ? sortBy! : "memberCount";
     const where: Prisma.CircleWhereInput = { status: "ACTIVE" };
@@ -1281,7 +1288,7 @@ export class CircleService {
             owner: { select: { nickname: true } },
           },
           orderBy: { [sortField]: "desc" } as Prisma.CircleOrderByWithRelationInput,
-          skip: (page - 1) * pageSize,
+          skip,
           take: pageSize,
         }),
         this.prisma.circle.count({ where }),
@@ -1449,12 +1456,13 @@ export class CircleService {
     return { success: true };
   }
 
-  async getGroupMembers(circleId: string, groupId: string, page = 1, pageSize = 20) {
+  async getGroupMembers(circleId: string, groupId: string, rawPage = 1, rawPageSize = 20) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
     const where = { groupId };
     const [relations, total] = await Promise.all([
       this.prisma.circleMemberGroupRelation.findMany({
         where,
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
       }),
       this.prisma.circleMemberGroupRelation.count({ where }),

@@ -6,6 +6,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { isUniqueConstraintError } from "../../common/prisma-errors";
 import { OfflineReminderService } from "./offline-reminder.service";
+import { safePagination } from "../../common/pagination";
 
 @Injectable()
 export class OfflineService {
@@ -34,7 +35,8 @@ export class OfflineService {
     });
   }
 
-  async listStations(page = 1, pageSize = 20, city?: string, status?: string) {
+  async listStations(rawPage = 1, rawPageSize = 20, city?: string, status?: string) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
     const where: Prisma.StationOfflineWhereInput = {};
     if (city) where.city = city;
     if (status) where.status = status;
@@ -43,7 +45,7 @@ export class OfflineService {
       this.prisma.stationOffline.findMany({
         where,
         include: { owner: { select: { id: true, nickname: true } } },
-        skip: (page - 1) * pageSize, take: pageSize,
+        skip, take: pageSize,
         orderBy: { createdAt: "desc" },
       }),
       this.prisma.stationOffline.count({ where }),
@@ -299,7 +301,8 @@ export class OfflineService {
   // ───────── 驿站发现（用户端） ─────────
 
   async discoverStations(params: { city?: string; keyword?: string; page?: number; pageSize?: number }) {
-    const { city, keyword, page = 1, pageSize = 20 } = params;
+    const { city, keyword } = params;
+    const { page, pageSize, skip } = safePagination(params.page, params.pageSize);
     const where: Prisma.StationOfflineWhereInput = { status: "ACTIVE" };
     if (city) where.city = city;
     if (keyword) where.name = { contains: keyword };
@@ -313,7 +316,7 @@ export class OfflineService {
           businessHours: true, images: true, tags: true, facilities: true, status: true,
           _count: { select: { courses: true, products: true } },
         },
-        skip: (page - 1) * pageSize, take: pageSize,
+        skip, take: pageSize,
         orderBy: { createdAt: "desc" },
       }),
       this.prisma.stationOffline.count({ where }),
@@ -335,7 +338,8 @@ export class OfflineService {
     });
   }
 
-  async listOfflineCourses(stationId?: string, page = 1, pageSize = 20) {
+  async listOfflineCourses(stationId?: string, rawPage = 1, rawPageSize = 20) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
     // 传 stationId=单驿站课程（含草稿）；不传=用户端发现，仅 ACTIVE 驿站的已审核已发布课程
     const where: Prisma.OfflineCourseWhereInput = stationId
       ? { stationId }
@@ -347,7 +351,7 @@ export class OfflineService {
           _count: { select: { registrations: true } },
           station: { select: { id: true, name: true, city: true } },
         },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { startTime: "asc" },
       }),
@@ -489,11 +493,12 @@ export class OfflineService {
     });
   }
 
-  async listRegistrations(operatorUserId: string, courseId: string, page = 1, pageSize = 20) {
+  async listRegistrations(operatorUserId: string, courseId: string, rawPage = 1, rawPageSize = 20) {
     // 越权校验：先由 courseId 反查所属驿站，再校验调用者为驿站主
     const course = await this.prisma.offlineCourse.findUnique({ where: { id: courseId }, select: { stationId: true } });
     if (!course) throw new BusinessException(ErrorCode.NOT_FOUND, "课程不存在");
     await this.assertStationOwner(operatorUserId, course.stationId);
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
 
     const where = { courseId };
     const [registrations, total] = await Promise.all([
@@ -507,7 +512,7 @@ export class OfflineService {
           signedAt: true,
           createdAt: true,
         },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: "asc" },
       }),
@@ -560,12 +565,13 @@ export class OfflineService {
   }
 
   /** 课程评价公开分页（脱敏：仅昵称+头像） */
-  async listCourseReviews(courseId: string, page = 1, pageSize = 20) {
+  async listCourseReviews(courseId: string, rawPage = 1, rawPageSize = 20) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
     const where = { courseId };
     const [reviews, total] = await Promise.all([
       this.prisma.offlineCourseReview.findMany({
         where,
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),
@@ -679,14 +685,13 @@ export class OfflineService {
   async listProducts(operatorUserId: string, stationId: string, params?: { status?: string; page?: number; pageSize?: number }) {
     await this.assertStationOwner(operatorUserId, stationId);
     const { status } = params || {};
-    const page = Number(params?.page) || 1;
-    const pageSize = Number(params?.pageSize) || 20;
+    const { page, pageSize, skip } = safePagination(params?.page, params?.pageSize);
     const where: Prisma.StationProductWhereInput = { stationId };
     if (status) where.status = status;
     const [products, total] = await Promise.all([
       this.prisma.stationProduct.findMany({
         where,
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),
@@ -739,7 +744,8 @@ export class OfflineService {
 
   async listTeacherBookings(operatorUserId: string, stationId: string, params?: { teacherId?: string; status?: string; page?: number; pageSize?: number }) {
     await this.assertStationOwner(operatorUserId, stationId);
-    const { teacherId, status, page = 1, pageSize = 20 } = params || {};
+    const { teacherId, status } = params || {};
+    const { page, pageSize, skip } = safePagination(params?.page, params?.pageSize);
     const where: Prisma.StationTeacherBookingWhereInput = { stationId };
     if (teacherId) where.teacherId = teacherId;
     if (status) where.status = status;
@@ -747,7 +753,7 @@ export class OfflineService {
     const [bookings, total] = await Promise.all([
       this.prisma.stationTeacherBooking.findMany({
         where,
-        skip: (page - 1) * pageSize, take: pageSize,
+        skip, take: pageSize,
         orderBy: { bookingDate: "asc" },
       }),
       this.prisma.stationTeacherBooking.count({ where }),
@@ -792,7 +798,8 @@ export class OfflineService {
 
   async listOrders(operatorUserId: string, stationId: string, params?: { orderType?: string; status?: string; page?: number; pageSize?: number }) {
     await this.assertStationOwner(operatorUserId, stationId);
-    const { orderType, status, page = 1, pageSize = 20 } = params || {};
+    const { orderType, status } = params || {};
+    const { page, pageSize, skip } = safePagination(params?.page, params?.pageSize);
     const where: Prisma.StationOrderWhereInput = { stationId };
     if (orderType) where.orderType = orderType;
     if (status) where.status = status;
@@ -800,7 +807,7 @@ export class OfflineService {
     const [orders, total] = await Promise.all([
       this.prisma.stationOrder.findMany({
         where,
-        skip: (page - 1) * pageSize, take: pageSize,
+        skip, take: pageSize,
         orderBy: { createdAt: "desc" },
       }),
       this.prisma.stationOrder.count({ where }),
@@ -832,12 +839,13 @@ export class OfflineService {
     });
   }
 
-  async listSettlements(operatorUserId: string, stationId: string, page = 1, pageSize = 20) {
+  async listSettlements(operatorUserId: string, stationId: string, rawPage = 1, rawPageSize = 20) {
     await this.assertStationOwner(operatorUserId, stationId);
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
     const where = { stationId };
     const [settlements, total] = await Promise.all([
       this.prisma.stationSettlement.findMany({
-        where, skip: (page - 1) * pageSize, take: pageSize,
+        where, skip, take: pageSize,
         orderBy: { period: "desc" },
       }),
       this.prisma.stationSettlement.count({ where }),
@@ -926,14 +934,15 @@ export class OfflineService {
     });
   }
 
-  async listPendingCourses(page = 1, pageSize = 20, stationId?: string) {
+  async listPendingCourses(rawPage = 1, rawPageSize = 20, stationId?: string) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
     const where: Prisma.OfflineCourseWhereInput = { auditStatus: "PENDING" };
     if (stationId) where.stationId = stationId;
     const [courses, total] = await Promise.all([
       this.prisma.offlineCourse.findMany({
         where,
         include: { station: { select: { id: true, name: true } } },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),
@@ -942,13 +951,14 @@ export class OfflineService {
     return { courses, total, page, pageSize };
   }
 
-  async listRecommendedCourses(page = 1, pageSize = 20) {
+  async listRecommendedCourses(rawPage = 1, rawPageSize = 20) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
     const where: Prisma.OfflineCourseWhereInput = { isRecommended: true, status: { not: "DRAFT" } };
     const [courses, total] = await Promise.all([
       this.prisma.offlineCourse.findMany({
         where,
         include: { station: { select: { id: true, name: true, city: true } } },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { recommendedAt: "desc" },
       }),
@@ -959,11 +969,12 @@ export class OfflineService {
 
   // ───────── 研究院（平台管理视图） ─────────
 
-  async listMembers(page = 1, pageSize = 20) {
+  async listMembers(rawPage = 1, rawPageSize = 20) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
     const [members, total] = await Promise.all([
       this.prisma.instituteMember.findMany({
         include: { user: { select: { id: true, nickname: true, avatar: true } } },
-        skip: (page - 1) * pageSize, take: pageSize,
+        skip, take: pageSize,
         orderBy: { joinedAt: "desc" },
       }),
       this.prisma.instituteMember.count(),
@@ -1012,14 +1023,15 @@ export class OfflineService {
     });
   }
 
-  async listTeachers(stationId?: string, page = 1, pageSize = 20) {
+  async listTeachers(stationId?: string, rawPage = 1, rawPageSize = 20) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
     const where: Prisma.StationTeacherWhereInput = {};
     if (stationId) where.stationId = stationId;
     const [teachers, total] = await Promise.all([
       this.prisma.stationTeacher.findMany({
         where,
         include: { station: { select: { id: true, name: true } } },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),
@@ -1172,7 +1184,8 @@ export class OfflineService {
   }
 
   /** 管理员查看所有教师邀约 */
-  async adminListTeacherRequests(status?: string, page = 1, pageSize = 20) {
+  async adminListTeacherRequests(status?: string, rawPage = 1, rawPageSize = 20) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
     const where: any = {};
     if (status) where.status = status;
     const [data, total] = await Promise.all([
@@ -1181,7 +1194,7 @@ export class OfflineService {
         include: {
           station: { select: { id: true, name: true, city: true } },
         },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),
@@ -1200,8 +1213,7 @@ export class OfflineService {
 
   /** 核销记录（跨驿站签到核销，平台监控）— status=SIGNED_IN */
   async adminListCheckins(params?: { stationId?: string; page?: number; pageSize?: number }) {
-    const page = Number(params?.page) || 1;
-    const pageSize = Number(params?.pageSize) || 20;
+    const { page, pageSize, skip } = safePagination(params?.page, params?.pageSize);
     const where: Prisma.OfflineCourseRegistrationWhereInput = { status: "SIGNED_IN" };
     if (params?.stationId) where.course = { stationId: params.stationId };
 
@@ -1209,7 +1221,7 @@ export class OfflineService {
       this.prisma.offlineCourseRegistration.findMany({
         where,
         include: { course: { select: { id: true, title: true, price: true, station: { select: { id: true, name: true, city: true } } } } },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { signedAt: "desc" },
       }),
@@ -1243,8 +1255,7 @@ export class OfflineService {
 
   /** 驿站商品（跨驿站列表，平台监控）*/
   async adminListProducts(params?: { stationId?: string; status?: string; page?: number; pageSize?: number }) {
-    const page = Number(params?.page) || 1;
-    const pageSize = Number(params?.pageSize) || 20;
+    const { page, pageSize, skip } = safePagination(params?.page, params?.pageSize);
     const where: Prisma.StationProductWhereInput = {};
     if (params?.stationId) where.stationId = params.stationId;
     if (params?.status) where.status = params.status;
@@ -1253,7 +1264,7 @@ export class OfflineService {
       this.prisma.stationProduct.findMany({
         where,
         include: { station: { select: { id: true, name: true, city: true } } },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),
@@ -1264,8 +1275,7 @@ export class OfflineService {
 
   /** 师资预约（跨驿站列表，平台监控）*/
   async adminListBookings(params?: { stationId?: string; status?: string; page?: number; pageSize?: number }) {
-    const page = Number(params?.page) || 1;
-    const pageSize = Number(params?.pageSize) || 20;
+    const { page, pageSize, skip } = safePagination(params?.page, params?.pageSize);
     const where: Prisma.StationTeacherBookingWhereInput = {};
     if (params?.stationId) where.stationId = params.stationId;
     if (params?.status) where.status = params.status;
@@ -1277,7 +1287,7 @@ export class OfflineService {
           station: { select: { id: true, name: true, city: true } },
           teacher: { select: { id: true, name: true } },
         },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { bookingDate: "desc" },
       }),

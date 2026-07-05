@@ -9,6 +9,7 @@ import { RedisService } from "../../redis/redis.service";
 import { CoinService } from "../coin/coin.service";
 import { isUniqueConstraintError } from "../../common/prisma-errors";
 import { getSchool } from "./bazi-schools";
+import { safePagination } from "../../common/pagination";
 
 /** 通用八字分析的 system prompt（保持现行行为，一个字不改） */
 const GENERAL_SYSTEM_PROMPT =
@@ -387,10 +388,11 @@ export class PaipanAiService {
   /** 获取用户 AI 分析历史 */
   async getUserAnalysisHistory(
     userId: string,
-    page = 1,
-    pageSize = 20,
+    rawPage = 1,
+    rawPageSize = 20,
     type?: string,
   ) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
     const where: any = { userId };
     if (type) where.paipanRecord = { type };
 
@@ -404,7 +406,7 @@ export class PaipanAiService {
           isCached: true,
           createdAt: true,
         },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),

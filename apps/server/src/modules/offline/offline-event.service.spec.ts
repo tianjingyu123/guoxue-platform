@@ -467,4 +467,17 @@ describe("OfflineEventService", () => {
       expect(mockPrisma.stationEvent.findMany.mock.calls[0][0].where).toEqual({ stationId: "s1", status: "DRAFT" });
     });
   });
+
+  // 坏味道 P2-4：入参归一化（safePagination），防非法 page/pageSize 致 skip:NaN/负数进 Prisma 抛 500
+  describe("分页入参加固（P2-4）", () => {
+    it("listMyEventRegistrations: 非法 page(NaN 字符串) 归一化第1页·skip 不为 NaN", async () => {
+      mockPrisma.stationEventRegistration.findMany.mockResolvedValue([]);
+      mockPrisma.stationEventRegistration.count.mockResolvedValue(0);
+      await svc.listMyEventRegistrations("u1", "abc" as any, "xyz" as any);
+      const arg = mockPrisma.stationEventRegistration.findMany.mock.calls.at(-1)![0];
+      expect(Number.isNaN(arg.skip)).toBe(false);
+      expect(arg.skip).toBe(0);
+      expect(arg.take).toBe(20);
+    });
+  });
 });

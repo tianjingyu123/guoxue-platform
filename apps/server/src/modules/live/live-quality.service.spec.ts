@@ -97,4 +97,12 @@ describe("LiveQualityService", () => {
     expect(r.ok).toBe(false);
     expect(mockPrisma.liveQuotaRecord.create).not.toHaveBeenCalled();
   });
+
+  it("listRecords — page='abc' 时 skip 不为 NaN（归一化回归）", async () => {
+    mockPrisma.liveQuotaRecord.findMany.mockResolvedValue([]);
+    mockPrisma.liveQuotaRecord.count.mockResolvedValue(0);
+    await svc.listRecords("u1", "abc" as any);
+    const findManyArg = mockPrisma.liveQuotaRecord.findMany.mock.calls[0][0];
+    expect(Number.isNaN(findManyArg.skip)).toBe(false);
+  });
 });

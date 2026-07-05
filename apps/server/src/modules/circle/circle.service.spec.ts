@@ -217,4 +217,17 @@ describe("CircleService", () => {
       await expect(svc.removeMember("c1", "u2", "u3")).rejects.toThrow(BusinessException);
     });
   });
+
+  // 坏味道 P2-4：入参归一化（safePagination），防非法 page/pageSize 致 skip:NaN/负数进 Prisma 抛 500
+  describe("分页入参加固（P2-4）", () => {
+    it("listCircles: 非法 page(NaN) 归一化第1页·skip 不为 NaN", async () => {
+      mockRedis.getJson.mockResolvedValue(null);
+      mockPrisma.circle.findMany.mockResolvedValue([]);
+      mockPrisma.circle.count.mockResolvedValue(0);
+      await svc.listCircles({ page: "abc" as any, pageSize: 10 });
+      const arg = mockPrisma.circle.findMany.mock.calls.at(-1)![0];
+      expect(Number.isNaN(arg.skip)).toBe(false);
+      expect(arg.skip).toBe(0);
+    });
+  });
 });

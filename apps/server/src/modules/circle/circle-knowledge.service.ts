@@ -4,6 +4,7 @@ import { ErrorCode } from "../../common/error-codes";
 import { createHash } from "crypto";
 import { PrismaService } from "../../prisma/prisma.service";
 import { VectorService } from "../ai-gateway/vector.service";
+import { safePagination } from "../../common/pagination";
 
 @Injectable()
 export class CircleKnowledgeService {
@@ -89,8 +90,7 @@ export class CircleKnowledgeService {
 
   /** 获取圈子知识库列表 */
   async list(circleId: string, params?: { page?: number; pageSize?: number; sourceType?: string; status?: string }) {
-    const page = params?.page || 1;
-    const pageSize = params?.pageSize || 20;
+    const { page, pageSize, skip } = safePagination(params?.page, params?.pageSize);
     const where: any = { circleId, status: params?.status || "active" };
     if (params?.sourceType) where.sourceType = params.sourceType;
 
@@ -98,7 +98,7 @@ export class CircleKnowledgeService {
       this.prisma.circleKnowledge.findMany({
         where,
         orderBy: { addedAt: "desc" },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
       }),
       this.prisma.circleKnowledge.count({ where }),
@@ -197,13 +197,14 @@ export class CircleKnowledgeService {
   }
 
   /** 获取候选列表（圈主审核用） */
-  async listCandidates(circleId: string, page = 1, pageSize = 20) {
+  async listCandidates(circleId: string, rawPage = 1, rawPageSize = 20) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
     const where = { circleId, status: "pending" };
     const [items, total] = await Promise.all([
       this.prisma.circleKnowledgeCandidate.findMany({
         where,
         orderBy: { createdAt: "desc" },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
       }),
       this.prisma.circleKnowledgeCandidate.count({ where }),

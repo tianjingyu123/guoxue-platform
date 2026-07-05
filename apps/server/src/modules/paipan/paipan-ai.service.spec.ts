@@ -451,5 +451,13 @@ describe("PaipanAiService", () => {
       const result = await svc.getUserAnalysisHistory("u1", 1, 10)
       expect(result.total).toBe(1)
     })
+
+    it("page='abc' 时 skip 不为 NaN（归一化回归）", async () => {
+      mockPrisma.aiAnalysisRecord.findMany.mockResolvedValue([])
+      mockPrisma.aiAnalysisRecord.count.mockResolvedValue(0)
+      await svc.getUserAnalysisHistory("u1", "abc" as any)
+      const findManyArg = mockPrisma.aiAnalysisRecord.findMany.mock.calls[0][0]
+      expect(Number.isNaN(findManyArg.skip)).toBe(false)
+    })
   })
 })

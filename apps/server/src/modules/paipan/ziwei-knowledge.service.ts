@@ -4,6 +4,7 @@ import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { CreateZiweiKnowledgeDto, UpdateZiweiKnowledgeDto } from "./ziwei-knowledge.dto";
 import { Prisma } from "@prisma/client";
+import { safePagination } from "../../common/pagination";
 
 @Injectable()
 export class ZiweiKnowledgeService {
@@ -17,7 +18,8 @@ export class ZiweiKnowledgeService {
     return { total, categories: byCategory.map((c) => ({ category: c.category, count: c._count })) };
   }
 
-  async search(keyword: string, category?: string, page = 1, pageSize = 20) {
+  async search(keyword: string, category?: string, rawPage = 1, rawPageSize = 20) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
     const where: Prisma.ZiweiKnowledgeWhereInput = { status: "PUBLISHED" };
     if (keyword) where.title = { contains: keyword, mode: "insensitive" };
     if (category) where.category = category;
@@ -26,7 +28,7 @@ export class ZiweiKnowledgeService {
       this.prisma.ziweiKnowledge.findMany({
         where,
         select: { id: true, title: true, category: true, tags: true, source: true, createdAt: true },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),

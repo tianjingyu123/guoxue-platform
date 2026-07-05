@@ -3,6 +3,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { VectorService } from "../ai-gateway/vector.service";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
+import { safePagination } from "../../common/pagination";
 
 /** 八字知识分类 */
 export const BAZI_CATEGORIES = [
@@ -27,13 +28,14 @@ export class BaziKnowledgeService {
   ) {}
 
   /** 按分类列出知识条目 */
-  async listByCategory(category: string, page = 1, pageSize = 20) {
+  async listByCategory(category: string, rawPage = 1, rawPageSize = 20) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
     const where = { category, status: "PUBLISHED" };
     const [items, total] = await Promise.all([
       this.prisma.baziKnowledge.findMany({
         where,
         select: { id: true, title: true, category: true, tags: true, source: true, createdAt: true },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),

@@ -1,13 +1,15 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 import { BrowseHistoryQueryDto } from "./browse-history.dto";
+import { safePagination } from "../../common/pagination";
 
 @Injectable()
 export class BrowseHistoryService {
   constructor(private prisma: PrismaService) {}
 
   async list(userId: string, query: BrowseHistoryQueryDto) {
-    const { page = 1, pageSize = 20, targetType } = query;
+    const { targetType } = query;
+    const { page, pageSize, skip } = safePagination(query.page, query.pageSize);
     const where: any = { userId };
     if (targetType) where.targetType = targetType;
 
@@ -15,7 +17,7 @@ export class BrowseHistoryService {
       this.prisma.browseHistory.findMany({
         where,
         orderBy: { createdAt: "desc" },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         select: { id: true, targetType: true, targetId: true, title: true, cover: true, createdAt: true },
       }),

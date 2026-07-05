@@ -5,6 +5,7 @@ import { GradingEngineService } from "./grading-engine.service";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { SystemService } from "../system/system.service";
+import { safePagination } from "../../common/pagination";
 
 @Injectable()
 export class CompetitionService {
@@ -65,7 +66,8 @@ export class CompetitionService {
   }
 
   async listCompetitions(query: { type?: string; status?: string; level?: string; organizerId?: string; keyword?: string; page?: number; pageSize?: number }) {
-    const { type, status, level, organizerId, keyword, page = 1, pageSize = 20 } = query;
+    const { type, status, level, organizerId, keyword } = query;
+    const { page, pageSize, skip } = safePagination(query.page, query.pageSize);
     const where: any = {};
     if (type) where.type = type;
     if (status) where.status = status;
@@ -76,7 +78,7 @@ export class CompetitionService {
     const [data, total] = await Promise.all([
       this.prisma.competition.findMany({
         where,
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
         include: { rounds: { orderBy: { sortOrder: "asc" } }, _count: { select: { registrations: true } } },
@@ -138,13 +140,14 @@ export class CompetitionService {
     return this.prisma.competitionQuestion.createMany({ data: questions });
   }
 
-  async listQuestions(competitionId: string, roundId?: string, page = 1, pageSize = 50) {
+  async listQuestions(competitionId: string, roundId?: string, rawPage = 1, rawPageSize = 50) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
     const where: any = { competitionId };
     if (roundId) where.roundId = roundId;
     const [data, total] = await Promise.all([
       this.prisma.competitionQuestion.findMany({
         where,
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { sortOrder: "asc" },
       }),
@@ -254,12 +257,13 @@ export class CompetitionService {
     });
   }
 
-  async listRegistrations(competitionId: string, page = 1, pageSize = 50) {
+  async listRegistrations(competitionId: string, rawPage = 1, rawPageSize = 50) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
     const where = { competitionId };
     const [data, total] = await Promise.all([
       this.prisma.competitionRegistration.findMany({
         where,
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         include: { user: { select: { id: true, nickname: true, avatar: true } } },
       }),
@@ -539,14 +543,15 @@ export class CompetitionService {
   // ═══════════════════ 排名查询（公开） ═══════════════════
 
   async getRankings(dto: { competitionId: string; roundId?: string; page?: number; pageSize?: number }) {
-    const { competitionId, roundId, page = 1, pageSize = 50 } = dto;
+    const { competitionId, roundId } = dto;
+    const { page, pageSize, skip } = safePagination(dto.page ?? 1, dto.pageSize ?? 50);
     const where: any = { competitionId };
     if (roundId) where.roundId = roundId;
 
     const [data, total] = await Promise.all([
       this.prisma.competitionRanking.findMany({
         where,
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { rank: "asc" },
         include: { user: { select: { id: true, nickname: true, avatar: true } } },

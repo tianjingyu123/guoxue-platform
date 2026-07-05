@@ -75,5 +75,13 @@ describe("AiLoggerService", () => {
       expect(whereArg.createdAt.gte).toBeInstanceOf(Date);
       expect(whereArg.createdAt.lte).toBeInstanceOf(Date);
     });
+
+    it("page 为非法字符串时 skip 不为 NaN", async () => {
+      mockPrisma.aiAnalysisRecord.findMany.mockResolvedValue([]);
+      mockPrisma.aiAnalysisRecord.count.mockResolvedValue(0);
+      await svc.query({ page: "abc" as any });
+      const findManyArg = mockPrisma.aiAnalysisRecord.findMany.mock.calls[0][0];
+      expect(Number.isNaN(findManyArg.skip)).toBe(false);
+    });
   });
 });

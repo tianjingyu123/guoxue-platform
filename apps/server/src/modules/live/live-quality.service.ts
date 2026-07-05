@@ -3,6 +3,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { CoinService } from "../coin/coin.service";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
+import { safePagination } from "../../common/pagination";
 
 /**
  * 直播画质分档商业化（C5）—— 时长包购买 / 额度核销。
@@ -93,13 +94,14 @@ export class LiveQualityService {
   }
 
   /** 额度流水（对账/明细） */
-  async listRecords(userId: string, page = 1, pageSize = 20) {
+  async listRecords(userId: string, rawPage = 1, rawPageSize = 20) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
     const where = { userId };
     const [records, total] = await Promise.all([
       this.prisma.liveQuotaRecord.findMany({
         where,
         orderBy: { createdAt: "desc" },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
       }),
       this.prisma.liveQuotaRecord.count({ where }),

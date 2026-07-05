@@ -4,6 +4,7 @@ import { RecommendService } from "../recommend/recommend.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { Prisma } from "@prisma/client";
+import { safePagination } from "../../common/pagination";
 
 @Injectable()
 export class MiniService {
@@ -106,7 +107,8 @@ export class MiniService {
 
   /** 小程序内容流（精简版分页） */
   async getContents(options: { stationId?: string; type?: string; page: number; pageSize: number }) {
-    const { stationId, type, page, pageSize } = options;
+    const { stationId, type } = options;
+    const { page, pageSize, skip } = safePagination(options.page, options.pageSize);
     const where: Prisma.ContentWhereInput = { status: "PUBLISHED" };
     if (stationId) where.stationId = stationId;
     if (type) where.type = type;
@@ -120,7 +122,7 @@ export class MiniService {
           createdAt: true,
         },
         orderBy: { createdAt: "desc" },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
       }),
       this.prisma.content.count({ where }),

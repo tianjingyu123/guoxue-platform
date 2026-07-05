@@ -2,6 +2,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
+import { safePagination } from "../../common/pagination";
 
 @Injectable()
 export class AdminDedupService {
@@ -17,8 +18,7 @@ export class AdminDedupService {
     circleId?: string;
     minSimilarity?: number;
   }) {
-    const page = query.page || 1;
-    const pageSize = query.pageSize || 20;
+    const { page, pageSize, skip } = safePagination(query.page, query.pageSize);
     const where: any = {};
     if (query.status) where.status = query.status;
     if (query.circleId) where.circleId = query.circleId;
@@ -28,7 +28,7 @@ export class AdminDedupService {
       this.prisma.circleKnowledgeCandidate.findMany({
         where,
         orderBy: [{ similarityScore: { sort: "desc", nulls: "last" } }, { createdAt: "desc" }],
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         include: { decisions: { take: 1, orderBy: { decidedAt: "desc" } } },
       }),

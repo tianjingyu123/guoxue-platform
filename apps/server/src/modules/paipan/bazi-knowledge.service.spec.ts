@@ -59,6 +59,14 @@ describe("BaziKnowledgeService", () => {
       expect(result.page).toBe(2);
       expect(result.pageSize).toBe(10);
     });
+
+    it("page='abc' 时 skip 不为 NaN（归一化回归）", async () => {
+      mockPrisma.baziKnowledge.findMany.mockResolvedValue([]);
+      mockPrisma.baziKnowledge.count.mockResolvedValue(0);
+      await svc.listByCategory("天干地支", "abc" as any);
+      const findManyArg = mockPrisma.baziKnowledge.findMany.mock.calls[0][0];
+      expect(Number.isNaN(findManyArg.skip)).toBe(false);
+    });
   });
 
   describe("getById", () => {

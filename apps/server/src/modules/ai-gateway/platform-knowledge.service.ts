@@ -3,6 +3,7 @@ import { Cron } from "@nestjs/schedule";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { VectorService } from "./vector.service";
+import { safePagination } from "../../common/pagination";
 
 @Injectable()
 export class PlatformKnowledgeService {
@@ -84,8 +85,7 @@ export class PlatformKnowledgeService {
       ];
     }
 
-    const page = params.page || 1;
-    const pageSize = params.pageSize || 20;
+    const { page, pageSize, skip } = safePagination(params.page, params.pageSize);
 
     const [items, total] = await Promise.all([
       this.prisma.platformKnowledge.findMany({
@@ -101,7 +101,7 @@ export class PlatformKnowledgeService {
           createdAt: true,
         },
         orderBy: { qualityScore: "desc" },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
       }),
       this.prisma.platformKnowledge.count({ where }),

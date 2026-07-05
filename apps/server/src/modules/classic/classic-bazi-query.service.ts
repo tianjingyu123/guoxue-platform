@@ -1,6 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
+import { safePagination } from "../../common/pagination";
 
 export interface BookGroup {
   bookId: string;
@@ -158,7 +159,8 @@ export class BaziClassicQueryService {
   /**
    * 全文搜索命理古籍
    */
-  async searchBaziClassics(keyword: string, page = 1, pageSize = 20) {
+  async searchBaziClassics(keyword: string, rawPage = 1, rawPageSize = 20) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
     const where = {
       book: { category: "命", status: "PUBLISHED" },
       OR: [
@@ -180,7 +182,7 @@ export class BaziClassicQueryService {
           book: { select: { id: true, title: true, author: true, dynasty: true } },
         },
         orderBy: { sortOrder: "asc" },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
       }),
       this.prisma.classicChapter.count({ where }),

@@ -1,6 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 import { AiGatewayService } from "./ai-gateway.service";
+import { safePagination } from "../../common/pagination";
 
 interface ExtractedEntity {
   name: string;
@@ -119,13 +120,14 @@ export class KnowledgeGraphService {
   }
 
   /** 列出所有实体（分页） */
-  async listEntities(type?: string, page = 1, pageSize = 20) {
+  async listEntities(type?: string, rawPage = 1, rawPageSize = 20) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
     const where = type ? { type } : {};
     const [data, total] = await Promise.all([
       this.prisma.knowledgeEntity.findMany({
         where,
         orderBy: { createdAt: "desc" },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
       }),
       this.prisma.knowledgeEntity.count({ where }),
