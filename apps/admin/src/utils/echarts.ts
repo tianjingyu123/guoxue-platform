@@ -1,5 +1,5 @@
 import * as echarts from "echarts/core";
-import { BarChart, LineChart, PieChart, GaugeChart, ScatterChart } from "echarts/charts";
+import { BarChart, LineChart, PieChart, GaugeChart, ScatterChart, FunnelChart } from "echarts/charts";
 import {
   TitleComponent, TooltipComponent, GridComponent,
   LegendComponent, DataZoomComponent, ToolboxComponent,
@@ -8,7 +8,7 @@ import { CanvasRenderer } from "echarts/renderers";
 import guoxueTheme from "./echarts-theme";
 
 echarts.use([
-  BarChart, LineChart, PieChart, GaugeChart, ScatterChart,
+  BarChart, LineChart, PieChart, GaugeChart, ScatterChart, FunnelChart,
   TitleComponent, TooltipComponent, GridComponent,
   LegendComponent, DataZoomComponent, ToolboxComponent,
   CanvasRenderer,

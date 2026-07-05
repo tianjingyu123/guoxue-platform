@@ -15,7 +15,7 @@ const mockPrisma = {
   trackEvent: { findMany: jest.fn() },
   smsLog: { count: jest.fn() },
   aiAnalysisRecord: { count: jest.fn() },
-  sentinelAlert: { findFirst: jest.fn(), create: jest.fn(), findMany: jest.fn(), updateMany: jest.fn() },
+  sentinelAlert: { findFirst: jest.fn(), create: jest.fn(), findMany: jest.fn(), updateMany: jest.fn(), count: jest.fn(), findUnique: jest.fn() },
   userRole: { findMany: jest.fn() },
 };
 
@@ -198,6 +198,43 @@ describe("SentinelService", () => {
         expect.objectContaining({ method: "POST" }),
       );
       delete (global as Record<string, unknown>).fetch;
+    });
+  });
+
+  describe("admin 告警列表/手动处置", () => {
+    it("listAlerts 分页钳制 + status=open 过滤 + 附 openCount", async () => {
+      mockPrisma.sentinelAlert.findMany.mockResolvedValue([{ id: "a1", rule: "dau_drop" }]);
+      mockPrisma.sentinelAlert.count.mockResolvedValueOnce(1).mockResolvedValueOnce(1);
+      const r = await svc.listAlerts({ page: 0, pageSize: 9999, status: "open", level: "P2" });
+      expect(r.page).toBe(1);
+      expect(r.pageSize).toBe(100);
+      expect(r.openCount).toBe(1);
+      expect(mockPrisma.sentinelAlert.findMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: { resolvedAt: null, level: "P2" },
+        orderBy: { firedAt: "desc" },
+      }));
+    });
+
+    it("resolveAlert 解除未恢复告警", async () => {
+      mockPrisma.sentinelAlert.updateMany.mockResolvedValue({ count: 1 });
+      const r = await svc.resolveAlert("a1");
+      expect(r).toEqual({ ok: true, already: false });
+      expect(mockPrisma.sentinelAlert.updateMany).toHaveBeenCalledWith({
+        where: { id: "a1", resolvedAt: null },
+        data: { resolvedAt: expect.any(Date) },
+      });
+    });
+
+    it("resolveAlert 幂等：已解除返回 already=true", async () => {
+      mockPrisma.sentinelAlert.updateMany.mockResolvedValue({ count: 0 });
+      mockPrisma.sentinelAlert.findUnique.mockResolvedValue({ id: "a1" });
+      expect(await svc.resolveAlert("a1")).toEqual({ ok: true, already: true });
+    });
+
+    it("resolveAlert 不存在的告警 404", async () => {
+      mockPrisma.sentinelAlert.updateMany.mockResolvedValue({ count: 0 });
+      mockPrisma.sentinelAlert.findUnique.mockResolvedValue(null);
+      await expect(svc.resolveAlert("nope")).rejects.toThrow("告警不存在");
     });
   });
 

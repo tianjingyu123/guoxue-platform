@@ -702,6 +702,28 @@ export const auditApi = {
   getOperationLog: (id: string) => api.get(`/audit/operation-logs/${id}`),
 };
 
+// 业务哨兵（O-T1·告警查看/处置）
+export const sentinelApi = {
+  listAlerts: (params?: { page?: number; pageSize?: number; status?: string; level?: string; rule?: string }) =>
+    api.get("/sentinel/alerts", { params }),
+  resolveAlert: (id: string) => api.post(`/sentinel/alerts/${id}/resolve`),
+  patrol: () => api.post("/sentinel/patrol"),
+};
+
+// 转化漏斗（D-T1·FunnelDaily 日聚合）
+export const funnelApi = {
+  daily: (funnel: string, days = 14) => api.get("/dashboard/funnels/daily", { params: { funnel, days } }),
+  rebuild: (date?: string) => api.post("/dashboard/funnels/daily/rebuild", null, { params: date ? { date } : {} }),
+};
+
+// 用户标签（D-T2·分布/圈人。R2红线：标签禁用于差异化定价）
+export const userTagApi = {
+  distribution: () => api.get("/user-tags/distribution"),
+  byTag: (tag: string, page = 1, pageSize = 20) => api.get("/user-tags/by-tag", { params: { tag, page, pageSize } }),
+  ofUser: (userId: string) => api.get(`/user-tags/user/${userId}`),
+  recompute: () => api.post("/user-tags/recompute"),
+};
+
 // 审核举报管理
 export const auditReportApi = {
   list: (params?: { page?: number; pageSize?: number; status?: string }) =>

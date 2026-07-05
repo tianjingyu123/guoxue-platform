@@ -203,6 +203,7 @@ export const MENU_CONFIG: MenuItem[] = [
     roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CUSTOMER_SERVICE"],
     children: [
       { title: "预警中心", path: "/risk/alerts" },
+      { title: "哨兵告警", path: "/sentinel/alerts", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
       { title: "风控规则", path: "/risk/rules" },
       { title: "刷单识别", path: "/risk/fraud" },
       { title: "行为轨迹", path: "/risk/timeline" },
@@ -257,6 +258,8 @@ export const MENU_CONFIG: MenuItem[] = [
     roles: ALL_ADMIN,
     children: [
       { title: "运营看板", path: "/dashboard/overview", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN"] },
+      { title: "转化漏斗", path: "/dashboard/funnels", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
+      { title: "用户标签", path: "/user-tags", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
       { title: "平台总览", path: "/data/platform" },
       { title: "圈子数据", path: "/data/circle" },
       { title: "课程数据", path: "/data/course" },

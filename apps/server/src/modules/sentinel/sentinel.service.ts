@@ -1,4 +1,4 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { Cron } from "@nestjs/schedule";
 import { execFile } from "child_process";
 import { PrismaService } from "../../prisma/prisma.service";
@@ -297,6 +297,42 @@ export class SentinelService {
       }
     }
     return open.length;
+  }
+
+  // ───────── 查询/手动处置（admin 告警列表页用） ─────────
+
+  /** 告警分页列表：status=open(未解除)|resolved(已解除)|缺省全部，可按 level/rule 过滤 */
+  async listAlerts(opts: { page?: number; pageSize?: number; status?: string; level?: string; rule?: string }) {
+    const page = Math.max(1, opts.page ?? 1);
+    const pageSize = Math.min(Math.max(1, opts.pageSize ?? 20), 100);
+    const where: Record<string, unknown> = {};
+    if (opts.status === "open") where.resolvedAt = null;
+    else if (opts.status === "resolved") where.resolvedAt = { not: null };
+    if (opts.level) where.level = opts.level;
+    if (opts.rule) where.rule = opts.rule;
+    const [items, total, openCount] = await Promise.all([
+      this.prisma.sentinelAlert.findMany({
+        where,
+        orderBy: { firedAt: "desc" },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      this.prisma.sentinelAlert.count({ where }),
+      this.prisma.sentinelAlert.count({ where: { resolvedAt: null } }),
+    ]);
+    return { items, total, page, pageSize, openCount };
+  }
+
+  /** 手动解除告警（幂等：仅未解除的会被更新；不存在则 404） */
+  async resolveAlert(id: string): Promise<{ ok: true; already: boolean }> {
+    const r = await this.prisma.sentinelAlert.updateMany({
+      where: { id, resolvedAt: null },
+      data: { resolvedAt: new Date() },
+    });
+    if (r.count > 0) return { ok: true, already: false };
+    const exists = await this.prisma.sentinelAlert.findUnique({ where: { id }, select: { id: true } });
+    if (!exists) throw new NotFoundException("告警不存在");
+    return { ok: true, already: true };
   }
 
   /** 通知：站内信(管理员) + webhook 留口（sentinel.webhook_url 配置后生效） */

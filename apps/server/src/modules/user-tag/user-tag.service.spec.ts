@@ -162,6 +162,22 @@ describe("UserTagService", () => {
     expect(r.pageSize).toBe(100);
   });
 
+  it("usersByTag 富化昵称（查不到用户时 nickname=null）", async () => {
+    mockPrisma.userTag.findMany.mockResolvedValue([
+      { userId: "u1", tag: "whale", type: "DERIVED" },
+      { userId: "u-gone", tag: "whale", type: "DERIVED" },
+    ]);
+    mockPrisma.userTag.count.mockResolvedValue(2);
+    mockPrisma.user.findMany.mockResolvedValueOnce([{ id: "u1", nickname: "张三" }]);
+    const r = await svc.usersByTag("whale");
+    expect(r.items[0].nickname).toBe("张三");
+    expect(r.items[1].nickname).toBeNull();
+    expect(mockPrisma.user.findMany).toHaveBeenCalledWith({
+      where: { id: { in: ["u1", "u-gone"] } },
+      select: { id: true, nickname: true },
+    });
+  });
+
   it("distribution 按数量降序", async () => {
     mockPrisma.userTag.groupBy.mockResolvedValue([
       { tag: "pay_none", _count: { _all: 5 } },

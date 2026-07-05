@@ -834,6 +834,25 @@ const routes = [
         component: () => import("@/views/dashboard/Health.vue"),
         meta: { title: "运营看板·健康", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN"] },
       },
+      // === 数据运营引擎（D-T1 漏斗 / D-T2 标签）+ 业务哨兵（O-T1） ===
+      {
+        path: "dashboard/funnels",
+        name: "FunnelBoard",
+        component: () => import("@/views/dashboard/FunnelBoard.vue"),
+        meta: { title: "转化漏斗", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
+      },
+      {
+        path: "user-tags",
+        name: "UserTagCenter",
+        component: () => import("@/views/users/UserTagCenter.vue"),
+        meta: { title: "用户标签", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
+      },
+      {
+        path: "sentinel/alerts",
+        name: "SentinelAlerts",
+        component: () => import("@/views/sentinel/SentinelAlerts.vue"),
+        meta: { title: "哨兵告警", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
+      },
       // === 系统设置 ===
       {
         path: "system/referrals",

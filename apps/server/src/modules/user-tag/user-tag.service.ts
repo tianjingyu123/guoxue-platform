@@ -193,7 +193,7 @@ export class UserTagService {
 
   // ───────── 查询（admin 用） ─────────
 
-  /** 某标签下的用户分页（运营圈人） */
+  /** 某标签下的用户分页（运营圈人·富化昵称便于 admin 辨认） */
   async usersByTag(tag: string, page = 1, pageSize = 20) {
     const safePage = Math.max(1, page);
     const safeSize = Math.min(Math.max(1, pageSize), 100);
@@ -206,7 +206,16 @@ export class UserTagService {
       }),
       this.prisma.userTag.count({ where: { tag } }),
     ]);
-    return { items: rows, total, page: safePage, pageSize: safeSize };
+    const nameMap = new Map<string, string>();
+    if (rows.length > 0) {
+      const users = await this.prisma.user.findMany({
+        where: { id: { in: rows.map((r) => r.userId) } },
+        select: { id: true, nickname: true },
+      });
+      for (const u of users) nameMap.set(u.id, u.nickname);
+    }
+    const items = rows.map((r) => ({ ...r, nickname: nameMap.get(r.userId) ?? null }));
+    return { items, total, page: safePage, pageSize: safeSize };
   }
 
   /** 单用户全部标签 */
