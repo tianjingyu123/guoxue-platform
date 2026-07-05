@@ -25,7 +25,7 @@ export interface AuthResponse {
 const mockUser: UserInfo = {
   id: '1',
   nickname: '国学爱好者',
-  avatar: '/static/images/default-avatar.png',
+  avatar: 'https://api.rebugx.cn/assets/images/default-avatar.webp',
   phone: '138****8888',
   token: 'mock-token-xxx',
 }

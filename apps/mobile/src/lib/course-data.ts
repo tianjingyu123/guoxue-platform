@@ -5,9 +5,9 @@ import { apiGet, apiPost, apiPut, apiGetPaged, useMock } from '@/utils/request'
 
 // 课程首页 Banner
 export const courseBanners: BannerItem[] = [
-  { id: 'b1', image: '/static/images/banners/banner-1.webp', title: '八字命理系统精讲 · 限时五折', link: '/course/c4' },
-  { id: 'b2', image: '/static/images/banners/banner-2.webp', title: '紫微斗数大师直播课 火热报名', link: '/course/c1' },
-  { id: 'b3', image: '/static/images/banners/banner-3.webp', title: '新人专享 · 名师好课首单立减', link: '/courses/flash-sale' },
+  { id: 'b1', image: 'https://api.rebugx.cn/assets/images/banners/banner-1.webp', title: '八字命理系统精讲 · 限时五折', link: '/course/c4' },
+  { id: 'b2', image: 'https://api.rebugx.cn/assets/images/banners/banner-2.webp', title: '紫微斗数大师直播课 火热报名', link: '/course/c1' },
+  { id: 'b3', image: 'https://api.rebugx.cn/assets/images/banners/banner-3.webp', title: '新人专享 · 名师好课首单立减', link: '/courses/flash-sale' },
 ]
 
 // 分类导航(图标式)

@@ -232,7 +232,7 @@ import { operatorApi, type StationConfigData, type StationTemplateOption } from 
 const statusBarHeight = ref(20)
 uni.getSystemInfo({ success: (r) => { statusBarHeight.value = r.statusBarHeight || 20 } })
 
-const defaultAvatar = '/static/experts/expert-1.jpg'
+const defaultAvatar = 'https://api.rebugx.cn/assets/experts/expert-1.webp'
 
 // 预设主题色（仅前端展示标识，持久化只存主色 themeColor）
 const presets = [

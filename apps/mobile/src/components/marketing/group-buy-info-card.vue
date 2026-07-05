@@ -1,5 +1,5 @@
 <script setup lang="ts">
-/** 拼团信息卡 - 从原型 components/static/marketing/marketing-slot.tsx GroupBuyInfoCard 迁移 */
+/** 拼团信息卡 - 从原型 componentshttps://api.rebugx.cn/assets/marketing/marketing-slot.tsx GroupBuyInfoCard 迁移 */
 import { ref, onMounted, onUnmounted } from 'vue'
 
 const props = defineProps<{

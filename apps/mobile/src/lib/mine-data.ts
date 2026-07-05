@@ -8,7 +8,7 @@ import { apiGet, apiPost, apiPut, apiDelete } from '@/utils/request'
 /* —— 头像生成辅助（沿用工程 dicebear 约定） —— */
 const AVATAR = (seed: string) => `https://api.dicebear.com/7.x/avataaars/svg?seed=${seed}`
 /* —— 商品/封面图基址（沿用 shop-data 约定） —— */
-const P = '/static/images/products'
+const P = 'https://api.rebugx.cn/assets/images/products'
 
 /* —— 通用账户资料 —— */
 export const mineProfile = {
@@ -468,23 +468,23 @@ export const historyGroups: HistoryGroup[] = [
   {
     date: '2026-06-03', label: '今天',
     items: [
-      { id: '1', type: 'course', title: '周易入门：从零开始学习易经', cover: `${P}/book1.jpg`, progress: 45, duration: 3600, viewedAt: '14:30' },
-      { id: '2', type: 'video', title: '梅花易数实战案例分析', cover: `${P}/item4.jpg`, progress: 100, duration: 1200, viewedAt: '12:15' },
+      { id: '1', type: 'course', title: '周易入门：从零开始学习易经', cover: `.webp`, progress: 45, duration: 3600, viewedAt: '14:30' },
+      { id: '2', type: 'video', title: '梅花易数实战案例分析', cover: `.webp`, progress: 100, duration: 1200, viewedAt: '12:15' },
       { id: '3', type: 'article', title: '八字命理中的十神详解', viewedAt: '10:20' },
     ],
   },
   {
     date: '2026-06-02', label: '昨天',
     items: [
-      { id: '4', type: 'live', title: '风水布局直播答疑', cover: `${P}/item5.jpg`, viewedAt: '20:00' },
-      { id: '5', type: 'product', title: '开光铜葫芦摆件', cover: `${P}/item3.jpg`, viewedAt: '16:45' },
+      { id: '4', type: 'live', title: '风水布局直播答疑', cover: `.webp`, viewedAt: '20:00' },
+      { id: '5', type: 'product', title: '开光铜葫芦摆件', cover: `.webp`, viewedAt: '16:45' },
     ],
   },
   {
     date: '2026-05-31', label: '5月31日',
     items: [
-      { id: '6', type: 'course', title: '六爻预测高级班', cover: `${P}/book2.jpg`, progress: 30, duration: 7200, viewedAt: '19:30' },
-      { id: '7', type: 'circle', title: '易学爱好者交流圈', cover: `${P}/item2.jpg`, viewedAt: '15:00' },
+      { id: '6', type: 'course', title: '六爻预测高级班', cover: `.webp`, progress: 30, duration: 7200, viewedAt: '19:30' },
+      { id: '7', type: 'circle', title: '易学爱好者交流圈', cover: `.webp`, viewedAt: '15:00' },
       { id: '8', type: 'article', title: '紫微斗数入门指南', viewedAt: '11:20' },
     ],
   },
@@ -557,10 +557,10 @@ export interface MyCommentItem {
   target: { id: string | number; type: CommentTargetType; title: string; cover?: string }
 }
 export const myComments: MyCommentItem[] = [
-  { id: 1, content: '老师讲得太透彻了，把天干地支的关系讲得很清楚，受益匪浅！', createdAt: '2026-06-03 15:20', likeCount: 28, replyCount: 3, hasReply: true, target: { id: 201, type: 'course', title: '八字命理基础精讲班', cover: `${P}/book1.jpg` } },
+  { id: 1, content: '老师讲得太透彻了，把天干地支的关系讲得很清楚，受益匪浅！', createdAt: '2026-06-03 15:20', likeCount: 28, replyCount: 3, hasReply: true, target: { id: 201, type: 'course', title: '八字命理基础精讲班', cover: `.webp` } },
   { id: 2, content: '这篇文章关于五行生克的解读很有深度，收藏了。', createdAt: '2026-06-02 10:30', likeCount: 12, replyCount: 0, hasReply: false, target: { id: 202, type: 'article', title: '五行生克与人生运势' } },
-  { id: 3, content: '案例分析很实用，期待更多实战内容。', createdAt: '2026-06-01 19:45', likeCount: 6, replyCount: 1, hasReply: false, target: { id: 203, type: 'video', title: '风水实战案例第三期', cover: `${P}/item4.jpg` } },
-  { id: 4, content: '请问这个摆件适合摆放在客厅哪个方位？', createdAt: '2026-05-29 14:00', likeCount: 2, replyCount: 5, hasReply: true, target: { id: 204, type: 'product', title: '开光铜葫芦摆件', cover: `${P}/item3.jpg` } },
+  { id: 3, content: '案例分析很实用，期待更多实战内容。', createdAt: '2026-06-01 19:45', likeCount: 6, replyCount: 1, hasReply: false, target: { id: 203, type: 'video', title: '风水实战案例第三期', cover: `.webp` } },
+  { id: 4, content: '请问这个摆件适合摆放在客厅哪个方位？', createdAt: '2026-05-29 14:00', likeCount: 2, replyCount: 5, hasReply: true, target: { id: 204, type: 'product', title: '开光铜葫芦摆件', cover: `.webp` } },
 ]
 export interface ReceivedCommentItem {
   id: string | number

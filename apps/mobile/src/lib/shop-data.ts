@@ -6,7 +6,7 @@ import type { ProductCardData } from '@/lib/card-utils'
 import { apiGet, apiGetPaged, apiPost, apiPut, apiDelete, useMock } from '@/utils/request'
 import { getTempReferrer } from '@/utils/referral'
 
-const P = '/static/images/products'
+const P = 'https://api.rebugx.cn/assets/images/products'
 
 /* ============================================================
    内容来源暂存（佣-V2-P3）：文章/内容页 → 商品详情 → 结算的间接购买链路
@@ -102,18 +102,18 @@ export const mallCategories: MallCategory[] = [
 
 /** 猜你喜欢（统一卡片库 feed 变体） */
 export const mallProducts: ProductCardData[] = [
-  { id: 1, title: '周易正义·十三经注疏本', cover: `${P}/book1.jpg`, price: 68, originalPrice: 128, sales: 2341, tag: '热销' },
-  { id: 2, title: '紫微斗数全书（精装版）', cover: `${P}/book2.jpg`, price: 98, originalPrice: 168, sales: 1856, tag: '新品' },
-  { id: 3, title: '太极八卦铜摆件', cover: `${P}/item1.jpg`, price: 168, originalPrice: 298, sales: 892 },
-  { id: 4, title: '天然黑曜石貔貅手链', cover: `${P}/item2.jpg`, price: 128, originalPrice: 258, sales: 1523, tag: '热销' },
-  { id: 5, title: '檀香木罗盘摆件', cover: `${P}/item3.jpg`, price: 388, originalPrice: 588, sales: 456 },
-  { id: 6, title: '梅花易数入门', cover: `${P}/book3.jpg`, price: 45, originalPrice: 78, sales: 3201, tag: '秒杀' },
-  { id: 7, title: '六爻铜钱套装（古法铸造）', cover: `${P}/item4.jpg`, price: 88, originalPrice: 128, sales: 2156 },
-  { id: 8, title: '沉香线香礼盒', cover: `${P}/item5.jpg`, price: 168, originalPrice: 268, sales: 678, tag: '新品' },
-  { id: 9, title: '奇门遁甲精义', cover: `${P}/book4.jpg`, price: 88, originalPrice: 148, sales: 1234 },
-  { id: 10, title: '紫水晶七星阵', cover: `${P}/item6.jpg`, price: 298, originalPrice: 498, sales: 345, tag: '热销' },
-  { id: 11, title: '风水罗盘专业版', cover: `${P}/item7.jpg`, price: 688, originalPrice: 988, sales: 234 },
-  { id: 12, title: '四库全书·术数类', cover: `${P}/book5.jpg`, price: 268, originalPrice: 398, sales: 567 },
+  { id: 1, title: '周易正义·十三经注疏本', cover: `.webp`, price: 68, originalPrice: 128, sales: 2341, tag: '热销' },
+  { id: 2, title: '紫微斗数全书（精装版）', cover: `.webp`, price: 98, originalPrice: 168, sales: 1856, tag: '新品' },
+  { id: 3, title: '太极八卦铜摆件', cover: `.webp`, price: 168, originalPrice: 298, sales: 892 },
+  { id: 4, title: '天然黑曜石貔貅手链', cover: `.webp`, price: 128, originalPrice: 258, sales: 1523, tag: '热销' },
+  { id: 5, title: '檀香木罗盘摆件', cover: `.webp`, price: 388, originalPrice: 588, sales: 456 },
+  { id: 6, title: '梅花易数入门', cover: `.webp`, price: 45, originalPrice: 78, sales: 3201, tag: '秒杀' },
+  { id: 7, title: '六爻铜钱套装（古法铸造）', cover: `.webp`, price: 88, originalPrice: 128, sales: 2156 },
+  { id: 8, title: '沉香线香礼盒', cover: `.webp`, price: 168, originalPrice: 268, sales: 678, tag: '新品' },
+  { id: 9, title: '奇门遁甲精义', cover: `.webp`, price: 88, originalPrice: 148, sales: 1234 },
+  { id: 10, title: '紫水晶七星阵', cover: `.webp`, price: 298, originalPrice: 498, sales: 345, tag: '热销' },
+  { id: 11, title: '风水罗盘专业版', cover: `.webp`, price: 688, originalPrice: 988, sales: 234 },
+  { id: 12, title: '四库全书·术数类', cover: `.webp`, price: 268, originalPrice: 398, sales: 567 },
 ]
 
 /* ============================================================
@@ -128,9 +128,9 @@ export interface SeckillItem {
   originalPrice: number
 }
 export const seckillItems: SeckillItem[] = [
-  { id: 6, title: '梅花易数入门', cover: `${P}/book3.jpg`, price: 45, originalPrice: 78 },
-  { id: 1, title: '周易正义注疏本', cover: `${P}/book1.jpg`, price: 68, originalPrice: 128 },
-  { id: 4, title: '黑曜石貔貅手链', cover: `${P}/item2.jpg`, price: 128, originalPrice: 258 },
+  { id: 6, title: '梅花易数入门', cover: `.webp`, price: 45, originalPrice: 78 },
+  { id: 1, title: '周易正义注疏本', cover: `.webp`, price: 68, originalPrice: 128 },
+  { id: 4, title: '黑曜石貔貅手链', cover: `.webp`, price: 128, originalPrice: 258 },
 ]
 
 export interface GroupItem {
@@ -143,7 +143,7 @@ export interface GroupItem {
   need: number
 }
 export const groupItems: GroupItem[] = [
-  { id: 2, title: '紫微斗数全书（精装版）', cover: `${P}/book2.jpg`, groupPrice: 78, originalPrice: 168, joined: 2, need: 3 },
+  { id: 2, title: '紫微斗数全书（精装版）', cover: `.webp`, groupPrice: 78, originalPrice: 168, joined: 2, need: 3 },
 ]
 
 /* ============================================================
@@ -205,9 +205,9 @@ export const shopFlashSale = {
   /** 距结束秒数（2 小时） */
   durationSec: 3600 * 2,
   products: [
-    { id: '1', name: '渊海子平精装版', cover: `${P}/book1.jpg`, price: 68, originalPrice: 128 },
-    { id: '2', name: '罗盘专业款', cover: `${P}/item7.jpg`, price: 199, originalPrice: 399 },
-    { id: '3', name: '紫檀木签筒', cover: `${P}/item4.jpg`, price: 88, originalPrice: 168 },
+    { id: '1', name: '渊海子平精装版', cover: `.webp`, price: 68, originalPrice: 128 },
+    { id: '2', name: '罗盘专业款', cover: `.webp`, price: 199, originalPrice: 399 },
+    { id: '3', name: '紫檀木签筒', cover: `.webp`, price: 88, originalPrice: 168 },
   ] as ShopFlashProduct[],
 }
 
@@ -215,7 +215,7 @@ export const shopFlashSale = {
 export const shopGroupBuy = {
   id: '1',
   title: '3人成团',
-  cover: `${P}/book2.jpg`,
+  cover: `.webp`,
   price: 299,
   originalPrice: 599,
   minMembers: 3,
@@ -237,12 +237,12 @@ export interface ShopRecProduct {
   isNew?: boolean
 }
 export const shopRecProducts: ShopRecProduct[] = [
-  { id: '1', name: '渊海子平（精装典藏版）', cover: `${P}/book1.jpg`, price: 128, originalPrice: 168, sales: 2860, rating: 4.9, category: '古籍', isHot: true },
-  { id: '2', name: '专业风水罗盘', cover: `${P}/item7.jpg`, price: 399, originalPrice: 599, sales: 1250, rating: 4.8, category: '工具', isNew: true },
-  { id: '3', name: '紫檀木文房套装', cover: `${P}/item4.jpg`, price: 688, originalPrice: 888, sales: 560, rating: 4.9, category: '文房' },
-  { id: '4', name: '沉香线香礼盒', cover: `${P}/item5.jpg`, price: 168, originalPrice: 238, sales: 3200, rating: 4.7, category: '香道', isHot: true },
-  { id: '5', name: '紫砂茶具套装', cover: `${P}/item3.jpg`, price: 458, originalPrice: 658, sales: 890, rating: 4.8, category: '茶道' },
-  { id: '6', name: '黄铜貔貅摆件', cover: `${P}/item2.jpg`, price: 299, originalPrice: 399, sales: 1560, rating: 4.6, category: '摆件', isNew: true },
+  { id: '1', name: '渊海子平（精装典藏版）', cover: `.webp`, price: 128, originalPrice: 168, sales: 2860, rating: 4.9, category: '古籍', isHot: true },
+  { id: '2', name: '专业风水罗盘', cover: `.webp`, price: 399, originalPrice: 599, sales: 1250, rating: 4.8, category: '工具', isNew: true },
+  { id: '3', name: '紫檀木文房套装', cover: `.webp`, price: 688, originalPrice: 888, sales: 560, rating: 4.9, category: '文房' },
+  { id: '4', name: '沉香线香礼盒', cover: `.webp`, price: 168, originalPrice: 238, sales: 3200, rating: 4.7, category: '香道', isHot: true },
+  { id: '5', name: '紫砂茶具套装', cover: `.webp`, price: 458, originalPrice: 658, sales: 890, rating: 4.8, category: '茶道' },
+  { id: '6', name: '黄铜貔貅摆件', cover: `.webp`, price: 299, originalPrice: 399, sales: 1560, rating: 4.6, category: '摆件', isNew: true },
 ]
 
 /** 全局购物车角标数（mock） */
@@ -317,7 +317,7 @@ export const productDetail: ProductDetail = {
   id: 1,
   title: '周易正义·十三经注疏本（全四册）',
   subtitle: '唐·孔颖达 疏',
-  images: [`${P}/book1.jpg`, `${P}/book2.jpg`, `${P}/book4.jpg`, `${P}/book5.jpg`],
+  images: [`.webp`, `.webp`, `.webp`, `.webp`],
   hasVideo: true,
   price: 68,
   originalPrice: 128,
@@ -351,7 +351,7 @@ export const productDetail: ProductDetail = {
       user: { name: '易学爱好者', avatar: AVATAR('yixue') },
       rating: 5,
       content: '非常好的版本，注疏详尽，印刷质量很高，纸张也很好。作为入门和进阶学习周易的必备书籍。',
-      images: [`${P}/book1.jpg`, `${P}/book2.jpg`],
+      images: [`.webp`, `.webp`],
       date: '2024-03-15',
       likes: 128,
       spec: '精装版',
@@ -371,7 +371,7 @@ export const productDetail: ProductDetail = {
       user: { name: '命理研究', avatar: AVATAR('mingli') },
       rating: 4,
       content: '书的内容没话说，就是物流有点慢，等了好几天。整体还是很满意的。',
-      images: [`${P}/book4.jpg`],
+      images: [`.webp`],
       date: '2024-03-08',
       likes: 45,
       spec: '标准版',
@@ -422,18 +422,18 @@ export interface CategoryProduct {
   createdAt?: string
 }
 export const categoryProducts: CategoryProduct[] = [
-  { id: 1, name: '《渊海子平》精装典藏版', price: 128, originalPrice: 168, sales: 2856, category: 'books', cover: `${P}/book1.jpg`, isMemberFree: false },
-  { id: 2, name: '八卦太极挂件纯铜', price: 68, originalPrice: 98, sales: 1256, category: 'jewelry', cover: `${P}/item1.jpg`, isMemberFree: false },
-  { id: 3, name: '国学书签套装礼盒', price: 39, originalPrice: 59, sales: 3680, category: 'creative', cover: `${P}/item5.jpg`, isMemberFree: true },
-  { id: 4, name: '《滴天髓》白话详解', price: 88, originalPrice: 118, sales: 1892, category: 'books', cover: `${P}/book2.jpg`, isMemberFree: false },
-  { id: 5, name: '紫砂茶壶 手工刻绘', price: 368, originalPrice: 468, sales: 568, category: 'tea', cover: `${P}/item3.jpg`, isMemberFree: false },
-  { id: 6, name: '湖笔套装 书法入门', price: 158, originalPrice: 198, sales: 892, category: 'stationery', cover: `${P}/item4.jpg`, isMemberFree: false },
-  { id: 7, name: '罗盘模型 风水摆件', price: 199, originalPrice: 299, sales: 1456, category: 'jewelry', cover: `${P}/item7.jpg`, isMemberFree: false },
-  { id: 8, name: '《三命通会》全译本', price: 148, originalPrice: 188, sales: 1128, category: 'books', cover: `${P}/book4.jpg`, isMemberFree: false },
-  { id: 9, name: '沉香线香 养生助眠', price: 89, originalPrice: 128, sales: 2156, category: 'tea', cover: `${P}/item5.jpg`, isMemberFree: false },
-  { id: 10, name: '课程笔记本 手账本', price: 29, originalPrice: 49, sales: 4562, category: 'course', cover: `${P}/book3.jpg`, isMemberFree: true },
-  { id: 11, name: '五帝钱挂饰 开光铜钱', price: 58, originalPrice: 88, sales: 3256, category: 'jewelry', cover: `${P}/item2.jpg`, isMemberFree: false },
-  { id: 12, name: '端砚 文房珍品', price: 688, originalPrice: 888, sales: 286, category: 'stationery', cover: `${P}/item6.jpg`, isMemberFree: false },
+  { id: 1, name: '《渊海子平》精装典藏版', price: 128, originalPrice: 168, sales: 2856, category: 'books', cover: `.webp`, isMemberFree: false },
+  { id: 2, name: '八卦太极挂件纯铜', price: 68, originalPrice: 98, sales: 1256, category: 'jewelry', cover: `.webp`, isMemberFree: false },
+  { id: 3, name: '国学书签套装礼盒', price: 39, originalPrice: 59, sales: 3680, category: 'creative', cover: `.webp`, isMemberFree: true },
+  { id: 4, name: '《滴天髓》白话详解', price: 88, originalPrice: 118, sales: 1892, category: 'books', cover: `.webp`, isMemberFree: false },
+  { id: 5, name: '紫砂茶壶 手工刻绘', price: 368, originalPrice: 468, sales: 568, category: 'tea', cover: `.webp`, isMemberFree: false },
+  { id: 6, name: '湖笔套装 书法入门', price: 158, originalPrice: 198, sales: 892, category: 'stationery', cover: `.webp`, isMemberFree: false },
+  { id: 7, name: '罗盘模型 风水摆件', price: 199, originalPrice: 299, sales: 1456, category: 'jewelry', cover: `.webp`, isMemberFree: false },
+  { id: 8, name: '《三命通会》全译本', price: 148, originalPrice: 188, sales: 1128, category: 'books', cover: `.webp`, isMemberFree: false },
+  { id: 9, name: '沉香线香 养生助眠', price: 89, originalPrice: 128, sales: 2156, category: 'tea', cover: `.webp`, isMemberFree: false },
+  { id: 10, name: '课程笔记本 手账本', price: 29, originalPrice: 49, sales: 4562, category: 'course', cover: `.webp`, isMemberFree: true },
+  { id: 11, name: '五帝钱挂饰 开光铜钱', price: 58, originalPrice: 88, sales: 3256, category: 'jewelry', cover: `.webp`, isMemberFree: false },
+  { id: 12, name: '端砚 文房珍品', price: 688, originalPrice: 888, sales: 286, category: 'stationery', cover: `.webp`, isMemberFree: false },
 ]
 
 /* ============================================================
@@ -472,10 +472,10 @@ export interface FullReview {
   reply: { content: string; time: string } | null
 }
 export const fullReviews: FullReview[] = [
-  { id: 1, user: { name: '易学爱好者', avatar: AVATAR('yixue'), level: 'VIP会员' }, rating: 5, content: '这本书内容非常详实，从基础到进阶都有涉及，适合各个阶段的学习者。印刷质量很好，纸张厚实，字迹清晰。配合排盘工具学习效果更佳！', images: [`${P}/book1.jpg`, `${P}/book2.jpg`, `${P}/book4.jpg`], spec: '精装版', time: '2024-01-15', likes: 56, tags: ['quality', 'texture', 'value'], reply: { content: '感谢您的认可！我们精选优质纸张，确保阅读体验。祝您学习愉快！', time: '2024-01-16' } },
-  { id: 2, user: { name: '命理研究者', avatar: AVATAR('mingli'), level: '圈主' }, rating: 5, content: '作为从业多年的命理师，这本书的内容让我眼前一亮。理论扎实，案例丰富，是难得的好书。已经推荐给圈子里的学员了。', images: [`${P}/book5.jpg`], spec: '典藏版', time: '2024-01-12', likes: 42, tags: ['quality', 'authentic'], reply: null },
+  { id: 1, user: { name: '易学爱好者', avatar: AVATAR('yixue'), level: 'VIP会员' }, rating: 5, content: '这本书内容非常详实，从基础到进阶都有涉及，适合各个阶段的学习者。印刷质量很好，纸张厚实，字迹清晰。配合排盘工具学习效果更佳！', images: [`.webp`, `.webp`, `.webp`], spec: '精装版', time: '2024-01-15', likes: 56, tags: ['quality', 'texture', 'value'], reply: { content: '感谢您的认可！我们精选优质纸张，确保阅读体验。祝您学习愉快！', time: '2024-01-16' } },
+  { id: 2, user: { name: '命理研究者', avatar: AVATAR('mingli'), level: '圈主' }, rating: 5, content: '作为从业多年的命理师，这本书的内容让我眼前一亮。理论扎实，案例丰富，是难得的好书。已经推荐给圈子里的学员了。', images: [`.webp`], spec: '典藏版', time: '2024-01-12', likes: 42, tags: ['quality', 'authentic'], reply: null },
   { id: 3, user: { name: '国学新手', avatar: AVATAR('xinshou'), level: '' }, rating: 4, content: '书的内容很好，就是对于完全零基础的人来说有点难度，需要配合入门课程一起学习。物流很快，包装完好。', images: [], spec: '平装版', time: '2024-01-10', likes: 18, tags: ['delivery', 'packaging'], reply: { content: '感谢您的反馈！建议搭配我们的《八字入门课》一起学习，效果更佳哦~', time: '2024-01-11' } },
-  { id: 4, user: { name: '传统文化爱好者', avatar: AVATAR('chuantong'), level: 'VIP会员' }, rating: 5, content: '包装很精美，书籍质量上乘，内容深入浅出，值得收藏！', images: [`${P}/book3.jpg`, `${P}/item5.jpg`], spec: '精装版', time: '2024-01-08', likes: 35, tags: ['packaging', 'quality', 'texture'], reply: null },
+  { id: 4, user: { name: '传统文化爱好者', avatar: AVATAR('chuantong'), level: 'VIP会员' }, rating: 5, content: '包装很精美，书籍质量上乘，内容深入浅出，值得收藏！', images: [`.webp`, `.webp`], spec: '精装版', time: '2024-01-08', likes: 35, tags: ['packaging', 'quality', 'texture'], reply: null },
   { id: 5, user: { name: '风水师小李', avatar: AVATAR('fengshui'), level: '讲师' }, rating: 5, content: '专业书籍，内容考究，引经据典，是学习八字的必备参考书。强烈推荐！', images: [], spec: '典藏版', time: '2024-01-05', likes: 28, tags: ['quality', 'authentic'], reply: null },
 ]
 export const reviewSummary = { goodRatePercent: 98, rating: 4.9, total: 328 }
@@ -497,11 +497,11 @@ export interface CompareProduct {
   specs: CompareSpec[]
 }
 export const compareProducts: Record<string, CompareProduct> = {
-  p1: { id: 'p1', name: '八字命理精研课', cover: `${P}/book1.jpg`, price: 299, originalPrice: 499, sales: 2341, rating: 4.8, category: '命理', specs: [{ name: '课时', value: '48节' }, { name: '有效期', value: '永久' }, { name: '讲师', value: '王命理' }, { name: '学员数', value: '2341人' }, { name: '证书', value: '含结课证书' }, { name: '答疑', value: '7天内' }, { name: '格式', value: '视频' }, { name: '难度', value: '中级' }] },
-  p2: { id: 'p2', name: '紫微斗数入门', cover: `${P}/book2.jpg`, price: 199, originalPrice: 299, sales: 1823, rating: 4.6, category: '命理', specs: [{ name: '课时', value: '32节' }, { name: '有效期', value: '365天' }, { name: '讲师', value: '李斗数' }, { name: '学员数', value: '1823人' }, { name: '证书', value: '不含证书' }, { name: '答疑', value: '3天内' }, { name: '格式', value: '视频+图文' }, { name: '难度', value: '入门' }] },
-  p3: { id: 'p3', name: '六爻预测实战课', cover: `${P}/book4.jpg`, price: 399, originalPrice: 599, sales: 987, rating: 4.9, category: '命理', specs: [{ name: '课时', value: '60节' }, { name: '有效期', value: '永久' }, { name: '讲师', value: '张六爻' }, { name: '学员数', value: '987人' }, { name: '证书', value: '含结课证书' }, { name: '答疑', value: '24小时内' }, { name: '格式', value: '视频' }, { name: '难度', value: '高级' }] },
-  p4: { id: 'p4', name: '奇门遁甲核心', cover: `${P}/book5.jpg`, price: 499, originalPrice: 799, sales: 654, rating: 4.7, category: '命理', specs: [{ name: '课时', value: '72节' }, { name: '有效期', value: '永久' }, { name: '讲师', value: '刘奇门' }, { name: '学员数', value: '654人' }, { name: '证书', value: '含结课证书' }, { name: '答疑', value: '7天内' }, { name: '格式', value: '视频' }, { name: '难度', value: '高级' }] },
-  p5: { id: 'p5', name: '风水堪舆基础', cover: `${P}/item7.jpg`, price: 159, originalPrice: 259, sales: 1120, rating: 4.5, category: '命理', specs: [{ name: '课时', value: '24节' }, { name: '有效期', value: '365天' }, { name: '讲师', value: '陈风水' }, { name: '学员数', value: '1120人' }, { name: '证书', value: '不含证书' }, { name: '答疑', value: '3天内' }, { name: '格式', value: '视频' }, { name: '难度', value: '入门' }] },
+  p1: { id: 'p1', name: '八字命理精研课', cover: `.webp`, price: 299, originalPrice: 499, sales: 2341, rating: 4.8, category: '命理', specs: [{ name: '课时', value: '48节' }, { name: '有效期', value: '永久' }, { name: '讲师', value: '王命理' }, { name: '学员数', value: '2341人' }, { name: '证书', value: '含结课证书' }, { name: '答疑', value: '7天内' }, { name: '格式', value: '视频' }, { name: '难度', value: '中级' }] },
+  p2: { id: 'p2', name: '紫微斗数入门', cover: `.webp`, price: 199, originalPrice: 299, sales: 1823, rating: 4.6, category: '命理', specs: [{ name: '课时', value: '32节' }, { name: '有效期', value: '365天' }, { name: '讲师', value: '李斗数' }, { name: '学员数', value: '1823人' }, { name: '证书', value: '不含证书' }, { name: '答疑', value: '3天内' }, { name: '格式', value: '视频+图文' }, { name: '难度', value: '入门' }] },
+  p3: { id: 'p3', name: '六爻预测实战课', cover: `.webp`, price: 399, originalPrice: 599, sales: 987, rating: 4.9, category: '命理', specs: [{ name: '课时', value: '60节' }, { name: '有效期', value: '永久' }, { name: '讲师', value: '张六爻' }, { name: '学员数', value: '987人' }, { name: '证书', value: '含结课证书' }, { name: '答疑', value: '24小时内' }, { name: '格式', value: '视频' }, { name: '难度', value: '高级' }] },
+  p4: { id: 'p4', name: '奇门遁甲核心', cover: `.webp`, price: 499, originalPrice: 799, sales: 654, rating: 4.7, category: '命理', specs: [{ name: '课时', value: '72节' }, { name: '有效期', value: '永久' }, { name: '讲师', value: '刘奇门' }, { name: '学员数', value: '654人' }, { name: '证书', value: '含结课证书' }, { name: '答疑', value: '7天内' }, { name: '格式', value: '视频' }, { name: '难度', value: '高级' }] },
+  p5: { id: 'p5', name: '风水堪舆基础', cover: `.webp`, price: 159, originalPrice: 259, sales: 1120, rating: 4.5, category: '命理', specs: [{ name: '课时', value: '24节' }, { name: '有效期', value: '365天' }, { name: '讲师', value: '陈风水' }, { name: '学员数', value: '1120人' }, { name: '证书', value: '不含证书' }, { name: '答疑', value: '3天内' }, { name: '格式', value: '视频' }, { name: '难度', value: '入门' }] },
 }
 export const comparePickList = ['p1', 'p2', 'p3', 'p4', 'p5']
 
@@ -528,10 +528,10 @@ export interface FlashProduct {
   sold: number
 }
 export const flashProducts: FlashProduct[] = [
-  { id: 'p1', name: '周易六十四卦详解', cover: `${P}/book1.jpg`, price: 68, originalPrice: 168, stock: 100, sold: 78 },
-  { id: 'p2', name: '紫微斗数入门', cover: `${P}/book2.jpg`, price: 38, originalPrice: 98, stock: 50, sold: 45 },
-  { id: 'p3', name: '风水入门指南', cover: `${P}/book4.jpg`, price: 28, originalPrice: 88, stock: 200, sold: 156 },
-  { id: 'p4', name: '八字命理基础', cover: `${P}/book5.jpg`, price: 48, originalPrice: 128, stock: 80, sold: 62 },
+  { id: 'p1', name: '周易六十四卦详解', cover: `.webp`, price: 68, originalPrice: 168, stock: 100, sold: 78 },
+  { id: 'p2', name: '紫微斗数入门', cover: `.webp`, price: 38, originalPrice: 98, stock: 50, sold: 45 },
+  { id: 'p3', name: '风水入门指南', cover: `.webp`, price: 28, originalPrice: 88, stock: 200, sold: 156 },
+  { id: 'p4', name: '八字命理基础', cover: `.webp`, price: 48, originalPrice: 128, stock: 80, sold: 62 },
 ]
 /** 滚动通知 */
 export const flashNotices = [
@@ -564,9 +564,9 @@ export interface GroupBuyItem {
   status: 'ongoing' | 'success'
 }
 export const groupBuyList: GroupBuyItem[] = [
-  { id: '1', title: '周易六十四卦详解', cover: `${P}/book1.jpg`, price: 99, originalPrice: 168, minMembers: 3, currentMembers: 2, endOffsetMs: 8 * 3600000, status: 'ongoing' },
-  { id: '2', title: '紫微斗数入门精讲', cover: `${P}/book2.jpg`, price: 128, originalPrice: 238, minMembers: 5, currentMembers: 3, endOffsetMs: 12 * 3600000, status: 'ongoing' },
-  { id: '3', title: '风水学基础教程', cover: `${P}/book4.jpg`, price: 68, originalPrice: 128, minMembers: 3, currentMembers: 3, endOffsetMs: -3600000, status: 'success' },
+  { id: '1', title: '周易六十四卦详解', cover: `.webp`, price: 99, originalPrice: 168, minMembers: 3, currentMembers: 2, endOffsetMs: 8 * 3600000, status: 'ongoing' },
+  { id: '2', title: '紫微斗数入门精讲', cover: `.webp`, price: 128, originalPrice: 238, minMembers: 5, currentMembers: 3, endOffsetMs: 12 * 3600000, status: 'ongoing' },
+  { id: '3', title: '风水学基础教程', cover: `.webp`, price: 68, originalPrice: 128, minMembers: 3, currentMembers: 3, endOffsetMs: -3600000, status: 'success' },
 ]
 
 export interface MyGroupBuyItem {
@@ -583,7 +583,7 @@ export interface MyGroupBuyItem {
   isOwner: boolean
 }
 export const myGroupBuyList: MyGroupBuyItem[] = [
-  { id: 'g1', productId: '1', productName: '周易六十四卦详解', productCover: `${P}/book1.jpg`, price: 99, status: 'pending', memberCount: 2, minMembers: 3, currentMembers: 2, endOffsetMs: 6 * 3600000, isOwner: true },
+  { id: 'g1', productId: '1', productName: '周易六十四卦详解', productCover: `.webp`, price: 99, status: 'pending', memberCount: 2, minMembers: 3, currentMembers: 2, endOffsetMs: 6 * 3600000, isOwner: true },
 ]
 
 export interface GroupBuyDetailData {
@@ -599,7 +599,7 @@ export interface GroupBuyDetailData {
 export const groupBuyDetail: GroupBuyDetailData = {
   id: '1',
   title: '周易六十四卦详解',
-  cover: `${P}/book1.jpg`,
+  cover: `.webp`,
   price: 99,
   originalPrice: 199,
   minMembers: 3,
@@ -623,7 +623,7 @@ export const activeGroups: ActiveGroup[] = [
 /** 拼团成功页 */
 export const groupBuySuccess = {
   productName: '周易六十四卦详解（精装典藏版）',
-  productCover: `${P}/book1.jpg`,
+  productCover: `.webp`,
   price: 128,
   originalPrice: 298,
   members: [
@@ -641,7 +641,7 @@ export const groupBuyFail = {
   groupId: 'g123',
   orderId: '2024010100001',
   productName: '紫微斗数入门教程（精装版）',
-  productCover: `${P}/book2.jpg`,
+  productCover: `.webp`,
   price: 128,
   reason: 'timeout' as 'timeout' | 'stock' | 'other',
   members: [{ name: '张三', avatar: AVATAR('zhangsan') }],
@@ -736,10 +736,10 @@ export const couponDetail = {
   description: '新用户首次下单享受优惠，满200元减50元',
   rules: ['新用户首次购物订单享受', '单笔订单满200元可使用', '不与其他优惠叠加使用', '仅限商品购买，不适用课程'],
   applicableItems: [
-    { id: '1', type: 'product', name: '周易六十四卦详解（精装典藏版）', image: `${P}/book1.jpg`, price: 298 },
-    { id: '2', type: 'product', name: '紫微斗数入门教程', image: `${P}/book2.jpg`, price: 128 },
-    { id: '3', type: 'course', name: '八字基础入门课', image: `${P}/book4.jpg`, price: 299 },
-    { id: '4', type: 'product', name: '易经风水运势解读', image: `${P}/book5.jpg`, price: 188 },
+    { id: '1', type: 'product', name: '周易六十四卦详解（精装典藏版）', image: `.webp`, price: 298 },
+    { id: '2', type: 'product', name: '紫微斗数入门教程', image: `.webp`, price: 128 },
+    { id: '3', type: 'course', name: '八字基础入门课', image: `.webp`, price: 299 },
+    { id: '4', type: 'product', name: '易经风水运势解读', image: `.webp`, price: 188 },
   ] as CouponApplicableItem[],
 }
 
@@ -803,8 +803,8 @@ export const cartGroups: CartSellerGroup[] = [
     sellerType: 'circle',
     freeShippingThreshold: 199,
     items: [
-      { id: 1, name: '《渊海子平》精装典藏版', spec: '精装版 / 全三册', price: 168, originalPrice: 298, quantity: 1, image: `${P}/book1.jpg`, type: 'product' },
-      { id: 2, name: '八字命理入门到精通', spec: '视频课程 / 共36节', price: 299, originalPrice: 599, quantity: 1, image: `${P}/book2.jpg`, type: 'course' },
+      { id: 1, name: '《渊海子平》精装典藏版', spec: '精装版 / 全三册', price: 168, originalPrice: 298, quantity: 1, image: `.webp`, type: 'product' },
+      { id: 2, name: '八字命理入门到精通', spec: '视频课程 / 共36节', price: 299, originalPrice: 599, quantity: 1, image: `.webp`, type: 'course' },
     ],
   },
   {
@@ -814,7 +814,7 @@ export const cartGroups: CartSellerGroup[] = [
     sellerType: 'store',
     freeShippingThreshold: 99,
     items: [
-      { id: 3, name: '天然黑曜石貔貅手链', spec: '14mm / 男款', price: 128, originalPrice: 199, quantity: 2, image: `${P}/item1.jpg`, type: 'product' },
+      { id: 3, name: '天然黑曜石貔貅手链', spec: '14mm / 男款', price: 128, originalPrice: 199, quantity: 2, image: `.webp`, type: 'product' },
     ],
   },
 ]
@@ -845,14 +845,14 @@ function adaptCartItem(it: RawCartItem): FlatCartItem {
 
 export interface InvalidCartItem { id: number; name: string; spec: string; price: number; image: string; reason: string }
 export const cartInvalidItems: InvalidCartItem[] = [
-  { id: 101, name: '限量版紫水晶摆件', spec: '已下架', price: 388, image: `${P}/item6.jpg`, reason: '商品已下架' },
+  { id: 101, name: '限量版紫水晶摆件', spec: '已下架', price: 388, image: `.webp`, reason: '商品已下架' },
 ]
 export interface CartRecommendItem { id: number; name: string; price: number; image: string }
 export const cartRecommendProducts: CartRecommendItem[] = [
-  { id: 1, name: '紫微斗数全书', price: 88, image: `${P}/book4.jpg` },
-  { id: 2, name: '开光铜钱挂件', price: 68, image: `${P}/item2.jpg` },
-  { id: 3, name: '风水罗盘专业版', price: 268, image: `${P}/item7.jpg` },
-  { id: 4, name: '命理学基础课', price: 199, image: `${P}/book5.jpg` },
+  { id: 1, name: '紫微斗数全书', price: 88, image: `.webp` },
+  { id: 2, name: '开光铜钱挂件', price: 68, image: `.webp` },
+  { id: 3, name: '风水罗盘专业版', price: 268, image: `.webp` },
+  { id: 4, name: '命理学基础课', price: 199, image: `.webp` },
 ]
 
 /* ============================================================
@@ -875,10 +875,10 @@ export interface SkuCartItem {
   invalidReason?: string
 }
 export const skuCartItems: SkuCartItem[] = [
-  { id: '1', productId: 'p1', productName: '《易经》精装典藏版', productCover: `${P}/book1.jpg`, skuId: 's1', skuName: '精装版', price: 128, originalPrice: 168, quantity: 1, stock: 99, selected: true, isValid: true },
-  { id: '2', productId: 'p2', productName: '紫檀木八卦罗盘', productCover: `${P}/item7.jpg`, skuId: 's2', skuName: '标准款', price: 388, originalPrice: 488, quantity: 2, stock: 50, selected: true, isValid: true },
-  { id: '3', productId: 'p3', productName: '国学启蒙套装礼盒', productCover: `${P}/book3.jpg`, skuId: 's3', skuName: '完整版', price: 268, originalPrice: 358, quantity: 1, stock: 30, selected: false, isValid: true },
-  { id: '4', productId: 'p4', productName: '【已下架】古籍善本·四库全书', productCover: `${P}/book5.jpg`, skuId: 's4', skuName: '精装版', price: 1280, originalPrice: 1680, quantity: 1, stock: 0, selected: false, isValid: false, invalidReason: '商品已下架' },
+  { id: '1', productId: 'p1', productName: '《易经》精装典藏版', productCover: `.webp`, skuId: 's1', skuName: '精装版', price: 128, originalPrice: 168, quantity: 1, stock: 99, selected: true, isValid: true },
+  { id: '2', productId: 'p2', productName: '紫檀木八卦罗盘', productCover: `.webp`, skuId: 's2', skuName: '标准款', price: 388, originalPrice: 488, quantity: 2, stock: 50, selected: true, isValid: true },
+  { id: '3', productId: 'p3', productName: '国学启蒙套装礼盒', productCover: `.webp`, skuId: 's3', skuName: '完整版', price: 268, originalPrice: 358, quantity: 1, stock: 30, selected: false, isValid: true },
+  { id: '4', productId: 'p4', productName: '【已下架】古籍善本·四库全书', productCover: `.webp`, skuId: 's4', skuName: '精装版', price: 1280, originalPrice: 1680, quantity: 1, stock: 0, selected: false, isValid: false, invalidReason: '商品已下架' },
 ]
 
 /* ============================================================
@@ -919,8 +919,8 @@ export const checkoutPayMethods: PayMethodOption[] = [
 
 export interface CheckoutItem { id: string; productId: string; skuId?: string; productName: string; productCover: string; skuName: string; price: number; originalPrice: number; quantity: number }
 export const checkoutItems: CheckoutItem[] = [
-  { id: '1', productId: 'p1', productName: '周易六十四卦详解（精装典藏版）', productCover: `${P}/book1.jpg`, skuName: '精装版', price: 168, originalPrice: 298, quantity: 1 },
-  { id: '2', productId: 'p2', productName: '紫微斗数入门教程', productCover: `${P}/book2.jpg`, skuName: '平装版', price: 88, originalPrice: 128, quantity: 2 },
+  { id: '1', productId: 'p1', productName: '周易六十四卦详解（精装典藏版）', productCover: `.webp`, skuName: '精装版', price: 168, originalPrice: 298, quantity: 1 },
+  { id: '2', productId: 'p2', productName: '紫微斗数入门教程', productCover: `.webp`, skuName: '平装版', price: 88, originalPrice: 128, quantity: 2 },
 ]
 export interface CheckoutCoupon { id: string; name: string; value: number; minAmount: number }
 export const checkoutCoupons: CheckoutCoupon[] = [
@@ -1026,27 +1026,27 @@ export const shopOrders: ShopOrder[] = [
     id: '1', orderNo: '202401150001', status: 'pending_pay', totalAmount: 256, payAmount: 256,
     createdAt: '2024-01-15 14:30',
     products: [
-      { id: 'p1', name: '周易六十四卦详解（精装典藏版）', cover: `${P}/book1.jpg`, skuName: '精装版', price: 168, quantity: 1 },
-      { id: 'p2', name: '紫微斗数入门教程', cover: `${P}/book2.jpg`, skuName: '平装版', price: 88, quantity: 1 },
+      { id: 'p1', name: '周易六十四卦详解（精装典藏版）', cover: `.webp`, skuName: '精装版', price: 168, quantity: 1 },
+      { id: 'p2', name: '紫微斗数入门教程', cover: `.webp`, skuName: '平装版', price: 88, quantity: 1 },
     ],
     canCancel: true, canConfirm: false, canReview: false, hasAfterSale: false,
   },
   {
     id: '2', orderNo: '202401140002', status: 'pending_ship', totalAmount: 168, payAmount: 158,
     createdAt: '2024-01-14 10:20',
-    products: [{ id: 'p3', name: '八字命理学基础', cover: `${P}/book3.jpg`, skuName: '标准版', price: 168, quantity: 1 }],
+    products: [{ id: 'p3', name: '八字命理学基础', cover: `.webp`, skuName: '标准版', price: 168, quantity: 1 }],
     canCancel: true, canConfirm: false, canReview: false, hasAfterSale: false,
   },
   {
     id: '3', orderNo: '202401130003', status: 'pending_receive', totalAmount: 299, payAmount: 279,
     createdAt: '2024-01-13 09:15',
-    products: [{ id: 'p4', name: '风水布局实战指南', cover: `${P}/book4.jpg`, skuName: '精装版', price: 299, quantity: 1 }],
+    products: [{ id: 'p4', name: '风水布局实战指南', cover: `.webp`, skuName: '精装版', price: 299, quantity: 1 }],
     canCancel: false, canConfirm: true, canReview: false, hasAfterSale: false,
   },
   {
     id: '4', orderNo: '202401100004', status: 'completed', totalAmount: 128, payAmount: 128,
     createdAt: '2024-01-10 16:40',
-    products: [{ id: 'p5', name: '梅花易数速成', cover: `${P}/book5.jpg`, skuName: '电子版', price: 128, quantity: 1 }],
+    products: [{ id: 'p5', name: '梅花易数速成', cover: `.webp`, skuName: '电子版', price: 128, quantity: 1 }],
     canCancel: false, canConfirm: false, canReview: true, hasAfterSale: false,
   },
 ]
@@ -1091,8 +1091,8 @@ export const orderDetail: OrderDetailData = {
   id: '1', orderNo: 'GX202401150001', status: 'pending_receive', totalAmount: 344, payAmount: 294,
   createdAt: '2024-01-15 14:30:00', paidAt: '2024-01-15 14:32:15', shippedAt: '2024-01-16 09:00:00',
   products: [
-    { id: '1', name: '《渊海子平》精装典藏版', cover: `${P}/book1.jpg`, skuName: '精装版', price: 168, quantity: 1 },
-    { id: '2', name: '紫微斗数入门教程', cover: `${P}/book2.jpg`, skuName: '平装版', price: 88, quantity: 2 },
+    { id: '1', name: '《渊海子平》精装典藏版', cover: `.webp`, skuName: '精装版', price: 168, quantity: 1 },
+    { id: '2', name: '紫微斗数入门教程', cover: `.webp`, skuName: '平装版', price: 88, quantity: 2 },
   ],
   canReview: false,
   address: { name: '张三', phone: '138****8888', province: '北京市', city: '北京市', district: '朝阳区', address: '建国路88号SOHO现代城A座1201' },
@@ -1143,8 +1143,8 @@ export const logisticsDetail: LogisticsData = {
 
 /* —— 订单评价（app/orders/[id]/review） —— */
 export const orderReviewItems = [
-  { id: '1', name: '《渊海子平》精装典藏版', cover: `${P}/book1.jpg` },
-  { id: '2', name: '紫微斗数入门教程', cover: `${P}/book2.jpg` },
+  { id: '1', name: '《渊海子平》精装典藏版', cover: `.webp` },
+  { id: '2', name: '紫微斗数入门教程', cover: `.webp` },
 ]
 export const reviewTagsByRating: Record<number, string[]> = {
   5: ['正品保证', '包装精美', '物流很快', '与描述一致', '非常满意', '强烈推荐'],
@@ -1205,7 +1205,7 @@ export interface RefundProgressData {
 export const refundProgress: RefundProgressData = {
   id: 'RF202401150001', orderId: 'order1', orderNo: 'GX20240115001', type: 'refund_only', status: 'refunding',
   reason: '不想要了', amount: 168,
-  product: { id: 'p1', name: '周易六十四卦详解（精装典藏版）', cover: `${P}/book1.jpg`, skuName: '精装版', price: 168, quantity: 1 },
+  product: { id: 'p1', name: '周易六十四卦详解（精装典藏版）', cover: `.webp`, skuName: '精装版', price: 168, quantity: 1 },
   timeline: [
     { status: 'submitted', title: '申请提交', description: '您已提交退款申请', time: '2024-01-15 10:30', isCurrent: false },
     { status: 'merchant_review', title: '商家审核', description: '商家已同意退款', time: '2024-01-15 14:20', isCurrent: false },
@@ -1234,10 +1234,10 @@ export const disputeStatusConfig: Record<string, { label: string; color: string;
 export interface DisputeListItemData { id: string; orderId: string; orderNo: string; type: string; status: string; productName: string; productCover: string; createdAt: string }
 export const disputeOrder = {
   orderId: 'order_001', orderNo: 'RB2024010100001', productName: '周易六十四卦详解（精装典藏版）',
-  productCover: `${P}/book1.jpg`, amount: 168, createdAt: '2024-01-01 12:00:00',
+  productCover: `.webp`, amount: 168, createdAt: '2024-01-01 12:00:00',
 }
 export const myDisputes: DisputeListItemData[] = [
-  { id: '1', orderId: 'o1', orderNo: 'RB2024010100002', type: 'quality_issue', status: 'processing', productName: '紫微斗数入门', productCover: `${P}/book2.jpg`, createdAt: '2024-01-05 10:00:00' },
+  { id: '1', orderId: 'o1', orderNo: 'RB2024010100002', type: 'quality_issue', status: 'processing', productName: '紫微斗数入门', productCover: `.webp`, createdAt: '2024-01-05 10:00:00' },
 ]
 export interface DisputeDetailData {
   id: string
@@ -1255,8 +1255,8 @@ export interface DisputeDetailData {
 }
 export const disputeDetail: DisputeDetailData = {
   id: '1', orderId: 'o1', orderNo: 'RB2024010100001', type: 'quality_issue', status: 'processing',
-  description: '收到的书籍有破损，封面有明显折痕', images: [`${P}/book1.jpg`], expectation: '希望能够换货或退款',
-  order: { productName: '周易六十四卦详解（精装典藏版）', productCover: `${P}/book1.jpg`, amount: 168 },
+  description: '收到的书籍有破损，封面有明显折痕', images: [`.webp`], expectation: '希望能够换货或退款',
+  order: { productName: '周易六十四卦详解（精装典藏版）', productCover: `.webp`, amount: 168 },
   timeline: [
     { status: 'submitted', title: '提交申诉', description: '您已成功提交申诉', time: '2024-01-05 10:00', isCurrent: false },
     { status: 'processing', title: '处理中', description: '客服正在处理您的申诉', time: '2024-01-05 14:00', isCurrent: true },
@@ -1300,16 +1300,16 @@ export interface OrderCenterItem {
   extra?: { circleName?: string; teacherName?: string; duration?: string; quantity?: number }
 }
 export const orderCenterItems: OrderCenterItem[] = [
-  { id: '1', orderNo: 'C202401150001', category: 'course', title: '八字入门实战精讲课', cover: `${P}/book1.jpg`, price: 299, originalPrice: 599, status: 'completed', createdAt: '2024-01-15 14:30', extra: { teacherName: '张玄风', duration: '36课时' } },
-  { id: '2', orderNo: 'R202401140002', category: 'circle', title: '八字命理研习社', cover: `${P}/book2.jpg`, price: 199, status: 'completed', createdAt: '2024-01-14 10:20', expiredAt: '2025-01-14', extra: { circleName: '八字命理研习社' } },
-  { id: '3', orderNo: 'P202401130003', category: 'product', title: '周易六十四卦详解（精装典藏版）', cover: `${P}/book3.jpg`, price: 168, status: 'paid', createdAt: '2024-01-13 09:15', extra: { quantity: 1 } },
-  { id: '4', orderNo: 'L202401120004', category: 'live', title: '紫微斗数实战直播课', cover: `${P}/book4.jpg`, price: 49.9, status: 'completed', createdAt: '2024-01-12 18:00', extra: { teacherName: '李命理' } },
-  { id: '5', orderNo: 'Q202401100005', category: 'qa', title: '八字婚姻分析咨询', cover: `${P}/book5.jpg`, price: 88, status: 'completed', createdAt: '2024-01-10 16:40', extra: { teacherName: '王大师' } },
+  { id: '1', orderNo: 'C202401150001', category: 'course', title: '八字入门实战精讲课', cover: `.webp`, price: 299, originalPrice: 599, status: 'completed', createdAt: '2024-01-15 14:30', extra: { teacherName: '张玄风', duration: '36课时' } },
+  { id: '2', orderNo: 'R202401140002', category: 'circle', title: '八字命理研习社', cover: `.webp`, price: 199, status: 'completed', createdAt: '2024-01-14 10:20', expiredAt: '2025-01-14', extra: { circleName: '八字命理研习社' } },
+  { id: '3', orderNo: 'P202401130003', category: 'product', title: '周易六十四卦详解（精装典藏版）', cover: `.webp`, price: 168, status: 'paid', createdAt: '2024-01-13 09:15', extra: { quantity: 1 } },
+  { id: '4', orderNo: 'L202401120004', category: 'live', title: '紫微斗数实战直播课', cover: `.webp`, price: 49.9, status: 'completed', createdAt: '2024-01-12 18:00', extra: { teacherName: '李命理' } },
+  { id: '5', orderNo: 'Q202401100005', category: 'qa', title: '八字婚姻分析咨询', cover: `.webp`, price: 88, status: 'completed', createdAt: '2024-01-10 16:40', extra: { teacherName: '王大师' } },
   { id: '6', orderNo: 'M202401080006', category: 'membership', title: '热卜国学VIP年卡', price: 365, originalPrice: 588, status: 'completed', createdAt: '2024-01-08 12:00', expiredAt: '2025-01-08' },
-  { id: '7', orderNo: 'A202401050007', category: 'activity', title: '新春开运讲座', cover: `${P}/item1.jpg`, price: 0, status: 'completed', createdAt: '2024-01-05 20:00', extra: { duration: '2小时' } },
+  { id: '7', orderNo: 'A202401050007', category: 'activity', title: '新春开运讲座', cover: `.webp`, price: 0, status: 'completed', createdAt: '2024-01-05 20:00', extra: { duration: '2小时' } },
   { id: '8', orderNo: 'S202312200008', category: 'station', title: '分站站长资格', price: 999, status: 'completed', createdAt: '2023-12-20 10:00', expiredAt: '2024-12-20' },
   { id: '9', orderNo: 'I202312150009', category: 'institute', title: '研究院保证金', price: 10000, status: 'completed', createdAt: '2023-12-15 14:00', expiredAt: '2024-12-15', extra: { circleName: '热卜国学研究院' } },
-  { id: '10', orderNo: 'C202401160010', category: 'course', title: '风水堪舆高级班', cover: `${P}/item2.jpg`, price: 1299, status: 'pending', createdAt: '2024-01-16 09:00', extra: { teacherName: '风水大师', duration: '60课时' } },
+  { id: '10', orderNo: 'C202401160010', category: 'course', title: '风水堪舆高级班', cover: `.webp`, price: 1299, status: 'pending', createdAt: '2024-01-16 09:00', extra: { teacherName: '风水大师', duration: '60课时' } },
 ]
 
 /* ============================================================
@@ -1367,7 +1367,7 @@ export const shopProductDetail: ShopProductDetail = {
   category: '国学书籍',
   tags: ['精装', '典藏'],
   isHot: true,
-  images: [`${P}/book1.jpg`, `${P}/book2.jpg`, `${P}/book3.jpg`, `${P}/item4.jpg`],
+  images: [`.webp`, `.webp`, `.webp`, `.webp`],
   description:
     '本书为《周易》经典注释本，由三国时期著名学者王弼注释。全书系统阐释六十四卦卦象、卦辞与爻辞，融汇象数与义理，是研习易学的权威典籍。精装典藏版采用优质纸张，装帧考究，便于收藏与研读。',
   specs: [
@@ -1380,13 +1380,13 @@ export const shopProductDetail: ShopProductDetail = {
   shipping: '包邮',
   reviewCount: 368,
   skus: [
-    { id: 'sku1', name: '精装版', price: 168, originalPrice: 298, stock: 50, image: `${P}/book1.jpg` },
-    { id: 'sku2', name: '平装版', price: 98, originalPrice: 168, stock: 80, image: `${P}/book2.jpg` },
-    { id: 'sku3', name: '典藏礼盒版', price: 368, originalPrice: 498, stock: 20, image: `${P}/book3.jpg` },
+    { id: 'sku1', name: '精装版', price: 168, originalPrice: 298, stock: 50, image: `.webp` },
+    { id: 'sku2', name: '平装版', price: 98, originalPrice: 168, stock: 80, image: `.webp` },
+    { id: 'sku3', name: '典藏礼盒版', price: 368, originalPrice: 498, stock: 20, image: `.webp` },
   ],
 }
 export const shopProductReviews: ShopProductReview[] = [
-  { id: '1', userName: '国学爱好者', avatar: AVATAR('shop-r1'), rating: 5, content: '印刷精美，注释详尽，非常满意！', skuName: '精装版', createdAt: '2024-01-15', likes: 28, images: [`${P}/book1.jpg`] },
+  { id: '1', userName: '国学爱好者', avatar: AVATAR('shop-r1'), rating: 5, content: '印刷精美，注释详尽，非常满意！', skuName: '精装版', createdAt: '2024-01-15', likes: 28, images: [`.webp`] },
   { id: '2', userName: '易学研究者', avatar: AVATAR('shop-r2'), rating: 5, content: '王弼注释很有深度，适合深入研究。', skuName: '典藏礼盒版', createdAt: '2024-01-10', likes: 15 },
   { id: '3', userName: '读书人', avatar: AVATAR('shop-r3'), rating: 4, content: '纸张质量很好，物流也很快。', skuName: '平装版', createdAt: '2024-01-08', likes: 8 },
 ]
@@ -1426,7 +1426,7 @@ const SHOP_CAT_ICON: Record<string, string> = {
 }
 const shopCatIcon = (name: string) => SHOP_CAT_ICON[name] || 'package'
 const shopCatGoodsNames = ['易经全解', '毛笔套装', '沉香线香', '紫砂茶壶', '艾灸盒', '招财貔貅', '小叶紫檀念珠', '古琴入门']
-const shopCatGoodsCovers = [`${P}/book1.jpg`, `${P}/item4.jpg`, `${P}/item5.jpg`, `${P}/item3.jpg`, `${P}/item6.jpg`, `${P}/item2.jpg`, `${P}/item1.jpg`, `${P}/item7.jpg`]
+const shopCatGoodsCovers = [`.webp`, `.webp`, `.webp`, `.webp`, `.webp`, `.webp`, `.webp`, `.webp`]
 const shopCatPrices = [128, 89, 168, 299, 68, 388, 258, 1999]
 const shopCatOriginals = [168, 128, 218, 399, 98, 488, 328, 2599]
 export const shopCategoryProducts: ShopCategoryProduct[] = Array.from({ length: 8 }, (_, i) => ({
@@ -1453,9 +1453,9 @@ export const shopReviewStats = {
   ] as ShopReviewStatItem[],
 }
 export const shopReviewList: ShopProductReview[] = [
-  { id: '1', userName: '张**', avatar: AVATAR('shop-l1'), rating: 5, content: '这本书讲解非常详细，从基础到进阶都有涉及，特别适合入门学习。印刷质量很好，纸张手感不错，物流也很快，非常满意的一次购物体验！', images: [`${P}/book1.jpg`, `${P}/book2.jpg`, `${P}/book3.jpg`], skuName: '精装典藏版', createdAt: '2024-01-15', likes: 128 },
+  { id: '1', userName: '张**', avatar: AVATAR('shop-l1'), rating: 5, content: '这本书讲解非常详细，从基础到进阶都有涉及，特别适合入门学习。印刷质量很好，纸张手感不错，物流也很快，非常满意的一次购物体验！', images: [`.webp`, `.webp`, `.webp`], skuName: '精装典藏版', createdAt: '2024-01-15', likes: 128 },
   { id: '2', userName: '李**', avatar: AVATAR('shop-l2'), rating: 5, content: '内容很好，讲解清晰易懂，推荐购买！', skuName: '平装版', createdAt: '2024-01-14', likes: 56 },
-  { id: '3', userName: '王**', avatar: AVATAR('shop-l3'), rating: 4, content: '整体还不错，就是有些章节感觉可以再详细一点。', images: [`${P}/item4.jpg`], skuName: '精装典藏版', createdAt: '2024-01-13', likes: 23 },
+  { id: '3', userName: '王**', avatar: AVATAR('shop-l3'), rating: 4, content: '整体还不错，就是有些章节感觉可以再详细一点。', images: [`.webp`], skuName: '精装典藏版', createdAt: '2024-01-13', likes: 23 },
   { id: '4', userName: '赵**', avatar: AVATAR('shop-l4'), rating: 3, content: '内容一般，和预期有差距。', skuName: '平装版', createdAt: '2024-01-12', likes: 5 },
 ]
 
@@ -1479,8 +1479,8 @@ export interface ShopExchangeProduct {
   skus: { id: string; name: string; price: number }[]
 }
 export const shopExchangeProducts: ShopExchangeProduct[] = [
-  { id: '1', name: '周易六十四卦详解（精装典藏版）', cover: `${P}/book1.jpg`, skuId: 's1', skuName: '精装版', price: 168, quantity: 1, skus: [{ id: 's1', name: '精装版', price: 168 }, { id: 's2', name: '平装版', price: 98 }] },
-  { id: '2', name: '紫微斗数入门教程', cover: `${P}/book2.jpg`, skuId: 's3', skuName: '标准版', price: 88, quantity: 2, skus: [{ id: 's3', name: '标准版', price: 88 }] },
+  { id: '1', name: '周易六十四卦详解（精装典藏版）', cover: `.webp`, skuId: 's1', skuName: '精装版', price: 168, quantity: 1, skus: [{ id: 's1', name: '精装版', price: 168 }, { id: 's2', name: '平装版', price: 98 }] },
+  { id: '2', name: '紫微斗数入门教程', cover: `.webp`, skuId: 's3', skuName: '标准版', price: 88, quantity: 2, skus: [{ id: 's3', name: '标准版', price: 88 }] },
 ]
 export interface ShopExchangeAddress {
   id: string

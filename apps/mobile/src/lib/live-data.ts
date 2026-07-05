@@ -30,16 +30,16 @@ export interface LiveItem {
 export const liveTabs = ['全部', '知识授课', '电商带货', '关注的'] as const
 
 export const liveList: LiveItem[] = [
-  { id: '1', title: '八字命理入门：如何快速解读四柱八字', cover: '/static/live/live-h1.jpg', hostName: '易道先生', hostAvatar: '/static/experts/expert-1.jpg', viewerCount: 12580, type: 'knowledge', status: 'live', orientation: 'horizontal', priceType: 'free' },
-  { id: '2', title: '开光吉祥物专场：招财貔貅、转运葫芦', cover: '/static/live/live-2.jpg', hostName: '福缘阁主', hostAvatar: '/static/experts/expert-2.jpg', viewerCount: 8920, type: 'commerce', status: 'live', orientation: 'vertical', priceType: 'free', productCount: 12 },
-  { id: '3', title: '天然水晶手链专场直播', cover: '/static/live/live-3.jpg', hostName: '晶缘坊', hostAvatar: '', viewerCount: 5630, type: 'commerce', status: 'live', orientation: 'vertical', priceType: 'free', productCount: 8 },
-  { id: '4', title: '紫微斗数实战案例分析第三期', cover: '/static/live/live-h1.jpg', hostName: '紫微大师', hostAvatar: '/static/experts/expert-1.jpg', viewerCount: 3280, type: 'knowledge', status: 'live', orientation: 'horizontal', priceType: 'paid', price: 99, circleFree: true },
-  { id: '5', title: '今晚8点：风水布局与家居旺财秘诀', cover: '/static/live/live-1.jpg', hostName: '风水堂主', hostAvatar: '', viewerCount: 328, type: 'knowledge', status: 'upcoming', scheduledTime: '今晚 20:00', orientation: 'vertical', priceType: 'free' },
-  { id: '6', title: '周易古籍珍藏版专场直播', cover: '/static/live/live-2.jpg', hostName: '古籍书阁', hostAvatar: '', viewerCount: 4150, type: 'commerce', status: 'live', orientation: 'vertical', priceType: 'free', productCount: 15 },
-  { id: '7', title: '奇门遁甲：预测学的巅峰之术', cover: '/static/live/live-3.jpg', hostName: '奇门居士', hostAvatar: '', viewerCount: 186, type: 'knowledge', status: 'upcoming', scheduledTime: '明天 14:00', orientation: 'vertical', priceType: 'paid', price: 168 },
-  { id: '8', title: '手把手教你排八字命盘', cover: '/static/live/live-h1.jpg', hostName: '李命理', hostAvatar: '/static/experts/expert-2.jpg', viewerCount: 2860, type: 'knowledge', status: 'live', orientation: 'horizontal', priceType: 'free' },
-  { id: '9', title: '手工罗盘制作工艺展示与售卖', cover: '/static/live/live-1.jpg', hostName: '匠心堂', hostAvatar: '', viewerCount: 1520, type: 'commerce', status: 'live', orientation: 'vertical', priceType: 'free', productCount: 6 },
-  { id: '10', title: '道家符箓专场直播', cover: '/static/live/live-2.jpg', hostName: '玄真道人', hostAvatar: '', viewerCount: 980, type: 'commerce', status: 'live', orientation: 'vertical', priceType: 'free', productCount: 9 },
+  { id: '1', title: '八字命理入门：如何快速解读四柱八字', cover: 'https://api.rebugx.cn/assets/live/live-h1.webp', hostName: '易道先生', hostAvatar: 'https://api.rebugx.cn/assets/experts/expert-1.webp', viewerCount: 12580, type: 'knowledge', status: 'live', orientation: 'horizontal', priceType: 'free' },
+  { id: '2', title: '开光吉祥物专场：招财貔貅、转运葫芦', cover: 'https://api.rebugx.cn/assets/live/live-2.webp', hostName: '福缘阁主', hostAvatar: 'https://api.rebugx.cn/assets/experts/expert-2.webp', viewerCount: 8920, type: 'commerce', status: 'live', orientation: 'vertical', priceType: 'free', productCount: 12 },
+  { id: '3', title: '天然水晶手链专场直播', cover: 'https://api.rebugx.cn/assets/live/live-3.webp', hostName: '晶缘坊', hostAvatar: '', viewerCount: 5630, type: 'commerce', status: 'live', orientation: 'vertical', priceType: 'free', productCount: 8 },
+  { id: '4', title: '紫微斗数实战案例分析第三期', cover: 'https://api.rebugx.cn/assets/live/live-h1.webp', hostName: '紫微大师', hostAvatar: 'https://api.rebugx.cn/assets/experts/expert-1.webp', viewerCount: 3280, type: 'knowledge', status: 'live', orientation: 'horizontal', priceType: 'paid', price: 99, circleFree: true },
+  { id: '5', title: '今晚8点：风水布局与家居旺财秘诀', cover: 'https://api.rebugx.cn/assets/live/live-1.webp', hostName: '风水堂主', hostAvatar: '', viewerCount: 328, type: 'knowledge', status: 'upcoming', scheduledTime: '今晚 20:00', orientation: 'vertical', priceType: 'free' },
+  { id: '6', title: '周易古籍珍藏版专场直播', cover: 'https://api.rebugx.cn/assets/live/live-2.webp', hostName: '古籍书阁', hostAvatar: '', viewerCount: 4150, type: 'commerce', status: 'live', orientation: 'vertical', priceType: 'free', productCount: 15 },
+  { id: '7', title: '奇门遁甲：预测学的巅峰之术', cover: 'https://api.rebugx.cn/assets/live/live-3.webp', hostName: '奇门居士', hostAvatar: '', viewerCount: 186, type: 'knowledge', status: 'upcoming', scheduledTime: '明天 14:00', orientation: 'vertical', priceType: 'paid', price: 168 },
+  { id: '8', title: '手把手教你排八字命盘', cover: 'https://api.rebugx.cn/assets/live/live-h1.webp', hostName: '李命理', hostAvatar: 'https://api.rebugx.cn/assets/experts/expert-2.webp', viewerCount: 2860, type: 'knowledge', status: 'live', orientation: 'horizontal', priceType: 'free' },
+  { id: '9', title: '手工罗盘制作工艺展示与售卖', cover: 'https://api.rebugx.cn/assets/live/live-1.webp', hostName: '匠心堂', hostAvatar: '', viewerCount: 1520, type: 'commerce', status: 'live', orientation: 'vertical', priceType: 'free', productCount: 6 },
+  { id: '10', title: '道家符箓专场直播', cover: 'https://api.rebugx.cn/assets/live/live-2.webp', hostName: '玄真道人', hostAvatar: '', viewerCount: 980, type: 'commerce', status: 'live', orientation: 'vertical', priceType: 'free', productCount: 9 },
 ]
 
 // ============ 主播列表(live/hosts) ============
@@ -89,11 +89,11 @@ export const replaySortOptions = [
 ] as const
 
 export const liveReplays: LiveReplay[] = [
-  { id: '1', title: '《周易》六十四卦详解 - 乾卦篇', cover: '/static/live/live-h1.jpg', hostName: '张道长', hostAvatar: '/static/experts/expert-1.jpg', category: '易经', viewers: 8520, duration: 7200, dateText: '1月15日' },
-  { id: '2', title: '紫微斗数入门：命盘基础解读', cover: '/static/live/live-1.jpg', hostName: '李命师', hostAvatar: '/static/experts/expert-2.jpg', category: '紫微斗数', viewers: 6230, duration: 5400, dateText: '1月14日' },
-  { id: '3', title: '八字命理：如何看流年运势', cover: '/static/live/live-2.jpg', hostName: '王半仙', hostAvatar: '/static/experts/expert-1.jpg', category: '八字命理', viewers: 12800, duration: 6800, dateText: '1月13日' },
-  { id: '4', title: '梅花易数：起卦与断卦技巧', cover: '/static/live/live-3.jpg', hostName: '赵易师', hostAvatar: '/static/experts/expert-2.jpg', category: '梅花易数', viewers: 4520, duration: 4800, dateText: '1月12日' },
-  { id: '5', title: '风水布���：家居风水入门', cover: '/static/live/live-1.jpg', hostName: '陈风水', hostAvatar: '/static/experts/expert-1.jpg', category: '风水', viewers: 9800, duration: 5600, dateText: '1月11日' },
+  { id: '1', title: '《周易》六十四卦详解 - 乾卦篇', cover: 'https://api.rebugx.cn/assets/live/live-h1.webp', hostName: '张道长', hostAvatar: 'https://api.rebugx.cn/assets/experts/expert-1.webp', category: '易经', viewers: 8520, duration: 7200, dateText: '1月15日' },
+  { id: '2', title: '紫微斗数入门：命盘基础解读', cover: 'https://api.rebugx.cn/assets/live/live-1.webp', hostName: '李命师', hostAvatar: 'https://api.rebugx.cn/assets/experts/expert-2.webp', category: '紫微斗数', viewers: 6230, duration: 5400, dateText: '1月14日' },
+  { id: '3', title: '八字命理：如何看流年运势', cover: 'https://api.rebugx.cn/assets/live/live-2.webp', hostName: '王半仙', hostAvatar: 'https://api.rebugx.cn/assets/experts/expert-1.webp', category: '八字命理', viewers: 12800, duration: 6800, dateText: '1月13日' },
+  { id: '4', title: '梅花易数：起卦与断卦技巧', cover: 'https://api.rebugx.cn/assets/live/live-3.webp', hostName: '赵易师', hostAvatar: 'https://api.rebugx.cn/assets/experts/expert-2.webp', category: '梅花易数', viewers: 4520, duration: 4800, dateText: '1月12日' },
+  { id: '5', title: '风水布���：家居风水入门', cover: 'https://api.rebugx.cn/assets/live/live-1.webp', hostName: '陈风水', hostAvatar: 'https://api.rebugx.cn/assets/experts/expert-1.webp', category: '风水', viewers: 9800, duration: 5600, dateText: '1月11日' },
 ]
 
 export function formatLiveDuration(seconds: number): string {
@@ -138,15 +138,15 @@ export const replayCategories: ReplayCategory[] = [
 ]
 
 export const replayHotItems: ReplayHomeItem[] = [
-  { id: '1', title: '2024甲辰年运势全解析', cover: '/static/live/live-h1.jpg', hostName: '玄真子', hostAvatar: '/static/experts/expert-1.jpg', duration: 7200, views: 58600, category: '易经', isHot: true },
-  { id: '2', title: '家居风水布局实战课', cover: '/static/live/live-1.jpg', hostName: '明德居士', hostAvatar: '/static/experts/expert-2.jpg', duration: 5400, views: 42300, category: '风水', isHot: true },
+  { id: '1', title: '2024甲辰年运势全解析', cover: 'https://api.rebugx.cn/assets/live/live-h1.webp', hostName: '玄真子', hostAvatar: 'https://api.rebugx.cn/assets/experts/expert-1.webp', duration: 7200, views: 58600, category: '易经', isHot: true },
+  { id: '2', title: '家居风水布局实战课', cover: 'https://api.rebugx.cn/assets/live/live-1.webp', hostName: '明德居士', hostAvatar: 'https://api.rebugx.cn/assets/experts/expert-2.webp', duration: 5400, views: 42300, category: '风水', isHot: true },
 ]
 
 export const replayHomeList: ReplayHomeItem[] = [
-  { id: '3', title: '八字入门：如何排盘与看命', cover: '/static/live/live-2.jpg', hostName: '子平先生', hostAvatar: '/static/experts/expert-1.jpg', duration: 4800, views: 28500, category: '八字' },
-  { id: '4', title: '梅花易数断卦技巧', cover: '/static/live/live-3.jpg', hostName: '易林', hostAvatar: '/static/experts/expert-2.jpg', duration: 3600, views: 19200, category: '梅花' },
-  { id: '5', title: '六爻预测实战案例分析', cover: '/static/live/live-1.jpg', hostName: '卦象大师', hostAvatar: '/static/experts/expert-1.jpg', duration: 5100, views: 15800, category: '六爻' },
-  { id: '6', title: '奇门遁甲入门指南', cover: '/static/live/live-h1.jpg', hostName: '遁甲居士', hostAvatar: '/static/experts/expert-2.jpg', duration: 6000, views: 12400, category: '奇门' },
+  { id: '3', title: '八字入门：如何排盘与看命', cover: 'https://api.rebugx.cn/assets/live/live-2.webp', hostName: '子平先生', hostAvatar: 'https://api.rebugx.cn/assets/experts/expert-1.webp', duration: 4800, views: 28500, category: '八字' },
+  { id: '4', title: '梅花易数断卦技巧', cover: 'https://api.rebugx.cn/assets/live/live-3.webp', hostName: '易林', hostAvatar: 'https://api.rebugx.cn/assets/experts/expert-2.webp', duration: 3600, views: 19200, category: '梅花' },
+  { id: '5', title: '六爻预测实战案例分析', cover: 'https://api.rebugx.cn/assets/live/live-1.webp', hostName: '卦象大师', hostAvatar: 'https://api.rebugx.cn/assets/experts/expert-1.webp', duration: 5100, views: 15800, category: '六爻' },
+  { id: '6', title: '奇门遁甲入门指南', cover: 'https://api.rebugx.cn/assets/live/live-h1.webp', hostName: '遁甲居士', hostAvatar: 'https://api.rebugx.cn/assets/experts/expert-2.webp', duration: 6000, views: 12400, category: '奇门' },
 ]
 
 export const replayHotSearches = ['易经入门', '风水布局', '八字排盘', '梅花易数', '运势解析']
@@ -193,10 +193,10 @@ export const hostLiveStats: HostLiveStats = {
 }
 
 export const hostLiveRooms: HostLiveRoom[] = [
-  { id: '1', title: '八字命理入门精讲（第12期）', cover: '/static/marketing/course.png', status: 'ended', dateText: '1/15 19:00', duration: 150, views: 3280, gifts: 280, revenue: 560 },
-  { id: '2', title: '紫微斗数实战案例分析', cover: '/static/marketing/course.png', status: 'ended', dateText: '1/12 20:00', duration: 120, views: 2560, gifts: 180, revenue: 380 },
-  { id: '3', title: '六爻占卜基础教学', cover: '/static/marketing/course.png', status: 'ended', dateText: '1/10 19:30', duration: 90, views: 1980, gifts: 120, revenue: 240 },
-  { id: '4', title: '梅花易数快速入门', cover: '/static/marketing/course.png', status: 'preview', dateText: '1/20 19:00', duration: 0, views: 0, gifts: 0, revenue: 0 },
+  { id: '1', title: '八字命理入门精讲（第12期）', cover: 'https://api.rebugx.cn/assets/marketing/course.webp', status: 'ended', dateText: '1/15 19:00', duration: 150, views: 3280, gifts: 280, revenue: 560 },
+  { id: '2', title: '紫微斗数实战案例分析', cover: 'https://api.rebugx.cn/assets/marketing/course.webp', status: 'ended', dateText: '1/12 20:00', duration: 120, views: 2560, gifts: 180, revenue: 380 },
+  { id: '3', title: '六爻占卜基础教学', cover: 'https://api.rebugx.cn/assets/marketing/course.webp', status: 'ended', dateText: '1/10 19:30', duration: 90, views: 1980, gifts: 120, revenue: 240 },
+  { id: '4', title: '梅花易数快速入门', cover: 'https://api.rebugx.cn/assets/marketing/course.webp', status: 'preview', dateText: '1/20 19:00', duration: 0, views: 0, gifts: 0, revenue: 0 },
 ]
 
 // 固定的30天趋势(避免随机数破坏比对稳定性)
@@ -316,12 +316,12 @@ export const verticalLiveRoom = {
   id: '1',
   title: '开光吉祥物专场：招财貔貅限时特惠',
   hostName: '福缘阁主',
-  hostAvatar: '/static/marketing/course.png',
+  hostAvatar: 'https://api.rebugx.cn/assets/marketing/course.webp',
   hostLevel: 5,
   followers: 12800,
   viewerCount: 8920,
   likeCount: 32100,
-  onlineAvatars: ['/static/marketing/course.png', '/static/marketing/course.png', '/static/marketing/course.png'],
+  onlineAvatars: ['https://api.rebugx.cn/assets/marketing/course.webp', 'https://api.rebugx.cn/assets/marketing/course.webp', 'https://api.rebugx.cn/assets/marketing/course.webp'],
   imGroupId: '', // TIM 弹幕群 ID（真连时由后端房间返回，用于加入群收发弹幕）
 }
 export const verticalLiveComments: VerticalLiveComment[] = [
@@ -329,9 +329,9 @@ export const verticalLiveComments: VerticalLiveComment[] = [
   { id: '2', userName: '易学爱好者', content: '主播讲得太好了！', type: 'text' },
 ]
 export const verticalLiveProducts: VerticalLiveProduct[] = [
-  { id: '1', name: '开光招财貔貅摆件 天然黑曜石', cover: '/static/marketing/course.png', price: 299, originalPrice: 599, stock: 56, sold: 1280, isExplaining: true },
-  { id: '2', name: '五帝钱挂件 真品铜钱招财镇宅', cover: '/static/marketing/course.png', price: 128, originalPrice: 268, stock: 128, sold: 2350 },
-  { id: '3', name: '天然黄水晶转运葫芦', cover: '/static/marketing/course.png', price: 168, originalPrice: 328, stock: 89, sold: 890 },
+  { id: '1', name: '开光招财貔貅摆件 天然黑曜石', cover: 'https://api.rebugx.cn/assets/marketing/course.webp', price: 299, originalPrice: 599, stock: 56, sold: 1280, isExplaining: true },
+  { id: '2', name: '五帝钱挂件 真品铜钱招财镇宅', cover: 'https://api.rebugx.cn/assets/marketing/course.webp', price: 128, originalPrice: 268, stock: 128, sold: 2350 },
+  { id: '3', name: '天然黄水晶转运葫芦', cover: 'https://api.rebugx.cn/assets/marketing/course.webp', price: 168, originalPrice: 328, stock: 89, sold: 890 },
 ]
 
 // ============ 直播间观看页(live/[id]) ============
@@ -341,13 +341,13 @@ export const liveWatchRoom = {
   type: 'knowledge' as 'knowledge' | 'commerce',
   title: '紫微斗数命盘解析直播',
   hostName: '云中子道长',
-  hostAvatar: '/static/marketing/course.png',
+  hostAvatar: 'https://api.rebugx.cn/assets/marketing/course.webp',
   hostId: '',
   followers: 12800,
   viewerCount: 3256,
   likeCount: 18900,
   isFollowing: false,
-  onlineAvatars: ['/static/marketing/course.png', '/static/marketing/course.png', '/static/marketing/course.png'],
+  onlineAvatars: ['https://api.rebugx.cn/assets/marketing/course.webp', 'https://api.rebugx.cn/assets/marketing/course.webp', 'https://api.rebugx.cn/assets/marketing/course.webp'],
   imGroupId: '', // TIM 弹幕群 ID
   circleId: '', // 发起直播的圈子 ID（佣-V2-P3：进房上报圈子渠道点击/购买带 LIVE 来源）
 }
@@ -380,9 +380,9 @@ export const liveWatchRankList: LiveWatchRankItem[] = [
 ]
 // 直播间商品（电商直播复用 VerticalLiveProduct 结构）
 export const liveWatchProducts: VerticalLiveProduct[] = [
-  { id: 'p1', name: '开光招财貔貅摆件', cover: '/static/marketing/course.png', price: 299, originalPrice: 599, stock: 56, sold: 1280, isExplaining: true },
-  { id: 'p2', name: '天然黄水晶转运葫芦', cover: '/static/marketing/course.png', price: 168, originalPrice: 328, stock: 128, sold: 890 },
-  { id: 'p3', name: '紫檀木雕福禄寿三星', cover: '/static/marketing/course.png', price: 1680, originalPrice: 2999, stock: 23, sold: 156 },
+  { id: 'p1', name: '开光招财貔貅摆件', cover: 'https://api.rebugx.cn/assets/marketing/course.webp', price: 299, originalPrice: 599, stock: 56, sold: 1280, isExplaining: true },
+  { id: 'p2', name: '天然黄水晶转运葫芦', cover: 'https://api.rebugx.cn/assets/marketing/course.webp', price: 168, originalPrice: 328, stock: 128, sold: 890 },
+  { id: 'p3', name: '紫檀木雕福禄寿三星', cover: 'https://api.rebugx.cn/assets/marketing/course.webp', price: 1680, originalPrice: 2999, stock: 23, sold: 156 },
 ]
 // 电商直播实时已售通知的随机用户名
 export const liveWatchBuyerNames = ['福气满满', '招财进宝', '玄学新人', '易道弟子', '国学传承', '命理初学', '紫微门人']
@@ -409,10 +409,10 @@ export interface LivePreviewRoom {
 export const livePreviewRoom: LivePreviewRoom = {
   id: '1',
   title: '紫微斗数入门：十二宫位详解与命盘分析实战',
-  cover: '/static/live/live-3.jpg',
+  cover: 'https://api.rebugx.cn/assets/live/live-3.webp',
   hostId: 'h1',
   hostName: '云中子',
-  hostAvatar: '/static/experts/expert-1.jpg',
+  hostAvatar: 'https://api.rebugx.cn/assets/experts/expert-1.webp',
   hostFollowers: 12800,
   bookedCount: 1268,
   estimatedDuration: 90,
@@ -461,10 +461,10 @@ export interface LiveEndRoom {
 export const liveEndRoom: LiveEndRoom = {
   id: '1',
   title: '《周易》六十四卦精讲：乾卦的智慧',
-  cover: '/static/live/live-h1.jpg',
+  cover: 'https://api.rebugx.cn/assets/live/live-h1.webp',
   hostId: 'h1',
   hostName: '易经大师·张道长',
-  hostAvatar: '/static/experts/expert-1.jpg',
+  hostAvatar: 'https://api.rebugx.cn/assets/experts/expert-1.webp',
   hostFollowers: 12580,
   tags: ['周易', '六十四卦', '国学'],
   stats: { totalViewers: 15680, peakViewers: 3256, totalLikes: 8532, totalGifts: 1256, duration: 9000 },
@@ -479,12 +479,12 @@ export interface LiveEndRecommendLive {
   bookedCount: number
 }
 export const liveEndRecommendLives: LiveEndRecommendLive[] = [
-  { id: '2', title: '紫微斗数入门：认识你的命盘', cover: '/static/live/live-2.jpg', status: 'preview', viewers: 0, bookedCount: 856 },
-  { id: '3', title: '风水布局与家居吉凶', cover: '/static/live/live-1.jpg', status: 'live', viewers: 1256, bookedCount: 0 },
+  { id: '2', title: '紫微斗数入门：认识你的命盘', cover: 'https://api.rebugx.cn/assets/live/live-2.webp', status: 'preview', viewers: 0, bookedCount: 856 },
+  { id: '3', title: '风水布局与家居吉凶', cover: 'https://api.rebugx.cn/assets/live/live-1.webp', status: 'live', viewers: 1256, bookedCount: 0 },
 ]
 export const liveEndRecommendCourses = [
-  { id: 'c1', title: '周易六十四卦系统课', cover: '/static/live/live-h1.jpg', price: 299, lessons: 64 },
-  { id: 'c2', title: '紫微斗数精讲班', cover: '/static/live/live-3.jpg', price: 399, lessons: 48 },
+  { id: 'c1', title: '周易六十四卦系统课', cover: 'https://api.rebugx.cn/assets/live/live-h1.webp', price: 299, lessons: 64 },
+  { id: 'c2', title: '紫微斗数精讲班', cover: 'https://api.rebugx.cn/assets/live/live-3.webp', price: 399, lessons: 48 },
 ]
 
 // ============ 回放详情(live/replay/[id]) ============
@@ -527,7 +527,7 @@ export const replayDetail: ReplayDetail = {
   id: 1,
   title: '八字命理入门：如何看懂自己的命盘',
   hostName: '周易大师',
-  hostAvatar: '/static/experts/expert-1.jpg',
+  hostAvatar: 'https://api.rebugx.cn/assets/experts/expert-1.webp',
   hostTitle: '资深命理师',
   hostFollowers: 12800,
   isVerified: true,
@@ -540,12 +540,12 @@ export const replayDetail: ReplayDetail = {
   isPaid: false,
   isPurchased: false,
   slides: [
-    { id: 1, time: 0, timeDisplay: '00:00:00', title: '课程封面', imageUrl: '/static/marketing/course.png' },
-    { id: 2, time: 300, timeDisplay: '00:05:00', title: '天干地支表', imageUrl: '/static/marketing/course.png' },
-    { id: 3, time: 900, timeDisplay: '00:15:00', title: '十神关系图', imageUrl: '/static/marketing/course.png' },
-    { id: 4, time: 1800, timeDisplay: '00:30:00', title: '五行生克图', imageUrl: '/static/marketing/luopan.png' },
-    { id: 5, time: 3000, timeDisplay: '00:50:00', title: '命盘实例', imageUrl: '/static/marketing/course.png' },
-    { id: 6, time: 4500, timeDisplay: '01:15:00', title: '大运流年表', imageUrl: '/static/marketing/course.png' },
+    { id: 1, time: 0, timeDisplay: '00:00:00', title: '课程封面', imageUrl: 'https://api.rebugx.cn/assets/marketing/course.webp' },
+    { id: 2, time: 300, timeDisplay: '00:05:00', title: '天干地支表', imageUrl: 'https://api.rebugx.cn/assets/marketing/course.webp' },
+    { id: 3, time: 900, timeDisplay: '00:15:00', title: '十神关系图', imageUrl: 'https://api.rebugx.cn/assets/marketing/course.webp' },
+    { id: 4, time: 1800, timeDisplay: '00:30:00', title: '五行生克图', imageUrl: 'https://api.rebugx.cn/assets/marketing/luopan.webp' },
+    { id: 5, time: 3000, timeDisplay: '00:50:00', title: '命盘实例', imageUrl: 'https://api.rebugx.cn/assets/marketing/course.webp' },
+    { id: 6, time: 4500, timeDisplay: '01:15:00', title: '大运流年表', imageUrl: 'https://api.rebugx.cn/assets/marketing/course.webp' },
   ],
   chapters: [
     { id: 1, title: '课程介绍', startTime: 0, timeDisplay: '00:00:00', description: '本节课程概述' },
@@ -629,7 +629,7 @@ export const horizontalLiveRoom: HorizontalLiveRoom = {
   id: '1',
   title: '《周易》六十四卦精讲 - 第12讲：泰卦与否卦',
   hostName: '张明远',
-  hostAvatar: '/static/marketing/course.png',
+  hostAvatar: 'https://api.rebugx.cn/assets/marketing/course.webp',
   hostTitle: '易学研究员',
   followers: 12800,
   viewers: 1856,
@@ -638,16 +638,16 @@ export const horizontalLiveRoom: HorizontalLiveRoom = {
   category: '易经',
 }
 export const horizontalSlides: HorizontalSlide[] = [
-  { id: '1', pageNum: 1, title: '第一章：泰卦概述', thumbnail: '/static/marketing/course.png' },
-  { id: '2', pageNum: 2, title: '泰卦卦象解读', thumbnail: '/static/marketing/course.png' },
-  { id: '3', pageNum: 3, title: '泰卦六爻详解', thumbnail: '/static/marketing/course.png' },
-  { id: '4', pageNum: 4, title: '否卦概述', thumbnail: '/static/marketing/course.png' },
-  { id: '5', pageNum: 5, title: '泰否对比分析', thumbnail: '/static/marketing/course.png' },
+  { id: '1', pageNum: 1, title: '第一章：泰卦概述', thumbnail: 'https://api.rebugx.cn/assets/marketing/course.webp' },
+  { id: '2', pageNum: 2, title: '泰卦卦象解读', thumbnail: 'https://api.rebugx.cn/assets/marketing/course.webp' },
+  { id: '3', pageNum: 3, title: '泰卦六爻详解', thumbnail: 'https://api.rebugx.cn/assets/marketing/course.webp' },
+  { id: '4', pageNum: 4, title: '否卦概述', thumbnail: 'https://api.rebugx.cn/assets/marketing/course.webp' },
+  { id: '5', pageNum: 5, title: '泰否对比分析', thumbnail: 'https://api.rebugx.cn/assets/marketing/course.webp' },
 ]
 export const horizontalQuestions: HorizontalQuestion[] = [
-  { id: '1', userName: '学员A', userAvatar: '/static/marketing/course.png', content: '泰卦和否卦的核心区别是什么？', isPublic: true, status: 'answered', answer: '泰卦象征天地交泰、上下沟通，否卦象征天地不交、闭塞不通。一通一塞，正是相反相成。', time: '12:35' },
-  { id: '2', userName: '学员B', userAvatar: '/static/marketing/course.png', content: '否极泰来这个成语和这两卦有关系吗？', isPublic: true, status: 'pending', time: '12:38' },
-  { id: '3', userName: '学员C', userAvatar: '/static/marketing/course.png', content: '请问老师，泰卦在占卜中一般代表什么含义？', isPublic: true, status: 'pending', time: '12:42' },
+  { id: '1', userName: '学员A', userAvatar: 'https://api.rebugx.cn/assets/marketing/course.webp', content: '泰卦和否卦的核心区别是什么？', isPublic: true, status: 'answered', answer: '泰卦象征天地交泰、上下沟通，否卦象征天地不交、闭塞不通。一通一塞，正是相反相成。', time: '12:35' },
+  { id: '2', userName: '学员B', userAvatar: 'https://api.rebugx.cn/assets/marketing/course.webp', content: '否极泰来这个成语和这两卦有关系吗？', isPublic: true, status: 'pending', time: '12:38' },
+  { id: '3', userName: '学员C', userAvatar: 'https://api.rebugx.cn/assets/marketing/course.webp', content: '请问老师，泰卦在占卜中一般代表什么含义？', isPublic: true, status: 'pending', time: '12:42' },
 ]
 export const horizontalMessages: HorizontalMessage[] = [
   { id: '1', userName: '易学爱好者', content: '老师讲得太清楚了', time: '12:30' },
@@ -667,12 +667,12 @@ export const horizontalAutoUsers = ['玄学新人', '易道弟子', '国学迷',
 // @data-needs: 礼物清单接口；送礼后扣减国学币余额 liveCoinBalance
 export interface LiveGift { id: string; name: string; icon: string; price: number }
 export const liveGifts: LiveGift[] = [
-  { id: 'g1', name: '点赞', icon: '/static/marketing/course.png', price: 1 },
-  { id: 'g2', name: '鲜花', icon: '/static/marketing/course.png', price: 6 },
-  { id: 'g3', name: '香囊', icon: '/static/marketing/course.png', price: 18 },
-  { id: 'g4', name: '玉如意', icon: '/static/marketing/course.png', price: 66 },
-  { id: 'g5', name: '聚宝盆', icon: '/static/marketing/course.png', price: 188 },
-  { id: 'g6', name: '麒麟', icon: '/static/marketing/course.png', price: 520 },
+  { id: 'g1', name: '点赞', icon: 'https://api.rebugx.cn/assets/marketing/course.webp', price: 1 },
+  { id: 'g2', name: '鲜花', icon: 'https://api.rebugx.cn/assets/marketing/course.webp', price: 6 },
+  { id: 'g3', name: '香囊', icon: 'https://api.rebugx.cn/assets/marketing/course.webp', price: 18 },
+  { id: 'g4', name: '玉如意', icon: 'https://api.rebugx.cn/assets/marketing/course.webp', price: 66 },
+  { id: 'g5', name: '聚宝盆', icon: 'https://api.rebugx.cn/assets/marketing/course.webp', price: 188 },
+  { id: 'g6', name: '麒麟', icon: 'https://api.rebugx.cn/assets/marketing/course.webp', price: 520 },
 ]
 // 用户国学币余额（mock）
 export const liveCoinBalance = 2680
@@ -867,10 +867,10 @@ export interface TeamMember {
   phone: string; joinDate: string; liveCount: number; hasActiveLive: boolean; status: 'online' | 'offline'
 }
 export const teamMembers: TeamMember[] = [
-  { id: 1, name: '易道先生', avatar: '/static/marketing/course.png', role: 'host', expertise: ['八字命理', '紫微斗数'], phone: '138****8888', joinDate: '2024-01-15', liveCount: 56, hasActiveLive: true, status: 'online' },
-  { id: 2, name: '紫微大师', avatar: '/static/marketing/course.png', role: 'host', expertise: ['紫微斗数', '风水堪舆'], phone: '139****6666', joinDate: '2024-02-20', liveCount: 32, hasActiveLive: false, status: 'offline' },
-  { id: 3, name: '小雅助理', avatar: '/static/marketing/course.png', role: 'cohost', expertise: ['商品讲解', '互动管理'], phone: '137****5555', joinDate: '2024-03-10', liveCount: 28, hasActiveLive: true, status: 'online' },
-  { id: 4, name: '运营小李', avatar: '/static/marketing/course.png', role: 'operator', expertise: ['数据分析', '活动策划'], phone: '136****4444', joinDate: '2024-04-05', liveCount: 15, hasActiveLive: false, status: 'online' },
+  { id: 1, name: '易道先生', avatar: 'https://api.rebugx.cn/assets/marketing/course.webp', role: 'host', expertise: ['八字命理', '紫微斗数'], phone: '138****8888', joinDate: '2024-01-15', liveCount: 56, hasActiveLive: true, status: 'online' },
+  { id: 2, name: '紫微大师', avatar: 'https://api.rebugx.cn/assets/marketing/course.webp', role: 'host', expertise: ['紫微斗数', '风水堪舆'], phone: '139****6666', joinDate: '2024-02-20', liveCount: 32, hasActiveLive: false, status: 'offline' },
+  { id: 3, name: '小雅助理', avatar: 'https://api.rebugx.cn/assets/marketing/course.webp', role: 'cohost', expertise: ['商品讲解', '互动管理'], phone: '137****5555', joinDate: '2024-03-10', liveCount: 28, hasActiveLive: true, status: 'online' },
+  { id: 4, name: '运营小李', avatar: 'https://api.rebugx.cn/assets/marketing/course.webp', role: 'operator', expertise: ['数据分析', '活动策划'], phone: '136****4444', joinDate: '2024-04-05', liveCount: 15, hasActiveLive: false, status: 'online' },
 ]
 export interface AvailableMember { id: number | string; name: string; avatar: string; expertise: string[]; type: 'lecturer' | 'member' }
 export const teamAvailableMembers: AvailableMember[] = [
@@ -1040,7 +1040,7 @@ export const livePrivacyKeys: LiveSettingToggle[] = [
 export const liveSettingProfile = {
   name: '国学命理讲堂',
   desc: '专注八字、紫微、奇门等传统命理学的讲解与传播',
-  cover: '/static/marketing/course.png',
+  cover: 'https://api.rebugx.cn/assets/marketing/course.webp',
 }
 export const liveSettingNotifyDefault = { newViewer: true, reward: true, comment: false, order: true }
 export const liveSettingPrivacyDefault = { allowComment: true, allowGift: true, showViewCount: true, autoRecord: true }
@@ -1064,11 +1064,11 @@ export interface LiveProductItem {
   status: 'on' | 'off'
 }
 export const liveProducts: LiveProductItem[] = [
-  { id: '1', name: '《渊海子平》精装典藏版', price: 168, stock: 200, sold: 86, cover: '/static/marketing/course.png', status: 'on' },
-  { id: '2', name: '紫微斗数入门教程（平装）', price: 88, stock: 150, sold: 142, cover: '/static/marketing/course.png', status: 'on' },
-  { id: '3', name: '八字命盘分析工具书', price: 128, stock: 0, sold: 320, cover: '/static/marketing/course.png', status: 'off' },
-  { id: '4', name: '纯铜罗盘（专业款）', price: 480, stock: 15, sold: 28, cover: '/static/marketing/luopan.png', status: 'on' },
-  { id: '5', name: '手抄本《周易参同契》', price: 240, stock: 8, sold: 45, cover: '/static/marketing/course.png', status: 'off' },
+  { id: '1', name: '《渊海子平》精装典藏版', price: 168, stock: 200, sold: 86, cover: 'https://api.rebugx.cn/assets/marketing/course.webp', status: 'on' },
+  { id: '2', name: '紫微斗数入门教程（平装）', price: 88, stock: 150, sold: 142, cover: 'https://api.rebugx.cn/assets/marketing/course.webp', status: 'on' },
+  { id: '3', name: '八字命盘分析工具书', price: 128, stock: 0, sold: 320, cover: 'https://api.rebugx.cn/assets/marketing/course.webp', status: 'off' },
+  { id: '4', name: '纯铜罗盘（专业款）', price: 480, stock: 15, sold: 28, cover: 'https://api.rebugx.cn/assets/marketing/luopan.webp', status: 'on' },
+  { id: '5', name: '手抄本《周易参同契》', price: 240, stock: 8, sold: 45, cover: 'https://api.rebugx.cn/assets/marketing/course.webp', status: 'off' },
 ]
 
 // ============ 直播收益(live/earnings) ============
