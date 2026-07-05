@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
+import { safePagination } from "../../common/pagination";
 import { CreateCouponV2Dto } from "./shop.dto";
 
 @Injectable()
@@ -44,13 +45,14 @@ export class ShopCouponService {
     });
   }
 
-  async listCoupons(page = 1, pageSize = 20, admin = false) {
+  async listCoupons(rawPage = 1, rawPageSize = 20, admin = false) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
     const now = new Date();
     const where = admin ? {} : { status: "ACTIVE", validEnd: { gte: now } };
     const [coupons, total] = await Promise.all([
       this.prisma.coupon.findMany({
         where,
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),
@@ -175,10 +177,11 @@ export class ShopCouponService {
     });
   }
 
-  async getUserAfterSales(userId: string, page = 1, pageSize = 20) {
+  async getUserAfterSales(userId: string, rawPage = 1, rawPageSize = 20) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
     const where = { userId };
     const [items, total] = await Promise.all([
-      this.prisma.afterSale.findMany({ where, skip: (page - 1) * pageSize, take: pageSize, orderBy: { createdAt: "desc" } }),
+      this.prisma.afterSale.findMany({ where, skip, take: pageSize, orderBy: { createdAt: "desc" } }),
       this.prisma.afterSale.count({ where }),
     ]);
     return { items: await this.enrichAfterSales(items), total, page, pageSize };
@@ -241,11 +244,12 @@ export class ShopCouponService {
     return this.prisma.afterSale.update({ where: { id }, data: { status: "CANCELLED" } });
   }
 
-  async listAfterSales(page = 1, pageSize = 20, status?: string) {
+  async listAfterSales(rawPage = 1, rawPageSize = 20, status?: string) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
     const where: Prisma.AfterSaleWhereInput = {};
     if (status) where.status = status;
     const [items, total] = await Promise.all([
-      this.prisma.afterSale.findMany({ where, skip: (page - 1) * pageSize, take: pageSize, orderBy: { createdAt: "desc" } }),
+      this.prisma.afterSale.findMany({ where, skip, take: pageSize, orderBy: { createdAt: "desc" } }),
       this.prisma.afterSale.count({ where }),
     ]);
     return { items, total, page, pageSize };

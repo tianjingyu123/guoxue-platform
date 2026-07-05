@@ -6,6 +6,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { AuditService } from "../audit/audit.service";
 import { UnifiedPricingService } from "../pricing/unified-pricing.service";
+import { safePagination } from "../../common/pagination";
 import { ShopProductService } from "./shop-product.service";
 import { ShopOrderService } from "./shop-order.service";
 import { ShopOrderLifecycleService } from "./shop-order-lifecycle.service";
@@ -357,12 +358,13 @@ export class ShopService {
   }
 
   /** 获取店铺级评价列表（聚合所有商品评价） */
-  async listShopReviews(page = 1, pageSize = 20) {
+  async listShopReviews(rawPage = 1, rawPageSize = 20) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
     const where = { status: "PUBLISHED" as const };
     const [rawReviews, total] = await Promise.all([
       this.prisma.productReview.findMany({
         where,
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),
@@ -451,12 +453,13 @@ export class ShopService {
     return { success: true };
   }
 
-  async getFreightTemplates(page = 1, pageSize = 20) {
+  async getFreightTemplates(rawPage = 1, rawPageSize = 20) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
     const where = { isActive: true };
     const [items, total] = await Promise.all([
       this.prisma.freightTemplate.findMany({
         where,
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),

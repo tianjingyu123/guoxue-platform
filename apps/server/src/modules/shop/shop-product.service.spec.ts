@@ -73,6 +73,16 @@ describe("ShopProductService", () => {
       expect(result.total).toBe(1)
       expect(result.products).toHaveLength(1)
     })
+
+    // P2-4 分页入参加固：非法 page 归一化，防 skip:NaN 进 Prisma 抛 500
+    it("非法 page(NaN) 归一化第1页·skip 不为 NaN", async () => {
+      mockPrisma.product.findMany.mockResolvedValue([])
+      mockPrisma.product.count.mockResolvedValue(0)
+      await svc.listProducts({ page: "abc", pageSize: "xyz" } as any)
+      const arg = mockPrisma.product.findMany.mock.calls.at(-1)![0]
+      expect(Number.isNaN(arg.skip)).toBe(false)
+      expect(arg.skip).toBe(0)
+    })
   })
 
   describe("listProductsByScene（供-P1 场景取货）", () => {

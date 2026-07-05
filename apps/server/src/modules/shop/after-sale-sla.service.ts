@@ -3,6 +3,7 @@ import { Cron, CronExpression } from "@nestjs/schedule";
 import { AfterSale, Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
+import { safePagination } from "../../common/pagination";
 
 /**
  * 售后/投诉 SLA 服务（F5 投诉-快速退款 SLA · 合-P2）
@@ -45,13 +46,14 @@ export class AfterSaleSlaService {
   ) {}
 
   /** admin 售后列表（含 SLA 推导字段与快速退款标注·纯读不改数据） */
-  async listWithSla(page = 1, pageSize = 20, status?: string) {
+  async listWithSla(rawPage = 1, rawPageSize = 20, status?: string) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
     const where: Prisma.AfterSaleWhereInput = {};
     if (status) where.status = status;
     const [items, total] = await Promise.all([
       this.prisma.afterSale.findMany({
         where,
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),

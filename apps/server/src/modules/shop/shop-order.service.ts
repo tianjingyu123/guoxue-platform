@@ -8,6 +8,7 @@ import { RedisService } from "../../redis/redis.service";
 import { UnifiedPricingService } from "../pricing/unified-pricing.service";
 import { CommissionService } from "../commission/commission.service";
 import { ShopAttributionService } from "./shop-attribution.service";
+import { safePagination } from "../../common/pagination";
 import { CreateOrderDto, OrderListQueryDto } from "./shop.dto";
 
 /** 订单缓存 TTL */
@@ -410,7 +411,8 @@ export class ShopOrderService {
   private readonly VALID_ORDER_STATUSES = new Set(["PENDING", "PAID", "SHIPPED", "COMPLETED", "REFUNDED", "CANCELLED"]);
 
   async listOrders(dto: OrderListQueryDto) {
-    const { page = 1, pageSize = 20, orderNo, type, status, userId, startDate, endDate } = dto;
+    const { orderNo, type, status, userId, startDate, endDate } = dto;
+    const { page, pageSize, skip } = safePagination(dto.page, dto.pageSize);
     const filterHash = createHash("sha1")
       .update(`${orderNo || ""}|${type || ""}|${status || ""}|${userId || ""}|${startDate || ""}|${endDate || ""}`)
       .digest("hex");
@@ -438,7 +440,7 @@ export class ShopOrderService {
         include: {
           user: { select: { id: true, nickname: true } },
         },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),
@@ -450,7 +452,8 @@ export class ShopOrderService {
     return data;
   }
 
-  async getUserOrders(userId: string, page = 1, pageSize = 20, status?: string) {
+  async getUserOrders(userId: string, rawPage = 1, rawPageSize = 20, status?: string) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
     const safeStatus = status && this.VALID_ORDER_STATUSES.has(status) ? status : undefined;
     const cacheKey = `${CACHE_PREFIX}userOrders:${userId}:${page}:${pageSize}:${safeStatus || "all"}`;
     const cached = await this.redis.getJson<any>(cacheKey);
@@ -459,7 +462,7 @@ export class ShopOrderService {
     const where: Prisma.OrderWhereInput = { userId };
     if (safeStatus) where.status = safeStatus as any;
     const [orders, total] = await Promise.all([
-      this.prisma.order.findMany({ where, skip: (page - 1) * pageSize, take: pageSize, orderBy: { createdAt: "desc" } }),
+      this.prisma.order.findMany({ where, skip, take: pageSize, orderBy: { createdAt: "desc" } }),
       this.prisma.order.count({ where }),
     ]);
     const data = { orders: await this.enrichOrders(orders), total, page, pageSize };

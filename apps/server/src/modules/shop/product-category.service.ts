@@ -2,6 +2,7 @@ import { Injectable, Logger, OnModuleInit } from "@nestjs/common";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
+import { safePagination } from "../../common/pagination";
 
 const DEFAULT_PRODUCT_CATEGORIES = [
   { name: "书籍", children: ["国学经典", "诗词鉴赏", "书法字帖", "易学命理", "中医养生"] },
@@ -48,12 +49,13 @@ export class ProductCategoryService implements OnModuleInit {
     return roots.map((r) => ({ ...r, children: all.filter((c) => c.parentId === r.id) }));
   }
 
-  async getProducts(categoryId: string, page = 1, pageSize = 20) {
+  async getProducts(categoryId: string, rawPage = 1, rawPageSize = 20) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
     const [items, total] = await Promise.all([
       this.prisma.product.findMany({
         where: { categoryId, status: "ON_SALE" },
         select: { id: true, title: true, price: true, originalPrice: true, images: true, salesCount: true },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { salesCount: "desc" },
       }),

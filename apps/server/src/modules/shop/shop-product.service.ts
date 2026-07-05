@@ -6,6 +6,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { UnifiedPricingService } from "../pricing/unified-pricing.service";
 import { AuditService } from "../audit/audit.service";
+import { safePagination } from "../../common/pagination";
 import {
   CreateProductDto, UpdateProductDto, ProductListQueryDto,
   PRODUCT_SCENE_TAGS,
@@ -191,7 +192,8 @@ export class ShopProductService {
   }
 
   async listProducts(dto: ProductListQueryDto) {
-    const { page = 1, pageSize = 20, categoryId, status, stationId, keyword, categoryLevel1, priceMin, priceMax, sort } = dto;
+    const { categoryId, status, stationId, keyword, categoryLevel1, priceMin, priceMax, sort } = dto;
+    const { page, pageSize, skip } = safePagination(dto.page, dto.pageSize);
 
     const where: Prisma.ProductWhereInput = {};
     if (categoryId) where.categoryId = categoryId;
@@ -220,7 +222,7 @@ export class ShopProductService {
       this.prisma.product.findMany({
         where,
         include: { skus: true },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy,
       }),
@@ -304,7 +306,8 @@ export class ShopProductService {
   }
 
   /** C 端店铺主页 — 商家公开信息 + 在售商品列表（仅已开通 ACTIVE 商家可见） */
-  async getStore(merchantId: string, page = 1, pageSize = 20) {
+  async getStore(merchantId: string, rawPage = 1, rawPageSize = 20) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
     const merchant = await this.prisma.merchant.findFirst({
       where: { id: merchantId, status: "ACTIVE" },
       select: {
@@ -320,7 +323,7 @@ export class ShopProductService {
       this.prisma.product.findMany({
         where,
         include: { skus: true },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),
