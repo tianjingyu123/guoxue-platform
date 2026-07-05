@@ -272,7 +272,7 @@ async function fetchList() {
     if (filterLevel.value) params.level = filterLevel.value;
     if (filterRule.value) params.rule = filterRule.value;
     const { data } = await sentinelApi.listAlerts(params);
-    list.value = data.items || [];
+    list.value = data.alerts || [];
     total.value = data.total || 0;
     openCount.value = data.openCount ?? 0;
   } catch {

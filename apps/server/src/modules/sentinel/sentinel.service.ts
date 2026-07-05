@@ -310,7 +310,7 @@ export class SentinelService {
     else if (opts.status === "resolved") where.resolvedAt = { not: null };
     if (opts.level) where.level = opts.level;
     if (opts.rule) where.rule = opts.rule;
-    const [items, total, openCount] = await Promise.all([
+    const [alerts, total, openCount] = await Promise.all([
       this.prisma.sentinelAlert.findMany({
         where,
         orderBy: { firedAt: "desc" },
@@ -320,7 +320,8 @@ export class SentinelService {
       this.prisma.sentinelAlert.count({ where }),
       this.prisma.sentinelAlert.count({ where: { resolvedAt: null } }),
     ]);
-    return { items, total, page, pageSize, openCount };
+    // 键名用 alerts（非 items）：绕开 ResponseInterceptor 的分页自动识别，openCount 才能随响应带出
+    return { alerts, total, page, pageSize, openCount };
   }
 
   /** 手动解除告警（幂等：仅未解除的会被更新；不存在则 404） */

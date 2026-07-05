@@ -209,6 +209,7 @@ describe("SentinelService", () => {
       expect(r.page).toBe(1);
       expect(r.pageSize).toBe(100);
       expect(r.openCount).toBe(1);
+      expect(r.alerts).toHaveLength(1); // 键名 alerts 而非 items：避免被响应拦截器按分页信封吞掉 openCount
       expect(mockPrisma.sentinelAlert.findMany).toHaveBeenCalledWith(expect.objectContaining({
         where: { resolvedAt: null, level: "P2" },
         orderBy: { firedAt: "desc" },
