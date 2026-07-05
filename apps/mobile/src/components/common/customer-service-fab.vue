@@ -19,10 +19,15 @@ withDefaults(defineProps<{
 function onTap() {
   navigateTo('/customer-service')
 }
+
+// 应产品要求全局隐藏悬浮客服入口（真机上悬浮遮挡内容·碍事）。
+// 保留组件与各页 <customer-service-fab /> 引用，便于后续改为非悬浮入口或一键恢复。
+const visible = false
 </script>
 
 <template>
   <view
+    v-if="visible"
     class="cs-fab btn-press"
     :style="{ bottom: bottom + 'rpx' }"
     @tap="onTap"

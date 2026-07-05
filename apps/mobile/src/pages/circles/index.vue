@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * 圈子主列表页（从原型 app/circles/page.tsx 557行 1:1 高保真迁移）
- * 自定义顶栏(标题+搜索+日历，创建走右下角FAB) + 主Tab(发现/动态/我的)
+ * 自定义顶栏(标题+搜索+日历+创建，创建按钮在右上角) + 主Tab(发现/动态/我的)
  * 发现: 直播预告横幅 + 今日活动横滚 + 分类Tab + 排行榜入口 + 圈子2列网格
  * 动态: 沉浸式帖子信息流(空态引导)
  * 我的: 数据卡片 + 我加入的圈子列表
@@ -113,6 +113,7 @@ onMounted(() => { loadCircles(); loadExtras() })
         <view class="actions">
           <view class="icon-btn" @tap="go('/pkg-circle/circles/search')"><app-icon name="search" :size="36" color="#666666" /></view>
           <view class="icon-btn" @tap="go('/pkg-circle/circles/calendar')"><app-icon name="calendar" :size="36" color="#666666" /></view>
+          <view class="icon-btn" @tap="go('/pkg-circle/circles/create')"><app-icon name="plus" :size="38" color="var(--brand)" /></view>
         </view>
       </view>
       <!-- 主Tab -->
@@ -337,11 +338,6 @@ onMounted(() => { loadCircles(); loadExtras() })
       <view class="bottom-spacer" />
     </scroll-view>
 
-    <!-- 创建圈子浮动按钮 -->
-    <view class="fab" @tap="go('/pkg-circle/circles/create')">
-      <app-icon name="plus" :size="44" color="#ffffff" />
-    </view>
-
     <bottom-nav active="circle" />
   </view>
 </template>
@@ -505,6 +501,4 @@ onMounted(() => { loadCircles(); loadExtras() })
 .mine-item-active-text { font-size: 22rpx; color: #FF6B35; }
 
 /* FAB */
-.fab { position: fixed; right: 32rpx; bottom: 196rpx; width: 96rpx; height: 96rpx; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, var(--brand), #a01530); box-shadow: 0 8rpx 20rpx rgba(196, 30, 58, 0.36); z-index: 50; }
-.fab:active { opacity: 0.88; }
 </style>
