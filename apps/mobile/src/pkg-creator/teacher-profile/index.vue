@@ -13,7 +13,7 @@ import { captureRefFromQuery, withRef } from '@/utils/referral'
 import AppIcon from '@/components/common/app-icon.vue'
 import TeacherCertBadge from '@/components/common/teacher-cert-badge.vue'
 import NameCardPoster from '@/components/common/name-card-poster.vue'
-import { teacherApi, type TeacherPublicProfile } from '@/lib/teacher-data'
+import { teacherApi, buildTeacherCardTitle, buildTeacherCardStats, type TeacherPublicProfile } from '@/lib/teacher-data'
 
 const loading = ref(true)
 const error = ref('')
@@ -55,21 +55,9 @@ const posterVisible = ref(false)
 function openPoster() { posterVisible.value = true }
 function closePoster() { posterVisible.value = false }
 
-/** 认证头衔文字（研究院签约/等级 + 线上头衔·与 teacher-cert-badge 展示语义一致） */
-const cardTitle = computed(() => {
-  const p = profile.value
-  if (!p) return ''
-  const levelLabel: Record<string, string> = {
-    PREPARATORY: '研究院储备讲师', JUNIOR: '研究院初级讲师', SENIOR: '研究院高级讲师',
-  }
-  const parts: string[] = []
-  if (p.institute) {
-    if (p.institute.signed || p.institute.lecturerLevel === 'SIGNED') parts.push('研究院签约讲师')
-    else if (levelLabel[p.institute.lecturerLevel]) parts.push(levelLabel[p.institute.lecturerLevel])
-  }
-  if (p.verifiedTitle && !parts.includes(p.verifiedTitle)) parts.push(p.verifiedTitle)
-  return parts.join(' · ')
-})
+/** 认证头衔文字 + 招牌数据条（共享拼装·与工作台一致） */
+const cardTitle = computed(() => (profile.value ? buildTeacherCardTitle(profile.value) : ''))
+const cardStats = computed(() => (profile.value ? buildTeacherCardStats(profile.value.stats) : []))
 
 /** 名片二维码内容 = 本名片页 H5 链接（withRef 追加分享者 ref·本页 onLoad captureRef 完成归因闭环） */
 const cardLink = computed(() =>
@@ -237,7 +225,9 @@ onLoad((options) => {
       :name="profile.nickname"
       :title="cardTitle"
       :intro="profile.intro"
+      :stats="cardStats"
       :link="cardLink"
+      qr-caption="扫码找 TA 学习/咨询"
       @close="closePoster"
     />
   </view>

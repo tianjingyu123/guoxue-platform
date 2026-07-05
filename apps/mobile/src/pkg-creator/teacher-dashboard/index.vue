@@ -31,6 +31,10 @@
             <text class="td-id-badge">认证讲师</text>
           </view>
           <text v-if="teacherTitle" class="td-id-sub">{{ teacherTitle }}</text>
+          <view class="td-id-poster" @tap="openPoster">
+            <AppIcon :name="posterLoading ? 'loader' : 'image'" :size="14" color="#fff" />
+            <text class="td-id-poster-txt">{{ posterLoading ? '生成中...' : '生成品牌海报' }}</text>
+          </view>
         </view>
       </view>
     </view>
@@ -163,17 +167,32 @@
         </view>
       </view>
     </view>
+
+    <!-- 品牌海报弹层（通用组件·招牌数据条 + 真二维码带本人 ref 归因） -->
+    <name-card-poster
+      :visible="posterVisible"
+      :name="cardName"
+      :title="cardTitle"
+      :intro="cardIntro"
+      :stats="cardStats"
+      :link="cardLink"
+      qr-caption="扫码找 TA 学习/咨询"
+      @close="closePoster"
+    />
   </view>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { onLoad, onShareAppMessage } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import AlmanacBar from '@/components/workbench/almanac-bar.vue'
 import AdvisorCard from '@/components/workbench/advisor-card.vue'
+import NameCardPoster from '@/components/common/name-card-poster.vue'
 import { navigateTo, goBack } from '@/utils/router'
-import { teacherApi, type CertStatus } from '@/lib/teacher-data'
+import { useShare } from '@/composables/useShare'
+import { withRef } from '@/utils/referral'
+import { teacherApi, buildTeacherCardTitle, buildTeacherCardStats, type CertStatus, type TeacherPublicProfile } from '@/lib/teacher-data'
 import { courseApi, type CreatedCourse } from '@/lib/course-data'
 
 const statusBarHeight = ref(0)
@@ -185,6 +204,8 @@ const certStatus = ref<CertStatus>('none')
 const isTeacher = computed(() => certStatus.value === 'approved')
 const teacherName = ref('')
 const teacherTitle = ref('')
+const teacherIntro = ref('')
+const myUserId = ref('')
 
 // 我创建的课程（真连 GET /courses/created）
 const courses = ref<CreatedCourse[]>([])
@@ -203,6 +224,56 @@ const stats = computed(() => {
 function formatNum(n: number) {
   return n.toLocaleString('en-US')
 }
+
+// ───────── 品牌海报（一键生成·复用 name-card-poster 通用组件） ─────────
+
+const posterVisible = ref(false)
+const posterLoading = ref(false)
+// 点海报时懒加载公开主页完整数据（昵称/头衔/评分），失败降级用工作台已有 cert + 课程统计
+const posterProfile = ref<TeacherPublicProfile | null>(null)
+
+/** 海报姓名：优先对外昵称（与公开主页一致），降级用实名 */
+const cardName = computed(() => posterProfile.value?.nickname || teacherName.value || '认证讲师')
+const cardTitle = computed(() => (posterProfile.value ? buildTeacherCardTitle(posterProfile.value) : teacherTitle.value))
+const cardIntro = computed(() => posterProfile.value?.intro || teacherIntro.value)
+/** 招牌数据条：有公开主页数据用其（含评分），否则用工作台课程统计降级 */
+const cardStats = computed(() =>
+  posterProfile.value
+    ? buildTeacherCardStats(posterProfile.value.stats)
+    : [
+        { num: String(stats.value.courseCount), label: '门课程' },
+        { num: formatNum(stats.value.studentCount), label: '位学员' },
+      ],
+)
+/** 二维码 = 我的公开主页 H5 链接（withRef 带本人 ref 归因·扫码进页完成推荐闭环） */
+const cardLink = computed(() =>
+  withRef(`https://api.rebugx.cn/h5/#/pkg-creator/teacher-profile/index?userId=${encodeURIComponent(myUserId.value)}`),
+)
+
+async function openPoster() {
+  if (!posterProfile.value && myUserId.value && !posterLoading.value) {
+    posterLoading.value = true
+    try {
+      posterProfile.value = await teacherApi.getPublicProfile(myUserId.value)
+    } catch {
+      /* 公开主页未开通/请求失败：降级用 cert + 课程统计，不阻塞海报 */
+    } finally {
+      posterLoading.value = false
+    }
+  }
+  posterVisible.value = true
+}
+function closePoster() {
+  posterVisible.value = false
+}
+
+// 微信原生分享（海报弹层内「分享给好友」走此·自动携带本人 ref 归因）
+const { toAppMessage } = useShare()
+onShareAppMessage(() => toAppMessage({
+  title: `${cardName.value} · 邀您一同研习国学`,
+  path: `/pkg-creator/teacher-profile/index?userId=${myUserId.value}`,
+  cover: posterProfile.value?.avatar,
+}))
 
 const STATUS_MAP: Record<string, { label: string; color: string; bg: string }> = {
   DRAFT: { label: '草稿', color: '#6b7280', bg: '#f3f4f6' },
@@ -224,6 +295,8 @@ async function loadData() {
       : 'none'
     teacherName.value = cert?.realName || ''
     teacherTitle.value = cert?.verifiedTitle || cert?.title || ''
+    teacherIntro.value = cert?.intro || ''
+    myUserId.value = cert?.userId || ''
     // 仅认证讲师加载课程
     if (certStatus.value === 'approved') {
       const res = await courseApi.getCreatedCourses(1, 50)
@@ -367,6 +440,24 @@ onLoad(() => {
   font-size: 24rpx;
   color: rgba(255, 255, 255, 0.7);
   margin-top: 8rpx;
+}
+.td-id-poster {
+  display: inline-flex;
+  align-items: center;
+  gap: 8rpx;
+  margin-top: 16rpx;
+  padding: 8rpx 22rpx;
+  background: rgba(255, 255, 255, 0.18);
+  border: 1rpx solid rgba(255, 255, 255, 0.35);
+  border-radius: 999rpx;
+}
+.td-id-poster:active {
+  background: rgba(255, 255, 255, 0.28);
+}
+.td-id-poster-txt {
+  font-size: 22rpx;
+  color: #fff;
+  font-weight: 500;
 }
 .td-id-rating {
   display: flex;

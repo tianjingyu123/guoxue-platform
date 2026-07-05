@@ -24,21 +24,28 @@ const props = withDefaults(defineProps<{
   link: string
   /** 二维码配文（默认「扫码找 TA 咨询/学习」） */
   qrCaption?: string
+  /**
+   * 招牌数据条（品牌海报模式·如讲师「N 门课 / N 位学员 / 评分」）。
+   * 传则画三列数据条并自动增高画布；不传（默认）= 纯名片，行为与课-P2 原版一致。
+   */
+  stats?: Array<{ num: string; label: string }>
 }>(), { title: '', intro: '', qrCaption: '扫码找 TA 咨询/学习' })
 
 const emit = defineEmits<{ (e: 'close'): void }>()
 
 const instance = getCurrentInstance()?.proxy
 const saving = ref(false)
+// 有招牌数据条（品牌海报）时增高画布容纳数据条（1:1.5），纯名片保持原比例 1:1.4
+const cardRatio = (props.stats?.length ?? 0) > 0 ? 1.5 : 1.4
 const canvasW = ref(300)
-const canvasH = ref(420)
+const canvasH = ref(Math.round(300 * cardRatio))
 
-// 画布尺寸随屏宽（与 solar-term 卡一致：260~320，比例 1:1.4）
+// 画布尺寸随屏宽（与 solar-term 卡一致：260~320）
 try {
   const info = uni.getSystemInfoSync()
   const w = Math.min(320, Math.max(260, (info.windowWidth || 375) - 100))
   canvasW.value = Math.round(w)
-  canvasH.value = Math.round(w * 1.4)
+  canvasH.value = Math.round(w * cardRatio)
 } catch {
   /* 取不到系统信息用默认尺寸 */
 }
@@ -106,6 +113,30 @@ function drawCard() {
       cursorY += 12
     }
 
+    // 招牌数据条（品牌海报模式·三列「数值/标签」·有则画并推进 cursorY）
+    const stats = props.stats || []
+    if (stats.length) {
+      const items = stats.slice(0, 3)
+      const rowY = cursorY
+      const colW = (W - 48) / items.length
+      items.forEach((it, i) => {
+        const cx = 24 + colW * i + colW / 2
+        ctx.setTextAlign('center')
+        ctx.setFillStyle('#b5843f')
+        ctx.setFontSize(21)
+        ctx.fillText(it.num, cx, rowY + 20)
+        ctx.setFillStyle('#9a8b73')
+        ctx.setFontSize(11)
+        ctx.fillText(it.label, cx, rowY + 40)
+        if (i > 0) {
+          // 列间竖分隔线
+          ctx.setFillStyle('#e6d9c2')
+          ctx.fillRect(24 + colW * i, rowY + 2, 1, 38)
+        }
+      })
+      cursorY += 62
+    }
+
     // 二维码（右下角·失败静默降级）
     const qrSize = 84
     const qrX = W - qrSize - 20
@@ -121,7 +152,10 @@ function drawCard() {
       ctx.setFontSize(13)
       if (hasQr) {
         ctx.setTextAlign('left')
-        drawWrapped(ctx, props.intro, 24, cursorY + 16, W - 48, 22, 3)
+        // 品牌海报（有数据条）时简介收窄至二维码左缘并限 2 行，避免压二维码；纯名片保持原宽/3 行
+        const introW = stats.length ? qrX - 24 - 14 : W - 48
+        const introLines = stats.length ? 2 : 3
+        drawWrapped(ctx, props.intro, 24, cursorY + 16, introW, 22, introLines)
       } else {
         ctx.setTextAlign('center')
         drawWrapped(ctx, props.intro, W / 2, cursorY + 16, W - 56, 22, 3)

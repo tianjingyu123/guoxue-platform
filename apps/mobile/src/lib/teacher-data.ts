@@ -162,3 +162,30 @@ export const teacherApi = {
     }
   },
 }
+
+// ═══════════ 讲师名片/品牌海报拼装（公开主页 teacher-profile 与讲师工作台 teacher-dashboard 共用） ═══════════
+
+/** 名片/海报头衔文字：研究院签约/等级 + 线上头衔（与 teacher-cert-badge 展示语义一致） */
+export function buildTeacherCardTitle(p: Pick<TeacherPublicProfile, 'verifiedTitle' | 'institute'>): string {
+  const levelLabel: Record<string, string> = {
+    PREPARATORY: '研究院储备讲师', JUNIOR: '研究院初级讲师', SENIOR: '研究院高级讲师',
+  }
+  const parts: string[] = []
+  if (p.institute) {
+    if (p.institute.signed || p.institute.lecturerLevel === 'SIGNED') parts.push('研究院签约讲师')
+    else if (levelLabel[p.institute.lecturerLevel]) parts.push(levelLabel[p.institute.lecturerLevel])
+  }
+  if (p.verifiedTitle && !parts.includes(p.verifiedTitle)) parts.push(p.verifiedTitle)
+  return parts.join(' · ')
+}
+
+/** 品牌海报招牌数据条：课程数 / 学员数 / 评分（无评价则省略评分列） */
+export function buildTeacherCardStats(stats: TeacherPublicProfile['stats']): Array<{ num: string; label: string }> {
+  const fmt = (n: number) => (n >= 10000 ? `${(n / 10000).toFixed(1)}万` : String(n))
+  const out: Array<{ num: string; label: string }> = [
+    { num: String(stats.courseCount), label: '门课程' },
+    { num: fmt(stats.studentCount), label: '位学员' },
+  ]
+  if (stats.avgRating != null) out.push({ num: String(stats.avgRating), label: `${stats.reviewCount ?? 0}条评价` })
+  return out
+}
