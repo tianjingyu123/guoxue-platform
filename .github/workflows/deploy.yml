@@ -261,9 +261,10 @@ jobs:
   # ──────────────────────────────────────────────
   deploy-frontend:
     name: 部署前端静态文件
+    # 仅手动触发：push 触发已移除——GitHub runner 到国内服务器网络不通必失败刷邮件；
+    # 且真实部署走 bundle+scp 流程（见 docs/knowledge/项目Prompt知识库.md §四），双通道会互相覆盖。
     if: |
-      (github.event_name == 'workflow_dispatch' && (inputs.service == 'frontend' || inputs.service == 'all')) ||
-      (github.event_name == 'push')
+      github.event_name == 'workflow_dispatch' && (inputs.service == 'frontend' || inputs.service == 'all')
     runs-on: ubuntu-latest
     timeout-minutes: 15
     environment:
