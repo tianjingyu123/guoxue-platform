@@ -1,3 +1,12 @@
+/**
+ * 分页「无上限」标记（坏味道 P2-4）。
+ * 用于后台/财务/导出类端点：需保留「加载全部」能力，故不钳 pageSize 上限，
+ * 仅归一化 NaN/负数（修 skip:NaN/负数进 Prisma 抛 500）。用法：
+ *   safePagination(page, pageSize, NO_PAGE_LIMIT)  // 零契约·仅修 500·上限不变
+ * 用户端列表用默认 100 上限（防大页拖库）；此常量仅供确需大页的后台端点。
+ */
+export const NO_PAGE_LIMIT = Number.MAX_SAFE_INTEGER;
+
 /** 安全分页参数：归一化非法/NaN/负数输入，限制 pageSize 上限防止数据库过载 */
 export function safePagination(page?: number | string, pageSize?: number | string, maxPageSize = 100) {
   // Number.isFinite 兜住非数字串（如 "abc" → NaN）与缺省 → 回退默认；有限值再钳位下限/上限，

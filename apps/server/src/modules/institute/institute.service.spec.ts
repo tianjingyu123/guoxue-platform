@@ -280,6 +280,14 @@ describe("InstituteService", () => {
       expect(result.members.length).toBe(2);
       expect(result.total).toBe(2);
     });
+
+    it("page 传非数字串不产生 NaN skip（P2-4 分页加固）", async () => {
+      prisma.instituteMember.findMany.mockResolvedValue([]);
+      prisma.instituteMember.count.mockResolvedValue(0);
+      await svc.listMembers({ page: "abc" as any, pageSize: 10 });
+      const arg = prisma.instituteMember.findMany.mock.calls[0][0];
+      expect(Number.isNaN(arg.skip)).toBe(false);
+    });
   });
 
   describe("addTask", () => {

@@ -66,6 +66,14 @@ describe("InstituteContentService（C 端·大师讲堂付费知识库）", () =
       );
     });
 
+    it("page 传非数字串不产生 NaN skip（P2-4 分页加固）", async () => {
+      prisma.instituteContent.findMany.mockResolvedValue([]);
+      prisma.instituteContent.count.mockResolvedValue(0);
+      await svc.listPublic({ page: "abc" as any, pageSize: 20 });
+      const arg = prisma.instituteContent.findMany.mock.calls[0][0];
+      expect(Number.isNaN(arg.skip)).toBe(false);
+    });
+
     it("ARTICLE 无摘要时试读截 content 前 100 字；VIDEO 不外泄 content(URL)", async () => {
       const video = { ...article, id: "c2", contentType: "VIDEO", content: "https://vod.example.com/x.mp4", summary: null };
       prisma.instituteContent.findMany.mockResolvedValue([article, video]);

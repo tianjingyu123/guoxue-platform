@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
+import { safePagination, NO_PAGE_LIMIT } from "../../common/pagination";
 
 @Injectable()
 export class AdminReferralService {
@@ -19,10 +20,11 @@ export class AdminReferralService {
     });
   }
 
-  async list(page = 1, pageSize = 20) {
+  async list(rawPage = 1, rawPageSize = 20) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize, NO_PAGE_LIMIT);
     const [items, total] = await Promise.all([
       this.prisma.temporaryReferralConfig.findMany({
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),
@@ -63,12 +65,13 @@ export class AdminReferralService {
   }
 
   /** 历史配置 */
-  async getHistory(page = 1, pageSize = 20) {
+  async getHistory(rawPage = 1, rawPageSize = 20) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize, NO_PAGE_LIMIT);
     const now = new Date();
     const [items, total] = await Promise.all([
       this.prisma.temporaryReferralConfig.findMany({
         where: { validTo: { lt: now } },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { validTo: "desc" },
       }),

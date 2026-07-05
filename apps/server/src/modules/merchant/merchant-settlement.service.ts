@@ -5,6 +5,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { SystemService } from "../system/system.service";
 import { MERCHANT_CONFIG_KEYS } from "./merchant.types";
+import { safePagination, NO_PAGE_LIMIT } from "../../common/pagination";
 import { MERCHANT_GRADE_BENEFITS, type CreditGrade } from "./merchant-credit.service";
 import {
   SetCommissionRateDto,
@@ -148,7 +149,8 @@ export class MerchantSettlementService {
 
   /** 结算记录列表 */
   async listSettlements(merchantId: string, query: SettlementListQueryDto) {
-    const { page = 1, pageSize = 20, status } = query;
+    const { status } = query;
+    const { page, pageSize, skip } = safePagination(query.page, query.pageSize, NO_PAGE_LIMIT);
     const where: any = { merchantId };
     if (status) where.status = status;
 
@@ -156,7 +158,7 @@ export class MerchantSettlementService {
       this.prisma.merchantSettlement.findMany({
         where,
         orderBy: { createdAt: "desc" },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
       }),
       this.prisma.merchantSettlement.count({ where }),

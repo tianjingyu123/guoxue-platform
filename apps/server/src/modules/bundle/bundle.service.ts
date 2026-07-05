@@ -4,6 +4,7 @@ import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
 import { CreateBundleDto, UpdateBundleDto, BundleQueryDto } from "./bundle.dto";
 import { Prisma } from "@prisma/client";
+import { safePagination, NO_PAGE_LIMIT } from "../../common/pagination";
 
 @Injectable()
 export class BundleService {
@@ -23,8 +24,7 @@ export class BundleService {
   }
 
   async list(query: BundleQueryDto) {
-    const page = query.page || 1;
-    const pageSize = query.pageSize || 20;
+    const { page, pageSize, skip } = safePagination(query.page, query.pageSize, NO_PAGE_LIMIT);
     const where: Prisma.CourseBundleWhereInput = {};
     if (query.type) where.type = query.type;
     if (query.target) where.target = query.target;
@@ -35,7 +35,7 @@ export class BundleService {
       this.prisma.courseBundle.findMany({
         where,
         include: { _count: { select: { items: true, stationAccess: true } } },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { sortOrder: "asc" },
       }),

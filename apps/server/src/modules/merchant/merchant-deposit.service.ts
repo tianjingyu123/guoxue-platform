@@ -4,6 +4,7 @@ import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
 import { MerchantService } from "./merchant.service";
 import { PayDepositDto, RefundDepositDto, AdjustDepositDto } from "./merchant.dto";
+import { safePagination, NO_PAGE_LIMIT } from "../../common/pagination";
 
 @Injectable()
 export class MerchantDepositService {
@@ -88,11 +89,12 @@ export class MerchantDepositService {
     });
   }
 
-  async listDepositRecords(merchantId: string, page = 1, pageSize = 20) {
+  async listDepositRecords(merchantId: string, rawPage = 1, rawPageSize = 20) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize, NO_PAGE_LIMIT);
     const [list, total] = await Promise.all([
       this.prisma.merchantDepositRecord.findMany({
         where: { merchantId },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),

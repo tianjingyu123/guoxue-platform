@@ -4,6 +4,7 @@ import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
 import { MerchantService } from "./merchant.service";
 import { SignAgreementDto, CreateAgreementDto, UpdateAgreementDto, PaginationDto } from "./merchant.dto";
+import { safePagination, NO_PAGE_LIMIT } from "../../common/pagination";
 
 @Injectable()
 export class MerchantAgreementService {
@@ -80,11 +81,11 @@ export class MerchantAgreementService {
   }
 
   async listAgreements(query: PaginationDto) {
-    const { page = 1, pageSize = 20 } = query;
+    const { page, pageSize, skip } = safePagination(query.page, query.pageSize, NO_PAGE_LIMIT);
     const [list, total] = await Promise.all([
       this.prisma.merchantAgreement.findMany({
         where: { merchantId: "TEMPLATE" },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),

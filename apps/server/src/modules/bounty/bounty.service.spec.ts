@@ -166,6 +166,14 @@ describe("BountyService", () => {
         expect.objectContaining({ where: { category: "BAZI" } }),
       );
     });
+
+    it("page 传非数字串不产生 NaN skip（P2-4 分页加固）", async () => {
+      prisma.bountyQuestion.findMany.mockResolvedValue([]);
+      prisma.bountyQuestion.count.mockResolvedValue(0);
+      await svc.list("abc" as any, 20);
+      const arg = prisma.bountyQuestion.findMany.mock.calls[0][0];
+      expect(Number.isNaN(arg.skip)).toBe(false);
+    });
   });
 
   describe("getById", () => {

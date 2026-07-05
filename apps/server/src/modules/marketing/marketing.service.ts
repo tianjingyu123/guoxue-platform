@@ -8,6 +8,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { ShopService } from "../shop/shop.service";
 import { Prisma } from "@prisma/client";
 import { Cacheable } from "../../common/cache.decorator";
+import { safePagination, NO_PAGE_LIMIT } from "../../common/pagination";
 import {
   CreateFlashSaleDto, UpdateFlashSaleDto, FlashSaleFilterDto,
   CreateFlashSaleItemDto, UpdateFlashSaleItemDto,
@@ -68,7 +69,8 @@ export class MarketingService {
   }
 
   async listFlashSales(dto: FlashSaleFilterDto) {
-    const { page = 1, pageSize = 20,status } = dto;
+    const { status } = dto;
+    const { page, pageSize, skip } = safePagination(dto.page, dto.pageSize, NO_PAGE_LIMIT);
     const where: Prisma.FlashSaleWhereInput = {};
     if (status) where.status = status;
 
@@ -76,7 +78,7 @@ export class MarketingService {
       this.prisma.flashSale.findMany({
         where,
         include: { items: true },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),
@@ -205,14 +207,15 @@ export class MarketingService {
   }
 
   async listGroupBuys(dto: GroupBuyFilterDto) {
-    const { page = 1, pageSize = 20,status } = dto;
+    const { status } = dto;
+    const { page, pageSize, skip } = safePagination(dto.page, dto.pageSize, NO_PAGE_LIMIT);
     const where: Prisma.GroupBuyWhereInput = {};
     if (status) where.status = status;
 
     const [items, total] = await Promise.all([
       this.prisma.groupBuy.findMany({
         where,
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),
@@ -333,7 +336,8 @@ export class MarketingService {
   }
 
   async listCouponTemplates(dto: CouponFilterDto) {
-    const { page = 1, pageSize = 20,status, type } = dto;
+    const { status, type } = dto;
+    const { page, pageSize, skip } = safePagination(dto.page, dto.pageSize, NO_PAGE_LIMIT);
     const where: Prisma.CouponTemplateWhereInput = {};
     if (status) where.status = status;
     if (type) where.type = type;
@@ -341,7 +345,7 @@ export class MarketingService {
     const [items, total] = await Promise.all([
       this.prisma.couponTemplate.findMany({
         where,
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),
@@ -456,14 +460,15 @@ export class MarketingService {
     const template = await this.prisma.couponTemplate.findUnique({ where: { id } });
     if (!template) throw new BusinessException(ErrorCode.NOT_FOUND, "优惠券模板不存在");
 
-    const { page = 1, pageSize = 20,status } = dto;
+    const { status } = dto;
+    const { page, pageSize, skip } = safePagination(dto.page, dto.pageSize, NO_PAGE_LIMIT);
     const where: Prisma.CouponRecordWhereInput = { couponId: id };
     if (status) where.status = status;
 
     const [items, total] = await Promise.all([
       this.prisma.couponRecord.findMany({
         where,
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { claimedAt: "desc" },
       }),
@@ -657,14 +662,15 @@ export class MarketingService {
   }
 
   async listDiscounts(dto: DiscountFilterDto) {
-    const { page = 1, pageSize = 20,status } = dto;
+    const { status } = dto;
+    const { page, pageSize, skip } = safePagination(dto.page, dto.pageSize, NO_PAGE_LIMIT);
     const where: Prisma.DiscountActivityWhereInput = {};
     if (status) where.status = status;
 
     const [items, total] = await Promise.all([
       this.prisma.discountActivity.findMany({
         where,
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),
@@ -960,14 +966,15 @@ export class MarketingService {
   }
 
   async listActivities(dto: ActivityFilterDto) {
-    const { page = 1, pageSize = 20,status } = dto;
+    const { status } = dto;
+    const { page, pageSize, skip } = safePagination(dto.page, dto.pageSize, NO_PAGE_LIMIT);
     const where: Prisma.ActivityWhereInput = {};
     if (status) where.status = status;
 
     const [items, total] = await Promise.all([
       this.prisma.activity.findMany({
         where,
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),
@@ -1078,14 +1085,15 @@ export class MarketingService {
     return { success: true };
   }
 
-  async getFullReductions(page = 1, pageSize = 20, status?: string) {
+  async getFullReductions(rawPage = 1, rawPageSize = 20, status?: string) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize, NO_PAGE_LIMIT);
     const where: Prisma.FullReductionRuleWhereInput = {};
     if (status) where.status = status;
 
     const [items, total] = await Promise.all([
       this.prisma.fullReductionRule.findMany({
         where,
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),

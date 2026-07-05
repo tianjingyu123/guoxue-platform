@@ -154,6 +154,15 @@ describe("MerchantService", () => {
       const result = await svc.listMerchants({ status: "ACTIVE" });
       expect(result.total).toBe(0);
     });
+
+    it("page='abc' 非法入参 → skip 不为 NaN（safePagination 兜底）", async () => {
+      mockPrisma.merchant.findMany.mockResolvedValue([]);
+      mockPrisma.merchant.count.mockResolvedValue(0);
+      await svc.listMerchants({ page: "abc" as any, pageSize: "xyz" as any });
+      const callArg = mockPrisma.merchant.findMany.mock.calls[0][0];
+      expect(Number.isNaN(callArg.skip)).toBe(false);
+      expect(callArg.skip).toBe(0); // page 回落 1 → skip = (1-1)*20 = 0
+    });
   });
 
   describe("getMerchantById", () => {

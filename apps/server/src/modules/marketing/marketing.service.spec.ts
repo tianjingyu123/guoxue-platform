@@ -96,6 +96,15 @@ describe("MarketingService", () => {
       const result = await svc.listFlashSales({});
       expect(result.items).toHaveLength(0);
     });
+
+    it("非法 page 参数不产生 skip:NaN", async () => {
+      mockPrisma.flashSale.findMany.mockResolvedValue([]);
+      mockPrisma.flashSale.count.mockResolvedValue(0);
+      await svc.listFlashSales({ page: "abc" as any, pageSize: -5 as any });
+      const callArg = mockPrisma.flashSale.findMany.mock.calls[0][0];
+      expect(Number.isNaN(callArg.skip)).toBe(false);
+      expect(callArg.skip).toBeGreaterThanOrEqual(0);
+    });
   });
 
   describe("updateFlashSale", () => {

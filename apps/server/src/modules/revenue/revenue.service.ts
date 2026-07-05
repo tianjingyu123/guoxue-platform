@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { COIN_TO_RMB } from "../../common/constants";
+import { safePagination, NO_PAGE_LIMIT } from "../../common/pagination";
 
 // 分佣比例回退默认值（优先读 SettlementRule 场景规则表，未配置时回退此处）
 const DEFAULT_RATES = {
@@ -91,11 +92,12 @@ export class RevenueService {
     };
   }
 
-  async getUserEarnings(userId: string, page = 1, pageSize = 20) {
+  async getUserEarnings(userId: string, rawPage = 1, rawPageSize = 20) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize, NO_PAGE_LIMIT);
     const [earnings, total] = await Promise.all([
       this.prisma.userEarning.findMany({
         where: { userId },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),

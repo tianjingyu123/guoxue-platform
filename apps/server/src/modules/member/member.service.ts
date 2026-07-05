@@ -3,6 +3,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "@guoxue/shared";
 import { maskPhone } from "../../common/crypto.util";
+import { safePagination, NO_PAGE_LIMIT } from "../../common/pagination";
 
 @Injectable()
 export class MemberService {
@@ -47,11 +48,12 @@ export class MemberService {
   }
 
   /** 我的会员购买记录 */
-  async getMyPurchases(userId: string, page = 1, pageSize = 20) {
+  async getMyPurchases(userId: string, rawPage = 1, rawPageSize = 20) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize, NO_PAGE_LIMIT);
     const [items, total] = await Promise.all([
       this.prisma.memberPurchase.findMany({
         where: { userId },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { paidAt: "desc" },
         select: { id: true, memberType: true, amount: true, paidAt: true, expireAt: true },
@@ -64,10 +66,11 @@ export class MemberService {
   // ═══════════════════ 管理员方法 ═══════════════════
 
   /** 管理员查看所有会员购买记录 */
-  async getAdminPurchases(page = 1, pageSize = 20) {
+  async getAdminPurchases(rawPage = 1, rawPageSize = 20) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize, NO_PAGE_LIMIT);
     const [items, total] = await Promise.all([
       this.prisma.memberPurchase.findMany({
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { paidAt: "desc" },
         include: { user: { select: { id: true, nickname: true, phone: true } } },

@@ -332,6 +332,15 @@ describe("FinanceService", () => {
     });
   });
 
+  describe("分页入参加固（P2-4 NaN 防护）", () => {
+    it("getReconciliationList 传 page='abc' 时 skip 不为 NaN", async () => {
+      mockPrisma.reconciliationRecord.findMany.mockResolvedValue([]);
+      mockPrisma.reconciliationRecord.count.mockResolvedValue(0);
+      await svc.getReconciliationList({ page: "abc" as any, pageSize: 20 });
+      expect(Number.isNaN(mockPrisma.reconciliationRecord.findMany.mock.calls[0][0].skip)).toBe(false);
+    });
+  });
+
   // ─── 6. 财务报表 ───
 
   describe("getMonthlyReport", () => {

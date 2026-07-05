@@ -4,6 +4,7 @@ import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
 import { CoinService } from "../coin/coin.service";
 import { isUniqueConstraintError } from "../../common/prisma-errors";
+import { safePagination, NO_PAGE_LIMIT } from "../../common/pagination";
 
 /** C 端列表摘要截断长度（未购可见的试读） */
 const SUMMARY_LEN = 100;
@@ -26,7 +27,8 @@ export class InstituteContentService {
   }
 
   async list(params: { instituteId?: string; status?: string; page?: number; pageSize?: number }) {
-    const { instituteId, status, page = 1, pageSize = 20 } = params;
+    const { instituteId, status } = params;
+    const { page, pageSize, skip } = safePagination(params.page, params.pageSize, NO_PAGE_LIMIT);
     const where: any = {};
     if (instituteId) where.instituteId = instituteId;
     if (status) where.status = status;
@@ -34,7 +36,7 @@ export class InstituteContentService {
     const [items, total] = await Promise.all([
       this.prisma.instituteContent.findMany({
         where,
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),
@@ -77,12 +79,13 @@ export class InstituteContentService {
     return { total, published, draft, purchases };
   }
 
-  async getPurchaseRecords(contentId: string, page = 1, pageSize = 20) {
+  async getPurchaseRecords(contentId: string, rawPage = 1, rawPageSize = 20) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize, NO_PAGE_LIMIT);
     const where = { contentId };
     const [items, total] = await Promise.all([
       this.prisma.instituteContentPurchase.findMany({
         where,
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { purchasedAt: "desc" },
       }),
@@ -112,14 +115,15 @@ export class InstituteContentService {
 
   /** C 端列表（公开·仅 PUBLISHED；登录时附带 purchased 已购标记） */
   async listPublic(params: { type?: string; page?: number; pageSize?: number }, userId?: string) {
-    const { type, page = 1, pageSize = 20 } = params;
+    const { type } = params;
+    const { page, pageSize, skip } = safePagination(params.page, params.pageSize, NO_PAGE_LIMIT);
     const where: { status: string; contentType?: string } = { status: "PUBLISHED" };
     if (type) where.contentType = type;
 
     const [rows, total] = await Promise.all([
       this.prisma.instituteContent.findMany({
         where,
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
         include: { _count: { select: { purchases: true } } },

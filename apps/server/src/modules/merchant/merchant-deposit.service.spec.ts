@@ -120,5 +120,14 @@ describe("MerchantDepositService", () => {
       expect(result.list).toHaveLength(1);
       expect(result.total).toBe(1);
     });
+
+    it("page='abc' 非法入参 → skip 不为 NaN（safePagination 兜底）", async () => {
+      mockPrisma.merchantDepositRecord.findMany.mockResolvedValue([]);
+      mockPrisma.merchantDepositRecord.count.mockResolvedValue(0);
+      await svc.listDepositRecords("m1", "abc" as any, "xyz" as any);
+      const callArg = mockPrisma.merchantDepositRecord.findMany.mock.calls[0][0];
+      expect(Number.isNaN(callArg.skip)).toBe(false);
+      expect(callArg.skip).toBe(0);
+    });
   });
 });

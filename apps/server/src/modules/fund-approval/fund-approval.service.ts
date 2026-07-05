@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
+import { safePagination, NO_PAGE_LIMIT } from "../../common/pagination";
 
 export type FundApprovalType = "DIVIDEND" | "REFUND" | "RECHARGE" | "COMMISSION_CONFIG" | "COIN_REFUND";
 
@@ -46,12 +47,13 @@ export class FundApprovalService {
   }
 
   /** 待审 / 按状态分页列表 */
-  async list(page = 1, pageSize = 20, status = "PENDING") {
+  async list(rawPage = 1, rawPageSize = 20, status = "PENDING") {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize, NO_PAGE_LIMIT);
     const where = status ? { status } : {};
     const [items, total] = await Promise.all([
       this.model.findMany({
         where,
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),

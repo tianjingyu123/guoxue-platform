@@ -170,5 +170,13 @@ describe("CallService", () => {
       expect(result.calls.length).toBe(2);
       expect(result.total).toBe(2);
     });
+
+    it("page 传非数字串不产生 NaN skip（P2-4 分页加固）", async () => {
+      prisma.audioCallRecord.findMany.mockResolvedValue([]);
+      prisma.audioCallRecord.count.mockResolvedValue(0);
+      await svc.listCalls("u1", { page: "abc" as any, pageSize: 10 });
+      const arg = prisma.audioCallRecord.findMany.mock.calls[0][0];
+      expect(Number.isNaN(arg.skip)).toBe(false);
+    });
   });
 });

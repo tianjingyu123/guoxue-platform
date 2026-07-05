@@ -57,6 +57,14 @@ describe("PointsService", () => {
       expect(result.items).toHaveLength(1);
       expect(result.total).toBe(1);
     });
+
+    it("page 传非数字串不产生 NaN skip（P2-4 分页加固）", async () => {
+      mockPrisma.pointsRecord.findMany.mockResolvedValue([]);
+      mockPrisma.pointsRecord.count.mockResolvedValue(0);
+      await svc.getPointsRecords("u1", "abc" as any, 20);
+      const arg = mockPrisma.pointsRecord.findMany.mock.calls[0][0];
+      expect(Number.isNaN(arg.skip)).toBe(false);
+    });
   });
 
   describe("earnPoints", () => {

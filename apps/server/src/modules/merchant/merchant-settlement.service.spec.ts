@@ -186,6 +186,17 @@ describe("MerchantSettlementService", () => {
     });
   });
 
+  describe("listSettlements", () => {
+    it("page='abc' 非法入参 → skip 不为 NaN（safePagination 兜底）", async () => {
+      mockPrisma.merchantSettlement.findMany = jest.fn().mockResolvedValue([]);
+      mockPrisma.merchantSettlement.count = jest.fn().mockResolvedValue(0);
+      await svc.listSettlements("m1", { page: "abc" as any, pageSize: "xyz" as any });
+      const callArg = (mockPrisma.merchantSettlement.findMany as jest.Mock).mock.calls[0][0];
+      expect(Number.isNaN(callArg.skip)).toBe(false);
+      expect(callArg.skip).toBe(0);
+    });
+  });
+
   describe("setCommissionRate", () => {
     it("设置分佣比例成功", async () => {
       mockPrisma.merchant.findUnique.mockResolvedValue({ id: "m1", commissionRate: 0.85 });

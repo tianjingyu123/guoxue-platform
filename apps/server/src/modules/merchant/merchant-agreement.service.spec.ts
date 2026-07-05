@@ -93,6 +93,15 @@ describe("MerchantAgreementService", () => {
       const result = await svc.listAgreements({});
       expect(result.list).toHaveLength(1);
     });
+
+    it("page='abc' 非法入参 → skip 不为 NaN（safePagination 兜底）", async () => {
+      mockPrisma.merchantAgreement.findMany.mockResolvedValue([]);
+      mockPrisma.merchantAgreement.count.mockResolvedValue(0);
+      await svc.listAgreements({ page: "abc" as any, pageSize: "xyz" as any });
+      const callArg = mockPrisma.merchantAgreement.findMany.mock.calls[0][0];
+      expect(Number.isNaN(callArg.skip)).toBe(false);
+      expect(callArg.skip).toBe(0);
+    });
   });
 
   describe("deleteAgreement", () => {

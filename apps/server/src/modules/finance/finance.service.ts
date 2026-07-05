@@ -5,6 +5,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { Prisma } from "@prisma/client";
 import { WechatPayService } from "../shop/wechat-pay.service";
 import { maskBankCard, maskName, maskAlipay, maskPhone, maskIdCard } from "../../common/crypto.util";
+import { safePagination, NO_PAGE_LIMIT } from "../../common/pagination";
 
 /** 脱敏提现收款账户(accountInfo Json)——防管理端审批列表批量泄露完整卡号/账户。
  *  管理员打款如需完整账户应走独立的"解密+审计"接口，而非列表明文。 */
@@ -167,17 +168,17 @@ export class FinanceService {
     const where: Record<string, any> = {};
     if (dto.source) where.source = dto.source;
     if (dto.status) where.status = dto.status;
-
+    const { page, pageSize, skip } = safePagination(dto.page, dto.pageSize, NO_PAGE_LIMIT);
     const [records, total] = await Promise.all([
       this.prisma.reconciliationRecord.findMany({
         where,
-        skip: (dto.page - 1) * dto.pageSize,
-        take: dto.pageSize,
+        skip,
+        take: pageSize,
         orderBy: { createdAt: "desc" },
       }),
       this.prisma.reconciliationRecord.count({ where }),
     ]);
-    return { records, total, page: dto.page, pageSize: dto.pageSize };
+    return { records, total, page, pageSize };
   }
 
   async getReconciliationDetail(id: string) {
@@ -207,28 +208,29 @@ export class FinanceService {
   async getInvoiceList(dto: { status?: string; page: number; pageSize: number }) {
     const where: Record<string, any> = {};
     if (dto.status) where.status = dto.status;
-
+    const { page, pageSize, skip } = safePagination(dto.page, dto.pageSize, NO_PAGE_LIMIT);
     const [invoices, total] = await Promise.all([
       this.prisma.invoice.findMany({
         where,
-        skip: (dto.page - 1) * dto.pageSize,
-        take: dto.pageSize,
+        skip,
+        take: pageSize,
         orderBy: { createdAt: "desc" },
       }),
       this.prisma.invoice.count({ where }),
     ]);
-    return { invoices, total, page: dto.page, pageSize: dto.pageSize };
+    return { invoices, total, page, pageSize };
   }
 
   /** 获取当前用户的发票列表 */
-  async getMyInvoices(userId: string, status?: string, page = 1, pageSize = 20) {
+  async getMyInvoices(userId: string, status?: string, rawPage = 1, rawPageSize = 20) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize, NO_PAGE_LIMIT);
     const where: Record<string, any> = { userId };
     if (status) where.status = status;
 
     const [invoices, total] = await Promise.all([
       this.prisma.invoice.findMany({
         where,
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: 'desc' },
       }),
@@ -317,17 +319,17 @@ export class FinanceService {
     if (dto.userId) where.userId = dto.userId;
     if (dto.period) where.period = dto.period;
     if (dto.status) where.status = dto.status;
-
+    const { page, pageSize, skip } = safePagination(dto.page, dto.pageSize, NO_PAGE_LIMIT);
     const [settlements, total] = await Promise.all([
       this.prisma.settlementOrder.findMany({
         where,
-        skip: (dto.page - 1) * dto.pageSize,
-        take: dto.pageSize,
+        skip,
+        take: pageSize,
         orderBy: { createdAt: "desc" },
       }),
       this.prisma.settlementOrder.count({ where }),
     ]);
-    return { settlements, total, page: dto.page, pageSize: dto.pageSize };
+    return { settlements, total, page, pageSize };
   }
 
   async generateSettlement(dto: { userId?: string; period?: string; startDate?: string; endDate?: string }) {
@@ -429,19 +431,19 @@ export class FinanceService {
   async getWithdrawalList(dto: { status?: string; page: number; pageSize: number }) {
     const where: Record<string, any> = {};
     if (dto.status) where.status = dto.status;
-
+    const { page, pageSize, skip } = safePagination(dto.page, dto.pageSize, NO_PAGE_LIMIT);
     const [withdrawals, total] = await Promise.all([
       this.prisma.withdrawalApplication.findMany({
         where,
-        skip: (dto.page - 1) * dto.pageSize,
-        take: dto.pageSize,
+        skip,
+        take: pageSize,
         orderBy: { createdAt: "desc" },
       }),
       this.prisma.withdrawalApplication.count({ where }),
     ]);
     // PII 脱敏：批量列表不返回完整收款账户
     const masked = withdrawals.map((w) => ({ ...w, accountInfo: maskAccountInfo(w.accountInfo) }));
-    return { withdrawals: masked, total, page: dto.page, pageSize: dto.pageSize };
+    return { withdrawals: masked, total, page, pageSize };
   }
 
   /**
@@ -573,12 +575,12 @@ export class FinanceService {
       frozenAmount: { not: null },
     };
     if (dto.orderId) where.id = dto.orderId;
-
+    const { page, pageSize, skip } = safePagination(dto.page, dto.pageSize, NO_PAGE_LIMIT);
     const [items, total] = await Promise.all([
       this.prisma.order.findMany({
         where,
-        skip: (dto.page - 1) * dto.pageSize,
-        take: dto.pageSize,
+        skip,
+        take: pageSize,
         orderBy: { updatedAt: "desc" },
       }),
       this.prisma.order.count({ where }),
@@ -587,9 +589,9 @@ export class FinanceService {
     return {
       items,
       total,
-      page: dto.page,
-      pageSize: dto.pageSize,
-      totalPages: Math.ceil(total / dto.pageSize),
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
     };
   }
 

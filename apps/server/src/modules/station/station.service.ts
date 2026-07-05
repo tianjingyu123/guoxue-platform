@@ -6,6 +6,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { InsightService } from "../track/insight.service";
 import { CreateStationDto, UpdateStationDto, CreateOperatorDto, SetStationTemplateDto, UpdateOperatorBrandDto, ApplyStationDto } from "./station.dto";
+import { safePagination, NO_PAGE_LIMIT } from "../../common/pagination";
 
 /** 模版定义 */
 export const STATION_TEMPLATES = {
@@ -181,13 +182,14 @@ export class StationService {
   // 画像聚合/时间线摘要已下沉公共 InsightService（驿站/圈主复用同一套）。
 
   /** 归属客户画像列表：最近活跃/30天行为量/消费力/兴趣标签（搜索词+浏览模块+内容标题聚合） */
-  async listCustomers(ownerUserId: string, page = 1, pageSize = 20) {
+  async listCustomers(ownerUserId: string, rawPage = 1, rawPageSize = 20) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize, NO_PAGE_LIMIT);
     const where = { referrerId: ownerUserId, referrerType: "STATION_MASTER" as const, relationStatus: "ACTIVE" };
     const [relations, total] = await Promise.all([
       this.prisma.referralRelation.findMany({
         where, select: { userId: true, createdAt: true },
         orderBy: { createdAt: "desc" },
-        skip: (page - 1) * pageSize, take: pageSize,
+        skip, take: pageSize,
       }),
       this.prisma.referralRelation.count({ where }),
     ]);
@@ -253,11 +255,12 @@ export class StationService {
     return station;
   }
 
-  async listStations(page = 1, pageSize = 20) {
+  async listStations(rawPage = 1, rawPageSize = 20) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize, NO_PAGE_LIMIT);
     const [stations, total] = await Promise.all([
       this.prisma.station.findMany({
         include: { user: { select: { id: true, nickname: true } } },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),
@@ -266,10 +269,11 @@ export class StationService {
     return { stations, total, page, pageSize };
   }
 
-  async getStationEarnings(stationId: string, page = 1, pageSize = 20) {
+  async getStationEarnings(stationId: string, rawPage = 1, rawPageSize = 20) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize, NO_PAGE_LIMIT);
     const where = { stationId };
     const [earnings, total] = await Promise.all([
-      this.prisma.stationEarning.findMany({ where, skip: (page - 1) * pageSize, take: pageSize, orderBy: { createdAt: "desc" } }),
+      this.prisma.stationEarning.findMany({ where, skip, take: pageSize, orderBy: { createdAt: "desc" } }),
       this.prisma.stationEarning.count({ where }),
     ]);
     return { earnings, total, page, pageSize };
@@ -289,11 +293,12 @@ export class StationService {
     });
   }
 
-  async listOperators(page = 1, pageSize = 20) {
+  async listOperators(rawPage = 1, rawPageSize = 20) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize, NO_PAGE_LIMIT);
     const [operators, total] = await Promise.all([
       this.prisma.operator.findMany({
         include: { user: { select: { id: true, nickname: true } } },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),
@@ -349,7 +354,8 @@ export class StationService {
   // ───────── 分站发现（用户端公开） ─────────
 
   async discoverStations(params: { keyword?: string; page?: number; pageSize?: number }) {
-    const { keyword, page = 1, pageSize = 20 } = params;
+    const { keyword } = params;
+    const { page, pageSize, skip } = safePagination(params.page, params.pageSize, NO_PAGE_LIMIT);
     const where: Prisma.StationWhereInput = { status: "ACTIVE" };
     if (keyword) where.name = { contains: keyword };
 
@@ -360,7 +366,7 @@ export class StationService {
           id: true, name: true, code: true, logo: true,
           themeColor: true, intro: true,
         },
-        skip: (page - 1) * pageSize, take: pageSize,
+        skip, take: pageSize,
         orderBy: { createdAt: "desc" },
       }),
       this.prisma.station.count({ where }),
@@ -568,13 +574,14 @@ export class StationService {
 
   // ───────── 团队管理 ─────────
 
-  async getTeamMembers(userId: string, page = 1, pageSize = 20) {
+  async getTeamMembers(userId: string, rawPage = 1, rawPageSize = 20) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize, NO_PAGE_LIMIT);
     const where: Prisma.StationWhereInput = { userId };
     const [stations, total] = await Promise.all([
       this.prisma.station.findMany({
         where,
         select: { id: true, name: true, code: true, logo: true, totalEarning: true, createdAt: true },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),
@@ -583,13 +590,14 @@ export class StationService {
     return { members: stations, total, page, pageSize };
   }
 
-  async getTeamLeaderboard(page = 1, pageSize = 20, sortBy?: string) {
+  async getTeamLeaderboard(rawPage = 1, rawPageSize = 20, sortBy?: string) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize, NO_PAGE_LIMIT);
     const orderField = sortBy === "revenue" ? "totalEarning" : sortBy === "orderCount" ? "totalOrders" : "totalEarning";
     const [stations, total] = await Promise.all([
       this.prisma.station.findMany({
         where: { status: "ACTIVE" },
         select: { id: true, name: true, code: true, logo: true, totalEarning: true, createdAt: true },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { [orderField]: "desc" },
       }),
@@ -614,13 +622,14 @@ export class StationService {
     };
   }
 
-  async getSuccessCases(page = 1, pageSize = 20) {
+  async getSuccessCases(rawPage = 1, rawPageSize = 20) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize, NO_PAGE_LIMIT);
     const where: Prisma.StationWhereInput = { status: "ACTIVE", totalEarning: { gt: 0 } };
     const [stations, total] = await Promise.all([
       this.prisma.station.findMany({
         where,
         select: { id: true, name: true, logo: true, intro: true, totalEarning: true, createdAt: true },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { totalEarning: "desc" },
       }),

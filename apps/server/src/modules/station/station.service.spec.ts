@@ -115,6 +115,15 @@ describe("StationService", () => {
       expect(result.stations).toHaveLength(1);
       expect(result.total).toBe(1);
     });
+
+    it("非法 page 参数不产生 skip:NaN", async () => {
+      mockPrisma.station.findMany.mockResolvedValue([]);
+      mockPrisma.station.count.mockResolvedValue(0);
+      await svc.listStations("abc" as any, -1 as any);
+      const callArg = mockPrisma.station.findMany.mock.calls[0][0];
+      expect(Number.isNaN(callArg.skip)).toBe(false);
+      expect(callArg.skip).toBeGreaterThanOrEqual(0);
+    });
   });
 
   describe("getStationEarnings", () => {

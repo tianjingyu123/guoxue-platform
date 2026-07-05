@@ -89,4 +89,14 @@ describe("RevenueService", () => {
       expect(result.earnings).toHaveLength(1)
     })
   })
+
+  describe("分页入参加固（P2-4 NaN 防护）", () => {
+    it("getUserEarnings 传 page='abc' 时 skip 不为 NaN", async () => {
+      mockPrisma.userEarning.findMany.mockResolvedValue([])
+      mockPrisma.userEarning.count.mockResolvedValue(0)
+      await svc.getUserEarnings("u1", "abc" as any)
+      const arg = mockPrisma.userEarning.findMany.mock.calls[0][0]
+      expect(Number.isNaN(arg.skip)).toBe(false)
+    })
+  })
 })

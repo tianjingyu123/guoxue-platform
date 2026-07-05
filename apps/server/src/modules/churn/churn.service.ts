@@ -5,6 +5,7 @@ import { RedisService } from "../../redis/redis.service";
 import { Prisma } from "@prisma/client";
 import { SmsService } from "../sms/sms.service";
 import { NotificationService } from "../notification/notification.service";
+import { safePagination, NO_PAGE_LIMIT } from "../../common/pagination";
 
 /** 每批处理的用户数 */
 const SCORE_BATCH_SIZE = 500;
@@ -246,11 +247,12 @@ export class ChurnService {
 
   // ───────── 管理接口 ─────────
 
-  async getPredictions(page = 1, pageSize = 20, riskLevel?: string) {
+  async getPredictions(rawPage = 1, rawPageSize = 20, riskLevel?: string) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize, NO_PAGE_LIMIT);
     const where: Prisma.ChurnPredictionWhereInput = {};
     if (riskLevel) where.riskLevel = riskLevel;
     const [predictions, total] = await Promise.all([
-      this.prisma.churnPrediction.findMany({ where, skip: (page - 1) * pageSize, take: pageSize, orderBy: { activityScore: "asc" } }),
+      this.prisma.churnPrediction.findMany({ where, skip, take: pageSize, orderBy: { activityScore: "asc" } }),
       this.prisma.churnPrediction.count({ where }),
     ]);
     return { predictions, total, page, pageSize };
@@ -282,11 +284,12 @@ export class ChurnService {
     return this.prisma.churnRule.delete({ where: { id } });
   }
 
-  async listActions(page = 1, pageSize = 20, status?: string) {
+  async listActions(rawPage = 1, rawPageSize = 20, status?: string) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize, NO_PAGE_LIMIT);
     const where: any = {};
     if (status) where.status = status;
     const [actions, total] = await Promise.all([
-      this.prisma.churnAction.findMany({ where, skip: (page - 1) * pageSize, take: pageSize, orderBy: { createdAt: "desc" } }),
+      this.prisma.churnAction.findMany({ where, skip, take: pageSize, orderBy: { createdAt: "desc" } }),
       this.prisma.churnAction.count({ where }),
     ]);
     return { actions, total, page, pageSize };

@@ -7,6 +7,7 @@ import { Prisma, InstituteRole } from "@prisma/client";
 import { FundApprovalService } from "../fund-approval/fund-approval.service";
 import { InstituteAssessmentService } from "./institute-assessment.service";
 import { isUniqueConstraintError } from "../../common/prisma-errors";
+import { safePagination, NO_PAGE_LIMIT } from "../../common/pagination";
 
 const MGMT_ROLES: InstituteRole[] = ["PRESIDENT", "VICE_PRESIDENT", "SECRETARY_GENERAL"];
 
@@ -73,7 +74,8 @@ export class InstituteService {
   }
 
   async getTalentPool(params: { level?: string; page: number; pageSize: number }) {
-    const { level, page, pageSize } = params;
+    const { level } = params;
+    const { page, pageSize, skip } = safePagination(params.page, params.pageSize, NO_PAGE_LIMIT);
     const where: Prisma.InstituteMemberWhereInput = {
       lecturerLevel: { notIn: ["NONE"] },
       status: "ACTIVE",
@@ -87,7 +89,7 @@ export class InstituteService {
           id: true, lecturerLevel: true,
           user: { select: { id: true, nickname: true, avatar: true } },
         },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { lecturerLevel: "asc" },
       }),
@@ -425,12 +427,13 @@ export class InstituteService {
     return { success: true, message: "保证金退还申请已提交" };
   }
 
-  async getMyDividends(userId: string, page = 1, pageSize = 20) {
+  async getMyDividends(userId: string, rawPage = 1, rawPageSize = 20) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize, NO_PAGE_LIMIT);
     const where = { userId };
     const [dividends, total] = await Promise.all([
       this.prisma.instituteDividend.findMany({
         where,
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),
@@ -665,7 +668,8 @@ export class InstituteService {
   }
 
   async listMembers(params: { role?: string; status?: string; joinYear?: number; page?: number; pageSize?: number }) {
-    const { role, status, joinYear, page = 1, pageSize = 20 } = params;
+    const { role, status, joinYear } = params;
+    const { page, pageSize, skip } = safePagination(params.page, params.pageSize, NO_PAGE_LIMIT);
     const where: Prisma.InstituteMemberWhereInput = {};
     if (role) where.role = role as InstituteRole;
     if (status) where.status = status;
@@ -675,7 +679,7 @@ export class InstituteService {
       this.prisma.instituteMember.findMany({
         where,
         include: { user: { select: { id: true, nickname: true, avatar: true } } },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { joinedAt: "desc" },
       }),
@@ -750,7 +754,8 @@ export class InstituteService {
   }
 
   async listEvents(params: { type?: string; status?: string; upcoming?: boolean; page?: number; pageSize?: number }) {
-    const { type, status, upcoming, page = 1, pageSize = 20 } = params;
+    const { type, status, upcoming } = params;
+    const { page, pageSize, skip } = safePagination(params.page, params.pageSize, NO_PAGE_LIMIT);
     const where: Prisma.InstituteEventWhereInput = {};
     if (type) where.type = type;
     if (status) where.status = status;
@@ -759,7 +764,7 @@ export class InstituteService {
     const [events, total] = await Promise.all([
       this.prisma.instituteEvent.findMany({
         where,
-        skip: (page - 1) * pageSize, take: pageSize,
+        skip, take: pageSize,
         orderBy: { scheduleAt: "asc" },
       }),
       this.prisma.instituteEvent.count({ where }),

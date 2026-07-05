@@ -8,6 +8,7 @@ import { RedisService } from "../../redis/redis.service";
 import { NotificationService } from "../notification/notification.service";
 import { SystemService } from "../system/system.service";
 import { MerchantCreditService } from "./merchant-credit.service";
+import { safePagination } from "../../common/pagination";
 
 const DAY_MS = 86_400_000;
 
@@ -304,8 +305,8 @@ export class MerchantPunishmentService {
   // ───────── 列表查询 ─────────
 
   async list(q: PunishmentListQuery) {
-    const page = Math.max(Math.trunc(Number(q.page) || 1), 1);
-    const pageSize = Math.min(Math.max(Math.trunc(Number(q.pageSize) || 20), 1), 100);
+    // 保留原有 pageSize≤100 上限（默认 100）——原实现即 Math.min(...,100)，零契约
+    const { page, pageSize, skip } = safePagination(q.page, q.pageSize);
     const where: Prisma.MerchantPunishmentWhereInput = {
       ...(q.merchantId ? { merchantId: q.merchantId } : {}),
       ...(q.status ? { status: q.status } : {}),
@@ -313,7 +314,7 @@ export class MerchantPunishmentService {
     };
     const [list, total] = await Promise.all([
       this.prisma.merchantPunishment.findMany({
-        where, skip: (page - 1) * pageSize, take: pageSize, orderBy: { createdAt: "desc" },
+        where, skip, take: pageSize, orderBy: { createdAt: "desc" },
       }),
       this.prisma.merchantPunishment.count({ where }),
     ]);

@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
+import { safePagination, NO_PAGE_LIMIT } from "../../common/pagination";
 
 const GROWTH_LEVELS = [0, 100, 300, 600, 1000, 2000, 5000, 10000, 20000, 50000];
 
@@ -25,11 +26,12 @@ export class PointsService {
     return points;
   }
 
-  async getPointsRecords(userId: string, page = 1, pageSize = 20) {
+  async getPointsRecords(userId: string, rawPage = 1, rawPageSize = 20) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize, NO_PAGE_LIMIT);
     const [items, total] = await Promise.all([
       this.prisma.pointsRecord.findMany({
         where: { userId },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),
@@ -133,11 +135,12 @@ export class PointsService {
     return { ...gv, level, nextLevelValue };
   }
 
-  async getGrowthRecords(userId: string, page = 1, pageSize = 20) {
+  async getGrowthRecords(userId: string, rawPage = 1, rawPageSize = 20) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize, NO_PAGE_LIMIT);
     const [items, total] = await Promise.all([
       this.prisma.growthRecord.findMany({
         where: { userId },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),

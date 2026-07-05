@@ -9,6 +9,7 @@ import { CoinService } from "../coin/coin.service";
 import { RevenueService } from "../revenue/revenue.service";
 import { TrtcService } from "./trtc.service";
 import { AppGateway } from "../websocket/websocket.gateway";
+import { safePagination, NO_PAGE_LIMIT } from "../../common/pagination";
 
 @Injectable()
 export class CallService {
@@ -320,8 +321,7 @@ export class CallService {
 
   /** 获取用户的通话记录 */
   async listCalls(userId: string, dto: { status?: string; page?: number; pageSize?: number; stationId?: string }) {
-    const page = dto.page || 1;
-    const pageSize = dto.pageSize || 20;
+    const { page, pageSize, skip } = safePagination(dto.page, dto.pageSize, NO_PAGE_LIMIT);
     const where: Prisma.AudioCallRecordWhereInput = {
       OR: [{ callerId: userId }, { calleeId: userId }],
     };
@@ -335,7 +335,7 @@ export class CallService {
           caller: { select: { id: true, nickname: true, avatar: true } },
           callee: { select: { id: true, nickname: true, avatar: true } },
         },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),

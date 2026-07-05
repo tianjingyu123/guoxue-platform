@@ -7,6 +7,7 @@ import { CoinService } from "../coin/coin.service";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { CreateBountyDto, AnswerBountyDto } from "./bounty.dto";
+import { safePagination, NO_PAGE_LIMIT } from "../../common/pagination";
 
 @Injectable()
 export class BountyService {
@@ -122,7 +123,8 @@ export class BountyService {
 
   // ───────── 列表/详情 ─────────
 
-  list(page = 1, pageSize = 20, category?: string, status?: string, stationId?: string) {
+  list(rawPage = 1, rawPageSize = 20, category?: string, status?: string, stationId?: string) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize, NO_PAGE_LIMIT);
     const where: Prisma.BountyQuestionWhereInput = {};
     if (category) where.category = category;
     if (status) where.status = status;
@@ -130,7 +132,7 @@ export class BountyService {
     return Promise.all([
       this.prisma.bountyQuestion.findMany({
         where,
-        skip: (page - 1) * pageSize, take: pageSize,
+        skip, take: pageSize,
         orderBy: { createdAt: "desc" },
       }),
       this.prisma.bountyQuestion.count({ where }),
@@ -158,10 +160,11 @@ export class BountyService {
     });
   }
 
-  async listReviews(page = 1, pageSize = 20) {
+  async listReviews(rawPage = 1, rawPageSize = 20) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize, NO_PAGE_LIMIT);
     const [reviews, total] = await Promise.all([
       this.prisma.bountyReview.findMany({
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),

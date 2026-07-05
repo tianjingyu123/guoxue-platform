@@ -105,6 +105,14 @@ describe("MemberService", () => {
       expect(result.items).toHaveLength(1);
       expect(result.total).toBe(1);
     });
+
+    it("page 传非数字串不产生 NaN skip（P2-4 分页加固）", async () => {
+      prisma.memberPurchase.findMany.mockResolvedValue([]);
+      prisma.memberPurchase.count.mockResolvedValue(0);
+      await svc.getAdminPurchases("abc" as any, 20);
+      const arg = prisma.memberPurchase.findMany.mock.calls[0][0];
+      expect(Number.isNaN(arg.skip)).toBe(false);
+    });
   });
 
   describe("getMemberStats", () => {

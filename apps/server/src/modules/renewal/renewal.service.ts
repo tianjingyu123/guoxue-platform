@@ -1,5 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
+import { safePagination, NO_PAGE_LIMIT } from "../../common/pagination";
 
 export interface EntitlementItem {
   type: string;          // STATION / CIRCLE_MEMBER / INSTITUTE_MEMBER / VIP_MEMBER / OPERATOR
@@ -103,12 +104,13 @@ export class RenewalService {
   }
 
   /** 续费历史 */
-  async getMyRenewalHistory(userId: string, page = 1, pageSize = 20) {
+  async getMyRenewalHistory(userId: string, rawPage = 1, rawPageSize = 20) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize, NO_PAGE_LIMIT);
     const where = { userId };
     const [records, total] = await Promise.all([
       this.prisma.renewalRecord.findMany({
         where,
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),
@@ -191,14 +193,15 @@ export class RenewalService {
   }
 
   /** 管理员查看所有续费记录 */
-  async getAdminHistory(page = 1, pageSize = 20, type?: string) {
+  async getAdminHistory(rawPage = 1, rawPageSize = 20, type?: string) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize, NO_PAGE_LIMIT);
     const where: any = {};
     if (type) where.targetType = type;
     const [records, total] = await Promise.all([
       this.prisma.renewalRecord.findMany({
         where,
         include: { user: { select: { id: true, nickname: true } } },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),

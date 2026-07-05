@@ -607,4 +607,15 @@ describe("CommissionService", () => {
       expect(result).toBeNull();
     });
   });
+
+  describe("分页入参加固（P2-4 NaN 防护）", () => {
+    it("getStationEarnings 传 page='abc' 时 skip 不为 NaN", async () => {
+      mockPrisma.stationEarning.findMany.mockResolvedValue([]);
+      mockPrisma.stationEarning.count.mockResolvedValue(0);
+      mockPrisma.stationEarning.aggregate.mockResolvedValue({ _sum: { earned: null } });
+      await svc.getStationEarnings("s1", "abc" as any, 10);
+      const arg = mockPrisma.stationEarning.findMany.mock.calls[0][0];
+      expect(Number.isNaN(arg.skip)).toBe(false);
+    });
+  });
 });

@@ -8,6 +8,7 @@ import { COIN_TO_RMB } from "../../common/constants";
 import { CommissionService } from "../commission/commission.service";
 import { SystemService } from "../system/system.service";
 import { FundApprovalService } from "../fund-approval/fund-approval.service";
+import { safePagination, NO_PAGE_LIMIT } from "../../common/pagination";
 
 /** 默认充值档位（ConfigSystem 未配置时的兜底） */
 const DEFAULT_RECHARGE_TIERS = [
@@ -203,7 +204,8 @@ export class CoinService {
   }
 
   /** 交易流水 */
-  async getTransactions(userId: string, page = 1, pageSize = 20, type?: string, scene?: string) {
+  async getTransactions(userId: string, rawPage = 1, rawPageSize = 20, type?: string, scene?: string) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize, NO_PAGE_LIMIT);
     const where: Prisma.VirtualCoinTransactionWhereInput = { userId };
     if (type) where.type = type as Prisma.VirtualCoinTransactionWhereInput["type"];
     if (scene) where.scene = scene as Prisma.VirtualCoinTransactionWhereInput["scene"];
@@ -211,7 +213,7 @@ export class CoinService {
     const [transactions, total] = await Promise.all([
       this.prisma.virtualCoinTransaction.findMany({
         where,
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),
@@ -221,7 +223,8 @@ export class CoinService {
   }
 
   /** 管理员查看所有交易流水 */
-  async getAdminTransactions(page = 1, pageSize = 20, userId?: string, type?: string, scene?: string) {
+  async getAdminTransactions(rawPage = 1, rawPageSize = 20, userId?: string, type?: string, scene?: string) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize, NO_PAGE_LIMIT);
     const where: Prisma.VirtualCoinTransactionWhereInput = {};
     if (userId) where.userId = userId;
     if (type) where.type = type as Prisma.VirtualCoinTransactionWhereInput["type"];
@@ -231,7 +234,7 @@ export class CoinService {
       this.prisma.virtualCoinTransaction.findMany({
         where,
         include: { user: { select: { id: true, nickname: true, phone: true } } },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),
@@ -241,7 +244,8 @@ export class CoinService {
   }
 
   /** 充值记录 */
-  async getRecharges(page = 1, pageSize = 20, userId?: string) {
+  async getRecharges(rawPage = 1, rawPageSize = 20, userId?: string) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize, NO_PAGE_LIMIT);
     const where: Prisma.VirtualCoinRechargeWhereInput = {};
     if (userId) where.userId = userId;
 
@@ -249,7 +253,7 @@ export class CoinService {
       this.prisma.virtualCoinRecharge.findMany({
         where,
         include: { user: { select: { id: true, nickname: true, phone: true } } },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),

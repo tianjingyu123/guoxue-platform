@@ -8,6 +8,7 @@ import { SystemService } from "../system/system.service";
 import { AuditService } from "../audit/audit.service";
 import { MERCHANT_CONFIG_KEYS, MERCHANT_FEATURE_FLAGS } from "./merchant.types";
 import { encrypt, decrypt, maskIdCard, maskPhone } from "../../common/crypto.util";
+import { safePagination, NO_PAGE_LIMIT } from "../../common/pagination";
 import {
   CreateMerchantApplyDto, UpdateMerchantApplyDto, ApproveMerchantDto, UpdateMerchantStatusDto,
   MerchantListQueryDto, UpdateMerchantProfileDto, ProductQueryDto, MerchantOrderQueryDto,
@@ -195,7 +196,8 @@ export class MerchantService {
   // ─── 管理员操作 ───
 
   async listMerchants(query: MerchantListQueryDto) {
-    const { status, keyword, page = 1, pageSize = 20 } = query;
+    const { status, keyword } = query;
+    const { page, pageSize, skip } = safePagination(query.page, query.pageSize, NO_PAGE_LIMIT);
     const where: Record<string, unknown> = {};
     if (status) where.status = status;
     if (keyword) where.shopName = { contains: keyword, mode: "insensitive" };
@@ -203,7 +205,7 @@ export class MerchantService {
     const [list, total] = await Promise.all([
       this.prisma.merchant.findMany({
         where,
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
         include: { user: { select: { id: true, nickname: true, phone: true, avatar: true } } },
@@ -383,13 +385,14 @@ export class MerchantService {
   // ─── 商品管理 ───
 
   async listProducts(userId: string, q: ProductQueryDto) {
-    const { page = 1, pageSize = 20, status } = q;
+    const { status } = q;
+    const { page, pageSize, skip } = safePagination(q.page, q.pageSize, NO_PAGE_LIMIT);
     const where: Record<string, unknown> = { userId, supplierType: "CERTIFIED_MERCHANT" };
     if (status) where.status = status;
 
     const [list, total] = await Promise.all([
       this.prisma.product.findMany({
-        where, skip: (page - 1) * pageSize, take: pageSize, orderBy: { createdAt: "desc" },
+        where, skip, take: pageSize, orderBy: { createdAt: "desc" },
       }),
       this.prisma.product.count({ where }),
     ]);
@@ -440,13 +443,14 @@ export class MerchantService {
   // ─── 订单管理 ───
 
   async listOrders(merchantId: string, q: MerchantOrderQueryDto) {
-    const { page = 1, pageSize = 20, status } = q;
+    const { status } = q;
+    const { page, pageSize, skip } = safePagination(q.page, q.pageSize, NO_PAGE_LIMIT);
     const where: Record<string, unknown> = { merchantId };
     if (status) where.status = status;
 
     const [list, total] = await Promise.all([
       this.prisma.order.findMany({
-        where, skip: (page - 1) * pageSize, take: pageSize, orderBy: { createdAt: "desc" },
+        where, skip, take: pageSize, orderBy: { createdAt: "desc" },
       }),
       this.prisma.order.count({ where }),
     ]);
@@ -521,13 +525,14 @@ export class MerchantService {
   // ─── 评价管理 ───
 
   async listReviews(userId: string, q: ReviewQueryDto) {
-    const { page = 1, pageSize = 20, rating } = q;
+    const { rating } = q;
+    const { page, pageSize, skip } = safePagination(q.page, q.pageSize, NO_PAGE_LIMIT);
     const where: Record<string, unknown> = { product: { userId } };
     if (rating) where.rating = rating;
 
     const [list, total] = await Promise.all([
       this.prisma.productReview.findMany({
-        where, skip: (page - 1) * pageSize, take: pageSize, orderBy: { createdAt: "desc" },
+        where, skip, take: pageSize, orderBy: { createdAt: "desc" },
         include: { product: { select: { title: true } } },
       }),
       this.prisma.productReview.count({ where }),
@@ -548,10 +553,10 @@ export class MerchantService {
   // ─── 违规管理（商家端+管理端） ───
 
   async listViolations(merchantId: string, q: PaginationDto) {
-    const { page = 1, pageSize = 20 } = q;
+    const { page, pageSize, skip } = safePagination(q.page, q.pageSize, NO_PAGE_LIMIT);
     const [list, total] = await Promise.all([
       this.prisma.merchantViolation.findMany({
-        where: { merchantId }, skip: (page - 1) * pageSize, take: pageSize, orderBy: { createdAt: "desc" },
+        where: { merchantId }, skip, take: pageSize, orderBy: { createdAt: "desc" },
       }),
       this.prisma.merchantViolation.count({ where: { merchantId } }),
     ]);
@@ -594,7 +599,7 @@ export class MerchantService {
   // ─── 售后管理 ───
 
   async listAfterSales(merchantId: string, q?: { type?: string; status?: string; page?: number; pageSize?: number }) {
-    const { page = 1, pageSize = 20 } = q || {};
+    const { page, pageSize, skip } = safePagination(q?.page, q?.pageSize, NO_PAGE_LIMIT);
     const orders = await this.prisma.order.findMany({
       where: { merchantId },
       select: { id: true, amount: true, status: true },
@@ -609,7 +614,7 @@ export class MerchantService {
 
     const [list, total] = await Promise.all([
       this.prisma.afterSale.findMany({
-        where, skip: (page - 1) * pageSize, take: pageSize, orderBy: { createdAt: "desc" },
+        where, skip, take: pageSize, orderBy: { createdAt: "desc" },
       }),
       this.prisma.afterSale.count({ where }),
     ]);
@@ -640,7 +645,7 @@ export class MerchantService {
   // ─── 客户管理 ───
 
   async listCustomers(merchantId: string, q?: { page?: number; pageSize?: number }) {
-    const { page = 1, pageSize = 20 } = q || {};
+    const { page, pageSize, skip } = safePagination(q?.page, q?.pageSize, NO_PAGE_LIMIT);
     // 查询在该商家下过单的用户，按 userId 聚合
     const result = await this.prisma.$queryRawUnsafe<any[]>(`
       SELECT
@@ -653,7 +658,7 @@ export class MerchantService {
       GROUP BY u.id, u.nickname, u.avatar, u.phone
       ORDER BY "totalSpent" DESC
       LIMIT $2 OFFSET $3
-    `, merchantId, pageSize, (page - 1) * pageSize);
+    `, merchantId, pageSize, skip);
 
     const countResult = await this.prisma.$queryRawUnsafe<any[]>(`
       SELECT COUNT(DISTINCT o."userId")::int as cnt
@@ -687,7 +692,7 @@ export class MerchantService {
 
   /** 客户咨询列表 — 查询该商家订单相关的售后 */
   async listInquiries(merchantId: string, paging: { page: number; pageSize: number }) {
-    const { page, pageSize } = paging;
+    const { page, pageSize, skip } = safePagination(paging.page, paging.pageSize, NO_PAGE_LIMIT);
     // 先查该商家的订单ID
     const orderIds = await this.prisma.order.findMany({
       where: { merchantId },
@@ -699,7 +704,7 @@ export class MerchantService {
     const list = ids.length > 0 ? await this.prisma.afterSale.findMany({
       where: { orderId: { in: ids } },
       orderBy: { createdAt: "desc" },
-      skip: (page - 1) * pageSize,
+      skip,
       take: pageSize,
     }) : [];
 

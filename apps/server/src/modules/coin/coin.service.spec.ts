@@ -210,4 +210,14 @@ describe("CoinService", () => {
       await expect(svc.sendGift("u1", "room1", "host1", "no", 1)).rejects.toThrow(BusinessException)
     })
   })
+
+  describe("分页入参加固（P2-4 NaN 防护）", () => {
+    it("getTransactions 传 page='abc' 时 skip 不为 NaN", async () => {
+      mockPrisma.virtualCoinTransaction.findMany.mockResolvedValue([])
+      mockPrisma.virtualCoinTransaction.count.mockResolvedValue(0)
+      await svc.getTransactions("u1", "abc" as any)
+      const arg = mockPrisma.virtualCoinTransaction.findMany.mock.calls[0][0]
+      expect(Number.isNaN(arg.skip)).toBe(false)
+    })
+  })
 })

@@ -13,6 +13,7 @@ import { FundApprovalService } from "../fund-approval/fund-approval.service";
 import { SettlementService } from "../settlement/settlement.service";
 import { LedgerBalanceService } from "../settlement/ledger-balance.service";
 import { UserGrowthService } from "../user-growth/user-growth.service";
+import { safePagination, NO_PAGE_LIMIT } from "../../common/pagination";
 
 /** 提现上限（元），与钱包提现口径一致 */
 const MAX_WITHDRAW_RMB = 50000;
@@ -543,12 +544,13 @@ export class CommissionService {
 
   // ───────── 分站收益查询 ─────────
 
-  async getStationEarnings(stationId: string, page = 1, pageSize = 20) {
+  async getStationEarnings(stationId: string, rawPage = 1, rawPageSize = 20) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize, NO_PAGE_LIMIT);
     const where = { stationId };
     const [earnings, total] = await Promise.all([
       this.prisma.stationEarning.findMany({
         where,
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),
@@ -575,7 +577,8 @@ export class CommissionService {
    * 隐私：orderId 打码（前 8 位），只暴露抢佣渠道类型（tempRefSubjectType），
    * 不暴露抢佣者身份细节（防纠纷升级）。仅站长本人可查（按 userId 定位自己的分站）。
    */
-  async getStationPreemptedOrders(userId: string, page = 1, pageSize = 20) {
+  async getStationPreemptedOrders(userId: string, rawPage = 1, rawPageSize = 20) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize, NO_PAGE_LIMIT);
     const station = await this.prisma.station.findUnique({
       where: { userId },
       select: { id: true },
@@ -592,7 +595,7 @@ export class CommissionService {
       this.prisma.order.findMany({
         where,
         select: { id: true, amount: true, tempRefSubjectType: true, createdAt: true },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),
@@ -719,7 +722,8 @@ export class CommissionService {
     }
   }
 
-  async listWithdrawals(page = 1, pageSize = 20, status?: string) {
+  async listWithdrawals(rawPage = 1, rawPageSize = 20, status?: string) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize, NO_PAGE_LIMIT);
     const where = status ? { status } : {};
     const [withdrawals, total] = await Promise.all([
       this.prisma.withdrawal.findMany({
@@ -728,7 +732,7 @@ export class CommissionService {
           user: { select: { id: true, nickname: true, phone: true } },
           station: { select: { id: true, name: true } },
         },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),
@@ -763,12 +767,13 @@ export class CommissionService {
     });
   }
 
-  async getUserWithdrawals(userId: string, page = 1, pageSize = 20) {
+  async getUserWithdrawals(userId: string, rawPage = 1, rawPageSize = 20) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize, NO_PAGE_LIMIT);
     const where = { userId };
     const [withdrawals, total] = await Promise.all([
       this.prisma.withdrawal.findMany({
         where,
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),
@@ -802,12 +807,13 @@ export class CommissionService {
     });
   }
 
-  async getReferralLinks(userId: string, page = 1, pageSize = 20) {
+  async getReferralLinks(userId: string, rawPage = 1, rawPageSize = 20) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize, NO_PAGE_LIMIT);
     const where = { userId };
     const [links, total] = await Promise.all([
       this.prisma.referralLink.findMany({
         where,
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),
@@ -942,12 +948,13 @@ export class CommissionService {
 
   // ───────── 运营商收益查询 ─────────
 
-  async getOperatorEarnings(operatorId: string, page = 1, pageSize = 20) {
+  async getOperatorEarnings(operatorId: string, rawPage = 1, rawPageSize = 20) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize, NO_PAGE_LIMIT);
     const where = { operatorId };
     const [earnings, total] = await Promise.all([
       this.prisma.operatorEarning.findMany({
         where,
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),
@@ -1152,12 +1159,13 @@ export class CommissionService {
   }
 
   /** 获取圈主收益明细 */
-  async getCircleRevenueRecords(circleId: string, page = 1, pageSize = 20) {
+  async getCircleRevenueRecords(circleId: string, rawPage = 1, rawPageSize = 20) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize, NO_PAGE_LIMIT);
     const where = { circleId };
     const [records, total] = await Promise.all([
       this.prisma.circleRevenueRecord.findMany({
         where,
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),

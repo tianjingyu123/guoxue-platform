@@ -126,4 +126,13 @@ describe("FundApprovalService", () => {
       });
     });
   });
+
+  describe("分页入参加固（P2-4 NaN 防护）", () => {
+    it("list 传 page='abc' 时 skip 不为 NaN", async () => {
+      mockModel.findMany.mockResolvedValue([]);
+      mockModel.count.mockResolvedValue(0);
+      await svc.list("abc" as any);
+      expect(Number.isNaN(mockModel.findMany.mock.calls[0][0].skip)).toBe(false);
+    });
+  });
 });

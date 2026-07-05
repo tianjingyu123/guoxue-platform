@@ -333,6 +333,15 @@ describe("MerchantPunishmentService", () => {
     }));
   });
 
+  it("list: page='abc' 非法入参 → skip 不为 NaN（safePagination 兜底）", async () => {
+    mockPrisma.merchantPunishment.findMany.mockResolvedValue([]);
+    mockPrisma.merchantPunishment.count.mockResolvedValue(0);
+    await svc.list({ page: "abc" as any, pageSize: "xyz" as any });
+    const callArg = mockPrisma.merchantPunishment.findMany.mock.calls[0][0];
+    expect(Number.isNaN(callArg.skip)).toBe(false);
+    expect(callArg.skip).toBe(0);
+  });
+
   it("商家不存在 → MERCHANT_NOT_FOUND；未知处罚类型 → 参数校验失败", async () => {
     mockPrisma.merchant.findUnique.mockResolvedValue(null);
     await expect(svc.createPunishment({ merchantId: "no", type: "WARNING", reason: "x原因" }, "admin1"))
