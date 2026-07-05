@@ -506,4 +506,24 @@ describe("EbookService", () => {
       expect(result.relatedKeywords).toEqual(["renai", "daode"]);
     });
   });
+
+  // 坏味道 P2-4：入参归一化（safePagination），防非法 page/pageSize 致 skip:NaN/负数进 Prisma 抛 500
+  describe("分页入参加固（P2-4）", () => {
+    it("listBooks: 非法 page(NaN) 归一化第1页·skip 不为 NaN", async () => {
+      mockPrisma.ebook.findMany.mockResolvedValue([]);
+      mockPrisma.ebook.count.mockResolvedValue(0);
+      await svc.listBooks({ page: "abc" as any });
+      const arg = mockPrisma.ebook.findMany.mock.calls.at(-1)![0];
+      expect(Number.isNaN(arg.skip)).toBe(false);
+      expect(arg.skip).toBe(0);
+    });
+
+    it("getMyPurchases: 负数 page 归一化第1页·skip=0", async () => {
+      mockPrisma.ebookPurchase.findMany.mockResolvedValue([]);
+      mockPrisma.ebookPurchase.count.mockResolvedValue(0);
+      await svc.getMyPurchases("u1", -3 as any);
+      const arg = mockPrisma.ebookPurchase.findMany.mock.calls.at(-1)![0];
+      expect(arg.skip).toBe(0);
+    });
+  });
 });

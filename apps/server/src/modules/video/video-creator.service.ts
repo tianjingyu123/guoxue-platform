@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
+import { safePagination } from "../../common/pagination";
 
 @Injectable()
 export class VideoCreatorService {
@@ -576,7 +577,8 @@ export class VideoCreatorService {
    * 关键字按昵称/手机号过滤：因 VideoCreatorWithdrawal 与 User 无 Prisma 关系（与 VirtualCoinFrozen 同风格的轻量表），
    * 关键字命中先查用户取 id 再过滤申请，最后批量回填用户资料。
    */
-  async adminListWithdrawals(page = 1, pageSize = 20, keyword?: string, status?: string) {
+  async adminListWithdrawals(rawPage = 1, rawPageSize = 20, keyword?: string, status?: string) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
     const where: any = {};
     if (status?.trim()) where.status = status.trim();
 
@@ -595,7 +597,7 @@ export class VideoCreatorService {
       this.prisma.videoCreatorWithdrawal.findMany({
         where,
         orderBy: { createdAt: "desc" },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
       }),
       this.prisma.videoCreatorWithdrawal.count({ where }),

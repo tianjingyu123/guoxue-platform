@@ -3,6 +3,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { ApplyCertificationDto } from "./teacher.dto";
+import { safePagination } from "../../common/pagination";
 
 @Injectable()
 export class TeacherService {
@@ -160,13 +161,14 @@ export class TeacherService {
   // ═══════════════════ 管理端 — 讲师认证审核 ═══════════════════
 
   /** 管理员：讲师认证列表（可按状态过滤，含申请人信息） */
-  async listCertifications(status?: string, page = 1, pageSize = 20) {
+  async listCertifications(status?: string, rawPage = 1, rawPageSize = 20) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
     const where = status ? { status } : {};
     const [items, total] = await Promise.all([
       this.prisma.teacherCertification.findMany({
         where,
         include: { user: { select: { id: true, nickname: true, avatar: true, phone: true } } },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),

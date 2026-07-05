@@ -131,4 +131,14 @@ describe("PoetryService（阶段二增强）", () => {
       expect(gateway.chat).toHaveBeenCalledWith(expect.objectContaining({ scene: "poetry_appreciation" }));
     });
   });
+
+  describe("分页入参加固（P2-4）", () => {
+    it("adminListPoems 非法 page 不产生 NaN skip", async () => {
+      prisma.poetry.findMany.mockResolvedValue([]);
+      prisma.poetry.count.mockResolvedValue(0);
+      await service.adminListPoems({ page: "abc" as any });
+      const arg = prisma.poetry.findMany.mock.calls[0][0];
+      expect(Number.isNaN(arg.skip)).toBe(false);
+    });
+  });
 });

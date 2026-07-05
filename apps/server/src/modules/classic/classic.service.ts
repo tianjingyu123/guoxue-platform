@@ -1,4 +1,5 @@
 import { Injectable, Logger } from "@nestjs/common";
+import { safePagination } from "../../common/pagination";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
@@ -26,8 +27,7 @@ export class ClassicService {
 
   // ── 书籍 CRUD ──
   async listBooks(query: { category?: string; keyword?: string; page?: number; pageSize?: number; sortBy?: string }) {
-    const page = query.page || 1;
-    const pageSize = query.pageSize || 20;
+    const { page, pageSize, skip } = safePagination(query.page, query.pageSize);
     const cat = (query.category && query.category !== "all") ? query.category : null;
     const kw = query.keyword || "";
     const sortBy = query.sortBy || "createdAt";
@@ -63,7 +63,7 @@ export class ClassicService {
           viewCount: true, createdAt: true,
         },
         orderBy: orderByMap[sortBy] || orderByMap.createdAt,
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
       }),
       this.prisma.classicBook.count({ where }),
@@ -210,7 +210,8 @@ export class ClassicService {
   }
 
   // ── 书签 ──
-  async listBookmarks(userId: string, bookId?: string, page = 1, pageSize = 20) {
+  async listBookmarks(userId: string, bookId?: string, rawPage = 1, rawPageSize = 20) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
     const where: Prisma.BookmarkWhereInput = { userId };
     if (bookId) where.bookId = bookId;
     const [items, total] = await Promise.all([
@@ -221,7 +222,7 @@ export class ClassicService {
           chapter: { select: { title: true, sortOrder: true } },
         },
         orderBy: { createdAt: "desc" },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
       }),
       this.prisma.bookmark.count({ where }),
@@ -505,7 +506,8 @@ export class ClassicService {
   }
 
   // ── 读书笔记 ──
-  async listMyNotes(userId: string, bookId?: string, chapterId?: string, page = 1, pageSize = 20) {
+  async listMyNotes(userId: string, bookId?: string, chapterId?: string, rawPage = 1, rawPageSize = 20) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
     const where: Prisma.ClassicReadingNoteWhereInput = { userId };
     if (bookId) where.bookId = bookId;
     if (chapterId) where.chapterId = chapterId;
@@ -517,7 +519,7 @@ export class ClassicService {
           chapter: { select: { id: true, title: true } },
         },
         orderBy: { updatedAt: "desc" },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
       }),
       this.prisma.classicReadingNote.count({ where }),
@@ -546,14 +548,15 @@ export class ClassicService {
   }
 
   // ── 注疏标记 ──
-  async listAnnotations(bookId: string, chapterId?: string, page = 1, pageSize = 20) {
+  async listAnnotations(bookId: string, chapterId?: string, rawPage = 1, rawPageSize = 20) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
     const where: Prisma.ClassicAnnotationWhereInput = { bookId };
     if (chapterId) where.chapterId = chapterId;
     const [items, total] = await Promise.all([
       this.prisma.classicAnnotation.findMany({
         where,
         orderBy: { startPos: "asc" },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
       }),
       this.prisma.classicAnnotation.count({ where }),
@@ -721,7 +724,8 @@ export class ClassicService {
 
   /** 管理端-所有读书笔记 */
   async getAllNotes(params: { bookId?: string; page?: number; pageSize?: number }) {
-    const { bookId, page = 1, pageSize = 20 } = params;
+    const { bookId } = params;
+    const { page, pageSize, skip } = safePagination(params.page, params.pageSize);
     const where: Prisma.ClassicReadingNoteWhereInput = {};
     if (bookId) where.bookId = bookId;
     const [items, total] = await Promise.all([
@@ -732,7 +736,7 @@ export class ClassicService {
           book: { select: { id: true, title: true } },
           chapter: { select: { id: true, title: true } },
         },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { updatedAt: "desc" },
       }),
@@ -743,7 +747,8 @@ export class ClassicService {
 
   /** 管理端-所有书签 */
   async getAllBookmarks(params: { bookId?: string; page?: number; pageSize?: number }) {
-    const { bookId, page = 1, pageSize = 20 } = params;
+    const { bookId } = params;
+    const { page, pageSize, skip } = safePagination(params.page, params.pageSize);
     const where: Prisma.BookmarkWhereInput = {};
     if (bookId) where.bookId = bookId;
     const [items, total] = await Promise.all([
@@ -754,7 +759,7 @@ export class ClassicService {
           book: { select: { id: true, title: true } },
           chapter: { select: { id: true, title: true } },
         },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),

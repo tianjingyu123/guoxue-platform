@@ -8,6 +8,7 @@ import { JwtService } from "@nestjs/jwt";
 import { CreateEbookDto, UpdateEbookDto, CreateChapterDto, UpdateChapterDto } from "./ebook.dto";
 import { MemoryCache } from "../../common/cache.util";
 import { isUniqueConstraintError } from "../../common/prisma-errors";
+import { safePagination } from "../../common/pagination";
 
 @Injectable()
 export class EbookService {
@@ -36,8 +37,7 @@ export class EbookService {
   // ═══════════════════════════════════════════
 
   async listBooks(query: { categoryId?: string; keyword?: string; status?: string; page?: number; pageSize?: number }) {
-    const page = query.page || 1;
-    const pageSize = query.pageSize || 20;
+    const { page, pageSize, skip } = safePagination(query.page, query.pageSize);
     const where: Prisma.EbookWhereInput = {};
     if (query.status) {
       where.status = query.status as any;
@@ -63,7 +63,7 @@ export class EbookService {
           category: { select: { id: true, name: true } },
         },
         orderBy: { createdAt: "desc" },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
       }),
       this.prisma.ebook.count({ where }),
@@ -238,9 +238,7 @@ export class EbookService {
   }
 
   async getMyPurchases(userId: string, pageRaw?: number, pageSizeRaw?: number) {
-    // 防御：ValidationPipe(transform) 把缺省的 `@Query() page?: number` 转成 NaN，会绕过解构默认值 → skip:NaN/take 缺失致 500
-    const page = Number.isFinite(+pageRaw!) && +pageRaw! > 0 ? +pageRaw! : 1;
-    const pageSize = Number.isFinite(+pageSizeRaw!) && +pageSizeRaw! > 0 ? +pageSizeRaw! : 20;
+    const { page, pageSize, skip } = safePagination(pageRaw, pageSizeRaw);
     const where = { userId };
     const [purchases, total] = await Promise.all([
       this.prisma.ebookPurchase.findMany({
@@ -253,7 +251,7 @@ export class EbookService {
             },
           },
         },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { paidAt: "desc" },
       }),
@@ -313,10 +311,8 @@ export class EbookService {
   // ═══════════════════════════════════════════
 
   async listBookmarks(userId: string, params?: { ebookId?: string; page?: number; pageSize?: number }) {
-    const { ebookId, page: pageRaw, pageSize: pageSizeRaw } = params || {};
-    // 防御：transform 缺省 → NaN，绕过解构默认值致 skip:NaN/take 缺失 500
-    const page = Number.isFinite(+pageRaw!) && +pageRaw! > 0 ? +pageRaw! : 1;
-    const pageSize = Number.isFinite(+pageSizeRaw!) && +pageSizeRaw! > 0 ? +pageSizeRaw! : 20;
+    const { ebookId } = params || {};
+    const { page, pageSize, skip } = safePagination(params?.page, params?.pageSize);
     const where: Prisma.EbookBookmarkWhereInput = { userId };
     if (ebookId) where.ebookId = ebookId;
     const [bookmarks, total] = await Promise.all([
@@ -326,7 +322,7 @@ export class EbookService {
           ebook: { select: { title: true } },
           chapter: { select: { title: true } },
         },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),
@@ -355,10 +351,8 @@ export class EbookService {
   // ═══════════════════════════════════════════
 
   async listNotes(userId: string, params?: { ebookId?: string; page?: number; pageSize?: number }) {
-    const { ebookId, page: pageRaw, pageSize: pageSizeRaw } = params || {};
-    // 防御：transform 缺省 → NaN，绕过解构默认值致 skip:NaN/take 缺失 500
-    const page = Number.isFinite(+pageRaw!) && +pageRaw! > 0 ? +pageRaw! : 1;
-    const pageSize = Number.isFinite(+pageSizeRaw!) && +pageSizeRaw! > 0 ? +pageSizeRaw! : 20;
+    const { ebookId } = params || {};
+    const { page, pageSize, skip } = safePagination(params?.page, params?.pageSize);
     const where: Prisma.EbookNoteWhereInput = { userId };
     if (ebookId) where.ebookId = ebookId;
     const [notes, total] = await Promise.all([
@@ -368,7 +362,7 @@ export class EbookService {
           ebook: { select: { title: true } },
           chapter: { select: { title: true } },
         },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { updatedAt: "desc" },
       }),
@@ -405,11 +399,12 @@ export class EbookService {
   // 收藏（对齐古籍馆 ClassicFavorite）
   // ═══════════════════════════════════════════
 
-  async listFavorites(userId: string, page = 1, pageSize = 50) {
+  async listFavorites(userId: string, rawPage = 1, rawPageSize = 50) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
     const favorites = await this.prisma.ebookFavorite.findMany({
       where: { userId },
       orderBy: { createdAt: "desc" },
-      skip: (page - 1) * pageSize,
+      skip,
       take: pageSize,
     });
     const ebookIds = favorites.map((f) => f.ebookId);
@@ -531,14 +526,15 @@ export class EbookService {
     });
   }
 
-  async listReviews(ebookId: string, page = 1, pageSize = 20) {
+  async listReviews(ebookId: string, rawPage = 1, rawPageSize = 20) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
     const where = { ebookId, status: "PUBLISHED" };
     const [reviews, total] = await Promise.all([
       this.prisma.ebookReview.findMany({
         where,
         include: { user: { select: { id: true, nickname: true, avatar: true } } },
         orderBy: { createdAt: "desc" },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
       }),
       this.prisma.ebookReview.count({ where }),
@@ -638,7 +634,8 @@ export class EbookService {
 
   /** 管理端-所有购买记录 */
   async getAllPurchases(params: { page: number; pageSize: number; ebookId?: string; userId?: string }) {
-    const { page, pageSize, ebookId, userId } = params;
+    const { ebookId, userId } = params;
+    const { page, pageSize, skip } = safePagination(params.page, params.pageSize);
     const where: Prisma.EbookPurchaseWhereInput = {};
     if (ebookId) where.ebookId = ebookId;
     if (userId) where.userId = userId;
@@ -650,7 +647,7 @@ export class EbookService {
           ebook: { select: { id: true, title: true, cover: true, price: true } },
           user: { select: { id: true, nickname: true } },
         },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { paidAt: "desc" },
       }),
@@ -702,7 +699,8 @@ export class EbookService {
 
   /** 管理端-所有公开笔记 */
   async getAllNotes(params: { page: number; pageSize: number; ebookId?: string }) {
-    const { page, pageSize, ebookId } = params;
+    const { ebookId } = params;
+    const { page, pageSize, skip } = safePagination(params.page, params.pageSize);
     const where: Prisma.EbookNoteWhereInput = {};
     if (ebookId) where.ebookId = ebookId;
 
@@ -714,7 +712,7 @@ export class EbookService {
           chapter: { select: { id: true, title: true } },
           user: { select: { id: true, nickname: true } },
         },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { updatedAt: "desc" },
       }),

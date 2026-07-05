@@ -627,4 +627,29 @@ describe("CourseService", () => {
       await expect(svc.getCourseStats("u1", "co1")).rejects.toThrow(BusinessException);
     });
   });
+
+  // 坏味道 P2-4：入参归一化（safePagination），防非法 page/pageSize 致 skip:NaN/负数进 Prisma 抛 500
+  describe("分页入参加固（P2-4）", () => {
+    it("listCourses: 非法 page(NaN) 归一化第1页·skip 不为 NaN", async () => {
+      mockRedis.getJson.mockResolvedValue(null);
+      mockRedis.setJson.mockResolvedValue(undefined);
+      mockPrisma.course.findMany.mockResolvedValue([]);
+      mockPrisma.course.count.mockResolvedValue(0);
+      await svc.listCourses({ page: "abc" as any, pageSize: 20 });
+      const arg = mockPrisma.course.findMany.mock.calls.at(-1)![0];
+      expect(Number.isNaN(arg.skip)).toBe(false);
+      expect(arg.skip).toBe(0);
+    });
+
+    it("listCourses: 负数 pageSize 归一化至1·skip=0（pageSize 不能为负）", async () => {
+      mockRedis.getJson.mockResolvedValue(null);
+      mockRedis.setJson.mockResolvedValue(undefined);
+      mockPrisma.course.findMany.mockResolvedValue([]);
+      mockPrisma.course.count.mockResolvedValue(0);
+      await svc.listCourses({ page: 1, pageSize: -5 as any });
+      const arg = mockPrisma.course.findMany.mock.calls.at(-1)![0];
+      expect(arg.skip).toBe(0);
+      expect(arg.take).toBeGreaterThan(0);
+    });
+  });
 });

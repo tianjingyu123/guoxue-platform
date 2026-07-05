@@ -380,4 +380,14 @@ describe("ClassicService", () => {
       await expect(svc.generateCitation("invalid")).rejects.toThrow("书籍不存在");
     });
   });
+
+  describe("分页入参加固（P2-4）", () => {
+    it("listBooks 非法 page 不产生 NaN skip", async () => {
+      mockPrisma.classicBook.findMany.mockResolvedValue([]);
+      mockPrisma.classicBook.count.mockResolvedValue(0);
+      await svc.listBooks({ page: "abc" as any });
+      const arg = mockPrisma.classicBook.findMany.mock.calls[0][0];
+      expect(Number.isNaN(arg.skip)).toBe(false);
+    });
+  });
 });

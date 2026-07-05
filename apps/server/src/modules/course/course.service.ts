@@ -4,6 +4,7 @@ import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
 import { Prisma, OrderStatus } from "@prisma/client";
 import { isUniqueConstraintError } from "../../common/prisma-errors";
+import { safePagination } from "../../common/pagination";
 import { RedisService } from "../../redis/redis.service";
 import { AiGatewayService } from "../ai-gateway/ai-gateway.service";
 import { UnifiedPricingService } from "../pricing/unified-pricing.service";
@@ -149,7 +150,8 @@ export class CourseService {
     auditStatus?: string; status?: string; stationId?: string; type?: string; keyword?: string;
     categoryLevel1?: string; sort?: string; free?: boolean;
   }) {
-    const { page, pageSize, circleId, auditStatus, status, stationId, type, keyword, categoryLevel1, sort, free } = params;
+    const { circleId, auditStatus, status, stationId, type, keyword, categoryLevel1, sort, free } = params;
+    const { page, pageSize, skip } = safePagination(params.page, params.pageSize);
     const filterStatus = auditStatus || status;
     const filterHash = `${circleId ?? ""}:${filterStatus ?? ""}:${type ?? ""}:${keyword ?? ""}:${categoryLevel1 ?? ""}:${sort ?? ""}:${free ? "1" : ""}`;
     const cacheKey = `courses:list:${page}:${pageSize}:${filterHash}`;
@@ -187,7 +189,7 @@ export class CourseService {
           circle: { select: { id: true, name: true } },
           _count: { select: { chapters: true } },
         },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy,
       }),
@@ -355,7 +357,8 @@ export class CourseService {
     });
   }
 
-  async getWorks(courseId: string, chapterId?: string, page = 1, pageSize = 20) {
+  async getWorks(courseId: string, chapterId?: string, rawPage = 1, rawPageSize = 20) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
     const where: Prisma.CourseWorkWhereInput = { courseId };
     if (chapterId) where.chapterId = chapterId;
 
@@ -363,7 +366,7 @@ export class CourseService {
       this.prisma.courseWork.findMany({
         where,
         orderBy: { createdAt: "desc" },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         include: {
           user: { select: { id: true, nickname: true, avatar: true } },
@@ -864,12 +867,13 @@ ${chapterCtx}
   }
 
   /** 获取我购买的课程 */
-  async getMyCourses(userId: string, page = 1, pageSize = 20) {
+  async getMyCourses(userId: string, rawPage = 1, rawPageSize = 20) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
     const where: Prisma.OrderWhereInput = { userId, type: "COURSE" as const, status: { in: [OrderStatus.PAID, OrderStatus.COMPLETED] } };
     const [orders, total] = await Promise.all([
       this.prisma.order.findMany({
         where,
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { paidAt: "desc" },
       }),
@@ -943,13 +947,14 @@ ${chapterCtx}
     return review;
   }
 
-  async listReviews(courseId: string, page = 1, pageSize = 20) {
+  async listReviews(courseId: string, rawPage = 1, rawPageSize = 20) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
     const where = { courseId, status: "PUBLISHED" };
     const [reviews, total] = await Promise.all([
       this.prisma.courseReview.findMany({
         where,
         include: { user: { select: { id: true, nickname: true, avatar: true } } },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),
@@ -974,7 +979,8 @@ ${chapterCtx}
   // ═══════════════════ 讲师创作管理台 ═══════════════════
 
   /** 我创建的课程（讲师管理台，含章节/评价计数与审核状态） */
-  async getCreatedCourses(userId: string, page = 1, pageSize = 20) {
+  async getCreatedCourses(userId: string, rawPage = 1, rawPageSize = 20) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
     const where: Prisma.CourseWhereInput = { userId, deletedAt: null };
     const [items, total] = await Promise.all([
       this.prisma.course.findMany({
@@ -991,7 +997,7 @@ ${chapterCtx}
           createdAt: true,
           _count: { select: { chapters: true, reviews: true } },
         },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),
@@ -1164,13 +1170,14 @@ ${chapterCtx}
 
   // ═══════════════════ 草稿管理（讲师端）═══════════════════
 
-  async getMyDrafts(userId: string, page = 1, pageSize = 20) {
+  async getMyDrafts(userId: string, rawPage = 1, rawPageSize = 20) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
     const where: Prisma.CourseWhereInput = { userId, auditStatus: "DRAFT" };
     const [items, total] = await Promise.all([
       this.prisma.course.findMany({
         where,
         select: { id: true, title: true, cover: true, intro: true, updatedAt: true },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { updatedAt: "desc" },
       }),
@@ -1232,7 +1239,8 @@ ${chapterCtx}
   // ═══════════════════ 管理端 — 学员管理 ═══════════════════
 
   /** 管理员查看课程学员列表 */
-  async getCourseStudents(courseId: string, page = 1, pageSize = 20) {
+  async getCourseStudents(courseId: string, rawPage = 1, rawPageSize = 20) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
     const course = await this.prisma.course.findUnique({ where: { id: courseId }, select: { id: true } });
     if (!course) throw new BusinessException(ErrorCode.COURSE_NOT_FOUND, "课程不存在");
 
@@ -1241,7 +1249,7 @@ ${chapterCtx}
       this.prisma.order.findMany({
         where,
         select: { id: true, userId: true, amount: true, paidAt: true },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { paidAt: "desc" },
       }),
@@ -1343,14 +1351,15 @@ ${chapterCtx}
   }
 
   /** 管理员查看所有评价（含隐藏） */
-  async listAllReviews(courseId: string, page = 1, pageSize = 20, status?: string) {
+  async listAllReviews(courseId: string, rawPage = 1, rawPageSize = 20, status?: string) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
     const where: Prisma.CourseReviewWhereInput = { courseId };
     if (status) where.status = status;
     const [reviews, total] = await Promise.all([
       this.prisma.courseReview.findMany({
         where,
         include: { user: { select: { id: true, nickname: true, avatar: true } } },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),
@@ -1559,6 +1568,7 @@ ${chapterCtx}
 
   /** 问答列表（按课程/章节/状态/标签筛选） */
   async listQuestions(courseId: string, q: QaListQueryDto) {
+    const { page, pageSize, skip } = safePagination(q.page, q.pageSize);
     const where: Prisma.CourseQaWhereInput = { courseId };
     if (q.chapterId) where.chapterId = q.chapterId;
     if (q.status) where.status = q.status;
@@ -1571,21 +1581,22 @@ ${chapterCtx}
           user: { select: { id: true, nickname: true, avatar: true } },
           chapter: { select: { id: true, title: true } },
         },
-        skip: ((q.page || 1) - 1) * (q.pageSize || 20),
-        take: q.pageSize || 20,
+        skip,
+        take: pageSize,
         orderBy: { createdAt: "desc" },
       }),
       this.prisma.courseQa.count({ where }),
     ]);
 
-    return { questions, total, page: q.page || 1, pageSize: q.pageSize || 20 };
+    return { questions, total, page, pageSize };
   }
 
   /** 学生查看自己的提问 */
-  async getMyQuestions(userId: string, courseId: string, page = 1, pageSize = 20) {
+  async getMyQuestions(userId: string, courseId: string, rawPage = 1, rawPageSize = 20) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
     const where: Prisma.CourseQaWhereInput = { userId, courseId };
     const [questions, total] = await Promise.all([
-      this.prisma.courseQa.findMany({ where, include: { chapter: { select: { id: true, title: true } } }, skip: (page - 1) * pageSize, take: pageSize, orderBy: { createdAt: "desc" } }),
+      this.prisma.courseQa.findMany({ where, include: { chapter: { select: { id: true, title: true } } }, skip, take: pageSize, orderBy: { createdAt: "desc" } }),
       this.prisma.courseQa.count({ where }),
     ]);
     return { questions, total, page, pageSize };

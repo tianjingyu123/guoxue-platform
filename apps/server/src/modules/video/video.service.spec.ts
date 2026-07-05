@@ -336,4 +336,25 @@ describe("VideoService", () => {
       expect(result.MediaInfoSet).toEqual([]);
     });
   });
+
+  // 坏味道 P2-4：入参归一化（safePagination），防非法 page/pageSize 致 skip:NaN 进 Prisma 抛 500
+  describe("分页入参加固（P2-4）", () => {
+    it("list: 非法 page(NaN) 归一化第1页·skip 不为 NaN", async () => {
+      mockPrisma.video.findMany.mockResolvedValue([]);
+      mockPrisma.video.count.mockResolvedValue(0);
+      await svc.list({ page: "abc" as any, pageSize: "xyz" as any });
+      const arg = mockPrisma.video.findMany.mock.calls.at(-1)![0];
+      expect(Number.isNaN(arg.skip)).toBe(false);
+      expect(arg.skip).toBe(0);
+      expect(arg.take).toBe(20);
+    });
+
+    it("listCollected: 负数 page 归一化第1页·skip=0", async () => {
+      mockPrisma.collect.findMany.mockResolvedValue([]);
+      mockPrisma.collect.count.mockResolvedValue(0);
+      await svc.listCollected("u1", -3 as any, 10);
+      const arg = mockPrisma.collect.findMany.mock.calls.at(-1)![0];
+      expect(arg.skip).toBe(0);
+    });
+  });
 });

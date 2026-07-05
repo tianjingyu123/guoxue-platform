@@ -7,6 +7,7 @@ import { Cacheable, CacheEvict } from "../../common/cache.decorator";
 import { Prisma } from "@prisma/client";
 import { isUniqueConstraintError } from "../../common/prisma-errors";
 import { AuditService } from "../audit/audit.service";
+import { safePagination } from "../../common/pagination";
 
 @Injectable()
 export class VideoService {
@@ -77,7 +78,8 @@ export class VideoService {
 
   @Cacheable({ key: (args) => `video:list:${JSON.stringify(args[0])}`, ttl: 60 })
   async list(params: { circleId?: string; status?: string; page?: number; pageSize?: number; stationId?: string }) {
-    const { circleId, status, page = 1, pageSize = 20, stationId } = params;
+    const { circleId, status, stationId } = params;
+    const { page, pageSize, skip } = safePagination(params.page, params.pageSize);
     const where: Prisma.VideoWhereInput = {};
     if (circleId) where.circleId = circleId;
     if (status) where.status = status;
@@ -91,7 +93,7 @@ export class VideoService {
           user: { select: { id: true, nickname: true, avatar: true } },
           circle: { select: { id: true, name: true } },
         },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),
@@ -192,12 +194,13 @@ export class VideoService {
 
   /** 我收藏的视频 */
   @Cacheable({ key: (args) => `video:collected:${args[0]}:${args[1]}:${args[2]}`, ttl: 30 })
-  async listCollected(userId: string, page = 1, pageSize = 20) {
+  async listCollected(userId: string, rawPage = 1, rawPageSize = 20) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
     const where = { userId, targetType: "VIDEO" };
     const [collects, total] = await Promise.all([
       this.prisma.collect.findMany({
         where,
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),
@@ -318,7 +321,8 @@ export class VideoService {
    * 视频瀑布流列表 — 返回 VideoListItem 格式
    * sort: recommend(默认)=播放量优先 / hot=点赞优先 / follow=已关注作者(需登录，未登录或未关注→空)
    */
-  async listItems(page: number, pageSize: number, opts?: { sort?: string; followerId?: string }) {
+  async listItems(rawPage: number, rawPageSize: number, opts?: { sort?: string; followerId?: string }) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
     const where: Prisma.VideoWhereInput = { status: "PUBLISHED" };
 
     // 关注 tab：仅拉取已关注作者的视频；未登录或未关注任何人 → 空列表（前端引导登录/去关注）
@@ -343,7 +347,7 @@ export class VideoService {
     const videos = await this.prisma.video.findMany({
       where,
       orderBy,
-      skip: (page - 1) * pageSize,
+      skip,
       take: pageSize,
       include: {
         user: { select: { nickname: true, avatar: true } },
@@ -366,7 +370,8 @@ export class VideoService {
 
   /** 搜索视频 — 标题/标签模糊匹配 */
   async searchVideos(params: { keyword?: string; category?: string; page: number; pageSize: number }) {
-    const { keyword, category, page, pageSize } = params;
+    const { keyword, category } = params;
+    const { page, pageSize, skip } = safePagination(params.page, params.pageSize);
     const where: any = { status: "PUBLISHED" };
 
     if (keyword) {
@@ -383,7 +388,7 @@ export class VideoService {
       this.prisma.video.findMany({
         where,
         orderBy: { viewCount: "desc" },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         include: {
           user: { select: { nickname: true, avatar: true } },
@@ -411,11 +416,12 @@ export class VideoService {
   }
 
   /** 可带货商品库 */
-  async listProducts(page: number, pageSize: number) {
+  async listProducts(rawPage: number, rawPageSize: number) {
+    const { skip, pageSize } = safePagination(rawPage, rawPageSize);
     const products = await this.prisma.product.findMany({
       where: { status: "ON_SALE", deletedAt: null },
       orderBy: { salesCount: "desc" },
-      skip: (page - 1) * pageSize,
+      skip,
       take: pageSize,
       select: { id: true, title: true, images: true, price: true, salesCount: true, stock: true },
     });

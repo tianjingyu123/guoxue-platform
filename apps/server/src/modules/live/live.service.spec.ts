@@ -234,4 +234,25 @@ describe("LiveService", () => {
       expect(mockPrisma.courseChapter.create).not.toHaveBeenCalled();
     });
   });
+
+  // 坏味道 P2-4：入参归一化（safePagination），防非法 page/pageSize 致 skip:NaN 进 Prisma 抛 500
+  describe("分页入参加固（P2-4）", () => {
+    it("listRooms: 非法 page(NaN) 归一化第1页·skip 不为 NaN", async () => {
+      mockPrisma.liveRoom.findMany.mockResolvedValue([]);
+      mockPrisma.liveRoom.count.mockResolvedValue(0);
+      await svc.listRooms(undefined, "abc" as any, "xyz" as any);
+      const arg = mockPrisma.liveRoom.findMany.mock.calls.at(-1)![0];
+      expect(Number.isNaN(arg.skip)).toBe(false);
+      expect(arg.skip).toBe(0);
+      expect(arg.take).toBe(20);
+    });
+
+    it("listCourseRooms: 负数 page 归一化第1页·skip=0", async () => {
+      mockPrisma.liveRoom.findMany.mockResolvedValue([]);
+      mockPrisma.liveRoom.count.mockResolvedValue(0);
+      await svc.listCourseRooms("co1", -2 as any, 10);
+      const arg = mockPrisma.liveRoom.findMany.mock.calls.at(-1)![0];
+      expect(arg.skip).toBe(0);
+    });
+  });
 });

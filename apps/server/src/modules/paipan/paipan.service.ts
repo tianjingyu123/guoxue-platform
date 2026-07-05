@@ -11,6 +11,7 @@ import { calculateQimenYang, calculateQimenYin } from "../tool-registry/calculat
 import type { QimenResult } from "@guoxue/shared";
 import { createHash } from "node:crypto";
 import { encrypt, decrypt, maskPhone } from "../../common/crypto.util";
+import { safePagination } from "../../common/pagination";
 
 /** 排盘结果缓存 TTL（秒，24 小时） */
 const CACHE_TTL = 86400;
@@ -98,9 +99,10 @@ export class PaipanService {
   /** 获取用户排盘历史 */
   async getUserBaziHistory(
     userId: string,
-    page = 1,
-    pageSize = 20,
+    rawPage = 1,
+    rawPageSize = 20,
   ) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
     const where = { userId, paipanType: "BAZI" as const };
 
     const [records, total] = await Promise.all([
@@ -112,7 +114,7 @@ export class PaipanService {
           clientBirth: true,
           createdAt: true,
         },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),
@@ -190,9 +192,10 @@ export class PaipanService {
   /** 获取用户紫微排盘历史 */
   async getUserZiweiHistory(
     userId: string,
-    page = 1,
-    pageSize = 20,
+    rawPage = 1,
+    rawPageSize = 20,
   ) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
     const where = { userId, paipanType: "ZIWEI" as const };
 
     const [records, total] = await Promise.all([
@@ -204,7 +207,7 @@ export class PaipanService {
           clientBirth: true,
           createdAt: true,
         },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),
@@ -334,13 +337,14 @@ export class PaipanService {
   }
 
   /** 获取用户奇门排盘历史 */
-  async getUserQimenHistory(userId: string, page = 1, pageSize = 20) {
+  async getUserQimenHistory(userId: string, rawPage = 1, rawPageSize = 20) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
     const where = { userId, paipanType: "QIMEN" as const };
     const [records, total] = await Promise.all([
       this.prisma.paipanRecord.findMany({
         where,
         select: { id: true, clientName: true, clientBirth: true, createdAt: true },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),
@@ -422,13 +426,14 @@ export class PaipanService {
   }
 
   /** 获取用户阳盘排盘历史 */
-  async getUserYangpanHistory(userId: string, page = 1, pageSize = 20) {
+  async getUserYangpanHistory(userId: string, rawPage = 1, rawPageSize = 20) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
     const where = { userId, paipanType: "YANGPAN" as const };
     const [records, total] = await Promise.all([
       this.prisma.paipanRecord.findMany({
         where,
         select: { id: true, clientName: true, clientBirth: true, createdAt: true },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),
@@ -546,7 +551,8 @@ export class PaipanService {
     type?: string
     keyword?: string
   }) {
-    const { page, pageSize, type, keyword } = params
+    const { type, keyword } = params
+    const { page, pageSize, skip } = safePagination(params.page, params.pageSize)
     const where: Prisma.PaipanRecordWhereInput = {}
 
     if (type && type !== "ALL") {
@@ -571,7 +577,7 @@ export class PaipanService {
           createdAt: true,
           user: { select: { nickname: true, phone: true } },
         },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),
@@ -640,8 +646,7 @@ export class PaipanService {
 
   /** 获取八字案例库（公开） */
   async getCases(q: CaseQueryDto) {
-    const page = q.page || 1;
-    const pageSize = q.pageSize || 20;
+    const { page, pageSize, skip } = safePagination(q.page, q.pageSize);
     const where: Prisma.CelebrityCaseWhereInput = {};
 
     if (q.primaryCat) where.primaryCat = q.primaryCat;
@@ -656,7 +661,7 @@ export class PaipanService {
     const [records, total] = await Promise.all([
       this.prisma.celebrityCase.findMany({
         where,
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { sortOrder: "asc" },
       }),
@@ -888,10 +893,11 @@ export class PaipanService {
     return this.decryptRecord(record);
   }
 
-  async getUserLiuYaoHistory(userId: string, page = 1, pageSize = 20) {
+  async getUserLiuYaoHistory(userId: string, rawPage = 1, rawPageSize = 20) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
     const where = { userId, paipanType: "LIUYAO" as const };
     const [records, total] = await Promise.all([
-      this.prisma.paipanRecord.findMany({ where, select: { id: true, clientName: true, clientBirth: true, createdAt: true }, skip: (page-1)*pageSize, take: pageSize, orderBy: { createdAt: "desc" } }),
+      this.prisma.paipanRecord.findMany({ where, select: { id: true, clientName: true, clientBirth: true, createdAt: true }, skip, take: pageSize, orderBy: { createdAt: "desc" } }),
       this.prisma.paipanRecord.count({ where }),
     ]);
     return { records: this.decryptRecords(records), total, page, pageSize };
@@ -932,10 +938,11 @@ export class PaipanService {
     return this.decryptRecord(record);
   }
 
-  async getUserDaLiuRenHistory(userId: string, page = 1, pageSize = 20) {
+  async getUserDaLiuRenHistory(userId: string, rawPage = 1, rawPageSize = 20) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
     const where = { userId, paipanType: "DALIUREN" as const };
     const [records, total] = await Promise.all([
-      this.prisma.paipanRecord.findMany({ where, select: { id: true, clientName: true, clientBirth: true, createdAt: true }, skip: (page-1)*pageSize, take: pageSize, orderBy: { createdAt: "desc" } }),
+      this.prisma.paipanRecord.findMany({ where, select: { id: true, clientName: true, clientBirth: true, createdAt: true }, skip, take: pageSize, orderBy: { createdAt: "desc" } }),
       this.prisma.paipanRecord.count({ where }),
     ]);
     return { records: this.decryptRecords(records), total, page, pageSize };

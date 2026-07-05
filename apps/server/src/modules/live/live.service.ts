@@ -12,6 +12,7 @@ import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { CoinService } from "../coin/coin.service";
 import { RevenueService } from "../revenue/revenue.service";
+import { safePagination } from "../../common/pagination";
 
 @Injectable()
 export class LiveService {
@@ -149,7 +150,8 @@ export class LiveService {
   }
 
   @Cacheable({ key: (args: any[]) => `live:rooms:${args[0] || "all"}:${args[1]}:${args[2]}:${args[3] || ""}:${args[4] || ""}`, ttl: 15 })
-  async listRooms(status?: string, page = 1, pageSize = 20, circleId?: string, stationId?: string) {
+  async listRooms(status?: string, rawPage = 1, rawPageSize = 20, circleId?: string, stationId?: string) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
     const where: Prisma.LiveRoomWhereInput = {};
     if (status) where.status = status as LiveStatus;
     if (circleId) where.circleId = circleId;
@@ -163,7 +165,7 @@ export class LiveService {
           circle: { select: { id: true, name: true } },
           _count: { select: { products: true } },
         },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),
@@ -482,7 +484,8 @@ export class LiveService {
 
   /** 获取即将开始的直播预告列表（按 startTime 升序） */
   @Cacheable({ key: (args: any[]) => `live:scheduled:${args[0]}:${args[1]}:${args[2] || ""}`, ttl: 30 })
-  async listScheduled(page = 1, pageSize = 10, stationId?: string) {
+  async listScheduled(rawPage = 1, rawPageSize = 10, stationId?: string) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
     const where: Prisma.LiveRoomWhereInput = { status: "WAITING" as LiveStatus, startTime: { gte: new Date() } };
     if (stationId) where.stationId = stationId;
     const [rooms, total] = await Promise.all([
@@ -494,7 +497,7 @@ export class LiveService {
           user: { select: { id: true, nickname: true, avatar: true } },
           circle: { select: { id: true, name: true } },
         },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { startTime: "asc" },
       }),
@@ -846,11 +849,12 @@ export class LiveService {
   }
 
   /** 审核日志列表 */
-  async listAuditLogs(roomId: string, page = 1, pageSize = 20) {
+  async listAuditLogs(roomId: string, rawPage = 1, rawPageSize = 20) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
     const [logs, total] = await Promise.all([
       this.prisma.liveAuditLog.findMany({
         where: { liveRoomId: roomId },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),
@@ -1037,7 +1041,8 @@ export class LiveService {
   // ───────── 课程联动 ─────────
 
   /** 获取课程关联的直播间列表 */
-  async listCourseRooms(courseId: string, page = 1, pageSize = 20, stationId?: string) {
+  async listCourseRooms(courseId: string, rawPage = 1, rawPageSize = 20, stationId?: string) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
     const where: Prisma.LiveRoomWhereInput = { courseId };
     if (stationId) where.stationId = stationId;
     const [rooms, total] = await Promise.all([
@@ -1047,7 +1052,7 @@ export class LiveService {
           user: { select: { id: true, nickname: true, avatar: true } },
           _count: { select: { products: true } },
         },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),

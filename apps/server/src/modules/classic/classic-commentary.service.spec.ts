@@ -203,4 +203,14 @@ describe("ClassicCommentaryService", () => {
       expect(result).toBe(0);
     });
   });
+
+  describe("分页入参加固（P2-4）", () => {
+    it("listByBook 非法 page 不产生 NaN skip", async () => {
+      mockPrisma.classicCommentary.findMany.mockResolvedValue([]);
+      mockPrisma.classicCommentary.count.mockResolvedValue(0);
+      await svc.listByBook("b1", {}, "abc" as any);
+      const arg = mockPrisma.classicCommentary.findMany.mock.calls[0][0];
+      expect(Number.isNaN(arg.skip)).toBe(false);
+    });
+  });
 });

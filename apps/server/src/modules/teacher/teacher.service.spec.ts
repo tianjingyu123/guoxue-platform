@@ -209,6 +209,18 @@ describe("TeacherService", () => {
     });
   });
 
+  // 坏味道 P2-4：入参归一化（safePagination），防非法 page/pageSize 致 skip:NaN/负数进 Prisma 抛 500
+  describe("分页入参加固（P2-4）", () => {
+    it("listCertifications: 非法 page(NaN) 归一化第1页·skip 不为 NaN", async () => {
+      mockPrisma.teacherCertification.findMany.mockResolvedValue([]);
+      mockPrisma.teacherCertification.count.mockResolvedValue(0);
+      await svc.listCertifications(undefined, "abc" as any, 20);
+      const arg = mockPrisma.teacherCertification.findMany.mock.calls.at(-1)![0];
+      expect(Number.isNaN(arg.skip)).toBe(false);
+      expect(arg.skip).toBe(0);
+    });
+  });
+
   describe("reviewCertification（管理端审核）", () => {
     it("不存在 → 抛错", async () => {
       mockPrisma.teacherCertification.findUnique.mockResolvedValue(null);

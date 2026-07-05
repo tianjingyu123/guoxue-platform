@@ -7,6 +7,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { CoinService } from "../coin/coin.service";
 import { RevenueService } from "../revenue/revenue.service";
 import { AuditService } from "../audit/audit.service";
+import { safePagination } from "../../common/pagination";
 
 @Injectable()
 export class QuestionService {
@@ -252,8 +253,7 @@ export class QuestionService {
 
   /** 圈子问答列表 */
   async listQuestions(dto: { circleId?: string; status?: string; isPublic?: boolean; askerId?: string; answererId?: string; participantId?: string; page?: number; pageSize?: number }) {
-    const page = dto.page || 1;
-    const pageSize = dto.pageSize || 20;
+    const { page, pageSize, skip } = safePagination(dto.page, dto.pageSize);
     const where: Prisma.PaidQuestionWhereInput = {};
     if (dto.circleId) where.circleId = dto.circleId;
     if (dto.status) where.status = dto.status;
@@ -271,7 +271,7 @@ export class QuestionService {
           answerer: { select: { id: true, nickname: true, avatar: true } },
           circle: { select: { id: true, name: true } },
         },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),

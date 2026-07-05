@@ -1,4 +1,5 @@
 import { Injectable, Logger } from "@nestjs/common";
+import { safePagination } from "../../common/pagination";
 import { PrismaService } from "../../prisma/prisma.service";
 import { VectorService } from "../ai-gateway/vector.service";
 import { BusinessException } from "../../common/business.exception";
@@ -20,7 +21,8 @@ export class ClassicCommentaryService {
   ) {}
 
   /** 获取某部经典的注解列表（分页） */
-  async listByBook(bookId: string, query?: { type?: string; school?: string }, page = 1, pageSize = 50) {
+  async listByBook(bookId: string, query?: { type?: string; school?: string }, rawPage = 1, rawPageSize = 50) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
     const where: any = { bookId, status: "PUBLISHED" };
     if (query?.type) where.type = query.type;
     if (query?.school) where.school = query.school;
@@ -33,7 +35,7 @@ export class ClassicCommentaryService {
           school: true, type: true, chapterId: true, createdAt: true,
         },
         orderBy: { createdAt: "desc" },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
       }),
       this.prisma.classicCommentary.count({ where }),
@@ -115,7 +117,8 @@ export class ClassicCommentaryService {
   }
 
   /** 搜索注解（全文+元数据，分页） */
-  async search(query: { keyword?: string; school?: string; type?: string; bookId?: string }, page = 1, pageSize = 20) {
+  async search(query: { keyword?: string; school?: string; type?: string; bookId?: string }, rawPage = 1, rawPageSize = 20) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
     const where: any = { status: "PUBLISHED" };
     if (query.school) where.school = query.school;
     if (query.type) where.type = query.type;
@@ -136,7 +139,7 @@ export class ClassicCommentaryService {
           content: true, school: true, bookId: true,
           book: { select: { title: true } },
         },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),

@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
+import { safePagination } from "../../common/pagination";
 import { AiGatewayService } from "../ai-gateway/ai-gateway.service";
 import {
   CategoryDto,
@@ -543,8 +544,7 @@ export class PoetryService {
 
   /** 管理端：诗词分页列表（支持 status/categoryId/dynasty/keyword 筛选） */
   async adminListPoems(params: { page?: number; pageSize?: number; status?: string; categoryId?: string; dynasty?: string; keyword?: string }) {
-    const page = params.page ?? 1;
-    const pageSize = params.pageSize ?? 20;
+    const { page, pageSize, skip } = safePagination(params.page, params.pageSize);
     const where: any = {};
     if (params.status) where.status = params.status;
     if (params.categoryId) where.categoryId = params.categoryId;
@@ -559,7 +559,7 @@ export class PoetryService {
     const [items, total] = await Promise.all([
       this.prisma.poetry.findMany({
         where,
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
       }),
@@ -634,14 +634,13 @@ export class PoetryService {
 
   // ── 合集 / 诗单 ──
   async adminListCollections(params: { page?: number; pageSize?: number; status?: string }) {
-    const page = params.page ?? 1;
-    const pageSize = params.pageSize ?? 20;
+    const { page, pageSize, skip } = safePagination(params.page, params.pageSize);
     const where: any = {};
     if (params.status) where.status = params.status;
     const [rows, total] = await Promise.all([
       this.prisma.poetryCollection.findMany({
         where,
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
         include: { _count: { select: { poems: true } } },

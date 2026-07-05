@@ -5,6 +5,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
+import { safePagination } from "../../common/pagination";
 
 interface FortuneContent {
   direction: string;
@@ -318,13 +319,14 @@ export class FortuneService {
     return { pushed: records.length };
   }
 
-  async adminListRecords(page = 1, pageSize = 20, fortuneType?: string) {
+  async adminListRecords(rawPage = 1, rawPageSize = 20, fortuneType?: string) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
     const where: any = {};
     if (fortuneType) where.fortuneType = fortuneType;
     const [items, total] = await Promise.all([
       this.prisma.fortuneRecord.findMany({
         where,
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),
@@ -335,13 +337,14 @@ export class FortuneService {
   }
 
   /** 管理端：列出所有用户的运势推送订阅配置 */
-  async adminListSubscriptions(page = 1, pageSize = 20, fortuneType?: string) {
+  async adminListSubscriptions(rawPage = 1, rawPageSize = 20, fortuneType?: string) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
     const where: any = {};
     if (fortuneType) where.fortuneType = fortuneType;
     const [items, total] = await Promise.all([
       this.prisma.fortuneSubscription.findMany({
         where,
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),
