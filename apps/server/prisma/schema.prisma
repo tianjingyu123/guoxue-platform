@@ -2928,6 +2928,19 @@ model TrackEvent {
   @@index([userId, createdAt])
 }
 
+/** 用户标签（D-T2·数据运营引擎）：每日批量计算·FACT=行为直推 DERIVED=规则推导。
+ *  【R2 红线】标签只可用于内容推荐/发放优惠/运营圈人，严禁用于差异化定价（大数据杀熟）。 */
+model UserTag {
+  id        String   @id @default(uuid())
+  userId    String
+  tag       String // active_7d / pay_member / role_station / pref_yijing / whale / ...
+  type      String // FACT / DERIVED
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, tag])
+  @@index([tag])
+}
+
 /** 转化漏斗日聚合（D-T1·数据运营引擎）：4 条核心漏斗按日按步骤计数·date+funnel+step 唯一幂等 */
 model FunnelDaily {
   id      String @id @default(uuid())
