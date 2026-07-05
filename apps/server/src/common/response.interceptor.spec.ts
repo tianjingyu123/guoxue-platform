@@ -33,7 +33,7 @@ describe("ResponseInterceptor", () => {
   it("数组被包装", (done) => {
     const ctx = mockContext("/api/v1/users");
     const result = interceptor.intercept(ctx, mockHandler([{ id: "1" }, { id: "2" }]));
-    result.subscribe((r: ApiResponse) => {
+    result.subscribe((r: ApiResponse<unknown[]>) => {
       expect(r.code).toBe(200);
       expect(Array.isArray(r.data)).toBe(true);
       expect(r.data.length).toBe(2);

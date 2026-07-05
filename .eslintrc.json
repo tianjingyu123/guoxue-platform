@@ -72,6 +72,7 @@
     },
     {
       "files": [
+        "apps/server/src/common/**/*.ts",
         "apps/server/src/modules/commission/**/*.ts",
         "apps/server/src/modules/settlement/**/*.ts",
         "apps/server/src/modules/fund-approval/**/*.ts",

@@ -7,14 +7,21 @@ export function setCacheRedisService(svc: RedisService) {
   redisService = svc;
 }
 
+// 泛型方法包装：被装饰方法的入参/返回形态任意，any 为此处必要
+// （改 unknown 会迫使所有 @Cacheable/@CacheEvict 调用点的 key/condition 回调强转，得不偿失）。
+/* eslint-disable @typescript-eslint/no-explicit-any */
+type MethodArgs = any[];
+type MethodResult = any;
+/* eslint-enable @typescript-eslint/no-explicit-any */
+
 interface CacheableOptions {
-  key: string | ((args: any[]) => string);
+  key: string | ((args: MethodArgs) => string);
   ttl?: number;
-  condition?: (result: any) => boolean;
+  condition?: (result: MethodResult) => boolean;
 }
 
 interface CacheEvictOptions {
-  key: string | string[] | ((args: any[]) => string | string[]);
+  key: string | string[] | ((args: MethodArgs) => string | string[]);
   pattern?: boolean;
 }
 
@@ -32,9 +39,9 @@ const LOCK_RETRY_MS = 100;
 const MAX_RETRIES = 30;
 
 export function Cacheable(opts: CacheableOptions) {
-  return function (target: any, propertyKey: string, descriptor: PropertyDescriptor) {
+  return function (_target: object, _propertyKey: string, descriptor: PropertyDescriptor) {
     const originalMethod = descriptor.value;
-    descriptor.value = async function (...args: any[]) {
+    descriptor.value = async function (...args: MethodArgs) {
       const svc = redisService;
       if (!svc) return originalMethod.apply(this, args);
 
@@ -92,9 +99,9 @@ export function Cacheable(opts: CacheableOptions) {
 }
 
 export function CacheEvict(opts: CacheEvictOptions) {
-  return function (target: any, propertyKey: string, descriptor: PropertyDescriptor) {
+  return function (_target: object, _propertyKey: string, descriptor: PropertyDescriptor) {
     const originalMethod = descriptor.value;
-    descriptor.value = async function (...args: any[]) {
+    descriptor.value = async function (...args: MethodArgs) {
       const result = await originalMethod.apply(this, args);
       const svc = redisService;
       if (!svc) return result;

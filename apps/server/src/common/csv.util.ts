@@ -1,4 +1,4 @@
-export interface CsvColumn<T = any> {
+export interface CsvColumn<T = unknown> {
   header: string;
   accessor: (row: T) => string | number | boolean | null | undefined;
 }

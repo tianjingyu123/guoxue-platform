@@ -13,7 +13,7 @@ import { Readable } from "stream";
 import { SKIP_FORMAT_KEY } from "./skip-format.decorator";
 
 /** 统一成功响应格式 */
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   code: number;
   data: T;
   message: string;
@@ -98,7 +98,7 @@ export class ResponseInterceptor<T> implements NestInterceptor<T, ApiResponse<T>
     if (data === null || data === undefined) return false;
     if (typeof data !== "object") return false;
     // 标准 paginated() 标记
-    if ("_paginated" in data && (data as any)._paginated === true) return true;
+    if ("_paginated" in data && (data as Record<string, unknown>)._paginated === true) return true;
     // 自动检测：必须有 total 字段 + page/pageSize + 数据数组
     const d = data as Record<string, unknown>;
     if (typeof d.total !== "number") return false;

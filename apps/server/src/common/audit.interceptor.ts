@@ -11,7 +11,7 @@ export class AuditInterceptor implements NestInterceptor {
   private readonly logger = new Logger(AuditInterceptor.name);
   constructor(private audit: AuditService) {}
 
-  intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
+  intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
     const req = context.switchToHttp().getRequest();
     const handler = context.getHandler();
     const auditable = Reflect.getMetadata(AUDITABLE_KEY, handler);
@@ -28,7 +28,7 @@ export class AuditInterceptor implements NestInterceptor {
 
     return next.handle().pipe(
       tap((result) => {
-        const targetId = result?.id || req.params?.id;
+        const targetId = (result as { id?: string } | null | undefined)?.id || req.params?.id;
         this.audit.log({
           userId,
           action,

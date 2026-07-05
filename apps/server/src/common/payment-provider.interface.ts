@@ -21,7 +21,8 @@ export interface IPaymentProvider {
     reason?: string;
   }): Promise<Record<string, unknown>>;
 
-  /** 验证支付回调签名 */
+  /** 验证支付回调签名（各渠道验签入参形态不同：微信=签名头+原文，支付宝/银联=参数表，故用变长 any 桥接异构实现） */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 异构支付渠道验签签名各异，变长 any 为抽象契约的必要处
   verifyNotify(...args: any[]): Promise<{ valid: boolean; data?: Record<string, unknown>; error?: string } | boolean>;
 
   /** 处理支付回调，返回标准化订单数据 */
