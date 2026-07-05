@@ -3,6 +3,10 @@ import { CourseService } from "./course.service";
 import { CourseRecommendService } from "./course-recommend.service";
 import { CourseAdminService } from "./course-admin.service";
 import { CourseCreatorService } from "./course-creator.service";
+import { CoursePurchaseService } from "./course-purchase.service";
+import { CourseLearningService } from "./course-learning.service";
+import { CourseWorkService } from "./course-work.service";
+import { CourseReviewQaService } from "./course-review-qa.service";
 import { CourseController } from "./course.controller";
 import { CourseAdminController } from "./course-admin.controller";
 import { CourseSchedulerService } from "./course-scheduler.service";
@@ -19,7 +23,7 @@ import { AuditModule } from "../audit/audit.module";
 @Module({
   imports: [SystemModule, LiveModule, NotificationModule, AiGatewayModule, PricingModule, AuditModule],
   controllers: [CourseController, CourseAdminController],
-  providers: [CourseService, CourseRecommendService, CourseAdminService, CourseCreatorService, CourseSchedulerService, MemberGuard, CourseCreatorGuard, StationIsolationGuard],
+  providers: [CourseService, CourseRecommendService, CourseAdminService, CourseCreatorService, CoursePurchaseService, CourseLearningService, CourseWorkService, CourseReviewQaService, CourseSchedulerService, MemberGuard, CourseCreatorGuard, StationIsolationGuard],
   exports: [CourseService],
 })
 export class CourseModule {}

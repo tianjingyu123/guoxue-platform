@@ -3,6 +3,10 @@ import { CourseService } from "./course.service";
 import { CourseRecommendService } from "./course-recommend.service";
 import { CourseAdminService } from "./course-admin.service";
 import { CourseCreatorService } from "./course-creator.service";
+import { CoursePurchaseService } from "./course-purchase.service";
+import { CourseLearningService } from "./course-learning.service";
+import { CourseWorkService } from "./course-work.service";
+import { CourseReviewQaService } from "./course-review-qa.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { AiGatewayService } from "../ai-gateway/ai-gateway.service";
@@ -89,6 +93,10 @@ describe("CourseService", () => {
         CourseRecommendService,
         CourseAdminService,
         CourseCreatorService,
+        CoursePurchaseService,
+        CourseLearningService,
+        CourseWorkService,
+        CourseReviewQaService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: RedisService, useValue: mockRedis },
         { provide: AiGatewayService, useValue: mockAiGateway },

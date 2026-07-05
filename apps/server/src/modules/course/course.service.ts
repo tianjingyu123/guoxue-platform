@@ -1,18 +1,17 @@
-import { Injectable, Logger, Optional } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
-import { Prisma, OrderStatus } from "@prisma/client";
-import { isUniqueConstraintError } from "../../common/prisma-errors";
+import { Prisma } from "@prisma/client";
 import { safePagination } from "../../common/pagination";
 import { RedisService } from "../../redis/redis.service";
-import { AiGatewayService } from "../ai-gateway/ai-gateway.service";
-import { UnifiedPricingService } from "../pricing/unified-pricing.service";
-import { AuditService } from "../audit/audit.service";
-import { SystemService } from "../system/system.service";
 import { CourseRecommendService } from "./course-recommend.service";
 import { CourseAdminService } from "./course-admin.service";
 import { CourseCreatorService } from "./course-creator.service";
+import { CoursePurchaseService } from "./course-purchase.service";
+import { CourseLearningService } from "./course-learning.service";
+import { CourseWorkService } from "./course-work.service";
+import { CourseReviewQaService } from "./course-review-qa.service";
 import {
   CreateCourseDto, UpdateCourseDto,
   CreateChapterDto, UpdateChapterDto,
@@ -21,6 +20,12 @@ import {
   AskQuestionDto, AnswerQuestionDto, QaListQueryDto,
 } from "./course.dto";
 
+/**
+ * 课程域 facade（P2-5 拆分·shop 范式）：自身保留课程 CRUD / 审核 / 品类树，
+ * 其余按域委托 purchase(购买权限) / learning(章节进度看板证书) / work(作业AI批改) /
+ * reviewQa(评价问答) / creator(创作草稿) / admin(管理端) / recommend(相关推荐)。
+ * controller/外部消费者零改动·公共 API 逐字节不变·行为零变化。
+ */
 @Injectable()
 export class CourseService {
   private readonly logger = new Logger(CourseService.name);
@@ -28,25 +33,14 @@ export class CourseService {
   constructor(
     private prisma: PrismaService,
     private redis: RedisService,
-    private aiGateway: AiGatewayService,
-    private unifiedPricing: UnifiedPricingService,
-    private auditService: AuditService,
     private recommendSvc: CourseRecommendService,
     private adminSvc: CourseAdminService,
     private creatorSvc: CourseCreatorService,
-    // SystemModule 为 @Global 导出·@Optional 保证单测缺 provider 时回退默认品牌名
-    @Optional() private readonly systemService?: SystemService,
+    private purchaseSvc: CoursePurchaseService,
+    private learningSvc: CourseLearningService,
+    private workSvc: CourseWorkService,
+    private reviewQaSvc: CourseReviewQaService,
   ) {}
-
-  /** 品牌名（后台 BrandConfig 可配·拉取失败/未注入时兜底"热卜国学"，与历史口径一致） */
-  private async getBrandName(): Promise<string> {
-    try {
-      const cfg = await this.systemService?.getBrandConfig();
-      return (cfg as { siteName?: string } | undefined)?.siteName || "热卜国学";
-    } catch {
-      return "热卜国学";
-    }
-  }
 
   // ═══════════════════ 课程 CRUD ═══════════════════
 
@@ -235,751 +229,110 @@ export class CourseService {
     });
   }
 
-  // ═══════════════════ 章节管理 ═══════════════════
+  // ═══════════════════ 章节管理（委托 CourseLearningService） ═══════════════════
 
-  async addChapter(courseId: string, userId: string, dto: CreateChapterDto) {
-    await this.ensureOwner(courseId, userId);
-    return this.prisma.courseChapter.create({
-      data: {
-        courseId,
-        title: dto.title,
-        content: dto.content,
-        mediaUrl: dto.mediaUrl,
-        duration: dto.duration,
-        sortOrder: dto.sortOrder ?? 0,
-        freeTrial: dto.freeTrial ?? false,
-      },
-    });
+  addChapter(courseId: string, userId: string, dto: CreateChapterDto) {
+    return this.learningSvc.addChapter(courseId, userId, dto);
   }
 
-  async updateChapter(chapterId: string, courseId: string, userId: string, dto: UpdateChapterDto) {
-    await this.ensureOwner(courseId, userId);
-    const existing = await this.prisma.courseChapter.findUnique({ where: { id: chapterId } });
-    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "课程章节不存在");
-    return this.prisma.courseChapter.update({
-      where: { id: chapterId },
-      data: dto as Prisma.CourseChapterUpdateInput,
-    });
+  updateChapter(chapterId: string, courseId: string, userId: string, dto: UpdateChapterDto) {
+    return this.learningSvc.updateChapter(chapterId, courseId, userId, dto);
   }
 
-  async deleteChapter(chapterId: string, courseId: string, userId: string) {
-    await this.ensureOwner(courseId, userId);
-    const existing = await this.prisma.courseChapter.findUnique({ where: { id: chapterId } });
-    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "课程章节不存在");
-    await this.prisma.courseChapter.delete({ where: { id: chapterId } });
-    return { success: true };
+  deleteChapter(chapterId: string, courseId: string, userId: string) {
+    return this.learningSvc.deleteChapter(chapterId, courseId, userId);
   }
 
-  async getChapters(courseId: string) {
-    return this.prisma.courseChapter.findMany({
-      where: { courseId },
-      orderBy: { sortOrder: "asc" },
-      select: {
-        id: true, title: true, duration: true, sortOrder: true, freeTrial: true,
-      },
-    });
+  getChapters(courseId: string) {
+    return this.learningSvc.getChapters(courseId);
   }
 
-  /** 获取章节完整内容（需验证访问权限） */
-  async getChapterContent(userId: string, chapterId: string) {
-    const chapter = await this.prisma.courseChapter.findUnique({
-      where: { id: chapterId },
-      include: { course: { select: { id: true, price: true, userId: true } } },
-    });
-    if (!chapter) throw new BusinessException(ErrorCode.COURSE_NOT_FOUND, "章节不存在");
-
-    // 免费章节 or 课程免费 or 课程作者本人 — 直接放行
-    if (chapter.freeTrial || Number(chapter.course.price) === 0 || chapter.course.userId === userId) {
-      return chapter;
-    }
-
-    // 检查是否已购买
-    const hasAccess = await this.checkAccess(userId, chapter.course.id);
-    if (!hasAccess) throw new BusinessException(ErrorCode.COURSE_CHAPTER_LOCKED, "请先购买课程");
-
-    return chapter;
+  getChapterContent(userId: string, chapterId: string) {
+    return this.learningSvc.getChapterContent(userId, chapterId);
   }
 
-  // ═══════════════════ 学习进度 ═══════════════════
+  // ═══════════════════ 学习进度（委托 CourseLearningService） ═══════════════════
 
-  async updateProgress(userId: string, chapterId: string, dto: UpdateProgressDto) {
-    const chapter = await this.prisma.courseChapter.findUnique({
-      where: { id: chapterId },
-      select: { courseId: true },
-    });
-    if (!chapter) throw new BusinessException(ErrorCode.COURSE_NOT_FOUND, "章节不存在");
-
-    const completed = dto.progress >= 100;
-
-    if (dto.progress >= 50) {
-      this.prisma.userBehavior.create({ data: { userId, targetType: "COURSE", targetId: chapter.courseId, behavior: "LEARN", weight: 3 } }).catch((e) => this.logger.warn("学习行为记录失败", e));
-    }
-
-    if (completed) {
-      await this.prisma.courseProgress.upsert({
-        where: { userId_chapterId: { userId, chapterId } },
-        create: { userId, courseId: chapter.courseId, chapterId, progress: 100, completed: true },
-        update: { progress: 100, completed: true },
-      });
-    } else {
-      await this.prisma.courseProgress.upsert({
-        where: { userId_chapterId: { userId, chapterId } },
-        create: { userId, courseId: chapter.courseId, chapterId, progress: dto.progress },
-        update: { progress: dto.progress, completed: false },
-      });
-    }
-
-    return { success: true, progress: dto.progress, completed };
+  updateProgress(userId: string, chapterId: string, dto: UpdateProgressDto) {
+    return this.learningSvc.updateProgress(userId, chapterId, dto);
   }
 
-  async getMyProgress(userId: string, courseId: string) {
-    return this.prisma.courseProgress.findMany({
-      where: { userId, courseId },
-      select: { chapterId: true, progress: true, completed: true, updatedAt: true },
-    });
+  getMyProgress(userId: string, courseId: string) {
+    return this.learningSvc.getMyProgress(userId, courseId);
   }
 
-  // ═══════════════════ 作业 ═══════════════════
+  // ═══════════════════ 作业（委托 CourseWorkService） ═══════════════════
 
-  async submitWork(userId: string, chapterId: string, dto: SubmitWorkDto) {
-    const chapter = await this.prisma.courseChapter.findUnique({
-      where: { id: chapterId },
-      select: { courseId: true },
-    });
-    if (!chapter) throw new BusinessException(ErrorCode.COURSE_NOT_FOUND, "章节不存在");
-
-    // 将图片URL拼接到内容末尾
-    const contentWithImages = dto.images?.length
-      ? dto.content + '\n\n' + dto.images.map((url: string) => `![作业图片](${url})`).join('\n')
-      : dto.content;
-
-    return this.prisma.courseWork.create({
-      data: {
-        userId,
-        courseId: chapter.courseId,
-        chapterId,
-        content: contentWithImages,
-      },
-    });
+  submitWork(userId: string, chapterId: string, dto: SubmitWorkDto) {
+    return this.workSvc.submitWork(userId, chapterId, dto);
   }
 
-  async getWorks(courseId: string, chapterId?: string, rawPage = 1, rawPageSize = 20) {
-    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
-    const where: Prisma.CourseWorkWhereInput = { courseId };
-    if (chapterId) where.chapterId = chapterId;
-
-    const [list, total] = await Promise.all([
-      this.prisma.courseWork.findMany({
-        where,
-        orderBy: { createdAt: "desc" },
-        skip,
-        take: pageSize,
-        include: {
-          user: { select: { id: true, nickname: true, avatar: true } },
-          chapter: { select: { id: true, title: true } },
-        },
-      }),
-      this.prisma.courseWork.count({ where }),
-    ]);
-
-    return { list, total, page, pageSize };
+  getWorks(courseId: string, chapterId?: string, rawPage = 1, rawPageSize = 20) {
+    return this.workSvc.getWorks(courseId, chapterId, rawPage, rawPageSize);
   }
 
-  /** 获取单份作业（含批改结果）— 作业本人或课程讲师可见 */
-  async getWork(workId: string, userId: string) {
-    const work = await this.prisma.courseWork.findUnique({
-      where: { id: workId },
-      include: {
-        user: { select: { id: true, nickname: true, avatar: true } },
-        chapter: { select: { id: true, title: true } },
-        course: { select: { id: true, title: true, userId: true } },
-      },
-    });
-    if (!work) throw new BusinessException(ErrorCode.NOT_FOUND, "作业不存在");
-    if (work.userId !== userId && work.course.userId !== userId) {
-      throw new BusinessException(ErrorCode.FORBIDDEN, "无权查看该作业");
-    }
-    return work;
+  getWork(workId: string, userId: string) {
+    return this.workSvc.getWork(workId, userId);
   }
 
-  /** 限时特惠：从折扣课（originalPrice>price）派生，单场进行中 */
-  async getFlashSale() {
-    const courses = await this.prisma.course.findMany({
-      where: { auditStatus: "APPROVED", deletedAt: null, originalPrice: { not: null } },
-      include: { user: { select: { nickname: true } } },
-      orderBy: { studentCount: "desc" },
-      take: 30,
-    });
-    const list = courses
-      .filter((c) => c.originalPrice != null && Number(c.originalPrice) > Number(c.price))
-      .map((c) => {
-        const orig = Number(c.originalPrice);
-        const price = Number(c.price);
-        return {
-          id: c.id,
-          title: c.title,
-          instructor: c.user?.nickname || "讲师",
-          cover: c.cover || "",
-          originalPrice: orig,
-          salePrice: price,
-          discount: orig > 0 ? Math.round((price / orig) * 100) : 100,
-          students: c.studentCount,
-          rating: 0,
-          sessionId: "active",
-          sold: c.studentCount,
-          total: c.studentCount + 50,
-          category: c.categoryLevel1 || "",
-        };
-      });
-    const sessions = [
-      { id: "active", label: "限时特惠", startTime: "00:00", endTime: "23:59", status: "active" as const },
-    ];
-    return { sessions, courses: list };
+  getFlashSale() {
+    return this.workSvc.getFlashSale();
   }
 
-  /** 我的学习计划：从已购/有进度课程 + 进度更新历史派生 */
-  async getStudyPlan(userId: string) {
-    const progresses = await this.prisma.courseProgress.findMany({
-      where: { userId },
-      include: { course: { select: { id: true, title: true, cover: true, _count: { select: { chapters: true } } } } },
-      orderBy: { updatedAt: "desc" },
-    });
-
-    // 计划课程：按课程聚合完成进度
-    const courseMap = new Map<string, { id: string; courseId: string; title: string; cover: string; totalLessons: number; completedLessons: number; scheduledDays: number[]; order: number }>();
-    for (const p of progresses) {
-      if (!courseMap.has(p.courseId)) {
-        courseMap.set(p.courseId, {
-          id: p.courseId, courseId: p.courseId, title: p.course.title, cover: p.course.cover || "",
-          totalLessons: p.course._count.chapters, completedLessons: 0, scheduledDays: [], order: courseMap.size,
-        });
-      }
-      if (p.completed) courseMap.get(p.courseId)!.completedLessons++;
-    }
-    const courses = [...courseMap.values()];
-
-    // 打卡：按 updatedAt 日期聚合
-    const dayKey = (d: Date) => `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
-    const dayCount = new Map<string, number>();
-    for (const p of progresses) {
-      const k = dayKey(new Date(p.updatedAt));
-      dayCount.set(k, (dayCount.get(k) || 0) + 1);
-    }
-    // 近30天热力图（level 0-3）
-    const checkInLevels: number[] = [];
-    const today = new Date();
-    for (let i = 29; i >= 0; i--) {
-      const d = new Date(today);
-      d.setDate(today.getDate() - i);
-      const n = dayCount.get(dayKey(d)) || 0;
-      checkInLevels.push(n >= 3 ? 3 : n === 2 ? 2 : n === 1 ? 1 : 0);
-    }
-    // 连续打卡（从今天往前）
-    let streak = 0;
-    for (let i = 0; i < 365; i++) {
-      const d = new Date(today);
-      d.setDate(today.getDate() - i);
-      if ((dayCount.get(dayKey(d)) || 0) > 0) streak++;
-      else if (i > 0) break; // 今天没打卡不中断（允许今天还没学）
-    }
-
-    return {
-      goal: { daysPerWeek: 5, minutesPerDay: 30 },
-      courses,
-      streak,
-      checkInLevels,
-    };
+  getStudyPlan(userId: string) {
+    return this.workSvc.getStudyPlan(userId);
   }
 
-  async scoreWork(workId: string, userId: string, score: number, isAdmin: boolean, feedback?: string) {
-    const work = await this.prisma.courseWork.findUnique({ where: { id: workId }, select: { courseId: true } });
-    if (!work) throw new BusinessException(ErrorCode.NOT_FOUND, "作业不存在");
-    if (!isAdmin) {
-      const course = await this.prisma.course.findUnique({ where: { id: work.courseId }, select: { userId: true } });
-      if (!course || course.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只有讲师可以评分");
-    }
-    const updated = await this.prisma.courseWork.update({
-      where: { id: workId },
-      data: { score, feedback },
-    });
-    await this.redis.del(`courses:detail:${work.courseId}`);
-    return updated;
+  scoreWork(workId: string, userId: string, score: number, isAdmin: boolean, feedback?: string) {
+    return this.workSvc.scoreWork(workId, userId, score, isAdmin, feedback);
   }
 
-  /** AI 自动批改单份作业 */
-  async aiScoreWork(workId: string) {
-    const work = await this.prisma.courseWork.findUnique({
-      where: { id: workId },
-      include: {
-        chapter: { select: { title: true, content: true } },
-        course: { select: { title: true, type: true } },
-        user: { select: { nickname: true } },
-      },
-    });
-    if (!work) throw new BusinessException(ErrorCode.NOT_FOUND, "作业不存在");
-
-    const chapterCtx = work.chapter
-      ? `关联章节：${work.chapter.title}。章节内容参考：${(work.chapter.content || '').slice(0, 600)}`
-      : '';
-
-    const systemPrompt = `你是${await this.getBrandName()}平台的课程助教，负责批改学员作业。
-课程：${work.course.title}
-类型：${work.course.type}
-${chapterCtx}
-
-请根据作业内容给出：
-1. 评分（0-100分）
-2. 简短点评（50-150字）
-3. 改进建议（1-2条）
-
-请严格按以下 JSON 格式回复（不要包含其他内容）：
-{"score": 85, "feedback": "点评内容", "suggestions": ["建议1", "建议2"]}`;
-
-    try {
-      const result = await this.aiGateway.chat({
-        scene: "course-work-grading",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: `学员${work.user.nickname || ''}的作业：\n${work.content}` },
-        ],
-        options: { temperature: 0.3, maxTokens: 500 },
-      });
-
-      const parsed = JSON.parse(result.content.match(/\{[\s\S]*\}/)?.[0] || result.content);
-      return {
-        suggestedScore: Number(parsed.score) || 70,
-        feedback: parsed.feedback || '',
-        suggestions: parsed.suggestions || [],
-        model: result.model,
-      };
-    } catch (err: any) {
-      this.logger.warn(`AI 批改失败: ${err.message}`);
-      throw new BusinessException(ErrorCode.THIRD_AI_FAILED, "AI 批改失败，请稍后重试或手动批改");
-    }
+  aiScoreWork(workId: string) {
+    return this.workSvc.aiScoreWork(workId);
   }
 
-  /** AI 批量批改作业（并发限流 + 批量写入） */
-  async aiBatchScoreWorks(courseId: string, chapterId?: string) {
-    const where: Prisma.CourseWorkWhereInput = { courseId, score: null };
-    if (chapterId) where.chapterId = chapterId;
-
-    const works = await this.prisma.courseWork.findMany({
-      where,
-      select: { id: true, content: true, userId: true },
-      take: 50,
-    });
-
-    if (works.length === 0) return { processed: 0, message: "没有待批改的作业" };
-
-    // 批量获取课程信息（所有作业属于同一课程，只需查询一次）
-    const course = await this.prisma.course.findUnique({
-      where: { id: courseId },
-      select: { title: true, type: true },
-    });
-
-    // 并发 AI 批改，限制最大并行数 5
-    const CONCURRENCY = 5;
-    const results: { workId: string; score?: number; feedback?: string; status: string }[] = [];
-    const updates: { id: string; score: number; feedback: string }[] = [];
-
-    for (let i = 0; i < works.length; i += CONCURRENCY) {
-      const batch = works.slice(i, i + CONCURRENCY);
-      const batchResults = await Promise.allSettled(
-        batch.map(w => this.scoreWorkViaAi(w, course?.title || "", course?.type || "")),
-      );
-
-      for (let j = 0; j < batch.length; j++) {
-        const w = batch[j];
-        const r = batchResults[j];
-        if (r.status === "fulfilled") {
-          updates.push({ id: w.id, score: r.value.suggestedScore, feedback: r.value.feedback });
-          results.push({ workId: w.id, score: r.value.suggestedScore, status: "success" });
-        } else {
-          results.push({ workId: w.id, status: "failed" });
-        }
-      }
-    }
-
-    // 批量写入评分
-    if (updates.length > 0) {
-      await this.prisma.$transaction(
-        updates.map(u =>
-          this.prisma.courseWork.update({
-            where: { id: u.id },
-            data: { score: u.score, feedback: u.feedback },
-          }),
-        ),
-      );
-    }
-
-    return {
-      processed: works.length,
-      successCount: updates.length,
-      failCount: works.length - updates.length,
-      results,
-    };
+  aiBatchScoreWorks(courseId: string, chapterId?: string) {
+    return this.workSvc.aiBatchScoreWorks(courseId, chapterId);
   }
 
-  /** 单份作业 AI 评分（不含数据库读写，仅 AI 调用） */
-  private async scoreWorkViaAi(
-    work: { id: string; content: string; userId: string },
-    courseTitle: string,
-    courseType: string,
-  ) {
-    // 获取作业所属用户的昵称和章节信息（用于构建 prompt）
-    const [user, chapterInfo] = await Promise.all([
-      this.prisma.user.findUnique({ where: { id: work.userId }, select: { nickname: true } }),
-      this.prisma.courseChapter.findFirst({
-        where: { works: { some: { id: work.id } } },
-        select: { title: true, content: true },
-      }),
-    ]);
+  // ═══════════════════ 课程购买（委托 CoursePurchaseService） ═══════════════════
 
-    const chapterCtx = chapterInfo
-      ? `关联章节：${chapterInfo.title}。章节内容参考：${(chapterInfo.content || "").slice(0, 600)}`
-      : "";
-
-    const systemPrompt = `你是${await this.getBrandName()}平台的课程助教，负责批改学员作业。
-课程：${courseTitle}
-类型：${courseType}
-${chapterCtx}
-
-请根据作业内容给出：
-1. 评分（0-100分）
-2. 简短点评（50-150字）
-3. 改进建议（1-2条）
-
-请严格按以下 JSON 格式回复（不要包含其他内容）：
-{"score": 85, "feedback": "点评内容", "suggestions": ["建议1", "建议2"]}`;
-
-    const result = await this.aiGateway.chat({
-      scene: "course-work-grading",
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: `学员${user?.nickname || ""}的作业：\n${work.content}` },
-      ],
-      options: { temperature: 0.3, maxTokens: 500 },
-    });
-
-    const parsed = JSON.parse(result.content.match(/\{[\s\S]*\}/)?.[0] || result.content);
-    return {
-      suggestedScore: Number(parsed.score) || 70,
-      feedback: parsed.feedback || "",
-      suggestions: parsed.suggestions || [],
-      model: result.model,
-    };
+  purchase(userId: string, courseId: string, dto?: PurchaseCourseDto) {
+    return this.purchaseSvc.purchase(userId, courseId, dto);
   }
 
-  // ═══════════════════ 课程购买 ═══════════════════
-
-  /** 创建课程购买订单（Redis 锁防并发重复下单） */
-  async purchase(userId: string, courseId: string, dto?: PurchaseCourseDto) {
-    const course = await this.prisma.course.findUnique({
-      where: { id: courseId },
-      select: { id: true, price: true, title: true, validityDays: true },
-    });
-    if (!course) throw new BusinessException(ErrorCode.COURSE_NOT_FOUND, "课程不存在");
-
-    // 通过统一价格引擎计算实付价格（检查限时折扣）
-    const pricing = await this.unifiedPricing.calculateTargetPrice(courseId, "COURSE", userId);
-
-    // Redis 锁防并发：同一用户对同一课程只能有一个下单流程
-    const lockKey = `purchase:lock:${userId}:${courseId}`;
-    const locked = await this.redis.setNX(lockKey, "1", 10);
-    if (!locked) {
-      throw new BusinessException(ErrorCode.BAD_REQUEST, "订单处理中，请稍后再试");
-    }
-
-    try {
-      // 锁内再次检查是否已购买（含有效期判断）
-      const existingOrder = await this.prisma.order.findFirst({
-        where: { userId, type: "COURSE", targetId: courseId, status: { in: ["PAID", "COMPLETED"] } },
-        orderBy: { paidAt: "desc" },
-      });
-      if (existingOrder && existingOrder.paidAt) {
-        if (course.validityDays > 0) {
-          const expiresAt = new Date(existingOrder.paidAt.getTime() + course.validityDays * 86400000);
-          if (expiresAt > new Date()) {
-            throw new BusinessException(ErrorCode.COURSE_ALREADY_ENROLLED, "该课程仍在有效期内，无需重复购买");
-          }
-        } else {
-          throw new BusinessException(ErrorCode.COURSE_ALREADY_ENROLLED, "已购买该课程");
-        }
-      }
-
-      // 检查是否有待支付订单（复用）
-      const pendingOrder = await this.prisma.order.findFirst({
-        where: { userId, type: "COURSE", targetId: courseId, status: "PENDING" },
-      });
-      if (pendingOrder) return pendingOrder;
-
-      const orderData: any = {
-        userId,
-        type: "COURSE",
-        targetId: courseId,
-        amount: pricing.effectivePrice,
-        originalAmount: pricing.originalPrice > pricing.effectivePrice ? pricing.originalPrice : undefined,
-        couponId: dto?.couponId,
-        referrerId: dto?.referrerId,
-        status: "PENDING",
-      };
-      if (pricing.appliedPromotion) {
-        orderData.promotionType = pricing.appliedPromotion.type;
-        orderData.promotionId = pricing.appliedPromotion.id;
-      }
-      const order = await this.prisma.order.create({ data: orderData });
-      return order;
-    } finally {
-      await this.redis.del(lockKey).catch(() => {});
-    }
+  checkAccess(userId: string, courseId: string): Promise<boolean> {
+    return this.purchaseSvc.checkAccess(userId, courseId);
   }
 
-  /** 检查用户是否有课程访问权限（含有效期检查；会员专属精品课对有效会员免费） */
-  async checkAccess(userId: string, courseId: string): Promise<boolean> {
-    const course = await this.prisma.course.findUnique({
-      where: { id: courseId },
-      select: { price: true, userId: true, validityDays: true, memberFree: true },
-    });
-    if (!course) return false;
-    if (Number(course.price) === 0 || course.userId === userId) return true;
-
-    // 会员权益（2026-07-03 拍板）：memberFree 课程对有效会员直接放行，无需下单
-    if (course.memberFree && (await this.isActiveMember(userId))) return true;
-
-    const order = await this.prisma.order.findFirst({
-      where: { userId, type: "COURSE", targetId: courseId, status: { in: ["PAID", "COMPLETED"] } },
-    });
-    if (!order || !order.paidAt) return false;
-
-    // 如果课程有有效期，检查是否过期
-    if (course.validityDays > 0) {
-      const expiresAt = new Date(order.paidAt.getTime() + course.validityDays * 86400000);
-      if (expiresAt <= new Date()) return false;
-    }
-
-    return true;
+  setMemberFree(operatorUserId: string, courseId: string, memberFree: boolean) {
+    return this.purchaseSvc.setMemberFree(operatorUserId, courseId, memberFree);
   }
 
-  /** 会员精品课标记（平台运营专属：精品课遴选是平台与讲师协商的运营决策，讲师端不可自标蹭会员流量） */
-  async setMemberFree(operatorUserId: string, courseId: string, memberFree: boolean) {
-    const admin = await this.prisma.userRole.findFirst({
-      where: { userId: operatorUserId, roleType: { in: ["SUPER_ADMIN", "OPERATION_ADMIN"] } },
-      select: { id: true },
-    });
-    if (!admin) throw new BusinessException(ErrorCode.FORBIDDEN, "仅平台运营可设置会员精品课");
-    const course = await this.prisma.course.findUnique({ where: { id: courseId }, select: { id: true } });
-    if (!course) throw new BusinessException(ErrorCode.COURSE_NOT_FOUND, "课程不存在");
-    return this.prisma.course.update({ where: { id: courseId }, data: { memberFree }, select: { id: true, memberFree: true } });
+  checkCourseExpiry(userId: string, courseId: string) {
+    return this.purchaseSvc.checkCourseExpiry(userId, courseId);
   }
 
-  /** 是否有效会员（终身会员 memberExpire 为空；到期视为失效） */
-  private async isActiveMember(userId: string): Promise<boolean> {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: { memberLevel: true, memberExpire: true },
-    });
-    if (!user?.memberLevel || user.memberLevel === "NONE") return false;
-    return !user.memberExpire || user.memberExpire > new Date();
+  getUserValidCourses(userId: string) {
+    return this.purchaseSvc.getUserValidCourses(userId);
   }
 
-  /** 检查用户课程是否过期 */
-  async checkCourseExpiry(userId: string, courseId: string): Promise<{
-    expired: boolean;
-    expiresAt: string | null;
-    remainingDays: number | null;
-  }> {
-    const course = await this.prisma.course.findUnique({
-      where: { id: courseId },
-      select: { validityDays: true },
-    });
-    if (!course) throw new BusinessException(ErrorCode.COURSE_NOT_FOUND, "课程不存在");
-
-    // validityDays === 0 表示永久有效
-    if (course.validityDays === 0) {
-      return { expired: false, expiresAt: null, remainingDays: null };
-    }
-
-    const order = await this.prisma.order.findFirst({
-      where: { userId, type: "COURSE", targetId: courseId, status: { in: ["PAID", "COMPLETED"] } },
-      orderBy: { paidAt: "desc" },
-    });
-    if (!order || !order.paidAt) {
-      return { expired: true, expiresAt: null, remainingDays: null };
-    }
-
-    const expiresAt = new Date(order.paidAt.getTime() + course.validityDays * 86400000);
-    const now = new Date();
-    const expired = now > expiresAt;
-    const remainingDays = expired ? 0 : Math.ceil((expiresAt.getTime() - now.getTime()) / 86400000);
-
-    return {
-      expired,
-      expiresAt: expiresAt.toISOString(),
-      remainingDays,
-    };
+  getMyCourses(userId: string, rawPage = 1, rawPageSize = 20) {
+    return this.purchaseSvc.getMyCourses(userId, rawPage, rawPageSize);
   }
 
-  /** 获取用户有效期内课程列表 */
-  async getUserValidCourses(userId: string) {
-    const orders = await this.prisma.order.findMany({
-      where: { userId, type: "COURSE", status: { in: ["PAID", "COMPLETED"] }, paidAt: { not: null } },
-      orderBy: { paidAt: "desc" },
-    });
+  // ═══════════════════ 课程评价（委托 CourseReviewQaService） ═══════════════════
 
-    if (orders.length === 0) return { courses: [], total: 0 };
-
-    const courseIds = orders.map((o) => o.targetId);
-    const courses = await this.prisma.course.findMany({
-      where: { id: { in: courseIds } },
-      select: { id: true, title: true, cover: true, type: true, validityDays: true, price: true },
-    });
-
-    const courseMap = new Map(courses.map((c) => [c.id, c]));
-
-    const validCourses = orders
-      .filter((o) => {
-        const course = courseMap.get(o.targetId);
-        if (!course || !o.paidAt) return false;
-        if (course.validityDays === 0) return true; // 永久有效
-        const expiresAt = new Date(o.paidAt.getTime() + course.validityDays * 86400000);
-        return expiresAt > new Date();
-      })
-      .map((o) => {
-        const course = courseMap.get(o.targetId)!;
-        const expiresAt =
-          course.validityDays > 0 && o.paidAt
-            ? new Date(o.paidAt.getTime() + course.validityDays * 86400000)
-            : null;
-        return {
-          orderId: o.id,
-          paidAt: o.paidAt,
-          amount: o.amount,
-          course: {
-            id: course.id,
-            title: course.title,
-            cover: course.cover,
-            type: course.type,
-            price: course.price,
-            validityDays: course.validityDays,
-          },
-          expiresAt: expiresAt?.toISOString() || null,
-          remainingDays: expiresAt
-            ? Math.max(0, Math.ceil((expiresAt.getTime() - Date.now()) / 86400000))
-            : null,
-        };
-      });
-
-    return { courses: validCourses, total: validCourses.length };
+  createReview(userId: string, courseId: string, dto: CreateReviewDto) {
+    return this.reviewQaSvc.createReview(userId, courseId, dto);
   }
 
-  /** 获取我购买的课程 */
-  async getMyCourses(userId: string, rawPage = 1, rawPageSize = 20) {
-    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
-    const where: Prisma.OrderWhereInput = { userId, type: "COURSE" as const, status: { in: [OrderStatus.PAID, OrderStatus.COMPLETED] } };
-    const [orders, total] = await Promise.all([
-      this.prisma.order.findMany({
-        where,
-        skip,
-        take: pageSize,
-        orderBy: { paidAt: "desc" },
-      }),
-      this.prisma.order.count({ where }),
-    ]);
-
-    // 批量获取课程信息
-    const courseIds = orders.map(o => o.targetId);
-    const courses = courseIds.length > 0
-      ? await this.prisma.course.findMany({
-          where: { id: { in: courseIds } },
-          select: {
-            id: true, title: true, cover: true, type: true,
-            user: { select: { id: true, nickname: true, avatar: true } },
-          },
-        })
-      : [];
-
-    const courseMap = new Map(courses.map(c => [c.id, c]));
-    const enriched = orders.map(o => ({
-      orderId: o.id,
-      paidAt: o.paidAt,
-      amount: o.amount,
-      course: courseMap.get(o.targetId) || null,
-      // 查询学习进度
-    }));
-
-    return { courses: enriched, total, page, pageSize };
+  listReviews(courseId: string, rawPage = 1, rawPageSize = 20) {
+    return this.reviewQaSvc.listReviews(courseId, rawPage, rawPageSize);
   }
 
-  // ═══════════════════ 课程评价 ═══════════════════
-
-  async createReview(userId: string, courseId: string, dto: CreateReviewDto) {
-    const course = await this.prisma.course.findUnique({ where: { id: courseId } });
-    if (!course) throw new BusinessException(ErrorCode.COURSE_NOT_FOUND, "课程不存在");
-
-    // 检查是否已购买
-    const hasAccess = await this.checkAccess(userId, courseId);
-    if (!hasAccess && course.userId !== userId) {
-      throw new BusinessException(ErrorCode.FORBIDDEN, "购买课程后才能评价");
-    }
-
-    // 检查是否已评价
-    const existing = await this.prisma.courseReview.findFirst({
-      where: { userId, courseId },
-    });
-    if (existing) throw new BusinessException(ErrorCode.BAD_REQUEST, "已评价过该课程");
-
-    if (dto.rating < 1 || dto.rating > 5) {
-      throw new BusinessException(ErrorCode.BAD_REQUEST, "评分范围为1-5星");
-    }
-
-    // 统一内容审核（违规抛异常）
-    await this.auditService.moderateTextOrThrow(dto.content, { scene: "COURSE_REVIEW", userId, dataId: courseId });
-
-    const review = await this.prisma.courseReview.create({
-      data: {
-        courseId,
-        userId,
-        orderId: dto.orderId,
-        rating: dto.rating,
-        content: dto.content,
-      },
-      include: {
-        user: { select: { id: true, nickname: true, avatar: true } },
-      },
-    });
-
-    // 清除课程详情缓存
-    await this.redis.del(`courses:detail:${courseId}`);
-    return review;
-  }
-
-  async listReviews(courseId: string, rawPage = 1, rawPageSize = 20) {
-    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
-    const where = { courseId, status: "PUBLISHED" };
-    const [reviews, total] = await Promise.all([
-      this.prisma.courseReview.findMany({
-        where,
-        include: { user: { select: { id: true, nickname: true, avatar: true } } },
-        skip,
-        take: pageSize,
-        orderBy: { createdAt: "desc" },
-      }),
-      this.prisma.courseReview.count({ where }),
-    ]);
-    return { reviews, total, page, pageSize };
-  }
-
-  async getCourseRating(courseId: string) {
-    const stats = await this.prisma.courseReview.aggregate({
-      where: { courseId, status: "PUBLISHED" },
-      _avg: { rating: true },
-      _count: true,
-    });
-    return {
-      courseId,
-      avgRating: stats._avg.rating ? Math.round(stats._avg.rating * 10) / 10 : 0,
-      reviewCount: stats._count,
-    };
+  getCourseRating(courseId: string) {
+    return this.reviewQaSvc.getCourseRating(courseId);
   }
 
   // ═══════════════════ 讲师创作管理台（委托 CourseCreatorService） ═══════════════════
@@ -992,143 +345,26 @@ ${chapterCtx}
     return this.creatorSvc.replyReviewByCreator(reviewId, userId, reply);
   }
 
-  // ═══════════════════ 学习看板 ═══════════════════
+  // ═══════════════════ 学习看板（委托 CourseLearningService） ═══════════════════
 
   /** 学生学习看板 */
-  async getMyLearningDashboard(userId: string) {
-    // 学习的课程数
-    const enrolledOrders = await this.prisma.order.count({
-      where: { userId, type: "COURSE", status: { in: ["PAID", "COMPLETED"] } },
-    });
-
-    // 已完成的章节数
-    const completedChapters = await this.prisma.courseProgress.count({
-      where: { userId, completed: true },
-    });
-
-    // 进行中的章节数
-    const inProgressChapters = await this.prisma.courseProgress.count({
-      where: { userId, completed: false, progress: { gt: 0 } },
-    });
-
-    // 待批改作业数
-    const pendingWorks = await this.prisma.courseWork.count({
-      where: { userId, score: null },
-    });
-
-    // 最近学习记录
-    const recentProgress = await this.prisma.courseProgress.findMany({
-      where: { userId },
-      include: {
-        chapter: { select: { id: true, title: true } },
-        course: { select: { id: true, title: true, cover: true } },
-      },
-      orderBy: { updatedAt: "desc" },
-      take: 10,
-    });
-
-    return {
-      enrolledCourses: enrolledOrders,
-      completedChapters,
-      inProgressChapters,
-      pendingWorks,
-      recentProgress,
-    };
+  getMyLearningDashboard(userId: string) {
+    return this.learningSvc.getMyLearningDashboard(userId);
   }
 
   /** 讲师课程统计 */
-  async getCourseStats(userId: string, courseId: string) {
-    const course = await this.prisma.course.findUnique({
-      where: { id: courseId },
-      select: { id: true, userId: true, title: true },
-    });
-    if (!course) throw new BusinessException(ErrorCode.COURSE_NOT_FOUND, "课程不存在");
-    if (course.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能查看自己课程的统计");
-
-    const [
-      enrollmentCount,
-      completedCount,
-      totalChapters,
-      avgRating,
-      reviewCount,
-      works,
-    ] = await Promise.all([
-      this.prisma.order.count({
-        where: { type: "COURSE", targetId: courseId, status: { in: ["PAID", "COMPLETED"] } },
-      }),
-      this.prisma.courseProgress.count({
-        where: { courseId, completed: true },
-      }),
-      this.prisma.courseChapter.count({ where: { courseId } }),
-      this.prisma.courseReview.aggregate({
-        where: { courseId, status: "PUBLISHED" },
-        _avg: { rating: true },
-      }),
-      this.prisma.courseReview.count({ where: { courseId, status: "PUBLISHED" } }),
-      this.prisma.courseWork.count({ where: { courseId } }),
-    ]);
-
-    return {
-      courseId,
-      title: course.title,
-      enrollmentCount,
-      completedCount,
-      totalChapters,
-      avgRating: avgRating._avg.rating ? Math.round(avgRating._avg.rating * 10) / 10 : 0,
-      reviewCount,
-      totalWorks: works,
-    };
+  getCourseStats(userId: string, courseId: string) {
+    return this.learningSvc.getCourseStats(userId, courseId);
   }
 
-  // ═══════════════════ 完成评估 + 证书 ═══════════════════
+  // ═══════════════════ 完成评估 + 证书（委托 CourseLearningService） ═══════════════════
 
-  async completeCourse(userId: string, courseId: string) {
-    const course = await this.prisma.course.findUnique({ where: { id: courseId }, select: { id: true, title: true, userId: true } });
-    if (!course) throw new BusinessException(ErrorCode.COURSE_NOT_FOUND, "课程不存在");
-
-    const hasAccess = await this.checkAccess(userId, courseId);
-    if (!hasAccess) throw new BusinessException(ErrorCode.FORBIDDEN, "请先购买课程");
-
-    const chapters = await this.prisma.courseChapter.count({ where: { courseId } });
-    const completed = await this.prisma.courseProgress.count({ where: { userId, courseId, completed: true } });
-    if (chapters > 0 && completed < chapters) throw new BusinessException(ErrorCode.BAD_REQUEST, `还有 ${chapters - completed} 个章节未完成`);
-
-    return { courseId, userId, title: course.title, completedAt: new Date(), completed: true };
+  completeCourse(userId: string, courseId: string) {
+    return this.learningSvc.completeCourse(userId, courseId);
   }
 
-  async getCertificate(userId: string, courseId: string) {
-    const course = await this.prisma.course.findUnique({
-      where: { id: courseId },
-      select: { title: true, user: { select: { nickname: true } }, chapters: { select: { duration: true } } },
-    });
-    if (!course) throw new BusinessException(ErrorCode.COURSE_NOT_FOUND, "课程不存在");
-
-    const chapters = course.chapters.length;
-    const completedRows = await this.prisma.courseProgress.findMany({
-      where: { userId, courseId, completed: true },
-      select: { updatedAt: true },
-      orderBy: { updatedAt: "desc" },
-    });
-    if (chapters > 0 && completedRows.length < chapters) throw new BusinessException(ErrorCode.BAD_REQUEST, "尚未完成全部章节");
-
-    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { nickname: true } });
-    const completedAt = completedRows[0]?.updatedAt ?? new Date();
-    const totalHours = Math.round((course.chapters.reduce((s, c) => s + (c.duration || 0), 0) / 3600) * 10) / 10;
-
-    return {
-      id: `cert-${courseId.slice(0, 8)}-${userId.slice(0, 8)}`,
-      courseId,
-      // 原字段保留（向后兼容）+ 补全字段（前端证书页所需）
-      courseTitle: course.title,
-      courseName: course.title,
-      studentName: user?.nickname || "",
-      instructor: course.user?.nickname || "讲师",
-      completedChapters: completedRows.length,
-      totalChapters: chapters,
-      totalHours,
-      completedAt: completedAt.toISOString().slice(0, 10),
-      certificateNo: `GX-${courseId.slice(0, 8).toUpperCase()}-${userId.slice(0, 4).toUpperCase()}`,
-    };
+  getCertificate(userId: string, courseId: string) {
+    return this.learningSvc.getCertificate(userId, courseId);
   }
 
   // ═══════════════════ 草稿管理（委托 CourseCreatorService） ═══════════════════
@@ -1192,165 +428,42 @@ ${chapterCtx}
   getRelatedCourses(courseId: string, limit = 6, useAi = false) {
     return this.recommendSvc.getRelatedCourses(courseId, limit, useAi);
   }
-  // ═══════════════════ 课程问答 ═══════════════════
+
+  // ═══════════════════ 课程问答（委托 CourseReviewQaService） ═══════════════════
 
   /** 学生提问 */
-  async askQuestion(userId: string, courseId: string, dto: AskQuestionDto) {
-    const course = await this.prisma.course.findUnique({ where: { id: courseId }, select: { id: true } });
-    if (!course) throw new BusinessException(ErrorCode.COURSE_NOT_FOUND, "课程不存在");
-
-    // 验证章节归属（如果指定了章节）
-    if (dto.chapterId) {
-      const chapter = await this.prisma.courseChapter.findUnique({ where: { id: dto.chapterId } });
-      if (!chapter || chapter.courseId !== courseId) throw new BusinessException(ErrorCode.BAD_REQUEST, "章节不属于该课程");
-    }
-
-    // 统一内容审核（违规抛异常）
-    await this.auditService.moderateTextOrThrow(dto.question, { scene: "COURSE_QUESTION", userId, dataId: courseId });
-
-    // AI 自动标签分类（基于问题关键词）
-    const autoTags = this.classifyQuestion(dto.question);
-
-    return this.prisma.courseQa.create({
-      data: {
-        courseId,
-        chapterId: dto.chapterId,
-        userId,
-        question: dto.question,
-        tags: autoTags,
-        status: "PENDING",
-      },
-      include: { user: { select: { id: true, nickname: true, avatar: true } }, chapter: { select: { id: true, title: true } } },
-    });
+  askQuestion(userId: string, courseId: string, dto: AskQuestionDto) {
+    return this.reviewQaSvc.askQuestion(userId, courseId, dto);
   }
 
   /** 讲师/管理员回答 */
-  async answerQuestion(qaId: string, answererId: string, dto: AnswerQuestionDto) {
-    const qa = await this.prisma.courseQa.findUnique({ where: { id: qaId } });
-    if (!qa) throw new BusinessException(ErrorCode.NOT_FOUND, "问答不存在");
-    if (qa.status === "CLOSED") throw new BusinessException(ErrorCode.BAD_REQUEST, "该问题已关闭");
-
-    // 统一内容审核（违规抛异常）
-    await this.auditService.moderateTextOrThrow(dto.answer, { scene: "COURSE_ANSWER", userId: answererId, dataId: qaId });
-
-    return this.prisma.courseQa.update({
-      where: { id: qaId },
-      data: { answer: dto.answer, answeredBy: answererId, status: "ANSWERED", answeredAt: new Date() },
-    });
+  answerQuestion(qaId: string, answererId: string, dto: AnswerQuestionDto) {
+    return this.reviewQaSvc.answerQuestion(qaId, answererId, dto);
   }
 
   /** AI 生成回答建议 */
-  async aiSuggestAnswer(qaId: string) {
-    const qa = await this.prisma.courseQa.findUnique({
-      where: { id: qaId },
-      include: {
-        user: { select: { nickname: true } },
-        chapter: { select: { title: true, content: true } },
-        course: { select: { title: true, intro: true, type: true } },
-      },
-    });
-    if (!qa) throw new BusinessException(ErrorCode.NOT_FOUND, "问答不存在");
-    if (qa.status === "CLOSED") throw new BusinessException(ErrorCode.BAD_REQUEST, "该问题已关闭");
-
-    const chapterCtx = qa.chapter ? `关联章节：${qa.chapter.title}。章节内容摘要：${(qa.chapter.content || '').slice(0, 500)}` : '';
-    const systemPrompt = `你是${await this.getBrandName()}平台的课程助教，负责回答学员关于课程的问题。
-课程名称：${qa.course.title}
-课程类型：${qa.course.type}
-课程简介：${qa.course.intro || '暂无'}
-${chapterCtx}
-
-请用专业、亲切的中文回答学员问题。回答应：
-1. 针对问题直接给出清晰解答
-2. 结合课程内容上下文（如有）
-3. 鼓励学员继续深入学习
-4. 控制在300字以内`;
-
-    try {
-      const result = await this.aiGateway.chat({
-        scene: "course-qa",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: `学员${qa.user.nickname || ''}提问：${qa.question}` },
-        ],
-      });
-
-      return { suggestion: result.content, model: result.model };
-    } catch (err: any) {
-      this.logger.warn(`AI 回答生成失败: ${err.message}`);
-      throw new BusinessException(ErrorCode.THIRD_AI_FAILED, "AI 回答生成失败，请稍后重试或手动回答");
-    }
+  aiSuggestAnswer(qaId: string) {
+    return this.reviewQaSvc.aiSuggestAnswer(qaId);
   }
 
   /** 关闭问题 */
-  async closeQuestion(qaId: string, userId: string) {
-    const qa = await this.prisma.courseQa.findUnique({ where: { id: qaId } });
-    if (!qa) throw new BusinessException(ErrorCode.NOT_FOUND, "问答不存在");
-    // 提问者本人或课程讲师/管理员可关闭
-    const course = await this.prisma.course.findUnique({ where: { id: qa.courseId }, select: { userId: true } });
-    if (qa.userId !== userId && course?.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能关闭自己的问题");
-
-    return this.prisma.courseQa.update({ where: { id: qaId }, data: { status: "CLOSED" } });
+  closeQuestion(qaId: string, userId: string) {
+    return this.reviewQaSvc.closeQuestion(qaId, userId);
   }
 
   /** 问答列表（按课程/章节/状态/标签筛选） */
-  async listQuestions(courseId: string, q: QaListQueryDto) {
-    const { page, pageSize, skip } = safePagination(q.page, q.pageSize);
-    const where: Prisma.CourseQaWhereInput = { courseId };
-    if (q.chapterId) where.chapterId = q.chapterId;
-    if (q.status) where.status = q.status;
-    if (q.tag) where.tags = { has: q.tag };
-
-    const [questions, total] = await Promise.all([
-      this.prisma.courseQa.findMany({
-        where,
-        include: {
-          user: { select: { id: true, nickname: true, avatar: true } },
-          chapter: { select: { id: true, title: true } },
-        },
-        skip,
-        take: pageSize,
-        orderBy: { createdAt: "desc" },
-      }),
-      this.prisma.courseQa.count({ where }),
-    ]);
-
-    return { questions, total, page, pageSize };
+  listQuestions(courseId: string, q: QaListQueryDto) {
+    return this.reviewQaSvc.listQuestions(courseId, q);
   }
 
   /** 学生查看自己的提问 */
-  async getMyQuestions(userId: string, courseId: string, rawPage = 1, rawPageSize = 20) {
-    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
-    const where: Prisma.CourseQaWhereInput = { userId, courseId };
-    const [questions, total] = await Promise.all([
-      this.prisma.courseQa.findMany({ where, include: { chapter: { select: { id: true, title: true } } }, skip, take: pageSize, orderBy: { createdAt: "desc" } }),
-      this.prisma.courseQa.count({ where }),
-    ]);
-    return { questions, total, page, pageSize };
+  getMyQuestions(userId: string, courseId: string, rawPage = 1, rawPageSize = 20) {
+    return this.reviewQaSvc.getMyQuestions(userId, courseId, rawPage, rawPageSize);
   }
 
   /** 获取课程所有标签（去重，用于筛选器） */
-  async getQuestionTags(courseId: string) {
-    const questions = await this.prisma.courseQa.findMany({ where: { courseId }, select: { tags: true }, take: 5000 });
-    const tagSet = new Set<string>();
-    questions.forEach(q => q.tags.forEach(t => tagSet.add(t)));
-    return { tags: Array.from(tagSet) };
-  }
-
-  /** 简单关键词分类（AI标签的fallback实现） */
-  private classifyQuestion(question: string): string[] {
-    const tags: string[] = [];
-    const rules: [RegExp, string][] = [
-      [/作业|习题|练习|怎么做|怎么写/i, "作业答疑"],
-      [/看不懂|不理解|什么意思|为什么/i, "概念疑问"],
-      [/实践|操作|怎么用|技巧/i, "实践应用"],
-      [/章节|目录|内容|在哪儿/i, "内容导航"],
-      [/有效期|过期|购买|退款|支付/i, "购买/权益"],
-      [/证书|完成|进度|学习/i, "学习管理"],
-    ];
-    for (const [re, tag] of rules) {
-      if (re.test(question)) tags.push(tag);
-    }
-    return tags.length > 0 ? tags : ["其他"];
+  getQuestionTags(courseId: string) {
+    return this.reviewQaSvc.getQuestionTags(courseId);
   }
 
   // ═══════════════════ 课程分类 ═══════════════════
@@ -1376,13 +489,5 @@ ${chapterCtx}
       "非遗传承": ["传统技艺", "传统美术", "传统音乐"],
       "其他": ["通识入门", "专题讲座", "综合课程"],
     };
-  }
-
-  // ═══════════════════ 辅助 ═══════════════════
-
-  private async ensureOwner(courseId: string, userId: string) {
-    const course = await this.prisma.course.findUnique({ where: { id: courseId } });
-    if (!course) throw new BusinessException(ErrorCode.COURSE_NOT_FOUND, "课程不存在");
-    if (course.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能编辑自己的课程");
   }
 }
