@@ -1,11 +1,15 @@
 import { Controller, Get } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiResponse } from "@nestjs/swagger";
 import { HealthService } from "./health.service";
+import { DegradeService } from "./degrade.service";
 
 @ApiTags("健康检查")
 @Controller("health")
 export class HealthController {
-  constructor(private health: HealthService) {}
+  constructor(
+    private health: HealthService,
+    private degrade: DegradeService,
+  ) {}
 
   @Get()
   @ApiOperation({ summary: "完整健康检查（DB + Redis + 第三方服务 + 内存）" })
@@ -26,5 +30,12 @@ export class HealthController {
   @ApiResponse({ status: 200, description: "成功" })
   async live() {
     return this.health.liveness();
+  }
+
+  @Get("degrade")
+  @ApiOperation({ summary: "依赖降级状态（公开·前端据此展示降级横幅）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  async degradeStatus() {
+    return this.degrade.getStatus();
   }
 }

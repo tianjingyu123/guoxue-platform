@@ -5,6 +5,7 @@
     <view class="retry-btn" @tap="loadData"><text class="retry-text">重试</text></view>
   </view>
   <view v-else class="page">
+    <DegradedBanner dep="im" text="消息服务临时维护中，收发可能延迟，请稍后再试" />
     <!-- 顶部导航 -->
     <view class="navbar" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="nav-left">
@@ -152,6 +153,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import DegradedBanner from '@/components/degraded-banner.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import {
   imApi,

@@ -3,6 +3,7 @@
 import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import LiveCard from '@/components/live/live-card.vue'
+import DegradedBanner from '@/components/degraded-banner.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { liveApi, liveTabs, type LiveItem } from '@/lib/live-data'
 
@@ -50,6 +51,7 @@ function onSearch() {
 
 <template>
   <view class="page">
+    <DegradedBanner dep="live" text="直播服务临时维护中，观看可能不稳定，请稍后再试" />
     <!-- 固定头部 -->
     <view class="header">
       <view class="title-bar">

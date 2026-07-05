@@ -1,8 +1,11 @@
 import { Test } from "@nestjs/testing";
 import { HealthController } from "../src/modules/health/health.controller";
 import { HealthService } from "../src/modules/health/health.service";
+import { DegradeService } from "../src/modules/health/degrade.service";
 import { PrismaService } from "../src/prisma/prisma.service";
 import { RedisService } from "../src/redis/redis.service";
+
+const mockDegrade = { getStatus: jest.fn().mockResolvedValue({ live: false, im: false, vod: false, ai: false, pay: false }) };
 
 describe("HealthController", () => {
   let healthController: HealthController;
@@ -18,6 +21,7 @@ describe("HealthController", () => {
       controllers: [HealthController],
       providers: [
         HealthService,
+        { provide: DegradeService, useValue: mockDegrade },
         { provide: PrismaService, useValue: mockPrisma },
         { provide: RedisService, useValue: mockRedis },
       ],
@@ -44,6 +48,7 @@ describe("HealthController", () => {
       controllers: [HealthController],
       providers: [
         HealthService,
+        { provide: DegradeService, useValue: mockDegrade },
         { provide: PrismaService, useValue: mockPrismaFail },
         { provide: RedisService, useValue: mockRedisOk },
       ],

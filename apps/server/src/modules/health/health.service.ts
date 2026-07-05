@@ -110,7 +110,8 @@ export class HealthService {
     }
   }
 
-  private async checkDeepSeek(): Promise<HealthCheck> {
+  /** public：DegradeService 复用做定时降级探测 */
+  async checkDeepSeek(): Promise<HealthCheck> {
     const apiKey = process.env.DEEPSEEK_API_KEY;
     if (!apiKey) return { status: "unconfigured" };
     try {
@@ -216,7 +217,8 @@ export class HealthService {
     return { status: "ok" };
   }
 
-  private async checkIm(): Promise<HealthCheck> {
+  /** public：DegradeService 复用做定时降级探测 */
+  async checkIm(): Promise<HealthCheck> {
     const appId = process.env.IM_APP_ID;
     if (!appId) return { status: "unconfigured" };
     try {

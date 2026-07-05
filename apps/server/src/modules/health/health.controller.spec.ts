@@ -1,6 +1,7 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { HealthController } from "./health.controller";
 import { HealthService } from "./health.service";
+import { DegradeService } from "./degrade.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 
@@ -19,6 +20,7 @@ describe("HealthController", () => {
       controllers: [HealthController],
       providers: [
         HealthService,
+        { provide: DegradeService, useValue: { getStatus: jest.fn().mockResolvedValue({ live: false, im: false, vod: false, ai: false, pay: false }) } },
         { provide: PrismaService, useValue: mockPrisma },
         { provide: RedisService, useValue: mockRedis },
       ],
