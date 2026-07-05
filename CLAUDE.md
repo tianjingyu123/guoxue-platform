@@ -74,9 +74,14 @@ git clone <仓库地址> → cd 项目目录 → 启动 Claude Code
 
 ### 后端分页规范（新代码强制 — 2026-07-05 坏味道审查 P2-4 后新增）
 
-**核心：所有新增的分页查询，一律使用公共函数 `common/pagination.ts`，禁止手写 `skip: (page - 1) * pageSize`。**
+**核心：所有新增的分页查询，一律走三层设防——controller 用 `PaginationQueryDto` 校验入参、service 用 `safePagination` 兜底归一化、响应用 `paginated()`，禁止手写 `skip: (page - 1) * pageSize`。**
 
 ```typescript
+// ① controller 层：继承标准分页 DTO（common/pagination-query.dto.ts），NaN/越界在边界即拦 400
+import { PaginationQueryDto } from "../../common/pagination-query.dto";
+class XxxQueryDto extends PaginationQueryDto { /* + 业务过滤字段 */ }
+
+// ② service 层：safePagination 兜底归一化（common/pagination.ts）
 import { safePagination, paginated } from "../../common/pagination";
 
 const { page, pageSize, skip } = safePagination(q.page, q.pageSize); // 默认上限 100，可传第三参调整
@@ -84,7 +89,7 @@ const [rows, total] = await Promise.all([
   this.prisma.x.findMany({ where, skip, take: pageSize, orderBy }),
   this.prisma.x.count({ where }),
 ]);
-return paginated(rows, total, page, pageSize); // ResponseInterceptor 自动转 { data, pagination }
+return paginated(rows, total, page, pageSize); // ③ ResponseInterceptor 自动转 { data, pagination }
 ```
 
 - `safePagination` 归一化非法/NaN/负数入参（**杜绝 `skip:NaN` 直进 Prisma 抛 500**），并钳 pageSize 上限（默认 100，防大页拖库/DoS）；需要更大页时显式传第三参 `maxPageSize`。
