@@ -72,6 +72,25 @@ git clone <仓库地址> → cd 项目目录 → 启动 Claude Code
 3. **原子提交：** 每个功能点一个 git commit，出错可精确 revert
 4. **不删备份：** 修改验证通过后再清理备份文件
 
+### 后端分页规范（新代码强制 — 2026-07-05 坏味道审查 P2-4 后新增）
+
+**核心：所有新增的分页查询，一律使用公共函数 `common/pagination.ts`，禁止手写 `skip: (page - 1) * pageSize`。**
+
+```typescript
+import { safePagination, paginated } from "../../common/pagination";
+
+const { page, pageSize, skip } = safePagination(q.page, q.pageSize); // 默认上限 100，可传第三参调整
+const [rows, total] = await Promise.all([
+  this.prisma.x.findMany({ where, skip, take: pageSize, orderBy }),
+  this.prisma.x.count({ where }),
+]);
+return paginated(rows, total, page, pageSize); // ResponseInterceptor 自动转 { data, pagination }
+```
+
+- `safePagination` 归一化非法/NaN/负数入参（**杜绝 `skip:NaN` 直进 Prisma 抛 500**），并钳 pageSize 上限（默认 100，防大页拖库/DoS）；需要更大页时显式传第三参 `maxPageSize`。
+- `paginated()` 产出标准分页响应；边界语义由 `pagination.spec.ts` 钉死。
+- **存量约 79 处手写分页收敛属改造项**：涉及两层前端契约变更（① pageSize 上限可能钳掉"加载全部"类调用 ② `paginated()` 改响应结构），须**分模块逐一核对前端调用后再收敛+全量回归**，不可无差别批量替换（详见 `docs/progress/代码坏味道审查报告-20260705.md` P2-4）。
+
 ### 前端数据流铁律（不可违反 — 2026-06-19 审计后新增）
 
 **核心规则：Vue 页面禁止直接 import mock 数据。所有数据必须通过 API 层获取。**
