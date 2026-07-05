@@ -848,6 +848,12 @@ const routes = [
         meta: { title: "转化漏斗", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
       },
       {
+        path: "dashboard/creation-rankings",
+        name: "CreationRanking",
+        component: () => import("@/views/dashboard/CreationRanking.vue"),
+        meta: { title: "创作排行榜", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"] },
+      },
+      {
         path: "user-tags",
         name: "UserTagCenter",
         component: () => import("@/views/users/UserTagCenter.vue"),

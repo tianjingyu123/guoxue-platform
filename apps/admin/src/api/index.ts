@@ -710,6 +710,11 @@ export const sentinelApi = {
   patrol: () => api.post("/sentinel/patrol"),
 };
 
+// 创作排行榜（创-P1·质量加权内容学分 Top20·公开端点）
+export const creationRankingApi = {
+  list: (period: "week" | "month") => api.get("/users/creation-rankings", { params: { period } }),
+};
+
 // 转化漏斗（D-T1·FunnelDaily 日聚合）
 export const funnelApi = {
   daily: (funnel: string, days = 14) => api.get("/dashboard/funnels/daily", { params: { funnel, days } }),
