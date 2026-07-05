@@ -25,13 +25,14 @@ import { HuifuService } from "../huifu/huifu.service";
 import { CoinService } from "../coin/coin.service";
 import { WebhookService } from "../webhook/webhook.service";
 import { MemberBenefitService } from "../member/member-benefit.service";
+import { ShopAttributionService } from "./shop-attribution.service";
+import { ShopProductService } from "./shop-product.service";
 import { COIN_TO_RMB, RMB_TO_FEN } from "../../common/constants";
 import {
   CreateProductDto, UpdateProductDto, CreateOrderDto,
   CreateReviewDto, UpdateLogisticsDto,
   CreateFreightTemplateDto, UpdateFreightTemplateDto,
   ProductListQueryDto, OrderListQueryDto,
-  PRODUCT_SCENE_TAGS,
 } from "./shop.dto";
 
 @Injectable()
@@ -51,370 +52,65 @@ export class ShopService {
     private webhook: WebhookService,
     private audit: AuditService,
     private memberBenefit: MemberBenefitService,
+    private attribution: ShopAttributionService,
+    private product: ShopProductService,
     @Optional() private huifu?: HuifuService,
     @Inject(CommissionService) private commissionSvc?: CommissionService,
     @Inject(CoinService) private coinSvc?: CoinService,
   ) {}
 
-  // ═══════════════════ 商品管理 ═══════════════════
+  // ═══════════════════ 商品管理（委托 ShopProductService） ═══════════════════
 
-  async createProduct(userId: string, dto: CreateProductDto) {
-    // 内容审核：商品标题+简介+详情（违规抛异常，写库前拦截）
-    await this.audit.moderateTextOrThrow(
-      [dto.title, dto.intro, dto.detail].filter(Boolean).join(" "),
-      { scene: "PRODUCT", userId },
-    );
-    const { skus, ...rest } = dto;
-    const data: Prisma.ProductCreateInput = {
-      title: rest.title,
-      price: rest.price,
-      stock: rest.stock ?? 0,
-      detail: rest.detail ?? "",
-      userId,
-    };
-    if (rest.circleId) data.circle = { connect: { id: rest.circleId } };
-    if (rest.categoryId) data.categoryId = rest.categoryId;
-    if (rest.intro) data.intro = rest.intro;
-    if (rest.images) data.images = rest.images;
-    if (rest.videoUrl) data.videoUrl = rest.videoUrl;
-    if (rest.sceneTags) data.sceneTags = rest.sceneTags;
-    if (rest.stationId) data.station = { connect: { id: rest.stationId } };
-    if (skus) {
-      data.skus = { create: skus.map(s => ({ specs: s.specs, price: s.price, stock: s.stock ?? 0, skuCode: s.skuCode ?? null })) };
-    }
-
-    return this.prisma.product.create({
-      data,
-      include: { skus: true },
-    });
+  createProduct(userId: string, dto: CreateProductDto) {
+    return this.product.createProduct(userId, dto);
   }
 
-  async updateProduct(userId: string, productId: string, dto: UpdateProductDto) {
-    const product = await this.prisma.product.findUnique({ where: { id: productId } });
-    if (!product) throw new BusinessException(ErrorCode.PRODUCT_NOT_FOUND, "商品不存在");
-    if (product.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能修改自己的商品");
-
-    // 内容审核：改动的标题+简介+详情（违规抛异常，写库前拦截）
-    await this.audit.moderateTextOrThrow(
-      [dto.title, dto.intro, dto.detail].filter(Boolean).join(" "),
-      { scene: "PRODUCT_EDIT", userId, dataId: productId },
-    );
-
-    const data: Prisma.ProductUpdateInput = {};
-    if (dto.title !== undefined) data.title = dto.title;
-    if (dto.intro !== undefined) data.intro = dto.intro;
-    if (dto.detail !== undefined) data.detail = dto.detail;
-    if (dto.images !== undefined) data.images = dto.images;
-    if (dto.price !== undefined) data.price = dto.price;
-    if (dto.stock !== undefined) data.stock = dto.stock;
-    if (dto.status !== undefined) data.status = dto.status;
-    if (dto.sceneTags !== undefined) data.sceneTags = dto.sceneTags; // 场景打标即生效（白名单已在 DTO 校验）
-
-    const updated = await this.prisma.product.update({
-      where: { id: productId },
-      data,
-      include: { skus: true },
-    });
-    // 清除商品缓存
-    await this.redis.del(`${CACHE_PREFIX}product:${productId}`);
-    return updated;
+  updateProduct(userId: string, productId: string, dto: UpdateProductDto) {
+    return this.product.updateProduct(userId, productId, dto);
   }
 
-  async deleteProduct(userId: string, productId: string, isAdmin = false) {
-    const product = await this.prisma.product.findUnique({ where: { id: productId } });
-    if (!product) throw new BusinessException(ErrorCode.PRODUCT_NOT_FOUND, "商品不存在");
-    if (!isAdmin && product.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能删除自己的商品");
-    await this.prisma.product.delete({ where: { id: productId } });
-    await this.redis.del(`${CACHE_PREFIX}product:${productId}`);
-    return { success: true };
+  deleteProduct(userId: string, productId: string, isAdmin = false) {
+    return this.product.deleteProduct(userId, productId, isAdmin);
   }
 
-  /** 更新商品状态 */
-  async updateProductStatus(productId: string, status: string) {
-    await this.prisma.product.findUniqueOrThrow({ where: { id: productId } });
-    const updated = await this.prisma.product.update({ where: { id: productId }, data: { status } });
-    await this.redis.del(`${CACHE_PREFIX}product:${productId}`);
-    return updated;
+  updateProductStatus(productId: string, status: string) {
+    return this.product.updateProductStatus(productId, status);
   }
 
-  /** 设置商品站长推广佣金率（佣-V2-P1·admin-only 由 controller 守卫·null=清除逐品配置回落类目默认 rateA） */
-  async setProductCommissionRate(productId: string, rate: number | null) {
-    const product = await this.prisma.product.findUnique({ where: { id: productId }, select: { id: true } });
-    if (!product) throw new BusinessException(ErrorCode.PRODUCT_NOT_FOUND, "商品不存在");
-    const updated = await this.prisma.product.update({
-      where: { id: productId },
-      data: { commissionRate: rate },
-      select: { id: true, title: true, commissionRate: true },
-    });
-    await this.redis.del(`${CACHE_PREFIX}product:${productId}`);
-    return updated;
+  setProductCommissionRate(productId: string, rate: number | null) {
+    return this.product.setProductCommissionRate(productId, rate);
   }
 
-  /**
-   * 商品品控巡检（事后抽查）
-   * - takedown：违规下架（status → OFF_SHELF）
-   * - restore：恢复上架（status → ON_SALE）
-   * - warn：警告，不改变上架状态，仅由调用方记审计
-   * 违规原因通过审计日志持久化（无需新增 Product 列），返回结果供前端反馈。
-   */
-  async moderateProduct(productId: string, action: string, reason?: string) {
-    const product = await this.prisma.product.findUnique({ where: { id: productId } });
-    if (!product) throw new BusinessException(ErrorCode.PRODUCT_NOT_FOUND, "商品不存在");
-
-    let status = product.status;
-    if (action === "takedown") status = "OFF_SHELF";
-    else if (action === "restore") status = "ON_SALE";
-    else if (action !== "warn") throw new BusinessException(ErrorCode.BAD_REQUEST, "无效的操作类型");
-
-    if (status !== product.status) {
-      await this.prisma.product.update({ where: { id: productId }, data: { status } });
-      await this.redis.del(`${CACHE_PREFIX}product:${productId}`);
-    }
-
-    return {
-      id: productId,
-      action,
-      reason: reason ?? null,
-      prevStatus: product.status,
-      status,
-    };
+  moderateProduct(productId: string, action: string, reason?: string) {
+    return this.product.moderateProduct(productId, action, reason);
   }
 
-  async getProduct(productId: string, scene?: string, pageId?: string) {
-    const product = await this.prisma.product.findUnique({
-      where: { id: productId },
-      include: {
-        skus: true,
-        circle: { select: { id: true, name: true } },
-      },
-    });
-    if (!product) throw new BusinessException(ErrorCode.PRODUCT_NOT_FOUND, "商品不存在");
-
-    // 统一价格计算
-    const pricing = await this.unifiedPricing.calculateEffectivePrice(productId, undefined, undefined, { pageId, scene });
-
-    // 商家公开信息（用于详情页「进店」入口）。商品经创建者 userId 归属商家（Product.userId = Merchant.userId）；
-    // 自营商品（创建者非商家）或商家未开通 ACTIVE 则为 null，前端据此诚实降级隐藏入口。
-    let merchant: { id: string; shopName: string; shopLogo: string | null; creditGrade: string } | null = null;
-    if (product.userId) {
-      merchant = await this.prisma.merchant.findFirst({
-        where: { userId: product.userId, status: "ACTIVE" },
-        select: { id: true, shopName: true, shopLogo: true, creditGrade: true },
-      });
-    }
-
-    return {
-      ...product,
-      merchant,
-      // 严选标（履-P2 权益挂钩）：商家信用 A 级即严选，前端商品详情展示「严选」标识
-      isSelected: merchant?.creditGrade === "A",
-      price: Number(product.price),
-      originalPrice: Number(product.price),
-      baseListPrice: product.originalPrice ? Number(product.originalPrice) : undefined,
-      effectivePrice: pricing.effectivePrice,
-      activePromotions: pricing.activePromotions,
-      appliedPromotion: pricing.appliedPromotion,
-      hasPromotion: pricing.hasPromotion,
-      promotionTag: pricing.promotionTag,
-    };
+  getProduct(productId: string, scene?: string, pageId?: string) {
+    return this.product.getProduct(productId, scene, pageId);
   }
 
-  async listProducts(dto: ProductListQueryDto) {
-    const { page = 1, pageSize = 20, categoryId, status, stationId, keyword, categoryLevel1, priceMin, priceMax, sort } = dto;
-
-    const where: Prisma.ProductWhereInput = {};
-    if (categoryId) where.categoryId = categoryId;
-    if (status) where.status = status;
-    if (stationId) where.stationId = stationId;
-    if (keyword) where.title = { contains: keyword, mode: "insensitive" };
-    if (categoryLevel1) where.categoryLevel1 = categoryLevel1;
-    if (priceMin != null || priceMax != null) {
-      where.price = {};
-      if (priceMin != null) where.price.gte = priceMin;
-      if (priceMax != null) where.price.lte = priceMax;
-    }
-
-    // 排序下沉：销量/价格升降/最新；default 同最新
-    // TODO(履-P2·流量加权)：设计§三 A 级商家商品应在推荐/默认排序中加权。Prisma orderBy 无法按
-    // 「商家(经 Product.userId 关联 Merchant.creditGrade)」跨表加权，需 $queryRaw JOIN 或引入推荐层
-    // 排序服务，且须叠加「观察期新商家(<30 天)不参与加权」条件——接线复杂，留 P3/推荐课题单独做。
-    // 本批已交付①严选标(isSelected)与②结算周期，A 级权益先以显性标识生效。
-    const orderBy: Prisma.ProductOrderByWithRelationInput =
-      sort === "sales" ? { salesCount: "desc" }
-      : sort === "price_asc" ? { price: "asc" }
-      : sort === "price_desc" ? { price: "desc" }
-      : { createdAt: "desc" };
-
-    const [products, total] = await Promise.all([
-      this.prisma.product.findMany({
-        where,
-        include: { skus: true },
-        skip: (page - 1) * pageSize,
-        take: pageSize,
-        orderBy,
-      }),
-      this.prisma.product.count({ where }),
-    ]);
-
-    // 批量计算统一价格
-    const pricingResults = await this.unifiedPricing.batchCalculateEffectivePrice(
-      products.map(p => ({ productId: p.id })),
-      undefined,
-      { pageId: (dto as any).pageId, scene: "list" },
-    );
-    const priceMap = new Map(pricingResults.map(r => [r.productId, r]));
-
-    // 严选标（履-P2 权益挂钩）：批量查本页商品供应商中信用 A 级的 ACTIVE 商家（经 Product.userId 归属），
-    // 商品卡附 isSelected；自营/无商家归属的商品不带标（诚实 false）
-    const ownerIds = [...new Set(products.map(p => p.userId).filter((v): v is string => !!v))];
-    const selectedOwners = ownerIds.length
-      ? new Set(
-          (await this.prisma.merchant.findMany({
-            where: { userId: { in: ownerIds }, status: "ACTIVE", creditGrade: "A" },
-            select: { userId: true },
-          })).map(m => m.userId),
-        )
-      : new Set<string>();
-
-    const enriched = products.map(p => {
-      const up = priceMap.get(p.id);
-      return {
-        ...p,
-        price: Number(p.price),
-        originalPrice: Number(p.price),
-        effectivePrice: up?.effectivePrice ?? Number(p.price),
-        hasPromotion: up?.hasPromotion ?? false,
-        promotionTag: up?.promotionTag,
-        isSelected: !!p.userId && selectedOwners.has(p.userId),
-      };
-    });
-
-    return { products: enriched, total, page, pageSize };
+  listProducts(dto: ProductListQueryDto) {
+    return this.product.listProducts(dto);
   }
 
-  /** 商品一级品类聚合(供商城分类页 tab：分页后无法从单页商品聚合出完整分类) */
-  async listProductCategoryL1() {
-    const grouped = await this.prisma.product.groupBy({
-      by: ["categoryLevel1"],
-      where: { categoryLevel1: { not: null } },
-      _count: { _all: true },
-    });
-    return grouped
-      .filter(g => g.categoryLevel1)
-      .map(g => ({ name: g.categoryLevel1 as string, count: g._count._all }))
-      .sort((a, b) => b.count - a.count);
+  listProductCategoryL1() {
+    return this.product.listProductCategoryL1();
   }
 
-  /**
-   * 场景取货（供-P1·无痕商业化触点接线口）：
-   * 在售 + 含指定场景标签的商品，销量优先、上架时间兜底，默认取 6 个。
-   * tag 必须命中白名单七值（非法标签直接 400·防任意标签探测）；无结果返回空数组（诚实空态）。
-   */
-  async listProductsByScene(tag: string, limit = 6) {
-    if (!(PRODUCT_SCENE_TAGS as readonly string[]).includes(tag)) {
-      throw new BusinessException(ErrorCode.BAD_REQUEST, `非法场景标签，可选：${PRODUCT_SCENE_TAGS.join("/")}`);
-    }
-    // limit 归一化：非法/NaN 回落默认 6，夹取 1..50（公开端点防大页拖库）
-    const take = Math.min(Math.max(Math.trunc(limit) || 6, 1), 50);
-    const products = await this.prisma.product.findMany({
-      where: { status: "ON_SALE", deletedAt: null, sceneTags: { has: tag } },
-      select: {
-        id: true, title: true, intro: true, images: true,
-        price: true, originalPrice: true, salesCount: true, sceneTags: true, createdAt: true,
-      },
-      orderBy: [{ salesCount: "desc" }, { createdAt: "desc" }],
-      take,
-    });
-    return products.map(p => ({
-      ...p,
-      price: Number(p.price),
-      originalPrice: p.originalPrice != null ? Number(p.originalPrice) : Number(p.price),
-    }));
+  listProductsByScene(tag: string, limit = 6) {
+    return this.product.listProductsByScene(tag, limit);
   }
 
-  /** C 端店铺主页 — 商家公开信息 + 在售商品列表（仅已开通 ACTIVE 商家可见） */
-  async getStore(merchantId: string, page = 1, pageSize = 20) {
-    const merchant = await this.prisma.merchant.findFirst({
-      where: { id: merchantId, status: "ACTIVE" },
-      select: {
-        id: true, userId: true, shopName: true, shopLogo: true, shopIntro: true,
-        rating: true, totalSales: true, totalOrders: true, openedAt: true, creditGrade: true,
-      },
-    });
-    if (!merchant) throw new BusinessException(ErrorCode.NOT_FOUND, "店铺不存在或未开通");
-
-    // 商品经创建者 userId 归属商家（Product 无 merchantId 列，用 userId 关联在售商品）
-    const where: Prisma.ProductWhereInput = { userId: merchant.userId, status: "ON_SALE" };
-    const [products, total] = await Promise.all([
-      this.prisma.product.findMany({
-        where,
-        include: { skus: true },
-        skip: (page - 1) * pageSize,
-        take: pageSize,
-        orderBy: { createdAt: "desc" },
-      }),
-      this.prisma.product.count({ where }),
-    ]);
-
-    const enriched = products.map((p) => ({
-      ...p,
-      price: Number(p.price),
-      originalPrice: Number(p.price),
-    }));
-
-    return {
-      merchant: {
-        id: merchant.id,
-        shopName: merchant.shopName,
-        shopLogo: merchant.shopLogo,
-        shopIntro: merchant.shopIntro,
-        rating: Number(merchant.rating),
-        totalSales: Number(merchant.totalSales),
-        totalOrders: merchant.totalOrders,
-        openedAt: merchant.openedAt,
-        productCount: total,
-        // 严选标（履-P2 权益挂钩）：A 级店铺主页展示「严选」信任背书
-        isSelected: merchant.creditGrade === "A",
-      },
-      products: enriched,
-      total,
-      page,
-      pageSize,
-    };
+  getStore(merchantId: string, page = 1, pageSize = 20) {
+    return this.product.getStore(merchantId, page, pageSize);
   }
 
-  // ═══════════════════ SKU 管理 ═══════════════════
-
-  async addSku(userId: string, productId: string, dto: { name?: string; specs?: Record<string, string>; price: number; stock?: number; skuCode?: string }, isAdmin = false) {
-    const product = await this.prisma.product.findUnique({ where: { id: productId } });
-    if (!product) throw new BusinessException(ErrorCode.PRODUCT_NOT_FOUND, "商品不存在");
-    if (!isAdmin && product.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能给自己的商品添加SKU");
-    let specs = dto.specs || {};
-    if (!dto.specs && dto.name) {
-      const parts = dto.name.split(":");
-      if (parts.length >= 2) {
-        specs = { [parts[0].trim()]: parts.slice(1).join(":").trim() };
-      } else {
-        specs = { name: dto.name };
-      }
-    }
-    return this.prisma.productSku.create({
-      data: {
-        productId,
-        specs,
-        price: dto.price,
-        stock: dto.stock ?? 0,
-        skuCode: dto.skuCode,
-      },
-    });
+  addSku(userId: string, productId: string, dto: { name?: string; specs?: Record<string, string>; price: number; stock?: number; skuCode?: string }, isAdmin = false) {
+    return this.product.addSku(userId, productId, dto, isAdmin);
   }
 
-  async deleteSku(userId: string, skuId: string, isAdmin = false) {
-    const sku = await this.prisma.productSku.findUnique({ where: { id: skuId }, include: { product: true } });
-    if (!sku) throw new BusinessException(ErrorCode.NOT_FOUND, "SKU不存在");
-    if (!isAdmin && sku.product.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能删除自己商品的SKU");
-    await this.prisma.productSku.delete({ where: { id: skuId } });
-    return { success: true };
+  deleteSku(userId: string, skuId: string, isAdmin = false) {
+    return this.product.deleteSku(userId, skuId, isAdmin);
   }
 
   // ═══════════════════ 订单管理 ═══════════════════
@@ -499,7 +195,7 @@ export class ShopService {
     // ── 推荐归因（2026-07-02 拍板）──
     // 全平台单一分享链接（ref=分享者用户ID或分站推广码）：最近分享者=临时推荐人（前端7天窗口传入），
     // 优先于永久归属分站；永久归属由服务端从 ReferralRelation 回填，不信任前端传入的 referrerId。
-    let tempReferrerId = await this.resolveReferrerUserId(dto.tempReferrerId, userId);
+    let tempReferrerId = await this.attribution.resolveReferrerUserId(dto.tempReferrerId, userId);
     // ── 佣-V2-P2 渠道主体临时链接归因（2026-07-04 拍板·设计 §3.2）──
     // 灰度开关 ConfigSystem[commission_v2_attribution]="true" 才启用（关=完全走上面现行逻辑·回滚路径）。
     // 服务端受信任来源：查 ChannelClick（该用户对该商品 targetId 精确优先，其次 SHOP_ALL 全店）
@@ -510,8 +206,8 @@ export class ShopService {
     const sourceContentType = dto.sourceContentType && dto.sourceContentId ? dto.sourceContentType : null;
     const sourceContentId = sourceContentType ? dto.sourceContentId ?? null : null;
     try {
-      if (await this.isChannelAttributionEnabled()) {
-        const click = await this.findLatestChannelClick(userId, dto.targetId);
+      if (await this.attribution.isChannelAttributionEnabled()) {
+        const click = await this.attribution.findLatestChannelClick(userId, dto.targetId);
         if (click && click.beneficiaryUserId !== userId) {
           tempReferrerId = click.beneficiaryUserId;
           tempRefSubjectType = click.subjectType;
@@ -520,7 +216,7 @@ export class ShopService {
         // 直播→LiveRoom.circleId→圈主为受益人；无圈子/圈主即买家本人 → 静默跳过不覆盖。
         // ARTICLE/VIDEO 本批只落来源字段不做受益人路由（作者渠道身份判定在 P4 积分侧统一处理）。
         if (sourceContentType === "LIVE" && sourceContentId) {
-          const circleOwner = await this.resolveLiveCircleOwner(sourceContentId);
+          const circleOwner = await this.attribution.resolveLiveCircleOwner(sourceContentId);
           if (circleOwner && circleOwner !== userId) {
             tempReferrerId = circleOwner;
             tempRefSubjectType = "CIRCLE";
@@ -549,7 +245,7 @@ export class ShopService {
     let selfPurchaseRate = 0;
     if (this.commissionSvc && (!effectiveReferrerId || effectiveReferrerId === userId)) {
       try {
-        if (await this.isDistributorSelfPurchaseEligible(userId)) {
+        if (await this.attribution.isDistributorSelfPurchaseEligible(userId)) {
           selfPurchaseRate = (await this.commissionSvc.getStationRate(dto.type)) ?? 0;
         }
       } catch (e) {
@@ -568,7 +264,7 @@ export class ShopService {
       effectiveReferrerId &&
       effectiveReferrerId !== userId
     ) {
-      giftCardMeta = (await this.buildGiftCardMeta(effectiveReferrerId)) ?? undefined;
+      giftCardMeta = (await this.attribution.buildGiftCardMeta(effectiveReferrerId)) ?? undefined;
     }
 
     return this.prisma.$transaction(async (tx) => {
@@ -1133,7 +829,7 @@ export class ShopService {
       } finally {
         await this.redis.del(orderLockKey);
       }
-      await this.recordOrderCommissionAndFee({ ...order, id: orderId });
+      await this.attribution.recordOrderCommissionAndFee({ ...order, id: orderId });
 
       this.logger.log(`订单 ${orderId} 支付成功, 微信交易号: ${transactionId}`);
       return true;
@@ -1170,178 +866,6 @@ export class ShopService {
       outTradeNo, "UNIONPAY", data.tradeNo as string, true,
       Number(data.amount) / 100, // 银联回调金额单位为分
     );
-  }
-
-  /**
-   * 解析归因 ref 值（分享者用户ID 或 分站推广码）→ 推荐人 userId。
-   * 无效值静默丢弃（按无临时推荐人处理）；ref=买家本人时保留（供自购立减判定）。
-   */
-  /** 白标贺卡（供-P2）：全局开关 ConfigSystem key（默认开·configValue='false'/'0'/'off' 关闭） */
-  private static readonly GIFT_CARD_CONFIG_KEY = "shop.gift_card.enabled";
-  /** 白标贺卡默认祝语（从业者未自定义时使用·R4 合规：寓意表述，无功效承诺） */
-  private static readonly GIFT_CARD_DEFAULT_BLESSING = "山川异域，风月同天。愿此雅物承美意，伴君岁岁皆安澜。";
-  /** 名片页 H5 链接模板（课题一 P2 从业者名片·扫码归因回流平台） */
-  private static readonly GIFT_CARD_QR_BASE = "https://api.rebugx.cn/h5/#/pkg-creator/teacher-profile/index";
-
-  /**
-   * 组装白标贺卡任务 meta（供-P2）。
-   * - 全局开关 shop.gift_card.enabled 关闭 → 不生成；
-   * - 归因者不存在 → 不生成；
-   * - fromName：归因者昵称，未设置昵称回落平台署名（TODO 个人级署名：User/分销配置加专属署名列后优先取）；
-   * - TODO 个人级开关：从业者可关（User 或分销配置加 giftCardEnabled 列后在此跳过关闭者）；
-   * - qrRef：归因者名片页链接（userId=归因者·ref=归因者，客户扫码即建立归因）。
-   * 任何失败返回 null（订单不附贺卡，不阻塞下单）。
-   */
-  private async buildGiftCardMeta(
-    referrerUserId: string,
-  ): Promise<{ fromName: string; blessing?: string; qrRef: string } | null> {
-    try {
-      const cfg = await this.prisma.configSystem.findUnique({
-        where: { configKey: ShopService.GIFT_CARD_CONFIG_KEY },
-        select: { configValue: true },
-      });
-      if (cfg && ["false", "0", "off"].includes(cfg.configValue.trim().toLowerCase())) return null;
-
-      const referrer = await this.prisma.user.findUnique({
-        where: { id: referrerUserId },
-        select: { id: true, nickname: true },
-      });
-      if (!referrer) return null;
-
-      const fromName = (referrer.nickname || "").trim() || "国学甄选";
-      return {
-        fromName,
-        blessing: ShopService.GIFT_CARD_DEFAULT_BLESSING,
-        qrRef: `${ShopService.GIFT_CARD_QR_BASE}?userId=${referrer.id}&ref=${referrer.id}`,
-      };
-    } catch (e) {
-      this.logger.warn("白标贺卡信息组装失败，本单不附贺卡", e);
-      return null;
-    }
-  }
-
-  /**
-   * 自购立减资格判定（供-P3 泛化·2026-07-04）：
-   * 复用站长自购立减机制，扩展到全部分销角色——任一角色成立即享（比例统一取 CommissionConfig.rateA·后台可配）：
-   * ① 站长（Station ACTIVE）② 圈主（Circle ACTIVE 且未软删）③ 驿站运营者（StationOffline ACTIVE）
-   * ④ 认证从业者（TeacherCertification APPROVED）⑤ 运营商（Operator ACTIVE）。
-   * 防套利与站长版一致：立减单清空推荐关系（referrerId/tempReferrerId 置空）→ 佣金天然不产生；
-   * 白标贺卡不生成；退款按实付价退。查询失败由调用方兜底按原价下单，不阻塞交易。
-   */
-  private async isDistributorSelfPurchaseEligible(userId: string): Promise<boolean> {
-    const [station, circle, offlineStation, teacherCert, operator] = await Promise.all([
-      this.prisma.station.findFirst({ where: { userId, status: "ACTIVE" }, select: { id: true } }),
-      this.prisma.circle.findFirst({ where: { ownerId: userId, status: "ACTIVE", deletedAt: null }, select: { id: true } }),
-      this.prisma.stationOffline.findFirst({ where: { ownerUserId: userId, status: "ACTIVE" }, select: { id: true } }),
-      this.prisma.teacherCertification.findFirst({ where: { userId, status: "APPROVED" }, select: { id: true } }),
-      this.prisma.operator.findFirst({ where: { userId, status: "ACTIVE" }, select: { id: true } }),
-    ]);
-    return Boolean(station || circle || offlineStation || teacherCert || operator);
-  }
-
-  /** 佣-V2-P2 归因灰度开关键（ConfigSystem·"true" 才启用新判定·缺省/其他值=旧逻辑·回滚路径） */
-  private static readonly CHANNEL_ATTRIBUTION_FLAG = "commission_v2_attribution";
-
-  /** 佣-V2-P2：渠道归因灰度开关是否开启（默认 false=完全走现行归因逻辑） */
-  private async isChannelAttributionEnabled(): Promise<boolean> {
-    try {
-      const row = await this.prisma.configSystem.findUnique({
-        where: { configKey: ShopService.CHANNEL_ATTRIBUTION_FLAG },
-        select: { configValue: true },
-      });
-      return row?.configValue?.trim().toLowerCase() === "true";
-    } catch {
-      return false; // 开关查询失败视为关闭，走旧逻辑
-    }
-  }
-
-  /**
-   * 佣-V2-P2：查该用户对该商品的最新有效渠道点击（last-click·7天窗在写入侧钉死 expiresAt）。
-   * targetId 精确匹配优先（单品链接），其次 SHOP_ALL 全店链接兜底。
-   */
-  private async findLatestChannelClick(
-    userId: string,
-    targetId: string,
-  ): Promise<{ beneficiaryUserId: string; subjectType: string } | null> {
-    const now = new Date();
-    const select = { beneficiaryUserId: true, subjectType: true } as const;
-    const exact = await this.prisma.channelClick.findFirst({
-      where: { userId, targetId, expiresAt: { gt: now } },
-      orderBy: { clickedAt: "desc" },
-      select,
-    });
-    if (exact) return exact;
-    return this.prisma.channelClick.findFirst({
-      where: { userId, targetType: "SHOP_ALL", expiresAt: { gt: now } },
-      orderBy: { clickedAt: "desc" },
-      select,
-    });
-  }
-
-  /**
-   * 佣-V2-P3：解析直播间所属圈子的圈主（直播购买视同圈子渠道点击的受益人）。
-   * LiveRoom.circleId 为圈子归属字段（schema 已核实）；房间无圈子/圈子非 ACTIVE/查询失败均返回 null（静默跳过）。
-   */
-  private async resolveLiveCircleOwner(liveRoomId: string): Promise<string | null> {
-    try {
-      const room = await this.prisma.liveRoom.findUnique({
-        where: { id: liveRoomId },
-        select: { circleId: true },
-      });
-      if (!room?.circleId) return null;
-      const circle = await this.prisma.circle.findFirst({
-        where: { id: room.circleId, status: "ACTIVE", deletedAt: null },
-        select: { ownerId: true },
-      });
-      return circle?.ownerId ?? null;
-    } catch (e) {
-      this.logger.warn("直播间圈子受益人解析失败，跳过直播来源归因", e);
-      return null;
-    }
-  }
-
-  private async resolveReferrerUserId(ref: string | undefined | null, buyerId: string): Promise<string | null> {
-    if (!ref) return null;
-    if (ref === buyerId) return buyerId;
-    try {
-      const user = await this.prisma.user.findUnique({ where: { id: ref }, select: { id: true } });
-      if (user) return user.id;
-      const station = await this.prisma.station.findUnique({ where: { code: ref }, select: { userId: true, status: true } });
-      if (station?.status === "ACTIVE") return station.userId;
-    } catch {
-      /* 解析失败按无推荐人处理 */
-    }
-    return null;
-  }
-
-  /** 统一支付完成处理（支付宝/银联） */
-  /**
-   * 订单支付成功后统一记账：分佣 + 平台费。
-   * 微信/汇付回调已记，此 helper 供支付宝/银联/线下确认(adminPayOrder)复用，避免账目漏记。
-   * 事务外执行，失败仅记日志不影响订单状态。
-   */
-  private async recordOrderCommissionAndFee(order: { id: string; type: string; amount: unknown; userId?: string | null; referrerId?: string | null; tempReferrerId?: string | null }) {
-    if (!this.commissionSvc) return;
-    try {
-      await this.commissionSvc.calculateAndRecord(
-        order.id, order.type, Number(order.amount),
-        order.referrerId || undefined, order.tempReferrerId || undefined,
-        undefined, order.userId || undefined,
-      );
-    } catch (e) {
-      this.logger.error("分佣计算失败", e);
-    }
-    try {
-      const fee = await this.commissionSvc.calculatePlatformFee(order.type, Number(order.amount));
-      if (fee) {
-        await this.commissionSvc.recordPlatformFee({
-          type: order.type, sourceId: order.id, sourceAmount: Number(order.amount),
-          platformRate: fee.platformRate, platformFee: fee.platformFee,
-        });
-      }
-    } catch (e) {
-      this.logger.error("平台费记录失败", e);
-    }
   }
 
   private async completePayment(outTradeNo: string, payMethod: string, tradeNo: string, success: boolean, callbackAmount?: number) {
@@ -1393,7 +917,7 @@ export class ShopService {
       }
 
       // 分佣 + 平台费（事务外，失败可重试不影响订单状态；此前支付宝/银联漏记平台费）
-      await this.recordOrderCommissionAndFee(order);
+      await this.attribution.recordOrderCommissionAndFee(order);
 
       // 触发 Webhook（fire-and-forget，不阻塞主流程）
       this.webhook.fire("ORDER_PAID", {
@@ -1795,7 +1319,7 @@ export class ShopService {
     if (flipped.count === 0) throw new BusinessException(ErrorCode.ORDER_STATUS_INVALID, "订单状态已变更");
     await this.redis.del(`${CACHE_PREFIX}order:${orderId}`);
     // 线下确认收款同样记分佣 + 平台费（与网关支付路径一致，避免账目漏记）
-    await this.recordOrderCommissionAndFee(order);
+    await this.attribution.recordOrderCommissionAndFee(order);
     // 拼团订单：管理员确认支付后同样触发成团结算（本地无微信证书时用此路径验证闭环）
     await this.settleGroupBuyIfNeeded(orderId).catch((e) => this.logger.error(`拼团成团结算失败 order=${orderId}`, e));
     this.logger.log(`管理员 ${operatorId} 手动确认支付: ${orderId}, 流水号: ${payTransactionId}`);

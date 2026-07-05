@@ -1,5 +1,7 @@
 import { Module } from "@nestjs/common";
 import { ShopService } from "./shop.service";
+import { ShopAttributionService } from "./shop-attribution.service";
+import { ShopProductService } from "./shop-product.service";
 import { ShopCouponService } from "./shop-coupon.service";
 import { AfterSaleSlaService } from "./after-sale-sla.service";
 import { WechatPayService } from "./wechat-pay.service";
@@ -26,7 +28,7 @@ import { MemberModule } from "../member/member.module";
 @Module({
   imports: [CommissionModule, SystemModule, CoinModule, WebhookModule, HuifuModule, PricingModule, AuditModule, MemberModule],
   controllers: [ShopController, AddressController, ProductCategoryController],
-  providers: [ShopService, ShopCouponService, AfterSaleSlaService, WechatPayService, AlipayService, UnionpayService, PaymentProviderFactory, LogisticsService, AddressService, ProductCategoryService, ActiveUserGuard, StationIsolationGuard],
+  providers: [ShopService, ShopAttributionService, ShopProductService, ShopCouponService, AfterSaleSlaService, WechatPayService, AlipayService, UnionpayService, PaymentProviderFactory, LogisticsService, AddressService, ProductCategoryService, ActiveUserGuard, StationIsolationGuard],
   exports: [ShopService, ShopCouponService, WechatPayService, AlipayService, UnionpayService, LogisticsService, AddressService, ProductCategoryService],
 })
 export class ShopModule {}

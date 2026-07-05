@@ -1,5 +1,7 @@
 import { Test } from "@nestjs/testing"
 import { ShopService } from "./shop.service"
+import { ShopAttributionService } from "./shop-attribution.service"
+import { ShopProductService } from "./shop-product.service"
 import { PrismaService } from "../../prisma/prisma.service"
 import { CommissionService } from "../commission/commission.service"
 import { UnifiedPricingService } from "../pricing/unified-pricing.service"
@@ -206,6 +208,8 @@ describe("ShopService", () => {
     const mod = await Test.createTestingModule({
       providers: [
         ShopService,
+        ShopAttributionService,
+        ShopProductService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: CommissionService, useValue: mockCommission },
         { provide: UnifiedPricingService, useValue: mockUnifiedPricing },
