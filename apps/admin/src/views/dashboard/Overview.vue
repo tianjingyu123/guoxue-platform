@@ -19,6 +19,8 @@ interface DailyRow {
     pv?: number
     newUsers?: number
     d1Retention?: number
+    d7Retention?: number
+    bActiveCount?: number
     gmv?: number
     ordersPaid?: number
     memberNew?: number
@@ -64,16 +66,27 @@ function buildView() {
   const last = list[list.length - 1]
   const gmv30 = list.reduce((s, r) => s + (r.metrics.gmv ?? 0), 0)
 
+  // 昨日单位经济指标（由现有字段推导·D-T3）
+  const m = last?.metrics
+  const gmvY = m?.gmv ?? 0
+  const ordersY = m?.ordersPaid ?? 0
+  const commY = m?.commissionSum ?? 0
+  const arpu = ordersY > 0 ? `¥${Math.round(gmvY / ordersY).toLocaleString()}` : '—'
+  const commRatio = gmvY > 0 ? `${((commY / gmvY) * 100).toFixed(1)}%` : '—'
+  const d7 = m?.d7Retention != null ? `${(m.d7Retention * 100).toFixed(1)}%` : '—'
+  const bActive = m?.bActiveCount != null ? m.bActiveCount.toLocaleString() : '—'
+
+  // 老板一屏 9 指标（D-T3·生态健康 + 单位经济 + 实时/昨日核心）
   cards.value = [
-    // 北极星：周活从业者数暂无聚合来源，诚实缺省为 —
-    { label: '周活从业者数（北极星）', value: '—', icon: Star, hint: '指标待接入' },
-    { label: `近30日 GMV（北极星）`, value: `¥${gmv30.toLocaleString()}`, icon: Money },
+    { label: '近30日 GMV（北极星）', value: `¥${gmv30.toLocaleString()}`, icon: Money },
+    { label: '昨日 B端活跃数（生态健康）', value: bActive, icon: Star, hint: '活跃∩站长/商家/圈主/驿站/讲师' },
+    { label: '昨日 7日留存', value: d7, icon: TrendCharts, hint: d7 === '—' ? '暂无 7 日前 cohort' : undefined },
+    { label: '昨日 客单价', value: arpu, icon: Money, hint: 'GMV / 支付订单' },
+    { label: '昨日 分佣支出比', value: commRatio, icon: Plus, hint: '分佣 / GMV' },
     { label: '今日 DAU', value: (today.value?.dau ?? 0).toLocaleString(), icon: User },
-    { label: '今日浏览量 PV', value: (today.value?.pv ?? 0).toLocaleString(), icon: View },
     { label: '今日支付订单', value: (today.value?.ordersPaid ?? 0).toLocaleString(), icon: Goods },
-    { label: `昨日 DAU（${last?.date ?? '—'}）`, value: (last?.metrics.dau ?? 0).toLocaleString(), icon: TrendCharts },
-    { label: '昨日新增用户', value: (last?.metrics.newUsers ?? 0).toLocaleString(), icon: Plus },
-    { label: '昨日 GMV', value: `¥${(last?.metrics.gmv ?? 0).toLocaleString()}`, icon: Money },
+    { label: `昨日 DAU（${last?.date ?? '—'}）`, value: (last?.metrics.dau ?? 0).toLocaleString(), icon: View },
+    { label: '昨日 GMV', value: `¥${gmvY.toLocaleString()}`, icon: Money },
   ]
 
   if (list.length) {
