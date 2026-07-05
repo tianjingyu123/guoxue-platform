@@ -565,7 +565,7 @@ export class CoinService {
           type: "RECHARGE",
           amountCoin,
           balanceAfter: toAcc!.balance,
-          scene: "BOUNTY" as any,
+          scene: "BOUNTY",
           refId,
           description: "悬赏赏金到账",
         },

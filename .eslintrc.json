@@ -69,6 +69,18 @@
         "@typescript-eslint/no-explicit-any": "warn",
         "@typescript-eslint/no-unused-vars": "off"
       }
+    },
+    {
+      "files": [
+        "apps/server/src/modules/commission/**/*.ts",
+        "apps/server/src/modules/settlement/**/*.ts",
+        "apps/server/src/modules/fund-approval/**/*.ts",
+        "apps/server/src/modules/coin/**/*.ts"
+      ],
+      "excludedFiles": ["*.spec.ts", "*.test.ts"],
+      "rules": {
+        "@typescript-eslint/no-explicit-any": "error"
+      }
     }
   ]
 }

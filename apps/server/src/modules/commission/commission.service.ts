@@ -3,7 +3,7 @@ import { randomInt } from "crypto";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
-import { Prisma } from "@prisma/client";
+import { Prisma, CommissionConfig } from "@prisma/client";
 import { WebhookService } from "../webhook/webhook.service";
 import { SystemService } from "../system/system.service";
 import { MemoryCache } from "../../common/cache.util";
@@ -25,6 +25,7 @@ const OCCUPYING_WITHDRAW_STATUSES = ["PENDING", "APPROVED", "PAID"];
  * 管理奖比率 = operator.mgmtRate ?? channelType 默认（ONLINE 10% / OFFLINE 20%），
  * 等级率不再参与计算，本常量保留供审计/回溯历史数据口径。
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- 有意保留：供审计/回溯历史分佣数据口径，不参与现行计算
 const OPERATOR_MGMT_RATES: Record<string, { mgmt: number }> = {
   SILVER: { mgmt: 0.08 },
   GOLD: { mgmt: 0.12 },
@@ -53,7 +54,7 @@ const SHARE_CONVERSION_PAID_STATUSES = ["PAID", "SHIPPED", "COMPLETED"] as const
 @Injectable()
 export class CommissionService {
   private readonly logger = new Logger(CommissionService.name);
-  private readonly configCache = new MemoryCache<any>(50);
+  private readonly configCache = new MemoryCache<CommissionConfig[]>(50);
 
   constructor(
     private prisma: PrismaService,
@@ -1190,7 +1191,10 @@ export class CommissionService {
 
   async getCommissionConfig() {
     const configs = await this.prisma.commissionConfig.findMany();
-    const result: Record<string, any> = {};
+    const result: Record<string, {
+      rateA: number; rateB: number; rateC: number | null;
+      configName: string | null; description: string | null;
+    }> = {};
     for (const cfg of configs) {
       result[cfg.configKey] = {
         rateA: Number(cfg.rateA),

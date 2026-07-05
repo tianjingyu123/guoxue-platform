@@ -57,6 +57,7 @@ export class FundApprovalExecutor {
     }
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 动态审批载荷：按 type 分发(DIVIDEND/RECHARGE/REFUND/COMMISSION_CONFIG/COIN_REFUND)，各类型 payload 形态不同，此处为唯一收敛分发点
   private execute(approval: { type: string; requestedBy: string; payload: any }) {
     const p = approval.payload || {};
     switch (approval.type) {

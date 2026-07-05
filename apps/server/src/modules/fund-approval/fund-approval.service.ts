@@ -1,4 +1,5 @@
 import { Injectable } from "@nestjs/common";
+import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
@@ -9,16 +10,13 @@ export type FundApprovalType = "DIVIDEND" | "REFUND" | "RECHARGE" | "COMMISSION_
  * 资金审批核心服务（仅依赖 Prisma，无业务模块依赖）。
  * 负责审批单的创建 / 查询 / 原子状态流转，供 4 个资金模块发起审批、
  * 供 FundApprovalExecutor 在审批通过时执行。
- *
- * 注意：FundApproval 模型已在 schema.prisma 声明；若本地 Prisma Client 尚未
- * 重新 generate，则用 any 桥接 delegate，待 `prisma generate` 后类型自动可用。
  */
 @Injectable()
 export class FundApprovalService {
   constructor(private prisma: PrismaService) {}
 
   private get model() {
-    return (this.prisma as { fundApproval: any }).fundApproval;
+    return this.prisma.fundApproval;
   }
 
   /** 发起一笔资金审批（状态 PENDING） */
@@ -32,7 +30,7 @@ export class FundApprovalService {
     const record = await this.model.create({
       data: {
         type: input.type,
-        payload: input.payload,
+        payload: input.payload as Prisma.InputJsonValue,
         amount: input.amount ?? null,
         summary: input.summary,
         requestedBy: input.requestedBy,
