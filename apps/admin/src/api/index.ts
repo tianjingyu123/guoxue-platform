@@ -724,6 +724,13 @@ export const userTagApi = {
   recompute: () => api.post("/user-tags/recompute"),
 };
 
+// 可观测性（T3·性能观测页）
+export const observabilityApi = {
+  apiPerf: (minutes = 60) => api.get("/observability/api-perf", { params: { minutes } }),
+  webVitals: (days = 7) => api.get("/observability/web-vitals", { params: { days } }),
+  nginx: () => api.get("/observability/nginx"),
+};
+
 // 审核举报管理
 export const auditReportApi = {
   list: (params?: { page?: number; pageSize?: number; status?: string }) =>

@@ -259,6 +259,7 @@ export const MENU_CONFIG: MenuItem[] = [
     children: [
       { title: "运营看板", path: "/dashboard/overview", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN"] },
       { title: "转化漏斗", path: "/dashboard/funnels", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
+      { title: "性能观测", path: "/dashboard/perf", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
       { title: "用户标签", path: "/user-tags", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
       { title: "平台总览", path: "/data/platform" },
       { title: "圈子数据", path: "/data/circle" },

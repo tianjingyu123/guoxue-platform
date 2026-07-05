@@ -836,6 +836,12 @@ const routes = [
       },
       // === 数据运营引擎（D-T1 漏斗 / D-T2 标签）+ 业务哨兵（O-T1） ===
       {
+        path: "dashboard/perf",
+        name: "PerfBoard",
+        component: () => import("@/views/dashboard/Perf.vue"),
+        meta: { title: "性能观测", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
+      },
+      {
         path: "dashboard/funnels",
         name: "FunnelBoard",
         component: () => import("@/views/dashboard/FunnelBoard.vue"),

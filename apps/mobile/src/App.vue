@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onLaunch, onShow, onHide, onError } from '@dcloudio/uni-app'
 import { track } from '@/composables/useTrack'
+import { initWebVitals } from '@/composables/useWebVitals'
 import { captureRefFromQuery, captureRefFromUrl } from '@/utils/referral'
 import { hydrateBrandConfig } from '@/lib/brand'
 
@@ -13,6 +14,8 @@ function pickUrl(args: string | { url?: string }): string {
 onLaunch((options?: { query?: Record<string, unknown> }) => {
   // 品牌配置水合（租-T0）：从后端拉取站名/标语/主色等，失败静默用内置默认值
   hydrateBrandConfig()
+  // RUM 性能采集（T3 可观测·仅 H5 生效）
+  initWebVitals()
   // 推荐归因：冷启动落地页携带 ref（分享链接）时记录最近分享者
   try {
     captureRefFromQuery(options?.query)

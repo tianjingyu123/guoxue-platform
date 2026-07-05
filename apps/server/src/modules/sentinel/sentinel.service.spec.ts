@@ -21,6 +21,7 @@ const mockPrisma = {
 
 const mockRedis = {
   runExclusive: jest.fn((_n: string, _t: number, fn: () => Promise<unknown>) => fn()),
+  getJson: jest.fn(),
 };
 
 /** 让所有规则都"安静"（不触发）的基线 mock */
@@ -31,6 +32,7 @@ function quietBaseline() {
   mockPrisma.trackEvent.findMany.mockResolvedValue([]); // R4 无基线
   mockPrisma.smsLog.count.mockResolvedValue(0); // R6 样本不足
   mockPrisma.aiAnalysisRecord.count.mockResolvedValue(0); // R7 昨日无基线
+  mockRedis.getJson.mockResolvedValue(null); // R9 nginx 分析器未运行
   mockPrisma.sentinelAlert.findFirst.mockResolvedValue(null);
   mockPrisma.sentinelAlert.findMany.mockResolvedValue([]);
   mockPrisma.sentinelAlert.updateMany.mockResolvedValue({ count: 0 });
@@ -198,6 +200,27 @@ describe("SentinelService", () => {
         expect.objectContaining({ method: "POST" }),
       );
       delete (global as Record<string, unknown>).fetch;
+    });
+  });
+
+  describe("R9 nginx 5xx 率（T3 接线）", () => {
+    it("窗口 100 请求 8 个 5xx（8%>5%）→ P1", async () => {
+      mockRedis.getJson.mockResolvedValue({ total: 100, s5xx: 8, at: "2026-07-05T12:00:00Z" });
+      const r = await svc.runPatrol();
+      expect(r.fired).toBe(1);
+      const created = mockPrisma.sentinelAlert.create.mock.calls[0][0].data;
+      expect(created.rule).toBe("nginx_5xx_rate");
+      expect(created.level).toBe("P1");
+    });
+
+    it("样本不足（<50）不触发", async () => {
+      mockRedis.getJson.mockResolvedValue({ total: 20, s5xx: 10, at: "x" });
+      expect((await svc.runPatrol()).fired).toBe(0);
+    });
+
+    it("分析器未运行（键缺失）不告警", async () => {
+      mockRedis.getJson.mockResolvedValue(null);
+      expect((await svc.runPatrol()).fired).toBe(0);
     });
   });
 

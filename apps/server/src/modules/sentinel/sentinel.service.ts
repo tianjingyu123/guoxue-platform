@@ -62,6 +62,7 @@ export class SentinelService {
       () => this.checkSmsFailRate(),
       () => this.checkAiStall(),
       () => this.checkDiskWatermark(),
+      () => this.checkNginx5xxRate(),
     ];
 
     const findings: SentinelFinding[] = [];
@@ -249,6 +250,23 @@ export class SentinelService {
       level: "P2",
       message: `磁盘使用率 ${usedPct}%（阈值 ${max}%），清理构建产物/旧日志/旧备份`,
       context: { usedPct, max },
+    };
+  }
+
+  /** R9 nginx 5xx 率（P1·T3 可观测接线）：接入层最近 5 分钟窗口 5xx 占比过高（数据源 NginxLogService） */
+  private async checkNginx5xxRate(): Promise<SentinelFinding | null> {
+    const stat = await this.redis.getJson<{ total: number; s5xx: number; at: string }>("obs:nginx:latest");
+    if (!stat) return null; // 分析器未运行/键过期：不告警（哨兵不替观测系统自证）
+    const minTotal = await this.threshold("nginx_min_total", 50);
+    const maxRate = await this.threshold("nginx_5xx_rate", 0.05);
+    if (stat.total < minTotal) return null;
+    const rate = stat.s5xx / stat.total;
+    if (rate <= maxRate) return null;
+    return {
+      rule: "nginx_5xx_rate",
+      level: "P1",
+      message: `接入层 5xx 风暴：最近5分钟窗口 ${stat.s5xx}/${stat.total}=${(rate * 100).toFixed(1)}%（阈值 ${maxRate * 100}%），检查后端进程/upstream/磁盘`,
+      context: { total: stat.total, s5xx: stat.s5xx, rate, windowAt: stat.at },
     };
   }
 
