@@ -2928,6 +2928,21 @@ model TrackEvent {
   @@index([userId, createdAt])
 }
 
+/** 业务哨兵告警（O-T1·运维守护体系）：规则触发记录+去重+处置状态 */
+model SentinelAlert {
+  id         String    @id @default(uuid())
+  rule       String // 规则键：pay_success_rate / dau_drop / disk_watermark 等
+  level      String // P1(资金/全站) / P2(功能性) / P3(降级类)
+  message    String
+  context    Json? // 触发时的指标快照（样本数/比率/阈值）
+  firedAt    DateTime  @default(now())
+  resolvedAt DateTime? // 人工/自动标记解除
+  notified   Boolean   @default(false)
+
+  @@index([rule, resolvedAt])
+  @@index([firedAt])
+}
+
 model SearchHistory {
   id        String   @id @default(uuid())
   userId    String
