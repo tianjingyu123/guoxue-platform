@@ -138,6 +138,14 @@ describe("AuditService", () => {
         }),
       )
     })
+
+    it("page='abc' 时 skip 不为 NaN（safePagination 归一化）", async () => {
+      mockPrisma.auditLog.findMany.mockResolvedValue([])
+      mockPrisma.auditLog.count.mockResolvedValue(0)
+      await svc.list({ page: "abc" as any })
+      const arg = mockPrisma.auditLog.findMany.mock.calls[0][0]
+      expect(Number.isNaN(arg.skip)).toBe(false)
+    })
   })
 
   describe("getActions", () => {

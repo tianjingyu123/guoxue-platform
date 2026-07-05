@@ -92,6 +92,14 @@ describe("RiskControlService", () => {
       const result = await svc.listRules({ type: "FRAUD", enabled: true });
       expect(result.total).toBe(0);
     });
+
+    it("page='abc' 时 skip 不为 NaN（safePagination 归一化）", async () => {
+      mockPrisma.riskRule.findMany.mockResolvedValue([]);
+      mockPrisma.riskRule.count.mockResolvedValue(0);
+      await svc.listRules({ page: "abc" as any });
+      const arg = mockPrisma.riskRule.findMany.mock.calls[0][0];
+      expect(Number.isNaN(arg.skip)).toBe(false);
+    });
   });
 
   describe("updateRule", () => {

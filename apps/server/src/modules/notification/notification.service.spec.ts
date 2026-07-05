@@ -105,6 +105,15 @@ describe("NotificationService", () => {
         expect.objectContaining({ skip: 10, take: 10 }),
       );
     });
+
+    it("page 传 'abc' 时 findMany skip 不为 NaN", async () => {
+      mockPrisma.notification.findMany.mockResolvedValue([]);
+      mockPrisma.notification.count.mockResolvedValue(0);
+      await svc.getUserNotifications("u1", "abc" as unknown as number, 20);
+      const call = mockPrisma.notification.findMany.mock.calls[0];
+      const arg = call[0] as { skip: number };
+      expect(Number.isNaN(arg.skip)).toBe(false);
+    });
   });
 
   describe("getUnreadCount", () => {

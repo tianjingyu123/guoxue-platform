@@ -4,6 +4,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { CreateTenantDto, UpdateTenantDto, TenantRechargeDto, TenantConsumeDto, TenantListDto } from "./tenant.dto";
+import { safePagination, NO_PAGE_LIMIT } from "../../common/pagination";
 
 @Injectable()
 export class TenantService {
@@ -50,7 +51,8 @@ export class TenantService {
   }
 
   async list(dto: TenantListDto) {
-    const { page = 1, pageSize = 20, status, keyword } = dto;
+    const { page: rawPage, pageSize: rawPageSize, status, keyword } = dto;
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize, NO_PAGE_LIMIT);
     const where: any = {};
     if (status) where.status = status;
     if (keyword) where.name = { contains: keyword };
@@ -58,7 +60,7 @@ export class TenantService {
     const [tenants, total] = await Promise.all([
       this.prisma.tenant.findMany({
         where,
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),
@@ -234,15 +236,14 @@ export class TenantService {
     const tenant = await this.prisma.tenant.findUnique({ where: { id: tenantId }, select: { id: true } });
     if (!tenant) throw new BusinessException(ErrorCode.NOT_FOUND, "租户不存在");
 
-    const page = opts.page && opts.page > 0 ? opts.page : 1;
-    const pageSize = opts.pageSize && opts.pageSize > 0 ? Math.min(opts.pageSize, 100) : 20;
+    const { page, pageSize, skip } = safePagination(opts.page, opts.pageSize, 100);
     const where: any = { tenantId };
     if (opts.status) where.status = opts.status;
 
     const [logs, total] = await Promise.all([
       this.prisma.tenantApiCall.findMany({
         where,
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),

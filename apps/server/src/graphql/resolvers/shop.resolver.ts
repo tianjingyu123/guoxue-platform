@@ -1,5 +1,6 @@
 import { Resolver, Query, Args } from "@nestjs/graphql";
 import { PrismaService } from "../../prisma/prisma.service";
+import { safePagination } from "../../common/pagination";
 import { Course, Product } from "../models";
 import { CourseFilter, ProductFilter } from "../dto/query.dto";
 
@@ -9,14 +10,15 @@ export class ShopResolver {
 
   @Query(() => [Course], { description: "课程列表" })
   async courses(@Args("filter", { nullable: true }) filter?: CourseFilter) {
-    const { page = 1, pageSize = 10, circleId, stationId } = filter ?? {};
+    const { circleId, stationId } = filter ?? {};
+    const { pageSize, skip } = safePagination(filter?.page ?? 1, filter?.pageSize ?? 10);
     const where: Record<string, unknown> = { auditStatus: "APPROVED" };
     if (circleId) where.circleId = circleId;
     if (stationId) where.stationId = stationId;
 
     return this.prisma.course.findMany({
       where,
-      skip: (page - 1) * pageSize,
+      skip,
       take: pageSize,
       orderBy: { createdAt: "desc" },
     });
@@ -29,14 +31,15 @@ export class ShopResolver {
 
   @Query(() => [Product], { description: "商品列表" })
   async products(@Args("filter", { nullable: true }) filter?: ProductFilter) {
-    const { page = 1, pageSize = 10, categoryId, stationId } = filter ?? {};
+    const { categoryId, stationId } = filter ?? {};
+    const { pageSize, skip } = safePagination(filter?.page ?? 1, filter?.pageSize ?? 10);
     const where: Record<string, unknown> = { status: "ON_SALE" };
     if (categoryId) where.categoryId = categoryId;
     if (stationId) where.stationId = stationId;
 
     return this.prisma.product.findMany({
       where,
-      skip: (page - 1) * pageSize,
+      skip,
       take: pageSize,
       orderBy: { createdAt: "desc" },
     });

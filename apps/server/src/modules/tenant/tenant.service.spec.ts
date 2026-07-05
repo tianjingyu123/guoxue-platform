@@ -96,6 +96,15 @@ describe("TenantService", () => {
         expect.objectContaining({ where: { status: "ACTIVE" } }),
       );
     });
+
+    it("page=abc 时 skip 不为 NaN（防 Prisma 500）", async () => {
+      prisma.tenant.findMany.mockResolvedValue([]);
+      prisma.tenant.count.mockResolvedValue(0);
+
+      await svc.list({ page: "abc" as any, pageSize: 20 });
+      const arg = prisma.tenant.findMany.mock.calls[0][0];
+      expect(Number.isNaN(arg.skip)).toBe(false);
+    });
   });
 
   describe("getById", () => {

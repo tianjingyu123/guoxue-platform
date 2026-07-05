@@ -4,10 +4,16 @@ import { PrismaService } from "../../prisma/prisma.service";
 
 describe("TrackService", () => {
   let service: TrackService;
-  let prisma: { trackEvent: { createMany: jest.Mock } };
+  let prisma: { trackEvent: { createMany: jest.Mock; findMany: jest.Mock; count: jest.Mock } };
 
   beforeEach(async () => {
-    prisma = { trackEvent: { createMany: jest.fn().mockResolvedValue({ count: 1 }) } };
+    prisma = {
+      trackEvent: {
+        createMany: jest.fn().mockResolvedValue({ count: 1 }),
+        findMany: jest.fn().mockResolvedValue([]),
+        count: jest.fn().mockResolvedValue(0),
+      },
+    };
     const moduleRef = await Test.createTestingModule({
       providers: [TrackService, { provide: PrismaService, useValue: prisma }],
     }).compile();
@@ -50,5 +56,17 @@ describe("TrackService", () => {
     prisma.trackEvent.createMany.mockRejectedValueOnce(new Error("db down"));
     const r = await service.recordBatch("u1", [{ action: "click" }]);
     expect(r).toEqual({ ok: true, count: 0 });
+  });
+
+  describe("getErrorMonitor - 分页入参加固", () => {
+    it("page 传 'abc' 时 findMany skip 不为 NaN", async () => {
+      await service.getErrorMonitor(7, "abc" as unknown as number, 20);
+      const call = prisma.trackEvent.findMany.mock.calls.find(
+        (c: unknown[]) => (c[0] as Record<string, unknown>).skip !== undefined,
+      );
+      expect(call).toBeDefined();
+      const arg = call![0] as { skip: number };
+      expect(Number.isNaN(arg.skip)).toBe(false);
+    });
   });
 });

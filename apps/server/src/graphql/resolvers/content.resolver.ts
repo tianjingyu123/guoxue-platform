@@ -1,5 +1,6 @@
 import { Resolver, Query, Args, Int } from "@nestjs/graphql";
 import { PrismaService } from "../../prisma/prisma.service";
+import { safePagination } from "../../common/pagination";
 import { Content, ClassicBook } from "../models";
 import { ContentFilter, ClassicFilter } from "../dto/query.dto";
 
@@ -9,7 +10,8 @@ export class ContentResolver {
 
   @Query(() => [Content], { description: "内容列表" })
   async contents(@Args("filter", { nullable: true }) filter?: ContentFilter) {
-    const { page = 1, pageSize = 10, type, keyword, stationId } = filter ?? {};
+    const { type, keyword, stationId } = filter ?? {};
+    const { pageSize, skip } = safePagination(filter?.page ?? 1, filter?.pageSize ?? 10);
     const where: Record<string, unknown> = { status: "PUBLISHED" };
     if (type) where.type = type;
     if (stationId) where.stationId = stationId;
@@ -17,7 +19,7 @@ export class ContentResolver {
 
     return this.prisma.content.findMany({
       where,
-      skip: (page - 1) * pageSize,
+      skip,
       take: pageSize,
       orderBy: { createdAt: "desc" },
     });
@@ -30,13 +32,14 @@ export class ContentResolver {
 
   @Query(() => [ClassicBook], { description: "古籍列表" })
   async classicBooks(@Args("filter", { nullable: true }) filter?: ClassicFilter) {
-    const { page = 1, pageSize = 10, category } = filter ?? {};
+    const { category } = filter ?? {};
+    const { pageSize, skip } = safePagination(filter?.page ?? 1, filter?.pageSize ?? 10);
     const where: Record<string, unknown> = { status: "PUBLISHED" };
     if (category) where.category = category;
 
     return this.prisma.classicBook.findMany({
       where,
-      skip: (page - 1) * pageSize,
+      skip,
       take: pageSize,
       orderBy: { createdAt: "desc" },
     });

@@ -9,7 +9,11 @@ const mockFetch = jest.fn();
 
 const mockPrisma = {
   user: { findUnique: jest.fn().mockResolvedValue(null), update: jest.fn().mockResolvedValue({}) },
-  auditLog: { create: jest.fn().mockResolvedValue({}) },
+  auditLog: {
+    create: jest.fn().mockResolvedValue({}),
+    findMany: jest.fn().mockResolvedValue([]),
+    count: jest.fn().mockResolvedValue(0),
+  },
 };
 
 const mockRedis = {
@@ -80,6 +84,15 @@ describe("IdentityService", () => {
       });
       const result = await (svc as any).callApi("ocr", "TestAction", {});
       expect(result).toBeDefined();
+    });
+  });
+
+  describe("getIdentityAuditList - 分页入参加固", () => {
+    it("page 传 'abc' 时 auditLog.findMany skip 不为 NaN", async () => {
+      await svc.getIdentityAuditList("abc" as unknown as number, 20);
+      const call = mockPrisma.auditLog.findMany.mock.calls[0];
+      const arg = call[0] as { skip: number };
+      expect(Number.isNaN(arg.skip)).toBe(false);
     });
   });
 });

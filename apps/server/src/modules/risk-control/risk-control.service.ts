@@ -6,6 +6,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { Prisma, UserStatus } from "@prisma/client";
 import { maskPhone } from "../../common/crypto.util";
+import { safePagination, NO_PAGE_LIMIT } from "../../common/pagination";
 
 @Injectable()
 export class RiskControlService {
@@ -34,7 +35,8 @@ export class RiskControlService {
   }
 
   async listRules(params: { type?: string; enabled?: boolean; page?: number; pageSize?: number }) {
-    const { type, enabled, page = 1, pageSize = 20 } = params;
+    const { type, enabled } = params;
+    const { page, pageSize, skip } = safePagination(params.page, params.pageSize, NO_PAGE_LIMIT);
     const where: Prisma.RiskRuleWhereInput = {};
     if (type) where.type = type;
     if (enabled !== undefined) where.enabled = enabled;
@@ -42,7 +44,7 @@ export class RiskControlService {
     const [items, total] = await Promise.all([
       this.prisma.riskRule.findMany({
         where,
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),
@@ -76,7 +78,8 @@ export class RiskControlService {
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   async listAlerts(params: { type?: string; level?: string; status?: string; stationId?: string; page?: number; pageSize?: number }) {
-    const { type, level, status, stationId, page = 1, pageSize = 20 } = params;
+    const { type, level, status, stationId } = params;
+    const { page, pageSize, skip } = safePagination(params.page, params.pageSize, NO_PAGE_LIMIT);
     const where: Prisma.RiskAlertWhereInput = {};
     if (type) where.type = type;
     if (level) where.level = level;
@@ -86,7 +89,7 @@ export class RiskControlService {
     const [items, total] = await Promise.all([
       this.prisma.riskAlert.findMany({
         where,
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),
@@ -191,7 +194,8 @@ export class RiskControlService {
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   async listFraudDetections(params: { status?: string; stationId?: string; page?: number; pageSize?: number }) {
-    const { status, stationId, page = 1, pageSize = 20 } = params;
+    const { status, stationId } = params;
+    const { page, pageSize, skip } = safePagination(params.page, params.pageSize, NO_PAGE_LIMIT);
     const where: Prisma.FraudDetectionWhereInput = {};
     if (status) where.status = status;
     if (stationId) where.stationId = stationId;
@@ -199,7 +203,7 @@ export class RiskControlService {
     const [items, total] = await Promise.all([
       this.prisma.fraudDetection.findMany({
         where,
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),
@@ -351,7 +355,8 @@ export class RiskControlService {
     userId: string,
     params: { action?: string; dateFrom?: string; dateTo?: string; page?: number; pageSize?: number } = {},
   ) {
-    const { action, dateFrom, dateTo, page = 1, pageSize = 20 } = params;
+    const { action, dateFrom, dateTo } = params;
+    const { page, pageSize, skip } = safePagination(params.page, params.pageSize, NO_PAGE_LIMIT);
 
     const where: Prisma.UserBehaviorLogWhereInput = { userId };
     if (action) where.action = { contains: action };
@@ -366,7 +371,7 @@ export class RiskControlService {
       this.prisma.userBehaviorLog.findMany({
         where,
         orderBy: { createdAt: "desc" },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
       }),
       this.prisma.userBehaviorLog.count({ where }),
@@ -387,7 +392,8 @@ export class RiskControlService {
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   async listAppeals(params: { status?: string; type?: string; page?: number; pageSize?: number }) {
-    const { status, type, page = 1, pageSize = 20 } = params;
+    const { status, type } = params;
+    const { page, pageSize, skip } = safePagination(params.page, params.pageSize, NO_PAGE_LIMIT);
     const where: Prisma.AppealRecordWhereInput = {};
     if (status) where.status = status;
     if (type) where.type = type;
@@ -395,7 +401,7 @@ export class RiskControlService {
     const [items, total] = await Promise.all([
       this.prisma.appealRecord.findMany({
         where,
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),

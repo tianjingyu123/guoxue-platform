@@ -4,6 +4,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { TrackEventDto } from "./track.dto";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
+import { safePagination, NO_PAGE_LIMIT } from "../../common/pagination";
 
 const MAX_BATCH = 50;
 const ACTION_MAX = 64;
@@ -80,7 +81,8 @@ export class TrackService {
    * 前端错误监控（G4）：App.onError 全局埋点 action=error 的聚合视图。
    * 错误量级预期低（异常才有），findMany 全窗口取回后 JS 聚合即可；payload.msg 截断归并防高基数。
    */
-  async getErrorMonitor(days = 7, page = 1, pageSize = 20) {
+  async getErrorMonitor(days = 7, rawPage: number | string = 1, rawPageSize: number | string = 20) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize, NO_PAGE_LIMIT);
     const since = new Date(Date.now() - days * 86_400_000);
     const dayAgo = new Date(Date.now() - 86_400_000);
     const [windowRows, total, last24h] = await Promise.all([
@@ -124,7 +126,7 @@ export class TrackService {
       where: { action: "error", createdAt: { gte: since } },
       select: { id: true, userId: true, path: true, payload: true, occurredAt: true, createdAt: true },
       orderBy: { createdAt: "desc" },
-      skip: (page - 1) * pageSize,
+      skip,
       take: pageSize,
     });
 

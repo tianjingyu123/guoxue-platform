@@ -140,4 +140,14 @@ describe("ComplianceScanService", () => {
       }),
     )
   })
+
+  it("listRecords: page='abc' 时 skip 不为 NaN（safePagination 归一化·保留 100 上限）", async () => {
+    mockPrisma.complianceScanRecord.findMany.mockResolvedValue([])
+    mockPrisma.complianceScanRecord.count.mockResolvedValue(0)
+    await svc.listRecords({ page: "abc" as any })
+    const arg = mockPrisma.complianceScanRecord.findMany.mock.calls[0][0]
+    expect(Number.isNaN(arg.skip)).toBe(false)
+    // 保留原有 100 上限：pageSize 不超过 100
+    expect(arg.take).toBeLessThanOrEqual(100)
+  })
 })

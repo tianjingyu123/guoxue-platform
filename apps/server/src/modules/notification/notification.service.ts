@@ -5,6 +5,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { PushService } from "./push.service";
 import { SendNotificationDto, BatchSendDto } from "./notification.dto";
+import { safePagination, NO_PAGE_LIMIT } from "../../common/pagination";
 
 const PREFS_TTL = 86400 * 30;
 
@@ -191,12 +192,13 @@ export class NotificationService {
   }
 
   /** 获取用户通知列表 */
-  async getUserNotifications(userId: string, page = 1, pageSize = 20) {
+  async getUserNotifications(userId: string, rawPage: number | string = 1, rawPageSize: number | string = 20) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize, NO_PAGE_LIMIT);
     const where = { userId };
     const [notifications, total, unreadCount] = await Promise.all([
       this.prisma.notification.findMany({
         where,
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),

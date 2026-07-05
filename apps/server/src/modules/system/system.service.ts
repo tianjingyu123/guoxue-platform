@@ -6,6 +6,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { AuditService } from "../audit/audit.service";
 import { ThirdPartyConfigLoader } from "./third-party-config.loader";
+import { safePagination, NO_PAGE_LIMIT } from "../../common/pagination";
 
 const CONFIG_CACHE_TTL = 3600; // 1小时
 const CONFIG_CACHE_PREFIX = "sys:config:";
@@ -345,12 +346,13 @@ export class SystemService {
   }
 
   /** 获取全站公告列表 */
-  async getSiteNotices(page: number, pageSize: number) {
+  async getSiteNotices(rawPage: number, rawPageSize: number) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize, NO_PAGE_LIMIT);
     this.logger.log(`查询全站公告: page=${page}, pageSize=${pageSize}`);
     const [records, total] = await Promise.all([
       this.prisma.siteNotice.findMany({
         orderBy: [{ isActive: "desc" }, { createdAt: "desc" }],
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
       }),
       this.prisma.siteNotice.count(),
@@ -403,7 +405,8 @@ export class SystemService {
   // ───────── 配置版本管理 ─────────
 
   /** 查询配置历史版本 */
-  async getConfigVersions(configKey: string | undefined, page: number, pageSize: number) {
+  async getConfigVersions(configKey: string | undefined, rawPage: number, rawPageSize: number) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize, NO_PAGE_LIMIT);
     this.logger.log(`查询配置历史版本: configKey=${configKey}`);
     const where: Prisma.ConfigVersionWhereInput = {};
     if (configKey) where.configKey = configKey;
@@ -412,7 +415,7 @@ export class SystemService {
       this.prisma.configVersion.findMany({
         where,
         orderBy: { version: "desc" },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
       }),
       this.prisma.configVersion.count({ where }),

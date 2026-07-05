@@ -356,13 +356,14 @@ export class UserService {
 
   // ───────── 黑名单 ─────────
 
-  async getBlacklist(userId: string, page = 1, pageSize = 20) {
+  async getBlacklist(userId: string, rawPage = 1, rawPageSize = 20) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
     const where = { userId };
     const [blocks, total] = await Promise.all([
       this.prisma.blacklist.findMany({
         where,
         include: { blockedUser: { select: { id: true, nickname: true, avatar: true } } },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),

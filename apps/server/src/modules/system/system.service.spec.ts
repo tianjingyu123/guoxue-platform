@@ -9,6 +9,7 @@ const mockPrisma = {
   configSystem: { findMany: jest.fn(), findUnique: jest.fn(), upsert: jest.fn(), delete: jest.fn() },
   brandConfig: { findUnique: jest.fn(), upsert: jest.fn() },
   auditLog: { findMany: jest.fn(), count: jest.fn() },
+  siteNotice: { findMany: jest.fn(), count: jest.fn() },
 };
 const mockRedis = { get: jest.fn(), set: jest.fn(), del: jest.fn(), getJson: jest.fn(), setJson: jest.fn() };
 const mockAudit = { log: jest.fn() };
@@ -147,6 +148,17 @@ describe("SystemService", () => {
       mockPrisma.configSystem.findMany.mockResolvedValue([]);
       const result = await svc.getPublicConfigs([]);
       expect(result).toEqual({});
+    });
+  });
+
+  describe("getSiteNotices", () => {
+    it("page=abc 时 skip 不为 NaN（防 Prisma 500）", async () => {
+      mockPrisma.siteNotice.findMany.mockResolvedValue([]);
+      mockPrisma.siteNotice.count.mockResolvedValue(0);
+
+      await svc.getSiteNotices("abc" as any, 20);
+      const arg = mockPrisma.siteNotice.findMany.mock.calls[0][0];
+      expect(Number.isNaN(arg.skip)).toBe(false);
     });
   });
 });

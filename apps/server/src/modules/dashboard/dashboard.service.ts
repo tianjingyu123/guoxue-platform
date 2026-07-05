@@ -2,6 +2,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
+import { safePagination, NO_PAGE_LIMIT } from "../../common/pagination";
 
 @Injectable()
 export class DashboardService {
@@ -697,14 +698,15 @@ export class DashboardService {
 
   // ───────── 预警列表 ─────────
 
-  async getAlertList(page: number, pageSize: number) {
+  async getAlertList(rawPage: number, rawPageSize: number) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize, NO_PAGE_LIMIT);
     const where = { status: "OPEN" as string };
 
     const [alerts, total, levelStats] = await Promise.all([
       this.prisma.riskAlert.findMany({
         where,
         orderBy: { createdAt: "desc" },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
       }),
       this.prisma.riskAlert.count({ where }),

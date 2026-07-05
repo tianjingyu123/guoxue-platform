@@ -6,6 +6,7 @@ import { ModerationAiService } from "./moderation-ai.service";
 import { SensitiveWordService } from "./sensitive-word.service";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
+import { safePagination, NO_PAGE_LIMIT } from "../../common/pagination";
 
 @Injectable()
 export class AuditService {
@@ -57,8 +58,7 @@ export class AuditService {
     page?: number;
     pageSize?: number;
   }) {
-    const page = params.page || 1;
-    const pageSize = params.pageSize || 20;
+    const { page, pageSize, skip } = safePagination(params.page, params.pageSize, NO_PAGE_LIMIT);
     const where: Prisma.AuditLogWhereInput = {
       rollbackData: { not: Prisma.DbNull },
     };
@@ -68,7 +68,7 @@ export class AuditService {
     const [logs, total] = await Promise.all([
       this.prisma.auditLog.findMany({
         where,
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),
@@ -226,8 +226,7 @@ export class AuditService {
     startDate?: string;
     endDate?: string;
   }) {
-    const page = params.page || 1;
-    const pageSize = params.pageSize || 20;
+    const { page, pageSize, skip } = safePagination(params.page, params.pageSize, NO_PAGE_LIMIT);
     const where: Prisma.AuditLogWhereInput = {};
     if (params.userId) where.userId = params.userId;
     if (params.action) where.action = params.action;
@@ -242,7 +241,7 @@ export class AuditService {
     const [logs, total] = await Promise.all([
       this.prisma.auditLog.findMany({
         where,
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),
@@ -270,8 +269,7 @@ export class AuditService {
     startDate?: string;
     endDate?: string;
   }) {
-    const page = params.page || 1;
-    const pageSize = params.pageSize || 20;
+    const { page, pageSize, skip } = safePagination(params.page, params.pageSize, NO_PAGE_LIMIT);
     const where: Prisma.OperationLogWhereInput = {};
     if (params.userId) where.userId = params.userId;
     if (params.action) where.action = params.action;
@@ -286,7 +284,7 @@ export class AuditService {
     const [logs, total] = await Promise.all([
       this.prisma.operationLog.findMany({
         where,
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),

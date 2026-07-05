@@ -260,6 +260,15 @@ describe("SentinelService", () => {
       mockPrisma.sentinelAlert.findUnique.mockResolvedValue(null);
       await expect(svc.resolveAlert("nope")).rejects.toThrow("告警不存在");
     });
+
+    it("page=abc 时 skip 不为 NaN（防 Prisma 500）", async () => {
+      mockPrisma.sentinelAlert.findMany.mockResolvedValue([]);
+      mockPrisma.sentinelAlert.count.mockResolvedValue(0);
+
+      await svc.listAlerts({ page: "abc" as any, pageSize: 20 });
+      const arg = mockPrisma.sentinelAlert.findMany.mock.calls[0][0];
+      expect(Number.isNaN(arg.skip)).toBe(false);
+    });
   });
 
   it("阈值可由 ConfigSystem 覆盖（pay_success_rate 阈值调 0.9 后 5/6 也触发）", async () => {

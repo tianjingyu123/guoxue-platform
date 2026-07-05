@@ -20,6 +20,7 @@ const mockPrisma = {
   content: { count: jest.fn() },
   productSku: { count: jest.fn() },
   post: { groupBy: jest.fn() },
+  riskAlert: { findMany: jest.fn(), count: jest.fn(), groupBy: jest.fn() },
 };
 
 const mockRedis = {
@@ -94,6 +95,18 @@ describe("DashboardService", () => {
       expect(result).toHaveProperty("userGrowth");
       expect(result).toHaveProperty("contentDistribution");
       expect(result).toHaveProperty("topArticles");
+    });
+  });
+
+  describe("getAlertList - 分页入参加固", () => {
+    it("page 传 'abc' 时 findMany skip 不为 NaN", async () => {
+      mockPrisma.riskAlert.findMany.mockResolvedValue([]);
+      mockPrisma.riskAlert.count.mockResolvedValue(0);
+      mockPrisma.riskAlert.groupBy.mockResolvedValue([]);
+      await svc.getAlertList("abc" as unknown as number, 20);
+      const call = mockPrisma.riskAlert.findMany.mock.calls[0];
+      const arg = call[0] as { skip: number };
+      expect(Number.isNaN(arg.skip)).toBe(false);
     });
   });
 });

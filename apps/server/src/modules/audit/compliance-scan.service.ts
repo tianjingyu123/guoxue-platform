@@ -6,6 +6,7 @@ import { RedisService } from "../../redis/redis.service";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { SensitiveWordService } from "./sensitive-word.service";
+import { safePagination } from "../../common/pagination";
 
 /** 单个待建扫描记录 */
 interface ScanHit {
@@ -193,8 +194,7 @@ export class ComplianceScanService {
 
   /** 扫描记录列表（admin 复核队列） */
   async listRecords(q: { level?: string; status?: string; targetType?: string; word?: string; page?: number; pageSize?: number }) {
-    const page = Math.max(1, q.page || 1);
-    const pageSize = Math.min(100, Math.max(1, q.pageSize || 20));
+    const { page, pageSize, skip } = safePagination(q.page, q.pageSize, 100);
     const where: Prisma.ComplianceScanRecordWhereInput = {
       ...(q.level ? { level: q.level } : {}),
       ...(q.status ? { status: q.status } : {}),
@@ -205,7 +205,7 @@ export class ComplianceScanService {
       this.prisma.complianceScanRecord.findMany({
         where,
         orderBy: [{ status: "asc" }, { level: "asc" }, { scanAt: "desc" }],
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
       }),
       this.prisma.complianceScanRecord.count({ where }),

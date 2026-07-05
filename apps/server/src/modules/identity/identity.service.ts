@@ -4,6 +4,7 @@ import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { tc3Sign, TencentCloudResponse } from "../../common/tc3.util";
 import { RedisService } from "../../redis/redis.service";
+import { safePagination, NO_PAGE_LIMIT } from "../../common/pagination";
 
 export interface AuditItem {
   id: string;
@@ -248,7 +249,8 @@ export class IdentityService {
   // ───────── 审核管理 ─────────
 
   /** 获取实名认证审核列表 */
-  async getIdentityAuditList(page: number, pageSize: number, _status?: string, userId?: string) {
+  async getIdentityAuditList(rawPage: number, rawPageSize: number, _status?: string, userId?: string) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize, NO_PAGE_LIMIT);
     const where: Record<string, unknown> = {
       OR: [
         { action: "IDENTITY_VERIFY" },
@@ -265,7 +267,7 @@ export class IdentityService {
       const [logs, count] = await Promise.all([
         this.prisma.auditLog.findMany({
           where,
-          skip: (page - 1) * pageSize,
+          skip,
           take: pageSize,
           orderBy: { createdAt: "desc" },
         }),

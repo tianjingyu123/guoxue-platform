@@ -3,6 +3,7 @@ import { Cron } from "@nestjs/schedule";
 import { execFile } from "child_process";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
+import { safePagination } from "../../common/pagination";
 
 /**
  * 业务哨兵（O-T1·运维守护体系·设计真源 docs/design/运维守护体系-监控告警应急灾备-20260705.md）
@@ -321,8 +322,7 @@ export class SentinelService {
 
   /** 告警分页列表：status=open(未解除)|resolved(已解除)|缺省全部，可按 level/rule 过滤 */
   async listAlerts(opts: { page?: number; pageSize?: number; status?: string; level?: string; rule?: string }) {
-    const page = Math.max(1, opts.page ?? 1);
-    const pageSize = Math.min(Math.max(1, opts.pageSize ?? 20), 100);
+    const { page, pageSize, skip } = safePagination(opts.page, opts.pageSize, 100);
     const where: Record<string, unknown> = {};
     if (opts.status === "open") where.resolvedAt = null;
     else if (opts.status === "resolved") where.resolvedAt = { not: null };
@@ -332,7 +332,7 @@ export class SentinelService {
       this.prisma.sentinelAlert.findMany({
         where,
         orderBy: { firedAt: "desc" },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
       }),
       this.prisma.sentinelAlert.count({ where }),
