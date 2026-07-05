@@ -1,6 +1,7 @@
 import { Controller, Post, Query, UseGuards } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiResponse } from "@nestjs/swagger";
 import { DailyBriefService } from "./daily-brief.service";
+import { WeeklyBriefService } from "./weekly-brief.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
@@ -14,7 +15,20 @@ import { Roles } from "../../common/roles.decorator";
 @Controller("dashboard")
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class DailyBriefController {
-  constructor(private readonly svc: DailyBriefService) {}
+  constructor(
+    private readonly svc: DailyBriefService,
+    private readonly weekly: WeeklyBriefService,
+  ) {}
+
+  @Post("brief/weekly/send")
+  @Roles("SUPER_ADMIN")
+  @ApiOperation({ summary: "手动触发运营周报（上周·同周已发则幂等跳过·D-T4）" })
+  @ApiResponse({ status: 201, description: "发送成功或幂等跳过" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
+  sendWeekly() {
+    return this.weekly.sendWeekly();
+  }
 
   @Post("brief/send")
   @Roles("SUPER_ADMIN")

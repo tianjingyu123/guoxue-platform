@@ -15,12 +15,13 @@ import { DashboardDailyService } from "./dashboard-daily.service";
 import { FunnelDailyService } from "./funnel-daily.service";
 import { DailyBriefController } from "./daily-brief.controller";
 import { DailyBriefService } from "./daily-brief.service";
+import { WeeklyBriefService } from "./weekly-brief.service";
 import { AiGatewayModule } from "../ai-gateway/ai-gateway.module";
 import { serverConfig } from "../../config/server-config";
 
 @Module({
   imports: [JwtModule.register({ secret: serverConfig.jwtSecret }), AiGatewayModule],
   controllers: [DashboardController, CockpitController, BigScreenController, BigScreenTokenController, DashboardDailyController, DailyBriefController],
-  providers: [DashboardService, EntityDashboardService, RoleDashboardService, CockpitService, BigScreenService, BigScreenAuthService, BigScreenAuthGuard, DashboardDailyService, FunnelDailyService, DailyBriefService],
+  providers: [DashboardService, EntityDashboardService, RoleDashboardService, CockpitService, BigScreenService, BigScreenAuthService, BigScreenAuthGuard, DashboardDailyService, FunnelDailyService, DailyBriefService, WeeklyBriefService],
 })
 export class DashboardModule {}
