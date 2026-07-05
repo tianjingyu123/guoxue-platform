@@ -8,6 +8,7 @@ import GroupBuyInfoCard from '@/components/marketing/group-buy-info-card.vue'
 import CouponClaimCard from '@/components/marketing/coupon-claim-card.vue'
 import { navigateBack, navigateTo } from '@/utils/router'
 import { shopApi } from '@/lib/shop-data'
+import { track } from '@/composables/useTrack'
 import { recommendApi } from '@/lib/recommend-data'
 import type { RecommendItem } from '@/components/common/recommend-section.vue'
 
@@ -104,6 +105,8 @@ async function addToCart() {
 }
 function buyNow() {
   if (!product.value) return
+  // F3 电商漏斗埋点：购买点击（D-T1）
+  track.custom('buy_click', { type: 'product', id: product.value.id })
   // 实物商品必须经结算页确认收货地址/优惠券后再建单（此前直接 createOrder 跳过了地址确认）
   const qty = Number(selectedSpecs.value['数量']) || 1
   showSpecPanel.value = false

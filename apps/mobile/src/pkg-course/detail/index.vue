@@ -59,6 +59,8 @@ function onLessonClick(chapterId: string, lessonId: string) {
 }
 function onPurchase() {
   if (hasAccess.value) { onStartLearning(); return }
+  // F3 电商漏斗埋点：购买点击（D-T1）
+  track.custom('buy_click', { type: 'course', id: course.value?.id })
   showPurchase.value = true
 }
 function onPurchased() {

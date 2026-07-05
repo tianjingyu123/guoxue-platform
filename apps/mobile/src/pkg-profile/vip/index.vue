@@ -475,6 +475,8 @@ async function handlePurchase() {
     uni.showToast({ title: '请先阅读并同意会员服务协议', icon: 'none' })
     return
   }
+  // F2 会员漏斗埋点：支付点击（D-T1）
+  track.custom('member_pay_click', { planId: selectedPlan.value.id, level: selectedPlan.value.level })
   purchasing.value = true
   try {
     // 1) 创建会员订单（服务端按 MemberConfig 真价计费；amount 语义=数量，固定 1）
@@ -570,7 +572,11 @@ function closePaySheet() {
 
 function go(path: string) { navigateTo(path) }
 
-onMounted(loadData)
+onMounted(() => {
+  // F2 会员漏斗埋点：会员页曝光（D-T1）
+  track.custom('member_page_view')
+  loadData()
+})
 onUnmounted(stopPolling)
 </script>
 
