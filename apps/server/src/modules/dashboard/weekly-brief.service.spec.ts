@@ -14,6 +14,7 @@ const mockPrisma = {
   sentinelAlert: { groupBy: jest.fn() },
   configSystem: { findUnique: jest.fn(), upsert: jest.fn() },
   userRole: { findMany: jest.fn() },
+  $queryRaw: jest.fn(),
 };
 const mockRedis = { runExclusive: jest.fn((_n: string, _t: number, fn: () => Promise<unknown>) => fn()) };
 const mockDaily = { dateStrShanghai: jest.fn() };
@@ -29,6 +30,7 @@ function quietBaseline() {
   mockPrisma.configSystem.findUnique.mockResolvedValue(null);
   mockPrisma.configSystem.upsert.mockResolvedValue({});
   mockPrisma.userRole.findMany.mockResolvedValue([{ userId: "admin-1" }]);
+  mockPrisma.$queryRaw.mockResolvedValue([]); // 默认无慢查询
   mockGateway.chat.mockResolvedValue({ content: "【本周结论】…【异常与假设】…【下周建议】…" });
 }
 
@@ -127,5 +129,24 @@ describe("WeeklyBriefService", () => {
     await svc.sendWeekly();
     expect(fetchMock).not.toHaveBeenCalled();
     delete (global as Record<string, unknown>).fetch;
+  });
+
+  it("慢查询段：pg_stat_statements Top 均耗≥50ms 列出·<50ms 过滤", async () => {
+    mockPrisma.$queryRaw.mockResolvedValue([
+      { query: 'SELECT * FROM "Order" WHERE status = $1', calls: BigInt(120), mean_exec_time: 180.5 },
+      { query: "SELECT 1", calls: BigInt(10), mean_exec_time: 12.3 },
+    ]);
+    const r = await svc.sendWeekly();
+    expect(r.text).toContain("慢查询 Top");
+    expect(r.text).toContain("180.5ms均");
+    expect(r.text).not.toContain("12.3ms"); // <50ms 被过滤
+  });
+
+  it("慢查询：pg_stat_statements 不可用时降级·周报不缺席", async () => {
+    mockPrisma.$queryRaw.mockRejectedValue(new Error("relation pg_stat_statements does not exist"));
+    const r = await svc.sendWeekly();
+    expect(r.skipped).toBe(false);
+    expect(r.sentTo).toBe(1);
+    expect(r.text).toContain("数据不可用");
   });
 });

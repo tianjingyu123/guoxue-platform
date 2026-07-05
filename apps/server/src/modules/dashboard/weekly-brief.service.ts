@@ -66,11 +66,12 @@ export class WeeklyBriefService {
     if (existed) return { weekStart, title, text: "", degraded: false, skipped: true, sentTo: 0 };
 
     const prevDates = weekDates.map((d) => this.addDays(d, -7));
-    const [curSum, prevSum, funnelText, alertText, lastSuggestions] = await Promise.all([
+    const [curSum, prevSum, funnelText, alertText, slowText, lastSuggestions] = await Promise.all([
       this.sumWeek(weekDates),
       this.sumWeek(prevDates),
       this.funnelSection(weekDates),
       this.alertSection(weekDates),
+      this.slowQuerySection(),
       this.prisma.configSystem.findUnique({ where: { configKey: LAST_SUGGESTION_KEY }, select: { configValue: true } }).catch(() => null),
     ]);
 
@@ -118,7 +119,8 @@ export class WeeklyBriefService {
       }).catch((e) => this.logger.warn("周报建议存档失败", e as Error));
     }
 
-    const text = aiText ? `${bodyText}\n── AI 周度分析 ──\n${aiText}` : bodyText;
+    // 慢查询段进最终简报（运维可观测·不喂 AI 业务分析，避免技术数据干扰业务建议）
+    const text = aiText ? `${bodyText}\n── AI 周度分析 ──\n${aiText}\n${slowText}` : `${bodyText}\n${slowText}`;
 
     const roleRows = await this.prisma.userRole.findMany({
       where: { roleType: { in: [...BRIEF_ROLES] } },
@@ -193,6 +195,40 @@ export class WeeklyBriefService {
       .sort((a, b) => a.level.localeCompare(b.level))
       .map((r) => `${r.level} ${r.rule} ×${r._count._all}`);
     return ["── 哨兵周回顾 ──", ...lines].join("\n");
+  }
+
+  /**
+   * 慢查询 Top（pg_stat_statements·T1b 已启用）：按平均执行耗时降序取 Top10（均耗 ≥50ms）。
+   * 注：pg_stat_statements 是自上次重置/库启动以来的累计统计（非严格本周窗口），标注「累计」。
+   * 未启用扩展/无权限则静默降级——周报绝不因此缺席。
+   */
+  private async slowQuerySection(): Promise<string> {
+    const HEAD = "── 慢查询 Top（pg_stat_statements·累计·均耗降序）──";
+    try {
+      const rows = await this.prisma.$queryRaw<
+        Array<{ query: string; calls: bigint; mean_exec_time: number }>
+      >`
+        SELECT query, calls, mean_exec_time
+        FROM pg_stat_statements
+        WHERE query NOT ILIKE '%pg_stat_statements%'
+          AND query NOT ILIKE 'EXPLAIN%'
+          AND query NOT ILIKE '%COMMIT%'
+          AND query NOT ILIKE '%BEGIN%'
+          AND calls >= 5
+        ORDER BY mean_exec_time DESC
+        LIMIT 10
+      `;
+      const lines = (rows ?? [])
+        .filter((r) => Number(r.mean_exec_time) >= 50)
+        .map((r, i) => {
+          const q = r.query.replace(/\s+/g, " ").trim().slice(0, 80);
+          return `${i + 1}. ${Number(r.mean_exec_time).toFixed(1)}ms均 / ${Number(r.calls)}次 · ${q}`;
+        });
+      if (lines.length === 0) return `${HEAD}\n均耗 ≥50ms 的慢查询：无 ✅`;
+      return [HEAD, ...lines].join("\n");
+    } catch {
+      return `${HEAD}\n数据不可用（pg_stat_statements 未启用或无权限）`;
+    }
   }
 
   // ───────── 工具 ─────────
