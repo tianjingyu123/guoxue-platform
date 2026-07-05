@@ -20,6 +20,10 @@ export interface DailyMetrics {
   newUsers: number;
   /** 次日留存：前一日新用户中当日有 page_view 的占比（0~1）；前一日无新用户则省略 */
   d1Retention?: number;
+  /** 7日留存：7 天前新用户中当日有 page_view 的占比（0~1）；无 cohort 则省略（D-T3） */
+  d7Retention?: number;
+  /** B 端活跃：当日活跃用户中拥有 B 端身份（站长/商家/圈主/驿站主/认证讲师）的去重数（D-T3·生态健康核心数） */
+  bActiveCount?: number;
   /** 当日 GMV：paidAt 当日且已支付（非 PENDING/CANCELLED）订单实付和 */
   gmv: number;
   /** 当日支付成功订单数 */
@@ -163,6 +167,41 @@ export class DashboardDailyService {
         distinct: ["userId"],
       });
       metrics.d1Retention = Math.round((returned.length / cohortIds.length) * 10000) / 10000;
+    }
+
+    // d7Retention（D-T3）：7 天前注册 cohort 当日回访占比
+    const d7Range = this.dayRange(this.addDays(date, -7));
+    const cohort7 = await this.prisma.user.findMany({ where: { createdAt: d7Range }, select: { id: true } });
+    if (cohort7.length > 0) {
+      const ids = cohort7.map((u) => u.id);
+      const returned7 = await this.prisma.trackEvent.findMany({
+        where: { action: "page_view", userId: { in: ids }, createdAt: range },
+        select: { userId: true },
+        distinct: ["userId"],
+      });
+      metrics.d7Retention = Math.round((returned7.length / ids.length) * 10000) / 10000;
+    }
+
+    // bActiveCount（D-T3）：当日活跃用户 ∩ B 端身份（量级大后可改 join/exists 下推）
+    const activeIds = dauRows.map((r) => r.userId).filter((v): v is string => v !== null);
+    if (activeIds.length > 0) {
+      const [st, mc, co, os, tc] = await Promise.all([
+        this.prisma.station.findMany({ where: { userId: { in: activeIds }, status: "ACTIVE" }, select: { userId: true } }),
+        this.prisma.merchant.findMany({ where: { userId: { in: activeIds }, status: "ACTIVE" }, select: { userId: true } }),
+        this.prisma.circle.findMany({ where: { ownerId: { in: activeIds }, status: "ACTIVE", deletedAt: null }, select: { ownerId: true } }),
+        this.prisma.stationOffline.findMany({ where: { ownerUserId: { in: activeIds }, status: "ACTIVE" }, select: { ownerUserId: true } }),
+        this.prisma.teacherCertification.findMany({ where: { userId: { in: activeIds }, status: "APPROVED" }, select: { userId: true } }),
+      ]);
+      const bSet = new Set<string>([
+        ...st.map((r) => r.userId),
+        ...mc.map((r) => r.userId),
+        ...co.map((r) => r.ownerId),
+        ...os.map((r) => r.ownerUserId),
+        ...tc.map((r) => r.userId),
+      ]);
+      metrics.bActiveCount = bSet.size;
+    } else {
+      metrics.bActiveCount = 0;
     }
 
     await this.prisma.dashboardDaily.upsert({

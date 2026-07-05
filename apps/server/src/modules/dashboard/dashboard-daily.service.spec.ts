@@ -32,6 +32,12 @@ const mockPrisma = {
     upsert: jest.fn(),
     findMany: jest.fn(),
   },
+  // D-T3 bActiveCount 数据源
+  station: { findMany: jest.fn() },
+  merchant: { findMany: jest.fn() },
+  circle: { findMany: jest.fn() },
+  stationOffline: { findMany: jest.fn() },
+  teacherCertification: { findMany: jest.fn() },
 };
 
 // runExclusive 直接执行传入的 fn（单实例测试）
@@ -43,7 +49,8 @@ const mockRedis = {
 function primeRebuildMocks() {
   mockPrisma.trackEvent.findMany
     .mockResolvedValueOnce([{ userId: "u1" }, { userId: "u2" }]) // dau distinct
-    .mockResolvedValueOnce([{ userId: "n1" }]); // d1 回访
+    .mockResolvedValueOnce([{ userId: "n1" }]) // d1 回访
+    .mockResolvedValue([]); // d7 回访等后续（D-T3）
   mockPrisma.trackEvent.count
     .mockResolvedValueOnce(100) // pv
     .mockResolvedValueOnce(3); // errors
@@ -59,7 +66,15 @@ function primeRebuildMocks() {
     { path: "/pkg-shop/list", _count: { _all: 20 } },
     { path: "/pages/index/index", _count: { _all: 20 } },
   ]);
-  mockPrisma.user.findMany.mockResolvedValueOnce([{ id: "n1" }, { id: "n2" }]); // 前一日新用户 cohort
+  mockPrisma.user.findMany
+    .mockResolvedValueOnce([{ id: "n1" }, { id: "n2" }]) // 前一日新用户 cohort
+    .mockResolvedValue([]); // d7 cohort（D-T3·缺省空）
+  // D-T3 bActiveCount 数据源（活跃 u1 是站长）
+  mockPrisma.station.findMany.mockResolvedValue([{ userId: "u1" }]);
+  mockPrisma.merchant.findMany.mockResolvedValue([]);
+  mockPrisma.circle.findMany.mockResolvedValue([]);
+  mockPrisma.stationOffline.findMany.mockResolvedValue([]);
+  mockPrisma.teacherCertification.findMany.mockResolvedValue([]);
   mockPrisma.dashboardDaily.upsert.mockResolvedValueOnce({});
 }
 
