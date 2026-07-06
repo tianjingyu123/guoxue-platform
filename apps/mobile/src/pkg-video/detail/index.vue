@@ -293,7 +293,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, getCurrentInstance } from 'vue'
+import { ref, computed, watch, getCurrentInstance, nextTick } from 'vue'
 import { onLoad, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
@@ -539,10 +539,17 @@ async function onFollow() {
 
 // 切换视频时刷新真实关注态（后端列表默认 isFollowed=false）
 watch(() => currentVideo.value?.id, async () => {
-  // 切换到新视频：重置播放器状态，新的 videoUrl 触发 autoplay
+  // 切换到新视频：重置状态 + 主动播放。原实现仅靠 video 组件 autoplay + videoUrl 变化触发，
+  // 但同源视频(videoUrl 不变)或移动端 autoplay 受限时不重播 → 需滑好几次。改为切换后主动 ctx.play()
+  // （用户滑动已构成交互上下文，规避移动端自动播放限制）。
   playError.value = false
-  isPlaying.value = true
   const v = currentVideo.value
+  nextTick(() => {
+    if (v?.videoUrl && !playError.value) {
+      getVideoCtx()?.play()
+    }
+    isPlaying.value = true
+  })
   if (!v?.author?.id) return
   try { v.author.isFollowed = await videoApi.isFollowing(v.author.id) } catch { /* 未登录/失败保持默认 */ }
 })
