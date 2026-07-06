@@ -123,6 +123,41 @@ describe("CommissionService", () => {
     });
   });
 
+  describe("calculatePlatformFee — 平台费key与正向分佣口径统一（P1 财务对账修复）", () => {
+    it("订单大写枚举(COURSE)映射为 configKey(course_basic)再查，而非用原始大写(修复前恒查不到→平台费漏记)", async () => {
+      mockPrisma.commissionConfig.findUnique.mockResolvedValue({ configKey: "course_basic", rateB: 0.5 });
+      const result = await svc.calculatePlatformFee("COURSE", 100);
+      expect(mockPrisma.commissionConfig.findUnique).toHaveBeenCalledWith({ where: { configKey: "course_basic" } });
+      expect(result).toEqual({ platformFee: 50, platformRate: 0.5 });
+    });
+
+    it("MEMBER 映射为 station_member 再查", async () => {
+      mockPrisma.commissionConfig.findUnique.mockResolvedValue({ configKey: "station_member", rateB: 0.8 });
+      await svc.calculatePlatformFee("MEMBER", 100);
+      expect(mockPrisma.commissionConfig.findUnique).toHaveBeenCalledWith({ where: { configKey: "station_member" } });
+    });
+
+    it("圈子收益侧直传的小写 configKey(circle_join)原样查，口径不变(幂等映射)", async () => {
+      mockPrisma.commissionConfig.findUnique.mockResolvedValue({ configKey: "circle_join", rateB: 0.85 });
+      const result = await svc.calculatePlatformFee("circle_join", 100);
+      expect(mockPrisma.commissionConfig.findUnique).toHaveBeenCalledWith({ where: { configKey: "circle_join" } });
+      expect(result).toEqual({ platformFee: 85, platformRate: 0.85 });
+    });
+
+    it("礼物 gift 无对应 config → 原样查 gift 得 null → 返回 null（圈主拿全额，行为不变，不被误映射为 product_platform）", async () => {
+      mockPrisma.commissionConfig.findUnique.mockResolvedValue(null);
+      const result = await svc.calculatePlatformFee("gift", 100);
+      expect(mockPrisma.commissionConfig.findUnique).toHaveBeenCalledWith({ where: { configKey: "gift" } });
+      expect(result).toBeNull();
+    });
+
+    it("rateB<=0 时返回 null（不产生平台费）", async () => {
+      mockPrisma.commissionConfig.findUnique.mockResolvedValue({ configKey: "course_basic", rateB: 0 });
+      const result = await svc.calculatePlatformFee("COURSE", 100);
+      expect(result).toBeNull();
+    });
+  });
+
   describe("calculateAndRecord", () => {
     it("有效推荐计算佣金并创建记录", async () => {
       mockPrisma.commissionConfig.findUnique.mockResolvedValue({ configKey: "course_basic", rateA: 0.1 });

@@ -33,6 +33,7 @@ import { Auditable } from "../../common/audit.decorator";
 /** 已认证请求，附带 JWT 解析后的 user 信息 */
 type AuthRequest = Omit<Request, "user"> & {
   user: { id: string; roles: string[]; nickname?: string; [key: string]: unknown };
+  rawBody?: Buffer; // main.ts rawBody:true 注入的请求原始字节（支付回调验签用）
 };
 
 @ApiTags("商城")
@@ -409,7 +410,8 @@ export class ShopController {
     const timestamp = (req.headers["wechatpay-timestamp"] as string) || "";
     const nonce = (req.headers["wechatpay-nonce"] as string) || "";
     const serialNo = (req.headers["wechatpay-serial"] as string) || "";
-    const rawBody = typeof req.body === "string" ? req.body : JSON.stringify(req.body);
+    // 微信 V3 对原始报文字节验签：优先用 rawBody(main.ts rawBody:true)，JSON.stringify 会改变字节序/空白致验签失败
+    const rawBody = req.rawBody?.toString("utf8") ?? (typeof req.body === "string" ? req.body : JSON.stringify(req.body));
 
     const { valid, data, error } = await this.shop.verifyAndDecryptNotify(
       signHeader, rawBody, timestamp, nonce, serialNo,
@@ -460,7 +462,8 @@ export class ShopController {
     const timestamp = (req.headers["wechatpay-timestamp"] as string) || "";
     const nonce = (req.headers["wechatpay-nonce"] as string) || "";
     const serialNo = (req.headers["wechatpay-serial"] as string) || "";
-    const rawBody = typeof req.body === "string" ? req.body : JSON.stringify(req.body);
+    // 微信 V3 退款回调同样对原始报文验签，优先用 rawBody 原始字节
+    const rawBody = req.rawBody?.toString("utf8") ?? (typeof req.body === "string" ? req.body : JSON.stringify(req.body));
 
     const { valid, data, error } = await this.shop.verifyAndDecryptNotify(
       signHeader, rawBody, timestamp, nonce, serialNo,

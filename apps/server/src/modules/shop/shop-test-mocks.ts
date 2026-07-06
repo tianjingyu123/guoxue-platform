@@ -218,5 +218,8 @@ export function makeMockMemberBenefit() {
 }
 
 export function makeMockAudit() {
-  return { moderateTextOrThrow: jest.fn().mockResolvedValue(undefined) };
+  return {
+    moderateTextOrThrow: jest.fn().mockResolvedValue(undefined),
+    moderateImageOrThrow: jest.fn().mockResolvedValue(undefined),
+  };
 }

@@ -216,6 +216,74 @@ export class AuditService {
     }).catch((err) => this.logger.warn("审核日志写入失败", err));
   }
 
+  /**
+   * 统一 UGC 图片审核编排（先审后发拦截）——对齐 moderateTextOrThrow 的 fail-open 基调。
+   *
+   * 腾讯云 IMS 图片审核三档：
+   * - Pass  → 放行
+   * - Block → 硬拦截（抛业务异常，写库前拦下）
+   * - Review（疑似）→ 记 CONTENT_REVIEW_IMAGE 日志转人工，fail-open 放行
+   *   （图片无 DeepSeek 二次复审能力，Review 仅"疑似"，不直接拦以防误杀）
+   *
+   * 容错策略（与文本审核一致）：审核服务不可用/密钥失效/网络超时 → **fail-open 放行**并记日志，
+   * 避免第三方抖动把全站图片 UGC（发帖图/评价图/头像）硬阻断。
+   *
+   * @param images 单张 URL 或 URL 数组（自动过滤空值；无图直接放行）
+   * @param opts.scene 业务场景标识（如 "CIRCLE_POST" / "PRODUCT_REVIEW" / "USER_AVATAR"）
+   */
+  async moderateImageOrThrow(
+    images: string | string[] | undefined | null,
+    opts: { scene: string; userId?: string; dataId?: string } = { scene: "UGC" },
+  ): Promise<void> {
+    const urls = (Array.isArray(images) ? images : [images])
+      .map((u) => (u ?? "").trim())
+      .filter((u) => u.length > 0);
+    if (urls.length === 0) return;
+
+    // 逐张审核，任一 Block 即拦截；基础设施异常单张 fail-open（不因一张审核失败连累放行判断）
+    const results = await Promise.all(
+      urls.map(async (url) => {
+        try {
+          const raw = await this.moderation.imageModeration({ imageUrl: url, bizType: opts.scene });
+          return { url, suggestion: this.moderation.getImageSuggestion(raw), labels: this.moderation.getBlockedLabels(raw) };
+        } catch (err) {
+          this.logger.warn(
+            `腾讯云图片审核不可用，fail-open 放行 [scene=${opts.scene}]`,
+            err instanceof Error ? err.message : err,
+          );
+          return { url, suggestion: "Pass" as const, labels: [] as string[] };
+        }
+      }),
+    );
+
+    const blocked = results.find((r) => r.suggestion === "Block");
+    if (blocked) {
+      await this.log({
+        userId: opts.userId,
+        action: "CONTENT_BLOCK_IMAGE",
+        targetType: opts.scene,
+        targetId: opts.dataId,
+        detail: JSON.stringify({ url: blocked.url, labels: blocked.labels }),
+      }).catch((err) => this.logger.warn("审核日志写入失败", err));
+      throw new BusinessException(
+        ErrorCode.CONTENT_MODERATION_BLOCKED,
+        "图片未通过安全审核，请更换后重试",
+      );
+    }
+
+    const review = results.filter((r) => r.suggestion === "Review");
+    if (review.length > 0) {
+      // Review 转人工复审 + fail-open 放行
+      await this.log({
+        userId: opts.userId,
+        action: "CONTENT_REVIEW_IMAGE",
+        targetType: opts.scene,
+        targetId: opts.dataId,
+        detail: JSON.stringify({ urls: review.map((r) => r.url), labels: review.flatMap((r) => r.labels) }),
+      }).catch((err) => this.logger.warn("审核日志写入失败", err));
+    }
+  }
+
   async list(params: {
     userId?: string;
     action?: string;

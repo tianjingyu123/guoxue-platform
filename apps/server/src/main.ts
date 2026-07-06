@@ -3,7 +3,6 @@ import { NestFactory } from "@nestjs/core";
 import { ValidationPipe } from "@nestjs/common";
 import { NestExpressApplication } from "@nestjs/platform-express";
 import { SwaggerModule, DocumentBuilder } from "@nestjs/swagger";
-import { json, urlencoded } from "express";
 import compression from "compression";
 import helmet from "helmet";
 import { AppGraphqlModule } from "./app-graphql.module";
@@ -56,7 +55,9 @@ async function bootstrap() {
     logger.raw().warn(`启动前第三方密钥同步失败，使用 .env 兜底：${(e as Error)?.message}`);
   }
 
-  const app = await NestFactory.create<NestExpressApplication>(AppGraphqlModule, { logger });
+  // rawBody:true 保留请求原始字节到 req.rawBody（微信支付 V3 回调必须对原始报文验签，重构后的 JSON 会破坏签名）。
+  // 不影响其它 controller：json/urlencoded 仍正常解析 req.body，仅额外缓存原始 Buffer。
+  const app = await NestFactory.create<NestExpressApplication>(AppGraphqlModule, { logger, rawBody: true });
 
   // B2: 注入解密失败告警通道 — decrypt 遇 GCM 认证失败（疑似密钥错配）时经企微告警；无 webhook 时降级为日志
   try {
@@ -69,9 +70,11 @@ async function bootstrap() {
     logger.raw().warn("WeworkService 不可用，解密/可观测告警降级为 stderr 日志");
   }
 
-  // 请求体大小限制 — 防止大payload攻击
-  app.use(json({ limit: "10mb" }));
-  app.use(urlencoded({ limit: "10mb", extended: true }));
+  // 请求体大小限制 — 防止大payload攻击。
+  // 用 useBodyParser 而非 app.use(json())：配合 rawBody:true 才能既自定义 10mb 上限、又保留 req.rawBody 原始字节
+  // （直接 app.use(json()) 会先消费请求流，导致 rawBody 缓存不到，微信回调验签拿不到原文）。
+  app.useBodyParser("json", { limit: "10mb" });
+  app.useBodyParser("urlencoded", { limit: "10mb", extended: true });
   app.use(compression());
 
   // 静态文件服务

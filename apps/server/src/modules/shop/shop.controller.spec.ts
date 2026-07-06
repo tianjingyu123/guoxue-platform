@@ -233,6 +233,32 @@ describe("ShopController", () => {
     expect(result.code).toBe("FAIL");
   });
 
+  it("POST /shop/pay/notify — 验签用 req.rawBody 原始字节，而非重构的 JSON（微信 V3 对原文验签）", async () => {
+    // 原始报文带特定空白/字段序，JSON.stringify(解析后的对象) 无法还原 → 必须用 rawBody
+    const rawStr = '{ "outTradeNo":"o1",  "amount":100 }';
+    const req: any = {
+      headers: { "wechatpay-signature": "sig", "wechatpay-timestamp": "123", "wechatpay-nonce": "abc", "wechatpay-serial": "s1" },
+      rawBody: Buffer.from(rawStr, "utf8"),
+      body: { outTradeNo: "o1", amount: 100 }, // 解析后的对象，序列化后 ≠ 原文
+    };
+    await ctrl.handlePayNotify(req);
+    const passedBody = mockShopSvc.verifyAndDecryptNotify.mock.calls.at(-1)![1];
+    expect(passedBody).toBe(rawStr);
+    expect(passedBody).not.toBe(JSON.stringify(req.body));
+  });
+
+  it("POST /shop/refund/notify — 验签同样用 req.rawBody 原始字节", async () => {
+    const rawStr = '{ "resource":"x" }';
+    const req: any = {
+      headers: { "wechatpay-signature": "sig", "wechatpay-timestamp": "123", "wechatpay-nonce": "abc", "wechatpay-serial": "s1" },
+      rawBody: Buffer.from(rawStr, "utf8"),
+      body: { resource: "x" },
+    };
+    await ctrl.handleRefundNotify(req);
+    const passedBody = mockShopSvc.verifyAndDecryptNotify.mock.calls.at(-1)![1];
+    expect(passedBody).toBe(rawStr);
+  });
+
   it("POST /shop/alipay/notify — 支付宝回调", async () => {
     const req: any = { body: { outTradeNo: "o1" } };
     const result: any = await ctrl.handleAlipayNotify(req);

@@ -20,6 +20,7 @@ const mockModeration = {
   isTextPass: jest.fn(),
   getBlockedLabels: jest.fn(),
   getTextSuggestion: jest.fn(),
+  getImageSuggestion: jest.fn(),
 }
 
 const mockModerationAi = {
@@ -172,6 +173,52 @@ describe("AuditService", () => {
       mockSensitiveWord.check.mockReturnValue(["违禁词"])
       await expect(svc.moderateTextOrThrow("含违禁词的内容", { scene: "UGC" })).rejects.toThrow()
       mockSensitiveWord.check.mockReturnValue([])
+    })
+  })
+
+  describe("moderateImageOrThrow — UGC 图片先审后发（P0 合规）", () => {
+    it("无图片时直接放行（不调用审核）", async () => {
+      await expect(svc.moderateImageOrThrow([], { scene: "CIRCLE_POST" })).resolves.toBeUndefined()
+      await expect(svc.moderateImageOrThrow(undefined, { scene: "CIRCLE_POST" })).resolves.toBeUndefined()
+      await expect(svc.moderateImageOrThrow("   ", { scene: "CIRCLE_POST" })).resolves.toBeUndefined()
+      expect(mockModeration.imageModeration).not.toHaveBeenCalled()
+    })
+
+    it("Pass 放行（单张 URL 亦支持）", async () => {
+      mockModeration.imageModeration.mockResolvedValue({ Suggestion: "Pass" })
+      mockModeration.getImageSuggestion.mockReturnValue("Pass")
+      mockModeration.getBlockedLabels.mockReturnValue([])
+      await expect(svc.moderateImageOrThrow("https://img/1.jpg", { scene: "USER_AVATAR" })).resolves.toBeUndefined()
+      expect(mockModeration.imageModeration).toHaveBeenCalledWith({ imageUrl: "https://img/1.jpg", bizType: "USER_AVATAR" })
+    })
+
+    it("任一张 Block 即硬拦截（抛 CONTENT_MODERATION_BLOCKED）并记 CONTENT_BLOCK_IMAGE 日志", async () => {
+      mockModeration.imageModeration.mockResolvedValue({ Suggestion: "Block" })
+      mockModeration.getImageSuggestion.mockReturnValue("Block")
+      mockModeration.getBlockedLabels.mockReturnValue(["Porn"])
+      mockPrisma.auditLog.create.mockResolvedValue({})
+      await expect(
+        svc.moderateImageOrThrow(["https://img/ok.jpg", "https://img/bad.jpg"], { scene: "PRODUCT_REVIEW", userId: "u1" }),
+      ).rejects.toThrow()
+      expect(mockPrisma.auditLog.create).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ action: "CONTENT_BLOCK_IMAGE" }) }),
+      )
+    })
+
+    it("Review 转人工复审但 fail-open 放行（记 CONTENT_REVIEW_IMAGE）", async () => {
+      mockModeration.imageModeration.mockResolvedValue({ Suggestion: "Review" })
+      mockModeration.getImageSuggestion.mockReturnValue("Review")
+      mockModeration.getBlockedLabels.mockReturnValue([])
+      mockPrisma.auditLog.create.mockResolvedValue({})
+      await expect(svc.moderateImageOrThrow("https://img/x.jpg", { scene: "CIRCLE_POST" })).resolves.toBeUndefined()
+      expect(mockPrisma.auditLog.create).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ action: "CONTENT_REVIEW_IMAGE" }) }),
+      )
+    })
+
+    it("审核服务不可用（抛异常）时 fail-open 放行，不阻断上传", async () => {
+      mockModeration.imageModeration.mockRejectedValue(new Error("网络超时"))
+      await expect(svc.moderateImageOrThrow("https://img/x.jpg", { scene: "CIRCLE_POST" })).resolves.toBeUndefined()
     })
   })
 })

@@ -81,6 +81,7 @@ export class CozeService {
         "Content-Type": "application/json",
       },
       body: JSON.stringify(body),
+      signal: AbortSignal.timeout(10000), // 防 COZE 无响应挂死请求线程
     });
 
     const createData = await createResp.json() as Record<string, unknown>;
@@ -133,6 +134,8 @@ export class CozeService {
               "Content-Type": "application/json",
             },
             body: JSON.stringify(body),
+            // 流式回答整体可能超 10s，用较宽裕超时仅防"永不响应"挂死，避免截断正常长回答
+            signal: AbortSignal.timeout(120000),
           });
 
           if (resp.status !== 200) {
@@ -207,6 +210,7 @@ export class CozeService {
         `${this.baseUrl}/chat/message/list?chat_id=${chatId}&conversation_id=${conversationId}`,
         {
           headers: { "Authorization": `Bearer ${apiKey}` },
+          signal: AbortSignal.timeout(10000), // 防 COZE 轮询无响应挂死请求线程
         },
       );
 

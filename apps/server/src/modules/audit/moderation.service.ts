@@ -55,6 +55,7 @@ export class ModerationService {
       method: "POST",
       headers,
       body: payloadStr,
+      signal: AbortSignal.timeout(10000), // 防第三方无响应挂死请求线程
     });
 
     const data = await resp.json() as TencentCloudResponse;
@@ -138,6 +139,23 @@ export class ModerationService {
    * 无结果或无法识别时按最宽松的 Pass 处理（与 fail-open 基调一致）。
    */
   getTextSuggestion(result: unknown): "Pass" | "Review" | "Block" {
+    if (!result) return "Pass";
+    const r = result as { Suggestion?: string | number; Data?: { Suggestion?: string | number } };
+    const s = r.Suggestion ?? r.Data?.Suggestion;
+    if (s === "Block") return "Block";
+    if (s === "Review") return "Review";
+    if (s === "Pass" || s === 0) return "Pass";
+    // 腾讯云数值档：1=Review、2=Block（防御性映射）
+    if (s === 2) return "Block";
+    if (s === 1) return "Review";
+    return "Pass";
+  }
+
+  /**
+   * 提取腾讯云图片审核三档建议：Pass（放行）/ Review（疑似，转人工）/ Block（拦截）。
+   * 与 getTextSuggestion 对齐；无结果或无法识别时按最宽松的 Pass 处理（与 fail-open 基调一致）。
+   */
+  getImageSuggestion(result: unknown): "Pass" | "Review" | "Block" {
     if (!result) return "Pass";
     const r = result as { Suggestion?: string | number; Data?: { Suggestion?: string | number } };
     const s = r.Suggestion ?? r.Data?.Suggestion;

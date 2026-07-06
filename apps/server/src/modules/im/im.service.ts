@@ -95,6 +95,7 @@ export class ImService {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
+        signal: AbortSignal.timeout(10000), // 防腾讯 IM 无响应挂死请求线程
       });
 
       const duration = Date.now() - start;

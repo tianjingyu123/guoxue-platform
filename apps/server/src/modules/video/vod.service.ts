@@ -60,6 +60,7 @@ export class VodService {
       method: "POST",
       headers,
       body: payloadStr,
+      signal: AbortSignal.timeout(10000), // 防腾讯 VOD 无响应挂死请求线程
     });
 
     const data = await resp.json() as TencentCloudResponse;

@@ -57,6 +57,7 @@ export class SmsService {
         method: "POST",
         headers,
         body: payloadStr,
+        signal: AbortSignal.timeout(10000), // 防腾讯短信无响应挂死请求线程
       });
 
       const duration = Date.now() - start;

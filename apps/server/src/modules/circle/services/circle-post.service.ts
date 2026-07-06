@@ -43,6 +43,8 @@ export class CirclePostService {
       scene: "CIRCLE_POST",
       userId,
     });
+    // 图片审核（发帖配图，先审后发）
+    await this.audit.moderateImageOrThrow(dto.images, { scene: "CIRCLE_POST", userId });
 
     const post = await this.prisma.post.create({
       data: {
@@ -116,6 +118,8 @@ export class CirclePostService {
       userId,
       dataId: postId,
     });
+    // 图片审核（编辑后配图重新过审；无变更时 dto.images 为 undefined 自动跳过）
+    await this.audit.moderateImageOrThrow(dto.images, { scene: "CIRCLE_POST", userId, dataId: postId });
 
     return this.prisma.post.update({ where: { id: postId }, data: dto as Prisma.PostUpdateInput });
   }

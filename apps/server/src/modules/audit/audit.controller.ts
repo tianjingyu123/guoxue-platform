@@ -170,10 +170,12 @@ export class AuditController {
   }
 
   @Post("sensitive-words/check")
-  @UseGuards(ThrottleGuard)
-  @ApiOperation({ summary: "检测文本敏感词（公开接口）" })
+  @UseGuards(JwtAuthGuard, ThrottleGuard)
+  @ApiOperation({ summary: "检测文本敏感词（需登录）" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiBearerAuth()
   checkSensitive(@Body() body: CheckSensitiveDto) {
     const hits = this.sensitiveWord.check(body.text);
     return { hasSensitive: hits.length > 0, hits };

@@ -80,7 +80,7 @@ describe("CircleService", () => {
         { provide: RedisService, useValue: mockRedis },
         { provide: UnifiedPricingService, useValue: mockUnifiedPricing },
         // 内容审核：默认放行（resolve），拦截逻辑由 audit 模块自身测试覆盖
-        { provide: AuditService, useValue: { moderateTextOrThrow: jest.fn().mockResolvedValue(undefined) } },
+        { provide: AuditService, useValue: { moderateTextOrThrow: jest.fn().mockResolvedValue(undefined), moderateImageOrThrow: jest.fn().mockResolvedValue(undefined) } },
       ],
     }).compile();
     svc = mod.get(CircleService);

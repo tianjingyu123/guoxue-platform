@@ -244,6 +244,8 @@ export class ShopService {
       userId,
       dataId: productId,
     });
+    // 图片审核：评价配图（晒图，先审后发）
+    await this.audit.moderateImageOrThrow(dto.images, { scene: "PRODUCT_REVIEW", userId, dataId: productId });
 
     return this.prisma.productReview.create({
       data: {

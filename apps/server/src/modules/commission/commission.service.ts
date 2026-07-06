@@ -1001,8 +1001,11 @@ export class CommissionService {
    * @returns { platformFee, platformRate } 或 null（未配置时）
    */
   async calculatePlatformFee(type: string, amount: number): Promise<{ platformFee: number; platformRate: number } | null> {
+    // 与正向分佣(calculateAndRecord)口径统一：订单类型枚举(COURSE/PRODUCT/...)需先映射成 CommissionConfig.configKey。
+    // 原实现用原始 type 直查，订单侧(大写枚举)恒查不到 → 平台费从不入账(财务对账漏记)。
+    // mapTypeToConfigKey 已做幂等：圈子收益侧直传的 configKey(circle_join/gift 等小写)原样返回，口径不变。
     const config = await this.prisma.commissionConfig.findUnique({
-      where: { configKey: type },
+      where: { configKey: this.mapTypeToConfigKey(type) },
     });
     if (!config) return null;
 
@@ -1183,7 +1186,13 @@ export class CommissionService {
       BOT: "bot_call",
       MERCHANT_PRODUCT: "merchant_product",
     };
-    return map[type] || "product_platform";
+    // 大写订单类型枚举 → 配置key
+    if (type in map) return map[type];
+    // 幂等：圈子收益侧(recordCircleRevenue)直传的已是配置key(小写，如 circle_join / gift / circle_join_referral)，
+    // 原样返回以保持既有平台费口径（gift 无对应 config → 查不到 → 返 null，圈主拿全额，行为不变）；
+    // 仅未知【大写枚举】才兜底到 product_platform（保持 calculateAndRecord/getCommissionRate 原行为不变）。
+    if (type === type.toLowerCase()) return type;
+    return "product_platform";
   }
 
   private generateCode(): string {

@@ -67,7 +67,7 @@ describe("UserService", () => {
         UserService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: RedisService, useValue: mockRedis },
-        { provide: AuditService, useValue: { moderateTextOrThrow: jest.fn().mockResolvedValue(undefined) } },
+        { provide: AuditService, useValue: { moderateTextOrThrow: jest.fn().mockResolvedValue(undefined), moderateImageOrThrow: jest.fn().mockResolvedValue(undefined) } },
         { provide: AuthService, useValue: { revokeAllRefreshTokens: jest.fn().mockResolvedValue(undefined) } },
       ],
     }).compile();

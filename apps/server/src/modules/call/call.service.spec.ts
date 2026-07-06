@@ -15,6 +15,7 @@ describe("CallService", () => {
   let revenue: any;
   let trtc: any;
   let ws: any;
+  let redis: any;
 
   beforeEach(async () => {
     prisma = {
@@ -41,12 +42,13 @@ describe("CallService", () => {
       getAppId: jest.fn().mockReturnValue("sdk_app_123"),
     };
     ws = { sendToUser: jest.fn() };
+    redis = { setNX: jest.fn().mockResolvedValue(true), del: jest.fn(), runExclusive: jest.fn((_n: string, _t: number, fn: () => Promise<unknown>) => fn()) };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         CallService,
         { provide: PrismaService, useValue: prisma },
-        { provide: RedisService, useValue: { setNX: jest.fn().mockResolvedValue(true), del: jest.fn(), runExclusive: jest.fn((_n: string, _t: number, fn: () => Promise<unknown>) => fn()) } },
+        { provide: RedisService, useValue: redis },
         { provide: CoinService, useValue: coin },
         { provide: RevenueService, useValue: revenue },
         { provide: TrtcService, useValue: trtc },
@@ -177,6 +179,19 @@ describe("CallService", () => {
       await svc.listCalls("u1", { page: "abc" as any, pageSize: 10 });
       const arg = prisma.audioCallRecord.findMany.mock.calls[0][0];
       expect(Number.isNaN(arg.skip)).toBe(false);
+    });
+  });
+
+  describe("billingTick 定时扣费锁", () => {
+    it("按分钟扣费属资金类任务，runExclusive 必须带 critical:true（Redis 不可用时拒跑防多实例重复扣费）", async () => {
+      prisma.audioCallRecord.findMany.mockResolvedValue([]);
+      await svc.billingTick();
+      expect(redis.runExclusive).toHaveBeenCalledWith(
+        "billing_tick",
+        55,
+        expect.any(Function),
+        { critical: true },
+      );
     });
   });
 });

@@ -156,6 +156,8 @@ export class UserService {
       [dto.nickname, dto.bio].filter(Boolean).join(" "),
       { scene: "USER_PROFILE", userId },
     );
+    // 头像图片审核（高曝光 UGC；未改头像时 dto.avatar 为 undefined 自动跳过）
+    await this.audit.moderateImageOrThrow(dto.avatar, { scene: "USER_AVATAR", userId });
 
     return this.prisma.user.update({
       where: { id: userId },

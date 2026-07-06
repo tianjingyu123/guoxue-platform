@@ -193,7 +193,8 @@ export class CallService {
   /** 每分钟定时扣费（由定时任务调用，分布式锁防重叠） */
   @Cron(CronExpression.EVERY_MINUTE)
   async billingTick() {
-    await this.redis.runExclusive("billing_tick", 55, () => this._billingTickImpl());
+    // critical：连麦按分钟扣费属资金类任务，Redis 不可用时拒跑（宁可延迟一轮也不冒多实例重复扣费风险）
+    await this.redis.runExclusive("billing_tick", 55, () => this._billingTickImpl(), { critical: true });
   }
 
   private async _billingTickImpl() {
