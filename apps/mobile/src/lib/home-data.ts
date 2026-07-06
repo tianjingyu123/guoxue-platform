@@ -217,23 +217,9 @@ export type RenderItem =
 
 /** 把 feed 列表编排成 render 列表：顺序填 feed，从 pos>0 起每 12 位插一张智能体卡。 */
 export function buildRenderItems(items: FeedItem[]): RenderItem[] {
-  const result: RenderItem[] = []
-  let feedIdx = 0
-  let agentIdx = 0
-  let pos = 0
-  while (feedIdx < items.length) {
-    if (pos > 0 && pos % 12 === 0 && agentIdx < agents.length) {
-      result.push({ kind: 'agent', key: `agent-${agents[agentIdx].id}`, agent: agents[agentIdx] })
-      agentIdx++
-      pos++
-      continue
-    }
-    const item = items[feedIdx]
-    result.push({ kind: 'feed', key: `feed-${item.id}`, item })
-    feedIdx++
-    pos++
-  }
-  return result
+  // 智能体卡改由金刚区真实入口承载：不再插入前端 mock 智能体(id 是假的 bazi/ziwei·
+  // 点进对话页用假 id 查真实 agent → "智能体不存在")。首页 feed 只排真实内容。
+  return items.map((item) => ({ kind: 'feed' as const, key: `feed-${item.id}`, item }))
 }
 
 export function buildFeedItems(): RenderItem[] {

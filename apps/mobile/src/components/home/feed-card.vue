@@ -50,16 +50,18 @@ function go() {
   const it = item.value
   if (it) {
     track.click('feed_card', { type: it.type, id: it.id })
+    // 用 router 真实动态路由(此前用 /pages/xxx/detail 前缀全部匹配不上→首页卡片点击全"功能开发中")
     const map: Record<string, string> = {
-      live: `/pages/live/detail?id=${it.id}`,
-      course: `/pages/course/detail?id=${it.id}`,
-      video: `/pages/video/detail?id=${it.id}`,
-      ebook: `/pages/ebook/detail?id=${it.id}`,
-      product: `/pages/mall/product?id=${it.id}`,
-      article: `/pages/article/detail?id=${it.id}`,
-      post: `/pages/post/detail?id=${it.id}`,
-      poem: `/pages/poetry/detail?id=${it.id}`,
-      poem_daily: `/pages/poetry/detail?id=${it.id}`,
+      live: `/live/${it.id}`,
+      course: `/course/${it.id}`,
+      video: `/video/${it.id}`,
+      ebook: `/ebook/${it.id}`,
+      product: `/mall/product/${it.id}`,
+      article: `/articles/${it.id}`,
+      post: `/pkg-circle/circles/post?id=${it.id}`,
+      circle_post: `/pkg-circle/circles/post?id=${it.id}`,
+      poem: `/poetry/${it.id}`,
+      poem_daily: `/poetry/${it.id}`,
       classic: `/pkg-classics/detail/index?id=${it.id}`,
     }
     if (it.type === 'circle') {
@@ -70,7 +72,7 @@ function go() {
       )
       return
     }
-    navigateTo(map[it.type] || `/pages/article/detail?id=${it.id}`)
+    navigateTo(map[it.type] || `/articles/${it.id}`)
     return
   }
   if (agent.value) {

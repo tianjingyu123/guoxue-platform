@@ -174,7 +174,7 @@ onMounted(() => { loadCircles(); loadExtras() })
             <view class="act-row">
               <view
                 v-for="act in todayActivities" :key="act.id"
-                class="act-card" @tap="go(`/pkg-circle/circles/activity?id=${act.id}&circleId=${act.circleId}`)"
+                class="act-card" @tap="go(`/pkg-circle/circles/detail?id=${act.circleId}`)"
               >
                 <view class="act-top">
                   <app-icon :name="activityTypeIcon(act.type)" :size="28" :color="activityTypeColor(act.type)" />
