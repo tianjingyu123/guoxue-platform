@@ -1,5 +1,10 @@
 import { Test } from "@nestjs/testing";
 import { CircleService } from "./circle.service";
+import { CircleSharedService } from "./services/circle-shared.service";
+import { CircleCoreService } from "./services/circle-core.service";
+import { CircleMembershipService } from "./services/circle-membership.service";
+import { CirclePostService } from "./services/circle-post.service";
+import { CircleExpertService } from "./services/circle-expert.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { UnifiedPricingService } from "../pricing/unified-pricing.service";
@@ -65,6 +70,12 @@ describe("CircleService", () => {
     const mod = await Test.createTestingModule({
       providers: [
         CircleService,
+        // 拆分后 facade 委托的 4 内聚子域 + 1 共享叶子（纯搬家零行为变化）
+        CircleSharedService,
+        CircleCoreService,
+        CircleMembershipService,
+        CirclePostService,
+        CircleExpertService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: RedisService, useValue: mockRedis },
         { provide: UnifiedPricingService, useValue: mockUnifiedPricing },
