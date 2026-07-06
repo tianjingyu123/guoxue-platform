@@ -76,8 +76,9 @@ function backToTop() {
 }
 
 // 🧪 支付测试入口（验证微信支付通电后移除）：跳 1 元测试商品详情
+// 用真实分包路径(不能用 /mall/product/detail?id=xxx——会被路由正则当成 id='detail')
 function goPayTest() {
-  navigateTo('/mall/product/detail?id=42bcbc44-f1d1-4f29-ab2e-8202f6b0b0d2')
+  navigateTo('/pkg-mall/product/detail?id=42bcbc44-f1d1-4f29-ab2e-8202f6b0b0d2')
 }
 </script>
 

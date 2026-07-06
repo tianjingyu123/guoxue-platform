@@ -70,6 +70,8 @@ function onPurchased() {
   uni.showToast({ title: '购买成功', icon: 'success' })
 }
 function onStartLearning() { navigateTo(`/courses/${course.value?.id}/learn`) }
+// 拼课：后端拼团功能尚未实现，先诚实提示即将上线(避免点击无反应)
+function onGroupBuy() { uni.showToast({ title: '拼课功能即将上线', icon: 'none' }) }
 /** 讲师公开主页（讲师 userId 缺失时不可点；未认证讲师由主页 404 错误态诚实提示） */
 function goTeacherProfile() {
   const uid = course.value?.instructor?.id
@@ -363,7 +365,7 @@ onMounted(() => {
           </view>
         </view>
         <view class="gb-right">
-          <text class="gb-btn">发起拼课</text>
+          <text class="gb-btn" @tap="onGroupBuy">发起拼课</text>
           <view class="gb-close" @tap="showGroupBuyBanner = false">
             <app-icon name="x" :size="32" color="rgba(255,255,255,0.7)" />
           </view>

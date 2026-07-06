@@ -7,12 +7,13 @@ import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
 import { mineApi } from '@/lib/mine-data'
 
-// tab 精简：去掉「关注/热门」(内容流分类未实现·点了没反应)，直播修正为真实分包路由。
-// 推荐=当前首页(默认不跳)，直播/同城跳对应页。
+// tab：推荐(默认首页)/关注(关注动态聚合·功能开发中·先提示即将上线)/直播(真实分包)/
+// 同城(即将上线)。去掉未实现的「热门」。href='coming' 的点击提示即将上线不跳转。
 const tabs = [
   { name: '推荐', href: '/' },
+  { name: '关注', href: 'coming' },
   { name: '直播', href: '/pkg-live/plaza/index' },
-  { name: '同城', href: '/pkg-discover/same-city/feed' },
+  { name: '同城', href: 'coming' },
 ]
 const activeTab = ref('推荐')
 const unreadCount = ref(0)
@@ -34,6 +35,7 @@ onUnmounted(() => {
 
 function onTab(tab: { name: string; href: string }) {
   activeTab.value = tab.name
+  if (tab.href === 'coming') { uni.showToast({ title: '功能即将上线', icon: 'none' }); return }
   if (tab.href !== '/') navigateTo(tab.href)
 }
 </script>
