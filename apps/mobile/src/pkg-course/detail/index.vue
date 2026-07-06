@@ -361,7 +361,7 @@ onMounted(() => {
           <app-icon name="user-plus" :size="40" color="#ffffff" />
           <view class="gb-text">
             <text class="gb-title">邀请好友拼课，立省¥100</text>
-            <text class="gb-sub">2人成团，每人仅需¥{{ course.price - 50 }}</text>
+            <text class="gb-sub">2人成团，每人仅需¥{{ Math.round((course.price - 50) * 100) / 100 }}</text>
           </view>
         </view>
         <view class="gb-right">
@@ -387,8 +387,8 @@ onMounted(() => {
         <text v-if="course.isFree" class="price-free">免费</text>
         <view v-else class="price-row">
           <text class="price-sym">¥</text>
-          <text class="price-now">{{ course.price }}</text>
-          <text class="price-old">¥{{ course.originalPrice }}</text>
+          <text class="price-now">{{ Math.round(Number(course.price) * 100) / 100 }}</text>
+          <text class="price-old">¥{{ Math.round(Number(course.originalPrice) * 100) / 100 }}</text>
           <!-- 会员精品课标识（有效会员打开即可学，checkAccess 已放行） -->
           <text v-if="course.memberFree" class="member-free-tag">会员免费</text>
         </view>

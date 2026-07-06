@@ -113,6 +113,14 @@
           </view>
           <app-icon v-if="currentAddress && currentAddress.id === a.id" name="check" :size="36" color="#C41E3A" />
         </view>
+        <!-- 添加新地址入口（新用户无地址时的唯一通道，此前缺失导致卡死） -->
+        <view
+          style="display:flex;align-items:center;justify-content:center;gap:10rpx;padding:28rpx;margin-top:12rpx;border:2rpx dashed #C41E3A;border-radius:16rpx;"
+          @tap="goAddAddress"
+        >
+          <app-icon name="plus" :size="32" color="#C41E3A" />
+          <text style="font-size:28rpx;color:#C41E3A;font-weight:500;">添加新地址</text>
+        </view>
       </view>
     </view>
 
@@ -146,8 +154,8 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
-import { redirectTo } from '@/utils/router'
+import { onLoad, onShow } from '@dcloudio/uni-app'
+import { redirectTo, navigateTo } from '@/utils/router'
 import { shopApi, formatCountdown, type ShippingAddress, type CheckoutCoupon } from '@/lib/shop-data'
 
 const loading = ref(true)
@@ -224,6 +232,20 @@ onUnmounted(() => { if (timer) clearInterval(timer) })
 
 function selectAddress(a: ShippingAddress) { currentAddress.value = a; showAddress.value = false }
 function selectCoupon(c: CheckoutCoupon | null) { selectedCoupon.value = c; showCoupon.value = false }
+
+// 跳地址编辑页新增地址（结算弹层无地址时的入口）
+function goAddAddress() {
+  showAddress.value = false
+  navigateTo('/pkg-account/address-edit/index')
+}
+// 从地址编辑页返回时刷新地址列表（新增地址立即可选）；首次加载中跳过避免重复请求
+onShow(() => {
+  if (loading.value || !source.value) return
+  shopApi.getCheckout(source.value).then((result) => {
+    addresses.value = result.addresses || []
+    if (!currentAddress.value) currentAddress.value = addresses.value.find((a: ShippingAddress) => a.isDefault) || addresses.value[0] || null
+  }).catch(() => {})
+})
 
 async function submitOrder() {
   if (submitting.value) return
