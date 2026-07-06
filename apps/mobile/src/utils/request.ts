@@ -41,6 +41,15 @@ function handleUnauthorized() {
   })
 }
 
+/**
+ * 认证入口接口（登录/发码/注册/找回密码）的 401 是业务错误（验证码/密码/账号错），
+ * 应由页面自行 toast 提示，绝不能触发全局"未登录"跳转——否则登录页 reLaunch 闪退、
+ * 页面设置的错误提示被冲掉（用户现象："输错闪一下就退出、没提示"）。
+ */
+function isAuthEntryPath(path: string): boolean {
+  return /(auth\/login|auth\/send-code|auth\/register|auth\/reset-password|login\/sms|login\/wechat|login\/password)/.test(path)
+}
+
 function buildHeader(custom?: Record<string, string>): Record<string, string> {
   const token = getToken()
   return {
@@ -61,8 +70,13 @@ function apiFetch<T>(path: string, method: Method, data?: unknown, header?: Reco
       success: (res) => {
         const body = res.data as ApiResponse<T>
         if (res.statusCode === 401) {
-          handleUnauthorized()
-          reject(new Error('未登录或登录已过期'))
+          if (isAuthEntryPath(path)) {
+            // 登录/发码等入口的 401 = 账号/验证码/密码错误，交给页面提示，不跳转
+            reject(new Error(body?.message || '账号或验证码错误'))
+          } else {
+            handleUnauthorized()
+            reject(new Error('未登录或登录已过期'))
+          }
           return
         }
         if (body && body.code === 200) {
