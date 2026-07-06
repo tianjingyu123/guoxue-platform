@@ -23,7 +23,7 @@
         </view>
         <view class="qp-divider" />
         <view class="qp-stat">
-          <text class="qp-stat-num qp-num-green">¥{{ totalEarn }}</text>
+          <text class="qp-stat-num qp-num-green">¥{{ formatPrice(totalEarn) }}</text>
           <text class="qp-stat-label">待赚取</text>
         </view>
       </view>
@@ -69,7 +69,7 @@
             <text class="qp-card-content">{{ q.content }}</text>
             <view class="qp-card-foot">
               <view class="qp-foot-left">
-                <view class="qp-coins"><app-icon name="coins" :size="32" color="#c41e3a" /><text class="qp-coins-tx">¥{{ q.price }}</text></view>
+                <view class="qp-coins"><app-icon name="coins" :size="32" color="#c41e3a" /><text class="qp-coins-tx">¥{{ formatPrice(q.price) }}</text></view>
                 <view v-if="q.isPublic" class="qp-badge-public"><text class="qp-badge-public-tx">公开</text></view>
                 <view v-else class="qp-badge-private"><text class="qp-badge-private-tx">私密</text></view>
               </view>
@@ -99,7 +99,7 @@
             </view>
             <text class="qp-card-title qp-clamp1">{{ q.title }}</text>
             <view class="qp-expired-info">
-              <text class="qp-expired-price">¥{{ q.price }}</text>
+              <text class="qp-expired-price">¥{{ formatPrice(q.price) }}</text>
               <text class="qp-expired-sep">·</text>
               <text class="qp-expired-tx">已退款给提问者</text>
             </view>
@@ -125,6 +125,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { navigateBack, navigateTo } from '@/utils/router'
+import { formatPrice } from '@/utils/format'
 
 interface Question {
   id: string

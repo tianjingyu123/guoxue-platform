@@ -11,6 +11,7 @@ import { shopApi } from '@/lib/shop-data'
 import { track } from '@/composables/useTrack'
 import { recommendApi } from '@/lib/recommend-data'
 import type { RecommendItem } from '@/components/common/recommend-section.vue'
+import { formatPrice } from '@/utils/format'
 
 const loading = ref(true)
 const error = ref(false)
@@ -158,8 +159,8 @@ function goCart() { navigateTo('/shop/cart') }
     <!-- 价格区 -->
     <view class="card price-card">
       <view class="price-row">
-        <text class="price-now">¥{{ product.price }}</text>
-        <text class="price-orig">¥{{ product.originalPrice }}</text>
+        <text class="price-now">¥{{ formatPrice(product.price) }}</text>
+        <text class="price-orig">¥{{ formatPrice(product.originalPrice) }}</text>
         <text class="price-off">{{ discount }}% OFF</text>
       </view>
       <text class="p-title">{{ product.title }}</text>
@@ -171,7 +172,7 @@ function goCart() { navigateTo('/shop/cart') }
       <view class="coupon-entry">
         <view class="coupon-left">
           <text class="coupon-badge">券</text>
-          <text class="coupon-text">满{{ product.coupon.threshold }}减{{ product.coupon.value }}</text>
+          <text class="coupon-text">满{{ formatPrice(product.coupon.threshold) }}减{{ formatPrice(product.coupon.value) }}</text>
         </view>
         <view class="coupon-claim"><text class="coupon-claim-text">领取</text><AppIcon name="chevron-right" :size="26" color="var(--brand)" /></view>
       </view>
@@ -266,7 +267,7 @@ function goCart() { navigateTo('/shop/cart') }
       <view class="sp-head">
         <view class="sp-thumb"><image lazy-load class="sp-thumb-img" :src="product.images[0]" mode="aspectFill" /></view>
         <view class="sp-info">
-          <text class="sp-price">¥{{ currentPrice }}</text>
+          <text class="sp-price">¥{{ formatPrice(currentPrice) }}</text>
           <text class="sp-stock">库存 {{ currentStock }} 件</text>
           <text class="sp-selected">已选：{{ selectedSpecLabels || '请选择规格' }}</text>
         </view>
@@ -276,7 +277,7 @@ function goCart() { navigateTo('/shop/cart') }
           <text class="sp-group-name">{{ grp.name }}</text>
           <view class="sp-opts">
             <view v-for="opt in grp.options" :key="opt.id" class="sp-opt" :class="{ 'sp-opt-on': selectedSpecs[grp.name] === opt.id }" @tap="selectSpec(grp.name, opt.id)">
-              <text class="sp-opt-text" :class="{ 'sp-opt-text-on': selectedSpecs[grp.name] === opt.id }">{{ opt.label }}{{ opt.price > 0 && grp.name === '版本' ? ` ¥${opt.price}` : '' }}</text>
+              <text class="sp-opt-text" :class="{ 'sp-opt-text-on': selectedSpecs[grp.name] === opt.id }">{{ opt.label }}{{ opt.price > 0 && grp.name === '版本' ? ` ¥${formatPrice(opt.price)}` : '' }}</text>
             </view>
           </view>
         </view>

@@ -17,6 +17,7 @@ import {
   type StationFeedCard,
   type MicroPageView,
 } from '@/lib/station-home-data'
+import { formatPrice } from '@/utils/format'
 
 const loading = ref(true)
 const error = ref('')
@@ -174,7 +175,7 @@ function goBack() {
                 <view v-for="item in feedList.slice(0, 6)" :key="item.id" class="sh-mp-gcard" @tap="openFeed(item)">
                   <image lazy-load class="sh-mp-gcover" :src="item.cover || ''" mode="aspectFill" />
                   <text class="sh-mp-gname">{{ item.title }}</text>
-                  <text v-if="item.price !== undefined && item.price > 0" class="sh-mp-gprice" :style="{ color: primary }">¥{{ item.price }}</text>
+                  <text v-if="item.price !== undefined && item.price > 0" class="sh-mp-gprice" :style="{ color: primary }">¥{{ formatPrice(item.price) }}</text>
                 </view>
               </view>
             </view>
@@ -223,7 +224,7 @@ function goBack() {
                     <view v-if="item.likes" class="sh-feed-stat"><app-icon name="heart" :size="24" color="#999" /><text class="sh-feed-stat-txt">{{ formatStatNumber(item.likes) }}</text></view>
                   </view>
                 </view>
-                <text v-if="item.price !== undefined && item.price > 0" class="sh-feed-price" :style="{ color: primary }">¥{{ item.price }}</text>
+                <text v-if="item.price !== undefined && item.price > 0" class="sh-feed-price" :style="{ color: primary }">¥{{ formatPrice(item.price) }}</text>
               </view>
             </view>
           </view>

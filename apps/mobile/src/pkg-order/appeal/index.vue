@@ -136,7 +136,7 @@
               <text class="order-title">{{ order.title }}</text>
               <text class="order-id">订单号：{{ order.id }}</text>
               <view class="order-meta">
-                <text class="order-price">¥{{ order.price }}</text>
+                <text class="order-price">¥{{ formatPrice(order.price) }}</text>
                 <text class="order-status">{{ order.status }}</text>
               </view>
             </view>
@@ -236,6 +236,7 @@
 import { ref, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateBack } from '@/utils/router'
+import { formatPrice } from '@/utils/format'
 
 const appealableOrders = [
   { id: '20240115001', title: '《渊海子平》精装典藏版', price: 168, time: '2024-01-15 14:30', status: '已完成' },

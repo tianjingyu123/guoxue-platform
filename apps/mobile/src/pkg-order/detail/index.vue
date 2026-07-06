@@ -77,7 +77,7 @@
           <text class="p-name">{{ p.name }}</text>
           <text class="p-sku">{{ p.skuName }}</text>
           <view class="p-bottom">
-            <text class="p-price">¥{{ p.price }}</text>
+            <text class="p-price">¥{{ formatPrice(p.price) }}</text>
             <text class="p-qty">x{{ p.quantity }}</text>
           </view>
         </view>
@@ -157,6 +157,7 @@ import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
 import { orderApi, detailSteps, virtualDetailSteps, detailStatusConfig, virtualPaidStatus, type OrderDetail } from '@/lib/order-data'
+import { formatPrice } from '@/utils/format'
 
 const loading = ref(false)
 const error = ref('')

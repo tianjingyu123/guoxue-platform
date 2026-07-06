@@ -16,7 +16,7 @@
       <view class="info-card">
         <view class="info-row">
           <text class="info-label">订单金额</text>
-          <text class="info-amount">¥{{ amount }}</text>
+          <text class="info-amount">¥{{ formatPrice(amount) }}</text>
         </view>
         <view class="info-divider" />
         <view class="info-row">
@@ -63,7 +63,7 @@
           >
             <image lazy-load class="rec-img" :src="item.image" mode="aspectFill" />
             <text class="rec-name">{{ item.name }}</text>
-            <text class="rec-price">¥{{ item.price }}</text>
+            <text class="rec-price">¥{{ formatPrice(item.price) }}</text>
           </view>
         </view>
       </view>
@@ -76,6 +76,7 @@ import { ref, computed, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { navigateTo, goBack } from '@/utils/router'
 import { shopApi } from '@/lib/shop-data'
+import { formatPrice } from '@/utils/format'
 
 const status = ref<'success' | 'fail'>('success')
 const orderId = ref('OD202606200001')

@@ -64,7 +64,7 @@
             <view class="row-info">
               <text class="row-title clamp2">{{ result.data.title }}</text>
               <text class="row-sub">{{ result.data.teacher }}</text>
-              <text class="price">¥{{ result.data.price }}</text>
+              <text class="price">¥{{ formatPrice(result.data.price) }}</text>
             </view>
           </view>
 
@@ -157,6 +157,7 @@ import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateBack, navigateTo, reLaunch } from '@/utils/router'
 import { BRAND } from '@/lib/brand'
+import { formatPrice } from '@/utils/format'
 
 type ScanResultType =
   | 'friend' | 'group' | 'pay' | 'course' | 'article'

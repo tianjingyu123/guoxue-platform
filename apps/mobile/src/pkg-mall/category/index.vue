@@ -8,6 +8,7 @@ import { goBack, navigateTo } from '@/utils/router'
 import { shopApi } from '@/lib/shop-data'
 import type { CategoryTab, CategorySortOption, CategoryProduct } from '@/lib/shop-data'
 import { useList } from '@/composables/useList'
+import { formatPrice } from '@/utils/format'
 
 const categoryTabs = ref<CategoryTab[]>([])
 const categorySortOptions = ref<CategorySortOption[]>([])
@@ -140,8 +141,8 @@ function openProduct(id: string | number) { navigateTo(`/mall/product/${id}`) }
             <view class="g-body">
               <text class="g-name">{{ p.name }}</text>
               <view class="g-price-row">
-                <text class="g-price">¥{{ p.price }}</text>
-                <text class="g-orig">¥{{ p.originalPrice }}</text>
+                <text class="g-price">¥{{ formatPrice(p.price) }}</text>
+                <text class="g-orig">¥{{ formatPrice(p.originalPrice) }}</text>
               </view>
               <text class="g-sales">已售{{ formatSales(p.sales) }}</text>
             </view>

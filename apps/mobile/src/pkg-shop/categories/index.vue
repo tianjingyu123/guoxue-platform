@@ -73,8 +73,8 @@
               <image lazy-load class="goods-img" :src="p.cover || '/static/placeholder.png'" mode="aspectFill" />
               <text class="goods-name">{{ p.name }}</text>
               <view class="goods-price-row">
-                <text class="goods-price">¥{{ p.price }}</text>
-                <text v-if="p.originalPrice > p.price" class="goods-old">¥{{ p.originalPrice }}</text>
+                <text class="goods-price">¥{{ formatPrice(p.price) }}</text>
+                <text v-if="p.originalPrice > p.price" class="goods-old">¥{{ formatPrice(p.originalPrice) }}</text>
               </view>
               <text class="goods-sales">已售 {{ p.sales }}</text>
             </view>
@@ -96,6 +96,7 @@ import { ref, computed, onMounted } from 'vue'
 import { navigateTo } from '@/utils/router'
 import { shopApi, type ShopCategoryNode, type ShopCategoryProduct } from '@/lib/shop-data'
 import AppSkeleton from '@/components/common/app-skeleton.vue'
+import { formatPrice } from '@/utils/format'
 
 const categories = ref<ShopCategoryNode[]>([])
 const products = ref<ShopCategoryProduct[]>([])

@@ -10,6 +10,7 @@ import {
   type OperatorBenefit,
   type FaqItem,
 } from '@/lib/operator-data'
+import { formatPrice } from '@/utils/format'
 
 const loading = ref(true)
 const error = ref('')
@@ -98,8 +99,8 @@ async function onSubmit() {
           <text class="hero-title">成为{{ BRAND.nameShort }}运营商</text>
           <text class="hero-sub">获得6个分站名额，建立您的推广团队</text>
           <view class="hero-price">
-            <text class="hero-price-now">¥{{ price }}</text>
-            <text class="hero-price-old">¥{{ originalPrice }}</text>
+            <text class="hero-price-now">¥{{ formatPrice(price) }}</text>
+            <text class="hero-price-old">¥{{ formatPrice(originalPrice) }}</text>
           </view>
           <view class="hero-gift">
             <AppIcon name="gift" :size="22" color="#fff" />
@@ -228,8 +229,8 @@ async function onSubmit() {
       <view class="buybar-row">
         <view class="buybar-price">
           <view class="buybar-price-line">
-            <text class="buybar-price-now">¥{{ price }}</text>
-            <text class="buybar-price-old">¥{{ originalPrice }}</text>
+            <text class="buybar-price-now">¥{{ formatPrice(price) }}</text>
+            <text class="buybar-price-old">¥{{ formatPrice(originalPrice) }}</text>
           </view>
           <view class="buybar-price-gift">
             <AppIcon name="gift" :size="20" color="#7c3aed" />

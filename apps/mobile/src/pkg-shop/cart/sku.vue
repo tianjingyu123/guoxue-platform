@@ -39,8 +39,8 @@
                 <view class="sku-tag"><text>{{ item.skuName }}</text></view>
                 <view class="item-bottom">
                   <view class="price-box">
-                    <text class="cur">¥{{ item.price }}</text>
-                    <text class="ori">¥{{ item.originalPrice }}</text>
+                    <text class="cur">¥{{ formatPrice(item.price) }}</text>
+                    <text class="ori">¥{{ formatPrice(item.originalPrice) }}</text>
                   </view>
                   <view class="stepper">
                     <view class="step-btn" :class="{ disabled: item.quantity <= 1 }" @tap.stop="changeQty(item, -1)"><app-icon name="minus" :size="24" color="#666666" /></view>
@@ -90,9 +90,9 @@
       <view class="footer-info" v-if="!editMode">
         <view class="total-row">
           <text class="total-label">合计</text>
-          <text class="total-amount">¥{{ totalAmount }}</text>
+          <text class="total-amount">¥{{ formatPrice(totalAmount) }}</text>
         </view>
-        <text class="saved">已优惠 ¥{{ savedAmount }}</text>
+        <text class="saved">已优惠 ¥{{ formatPrice(savedAmount) }}</text>
       </view>
       <view class="footer-spacer" v-else />
       <view class="checkout-btn" v-if="!editMode" @tap="goCheckout">
@@ -110,6 +110,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { navigateTo, reLaunch } from '@/utils/router'
 import { shopApi, type SkuCartItem } from '@/lib/shop-data'
+import { formatPrice } from '@/utils/format'
 
 const items = ref<SkuCartItem[]>([])
 const loading = ref(true)

@@ -33,9 +33,9 @@
           <view class="prod-info">
             <text class="prod-name">{{ data.productName }}</text>
             <view class="prod-price">
-              <text class="price-now">¥{{ data.price }}</text>
-              <text class="price-old">¥{{ data.originalPrice }}</text>
-              <text class="save-tag">省¥{{ data.savedAmount }}</text>
+              <text class="price-now">¥{{ formatPrice(data.price) }}</text>
+              <text class="price-old">¥{{ formatPrice(data.originalPrice) }}</text>
+              <text class="save-tag">省¥{{ formatPrice(data.savedAmount) }}</text>
             </view>
           </view>
         </view>
@@ -115,6 +115,7 @@ import { ref, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { navigateTo } from '@/utils/router'
 import { shopApi } from '@/lib/shop-data'
+import { formatPrice } from '@/utils/format'
 
 interface GroupBuySuccessData {
   productCover: string

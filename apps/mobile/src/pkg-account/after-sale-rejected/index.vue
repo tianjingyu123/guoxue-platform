@@ -53,7 +53,7 @@
             <text class="product-name">{{ detail.product.name }}</text>
             <text class="product-sku">{{ detail.product.skuName }}</text>
             <view class="product-foot">
-              <text class="product-price">¥{{ detail.product.price }}</text>
+              <text class="product-price">¥{{ formatPrice(detail.product.price) }}</text>
               <text class="product-qty">x{{ detail.product.quantity }}</text>
             </view>
           </view>
@@ -158,6 +158,7 @@ import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { goBack, navigateTo } from '@/utils/router'
 import { accountApi } from '@/lib/account-data'
+import { formatPrice } from '@/utils/format'
 
 const statusBarHeight = ref(20)
 const navHeight = ref(64)

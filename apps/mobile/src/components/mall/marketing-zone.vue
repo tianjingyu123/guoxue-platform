@@ -4,6 +4,7 @@ import { ref, onMounted, onUnmounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
 import { shopApi } from '@/lib/shop-data'
+import { formatPrice } from '@/utils/format'
 
 // 秒杀卡片项（由 shopApi.getFlashSale().products 映射而来）
 interface SeckillItem { id: string | number; cover: string; title: string; price: number; originalPrice: number }
@@ -81,8 +82,8 @@ function off(price: number, original: number) {
             </view>
             <text class="mz-sk-title">{{ item.title }}</text>
             <view class="mz-sk-price">
-              <text class="mz-sk-now">¥{{ item.price }}</text>
-              <text class="mz-sk-orig">¥{{ item.originalPrice }}</text>
+              <text class="mz-sk-now">¥{{ formatPrice(item.price) }}</text>
+              <text class="mz-sk-orig">¥{{ formatPrice(item.originalPrice) }}</text>
             </view>
           </view>
         </view>
@@ -110,8 +111,8 @@ function off(price: number, original: number) {
             <text class="mz-gp-joined">已有 {{ item.joined }} 人参团</text>
           </view>
           <view class="mz-gp-price">
-            <text class="mz-gp-now">¥{{ item.groupPrice }}</text>
-            <text class="mz-gp-orig">¥{{ item.originalPrice }}</text>
+            <text class="mz-gp-now">¥{{ formatPrice(item.groupPrice) }}</text>
+            <text class="mz-gp-orig">¥{{ formatPrice(item.originalPrice) }}</text>
           </view>
         </view>
         <text class="mz-gp-btn">去拼团</text>

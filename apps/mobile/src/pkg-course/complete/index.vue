@@ -133,7 +133,7 @@
                   <text class="rec-name">{{ course.title }}</text>
                   <text class="rec-instructor">{{ course.instructor }}</text>
                   <view class="rec-bottom">
-                    <text class="rec-price">¥{{ course.price }}</text>
+                    <text class="rec-price">¥{{ formatPrice(course.price) }}</text>
                     <text class="rec-students">{{ course.students }}人学习</text>
                   </view>
                 </view>
@@ -210,6 +210,7 @@ import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { goBack, navigateTo, reLaunch } from '@/utils/router'
 import { BRAND } from '@/lib/brand'
+import { formatPrice } from '@/utils/format'
 
 const statusBarHeight = ref(20)
 const safeBottom = ref(0)

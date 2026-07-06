@@ -4,6 +4,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
 import { shopApi } from '@/lib/shop-data'
+import { formatPrice } from '@/utils/format'
 
 const loading = ref(true)
 const error = ref('')
@@ -147,8 +148,8 @@ const groupPct = computed(() => {
               @tap.stop="navigateTo(`/shop/product/${p.id}`)"
             >
               <image lazy-load class="seckill-img" :src="p.cover" mode="aspectFill" />
-              <text class="seckill-price">¥{{ p.price }}</text>
-              <text class="seckill-orig">¥{{ p.originalPrice }}</text>
+              <text class="seckill-price">¥{{ formatPrice(p.price) }}</text>
+              <text class="seckill-orig">¥{{ formatPrice(p.originalPrice) }}</text>
             </view>
           </view>
         </scroll-view>
@@ -171,8 +172,8 @@ const groupPct = computed(() => {
           <view class="group-info">
             <text class="group-name">{{ data.groupBuy.productName }}</text>
             <view class="group-price">
-              <text class="group-now">¥{{ data.groupBuy.price }}</text>
-              <text class="group-orig">¥{{ data.groupBuy.originalPrice }}</text>
+              <text class="group-now">¥{{ formatPrice(data.groupBuy.price) }}</text>
+              <text class="group-orig">¥{{ formatPrice(data.groupBuy.originalPrice) }}</text>
             </view>
             <view class="group-progress">
               <view class="group-bar"><view class="group-bar-fill" :style="{ width: groupPct + '%' }" /></view>
@@ -210,8 +211,8 @@ const groupPct = computed(() => {
               <text class="rec-sales">{{ p.sales }}人付款</text>
             </view>
             <view class="rec-price">
-              <text class="rec-now">¥{{ p.price }}</text>
-              <text class="rec-orig">¥{{ p.originalPrice }}</text>
+              <text class="rec-now">¥{{ formatPrice(p.price) }}</text>
+              <text class="rec-orig">¥{{ formatPrice(p.originalPrice) }}</text>
             </view>
           </view>
         </view>

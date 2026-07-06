@@ -126,7 +126,7 @@
           <view class="course-meta">
             <text class="course-title">{{ course.title }}</text>
             <view class="course-foot">
-              <text class="course-price">¥{{ course.price }}</text>
+              <text class="course-price">¥{{ formatPrice(course.price) }}</text>
               <text class="course-lessons">{{ course.lessons }}课时</text>
             </view>
           </view>
@@ -154,6 +154,7 @@ import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { liveApi } from '@/lib/live-data'
+import { formatPrice } from '@/utils/format'
 
 const statusBarHeight = ref(0)
 

@@ -12,6 +12,7 @@ import {
   type ChatMessage, type RecommendItem, type Recommendation,
 } from '@/lib/agent-data'
 import { botApi, type BotQuota } from '@/lib/bot-data'
+import { formatPrice } from '@/utils/format'
 
 const loading = ref(true)
 const error = ref('')
@@ -287,9 +288,9 @@ onUnmounted(() => {
       <view v-if="quotaState === 'hidden'" class="usage-bar">
         <view class="usage-left"><AppIcon name="zap" :size="26" color="#c9a96e" /><text class="usage-txt">剩余免费次数：<text class="usage-num">{{ freeRemaining }}</text> 次</text></view>
         <view class="usage-right">
-          <text class="usage-price"><AppIcon name="message-square" :size="22" color="#999" />{{ agentDetail.pricePerChat }}元/次</text>
+          <text class="usage-price"><AppIcon name="message-square" :size="22" color="#999" />{{ formatPrice(agentDetail.pricePerChat) }}元/次</text>
           <!-- 通话单价后端无此字段且语音通话未上线 → 诚实隐藏 -->
-          <text v-if="agentDetail.callPrice > 0" class="usage-price"><AppIcon name="phone" :size="22" color="#999" />{{ agentDetail.callPrice }}元/分钟</text>
+          <text v-if="agentDetail.callPrice > 0" class="usage-price"><AppIcon name="phone" :size="22" color="#999" />{{ formatPrice(agentDetail.callPrice) }}元/分钟</text>
         </view>
       </view>
     </view>
@@ -326,7 +327,7 @@ onUnmounted(() => {
                       <view class="rec-top"><text class="rec-title">{{ rec.data.title }}</text><text class="rec-badge">推荐</text></view>
                       <text v-if="rec.data.reason" class="rec-sub">{{ rec.data.reason }}</text>
                       <view class="rec-price-row">
-                        <text class="rec-price">{{ rec.data.price > 0 ? '¥' + rec.data.price : '免费' }}</text>
+                        <text class="rec-price">{{ rec.data.price > 0 ? '¥' + formatPrice(rec.data.price) : '免费' }}</text>
                         <text class="rec-members">{{ rec.data.studentCount }}人已学</text>
                       </view>
                     </view>

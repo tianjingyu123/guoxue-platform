@@ -25,11 +25,11 @@
         <view class="eh-overview">
           <view class="eh-ov-card">
             <text class="eh-ov-label">累计收益</text>
-            <text class="eh-ov-num">¥{{ fmtMoney(data.totalEarnings) }}</text>
+            <text class="eh-ov-num">¥{{ fmtMoney(formatPrice(data.totalEarnings)) }}</text>
           </view>
           <view class="eh-ov-card">
             <text class="eh-ov-label">本月收益</text>
-            <text class="eh-ov-num eh-green">¥{{ fmtMoney(data.monthlyEarnings) }}</text>
+            <text class="eh-ov-num eh-green">¥{{ fmtMoney(formatPrice(data.monthlyEarnings)) }}</text>
             <text v-if="monthChange !== null" class="eh-ov-change" :class="monthChange >= 0 ? 'eh-green' : 'eh-red'">
               {{ monthChange >= 0 ? '↑' : '↓' }} {{ Math.abs(monthChange) }}%
             </text>
@@ -57,7 +57,7 @@
               <view class="eh-record-bottom">
                 <text v-if="record.orders > 0" class="eh-record-orders">{{ record.orders }} 个订单</text>
                 <text v-else class="eh-record-orders" />
-                <text class="eh-record-earn">¥{{ fmtMoney(record.earnings) }}</text>
+                <text class="eh-record-earn">¥{{ fmtMoney(formatPrice(record.earnings)) }}</text>
               </view>
             </view>
           </view>
@@ -81,6 +81,7 @@ import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
 import { creatorApi, type CreatorEarningsHistory } from '@/lib/creator-data'
+import { formatPrice } from '@/utils/format'
 
 const statusBarHeight = ref(0)
 const loading = ref(true)

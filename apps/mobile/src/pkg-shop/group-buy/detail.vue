@@ -35,8 +35,8 @@
             <text class="pc-title">{{ detail.title }}</text>
             <text class="pc-desc">{{ detail.description }}</text>
             <view class="pc-price">
-              <text class="price-now">¥{{ detail.price }}</text>
-              <text class="price-old">¥{{ detail.originalPrice }}</text>
+              <text class="price-now">¥{{ formatPrice(detail.price) }}</text>
+              <text class="price-old">¥{{ formatPrice(detail.originalPrice) }}</text>
               <text class="save-tag">省¥{{ savedAmount }}</text>
             </view>
           </view>
@@ -117,7 +117,7 @@
       <view class="footer">
         <view class="footer-btn" hover-class="btn-hover" @tap="create">
           <app-icon name="plus" :size="28" color="#fff" />
-          <text class="footer-btn-text">¥{{ detail.price }} 开新团</text>
+          <text class="footer-btn-text">¥{{ formatPrice(detail.price) }} 开新团</text>
         </view>
       </view>
     </template>
@@ -129,6 +129,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { goBack, navigateTo, redirectTo } from '@/utils/router'
 import { shopApi, formatCountdown } from '@/lib/shop-data'
+import { formatPrice } from '@/utils/format'
 
 interface GroupBuyDetailData {
   id: string

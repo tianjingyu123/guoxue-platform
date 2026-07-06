@@ -129,8 +129,8 @@
         <view class="pf-info">
           <text class="pf-name">{{ currentProduct.name }}</text>
           <view class="pf-price-row">
-            <text class="pf-price">¥{{ currentProduct.price }}</text>
-            <text class="pf-origin">¥{{ currentProduct.originalPrice }}</text>
+            <text class="pf-price">¥{{ formatPrice(currentProduct.price) }}</text>
+            <text class="pf-origin">¥{{ formatPrice(currentProduct.originalPrice) }}</text>
           </view>
         </view>
         <view class="pf-buy">立即购买</view>
@@ -217,8 +217,8 @@
             <view class="pl-info">
               <text class="pl-name">{{ product.name }}</text>
               <view class="pl-price-row">
-                <text class="pl-price">¥{{ product.price }}</text>
-                <text class="pl-origin">¥{{ product.originalPrice }}</text>
+                <text class="pl-price">¥{{ formatPrice(product.price) }}</text>
+                <text class="pl-origin">¥{{ formatPrice(product.originalPrice) }}</text>
               </view>
               <text class="pl-sold">已售 {{ product.sold }}</text>
             </view>
@@ -239,6 +239,7 @@ import AppIcon from '@/components/common/app-icon.vue'
 import LivePlayer from '@/components/live/live-player.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { useTim, type TimMessage } from '@/composables/useTim'
+import { formatPrice } from '@/utils/format'
 import {
   liveApi,
   type VerticalLiveProduct,

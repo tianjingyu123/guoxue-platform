@@ -97,8 +97,8 @@
       <view class="pv-footer">
         <view class="pv-footer-info">
           <view v-if="joinMethod === 'paid'" class="pv-price-row">
-            <text class="pv-price">¥{{ joinStatus.price }}</text>
-            <text v-if="joinStatus.originalPrice" class="pv-price-old">¥{{ joinStatus.originalPrice }}</text>
+            <text class="pv-price">¥{{ formatPrice(joinStatus.price) }}</text>
+            <text v-if="joinStatus.originalPrice" class="pv-price-old">¥{{ formatPrice(joinStatus.originalPrice) }}</text>
             <text class="pv-price-days">/ {{ joinStatus.membershipDays ?? 365 }}天</text>
           </view>
           <text v-else-if="joinMethod === 'approval'" class="pv-method">审核制圈子</text>
@@ -120,7 +120,7 @@
             <view class="pv-pay-row"><text class="pv-pay-label">会员时长</text><text class="pv-pay-val">{{ joinStatus.membershipDays }} 天</text></view>
             <view class="pv-pay-row">
               <text class="pv-pay-label">支付金额</text>
-              <view class="pv-price-row"><text class="pv-price">¥{{ joinStatus.price }}</text><text v-if="joinStatus.originalPrice" class="pv-price-old">¥{{ joinStatus.originalPrice }}</text></view>
+              <view class="pv-price-row"><text class="pv-price">¥{{ formatPrice(joinStatus.price) }}</text><text v-if="joinStatus.originalPrice" class="pv-price-old">¥{{ formatPrice(joinStatus.originalPrice) }}</text></view>
             </view>
           </view>
           <view class="pv-pay-btn" @tap="toComingSoon">确认支付</view>
@@ -152,6 +152,7 @@
 import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, toastComingSoon } from '@/utils/router'
+import { formatPrice } from '@/utils/format'
 
 const mockPreview = {
   circle: {

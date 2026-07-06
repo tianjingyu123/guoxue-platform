@@ -92,7 +92,7 @@
             >
               <view class="coupon-body">
                 <text class="coupon-amount" :class="{ gray: c.claimed }">
-                  <text class="coupon-yen">¥</text>{{ c.amount }}
+                  <text class="coupon-yen">¥</text>{{ formatPrice(c.amount) }}
                 </text>
                 <text class="coupon-cond">{{ c.condition }}</text>
                 <text class="coupon-scope">{{ c.scope }}</text>
@@ -137,8 +137,8 @@
               <view class="sk-info">
                 <text class="sk-title">{{ p.title }}</text>
                 <view class="sk-price-row">
-                  <text class="sk-price">¥{{ p.seckillPrice }}</text>
-                  <text class="sk-origin">¥{{ p.originalPrice }}</text>
+                  <text class="sk-price">¥{{ formatPrice(p.seckillPrice) }}</text>
+                  <text class="sk-origin">¥{{ formatPrice(p.originalPrice) }}</text>
                 </view>
                 <view class="sk-progress">
                   <view class="sk-bar"><view class="sk-bar-fill" :style="{ width: soldPercent(p) + '%' }" /></view>
@@ -174,8 +174,8 @@
             <view class="prod-info">
               <text class="prod-title">{{ p.title }}</text>
               <view class="prod-price-row">
-                <text class="prod-price">¥{{ p.price }}</text>
-                <text class="prod-origin">¥{{ p.originalPrice }}</text>
+                <text class="prod-price">¥{{ formatPrice(p.price) }}</text>
+                <text class="prod-origin">¥{{ formatPrice(p.originalPrice) }}</text>
               </view>
               <text class="prod-sales">{{ p.sales }}人已购</text>
             </view>
@@ -213,7 +213,7 @@
               <view class="rank-no" :class="'rank-' + (i + 1)"><text class="rank-no-txt">{{ i + 1 }}</text></view>
               <view class="rank-avatar"><text class="rank-avatar-txt">{{ u.name[0] }}</text></view>
               <text class="rank-name">{{ u.name }}</text>
-              <text class="rank-amount">{{ rankingType === 'consume' ? '¥' + u.amount.toLocaleString() : u.amount + '人' }}</text>
+              <text class="rank-amount">{{ rankingType === 'consume' ? '¥' + formatPrice(u.amount).toLocaleString() : u.amount + '人' }}</text>
             </view>
           </view>
           <view class="rank-foot" @tap="go('/ranking')">
@@ -264,6 +264,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { navigateBack, navigateTo } from '@/utils/router'
+import { formatPrice } from '@/utils/format'
 
 const statusBarHeight = ref(0)
 const navH = ref(44)

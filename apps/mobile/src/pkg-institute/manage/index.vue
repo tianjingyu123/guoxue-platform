@@ -47,7 +47,7 @@
               <view v-else class="m-avatar"><text class="m-avatar-t">{{ memberName(m.user).slice(0,1) }}</text></view>
               <view class="m-body">
                 <text class="m-name">{{ memberName(m.user) }}</text>
-                <text class="m-meta">{{ roleLabel[m.role] }} · {{ m.joinYear }}年申请 · 会费¥{{ num(m.deposit).toLocaleString() }}</text>
+                <text class="m-meta">{{ roleLabel[m.role] }} · {{ m.joinYear }}年申请 · 会费¥{{ formatPrice(num(m.deposit)).toLocaleString() }}</text>
               </view>
             </view>
             <view class="m-actions">
@@ -110,11 +110,11 @@
         <!-- 财务分红 -->
         <view v-else class="list">
           <view class="fin-card">
-            <view class="fin-row"><text class="fin-k">年度总收入</text><text class="fin-v">¥{{ num(finance.totalRevenue).toLocaleString() }}</text></view>
-            <view class="fin-row"><text class="fin-k">平台分成（50%）</text><text class="fin-v">¥{{ finance.platformShare.toLocaleString() }}</text></view>
-            <view class="fin-row"><text class="fin-k">研究院留存（50%）</text><text class="fin-v">¥{{ finance.instituteShare.toLocaleString() }}</text></view>
-            <view class="fin-row"><text class="fin-k">已发分红</text><text class="fin-v">¥{{ finance.totalDividends.toLocaleString() }}</text></view>
-            <view class="fin-row fin-remain"><text class="fin-k">可分配余额</text><text class="fin-v-strong">¥{{ finance.remaining.toLocaleString() }}</text></view>
+            <view class="fin-row"><text class="fin-k">年度总收入</text><text class="fin-v">¥{{ formatPrice(num(finance.totalRevenue)).toLocaleString() }}</text></view>
+            <view class="fin-row"><text class="fin-k">平台分成（50%）</text><text class="fin-v">¥{{ formatPrice(finance.platformShare).toLocaleString() }}</text></view>
+            <view class="fin-row"><text class="fin-k">研究院留存（50%）</text><text class="fin-v">¥{{ formatPrice(finance.instituteShare).toLocaleString() }}</text></view>
+            <view class="fin-row"><text class="fin-k">已发分红</text><text class="fin-v">¥{{ formatPrice(finance.totalDividends).toLocaleString() }}</text></view>
+            <view class="fin-row fin-remain"><text class="fin-k">可分配余额</text><text class="fin-v-strong">¥{{ formatPrice(finance.remaining).toLocaleString() }}</text></view>
           </view>
           <view class="grant-btn" @tap="openGrant"><app-icon name="gift" :size="16" color="#fff" /><text class="grant-btn-t">发放分红 / 奖励</text></view>
 
@@ -125,7 +125,7 @@
               <text class="div-type">{{ dividendTypeLabel[d.type] }}</text>
               <text class="div-meta">{{ d.user?.nickname || '成员' }} · {{ d.period || fmtDate(d.createdAt) }}</text>
             </view>
-            <text class="div-amount">¥{{ num(d.amount).toLocaleString() }}</text>
+            <text class="div-amount">¥{{ formatPrice(num(d.amount)).toLocaleString() }}</text>
           </view>
         </view>
 
@@ -212,6 +212,7 @@ import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
+import { formatPrice } from '@/utils/format'
 import {
   instituteApi, roleLabel, roleColor, lecturerLevelLabel, lecturerLevelColor,
   dividendTypeLabel, memberName, num, fmtDate, MGMT_ROLES,

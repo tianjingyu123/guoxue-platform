@@ -25,7 +25,7 @@
             <text class="qd-asker-time">{{ formatDate(question.createdAt) }}</text>
           </view>
           <view class="qd-price-col">
-            <text class="qd-price">¥{{ question.price }}</text>
+            <text class="qd-price">¥{{ formatPrice(question.price) }}</text>
             <text class="qd-price-label">提问费</text>
           </view>
         </view>
@@ -194,6 +194,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { navigateBack } from '@/utils/router'
+import { formatPrice } from '@/utils/format'
 
 const statusBarHeight = ref(0)
 const showPeekModal = ref(false)

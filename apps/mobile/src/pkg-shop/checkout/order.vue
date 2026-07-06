@@ -40,7 +40,7 @@
             <text class="goods-name">{{ g.productName }}</text>
             <view class="sku-tag"><text>{{ g.skuName }}</text></view>
             <view class="goods-bottom">
-              <text class="goods-price">¥{{ g.price }}</text>
+              <text class="goods-price">¥{{ formatPrice(g.price) }}</text>
               <text class="goods-qty">x{{ g.quantity }}</text>
             </view>
           </view>
@@ -50,7 +50,7 @@
       <!-- 优惠券 -->
       <view class="cell" @tap="showCoupon = true">
         <text class="cell-label">优惠券</text>
-        <text class="cell-value" :class="{ active: selectedCoupon }">{{ selectedCoupon ? '-¥' + selectedCoupon.value : '请选择' }}</text>
+        <text class="cell-value" :class="{ active: selectedCoupon }">{{ selectedCoupon ? '-¥' + formatPrice(selectedCoupon.value) : '请选择' }}</text>
         <app-icon name="chevron-right" :size="32" color="#CCCCCC" />
       </view>
 
@@ -90,16 +90,16 @@
 
       <!-- 金额明细 -->
       <view class="amount-card">
-        <view class="amount-row"><text>商品金额</text><text>¥{{ goodsTotal }}</text></view>
+        <view class="amount-row"><text>商品金额</text><text>¥{{ formatPrice(goodsTotal) }}</text></view>
         <view class="amount-row"><text>运费</text><text>¥0</text></view>
-        <view class="amount-row" v-if="selectedCoupon"><text>优惠券</text><text class="discount">-¥{{ selectedCoupon.value }}</text></view>
-        <view class="amount-row total"><text>实付款</text><text class="pay-amount">¥{{ payTotal }}</text></view>
+        <view class="amount-row" v-if="selectedCoupon"><text>优惠券</text><text class="discount">-¥{{ formatPrice(selectedCoupon.value) }}</text></view>
+        <view class="amount-row total"><text>实付款</text><text class="pay-amount">¥{{ formatPrice(payTotal) }}</text></view>
       </view>
       <view style="height: 140rpx;" />
     </scroll-view>
 
     <view class="footer">
-      <view class="footer-total"><text class="ft-label">实付</text><text class="ft-amount">¥{{ payTotal }}</text></view>
+      <view class="footer-total"><text class="ft-label">实付</text><text class="ft-amount">¥{{ formatPrice(payTotal) }}</text></view>
       <view class="pay-btn" @tap="submitOrder"><text>提交订单</text></view>
     </view>
 
@@ -126,7 +126,7 @@
           <view class="radio" :class="{ checked: !selectedCoupon }"><view v-if="!selectedCoupon" class="radio-dot" /></view>
         </view>
         <view v-for="c in coupons" :key="c.id" class="coupon-option" @tap="selectCoupon(c)">
-          <view><text class="co-name">{{ c.name }} -¥{{ c.value }}</text><text class="co-min">满{{ c.minAmount }}可用</text></view>
+          <view><text class="co-name">{{ c.name }} -¥{{ formatPrice(c.value) }}</text><text class="co-min">满{{ formatPrice(c.minAmount) }}可用</text></view>
           <view class="radio" :class="{ checked: selectedCoupon && selectedCoupon.id === c.id }"><view v-if="selectedCoupon && selectedCoupon.id === c.id" class="radio-dot" /></view>
         </view>
       </view>
@@ -139,6 +139,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { redirectTo } from '@/utils/router'
 import { shopApi, type ShippingAddress, type CheckoutCoupon } from '@/lib/shop-data'
+import { formatPrice } from '@/utils/format'
 
 const loading = ref(true)
 const error = ref('')

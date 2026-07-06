@@ -5,6 +5,7 @@ import { onLoad } from '@dcloudio/uni-app'
 import { goBack } from '@/utils/router'
 import AppIcon from '@/components/common/app-icon.vue'
 import { courseApi } from '@/lib/course-data'
+import { formatPrice } from '@/utils/format'
 
 const loading = ref(true)
 const error = ref('')
@@ -99,8 +100,8 @@ onMounted(() => {
           <text class="course-title">{{ course.title }}</text>
           <text class="course-meta">{{ course.instructorName }} | {{ course.chapters }}课时</text>
           <view class="course-price">
-            <text class="price-now">¥{{ course.price }}</text>
-            <text class="price-old">¥{{ course.originalPrice }}</text>
+            <text class="price-now">¥{{ formatPrice(course.price) }}</text>
+            <text class="price-old">¥{{ formatPrice(course.originalPrice) }}</text>
           </view>
         </view>
       </view>
@@ -114,7 +115,7 @@ onMounted(() => {
             <text v-if="availableCoupons.length > 0" class="coupon-badge">{{ availableCoupons.length }}张可用</text>
           </view>
           <view class="coupon-head-right">
-            <text v-if="selectedCouponData" class="coupon-discount">-¥{{ discount }}</text>
+            <text v-if="selectedCouponData" class="coupon-discount">-¥{{ formatPrice(discount) }}</text>
             <text v-else-if="availableCoupons.length > 0" class="coupon-hint">选择优惠券</text>
             <text v-else class="coupon-hint">暂无可用</text>
             <app-icon name="chevron-right" :size="32" color="#999999" :class="{ rotated: showCouponList }" />
@@ -139,12 +140,12 @@ onMounted(() => {
                 </template>
                 <template v-else>
                   <text class="coupon-val-yen">¥</text>
-                  <text class="coupon-val-num2">{{ c.value }}</text>
+                  <text class="coupon-val-num2">{{ formatPrice(c.value) }}</text>
                 </template>
               </view>
               <view class="coupon-detail">
                 <text class="coupon-name">{{ c.name }}</text>
-                <text class="coupon-min">满{{ c.minAmount }}可用</text>
+                <text class="coupon-min">满{{ formatPrice(c.minAmount) }}可用</text>
                 <view class="coupon-expire">
                   <app-icon name="clock" :size="24" color="#999999" />
                   <text class="coupon-expire-txt">{{ c.expireAt }}到期</text>
@@ -180,15 +181,15 @@ onMounted(() => {
         <view class="price-rows">
           <view class="price-row">
             <text class="price-row-label">课程原价</text>
-            <text class="price-row-val">¥{{ course.price }}</text>
+            <text class="price-row-val">¥{{ formatPrice(course.price) }}</text>
           </view>
           <view v-if="discount" class="price-row discount">
             <text class="price-row-label red">优惠券抵扣</text>
-            <text class="price-row-val red">-¥{{ discount }}</text>
+            <text class="price-row-val red">-¥{{ formatPrice(discount) }}</text>
           </view>
           <view class="price-row total">
             <text class="price-row-label">实付金额</text>
-            <text class="price-total">¥{{ finalPrice }}</text>
+            <text class="price-total">¥{{ formatPrice(finalPrice) }}</text>
           </view>
         </view>
       </view>
@@ -208,9 +209,9 @@ onMounted(() => {
         <view class="footer-price-row">
           <text class="footer-pay-label">实付</text>
           <text class="footer-yen">¥</text>
-          <text class="footer-amount">{{ finalPrice }}</text>
+          <text class="footer-amount">{{ formatPrice(finalPrice) }}</text>
         </view>
-        <text v-if="discount" class="footer-saved">已优惠 ¥{{ discount }}</text>
+        <text v-if="discount" class="footer-saved">已优惠 ¥{{ formatPrice(discount) }}</text>
       </view>
       <view class="footer-btn" :class="{ disabled: !agreed }">
         <app-icon name="shield-check" :size="40" color="#ffffff" />

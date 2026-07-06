@@ -74,8 +74,8 @@
                   <view class="product-body">
                     <text class="product-title">{{ message.product?.title }}</text>
                     <view class="product-price-row">
-                      <text class="product-price">¥{{ message.product?.price }}</text>
-                      <text v-if="message.product?.originalPrice" class="product-origin">¥{{ message.product?.originalPrice }}</text>
+                      <text class="product-price">¥{{ formatPrice(message.product?.price) }}</text>
+                      <text v-if="message.product?.originalPrice" class="product-origin">¥{{ formatPrice(message.product?.originalPrice) }}</text>
                     </view>
                   </view>
                 </view>
@@ -165,6 +165,7 @@ import {
   type ChatPermission,
 } from '@/lib/im-data'
 import { useTim, type TimMessage } from '@/composables/useTim'
+import { formatPrice } from '@/utils/format'
 
 // name/avatar 由跳转来源（会话列表/用户主页私信按钮）经 query 传入做对端展示；无则从收到的消息补齐
 // 兼容两种入参：?targetId=（直连完整路径）与 ?id=（utils/router DYNAMIC_ROUTES /im/chat/:id 与用户主页私信按钮传的都是 id）

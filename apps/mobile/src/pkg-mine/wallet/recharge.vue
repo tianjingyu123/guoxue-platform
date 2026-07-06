@@ -8,6 +8,7 @@ import {
   rechargePayMethods,
   type RechargeOption,
 } from '@/lib/mine-data'
+import { formatPrice } from '@/utils/format'
 
 const loading = ref(false)
 const error = ref('')
@@ -148,7 +149,7 @@ async function handleSubmit() {
             <view class="opt-coins" :class="{ active: selectedCoins === o.coins }">
               {{ o.coins + o.bonus }}<text class="opt-unit">币</text>
             </view>
-            <text class="opt-price">¥{{ o.price }}</text>
+            <text class="opt-price">¥{{ formatPrice(o.price) }}</text>
             <view v-if="selectedCoins === o.coins" class="opt-check">
               <app-icon name="check" :size="20" color="#FFFFFF" />
             </view>
@@ -242,7 +243,7 @@ async function handleSubmit() {
         @tap="handleSubmit"
       >
         <text v-if="isSubmitting">支付中...</text>
-        <text v-else-if="selectedAmount > 0">确认充值 ¥{{ selectedAmount }}</text>
+        <text v-else-if="selectedAmount > 0">确认充值 ¥{{ formatPrice(selectedAmount) }}</text>
         <text v-else>请选择充值金额</text>
       </view>
     </view>

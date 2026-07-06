@@ -20,11 +20,11 @@
           <view class="ov-top">
             <view>
               <text class="ov-label">本月收益</text>
-              <text class="ov-month">¥{{ fmt(data.monthEarnings) }}</text>
+              <text class="ov-month">¥{{ fmt(formatPrice(data.monthEarnings)) }}</text>
             </view>
             <view class="ov-total">
               <text class="ov-label">累计收益</text>
-              <text class="ov-total-num">¥{{ fmt(data.totalEarnings) }}</text>
+              <text class="ov-total-num">¥{{ fmt(formatPrice(data.totalEarnings)) }}</text>
             </view>
           </view>
           <view class="ov-stats">
@@ -48,7 +48,7 @@
               <view class="card-bar-row">
                 <view class="bar-track"><view class="bar-fill" :style="{ width: item.percentage + '%' }" /></view>
                 <view class="card-amount">
-                  <text class="card-amount-num">¥{{ fmt(item.amount) }}</text>
+                  <text class="card-amount-num">¥{{ fmt(formatPrice(item.amount)) }}</text>
                   <text class="card-amount-pct">{{ item.percentage }}%</text>
                 </view>
               </view>
@@ -69,7 +69,7 @@
                 </view>
               </view>
               <view class="hist-right">
-                <text class="hist-earn">¥{{ fmt(item.earnings) }}</text>
+                <text class="hist-earn">¥{{ fmt(formatPrice(item.earnings)) }}</text>
                 <text class="hist-badge">月均 ¥{{ Math.round(item.earnings / item.members) }}</text>
               </view>
             </view>
@@ -98,6 +98,7 @@
  */
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
+import { formatPrice } from '@/utils/format'
 
 const statusBarH = uni.getSystemInfoSync().statusBarHeight || 20
 

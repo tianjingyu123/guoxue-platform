@@ -9,6 +9,7 @@ import BottomNav from '@/components/bottom-nav/bottom-nav.vue'
 import { navigateTo, navigateBack } from '@/utils/router'
 import { coursesListApi, courseSortOptions } from '@/lib/courses-list-data'
 import { useList } from '@/composables/useList'
+import { formatPrice } from '@/utils/format'
 import type { CourseCardData } from '@/lib/card-utils'
 
 // 头部区块（一次性加载，与主列表分页解耦）
@@ -213,8 +214,8 @@ function openCourse(id: string) { navigateTo(`/course/${id}`) }
               <text class="banner-title">{{ course.title }}</text>
               <text class="banner-sub">{{ course.subtitle }}</text>
               <view class="banner-price-row">
-                <text class="banner-price">¥{{ course.price }}</text>
-                <text class="banner-orig">¥{{ course.originalPrice }}</text>
+                <text class="banner-price">¥{{ formatPrice(course.price) }}</text>
+                <text class="banner-orig">¥{{ formatPrice(course.originalPrice) }}</text>
               </view>
             </view>
             <view class="banner-thumb">
@@ -256,8 +257,8 @@ function openCourse(id: string) { navigateTo(`/course/${id}`) }
             class="flash-card" @tap="openCourse(course.id)"
           >
             <view class="flash-price-row">
-              <text class="flash-price">¥{{ course.price }}</text>
-              <text class="flash-orig">¥{{ course.originalPrice }}</text>
+              <text class="flash-price">¥{{ formatPrice(course.price) }}</text>
+              <text class="flash-orig">¥{{ formatPrice(course.originalPrice) }}</text>
             </view>
             <text class="flash-name">{{ course.title }}</text>
             <view class="flash-cd">

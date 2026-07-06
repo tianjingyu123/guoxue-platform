@@ -7,6 +7,7 @@ import AppLoadMore from '@/components/common/app-load-more.vue'
 import { navigateTo, navigateBack } from '@/utils/router'
 import { shopApi, type StoreData } from '@/lib/shop-data'
 import { useList } from '@/composables/useList'
+import { formatPrice } from '@/utils/format'
 
 const merchantId = ref('')
 const merchant = ref<StoreData['merchant'] | null>(null)
@@ -122,7 +123,7 @@ function goProduct(id: string) {
               <view v-else class="goods-img goods-img-ph"><AppIcon name="shopping-bag" :size="48" color="var(--text-soft)" /></view>
               <text class="goods-name">{{ p.title }}</text>
               <view class="goods-foot">
-                <text class="goods-price">¥{{ p.price }}</text>
+                <text class="goods-price">¥{{ formatPrice(p.price) }}</text>
                 <text class="goods-sales">{{ p.sales }}人付款</text>
               </view>
             </view>

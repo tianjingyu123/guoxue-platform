@@ -28,7 +28,7 @@
               <text v-if="p.isPlatform" class="mp-tag">平台代销</text>
             </view>
             <view class="mp-meta">
-              <text class="mp-price">¥{{ num(p.price) }}</text>
+              <text class="mp-price">¥{{ formatPrice(p.price) }}</text>
               <text class="mp-stock">库存 {{ p.stock }}</text>
               <text class="mp-status" :class="p.status === 'ACTIVE' ? 'on' : 'off'">{{ p.status === 'ACTIVE' ? '在售' : '已下架' }}</text>
             </view>
@@ -86,6 +86,7 @@ import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
 import { offlineManageApi, num, type StationProduct } from '@/lib/offline-data'
+import { formatPrice } from '@/utils/format'
 
 const statusBarHeight = ref(0)
 try { statusBarHeight.value = uni.getSystemInfoSync().statusBarHeight || 0 } catch {}

@@ -15,6 +15,7 @@ import {
   formatLikes,
   formatCount,
 } from '@/lib/home-data'
+import { formatPrice } from '@/utils/format'
 
 const props = defineProps<{ data: RenderItem }>()
 
@@ -136,17 +137,17 @@ const theme = computed(() => agentThemes[agent.value?.type ?? 'general'] ?? agen
         <text class="viewers-text">{{ formatCount(item.isLive ? item.viewers : item.reservations) }}</text>
       </view>
       <!-- 电子书价格 -->
-      <text v-if="cardType === 'ebook'" class="ebook-price">{{ item.price ? '¥' + item.price : '会员免费' }}</text>
+      <text v-if="cardType === 'ebook'" class="ebook-price">{{ item.price ? '¥' + formatPrice(item.price) : '会员免费' }}</text>
     </view>
     <view class="info">
       <text class="title clamp-2">{{ item.title }}</text>
       <!-- 价格行 -->
       <view v-if="cardType === 'course' || cardType === 'product'" class="price-row">
-        <text class="price">¥{{ item.price }}</text>
-        <text v-if="item.originalPrice" class="origin">¥{{ item.originalPrice }}</text>
+        <text class="price">¥{{ formatPrice(item.price) }}</text>
+        <text v-if="item.originalPrice" class="origin">¥{{ formatPrice(item.originalPrice) }}</text>
       </view>
       <view v-if="cardType === 'ebook'" class="ebook-row">
-        <text class="ebook-p">{{ item.price ? '¥' + item.price : '免费' }}</text>
+        <text class="ebook-p">{{ item.price ? '¥' + formatPrice(item.price) : '免费' }}</text>
         <text class="ebook-readers">{{ formatCount(item.readers) }}人读过</text>
       </view>
       <view class="foot">
@@ -251,7 +252,7 @@ const theme = computed(() => agentThemes[agent.value?.type ?? 'general'] ?? agen
       <text class="excerpt clamp-2">{{ item.content }}</text>
       <view class="circle-meta">
         <view class="cm-stat"><app-icon name="users" :size="22" color="#999999" /><text class="cm-num">{{ formatCount(item.members) }}</text></view>
-        <text class="cm-price">{{ item.price ? '¥' + item.price : '免费' }}</text>
+        <text class="cm-price">{{ item.price ? '¥' + formatPrice(item.price) : '免费' }}</text>
       </view>
       <view class="circle-foot">
         <text class="join-btn" :class="{ joined: item.isMember }">{{ item.isMember ? '已加入' : '加入' }}</text>

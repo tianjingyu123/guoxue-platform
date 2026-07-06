@@ -64,7 +64,7 @@
                 <text class="ev-progress-text">{{ e._count?.registrations ?? 0 }}/{{ e.maxAttendees }}</text>
               </view>
               <view class="ev-card-foot">
-                <text v-if="num(e.price) > 0" class="ev-price">¥{{ num(e.price) }}</text>
+                <text v-if="num(e.price) > 0" class="ev-price">¥{{ formatPrice(e.price) }}</text>
                 <text v-else class="ev-price free">免费参加</text>
                 <text class="ev-status" :style="{ color: courseStatusStyle[deriveEventStatus(e)].color, background: courseStatusStyle[deriveEventStatus(e)].bg }">{{ courseStatusLabel[deriveEventStatus(e)] }}</text>
               </view>
@@ -90,6 +90,7 @@ import {
   deriveEventStatus, courseStatusLabel, courseStatusStyle, eventTimeRange, num,
   type StationEvent, type StationEventType,
 } from '@/lib/offline-data'
+import { formatPrice } from '@/utils/format'
 
 const statusBarHeight = ref(0)
 try { statusBarHeight.value = uni.getSystemInfoSync().statusBarHeight || 0 } catch {}

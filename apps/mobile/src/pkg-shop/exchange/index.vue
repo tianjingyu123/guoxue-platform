@@ -53,7 +53,7 @@
               <text class="prod-name">{{ p.name }}</text>
               <text class="prod-sku">{{ p.skuName }}</text>
               <view class="prod-bottom">
-                <text class="prod-price">¥{{ p.price }}</text>
+                <text class="prod-price">¥{{ formatPrice(p.price) }}</text>
                 <text class="prod-qty">x{{ p.quantity }}</text>
               </view>
             </view>
@@ -115,7 +115,7 @@
               hover-class="opt-hover"
               @tap="newSkuId = sku.id"
             >
-              {{ sku.name }} ¥{{ sku.price }}
+              {{ sku.name }} ¥{{ formatPrice(sku.price) }}
             </view>
           </view>
           <text v-else class="no-sku">该商品暂无其他可换规格</text>
@@ -253,6 +253,7 @@ import {
   type ShopExchangeProduct,
   type ShopExchangeAddress,
 } from '@/lib/shop-data'
+import { formatPrice } from '@/utils/format'
 
 const safeBottom = ref(0)
 const orderId = ref('')

@@ -18,6 +18,7 @@ import {
 import { recommendApi } from '@/lib/recommend-data'
 import type { RecommendItem } from '@/components/common/recommend-section.vue'
 import { track } from '@/composables/useTrack'
+import { formatPrice } from '@/utils/format'
 
 const circleId = ref('1')
 const circle = ref<CircleDetail | null>(null)
@@ -503,7 +504,7 @@ function openAssistant() { navigateTo(`/pkg-circle/circles/assistant?circleId=${
           <view class="cd-sheet-head">
             <view class="cd-sheet-icon"><app-icon name="sparkles" :size="44" color="#ffffff" /></view>
             <text class="cd-sheet-title">加入「{{ circle.name }}」</text>
-            <text class="cd-sheet-sub">{{ circle.type === 'YEARLY' ? '¥' + circle.price + '/年' : '¥' + circle.price }}，解锁以下专属权益</text>
+            <text class="cd-sheet-sub">{{ circle.type === 'YEARLY' ? '¥' + formatPrice(circle.price) + '/年' : '¥' + formatPrice(circle.price) }}，解锁以下专属权益</text>
           </view>
           <view class="cd-benefits">
             <view v-for="(b, i) in memberBenefits" :key="i" class="cd-benefit">

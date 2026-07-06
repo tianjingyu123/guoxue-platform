@@ -55,12 +55,12 @@
                 <text class="order-no">订单号：{{ order.orderNo }}</text>
                 <text class="order-time">{{ order.createdAt }}</text>
               </view>
-              <text class="order-amount">¥{{ order.amount }}</text>
+              <text class="order-amount">¥{{ formatPrice(order.amount) }}</text>
             </view>
           </view>
           <view v-if="selectedOrders.length > 0" class="order-total">
             <text class="order-total-label">已选 {{ selectedOrders.length }} 笔订单</text>
-            <text class="order-total-value">¥{{ totalAmount }}</text>
+            <text class="order-total-value">¥{{ formatPrice(totalAmount) }}</text>
           </view>
         </view>
 
@@ -144,7 +144,7 @@
           <text v-if="rec.taxNumber" class="record-tax">税号：{{ rec.taxNumber }}</text>
           <view class="record-foot">
             <view class="record-foot-left">
-              <text class="record-amount">¥{{ rec.amount }}</text>
+              <text class="record-amount">¥{{ formatPrice(rec.amount) }}</text>
               <text class="record-time">{{ rec.createdAt }}</text>
             </view>
             <view class="record-actions">
@@ -169,7 +169,7 @@
     <!-- 底部提交 -->
     <view v-if="activeTab === 'apply'" class="submit-bar" :style="{ paddingBottom: 16 + safeBottom + 'px' }">
       <view class="submit-btn" :class="{ disabled: selectedOrders.length === 0 }" @tap="submitApply">
-        <text class="submit-text">提交申请{{ totalAmount > 0 ? ' ¥' + totalAmount : '' }}</text>
+        <text class="submit-text">提交申请{{ totalAmount > 0 ? ' ¥' + formatPrice(totalAmount) : '' }}</text>
       </view>
     </view>
   </view>
@@ -179,6 +179,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { orderApi, invoiceStatusConfig, INVOICE_AVAILABLE, type InvoiceOrder, type InvoiceRecord } from '@/lib/order-data'
+import { formatPrice } from '@/utils/format'
 
 // 后端暂无电子发票子系统，统一诚实降级提示（不臆造可开票数据）
 const invoiceAvailable = INVOICE_AVAILABLE

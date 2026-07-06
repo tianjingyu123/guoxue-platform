@@ -57,7 +57,7 @@
             <text class="cc-core-label">带货商品</text>
           </view>
           <view class="cc-core-item">
-            <text class="cc-core-num">¥{{ fmt(stats.totalEarnings) }}</text>
+            <text class="cc-core-num">¥{{ fmt(formatPrice(stats.totalEarnings)) }}</text>
             <text class="cc-core-label">累计收益</text>
           </view>
         </view>
@@ -130,7 +130,7 @@
             </view>
             <view class="cc-sales-item cc-sales-amber">
               <AppIcon name="dollar-sign" :size="20" color="#d97706" />
-              <text class="cc-sales-num">¥{{ fmt(stats.totalGMV) }}</text>
+              <text class="cc-sales-num">¥{{ fmt(formatPrice(stats.totalGMV)) }}</text>
               <text class="cc-sales-label">带货GMV</text>
             </view>
             <view class="cc-sales-item cc-sales-green">
@@ -172,7 +172,7 @@
                 </view>
                 <view v-if="video.products.length > 0" class="cc-hot-sale">
                   <AppIcon name="shopping-bag" :size="14" color="#c41e3a" />
-                  <text class="cc-hot-sale-txt">{{ video.sales }}单 · ¥{{ fmt(video.gmv) }}</text>
+                  <text class="cc-hot-sale-txt">{{ video.sales }}单 · ¥{{ fmt(formatPrice(video.gmv)) }}</text>
                 </view>
               </view>
             </view>
@@ -211,7 +211,7 @@
                 </view>
                 <view class="cc-video-foot-right">
                   <text class="cc-foot-sale">{{ video.sales }}单</text>
-                  <text class="cc-foot-gmv"> · ¥{{ fmt(video.gmv) }}</text>
+                  <text class="cc-foot-gmv"> · ¥{{ fmt(formatPrice(video.gmv)) }}</text>
                 </view>
               </view>
             </view>
@@ -244,7 +244,7 @@
               <view class="cc-prod-info">
                 <text class="cc-prod-name">{{ product.name }}</text>
                 <view class="cc-prod-price-row">
-                  <text class="cc-prod-price">¥{{ product.price }}</text>
+                  <text class="cc-prod-price">¥{{ formatPrice(product.price) }}</text>
                   <text class="cc-prod-commission">{{ product.commission }}%佣金</text>
                 </view>
                 <view class="cc-prod-meta">
@@ -340,6 +340,7 @@ import {
   type CreatorProduct,
   type CreatorEarningItem,
 } from '@/lib/creator-data'
+import { formatPrice } from '@/utils/format'
 
 const statusBarHeight = ref(0)
 const activeTab = ref<'overview' | 'videos' | 'products' | 'earnings'>('overview')

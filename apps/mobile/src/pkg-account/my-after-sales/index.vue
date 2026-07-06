@@ -62,7 +62,7 @@
               <view class="as-foot">
                 <view class="as-amount">
                   <text class="amount-label">退款金额：</text>
-                  <text class="amount-value">¥{{ item.amount }}</text>
+                  <text class="amount-value">¥{{ formatPrice(item.amount) }}</text>
                 </view>
                 <app-icon name="chevron-right" :size="28" color="#999999" />
               </view>
@@ -117,6 +117,7 @@ import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { goBack, navigateTo } from '@/utils/router'
 import { accountApi, afterSaleTabs, afterSaleStatusConfig, type AfterSaleListItem } from '@/lib/account-data'
+import { formatPrice } from '@/utils/format'
 
 const statusBarHeight = ref(20)
 const navHeight = ref(108)

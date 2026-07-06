@@ -51,8 +51,8 @@
               <text class="item-sku">{{ item.skuName }}</text>
               <view class="item-bottom">
                 <view class="price-box">
-                  <text class="cur">¥{{ item.price }}</text>
-                  <text v-if="item.originalPrice > item.price" class="ori">¥{{ item.originalPrice }}</text>
+                  <text class="cur">¥{{ formatPrice(item.price) }}</text>
+                  <text v-if="item.originalPrice > item.price" class="ori">¥{{ formatPrice(item.originalPrice) }}</text>
                 </view>
                 <!-- 编辑模式：删除按钮 -->
                 <view v-if="editMode" class="del-btn tap-press" @tap="removeItem(item.id)">
@@ -164,6 +164,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { navigateTo, reLaunch } from '@/utils/router'
 import { shopApi, type FlatCartItem } from '@/lib/shop-data'
+import { formatPrice } from '@/utils/format'
 
 const loading = ref(true)
 const error = ref('')

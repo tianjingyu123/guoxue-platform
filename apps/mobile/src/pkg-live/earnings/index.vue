@@ -48,14 +48,14 @@
               <app-icon name="gift" :size="28" color="#d4a017" />
               <text class="item-label">打赏收益</text>
             </view>
-            <text class="item-value">¥{{ stats.reward.toLocaleString() }}</text>
+            <text class="item-value">¥{{ formatPrice(stats.reward).toLocaleString() }}</text>
           </view>
           <view class="overview-item">
             <view class="item-head">
               <app-icon name="shopping-bag" :size="28" color="#C41E3A" />
               <text class="item-label">带货收益</text>
             </view>
-            <text class="item-value">¥{{ stats.goods.toLocaleString() }}</text>
+            <text class="item-value">¥{{ formatPrice(stats.goods).toLocaleString() }}</text>
           </view>
         </view>
       </view>
@@ -111,7 +111,7 @@
                 <text class="record-date">{{ record.date }}</text>
               </view>
             </view>
-            <text class="record-amount">+¥{{ record.amount }}</text>
+            <text class="record-amount">+¥{{ formatPrice(record.amount) }}</text>
           </view>
         </view>
       </view>
@@ -124,6 +124,7 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { goBack } from '@/utils/router'
 import { liveApi, liveEarningRanges } from '@/lib/live-data'
+import { formatPrice } from '@/utils/format'
 
 const ranges = liveEarningRanges
 const typeFilters = [

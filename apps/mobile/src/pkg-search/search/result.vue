@@ -171,7 +171,7 @@
                     <text class="course-students">{{ formatNumber(course.studentCount) }}人学习</text>
                   </view>
                   <view class="course-price-row">
-                    <text class="course-price">¥{{ course.price }}</text>
+                    <text class="course-price">¥{{ formatPrice(course.price) }}</text>
                   </view>
                 </view>
               </view>
@@ -232,7 +232,7 @@
                     <text class="course-students">{{ formatNumber(ebook.purchaseCount) }}人购买</text>
                   </view>
                   <view class="course-price-row">
-                    <text class="course-price">¥{{ ebook.price }}</text>
+                    <text class="course-price">¥{{ formatPrice(ebook.price) }}</text>
                   </view>
                 </view>
               </view>
@@ -260,7 +260,7 @@
                   <rich-text class="product-name" :nodes="highlight(product.title)" />
                   <view class="product-foot">
                     <view class="product-price-wrap">
-                      <text class="product-price">¥{{ product.price }}</text>
+                      <text class="product-price">¥{{ formatPrice(product.price) }}</text>
                     </view>
                     <text class="product-sales">{{ formatNumber(product.salesCount) }}人购买</text>
                   </view>
@@ -323,6 +323,7 @@ import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo, navigateBack } from '@/utils/router'
 import { searchApi, type SearchResults, type SearchTab } from '@/lib/search-data'
+import { formatPrice } from '@/utils/format'
 
 const tabs: { key: SearchTab; label: string }[] = [
   { key: 'all', label: '综合' },

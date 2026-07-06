@@ -14,7 +14,7 @@
           <view class="order-info">
             <text class="order-name">{{ order.productName }}</text>
             <text class="order-no">订单号：{{ order.orderNo }}</text>
-            <text class="order-amount">¥{{ order.amount }}</text>
+            <text class="order-amount">¥{{ formatPrice(order.amount) }}</text>
           </view>
         </view>
 
@@ -138,7 +138,7 @@
             <image lazy-load class="order-cover" :src="detail.order.productCover" mode="aspectFill" />
             <view class="order-info">
               <text class="order-name">{{ detail.order.productName }}</text>
-              <text class="order-amount">¥{{ detail.order.amount }}</text>
+              <text class="order-amount">¥{{ formatPrice(detail.order.amount) }}</text>
             </view>
           </view>
         </view>
@@ -213,6 +213,7 @@ import {
   disputeStatusConfig,
   type DisputeListItem,
 } from '@/lib/order-data'
+import { formatPrice } from '@/utils/format'
 
 const safeBottom = ref(0)
 

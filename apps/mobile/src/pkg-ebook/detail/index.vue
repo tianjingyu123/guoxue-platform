@@ -157,7 +157,7 @@
                 title-size="26rpx"
               />
               <text class="ed-related-name">{{ rb.title }}</text>
-              <text class="ed-related-price">¥{{ rb.price }}</text>
+              <text class="ed-related-price">¥{{ formatPrice(rb.price) }}</text>
             </view>
           </view>
         </scroll-view>
@@ -203,7 +203,7 @@
             <text class="ed-btn-txt-light">免费阅读</text>
           </view>
           <view v-else class="ed-btn ed-btn-primary" @tap="goCheckout()">
-            <text class="ed-btn-txt-light">¥{{ book.price }} 立即购买</text>
+            <text class="ed-btn-txt-light">¥{{ formatPrice(book.price) }} 立即购买</text>
           </view>
         </template>
       </view>
@@ -237,6 +237,7 @@ import {
   type EbookDetail,
 } from '@/lib/ebook-data'
 import { getToken } from '@/utils/storage'
+import { formatPrice } from '@/utils/format'
 
 const loading = ref(true)
 const error = ref('')

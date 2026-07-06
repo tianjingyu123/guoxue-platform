@@ -11,6 +11,7 @@ import { homeApi, type RenderItem } from '@/lib/home-data'
 import { stationDetailApi } from '@/lib/station-detail-data'
 import { navigateTo } from '@/utils/router'
 import { BRAND } from '@/lib/brand'
+import { formatPrice } from '@/utils/format'
 
 const loading = ref(true)
 const error = ref('')
@@ -230,8 +231,8 @@ function toastSoon() {
                   <view class="sd-fcard-type" :style="{ background: theme + '26' }">
                     <text class="sd-fcard-type-txt" :style="{ color: theme }">{{ featuredTypeConfig[item.type].label }}</text>
                   </view>
-                  <text v-if="item.price !== undefined && item.price > 0" class="sd-fcard-price">¥{{ item.price }}</text>
-                  <text v-if="item.originalPrice" class="sd-fcard-original">¥{{ item.originalPrice }}</text>
+                  <text v-if="item.price !== undefined && item.price > 0" class="sd-fcard-price">¥{{ formatPrice(item.price) }}</text>
+                  <text v-if="item.originalPrice" class="sd-fcard-original">¥{{ formatPrice(item.originalPrice) }}</text>
                 </view>
                 <text class="sd-fcard-title">{{ item.title }}</text>
                 <view v-if="item.recommendation" class="sd-fcard-rec">

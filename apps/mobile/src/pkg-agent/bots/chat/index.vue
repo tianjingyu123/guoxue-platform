@@ -104,7 +104,7 @@
                         <view class="rec-top"><text class="rec-title">{{ rec.data.title }}</text><text class="rec-badge">推荐</text></view>
                         <text v-if="rec.data.reason" class="rec-sub">{{ rec.data.reason }}</text>
                         <view class="rec-price-row">
-                          <text class="rec-price">{{ rec.data.price > 0 ? '¥' + rec.data.price : '免费' }}</text>
+                          <text class="rec-price">{{ rec.data.price > 0 ? '¥' + formatPrice(rec.data.price) : '免费' }}</text>
                           <text class="rec-members">{{ rec.data.studentCount }}人已学</text>
                         </view>
                       </view>
@@ -168,6 +168,7 @@ import AppIcon from '@/components/common/app-icon.vue'
 import { navigateBack, navigateTo, toastComingSoon } from '@/utils/router'
 import { apiGet, apiPost } from '@/utils/request'
 import type { Recommendation, RecommendItem } from '@/lib/agent-data'
+import { formatPrice } from '@/utils/format'
 
 interface ChatMessage {
   id: string

@@ -42,7 +42,7 @@
             <view class="re-book-meta">
               <text v-if="book.isMemberFree" class="re-tag-member">会员免费</text>
               <text v-else-if="book.price === 0" class="re-tag-free">免费</text>
-              <text v-else class="re-tag-price">¥{{ book.price }}</text>
+              <text v-else class="re-tag-price">¥{{ formatPrice(book.price) }}</text>
               <view class="re-meta-item"><app-icon name="star" :size="20" color="#fbbf24" :fill="true" /><text class="re-meta-t">{{ book.rating }}</text></view>
               <view class="re-meta-item"><app-icon name="users" :size="20" color="#94a3b8" /><text class="re-meta-t">{{ book.readers.toLocaleString() }}人读过</text></view>
             </view>
@@ -73,7 +73,7 @@
             <text class="re-book-author">{{ book.author }}</text>
             <text v-if="book.price === 0 && !book.isMemberFree" class="re-tag-free">免费</text>
             <text v-else-if="book.isMemberFree" class="re-tag-member-plain">会员免费</text>
-            <text v-else class="re-tag-price">¥{{ book.price }}</text>
+            <text v-else class="re-tag-price">¥{{ formatPrice(book.price) }}</text>
           </view>
           <view class="re-remove" @tap="toggleRecommend(book.id)"><app-icon name="x" :size="22" color="#dc2626" /></view>
         </view>
@@ -90,6 +90,7 @@
 import { ref, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
+import { formatPrice } from '@/utils/format'
 
 const circleInfo = { id: '1', name: '八字命理研习圈' }
 

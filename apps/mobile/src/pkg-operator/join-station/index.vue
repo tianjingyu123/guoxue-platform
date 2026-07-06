@@ -29,8 +29,8 @@
           <text class="js-hero-title">成为{{ BRAND.nameShort }}分站站长</text>
           <text class="js-hero-sub">建立专属入口，享受平台分佣收益</text>
           <view class="js-hero-price">
-            <text class="js-hero-price-now">¥{{ stationPricing.price }}</text>
-            <text class="js-hero-price-old">¥{{ stationPricing.originalPrice }}</text>
+            <text class="js-hero-price-now">¥{{ formatPrice(stationPricing.price) }}</text>
+            <text class="js-hero-price-old">¥{{ formatPrice(stationPricing.originalPrice) }}</text>
             <text class="js-hero-price-unit">/年</text>
           </view>
         </view>
@@ -138,8 +138,8 @@
       <view class="js-buybar-row">
         <view class="js-buybar-price">
           <view class="js-buybar-price-line">
-            <text class="js-buybar-price-now">¥{{ stationPricing.price }}</text>
-            <text class="js-buybar-price-old">¥{{ stationPricing.originalPrice }}</text>
+            <text class="js-buybar-price-now">¥{{ formatPrice(stationPricing.price) }}</text>
+            <text class="js-buybar-price-old">¥{{ formatPrice(stationPricing.originalPrice) }}</text>
           </view>
           <view class="js-buybar-valid">
             <app-icon name="clock" :size="22" color="#8a8178" />
@@ -166,6 +166,7 @@ import {
   type OperatorBenefit,
   type FaqItem,
 } from '@/lib/operator-data'
+import { formatPrice } from '@/utils/format'
 
 const loading = ref(true)
 const error = ref('')

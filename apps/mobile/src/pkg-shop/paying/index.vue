@@ -22,7 +22,7 @@
         </view>
         <text class="title">正在支付中...</text>
         <text class="method-name">{{ methodName }}</text>
-        <text class="amount">¥{{ amount }}</text>
+        <text class="amount">¥{{ formatPrice(amount) }}</text>
         <view class="countdown-box">
           <app-icon name="alert-circle" :size="30" color="#666666" />
           <text class="cd-text">请在 <text class="cd-num">{{ countdown }}</text> 秒内完成支付</text>
@@ -86,6 +86,7 @@ import { redirectTo, navigateTo } from '@/utils/router'
 import { shopApi } from '@/lib/shop-data'
 import { track } from '@/composables/useTrack'
 import { BRAND } from '@/lib/brand'
+import { formatPrice } from '@/utils/format'
 
 type Status = 'loading' | 'paying' | 'success' | 'failed' | 'timeout' | 'cancelled'
 
@@ -218,7 +219,7 @@ function handleCancel() {
   if (submitting.value) return
   submitting.value = true
   clearTimers('all')
-  navigateTo(`/shop/orders/${orderId.value}`)
+  navigateTo(`/orders/${orderId.value}`)
   setTimeout(() => { submitting.value = false }, 500)
 }
 function handleRetry() {
@@ -227,7 +228,7 @@ function handleRetry() {
   startPaying()
 }
 function goOrder() {
-  navigateTo(`/shop/orders/${orderId.value}`)
+  navigateTo(`/orders/${orderId.value}`)
 }
 
 onUnmounted(() => clearTimers('all'))

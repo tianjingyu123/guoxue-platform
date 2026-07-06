@@ -79,7 +79,7 @@
                 <text class="item-title">{{ item.title }}</text>
               </view>
               <text class="item-meta">{{ item.type === 'course' ? item.students + '人学习' : item.members + '成员' }}</text>
-              <text v-if="item.type === 'course' && item.price" class="item-price">¥{{ item.price }}</text>
+              <text v-if="item.type === 'course' && item.price" class="item-price">¥{{ formatPrice(item.price) }}</text>
             </view>
             <app-icon name="chevron-right" :size="16" color="#9ca3af" />
           </view>
@@ -100,6 +100,7 @@ import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { goBack, navigateTo } from '@/utils/router'
 import AppIcon from '@/components/common/app-icon.vue'
+import { formatPrice } from '@/utils/format'
 
 interface BtnConfig { text: string; href: string }
 interface StatusConfig { title: string; description: string; primaryBtn: BtnConfig; secondaryBtn?: BtnConfig }

@@ -68,7 +68,7 @@
               <text class="apply-type-text">{{ item.type === 'product' ? '商品' : '课程' }}</text>
             </view>
             <text class="apply-name">{{ item.name }}</text>
-            <text class="apply-price">￥{{ item.price }}</text>
+            <text class="apply-price">￥{{ formatPrice(item.price) }}</text>
           </view>
         </view>
       </view>
@@ -88,6 +88,7 @@ import { onLoad } from '@dcloudio/uni-app'
 import { navigateTo } from '@/utils/router'
 import CouponItem from '@/components/shop/coupon-item.vue'
 import { shopApi, type CouponApplicableItem } from '@/lib/shop-data'
+import { formatPrice } from '@/utils/format'
 
 const couponId = ref('')
 // 优惠券详情对象：{} 初值 + 模板 v-else 块裸访问 coupon.value/minAmount 等，收敛触发大量 possibly-undefined，保留 any

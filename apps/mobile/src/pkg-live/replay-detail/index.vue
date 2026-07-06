@@ -202,8 +202,8 @@
             <text class="prod-jump">跳转到 {{ p.mentionTimeDisplay }}</text>
             <view class="prod-foot">
               <view class="prod-price-row">
-                <text class="prod-price">{{ p.price }}</text>
-                <text class="prod-original">{{ p.originalPrice }}</text>
+                <text class="prod-price">{{ formatPrice(p.price) }}</text>
+                <text class="prod-original">{{ formatPrice(p.originalPrice) }}</text>
               </view>
               <text class="prod-sales">{{ p.sales }}人购买</text>
             </view>
@@ -241,6 +241,7 @@ import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
 import { liveApi } from '@/lib/live-data'
+import { formatPrice } from '@/utils/format'
 
 const statusBarHeight = ref(0)
 

@@ -90,7 +90,7 @@
             <text class="product-name">{{ data.product.name }}</text>
             <text class="product-sku">{{ data.product.skuName }}</text>
             <view class="product-foot">
-              <text class="product-price">¥{{ data.product.price }}</text>
+              <text class="product-price">¥{{ formatPrice(data.product.price) }}</text>
               <text class="product-qty">×{{ data.product.quantity }}</text>
             </view>
           </view>
@@ -131,6 +131,7 @@ import { ref, computed, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { navigateTo } from '@/utils/router'
 import { orderApi } from '@/lib/order-data'
+import { formatPrice } from '@/utils/format'
 
 const safeBottom = ref(0)
 const loading = ref(true)

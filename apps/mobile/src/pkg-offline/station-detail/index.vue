@@ -82,7 +82,7 @@
                   <text class="sd-event-name">{{ e.title }}</text>
                   <text class="sd-event-time">{{ fmtCourseTime(e.startTime) }}</text>
                   <view class="sd-event-bottom">
-                    <text class="sd-event-price">{{ num(e.price) === 0 ? '免费' : '¥' + num(e.price) }}</text>
+                    <text class="sd-event-price">{{ num(e.price) === 0 ? '免费' : '¥' + formatPrice(e.price) }}</text>
                     <text class="sd-event-reg">{{ e._count?.registrations ?? 0 }}/{{ e.maxAttendees }}</text>
                   </view>
                 </view>
@@ -146,7 +146,7 @@
                 <text class="sd-course-name">{{ c.title }}</text>
                 <text class="sd-course-meta">{{ c.teacher?.name || '待定讲师' }} · {{ fmtCourseTime(c.startTime) }}</text>
                 <view class="sd-course-bottom">
-                  <text class="sd-course-price">{{ num(c.price) === 0 ? '免费' : '¥' + num(c.price) }}</text>
+                  <text class="sd-course-price">{{ num(c.price) === 0 ? '免费' : '¥' + formatPrice(c.price) }}</text>
                   <text class="sd-course-tag" :style="{ color: courseStatusStyle[deriveCourseStatus(c)].color, background: courseStatusStyle[deriveCourseStatus(c)].bg }">{{ courseStatusLabel[deriveCourseStatus(c)] }}</text>
                 </view>
               </view>
@@ -161,7 +161,7 @@
               <view class="sd-product-info">
                 <text class="sd-product-name">{{ p.name }}</text>
                 <view class="sd-product-row">
-                  <text class="sd-product-price">¥{{ num(p.price) }}</text>
+                  <text class="sd-product-price">¥{{ formatPrice(p.price) }}</text>
                   <text class="sd-product-stock">库存 {{ p.stock }}</text>
                 </view>
               </view>
@@ -216,6 +216,7 @@ import {
   getEventTypeLabel, getEventTypeStyle,
   type StationDetail, type StationTeacherLite, type StationEvent,
 } from '@/lib/offline-data'
+import { formatPrice } from '@/utils/format'
 
 const statusBarHeight = ref(0)
 try {

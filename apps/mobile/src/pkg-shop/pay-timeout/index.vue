@@ -13,7 +13,7 @@
       <text class="hero-sub">订单已超时，请重新发起支付</text>
       <view class="hero-amount">
         <text class="amt-label">订单金额</text>
-        <text class="amt">¥{{ amount }}</text>
+        <text class="amt">¥{{ formatPrice(amount) }}</text>
       </view>
     </view>
 
@@ -85,6 +85,7 @@ import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { navigateTo, redirectTo } from '@/utils/router'
 import { shopApi, payTimeoutReasons } from '@/lib/shop-data'
+import { formatPrice } from '@/utils/format'
 
 const orderId = ref('ORD20241201123456')
 const amount = ref('344.00')

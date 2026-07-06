@@ -32,7 +32,7 @@
         </view>
         <view class="qk-price-row">
           <text class="qk-price-label">提问价格</text>
-          <text class="qk-price">¥{{ answerer.price }}</text>
+          <text class="qk-price">¥{{ formatPrice(answerer.price) }}</text>
         </view>
       </view>
 
@@ -132,7 +132,7 @@
     <view class="qk-bottom">
       <view class="qk-bottom-row">
         <text class="qk-bottom-label">需支付</text>
-        <text class="qk-bottom-price">¥{{ answerer.price }}</text>
+        <text class="qk-bottom-price">¥{{ formatPrice(answerer.price) }}</text>
       </view>
       <view class="qk-submit" @tap="onSubmit">
         <app-icon name="users" :size="36" color="#ffffff" />
@@ -145,6 +145,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { navigateBack } from '@/utils/router'
+import { formatPrice } from '@/utils/format'
 
 const statusBarHeight = ref(0)
 const title = ref('')

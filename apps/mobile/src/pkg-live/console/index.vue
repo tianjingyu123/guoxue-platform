@@ -91,7 +91,7 @@
                 <text class="stat-label">打赏收入</text>
               </view>
               <view class="stat-value-row">
-                <text class="stat-value c-amber">¥{{ formatNum(stats.totalGift) }}</text>
+                <text class="stat-value c-amber">¥{{ formatNum(formatPrice(stats.totalGift)) }}</text>
               </view>
             </view>
 
@@ -101,7 +101,7 @@
                 <text class="stat-label">带货成交</text>
               </view>
               <view class="stat-value-row">
-                <text class="stat-value c-red">¥{{ formatNum(stats.totalSales) }}</text>
+                <text class="stat-value c-red">¥{{ formatNum(formatPrice(stats.totalSales)) }}</text>
               </view>
             </view>
           </view>
@@ -230,7 +230,7 @@
               <view class="live-product-info">
                 <text class="live-product-name">{{ liveProduct.name }}</text>
                 <view class="live-product-meta">
-                  <text class="live-product-price">¥{{ liveProduct.price }}</text>
+                  <text class="live-product-price">¥{{ formatPrice(liveProduct.price) }}</text>
                   <text class="live-product-sold">已售{{ liveProduct.sold }}</text>
                 </view>
               </view>
@@ -250,7 +250,7 @@
                   <view v-if="product.isHot" class="product-hot">爆</view>
                 </view>
                 <view class="product-meta">
-                  <text class="product-price">¥{{ product.price }}</text>
+                  <text class="product-price">¥{{ formatPrice(product.price) }}</text>
                   <text class="product-stock">库存: <text :class="{ 'c-red': product.stock <= 10 }">{{ product.stock }}</text></text>
                 </view>
               </view>
@@ -395,7 +395,7 @@
               <text class="end-stat-label">新增粉丝</text>
             </view>
             <view class="end-stat-card">
-              <text class="end-stat-value c-amber">¥{{ stats.totalGift + stats.totalSales }}</text>
+              <text class="end-stat-value c-amber">¥{{ formatPrice(stats.totalGift + stats.totalSales) }}</text>
               <text class="end-stat-label">总收入</text>
             </view>
           </view>
@@ -414,6 +414,7 @@ import { ref, computed, onUnmounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
+import { formatPrice } from '@/utils/format'
 import {
   liveApi,
   consoleCoupons,

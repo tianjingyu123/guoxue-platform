@@ -113,9 +113,9 @@
             <text class="plan-duration">{{ plan.durationName }}</text>
             <view class="plan-price-row">
               <text class="plan-yuan">¥</text>
-              <text class="plan-price">{{ plan.price }}</text>
+              <text class="plan-price">{{ formatPrice(plan.price) }}</text>
             </view>
-            <text v-if="plan.dailyPrice" class="plan-daily">¥{{ plan.dailyPrice }}/天</text>
+            <text v-if="plan.dailyPrice" class="plan-daily">¥{{ formatPrice(plan.dailyPrice) }}/天</text>
             <text v-else class="plan-daily">一次开通 永久有效</text>
 
             <view v-if="selectedPlan?.id === plan.id" class="plan-check">
@@ -125,7 +125,7 @@
         </view>
         <!-- 连续包年说明（诚实降级：代扣能力开通前=到期提醒按续费价续费） -->
         <text v-if="selectedPlan?.autoRenew" class="auto-renew-note">
-          连续包年：首年 ¥{{ selectedPlan.price }} 开通；自动扣费能力开通前，到期我们会提醒你以 ¥{{ selectedPlan.price }} 优惠价续费，不会不经确认扣款。
+          连续包年：首年 ¥{{ formatPrice(selectedPlan.price) }} 开通；自动扣费能力开通前，到期我们会提醒你以 ¥{{ formatPrice(selectedPlan.price) }} 优惠价续费，不会不经确认扣款。
         </text>
       </view>
 
@@ -171,7 +171,7 @@
         <view class="buy-price-box">
           <view class="buy-price-row">
             <text class="buy-yuan">¥</text>
-            <text class="buy-price">{{ selectedPlan.price }}</text>
+            <text class="buy-price">{{ formatPrice(selectedPlan.price) }}</text>
             <text class="buy-duration">/{{ selectedPlan.durationName }}</text>
           </view>
           <text class="buy-plan-name">{{ selectedPlan.name }}</text>
@@ -190,7 +190,7 @@
           <text class="sheet-title">请使用微信扫码支付</text>
           <view class="sheet-summary">
             <text class="sheet-plan">{{ selectedPlan?.name }} · {{ selectedPlan?.durationName }}</text>
-            <text class="sheet-amount"><text class="sheet-amount-yuan">¥</text>{{ payPending.amount }}</text>
+            <text class="sheet-amount"><text class="sheet-amount-yuan">¥</text>{{ formatPrice(payPending.amount) }}</text>
           </view>
           <view class="pending-box">
             <text class="pending-tip">复制以下支付链接，在微信中打开完成支付（二维码渲染后续接入）：</text>
@@ -213,7 +213,7 @@
           <text class="sheet-title">选择支付方式</text>
           <view v-if="selectedPlan" class="sheet-summary">
             <text class="sheet-plan">{{ selectedPlan.name }} · {{ selectedPlan.durationName }}</text>
-            <text class="sheet-amount"><text class="sheet-amount-yuan">¥</text>{{ selectedPlan.price }}</text>
+            <text class="sheet-amount"><text class="sheet-amount-yuan">¥</text>{{ formatPrice(selectedPlan.price) }}</text>
           </view>
 
           <view class="pay-list">
@@ -317,6 +317,7 @@ import { track } from '@/composables/useTrack'
 import { vipApi, memberLevelLabel } from '@/lib/vip-data'
 import type { VipPlan, VipMemberStatus, VipAgreement } from '@/lib/vip-data'
 import { shopApi } from '@/lib/shop-data'
+import { formatPrice } from '@/utils/format'
 
 // —— 页面数据结构（planGroups 渲染骨架保持不变，数据真源为 GET /member/plans）——
 interface VipPlanGroup { level: string; levelName: string; description: string; plans: VipPlan[] }

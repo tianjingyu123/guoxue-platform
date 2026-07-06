@@ -97,7 +97,7 @@
               <text class="sh-course-meta">{{ c.teacher?.name || '待定讲师' }} · {{ fmtCourseTime(c.startTime) }}</text>
             </view>
             <view class="sh-course-right">
-              <text class="sh-course-price">{{ num(c.price) === 0 ? '免费' : '¥' + num(c.price) }}</text>
+              <text class="sh-course-price">{{ num(c.price) === 0 ? '免费' : '¥' + formatPrice(c.price) }}</text>
               <text class="sh-course-tag" :style="{ color: courseStatusStyle[deriveCourseStatus(c)].color, background: courseStatusStyle[deriveCourseStatus(c)].bg }">{{ courseStatusLabel[deriveCourseStatus(c)] }}</text>
             </view>
           </view>
@@ -196,6 +196,7 @@ import {
   deriveCourseStatus, courseStatusLabel, courseStatusStyle,
   type StationHomeData, type BrandTeacher, type BusinessHour,
 } from '@/lib/offline-data'
+import { formatPrice } from '@/utils/format'
 
 const statusBarHeight = ref(0)
 try {

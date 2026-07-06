@@ -46,7 +46,7 @@
         </view>
         <view class="order-row">
           <text class="order-label">实付金额</text>
-          <text class="order-val price">¥{{ order.amount }}</text>
+          <text class="order-val price">¥{{ formatPrice(order.amount) }}</text>
         </view>
         <view class="order-row">
           <text class="order-label">购买时间</text>
@@ -72,7 +72,7 @@
               <view class="cover-text-wrap"><text class="cover-text">{{ rb.title }}</text></view>
             </view>
             <text class="rec-name">{{ rb.title }}</text>
-            <text class="rec-price">¥{{ rb.price }}</text>
+            <text class="rec-price">¥{{ formatPrice(rb.price) }}</text>
           </view>
         </view>
       </scroll-view>
@@ -87,6 +87,7 @@ import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { ebookApi, EBOOK_COVER, type EbookRelated } from '@/lib/ebook-data'
 import { track } from '@/composables/useTrack'
+import { formatPrice } from '@/utils/format'
 
 const C = { primary: '#2563eb' }
 const loading = ref(true)

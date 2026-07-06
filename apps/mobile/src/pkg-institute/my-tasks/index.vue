@@ -157,7 +157,7 @@
           <text class="card-title">会费 / 保证金</text>
           <view class="deposit-row">
             <view>
-              <text class="deposit-amount">¥{{ num(member.depositStatus.deposited).toLocaleString() }}</text>
+              <text class="deposit-amount">¥{{ formatPrice(num(member.depositStatus.deposited)).toLocaleString() }}</text>
               <text class="deposit-label">已缴会费</text>
             </view>
             <view
@@ -239,7 +239,7 @@
                 <text class="div-type">{{ dividendTypeLabel[d.type] }}</text>
                 <text class="div-meta">{{ d.period || fmtDate(d.createdAt) }}{{ d.description ? ' · ' + d.description : '' }}</text>
               </view>
-              <text class="div-amount">+¥{{ num(d.amount).toLocaleString() }}</text>
+              <text class="div-amount">+¥{{ formatPrice(num(d.amount)).toLocaleString() }}</text>
             </view>
           </view>
         </view>
@@ -255,6 +255,7 @@ import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
+import { formatPrice } from '@/utils/format'
 import {
   instituteApi, roleLabel, roleColor, lecturerLevelLabel, lecturerLevelColor,
   memberStatusLabel, memberStatusColor, taskTypeLabel, taskTypeColor,

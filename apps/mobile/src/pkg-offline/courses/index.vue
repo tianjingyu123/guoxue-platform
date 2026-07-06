@@ -94,7 +94,7 @@
               </view>
               <view class="cl-bottom">
                 <view class="cl-price-row">
-                  <text v-if="num(c.price) > 0" class="cl-price">¥{{ num(c.price) }}</text>
+                  <text v-if="num(c.price) > 0" class="cl-price">¥{{ formatPrice(c.price) }}</text>
                   <text v-else class="cl-price free">免费</text>
                 </view>
                 <view class="cl-people">
@@ -120,6 +120,7 @@ import {
   offlineApi, deriveCourseStatus, courseStatusLabel, courseStatusStyle, fmtCourseTime, num,
   type OfflineCourse, type Station,
 } from '@/lib/offline-data'
+import { formatPrice } from '@/utils/format'
 
 const statusBarHeight = ref(0)
 try {

@@ -12,7 +12,7 @@
       <view class="quota-overview-card">
         <view class="quota-ov-head">
           <view class="quota-ov-title"><app-icon name="layers" :size="28" color="#ffffff" /><text class="quota-ov-title-txt">分站名额</text></view>
-          <text class="quota-ov-badge">¥{{ data.price }}/个</text>
+          <text class="quota-ov-badge">¥{{ formatPrice(data.price) }}/个</text>
         </view>
         <view class="quota-ov-grid">
           <view class="quota-ov-item"><text class="quota-ov-num">{{ data.total }}</text><text class="quota-ov-sub">总名额</text></view>
@@ -22,7 +22,7 @@
           <view class="quota-ov-item"><text class="quota-ov-num c-gold">{{ data.available }}</text><text class="quota-ov-sub">可用</text></view>
         </view>
         <view class="quota-ov-income">
-          <text class="quota-ov-income-txt">已售名额收入：<text class="c-success bold">¥{{ data.sold * data.price }}</text></text>
+          <text class="quota-ov-income-txt">已售名额收入：<text class="c-success bold">¥{{ formatPrice(data.sold * data.price) }}</text></text>
         </view>
       </view>
     </view>
@@ -35,7 +35,7 @@
           <view class="quota-action-btn success-btn" @tap="showQrDialog = true">
             <view class="quota-action-icon success-icon"><app-icon name="link-2" :size="30" color="#16a34a" /></view>
             <text class="quota-action-label">分享购买链接</text>
-            <text class="quota-action-desc">用户付费¥{{ data.price }}购买</text>
+            <text class="quota-action-desc">用户付费¥{{ formatPrice(data.price) }}购买</text>
           </view>
           <view class="quota-action-btn" :class="data.available > 0 ? 'gold-btn' : 'disabled-btn'" @tap="onGiftClick">
             <view class="quota-action-icon" :class="data.available > 0 ? 'gold-icon' : 'disabled-icon'"><app-icon name="gift" :size="30" :color="data.available > 0 ? '#C9A96E' : '#bbb'" /></view>
@@ -68,7 +68,7 @@
           <text class="quota-record-meta">{{ r.phone ? r.phone + ' · ' : '' }}{{ r.date }}</text>
         </view>
         <view v-if="r.type === 'sold' && r.amount" class="quota-record-income">
-          <text class="quota-record-amount c-success">+¥{{ r.amount }}</text>
+          <text class="quota-record-amount c-success">+¥{{ formatPrice(r.amount) }}</text>
           <text class="quota-record-income-label">收入</text>
         </view>
       </view>
@@ -86,7 +86,7 @@
         </view>
         <view class="quota-rule">
           <view class="quota-rule-num bg-success"><text class="quota-rule-num-txt c-success">2</text></view>
-          <view class="quota-rule-body"><text class="quota-rule-title">推荐加入</text><text class="quota-rule-desc">分享推荐链接，用户申请并经平台审核、支付站长服务费（¥{{ data.price }}，由平台统一收取）后开通站长权益，加入您的团队</text></view>
+          <view class="quota-rule-body"><text class="quota-rule-title">推荐加入</text><text class="quota-rule-desc">分享推荐链接，用户申请并经平台审核、支付站长服务费（¥{{ formatPrice(data.price) }}，由平台统一收取）后开通站长权益，加入您的团队</text></view>
         </view>
         <view class="quota-rule">
           <view class="quota-rule-num bg-gold"><text class="quota-rule-num-txt c-gold">3</text></view>
@@ -114,7 +114,7 @@
           <text class="quota-qr-hint">购买二维码</text>
         </view>
         <view class="quota-price-info">
-          <text class="quota-price-txt">站长服务费：<text class="c-primary">¥{{ data.price }}</text></text>
+          <text class="quota-price-txt">站长服务费：<text class="c-primary">¥{{ formatPrice(data.price) }}</text></text>
           <text class="quota-price-sub">由平台统一收取</text>
         </view>
         <view class="quota-dialog-footer">
@@ -163,6 +163,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { operatorApi, type QuotaRecord } from '@/lib/operator-data'
+import { formatPrice } from '@/utils/format'
 
 const loading = ref(true)
 const error = ref('')

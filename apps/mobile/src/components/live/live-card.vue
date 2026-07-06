@@ -4,6 +4,7 @@ import { ref, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
 import type { LiveItem } from '@/lib/live-data'
+import { formatPrice } from '@/utils/format'
 
 const props = defineProps<{ data: LiveItem }>()
 const booked = ref(false)
@@ -69,7 +70,7 @@ function toggleBook() {
           <text v-else class="avatar-ph">{{ data.hostName.charAt(0) }}</text>
         </view>
         <text class="host-name">{{ data.hostName }}</text>
-        <text v-if="data.priceType === 'paid'" class="price">¥{{ data.price }}</text>
+        <text v-if="data.priceType === 'paid'" class="price">¥{{ formatPrice(data.price) }}</text>
         <text v-else class="free">免费</text>
       </view>
       <view v-if="showSecondRow" class="sub-row">

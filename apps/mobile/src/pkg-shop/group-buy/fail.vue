@@ -40,7 +40,7 @@
           <image lazy-load class="prod-cover" :src="info.productCover" mode="aspectFill" />
           <view class="prod-info">
             <text class="prod-name">{{ info.productName }}</text>
-            <text class="price-now">¥{{ info.price }}</text>
+            <text class="price-now">¥{{ formatPrice(info.price) }}</text>
           </view>
         </view>
         <view class="card-divider" />
@@ -152,6 +152,7 @@ import { ref, computed, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { goBack, navigateTo } from '@/utils/router'
 import { shopApi } from '@/lib/shop-data'
+import { formatPrice } from '@/utils/format'
 
 interface GroupBuyFailData {
   productCover: string

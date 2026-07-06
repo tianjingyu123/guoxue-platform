@@ -92,8 +92,8 @@
         <view class="explain-card__tag"><text class="explain-card__tag-txt">讲解中</text></view>
         <text class="explain-card__name">{{ explainingProduct.name }}</text>
         <view class="explain-card__price-row">
-          <text class="explain-card__price">¥{{ explainingProduct.price }}</text>
-          <text class="explain-card__origin">¥{{ explainingProduct.originalPrice }}</text>
+          <text class="explain-card__price">¥{{ formatPrice(explainingProduct.price) }}</text>
+          <text class="explain-card__origin">¥{{ formatPrice(explainingProduct.originalPrice) }}</text>
         </view>
       </view>
       <view class="explain-card__buy"><text class="explain-card__buy-txt">抢购</text></view>
@@ -242,8 +242,8 @@
               <text class="product-row__name">{{ p.name }}</text>
               <view v-if="p.isExplaining" class="product-row__tag"><text class="product-row__tag-txt">讲解中</text></view>
               <view class="product-row__price-row">
-                <text class="product-row__price">¥{{ p.price }}</text>
-                <text class="product-row__origin">¥{{ p.originalPrice }}</text>
+                <text class="product-row__price">¥{{ formatPrice(p.price) }}</text>
+                <text class="product-row__origin">¥{{ formatPrice(p.originalPrice) }}</text>
                 <text class="product-row__sold">已售{{ p.sold }}</text>
               </view>
             </view>
@@ -288,6 +288,7 @@ import { type LiveGift } from '@/lib/live-gifts'
 import { goBack, navigateTo } from '@/utils/router'
 import { getToken } from '@/utils/storage'
 import { useTim, type TimMessage } from '@/composables/useTim'
+import { formatPrice } from '@/utils/format'
 import {
   liveWatchRoom,
   liveApi,

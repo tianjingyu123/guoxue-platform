@@ -74,8 +74,8 @@
           <view class="card-info">
             <text class="card-title">{{ item.title }}</text>
             <view class="card-price">
-              <text class="price-now"><text class="price-unit">¥</text>{{ item.price }}</text>
-              <text class="price-old">单买¥{{ item.originalPrice }}</text>
+              <text class="price-now"><text class="price-unit">¥</text>{{ formatPrice(item.price) }}</text>
+              <text class="price-old">单买¥{{ formatPrice(item.originalPrice) }}</text>
             </view>
             <view class="save-tag">拼团省{{ saveAmount(item) }}元</view>
             <view class="prog-meta">
@@ -137,7 +137,7 @@
           <image lazy-load class="my-cover" :src="item.productCover" mode="aspectFill" />
           <view class="card-info">
             <text class="card-title">{{ item.productName }}</text>
-            <text class="price-now my-price"><text class="price-unit">¥</text>{{ item.price }}</text>
+            <text class="price-now my-price"><text class="price-unit">¥</text>{{ formatPrice(item.price) }}</text>
             <view class="member-stack">
               <view v-for="n in item.memberCount" :key="'mm' + n" class="m-avatar m-avatar--on">
                 <app-icon name="users" :size="20" color="#fff" />
@@ -178,7 +178,7 @@
           <image lazy-load class="share-cover" :src="shareTarget.productCover" mode="aspectFill" />
           <view class="share-pinfo">
             <text class="share-pname">{{ shareTarget.productName }}</text>
-            <text class="price-now">¥{{ shareTarget.price }}</text>
+            <text class="price-now">¥{{ formatPrice(shareTarget.price) }}</text>
           </view>
         </view>
         <text class="share-label">分享至</text>
@@ -212,6 +212,7 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { shopApi, formatCountdown, type MyGroupBuyItem } from '@/lib/shop-data'
+import { formatPrice } from '@/utils/format'
 
 interface GroupBuyItem {
   id: string

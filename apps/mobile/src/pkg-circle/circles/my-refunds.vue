@@ -6,6 +6,7 @@ import { ref, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
 import { refundApi, type RefundRequestItem } from '@/lib/circle-refund-data'
+import { formatPrice } from '@/utils/format'
 
 const list = ref<RefundRequestItem[]>([])
 const balance = ref(0)
@@ -77,11 +78,11 @@ onMounted(load)
         </view>
         <view class="mr-amount-row">
           <text class="mr-amount-label">实际退款</text>
-          <text class="mr-amount">¥{{ it.actualRefund }}</text>
+          <text class="mr-amount">¥{{ formatPrice(it.actualRefund) }}</text>
         </view>
         <text class="mr-sub">{{ statusInfo(it).sub }}</text>
         <view class="mr-meta">
-          <text class="mr-meta-t">已付 ¥{{ it.paidAmount }} · 手续费 ¥{{ it.feeAmount }}</text>
+          <text class="mr-meta-t">已付 ¥{{ formatPrice(it.paidAmount) }} · 手续费 ¥{{ formatPrice(it.feeAmount) }}</text>
           <text class="mr-meta-t">{{ fmtDate(it.createdAt) }}</text>
         </view>
       </view>

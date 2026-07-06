@@ -52,8 +52,8 @@
     <!-- 价格信息 -->
     <view class="price-card">
       <view class="price-row">
-        <text class="price-now">¥{{ currentPrice }}</text>
-        <text class="price-old">¥{{ currentOriginalPrice }}</text>
+        <text class="price-now">¥{{ formatPrice(currentPrice) }}</text>
+        <text class="price-old">¥{{ formatPrice(currentOriginalPrice) }}</text>
         <text v-if="savedAmount > 0" class="save-tag">省¥{{ savedAmount }}</text>
       </view>
       <text class="p-title">{{ product.name }}</text>
@@ -179,7 +179,7 @@
         <view class="sku-top">
           <image lazy-load class="sku-cover" :src="selectedSku ? selectedSku.image : product.images[0]" mode="aspectFill" />
           <view class="sku-top-info">
-            <text class="sku-price">¥{{ selectedSku ? selectedSku.price : product.price }}</text>
+            <text class="sku-price">¥{{ formatPrice(selectedSku ? selectedSku.price : product.price) }}</text>
             <text class="sku-stock">库存 {{ selectedSku ? selectedSku.stock : product.stock }}</text>
             <text class="sku-selected">已选：{{ selectedSku ? selectedSku.name : '' }}</text>
           </view>
@@ -258,6 +258,7 @@ import { goBack, navigateTo } from '@/utils/router'
 import { shopApi, type ShopProductSku } from '@/lib/shop-data'
 import { track } from '@/composables/useTrack'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
+import { formatPrice } from '@/utils/format'
 
 const statusBarHeight = ref(0)
 const safeBottom = ref(0)

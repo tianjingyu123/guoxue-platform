@@ -145,7 +145,7 @@
             <view class="es-grid-price">
               <text v-if="book.isFree" class="es-price-free">免费</text>
               <text v-else-if="book.isMemberFree" class="es-price-member">会员免费</text>
-              <text v-else class="es-price-num">¥{{ book.price }}</text>
+              <text v-else class="es-price-num">¥{{ formatPrice(book.price) }}</text>
             </view>
           </view>
         </view>
@@ -168,6 +168,7 @@ import {
   type EbookCoverColor,
   type EbookStoreBook,
 } from '@/lib/ebook-data'
+import { formatPrice } from '@/utils/format'
 
 const searchQuery = ref('')
 const activeCategory = ref('all')

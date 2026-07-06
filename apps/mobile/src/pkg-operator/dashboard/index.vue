@@ -47,8 +47,8 @@
       <view class="dash-card dash-overview">
         <view class="dash-ov-item ov-bg1">
           <view class="dash-ov-top"><app-icon name="wallet" :size="28" color="#C41E3A" /><text class="dash-ov-label">累计收益</text></view>
-          <text class="dash-ov-val c-primary">¥{{ data.earnings.total.toLocaleString() }}</text>
-          <text class="dash-ov-sub">本月 +¥{{ data.earnings.thisMonth }}</text>
+          <text class="dash-ov-val c-primary">¥{{ formatPrice(data.earnings.total).toLocaleString() }}</text>
+          <text class="dash-ov-sub">本月 +¥{{ formatPrice(data.earnings.thisMonth) }}</text>
         </view>
         <view class="dash-ov-item ov-bg2">
           <view class="dash-ov-top"><app-icon name="users" :size="28" color="#7c3aed" /><text class="dash-ov-label">团队站长</text></view>
@@ -57,7 +57,7 @@
         </view>
         <view class="dash-ov-item ov-bg3">
           <view class="dash-ov-top"><app-icon name="trending-up" :size="28" color="#C9A96E" /><text class="dash-ov-label">本月收益</text></view>
-          <text class="dash-ov-val c-gold">¥{{ data.earnings.thisMonth.toLocaleString() }}</text>
+          <text class="dash-ov-val c-gold">¥{{ formatPrice(data.earnings.thisMonth).toLocaleString() }}</text>
           <text class="dash-ov-sub">本月新增收益</text>
         </view>
         <view class="dash-ov-item ov-bg4">
@@ -137,9 +137,9 @@
           <view class="dash-member-more" @tap="goTeam"><app-icon name="more-horizontal" :size="32" color="#999" /></view>
         </view>
         <view v-if="m.status === 'active'" class="dash-member-stats">
-          <view class="dash-mstat"><text class="dash-mstat-num c-success">¥{{ m.earnings }}</text><text class="dash-mstat-label">本月收益</text></view>
-          <view class="dash-mstat"><text class="dash-mstat-num">¥{{ m.totalEarning }}</text><text class="dash-mstat-label">累计收益</text></view>
-          <view class="dash-mstat"><text class="dash-mstat-num c-operator">¥{{ m.myBonus }}</text><text class="dash-mstat-label">我的管理奖</text></view>
+          <view class="dash-mstat"><text class="dash-mstat-num c-success">¥{{ formatPrice(m.earnings) }}</text><text class="dash-mstat-label">本月收益</text></view>
+          <view class="dash-mstat"><text class="dash-mstat-num">¥{{ formatPrice(m.totalEarning) }}</text><text class="dash-mstat-label">累计收益</text></view>
+          <view class="dash-mstat"><text class="dash-mstat-num c-operator">¥{{ formatPrice(m.myBonus) }}</text><text class="dash-mstat-label">我的管理奖</text></view>
         </view>
       </view>
 
@@ -162,7 +162,7 @@
           </view>
           <text class="dash-member-date">{{ r.type === 'self' ? '自用名额' : '售出名额' }} · {{ r.date }}</text>
         </view>
-        <text v-if="r.type === 'sold' && r.price" class="dash-record-price">+¥{{ r.price }}</text>
+        <text v-if="r.type === 'sold' && r.price" class="dash-record-price">+¥{{ formatPrice(r.price) }}</text>
       </view>
     </view>
   </view>
@@ -172,6 +172,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { navigateTo } from '@/utils/router'
 import { operatorApi, type OperatorDashboardData, type DashboardTeamMember, type DashboardQuotaRecord, type TeamHealth } from '@/lib/operator-data'
+import { formatPrice } from '@/utils/format'
 
 const loading = ref(true)
 const error = ref('')

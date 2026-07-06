@@ -3,6 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, redirectTo } from '@/utils/router'
 import { mineApi } from '@/lib/mine-data'
+import { formatPrice } from '@/utils/format'
 
 const step = ref(1)
 const agreed = ref(false)
@@ -121,7 +122,7 @@ async function doDelete() {
           <view class="asset-grid">
             <view class="asset asset-orange">
               <text class="asset-label">钱包余额</text>
-              <text class="asset-val">¥{{ assets.balance }}</text>
+              <text class="asset-val">¥{{ formatPrice(assets.balance) }}</text>
             </view>
             <view class="asset asset-purple">
               <text class="asset-label">积分</text>
@@ -136,7 +137,7 @@ async function doDelete() {
               <text class="asset-val">{{ assets.memberDays }}天</text>
             </view>
           </view>
-          <text v-if="assets.balance > 0" class="asset-tip">* 您的钱包余额尚有 ¥{{ assets.balance }}，建议先提现后再注销</text>
+          <text v-if="assets.balance > 0" class="asset-tip">* 您的钱包余额尚有 ¥{{ formatPrice(assets.balance) }}，建议先提现后再注销</text>
         </view>
 
         <view class="cool-card">

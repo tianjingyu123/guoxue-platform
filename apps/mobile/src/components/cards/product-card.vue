@@ -3,6 +3,7 @@
 import { computed } from 'vue'
 import { navigateTo } from '@/utils/router'
 import { type ProductCardData, normalizeRatio, formatCount, productHotKind } from '@/lib/card-utils'
+import { formatPrice } from '@/utils/format'
 
 const props = defineProps<{ data: ProductCardData }>()
 const ratio = computed(() => normalizeRatio(props.data.coverRatio))
@@ -30,8 +31,8 @@ function open() { navigateTo(`/mall/product/${props.data.id}`) }
       <view class="foot">
         <view class="price">
           <text class="price-cny">¥</text>
-          <text class="price-num">{{ data.price }}</text>
-          <text v-if="data.originalPrice" class="price-orig">¥{{ data.originalPrice }}</text>
+          <text class="price-num">{{ formatPrice(data.price) }}</text>
+          <text v-if="data.originalPrice" class="price-orig">¥{{ formatPrice(data.originalPrice) }}</text>
         </view>
         <text v-if="data.sales" class="sales">已售{{ formatCount(data.sales) }}</text>
       </view>

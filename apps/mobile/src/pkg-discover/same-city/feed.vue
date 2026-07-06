@@ -7,6 +7,7 @@
 import { ref, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
+import { formatPrice } from '@/utils/format'
 import {
   mockFeedItems, mockHotCities, filterTabs,
   getContentTypeLabel, getContentTypeColor, getTypeIconName, formatDistance,
@@ -127,7 +128,7 @@ function dateOnly(t?: string) { return t ? t.split(' ')[0] : '' }
               <app-icon name="play" :size="44" color="#FFFFFF" />
             </view>
             <view v-if="item.price !== undefined || item.isFree" class="sc-price">
-              <text class="sc-price-txt">{{ item.isFree ? '免费' : '¥' + item.price }}</text>
+              <text class="sc-price-txt">{{ item.isFree ? '免费' : '¥' + formatPrice(item.price) }}</text>
             </view>
           </view>
 

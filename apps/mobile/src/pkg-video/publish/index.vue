@@ -181,7 +181,7 @@
                 <view class="vp-pub-selprod-info">
                   <text class="vp-pub-selprod-name">{{ p.name }}</text>
                   <view class="vp-pub-selprod-meta">
-                    <text class="vp-pub-selprod-price">¥{{ p.price }}</text>
+                    <text class="vp-pub-selprod-price">¥{{ formatPrice(p.price) }}</text>
                     <text class="vp-pub-selprod-comm">{{ p.commission }}%佣金</text>
                   </view>
                 </view>
@@ -287,7 +287,7 @@
             <view class="vp-prod-item-info">
               <text class="vp-prod-item-name">{{ p.name }}</text>
               <view class="vp-prod-item-meta">
-                <text class="vp-prod-item-price">¥{{ p.price }}</text>
+                <text class="vp-prod-item-price">¥{{ formatPrice(p.price) }}</text>
                 <text class="vp-prod-item-comm">{{ p.commission }}%佣金</text>
               </view>
               <text class="vp-prod-item-stock">库存 {{ p.stock }}</text>
@@ -312,6 +312,7 @@ import { onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { videoApi, publishHotTags, type PublishProduct } from '@/lib/video-data'
+import { formatPrice } from '@/utils/format'
 import { uploadVideo, uploadImage, chooseAndUploadImage } from '@/utils/request'
 
 const statusBarHeight = ref(0)

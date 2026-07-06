@@ -5,6 +5,7 @@ import { navigateTo } from '@/utils/router'
 import { track } from '@/composables/useTrack'
 import AppIcon from '@/components/common/app-icon.vue'
 import { type CourseCardData, type CardVariant, normalizeRatio, formatCount, courseHotKind } from '@/lib/card-utils'
+import { formatPrice } from '@/utils/format'
 
 const props = withDefaults(defineProps<{ data: CourseCardData; variant?: CardVariant; rank?: number }>(), {
   variant: 'feed',
@@ -38,7 +39,7 @@ function open() {
         <text v-if="data.free" class="price-free-sm">免费</text>
         <view v-else class="price">
           <text class="price-cny">¥</text>
-          <text class="price-num-sm">{{ data.price }}</text>
+          <text class="price-num-sm">{{ formatPrice(data.price) }}</text>
         </view>
       </view>
     </view>
@@ -56,7 +57,7 @@ function open() {
         <view v-if="data.free" class="price-free-sm">免费</view>
         <view v-else class="price">
           <text class="price-cny">¥</text>
-          <text class="price-num-sm">{{ data.price }}</text>
+          <text class="price-num-sm">{{ formatPrice(data.price) }}</text>
         </view>
         <text v-if="data.students" class="meta-soft">{{ formatCount(data.students) }}人学</text>
       </view>
@@ -77,8 +78,8 @@ function open() {
         <view v-if="data.free" class="price-free-sm">免费</view>
         <view v-else class="price">
           <text class="price-cny">¥</text>
-          <text class="price-num">{{ data.price }}</text>
-          <text v-if="data.originalPrice" class="price-orig">¥{{ data.originalPrice }}</text>
+          <text class="price-num">{{ formatPrice(data.price) }}</text>
+          <text v-if="data.originalPrice" class="price-orig">¥{{ formatPrice(data.originalPrice) }}</text>
         </view>
         <text v-if="data.students" class="meta-soft">{{ formatCount(data.students) }}人学</text>
       </view>
@@ -98,8 +99,8 @@ function open() {
         <view v-if="data.free" class="price-free">免费</view>
         <view v-else class="price">
           <text class="price-cny">¥</text>
-          <text class="price-num">{{ data.price }}</text>
-          <text v-if="data.originalPrice" class="price-orig">¥{{ data.originalPrice }}</text>
+          <text class="price-num">{{ formatPrice(data.price) }}</text>
+          <text v-if="data.originalPrice" class="price-orig">¥{{ formatPrice(data.originalPrice) }}</text>
         </view>
       </view>
       <view v-if="data.teacher" class="author">

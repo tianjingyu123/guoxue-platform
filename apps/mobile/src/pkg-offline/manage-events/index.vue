@@ -37,7 +37,7 @@
           </view>
           <view class="me-card-foot">
             <view class="me-foot-stat">
-              <text class="me-price">{{ num(e.price) === 0 ? '免费' : '¥' + num(e.price) }}</text>
+              <text class="me-price">{{ num(e.price) === 0 ? '免费' : '¥' + formatPrice(e.price) }}</text>
               <text class="me-reg">报名 {{ e._count?.registrations ?? 0 }}/{{ e.maxAttendees }}</text>
             </view>
           </view>
@@ -179,6 +179,7 @@ import {
   eventStatusLabel, eventStatusStyle, eventTimeRange, num,
   type StationEvent, type StationEventType,
 } from '@/lib/offline-data'
+import { formatPrice } from '@/utils/format'
 
 const statusBarHeight = ref(0)
 try { statusBarHeight.value = uni.getSystemInfoSync().statusBarHeight || 0 } catch {}

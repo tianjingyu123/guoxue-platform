@@ -9,6 +9,7 @@
  *   item 形如 { id, cover, title, subtitle?, price?, tag?, href }
  */
 import { navigateTo } from '@/utils/router'
+import { formatPrice } from '@/utils/format'
 
 export interface RecommendItem {
   id: string | number
@@ -55,7 +56,7 @@ function go(item: RecommendItem) {
         </view>
         <text class="rec__name">{{ item.title }}</text>
         <text v-if="item.subtitle" class="rec__sub">{{ item.subtitle }}</text>
-        <text v-if="item.price && item.price > 0" class="rec__price">¥{{ item.price }}</text>
+        <text v-if="item.price && item.price > 0" class="rec__price">¥{{ formatPrice(item.price) }}</text>
       </view>
     </view>
   </view>

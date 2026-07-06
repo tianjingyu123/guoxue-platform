@@ -36,7 +36,7 @@
             <text class="ed-title">{{ event.title }}</text>
             <view class="ed-price-row">
               <text v-if="num(event.price) === 0" class="ed-price free">免费参加</text>
-              <text v-else class="ed-price">¥{{ num(event.price) }}</text>
+              <text v-else class="ed-price">¥{{ formatPrice(event.price) }}</text>
               <text v-if="num(event.price) > 0" class="ed-pay-hint">线上报名 · 到场支付</text>
             </view>
           </view>
@@ -112,7 +112,7 @@
         <template v-else>
           <view class="ed-foot-price">
             <text v-if="num(event.price) === 0" class="ed-foot-price-text free">免费</text>
-            <text v-else class="ed-foot-price-text">¥{{ num(event.price) }}</text>
+            <text v-else class="ed-foot-price-text">¥{{ formatPrice(event.price) }}</text>
           </view>
           <view class="ed-foot-btn primary" :class="{ disabled: !canEnroll || submitting }" @tap="onEnroll">
             <text class="ed-foot-btn-text primary">{{ footBtnText }}</text>
@@ -166,6 +166,7 @@ import {
   courseStatusLabel, courseStatusStyle, eventTimeRange, num,
   type StationEventDetail, type EventRegistration,
 } from '@/lib/offline-data'
+import { formatPrice } from '@/utils/format'
 
 const statusBarHeight = ref(0)
 try { statusBarHeight.value = uni.getSystemInfoSync().statusBarHeight || 0 } catch {}

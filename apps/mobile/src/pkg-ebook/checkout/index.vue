@@ -52,19 +52,19 @@
         <view class="price-body">
           <view class="price-row">
             <text class="price-label">商品原价</text>
-            <text class="price-del">¥{{ book.originalPrice }}</text>
+            <text class="price-del">¥{{ formatPrice(book.originalPrice) }}</text>
           </view>
           <view v-if="book.originalPrice > book.price" class="price-row">
             <text class="price-label">优惠</text>
-            <text class="price-free">-¥{{ book.originalPrice - book.price }}</text>
+            <text class="price-free">-¥{{ formatPrice(book.originalPrice - book.price) }}</text>
           </view>
           <view v-if="isMember" class="price-row">
             <text class="price-label">书院会员畅读</text>
-            <text class="price-free">-¥{{ book.price }}</text>
+            <text class="price-free">-¥{{ formatPrice(book.price) }}</text>
           </view>
           <view class="price-total">
             <text class="price-total-label">实付金额</text>
-            <text class="price-total-val">¥{{ finalPrice }}</text>
+            <text class="price-total-val">¥{{ formatPrice(finalPrice) }}</text>
           </view>
         </view>
       </view>
@@ -101,7 +101,7 @@
     <view class="pay-bar">
       <view class="pay-amount">
         <text class="pay-amount-label">应付</text>
-        <text class="pay-amount-val">¥{{ finalPrice }}</text>
+        <text class="pay-amount-val">¥{{ formatPrice(finalPrice) }}</text>
       </view>
       <view class="pay-btn" :class="{ disabled: isProcessing }" @tap="handlePay">
         <view v-if="isProcessing" class="pay-btn-inner">
@@ -129,6 +129,7 @@ import {
 import { vipApi } from '@/lib/vip-data'
 import { navigateTo } from '@/utils/router'
 import { getToken } from '@/utils/storage'
+import { formatPrice } from '@/utils/format'
 
 const C = {
   text: '#1e293b', textSoft: '#64748b', member: '#7c3aed', price: '#dc2626', free: '#16a34a',

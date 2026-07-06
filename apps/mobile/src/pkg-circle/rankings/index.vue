@@ -107,7 +107,7 @@
               </view>
             </view>
           </view>
-          <text class="rank-price">¥{{ item.price }}</text>
+          <text class="rank-price">¥{{ formatPrice(item.price) }}</text>
         </view>
       </view>
 
@@ -128,7 +128,7 @@
               </view>
             </view>
           </view>
-          <text class="rank-price">¥{{ item.price }}</text>
+          <text class="rank-price">¥{{ formatPrice(item.price) }}</text>
         </view>
       </view>
 
@@ -166,6 +166,7 @@ import { ref } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
 import { BRAND } from '@/lib/brand'
+import { formatPrice } from '@/utils/format'
 
 const activeCategory = ref('circles')
 const timeRange = ref<'week' | 'month' | 'total'>('week')

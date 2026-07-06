@@ -114,7 +114,7 @@
             <view class="renew-right">
               <view v-if="m.price > 0" class="renew-price">
                 <text class="renew-price-label">续费价格</text>
-                <text class="renew-price-num">¥{{ m.price }}</text>
+                <text class="renew-price-num">¥{{ formatPrice(m.price) }}</text>
               </view>
               <view class="renew-btn" :class="{ 'renew-btn-amber': isExpiring(m) }" @tap="goRenew(m)">
                 <app-icon name="refresh-cw" :size="14" color="#fff" />
@@ -140,6 +140,7 @@ import AppNavBar from '@/components/common/app-nav-bar.vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
 import { mineApi, type MembershipItem } from '@/lib/mine-data'
+import { formatPrice } from '@/utils/format'
 
 type MembershipStatus = 'active' | 'expiring' | 'expired'
 

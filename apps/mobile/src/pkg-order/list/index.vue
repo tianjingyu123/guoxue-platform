@@ -59,7 +59,7 @@
               <text class="p-name">{{ p.name }}</text>
               <text class="p-sku">{{ p.skuName }}</text>
               <view class="p-bottom">
-                <text class="p-price">¥{{ p.price }}</text>
+                <text class="p-price">¥{{ formatPrice(p.price) }}</text>
                 <text class="p-qty">x{{ p.quantity }}</text>
               </view>
             </view>
@@ -71,7 +71,7 @@
         <view class="card-foot">
           <view class="pay-sum">
             <text class="pay-label">实付: </text>
-            <text class="pay-value">¥{{ order.payAmount }}</text>
+            <text class="pay-value">¥{{ formatPrice(order.payAmount) }}</text>
           </view>
           <view class="actions" @tap.stop>
             <template v-if="order.status === 'pending_pay'">
@@ -135,6 +135,7 @@ import AppLoadMore from '@/components/common/app-load-more.vue'
 import { navigateTo } from '@/utils/router'
 import { useList } from '@/composables/useList'
 import { orderApi, orderStatusTabs, orderStatusConfig, orderCancelReasons, type OrderListItem } from '@/lib/order-data'
+import { formatPrice } from '@/utils/format'
 
 const statusTabs = orderStatusTabs
 const cancelReasons = orderCancelReasons

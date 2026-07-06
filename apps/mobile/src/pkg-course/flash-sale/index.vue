@@ -4,6 +4,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { navigateTo, goBack } from '@/utils/router'
 import AppIcon from '@/components/common/app-icon.vue'
 import { courseApi } from '@/lib/course-data'
+import { formatPrice } from '@/utils/format'
 
 const loading = ref(true)
 const error = ref('')
@@ -137,8 +138,8 @@ onUnmounted(() => { if (timer) clearInterval(timer) })
           </view>
           <view class="card-price-row">
             <view class="price-group">
-              <text class="price-now">¥{{ course.salePrice }}</text>
-              <text class="price-old">¥{{ course.originalPrice }}</text>
+              <text class="price-now">¥{{ formatPrice(course.salePrice) }}</text>
+              <text class="price-old">¥{{ formatPrice(course.originalPrice) }}</text>
             </view>
             <text class="price-stock" :class="{ low: (course.total - course.sold) > 0 && (course.total - course.sold) <= course.total * 0.2 }">
               {{ session?.status === 'upcoming' ? `共 ${course.total} 名额` : `仅剩 ${course.total - course.sold} 名额` }}

@@ -85,7 +85,7 @@
 
           <!-- Price & circle -->
           <view class="qa-tags">
-            <view class="qa-tag-price"><text class="qa-tag-price-text">¥{{ q.price }}</text></view>
+            <view class="qa-tag-price"><text class="qa-tag-price-text">¥{{ formatPrice(q.price) }}</text></view>
             <view v-if="q.circleName" class="qa-tag-circle"><text class="qa-tag-circle-text">{{ q.circleName }}</text></view>
             <view v-if="!q.isPublic" class="qa-tag-private"><text class="qa-tag-private-text">私密</text></view>
           </view>
@@ -125,6 +125,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { navigateTo, navigateBack } from '@/utils/router'
+import { formatPrice } from '@/utils/format'
 
 type QuestionStatus = 'pending' | 'answered' | 'expired' | 'refunded'
 

@@ -29,7 +29,7 @@
                 <text class="an-name">{{ m.name }}</text>
                 <text class="an-level">{{ m.level }}</text>
               </view>
-              <text class="an-commission">佣金 ¥{{ m.commission }}</text>
+              <text class="an-commission">佣金 ¥{{ formatPrice(m.commission) }}</text>
             </view>
             <view class="an-trend" :class="m.trend >= 0 ? 'up' : 'down'">
               <app-icon :name="m.trend >= 0 ? 'trending-up' : 'trending-down'" :size="28" :color="m.trend >= 0 ? '#16a34a' : '#ef4444'" />
@@ -70,6 +70,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { operatorApi, type MemberPerf } from '@/lib/operator-data'
+import { formatPrice } from '@/utils/format'
 
 const loading = ref(true)
 const error = ref('')

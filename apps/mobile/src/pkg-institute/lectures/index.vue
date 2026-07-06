@@ -68,7 +68,7 @@
             </view>
             <view class="card-foot">
               <text v-if="lec.price === 0" class="price-free">免费</text>
-              <text v-else class="price">¥{{ lec.price }}</text>
+              <text v-else class="price">¥{{ formatPrice(lec.price) }}</text>
               <view class="foot-right">
                 <app-icon name="users" :size="13" color="#9ca3af" />
                 <text class="foot-meta">{{ lec.studentCount }} 人已学 · {{ fmtDate(lec.createdAt) }}</text>
@@ -92,6 +92,7 @@ import AppLoadMore from '@/components/common/app-load-more.vue'
 import { goBack } from '@/utils/router'
 import { useList } from '@/composables/useList'
 import { instituteApi, lecturerLevelLabel, lecturerLevelColor, fmtDate, type LectureItem } from '@/lib/institute-data'
+import { formatPrice } from '@/utils/format'
 
 const statusBarHeight = ref(0)
 const navHeight = ref(44)

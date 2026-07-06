@@ -44,7 +44,7 @@
         <!-- RFM 统计 -->
         <view class="cd-card cd-stats">
           <view class="cd-stat"><text class="cd-stat-val">{{ client.serveCount }}</text><text class="cd-stat-label">服务次数</text></view>
-          <view class="cd-stat"><text class="cd-stat-val">¥{{ client.totalSpend }}</text><text class="cd-stat-label">累计消费</text></view>
+          <view class="cd-stat"><text class="cd-stat-val">¥{{ formatPrice(client.totalSpend) }}</text><text class="cd-stat-label">累计消费</text></view>
           <view class="cd-stat"><text class="cd-stat-val">{{ client.lastServeAt ? fmtDate(client.lastServeAt) : '—' }}</text><text class="cd-stat-label">最近服务</text></view>
         </view>
 
@@ -67,7 +67,7 @@
           <view v-for="log in client.serveLogs" :key="log.id" class="cd-log-item">
             <view class="cd-log-top">
               <view class="cd-log-type"><text class="cd-log-type-txt">{{ serveTypeLabel[log.type] || log.type }}</text></view>
-              <text v-if="log.amount !== null" class="cd-log-amount">¥{{ log.amount }}</text>
+              <text v-if="log.amount !== null" class="cd-log-amount">¥{{ formatPrice(log.amount) }}</text>
               <text class="cd-log-date">{{ fmtDate(log.servedAt) }}</text>
             </view>
             <text class="cd-log-summary">{{ log.summary }}</text>
@@ -108,6 +108,7 @@ import { onLoad, onShow } from '@dcloudio/uni-app'
 import AppNavBar from '@/components/common/app-nav-bar.vue'
 import { navigateTo } from '@/utils/router'
 import { crmApi, RFM_TIER_LABEL, SERVE_TYPE_LABEL, type CrmClientDetail } from '@/lib/crm-data'
+import { formatPrice } from '@/utils/format'
 
 const tierLabel = RFM_TIER_LABEL
 const serveTypeLabel = SERVE_TYPE_LABEL

@@ -31,7 +31,7 @@
           </view>
           <view class="mc-card-foot">
             <view class="mc-foot-stat">
-              <text class="mc-price">{{ num(c.price) === 0 ? '免费' : '¥' + num(c.price) }}</text>
+              <text class="mc-price">{{ num(c.price) === 0 ? '免费' : '¥' + formatPrice(c.price) }}</text>
               <text class="mc-reg">报名 {{ c._count?.registrations ?? 0 }}/{{ c.maxStudents }}</text>
             </view>
             <view class="mc-foot-actions">
@@ -120,6 +120,7 @@ import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { offlineManageApi, fmtCourseTime, num, type OfflineCourse, type StationTeacherLite } from '@/lib/offline-data'
+import { formatPrice } from '@/utils/format'
 
 const statusBarHeight = ref(0)
 try { statusBarHeight.value = uni.getSystemInfoSync().statusBarHeight || 0 } catch {}

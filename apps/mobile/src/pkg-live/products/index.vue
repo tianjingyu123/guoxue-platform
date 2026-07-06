@@ -84,7 +84,7 @@
             <!-- 信息 -->
             <view class="product-info">
               <text class="product-name">{{ product.name }}</text>
-              <text class="product-price">¥{{ product.price }}</text>
+              <text class="product-price">¥{{ formatPrice(product.price) }}</text>
               <view class="product-meta">
                 <text class="meta-item">库存 {{ product.stock }}</text>
                 <text class="meta-item">已售 {{ product.sold }}</text>
@@ -132,6 +132,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { goBack } from '@/utils/router'
 import { liveApi, liveProductFilters, type LiveProductItem } from '@/lib/live-data'
+import { formatPrice } from '@/utils/format'
 
 const filters = liveProductFilters
 const filter = ref('all')

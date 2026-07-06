@@ -3,6 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
 import { mineApi, type WalletInfo, type RechargeOption, type WalletTxRecord, type WalletTxCategory } from '@/lib/mine-data'
+import { formatPrice } from '@/utils/format'
 
 // 初始即 loading：避免首帧先挂载 scroll-view、onMounted 置 loading 后又立刻卸载，
 // 触发 uni-app H5 scroll-view 异步设置 scrollTop 时节点已为 null 的报错（P2-1）
@@ -144,7 +145,7 @@ const txIcon: Record<WalletTxCategory, { icon: string; color: string }> = {
           >
             <text v-if="opt.popular" class="recharge-tag">推荐</text>
             <text class="recharge-coins">{{ opt.coins }}</text>
-            <text class="recharge-price">¥{{ opt.price }}</text>
+            <text class="recharge-price">¥{{ formatPrice(opt.price) }}</text>
             <text v-if="opt.bonus > 0" class="recharge-bonus">+送{{ opt.bonus }}币</text>
           </view>
         </view>

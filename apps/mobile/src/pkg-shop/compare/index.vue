@@ -47,7 +47,7 @@
                 <image lazy-load class="pcard-img" :src="p.cover" mode="aspectFill" />
               </view>
               <text class="pcard-name">{{ p.name }}</text>
-              <text class="pcard-price">¥{{ p.price }}</text>
+              <text class="pcard-price">¥{{ formatPrice(p.price) }}</text>
               <view class="pcard-del" @tap="removeAt(idx)">
                 <app-icon name="x" :size="24" color="#fff" />
               </view>
@@ -141,7 +141,7 @@
             <image lazy-load class="modal-cover" :src="products[pid].cover" mode="aspectFill" />
             <view class="modal-info">
               <text class="modal-name">{{ products[pid].name }}</text>
-              <text class="modal-price">¥{{ products[pid].price }}</text>
+              <text class="modal-price">¥{{ formatPrice(products[pid].price) }}</text>
             </view>
           </view>
           <view v-if="!pickableIds.length" class="modal-empty">
@@ -156,6 +156,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { shopApi, type CompareProduct } from '@/lib/shop-data'
+import { formatPrice } from '@/utils/format'
 
 const safeBottom = ref(0)
 try {

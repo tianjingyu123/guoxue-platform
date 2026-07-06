@@ -7,6 +7,7 @@
 import { ref, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
+import { formatPrice } from '@/utils/format'
 
 interface Expert { id: string; name: string; title: string; specialty: string[]; pricePerMinute: number; rating: number; sessions: number; available: boolean }
 interface TimeSlot { id: string; startTime: string; endTime: string; available: boolean; duration: number }
@@ -91,7 +92,7 @@ function backToCircle() { goBack() }
           <view class="bk-success-row"><text class="bk-success-row-l">日期</text><text class="bk-success-row-v">{{ dateLabel(selectedDate) }}</text></view>
           <view class="bk-success-row"><text class="bk-success-row-l">时间</text><text class="bk-success-row-v">{{ selectedSlot.startTime }} - {{ selectedSlot.endTime }}</text></view>
           <view class="bk-success-row"><text class="bk-success-row-l">咨询主题</text><text class="bk-success-row-v">{{ topic }}</text></view>
-          <view class="bk-success-row"><text class="bk-success-row-l">费用</text><text class="bk-success-row-v is-price">¥{{ price }}</text></view>
+          <view class="bk-success-row"><text class="bk-success-row-l">费用</text><text class="bk-success-row-v is-price">¥{{ formatPrice(price) }}</text></view>
         </view>
       </view>
     </view>
@@ -120,7 +121,7 @@ function backToCircle() { goBack() }
               <text class="bk-expert-name">{{ e.name }}</text>
               <text class="bk-expert-title">{{ e.title }}</text>
               <view class="bk-expert-rate"><app-icon name="star" :size="20" color="#C9A96E" :fill="true" /><text class="bk-expert-rate-t">{{ e.rating }}</text></view>
-              <view class="bk-expert-price"><text class="bk-expert-price-num">¥{{ e.pricePerMinute }}</text><text class="bk-expert-price-unit">/分钟</text></view>
+              <view class="bk-expert-price"><text class="bk-expert-price-num">¥{{ formatPrice(e.pricePerMinute) }}</text><text class="bk-expert-price-unit">/分钟</text></view>
               <text v-if="!e.available" class="bk-expert-na">暂不可约</text>
             </view>
           </view>
@@ -185,9 +186,9 @@ function backToCircle() { goBack() }
       <view class="bk-fee">
         <text class="bk-section-title">费用预览</text>
         <view class="bk-fee-rows">
-          <view class="bk-fee-row"><text class="bk-fee-l">单价</text><text class="bk-fee-v">¥{{ selectedExpert.pricePerMinute }}/分钟</text></view>
+          <view class="bk-fee-row"><text class="bk-fee-l">单价</text><text class="bk-fee-v">¥{{ formatPrice(selectedExpert.pricePerMinute) }}/分钟</text></view>
           <view class="bk-fee-row"><text class="bk-fee-l">时长</text><text class="bk-fee-v">{{ duration }}分钟</text></view>
-          <view class="bk-fee-total"><text class="bk-fee-total-l">合计</text><text class="bk-fee-total-v">¥{{ price }}</text></view>
+          <view class="bk-fee-total"><text class="bk-fee-total-l">合计</text><text class="bk-fee-total-v">¥{{ formatPrice(price) }}</text></view>
         </view>
       </view>
     </view>
@@ -196,7 +197,7 @@ function backToCircle() { goBack() }
     <view class="bk-footer">
       <view class="bk-footer-top">
         <view class="bk-footer-time"><app-icon name="clock" :size="24" color="#999999" /><text class="bk-footer-time-t">{{ selectedSlot ? `${dateLabel(selectedDate)} ${selectedSlot.startTime}` : '请选择时段' }}</text></view>
-        <view class="bk-footer-pay"><text class="bk-footer-pay-l">需支付</text><text class="bk-footer-pay-v">¥{{ price }}</text></view>
+        <view class="bk-footer-pay"><text class="bk-footer-pay-l">需支付</text><text class="bk-footer-pay-v">¥{{ formatPrice(price) }}</text></view>
       </view>
       <view class="bk-submit" :class="{ 'is-disabled': !canSubmit }" @tap="handleSubmit">
         <text class="bk-submit-t">{{ submitting ? '预约中...' : '立即预约' }}</text>
