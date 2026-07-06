@@ -30,6 +30,10 @@ import { SemanticTaggerService } from "./services/semantic-tagger.service";
 import { SemanticTagTask } from "./tasks/semantic-tag.task";
 import { TouchpointService } from "./touchpoint.service";
 import { TouchpointController } from "./touchpoint.controller";
+import { RecommendSceneService } from "./services/recommend-scene.service";
+import { RecommendSceneCoreService } from "./services/recommend-scene-core.service";
+import { RecommendInsertService } from "./services/recommend-insert.service";
+import { RecommendSelectService } from "./services/recommend-select.service";
 import { AiGatewayModule } from "../ai-gateway/ai-gateway.module";
 import { StationPickModule } from "../station-pick/station-pick.module";
 
@@ -39,6 +43,10 @@ import { StationPickModule } from "../station-pick/station-pick.module";
   controllers: [SmartFeedController, TouchpointController, RecommendController, RecommendRuleController, AbTestController],
   providers: [
     RecommendService,
+    RecommendSceneService,
+    RecommendSceneCoreService,
+    RecommendInsertService,
+    RecommendSelectService,
     BehaviorService,
     DedupService,
     RuleService,

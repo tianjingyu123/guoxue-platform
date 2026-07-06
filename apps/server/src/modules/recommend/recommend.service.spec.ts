@@ -11,6 +11,10 @@ import { TfidfVectorProvider } from "./strategies/tfidf-vector.provider";
 import { OpenAIEmbeddingProvider } from "./strategies/openai-embedding.provider";
 import { AbTestService } from "./services/ab-test.service";
 import { StationPickService } from "../station-pick/station-pick.service";
+import { RecommendSceneService } from "./services/recommend-scene.service";
+import { RecommendSceneCoreService } from "./services/recommend-scene-core.service";
+import { RecommendInsertService } from "./services/recommend-insert.service";
+import { RecommendSelectService } from "./services/recommend-select.service";
 import { BusinessException } from "../../common/business.exception";
 
 const mockPrisma = {
@@ -48,6 +52,10 @@ describe("RecommendService", () => {
         { provide: OpenAIEmbeddingProvider, useValue: mockEmbedding },
         { provide: AbTestService, useValue: mockAbTest },
         { provide: StationPickService, useValue: mockStationPick },
+        RecommendSceneService,
+        RecommendSceneCoreService,
+        RecommendInsertService,
+        RecommendSelectService,
       ],
     }).compile();
     svc = mod.get(RecommendService);
