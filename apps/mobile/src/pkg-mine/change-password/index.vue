@@ -33,7 +33,7 @@ function showToast(msg: string, type: 'success' | 'error' = 'success') {
 
 function validate() {
   const errs: Record<string, string> = {}
-  if (!oldPwd.value) errs.oldPwd = '请输入当前密码'
+  // 当前密码首次设置可留空（验证码/微信登录用户无旧密码）；已设密码时后端会强制校验
   if (!newPwd.value) errs.newPwd = '请输入新密码'
   else if (newPwd.value.length < 8) errs.newPwd = '密码长度至少 8 位'
   else if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(newPwd.value)) errs.newPwd = '需包含大小写字母和数字'
@@ -74,7 +74,7 @@ async function handleSubmit() {
         <!-- 表单 -->
         <view class="card">
           <view class="field">
-            <text class="field-label">当前密码</text>
+            <text class="field-label">当前密码<text class="field-hint">（首次设置密码可留空）</text></text>
             <view class="input-wrap" :class="{ error: errors.oldPwd }">
               <AppIcon name="lock" :size="16" color="#999" />
               <input

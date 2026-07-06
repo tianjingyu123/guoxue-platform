@@ -15,7 +15,7 @@ import * as bcrypt from "bcryptjs";
 
 const mockPrisma = {
   user: { findUnique: jest.fn(), create: jest.fn(), update: jest.fn() },
-  auth: { findFirst: jest.fn(), update: jest.fn() },
+  auth: { findFirst: jest.fn(), update: jest.fn(), create: jest.fn() },
   userRole: { findMany: jest.fn() },
   station: { findUnique: jest.fn() },
   referralRelation: { create: jest.fn() },
@@ -208,9 +208,13 @@ describe("AuthService", () => {
       const result = await svc.changePassword("user-1", { oldPassword: "123456", newPassword: "654321" });
       expect(result.success).toBe(true);
     });
-    it("未设置密码抛出 BadRequestException", async () => {
+    it("未设置密码时首次创建凭证（验证码/微信登录用户首次设密码，无需旧密码）", async () => {
       mockPrisma.auth.findFirst.mockResolvedValue(null);
-      await expect(svc.changePassword("user-1", { oldPassword: "123456", newPassword: "654321" })).rejects.toThrow(BusinessException);
+      (bcrypt.hash as jest.Mock).mockResolvedValue("new-hash");
+      mockPrisma.auth.create.mockResolvedValue({ id: "auth-new", credential: "new-hash" });
+      const result = await svc.changePassword("user-1", { newPassword: "Abc12345" });
+      expect(result.success).toBe(true);
+      expect(mockPrisma.auth.create).toHaveBeenCalled();
     });
     it("原密码错误抛出 BadRequestException", async () => {
       mockPrisma.auth.findFirst.mockResolvedValue({ id: "auth-1", credential: "hash" });

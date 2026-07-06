@@ -111,9 +111,9 @@ describe("Auth DTO 校验", () => {
       const dto = Object.assign(new ChangePasswordDto(), { oldPassword: "123456", newPassword: "Abc12345" });
       const errors = await validate(dto); expect(errors.length).toBe(0);
     });
-    it("缺 oldPassword 报错", async () => {
+    it("缺 oldPassword 通过（首次设置密码可不传·验证码/微信登录用户）", async () => {
       const dto = Object.assign(new ChangePasswordDto(), { newPassword: "Abc12345" });
-      const errors = await validate(dto); expect(errors.length).toBeGreaterThan(0);
+      const errors = await validate(dto); expect(errors.length).toBe(0);
     });
     it("newPassword 不满足复杂度要求报错", async () => {
       const dto = Object.assign(new ChangePasswordDto(), { oldPassword: "123456", newPassword: "abc1234" });

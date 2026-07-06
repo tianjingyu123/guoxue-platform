@@ -416,16 +416,24 @@ export class AuthService {
     const auth = await this.prisma.auth.findFirst({
       where: { userId, provider: "PASSWORD" },
     });
-    if (!auth?.credential) throw new BusinessException(ErrorCode.BAD_REQUEST, "未设置密码");
-
-    const valid = await bcrypt.compare(dto.oldPassword, auth.credential);
-    if (!valid) throw new BusinessException(ErrorCode.AUTH_PASSWORD_WRONG, "原密码错误");
-
     const newHash = await bcrypt.hash(dto.newPassword, 10);
-    await this.prisma.auth.update({
-      where: { id: auth.id },
-      data: { credential: newHash },
-    });
+
+    if (!auth?.credential) {
+      // 首次设置密码：验证码/微信登录用户从无 PASSWORD 凭证，本人已登录态即可信任，
+      // 无需旧密码，直接创建凭证（原先在此抛"未设置密码"导致这类用户永远设不了密码）。
+      await this.prisma.auth.create({
+        data: { userId, provider: "PASSWORD", credential: newHash },
+      });
+    } else {
+      // 已有密码：必须校验旧密码
+      if (!dto.oldPassword) throw new BusinessException(ErrorCode.BAD_REQUEST, "请输入当前密码");
+      const valid = await bcrypt.compare(dto.oldPassword, auth.credential);
+      if (!valid) throw new BusinessException(ErrorCode.AUTH_PASSWORD_WRONG, "原密码错误");
+      await this.prisma.auth.update({
+        where: { id: auth.id },
+        data: { credential: newHash },
+      });
+    }
     await this.revokeAllRefreshTokens(userId);
     return { success: true };
   }

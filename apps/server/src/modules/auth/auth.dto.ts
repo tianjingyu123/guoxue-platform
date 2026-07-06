@@ -131,9 +131,10 @@ export class UpdateProfileDto {
 }
 
 export class ChangePasswordDto {
+  // 首次设置密码（验证码/微信登录用户无旧密码）时可不传；已有密码时后端强制校验
   @IsString()
-  @MinLength(1)
-  oldPassword: string;
+  @IsOptional()
+  oldPassword?: string;
 
   @IsString()
   @MinLength(8)
