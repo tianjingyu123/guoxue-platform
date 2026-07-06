@@ -113,7 +113,11 @@ onMounted(() => { loadCircles(); loadExtras() })
         <view class="actions">
           <view class="icon-btn" @tap="go('/pkg-circle/circles/search')"><app-icon name="search" :size="36" color="#666666" /></view>
           <view class="icon-btn" @tap="go('/pkg-circle/circles/calendar')"><app-icon name="calendar" :size="36" color="#666666" /></view>
-          <view class="icon-btn" @tap="go('/pkg-circle/circles/create')"><app-icon name="plus" :size="38" color="var(--brand)" /></view>
+          <!-- 创建圈子=重要入口：做成带文字的醒目按钮，不再混在灰色图标里 -->
+          <view class="create-btn" @tap="go('/pkg-circle/circles/create')">
+            <app-icon name="plus" :size="30" color="#ffffff" />
+            <text class="create-btn-txt">创建</text>
+          </view>
         </view>
       </view>
       <!-- 主Tab -->
@@ -361,6 +365,14 @@ onMounted(() => { loadCircles(); loadExtras() })
   background: var(--line-soft, #f5f0e8);
   display: flex; align-items: center; justify-content: center;
 }
+/* 创建圈子=醒目主按钮（brand 底 + 文字），突出重要入口 */
+.create-btn {
+  display: flex; align-items: center; gap: 6rpx;
+  height: 72rpx; padding: 0 26rpx; border-radius: 999rpx;
+  background: var(--brand);
+  box-shadow: 0 4rpx 12rpx rgba(196, 30, 58, 0.28);
+}
+.create-btn-txt { font-size: 26rpx; color: #fff; font-weight: 600; }
 .main-tabs { display: flex; align-items: center; border-bottom: 2rpx solid var(--line-nav, #e8e3db); }
 .main-tab { flex: 1; padding: 24rpx 0; display: flex; flex-direction: column; align-items: center; position: relative; }
 .main-tab-text { font-size: 28rpx; font-weight: 500; color: var(--text-faint, #999); }

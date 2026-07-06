@@ -40,6 +40,7 @@
         <!-- 视频播放器：有真实 videoUrl 且未出错时挂载（H5=原生 video，小程序/App=原生组件）-->
         <video
           v-if="currentVideo.videoUrl && !playError"
+          :key="currentVideo.id"
           id="vp-player"
           class="vp__video"
           :src="currentVideo.videoUrl"
@@ -393,7 +394,7 @@ async function loadProducts(v: VideoItem) {
 watch(currentVideo, (v) => { if (v) loadProducts(v) }, { immediate: true })
 
 const cartTotal = computed(() => cart.value.reduce((s, i) => s + i.quantity, 0))
-const cartAmount = computed(() => cart.value.reduce((s, i) => s + i.quantity * i.product.price, 0))
+const cartAmount = computed(() => Math.round(cart.value.reduce((s, i) => s + i.quantity * i.product.price, 0) * 100) / 100)
 
 const curLayerStyle = computed(() => ({
   transform: `translateY(${-swipeOffset.value}px)`,
@@ -543,6 +544,9 @@ watch(() => currentVideo.value?.id, async () => {
   // 但同源视频(videoUrl 不变)或移动端 autoplay 受限时不重播 → 需滑好几次。改为切换后主动 ctx.play()
   // （用户滑动已构成交互上下文，规避移动端自动播放限制）。
   playError.value = false
+  // video 元素随 :key=id 重建，旧 context 已失效：置空让下方 nextTick 重新获取指向新元素，
+  // 否则切到新视频时仍控制旧 <video> 导致画面不换（用户现象：滑动有切换动效但播放内容没变）。
+  videoCtx = null
   const v = currentVideo.value
   nextTick(() => {
     if (v?.videoUrl && !playError.value) {

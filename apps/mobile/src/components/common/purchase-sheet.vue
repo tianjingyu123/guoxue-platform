@@ -149,7 +149,8 @@ const paid = ref(false)
 const paidSub = ref('请在订单中心完成支付')
 
 const hasSku = computed(() => !!props.product?.skus && props.product.skus.length > 0)
-const total = computed(() => (props.product ? props.product.price * quantity.value : 0))
+// 金额乘法用 Math.round(×100)/100 消除浮点误差(如 19.9×3=59.699999...)，避免小数点多位
+const total = computed(() => (props.product ? Math.round(props.product.price * quantity.value * 100) / 100 : 0))
 const tipText = computed(() => (props.bizType === 'PRODUCT' ? '正品保障 · 7天无理由退换' : '官方正版 · 购买后立即可用'))
 const payButtonText = computed(() => {
   if (paying.value) return '提交中…'

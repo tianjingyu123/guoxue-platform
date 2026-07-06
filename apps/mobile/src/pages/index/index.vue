@@ -14,6 +14,7 @@ import MarketingCard from '@/components/home/marketing-card.vue'
 import FeedCard from '@/components/home/feed-card.vue'
 import BackTop from '@/components/home/back-top.vue'
 import { homeApi, type BannerItem, type RenderItem } from '@/lib/home-data'
+import { navigateTo } from '@/utils/router'
 
 // 后台可控显隐（原型同名常量）
 const SHOW_PAIPAN_CARD = true
@@ -73,6 +74,11 @@ function backToTop() {
   scrollTopVal.value = scrollTopVal.value === 0 ? 1 : 0
   setTimeout(() => (scrollTopVal.value = 0), 30)
 }
+
+// 🧪 支付测试入口（验证微信支付通电后移除）：跳 1 元测试商品详情
+function goPayTest() {
+  navigateTo('/mall/product/detail?id=42bcbc44-f1d1-4f29-ab2e-8202f6b0b0d2')
+}
 </script>
 
 <template>
@@ -111,6 +117,15 @@ function backToTop() {
     >
       <!-- Banner 轮播 -->
       <home-banner :banners="banners" />
+
+      <!-- 🧪 支付测试入口（验证微信支付通电后移除） -->
+      <view
+        style="margin: 0 32rpx 16rpx; padding: 28rpx 32rpx; background: linear-gradient(135deg, #c41e3a, #a01530); border-radius: 20rpx; display: flex; align-items: center; justify-content: space-between;"
+        @tap="goPayTest"
+      >
+        <text style="color: #fff; font-size: 28rpx; font-weight: 600;">🧪 1元支付测试 · 点击验证微信支付</text>
+        <text style="color: #fff; font-size: 36rpx;">›</text>
+      </view>
 
       <!-- 节气日横幅（仅节气日显示·入口进节气仪式页） -->
       <solar-term-banner />

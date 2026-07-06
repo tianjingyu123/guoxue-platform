@@ -2065,7 +2065,7 @@ export const shopApi = {
       address: a.detail || a.address || '', isDefault: !!a.isDefault,
     }))
     // 3) 可用券（未用 + 未过期 + 满足门槛），按当前金额预估抵扣（最终以后端 createOrder 重算为准）
-    const goodsTotal = items.reduce((s, i) => s + i.price * i.quantity, 0)
+    const goodsTotal = Math.round(items.reduce((s, i) => s + i.price * i.quantity, 0) * 100) / 100
     const myRes = await apiGet<RawUserCoupon[]>('/shop/coupons/my').catch(() => [])
     const now = Date.now()
     const coupons: CheckoutCoupon[] = (myRes || [])

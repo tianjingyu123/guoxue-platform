@@ -4,9 +4,7 @@ import { navigateTo } from '@/utils/router'
 
 interface Entry { id: string; name: string; icon: string; color: string; bg: string; badge?: string; url: string }
 
-// 金刚区「学习 / 生活」双心智分组（首页信息架构重构 · 董事长拍板）
-// 去掉原「圈子」入口（已有独立 tabBar），9 宫 = 学 4 + 用 5
-interface EntryGroup { key: string; label: string; entries: Entry[] }
+// 金刚区统一 10 宫格（5列×2行）：去掉原「学/用」分组标题——用户反馈分组显得乱·2026-07-06
 
 // R4 合规：小程序端无占卜类目，「排盘/运势」入口改民俗/历法表述（仅展示文案·路由不变）
 let paipanName = '排盘'
@@ -16,48 +14,30 @@ paipanName = '民俗研究'
 fortuneName = '历法参考'
 // #endif
 
-const groups: EntryGroup[] = [
-  {
-    key: 'study',
-    label: '学',
-    entries: [
-      { id: 'courses',  name: '课程',   icon: 'graduation-cap', color: '#4A90D9', bg: 'rgba(74,144,217,0.1)',  url: '/pkg-course/home/index' },
-      { id: 'classics', name: '古籍馆', icon: 'book-open',      color: '#C9A96E', bg: 'rgba(201,169,110,0.1)', url: '/pkg-classics/home/index' },
-      { id: 'poetry',   name: '诗词',   icon: 'book-heart',     color: '#EB2F96', bg: 'rgba(235,47,150,0.1)',  url: '/pkg-poetry/index/index' },
-      { id: 'agents',   name: '智能体', icon: 'bot',            color: '#722ED1', bg: 'rgba(114,46,209,0.1)',  url: '/pkg-agent/agents/index', badge: 'AI' },
-    ],
-  },
-  {
-    key: 'life',
-    label: '用',
-    entries: [
-      { id: 'paipan',   name: paipanName,  icon: 'layout-grid', color: '#1890FF', bg: 'rgba(24,144,255,0.1)',  url: '/pages/paipan/index' },
-      { id: 'fortune',  name: fortuneName, icon: 'compass',     color: '#9B59B6', bg: 'rgba(155,89,182,0.1)',  url: '/pkg-fortune/index/index' },
-      // 无痕商业化铁律：C 端心智区不放营销感角标（「热」已撤·2026-07-03 经营哲学）
-      { id: 'mall',     name: '商城',   icon: 'shopping-bag',   color: '#C41E3A', bg: 'rgba(196,30,58,0.1)',   url: '/pkg-mall/home/index' },
-      { id: 'live',     name: '直播',   icon: 'radio',          color: '#E74C3C', bg: 'rgba(231,76,60,0.1)',   url: '/pkg-live/plaza/index' },
-      { id: 'more',     name: '更多',   icon: 'more-horizontal',color: '#666666', bg: 'rgba(102,102,102,0.1)', url: '/pages/discover/index' },
-    ],
-  },
+// 统一 10 宫格（5列×2行整齐排布，不再分「学/用」组标题——用户反馈分组显得乱）
+const allEntries: Entry[] = [
+  { id: 'courses',  name: '课程',   icon: 'graduation-cap', color: '#4A90D9', bg: 'rgba(74,144,217,0.1)',  url: '/pkg-course/home/index' },
+  { id: 'classics', name: '古籍馆', icon: 'book-open',      color: '#C9A96E', bg: 'rgba(201,169,110,0.1)', url: '/pkg-classics/home/index' },
+  { id: 'poetry',   name: '诗词',   icon: 'book-heart',     color: '#EB2F96', bg: 'rgba(235,47,150,0.1)',  url: '/pkg-poetry/index/index' },
+  { id: 'agents',   name: '智能体', icon: 'bot',            color: '#722ED1', bg: 'rgba(114,46,209,0.1)',  url: '/pkg-agent/agents/index', badge: 'AI' },
+  { id: 'paipan',   name: paipanName,  icon: 'layout-grid', color: '#1890FF', bg: 'rgba(24,144,255,0.1)',  url: '/pages/paipan/index' },
+  { id: 'fortune',  name: fortuneName, icon: 'compass',     color: '#9B59B6', bg: 'rgba(155,89,182,0.1)',  url: '/pkg-fortune/index/index' },
+  { id: 'mall',     name: '商城',   icon: 'shopping-bag',   color: '#C41E3A', bg: 'rgba(196,30,58,0.1)',   url: '/pkg-mall/home/index' },
+  { id: 'live',     name: '直播',   icon: 'radio',          color: '#E74C3C', bg: 'rgba(231,76,60,0.1)',   url: '/pkg-live/plaza/index' },
+  { id: 'classics2',name: '听书',   icon: 'headphones',     color: '#13C2C2', bg: 'rgba(19,194,194,0.1)',  url: '/pkg-classics/audiobooks/index' },
+  { id: 'more',     name: '更多',   icon: 'more-horizontal',color: '#666666', bg: 'rgba(102,102,102,0.1)', url: '/pages/discover/index' },
 ]
 </script>
 
 <template>
   <view class="entry-wrap">
-    <view v-for="g in groups" :key="g.key" class="group">
-      <!-- 轻量分组小标题（学 / 用） -->
-      <view class="group-head">
-        <text class="group-tag">{{ g.label }}</text>
-        <view class="group-line" />
-      </view>
-      <view class="grid">
-        <view v-for="e in g.entries" :key="e.id" class="cell" @tap="navigateTo(e.url)">
-          <view class="icon-box" :style="{ background: e.bg }">
-            <app-icon :name="e.icon" :size="48" :color="e.color" />
-            <text v-if="e.badge" class="badge">{{ e.badge }}</text>
-          </view>
-          <text class="name">{{ e.name }}</text>
+    <view class="grid">
+      <view v-for="e in allEntries" :key="e.id" class="cell" @tap="navigateTo(e.url)">
+        <view class="icon-box" :style="{ background: e.bg }">
+          <app-icon :name="e.icon" :size="48" :color="e.color" />
+          <text v-if="e.badge" class="badge">{{ e.badge }}</text>
         </view>
+        <text class="name">{{ e.name }}</text>
       </view>
     </view>
   </view>

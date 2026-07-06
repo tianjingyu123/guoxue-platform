@@ -7,11 +7,11 @@ import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
 import { mineApi } from '@/lib/mine-data'
 
+// tab 精简：去掉「关注/热门」(内容流分类未实现·点了没反应)，直播修正为真实分包路由。
+// 推荐=当前首页(默认不跳)，直播/同城跳对应页。
 const tabs = [
   { name: '推荐', href: '/' },
-  { name: '关注', href: '/' },
-  { name: '热门', href: '/' },
-  { name: '直播', href: '/live' },
+  { name: '直播', href: '/pkg-live/plaza/index' },
   { name: '同城', href: '/pkg-discover/same-city/feed' },
 ]
 const activeTab = ref('推荐')

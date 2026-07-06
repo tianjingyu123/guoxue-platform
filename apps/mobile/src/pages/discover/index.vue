@@ -28,6 +28,11 @@ const HOME_GRID_DUP_IDS = ['course', 'mall', 'classics', 'agent', 'circles', 'li
 const morePlays = coreEntries.filter((e) => !HOME_GRID_DUP_IDS.includes(e.id))
 // ② B/C 分层：C 端「学习互动」组保留原位；B 端「经营变现」组下沉为页面底部折叠区「事业与合作」
 const cServiceGroups = serviceGroups.filter((g) => g.title !== '经营变现')
+// 合并「更多玩法」+「学习互动」为统一网格(去掉分组标题——用户反馈分组显得乱·2026-07-06)
+const allDiscoverEntries = computed(() => [
+  ...morePlays,
+  ...cServiceGroups.flatMap((g) => g.items),
+])
 const bizGroup = serviceGroups.find((g) => g.title === '经营变现')
 const bizExpanded = ref(false)
 function toggleBiz() { bizExpanded.value = !bizExpanded.value }
@@ -117,43 +122,17 @@ function goColumn(href: string) { navigateTo(href) }
       </scroll-view>
     </view>
 
-    <!-- 更多玩法（仅发现页特有入口，与首页金刚区去重） -->
+    <!-- 玩法入口（合并「更多玩法/学习互动」为统一网格，不再分组标题——用户反馈分组显得乱） -->
     <view class="grid-section svc-section">
-      <view class="svc-head">
-        <view class="svc-bar" />
-        <text class="svc-title">更多玩法</text>
-      </view>
       <view class="grid">
         <view
-          v-for="entry in morePlays" :key="entry.id"
+          v-for="entry in allDiscoverEntries" :key="entry.id"
           class="grid-item" @tap="goEntry(entry.href)"
         >
           <view class="grid-icon">
             <AppIcon :name="entry.icon" :size="44" color="#c41e3a" />
           </view>
           <text class="grid-label">{{ entry.label }}</text>
-        </view>
-      </view>
-    </view>
-
-    <!-- C 端服务矩阵（学习互动，B 端经营组已下沉页面底部折叠区） -->
-    <view
-      v-for="group in cServiceGroups" :key="group.title"
-      class="grid-section svc-section"
-    >
-      <view class="svc-head">
-        <view class="svc-bar" />
-        <text class="svc-title">{{ group.title }}</text>
-      </view>
-      <view class="grid">
-        <view
-          v-for="item in group.items" :key="item.id"
-          class="grid-item" @tap="goEntry(item.href)"
-        >
-          <view class="grid-icon">
-            <AppIcon :name="item.icon" :size="44" color="#c41e3a" />
-          </view>
-          <text class="grid-label">{{ item.label }}</text>
         </view>
       </view>
     </view>
