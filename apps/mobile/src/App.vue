@@ -12,6 +12,17 @@ function pickUrl(args: string | { url?: string }): string {
 }
 
 onLaunch((options?: { query?: Record<string, unknown> }) => {
+  // #ifdef H5
+  // 动态分包加载失败自愈：部署后旧 index.html 被浏览器(尤其 iOS Safari/WebView)顽固缓存、
+  // 引用了已被替换的旧 chunk 时，懒加载分包(如设置页)会 preloadError 导致白屏。
+  // 捕获后自动刷新拿最新 index.html；用会话标记防死循环刷新。
+  window.addEventListener('vite:preloadError', () => {
+    if (!sessionStorage.getItem('__chunk_reloaded__')) {
+      sessionStorage.setItem('__chunk_reloaded__', '1')
+      window.location.reload()
+    }
+  })
+  // #endif
   // 品牌配置水合（租-T0）：从后端拉取站名/标语/主色等，失败静默用内置默认值
   hydrateBrandConfig()
   // RUM 性能采集（T3 可观测·仅 H5 生效）
