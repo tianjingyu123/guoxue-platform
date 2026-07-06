@@ -129,12 +129,13 @@ const ROUTE_MAP: Record<string, string> = {
   '/shop/addresses': '/pkg-account/addresses/index',
   '/shop/addresses/edit': '/pkg-account/address-edit/index',
   '/address': '/pkg-account/address/index',
-  // 设置中心（第①套，/profile 主页链接的活套）
-  '/settings': '/pkg-settings/index/index',
+  // 设置中心：账号安全类(设置主页/手机号/密码)重定向到真连后端的 pkg-mine 真页，
+  // 弃用 pkg-settings 的 mock 假页(硬编码手机号138****8888、假验证码逻辑)。
+  '/settings': '/pkg-mine/settings/index',
   '/settings/notifications': '/pkg-settings/notifications/index',
   '/settings/privacy': '/pkg-settings/privacy/index',
-  '/settings/phone': '/pkg-settings/phone/index',
-  '/settings/password': '/pkg-settings/password/index',
+  '/settings/phone': '/pkg-mine/change-phone/index',
+  '/settings/password': '/pkg-mine/change-password/index',
   '/settings/payment-password': '/pkg-settings/payment-password/index',
   '/settings/payment-methods': '/pkg-settings/payment-methods/index',
   '/settings/blacklist': '/pkg-settings/blacklist/index',
