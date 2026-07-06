@@ -1,6 +1,11 @@
 import { Test } from "@nestjs/testing";
 import { Prisma } from "@prisma/client";
 import { OfflineService } from "./offline.service";
+import { OfflineSharedService } from "./services/offline-shared.service";
+import { OfflineStationService } from "./services/offline-station.service";
+import { OfflineCourseService } from "./services/offline-course.service";
+import { OfflineCommerceService } from "./services/offline-commerce.service";
+import { OfflineTeacherService } from "./services/offline-teacher.service";
 import { OfflineReminderService } from "./offline-reminder.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
@@ -106,6 +111,11 @@ describe("OfflineService", () => {
     const mod = await Test.createTestingModule({
       providers: [
         OfflineService,
+        OfflineSharedService,
+        OfflineStationService,
+        OfflineCourseService,
+        OfflineCommerceService,
+        OfflineTeacherService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: RedisService, useValue: mockRedis },
         { provide: OfflineReminderService, useValue: mockReminder },

@@ -1,0 +1,459 @@
+import { Injectable } from "@nestjs/common";
+import { BusinessException } from "../../../common/business.exception";
+import { ErrorCode } from "../../../common/error-codes";
+import { Prisma } from "@prisma/client";
+import { PrismaService } from "../../../prisma/prisma.service";
+import { RedisService } from "../../../redis/redis.service";
+import { isUniqueConstraintError } from "../../../common/prisma-errors";
+import { OfflineReminderService } from "../offline-reminder.service";
+import { safePagination } from "../../../common/pagination";
+import { OfflineSharedService } from "./offline-shared.service";
+
+/**
+ * 线下驿站-课程域（从 offline.service 拆出·纯搬家不改逻辑）。
+ * 职责：线下课程 CRUD + 报名/取消/签到 + 报名列表 + 课后评价（T8 OMO）+ 课后同学圈（T8 OMO）
+ * + 课程审核/推荐 + 核销记录（平台监控 adminListCheckins）。
+ * 依赖：共享叶子域（assertStationOwner/loadTeachers）+ 通知触点 reminder + 缓存 redis·单向不循环。
+ */
+@Injectable()
+export class OfflineCourseService {
+  constructor(
+    private prisma: PrismaService,
+    private redis: RedisService,
+    private reminder: OfflineReminderService,
+    private shared: OfflineSharedService,
+  ) {}
+
+  // ───────── 线下课程 ─────────
+
+  async createOfflineCourse(userId: string, dto: { stationId: string; title: string; cover?: string; intro?: string; teacherId?: string; price?: number; maxStudents: number; startTime: string; endTime: string; location: string }) {
+    await this.shared.assertStationOwner(userId, dto.stationId);
+    return this.prisma.offlineCourse.create({
+      data: {
+        ...dto,
+        price: dto.price ?? 0,
+        startTime: new Date(dto.startTime),
+        endTime: new Date(dto.endTime),
+      },
+    });
+  }
+
+  async listOfflineCourses(stationId?: string, rawPage = 1, rawPageSize = 20) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
+    // 传 stationId=单驿站课程（含草稿）；不传=用户端发现，仅 ACTIVE 驿站的已审核已发布课程
+    const where: Prisma.OfflineCourseWhereInput = stationId
+      ? { stationId }
+      : { auditStatus: "APPROVED", status: "PUBLISHED", station: { status: "ACTIVE" } };
+    const [courses, total] = await Promise.all([
+      this.prisma.offlineCourse.findMany({
+        where,
+        include: {
+          _count: { select: { registrations: true } },
+          station: { select: { id: true, name: true, city: true } },
+        },
+        skip,
+        take: pageSize,
+        orderBy: { startTime: "asc" },
+      }),
+      this.prisma.offlineCourse.count({ where }),
+    ]);
+    const teacherMap = await this.shared.loadTeachers(courses.map((c) => c.teacherId));
+    return {
+      courses: courses.map((c) => ({ ...c, teacher: c.teacherId ? teacherMap.get(c.teacherId) || null : null })),
+      total,
+      page,
+      pageSize,
+    };
+  }
+
+  async getOfflineCourse(courseId: string) {
+    const course = await this.prisma.offlineCourse.findUnique({
+      where: { id: courseId },
+      include: {
+        station: { select: { id: true, name: true, address: true, phone: true } },
+        registrations: true,
+      },
+    });
+    if (!course) throw new BusinessException(ErrorCode.NOT_FOUND, "课程不存在");
+    let teacher: { id: string; name: string; avatar: string | null; specialties: string[]; bio: string | null } | null = null;
+    if (course.teacherId) {
+      teacher = await this.prisma.stationTeacher.findUnique({
+        where: { id: course.teacherId },
+        select: { id: true, name: true, avatar: true, specialties: true, bio: true },
+      });
+    }
+    return { ...course, teacher };
+  }
+
+  // ───────── 课程报名 ─────────
+
+  /** 当前用户在某课程的报名记录（用户端签到凭证）*/
+  async getMyRegistration(courseId: string, userId: string) {
+    const reg = await this.prisma.offlineCourseRegistration.findUnique({
+      where: { courseId_userId: { courseId, userId } },
+      include: { course: { include: { station: { select: { id: true, name: true, address: true, phone: true } } } } },
+    });
+    if (!reg) return null;
+    let teacher: { id: string; name: string; avatar: string | null } | null = null;
+    if (reg.course.teacherId) {
+      teacher = await this.prisma.stationTeacher.findUnique({
+        where: { id: reg.course.teacherId },
+        select: { id: true, name: true, avatar: true },
+      });
+    }
+    return { ...reg, course: { ...reg.course, teacher } };
+  }
+
+  async registerCourse(userId: string, courseId: string) {
+    const course = await this.prisma.offlineCourse.findUnique({
+      where: { id: courseId },
+    });
+    if (!course) throw new BusinessException(ErrorCode.NOT_FOUND, "课程不存在");
+
+    const qrCode = `QR_${courseId}_${userId}_${Date.now()}`;
+    // 行锁串行化防超卖：锁定课程行后，在锁内查重 + 计数 + 创建（消除 count-then-create 竞态）
+    const registration = await this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM "OfflineCourse" WHERE id = ${courseId} FOR UPDATE`;
+
+      const existing = await tx.offlineCourseRegistration.findUnique({
+        where: { courseId_userId: { courseId, userId } },
+      });
+      if (existing) throw new BusinessException(ErrorCode.BAD_REQUEST, "已报名该课程");
+
+      const count = await tx.offlineCourseRegistration.count({ where: { courseId } });
+      if (count >= course.maxStudents) {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "课程名额已满");
+      }
+
+      try {
+        return await tx.offlineCourseRegistration.create({
+          data: { courseId, userId, qrCode },
+        });
+      } catch (e: unknown) {
+        if (isUniqueConstraintError(e)) throw new BusinessException(ErrorCode.BAD_REQUEST, "已报名该课程");
+        throw e;
+      }
+    });
+
+    // 报名成功站内通知（通知失败不影响报名主流程）
+    try {
+      await this.reminder.notifyRegistered(userId, {
+        id: course.id, title: course.title, startTime: course.startTime, location: course.location,
+      });
+    } catch { /* 通知层已自吞异常，此处双保险 */ }
+
+    return registration;
+  }
+
+  async cancelRegistration(userId: string, courseId: string) {
+    const reg = await this.prisma.offlineCourseRegistration.findUnique({
+      where: { courseId_userId: { courseId, userId } },
+      include: { course: { select: { id: true, title: true, startTime: true, location: true } } },
+    });
+    if (!reg) throw new BusinessException(ErrorCode.NOT_FOUND, "未报名该课程");
+    if (reg.status === "SIGNED_IN") throw new BusinessException(ErrorCode.BAD_REQUEST, "已签到，无法取消");
+
+    const updated = await this.prisma.offlineCourseRegistration.update({
+      where: { id: reg.id },
+      data: { status: "CANCELLED" },
+    });
+
+    // 取消确认站内通知（通知失败不影响取消主流程）
+    try {
+      await this.reminder.notifyCancelled(userId, reg.course);
+    } catch { /* 通知层已自吞异常，此处双保险 */ }
+
+    return updated;
+  }
+
+  async signInCourse(operatorUserId: string, stationId: string, qrCode: string) {
+    await this.shared.assertStationOwner(operatorUserId, stationId);
+    const reg = await this.prisma.offlineCourseRegistration.findFirst({
+      where: { qrCode, course: { stationId } },
+      include: { course: true },
+    });
+    if (!reg) throw new BusinessException(ErrorCode.NOT_FOUND, "无效的签到码");
+    if (reg.status === "CANCELLED") throw new BusinessException(ErrorCode.BAD_REQUEST, "报名已取消");
+    if (reg.status === "SIGNED_IN") throw new BusinessException(ErrorCode.BAD_REQUEST, "已签到");
+
+    return this.prisma.offlineCourseRegistration.update({
+      where: { id: reg.id },
+      data: { status: "SIGNED_IN", signedAt: new Date() },
+    });
+  }
+
+  async listRegistrations(operatorUserId: string, courseId: string, rawPage = 1, rawPageSize = 20) {
+    // 越权校验：先由 courseId 反查所属驿站，再校验调用者为驿站主
+    const course = await this.prisma.offlineCourse.findUnique({ where: { id: courseId }, select: { stationId: true } });
+    if (!course) throw new BusinessException(ErrorCode.NOT_FOUND, "课程不存在");
+    await this.shared.assertStationOwner(operatorUserId, course.stationId);
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
+
+    const where = { courseId };
+    const [registrations, total] = await Promise.all([
+      this.prisma.offlineCourseRegistration.findMany({
+        where,
+        // 收敛 select：剔除 qrCode（泄露会导致伪造签到），仅出经营后台所需字段
+        select: {
+          id: true,
+          userId: true,
+          status: true,
+          signedAt: true,
+          createdAt: true,
+        },
+        skip,
+        take: pageSize,
+        orderBy: { createdAt: "asc" },
+      }),
+      this.prisma.offlineCourseRegistration.count({ where }),
+    ]);
+
+    // OfflineCourseRegistration 无 User 关联，批量补全昵称头像（脱敏：仅昵称+avatar）
+    const userIds = [...new Set(registrations.map((r) => r.userId))];
+    const users = userIds.length
+      ? await this.prisma.user.findMany({ where: { id: { in: userIds } }, select: { id: true, nickname: true, avatar: true } })
+      : [];
+    const userMap = new Map(users.map((u) => [u.id, u]));
+    const items = registrations.map((r) => ({
+      ...r,
+      user: { nickname: userMap.get(r.userId)?.nickname || "学员", avatar: userMap.get(r.userId)?.avatar || null },
+    }));
+    return { registrations: items, total, page, pageSize };
+  }
+
+  // ───────── 课后评价（T8 OMO） ─────────
+
+  /** 发表课后评价：仅本人已签到（SIGNED_IN）报名可评；registrationId 唯一防二评 */
+  async createCourseReview(userId: string, courseId: string, dto: { rating: number; content?: string }) {
+    const reg = await this.prisma.offlineCourseRegistration.findUnique({
+      where: { courseId_userId: { courseId, userId } },
+      include: { course: { select: { stationId: true } } },
+    });
+    if (!reg || reg.status === "CANCELLED") {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "未报名该课程，无法评价");
+    }
+    if (reg.status !== "SIGNED_IN") {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "签到上课后才能评价");
+    }
+
+    try {
+      return await this.prisma.offlineCourseReview.create({
+        data: {
+          courseId,
+          stationId: reg.course.stationId, // 冗余驿站 id，便于驿站维度评分聚合
+          userId,
+          registrationId: reg.id,
+          rating: dto.rating,
+          content: dto.content?.trim() || null,
+        },
+      });
+    } catch (e: unknown) {
+      if (isUniqueConstraintError(e)) throw new BusinessException(ErrorCode.BAD_REQUEST, "已评价过本课程");
+      throw e;
+    }
+  }
+
+  /** 课程评价公开分页（脱敏：仅昵称+头像） */
+  async listCourseReviews(courseId: string, rawPage = 1, rawPageSize = 20) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
+    const where = { courseId };
+    const [reviews, total] = await Promise.all([
+      this.prisma.offlineCourseReview.findMany({
+        where,
+        skip,
+        take: pageSize,
+        orderBy: { createdAt: "desc" },
+      }),
+      this.prisma.offlineCourseReview.count({ where }),
+    ]);
+
+    // OfflineCourseReview 无 User 关联，批量补全昵称头像（照抄 adminListCheckins 范式，脱敏只出昵称+avatar）
+    const userIds = [...new Set(reviews.map((r) => r.userId))];
+    const users = userIds.length
+      ? await this.prisma.user.findMany({ where: { id: { in: userIds } }, select: { id: true, nickname: true, avatar: true } })
+      : [];
+    const userMap = new Map(users.map((u) => [u.id, u]));
+
+    const items = reviews.map((r) => {
+      const u = userMap.get(r.userId);
+      return {
+        id: r.id,
+        rating: r.rating,
+        content: r.content,
+        createdAt: r.createdAt,
+        user: { nickname: u?.nickname || "学员", avatar: u?.avatar || null },
+      };
+    });
+    return { items, total, page, pageSize };
+  }
+
+  // ───────── 课后同学圈（T8 OMO） ─────────
+
+  /**
+   * 驿站主为课程创建同学圈（幂等：已有 circleId 直接返回）。
+   * 选型说明：prisma 直建 Circle+CircleMember(OWNER)，照抄 circle.service.create 惯例——
+   * ① CircleService.create 强制默认 status=PENDING（学员无法加入，系统自建圈需直接 ACTIVE）；
+   * ② 其内含外部内容审核调用（课程已过 auditStatus 审核，圈名/简介为平台模板文案，无需再审）；
+   * ③ 避免 OfflineModule 引入 CircleModule 的重依赖树。
+   * 注意：Circle.stationId 外键指向 Station（分站表）而非 StationOffline，故留 null，
+   * 驿站↔圈子关联走 OfflineCourse.circleId。
+   */
+  async createStudyCircle(userId: string, courseId: string) {
+    const course = await this.prisma.offlineCourse.findUnique({
+      where: { id: courseId },
+      include: { station: { select: { id: true, ownerUserId: true } } },
+    });
+    if (!course) throw new BusinessException(ErrorCode.NOT_FOUND, "课程不存在");
+    if (course.station.ownerUserId !== userId) {
+      throw new BusinessException(ErrorCode.FORBIDDEN, "无权操作该驿站课程");
+    }
+    if (course.circleId) return { circleId: course.circleId }; // 幂等
+
+    // 「《标题》同学圈」固定 5 字，标题超长截断保全名 ≤30 字
+    const maxTitle = 25;
+    const title = course.title.length > maxTitle ? `${course.title.slice(0, maxTitle - 1)}…` : course.title;
+    const ownerId = course.station.ownerUserId;
+
+    const circleId = await this.prisma.$transaction(async (tx) => {
+      // 行锁防并发双建：锁课程行后复查 circleId
+      await tx.$queryRaw`SELECT id FROM "OfflineCourse" WHERE id = ${courseId} FOR UPDATE`;
+      const fresh = await tx.offlineCourse.findUnique({ where: { id: courseId }, select: { circleId: true } });
+      if (fresh?.circleId) return fresh.circleId;
+
+      const circle = await tx.circle.create({
+        data: {
+          name: `《${title}》同学圈`,
+          intro: `本圈是《${title}》线下课学员交流圈，欢迎分享学习心得与课堂笔记`,
+          type: "FREE",
+          needApproval: false,
+          status: "ACTIVE",
+          ownerId,
+          members: { create: { userId: ownerId, role: "OWNER" } },
+          memberCount: 1,
+        },
+        select: { id: true },
+      });
+
+      // 圈主角色分配（照抄 circle.service.create 惯例）
+      await tx.userRole.upsert({
+        where: { userId_roleType_bindId: { userId: ownerId, roleType: "CIRCLE_OWNER", bindId: circle.id } },
+        create: { userId: ownerId, roleType: "CIRCLE_OWNER", bindId: circle.id },
+        update: {},
+      });
+
+      await tx.offlineCourse.update({ where: { id: courseId }, data: { circleId: circle.id } });
+      return circle.id;
+    });
+
+    await this.redis.delByPattern("circles:list:*"); // 圈子列表缓存失效（照抄 circle.service 惯例）
+    return { circleId };
+  }
+
+  // ───────── 课程审核 ─────────
+
+  async auditCourse(courseId: string, auditStatus: string, reason?: string) {
+    const course = await this.prisma.offlineCourse.findUnique({ where: { id: courseId } });
+    if (!course) throw new BusinessException(ErrorCode.NOT_FOUND, "课程不存在");
+    return this.prisma.offlineCourse.update({
+      where: { id: courseId },
+      data: {
+        auditStatus,
+        auditReason: reason || null,
+        status: auditStatus === "APPROVED" ? "PUBLISHED" : course.status,
+      },
+    });
+  }
+
+  async toggleRecommend(courseId: string) {
+    const course = await this.prisma.offlineCourse.findUnique({ where: { id: courseId } });
+    if (!course) throw new BusinessException(ErrorCode.NOT_FOUND, "课程不存在");
+    const newVal = !course.isRecommended;
+    return this.prisma.offlineCourse.update({
+      where: { id: courseId },
+      data: { isRecommended: newVal, recommendedAt: newVal ? new Date() : null },
+    });
+  }
+
+  async listPendingCourses(rawPage = 1, rawPageSize = 20, stationId?: string) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
+    const where: Prisma.OfflineCourseWhereInput = { auditStatus: "PENDING" };
+    if (stationId) where.stationId = stationId;
+    const [courses, total] = await Promise.all([
+      this.prisma.offlineCourse.findMany({
+        where,
+        include: { station: { select: { id: true, name: true } } },
+        skip,
+        take: pageSize,
+        orderBy: { createdAt: "desc" },
+      }),
+      this.prisma.offlineCourse.count({ where }),
+    ]);
+    return { courses, total, page, pageSize };
+  }
+
+  async listRecommendedCourses(rawPage = 1, rawPageSize = 20) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
+    const where: Prisma.OfflineCourseWhereInput = { isRecommended: true, status: { not: "DRAFT" } };
+    const [courses, total] = await Promise.all([
+      this.prisma.offlineCourse.findMany({
+        where,
+        include: { station: { select: { id: true, name: true, city: true } } },
+        skip,
+        take: pageSize,
+        orderBy: { recommendedAt: "desc" },
+      }),
+      this.prisma.offlineCourse.count({ where }),
+    ]);
+    return { courses, total, page, pageSize };
+  }
+
+  // ───────── 平台管理视图（跨驿站只读监控） ─────────
+
+  /** 手机号脱敏 138****8000 */
+  private maskPhone(phone?: string | null): string | null {
+    if (!phone) return null;
+    return phone.length >= 11 ? phone.replace(/(\d{3})\d{4}(\d{4})/, "$1****$2") : phone.replace(/.(?=.{2})/g, "*");
+  }
+
+  /** 核销记录（跨驿站签到核销，平台监控）— status=SIGNED_IN */
+  async adminListCheckins(params?: { stationId?: string; page?: number; pageSize?: number }) {
+    const { page, pageSize, skip } = safePagination(params?.page, params?.pageSize);
+    const where: Prisma.OfflineCourseRegistrationWhereInput = { status: "SIGNED_IN" };
+    if (params?.stationId) where.course = { stationId: params.stationId };
+
+    const [regs, total] = await Promise.all([
+      this.prisma.offlineCourseRegistration.findMany({
+        where,
+        include: { course: { select: { id: true, title: true, price: true, station: { select: { id: true, name: true, city: true } } } } },
+        skip,
+        take: pageSize,
+        orderBy: { signedAt: "desc" },
+      }),
+      this.prisma.offlineCourseRegistration.count({ where }),
+    ]);
+
+    // OfflineCourseRegistration 无 User 关联，批量补全用户信息并脱敏
+    const userIds = [...new Set(regs.map((r) => r.userId))];
+    const users = userIds.length
+      ? await this.prisma.user.findMany({ where: { id: { in: userIds } }, select: { id: true, nickname: true, phone: true } })
+      : [];
+    const userMap = new Map(users.map((u) => [u.id, u]));
+
+    const items = regs.map((r) => {
+      const u = userMap.get(r.userId);
+      return {
+        id: r.id,
+        userId: r.userId,
+        userNickname: u?.nickname || "—",
+        userPhone: this.maskPhone(u?.phone),
+        signedAt: r.signedAt,
+        createdAt: r.createdAt,
+        courseId: r.courseId,
+        courseTitle: r.course?.title || "—",
+        amount: r.course?.price ?? 0,
+        station: r.course?.station || null,
+      };
+    });
+    return { items, total, page, pageSize };
+  }
+}
