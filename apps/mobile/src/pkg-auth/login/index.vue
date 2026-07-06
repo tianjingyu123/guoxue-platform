@@ -20,13 +20,10 @@
         <text class="app-subtitle">{{ BRAND.slogan }}</text>
       </view>
 
-      <!-- 登录方式切换 -->
+      <!-- 登录方式（当前仅手机验证码登录·密码登录暂不上线） -->
       <view class="tabs">
-        <view class="tab" :class="{ active: loginType === 'phone' }" @tap="switchType('phone')">
-          <text class="tab-text" :class="{ 'tab-text-active': loginType === 'phone' }">验证码登录</text>
-        </view>
-        <view class="tab" :class="{ active: loginType === 'password' }" @tap="switchType('password')">
-          <text class="tab-text" :class="{ 'tab-text-active': loginType === 'password' }">密码登录</text>
+        <view class="tab active">
+          <text class="tab-text tab-text-active">手机验证码登录</text>
         </view>
       </view>
 
@@ -138,13 +135,7 @@
             <view class="third-circle wechat-circle">
               <AppIcon name="wechat" :size="28" color="#07C160" />
             </view>
-            <text class="third-label">微信</text>
-          </view>
-          <view class="third-item" @tap="handleThirdParty('apple')">
-            <view class="third-circle apple-circle">
-              <AppIcon name="apple" :size="28" color="#2c2c2c" />
-            </view>
-            <text class="third-label">Apple</text>
+            <text class="third-label">微信登录</text>
           </view>
         </view>
       </view>
@@ -166,7 +157,7 @@ import { setToken, setUserInfo } from '@/utils/storage'
 import { BRAND } from '@/lib/brand'
 
 const statusBarHeight = ref(0)
-const logoSrc = ref('/images/logo.jpg')
+const logoSrc = ref('/static/logo.jpg')
 
 // UI 临时状态
 const loginType = ref<'phone' | 'password'>('phone')
