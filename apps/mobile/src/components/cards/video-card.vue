@@ -2,6 +2,7 @@
 /** 视频卡(feed,全图覆盖式)- 从原型 components/cards/video-card.tsx 迁移 */
 import { computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import SmartCover from '@/components/common/smart-cover.vue'
 import { navigateTo } from '@/utils/router'
 import { track } from '@/composables/useTrack'
 import { type VideoCardData, normalizeRatio, formatCount } from '@/lib/card-utils'
@@ -17,7 +18,7 @@ function open() {
 <template>
   <view class="card" hover-class="card-press" @tap="open">
     <view class="cover" :class="ratio === '1:1' ? 'r-sq' : 'r-34'">
-      <image v-if="data.cover" class="cover-img" :src="data.cover" mode="aspectFill" lazy-load />
+      <smart-cover class="cover-img" :src="data.cover" :title="data.title" type="video" />
       <text class="type-badge">视频</text>
       <!-- 播放按钮 -->
       <view class="play"><AppIcon name="play" :size="40" color="#ffffff" :fill="true" /></view>

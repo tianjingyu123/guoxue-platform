@@ -7,6 +7,7 @@ import { ref, computed } from 'vue'
 import { onLoad, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 import { useShare } from '@/composables/useShare'
 import AppIcon from '@/components/common/app-icon.vue'
+import SmartCover from '@/components/common/smart-cover.vue'
 import PostCard from '@/components/circle/post-card.vue'
 import { goBack, navigateTo, toastComingSoon } from '@/utils/router'
 import { getToken } from '@/utils/storage'
@@ -210,7 +211,7 @@ function openAssistant() { navigateTo(`/pkg-circle/circles/assistant?circleId=${
   <view class="cd" v-if="!isLoading && !error && circle">
     <!-- 顶部封面 -->
     <view class="cd-cover">
-      <image lazy-load :src="circle.cover" class="cd-cover-img" mode="aspectFill" />
+      <smart-cover :src="circle.cover" :title="circle.name" type="circle" class="cd-cover-img" />
       <view class="cd-cover-mask" />
       <view class="cd-nav">
         <view class="cd-nav-btn" @tap="goBack"><app-icon name="arrow-left" :size="40" color="#ffffff" /></view>

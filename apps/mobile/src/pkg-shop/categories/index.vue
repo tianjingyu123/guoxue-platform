@@ -70,7 +70,7 @@
               hover-class="card-hover"
               @tap="goProduct(p.id)"
             >
-              <image lazy-load class="goods-img" :src="p.cover || '/static/placeholder.png'" mode="aspectFill" />
+              <smart-cover class="goods-img" :src="p.cover" :title="p.name" type="product" />
               <text class="goods-name">{{ p.name }}</text>
               <view class="goods-price-row">
                 <text class="goods-price">¥{{ formatPrice(p.price) }}</text>
@@ -96,6 +96,7 @@ import { ref, computed, onMounted } from 'vue'
 import { navigateTo } from '@/utils/router'
 import { shopApi, type ShopCategoryNode, type ShopCategoryProduct } from '@/lib/shop-data'
 import AppSkeleton from '@/components/common/app-skeleton.vue'
+import SmartCover from '@/components/common/smart-cover.vue'
 import { formatPrice } from '@/utils/format'
 
 const categories = ref<ShopCategoryNode[]>([])

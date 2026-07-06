@@ -3,6 +3,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { goBack, navigateTo } from '@/utils/router'
 import AppIcon from '@/components/common/app-icon.vue'
+import SmartCover from '@/components/common/smart-cover.vue'
 import { courseApi } from '@/lib/course-data'
 
 const loading = ref(true)
@@ -249,7 +250,7 @@ onMounted(() => {
         <view v-else class="tl-list">
           <view v-for="course in courses" :key="course.id" class="tl-item">
             <app-icon name="grip-vertical" :size="28" color="#DDDDDD" />
-            <image lazy-load class="tl-cover" :src="course.cover" mode="aspectFill" />
+            <smart-cover class="tl-cover" :src="course.cover" :title="course.title" type="course" />
             <view class="tl-info">
               <text class="tl-name">{{ course.title }}</text>
               <view class="tl-prog-row">

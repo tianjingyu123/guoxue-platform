@@ -2,6 +2,7 @@
 /** 商品卡(feed)- 从原型 components/cards/product-card.tsx 迁移 */
 import { computed } from 'vue'
 import { navigateTo } from '@/utils/router'
+import SmartCover from '@/components/common/smart-cover.vue'
 import { type ProductCardData, normalizeRatio, formatCount, productHotKind } from '@/lib/card-utils'
 import { formatPrice } from '@/utils/format'
 
@@ -22,7 +23,7 @@ function open() { navigateTo(`/mall/product/${props.data.id}`) }
 <template>
   <view class="card" hover-class="card-press" @tap="open">
     <view class="cover" :class="ratio === '1:1' ? 'r-sq' : 'r-34'">
-      <image class="cover-img" :src="data.cover || '/static/placeholder.png'" mode="aspectFill" lazy-load />
+      <smart-cover class="cover-img" :src="data.cover" :title="data.title" type="product" />
       <text class="type-badge">好物</text>
       <text v-if="kind" class="hot-badge" :class="kind === 'new' ? 'hot-new' : 'hot-red'">{{ hotText }}</text>
     </view>

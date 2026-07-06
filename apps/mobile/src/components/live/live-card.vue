@@ -2,6 +2,7 @@
 /** 直播广场卡片 - 从原型 components/live/live-card.tsx 迁移（与首页 feed 的 cards/live-card 不同） */
 import { ref, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import SmartCover from '@/components/common/smart-cover.vue'
 import { navigateTo } from '@/utils/router'
 import type { LiveItem } from '@/lib/live-data'
 import { formatPrice } from '@/utils/format'
@@ -30,7 +31,7 @@ function toggleBook() {
   <view class="lc" hover-class="lc-press" @tap="open">
     <!-- 封面 -->
     <view class="cover" :class="data.orientation === 'horizontal' ? 'r-169' : 'r-34'">
-      <image lazy-load v-if="data.cover" class="cover-img" :src="data.cover" mode="aspectFill" />
+      <smart-cover class="cover-img" :src="data.cover" :title="data.title" type="live" />
       <view class="grad" />
       <!-- 类型标签 左上 -->
       <text class="type-badge" :class="data.type === 'knowledge' ? 'tb-know' : 'tb-comm'">{{ typeLabel }}</text>

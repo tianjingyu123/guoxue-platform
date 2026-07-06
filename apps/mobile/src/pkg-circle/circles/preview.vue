@@ -11,7 +11,7 @@
     <template v-else>
       <!-- 封面 -->
       <view class="pv-cover">
-        <image lazy-load class="pv-cover-img" :src="circle.cover" mode="aspectFill" />
+        <smart-cover class="pv-cover-img" :src="circle.cover" :title="circle.name" type="circle" />
         <view class="pv-cover-mask" />
         <view class="pv-nav">
           <view class="pv-nav-btn" @tap="goBack"><app-icon name="chevron-left" :size="36" color="#ffffff" /></view>
@@ -151,6 +151,7 @@
  */
 import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import SmartCover from '@/components/common/smart-cover.vue'
 import { goBack, toastComingSoon } from '@/utils/router'
 import { formatPrice } from '@/utils/format'
 

@@ -2,6 +2,7 @@
 /** 主播列表 - 从原型 app/live/hosts/page.tsx 迁移 */
 import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import SmartCover from '@/components/common/smart-cover.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { liveApi, type LiveHost } from '@/lib/live-data'
 
@@ -106,7 +107,7 @@ function fmtLikes(n: number) {
       <view class="list">
         <view v-for="host in filtered" :key="host.id" class="host-card" @tap="open(host.id)">
           <view class="cover">
-            <image lazy-load class="cover-img" :src="host.cover" mode="aspectFill" />
+            <smart-cover class="cover-img" :src="host.cover" :title="host.name" type="live" />
             <view v-if="host.isLive" class="cover-mask">
               <view class="live-tag">
                 <AppIcon name="radio" :size="20" color="#ffffff" /><text class="tag-txt">直播中</text>

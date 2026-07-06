@@ -3,6 +3,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { navigateTo, goBack } from '@/utils/router'
 import AppIcon from '@/components/common/app-icon.vue'
+import SmartCover from '@/components/common/smart-cover.vue'
 import { courseApi } from '@/lib/course-data'
 import { formatPrice } from '@/utils/format'
 
@@ -120,7 +121,7 @@ onUnmounted(() => { if (timer) clearInterval(timer) })
     <view class="list">
       <view v-for="course in sessionCourses" :key="course.id" class="card">
         <view class="card-cover">
-          <image lazy-load class="cover-img" :src="course.cover" mode="aspectFill" />
+          <smart-cover class="cover-img" :src="course.cover" :title="course.title" type="course" />
           <view class="cover-tags">
             <view class="tag-discount">
               <app-icon name="tag" :size="20" color="#1a1815" />

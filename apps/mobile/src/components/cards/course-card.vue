@@ -4,6 +4,7 @@ import { computed } from 'vue'
 import { navigateTo } from '@/utils/router'
 import { track } from '@/composables/useTrack'
 import AppIcon from '@/components/common/app-icon.vue'
+import SmartCover from '@/components/common/smart-cover.vue'
 import { type CourseCardData, type CardVariant, normalizeRatio, formatCount, courseHotKind } from '@/lib/card-utils'
 import { formatPrice } from '@/utils/format'
 
@@ -30,7 +31,7 @@ function open() {
   <!-- ---------- 横滑小卡 rail ---------- -->
   <view v-if="variant === 'rail'" class="rail" hover-class="card-press" @tap="open">
     <view class="cover r-sq">
-      <image class="cover-img" :src="data.cover || '/static/placeholder.png'" mode="aspectFill" lazy-load />
+      <smart-cover class="cover-img" :src="data.cover" :title="data.title" type="course" />
       <text class="type-badge">课程</text>
     </view>
     <view class="rail-body">
@@ -49,7 +50,7 @@ function open() {
   <view v-else-if="variant === 'rank'" class="rank" hover-class="card-press" @tap="open">
     <text class="rank-badge" :class="rankClass">{{ rank }}</text>
     <view class="rank-cover">
-      <image class="cover-img" :src="data.cover || '/static/placeholder.png'" mode="aspectFill" lazy-load />
+      <smart-cover class="cover-img" :src="data.cover" :title="data.title" type="course" />
     </view>
     <view class="rank-info">
       <text class="rank-title">{{ data.title }}</text>
@@ -67,7 +68,7 @@ function open() {
   <!-- ---------- 横向列表卡 list ---------- -->
   <view v-else-if="variant === 'list'" class="list" hover-class="card-press" @tap="open">
     <view class="list-cover">
-      <image class="cover-img" :src="data.cover || '/static/placeholder.png'" mode="aspectFill" lazy-load />
+      <smart-cover class="cover-img" :src="data.cover" :title="data.title" type="course" />
     </view>
     <view class="list-body">
       <view>
@@ -89,7 +90,7 @@ function open() {
   <!-- ---------- 瀑布流竖卡 feed(默认) ---------- -->
   <view v-else class="card" hover-class="card-press" @tap="open">
     <view class="cover" :class="ratio === '1:1' ? 'r-sq' : 'r-34'">
-      <image class="cover-img" :src="data.cover || '/static/placeholder.png'" mode="aspectFill" lazy-load />
+      <smart-cover class="cover-img" :src="data.cover" :title="data.title" type="course" />
       <text class="type-badge">课程</text>
       <text v-if="kind" class="hot-badge" :class="kind === 'new' ? 'hot-new' : 'hot-red'">{{ hotText }}</text>
     </view>

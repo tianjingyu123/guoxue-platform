@@ -90,7 +90,7 @@
             @tap="goDetail(video.id)"
           >
             <view class="vs-result-cover">
-              <image lazy-load class="vs-result-img" :src="video.cover" mode="aspectFill" />
+              <smart-cover class="vs-result-img" :src="video.cover" :title="video.title" type="video" />
               <text class="vs-result-dur">{{ video.duration }}</text>
               <view class="vs-result-play-wrap">
                 <view class="vs-result-play">
@@ -126,6 +126,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import SmartCover from '@/components/common/smart-cover.vue'
 import { navigateTo } from '@/utils/router'
 import { videoApi, videoFallbackKeywords, fetchVideoHotKeywords, type VideoSearchResult } from '@/lib/video-data'
 

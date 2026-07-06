@@ -4,6 +4,7 @@ import { ref, computed, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { navigateTo, goBack } from '@/utils/router'
 import AppIcon from '@/components/common/app-icon.vue'
+import SmartCover from '@/components/common/smart-cover.vue'
 import { instructorApi, getInstructorLevelLabel, getInstructorLevelStyle } from '@/lib/instructor-data'
 
 const loading = ref(true)
@@ -177,7 +178,7 @@ onMounted(() => {
           class="course-item"
           @tap="navigateTo(`/courses/${c.id}`)"
         >
-          <image lazy-load class="course-cover" :src="c.cover" mode="aspectFill" />
+          <smart-cover class="course-cover" :src="c.cover" :title="c.title" type="course" />
           <view class="course-info">
             <text class="course-title">{{ c.title }}</text>
             <view class="course-meta">

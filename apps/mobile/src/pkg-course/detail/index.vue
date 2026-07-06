@@ -5,6 +5,7 @@ import { onLoad, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 import { navigateTo, goBack } from '@/utils/router'
 import { useShare } from '@/composables/useShare'
 import AppIcon from '@/components/common/app-icon.vue'
+import SmartCover from '@/components/common/smart-cover.vue'
 import PurchaseSheet from '@/components/common/purchase-sheet.vue'
 import TeacherCertBadge from '@/components/common/teacher-cert-badge.vue'
 import { courseApi } from '@/lib/course-data'
@@ -160,7 +161,7 @@ onMounted(() => {
   <view v-else class="page">
     <!-- 封面区域 -->
     <view class="cover">
-      <image lazy-load class="cover-img" :src="course.cover" mode="aspectFill" />
+      <smart-cover class="cover-img" :src="course.cover" :title="course.title" type="course" />
       <view class="cover-mask" />
       <!-- 顶部导航 -->
       <view class="cover-nav">

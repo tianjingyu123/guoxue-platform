@@ -2,6 +2,7 @@
 /** 直播卡(feed)- 从原型 components/cards/live-card.tsx 迁移 */
 import { ref, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import SmartCover from '@/components/common/smart-cover.vue'
 import { navigateTo } from '@/utils/router'
 import { track } from '@/composables/useTrack'
 import { type LiveCardData, normalizeRatio, formatCount } from '@/lib/card-utils'
@@ -21,7 +22,7 @@ function toggleBook() { booked.value = !booked.value }
 <template>
   <view class="card" :class="status === 'live' && 'card-live'" hover-class="card-press" @tap="open">
     <view class="cover" :class="ratio === '1:1' ? 'r-sq' : 'r-34'">
-      <image v-if="data.cover" class="cover-img" :src="data.cover" mode="aspectFill" lazy-load />
+      <smart-cover class="cover-img" :src="data.cover" :title="data.title" type="live" />
       <view class="grad" />
       <!-- 类型标 -->
       <text class="type-badge">{{ typeLabel }}</text>

@@ -55,7 +55,7 @@
         <view class="hot-list">
           <view v-for="(item, idx) in hotReplays" :key="item.id" class="hot-card" @tap="openReplay(item)">
             <view class="hot-cover">
-              <image lazy-load class="hot-img" :src="item.cover" mode="aspectFill" />
+              <smart-cover class="hot-img" :src="item.cover" :title="item.title" type="live" />
               <view class="hot-mask" />
               <view class="hot-tag">
                 <text class="hot-tag-emoji">🔥</text>
@@ -98,7 +98,7 @@
         <view class="grid">
           <view v-for="item in filteredReplays" :key="item.id" class="grid-card" @tap="openReplay(item)">
             <view class="grid-cover">
-              <image lazy-load class="grid-img" :src="item.cover" mode="aspectFill" />
+              <smart-cover class="grid-img" :src="item.cover" :title="item.title" type="live" />
               <view class="grid-mask" />
               <view class="grid-replay-tag">
                 <AppIcon name="play" :size="24" color="#fff" />
@@ -160,6 +160,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import SmartCover from '@/components/common/smart-cover.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import {
   liveApi,

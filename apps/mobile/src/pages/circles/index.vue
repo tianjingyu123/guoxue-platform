@@ -9,6 +9,7 @@
 import { ref, onMounted } from 'vue'
 import BottomNav from '@/components/bottom-nav/bottom-nav.vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import SmartCover from '@/components/common/smart-cover.vue'
 import CircleCard from '@/components/circle/circle-card.vue'
 import { navigateTo } from '@/utils/router'
 import {
@@ -324,7 +325,7 @@ onMounted(() => { loadCircles(); loadExtras() })
               v-for="c in myCircles" :key="c.id"
               class="mine-item" @tap="go(`/pkg-circle/circles/detail?id=${c.id}`)"
             >
-              <image lazy-load :src="c.cover" class="mine-cover" mode="aspectFill" />
+              <smart-cover :src="c.cover" :title="c.name" type="circle" class="mine-cover" />
               <view class="mine-item-info">
                 <text class="mine-item-name">{{ c.name }}</text>
                 <text class="mine-item-meta">{{ formatMembers(c.members) }}成员 · {{ c.posts }}帖子</text>

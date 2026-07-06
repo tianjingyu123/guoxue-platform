@@ -60,7 +60,7 @@
           @tap="goDetail(video.id)"
         >
           <view class="vl-cover" :style="{ paddingBottom: coverRatio(video) }">
-            <image lazy-load class="vl-cover-img" :src="video.coverUrl" mode="aspectFill" />
+            <smart-cover class="vl-cover-img" :src="video.coverUrl" :title="video.title" type="video" />
             <view class="vl-cover-mask" />
             <view v-if="video.isHot" class="vl-tag vl-tag-hot">
               <AppIcon name="trending-up" :size="20" color="#ffffff" />
@@ -103,7 +103,7 @@
           @tap="goDetail(video.id)"
         >
           <view class="vl-cover" :style="{ paddingBottom: coverRatio(video) }">
-            <image lazy-load class="vl-cover-img" :src="video.coverUrl" mode="aspectFill" />
+            <smart-cover class="vl-cover-img" :src="video.coverUrl" :title="video.title" type="video" />
             <view class="vl-cover-mask" />
             <view v-if="video.isHot" class="vl-tag vl-tag-hot">
               <AppIcon name="trending-up" :size="20" color="#ffffff" />
@@ -149,6 +149,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import SmartCover from '@/components/common/smart-cover.vue'
 import { navigateTo } from '@/utils/router'
 import {
   videoApi,

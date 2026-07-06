@@ -6,6 +6,7 @@
  */
 import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import SmartCover from '@/components/common/smart-cover.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { circleApi, type Circle } from '@/lib/circle-data'
 
@@ -105,7 +106,7 @@ onMounted(() => { fetchCircles() })
       <!-- 列表 -->
       <view v-else class="mc-list">
         <view v-for="(c, i) in displayCircles" :key="c.id" class="mc-card" @tap="openCircle(c.id)">
-          <image lazy-load :src="c.cover" class="mc-card-cover" mode="aspectFill" />
+          <smart-cover :src="c.cover" :title="c.name" type="circle" class="mc-card-cover" />
           <view class="mc-card-main">
             <view class="mc-card-name-row">
               <text class="mc-card-name">{{ c.name }}</text>

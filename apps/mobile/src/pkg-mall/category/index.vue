@@ -3,6 +3,7 @@
 import { ref, computed } from 'vue'
 import { onLoad, onReachBottom } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
+import SmartCover from '@/components/common/smart-cover.vue'
 import AppLoadMore from '@/components/common/app-load-more.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { shopApi } from '@/lib/shop-data'
@@ -135,7 +136,7 @@ function openProduct(id: string | number) { navigateTo(`/mall/product/${id}`) }
         <view v-if="categoryProducts.length" class="grid">
           <view v-for="p in categoryProducts" :key="p.id" class="g-card" hover-class="g-card-press" @tap="openProduct(p.id)">
             <view class="g-cover">
-              <image lazy-load class="g-img" :src="p.cover || '/static/placeholder.png'" mode="aspectFill" />
+              <smart-cover class="g-img" :src="p.cover" :title="p.name" type="product" />
               <text v-if="p.isMemberFree" class="g-badge">会员免费</text>
             </view>
             <view class="g-body">

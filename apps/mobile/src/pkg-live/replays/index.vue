@@ -39,7 +39,7 @@
         <view class="card-inner">
           <!-- 封面 -->
           <view class="cover">
-            <image lazy-load class="cover-img" :src="item.cover" mode="aspectFill" />
+            <smart-cover class="cover-img" :src="item.cover" :title="item.title" type="live" />
             <view class="replay-tag">
               <AppIcon name="play" :size="20" color="#fff" />
               <text class="replay-txt">回放</text>
@@ -97,6 +97,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import SmartCover from '@/components/common/smart-cover.vue'
 import { goBack } from '@/utils/router'
 import { liveApi, replaySortOptions, formatLiveDuration, formatLiveViews } from '@/lib/live-data'
 

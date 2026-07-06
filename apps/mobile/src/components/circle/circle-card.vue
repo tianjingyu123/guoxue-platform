@@ -1,6 +1,7 @@
 <script setup lang="ts">
 /** 圈子卡片（原型 app/circles/page.tsx CircleCard，2列网格用） */
 import AppIcon from '@/components/common/app-icon.vue'
+import SmartCover from '@/components/common/smart-cover.vue'
 import { navigateTo } from '@/utils/router'
 import { track } from '@/composables/useTrack'
 import { formatMembers, type Circle } from '@/lib/circle-data'
@@ -21,7 +22,7 @@ function onJoin() {
   <view class="card" @tap="openDetail">
     <!-- 封面 -->
     <view class="cover-wrap">
-      <image :src="circle.cover" class="cover" mode="aspectFill" lazy-load />
+      <smart-cover :src="circle.cover" :title="circle.name" type="circle" class="cover" />
       <!-- 排名角标（前三：金/银/铜） -->
       <view
         v-if="circle.rank && circle.rank <= 3"
