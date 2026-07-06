@@ -45,13 +45,26 @@ export class ShopPaymentService {
   /** 创建微信支付JSAPI订单（小程序内支付） */
   async createJsapiPayment(
     userId: string,
-    openid: string,
+    openid: string | undefined,
     orderId: string,
     notifyUrl?: string,
   ) {
     const order = await this.orderSvc.getOrder(orderId);
     if (!order || order.userId !== userId) throw new BusinessException(ErrorCode.ORDER_NOT_FOUND, "订单不存在");
     if (order.status !== "PENDING") throw new BusinessException(ErrorCode.ORDER_STATUS_INVALID, "订单状态不可支付");
+
+    // openid 未显式传入时（小程序端不便获取），从用户已绑定的微信授权记录中查取，与充值 JSAPI 保持一致
+    let payerOpenid = openid;
+    if (!payerOpenid) {
+      const wechatAuth = await this.prisma.auth.findFirst({
+        where: { userId, provider: "WECHAT" },
+        select: { openId: true },
+      });
+      if (!wechatAuth?.openId) {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "未绑定微信，请在微信小程序内使用微信登录后再支付");
+      }
+      payerOpenid = wechatAuth.openId;
+    }
 
     const outTradeNo = `GX${Date.now()}${orderId.slice(0, 8)}`;
     const totalFen = Math.round(Number(order.amount) * RMB_TO_FEN);
@@ -60,7 +73,7 @@ export class ShopPaymentService {
       outTradeNo,
       description: `国学平台订单-${orderId.slice(0, 8)}`,
       amount: { total: totalFen },
-      payer: { openid },
+      payer: { openid: payerOpenid },
       attach: orderId,
       notifyUrl,
     });

@@ -289,10 +289,9 @@ export class ModerateProductDto {
 }
 
 export class JsapiPayDto {
-  @ApiProperty({ description: "微信openid" })
-  @IsString()
-  @MinLength(1)
-  openid: string;
+  @ApiPropertyOptional({ description: "微信openid（可选；不传则后端从用户已绑定的微信授权记录中查取）" })
+  @IsOptional() @IsString()
+  openid?: string;
 
   @ApiPropertyOptional({ description: "回调通知地址" })
   @IsOptional() @IsString()

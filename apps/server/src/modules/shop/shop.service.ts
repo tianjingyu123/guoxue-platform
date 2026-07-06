@@ -129,7 +129,7 @@ export class ShopService {
     return this.orderSvc.getUserOrders(userId, page, pageSize, status);
   }
 
-  createJsapiPayment(userId: string, openid: string, orderId: string, notifyUrl?: string) {
+  createJsapiPayment(userId: string, openid: string | undefined, orderId: string, notifyUrl?: string) {
     return this.paymentSvc.createJsapiPayment(userId, openid, orderId, notifyUrl);
   }
 

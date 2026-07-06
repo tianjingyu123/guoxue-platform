@@ -133,12 +133,41 @@ async function startPaying() {
   pollCount = 0
   failReason.value = ''
   startCountdown()
-  // 发起微信 Native 支付（本地无商户证书会失败，不阻断；微信回调或管理员确认置 PAID 后轮询可见，闭环可验证）
+  // #ifdef MP-WEIXIN
+  // 微信小程序内：走 JSAPI 支付，唤起微信收银台（到账以支付回调为准）
+  try {
+    const p = await shopApi.payOrderJsapi(orderId.value)
+    await new Promise<void>((resolve, reject) => {
+      uni.requestPayment({
+        provider: 'wxpay',
+        timeStamp: p.timeStamp,
+        nonceStr: p.nonceStr,
+        package: p.package,
+        signType: p.signType as 'MD5' | 'HMAC-SHA256' | 'RSA',
+        paySign: p.paySign,
+        success: () => resolve(),
+        fail: (err: { errMsg?: string }) => reject(new Error(err?.errMsg?.includes('cancel') ? '支付已取消' : (err?.errMsg || '支付失败'))),
+      })
+    })
+  } catch (e) {
+    const msg = (e as Error)?.message || ''
+    if (msg.includes('取消') || msg.includes('cancel')) {
+      status.value = 'cancelled'
+      clearTimers('all')
+      return
+    }
+    // 唤起/支付失败不阻断：继续轮询订单状态以等待支付确认
+    console.warn('[paying] JSAPI 支付未完成，继续轮询订单状态', e)
+  }
+  // #endif
+  // #ifndef MP-WEIXIN
+  // 非微信小程序端：发起微信 Native 扫码支付（本地无商户证书会失败，不阻断；回调或管理员确认置 PAID 后轮询可见）
   try {
     await shopApi.payOrderNative(orderId.value)
   } catch (e) {
     console.warn('[paying] 发起支付失败，继续轮询订单状态以等待支付确认', e)
   }
+  // #endif
   startPolling()
 }
 

@@ -20,10 +20,13 @@
         <text class="app-subtitle">{{ BRAND.slogan }}</text>
       </view>
 
-      <!-- 登录方式（当前仅手机验证码登录·密码登录暂不上线） -->
+      <!-- 登录方式：手机验证码 + 密码 -->
       <view class="tabs">
-        <view class="tab active">
-          <text class="tab-text tab-text-active">手机验证码登录</text>
+        <view class="tab" :class="{ active: loginType === 'phone' }" @tap="switchType('phone')">
+          <text class="tab-text" :class="{ 'tab-text-active': loginType === 'phone' }">验证码登录</text>
+        </view>
+        <view class="tab" :class="{ active: loginType === 'password' }" @tap="switchType('password')">
+          <text class="tab-text" :class="{ 'tab-text-active': loginType === 'password' }">密码登录</text>
         </view>
       </view>
 
@@ -247,8 +250,37 @@ async function handleLogin() {
   }
 }
 
-function handleThirdParty(_type: 'wechat' | 'apple') {
-  // 第三方登录 SDK 交给 @/lib 层
+// @data-needs: 微信登录, uni.login 拿 code → POST /auth/login/wechat, 返回 {token, user}
+async function handleThirdParty(_type: 'wechat') {
+  if (isLoading.value) return
+  // #ifdef MP-WEIXIN
+  isLoading.value = true
+  error.value = ''
+  try {
+    const code = await new Promise<string>((resolve, reject) => {
+      uni.login({
+        provider: 'weixin',
+        success: (res) => (res.code ? resolve(res.code) : reject(new Error('未获取到微信授权 code'))),
+        fail: (err: { errMsg?: string }) => reject(new Error(err?.errMsg || '微信授权失败')),
+      })
+    })
+    const res = await authApi.wechatLogin(code)
+    if (res.success && res.data?.token) {
+      setToken(res.data.token)
+      setUserInfo(res.data.user)
+      uni.reLaunch({ url: '/pages/index/index' })
+    } else {
+      uni.showToast({ title: res.message || '微信登录失败', icon: 'none' })
+    }
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '微信登录失败', icon: 'none' })
+  } finally {
+    isLoading.value = false
+  }
+  // #endif
+  // #ifndef MP-WEIXIN
+  uni.showToast({ title: '请在微信小程序内使用微信登录', icon: 'none' })
+  // #endif
 }
 
 function goForgot() {
@@ -564,9 +596,6 @@ onUnmounted(() => {
 }
 .wechat-circle {
   background: rgba(7, 193, 96, 0.1);
-}
-.apple-circle {
-  background: rgba(44, 44, 44, 0.1);
 }
 .third-label {
   font-size: 24rpx;

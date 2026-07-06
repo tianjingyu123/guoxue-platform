@@ -900,6 +900,16 @@ export const checkoutAddresses: ShippingAddress[] = [
   { id: '2', name: '李四', phone: '139****9999', province: '上海市', city: '上海市', district: '浦东新区', address: '张江高科技园区博云路2号', isDefault: false },
 ]
 
+/** 微信 JSAPI 支付参数（uni.requestPayment 所需，后端 signJsapiConfig 生成） */
+export interface WechatJsapiPayParams {
+  appId: string
+  timeStamp: string
+  nonceStr: string
+  package: string
+  signType: string
+  paySign: string
+}
+
 export interface PayMethodOption { id: string; name: string; badge: string; badgeColor: string }
 export const payMethods: PayMethodOption[] = [
   { id: 'wechat', name: '微信支付', badge: '微', badgeColor: '#07C160' },
@@ -2100,6 +2110,14 @@ export const shopApi = {
       sourceContentId: source?.id,
     })
     return { id: res.id || '', amount: shopNum(res.amount), status: res.status || 'PENDING' }
+  },
+
+  /**
+   * 发起微信 JSAPI 支付（小程序内）— POST /shop/orders/:id/pay/jsapi。
+   * openid 由后端从用户已绑定的微信授权记录中查取（无需前端传），返回 uni.requestPayment 所需参数。
+   */
+  async payOrderJsapi(orderId: string): Promise<WechatJsapiPayParams> {
+    return await apiPost<WechatJsapiPayParams>(`/shop/orders/${orderId}/pay/jsapi`, {})
   },
 
   /** 发起微信 Native 扫码支付 — POST /shop/orders/:id/pay/native（返回 code_url 二维码；本地无商户证书会失败，走错误态） */

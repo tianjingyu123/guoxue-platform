@@ -86,6 +86,21 @@ export const authApi = {
     }
   },
 
+  /** 微信登录（小程序）— POST /auth/login/wechat，code 由 uni.login 获取，后端 code2session 换 openId */
+  async wechatLogin(code: string): Promise<AuthResponse> {
+    try {
+      const data = await apiPost<RawAuthData>('/auth/login/wechat', {
+        code,
+        loginType: 'miniprogram',
+        // 新用户自动注册时绑定最近分享者作为归属
+        referrerCode: getTempReferrer(),
+      })
+      return adaptAuthResult(data)
+    } catch (e: any) {
+      return { success: false, message: e?.message || '微信登录失败' }
+    }
+  },
+
   /** 手机号注册 — POST /auth/register/phone */
   async register(params: { phone: string; code: string; password: string; nickname: string }): Promise<AuthResponse> {
     try {

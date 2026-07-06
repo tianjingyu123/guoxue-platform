@@ -70,7 +70,7 @@
               hover-class="card-hover"
               @tap="goProduct(p.id)"
             >
-              <image lazy-load class="goods-img" :src="p.cover" mode="aspectFill" />
+              <image lazy-load class="goods-img" :src="p.cover || '/static/placeholder.png'" mode="aspectFill" />
               <text class="goods-name">{{ p.name }}</text>
               <view class="goods-price-row">
                 <text class="goods-price">¥{{ p.price }}</text>
