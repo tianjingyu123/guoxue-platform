@@ -287,13 +287,16 @@ function pickOption(v: string) {
 
 <style scoped>
 .page {
-  min-height: 100vh;
+  /* iOS Safari flexbox bug：min-height 容器里的 flex:1 子项(scroll-view)会算出高度0导致内容
+     空白(安卓正常)。改用固定 height:100vh，flex:1 才能正确填充剩余高度。 */
+  height: 100vh;
   background: #faf8f5;
   display: flex;
   flex-direction: column;
 }
 .scroll {
   flex: 1;
+  min-height: 0;
   height: 0;
 }
 .group {
