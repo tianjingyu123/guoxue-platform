@@ -85,9 +85,11 @@ export class WechatService {
   ) {
     this.appId = process.env.WECHAT_APP_ID || "";
     this.appSecret = process.env.WECHAT_APP_SECRET || "";
-    // 小程序独立凭证，未配置时回退到公众号凭证
+    // 小程序独立凭证，未配置时回退到公众号/开放平台凭证
+    // miniAppSecret 优先读「微信小程序」卡片配的 MINIPROGRAM_APP_SECRET（后台第三方配置），
+    // 修复原先误读开放平台 WECHAT_APP_SECRET 导致小程序卡片配的密钥不生效的问题。
     this.miniAppId = process.env.WECHAT_MINI_APP_ID || this.appId;
-    this.miniAppSecret = process.env.WECHAT_APP_SECRET || "";
+    this.miniAppSecret = process.env.MINIPROGRAM_APP_SECRET || process.env.WECHAT_APP_SECRET || "";
 
     if (!this.appId || !this.appSecret) {
       this.logger.warn("微信 AppId/AppSecret 未配置，微信登录暂不可用。");
