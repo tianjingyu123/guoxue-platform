@@ -16,6 +16,7 @@ import {
   formatCount,
 } from '@/lib/home-data'
 import { formatPrice } from '@/utils/format'
+import SmartCover from '@/components/common/smart-cover.vue'
 
 const props = defineProps<{ data: RenderItem }>()
 
@@ -26,7 +27,9 @@ const agent = computed(() => (props.data.kind === 'agent' ? props.data.agent : n
 // 视觉卡：课程/商品/直播(竖)/视频/电子书
 const VISUAL_TYPES = ['course', 'product', 'live', 'video', 'ebook']
 const cardType = computed(() => item.value?.type ?? '')
-const isVisual = computed(() => VISUAL_TYPES.includes(cardType.value) && !!item.value?.cover)
+// 视觉类型(课程/商品/直播/视频/电子书)一律走视觉卡：无 cover 时由 smart-cover 生成雅致封面
+// (原来要求 !!cover，导致内容普遍缺图时这些卡进不了视觉卡、首页全是文字卡显单调)
+const isVisual = computed(() => VISUAL_TYPES.includes(cardType.value))
 const isArticle = computed(() => cardType.value === 'article' && !!item.value?.cover)
 const isTextOnly = computed(
   () => (!item.value?.cover && (cardType.value === 'article' || cardType.value === 'post')),
@@ -110,7 +113,7 @@ const theme = computed(() => agentThemes[agent.value?.type ?? 'general'] ?? agen
   <!-- ============ 视觉卡：课程/商品/直播/视频/电子书 ============ -->
   <view v-else-if="item && isVisual" class="card card-press" :class="{ 'live-card-glow': isLiveNow }" @tap="go">
     <view class="cover" :style="{ aspectRatio: aspect }">
-      <image :src="item.cover!" class="cover-img" mode="aspectFill" lazy-load />
+      <smart-cover :src="item.cover" :title="item.title" :type="cardType" class="cover-img" />
       <text v-if="badge" class="type-badge" :style="{ background: badge.bg }">{{ badge.label }}</text>
       <!-- 直播中呼吸灯 -->
       <view v-if="isLiveNow" class="live-tag live-indicator">
@@ -168,7 +171,7 @@ const theme = computed(() => agentThemes[agent.value?.type ?? 'general'] ?? agen
   <!-- ============ 文章卡（带封面） ============ -->
   <view v-else-if="item && isArticle" class="card card-press" @tap="go">
     <view class="cover" :style="{ aspectRatio: aspect }">
-      <image :src="item.cover!" class="cover-img" mode="aspectFill" lazy-load />
+      <smart-cover :src="item.cover" :title="item.title" :type="cardType" class="cover-img" />
       <text class="type-badge" :style="{ background: typeConfig.article.bg }">文章</text>
     </view>
     <view class="info">
@@ -241,7 +244,7 @@ const theme = computed(() => agentThemes[agent.value?.type ?? 'general'] ?? agen
   <!-- ============ 圈子卡（masonry 简版） ============ -->
   <view v-else-if="item && isCircle" class="card card-press" @tap="go">
     <view class="cover" :style="{ aspectRatio: aspect }">
-      <image :src="item.cover!" class="cover-img" mode="aspectFill" lazy-load />
+      <smart-cover :src="item.cover" :title="item.title" :type="cardType" class="cover-img" />
       <text class="type-badge" :style="{ background: typeConfig.circle.bg }">圈子</text>
     </view>
     <view class="info">

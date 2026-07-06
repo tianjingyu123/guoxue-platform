@@ -49,9 +49,10 @@ export class HomeService {
 
   private async getBanners(): Promise<BannerDto[]> {
     return [
-      { id: "1", image: "/static/images/banners/banner-1.png", title: "八字命理入门精讲 限时优惠", link: "/pages/courses/index" },
-      { id: "2", image: "/static/images/banners/banner-2.png", title: "大师直播：2024下半年运势解读", link: "/pages/live/index" },
-      { id: "3", image: "/static/images/banners/banner-3.png", title: "新人专享 首单立减50元", link: "/pages/mall/index" },
+      // 前端 home-banner 改生成式渐变横幅(不再用 image)，此处只提供 title/link；link 用真实分包路由
+      { id: "1", image: "", title: "国学经典 · 系统研习好课", link: "/pkg-course/home/index" },
+      { id: "2", image: "", title: "名师直播 · 每日国学开讲", link: "/pkg-live/plaza/index" },
+      { id: "3", image: "", title: "书院甄选 · 新人礼遇好物", link: "/pkg-mall/home/index" },
     ];
   }
 
