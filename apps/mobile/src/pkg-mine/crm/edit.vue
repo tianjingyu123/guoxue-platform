@@ -188,8 +188,9 @@ async function onSubmit() {
 </script>
 
 <style scoped lang="scss">
-.ce-page { min-height: 100vh; background: #f5f2ee; display: flex; flex-direction: column; }
-.ce-scroll { flex: 1; height: 0; }
+/* iOS Safari flex bug：用固定 height 才能让 flex:1 滚动子项正确填充(min-height:100vh 会算出高度0致内容空白) */
+.ce-page { height: 100vh; background: #f5f2ee; display: flex; flex-direction: column; }
+.ce-scroll { flex: 1; height: 0; min-height: 0; }
 
 .ce-state { padding: 120rpx 0; display: flex; flex-direction: column; align-items: center; gap: 24rpx; }
 .ce-state-txt { font-size: 26rpx; color: #999; }

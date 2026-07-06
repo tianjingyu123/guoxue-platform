@@ -135,8 +135,9 @@ export default {}
 </script>
 
 <style scoped>
-.page { min-height: 100vh; background: #faf8f5; display: flex; flex-direction: column; }
-.scroll { flex: 1; height: 0; }
+/* iOS Safari flex bug：用固定 height 才能让 flex:1 滚动子项正确填充(min-height:100vh 会算出高度0致内容空白) */
+.page { height: 100vh; background: #faf8f5; display: flex; flex-direction: column; }
+.scroll { flex: 1; height: 0; min-height: 0; }
 .content { padding: 24rpx; padding-bottom: 80rpx; }
 
 .card { background: #ffffff; border-radius: 24rpx; overflow: hidden; margin-bottom: 24rpx; }

@@ -130,7 +130,8 @@ function goDetail(id: string) {
 </script>
 
 <style scoped>
-.ev-page { min-height: 100vh; background: #f5f5f7; display: flex; flex-direction: column; }
+/* iOS Safari flex bug：用固定 height 才能让 flex:1 滚动子项正确填充(min-height:100vh 会算出高度0致内容空白) */
+.ev-page { height: 100vh; background: #f5f5f7; display: flex; flex-direction: column; }
 .ev-header { position: sticky; top: 0; z-index: 50; background: rgba(255,255,255,0.95); backdrop-filter: blur(8px); border-bottom: 1px solid #ededed; }
 .ev-nav { display: flex; align-items: center; justify-content: space-between; height: 48px; padding: 0 8px; }
 .ev-icon-btn { width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; }
@@ -141,7 +142,7 @@ function goDetail(id: string) {
 .ev-tab.active { background: var(--brand); }
 .ev-tab-text { font-size: 13px; color: #6b7280; }
 .ev-tab-text.active { color: #fff; font-weight: 500; }
-.ev-body { flex: 1; height: 0; }
+.ev-body { flex: 1; height: 0; min-height: 0; }
 
 .ev-state { padding: 90px 40px 0; display: flex; flex-direction: column; align-items: center; gap: 12px; }
 .ev-state-text { font-size: 13px; color: #9ca3af; }

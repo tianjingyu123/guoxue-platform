@@ -152,7 +152,8 @@ function goUser(id: string) {
 
 <style lang="scss" scoped>
 .follows-page {
-  min-height: 100vh;
+  /* iOS Safari flex bug：用固定 height 才能让 flex:1 滚动子项正确填充(min-height:100vh 会算出高度0致内容空白) */
+  height: 100vh;
   background: #fff;
   display: flex;
   flex-direction: column;
@@ -194,6 +195,7 @@ function goUser(id: string) {
 .follows-scroll {
   flex: 1;
   height: 0;
+  min-height: 0;
 }
 .follows-list {
   padding: 32rpx;

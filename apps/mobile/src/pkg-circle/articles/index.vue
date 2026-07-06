@@ -287,7 +287,8 @@ function coverColor(name: string) {
 
 <style scoped>
 .page {
-  min-height: 100vh;
+  /* iOS Safari flex bug：用固定 height 才能让 flex:1 滚动子项正确填充(min-height:100vh 会算出高度0致内容空白) */
+  height: 100vh;
   background: #faf8f5;
   display: flex;
   flex-direction: column;
@@ -435,6 +436,7 @@ function coverColor(name: string) {
 .list-scroll {
   flex: 1;
   height: 0;
+  min-height: 0;
 }
 .list {
   padding: 24rpx;

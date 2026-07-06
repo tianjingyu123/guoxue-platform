@@ -150,13 +150,14 @@ function goCircle() {
 </script>
 
 <style lang="scss" scoped>
-.ck-page { min-height: 100vh; background: #f7f8fa; display: flex; flex-direction: column; }
+/* iOS Safari flex bug：用固定 height 才能让 flex:1 滚动子项正确填充(min-height:100vh 会算出高度0致内容空白) */
+.ck-page { height: 100vh; background: #f7f8fa; display: flex; flex-direction: column; }
 .ck-header { position: sticky; top: 0; z-index: 40; background: rgba(255,255,255,0.95); border-bottom: 1px solid #f0f0f0; }
 .ck-nav { display: flex; align-items: center; justify-content: space-between; height: 56px; padding: 0 16px; }
 .ck-icon-btn { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; }
 .ck-nav-title { font-size: 16px; font-weight: 600; color: #1a1a1a; }
 .ck-nav-placeholder { width: 32px; }
-.ck-body { flex: 1; height: 0; padding: 16px; }
+.ck-body { flex: 1; height: 0; min-height: 0; padding: 16px; }
 
 .ck-state { padding-top: 100px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
 .ck-state-text { font-size: 13px; color: #9ca3af; }
