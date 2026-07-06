@@ -18,6 +18,7 @@ export interface AuthResponse {
   message: string
   data?: {
     token: string
+    refreshToken?: string
     user: UserInfo
   }
 }
@@ -34,6 +35,7 @@ const mockUser: UserInfo = {
 /** 后端 login/register 原始响应 */
 interface RawAuthData {
   accessToken?: string
+  refreshToken?: string
   token?: string
   user?: Partial<UserInfo> & Record<string, unknown>
 }
@@ -47,6 +49,7 @@ function adaptAuthResult(data?: RawAuthData | null): AuthResponse {
     message: 'ok',
     data: {
       token,
+      refreshToken: data.refreshToken || '',
       // 后端返回完整 user 对象，运行时字段齐全；类型层用 as UserInfo 收口宽松 Raw
       user: { ...data.user, token } as UserInfo,
     },

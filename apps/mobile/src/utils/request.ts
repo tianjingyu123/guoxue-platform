@@ -3,7 +3,7 @@
  * 底层 fetch → uni.request；保持 ApiResponse<T> 信封与函数签名不变，后端无感知。
  * 契约见 docs/迁移准备/04-ClaudeCode对接说明.md。
  */
-import { getToken, clearToken } from './storage'
+import { getToken, clearToken, getRefreshToken, setToken, setRefreshToken, clearRefreshToken } from './storage'
 
 export interface ApiResponse<T> {
   code: number
@@ -29,6 +29,7 @@ type Method = 'GET' | 'POST' | 'PUT' | 'DELETE'
 let _redirecting = false
 function handleUnauthorized() {
   clearToken()
+  clearRefreshToken()
   if (_redirecting) return
   _redirecting = true
   uni.reLaunch({
@@ -48,6 +49,39 @@ function handleUnauthorized() {
  */
 function isAuthEntryPath(path: string): boolean {
   return /(auth\/login|auth\/send-code|auth\/register|auth\/reset-password|login\/sms|login\/wechat|login\/password)/.test(path)
+}
+
+/**
+ * access token(2h)过期时，用 refreshToken(30天)无感换取新 token，避免频繁重新短信登录(降成本)。
+ * 并发去重：多个请求同时 401 时只发一次刷新、共享结果。返回是否刷新成功。
+ */
+let _refreshing: Promise<boolean> | null = null
+function refreshAccessToken(): Promise<boolean> {
+  if (_refreshing) return _refreshing
+  _refreshing = new Promise<boolean>((resolve) => {
+    const done = (ok: boolean) => { _refreshing = null; resolve(ok) }
+    const rt = getRefreshToken()
+    if (!rt) { done(false); return }
+    uni.request({
+      url: `${BASE_URL}${PREFIX}/auth/refresh`,
+      method: 'POST',
+      data: { refreshToken: rt },
+      header: { 'Content-Type': 'application/json' },
+      timeout: TIMEOUT,
+      success: (res) => {
+        const body = res.data as ApiResponse<{ accessToken?: string; refreshToken?: string }>
+        if (res.statusCode === 200 && body?.code === 200 && body.data?.accessToken) {
+          setToken(body.data.accessToken)
+          if (body.data.refreshToken) setRefreshToken(body.data.refreshToken)
+          done(true)
+        } else {
+          done(false)
+        }
+      },
+      fail: () => done(false),
+    })
+  })
+  return _refreshing
 }
 
 function buildHeader(custom?: Record<string, string>): Record<string, string> {
@@ -73,6 +107,13 @@ function apiFetch<T>(path: string, method: Method, data?: unknown, header?: Reco
           if (isAuthEntryPath(path)) {
             // 登录/发码等入口的 401 = 账号/验证码/密码错误，交给页面提示，不跳转
             reject(new Error(body?.message || '账号或验证码错误'))
+          } else if (!_retried) {
+            // access 过期：用 refreshToken 无感换新 token 后重试原请求(30天免登录，降短信成本)；
+            // 刷新失败(refreshToken 也过期)才清登录态跳登录页。
+            refreshAccessToken().then((ok) => {
+              if (ok) resolve(apiFetch<T>(path, method, data, header, true))
+              else { handleUnauthorized(); reject(new Error('未登录或登录已过期')) }
+            })
           } else {
             handleUnauthorized()
             reject(new Error('未登录或登录已过期'))

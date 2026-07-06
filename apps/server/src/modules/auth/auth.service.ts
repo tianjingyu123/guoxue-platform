@@ -49,9 +49,9 @@ export class AuthService {
     const accessToken = this.jwt.sign({ sub: userId });
     const refreshToken = crypto.randomUUID();
     // refreshToken 存 Redis，7 天过期；同时挂进用户维度索引，撤销时可精确删除
-    await this.redis.set(`refresh:${refreshToken}`, userId, 7 * 24 * 3600);
+    await this.redis.set(`refresh:${refreshToken}`, userId, 30 * 24 * 3600);
     await this.redis.sadd(`refresh:user:${userId}`, refreshToken);
-    await this.redis.expire(`refresh:user:${userId}`, 7 * 24 * 3600);
+    await this.redis.expire(`refresh:user:${userId}`, 30 * 24 * 3600);
     return { accessToken, refreshToken };
   }
 

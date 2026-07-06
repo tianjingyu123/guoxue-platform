@@ -168,7 +168,7 @@ import { ref, computed, onUnmounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { authApi } from '@/lib/auth-data'
-import { setToken, setUserInfo } from '@/utils/storage'
+import { setToken, setRefreshToken, setUserInfo } from '@/utils/storage'
 
 const statusBarHeight = ref(0)
 const steps = ['phone', 'verify', 'password'] as const
@@ -253,6 +253,7 @@ async function handleRegister() {
     })
     if (res.success && res.data?.token) {
       setToken(res.data.token)
+      setRefreshToken(res.data.refreshToken || '')
       setUserInfo(res.data.user)
       uni.reLaunch({ url: '/pages/index/index' })
     } else {

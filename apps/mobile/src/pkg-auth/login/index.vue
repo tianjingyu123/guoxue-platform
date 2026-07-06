@@ -156,7 +156,7 @@ import { ref, computed, onUnmounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { authApi } from '@/lib/auth-data'
-import { setToken, setUserInfo } from '@/utils/storage'
+import { setToken, setRefreshToken, setUserInfo } from '@/utils/storage'
 import { BRAND } from '@/lib/brand'
 
 const statusBarHeight = ref(0)
@@ -238,6 +238,7 @@ async function handleLogin() {
     )
     if (res.success && res.data?.token) {
       setToken(res.data.token)
+      setRefreshToken(res.data.refreshToken || '')
       setUserInfo(res.data.user)
       uni.reLaunch({ url: '/pages/index/index' })
     } else {
@@ -267,6 +268,7 @@ async function handleThirdParty(_type: 'wechat') {
     const res = await authApi.wechatLogin(code)
     if (res.success && res.data?.token) {
       setToken(res.data.token)
+      setRefreshToken(res.data.refreshToken || '')
       setUserInfo(res.data.user)
       uni.reLaunch({ url: '/pages/index/index' })
     } else {

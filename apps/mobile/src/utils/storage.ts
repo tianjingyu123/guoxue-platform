@@ -30,6 +30,12 @@ export const getToken = () => getStorage<string>(TOKEN_KEY, '') || ''
 export const setToken = (t: string) => setStorage(TOKEN_KEY, t)
 export const clearToken = () => removeStorage(TOKEN_KEY)
 
+// refreshToken：access(2h)过期时用它无感换新 token，避免频繁重新短信登录(降成本)。30天有效。
+const REFRESH_KEY = 'auth_refresh_token'
+export const getRefreshToken = () => getStorage<string>(REFRESH_KEY, '') || ''
+export const setRefreshToken = (t: string) => setStorage(REFRESH_KEY, t)
+export const clearRefreshToken = () => removeStorage(REFRESH_KEY)
+
 /* 用户信息缓存（敏感字段不落本地存储，避免明文手机号/生辰在 localStorage 暴露） */
 const USERINFO_KEY = 'userInfo'
 const SENSITIVE_USER_FIELDS = ['phone','phoneFull','mobile','email','idCard','idCardNo','realName','birthday','birthDate','birthTime','password','phoneEnc','phoneHash']
