@@ -74,6 +74,9 @@ const ROUTE_MAP: Record<string, string> = {
   // 工具占位页（30+ 未上线工具入口，name 参数透传；命理/中医两个前缀同指一页）
   '/paipan/tools/coming-soon': '/pkg-paipan/tools/coming-soon',
   '/tools/coming-soon': '/pkg-paipan/tools/coming-soon',
+  // 紫微/六爻 历史/结果页未实现(排盘工具延后)→优雅占位，避免"功能开发中"toast
+  '/paipan/ziwei/history': '/pkg-paipan/tools/coming-soon',
+  '/paipan/liuyao/result': '/pkg-paipan/tools/coming-soon',
   // 诗词雅集（静态首页/分类/集锦须优先于动态 /poetry/:id 详情）
   '/poetry': '/pkg-poetry/index/index',
   '/poetry/categories': '/pkg-poetry/categories/index',
@@ -428,6 +431,10 @@ const DYNAMIC_ROUTES: Array<[RegExp, string, string]> = [
   [/^\/offline\/courses\/([^/?]+)$/, '/pkg-offline/course-detail/index', 'id'],
   // 线下驿站详情 /offline/stations/:id（静态 /offline/stations 已在 ROUTE_MAP 优先命中）
   [/^\/offline\/stations\/([^/?]+)$/, '/pkg-offline/station-detail/index', 'id'],
+  // 用户公开主页 /user/:id（IM联系人/好友请求/关注列表点头像跳转，此前缺映射→死链"功能开发中"）
+  [/^\/user\/([^/?]+)$/, '/pkg-circle/user/profile', 'id'],
+  // 作者详情 /authors/:id（详情页未实现，先优雅占位）
+  [/^\/authors\/([^/?]+)$/, '/pkg-paipan/tools/coming-soon', 'id'],
   [/^\/mall\/product\/([^/?]+)\/reviews$/, '/pkg-mall/product/reviews', 'id'],
   [/^\/mall\/product\/([^/?]+)$/, '/pkg-mall/product/detail', 'id'],
   [/^\/shop\/group-buy\/([^/?]+)$/, '/pkg-shop/group-buy/detail', 'id'],
