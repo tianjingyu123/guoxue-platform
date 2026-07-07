@@ -127,7 +127,9 @@ async function bootstrap() {
     new ValidationPipe({
       whitelist: true,
       transform: true,
-      forbidNonWhitelisted: true,
+      // forbidNonWhitelisted 关闭：前端表单常带 id/createdAt/关联对象等 DTO 未定义字段，
+      // 严格拒绝会报"多余字段"、影响正常保存。whitelist:true 仍会 strip 掉未知字段(安全保留)，只是不再报错。
+      forbidNonWhitelisted: false,
       exceptionFactory: chineseValidationExceptionFactory,
     }),
   );

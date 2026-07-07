@@ -267,7 +267,15 @@ onMounted(async () => {
 
 function initQuill() {
   if (!editorEl.value) return
-  // 动态加载 Quill
+  // 加载 snow 主题 CSS：工具栏图标全靠它渲染，此前只加载了 JS 没加载 CSS → 工具栏全是方框(tofu)。去重防重复插入。
+  if (!document.getElementById('quill-snow-css')) {
+    const link = document.createElement('link')
+    link.id = 'quill-snow-css'
+    link.rel = 'stylesheet'
+    link.href = 'https://cdn.quilljs.com/1.3.7/quill.snow.css'
+    document.head.appendChild(link)
+  }
+  // 动态加载 Quill JS
   const script = document.createElement('script')
   script.src = 'https://cdn.quilljs.com/1.3.7/quill.min.js'
   script.onload = () => {
