@@ -43,6 +43,17 @@ async function send() {
   }
 }
 
+// 一键反馈：把最近一次问答带进反馈表单（员工确认后提交，确保"说了会反馈就真的记录"）
+function reportThis() {
+  const lastUser = [...messages.value].reverse().find((m) => m.role === "user");
+  const lastAssistant = [...messages.value].reverse().find((m) => m.role === "assistant");
+  const q = lastUser?.content || "";
+  fb.value.category = "BUG";
+  fb.value.title = q.slice(0, 60) || "后台使用中遇到的问题";
+  fb.value.detail = `【员工描述】${q}\n【助手判断】${(lastAssistant?.content || "").slice(0, 300)}\n\n（请补充：在哪个页面、做了什么、期望什么、实际什么、有无报错）`;
+  tab.value = "feedback";
+}
+
 // ── 反馈 ──
 const fb = ref({ category: "QUESTION", title: "", detail: "" });
 const submitting = ref(false);
@@ -102,6 +113,11 @@ watch(open, (v) => { if (v) scrollBottom(); });
           </div>
           <div v-if="sending" class="msg assistant"><div class="bubble typing">正在思考…</div></div>
         </div>
+        <!-- 一键把刚才的问题正式提交给管理层（解决"助手说会反馈其实没反馈"） -->
+        <div v-if="messages.length > 1" class="report-bar" @click="reportThis">
+          <el-icon><Warning /></el-icon>
+          <span>这是程序问题？点这里把它反馈给管理层</span>
+        </div>
         <div class="chat-input">
           <el-input
             v-model="input"
@@ -160,6 +176,8 @@ watch(open, (v) => { if (v) scrollBottom(); });
 .msg.assistant .bubble { background: #fff; color: #333; border: 1px solid #eee; }
 .msg.user .bubble { background: #c41e3a; color: #fff; }
 .typing { color: #999; }
+.report-bar { display: flex; align-items: center; gap: 6px; margin: 0 12px; padding: 8px 10px; font-size: 12px; color: #9a6a00; background: #fff8e6; border: 1px solid #ffe4a0; border-radius: 8px; cursor: pointer; }
+.report-bar:hover { background: #fff2cc; }
 .chat-input { display: flex; gap: 8px; padding: 12px; border-top: 1px solid #eee; align-items: flex-end; }
 .fb-body { flex: 1; overflow-y: auto; padding: 16px; }
 .fb-tip { display: flex; gap: 6px; align-items: flex-start; font-size: 12px; color: #9a6a00; background: #fff8e6; border: 1px solid #ffe4a0; border-radius: 8px; padding: 10px; margin-bottom: 14px; line-height: 1.5; }
