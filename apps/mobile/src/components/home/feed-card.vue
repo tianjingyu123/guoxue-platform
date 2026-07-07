@@ -384,10 +384,11 @@ const theme = computed(() => agentThemes[agent.value?.type ?? 'general'] ?? agen
   border: 2rpx solid rgba(196, 30, 58, 0.5); background: rgba(196, 30, 58, 0.04);
 }
 .dynasty { font-size: 20rpx; color: var(--text-soft, #999); font-family: var(--font-serif); }
-.poem-lines { display: flex; flex-direction: row-reverse; justify-content: center; gap: 28rpx; padding: 16rpx 0; min-height: 160rpx; }
+/* 横排展示（每行一句，居中），替代原竖排 writing-mode（用户反馈：诗词建议横向阅读更友好） */
+.poem-lines { display: flex; flex-direction: column; align-items: center; gap: 10rpx; padding: 16rpx 0; }
 .poem-line {
   font-family: var(--font-serif); font-size: 30rpx; color: var(--text-ink, #2c2c2c);
-  writing-mode: vertical-rl; letter-spacing: 6rpx; line-height: 1.9;
+  letter-spacing: 4rpx; line-height: 1.9; text-align: center;
 }
 .poem-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 24rpx; padding-top: 20rpx; border-top: 2rpx solid rgba(201, 169, 110, 0.25); }
 .poem-title { font-family: var(--font-serif); font-weight: 700; font-size: 28rpx; color: #c9a96e; letter-spacing: 2rpx; }
