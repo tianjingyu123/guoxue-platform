@@ -374,21 +374,22 @@ onUnmounted(() => { if (audioCtx) { try { audioCtx.destroy() } catch {} } })
 
       <!-- 互动数据栏 -->
       <view class="pd-actions">
+        <!-- 每个动作始终带文字标注（无计数时显示动作名），明确图标作用 -->
         <view class="pd-action" @tap="toggleLike">
           <app-icon name="heart" :size="44" :color="isLiked ? '#C41E3A' : '#666666'" :fill="isLiked" />
-          <text class="pd-action-t" :style="{ color: isLiked ? '#C41E3A' : '#666666' }">{{ likes }}</text>
+          <text class="pd-action-t" :style="{ color: isLiked ? '#C41E3A' : '#666666' }">{{ likes || '点赞' }}</text>
         </view>
         <view class="pd-action">
           <app-icon name="message-circle" :size="44" color="#666666" />
-          <text class="pd-action-t">{{ post.comments }}</text>
+          <text class="pd-action-t">{{ post.comments || '评论' }}</text>
         </view>
         <view class="pd-action" @tap="toggleCollect">
           <app-icon name="bookmark" :size="44" :color="isCollected ? '#C9A96E' : '#666666'" :fill="isCollected" />
-          <text v-if="collects" class="pd-action-t" :style="{ color: isCollected ? '#C9A96E' : '#666666' }">{{ collects }}</text>
+          <text class="pd-action-t" :style="{ color: isCollected ? '#C9A96E' : '#666666' }">{{ collects || '收藏' }}</text>
         </view>
         <view class="pd-action" @tap="openShare">
           <app-icon name="share-2" :size="44" color="#666666" />
-          <text v-if="post.shares" class="pd-action-t">{{ post.shares }}</text>
+          <text class="pd-action-t">{{ post.shares || '分享' }}</text>
         </view>
       </view>
 

@@ -65,10 +65,10 @@
             </view>
           </view>
 
-          <!-- 竖排诗文（从右到左） -->
+          <!-- 横排诗文（每句一行，拼音在字上方） -->
           <view class="pd-verse-wrap">
             <view class="pd-verse-row">
-              <view v-for="(item, i) in reversedContent" :key="i" class="pd-verse-col">
+              <view v-for="(item, i) in poem.content" :key="i" class="pd-verse-col">
                 <text v-if="showPinyin" class="pd-verse-pinyin">{{ item.pinyin }}</text>
                 <text class="pd-verse-line">{{ item.line }}</text>
               </view>
@@ -608,7 +608,6 @@ const copied = ref(false)
 const showAiPanel = ref(false)
 const showSharePanel = ref(false)
 
-const reversedContent = computed(() => [...poem.value.content].reverse())
 
 // ── AI 赏析：预存（打字机）+ 实时生成 ──
 const aiStatus = ref<'idle' | 'loading' | 'done'>('idle')
@@ -905,33 +904,33 @@ function toHome() {
 .pd-verse-wrap {
   display: flex;
   justify-content: center;
-  align-items: flex-start;
-  min-height: 440rpx;
+  align-items: center;
+  padding: 16rpx 0;
 }
 .pd-verse-row {
+  /* 横排：每句一行，自上而下排列 */
   display: flex;
-  flex-direction: row;
-  align-items: flex-start;
-  gap: 50rpx;
+  flex-direction: column;
+  align-items: center;
+  gap: 28rpx;
 }
 .pd-verse-col {
+  /* 单句：拼音在上，汉字在下 */
   display: flex;
   flex-direction: column;
   align-items: center;
 }
 .pd-verse-pinyin {
-  writing-mode: vertical-rl;
-  font-size: 20rpx;
-  letter-spacing: 0.1em;
-  margin-bottom: 16rpx;
+  font-size: 22rpx;
+  letter-spacing: 0.3em;
+  margin-bottom: 6rpx;
   color: var(--poem-text-muted);
 }
 .pd-verse-line {
-  writing-mode: vertical-rl;
   font-family: var(--font-serif, serif);
-  font-size: 44rpx;
+  font-size: 42rpx;
   letter-spacing: 0.3em;
-  line-height: 2.2;
+  line-height: 1.5;
   color: var(--poem-text);
 }
 .pd-divider {
