@@ -2068,4 +2068,17 @@ export const trackErrorApi = {
     api.get("/track/errors", { params }),
 };
 
+// ───────── 后台运营助手 ─────────
+export const adminAssistantApi = {
+  chat: (data: { message: string; page?: string; history?: { role: string; content: string }[] }) =>
+    api.post("/admin-assistant/chat", data),
+  createFeedback: (data: { page?: string; category?: string; title: string; detail: string; source?: string }) =>
+    api.post("/admin-assistant/feedback", data),
+  listFeedback: (params?: { page?: number; pageSize?: number; status?: string; category?: string }) =>
+    api.get("/admin-assistant/feedback", { params }),
+  summary: () => api.get("/admin-assistant/feedback/summary"),
+  updateFeedback: (id: string, data: { status?: string; reply?: string }) =>
+    api.put(`/admin-assistant/feedback/${id}`, data),
+};
+
 export default api;

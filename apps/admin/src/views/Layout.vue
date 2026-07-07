@@ -107,6 +107,9 @@
         </router-view>
       </el-main>
     </el-container>
+
+    <!-- 全局悬浮运营助手（答疑指导 + 反馈问题） -->
+    <AdminAssistant />
   </el-container>
 </template>
 
@@ -115,6 +118,7 @@ import { ref, onMounted } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { useAuthStore } from "@/store/auth";
 import SidebarMenu from "@/components/SidebarMenu.vue";
+import AdminAssistant from "@/components/AdminAssistant.vue";
 import ConnectionStatus from "@/components/ConnectionStatus.vue";
 import BrandLogo from "@/components/BrandLogo.vue";
 import { api } from "@/api";

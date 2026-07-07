@@ -6857,3 +6857,22 @@ model ClientReminder {
   @@index([ownerId, status, dueAt])
   @@index([clientId, kind, dueAt])
 }
+
+/// 后台运营反馈（智能助手收集员工遇到的问题→董事长审阅拍板→优化）
+model AdminFeedback {
+  id        String   @id @default(cuid())
+  userId    String // 提交人（员工/管理员）
+  userName  String   @default("") // 提交人昵称快照
+  page      String   @default("") // 提交时所在后台页面路由（供定位）
+  category  String   @default("OTHER") // BUG问题 / OPTIMIZE优化建议 / QUESTION操作疑问 / OTHER
+  title     String
+  detail    String   @db.Text
+  status    String   @default("PENDING") // PENDING待审 / REVIEWED已阅 / ADOPTED采纳 / REJECTED不采纳 / DONE已优化
+  reply     String   @db.Text @default("") // 董事长/处理人的批复
+  source    String   @default("MANUAL") // MANUAL员工手动 / ASSISTANT助手代记
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, createdAt])
+  @@index([category, status])
+}

@@ -879,6 +879,12 @@ const routes = [
         meta: { title: "数据库备份", roles: ["SUPER_ADMIN"] },
       },
       {
+        path: "system/feedback",
+        name: "AdminFeedback",
+        component: () => import("@/views/system/AdminFeedback.vue"),
+        meta: { title: "运营反馈", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
+      },
+      {
         path: "system/sensitive-words",
         name: "SensitiveWordList",
         component: () => import("@/views/system/SensitiveWordList.vue"),
