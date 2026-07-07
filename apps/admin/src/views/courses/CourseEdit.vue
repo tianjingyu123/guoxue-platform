@@ -1468,14 +1468,16 @@ async function save() {
     }
     if (isEdit.value) {
       await courseApi.update(courseId, payload)
+      ElMessage.success('保存成功')
     } else {
       const { data } = await courseApi.create(payload)
-      router.replace(`/courses/${data.id}/edit`)
-      isEdit.value = true
-      // 刷新页面以初始化 tabs
-      window.location.reload()
+      // 硬跳转到编辑页（带新课程 id）：确保进入编辑态、courseId 正确捕获，
+      // 章节管理/定价/试看/学员等全部 tab 才会出现。
+      // 原 router.replace()+window.location.reload() 存在竞态，reload 常在 URL 更新前触发→回落创建页→用户看不到章节管理。
+      ElMessage.success('课程已创建，正在进入编辑页添加章节…')
+      window.location.href = `${import.meta.env.BASE_URL}courses/${data.id}/edit`
+      return
     }
-    ElMessage.success('保存成功')
   } finally {
     saving.value = false
   }
