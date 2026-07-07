@@ -330,7 +330,8 @@ async function submitCourse() {
 .cr-cover-empty { width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12rpx; }
 .cr-cover-tip { font-size: 26rpx; color: rgba(255,255,255,0.6); }
 .cr-cover-del { position: absolute; top: 16rpx; right: 16rpx; width: 56rpx; height: 56rpx; border-radius: 999rpx; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; }
-.cr-input { width: 100%; padding: 24rpx 28rpx; border-radius: 16rpx; border: 2rpx solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); color: #fff; font-size: 28rpx; box-sizing: border-box; }
+/* 显式 height + line-height：uni-app <input> 无固定高度时在真机会塌陷/文字裁切致"无法输入"观感 */
+.cr-input { width: 100%; height: 92rpx; line-height: 44rpx; padding: 24rpx 28rpx; border-radius: 16rpx; border: 2rpx solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); color: #fff; font-size: 28rpx; box-sizing: border-box; }
 .cr-input.err { border-color: var(--brand); }
 .cr-textarea { width: 100%; min-height: 320rpx; padding: 24rpx 28rpx; border-radius: 16rpx; border: 2rpx solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); color: #fff; font-size: 28rpx; box-sizing: border-box; }
 .cr-textarea.sm { min-height: 200rpx; }

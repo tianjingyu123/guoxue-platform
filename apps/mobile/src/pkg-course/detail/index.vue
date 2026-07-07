@@ -34,6 +34,10 @@ const instructorCert = ref<{ verifiedTitle: string; institute: TeacherInstituteB
 const activeTab = ref<'intro' | 'chapters' | 'reviews'>('intro')
 const expanded = ref<Record<string, boolean>>({ c1: true })
 const isLiked = ref(false)
+// 收藏写操作防重复
+const favSubmitting = ref(false)
+// 自定义导航栏状态栏占位高度（避免顶部返回/收藏/分享按钮被系统状态栏遮挡）
+const statusBarHeight = ref(0)
 const showGroupBuyBanner = ref(true)
 const showConsultPanel = ref(false)
 const showGroupPanel = ref(false)
@@ -55,8 +59,32 @@ function fmtDuration(min: number) {
   return `${min}分钟`
 }
 function fmtStudents(n: number) { return n.toLocaleString() }
-function onLessonClick(chapterId: string, lessonId: string) {
-  navigateTo(`/courses/${course.value?.id}/learn?chapter=${chapterId}&lesson=${lessonId}`)
+// 点击课时：试看/已购 → 直达播放页并播放（不再经学习中心二次选择）；未购付费章节 → 提示购买
+function onLessonTap(chapter: any, lesson: any) {
+  if (hasAccess.value || lesson.isFree) {
+    navigateTo(`/courses/${course.value?.id}/player?lesson=${lesson.id}`)
+  } else {
+    uni.showToast({ title: '请购买课程后观看', icon: 'none' })
+  }
+}
+// 收藏/取消收藏（持久化到 interaction/collect，乐观更新 + 失败回滚 + 防重复）
+async function toggleFavorite() {
+  if (favSubmitting.value) return
+  favSubmitting.value = true
+  const next = !isLiked.value
+  isLiked.value = next
+  try {
+    isLiked.value = await courseApi.toggleFavorite(course.value?.id)
+  } catch (e) {
+    isLiked.value = !next
+    uni.showToast({ title: (e as Error)?.message || '操作失败，请登录后重试', icon: 'none' })
+  } finally {
+    favSubmitting.value = false
+  }
+}
+// 分享：H5/App 走统一分享海报页（小程序另有原生 onShareAppMessage）
+function onShare() {
+  openPoster('course', course.value?.id || courseId.value)
 }
 function onPurchase() {
   if (hasAccess.value) { onStartLearning(); return }
@@ -64,11 +92,15 @@ function onPurchase() {
   track.custom('buy_click', { type: 'course', id: course.value?.id })
   showPurchase.value = true
 }
-function onPurchased() {
+async function onPurchased() {
   showPurchase.value = false
-  hasAccess.value = true
+  hasAccess.value = true // 立即解锁所有章节
   track.purchase({ type: 'course', id: course.value?.id, amount: course.value?.price })
   uni.showToast({ title: '购买成功', icon: 'success' })
+  // 购买成功后回源刷新章节（同步完成状态等），权限已本地置 true 兜底
+  try {
+    chapters.value = await courseApi.getChapters(courseId.value)
+  } catch { /* 静默：本地 hasAccess=true 已保证解锁 */ }
 }
 function onStartLearning() { navigateTo(`/courses/${course.value?.id}/learn`) }
 // 拼课：后端拼团功能尚未实现，先诚实提示即将上线(避免点击无反应)
@@ -108,6 +140,9 @@ async function loadData() {
     course.value = detail
     chapters.value = chaps
     reviews.value = revs
+    // 访问权限 + 收藏态并行回填（各自静默降级，不阻塞主内容，修复重进不回显/购买后不解锁）
+    void courseApi.checkAccess(courseId.value).then((v) => { hasAccess.value = v })
+    void courseApi.isFavorited(courseId.value).then((v) => { isLiked.value = v })
     // F1 认证分级：讲师徽章并行拉取（fire-and-forget·内部自 catch 静默降级）
     void loadInstructorCert(detail?.instructor?.id)
     // 内容浏览埋点：详情加载成功才上报（真实标题），每次进入页面只上报一次（重试不重复）
@@ -129,7 +164,7 @@ onLoad((options) => {
 })
 
 // 微信原生分享（好友 / 朋友圈）
-const { toAppMessage, toTimeline } = useShare()
+const { toAppMessage, toTimeline, openPoster } = useShare()
 onShareAppMessage(() => toAppMessage({
   title: course.value?.title || '国学好课',
   path: `/courses/${course.value?.id || courseId.value}`,
@@ -142,6 +177,9 @@ onShareTimeline(() => toTimeline({
 }))
 
 onMounted(() => {
+  try {
+    statusBarHeight.value = uni.getSystemInfoSync().statusBarHeight || 0
+  } catch { /* 忽略：取不到状态栏高度时退化为 0 */ }
   loadData()
 })
 </script>
@@ -163,16 +201,16 @@ onMounted(() => {
     <view class="cover">
       <smart-cover class="cover-img" :src="course.cover" :title="course.title" type="course" />
       <view class="cover-mask" />
-      <!-- 顶部导航 -->
-      <view class="cover-nav">
+      <!-- 顶部导航（顶部留系统状态栏占位，防按钮被遮挡） -->
+      <view class="cover-nav" :style="{ paddingTop: statusBarHeight + 'px' }">
         <view class="nav-btn" @tap="goBack">
           <app-icon name="arrow-left" :size="40" color="#ffffff" />
         </view>
         <view class="nav-right">
-          <view class="nav-btn" @tap="isLiked = !isLiked">
+          <view class="nav-btn" @tap="toggleFavorite">
             <app-icon name="heart" :size="40" :color="isLiked ? '#C41E3A' : '#ffffff'" :fill="isLiked" />
           </view>
-          <view class="nav-btn">
+          <view class="nav-btn" @tap="onShare">
             <app-icon name="share-2" :size="40" color="#ffffff" />
           </view>
         </view>
@@ -290,7 +328,7 @@ onMounted(() => {
             <view
               v-for="lesson in chapter.lessons" :key="lesson.id"
               class="lesson-item" :class="{ locked: !hasAccess && !lesson.isFree }"
-              @tap="(hasAccess || lesson.isFree) && onLessonClick(chapter.id, lesson.id)"
+              @tap="onLessonTap(chapter, lesson)"
             >
               <view class="lesson-left">
                 <view class="lesson-ico" :class="lesson.isFree ? 'free' : 'paid'">
@@ -561,18 +599,18 @@ onMounted(() => {
 .gb-close { display: flex; }
 
 /* 底部购买栏 */
-.buy-bar { position: fixed; bottom: 0; left: 0; right: 0; background: #fff; border-top: 1rpx solid #E8E3DB; padding: 24rpx 32rpx; display: flex; align-items: center; gap: 24rpx; z-index: 50; }
-.buy-action { display: flex; flex-direction: column; align-items: center; }
+.buy-bar { position: fixed; bottom: 0; left: 0; right: 0; background: #fff; border-top: 1rpx solid #E8E3DB; padding: 24rpx 24rpx; display: flex; align-items: center; gap: 16rpx; z-index: 50; }
+.buy-action { display: flex; flex-direction: column; align-items: center; flex-shrink: 0; min-width: 68rpx; }
 .buy-action-txt { font-size: 20rpx; color: #666; margin-top: 2rpx; }
-.buy-price { flex: 1; margin-left: 16rpx; }
+.buy-price { flex: 1; min-width: 0; margin-left: 8rpx; }
 .price-free { font-size: 36rpx; font-weight: 700; color: #52C41A; }
-.price-row { display: flex; align-items: baseline; gap: 8rpx; }
+.price-row { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4rpx 8rpx; }
 .price-sym { font-size: 24rpx; color: var(--brand); }
-.price-now { font-size: 48rpx; font-weight: 700; color: var(--brand); }
+.price-now { font-size: 44rpx; font-weight: 700; color: var(--brand); }
 .price-old { font-size: 24rpx; color: #999; text-decoration: line-through; }
-.member-free-tag { margin-left: 12rpx; padding: 4rpx 14rpx; font-size: 22rpx; color: #a9741a; background: #fbf3e2; border: 1rpx solid #eadcb8; border-radius: 8rpx; }
-.buy-cta { padding: 0 64rpx; height: 88rpx; background: linear-gradient(to right, var(--brand), #E74C3C); border-radius: 999rpx; display: flex; align-items: center; justify-content: center; }
-.buy-cta-txt { font-size: 30rpx; font-weight: 700; color: #fff; }
+.member-free-tag { padding: 4rpx 14rpx; font-size: 22rpx; color: #a9741a; background: #fbf3e2; border: 1rpx solid #eadcb8; border-radius: 8rpx; }
+.buy-cta { flex-shrink: 0; padding: 0 44rpx; height: 88rpx; background: linear-gradient(to right, var(--brand), #E74C3C); border-radius: 999rpx; display: flex; align-items: center; justify-content: center; }
+.buy-cta-txt { font-size: 30rpx; font-weight: 700; color: #fff; white-space: nowrap; }
 
 /* 弹窗 */
 .modal { position: fixed; inset: 0; z-index: 60; }

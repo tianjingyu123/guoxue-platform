@@ -102,6 +102,12 @@ async function loadData() {
     circleArticles.value = arts
     activities.value = acts
     isJoined.value = c.isJoined
+    // 详情端点无鉴权守卫→membership 恒空(isJoined/myRole 恒 false)，登录态下用鉴权的 join/status 覆盖权威加入态
+    if (isLoggedIn()) {
+      const st = await circleDetailApi.getJoinStatus(circleId.value)
+      isJoined.value = st.joined
+      if (circle.value) circle.value.myRole = st.role
+    }
     likedPosts.value = new Set(p.data.filter(x => x.isLiked).map(x => x.id))
     // 相关圈子推荐（getForScene 已内置降级，无需 try/catch）
     recItems.value = await recommendApi.getForScene('guess_like', String(circleId.value))
@@ -181,12 +187,15 @@ function confirmJoin() {
   showBenefits.value = false
   showPurchase.value = true // 打开购买弹窗（现金支付，统一下单 POST /shop/orders type=CIRCLE）
 }
-/** 购买下单成功 → 标记已加入 */
-function onPurchased() {
+/** 购买/下单完成 → 以后端真实入圈态为准（付费圈成员由支付回调创建，不做乐观置真，避免"显示已加入但重进仍要支付"的不一致） */
+async function onPurchased() {
   showPurchase.value = false
-  isJoined.value = true
   track.purchase({ type: 'circle', id: circle.value?.id, amount: circle.value?.price })
-  uni.showToast({ title: '加入成功', icon: 'success' })
+  const st = await circleDetailApi.getJoinStatus(circleId.value)
+  isJoined.value = st.joined
+  if (circle.value) circle.value.myRole = st.role
+  if (st.joined) uni.showToast({ title: '加入成功', icon: 'success' })
+  else uni.showToast({ title: '订单已提交，支付完成后自动加入', icon: 'none' })
 }
 function handleLikePost(postId: string) {
   const next = new Set(likedPosts.value)

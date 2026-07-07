@@ -269,7 +269,7 @@
 
     <!-- AI 深度赏析面板 -->
     <view v-if="showAiPanel" class="pd-overlay">
-      <view class="pd-overlay-mask" @tap="showAiPanel = false" />
+      <view class="pd-overlay-mask" @tap="showAiPanel = false" @touchmove.stop.prevent />
       <view class="pd-sheet sheet-slide-up">
         <view class="pd-sheet-head">
           <view class="pd-sheet-headleft">
@@ -347,7 +347,7 @@
 
     <!-- 诗词分享面板（CSS 海报实时渲染 + 复制文案） -->
     <view v-if="showSharePanel" class="pd-overlay">
-      <view class="pd-overlay-mask" @tap="showSharePanel = false" />
+      <view class="pd-overlay-mask" @tap="showSharePanel = false" @touchmove.stop.prevent />
       <view class="pd-sheet sheet-slide-up">
         <view class="pd-sheet-head">
           <text class="pd-sheet-title">诗词分享</text>
@@ -355,7 +355,7 @@
             <app-icon name="x" :size="28" color="var(--poem-text-soft)" />
           </view>
         </view>
-        <view class="pd-share-body">
+        <scroll-view scroll-y class="pd-share-body" :style="{ paddingBottom: 'calc(24rpx + ' + safeBottom + 'px)' }">
           <!-- 海报预览 -->
           <view class="pd-poster">
             <view class="pd-poster-glow" />
@@ -376,7 +376,7 @@
             </view>
           </view>
           <text class="pd-share-tip">长按上方海报可保存图片分享</text>
-        </view>
+        </scroll-view>
       </view>
     </view>
 
@@ -1592,10 +1592,20 @@ function toHome() {
 
 /* AI 配图分享 */
 .pd-share-body {
+  flex: 1;
+  min-height: 0;
+  box-sizing: border-box;
   padding: 32rpx 40rpx 16rpx;
   display: flex;
   flex-direction: column;
   gap: 32rpx;
+}
+/* scroll-view 内部内容需按内容自然高度撑开，flex 布局下不压缩海报 */
+.pd-poster {
+  flex-shrink: 0;
+}
+.pd-share-actions {
+  flex-shrink: 0;
 }
 .pd-share-opts {
   display: flex;

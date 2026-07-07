@@ -365,6 +365,32 @@ export const courseApi = {
     return adaptReviews(await apiGet<unknown>(`/courses/${id}/reviews`))
   },
 
+  /** 课程访问权限 — GET /courses/:id/access（已购/会员→true；未登录/未购→false，静默降级不抛错） */
+  async checkAccess(id: string): Promise<boolean> {
+    try {
+      const res = await apiGet<{ hasAccess?: boolean }>(`/courses/${id}/access`)
+      return !!res?.hasAccess
+    } catch {
+      return false
+    }
+  },
+
+  /** 是否已收藏 — GET /interaction/collect（在我的收藏中匹配 COURSE·未登录静默 false） */
+  async isFavorited(id: string): Promise<boolean> {
+    try {
+      const res = await apiGet<{ items?: { targetType?: string; targetId?: string }[] }>('/interaction/collect?pageSize=200')
+      return (res?.items ?? []).some((it) => it.targetType === 'COURSE' && it.targetId === id)
+    } catch {
+      return false
+    }
+  },
+
+  /** 收藏/取消收藏课程 — POST /interaction/collect（后端 toggle，返回最新收藏态 collected） */
+  async toggleFavorite(id: string): Promise<boolean> {
+    const res = await apiPost<{ collected?: boolean }>('/interaction/collect', { targetType: 'COURSE', targetId: id })
+    return !!res?.collected
+  },
+
   /** 学习进度概览 — 合并 GET /courses/:id/chapters + /progress + 课程标题 */
   async getProgress(id: string): Promise<CourseProgress> {
     const [chapters, progress, course] = await Promise.all([

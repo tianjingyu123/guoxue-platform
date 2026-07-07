@@ -385,6 +385,22 @@ export const circleApi = {
   },
   join: (id: string) => apiPost<{ success: boolean }>(`/circles/${id}/join`),
   leave: (id: string) => apiPost<{ success: boolean }>(`/circles/${id}/leave`),
+  /**
+   * 创建圈子 — POST /circles（真连，后端 CreateCircleDto）。
+   * 返回新圈子对象（含 id），供创建页跳转到详情/我的圈子。
+   * 后端字段：name(2-30)/intro(10-500)/tags:string[]/type:FREE|PAID|YEARLY/price(元,PAID/YEARLY必填)。
+   */
+  create: (input: CreateCircleInput) => apiPost<{ id: string; name?: string }>(`/circles`, input),
+}
+
+/** 创建圈子入参（对齐后端 CreateCircleDto） */
+export interface CreateCircleInput {
+  name: string
+  intro: string
+  tags: string[]
+  type: 'FREE' | 'PAID' | 'YEARLY'
+  price?: number
+  cover?: string
 }
 
 /** 我的圈子角色（后端 CircleMemberRole 归并为三档展示） */

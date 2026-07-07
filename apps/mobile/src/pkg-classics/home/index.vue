@@ -46,6 +46,9 @@ onMounted(() => { fetchData() })
 function goSearch() {
   uni.navigateTo({ url: '/pkg-classics/search/index' })
 }
+function goBookshelf() {
+  uni.navigateTo({ url: '/pkg-classics/bookshelf/index' })
+}
 function goDetail(id: string) {
   uni.navigateTo({ url: `/pkg-classics/detail/index?id=${id}` })
 }
@@ -88,8 +91,8 @@ function onRefreshRanking() {}
           <app-icon name="arrow-left" :size="44" color="#2c2c2c" />
         </view>
         <text class="ch-topbar-title">古籍馆</text>
-        <view class="ch-circle-btn" @tap="goSearch">
-          <app-icon name="search" :size="44" color="#2c2c2c" />
+        <view class="ch-circle-btn" @tap="goBookshelf">
+          <app-icon name="book-marked" :size="44" color="#2c2c2c" />
         </view>
       </view>
     </view>

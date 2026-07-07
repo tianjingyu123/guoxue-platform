@@ -67,7 +67,7 @@
           <app-icon name="bookmark" :size="64" color="#999999" />
         </view>
         <text class="bm-empty-title">暂无书签</text>
-        <text class="bm-empty-sub">阅读时长按文字可添加书签</text>
+        <text class="bm-empty-sub">阅读时点击底部「书签」即可添加</text>
         <view class="bm-empty-btn" @tap="goHome">
           <text class="bm-empty-btn-text">去阅读</text>
         </view>

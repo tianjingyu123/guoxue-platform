@@ -6,6 +6,7 @@
 import { ref, reactive } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, reLaunch } from '@/utils/router'
+import { circleApi } from '@/lib/circle-data'
 
 type JoinMethod = 'free' | 'paid' | 'approval'
 
@@ -56,9 +57,13 @@ function selectJoin(v: JoinMethod) {
 
 function validate() {
   const e: Record<string, string> = {}
-  if (!name.value.trim()) e.name = '请输入圈子名称'
-  if (name.value.length > 20) e.name = '名称不超过 20 字'
-  if (!desc.value.trim()) e.desc = '请输入圈子简介'
+  const n = name.value.trim()
+  if (!n) e.name = '请输入圈子名称'
+  else if (n.length < 2) e.name = '名称至少 2 个字'
+  else if (n.length > 20) e.name = '名称不超过 20 字'
+  const d = desc.value.trim()
+  if (!d) e.desc = '请输入圈子简介'
+  else if (d.length < 10) e.desc = '简介至少 10 个字'
   if (!category.value) e.category = '请选择分类'
   if (joinMethod.value === 'paid' && (!yearlyPrice.value || Number(yearlyPrice.value) <= 0)) e.price = '请设置年费价格'
   Object.keys(errors).forEach((k) => delete errors[k])
@@ -67,12 +72,28 @@ function validate() {
 }
 
 async function submit() {
+  if (loading.value) return // 防重复提交
   if (!validate()) return
   loading.value = true
-  await new Promise((r) => setTimeout(r, 1200))
-  loading.value = false
-  uni.showToast({ title: '创建成功', icon: 'success' })
-  setTimeout(() => reLaunch('/pages/circles/index'), 600)
+  try {
+    // 真连后端创建圈子（付费=年费圈 YEARLY；审核加入暂按免费圈创建，圈主可在管理后台开启审批）
+    // 分类作为首个标签并入 tags；封面为本地临时路径未上传，暂不提交避免存入无效路径
+    const tagList = category.value ? [category.value, ...tags.value.filter((t) => t !== category.value)] : [...tags.value]
+    const created = await circleApi.create({
+      name: name.value.trim(),
+      intro: desc.value.trim(),
+      tags: tagList,
+      type: joinMethod.value === 'paid' ? 'YEARLY' : 'FREE',
+      price: joinMethod.value === 'paid' ? Number(yearlyPrice.value) : 0,
+    })
+    uni.showToast({ title: '创建成功', icon: 'success' })
+    const newId = created?.id
+    // 跳转到新圈子详情（拿不到 id 则回"我的圈子"，在"我创建的"分组可见）
+    setTimeout(() => reLaunch(newId ? `/pkg-circle/circles/detail?id=${newId}` : '/my-circles'), 600)
+  } catch (err) {
+    uni.showToast({ title: (err as Error)?.message || '创建失败，请重试', icon: 'none' })
+    loading.value = false
+  }
 }
 </script>
 
@@ -251,7 +272,8 @@ async function submit() {
 .cc-field { margin-bottom: 40rpx; }
 .cc-label { display: block; font-size: 28rpx; font-weight: 500; color: #1a1a1a; margin-bottom: 16rpx; }
 .cc-req { color: var(--brand); }
-.cc-input { width: 100%; padding: 22rpx 24rpx; border-radius: 16rpx; border: 2rpx solid rgba(0,0,0,0.12); background: #fff; color: #1a1a1a; font-size: 28rpx; box-sizing: border-box; }
+/* 显式 height + line-height：uni-app <input> 无固定高度时在真机会塌陷/文字裁切致"文字显示不全" */
+.cc-input { width: 100%; height: 88rpx; line-height: 44rpx; padding: 22rpx 24rpx; border-radius: 16rpx; border: 2rpx solid rgba(0,0,0,0.12); background: #fff; color: #1a1a1a; font-size: 28rpx; box-sizing: border-box; }
 .cc-input.err { border-color: var(--brand); }
 .cc-textarea { width: 100%; min-height: 200rpx; padding: 22rpx 24rpx; border-radius: 16rpx; border: 2rpx solid rgba(0,0,0,0.12); background: #fff; color: #1a1a1a; font-size: 28rpx; box-sizing: border-box; }
 .cc-textarea.err { border-color: var(--brand); }

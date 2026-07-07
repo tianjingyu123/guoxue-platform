@@ -221,7 +221,13 @@ async function addBookmark() {
   bookmarking.value = true
   try {
     await classicsApi.addBookmark(bookId.value, { chapterId: curChapter.value.id, position: Math.round(lastScrollTop) })
-    uni.showToast({ title: '已加书签', icon: 'success' })
+    // 告知查看入口，避免「加了书签却不知在哪看」
+    uni.showModal({
+      title: '已加书签',
+      content: '可在「我的书签」查看和管理全部书签。',
+      confirmText: '查看书签', cancelText: '继续阅读',
+      success: (r) => { if (r.confirm) uni.navigateTo({ url: '/pkg-classics/bookmarks/index' }) },
+    })
   } catch (e) {
     uni.showToast({ title: (e as Error)?.message || '添加失败', icon: 'none' })
   } finally {

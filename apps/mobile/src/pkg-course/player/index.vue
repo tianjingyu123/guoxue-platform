@@ -63,6 +63,14 @@ async function submitQuestion() {
   }
 }
 function lessonLocked(chapter: PlayerChapter, lesson: PlayerChapterLesson) { return !lesson.isFree && !chapter.isFree }
+// 目录内点击课时：锁定（未购付费）→ 提示购买；否则切换播放
+function onDrawerLessonTap(chapter: PlayerChapter, lesson: PlayerChapterLesson) {
+  if (lessonLocked(chapter, lesson)) {
+    uni.showToast({ title: '请购买课程后观看', icon: 'none' })
+    return
+  }
+  switchLesson(lesson.id)
+}
 
 async function loadData() {
   loading.value = true
@@ -220,7 +228,7 @@ onMounted(() => {
                 v-for="lesson in chapter.lessons" :key="lesson.id"
                 class="dw-lesson"
                 :class="{ current: lesson.id === currentLessonId, locked: lessonLocked(chapter, lesson) }"
-                @tap="!lessonLocked(chapter, lesson) && switchLesson(lesson.id)"
+                @tap="onDrawerLessonTap(chapter, lesson)"
               >
                 <app-icon v-if="lesson.isCompleted" name="check" :size="28" color="#22C55E" />
                 <app-icon v-else-if="lessonLocked(chapter, lesson)" name="lock" :size="28" color="#71717A" />

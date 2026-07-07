@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { IsString, IsNotEmpty, IsOptional } from "class-validator";
 
 // ─────────────────────────────────────────────────
 // 列表/聚合用 DTO
@@ -316,9 +317,13 @@ export class AppreciationResultDto {
 
 export class CreatePoemCommentDto {
   @ApiProperty({ description: "评论内容" })
+  @IsString()
+  @IsNotEmpty({ message: "评论内容不能为空" })
   content: string;
 
   @ApiPropertyOptional({ description: "父评论ID（楼中楼回复）" })
+  @IsOptional()
+  @IsString()
   parentId?: string;
 }
 

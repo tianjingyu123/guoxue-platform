@@ -305,4 +305,18 @@ export const circleDetailApi = {
   // 免费圈直接成员 {success}；需审批免费圈返回 {status:'pending',message}
   join: (id: string) => apiPost<{ success?: boolean; status?: string; message?: string }>(`/circles/${id}/join`),
   leave: (id: string) => apiPost<{ success: boolean }>(`/circles/${id}/leave`),
+  /**
+   * 查询当前用户入圈状态 — GET /circles/:id/join/status（需登录，权威判断是否已加入 / 角色）。
+   * ⚠️ 详情端点 GET /circles/:id 未挂 JwtAuthGuard，req.user 恒空 → membership 恒 null →
+   *    detail.isJoined 恒 false、myRole 恒 null。故登录态下须单独查此鉴权端点覆盖真实加入态。
+   * 失败返回 { joined:false }（不阻断页面渲染）。
+   */
+  getJoinStatus: async (id: string): Promise<{ joined: boolean; role: CircleMemberRole | null; expired: boolean }> => {
+    try {
+      const r = await apiGet<{ joined?: boolean; role?: string; expired?: boolean }>(`/circles/${id}/join/status`)
+      return { joined: !!r?.joined, role: (r?.role as CircleMemberRole) ?? null, expired: !!r?.expired }
+    } catch {
+      return { joined: false, role: null, expired: false }
+    }
+  },
 }

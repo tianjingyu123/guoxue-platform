@@ -442,13 +442,20 @@ function goDetail(id: string) {
   display: flex;
   align-items: center;
   gap: 16rpx;
+  min-width: 0;
 }
 .cs-row-title {
+  flex: 1;
+  min-width: 0;
   font-size: 32rpx;
   font-weight: 600;
   color: var(--foreground);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .cs-free {
+  flex-shrink: 0;
   font-size: 20rpx;
   font-weight: 500;
   padding: 2rpx 12rpx;

@@ -206,12 +206,22 @@ async function submitComment() {
   if (!content) return
   commentSubmitting.value = true
   try {
-    await postDetailApi.createComment(postId.value, content, replyTo.value?.id)
-    // 成功：清空输入 + 重载评论拿真实新评论 + 同步评论计数
+    const created = await postDetailApi.createComment(postId.value, content, replyTo.value?.id) as {
+      id?: string; content?: string; user?: { id?: string; nickname?: string; avatar?: string } | null
+    }
+    const parent = replyTo.value
     commentText.value = ''
     replyTo.value = null
-    comments.value = await postDetailApi.getComments(postId.value)
-    if (post.value) post.value.comments = comments.value.length
+    // 乐观插入：后端评论列表有读写延迟/缓存，直接用创建返回本地插入，保证发布后立即可见（回复插入父评论 replies）
+    const author = { id: created?.user?.id ?? '', name: created?.user?.nickname ?? '我', avatar: created?.user?.avatar ?? '' }
+    const id = created?.id || `tmp_${Date.now()}`
+    if (parent) {
+      const p = comments.value.find(c => c.id === parent.id)
+      if (p) p.replies = [...(p.replies || []), { id, content, author, createdAt: '刚刚', likes: 0, isLiked: false }]
+    } else {
+      comments.value = [{ id, content, author, createdAt: '刚刚', likes: 0, isLiked: false, isPinned: false, replies: [] }, ...comments.value]
+    }
+    if (post.value) post.value.comments = (post.value.comments || 0) + 1
     uni.showToast({ title: '评论已发送', icon: 'success' })
   } catch {
     // 失败：不清空输入，便于重发

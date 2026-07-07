@@ -357,14 +357,21 @@ async function toggleShelf() {
     return
   }
   if (shelfSubmitting.value || !book.value) return
-  if (isInBookshelf.value) { uni.showToast({ title: '已在书架中', icon: 'none' }); return }
+  // 已在书架：直接进「我的书房」查看，提供可见入口
+  if (isInBookshelf.value) { uni.navigateTo({ url: '/pkg-classics/bookshelf/index' }); return }
   const first = book.value.chapters?.[0]
   if (!first) { uni.showToast({ title: '本书暂无章节', icon: 'none' }); return }
   shelfSubmitting.value = true
   try {
     await classicsApi.saveProgress(book.value.id, first.id, 1)
     isInBookshelf.value = true
-    uni.showToast({ title: '已加入书架', icon: 'success' })
+    // 加入成功后告知入口，避免「加了却找不到书架」
+    uni.showModal({
+      title: '已加入书架',
+      content: '可在「我的书房」查看已收藏的古籍，再次点按此处即可前往。',
+      confirmText: '去书房', cancelText: '继续浏览',
+      success: (r) => { if (r.confirm) uni.navigateTo({ url: '/pkg-classics/bookshelf/index' }) },
+    })
   } catch (e) {
     uni.showToast({ title: (e as Error)?.message || '操作失败', icon: 'none' })
   } finally {

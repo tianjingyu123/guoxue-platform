@@ -137,11 +137,25 @@ async function submitComment() {
   if (!content) return
   commentSubmitting.value = true
   try {
-    await articleApi.createComment(articleId.value, content, replyTo.value?.id)
+    const created = await articleApi.createComment(articleId.value, content, replyTo.value?.id) as {
+      id?: string; content?: string; user?: { id?: string; nickname?: string; avatar?: string } | null
+    }
+    const parent = replyTo.value
     commentText.value = ''
     replyTo.value = null
-    comments.value = await articleApi.getComments(articleId.value)
-    if (article.value) article.value.comments = comments.value.length
+    // 乐观插入：后端评论列表有读写延迟/缓存，直接用创建返回本地插入，保证发布后立即可见（回复插入父评论 replies）
+    const author = { id: created?.user?.id ?? '', name: created?.user?.nickname ?? '我', avatar: created?.user?.avatar ?? '' }
+    const id = created?.id || `tmp_${Date.now()}`
+    if (parent) {
+      const p = comments.value.find(c => c.id === parent.id)
+      if (p) {
+        p.replies = [...(p.replies || []), { id, content, author, createdAt: '刚刚', likes: 0, isLiked: false }]
+        p.replyCount = (p.replyCount || 0) + 1
+      }
+    } else {
+      comments.value = [{ id, content, author, createdAt: '刚刚', likes: 0, isLiked: false, replies: [], replyCount: 0 }, ...comments.value]
+    }
+    if (article.value) article.value.comments = (article.value.comments || 0) + 1
     uni.showToast({ title: '评论已发送', icon: 'success' })
   } catch {
     uni.showToast({ title: '发送失败，请重试', icon: 'none' })
