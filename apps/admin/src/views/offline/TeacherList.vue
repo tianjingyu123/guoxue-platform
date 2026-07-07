@@ -149,8 +149,8 @@
         >
           <el-input v-model="form.stationId" />
         </el-form-item>
-        <el-form-item label="头像URL">
-          <el-input v-model="form.avatar" />
+        <el-form-item label="头像">
+          <CosImageUpload v-model="form.avatar" tip="点击上传头像" />
         </el-form-item>
         <el-form-item label="专长标签">
           <el-input
@@ -268,6 +268,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { api } from '@/api'
+import CosImageUpload from '@/components/upload/CosImageUpload.vue'
 
 /** 教师行（字段宽松 optional） */
 interface TeacherRow {

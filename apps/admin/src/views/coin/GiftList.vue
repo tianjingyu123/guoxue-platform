@@ -161,23 +161,13 @@
           />
         </el-form-item>
         <el-form-item
-          label="图标URL"
+          label="图标"
           required
         >
-          <el-input
+          <CosImageUpload
             v-model="form.icon"
-            placeholder="https://..."
+            tip="点击上传礼物图标"
           />
-          <div
-            v-if="form.icon"
-            style="margin-top: 8px"
-          >
-            <el-image
-              :src="form.icon"
-              style="width: 48px; height: 48px; border-radius: 4px"
-              fit="cover"
-            />
-          </div>
         </el-form-item>
         <el-row :gutter="16">
           <el-col :span="12">
@@ -254,6 +244,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from "vue";
 import { coinApi, api } from "@/api";
+import CosImageUpload from "@/components/upload/CosImageUpload.vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { exportCSV } from "@/utils/export";
 
