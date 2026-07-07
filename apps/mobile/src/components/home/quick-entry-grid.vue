@@ -1,5 +1,7 @@
 <script setup lang="ts">
+import { ref } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import AllFeaturesSheet from '@/components/home/all-features-sheet.vue'
 import { navigateTo } from '@/utils/router'
 
 interface Entry { id: string; name: string; icon: string; color: string; bg: string; badge?: string; url: string }
@@ -25,14 +27,21 @@ const allEntries: Entry[] = [
   { id: 'mall',     name: '商城',   icon: 'shopping-bag',   color: '#C41E3A', bg: 'rgba(196,30,58,0.1)',   url: '/pkg-mall/home/index' },
   { id: 'live',     name: '直播',   icon: 'radio',          color: '#E74C3C', bg: 'rgba(231,76,60,0.1)',   url: '/pkg-live/plaza/index' },
   { id: 'classics2',name: '听书',   icon: 'headphones',     color: '#13C2C2', bg: 'rgba(19,194,194,0.1)',  url: '/pkg-classics/audiobooks/index' },
-  { id: 'more',     name: '更多',   icon: 'more-horizontal',color: '#666666', bg: 'rgba(102,102,102,0.1)', url: '/pages/discover/index' },
+  { id: 'more',     name: '更多',   icon: 'more-horizontal',color: '#666666', bg: 'rgba(102,102,102,0.1)', url: '' },
 ]
+
+// 「更多」改为弹出「全部功能」面板(平铺所有功能入口)，替代原来"跳发现页"的困惑体验(两套导航不一致)；其余正常跳转
+const showAll = ref(false)
+function onEntryTap(e: Entry) {
+  if (e.id === 'more') { showAll.value = true; return }
+  navigateTo(e.url)
+}
 </script>
 
 <template>
   <view class="entry-wrap">
     <view class="grid">
-      <view v-for="e in allEntries" :key="e.id" class="cell" @tap="navigateTo(e.url)">
+      <view v-for="e in allEntries" :key="e.id" class="cell" @tap="onEntryTap(e)">
         <view class="icon-box" :style="{ background: e.bg }">
           <app-icon :name="e.icon" :size="48" :color="e.color" />
           <text v-if="e.badge" class="badge">{{ e.badge }}</text>
@@ -40,6 +49,8 @@ const allEntries: Entry[] = [
         <text class="name">{{ e.name }}</text>
       </view>
     </view>
+    <!-- 点「更多」弹出全部功能面板 -->
+    <all-features-sheet v-if="showAll" @close="showAll = false" />
   </view>
 </template>
 
