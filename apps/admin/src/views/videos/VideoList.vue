@@ -204,16 +204,13 @@
           />
         </el-form-item>
         <el-form-item label="封面">
-          <el-input
+          <CosImageUpload
             v-model="form.cover"
-            placeholder="封面图片URL"
+            tip="建议 16:9，jpg/png"
           />
         </el-form-item>
-        <el-form-item label="视频地址">
-          <el-input
-            v-model="form.videoUrl"
-            placeholder="视频播放URL"
-          />
+        <el-form-item label="视频">
+          <VodUpload v-model="form.videoUrl" />
         </el-form-item>
         <el-row :gutter="16">
           <el-col :span="12">
@@ -261,6 +258,8 @@
 import { ref, reactive, onMounted } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import PageHeader from "@/components/PageHeader.vue";
+import VodUpload from "@/components/upload/VodUpload.vue";
+import CosImageUpload from "@/components/upload/CosImageUpload.vue";
 import { videoApi, api } from "@/api";
 
 const list = ref<any[]>([]);
