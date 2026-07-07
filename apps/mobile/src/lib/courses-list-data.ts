@@ -114,13 +114,16 @@ export const coursesListApi = {
    */
   async list(params: {
     category?: string; keyword?: string; free?: boolean; sort?: string; page?: number; pageSize?: number
+    minPrice?: number; maxPrice?: number
   }): Promise<{ items: (CourseCardData & { category: string; free: boolean })[]; total: number }> {
-    const { category, keyword, free, sort, page = 1, pageSize = 20 } = params
+    const { category, keyword, free, sort, page = 1, pageSize = 20, minPrice, maxPrice } = params
     const qs: string[] = [`page=${page}`, `pageSize=${pageSize}`]
     if (category && category !== 'all') qs.push(`categoryLevel1=${encodeURIComponent(category)}`)
     if (keyword) qs.push(`keyword=${encodeURIComponent(keyword)}`)
     if (free) qs.push('free=true')
     if (sort) qs.push(`sort=${sort}`)
+    if (minPrice !== undefined) qs.push(`minPrice=${minPrice}`)
+    if (maxPrice !== undefined) qs.push(`maxPrice=${maxPrice}`)
     // /courses 含分页行键 courses → 拦截器转 {data:数组,pagination}，用 apiGetPaged 保留 total
     const { items, total } = await apiGetPaged<RawCourse>(`/courses?${qs.join('&')}`)
     return { items: items.map(adaptCard), total }

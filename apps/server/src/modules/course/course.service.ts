@@ -148,16 +148,17 @@ export class CourseService {
   async listCourses(params: {
     page: number; pageSize: number; circleId?: string;
     auditStatus?: string; status?: string; stationId?: string; type?: string; keyword?: string;
-    categoryLevel1?: string; sort?: string; free?: boolean;
+    categoryLevel1?: string; sort?: string; free?: boolean; minPrice?: number; maxPrice?: number;
   }) {
-    const { circleId, auditStatus, status, stationId, type, keyword, categoryLevel1, sort, free } = params;
+    const { circleId, auditStatus, status, stationId, type, keyword, categoryLevel1, sort, free, minPrice, maxPrice } = params;
     const { page, pageSize, skip } = safePagination(params.page, params.pageSize);
     const filterStatus = auditStatus || status;
-    const filterHash = `${circleId ?? ""}:${filterStatus ?? ""}:${type ?? ""}:${keyword ?? ""}:${categoryLevel1 ?? ""}:${sort ?? ""}:${free ? "1" : ""}`;
+    const hasPrice = minPrice !== undefined || maxPrice !== undefined;
+    const filterHash = `${circleId ?? ""}:${filterStatus ?? ""}:${type ?? ""}:${keyword ?? ""}:${categoryLevel1 ?? ""}:${sort ?? ""}:${free ? "1" : ""}:${minPrice ?? ""}-${maxPrice ?? ""}`;
     const cacheKey = `courses:list:${page}:${pageSize}:${filterHash}`;
 
-    // 关键词搜索、类型/品类/排序/免费筛选不缓存（组合太多）
-    if (!keyword && !type && !categoryLevel1 && !sort && !free) {
+    // 关键词搜索、类型/品类/排序/免费/价格筛选不缓存（组合太多）
+    if (!keyword && !type && !categoryLevel1 && !sort && !free && !hasPrice) {
       const cached = await this.redis.getJson<any>(cacheKey);
       if (cached) return cached;
     }
@@ -174,6 +175,12 @@ export class CourseService {
     if (keyword) where.title = { contains: keyword };
     if (categoryLevel1) where.categoryLevel1 = categoryLevel1;
     if (free) where.price = 0;
+    else if (hasPrice) {
+      const priceCond: Prisma.DecimalFilter = {};
+      if (minPrice !== undefined) priceCond.gte = minPrice;
+      if (maxPrice !== undefined) priceCond.lte = maxPrice;
+      where.price = priceCond;
+    }
 
     // 排序下沉：popular/recommend=学习人数，price-asc=价格升序，newest/默认=最新
     const orderBy: Prisma.CourseOrderByWithRelationInput =

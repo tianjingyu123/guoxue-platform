@@ -237,6 +237,14 @@ export class CourseListQueryDto {
   @ApiPropertyOptional({ description: "仅看免费课程(price=0)" })
   @IsOptional() @Transform(({ value }) => value === "true" || value === true) @IsBoolean()
   free?: boolean;
+
+  @ApiPropertyOptional({ description: "价格区间下限(元·含)" })
+  @IsOptional() @Type(() => Number) @IsNumber() @Min(0)
+  minPrice?: number;
+
+  @ApiPropertyOptional({ description: "价格区间上限(元·含)" })
+  @IsOptional() @Type(() => Number) @IsNumber() @Min(0)
+  maxPrice?: number;
 }
 
 // ═══════════════════ 课程购买 ═══════════════════

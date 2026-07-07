@@ -29,11 +29,18 @@ const showFilter = ref(false)
 // 主列表：分类/搜索/免费/排序全部作为查询参数下沉后端，切任一条件即重载第一页
 const { list: courses, loading, error, loadStatus, refresh, loadMore } = useList<
   CourseCardData & { category: string; free: boolean },
-  { category: string; keyword: string; free: boolean; sort: string }
+  { category: string; keyword: string; free: boolean; sort: string; minPrice?: number; maxPrice?: number }
 >({
-  fetcher: ({ page, pageSize, category, keyword, free, sort }) =>
-    coursesListApi.list({ page, pageSize, category, keyword: keyword || undefined, free, sort }),
-  getParams: () => ({ category: activeCategory.value, keyword: searchQuery.value, free: onlyFree.value, sort: activeSort.value }),
+  fetcher: ({ page, pageSize, category, keyword, free, sort, minPrice, maxPrice }) =>
+    coursesListApi.list({ page, pageSize, category, keyword: keyword || undefined, free, sort, minPrice, maxPrice }),
+  getParams: () => {
+    const pr = priceRangeMap[activePriceRange.value] ?? {}
+    return {
+      category: activeCategory.value, keyword: searchQuery.value, sort: activeSort.value,
+      free: onlyFree.value || !!pr.free, // 免费 toggle 与价格区间"免费"任一即可
+      minPrice: pr.minPrice, maxPrice: pr.maxPrice,
+    }
+  },
 })
 
 // 头部轮播/秒杀/分类 tab（失败不阻塞主列表，三态由主列表承载）
@@ -114,14 +121,26 @@ onUnmounted(() => {
 // 当前排序名
 const activeSortName = computed(() => courseSortOptions.find((s) => s.id === activeSort.value)?.name ?? '')
 
-// 价格区间 / 时长筛选项(原型为纯展示)
+// 价格区间筛选（下沉后端 minPrice/maxPrice；时长因后端无对应字段已移除，避免死按钮）
 const priceRanges = ['全部', '免费', '0-100', '100-300', '300以上']
-const durationRanges = ['全部', '5小时内', '5-10小时', '10小时以上']
+// 每个区间 → 后端查询参数（免费复用 free；区间用 minPrice/maxPrice·元）
+const priceRangeMap: Record<string, { free?: boolean; minPrice?: number; maxPrice?: number }> = {
+  '全部': {},
+  '免费': { free: true },
+  '0-100': { minPrice: 0, maxPrice: 100 },
+  '100-300': { minPrice: 100, maxPrice: 300 },
+  '300以上': { minPrice: 300 },
+}
+const activePriceRange = ref('全部')
 
 function goBack() { navigateBack() }
 function selectCategory(id: string) { if (activeCategory.value === id) return; activeCategory.value = id; refresh() }
 function selectSort(id: string) { activeSort.value = id; showSortMenu.value = false; refresh() }
 function toggleFree() { onlyFree.value = !onlyFree.value; refresh() }
+// 筛选面板：选价格区间（单选）/ 重置 / 确定
+function selectPriceRange(r: string) { activePriceRange.value = r }
+function resetFilter() { activePriceRange.value = '全部' }
+function applyFilter() { showFilter.value = false; refresh() }
 function onSearch() { refresh() }
 function openCourse(id: string) { navigateTo(`/course/${id}`) }
 </script>
@@ -308,18 +327,16 @@ function openCourse(id: string) { navigateTo(`/course/${id}`) }
         <view class="filter-group">
           <text class="filter-group-title">价格区间</text>
           <view class="filter-chips">
-            <text v-for="range in priceRanges" :key="range" class="filter-chip-pill">{{ range }}</text>
-          </view>
-        </view>
-        <view class="filter-group">
-          <text class="filter-group-title">课程时长</text>
-          <view class="filter-chips">
-            <text v-for="d in durationRanges" :key="d" class="filter-chip-pill">{{ d }}</text>
+            <text
+              v-for="range in priceRanges" :key="range"
+              class="filter-chip-pill" :class="{ on: activePriceRange === range }"
+              @tap="selectPriceRange(range)"
+            >{{ range }}</text>
           </view>
         </view>
         <view class="filter-foot">
-          <view class="filter-reset">重置</view>
-          <view class="filter-confirm" @tap="showFilter = false">确定</view>
+          <view class="filter-reset" @tap="resetFilter">重置</view>
+          <view class="filter-confirm" @tap="applyFilter">确定</view>
         </view>
       </view>
     </view>
@@ -426,7 +443,8 @@ function openCourse(id: string) { navigateTo(`/course/${id}`) }
 .filter-group { margin-bottom: 32rpx; }
 .filter-group-title { display: block; font-size: 26rpx; font-weight: 500; color: var(--text-strong); margin-bottom: 16rpx; }
 .filter-chips { display: flex; flex-wrap: wrap; gap: 16rpx; }
-.filter-chip-pill { padding: 12rpx 24rpx; font-size: 24rpx; background: var(--surface-sunken); color: var(--text); border-radius: 999rpx; }
+.filter-chip-pill { padding: 12rpx 24rpx; font-size: 24rpx; background: var(--surface-sunken); color: var(--text); border-radius: 999rpx; border: 2rpx solid transparent; }
+.filter-chip-pill.on { background: var(--brand); color: #fff; border-color: var(--brand); }
 .filter-foot { position: absolute; left: 32rpx; right: 32rpx; bottom: 32rpx; display: flex; gap: 24rpx; }
 .filter-reset { flex: 1; height: 80rpx; display: flex; align-items: center; justify-content: center; border: 2rpx solid var(--line); border-radius: 999rpx; font-size: 26rpx; color: var(--text); }
 .filter-confirm { flex: 1; height: 80rpx; display: flex; align-items: center; justify-content: center; background: var(--brand); border-radius: 999rpx; font-size: 26rpx; font-weight: 500; color: #fff; }

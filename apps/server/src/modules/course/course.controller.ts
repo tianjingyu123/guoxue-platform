@@ -75,6 +75,8 @@ export class CourseController {
       categoryLevel1: q.categoryLevel1,
       sort: q.sort,
       free: q.free,
+      minPrice: q.minPrice,
+      maxPrice: q.maxPrice,
     });
   }
 
