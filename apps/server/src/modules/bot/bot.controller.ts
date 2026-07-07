@@ -182,6 +182,17 @@ export class BotController {
     return this.svc.bindToCircle(id, dto, req.user.id);
   }
 
+  @Delete(":id/unbind-circle/:circleId")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "解绑智能体与圈子（管理端）" })
+  @ApiResponse({ status: 200, description: "解绑成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiBearerAuth()
+  unbindFromCircle(@Param("circleId") circleId: string) {
+    return this.svc.unbindCircle(circleId);
+  }
+
   @Get("circle/:circleId")
   @ApiOperation({ summary: "获取圈子绑定的智能体" })
   @ApiResponse({ status: 200, description: "成功" })

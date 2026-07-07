@@ -527,6 +527,8 @@ export const botApi = {
   remove: (id: string) => api.delete(`/bots/${id}`),
   bindCircle: (id: string, data: { circleId: string; knowledgeBaseId?: string }) =>
     api.post(`/bots/${id}/bind-circle`, data),
+  unbindCircle: (id: string, circleId: string) =>
+    api.delete(`/bots/${id}/unbind-circle/${circleId}`),
   getCircleBot: (circleId: string) => api.get(`/bots/circle/${circleId}`),
   addKnowledge: (id: string, data: { title: string; content: string; sourceType?: string; sourceId?: string }) =>
     api.post(`/bots/${id}/knowledge`, data),
@@ -1488,6 +1490,8 @@ export const knowledgeApi = {
     api.post("/circle-knowledge/add", data),
   removeFromKnowledge: (knowledgeId: string, circleId: string, userId: string) =>
     api.post(`/circle-knowledge/remove/${knowledgeId}`, { circleId, userId }),
+  adminRemoveKnowledge: (knowledgeId: string, circleId: string) =>
+    api.post(`/circle-knowledge/admin/remove/${knowledgeId}`, { circleId }),
   getCandidates: (circleId: string, status?: string) =>
     api.get(`/circle-knowledge/candidates/${circleId}`, { params: status ? { status } : {} }),
   confirmCandidate: (candidateId: string) =>
@@ -1765,6 +1769,8 @@ export const aiAnomalyApi = {
   checkAll: () => api.post("/ai/anomalies/check"),
   checkRule: (ruleId: string) => api.post(`/ai/anomalies/check/${ruleId}`),
   getRules: () => api.get("/ai/anomalies/rules"),
+  toggleRule: (ruleId: string, enabled: boolean) =>
+    api.post(`/ai/anomalies/rules/${ruleId}/toggle`, { enabled }),
   addRule: (data: {
     id: string; metric: string; dimension: string; baselineWindow: number;
     deviationThreshold: number; severity: string; enabled: boolean;

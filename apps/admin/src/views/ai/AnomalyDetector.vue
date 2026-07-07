@@ -412,7 +412,15 @@ async function runSingleCheck(ruleId: string) {
 }
 
 async function toggleRule(rule: AnomalyRule) {
-  // 更新本地状态，后端可通过 addRule 接口覆盖
+  if (!rule.id) return
+  try {
+    const res = await aiAnomalyApi.toggleRule(rule.id, !!rule.enabled)
+    rule.enabled = !!(res.data?.enabled ?? rule.enabled)
+    ElMessage.success(rule.enabled ? '规则已启用' : '规则已停用')
+  } catch {
+    rule.enabled = !rule.enabled // 失败回滚开关
+    ElMessage.error('操作失败，请重试')
+  }
 }
 </script>
 

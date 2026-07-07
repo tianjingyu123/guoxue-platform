@@ -1615,6 +1615,23 @@
               </el-button>
             </template>
           </el-table-column>
+          <el-table-column
+            v-if="knowledgeSubTab !== 'candidates'"
+            label="操作"
+            width="100"
+            fixed="right"
+          >
+            <template #default="{ row }">
+              <el-button
+                size="small"
+                type="danger"
+                link
+                @click="removeIndexedKnowledge(row)"
+              >
+                移除
+              </el-button>
+            </template>
+          </el-table-column>
           <template #empty>
             <el-empty
               description="暂无知识"
@@ -2480,6 +2497,13 @@ async function confirmKnowledge(row: KnowledgeRow) {
 async function rejectKnowledge(row: KnowledgeRow) {
   if (acting.value) return; acting.value = true;
   try { await knowledgeApi.rejectCandidate(row.id); ElMessage.success("已拒绝"); fetchKnowledge(); } catch { /* ignore */ } finally { acting.value = false; }
+}
+// 已入库知识条目移除（管理端·超管/运营）
+async function removeIndexedKnowledge(row: KnowledgeRow) {
+  try { await ElMessageBox.confirm("确定从知识库移除该条目？", "确认", { type: "warning" }); } catch { return; }
+  if (acting.value) return; acting.value = true;
+  try { await knowledgeApi.adminRemoveKnowledge(row.id, circleId); ElMessage.success("已移除"); fetchKnowledge(); }
+  catch { ElMessage.error("移除失败，请重试"); } finally { acting.value = false; }
 }
 
 // ─── 排行 ───

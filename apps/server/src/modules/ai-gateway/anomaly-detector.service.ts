@@ -4,6 +4,8 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { AiEventBusService } from "./ai-event-bus.service";
 import { AiGatewayService } from "./ai-gateway.service";
+import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
 
 export interface AnomalyRule {
   id: string;
@@ -62,6 +64,15 @@ export class AnomalyDetectorService {
       this.rules.push(rule);
     }
     this.logger.log(`异常检测规则已注册: ${rule.id}`);
+  }
+
+  /** 启用/停用规则（内存态·翻转 enabled；停用后 runRule/runAllRules 跳过该规则） */
+  toggleRule(ruleId: string, enabled?: boolean): { id: string; enabled: boolean } {
+    const rule = this.rules.find((r) => r.id === ruleId);
+    if (!rule) throw new BusinessException(ErrorCode.NOT_FOUND, "规则不存在");
+    rule.enabled = enabled === undefined ? !rule.enabled : enabled;
+    this.logger.log(`异常检测规则 ${ruleId} → ${rule.enabled ? "启用" : "停用"}`);
+    return { id: rule.id, enabled: rule.enabled };
   }
 
   /** 运行单条规则检测 */

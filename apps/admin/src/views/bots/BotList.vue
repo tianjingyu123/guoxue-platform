@@ -377,6 +377,22 @@
             label="知识库ID"
             show-overflow-tooltip
           />
+          <el-table-column
+            label="操作"
+            width="100"
+            align="center"
+          >
+            <template #default="{ row }">
+              <el-button
+                size="small"
+                type="danger"
+                link
+                @click="handleUnbindCircle(row.circle?.id || row.circleId)"
+              >
+                解绑
+              </el-button>
+            </template>
+          </el-table-column>
         </el-table>
         <el-empty
           v-else
@@ -725,6 +741,21 @@ async function openDetail(row: BotRow) {
     detailData.value = data;
   } catch {
     detailDialogVisible.value = false;
+  }
+}
+
+async function handleUnbindCircle(circleId: string) {
+  if (!detailData.value?.id) return;
+  try {
+    await ElMessageBox.confirm("确定解绑该圈子？解绑后该圈子将不再使用此智能体。", "确认", { type: "warning" });
+  } catch { return; }
+  try {
+    await botApi.unbindCircle(detailData.value.id, circleId);
+    ElMessage.success("已解绑");
+    const { data } = await botApi.detail(detailData.value.id);
+    detailData.value = data;
+  } catch {
+    ElMessage.error("解绑失败，请重试");
   }
 }
 
