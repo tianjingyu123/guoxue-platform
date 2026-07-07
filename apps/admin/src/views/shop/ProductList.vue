@@ -228,15 +228,30 @@
           </el-col>
           <el-col :span="8">
             <el-form-item label="分类">
-              <el-input
+              <el-select
                 v-model="form.category"
-                placeholder="商品分类"
-              />
+                placeholder="选择商品分类"
+                filterable
+                allow-create
+                default-first-option
+                clearable
+                style="width:100%"
+              >
+                <el-option
+                  v-for="c in categories"
+                  :key="c.id"
+                  :label="c.name"
+                  :value="c.name"
+                />
+              </el-select>
             </el-form-item>
           </el-col>
           <el-col :span="8">
             <el-form-item label="封面">
-              <ImageUpload v-model="form.cover" />
+              <CosImageUpload
+                v-model="form.cover"
+                tip="点击上传商品封面"
+              />
             </el-form-item>
           </el-col>
         </el-row>
@@ -429,8 +444,9 @@
 import { ref, reactive, onMounted, nextTick } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance } from 'element-plus'
-import { uploadApi, productApi } from '@/api'
+import { uploadApi, productApi, api } from '@/api'
 import ImageUpload from '@/components/ImageUpload.vue'
+import CosImageUpload from '@/components/upload/CosImageUpload.vue'
 import DataTable from '@/components/DataTable.vue'
 import PageHeader from "@/components/PageHeader.vue"
 
@@ -465,6 +481,17 @@ const loading = ref(false)
 const error = ref(false)
 const saving = ref(false)
 const uploading = ref(false)
+// 商品分类下拉数据（来自后端商品分类树 /shop/categories）
+const categories = ref<Array<{ id: string; name: string }>>([])
+async function loadCategories() {
+  try {
+    const { data } = await api.get('/shop/categories')
+    const flat: Array<{ id: string; name: string }> = []
+    const walk = (nodes: any[]) => { (nodes || []).forEach((n: any) => { flat.push({ id: n.id, name: n.name }); if (n.children) walk(n.children) }) }
+    walk(Array.isArray(data) ? data : ((data as any)?.items || (data as any)?.list || []))
+    categories.value = flat
+  } catch { /* 分类加载失败不阻断表单 */ }
+}
 const acting = ref(false)
 
 const dialogVisible = ref(false)
@@ -504,7 +531,7 @@ const columns = [
   { prop: "sceneTags", label: "场景标签", minWidth: 150, slot: "sceneTags" },
 ]
 
-onMounted(() => fetchList())
+onMounted(() => { fetchList(); loadCategories() })
 
 function statusLabel(s: string) { return ({ ON_SALE: '在售', PENDING: '待审', OFF_SHELF: '下架' } as Record<string, string>)[s] || s }
 function statusType(s: string) { return ({ ON_SALE: 'success', PENDING: 'warning', OFF_SHELF: 'info' } as Record<string, string>)[s] || 'info' }
@@ -551,8 +578,7 @@ async function openEdit(row: ProductRow) {
   dialogVisible.value = true; nextTick(() => initEditor())
 }
 
-function initEditor() {
-  // window.Quill 由全局脚本注入，无类型声明，保留 any
+function setupDetailQuill() {
   const Q = (window as any).Quill
   if (!Q || !detailEditorEl.value) return
   if (detailQuill) { detailQuill.root.innerHTML = form.detail || ''; return }
@@ -563,6 +589,27 @@ function initEditor() {
   })
   detailQuill.root.innerHTML = form.detail || ''
   detailQuill.on('text-change', () => { form.detail = detailQuill.root.innerHTML })
+}
+
+function initEditor() {
+  // 自包含加载 Quill：补 snow 主题 CSS(缺则工具栏方框)+ 按需动态加载 JS(不依赖别的页面先加载过 window.Quill)
+  if (!document.getElementById('quill-snow-css')) {
+    const link = document.createElement('link')
+    link.id = 'quill-snow-css'
+    link.rel = 'stylesheet'
+    link.href = 'https://cdn.quilljs.com/1.3.7/quill.snow.css'
+    document.head.appendChild(link)
+  }
+  if ((window as any).Quill) { setupDetailQuill(); return }
+  if (!document.getElementById('quill-cdn-js')) {
+    const script = document.createElement('script')
+    script.id = 'quill-cdn-js'
+    script.src = 'https://cdn.quilljs.com/1.3.7/quill.min.js'
+    script.onload = () => setupDetailQuill()
+    document.body.appendChild(script)
+  } else {
+    const timer = setInterval(() => { if ((window as any).Quill) { clearInterval(timer); setupDetailQuill() } }, 100)
+  }
 }
 
 async function saveProduct() {
