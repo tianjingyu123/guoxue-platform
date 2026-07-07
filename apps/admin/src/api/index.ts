@@ -674,6 +674,8 @@ export const uploadApi = {
       headers: { "Content-Type": "multipart/form-data" },
     });
   },
+  // 获取 VOD 上传签名(视频直传腾讯云点播·前端用 vod-js-sdk-v6 拿此签名上传)
+  getVodSignature: () => api.post("/videos/vod/upload-signature", {}),
 };
 
 // 分佣管理

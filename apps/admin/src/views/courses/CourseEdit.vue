@@ -956,8 +956,31 @@
         <el-form-item label="媒体URL">
           <el-input
             v-model="chapterForm.mediaUrl"
-            placeholder="视频/音频URL"
+            placeholder="视频/音频URL·可手填，或用下方本地上传"
           />
+          <div class="vod-upload-row">
+            <el-upload
+              :show-file-list="false"
+              :http-request="handleVodUpload"
+              accept="video/*"
+              :disabled="vodUploading"
+            >
+              <el-button
+                type="primary"
+                size="small"
+                :loading="vodUploading"
+              >
+                {{ vodUploading ? `上传中 ${vodProgress}%` : '本地上传视频' }}
+              </el-button>
+            </el-upload>
+            <el-progress
+              v-if="vodUploading"
+              :percentage="vodProgress"
+              :stroke-width="6"
+              style="margin-top: 8px"
+            />
+            <div class="vod-tip">支持本地视频直传，自动转码压缩；大视频建议用电脑上传</div>
+          </div>
         </el-form-item>
         <el-form-item label="正文">
           <div
@@ -1211,6 +1234,8 @@ import { ref, reactive, onMounted, nextTick, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { courseApi, uploadApi } from '@/api'
+// @ts-ignore vod-js-sdk-v6 无类型声明
+import TcVod from 'vod-js-sdk-v6'
 
 const route = useRoute()
 const router = useRouter()
@@ -1288,6 +1313,9 @@ const mainRules = {
 }
 const saving = ref(false)
 const uploading = ref(false)
+// 章节视频 VOD 上传状态
+const vodUploading = ref(false)
+const vodProgress = ref(0)
 const coverUrl = ref('')
 const quickStatus = ref('')
 
@@ -1462,6 +1490,31 @@ async function handleCoverUpload(options: any) {
     coverUrl.value = data.url
     ElMessage.success('封面上传成功')
   } catch { /* skip */ } finally { uploading.value = false }
+}
+
+// 章节视频上传：直传腾讯云 VOD(拿签名→SDK 分片上传→进度→把播放地址写入 mediaUrl)
+async function handleVodUpload(options: any) {
+  vodUploading.value = true
+  vodProgress.value = 0
+  try {
+    const tcVod = new TcVod({
+      getSignature: async () => {
+        const { data } = await uploadApi.getVodSignature()
+        return (data as any).signature
+      },
+    })
+    const uploader = tcVod.upload({ mediaFile: options.file })
+    uploader.on('media_progress', (info: any) => {
+      vodProgress.value = Math.round((info.percent || 0) * 100)
+    })
+    const result: any = await uploader.done()
+    chapterForm.mediaUrl = result?.video?.url || ''
+    ElMessage.success('视频上传成功，已自动填入媒体地址')
+  } catch {
+    ElMessage.error('视频上传失败，请重试')
+  } finally {
+    vodUploading.value = false
+  }
 }
 
 async function changeStatus(status: string) {
@@ -1710,4 +1763,6 @@ watch(activeTab, (tab) => {
 .stat-label { font-size: 13px; color: var(--color-text-secondary); margin-bottom: 8px; }
 .stat-value { font-size: 28px; font-weight: 700; color: var(--color-primary); }
 @media (max-width: 900px) { .edit-body { flex-direction: column; } .edit-sidebar { width: 100%; } }
+.vod-upload-row { margin-top: 8px; }
+.vod-tip { font-size: 12px; color: var(--color-text-secondary, #999); margin-top: 6px; }
 </style>
