@@ -1163,6 +1163,9 @@ import { ElMessage } from 'element-plus'
 import { courseApi } from '@/api'
 import CosImageUpload from '@/components/upload/CosImageUpload.vue'
 import VodUpload from '@/components/upload/VodUpload.vue'
+// 本地打包 Quill（原用 window.Quill CDN 全局·fb7eba9f 去 CDN 后该全局不存在→章节编辑器不初始化，故改本地 import）
+import Quill from 'quill'
+import 'quill/dist/quill.snow.css'
 
 const route = useRoute()
 const router = useRouter()
@@ -1464,9 +1467,7 @@ async function deleteChapter(chapterId: string) {
 function initChapterEditor() {
   if (!chapterEditorEl.value) return
   if (chapterQuill) { chapterQuill.root.innerHTML = chapterForm.content || ''; return }
-  const Q = (window as any).Quill
-  if (!Q) return
-  chapterQuill = new Q(chapterEditorEl.value, {
+  chapterQuill = new Quill(chapterEditorEl.value, {
     theme: 'snow',
     modules: { toolbar: [['bold', 'italic', 'underline'], [{ header: 1 }, { header: 2 }], [{ list: 'ordered' }, { list: 'bullet' }], ['blockquote', 'code-block'], ['link'], ['clean']] },
     placeholder: '章节正文...',
