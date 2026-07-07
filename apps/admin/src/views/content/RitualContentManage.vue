@@ -45,9 +45,9 @@
               <el-input v-model="row.content" size="small" type="textarea" :rows="2" placeholder="节气提醒内容..." />
             </template>
           </el-table-column>
-          <el-table-column label="配图" width="140">
+          <el-table-column label="配图" width="150">
             <template #default="{ row }">
-              <el-input v-model="row.imageUrl" size="small" placeholder="图片URL" />
+              <CosImageUpload v-model="row.imageUrl" tip="点击上传" />
             </template>
           </el-table-column>
           <el-table-column label="状态" width="90">

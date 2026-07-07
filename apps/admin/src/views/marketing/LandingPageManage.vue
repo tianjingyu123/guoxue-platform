@@ -102,7 +102,7 @@
             <el-input v-model="downloadConfig.miniAppId" placeholder="微信小程序AppID" />
           </el-form-item>
           <el-form-item label="引导图片">
-            <el-input v-model="downloadConfig.guideImage" placeholder="下载引导图片URL" />
+            <CosImageUpload v-model="downloadConfig.guideImage" tip="点击上传图片" />
           </el-form-item>
         </el-form>
       </el-card>
@@ -147,6 +147,7 @@ import { ref, reactive, onMounted } from "vue"
 import { ElMessage } from "element-plus"
 import { marketingApi } from "@/api"
 import PageHeader from "@/components/PageHeader.vue"
+import CosImageUpload from "@/components/upload/CosImageUpload.vue"
 
 const activeTab = ref("templates")
 const pageLoading = ref(false)

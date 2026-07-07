@@ -289,33 +289,36 @@
               </el-button>
             </div>
             <div class="img-add">
-              <el-input
-                v-model="imgUrl"
-                placeholder="图片URL"
-                size="small"
-                style="width:180px"
-              />
-              <el-button
-                size="small"
-                @click="addImage"
-              >
-                添加
-              </el-button>
-              <el-upload
-                :show-file-list="false"
-                :http-request="uploadImage"
+              <input
+                ref="imgInputRef"
+                type="file"
                 accept="image/*"
-                style="display:inline-block;margin-left:4px"
+                style="display:none"
+                @change="onImageFile"
               >
-                <el-button
-                  size="small"
-                  type="primary"
-                  :loading="uploading"
-                >
-                  上传
-                </el-button>
-              </el-upload>
+              <div
+                class="img-upload-btn"
+                :class="{ 'is-loading': uploading }"
+                @click="pickImage"
+              >
+                <el-icon><Plus /></el-icon>
+                <span>{{ uploading ? '上传中…' : '本地上传' }}</span>
+              </div>
             </div>
+          </div>
+          <div class="img-url-row">
+            <el-input
+              v-model="imgUrl"
+              placeholder="或粘贴图片URL"
+              size="small"
+              style="width:220px"
+            />
+            <el-button
+              size="small"
+              @click="addImage"
+            >
+              添加URL图
+            </el-button>
           </div>
         </el-form-item>
       </el-form>
@@ -445,6 +448,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance } from 'element-plus'
+import { Plus } from '@element-plus/icons-vue'
 import { uploadApi, productApi, api } from '@/api'
 import ImageUpload from '@/components/ImageUpload.vue'
 import CosImageUpload from '@/components/upload/CosImageUpload.vue'
@@ -555,9 +559,16 @@ async function fetchProduct(id: string) { const { data } = await productApi.deta
 
 function addImage() { const u = imgUrl.value.trim(); if (u && !form.images.includes(u)) { form.images.push(u); imgUrl.value = '' } }
 
-async function uploadImage(options: { file: File }) {
+// 本地上传详情图：原生隐藏 input + ref 手动触发（规避 el-upload 首次点击不触发）
+const imgInputRef = ref<HTMLInputElement | null>(null)
+function pickImage() { if (!uploading.value) imgInputRef.value?.click() }
+async function onImageFile(e: Event) {
+  const input = e.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
+  if (!file) return
   uploading.value = true
-  try { const { data } = await uploadApi.image(options.file); if (data.url) form.images.push(data.url); ElMessage.success('上传成功') } catch { /* */ } finally { uploading.value = false }
+  try { const { data } = await uploadApi.image(file); if (data.url) form.images.push(data.url); ElMessage.success('上传成功') } catch { ElMessage.error('上传失败，请重试') } finally { uploading.value = false }
 }
 
 function resetForm() {
@@ -685,11 +696,15 @@ async function delSku(skuId: string) {
 .thumb { width: 48px; height: 48px; object-fit: cover; border-radius: 4px; }
 .scene-tag { margin: 0 4px 2px 0; }
 .no-img { color: var(--color-text-placeholder); font-size: 11px; }
-.editor-box { min-height: 180px; max-height: 400px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px; }
+.editor-box { min-height: 300px; max-height: 520px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px; }
 .rate-hint { margin-left: 8px; font-size: 12px; color: #909399; }
 .images-area { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end; }
 .img-item { position: relative; width: 80px; height: 80px; }
 .img-item img { width: 100%; height: 100%; object-fit: cover; border-radius: 4px; }
 .img-item .el-button { position: absolute; top: -6px; right: -6px; width: 20px; height: 20px; }
 .img-add { display: flex; gap: 4px; align-items: center; }
+.img-upload-btn { width: 90px; height: 90px; border: 1px dashed #c0c4cc; border-radius: 6px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; cursor: pointer; color: #909399; font-size: 12px; transition: border-color .2s; }
+.img-upload-btn:hover { border-color: var(--el-color-primary, #409eff); color: var(--el-color-primary, #409eff); }
+.img-upload-btn.is-loading { cursor: not-allowed; opacity: .6; }
+.img-url-row { display: flex; gap: 8px; align-items: center; margin-top: 10px; }
 </style>

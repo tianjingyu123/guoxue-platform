@@ -247,9 +247,9 @@
           <el-input v-model="giftForm.name" />
         </el-form-item>
         <el-form-item label="图标URL">
-          <el-input
+          <CosImageUpload
             v-model="giftForm.iconUrl"
-            placeholder="礼物图标地址"
+            tip="点击上传图片"
           />
         </el-form-item>
         <el-form-item
@@ -302,6 +302,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { api } from '@/api'
+import CosImageUpload from '@/components/upload/CosImageUpload.vue'
 
 interface CoinTierRow {
   _key: string

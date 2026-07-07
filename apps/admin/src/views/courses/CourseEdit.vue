@@ -234,58 +234,10 @@
           >
             <div class="sidebar-section">
               <h4>封面图片</h4>
-              <div class="cover-upload">
-                <div
-                  v-if="form.cover"
-                  class="cover-preview"
-                >
-                  <img
-                    :src="form.cover"
-                    alt="封面"
-                  >
-                  <el-button
-                    size="small"
-                    type="danger"
-                    class="cover-remove"
-                    @click="form.cover = ''"
-                  >
-                    移除
-                  </el-button>
-                </div>
-                <div
-                  v-else
-                  class="cover-placeholder"
-                >
-                  <span>暂无封面</span>
-                </div>
-                <div class="cover-input-row">
-                  <el-input
-                    v-model="coverUrl"
-                    placeholder="图片URL"
-                    size="small"
-                  />
-                  <el-button
-                    size="small"
-                    @click="form.cover = coverUrl"
-                  >
-                    设置
-                  </el-button>
-                </div>
-                <el-upload
-                  :show-file-list="false"
-                  :http-request="handleCoverUpload"
-                  accept="image/*"
-                  style="margin-top:8px"
-                >
-                  <el-button
-                    size="small"
-                    type="primary"
-                    :loading="uploading"
-                  >
-                    本地上传
-                  </el-button>
-                </el-upload>
-              </div>
+              <CosImageUpload
+                v-model="form.cover"
+                tip="建议 16:9，jpg/png"
+              />
             </div>
             <div
               v-if="isEdit"
@@ -939,6 +891,7 @@
       :title="editingChapter ? '编辑章节' : '添加章节'"
       width="700px"
       top="5vh"
+      @opened="initChapterEditor"
     >
       <el-form
         :model="chapterForm"
@@ -953,34 +906,8 @@
             placeholder="章节标题"
           />
         </el-form-item>
-        <el-form-item label="媒体URL">
-          <el-input
-            v-model="chapterForm.mediaUrl"
-            placeholder="视频/音频URL·可手填，或用下方本地上传"
-          />
-          <div class="vod-upload-row">
-            <el-upload
-              :show-file-list="false"
-              :http-request="handleVodUpload"
-              accept="video/*"
-              :disabled="vodUploading"
-            >
-              <el-button
-                type="primary"
-                size="small"
-                :loading="vodUploading"
-              >
-                {{ vodUploading ? `上传中 ${vodProgress}%` : '本地上传视频' }}
-              </el-button>
-            </el-upload>
-            <el-progress
-              v-if="vodUploading"
-              :percentage="vodProgress"
-              :stroke-width="6"
-              style="margin-top: 8px"
-            />
-            <div class="vod-tip">支持本地视频直传，自动转码压缩；大视频建议用电脑上传</div>
-          </div>
+        <el-form-item label="视频/音频">
+          <VodUpload v-model="chapterForm.mediaUrl" />
         </el-form-item>
         <el-form-item label="正文">
           <div
@@ -1233,9 +1160,9 @@
 import { ref, reactive, onMounted, nextTick, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { courseApi, uploadApi } from '@/api'
-// @ts-ignore vod-js-sdk-v6 无类型声明
-import TcVod from 'vod-js-sdk-v6'
+import { courseApi } from '@/api'
+import CosImageUpload from '@/components/upload/CosImageUpload.vue'
+import VodUpload from '@/components/upload/VodUpload.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -1312,11 +1239,6 @@ const mainRules = {
   type: [{ required: true, message: '请选择课程类型', trigger: 'change' }],
 }
 const saving = ref(false)
-const uploading = ref(false)
-// 章节视频 VOD 上传状态
-const vodUploading = ref(false)
-const vodProgress = ref(0)
-const coverUrl = ref('')
 const quickStatus = ref('')
 
 // 标签输入
@@ -1483,42 +1405,6 @@ async function save() {
   }
 }
 
-// options 为 Element Plus 上传请求参数（UploadRequestOptions），保留 any
-async function handleCoverUpload(options: any) {
-  uploading.value = true
-  try {
-    const { data } = await uploadApi.image(options.file)
-    form.cover = data.url
-    coverUrl.value = data.url
-    ElMessage.success('封面上传成功')
-  } catch { /* skip */ } finally { uploading.value = false }
-}
-
-// 章节视频上传：直传腾讯云 VOD(拿签名→SDK 分片上传→进度→把播放地址写入 mediaUrl)
-async function handleVodUpload(options: any) {
-  vodUploading.value = true
-  vodProgress.value = 0
-  try {
-    const tcVod = new TcVod({
-      getSignature: async () => {
-        const { data } = await uploadApi.getVodSignature()
-        return (data as any).signature
-      },
-    })
-    const uploader = tcVod.upload({ mediaFile: options.file })
-    uploader.on('media_progress', (info: any) => {
-      vodProgress.value = Math.round((info.percent || 0) * 100)
-    })
-    const result: any = await uploader.done()
-    chapterForm.mediaUrl = result?.video?.url || ''
-    ElMessage.success('视频上传成功，已自动填入媒体地址')
-  } catch {
-    ElMessage.error('视频上传失败，请重试')
-  } finally {
-    vodUploading.value = false
-  }
-}
-
 async function changeStatus(status: string) {
   await courseApi.forceStatus(courseId, status)
   const label = { DRAFT: "已下架", PENDING: "已提交审核", APPROVED: "已上架", REJECTED: "已驳回" }[status] || status
@@ -1546,8 +1432,8 @@ function openChapterDialog(ch?: ChapterRow) {
     editingChapter.value = null
     Object.assign(chapterForm, { title: '', content: '', mediaUrl: '', duration: undefined, freeTrial: false, sortOrder: chapters.value.length + 1 })
   }
+  // 编辑器在 el-dialog @opened（内容渲染完成后）初始化，避免 nextTick 时 chapterEditorEl 未挂载→首次打开不能编辑
   chapterDialog.value = true
-  nextTick(() => initChapterEditor())
 }
 
 async function saveChapter() {

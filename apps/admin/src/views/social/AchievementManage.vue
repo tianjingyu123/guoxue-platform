@@ -159,7 +159,7 @@
           <el-input v-model="typeForm.icon" placeholder="emoji" style="width:100px" />
         </el-form-item>
         <el-form-item label="勋章图片">
-          <el-input v-model="typeForm.badgeUrl" placeholder="勋章图片URL" />
+          <CosImageUpload v-model="typeForm.badgeUrl" tip="点击上传图片" />
         </el-form-item>
         <el-form-item label="描述" required>
           <el-input v-model="typeForm.description" type="textarea" :rows="2" placeholder="描述获得该成就的意义" />
@@ -210,6 +210,7 @@ import { ref, reactive, onMounted } from "vue"
 import { ElMessage } from "element-plus"
 import { achievementApi } from "@/api"
 import PageHeader from "@/components/PageHeader.vue"
+import CosImageUpload from "@/components/upload/CosImageUpload.vue"
 
 // 触发条件（可为 JSON 字符串或对象）
 type TriggerCondition = string | { type?: string; count?: number }

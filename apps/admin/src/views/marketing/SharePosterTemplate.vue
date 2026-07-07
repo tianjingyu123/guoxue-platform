@@ -25,10 +25,10 @@
           </el-select>
         </el-form-item>
         <el-form-item label="Logo">
-          <el-input v-model="brandConfig.logoUrl" placeholder="Logo 图片 URL" style="width:240px" />
+          <CosImageUpload v-model="brandConfig.logoUrl" tip="点击上传图片" />
         </el-form-item>
         <el-form-item label="水印">
-          <el-input v-model="brandConfig.watermarkUrl" placeholder="水印图片 URL" style="width:240px" />
+          <CosImageUpload v-model="brandConfig.watermarkUrl" tip="点击上传图片" />
         </el-form-item>
       </el-form>
     </el-card>
@@ -124,7 +124,7 @@
           </el-select>
         </el-form-item>
         <el-form-item label="背景图" required>
-          <el-input v-model="editForm.backgroundImage" placeholder="背景图 URL" />
+          <CosImageUpload v-model="editForm.backgroundImage" tip="点击上传图片" />
         </el-form-item>
         <el-form-item label="模板元素">
           <div class="elements-editor">
@@ -193,6 +193,7 @@ import { ElMessage } from "element-plus"
 import { posterApi } from "@/api"
 import SearchFilter from "@/components/SearchFilter.vue"
 import PageHeader from "@/components/PageHeader.vue"
+import CosImageUpload from "@/components/upload/CosImageUpload.vue"
 import { useTable } from "@/composables/useTable"
 
 const brandSaving = ref(false)
