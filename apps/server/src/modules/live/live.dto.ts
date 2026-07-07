@@ -178,17 +178,24 @@ export class CreateGiftDto {
 }
 
 export class UpdateGiftDto {
+  // ⚠️ 每个字段必须带 class-validator 装饰器，否则 ValidationPipe(whitelist:true) 会静默 strip 掉→更新丢字段
   @ApiProperty({ description: "礼物名称", required: false })
+  @IsOptional() @IsString()
   name?: string;
   @ApiProperty({ description: "礼物图标", required: false })
+  @IsOptional() @IsString()
   icon?: string;
   @ApiProperty({ description: "价格(金币)", required: false })
+  @IsOptional() @IsInt() @Min(0)
   priceCoin?: number;
   @ApiProperty({ description: "礼物等级", required: false })
+  @IsOptional() @IsString()
   level?: string;
   @ApiProperty({ description: "状态", required: false })
+  @IsOptional() @IsString()
   status?: string;
   @ApiProperty({ description: "排序", required: false })
+  @IsOptional() @IsInt()
   sortOrder?: number;
 }
 

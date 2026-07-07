@@ -217,22 +217,30 @@ export class AuditCourseDto {
 // ───────── 订单状态更新 ─────────
 
 export class UpdateOrderStatusDto {
+  // ⚠️ 必须带 class-validator 装饰器，否则 ValidationPipe(whitelist:true) 会 strip 掉 status→改状态失效
   @ApiProperty({ description: "订单状态" })
+  @IsString() @MinLength(1)
   status: string;
 }
 
 // ───────── 老师邀约 ─────────
 
 export class CreateTeacherRequestDto {
+  // ⚠️ 每个字段必须带 class-validator 装饰器，否则 whitelist:true 会静默 strip→创建丢字段
   @ApiProperty({ description: "教师ID", required: false })
+  @IsOptional() @IsString()
   teacherId?: string;
   @ApiProperty({ description: "课程标题", required: false })
+  @IsOptional() @IsString()
   courseTitle?: string;
   @ApiProperty({ description: "课程简介", required: false })
+  @IsOptional() @IsString()
   courseIntro?: string;
   @ApiProperty({ description: "建议费用", required: false })
+  @IsOptional() @IsNumber()
   proposedFee?: number;
   @ApiProperty({ description: "建议日期", required: false })
+  @IsOptional() @IsString()
   proposeDate?: string;
 }
 
