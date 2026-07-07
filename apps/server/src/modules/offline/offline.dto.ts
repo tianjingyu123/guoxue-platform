@@ -245,7 +245,9 @@ export class CreateTeacherRequestDto {
 }
 
 export class RespondTeacherRequestDto {
+  // ⚠️ 需 class-validator 装饰器，否则 whitelist:true 会 strip 掉 status→讲师邀约响应失效
   @ApiProperty({ description: "响应状态" })
+  @IsString() @MinLength(1)
   status: string;
 }
 

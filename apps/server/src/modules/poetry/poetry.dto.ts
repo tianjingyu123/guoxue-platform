@@ -302,7 +302,9 @@ export class CollectResultDto {
 }
 
 export class AskPoemDto {
+  // ⚠️ 需 class-validator 装饰器，否则 whitelist:true 会 strip 掉 question→自定义提问失效
   @ApiPropertyOptional({ description: "自定义提问（留空则按整首深度赏析）" })
+  @IsOptional() @IsString()
   question?: string;
 }
 
