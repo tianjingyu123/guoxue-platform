@@ -133,6 +133,9 @@ const typeIcons: Record<FavType, string> = {
   product: 'shopping-bag',
   video: 'video',
   comment: 'message-square',
+  poem: 'scroll-text',
+  classic: 'book-marked',
+  ebook: 'book-open',
 }
 
 const typeNames: Record<FavType, string> = {
@@ -142,6 +145,9 @@ const typeNames: Record<FavType, string> = {
   product: '商品',
   video: '视频',
   comment: '评论',
+  poem: '诗词',
+  classic: '古籍',
+  ebook: '电子书',
 }
 
 const typeColors: Record<FavType, { bg: string; text: string }> = {
@@ -151,6 +157,9 @@ const typeColors: Record<FavType, { bg: string; text: string }> = {
   product: { bg: 'rgba(234,88,12,0.1)', text: '#ea580c' },
   video: { bg: 'rgba(196,30,58,0.1)', text: '#C41E3A' },
   comment: { bg: 'rgba(79,70,229,0.1)', text: '#4f46e5' },
+  poem: { bg: 'rgba(180,83,9,0.1)', text: '#b45309' },
+  classic: { bg: 'rgba(146,64,14,0.1)', text: '#92400e' },
+  ebook: { bg: 'rgba(13,148,136,0.1)', text: '#0d9488' },
 }
 
 const allFavorites = ref<FavItem[]>([])
@@ -168,6 +177,9 @@ const tabs = computed(() => {
   return [
     { id: 'all' as const, name: '全部', count: counts.all || 0 },
     { id: 'course' as const, name: '课程', count: counts.course || 0 },
+    { id: 'poem' as const, name: '诗词', count: counts.poem || 0 },
+    { id: 'classic' as const, name: '古籍', count: counts.classic || 0 },
+    { id: 'ebook' as const, name: '电子书', count: counts.ebook || 0 },
     { id: 'article' as const, name: '文章', count: counts.article || 0 },
     { id: 'video' as const, name: '视频', count: counts.video || 0 },
     { id: 'product' as const, name: '商品', count: counts.product || 0 },
@@ -287,6 +299,9 @@ const linkMap: Record<FavType, string> = {
   product: '/shop/product',
   video: '/video',
   comment: '',
+  poem: '/poetry',
+  classic: '/classic',
+  ebook: '/ebook',
 }
 
 function openItem(item: FavItem) {

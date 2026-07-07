@@ -1229,7 +1229,7 @@ export interface MyCoursesResult {
 }
 
 /* —— 收藏 —— */
-export type FavType = 'course' | 'article' | 'video' | 'product' | 'circle_post' | 'comment'
+export type FavType = 'course' | 'article' | 'video' | 'product' | 'circle_post' | 'comment' | 'poem' | 'classic' | 'ebook'
 export interface FavItem {
   id: string
   targetType: string
@@ -1296,6 +1296,34 @@ function adaptFavorite(it: RawFavorite): FavItem {
     cover: tgt?.cover || '',
     collectedAt: formatDate(it.createdAt),
     isInvalid: !tgt,
+  }
+}
+
+/* —— 诗词/古籍/电子书收藏适配（各自独立收藏表·统一并入"我的收藏"展示） —— */
+/** 诗词收藏项（GET /poetry/collections） */
+function adaptPoemFav(c: { id: string; title?: string; author?: string; dynasty?: string; collectedAt?: string }): FavItem {
+  return {
+    id: `poem_${c.id}`, targetType: 'POEM', targetId: String(c.id), type: 'poem',
+    title: c.title || '诗词', subtitle: [c.author, c.dynasty].filter(Boolean).join(' · ') || '诗词',
+    cover: '', collectedAt: formatDate(c.collectedAt ?? ''), isInvalid: false,
+  }
+}
+/** 古籍收藏项（GET /classic/favorites → items[]） */
+function adaptClassicFav(b: { id: string; title?: string; author?: string; dynasty?: string; addedAt?: string }): FavItem {
+  return {
+    id: `classic_${b.id}`, targetType: 'CLASSIC', targetId: String(b.id), type: 'classic',
+    title: b.title || '古籍', subtitle: [b.author, b.dynasty].filter(Boolean).join(' · ') || '古籍',
+    cover: '', collectedAt: formatDate(b.addedAt ?? ''), isInvalid: false,
+  }
+}
+/** 电子书收藏项（GET /ebook/favorites → items[{ favoritedAt, ebook }]） */
+function adaptEbookFav(it: { favoritedAt?: string; ebook?: { id: string; title?: string; author?: string; cover?: string } }): FavItem | null {
+  const e = it.ebook
+  if (!e) return null
+  return {
+    id: `ebook_${e.id}`, targetType: 'EBOOK', targetId: String(e.id), type: 'ebook',
+    title: e.title || '电子书', subtitle: e.author || '电子书',
+    cover: e.cover || '', collectedAt: formatDate(it.favoritedAt ?? ''), isInvalid: false,
   }
 }
 
@@ -1790,16 +1818,39 @@ export const mineApi = {
     }
   },
 
-  /** 我的收藏 —— GET /interaction/collect（多态 target 已补全，已删降级） */
+  /**
+   * 我的收藏 —— 聚合 4 个来源并按收藏时间倒序：
+   *   ① /interaction/collect（课程/文章/视频/商品/帖子·多态 target 已补全）
+   *   ② /poetry/collections（诗词·独立收藏表）
+   *   ③ /classic/favorites（古籍·独立收藏表）
+   *   ④ /ebook/favorites（电子书·独立收藏表）
+   * 各来源独立容错（某一路失败/未登录不影响其他），空则跳过。
+   */
   async getFavorites(): Promise<FavItem[]> {
-    const res = await apiGet<{ items?: RawFavorite[] }>('/interaction/collect?page=1&pageSize=50')
-    const list = Array.isArray(res?.items) ? res!.items! : []
-    return list.map(adaptFavorite)
+    const [collectRes, poemRes, classicRes, ebookRes] = await Promise.all([
+      apiGet<{ items?: RawFavorite[] }>('/interaction/collect?page=1&pageSize=50').catch(() => null),
+      apiGet<{ id: string; title?: string; author?: string; dynasty?: string; collectedAt?: string }[]>('/poetry/collections').catch(() => null),
+      apiGet<{ items?: { id: string; title?: string; author?: string; dynasty?: string; addedAt?: string }[] }>('/classic/favorites').catch(() => null),
+      apiGet<{ items?: { favoritedAt?: string; ebook?: { id: string; title?: string; author?: string; cover?: string } }[] }>('/ebook/favorites?page=1&pageSize=50').catch(() => null),
+    ])
+    const rawTs = (v: unknown): number => { const d = new Date(v as string); return Number.isNaN(d.getTime()) ? 0 : d.getTime() }
+    const rows: { item: FavItem; ts: number }[] = []
+    for (const it of (Array.isArray(collectRes?.items) ? collectRes!.items! : [])) rows.push({ item: adaptFavorite(it), ts: rawTs(it.createdAt) })
+    for (const c of (Array.isArray(poemRes) ? poemRes : [])) rows.push({ item: adaptPoemFav(c), ts: rawTs(c.collectedAt) })
+    for (const b of (Array.isArray(classicRes?.items) ? classicRes!.items! : [])) rows.push({ item: adaptClassicFav(b), ts: rawTs(b.addedAt) })
+    for (const e of (Array.isArray(ebookRes?.items) ? ebookRes!.items! : [])) { const fi = adaptEbookFav(e); if (fi) rows.push({ item: fi, ts: rawTs(e.favoritedAt) }) }
+    rows.sort((a, b) => b.ts - a.ts)
+    return rows.map((r) => r.item)
   },
 
   /** 取消收藏 —— POST /interaction/collect（已收藏 → toggle 关闭） */
-  async removeFavorite(_targetType: string, _targetId: string): Promise<boolean> {
-    await apiPost('/interaction/collect', { targetType: _targetType, targetId: _targetId })
+  async removeFavorite(targetType: string, targetId: string): Promise<boolean> {
+    // 按来源路由到对应取消收藏端点（诗词/古籍/电子书各有独立收藏表）
+    const t = String(targetType || '').toUpperCase()
+    if (t === 'POEM') await apiPost(`/poetry/${targetId}/collect`)          // toggle：已收藏 → 取消
+    else if (t === 'CLASSIC') await apiDelete(`/classic/favorites/${targetId}`)
+    else if (t === 'EBOOK') await apiDelete(`/ebook/favorites/${targetId}`)
+    else await apiPost('/interaction/collect', { targetType, targetId })    // interaction toggle
     return true
   },
 

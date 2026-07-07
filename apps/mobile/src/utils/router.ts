@@ -476,6 +476,8 @@ const DYNAMIC_ROUTES: Array<[RegExp, string, string]> = [
   [/^\/live\/([^/?]+)$/, '/pkg-live/watch/index', 'id'],
   // 诗词详情 /poetry/:id（静态 /poetry、/poetry/categories、/poetry/collections 已在 ROUTE_MAP 优先命中）
   [/^\/poetry\/([^/?]+)$/, '/pkg-poetry/detail/index', 'id'],
+  // 古籍详情 /classic/:id（供"我的收藏"等统一入口跳转；古籍馆内部多用全路径 /pkg-classics/detail/index）
+  [/^\/classic\/([^/?]+)$/, '/pkg-classics/detail/index', 'id'],
   // 悬赏���情 /bounty/:id（静态 /bounty、/bounty/create、/bounty/answer、/bounty/my 已在 ROUTE_MAP 优先命中）
   [/^\/bounty\/([^/?]+)$/, '/pkg-bounty/detail/index', 'id'],
   // 问答详情 /qa/:id（静态 /qa、/qa/ask、/qa/pending 已在 ROUTE_MAP ���先命中）
