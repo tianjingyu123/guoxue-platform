@@ -164,7 +164,10 @@ export class CourseService {
 
     const where: Prisma.CourseWhereInput = {};
     if (circleId) where.circleId = circleId;
-    if (filterStatus) where.auditStatus = filterStatus;
+    // ALL=管理端查看全部状态（含待审核/草稿/驳回），不加 auditStatus 过滤；
+    // 指定具体状态则精确过滤；未传（移动端公开列表）默认只看已通过。
+    if (filterStatus === "ALL") { /* 不过滤状态 */ }
+    else if (filterStatus) where.auditStatus = filterStatus;
     else where.auditStatus = "APPROVED";
     if (stationId) where.stationId = stationId;
     if (type) where.type = type as any;

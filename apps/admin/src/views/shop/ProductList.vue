@@ -128,6 +128,7 @@
       :title="editingId ? '编辑商品' : '添加商品'"
       width="700px"
       top="5vh"
+      @opened="initEditor"
     >
       <el-form
         ref="dialogFormRef"
@@ -441,7 +442,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, nextTick } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance } from 'element-plus'
 import { uploadApi, productApi, api } from '@/api'
@@ -564,7 +565,8 @@ function resetForm() {
   editingId.value = ''; imgUrl.value = ''
 }
 
-function openCreate() { resetForm(); dialogVisible.value = true; nextTick(() => initEditor()) }
+// 编辑器统一在 el-dialog @opened（内容渲染完成后）初始化，避免 nextTick 时 detailEditorEl 尚未挂载导致编辑器不出现
+function openCreate() { resetForm(); dialogVisible.value = true }
 
 async function openEdit(row: ProductRow) {
   resetForm(); editingId.value = row.id ?? ''
@@ -577,7 +579,7 @@ async function openEdit(row: ProductRow) {
     sceneTags: p.sceneTags || [],
     commissionRatePct: p.commissionRate != null ? Math.round(Number(p.commissionRate) * 10000) / 100 : null,
   })
-  dialogVisible.value = true; nextTick(() => initEditor())
+  dialogVisible.value = true
 }
 
 function setupDetailQuill() {

@@ -65,6 +65,8 @@ const auditLabels: Record<string, { text: string; type: string }> = {
 const { loading, tableData, pagination, filters, fetchList, handleSearch, handleReset } = useTable({
   fetchApi: courseApi.list,
   defaultPageSize: 20,
+  // 管理端默认查看全部状态（含待审核/草稿/驳回），否则新建的 PENDING 课程不显示
+  initialFilters: { auditStatus: "ALL" },
   transformResponse: (data: any) => ({
     items: (data.courses || []).map((c: CourseRow) => ({
       ...c,
@@ -85,7 +87,8 @@ function onSearch(f: Record<string, string | undefined>) {
 
 function onReset() {
   Object.keys(filters).forEach(k => { filters[k] = undefined })
-  handleReset()
+  // 状态筛选重置回"全部"，与管理端默认一致（否则回落后端 APPROVED 默认，看不到待审核课程）
+  handleReset({ auditStatus: "ALL" })
 }
 
 function onSelectionChange(rows: CourseRow[]) {
@@ -204,11 +207,13 @@ function exportData() {
           <el-select
             v-model="filters.auditStatus"
             placeholder="审核状态"
-            clearable
             style="width:130px"
             @change="handleSearch"
           >
             <el-option
+              label="全部状态"
+              value="ALL"
+            /><el-option
               label="草稿"
               value="DRAFT"
             /><el-option
