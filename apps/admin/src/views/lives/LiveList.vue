@@ -159,11 +159,8 @@
         <el-form-item label="标题">
           <el-input v-model="form.title" />
         </el-form-item>
-        <el-form-item label="封面URL">
-          <el-input
-            v-model="form.cover"
-            placeholder="封面图片地址"
-          />
+        <el-form-item label="封面图片">
+          <CosImageUpload v-model="form.cover" />
         </el-form-item>
         <el-form-item label="主播用户ID">
           <el-input
@@ -244,6 +241,7 @@ import { ref, reactive, onMounted } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import type { FormInstance } from "element-plus";
 import PageHeader from "@/components/PageHeader.vue";
+import CosImageUpload from "@/components/upload/CosImageUpload.vue";
 import { liveApi } from "@/api";
 
 /** 直播主播信息 */

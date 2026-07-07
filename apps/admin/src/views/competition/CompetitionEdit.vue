@@ -321,52 +321,7 @@
             </el-divider>
 
             <el-form-item label="封面图片">
-              <div class="cover-upload">
-                <div
-                  v-if="form.coverImage"
-                  class="cover-preview"
-                >
-                  <img
-                    :src="form.coverImage"
-                    alt="封面"
-                  >
-                  <el-button
-                    size="small"
-                    type="danger"
-                    class="cover-remove"
-                    @click="form.coverImage = ''"
-                  >
-                    移除
-                  </el-button>
-                </div>
-                <div class="cover-input-row">
-                  <el-input
-                    v-model="coverUrl"
-                    placeholder="图片URL"
-                    size="small"
-                  />
-                  <el-button
-                    size="small"
-                    @click="form.coverImage = coverUrl"
-                  >
-                    设置
-                  </el-button>
-                </div>
-                <el-upload
-                  :show-file-list="false"
-                  :http-request="handleCoverUpload"
-                  accept="image/*"
-                  style="margin-top:8px"
-                >
-                  <el-button
-                    size="small"
-                    type="primary"
-                    :loading="uploading"
-                  >
-                    本地上传
-                  </el-button>
-                </el-upload>
-              </div>
+              <CosImageUpload v-model="form.coverImage" />
             </el-form-item>
 
             <el-form-item label="标签">
@@ -474,7 +429,8 @@ import { ref, reactive, onMounted, nextTick } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { Delete } from "@element-plus/icons-vue";
-import { competitionApi, uploadApi } from "@/api";
+import { competitionApi } from "@/api";
+import CosImageUpload from "@/components/upload/CosImageUpload.vue";
 
 const route = useRoute();
 const router = useRouter();
@@ -500,10 +456,8 @@ const statusLabels: Record<string, { text: string; type: string }> = {
 
 const formRef = ref<any>(null); // el-form 实例引用，保留 any
 const saving = ref(false);
-const uploading = ref(false);
 const statusChanging = ref(false);
 const deleting = ref(false);
-const coverUrl = ref("");
 
 const form = reactive({
   title: "",
@@ -572,7 +526,6 @@ onMounted(async () => {
         tags: data.tags || [],
         status: data.status || "DRAFT",
       });
-      coverUrl.value = data.coverImage || "";
     } catch {
       ElMessage.error("加载赛事数据失败");
     }
@@ -604,17 +557,6 @@ async function save() {
   } finally {
     saving.value = false;
   }
-}
-
-// options 为 Element Plus 上传请求参数（UploadRequestOptions），保留 any
-async function handleCoverUpload(options: any) {
-  uploading.value = true;
-  try {
-    const { data } = await uploadApi.image(options.file);
-    form.coverImage = data.url;
-    coverUrl.value = data.url;
-    ElMessage.success("封面上传成功");
-  } catch { /* skip */ } finally { uploading.value = false }
 }
 
 async function changeStatus(action: string) {

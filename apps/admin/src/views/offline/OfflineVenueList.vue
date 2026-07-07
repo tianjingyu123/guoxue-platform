@@ -228,10 +228,7 @@
           <el-input v-model="form.phone" />
         </el-form-item>
         <el-form-item label="封面图">
-          <el-input
-            v-model="form.cover"
-            placeholder="图片URL"
-          />
+          <CosImageUpload v-model="form.cover" />
         </el-form-item>
         <el-form-item label="押金金额">
           <el-input-number
@@ -357,10 +354,7 @@
           <el-input v-model="courseForm.title" />
         </el-form-item>
         <el-form-item label="封面">
-          <el-input
-            v-model="courseForm.cover"
-            placeholder="图片URL"
-          />
+          <CosImageUpload v-model="courseForm.cover" />
         </el-form-item>
         <el-form-item label="简介">
           <el-input
@@ -434,6 +428,7 @@
 import { ref, reactive, onMounted } from "vue";
 import { ElMessage } from "element-plus";
 import { offlineApi } from "@/api";
+import CosImageUpload from "@/components/upload/CosImageUpload.vue";
 
 /** 驿站行（字段宽松 optional） */
 interface VenueRow {

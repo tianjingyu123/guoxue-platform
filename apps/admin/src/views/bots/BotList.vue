@@ -228,10 +228,7 @@
           />
         </el-form-item>
         <el-form-item label="头像">
-          <el-input
-            v-model="form.avatar"
-            placeholder="头像图片URL"
-          />
+          <CosImageUpload v-model="form.avatar" />
         </el-form-item>
         <el-form-item label="简介">
           <el-input
@@ -536,6 +533,7 @@
 import { ref, reactive, computed, onMounted } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import PageHeader from "@/components/PageHeader.vue";
+import CosImageUpload from "@/components/upload/CosImageUpload.vue";
 import { botApi, circleApi } from "@/api";
 
 /** Bot 列表行（核心标识字段必填，其余宽松 optional） */

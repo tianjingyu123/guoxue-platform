@@ -222,10 +222,7 @@
           />
         </el-form-item>
         <el-form-item label="封面图">
-          <el-input
-            v-model="form.coverUrl"
-            placeholder="图片URL"
-          />
+          <CosImageUpload v-model="form.coverUrl" />
         </el-form-item>
       </el-form>
       <template #footer>
@@ -384,6 +381,7 @@ import { sanitize } from "@/utils/sanitize";
 import { articleApi, circleApi } from "@/api";
 import DataTable from "@/components/DataTable.vue";
 import SearchFilter from "@/components/SearchFilter.vue";
+import CosImageUpload from "@/components/upload/CosImageUpload.vue";
 
 /** 文章作者 */
 interface ArticleAuthor { nickname?: string }

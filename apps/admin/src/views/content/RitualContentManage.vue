@@ -139,7 +139,7 @@
           <el-input v-model="dailyForm.content" type="textarea" :rows="6" placeholder="诗词/文章内容..." />
         </el-form-item>
         <el-form-item label="配图">
-          <el-input v-model="dailyForm.imageUrl" placeholder="图片URL" />
+          <CosImageUpload v-model="dailyForm.imageUrl" />
         </el-form-item>
         <el-form-item label="发布日期" required>
           <el-date-picker v-model="dailyForm.publishDate" type="date" value-format="YYYY-MM-DD" placeholder="选择日期" style="width:100%" />
@@ -164,6 +164,7 @@ import { ref, reactive, onMounted } from "vue"
 import { ElMessage } from "element-plus"
 import { ritualContentApi } from "@/api"
 import PageHeader from "@/components/PageHeader.vue"
+import CosImageUpload from "@/components/upload/CosImageUpload.vue"
 
 const activeTab = ref("solar")
 const saving = ref(false)

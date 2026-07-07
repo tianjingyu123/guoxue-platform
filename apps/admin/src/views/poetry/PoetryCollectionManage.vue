@@ -211,10 +211,7 @@
           />
         </el-form-item>
         <el-form-item label="封面">
-          <el-input
-            v-model="form.cover"
-            placeholder="封面图URL"
-          />
+          <CosImageUpload v-model="form.cover" />
         </el-form-item>
         <el-form-item label="简介">
           <el-input
@@ -270,6 +267,7 @@ import { ref, reactive, onMounted } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { poetryAdminApi } from "@/api";
 import PageHeader from "@/components/PageHeader.vue";
+import CosImageUpload from "@/components/upload/CosImageUpload.vue";
 
 /** 合集行（宽松 optional，按模板访问声明） */
 interface CollectionRow {

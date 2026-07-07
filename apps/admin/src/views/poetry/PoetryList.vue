@@ -351,10 +351,7 @@
             <el-input v-model="form.authorTitle" />
           </el-form-item>
           <el-form-item label="封面">
-            <el-input
-              v-model="form.cover"
-              placeholder="封面图URL"
-            />
+            <CosImageUpload v-model="form.cover" />
           </el-form-item>
         </div>
         <el-form-item label="标签">
@@ -411,6 +408,7 @@ import { ref, reactive, onMounted } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { poetryAdminApi } from "@/api";
 import PageHeader from "@/components/PageHeader.vue";
+import CosImageUpload from "@/components/upload/CosImageUpload.vue";
 
 /** 诗词行/表单字段（宽松 optional，按模板与脚本访问声明） */
 interface PoemRow {

@@ -149,10 +149,7 @@
           <el-input v-model="form.name" />
         </el-form-item>
         <el-form-item label="封面URL">
-          <el-input
-            v-model="form.cover"
-            placeholder="封面图片地址"
-          />
+          <CosImageUpload v-model="form.cover" />
         </el-form-item>
         <el-form-item label="简介">
           <el-input
@@ -212,6 +209,7 @@ import { ElMessage, ElMessageBox } from "element-plus";
 import type { FormInstance } from "element-plus";
 import { circleApi } from "@/api";
 import PageHeader from "@/components/PageHeader.vue";
+import CosImageUpload from "@/components/upload/CosImageUpload.vue";
 
 const router = useRouter();
 

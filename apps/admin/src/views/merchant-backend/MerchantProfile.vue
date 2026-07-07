@@ -37,39 +37,7 @@
           />
         </el-form-item>
         <el-form-item label="店铺Logo">
-          <div class="logo-section">
-            <img
-              v-if="form.shopLogo"
-              :src="form.shopLogo"
-              class="logo-preview"
-            >
-            <el-input
-              v-model="logoUrl"
-              placeholder="图片URL"
-              size="small"
-              style="width:260px"
-            />
-            <el-button
-              size="small"
-              @click="form.shopLogo = logoUrl"
-            >
-              设置
-            </el-button>
-            <el-upload
-              :show-file-list="false"
-              :http-request="handleUpload"
-              accept="image/*"
-              style="display:inline-block;margin-left:8px"
-            >
-              <el-button
-                size="small"
-                type="primary"
-                :loading="uploading"
-              >
-                本地上传
-              </el-button>
-            </el-upload>
-          </div>
+          <CosImageUpload v-model="form.shopLogo" />
         </el-form-item>
         <el-form-item label="店铺简介">
           <el-input
@@ -97,14 +65,12 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from "vue";
 import { ElMessage } from "element-plus";
-import type { UploadRequestOptions } from "element-plus";
-import { merchantBackendApi, uploadApi } from "@/api";
+import { merchantBackendApi } from "@/api";
+import CosImageUpload from "@/components/upload/CosImageUpload.vue";
 
 const loading = ref(false);
 const error = ref(false);
 const saving = ref(false);
-const uploading = ref(false);
-const logoUrl = ref("");
 
 const form = reactive({ shopName: "", shopLogo: "", shopIntro: "" });
 
@@ -120,24 +86,11 @@ async function fetchProfile() {
     form.shopName = data.shopName || "";
     form.shopLogo = data.shopLogo || "";
     form.shopIntro = data.shopIntro || "";
-    logoUrl.value = form.shopLogo;
   } catch (e) {
     error.value = true;
   } finally {
     loading.value = false;
   }
-}
-
-async function handleUpload(options: UploadRequestOptions) {
-  uploading.value = true;
-  try {
-    const res = await uploadApi.image(options.file);
-    const ud = res as { data?: { url?: string }; url?: string };
-    const url = ud.data?.url ?? ud.url ?? "";
-    form.shopLogo = url;
-    logoUrl.value = url;
-    ElMessage.success("上传成功");
-  } catch { /* */ } finally { uploading.value = false; }
 }
 
 async function save() {

@@ -261,10 +261,7 @@
           </el-select>
         </el-form-item>
         <el-form-item label="封面图">
-          <el-input
-            v-model="form.cover"
-            placeholder="图片URL"
-          />
+          <CosImageUpload v-model="form.cover" />
         </el-form-item>
         <el-form-item label="简介">
           <el-input
@@ -386,6 +383,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
+import CosImageUpload from "@/components/upload/CosImageUpload.vue";
 import { bundleApi } from "@/api";
 
 const list = ref<any[]>([]);

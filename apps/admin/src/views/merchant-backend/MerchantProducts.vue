@@ -226,12 +226,7 @@
               </el-button>
             </div>
             <div class="image-add">
-              <el-input
-                v-model="imageUrl"
-                placeholder="图片URL"
-                size="small"
-                style="width:200px"
-              />
+              <CosImageUpload v-model="imageUrl" />
               <el-button
                 size="small"
                 @click="addImage"
@@ -323,6 +318,7 @@ import { ref, reactive, onMounted, nextTick } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import type { FormInstance, InputInstance } from "element-plus";
 import { merchantBackendApi } from "@/api";
+import CosImageUpload from "@/components/upload/CosImageUpload.vue";
 
 /** 商品行（字段宽松 optional） */
 interface ProductRow {

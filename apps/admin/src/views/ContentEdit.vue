@@ -102,58 +102,7 @@
       <div class="edit-sidebar">
         <div class="sidebar-section">
           <h4>封面图片</h4>
-          <div class="cover-upload">
-            <div
-              v-if="form.cover"
-              class="cover-preview"
-            >
-              <img
-                :src="form.cover"
-                alt="封面"
-              >
-              <el-button
-                size="small"
-                type="danger"
-                class="cover-remove"
-                @click="form.cover = ''"
-              >
-                移除
-              </el-button>
-            </div>
-            <div
-              v-else
-              class="cover-placeholder"
-            >
-              <span>暂无封面</span>
-            </div>
-            <div class="cover-input-row">
-              <el-input
-                v-model="coverUrl"
-                placeholder="输入图片URL"
-                size="small"
-              />
-              <el-button
-                size="small"
-                @click="form.cover = coverUrl"
-              >
-                设置
-              </el-button>
-            </div>
-            <el-upload
-              :show-file-list="false"
-              :http-request="handleCoverUpload"
-              accept="image/*"
-              style="margin-top:8px"
-            >
-              <el-button
-                size="small"
-                type="primary"
-                :loading="uploading"
-              >
-                本地上传
-              </el-button>
-            </el-upload>
-          </div>
+          <CosImageUpload v-model="form.cover" />
         </div>
 
         <div class="sidebar-section">
@@ -211,16 +160,15 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, nextTick, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { contentApi, uploadApi } from '@/api'
+import { contentApi } from '@/api'
 import { ElMessage } from 'element-plus'
-import type { UploadRequestOptions } from 'element-plus'
+import CosImageUpload from '@/components/upload/CosImageUpload.vue'
 
 const route = useRoute()
 const router = useRouter()
 const id = route.params.id as string | undefined
 const isEdit = !!id
 const saving = ref(false)
-const uploading = ref(false)
 
 const form = reactive({
   title: '',
@@ -234,7 +182,6 @@ const form = reactive({
   status: 'PUBLISHED' as string,
 })
 
-const coverUrl = ref('')
 const tagInput = ref('')
 const editorEl = ref<HTMLElement | null>(null)
 // Quill 编辑器实例：经 CDN 动态加载，无类型声明，保留 any
@@ -316,19 +263,6 @@ function addTag() {
     form.tags.push(t)
   }
   tagInput.value = ''
-}
-
-async function handleCoverUpload(options: UploadRequestOptions) {
-  uploading.value = true
-  try {
-    const { data } = await uploadApi.image(options.file)
-    form.cover = data.url
-    coverUrl.value = data.url
-    ElMessage.success('封面上传成功')
-  } catch {
-  } finally {
-    uploading.value = false
-  }
 }
 
 async function handleSave(status?: string) {
