@@ -2126,6 +2126,12 @@ export const shopApi = {
     return { codeUrl: res?.code_url || res?.codeUrl, raw: res }
   },
 
+  /** 【H5支付审核期·临时测试免支付】复用管理员确认支付端点(PUT /orders/:id/pay)直接标记订单已付：
+   *  仅超管测试号有效(真实用户非超管会403·防白嫖)。H5支付产品开通后删除此方法、paying 改回真实支付分流。 */
+  async mockPayForTest(orderId: string): Promise<void> {
+    await apiPut(`/shop/orders/${orderId}/pay`, { payTransactionId: 'H5_MOCK_TEST' })
+  },
+
   /**
    * 查询订单支付状态（轮询用）— GET /shop/orders/:id 读 status。
    * 不用 /payment-status（依赖微信查单·本地不通），改读订单 status：微信回调或管理员确认支付后置 PAID，本地可验证闭环。

@@ -162,11 +162,13 @@ async function startPaying() {
   }
   // #endif
   // #ifndef MP-WEIXIN
-  // 非微信小程序端：发起微信 Native 扫码支付（本地无商户证书会失败，不阻断；回调或管理员确认置 PAID 后轮询可见）
+  // 【H5支付产品审核期·临时测试免支付】非小程序端(H5/浏览器)调管理员确认支付直接标记 PAID，
+  // 让下单/订单/发货等后续流程可测、不被支付卡住。仅超管测试号有效(真实用户非超管会403无害)。
+  // ⚠️H5支付开通后：改回 payOrderNative + 按环境的 H5支付分流(微信内JSAPI/浏览器MWEB)。
   try {
-    await shopApi.payOrderNative(orderId.value)
+    await shopApi.mockPayForTest(orderId.value)
   } catch (e) {
-    console.warn('[paying] 发起支付失败，继续轮询订单状态以等待支付确认', e)
+    console.warn('[paying] H5测试免支付需超管测试号', e)
   }
   // #endif
   startPolling()
