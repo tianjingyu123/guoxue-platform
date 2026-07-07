@@ -5,6 +5,7 @@
 import type { ProductCardData } from '@/lib/card-utils'
 import { apiGet, apiGetPaged, apiPost, apiPut, apiDelete, useMock } from '@/utils/request'
 import { getTempReferrer } from '@/utils/referral'
+import { couponApi } from '@/lib/coupon-data'
 
 const P = 'https://api.rebugx.cn/assets/images/products'
 
@@ -48,7 +49,7 @@ export const mallQuickEntries: MallQuickEntry[] = [
   { id: 'seckill', label: '限时秒杀', icon: 'zap', href: '/shop/flash-sale', state: '进行中' },
   { id: 'group', label: '超值拼团', icon: 'users', href: '/shop/group-buy', state: '进行中' },
   { id: 'orders', label: '我的订单', icon: 'file-text', href: '/orders' },
-  { id: 'coupons', label: '优惠券', icon: 'ticket', href: '/shop/coupons', badge: 2 },
+  { id: 'coupons', label: '优惠券', icon: 'ticket', href: '/shop/coupons' }, // badge 由 getMallHome 按真实可领券数量动态注入
 ]
 
 /** Banner（渐变色块文字横幅） */
@@ -2345,11 +2346,18 @@ export const shopApi = {
   /** 获取mall首页 — GET /mall */
   async getMallHome() {
     // 商品真连 /shop/products；banners/quickEntries/categories 为运营 UI 配置（后端无 banner CMS/聚合 BFF，同 getHome 约定）
-    const res = await apiGet<RawShopProduct[] | { products?: RawShopProduct[]; items?: RawShopProduct[] }>('/shop/products?pageSize=30')
+    // 优惠券入口角标改真实"可领券数量"（原为硬编码 badge:2 → 出现"提示2个但没有券"）；拉取失败/为0则不显角标
+    const [res, availCount] = await Promise.all([
+      apiGet<RawShopProduct[] | { products?: RawShopProduct[]; items?: RawShopProduct[] }>('/shop/products?pageSize=30'),
+      couponApi.getAvailable().then((l) => l.length).catch(() => 0),
+    ])
     const arr = Array.isArray(res) ? res : (res?.products ?? res?.items ?? [])
     const products: ProductCardData[] = arr.map(adaptProductCard)
+    const quickEntries = mallQuickEntries.map((e) =>
+      e.id === 'coupons' ? { ...e, badge: availCount > 0 ? availCount : undefined } : e,
+    )
     return {
-      quickEntries: mallQuickEntries,
+      quickEntries,
       banners: mallBanners,
       lives: [], // 暂无实时电商直播聚合 → 空态降级（不展示假直播）
       categories: mallCategories,
