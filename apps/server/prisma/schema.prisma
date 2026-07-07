@@ -6867,6 +6867,7 @@ model AdminFeedback {
   category  String   @default("OTHER") // BUG问题 / OPTIMIZE优化建议 / QUESTION操作疑问 / OTHER
   title     String
   detail    String   @db.Text
+  images    String[] @default([]) // 员工上传的截图 URL（截图标注问题更易定位）
   status    String   @default("PENDING") // PENDING待审 / REVIEWED已阅 / ADOPTED采纳 / REJECTED不采纳 / DONE已优化
   reply     String   @db.Text @default("") // 董事长/处理人的批复
   source    String   @default("MANUAL") // MANUAL员工手动 / ASSISTANT助手代记

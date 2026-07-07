@@ -4,7 +4,7 @@ import { ref, nextTick, watch } from "vue";
 import { useRoute } from "vue-router";
 import { ElMessage } from "element-plus";
 import { ChatDotRound, Promotion, Warning } from "@element-plus/icons-vue";
-import { adminAssistantApi } from "@/api";
+import { adminAssistantApi, uploadApi } from "@/api";
 
 const route = useRoute();
 const open = ref(false);
@@ -61,8 +61,19 @@ function reportThis() {
 }
 
 // ── 反馈 ──
-const fb = ref({ category: "QUESTION", title: "", detail: "" });
+const fb = ref<{ category: string; title: string; detail: string; images: string[] }>({ category: "QUESTION", title: "", detail: "", images: [] });
 const submitting = ref(false);
+// 截图上传（原生 input 触发·规避 el-upload 首次点击问题）
+const shotInputRef = ref<HTMLInputElement | null>(null);
+const shotUploading = ref(false);
+function pickShot() { if (!shotUploading.value && fb.value.images.length < 6) shotInputRef.value?.click(); }
+async function onShotFile(e: Event) {
+  const inp = e.target as HTMLInputElement; const file = inp.files?.[0]; inp.value = "";
+  if (!file) return;
+  shotUploading.value = true;
+  try { const { data } = await uploadApi.image(file); if ((data as any)?.url) fb.value.images.push((data as any).url); }
+  catch { ElMessage.error("截图上传失败"); } finally { shotUploading.value = false; }
+}
 const categories = [
   { value: "BUG", label: "程序问题/报错" },
   { value: "OPTIMIZE", label: "优化建议" },
@@ -74,10 +85,11 @@ async function submitFeedback() {
   if (submitting.value) return;
   submitting.value = true;
   try {
-    await adminAssistantApi.createFeedback({ page: route.path, category: fb.value.category, title: fb.value.title.trim(), detail: fb.value.detail.trim() });
+    await adminAssistantApi.createFeedback({ page: route.path, category: fb.value.category, title: fb.value.title.trim(), detail: fb.value.detail.trim(), images: fb.value.images });
     ElMessage.success("已提交，感谢反馈！问题会汇总给管理层处理");
-    fb.value = { category: "QUESTION", title: "", detail: "" };
-    tab.value = "chat";
+    fb.value = { category: "QUESTION", title: "", detail: "", images: [] };
+    tab.value = "mine";
+    fetchMine();
   } catch {
     ElMessage.error("提交失败，请重试");
   } finally {
@@ -86,7 +98,7 @@ async function submitFeedback() {
 }
 
 // ── 我的反馈（员工看自己提交的问题及处理结果·状态/批复可见·便于复测追问） ──
-interface MyFb { id: string; category: string; title: string; detail: string; status: string; reply: string; page: string; createdAt: string }
+interface MyFb { id: string; category: string; title: string; detail: string; status: string; reply: string; page: string; createdAt: string; images?: string[] }
 const myList = ref<MyFb[]>([]);
 const myLoading = ref(false);
 const statusMeta: Record<string, { label: string; type: string }> = {
@@ -176,6 +188,18 @@ watch(open, (v) => { if (v) { scrollBottom(); if (tab.value === "mine") fetchMin
             <el-form-item label="详细描述">
               <el-input v-model="fb.detail" type="textarea" :rows="4" maxlength="1000" placeholder="在哪个页面、做了什么、期望什么、实际发生了什么、有没有报错文字" />
             </el-form-item>
+            <el-form-item label="截图（可选，截图标注问题更易定位）">
+              <input ref="shotInputRef" type="file" accept="image/*" style="display:none" @change="onShotFile">
+              <div class="shot-area">
+                <div v-for="(img, i) in fb.images" :key="i" class="shot-thumb">
+                  <img :src="img">
+                  <span class="shot-del" @click="fb.images.splice(i, 1)">✕</span>
+                </div>
+                <div v-if="fb.images.length < 6" class="shot-add" :class="{ 'is-loading': shotUploading }" @click="pickShot">
+                  <span>{{ shotUploading ? '上传中' : '+ 截图' }}</span>
+                </div>
+              </div>
+            </el-form-item>
             <div class="fb-page">当前页面：{{ route.path }}（会自动附带，便于定位）</div>
             <el-button type="primary" style="width:100%" :loading="submitting" @click="submitFeedback">提交反馈</el-button>
           </el-form>
@@ -192,6 +216,9 @@ watch(open, (v) => { if (v) { scrollBottom(); if (tab.value === "mine") fetchMin
               <span class="mine-time">{{ String(f.createdAt).slice(0, 16).replace('T', ' ') }}</span>
             </div>
             <div class="mine-title">{{ f.title }}</div>
+            <div v-if="f.images && f.images.length" class="mine-shots">
+              <el-image v-for="(img, i) in f.images" :key="i" :src="img" :preview-src-list="f.images" :initial-index="i" fit="cover" class="mine-shot" />
+            </div>
             <div v-if="f.reply" class="mine-reply"><b>处理批复：</b>{{ f.reply }}</div>
             <div v-if="f.status === 'DONE'" class="mine-retest">✅ 已优化，请到对应页面复测；若仍有问题，欢迎再提一条反馈。</div>
           </div>
@@ -238,4 +265,13 @@ watch(open, (v) => { if (v) { scrollBottom(); if (tab.value === "mine") fetchMin
 .mine-title { font-size: 14px; font-weight: 600; color: #333; line-height: 1.5; }
 .mine-reply { font-size: 13px; color: #555; margin-top: 8px; background: #faf9f7; border-radius: 6px; padding: 8px; line-height: 1.5; }
 .mine-retest { font-size: 12px; color: #52c41a; margin-top: 8px; }
+.shot-area { display: flex; flex-wrap: wrap; gap: 8px; }
+.shot-thumb { position: relative; width: 64px; height: 64px; }
+.shot-thumb img { width: 100%; height: 100%; object-fit: cover; border-radius: 6px; border: 1px solid #eee; }
+.shot-del { position: absolute; top: -6px; right: -6px; width: 18px; height: 18px; border-radius: 50%; background: #c41e3a; color: #fff; font-size: 11px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.shot-add { width: 64px; height: 64px; border: 1px dashed #c0c4cc; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 12px; color: #909399; cursor: pointer; }
+.shot-add:hover { border-color: #c41e3a; color: #c41e3a; }
+.shot-add.is-loading { opacity: .6; cursor: not-allowed; }
+.mine-shots { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.mine-shot { width: 54px; height: 54px; border-radius: 6px; border: 1px solid #eee; cursor: pointer; }
 </style>

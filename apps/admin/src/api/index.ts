@@ -2072,7 +2072,7 @@ export const trackErrorApi = {
 export const adminAssistantApi = {
   chat: (data: { message: string; page?: string; history?: { role: string; content: string }[] }) =>
     api.post("/admin-assistant/chat", data),
-  createFeedback: (data: { page?: string; category?: string; title: string; detail: string; source?: string }) =>
+  createFeedback: (data: { page?: string; category?: string; title: string; detail: string; source?: string; images?: string[] }) =>
     api.post("/admin-assistant/feedback", data),
   myFeedback: () => api.get("/admin-assistant/my-feedback"),
   listFeedback: (params?: { page?: number; pageSize?: number; status?: string; category?: string }) =>

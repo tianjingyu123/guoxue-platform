@@ -7,7 +7,7 @@ import PageHeader from "@/components/PageHeader.vue";
 
 interface FeedbackRow {
   id: string; userName: string; userId: string; page: string; category: string;
-  title: string; detail: string; status: string; reply: string; source: string; createdAt: string;
+  title: string; detail: string; status: string; reply: string; source: string; createdAt: string; images?: string[];
 }
 
 const catMeta: Record<string, { label: string; type: string }> = {
@@ -60,6 +60,17 @@ async function saveEdit() {
   } catch { ElMessage.error("保存失败"); }
 }
 
+// 还原 SanitizePipe 的实体转义（老数据 page 存成 &#x2F;·纯文本展示安全）
+function decodePath(s: string): string {
+  return String(s || "").replace(/&#x2F;/gi, "/").replace(/&#47;/g, "/").replace(/&amp;/gi, "&").replace(/&#x27;/gi, "'").replace(/&#39;/g, "'");
+}
+// 点击页面路径→新标签打开对应后台页面（便于定位问题）
+function jumpPage(page: string) {
+  const path = decodePath(page || "").trim();
+  if (!path.startsWith("/")) return;
+  window.open("/admin" + path, "_blank");
+}
+
 function onSearch() { filters.page = 1; fetchList(); }
 function onPageChange(p: number) { filters.page = p; fetchList(); }
 
@@ -110,7 +121,12 @@ onMounted(() => { fetchList(); fetchSummary(); });
       </el-table-column>
       <el-table-column prop="title" label="标题" min-width="200" show-overflow-tooltip />
       <el-table-column prop="detail" label="详情" min-width="240" show-overflow-tooltip />
-      <el-table-column prop="page" label="页面" width="180" show-overflow-tooltip />
+      <el-table-column label="页面" width="200" show-overflow-tooltip>
+        <template #default="{ row }">
+          <el-link v-if="row.page" type="primary" :underline="false" @click="jumpPage(row.page)">{{ decodePath(row.page) }} ↗</el-link>
+          <span v-else>-</span>
+        </template>
+      </el-table-column>
       <el-table-column prop="userName" label="提交人" width="110">
         <template #default="{ row }">{{ row.userName || row.userId?.slice(0, 8) }}</template>
       </el-table-column>
@@ -140,9 +156,16 @@ onMounted(() => { fetchList(); fetchSummary(); });
           <div class="d-title">{{ editing.title }}</div>
           <div class="d-meta">
             <el-tag :type="catMeta[editing.category]?.type || 'info'" size="small">{{ catMeta[editing.category]?.label }}</el-tag>
-            <span class="d-page">{{ editing.page }}</span>
+            <el-link v-if="editing.page" type="primary" :underline="false" @click="jumpPage(editing.page)">{{ decodePath(editing.page) }} ↗ 打开该页面</el-link>
           </div>
-          <div class="d-detail">{{ editing.detail || '（无详情）' }}</div>
+          <div class="d-detail">{{ decodePath(editing.detail) || '（无详情）' }}</div>
+          <div v-if="editing.images && editing.images.length" class="d-shots">
+            <el-image
+              v-for="(img, i) in editing.images" :key="i"
+              :src="img" :preview-src-list="editing.images" :initial-index="i"
+              fit="cover" class="d-shot"
+            />
+          </div>
         </div>
         <el-form label-position="top">
           <el-form-item label="状态（拍板）">
@@ -177,4 +200,6 @@ onMounted(() => { fetchList(); fetchSummary(); });
 .d-meta { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
 .d-page { font-size: 12px; color: #999; }
 .d-detail { font-size: 14px; color: #555; line-height: 1.6; white-space: pre-wrap; }
+.d-shots { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
+.d-shot { width: 90px; height: 90px; border-radius: 6px; border: 1px solid #eee; cursor: pointer; }
 </style>

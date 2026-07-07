@@ -8,6 +8,16 @@ import { ADMIN_GUIDE, pageHint } from "./admin-guide";
 
 const ASSISTANT_SCENE = "admin_assistant";
 
+/** 反转 SanitizePipe 的 HTML 实体转义（页面路由 /system/x 会被转成 &#x2F;system&#x2F;x 乱码·需还原·纯文本展示安全） */
+function decodeEntities(s: string): string {
+  return String(s || "")
+    .replace(/&#x2F;/gi, "/").replace(/&#47;/g, "/")
+    .replace(/&#x27;/gi, "'").replace(/&#39;/g, "'")
+    .replace(/&quot;/gi, '"').replace(/&#34;/g, '"')
+    .replace(/&lt;/gi, "<").replace(/&gt;/gi, ">")
+    .replace(/&amp;/gi, "&");
+}
+
 export interface AssistantChatDto {
   message: string;
   page?: string; // 当前后台页面路由，供页面感知指导
@@ -20,6 +30,7 @@ export interface CreateFeedbackDto {
   title: string;
   detail: string;
   source?: string; // MANUAL / ASSISTANT
+  images?: string[]; // 截图 URL
 }
 
 @Injectable()
@@ -68,11 +79,12 @@ export class AdminAssistantService {
       data: {
         userId,
         userName: user?.nickname || "",
-        page: dto.page || "",
+        page: decodeEntities(dto.page || ""),
         category: dto.category || "OTHER",
-        title: dto.title.trim().slice(0, 200),
-        detail: (dto.detail || "").slice(0, 4000),
+        title: decodeEntities(dto.title.trim()).slice(0, 200),
+        detail: decodeEntities(dto.detail || "").slice(0, 4000),
         source: dto.source || "MANUAL",
+        images: Array.isArray(dto.images) ? dto.images.slice(0, 6) : [],
       },
     });
   }
