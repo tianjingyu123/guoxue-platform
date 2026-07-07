@@ -1242,6 +1242,19 @@ export interface FavItem {
   isInvalid: boolean
 }
 
+/* —— 我的笔记（跨模块聚合：古籍读书笔记 + 电子书笔记） —— */
+export type NoteSource = 'classic' | 'ebook'
+export interface NoteItem {
+  id: string
+  source: NoteSource
+  sourceName: string   // 古籍 / 电子书
+  bookId: string       // 用于跳转对应阅读/详情
+  bookTitle: string
+  chapter: string
+  content: string
+  updatedAt: string
+}
+
 /* —— 关注/粉丝 —— */
 export interface FollowUserItem {
   id: string
@@ -1852,6 +1865,34 @@ export const mineApi = {
     else if (t === 'EBOOK') await apiDelete(`/ebook/favorites/${targetId}`)
     else await apiPost('/interaction/collect', { targetType, targetId })    // interaction toggle
     return true
+  },
+
+  /**
+   * 我的笔记 —— 聚合古籍读书笔记 + 电子书笔记（各自独立表），按更新时间倒序。
+   * 古籍 GET /classic/notes（{items,...}）、电子书 GET /ebook/notes（{notes,...}）；各来源独立容错。
+   */
+  async getNotes(): Promise<NoteItem[]> {
+    const [classicRes, ebookRes] = await Promise.all([
+      apiGet<{ items?: { id?: string; bookId?: string; book?: { title?: string } | null; chapter?: { title?: string } | null; content?: string; updatedAt?: string }[] }>('/classic/notes?pageSize=100').catch(() => null),
+      apiGet<{ notes?: { id?: string; ebookId?: string; ebook?: { title?: string } | null; chapter?: { title?: string } | null; content?: string; updatedAt?: string; createdAt?: string }[] }>('/ebook/notes?pageSize=100').catch(() => null),
+    ])
+    const rawTs = (v: unknown): number => { const d = new Date(v as string); return Number.isNaN(d.getTime()) ? 0 : d.getTime() }
+    const fmt = (v?: string) => String(v || '').slice(0, 16).replace('T', ' ')
+    const rows: { item: NoteItem; ts: number }[] = []
+    for (const n of (Array.isArray(classicRes?.items) ? classicRes!.items! : [])) {
+      rows.push({ ts: rawTs(n.updatedAt), item: {
+        id: `classic_${n.id}`, source: 'classic', sourceName: '古籍', bookId: n.bookId || '',
+        bookTitle: n.book?.title || '古籍', chapter: n.chapter?.title || '', content: n.content || '', updatedAt: fmt(n.updatedAt),
+      } })
+    }
+    for (const n of (Array.isArray(ebookRes?.notes) ? ebookRes!.notes! : [])) {
+      rows.push({ ts: rawTs(n.updatedAt || n.createdAt), item: {
+        id: `ebook_${n.id}`, source: 'ebook', sourceName: '电子书', bookId: n.ebookId || '',
+        bookTitle: n.ebook?.title || '电子书', chapter: n.chapter?.title || '', content: n.content || '', updatedAt: fmt(n.updatedAt || n.createdAt),
+      } })
+    }
+    rows.sort((a, b) => b.ts - a.ts)
+    return rows.map((r) => r.item)
   },
 
   /** 关注与粉丝 —— GET /users/:id/following + /users/:id/followers（交叉计算互关） */

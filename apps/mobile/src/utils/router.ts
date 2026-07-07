@@ -145,6 +145,7 @@ const ROUTE_MAP: Record<string, string> = {
   '/settings/bindaccount': '/pkg-settings/bindaccount/index',
   '/settings/delete-account': '/pkg-settings/delete-account/index',
   // 个人中心 - 设置与账号安全（第②套，旧版，待废弃）
+  '/mine/notes': '/pkg-mine/notes/index',
   '/mine/settings': '/pkg-mine/settings/index',
   '/mine/security': '/pkg-mine/security/index',
   '/mine/change-password': '/pkg-mine/change-password/index',

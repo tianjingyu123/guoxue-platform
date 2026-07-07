@@ -2183,6 +2183,12 @@
           }
         },
         {
+          "path": "notes/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
           "path": "crm/index",
           "style": {
             "navigationStyle": "custom"
