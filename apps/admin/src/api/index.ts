@@ -2074,6 +2074,7 @@ export const adminAssistantApi = {
     api.post("/admin-assistant/chat", data),
   createFeedback: (data: { page?: string; category?: string; title: string; detail: string; source?: string }) =>
     api.post("/admin-assistant/feedback", data),
+  myFeedback: () => api.get("/admin-assistant/my-feedback"),
   listFeedback: (params?: { page?: number; pageSize?: number; status?: string; category?: string }) =>
     api.get("/admin-assistant/feedback", { params }),
   summary: () => api.get("/admin-assistant/feedback/summary"),

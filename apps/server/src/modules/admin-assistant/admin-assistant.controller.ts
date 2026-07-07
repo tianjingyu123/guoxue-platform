@@ -27,6 +27,12 @@ export class AdminAssistantController {
     return this.svc.createFeedback(req.user.id, dto);
   }
 
+  @Get("my-feedback")
+  @ApiOperation({ summary: "我的反馈（员工看自己提交的问题及处理结果·状态/批复可见）" })
+  myFeedback(@Req() req: Request) {
+    return this.svc.myFeedback(req.user.id);
+  }
+
   // ── 管理层侧：审阅、批复、汇总（仅超管/运营管理员） ──
 
   @Get("feedback")

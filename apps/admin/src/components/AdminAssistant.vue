@@ -8,13 +8,19 @@ import { adminAssistantApi } from "@/api";
 
 const route = useRoute();
 const open = ref(false);
-const tab = ref<"chat" | "feedback">("chat");
+const tab = ref<"chat" | "feedback" | "mine">("chat");
 
-// ── 对话 ──
+// ── 对话（记录保留：存 localStorage，员工回来还能看到之前的对话） ──
 interface Msg { role: "user" | "assistant"; content: string }
-const messages = ref<Msg[]>([
-  { role: "assistant", content: "你好，我是后台运营助手 👋 有不会操作的、想了解某个功能怎么用的，直接问我。遇到点了没反应/报错这类程序问题，我会帮你记录反馈给技术团队。" },
-]);
+const CHAT_KEY = "admin_assistant_chat";
+const welcome: Msg = { role: "assistant", content: "你好，我是后台运营助手 👋 有不会操作的、想了解某个功能怎么用的，直接问我。遇到点了没反应/报错这类程序问题，点『反馈这个问题』记录给管理层。" };
+function loadChat(): Msg[] {
+  try { const s = localStorage.getItem(CHAT_KEY); if (s) { const a = JSON.parse(s); if (Array.isArray(a) && a.length) return a; } } catch { /* ignore */ }
+  return [welcome];
+}
+const messages = ref<Msg[]>(loadChat());
+watch(messages, (v) => { try { localStorage.setItem(CHAT_KEY, JSON.stringify(v.slice(-40))); } catch { /* ignore */ } }, { deep: true });
+function clearChat() { messages.value = [welcome]; }
 const input = ref("");
 const sending = ref(false);
 const bodyRef = ref<HTMLElement | null>(null);
@@ -79,8 +85,26 @@ async function submitFeedback() {
   }
 }
 
+// ── 我的反馈（员工看自己提交的问题及处理结果·状态/批复可见·便于复测追问） ──
+interface MyFb { id: string; category: string; title: string; detail: string; status: string; reply: string; page: string; createdAt: string }
+const myList = ref<MyFb[]>([]);
+const myLoading = ref(false);
+const statusMeta: Record<string, { label: string; type: string }> = {
+  PENDING: { label: "待处理", type: "info" },
+  REVIEWED: { label: "已阅", type: "info" },
+  ADOPTED: { label: "已采纳·排期优化", type: "warning" },
+  REJECTED: { label: "不采纳", type: "danger" },
+  DONE: { label: "已优化·请复测", type: "success" },
+};
+async function fetchMine() {
+  myLoading.value = true;
+  try { const { data } = await adminAssistantApi.myFeedback(); myList.value = (data as unknown as MyFb[]) || []; }
+  catch { /* ignore */ } finally { myLoading.value = false; }
+}
+watch(tab, (t) => { if (t === "mine") fetchMine(); });
+
 // 打开时滚到底
-watch(open, (v) => { if (v) scrollBottom(); });
+watch(open, (v) => { if (v) { scrollBottom(); if (tab.value === "mine") fetchMine(); } });
 </script>
 
 <template>
@@ -103,10 +127,15 @@ watch(open, (v) => { if (v) scrollBottom(); });
       <div class="panel-tabs">
         <div class="tab" :class="{ on: tab === 'chat' }" @click="tab = 'chat'">答疑指导</div>
         <div class="tab" :class="{ on: tab === 'feedback' }" @click="tab = 'feedback'">反馈问题</div>
+        <div class="tab" :class="{ on: tab === 'mine' }" @click="tab = 'mine'">我的反馈</div>
       </div>
 
       <!-- 对话 -->
       <template v-if="tab === 'chat'">
+        <div class="chat-toolbar">
+          <span class="chat-hint">对话已自动保留，方便你回来追问</span>
+          <span class="chat-clear" @click="clearChat">清空对话</span>
+        </div>
         <div ref="bodyRef" class="chat-body">
           <div v-for="(m, i) in messages" :key="i" class="msg" :class="m.role">
             <div class="bubble">{{ m.content }}</div>
@@ -132,7 +161,7 @@ watch(open, (v) => { if (v) scrollBottom(); });
       </template>
 
       <!-- 反馈 -->
-      <template v-else>
+      <template v-else-if="tab === 'feedback'">
         <div class="fb-body">
           <div class="fb-tip"><el-icon><Warning /></el-icon> 遇到程序问题（点了没反应/报错/白屏/数据不对）请记录下来，会汇总给管理层，由技术团队处理。</div>
           <el-form label-position="top" size="default">
@@ -150,6 +179,22 @@ watch(open, (v) => { if (v) scrollBottom(); });
             <div class="fb-page">当前页面：{{ route.path }}（会自动附带，便于定位）</div>
             <el-button type="primary" style="width:100%" :loading="submitting" @click="submitFeedback">提交反馈</el-button>
           </el-form>
+        </div>
+      </template>
+
+      <!-- 我的反馈（处理结果·员工可复测追问） -->
+      <template v-else>
+        <div v-loading="myLoading" class="mine-body">
+          <div v-if="myList.length === 0 && !myLoading" class="mine-empty">你还没有提交过反馈。遇到程序问题可在「反馈问题」里记录，处理结果会显示在这里。</div>
+          <div v-for="f in myList" :key="f.id" class="mine-card">
+            <div class="mine-head">
+              <el-tag :type="statusMeta[f.status]?.type || 'info'" size="small">{{ statusMeta[f.status]?.label || f.status }}</el-tag>
+              <span class="mine-time">{{ String(f.createdAt).slice(0, 16).replace('T', ' ') }}</span>
+            </div>
+            <div class="mine-title">{{ f.title }}</div>
+            <div v-if="f.reply" class="mine-reply"><b>处理批复：</b>{{ f.reply }}</div>
+            <div v-if="f.status === 'DONE'" class="mine-retest">✅ 已优化，请到对应页面复测；若仍有问题，欢迎再提一条反馈。</div>
+          </div>
         </div>
       </template>
     </div>
@@ -182,4 +227,15 @@ watch(open, (v) => { if (v) scrollBottom(); });
 .fb-body { flex: 1; overflow-y: auto; padding: 16px; }
 .fb-tip { display: flex; gap: 6px; align-items: flex-start; font-size: 12px; color: #9a6a00; background: #fff8e6; border: 1px solid #ffe4a0; border-radius: 8px; padding: 10px; margin-bottom: 14px; line-height: 1.5; }
 .fb-page { font-size: 12px; color: #999; margin: 4px 0 12px; }
+.chat-toolbar { display: flex; align-items: center; justify-content: space-between; padding: 6px 12px; border-bottom: 1px solid #f0f0f0; }
+.chat-hint { font-size: 11px; color: #bbb; }
+.chat-clear { font-size: 12px; color: #c41e3a; cursor: pointer; }
+.mine-body { flex: 1; overflow-y: auto; padding: 14px; }
+.mine-empty { font-size: 13px; color: #999; text-align: center; padding: 40px 20px; line-height: 1.6; }
+.mine-card { background: #fff; border: 1px solid #eee; border-radius: 10px; padding: 12px; margin-bottom: 12px; }
+.mine-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.mine-time { font-size: 11px; color: #aaa; }
+.mine-title { font-size: 14px; font-weight: 600; color: #333; line-height: 1.5; }
+.mine-reply { font-size: 13px; color: #555; margin-top: 8px; background: #faf9f7; border-radius: 6px; padding: 8px; line-height: 1.5; }
+.mine-retest { font-size: 12px; color: #52c41a; margin-top: 8px; }
 </style>

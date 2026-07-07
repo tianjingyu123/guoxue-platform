@@ -77,6 +77,15 @@ export class AdminAssistantService {
     });
   }
 
+  /** 我的反馈（员工看自己提交的问题及处理结果·状态/批复可见·便于复测追问） */
+  async myFeedback(userId: string) {
+    return this.prisma.adminFeedback.findMany({
+      where: { userId },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+    });
+  }
+
   /** 反馈列表（管理层审阅·分页·可按状态/分类筛选） */
   async listFeedback(params: { page?: number; pageSize?: number; status?: string; category?: string }) {
     const page = Math.max(1, Number(params.page) || 1);
