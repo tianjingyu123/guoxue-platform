@@ -163,6 +163,8 @@ import { useRoute, useRouter } from 'vue-router'
 import { contentApi } from '@/api'
 import { ElMessage } from 'element-plus'
 import CosImageUpload from '@/components/upload/CosImageUpload.vue'
+import Quill from 'quill'
+import 'quill/dist/quill.snow.css'
 
 const route = useRoute()
 const router = useRouter()
@@ -214,46 +216,30 @@ onMounted(async () => {
 
 function initQuill() {
   if (!editorEl.value) return
-  // 加载 snow 主题 CSS：工具栏图标全靠它渲染，此前只加载了 JS 没加载 CSS → 工具栏全是方框(tofu)。去重防重复插入。
-  if (!document.getElementById('quill-snow-css')) {
-    const link = document.createElement('link')
-    link.id = 'quill-snow-css'
-    link.rel = 'stylesheet'
-    link.href = 'https://cdn.quilljs.com/1.3.7/quill.snow.css'
-    document.head.appendChild(link)
+  // 本地打包 Quill（import，无 CDN/无 SRI 风险；snow 主题 CSS 也走 import）
+  quill = new Quill(editorEl.value, {
+    theme: 'snow',
+    modules: {
+      toolbar: [
+        ['bold', 'italic', 'underline', 'strike'],
+        [{ header: 1 }, { header: 2 }],
+        [{ align: [] }],
+        ['blockquote', 'code-block'],
+        [{ list: 'ordered' }, { list: 'bullet' }],
+        [{ indent: '-1' }, { indent: '+1' }],
+        [{ color: [] }, { background: [] }],
+        ['link', 'image'],
+        ['clean'],
+      ],
+    },
+    placeholder: '请输入正文...',
+  })
+  if (form.body) {
+    quill.root.innerHTML = form.body
   }
-  // 动态加载 Quill JS
-  const script = document.createElement('script')
-  script.src = 'https://cdn.quilljs.com/1.3.7/quill.min.js'
-  script.onload = () => {
-    // window.Quill 由 CDN 脚本注入，无类型声明，保留 any
-    const Q = (window as any).Quill
-    if (!Q) return
-    quill = new Q(editorEl.value, {
-      theme: 'snow',
-      modules: {
-        toolbar: [
-          ['bold', 'italic', 'underline', 'strike'],
-          [{ header: 1 }, { header: 2 }],
-          [{ align: [] }],
-          ['blockquote', 'code-block'],
-          [{ list: 'ordered' }, { list: 'bullet' }],
-          [{ indent: '-1' }, { indent: '+1' }],
-          [{ color: [] }, { background: [] }],
-          ['link', 'image'],
-          ['clean'],
-        ],
-      },
-      placeholder: '请输入正文...',
-    })
-    if (form.body) {
-      quill.root.innerHTML = form.body
-    }
-    quill.on('text-change', () => {
-      form.body = quill.root.innerHTML
-    })
-  }
-  document.head.appendChild(script)
+  quill.on('text-change', () => {
+    form.body = quill.root.innerHTML
+  })
 }
 
 function addTag() {

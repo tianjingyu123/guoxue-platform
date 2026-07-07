@@ -447,6 +447,8 @@ import type { FormInstance } from 'element-plus'
 import { uploadApi, productApi, api } from '@/api'
 import ImageUpload from '@/components/ImageUpload.vue'
 import CosImageUpload from '@/components/upload/CosImageUpload.vue'
+import Quill from 'quill'
+import 'quill/dist/quill.snow.css'
 import DataTable from '@/components/DataTable.vue'
 import PageHeader from "@/components/PageHeader.vue"
 
@@ -579,10 +581,9 @@ async function openEdit(row: ProductRow) {
 }
 
 function setupDetailQuill() {
-  const Q = (window as any).Quill
-  if (!Q || !detailEditorEl.value) return
+  if (!detailEditorEl.value) return
   if (detailQuill) { detailQuill.root.innerHTML = form.detail || ''; return }
-  detailQuill = new Q(detailEditorEl.value, {
+  detailQuill = new Quill(detailEditorEl.value, {
     theme: 'snow',
     modules: { toolbar: [['bold','italic','underline'], [{ header:1 },{ header:2 }], [{ list:'ordered' },{ list:'bullet' }], ['link','clean']] },
     placeholder: '商品详情...',
@@ -592,24 +593,8 @@ function setupDetailQuill() {
 }
 
 function initEditor() {
-  // 自包含加载 Quill：补 snow 主题 CSS(缺则工具栏方框)+ 按需动态加载 JS(不依赖别的页面先加载过 window.Quill)
-  if (!document.getElementById('quill-snow-css')) {
-    const link = document.createElement('link')
-    link.id = 'quill-snow-css'
-    link.rel = 'stylesheet'
-    link.href = 'https://cdn.quilljs.com/1.3.7/quill.snow.css'
-    document.head.appendChild(link)
-  }
-  if ((window as any).Quill) { setupDetailQuill(); return }
-  if (!document.getElementById('quill-cdn-js')) {
-    const script = document.createElement('script')
-    script.id = 'quill-cdn-js'
-    script.src = 'https://cdn.quilljs.com/1.3.7/quill.min.js'
-    script.onload = () => setupDetailQuill()
-    document.body.appendChild(script)
-  } else {
-    const timer = setInterval(() => { if ((window as any).Quill) { clearInterval(timer); setupDetailQuill() } }, 100)
-  }
+  // 本地打包 Quill（import，无 CDN/无 SRI 风险；snow CSS 走 import）
+  setupDetailQuill()
 }
 
 async function saveProduct() {
