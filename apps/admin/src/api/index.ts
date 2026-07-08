@@ -1431,13 +1431,13 @@ export const memberAdminApi = {
 // ───────── 智能定价管理 ─────────
 export const pricingApi = {
   getRules: (params?: { page?: number; pageSize?: number }) =>
-    api.get("/admin/pricing/rules", { params }),
-  getRule: (id: string) => api.get(`/admin/pricing/rules/${id}`),
-  createRule: (data: Record<string, unknown>) => api.post("/admin/pricing/rules", data),
-  updateRule: (id: string, data: Record<string, unknown>) => api.put(`/admin/pricing/rules/${id}`, data),
-  deleteRule: (id: string) => api.delete(`/admin/pricing/rules/${id}`),
+    api.get("/pricing/admin/rules", { params }),
+  getRule: (id: string) => api.get(`/pricing/admin/rules/${id}`),
+  createRule: (data: Record<string, unknown>) => api.post("/pricing/admin/rules", data),
+  updateRule: (id: string, data: Record<string, unknown>) => api.put(`/pricing/admin/rules/${id}`, data),
+  deleteRule: (id: string) => api.delete(`/pricing/admin/rules/${id}`),
   getDemand: (params?: { page?: number; pageSize?: number; targetType?: string; demandLevel?: string }) =>
-    api.get("/admin/pricing/demand", { params }),
+    api.get("/pricing/admin/demand", { params }),
 };
 
 // ───────── 短信管理 ─────────
