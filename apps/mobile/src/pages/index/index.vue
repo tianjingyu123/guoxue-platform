@@ -4,7 +4,6 @@
 import { ref, computed, onMounted } from 'vue'
 import AppHeader from '@/components/app-header/app-header.vue'
 import BottomNav from '@/components/bottom-nav/bottom-nav.vue'
-import QuickEntryGrid from '@/components/home/quick-entry-grid.vue'
 import HomeBanner from '@/components/home/home-banner.vue'
 import SolarTermBanner from '@/components/home/solar-term-banner.vue'
 import PaipanGuideCard from '@/components/home/paipan-guide-card.vue'
@@ -112,10 +111,7 @@ function backToTop() {
       <!-- 节气日横幅（仅节气日显示·入口进节气仪式页） -->
       <solar-term-banner />
 
-      <!-- 金刚区功能入口（学 / 用 双分组） -->
-      <quick-entry-grid />
-
-      <!-- 排盘引导大卡 -->
+<!-- 排盘引导大卡 -->
       <paipan-guide-card v-if="SHOW_PAIPAN_CARD" />
 
       <!-- 营销/活动入口大卡 -->

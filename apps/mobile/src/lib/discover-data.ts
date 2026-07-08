@@ -9,6 +9,8 @@ export const coreEntries = [
   { id: 'course', icon: 'book-open', label: '课程', href: '/courses' },
   { id: 'mall', icon: 'shopping-bag', label: '商城', href: '/mall' },
   { id: 'classics', icon: 'scroll-text', label: '古籍馆', href: '/pkg-classics/home/index' },
+  { id: 'audiobook', icon: 'headphones', label: '听书', href: '/pkg-classics/audiobooks/index' },
+  { id: 'paipan', icon: 'layout-grid', label: '排盘', href: '/pages/paipan/index' },
   { id: 'competition', icon: 'trophy', label: '赛事', href: '/competition/home' },
   { id: 'agent', icon: 'bot', label: '智能体广场', href: '/agents' },
   { id: 'circles', icon: 'users', label: '圈子广场', href: '/pages/circles/index' },
