@@ -5,7 +5,6 @@ import { ref, computed, onMounted } from 'vue'
 import AppHeader from '@/components/app-header/app-header.vue'
 import BottomNav from '@/components/bottom-nav/bottom-nav.vue'
 import HomeBanner from '@/components/home/home-banner.vue'
-import SolarTermBanner from '@/components/home/solar-term-banner.vue'
 import PaipanGuideCard from '@/components/home/paipan-guide-card.vue'
 import MarketingCard from '@/components/home/marketing-card.vue'
 import FeedCard from '@/components/home/feed-card.vue'
@@ -108,10 +107,7 @@ function backToTop() {
       <!-- Banner 轮播（暂时关闭不显示） -->
       <home-banner v-if="false" :banners="banners" />
 
-      <!-- 节气日横幅（仅节气日显示·入口进节气仪式页） -->
-      <solar-term-banner />
-
-<!-- 排盘引导大卡 -->
+      <!-- 排盘引导大卡 -->
       <paipan-guide-card v-if="SHOW_PAIPAN_CARD" />
 
       <!-- 营销/活动入口大卡 -->
