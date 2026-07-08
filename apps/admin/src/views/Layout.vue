@@ -155,7 +155,8 @@ onMounted(async () => {
 
 function logout() {
   auth.logout();
-  router.push("/login");
+  // 硬跳转整页重载到登录页：彻底清空内存态（避免 router.push 在某些状态下不生效导致"退不干净"）
+  window.location.href = import.meta.env.BASE_URL + "login";
 }
 </script>
 
