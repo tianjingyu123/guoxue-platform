@@ -107,25 +107,6 @@ const routes = [
         component: () => import("@/views/classics/ClassicCommentaryManage.vue"),
         meta: { title: "古籍注解", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"] },
       },
-      // === 诗词雅集 ===
-      {
-        path: "poetry",
-        name: "PoetryList",
-        component: () => import("@/views/poetry/PoetryList.vue"),
-        meta: { title: "诗词管理", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"] },
-      },
-      {
-        path: "poetry/categories",
-        name: "PoetryCategoryManage",
-        component: () => import("@/views/poetry/PoetryCategoryManage.vue"),
-        meta: { title: "诗词分类", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"] },
-      },
-      {
-        path: "poetry/collections",
-        name: "PoetryCollectionManage",
-        component: () => import("@/views/poetry/PoetryCollectionManage.vue"),
-        meta: { title: "诗单管理", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"] },
-      },
       // === 社区 ===
       {
         path: "circles",
@@ -242,13 +223,6 @@ const routes = [
         name: "TeacherCertificationAudit",
         component: () => import("@/views/teacher/TeacherCertificationAudit.vue"),
         meta: { title: "讲师认证审核", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"] },
-      },
-      // === 电子书 ===
-      {
-        path: "ebooks",
-        name: "EbookList",
-        component: () => import("@/views/ebook/EbookList.vue"),
-        meta: { title: "电子书管理", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"] },
       },
       // === 用户管理 ===
       {
@@ -1101,19 +1075,6 @@ const routes = [
         name: "ExpertManage",
         component: () => import("@/views/bounty/ExpertManage.vue"),
         meta: { title: "专家管理", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
-      },
-      // === 运势管理 ===
-      {
-        path: "fortune/config",
-        name: "FortuneConfig",
-        component: () => import("@/views/fortune/FortuneConfig.vue"),
-        meta: { title: "运势推送配置", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
-      },
-      {
-        path: "fortune/history",
-        name: "FortuneHistory",
-        component: () => import("@/views/fortune/FortuneHistory.vue"),
-        meta: { title: "运势推送历史", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
       },
       // === 通知 ===
       {

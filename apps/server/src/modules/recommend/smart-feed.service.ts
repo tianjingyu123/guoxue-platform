@@ -92,7 +92,8 @@ export class SmartFeedService {
     // 时段因子：作为基础权重乘子在 AI 重排之前生效；AI 不可用时降级路径同样保留时段排序
     items = this.applyTimeSlotWeight(qualityWeighted, timeSlot);
 
-    if (items.length > 3) {
+    // 电子书板块下线后内容源由 4 类减为 3 类，阈值同步下调（生产 feed 每源多条恒满足此阈值，无实际影响）
+    if (items.length > 2) {
       items = await this.aiRankItems(userId, items, segment);
     }
 
@@ -204,7 +205,7 @@ export class SmartFeedService {
 
   private async getNewUserFeed(_userId: string, size: number): Promise<FeedItem[]> {
     const quarter = Math.floor(size / 4);
-    const [articles, courses, classics, ebooks] = await Promise.all([
+    const [articles, courses, classics] = await Promise.all([
       this.prisma.article.findMany({
         where: { auditStatus: "APPROVED" },
         select: { id: true, title: true, excerpt: true, cover: true },
@@ -223,25 +224,18 @@ export class SmartFeedService {
         orderBy: { viewCount: "desc" },
         take: quarter,
       }),
-      this.prisma.ebook.findMany({
-        where: { status: "PUBLISHED" },
-        select: { id: true, title: true, description: true, cover: true },
-        orderBy: { viewCount: "desc" },
-        take: quarter,
-      }),
     ]);
 
     return [
       ...articles.map((a): FeedItem => ({ id: a.id, type: "article", title: a.title, subtitle: a.excerpt || "", cover: a.cover || "", score: 0, reason: "新手推荐" })),
       ...courses.map((c): FeedItem => ({ id: c.id, type: "course", title: c.title, subtitle: c.intro || "", cover: c.cover || "", score: 0, reason: "入门课程" })),
       ...classics.map((b): FeedItem => ({ id: b.id, type: "classic", title: b.title, subtitle: b.intro || "", cover: b.cover || "", score: 0, reason: "经典必读" })),
-      ...ebooks.map((e): FeedItem => ({ id: e.id, type: "ebook", title: e.title, subtitle: e.description || "", cover: e.cover || "", score: 0, reason: "推荐阅读" })),
     ];
   }
 
   private async getAdvancedFeed(_userId: string, size: number): Promise<FeedItem[]> {
     const quarter = Math.floor(size / 4);
-    const [posts, articles, classics, ebooks] = await Promise.all([
+    const [posts, articles, classics] = await Promise.all([
       this.prisma.post.findMany({
         where: { status: "PUBLISHED", isEssence: true },
         select: { id: true, title: true, content: true },
@@ -260,19 +254,12 @@ export class SmartFeedService {
         orderBy: { viewCount: "desc" },
         take: quarter,
       }),
-      this.prisma.ebook.findMany({
-        where: { status: "PUBLISHED" },
-        select: { id: true, title: true, description: true, cover: true },
-        orderBy: { purchaseCount: "desc" },
-        take: quarter,
-      }),
     ]);
 
     return [
       ...posts.map((p): FeedItem => ({ id: p.id, type: "post", title: p.title || "精华帖", subtitle: p.content.slice(0, 100), score: 0, reason: "精华内容" })),
       ...articles.map((a): FeedItem => ({ id: a.id, type: "article", title: a.title, subtitle: a.excerpt || "", cover: a.cover || "", score: 0, reason: "深度推荐" })),
       ...classics.map((b): FeedItem => ({ id: b.id, type: "classic", title: b.title, subtitle: b.intro || "", cover: b.cover || "", score: 0, reason: "经典研读" })),
-      ...ebooks.map((e): FeedItem => ({ id: e.id, type: "ebook", title: e.title, subtitle: e.description || "", cover: e.cover || "", score: 0, reason: "深度阅读" })),
     ];
   }
 

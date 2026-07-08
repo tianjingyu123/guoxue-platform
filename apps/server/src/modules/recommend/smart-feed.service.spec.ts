@@ -86,16 +86,16 @@ describe("SmartFeedService", () => {
       expect(articleItem.score).toBe(1);
     });
 
-    it("晚间 17-24 时（上海 20:00）：深度学习族 course/ebook ×1.3 置顶，timeSlot=evening", async () => {
+    it("晚间 17-24 时（上海 20:00）：深度学习族 course ×1.3 置顶，timeSlot=evening", async () => {
       setSystemTimeUtc("2026-07-03T12:00:00Z"); // 上海 20:00
 
       const result = await svc.getFeed("u1");
 
       expect(result.timeSlot).toBe("evening");
-      // 加权族按原相对顺序稳定置顶：course 在 ebook 前
-      expect(result.items.map((i) => i.type)).toEqual(["course", "ebook", "article", "classic"]);
+      // 电子书板块已下线：加权族仅剩 course，置顶后其余保持原序
+      expect(result.items.map((i) => i.type)).toEqual(["course", "article", "classic"]);
       expect(result.items[0].score).toBeCloseTo(1.3);
-      expect(result.items[1].score).toBeCloseTo(1.3);
+      expect(result.items[1].score).toBe(1);
       expect(result.items[2].score).toBe(1);
     });
 
@@ -149,16 +149,16 @@ describe("SmartFeedService", () => {
 
   describe("原有逻辑回归", () => {
     it("AI 可用时重排逻辑不变：在时段加权后的列表上按 AI 返回序号重排", async () => {
-      setSystemTimeUtc("2026-07-03T00:00:00Z"); // 早间·加权后 [article, course, classic, ebook]
-      gateway.chat.mockResolvedValue({ content: "[2, 1, 3, 4]" });
+      setSystemTimeUtc("2026-07-03T00:00:00Z"); // 早间·加权后 [article, course, classic]
+      gateway.chat.mockResolvedValue({ content: "[2, 1, 3]" });
 
       const result = await svc.getFeed("u1");
 
       expect(gateway.chat).toHaveBeenCalledWith(
         expect.objectContaining({ scene: "smart_feed", userId: "u1" }),
       );
-      // AI 序号作用于加权后的候选序：2→course, 1→article
-      expect(result.items.map((i) => i.type)).toEqual(["course", "article", "classic", "ebook"]);
+      // AI 序号作用于加权后的候选序：2→course, 1→article, 3→classic
+      expect(result.items.map((i) => i.type)).toEqual(["course", "article", "classic"]);
       expect(result.timeSlot).toBe("morning");
     });
 
@@ -176,10 +176,10 @@ describe("SmartFeedService", () => {
     });
 
     it("分页切片仍生效", async () => {
-      setSystemTimeUtc("2026-07-03T12:00:00Z"); // 晚间·序 [course, ebook, article, classic]
+      setSystemTimeUtc("2026-07-03T12:00:00Z"); // 晚间·序 [course, article, classic]（电子书已下线）
       const result = await svc.getFeed("u1", 2, 2);
 
-      expect(result.items.map((i) => i.type)).toEqual(["article", "classic"]);
+      expect(result.items.map((i) => i.type)).toEqual(["classic"]);
       expect(result.timeSlot).toBe("evening");
     });
   });

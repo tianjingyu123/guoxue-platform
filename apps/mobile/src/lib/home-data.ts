@@ -72,7 +72,6 @@ export const feedItems: FeedItem[] = [
   { id: 3, type: 'article', title: '八字食神制杀格局详解与实例分析', author: '张玄风', authorAvatar: '张', likes: 328, comments: 56, excerpt: '食神制杀是八字中常见的贵格之一，具有文武双全的特点。通过实例来详细分析格局的形成条件和断语要点。', cover: 'https://api.rebugx.cn/assets/images/feed/article-1.webp', coverRatio: '3:4' },
   { id: 4, type: 'product', title: '《渊海子平》精装典藏版', author: '', authorAvatar: '', price: 68, originalPrice: 128, sales: 1280, tag: '热销', cover: 'https://api.rebugx.cn/assets/images/feed/product-1.webp', coverRatio: '3:4' },
   { id: 5, type: 'circle', circleName: '八字研习社', isMember: true, author: '张玄风', authorAvatar: '', content: '每日案例解析，从入门到精通的八字学习社区', members: 12800, likes: 42, comments: 18, cover: 'https://api.rebugx.cn/assets/images/feed/circle-1.webp', coverRatio: '4:3', price: 0, rating: 4.9, tags: ['活跃', '干货多'], isVerified: true, ownerTitle: '资深命理师', todayPosts: 56 },
-  { id: 7, type: 'ebook', title: '《滴天髓》白话精解', author: '古籍研究院', authorAvatar: '古', readers: 8560, chapters: 32, price: 68, cover: 'https://api.rebugx.cn/assets/images/feed/ebook-1.webp', coverRatio: '3:4' },
   { id: 8, type: 'live', title: '手把手教你排八字命盘', author: '李命理', authorAvatar: '李', viewers: 856, isLive: true, cover: 'https://api.rebugx.cn/assets/images/feed/live-horizontal.webp', coverRatio: '16:9' },
   { id: 9, type: 'video', title: '3分钟看懂十二地支含义', author: '国学小课堂', authorAvatar: '国', duration: '03:21', plays: '8.5万', likes: 1256, cover: 'https://api.rebugx.cn/assets/images/feed/video-1.webp', coverRatio: '3:4' },
   { id: 10, type: 'article', title: '从易经看人生的三个重要阶段', author: '国学研究院', authorAvatar: '国', likes: 425, comments: 78, excerpt: '易经告诉我们，人生可分为三个重要阶段：少年为乾，壮年为坤，晚年为泰。理解这些帮助把握人生节奏。', cover: 'https://api.rebugx.cn/assets/images/feed/live-horizontal.webp', coverRatio: '16:9' },
@@ -86,12 +85,9 @@ export const feedItems: FeedItem[] = [
   { id: 18, type: 'course', title: '风水堪舆入门精讲', author: '陈风水', authorAvatar: '陈', price: 168, originalPrice: 299, students: 980, cover: 'https://api.rebugx.cn/assets/images/feed/course-3.webp', coverRatio: '3:4' },
   { id: 19, type: 'live', title: '紫微斗数十二宫位详解直播', author: '紫微大师', authorAvatar: '紫', time: '明天19:30', reservations: 520, isLive: false, cover: 'https://api.rebugx.cn/assets/images/feed/live-horizontal.webp', coverRatio: '16:9' },
   { id: 20, type: 'product', title: '开运水晶手链套装', author: '', authorAvatar: '', price: 158, originalPrice: 258, sales: 2680, tag: '秒杀', cover: 'https://api.rebugx.cn/assets/images/feed/product-3.webp', coverRatio: '3:4' },
-  { id: 21, type: 'ebook', title: '《穷通宝鉴》注解版', author: '命理古籍馆', authorAvatar: '命', readers: 5280, chapters: 24, price: 0, cover: 'https://api.rebugx.cn/assets/images/feed/ebook-2.webp', coverRatio: '3:4' },
   { id: 22, type: 'article', title: '如何通过八字看适合的职业方向', author: '职业规划师', authorAvatar: '职', likes: 568, comments: 89, excerpt: '八字中的十神代表了不同的社会角色和性格特点，分析日主旺衰找到最适合的职业发展方向。', cover: 'https://api.rebugx.cn/assets/images/feed/live-horizontal.webp', coverRatio: '16:9' },
   { id: 23, type: 'course', title: '奇门遁甲零基础入门精讲', author: '奇门研究院', authorAvatar: '奇', price: 399, originalPrice: 799, students: 1680, cover: 'https://api.rebugx.cn/assets/images/feed/live-horizontal.webp', coverRatio: '16:9' },
   { id: 24, type: 'video', title: '天干地支快速记忆法', author: '玄学日历', authorAvatar: '玄', duration: '02:15', plays: '1.2万', likes: 2560, cover: 'https://api.rebugx.cn/assets/images/feed/video-1.webp', coverRatio: '3:4' },
-  { id: 25, type: 'poem_daily', title: '静夜思', author: '李白', authorAvatar: '李', dynasty: '唐', form: '五言绝句', lines: ['床前明月光，', '疑是地上霜。', '举头望明月，', '低头思故乡。'], tags: ['思乡', '月亮'], likes: 12800, cover: null },
-  { id: 26, type: 'poem', title: '水调歌头', author: '苏轼', authorAvatar: '苏', dynasty: '宋', form: '词', preview: '明月几时有，把酒问青天，不知天上宫阙，今夕是何年。', tags: ['中秋'], likes: 11200, cover: null },
 ]
 
 // ============================================
@@ -276,16 +272,16 @@ export interface DailyStudyItem {
   path: string
 }
 
-type StudyKind = 'classic' | 'poem' | 'course'
+type StudyKind = 'classic' | 'course'
 
-/** 主题 key → 首选内容类型（yangsheng/minsu/yayi 无专属内容池，各回退一类） */
+/** 主题 key → 首选内容类型（诗词/雅集板块已下线，回退古籍；yangsheng/yixue 无专属池回退课程） */
 const THEME_KIND_MAP: Record<string, StudyKind> = {
   jingdian: 'classic',
-  shici: 'poem',
+  shici: 'classic',
   yixue: 'course',
   yangsheng: 'course',
   minsu: 'classic',
-  yayi: 'poem',
+  yayi: 'classic',
 }
 
 /** 一年中的第几天（做「每日轮换」的稳定随机源） */
@@ -309,33 +305,6 @@ async function fetchClassicStudy(themeLabel: string): Promise<DailyStudyItem> {
   }
 }
 
-/** 诗词卡 — GET /poetry/home 的「每日一首」（后端天然按日更新），失败回退热门列表首位 */
-async function fetchPoemStudy(themeLabel: string): Promise<DailyStudyItem> {
-  const data = await apiGet<{
-    todayPoem?: { id?: string; title?: string; author?: string; dynasty?: string; lines?: string[] }
-    poems?: { id?: string; title?: string; author?: string; dynasty?: string; preview?: string }[]
-  }>('/poetry/home')
-  const t = data?.todayPoem
-  if (t?.id && t.title) {
-    const firstLines = Array.isArray(t.lines) ? t.lines.slice(0, 2).join('') : ''
-    return {
-      themeLabel,
-      title: t.title,
-      summary: firstLines || [t.dynasty, t.author].filter(Boolean).join(' · '),
-      path: `/pkg-poetry/detail/index?id=${t.id}`,
-    }
-  }
-  const poems = Array.isArray(data?.poems) ? data.poems.filter((p) => p?.id && p?.title) : []
-  if (!poems.length) throw new Error('无诗词数据')
-  const p = poems[dayOfYear() % poems.length]
-  return {
-    themeLabel,
-    title: p.title || '',
-    summary: p.preview || [p.dynasty, p.author].filter(Boolean).join(' · '),
-    path: `/pkg-poetry/detail/index?id=${p.id}`,
-  }
-}
-
 /** 课程卡 — GET /courses?sort=popular（分页拦截器 → apiGetPaged），按日轮换取 1 门 */
 async function fetchCourseStudy(themeLabel: string): Promise<DailyStudyItem> {
   const { items } = await apiGetPaged<{ id?: string; title?: string; intro?: string }>(
@@ -354,7 +323,6 @@ async function fetchCourseStudy(themeLabel: string): Promise<DailyStudyItem> {
 
 const STUDY_FETCHERS: Record<StudyKind, (themeLabel: string) => Promise<DailyStudyItem>> = {
   classic: fetchClassicStudy,
-  poem: fetchPoemStudy,
   course: fetchCourseStudy,
 }
 
@@ -417,7 +385,7 @@ export const homeApi = {
   async getDailyStudy(): Promise<DailyStudyItem[]> {
     const themes = getEffectiveThemes().slice(0, 3)
     const usedKinds = new Set<StudyKind>()
-    const fallbackOrder: StudyKind[] = ['classic', 'poem', 'course']
+    const fallbackOrder: StudyKind[] = ['classic', 'course']
     const tasks = themes.map((t) => {
       let kind: StudyKind = THEME_KIND_MAP[t.key] || 'course'
       if (usedKinds.has(kind)) {
