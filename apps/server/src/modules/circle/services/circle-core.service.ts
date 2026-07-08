@@ -45,6 +45,9 @@ export class CircleCoreService {
         depositAmount: dto.depositAmount ?? 0,
         stationId: dto.stationId || undefined,
         ownerId,
+        // 创建时已做名称+简介文本审核（见上 moderateTextOrThrow），直接 ACTIVE 上架，
+        // 否则默认 PENDING 会被「发现/广场」列表(status:ACTIVE)过滤掉，用户创建后前台看不到、无法测试。
+        status: "ACTIVE",
         members: {
           create: { userId: ownerId, role: "OWNER" },
         },
