@@ -44,13 +44,21 @@ export class CourseService {
 
   // ═══════════════════ 课程 CRUD ═══════════════════
 
+  /** circleId 缺省时兜底「官方圈子」(id存ConfigSystem.official_circle_id)·供后台/AI自动发布种子课程。沿用短视频模式(见 video.service.resolveCircleId) */
+  private async resolveCircleId(circleId?: string): Promise<string | undefined> {
+    if (circleId) return circleId;
+    const cfg = await this.prisma.configSystem.findUnique({ where: { configKey: "official_circle_id" } });
+    return cfg?.configValue || undefined;
+  }
+
   async create(userId: string, dto: CreateCourseDto, autoApprove = false) {
+    const circleId = await this.resolveCircleId(dto.circleId);
     const course = await this.prisma.course.create({
       data: {
         userId,
         // 管理员/运营建的课程直接通过审核（跳过 PENDING），避免"保存后列表看不到"
         ...(autoApprove ? { auditStatus: "APPROVED" } : {}),
-        circleId: dto.circleId,
+        circleId,
         title: dto.title,
         cover: dto.cover,
         intro: dto.intro,
