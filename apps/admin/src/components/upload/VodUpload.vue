@@ -34,8 +34,18 @@ async function onFileChange(e: Event) {
   try {
     const tcVod = new TcVod({
       getSignature: async () => {
-        const { data } = await uploadApi.getVodSignature()
-        return (data as any).signature
+        const res: any = await uploadApi.getVodSignature()
+        // 兼容拦截器解包差异：signature 可能在 res.signature / res.data.signature / res.data.data.signature
+        const sig =
+          typeof res === 'string'
+            ? res
+            : res?.signature ?? res?.data?.signature ?? res?.data?.data?.signature
+        if (typeof sig !== 'string' || !sig) {
+          // 暴露真实返回结构，避免腾讯云 SDK 抛出难以定位的 "signature.split is not a function"
+          console.error('[VodUpload] 签名返回非字符串：', res)
+          throw new Error('签名格式异常，请查看控制台 [VodUpload] 日志')
+        }
+        return sig
       },
     })
     const uploader = tcVod.upload({ mediaFile: file })
