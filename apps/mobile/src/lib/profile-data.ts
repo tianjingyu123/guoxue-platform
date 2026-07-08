@@ -66,7 +66,6 @@ export const quickFunctions: { icon: string; label: string; href: string; color:
   { icon: 'users', label: '我的圈子', href: '/pkg-circle/circles/mine', color: '#722ED1' },
   { icon: 'sticky-note', label: '我的笔记', href: '/mine/notes', color: '#C9A96E' }, // 统一页(古籍+电子书聚合)·原/ebook/notes只有电子书
   { icon: 'heart', label: '我的收藏', href: '/favorites', color: '#C41E3A' },
-  { icon: 'file-text', label: '我的电子书', href: '/ebook/bookshelf', color: '#52C41A' },
   { icon: 'clipboard-list', label: '我的申请', href: '/mine/applications', color: '#FA8C16' },
   { icon: 'history', label: '浏览历史', href: '/history', color: '#64748B' },
   { icon: 'help-circle', label: '帮助中心', href: '/help', color: '#999999' },

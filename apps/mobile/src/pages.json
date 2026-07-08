@@ -70,19 +70,27 @@
         },
         {
           "path": "couple/invite",
-          "style": { "navigationStyle": "custom" }
+          "style": {
+            "navigationStyle": "custom"
+          }
         },
         {
           "path": "couple/accept",
-          "style": { "navigationStyle": "custom" }
+          "style": {
+            "navigationStyle": "custom"
+          }
         },
         {
           "path": "couple/result",
-          "style": { "navigationStyle": "custom" }
+          "style": {
+            "navigationStyle": "custom"
+          }
         },
         {
           "path": "couple/mine",
-          "style": { "navigationStyle": "custom" }
+          "style": {
+            "navigationStyle": "custom"
+          }
         },
         {
           "path": "bazi/result",
@@ -578,19 +586,27 @@
         },
         {
           "path": "shared-reading/create",
-          "style": { "navigationStyle": "custom" }
+          "style": {
+            "navigationStyle": "custom"
+          }
         },
         {
           "path": "shared-reading/detail",
-          "style": { "navigationStyle": "custom" }
+          "style": {
+            "navigationStyle": "custom"
+          }
         },
         {
           "path": "shared-reading/invite",
-          "style": { "navigationStyle": "custom" }
+          "style": {
+            "navigationStyle": "custom"
+          }
         },
         {
           "path": "shared-reading/mine",
-          "style": { "navigationStyle": "custom" }
+          "style": {
+            "navigationStyle": "custom"
+          }
         },
         {
           "path": "category/index",
@@ -679,59 +695,6 @@
         },
         {
           "path": "ai-assistant/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        }
-      ]
-    },
-    {
-      "root": "pkg-ebook",
-      "pages": [
-        {
-          "path": "bookshelf/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "store/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "detail/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "bookmarks/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "notes/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "checkout/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "checkout/success",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "reader/index",
           "style": {
             "navigationStyle": "custom"
           }
@@ -1337,16 +1300,66 @@
     {
       "root": "pkg-competition",
       "pages": [
-        { "path": "home/index", "style": { "navigationStyle": "custom" } },
-        { "path": "detail/index", "style": { "navigationStyle": "custom" } },
-        { "path": "register/index", "style": { "navigationStyle": "custom" } },
-        { "path": "quiz/index", "style": { "navigationStyle": "custom" } },
-        { "path": "result/index", "style": { "navigationStyle": "custom" } },
-        { "path": "score-detail/index", "style": { "navigationStyle": "custom" } },
-        { "path": "certificate/index", "style": { "navigationStyle": "custom" } },
-        { "path": "poster/index", "style": { "navigationStyle": "custom" } },
-        { "path": "archive/index", "style": { "navigationStyle": "custom" } },
-        { "path": "talents/index", "style": { "navigationStyle": "custom" } }
+        {
+          "path": "home/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "detail/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "register/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "quiz/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "result/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "score-detail/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "certificate/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "poster/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "archive/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "talents/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        }
       ]
     },
     {
@@ -1914,15 +1927,21 @@
         },
         {
           "path": "mentorship/index",
-          "style": { "navigationStyle": "custom" }
+          "style": {
+            "navigationStyle": "custom"
+          }
         },
         {
           "path": "mentorship/accept",
-          "style": { "navigationStyle": "custom" }
+          "style": {
+            "navigationStyle": "custom"
+          }
         },
         {
           "path": "mentorship/ranking",
-          "style": { "navigationStyle": "custom" }
+          "style": {
+            "navigationStyle": "custom"
+          }
         },
         {
           "path": "security/index",
@@ -2521,56 +2540,6 @@
       ]
     },
     {
-      "root": "pkg-poetry",
-      "pages": [
-        {
-          "path": "index/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "solar-term/index",
-          "style": { "navigationStyle": "custom" }
-        },
-        {
-          "path": "categories/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "collections/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "detail/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "poet/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        }
-      ]
-    },
-    {
-      "root": "pkg-fortune",
-      "pages": [
-        {
-          "path": "index/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        }
-      ]
-    },
-    {
       "root": "pkg-discover",
       "pages": [
         {
@@ -2617,68 +2586,10 @@
       ]
     },
     {
-      "root": "pkg-qa",
-      "pages": [
-        {
-          "path": "index/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "detail/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "ask/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "pending/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        }
-      ]
-    },
-    {
       "root": "pkg-help",
       "pages": [
         {
           "path": "index/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        }
-      ]
-    },
-    {
-      "root": "pkg-expert",
-      "pages": [
-        {
-          "path": "index/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "detail/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "booking/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "call/index",
           "style": {
             "navigationStyle": "custom"
           }
@@ -2863,14 +2774,51 @@
           }
         }
       ]
+    },
+    {
+      "root": "pkg-solar-term",
+      "pages": [
+        {
+          "path": "index/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        }
+      ]
     }
   ],
   "preloadRule": {
-    "pages/index/index": { "network": "wifi", "packages": ["pkg-classics", "pkg-course"] },
-    "pages/circles/index": { "network": "wifi", "packages": ["pkg-circle"] },
-    "pages/paipan/index": { "network": "wifi", "packages": ["pkg-paipan"] },
-    "pages/discover/index": { "network": "wifi", "packages": ["pkg-discover"] },
-    "pages/profile/index": { "network": "wifi", "packages": ["pkg-mine"] }
+    "pages/index/index": {
+      "network": "wifi",
+      "packages": [
+        "pkg-classics",
+        "pkg-course"
+      ]
+    },
+    "pages/circles/index": {
+      "network": "wifi",
+      "packages": [
+        "pkg-circle"
+      ]
+    },
+    "pages/paipan/index": {
+      "network": "wifi",
+      "packages": [
+        "pkg-paipan"
+      ]
+    },
+    "pages/discover/index": {
+      "network": "wifi",
+      "packages": [
+        "pkg-discover"
+      ]
+    },
+    "pages/profile/index": {
+      "network": "wifi",
+      "packages": [
+        "pkg-mine"
+      ]
+    }
   },
   "globalStyle": {
     "navigationBarTextStyle": "black",

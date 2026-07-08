@@ -311,7 +311,7 @@ function currentBadge(): string {
 
 /** 节气页分享落地链接（卡面二维码内容·withRef 带我的 ref 归因，与小程序转发路径一致） */
 function shareLink(): string {
-  return withRef('https://api.rebugx.cn/h5/#/pkg-poetry/solar-term/index')
+  return withRef('https://api.rebugx.cn/h5/#/pkg-solar-term/index/index')
 }
 
 function openCard() {
@@ -475,8 +475,8 @@ function onSaveCard() {
 function onBack() { goBack() }
 
 // 分享带 ref（路径由 withRef 自动追加分享者 ref）
-onShareAppMessage(() => toAppMessage({ title: shareTitle.value, path: '/pkg-poetry/solar-term/index' }))
-onShareTimeline(() => toTimeline({ title: shareTitle.value, path: '/pkg-poetry/solar-term/index' }))
+onShareAppMessage(() => toAppMessage({ title: shareTitle.value, path: '/pkg-solar-term/index/index' }))
+onShareTimeline(() => toTimeline({ title: shareTitle.value, path: '/pkg-solar-term/index/index' }))
 
 onLoad((q) => {
   captureRefFromQuery(q as Record<string, unknown>)

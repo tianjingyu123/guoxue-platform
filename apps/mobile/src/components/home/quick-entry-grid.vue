@@ -8,22 +8,18 @@ interface Entry { id: string; name: string; icon: string; color: string; bg: str
 
 // 金刚区统一 10 宫格（5列×2行）：去掉原「学/用」分组标题——用户反馈分组显得乱·2026-07-06
 
-// R4 合规：小程序端无占卜类目，「排盘/运势」入口改民俗/历法表述（仅展示文案·路由不变）
+// R4 合规：小程序端无占卜类目，「排盘」入口改民俗表述（仅展示文案·路由不变）
 let paipanName = '排盘'
-let fortuneName = '运势'
 // #ifdef MP-WEIXIN
 paipanName = '民俗研究'
-fortuneName = '历法参考'
 // #endif
 
 // 统一 10 宫格（5列×2行整齐排布，不再分「学/用」组标题——用户反馈分组显得乱）
 const allEntries: Entry[] = [
   { id: 'courses',  name: '课程',   icon: 'graduation-cap', color: '#4A90D9', bg: 'rgba(74,144,217,0.1)',  url: '/pkg-course/home/index' },
   { id: 'classics', name: '古籍馆', icon: 'book-open',      color: '#C9A96E', bg: 'rgba(201,169,110,0.1)', url: '/pkg-classics/home/index' },
-  { id: 'poetry',   name: '诗词',   icon: 'book-heart',     color: '#EB2F96', bg: 'rgba(235,47,150,0.1)',  url: '/pkg-poetry/index/index' },
   { id: 'agents',   name: '智能体', icon: 'bot',            color: '#722ED1', bg: 'rgba(114,46,209,0.1)',  url: '/pkg-agent/agents/index', badge: 'AI' },
   { id: 'paipan',   name: paipanName,  icon: 'layout-grid', color: '#1890FF', bg: 'rgba(24,144,255,0.1)',  url: '/pages/paipan/index' },
-  { id: 'fortune',  name: fortuneName, icon: 'compass',     color: '#9B59B6', bg: 'rgba(155,89,182,0.1)',  url: '/pkg-fortune/index/index' },
   { id: 'mall',     name: '商城',   icon: 'shopping-bag',   color: '#C41E3A', bg: 'rgba(196,30,58,0.1)',   url: '/pkg-mall/home/index' },
   { id: 'live',     name: '直播',   icon: 'radio',          color: '#E74C3C', bg: 'rgba(231,76,60,0.1)',   url: '/pkg-live/plaza/index' },
   { id: 'classics2',name: '听书',   icon: 'headphones',     color: '#13C2C2', bg: 'rgba(19,194,194,0.1)',  url: '/pkg-classics/audiobooks/index' },

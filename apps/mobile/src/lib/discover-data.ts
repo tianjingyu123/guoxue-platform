@@ -31,12 +31,8 @@ export const serviceGroups = [
   {
     title: '学习互动',
     items: [
-      { id: 'ebook', icon: 'book-open', label: '电子书城', href: '/ebook' },
-      { id: 'poetry', icon: 'scroll-text', label: '诗词雅集', href: '/poetry' },
       { id: 'bounty', icon: 'gift', label: '悬赏求解', href: '/bounty' },
-      { id: 'qa', icon: 'help-circle', label: '付费问答', href: '/qa' },
-      { id: 'expert', icon: 'user-check', label: '达人咨询', href: '/experts' },
-      { id: 'fortune', icon: 'sparkles', label: '每日运势', href: '/pkg-fortune/index/index' },
+      { id: 'expert', icon: 'user-check', label: '达人咨询', href: '/pkg-circle/circles/consult-experts' },
     ],
   },
 ]

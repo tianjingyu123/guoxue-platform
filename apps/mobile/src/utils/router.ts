@@ -77,12 +77,6 @@ const ROUTE_MAP: Record<string, string> = {
   // 紫微/六爻 历史/结果页未实现(排盘工具延后)→优雅占位，避免"功能开发中"toast
   '/paipan/ziwei/history': '/pkg-paipan/tools/coming-soon',
   '/paipan/liuyao/result': '/pkg-paipan/tools/coming-soon',
-  // 诗词雅集（静态首页/分类/集锦须优先于动态 /poetry/:id 详情）
-  '/poetry': '/pkg-poetry/index/index',
-  '/poetry/categories': '/pkg-poetry/categories/index',
-  '/poetry/collections': '/pkg-poetry/collections/index',
-  // 诗人详情（按作者名走 ?name= query，避开中文路径段；静态须优先于动态 /poetry/:id）
-  '/poetry/poet': '/pkg-poetry/poet/index',
   // 商城
   '/mall': '/pkg-mall/home/index',
   '/mall/category': '/pkg-mall/category/index',
@@ -211,14 +205,8 @@ const ROUTE_MAP: Record<string, string> = {
   '/bounty/create': '/pkg-bounty/create/index',
   '/bounty/answer': '/pkg-bounty/answer/index',
   '/bounty/my': '/pkg-bounty/my/index',
-  // 付费问��（列表/提问/待回答；静态须优先于动态 /qa/:id 详情）
-  '/qa': '/pkg-qa/index/index',
-  '/qa/ask': '/pkg-qa/ask/index',
-  '/qa/pending': '/pkg-qa/pending/index',
   // 帮助中心（B级展示页，profile菜单入口）
   '/help': '/pkg-help/index/index',
-  // 专家/讲师列表（experts��������=列表页��expert单数=详情走动态路由 /expert/:id）
-  '/experts': '/pkg-expert/index/index',
   // 举报（表单/记录列表；result/:id 结果详情走动态路由，须优先于动态匹配）
   '/report': '/pkg-report/index/index',
   '/report/result': '/pkg-report/result/index',
@@ -385,14 +373,6 @@ const ROUTE_MAP: Record<string, string> = {
   '/competition/archive': '/pkg-competition/archive/index',
 
   /* ───────── 横向贯通·入口死链补全（2026-06-28）───────── */
-  // 电子书城（此前 pkg-ebook 整包零映射，profile「我的笔记」/ebook/notes 死链）
-  '/ebook': '/pkg-ebook/store/index',
-  '/ebook/store': '/pkg-ebook/store/index',
-  '/ebook/bookshelf': '/pkg-ebook/bookshelf/index',
-  '/ebook/bookmarks': '/pkg-ebook/bookmarks/index',
-  '/ebook/notes': '/pkg-ebook/notes/index',
-  '/ebook/checkout': '/pkg-ebook/checkout/index',
-  '/ebook/checkout/success': '/pkg-ebook/checkout/success',
   // 分站运营商/站长经营后台（operator-data 入口曾指向 /operator/dashboard 等均无映射）
   '/operator': '/pkg-operator/operator-panel/index',
   '/operator/dashboard': '/pkg-operator/dashboard/index',
@@ -475,20 +455,10 @@ const DYNAMIC_ROUTES: Array<[RegExp, string, string]> = [
   [/^\/circles\/([^/?]+)$/, '/pkg-circle/circles/detail', 'id'],
   // 直播间观看页 /live/:id（直播卡片入口；静态 /live/xxx 均用内部完整路径，不冲突）
   [/^\/live\/([^/?]+)$/, '/pkg-live/watch/index', 'id'],
-  // 诗词详情 /poetry/:id（静态 /poetry、/poetry/categories、/poetry/collections 已在 ROUTE_MAP 优先命中）
-  [/^\/poetry\/([^/?]+)$/, '/pkg-poetry/detail/index', 'id'],
   // 古籍详情 /classic/:id（供"我的收藏"等统一入口跳转；古籍馆内部多用全路径 /pkg-classics/detail/index）
   [/^\/classic\/([^/?]+)$/, '/pkg-classics/detail/index', 'id'],
   // 悬赏���情 /bounty/:id（静态 /bounty、/bounty/create、/bounty/answer、/bounty/my 已在 ROUTE_MAP 优先命中）
   [/^\/bounty\/([^/?]+)$/, '/pkg-bounty/detail/index', 'id'],
-  // 问答详情 /qa/:id（静态 /qa、/qa/ask、/qa/pending 已在 ROUTE_MAP ���先命中）
-  [/^\/qa\/([^/?]+)$/, '/pkg-qa/detail/index', 'id'],
-  // 专家详情 /expert/:id（单数；列表页为复数 /experts 已在 ROUTE_MAP 命中）
-  [/^\/expert\/([^/?]+)$/, '/pkg-expert/detail/index', 'id'],
-  // 预约连麦 /booking/:expertId（专家详情页连麦弹窗「预约连麦时间」入口）
-  [/^\/booking\/([^/?]+)$/, '/pkg-expert/booking/index', 'expertId'],
-  // 连麦通话 /call/:id（预约/reservations 页 href=`/call/${id}` 入口）
-  [/^\/call\/([^/?]+)$/, '/pkg-expert/call/index', 'id'],
   // 通用内容页 /content/:slug（静态如 /content/community-rules 优先命中）
   [/^\/content\/([^/?]+)$/, '/pkg-common/content/index', 'slug'],
   // 举报结果详情 /report/result/:id（静态 /report、/report/result 已在 ROUTE_MAP 优先命中）
@@ -501,9 +471,6 @@ const DYNAMIC_ROUTES: Array<[RegExp, string, string]> = [
   [/^\/topics?\/([^/?]+)$/, '/pkg-circle/circles/topic-tag', 'tag'],
   // 智能体对话 /agent/:id（广场/排行卡片跳此；静态 /agent/main、/agent/customer-service 已在 ROUTE_MAP 优先命中）
   [/^\/agent\/([^/?]+)$/, '/pkg-agent/agent/chat', 'id'],
-  // 电子书详情/阅读器（静态 /ebook、/ebook/store|bookshelf|notes 等已在 ROUTE_MAP 优先命中）
-  [/^\/ebook\/([^/?]+)\/reader$/, '/pkg-ebook/reader/index', 'id'],
-  [/^\/ebook\/([^/?]+)$/, '/pkg-ebook/detail/index', 'id'],
 ]
 
 function normalize(url: string): string {
