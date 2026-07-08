@@ -80,31 +80,32 @@ export class VodService {
     classId?: number;
     expireSeconds?: number;
   } = {}) {
-    const currentTime = Math.floor(Date.now() / 1000);
-    const expireTime = currentTime + (params.expireSeconds || 7200);
+    const currentTimeStamp = Math.floor(Date.now() / 1000);
+    const expireTime = currentTimeStamp + (params.expireSeconds || 7200);
+    const random = Math.floor(Math.random() * 0xffffffff);
 
-    const signParams: Record<string, string> = {
-      SecretId: this.secretId,
-      CurrentTimeStamp: String(currentTime),
-      ExpireTime: String(expireTime),
-      Random: String(Math.floor(Math.random() * 0xffffffff)),
-    };
+    // 腾讯云 VOD【客户端上传签名】规范（注意：不是云 API 请求签名，两者算法完全不同）
+    // 文档：https://cloud.tencent.com/document/product/266/9221
+    // ① 字段小写驼峰，按固定顺序明文拼接为 original（value 做 urlencode）
+    // ② signatureTmp = HMAC-SHA1(secretKey, original) 的【原始字节】
+    // ③ signature = Base64( signatureTmp 字节 ++ original 的 UTF-8 字节 )
+    // 之前的实现误用了云 API 签名套路（PascalCase 字段 + 排序 + "POST"+host+"?"+query 的待签串
+    // + query&Signature= 格式），腾讯云一律拒绝 → 客户端上传必失败。
+    const parts = [
+      `secretId=${encodeURIComponent(this.secretId)}`,
+      `currentTimeStamp=${currentTimeStamp}`,
+      `expireTime=${expireTime}`,
+      `random=${random}`,
+    ];
+    if (this.subAppId) parts.push(`vodSubAppId=${this.subAppId}`);
+    if (params.procedure) parts.push(`procedure=${encodeURIComponent(params.procedure)}`);
+    if (params.classId !== undefined) parts.push(`classId=${params.classId}`);
+    const original = parts.join("&");
 
-    if (this.subAppId) signParams.VodSubAppId = this.subAppId;
-    if (params.procedure) signParams.Procedure = params.procedure;
-    if (params.classId !== undefined) signParams.ClassId = String(params.classId);
+    const signatureTmp = createHmac("sha1", this.secretKey).update(original, "utf8").digest();
+    const signature = Buffer.concat([signatureTmp, Buffer.from(original, "utf8")]).toString("base64");
 
-    const sortedKeys = Object.keys(signParams).sort();
-    const queryString = sortedKeys.map(k => `${k}=${signParams[k]}`).join("&");
-
-    const signature = createHmac("sha1", this.secretKey)
-      .update(`POSTvod.tencentcloudapi.com?${queryString}`)
-      .digest("base64");
-
-    return {
-      signature: queryString + "&Signature=" + encodeURIComponent(signature),
-      expiredTime: expireTime,
-    };
+    return { signature, expiredTime: expireTime };
   }
 
   // ───────── 播放器签名 ─────────
