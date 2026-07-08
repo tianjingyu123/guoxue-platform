@@ -153,7 +153,7 @@ const { loading, tableData, pagination, filters, fetchList, handleSearch } = use
   },
   defaultPageSize: 10,
   transformResponse: (data: any) => ({
-    items: (data.list ?? data.data ?? []).map((n: NoteRow) => ({
+    items: (data.items ?? data.list ?? data.data ?? []).map((n: NoteRow) => ({
       ...n, userName: n.user?.nickname ?? '未知', courseName: n.course?.title ?? '', classicName: n.classic?.title ?? '',
     })),
     total: data.total ?? 0,

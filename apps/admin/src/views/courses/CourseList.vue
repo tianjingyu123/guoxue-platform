@@ -68,7 +68,8 @@ const { loading, tableData, pagination, filters, fetchList, handleSearch, handle
   // 管理端默认查看全部状态（含待审核/草稿/驳回），否则新建的 PENDING 课程不显示
   initialFilters: { auditStatus: "ALL" },
   transformResponse: (data: any) => ({
-    items: (data.courses || []).map((c: CourseRow) => ({
+    // api 拦截器已把分页数组规范化为 data.items（原后端键 courses）；兼容两者
+    items: (data.items || data.courses || []).map((c: CourseRow) => ({
       ...c,
       category: [c.categoryLevel1, c.categoryLevel2].filter(Boolean).join("/") || "-",
       validity: (c.validityDays ?? 0) > 0 ? c.validityDays + "天" : "永久",

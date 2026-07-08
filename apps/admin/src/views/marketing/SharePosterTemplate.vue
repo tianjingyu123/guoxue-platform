@@ -270,7 +270,7 @@ const { loading, tableData, pagination, filters, fetchList, handleSearch } = use
   fetchApi: posterApi.listTemplates,
   defaultPageSize: 10,
   // data 为 useTable 透传的后端原始响应（无类型来源），保留 any 作边界
-  transformResponse: (data: any) => ({ items: data.list ?? data.data ?? [], total: data.total ?? 0 }),
+  transformResponse: (data: any) => ({ items: data.items ?? data.list ?? data.data ?? [], total: data.total ?? 0 }),
 })
 
 function onSearch(f: Record<string, any>) { Object.assign(filters, f); handleSearch() }

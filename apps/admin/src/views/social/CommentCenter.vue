@@ -224,7 +224,7 @@ const { loading, tableData, pagination, filters, fetchList, handleSearch } = use
   },
   defaultPageSize: 15,
   transformResponse: (data: any) => ({
-    items: (data.list ?? data.data ?? []).map((c: CommentRow) => ({
+    items: (data.items ?? data.list ?? data.data ?? []).map((c: CommentRow) => ({
       ...c,
       userName: c.user?.nickname ?? '未知',
     })),

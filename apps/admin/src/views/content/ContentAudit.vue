@@ -375,8 +375,8 @@ async function fetchList() {
         courseApi.list({ page: page.value, pageSize: 10, status }).catch(() => ({ data: { courses: [], total: 0 } })),
     ])
     let items: ContentRow[] = [
-      ...(contents.data.contents || contents.data.data || []).map((c: ContentRow) => ({ ...c, type: c.type || 'ARTICLE' })),
-      ...((courses.data?.courses || []).map((c: ContentRow) => ({ ...c, type: 'COURSE', title: c.title || c.name, content: c.intro }))),
+      ...((contents.data.items || contents.data.contents || contents.data.data || []).map((c: ContentRow) => ({ ...c, type: c.type || 'ARTICLE' }))),
+      ...((courses.data?.items || courses.data?.courses || []).map((c: ContentRow) => ({ ...c, type: 'COURSE', title: c.title || c.name, content: c.intro }))),
     ];
 
     // AI生成筛选

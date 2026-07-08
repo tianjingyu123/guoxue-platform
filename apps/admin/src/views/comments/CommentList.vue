@@ -205,7 +205,7 @@ const { loading, tableData, pagination, filters, fetchList, handleSearch } = use
   defaultPageSize: 10,
   // data 为后端原始响应（useTable 回调边界，保留 any）
   transformResponse: (data: any) => ({
-    items: (data.list ?? data.data ?? []).map((c: CommentRow) => ({
+    items: (data.items ?? data.list ?? data.data ?? []).map((c: CommentRow) => ({
       ...c,
       userName: c.user?.nickname ?? '未知',
     })),

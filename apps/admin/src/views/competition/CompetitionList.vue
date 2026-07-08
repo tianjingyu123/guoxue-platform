@@ -66,7 +66,7 @@ const { loading, tableData, pagination, filters, fetchList, handleSearch, handle
   },
   defaultPageSize: 20,
   transformResponse: (data: any) => ({
-    items: data.data || [],
+    items: data.items ?? data.data ?? [],
     total: data.total || 0,
   }),
 });
