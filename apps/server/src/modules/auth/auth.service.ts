@@ -59,8 +59,10 @@ export class AuthService {
   async refreshToken(refreshToken: string) {
     const userId = await this.redis.get(`refresh:${refreshToken}`);
     if (!userId) throw new BusinessException(ErrorCode.AUTH_TOKEN_INVALID, "refreshToken 无效或已过期");
-    // 轮换：删除旧 token 防止重放攻击
-    await this.redis.del(`refresh:${refreshToken}`);
+    // 轮换宽限（防误登出）：旧 refreshToken 不立即删除，保留 60 秒缓冲——
+    // 吸收 H5 多标签页/并发请求/页面刷新时对同一 token 的重复续期（否则第二次续期撞上"已作废"→前端清登录态→掉线）。
+    // 60 秒后自动失效，仍保留防重放能力。
+    await this.redis.expire(`refresh:${refreshToken}`, 60);
     await this.redis.srem(`refresh:user:${userId}`, refreshToken);
     // 封号用户不再续发（accessToken 侧由 JwtStrategy 拦截，此处断掉 refresh 链路）
     const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { status: true } });

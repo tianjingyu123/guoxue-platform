@@ -158,41 +158,6 @@ onMounted(() => { loadCircles(); loadExtras() })
           </view>
         </view>
 
-        <!-- 今日活动（后端今日无新动态时整块隐藏） -->
-        <view v-if="todayActivities.length" class="section">
-          <view class="sec-head">
-            <view class="sec-title">
-              <app-icon name="zap" :size="32" color="#FF6B35" />
-              <text class="sec-title-text">今日活动</text>
-            </view>
-            <view class="sec-more" @tap="go('/pkg-circle/circles/activities')">
-              <text class="sec-more-text">全部</text>
-              <app-icon name="chevron-right" :size="28" color="#999999" />
-            </view>
-          </view>
-          <scroll-view scroll-x class="act-scroll">
-            <view class="act-row">
-              <view
-                v-for="act in todayActivities" :key="act.id"
-                class="act-card" @tap="go(`/pkg-circle/circles/detail?id=${act.circleId}`)"
-              >
-                <view class="act-top">
-                  <app-icon :name="activityTypeIcon(act.type)" :size="28" :color="activityTypeColor(act.type)" />
-                  <text class="act-tag" :style="{ color: activityTypeColor(act.type), background: activityTypeColor(act.type) + '1a' }">{{ activityTypeLabel(act.type) }}</text>
-                </view>
-                <text class="act-title">{{ act.title }}</text>
-                <view class="act-meta">
-                  <text v-if="act.circleName" class="act-part">{{ act.circleName }}</text>
-                  <text v-if="act.participants" class="act-reward">{{ act.participants }}人参与</text>
-                  <text v-else-if="act.reward" class="act-reward">{{ act.reward }}</text>
-                </view>
-                <view v-if="act.deadline || act.time" class="act-deadline">
-                  <text class="act-deadline-text">{{ act.deadline ? '截止: ' + act.deadline : act.time }}</text>
-                </view>
-              </view>
-            </view>
-          </scroll-view>
-        </view>
 
         <!-- 分类 Tab -->
         <view class="cat-section">

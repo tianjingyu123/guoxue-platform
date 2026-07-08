@@ -234,8 +234,8 @@ describe("AuthService", () => {
 
       expect(result.accessToken).toBe("new-access-token");
       expect(result.refreshToken).toBeTruthy();
-      // 旧 token 被删除（防重放攻击）
-      expect(mockRedis.del).toHaveBeenCalledWith("refresh:valid-refresh");
+      // 旧 token 进入 60 秒轮换宽限（吸收并发续期防误登出），而非立即删除
+      expect(mockRedis.expire).toHaveBeenCalledWith("refresh:valid-refresh", 60);
     });
 
     it("无效 refreshToken 抛出异常", async () => {

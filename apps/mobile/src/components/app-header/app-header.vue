@@ -7,13 +7,16 @@ import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
 import { mineApi } from '@/lib/mine-data'
 
-// tab：推荐(默认首页)/关注(关注动态聚合·功能开发中·先提示即将上线)/直播(真实分包)/
-// 同城(即将上线)。去掉未实现的「热门」。href='coming' 的点击提示即将上线不跳转。
+// tab：推荐(默认首页)/关注(关注动态聚合·即将上线)/直播(真实分包)/古籍/课程/商城(跳对应板块)。
+// 同城暂时关闭，等线下驿站上线后再开启。href='coming' 的点击提示即将上线不跳转。
 const tabs = [
   { name: '推荐', href: '/' },
   { name: '关注', href: 'coming' },
   { name: '直播', href: '/pkg-live/plaza/index' },
-  { name: '同城', href: 'coming' },
+  // { name: '同城', href: 'coming' }, // 暂时关闭，等线下驿站上线后再开启
+  { name: '古籍', href: '/pkg-classics/home/index' },
+  { name: '课程', href: '/pkg-course/home/index' },
+  { name: '商城', href: '/pkg-mall/home/index' },
 ]
 const activeTab = ref('推荐')
 const unreadCount = ref(0)

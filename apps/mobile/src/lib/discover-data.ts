@@ -14,7 +14,6 @@ export const coreEntries = [
   { id: 'circles', icon: 'users', label: '圈子广场', href: '/pages/circles/index' },
   { id: 'video', icon: 'play', label: '视频', href: '/videos' },
   { id: 'live', icon: 'radio', label: '直播', href: '/pkg-live/plaza/index' },
-  { id: 'rank', icon: 'trending-up', label: '榜单', href: '/rankings' },
 ]
 
 // 全部服务矩阵 — 覆盖所有已完工分包，解决"已开发但无入口可达"的孤岛问题

@@ -19,7 +19,6 @@ const isLoading = ref(true)
 const error = ref('')
 const feedItems = ref<FeedItem[]>([])
 const allCats = ref<{ id: string; label: string }[]>([])
-const hotWords = ref<string[]>([])
 
 // —— 发现页瘦身（董事长拍板）——
 // ① 更多玩法：剔除与首页金刚区（课程/圈子/古籍馆/商城/直播/运势/排盘/智能体/诗词）重复的入口，
@@ -53,14 +52,9 @@ async function fetchFeed() {
   }
 }
 
-// 品类导航与热搜词（与 feed 并行加载，失败各自走 data 层兜底）
+// 品类导航（与 feed 并行加载，失败走 data 层兜底）
 async function loadMeta() {
-  const [cats, hot] = await Promise.all([
-    discoverApi.getCategories(),
-    discoverApi.getHotWords(),
-  ])
-  allCats.value = cats
-  hotWords.value = hot
+  allCats.value = await discoverApi.getCategories()
 }
 
 onMounted(() => { loadMeta(); fetchFeed() })
@@ -71,7 +65,6 @@ function retry() { fetchFeed() }
 function goEntry(href: string) {
   navigateTo(href)
 }
-function goSearchWord(w: string) { navigateTo(`/pkg-search/search/index?keyword=${encodeURIComponent(w)}`) }
 function goCategory(cat: { id: string; label: string }) {
   if (activeCategory.value === cat.id) return
   activeCategory.value = cat.id
@@ -89,23 +82,6 @@ function goColumn(href: string) { navigateTo(href) }
     <view class="sticky-top">
       <view class="search-wrap">
         <search-bar default-tab="all" placeholder="搜索课程、商品、古籍..." />
-
-        <!-- 热搜词 -->
-        <scroll-view class="hot-row" scroll-x :show-scrollbar="false">
-          <view class="hot-inner">
-            <view class="hot-label">
-              <AppIcon name="flame" :size="26" color="#c41e3a" />
-              <text class="hot-label-txt">热搜</text>
-            </view>
-            <view
-              v-for="(word, i) in hotWords" :key="word"
-              :class="['hot-chip', i === 0 ? 'hot-chip-first' : '']"
-              @tap="goSearchWord(word)"
-            >
-              <text class="hot-chip-txt">{{ word }}</text>
-            </view>
-          </view>
-        </scroll-view>
       </view>
 
       <!-- 品类导航 -->

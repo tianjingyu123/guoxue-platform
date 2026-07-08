@@ -7,18 +7,15 @@ import BottomNav from '@/components/bottom-nav/bottom-nav.vue'
 import QuickEntryGrid from '@/components/home/quick-entry-grid.vue'
 import HomeBanner from '@/components/home/home-banner.vue'
 import SolarTermBanner from '@/components/home/solar-term-banner.vue'
-import DailyVerse from '@/components/home/daily-verse.vue'
-import DailyStudy from '@/components/home/daily-study.vue'
 import PaipanGuideCard from '@/components/home/paipan-guide-card.vue'
 import MarketingCard from '@/components/home/marketing-card.vue'
 import FeedCard from '@/components/home/feed-card.vue'
 import BackTop from '@/components/home/back-top.vue'
 import { homeApi, type BannerItem, type RenderItem } from '@/lib/home-data'
-import { navigateTo } from '@/utils/router'
 
 // 后台可控显隐（原型同名常量）
-const SHOW_PAIPAN_CARD = true
-const SHOW_MARKETING_CARD = true
+const SHOW_PAIPAN_CARD = false // 排盘工具引导卡暂时关闭
+const SHOW_MARKETING_CARD = false // 活动/营销卡暂时关闭
 
 const loading = ref(true)
 const error = ref('')
@@ -75,19 +72,12 @@ function backToTop() {
   setTimeout(() => (scrollTopVal.value = 0), 30)
 }
 
-// 🧪 支付测试入口（验证微信支付通电后移除）：跳 1 元测试商品详情
-// 用真实分包路径(不能用 /mall/product/detail?id=xxx——会被路由正则当成 id='detail')
-function goPayTest() {
-  navigateTo('/pkg-mall/product/detail?id=42bcbc44-f1d1-4f29-ab2e-8202f6b0b0d2')
-}
 </script>
 
 <template>
   <view class="home">
     <app-network-bar />
     <customer-service-fab />
-    <!-- 今日小语（每日一次浮层） -->
-    <daily-verse />
 
     <app-header />
 
@@ -116,26 +106,14 @@ function goPayTest() {
       :scroll-with-animation="true"
       @scroll="onScroll"
     >
-      <!-- Banner 轮播 -->
-      <home-banner :banners="banners" />
-
-      <!-- 🧪 支付测试入口（验证微信支付通电后移除） -->
-      <view
-        style="margin: 0 32rpx 16rpx; padding: 28rpx 32rpx; background: linear-gradient(135deg, #c41e3a, #a01530); border-radius: 20rpx; display: flex; align-items: center; justify-content: space-between;"
-        @tap="goPayTest"
-      >
-        <text style="color: #fff; font-size: 28rpx; font-weight: 600;">🧪 1元支付测试 · 点击验证微信支付</text>
-        <text style="color: #fff; font-size: 36rpx;">›</text>
-      </view>
+      <!-- Banner 轮播（暂时关闭不显示） -->
+      <home-banner v-if="false" :banners="banners" />
 
       <!-- 节气日横幅（仅节气日显示·入口进节气仪式页） -->
       <solar-term-banner />
 
       <!-- 金刚区功能入口（学 / 用 双分组） -->
       <quick-entry-grid />
-
-      <!-- 今日学一点（按兴趣主题每日推 3 条真实内容，失败/空整体隐藏） -->
-      <daily-study />
 
       <!-- 排盘引导大卡 -->
       <paipan-guide-card v-if="SHOW_PAIPAN_CARD" />
