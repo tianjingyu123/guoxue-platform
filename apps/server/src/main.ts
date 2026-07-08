@@ -1,5 +1,5 @@
 import { startTracing, stopTracing } from "./tracing";
-import { NestFactory } from "@nestjs/core";
+import { NestFactory, Reflector } from "@nestjs/core";
 import { ValidationPipe } from "@nestjs/common";
 import { NestExpressApplication } from "@nestjs/platform-express";
 import { SwaggerModule, DocumentBuilder } from "@nestjs/swagger";
@@ -7,6 +7,7 @@ import compression from "compression";
 import helmet from "helmet";
 import { AppGraphqlModule } from "./app-graphql.module";
 import { RedisThrottleGuard } from "./common/redis-throttle.guard";
+import { RedLineGuard } from "./common/red-lines";
 import { RedisIoAdapter } from "./common/redis-io.adapter";
 import { serverConfig } from "./config/server-config";
 import { cryptoSelfTest, setDecryptAlertHandler } from "./common/crypto.util";
@@ -115,7 +116,8 @@ async function bootstrap() {
     new ResponseInterceptor(),
     new AuditInterceptor(app.get(AuditService)),
   );
-  app.useGlobalGuards(new RedisThrottleGuard(app.get(RedisService)));
+  // 全局守卫：限流 + 红线硬闸（红线闸仅拦标了 @RedLineGate 的端点，其余放行；四红线永久人工闸·治理护栏 §2.2）
+  app.useGlobalGuards(new RedisThrottleGuard(app.get(RedisService)), new RedLineGuard(app.get(Reflector)));
 
   // websocket 跨实例广播（H2·cluster 前提）：Redis adapter 接入，不可用时降级单实例
   const ioAdapter = new RedisIoAdapter(app);

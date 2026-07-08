@@ -5,6 +5,7 @@ import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
 import { Auditable } from "../../common/audit.decorator";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 import { SettlementRuleAdminService } from "./settlement-rule-admin.service";
 import { SettlementFreezeService } from "./settlement-freeze.service";
 import { CreateSettlementRuleDto, UpdateSettlementRuleDto } from "./settlement-rule.dto";
@@ -35,6 +36,7 @@ export class SettlementController {
   }
 
   @Post("rules")
+  @RedLineGate(RedLine.MONEY)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "FINANCE_ADMIN")
   @Auditable({ action: "创建结算规则", targetType: "SETTLEMENT_RULE" })
@@ -49,6 +51,7 @@ export class SettlementController {
   }
 
   @Put("rules/:id")
+  @RedLineGate(RedLine.MONEY)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "FINANCE_ADMIN")
   @Auditable({ action: "更新结算规则", targetType: "SETTLEMENT_RULE" })
@@ -63,6 +66,7 @@ export class SettlementController {
   }
 
   @Post("freeze")
+  @RedLineGate(RedLine.MONEY)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
   @Auditable({ action: "事后冻结受益人待结算佣金", targetType: "LEDGER_BENEFICIARY" })
@@ -76,6 +80,7 @@ export class SettlementController {
   }
 
   @Post("unfreeze")
+  @RedLineGate(RedLine.MONEY)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
   @Auditable({ action: "解冻受益人佣金", targetType: "LEDGER_BENEFICIARY" })

@@ -4,15 +4,16 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { AuditService } from "../audit/audit.service";
 import { ThirdPartyConfigLoader } from "./third-party-config.loader";
+import { ErrorCode } from "../../common/error-codes";
 
 const mockPrisma = {
-  configSystem: { findMany: jest.fn(), findUnique: jest.fn(), upsert: jest.fn(), delete: jest.fn() },
+  configSystem: { findMany: jest.fn(), findUnique: jest.fn(), upsert: jest.fn(), delete: jest.fn(), deleteMany: jest.fn() },
   brandConfig: { findUnique: jest.fn(), upsert: jest.fn() },
   auditLog: { findMany: jest.fn(), count: jest.fn() },
   siteNotice: { findMany: jest.fn(), count: jest.fn() },
 };
 const mockRedis = { get: jest.fn(), set: jest.fn(), del: jest.fn(), getJson: jest.fn(), setJson: jest.fn() };
-const mockAudit = { log: jest.fn() };
+const mockAudit = { log: jest.fn(), getLogWithRollback: jest.fn(), listRollbackable: jest.fn() };
 const mockThirdParty = {
   isThirdPartyKey: jest.fn().mockReturnValue(false),
   buildDisplayValue: jest.fn((_k: string, v: string) => v),
@@ -159,6 +160,78 @@ describe("SystemService", () => {
       await svc.getSiteNotices("abc" as any, 20);
       const arg = mockPrisma.siteNotice.findMany.mock.calls[0][0];
       expect(Number.isNaN(arg.skip)).toBe(false);
+    });
+  });
+
+  // ── 治理护栏 §2.3 · 带回滚配置变更 + 一键回滚（验收标准三演练）──
+
+  describe("setConfigWithRollback", () => {
+    it("改配置并写含快照的审计（原值入 rollbackData）", async () => {
+      mockPrisma.configSystem.findUnique.mockResolvedValue({ configKey: "rec_weight", configValue: "0.5" });
+      mockPrisma.configSystem.upsert.mockResolvedValue({ configKey: "rec_weight", configValue: "0.8" });
+      mockAudit.log.mockResolvedValue({ id: "audit-1" });
+
+      const res = await svc.setConfigWithRollback("rec_weight", "0.8", "L3自动调权", "CLAUDE", "L3");
+
+      expect(res).toEqual({ key: "rec_weight", value: "0.8", previousValue: "0.5", auditId: "audit-1" });
+      const auditArg = mockAudit.log.mock.calls[0][0];
+      expect(auditArg.autonomyLevel).toBe("L3");
+      expect(auditArg.executor).toBe("CLAUDE");
+      expect(auditArg.rollbackData).toEqual({ kind: "config", key: "rec_weight", previousValue: "0.5", previousExists: true });
+    });
+
+    it("新建配置时快照标记 previousExists=false", async () => {
+      mockPrisma.configSystem.findUnique.mockResolvedValue(null);
+      mockPrisma.configSystem.upsert.mockResolvedValue({ configKey: "brand_new", configValue: "x" });
+      mockAudit.log.mockResolvedValue({ id: "audit-2" });
+
+      const res = await svc.setConfigWithRollback("brand_new", "x", "新建", "CLAUDE", "L2");
+      expect(res.previousValue).toBeNull();
+      expect(mockAudit.log.mock.calls[0][0].rollbackData.previousExists).toBe(false);
+    });
+  });
+
+  describe("rollbackAudit（一键回滚演练）", () => {
+    it("有原值 → 还原为原值 + 落 automation.rollback 审计", async () => {
+      mockAudit.getLogWithRollback.mockResolvedValue({
+        id: "audit-1",
+        rollbackData: { kind: "config", key: "rec_weight", previousValue: "0.5", previousExists: true },
+      });
+      mockPrisma.configSystem.upsert.mockResolvedValue({ configKey: "rec_weight", configValue: "0.5" });
+      mockAudit.log.mockResolvedValue({ id: "audit-r" });
+
+      const res = await svc.rollbackAudit("audit-1", "董事长");
+
+      expect(res).toEqual({ rolledBack: true, auditId: "audit-1", key: "rec_weight", restoredValue: "0.5" });
+      // setConfig 被调用还原为 0.5
+      expect(mockPrisma.configSystem.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { configKey: "rec_weight" } }),
+      );
+      // 回滚动作本身入审计
+      expect(mockAudit.log).toHaveBeenCalledWith(expect.objectContaining({ action: "automation.rollback", targetId: "rec_weight" }));
+    });
+
+    it("原本不存在 → 回滚为删除该配置", async () => {
+      mockAudit.getLogWithRollback.mockResolvedValue({
+        id: "audit-2",
+        rollbackData: { kind: "config", key: "brand_new", previousValue: null, previousExists: false },
+      });
+      mockPrisma.configSystem.deleteMany.mockResolvedValue({ count: 1 });
+      mockAudit.log.mockResolvedValue({ id: "audit-r2" });
+
+      const res = await svc.rollbackAudit("audit-2", "董事长");
+      expect(res.restoredValue).toBeNull();
+      expect(mockPrisma.configSystem.deleteMany).toHaveBeenCalledWith({ where: { configKey: "brand_new" } });
+    });
+
+    it("不支持的动作类型 → ROLLBACK_NOT_AVAILABLE", async () => {
+      mockAudit.getLogWithRollback.mockResolvedValue({
+        id: "audit-3",
+        rollbackData: { kind: "refund", amount: 100 },
+      });
+      await expect(svc.rollbackAudit("audit-3", "董事长")).rejects.toMatchObject({
+        errorCode: ErrorCode.ROLLBACK_NOT_AVAILABLE,
+      });
     });
   });
 });

@@ -2792,16 +2792,17 @@ model SmsLog {
 // ─────────────────────────────────────────────────
 
 model AuditLog {
-  id           String   @id @default(uuid())
-  userId       String?
-  executor     String? // "CLAUDE" | 用户ID（区分自动化/人工操作）
-  action       String
-  targetType   String?
-  targetId     String?
-  detail       String?
-  rollbackData Json? // 回滚数据快照
-  ip           String?
-  createdAt    DateTime @default(now())
+  id            String   @id @default(uuid())
+  userId        String?
+  executor      String? // "CLAUDE" | 用户ID（区分自动化/人工操作）
+  autonomyLevel String? // L1/L2/L3 自主分级（治理护栏 §2.1，自动化动作记录其执行档位）
+  action        String
+  targetType    String?
+  targetId      String?
+  detail        String?
+  rollbackData  Json? // 回滚数据快照
+  ip            String?
+  createdAt     DateTime @default(now())
 
   @@index([userId, createdAt])
   @@index([executor, createdAt])

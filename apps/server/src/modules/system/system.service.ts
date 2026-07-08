@@ -296,6 +296,83 @@ export class SystemService {
     return { automationEnabled: enabled, operator, status };
   }
 
+  // ── 带回滚的配置变更 + 一键回滚（治理护栏 §2.3 · 验收标准三）──
+
+  /**
+   * 改配置并写"可回滚"审计快照（自动化 L2/L3 改配置的标准入口）。
+   * rollbackData 存 { kind:"config", key, previousValue, previousExists }，
+   * 之后可经 rollbackAudit 一键还原。
+   *
+   * @param executor    执行者（"CLAUDE" 或用户ID/人名）
+   * @param autonomyLevel 该动作的自主档位 L2/L3（供审计留痕，见 autonomy.ts）
+   */
+  async setConfigWithRollback(
+    key: string,
+    value: string,
+    description: string,
+    executor: string,
+    autonomyLevel?: string,
+  ) {
+    const prev = await this.prisma.configSystem.findUnique({ where: { configKey: key } });
+    const previousExists = !!prev;
+    const previousValue = prev?.configValue ?? null;
+
+    await this.setConfig(key, value, description, executor);
+
+    const audit = await this.audit.log({
+      executor,
+      autonomyLevel,
+      action: "config.change",
+      targetType: "config",
+      targetId: key,
+      detail: `配置 ${key} 由 ${executor} 改为「${value}」${previousExists ? `（原值「${previousValue}」）` : "（新建）"}`,
+      rollbackData: { kind: "config", key, previousValue, previousExists },
+    });
+
+    return { key, value, previousValue, auditId: audit.id };
+  }
+
+  /**
+   * 一键回滚：读审计快照，按 kind 反向还原。当前支持 kind="config"。
+   * 回滚本身是真人纠错动作（SUPER_ADMIN），再落一条 automation.rollback 审计。
+   * 不支持的动作类型抛 ROLLBACK_NOT_AVAILABLE。
+   */
+  async rollbackAudit(auditId: string, operator: string) {
+    const log = await this.audit.getLogWithRollback(auditId); // 无快照即抛
+    const data = log.rollbackData as { kind?: string; key?: string; previousValue?: string | null; previousExists?: boolean } | null;
+
+    if (!data || data.kind !== "config" || !data.key) {
+      throw new BusinessException(
+        ErrorCode.ROLLBACK_NOT_AVAILABLE,
+        `审计 ${auditId} 的动作类型「${data?.kind ?? "未知"}」暂不支持自动回滚`,
+      );
+    }
+
+    if (data.previousExists === false) {
+      // 原本不存在 → 回滚 = 删除该配置
+      await this.prisma.configSystem.deleteMany({ where: { configKey: data.key } });
+      await this.redis.del(CONFIG_CACHE_PREFIX + data.key);
+      await this.redis.del(CONFIG_CACHE_PREFIX + "all");
+    } else {
+      await this.setConfig(data.key, data.previousValue ?? "", `回滚 — ${operator}`, operator);
+    }
+
+    await this.audit.log({
+      userId: operator,
+      action: "automation.rollback",
+      targetType: "config",
+      targetId: data.key,
+      detail: `${operator} 回滚审计 ${auditId}：配置 ${data.key} 还原为「${data.previousExists === false ? "(删除)" : data.previousValue}」`,
+    });
+
+    return { rolledBack: true, auditId, key: data.key, restoredValue: data.previousExists === false ? null : data.previousValue };
+  }
+
+  /** 可回滚操作列表（透传 audit.listRollbackable，供后台"一键回滚"面板） */
+  async listRollbackable(params: { targetType?: string; targetId?: string; page?: number; pageSize?: number }) {
+    return this.audit.listRollbackable(params);
+  }
+
   // ───────── 页面文案配置 ─────────
 
   /** 获取页面文案配置 */

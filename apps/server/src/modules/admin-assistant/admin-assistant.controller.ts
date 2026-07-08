@@ -58,4 +58,30 @@ export class AdminAssistantController {
   updateFeedback(@Param("id") id: string, @Body() dto: { status?: string; reply?: string }) {
     return this.svc.updateFeedback(id, dto);
   }
+
+  // ── M1-1 反馈中枢：高频 TOP10 + 趋势周报 + 一键导出 ──
+
+  @Get("feedback/hotspots")
+  @UseGuards(RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "高频卡点 TOP10（按页面聚类·自动化该先啃哪块的数据指南针）" })
+  hotspots(@Query() q: { days?: number; limit?: number }) {
+    return this.svc.hotspots(Number(q.days) || 30, Number(q.limit) || 10);
+  }
+
+  @Get("feedback/weekly-report")
+  @UseGuards(RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "反馈趋势周报（本周vs上周+处理率+TOP卡点+已优化/待拍板+大白话摘要）" })
+  weeklyReport() {
+    return this.svc.weeklyReport();
+  }
+
+  @Get("feedback/weekly-digest")
+  @UseGuards(RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "一键导出周报清单（本周高频问题+已优化+待拍板·markdown 文本）" })
+  weeklyDigest() {
+    return this.svc.exportWeeklyDigest();
+  }
 }

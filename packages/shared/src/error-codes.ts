@@ -156,4 +156,9 @@ export enum ErrorCode {
   TASK_NOT_NEED_APPROVAL  = 1000003,
   TASK_ALREADY_CLAIMED    = 1000004,
   ROLLBACK_NOT_AVAILABLE  = 1000005,
+
+  // ───── 治理护栏 GOVERNANCE (1001xxx) ─────
+  RED_LINE_HUMAN_ONLY       = 1001001, // 触碰四红线的动作·自动化永久禁止·须真人执行
+  AUTONOMY_LEVEL_INVALID    = 1001002, // 自主分级取值非法（只能 L1/L2/L3）
+  AUTONOMY_ILLEGAL_PROMOTION = 1001003, // 分级晋升越级（只能逐级 L1→L2→L3）
 }

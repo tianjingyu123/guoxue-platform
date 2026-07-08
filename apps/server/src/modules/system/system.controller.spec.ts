@@ -2,6 +2,7 @@ import { Test } from "@nestjs/testing";
 import { SystemController } from "./system.controller";
 import { SystemService } from "./system.service";
 import { ExportService } from "./export.service";
+import { OpsActionService } from "./ops-action.service";
 import { RolesGuard } from "../../common/roles.guard";
 import { ThrottleGuard } from "../../common/throttle.guard";
 
@@ -32,6 +33,11 @@ const mockSystemSvc = {
   updateBrandConfig: jest.fn().mockResolvedValue({ id: "default", siteName: "道商世界" }),
 };
 
+const mockOpsActionSvc = {
+  listActions: jest.fn().mockResolvedValue({ total: 0, items: [] }),
+  execute: jest.fn().mockResolvedValue({ action: "maintenance_mode", value: "true", auditId: "a1", rollbackable: true }),
+};
+
 const mockExportSvc = {
   exportUsers: jest.fn().mockResolvedValue("/tmp/test.csv"),
   exportOrders: jest.fn().mockResolvedValue("/tmp/test.csv"),
@@ -51,6 +57,7 @@ describe("SystemController", () => {
       providers: [
         { provide: SystemService, useValue: mockSystemSvc },
         { provide: ExportService, useValue: mockExportSvc },
+        { provide: OpsActionService, useValue: mockOpsActionSvc },
       ],
     })
       .overrideGuard(RolesGuard).useValue({ canActivate: () => true })

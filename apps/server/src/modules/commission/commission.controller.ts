@@ -15,6 +15,7 @@ import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
 import { Auditable } from "../../common/audit.decorator";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 @ApiTags("分佣")
 @Controller("commission")
@@ -40,6 +41,7 @@ export class CommissionController {
   }
 
   @Put("configs/:key")
+  @RedLineGate(RedLine.MONEY)
   @Auditable({ action: "发起分佣比例变更审批", targetType: "COMMISSION_CONFIG" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
@@ -178,6 +180,7 @@ export class CommissionController {
   }
 
   @Put("admin/withdrawals/:id")
+  @RedLineGate(RedLine.MONEY)
   @Auditable({ action: "提现审核", targetType: "WITHDRAWAL" })
   @UseGuards(JwtAuthGuard, RolesGuard, StrictRedisThrottleGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
@@ -250,6 +253,7 @@ export class CommissionController {
   }
 
   @Put("config")
+  @RedLineGate(RedLine.MONEY)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "更新分佣配置比例" })

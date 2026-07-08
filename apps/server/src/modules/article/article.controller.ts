@@ -5,6 +5,7 @@ import { CreateArticleDto, UpdateArticleDto, AddRecommendDto } from "./article.d
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 import { StationIsolationGuard } from "../../common/station-isolation.guard";
 import { StationId } from "../../common/station-id.decorator";
 import { RequireFeature } from "../../common/feature-flag.decorator";
@@ -137,6 +138,7 @@ export class ArticleController {
   // ───────── 审核管理 ─────────
 
   @Put(":id/audit")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "审核文章" })
@@ -213,6 +215,7 @@ export class ArticleController {
   }
 
   @Post("drafts/:id/publish")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "发布草稿" })
   @ApiResponse({ status: 201, description: "创建成功" })
@@ -259,6 +262,7 @@ export class ArticleController {
   }
 
   @Post("admin/drafts/:id/publish")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "管理端-代为发布草稿" })

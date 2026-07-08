@@ -18,6 +18,7 @@ import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
 import { Auditable } from "../../common/audit.decorator";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 @ApiTags("财务管理")
 @ApiBearerAuth()
@@ -199,6 +200,7 @@ export class FinanceController {
   }
 
   @Post("settlements/generate")
+  @RedLineGate(RedLine.MONEY)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN")
   @ApiOperation({ summary: "按周期生成结算单" })
@@ -211,6 +213,7 @@ export class FinanceController {
   }
 
   @Put("settlements/:id/approve")
+  @RedLineGate(RedLine.MONEY)
   @Auditable({ action: "结算审批", targetType: "SETTLEMENT" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN")
@@ -225,6 +228,7 @@ export class FinanceController {
   }
 
   @Put("settlements/:id/pay")
+  @RedLineGate(RedLine.MONEY)
   @Auditable({ action: "结算打款", targetType: "SETTLEMENT" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN")
@@ -259,6 +263,7 @@ export class FinanceController {
   }
 
   @Put("withdrawals/:id/approve")
+  @RedLineGate(RedLine.MONEY)
   @Auditable({ action: "提现审批通过", targetType: "WITHDRAWAL" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN")
@@ -273,6 +278,7 @@ export class FinanceController {
   }
 
   @Put("withdrawals/:id/reject")
+  @RedLineGate(RedLine.MONEY)
   @Auditable({ action: "提现驳回", targetType: "WITHDRAWAL" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN")
@@ -287,6 +293,7 @@ export class FinanceController {
   }
 
   @Post("withdrawals/:id/pay")
+  @RedLineGate(RedLine.MONEY)
   @Auditable({ action: "提现打款", targetType: "WITHDRAWAL" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN")
@@ -302,6 +309,7 @@ export class FinanceController {
   // ───────── 6. 资金冻结/解冻 ─────────
 
   @Post("freeze")
+  @RedLineGate(RedLine.MONEY)
   @Auditable({ action: "资金冻结", targetType: "FUND" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN")
@@ -315,6 +323,7 @@ export class FinanceController {
   }
 
   @Post("unfreeze")
+  @RedLineGate(RedLine.MONEY)
   @Auditable({ action: "资金解冻", targetType: "FUND" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN")

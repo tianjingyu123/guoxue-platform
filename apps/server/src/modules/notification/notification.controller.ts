@@ -6,6 +6,7 @@ import { SendNotificationDto, BatchSendDto } from "./notification.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 @ApiTags("通知")
 @Controller("notifications")
@@ -14,6 +15,7 @@ export class NotificationController {
 
   /** 发送通知 */
   @Post()
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "发送通知" })
@@ -29,6 +31,7 @@ export class NotificationController {
 
   /** 批量发送 */
   @Post("batch")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "批量发送通知" })

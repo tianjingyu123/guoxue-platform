@@ -178,6 +178,11 @@ export class BusinessException extends HttpException {
     [ErrorCode.TASK_NOT_NEED_APPROVAL]: "该任务无需审批",
     [ErrorCode.TASK_ALREADY_CLAIMED]: "任务已被领取",
     [ErrorCode.ROLLBACK_NOT_AVAILABLE]: "该操作不支持回滚",
+
+    // 治理护栏
+    [ErrorCode.RED_LINE_HUMAN_ONLY]: "该操作触碰红线（钱/用户数据/对外发布/不可逆/合规），须由真人执行，自动化永久禁止",
+    [ErrorCode.AUTONOMY_LEVEL_INVALID]: "自主分级取值非法（只能 L1/L2/L3）",
+    [ErrorCode.AUTONOMY_ILLEGAL_PROMOTION]: "自主分级只能逐级晋升（L1→L2→L3），不得跳级",
   };
 
   private static NOT_FOUND_CODES = new Set<number>([
@@ -224,6 +229,7 @@ export class BusinessException extends HttpException {
     ErrorCode.FLASH_SALE_ENDED,
     ErrorCode.GROUP_BUY_ENDED,
     ErrorCode.LIVE_ROOM_ENDED,
+    ErrorCode.RED_LINE_HUMAN_ONLY,
   ]);
 
   private static CONFLICT_CODES = new Set<number>([

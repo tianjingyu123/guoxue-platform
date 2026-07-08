@@ -9,7 +9,11 @@ import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { ThrottleGuard } from "../../common/throttle.guard";
 import { Roles } from "../../common/roles.decorator";
+import { RedLineGate, RedLine, resolveExecutorType } from "../../common/red-lines";
+import { Autonomy, AutonomyLevel } from "../../common/autonomy";
+import { RequireAutomation } from "../../common/require-automation.decorator";
 import { SystemService } from "./system.service";
+import { OpsActionService } from "./ops-action.service";
 import { ExportService } from "./export.service";
 import { Response, Request } from "express";
 import * as fs from "fs";
@@ -24,6 +28,7 @@ export class SystemController {
   constructor(
     private readonly systemService: SystemService,
     private readonly exportService: ExportService,
+    private readonly opsActionService: OpsActionService,
   ) {}
 
   @Get("third-party-schema")
@@ -189,6 +194,68 @@ export class SystemController {
     const u = req.user as { nickname?: string; id?: string } | undefined;
     const operator = u?.nickname || u?.id || "ADMIN";
     return this.systemService.toggleAutomation(body.enabled, operator);
+  }
+
+  // ── 一键回滚（治理护栏 §2.3 · 验收标准三）──
+
+  @Get("automation/rollbackable")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "可回滚操作列表（带快照的审计记录，供一键回滚面板）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
+  @ApiBearerAuth()
+  async listRollbackable(@Query() q: { targetType?: string; targetId?: string; page?: number; pageSize?: number }) {
+    return this.systemService.listRollbackable(q);
+  }
+
+  @Post("automation/rollback/:auditId")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN")
+  @ApiOperation({ summary: "一键回滚 — 按审计快照还原某次自动化配置变更（SUPER_ADMIN·真人纠错）" })
+  @ApiResponse({ status: 201, description: "回滚成功" })
+  @ApiResponse({ status: 400, description: "该动作不支持回滚" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
+  @ApiResponse({ status: 404, description: "审计记录不存在或无快照" })
+  @ApiBearerAuth()
+  async rollbackAudit(@Param("auditId") auditId: string, @Req() req: Request) {
+    const u = req.user as { nickname?: string; id?: string } | undefined;
+    const operator = u?.nickname || u?.id || "ADMIN";
+    return this.systemService.rollbackAudit(auditId, operator);
+  }
+
+  // ── 运维动作中心（后台管理自动化·L2 一键化试点·护栏底座第一个真实客户）──
+
+  @Get("ops-actions")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "运维动作列表（白名单安全可逆动作 + 当前值 + 档位·仅收非红线运营开关）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
+  @ApiBearerAuth()
+  async listOpsActions() {
+    return this.opsActionService.listActions();
+  }
+
+  @Post("ops-actions/execute")
+  @Autonomy(AutonomyLevel.L2_ONE_CLICK)
+  @RequireAutomation() // 受一键接管开关约束：接管后此写操作 403
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "执行运维动作（L2 一键·带回滚·白名单校验·写审计快照·可经 automation/rollback 还原）" })
+  @ApiResponse({ status: 201, description: "执行成功，返回 auditId 供一键回滚" })
+  @ApiResponse({ status: 400, description: "取值非法/非白名单动作" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限/自动化已接管" })
+  @ApiResponse({ status: 404, description: "未注册的运维动作" })
+  @ApiBearerAuth()
+  async executeOpsAction(@Body() body: { action: string; value: string }, @Req() req: Request) {
+    const u = req.user as { nickname?: string; id?: string } | undefined;
+    const operator = u?.nickname || u?.id || "ADMIN";
+    return this.opsActionService.execute(body.action, body.value, operator, resolveExecutorType(req));
   }
 
   /** 公开接口：获取首页 Banner */
@@ -403,6 +470,7 @@ export class SystemController {
   // ───────── 数据导出 ─────────
 
   @Post("export/users")
+  @RedLineGate(RedLine.USER_DATA)
   @SkipFormat()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
@@ -551,6 +619,7 @@ export class SystemController {
   // ───────── 全站弹窗公告 ─────────
 
   @Post("site-notices")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "创建全站公告" })
@@ -581,6 +650,7 @@ export class SystemController {
   }
 
   @Put("site-notices/:id")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "更新全站公告" })

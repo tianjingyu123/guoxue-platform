@@ -3,6 +3,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiResponse } from "@ne
 import { Request } from "express";
 import { WalletService } from "./wallet.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 @ApiTags("钱包")
 @Controller("users/wallet")
@@ -50,6 +51,7 @@ export class WalletController {
   }
 
   @Post("withdraw")
+  @RedLineGate(RedLine.MONEY)
   @ApiOperation({ summary: "提交提现申请" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })

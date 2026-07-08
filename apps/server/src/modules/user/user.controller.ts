@@ -11,6 +11,7 @@ import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { AssignRoleDto, RemoveRoleDto, UserListQueryDto, UpdateProfileDto, UpdateUserStatusDto, BatchUpdateUserStatusDto, UpdateNotifySettingsDto, PushByTagDto, AddWhitelistDto } from "./user.dto";
 import { Auditable } from "../../common/audit.decorator";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 @ApiTags("用户")
 @ApiBearerAuth()
@@ -153,6 +154,7 @@ export class UserController {
   // ───────── 角色管理 ─────────
 
   @Post(":id/roles")
+  @RedLineGate(RedLine.USER_DATA)
   @Auditable({ action: "授予用户角色", targetType: "USER" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
@@ -179,6 +181,7 @@ export class UserController {
   }
 
   @Delete(":id/roles/:roleType")
+  @RedLineGate(RedLine.USER_DATA)
   @Auditable({ action: "移除用户角色", targetType: "USER" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
@@ -209,6 +212,7 @@ export class UserController {
   // ───────── 状态管理 ─────────
 
   @Put("batch/status")
+  @RedLineGate(RedLine.USER_DATA)
   @Auditable({ action: "批量用户状态变更", targetType: "USER" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
@@ -222,6 +226,7 @@ export class UserController {
   }
 
   @Put(":id/status")
+  @RedLineGate(RedLine.USER_DATA)
   @Auditable({ action: "用户封禁/解封", targetType: "USER" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
@@ -360,6 +365,7 @@ export class UserController {
   }
 
   @Post("push/by-tag")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "按标签分群推送消息" })
@@ -478,6 +484,7 @@ export class UserController {
   }
 
   @Post(":id/delete-execute")
+  @RedLineGate(RedLine.USER_DATA, RedLine.IRREVERSIBLE)
   @Auditable({ action: "执行账号注销", targetType: "USER" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")

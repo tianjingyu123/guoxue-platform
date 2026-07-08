@@ -22,6 +22,7 @@ export class AuditService {
   log(params: {
     userId?: string;
     executor?: string;
+    autonomyLevel?: string;
     action: string;
     targetType?: string;
     targetId?: string;
@@ -33,6 +34,7 @@ export class AuditService {
       data: {
         userId: params.userId,
         executor: params.executor || params.userId || "SYSTEM",
+        autonomyLevel: params.autonomyLevel,
         action: params.action,
         targetType: params.targetType,
         targetId: params.targetId,

@@ -7,6 +7,7 @@ import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { ThrottleGuard } from "../../common/throttle.guard";
 import { Roles } from "../../common/roles.decorator";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 @ApiTags("智能定价")
 @Controller("pricing")
@@ -72,6 +73,7 @@ export class PricingController {
   listRules() { return this.svc.listRules(); }
 
   @Post("admin/rules")
+  @RedLineGate(RedLine.MONEY)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiBearerAuth()
@@ -83,6 +85,7 @@ export class PricingController {
   createRule(@Body() body: CreatePricingRuleDto) { return this.svc.createRule(body); }
 
   @Put("admin/rules/:id")
+  @RedLineGate(RedLine.MONEY)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiBearerAuth()
@@ -95,6 +98,7 @@ export class PricingController {
   updateRule(@Param("id") id: string, @Body() body: UpdatePricingRuleDto) { return this.svc.updateRule(id, body); }
 
   @Delete("admin/rules/:id")
+  @RedLineGate(RedLine.MONEY, RedLine.IRREVERSIBLE)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiBearerAuth()
