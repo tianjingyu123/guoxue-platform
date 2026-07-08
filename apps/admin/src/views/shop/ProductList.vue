@@ -488,11 +488,11 @@ const loading = ref(false)
 const error = ref(false)
 const saving = ref(false)
 const uploading = ref(false)
-// 商品分类下拉数据（来自后端商品分类树 /shop/categories）
+// 商品分类下拉数据（来自后端商品分类树 /shop/categories/tree）
 const categories = ref<Array<{ id: string; name: string }>>([])
 async function loadCategories() {
   try {
-    const { data } = await api.get('/shop/categories')
+    const { data } = await api.get('/shop/categories/tree')
     const flat: Array<{ id: string; name: string }> = []
     const walk = (nodes: any[]) => { (nodes || []).forEach((n: any) => { flat.push({ id: n.id, name: n.name }); if (n.children) walk(n.children) }) }
     walk(Array.isArray(data) ? data : ((data as any)?.items || (data as any)?.list || []))
