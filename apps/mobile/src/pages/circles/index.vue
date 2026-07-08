@@ -136,62 +136,6 @@ onMounted(() => { loadCircles(); loadExtras() })
     <scroll-view scroll-y class="body">
       <!-- ════ 发现 Tab ════ -->
       <template v-if="activeTab === 'discover'">
-        <!-- 直播预告横幅 -->
-        <view v-if="upcomingLives.length" class="section">
-          <view class="live-banner">
-            <view class="live-badge">
-              <app-icon name="radio" :size="20" color="#ffffff" />
-              <text class="live-badge-text">直播预告</text>
-            </view>
-            <view class="live-row">
-              <image lazy-load :src="upcomingLives[0].avatar" class="live-avatar" mode="aspectFill" />
-              <view class="live-info">
-                <text class="live-title">{{ upcomingLives[0].title }}</text>
-                <text class="live-sub">{{ upcomingLives[0].host }} · {{ upcomingLives[0].circleName }}</text>
-                <view class="live-meta">
-                  <view class="live-time"><app-icon name="clock" :size="20" color="#FFD700" /><text class="live-time-text">{{ upcomingLives[0].startTime }}</text></view>
-                  <text class="live-viewers">{{ upcomingLives[0].viewers }}人预约</text>
-                </view>
-              </view>
-              <view class="live-btn"><app-icon name="bell" :size="24" color="#ffffff" /><text class="live-btn-text">预约</text></view>
-            </view>
-          </view>
-        </view>
-
-
-        <!-- 分类 Tab -->
-        <view class="cat-section">
-          <scroll-view scroll-x class="cat-scroll">
-            <view class="cat-row">
-              <view
-                v-for="cat in circleCategories" :key="cat.id"
-                class="cat-chip" :class="{ on: category === cat.id }"
-                @tap="selectCategory(cat.id)"
-              >
-                <text class="cat-text" :class="{ on: category === cat.id }">{{ cat.name }}</text>
-              </view>
-            </view>
-          </scroll-view>
-        </view>
-
-        <!-- 排行榜入口 -->
-        <view v-if="ranking.length" class="rank-entry" @tap="go('/pkg-circle/circles/ranking')">
-          <view class="rank-head">
-            <view class="rank-head-left">
-              <view class="rank-crown"><app-icon name="crown" :size="28" color="#ffffff" /></view>
-              <text class="rank-title">热门圈子排行</text>
-            </view>
-            <app-icon name="chevron-right" :size="28" color="#999999" />
-          </view>
-          <scroll-view scroll-x class="rank-scroll">
-            <view class="rank-row">
-              <view v-for="(c, i) in ranking.slice(0, 5)" :key="c.id" class="rank-pill">
-                <view class="rank-no" :class="'rank-no-' + (i + 1)">{{ i + 1 }}</view>
-                <text class="rank-name">{{ c.name }}</text>
-              </view>
-            </view>
-          </scroll-view>
-        </view>
 
         <!-- 圈子网格 -->
         <view v-if="loading" class="grid">
