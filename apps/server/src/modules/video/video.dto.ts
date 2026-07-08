@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { IsString, IsOptional, IsInt, IsNumber, IsArray, IsBoolean, Min, Max, ValidateNested, MinLength, IsIn } from "class-validator";
-import { Type } from "class-transformer";
+import { Type, Transform } from "class-transformer";
 
 export class CreateVideoDto {
   @ApiPropertyOptional({ description: "关联圈子ID" })
@@ -24,8 +24,11 @@ export class CreateVideoDto {
   @IsOptional() @IsString()
   coverUrl?: string;
 
-  @ApiPropertyOptional({ description: "时长（秒）" })
-  @IsOptional() @IsInt()
+  @ApiPropertyOptional({ description: "时长（秒·自动取整）" })
+  @IsOptional()
+  // 视频时长天然带小数秒(如15.7)，前端/AI 传入一律四舍五入为整数，避免 @IsInt 误拒；空值归 undefined
+  @Transform(({ value }) => (value === null || value === undefined || value === "" ? undefined : Math.round(Number(value))))
+  @IsInt()
   duration?: number;
 
   @ApiPropertyOptional({ description: "话题标签（最多5个）" })

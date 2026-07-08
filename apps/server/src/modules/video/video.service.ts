@@ -19,15 +19,24 @@ export class VideoService {
     private auditService: AuditService,
   ) {}
 
+  /** circleId 缺省时兜底为「官方圈子」(id 存 ConfigSystem.official_circle_id·由后台/脚本一次性写入)。未配置则保持 undefined(游离·兼容旧行为)。 */
+  private async resolveCircleId(circleId?: string): Promise<string | undefined> {
+    if (circleId) return circleId;
+    const cfg = await this.prisma.configSystem.findUnique({ where: { configKey: "official_circle_id" } });
+    return cfg?.configValue || undefined;
+  }
+
   @CacheEvict({ key: "video:list:*", pattern: true })
   async create(userId: string, dto: { circleId?: string; title?: string; description?: string; videoUrl: string; coverUrl?: string; duration?: number; tags?: string[]; isPrivate?: boolean; products?: string[]; stationId?: string }) {
     await this.auditService.moderateTextOrThrow([dto.title, dto.description].filter(Boolean).join(" "), { scene: "VIDEO", userId });
     // 带货商品去重 + 限 5 件
     const productIds = Array.from(new Set((dto.products ?? []).filter(Boolean))).slice(0, 5);
+    // 短视频=圈子内容：未指定圈子时兜底落「官方圈子」(供 AI/后台自动发布种子内容，人工前端在圈子内发时会带上下文 circleId)
+    const circleId = await this.resolveCircleId(dto.circleId);
     return this.prisma.video.create({
       data: {
         userId,
-        circleId: dto.circleId,
+        circleId,
         title: dto.title,
         description: dto.description,
         videoUrl: dto.videoUrl,
