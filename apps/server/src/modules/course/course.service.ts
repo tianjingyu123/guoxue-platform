@@ -44,10 +44,12 @@ export class CourseService {
 
   // ═══════════════════ 课程 CRUD ═══════════════════
 
-  async create(userId: string, dto: CreateCourseDto) {
+  async create(userId: string, dto: CreateCourseDto, autoApprove = false) {
     const course = await this.prisma.course.create({
       data: {
         userId,
+        // 管理员/运营建的课程直接通过审核（跳过 PENDING），避免"保存后列表看不到"
+        ...(autoApprove ? { auditStatus: "APPROVED" } : {}),
         circleId: dto.circleId,
         title: dto.title,
         cover: dto.cover,

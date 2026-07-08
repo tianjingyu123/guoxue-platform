@@ -30,7 +30,7 @@ export class ShopProductService {
 
   // ═══════════════════ 商品管理 ═══════════════════
 
-  async createProduct(userId: string, dto: CreateProductDto) {
+  async createProduct(userId: string, dto: CreateProductDto, autoPublish = false) {
     // 内容审核：商品标题+简介+详情（违规抛异常，写库前拦截）
     await this.audit.moderateTextOrThrow(
       [dto.title, dto.intro, dto.detail].filter(Boolean).join(" "),
@@ -43,6 +43,8 @@ export class ShopProductService {
       stock: rest.stock ?? 0,
       detail: rest.detail ?? "",
       userId,
+      // 管理员/运营创建的商品直接上架（跳过审核 PENDING），避免"保存后列表看不到"
+      ...(autoPublish ? { status: "ON_SALE" } : {}),
     };
     if (rest.circleId) data.circle = { connect: { id: rest.circleId } };
     if (rest.categoryId) data.categoryId = rest.categoryId;

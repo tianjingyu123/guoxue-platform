@@ -58,7 +58,9 @@ export class ShopController {
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   createProduct(@Req() req: AuthRequest, @Body() dto: CreateProductDto) {
-    return this.shop.createProduct(req.user.id, dto);
+    // 管理员/运营建的商品直接上架（跳过 PENDING 审核），避免"保存后列表看不到"
+    const isAdmin = (req.user.roles || []).some((r) => r === "SUPER_ADMIN" || r === "OPERATION_ADMIN");
+    return this.shop.createProduct(req.user.id, dto, isAdmin);
   }
 
   @Get("products")

@@ -45,8 +45,8 @@ export class ShopService {
 
   // ═══════════════════ 商品管理（委托 ShopProductService） ═══════════════════
 
-  createProduct(userId: string, dto: CreateProductDto) {
-    return this.product.createProduct(userId, dto);
+  createProduct(userId: string, dto: CreateProductDto, autoPublish = false) {
+    return this.product.createProduct(userId, dto, autoPublish);
   }
 
   updateProduct(userId: string, productId: string, dto: UpdateProductDto) {

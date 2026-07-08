@@ -48,7 +48,9 @@ export class CourseController {
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 401, description: "未认证" })
   async create(@Req() req: AuthRequest, @Body() dto: CreateCourseDto) {
-    const result = await this.course.create(req.user.id, dto);
+    const roles = ((req.user as { roles?: string[] }).roles) || [];
+    const isAdmin = roles.some((r) => r === "SUPER_ADMIN" || r === "OPERATION_ADMIN");
+    const result = await this.course.create(req.user.id, dto, isAdmin);
     this.systemService.logAudit({
       userId: req.user?.id,
       action: "CREATE",
