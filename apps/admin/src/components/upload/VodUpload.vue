@@ -12,7 +12,13 @@ import { uploadApi } from '@/api'
 import TcVod from 'vod-js-sdk-v6'
 
 defineProps<{ modelValue?: string; placeholder?: string }>()
-const emit = defineEmits<{ 'update:modelValue': [string] }>()
+const emit = defineEmits<{
+  'update:modelValue': [string]
+  /** 选定视频后本地自动读出的时长（整数秒）——调用方按需监听，免手填 */
+  'update:duration': [number]
+  /** 视频第一帧自动截图并上传 COS 后的封面地址——调用方按需监听，免手传 */
+  'update:cover': [string]
+}>()
 
 const uploading = ref(false)
 const progress = ref(0)
@@ -22,6 +28,37 @@ const showManual = ref(false)
 function pick() {
   if (uploading.value) return
   inputRef.value?.click()
+}
+
+/**
+ * 本地读取视频元数据：时长（秒）+ 第一帧截图（用于自动封面）。
+ * 纯前端 <video>+<canvas>，不额外请求；失败静默降级（不阻断上传主流程）。
+ */
+function extractMeta(file: File): Promise<{ duration: number; coverBlob: Blob | null }> {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(file)
+    const video = document.createElement('video')
+    video.preload = 'metadata'
+    video.muted = true
+    video.src = url
+    let duration = 0
+    const fail = () => { URL.revokeObjectURL(url); resolve({ duration, coverBlob: null }) }
+    video.onloadedmetadata = () => {
+      duration = Math.round(video.duration || 0)
+      // seek 到 0.1s 截帧（seek 到 0 有些浏览器截不出帧）
+      video.currentTime = Math.min(0.1, video.duration || 0)
+    }
+    video.onseeked = () => {
+      try {
+        const canvas = document.createElement('canvas')
+        canvas.width = video.videoWidth
+        canvas.height = video.videoHeight
+        canvas.getContext('2d')?.drawImage(video, 0, 0, canvas.width, canvas.height)
+        canvas.toBlob((blob) => { URL.revokeObjectURL(url); resolve({ duration, coverBlob: blob }) }, 'image/jpeg', 0.85)
+      } catch { fail() }
+    }
+    video.onerror = fail
+  })
 }
 
 async function onFileChange(e: Event) {

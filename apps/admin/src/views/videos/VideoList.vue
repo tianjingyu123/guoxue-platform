@@ -203,21 +203,26 @@
             placeholder="视频标题"
           />
         </el-form-item>
+        <el-form-item label="视频">
+          <VodUpload
+            v-model="form.videoUrl"
+            @update:duration="form.duration = $event"
+            @update:cover="v => { if (v) form.cover = v }"
+          />
+        </el-form-item>
         <el-form-item label="封面">
           <CosImageUpload
             v-model="form.cover"
-            tip="建议 16:9，jpg/png"
+            tip="上传视频后自动取第一帧，如需更换可点击"
           />
-        </el-form-item>
-        <el-form-item label="视频">
-          <VodUpload v-model="form.videoUrl" />
         </el-form-item>
         <el-row :gutter="16">
           <el-col :span="12">
             <el-form-item label="时长">
               <el-input
-                v-model="form.duration"
-                placeholder="如 15:30"
+                :model-value="form.duration ? form.duration + ' 秒' : ''"
+                disabled
+                placeholder="上传视频后自动获取"
               />
             </el-form-item>
           </el-col>
@@ -293,7 +298,7 @@ const form = reactive({
   title: '',
   cover: '',
   videoUrl: '',
-  duration: '',
+  duration: 0, // 秒·由 VodUpload 选视频后自动读取
   description: '',
   tags: '',
 });
@@ -315,7 +320,7 @@ async function fetchList() {
 }
 
 function resetForm() {
-  Object.assign(form, { title: '', cover: '', videoUrl: '', duration: '', description: '', tags: '' });
+  Object.assign(form, { title: '', cover: '', videoUrl: '', duration: 0, description: '', tags: '' });
   editingId.value = '';
 }
 
@@ -331,7 +336,7 @@ function openEdit(row: any) {
     title: row.title || '',
     cover: row.cover || '',
     videoUrl: row.videoUrl || row.url || '',
-    duration: row.duration || '',
+    duration: row.duration || 0,
     description: row.description || '',
     tags: Array.isArray(row.tags) ? row.tags.join(',') : (row.tags || ''),
   });
@@ -345,6 +350,7 @@ async function saveVideo() {
     if (typeof payload.tags === 'string') {
       payload.tags = payload.tags.split(',').map((t: string) => t.trim()).filter(Boolean);
     }
+    if (!payload.duration) delete payload.duration; // 未识别到时长则不传（后端可选）
     if (editingId.value) {
       await videoApi.update(editingId.value, payload);
       ElMessage.success('已更新');

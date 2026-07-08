@@ -309,6 +309,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { onMounted } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { videoApi, publishHotTags, type PublishProduct } from '@/lib/video-data'
@@ -324,6 +325,10 @@ try {
 const rootStyle = computed(() => ({}))
 
 const step = ref<'select' | 'edit' | 'publish'>('select')
+
+// 发布归属圈子：从圈子页跳转带来则归该圈子；无则留空，由后端兜底落「官方圈子」
+const circleId = ref('')
+onLoad((options) => { circleId.value = (options as Record<string, string> | undefined)?.circleId || '' })
 
 // 选中的真实视频
 const videoTempPath = ref('') // 本地临时路径（预览+上传）
@@ -484,6 +489,7 @@ async function handlePublish() {
     uploadProgress.value = 95
     // 3. 发布（字段对齐后端 CreateVideoDto）
     await videoApi.publish({
+      circleId: circleId.value || undefined,
       title: title.value.trim(),
       description: description.value.trim() || undefined,
       videoUrl,
