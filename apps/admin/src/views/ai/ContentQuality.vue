@@ -515,8 +515,9 @@ async function fetchPending() {
       status: "DRAFT",
       keyword: filter.category || undefined,
     });
-    const d = data as { contents?: ContentRow[]; data?: ContentRow[]; total?: number };
-    const items = (d?.contents || d?.data || []).filter((c) => {
+    const d = data as { items?: ContentRow[]; contents?: ContentRow[]; data?: ContentRow[]; total?: number };
+    // api 拦截器把分页数组规范化为 items；兼容旧键
+    const items = (d?.items || d?.contents || d?.data || []).filter((c) => {
       const tags: string[] = c.tags || [];
       const isAi = tags.some((t: string) => AI_TAGS.some((at) => t.includes(at)));
       if (!isAi) return false;
