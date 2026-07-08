@@ -2683,17 +2683,6 @@
       ]
     },
     {
-      "root": "pkg-author",
-      "pages": [
-        {
-          "path": "index/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        }
-      ]
-    },
-    {
       "root": "pkg-common",
       "pages": [
         {

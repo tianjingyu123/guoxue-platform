@@ -1248,13 +1248,6 @@ const routes = [
         component: () => import("@/views/ai/ContentGeneration.vue"),
         meta: { title: "AI内容生成", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
       },
-      // === AI运营效果追踪 ===
-      {
-        path: "ai/operation-dashboard",
-        name: "AIOperationDashboard",
-        component: () => import("@/views/ai/AIOperationDashboard.vue"),
-        meta: { title: "AI运营效果追踪", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
-      },
       // === 赛事管理 ===
       {
         path: "competitions",
@@ -1321,18 +1314,6 @@ const routes = [
         name: "TaskPool",
         component: () => import("@/views/task/TaskPool.vue"),
         meta: { title: "任务池", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
-      },
-      {
-        path: "operation/engine",
-        name: "OperationEngine",
-        component: () => import("@/views/operation/OperationEngine.vue"),
-        meta: { title: "运营引擎", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
-      },
-      {
-        path: "operation/robots",
-        name: "OperationRobot",
-        component: () => import("@/views/operation/OperationRobot.vue"),
-        meta: { title: "运营机器人", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
       },
       {
         path: "advisor/rules",

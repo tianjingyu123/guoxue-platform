@@ -218,8 +218,6 @@ const ROUTE_MAP: Record<string, string> = {
   '/notices/upgrade': '/pkg-notices/upgrade/index',
   // AI 封面生成（从创作/发帖页带 ?title=&summary=&contentId= query 调起，query 由 resolve 透传）
   '/ai/cover-generate': '/pkg-ai/cover-generate/index',
-  // 作者列表（authors/:id 详情页暂未迁，点击走 navigateTo 未注册时 toast 兜底）
-  '/authors': '/pkg-author/index/index',
   // 创作编辑器（发帖/写文章，接 ?id=&circleId= query，从 creator/submissions 调起）
   '/editor': '/pkg-circle/circles/editor',
   // 草稿箱（从 profile/creator 调起，点击草稿带 ?draft= 跳 publish）
@@ -414,7 +412,6 @@ const DYNAMIC_ROUTES: Array<[RegExp, string, string]> = [
   [/^\/offline\/stations\/([^/?]+)$/, '/pkg-offline/station-detail/index', 'id'],
   // 用户公开主页 /user/:id（IM联系人/好友请求/关注列表点头像跳转，此前缺映射→死链"功能开发中"）
   [/^\/user\/([^/?]+)$/, '/pkg-circle/user/profile', 'id'],
-  // 作者详情 /authors/:id（详情页未实现，先优雅占位）
   [/^\/authors\/([^/?]+)$/, '/pkg-paipan/tools/coming-soon', 'id'],
   [/^\/mall\/product\/([^/?]+)\/reviews$/, '/pkg-mall/product/reviews', 'id'],
   [/^\/mall\/product\/([^/?]+)$/, '/pkg-mall/product/detail', 'id'],

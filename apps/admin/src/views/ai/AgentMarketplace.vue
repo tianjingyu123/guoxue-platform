@@ -13,9 +13,6 @@
         <el-button @click="goToBotManage">
           排盘Bot管理
         </el-button>
-        <el-button @click="goToOpRobot">
-          运营机器人
-        </el-button>
       </div>
     </div>
 
@@ -438,7 +435,7 @@ interface CallLogRaw {
 
 const CAT_ICONS: Record<string, string> = { paipan: "🔮", customer_service: "💁", content: "📝", operation: "⚙️", knowledge: "📚", circle: "🔄" };
 const CAT_LABELS: Record<string, string> = { paipan: "排盘类", customer_service: "客服类", content: "内容类", operation: "运营类", knowledge: "知识类", circle: "圈子类" };
-const CATEGORY_ORDER = ["paipan", "customer_service", "content", "operation", "knowledge", "circle"];
+const CATEGORY_ORDER = ["paipan", "customer_service", "content", "knowledge", "circle"];
 
 const loading = ref(false);
 const loadErr = ref(false);
@@ -482,7 +479,7 @@ async function refresh() {
   loadErr.value = false;
   agents.value = []; // 重置，避免重试时重复累加
   try {
-    await Promise.all([loadBots(), loadOpRobots(), loadCircleAssistants()]);
+    await Promise.all([loadBots(), loadCircleAssistants()]);
     await loadStats();
     stats.totalAgents = agents.value.length;
     stats.activeAgents = agents.value.filter((a) => a.enabled).length;
@@ -509,31 +506,6 @@ async function loadBots() {
         sourceId: bot.id,
         callCount: bot.useCount || 0,
         successRate: 98,
-      });
-    }
-  } catch { loadErr.value = true; }
-}
-
-async function loadOpRobots() {
-  try {
-    const { data } = await api.get("/operation-robots");
-    const robots = Array.isArray(data) ? data : data?.robots || [];
-    for (const robot of robots) {
-      agents.value.push({
-        id: `opbot-${robot.role}`,
-        name: robot.name || robot.role,
-        category: "operation",
-        type: "运营机器人",
-        description: robot.description || `虚拟${robot.role}机器人`,
-        enabled: robot.enabled,
-        isFree: true,
-        configurable: true,
-        source: "operation",
-        sourceId: robot.role,
-        scene: `operation_${robot.role}`,
-        frequency: robot.frequency,
-        callCount: 0,
-        successRate: 100,
       });
     }
   } catch { loadErr.value = true; }
@@ -576,15 +548,12 @@ function applyFilter() { /* computed handles filtering */ }
 
 function goToBotManage() { router.push("/bots"); }
 
-function goToOpRobot() { router.push("/operation/robots"); }
 
 async function toggleAgent(agent: Agent, enabled: boolean) {
   if (agentToggling.value === agent.id) return; // 防重复
   agentToggling.value = agent.id;
   try {
-    if (agent.source === "operation") {
-      await api.post(`/operation-robots/${agent.sourceId}/toggle`, { enabled });
-    } else if (agent.source === "bot") {
+    if (agent.source === "bot") {
       await botApi.update(agent.sourceId, { status: enabled ? "ACTIVE" : "DISABLED" });
     }
     ElMessage.success(`「${agent.name}」已${enabled ? '启用' : '停用'}`);
@@ -627,8 +596,6 @@ async function viewLogs(agent: Agent) {
 function configAgent(agent: Agent) {
   if (agent.source === "bot") {
     router.push("/bots");
-  } else if (agent.source === "operation") {
-    router.push("/operation/robots");
   } else if (agent.source === "circle") {
     router.push("/ai/circle-assistants");
   }

@@ -1185,20 +1185,6 @@ export const recommendStatsApi = {
     api.get("/recommend/admin/stats", { params }),
 };
 
-// ───────── 运营引擎 ─────────
-export const operationEngineApi = {
-  overview: () => api.get("/operation-engine/overview"),
-  generateBrief: () => api.post("/operation-engine/brief"),
-  rotate: () => api.post("/operation-engine/rotate"),
-  markHot: () => api.post("/operation-engine/mark-hot"),
-  detectEmpty: () => api.post("/operation-engine/detect-empty"),
-  fillEmpty: () => api.post("/operation-engine/fill-empty"),
-  getRelated: (categoryLevel1: string, categoryLevel2?: string) =>
-    api.get("/operation-engine/recommendations/related", { params: { categoryLevel1, categoryLevel2 } }),
-  getPersonalized: (userId: string) =>
-    api.get("/operation-engine/recommendations/personalized", { params: { userId } }),
-};
-
 // ───────── 发现页管理 ─────────
 export const discoverApi = {
   getDiscover: (params?: { page?: number; pageSize?: number; type?: string; categoryLevel1?: string }) =>
@@ -1208,17 +1194,6 @@ export const discoverApi = {
     api.get("/discover/hot", { params }),
   getRecommendations: (params?: { page?: number; pageSize?: number }) =>
     api.get("/discover/recommendations", { params }),
-};
-
-// ───────── 运营机器人 ─────────
-export const operationRobotApi = {
-  list: () => api.get("/operation-robots"),
-  getLogs: (params?: { role?: string; page?: number; pageSize?: number }) =>
-    api.get("/operation-robots/logs", { params }),
-  getConfig: (role: string) => api.get(`/operation-robots/${role}/config`),
-  trigger: (role: string) => api.post(`/operation-robots/${role}/trigger`),
-  toggle: (role: string) => api.post(`/operation-robots/${role}/toggle`),
-  init: () => api.post("/operation-robots/init"),
 };
 
 // ───────── 流失预警 ─────────
