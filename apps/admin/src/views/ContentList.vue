@@ -228,8 +228,9 @@ async function fetchList() {
   try {
     const params: Record<string, string | number> = { page: page.value, pageSize, ...searchParams.value }
     const { data } = await contentApi.list(params)
-    list.value = data.data
-    total.value = data.total
+    // api 拦截器把分页数组规范化为 data.items；兼容旧写法 data.data
+    list.value = data.items ?? data.data ?? []
+    total.value = data.total ?? list.value.length
   } catch {
     error.value = true
     list.value = []

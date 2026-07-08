@@ -569,8 +569,8 @@ async function fetchConversations() {
     const params: Record<string, string | number> = { page: 1, pageSize: 20, scene: "customer_service" };
     if (monitorKeyword.value) params.keyword = monitorKeyword.value;
     const { data } = await api.get("/ai/call-logs", { params });
-    const d = data as { list?: CallLogRaw[]; data?: CallLogRaw[] };
-    conversations.value = (d?.list || d?.data || []).map((log) => ({
+    const d = data as { items?: CallLogRaw[]; list?: CallLogRaw[]; data?: CallLogRaw[] };
+    conversations.value = (d?.items || d?.list || d?.data || []).map((log) => ({
       userId: log.userId,
       question: log.query || log.prompt,
       answer: log.response || log.content,

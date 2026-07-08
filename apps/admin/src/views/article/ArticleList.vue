@@ -479,8 +479,9 @@ async function fetchList() {
     // 透传动态搜索筛选（键不定），articleApi.list 期望具体形状，此处保留 any 不引发连锁
     const params: any = { page: page.value, pageSize: pageSize.value, ...searchParams.value };
     const { data } = await articleApi.list(params);
-    const d = data as { articles?: ArticleRow[]; data?: ArticleRow[]; total?: number; tags?: string[] };
-    list.value = d?.articles || d?.data || [];
+    const d = data as { items?: ArticleRow[]; articles?: ArticleRow[]; data?: ArticleRow[]; total?: number; tags?: string[] };
+    // api 拦截器把分页数组规范化为 items；兼容旧键
+    list.value = d?.items || d?.articles || d?.data || [];
     total.value = d?.total || 0;
     if (d?.tags) filterDefs[1].options = d.tags.map((t) => ({ label: t, value: t }));
   } catch { error.value = true; list.value = []; total.value = 0; } finally { loading.value = false; }
