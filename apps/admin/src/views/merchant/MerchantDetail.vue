@@ -633,7 +633,116 @@
           </el-table-column>
         </el-table>
       </el-tab-pane>
+
+      <!-- 标签: 操作员管理（多操作员·官方旗舰店） -->
+      <el-tab-pane
+        label="操作员管理"
+        name="members"
+      >
+        <el-card>
+          <div class="members-head">
+            <div class="members-hint">
+              操作员可用自己的账号以本店铺身份发布/管理商品；商品与订单归属仍记店主，操作员仅用于协作与审计。
+            </div>
+            <el-button
+              type="primary"
+              size="small"
+              @click="openAddMember"
+            >
+              添加操作员
+            </el-button>
+          </div>
+          <el-table
+            v-loading="membersLoading"
+            :data="members"
+            stripe
+          >
+            <template #empty>
+              <el-empty description="暂无操作员" />
+            </template>
+            <el-table-column
+              label="用户"
+              min-width="160"
+            >
+              <template #default="{ row }">
+                {{ row.nickname || '（未设昵称）' }}
+              </template>
+            </el-table-column>
+            <el-table-column
+              prop="phone"
+              label="手机号"
+              width="140"
+            />
+            <el-table-column
+              label="身份"
+              width="100"
+            >
+              <template #default="{ row }">
+                <el-tag
+                  :type="row.role === 'OWNER' ? 'warning' : 'success'"
+                  size="small"
+                >
+                  {{ row.role === "OWNER" ? "店主" : "操作员" }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column
+              label="操作"
+              width="100"
+              fixed="right"
+            >
+              <template #default="{ row }">
+                <el-button
+                  v-if="row.role !== 'OWNER'"
+                  size="small"
+                  text
+                  type="danger"
+                  @click="doRemoveMember(row)"
+                >
+                  移除
+                </el-button>
+                <span
+                  v-else
+                  class="members-owner-hint"
+                >—</span>
+              </template>
+            </el-table-column>
+          </el-table>
+        </el-card>
+      </el-tab-pane>
     </el-tabs>
+
+    <!-- 添加操作员对话框 -->
+    <el-dialog
+      v-model="addMemberDialog"
+      title="添加操作员"
+      width="420px"
+    >
+      <el-form label-width="80px">
+        <el-form-item label="手机号">
+          <el-input
+            v-model="addMemberPhone"
+            maxlength="11"
+            placeholder="输入操作员手机号（须已注册平台）"
+          />
+        </el-form-item>
+        <div class="members-add-tip">
+          该手机号对应的账号将成为本店铺操作员，可在「个人中心 · 身份切换 · 商家管理台」进入并发布/管理商品。
+        </div>
+      </el-form>
+      <template #footer>
+        <el-button @click="addMemberDialog = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="addMemberSaving"
+          @click="doAddMember"
+        >
+          确定添加
+        </el-button>
+      </template>
+    </el-dialog>
 
     <!-- 执行处罚对话框（履-P3·四类·二次确认） -->
     <el-dialog
@@ -1219,7 +1328,49 @@ watch(activeTab, (tab) => {
   if (tab === 'stats') fetchStats()
   else if (tab === 'settlements') fetchSettlements()
   else if (tab === 'punishments') fetchPunishments()
+  else if (tab === 'members') fetchMembers()
 })
+
+// ── 操作员管理 ──
+interface MemberRow { userId: string; nickname: string; phone: string; role: string; status: string }
+const members = ref<MemberRow[]>([])
+const membersLoading = ref(false)
+const addMemberDialog = ref(false)
+const addMemberPhone = ref('')
+const addMemberSaving = ref(false)
+
+async function fetchMembers() {
+  membersLoading.value = true
+  try {
+    const res = await merchantApi.listMembers(id)
+    members.value = (res.data as MemberRow[]) || []
+  } catch {
+    members.value = []
+  } finally { membersLoading.value = false }
+}
+
+function openAddMember() { addMemberPhone.value = ''; addMemberDialog.value = true }
+
+async function doAddMember() {
+  const phone = addMemberPhone.value.trim()
+  if (!/^1[3-9]\d{9}$/.test(phone)) { ElMessage.warning('请输入正确的手机号'); return }
+  addMemberSaving.value = true
+  try {
+    await merchantApi.addMember(id, { phone })
+    ElMessage.success('已添加操作员')
+    addMemberDialog.value = false
+    fetchMembers()
+  } catch { /* 拦截器已提示 */ } finally { addMemberSaving.value = false }
+}
+
+async function doRemoveMember(row: MemberRow) {
+  try {
+    await ElMessageBox.confirm(`确定移除操作员「${row.nickname || row.phone}」？`, '提示', { type: 'warning' })
+    await merchantApi.removeMember(id, row.userId)
+    ElMessage.success('已移除')
+    fetchMembers()
+  } catch { /* 取消或失败 */ }
+}
 
 async function fetchDetail() {
   loading.value = true
@@ -1482,4 +1633,8 @@ async function doSetCommission() {
 .header h3 { margin: 0; }
 .stats-row { display: flex; gap: 40px; padding: 20px; }
 .text-muted { color: var(--color-text-secondary); }
+.members-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 12px; }
+.members-hint { font-size: 12px; color: var(--color-text-secondary); line-height: 1.5; flex: 1; }
+.members-owner-hint { color: var(--color-text-placeholder); }
+.members-add-tip { font-size: 12px; color: var(--color-text-secondary); line-height: 1.5; padding: 0 4px; }
 </style>

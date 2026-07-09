@@ -4,12 +4,20 @@
       <template #actions>
         <el-button
           type="primary"
-          @click="openCreate"
+          @click="goMerchantPublish"
         >
-          添加商品
+          去商家后台发布
         </el-button>
       </template>
     </PageHeader>
+    <el-alert
+      type="info"
+      :closable="false"
+      show-icon
+      style="margin-bottom: 12px"
+      title="商品发布已统一到商家后台"
+      description="新商品发布请到「商家后台 · 商品管理」进行（官方商品由官方旗舰店发布，免审自动上架）。本页用于商品的审核、上下架、删除及必要的信息修正。"
+    />
     <el-alert
       v-if="error"
       type="error"
@@ -128,7 +136,7 @@
       :title="editingId ? '编辑商品' : '添加商品'"
       width="700px"
       top="5vh"
-      @opened="initEditor"
+      destroy-on-close
     >
       <el-form
         ref="dialogFormRef"
@@ -154,9 +162,11 @@
           />
         </el-form-item>
         <el-form-item label="详情">
-          <div
-            ref="detailEditorEl"
-            class="editor-box"
+          <RichEditor
+            v-model="form.detail"
+            placeholder="商品详情..."
+            min-height="240px"
+            style="width: 100%"
           />
         </el-form-item>
         <el-row :gutter="16">
@@ -452,10 +462,14 @@ import { Plus } from '@element-plus/icons-vue'
 import { uploadApi, productApi, api } from '@/api'
 import ImageUpload from '@/components/ImageUpload.vue'
 import CosImageUpload from '@/components/upload/CosImageUpload.vue'
-import Quill from 'quill'
-import 'quill/dist/quill.snow.css'
+import RichEditor from '@/components/editor/RichEditor.vue'
 import DataTable from '@/components/DataTable.vue'
 import PageHeader from "@/components/PageHeader.vue"
+import { useRouter } from 'vue-router'
+
+const router = useRouter()
+/** 商品发布收敛到商家后台：本页不再新建商品，跳转到商家后台商品管理发布 */
+function goMerchantPublish() { router.push('/merchant-backend/products') }
 
 /** 场景标签白名单（供-P1·与后端 shop.dto PRODUCT_SCENE_TAGS 七值对齐） */
 const SCENE_TAG_OPTIONS = ['乔迁新居', '合婚嫁娶', '开业大吉', '本命年', '学业考试', '长辈寿诞', '节气时令'] as const
@@ -516,9 +530,6 @@ const dialogRules = {
   price: [{ required: true, message: '请输入商品价格', trigger: 'blur' }],
 }
 const imgUrl = ref('')
-const detailEditorEl = ref<HTMLElement | null>(null)
-// 第三方 Quill 富文本实例，经全局 window.Quill 引入，无类型声明，保留 any
-let detailQuill: any = null
 
 const skuVisible = ref(false)
 const skuProduct = ref<ProductRow | null>(null)
@@ -576,9 +587,6 @@ function resetForm() {
   editingId.value = ''; imgUrl.value = ''
 }
 
-// 编辑器统一在 el-dialog @opened（内容渲染完成后）初始化，避免 nextTick 时 detailEditorEl 尚未挂载导致编辑器不出现
-function openCreate() { resetForm(); dialogVisible.value = true }
-
 async function openEdit(row: ProductRow) {
   resetForm(); editingId.value = row.id ?? ''
   const p = await fetchProduct(row.id ?? '')
@@ -591,23 +599,6 @@ async function openEdit(row: ProductRow) {
     commissionRatePct: p.commissionRate != null ? Math.round(Number(p.commissionRate) * 10000) / 100 : null,
   })
   dialogVisible.value = true
-}
-
-function setupDetailQuill() {
-  if (!detailEditorEl.value) return
-  if (detailQuill) { detailQuill.root.innerHTML = form.detail || ''; return }
-  detailQuill = new Quill(detailEditorEl.value, {
-    theme: 'snow',
-    modules: { toolbar: [['bold','italic','underline'], [{ header:1 },{ header:2 }], [{ list:'ordered' },{ list:'bullet' }], ['link','clean']] },
-    placeholder: '商品详情...',
-  })
-  detailQuill.root.innerHTML = form.detail || ''
-  detailQuill.on('text-change', () => { form.detail = detailQuill.root.innerHTML })
-}
-
-function initEditor() {
-  // 本地打包 Quill（import，无 CDN/无 SRI 风险；snow CSS 走 import）
-  setupDetailQuill()
 }
 
 async function saveProduct() {
@@ -696,7 +687,6 @@ async function delSku(skuId: string) {
 .thumb { width: 48px; height: 48px; object-fit: cover; border-radius: 4px; }
 .scene-tag { margin: 0 4px 2px 0; }
 .no-img { color: var(--color-text-placeholder); font-size: 11px; }
-.editor-box { min-height: 300px; max-height: 520px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px; }
 .rate-hint { margin-left: 8px; font-size: 12px; color: #909399; }
 .images-area { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end; }
 .img-item { position: relative; width: 80px; height: 80px; }

@@ -7,7 +7,7 @@ import { NotificationService } from "../notification/notification.service";
 import { SystemService } from "../system/system.service";
 import { AuditService } from "../audit/audit.service";
 import { MERCHANT_CONFIG_KEYS, MERCHANT_FEATURE_FLAGS } from "./merchant.types";
-import { encrypt, decrypt, maskIdCard, maskPhone } from "../../common/crypto.util";
+import { encrypt, decrypt, maskIdCard, maskPhone, phoneHmac } from "../../common/crypto.util";
 import { safePagination, NO_PAGE_LIMIT } from "../../common/pagination";
 import {
   CreateMerchantApplyDto, UpdateMerchantApplyDto, ApproveMerchantDto, UpdateMerchantStatusDto,
@@ -229,6 +229,81 @@ export class MerchantService {
     return this.maskMerchant(merchant);
   }
 
+  // ─── 操作员管理（多操作员·官方旗舰店等；operator 仅鉴权+审计，归属仍记 owner） ───
+
+  /** 列出该商家的成员（店主 + ACTIVE 操作员），手机号脱敏。 */
+  async listMembers(merchantId: string) {
+    const merchant = await this.prisma.merchant.findUnique({
+      where: { id: merchantId },
+      select: { userId: true },
+    });
+    if (!merchant) throw new BusinessException(ErrorCode.MERCHANT_NOT_FOUND, "商家不存在");
+    const members = await this.prisma.merchantMember.findMany({
+      where: { merchantId, status: "ACTIVE" },
+      orderBy: [{ role: "asc" }, { createdAt: "asc" }],
+    });
+    // owner 兜底：即使未在 MerchantMember 里落一条 OWNER，也在列表里体现店主身份
+    const ids = new Set(members.map((m) => m.userId));
+    ids.add(merchant.userId);
+    const users = await this.prisma.user.findMany({
+      where: { id: { in: [...ids] } },
+      select: { id: true, nickname: true, avatar: true, phone: true },
+    });
+    const uMap = new Map(users.map((u) => [u.id, u]));
+    const rowOf = (userId: string, role: string, status: string, createdAt: Date | null) => {
+      const u = uMap.get(userId);
+      return {
+        userId,
+        nickname: u?.nickname ?? "",
+        avatar: u?.avatar ?? "",
+        phone: u?.phone ? maskPhone(u.phone) : "",
+        role,
+        status,
+        createdAt,
+      };
+    };
+    const rows = members.map((m) => rowOf(m.userId, m.role, m.status, m.createdAt));
+    if (!rows.some((r) => r.userId === merchant.userId)) {
+      rows.unshift(rowOf(merchant.userId, "OWNER", "ACTIVE", null));
+    }
+    return rows;
+  }
+
+  /** 按手机号添加操作员（幂等）。手机号以 phoneHash 查用户。 */
+  async addMemberByPhone(merchantId: string, phone: string, invitedBy: string) {
+    const merchant = await this.prisma.merchant.findUnique({
+      where: { id: merchantId },
+      select: { id: true, userId: true },
+    });
+    if (!merchant) throw new BusinessException(ErrorCode.MERCHANT_NOT_FOUND, "商家不存在");
+    const user = await this.prisma.user.findFirst({
+      where: { phoneHash: phoneHmac(phone) },
+      select: { id: true, nickname: true },
+    });
+    if (!user) throw new BusinessException(ErrorCode.BAD_REQUEST, "该手机号未注册平台，请对方先登录一次");
+    if (user.id === merchant.userId) throw new BusinessException(ErrorCode.BAD_REQUEST, "该用户是店主，无需添加为操作员");
+    await this.prisma.merchantMember.upsert({
+      where: { merchantId_userId: { merchantId, userId: user.id } },
+      create: { merchantId, userId: user.id, role: "OPERATOR", status: "ACTIVE", invitedBy },
+      update: { status: "ACTIVE", role: "OPERATOR" },
+    });
+    return { success: true, userId: user.id, nickname: user.nickname ?? "" };
+  }
+
+  /** 移除操作员（软删 status=REMOVED）。不可移除店主。 */
+  async removeMember(merchantId: string, userId: string) {
+    const merchant = await this.prisma.merchant.findUnique({
+      where: { id: merchantId },
+      select: { userId: true },
+    });
+    if (!merchant) throw new BusinessException(ErrorCode.MERCHANT_NOT_FOUND, "商家不存在");
+    if (merchant.userId === userId) throw new BusinessException(ErrorCode.BAD_REQUEST, "不能移除店主");
+    await this.prisma.merchantMember.updateMany({
+      where: { merchantId, userId }, data: { status: "REMOVED" },
+    });
+    return { success: true };
+  }
+
   async approveApplication(merchantId: string, reviewerId: string, dto: ApproveMerchantDto) {
     const merchant = await this.prisma.merchant.findUnique({ where: { id: merchantId } });
     if (!merchant) throw new BusinessException(ErrorCode.MERCHANT_NOT_FOUND, "商家不存在");
@@ -399,13 +474,24 @@ export class MerchantService {
     return { list, total, page, pageSize };
   }
 
+  /** 该 owner 是否为官方旗舰店（ConfigSystem.official_merchant_id）。官方店发商品免审自动上架。 */
+  private async isOfficialMerchant(userId: string): Promise<boolean> {
+    const cfg = await this.prisma.configSystem.findUnique({ where: { configKey: "official_merchant_id" } });
+    if (!cfg?.configValue) return false;
+    const m = await this.prisma.merchant.findUnique({ where: { userId }, select: { id: true } });
+    return !!m && m.id === cfg.configValue;
+  }
+
   async createProduct(userId: string, dto: MerchantProductDto) {
+    const official = await this.isOfficialMerchant(userId);
     return this.prisma.product.create({
       data: {
         userId, title: dto.title, intro: dto.intro, detail: dto.detail,
         images: dto.images ?? [], price: dto.price, stock: dto.stock,
         categoryId: dto.categoryId, tags: dto.tags ?? [],
-        isPlatform: false, supplierType: "CERTIFIED_MERCHANT", status: "PENDING",
+        isPlatform: false, supplierType: "CERTIFIED_MERCHANT",
+        // 官方旗舰店免审自动上架；普通商家仍走 PENDING 审核（标准不变）
+        status: official ? "ON_SALE" : "PENDING",
       },
     });
   }

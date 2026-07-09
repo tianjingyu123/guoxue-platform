@@ -154,6 +154,14 @@ export class ShopProductService {
     };
   }
 
+  /** 官方旗舰店 owner 的 userId（"官方自营"角标判定：商品 userId===官方店 owner）。无配置则 null。 */
+  private async getOfficialOwnerId(): Promise<string | null> {
+    const cfg = await this.prisma.configSystem.findUnique({ where: { configKey: "official_merchant_id" } });
+    if (!cfg?.configValue) return null;
+    const m = await this.prisma.merchant.findUnique({ where: { id: cfg.configValue }, select: { userId: true } });
+    return m?.userId ?? null;
+  }
+
   async getProduct(productId: string, scene?: string, pageId?: string) {
     const product = await this.prisma.product.findUnique({
       where: { id: productId },
@@ -177,11 +185,15 @@ export class ShopProductService {
       });
     }
 
+    const officialOwnerId = await this.getOfficialOwnerId();
+
     return {
       ...product,
       merchant,
       // 严选标（履-P2 权益挂钩）：商家信用 A 级即严选，前端商品详情展示「严选」标识
       isSelected: merchant?.creditGrade === "A",
+      // 官方自营标：商品归属官方旗舰店（走商家标准链路，仅展示层加标）
+      isOfficialSelfOwned: !!product.userId && product.userId === officialOwnerId,
       price: Number(product.price),
       originalPrice: Number(product.price),
       baseListPrice: product.originalPrice ? Number(product.originalPrice) : undefined,
@@ -251,6 +263,8 @@ export class ShopProductService {
         )
       : new Set<string>();
 
+    const officialOwnerId = await this.getOfficialOwnerId();
+
     const enriched = products.map(p => {
       const up = priceMap.get(p.id);
       return {
@@ -261,6 +275,8 @@ export class ShopProductService {
         hasPromotion: up?.hasPromotion ?? false,
         promotionTag: up?.promotionTag,
         isSelected: !!p.userId && selectedOwners.has(p.userId),
+        // 官方自营标：商品归属官方旗舰店
+        isOfficialSelfOwned: !!p.userId && p.userId === officialOwnerId,
       };
     });
 

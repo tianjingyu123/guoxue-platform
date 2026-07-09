@@ -4758,10 +4758,30 @@ model Merchant {
   depositRecords MerchantDepositRecord[]
   agreements     MerchantAgreement[]
   settlements    MerchantSettlement[]
+  members        MerchantMember[]
 
   @@index([status])
   @@index([status, createdAt])
   @@index([shopName])
+}
+
+// 商家操作员：支持一个店铺(尤其官方旗舰店)有多个用户账号以该店铺身份经营。
+// 关键设计：商品/订单归属仍统一记 owner(Merchant.userId)，操作员身份只用于「鉴权 + 审计」，
+// 不改动 Product.userId→Merchant 反查分佣的既有链路（见 merchant.guard/merchant-backend.controller）。
+model MerchantMember {
+  id         String   @id @default(uuid())
+  merchantId String
+  userId     String // 操作员用户ID
+  role       String   @default("OPERATOR") // OWNER / OPERATOR
+  status     String   @default("ACTIVE") // ACTIVE / REMOVED
+  invitedBy  String? // 邀请人 userId
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  merchant Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+
+  @@unique([merchantId, userId])
+  @@index([userId, status])
 }
 
 model MerchantViolation {
@@ -6439,11 +6459,12 @@ model CircleJoinRequest {
   id         String    @id @default(uuid())
   circleId   String
   userId     String
-  status     String    @default("PENDING") // PENDING/APPROVED/REJECTED
-  message    String?
-  reviewedBy String?
-  reviewedAt DateTime?
-  createdAt  DateTime  @default(now())
+  status       String    @default("PENDING") // PENDING/APPROVED/REJECTED
+  message      String?
+  reviewedBy   String?
+  reviewedAt   DateTime?
+  rejectReason String? // 拒绝原因（审核拒绝时可填，反馈给申请人）
+  createdAt    DateTime  @default(now())
 
   @@index([circleId, status])
   @@index([userId])

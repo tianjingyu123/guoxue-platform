@@ -88,12 +88,12 @@
           </el-form-item>
 
           <el-form-item label="正文">
-            <div class="editor-wrapper">
-              <div
-                ref="editorEl"
-                class="ql-editor-container"
-              />
-            </div>
+            <RichEditor
+              v-model="form.body"
+              placeholder="请输入正文..."
+              min-height="380px"
+              style="width: 100%"
+            />
           </el-form-item>
         </el-form>
       </div>
@@ -158,13 +158,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, nextTick, watch } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { contentApi } from '@/api'
 import { ElMessage } from 'element-plus'
 import CosImageUpload from '@/components/upload/CosImageUpload.vue'
-import Quill from 'quill'
-import 'quill/dist/quill.snow.css'
+import RichEditor from '@/components/editor/RichEditor.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -185,9 +184,6 @@ const form = reactive({
 })
 
 const tagInput = ref('')
-const editorEl = ref<HTMLElement | null>(null)
-// Quill 编辑器实例：经 CDN 动态加载，无类型声明，保留 any
-let quill: any = null
 
 onMounted(async () => {
   if (isEdit && id) {
@@ -208,39 +204,7 @@ onMounted(async () => {
       ElMessage.error('内容加载失败，请返回重试')
     }
   }
-
-  // 初始化 Quill 编辑器
-  await nextTick()
-  initQuill()
 })
-
-function initQuill() {
-  if (!editorEl.value) return
-  // 本地打包 Quill（import，无 CDN/无 SRI 风险；snow 主题 CSS 也走 import）
-  quill = new Quill(editorEl.value, {
-    theme: 'snow',
-    modules: {
-      toolbar: [
-        ['bold', 'italic', 'underline', 'strike'],
-        [{ header: 1 }, { header: 2 }],
-        [{ align: [] }],
-        ['blockquote', 'code-block'],
-        [{ list: 'ordered' }, { list: 'bullet' }],
-        [{ indent: '-1' }, { indent: '+1' }],
-        [{ color: [] }, { background: [] }],
-        ['link', 'image'],
-        ['clean'],
-      ],
-    },
-    placeholder: '请输入正文...',
-  })
-  if (form.body) {
-    quill.root.innerHTML = form.body
-  }
-  quill.on('text-change', () => {
-    form.body = quill.root.innerHTML
-  })
-}
 
 function addTag() {
   const t = tagInput.value.trim()
@@ -334,11 +298,6 @@ async function handleSave(status?: string) {
   border-bottom: 1px solid #f0e6d3;
   padding-bottom: 6px;
 }
-
-/* 编辑器 */
-.editor-wrapper { border: 1px solid #ddd; border-radius: 4px; min-height: 400px; }
-.ql-editor-container { min-height: 380px; }
-:deep(.ql-toolbar) { border-radius: 4px 4px 0 0; }
 
 /* 封面 */
 .cover-upload { display: flex; flex-direction: column; gap: 8px; }

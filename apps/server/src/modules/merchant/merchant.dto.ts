@@ -4,6 +4,15 @@ import {
 } from "class-validator";
 import { Type } from "class-transformer";
 
+// ─── 操作员管理（多操作员·官方旗舰店） ───
+
+export class AddMerchantMemberDto {
+  @ApiProperty({ description: "操作员手机号（须已注册平台）" })
+  @IsString()
+  @Matches(/^1[3-9]\d{9}$/, { message: "手机号格式不正确" })
+  phone: string;
+}
+
 // ─── 入驻申请 ───
 
 export class CreateMerchantApplyDto {

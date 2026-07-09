@@ -4,6 +4,32 @@ import { track } from '@/composables/useTrack'
 import { initWebVitals } from '@/composables/useWebVitals'
 import { captureRefFromQuery, captureRefFromUrl } from '@/utils/referral'
 import { hydrateBrandConfig } from '@/lib/brand'
+import { beginAuthHandoff, exchangeHandoff } from '@/utils/request'
+
+/** 从启动参数/URL 取一次性握手码（H5 hash 模式兜底解析 location）。 */
+function readHandoffCode(query?: Record<string, unknown>): string {
+  let code = String(query?.handoff ?? '')
+  // #ifdef H5
+  if (!code && typeof window !== 'undefined') {
+    const hash = window.location.hash || ''
+    const qs = hash.includes('?') ? hash.slice(hash.indexOf('?') + 1) : (window.location.search || '').replace(/^\?/, '')
+    code = new URLSearchParams(qs).get('handoff') || ''
+  }
+  // #endif
+  return code
+}
+
+/**
+ * 无感登录（安全版）：外部（如后台跳转发文链接）只携带一次性握手码，
+ * C 端拿码向后端换取全新会话——URL 里不出现可复用 token，且攻击者无法伪造码（签发需登录态），
+ * 从根本上消除 token 泄露与会话固定风险。换会话期间用握手就绪门短暂拦住业务请求，避免 401。
+ */
+function bootstrapHandoff(query?: Record<string, unknown>): void {
+  const code = readHandoffCode(query)
+  if (!code) return
+  const release = beginAuthHandoff()
+  exchangeHandoff(code).finally(release)
+}
 
 /** 从跳转参数中取出页面路径（去 query），用于全局 page_view 埋点 */
 function pickUrl(args: string | { url?: string }): string {
@@ -23,6 +49,8 @@ onLaunch((options?: { query?: Record<string, unknown> }) => {
     }
   })
   // #endif
+  // 无感登录：URL 带一次性握手码（后台跳转发文链接）→ 换取会话，赶在业务请求之前上闩
+  try { bootstrapHandoff(options?.query) } catch { /* 不影响启动 */ }
   // 品牌配置水合（租-T0）：从后端拉取站名/标语/主色等，失败静默用内置默认值
   hydrateBrandConfig()
   // RUM 性能采集（T3 可观测·仅 H5 生效）

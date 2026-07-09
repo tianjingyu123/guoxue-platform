@@ -318,7 +318,7 @@ export class GrowthService {
     await this.ensureCircleAdmin(circleId, operatorId);
     return this.prisma.$queryRawUnsafe<any[]>(
       `SELECT r."id", r."circleId", r."userId", r."status", r."message",
-              r."reviewedBy", r."reviewedAt", r."createdAt",
+              r."reviewedBy", r."reviewedAt", r."rejectReason", r."createdAt",
               u."nickname" AS "userNickname", u."avatar" AS "userAvatar"
        FROM "CircleJoinRequest" r
        LEFT JOIN "User" u ON u.id = r."userId"
@@ -332,7 +332,7 @@ export class GrowthService {
    * 审批入圈申请（圈主权限，幂等防重复审）。
    * 通过则把申请人加入圈子成员（不存在才建，成员数 +1）。
    */
-  async reviewJoinRequest(circleId: string, reqId: string, operatorId: string, action: "approve" | "reject") {
+  async reviewJoinRequest(circleId: string, reqId: string, operatorId: string, action: "approve" | "reject", rejectReason?: string) {
     await this.ensureCircleAdmin(circleId, operatorId);
     if (action !== "approve" && action !== "reject") {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "action 必须为 approve 或 reject");
@@ -352,9 +352,9 @@ export class GrowthService {
     // 状态流转加 PENDING 条件，防并发重复审批
     const updated = await this.prisma.$executeRawUnsafe(
       `UPDATE "CircleJoinRequest"
-       SET "status"=$3, "reviewedBy"=$4, "reviewedAt"=CURRENT_TIMESTAMP
+       SET "status"=$3, "reviewedBy"=$4, "reviewedAt"=CURRENT_TIMESTAMP, "rejectReason"=$5
        WHERE id=$1 AND "circleId"=$2 AND "status"='PENDING'`,
-      reqId, circleId, newStatus, operatorId,
+      reqId, circleId, newStatus, operatorId, action === "reject" ? (rejectReason?.trim() || null) : null,
     );
     if (updated === 0) {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "该申请已处理，请勿重复审批");

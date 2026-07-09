@@ -201,11 +201,11 @@
           label="商品详情"
           prop="detail"
         >
-          <el-input
+          <RichEditor
             v-model="form.detail"
-            type="textarea"
-            :rows="5"
-            placeholder="商品详情（支持HTML）"
+            placeholder="商品详情（支持图文、插图上传）"
+            min-height="240px"
+            style="width: 100%"
           />
         </el-form-item>
         <el-form-item label="商品图片">
@@ -319,6 +319,7 @@ import { ElMessage, ElMessageBox } from "element-plus";
 import type { FormInstance, InputInstance } from "element-plus";
 import { merchantBackendApi } from "@/api";
 import CosImageUpload from "@/components/upload/CosImageUpload.vue";
+import RichEditor from "@/components/editor/RichEditor.vue";
 
 /** 商品行（字段宽松 optional） */
 interface ProductRow {

@@ -1,5 +1,9 @@
 /// <reference types="vite/client" />
 
-// quill@1.3.7 无自带类型声明，富文本编辑器（ContentEdit/ProductList 详情）本地打包 import 时需此 shim
-declare module 'quill';
-declare module 'quill/dist/quill.snow.css';
+// @wangeditor/editor-for-vue 的 package.json exports 未正确暴露 types 条件，
+// 直接 import 会报 TS7016；此 shim 为其两个组件补上最小类型声明。
+declare module '@wangeditor/editor-for-vue' {
+  import type { DefineComponent } from 'vue'
+  export const Editor: DefineComponent<Record<string, unknown>>
+  export const Toolbar: DefineComponent<Record<string, unknown>>
+}

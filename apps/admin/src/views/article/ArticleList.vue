@@ -6,6 +6,12 @@
         <el-button
           type="primary"
           size="small"
+          @click="goPublishOnMobile"
+        >
+          去C端发文章
+        </el-button>
+        <el-button
+          size="small"
           @click="showCreate"
         >
           新建文章
@@ -214,11 +220,11 @@
           label="内容"
           required
         >
-          <el-input
+          <RichEditor
             v-model="form.body"
-            type="textarea"
-            :rows="8"
-            placeholder="支持Markdown"
+            placeholder="撰写文章正文（支持图文、插图上传）"
+            min-height="320px"
+            style="width: 100%"
           />
         </el-form-item>
         <el-form-item label="封面图">
@@ -378,10 +384,11 @@
 import { ref, reactive, computed, onMounted } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { sanitize } from "@/utils/sanitize";
-import { articleApi, circleApi } from "@/api";
+import { articleApi, circleApi, api } from "@/api";
 import DataTable from "@/components/DataTable.vue";
 import SearchFilter from "@/components/SearchFilter.vue";
 import CosImageUpload from "@/components/upload/CosImageUpload.vue";
+import RichEditor from "@/components/editor/RichEditor.vue";
 
 /** 文章作者 */
 interface ArticleAuthor { nickname?: string }
@@ -505,6 +512,21 @@ function resetForm() {
 }
 
 function showCreate() { resetForm(); editVisible.value = true; }
+
+// 去 C 端编辑器发文章：安全握手（不把 token 放 URL）——先向后端换一次性握手码，
+// C 端拿码换取会话（App.vue 无感登录）。圈子在 C 端选择（工作人员对官方圈有管理员身份）。
+// H5 基址默认同源 /h5，可用 VITE_H5_BASE 覆盖。
+async function goPublishOnMobile() {
+  try {
+    const res = await api.post("/auth/handoff/issue");
+    const code = (res.data as { code?: string })?.code || "";
+    if (!code) { ElMessage.error("发起失败，请重试"); return; }
+    const base = (import.meta.env.VITE_H5_BASE as string) || (window.location.origin + "/h5");
+    window.open(`${base}/#/pkg-circle/circles/editor?handoff=${encodeURIComponent(code)}`, "_blank", "noopener,noreferrer");
+  } catch {
+    ElMessage.error("发起失败，请重试");
+  }
+}
 
 function showEdit(row: ArticleRow) {
   editingId.value = row.id!;

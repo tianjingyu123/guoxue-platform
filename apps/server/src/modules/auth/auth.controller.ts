@@ -173,6 +173,25 @@ export class AuthController {
     return this.auth.refreshToken(refreshToken);
   }
 
+  @Post("handoff/issue")
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "签发跨端无感登录握手码", description: "登录态签发一次性短时码（60s·绑定本人），用于后台跳 C 端等跨端无感登录，避免 token 进 URL" })
+  @ApiResponse({ status: 201, description: "签发成功" })
+  issueHandoff(@Req() req: Request) {
+    return this.auth.issueHandoffCode(req.user.id);
+  }
+
+  @Post("handoff/exchange")
+  @UseGuards(StrictRedisThrottleGuard)
+  @ApiOperation({ summary: "握手码换会话", description: "用一次性握手码换取新的 accessToken + refreshToken（用后即焚）" })
+  @ApiResponse({ status: 201, description: "换取成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  async exchangeHandoff(@Body("code") code: string) {
+    if (!code) throw new BadRequestException("code 参数必填");
+    return this.auth.exchangeHandoffCode(code);
+  }
+
   @Put("profile")
   @ApiOperation({ summary: "更新用户信息", description: "更新已登录用户的个人资料（需 JWT）" })
   @ApiResponse({ status: 200, description: "更新成功" })

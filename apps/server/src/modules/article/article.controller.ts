@@ -30,7 +30,9 @@ export class ArticleController {
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   create(@Param("circleId") circleId: string, @Req() req: Request, @Body() dto: CreateArticleDto) {
-    return this.article.create(circleId, req.user.id, dto);
+    const roles = ((req.user as { roles?: string[] }).roles) || [];
+    const isAdmin = roles.some((r) => r === "SUPER_ADMIN" || r === "OPERATION_ADMIN");
+    return this.article.create(circleId, req.user.id, dto, isAdmin);
   }
 
   @Get()

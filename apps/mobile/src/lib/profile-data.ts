@@ -1,7 +1,7 @@
 // 我的主页数据层（1:1 迁移自原型 app/profile/page.tsx）
 import { apiGet, apiPost } from '@/utils/request'
 
-export type UserRole = 'user' | 'circle_owner' | 'teacher' | 'station_owner' | 'streamer' | 'creator'
+export type UserRole = 'user' | 'circle_owner' | 'teacher' | 'station_owner' | 'streamer' | 'creator' | 'merchant'
 
 export interface RoleEntry {
   type: UserRole
@@ -55,6 +55,7 @@ export const roleConfig: Record<UserRole, { label: string; icon: string; color: 
   station_owner: { label: '站长后台', icon: 'award', color: '#52C41A', bgColor: 'rgba(82,196,26,0.1)' },
   streamer: { label: '主播中心', icon: 'radio', color: '#C41E3A', bgColor: 'rgba(196,30,58,0.1)' },
   creator: { label: '创作中心', icon: 'video', color: '#722ED1', bgColor: 'rgba(114,46,209,0.1)' },
+  merchant: { label: '商家管理台', icon: 'store', color: '#FA8C16', bgColor: 'rgba(250,140,22,0.1)' },
 }
 
 // 常用功能入口
@@ -87,6 +88,7 @@ export function roleHref(type: UserRole, id: string | number): string {
     case 'streamer': return '/creator/live/console'
     case 'creator': return '/videos/creator'
     case 'station_owner': return '/operator/station-master-panel'
+    case 'merchant': return '/pkg-merchant/dashboard/index'
     default: return '/pages/profile/index'
   }
 }
@@ -98,6 +100,7 @@ const _roleTypeMap: Record<string, UserRole> = {
   CIRCLE_OWNER: 'circle_owner',
   LECTURER: 'teacher',
   STATION_MASTER: 'station_owner',
+  MERCHANT: 'merchant', // 商家/官方旗舰店操作员：后端 getProfile 在 ACTIVE 商家身份时注入
 }
 
 // 会员等级标签（书院会员·2026-07-03 档位改版）

@@ -284,6 +284,8 @@ export interface ProductDetail {
   description: string
   /** 所属商家（自营/未开通则 null，详情页据此显示「进店」入口） */
   merchant?: { id: string; shopName: string; shopLogo?: string } | null
+  /** 官方自营（归属官方旗舰店）→ 详情页显示「官方自营」标识 */
+  isOfficialSelfOwned?: boolean
 }
 
 /** C 端店铺主页 — 商家公开信息 */
@@ -1367,6 +1369,8 @@ export interface ShopProductDetail {
   shipping: string
   reviewCount: number
   skus: ShopProductSku[]
+  /** 官方自营（归属官方旗舰店）→ 详情页显示「官方自营」标识 */
+  isOfficialSelfOwned?: boolean
 }
 export const shopProductDetail: ShopProductDetail = {
   id: '1',
@@ -1521,6 +1525,7 @@ interface RawShopProduct {
   createdAt?: string
   merchant?: RawShopMerchant | null
   skus?: RawShopSku[]
+  isOfficialSelfOwned?: boolean
 }
 interface RawShopReview { id?: string; user?: { nickname?: string; avatar?: string } | null; rating?: number; content?: string; images?: string[]; reply?: string | null; repliedAt?: string | null; createdAt?: string }
 interface RawReviewStats { average?: number; count?: number; withImages?: number; distribution?: Record<string, number> }
@@ -1580,6 +1585,7 @@ function adaptProductDetail(p: RawShopProduct): ProductDetail {
     merchant: p.merchant
       ? { id: p.merchant.id || '', shopName: p.merchant.shopName || '', shopLogo: p.merchant.shopLogo || undefined }
       : null,
+    isOfficialSelfOwned: !!p.isOfficialSelfOwned,
   }
 }
 
@@ -1654,6 +1660,7 @@ function adaptShopProductDetail(p: RawShopProduct, stats?: RawReviewStats | null
     shipping: '包邮',
     reviewCount: stats?.count ?? 0,
     skus,
+    isOfficialSelfOwned: !!p.isOfficialSelfOwned,
   }
 }
 
@@ -1789,6 +1796,7 @@ function adaptProductCard(p: RawShopProduct): ProductCardData {
     originalPrice: shopNum(p.originalPrice ?? p.price),
     sales: p.salesCount ?? 0,
     tag: p.hasPromotion ? (p.promotionTag || '促销') : undefined,
+    isOfficialSelfOwned: !!p.isOfficialSelfOwned,
   }
 }
 

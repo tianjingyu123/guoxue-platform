@@ -94,3 +94,67 @@
 | WITH per_book AS ( SELECT "bookId", count(*) AS ch, count( | 1 | 10505 | 10505.278 | 2101829 | 436799 | 82.8 |
 | WITH per_book AS ( SELECT "bookId", count(*) AS ch, count( | 1 | 10259 | 10258.751 | 2101405 | 437865 | 82.8 |
 | SELECT count(DISTINCT c."bookId") AS books, count(*) AS ch | 1 | 10107 | 10106.842 | 2050604 | 426031 | 82.8 |
+
+## 2026-07-05T16:00:02.993Z
+基线重置于 Mon Jun 29 2026 20:41:38 GMT-0700 (Pacific Daylight Time) ｜ 全库缓存命中率 96.1%
+
+| query | calls | total_ms | mean_ms | hit | read | hit% |
+|---|--:|--:|--:|--:|--:|--:|
+| SELECT "public"."ClassicChapter"."id", "public"."ClassicCh | 82067 | 226560 | 2.761 | 4136616 | 1931963 | 68.2 |
+| WITH per_book AS ( SELECT b.id, b.title, b.source, count(c | 3 | 90995 | 30331.679 | 6224539 | 1303390 | 82.7 |
+| WITH per_book AS ( SELECT b.id, b.title, b.source, count(c | 1 | 23935 | 23934.701 | 2101943 | 437883 | 82.8 |
+| DELETE FROM "ClassicChapter" WHERE content LIKE $1 OR cont | 1 | 23764 | 23764.134 | 2197902 | 437808 | 83.4 |
+| WITH per_book AS ( SELECT b.id, b.title, count(c.id) AS ch | 1 | 23218 | 23218.452 | 2096672 | 437076 | 82.7 |
+| SELECT count(*) AS total_chapters, count(*) FILTER (WHERE  | 1 | 20462 | 20462.484 | 3369387 | 427766 | 88.7 |
+| WITH per_book AS ( SELECT b.id, b.title, b.source, count(c | 1 | 12971 | 12970.549 | 840972 | 436972 | 65.8 |
+| WITH per_book AS ( SELECT "bookId", count(*) AS ch, count( | 1 | 10505 | 10505.278 | 2101829 | 436799 | 82.8 |
+| WITH per_book AS ( SELECT "bookId", count(*) AS ch, count( | 1 | 10259 | 10258.751 | 2101405 | 437865 | 82.8 |
+| SELECT count(DISTINCT c."bookId") AS books, count(*) AS ch | 1 | 10107 | 10106.842 | 2050604 | 426031 | 82.8 |
+
+## 2026-07-06T16:00:02.482Z
+基线重置于 Mon Jun 29 2026 20:41:38 GMT-0700 (Pacific Daylight Time) ｜ 全库缓存命中率 96.15%
+
+| query | calls | total_ms | mean_ms | hit | read | hit% |
+|---|--:|--:|--:|--:|--:|--:|
+| SELECT "public"."ClassicChapter"."id", "public"."ClassicCh | 97017 | 271171 | 2.795 | 4891715 | 2321724 | 67.8 |
+| WITH per_book AS ( SELECT b.id, b.title, b.source, count(c | 3 | 90995 | 30331.679 | 6224539 | 1303390 | 82.7 |
+| WITH per_book AS ( SELECT b.id, b.title, b.source, count(c | 1 | 23935 | 23934.701 | 2101943 | 437883 | 82.8 |
+| DELETE FROM "ClassicChapter" WHERE content LIKE $1 OR cont | 1 | 23764 | 23764.134 | 2197902 | 437808 | 83.4 |
+| WITH per_book AS ( SELECT b.id, b.title, count(c.id) AS ch | 1 | 23218 | 23218.452 | 2096672 | 437076 | 82.7 |
+| SELECT count(*) AS total_chapters, count(*) FILTER (WHERE  | 1 | 20462 | 20462.484 | 3369387 | 427766 | 88.7 |
+| WITH per_book AS ( SELECT b.id, b.title, b.source, count(c | 1 | 12971 | 12970.549 | 840972 | 436972 | 65.8 |
+| WITH per_book AS ( SELECT "bookId", count(*) AS ch, count( | 1 | 10505 | 10505.278 | 2101829 | 436799 | 82.8 |
+| WITH per_book AS ( SELECT "bookId", count(*) AS ch, count( | 1 | 10259 | 10258.751 | 2101405 | 437865 | 82.8 |
+| SELECT count(DISTINCT c."bookId") AS books, count(*) AS ch | 1 | 10107 | 10106.842 | 2050604 | 426031 | 82.8 |
+
+## 2026-07-07T16:00:02.548Z
+基线重置于 Mon Jun 29 2026 20:41:38 GMT-0700 (Pacific Daylight Time) ｜ 全库缓存命中率 96.2%
+
+| query | calls | total_ms | mean_ms | hit | read | hit% |
+|---|--:|--:|--:|--:|--:|--:|
+| SELECT "public"."ClassicChapter"."id", "public"."ClassicCh | 111967 | 304920 | 2.723 | 5674996 | 2708132 | 67.7 |
+| WITH per_book AS ( SELECT b.id, b.title, b.source, count(c | 3 | 90995 | 30331.679 | 6224539 | 1303390 | 82.7 |
+| WITH per_book AS ( SELECT b.id, b.title, b.source, count(c | 1 | 23935 | 23934.701 | 2101943 | 437883 | 82.8 |
+| DELETE FROM "ClassicChapter" WHERE content LIKE $1 OR cont | 1 | 23764 | 23764.134 | 2197902 | 437808 | 83.4 |
+| WITH per_book AS ( SELECT b.id, b.title, count(c.id) AS ch | 1 | 23218 | 23218.452 | 2096672 | 437076 | 82.7 |
+| SELECT count(*) AS total_chapters, count(*) FILTER (WHERE  | 1 | 20462 | 20462.484 | 3369387 | 427766 | 88.7 |
+| WITH per_book AS ( SELECT b.id, b.title, b.source, count(c | 1 | 12971 | 12970.549 | 840972 | 436972 | 65.8 |
+| WITH per_book AS ( SELECT "bookId", count(*) AS ch, count( | 1 | 10505 | 10505.278 | 2101829 | 436799 | 82.8 |
+| WITH per_book AS ( SELECT "bookId", count(*) AS ch, count( | 1 | 10259 | 10258.751 | 2101405 | 437865 | 82.8 |
+| SELECT count(DISTINCT c."bookId") AS books, count(*) AS ch | 1 | 10107 | 10106.842 | 2050604 | 426031 | 82.8 |
+
+## 2026-07-08T16:00:02.908Z
+基线重置于 Mon Jun 29 2026 20:41:38 GMT-0700 (Pacific Daylight Time) ｜ 全库缓存命中率 96.21%
+
+| query | calls | total_ms | mean_ms | hit | read | hit% |
+|---|--:|--:|--:|--:|--:|--:|
+| SELECT "public"."ClassicChapter"."id", "public"."ClassicCh | 111967 | 304920 | 2.723 | 5674996 | 2708132 | 67.7 |
+| WITH per_book AS ( SELECT b.id, b.title, b.source, count(c | 3 | 90995 | 30331.679 | 6224539 | 1303390 | 82.7 |
+| WITH per_book AS ( SELECT b.id, b.title, b.source, count(c | 1 | 23935 | 23934.701 | 2101943 | 437883 | 82.8 |
+| DELETE FROM "ClassicChapter" WHERE content LIKE $1 OR cont | 1 | 23764 | 23764.134 | 2197902 | 437808 | 83.4 |
+| WITH per_book AS ( SELECT b.id, b.title, count(c.id) AS ch | 1 | 23218 | 23218.452 | 2096672 | 437076 | 82.7 |
+| SELECT count(*) AS total_chapters, count(*) FILTER (WHERE  | 1 | 20462 | 20462.484 | 3369387 | 427766 | 88.7 |
+| WITH per_book AS ( SELECT b.id, b.title, b.source, count(c | 1 | 12971 | 12970.549 | 840972 | 436972 | 65.8 |
+| WITH per_book AS ( SELECT "bookId", count(*) AS ch, count( | 1 | 10505 | 10505.278 | 2101829 | 436799 | 82.8 |
+| WITH per_book AS ( SELECT "bookId", count(*) AS ch, count( | 1 | 10259 | 10258.751 | 2101405 | 437865 | 82.8 |
+| SELECT count(DISTINCT c."bookId") AS books, count(*) AS ch | 1 | 10107 | 10106.842 | 2050604 | 426031 | 82.8 |

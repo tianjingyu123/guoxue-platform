@@ -55,6 +55,27 @@ export class AuthService {
     return { accessToken, refreshToken };
   }
 
+  /**
+   * 跨端无感登录握手码：签发一次性短时码（60s·绑定当前用户）。
+   * 用于"后台点链接跳 C 端发文"场景——避免把可复用的 bearer token 放进 URL（防泄露/会话固定）。
+   */
+  async issueHandoffCode(userId: string): Promise<{ code: string; expiresIn: number }> {
+    const code = crypto.randomBytes(24).toString("hex");
+    await this.redis.set(`handoff:${code}`, userId, 60);
+    return { code, expiresIn: 60 };
+  }
+
+  /** 用握手码换取新会话（用后即焚·单次）。攻击者无法伪造码（签发需登录态），故不产生会话注入。 */
+  async exchangeHandoffCode(code: string) {
+    if (!code) throw new BusinessException(ErrorCode.AUTH_TOKEN_INVALID, "握手码无效");
+    const userId = await this.redis.get(`handoff:${code}`);
+    if (!userId) throw new BusinessException(ErrorCode.AUTH_TOKEN_INVALID, "握手码无效或已过期");
+    await this.redis.del(`handoff:${code}`); // 单次消费，防重放
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { status: true } });
+    if (!user || user.status === "DISABLED") throw new BusinessException(ErrorCode.AUTH_TOKEN_INVALID, "账号不可用");
+    return this.generateTokenPair(userId);
+  }
+
   /** 使用 refreshToken 换取新的 accessToken（轮换刷新） */
   async refreshToken(refreshToken: string) {
     const userId = await this.redis.get(`refresh:${refreshToken}`);
@@ -396,9 +417,25 @@ export class AuthService {
         select: { id: true, status: true, shopName: true, shopLogo: true },
       }),
     ]);
+    // 商家身份 = 自营 owner 或 受雇操作员(MerchantMember·官方旗舰店多管理员场景)
+    let effectiveMerchant = merchant;
+    if (!effectiveMerchant) {
+      const membership = await this.prisma.merchantMember.findFirst({
+        where: { userId, status: "ACTIVE" },
+        select: { merchant: { select: { id: true, status: true, shopName: true, shopLogo: true } } },
+      });
+      effectiveMerchant = membership?.merchant ?? null;
+    }
     // 不回传支付密码哈希，仅暴露是否已设置的布尔值
-    const { paymentPasswordHash, ...rest } = user ?? {};
-    return { ...rest, paymentPasswordSet: !!paymentPasswordHash, permissions, merchant };
+    const { paymentPasswordHash, roles, ...rest } = user ?? {};
+    // 有 ACTIVE 商家（自营/受雇）则注入 MERCHANT 身份：个人中心"身份切换"统一从此进商家管理台，权限天然由此控制
+    const mergedRoles: Array<{ roleType: string; bindId: string | null }> = [
+      ...(roles ?? []).map((r) => ({ roleType: String(r.roleType), bindId: r.bindId ?? null })),
+      ...(effectiveMerchant && effectiveMerchant.status === "ACTIVE"
+        ? [{ roleType: "MERCHANT", bindId: effectiveMerchant.id }]
+        : []),
+    ];
+    return { ...rest, roles: mergedRoles, paymentPasswordSet: !!paymentPasswordHash, permissions, merchant: effectiveMerchant };
   }
 
   async updateProfile(userId: string, dto: UpdateProfileDto) {

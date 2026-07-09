@@ -891,7 +891,7 @@
       :title="editingChapter ? '编辑章节' : '添加章节'"
       width="700px"
       top="5vh"
-      @opened="initChapterEditor"
+      destroy-on-close
     >
       <el-form
         :model="chapterForm"
@@ -910,9 +910,11 @@
           <VodUpload v-model="chapterForm.mediaUrl" />
         </el-form-item>
         <el-form-item label="正文">
-          <div
-            ref="chapterEditorEl"
-            class="chapter-editor-box"
+          <RichEditor
+            v-model="chapterForm.content"
+            placeholder="章节正文..."
+            min-height="220px"
+            style="width: 100%"
           />
         </el-form-item>
         <el-row :gutter="12">
@@ -1163,9 +1165,7 @@ import { ElMessage } from 'element-plus'
 import { courseApi } from '@/api'
 import CosImageUpload from '@/components/upload/CosImageUpload.vue'
 import VodUpload from '@/components/upload/VodUpload.vue'
-// 本地打包 Quill（原用 window.Quill CDN 全局·fb7eba9f 去 CDN 后该全局不存在→章节编辑器不初始化，故改本地 import）
-import Quill from 'quill'
-import 'quill/dist/quill.snow.css'
+import RichEditor from '@/components/editor/RichEditor.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -1262,8 +1262,6 @@ const chapters = ref<ChapterRow[]>([])
 const chapterForm = reactive({ title: '', content: '', mediaUrl: '', duration: undefined as number | undefined, freeTrial: false, sortOrder: 0 })
 const chapterDialog = ref(false)
 const editingChapter = ref<ChapterRow | null>(null)
-const chapterEditorEl = ref<HTMLElement | null>(null)
-let chapterQuill: any = null // Quill 富文本编辑器实例，保留 any
 
 // ─── 学员管理 ───
 const students = ref<StudentRow[]>([])
@@ -1435,18 +1433,11 @@ function openChapterDialog(ch?: ChapterRow) {
     editingChapter.value = null
     Object.assign(chapterForm, { title: '', content: '', mediaUrl: '', duration: undefined, freeTrial: false, sortOrder: chapters.value.length + 1 })
   }
-  // 编辑器在 el-dialog @opened（内容渲染完成后）初始化，避免 nextTick 时 chapterEditorEl 未挂载→首次打开不能编辑
   chapterDialog.value = true
 }
 
 async function saveChapter() {
   if (!isEdit.value) { await save() }
-  if (chapterQuill) {
-    chapterForm.content = chapterQuill.root.innerHTML
-  } else if (!chapterForm.content) {
-    ElMessage.warning("编辑器未就绪，请刷新页面后重试")
-    return
-  }
   const payload = { ...chapterForm }
   if (editingChapter.value) {
     await courseApi.updateChapter(courseId, editingChapter.value.id, payload)
@@ -1462,18 +1453,6 @@ async function deleteChapter(chapterId: string) {
   await courseApi.deleteChapter(courseId, chapterId)
   ElMessage.success('已删除')
   await loadChapters()
-}
-
-function initChapterEditor() {
-  if (!chapterEditorEl.value) return
-  if (chapterQuill) { chapterQuill.root.innerHTML = chapterForm.content || ''; return }
-  chapterQuill = new Quill(chapterEditorEl.value, {
-    theme: 'snow',
-    modules: { toolbar: [['bold', 'italic', 'underline'], [{ header: 1 }, { header: 2 }], [{ list: 'ordered' }, { list: 'bullet' }], ['blockquote', 'code-block'], ['link'], ['clean']] },
-    placeholder: '章节正文...',
-  })
-  chapterQuill.root.innerHTML = chapterForm.content || ''
-  chapterQuill.on('text-change', () => { chapterForm.content = chapterQuill.root.innerHTML })
 }
 
 // ─── 学员操作 ───
@@ -1647,7 +1626,6 @@ watch(activeTab, (tab) => {
 .cover-remove { position: absolute; top: 4px; right: 4px; }
 .cover-placeholder { width: 100%; aspect-ratio: 16/10; border: 2px dashed #E8E0D5; border-radius: 4px; display: flex; align-items: center; justify-content: center; color: var(--color-text-placeholder); font-size: 13px; margin-bottom: 8px; }
 .cover-input-row { display: flex; gap: 4px; }
-.chapter-editor-box { min-height: 200px; max-height: 400px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px; }
 .stat-card { background: var(--color-bg-card); border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); text-align: center; margin-bottom: 16px; }
 .stat-label { font-size: 13px; color: var(--color-text-secondary); margin-bottom: 8px; }
 .stat-value { font-size: 28px; font-weight: 700; color: var(--color-primary); }

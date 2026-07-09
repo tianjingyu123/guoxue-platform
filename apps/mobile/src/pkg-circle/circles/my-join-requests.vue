@@ -75,6 +75,7 @@ onMounted(load)
         <view class="mjr-body">
           <text class="mjr-name">{{ r.circleName }}</text>
           <text class="mjr-time">申请于 {{ fmtDate(r.createdAt) }}</text>
+          <text v-if="r.status === 'REJECTED' && r.rejectReason" class="mjr-reject">拒绝原因：{{ r.rejectReason }}</text>
         </view>
         <view class="mjr-status">
           <app-icon :name="statusInfo(r.status).icon" :size="26" :color="statusInfo(r.status).color" />
@@ -105,6 +106,7 @@ onMounted(load)
 .mjr-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 10rpx; }
 .mjr-name { font-size: 28rpx; font-weight: 500; color: #2C2C2C; }
 .mjr-time { font-size: 22rpx; color: #999999; }
+.mjr-reject { font-size: 22rpx; color: #DC2626; line-height: 1.4; }
 .mjr-status { display: flex; flex-direction: column; align-items: center; gap: 6rpx; flex-shrink: 0; }
 .mjr-status-t { font-size: 22rpx; }
 .mjr-bottom-pad { height: 40rpx; }

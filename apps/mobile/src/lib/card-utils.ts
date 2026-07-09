@@ -30,6 +30,8 @@ export interface ProductCardData {
   rating?: number
   /** 高转化标:秒杀 / 热销 / 新品 */
   tag?: string
+  /** 官方自营（归属官方旗舰店）→ 卡片显示「官方自营」角标 */
+  isOfficialSelfOwned?: boolean
 }
 
 export interface CourseCardData {

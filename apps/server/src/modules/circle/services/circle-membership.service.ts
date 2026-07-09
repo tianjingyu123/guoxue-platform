@@ -102,7 +102,7 @@ export class CircleMembershipService {
    */
   async getMyJoinRequests(userId: string) {
     return this.prisma.$queryRawUnsafe<any[]>(
-      `SELECT r."id", r."circleId", r."status", r."message", r."reviewedAt", r."createdAt",
+      `SELECT r."id", r."circleId", r."status", r."message", r."reviewedAt", r."rejectReason", r."createdAt",
               c."name" AS "circleName", c."cover" AS "circleCover"
        FROM "CircleJoinRequest" r
        LEFT JOIN "Circle" c ON c.id = r."circleId"

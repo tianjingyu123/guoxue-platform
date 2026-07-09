@@ -24,7 +24,7 @@ function open() { navigateTo(`/mall/product/${props.data.id}`) }
   <view class="card" hover-class="card-press" @tap="open">
     <view class="cover" :class="ratio === '1:1' ? 'r-sq' : 'r-34'">
       <smart-cover class="cover-img" :src="data.cover" :title="data.title" type="product" />
-      <text class="type-badge">好物</text>
+      <text class="type-badge" :class="{ 'official-badge': data.isOfficialSelfOwned }">{{ data.isOfficialSelfOwned ? '官方自营' : '好物' }}</text>
       <text v-if="kind" class="hot-badge" :class="kind === 'new' ? 'hot-new' : 'hot-red'">{{ hotText }}</text>
     </view>
     <view class="body">
@@ -50,6 +50,7 @@ function open() { navigateTo(`/mall/product/${props.data.id}`) }
 .r-sq { padding-bottom: 100%; }
 .cover-img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
 .type-badge { position: absolute; top: 16rpx; left: 16rpx; z-index: 10; font-size: 20rpx; padding: 2rpx 14rpx; border-radius: 999rpx; color: rgba(255,255,255,0.95); font-weight: 500; background: rgba(0,0,0,0.45); }
+.official-badge { background: var(--brand); color: #fff; font-weight: 600; }
 .hot-badge { position: absolute; top: 16rpx; right: 16rpx; z-index: 10; font-size: 20rpx; padding: 2rpx 14rpx; border-radius: 999rpx; font-weight: 500; }
 .hot-red { background: var(--brand); color: #fff; }
 .hot-new { background: rgba(0,0,0,0.45); color: rgba(255,255,255,0.95); }

@@ -84,6 +84,43 @@ function refreshAccessToken(): Promise<boolean> {
   return _refreshing
 }
 
+/**
+ * 跨端无感登录握手就绪门：默认已就绪（不阻塞正常启动）。
+ * App.vue 若在 URL 检测到一次性握手码，调用 beginAuthHandoff() 临时"上闩"，
+ * 换取会话完成后放行——避免握手完成前的业务请求带着空/旧 token 打出去 401。
+ */
+let _authReady: Promise<void> = Promise.resolve()
+export function beginAuthHandoff(): () => void {
+  let release!: () => void
+  _authReady = new Promise<void>((r) => { release = r })
+  return release
+}
+
+/**
+ * 用一次性握手码换取新会话（直连后端·不走 apiFetch 以免自等门）。
+ * 安全：握手码由后端登录态签发、60s 单次，URL 里不再出现可复用的 bearer token。
+ */
+export function exchangeHandoff(code: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    uni.request({
+      url: `${BASE_URL}${PREFIX}/auth/handoff/exchange`,
+      method: 'POST',
+      data: { code },
+      header: { 'Content-Type': 'application/json' },
+      timeout: TIMEOUT,
+      success: (res) => {
+        const body = res.data as ApiResponse<{ accessToken?: string; refreshToken?: string }>
+        if (res.statusCode === 200 && body?.code === 200 && body.data?.accessToken) {
+          setToken(body.data.accessToken)
+          if (body.data.refreshToken) setRefreshToken(body.data.refreshToken)
+          resolve(true)
+        } else resolve(false)
+      },
+      fail: () => resolve(false),
+    })
+  })
+}
+
 function buildHeader(custom?: Record<string, string>): Record<string, string> {
   const token = getToken()
   return {
@@ -95,6 +132,8 @@ function buildHeader(custom?: Record<string, string>): Record<string, string> {
 
 function apiFetch<T>(path: string, method: Method, data?: unknown, header?: Record<string, string>, _retried = false): Promise<T> {
   return new Promise((resolve, reject) => {
+    // 等待握手就绪门（正常启动立即通过；仅在 URL 握手码换会话期间短暂等待）
+    _authReady.then(() => {
     uni.request({
       url: `${BASE_URL}${PREFIX}${path}`,
       method,
@@ -134,6 +173,7 @@ function apiFetch<T>(path: string, method: Method, data?: unknown, header?: Reco
         }
         reject(new Error(err.errMsg || '网络错误'))
       },
+    })
     })
   })
 }

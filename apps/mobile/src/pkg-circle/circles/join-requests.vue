@@ -61,15 +61,23 @@ function toggleExpand(id: string) { expandedId.value = expandedId.value === id ?
 
 async function review(req: JoinRequestItem, action: 'approve' | 'reject') {
   if (submittingId.value) return // 防重复提交
+  let rejectReason: string | undefined
   if (action === 'reject') {
-    const res = await new Promise<boolean>((resolve) => {
-      uni.showModal({ title: '拒绝申请', content: `确认拒绝「${req.userNickname}」的入圈申请？`, success: (r) => resolve(!!r.confirm) })
+    const res = await new Promise<{ confirm: boolean; content: string }>((resolve) => {
+      uni.showModal({
+        title: '拒绝申请',
+        editable: true, // 可填拒绝原因（反馈给申请人）
+        placeholderText: `拒绝「${req.userNickname}」的原因（可选）`,
+        success: (r) => resolve({ confirm: !!r.confirm, content: (r as unknown as { content?: string }).content || '' }),
+        fail: () => resolve({ confirm: false, content: '' }),
+      })
     })
-    if (!res) return
+    if (!res.confirm) return
+    rejectReason = res.content
   }
   submittingId.value = req.id
   try {
-    await growthApi.reviewJoinRequest(circleId.value, req.id, action)
+    await growthApi.reviewJoinRequest(circleId.value, req.id, action, rejectReason)
     uni.showToast({ title: action === 'approve' ? '已通过' : '已拒绝', icon: 'success' })
     await loadRequests()
   } catch (e) {
@@ -164,6 +172,9 @@ async function review(req: JoinRequestItem, action: 'approve' | 'reject') {
           </view>
           <view v-if="req.message" class="jr-reason">
             <text class="jr-reason-label">申请理由：</text><text class="jr-reason-text">{{ req.message }}</text>
+          </view>
+          <view v-if="req.status === 'REJECTED' && req.rejectReason" class="jr-reason">
+            <text class="jr-reason-label jr-red">拒绝原因：</text><text class="jr-reason-text">{{ req.rejectReason }}</text>
           </view>
           <view v-if="expandedId === req.id" class="jr-detail">
             <text class="jr-detail-line">申请时间：{{ fullTime(req.createdAt) }}</text>

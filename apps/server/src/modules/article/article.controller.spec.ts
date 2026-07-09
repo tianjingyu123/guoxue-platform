@@ -37,12 +37,19 @@ describe("ArticleController", () => {
 
   beforeEach(() => { jest.clearAllMocks(); });
 
-  it("POST /articles/circles/:circleId — 创建文章", async () => {
+  it("POST /articles/circles/:circleId — 创建文章（非管理员 isAdmin=false）", async () => {
     const req: any = { user: { id: "u1" } };
     const dto: any = { title: "国学入门", content: "..." };
     const result: any = await ctrl.create("circle1", req, dto);
     expect(result.id).toBe("a1");
-    expect(mockArticleSvc.create).toHaveBeenCalledWith("circle1", "u1", dto);
+    expect(mockArticleSvc.create).toHaveBeenCalledWith("circle1", "u1", dto, false);
+  });
+
+  it("POST /articles/circles/:circleId — 管理员创建传 isAdmin=true（免审）", async () => {
+    const req: any = { user: { id: "u1", roles: ["SUPER_ADMIN"] } };
+    const dto: any = { title: "官方文章", content: "..." };
+    await ctrl.create("circle1", req, dto);
+    expect(mockArticleSvc.create).toHaveBeenCalledWith("circle1", "u1", dto, true);
   });
 
   it("GET /articles — 文章列表", async () => {

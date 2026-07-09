@@ -163,7 +163,7 @@ function goCart() { navigateTo('/shop/cart') }
         <text class="price-orig">¥{{ formatPrice(product.originalPrice) }}</text>
         <text class="price-off">{{ discount }}% OFF</text>
       </view>
-      <text class="p-title">{{ product.title }}</text>
+      <text class="p-title"><text v-if="product.isOfficialSelfOwned" class="p-official">官方自营</text>{{ product.title }}</text>
       <text class="p-sub">{{ product.subtitle }}</text>
       <view class="p-meta">
         <text>销量 {{ product.sales }}</text>
@@ -316,6 +316,7 @@ function goCart() { navigateTo('/shop/cart') }
 .price-orig { font-size: 24rpx; color: var(--text-soft); text-decoration: line-through; }
 .price-off { font-size: 20rpx; padding: 2rpx 12rpx; border-radius: 8rpx; background: rgba(196,30,58,0.1); color: var(--brand); }
 .p-title { display: block; font-size: 34rpx; font-weight: 600; color: var(--text-strong); margin-top: 18rpx; line-height: 1.4; }
+.p-official { display: inline-block; font-size: 22rpx; font-weight: 600; color: #fff; background: var(--brand); padding: 2rpx 12rpx; border-radius: 8rpx; margin-right: 10rpx; vertical-align: middle; }
 .p-sub { display: block; font-size: 26rpx; color: var(--text-soft); margin-top: 6rpx; }
 .p-meta { display: flex; gap: 28rpx; margin-top: 18rpx; font-size: 22rpx; color: var(--text-soft); }
 .coupon-entry { display: flex; align-items: center; justify-content: space-between; margin-top: 18rpx; padding: 14rpx 18rpx; border-radius: 12rpx; background: rgba(196,30,58,0.05); border: 1rpx solid rgba(196,30,58,0.2); }

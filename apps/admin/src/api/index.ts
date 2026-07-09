@@ -977,6 +977,10 @@ export const merchantApi = {
     api.get("/admin/merchants", { params }),
   detail: (id: string) => api.get(`/admin/merchants/${id}`),
   stats: (id: string) => api.get(`/admin/merchants/${id}/stats`),
+  // 操作员管理（多操作员·官方旗舰店）
+  listMembers: (id: string) => api.get(`/admin/merchants/${id}/members`),
+  addMember: (id: string, data: { phone: string }) => api.post(`/admin/merchants/${id}/members`, data),
+  removeMember: (id: string, userId: string) => api.delete(`/admin/merchants/${id}/members/${userId}`),
   approve: (id: string, data: { depositAmount?: number; commissionRate?: number; remark?: string }) =>
     api.post(`/admin/merchants/${id}/approve`, data),
   reject: (id: string, data: { reason: string }) =>

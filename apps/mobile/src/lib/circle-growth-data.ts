@@ -91,6 +91,7 @@ export interface JoinRequestItem {
   message: string
   reviewedBy: string | null
   reviewedAt: string | null
+  rejectReason: string | null
   createdAt: string
   userNickname: string
   userAvatar: string
@@ -103,6 +104,7 @@ export interface MyJoinRequestItem {
   status: 'PENDING' | 'APPROVED' | 'REJECTED'
   message: string
   reviewedAt: string | null
+  rejectReason: string | null
   createdAt: string
   circleName: string
   circleCover: string
@@ -131,6 +133,7 @@ interface RawJoinRequest {
   message?: string
   reviewedBy?: string | null
   reviewedAt?: string | null
+  rejectReason?: string | null
   createdAt: string
   userNickname?: string
   userAvatar?: string
@@ -142,6 +145,7 @@ interface RawMyJoinRequest {
   status: 'PENDING' | 'APPROVED' | 'REJECTED'
   message?: string
   reviewedAt?: string | null
+  rejectReason?: string | null
   createdAt: string
   circleName?: string
   circleCover?: string
@@ -183,6 +187,7 @@ export const growthApi = {
       message: x.message ?? '',
       reviewedBy: x.reviewedBy ?? null,
       reviewedAt: x.reviewedAt ?? null,
+      rejectReason: x.rejectReason ?? null,
       createdAt: x.createdAt,
       userNickname: x.userNickname ?? '用户',
       userAvatar: x.userAvatar ?? '',
@@ -190,8 +195,8 @@ export const growthApi = {
   },
 
   /** 审批入圈申请（圈主权限） — POST /circles/:id/join-requests/:reqId/review */
-  reviewJoinRequest: (circleId: string, reqId: string, action: 'approve' | 'reject') =>
-    apiPost(`/circles/${circleId}/join-requests/${reqId}/review`, { action }),
+  reviewJoinRequest: (circleId: string, reqId: string, action: 'approve' | 'reject', rejectReason?: string) =>
+    apiPost(`/circles/${circleId}/join-requests/${reqId}/review`, { action, rejectReason }),
 
   /** 我的入圈申请列表（申请人视角） — GET /circles/my-join-requests */
   myJoinRequests: async (): Promise<MyJoinRequestItem[]> => {
@@ -201,6 +206,7 @@ export const growthApi = {
       status: x.status,
       message: x.message ?? '',
       reviewedAt: x.reviewedAt ?? null,
+      rejectReason: x.rejectReason ?? null,
       createdAt: x.createdAt,
       circleName: x.circleName ?? '圈子',
       circleCover: x.circleCover ?? '',

@@ -38,9 +38,9 @@
                 </view>
                 <text v-if="i === 0" class="pe-img-cover">封面</text>
               </view>
-              <view v-if="form.images.length < 9" class="pe-img-add" @tap="onUploadImage">
+              <view v-if="form.images.length < 9" class="pe-img-add" :class="{ disabled: uploadingImg }" @tap="onUploadImage">
                 <AppIcon name="plus" :size="28" color="#9ca3af" />
-                <text class="pe-img-add-txt">添加图片</text>
+                <text class="pe-img-add-txt">{{ uploadingImg ? '上传中…' : '添加图片' }}</text>
               </view>
             </view>
           </view>
@@ -166,6 +166,7 @@ import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import PricingReferenceCard from '@/components/pricing-reference-card.vue'
 import { navigateTo, goBack } from '@/utils/router'
+import { chooseAndUploadImage } from '@/utils/request'
 import { merchantBackendApi, productCategories } from '@/lib/merchant-data'
 
 const statusBarHeight = ref(0)
@@ -179,6 +180,7 @@ const newTag = ref('')
 const loading = ref(false)
 const error = ref('')
 const submitting = ref(false)
+const uploadingImg = ref(false)
 
 const form = ref({
   images: [] as string[],
@@ -223,9 +225,20 @@ onLoad((opts) => {
   }
 })
 
-// 图片上传暂未开放，先降级提示
-function onUploadImage() {
-  uni.showToast({ title: '图片上传功能即将开放', icon: 'none' })
+// 选图并上传到 COS，成功后加入图片列表（首图为封面）
+async function onUploadImage() {
+  if (uploadingImg.value) return
+  if (form.value.images.length >= 9) { uni.showToast({ title: '最多上传9张图片', icon: 'none' }); return }
+  uploadingImg.value = true
+  try {
+    const url = await chooseAndUploadImage()
+    if (url) form.value.images.push(url)
+  } catch (e) {
+    const msg = (e as Error)?.message
+    if (msg && msg !== '已取消') uni.showToast({ title: msg || '上传失败，请重试', icon: 'none' })
+  } finally {
+    uploadingImg.value = false
+  }
 }
 function removeImage(i: number) {
   form.value.images.splice(i, 1)
@@ -305,6 +318,7 @@ async function onSubmit() {
 .pe-img { background: #f3f0ea; overflow: hidden; }
 .pe-img-pic { width: 100%; height: 100%; }
 .pe-img-add { border: 2px dashed #e5e5e5; }
+.pe-img-add.disabled { opacity: 0.5; }
 .pe-img-del { position: absolute; top: 4px; right: 4px; width: 22px; height: 22px; border-radius: 50%; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; }
 .pe-img-cover { position: absolute; bottom: 4px; left: 4px; font-size: 10px; color: #fff; background: var(--brand); padding: 1px 6px; border-radius: 4px; }
 .pe-img-add-txt { font-size: 12px; color: #9ca3af; margin-top: 4px; }

@@ -15,6 +15,7 @@ import {
   SetCommissionRateDto, PaySettlementDto, GenerateSettlementDto, SettlementListQueryDto,
   CreateAgreementDto, UpdateAgreementDto, PaginationDto,
   CreatePunishmentDto, PunishmentListQueryDto, RevokePunishmentDto,
+  AddMerchantMemberDto,
 } from "./merchant.dto";
 import { Auditable } from "../../common/audit.decorator";
 
@@ -119,6 +120,32 @@ export class MerchantAdminController {
   @ApiResponse({ status: 404, description: "资源不存在" })
   getMerchantStats(@Param("id") id: string) {
     return this.merchantService.getMerchantStats(id);
+  }
+
+  // ── 操作员管理（多操作员·官方旗舰店：:id/members 二段路径不与 :id 冲突） ──
+
+  @Get(":id/members")
+  @ApiOperation({ summary: "商家操作员列表（店主+操作员）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  listMembers(@Param("id") id: string) {
+    return this.merchantService.listMembers(id);
+  }
+
+  @Post(":id/members")
+  @Auditable({ action: "商家操作员添加", targetType: "MERCHANT" })
+  @ApiOperation({ summary: "添加操作员（按手机号）" })
+  @ApiResponse({ status: 201, description: "添加成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败/手机号未注册" })
+  addMember(@Param("id") id: string, @Req() req: AuthRequest, @Body() dto: AddMerchantMemberDto) {
+    return this.merchantService.addMemberByPhone(id, dto.phone, req.user.id);
+  }
+
+  @Delete(":id/members/:userId")
+  @Auditable({ action: "商家操作员移除", targetType: "MERCHANT" })
+  @ApiOperation({ summary: "移除操作员" })
+  @ApiResponse({ status: 200, description: "移除成功" })
+  removeMember(@Param("id") id: string, @Param("userId") userId: string) {
+    return this.merchantService.removeMember(id, userId);
   }
 
   // ── 入驻审核 ──

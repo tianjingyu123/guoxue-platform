@@ -25,8 +25,8 @@
         v-for="t in (['post', 'article'] as const)"
         :key="t"
         class="type-item"
-        :class="{ active: type === t }"
-        @tap="type = t"
+        :class="{ active: type === t, disabled: t === 'article' && roleLoaded && !canPublishArticle }"
+        @tap="onSelectType(t)"
       >
         <text class="type-text" :class="{ active: type === t }">{{ t === 'post' ? '发帖' : '写文章' }}</text>
       </view>
@@ -286,6 +286,7 @@ import { ref, computed, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { navigateBack } from '@/utils/router'
 import { circleApi } from '@/lib/circle-data'
+import { circleDetailApi } from '@/lib/circle-detail-data'
 import { articleApi, tagApi } from '@/lib/article-data'
 import { publishAssistApi } from '@/lib/publish-assist-data'
 import CreationAssistDrawer from '@/components/circle/creation-assist-drawer.vue'
@@ -316,6 +317,27 @@ const coverPrompt = ref('')
 const saving = ref(false)
 const publishing = ref(false)
 
+// 发文章需圈主/合伙人/管理员（后端 ensureCircleAdmin）。前置查角色，非管理员只能发帖，避免写完才 403。
+const myRole = ref<string | null>(null)
+const roleLoaded = ref(false)
+const canPublishArticle = computed(() => ['OWNER', 'PARTNER', 'ADMIN'].includes(myRole.value || ''))
+
+async function refreshRole(circleId: string | null) {
+  roleLoaded.value = false
+  myRole.value = null
+  if (!circleId) { roleLoaded.value = true; return }
+  try {
+    const s = await circleDetailApi.getJoinStatus(circleId)
+    myRole.value = s.role
+  } catch {
+    myRole.value = null
+  } finally {
+    roleLoaded.value = true
+    // 已知不是管理员却停在文章模式时，回退到发帖
+    if (type.value === 'article' && !canPublishArticle.value) type.value = 'post'
+  }
+}
+
 const selectedCircleData = computed(() => circles.value.find(c => c.id === selectedCircle.value))
 const aiPanelTitle = computed(() => {
   const m: Record<string, string> = { title: '标题优化', tags: '标签推荐', cover: '生成封面' }
@@ -323,7 +345,10 @@ const aiPanelTitle = computed(() => {
 })
 
 onLoad((opts) => {
-  if (opts?.circleId) selectedCircle.value = opts.circleId
+  if (opts?.circleId) {
+    selectedCircle.value = opts.circleId
+    refreshRole(opts.circleId)
+  }
 })
 
 onMounted(() => {
@@ -381,6 +406,16 @@ function removeImage(i: number) { images.value.splice(i, 1) }
 function selectCircle(id: string) {
   selectedCircle.value = id
   showCircleSelect.value = false
+  refreshRole(id)
+}
+
+// 切换发帖/文章：非管理员选文章时拦下并提示
+function onSelectType(t: 'post' | 'article') {
+  if (t === 'article' && roleLoaded.value && !canPublishArticle.value) {
+    uni.showToast({ title: selectedCircle.value ? '仅圈主/管理员可发文章' : '请先选择圈子', icon: 'none' })
+    return
+  }
+  type.value = t
 }
 function toggleTopic(name: string) {
   const idx = selectedTopics.value.indexOf(name)
@@ -459,6 +494,7 @@ function validateBase(): boolean {
 async function handleSaveDraft() {
   if (saving.value) return
   if (!validateBase()) return
+  if (type.value === 'article' && !canPublishArticle.value) { uni.showToast({ title: '仅圈主/合伙人/管理员可发文章', icon: 'none' }); return }
   saving.value = true
   try {
     if (type.value === 'article') {
@@ -486,6 +522,7 @@ async function handleSaveDraft() {
 async function handlePublish() {
   if (publishing.value) return
   if (!validateBase()) return
+  if (type.value === 'article' && !canPublishArticle.value) { uni.showToast({ title: '仅圈主/合伙人/管理员可发文章', icon: 'none' }); return }
   if (type.value === 'article' && !title.value.trim()) { uni.showToast({ title: '请输入文章标题', icon: 'none' }); return }
   publishing.value = true
   try {
@@ -565,6 +602,7 @@ async function handlePublish() {
 }
 .type-item { padding-bottom: 8rpx; border-bottom: 4rpx solid transparent; }
 .type-item.active { border-bottom-color: var(--brand); }
+.type-item.disabled .type-text { color: #c4c4c4; }
 .type-text { font-size: 28rpx; font-weight: 500; color: #8a8a8a; }
 .type-text.active { color: var(--brand); }
 

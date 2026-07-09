@@ -28,13 +28,19 @@ export class MerchantBackendController {
     return (req as any).merchant;
   }
 
+  // 店铺归属统一取 owner 的 userId：这样操作员(非 owner)以店铺身份操作时，
+  // 商品/评价/通知等仍按店铺 owner 归属，既有 Product.userId→Merchant 反查链路不受影响。
+  private shopUserId(req: AuthRequest): string {
+    return this.getMerchant(req).userId;
+  }
+
   // ── 数据概览 ──
 
   @Get("dashboard")
   @ApiOperation({ summary: "商家数据概览" })
   @ApiResponse({ status: 200, description: "成功" })
   getDashboard(@Req() req: AuthRequest) {
-    return this.merchantService.getDashboard(req.user.id);
+    return this.merchantService.getDashboard(this.shopUserId(req));
   }
 
   // ── 店铺信息 ──
@@ -60,7 +66,7 @@ export class MerchantBackendController {
   @ApiOperation({ summary: "商品列表" })
   @ApiResponse({ status: 200, description: "成功" })
   listProducts(@Req() req: AuthRequest, @Query() q: ProductQueryDto) {
-    return this.merchantService.listProducts(req.user.id, q);
+    return this.merchantService.listProducts(this.shopUserId(req), q);
   }
 
   @Post("products")
@@ -68,7 +74,7 @@ export class MerchantBackendController {
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   createProduct(@Req() req: AuthRequest, @Body() dto: MerchantProductDto) {
-    return this.merchantService.createProduct(req.user.id, dto);
+    return this.merchantService.createProduct(this.shopUserId(req), dto);
   }
 
   @Get("products/:id")
@@ -76,7 +82,7 @@ export class MerchantBackendController {
   @ApiResponse({ status: 200, description: "成功" })
   @ApiResponse({ status: 404, description: "资源不存在" })
   getProduct(@Req() req: AuthRequest, @Param("id") id: string) {
-    return this.merchantService.getProduct(req.user.id, id);
+    return this.merchantService.getProduct(this.shopUserId(req), id);
   }
 
   @Put("products/:id")
@@ -86,7 +92,7 @@ export class MerchantBackendController {
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 404, description: "资源不存在" })
   updateProduct(@Req() req: AuthRequest, @Param("id") id: string, @Body() dto: Partial<MerchantProductDto>) {
-    return this.merchantService.updateProduct(req.user.id, id, dto);
+    return this.merchantService.updateProduct(this.shopUserId(req), id, dto);
   }
 
   @Delete("products/:id")
@@ -95,7 +101,7 @@ export class MerchantBackendController {
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 404, description: "资源不存在" })
   deleteProduct(@Req() req: AuthRequest, @Param("id") id: string) {
-    return this.merchantService.deleteProduct(req.user.id, id);
+    return this.merchantService.deleteProduct(this.shopUserId(req), id);
   }
 
   @Post("products/:id/list")
@@ -103,7 +109,7 @@ export class MerchantBackendController {
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   listProduct(@Req() req: AuthRequest, @Param("id") id: string) {
-    return this.merchantService.listProduct(req.user.id, id);
+    return this.merchantService.listProduct(this.shopUserId(req), id);
   }
 
   @Post("products/:id/unlist")
@@ -111,7 +117,7 @@ export class MerchantBackendController {
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   unlistProduct(@Req() req: AuthRequest, @Param("id") id: string) {
-    return this.merchantService.unlistProduct(req.user.id, id);
+    return this.merchantService.unlistProduct(this.shopUserId(req), id);
   }
 
   // ── 订单管理 ──
@@ -162,7 +168,7 @@ export class MerchantBackendController {
   @ApiOperation({ summary: "评价列表" })
   @ApiResponse({ status: 200, description: "成功" })
   listReviews(@Req() req: AuthRequest, @Query() q: ReviewQueryDto) {
-    return this.merchantService.listReviews(req.user.id, q);
+    return this.merchantService.listReviews(this.shopUserId(req), q);
   }
 
   @Post("reviews/:id/reply")
@@ -170,7 +176,7 @@ export class MerchantBackendController {
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   replyReview(@Req() req: AuthRequest, @Param("id") id: string, @Body() dto: ReplyReviewDto) {
-    return this.merchantService.replyReview(req.user.id, id, dto.reply);
+    return this.merchantService.replyReview(this.shopUserId(req), id, dto.reply);
   }
 
   // ── 收入概览 ──
@@ -268,7 +274,7 @@ export class MerchantBackendController {
   @ApiOperation({ summary: "平台通知列表" })
   @ApiResponse({ status: 200, description: "成功" })
   getNotices(@Req() req: AuthRequest) {
-    return this.merchantService.getNotices(req.user.id);
+    return this.merchantService.getNotices(this.shopUserId(req));
   }
 
   @Get("inquiries")

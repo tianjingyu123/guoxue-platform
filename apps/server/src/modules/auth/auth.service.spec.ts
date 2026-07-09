@@ -20,6 +20,7 @@ const mockPrisma = {
   station: { findUnique: jest.fn() },
   referralRelation: { create: jest.fn() },
   merchant: { findUnique: jest.fn() },
+  merchantMember: { findFirst: jest.fn() },
 };
 
 const mockJwt = { sign: jest.fn() };
@@ -183,6 +184,34 @@ describe("AuthService", () => {
       mockPrisma.merchant.findUnique.mockResolvedValue(null);
       const result = await svc.getProfile("user-1");
       expect(result).toEqual({ ...profile, paymentPasswordSet: false, permissions: [], merchant: null });
+    });
+  });
+
+  describe("跨端无感登录握手码", () => {
+    it("签发握手码：写入 Redis(60s) 并返回 code", async () => {
+      const r = await svc.issueHandoffCode("user-1");
+      expect(typeof r.code).toBe("string");
+      expect(r.code.length).toBeGreaterThan(0);
+      expect(mockRedis.set).toHaveBeenCalledWith(`handoff:${r.code}`, "user-1", 60);
+    });
+
+    it("换取会话：有效码返回新 token 且单次消费(del)", async () => {
+      mockRedis.get.mockResolvedValueOnce("user-1");
+      mockPrisma.user.findUnique.mockResolvedValue({ status: "ACTIVE" });
+      mockJwt.sign.mockReturnValue("access-token");
+      const r = await svc.exchangeHandoffCode("good-code");
+      expect(mockRedis.del).toHaveBeenCalledWith("handoff:good-code");
+      expect(r.accessToken).toBe("access-token");
+      expect(r.refreshToken).toBeDefined();
+    });
+
+    it("换取会话：无效/过期码抛错，不签发", async () => {
+      mockRedis.get.mockResolvedValueOnce(null);
+      await expect(svc.exchangeHandoffCode("bad-code")).rejects.toThrow();
+    });
+
+    it("换取会话：空码抛错", async () => {
+      await expect(svc.exchangeHandoffCode("")).rejects.toThrow();
     });
   });
 

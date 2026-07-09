@@ -23,7 +23,7 @@ export class ArticleService {
     private audit: AuditService,
   ) {}
 
-  async create(circleId: string, userId: string, dto: CreateArticleDto) {
+  async create(circleId: string, userId: string, dto: CreateArticleDto, isAdmin = false) {
     // 验证是圈主或管理员
     await this.ensureCircleAdmin(circleId, userId);
 
@@ -44,6 +44,8 @@ export class ArticleService {
         tags: dto.tags,
         isPushHome: dto.isPushHome ?? false,
         stationId: dto.stationId || undefined,
+        // 平台管理员发文免审直接可见（对齐课程/商品的 admin 自动过审）
+        ...(isAdmin ? { auditStatus: "APPROVED" } : {}),
       },
     });
 
