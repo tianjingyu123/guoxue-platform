@@ -11,6 +11,8 @@ import { PipeTransform, Injectable, ArgumentMetadata } from "@nestjs/common";
  */
 const SKIP_FIELDS = new Set([
   "content", "text", "body", "description", "summary", "intro",
+  // detail：商品详情富文本(wangEditor HTML)，转义会变成 &lt;p&gt; 乱码 → C 端 rich-text 渲染成源码
+  "detail",
   "translation", "annotation", "excerpt", "evidence",
   "answer", "question",
   "url", "iiifUrl", "manifestUrl", "src", "href", "link", "cover", "path",

@@ -1518,7 +1518,7 @@ interface RawShopSku { id?: string; specs?: unknown; skuCode?: string; price?: n
 interface RawShopMerchant { id?: string; shopName?: string; shopLogo?: string | null; shopIntro?: string | null; rating?: number | string; totalSales?: number | string; totalOrders?: number | string; productCount?: number | string }
 interface RawShopProduct {
   id?: string; title?: string; intro?: string; detail?: string
-  images?: string[]; videoUrl?: string
+  images?: string[]; cover?: string; videoUrl?: string
   price?: number | string; effectivePrice?: number; originalPrice?: number | string
   salesCount?: number; stock?: number | string; tags?: string[]
   categoryLevel1?: string; hasPromotion?: boolean; promotionTag?: string
@@ -1569,7 +1569,8 @@ function adaptProductDetail(p: RawShopProduct): ProductDetail {
     id: p.id || '',
     title: p.title || '',
     subtitle: p.intro || '',
-    images: Array.isArray(p.images) ? p.images : [],
+    // 有 images 用 images(轮播)，否则退回单张 cover，避免顶部封面空白
+    images: (Array.isArray(p.images) && p.images.length) ? p.images : (p.cover ? [p.cover] : []),
     hasVideo: !!p.videoUrl,
     price,
     originalPrice: shopNum(p.originalPrice) || price,
@@ -1791,7 +1792,7 @@ function adaptProductCard(p: RawShopProduct): ProductCardData {
   return {
     id: p.id || '',
     title: p.title || '',
-    cover: p.images?.[0] || '',
+    cover: p.images?.[0] || p.cover || '', // 兼容只传 cover 未传 images 的商品，避免封面空白
     price: shopNum(p.effectivePrice ?? p.price),
     originalPrice: shopNum(p.originalPrice ?? p.price),
     sales: p.salesCount ?? 0,

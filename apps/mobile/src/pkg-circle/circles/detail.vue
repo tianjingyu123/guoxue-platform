@@ -31,6 +31,7 @@ const activities = ref<CircleActivity[]>([])
 const courses = ref<CircleCourse[]>([])
 const lives = ref<CircleLive[]>([])
 const circleProducts = ref<CircleProduct[]>([])
+const postedArticles = ref<CircleArticle[]>([])
 const isLoading = ref(true)
 const error = ref('')
 const activeTab = ref<'home' | 'posts' | 'essence' | 'members'>('home')
@@ -93,7 +94,7 @@ async function loadData() {
   isLoading.value = true
   error.value = ''
   try {
-    const [c, p, m, cols, arts, acts, crs, lvs, prds] = await Promise.all([
+    const [c, p, m, cols, arts, acts, crs, lvs, prds, pas] = await Promise.all([
       circleDetailApi.detail(circleId.value),
       circleDetailApi.posts(circleId.value),
       circleDetailApi.listMembers(circleId.value),
@@ -103,6 +104,7 @@ async function loadData() {
       circleDetailApi.courses(circleId.value),
       circleDetailApi.lives(circleId.value),
       circleDetailApi.products(circleId.value),
+      circleDetailApi.postedArticles(circleId.value),
     ])
     circle.value = c
     posts.value = p.data
@@ -113,6 +115,7 @@ async function loadData() {
     courses.value = crs
     lives.value = lvs
     circleProducts.value = prds
+    postedArticles.value = pas
     isJoined.value = c.isJoined
     // 详情端点无鉴权守卫→membership 恒空(isJoined/myRole 恒 false)，登录态下用鉴权的 join/status 覆盖权威加入态
     if (isLoggedIn()) {
@@ -422,6 +425,22 @@ function openAssistant() { navigateTo(`/pkg-circle/circles/assistant?circleId=${
               </view>
             </view>
           </scroll-view>
+        </view>
+
+        <!-- 圈内文章（真连 /articles?circleId=·修"发布的文章在文章板块看不到"） -->
+        <view v-if="postedArticles.length" class="cd-sec">
+          <view class="cd-sec-head">
+            <view class="cd-sec-title"><app-icon name="file-text" :size="28" color="#4A90D9" /><text class="cd-sec-label">圈内文章</text></view>
+          </view>
+          <view class="cd-article-list">
+            <view v-for="a in postedArticles" :key="a.id" class="cd-article-row" @tap="navigateTo(`/pkg-circle/articles/detail?id=${a.id}`)">
+              <image v-if="a.cover" lazy-load :src="a.cover" class="cd-article-thumb" mode="aspectFill" />
+              <view class="cd-article-info">
+                <text class="cd-article-t">{{ a.title }}</text>
+                <text class="cd-article-m">{{ a.author }}<text v-if="a.views"> · {{ a.views }}阅读</text></text>
+              </view>
+            </view>
+          </view>
         </view>
 
         <!-- 圈内直播（真连 /live/rooms?circleId=·往期/进行/预告） -->
@@ -744,6 +763,12 @@ function openAssistant() { navigateTo(`/pkg-circle/circles/assistant?circleId=${
 .cd-live-badge { position: absolute; top: 8rpx; left: 8rpx; font-size: 18rpx; color: #fff; padding: 2rpx 10rpx; border-radius: 6rpx; background: rgba(0,0,0,0.5); }
 .cd-live-badge.live { background: var(--brand, #C41E3A); }
 .cd-live-badge.upcoming { background: #FA8C16; }
+.cd-article-list { display: flex; flex-direction: column; gap: 20rpx; }
+.cd-article-row { display: flex; align-items: center; gap: 20rpx; }
+.cd-article-thumb { width: 120rpx; height: 90rpx; border-radius: 12rpx; flex-shrink: 0; background: #F2EFEA; }
+.cd-article-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8rpx; }
+.cd-article-t { font-size: 28rpx; color: var(--text-strong, #2c2c2c); line-height: 1.4; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cd-article-m { font-size: 22rpx; color: #999; }
 /* 圈主推荐电子书 */
 .cd-ebook-hint { font-size: 22rpx; color: #999; }
 .cd-ebook-manage { font-size: 24rpx; color: #2563eb; }

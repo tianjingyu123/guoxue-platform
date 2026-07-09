@@ -79,6 +79,7 @@ export interface CircleProduct { id: string; title: string; cover: string; price
 /** 后端 /courses、/live/rooms、/shop/products 列表项（仅声明本处访问到的字段·容错宽松） */
 interface RawCircleCourse { id?: string; title?: string; cover?: string; price?: number | string; user?: { nickname?: string } | null }
 interface RawCircleLive { id?: string; title?: string; cover?: string | null; status?: string; viewCount?: number; user?: { nickname?: string } | null }
+interface RawCircleArticle { id?: string; title?: string; cover?: string; createdAt?: string; viewCount?: number; likeCount?: number; isPushHome?: boolean; user?: { nickname?: string } | null }
 interface RawCircleProduct { id?: string; title?: string; cover?: string; images?: string[]; price?: number | string; effectivePrice?: number }
 
 export interface MemberBenefit { icon: string; title: string; desc: string }
@@ -321,6 +322,23 @@ export const circleDetailApi = {
         cover: c.cover ?? '',
         price: Number(c.price) || 0,
         teacher: c.user?.nickname ?? '',
+      }))
+    } catch { return [] }
+  },
+  /** 圈内已发布文章（真连 GET /articles?circleId=·成员/圈主发布的文章·修"文章板块看不到"）。失败降级空。 */
+  postedArticles: async (id: string): Promise<CircleArticle[]> => {
+    try {
+      const r = await apiGet<unknown>(`/articles?circleId=${id}&pageSize=6`)
+      const arr: RawCircleArticle[] = Array.isArray(r) ? r : ((r as { items?: RawCircleArticle[]; data?: RawCircleArticle[] })?.items ?? (r as { data?: RawCircleArticle[] })?.data ?? [])
+      return arr.map((a) => ({
+        id: String(a.id ?? ''),
+        title: a.title ?? '',
+        cover: a.cover ?? '',
+        author: a.user?.nickname ?? '',
+        publishedAt: a.createdAt ?? '',
+        views: Number(a.viewCount) || 0,
+        likes: Number(a.likeCount) || 0,
+        isFeatured: !!a.isPushHome,
       }))
     } catch { return [] }
   },

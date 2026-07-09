@@ -4,8 +4,6 @@ import { ref, computed } from 'vue'
 import { onLoad, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 import { useShare } from '@/composables/useShare'
 import AppIcon from '@/components/common/app-icon.vue'
-import GroupBuyInfoCard from '@/components/marketing/group-buy-info-card.vue'
-import CouponClaimCard from '@/components/marketing/coupon-claim-card.vue'
 import { navigateBack, navigateTo } from '@/utils/router'
 import { shopApi } from '@/lib/shop-data'
 import { track } from '@/composables/useTrack'
@@ -150,18 +148,15 @@ function goCart() { navigateTo('/shop/cart') }
       <view class="indicator">{{ swiperIndex + 1 }} / {{ product.images.length }}</view>
     </view>
 
-    <!-- 营销位 -->
-    <view class="mkt">
-      <GroupBuyInfoCard :group-price="48" :original-price="product.price" :people-needed="3" :current-people="1" />
-      <CouponClaimCard :amount="10" :threshold="99" />
-    </view>
-
     <!-- 价格区 -->
     <view class="card price-card">
       <view class="price-row">
         <text class="price-now">¥{{ formatPrice(product.price) }}</text>
-        <text class="price-orig">¥{{ formatPrice(product.originalPrice) }}</text>
-        <text class="price-off">{{ discount }}% OFF</text>
+        <!-- 划线价/折扣仅在有真实原价(高于售价)时显示，避免"¥2 ¥2 0% OFF"无意义展示 -->
+        <template v-if="product.originalPrice > product.price">
+          <text class="price-orig">¥{{ formatPrice(product.originalPrice) }}</text>
+          <text class="price-off">{{ discount }}% OFF</text>
+        </template>
       </view>
       <text class="p-title"><text v-if="product.isOfficialSelfOwned" class="p-official">官方自营</text>{{ product.title }}</text>
       <text class="p-sub">{{ product.subtitle }}</text>
@@ -236,13 +231,11 @@ function goCart() { navigateTo('/shop/cart') }
       <view class="view-all" hover-class="card-press" @tap="goReviews"><text class="view-all-text">查看全部评价</text><AppIcon name="chevron-right" :size="26" color="var(--text-soft)" /></view>
     </view>
 
-    <!-- 商品详情 -->
+    <!-- 商品详情（富文本 HTML·rich-text 渲染·含图文；去掉原硬编码"商品详情图"占位） -->
     <view class="card">
       <text class="card-title">商品详情</text>
-      <text class="desc">{{ product.description }}</text>
-      <view class="desc-imgs">
-        <view v-for="i in 3" :key="i" class="desc-img-ph"><text class="desc-img-text">商品详情图 {{ i }}</text></view>
-      </view>
+      <rich-text v-if="product.description" class="desc" :nodes="product.description" />
+      <text v-else class="desc desc-empty">暂无详情</text>
     </view>
 
     <!-- 推荐：经常一起购买 -->
