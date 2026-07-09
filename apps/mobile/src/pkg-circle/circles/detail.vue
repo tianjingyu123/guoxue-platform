@@ -14,7 +14,7 @@ import { getToken } from '@/utils/storage'
 import PurchaseSheet from '@/components/common/purchase-sheet.vue'
 import {
   circleDetailApi, memberBenefits,
-  type CircleDetail, type CirclePost, type CircleMember, type CircleColumn, type CircleArticle, type CircleActivity,
+  type CircleDetail, type CirclePost, type CircleMember, type CircleColumn, type CircleArticle, type CircleActivity, type CircleCourse, type CircleLive, type CircleProduct,
 } from '@/lib/circle-detail-data'
 import { recommendApi } from '@/lib/recommend-data'
 import type { RecommendItem } from '@/components/common/recommend-section.vue'
@@ -28,14 +28,21 @@ const members = ref<CircleMember[]>([])
 const columns = ref<CircleColumn[]>([])
 const circleArticles = ref<CircleArticle[]>([])
 const activities = ref<CircleActivity[]>([])
+const courses = ref<CircleCourse[]>([])
+const lives = ref<CircleLive[]>([])
+const circleProducts = ref<CircleProduct[]>([])
 const isLoading = ref(true)
 const error = ref('')
-const activeTab = ref<'home' | 'posts' | 'articles' | 'essence' | 'columns' | 'members'>('home')
+const activeTab = ref<'home' | 'posts' | 'essence' | 'members'>('home')
 const showAnnouncement = ref(true)
 const isJoined = ref(false)
 const applied = ref(false) // 需审批圈：本次会话已提交申请，按钮转「审核中」
-// 角色权限：按当前用户在该圈的真实角色判断（圈主=OWNER，管理入口仅圈主可见）
+// 角色权限：按当前用户在该圈的真实角色判断
 const isOwner = computed(() => circle.value?.myRole === 'OWNER')
+// 可创作(文章/课程/直播)：圈主/合伙人/管理员。普通成员只发帖(最短路径)，创作入口按权限显示。
+const canCreate = computed(() => ['OWNER', 'PARTNER', 'ADMIN'].includes(circle.value?.myRole || ''))
+// 可管理(进圈主管理台)：圈主/管理员
+const canManage = computed(() => ['OWNER', 'ADMIN'].includes(circle.value?.myRole || ''))
 const isLoggedIn = () => !!getToken()
 const likedPosts = ref<Set<string>>(new Set())
 const showBenefits = ref(false)
@@ -53,12 +60,11 @@ const joinButtonText = computed(() => {
   return `¥${c.price} 加入圈子`
 })
 
+// Tab 收敛：只保留有真实数据源的（文章/专栏后端未接入·空壳先删，接真数据后再恢复）
 const tabs = [
   { id: 'home', label: '首页' },
   { id: 'posts', label: '帖子' },
-  { id: 'articles', label: '文章' },
   { id: 'essence', label: '精华' },
-  { id: 'columns', label: '专栏' },
   { id: 'members', label: '成员' },
 ] as const
 
@@ -87,13 +93,16 @@ async function loadData() {
   isLoading.value = true
   error.value = ''
   try {
-    const [c, p, m, cols, arts, acts] = await Promise.all([
+    const [c, p, m, cols, arts, acts, crs, lvs, prds] = await Promise.all([
       circleDetailApi.detail(circleId.value),
       circleDetailApi.posts(circleId.value),
       circleDetailApi.listMembers(circleId.value),
       circleDetailApi.columns(circleId.value),
       circleDetailApi.articles(circleId.value),
       circleDetailApi.activities(circleId.value),
+      circleDetailApi.courses(circleId.value),
+      circleDetailApi.lives(circleId.value),
+      circleDetailApi.products(circleId.value),
     ])
     circle.value = c
     posts.value = p.data
@@ -101,6 +110,9 @@ async function loadData() {
     columns.value = cols
     circleArticles.value = arts
     activities.value = acts
+    courses.value = crs
+    lives.value = lvs
+    circleProducts.value = prds
     isJoined.value = c.isJoined
     // 详情端点无鉴权守卫→membership 恒空(isJoined/myRole 恒 false)，登录态下用鉴权的 join/status 覆盖权威加入态
     if (isLoggedIn()) {
@@ -208,7 +220,40 @@ function handleLikePost(postId: string) {
 function fmt(n: number) { return n.toLocaleString() }
 function openShare() { navigateTo(`/pkg-circle/common/share-poster?type=circle&targetId=${circleId.value}`) }
 function openPost(id: string) { navigateTo(`/pkg-circle/circles/post?circleId=${circleId.value}&id=${id}`) }
-function openPublish() { navigateTo(`/pkg-circle/circles/publish?circleId=${circleId.value}`) }
+// 发帖=人人最短路径：直接进发帖编辑器(默认发帖·文本/图片/视频)
+function openQuickPost() { navigateTo(`/pkg-circle/circles/editor?circleId=${circleId.value}`) }
+// 创作=有权限者专属：文章/课程/直播 菜单
+function openCreate() { navigateTo(`/pkg-circle/circles/publish?circleId=${circleId.value}`) }
+// 更多操作(退出/圈主管理)：从这里进，不占底部主操作位
+function openMore() {
+  const items: { label: string; act: () => void }[] = []
+  if (canManage.value) items.push({ label: '圈主管理', act: () => navigateTo(`/pkg-circle/circles/manage?id=${circleId.value}`) })
+  items.push({ label: '分享圈子', act: openShare })
+  if (isJoined.value && !isOwner.value) items.push({ label: '退出圈子', act: doLeave })
+  uni.showActionSheet({
+    itemList: items.map((i) => i.label),
+    success: (r) => items[r.tapIndex]?.act(),
+  })
+}
+function doLeave() {
+  const c = circle.value
+  if (c && c.type !== 'FREE') {
+    // 付费圈退出 → 退款引导流程
+    navigateTo(`/pkg-circle/circles/exit?id=${circleId.value}`)
+  } else {
+    // 免费圈退出 → 二次确认后直接退出
+    uni.showModal({
+      title: '退出圈子',
+      content: '确定退出该圈子吗？退出后将失去成员身份。',
+      confirmColor: '#C41E3A',
+      success: (r) => {
+        if (!r.confirm) return
+        isJoined.value = false
+        circleDetailApi.leave(circleId.value).catch(() => { isJoined.value = true; uni.showToast({ title: '退出失败', icon: 'none' }) })
+      },
+    })
+  }
+}
 function openAnnouncement() { navigateTo(`/pkg-circle/circles/announcements?id=1&circleId=${circleId.value}`) }
 function openUser(id: string) { navigateTo(`/pkg-circle/user/profile?id=${id}`) }
 function openRecommendEbook() { navigateTo(`/pkg-circle/circles/recommend-ebook?id=${circleId.value}`) }
@@ -359,6 +404,67 @@ function openAssistant() { navigateTo(`/pkg-circle/circles/assistant?circleId=${
           </view>
         </view>
 
+        <!-- 圈内课程（真连 /courses?circleId=·圈子变现展示） -->
+        <view v-if="courses.length" class="cd-sec">
+          <view class="cd-sec-head">
+            <view class="cd-sec-title"><app-icon name="graduation-cap" :size="28" color="#4A90D9" /><text class="cd-sec-label">圈内课程</text></view>
+          </view>
+          <scroll-view scroll-x class="cd-cols-scroll">
+            <view class="cd-cols-row">
+              <view v-for="crs in courses" :key="crs.id" class="cd-col" @tap="navigateTo(`/courses/${crs.id}`)">
+                <view class="cd-col-cover">
+                  <image lazy-load :src="crs.cover" class="cd-col-img" mode="aspectFill" />
+                </view>
+                <view class="cd-col-body">
+                  <text class="cd-col-title">{{ crs.title }}</text>
+                  <text class="cd-col-meta">{{ crs.teacher }}<text v-if="crs.price > 0" class="cd-col-price"> · ¥{{ formatPrice(crs.price) }}</text><text v-else class="cd-col-price"> · 免费</text></text>
+                </view>
+              </view>
+            </view>
+          </scroll-view>
+        </view>
+
+        <!-- 圈内直播（真连 /live/rooms?circleId=·往期/进行/预告） -->
+        <view v-if="lives.length" class="cd-sec">
+          <view class="cd-sec-head">
+            <view class="cd-sec-title"><app-icon name="radio" :size="28" color="#C41E3A" /><text class="cd-sec-label">圈内直播</text></view>
+          </view>
+          <scroll-view scroll-x class="cd-cols-scroll">
+            <view class="cd-cols-row">
+              <view v-for="lv in lives" :key="lv.id" class="cd-col" @tap="navigateTo(`/live/${lv.id}`)">
+                <view class="cd-col-cover">
+                  <image lazy-load :src="lv.cover" class="cd-col-img" mode="aspectFill" />
+                  <text class="cd-live-badge" :class="lv.status">{{ lv.status === 'live' ? '直播中' : lv.status === 'upcoming' ? '预告' : '回放' }}</text>
+                </view>
+                <view class="cd-col-body">
+                  <text class="cd-col-title">{{ lv.title }}</text>
+                  <text class="cd-col-meta">{{ lv.hostName }}</text>
+                </view>
+              </view>
+            </view>
+          </scroll-view>
+        </view>
+
+        <!-- 圈内好物（真连 /shop/products?circleId=·圈主选品） -->
+        <view v-if="circleProducts.length" class="cd-sec">
+          <view class="cd-sec-head">
+            <view class="cd-sec-title"><app-icon name="shopping-bag" :size="28" color="#FA8C16" /><text class="cd-sec-label">圈内好物</text></view>
+          </view>
+          <scroll-view scroll-x class="cd-cols-scroll">
+            <view class="cd-cols-row">
+              <view v-for="pr in circleProducts" :key="pr.id" class="cd-col" @tap="navigateTo(`/mall/product/${pr.id}`)">
+                <view class="cd-col-cover">
+                  <image lazy-load :src="pr.cover" class="cd-col-img" mode="aspectFill" />
+                </view>
+                <view class="cd-col-body">
+                  <text class="cd-col-title">{{ pr.title }}</text>
+                  <text class="cd-col-meta"><text class="cd-col-price">¥{{ formatPrice(pr.price) }}</text></text>
+                </view>
+              </view>
+            </view>
+          </scroll-view>
+        </view>
+
         <!-- 专栏推荐 -->
         <view v-if="columns.length" class="cd-sec">
           <view class="cd-sec-head">
@@ -429,42 +535,6 @@ function openAssistant() { navigateTo(`/pkg-circle/circles/assistant?circleId=${
         </view>
       </view>
 
-      <!-- 文章 Tab -->
-      <view v-else-if="activeTab === 'articles'" class="cd-post-list">
-        <template v-if="circleArticles.length">
-          <!-- 死入口大扫除：文章条目 → 文章详情页（真实已注册页，onLoad 接 ?id=） -->
-          <view v-for="a in circleArticles" :key="a.id" class="cd-article" @tap="navigateTo(`/pkg-circle/articles/detail?id=${a.id}`)">
-            <image lazy-load v-if="a.cover" :src="a.cover" class="cd-article-cover" mode="aspectFill" />
-            <view class="cd-article-main">
-              <view class="cd-article-title-row">
-                <text v-if="a.isFeatured" class="cd-article-feat">精选</text>
-                <text class="cd-article-title">{{ a.title }}</text>
-              </view>
-              <view class="cd-article-meta">
-                <text class="cd-article-meta-txt">{{ a.author }}</text>
-                <view class="cd-article-stat"><app-icon name="eye" :size="22" color="#999999" /><text class="cd-article-meta-txt">{{ a.views }}</text></view>
-                <view class="cd-article-stat"><app-icon name="heart" :size="22" color="#999999" /><text class="cd-article-meta-txt">{{ a.likes }}</text></view>
-              </view>
-            </view>
-          </view>
-        </template>
-        <view v-else class="cd-empty"><text class="cd-empty-txt">圈主还没有发布文章</text></view>
-      </view>
-
-      <!-- 专栏 Tab -->
-      <view v-else-if="activeTab === 'columns'" class="cd-col-grid">
-        <view v-for="col in columns" :key="col.id" class="cd-col-card" @tap="toastComingSoon">
-          <view class="cd-col-cover">
-            <image lazy-load :src="col.cover" class="cd-col-card-img" mode="aspectFill" />
-            <view v-if="col.isPremium" class="cd-col-lock"><app-icon name="lock" :size="20" color="#ffffff" /></view>
-          </view>
-          <view class="cd-col-body">
-            <text class="cd-col-title">{{ col.title }}</text>
-            <text class="cd-col-meta">{{ col.articles }}篇文章 · {{ col.views }}阅读</text>
-          </view>
-        </view>
-      </view>
-
       <!-- 成员 Tab -->
       <view v-else-if="activeTab === 'members'" class="cd-member-list">
         <view v-for="m in members" :key="m.id" class="cd-member" @tap="openUser(m.id)">
@@ -487,14 +557,24 @@ function openAssistant() { navigateTo(`/pkg-circle/circles/assistant?circleId=${
     <!-- 相关圈子推荐 -->
     <recommend-section title="相关圈子" :items="recItems" />
 
-    <!-- 底部操作栏 -->
+    <!-- 底部操作栏：未加入=加入/购买；已加入=发帖(人人最短路径)，创作(仅管理员)，更多(退出/管理) -->
     <view class="cd-foot">
-      <view class="cd-join" :class="{ joined: isJoined }" @tap="handleJoin">
-        <text class="cd-join-txt" :class="{ joined: isJoined }">{{ joinButtonText }}</text>
+      <!-- 未加入 -->
+      <view v-if="!isJoined" class="cd-join" @tap="handleJoin">
+        <text class="cd-join-txt">{{ joinButtonText }}</text>
       </view>
-      <view v-if="isJoined" class="cd-post-btn" @tap="openPublish">
-        <app-icon name="plus" :size="28" color="#ffffff" /><text class="cd-post-btn-txt">发帖</text>
-      </view>
+      <!-- 已加入 -->
+      <template v-else>
+        <view class="cd-foot-more" @tap="openMore">
+          <app-icon name="more-horizontal" :size="36" color="#666666" />
+        </view>
+        <view v-if="canCreate" class="cd-create-btn" @tap="openCreate">
+          <app-icon name="edit-3" :size="26" color="var(--brand, #C41E3A)" /><text class="cd-create-txt">创作</text>
+        </view>
+        <view class="cd-post-btn" @tap="openQuickPost">
+          <app-icon name="plus" :size="28" color="#ffffff" /><text class="cd-post-btn-txt">发帖</text>
+        </view>
+      </template>
     </view>
 
     <!-- 购买弹窗（圈子付费入圈，统一下单 type=CIRCLE） -->
@@ -660,6 +740,10 @@ function openAssistant() { navigateTo(`/pkg-circle/circles/assistant?circleId=${
 .cd-col-body { padding: 20rpx; }
 .cd-col-title { display: block; font-size: 26rpx; font-weight: 500; color: var(--text-ink, #2C2C2C); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cd-col-meta { display: block; font-size: 22rpx; color: #999; margin-top: 8rpx; }
+.cd-col-price { color: var(--brand, #C41E3A); font-weight: 500; }
+.cd-live-badge { position: absolute; top: 8rpx; left: 8rpx; font-size: 18rpx; color: #fff; padding: 2rpx 10rpx; border-radius: 6rpx; background: rgba(0,0,0,0.5); }
+.cd-live-badge.live { background: var(--brand, #C41E3A); }
+.cd-live-badge.upcoming { background: #FA8C16; }
 /* 圈主推荐电子书 */
 .cd-ebook-hint { font-size: 22rpx; color: #999; }
 .cd-ebook-manage { font-size: 24rpx; color: #2563eb; }
@@ -709,6 +793,10 @@ function openAssistant() { navigateTo(`/pkg-circle/circles/assistant?circleId=${
 .cd-join-txt.joined { color: #666; }
 .cd-post-btn { flex: 1; padding: 24rpx 0; border-radius: 999rpx; background: linear-gradient(to right, var(--brand), #E74C3C); box-shadow: 0 8rpx 24rpx rgba(196,30,58,0.3); display: flex; align-items: center; justify-content: center; gap: 8rpx; }
 .cd-post-btn-txt { font-size: 28rpx; font-weight: 500; color: #fff; }
+/* 已加入：更多 + 创作(仅管理员) + 发帖 */
+.cd-foot-more { width: 72rpx; height: 72rpx; flex-shrink: 0; display: flex; align-items: center; justify-content: center; border-radius: 999rpx; background: #F5F0E8; }
+.cd-create-btn { flex-shrink: 0; padding: 20rpx 28rpx; border-radius: 999rpx; border: 2rpx solid var(--brand, #C41E3A); display: flex; align-items: center; justify-content: center; gap: 8rpx; }
+.cd-create-txt { font-size: 28rpx; font-weight: 500; color: var(--brand, #C41E3A); }
 /* 会员弹窗 */
 .cd-mask { position: fixed; inset: 0; z-index: 60; background: rgba(0,0,0,0.5); display: flex; align-items: flex-end; }
 .cd-sheet { width: 100%; background: var(--card, #fff); border-radius: 48rpx 48rpx 0 0; overflow: hidden; }

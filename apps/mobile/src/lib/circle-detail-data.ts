@@ -73,6 +73,14 @@ export interface CircleArticle {
   publishedAt: string; views: number; likes: number; isFeatured: boolean
 }
 
+export interface CircleCourse { id: string; title: string; cover: string; price: number; teacher: string }
+export interface CircleLive { id: string; title: string; cover: string; hostName: string; status: 'live' | 'upcoming' | 'replay'; viewCount: number }
+export interface CircleProduct { id: string; title: string; cover: string; price: number }
+/** 后端 /courses、/live/rooms、/shop/products 列表项（仅声明本处访问到的字段·容错宽松） */
+interface RawCircleCourse { id?: string; title?: string; cover?: string; price?: number | string; user?: { nickname?: string } | null }
+interface RawCircleLive { id?: string; title?: string; cover?: string | null; status?: string; viewCount?: number; user?: { nickname?: string } | null }
+interface RawCircleProduct { id?: string; title?: string; cover?: string; images?: string[]; price?: number | string; effectivePrice?: number }
+
 export interface MemberBenefit { icon: string; title: string; desc: string }
 
 // ─── mock 数据（与原型完全一致） ───
@@ -302,6 +310,45 @@ export const circleDetailApi = {
   columns: async (_id: string): Promise<CircleColumn[]> => [],
   articles: async (_id: string): Promise<CircleArticle[]> => [],
   activities: async (_id: string): Promise<CircleActivity[]> => [],
+  /** 圈内课程（真连 GET /courses?circleId=·课程模型已有 circleId·圈子内变现展示）。失败降级空。 */
+  courses: async (id: string): Promise<CircleCourse[]> => {
+    try {
+      const r = await apiGet<unknown>(`/courses?circleId=${id}&pageSize=6`)
+      const arr: RawCircleCourse[] = Array.isArray(r) ? r : ((r as { items?: RawCircleCourse[]; courses?: RawCircleCourse[]; data?: RawCircleCourse[] })?.items ?? (r as { courses?: RawCircleCourse[] })?.courses ?? (r as { data?: RawCircleCourse[] })?.data ?? [])
+      return arr.map((c) => ({
+        id: String(c.id ?? ''),
+        title: c.title ?? '',
+        cover: c.cover ?? '',
+        price: Number(c.price) || 0,
+        teacher: c.user?.nickname ?? '',
+      }))
+    } catch { return [] }
+  },
+  /** 圈内直播（真连 GET /live/rooms?circleId=·含往期/进行/预告·LiveRoom 已有 circleId）。失败降级空。 */
+  lives: async (id: string): Promise<CircleLive[]> => {
+    try {
+      const r = await apiGet<unknown>(`/live/rooms?circleId=${id}&pageSize=8`)
+      const arr: RawCircleLive[] = Array.isArray(r) ? r : ((r as { rooms?: RawCircleLive[]; items?: RawCircleLive[]; data?: RawCircleLive[] })?.rooms ?? (r as { items?: RawCircleLive[] })?.items ?? (r as { data?: RawCircleLive[] })?.data ?? [])
+      return arr.map((v) => {
+        const u = String(v.status ?? '').toUpperCase()
+        const status: CircleLive['status'] = u === 'LIVING' ? 'live' : u === 'WAITING' ? 'upcoming' : 'replay'
+        return { id: String(v.id ?? ''), title: v.title ?? '', cover: v.cover ?? '', hostName: v.user?.nickname ?? '', status, viewCount: Number(v.viewCount) || 0 }
+      })
+    } catch { return [] }
+  },
+  /** 圈内商品（真连 GET /shop/products?circleId=·Product 已有 circleId·圈主选品展示）。失败降级空。 */
+  products: async (id: string): Promise<CircleProduct[]> => {
+    try {
+      const r = await apiGet<unknown>(`/shop/products?circleId=${id}&status=ON_SALE&pageSize=6`)
+      const arr: RawCircleProduct[] = Array.isArray(r) ? r : ((r as { products?: RawCircleProduct[]; items?: RawCircleProduct[]; data?: RawCircleProduct[] })?.products ?? (r as { items?: RawCircleProduct[] })?.items ?? (r as { data?: RawCircleProduct[] })?.data ?? [])
+      return arr.map((p) => ({
+        id: String(p.id ?? ''),
+        title: p.title ?? '',
+        cover: (Array.isArray(p.images) ? p.images[0] : p.cover) ?? '',
+        price: Number(p.effectivePrice ?? p.price) || 0,
+      }))
+    } catch { return [] }
+  },
   // 免费圈直接成员 {success}；需审批免费圈返回 {status:'pending',message}
   join: (id: string) => apiPost<{ success?: boolean; status?: string; message?: string }>(`/circles/${id}/join`),
   leave: (id: string) => apiPost<{ success: boolean }>(`/circles/${id}/leave`),

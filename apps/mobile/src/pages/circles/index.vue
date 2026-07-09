@@ -7,6 +7,7 @@
  * 我的: 数据卡片 + 我加入的圈子列表
  */
 import { ref, onMounted } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
 import BottomNav from '@/components/bottom-nav/bottom-nav.vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import SmartCover from '@/components/common/smart-cover.vue'
@@ -22,6 +23,13 @@ type Tab = 'discover' | 'feed' | 'mine'
 const category = ref('')
 const circles = ref<Circle[]>([])
 const myCircles = ref<Circle[]>([])
+// 已加入圈子的 id 集合（来自 my()）：用于给广场列表项正确标记「已加入」，
+// 修复"只有本次会话刚加入的显示已加入、早先加入的仍显示加入"的 bug。
+const joinedIds = ref<Set<string>>(new Set())
+function markJoined() {
+  if (!joinedIds.value.size) return
+  circles.value = circles.value.map((c) => (joinedIds.value.has(String(c.id)) ? { ...c, isJoined: true } : c))
+}
 const ranking = ref<RankingCircle[]>([])
 const upcomingLives = ref<UpcomingLive[]>([])
 const todayActivities = ref<TodayActivity[]>([])
@@ -44,6 +52,7 @@ async function loadCircles() {
   try {
     const res = await circleApi.list({ category: category.value })
     circles.value = res.data
+    markJoined() // 用已加入集合标记（分类切换重载后也保持正确的已加入态）
   } catch {
     error.value = true
     circles.value = []
@@ -63,6 +72,9 @@ async function loadExtras() {
     circleApi.getMyStats(),
   ])
   myCircles.value = myRes.status === 'fulfilled' ? myRes.value : []
+  // 建立已加入 id 集合并回标广场列表（list 与 my 并行加载，谁后到都再标一次，保证一致）
+  joinedIds.value = new Set(myCircles.value.map((c) => String(c.id)))
+  markJoined()
   ranking.value = rankRes.status === 'fulfilled' ? rankRes.value : []
   upcomingLives.value = liveRes.status === 'fulfilled' ? liveRes.value : []
   todayActivities.value = actRes.status === 'fulfilled' ? actRes.value : []
@@ -81,10 +93,12 @@ async function handleJoin(id: string) {
   const idx = circles.value.findIndex(c => c.id === id)
   if (idx < 0) return
   circles.value[idx] = { ...circles.value[idx], isJoined: true, members: circles.value[idx].members + 1 }
+  joinedIds.value.add(String(id))
   try {
     await circleApi.join(id)
   } catch {
     circles.value[idx] = { ...circles.value[idx], isJoined: false, members: circles.value[idx].members - 1 }
+    joinedIds.value.delete(String(id))
   }
 }
 
@@ -101,6 +115,12 @@ function activityTypeColor(t: string) {
 function go(url: string) { navigateTo(url) }
 
 onMounted(() => { loadCircles(); loadExtras() })
+// 返回本页时刷新"已加入"态（在圈子详情页加入/退出后回来即时反映·首次由 onMounted 加载故跳过）
+let _firstShow = true
+onShow(() => {
+  if (_firstShow) { _firstShow = false; return }
+  loadExtras()
+})
 </script>
 
 <template>
@@ -216,9 +236,9 @@ onMounted(() => { loadCircles(); loadExtras() })
             </view>
           </view>
 
-          <!-- 我加入的圈子 -->
-          <view class="mine-list-head" @tap="go('/pkg-circle/circles/mine')">
-            <text class="mine-list-title">我加入的圈子</text>
+          <!-- 我的圈子（统一入口·含我加入/我创建管理·带管理入口） -->
+          <view class="mine-list-head" @tap="go('/pkg-circle/my-circles/index')">
+            <text class="mine-list-title">我的圈子</text>
             <view class="mine-list-more">
               <text class="mine-list-count">{{ myCircles.length }}个</text>
               <app-icon name="chevron-right" :size="28" color="#999999" />

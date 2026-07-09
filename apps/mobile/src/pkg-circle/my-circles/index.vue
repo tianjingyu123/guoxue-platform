@@ -13,11 +13,8 @@
       <!-- 数据概览卡片 -->
       <view class="overview-card">
         <view class="overview-head">
-          <text class="overview-title">我的圈子数据</text>
-          <view class="overview-detail" @tap="navigateTo('/circles/stats')">
-            <text class="overview-detail-text">详情</text>
-            <AppIcon name="chevron-right" :size="14" color="rgba(255,255,255,0.7)" />
-          </view>
+          <!-- 语义澄清：这是「我在所有圈子的参与聚合」，不是某个具体圈子的数据（单圈数据在圈主管理里看） -->
+          <text class="overview-title">我的参与概览</text>
         </view>
         <view class="overview-stats">
           <view class="stat-item">
@@ -155,9 +152,9 @@
 
           <view class="circle-right">
             <view
-              v-if="circle.role === 'owner'"
+              v-if="circle.role === 'owner' || circle.role === 'admin'"
               class="manage-btn"
-              @tap.stop="navigateTo(`/circles/${circle.id}/manage`)"
+              @tap.stop="navigateTo(`/pkg-circle/circles/manage?id=${circle.id}`)"
             >
               <AppIcon name="settings" :size="16" color="#666" />
             </view>

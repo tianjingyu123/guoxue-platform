@@ -206,11 +206,12 @@ export class ShopProductService {
   }
 
   async listProducts(dto: ProductListQueryDto) {
-    const { categoryId, status, stationId, keyword, categoryLevel1, priceMin, priceMax, sort } = dto;
+    const { categoryId, status, stationId, circleId, keyword, categoryLevel1, priceMin, priceMax, sort } = dto;
     const { page, pageSize, skip } = safePagination(dto.page, dto.pageSize);
 
     const where: Prisma.ProductWhereInput = {};
     if (categoryId) where.categoryId = categoryId;
+    if (circleId) where.circleId = circleId;
     if (status) where.status = status;
     if (stationId) where.stationId = stationId;
     if (keyword) where.title = { contains: keyword, mode: "insensitive" };

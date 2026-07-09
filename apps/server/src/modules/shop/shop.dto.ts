@@ -250,6 +250,10 @@ export class ProductListQueryDto {
   @IsOptional() @IsString()
   stationId?: string;
 
+  @ApiPropertyOptional({ description: "圈子ID（圈内选品展示）" })
+  @IsOptional() @IsString()
+  circleId?: string;
+
   @ApiPropertyOptional({ description: "商品名称关键词搜索" })
   @IsOptional() @IsString()
   keyword?: string;

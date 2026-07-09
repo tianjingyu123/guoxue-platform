@@ -64,7 +64,7 @@ export const quickFunctions: { icon: string; label: string; href: string; color:
   { icon: 'book-open', label: '我的课程', href: '/learning', color: '#4A90D9' },
   { icon: 'award', label: '讲师工作台', href: '/pkg-creator/teacher-dashboard/index', color: '#C41E3A' },
   { icon: 'shield-check', label: '我的资质', href: '/pkg-creator/my-qualifications/index', color: '#16A34A' },
-  { icon: 'users', label: '我的圈子', href: '/pkg-circle/circles/mine', color: '#722ED1' },
+  { icon: 'users', label: '我的圈子', href: '/pkg-circle/my-circles/index', color: '#722ED1' },
   { icon: 'sticky-note', label: '我的笔记', href: '/mine/notes', color: '#C9A96E' }, // 统一页(古籍+电子书聚合)·原/ebook/notes只有电子书
   { icon: 'heart', label: '我的收藏', href: '/favorites', color: '#C41E3A' },
   { icon: 'clipboard-list', label: '我的申请', href: '/mine/applications', color: '#FA8C16' },
