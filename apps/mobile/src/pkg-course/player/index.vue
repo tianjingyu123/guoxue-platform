@@ -41,8 +41,23 @@ function formatTime(seconds: number) {
   const secs = Math.floor(seconds % 60)
   return `${mins}:${secs.toString().padStart(2, '0')}`
 }
-function togglePlay() { isPlaying.value = !isPlaying.value }
-function changeSpeed(rate: number) { playbackRate.value = rate; showSpeedMenu.value = false }
+// 真实视频控制：经 videoContext 驱动播放器
+function playerCtx() { return uni.createVideoContext('courseVideo') }
+function togglePlay() { if (isPlaying.value) playerCtx().pause(); else playerCtx().play() }
+function changeSpeed(rate: number) { playbackRate.value = rate; showSpeedMenu.value = false; playerCtx().playbackRate(rate) }
+// 进度回填（自定义进度条/时间显示由此驱动）
+// uni video 的 timeupdate 事件 detail 含 currentTime/duration；DOM 类型不含故用 any
+function onTimeUpdate(e: any) {
+  currentTime.value = e?.detail?.currentTime || 0
+  if (e?.detail?.duration) duration.value = e.detail.duration
+}
+// 播完自动进入下一节
+function onEnded() { isPlaying.value = false; if (content.value?.nextLesson) switchLesson(content.value.nextLesson.id) }
+function toggleFullscreen() {
+  isFullscreen.value = !isFullscreen.value
+  if (isFullscreen.value) playerCtx().requestFullScreen({ direction: 0 })
+  else playerCtx().exitFullScreen()
+}
 function switchLesson(id: string) {
   currentLessonId.value = id
   showChapterDrawer.value = false
@@ -119,7 +134,21 @@ onMounted(() => {
   <view v-else class="page">
     <!-- 视频播放器 -->
     <view class="player">
-      <view class="video-placeholder" />
+      <!-- 真实视频：自定义控件经 videoContext 驱动，故关原生 controls；@事件回填进度/播放态 -->
+      <video
+        id="courseVideo"
+        class="video-el"
+        :src="content.videoUrl"
+        :controls="false"
+        :muted="isMuted"
+        autoplay
+        object-fit="contain"
+        :poster="content.cover || ''"
+        @play="isPlaying = true"
+        @pause="isPlaying = false"
+        @timeupdate="onTimeUpdate"
+        @ended="onEnded"
+      />
 
       <!-- 控制层 -->
       <view class="control-layer" :class="{ hidden: !showControls }">
@@ -173,7 +202,7 @@ onMounted(() => {
                 <app-icon name="picture-in-picture-2" :size="34" color="#ffffff" />
               </view>
               <view @tap="isMuted = !isMuted"><app-icon :name="isMuted ? 'volume-x' : 'volume-2'" :size="34" color="#ffffff" /></view>
-              <view @tap="isFullscreen = !isFullscreen"><app-icon :name="isFullscreen ? 'minimize' : 'maximize'" :size="34" color="#ffffff" /></view>
+              <view @tap="toggleFullscreen"><app-icon :name="isFullscreen ? 'minimize' : 'maximize'" :size="34" color="#ffffff" /></view>
             </view>
           </view>
         </view>
@@ -269,6 +298,7 @@ onMounted(() => {
 /* 播放器 16:9 */
 .player { position: relative; width: 100%; aspect-ratio: 16 / 9; background: #000; }
 .video-placeholder { position: absolute; inset: 0; background: #000; }
+.video-el { position: absolute; inset: 0; width: 100%; height: 100%; background: #000; }
 
 /* 控制层 */
 .control-layer { position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(0,0,0,0.6), transparent 35%, transparent 65%, rgba(0,0,0,0.8)); transition: opacity 0.3s; }
