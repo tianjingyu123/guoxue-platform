@@ -65,9 +65,7 @@ const QUEUES: QueueDef[] = [
   { title: "圈子申诉", link: "/circle-appeals", url: "/circle-governance/admin/appeals", params: { ...P1, status: "PENDING" } },
   { title: "通话账单申诉", link: "/call-disputes", url: "/consult-calls/admin/disputes", params: { ...P1, status: "PENDING" } },
   { title: "实名审核", link: "/users/identity", url: "/identity/admin/audit-list", params: { ...P1, status: "PENDING" } },
-  { title: "功能权限审批", link: "/users/capabilities", url: "/capabilities/pending" },
   { title: "讲师认证", link: "/teacher/certifications", url: "/teacher/certifications", params: { ...P1, status: "PENDING" } },
-  { title: "公开笔记审核", link: "/social/notes-audit", url: "/admin/social/notes", params: { ...P1, status: "PENDING" } },
   { title: "商家入驻审核", link: "/merchants", url: "/admin/merchants", params: { ...P1, status: "PENDING_REVIEW" } },
 ];
 

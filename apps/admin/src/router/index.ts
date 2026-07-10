@@ -215,14 +215,22 @@ const routes = [
       {
         path: "courses/create",
         name: "CourseCreate",
-        component: () => import("@/views/courses/CourseEdit.vue"),
-        meta: { hidden: true, title: "新建课程", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"] },
+        // 2026-07-11 课程编辑器重做：新建/编辑走可视化分区块编辑器（CourseEditor·无富文本）
+        component: () => import("@/views/courses/CourseEditor.vue"),
+        meta: { hidden: true, title: "发布课程", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"] },
       },
       {
         path: "courses/:id/edit",
         name: "CourseEdit",
-        component: () => import("@/views/courses/CourseEdit.vue"),
+        component: () => import("@/views/courses/CourseEditor.vue"),
         meta: { hidden: true, title: "编辑课程", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"] },
+      },
+      {
+        path: "courses/:id/manage",
+        name: "CourseManage",
+        // 课程运营（学员/作业/评价/问答/统计）：原 CourseEdit 页下线编辑器后保留的运营部分
+        component: () => import("@/views/courses/CourseEdit.vue"),
+        meta: { hidden: true, title: "课程运营", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"] },
       },
       {
         path: "courses/categories",
@@ -248,12 +256,6 @@ const routes = [
         name: "IdentityAudit",
         component: () => import("@/views/users/IdentityAudit.vue"),
         meta: { title: "实名审核", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
-      },
-      {
-        path: "users/capabilities",
-        name: "CapabilityAudit",
-        component: () => import("@/views/user/CapabilityAudit.vue"),
-        meta: { title: "功能权限审批", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
       },
       {
         path: "users/push",
@@ -435,30 +437,6 @@ const routes = [
         name: "FullReductionList",
         component: () => import("@/views/marketing/FullReductionList.vue"),
         meta: { title: "满减送管理", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
-      },
-      {
-        path: "marketing/poster-templates",
-        name: "SharePosterTemplate",
-        component: () => import("@/views/marketing/SharePosterTemplate.vue"),
-        meta: { title: "分享海报模板", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
-      },
-      {
-        path: "marketing/share-data",
-        name: "ShareDataDashboard",
-        component: () => import("@/views/marketing/ShareDataDashboard.vue"),
-        meta: { title: "分享数据看板", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
-      },
-      {
-        path: "marketing/invite-rewards",
-        name: "InviteRewardConfig",
-        component: () => import("@/views/marketing/InviteRewardConfig.vue"),
-        meta: { title: "邀请福利配置", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
-      },
-      {
-        path: "marketing/spread-power",
-        name: "SpreadPowerConfig",
-        component: () => import("@/views/marketing/SpreadPowerConfig.vue"),
-        meta: { title: "传播力体系配置", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
       },
       // === 定价管理 ===
       {
@@ -726,12 +704,6 @@ const routes = [
         name: "RagTemplateManage",
         component: () => import("@/views/ai/RagTemplateManage.vue"),
         meta: { title: "RAG模板管理", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
-      },
-      {
-        path: "ai/prompt-scenes",
-        name: "PromptSceneManage",
-        component: () => import("@/views/ai/PromptSceneManage.vue"),
-        meta: { title: "AI Prompt场景化", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
       },
       {
         path: "ai/data-explorer",
@@ -1020,42 +992,6 @@ const routes = [
         name: "CommentList",
         component: () => import("@/views/comments/CommentList.vue"),
         meta: { title: "评论管理", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"] },
-      },
-      {
-        path: "social/comment-center",
-        name: "CommentCenter",
-        component: () => import("@/views/social/CommentCenter.vue"),
-        meta: { title: "统一评论管理台", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"] },
-      },
-      {
-        path: "social/certifications",
-        name: "CertificationManage",
-        component: () => import("@/views/social/CertificationManage.vue"),
-        meta: { title: "认证标识管理", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
-      },
-      {
-        path: "social/achievements",
-        name: "AchievementManage",
-        component: () => import("@/views/social/AchievementManage.vue"),
-        meta: { title: "成就系统管理", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
-      },
-      {
-        path: "social/notes-audit",
-        name: "PublicNoteAudit",
-        component: () => import("@/views/social/PublicNoteAudit.vue"),
-        meta: { title: "公开笔记审核", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"] },
-      },
-      {
-        path: "social/emojis",
-        name: "EmojiLibrary",
-        component: () => import("@/views/social/EmojiLibrary.vue"),
-        meta: { title: "国风表情管理", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
-      },
-      {
-        path: "content/ritual",
-        name: "RitualContentManage",
-        component: () => import("@/views/content/RitualContentManage.vue"),
-        meta: { title: "文化仪式感内容", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
       },
       {
         path: "marketing/landing-pages",

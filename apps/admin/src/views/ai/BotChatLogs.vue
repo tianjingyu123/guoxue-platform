@@ -97,13 +97,6 @@
           >
             详情
           </el-button>
-          <el-button
-            size="small"
-            type="danger"
-            @click="del(row.id)"
-          >
-            删除
-          </el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -163,7 +156,6 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
 import { aiAdminApi } from '@/api'
 
 /** 对话日志行/详情（字段宽松 optional） */
@@ -178,7 +170,7 @@ interface ChatLogRow {
   createdAt?: string
 }
 
-const loading = ref(false); const loadErr = ref(false); const deleting = ref(false)
+const loading = ref(false); const loadErr = ref(false)
 const list = ref<ChatLogRow[]>([]); const total = ref(0); const page = ref(1)
 const keyword = ref('')
 const detailVis = ref(false); const detail = ref<ChatLogRow>({})
@@ -196,17 +188,10 @@ async function fetchList() {
   } catch { loadErr.value = true; list.value = [] } finally { loading.value = false }
 }
 
-async function viewDetail(row: ChatLogRow) {
-  try { const { data } = await aiAdminApi.getChatLogDetail(row.id!); detail.value = data; detailVis.value = true } catch { detail.value = row; detailVis.value = true }
-}
-
-async function del(id: string) {
-  if (deleting.value) return
-  try {
-    await ElMessageBox.confirm('确定删除？', '提示', { type: 'warning' })
-    deleting.value = true
-    await aiAdminApi.deleteChatLog(id); ElMessage.success('已删除'); fetchList()
-  } catch {} finally { deleting.value = false }
+function viewDetail(row: ChatLogRow) {
+  // 后端仅有列表端点（GET /ai/media/tasks），无单条详情/删除端点，直接展示行数据
+  detail.value = row
+  detailVis.value = true
 }
 </script>
 <style scoped>.page { padding: 16px; } .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; } .toolbar h3 { margin: 0; font-size: 18px; color: var(--color-text-title); }</style>

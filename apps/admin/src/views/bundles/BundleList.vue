@@ -210,7 +210,7 @@
     <el-dialog
       v-model="dialogVisible"
       :title="isEdit ? '编辑组合包' : '新增组合包'"
-      width="600px"
+      width="680px"
     >
       <el-form
         :model="form"
@@ -270,32 +270,50 @@
             :rows="2"
           />
         </el-form-item>
+        <!-- 修复（董事长反馈）：600px 弹窗里三列各继承 100px label，输入框被 +/- 步进按钮挤没、无法编辑。
+             改法：行内 label 缩到 60px + 去掉步进按钮（:controls="false"），留出完整可输入区。 -->
         <el-row :gutter="12">
           <el-col :span="8">
-            <el-form-item label="原价">
+            <el-form-item
+              label="原价"
+              label-width="60px"
+            >
               <el-input-number
                 v-model="form.originalPrice"
                 :min="0"
                 :precision="2"
+                :controls="false"
+                placeholder="0.00"
                 style="width:100%"
               />
             </el-form-item>
           </el-col>
           <el-col :span="8">
-            <el-form-item label="售价">
+            <el-form-item
+              label="售价"
+              label-width="60px"
+            >
               <el-input-number
                 v-model="form.sellPrice"
                 :min="0"
                 :precision="2"
+                :controls="false"
+                placeholder="0.00"
                 style="width:100%"
               />
             </el-form-item>
           </el-col>
           <el-col :span="8">
-            <el-form-item label="排序">
+            <el-form-item
+              label="排序"
+              label-width="60px"
+            >
               <el-input-number
                 v-model="form.sortOrder"
                 :min="0"
+                :precision="0"
+                :controls="false"
+                placeholder="数字越小越靠前"
                 style="width:100%"
               />
             </el-form-item>
@@ -345,6 +363,7 @@
             <el-input-number
               v-model="item.sortOrder"
               :min="0"
+              :controls="false"
               placeholder="排序"
               style="width:80px"
             />

@@ -25,6 +25,8 @@ interface CourseRow {
   author?: string;
   categoryLevel1?: string;
   categoryLevel2?: string;
+  scheduledOnAt?: string | null;
+  scheduledOffAt?: string | null;
   user?: { nickname?: string };
   _count?: { chapters?: number };
 }
@@ -294,6 +296,33 @@ function exportData() {
         >
           {{ auditLabels[row.auditStatus]?.text || row.auditStatus }}
         </el-tag>
+        <!-- 定时上下架标记（编辑器"上架控制"块设置·cron 到点自动翻转） -->
+        <el-tooltip
+          v-if="row.scheduledOnAt"
+          :content="'定时上架：' + new Date(row.scheduledOnAt).toLocaleString()"
+        >
+          <el-tag
+            type="success"
+            size="small"
+            effect="plain"
+            style="margin-left:4px"
+          >
+            定时上架
+          </el-tag>
+        </el-tooltip>
+        <el-tooltip
+          v-if="row.scheduledOffAt"
+          :content="'定时下架：' + new Date(row.scheduledOffAt).toLocaleString()"
+        >
+          <el-tag
+            type="warning"
+            size="small"
+            effect="plain"
+            style="margin-left:4px"
+          >
+            定时下架
+          </el-tag>
+        </el-tooltip>
       </template>
       <template #author="{ row }">
         {{ row.author }}
@@ -332,8 +361,12 @@ function exportData() {
           </el-button>
           <template #dropdown>
             <el-dropdown-menu>
+              <el-dropdown-item @click="router.push(`/courses/${row.id}/manage`)">
+                课程运营（学员/作业/评价/问答）
+              </el-dropdown-item>
               <el-dropdown-item
                 v-if="row.auditStatus !== 'APPROVED'"
+                divided
                 @click="handleForceStatus(row.id, 'APPROVED')"
               >
                 强制上架

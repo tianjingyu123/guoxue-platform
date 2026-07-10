@@ -122,13 +122,6 @@
           >
             解封
           </el-button>
-          <el-button
-            size="small"
-            type="danger"
-            @click="delCircle(row.id)"
-          >
-            删除
-          </el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -205,7 +198,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from "vue";
 import { useRouter } from "vue-router";
-import { ElMessage, ElMessageBox } from "element-plus";
+import { ElMessage } from "element-plus";
 import type { FormInstance } from "element-plus";
 import { circleApi } from "@/api";
 import PageHeader from "@/components/PageHeader.vue";
@@ -308,17 +301,6 @@ async function toggleStatus(row: CircleRow, status: string) {
   } finally { acting.value = false; }
 }
 
-function delCircle(id: string) {
-  ElMessageBox.confirm("确定删除该圈子？", "警告", { type: "warning" }).then(async () => {
-    if (acting.value) return;
-    acting.value = true;
-    try {
-      await circleApi.remove(id);
-      ElMessage.success("已删除");
-      fetchList();
-    } finally { acting.value = false; }
-  }).catch(() => {});
-}
 </script>
 
 <style scoped>

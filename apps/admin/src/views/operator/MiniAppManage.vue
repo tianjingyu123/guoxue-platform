@@ -150,8 +150,8 @@ async function fetchList() {
   loading.value = true;
   loadError.value = false;
   try {
-    const res = await operatorAdminApi.listMiniApps({ page: page.value, pageSize: pageSize.value });
-    list.value = res.data.items || res.data.list || res.data.rows || [];
+    const res = await operatorAdminApi.list({ page: page.value, pageSize: pageSize.value });
+    list.value = res.data.operators || res.data.items || res.data.list || [];
     total.value = res.data.total || 0;
   } catch {
     loadError.value = true;
@@ -173,7 +173,7 @@ async function handleSubmit() {
   if (!currentRow.value) return;
   submitting.value = true;
   try {
-    await operatorAdminApi.updateMiniApp(currentRow.value.id, {
+    await operatorAdminApi.updateBrand(currentRow.value.id, {
       miniAppId: form.miniAppId,
       mpAppId: form.mpAppId,
     });

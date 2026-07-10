@@ -11,7 +11,17 @@ import { uploadApi } from '@/api'
 // @ts-ignore vod-js-sdk-v6 无类型声明
 import TcVod from 'vod-js-sdk-v6'
 
-defineProps<{ modelValue?: string; placeholder?: string }>()
+withDefaults(
+  defineProps<{
+    modelValue?: string
+    placeholder?: string
+    /** 文件选择过滤（默认视频；音频课时传 "audio/*"，VOD 同样支持音频直传） */
+    accept?: string
+    /** 主按钮文案（默认"本地上传视频"） */
+    buttonText?: string
+  }>(),
+  { modelValue: '', placeholder: '', accept: 'video/*', buttonText: '本地上传视频' },
+)
 const emit = defineEmits<{
   'update:modelValue': [string]
   /** 选定视频后本地自动读出的时长（整数秒）——调用方按需监听，免手填 */
@@ -68,6 +78,16 @@ async function onFileChange(e: Event) {
   if (!file) return
   uploading.value = true
   progress.value = 0
+  // 本地读元数据（时长/首帧封面）：与上传并行，失败静默降级不阻断主流程
+  extractMeta(file).then(({ duration, coverBlob }) => {
+    if (duration > 0) emit('update:duration', duration)
+    if (coverBlob) {
+      const coverFile = new File([coverBlob], 'cover.jpg', { type: 'image/jpeg' })
+      uploadApi.image(coverFile)
+        .then(({ data }: { data: { url?: string } }) => { if (data?.url) emit('update:cover', data.url) })
+        .catch(() => { /* 封面自动截帧失败静默：调用方可手动传封面 */ })
+    }
+  })
   try {
     const tcVod = new TcVod({
       getSignature: async () => {
@@ -105,7 +125,7 @@ async function onFileChange(e: Event) {
     <input
       ref="inputRef"
       type="file"
-      accept="video/*"
+      :accept="accept"
       class="hidden-input"
       @change="onFileChange"
     >
@@ -144,7 +164,7 @@ async function onFileChange(e: Event) {
         :loading="uploading"
         @click="pick"
       >
-        {{ uploading ? `上传中 ${progress}%` : '本地上传视频' }}
+        {{ uploading ? `上传中 ${progress}%` : buttonText }}
       </el-button>
       <el-progress
         v-if="uploading"

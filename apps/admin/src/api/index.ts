@@ -308,7 +308,6 @@ export const circleApi = {
   detail: (id: string) => api.get(`/circles/${id}`),
   create: (data: Record<string, unknown>) => api.post("/circles", data),
   update: (id: string, data: Record<string, unknown>) => api.put(`/circles/${id}`, data),
-  remove: (id: string) => api.delete(`/circles/${id}`),
   // 成员管理
   getMembers: (circleId: string, params?: { page?: number; pageSize?: number }) =>
     api.get(`/circles/${circleId}/members`, { params }),
@@ -500,24 +499,6 @@ export const classicApi = {
     api.post("/classic/admin/daizhige-import", null, { params }),
 };
 
-// 诗词雅集（管理端）
-export const poetryAdminApi = {
-  listPoems: (params?: { page?: number; pageSize?: number; status?: string; categoryId?: string; dynasty?: string; keyword?: string }) =>
-    api.get("/poetry/admin/poems", { params }),
-  createPoem: (data: Record<string, unknown>) => api.post("/poetry/admin/poems", data),
-  updatePoem: (id: string, data: Record<string, unknown>) => api.put(`/poetry/admin/poems/${id}`, data),
-  deletePoem: (id: string) => api.delete(`/poetry/admin/poems/${id}`),
-  listCategories: () => api.get("/poetry/admin/categories"),
-  createCategory: (data: Record<string, unknown>) => api.post("/poetry/admin/categories", data),
-  updateCategory: (id: string, data: Record<string, unknown>) => api.put(`/poetry/admin/categories/${id}`, data),
-  deleteCategory: (id: string) => api.delete(`/poetry/admin/categories/${id}`),
-  listCollections: (params?: { page?: number; pageSize?: number; status?: string }) =>
-    api.get("/poetry/admin/collections", { params }),
-  createCollection: (data: Record<string, unknown>) => api.post("/poetry/admin/collections", data),
-  updateCollection: (id: string, data: Record<string, unknown>) => api.put(`/poetry/admin/collections/${id}`, data),
-  deleteCollection: (id: string) => api.delete(`/poetry/admin/collections/${id}`),
-};
-
 // 智能体
 export const botApi = {
   list: (params?: Record<string, unknown>) => api.get("/bots", { params }),
@@ -577,7 +558,6 @@ export const instituteApi = {
   listTaskTemplates: () => api.get("/institute/task-templates"),
   createTaskTemplate: (data: Record<string, unknown>) => api.post("/institute/task-templates", data),
   updateTaskTemplate: (id: string, data: Record<string, unknown>) => api.put(`/institute/task-templates/${id}`, data),
-  deleteTaskTemplate: (id: string) => api.delete(`/institute/task-templates/${id}`),
   // 人才库
   getCandidates: () => api.get("/institute/candidates"),
   // 内容
@@ -1062,6 +1042,10 @@ export const merchantBackendApi = {
   deleteProduct: (id: string) => api.delete(`/merchant-backend/products/${id}`),
   listProduct: (id: string) => api.post(`/merchant-backend/products/${id}/list`),
   unlistProduct: (id: string) => api.post(`/merchant-backend/products/${id}/unlist`),
+  // SKU（店铺身份·操作员可用——shop 端点直比 owner 会 403）
+  addSku: (productId: string, data: { name: string; price: number; stock: number }) =>
+    api.post(`/merchant-backend/products/${productId}/skus`, data),
+  deleteSku: (skuId: string) => api.delete(`/merchant-backend/skus/${skuId}`),
   // 订单
   listOrders: (params?: { page?: number; pageSize?: number; status?: string }) =>
     api.get("/merchant-backend/orders", { params }),
@@ -1094,36 +1078,6 @@ export const merchantBackendApi = {
   // 客户
   listCustomers: (params?: { page?: number; pageSize?: number }) =>
     api.get("/merchant-backend/customers", { params }),
-};
-
-// 电子书管理
-export const ebookApi = {
-  listCategories: () => api.get("/ebook/categories"),
-  createCategory: (data: { name: string; sortOrder?: number }) => api.post("/ebook/categories", data),
-  listBooks: (params?: { page?: number; pageSize?: number; categoryId?: string; status?: string; keyword?: string }) =>
-    api.get("/ebook/books", { params }),
-  detail: (id: string) => api.get(`/ebook/books/${id}`),
-  create: (data: Record<string, unknown>) => api.post("/ebook/books", data),
-  update: (id: string, data: Record<string, unknown>) => api.put(`/ebook/books/${id}`, data),
-  delete: (id: string) => api.delete(`/ebook/books/${id}`),
-  createChapter: (ebookId: string, data: Record<string, unknown>) => api.post(`/ebook/books/${ebookId}/chapters`, data),
-  updateChapter: (id: string, data: Record<string, unknown>) => api.put(`/ebook/chapters/${id}`, data),
-  deleteChapter: (id: string) => api.delete(`/ebook/chapters/${id}`),
-  // 评价管理
-  listReviews: (ebookId: string, params?: { page?: number; pageSize?: number }) =>
-    api.get(`/ebook/books/${ebookId}/reviews`, { params }),
-  getRating: (ebookId: string) => api.get(`/ebook/books/${ebookId}/rating`),
-  deleteReview: (id: string) => api.delete(`/ebook/admin/reviews/${id}`),
-  // 购买记录
-  getAllPurchases: (params?: { page?: number; pageSize?: number; ebookId?: string; userId?: string }) =>
-    api.get("/ebook/admin/purchases", { params }),
-  // 阅读排行与统计
-  getReadingRanking: (limit?: number) => api.get("/ebook/reading-ranking", { params: { limit } }),
-  getPlatformReadingStats: (days?: number) => api.get("/ebook/admin/reading-stats", { params: { days } }),
-  // 笔记管理
-  getAllNotes: (params?: { page?: number; pageSize?: number; ebookId?: string }) =>
-    api.get("/ebook/admin/notes", { params }),
-  deleteNote: (id: string) => api.delete(`/ebook/notes/${id}`),
 };
 
 // 敏感词管理
@@ -1226,7 +1180,6 @@ export const churnApi = {
   getPredictions: (params?: { riskLevel?: string; page?: number; pageSize?: number }) =>
     api.get("/admin/churn/predictions", { params }),
   getStats: () => api.get("/admin/churn/stats"),
-  score: () => api.post("/admin/churn/score"),
   calculate: () => api.post("/admin/churn/calculate"),
   listRules: (params?: { page?: number; pageSize?: number }) =>
     api.get("/admin/churn/rules", { params }),
@@ -1377,8 +1330,6 @@ export const riskApi = {
 export const aiAdminApi = {
   // 对话日志（后端 AiLoggerService，路由 /ai/media/tasks）
   listChatLogs: (params?: Record<string, unknown>) => api.get("/ai/media/tasks", { params }),
-  getChatLogDetail: (id: string) => api.get(`/ai/media/tasks/${id}`),
-  deleteChatLog: (id: string) => api.delete(`/ai/media/tasks/${id}`),
   // 调用统计
   getCallStats: (period?: string) => api.get("/ai/media/tasks", { params: { period: period || "day" } }),
   getCallLogs: (params?: Record<string, unknown>) => api.get("/ai/media/tasks", { params }),
@@ -1457,7 +1408,6 @@ export const memberAdminApi = {
 export const pricingApi = {
   getRules: (params?: { page?: number; pageSize?: number }) =>
     api.get("/pricing/admin/rules", { params }),
-  getRule: (id: string) => api.get(`/pricing/admin/rules/${id}`),
   createRule: (data: Record<string, unknown>) => api.post("/pricing/admin/rules", data),
   updateRule: (id: string, data: Record<string, unknown>) => api.put(`/pricing/admin/rules/${id}`, data),
   deleteRule: (id: string) => api.delete(`/pricing/admin/rules/${id}`),
@@ -1829,195 +1779,26 @@ export const circleBackendApi = {
   adminOverview: (circleId: string) => api.get(`/circle-backend/admin/circles/${circleId}/overview`),
 };
 
-// ───────── 社交管理（统一评论/笔记/成就/认证） ─────────
-export const socialApi = {
-  // 统一评论中心
-  getCommentCenter: (params?: { page?: number; pageSize?: number; bizType?: string; status?: string; keyword?: string; startDate?: string; endDate?: string; isFeatured?: string; isPinned?: string }) =>
-    api.get("/admin/social/comments", { params }),
-  getCommentStats: () => api.get("/admin/social/comments/stats"),
-  featureComment: (id: string) => api.post(`/admin/social/comments/${id}/feature`),
-  unfeatureComment: (id: string) => api.post(`/admin/social/comments/${id}/unfeature`),
-  pinComment: (id: string) => api.post(`/admin/social/comments/${id}/pin`),
-  unpinComment: (id: string) => api.post(`/admin/social/comments/${id}/unpin`),
-  batchFeature: (ids: string[]) => api.post("/admin/social/comments/batch-feature", { ids }),
-  batchHide: (ids: string[]) => api.post("/admin/social/comments/batch-hide", { ids }),
-  batchDelete: (ids: string[]) => api.post("/admin/social/comments/batch-delete", { ids }),
-  // 公开笔记审核
-  listPublicNotes: (params?: { page?: number; pageSize?: number; status?: string; courseId?: string; userId?: string }) =>
-    api.get("/admin/social/notes", { params }),
-  approveNote: (id: string) => api.post(`/admin/social/notes/${id}/approve`),
-  rejectNote: (id: string, reason?: string) => api.post(`/admin/social/notes/${id}/reject`, { reason }),
-  featureNote: (id: string) => api.post(`/admin/social/notes/${id}/feature`),
-  deleteNote: (id: string) => api.delete(`/admin/social/notes/${id}`),
-};
-
-// ───────── 认证标识管理 ─────────
-export const certificationApi = {
-  listTypes: () => api.get("/admin/certifications/types"),
-  createType: (data: { name: string; icon: string; color: string; description?: string; autoGrantRole?: string; conditions?: any }) =>
-    api.post("/admin/certifications/types", data),
-  updateType: (id: string, data: Record<string, unknown>) => api.put(`/admin/certifications/types/${id}`, data),
-  deleteType: (id: string) => api.delete(`/admin/certifications/types/${id}`),
-  // 认证申请审批
-  listApplications: (params?: { page?: number; pageSize?: number; status?: string; typeId?: string }) =>
-    api.get("/admin/certifications/applications", { params }),
-  approveApplication: (id: string) => api.post(`/admin/certifications/applications/${id}/approve`),
-  rejectApplication: (id: string, reason?: string) => api.post(`/admin/certifications/applications/${id}/reject`, { reason }),
-  // 已认证用户管理
-  listCertifiedUsers: (params?: { page?: number; pageSize?: number; typeId?: string; userId?: string }) =>
-    api.get("/admin/certifications/users", { params }),
-  revokeCertification: (userId: string, typeId: string) => api.post(`/admin/certifications/users/${userId}/revoke`, { typeId }),
-};
-
-// ───────── 国风表情管理 ─────────
-export const emojiApi = {
-  list: (params?: { category?: string; page?: number; pageSize?: number }) =>
-    api.get("/admin/social/emojis", { params }),
-  create: (data: { name: string; icon: string; category: string; sortOrder?: number }) =>
-    api.post("/admin/social/emojis", data),
-  update: (id: string, data: Record<string, unknown>) => api.put(`/admin/social/emojis/${id}`, data),
-  delete: (id: string) => api.delete(`/admin/social/emojis/${id}`),
-  getCategories: () => api.get("/admin/social/emojis/categories"),
-  getStats: () => api.get("/admin/social/emojis/stats"),
-};
-
-// ───────── AI Prompt 场景化管理 ─────────
-export const aiPromptApi = {
-  listScenes: () => api.get("/admin/ai/prompts/scenes"),
-  getScene: (scene: string) => api.get(`/admin/ai/prompts/scenes/${scene}`),
-  updateScene: (scene: string, data: { systemPrompt: string; userPromptTemplate?: string; variables?: any[]; model?: string; temperature?: number }) =>
-    api.put(`/admin/ai/prompts/scenes/${scene}`, data),
-  // 风格库
-  listStyles: (scene: string) => api.get(`/admin/ai/prompts/scenes/${scene}/styles`),
-  createStyle: (scene: string, data: { name: string; prompt: string; example?: string }) =>
-    api.post(`/admin/ai/prompts/scenes/${scene}/styles`, data),
-  updateStyle: (id: string, data: Record<string, unknown>) => api.put(`/admin/ai/prompts/styles/${id}`, data),
-  deleteStyle: (id: string) => api.delete(`/admin/ai/prompts/styles/${id}`),
-  // 功能开关
-  getToggles: () => api.get("/admin/ai/prompts/toggles"),
-  toggleFeature: (feature: string, enabled: boolean) => api.put(`/admin/ai/prompts/toggles/${feature}`, { enabled }),
-  // 效果统计
-  getSceneStats: (scene?: string, params?: { startDate?: string; endDate?: string }) =>
-    api.get("/admin/ai/prompts/stats", { params: { scene, ...params } }),
-};
-
-// ───────── 分享海报模板管理 ─────────
-export const posterApi = {
-  listTemplates: (params?: { scene?: string; status?: string; page?: number; pageSize?: number }) =>
-    api.get("/admin/marketing/posters", { params }),
-  detail: (id: string) => api.get(`/admin/marketing/posters/${id}`),
-  create: (data: { name: string; scene: string; backgroundImage: string; elements: any[]; brandConfig?: any }) =>
-    api.post("/admin/marketing/posters", data),
-  update: (id: string, data: Record<string, unknown>) => api.put(`/admin/marketing/posters/${id}`, data),
-  delete: (id: string) => api.delete(`/admin/marketing/posters/${id}`),
-  preview: (id: string, data?: { userId?: string; contentId?: string }) =>
-    api.post(`/admin/marketing/posters/${id}/preview`, data),
-  // 品牌元素
-  getBrandConfig: () => api.get("/admin/marketing/posters/brand-config"),
-  updateBrandConfig: (data: { primaryColor?: string; bgColor?: string; fontFamily?: string; logoUrl?: string; watermarkUrl?: string }) =>
-    api.put("/admin/marketing/posters/brand-config", data),
-  // 版本管理
-  listVersions: (templateId: string) => api.get(`/admin/marketing/posters/${templateId}/versions`),
-  rollbackVersion: (templateId: string, versionId: string) => api.post(`/admin/marketing/posters/${templateId}/rollback/${versionId}`),
-  // 场景列表
-  getScenes: () => api.get("/admin/marketing/posters/scenes"),
-};
-
-// ───────── 分享数据看板 ─────────
-export const shareDataApi = {
-  overview: (params?: { startDate?: string; endDate?: string }) =>
-    api.get("/admin/marketing/share-data/overview", { params }),
-  byScene: (params?: { startDate?: string; endDate?: string }) =>
-    api.get("/admin/marketing/share-data/by-scene", { params }),
-  byUser: (params?: { page?: number; pageSize?: number; sortBy?: string }) =>
-    api.get("/admin/marketing/share-data/by-user", { params }),
-  funnel: (params?: { startDate?: string; endDate?: string; scene?: string }) =>
-    api.get("/admin/marketing/share-data/funnel", { params }),
-};
-
-// ───────── 邀请福利配置 ─────────
-export const inviteRewardApi = {
-  getConfig: () => api.get("/admin/marketing/invite-rewards/config"),
-  updateConfig: (data: { inviterReward: any; inviteeReward: any; dailyLimit?: number; monthlyLimit?: number; totalLimit?: number }) =>
-    api.put("/admin/marketing/invite-rewards/config", data),
-  getStats: (params?: { startDate?: string; endDate?: string }) =>
-    api.get("/admin/marketing/invite-rewards/stats", { params }),
-  getRecords: (params?: { page?: number; pageSize?: number; userId?: string }) =>
-    api.get("/admin/marketing/invite-rewards/records", { params }),
-};
-
-// ───────── 传播力体系配置 ─────────
-export const spreadPowerApi = {
-  getLevels: () => api.get("/admin/marketing/spread-power/levels"),
-  updateLevel: (level: string, data: { name: string; icon: string; minShares: number; minClicks: number; trafficBoost: number; description?: string }) =>
-    api.put(`/admin/marketing/spread-power/levels/${level}`, data),
-  getStats: () => api.get("/admin/marketing/spread-power/stats"),
-  listUsers: (params?: { page?: number; pageSize?: number; level?: string }) =>
-    api.get("/admin/marketing/spread-power/users", { params }),
-};
-
-// ───────── 成就系统管理 ─────────
-export const achievementApi = {
-  listTypes: (params?: { category?: string; page?: number; pageSize?: number }) =>
-    api.get("/admin/social/achievements/types", { params }),
-  createType: (data: { name: string; description: string; icon: string; category: string; triggerCondition: any; badgeUrl?: string }) =>
-    api.post("/admin/social/achievements/types", data),
-  updateType: (id: string, data: Record<string, unknown>) => api.put(`/admin/social/achievements/types/${id}`, data),
-  deleteType: (id: string) => api.delete(`/admin/social/achievements/types/${id}`),
-  listUserAchievements: (params?: { page?: number; pageSize?: number; userId?: string; typeId?: string }) =>
-    api.get("/admin/social/achievements/users", { params }),
-  grantAchievement: (data: { userId: string; typeId: string }) =>
-    api.post("/admin/social/achievements/grant", data),
-  revokeAchievement: (id: string) => api.post(`/admin/social/achievements/${id}/revoke`),
-  getStats: () => api.get("/admin/social/achievements/stats"),
-};
-
-// ───────── 文化仪式感内容管理 ─────────
-export const ritualContentApi = {
-  // 节气提醒
-  listSolarTerms: () => api.get("/admin/content/solar-terms"),
-  updateSolarTerm: (id: string, data: { title?: string; content?: string; imageUrl?: string; pushTime?: string }) =>
-    api.put(`/admin/content/solar-terms/${id}`, data),
-  // 每日一首
-  listDailyVerses: (params?: { page?: number; pageSize?: number; status?: string }) =>
-    api.get("/admin/content/daily-verses", { params }),
-  createDailyVerse: (data: { title: string; author?: string; content: string; imageUrl?: string; publishDate: string }) =>
-    api.post("/admin/content/daily-verses", data),
-  updateDailyVerse: (id: string, data: Record<string, unknown>) => api.put(`/admin/content/daily-verses/${id}`, data),
-  deleteDailyVerse: (id: string) => api.delete(`/admin/content/daily-verses/${id}`),
-};
-
 // ───────── 赏金问答管理 ─────────
 export const bountyApi = {
   listQuestions: (params?: { page?: number; pageSize?: number; category?: string; status?: string }) =>
     api.get("/admin/bounty/questions", { params }),
-  closeQuestion: (id: string) => api.put(`/admin/bounty/questions/${id}/close`),
+  // 后端为 @Post("questions/:id/close")（bounty-admin.controller），此前误写为 PUT 导致 404
+  closeQuestion: (id: string) => api.post(`/admin/bounty/questions/${id}/close`),
   listReviews: (params?: { page?: number; pageSize?: number }) =>
     api.get("/admin/bounty/reviews", { params }),
   approveReview: (id: string) => api.put(`/admin/bounty/reviews/${id}/approve`),
   rejectReview: (id: string, reason: string) => api.put(`/admin/bounty/reviews/${id}/reject`, { reason }),
 };
 
-// ───────── 运势推送管理 ─────────
-export const fortuneAdminApi = {
-  // 运势推送订阅配置（后端 @Controller("fortune") + 全局前缀 /api/v1 → /fortune/admin/*）
-  listConfigs: (params?: { page?: number; pageSize?: number; fortuneType?: string }) =>
-    api.get("/fortune/admin/subscriptions", { params }),
-  updateConfig: (id: string, data: { isActive: boolean }) =>
-    api.put(`/fortune/admin/subscriptions/${id}`, data),
-  pushAll: (fortuneType?: string) => api.post("/fortune/admin/push-all", { fortuneType }),
-  listHistory: (params?: { page?: number; pageSize?: number; fortuneType?: string }) =>
-    api.get("/fortune/admin/records", { params }),
-};
-
 // ───────── 运营商管理 ─────────
+// 真实后端端点：station.controller GET /station/operator/list（返回 { operators, total }）
+// 与 PUT /station/operator/:id/brand（UpdateOperatorBrandDto：brandName/brandLogo/brandThemeColor/miniAppId/mpAppId/miniPages）
 export const operatorAdminApi = {
   list: (params?: { page?: number; pageSize?: number }) =>
-    api.get("/admin/operators", { params }),
-  update: (id: string, data: Record<string, unknown>) => api.put(`/admin/operators/${id}`, data),
-  listMiniApps: (params?: { page?: number; pageSize?: number }) =>
-    api.get("/admin/operator-miniapps", { params }),
-  updateMiniApp: (id: string, data: Record<string, unknown>) => api.put(`/admin/operator-miniapps/${id}`, data),
+    api.get("/station/operator/list", { params }),
+  updateBrand: (id: string, data: { brandName?: string; brandLogo?: string; brandThemeColor?: string; miniAppId?: string; mpAppId?: string; miniPages?: Record<string, string> }) =>
+    api.put(`/station/operator/${id}/brand`, data),
 };
 
 // ───────── 租户管理 ─────────

@@ -224,8 +224,12 @@ async function fetchRule() {
   loading.value = true;
   error.value = false;
   try {
-    const res = await pricingApi.getRule(ruleId);
-    const data = res.data;
+    // 后端只有列表端点（GET /pricing/admin/rules 返回全量数组），无单条详情端点，从列表中取当前规则
+    const res = await pricingApi.getRules();
+    const listData = res.data;
+    const items: any[] = Array.isArray(listData) ? listData : (listData.items || listData.list || []);
+    const data = items.find((r) => r.id === ruleId);
+    if (!data) throw new Error("规则不存在");
     form.name = data.name;
     form.targetType = data.targetType;
     form.strategy = data.strategy;

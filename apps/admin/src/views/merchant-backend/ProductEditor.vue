@@ -48,6 +48,7 @@ const form = reactive({
   detailImages: [] as string[],
   supplement: "", // 图文补充说明（富文本·选填）
   price: null as number | null,
+  originalPrice: null as number | null, // 划线价（选填·须大于售价）
   stock: 0,
   categoryId: "",
   tags: [] as string[],
@@ -163,7 +164,7 @@ function parseDetail(html: string): { images: string[]; supplement: string } {
 function resetForm() {
   Object.assign(form, {
     title: "", intro: "", cover: "", carousel: [], detailImages: [],
-    supplement: "", price: null, stock: 0, categoryId: "", tags: [],
+    supplement: "", price: null, originalPrice: null, stock: 0, categoryId: "", tags: [],
   });
   multiSpec.value = false;
   skuRows.value = [];
@@ -176,7 +177,7 @@ function resetForm() {
 interface SkuData { id: string; specs?: Record<string, string>; price: number | string; stock?: number }
 interface ProductDetailData {
   id: string; title?: string; intro?: string; detail?: string;
-  images?: string[]; price?: number | string; stock?: number;
+  images?: string[]; price?: number | string; originalPrice?: number | string | null; stock?: number;
   categoryId?: string; tags?: string[]; skus?: SkuData[];
 }
 
@@ -196,6 +197,7 @@ async function loadProduct(id: string) {
     form.supplement = parsed.supplement;
     if (parsed.supplement) supplementOpen.value = ["supplement"];
     form.price = p.price != null ? Number(p.price) : null;
+    form.originalPrice = p.originalPrice != null ? Number(p.originalPrice) : null;
     form.stock = Number(p.stock) || 0;
     form.categoryId = p.categoryId || "";
     form.tags = [...(p.tags || [])];
@@ -274,6 +276,10 @@ function validate(): string | null {
   } else {
     if (form.price == null || form.price < 0) return "请填写商品售价";
   }
+  const effPrice = multiSpec.value ? (minSkuPrice.value ?? 0) : (form.price ?? 0);
+  if (form.originalPrice != null && form.originalPrice > 0 && form.originalPrice <= effPrice) {
+    return "划线价（原价）应大于售价，否则请留空";
+  }
   return null;
 }
 
@@ -296,11 +302,11 @@ async function syncSkus(productId: string): Promise<number> {
   const toDelete = origSkus.filter((o) => !keptIds.has(o.id));
   let failed = 0;
   for (const sku of toDelete) {
-    try { await productApi.deleteSku(sku.id); } catch { failed++; }
+    try { await merchantBackendApi.deleteSku(sku.id); } catch { failed++; }
   }
   for (const row of toAdd) {
     try {
-      await productApi.addSku(productId, {
+      await merchantBackendApi.addSku(productId, {
         name: `${row.specName.trim() || "规格"}:${row.specValue.trim()}`,
         price: row.price as number,
         stock: Number(row.stock) || 0,
@@ -322,6 +328,8 @@ async function save() {
       images: [form.cover, ...form.carousel].filter(Boolean),
       // 多规格：商品级售价=最低规格价（列表"¥X起"）·库存=规格库存之和
       price: multiSpec.value ? (minSkuPrice.value ?? 0) : Number(form.price),
+      // 划线价（选填·后端 originalPrice 已支持）：无值不传
+      ...(form.originalPrice != null && form.originalPrice > 0 ? { originalPrice: Number(form.originalPrice) } : {}),
       stock: multiSpec.value ? totalSkuStock.value : Number(form.stock) || 0,
       tags: form.tags,
       // 空分类传 null（编辑时可清空分类·@IsOptional 放行 null）
@@ -565,7 +573,7 @@ const previewSupplement = computed(() => (htmlIsEmpty(form.supplement) ? "" : fo
 
             <template v-if="!multiSpec">
               <el-row :gutter="16">
-                <el-col :span="12">
+                <el-col :span="8">
                   <el-form-item required>
                     <template #label>
                       售价（元）
@@ -580,7 +588,19 @@ const previewSupplement = computed(() => (htmlIsEmpty(form.supplement) ? "" : fo
                     />
                   </el-form-item>
                 </el-col>
-                <el-col :span="12">
+                <el-col :span="8">
+                  <el-form-item label="划线价（选填）">
+                    <el-input-number
+                      v-model="form.originalPrice"
+                      :min="0"
+                      :precision="2"
+                      :controls="false"
+                      placeholder="原价·须大于售价"
+                      style="width: 100%"
+                    />
+                  </el-form-item>
+                </el-col>
+                <el-col :span="8">
                   <el-form-item label="库存（件）">
                     <el-input-number
                       v-model="form.stock"

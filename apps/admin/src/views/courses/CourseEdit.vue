@@ -1,4 +1,6 @@
 <template>
+  <!-- 课程运营页（2026-07-11 编辑器重做）：原"编辑课程"页的基本信息/章节编辑已迁往 CourseEditor.vue，
+       本页保留学员/作业/评价/问答/统计等运营管理能力，路由 /courses/:id/manage -->
   <div class="course-edit">
     <el-page-header
       title="返回"
@@ -6,7 +8,17 @@
       @back="router.push('/courses')"
     >
       <template #content>
-        {{ isEdit ? '编辑课程' : '新建课程' }}
+        课程运营{{ courseTitle ? ` · ${courseTitle}` : '' }}
+      </template>
+      <template #extra>
+        <el-button
+          type="primary"
+          plain
+          size="small"
+          @click="router.push(`/courses/${courseId}/edit`)"
+        >
+          编辑课程内容
+        </el-button>
       </template>
     </el-page-header>
 
@@ -14,349 +26,6 @@
       v-model="activeTab"
       type="border-card"
     >
-      <!-- Tab 1: 基本信息 -->
-      <el-tab-pane
-        label="基本信息"
-        name="basic"
-      >
-        <div class="edit-body">
-          <div class="edit-main">
-            <el-card>
-              <el-form
-                ref="mainFormRef"
-                :model="form"
-                :rules="mainRules"
-                label-width="90px"
-              >
-                <el-form-item
-                  label="标题"
-                  required
-                >
-                  <el-input
-                    v-model="form.title"
-                    placeholder="课程标题"
-                    size="large"
-                  />
-                </el-form-item>
-                <el-form-item label="简介">
-                  <el-input
-                    v-model="form.intro"
-                    type="textarea"
-                    :rows="3"
-                    placeholder="课程简介"
-                  />
-                </el-form-item>
-                <el-row :gutter="16">
-                  <el-col :span="8">
-                    <el-form-item label="类型">
-                      <el-select
-                        v-model="form.type"
-                        style="width:100%"
-                      >
-                        <el-option
-                          label="视频"
-                          value="VIDEO"
-                        />
-                        <el-option
-                          label="音频"
-                          value="AUDIO"
-                        />
-                        <el-option
-                          label="文本"
-                          value="TEXT"
-                        />
-                        <el-option
-                          label="电子书"
-                          value="EBOOK"
-                        />
-                        <el-option
-                          label="组合"
-                          value="COMBO"
-                        />
-                      </el-select>
-                    </el-form-item>
-                  </el-col>
-                  <el-col :span="8">
-                    <el-form-item label="价格(元)">
-                      <el-input-number
-                        v-model="form.price"
-                        :min="0"
-                        :precision="2"
-                        style="width:100%"
-                      />
-                    </el-form-item>
-                  </el-col>
-                  <el-col :span="8">
-                    <el-form-item label="原价(元)">
-                      <el-input-number
-                        v-model="form.originalPrice"
-                        :min="0"
-                        :precision="2"
-                        style="width:100%"
-                      />
-                    </el-form-item>
-                  </el-col>
-                </el-row>
-                <el-row :gutter="16">
-                  <el-col :span="8">
-                    <el-form-item label="一级分类">
-                      <el-select
-                        v-model="form.categoryLevel1"
-                        placeholder="选择一级分类"
-                        clearable
-                        style="width:100%"
-                        @change="onLevel1Change"
-                      >
-                        <el-option
-                          v-for="cat in categoryLevel1List"
-                          :key="cat"
-                          :label="cat"
-                          :value="cat"
-                        />
-                      </el-select>
-                    </el-form-item>
-                  </el-col>
-                  <el-col :span="8">
-                    <el-form-item label="二级分类">
-                      <el-select
-                        v-model="form.categoryLevel2"
-                        placeholder="选择二级分类"
-                        clearable
-                        style="width:100%"
-                      >
-                        <el-option
-                          v-for="cat in categoryLevel2Options"
-                          :key="cat"
-                          :label="cat"
-                          :value="cat"
-                        />
-                      </el-select>
-                    </el-form-item>
-                  </el-col>
-                  <el-col :span="8">
-                    <el-form-item label="有效期(天)">
-                      <el-input-number
-                        v-model="form.validityDays"
-                        :min="0"
-                        placeholder="0=永久"
-                        style="width:100%"
-                      />
-                      <span style="font-size:11px;color:#999;margin-left:8px">0=永久</span>
-                    </el-form-item>
-                  </el-col>
-                  <el-col v-if="isEdit" :span="8">
-                    <el-form-item label="会员精品课">
-                      <el-switch v-model="memberFree" @change="onMemberFreeChange" />
-                      <span style="font-size:11px;color:#999;margin-left:8px">有效会员免费学习（即时生效）</span>
-                    </el-form-item>
-                  </el-col>
-                </el-row>
-                <el-row :gutter="16">
-                  <el-col :span="8">
-                    <el-form-item label="所属圈子">
-                      <el-input
-                        v-model="form.circleId"
-                        placeholder="圈子ID"
-                        clearable
-                      />
-                    </el-form-item>
-                  </el-col>
-                  <el-col :span="8">
-                    <el-form-item label="所属分站">
-                      <el-input
-                        v-model="form.stationId"
-                        placeholder="分站ID（空=平台级）"
-                        clearable
-                      />
-                    </el-form-item>
-                  </el-col>
-                  <el-col :span="8">
-                    <el-form-item label="定时发布">
-                      <el-date-picker
-                        v-model="form.scheduledAt"
-                        type="datetime"
-                        placeholder="留空=立即发布"
-                        style="width:100%"
-                        value-format="YYYY-MM-DDTHH:mm:ss.sssZ"
-                      />
-                    </el-form-item>
-                  </el-col>
-                </el-row>
-                <el-form-item label="标签">
-                  <el-tag
-                    v-for="(tag, idx) in form.tags"
-                    :key="idx"
-                    closable
-                    style="margin-right:6px"
-                    @close="form.tags.splice(idx, 1)"
-                  >
-                    {{ tag }}
-                  </el-tag>
-                  <el-input
-                    v-if="tagInputVisible"
-                    ref="tagInputRef"
-                    v-model="tagInputValue"
-                    size="small"
-                    style="width:100px"
-                    @keyup.enter="addTag"
-                    @blur="addTag"
-                  />
-                  <el-button
-                    v-else
-                    size="small"
-                    @click="showTagInput"
-                  >
-                    + 添加标签
-                  </el-button>
-                </el-form-item>
-                <el-form-item>
-                  <el-button
-                    type="primary"
-                    :loading="saving"
-                    @click="save"
-                  >
-                    保存课程
-                  </el-button>
-                  <el-button
-                    v-if="isEdit"
-                    type="danger"
-                    @click="handleDelete"
-                  >
-                    删除课程
-                  </el-button>
-                </el-form-item>
-              </el-form>
-            </el-card>
-          </div>
-          <div
-            v-if="isEdit"
-            class="edit-sidebar"
-          >
-            <div class="sidebar-section">
-              <h4>封面图片</h4>
-              <CosImageUpload
-                v-model="form.cover"
-                tip="建议 16:9，jpg/png"
-              />
-            </div>
-            <div
-              v-if="isEdit"
-              class="sidebar-section"
-            >
-              <h4>快速操作</h4>
-              <el-select
-                v-model="quickStatus"
-                placeholder="变更状态"
-                size="small"
-                style="width:100%;margin-bottom:8px"
-                @change="changeStatus"
-              >
-                <el-option
-                  label="提交审核"
-                  value="PENDING"
-                />
-                <el-option
-                  label="直接上架"
-                  value="APPROVED"
-                />
-                <el-option
-                  label="驳回"
-                  value="REJECTED"
-                />
-                <el-option
-                  label="下架为草稿"
-                  value="DRAFT"
-                />
-              </el-select>
-            </div>
-          </div>
-        </div>
-      </el-tab-pane>
-
-      <!-- Tab 2: 章节管理 -->
-      <el-tab-pane
-        v-if="isEdit"
-        label="章节管理"
-        name="chapters"
-      >
-        <div class="section-header">
-          <span>共 {{ chapters.length }} 章</span>
-          <el-button
-            type="primary"
-            size="small"
-            @click="openChapterDialog()"
-          >
-            添加章节
-          </el-button>
-        </div>
-        <el-table
-          :data="chapters"
-          stripe
-          style="margin-top:12px"
-        >
-          <el-table-column
-            label="排序"
-            width="60"
-            prop="sortOrder"
-          />
-          <el-table-column
-            prop="title"
-            label="标题"
-            min-width="200"
-          />
-          <el-table-column
-            label="内容类型"
-            width="90"
-          >
-            <template #default="{ row }">
-              {{ row.mediaUrl ? '视频/音频' : row.content ? '文本' : '-' }}
-            </template>
-          </el-table-column>
-          <el-table-column
-            label="时长(秒)"
-            width="90"
-          >
-            <template #default="{ row }">
-              {{ row.duration || '-' }}
-            </template>
-          </el-table-column>
-          <el-table-column
-            label="试看"
-            width="70"
-          >
-            <template #default="{ row }">
-              <el-tag
-                v-if="row.freeTrial"
-                type="success"
-                size="small"
-              >
-                免费
-              </el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column
-            label="操作"
-            width="150"
-          >
-            <template #default="{ row }">
-              <el-button
-                size="small"
-                @click="openChapterDialog(row)"
-              >
-                编辑
-              </el-button>
-              <el-button
-                size="small"
-                type="danger"
-                @click="deleteChapter(row.id)"
-              >
-                删除
-              </el-button>
-            </template>
-          </el-table-column>
-        </el-table>
-      </el-tab-pane>
-
       <!-- Tab 3: 学员管理 -->
       <el-tab-pane
         v-if="isEdit"
@@ -885,75 +554,6 @@
       </el-tab-pane>
     </el-tabs>
 
-    <!-- 章节编辑弹窗 -->
-    <el-dialog
-      v-model="chapterDialog"
-      :title="editingChapter ? '编辑章节' : '添加章节'"
-      width="700px"
-      top="5vh"
-      destroy-on-close
-    >
-      <el-form
-        :model="chapterForm"
-        label-width="80px"
-      >
-        <el-form-item
-          label="标题"
-          required
-        >
-          <el-input
-            v-model="chapterForm.title"
-            placeholder="章节标题"
-          />
-        </el-form-item>
-        <el-form-item label="视频/音频">
-          <VodUpload v-model="chapterForm.mediaUrl" />
-        </el-form-item>
-        <el-form-item label="正文">
-          <RichEditor
-            v-model="chapterForm.content"
-            placeholder="章节正文..."
-            min-height="220px"
-            style="width: 100%"
-          />
-        </el-form-item>
-        <el-row :gutter="12">
-          <el-col :span="8">
-            <el-form-item label="时长(秒)">
-              <el-input-number
-                v-model="chapterForm.duration"
-                :min="0"
-              />
-            </el-form-item>
-          </el-col>
-          <el-col :span="8">
-            <el-form-item label="排序">
-              <el-input-number
-                v-model="chapterForm.sortOrder"
-                :min="0"
-              />
-            </el-form-item>
-          </el-col>
-          <el-col :span="8">
-            <el-form-item label="免费试看">
-              <el-switch v-model="chapterForm.freeTrial" />
-            </el-form-item>
-          </el-col>
-        </el-row>
-      </el-form>
-      <template #footer>
-        <el-button @click="chapterDialog = false">
-          取消
-        </el-button>
-        <el-button
-          type="primary"
-          @click="saveChapter"
-        >
-          保存
-        </el-button>
-      </template>
-    </el-dialog>
-
     <!-- 作业评分弹窗 -->
     <el-dialog
       v-model="scoreDialog"
@@ -1159,26 +759,21 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, nextTick, watch } from 'vue'
+// 课程运营页脚本（2026-07-11 编辑器重做）：基本信息/章节编辑逻辑已迁往 CourseEditor.vue，
+// 本页只保留学员/作业/评价/问答/统计的运营管理逻辑。
+import { ref, reactive, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { courseApi } from '@/api'
-import CosImageUpload from '@/components/upload/CosImageUpload.vue'
-import VodUpload from '@/components/upload/VodUpload.vue'
-import RichEditor from '@/components/editor/RichEditor.vue'
 
 const route = useRoute()
 const router = useRouter()
 const isEdit = ref(!!route.params.id)
 const courseId = route.params.id as string
-const activeTab = ref("basic")
+const activeTab = ref("students")
+const courseTitle = ref('')
 
 // ─── 行/详情类型（字段宽松 optional，不复刻完整后端结构） ───
-/** 章节行 */
-interface ChapterRow {
-  id: string; title?: string; content?: string; mediaUrl?: string;
-  duration?: number; freeTrial?: boolean; sortOrder?: number;
-}
 /** 学员行 */
 interface StudentRow {
   id?: string; userId?: string;
@@ -1208,61 +803,6 @@ interface CourseStats {
 /** 学员学习详情 */
 interface StudentDetailData { progresses?: unknown[]; works?: unknown[] }
 
-// ─── 基本信息表单 ───
-// 会员精品课标记（独立端点即时生效，不随表单保存）
-const memberFree = ref(false)
-async function onMemberFreeChange(val: boolean) {
-  try {
-    await courseApi.setMemberFree(courseId, val)
-    ElMessage.success(val ? '已标记为会员精品课' : '已取消会员精品课')
-  } catch {
-    memberFree.value = !val // 失败回滚开关
-    ElMessage.error('设置失败（仅平台运营可操作）')
-  }
-}
-
-const form = reactive({
-  title: '',
-  cover: '',
-  intro: '',
-  type: 'VIDEO' as string,
-  price: 0,
-  originalPrice: undefined as number | undefined,
-  tags: [] as string[],
-  categoryLevel1: '' as string,
-  categoryLevel2: '' as string,
-  validityDays: 0,
-  scheduledAt: '' as string,
-  circleId: '' as string,
-  stationId: '' as string,
-})
-const mainFormRef = ref<any>(null) // el-form 实例引用，保留 any
-const mainRules = {
-  title: [{ required: true, message: '请输入课程标题', trigger: 'blur' }],
-  type: [{ required: true, message: '请选择课程类型', trigger: 'change' }],
-}
-const saving = ref(false)
-const quickStatus = ref('')
-
-// 标签输入
-const tagInputVisible = ref(false)
-const tagInputValue = ref('')
-const tagInputRef = ref<any>(null) // el-input 实例引用，保留 any
-
-function showTagInput() { tagInputVisible.value = true; nextTick(() => tagInputRef.value?.focus?.()) }
-function addTag() {
-  const val = tagInputValue.value.trim()
-  if (val && !form.tags.includes(val)) form.tags.push(val)
-  tagInputValue.value = ''
-  tagInputVisible.value = false
-}
-
-// ─── 章节管理 ───
-const chapters = ref<ChapterRow[]>([])
-const chapterForm = reactive({ title: '', content: '', mediaUrl: '', duration: undefined as number | undefined, freeTrial: false, sortOrder: 0 })
-const chapterDialog = ref(false)
-const editingChapter = ref<ChapterRow | null>(null)
-
 // ─── 学员管理 ───
 const students = ref<StudentRow[]>([])
 const studentTotal = ref(0)
@@ -1289,46 +829,6 @@ const replyDialog = ref(false)
 const replyingReview = ref<ReviewRow | null>(null)
 const replyContent = ref('')
 
-// ─── 分类 ───
-const categoryTree = ref<Record<string, string[]>>({})
-const categoryLevel1List = ref<string[]>([])
-const categoryLevel2Options = ref<string[]>([])
-
-function onLevel1Change(val: string) {
-  categoryLevel2Options.value = val ? (categoryTree.value[val] || []) : []
-  if (form.categoryLevel2 && !categoryLevel2Options.value.includes(form.categoryLevel2)) {
-    form.categoryLevel2 = ''
-  }
-}
-
-async function fetchCategories() {
-  try {
-    const { data } = await courseApi.getCategories()
-    if (data && Object.keys(data).length > 0) {
-      categoryTree.value = data
-    }
-  } catch { /* 使用默认值 */ }
-  if (Object.keys(categoryTree.value).length === 0) {
-    // 默认后备
-    categoryTree.value = {
-      "国学经典": ["儒家经典", "道家典籍", "佛学经典", "诸子百家"],
-      "易经命理": ["八字命理", "紫微斗数", "风水堪舆", "姓名学", "六爻占卜"],
-      "中医养生": ["中医基础", "食疗药膳", "经络穴位", "四季养生"],
-      "道家文化": ["道门经典", "内丹修炼", "符箓科仪"],
-      "儒家文化": ["四书五经", "宋明理学", "礼乐文化"],
-      "诗词文学": ["唐诗鉴赏", "宋词赏析", "古文观止"],
-      "书法绘画": ["书法入门", "国画技法", "名家鉴赏"],
-      "茶道香道": ["茶道文化", "香道文化", "茶具鉴赏"],
-      "武术太极": ["太极拳", "八段锦", "武术基础"],
-      "其他": ["通识入门", "专题讲座"],
-    }
-  }
-  categoryLevel1List.value = Object.keys(categoryTree.value)
-  if (form.categoryLevel1) {
-    categoryLevel2Options.value = categoryTree.value[form.categoryLevel1] || []
-  }
-}
-
 // ─── 问答管理 ───
 const qas = ref<QaRow[]>([])
 const qaTotal = ref(0)
@@ -1353,107 +853,14 @@ const studentDetailLoading = ref(false)
 
 // ─── 初始化 ───
 onMounted(async () => {
-  if (isEdit.value) {
-    const { data } = await courseApi.detail(courseId)
-    Object.assign(form, {
-      title: data.title,
-      cover: data.cover || '',
-      intro: data.intro || '',
-      type: data.type,
-      price: Number(data.price) || 0,
-      originalPrice: data.originalPrice ? Number(data.originalPrice) : undefined,
-      tags: data.tags || [],
-      categoryLevel1: data.categoryLevel1 || '',
-      categoryLevel2: data.categoryLevel2 || '',
-      validityDays: data.validityDays || 0,
-      scheduledAt: data.scheduledAt || '',
-      circleId: data.circleId || '',
-      stationId: data.stationId || '',
-    })
-    memberFree.value = !!data.memberFree
-    await loadChapters()
-  }
-  await fetchCategories()
-})
-
-// ─── 保存课程 ───
-async function save() {
-  saving.value = true
+  if (!isEdit.value) { router.replace('/courses'); return }
+  fetchStudents()
+  // 标题仅作页头展示：详情端点自带，失败静默（不阻塞运营 tab）
   try {
-    const payload = {
-      ...form,
-      price: Number(form.price) || 0,
-      originalPrice: form.originalPrice ? Number(form.originalPrice) : undefined,
-      validityDays: Number(form.validityDays) || 0,
-      scheduledAt: form.scheduledAt || undefined,
-      circleId: form.circleId || undefined,
-      stationId: form.stationId || undefined,
-    }
-    if (isEdit.value) {
-      await courseApi.update(courseId, payload)
-      ElMessage.success('保存成功')
-    } else {
-      const { data } = await courseApi.create(payload)
-      // 硬跳转到编辑页（带新课程 id）：确保进入编辑态、courseId 正确捕获，
-      // 章节管理/定价/试看/学员等全部 tab 才会出现。
-      // 原 router.replace()+window.location.reload() 存在竞态，reload 常在 URL 更新前触发→回落创建页→用户看不到章节管理。
-      ElMessage.success('课程已创建，正在进入编辑页添加章节…')
-      window.location.href = `${import.meta.env.BASE_URL}courses/${data.id}/edit`
-      return
-    }
-  } finally {
-    saving.value = false
-  }
-}
-
-async function changeStatus(status: string) {
-  await courseApi.forceStatus(courseId, status)
-  const label = { DRAFT: "已下架", PENDING: "已提交审核", APPROVED: "已上架", REJECTED: "已驳回" }[status] || status
-  ElMessage.success(label)
-  quickStatus.value = ''
-}
-
-async function handleDelete() {
-  await courseApi.remove(courseId)
-  ElMessage.success('已删除课程')
-  router.push('/courses')
-}
-
-// ─── 章节操作 ───
-async function loadChapters() {
-  const { data } = await courseApi.getChapters(courseId)
-  chapters.value = data
-}
-
-function openChapterDialog(ch?: ChapterRow) {
-  if (ch) {
-    editingChapter.value = ch
-    Object.assign(chapterForm, { title: ch.title, content: ch.content || '', mediaUrl: ch.mediaUrl || '', duration: ch.duration, freeTrial: ch.freeTrial || false, sortOrder: ch.sortOrder || 0 })
-  } else {
-    editingChapter.value = null
-    Object.assign(chapterForm, { title: '', content: '', mediaUrl: '', duration: undefined, freeTrial: false, sortOrder: chapters.value.length + 1 })
-  }
-  chapterDialog.value = true
-}
-
-async function saveChapter() {
-  if (!isEdit.value) { await save() }
-  const payload = { ...chapterForm }
-  if (editingChapter.value) {
-    await courseApi.updateChapter(courseId, editingChapter.value.id, payload)
-  } else {
-    await courseApi.addChapter(courseId, payload)
-  }
-  chapterDialog.value = false
-  ElMessage.success('章节已保存')
-  await loadChapters()
-}
-
-async function deleteChapter(chapterId: string) {
-  await courseApi.deleteChapter(courseId, chapterId)
-  ElMessage.success('已删除')
-  await loadChapters()
-}
+    const { data } = await courseApi.detail(courseId)
+    courseTitle.value = data?.title || ''
+  } catch { /* 静默 */ }
+})
 
 // ─── 学员操作 ───
 async function fetchStudents() {

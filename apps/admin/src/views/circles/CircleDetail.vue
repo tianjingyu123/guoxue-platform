@@ -2215,6 +2215,7 @@ const editForm = reactive({ name: "", cover: "", intro: "", type: "FREE", price:
 
 // 分组
 const groupVisible = ref(false); const groupTargetUser = ref<GroupTargetUser | null>(null); const groupSelected = ref<string[]>([]); const memberGroups = ref<MemberGroup[]>([]);
+const groupTargetUserId = ref(""); const groupOriginal = ref<string[]>([]);
 
 // 添加成员
 const addMemberVisible = ref(false);
@@ -2306,19 +2307,35 @@ async function removeMember(row: MemberRow) {
 
 async function showMemberGroups(row: MemberRow) {
   groupTargetUser.value = row.user || row;
+  groupTargetUserId.value = row.userId || "";
   try {
     const res = await api.get(`/circles/${circleId}/member-groups`);
     memberGroups.value = res.data?.data || res.data || [];
-    const memberRes = await api.get(`/circles/${circleId}/member-groups/user/${row.userId}`);
-    groupSelected.value = (memberRes.data?.groups || []).map((g: { id: string }) => g.id);
-  } catch { memberGroups.value = []; }
+    // 后端无「按用户查所属分组」端点，逐分组拉成员列表判断归属（真实端点 GET :id/member-groups/:groupId/members）
+    const uid = groupTargetUserId.value;
+    const owned: string[] = [];
+    for (const g of memberGroups.value) {
+      try {
+        const m = await api.get(`/circles/${circleId}/member-groups/${g.id}/members`, { params: { page: 1, pageSize: 100 } });
+        const arr = m.data?.members || m.data?.items || [];
+        if (Array.isArray(arr) && arr.some((x: { id?: string }) => x.id === uid)) owned.push(g.id);
+      } catch { /* ignore */ }
+    }
+    groupSelected.value = [...owned];
+    groupOriginal.value = owned;
+  } catch { memberGroups.value = []; groupSelected.value = []; groupOriginal.value = []; }
   groupVisible.value = true;
 }
 
 async function saveMemberGroups() {
   if (acting.value) return; acting.value = true;
+  const uid = groupTargetUserId.value;
   try {
-    await api.post(`/circles/${circleId}/member-groups/assign`, { userId: groupTargetUser.value?.userId || groupTargetUser.value?.id, groupIds: groupSelected.value });
+    // 后端无批量 assign 端点，按差量调真实端点：加入 POST :groupId/members，移出 DELETE :groupId/members/:userId
+    const added = groupSelected.value.filter((id) => !groupOriginal.value.includes(id));
+    const removed = groupOriginal.value.filter((id) => !groupSelected.value.includes(id));
+    for (const gid of added) await api.post(`/circles/${circleId}/member-groups/${gid}/members`, { userIds: [uid] });
+    for (const gid of removed) await api.delete(`/circles/${circleId}/member-groups/${gid}/members/${uid}`);
     ElMessage.success("分组已更新"); groupVisible.value = false;
   } catch { /* ignore */ } finally { acting.value = false; }
 }

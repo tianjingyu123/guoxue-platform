@@ -46,10 +46,8 @@ const MENU_GROUPS: Array<LeafDef | GroupDef> = [
       M("/circle-refunds"), // 圈子退款审核
       M("/circle-appeals"), // 圈子申诉仲裁
       M("/call-disputes"), // 通话账单申诉
-      M("/social/notes-audit"), // 公开笔记审核
       M("/bounty/reviews", "悬赏审核"),
       M("/users/identity"), // 实名审核
-      M("/users/capabilities"), // 功能权限审批
       M("/teacher/certifications"), // 讲师认证审核
       M("/risk/appeals", "用户申诉处理"),
       M("/reports"), // 举报管理
@@ -87,11 +85,6 @@ const MENU_GROUPS: Array<LeafDef | GroupDef> = [
         title: "互动社区",
         children: [
           M("/comments"),
-          M("/social/comment-center"),
-          M("/social/emojis"),
-          M("/social/achievements"),
-          M("/social/certifications"),
-          M("/content/ritual"),
         ],
       },
       {
@@ -149,10 +142,6 @@ const MENU_GROUPS: Array<LeafDef | GroupDef> = [
           M("/marketing/coupons"),
           M("/marketing/pages"),
           M("/marketing/landing-pages"),
-          M("/marketing/poster-templates"),
-          M("/marketing/share-data"),
-          M("/marketing/invite-rewards"),
-          M("/marketing/spread-power"),
         ],
       },
     ],
@@ -257,7 +246,6 @@ const MENU_GROUPS: Array<LeafDef | GroupDef> = [
       M("/ai/media-processing"),
       M("/ai/content-quality"),
       M("/ai/rag-templates"),
-      M("/ai/prompt-scenes"),
       M("/ai/data-explorer"),
       M("/ai/anomaly-detector"),
       M("/ai/collaborations"),

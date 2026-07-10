@@ -89,14 +89,6 @@
           >
             编辑
           </el-button>
-          <el-button
-            size="small"
-            type="danger"
-            :loading="deleting"
-            @click="handleDelete(row)"
-          >
-            删除
-          </el-button>
         </template>
       </el-table-column>
       <template #empty>
@@ -176,7 +168,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from "vue";
-import { ElMessage, ElMessageBox } from "element-plus";
+import { ElMessage } from "element-plus";
 import { instituteApi } from "@/api";
 
 /** 任务模板行（字段宽松 optional） */
@@ -192,7 +184,6 @@ interface TemplateRow {
 const list = ref<TemplateRow[]>([]);
 const loading = ref(false);
 const loadError = ref(false);
-const deleting = ref(false);
 
 const dialogVisible = ref(false);
 const saving = ref(false);
@@ -241,18 +232,6 @@ async function save() {
   } finally { saving.value = false; }
 }
 
-async function handleDelete(row: TemplateRow) {
-  if (deleting.value) return;
-  await ElMessageBox.confirm(`确定删除模板「${row.name}」？`, "提示", { type: "warning" });
-  deleting.value = true;
-  try {
-    await instituteApi.deleteTaskTemplate(row.id);
-    ElMessage.success("已删除");
-    fetchList();
-  } finally {
-    deleting.value = false;
-  }
-}
 </script>
 
 <style scoped>

@@ -105,39 +105,7 @@
         <el-form-item label="品牌名称">
           <el-input v-model="form.brandName" />
         </el-form-item>
-        <el-form-item label="运营商等级">
-          <el-select
-            v-model="form.level"
-            style="width:100%"
-          >
-            <el-option
-              label="普通运营商"
-              value="NORMAL"
-            />
-            <el-option
-              label="高级运营商"
-              value="ADVANCED"
-            />
-            <el-option
-              label="VIP运营商"
-              value="VIP"
-            />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="总配额">
-          <el-input-number
-            v-model="form.containQuota"
-            :min="0"
-            style="width:100%"
-          />
-        </el-form-item>
-        <el-form-item label="状态">
-          <el-switch
-            v-model="form.status"
-            active-value="ACTIVE"
-            inactive-value="DISABLED"
-          />
-        </el-form-item>
+        <!-- 后端品牌端点（PUT /station/operator/:id/brand）仅支持品牌类字段；等级/配额/状态无对应更新端点 -->
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">
@@ -181,9 +149,6 @@ const currentRow = ref<OperatorStation | null>(null);
 
 const form = reactive({
   brandName: "",
-  level: "NORMAL",
-  containQuota: 0,
-  status: "ACTIVE",
 });
 
 async function fetchList() {
@@ -191,7 +156,7 @@ async function fetchList() {
   loadError.value = false;
   try {
     const res = await operatorAdminApi.list({ page: page.value, pageSize: pageSize.value });
-    list.value = res.data.items || res.data.list || res.data.rows || [];
+    list.value = res.data.operators || res.data.items || res.data.list || [];
     total.value = res.data.total || 0;
   } catch {
     loadError.value = true;
@@ -204,9 +169,6 @@ async function fetchList() {
 function openEditDialog(row: OperatorStation) {
   currentRow.value = row;
   form.brandName = row.brandName;
-  form.level = row.level;
-  form.containQuota = row.containQuota;
-  form.status = row.status;
   dialogVisible.value = true;
 }
 
@@ -214,7 +176,7 @@ async function handleSubmit() {
   if (!currentRow.value) return;
   submitting.value = true;
   try {
-    await operatorAdminApi.update(currentRow.value.id, form);
+    await operatorAdminApi.updateBrand(currentRow.value.id, { brandName: form.brandName });
     ElMessage.success("更新成功");
     dialogVisible.value = false;
     fetchList();

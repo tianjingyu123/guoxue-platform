@@ -17,7 +17,6 @@
           <el-option label="3星" value="3" /><el-option label="2星" value="2" /><el-option label="1星" value="1" />
         </el-select>
         <el-button type="primary" style="margin-left:8px" @click="fetchList">搜索</el-button>
-        <el-button style="margin-left:8px" @click="checkAbnormal">异常检测</el-button>
       </div>
     </div>
 
@@ -89,9 +88,6 @@
       <el-table-column label="操作" width="200" fixed="right">
         <template #default="{ row }">
           <el-button size="small" type="primary" @click="openReply(row)">回复</el-button>
-          <el-button size="small" type="warning" @click="toggleHide(row)">
-            {{ row.status === 'PUBLISHED' ? '隐藏' : '显示' }}
-          </el-button>
           <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
         </template>
       </el-table-column>
@@ -104,27 +100,6 @@
         <el-button @click="replyVisible = false">取消</el-button>
         <el-button type="primary" :loading="submitting" @click="submitReply">提交回复</el-button>
       </template>
-    </el-dialog>
-
-    <!-- 异常评价弹窗 -->
-    <el-dialog v-model="abnormalVisible" title="异常评价检测" width="600px">
-      <el-alert
-        v-if="abnormalList.length === 0"
-        title="未检测到异常评价"
-        type="success"
-        :closable="false"
-        show-icon
-      />
-      <el-table v-else :data="abnormalList" stripe>
-        <el-table-column prop="reviewId" label="评价ID" width="120" />
-        <el-table-column prop="content" label="内容" minWidth="200" show-overflow-tooltip />
-        <el-table-column label="异常类型" width="120">
-          <template #default="{ row }">
-            <el-tag size="small" type="danger">{{ row.abnormalType }}</el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="score" label="异常度" width="80" align="center" sortable />
-      </el-table>
     </el-dialog>
   </div>
 </template>
@@ -151,14 +126,6 @@ interface ReviewRow {
   status?: string;
   createdAt?: string;
 }
-/** 异常评价行（字段宽松 optional） */
-interface AbnormalRow {
-  reviewId?: string;
-  content?: string;
-  abnormalType?: string;
-  score?: number;
-}
-
 const loading = ref(false);
 const error = ref(false);
 const submitting = ref(false);
@@ -169,8 +136,6 @@ const ratingFilter = ref("");
 const replyVisible = ref(false);
 const replyContent = ref("");
 const replyReviewId = ref("");
-const abnormalVisible = ref(false);
-const abnormalList = ref<AbnormalRow[]>([]);
 
 async function fetchList() {
   error.value = false;
@@ -223,16 +188,6 @@ async function submitReply() {
   }
 }
 
-async function toggleHide(row: ReviewRow) {
-  if (acting.value) return;
-  acting.value = true;
-  try {
-    const newStatus = row.status === 'PUBLISHED' ? 'HIDDEN' : 'PUBLISHED';
-    await api.put(`/shop/reviews/${row.id}/toggle`, { status: newStatus });
-    ElMessage.success(newStatus === 'HIDDEN' ? '已隐藏' : '已显示');
-    fetchList();
-  } catch { /* */ } finally { acting.value = false; }
-}
 
 async function handleDelete(row: ReviewRow) {
   try {
@@ -243,21 +198,6 @@ async function handleDelete(row: ReviewRow) {
     ElMessage.success("已删除");
     fetchList();
   } catch { /* 取消 */ } finally { acting.value = false; }
-}
-
-async function checkAbnormal() {
-  if (!productIdFilter.value.trim()) {
-    ElMessage.warning("请先搜索商品ID");
-    return;
-  }
-  try {
-    const { data } = await api.get(`/shop/products/${productIdFilter.value}/reviews/abnormal`);
-    abnormalList.value = data?.list ?? data?.data ?? [];
-    abnormalVisible.value = true;
-  } catch {
-    abnormalList.value = [];
-    abnormalVisible.value = true;
-  }
 }
 </script>
 

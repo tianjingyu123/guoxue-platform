@@ -20,7 +20,8 @@ async function exportCsv(type: string) {
   exporting.value = type;
   try {
     const { api } = await import("@/api");
-    const res = await api.get(`/system/export/${type}`, { responseType: "blob" });
+    // 后端导出端点均为 POST（system.controller @Post("export/users") 等），此前误写为 GET 导致 404
+    const res = await api.post(`/system/export/${type}`, {}, { responseType: "blob" });
     downloadBlob(res.data, `${type}-${Date.now()}.csv`);
     ElMessage.success("导出成功");
   } catch {
