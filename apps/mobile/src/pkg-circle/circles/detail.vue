@@ -89,8 +89,12 @@ async function loadData() {
   isLoading.value = true
   error.value = ''
   try {
-    const [c, p, m, arts, crs, lvs, prds, pas] = await Promise.all([
-      circleDetailApi.detail(circleId.value),
+    // 主请求（圈子本体）失败才整页报错；子模块各自降级为空——防单个子接口抖动拖垮整页（董事长 2026-07-11 真机反馈修复）
+    const c = await circleDetailApi.detail(circleId.value)
+    circle.value = c
+    isJoined.value = c.isJoined
+
+    const [p, m, arts, crs, lvs, prds, pas, st] = await Promise.allSettled([
       circleDetailApi.posts(circleId.value),
       circleDetailApi.listMembers(circleId.value),
       circleDetailApi.articles(circleId.value),
@@ -98,22 +102,20 @@ async function loadData() {
       circleDetailApi.lives(circleId.value),
       circleDetailApi.products(circleId.value),
       circleDetailApi.postedArticles(circleId.value),
+      isLoggedIn() ? circleDetailApi.getJoinStatus(circleId.value) : Promise.reject(new Error('未登录')),
     ])
-    circle.value = c
-    posts.value = p.data
-    members.value = m.data
-    circleArticles.value = arts
-    courses.value = crs
-    lives.value = lvs
-    circleProducts.value = prds
-    postedArticles.value = pas
-    isJoined.value = c.isJoined
-    if (isLoggedIn()) {
-      const st = await circleDetailApi.getJoinStatus(circleId.value)
-      isJoined.value = st.joined
-      if (circle.value) circle.value.myRole = st.role
+    posts.value = p.status === 'fulfilled' ? p.value.data : []
+    members.value = m.status === 'fulfilled' ? m.value.data : []
+    circleArticles.value = arts.status === 'fulfilled' ? arts.value : []
+    courses.value = crs.status === 'fulfilled' ? crs.value : []
+    lives.value = lvs.status === 'fulfilled' ? lvs.value : []
+    circleProducts.value = prds.status === 'fulfilled' ? prds.value : []
+    postedArticles.value = pas.status === 'fulfilled' ? pas.value : []
+    if (st.status === 'fulfilled') {
+      isJoined.value = st.value.joined
+      if (circle.value) circle.value.myRole = st.value.role
     }
-    likedPosts.value = new Set(p.data.filter((x) => x.isLiked).map((x) => x.id))
+    likedPosts.value = new Set((p.status === 'fulfilled' ? p.value.data : []).filter((x) => x.isLiked).map((x) => x.id))
   } catch {
     error.value = '加载失败，请重试'
   } finally {
@@ -194,9 +196,12 @@ function openCreate() {
 }
 function openManage() { navigateTo(`/pkg-circle/circles/dashboard?id=${circleId.value}`) }
 function openMore() {
+  // 董事长 2026-07-11 真机反馈：①分享去重（右上角已有分享按钮）②退出弱化——不再直弹确认框，改走退出引导页（挽留+后果说明+退款衔接）
   const items: { label: string; act: () => void }[] = []
-  items.push({ label: '分享圈子', act: openShare })
-  if (isJoined.value && !isOwner.value) items.push({ label: '退出圈子', act: doLeave })
+  if (isJoined.value && !isOwner.value) {
+    items.push({ label: '退出与退款', act: () => navigateTo(`/pkg-circle/circles/exit?id=${circleId.value}`) })
+  }
+  if (!items.length) return
   uni.showActionSheet({ itemList: items.map((i) => i.label), success: (r) => items[r.tapIndex]?.act() })
 }
 function doLeave() {
@@ -217,6 +222,7 @@ function doLeave() {
 function openAnnouncement() { navigateTo(`/pkg-circle/circles/announcements?id=1&circleId=${circleId.value}`) }
 function openUser(id: string) { navigateTo(`/pkg-circle/user/profile?id=${id}`) }
 function openAssistant() { navigateTo(`/pkg-circle/circles/assistant?circleId=${circleId.value}&name=${encodeURIComponent(circle.value?.name || '')}`) }
+function openConsult() { navigateTo(`/pkg-circle/circles/consult-experts?circleId=${circleId.value}`) }
 // 增值带跳转：直播广场 / 课堂列表 / 橱窗（复用活动广场式聚合，暂跳各内容页）
 function openLive(id: string) { navigateTo(`/live/${id}`) }
 function openCourses() { navigateTo('/pkg-circle/circles/activities') }
@@ -270,6 +276,16 @@ function openShowcase() { navigateTo('/pkg-circle/circles/activities') }
               <text class="ai-sub">圈子专属 AI，学习本圈内容，随时答疑</text>
             </view>
             <text class="ai-go">对话</text>
+          </view>
+
+          <!-- 达人咨询入口（图文提问 / 连麦·董事长 2026-07-11 反馈补·与 AI 助理同级并排） -->
+          <view class="ai-entry consult-entry" @tap="openConsult">
+            <view class="ai-orb"><app-icon name="headphones" :size="30" color="#C9A96E" /></view>
+            <view class="ai-text">
+              <text class="ai-title">达人咨询</text>
+              <text class="ai-sub">向圈内达人图文提问、悬赏或连麦一对一</text>
+            </view>
+            <text class="ai-go">去咨询</text>
           </view>
         </view>
       </view>
@@ -519,6 +535,7 @@ function openShowcase() { navigateTo('/pkg-circle/circles/activities') }
   border-radius: 28rpx; background: var(--bg-card, #fff);
   border: 1rpx solid rgba(201, 169, 110, 0.5);
 }
+.consult-entry { margin-top: 16rpx; }
 .ai-entry:active { opacity: 0.9; }
 .ai-orb { width: 60rpx; height: 60rpx; border-radius: 999rpx; flex-shrink: 0; background: var(--gold-soft, rgba(201, 169, 110, 0.14)); display: flex; align-items: center; justify-content: center; }
 .ai-text { flex: 1; min-width: 0; }

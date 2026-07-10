@@ -299,9 +299,9 @@ async function submit() {
 .cc-label-line { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 16rpx; }
 .cc-label { font-size: 26rpx; font-weight: 500; color: var(--text-primary, #2C2C2C); }
 .cc-count { font-size: 22rpx; color: var(--text-tertiary, #999); }
-/* 显式高度：uni-app input 无固定高度真机会塌陷 */
-.cc-input { width: 100%; height: 56rpx; line-height: 56rpx; font-size: 30rpx; color: var(--text-primary, #2C2C2C); background: transparent; }
-.cc-textarea { width: 100%; min-height: 56rpx; font-size: 28rpx; line-height: 1.7; color: var(--text-primary, #2C2C2C); background: transparent; }
+/* 显式高度：uni-app input 无固定高度真机会塌陷。加高（董事长 2026-07-11 真机反馈：编辑框过小文字显示不全） */
+.cc-input { width: 100%; height: 80rpx; line-height: 80rpx; font-size: 30rpx; color: var(--text-primary, #2C2C2C); background: transparent; }
+.cc-textarea { width: 100%; min-height: 160rpx; font-size: 28rpx; line-height: 1.7; color: var(--text-primary, #2C2C2C); background: transparent; }
 .cc-ph { color: var(--text-tertiary, #999); }
 .cc-err { display: block; margin-top: 10rpx; font-size: 22rpx; color: var(--brand, #C41E3A); }
 
