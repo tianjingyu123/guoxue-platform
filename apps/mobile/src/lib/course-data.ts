@@ -70,7 +70,7 @@ export interface LearnQuestion { id: string; content: string; author: { id: stri
 // ============ 视频播放页(player) mock(从原型 courses/[id]/player 迁移) ============
 // @data-needs: 课时播放内容, 参数 lessonId, 返回 ChapterContent
 export interface PlayerLesson { id: string; title: string; chapterId: string }
-export interface ChapterContent { id: string; title: string; courseId: string; courseTitle: string; videoUrl: string; duration: number; currentProgress: number; nextLesson?: PlayerLesson; prevLesson?: PlayerLesson }
+export interface ChapterContent { id: string; title: string; courseId: string; courseTitle: string; cover: string; videoUrl: string; duration: number; currentProgress: number; nextLesson?: PlayerLesson; prevLesson?: PlayerLesson }
 // @data-needs: 播放页章节目录, 参数 courseId, 返回 PlayerChapter[]
 export interface PlayerChapterLesson { id: string; title: string; duration: number; isFree: boolean; isCompleted: boolean }
 export interface PlayerChapter { id: string; title: string; duration: number; isFree: boolean; lessons: PlayerChapterLesson[] }
@@ -504,6 +504,7 @@ export const courseApi = {
       title: ch.title || '',
       courseId,
       courseTitle: course?.title || '',
+      cover: course?.cover || '',
       videoUrl: ch.mediaUrl || ch.content || '',
       duration,
       currentProgress: myProg ? Math.round((toNum(myProg.progress) / 100) * duration) : 0,

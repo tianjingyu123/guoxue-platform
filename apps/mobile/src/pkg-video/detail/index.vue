@@ -1,10 +1,5 @@
 <template>
-  <view
-    class="vp"
-    @touchstart="onTouchStart"
-    @touchmove="onTouchMove"
-    @touchend="onTouchEnd"
-  >
+  <view class="vp">
     <customer-service-fab />
     <!-- 三态：加载/失败/空 -->
     <view v-if="loading || error || !currentVideo" class="vp__state">
@@ -17,79 +12,76 @@
     </view>
 
     <template v-if="currentVideo">
-    <!-- 视频容器：支持上下滑动 -->
-    <view class="vp__stage">
-      <!-- 上一个视频预览 -->
-      <view
-        v-if="prevVideo"
-        class="vp__layer"
-        :style="layerStyle(-windowH - swipeOffset)"
-      >
-        <image lazy-load class="vp__cover" :src="prevVideo.coverUrl" mode="aspectFill" />
-        <view class="vp__shade" />
-      </view>
-
-      <!-- 当前视频 -->
-      <view
-        class="vp__layer"
-        :style="curLayerStyle"
-        @tap="onSingleTap"
-      >
-        <!-- 封面作为播放器 poster/兜底：视频未就绪或无视频源时展示 -->
-        <image lazy-load class="vp__cover" :src="currentVideo.coverUrl" mode="aspectFill" />
-        <!-- 视频播放器：有真实 videoUrl 且未出错时挂载（H5=原生 video，小程序/App=原生组件）-->
-        <video
-          v-if="currentVideo.videoUrl && !playError"
-          :key="currentVideo.id"
-          id="vp-player"
-          class="vp__video"
-          :src="currentVideo.videoUrl"
-          :muted="isMuted"
-          :controls="false"
-          :show-center-play-btn="false"
-          :show-play-btn="false"
-          :show-fullscreen-btn="false"
-          :show-progress="false"
-          :enable-progress-gesture="false"
-          :loop="true"
-          autoplay
-          object-fit="cover"
-          @play="onVideoPlay"
-          @pause="onVideoPause"
-          @error="onVideoError"
-          @timeupdate="onTimeUpdate"
-        />
-        <!-- 暂停图标 -->
-        <view v-if="!isPlaying" class="vp__pause">
-          <view class="vp__pause-btn">
-            <AppIcon name="play" :size="48" color="#ffffff" :fill="true" />
+    <!--
+      视频容器：uni-app 官方 swiper 纵向轮播（替换原手写 touchstart/move/end 实现）
+      根因：手写 touch 未 preventDefault，安卓微信 X5 下滑（返回上一个）手势被页面下拉/回弹消费 →
+      只有上滑能触发切换。swiper 内部统一接管手势，双向滑动在 X5 上可靠；current 双向绑定索引。
+    -->
+    <swiper
+      class="vp__stage"
+      :vertical="true"
+      :current="currentIndex"
+      :duration="300"
+      :circular="false"
+      @change="onSwiperChange"
+    >
+      <swiper-item v-for="(v, i) in videos" :key="v.id">
+        <!-- 只渲染当前±1（预加载前后各一条），其余留空壳，避免 50 条全挂载 -->
+        <view v-if="nearCurrent(i)" class="vp__layer" @tap="onSingleTap">
+          <!-- 封面作为播放器 poster/兜底：视频未就绪或无视频源时展示 -->
+          <image lazy-load class="vp__cover" :src="v.coverUrl" mode="aspectFill" />
+          <!-- 视频播放器：仅当前条挂载（H5=原生 video，小程序/App=原生组件）·不静音（董事长拍板：
+               自动播放被浏览器拦截时显示中央播放按钮让用户点一下，而不是静音自动播） -->
+          <video
+            v-if="i === currentIndex && v.videoUrl && !playError"
+            :key="v.id"
+            id="vp-player"
+            class="vp__video"
+            :src="v.videoUrl"
+            :controls="false"
+            :show-center-play-btn="false"
+            :show-play-btn="false"
+            :show-fullscreen-btn="false"
+            :show-progress="false"
+            :enable-progress-gesture="false"
+            :loop="true"
+            autoplay
+            object-fit="cover"
+            @play="onVideoPlay"
+            @pause="onVideoPause"
+            @error="onVideoError"
+            @timeupdate="onTimeUpdate"
+          />
+          <!-- 不可播诚实态：源加载失败（如 .mov 格式安卓不支持/转码中）-->
+          <view v-if="i === currentIndex && playError" class="vp__unplayable">
+            <AppIcon name="video-off" :size="64" color="rgba(255,255,255,0.65)" />
+            <text class="vp__unplayable-txt">该视频暂不可播</text>
+            <text class="vp__unplayable-sub">格式暂不支持或正在转码，请稍后再试</text>
           </view>
+          <!-- 中央播放按钮：未在播放（含有声自动播放被浏览器拦截）时显示，点一下开播 -->
+          <view v-if="i === currentIndex && !isPlaying && !playError" class="vp__pause">
+            <view class="vp__pause-btn">
+              <AppIcon name="play" :size="48" color="#ffffff" :fill="true" />
+            </view>
+          </view>
+          <!-- 双击飘心 -->
+          <template v-if="i === currentIndex">
+            <view
+              v-for="heart in floatingHearts"
+              :key="heart.id"
+              class="vp__heart"
+              :style="{ left: heart.x - 24 + 'px', top: heart.y - 24 + 'px' }"
+            >
+              <AppIcon name="heart" :size="48" color="#c41e3a" :fill="true" />
+            </view>
+          </template>
+          <view class="vp__shade" />
         </view>
-        <!-- 双击飘心 -->
-        <view
-          v-for="heart in floatingHearts"
-          :key="heart.id"
-          class="vp__heart"
-          :style="{ left: heart.x - 24 + 'px', top: heart.y - 24 + 'px' }"
-        >
-          <AppIcon name="heart" :size="48" color="#c41e3a" :fill="true" />
-        </view>
-        <view class="vp__shade" />
-      </view>
-
-      <!-- 下一个视频预览 -->
-      <view
-        v-if="nextVideo"
-        class="vp__layer"
-        :style="layerStyle(windowH - swipeOffset)"
-      >
-        <image lazy-load class="vp__cover" :src="nextVideo.coverUrl" mode="aspectFill" />
-        <view class="vp__shade" />
-      </view>
-    </view>
+      </swiper-item>
+    </swiper>
 
     <!-- 滑动提示（V0 swipe-hint：底部居中·仅首条视频） -->
-    <view v-if="currentIndex === 0 && !isTransitioning" class="vp__swipe-tip" :style="{ bottom: 'calc(' + safeBottom + 'px + 36rpx)' }">
+    <view v-if="currentIndex === 0" class="vp__swipe-tip" :style="{ bottom: 'calc(' + safeBottom + 'px + 36rpx)' }">
       <AppIcon name="chevron-up" :size="32" color="rgba(255,255,255,0.5)" />
       <text class="vp__swipe-tip-txt">上滑看下一个</text>
     </view>
@@ -111,9 +103,6 @@
           <view v-if="cartTotal > 0" class="vp__icon-btn vp__icon-btn--cart" @tap="showCart = true">
             <AppIcon name="shopping-cart" :size="30" color="#ffffff" />
             <text class="vp__cart-badge">{{ cartTotal }}</text>
-          </view>
-          <view class="vp__icon-btn" @tap="isMuted = !isMuted">
-            <AppIcon :name="isMuted ? 'volume-x' : 'volume-2'" :size="30" color="#ffffff" />
           </view>
         </view>
       </view>
@@ -326,10 +315,10 @@ async function loadFeed() {
 function retry() { loadFeed() }
 
 // ===== 播放/UI 状态 =====
-const isPlaying = ref(true)
-// 打开即播放：移动端浏览器禁止「有声」视频自动播放，必须静音起步才能自动播（用户可点喇叭开声音）
-const isMuted = ref(true)
-const playError = ref(false) // 视频源加载失败 → 隐藏 player 回退到封面
+// 不静音（董事长拍板去掉静音起步）：初始视为未播放，autoplay 成功后 @play 事件置 true；
+// 若浏览器拦截「有声」自动播放（@play 不触发），中央播放按钮保持可见，用户点一下即有声开播。
+const isPlaying = ref(false)
+const playError = ref(false) // 视频源加载失败 → 隐藏 player 回退到封面 + 诚实态提示
 
 // ===== 播放器控制（uni video context）=====
 const instance = getCurrentInstance()
@@ -340,15 +329,31 @@ function getVideoCtx() {
   }
   return videoCtx
 }
+/**
+ * 播放（吞掉 play() promise 拒绝）：
+ * uni videoContext.play() 在 H5 内部不 catch，快速滑动切换时旧元素卸载会抛
+ * 「The play() request was interrupted…」的 unhandledrejection；有声自动播放被浏览器
+ * 拦截时同样拒绝。H5 直接驱动原生 <video> 并 catch，播放成败交给 @play 事件回写 isPlaying。
+ */
+function safePlay() {
+  // #ifdef H5
+  const media = document.querySelector<HTMLVideoElement>('.vp__video video') || document.querySelector<HTMLVideoElement>('video')
+  if (media) {
+    const p = media.play()
+    if (p && typeof p.catch === 'function') p.catch(() => { /* 被拦截/切换中断 → 中央播放按钮兜底 */ })
+    return
+  }
+  // #endif
+  getVideoCtx()?.play()
+}
 function togglePlay() {
   // 无真实视频源：仅切换占位播放态（封面模式）
   if (!currentVideo.value?.videoUrl || playError.value) {
     isPlaying.value = !isPlaying.value
     return
   }
-  const ctx = getVideoCtx()
-  if (isPlaying.value) { ctx?.pause(); isPlaying.value = false }
-  else { ctx?.play(); isPlaying.value = true }
+  if (isPlaying.value) { getVideoCtx()?.pause(); isPlaying.value = false }
+  else { safePlay() } // isPlaying 由 @play 事件置 true（播放失败则按钮保留·诚实）
 }
 function onVideoPlay() { isPlaying.value = true }
 function onVideoPause() { isPlaying.value = false }
@@ -370,20 +375,16 @@ function goCircle() {
 const showComments = ref(false)
 const showProducts = ref(false)
 const showCart = ref(false)
-const isTransitioning = ref(false)
-const swipeOffset = ref(0)
 const floatingHearts = ref<Array<{ id: number; x: number; y: number }>>([])
 const cart = ref<CartItem[]>([])
 const addedToCart = ref<string | null>(null)
 
-let touchStartY = 0
-let touchCurrentY = 0
 let heartId = 0
 let lastTapTime = 0
 
 const currentVideo = computed(() => videos.value[currentIndex.value])
-const prevVideo = computed(() => (currentIndex.value > 0 ? videos.value[currentIndex.value - 1] : null))
-const nextVideo = computed(() => (currentIndex.value < videos.value.length - 1 ? videos.value[currentIndex.value + 1] : null))
+/** swiper-item 渲染窗口：当前±1 才渲染内容（预加载前后各一条封面） */
+function nearCurrent(i: number) { return Math.abs(i - currentIndex.value) <= 1 }
 
 // ===== 带货商品懒加载（佣-V2-P3）：列表接口不含带货关联，切到某视频时按需拉取组装 =====
 const productsFetched = new Set<string>()
@@ -399,17 +400,6 @@ watch(currentVideo, (v) => { if (v) loadProducts(v) }, { immediate: true })
 
 const cartTotal = computed(() => cart.value.reduce((s, i) => s + i.quantity, 0))
 const cartAmount = computed(() => Math.round(cart.value.reduce((s, i) => s + i.quantity * i.product.price, 0) * 100) / 100)
-
-const curLayerStyle = computed(() => ({
-  transform: `translateY(${-swipeOffset.value}px)`,
-  transition: isTransitioning.value ? 'transform 0.3s ease-out' : 'none',
-}))
-function layerStyle(offset: number) {
-  return {
-    transform: `translateY(${offset}px)`,
-    transition: isTransitioning.value ? 'transform 0.3s ease-out' : 'none',
-  }
-}
 
 onLoad((opts) => {
   if (opts?.id) pendingId.value = String(opts.id)
@@ -432,47 +422,10 @@ onShareTimeline(() => toTimeline({
   cover: currentVideo.value?.coverUrl,
 }))
 
-// ===== 触摸滑动 =====
-function onTouchStart(e: any /* uni 表单事件经 vue-tsc 按原生签名校验，参数须 any */) {
-  if (showComments.value || showProducts.value || showCart.value) return
-  touchStartY = e.touches[0].clientY
-  touchCurrentY = e.touches[0].clientY
-}
-function onTouchMove(e: any /* uni 表单事件经 vue-tsc 按原生签名校验，参数须 any */) {
-  if (showComments.value || showProducts.value || showCart.value || isTransitioning.value) return
-  touchCurrentY = e.touches[0].clientY
-  const diff = touchStartY - touchCurrentY
-  if ((diff > 0 && nextVideo.value) || (diff < 0 && prevVideo.value)) {
-    swipeOffset.value = Math.max(-150, Math.min(150, diff))
-  }
-}
-function onTouchEnd() {
-  if (showComments.value || showProducts.value || showCart.value || isTransitioning.value) return
-  const diff = touchStartY - touchCurrentY
-  const threshold = 80
-  if (Math.abs(diff) > threshold) {
-    if (diff > 0 && nextVideo.value) {
-      isTransitioning.value = true
-      swipeOffset.value = windowH.value
-      setTimeout(() => {
-        currentIndex.value += 1
-        swipeOffset.value = 0
-        isTransitioning.value = false
-      }, 300)
-    } else if (diff < 0 && prevVideo.value) {
-      isTransitioning.value = true
-      swipeOffset.value = -windowH.value
-      setTimeout(() => {
-        currentIndex.value -= 1
-        swipeOffset.value = 0
-        isTransitioning.value = false
-      }, 300)
-    } else {
-      swipeOffset.value = 0
-    }
-  } else {
-    swipeOffset.value = 0
-  }
+// ===== 滑动切换（swiper 纵向轮播·双向可靠）=====
+function onSwiperChange(e: any /* uni swiper 事件经 vue-tsc 按原生签名校验，参数须 any */) {
+  const idx = Number(e?.detail?.current)
+  if (Number.isFinite(idx) && idx !== currentIndex.value) currentIndex.value = idx
 }
 
 // ===== 单击暂停 / 双击点赞 =====
@@ -549,15 +502,17 @@ watch(() => currentVideo.value?.id, async () => {
   // （用户滑动已构成交互上下文，规避移动端自动播放限制）。
   playError.value = false
   playProgress.value = 0 // 切换视频 → 进度条清零
+  // 不静音策略：切换后先视为未播放（中央播放按钮可见），@play 事件触发才置 true；
+  // 滑动手势本身构成用户交互上下文，多数浏览器允许随后的有声 ctx.play()，失败则按钮留给用户点。
+  isPlaying.value = false
   // video 元素随 :key=id 重建，旧 context 已失效：置空让下方 nextTick 重新获取指向新元素，
   // 否则切到新视频时仍控制旧 <video> 导致画面不换（用户现象：滑动有切换动效但播放内容没变）。
   videoCtx = null
   const v = currentVideo.value
   nextTick(() => {
     if (v?.videoUrl && !playError.value) {
-      getVideoCtx()?.play()
+      safePlay()
     }
-    isPlaying.value = true
   })
   if (!v?.author?.id) return
   try { v.author.isFollowed = await videoApi.isFollowing(v.author.id) } catch { /* 未登录/失败保持默认 */ }
@@ -656,13 +611,24 @@ function onBack() {
   inset: 0;
   background: #111; /* V0：html/body #111，视频层 #000 */
   overflow: hidden;
+  /* 安卓微信 X5：禁掉页面下拉刷新/边界回弹，避免下滑手势被页面消费（返回上一个失灵的元凶） */
+  overscroll-behavior: none;
 }
 .vp__state { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24rpx; z-index: 30; }
 .vp__state-txt { color: rgba(255,255,255,0.8); font-size: 28rpx; }
 .vp__state-btn { padding: 14rpx 44rpx; background: var(--brand); border-radius: 999rpx; }
 .vp__state-btn-txt { color: #fff; font-size: 26rpx; }
-.vp__stage { position: absolute; inset: 0; overflow: hidden; }
+/* swiper 纵向轮播充满全屏；touch-action:none 让 X5 把垂直手势全交给 swiper（不触发页面滚动） */
+.vp__stage { position: absolute; inset: 0; overflow: hidden; width: 100%; height: 100%; touch-action: none; }
 .vp__layer { position: absolute; inset: 0; width: 100%; height: 100%; }
+/* 不可播诚实态（.mov 等安卓不支持格式/转码中） */
+.vp__unplayable {
+  position: absolute; inset: 0; z-index: 2;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16rpx;
+  background: rgba(0,0,0,0.45);
+}
+.vp__unplayable-txt { color: rgba(255,255,255,0.9); font-size: 30rpx; font-weight: 500; }
+.vp__unplayable-sub { color: rgba(255,255,255,0.55); font-size: 24rpx; }
 .vp__cover { width: 100%; height: 100%; }
 /* 播放器覆盖在封面之上；pointer-events:none 让单击/上下滑手势穿透到父层由脚本统一控制 */
 .vp__video { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; }

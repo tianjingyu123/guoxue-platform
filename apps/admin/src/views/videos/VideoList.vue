@@ -1,6 +1,6 @@
 <template>
   <div class="page">
-    <PageHeader title="视频管理">
+    <PageHeader title="短视频管理">
       <template #actions>
         <div style="display:flex;gap:8px">
           <el-select

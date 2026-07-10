@@ -59,6 +59,30 @@
         </view>
       </view>
 
+      <!-- 附件文件卡（V0 门控模型「帖子/文件/问答」核心三件套之一） -->
+      <view v-if="attachments.length > 0" class="file-list">
+        <view v-for="(f, i) in attachments" :key="i" class="file-card">
+          <view class="file-icon"><app-icon name="file-text" :size="40" color="#C41E3A" /></view>
+          <view class="file-info">
+            <text class="file-name">{{ f.name }}</text>
+            <text class="file-size">{{ formatFileSize(f.size) }}</text>
+          </view>
+          <view class="file-del" @tap="removeAttachment(i)"><app-icon name="x" :size="28" color="#8a8a8a" /></view>
+        </view>
+      </view>
+
+      <!-- 添加图片/文件：虚线大按钮（真机反馈：原工具栏小图标入口太小不明显；文章不走帖子接口故仅发帖态显示） -->
+      <view v-if="type === 'post'" class="media-add-row">
+        <view v-if="images.length < 9" class="media-add-btn" :class="{ disabled: imgUploading }" @tap="handleImageUpload">
+          <app-icon :name="imgUploading ? 'loader-2' : 'image-plus'" :size="48" color="#8a8a8a" :class="{ spin: imgUploading }" />
+          <text class="media-add-text">{{ imgUploading ? '上传中…' : '添加图片' }}</text>
+        </view>
+        <view v-if="attachments.length < 3" class="media-add-btn" :class="{ disabled: fileUploading }" @tap="handleFileUpload">
+          <app-icon :name="fileUploading ? 'loader-2' : 'file-text'" :size="48" color="#8a8a8a" :class="{ spin: fileUploading }" />
+          <text class="media-add-text">{{ fileUploading ? '上传中…' : '添加文件' }}</text>
+        </view>
+      </view>
+
       <!-- 封面预览 -->
       <view v-if="cover && type === 'article'" class="cover-block">
         <text class="cover-label">封面图</text>
@@ -96,14 +120,8 @@
       <app-icon name="chevron-down" :size="16" color="#8a8a8a" class="select-arrow" />
     </view>
 
-    <!-- 底部工具栏 -->
+    <!-- 底部工具栏（引用/斜体/粗体三个 Markdown 小图标已按拍板移除：帖子是轻内容不需要富文本；图片/文件入口上移为编辑区虚线大按钮） -->
     <view class="toolbar">
-      <view class="tool-format">
-        <view class="tool-btn" @tap="insertFormat('bold')"><app-icon name="bold" :size="20" color="#8a8a8a" /></view>
-        <view class="tool-btn" @tap="insertFormat('italic')"><app-icon name="italic" :size="20" color="#8a8a8a" /></view>
-        <view class="tool-btn" @tap="insertFormat('quote')"><app-icon name="quote" :size="20" color="#8a8a8a" /></view>
-        <view class="tool-btn" @tap="handleImageUpload"><app-icon name="image" :size="20" color="#8a8a8a" /></view>
-      </view>
       <view class="tool-ai">
         <!-- 创-P3 创作助手抽屉入口（引用/命盘/案例/润色四合一·原独立润色并入第四 tab） -->
         <view class="ai-chip ai-red" @tap="showAssist = true">
@@ -284,6 +302,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
+import { uploadImage, uploadDocument } from '@/utils/request'
 import { navigateBack } from '@/utils/router'
 import { circleApi } from '@/lib/circle-data'
 import { circleDetailApi } from '@/lib/circle-detail-data'
@@ -299,7 +318,10 @@ const type = ref<'post' | 'article'>('post')
 const title = ref('')
 const content = ref('')
 const cover = ref('')                        // 封面图：AI 生成的 base64 data url 或本地临时路径
-const images = ref<string[]>([])
+const images = ref<string[]>([])             // 已上传成功的图片 URL（选图后即传 COS，发布时直接带 URL）
+const attachments = ref<{ name: string; size: number; url: string }[]>([]) // 文件卡附件（≤3 个·COS /upload/file）
+const imgUploading = ref(false)
+const fileUploading = ref(false)
 const selectedCircle = ref<string | null>(null)
 const selectedTopics = ref<string[]>([])     // 已选标签名（文章 tags）
 const circles = ref<CircleItem[]>([])
@@ -383,25 +405,97 @@ async function loadTags() {
 
 function goBack() { navigateBack() }
 
-function insertFormat(format: 'bold' | 'italic' | 'quote') {
-  let snippet = ''
-  if (format === 'bold') snippet = '**粗体文字**'
-  else if (format === 'italic') snippet = '*斜体文字*'
-  else snippet = '\n> 引用文字\n'
-  content.value += snippet
-}
-
+/** 选图后立即上传 COS，images 存真实 URL（此前直接存本地临时路径，发布后图片失效） */
 function handleImageUpload() {
+  if (imgUploading.value) return
   uni.chooseImage({
     count: Math.max(1, 9 - images.value.length),
+    sizeType: ['compressed'],
     // uni.chooseImage 成功回调类型由 SDK 重载约束，保留 any
-    success: (res: any) => {
+    success: async (res: any) => {
       const paths: string[] = res.tempFilePaths || []
-      images.value.push(...paths)
+      if (!paths.length) return
+      imgUploading.value = true
+      let failed = 0
+      for (const p of paths) {
+        try {
+          images.value.push(await uploadImage(p))
+        } catch {
+          failed++
+        }
+      }
+      imgUploading.value = false
+      if (failed) uni.showToast({ title: `${failed} 张图片上传失败`, icon: 'none' })
     },
   })
 }
 function removeImage(i: number) { images.value.splice(i, 1) }
+
+/** 文档附件扩展名白名单（与后端 /upload/file MIME 白名单对应） */
+const DOC_EXTS = ['.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.txt', '.md', '.zip']
+const MAX_DOC_SIZE = 50 * 1024 * 1024
+
+function formatFileSize(size: number): string {
+  if (!size) return ''
+  if (size < 1024) return `${size}B`
+  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)}KB`
+  return `${(size / 1024 / 1024).toFixed(1)}MB`
+}
+
+/** 跨端选文件：H5 用 uni.chooseFile；微信小程序用 chooseMessageFile；其余端提示暂不支持 */
+function chooseDocFiles(count: number): Promise<Array<{ path: string; name: string; size: number }>> {
+  return new Promise((resolve, reject) => {
+    // 选文件回调结构跨端不一（tempFiles/tempFilePaths），保守用宽松类型
+    const normalize = (res: { tempFiles?: Array<{ path?: string; name?: string; size?: number }>; tempFilePaths?: string[] }) => {
+      const files = (res.tempFiles || []).map((f, i) => ({
+        path: f.path || res.tempFilePaths?.[i] || '',
+        name: f.name || `文件${i + 1}`,
+        size: f.size || 0,
+      })).filter((f) => f.path)
+      resolve(files)
+    }
+    const u = uni as unknown as Record<string, (opts: Record<string, unknown>) => void>
+    // #ifdef H5
+    u.chooseFile({ count, type: 'all', extension: DOC_EXTS, success: normalize, fail: () => reject(new Error('已取消')) })
+    return
+    // #endif
+    // #ifdef MP-WEIXIN
+    u.chooseMessageFile({ count, type: 'file', extension: DOC_EXTS.map((e) => e.slice(1)), success: normalize, fail: () => reject(new Error('已取消')) })
+    return
+    // #endif
+    reject(new Error('当前端暂不支持选择文件'))
+  })
+}
+
+/** 添加文件：选择 → 校验扩展名/大小 → 上传 COS → 文件卡入列 */
+async function handleFileUpload() {
+  if (fileUploading.value) return
+  let files: Array<{ path: string; name: string; size: number }> = []
+  try {
+    files = await chooseDocFiles(Math.max(1, 3 - attachments.value.length))
+  } catch (e) {
+    const msg = (e as Error)?.message || ''
+    if (msg && msg !== '已取消') uni.showToast({ title: msg, icon: 'none' })
+    return
+  }
+  if (!files.length) return
+  fileUploading.value = true
+  let failed = 0
+  for (const f of files) {
+    const ext = (f.name.match(/\.[^.]+$/)?.[0] || '').toLowerCase()
+    if (!DOC_EXTS.includes(ext)) { uni.showToast({ title: `不支持的文件类型：${f.name}`, icon: 'none' }); continue }
+    if (f.size > MAX_DOC_SIZE) { uni.showToast({ title: `文件超过 50MB：${f.name}`, icon: 'none' }); continue }
+    try {
+      const url = await uploadDocument(f.path)
+      attachments.value.push({ name: f.name, size: f.size, url })
+    } catch {
+      failed++
+    }
+  }
+  fileUploading.value = false
+  if (failed) uni.showToast({ title: `${failed} 个文件上传失败`, icon: 'none' })
+}
+function removeAttachment(i: number) { attachments.value.splice(i, 1) }
 
 function selectCircle(id: string) {
   selectedCircle.value = id
@@ -431,7 +525,7 @@ function openAIPanel(panel: 'title' | 'tags' | 'cover') {
   else if (panel === 'cover') coverPrompt.value = ''
 }
 
-/** 创作助手插入：引用卡/命盘卡/案例卡文本追加到正文末尾（uni-app textarea 无跨端光标 API，与 insertFormat 同策略） */
+/** 创作助手插入：引用卡/命盘卡/案例卡文本追加到正文末尾（uni-app textarea 无跨端光标 API，只能尾插） */
 function handleAssistInsert(text: string) {
   const cur = content.value.replace(/\s+$/, '')
   content.value = cur ? `${cur}\n\n${text}\n` : `${text}\n`
@@ -507,9 +601,10 @@ async function handleSaveDraft() {
       })
     } else {
       await articleApi.createPost(selectedCircle.value!, {
-        type: images.value.length ? 'IMAGE' : 'TEXT',
+        type: images.value.length ? 'IMAGE' : (attachments.value.length ? 'FILE' : 'TEXT'),
         content: content.value,
         images: images.value.length ? images.value : undefined,
+        attachments: attachments.value.length ? attachments.value : undefined,
         status: 'DRAFT',
       })
     }
@@ -535,13 +630,16 @@ async function handlePublish() {
       })
     } else {
       await articleApi.createPost(selectedCircle.value!, {
-        type: images.value.length ? 'IMAGE' : 'TEXT',
+        type: images.value.length ? 'IMAGE' : (attachments.value.length ? 'FILE' : 'TEXT'),
         content: content.value,
         images: images.value.length ? images.value : undefined,
+        attachments: attachments.value.length ? attachments.value : undefined,
         status: 'PUBLISHED',
       })
     }
     uni.showToast({ title: '发布成功', icon: 'success' })
+    // 广播圈子详情页立即刷新（配合后端 createPost 缓存失效，新帖即时可见·董事长反馈）
+    uni.$emit('circle:refresh', selectedCircle.value)
     setTimeout(() => navigateBack(), 600)
   } catch (e) {
     uni.showToast({ title: (e as Error)?.message || '发布失败', icon: 'none' })
@@ -650,6 +748,56 @@ async function handlePublish() {
   align-items: center;
   justify-content: center;
 }
+/* 附件文件卡 */
+.file-list { display: flex; flex-direction: column; gap: 16rpx; margin-top: 32rpx; }
+.file-card {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  padding: 20rpx 24rpx;
+  background: #faf8f5;
+  border: 1rpx solid #ececec;
+  border-radius: 16rpx;
+}
+.file-icon {
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 12rpx;
+  background: rgba(196,30,58,0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.file-info { flex: 1; min-width: 0; }
+.file-name {
+  display: block;
+  font-size: 28rpx;
+  color: #1a1a1a;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.file-size { display: block; font-size: 22rpx; color: #8a8a8a; margin-top: 4rpx; }
+.file-del { padding: 12rpx; flex-shrink: 0; }
+
+/* 添加图片/文件：虚线大按钮（明显入口） */
+.media-add-row { display: flex; gap: 24rpx; margin-top: 32rpx; }
+.media-add-btn {
+  width: 200rpx;
+  height: 200rpx;
+  border: 2rpx dashed #c4c4c4;
+  border-radius: 16rpx;
+  background: #fafafa;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12rpx;
+}
+.media-add-btn.disabled { opacity: 0.6; }
+.media-add-text { font-size: 26rpx; color: #8a8a8a; }
+
 .cover-block { margin-top: 32rpx; }
 .cover-label { font-size: 26rpx; color: #8a8a8a; margin-bottom: 16rpx; display: block; }
 .cover-wrap {
@@ -708,8 +856,6 @@ async function handlePublish() {
   padding-bottom: calc(24rpx + constant(safe-area-inset-bottom));
   padding-bottom: calc(24rpx + env(safe-area-inset-bottom));
 }
-.tool-format { display: flex; align-items: center; gap: 32rpx; }
-.tool-btn { padding: 8rpx; }
 .tool-ai { display: flex; align-items: center; gap: 16rpx; }
 .ai-chip {
   display: flex;

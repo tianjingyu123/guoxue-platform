@@ -11,6 +11,7 @@
           去C端发文章
         </el-button>
         <el-button
+          v-if="INLINE_CREATE"
           size="small"
           @click="showCreate"
         >
@@ -24,6 +25,15 @@
         </el-button>
       </div>
     </div>
+
+    <el-alert
+      type="info"
+      :closable="false"
+      show-icon
+      style="margin-bottom:12px"
+      title="文章创作已统一到 C 端圈子编辑器"
+      description="官方内容请用官方账号在 C 端「热卜官方」圈发布（点右上「去C端发文章」）。本页用于文章的审核、推荐、下架与必要的信息修正，不再新建文章。"
+    />
 
     <!-- 统计卡片 -->
     <el-row
@@ -389,6 +399,10 @@ import DataTable from "@/components/DataTable.vue";
 import SearchFilter from "@/components/SearchFilter.vue";
 import CosImageUpload from "@/components/upload/CosImageUpload.vue";
 import RichEditor from "@/components/editor/RichEditor.vue";
+
+// 目录重构批（2026-07-11·方案块B）：admin 文章内联"新建"入口下线，创作统一走 C 端圈子编辑器；
+// 行内"编辑"保留用于存量文章的必要信息修正（置 true 可回滚·代码保留）
+const INLINE_CREATE = false;
 
 /** 文章作者 */
 interface ArticleAuthor { nickname?: string }

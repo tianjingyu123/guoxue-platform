@@ -16,6 +16,11 @@
       </div>
     </div>
 
+    <AiMaintainedBanner
+      title="🤖 AI 维护 · 种子内容由 AI 数字员工生成"
+      description="本页产出为 AI 生成的种子内容（默认落官方圈），属机器人职责范围；人工只做触发、复核与下架，请勿手工混编内容。"
+    />
+
     <!-- 概述卡片 -->
     <el-row
       :gutter="16"
@@ -532,6 +537,7 @@
 import { ref, reactive, computed, onMounted, nextTick } from "vue";
 import { ElMessage } from "element-plus";
 import { contentGenerationApi, aiAdminApi } from "@/api";
+import AiMaintainedBanner from "@/components/AiMaintainedBanner.vue";
 
 /** 品类健康度行（字段宽松 optional） */
 interface CategoryStatRow {

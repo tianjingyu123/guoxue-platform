@@ -32,7 +32,8 @@ const instructorCert = ref<{ verifiedTitle: string; institute: TeacherInstituteB
 
 // 纯 UI 状态
 const activeTab = ref<'intro' | 'chapters' | 'reviews'>('intro')
-const expanded = ref<Record<string, boolean>>({ c1: true })
+// 章节手风琴：默认全展开（真实章节 id 是 cuid，旧初值 {c1:true} 永不命中 → 全折叠，试看课时要先点章节展开再点课时，多一步）
+const expanded = ref<Record<string, boolean>>({})
 const isLiked = ref(false)
 // 收藏写操作防重复
 const favSubmitting = ref(false)
@@ -140,6 +141,8 @@ async function loadData() {
     course.value = detail
     chapters.value = chaps
     reviews.value = revs
+    // 目录默认全展开：试看/课时一眼可见，点一次直达播放（不再经「展开二级目录」中间步骤）
+    for (const c of chaps) expanded.value[c.id] = true
     // 访问权限 + 收藏态并行回填（各自静默降级，不阻塞主内容，修复重进不回显/购买后不解锁）
     void courseApi.checkAccess(courseId.value).then((v) => { hasAccess.value = v })
     void courseApi.isFavorited(courseId.value).then((v) => { isLiked.value = v })

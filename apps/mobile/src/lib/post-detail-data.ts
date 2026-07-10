@@ -28,6 +28,13 @@ export interface PostAudio {
   title: string
 }
 
+/** 帖子附件（文件卡：文件名+大小+下载·后端 Post.attachments JSONB） */
+export interface PostAttachment {
+  name: string
+  size: number
+  url: string
+}
+
 export interface PostDetail {
   id: string
   type: 'normal' | 'article' | 'audio' | 'qa'
@@ -37,6 +44,7 @@ export interface PostDetail {
   content: string
   images?: PostImage[]
   audio?: PostAudio
+  attachments?: PostAttachment[]
   author: PostAuthor
   createdAt: string
   readTime: number
@@ -274,6 +282,7 @@ interface RawPost {
   title?: string
   content?: string
   images?: string[]
+  attachments?: Array<{ name?: string; size?: number; url?: string }>
   user?: RawUserLite | null
   userId?: string
   createdAt?: string | null
@@ -316,6 +325,12 @@ function adaptPostDetail(p: RawPost, commentsCount = 0): PostDetail {
     content: p.content ?? '',
     images: Array.isArray(p.images) ? p.images.map((u: string) => ({ url: u })) : [],
     audio: undefined, // 后端无音频
+    // 附件文件卡（后端原生 SQL 列·仅收合法 http(s) url）
+    attachments: Array.isArray(p.attachments)
+      ? p.attachments
+          .filter((a) => a && typeof a.url === 'string' && /^https?:\/\//i.test(a.url))
+          .map((a) => ({ name: String(a.name || '文件'), size: Number(a.size) || 0, url: String(a.url) }))
+      : [],
     author: {
       id: p.user?.id ?? p.userId ?? '',
       name: p.user?.nickname ?? '匿名',

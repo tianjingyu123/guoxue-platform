@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, shallowRef, onMounted, type Component } from 'vue'
 import { BRAND } from '@/lib/brand'
+import PendingOverview from '@/components/PendingOverview.vue'
 
 const loading = ref(true)
 const dashComp = shallowRef<Component | null>(null)
@@ -42,6 +43,8 @@ onMounted(async () => {
     v-loading="loading"
     style="min-height:300px"
   >
+    <!-- 待办概览：员工进后台第一眼看到各审核队列待处理数（目录重构批 2026-07-11） -->
+    <PendingOverview />
     <component
       :is="dashComp"
       v-if="dashComp"

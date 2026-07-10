@@ -36,4 +36,17 @@ describe("SanitizePipe", () => {
     const buf = Buffer.from([0, 1, 2, 3]);
     expect(pipe.transform(buf, meta("body", "buffer"))).toBe(buf);
   });
+
+  // 回归：视频/媒体 URL 字段不能被转义，否则 https://→https:&#x2F;&#x2F; 导致 <video src> 播不了
+  // （视频课程/短视频播放失败的真凶：videoUrl/mediaUrl 曾漏出 SKIP_FIELDS）
+  it("视频/媒体 URL 字段不被转义", () => {
+    const url = "https://1325351100.vod-qcloud.com/e45fed57vod/abc5001";
+    for (const field of ["videoUrl", "mediaUrl", "coverUrl", "poster", "audioUrl"]) {
+      expect(pipe.transform(url, meta("body", field))).toBe(url);
+    }
+    // 对象嵌套场景（POST body 里的字段）同样不转义
+    const out = pipe.transform({ videoUrl: url, title: "a/b" }, meta("body")) as { videoUrl: string; title: string };
+    expect(out.videoUrl).toBe(url);
+    expect(out.title).toBe("a&#x2F;b"); // 非 URL 字段仍正常转义
+  });
 });

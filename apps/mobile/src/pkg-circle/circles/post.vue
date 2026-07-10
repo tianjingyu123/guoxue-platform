@@ -202,6 +202,35 @@ function toggleAudio() {
 }
 const audioProgress = () => post.value?.audio ? Math.min(100, (currentTime.value / post.value.audio.duration) * 100) : 0
 
+// ─── 附件文件卡（文件名+大小+下载）───
+function fmtFileSize(size: number): string {
+  if (!size) return ''
+  if (size < 1024) return `${size}B`
+  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)}KB`
+  return `${(size / 1024 / 1024).toFixed(1)}MB`
+}
+/** 打开/下载附件：H5 新窗口直接下载；小程序/App 先下载再用系统查看器打开 */
+function openAttachment(f: { name: string; url: string }) {
+  // #ifdef H5
+  window.open(f.url, '_blank')
+  return
+  // #endif
+  uni.showLoading({ title: '下载中…' })
+  uni.downloadFile({
+    url: f.url,
+    success: (res) => {
+      uni.hideLoading()
+      if (res.statusCode !== 200) { uni.showToast({ title: '下载失败', icon: 'none' }); return }
+      uni.openDocument({
+        filePath: res.tempFilePath,
+        showMenu: true,
+        fail: () => uni.showToast({ title: '暂不支持预览该文件类型', icon: 'none' }),
+      })
+    },
+    fail: () => { uni.hideLoading(); uni.showToast({ title: '下载失败', icon: 'none' }) },
+  })
+}
+
 // ─── 互动（乐观更新 + 失败回滚 + 防重复）───
 
 // 帖子点赞
@@ -450,6 +479,18 @@ onUnmounted(() => { if (audioCtx) { try { audioCtx.destroy() } catch {} } })
           />
         </view>
 
+        <!-- 附件文件卡：文件名+大小+下载（V0 门控模型「帖子/文件/问答」核心三件套之一） -->
+        <view v-if="post.attachments && post.attachments.length" class="pd-files">
+          <view v-for="(f, i) in post.attachments" :key="i" class="pd-file" @tap="openAttachment(f)">
+            <view class="pd-file-icon"><app-icon name="file-text" :size="40" color="#C41E3A" /></view>
+            <view class="pd-file-info">
+              <text class="pd-file-name">{{ f.name }}</text>
+              <text v-if="f.size" class="pd-file-size">{{ fmtFileSize(f.size) }}</text>
+            </view>
+            <view class="pd-file-dl"><app-icon name="download" :size="32" color="#999999" /></view>
+          </view>
+        </view>
+
         <!-- 触点 #6 圈主的课：正文尾·服务端裁决无卡则不渲染 -->
         <touchpoint-card v-if="tp?.card" :card="tp.card" scene="circle_course" />
       </view>
@@ -673,6 +714,28 @@ onUnmounted(() => { if (audioCtx) { try { audioCtx.destroy() } catch {} } })
 .pd-imgs { display: flex; flex-wrap: wrap; gap: 16rpx; margin-top: 32rpx; }
 .pd-img { width: calc(50% - 8rpx); aspect-ratio: 4 / 3; border-radius: 16rpx; background: var(--bg-warm, #f8f4ec); }
 .pd-imgs.single .pd-img { width: 100%; }
+
+/* 附件文件卡 */
+.pd-files { display: flex; flex-direction: column; gap: 16rpx; margin-top: 32rpx; }
+.pd-file {
+  display: flex; align-items: center; gap: 20rpx;
+  padding: 20rpx 24rpx;
+  background: var(--bg-warm, #f8f4ec);
+  border: 1rpx solid rgba(0,0,0,0.05);
+  border-radius: 16rpx;
+}
+.pd-file-icon {
+  width: 72rpx; height: 72rpx; border-radius: 12rpx;
+  background: rgba(196,30,58,0.08);
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.pd-file-info { flex: 1; min-width: 0; }
+.pd-file-name {
+  display: block; font-size: 28rpx; color: var(--text-ink, #2c2c2c);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.pd-file-size { display: block; font-size: 22rpx; color: #999999; margin-top: 4rpx; }
+.pd-file-dl { padding: 8rpx; flex-shrink: 0; }
 
 /* 互动栏：横排左对齐 + 下边框 */
 .pd-actions {

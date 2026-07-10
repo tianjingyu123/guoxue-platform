@@ -62,18 +62,18 @@ function openUser() {
       </view>
     </view>
 
-    <!-- 操作栏 -->
+    <!-- 操作栏（真机反馈：按钮太小不明显 → 图标 40rpx + 88rpx 点击热区 + 26rpx 文字） -->
     <view class="pc-actions">
       <view class="pc-act" @tap="emit('like', post.id)">
-        <app-icon name="heart" :size="16" :color="liked ? '#C41E3A' : '#999999'" :fill="liked" />
+        <app-icon name="heart" :size="40" :color="liked ? '#C41E3A' : 'var(--text, #666666)'" :fill="liked" />
         <text class="pc-act-txt" :class="{ on: liked }">{{ post.likes }}</text>
       </view>
       <view class="pc-act" @tap="openPost">
-        <app-icon name="message-circle" :size="16" color="#999999" />
+        <app-icon name="message-circle" :size="40" color="var(--text, #666666)" />
         <text class="pc-act-txt">{{ post.comments }}</text>
       </view>
-      <view class="pc-act">
-        <app-icon name="bookmark" :size="16" color="#999999" />
+      <view class="pc-act" @tap="openPost">
+        <app-icon name="bookmark" :size="40" color="var(--text, #666666)" />
       </view>
     </view>
 
@@ -101,8 +101,10 @@ function openUser() {
 .pc-img { width: 100%; border-radius: 16rpx; }
 .pc-img.single { max-height: 480rpx; }
 .pc-img.square { aspect-ratio: 1; }
-.pc-actions { display: flex; align-items: center; gap: 48rpx; padding-top: 16rpx; border-top: 2rpx solid #F5F0E8; }
-.pc-act { display: flex; align-items: center; gap: 8rpx; }
-.pc-act-txt { font-size: 24rpx; color: #999; }
-.pc-act-txt.on { color: var(--brand, var(--brand)); }
+.pc-actions { display: flex; align-items: center; gap: 24rpx; padding-top: 8rpx; border-top: 2rpx solid #F5F0E8; margin-bottom: -16rpx; }
+/* 88rpx 高点击热区（padding 撑开），图标+数字间距 12rpx */
+.pc-act { display: flex; align-items: center; gap: 12rpx; min-height: 88rpx; padding: 0 20rpx; margin-left: -20rpx; }
+.pc-act + .pc-act { margin-left: 0; }
+.pc-act-txt { font-size: 26rpx; color: var(--text, #666666); }
+.pc-act-txt.on { color: var(--brand, #C41E3A); font-weight: 500; }
 </style>

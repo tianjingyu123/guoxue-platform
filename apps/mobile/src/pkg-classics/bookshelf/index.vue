@@ -152,7 +152,9 @@
           >
             <view class="bs-spine">
               <view class="bs-spine-edge" />
-              <text class="bs-spine-title">{{ book.title.slice(0, 3) }}</text>
+              <view class="bs-spine-title">
+                <text v-for="(ch, ci) in Array.from(book.title.slice(0, 3))" :key="ci" class="bs-spine-char">{{ ch }}</text>
+              </view>
             </view>
             <text class="bs-list-title">{{ book.title }}</text>
             <text class="bs-list-meta">[{{ book.dynasty }}] {{ book.author }}</text>
@@ -180,7 +182,9 @@
       >
         <view class="bs-spine bs-spine-sm">
           <view class="bs-spine-edge" />
-          <text class="bs-spine-title bs-spine-title-sm">{{ item.title.slice(0, 2) }}</text>
+          <view class="bs-spine-title bs-spine-title-sm">
+            <text v-for="(ch, ci) in Array.from(item.title.slice(0, 2))" :key="ci" class="bs-spine-char bs-spine-char-sm">{{ ch }}</text>
+          </view>
         </view>
         <view class="bs-hist-info">
           <text class="bs-hist-title">{{ item.title }}</text>
@@ -702,6 +706,8 @@ function onClearHistory() {
 }
 .bs-add {
   aspect-ratio: 3 / 4;
+  /* 老内核不支持 aspect-ratio 的兜底高度（约等于 3:4 封面高） */
+  min-height: 270rpx;
   border-radius: 24rpx;
   background: rgba(0, 0, 0, 0.04);
   display: flex;
@@ -769,14 +775,22 @@ function onClearHistory() {
   background: #d4c4a8;
   border-radius: 6rpx 0 0 6rpx;
 }
+/* 逐字竖排（flex column 替代 writing-mode·X5 兼容） */
 .bs-spine-title {
-  writing-mode: vertical-rl;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  overflow: hidden;
+  max-height: 100%;
+}
+.bs-spine-char {
   font-size: 22rpx;
+  line-height: 1.3;
   font-weight: 700;
   color: #4a3f2f;
   font-family: 'Songti SC', 'STSong', serif;
 }
-.bs-spine-title-sm {
+.bs-spine-char-sm {
   font-size: 18rpx;
 }
 .bs-list-info {

@@ -1,13 +1,14 @@
 <script setup lang="ts">
 /**
- * 圈子详情页 — V0 门控骨架重构（2026-07-10）
- * 结构：导航 → 身份区 → 公告 → AI助理入口 → 增值内容带(直播/课堂/橱窗·门控点亮) → Tab(动态/精华/文章/成员) → 动态流(帖子/课程/短视频/文章穿插) → 4角色底部操作栏
+ * 圈子详情页 — V0 门控骨架重构（2026-07-10）+ UX 重排批（2026-07-10 董事长真机反馈）
+ * 结构：导航 → 身份区(成员头像入口+管理入口) → 公告 → AI助理入口 → 增值内容带(门控点亮) → Tab(动态/精华/文章) → 动态流
  * 门控：增值模块 v-if="xxx.length" 天然实现——未开通(无数据)=不存在，开通=融入。核心互动(帖子)恒为主体。
- * 底部操作栏：游客=加入 / 成员=发帖+更多(分享/退出) / 创作者=发帖+创作+更多 / 圈主=发帖+创作+管理(无退出)
+ * 底部：游客=加入通栏（转化关键）/ 已加入=无底栏，右下角 FAB 悬浮创作按钮 → 自定义发布 Sheet（V0 publish-sheet 稿）
+ * 退出入口已移至「圈子·我的」(me.vue) 圈子卡 ···；管理入口移至身份区（仅圈主/管理员可见）
  * 数据层沿用原实现（circleDetailApi 全套 + 角色/加入/审批/付费/弹窗逻辑），不改后端契约。
  */
 import { ref, computed } from 'vue'
-import { onLoad, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
+import { onLoad, onShow, onUnload, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 import { useShare } from '@/composables/useShare'
 import AppIcon from '@/components/common/app-icon.vue'
 import SmartCover from '@/components/common/smart-cover.vue'
@@ -33,7 +34,7 @@ const circleProducts = ref<CircleProduct[]>([])
 const postedArticles = ref<CircleArticle[]>([])
 const isLoading = ref(true)
 const error = ref('')
-const activeTab = ref<'home' | 'essence' | 'articles' | 'members'>('home')
+const activeTab = ref<'home' | 'essence' | 'articles'>('home')
 const showAnnouncement = ref(false)
 const isJoined = ref(false)
 const applied = ref(false)
@@ -45,6 +46,10 @@ const isLoggedIn = () => !!getToken()
 const likedPosts = ref<Set<string>>(new Set())
 const showBenefits = ref(false)
 const showPurchase = ref(false)
+const showPublish = ref(false)
+// FAB 滚动半透明：滚动中降不透明度，停止 400ms 恢复
+const fabDim = ref(false)
+let fabTimer: ReturnType<typeof setTimeout> | null = null
 // 进行中的直播（增值带优先浮出）
 const liveNow = computed(() => lives.value.find((l) => l.status === 'live'))
 
@@ -59,11 +64,11 @@ const joinButtonText = computed(() => {
   return `¥${c.price} 加入圈子`
 })
 
+// 「成员」Tab 已去（与顶部成员信息重复·董事长反馈）→ 顶部成员数即入口，跳独立成员列表页
 const tabs = [
   { id: 'home', label: '动态' },
   { id: 'essence', label: '精华' },
   { id: 'articles', label: '文章' },
-  { id: 'members', label: '成员' },
 ] as const
 
 const essencePosts = computed(() => posts.value.filter((p) => p.isEssence))
@@ -71,7 +76,25 @@ const essencePosts = computed(() => posts.value.filter((p) => p.isEssence))
 onLoad((q) => {
   if (q?.id) circleId.value = q.id
   loadData()
+  // 发帖页发布成功广播 → 立即重拉（配合后端 createPost 缓存失效，新帖即时可见）
+  uni.$on('circle:refresh', onCircleRefresh)
 })
+onUnload(() => {
+  uni.$off('circle:refresh', onCircleRefresh)
+  if (fabTimer) clearTimeout(fabTimer)
+})
+// 返回本页（发帖返回/其他页回来）也重拉；首次 onShow 被 isLoading 防抖天然跳过
+onShow(() => { if (circle.value) refresh() })
+
+function onCircleRefresh(id?: string) {
+  if (!id || id === circleId.value) refresh()
+}
+// 防抖重拉：加载中或 1 秒内已拉过则跳过
+let lastLoadAt = 0
+function refresh() {
+  if (isLoading.value || Date.now() - lastLoadAt < 1000) return
+  loadData()
+}
 
 const { toAppMessage, toTimeline } = useShare()
 onShareAppMessage(() => toAppMessage({
@@ -87,6 +110,7 @@ onShareTimeline(() => toTimeline({
 
 async function loadData() {
   isLoading.value = true
+  lastLoadAt = Date.now()
   error.value = ''
   try {
     // 主请求（圈子本体）失败才整页报错；子模块各自降级为空——防单个子接口抖动拖垮整页（董事长 2026-07-11 真机反馈修复）
@@ -151,11 +175,14 @@ async function doJoin() {
     } finally { joining.value = false }
     return
   }
+  // 本地即时置已加入（乐观），成功后重拉解锁成员态内容；失败回滚
   isJoined.value = true
-  circleDetailApi.join(circleId.value).catch(() => {
-    isJoined.value = false
-    uni.showToast({ title: '加入失败，请重试', icon: 'none' })
-  })
+  circleDetailApi.join(circleId.value)
+    .then(() => { lastLoadAt = 0; refresh() })
+    .catch(() => {
+      isJoined.value = false
+      uni.showToast({ title: '加入失败，请重试', icon: 'none' })
+    })
 }
 function confirmJoin() { showBenefits.value = false; showPurchase.value = true }
 async function onPurchased() {
@@ -164,8 +191,12 @@ async function onPurchased() {
   const st = await circleDetailApi.getJoinStatus(circleId.value)
   isJoined.value = st.joined
   if (circle.value) circle.value.myRole = st.role
-  if (st.joined) uni.showToast({ title: '加入成功', icon: 'success' })
-  else uni.showToast({ title: '订单已提交，支付完成后自动加入', icon: 'none' })
+  if (st.joined) {
+    uni.showToast({ title: '加入成功', icon: 'success' })
+    // 付费加入成功即时重拉：解锁成员态内容
+    lastLoadAt = 0
+    refresh()
+  } else uni.showToast({ title: '订单已提交，支付完成后自动加入', icon: 'none' })
 }
 function handleLikePost(postId: string) {
   const next = new Set(likedPosts.value)
@@ -180,45 +211,36 @@ function openShare() { navigateTo(`/pkg-circle/common/share-poster?type=circle&t
 function openPost(id: string) { navigateTo(`/pkg-circle/circles/post?circleId=${circleId.value}&id=${id}`) }
 function openQuickPost() { navigateTo(`/pkg-circle/circles/editor?circleId=${circleId.value}`) }
 /**
- * 统一发布入口（V0 渐进披露 sheet）：发动态永远置顶最轻，创作形式随权限展开。
- * 颗粒化授权（谁能发什么）后端待建，本版 canCreate 为真即列全部创作形式。
+ * 统一发布入口（V0 publish-sheet 稿·自定义底部弹层）：发动态永远置顶最轻，创作形式随权限展开。
+ * 颗粒化授权（谁能发什么）后端待建，本版 canCreate 为真即列全部创作形式；圈主多「发公告」。
  * 文章/课程走 publish 表单页，短视频/直播走各自独立发布页。
+ * 退出入口已移至「圈子·我的」圈子卡 ···（管理员/圈主不显示退出·董事长反馈）。
  */
-function openCreate() {
-  const items = [
-    { label: '发动态（图文/文件/语音）', act: openQuickPost },
-    { label: '写文章', act: () => navigateTo(`/pkg-circle/circles/publish?circleId=${circleId.value}&type=article`) },
-    { label: '发短视频', act: () => navigateTo(`/pkg-video/publish/index?circleId=${circleId.value}`) },
-    { label: '发课程', act: () => navigateTo(`/pkg-circle/circles/publish?circleId=${circleId.value}&type=course`) },
-    { label: '发直播', act: () => navigateTo(`/pkg-live/create/index?circleId=${circleId.value}`) },
+function openCreate() { showPublish.value = true }
+const createItems = computed(() => {
+  if (!canCreate.value) return []
+  return [
+    { icon: 'file-text', title: '写文章', desc: '富文本长图文，可向全平台开放', url: `/pkg-circle/circles/publish?circleId=${circleId.value}&type=article` },
+    { icon: 'video', title: '发短视频', desc: '竖屏视频，可关联商品', url: `/pkg-video/publish/index?circleId=${circleId.value}` },
+    { icon: 'graduation-cap', title: '发课程', desc: '图文 / 音视频', url: `/pkg-circle/circles/publish?circleId=${circleId.value}&type=course` },
+    { icon: 'radio', title: '发直播', desc: '立即或预约开播', url: `/pkg-live/create/index?circleId=${circleId.value}` },
   ]
-  uni.showActionSheet({ itemList: items.map((i) => i.label), success: (r) => items[r.tapIndex]?.act() })
+})
+function pickPublish(url: string) {
+  showPublish.value = false
+  navigateTo(url)
+}
+function pickQuickPost() {
+  showPublish.value = false
+  openQuickPost()
+}
+function onBodyScroll() {
+  fabDim.value = true
+  if (fabTimer) clearTimeout(fabTimer)
+  fabTimer = setTimeout(() => { fabDim.value = false }, 400)
 }
 function openManage() { navigateTo(`/pkg-circle/circles/dashboard?id=${circleId.value}`) }
-function openMore() {
-  // 董事长 2026-07-11 真机反馈：①分享去重（右上角已有分享按钮）②退出弱化——不再直弹确认框，改走退出引导页（挽留+后果说明+退款衔接）
-  const items: { label: string; act: () => void }[] = []
-  if (isJoined.value && !isOwner.value) {
-    items.push({ label: '退出与退款', act: () => navigateTo(`/pkg-circle/circles/exit?id=${circleId.value}`) })
-  }
-  if (!items.length) return
-  uni.showActionSheet({ itemList: items.map((i) => i.label), success: (r) => items[r.tapIndex]?.act() })
-}
-function doLeave() {
-  const c = circle.value
-  if (c && c.type !== 'FREE') {
-    navigateTo(`/pkg-circle/circles/exit?id=${circleId.value}`)
-  } else {
-    uni.showModal({
-      title: '退出圈子', content: '确定退出该圈子吗？退出后将失去成员身份。', confirmColor: '#C41E3A',
-      success: (r) => {
-        if (!r.confirm) return
-        isJoined.value = false
-        circleDetailApi.leave(circleId.value).catch(() => { isJoined.value = true; uni.showToast({ title: '退出失败', icon: 'none' }) })
-      },
-    })
-  }
-}
+function openMembers() { navigateTo(`/pkg-circle/circles/members?id=${circleId.value}`) }
 function openAnnouncement() { navigateTo(`/pkg-circle/circles/announcements?id=1&circleId=${circleId.value}`) }
 function openUser(id: string) { navigateTo(`/pkg-circle/user/profile?id=${id}`) }
 function openAssistant() { navigateTo(`/pkg-circle/circles/assistant?circleId=${circleId.value}&name=${encodeURIComponent(circle.value?.name || '')}`) }
@@ -238,7 +260,7 @@ function openShowcase() { navigateTo('/pkg-circle/circles/activities') }
       <view class="nav-action" @tap="openShare"><app-icon name="share-2" :size="34" color="#6E6E73" /></view>
     </view>
 
-    <scroll-view scroll-y class="body">
+    <scroll-view scroll-y class="body" @scroll="onBodyScroll">
       <!-- A. 头部·身份区 -->
       <view class="header">
         <view class="identity">
@@ -248,9 +270,24 @@ function openShowcase() { navigateTo('/pkg-circle/circles/activities') }
               <text class="identity-name">{{ circle.name }}</text>
               <text class="identity-desc">{{ circle.description }}</text>
             </view>
+            <!-- 管理入口：角色专属，移出底栏（仅圈主/管理员可见·董事长反馈） -->
+            <view v-if="canManage" class="manage-chip" @tap="openManage">
+              <app-icon name="settings" :size="24" color="#C41E3A" />
+              <text class="manage-chip-txt">管理</text>
+            </view>
           </view>
           <view class="identity-meta">
-            <text class="meta-stat"><text class="meta-num">{{ fmt(circle.members) }}</text>成员</text>
+            <!-- 成员入口：数字+已加入成员真实头像叠排，点击进成员列表（原成员 Tab 移独立页） -->
+            <view class="meta-members" @tap="openMembers">
+              <text class="meta-stat"><text class="meta-num">{{ fmt(circle.members) }}</text>成员</text>
+              <view v-if="members.length" class="meta-avatars">
+                <image
+                  v-for="m in members.slice(0, 4)" :key="m.id"
+                  lazy-load :src="m.avatar" class="meta-avatar" mode="aspectFill"
+                />
+              </view>
+              <app-icon name="chevron-right" :size="22" color="#999999" />
+            </view>
             <text v-if="circle.todayActive" class="meta-stat"><text class="meta-num">{{ circle.todayActive }}</text>今日新帖</text>
             <view class="meta-owner" @tap="openUser(circle.owner.id)">
               <image lazy-load :src="circle.owner.avatar" class="meta-owner-avatar" mode="aspectFill" />
@@ -384,7 +421,7 @@ function openShowcase() { navigateTo('/pkg-circle/circles/activities') }
       </view>
 
       <!-- 文章 Tab -->
-      <view v-else-if="activeTab === 'articles'" class="feed">
+      <view v-else class="feed">
         <template v-if="postedArticles.length">
           <view
             v-for="a in postedArticles" :key="a.id"
@@ -404,44 +441,63 @@ function openShowcase() { navigateTo('/pkg-circle/circles/activities') }
         </view>
       </view>
 
-      <!-- 成员 Tab -->
-      <view v-else class="member-list">
-        <view v-for="m in members" :key="m.id" class="member" @tap="openUser(m.id)">
-          <image lazy-load :src="m.avatar" class="member-avatar" mode="aspectFill" />
-          <view class="member-main">
-            <view class="member-name-row">
-              <text class="member-name">{{ m.name }}</text>
-              <view v-if="m.role === 'owner'" class="role-badge owner"><app-icon name="crown" :size="20" color="#C9A96E" /><text class="role-txt owner">圈主</text></view>
-              <view v-else-if="m.role === 'admin'" class="role-badge admin"><app-icon name="shield" :size="20" color="#D4B87D" /><text class="role-txt admin">管理员</text></view>
-            </view>
-            <view class="member-meta">
-              <text v-if="m.title" class="member-meta-txt">{{ m.title }}</text>
-              <text class="member-meta-txt">发帖 {{ m.posts }}</text>
-            </view>
-          </view>
-        </view>
-      </view>
-
       <view class="bottom-spacer" />
     </scroll-view>
 
-    <!-- C. 底部操作栏（4 角色态） -->
-    <view class="bottombar">
-      <!-- 游客/未加入：通栏加入 -->
-      <view v-if="!isJoined" class="btn-join" @tap="handleJoin"><text class="btn-join-txt">{{ joinButtonText }}</text></view>
-      <!-- 已加入 -->
-      <template v-else>
-        <view class="btn-post" @tap="openQuickPost">
-          <app-icon name="plus" :size="28" color="#ffffff" /><text class="btn-post-txt">发帖</text>
+    <!-- C. 底部：仅游客保留加入通栏（转化关键）；已加入无底栏，改右下角 FAB（董事长反馈：发帖按钮不占底部） -->
+    <view v-if="!isJoined" class="bottombar">
+      <view class="btn-join" @tap="handleJoin"><text class="btn-join-txt">{{ joinButtonText }}</text></view>
+    </view>
+
+    <!-- 已加入：悬浮创作按钮（朱红圆形+笔图标·滚动时半透明） -->
+    <view v-else class="fab" :class="{ dim: fabDim }" @tap="openCreate">
+      <app-icon name="pen-line" :size="44" color="#ffffff" />
+    </view>
+
+    <!-- 发布 Sheet（V0 circle-publish-sheet 稿）：遮罩+圆角面板+grabber+图标卡片 -->
+    <view v-if="showPublish" class="pub-mask" @tap="showPublish = false">
+      <view class="pub-sheet" @tap.stop>
+        <view class="pub-grabber" />
+        <text class="pub-title">发布</text>
+        <text class="pub-sub">在 {{ circle.name }}</text>
+
+        <!-- 首选项：发动态（所有成员都有，永远第一、最大） -->
+        <view class="pub-post" @tap="pickQuickPost">
+          <view class="pub-icon post"><app-icon name="pen-line" :size="36" color="#C41E3A" /></view>
+          <view class="pub-main">
+            <text class="pub-name">发动态</text>
+            <text class="pub-desc">图文 · 文件 · 语音，发布后即刻生效</text>
+          </view>
+          <app-icon name="chevron-right" :size="26" color="#999999" />
         </view>
-        <view v-if="canCreate" class="btn-bar" @tap="openCreate">
-          <app-icon name="edit-3" :size="26" color="#6E6E73" /><text class="btn-bar-txt">创作</text>
+
+        <!-- 创作形式：按角色 canCreate 过滤，未授权不出现 -->
+        <template v-if="createItems.length">
+          <text class="pub-label">创作</text>
+          <view class="pub-group">
+            <view v-for="it in createItems" :key="it.title" class="pub-row" @tap="pickPublish(it.url)">
+              <view class="pub-icon gold"><app-icon :name="it.icon" :size="34" color="#C9A96E" /></view>
+              <view class="pub-main">
+                <text class="pub-name">{{ it.title }}</text>
+                <text class="pub-desc">{{ it.desc }}</text>
+              </view>
+              <app-icon name="chevron-right" :size="26" color="#999999" />
+            </view>
+          </view>
+        </template>
+
+        <!-- 圈主专属：发公告（V0 owner 稿·弱层级放列表底部） -->
+        <view v-if="isOwner" class="pub-manage" @tap="pickPublish(`/pkg-circle/circles/manage?id=${circleId}&tab=settings`)">
+          <view class="pub-icon plain"><app-icon name="megaphone" :size="32" color="#6E6E73" /></view>
+          <view class="pub-main">
+            <text class="pub-name light">发公告</text>
+            <text class="pub-desc">全体成员将收到通知，显示在圈子头部</text>
+          </view>
+          <app-icon name="chevron-right" :size="26" color="#999999" />
         </view>
-        <view v-if="canManage" class="btn-bar manage" @tap="openManage">
-          <text class="btn-bar-txt manage">管理</text>
-        </view>
-        <view class="btn-more" @tap="openMore"><app-icon name="more-horizontal" :size="34" color="#6E6E73" /></view>
-      </template>
+
+        <view class="pub-cancel" @tap="showPublish = false"><text class="pub-cancel-txt">取消</text></view>
+      </view>
     </view>
 
     <!-- 购买弹窗 -->
@@ -514,8 +570,27 @@ function openShowcase() { navigateTo('/pkg-circle/circles/activities') }
 .identity-info { flex: 1; min-width: 0; }
 .identity-name { display: block; font-size: 34rpx; font-weight: 700; color: var(--text-primary, #2c2c2c); }
 .identity-desc { display: -webkit-box; font-size: 25rpx; color: var(--text-secondary, #6e6e73); margin-top: 6rpx; line-height: 1.5; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+/* 管理入口（角色专属·小 chip） */
+.manage-chip {
+  flex-shrink: 0; display: flex; align-items: center; gap: 6rpx;
+  padding: 10rpx 18rpx; border-radius: 999rpx;
+  background: var(--brand-soft, rgba(196, 30, 58, 0.08));
+}
+.manage-chip:active { opacity: 0.85; }
+.manage-chip-txt { font-size: 23rpx; color: var(--brand, #c41e3a); font-weight: 600; }
 .identity-meta { display: flex; align-items: center; gap: 24rpx; margin-top: 24rpx; padding-top: 24rpx; border-top: 1rpx solid var(--separator, #ede7dd); }
 .meta-stat { font-size: 24rpx; color: var(--text-tertiary, #999); }
+/* 成员入口：数字+头像叠排 */
+.meta-members { display: flex; align-items: center; gap: 8rpx; }
+.meta-members:active { opacity: 0.8; }
+.meta-avatars { display: flex; align-items: center; }
+.meta-avatar {
+  width: 40rpx; height: 40rpx; border-radius: 999rpx; flex-shrink: 0;
+  border: 2rpx solid var(--bg-card, #fff); box-sizing: border-box;
+  /* 头像缺失/加载失败时兜底暖色圆盘，避免叠排出现空洞 */
+  background: var(--gold-soft, rgba(201, 169, 110, 0.25));
+}
+.meta-avatar + .meta-avatar { margin-left: -12rpx; }
 .meta-num { font-size: 26rpx; color: var(--text-primary, #2c2c2c); font-weight: 600; margin-right: 4rpx; }
 .meta-owner { display: flex; align-items: center; gap: 10rpx; margin-left: auto; }
 .meta-owner-avatar { width: 40rpx; height: 40rpx; border-radius: 999rpx; box-shadow: 0 0 0 2rpx var(--gold, #c9a96e); }
@@ -600,24 +675,9 @@ function openShowcase() { navigateTo('/pkg-circle/circles/activities') }
 .empty { display: flex; flex-direction: column; align-items: center; gap: 20rpx; padding: 120rpx 0; }
 .empty-txt { font-size: 27rpx; color: var(--text-tertiary, #999); }
 
-/* 成员 */
-.member-list { padding: 24rpx 32rpx 0; display: flex; flex-direction: column; gap: 8rpx; }
-.member { display: flex; align-items: center; gap: 20rpx; padding: 20rpx; background: var(--bg-card, #fff); border-radius: 24rpx; }
-.member:active { background: var(--bg-warm, #f8f4ec); }
-.member-avatar { width: 80rpx; height: 80rpx; border-radius: 999rpx; flex-shrink: 0; }
-.member-main { flex: 1; min-width: 0; }
-.member-name-row { display: flex; align-items: center; gap: 12rpx; }
-.member-name { font-size: 28rpx; font-weight: 500; color: var(--text-primary, #2c2c2c); }
-.role-badge { display: flex; align-items: center; gap: 4rpx; padding: 2rpx 10rpx; border-radius: 6rpx; background: var(--gold-soft, rgba(201, 169, 110, 0.14)); }
-.role-txt { font-size: 20rpx; }
-.role-txt.owner { color: var(--gold, #c9a96e); }
-.role-txt.admin { color: var(--gold-2, #d4b87d); }
-.member-meta { display: flex; align-items: center; gap: 16rpx; margin-top: 4rpx; }
-.member-meta-txt { font-size: 23rpx; color: var(--text-tertiary, #999); }
-
 .bottom-spacer { height: 180rpx; }
 
-/* C. 底部操作栏 */
+/* C. 底部（仅游客加入通栏） */
 .bottombar {
   position: fixed; bottom: 0; left: 0; right: 0; z-index: 30;
   display: flex; align-items: center; gap: 20rpx;
@@ -627,13 +687,65 @@ function openShowcase() { navigateTo('/pkg-circle/circles/activities') }
 }
 .btn-join { flex: 1; height: 88rpx; border-radius: 44rpx; background: var(--brand, #c41e3a); display: flex; align-items: center; justify-content: center; }
 .btn-join-txt { font-size: 30rpx; color: #fff; font-weight: 600; }
-.btn-post { flex: 1; height: 84rpx; border-radius: 42rpx; background: var(--brand, #c41e3a); display: flex; align-items: center; justify-content: center; gap: 8rpx; }
-.btn-post-txt { font-size: 29rpx; color: #fff; font-weight: 600; }
-.btn-bar { height: 84rpx; padding: 0 30rpx; border-radius: 42rpx; background: var(--bg-page, #faf8f5); box-shadow: inset 0 0 0 1rpx var(--separator, #ede7dd); display: flex; align-items: center; gap: 8rpx; flex-shrink: 0; }
-.btn-bar-txt { font-size: 27rpx; color: var(--text-secondary, #6e6e73); }
-.btn-bar.manage { background: var(--brand-soft, rgba(196, 30, 58, 0.08)); box-shadow: none; }
-.btn-bar-txt.manage { color: var(--brand, #c41e3a); font-weight: 600; }
-.btn-more { width: 84rpx; height: 84rpx; border-radius: 999rpx; background: var(--bg-page, #faf8f5); box-shadow: inset 0 0 0 1rpx var(--separator, #ede7dd); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+
+/* 悬浮创作按钮（FAB·朱红圆形+笔图标·滚动半透明） */
+.fab {
+  position: fixed; right: 32rpx; bottom: calc(64rpx + env(safe-area-inset-bottom)); z-index: 30;
+  width: 108rpx; height: 108rpx; border-radius: 999rpx;
+  background: var(--brand, #c41e3a);
+  box-shadow: 0 8rpx 24rpx rgba(196, 30, 58, 0.35);
+  display: flex; align-items: center; justify-content: center;
+  transition: opacity 0.25s ease;
+}
+.fab.dim { opacity: 0.5; }
+.fab:active { transform: scale(0.95); }
+
+/* 发布 Sheet（V0 circle-publish-sheet 稿） */
+.pub-mask { position: fixed; inset: 0; z-index: 100; background: rgba(44, 44, 44, 0.35); display: flex; align-items: flex-end; }
+.pub-sheet {
+  width: 100%; background: var(--bg-page, #faf8f5);
+  border-radius: 36rpx 36rpx 0 0;
+  padding: 16rpx 32rpx calc(32rpx + env(safe-area-inset-bottom));
+  box-shadow: 0 -16rpx 64rpx rgba(44, 44, 44, 0.12);
+}
+.pub-grabber { width: 72rpx; height: 8rpx; border-radius: 4rpx; background: var(--separator, #ede7dd); margin: 8rpx auto 28rpx; }
+.pub-title { display: block; font-size: 34rpx; font-weight: 700; color: var(--text-primary, #2c2c2c); }
+.pub-sub { display: block; font-size: 24rpx; color: var(--text-tertiary, #999); margin: 4rpx 0 28rpx; }
+.pub-post {
+  display: flex; align-items: center; gap: 24rpx;
+  padding: 32rpx; border-radius: 36rpx;
+  background: var(--bg-card, #fff); box-shadow: 0 2rpx 6rpx rgba(44, 44, 44, 0.05);
+}
+.pub-post:active { opacity: 0.9; }
+.pub-icon {
+  width: 88rpx; height: 88rpx; border-radius: 28rpx; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.pub-icon.post { background: var(--brand-soft, rgba(196, 30, 58, 0.08)); }
+.pub-icon.gold { width: 80rpx; height: 80rpx; background: var(--bg-warm, #f8f4ec); }
+.pub-icon.plain { width: 72rpx; height: 72rpx; border-radius: 20rpx; background: var(--bg-warm, #f8f4ec); }
+.pub-main { flex: 1; min-width: 0; }
+.pub-name { display: block; font-size: 30rpx; font-weight: 600; color: var(--text-primary, #2c2c2c); }
+.pub-name.light { font-weight: 500; font-size: 28rpx; }
+.pub-desc { display: block; font-size: 24rpx; color: var(--text-tertiary, #999); margin-top: 2rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pub-label { display: block; margin: 32rpx 4rpx 16rpx; font-size: 24rpx; color: var(--text-tertiary, #999); }
+.pub-group { background: var(--bg-card, #fff); border-radius: 36rpx; overflow: hidden; box-shadow: 0 2rpx 6rpx rgba(44, 44, 44, 0.05); }
+.pub-row { display: flex; align-items: center; gap: 24rpx; padding: 28rpx 32rpx; }
+.pub-row + .pub-row { border-top: 1rpx solid var(--separator, #ede7dd); }
+.pub-row:active { background: var(--bg-warm, #f8f4ec); }
+.pub-manage {
+  display: flex; align-items: center; gap: 20rpx; margin-top: 24rpx;
+  padding: 26rpx 32rpx; background: var(--bg-card, #fff);
+  border-radius: 36rpx; box-shadow: 0 2rpx 6rpx rgba(44, 44, 44, 0.05);
+}
+.pub-manage:active { background: var(--bg-warm, #f8f4ec); }
+.pub-cancel {
+  margin-top: 24rpx; padding: 28rpx; border-radius: 36rpx;
+  background: var(--bg-card, #fff); box-shadow: 0 2rpx 6rpx rgba(44, 44, 44, 0.05);
+  display: flex; align-items: center; justify-content: center;
+}
+.pub-cancel:active { background: var(--bg-warm, #f8f4ec); }
+.pub-cancel-txt { font-size: 30rpx; color: var(--text-secondary, #6e6e73); }
 
 /* 弹窗 */
 .mask { position: fixed; inset: 0; z-index: 100; background: rgba(0, 0, 0, 0.5); display: flex; align-items: flex-end; }

@@ -461,10 +461,12 @@ function onRefreshRanking() {}
 }
 .ch-hero-title {
   display: block;
-  font-size: 80rpx;
-  line-height: 1.05;
+  /* 9 字标题 80rpx 必然折行成"…尽收一/馆"，降到 72rpx 保证一行放下 */
+  font-size: 72rpx;
+  line-height: 1.1;
   font-weight: 700;
   letter-spacing: -1rpx;
+  white-space: nowrap;
   color: var(--foreground);
 }
 .ch-hero-stats {

@@ -121,6 +121,17 @@ image,
   box-sizing: border-box;
 }
 
+/* 安卓微信 X5 内核绘制顺序 bug 防御（董事长 2026-07-11 真机反馈：加入/管理等按钮"红块无字·文字像被底色盖住"）：
+   带背景+圆角的容器在 X5 上可能把子 text 绘制到背景层之下。全局把 text 提升为独立层级；
+   position:relative 不改变布局，z-index:1 在各自 stacking context 内不会盖过弹层/遮罩（其 z-index 均 ≥50）。 */
+/* #ifdef H5 */
+uni-text,
+uni-view > span {
+  position: relative;
+  z-index: 1;
+}
+/* #endif */
+
 /* 全局基础样式：宣纸底 + 思源字体 */
 page {
   background-color: var(--bg-paper, #faf8f5);

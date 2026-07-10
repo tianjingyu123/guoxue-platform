@@ -58,7 +58,9 @@
           class="cd-stack-cover"
           :style="{ zIndex: 5 - i }"
         >
-          <text class="cd-stack-text">{{ book.title.slice(0, 2) }}</text>
+          <view class="cd-stack-text">
+            <text v-for="(ch, ci) in Array.from(book.title.slice(0, 2))" :key="ci" class="cd-stack-char">{{ ch }}</text>
+          </view>
         </view>
         <view v-if="collection.books.length > 5" class="cd-stack-more">
           <text class="cd-stack-more-text">+{{ collection.books.length - 5 }}</text>
@@ -86,7 +88,9 @@
           </view>
           <view class="cd-book-cover">
             <view class="cd-book-spine" />
-            <text class="cd-book-cover-text">{{ book.title.slice(0, 2) }}</text>
+            <view class="cd-book-cover-text">
+              <text v-for="(ch, ci) in Array.from(book.title.slice(0, 2))" :key="ci" class="cd-book-cover-char">{{ ch }}</text>
+            </view>
             <view v-if="book.hasAI" class="cd-book-ai">
               <app-icon name="sparkles" :size="16" color="#ffffff" />
             </view>
@@ -307,9 +311,15 @@ function startReading() {
 .cd-stack-cover:first-child {
   margin-left: 0;
 }
+/* 逐字竖排（flex column 替代 writing-mode·X5 兼容） */
 .cd-stack-text {
-  writing-mode: vertical-rl;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.cd-stack-char {
   font-size: 22rpx;
+  line-height: 1.3;
   font-weight: 700;
   color: #4a3f2f;
   font-family: 'Noto Serif SC', serif;
@@ -447,9 +457,15 @@ function startReading() {
   background: #d4c4a8;
   border-radius: 6rpx 0 0 6rpx;
 }
+/* 逐字竖排（flex column 替代 writing-mode·X5 兼容） */
 .cd-book-cover-text {
-  writing-mode: vertical-rl;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.cd-book-cover-char {
   font-size: 24rpx;
+  line-height: 1.3;
   font-weight: 700;
   color: #4a3f2f;
   font-family: 'Noto Serif SC', serif;

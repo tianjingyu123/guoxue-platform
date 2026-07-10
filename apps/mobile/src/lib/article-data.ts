@@ -325,8 +325,8 @@ export const articleApi = {
   saveDraft: (body: { title: string; content: string; cover?: string; excerpt?: string; tags: string[]; circleId?: string }) =>
     apiPost<{ id: string }>('/articles/drafts', body),
 
-  /** 发动态/帖子 POST /circles/:circleId/posts */
-  createPost: (circleId: string, body: { type: string; title?: string; content: string; images?: string[]; status?: string }) =>
+  /** 发动态/帖子 POST /circles/:circleId/posts（attachments=文件卡附件·后端 Post.attachments JSONB） */
+  createPost: (circleId: string, body: { type: string; title?: string; content: string; images?: string[]; attachments?: { name: string; size: number; url: string }[]; status?: string }) =>
     apiPost<{ id: string }>(`/circles/${circleId}/posts`, body),
 
   // ───────── 详情 / 评论（读） ─────────

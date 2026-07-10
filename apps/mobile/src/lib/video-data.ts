@@ -311,6 +311,19 @@ interface RawComment {
   user?: { id?: string; nickname?: string; avatar?: string } | null
 }
 
+/**
+ * 反转义历史坏数据：后端旧版 SanitizePipe 曾把 URL 存成 HTML 实体（https:&#x2F;&#x2F;…），
+ * 导致 <video src> 无效播不了。后端读取路径已归一化，此处前端再兜底一层（独立部署也生效）。
+ */
+function unescapeUrl(s?: string): string {
+  if (!s || !s.includes('&')) return s || ''
+  return s
+    .replace(/&amp;/g, '&')
+    .replace(/&#x2F;/g, '/')
+    .replace(/&#x27;/g, "'")
+    .replace(/&quot;/g, '"')
+}
+
 /** 后端视频 → 前端 VideoItem（全屏流；followers/verified/music/hotComments 后端无→默认） */
 function adaptVideoItem(v: RawVideo): VideoItem {
   return {
@@ -324,8 +337,8 @@ function adaptVideoItem(v: RawVideo): VideoItem {
       followers: 0,
       verified: false,
     },
-    coverUrl: v.coverUrl || '',
-    videoUrl: v.videoUrl || '',
+    coverUrl: unescapeUrl(v.coverUrl),
+    videoUrl: unescapeUrl(v.videoUrl),
     likes: v.likeCount ?? v.likes ?? 0,
     comments: v.commentCount ?? v.comments ?? 0,
     shares: v.shareCount ?? v.shares ?? 0,

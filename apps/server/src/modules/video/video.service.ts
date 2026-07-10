@@ -26,6 +26,32 @@ export class VideoService {
     return cfg?.configValue || undefined;
   }
 
+  /**
+   * 反转义历史坏数据：旧版 SanitizePipe 曾把 URL 字段 HTML 实体转义后入库
+   * （https:&#x2F;&#x2F;... 使 <video src> 无效 → 「新上传视频播不了」的真凶）。
+   * 入口白名单已修（sanitize.pipe SKIP_FIELDS 已含 videoUrl/coverUrl），此处对读取路径防御性归一化，
+   * 存量数据另有 prisma/manual/20260710-fix-video-url-html-escape.sql 幂等修复。
+   */
+  private static unescapeHtmlUrl<T extends string | null | undefined>(s: T): T {
+    if (!s || !s.includes("&")) return s;
+    return s
+      .replace(/&amp;/g, "&")
+      .replace(/&#x2F;/g, "/")
+      .replace(/&#x27;/g, "'")
+      .replace(/&quot;/g, '"')
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">") as T;
+  }
+
+  /** 归一化单条视频的 URL 字段（就地修改并返回，供 list/getDetail 读取路径复用） */
+  private normalizeVideoUrls<T extends { videoUrl?: string | null; coverUrl?: string | null }>(v: T): T {
+    if (v) {
+      v.videoUrl = VideoService.unescapeHtmlUrl(v.videoUrl);
+      v.coverUrl = VideoService.unescapeHtmlUrl(v.coverUrl);
+    }
+    return v;
+  }
+
   @CacheEvict({ key: "video:list:*", pattern: true })
   async create(userId: string, dto: { circleId?: string; title?: string; description?: string; videoUrl: string; coverUrl?: string; duration?: number; tags?: string[]; isPrivate?: boolean; visibility?: string; products?: string[]; stationId?: string }, isAdmin = false) {
     await this.auditService.moderateTextOrThrow([dto.title, dto.description].filter(Boolean).join(" "), { scene: "VIDEO", userId });
@@ -127,7 +153,7 @@ export class VideoService {
       this.prisma.video.count({ where }),
     ]);
 
-    return { videos, total, page, pageSize };
+    return { videos: videos.map((v) => this.normalizeVideoUrls(v)), total, page, pageSize };
   }
 
   @Cacheable({ key: (args) => `video:detail:${args[0]}`, ttl: 120 })
@@ -143,7 +169,7 @@ export class VideoService {
     if (!video) throw new BusinessException(ErrorCode.NOT_FOUND, "视频不存在");
 
     await this.prisma.video.update({ where: { id }, data: { viewCount: { increment: 1 } } }).catch((e) => this.logger.warn(`视频 ${id} 浏览计数失败`, e));
-    return video;
+    return this.normalizeVideoUrls(video);
   }
 
   /** 点赞/取消点赞视频（per-user去重） */
@@ -386,7 +412,7 @@ export class VideoService {
     return videos.map((v) => ({
       id: v.id,
       title: v.title,
-      coverUrl: v.coverUrl,
+      coverUrl: VideoService.unescapeHtmlUrl(v.coverUrl),
       duration: v.duration ?? 0,
       author: { name: v.user.nickname, avatar: v.user.avatar ?? "" },
       likes: v.likeCount,
@@ -431,7 +457,7 @@ export class VideoService {
         title: v.title,
         author: v.user.nickname,
         authorAvatar: v.user.avatar ?? "",
-        cover: v.coverUrl,
+        cover: VideoService.unescapeHtmlUrl(v.coverUrl),
         duration: `${Math.floor((v.duration ?? 0) / 60)}:${String((v.duration ?? 0) % 60).padStart(2, "0")}`,
         views: v.viewCount,
         publishedAt: this.timeAgo(v.createdAt),

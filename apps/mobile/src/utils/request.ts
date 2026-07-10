@@ -195,8 +195,17 @@ export function apiGetPaged<T>(path: string, header?: Record<string, string>, _r
       success: (res) => {
         const body = res.data as ApiResponse<T[]> & { pagination?: { total: number; page: number; pageSize: number } }
         if (res.statusCode === 401) {
-          handleUnauthorized()
-          reject(new Error('未登录或登录已过期'))
+          // 与 apiFetch 同款无感续期（此前直接登出是「几小时就要重新登录」的真凶之一：
+          // access 2h 过期后碰到任何分页列表页即被踢，refreshToken 30 天形同虚设——董事长 2026-07-11 反馈修复）
+          if (!_retried) {
+            refreshAccessToken().then((ok) => {
+              if (ok) resolve(apiGetPaged<T>(path, header, true))
+              else { handleUnauthorized(); reject(new Error('未登录或登录已过期')) }
+            })
+          } else {
+            handleUnauthorized()
+            reject(new Error('未登录或登录已过期'))
+          }
           return
         }
         if (body && body.code === 200) {
@@ -226,7 +235,7 @@ export const apiDelete = <T>(path: string, data?: unknown, header?: Record<strin
  * 上传单张图片 — POST /upload/image（multipart，字段名 file，需登录）
  * 返回图片可访问 URL（后端 UploadResult.url）。
  */
-export function uploadImage(filePath: string): Promise<string> {
+export function uploadImage(filePath: string, _retried = false): Promise<string> {
   return new Promise((resolve, reject) => {
     const token = getToken()
     uni.uploadFile({
@@ -236,6 +245,13 @@ export function uploadImage(filePath: string): Promise<string> {
       header: token ? { Authorization: `Bearer ${token}` } : {},
       success: (res) => {
         if (res.statusCode === 401) {
+          if (!_retried) {
+            refreshAccessToken().then((ok) => {
+              if (ok) resolve(uploadImage(filePath, true))
+              else { handleUnauthorized(); reject(new Error('未登录或登录已过期')) }
+            })
+            return
+          }
           handleUnauthorized()
           reject(new Error('未登录或登录已过期'))
           return
@@ -262,7 +278,7 @@ export function uploadImage(filePath: string): Promise<string> {
  * @param onProgress 上传进度回调（0-100）
  * 返回视频可访问 URL（后端 UploadResult.url）。
  */
-export function uploadVideo(filePath: string, onProgress?: (percent: number) => void): Promise<string> {
+export function uploadVideo(filePath: string, onProgress?: (percent: number) => void, _retried = false): Promise<string> {
   return new Promise((resolve, reject) => {
     const token = getToken()
     const task = uni.uploadFile({
@@ -272,6 +288,13 @@ export function uploadVideo(filePath: string, onProgress?: (percent: number) => 
       header: token ? { Authorization: `Bearer ${token}` } : {},
       success: (res) => {
         if (res.statusCode === 401) {
+          if (!_retried) {
+            refreshAccessToken().then((ok) => {
+              if (ok) resolve(uploadVideo(filePath, onProgress, true))
+              else { handleUnauthorized(); reject(new Error('未登录或登录已过期')) }
+            })
+            return
+          }
           handleUnauthorized()
           reject(new Error('未登录或登录已过期'))
           return
@@ -292,6 +315,47 @@ export function uploadVideo(filePath: string, onProgress?: (percent: number) => 
     if (onProgress && task && typeof task.onProgressUpdate === 'function') {
       task.onProgressUpdate((p: { progress: number }) => onProgress(p.progress))
     }
+  })
+}
+
+/**
+ * 上传文档附件 — POST /upload/file（multipart，字段名 file，需登录，最大 50MB）
+ * 支持 PDF/Word/Excel/PPT/TXT/ZIP（帖子文件卡用）。返回文件可访问 URL。
+ */
+export function uploadDocument(filePath: string, _retried = false): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const token = getToken()
+    uni.uploadFile({
+      url: `${BASE_URL}${PREFIX}/upload/file`,
+      filePath,
+      name: 'file',
+      header: token ? { Authorization: `Bearer ${token}` } : {},
+      success: (res) => {
+        if (res.statusCode === 401) {
+          if (!_retried) {
+            refreshAccessToken().then((ok) => {
+              if (ok) resolve(uploadDocument(filePath, true))
+              else { handleUnauthorized(); reject(new Error('未登录或登录已过期')) }
+            })
+            return
+          }
+          handleUnauthorized()
+          reject(new Error('未登录或登录已过期'))
+          return
+        }
+        try {
+          const body = JSON.parse(res.data) as ApiResponse<{ url: string }>
+          if (body && body.code === 200 && body.data?.url) {
+            resolve(body.data.url)
+          } else {
+            reject(new Error(body?.message || `上传失败(${res.statusCode})`))
+          }
+        } catch (e) {
+          reject(new Error('上传响应解析失败'))
+        }
+      },
+      fail: (err) => reject(new Error(err.errMsg || '上传失败')),
+    })
   })
 }
 

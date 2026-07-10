@@ -307,11 +307,18 @@ export const circleApi = {
   },
   my: async (): Promise<Circle[]> => {
     try {
-      const res = await apiGet<RawCircle[] | RawCircleListResp>('/circles/my')
-      const arr = Array.isArray(res) ? res : (res?.data ?? [])
-      return arr.map(adaptCircle)
+      // 后端 /circles/my 返回 CircleMember[]（圈子信息嵌套在 .circle）——此前直接当圈子适配导致
+      // 首页「我的圈子」横滑卡无名字无封面、点击 id 错跳加载失败（董事长 2026-07-11 真机反馈根因）
+      const res = await apiGet<Array<RawCircle & { circle?: RawCircle }> | RawCircleListResp>('/circles/my')
+      const arr = Array.isArray(res) ? res : ((res?.data ?? []) as Array<RawCircle & { circle?: RawCircle }>)
+      return arr
+        .map((m) => {
+          const c = m.circle ?? m // 兼容两种结构：嵌套 member.circle / 直接圈子对象
+          return { ...adaptCircle(c as RawCircle), isJoined: true }
+        })
+        .filter((c) => !!c.id)
     } catch {
-      return mockCircles.filter(c => c.isJoined)
+      return [] // 拉取失败诚实空态，不给假数据
     }
   },
   /**

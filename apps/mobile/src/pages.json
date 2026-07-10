@@ -735,6 +735,12 @@
           }
         },
         {
+          "path": "circles/members",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
           "path": "circles/assistant",
           "style": {
             "navigationStyle": "custom"

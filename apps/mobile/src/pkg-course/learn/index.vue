@@ -23,7 +23,8 @@ const questions = ref<any[]>([])
 
 type TabKey = 'catalog' | 'notes' | 'questions'
 const activeTab = ref<TabKey>('catalog')
-const expanded = ref<Record<string, boolean>>({ c1: true, c2: true })
+// 章节手风琴：默认全展开（真实章节 id 是 cuid，旧初值 {c1,c2} 永不命中 → 全折叠多一步展开）
+const expanded = ref<Record<string, boolean>>({})
 const showAskModal = ref(false)
 const askContent = ref('')
 const submittingAsk = ref(false)
@@ -75,6 +76,8 @@ async function loadData() {
     course.value = res.course
     progress.value = res.progress
     chapters.value = res.chapters
+    // 目录默认全展开，课时点一次直达播放
+    for (const c of res.chapters) expanded.value[c.id] = true
     notes.value = res.notes
     questions.value = res.questions
   } catch (e) {

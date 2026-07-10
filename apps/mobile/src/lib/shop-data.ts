@@ -1546,13 +1546,56 @@ interface RawShopOrder { id?: string; targetId?: string; skuId?: string; status?
 
 // ───────── 后端商品适配（前端 /shop 单数 → 后端 /shop/products）─────────
 function shopNum(v: unknown): number { const x = Number(v); return Number.isFinite(x) ? x : 0 }
+
+/** 反转义后端 SanitizePipe 产出的 HTML 实体（存量脏数据：URL 被转成 https:&#x2F;&#x2F;、富文本被转成 &lt;p&gt;） */
+function unescapeEntities(s: string): string {
+  return s
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#x27;/g, "'")
+    .replace(/&#x2F;/g, '/')
+    .replace(/&amp;/g, '&')
+}
+/** 图片 URL 防御性修复：生产库存量 Product.images 曾被 SanitizePipe 转义（/ → &#x2F;）导致 <image src> 加载失败 */
+function fixImgUrl(u: unknown): string {
+  const s = String(u ?? '')
+  return s.includes('&#x2F;') || s.includes('&amp;') ? unescapeEntities(s) : s
+}
+function fixImgUrls(arr: unknown): string[] {
+  return Array.isArray(arr) ? arr.map(fixImgUrl) : []
+}
+/**
+ * 商品详情富文本归一化（详情图「只显示一部分」真因修复）：
+ * ① 存量脏数据：整段 HTML 曾被 SanitizePipe 转义（&lt;p&gt;…）→ rich-text 渲染成源码，先反转义；
+ * ② wangEditor 产出的 <img> 无宽度约束，原图宽超出容器被视口裁掉 → 注入 max-width:100% 自适应样式
+ *    （rich-text 内部节点不吃页面 scoped CSS，只能内联注入）。
+ */
+function normalizeRichDetail(html?: string): string {
+  let s = String(html ?? '')
+  if (!s) return ''
+  if (!s.includes('<') && s.includes('&lt;')) s = unescapeEntities(s)
+  const IMG_STYLE = 'max-width:100%;width:auto;height:auto;display:block;margin:8px auto;'
+  s = s.replace(/<img\b([^>]*?)\/?>/gi, (_m, attrs: string) => {
+    let a = String(attrs)
+    // 去掉固定宽高属性，避免与自适应样式打架
+    a = a.replace(/\s(?:width|height)\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+    if (/style\s*=/i.test(a)) {
+      a = a.replace(/style\s*=\s*(["'])(.*?)\1/i, (_sm, q: string, val: string) => `style=${q}${IMG_STYLE}${val}${q}`)
+    } else {
+      a = `${a} style="${IMG_STYLE}"`
+    }
+    return `<img${a} />`
+  })
+  return s
+}
 /** 后端商品 → 前端首页推荐卡 ShopRecProduct */
 function adaptRecProduct(p: RawShopProduct): ShopRecProduct {
   const price = p.effectivePrice ?? shopNum(p.price)
   return {
     id: p.id || '',
     name: p.title || '',
-    cover: (Array.isArray(p.images) && p.images[0]) || '',
+    cover: fixImgUrl((Array.isArray(p.images) && p.images[0]) || ''),
     price,
     originalPrice: shopNum(p.originalPrice) || price,
     sales: shopNum(p.salesCount),
@@ -1569,8 +1612,8 @@ function adaptProductDetail(p: RawShopProduct): ProductDetail {
     id: p.id || '',
     title: p.title || '',
     subtitle: p.intro || '',
-    // 有 images 用 images(轮播)，否则退回单张 cover，避免顶部封面空白
-    images: (Array.isArray(p.images) && p.images.length) ? p.images : (p.cover ? [p.cover] : []),
+    // 有 images 用 images(轮播)，否则退回单张 cover，避免顶部封面空白（fixImgUrls：存量转义 URL 反转义）
+    images: (Array.isArray(p.images) && p.images.length) ? fixImgUrls(p.images) : (p.cover ? [fixImgUrl(p.cover)] : []),
     hasVideo: !!p.videoUrl,
     price,
     originalPrice: shopNum(p.originalPrice) || price,
@@ -1582,7 +1625,7 @@ function adaptProductDetail(p: RawShopProduct): ProductDetail {
     reviewCount: 0,
     tags: Array.isArray(p.tags) ? p.tags : [],
     reviews: [],
-    description: p.detail || p.intro || '',
+    description: normalizeRichDetail(p.detail || p.intro || ''),
     merchant: p.merchant
       ? { id: p.merchant.id || '', shopName: p.merchant.shopName || '', shopLogo: p.merchant.shopLogo || undefined }
       : null,
@@ -1641,7 +1684,7 @@ function adaptShopProductDetail(p: RawShopProduct, stats?: RawReviewStats | null
         price: shopNum(s.price),
         originalPrice: shopNum(s.price),
         stock: shopNum(s.stock),
-        image: p.images?.[0] || '',
+        image: fixImgUrl(p.images?.[0] || ''),
       }))
     : []
   return {
@@ -1654,8 +1697,8 @@ function adaptShopProductDetail(p: RawShopProduct, stats?: RawReviewStats | null
     category: p.categoryLevel1 || '',
     tags: Array.isArray(p.tags) ? p.tags : [],
     isHot: !!p.hasPromotion,
-    images: Array.isArray(p.images) ? p.images : [],
-    description: p.detail || p.intro || '',
+    images: fixImgUrls(p.images),
+    description: normalizeRichDetail(p.detail || p.intro || ''),
     specs: [], // 后端无独立规格参数表（规格在 SKU 上），列表型规格降级隐藏
     stock: shopNum(p.stock),
     shipping: '包邮',
@@ -1792,7 +1835,7 @@ function adaptProductCard(p: RawShopProduct): ProductCardData {
   return {
     id: p.id || '',
     title: p.title || '',
-    cover: p.images?.[0] || p.cover || '', // 兼容只传 cover 未传 images 的商品，避免封面空白
+    cover: fixImgUrl(p.images?.[0] || p.cover || ''), // 兼容只传 cover 未传 images 的商品，避免封面空白
     price: shopNum(p.effectivePrice ?? p.price),
     originalPrice: shopNum(p.originalPrice ?? p.price),
     sales: p.salesCount ?? 0,
@@ -1819,7 +1862,7 @@ function adaptCategoryProduct(p: RawShopProduct): CategoryProduct {
     originalPrice: shopNum(p.originalPrice ?? p.price),
     sales: p.salesCount ?? 0,
     category: p.categoryLevel1 || '',
-    cover: p.images?.[0] || '',
+    cover: fixImgUrl(p.images?.[0] || ''),
     isMemberFree: false, // 后端无会员免费标记
     createdAt: p.createdAt || '',
   }
@@ -1891,7 +1934,7 @@ export const shopApi = {
         ? res.products.map((p: RawShopProduct): StoreProduct => ({
             id: p.id || '',
             title: p.title || '',
-            cover: Array.isArray(p.images) ? p.images[0] : undefined,
+            cover: Array.isArray(p.images) ? fixImgUrl(p.images[0]) : undefined,
             price: p.effectivePrice ?? shopNum(p.price),
             sales: shopNum(p.salesCount),
           }))
@@ -1920,7 +1963,7 @@ export const shopApi = {
     return items.map((p: RawShopProduct) => ({
       id: p.id,
       name: p.title,
-      cover: p.images?.[0] || '',
+      cover: fixImgUrl(p.images?.[0] || ''),
       price: Number(p.price) || 0,
       originalPrice: Number(p.originalPrice ?? p.price) || 0,
       sales: p.salesCount ?? 0,
@@ -2051,7 +2094,7 @@ export const shopApi = {
         productId: p?.id || opts.productId,
         skuId: opts.skuId || undefined,
         productName: p?.title || '商品',
-        productCover: (Array.isArray(p?.images) && p.images[0]) || '',
+        productCover: fixImgUrl((Array.isArray(p?.images) && p.images[0]) || ''),
         skuName: sku ? formatSkuSpecs(sku.specs) : '',
         price,
         originalPrice: shopNum(p?.originalPrice ?? p?.price) || price,

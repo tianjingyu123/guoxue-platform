@@ -1,5 +1,15 @@
 <template>
   <div class="content-page">
+    <!-- 目录重构批（2026-07-11）：双入口收敛（方案块E前置）侦察结论——Content 表仍有 C 端活消费方
+         （发现页瀑布流 GET /discover 聚合 Content·PUBLISHED），故本页功能保留不动，仅加说明条。 -->
+    <el-alert
+      type="warning"
+      :closable="false"
+      show-icon
+      style="margin-bottom:12px"
+      title="旧版通用内容库（Content 表）· 双入口收敛观察期"
+      description="该库仍被 C 端「发现页」瀑布流聚合展示，暂不停写。请勿在此新录入文章/古籍（文章→C 端圈子编辑器发布·古籍→AI 数字员工采集维护），本页仅用于存量内容与 AI 种子内容的管理。"
+    />
     <el-alert
       v-if="error"
       type="error"

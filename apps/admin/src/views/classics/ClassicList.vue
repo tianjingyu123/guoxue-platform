@@ -24,6 +24,7 @@
           清除缓存
         </el-button>
         <el-button
+          v-if="MANUAL_EDIT"
           type="primary"
           @click="openEdit()"
         >
@@ -31,6 +32,8 @@
         </el-button>
       </template>
     </PageHeader>
+
+    <AiMaintainedBanner description="古籍正文由 AI 数字员工采集导入维护，人工请勿直接新增/编辑正文（数据订正走工单/AI 兜底）。本页保留查看、章节浏览与运营操作（同步知识库/向量化/缓存）。" />
 
     <!-- 统计面板 -->
     <div
@@ -190,6 +193,7 @@
             章节
           </el-button>
           <el-button
+            v-if="MANUAL_EDIT"
             size="small"
             type="primary"
             @click="openEdit(row)"
@@ -197,6 +201,7 @@
             编辑
           </el-button>
           <el-button
+            v-if="MANUAL_EDIT"
             size="small"
             type="danger"
             @click="delBook(row.id)"
@@ -316,6 +321,7 @@
           show-overflow-tooltip
         />
         <el-table-column
+          v-if="MANUAL_EDIT"
           label="操作"
           width="160"
         >
@@ -336,7 +342,10 @@
           </template>
         </el-table-column>
       </el-table>
-      <div style="margin-top:12px">
+      <div
+        v-if="MANUAL_EDIT"
+        style="margin-top:12px"
+      >
         <el-button
           size="small"
           type="primary"
@@ -409,6 +418,11 @@ import { ElMessage, ElMessageBox } from "element-plus";
 import { classicApi } from "@/api";
 import ImageUpload from "@/components/ImageUpload.vue";
 import PageHeader from "@/components/PageHeader.vue";
+import AiMaintainedBanner from "@/components/AiMaintainedBanner.vue";
+
+// 目录重构批（2026-07-11·董事长拍板）：古籍库由 AI 数字员工采集维护，
+// 人工"新增/编辑/删除正文"入口下线（置 true 可回滚·代码保留），本页转只读运营视图
+const MANUAL_EDIT = false;
 
 /** 古籍行（字段宽松 optional） */
 interface BookRow {

@@ -1,6 +1,6 @@
 <template>
   <div class="product-audit-page">
-    <PageHeader title="商品品控巡检">
+    <PageHeader title="商品审核巡检">
       <template #actions>
         <el-tag
           type="info"

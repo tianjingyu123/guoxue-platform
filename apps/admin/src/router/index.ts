@@ -68,7 +68,7 @@ const routes = [
         path: "contents",
         name: "ContentList",
         component: () => import("@/views/ContentList.vue"),
-        meta: { title: "内容管理", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"] },
+        meta: { title: "内容库（旧CMS）", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"] },
       },
       {
         path: "contents/create",
@@ -142,7 +142,7 @@ const routes = [
         path: "videos",
         name: "VideoList",
         component: () => import("@/views/videos/VideoList.vue"),
-        meta: { title: "视频管理", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"] },
+        meta: { title: "短视频管理", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"] },
       },
       {
         path: "lives",
@@ -160,7 +160,7 @@ const routes = [
         path: "questions",
         name: "QuestionList",
         component: () => import("@/views/qa/QuestionList.vue"),
-        meta: { title: "付费问答", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
+        meta: { title: "付费问答（达人咨询）", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
       },
       // === 排盘工具 ===
       {
@@ -325,7 +325,7 @@ const routes = [
         path: "shop/product-audit",
         name: "ProductAudit",
         component: () => import("@/views/shop/ProductAudit.vue"),
-        meta: { title: "商品品控", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "GOODS_AUDITOR"] },
+        meta: { title: "商品审核", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "GOODS_AUDITOR"] },
       },
       {
         path: "creator/list",
@@ -1074,19 +1074,19 @@ const routes = [
         path: "bounty/questions",
         name: "BountyQuestionList",
         component: () => import("@/views/bounty/QuestionList.vue"),
-        meta: { title: "赏金问题", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
+        meta: { title: "悬赏问题", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
       },
       {
         path: "bounty/reviews",
         name: "BountyReviewList",
         component: () => import("@/views/bounty/ReviewList.vue"),
-        meta: { title: "赏金审核", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
+        meta: { title: "悬赏审核", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
       },
       {
         path: "bounty/experts",
         name: "ExpertManage",
         component: () => import("@/views/bounty/ExpertManage.vue"),
-        meta: { title: "专家管理", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
+        meta: { title: "悬赏专家", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
       },
       // === 通知 ===
       {

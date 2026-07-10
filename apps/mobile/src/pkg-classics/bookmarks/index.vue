@@ -105,7 +105,9 @@
           <view class="bm-group-head" @tap="goBook(group.bookId)">
             <view class="bm-group-left">
               <view class="bm-group-cover">
-                <text class="bm-group-cover-text">{{ group.bookTitle.slice(0, 2) }}</text>
+                <view class="bm-group-cover-text">
+                  <text v-for="(ch, ci) in Array.from(group.bookTitle.slice(0, 2))" :key="ci" class="bm-group-cover-char">{{ ch }}</text>
+                </view>
               </view>
               <view class="bm-group-info">
                 <text class="bm-group-title">《{{ group.bookTitle }}》</text>
@@ -474,9 +476,15 @@ function goLogin() {
   justify-content: center;
   box-shadow: 0 2rpx 6rpx rgba(0, 0, 0, 0.06);
 }
+/* 逐字竖排（flex column 替代 writing-mode·X5 兼容） */
 .bm-group-cover-text {
-  writing-mode: vertical-rl;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.bm-group-cover-char {
   font-size: 22rpx;
+  line-height: 1.3;
   font-weight: 700;
   color: #92400e;
   font-family: 'Noto Serif SC', serif;

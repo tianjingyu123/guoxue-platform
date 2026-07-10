@@ -212,6 +212,8 @@ function fmtLikes(n: number): string {
   flex: 1;
   max-width: 144rpx;
   aspect-ratio: 3 / 4;
+  /* 老内核不支持 aspect-ratio 的兜底高度 */
+  min-height: 180rpx;
   border-radius: 32rpx;
   background: var(--muted);
   display: flex;

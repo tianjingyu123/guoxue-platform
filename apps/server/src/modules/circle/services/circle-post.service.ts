@@ -8,6 +8,7 @@ import { ErrorCode } from "../../../common/error-codes";
 import { Cacheable } from "../../../common/cache.decorator";
 import { safePagination } from "../../../common/pagination";
 import { PrismaService } from "../../../prisma/prisma.service";
+import { RedisService } from "../../../redis/redis.service";
 import { CoinService } from "../../coin/coin.service";
 import { NotificationService } from "../../notification/notification.service";
 import { AuditService } from "../../audit/audit.service";
@@ -33,9 +34,23 @@ export class CirclePostService {
     @Optional() private governance?: CircleGovernanceService,
     @Optional() private coinService?: CoinService,
     @Optional() private notificationService?: NotificationService,
+    @Optional() private redis?: RedisService,
   ) {}
 
   // ───────── 帖子 ─────────
+
+  /**
+   * 失效圈子帖子列表缓存（getPosts @Cacheable ttl=15s）：
+   * 发帖/发布草稿/删帖后立即清掉该圈全部分页缓存，否则新帖最长延迟 15 秒才可见
+   * （董事长真机反馈「发帖后不能立刻刷新」的后端根因）。失败不阻塞主流程。
+   */
+  private async evictPostsCache(circleId: string) {
+    try {
+      await this.redis?.delByPattern(`circle:posts:${circleId}:*`);
+    } catch {
+      /* 缓存清理失败不影响发帖主流程，最多回退到 15s TTL 自然过期 */
+    }
+  }
 
   async createPost(circleId: string, userId: string, dto: CreatePostDto) {
     await this.shared.ensureMember(circleId, userId);
@@ -77,12 +92,26 @@ export class CirclePostService {
       },
     });
 
+    // 附件（文件卡）：attachments 列由 manual/2026-07-11-post-attachments.sql 添加，
+    // prisma client 未重新 generate → 经原生 SQL 写入（与 Notification.category 同手法）
+    const attachments = this.sanitizeAttachments(dto.attachments);
+    if (attachments.length) {
+      await this.prisma.$executeRawUnsafe(
+        `UPDATE "Post" SET "attachments" = $1::jsonb WHERE "id" = $2`,
+        JSON.stringify(attachments),
+        post.id,
+      );
+      (post as Record<string, unknown>).attachments = attachments;
+    }
+
     // 只有发布状态的帖子才计入统计
     if (status === "PUBLISHED") {
       await this.prisma.circle.update({
         where: { id: circleId },
         data: { postCount: { increment: 1 } },
       });
+      // 新帖即时可见：清列表缓存（草稿不影响列表，跳过）
+      await this.evictPostsCache(circleId);
     }
 
     return post;
@@ -117,10 +146,13 @@ export class CirclePostService {
       data: { postCount: { increment: 1 } },
     });
 
-    return this.prisma.post.update({
+    const published = await this.prisma.post.update({
       where: { id: postId },
       data: { status: "PUBLISHED", createdAt: new Date() },
     });
+    // 草稿转发布同样即时可见
+    await this.evictPostsCache(post.circleId);
+    return published;
   }
 
   async updatePost(postId: string, userId: string, dto: Partial<CreatePostDto>) {
@@ -137,7 +169,32 @@ export class CirclePostService {
     // 图片审核（编辑后配图重新过审；无变更时 dto.images 为 undefined 自动跳过）
     await this.audit.moderateImageOrThrow(dto.images, { scene: "CIRCLE_POST", userId, dataId: postId });
 
-    return this.prisma.post.update({ where: { id: postId }, data: dto as Prisma.PostUpdateInput });
+    // attachments 不在 prisma client 类型内（原生 SQL 列），剥离后单独经原生 SQL 更新
+    const { attachments: rawAttachments, ...rest } = dto;
+    const updated = await this.prisma.post.update({ where: { id: postId }, data: rest as Prisma.PostUpdateInput });
+    if (rawAttachments !== undefined) {
+      const attachments = this.sanitizeAttachments(rawAttachments);
+      await this.prisma.$executeRawUnsafe(
+        `UPDATE "Post" SET "attachments" = $1::jsonb WHERE "id" = $2`,
+        JSON.stringify(attachments),
+        postId,
+      );
+      (updated as Record<string, unknown>).attachments = attachments;
+    }
+    return updated;
+  }
+
+  /** 附件白名单化：最多 3 个，仅收 name/size/url 三字段，url 必须 http(s)（防注入任意 JSON 结构入库） */
+  private sanitizeAttachments(list?: Array<{ name?: string; size?: number; url?: string }>): Array<{ name: string; size: number; url: string }> {
+    if (!Array.isArray(list)) return [];
+    return list
+      .filter((a) => a && typeof a.url === "string" && /^https?:\/\//i.test(a.url))
+      .slice(0, 3)
+      .map((a) => ({
+        name: String(a.name || "文件").slice(0, 200),
+        size: Number.isFinite(Number(a.size)) ? Math.max(0, Math.floor(Number(a.size))) : 0,
+        url: String(a.url),
+      }));
   }
 
   async deletePost(postId: string, userId: string, circleId: string) {
@@ -155,6 +212,8 @@ export class CirclePostService {
       where: { id: circleId },
       data: { postCount: { decrement: 1 } },
     });
+    // 删帖即时从列表消失
+    await this.evictPostsCache(circleId);
 
     return { success: true };
   }
@@ -194,7 +253,18 @@ export class CirclePostService {
       },
     });
     if (!post) throw new BusinessException(ErrorCode.NOT_FOUND, "帖子不存在");
-    return post;
+    // 附件列经原生 SQL 读出合并（列未迁移时静默降级为空数组，不阻断详情）
+    let attachments: unknown = [];
+    try {
+      const rows = await this.prisma.$queryRawUnsafe<Array<{ attachments: unknown }>>(
+        `SELECT "attachments" FROM "Post" WHERE "id" = $1`,
+        postId,
+      );
+      attachments = rows?.[0]?.attachments ?? [];
+    } catch {
+      /* attachments 列尚未应用 manual SQL 时降级为空 */
+    }
+    return { ...post, attachments };
   }
 
   async toggleEssence(postId: string, circleId: string, userId: string) {

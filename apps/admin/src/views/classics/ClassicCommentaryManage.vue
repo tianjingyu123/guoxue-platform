@@ -13,6 +13,7 @@
         >
           向量化索引
         </el-button><el-button
+          v-if="MANUAL_EDIT"
           type="primary"
           @click="openCreate"
         >
@@ -20,6 +21,8 @@
         </el-button>
       </div>
     </div>
+
+    <AiMaintainedBanner description="古籍注解由 AI 数字员工采集导入维护，人工请勿直接新增/编辑（数据订正走工单/AI 兜底）。本页保留查看、检索与运营操作（种子/向量化）。" />
 
     <el-form
       :inline="true"
@@ -183,6 +186,7 @@
         </template>
       </el-table-column>
       <el-table-column
+        v-if="MANUAL_EDIT"
         label="操作"
         width="150"
         fixed="right"
@@ -343,6 +347,10 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { api } from '@/api'
+import AiMaintainedBanner from '@/components/AiMaintainedBanner.vue'
+
+// 目录重构批（2026-07-11）：古籍注解由 AI 数字员工维护，人工编辑入口下线（置 true 可回滚·代码保留）
+const MANUAL_EDIT = false
 
 const loading = ref(false); const error = ref(false); const saving = ref(false); const seeding = ref(false); const vectorizing = ref(false)
 /** 古籍注解行（字段宽松 optional） */

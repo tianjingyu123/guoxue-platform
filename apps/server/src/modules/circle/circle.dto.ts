@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { IsString, IsOptional, IsArray, MinLength, MaxLength, IsNumber, IsInt, Min, Max, IsBoolean } from "class-validator";
+import { IsString, IsOptional, IsArray, MinLength, MaxLength, IsNumber, IsInt, Min, Max, IsBoolean, ValidateNested, ArrayMaxSize } from "class-validator";
 import { Type } from "class-transformer";
 
 export class CreateCircleDto {
@@ -80,6 +80,25 @@ export class UpdateCircleDto {
   needApproval?: boolean;
 }
 
+/** 帖子附件（文件卡：文件名+大小+下载 URL·存 Post.attachments JSONB） */
+export class PostAttachmentDto {
+  @ApiProperty({ description: "文件名（含扩展名）", example: "讲义.pdf" })
+  @IsString()
+  @MinLength(1)
+  @MaxLength(200)
+  name: string;
+
+  @ApiPropertyOptional({ description: "文件大小（字节）" })
+  @IsNumber()
+  @IsOptional()
+  size?: number;
+
+  @ApiProperty({ description: "文件下载 URL（COS /upload/file 返回）" })
+  @IsString()
+  @MinLength(1)
+  url: string;
+}
+
 export class CreatePostDto {
   @ApiProperty({ description: "帖子类型", enum: ["TEXT", "IMAGE", "VIDEO", "FILE", "LINK", "AUDIO"], example: "TEXT" })
   @IsString()
@@ -125,6 +144,14 @@ export class CreatePostDto {
   @IsNumber()
   @IsOptional()
   audioDuration?: number;
+
+  @ApiPropertyOptional({ description: "附件列表（文件卡）", type: [PostAttachmentDto] })
+  @IsArray()
+  @ArrayMaxSize(3)
+  @ValidateNested({ each: true })
+  @Type(() => PostAttachmentDto)
+  @IsOptional()
+  attachments?: PostAttachmentDto[];
 
   @ApiPropertyOptional({ description: "状态：PUBLISHED 发布 / DRAFT 草稿", default: "PUBLISHED" })
   @IsString()

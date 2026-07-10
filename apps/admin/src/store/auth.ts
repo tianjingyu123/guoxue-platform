@@ -2,6 +2,7 @@ import { defineStore } from "pinia";
 import { ref, computed } from "vue";
 import { authApi } from "@/api";
 import { ElMessage } from "element-plus";
+import { buildMenus } from "@/lib/menu-structure";
 
 export interface MenuItem {
   title: string;
@@ -97,14 +98,24 @@ export const useAuthStore = defineStore("auth", () => {
   }
 
   async function fetchMenus() {
+    // 目录重构批（2026-07-11）：菜单改为前端按员工工作流分组生成（lib/menu-structure.ts·可见性以路由 meta.roles 为准），
+    // 后端 /auth/menus 仅作兜底（前端构建异常/为空时回退旧菜单·后端不动可随时回滚）
+    let base: MenuItem[] = [];
     try {
-      const { data } = await authApi.getMenus();
-      const base = data || [];
-      // 商家用户追加商家后台菜单
-      menus.value = isMerchant.value ? [...base, ...MERCHANT_MENUS] : base;
+      base = buildMenus(roles.value);
     } catch {
-      menus.value = [];
+      base = [];
     }
+    if (base.length === 0) {
+      try {
+        const { data } = await authApi.getMenus();
+        base = data || [];
+      } catch {
+        base = [];
+      }
+    }
+    // 商家用户追加商家后台菜单
+    menus.value = isMerchant.value ? [...base, ...MERCHANT_MENUS] : base;
   }
 
   function logout() {

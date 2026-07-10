@@ -209,26 +209,26 @@ onLoad((q) => {
         <view v-if="!sentences.length" class="ap-tip">本章暂无可朗读内容</view>
       </scroll-view>
 
-      <!-- 进度 -->
-      <view class="ap-progress">
-        <view class="ap-progress-track"><view class="ap-progress-fill" :style="{ width: progress + '%' }" /></view>
-        <view class="ap-progress-time">
-          <text>{{ curSentence + 1 }} / {{ sentences.length }} 句</text>
-          <text>第 {{ curIndex + 1 }} / {{ chapters.length }} 章</text>
+      <!-- 吸底播放控制条（悬浮常驻：长文滚到任何位置都能播放/暂停） -->
+      <view class="ap-dock">
+        <view class="ap-progress">
+          <view class="ap-progress-track"><view class="ap-progress-fill" :style="{ width: progress + '%' }" /></view>
+          <view class="ap-progress-time">
+            <text>{{ curSentence + 1 }} / {{ sentences.length }} 句</text>
+            <text>第 {{ curIndex + 1 }} / {{ chapters.length }} 章</text>
+          </view>
         </view>
-      </view>
-
-      <!-- 控制 -->
-      <view class="ap-controls">
-        <view class="ap-speed" @tap="changeSpeed">{{ speed }}x</view>
-        <view class="ap-ctrl" :class="{ 'ap-ctrl--off': curSentence === 0 && !hasPrev }" @tap="prevSentence">
-          <app-icon name="chevron-left" :size="48" color="#78350f" />
+        <view class="ap-controls">
+          <view class="ap-speed" @tap="changeSpeed">{{ speed }}x</view>
+          <view class="ap-ctrl" :class="{ 'ap-ctrl--off': curSentence === 0 && !hasPrev }" @tap="prevSentence">
+            <app-icon name="chevron-left" :size="48" color="#78350f" />
+          </view>
+          <view class="ap-play" @tap="togglePlay">
+            <app-icon :name="playing ? 'pause' : 'play'" :size="52" color="#ffffff" :fill="true" />
+          </view>
+          <view class="ap-ctrl" @tap="nextSentence"><app-icon name="chevron-right" :size="48" color="#78350f" /></view>
+          <view class="ap-speed ap-chapnav" @tap="nextChapter" :class="{ 'ap-ctrl--off': !hasNext }">下章</view>
         </view>
-        <view class="ap-play" @tap="togglePlay">
-          <app-icon :name="playing ? 'pause' : 'play'" :size="52" color="#ffffff" :fill="true" />
-        </view>
-        <view class="ap-ctrl" @tap="nextSentence"><app-icon name="chevron-right" :size="48" color="#78350f" /></view>
-        <view class="ap-speed ap-chapnav" @tap="nextChapter" :class="{ 'ap-ctrl--off': !hasNext }">下章</view>
       </view>
     </template>
 
@@ -257,7 +257,10 @@ onLoad((q) => {
 </template>
 
 <style scoped lang="scss">
-.ap-page { min-height: 100vh; background: linear-gradient(to bottom, #f5f0e6, #faf8f5); display: flex; flex-direction: column; }
+/* 页面锁定视口高：正文在 scroll-view 内滚动，控件不再被长文推出屏幕
+   （病灶：原 min-height:100vh + scroll-view flex:1 在 H5 下不约束高度，
+    整章正文把进度条/播放按钮顶到页面最底部，长文根本找不到按钮） */
+.ap-page { height: 100vh; overflow: hidden; background: linear-gradient(to bottom, #f5f0e6, #faf8f5); display: flex; flex-direction: column; }
 .ap-header { position: sticky; top: 0; z-index: 40; }
 .ap-statusbar { height: var(--status-bar-height, 0px); }
 .ap-header-inner { display: flex; align-items: center; justify-content: space-between; padding: 0 32rpx; height: 100rpx; }
@@ -278,19 +281,31 @@ onLoad((q) => {
 .ap-chapter { display: block; font-size: 28rpx; color: #92400e; margin-top: 16rpx; font-weight: 500; }
 
 /* 跟读正文 */
-.ap-text { flex: 1; padding: 24rpx 48rpx; min-height: 0; }
+.ap-text { flex: 1; height: 0; padding: 24rpx 48rpx 320rpx; min-height: 0; box-sizing: border-box; }
 .ap-sent { display: inline; font-family: 'Songti SC', serif; font-size: 36rpx; line-height: 2.1; color: #5c5347; letter-spacing: 1rpx; }
 .ap-sent--on { color: #78350f; font-weight: 700; background: rgba(217,119,6,0.14); border-radius: 6rpx; padding: 2rpx 4rpx; }
 .ap-tip { text-align: center; color: var(--muted-foreground); font-size: 26rpx; padding: 80rpx 0; }
 
+/* 吸底控制条：悬浮常驻，滚动到任何位置都可见可操作 */
+.ap-dock {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 30;
+  background: rgba(250, 248, 245, 0.97);
+  border-top: 1rpx solid rgba(150, 130, 90, 0.18);
+  box-shadow: 0 -6rpx 24rpx rgba(0, 0, 0, 0.06);
+}
+
 /* 进度 */
-.ap-progress { padding: 8rpx 48rpx; }
+.ap-progress { padding: 16rpx 48rpx 8rpx; }
 .ap-progress-track { height: 10rpx; background: #e5ddd0; border-radius: 999rpx; overflow: hidden; }
 .ap-progress-fill { height: 100%; background: #d97706; border-radius: 999rpx; transition: width 0.3s; }
 .ap-progress-time { display: flex; justify-content: space-between; margin-top: 12rpx; font-size: 22rpx; color: var(--muted-foreground); }
 
 /* 控制 */
-.ap-controls { display: flex; align-items: center; justify-content: center; gap: 40rpx; padding: 24rpx 0 calc(32rpx + env(safe-area-inset-bottom)); }
+.ap-controls { display: flex; align-items: center; justify-content: center; gap: 40rpx; padding: 16rpx 0 calc(24rpx + env(safe-area-inset-bottom)); }
 .ap-speed { min-width: 80rpx; text-align: center; font-size: 28rpx; font-weight: 600; color: #92400e; }
 .ap-chapnav { font-size: 26rpx; }
 .ap-ctrl { &:active { transform: scale(0.9); } }
