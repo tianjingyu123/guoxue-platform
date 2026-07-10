@@ -112,7 +112,6 @@ const ROUTE_MAP: Record<string, string> = {
   '/payment/result': '/pkg-shop/pay-success/index',
   // 订单中心
   '/orders': '/pkg-order/list/index',
-  '/orders/center': '/pkg-order/center/index',
   '/orders/logistics': '/pkg-order/logistics/index',
   '/orders/invoice': '/pkg-order/invoice/index',
   '/orders/refund-progress': '/pkg-order/refund/index',

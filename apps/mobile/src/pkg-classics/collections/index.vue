@@ -63,7 +63,7 @@
           <view v-for="item in filtered" :key="item.id" class="cl-card">
             <view class="cl-card-main" @tap="openItem(item)">
               <view class="cl-cover">
-                <flat-cover :title="shortTitle(item.title)" :cover-color="coverColorForBook(item.title)" title-size="22" />
+                <flat-cover :title="shortTitle(item.title)" :cover-color="coverColorForBook(item.title)" title-size="22rpx" />
               </view>
               <view class="cl-info">
                 <text class="cl-name">{{ item.title }}</text>

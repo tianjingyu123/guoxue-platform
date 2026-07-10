@@ -2,6 +2,8 @@
 /** 古籍参考（书封网格 + 原文/译文/对照切换）——对应原型 ClassicsSection */
 import { ref } from 'vue'
 import SectionTitle from './section-title.vue'
+import FlatCover from '@/components/classics/flat-cover.vue'
+import { coverColorForBook } from '@/lib/classics-cover'
 import { classics, baziApi } from '@/lib/bazi-result-data'
 
 const selected = ref<string | null>(null)
@@ -31,13 +33,7 @@ async function toggle(id: string) {
     <view class="cs-grid">
       <view v-for="b in classics" :key="b.id" class="cs-book" @tap="toggle(b.id)">
         <view class="cs-cover" :class="{ 'cs-cover-on': selected === b.id }">
-          <view class="cs-cover-bg" />
-          <view class="cs-spine" />
-          <view class="cs-frame">
-            <view class="cs-name-v">
-              <text v-for="(ch, ci) in Array.from((b.name || '').slice(0, 5))" :key="ci" class="cs-name-char">{{ ch }}</text>
-            </view>
-          </view>
+          <flat-cover :title="b.name" :cover-color="coverColorForBook(b.name)" title-size="24rpx" />
         </view>
         <text class="cs-label" :class="{ 'cs-label-on': selected === b.id }">{{ b.name }}</text>
       </view>
@@ -66,14 +62,10 @@ async function toggle(id: string) {
 .cs-more { font-size: 22rpx; color: var(--brand); }
 .cs-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24rpx; padding: 0 24rpx 24rpx; }
 .cs-book { display: flex; flex-direction: column; align-items: center; gap: 8rpx; }
-.cs-cover { position: relative; width: 136rpx; height: 184rpx; border-radius: 4rpx; overflow: hidden; box-shadow: 0 2rpx 6rpx rgba(0,0,0,0.1); }
+/* 书封：flat-cover 仿真书组件——只给宽度，高度由组件内部 3:4 比例撑出
+   （原手写 136×184rpx 比例 1:1.353 ≠ 3:4，轻微变形，已统一） */
+.cs-cover { position: relative; width: 100%; border-radius: 10rpx; }
 .cs-cover-on { box-shadow: 0 0 0 4rpx var(--brand), 0 4rpx 10rpx rgba(0,0,0,0.15); }
-.cs-cover-bg { position: absolute; inset: 0; background: linear-gradient(to bottom, #fef3c7, #fffbeb, #fef3c7); }
-.cs-spine { position: absolute; left: 0; top: 0; bottom: 0; width: 12rpx; background: linear-gradient(to right, rgba(253,230,138,0.8), transparent); border-right: 2rpx solid rgba(252,211,77,0.4); }
-.cs-frame { position: absolute; left: 28rpx; right: 12rpx; top: 20rpx; bottom: 20rpx; border: 2rpx solid rgba(251,191,36,0.4); border-radius: 2rpx; display: flex; align-items: center; justify-content: center; }
-/* 逐字竖排（flex column 替代 writing-mode·安卓微信 X5 兼容） */
-.cs-name-v { display: flex; flex-direction: column; align-items: center; overflow: hidden; max-height: 100%; }
-.cs-name-char { font-size: 22rpx; line-height: 1.3; font-weight: 700; color: var(--brand); }
 .cs-label { font-size: 22rpx; color: var(--text-soft); line-height: 1.2; }
 .cs-label-on { color: var(--brand); font-weight: 600; }
 .cs-detail { border-top: 2rpx solid var(--border, rgba(0,0,0,0.08)); padding: 24rpx; background: rgba(0,0,0,0.02); }

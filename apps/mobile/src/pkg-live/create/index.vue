@@ -250,7 +250,7 @@
             <view class="scope-radio" :class="{ 'scope-radio-on': visibility === 'PLATFORM' }" />
             <view class="scope-main">
               <text class="scope-name">全平台开放</text>
-              <text class="scope-desc">全平台开放需平台审核，通过后进入公共池</text>
+              <text class="scope-desc">全平台用户都能进入你的直播间</text>
             </view>
           </view>
         </view>
@@ -312,7 +312,7 @@ onLoad((q) => { circleId.value = (q as Record<string, string> | undefined)?.circ
 // 开播方式（orientation·后端已收）：手机竖屏（默认）/ OBS 推流横屏
 const liveMode = ref<'vertical' | 'horizontal'>('vertical')
 
-// 开放范围（visibility·后端已收，默认仅本圈；全平台需平台审核）
+// 开放范围（visibility·后端已收，默认仅本圈；全平台创建即生效，机审后台异步）
 const visibility = ref<'CIRCLE_ONLY' | 'PLATFORM'>('CIRCLE_ONLY')
 
 // 画质档位（C5）
@@ -456,22 +456,9 @@ async function onCreate() {
       orientation: liveMode.value === 'horizontal' ? 'landscape' : 'portrait',
       visibility: visibility.value,
     })
-    if (visibility.value === 'PLATFORM') {
-      // 全平台开放：提交后进入平台审核（管理员/官方圈自动过审，提示不影响）
-      uni.showModal({
-        title: '创建成功',
-        content: '已提交平台审核，可在 圈子·我的 → 发布审核 查看进度',
-        confirmText: '查看进度',
-        cancelText: '返回',
-        success: (r) => {
-          if (r.confirm) navigateTo('/pkg-circle/circles/my-audits')
-          else goBack()
-        },
-      })
-    } else {
-      uni.showToast({ title: '创建成功', icon: 'success' })
-      setTimeout(() => goBack(), 800)
-    }
+    // 审核无感化（20260711 第八节）：创建即生效，机审后台异步完成，无任何审核提示
+    uni.showToast({ title: '创建成功', icon: 'success' })
+    setTimeout(() => goBack(), 800)
   } catch (e) {
     uni.showToast({ title: (e as Error)?.message || '创建失败', icon: 'none' })
   } finally {

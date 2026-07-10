@@ -3,7 +3,7 @@
  * @data-needs: 视频流，参数 id(来自 onLoad 定位起始视频)，GET 返回 VideoItem[]
  */
 
-import { apiGet, apiPost, apiPut, apiDelete, useMock } from '@/utils/request'
+import { apiGet, apiGetPaged, apiPost, apiPut, apiDelete, useMock } from '@/utils/request'
 
 export interface VideoProduct {
   id: string
@@ -20,14 +20,17 @@ export interface VideoHotComment {
   likes: number
 }
 
-/** 视频评论（真连通用 comment 端点·targetType=VIDEO） */
+/** 视频评论（真连通用 comment 端点·targetType=VIDEO·含楼中楼 replies） */
 export interface VideoComment {
   id: string
+  userId: string
   user: string
   avatar: string
   content: string
   likes: number
   createdAt: string
+  /** 楼中楼回复（后端 findByTarget 内联返回·递归结构） */
+  replies: VideoComment[]
 }
 
 export interface VideoAuthor {
@@ -305,10 +308,39 @@ interface RawVideo {
   /** 来源圈子（后端 /videos 与 /videos/:id 均 include circle:{id,name}） */
   circle?: { id?: string; name?: string } | null
 }
-/** 通用评论原始响应（GET /comment·targetType=VIDEO） */
+/** 通用评论原始响应（GET /comment·targetType=VIDEO·replies 为后端内联楼中楼） */
 interface RawComment {
-  id?: string; content?: string; likeCount?: number; createdAt?: string
+  id?: string; content?: string; likeCount?: number; createdAt?: string; parentId?: string | null
   user?: { id?: string; nickname?: string; avatar?: string } | null
+  replies?: RawComment[]
+}
+
+/** 后端评论 → 前端 VideoComment（递归映射楼中楼） */
+function adaptComment(c: RawComment): VideoComment {
+  return {
+    id: c.id || '',
+    userId: c.user?.id || '',
+    user: c.user?.nickname || '匿名用户',
+    avatar: c.user?.avatar || '',
+    content: c.content || '',
+    likes: c.likeCount ?? 0,
+    createdAt: c.createdAt || '',
+    replies: Array.isArray(c.replies) ? c.replies.map(adaptComment) : [],
+  }
+}
+
+/** 评论时间 → 相对时间（刚刚/x分钟前/x小时前/x天前/日期） */
+export function formatCommentTime(iso: string): string {
+  if (!iso) return ''
+  const t = new Date(iso).getTime()
+  if (!Number.isFinite(t)) return ''
+  const diff = Date.now() - t
+  if (diff < 60_000) return '刚刚'
+  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}分钟前`
+  if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}小时前`
+  if (diff < 30 * 86_400_000) return `${Math.floor(diff / 86_400_000)}天前`
+  const d = new Date(t)
+  return `${d.getMonth() + 1}-${d.getDate()}`
 }
 
 /**
@@ -356,7 +388,7 @@ function adaptVideoItem(v: RawVideo): VideoItem {
 }
 
 export const videoApi = {
-  /** 发布视频 — POST /videos（错误传播给页面；visibility 开放范围 CIRCLE_ONLY=仅本圈默认/PLATFORM=全平台需平台审核） */
+  /** 发布视频 — POST /videos（错误传播给页面；visibility 开放范围 CIRCLE_ONLY=仅本圈默认/PLATFORM=全平台·发布即可见，机审后台异步） */
   async publish(data: { circleId?: string; title: string; description?: string; videoUrl: string; coverUrl?: string; duration?: number; tags?: string[]; isPrivate?: boolean; products?: string[]; visibility?: 'CIRCLE_ONLY' | 'PLATFORM' }): Promise<unknown> {
     return await apiPost('/videos', data)
   },
@@ -471,23 +503,16 @@ export const videoApi = {
 
   // ───────── 评论子系统（P2·复用通用 comment 端点·targetType=VIDEO）─────────
 
-  /** 视频评论列表 — GET /comment?targetType=VIDEO&targetId=（错误传播三态） */
-  async getComments(videoId: string, page = 1, pageSize = 20): Promise<VideoComment[]> {
-    const res = await apiGet<{ data?: RawComment[] } | RawComment[]>(`/comment?targetType=VIDEO&targetId=${videoId}&page=${page}&pageSize=${pageSize}`)
-    const arr = Array.isArray(res) ? res : (res?.data ?? [])
-    return arr.map((c: RawComment): VideoComment => ({
-      id: c.id || '',
-      user: c.user?.nickname || '匿名用户',
-      avatar: c.user?.avatar || '',
-      content: c.content || '',
-      likes: c.likeCount ?? 0,
-      createdAt: c.createdAt || '',
-    }))
+  /** 视频评论列表 — GET /comment?targetType=VIDEO&targetId=（错误传播三态·apiGetPaged 保留 pagination.total·含楼中楼） */
+  async getComments(videoId: string, page = 1, pageSize = 20): Promise<{ items: VideoComment[]; total: number }> {
+    const res = await apiGetPaged<RawComment>(`/comment?targetType=VIDEO&targetId=${videoId}&page=${page}&pageSize=${pageSize}`)
+    return { items: res.items.map(adaptComment), total: res.total }
   },
 
-  /** 发表视频评论 — POST /comment（后端过内容审核·返回新评论） */
-  async postComment(videoId: string, content: string): Promise<void> {
-    await apiPost('/comment', { targetType: 'VIDEO', targetId: videoId, content })
+  /** 发表视频评论 — POST /comment（后端过内容审核·返回新评论供乐观插入·parentId=楼中楼回复） */
+  async postComment(videoId: string, content: string, parentId?: string): Promise<VideoComment> {
+    const res = await apiPost<RawComment>('/comment', { targetType: 'VIDEO', targetId: videoId, content, ...(parentId ? { parentId } : {}) })
+    return adaptComment(res || {})
   },
 
   /** 点赞评论 — POST /comment/:id/like */

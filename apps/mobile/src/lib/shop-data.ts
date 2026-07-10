@@ -6,6 +6,7 @@ import type { ProductCardData } from '@/lib/card-utils'
 import { apiGet, apiGetPaged, apiPost, apiPut, apiDelete, useMock } from '@/utils/request'
 import { getTempReferrer } from '@/utils/referral'
 import { couponApi } from '@/lib/coupon-data'
+import { unescapeEntities, normalizeRichContent } from '@/utils/rich-content'
 
 const P = 'https://api.rebugx.cn/assets/images/products'
 
@@ -1547,16 +1548,6 @@ interface RawShopOrder { id?: string; targetId?: string; skuId?: string; status?
 // ───────── 后端商品适配（前端 /shop 单数 → 后端 /shop/products）─────────
 function shopNum(v: unknown): number { const x = Number(v); return Number.isFinite(x) ? x : 0 }
 
-/** 反转义后端 SanitizePipe 产出的 HTML 实体（存量脏数据：URL 被转成 https:&#x2F;&#x2F;、富文本被转成 &lt;p&gt;） */
-function unescapeEntities(s: string): string {
-  return s
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#x27;/g, "'")
-    .replace(/&#x2F;/g, '/')
-    .replace(/&amp;/g, '&')
-}
 /** 图片 URL 防御性修复：生产库存量 Product.images 曾被 SanitizePipe 转义（/ → &#x2F;）导致 <image src> 加载失败 */
 function fixImgUrl(u: unknown): string {
   const s = String(u ?? '')
@@ -1566,29 +1557,10 @@ function fixImgUrls(arr: unknown): string[] {
   return Array.isArray(arr) ? arr.map(fixImgUrl) : []
 }
 /**
- * 商品详情富文本归一化（详情图「只显示一部分」真因修复）：
- * ① 存量脏数据：整段 HTML 曾被 SanitizePipe 转义（&lt;p&gt;…）→ rich-text 渲染成源码，先反转义；
- * ② wangEditor 产出的 <img> 无宽度约束，原图宽超出容器被视口裁掉 → 注入 max-width:100% 自适应样式
- *    （rich-text 内部节点不吃页面 scoped CSS，只能内联注入）。
+ * 商品详情富文本归一化 —— 已抽到 @/utils/rich-content 全端共用（normalizeRichContent）：
+ * 反转义存量转义脏数据 + <img> 注入 display:block;width:100% 无缝通栏 + 纯图片 <p> 去 margin（详情多图拼接无缝）。
  */
-function normalizeRichDetail(html?: string): string {
-  let s = String(html ?? '')
-  if (!s) return ''
-  if (!s.includes('<') && s.includes('&lt;')) s = unescapeEntities(s)
-  const IMG_STYLE = 'max-width:100%;width:auto;height:auto;display:block;margin:8px auto;'
-  s = s.replace(/<img\b([^>]*?)\/?>/gi, (_m, attrs: string) => {
-    let a = String(attrs)
-    // 去掉固定宽高属性，避免与自适应样式打架
-    a = a.replace(/\s(?:width|height)\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
-    if (/style\s*=/i.test(a)) {
-      a = a.replace(/style\s*=\s*(["'])(.*?)\1/i, (_sm, q: string, val: string) => `style=${q}${IMG_STYLE}${val}${q}`)
-    } else {
-      a = `${a} style="${IMG_STYLE}"`
-    }
-    return `<img${a} />`
-  })
-  return s
-}
+const normalizeRichDetail = normalizeRichContent
 /** 后端商品 → 前端首页推荐卡 ShopRecProduct */
 function adaptRecProduct(p: RawShopProduct): ShopRecProduct {
   const price = p.effectivePrice ?? shopNum(p.price)
@@ -2051,6 +2023,22 @@ export const shopApi = {
   /** 清空购物车 — DELETE /shop/cart */
   async clearCart(): Promise<void> {
     await apiDelete('/shop/cart')
+  },
+
+  /** 是否已收藏商品 — GET /interaction/collect（匹配 PRODUCT·未登录静默 false，与课程收藏同范式） */
+  async isProductFavorited(id: string): Promise<boolean> {
+    try {
+      const res = await apiGet<{ items?: { targetType?: string; targetId?: string }[] }>('/interaction/collect?pageSize=200')
+      return (res?.items ?? []).some((it) => it.targetType === 'PRODUCT' && it.targetId === id)
+    } catch {
+      return false
+    }
+  },
+
+  /** 收藏/取消收藏商品 — POST /interaction/collect（后端 toggle，返回最新收藏态 collected） */
+  async toggleProductFavorite(id: string): Promise<boolean> {
+    const res = await apiPost<{ collected?: boolean }>('/interaction/collect', { targetType: 'PRODUCT', targetId: id })
+    return !!res?.collected
   },
 
   /** 获取 SKU 维度购物车 — GET /shop/cart（后端购物车本就含 skuId） */

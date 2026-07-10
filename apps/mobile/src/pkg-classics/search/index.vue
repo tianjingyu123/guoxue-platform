@@ -429,6 +429,8 @@ function goDetail(id: string) {
 .cs-row-cover {
   width: 112rpx;
   flex-shrink: 0;
+  /* 防 flex stretch 拉高封面（.cs-result-row 未设 align-items，默认 stretch 会拉长变形） */
+  align-self: flex-start;
 }
 .cs-row-info {
   flex: 1;

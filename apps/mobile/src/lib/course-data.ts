@@ -44,6 +44,7 @@ export interface CourseDetail {
   chapters: number; category: string; tag?: string; isFree: boolean
   memberFree: boolean // 会员专属精品课（有效会员免费学习·2026-07-03 会员权益）
   description: string; objectives: string[]; suitable: string[]
+  detailImages: string[] // 课程介绍详情图（后台编辑器上传·简介区按顺序无缝拼接展示）
   isEnrolled: boolean; progress: number
 }
 // @data-needs: 课程章节, 参数 courseId, 返回 [{id,title,duration,isFree,lessons:[{id,title,duration,isFree,isCompleted}]}]
@@ -218,6 +219,9 @@ function adaptCourseDetail(c: RawCourse, rating?: RawRating | null): CourseDetai
     description: c.intro || '',
     objectives: [],
     suitable: [],
+    detailImages: Array.isArray((c as { detailImages?: string[] }).detailImages)
+      ? ((c as { detailImages?: string[] }).detailImages as string[])
+      : [],
     isEnrolled: false,
     progress: 0,
   }
@@ -282,6 +286,7 @@ export interface CreatedCourse {
   type: string
   price: number
   auditStatus: string
+  visibility: string // SELF_ONLY=机审降级仅自己可见（列表灰色小标·点击看说明与申诉指引）
   studentCount: number
   circleId: string | null
   chapterCount: number
@@ -290,7 +295,7 @@ export interface CreatedCourse {
 }
 
 export const courseApi = {
-  /** 创建课程 — POST /courses（需讲师认证 APPROVED，后端 CourseCreatorGuard 拦截 + course_publish 开关；detailImages 介绍详情图最多6张；visibility 开放范围 CIRCLE_ONLY 默认/PLATFORM 需平台审核） */
+  /** 创建课程 — POST /courses（需讲师认证 APPROVED，后端 CourseCreatorGuard 拦截 + course_publish 开关；detailImages 介绍详情图最多6张；visibility 开放范围 CIRCLE_ONLY 默认/PLATFORM 全平台·发布即可见，机审后台异步） */
   create: (body: { circleId?: string; title: string; cover?: string; intro?: string; type?: string; price?: number; tags?: string[]; categoryLevel1?: string; categoryLevel2?: string; validityDays?: number; detailImages?: string[]; visibility?: 'CIRCLE_ONLY' | 'PLATFORM' }) =>
     apiPost<{ id: string }>('/courses', body),
 
@@ -305,6 +310,7 @@ export const courseApi = {
         type: c.type || '',
         price: Number(c.price ?? 0),
         auditStatus: c.auditStatus || 'PENDING',
+        visibility: (c as { visibility?: string }).visibility || 'CIRCLE_ONLY',
         studentCount: c.studentCount ?? 0,
         circleId: c.circleId ?? null,
         chapterCount: c._count?.chapters ?? 0,

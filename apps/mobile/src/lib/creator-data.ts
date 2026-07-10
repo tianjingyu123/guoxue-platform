@@ -45,7 +45,8 @@ export interface CreatorVideo {
   shares: number
   sales: number
   gmv: number // 后端恒 0
-  status: string // published | draft
+  status: string // published | draft | removed(严重违规已下架)
+  selfOnly?: boolean // 机审降级仅自己可见（作品列表灰色小标·点击看说明与申诉指引）
   publishTime: string
   products: Array<{ id: string; name: string; price: number }> // 后端当前恒空
 }

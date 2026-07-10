@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /** 商城首页 - 从原型 app/mall/page.tsx 1:1 迁移 */
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import ProductCard from '@/components/cards/product-card.vue'
 import LiveCard from '@/components/cards/live-card.vue'
@@ -38,7 +38,18 @@ async function fetchData() {
   }
 }
 
-onMounted(() => { fetchData() })
+/** 购物车数量角标（未登录/失败静默为 0，超 99 显示 99+） */
+async function fetchCartCount() {
+  try {
+    const res = await shopApi.getCart()
+    cartCount.value = (res.items || []).reduce((s, i) => s + i.quantity, 0)
+  } catch {
+    cartCount.value = 0
+  }
+}
+const cartBadge = computed(() => (cartCount.value > 99 ? '99+' : String(cartCount.value)))
+
+onMounted(() => { fetchData(); fetchCartCount() })
 
 function onBannerChange(e: { detail: { current: number } }) { bannerIndex.value = e.detail.current }
 
@@ -51,9 +62,10 @@ function goCategory(id: string) { navigateTo(id === 'all' ? '/mall/category' : `
     <!-- 顶部搜索栏 -->
     <view class="topbar">
       <search-bar default-tab="product" placeholder="搜索商品..." />
-      <view class="cart-btn" @tap="goCart">
-        <AppIcon name="shopping-cart" :size="36" color="#666666" />
-        <text v-if="cartCount > 0" class="cart-badge">{{ cartCount }}</text>
+      <view class="cart-btn" hover-class="card-press" @tap="goCart">
+        <AppIcon name="shopping-cart" :size="40" color="var(--brand)" />
+        <text class="cart-btn-label">购物车</text>
+        <text v-if="cartCount > 0" class="cart-badge">{{ cartBadge }}</text>
       </view>
     </view>
 
@@ -176,8 +188,11 @@ function goCategory(id: string) { navigateTo(id === 'all' ? '/mall/category' : `
 .ai-badge { display: flex; align-items: center; gap: 2rpx; margin: 0 12rpx; padding: 2rpx 12rpx; border-radius: 999rpx; background: rgba(196,30,58,0.15); }
 .ai-txt { font-size: 18rpx; color: var(--brand); font-weight: 600; line-height: 1; }
 .search-ph { font-size: 26rpx; color: #999999; }
-.cart-btn { position: relative; width: 72rpx; height: 72rpx; border-radius: 999rpx; background: #f5f1eb; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.cart-badge { position: absolute; top: -4rpx; right: -4rpx; min-width: 32rpx; height: 32rpx; padding: 0 6rpx; border-radius: 999rpx; background: var(--brand); color: #fff; font-size: 18rpx; font-weight: 600; display: flex; align-items: center; justify-content: center; }
+/* 购物车入口：品牌浅底+描边圆角底衬·图标+文字标签·≥88rpx 触达区（X5 防御：内容层 relative+z-index） */
+.cart-btn { position: relative; min-width: 88rpx; height: 88rpx; padding: 0 8rpx; border-radius: 22rpx; background: var(--brand-soft, rgba(196, 30, 58, 0.08)); border: 2rpx solid rgba(196, 30, 58, 0.18); box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4rpx; flex-shrink: 0; }
+.cart-btn-label { position: relative; z-index: 1; font-size: 18rpx; line-height: 1; font-weight: 500; color: var(--brand); }
+.cart-badge { position: absolute; top: -10rpx; right: -10rpx; z-index: 2; min-width: 32rpx; height: 32rpx; padding: 0 8rpx; border-radius: 999rpx; background: var(--brand); color: #fff; font-size: 18rpx; font-weight: 600; line-height: 1; display: flex; align-items: center; justify-content: center; border: 2rpx solid #faf8f5; box-sizing: border-box; }
+.card-press { opacity: 0.85; }
 
 .body { padding: 32rpx; display: flex; flex-direction: column; gap: 40rpx; }
 

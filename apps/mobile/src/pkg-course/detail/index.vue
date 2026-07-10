@@ -279,6 +279,13 @@ onMounted(() => {
         <view class="sec">
           <text class="sec-title">课程简介</text>
           <text class="sec-desc">{{ course.description }}</text>
+          <!-- 介绍详情图（后台编辑器上传·按顺序无缝拼接） -->
+          <view v-if="course.detailImages && course.detailImages.length" class="detail-imgs">
+            <image
+              v-for="(img, i) in course.detailImages" :key="i"
+              class="detail-img" :src="img" mode="widthFix" :lazy-load="true"
+            />
+          </view>
         </view>
         <view v-if="course.objectives && course.objectives.length" class="sec">
           <text class="sec-title">学完你将收获</text>
@@ -417,12 +424,12 @@ onMounted(() => {
 
     <!-- 底部固定购买栏 -->
     <view class="buy-bar">
-      <view class="buy-action" @tap="showConsultPanel = true">
-        <app-icon name="message-circle" :size="40" color="#666666" />
+      <view class="buy-action" hover-class="card-press" @tap="showConsultPanel = true">
+        <app-icon name="message-circle" :size="44" color="#2c2c2c" />
         <text class="buy-action-txt">咨询</text>
       </view>
-      <view class="buy-action" @tap="showGroupPanel = true">
-        <app-icon name="users" :size="40" color="#666666" />
+      <view class="buy-action" hover-class="card-press" @tap="showGroupPanel = true">
+        <app-icon name="users" :size="44" color="#2c2c2c" />
         <text class="buy-action-txt">学习群</text>
       </view>
       <view class="buy-price">
@@ -538,6 +545,8 @@ onMounted(() => {
 .sec { margin-bottom: 48rpx; }
 .sec-title { display: block; font-size: 30rpx; font-weight: 700; color: #2C2C2C; margin-bottom: 24rpx; }
 .sec-desc { font-size: 26rpx; color: #666; line-height: 1.6; }
+.detail-imgs { margin-top: 24rpx; border-radius: 16rpx; overflow: hidden; }
+.detail-img { width: 100%; display: block; }
 .obj-list { display: flex; flex-direction: column; gap: 16rpx; }
 .obj-item { display: flex; align-items: flex-start; gap: 16rpx; }
 .obj-txt { font-size: 26rpx; color: #666; flex: 1; line-height: 1.5; }
@@ -603,8 +612,10 @@ onMounted(() => {
 
 /* 底部购买栏 */
 .buy-bar { position: fixed; bottom: 0; left: 0; right: 0; background: #fff; border-top: 1rpx solid #E8E3DB; padding: 24rpx 24rpx; display: flex; align-items: center; gap: 16rpx; z-index: 50; }
-.buy-action { display: flex; flex-direction: column; align-items: center; flex-shrink: 0; min-width: 68rpx; }
-.buy-action-txt { font-size: 20rpx; color: #666; margin-top: 2rpx; }
+.card-press { opacity: 0.85; }
+/* 底栏图标组：≥88rpx 触达区+文字（X5 防御：内容层 relative+z-index） */
+.buy-action { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6rpx; flex-shrink: 0; min-width: 88rpx; min-height: 88rpx; border-radius: 16rpx; }
+.buy-action-txt { position: relative; z-index: 1; font-size: 20rpx; line-height: 1; color: var(--text-strong, #2c2c2c); }
 .buy-price { flex: 1; min-width: 0; margin-left: 8rpx; }
 .price-free { font-size: 36rpx; font-weight: 700; color: #52C41A; }
 .price-row { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4rpx 8rpx; }

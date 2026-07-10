@@ -59,11 +59,11 @@ function onTab(tab: { name: string; href: string }) {
         <text class="ph">AI搜索平台全部内容...</text>
       </view>
 
-      <view class="icon-btn" @tap="navigateTo('/customer-service')">
-        <app-icon name="message-circle" :size="40" color="#999999" />
+      <view class="icon-btn" hover-class="btn-press" @tap="navigateTo('/customer-service')">
+        <app-icon name="message-circle" :size="40" color="#2c2c2c" />
       </view>
 
-      <view class="icon-btn bell" @tap="navigateTo('/notifications')">
+      <view class="icon-btn bell" hover-class="btn-press" @tap="navigateTo('/notifications')">
         <app-icon name="bell" :size="40" color="#2c2c2c" />
         <view v-if="unreadCount > 0" class="badge">
           <text class="badge-text">{{ unreadCount > 99 ? '99+' : unreadCount }}</text>
@@ -126,9 +126,16 @@ function onTab(tab: { name: string; href: string }) {
   font-size: 24rpx; color: var(--text-soft, #999999);
   overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
 }
-.icon-btn { position: relative; padding: 16rpx; flex-shrink: 0; }
+/* 右上角操作位：圆形浅底衬+描边·88rpx 触达区（X5 防御：内容层由容器 relative 承载） */
+.icon-btn {
+  position: relative; width: 88rpx; height: 88rpx; border-radius: 50%;
+  background: var(--surface-sunken, #f2efea); border: 2rpx solid var(--line, #e8e0d5);
+  box-sizing: border-box;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.btn-press { opacity: 0.8; }
 .bell .badge {
-  position: absolute; top: 2rpx; right: 2rpx;
+  position: absolute; top: 0; right: 0; z-index: 2;
   min-width: 28rpx; height: 28rpx; padding: 0 6rpx;
   border-radius: 999rpx;
   background: #ff4d4f;

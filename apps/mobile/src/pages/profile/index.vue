@@ -389,7 +389,8 @@ async function handleCheckIn() {
 .hero-bg { position: absolute; top: 0; left: 0; right: 0; height: 384rpx; background: linear-gradient(to bottom, #F5F1EB, #FAF8F5 60%, #FAF8F5); }
 .topbar { position: relative; display: flex; align-items: center; justify-content: space-between; padding: 96rpx 32rpx 16rpx; }
 .topbar-right { display: flex; align-items: center; gap: 16rpx; }
-.round-btn { position: relative; width: 72rpx; height: 72rpx; border-radius: 50%; background: rgba(255,255,255,0.6); display: flex; align-items: center; justify-content: center; }
+/* 顶部操作位：88rpx 触达区+更实的白底衬（hero 上可辨） */
+.round-btn { position: relative; width: 88rpx; height: 88rpx; border-radius: 50%; background: rgba(255,255,255,0.85); box-shadow: 0 2rpx 8rpx rgba(0,0,0,0.06); display: flex; align-items: center; justify-content: center; }
 .msg-badge { position: absolute; top: -4rpx; right: -4rpx; min-width: 32rpx; height: 32rpx; padding: 0 6rpx; background: var(--brand); color: #fff; font-size: 18rpx; font-weight: 700; border-radius: 16rpx; display: flex; align-items: center; justify-content: center; }
 
 .user-row { position: relative; display: flex; align-items: flex-start; gap: 32rpx; padding: 0 32rpx 32rpx; }

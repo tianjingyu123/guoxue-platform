@@ -72,7 +72,7 @@ function toggleBook() { booked.value = !booked.value }
 .time-txt { font-size: 20rpx; color: rgba(255,255,255,0.95); font-weight: 500; }
 .viewers { position: absolute; bottom: 16rpx; left: 16rpx; z-index: 10; display: flex; align-items: center; gap: 6rpx; padding: 4rpx 14rpx; border-radius: 999rpx; background: rgba(0,0,0,0.5); }
 .viewers-txt { font-size: 20rpx; color: #fff; }
-.book-btn { position: absolute; bottom: 16rpx; right: 16rpx; z-index: 10; display: flex; align-items: center; gap: 6rpx; padding: 6rpx 18rpx; border-radius: 999rpx; }
+.book-btn { position: absolute; bottom: 16rpx; right: 16rpx; z-index: 10; display: flex; align-items: center; justify-content: center; gap: 6rpx; min-height: 52rpx; padding: 8rpx 22rpx; border-radius: 999rpx; box-sizing: border-box; }
 .book-off { background: var(--brand); }
 .book-on { background: rgba(255,255,255,0.2); border: 2rpx solid rgba(255,255,255,0.3); }
 .book-txt { font-size: 20rpx; color: #fff; font-weight: 500; }

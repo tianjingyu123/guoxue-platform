@@ -119,7 +119,7 @@
         />
       </view>
 
-      <text class="pc-hint">提交后课程进入平台审核，审核通过即可在课程管理台上架并添加章节。</text>
+      <text class="pc-hint">发布后即可在课程管理台上架并添加章节。</text>
 
       <view class="pc-footer">
         <button
@@ -128,7 +128,7 @@
           :disabled="submitting || !form.title.trim()"
           @tap="onSubmit"
         >
-          {{ submitting ? '提交中…' : '提交审核' }}
+          {{ submitting ? '发布中…' : '发布课程' }}
         </button>
       </view>
     </view>
@@ -227,7 +227,8 @@ async function onSubmit() {
       categoryLevel1: form.categoryLevel1 || undefined,
       validityDays: form.validityDays ? Number(form.validityDays) : 0,
     })
-    uni.showToast({ title: '已提交审核', icon: 'success' })
+    // 审核无感化（20260711 第八节）：发布即可见，机审后台异步完成，无任何审核提示
+    uni.showToast({ title: '发布成功', icon: 'success' })
     setTimeout(() => goBack(), 800)
   } catch (e) {
     const err = e as { message?: string; errMsg?: string }

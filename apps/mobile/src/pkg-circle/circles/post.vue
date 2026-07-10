@@ -497,20 +497,20 @@ onUnmounted(() => { if (audioCtx) { try { audioCtx.destroy() } catch {} } })
 
       <!-- 互动栏：V0 横排左对齐（点赞/评论/收藏 + 分享），下边框分隔 -->
       <view class="pd-actions">
-        <view class="pd-action" @tap="toggleLike">
-          <app-icon name="heart" :size="34" :color="isLiked ? '#C41E3A' : '#999999'" :fill="isLiked" />
+        <view class="pd-action" :class="{ 'pd-action-on': isLiked }" hover-class="pd-press" @tap="toggleLike">
+          <app-icon name="heart" :size="36" :color="isLiked ? '#C41E3A' : '#6e6e73'" :fill="isLiked" />
           <text class="pd-action-t" :class="{ liked: isLiked }">{{ likes ? fmt(likes) : '点赞' }}</text>
         </view>
-        <view class="pd-action" @tap="focusComment">
-          <app-icon name="message-circle" :size="34" color="#999999" />
+        <view class="pd-action" hover-class="pd-press" @tap="focusComment">
+          <app-icon name="message-circle" :size="36" color="#6e6e73" />
           <text class="pd-action-t">{{ post.comments ? fmt(post.comments) : '评论' }}</text>
         </view>
-        <view class="pd-action" @tap="toggleCollect">
-          <app-icon name="bookmark" :size="34" :color="isCollected ? '#C9A96E' : '#999999'" :fill="isCollected" />
+        <view class="pd-action" :class="{ 'pd-action-gold-on': isCollected }" hover-class="pd-press" @tap="toggleCollect">
+          <app-icon name="bookmark" :size="36" :color="isCollected ? '#C9A96E' : '#6e6e73'" :fill="isCollected" />
           <text class="pd-action-t" :class="{ collected: isCollected }">{{ collects ? fmt(collects) : '收藏' }}</text>
         </view>
-        <view class="pd-action" @tap="openShare">
-          <app-icon name="share-2" :size="34" color="#999999" />
+        <view class="pd-action" hover-class="pd-press" @tap="openShare">
+          <app-icon name="share-2" :size="36" color="#6e6e73" />
           <text class="pd-action-t">分享</text>
         </view>
       </view>
@@ -739,14 +739,18 @@ onUnmounted(() => { if (audioCtx) { try { audioCtx.destroy() } catch {} } })
 
 /* 互动栏：横排左对齐 + 下边框 */
 .pd-actions {
-  display: flex; align-items: center; gap: 52rpx;
-  padding: 32rpx 40rpx; margin-top: 8rpx;
+  display: flex; align-items: center; gap: 16rpx;
+  padding: 12rpx 28rpx; margin-top: 8rpx;
   border-bottom: 1rpx solid var(--separator, #ede7dd);
 }
-.pd-action { display: flex; align-items: center; gap: 10rpx; }
-.pd-action-t { font-size: 26rpx; color: var(--text-secondary, #6e6e73); }
-.pd-action-t.liked { color: var(--brand, #c41e3a); }
-.pd-action-t.collected { color: var(--gold, #c9a96e); }
+/* 每项 ≥88rpx 触达区·激活态浅色底衬胶囊（X5 防御：内容层 relative+z-index） */
+.pd-action { position: relative; z-index: 1; display: flex; align-items: center; justify-content: center; gap: 10rpx; min-width: 88rpx; min-height: 88rpx; padding: 0 20rpx; border-radius: 999rpx; }
+.pd-action-on { background: var(--brand-soft, rgba(196, 30, 58, 0.08)); }
+.pd-action-gold-on { background: rgba(201, 169, 110, 0.14); }
+.pd-press { opacity: 0.8; }
+.pd-action-t { position: relative; z-index: 1; font-size: 26rpx; color: var(--text-secondary, #6e6e73); }
+.pd-action-t.liked { color: var(--brand, #c41e3a); font-weight: 500; }
+.pd-action-t.collected { color: #a8823f; font-weight: 500; }
 
 /* 评论区 */
 .pd-comments-head { display: block; padding: 32rpx 40rpx 8rpx; font-size: 28rpx; font-weight: 600; color: var(--text-primary, #2c2c2c); }

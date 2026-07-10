@@ -253,7 +253,8 @@ onShow(() => {
 }
 .title { font-size: 44rpx; font-weight: 700; color: var(--text-primary, #2c2c2c); letter-spacing: 1rpx; }
 .actions { display: flex; align-items: center; gap: 14rpx; }
-.icon-btn { width: 64rpx; height: 64rpx; border-radius: 999rpx; display: flex; align-items: center; justify-content: center; }
+/* 搜索入口：常显浅底衬+88rpx 触达区 */
+.icon-btn { position: relative; width: 88rpx; height: 88rpx; border-radius: 999rpx; background: rgba(0, 0, 0, 0.04); display: flex; align-items: center; justify-content: center; }
 .icon-btn:active { background: var(--separator, #ede7dd); }
 /* 创建=关键动作·朱红实底 */
 .create-btn {
@@ -265,9 +266,9 @@ onShow(() => {
 .create-btn:active { opacity: 0.85; }
 /* 圈子·我的入口 */
 .me-entry {
-  width: 60rpx; height: 60rpx; border-radius: 999rpx;
+  width: 88rpx; height: 88rpx; border-radius: 999rpx;
   display: flex; align-items: center; justify-content: center;
-  background: #fff; box-shadow: 0 0 0 1rpx var(--separator, #ede7dd);
+  background: #fff; box-shadow: 0 0 0 2rpx var(--separator, #ede7dd);
 }
 .me-entry:active { opacity: 0.8; }
 

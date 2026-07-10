@@ -130,7 +130,7 @@ function buildHeader(custom?: Record<string, string>): Record<string, string> {
   }
 }
 
-function apiFetch<T>(path: string, method: Method, data?: unknown, header?: Record<string, string>, _retried = false): Promise<T> {
+function apiFetch<T>(path: string, method: Method, data?: unknown, header?: Record<string, string>, _retried = false, timeoutMs: number = TIMEOUT): Promise<T> {
   return new Promise((resolve, reject) => {
     // 等待握手就绪门（正常启动立即通过；仅在 URL 握手码换会话期间短暂等待）
     _authReady.then(() => {
@@ -139,7 +139,7 @@ function apiFetch<T>(path: string, method: Method, data?: unknown, header?: Reco
       method,
       data: data as any,
       header: buildHeader(header),
-      timeout: TIMEOUT,
+      timeout: timeoutMs,
       success: (res) => {
         const body = res.data as ApiResponse<T>
         if (res.statusCode === 401) {
@@ -150,7 +150,7 @@ function apiFetch<T>(path: string, method: Method, data?: unknown, header?: Reco
             // access 过期：用 refreshToken 无感换新 token 后重试原请求(30天免登录，降短信成本)；
             // 刷新失败(refreshToken 也过期)才清登录态跳登录页。
             refreshAccessToken().then((ok) => {
-              if (ok) resolve(apiFetch<T>(path, method, data, header, true))
+              if (ok) resolve(apiFetch<T>(path, method, data, header, true, timeoutMs))
               else { handleUnauthorized(); reject(new Error('未登录或登录已过期')) }
             })
           } else {
@@ -168,7 +168,7 @@ function apiFetch<T>(path: string, method: Method, data?: unknown, header?: Reco
       fail: (err) => {
         // 幂等 GET 网络失败/超时自动重试一次，吸收瞬时抖动
         if (method === 'GET' && !_retried) {
-          resolve(apiFetch<T>(path, method, data, header, true))
+          resolve(apiFetch<T>(path, method, data, header, true, timeoutMs))
           return
         }
         reject(new Error(err.errMsg || '网络错误'))
@@ -227,7 +227,7 @@ export function apiGetPaged<T>(path: string, header?: Record<string, string>, _r
     })
   })
 }
-export const apiPost = <T>(path: string, data?: unknown, header?: Record<string, string>) => apiFetch<T>(path, 'POST', data, header)
+export const apiPost = <T>(path: string, data?: unknown, header?: Record<string, string>, timeoutMs?: number) => apiFetch<T>(path, 'POST', data, header, false, timeoutMs)
 export const apiPut = <T>(path: string, data?: unknown, header?: Record<string, string>) => apiFetch<T>(path, 'PUT', data, header)
 export const apiDelete = <T>(path: string, data?: unknown, header?: Record<string, string>) => apiFetch<T>(path, 'DELETE', data, header)
 

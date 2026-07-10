@@ -200,7 +200,8 @@ function fmtLikes(n: number): string {
 /* 书封堆叠 */
 .lp-covers {
   display: flex;
-  align-items: flex-end;
+  /* 默认 stretch：封面高度由 flat-cover 内部 3:4 撑出（不受 stretch 影响），
+     「+N本」占位块无固有高度，跟随行高与封面精确等高（替代 aspect-ratio·X5 兼容） */
   gap: 20rpx;
   margin-top: 32rpx;
 }
@@ -211,9 +212,7 @@ function fmtLikes(n: number): string {
 .lp-cover-more {
   flex: 1;
   max-width: 144rpx;
-  aspect-ratio: 3 / 4;
-  /* 老内核不支持 aspect-ratio 的兜底高度 */
-  min-height: 180rpx;
+  /* 高度随 flex 行 stretch 与封面等高（去 aspect-ratio：X5 老内核塌陷） */
   border-radius: 32rpx;
   background: var(--muted);
   display: flex;

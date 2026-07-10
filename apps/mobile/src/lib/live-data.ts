@@ -1164,6 +1164,8 @@ export interface LiveManageItem {
   income: number
   likes: number
   previewCount?: number
+  selfOnly?: boolean // 机审降级仅自己可见（管理列表灰色小标·点击看说明与申诉指引）
+  removed?: boolean // 严重违规已下架
 }
 export const liveManageList: LiveManageItem[] = [
   { id: 1, title: '八字命理入门：如何快速解读四柱八字', type: 'knowledge', status: 'live', scheduledTime: '2024-01-15 20:00', duration: '进行中', viewers: 1258, peakViewers: 2100, income: 680, likes: 3200 },
@@ -1204,6 +1206,8 @@ interface RawLiveRoom {
   startTime?: string
   endTime?: string
   hasProducts?: boolean
+  selfOnly?: boolean // my-rooms 返回：机审降级仅自己可见
+  removed?: boolean // my-rooms 返回：严重违规已下架
   _count?: { products?: number } | null
 }
 /** GET /live/rooms/:id 详情（getRoom·含 imGroupId/products 关联/主播资料） */
@@ -1476,7 +1480,7 @@ export const liveApi = {
     return liveCreateCategories
   },
 
-  /** 创建直播间 — POST /live/rooms（预约直播，status=WAITING；quality 画质档 basic/hd/uhd；orientation 开播方式 portrait=手机竖屏/landscape=OBS横屏；visibility 开放范围 CIRCLE_ONLY=仅本圈默认/PLATFORM=全平台需审核） */
+  /** 创建直播间 — POST /live/rooms（预约直播，status=WAITING；quality 画质档 basic/hd/uhd；orientation 开播方式 portrait=手机竖屏/landscape=OBS横屏；visibility 开放范围 CIRCLE_ONLY=仅本圈默认/PLATFORM=全平台·创建即生效，机审后台异步） */
   async createRoom(payload: { circleId?: string; title: string; cover?: string; startTime?: string; chargeType?: string; chargePrice?: number; quality?: string; orientation?: 'portrait' | 'landscape'; visibility?: 'CIRCLE_ONLY' | 'PLATFORM' }): Promise<{ id: string }> {
     return await apiPost<{ id: string }>('/live/rooms', payload)
   },
@@ -1539,6 +1543,8 @@ export const liveApi = {
         income: 0, // 同上，收益依赖运行时订单/打赏
         likes: 0,
         previewCount: status === 'preview' ? 0 : undefined, // 预约数后端暂未聚合
+        selfOnly: !!r.selfOnly,
+        removed: !!r.removed,
       }
     }
     try {

@@ -9,7 +9,7 @@
     <view class="navbar" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="nav-left">
         <view class="icon-btn" @tap="goBack">
-          <AppIcon name="arrow-left" :size="20" color="#2c2c2c" />
+          <AppIcon name="arrow-left" :size="40" color="#2c2c2c" />
         </view>
         <view class="target-info">
           <view class="target-avatar-wrap">
@@ -22,8 +22,8 @@
           </view>
         </view>
       </view>
-      <view class="icon-btn" @tap="showHeaderMenu = !showHeaderMenu">
-        <AppIcon name="more-vertical" :size="20" color="#2c2c2c" />
+      <view class="icon-btn icon-btn-veil" @tap="showHeaderMenu = !showHeaderMenu">
+        <AppIcon name="more-vertical" :size="40" color="#2c2c2c" />
       </view>
       <!-- 顶部下拉菜单 -->
       <view v-if="showHeaderMenu" class="header-menu">
@@ -107,8 +107,8 @@
       </view>
 
       <view class="input-row">
-        <view class="icon-btn" @tap="toggleMorePanel">
-          <AppIcon name="plus" :size="20" :color="showMorePanel ? '#c41e3a' : '#2c2c2c'" :style="showMorePanel ? 'transform:rotate(45deg)' : ''" />
+        <view class="icon-btn icon-btn-veil" @tap="toggleMorePanel">
+          <AppIcon name="plus" :size="40" :color="showMorePanel ? '#c41e3a' : '#2c2c2c'" :style="showMorePanel ? 'transform:rotate(45deg)' : ''" />
         </view>
         <view class="input-wrap">
           <input
@@ -121,29 +121,29 @@
           />
         </view>
         <view v-if="inputText.trim()" class="send-btn" :class="{ 'send-btn-disabled': submitting }" @tap="handleSendText">
-          <AppIcon name="send" :size="20" color="#ffffff" />
+          <AppIcon name="send" :size="36" color="#ffffff" />
         </view>
-        <view v-else class="icon-btn">
-          <AppIcon name="mic" :size="20" color="#2c2c2c" />
+        <view v-else class="icon-btn icon-btn-veil">
+          <AppIcon name="mic" :size="40" color="#2c2c2c" />
         </view>
       </view>
 
       <!-- 更多功能面板 -->
       <view v-if="showMorePanel && permission.canSend" class="more-panel">
         <view class="more-item">
-          <view class="more-icon"><AppIcon name="image" :size="20" color="#c41e3a" /></view>
+          <view class="more-icon"><AppIcon name="image" :size="44" color="#c41e3a" /></view>
           <text class="more-label">相册</text>
         </view>
         <view class="more-item">
-          <view class="more-icon"><AppIcon name="camera" :size="20" color="#c41e3a" /></view>
+          <view class="more-icon"><AppIcon name="camera" :size="44" color="#c41e3a" /></view>
           <text class="more-label">拍照</text>
         </view>
         <view class="more-item">
-          <view class="more-icon"><AppIcon name="mic" :size="20" color="#c41e3a" /></view>
+          <view class="more-icon"><AppIcon name="mic" :size="44" color="#c41e3a" /></view>
           <text class="more-label">语音</text>
         </view>
         <view class="more-item">
-          <view class="more-icon"><AppIcon name="shopping-bag" :size="20" color="#c41e3a" /></view>
+          <view class="more-icon"><AppIcon name="shopping-bag" :size="44" color="#c41e3a" /></view>
           <text class="more-label">商品</text>
         </view>
       </view>
@@ -341,12 +341,20 @@ async function handleSendText() {
   align-items: center;
   gap: 16rpx;
 }
+/* 图标按钮：≥88rpx 触达区（X5 防御：容器 relative 承载内容层） */
 .icon-btn {
-  width: 72rpx;
-  height: 72rpx;
+  position: relative;
+  width: 88rpx;
+  height: 88rpx;
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
+}
+/* 输入区/导航操作位加浅色圆底衬，提示可点击 */
+.icon-btn-veil {
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.04);
 }
 .target-info {
   display: flex;

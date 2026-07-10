@@ -120,6 +120,10 @@
             <!-- 信息 -->
             <view class="live-info">
               <text class="live-title">{{ item.title }}</text>
+              <view v-if="item.removed || item.selfOnly" class="live-badges">
+                <text v-if="item.removed" class="live-mod-badge live-mod-removed" @tap.stop="showRemovedTip">已下架</text>
+                <text v-else-if="item.selfOnly" class="live-mod-badge live-mod-selfonly" @tap.stop="showSelfOnlyTip">仅自己可见</text>
+              </view>
               <view v-if="item.scheduledTime" class="live-time">
                 <app-icon name="calendar" :size="24" color="#999" />
                 <text class="live-time-text">{{ item.scheduledTime }}</text>
@@ -294,6 +298,25 @@ function enterLive(_item: LiveManageItem) {
 
 function viewData(item: LiveManageItem) {
   uni.navigateTo({ url: `/pkg-live/analytics/index?id=${item.id}` })
+}
+
+// 审核无感化（20260711 第八节）：SELF_ONLY / 已下架说明 + 申诉指引
+function showSelfOnlyTip() {
+  uni.showModal({
+    title: '仅自己可见',
+    content: '该直播间经系统复核暂时调整为仅自己可见，其他用户看不到，不影响您查看和管理。如有疑问，请联系客服申诉，我们会尽快为您复核。',
+    showCancel: false,
+    confirmText: '知道了',
+  })
+}
+
+function showRemovedTip() {
+  uni.showModal({
+    title: '已下架',
+    content: '该直播间因涉及违规内容已被下架，具体原因可在消息中心查看。如有疑问，请联系客服申诉。',
+    showCancel: false,
+    confirmText: '知道了',
+  })
 }
 </script>
 
@@ -601,6 +624,26 @@ function viewData(item: LiveManageItem) {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+.live-badges {
+  margin-top: 8rpx;
+}
+.live-mod-badge {
+  display: inline-block;
+  font-size: 20rpx;
+  line-height: 1;
+  padding: 6rpx 14rpx;
+  border-radius: 14rpx;
+}
+.live-mod-selfonly {
+  color: #8c8c8c;
+  background: #f0f0f0;
+  border: 1rpx solid #e0e0e0;
+}
+.live-mod-removed {
+  color: #c4443a;
+  background: #fdf0ef;
+  border: 1rpx solid #f3d6d3;
 }
 .live-time {
   display: flex;

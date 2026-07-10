@@ -1,7 +1,7 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 /**
- * 通用空状态（全平台空态标准组件）。
- * 用法：<AppEmpty icon="inbox" title="暂无数据" desc="..." actionText="去逛逛" @action="..." />
+ * 閫氱敤绌虹姸鎬侊紙鍏ㄥ钩鍙扮┖鎬佹爣鍑嗙粍浠讹級銆?
+ * 鐢ㄦ硶锛?AppEmpty icon="inbox" title="鏆傛棤鏁版嵁" desc="..." actionText="鍘婚€涢€? @action="..." />
  */
 import AppIcon from '@/components/common/app-icon.vue'
 
@@ -12,7 +12,7 @@ withDefaults(defineProps<{
   actionText?: string
 }>(), {
   icon: 'inbox',
-  title: '暂无数据',
+  title: '鏆傛棤鏁版嵁',
   desc: '',
   actionText: '',
 })
@@ -66,7 +66,7 @@ const emit = defineEmits<{ (e: 'action'): void }>()
   padding: 0 56rpx;
   height: 80rpx;
   border-radius: $radius-full;
-  background: linear-gradient(135deg, var(--brand), var(--brand-soft));
+  background: linear-gradient(135deg, var(--brand), var(--gugong-red-soft, #d94452));
   @include flex-center;
 }
 .app-empty__action-text {

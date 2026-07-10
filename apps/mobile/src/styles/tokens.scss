@@ -54,7 +54,10 @@
 
   --bg-paper: var(--xuan-paper);
   --brand: var(--gugong-red);
-  --brand-soft: var(--gugong-red-soft);
+  /* ⚠️ 语义修正（董事长 2026-07-11 真机"红底红字看不清"真凶）：
+     V0 还原体系里 --brand-soft = 品牌色 8% 透明浅底（红字浅红底按钮），全站 25 处按此使用；
+     旧定义误指实红 #d94452 导致 fallback 永不生效 → 红底红字。实红浅色请用 --gugong-red-soft。 */
+  --brand-soft: rgba(196, 30, 58, 0.08);
   --gold: var(--jewel-gold);
   --gold-foreground: var(--ink);
   --text-ink: var(--ink);

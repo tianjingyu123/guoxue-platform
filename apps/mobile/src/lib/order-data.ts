@@ -55,76 +55,30 @@ export const orderStatusTabs: { key: string; label: string }[] = [
   { key: 'after_sale', label: '售后' },
 ]
 
+/** 状态语义色（订单列表重设计拍板）：待付款金 --gold / 待发货蓝 / 待收货绿 / 已完成·已取消灰 / 售后橙 */
 export const orderStatusConfig: Record<string, { label: string; color: string; icon: string }> = {
-  pending_pay: { label: '待付款', color: '#C41E3A', icon: 'clock' },
-  pending_ship: { label: '待发货', color: '#C9A96E', icon: 'package' },
-  pending_receive: { label: '待收货', color: '#3B82F6', icon: 'truck' },
-  completed: { label: '已完成', color: '#22C55E', icon: 'check-circle' },
+  pending_pay: { label: '待付款', color: '#C9A96E', icon: 'clock' },
+  pending_ship: { label: '待发货', color: '#3B82F6', icon: 'package' },
+  pending_receive: { label: '待收货', color: '#22C55E', icon: 'truck' },
+  completed: { label: '已完成', color: '#999999', icon: 'check-circle' },
   cancelled: { label: '已取消', color: '#999999', icon: 'x' },
   after_sale: { label: '售后中', color: '#F97316', icon: 'alert-circle' },
 }
 
 export const orderCancelReasons = ['不想要了', '信息填写错误', '重复下单', '其他原因']
 
+/** 订单来源行（卡头左侧）：按后端 OrderType 展示业务域标识 */
+export const orderTypeMeta: Record<string, { label: string; icon: string }> = {
+  PRODUCT: { label: '热卜商城', icon: 'store' },
+  COURSE: { label: '课程订单', icon: 'book-open' },
+  MEMBER: { label: '会员订单', icon: 'gift' },
+  BUNDLE: { label: '权益包', icon: 'package' },
+}
+
 /* ============================================================
-   二、统一订单中心（app/orders/center · 多品类）
+   二、（原「统一订单中心 /orders/center」多品类页为老原型冗余页，
+       已下线删除 —— 入口统一收敛到 /orders 列表页，此处品类配置随之移除）
    ============================================================ */
-
-export type OrderCategory =
-  | 'all' | 'product' | 'course' | 'circle' | 'live'
-  | 'activity' | 'qa' | 'membership' | 'station' | 'institute'
-
-export const orderCategories: { key: OrderCategory; label: string; icon: string }[] = [
-  { key: 'all', label: '全部', icon: 'package' },
-  { key: 'product', label: '商品', icon: 'shopping-bag' },
-  { key: 'course', label: '课程', icon: 'book-open' },
-  { key: 'circle', label: '圈子', icon: 'users' },
-  { key: 'live', label: '直播', icon: 'radio' },
-  { key: 'activity', label: '活动', icon: 'ticket' },
-  { key: 'qa', label: '问答', icon: 'message-circle' },
-  { key: 'membership', label: '会员', icon: 'gift' },
-  { key: 'station', label: '分站', icon: 'building-2' },
-  { key: 'institute', label: '研究院', icon: 'graduation-cap' },
-]
-
-export type UnifiedOrderStatus = 'pending' | 'paid' | 'completed' | 'cancelled' | 'refunding' | 'expired'
-
-export const unifiedStatusConfig: Record<UnifiedOrderStatus, { label: string; color: string }> = {
-  pending: { label: '待付款', color: '#F59E0B' },
-  paid: { label: '已付款', color: '#3B82F6' },
-  completed: { label: '已完成', color: '#22C55E' },
-  cancelled: { label: '已取消', color: '#999999' },
-  refunding: { label: '退款中', color: '#F97316' },
-  expired: { label: '已过期', color: '#EF4444' },
-}
-
-export const categoryColorMap: Record<OrderCategory, { bg: string; color: string }> = {
-  all: { bg: '#F3F0EB', color: '#999999' },
-  product: { bg: '#FBEAEC', color: '#C41E3A' },
-  course: { bg: '#FBF3E3', color: '#C9A96E' },
-  circle: { bg: '#FBEAEC', color: '#C41E3A' },
-  live: { bg: '#EAF2FB', color: '#3B82F6' },
-  activity: { bg: '#FFF3E8', color: '#F97316' },
-  qa: { bg: '#E9F7EF', color: '#22C55E' },
-  membership: { bg: '#FFF8E6', color: '#F59E0B' },
-  station: { bg: '#E9F7EF', color: '#22C55E' },
-  institute: { bg: '#FFF3E8', color: '#F97316' },
-}
-
-export interface UnifiedOrder {
-  id: string
-  orderNo: string
-  category: OrderCategory
-  title: string
-  cover?: string
-  price: number
-  originalPrice?: number
-  status: UnifiedOrderStatus
-  createdAt: string
-  paidAt?: string
-  expiredAt?: string
-  extra?: { circleName?: string; teacherName?: string; duration?: string; quantity?: number }
-}
 
 /* ============================================================
    三、订单详情（app/orders/[id]）
@@ -384,17 +338,6 @@ const TAB_TO_STATUS: Record<string, string> = {
   completed: 'COMPLETED', after_sale: 'REFUNDED', cancelled: 'CANCELLED',
 }
 
-/** 后端 orderType（SHOP/MEMBER/BUNDLE）→ 前端统一中心品类 */
-const ORDER_TYPE_CATEGORY: Record<string, OrderCategory> = {
-  SHOP: 'product', MEMBER: 'membership', BUNDLE: 'station', COURSE: 'course',
-}
-
-/** 统一中心状态映射 */
-const UNIFIED_STATUS_MAP: Record<string, UnifiedOrderStatus> = {
-  PENDING: 'pending', PAID: 'paid', SHIPPED: 'paid', COMPLETED: 'completed',
-  CANCELLED: 'cancelled', REFUNDED: 'refunding', CLAIMED: 'completed',
-}
-
 /** 售后/纠纷状态映射（后端 AfterSale.status → 前端 dispute 状态） */
 const AFTERSALE_STATUS_MAP: Record<string, string> = {
   PENDING: 'pending', PROCESSING: 'processing', APPROVED: 'resolved',
@@ -450,21 +393,6 @@ function adaptOrderDetail(o: RawOrder): OrderDetail {
     ...base,
     // 后端 Order 模型无收货地址/备注字段 → 不提供，详情页 v-if 降级隐藏
     payMethod: o.payMethod === 'WECHAT' ? '微信支付' : o.payMethod === 'ALIPAY' ? '支付宝' : (o.payMethod || undefined),
-  }
-}
-
-function adaptUnifiedOrder(o: RawOrder): UnifiedOrder {
-  const category = ORDER_TYPE_CATEGORY[o.orderType || ''] || 'product'
-  const title = o.title || o.bundle?.name || (o.memberType ? `会员 · ${o.memberType}` : '订单')
-  return {
-    id: o.id || '',
-    orderNo: shortNo(o.id),
-    category,
-    title,
-    cover: o.cover || undefined,
-    price: num(o.payAmount ?? o.amount),
-    status: UNIFIED_STATUS_MAP[o.status || ''] || 'completed',
-    createdAt: fmtTime(o.createdAt),
   }
 }
 
@@ -641,10 +569,18 @@ export const orderApi = {
     return adaptOrderDetail(o)
   },
 
-  /** 统一订单中心（商城+会员+权益包，跨品类聚合） */
-  async center(_category?: string): Promise<UnifiedOrder[]> {
-    const res = await apiGet<{ orders: RawOrder[] }>(`/orders/my?page=1&pageSize=100`)
-    return (res?.orders || []).map(adaptUnifiedOrder)
+  /** 状态角标计数（列表页 Tab 角标：待付款/待发货/待收货）。
+   *  复用分页接口 total（pageSize=1 轻量探测），单个失败不阻断其余角标。 */
+  async statusCounts(): Promise<Record<string, number>> {
+    const keys = ['pending_pay', 'pending_ship', 'pending_receive']
+    const totals = await Promise.all(
+      keys.map((k) =>
+        apiGet<{ total?: number }>(`/shop/orders/my?page=1&pageSize=1&status=${TAB_TO_STATUS[k]}`)
+          .then((r) => r?.total ?? 0)
+          .catch(() => 0),
+      ),
+    )
+    return Object.fromEntries(keys.map((k, i) => [k, totals[i]]))
   },
 
   /** 物流详情

@@ -921,6 +921,8 @@ function onRefreshRanking() {}
 .ch-audio-cover {
   width: 112rpx;
   flex-shrink: 0;
+  /* 防 flex stretch 拉高封面（.ch-audio-card 未设 align-items，默认 stretch 会拉长变形） */
+  align-self: flex-start;
 }
 .ch-audio-info {
   flex: 1;
@@ -983,6 +985,8 @@ function onRefreshRanking() {}
 .ch-featured-cover {
   width: 128rpx;
   flex-shrink: 0;
+  /* 防 flex stretch 拉高封面（.ch-featured-card 未设 align-items，默认 stretch 会拉长变形） */
+  align-self: flex-start;
 }
 .ch-featured-info {
   flex: 1;

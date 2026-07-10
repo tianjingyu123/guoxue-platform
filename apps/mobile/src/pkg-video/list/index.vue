@@ -7,9 +7,7 @@
           <AppIcon name="search" :size="28" color="#9CA3AF" />
           <text class="vl-search-ph">搜索视频、创作者</text>
         </view>
-        <view class="vl-publish-btn" @tap="goPublish">
-          <AppIcon name="plus" :size="36" color="#ffffff" />
-        </view>
+        <!-- 发布入口去重：右上角按钮已删，只保留右下角悬浮按钮（董事长 2026-07-11 拍板·发布权限体系 P0） -->
       </view>
 
       <view class="vl-tabs">
@@ -139,10 +137,13 @@
       </view>
     </view>
 
-    <!-- 发布浮动按钮 -->
+    <!-- 发布浮动按钮（唯一发布入口·点击先过权限判断，无权限弹引导层） -->
     <view class="vl-fab" @tap="goPublish">
       <AppIcon name="video" :size="44" color="#ffffff" />
     </view>
+
+    <!-- 无发布权限引导弹层 -->
+    <PublishGuideSheet :open="guideOpen" @close="guideOpen = false" />
   </view>
 </template>
 
@@ -150,7 +151,9 @@
 import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import SmartCover from '@/components/common/smart-cover.vue'
+import PublishGuideSheet from '@/components/video/publish-guide-sheet.vue'
 import { navigateTo } from '@/utils/router'
+import { checkVideoPublishPermission } from '@/lib/publish-permission'
 import {
   videoApi,
   formatVideoNumber,
@@ -220,8 +223,26 @@ const formatDur = formatDuration
 function goSearch() {
   navigateTo('/videos/search')
 }
-function goPublish() {
-  navigateTo('/videos/publish')
+// 发布权限拦截（P0 临时口径：管理员/圈主放行，其余弹引导层；拿不到数据降级放行）
+// TODO(P1): CirclePublishGrant 授权接口上线后，checkVideoPublishPermission 内部替换为真授权查询
+const guideOpen = ref(false)
+const permChecking = ref(false)
+let permCache: boolean | null = null // 页面会话内缓存，避免每次点击都拉 /auth/me + /circles/my
+async function goPublish() {
+  if (permChecking.value) return
+  if (permCache === null) {
+    permChecking.value = true
+    try {
+      permCache = await checkVideoPublishPermission()
+    } finally {
+      permChecking.value = false
+    }
+  }
+  if (permCache) {
+    navigateTo('/videos/publish')
+  } else {
+    guideOpen.value = true
+  }
 }
 function goDetail(id: string) {
   navigateTo(`/video/${id}`)
@@ -260,15 +281,6 @@ function goDetail(id: string) {
   background-color: #F3F4F6;
 }
 .vl-search-ph { font-size: 26rpx; color: #9CA3AF; }
-.vl-publish-btn {
-  width: 72rpx;
-  height: 72rpx;
-  border-radius: 50%;
-  background-color: var(--brand);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
 
 .vl-tabs {
   display: flex;

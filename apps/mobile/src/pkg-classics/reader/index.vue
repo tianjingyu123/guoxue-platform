@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { onLoad, onPageScroll, onUnload, onHide } from '@dcloudio/uni-app'
-import { classicsApi } from '@/lib/classics-data'
+import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
+import { onLoad, onUnload, onHide } from '@dcloudio/uni-app'
+import { classicsApi, type BookmarkItem, type NoteItem } from '@/lib/classics-data'
 import { getToken } from '@/utils/storage'
 import TouchpointCard from '@/components/common/touchpoint-card.vue'
+import AiThinking from '@/components/classics/ai-thinking.vue'
 import { touchpointApi, type TouchpointResult } from '@/lib/touchpoint-data'
 
 interface ChapterRef { id: string; title: string }
@@ -60,6 +61,79 @@ const setOpen = ref(false)
 const noteOpen = ref(false)
 const dictOpen = ref(false)
 
+// ── 目录抽屉页签（目录 / 书签 / 笔记·本书维度） ──
+const tocTab = ref<'toc' | 'marks' | 'notes'>('toc')
+const bookMarks = ref<BookmarkItem[]>([])
+const bookNotes = ref<NoteItem[]>([])
+const marksLoading = ref(false)
+const marksLoaded = ref(false)
+async function loadMarksAndNotes(force = false) {
+  if (!isLoggedIn()) return
+  if (marksLoading.value || (marksLoaded.value && !force)) return
+  marksLoading.value = true
+  try {
+    const [bms, nts] = await Promise.all([
+      classicsApi.bookmarks(bookId.value).catch(() => [] as BookmarkItem[]),
+      classicsApi.notes(bookId.value).catch(() => [] as NoteItem[]),
+    ])
+    bookMarks.value = bms
+    bookNotes.value = nts
+    marksLoaded.value = true
+  } finally {
+    marksLoading.value = false
+  }
+}
+watch([tocOpen, tocTab], ([open, tab]) => {
+  if (open && (tab === 'marks' || tab === 'notes')) loadMarksAndNotes()
+})
+
+// ── 回跳定位：书签/笔记列表跳转带 chapterId+pos，滚动到段落并短暂高亮 ──
+const pendingPos = ref<number | null>(null)
+const highlightIdx = ref(-1)
+let hlTimer: ReturnType<typeof setTimeout> | null = null
+function scrollToParagraph(pos: number) {
+  if (pos == null || pos < 0) return
+  nextTick(() => {
+    setTimeout(() => {
+      // 旧书签存的是滚动像素（超出段数视为 legacy scrollTop）
+      if (pos >= paragraphs.value.length) {
+        uni.pageScrollTo({ scrollTop: pos, duration: 300 })
+        return
+      }
+      const q = uni.createSelectorQuery()
+      q.selectAll('.rd-para').boundingClientRect()
+      q.selectViewport().scrollOffset(() => {}) // 类型声明要求回调；结果仍经 exec 聚合返回
+      q.exec((res) => {
+        const rects = (res?.[0] || []) as { top: number }[]
+        const scroll = (res?.[1] || {}) as { scrollTop?: number }
+        const rect = rects[pos]
+        if (!rect) return
+        const target = Math.max(0, (scroll.scrollTop || 0) + rect.top - 120)
+        uni.pageScrollTo({ scrollTop: target, duration: 300 })
+        highlightIdx.value = pos
+        if (hlTimer) clearTimeout(hlTimer)
+        hlTimer = setTimeout(() => { highlightIdx.value = -1 }, 3000)
+      })
+    }, 250)
+  })
+}
+function jumpToBookmark(bm: BookmarkItem) {
+  tocOpen.value = false
+  const idx = chapters.value.findIndex((c) => c.id === bm.chapterId)
+  const pos = bm.position ?? 0
+  if (idx < 0) { uni.showToast({ title: '未找到对应章节', icon: 'none' }); return }
+  if (idx === curIndex.value) { scrollToParagraph(pos); return }
+  loadChapter(idx).then(() => scrollToParagraph(pos))
+}
+function jumpToNote(n: NoteItem) {
+  tocOpen.value = false
+  const idx = chapters.value.findIndex((c) => c.id === n.chapterId)
+  if (idx < 0) { uni.showToast({ title: '未找到对应章节', icon: 'none' }); return }
+  if (idx !== curIndex.value) loadChapter(idx)
+}
+function goAllBookmarks() { tocOpen.value = false; uni.navigateTo({ url: '/pkg-classics/bookmarks/index' }) }
+function goAllNotes() { tocOpen.value = false; uni.navigateTo({ url: '/pkg-classics/notes/index' }) }
+
 // ── AI 文白对照抽屉 ──
 const aiOpen = ref(false)
 const aiSeg = ref('')
@@ -78,7 +152,6 @@ const noteText = ref('')
 const noteSubmitting = ref(false)
 
 const bookmarking = ref(false)
-let lastScrollTop = 0
 
 function isLoggedIn() {
   return !!getToken()
@@ -118,6 +191,10 @@ async function fetchBook(id: string, chapterId?: string) {
     let idx = chapterId ? chapters.value.findIndex((c) => c.id === chapterId) : 0
     if (idx < 0) idx = 0
     await loadChapter(idx, false)
+    if (pendingPos.value != null) {
+      scrollToParagraph(pendingPos.value)
+      pendingPos.value = null
+    }
     loadTouchpoint()
   } catch (e) {
     error.value = (e as Error)?.message || '加载失败'
@@ -160,20 +237,28 @@ function goNext() { if (hasNext.value) { tocOpen.value = false; loadChapter(curI
 function jumpTo(idx: number) { tocOpen.value = false; loadChapter(idx) }
 
 // ── 点句即时 AI 白话对照 ──
+const aiThinkStart = ref(0) // 请求发起时刻：关抽屉重开时动态卡续接进度
+let aiSeq = 0
 async function explain(seg: string) {
   if (!isLoggedIn()) { needLogin(); return }
+  // 同一句已出结果（如等待中关过抽屉）：直接重开呈现，不重复请求
+  if (seg === aiSeg.value && (aiResult.value || aiLoading.value)) { aiOpen.value = true; return }
   aiOpen.value = true
   aiSeg.value = seg
   aiResult.value = null
   aiError.value = ''
+  aiThinkStart.value = Date.now()
   aiLoading.value = true
+  const seq = ++aiSeq // 并发防串台：等待中又点了别句时，旧响应作废不覆盖新句结果
   try {
     const r = await classicsApi.translate(seg, bookTitle.value)
+    if (seq !== aiSeq) return
     aiResult.value = { translation: r?.translation || '暂无翻译', notes: Array.isArray(r?.notes) ? r.notes : [], source: r?.source }
   } catch (e) {
+    if (seq !== aiSeq) return
     aiError.value = (e as Error)?.message || 'AI 解读失败，请稍后重试'
   } finally {
-    aiLoading.value = false
+    if (seq === aiSeq) aiLoading.value = false
   }
 }
 
@@ -215,16 +300,32 @@ async function doLookup() {
 }
 
 // ── 书签 ──
+/** 找到当前视口顶部的段落索引（存段落索引而非滚动像素，换字号/设备也能精确回跳） */
+function getTopParagraphIdx(): Promise<number> {
+  return new Promise((resolve) => {
+    const q = uni.createSelectorQuery()
+    q.selectAll('.rd-para').boundingClientRect()
+    q.exec((res) => {
+      const rects = (res?.[0] || []) as { bottom: number }[]
+      if (!rects.length) { resolve(0); return }
+      const idx = rects.findIndex((r) => r.bottom > 100)
+      resolve(idx < 0 ? 0 : idx)
+    })
+  })
+}
 async function addBookmark() {
   if (!isLoggedIn()) { needLogin(); return }
   if (bookmarking.value || !curChapter.value) return
   bookmarking.value = true
   try {
-    await classicsApi.addBookmark(bookId.value, { chapterId: curChapter.value.id, position: Math.round(lastScrollTop) })
+    const idx = await getTopParagraphIdx()
+    const excerpt = (paragraphs.value[idx] || '').slice(0, 60)
+    await classicsApi.addBookmark(bookId.value, { chapterId: curChapter.value.id, position: idx, note: excerpt })
+    marksLoaded.value = false // 目录抽屉书签页签下次打开时刷新
     // 告知查看入口，避免「加了书签却不知在哪看」
     uni.showModal({
       title: '已加书签',
-      content: '可在「我的书签」查看和管理全部书签。',
+      content: `已记下「${excerpt.slice(0, 16)}…」的位置。可在阅读器目录的「书签」页签或「我的书签」中一键回跳。`,
       confirmText: '查看书签', cancelText: '继续阅读',
       success: (r) => { if (r.confirm) uni.navigateTo({ url: '/pkg-classics/bookmarks/index' }) },
     })
@@ -248,7 +349,14 @@ async function submitNote() {
   try {
     await classicsApi.addNote(bookId.value, { chapterId: curChapter.value.id, content: c })
     noteOpen.value = false
-    uni.showToast({ title: '笔记已保存', icon: 'success' })
+    marksLoaded.value = false // 目录抽屉笔记页签下次打开时刷新
+    // 告知查看入口，避免「写了笔记却找不到在哪」
+    uni.showModal({
+      title: '笔记已保存',
+      content: '可在阅读器目录的「笔记」页签或「我的笔记」中查看、编辑和回跳。',
+      confirmText: '查看笔记', cancelText: '继续阅读',
+      success: (r) => { if (r.confirm) uni.navigateTo({ url: '/pkg-classics/notes/index' }) },
+    })
   } catch (e) {
     uni.showToast({ title: (e as Error)?.message || '保存失败', icon: 'none' })
   } finally {
@@ -270,7 +378,6 @@ function goBack() {
   uni.navigateBack({ fail: () => uni.navigateTo({ url: '/pkg-classics/home/index' }) })
 }
 
-onPageScroll((e) => { lastScrollTop = e.scrollTop })
 onHide(() => saveProgress())
 onUnload(() => saveProgress())
 
@@ -278,6 +385,9 @@ onLoad((q) => {
   loadPref()
   bookId.value = String(q?.bookId || q?.id || '')
   const chapterId = q?.chapterId ? String(q.chapterId) : undefined
+  // 书签/笔记回跳定位：?pos=段落索引（旧数据为滚动像素·scrollToParagraph 内兼容）
+  const rawPos = Number(q?.pos)
+  if (Number.isFinite(rawPos) && rawPos >= 0) pendingPos.value = Math.round(rawPos)
   if (!bookId.value) { error.value = '缺少书籍参数'; loading.value = false; return }
   fetchBook(bookId.value, chapterId)
 })
@@ -318,6 +428,7 @@ onLoad((q) => {
             v-for="(p, i) in paragraphs"
             :key="i"
             class="rd-para"
+            :class="{ 'rd-para-hl': i === highlightIdx }"
             @tap="explain(p)"
           >{{ p }}</text>
         </view>
@@ -370,7 +481,8 @@ onLoad((q) => {
         </view>
         <scroll-view scroll-y class="rd-sheet-body">
           <view class="rd-orig"><text class="rd-orig-txt">{{ aiSeg }}</text></view>
-          <view v-if="aiLoading" class="rd-ai-loading"><text>AI 正在解读…</text></view>
+          <!-- AI 研读中动态卡（阶段文案+墨点晕开+伪进度·关抽屉不中断请求，重开续接进度） -->
+          <view v-if="aiLoading" class="rd-ai-wait"><ai-thinking mode="translate" :since="aiThinkStart" /></view>
           <view v-else-if="aiError" class="rd-ai-loading"><text class="rd-ai-err">{{ aiError }}</text></view>
           <template v-else-if="aiResult">
             <view class="rd-ai-sec">
@@ -387,12 +499,23 @@ onLoad((q) => {
       </view>
     </view>
 
-    <!-- 目录抽屉 -->
+    <!-- 目录抽屉（目录 / 书签 / 笔记） -->
     <view v-if="tocOpen" class="rd-mask" @tap="tocOpen = false">
       <view class="rd-sheet rd-sheet-tall" @tap.stop>
         <view class="rd-sheet-bar"><view class="rd-sheet-handle" /></view>
-        <view class="rd-sheet-head"><text class="rd-sheet-title">目录 · 共 {{ chapters.length }} 章</text></view>
-        <scroll-view scroll-y class="rd-toc-body">
+        <view class="rd-toc-tabs">
+          <view class="rd-toc-tab" :class="{ 'rd-toc-tab-on': tocTab === 'toc' }" @tap="tocTab = 'toc'">
+            <text class="rd-toc-tab-txt" :style="{ color: tocTab === 'toc' ? brandColor : subColor }">目录</text>
+          </view>
+          <view class="rd-toc-tab" :class="{ 'rd-toc-tab-on': tocTab === 'marks' }" @tap="tocTab = 'marks'">
+            <text class="rd-toc-tab-txt" :style="{ color: tocTab === 'marks' ? brandColor : subColor }">书签</text>
+          </view>
+          <view class="rd-toc-tab" :class="{ 'rd-toc-tab-on': tocTab === 'notes' }" @tap="tocTab = 'notes'">
+            <text class="rd-toc-tab-txt" :style="{ color: tocTab === 'notes' ? brandColor : subColor }">笔记</text>
+          </view>
+        </view>
+        <!-- 目录 -->
+        <scroll-view v-if="tocTab === 'toc'" scroll-y class="rd-toc-body">
           <view
             v-for="(c, i) in chapters"
             :key="c.id"
@@ -404,6 +527,48 @@ onLoad((q) => {
             <text class="rd-toc-name">{{ c.title }}</text>
             <app-icon v-if="i === curIndex" name="book-open" :size="28" :color="brandColor" />
           </view>
+        </scroll-view>
+        <!-- 本书书签 -->
+        <scroll-view v-else-if="tocTab === 'marks'" scroll-y class="rd-toc-body">
+          <view v-if="!isLoggedIn()" class="rd-mk-empty"><text class="rd-mk-empty-txt">登录后可查看本书书签</text></view>
+          <view v-else-if="marksLoading && !marksLoaded" class="rd-mk-empty"><text class="rd-mk-empty-txt">加载中…</text></view>
+          <template v-else>
+            <view v-if="!bookMarks.length" class="rd-mk-empty">
+              <text class="rd-mk-empty-txt">本书还没有书签</text>
+              <text class="rd-mk-empty-sub">点底部「书签」记下此刻读到的位置</text>
+            </view>
+            <view v-for="bm in bookMarks" :key="bm.id" class="rd-mk-item" @tap="jumpToBookmark(bm)">
+              <view class="rd-mk-ribbon" />
+              <view class="rd-mk-main">
+                <text class="rd-mk-chapter">{{ bm.chapter }}</text>
+                <text v-if="bm.content" class="rd-mk-excerpt">{{ bm.content }}</text>
+                <text class="rd-mk-time">{{ bm.createdAt }}</text>
+              </view>
+              <app-icon name="chevron-right" :size="28" :color="subColor" />
+            </view>
+            <view v-if="bookMarks.length" class="rd-mk-all" @tap="goAllBookmarks"><text class="rd-mk-all-txt" :style="{ color: brandColor }">管理全部书签</text></view>
+          </template>
+        </scroll-view>
+        <!-- 本书笔记 -->
+        <scroll-view v-else scroll-y class="rd-toc-body">
+          <view v-if="!isLoggedIn()" class="rd-mk-empty"><text class="rd-mk-empty-txt">登录后可查看本书笔记</text></view>
+          <view v-else-if="marksLoading && !marksLoaded" class="rd-mk-empty"><text class="rd-mk-empty-txt">加载中…</text></view>
+          <template v-else>
+            <view v-if="!bookNotes.length" class="rd-mk-empty">
+              <text class="rd-mk-empty-txt">本书还没有笔记</text>
+              <text class="rd-mk-empty-sub">点底部「笔记」记下所思所悟</text>
+            </view>
+            <view v-for="n in bookNotes" :key="n.id" class="rd-mk-item" @tap="jumpToNote(n)">
+              <view class="rd-mk-ribbon rd-mk-ribbon-note" />
+              <view class="rd-mk-main">
+                <text class="rd-mk-chapter">{{ n.chapter }}</text>
+                <text class="rd-mk-excerpt">{{ n.noteContent }}</text>
+                <text class="rd-mk-time">{{ n.updatedAt }}</text>
+              </view>
+              <app-icon name="chevron-right" :size="28" :color="subColor" />
+            </view>
+            <view v-if="bookNotes.length" class="rd-mk-all" @tap="goAllNotes"><text class="rd-mk-all-txt" :style="{ color: brandColor }">管理全部笔记</text></view>
+          </template>
         </scroll-view>
       </view>
     </view>
@@ -443,7 +608,7 @@ onLoad((q) => {
           <view class="rd-dict-go" @tap="doLookup"><text>查询</text></view>
         </view>
         <scroll-view scroll-y class="rd-sheet-body">
-          <view v-if="dictLoading" class="rd-ai-loading"><text>查询中…</text></view>
+          <view v-if="dictLoading" class="rd-ai-wait"><ai-thinking mode="lookup" /></view>
           <view v-else-if="dictError" class="rd-ai-loading"><text class="rd-ai-err">{{ dictError }}</text></view>
           <template v-else-if="dictResult">
             <view class="rd-dict-head">
@@ -585,12 +750,41 @@ export default { options: { styleIsolation: 'shared' } }
 .rd-orig { background: rgba(160,106,56,0.08); border-radius: 16rpx; padding: 24rpx; margin-bottom: 24rpx; }
 .rd-orig-txt { font-family: 'Songti SC',serif; font-size: 30rpx; line-height: 1.8; color: var(--rd-fg, #2c2c2c); }
 .rd-ai-loading { padding: 40rpx 0; text-align: center; color: var(--rd-sub, #999); font-size: 26rpx; }
+/* AI 研读中动态卡容器（替代原纯文字等待） */
+.rd-ai-wait { padding: 28rpx 8rpx 20rpx; }
 .rd-ai-err { color: var(--brand); }
 .rd-ai-sec { margin-bottom: 28rpx; }
 .rd-ai-label { display: block; font-size: 24rpx; font-weight: 600; color: var(--rd-brand,#a06a38); margin-bottom: 12rpx; }
 .rd-ai-trans { font-size: 30rpx; line-height: 1.9; color: var(--rd-fg,#2c2c2c); }
 .rd-ai-note { font-size: 26rpx; line-height: 1.7; color: var(--rd-fg,#444); margin-bottom: 6rpx; }
 .rd-ai-src { margin-top: 12rpx; font-size: 22rpx; color: var(--rd-sub,#999); }
+
+/* 回跳高亮（书签定位后短暂点亮该段） */
+.rd-para-hl { background: rgba(196, 30, 58, 0.10); border-radius: 8rpx; transition: background 0.6s; }
+
+/* 目录抽屉页签 */
+.rd-toc-tabs { display: flex; padding: 4rpx 40rpx 16rpx; gap: 8rpx; }
+.rd-toc-tab { flex: 1; display: flex; justify-content: center; padding: 16rpx 0; border-radius: 16rpx; }
+.rd-toc-tab-on { background: rgba(150, 130, 90, 0.12); }
+.rd-toc-tab-txt { font-size: 28rpx; font-weight: 600; }
+
+/* 本书书签/笔记条目 */
+.rd-mk-item { display: flex; align-items: center; gap: 20rpx; padding: 26rpx 16rpx; border-bottom: 2rpx solid rgba(150, 130, 90, 0.12); &:active { opacity: 0.6; } }
+.rd-mk-ribbon { width: 8rpx; align-self: stretch; border-radius: 4rpx; background: var(--rd-brand, #a06a38); flex-shrink: 0; }
+.rd-mk-ribbon-note { background: rgba(150, 130, 90, 0.55); }
+.rd-mk-main { flex: 1; min-width: 0; }
+.rd-mk-chapter { display: block; font-size: 26rpx; font-weight: 600; color: var(--rd-fg, #2c2c2c); }
+.rd-mk-excerpt {
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  margin-top: 8rpx; font-family: 'Songti SC', 'STSong', 'Noto Serif SC', serif;
+  font-size: 26rpx; line-height: 1.7; color: var(--rd-fg, #2c2c2c); opacity: 0.85;
+}
+.rd-mk-time { display: block; margin-top: 8rpx; font-size: 22rpx; color: var(--rd-sub, #999); }
+.rd-mk-empty { text-align: center; padding: 96rpx 0 48rpx; }
+.rd-mk-empty-txt { display: block; font-size: 28rpx; color: var(--rd-fg, #2c2c2c); }
+.rd-mk-empty-sub { display: block; margin-top: 12rpx; font-size: 24rpx; color: var(--rd-sub, #999); }
+.rd-mk-all { padding: 28rpx 0 12rpx; text-align: center; &:active { opacity: 0.6; } }
+.rd-mk-all-txt { font-size: 28rpx; font-weight: 600; }
 
 /* 目录 */
 .rd-toc-body { padding: 0 24rpx 40rpx; }

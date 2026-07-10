@@ -140,30 +140,8 @@
         </view>
       </view>
 
-      <!-- 书友讨论 -->
-      <view class="cd-sec">
-        <view class="cd-sec-head">
-          <text class="cd-sec-title">书友讨论</text>
-          <text class="cd-sec-meta">{{ commentCount }} 条</text>
-        </view>
-        <view v-if="firstDiscussion" class="cd-card cd-disc" @tap="showComments = true">
-          <view class="cd-disc-preview">
-            <view class="cd-disc-avatar" :style="{ background: '#a06a38' }">{{ firstDiscussion.author.name.charAt(0) }}</view>
-            <view class="cd-disc-body">
-              <text class="cd-disc-name">{{ firstDiscussion.author.name }}</text>
-              <text class="cd-disc-content">{{ firstDiscussion.content }}</text>
-              <view class="cd-disc-like">
-                <app-icon name="heart" :size="26" color="#999999" />
-                <text class="cd-disc-like-text">{{ firstDiscussion.likeCount }}</text>
-              </view>
-            </view>
-          </view>
-          <view class="cd-disc-all">
-            <app-icon name="message-square" :size="28" color="#c41e3a" />
-            <text class="cd-disc-all-text">查看全部 {{ commentCount }} 条讨论</text>
-          </view>
-        </view>
-      </view>
+      <!-- 书友评论（真连通用评论模块·targetType=CLASSIC_BOOK） -->
+      <classic-comments :book-id="book.id" />
 
       <!-- 相关推荐 -->
       <view class="cd-sec cd-related-sec">
@@ -193,14 +171,6 @@
       </view>
     </view>
 
-    <!-- 书友讨论抽屉 -->
-    <discussion-sheet
-      :open="showComments"
-      :config="discussionConfig"
-      :items="BOOK_DISCUSSIONS"
-      :enable-a-i-assist="true"
-      @close="showComments = false"
-    />
   </view>
   </view>
 </template>
@@ -211,38 +181,24 @@ import { onLoad, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 import { useShare } from '@/composables/useShare'
 import ClassicsHeader from '@/components/classics/classics-header.vue'
 import FlatCover from '@/components/classics/flat-cover.vue'
-import DiscussionSheet from '@/components/common/discussion-sheet.vue'
+import ClassicComments from '@/components/classics/classic-comments.vue'
 import { coverColorForBook } from '@/lib/classics-cover'
-import { classicsApi, _mockAI_FEATURES, type BookInfo, type BookDiscussion } from '@/lib/classics-data'
-import type { AuthorBadge, DiscussionConfig, DiscussionItem } from '@/lib/discussion-types'
+import { classicsApi, _mockAI_FEATURES, type BookInfo } from '@/lib/classics-data'
 import { getToken } from '@/utils/storage'
 
 const bookId = ref('1')
 const book = ref<BookInfo | null>(null)
 const AI_FEATURES = _mockAI_FEATURES
-const BOOK_DISCUSSIONS = ref<DiscussionItem[]>([])
 const loading = ref(true)
 const error = ref('')
 
 const isInBookshelf = ref(false)
 const expandedChapters = ref<Set<string>>(new Set())
 const showAllChapters = ref(false)
-const showComments = ref(false)
-
-const firstDiscussion = computed(() => BOOK_DISCUSSIONS.value[0] || null)
-const commentCount = computed(() => BOOK_DISCUSSIONS.value.reduce((n, c) => n + 1 + (c.replies?.length || 0), 0))
 
 const displayedChapters = computed(() =>
   book.value ? (showAllChapters.value ? book.value.chapters : book.value.chapters.slice(0, 6)) : [],
 )
-
-const discussionConfig: DiscussionConfig = {
-  scene: 'classic',
-  mode: 'comment',
-  title: '书友讨论',
-  accentColor: '#c41e3a',
-  placeholder: '各抒己见，友善交流…',
-}
 
 async function fetchData(id: string) {
   loading.value = true
@@ -256,17 +212,6 @@ async function fetchData(id: string) {
       try { isInBookshelf.value = !!(await classicsApi.getProgress(data.book.id)) } catch { /* 未登录或无记录 */ }
       try { isFavorited.value = (await classicsApi.favoriteStatus(data.book.id)).favorited } catch { /* 忽略 */ }
     }
-    // Map BookDiscussion to DiscussionItem
-    BOOK_DISCUSSIONS.value = (data.discussions || []).map((d: BookDiscussion): DiscussionItem => ({
-      id: d.id,
-      author: { id: 0, name: d.authorName, badge: d.badge as AuthorBadge | undefined },
-      content: d.content,
-      time: d.time,
-      likeCount: d.likeCount,
-      featured: d.featured,
-      replies: [],
-      replyCount: 0,
-    }))
   } catch (e) {
     error.value = (e as Error)?.message || '加载失败'
   } finally {
@@ -407,6 +352,8 @@ async function toBook(id: string) {
 .cd-cover {
   width: 224rpx;
   flex-shrink: 0;
+  /* 防 flex stretch 拉高封面（.cd-cover-row 未设 align-items，默认 stretch 会拉长变形） */
+  align-self: flex-start;
 }
 .cd-info {
   flex: 1;
@@ -653,68 +600,6 @@ async function toBook(id: string) {
   font-weight: 500;
   color: var(--brand);
   border-top: 2rpx solid var(--border);
-}
-.cd-disc {
-  overflow: hidden;
-}
-.cd-disc-preview {
-  display: flex;
-  align-items: flex-start;
-  gap: 24rpx;
-  padding: 32rpx;
-}
-.cd-disc-avatar {
-  width: 72rpx;
-  height: 72rpx;
-  border-radius: 999rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #ffffff;
-  font-weight: 500;
-  font-size: 28rpx;
-  flex-shrink: 0;
-}
-.cd-disc-body {
-  flex: 1;
-  min-width: 0;
-}
-.cd-disc-name {
-  display: block;
-  font-size: 26rpx;
-  font-weight: 500;
-  color: var(--foreground);
-}
-.cd-disc-content {
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  font-size: 26rpx;
-  color: var(--foreground);
-  line-height: 1.6;
-  margin-top: 4rpx;
-}
-.cd-disc-like {
-  display: inline-flex;
-  align-items: center;
-  gap: 8rpx;
-  margin-top: 12rpx;
-}
-.cd-disc-like-text {
-  font-size: 24rpx;
-  color: var(--muted-foreground);
-}
-.cd-disc-all {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12rpx;
-  padding: 24rpx 0;
-  border-top: 2rpx solid var(--border);
-  font-size: 28rpx;
-  font-weight: 500;
-  color: var(--brand);
 }
 .cd-related-sec {
   padding-left: 0;

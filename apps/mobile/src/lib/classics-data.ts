@@ -570,8 +570,13 @@ export interface BookmarkItem {
   bookTitle: string
   bookAuthor: string
   dynasty: string
+  /** 章节 id（回跳定位用·旧数据可能缺失） */
+  chapterId?: string
   chapter: string
+  /** 摘录（创建时写入后端 note 字段·旧书签可能为空） */
   content: string
+  /** 段落索引（新书签）或旧数据的滚动位置·作为 reader ?pos= 参数 */
+  position?: number
   page: number
   createdAt: string
   color: 'amber' | 'blue' | 'green' | 'purple'
@@ -590,6 +595,8 @@ export interface NoteItem {
   bookTitle: string
   bookAuthor: string
   dynasty: string
+  /** 章节 id（回跳定位用·旧数据可能缺失） */
+  chapterId?: string
   chapter: string
   originalText: string
   noteContent: string
@@ -648,7 +655,8 @@ interface RawContinueItem {
 interface RawBookmark {
   id?: string
   bookId?: string
-  book?: { title?: string } | null
+  chapterId?: string
+  book?: { title?: string; author?: string; dynasty?: string } | null
   chapter?: { title?: string } | null
   note?: string
   position?: number
@@ -658,7 +666,8 @@ interface RawBookmark {
 interface RawNote {
   id?: string
   bookId?: string
-  book?: { title?: string } | null
+  chapterId?: string
+  book?: { title?: string; author?: string; dynasty?: string } | null
   chapter?: { title?: string } | null
   content?: string
   createdAt?: string
@@ -792,9 +801,11 @@ export const classicsApi = {
   },
 
   // ── AI 赋能（需登录） ──
-  /** 文白翻译：{ original, translation, notes[], source } */
+  /** 文白翻译：{ original, translation, notes[], source }
+   *  长句/整段翻译走大模型生成，常超全局 15s 超时（20-60s），与 companionChat 同理放宽到 90s，
+   *  否则前端必超时误报「AI 翻译暂不可用」而后端实际正在正常生成 */
   async translate(text: string, context?: string) {
-    return await apiPost<RawTranslate>('/classic/translate', { text, context })
+    return await apiPost<RawTranslate>('/classic/translate', { text, context }, undefined, 90000)
   },
   /** 古汉语查词：{ word, pinyin, radicals, meanings[], classicalUsages[], commonPhrases[], explanation } */
   async lookupWord(word: string) {
@@ -816,7 +827,9 @@ export const classicsApi = {
     question: string,
     history?: { role: string; content: string }[],
   ): Promise<{ answer: string; disclaimer: string }> {
-    return await apiPost<{ answer: string; disclaimer: string }>('/classic/companion/chat', { chapterId, question, history })
+    // AI 生成长回答常超过全局 15s 超时（大模型 20-60s），单独放宽到 90s，
+    // 否则前端必超时误报「AI 暂不可用」而后端实际正在正常生成。
+    return await apiPost<{ answer: string; disclaimer: string }>('/classic/companion/chat', { chapterId, question, history }, undefined, 90000)
   },
   /** 伴读会话恢复（E3 带记忆·需登录）：本书近期历史，跨章节/跨登录续聊 */
   async companionSession(chapterId: string): Promise<{
@@ -882,9 +895,11 @@ export const classicsApi = {
     const res = await apiGetPaged<RawBookmark>(path)
     const colors = ['amber', 'blue', 'green', 'purple'] as const
     return res.items.map((b, i) => ({
-      id: b.id || '', bookId: b.bookId || '', bookTitle: b.book?.title || '', bookAuthor: '',
-      dynasty: '', chapter: b.chapter?.title || '', content: b.note || '',
-      page: b.position || 0, createdAt: (b.createdAt || '').slice(0, 10),
+      id: b.id || '', bookId: b.bookId || '', bookTitle: b.book?.title || '',
+      bookAuthor: b.book?.author || '', dynasty: b.book?.dynasty || '',
+      chapterId: b.chapterId || '', chapter: b.chapter?.title || '', content: b.note || '',
+      position: b.position ?? 0,
+      page: b.position || 0, createdAt: (b.createdAt || '').slice(0, 16).replace('T', ' '),
       color: colors[i % colors.length],
     }))
   },
@@ -902,8 +917,9 @@ export const classicsApi = {
       : '/classic/notes?pageSize=100'
     const res = await apiGetPaged<RawNote>(path)
     return res.items.map((n) => ({
-      id: n.id || '', bookId: n.bookId || '', bookTitle: n.book?.title || '', bookAuthor: '',
-      dynasty: '', chapter: n.chapter?.title || '', originalText: '',
+      id: n.id || '', bookId: n.bookId || '', bookTitle: n.book?.title || '',
+      bookAuthor: n.book?.author || '', dynasty: n.book?.dynasty || '',
+      chapterId: n.chapterId || '', chapter: n.chapter?.title || '', originalText: '',
       noteContent: n.content || '', tags: [], page: 0,
       createdAt: (n.createdAt || '').slice(0, 16).replace('T', ' '),
       updatedAt: (n.updatedAt || '').slice(0, 16).replace('T', ' '),

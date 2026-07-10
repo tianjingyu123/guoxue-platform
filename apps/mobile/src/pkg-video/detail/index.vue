@@ -110,11 +110,15 @@
 
     <!-- 右侧互动按钮（V0 actions：头像白描边+朱红关注钮·图标白描边带投影·数字白 72% 透明） -->
     <view class="vp__actions">
-      <!-- 作者头像 -->
-      <view class="vp__avatar-wrap">
+      <!-- 作者头像（点头像进作者主页；加号关注·成功变√） -->
+      <view class="vp__avatar-wrap" @tap.stop="goAuthor">
         <image lazy-load class="vp__avatar" :src="currentVideo.author.avatar" mode="aspectFill" />
-        <view v-if="!currentVideo.author.isFollowed" class="vp__follow-plus" @tap="onFollow">
-          <AppIcon name="plus" :size="22" color="#ffffff" />
+        <view
+          class="vp__follow-plus"
+          :class="{ 'vp__follow-plus--ok': currentVideo.author.isFollowed }"
+          @tap.stop="onFollow"
+        >
+          <AppIcon :name="currentVideo.author.isFollowed ? 'check' : 'plus'" :size="24" color="#ffffff" />
         </view>
       </view>
 
@@ -136,8 +140,8 @@
         <text class="vp__act-txt">收藏</text>
       </view>
 
-      <!-- 分享 -->
-      <view class="vp__act">
+      <!-- 分享（弹分享面板：复制链接 + 微信内转发引导） -->
+      <view class="vp__act" @tap.stop="onShare">
         <AppIcon name="share-2" :size="52" color="#ffffff" />
         <text class="vp__act-txt">{{ fmt(currentVideo.shares) }}</text>
       </view>
@@ -170,42 +174,108 @@
     </view>
     </template>
 
-    <!-- 评论弹层 -->
-    <view v-if="showComments" class="sheet-mask" @tap="showComments = false">
-      <view class="sheet" @tap.stop>
-        <view class="sheet__head">
-          <text class="sheet__title">{{ fmt(currentVideo.comments) }} 条评论</text>
-          <view @tap="showComments = false"><AppIcon name="x" :size="36" color="#999" /></view>
+    <!-- 评论面板（小红书/抖音式半屏抽屉·深色与播放页一致） -->
+    <view v-if="showComments" class="cs-mask" @tap="closeComments">
+      <view class="cs" @tap.stop>
+        <view class="cs__grabber" />
+        <view class="cs__head">
+          <text class="cs__title">共 {{ fmt(commentTotal) }} 条评论</text>
+          <view class="cs__close" @tap="closeComments"><AppIcon name="x" :size="34" color="rgba(255,255,255,0.55)" /></view>
         </view>
-        <scroll-view scroll-y class="sheet__body">
-          <text v-if="commentsLoading" class="sheet__more">加载中...</text>
-          <text v-else-if="comments.length === 0" class="sheet__empty">还没有评论，快来抢沙发</text>
-          <view v-for="c in comments" :key="c.id" class="cmt">
-            <image v-if="c.avatar" lazy-load class="cmt__avatar" :src="c.avatar" mode="aspectFill" />
-            <view v-else class="cmt__avatar"><text class="cmt__avatar-txt">{{ c.user.charAt(0) }}</text></view>
-            <view class="cmt__main">
-              <text class="cmt__user">{{ c.user }}</text>
-              <text class="cmt__content">{{ c.content }}</text>
-              <view class="cmt__ops">
-                <view class="cmt__like" @tap="onLikeComment(c)"><AppIcon name="heart" :size="26" color="#999" /><text class="cmt__like-txt">{{ c.likes }}</text></view>
+        <scroll-view scroll-y class="cs__body">
+          <text v-if="commentsLoading" class="cs__hint">加载中...</text>
+          <view v-else-if="comments.length === 0" class="cs__empty">
+            <AppIcon name="message-circle" :size="72" color="rgba(255,255,255,0.18)" />
+            <text class="cs__empty-txt">还没有评论</text>
+            <text class="cs__empty-sub">留下你的独到见解，抢个沙发～</text>
+          </view>
+          <view v-for="c in comments" :key="c.id" class="cs-item" :class="{ 'cs-item--flash': highlightId === c.id }">
+            <image v-if="c.avatar" lazy-load class="cs-item__avatar" :src="c.avatar" mode="aspectFill" />
+            <view v-else class="cs-item__avatar"><text class="cs-item__avatar-txt">{{ c.user.charAt(0) }}</text></view>
+            <view class="cs-item__main">
+              <text class="cs-item__user">{{ c.user }}</text>
+              <text class="cs-item__content">{{ c.content }}</text>
+              <view class="cs-item__meta">
+                <text class="cs-item__time">{{ timeAgo(c.createdAt) }}</text>
+                <text class="cs-item__reply-btn" @tap="startReply(c)">回复</text>
+              </view>
+              <!-- 楼中楼 -->
+              <view v-if="c.replies.length" class="cs-item__replies">
+                <template v-if="expandedIds.includes(c.id)">
+                  <view v-for="r in flatReplies(c)" :key="r.id" class="cs-item cs-item--sub" :class="{ 'cs-item--flash': highlightId === r.id }">
+                    <image v-if="r.avatar" lazy-load class="cs-item__avatar cs-item__avatar--sub" :src="r.avatar" mode="aspectFill" />
+                    <view v-else class="cs-item__avatar cs-item__avatar--sub"><text class="cs-item__avatar-txt">{{ r.user.charAt(0) }}</text></view>
+                    <view class="cs-item__main">
+                      <text class="cs-item__user">{{ r.user }}</text>
+                      <text class="cs-item__content">{{ r.content }}</text>
+                      <view class="cs-item__meta">
+                        <text class="cs-item__time">{{ timeAgo(r.createdAt) }}</text>
+                        <text class="cs-item__reply-btn" @tap="startReply(c, r)">回复</text>
+                      </view>
+                    </view>
+                    <view class="cs-item__like" @tap="onLikeComment(r)">
+                      <AppIcon name="heart" :size="30" :color="likedIds.includes(r.id) ? '#c41e3a' : 'rgba(255,255,255,0.45)'" :fill="likedIds.includes(r.id)" />
+                      <text class="cs-item__like-num" :class="{ 'cs-item__like-num--on': likedIds.includes(r.id) }">{{ r.likes > 0 ? fmt(r.likes) : '' }}</text>
+                    </view>
+                  </view>
+                  <view class="cs-item__expand" @tap="toggleReplies(c.id)">
+                    <view class="cs-item__expand-line" /><text class="cs-item__expand-txt">收起</text>
+                  </view>
+                </template>
+                <view v-else class="cs-item__expand" @tap="toggleReplies(c.id)">
+                  <view class="cs-item__expand-line" /><text class="cs-item__expand-txt">展开 {{ countReplies(c) }} 条回复</text>
+                  <AppIcon name="chevron-down" :size="24" color="rgba(255,255,255,0.45)" />
+                </view>
               </view>
             </view>
+            <!-- 右侧点赞小柱 -->
+            <view class="cs-item__like" @tap="onLikeComment(c)">
+              <AppIcon name="heart" :size="32" :color="likedIds.includes(c.id) ? '#c41e3a' : 'rgba(255,255,255,0.45)'" :fill="likedIds.includes(c.id)" />
+              <text class="cs-item__like-num" :class="{ 'cs-item__like-num--on': likedIds.includes(c.id) }">{{ c.likes > 0 ? fmt(c.likes) : '' }}</text>
+            </view>
           </view>
+          <view v-if="comments.length > 0" class="cs__end"><text class="cs__end-txt">— 到底啦 —</text></view>
         </scroll-view>
-        <!-- 评论输入 -->
-        <view class="cmt-input" :style="{ paddingBottom: 'calc(' + safeBottom + 'px + 16rpx)' }">
-          <input
-            class="cmt-input__field"
-            v-model="commentText"
-            placeholder="说点什么..."
-            placeholder-class="cmt-input__ph"
-            confirm-type="send"
-            @confirm="onPostComment"
-          />
-          <view class="cmt-input__send" :class="{ 'cmt-input__send--on': commentText.trim() && !postingComment }" @tap="onPostComment">
-            <text class="cmt-input__send-txt">{{ postingComment ? '发送中' : '发送' }}</text>
+        <!-- 底部常驻输入条 -->
+        <view class="cs-input" :style="{ paddingBottom: 'calc(' + safeBottom + 'px + 16rpx)' }">
+          <view v-if="replyTarget" class="cs-input__reply-bar">
+            <text class="cs-input__reply-txt">回复 @{{ replyTarget.user }}</text>
+            <view class="cs-input__reply-cancel" @tap="cancelReply"><AppIcon name="x" :size="26" color="rgba(255,255,255,0.45)" /></view>
+          </view>
+          <view class="cs-input__row">
+            <image v-if="myAvatar" lazy-load class="cs-input__avatar" :src="myAvatar" mode="aspectFill" />
+            <view v-else class="cs-input__avatar"><text class="cs-item__avatar-txt">我</text></view>
+            <input
+              class="cs-input__field"
+              v-model="commentText"
+              :placeholder="replyTarget ? `回复 @${replyTarget.user}…` : '说点什么…'"
+              placeholder-class="cs-input__ph"
+              confirm-type="send"
+              @confirm="onPostComment"
+            />
+            <view class="cs-input__send" :class="{ 'cs-input__send--on': commentText.trim() && !postingComment }" @tap="onPostComment">
+              <text class="cs-input__send-txt">{{ postingComment ? '…' : '发送' }}</text>
+            </view>
           </view>
         </view>
+      </view>
+    </view>
+
+    <!-- 分享面板（深色·复制链接 + 微信内转发引导） -->
+    <view v-if="showShare" class="cs-mask" @tap="showShare = false">
+      <view class="cs cs--share" @tap.stop>
+        <view class="cs__grabber" />
+        <view class="cs__head">
+          <text class="cs__title">分享给朋友</text>
+          <view class="cs__close" @tap="showShare = false"><AppIcon name="x" :size="34" color="rgba(255,255,255,0.55)" /></view>
+        </view>
+        <view class="share-opts">
+          <view class="share-opt" @tap="copyShareLink">
+            <view class="share-opt__ico"><AppIcon name="link-2" :size="44" color="#ffffff" /></view>
+            <text class="share-opt__txt">复制链接</text>
+          </view>
+        </view>
+        <text class="share-tip">复制链接发给微信好友，或点浏览器/微信右上角「···」直接转发本页</text>
       </view>
     </view>
 
@@ -277,8 +347,10 @@ import { onLoad, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { useShare } from '@/composables/useShare'
+import { withRef } from '@/utils/referral'
+import { getUserInfo } from '@/utils/storage'
 import { onMounted } from 'vue'
-import { videoApi, formatVideoNumber as fmt, type VideoItem, type VideoProduct, type VideoComment } from '@/lib/video-data'
+import { videoApi, formatVideoNumber as fmt, formatCommentTime as timeAgo, type VideoItem, type VideoProduct, type VideoComment } from '@/lib/video-data'
 import { shopApi } from '@/lib/shop-data'
 
 interface CartItem { productId: string; quantity: number; product: VideoProduct }
@@ -481,7 +553,7 @@ async function onCollect() {
     v.isCollected = prev // 失败回滚
   }
 }
-// 关注：真连 POST/DELETE /users/:id/follow（乐观切换 + 失败回滚）
+// 关注：真连 POST/DELETE /users/:id/follow（乐观切换 + 失败回滚·成功加号变√）
 async function onFollow() {
   const v = currentVideo.value
   if (!v?.author?.id) return
@@ -490,9 +562,42 @@ async function onFollow() {
   try {
     if (prev) await videoApi.unfollowAuthor(v.author.id)
     else await videoApi.followAuthor(v.author.id)
-  } catch {
+    if (!prev) uni.showToast({ title: '已关注', icon: 'none' })
+  } catch (e) {
     v.author.isFollowed = prev // 失败回滚
+    uni.showToast({ title: (e as Error)?.message || '操作失败，请先登录', icon: 'none' })
   }
+}
+
+// 点头像 → 作者主页（/user/:id → pkg-circle/user/profile）
+function goAuthor() {
+  const uid = currentVideo.value?.author?.id
+  if (uid) navigateTo(`/user/${uid}`)
+}
+
+// ===== 分享（H5 无原生转发 → 面板：复制链接 + 转发引导；小程序仍走 onShareAppMessage）=====
+const showShare = ref(false)
+function onShare() { showShare.value = true }
+function buildShareUrl(): string {
+  const vid = currentVideo.value?.id || ''
+  // import.meta.env 在 uni-app 下缺少类型声明，保留 as any
+  let base = (import.meta as any).env?.VITE_H5_URL || 'https://api.rebugx.cn/h5'
+  // #ifdef H5
+  base = window.location.origin + ((import.meta as any).env?.BASE_URL || '/h5/')
+  // #endif
+  if (!base.endsWith('/')) base += '/'
+  return withRef(`${base}pkg-video/detail/index?id=${vid}`) // 携带分享者 ref（推荐归因）
+}
+async function copyShareLink() {
+  const v = currentVideo.value
+  if (!v) return
+  uni.setClipboardData({
+    data: buildShareUrl(),
+    success: () => uni.showToast({ title: '链接已复制，粘贴给好友吧', icon: 'none' }),
+  })
+  showShare.value = false
+  v.shares += 1
+  try { await videoApi.share(v.id) } catch { v.shares -= 1 /* 计数失败回滚·不打扰 */ }
 }
 
 // 切换视频时刷新真实关注态（后端列表默认 isFollowed=false）
@@ -518,43 +623,114 @@ watch(() => currentVideo.value?.id, async () => {
   try { v.author.isFollowed = await videoApi.isFollowing(v.author.id) } catch { /* 未登录/失败保持默认 */ }
 })
 
-// ===== 评论子系统（真连通用 comment 端点）=====
+// ===== 评论子系统（真连通用 comment 端点·小红书/抖音式面板）=====
 const comments = ref<VideoComment[]>([])
+const commentTotal = ref(0)
 const commentsLoading = ref(false)
 const commentText = ref('')
 const postingComment = ref(false)
+/** 回复目标：楼中楼统一挂顶级评论（parentId=顶级 id·展示扁平一层更清爽） */
+const replyTarget = ref<{ id: string; user: string } | null>(null)
+const expandedIds = ref<string[]>([]) // 已展开楼中楼的顶级评论 id
+const likedIds = ref<string[]>([]) // 本会话已点赞评论 id（后端仅计数不去重·前端防连点）
+const highlightId = ref('') // 乐观插入后高亮一瞬的评论 id
+const myInfo = getUserInfo<{ id?: string | number; nickname?: string; avatar?: string }>()
+const myAvatar = myInfo?.avatar || ''
 
 async function loadComments() {
   const v = currentVideo.value
   if (!v) return
   commentsLoading.value = true
-  try { comments.value = await videoApi.getComments(v.id) }
-  catch { comments.value = [] }
+  try {
+    const res = await videoApi.getComments(v.id)
+    comments.value = res.items
+    commentTotal.value = res.total
+    v.comments = res.total // 右侧操作栏计数与真实数据对齐
+  } catch { comments.value = []; commentTotal.value = 0 }
   finally { commentsLoading.value = false }
 }
 function openComments() {
   showComments.value = true
   loadComments()
 }
+function closeComments() {
+  showComments.value = false
+  cancelReply()
+}
+function startReply(top: VideoComment, sub?: VideoComment) {
+  replyTarget.value = { id: top.id, user: (sub || top).user }
+}
+function cancelReply() { replyTarget.value = null }
+function toggleReplies(id: string) {
+  const i = expandedIds.value.indexOf(id)
+  if (i >= 0) expandedIds.value.splice(i, 1)
+  else expandedIds.value.push(id)
+}
+/** 楼中楼扁平化（后端 replies 为递归嵌套·展示压成一层） */
+function flatReplies(c: VideoComment): VideoComment[] {
+  const out: VideoComment[] = []
+  const walk = (list: VideoComment[]) => { for (const r of list) { out.push(r); walk(r.replies) } }
+  walk(c.replies)
+  return out
+}
+function countReplies(c: VideoComment): number { return flatReplies(c).length }
+
+/** 发布评论：乐观上屏（临时 id + 高亮一瞬）→ 后端成功回填真实 id / 失败回滚 */
 async function onPostComment() {
   const text = commentText.value.trim()
   const v = currentVideo.value
   if (!text || !v || postingComment.value) return
   postingComment.value = true
+  const parent = replyTarget.value
+  const tempId = `temp-${Date.now()}`
+  const temp: VideoComment = {
+    id: tempId,
+    userId: String(myInfo?.id ?? ''),
+    user: myInfo?.nickname || '我',
+    avatar: myAvatar,
+    content: text,
+    likes: 0,
+    createdAt: new Date().toISOString(),
+    replies: [],
+  }
+  const topParent = parent ? comments.value.find((c) => c.id === parent.id) : undefined
+  if (topParent) {
+    topParent.replies.push(temp)
+    if (!expandedIds.value.includes(topParent.id)) expandedIds.value.push(topParent.id)
+  } else {
+    comments.value.unshift(temp)
+  }
+  commentTotal.value += 1
+  v.comments += 1
+  highlightId.value = tempId
+  setTimeout(() => { if (highlightId.value === tempId) highlightId.value = '' }, 1600)
+  commentText.value = ''
+  cancelReply()
   try {
-    await videoApi.postComment(v.id, text)
-    commentText.value = ''
-    v.comments += 1
-    await loadComments()
+    const real = await videoApi.postComment(v.id, text, parent?.id)
+    // 回填真实 id（后续点赞/回复要用）；经数组代理定位保证响应式
+    const list = topParent ? topParent.replies : comments.value
+    const item = list.find((c) => c.id === tempId)
+    if (item && real.id) item.id = real.id
   } catch (e) {
+    // 失败回滚（含内容审核拒绝）
+    if (topParent) topParent.replies = topParent.replies.filter((r) => r.id !== tempId)
+    else comments.value = comments.value.filter((c) => c.id !== tempId)
+    commentTotal.value -= 1
+    v.comments -= 1
+    commentText.value = text // 还回输入内容，方便改后重发
     uni.showToast({ title: (e as Error)?.message || '评论失败', icon: 'none' })
   } finally {
     postingComment.value = false
   }
 }
 async function onLikeComment(c: VideoComment) {
+  if (c.id.startsWith('temp-')) return // 乐观临时评论未落库·不可点赞
+  if (likedIds.value.includes(c.id)) return
+  likedIds.value.push(c.id)
   c.likes += 1 // 乐观
-  try { await videoApi.likeComment(c.id) } catch { c.likes -= 1 }
+  try { await videoApi.likeComment(c.id) }
+  catch { c.likes -= 1; likedIds.value = likedIds.value.filter((i) => i !== c.id) }
 }
 
 function addToCart(product: VideoProduct) {
@@ -686,7 +862,9 @@ function onBack() {
 .vp__actions { position: absolute; right: 24rpx; bottom: 352rpx; z-index: 30; display: flex; flex-direction: column; align-items: center; gap: 40rpx; }
 .vp__avatar-wrap { position: relative; margin-bottom: 12rpx; }
 .vp__avatar { width: 88rpx; height: 88rpx; border-radius: 999rpx; border: 3rpx solid #fff; background: #333; }
-.vp__follow-plus { position: absolute; bottom: -14rpx; left: 50%; transform: translateX(-50%); width: 32rpx; height: 32rpx; border-radius: 999rpx; background: var(--brand); display: flex; align-items: center; justify-content: center; }
+/* 关注钮：44rpx 可点面积（原 32rpx 安卓难命中）·已关注变√灰底 */
+.vp__follow-plus { position: absolute; bottom: -20rpx; left: 50%; transform: translateX(-50%); width: 44rpx; height: 44rpx; border-radius: 999rpx; background: var(--brand); border: 3rpx solid rgba(255,255,255,0.9); display: flex; align-items: center; justify-content: center; transition: background 0.2s; }
+.vp__follow-plus--ok { background: rgba(120,120,128,0.75); }
 .vp__act { display: flex; flex-direction: column; align-items: center; gap: 8rpx; filter: drop-shadow(0 2rpx 4rpx rgba(0,0,0,0.4)); }
 .vp__act-txt { font-size: 22rpx; color: rgba(255,255,255,0.72); }
 
@@ -732,25 +910,68 @@ function onBack() {
 .sheet__more { display: block; text-align: center; font-size: 22rpx; color: var(--text-muted, #999); padding: 28rpx 0; }
 .sheet__empty { display: block; text-align: center; font-size: 26rpx; color: var(--text-muted, #999); padding: 64rpx 0; }
 
-/* 评论 */
-.cmt { display: flex; gap: 20rpx; margin-bottom: 28rpx; }
-.cmt__avatar { width: 56rpx; height: 56rpx; border-radius: 999rpx; background: var(--surface-sunken, #f0f0f0); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.cmt__avatar-txt { font-size: 24rpx; font-weight: 500; color: var(--text-muted, #999); }
-.cmt__main { flex: 1; display: flex; flex-direction: column; }
-.cmt__user { font-size: 22rpx; color: var(--text-muted, #999); margin-bottom: 6rpx; }
-.cmt__content { font-size: 26rpx; color: var(--text, #1a1a1a); }
-.cmt__ops { display: flex; align-items: center; gap: 28rpx; margin-top: 12rpx; }
-.cmt__like { display: flex; align-items: center; gap: 6rpx; }
-.cmt__like-txt { font-size: 22rpx; color: var(--text-muted, #999); }
-.cmt__reply { font-size: 22rpx; color: var(--text-muted, #999); }
+/* ===== 评论面板（小红书/抖音式半屏抽屉·深色与播放页一致）===== */
+.cs-mask { position: fixed; inset: 0; z-index: 40; background: rgba(0,0,0,0.5); }
+.cs {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  background: #1c1c1e; border-radius: 32rpx 32rpx 0 0;
+  height: 68vh; display: flex; flex-direction: column;
+  animation: slide-up 0.28s ease-out;
+}
+.cs--share { height: auto; padding-bottom: 48rpx; }
+.cs__grabber { width: 72rpx; height: 8rpx; border-radius: 999rpx; background: rgba(255,255,255,0.22); margin: 16rpx auto 0; flex-shrink: 0; }
+.cs__head { position: relative; display: flex; align-items: center; justify-content: center; padding: 20rpx 28rpx 16rpx; flex-shrink: 0; }
+.cs__title { font-size: 26rpx; font-weight: 500; color: rgba(255,255,255,0.85); }
+.cs__close { position: absolute; right: 24rpx; top: 50%; transform: translateY(-50%); width: 56rpx; height: 56rpx; display: flex; align-items: center; justify-content: center; }
+.cs__body { flex: 1; min-height: 0; padding: 8rpx 28rpx 24rpx; box-sizing: border-box; }
+.cs__hint { display: block; text-align: center; font-size: 24rpx; color: rgba(255,255,255,0.4); padding: 48rpx 0; }
+.cs__empty { display: flex; flex-direction: column; align-items: center; gap: 12rpx; padding: 96rpx 0; }
+.cs__empty-txt { font-size: 28rpx; color: rgba(255,255,255,0.55); }
+.cs__empty-sub { font-size: 22rpx; color: rgba(255,255,255,0.3); }
+.cs__end { padding: 32rpx 0 16rpx; display: flex; justify-content: center; }
+.cs__end-txt { font-size: 22rpx; color: rgba(255,255,255,0.25); }
 
-/* 评论输入 */
-.cmt-input { display: flex; align-items: center; gap: 16rpx; padding: 16rpx 28rpx; border-top: 1rpx solid var(--border, #eee); }
-.cmt-input__field { flex: 1; height: 68rpx; padding: 0 28rpx; background: var(--surface-sunken, #f2f2f2); border-radius: 999rpx; font-size: 26rpx; color: var(--text, #1a1a1a); }
-.cmt-input__ph { color: var(--text-muted, #999); }
-.cmt-input__send { flex-shrink: 0; padding: 14rpx 32rpx; border-radius: 999rpx; background: var(--surface-sunken, #ddd); }
-.cmt-input__send--on { background: var(--brand); }
-.cmt-input__send-txt { font-size: 26rpx; color: #fff; }
+/* 评论项：头像 + (昵称弱色/正文主体/时间·回复行) + 右侧点赞小柱 */
+.cs-item { display: flex; gap: 20rpx; padding: 20rpx 0; border-radius: 16rpx; transition: background 0.5s; }
+.cs-item--flash { background: rgba(196,30,58,0.16); }
+.cs-item--sub { padding: 14rpx 0 6rpx; }
+.cs-item__avatar { width: 68rpx; height: 68rpx; border-radius: 999rpx; background: #333; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.cs-item__avatar--sub { width: 48rpx; height: 48rpx; }
+.cs-item__avatar-txt { font-size: 26rpx; font-weight: 500; color: rgba(255,255,255,0.6); }
+.cs-item__main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.cs-item__user { font-size: 24rpx; color: rgba(255,255,255,0.45); margin-bottom: 6rpx; }
+.cs-item__content { font-size: 28rpx; line-height: 1.55; color: rgba(255,255,255,0.92); word-break: break-all; }
+.cs-item__meta { display: flex; align-items: center; gap: 32rpx; margin-top: 10rpx; }
+.cs-item__time { font-size: 22rpx; color: rgba(255,255,255,0.32); }
+.cs-item__reply-btn { font-size: 22rpx; font-weight: 500; color: rgba(255,255,255,0.55); padding: 6rpx 0; }
+.cs-item__like { display: flex; flex-direction: column; align-items: center; gap: 4rpx; padding: 4rpx 0 0 8rpx; flex-shrink: 0; min-width: 56rpx; }
+.cs-item__like-num { font-size: 20rpx; color: rgba(255,255,255,0.45); min-height: 24rpx; }
+.cs-item__like-num--on { color: #c41e3a; }
+/* 楼中楼 */
+.cs-item__replies { margin-top: 6rpx; }
+.cs-item__expand { display: flex; align-items: center; gap: 12rpx; padding: 14rpx 0 4rpx; }
+.cs-item__expand-line { width: 48rpx; height: 1rpx; background: rgba(255,255,255,0.25); }
+.cs-item__expand-txt { font-size: 22rpx; color: rgba(255,255,255,0.45); }
+
+/* 底部常驻输入条 */
+.cs-input { flex-shrink: 0; border-top: 1rpx solid rgba(255,255,255,0.08); background: #1c1c1e; padding: 16rpx 28rpx 0; }
+.cs-input__reply-bar { display: flex; align-items: center; justify-content: space-between; padding: 0 8rpx 12rpx; }
+.cs-input__reply-txt { font-size: 22rpx; color: rgba(255,255,255,0.5); }
+.cs-input__reply-cancel { width: 44rpx; height: 44rpx; display: flex; align-items: center; justify-content: center; }
+.cs-input__row { display: flex; align-items: center; gap: 16rpx; }
+.cs-input__avatar { width: 60rpx; height: 60rpx; border-radius: 999rpx; background: #333; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+.cs-input__field { flex: 1; height: 72rpx; padding: 0 28rpx; background: rgba(255,255,255,0.08); border-radius: 999rpx; font-size: 26rpx; color: rgba(255,255,255,0.92); }
+.cs-input__ph { color: rgba(255,255,255,0.35); }
+.cs-input__send { flex-shrink: 0; padding: 16rpx 34rpx; border-radius: 999rpx; background: rgba(255,255,255,0.12); transition: background 0.2s; }
+.cs-input__send--on { background: var(--brand); }
+.cs-input__send-txt { font-size: 26rpx; font-weight: 500; color: #fff; }
+
+/* 分享面板 */
+.share-opts { display: flex; gap: 48rpx; padding: 24rpx 40rpx 8rpx; }
+.share-opt { display: flex; flex-direction: column; align-items: center; gap: 14rpx; }
+.share-opt__ico { width: 108rpx; height: 108rpx; border-radius: 999rpx; background: rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; }
+.share-opt__txt { font-size: 22rpx; color: rgba(255,255,255,0.65); }
+.share-tip { display: block; padding: 20rpx 40rpx 0; font-size: 22rpx; line-height: 1.6; color: rgba(255,255,255,0.35); }
 
 /* 商品 */
 .prod { display: flex; gap: 20rpx; padding: 20rpx; background: var(--surface-sunken, #f7f7f7); border-radius: 20rpx; margin-bottom: 18rpx; }

@@ -197,6 +197,10 @@
             </view>
             <view class="cc-video-info">
               <text class="cc-hot-title">{{ video.title }}</text>
+              <view class="cc-video-badges" v-if="video.selfOnly || video.status === 'removed'">
+                <text v-if="video.status === 'removed'" class="cc-badge cc-badge-removed" @tap.stop="showRemovedTip">已下架</text>
+                <text v-else-if="video.selfOnly" class="cc-badge cc-badge-selfonly" @tap.stop="showSelfOnlyTip">仅自己可见</text>
+              </view>
               <text class="cc-video-time">{{ video.publishTime }}</text>
               <view class="cc-video-metrics">
                 <view class="cc-metric"><text class="cc-metric-num">{{ fmt(video.views) }}</text><text class="cc-metric-label">播放</text></view>
@@ -391,6 +395,25 @@ async function loadAll() {
 
 function go(url: string) {
   navigateTo(url)
+}
+
+// 审核无感化（20260711 第八节）：SELF_ONLY / 已下架说明 + 申诉指引
+function showSelfOnlyTip() {
+  uni.showModal({
+    title: '仅自己可见',
+    content: '该作品经系统复核暂时调整为仅自己可见，其他用户看不到，不影响您查看和管理。如有疑问，请联系客服申诉，我们会尽快为您复核。',
+    showCancel: false,
+    confirmText: '知道了',
+  })
+}
+
+function showRemovedTip() {
+  uni.showModal({
+    title: '已下架',
+    content: '该作品因涉及违规内容已被下架，具体原因可在消息中心查看。如有疑问，请联系客服申诉。',
+    showCancel: false,
+    confirmText: '知道了',
+  })
 }
 
 onMounted(() => {
@@ -754,6 +777,26 @@ onMounted(() => {
   font-size: 12px;
   color: #999;
   margin-top: 4px;
+}
+.cc-video-badges {
+  margin-top: 4px;
+}
+.cc-badge {
+  display: inline-block;
+  font-size: 10px;
+  line-height: 1;
+  padding: 3px 8px;
+  border-radius: 8px;
+}
+.cc-badge-selfonly {
+  color: #8c8c8c;
+  background: #f0f0f0;
+  border: 1px solid #e0e0e0;
+}
+.cc-badge-removed {
+  color: #c4443a;
+  background: #fdf0ef;
+  border: 1px solid #f3d6d3;
 }
 .cc-video-metrics {
   display: grid;

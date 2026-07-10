@@ -307,6 +307,8 @@ function goDetail(id: string) {
 .cat-card-cover {
   width: 128rpx;
   flex-shrink: 0;
+  /* 防 flex stretch 拉高封面（.cat-card 未设 align-items，默认 stretch 会拉长变形） */
+  align-self: flex-start;
 }
 .cat-card-body {
   flex: 1;

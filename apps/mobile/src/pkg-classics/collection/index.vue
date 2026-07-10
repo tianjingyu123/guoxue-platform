@@ -58,9 +58,7 @@
           class="cd-stack-cover"
           :style="{ zIndex: 5 - i }"
         >
-          <view class="cd-stack-text">
-            <text v-for="(ch, ci) in Array.from(book.title.slice(0, 2))" :key="ci" class="cd-stack-char">{{ ch }}</text>
-          </view>
+          <flat-cover :title="book.title" :cover-color="coverColorForBook(book.title)" title-size="20rpx" />
         </view>
         <view v-if="collection.books.length > 5" class="cd-stack-more">
           <text class="cd-stack-more-text">+{{ collection.books.length - 5 }}</text>
@@ -87,10 +85,7 @@
             <text class="cd-book-num-text" :class="{ 'cd-book-num-text--top': i < 3 }">{{ i + 1 }}</text>
           </view>
           <view class="cd-book-cover">
-            <view class="cd-book-spine" />
-            <view class="cd-book-cover-text">
-              <text v-for="(ch, ci) in Array.from(book.title.slice(0, 2))" :key="ci" class="cd-book-cover-char">{{ ch }}</text>
-            </view>
+            <flat-cover :title="book.title" :cover-color="coverColorForBook(book.title)" title-size="20rpx" />
             <view v-if="book.hasAI" class="cd-book-ai">
               <app-icon name="sparkles" :size="16" color="#ffffff" />
             </view>
@@ -141,6 +136,8 @@
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
+import FlatCover from '@/components/classics/flat-cover.vue'
+import { coverColorForBook } from '@/lib/classics-cover'
 import { classicsApi, type CollectionDetail } from '@/lib/classics-data'
 
 const collectionId = ref('1')
@@ -296,14 +293,10 @@ function startReading() {
   display: flex;
   margin-bottom: 32rpx;
 }
+/* 堆叠书封：flat-cover 仿真书（只给宽度，高度由组件内部 3:4 撑出） */
 .cd-stack-cover {
   width: 80rpx;
-  height: 112rpx;
-  border-radius: 6rpx;
-  background: #f5f0e1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  border-radius: 12rpx;
   border: 4rpx solid var(--card);
   box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.12);
   margin-left: -16rpx;
@@ -311,22 +304,9 @@ function startReading() {
 .cd-stack-cover:first-child {
   margin-left: 0;
 }
-/* 逐字竖排（flex column 替代 writing-mode·X5 兼容） */
-.cd-stack-text {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-.cd-stack-char {
-  font-size: 22rpx;
-  line-height: 1.3;
-  font-weight: 700;
-  color: #4a3f2f;
-  font-family: 'Noto Serif SC', serif;
-}
 .cd-stack-more {
   width: 80rpx;
-  height: 112rpx;
+  /* 高度随 flex 行 stretch 与书封等高（X5 兼容） */
   border-radius: 6rpx;
   background: var(--secondary);
   display: flex;
@@ -435,40 +415,11 @@ function startReading() {
 .cd-book-num-text--top {
   color: #ffffff;
 }
+/* 书目行书封：flat-cover 仿真书（只给宽度，高度由组件内部 3:4 撑出） */
 .cd-book-cover {
   width: 80rpx;
-  height: 112rpx;
-  border-radius: 6rpx;
-  background: #f5f0e1;
-  border: 1rpx solid rgba(201, 184, 150, 0.5);
-  box-shadow: 0 2rpx 6rpx rgba(0, 0, 0, 0.08);
-  display: flex;
-  align-items: center;
-  justify-content: center;
   position: relative;
   flex-shrink: 0;
-}
-.cd-book-spine {
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 8rpx;
-  background: #d4c4a8;
-  border-radius: 6rpx 0 0 6rpx;
-}
-/* 逐字竖排（flex column 替代 writing-mode·X5 兼容） */
-.cd-book-cover-text {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-.cd-book-cover-char {
-  font-size: 24rpx;
-  line-height: 1.3;
-  font-weight: 700;
-  color: #4a3f2f;
-  font-family: 'Noto Serif SC', serif;
 }
 .cd-book-ai {
   position: absolute;

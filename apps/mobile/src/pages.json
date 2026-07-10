@@ -475,13 +475,8 @@
         {
           "path": "list/index",
           "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "center/index",
-          "style": {
-            "navigationStyle": "custom"
+            "navigationStyle": "custom",
+            "enablePullDownRefresh": true
           }
         },
         {

@@ -194,7 +194,8 @@ function goExpiryNotice() {
   navigateTo('/notifications')
 }
 function goOrders() {
-  navigateTo('/orders/center')
+  // 统一订单入口（原 /orders/center 老原型冗余页已下线，会员订单在统一列表按类型展示）
+  navigateTo('/orders')
 }
 function goVip() {
   navigateTo('/vip')

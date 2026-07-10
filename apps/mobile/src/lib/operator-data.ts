@@ -343,7 +343,7 @@ export const stationPanelQuickActions: StationPanelQuickAction[] = [
   { id: 'materials', label: '推广素材', icon: 'image', path: '/station/materials', description: '获取推广海报和文案' },
   { id: 'config', label: '分站配置', icon: 'settings', path: '/station/config', description: '自定义分站设置' },
   { id: 'income', label: '收益明细', icon: 'wallet', path: '/station/earnings', badge: 3, description: '查看收益和提现记录' },
-  { id: 'orders', label: '订单管理', icon: 'list', path: '/orders/center', description: '查看团队订单' },
+  { id: 'orders', label: '订单管理', icon: 'list', path: '/orders', description: '查看团队订单' },
   { id: 'assistant', label: '站长助理', icon: 'chart', path: '/station/assistant', description: 'AI 运营助理' },
   { id: 'help', label: '帮助中心', icon: 'help', path: '/help', description: '常见问题解答' },
 ]

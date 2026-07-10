@@ -31,6 +31,11 @@ async function fetchData(productId?: string) {
   try {
     const data = await shopApi.getProduct(productId || '1')
     product.value = data
+    // 底栏收藏态/购物车角标（未登录/失败静默降级，不阻塞详情渲染）
+    shopApi.isProductFavorited(String(data.id)).then((v) => { isFavorite.value = v })
+    shopApi.getCart()
+      .then((res) => { cartCount.value = (res.items || []).reduce((s, i) => s + i.quantity, 0) })
+      .catch(() => {})
     // 详情加载成功后拉取推荐（内置降级，无需 try/catch）
     recItems.value = await recommendApi.getForScene('product_detail', String(product.value?.id ?? productId ?? '1'))
   } catch (e) {
@@ -113,6 +118,28 @@ function buyNow() {
 }
 function goReviews() { navigateTo('/mall/product/reviews') }
 function goCart() { navigateTo('/shop/cart') }
+function goService() { navigateTo('/customer-service') }
+
+/** 购物车角标显示（超 99 显示 99+） */
+const cartBadge = computed(() => (cartCount.value > 99 ? '99+' : String(cartCount.value)))
+
+/** 收藏/取消收藏（持久化到 interaction/collect·乐观更新+失败回滚+防重复） */
+const favSubmitting = ref(false)
+async function toggleFavorite() {
+  if (!product.value || favSubmitting.value) return
+  favSubmitting.value = true
+  const prev = isFavorite.value
+  isFavorite.value = !prev
+  try {
+    isFavorite.value = await shopApi.toggleProductFavorite(String(product.value.id))
+    uni.showToast({ title: isFavorite.value ? '已收藏' : '已取消收藏', icon: 'none' })
+  } catch (e) {
+    isFavorite.value = prev
+    uni.showToast({ title: (e as Error)?.message || '操作失败', icon: 'none' })
+  } finally {
+    favSubmitting.value = false
+  }
+}
 </script>
 
 <template>
@@ -231,9 +258,10 @@ function goCart() { navigateTo('/shop/cart') }
       <view class="view-all" hover-class="card-press" @tap="goReviews"><text class="view-all-text">查看全部评价</text><AppIcon name="chevron-right" :size="26" color="var(--text-soft)" /></view>
     </view>
 
-    <!-- 商品详情（富文本 HTML·rich-text 渲染·含图文；去掉原硬编码"商品详情图"占位） -->
-    <view class="card">
-      <text class="card-title">商品详情</text>
+    <!-- 商品详情（富文本 HTML·rich-text 渲染·含图文）
+         图片区通栏到屏幕边（无左右 padding/圆角割裂），详情多图上下无缝拼接展示整体效果 -->
+    <view class="desc-section">
+      <view class="desc-head"><text class="card-title">商品详情</text></view>
       <rich-text v-if="product.description" class="desc" :nodes="product.description" />
       <text v-else class="desc desc-empty">暂无详情</text>
     </view>
@@ -244,9 +272,21 @@ function goCart() { navigateTo('/shop/cart') }
     <!-- 底部操作栏 -->
     <view class="action-bar">
       <view class="action-icons">
-        <view class="action-ico"><AppIcon name="message-circle" :size="40" color="var(--text-soft)" /><text class="action-ico-text">客服</text></view>
-        <view class="action-ico" @tap="goCart"><AppIcon name="shopping-cart" :size="40" color="var(--text-soft)" /><text class="action-ico-text">购物车</text><text v-if="cartCount > 0" class="cart-badge">{{ cartCount }}</text></view>
-        <view class="action-ico" @tap="isFavorite = !isFavorite"><AppIcon name="heart" :size="40" :color="isFavorite ? 'var(--brand)' : 'var(--text-soft)'" :fill="isFavorite" /><text class="action-ico-text">收藏</text></view>
+        <view class="action-ico" hover-class="card-press" @tap="goService">
+          <AppIcon name="message-circle" :size="44" color="var(--text-strong)" />
+          <text class="action-ico-text">客服</text>
+        </view>
+        <view class="action-ico" hover-class="card-press" @tap="goCart">
+          <view class="action-ico-wrap">
+            <AppIcon name="shopping-cart" :size="44" color="var(--text-strong)" />
+            <text v-if="cartCount > 0" class="cart-badge">{{ cartBadge }}</text>
+          </view>
+          <text class="action-ico-text">购物车</text>
+        </view>
+        <view class="action-ico" :class="{ 'action-ico-on': isFavorite }" hover-class="card-press" @tap="toggleFavorite">
+          <AppIcon name="heart" :size="44" :color="isFavorite ? 'var(--brand)' : 'var(--text-strong)'" :fill="isFavorite" />
+          <text class="action-ico-text" :class="{ 'action-ico-text-on': isFavorite }">{{ isFavorite ? '已收藏' : '收藏' }}</text>
+        </view>
       </view>
       <view class="action-btns">
         <view class="btn-cart" hover-class="card-press" @tap="openSpecPanel('cart')"><text class="btn-cart-text">加入购物车</text></view>
@@ -362,17 +402,22 @@ function goCart() { navigateTo('/shop/cart') }
 .rv-like-num { font-size: 20rpx; color: var(--text-soft); }
 .view-all { display: flex; align-items: center; justify-content: center; gap: 6rpx; margin-top: 16rpx; padding: 16rpx 0; }
 .view-all-text { font-size: 26rpx; color: var(--text-soft); }
-/* 详情 */
-.desc { display: block; font-size: 26rpx; color: var(--text-soft); line-height: 1.7; margin-top: 20rpx; white-space: pre-line; }
-.desc-imgs { margin-top: 28rpx; display: flex; flex-direction: column; gap: 16rpx; }
-.desc-img-ph { width: 100%; padding-bottom: 56rpx; padding-top: 56rpx; background: var(--surface-sunken); border-radius: 12rpx; display: flex; align-items: center; justify-content: center; height: 280rpx; box-sizing: border-box; }
-.desc-img-text { font-size: 20rpx; color: var(--text-soft); }
+/* 详情：图片通栏（section 无左右 margin/padding/圆角），标题与文字简介保留内边距。
+   注意不加 white-space: pre-line —— HTML 源码里的换行符会被渲染成多余空白行（图片间的另一层"缝"） */
+.desc-section { margin-top: 24rpx; background: var(--surface); overflow: hidden; }
+.desc-head { padding: 28rpx 28rpx 8rpx; }
+.desc { display: block; font-size: 26rpx; color: var(--text); line-height: 1.7; }
+.desc-empty { padding: 0 28rpx 28rpx; color: var(--text-soft); }
 /* 底部操作栏 */
 .action-bar { position: fixed; bottom: 0; left: 0; right: 0; z-index: 30; background: var(--surface); border-top: 1rpx solid var(--border, #eee); padding: 16rpx 28rpx calc(16rpx + env(safe-area-inset-bottom)); display: flex; align-items: center; gap: 24rpx; }
-.action-icons { display: flex; gap: 36rpx; }
-.action-ico { position: relative; display: flex; flex-direction: column; align-items: center; gap: 2rpx; }
-.action-ico-text { font-size: 18rpx; color: var(--text-soft); }
-.cart-badge { position: absolute; top: -8rpx; right: -8rpx; min-width: 28rpx; height: 28rpx; padding: 0 6rpx; border-radius: 999rpx; background: var(--brand); color: #fff; font-size: 18rpx; display: flex; align-items: center; justify-content: center; }
+/* 左侧图标组：每项 ≥88rpx 触达区·图标+文字·收藏激活有浅红底衬（X5 防御：内容层 relative+z-index） */
+.action-icons { display: flex; gap: 8rpx; }
+.action-ico { position: relative; z-index: 1; min-width: 88rpx; min-height: 88rpx; padding: 8rpx 4rpx; border-radius: 16rpx; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6rpx; }
+.action-ico-on { background: var(--brand-soft, rgba(196, 30, 58, 0.08)); }
+.action-ico-wrap { position: relative; display: flex; }
+.action-ico-text { position: relative; z-index: 1; font-size: 20rpx; line-height: 1; color: var(--text-strong); }
+.action-ico-text-on { color: var(--brand); font-weight: 500; }
+.cart-badge { position: absolute; top: -10rpx; right: -14rpx; z-index: 2; min-width: 30rpx; height: 30rpx; padding: 0 6rpx; border-radius: 999rpx; background: var(--brand); color: #fff; font-size: 18rpx; font-weight: 600; line-height: 1; display: flex; align-items: center; justify-content: center; border: 2rpx solid var(--surface, #fff); box-sizing: border-box; }
 .action-btns { flex: 1; display: flex; gap: 16rpx; }
 .btn-cart { flex: 1; height: 80rpx; border-radius: 999rpx; background: var(--gold, #c9a96e); display: flex; align-items: center; justify-content: center; }
 .btn-cart-text { font-size: 26rpx; font-weight: 500; color: #fff; }
@@ -410,4 +455,24 @@ function goCart() { navigateTo('/shop/cart') }
 .state-text { font-size: 26rpx; color: var(--text-soft); margin-top: 20rpx; }
 .state-retry { margin-top: 32rpx; padding: 16rpx 48rpx; border-radius: 999rpx; background: var(--brand); }
 .state-retry-text { font-size: 26rpx; color: #fff; font-weight: 500; }
+</style>
+
+<style lang="scss">
+/* H5 端 rich-text 渲染为真实 DOM，但 scoped 样式吃不到其内部节点 → 用非 scoped 块 + 页面独有类名限定，
+   作为数据层行内样式注入（@/utils/rich-content）之外的 CSS 兜底：详情多图无缝拼接 */
+.desc-section .desc img {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  vertical-align: top;
+}
+.desc-section .desc p {
+  margin: 0;
+  /* 文字段落保留左右内边距；纯图片段落已被行内 padding:0 覆盖 → 图片仍通栏到屏幕边 */
+  padding: 0 28rpx;
+  box-sizing: border-box;
+}
 </style>

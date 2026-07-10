@@ -5,9 +5,12 @@
       <view class="nt-nav">
         <view class="nt-nav-left">
           <view class="nt-back" @tap="goBack">
-            <app-icon name="arrow-left" :size="40" color="#999999" />
+            <app-icon name="arrow-left" :size="40" color="#6b6355" />
           </view>
-          <text class="nt-title">我的笔记</text>
+          <view class="nt-title-wrap">
+            <text class="nt-title">我的笔记</text>
+            <text v-if="!loading && !isGuest && !error && notes.length" class="nt-title-sub">共 {{ notes.length }} 条 · 点卡片回到书中章节</text>
+          </view>
         </view>
         <view class="nt-nav-right">
           <template v-if="isSelectMode">
@@ -64,12 +67,12 @@
       <!-- 空状态 -->
       <view v-else-if="filtered.length === 0" class="nt-empty">
         <view class="nt-empty-icon">
-          <app-icon name="file-text" :size="64" color="#999999" />
+          <app-icon name="file-text" :size="64" color="#c41e3a" />
         </view>
-        <text class="nt-empty-title">暂无笔记</text>
-        <text class="nt-empty-sub">阅读时选中文字可添加笔记</text>
+        <text class="nt-empty-verse">不动笔墨，不读书</text>
+        <text class="nt-empty-sub">阅读时点底部「笔记」，记下所思所悟</text>
         <view class="nt-empty-btn" @tap="goHome">
-          <text class="nt-empty-btn-text">去阅读</text>
+          <text class="nt-empty-btn-text">去读书</text>
         </view>
       </view>
 
@@ -80,20 +83,20 @@
           :key="note.id"
           class="nt-card"
           :class="{ 'nt-card--selected': selectedIds.has(note.id) }"
-          @tap="isSelectMode && toggleSelect(note.id)"
+          @tap="onCardTap(note)"
         >
           <view class="nt-card-head">
             <view class="nt-card-book">
-              <text class="nt-card-book-title">《{{ note.bookTitle }}》</text>
-              <text class="nt-card-loc">{{ note.chapter }} · 第{{ note.page }}页</text>
+              <text class="nt-card-book-title">{{ note.bookTitle }}</text>
+              <view class="nt-chapter-chip"><text class="nt-chapter-chip-text">{{ note.chapter || '未知章节' }}</text></view>
             </view>
             <view v-if="!isSelectMode" class="nt-icon-btn" @tap.stop="openItemMenu(note.id)">
-              <app-icon name="more-vertical" :size="32" color="#999999" />
+              <app-icon name="more-vertical" :size="32" color="#a89e8c" />
             </view>
           </view>
 
-          <!-- 原文引用 -->
-          <view class="nt-quote">
+          <!-- 原文引用（旧数据无摘录则隐藏） -->
+          <view v-if="note.originalText" class="nt-quote">
             <text class="nt-quote-text">{{ note.originalText }}</text>
           </view>
 
@@ -103,14 +106,20 @@
           <!-- 标签和时间 -->
           <view class="nt-meta">
             <view class="nt-tags">
-              <app-icon name="tag" :size="22" color="#999999" />
-              <view v-for="(tag, i) in note.tags" :key="i" class="nt-tag">
-                <text class="nt-tag-text">{{ tag }}</text>
+              <template v-if="note.tags.length">
+                <app-icon name="tag" :size="22" color="#a89e8c" />
+                <view v-for="(tag, i) in note.tags" :key="i" class="nt-tag">
+                  <text class="nt-tag-text">{{ tag }}</text>
+                </view>
+              </template>
+              <view v-else class="nt-time">
+                <app-icon name="clock" :size="22" color="#a89e8c" />
+                <text class="nt-time-text">{{ note.updatedAt }}</text>
               </view>
             </view>
-            <view class="nt-time">
-              <app-icon name="clock" :size="22" color="#999999" />
-              <text class="nt-time-text">{{ note.updatedAt }}</text>
+            <view v-if="!isSelectMode" class="nt-goto">
+              <text class="nt-goto-text">回到原文</text>
+              <app-icon name="chevron-right" :size="24" color="#c41e3a" />
             </view>
           </view>
         </view>
@@ -121,14 +130,15 @@
         <view v-for="group in grouped" :key="group.bookId" class="nt-group">
           <view class="nt-group-head" @tap="goBook(group.bookId)">
             <view class="nt-group-left">
-              <view class="nt-group-cover">
-                <view class="nt-group-cover-text">
-                  <text v-for="(ch, ci) in Array.from(group.bookTitle.slice(0, 2))" :key="ci" class="nt-group-cover-char">{{ ch }}</text>
-                </view>
-              </view>
+              <flat-cover
+                :title="group.bookTitle"
+                :cover-color="coverColorForBook(group.bookTitle)"
+                title-size="18rpx"
+                class="nt-group-cover"
+              />
               <view class="nt-group-info">
                 <text class="nt-group-title">《{{ group.bookTitle }}》</text>
-                <text class="nt-group-author">[{{ group.dynasty }}] {{ group.bookAuthor }}</text>
+                <text class="nt-group-author">{{ group.dynasty ? `[${group.dynasty}] ` : '' }}{{ group.bookAuthor || '佚名' }}</text>
               </view>
             </view>
             <view class="nt-group-right">
@@ -142,10 +152,13 @@
               :key="note.id"
               class="nt-subcard"
               :class="{ 'nt-card--selected': selectedIds.has(note.id) }"
-              @tap="isSelectMode && toggleSelect(note.id)"
+              @tap="onCardTap(note)"
             >
-              <text class="nt-subcard-loc">{{ note.chapter }} · 第{{ note.page }}页</text>
-              <text class="nt-subcard-quote">{{ note.originalText }}</text>
+              <view class="nt-subcard-locrow">
+                <text class="nt-subcard-loc">{{ note.chapter || '未知章节' }}</text>
+                <text class="nt-subcard-time">{{ note.updatedAt.slice(0, 10) }}</text>
+              </view>
+              <text v-if="note.originalText" class="nt-subcard-quote">{{ note.originalText }}</text>
               <text class="nt-subcard-content">{{ note.noteContent }}</text>
             </view>
           </view>
@@ -168,6 +181,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import FlatCover from '@/components/classics/flat-cover.vue'
+import { coverColorForBook } from '@/lib/classics-cover'
 import { classicsApi, type NoteItem } from '@/lib/classics-data'
 import { getToken } from '@/utils/storage'
 
@@ -226,6 +241,18 @@ const grouped = computed(() => {
   }))
 })
 
+/** 点卡片：选择模式下切选中，否则回到书中对应章节 */
+function onCardTap(note: NoteItem) {
+  if (isSelectMode.value) { toggleSelect(note.id); return }
+  goReaderAt(note)
+}
+function goReaderAt(note: NoteItem) {
+  if (!note.bookId) { uni.showToast({ title: '书籍信息缺失', icon: 'none' }); return }
+  let url = `/pkg-classics/reader/index?bookId=${note.bookId}`
+  if (note.chapterId) url += `&chapterId=${note.chapterId}`
+  uni.navigateTo({ url })
+}
+
 function toggleSelect(id: string) {
   const next = new Set(selectedIds.value)
   if (next.has(id)) next.delete(id)
@@ -269,10 +296,10 @@ function openManageMenu() {
 function openItemMenu(id: string) {
   const note = notes.value.find((n) => n.id === id)
   uni.showActionSheet({
-    itemList: ['编辑', '跳转阅读', '删除'],
+    itemList: ['编辑', '回到原文位置', '删除'],
     success: (res) => {
       if (res.tapIndex === 0 && note) openEdit(note)
-      else if (res.tapIndex === 1 && note) uni.navigateTo({ url: `/pkg-classics/reader/index?bookId=${note.bookId}` })
+      else if (res.tapIndex === 1 && note) goReaderAt(note)
       else if (res.tapIndex === 2) deleteItem(id)
     },
   })
@@ -321,15 +348,15 @@ async function saveEdit() {
 .nt-edit-disabled { opacity: 0.5; }
 .nt-page {
   min-height: 100vh;
-  background: var(--background);
+  background: var(--classics-bg, #f4f2ee);
   padding-bottom: 48rpx;
 }
 .nt-header {
   position: sticky;
   top: 0;
   z-index: 50;
-  background: var(--background);
-  border-bottom: 1rpx solid rgba(232, 224, 213, 0.6);
+  background: var(--classics-bg, #f4f2ee);
+  border-bottom: 1rpx solid rgba(196, 30, 58, 0.08);
 }
 .nt-nav {
   display: flex;
@@ -351,10 +378,21 @@ async function saveEdit() {
   align-items: center;
   justify-content: center;
 }
+.nt-title-wrap {
+  display: flex;
+  flex-direction: column;
+}
 .nt-title {
-  font-size: 32rpx;
-  font-weight: 500;
-  color: var(--foreground);
+  font-family: var(--font-serif, 'Noto Serif SC', serif);
+  font-size: 36rpx;
+  font-weight: 700;
+  color: #2c2c2c;
+  letter-spacing: 2rpx;
+}
+.nt-title-sub {
+  font-size: 20rpx;
+  color: #a89e8c;
+  margin-top: 2rpx;
 }
 .nt-nav-right {
   display: flex;
@@ -401,38 +439,40 @@ async function saveEdit() {
   align-items: center;
   gap: 16rpx;
   height: 72rpx;
-  padding: 0 24rpx;
+  padding: 0 28rpx;
   border-radius: 999rpx;
-  background: var(--secondary);
+  background: #ffffff;
+  border: 1rpx solid rgba(0, 0, 0, 0.05);
 }
 .nt-search-input {
   flex: 1;
   font-size: 28rpx;
-  color: var(--foreground);
+  color: #2c2c2c;
 }
 .nt-ph {
-  color: #999999;
+  color: #b8ae9c;
 }
 .nt-toggle {
   display: flex;
-  background: var(--secondary);
-  border-radius: 16rpx;
+  background: rgba(0, 0, 0, 0.04);
+  border-radius: 999rpx;
   padding: 4rpx;
 }
 .nt-toggle-btn {
-  padding: 8rpx 24rpx;
-  border-radius: 12rpx;
+  padding: 10rpx 24rpx;
+  border-radius: 999rpx;
 }
 .nt-toggle-btn--active {
-  background: var(--background);
-  box-shadow: 0 2rpx 6rpx rgba(0, 0, 0, 0.06);
+  background: #ffffff;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.06);
 }
 .nt-toggle-text {
   font-size: 24rpx;
-  color: #999999;
+  color: #a89e8c;
 }
 .nt-toggle-text--active {
-  color: var(--foreground);
+  color: var(--brand, #c41e3a);
+  font-weight: 600;
 }
 .nt-body {
   padding: 32rpx;
@@ -445,49 +485,59 @@ async function saveEdit() {
 .nt-card {
   padding: 32rpx;
   border-radius: 24rpx;
-  background: var(--card);
-  border: 1rpx solid var(--border);
+  background: #ffffff;
+  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.04);
+  &:active { box-shadow: 0 2rpx 16rpx rgba(0, 0, 0, 0.08); }
 }
 .nt-card--selected {
-  box-shadow: 0 0 0 4rpx var(--brand);
+  box-shadow: 0 0 0 4rpx var(--brand, #c41e3a);
 }
 .nt-card-head {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  margin-bottom: 24rpx;
+  margin-bottom: 20rpx;
 }
 .nt-card-book {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 16rpx;
 }
 .nt-card-book-title {
-  font-size: 28rpx;
-  font-weight: 500;
-  color: var(--foreground);
+  font-family: var(--font-serif, 'Noto Serif SC', serif);
+  font-size: 32rpx;
+  font-weight: 700;
+  color: #2c2c2c;
 }
-.nt-card-loc {
-  font-size: 24rpx;
-  color: #999999;
+.nt-chapter-chip {
+  padding: 4rpx 20rpx;
+  border-radius: 999rpx;
+  background: rgba(196, 30, 58, 0.08);
+}
+.nt-chapter-chip-text {
+  font-size: 22rpx;
+  color: var(--brand, #c41e3a);
+  font-weight: 500;
 }
 .nt-quote {
   padding: 16rpx 24rpx;
-  border-left: 4rpx solid #fbbf24;
-  background: rgba(254, 243, 199, 0.5);
+  border-left: 6rpx solid rgba(196, 30, 58, 0.35);
+  background: var(--classics-bg, #f4f2ee);
   border-radius: 0 16rpx 16rpx 0;
-  margin-bottom: 24rpx;
+  margin-bottom: 20rpx;
 }
 .nt-quote-text {
   font-size: 28rpx;
-  color: #92400e;
-  font-family: 'Noto Serif SC', serif;
+  line-height: 1.8;
+  color: #4a4136;
+  font-family: var(--font-serif, 'Noto Serif SC', serif);
 }
 .nt-content {
   font-size: 28rpx;
-  line-height: 1.6;
-  color: #999999;
-  margin-bottom: 24rpx;
+  line-height: 1.7;
+  color: #4a4136;
+  margin-bottom: 20rpx;
   display: block;
 }
 .nt-meta {
@@ -501,13 +551,13 @@ async function saveEdit() {
   gap: 12rpx;
 }
 .nt-tag {
-  padding: 2rpx 12rpx;
-  border-radius: 8rpx;
-  background: var(--secondary);
+  padding: 2rpx 16rpx;
+  border-radius: 999rpx;
+  background: rgba(196, 30, 58, 0.06);
 }
 .nt-tag-text {
   font-size: 20rpx;
-  color: var(--foreground);
+  color: var(--brand, #c41e3a);
 }
 .nt-time {
   display: flex;
@@ -516,7 +566,17 @@ async function saveEdit() {
 }
 .nt-time-text {
   font-size: 22rpx;
-  color: #999999;
+  color: #a89e8c;
+}
+.nt-goto {
+  display: flex;
+  align-items: center;
+  gap: 4rpx;
+}
+.nt-goto-text {
+  font-size: 24rpx;
+  font-weight: 600;
+  color: var(--brand, #c41e3a);
 }
 .nt-groups {
   display: flex;
@@ -528,46 +588,30 @@ async function saveEdit() {
   align-items: center;
   justify-content: space-between;
   padding: 24rpx;
-  background: var(--secondary);
-  border-radius: 16rpx;
-  margin-bottom: 16rpx;
+  background: #ffffff;
+  border-radius: 20rpx;
+  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.04);
+  margin-bottom: 20rpx;
 }
 .nt-group-left {
   display: flex;
   align-items: center;
   gap: 24rpx;
 }
+/* 分组头书封：flat-cover 仿真书（只给宽度，高度由组件内部 3:4 撑出） */
 .nt-group-cover {
   width: 64rpx;
-  height: 88rpx;
-  border-radius: 8rpx;
-  background: linear-gradient(to bottom, #fef3c7, #fffbeb);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 2rpx 6rpx rgba(0, 0, 0, 0.06);
-}
-/* 逐字竖排（flex column 替代 writing-mode·X5 兼容） */
-.nt-group-cover-text {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-.nt-group-cover-char {
-  font-size: 22rpx;
-  line-height: 1.3;
-  font-weight: 700;
-  color: #92400e;
-  font-family: 'Noto Serif SC', serif;
+  flex-shrink: 0;
 }
 .nt-group-title {
-  font-size: 28rpx;
-  font-weight: 500;
-  color: var(--foreground);
+  font-family: var(--font-serif, 'Noto Serif SC', serif);
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #2c2c2c;
 }
 .nt-group-author {
   font-size: 24rpx;
-  color: #999999;
+  color: #a89e8c;
 }
 .nt-group-right {
   display: flex;
@@ -576,33 +620,43 @@ async function saveEdit() {
 }
 .nt-group-count {
   font-size: 24rpx;
-  color: #999999;
+  color: var(--brand, #c41e3a);
 }
 .nt-group-items {
   display: flex;
   flex-direction: column;
   gap: 16rpx;
   padding-left: 32rpx;
-  border-left: 4rpx solid rgba(232, 224, 213, 0.6);
+  border-left: 4rpx solid rgba(196, 30, 58, 0.12);
   margin-left: 32rpx;
 }
 .nt-subcard {
-  padding: 24rpx;
+  padding: 24rpx 28rpx;
   border-radius: 16rpx;
-  background: var(--card);
-  border: 1rpx solid var(--border);
+  background: #ffffff;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.03);
+  &:active { box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.07); }
+}
+.nt-subcard-locrow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8rpx;
 }
 .nt-subcard-loc {
-  font-size: 22rpx;
-  color: #999999;
-  margin-bottom: 8rpx;
-  display: block;
+  font-size: 24rpx;
+  font-weight: 600;
+  color: var(--brand, #c41e3a);
+}
+.nt-subcard-time {
+  font-size: 20rpx;
+  color: #a89e8c;
 }
 .nt-subcard-quote {
   font-size: 28rpx;
-  color: #b45309;
-  font-family: 'Noto Serif SC', serif;
-  margin-bottom: 16rpx;
+  color: #6b4f2a;
+  font-family: var(--font-serif, 'Noto Serif SC', serif);
+  margin-bottom: 12rpx;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -610,7 +664,8 @@ async function saveEdit() {
 }
 .nt-subcard-content {
   font-size: 28rpx;
-  color: #999999;
+  line-height: 1.7;
+  color: #4a4136;
   overflow: hidden;
   text-overflow: ellipsis;
   display: -webkit-box;
@@ -629,34 +684,46 @@ async function saveEdit() {
   width: 160rpx;
   height: 160rpx;
   border-radius: 999rpx;
-  background: var(--secondary);
+  background: rgba(196, 30, 58, 0.08);
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 32rpx;
+  margin-bottom: 40rpx;
+}
+.nt-empty-verse {
+  font-family: var(--font-serif, 'Noto Serif SC', serif);
+  font-size: 34rpx;
+  font-weight: 700;
+  color: #2c2c2c;
+  letter-spacing: 2rpx;
+  margin-bottom: 16rpx;
 }
 .nt-empty-title {
   font-size: 30rpx;
   font-weight: 500;
-  color: var(--foreground);
+  color: #2c2c2c;
   margin-bottom: 8rpx;
 }
 .nt-empty-sub {
-  font-size: 28rpx;
-  color: #999999;
-  margin-bottom: 32rpx;
+  font-size: 26rpx;
+  color: #a89e8c;
+  margin-bottom: 40rpx;
+  line-height: 1.6;
 }
 .nt-empty-btn {
   height: 80rpx;
-  padding: 0 48rpx;
+  padding: 0 64rpx;
   border-radius: 999rpx;
-  border: 1rpx solid var(--border);
+  background: var(--brand, #c41e3a);
+  box-shadow: 0 4rpx 16rpx rgba(196, 30, 58, 0.25);
   display: flex;
   align-items: center;
   justify-content: center;
+  &:active { opacity: 0.85; }
 }
 .nt-empty-btn-text {
   font-size: 28rpx;
-  color: var(--foreground);
+  font-weight: 600;
+  color: #ffffff;
 }
 </style>

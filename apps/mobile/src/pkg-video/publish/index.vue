@@ -233,7 +233,7 @@
               <view class="vp-scope-radio" :class="{ on: visibility === 'PLATFORM' }" />
               <view class="vp-scope-main">
                 <text class="vp-scope-name">全平台开放</text>
-                <text class="vp-scope-desc">全平台开放需平台审核，通过后进入公共池</text>
+                <text class="vp-scope-desc">全平台用户都能刷到你的作品</text>
               </view>
             </view>
           </view>
@@ -366,7 +366,7 @@ const description = ref('')
 const tags = ref<string[]>([])
 const tagInput = ref('')
 const isPublic = ref(true)
-// 开放范围（后端 CreateVideoDto.visibility 已收·默认仅本圈；全平台需平台审核）
+// 开放范围（后端 CreateVideoDto.visibility 已收·默认仅本圈；全平台发布即可见，机审后台异步）
 const visibility = ref<'CIRCLE_ONLY' | 'PLATFORM'>('CIRCLE_ONLY')
 const titleError = ref('')
 
@@ -528,22 +528,9 @@ async function handlePublish() {
     })
     uploadProgress.value = 100
     await new Promise((r) => setTimeout(r, 300))
-    if (visibility.value === 'PLATFORM') {
-      // 全平台开放：提交后进入平台审核（管理员/官方圈自动过审，提示不影响）
-      uni.showModal({
-        title: '发布成功',
-        content: '已提交平台审核，可在 圈子·我的 → 发布审核 查看进度',
-        confirmText: '查看进度',
-        cancelText: '知道了',
-        success: (r) => {
-          if (r.confirm) navigateTo('/pkg-circle/circles/my-audits')
-          else navigateTo('/videos')
-        },
-      })
-    } else {
-      uni.showToast({ title: '发布成功', icon: 'success' })
-      setTimeout(() => navigateTo('/videos'), 600)
-    }
+    // 审核无感化（20260711 第八节）：发布即可见，机审后台异步完成，无任何审核提示
+    uni.showToast({ title: '发布成功', icon: 'success' })
+    setTimeout(() => navigateTo('/videos'), 600)
   } catch (e) {
     uni.showToast({ title: (e as Error)?.message || '发布失败，请重试', icon: 'none' })
   } finally {
