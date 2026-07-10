@@ -279,11 +279,20 @@ export class CircleController {
 
   @Post(":id/renew")
   @UseGuards(JwtAuthGuard)
-  @ApiOperation({ summary: "续费年费圈子" })
+  @ApiOperation({ summary: "续费年费圈子（创建现金订单·仅人民币）" })
   @ApiBearerAuth()
-  @ApiResponse({ status: 201, description: "续费成功" })
+  @ApiResponse({ status: 201, description: "返回支付信息" })
   renewCircle(@Param("id") circleId: string, @Req() req: Request, @Body() dto?: { payMethod?: string }) {
     return this.circle.renewCircle(circleId, req.user.id, dto);
+  }
+
+  @Post(":id/renew/confirm")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "确认续费（支付完成后调用·顺延到期时间）" })
+  @ApiBearerAuth()
+  @ApiResponse({ status: 201, description: "续费成功" })
+  confirmRenew(@Param("id") circleId: string, @Req() req: Request, @Body() dto: { orderId?: string; orderNo?: string }) {
+    return this.circle.confirmRenew(circleId, req.user.id, dto);
   }
 
   @Post(":id/leave")

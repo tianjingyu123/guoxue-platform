@@ -959,6 +959,7 @@ enum OrderType {
   COURSE
   PRODUCT
   CIRCLE_JOIN
+  CIRCLE_RENEW
   STATION_MASTER
   OPERATOR
   BOT_SERVICE
@@ -3376,6 +3377,7 @@ enum CoinTransType {
   SPEND // 消费
   REFUND // 退款
   GRANT // 平台赠送
+  INCOME // 收入（打赏分成等·可直接消费——董事长拍板 2026-07-10 打赏金币与虚拟币消费通用）
 }
 
 enum CoinScene {
@@ -3393,6 +3395,7 @@ enum CoinScene {
   BOUNTY_UNFREEZE // 悬赏解冻
   POST_REWARD // 帖子打赏（2026-07-03 补：代码早在用但枚举缺失，落库被 DB 拒）
   CONSULT_CALL_PREPAY // 咨询通话预扣（同上）
+  LIVE_GIFT_INCOME // 直播打赏分成收入（主播侧·入金币余额可直接消费）
 }
 
 model VirtualCoinTransaction {
@@ -3572,7 +3575,8 @@ model GiftRecord {
 
 enum EarningScene {
   QUESTION // 付费提问
-  PEEK // 围观答案
+  PEEK // 围观答案·达人分成
+  PEEK_ASKER // 围观答案·提问者分成（董事长拍板 2026-07-10：平台40/提问者30/达人30）
   AUDIO_CALL // 音频连麦
   LIVE_GIFT // 直播打赏
 }

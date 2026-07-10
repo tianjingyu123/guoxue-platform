@@ -9,6 +9,11 @@ import { ErrorCode } from "../../common/error-codes";
 import { CreateBountyDto, AnswerBountyDto } from "./bounty.dto";
 import { safePagination, NO_PAGE_LIMIT } from "../../common/pagination";
 
+/** 悬赏有效期（董事长拍板 2026-07-10：统一 48 小时，到期无人应答自动全额退回） */
+const BOUNTY_TTL_MS = 48 * 3600 * 1000;
+/** 抢答锁定时长（不超过悬赏剩余有效期） */
+const CLAIM_LOCK_MS = 72 * 3600 * 1000;
+
 @Injectable()
 export class BountyService {
   private readonly logger = new Logger(BountyService.name);
@@ -51,9 +56,14 @@ export class BountyService {
     if (!question || question.status !== "OPEN") throw new BusinessException(ErrorCode.BAD_REQUEST, "悬赏不可抢答");
     if (question.askerId === userId) throw new BusinessException(ErrorCode.BAD_REQUEST, "不能抢答自己的悬赏");
 
+    // 悬赏有效期 48 小时：过期不可再抢答（待每小时清理任务退款）
+    const expireAt = question.createdAt.getTime() + BOUNTY_TTL_MS;
+    if (Date.now() >= expireAt) throw new BusinessException(ErrorCode.BAD_REQUEST, "悬赏已过期");
+
     return this.prisma.bountyQuestion.update({
       where: { id: questionId },
-      data: { status: "CLAIMED", answererId: userId, lockExpireAt: new Date(Date.now() + 72 * 3600 * 1000) },
+      // 抢答锁不越过悬赏 48h 有效期终点
+      data: { status: "CLAIMED", answererId: userId, lockExpireAt: new Date(Math.min(Date.now() + CLAIM_LOCK_MS, expireAt)) },
     });
   }
 
@@ -223,18 +233,18 @@ export class BountyService {
     });
   }
 
-  /** 每天检查超过30天无人抢答的悬赏，自动退款（多实例锁防重复退款/双解冻） */
-  @Cron(CronExpression.EVERY_DAY_AT_3AM)
+  /** 每小时检查超过 48 小时无人应答的悬赏，自动全额退款（董事长拍板 2026-07-10·多实例锁防重复退款/双解冻） */
+  @Cron(CronExpression.EVERY_HOUR)
   async processExpiredBounties() {
     await this.redis.runExclusive("bounty_expired_bounties", 1800, () => this._processExpiredBounties(), { critical: true });
   }
 
   private async _processExpiredBounties() {
-    const thirtyDaysAgo = new Date(Date.now() - 30 * 86400 * 1000);
+    const ttlAgo = new Date(Date.now() - BOUNTY_TTL_MS);
     const expired = await this.prisma.bountyQuestion.findMany({
       where: {
         status: { in: ["OPEN", "CLAIMED"] },
-        createdAt: { lt: thirtyDaysAgo },
+        createdAt: { lt: ttlAgo },
       },
       select: { id: true, askerId: true, bountyCoin: true, status: true },
       take: 50,

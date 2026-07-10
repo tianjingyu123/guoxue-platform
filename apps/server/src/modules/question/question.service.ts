@@ -170,12 +170,19 @@ export class QuestionService {
       });
     });
 
+    // 围观分成（董事长拍板 2026-07-10）：平台 40% / 提问者 30% / 达人 30%
     this.revenue.record({
       userId: question.answererId,
       scene: "PEEK",
       refId: questionId,
       amountCoin: question.peekPriceCoin,
-    }).catch((err) => this.logger.warn("退款通知失败", err));
+    }).catch((err) => this.logger.warn("围观达人分成入账失败", err));
+    this.revenue.record({
+      userId: question.askerId,
+      scene: "PEEK_ASKER",
+      refId: questionId,
+      amountCoin: question.peekPriceCoin,
+    }).catch((err) => this.logger.warn("围观提问者分成入账失败", err));
 
     return question;
   }

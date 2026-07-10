@@ -130,8 +130,8 @@ export class CheckSensitiveDto {
 }
 
 export class ContentAuditListQueryDto {
-  @ApiPropertyOptional({ description: "最终状态", enum: ["PENDING", "APPROVED", "REJECTED", "WITHDRAWN"], default: "PENDING" })
-  @IsOptional() @IsIn(["PENDING", "APPROVED", "REJECTED", "WITHDRAWN"])
+  @ApiPropertyOptional({ description: "最终状态（ALL=不过滤）", enum: ["PENDING", "APPROVED", "REJECTED", "WITHDRAWN", "ALL"], default: "PENDING" })
+  @IsOptional() @IsIn(["PENDING", "APPROVED", "REJECTED", "WITHDRAWN", "ALL"])
   finalStatus?: string;
 
   @ApiPropertyOptional({ description: "内容类型", enum: ["ARTICLE", "POST", "COURSE", "VIDEO", "LIVE"] })

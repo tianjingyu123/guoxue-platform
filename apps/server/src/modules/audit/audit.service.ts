@@ -362,28 +362,29 @@ export class AuditService {
     }
   }
 
-  /** 平台内容审核队列（五类内容统一台账·附提交人与内容标题） */
+  /** 平台内容审核队列（五类内容统一台账·附提交人与内容标题）。finalStatus="ALL" 不过滤状态（C 端「我的提交」用） */
   async listContentAudits(params: {
     finalStatus?: string;
     contentType?: string;
     circleId?: string;
+    submitterId?: string;
     page?: number;
     pageSize?: number;
   }) {
     const { page, pageSize, skip } = safePagination(params.page, params.pageSize, NO_PAGE_LIMIT);
-    const where: Prisma.ContentAuditRecordWhereInput = {
-      deletedAt: null,
-      finalStatus: params.finalStatus || "PENDING",
-    };
+    const where: Prisma.ContentAuditRecordWhereInput = { deletedAt: null };
+    if (params.finalStatus !== "ALL") where.finalStatus = params.finalStatus || "PENDING";
     if (params.contentType) where.contentType = params.contentType;
     if (params.circleId) where.circleId = params.circleId;
+    if (params.submitterId) where.submitterId = params.submitterId;
 
     const [records, total] = await Promise.all([
       this.prisma.contentAuditRecord.findMany({
         where,
         skip,
         take: pageSize,
-        orderBy: { createdAt: "asc" }, // 先进先审
+        // 审核队列先进先审；个人提交列表最新在前
+        orderBy: { createdAt: params.submitterId ? "desc" : "asc" },
       }),
       this.prisma.contentAuditRecord.count({ where }),
     ]);

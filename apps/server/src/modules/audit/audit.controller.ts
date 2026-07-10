@@ -234,6 +234,22 @@ export class AuditController {
 
   // ─── 平台内容审核（开放范围=PLATFORM 的五类内容统一审核队列）───
 
+  @Get("content-audits/mine")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "我的发布审核状态（C端·仅本人提交的平台开放申请）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiBearerAuth()
+  myContentAudits(@Req() req: Request, @Query() q: ContentAuditListQueryDto) {
+    return this.svc.listContentAudits({
+      finalStatus: q.finalStatus || "ALL",
+      contentType: q.contentType,
+      page: q.page,
+      pageSize: q.pageSize,
+      submitterId: req.user.id,
+    });
+  }
+
   @Get("content-audits")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @ApiOperation({ summary: "平台内容审核队列（向全平台开放必审·五类内容统一台账）" })

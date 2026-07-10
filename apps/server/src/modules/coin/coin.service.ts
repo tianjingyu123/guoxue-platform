@@ -10,13 +10,11 @@ import { SystemService } from "../system/system.service";
 import { FundApprovalService } from "../fund-approval/fund-approval.service";
 import { safePagination, NO_PAGE_LIMIT } from "../../common/pagination";
 
-/** 默认充值档位（ConfigSystem 未配置时的兜底） */
+/** 默认充值档位（ConfigSystem 未配置时的兜底）——董事长拍板 2026-07-10：100元/200元/500元 三档 + 自定义 */
 const DEFAULT_RECHARGE_TIERS = [
-  { amountRmb: 6, amountCoin: 60, bonus: 0 },
-  { amountRmb: 18, amountCoin: 180, bonus: 0 },
-  { amountRmb: 68, amountCoin: 680, bonus: 0 },
-  { amountRmb: 198, amountCoin: 1980, bonus: 0 },
-  { amountRmb: 648, amountCoin: 6480, bonus: 0 },
+  { amountRmb: 100, amountCoin: 1000, bonus: 0 },
+  { amountRmb: 200, amountCoin: 2000, bonus: 0 },
+  { amountRmb: 500, amountCoin: 5000, bonus: 0 },
 ];
 
 @Injectable()
@@ -161,6 +159,43 @@ export class CoinService {
         },
       });
       return { account: acc!, transaction: txn };
+    };
+
+    if (prismaTx) return run(prismaTx);
+    return this.prisma.$transaction(run);
+  }
+
+  /**
+   * 收入入账（打赏分成等业务收入直接进金币余额，可用于全平台虚拟币消费）。
+   * 董事长拍板 2026-07-10：打赏金币与平台虚拟币消费产品通用。
+   * 调用方可传入 prismaTx 以合并到外层事务（如送礼：扣赠礼者币 + 主播入账原子化）。
+   */
+  async income(
+    userId: string,
+    dto: { amountCoin: number; scene: string; refId?: string; description?: string },
+    prismaTx?: Prisma.TransactionClient,
+  ) {
+    if (dto.amountCoin <= 0) throw new BusinessException(ErrorCode.COIN_AMOUNT_INVALID, "收入币数必须大于0");
+
+    await this.getOrCreateAccount(userId);
+
+    const run = async (tx: Prisma.TransactionClient) => {
+      const acc = await tx.virtualCoinAccount.update({
+        where: { userId },
+        data: { balance: { increment: dto.amountCoin } },
+      });
+      const txn = await tx.virtualCoinTransaction.create({
+        data: {
+          userId,
+          type: "INCOME",
+          amountCoin: dto.amountCoin,
+          balanceAfter: acc.balance,
+          scene: dto.scene as Prisma.VirtualCoinTransactionCreateInput["scene"],
+          refId: dto.refId,
+          description: dto.description,
+        },
+      });
+      return { account: acc, transaction: txn };
     };
 
     if (prismaTx) return run(prismaTx);

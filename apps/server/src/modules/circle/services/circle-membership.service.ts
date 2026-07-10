@@ -132,26 +132,9 @@ export class CircleMembershipService {
     const pricing = await this.unifiedPricing.calculateTargetPrice(circleId, "CIRCLE", userId);
     const effectivePriceYuan = pricing.effectivePrice;
 
-    // 尝试虚拟币支付
+    // 董事长拍板（2026-07-10）：入圈只能人民币支付，不支持虚拟币
     if (!dto?.payMethod || dto.payMethod === "COIN") {
-      if (!this.coinService) throw new BusinessException(ErrorCode.BAD_REQUEST, "支付服务暂不可用");
-      const balance = await this.coinService.getBalance(userId);
-      const coinNeeded = Math.ceil(effectivePriceYuan * 10); // 1元=10币
-      if (balance.balance >= coinNeeded) {
-        // 币够直接扣
-        return this.confirmJoin(circleId, userId, { payMethod: "COIN", referrerId: dto?.referrerId });
-      }
-      // 币不够，返回充值提示
-      return {
-        needPayment: true,
-        payMethod: "COIN",
-        priceYuan: effectivePriceYuan,
-        coinNeeded,
-        currentBalance: balance.balance,
-        shortage: coinNeeded - balance.balance,
-        orderNo: `CIRCLE_JOIN_${circleId}_${userId}_${Date.now()}`,
-        message: "虚拟币余额不足，请先充值",
-      };
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "圈子加入仅支持人民币支付（微信/支付宝），请选择支付方式");
     }
 
     // 微信/支付宝支付 — 创建待支付订单
@@ -205,24 +188,11 @@ export class CircleMembershipService {
 
     let member: any;
 
-    // 虚拟币支付：扣币与建成员关系在同一事务内，防止钱货两空
+    // 董事长拍板（2026-07-10）：入圈只能人民币，不支持虚拟币扣费
     if (dto.payMethod === "COIN") {
-      const coinPricing = await this.unifiedPricing.calculateTargetPrice(circleId, "CIRCLE", userId);
-      const priceYuan = coinPricing.effectivePrice;
-      const coinNeeded = Math.ceil(priceYuan * 10);
-      if (!this.coinService) throw new BusinessException(ErrorCode.BAD_REQUEST, "支付服务暂不可用");
-
-      member = await this.prisma.$transaction(async (tx) => {
-        await this.coinService!.spend(userId, {
-          amountCoin: coinNeeded,
-          scene: "CIRCLE_JOIN",
-          refId: circleId,
-          description: `加入圈子: ${circle.name}`,
-        }, tx);
-
-        return this.createMembershipTx(circleId, userId, expireAt, dto.referrerId, tx);
-      });
-    } else if (dto.orderNo || dto.orderId) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "圈子加入仅支持人民币支付（微信/支付宝）");
+    }
+    if (dto.orderNo || dto.orderId) {
       // 外部支付：校验订单状态
       const order = await this.prisma.order.findFirst({
         where: {
@@ -276,7 +246,11 @@ export class CircleMembershipService {
     return member;
   }
 
-  /** 续费年费圈子 */
+  /**
+   * 续费年费圈子（第一步：创建待支付订单）。
+   * 董事长拍板（2026-07-10）：续费与入圈一样**只能人民币支付**——本方法建 CIRCLE_RENEW 现金订单，
+   * 前端拉起聚合支付，支付成功后调 confirmRenew 顺延到期时间（对齐 prepareJoin/confirmJoin 双段模式）。
+   */
   async renewCircle(circleId: string, userId: string, dto?: { payMethod?: string }) {
     const circle = await this.prisma.circle.findUnique({ where: { id: circleId } });
     if (!circle || circle.status !== "ACTIVE") throw new BusinessException(ErrorCode.CIRCLE_NOT_FOUND, "圈子不存在或已下架");
@@ -287,37 +261,84 @@ export class CircleMembershipService {
     });
     if (!member) throw new BusinessException(ErrorCode.NOT_FOUND, "未加入该圈子");
 
-    const priceYuan = Number(circle.price);
-    const coinNeeded = Math.ceil(priceYuan * 10);
-
-    // 续费仅支持虚拟币支付
-    if (dto?.payMethod && dto.payMethod !== "COIN") {
-      throw new BusinessException(ErrorCode.BAD_REQUEST, "续费仅支持虚拟币支付");
+    if (!dto?.payMethod || dto.payMethod === "COIN") {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "续费仅支持人民币支付（微信/支付宝），请选择支付方式");
     }
-    if (!this.coinService) throw new BusinessException(ErrorCode.BAD_REQUEST, "支付服务暂不可用");
 
-    // 延长到期时间：从当前到期时间或现在开始 +365天
+    // 与入圈同价（走统一价格引擎，限时折扣同样生效）
+    const pricing = await this.unifiedPricing.calculateTargetPrice(circleId, "CIRCLE", userId);
+    const effectivePriceYuan = pricing.effectivePrice;
+    if (effectivePriceYuan <= 0) throw new BusinessException(ErrorCode.BAD_REQUEST, "圈子价格配置异常");
+
+    const order = await this.prisma.order.create({
+      data: {
+        userId,
+        type: "CIRCLE_RENEW",
+        targetId: circleId,
+        amount: effectivePriceYuan,
+        payAmount: effectivePriceYuan,
+        originalAmount: pricing.originalPrice > effectivePriceYuan ? pricing.originalPrice : undefined,
+        status: "PENDING",
+        payMethod: dto.payMethod,
+      },
+    });
+
+    return {
+      needPayment: true,
+      payMethod: dto.payMethod,
+      priceYuan: effectivePriceYuan,
+      coinNeeded: 0,
+      orderId: order.id,
+      message: "请完成支付",
+    };
+  }
+
+  /** 支付完成后确认续费（由前端支付成功后调用）：校验 CIRCLE_RENEW 订单已支付 → 从原到期时间顺延 365 天 */
+  async confirmRenew(circleId: string, userId: string, dto: { orderId?: string; orderNo?: string }) {
+    const circle = await this.prisma.circle.findUnique({ where: { id: circleId } });
+    if (!circle || circle.status !== "ACTIVE") throw new BusinessException(ErrorCode.CIRCLE_NOT_FOUND, "圈子不存在或已下架");
+
+    const member = await this.prisma.circleMember.findUnique({
+      where: { circleId_userId: { circleId, userId } },
+    });
+    if (!member) throw new BusinessException(ErrorCode.NOT_FOUND, "未加入该圈子");
+
+    const order = await this.prisma.order.findFirst({
+      where: {
+        OR: [
+          { id: dto.orderId || "" },
+          { payTransactionId: dto.orderNo || "" },
+        ],
+        type: "CIRCLE_RENEW",
+        targetId: circleId,
+        userId,
+      },
+    });
+    if (!order || order.status !== "PAID") {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "订单未支付或不存在");
+    }
+
+    // 顺延到期时间：未过期从原到期时间续算（不损失剩余天数），已过期从现在起算
     const baseDate = member.expireAt && new Date(member.expireAt) > new Date()
       ? new Date(member.expireAt)
       : new Date();
     const newExpireAt = new Date(baseDate.getTime() + 365 * 24 * 60 * 60 * 1000);
 
-    // 扣币与续费在同一事务，防止钱已扣但未延期
+    // 顺延与订单完结在同一事务，防止重复确认重复顺延
     const updated = await this.prisma.$transaction(async (tx) => {
-      await this.coinService!.spend(userId, {
-        amountCoin: coinNeeded,
-        scene: "CIRCLE_RENEW",
-        refId: circleId,
-        description: `续费圈子: ${circle.name}`,
-      }, tx);
-
-      return tx.circleMember.update({
+      const m = await tx.circleMember.update({
         where: { circleId_userId: { circleId, userId } },
         data: { expireAt: newExpireAt },
       });
+      await tx.order.update({
+        where: { id: order.id },
+        data: { status: "COMPLETED", completedAt: new Date() },
+      });
+      return m;
     });
 
     // 记录续费收益
+    const priceYuan = Number(order.payAmount ?? order.amount);
     if (priceYuan > 0 && this.commissionService) {
       this.commissionService.recordCircleRevenue(circleId, "circle_join", member.id, priceYuan).catch(
         (err) => this.logger.warn("记录续费收益失败", err),

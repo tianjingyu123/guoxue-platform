@@ -131,6 +131,10 @@ export class CircleService {
     return this.membershipSvc.renewCircle(circleId, userId, dto);
   }
 
+  confirmRenew(circleId: string, userId: string, dto: { orderId?: string; orderNo?: string }) {
+    return this.membershipSvc.confirmRenew(circleId, userId, dto);
+  }
+
   getJoinStatus(circleId: string, userId: string) {
     return this.membershipSvc.getJoinStatus(circleId, userId);
   }

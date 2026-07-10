@@ -187,10 +187,11 @@ describe("CoinService", () => {
   })
 
   describe("getRechargeTiers", () => {
-    it("返回充值档位", async () => {
+    it("返回充值档位（董事长拍板 2026-07-10：100/200/500 三档+自定义）", async () => {
       const tiers = await svc.getRechargeTiers()
-      expect(tiers).toHaveLength(5)
-      expect(tiers[0].amountRmb).toBe(6)
+      expect(tiers).toHaveLength(3)
+      expect(tiers[0].amountRmb).toBe(100)
+      expect(tiers[0].amountCoin).toBe(1000)
     })
   })
 

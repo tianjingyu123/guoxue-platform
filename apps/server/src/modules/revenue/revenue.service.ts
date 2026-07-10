@@ -7,8 +7,9 @@ import { safePagination, NO_PAGE_LIMIT } from "../../common/pagination";
 // 分佣比例回退默认值（优先读 SettlementRule 场景规则表，未配置时回退此处）
 const DEFAULT_RATES = {
   QUESTION: 0.8,   // 回答者 80%
-  PEEK:    0.7,   // 围观回答者 70%
-  AUDIO_CALL: 0.7, // 连麦嘉宾 70%
+  PEEK:       0.3, // 围观·达人 30%（董事长拍板 2026-07-10：平台 40% / 提问者 30% / 达人 30%）
+  PEEK_ASKER: 0.3, // 围观·提问者 30%（同上拍板）
+  AUDIO_CALL: 0.5, // 连麦/通话·达人 50%（董事长拍板 2026-07-10：平台 50% / 达人 50%）
   LIVE_GIFT: 0.5,  // 主播 50%（平台 50%·2026-07-01 业务规则）
 };
 
@@ -44,7 +45,7 @@ export class RevenueService {
    */
   async record(params: {
     userId: string;
-    scene: "QUESTION" | "PEEK" | "AUDIO_CALL" | "LIVE_GIFT";
+    scene: "QUESTION" | "PEEK" | "PEEK_ASKER" | "AUDIO_CALL" | "LIVE_GIFT";
     refId: string;
     amountCoin: number;
     rate?: number;
