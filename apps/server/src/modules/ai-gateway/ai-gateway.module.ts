@@ -51,12 +51,16 @@ import { SystemModule } from "../system/system.module";
 import { PrismaModule } from "../../prisma/prisma.module";
 import { RedisModule } from "../../redis/redis.module";
 import { TtsModule } from "../tts/tts.module";
+import { MemberModule } from "../member/member.module";
+import { ZhixuanController } from "./zhixuan.controller";
+import { ZhixuanService } from "./zhixuan.service";
 
 @Module({
-  imports: [SystemModule, PrismaModule, RedisModule, TtsModule],
-  controllers: [AiGatewayController, CustomerServiceController, KnowledgeSyncController, AdminDedupController, AdminModelRoutingController, PublishAssistController, MediaAiController, AdminRagController, MarketplaceController, QualityScorerController, PlatformKnowledgeController, AiEventBusController, CapabilityRegistryController, DecisionLedgerController, CollaborationController, AnomalyDetectorController, DataExplorerController],
+  imports: [SystemModule, PrismaModule, RedisModule, TtsModule, MemberModule],
+  controllers: [AiGatewayController, ZhixuanController, CustomerServiceController, KnowledgeSyncController, AdminDedupController, AdminModelRoutingController, PublishAssistController, MediaAiController, AdminRagController, MarketplaceController, QualityScorerController, PlatformKnowledgeController, AiEventBusController, CapabilityRegistryController, DecisionLedgerController, CollaborationController, AnomalyDetectorController, DataExplorerController],
   providers: [
     AiGatewayService,
+    ZhixuanService,
     ModelRouterService,
     AiLoggerService,
     SemanticCacheService,

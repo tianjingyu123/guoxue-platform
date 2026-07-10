@@ -98,7 +98,7 @@ export const zhixuanWelcome = `您好！我是智玄 AI 助手，精通八字命
 
 请告诉我您的需求，我将竭诚为您服务。`
 
-export const zhixuanQuickPrompts = ['帮我分析今年运势', '我的八字五行缺什么', '解读事业宫位走势', '分析近期财运方向']
+export const zhixuanQuickPrompts = ['帮我看看1990年3月15日早上8点出生的八字', '帮我分析今年运势', '我的八字五行缺什么', '解读事业宫位走势', '分析近期财运方向']
 
 // ===== 智能客服（customer-service）运营文案 =====
 export const csWelcome = `您好，欢迎联系智玄客服！
@@ -304,5 +304,42 @@ export const agentApi = {
   /** 推荐内容 —— 后端无对应端点，返回空走空态 */
   async getRecommendations(): Promise<{ courses: unknown[]; circles: unknown[]; products: unknown[] }> {
     return { courses: [], circles: [], products: [] }
+  },
+}
+
+// ============ 平台自建 AI 链路（ai-gateway/DeepSeek·非 Coze） ============
+
+/** 富消息片段（与后端 /ai/zhixuan/chat 响应 messages 数组契约一致） */
+export interface RichReplyPart {
+  type: string // 'text' | 'bazi-card' | ...
+  content?: string
+  payload?: unknown
+}
+
+/** 多轮上下文消息（自建链路无状态，由前端携带近几轮） */
+export interface AiHistoryMsg {
+  role: 'user' | 'assistant'
+  content: string
+}
+
+/** 智玄助手（平台自建主智能体）—— POST /ai/zhixuan/chat（非流式降级路径） */
+export const zhixuanAiApi = {
+  async chatRich(query: string, history: AiHistoryMsg[]): Promise<{ messages: RichReplyPart[]; disclaimer?: string }> {
+    const res = await apiPost<{ messages?: RichReplyPart[]; disclaimer?: string }>('/ai/zhixuan/chat', {
+      query,
+      history: history.slice(-8),
+    })
+    return { messages: res?.messages || [], disclaimer: res?.disclaimer }
+  },
+}
+
+/** 智能客服（平台自建 RAG 链路）—— POST /ai/customer-service（非流式降级路径） */
+export const csAiApi = {
+  async ask(question: string, history: AiHistoryMsg[]): Promise<string> {
+    const res = await apiPost<{ answer?: string }>('/ai/customer-service', {
+      question,
+      history: history.slice(-8),
+    })
+    return res?.answer || ''
   },
 }

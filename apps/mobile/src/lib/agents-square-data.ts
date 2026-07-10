@@ -75,9 +75,11 @@ export interface RankingAgent {
   description: string
   avatar: string
   category: string
-  // ↓ 后端无、降级隐藏字段
+  /** 真实使用人数（后端按 BotChatLog 去重 userId 聚合） */
   users?: number
+  /** 真实对话次数（后端按 BotChatLog 聚合） */
   sessions?: number
+  // ↓ 后端无、降级隐藏字段
   rating?: number
   verified?: boolean
 }
@@ -108,7 +110,7 @@ function formatConvTime(iso?: string): string {
 
 /* —— 后端原始响应类型（容错适配用，字段全 optional，仅声明 adapter 访问到的） —— */
 interface RawBot { id?: string | number; name?: string; avatar?: string; intro?: string; type?: string; isFree?: boolean; price?: number | string; voiceEnabled?: boolean; createdAt?: string }
-interface RawRankingBot { id?: string | number; name?: string; intro?: string; avatar?: string; type?: string }
+interface RawRankingBot { id?: string | number; name?: string; intro?: string; avatar?: string; type?: string; chatCount?: number; userCount?: number }
 interface RawConversation { conversationId?: string; botConfigId?: string; botName?: string; botAvatar?: string; botType?: string; lastMessage?: string; lastQuery?: string; lastTime?: string; messageCount?: number }
 
 /** 兼容数组 / 分页信封返回 */
@@ -162,7 +164,9 @@ export const agentsSquareApi = {
       description: b.intro || '',
       avatar: b.avatar || '',
       category: botTypeLabel(b.type || ''),
-      // users/sessions/rating/verified 后端无 → 不赋值，页面隐藏
+      // 真实热度（BotChatLog 聚合）；rating/verified 后端无 → 不赋值，页面隐藏
+      sessions: b.chatCount != null ? Number(b.chatCount) : undefined,
+      users: b.userCount != null ? Number(b.userCount) : undefined,
     }))
   },
 

@@ -1,7 +1,8 @@
 import { Controller, Get, Post, Put, Patch, Delete, Body, Param, Query, Req, Res, UseGuards } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiResponse } from "@nestjs/swagger";
-import { Request } from "express";
+import { Request, Response } from "express";
 import { ClassicService } from "./classic.service";
+import { StreamUnifierService } from "../ai-gateway/stream-unifier.service";
 import { ClassicLibrarySeeder } from "./classic-library-seeder.service";
 import { ClassicDaizhigeSeeder } from "./classic-daizhige-seeder.service";
 import { ClassicCompanionService } from "./classic-companion.service";
@@ -22,6 +23,7 @@ export class ClassicController {
     private daizhigeSeeder: ClassicDaizhigeSeeder,
     private companion: ClassicCompanionService,
     private memberBenefit: MemberBenefitService,
+    private sse: StreamUnifierService,
   ) {}
 
   // ── 书籍（公开） ──
@@ -358,6 +360,27 @@ export class ClassicController {
     return this.companion.chat(
       { chapterId: dto.chapterId, question: dto.question, history: dto.history },
       req.user?.id,
+    );
+  }
+
+  @UseGuards(JwtAuthGuard, ThrottleGuard)
+  @ApiBearerAuth()
+  @Post("companion/chat/stream")
+  @SkipFormat()
+  @ApiOperation({ summary: "古籍伴读流式对话（SSE·同一套记忆闭环·需登录）" })
+  @ApiResponse({ status: 201, description: "成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "章节不存在" })
+  async companionChatStream(@Req() req: Request, @Res() res: Response, @Body() dto: CompanionChatDto) {
+    // 门控与非流式一致：先于 SSE 头执行，超限以普通错误响应返回
+    await this.memberBenefit.consumeAiQuota(req.user.id);
+    // 统一 SSE 写入器（含 X-Accel-Buffering: no 防 nginx 缓冲）
+    await this.sse.writeSseStream(
+      res,
+      this.companion.chatStream(
+        { chapterId: dto.chapterId, question: dto.question, history: dto.history },
+        req.user?.id,
+      ),
     );
   }
 

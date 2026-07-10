@@ -242,9 +242,9 @@ describe("CozeService", () => {
       const observable = svc.chatStream(chatParams);
       const result = await lastValueFrom(observable.pipe(toArray()));
 
-      // type=answer 且 content_type=text 会发射两次：
-      // 一次通过 data.content 发射，一次通过 type=answer 分支
-      expect(result).toEqual(["最终答案", "最终答案"]);
+      // type=answer 且 content_type=text 只发射一次（旧实现 data.content 与
+      // type===answer 双分支各发一次是重复发送 bug，已修复）
+      expect(result).toEqual(["最终答案"]);
     });
 
     it("收到 event:done 时自动完成", async () => {

@@ -1,12 +1,20 @@
 <script setup lang="ts">
+/**
+ * 智能客服 —— 平台自建 RAG 链路（/ai/customer-service·知识库检索 + DeepSeek）。
+ * H5：fetch SSE 流式打字机；非 H5 端降级非流式接口。
+ */
 import { ref, onMounted } from 'vue'
-import SimpleChat from '@/components/agent/simple-chat.vue'
-import { agentApi } from '@/lib/agent-data'
+import SimpleChat, { type SimpleChatStreamHandlers } from '@/components/agent/simple-chat.vue'
+import { agentApi, csAiApi, type AiHistoryMsg } from '@/lib/agent-data'
+import { streamChat, streamChatSupported } from '@/utils/stream-chat'
 
 const loading = ref(true)
 const error = ref('')
 const welcome = ref('')
 const quick = ref<string[]>([])
+
+// 多轮上下文（自建链路无状态，本页维护近几轮）
+const history: AiHistoryMsg[] = []
 
 async function loadData() {
   loading.value = true
@@ -24,12 +32,23 @@ async function loadData() {
 
 onMounted(() => { loadData() })
 
-async function resolveReply(content: string): Promise<string> {
-  try {
-    return await agentApi.sendCsMessage(content)
-  } catch (_e) {
-    return '抱歉，客服回复生成失败，请稍后再试。'
+/** 流式回复：H5 走 SSE（/ai/customer-service/stream）；其他端降级非流式 */
+async function resolveStream(text: string, handlers: SimpleChatStreamHandlers): Promise<void> {
+  let acc = ''
+  if (streamChatSupported()) {
+    await streamChat(
+      '/ai/customer-service/stream',
+      { question: text, history: history.slice(-8) },
+      {
+        onChunk: (t) => { acc += t; handlers.appendText(t) },
+        onMeta: (m) => { if (m.disclaimer) handlers.setDisclaimer(m.disclaimer) },
+      },
+    )
+  } else {
+    acc = await csAiApi.ask(text, history)
+    if (acc) handlers.appendText(acc)
   }
+  history.push({ role: 'user', content: text }, { role: 'assistant', content: acc.slice(0, 2000) })
 }
 </script>
 
@@ -47,8 +66,7 @@ async function resolveReply(content: string): Promise<string> {
     icon-bg="rgba(37,99,235,0.12)"
     :welcome="welcome"
     :quick-prompts="quick"
-    :resolve-reply="resolveReply"
-    :delay="800"
+    :resolve-stream="resolveStream"
   />
 </template>
 

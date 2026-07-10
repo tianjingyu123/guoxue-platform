@@ -787,7 +787,12 @@ export default { options: { styleIsolation: 'shared' } }
 .rd-mk-all-txt { font-size: 28rpx; font-weight: 600; }
 
 /* 目录 */
-.rd-toc-body { padding: 0 24rpx 40rpx; }
+/* 滚动穿透修复：scroll-view 在 H5 无约束高度时不产生内部滚动，触摸会落到底层正文页。
+   flex:1 + min-height:0 让它在抽屉（max-height 定界的 flex 列）内拿到确定高度自己滚；
+   overscroll-behavior: contain 阻断滚到边界后把滚动链回传给底层页面。 */
+.rd-toc-body { padding: 0 24rpx 40rpx; flex: 1; min-height: 0; }
+.rd-toc-body :deep(.uni-scroll-view),
+.rd-toc-body :deep(.uni-scroll-view-content) { overscroll-behavior: contain; }
 .rd-toc-item { display: flex; align-items: center; gap: 20rpx; padding: 26rpx 16rpx; border-bottom: 2rpx solid rgba(150,130,90,0.12); &:active { opacity: 0.6; } }
 .rd-toc-active { background: rgba(160,106,56,0.08); border-radius: 12rpx; }
 .rd-toc-idx { width: 48rpx; text-align: center; font-size: 24rpx; color: var(--rd-sub,#999); flex-shrink: 0; }

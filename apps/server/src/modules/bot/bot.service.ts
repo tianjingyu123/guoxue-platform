@@ -1,4 +1,5 @@
 import { Injectable, Logger, Optional } from "@nestjs/common";
+import { Observable } from "rxjs";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { Prisma } from "@prisma/client";
@@ -329,6 +330,108 @@ export class BotService {
       userId,
       query,
       conversationId,
+    });
+  }
+
+  /** 流式对话前置校验（与非流式 chat 同一套门控：每日限次 + AI 计费额度），先于 SSE 头执行 */
+  async precheckChat(botConfigId: string, userId: string) {
+    const bot = await this.getBotOrThrow(botConfigId);
+    const dailyCount = await this.getUserDailyCount(userId, botConfigId);
+    if (!bot.isFree && dailyCount >= bot.dailyLimit) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, `今日对话次数已达上限（${bot.dailyLimit}次）`);
+    }
+    await this.consumeQuota(botConfigId, userId);
+    return bot;
+  }
+
+  /**
+   * 流式对话（富事件版）：与非流式 chat 同一套审计/导流/免责闭环。
+   * - chunk：文本增量（尾部滞留过滤 `<!--RECO:...-->` 软性导流协议标记，不让协议漏上屏）
+   * - meta：流末下发 conversationId（续聊）+ disclaimer + recommendation（软性导流）
+   * - 审计：完整净文本落 BotChatLog（与非流式同表同结构）
+   */
+  chatStreamRich(
+    bot: { id: string; botId: string; apiKey: string },
+    userId: string,
+    dto: ChatDto,
+  ): Observable<{ type: "chunk" | "meta"; content?: string; conversationId?: string; disclaimer?: string; recommendation?: unknown }> {
+    return new Observable((subscriber) => {
+      let full = ""; // 完整原始回复（含协议标记，用于导流解析与审计）
+      let held = ""; // 尾部滞留缓冲：疑似 `<!--` 协议标记开头后暂停外发
+      let conversationId = dto.conversationId || "";
+      let chatId: string | undefined;
+
+      /** 输出安全前缀：可外发部分立即 emit，协议标记起点及其后滞留 */
+      const emitSafe = (s: string) => {
+        const idx = s.indexOf("<!--");
+        if (idx >= 0) {
+          // 命中协议标记起点：之前的照发，标记及其后全部滞留（协议约定标记在回复末尾）
+          if (idx > 0) subscriber.next({ type: "chunk", content: s.slice(0, idx) });
+          held = s.slice(idx);
+          return;
+        }
+        // 尾部可能是 "<"、"<!"、"<!-" 的半截标记：滞留等下一块拼上再判
+        let cut = s.length;
+        for (let k = Math.min(3, s.length); k >= 1; k--) {
+          if ("<!--".startsWith(s.slice(s.length - k))) {
+            cut = s.length - k;
+            break;
+          }
+        }
+        if (cut > 0) subscriber.next({ type: "chunk", content: s.slice(0, cut) });
+        held = s.slice(cut);
+      };
+
+      const sub = this.coze
+        .chatStreamEx({ botId: bot.botId, apiKey: bot.apiKey, userId, query: dto.query, conversationId: dto.conversationId })
+        .subscribe({
+          next: (ev) => {
+            if (ev.type === "meta") {
+              if (ev.conversationId) conversationId = ev.conversationId;
+              chatId = ev.chatId;
+              return;
+            }
+            if (ev.type === "chunk" && ev.content) {
+              full += ev.content;
+              emitSafe(held + ev.content);
+            }
+          },
+          error: (err) => subscriber.error(err),
+          complete: () => {
+            void (async () => {
+              try {
+                // 软性导流解析（剥离协议标记）+ 审计落库 —— 与非流式 chat 同一闭环
+                const { content: cleanContent, recommendation } = await this.reco.build(full, dto.query);
+                // 滞留尾巴若非协议标记（真实内容含 <!--），净文本比已发的长 → 把缺发部分补发
+                const alreadySent = full.length - held.length;
+                if (cleanContent.length > alreadySent) {
+                  subscriber.next({ type: "chunk", content: cleanContent.slice(alreadySent) });
+                }
+                await this.prisma.botChatLog.create({
+                  data: {
+                    userId,
+                    botConfigId: bot.id,
+                    query: dto.query,
+                    response: cleanContent,
+                    conversationId: conversationId || undefined,
+                    chatId: chatId || undefined,
+                  },
+                });
+                subscriber.next({
+                  type: "meta",
+                  conversationId: conversationId || undefined,
+                  disclaimer: RISK_DISCLAIMER,
+                  recommendation: recommendation || undefined,
+                });
+              } catch (err) {
+                this.logger.warn(`流式对话收尾处理失败（不影响已下发内容）: ${(err as Error).message}`);
+              } finally {
+                subscriber.complete();
+              }
+            })();
+          },
+        });
+      return () => sub.unsubscribe();
     });
   }
 
@@ -768,12 +871,30 @@ export class BotService {
 
   /** 智能体热度排行 */
   async getRanking(limit = 20) {
-    return this.prisma.botConfig.findMany({
+    const bots = await this.prisma.botConfig.findMany({
       where: { status: "ACTIVE" },
       select: { id: true, name: true, avatar: true, intro: true, type: true },
       orderBy: { sortOrder: "asc" },
       take: limit,
     });
+    // 真实热度：按对话日志聚合（chatCount 对话次数 / userCount 使用人数），热度优先、同热度按后台权重
+    const [byChats, byUsers] = await Promise.all([
+      this.prisma.botChatLog.groupBy({
+        by: ["botConfigId"],
+        _count: { _all: true },
+        where: { botConfigId: { in: bots.map((b) => b.id) } },
+      }),
+      this.prisma.botChatLog.groupBy({
+        by: ["botConfigId", "userId"],
+        where: { botConfigId: { in: bots.map((b) => b.id) } },
+      }),
+    ]);
+    const chatMap = new Map(byChats.map((g) => [g.botConfigId, g._count._all]));
+    const userMap = new Map<string, number>();
+    for (const g of byUsers) userMap.set(g.botConfigId, (userMap.get(g.botConfigId) || 0) + 1);
+    return bots
+      .map((b) => ({ ...b, chatCount: chatMap.get(b.id) || 0, userCount: userMap.get(b.id) || 0 }))
+      .sort((a, b) => b.chatCount - a.chatCount);
   }
 
   /** 信息流智能体卡片（含动态背景色） */

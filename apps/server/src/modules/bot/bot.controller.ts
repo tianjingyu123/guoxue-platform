@@ -275,25 +275,22 @@ export class BotController {
     @Param("id") id: string,
     @Body() dto: ChatDto,
   ) {
-    // AI 计费：额度检查先于 SSE 头，耗尽时以普通错误响应返回购买引导
-    await this.svc.consumeQuota(id, req.user.id);
-    const bot = await this.svc.getBotForChat(id);
+    // 门控与非流式 chat 完全同参（每日限次 + AI 计费额度），且先于 SSE 头发送，
+    // 额度耗尽时以普通错误响应返回购买引导
+    const bot = await this.svc.precheckChat(id, req.user.id);
 
     res.setHeader("Content-Type", "text/event-stream");
     res.setHeader("Cache-Control", "no-cache");
     res.setHeader("Connection", "keep-alive");
+    res.setHeader("X-Accel-Buffering", "no"); // 生产 nginx 反代禁缓冲，保证逐块下发
+    res.flushHeaders();
 
-    const obs = this.svc.chatStream(
-      bot.botId,
-      bot.apiKey,
-      req.user.id,
-      dto.query,
-      dto.conversationId,
-    );
+    // 富事件流：chunk 文本增量 + meta（conversationId 续聊/免责声明/软性导流），审计落库在 service 内闭环
+    const obs = this.svc.chatStreamRich(bot, req.user.id, dto);
 
     obs.subscribe({
-      next: (chunk: string) => {
-        res.write(this.sse.encode({ type: "chunk", content: chunk }));
+      next: (ev) => {
+        res.write(this.sse.encode(ev));
       },
       error: (err: Error) => {
         this.logger.warn(`智能体SSE流错误 [${id}]: ${err.message}`);

@@ -76,7 +76,17 @@ async function bootstrap() {
   // （直接 app.use(json()) 会先消费请求流，导致 rawBody 缓存不到，微信回调验签拿不到原文）。
   app.useBodyParser("json", { limit: "10mb" });
   app.useBodyParser("urlencoded", { limit: "10mb", extended: true });
-  app.use(compression());
+  // SSE 流式响应必须跳过压缩：compression 会把分块缓冲成整段一次下发，
+  // 前端"打字机"变成长等后全文闪现（浏览器带 Accept-Encoding 才触发，curl 不带所以难复现）
+  app.use(
+    compression({
+      filter: (req, res) => {
+        const ct = String(res.getHeader("Content-Type") || "");
+        if (ct.includes("text/event-stream")) return false;
+        return compression.filter(req, res);
+      },
+    }),
+  );
 
   // 静态文件服务
   app.useStaticAssets(join(__dirname, "..", "uploads"), { prefix: "/uploads/" });

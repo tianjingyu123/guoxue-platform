@@ -4,6 +4,17 @@ import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { SystemService } from "../system/system.service";
 
+/** Coze 流式结构化事件（chatStreamEx 输出） */
+export interface CozeStreamEvent {
+  type: "chunk" | "meta";
+  /** type=chunk：回答文本增量 */
+  content?: string;
+  /** type=meta：会话 id（前端续聊用） */
+  conversationId?: string;
+  /** type=meta：本次 chat id（审计用） */
+  chatId?: string;
+}
+
 /**
  * COZE 智能体 API 服务
  *
@@ -98,7 +109,7 @@ export class CozeService {
     return this.pollChatResult(chatId, conversationId, params.apiKey);
   }
 
-  /** 发起对话（流式），返回SSE Observable */
+  /** 发起对话（流式·仅文本增量），返回SSE Observable —— 兼容旧调用方 */
   chatStream(params: {
     botId: string;
     apiKey: string;
@@ -107,6 +118,32 @@ export class CozeService {
     conversationId?: string;
     additionalParams?: Record<string, unknown>;
   }): Observable<string> {
+    return new Observable((subscriber) => {
+      const sub = this.chatStreamEx(params).subscribe({
+        next: (ev) => {
+          if (ev.type === "chunk" && ev.content) subscriber.next(ev.content);
+        },
+        error: (err) => subscriber.error(err),
+        complete: () => subscriber.complete(),
+      });
+      return () => sub.unsubscribe();
+    });
+  }
+
+  /**
+   * 发起对话（流式·结构化事件）：
+   * - {type:"chunk", content} —— 回答文本增量（只取 conversation.message.delta 的 answer，
+   *   修复旧实现 data.content 与 type==="answer" 双条件重复发送、completed 全文重放的问题）
+   * - {type:"meta", conversationId, chatId} —— 会话建立即下发，供前端续聊
+   */
+  chatStreamEx(params: {
+    botId: string;
+    apiKey: string;
+    userId: string;
+    query: string;
+    conversationId?: string;
+    additionalParams?: Record<string, unknown>;
+  }): Observable<CozeStreamEvent> {
     return new Observable((subscriber) => {
       const body: Record<string, unknown> = {
         bot_id: params.botId,
@@ -152,6 +189,9 @@ export class CozeService {
 
           const decoder = new TextDecoder();
           let buffer = "";
+          // Coze v3 SSE：event: 行标识事件类型，紧随的 data: 行携带载荷
+          let currentEvent = "";
+          let metaSent = false;
 
           for (;;) {
             const { done, value } = await reader.read();
@@ -162,31 +202,52 @@ export class CozeService {
             buffer = lines.pop() || "";
 
             for (const line of lines) {
-              if (line.startsWith("data:")) {
-                const jsonStr = line.slice(5).trim();
-                if (jsonStr === "[DONE]") {
-                  subscriber.complete();
-                  return;
-                }
-                try {
-                  const data = JSON.parse(jsonStr);
-                  if (data.content) {
-                    subscriber.next(data.content);
-                  }
-                  if (data.type === "answer" && data.content_type === "text") {
-                    subscriber.next(data.content);
-                  }
-                } catch (err) {
-                  this.logger.warn(`Coze 响应行 JSON 解析失败`, err);
-                  // 非JSON行，忽略
-                }
-              }
               if (line.startsWith("event:")) {
-                const eventType = line.slice(6).trim();
-                if (eventType === "done") {
+                currentEvent = line.slice(6).trim();
+                if (currentEvent === "done") {
                   subscriber.complete();
                   return;
                 }
+                continue;
+              }
+              if (!line.startsWith("data:")) continue;
+              const jsonStr = line.slice(5).trim();
+              if (jsonStr === "[DONE]" || jsonStr === '"[DONE]"') {
+                subscriber.complete();
+                return;
+              }
+              try {
+                const data = JSON.parse(jsonStr) as Record<string, unknown>;
+                // 会话元信息：chat 创建即下发 conversation_id 供前端续聊
+                if (!metaSent && data.conversation_id) {
+                  metaSent = true;
+                  subscriber.next({
+                    type: "meta",
+                    conversationId: String(data.conversation_id),
+                    chatId: data.id ? String(data.id) : undefined,
+                  });
+                }
+                if (currentEvent === "conversation.chat.failed") {
+                  const lastError = data.last_error as Record<string, unknown> | undefined;
+                  subscriber.error(new Error(`COZE对话失败: ${lastError?.msg || "unknown"}`));
+                  return;
+                }
+                // 文本增量：宽容接收带 content 的载荷，但排除全文重放/状态类事件
+                // （completed 是整段全文重放，取了会与 delta 增量重复；同时修复旧实现
+                //   data.content 与 type===answer 双条件各发一次导致的逐块双发）
+                const isReplayEvent =
+                  currentEvent === "conversation.message.completed" ||
+                  currentEvent === "conversation.chat.completed" ||
+                  currentEvent === "conversation.chat.created" ||
+                  currentEvent === "conversation.chat.in_progress";
+                const typeOk = data.type === undefined || data.type === "answer";
+                const ctypeOk = data.content_type === undefined || data.content_type === "text";
+                if (!isReplayEvent && typeOk && ctypeOk && typeof data.content === "string" && data.content) {
+                  subscriber.next({ type: "chunk", content: data.content });
+                }
+              } catch (err) {
+                this.logger.warn(`Coze 响应行 JSON 解析失败`, err);
+                // 非JSON行，忽略
               }
             }
           }

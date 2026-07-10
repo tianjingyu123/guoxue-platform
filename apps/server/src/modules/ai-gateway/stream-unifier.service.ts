@@ -7,17 +7,35 @@ import { Response } from "express";
  * 所有模型适配器的流式输出统一为以下 SSE 事件格式：
  * - data: {"type":"chunk","content":"文本增量"}
  * - data: {"type":"source","index":0,"title":"参考标题","excerpt":"摘要"}
+ * - data: {"type":"card","cardType":"bazi-card","payload":{...}}   ← 富消息结构化卡片
+ * - data: {"type":"meta","conversationId":"...","disclaimer":"..."} ← 会话元信息（流结束前下发）
  * - data: {"type":"done","usage":{"promptTokens":100,"completionTokens":200}}
  * - data: {"type":"error","message":"错误描述"}
+ *
+ * ## 富消息扩展方法（新增一种卡片）
+ * 1. 后端：在业务 service 里组装 payload，流式路径 `res.write(sse.encode({ type: "card", cardType: "xxx-card", payload }))`，
+ *    非流式路径在响应 messages 数组里插一条 `{ type: "xxx-card", payload }`；
+ * 2. 前端：components/agent/cards/ 下新增 xxx-card.vue 渲染组件，并在 components/agent/rich-message.vue 的
+ *    CARD_COMPONENTS 注册表登记一行即可；未注册的 cardType 前端自动降级显示 content 文本（向前兼容）。
  */
 export interface UnifiedStreamChunk {
-  type: "chunk" | "source" | "done" | "error";
+  type: "chunk" | "source" | "card" | "meta" | "done" | "error";
   content?: string;
   index?: number;
   title?: string;
   excerpt?: string;
   message?: string;
   usage?: { promptTokens?: number; completionTokens?: number };
+  /** type=card：卡片类型标识（如 bazi-card），前端按此分发渲染组件 */
+  cardType?: string;
+  /** type=card：卡片结构化载荷 */
+  payload?: unknown;
+  /** type=meta：会话续聊 id（Coze 链路） */
+  conversationId?: string;
+  /** type=meta：AI 风险免责声明 */
+  disclaimer?: string;
+  /** type=meta：软性导流推荐（征求同意后展开） */
+  recommendation?: unknown;
 }
 
 /**

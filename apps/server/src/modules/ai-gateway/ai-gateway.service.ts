@@ -148,7 +148,7 @@ export class AiGatewayService {
       .map((m) => m.content)
       .join(" ");
 
-    if (userQuery.length > 0) {
+    if (userQuery.length > 0 && !req.skipCache) {
       const cached = await this.semCache.lookup(req.scene, userQuery);
       if (cached) {
         this.logger.debug(`流式语义缓存命中: scene=${req.scene}`);
@@ -217,7 +217,7 @@ export class AiGatewayService {
       })
       .catch((err) => this.logger.warn("AI分析记录写入失败", err));
 
-    if (userQuery.length > 0 && fullContent) {
+    if (userQuery.length > 0 && fullContent && !req.skipCache) {
       this.semCache.store(req.scene, userQuery, fullContent, actualModel).catch((err) => this.logger.warn("语义缓存存储失败", err));
     }
 

@@ -47,6 +47,9 @@
         scroll-y
         :scroll-top="scrollTop"
         :scroll-with-animation="true"
+        @scroll="onScroll"
+        @touchstart="onTouchStart"
+        @touchend="onTouchEnd"
       >
         <view class="chat-content">
           <!-- 欢迎消息 -->
@@ -78,8 +81,8 @@
                 class="bubble"
                 :class="msg.role === 'user' ? 'bubble-user' : 'bubble-bot'"
               >
-                <rich-text class="bubble-rich" :nodes="renderMarkdown(msg.isStreaming ? streamingText : msg.content)" />
-                <text v-if="msg.isStreaming" class="cursor">|</text>
+                <rich-text class="bubble-rich" :nodes="renderMarkdown(msg.content)" />
+                <text v-if="msg.isStreaming" class="cursor">▍</text>
               </view>
 
               <!-- AI 风险免责声明（后端下发，仅 assistant 非流式时展示） -->
@@ -160,13 +163,18 @@
 /**
  * Bot 对话页 —— 接真实后端 GET /bots/:id（详情）+ POST /bots/:id/chat（对话）。
  * 原型臆想字段（推荐问题/能力标签/官方认证/每日已用次数/文件上传）后端无 → 降级隐藏，不造假。
- * 逐字展示的是后端真实返回的回复 content（展示动效，非伪造内容）。
+ *
+ * 流式（2026-07 智能体体验批）：H5 端走 POST /bots/:id/chat/stream（fetch SSE），
+ * 文本增量实时上屏（真流式打字机）；流末 meta 带 conversationId（续聊）/免责声明/软性导流。
+ * 非 H5 端降级原非流式接口 + 逐字动效（展示动效，非伪造内容）。
+ * 用户上滑阅读时暂停自动滚底，回到底部恢复跟随。
  */
-import { ref } from 'vue'
+import { ref, getCurrentInstance, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateBack, navigateTo, toastComingSoon } from '@/utils/router'
 import { apiGet, apiPost } from '@/utils/request'
+import { streamChat, streamChatSupported } from '@/utils/stream-chat'
 import type { Recommendation, RecommendItem } from '@/lib/agent-data'
 import { formatPrice } from '@/utils/format'
 
@@ -187,7 +195,6 @@ interface ChatMessage {
 const botId = ref('')
 const inputValue = ref('')
 const isSending = ref(false)
-const streamingText = ref('')
 const messages = ref<ChatMessage[]>([])
 const menuOpen = ref(false)
 const scrollTop = ref(0)
@@ -231,9 +238,56 @@ async function loadDetail() {
   }
 }
 
-function scrollToBottom() {
+// ── 自动滚底 + 用户上滑暂停 ──
+const autoFollow = ref(true)
+let viewportH = 600
+const pageInstance = getCurrentInstance()
+
+onMounted(() => {
+  uni.createSelectorQuery().in(pageInstance).select('.chat-scroll').boundingClientRect((rect) => {
+    const r = rect as UniApp.NodeInfo | null
+    if (r?.height) viewportH = r.height
+  }).exec()
+})
+
+// 只有「用户触摸中的上滑」才暂停跟随——编程滚底也触发 @scroll，单看距底会误锁死
+let touching = false
+let lastScrollTop = 0
+function onTouchStart() { touching = true }
+function onTouchEnd() { touching = false }
+function onScroll(e: { detail: { scrollTop: number; scrollHeight: number } }) {
+  const { scrollTop: st, scrollHeight } = e.detail || { scrollTop: 0, scrollHeight: 0 }
+  if (touching && st < lastScrollTop - 2) {
+    autoFollow.value = false // 用户主动上滑阅读 → 暂停自动滚底
+  } else if (st + viewportH >= scrollHeight - 60) {
+    autoFollow.value = true // 回到底部 → 恢复跟随
+  }
+  lastScrollTop = st
+}
+
+function scrollToBottom(force = false) {
+  if (!force && !autoFollow.value) return
+  // #ifdef H5
+  // H5 直接滚内部滚动容器（scrollTop 0→大数 hack 会先跳顶再滚底，流式期间会闪）。
+  // uni-scroll-view 内部有两层 .uni-scroll-view div（滚动发生在内层），全部设一遍。
+  const els = document.querySelectorAll('.chat-scroll .uni-scroll-view')
+  if (els.length) {
+    els.forEach((el) => { (el as HTMLElement).scrollTop = (el as HTMLElement).scrollHeight })
+    return
+  }
+  // #endif
   scrollTop.value = 0
   setTimeout(() => { scrollTop.value = 999999 }, 50)
+}
+
+// 流式期间节流滚底（每块都滚会抖）
+let scrollTimer: ReturnType<typeof setTimeout> | null = null
+function scrollThrottled() {
+  if (scrollTimer) return
+  scrollTimer = setTimeout(() => {
+    scrollTimer = null
+    scrollToBottom()
+  }, 200)
 }
 
 async function handleSend() {
@@ -248,8 +302,8 @@ async function handleSend() {
   })
   inputValue.value = ''
   isSending.value = true
-  streamingText.value = ''
-  scrollToBottom()
+  autoFollow.value = true
+  scrollToBottom(true)
 
   const aiId = 'ai_' + Date.now()
   messages.value.push({
@@ -261,49 +315,86 @@ async function handleSend() {
   })
 
   try {
-    // 后端对话返回结构（content/conversationId/disclaimer/recommendation）动态，泛型保留 any 安全
-    const res = await apiPost<any>(`/bots/${botId.value}/chat`, {
-      query: text,
-      conversationId: conversationId.value || undefined,
-    })
-    if (res?.conversationId) conversationId.value = res.conversationId
-    await typewriter(res?.content || '（未返回内容）', aiId)
-    // 打字结束后挂载免责声明 + 软性导流推荐（后端 bot.chat 下发，剥离协议后的净文本）
-    const done = messages.value.find((m) => m.id === aiId)
-    if (done) {
-      done.disclaimer = res?.disclaimer
-      done.recommendation = res?.recommendation || undefined
+    if (streamChatSupported()) {
+      // H5：真流式（SSE），文本增量实时上屏
+      await sendViaStream(text, aiId)
+    } else {
+      // 非 H5 端：降级非流式接口 + 逐字动效
+      // 后端对话返回结构（content/conversationId/disclaimer/recommendation）动态，泛型保留 any 安全
+      const res = await apiPost<any>(`/bots/${botId.value}/chat`, {
+        query: text,
+        conversationId: conversationId.value || undefined,
+      })
+      if (res?.conversationId) conversationId.value = res.conversationId
+      await typewriter(res?.content || '（未返回内容）', aiId)
+      // 打字结束后挂载免责声明 + 软性导流推荐（后端 bot.chat 下发，剥离协议后的净文本）
+      const done = messages.value.find((m) => m.id === aiId)
+      if (done) {
+        done.disclaimer = res?.disclaimer
+        done.recommendation = res?.recommendation || undefined
+      }
     }
   } catch (e) {
     const target = messages.value.find((m) => m.id === aiId)
     if (target) {
-      target.content = '抱歉，回复失败：' + ((e as Error)?.message || '请稍后再试')
+      target.content = target.content
+        ? target.content + '\n\n（连接中断：' + ((e as Error)?.message || '请稍后再试') + '）'
+        : '抱歉，回复失败：' + ((e as Error)?.message || '请稍后再试')
       target.isStreaming = false
     }
-    streamingText.value = ''
   } finally {
+    const target = messages.value.find((m) => m.id === aiId)
+    if (target) {
+      target.isStreaming = false
+      if (!target.content.trim()) target.content = '（未返回内容）'
+    }
     isSending.value = false
     scrollToBottom()
   }
 }
 
-/** 逐字展示真实返回文本 */
+/** H5 真流式：POST /bots/:id/chat/stream（chunk 增量 + meta 会话信息/免责/导流） */
+async function sendViaStream(text: string, aiId: string): Promise<void> {
+  const live = () => messages.value.find((m) => m.id === aiId)
+  await streamChat(
+    `/bots/${botId.value}/chat/stream`,
+    { query: text, conversationId: conversationId.value || undefined },
+    {
+      onChunk: (t) => {
+        const m = live()
+        if (m) m.content += t
+        scrollThrottled()
+      },
+      onMeta: (meta) => {
+        if (meta.conversationId) conversationId.value = meta.conversationId
+        const m = live()
+        if (m) {
+          m.disclaimer = meta.disclaimer
+          m.recommendation = (meta.recommendation as Recommendation | undefined) || undefined
+        }
+      },
+    },
+  )
+}
+
+/** 逐字展示真实返回文本（非 H5 降级动效） */
 function typewriter(fullText: string, aiId: string): Promise<void> {
   return new Promise((resolve) => {
     let i = 0
     const timer = setInterval(() => {
+      const target = messages.value.find((m) => m.id === aiId)
+      if (!target) {
+        clearInterval(timer)
+        resolve()
+        return
+      }
       if (i < fullText.length) {
-        streamingText.value += fullText[i]
+        target.content += fullText[i]
         i++
-        scrollToBottom()
+        scrollThrottled()
       } else {
         clearInterval(timer)
-        const target = messages.value.find((m) => m.id === aiId)
-        if (target) {
-          target.content = fullText
-          target.isStreaming = false
-        }
-        streamingText.value = ''
+        target.isStreaming = false
         resolve()
       }
     }, 30)
@@ -328,7 +419,6 @@ function onMenu(action: string) {
       success: (r) => {
         if (r.confirm) {
           messages.value = []
-          streamingText.value = ''
           conversationId.value = ''
         }
       },
