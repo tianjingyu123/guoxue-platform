@@ -35,6 +35,21 @@ export class CommentService {
       }
     }
 
+    // 圈子治理 #10：圈内帖子评论前查禁言（轻量直查 CircleViolation·避免跨模块依赖）
+    if (dto.targetType === "POST") {
+      const post = await this.prisma.post.findUnique({ where: { id: dto.targetId }, select: { circleId: true } });
+      if (post?.circleId) {
+        const mute = await this.prisma.circleViolation.findFirst({
+          where: { circleId: post.circleId, userId, type: "MUTE", status: "ACTIVE", expiresAt: { gt: new Date() } },
+          select: { expiresAt: true },
+        });
+        if (mute) {
+          const until = mute.expiresAt ? mute.expiresAt.toISOString().slice(0, 16).replace("T", " ") : "";
+          throw new BusinessException(ErrorCode.FORBIDDEN, `你在该圈处于禁言期${until ? `（至 ${until}）` : ""}，暂不能评论`);
+        }
+      }
+    }
+
     await this.audit.moderateTextOrThrow(dto.content, { scene: "COMMENT", userId, dataId: dto.targetId });
 
     const comment = await this.prisma.comment.create({

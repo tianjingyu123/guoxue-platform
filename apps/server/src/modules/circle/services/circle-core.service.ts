@@ -241,7 +241,7 @@ export class CircleCoreService {
   }
 
   async setAnnouncement(circleId: string, userId: string, content: string, isTop?: boolean) {
-    await this.shared.checkAdmin(circleId, userId);
+    await this.shared.checkPermission(circleId, userId, "announcement.manage");
     // 内容审核（公告文本，先审后发）
     await this.audit.moderateTextOrThrow(content, {
       scene: "CIRCLE_ANNOUNCEMENT",
@@ -276,7 +276,7 @@ export class CircleCoreService {
   }
 
   async deleteAnnouncement(circleId: string, userId: string, announcementId: string) {
-    await this.shared.checkAdmin(circleId, userId);
+    await this.shared.checkPermission(circleId, userId, "announcement.manage");
     // 校验公告确实属于该圈子，防止跨圈越权删除（IDOR）
     const ann = await this.prisma.circleAnnouncement.findUnique({ where: { id: announcementId }, select: { circleId: true } });
     if (!ann || ann.circleId !== circleId) throw new BusinessException(ErrorCode.NOT_FOUND, "公告不存在");

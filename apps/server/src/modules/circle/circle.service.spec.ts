@@ -36,6 +36,8 @@ const mockPrisma = {
     count: jest.fn(),
   },
   userRole: { upsert: jest.fn() },
+  // 治理 #10：加入前禁入校验（默认无移出禁入记录）
+  circleViolation: { findFirst: jest.fn().mockResolvedValue(null) },
   $transaction: jest.fn((ops: any[]) => Promise.all(ops)),
   // 圈子 needApproval 列绕过 Prisma generate 锁，service 用原生 SQL 读写（默认非审批制）
   $queryRawUnsafe: jest.fn().mockResolvedValue([{ needApproval: false }]),

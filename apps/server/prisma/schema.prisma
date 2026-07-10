@@ -439,6 +439,100 @@ model CircleAnnouncementRead {
 }
 
 // ─────────────────────────────────────────────────
+// 圈子治理（圈规/违规阶梯/申诉/自动治理配置/权限矩阵·2026-07-10）
+// 无 @relation（同 CircleAnnouncementRead 风格）·建表见 prisma/manual/2026-07-10-governance.sql
+// ─────────────────────────────────────────────────
+
+model CircleRule {
+  id          String    @id @default(uuid())
+  circleId    String
+  sortOrder   Int       @default(0)
+  text        String
+  templateKey String? // 官方模板条目键（一键套用幂等去重·null=手动新增）
+  editedAt    DateTime? // 手动修改时间（非空=模板再次套用不覆盖）
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([circleId, sortOrder])
+}
+
+model CircleRuleAck {
+  id            String   @id @default(uuid())
+  circleId      String
+  userId        String
+  ruleIds       Json // 确认时条文 id 列表
+  rulesSnapshot Json // 确认时条文文本快照（违规处理时可引用当时版本）
+  ackAt         DateTime @default(now())
+
+  @@unique([circleId, userId])
+  @@index([userId])
+}
+
+model CircleViolation {
+  id          String    @id @default(uuid())
+  circleId    String
+  userId      String // 被处理成员
+  type        String // WARNING / MUTE / REMOVE
+  status      String    @default("ACTIVE") // ACTIVE / EXPIRED(到期清零·解禁) / LIFTED(圈主提前解除) / REVOKED(申诉成立撤销)
+  ruleId      String? // 违反的圈规条文 id
+  ruleText    String? // 条文快照
+  reason      String? // 处理说明（移出必填）
+  evidence    String? // 涉及内容摘录（证据·仅本人与管理侧可见）
+  contentType String? // POST / COMMENT …
+  contentId   String?
+  operatorId  String // 处理人 userId（自动升级时为 "system"）
+  auto        Boolean   @default(false) // 满 N 次警告自动升级产生
+  strikeCount Int       @default(0) // 处理时点累计警告数（通知进度条 x/N）
+  expiresAt   DateTime? // WARNING=清零时间(+90天) / MUTE=解禁时间 / REMOVE=null 禁入直至解除
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([circleId, userId, type, status])
+  @@index([circleId, createdAt])
+  @@index([userId, createdAt])
+  @@index([type, status, expiresAt])
+}
+
+model CircleAppeal {
+  id          String    @id @default(uuid())
+  violationId String    @unique // 每次处理仅可申诉一次
+  circleId    String
+  userId      String
+  content     String // 申诉理由
+  status      String    @default("PENDING") // PENDING / UPHELD(成立·撤销处理) / REJECTED(不成立)
+  resolution  String? // 仲裁说明（同步给成员）
+  reviewerId  String? // 平台仲裁人（48h 超时自动裁决为 "system"）
+  deadlineAt  DateTime // 提交 +48h 答复承诺
+  resolvedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([status, deadlineAt])
+  @@index([circleId, createdAt])
+  @@index([userId])
+}
+
+model CircleGovernanceConfig {
+  id                      String   @id @default(uuid())
+  circleId                String   @unique
+  requireRuleAck          Boolean  @default(true) // 新成员加入须逐条确认圈规
+  warningThreshold        Int      @default(3) // 满 N 次警告自动禁言
+  warningResetDays        Int      @default(90) // 警告 N 天自动清零
+  muteDays                Int      @default(7) // 自动/默认禁言天数（1/3/7/30）
+  removeBanRejoin         Boolean  @default(true) // 移出后禁止重新加入（可单独解除）
+  newMemberReviewEnabled  Boolean  @default(false) // 新成员 7 天发帖先审（TODO 发帖链路接入）
+  newMemberReviewDays     Int      @default(7)
+  sensitiveWordsEnabled   Boolean  @default(true)
+  sensitiveWords          Json? // 圈内自定义敏感词 string[]（命中转人工审核 AUDITING）
+  postIntervalSeconds     Int      @default(0) // 刷屏限制·同成员发帖最小间隔秒（0=关）
+  reportAutoHideEnabled   Boolean  @default(true) // 被举报满 N 自动隐藏（TODO 举报链路接入）
+  reportAutoHideThreshold Int      @default(3)
+  rolePermissions         Json? // 权限矩阵覆盖 {ADMIN:{key:bool},PARTNER:{...},GUEST:{...}}·锁定项忽略
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+}
+
+// ─────────────────────────────────────────────────
 // 帖子
 // ─────────────────────────────────────────────────
 

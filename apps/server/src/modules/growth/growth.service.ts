@@ -10,6 +10,10 @@ import {
   LEADERBOARD_TOP_N,
   computeLevel,
 } from "./growth.constants";
+import {
+  RolePermissionOverrides,
+  resolvePermission,
+} from "../circle/governance/circle-governance.constants";
 
 /**
  * 圈子成长体系 service（签到 / 成长等级 / 徽章 / 入圈审批）。
@@ -39,14 +43,27 @@ export class GrowthService {
     return Number.isFinite(x) ? x : 0;
   }
 
-  /** 圈主/合伙人/管理员权限校验（同 article.service.ensureCircleAdmin） */
+  /**
+   * 入圈审批权限校验（治理权限矩阵 #8·2026-07-10 起接入）：
+   * 圈主恒通过；其余角色按 CircleGovernanceConfig.rolePermissions 的 member.approve
+   * 覆盖位判断，缺省回落默认矩阵（管理员✓ 合伙人✗ 嘉宾✗·可由圈主在矩阵中调整）。
+   */
   private async ensureCircleAdmin(circleId: string, userId: string) {
     const member = await this.prisma.circleMember.findUnique({
       where: { circleId_userId: { circleId, userId } },
     });
-    if (!member || !["OWNER", "PARTNER", "ADMIN"].includes(member.role)) {
-      throw new BusinessException(ErrorCode.FORBIDDEN, "仅圈主/合伙人/管理员可操作");
-    }
+    if (!member) throw new BusinessException(ErrorCode.FORBIDDEN, "仅圈主或被授权的管理角色可操作");
+    if (member.role === "OWNER") return;
+    const config = await this.prisma.circleGovernanceConfig.findUnique({
+      where: { circleId },
+      select: { rolePermissions: true },
+    });
+    const allowed = resolvePermission(
+      member.role,
+      "member.approve",
+      (config?.rolePermissions as RolePermissionOverrides | null) ?? null,
+    );
+    if (!allowed) throw new BusinessException(ErrorCode.FORBIDDEN, "无审批加入申请权限");
   }
 
   /** 统计某成员在圈内的发帖数与获赞总数（既有表，走 prisma） */

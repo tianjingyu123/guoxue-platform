@@ -14,6 +14,7 @@ import { AuditService } from "../../audit/audit.service";
 import { CreatePostDto } from "../circle.dto";
 import { Prisma, PostType } from "@prisma/client";
 import { CircleSharedService } from "./circle-shared.service";
+import { CircleGovernanceService } from "../governance/circle-governance.service";
 
 /**
  * 圈子-帖子与互动域（从 circle.service 拆出·纯搬家不改逻辑）。
@@ -29,6 +30,7 @@ export class CirclePostService {
     private prisma: PrismaService,
     private audit: AuditService,
     private shared: CircleSharedService,
+    @Optional() private governance?: CircleGovernanceService,
     @Optional() private coinService?: CoinService,
     @Optional() private notificationService?: NotificationService,
   ) {}
@@ -38,6 +40,11 @@ export class CirclePostService {
   async createPost(circleId: string, userId: string, dto: CreatePostDto) {
     await this.shared.ensureMember(circleId, userId);
 
+    // 圈子治理闸门（#10/#11）：禁言拦截 + 刷屏限流 + 圈内敏感词命中转人工审核（AUDITING）
+    const gate = this.governance
+      ? await this.governance.checkPostGate(circleId, userId, [dto.title, dto.content])
+      : { forceAudit: false, hitWords: [] as string[] };
+
     // 内容审核（标题+正文，先审后发）
     await this.audit.moderateTextOrThrow([dto.title, dto.content].filter(Boolean).join(" "), {
       scene: "CIRCLE_POST",
@@ -45,6 +52,13 @@ export class CirclePostService {
     });
     // 图片审核（发帖配图，先审后发）
     await this.audit.moderateImageOrThrow(dto.images, { scene: "CIRCLE_POST", userId });
+
+    // 圈内敏感词命中：发布态强制降级为 AUDITING（不直接展示·转人工复核）；草稿不动
+    let status = dto.status ?? "PUBLISHED";
+    if (gate.forceAudit && status === "PUBLISHED") {
+      status = "AUDITING";
+      this.logger.log(`圈内敏感词命中转审 circle=${circleId} user=${userId} words=${gate.hitWords.join(",")}`);
+    }
 
     const post = await this.prisma.post.create({
       data: {
@@ -57,12 +71,12 @@ export class CirclePostService {
         videoUrl: dto.videoUrl,
         fileUrl: dto.fileUrl,
         linkUrl: dto.linkUrl,
-        status: dto.status ?? "PUBLISHED",
+        status,
       },
     });
 
     // 只有发布状态的帖子才计入统计
-    if (!dto.status || dto.status === "PUBLISHED") {
+    if (status === "PUBLISHED") {
       await this.prisma.circle.update({
         where: { id: circleId },
         data: { postCount: { increment: 1 } },
@@ -129,9 +143,9 @@ export class CirclePostService {
     // 校验帖子确实属于该圈子，防止跨圈越权删帖（IDOR）
     if (!post || post.circleId !== circleId) throw new BusinessException(ErrorCode.NOT_FOUND, "帖子不存在");
 
-    // 检查权限：作者、圈主、管理员可删除
+    // 检查权限：作者本人，或矩阵授权「删帖/折叠」（治理 #8·默认圈主/合伙人/管理员）
     if (post.userId !== userId) {
-      await this.shared.checkAdmin(circleId, userId);
+      await this.shared.checkPermission(circleId, userId, "content.moderate");
     }
 
     await this.prisma.post.delete({ where: { id: postId } });
@@ -182,7 +196,7 @@ export class CirclePostService {
   }
 
   async toggleEssence(postId: string, circleId: string, userId: string) {
-    await this.shared.checkAdmin(circleId, userId);
+    await this.shared.checkPermission(circleId, userId, "content.pin");
     const post = await this.prisma.post.findUnique({ where: { id: postId } });
     if (!post || post.circleId !== circleId) throw new BusinessException(ErrorCode.NOT_FOUND, "帖子不存在");
 
@@ -193,7 +207,7 @@ export class CirclePostService {
   }
 
   async toggleTop(postId: string, circleId: string, userId: string) {
-    await this.shared.checkAdmin(circleId, userId);
+    await this.shared.checkPermission(circleId, userId, "content.pin");
     const post = await this.prisma.post.findUnique({ where: { id: postId } });
     if (!post || post.circleId !== circleId) throw new BusinessException(ErrorCode.NOT_FOUND, "帖子不存在");
 

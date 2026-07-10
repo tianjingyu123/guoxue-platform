@@ -13,6 +13,8 @@ import { CircleAssistantController } from "./circle-assistant.controller";
 import { CircleDashboardController } from "./circle-dashboard.controller";
 import { CircleDashboardService } from "./circle-dashboard.service";
 import { CircleBackendController } from "./circle-backend.controller";
+import { CircleGovernanceService } from "./governance/circle-governance.service";
+import { CircleGovernanceController } from "./governance/circle-governance.controller";
 import { CircleKnowledgeTask } from "./circle-knowledge.task";
 import { UgcKnowledgeService } from "./ugc-knowledge.service";
 import { UgcKnowledgeTask } from "./ugc-knowledge.task";
@@ -27,8 +29,8 @@ import { TrackModule } from "../track/track.module";
 
 @Module({
   imports: [AiGatewayModule, CoinModule, CommissionModule, NotificationModule, PricingModule, AuditModule, TrackModule],
-  controllers: [CircleController, CircleKnowledgeController, CircleAssistantController, CircleDashboardController, CircleBackendController],
-  providers: [CircleService, CircleSharedService, CircleCoreService, CircleMembershipService, CirclePostService, CircleExpertService, CircleKnowledgeService, CircleAssistantService, CircleDashboardService, CircleKnowledgeTask, UgcKnowledgeService, UgcKnowledgeTask, StationIsolationGuard],
-  exports: [CircleService, CircleKnowledgeService, CircleAssistantService, UgcKnowledgeService],
+  controllers: [CircleController, CircleKnowledgeController, CircleAssistantController, CircleDashboardController, CircleBackendController, CircleGovernanceController],
+  providers: [CircleService, CircleSharedService, CircleCoreService, CircleMembershipService, CirclePostService, CircleExpertService, CircleGovernanceService, CircleKnowledgeService, CircleAssistantService, CircleDashboardService, CircleKnowledgeTask, UgcKnowledgeService, UgcKnowledgeTask, StationIsolationGuard],
+  exports: [CircleService, CircleGovernanceService, CircleKnowledgeService, CircleAssistantService, UgcKnowledgeService],
 })
 export class CircleModule {}

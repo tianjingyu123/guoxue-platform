@@ -475,8 +475,20 @@ export class CircleMembershipService {
     }
   }
 
+  /** 治理 #10：被移出且禁止重新加入的用户拦截（REMOVE ACTIVE=禁入·圈主解除/申诉成立后放行） */
+  private async assertNotBanned(circleId: string, userId: string, client: Prisma.TransactionClient | PrismaService = this.prisma) {
+    const ban = await client.circleViolation.findFirst({
+      where: { circleId, userId, type: "REMOVE", status: "ACTIVE" },
+      select: { id: true },
+    });
+    if (ban) {
+      throw new BusinessException(ErrorCode.FORBIDDEN, "你已被移出该圈子且被限制重新加入，如有异议可在处理通知中申诉");
+    }
+  }
+
   /** 内部方法：创建成员关系 */
   private async createMembership(circleId: string, userId: string, expireAt: Date | null, referrerId?: string) {
+    await this.assertNotBanned(circleId, userId);
     let member: Awaited<ReturnType<typeof this.prisma.circleMember.create>> | undefined;
     try {
       member = await this.prisma.circleMember.create({
@@ -517,6 +529,7 @@ export class CircleMembershipService {
     referrerId: string | undefined,
     tx: Prisma.TransactionClient,
   ) {
+    await this.assertNotBanned(circleId, userId, tx);
     try {
       const member = await tx.circleMember.create({
         data: { circleId, userId, role: "MEMBER", expireAt },
@@ -589,7 +602,8 @@ export class CircleMembershipService {
   }
 
   async removeMember(circleId: string, operatorId: string, targetUserId: string) {
-    await this.shared.checkAdmin(circleId, operatorId);
+    // 治理 #8：移出圈子为锁定权限项·硬编码仅圈主（设计稿金锁·能禁言的不能移出）
+    await this.shared.checkPermission(circleId, operatorId, "member.remove");
 
     const member = await this.prisma.circleMember.findUnique({
       where: { circleId_userId: { circleId, userId: targetUserId } },
