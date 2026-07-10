@@ -849,6 +849,24 @@
           }
         },
         {
+          "path": "circles/rules",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "circles/roles",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "circles/sanction-notice",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
           "path": "circles/renew",
           "style": {
             "navigationStyle": "custom"

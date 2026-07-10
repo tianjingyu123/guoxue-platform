@@ -392,6 +392,20 @@ onLoad((q) => {
               <text class="section-desc">圈子信息 · 公告 · 加入方式</text>
             </view>
           </view>
+          <view class="section-card" @tap="go(`/pkg-circle/circles/rules?id=${circleId}`)">
+            <view class="section-icon"><app-icon name="scroll-text" :size="34" color="#6E6E73" /></view>
+            <view class="section-main">
+              <text class="section-title">圈规与治理</text>
+              <text class="section-desc">条文 · 阶梯 · 自动治理</text>
+            </view>
+          </view>
+          <view class="section-card" @tap="go(`/pkg-circle/circles/roles?id=${circleId}`)">
+            <view class="section-icon"><app-icon name="key" :size="34" color="#6E6E73" /></view>
+            <view class="section-main">
+              <text class="section-title">角色与权限</text>
+              <text class="section-desc">权限矩阵 · 分账总览</text>
+            </view>
+          </view>
         </view>
       </template>
 

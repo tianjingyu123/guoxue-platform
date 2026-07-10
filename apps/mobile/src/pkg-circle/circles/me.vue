@@ -153,6 +153,11 @@ onMounted(load)
             <text v-if="refundNote" class="row-note" :class="{ 'active-note': activeRefund }">{{ refundNote }}</text>
             <app-icon name="chevron-right" :size="30" color="#999999" />
           </view>
+          <view class="row" @tap="go('/pkg-circle/circles/sanction-notice')">
+            <view class="row-icon"><app-icon name="shield" :size="30" color="#6E6E73" /></view>
+            <text class="row-label">违规与申诉</text>
+            <app-icon name="chevron-right" :size="30" color="#999999" />
+          </view>
         </view>
       </view>
 
