@@ -215,6 +215,30 @@
           </view>
         </view>
 
+        <!-- 开放范围（visibility·后端 CreateVideoDto 已收） -->
+        <view class="vp-pub-section">
+          <view class="vp-pub-card">
+            <view class="vp-pub-row-head">
+              <AppIcon name="globe" :size="40" color="#c41e3a" />
+              <text class="vp-pub-row-title">开放范围</text>
+            </view>
+            <view class="vp-scope" :class="{ on: visibility === 'CIRCLE_ONLY' }" @tap="visibility = 'CIRCLE_ONLY'">
+              <view class="vp-scope-radio" :class="{ on: visibility === 'CIRCLE_ONLY' }" />
+              <view class="vp-scope-main">
+                <text class="vp-scope-name">仅本圈</text>
+                <text class="vp-scope-desc">只有圈内成员可观看</text>
+              </view>
+            </view>
+            <view class="vp-scope" :class="{ on: visibility === 'PLATFORM' }" @tap="visibility = 'PLATFORM'">
+              <view class="vp-scope-radio" :class="{ on: visibility === 'PLATFORM' }" />
+              <view class="vp-scope-main">
+                <text class="vp-scope-name">全平台开放</text>
+                <text class="vp-scope-desc">全平台开放需平台审核，通过后进入公共池</text>
+              </view>
+            </view>
+          </view>
+        </view>
+
         <view style="height: 40rpx" />
       </scroll-view>
     </view>
@@ -342,6 +366,8 @@ const description = ref('')
 const tags = ref<string[]>([])
 const tagInput = ref('')
 const isPublic = ref(true)
+// 开放范围（后端 CreateVideoDto.visibility 已收·默认仅本圈；全平台需平台审核）
+const visibility = ref<'CIRCLE_ONLY' | 'PLATFORM'>('CIRCLE_ONLY')
 const titleError = ref('')
 
 const hotTags = publishHotTags
@@ -498,11 +524,26 @@ async function handlePublish() {
       tags: tags.value,
       isPrivate: !isPublic.value,
       products: selectedProducts.value.map((p) => p.id),
+      visibility: visibility.value,
     })
     uploadProgress.value = 100
     await new Promise((r) => setTimeout(r, 300))
-    uni.showToast({ title: '发布成功', icon: 'success' })
-    setTimeout(() => navigateTo('/videos'), 600)
+    if (visibility.value === 'PLATFORM') {
+      // 全平台开放：提交后进入平台审核（管理员/官方圈自动过审，提示不影响）
+      uni.showModal({
+        title: '发布成功',
+        content: '已提交平台审核，可在 圈子·我的 → 发布审核 查看进度',
+        confirmText: '查看进度',
+        cancelText: '知道了',
+        success: (r) => {
+          if (r.confirm) navigateTo('/pkg-circle/circles/my-audits')
+          else navigateTo('/videos')
+        },
+      })
+    } else {
+      uni.showToast({ title: '发布成功', icon: 'success' })
+      setTimeout(() => navigateTo('/videos'), 600)
+    }
   } catch (e) {
     uni.showToast({ title: (e as Error)?.message || '发布失败，请重试', icon: 'none' })
   } finally {
@@ -852,6 +893,21 @@ async function handlePublish() {
   transition: transform 0.2s;
 }
 .vp-pub-switch-knob.on { transform: translateX(40rpx); }
+/* 开放范围 */
+.vp-scope { display: flex; align-items: flex-start; gap: 20rpx; padding: 20rpx 0; }
+.vp-scope + .vp-scope { border-top: 1rpx solid #F0EBE3; }
+.vp-scope-radio {
+  width: 36rpx; height: 36rpx; border-radius: 50%; flex-shrink: 0; margin-top: 4rpx;
+  border: 3rpx solid #E8E3DB; box-sizing: border-box; position: relative;
+}
+.vp-scope-radio.on { border-color: var(--brand); }
+.vp-scope-radio.on::after {
+  content: ""; position: absolute; top: 6rpx; left: 6rpx; right: 6rpx; bottom: 6rpx;
+  border-radius: 50%; background: var(--brand);
+}
+.vp-scope-main { flex: 1; }
+.vp-scope-name { display: block; font-size: 26rpx; font-weight: 500; color: #2C2C2C; }
+.vp-scope-desc { display: block; font-size: 22rpx; color: #999999; margin-top: 4rpx; line-height: 1.5; }
 
 /* ===== 上传进度 ===== */
 .vp-upload-mask {

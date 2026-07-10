@@ -343,8 +343,8 @@ function adaptVideoItem(v: RawVideo): VideoItem {
 }
 
 export const videoApi = {
-  /** 发布视频 — POST /videos（错误传播给页面） */
-  async publish(data: Record<string, unknown>): Promise<unknown> {
+  /** 发布视频 — POST /videos（错误传播给页面；visibility 开放范围 CIRCLE_ONLY=仅本圈默认/PLATFORM=全平台需平台审核） */
+  async publish(data: { circleId?: string; title: string; description?: string; videoUrl: string; coverUrl?: string; duration?: number; tags?: string[]; isPrivate?: boolean; products?: string[]; visibility?: 'CIRCLE_ONLY' | 'PLATFORM' }): Promise<unknown> {
     return await apiPost('/videos', data)
   },
 

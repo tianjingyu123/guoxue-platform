@@ -317,8 +317,8 @@ export const articleApi = {
     return parseList<ArticleListItem>(res)
   },
 
-  /** 创建文章（圈子内） POST /articles/circles/:circleId */
-  create: (circleId: string, body: { title: string; content: string; cover?: string; excerpt?: string; tags: string[]; isPushHome?: boolean }) =>
+  /** 创建文章（圈子内） POST /articles/circles/:circleId（visibility 开放范围：CIRCLE_ONLY 默认/PLATFORM 全平台需平台审核·文章是圈子对外窗口，全平台为推荐引导项） */
+  create: (circleId: string, body: { title: string; content: string; cover?: string; excerpt?: string; tags: string[]; isPushHome?: boolean; visibility?: 'CIRCLE_ONLY' | 'PLATFORM' }) =>
     apiPost<{ id: string }>(`/articles/circles/${circleId}`, body),
 
   /** 保存草稿 POST /articles/drafts */

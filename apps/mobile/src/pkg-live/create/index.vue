@@ -48,8 +48,11 @@
           <AppIcon name="settings" :size="32" color="#d97706" />
           <view class="obs-tip-body">
             <text class="obs-tip-title">OBS推流设置</text>
-            <text class="obs-tip-desc">横屏直播需要使用OBS等推流软件，开播后将显示推流地址。</text>
-            <text class="obs-tip-link">查看OBS配置教程</text>
+            <text class="obs-tip-desc">创建后在「直播管理 → 推流配置」获取推流地址与串流密钥，填入 OBS 即可推流开播；观看端将按横屏画面呈现。</text>
+            <view class="obs-tip-links">
+              <text class="obs-tip-link" @tap="navigateTo('/pkg-live/stream-config/index')">获取推流地址</text>
+              <text class="obs-tip-link" @tap="navigateTo('/pkg-live/obs-guide/index')">查看OBS配置教程</text>
+            </view>
           </view>
         </view>
       </view>
@@ -70,12 +73,49 @@
           >
             <text class="type-name" :class="{ 'type-name-active': quality === q.value }">{{ q.label }}</text>
             <text class="type-desc">{{ q.desc }}</text>
+            <!-- 档位单价：由时长包真实价换算（金币/时），接口无数据则不显示，不编数字 -->
+            <text v-if="q.value === 'basic'" class="quality-price quality-price-free">免费</text>
+            <text v-else-if="hourRate(q.value)" class="quality-price">{{ hourRate(q.value) }} 金币<text class="quality-price-unit">/小时</text></text>
             <text v-if="q.value !== 'basic'" class="quality-quota">剩余 {{ q.value === 'hd' ? quota.hdMinutes : quota.uhdMinutes }} 分钟</text>
           </view>
         </view>
-        <view v-if="quality !== 'basic' && remainingForSelected <= 0" class="quality-warn">
-          <AppIcon name="info" :size="30" color="#d97706" />
-          <text class="quality-warn-txt">当前档位额度不足，开播将自动降级为标清（免费）</text>
+        <!-- 费用预估与额度（V0 quality-bill）：选择付费档后展开 -->
+        <view v-if="quality !== 'basic'" class="quality-bill">
+          <view v-if="hourRate(quality)" class="bill-row">
+            <text class="bill-label">档位计费</text>
+            <text class="bill-amt">{{ hourRate(quality) }} 金币/小时</text>
+          </view>
+          <view class="bill-row">
+            <text class="bill-label">我的剩余额度</text>
+            <text class="bill-amt" :class="{ 'bill-amt-warn': remainingForSelected <= 0 }">{{ formatMinutes(remainingForSelected) }}</text>
+          </view>
+          <view v-if="coinBalance !== null" class="bill-row">
+            <text class="bill-label">金币余额</text>
+            <view class="bill-balance-right">
+              <text class="bill-amt">{{ coinBalance }} 金币</text>
+              <text class="bill-recharge" @tap="navigateTo('/pkg-mine/wallet/recharge')">去充值</text>
+            </view>
+          </view>
+          <!-- 额度不足：内联真实套餐购买（真价·真端点） -->
+          <view v-if="remainingForSelected <= 0" class="bill-buy">
+            <text class="bill-buy-title">额度不足，购买时长包后可选本档位开播</text>
+            <view v-if="packagesForSelected.length" class="bill-pkg-list">
+              <view v-for="pkg in packagesForSelected" :key="pkg.id" class="bill-pkg">
+                <view class="bill-pkg-info">
+                  <text class="bill-pkg-name">{{ pkg.name }}</text>
+                  <text class="bill-pkg-minutes">{{ formatMinutes(pkg.minutes) }}转码时长</text>
+                </view>
+                <view class="bill-pkg-right">
+                  <text class="bill-pkg-price">{{ pkg.priceCoin }} 金币</text>
+                  <view class="bill-pkg-btn" :class="{ 'bill-pkg-btn-ing': buyingId === pkg.id }" @tap="onBuyPackage(pkg)">
+                    <text class="bill-pkg-btn-txt">{{ buyingId === pkg.id ? '购买中…' : '购买' }}</text>
+                  </view>
+                </view>
+              </view>
+            </view>
+            <text v-else class="bill-pkg-empty">套餐加载失败，可点右上角「购买时长包」前往购买</text>
+          </view>
+          <text class="bill-note">按实际开播时长核销额度，不足 1 分钟按 1 分钟计；开播时额度不足将自动降级为标清（免费）。画质额度与直播门票收入互不影响。</text>
         </view>
       </view>
 
@@ -195,6 +235,27 @@
         </view>
       </view>
 
+      <!-- 开放范围（visibility·后端 CreateRoomDto 已收） -->
+      <view class="card">
+        <text class="label">开放范围</text>
+        <view class="scope-list">
+          <view class="scope-option" :class="{ 'scope-active': visibility === 'CIRCLE_ONLY' }" @tap="visibility = 'CIRCLE_ONLY'">
+            <view class="scope-radio" :class="{ 'scope-radio-on': visibility === 'CIRCLE_ONLY' }" />
+            <view class="scope-main">
+              <text class="scope-name">仅本圈</text>
+              <text class="scope-desc">只有圈内成员可进入直播间</text>
+            </view>
+          </view>
+          <view class="scope-option" :class="{ 'scope-active': visibility === 'PLATFORM' }" @tap="visibility = 'PLATFORM'">
+            <view class="scope-radio" :class="{ 'scope-radio-on': visibility === 'PLATFORM' }" />
+            <view class="scope-main">
+              <text class="scope-name">全平台开放</text>
+              <text class="scope-desc">全平台开放需平台审核，通过后进入公共池</text>
+            </view>
+          </view>
+        </view>
+      </view>
+
       <!-- 提示 -->
       <view class="info-tip">
         <AppIcon name="info" :size="32" color="#C9A96E" />
@@ -233,17 +294,26 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
-import { liveApi, type LiveCategory, type LiveQuota } from '@/lib/live-data'
+import { liveApi, type LiveCategory, type LiveQuota, type LiveQualityPackage } from '@/lib/live-data'
+import { getCoinBalance } from '@/lib/circle-consult-data'
 import { uploadImage } from '@/utils/request'
 
 // 三态UI
 const loading = ref(true)
 const error = ref('')
 
-// UI 临时状态
+// 发布归属圈子：从圈子发布入口带来则归该圈子（后端 CreateRoomDto.circleId 可选）
+const circleId = ref('')
+onLoad((q) => { circleId.value = (q as Record<string, string> | undefined)?.circleId || '' })
+
+// 开播方式（orientation·后端已收）：手机竖屏（默认）/ OBS 推流横屏
 const liveMode = ref<'vertical' | 'horizontal'>('vertical')
+
+// 开放范围（visibility·后端已收，默认仅本圈；全平台需平台审核）
+const visibility = ref<'CIRCLE_ONLY' | 'PLATFORM'>('CIRCLE_ONLY')
 
 // 画质档位（C5）
 const quality = ref<'basic' | 'hd' | 'uhd'>('basic')
@@ -256,6 +326,44 @@ const qualityOptions = [
 const remainingForSelected = computed(() =>
   quality.value === 'hd' ? quota.value.hdMinutes : quality.value === 'uhd' ? quota.value.uhdMinutes : Infinity,
 )
+// 时长包真实数据（GET /live/quality-packages）：档位单价与内联购买均由此换算，不硬编码金额
+const packages = ref<LiveQualityPackage[]>([])
+const coinBalance = ref<number | null>(null)
+/** 档位单价（金币/时）：取该档最优惠时长包换算；无数据返回 0（模板不渲染，不编数字） */
+function hourRate(q: 'basic' | 'hd' | 'uhd'): number {
+  if (q === 'basic') return 0
+  const rates = packages.value
+    .filter((p) => p.quality === q && p.minutes > 0 && p.priceCoin > 0)
+    .map((p) => (p.priceCoin / p.minutes) * 60)
+  return rates.length ? Math.round(Math.min(...rates)) : 0
+}
+const packagesForSelected = computed(() =>
+  quality.value === 'basic' ? [] : packages.value.filter((p) => p.quality === quality.value),
+)
+function formatMinutes(m: number): string {
+  if (!Number.isFinite(m) || m <= 0) return '0 分钟'
+  if (m >= 60) {
+    const h = Math.floor(m / 60)
+    const rest = m % 60
+    return rest ? `${h}小时${rest}分` : `${h}小时`
+  }
+  return `${m} 分钟`
+}
+// 内联购买时长包（POST /live/quality-packages/:id/purchase 真实端点，返回购买后额度）
+const buyingId = ref('')
+async function onBuyPackage(pkg: LiveQualityPackage) {
+  if (buyingId.value) return
+  buyingId.value = pkg.id
+  try {
+    quota.value = await liveApi.purchaseQualityPackage(pkg.id)
+    coinBalance.value = await getCoinBalance()
+    uni.showToast({ title: '购买成功', icon: 'success' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '购买失败', icon: 'none' })
+  } finally {
+    buyingId.value = ''
+  }
+}
 function goBuyPackage() {
   navigateTo('/pkg-live/quality-packages/index')
 }
@@ -308,6 +416,9 @@ async function fetchData() {
   //（原实现：getCategories 抛错→error 被设→表单永远出不来，是「填不了直播信息」的根因）
   categories.value = await liveApi.getCategories().catch(() => [])
   quota.value = await liveApi.getQuota().catch(() => ({ hdMinutes: 0, uhdMinutes: 0 }))
+  // 时长包/金币余额：辅助信息降级为空，不挡表单（金额一律用后端返回值）
+  packages.value = await liveApi.getQualityPackages().catch(() => [])
+  coinBalance.value = await getCoinBalance()
   loading.value = false
 }
 
@@ -335,15 +446,32 @@ async function onCreate() {
   submitting.value = true
   try {
     await liveApi.createRoom({
+      circleId: circleId.value || undefined,
       title: title.value.trim(),
       cover: cover.value || undefined,
       startTime: startTime.value || undefined,
       chargeType: isCharge.value ? 'PAID' : 'FREE',
       chargePrice: isCharge.value ? price : undefined,
       quality: quality.value,
+      orientation: liveMode.value === 'horizontal' ? 'landscape' : 'portrait',
+      visibility: visibility.value,
     })
-    uni.showToast({ title: '创建成功', icon: 'success' })
-    setTimeout(() => goBack(), 800)
+    if (visibility.value === 'PLATFORM') {
+      // 全平台开放：提交后进入平台审核（管理员/官方圈自动过审，提示不影响）
+      uni.showModal({
+        title: '创建成功',
+        content: '已提交平台审核，可在 圈子·我的 → 发布审核 查看进度',
+        confirmText: '查看进度',
+        cancelText: '返回',
+        success: (r) => {
+          if (r.confirm) navigateTo('/pkg-circle/circles/my-audits')
+          else goBack()
+        },
+      })
+    } else {
+      uni.showToast({ title: '创建成功', icon: 'success' })
+      setTimeout(() => goBack(), 800)
+    }
   } catch (e) {
     uni.showToast({ title: (e as Error)?.message || '创建失败', icon: 'none' })
   } finally {
@@ -548,12 +676,12 @@ async function onCreate() {
   color: #b45309;
   margin-top: 8rpx;
 }
+.obs-tip-links { display: flex; gap: 32rpx; margin-top: 8rpx; }
 .obs-tip-link {
   display: inline-block;
   font-size: 20rpx;
   color: #92400e;
   text-decoration: underline;
-  margin-top: 8rpx;
 }
 
 /* 画质档位（C5） */
@@ -562,12 +690,59 @@ async function onCreate() {
 .quality-buy-link { font-size: 24rpx; color: var(--brand); }
 .quality-grid { grid-template-columns: 1fr 1fr 1fr; }
 .quality-quota { display: block; font-size: 20rpx; color: #C9A96E; margin-top: 8rpx; }
-.quality-warn {
-  margin-top: 24rpx; padding: 20rpx 24rpx;
-  background: #fffbeb; border: 1rpx solid #fde68a; border-radius: 20rpx;
-  display: flex; align-items: center; gap: 12rpx;
+/* 档位单价（真实时长包换算·金） */
+.quality-price { display: block; font-size: 24rpx; font-weight: 600; color: #C9A96E; margin-top: 8rpx; }
+.quality-price-unit { font-size: 20rpx; font-weight: 400; color: #999999; }
+.quality-price-free { color: #5B8A5E; }
+/* 费用预估卡（V0 quality-bill 暖底） */
+.quality-bill {
+  margin-top: 24rpx; padding: 24rpx 28rpx;
+  background: #F8F4EC; border-radius: 20rpx;
 }
-.quality-warn-txt { flex: 1; font-size: 22rpx; color: #b45309; }
+.bill-row { display: flex; align-items: center; justify-content: space-between; }
+.bill-row + .bill-row { margin-top: 12rpx; }
+.bill-label { font-size: 24rpx; color: #6E6E73; }
+.bill-amt { font-size: 24rpx; font-weight: 600; color: #C9A96E; }
+.bill-amt-warn { color: var(--brand); }
+.bill-balance-right { display: flex; align-items: center; gap: 16rpx; }
+.bill-recharge {
+  padding: 6rpx 24rpx; border: 1rpx solid #C9A96E; border-radius: 26rpx;
+  font-size: 22rpx; font-weight: 600; color: #C9A96E;
+}
+.bill-buy { margin-top: 20rpx; padding-top: 20rpx; border-top: 1rpx solid #EDE7DD; }
+.bill-buy-title { display: block; font-size: 22rpx; color: var(--brand); margin-bottom: 16rpx; }
+.bill-pkg-list { display: flex; flex-direction: column; gap: 16rpx; }
+.bill-pkg {
+  display: flex; align-items: center; justify-content: space-between;
+  background: #ffffff; border-radius: 16rpx; padding: 20rpx 24rpx;
+}
+.bill-pkg-info { display: flex; flex-direction: column; gap: 6rpx; min-width: 0; }
+.bill-pkg-name { font-size: 24rpx; font-weight: 500; color: #2C2C2C; }
+.bill-pkg-minutes { font-size: 20rpx; color: #999999; }
+.bill-pkg-right { display: flex; align-items: center; gap: 20rpx; flex-shrink: 0; }
+.bill-pkg-price { font-size: 24rpx; font-weight: 700; color: var(--brand); }
+.bill-pkg-btn { padding: 10rpx 32rpx; border-radius: 999rpx; background: linear-gradient(to right, var(--brand), #E85D75); }
+.bill-pkg-btn-ing { opacity: 0.6; }
+.bill-pkg-btn-txt { font-size: 22rpx; color: #ffffff; font-weight: 500; }
+.bill-pkg-empty { display: block; font-size: 22rpx; color: #999999; }
+.bill-note { display: block; margin-top: 16rpx; font-size: 20rpx; color: #999999; line-height: 1.6; }
+
+/* 开放范围（V0 scope-option） */
+.scope-list { display: flex; flex-direction: column; }
+.scope-option { display: flex; align-items: flex-start; gap: 24rpx; padding: 24rpx 0; }
+.scope-option + .scope-option { border-top: 1rpx solid #EDE7DD; }
+.scope-radio {
+  width: 40rpx; height: 40rpx; border-radius: 50%; flex-shrink: 0; margin-top: 2rpx;
+  border: 3rpx solid #E8E3DB; box-sizing: border-box; position: relative;
+}
+.scope-radio-on { border-color: var(--brand); }
+.scope-radio-on::after {
+  content: ""; position: absolute; top: 8rpx; left: 8rpx; right: 8rpx; bottom: 8rpx;
+  border-radius: 50%; background: var(--brand);
+}
+.scope-main { flex: 1; }
+.scope-name { display: block; font-size: 28rpx; font-weight: 500; color: #2C2C2C; }
+.scope-desc { display: block; font-size: 24rpx; color: #999999; margin-top: 4rpx; line-height: 1.5; }
 
 /* 封面上传 */
 .cover-upload {
