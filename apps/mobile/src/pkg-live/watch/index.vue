@@ -472,6 +472,8 @@ async function fetchRoomData(roomId: string) {
     if (getToken() && room.value.circleId) liveApi.reportCircleChannelClick(room.value.circleId)
     // 预约态 → 拉取真实预约人数（失败归零则该行不显示）
     if (isWaiting.value) fetchBookingCount(room.value.id)
+    // 播放地址只在直播中才拉（预告/回放态请求必被后端 400 拒，白耗一次请求+控制台报错）
+    if (roomStatus.value === 'LIVING') fetchPlayUrl(room.value.id || roomId)
   } catch (e) {
     error.value = (e as Error)?.message || '加载失败，请重试'
   } finally {
@@ -708,8 +710,7 @@ function scrollDanmakuToBottom() {
 onLoad((opts) => {
   const roomId = opts?.id || '1'
   if (opts?.type === 'commerce') room.value.type = 'commerce'
-  fetchRoomData(roomId)
-  fetchPlayUrl(roomId)
+  fetchRoomData(roomId) // 播放地址在 fetchRoomData 内按 LIVING 态条件拉取
   fetchGifts()
   fetchRanking(roomId)
 })
