@@ -108,6 +108,8 @@ export interface PaidQuestion {
   images: string[]
   priceCoin: number
   peekPriceCoin: number
+  /** 是否公开（公开后可被围观；后端 PaidQuestion.isPublic 真字段） */
+  isPublic: boolean
   status: PaidQuestionStatus
   /** 受付费墙保护：非当事人/未围观时后端返回 null */
   answer: string | null
@@ -165,7 +167,7 @@ interface RawPaidQuestion {
   id?: string | number; circleId?: string; circle?: { id?: string | number; name?: string } | null
   askerId?: string; asker?: RawQUser | null; answererId?: string; answerer?: RawQUser | null
   question?: string; images?: string[]; priceCoin?: number | string; peekPriceCoin?: number | string
-  status?: string; answer?: string | null; answerLocked?: boolean; answeredAt?: string | null
+  isPublic?: boolean; status?: string; answer?: string | null; answerLocked?: boolean; answeredAt?: string | null
   peekCount?: number | string; createdAt?: string
 }
 interface RawQuestionListResp { questions?: RawPaidQuestion[]; total?: number; page?: number; pageSize?: number }
@@ -185,6 +187,7 @@ function mapQuestion(q: RawPaidQuestion): PaidQuestion {
     images: Array.isArray(q?.images) ? q.images : [],
     priceCoin: Number(q?.priceCoin) || 0,
     peekPriceCoin: Number(q?.peekPriceCoin) || 0,
+    isPublic: q?.isPublic !== false,
     status: (q?.status || 'PENDING') as PaidQuestionStatus,
     answer: q?.answer ?? null,
     answerLocked: !!q?.answerLocked,
@@ -256,4 +259,17 @@ export const questionApi = {
 
   /** 围观付费看答案 — POST /question/:id/peek（扣围观币） */
   peek: async (id: string): Promise<PaidQuestion> => mapQuestion(await apiPost<RawPaidQuestion>(`/question/${id}/peek`, {})),
+}
+
+/**
+ * 我的金币余额 — GET /coin/balance（提问/悬赏吸底栏「当前余额」明示用）。
+ * 未登录/失败返回 null，调用方隐藏余额行（不编数字）。
+ */
+export async function getCoinBalance(): Promise<number | null> {
+  try {
+    const res = await apiGet<{ balance?: number }>('/coin/balance')
+    return Number(res?.balance) >= 0 ? Number(res?.balance) : null
+  } catch {
+    return null
+  }
 }

@@ -1,515 +1,571 @@
 <script setup lang="ts">
 /**
- * 圈子数据看板（真连后端）
- * 健康度分数卡 + 概览KPI卡(成员/活跃/本月新增) + 近30天趋势 + 流失预警 +
- * 待回复提问入口 + 活跃贡献者TOP5 + 热门内容TOP5 + 收益构成
- *
- * 数据来源：
- * - overview / revenue：/circle-backend/*（后端取当前圈主的圈子，不传 circleId）
- * - contributors / hotPosts：/circles/:id/leaderboard、/circles/:id/hot-content（需 circleId）
- * - trends / churn / pendingQuestions：/circles/:id/dashboard/*（需 circleId，圈主鉴权）
- * - 健康度：前端纯函数用 overview 真实字段加权合成（见 computeCircleHealth 注释），无编造数据
- *
- * 说明：KPI 增长率、总帖子数、贡献者点赞数、帖子浏览量后端均无来源 → 一律降级隐藏。
- *      三个 dashboard 扩展接口用 Promise.allSettled 逐项容错，单项失败只隐藏对应区块不拖垮整页。
+ * 圈主管理后台 · 概览（Dashboard）— V0 circle-admin-dashboard(-empty).html 还原（2026-07-10 批③）
+ * 结构：指标 2×2 → 待办聚合（加入申请/退款/付费提问/知识库候选·计数全真实）→ 近30天趋势 → 管理分区 2×3
+ * 空态（新圈冷启动·成员≤1）：2 指标 + 暂无待办 + 起步清单 + 趋势空文案
+ * 数据：dashboardApi.circleOverview/trends（circle-dashboard 后端）+ growthApi.joinRequests
+ *      + refundApi.ownerPending + dashboardApi.pendingQuestions + knowledgeApi.candidates
+ * 降级：V0"7日活跃成员"后端无字段→本月互动率；"本周新增内容 帖/文章/视频"无分项统计→本月新帖；
+ *      "较上月+18%"同比无来源→不显示；折线 SVG 小程序不支持→柱状趋势（双指标切换）；
+ *      空态起步四步中"写圈主的话"依赖 circle_intro 后端缺→降级为三步。
  */
+import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
-import { computed, ref } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
-import AlmanacBar from '@/components/workbench/almanac-bar.vue'
-import AdvisorCard from '@/components/workbench/advisor-card.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import {
-  computeCircleHealth,
   dashboardApi,
   fillTrendDays,
-  type DashboardChurnWarning,
-  type DashboardContributor,
-  type DashboardHotPost,
-  type DashboardOverview,
-  type DashboardPendingQuestion,
-  type DashboardRevenue,
+  type CircleDashboardOverview,
   type DashboardTrendPoint,
+  type DashboardPendingQuestion,
 } from '@/lib/circle-dashboard-data'
+import { circleManageApi, type CircleOverview } from '@/lib/circle-manage-data'
+import { growthApi } from '@/lib/circle-growth-data'
+import { refundApi, type RefundRequestItem } from '@/lib/circle-refund-data'
+import { knowledgeApi } from '@/lib/circle-knowledge-data'
+import { inviteApi } from '@/lib/circle-invite-data'
 
 const circleId = ref('')
-
-// 三态
 const loading = ref(true)
-const error = ref('')
-const refreshing = ref(false)
+const error = ref(false)
 
-// 真实数据
-const overview = ref<DashboardOverview | null>(null)
-const revenue = ref<DashboardRevenue | null>(null)
-const contributors = ref<DashboardContributor[]>([])
-const hotPosts = ref<DashboardHotPost[]>([])
-
-// 近30天趋势（补齐为连续30天）；null = 接口失败/未加载 → 整块隐藏
-const trendDays = ref<DashboardTrendPoint[] | null>(null)
-// 趋势图指标切换：新增成员 / 收入
+const overview = ref<CircleDashboardOverview | null>(null)
+const trendDays = ref<DashboardTrendPoint[]>([])
 const trendMetric = ref<'newMembers' | 'revenue'>('newMembers')
-// 流失预警；null = 接口失败 → 整块隐藏；count=0 → 也隐藏（无预警即无噪音）
-const churn = ref<DashboardChurnWarning | null>(null)
-// 待回复提问；null = 接口失败 → 入口卡隐藏
-const pendingQuestions = ref<DashboardPendingQuestion[] | null>(null)
 
-// 圈子健康度（纯函数合成，权重见 lib 内中文注释）
-const health = computed(() => (overview.value ? computeCircleHealth(overview.value) : null))
-const HEALTH_COLORS: Record<string, string> = {
-  excellent: '#52C41A',
-  good: '#4A90D9',
-  normal: '#FA8C16',
-  warn: '#FF4D4F',
-}
+// 待办（计数全部来自真实接口）
+const joinPending = ref(0)
+const joinOldestDays = ref(0)
+const refundPending = ref<RefundRequestItem[]>([])
+const pendingQuestions = ref<DashboardPendingQuestion[]>([])
+const candidateCount = ref(0)
 
-// 趋势图：当前指标下各柱高度百分比（纯 view 宽/高实现，不引第三方图表库）
+// 空态起步清单（依赖 manage 概览的 cover/intro/postCount + 邀请码）
+const manageOv = ref<CircleOverview | null>(null)
+const hasInviteCode = ref(false)
+
+const isEmptyCircle = computed(() => !!overview.value && overview.value.memberCount <= 1)
+
+const refundAmount = computed(() =>
+  refundPending.value.reduce((s, r) => s + (r.actualRefund || 0), 0),
+)
+const todoCount = computed(
+  () => joinPending.value + refundPending.value.length + pendingQuestions.value.length + candidateCount.value,
+)
+const reviewBadge = computed(() => joinPending.value + refundPending.value.length)
+
+// ─── 趋势（柱状·双指标切换；折线 SVG 小程序不支持） ───
 const trendBars = computed(() => {
-  const days = trendDays.value || []
-  const max = Math.max(...days.map((d) => d[trendMetric.value]), 0)
-  return days.map((d) => ({
+  const max = Math.max(...trendDays.value.map((d) => d[trendMetric.value]), 0)
+  return trendDays.value.map((d) => ({
     date: d.date,
     value: d[trendMetric.value],
-    // 有数据的柱至少 4% 高度保证可见；全 0 时高度为 0
     percent: max > 0 ? Math.max(Math.round((d[trendMetric.value] / max) * 100), d[trendMetric.value] > 0 ? 4 : 0) : 0,
   }))
 })
-// 近30天是否有任何数据（全 0 则展示轻空态）
-const trendHasData = computed(() => (trendDays.value || []).some((d) => d.newMembers > 0 || d.revenue > 0))
-// 近30天合计（当前指标）
-const trendTotal = computed(() =>
-  (trendDays.value || []).reduce((sum, d) => sum + d[trendMetric.value], 0),
-)
-// 横轴首尾日期标签（MM-DD）
+const trendHasData = computed(() => trendDays.value.some((d) => d.newMembers > 0 || d.revenue > 0))
 const trendAxis = computed(() => {
-  const days = trendDays.value || []
-  if (!days.length) return { start: '', end: '' }
-  return { start: days[0].date.slice(5), end: days[days.length - 1].date.slice(5) }
+  const days = trendDays.value
+  if (!days.length) return { start: '', mid: '', end: '' }
+  const f = (s: string) => {
+    const d = new Date(s)
+    return Number.isNaN(d.getTime()) ? '' : `${d.getMonth() + 1}月${d.getDate()}日`
+  }
+  return { start: f(days[0].date), mid: f(days[Math.floor(days.length / 2)].date), end: f(days[days.length - 1].date) }
 })
 
-// KPI 卡：仅后端真实可得三项（无增长率来源，故不展示 growth）
-const KPI_META = [
-  { key: 'memberCount', icon: 'users', label: '总成员', color: '#C41E3A' },
-  { key: 'activeMembers', icon: 'activity', label: '活跃成员', color: '#4A90D9' },
-  { key: 'monthNewMembers', icon: 'user-plus', label: '本月新增', color: '#C9A96E' },
-] as const
-
-// 收益构成：后端无分项明细 → 用 revenue 真实三项（总流水/嘉宾分账/圈主净收益）构成
-const revenueItems = ref<{ name: string; value: number; percent: number; color: string }[]>([])
-
-function buildRevenueItems(r: DashboardRevenue) {
-  const base = [
-    { name: '总流水', value: r.totalAmount, color: '#C41E3A' },
-    { name: '嘉宾分账', value: r.totalGuestPayouts, color: '#C9A96E' },
-    { name: '圈主净收益', value: r.ownerRevenue, color: '#52C41A' },
+// 起步清单（三步·"写圈主的话"后端缺 circle_intro 字段降级不放）
+const starterSteps = computed(() => {
+  const ov = manageOv.value
+  return [
+    {
+      title: '完善圈子信息',
+      desc: '封面、简介与标签让圈子更可信',
+      done: !!(ov?.cover && ov?.intro),
+      url: `/pkg-circle/circles/manage?id=${circleId.value}&tab=settings`,
+      goLabel: '去完善',
+    },
+    {
+      title: '发第一条帖子',
+      desc: '让新成员进来能看到内容',
+      done: (ov?.postCount ?? 0) > 0,
+      url: `/pkg-circle/circles/editor?circleId=${circleId.value}`,
+      goLabel: '去发',
+    },
+    {
+      title: '生成邀请码，请几位朋友',
+      desc: '种子成员决定圈子初期氛围',
+      done: hasInviteCode.value,
+      url: `/pkg-circle/circles/invite-codes?id=${circleId.value}`,
+      goLabel: '去邀请',
+    },
   ]
-  const max = Math.max(...base.map((b) => b.value), 0)
-  revenueItems.value = base.map((b) => ({
-    ...b,
-    percent: max > 0 ? Math.round((b.value / max) * 1000) / 10 : 0,
-  }))
+})
+const starterDone = computed(() => starterSteps.value.filter((s) => s.done).length)
+
+function fmtMoney(n: number) {
+  return n.toLocaleString('zh-CN', { maximumFractionDigits: 2 })
 }
 
-async function loadAll() {
+function waitDays(iso: string): number {
+  const t = new Date(iso).getTime()
+  if (Number.isNaN(t)) return 0
+  return Math.max(Math.floor((Date.now() - t) / 86400000), 0)
+}
+
+async function load() {
   loading.value = true
-  error.value = ''
+  error.value = false
   try {
-    const [ov, rev] = await Promise.all([dashboardApi.overview(), dashboardApi.revenue()])
-    overview.value = ov
-    revenue.value = rev
-    buildRevenueItems(rev)
-    // 贡献者/热门内容依赖 circleId，缺失则降级为空列表
-    if (circleId.value) {
-      const [contrib, hot] = await Promise.all([
-        dashboardApi.contributors(circleId.value, 5),
-        dashboardApi.hotContent(circleId.value, 5),
-      ])
-      contributors.value = contrib
-      hotPosts.value = hot
-      // 趋势/流失预警/待回复提问：allSettled 逐项容错，单项失败仅隐藏对应区块，不拖垮整页
-      const [trendRes, churnRes, pqRes] = await Promise.allSettled([
-        dashboardApi.trends(circleId.value),
-        dashboardApi.churnWarning(circleId.value),
-        dashboardApi.pendingQuestions(circleId.value),
-      ])
-      trendDays.value = trendRes.status === 'fulfilled' ? fillTrendDays(trendRes.value, 30) : null
-      churn.value = churnRes.status === 'fulfilled' ? churnRes.value : null
-      pendingQuestions.value = pqRes.status === 'fulfilled' ? pqRes.value : null
-    } else {
-      contributors.value = []
-      hotPosts.value = []
-      trendDays.value = null
-      churn.value = null
-      pendingQuestions.value = null
+    // 概览是页面主体，失败走 error 态
+    overview.value = await dashboardApi.circleOverview(circleId.value)
+
+    // 其余区块并行拉取，单块失败降级为空（不阻塞主体）
+    const [trendRes, joinRes, refundRes, pqRes, candRes] = await Promise.allSettled([
+      dashboardApi.trends(circleId.value),
+      growthApi.joinRequests(circleId.value),
+      refundApi.ownerPending(),
+      dashboardApi.pendingQuestions(circleId.value),
+      knowledgeApi.candidates(circleId.value),
+    ])
+    trendDays.value = trendRes.status === 'fulfilled' ? fillTrendDays(trendRes.value, 30) : []
+    if (joinRes.status === 'fulfilled') {
+      const pend = joinRes.value.filter((r) => r.status === 'PENDING')
+      joinPending.value = pend.length
+      joinOldestDays.value = pend.length ? Math.max(...pend.map((r) => waitDays(r.createdAt))) : 0
     }
-  } catch (e) {
-    error.value = (e as Error)?.message || '加载失败'
+    refundPending.value =
+      refundRes.status === 'fulfilled'
+        ? refundRes.value.filter((r) => r.circleId === circleId.value && r.ownerStatus === 'pending')
+        : []
+    pendingQuestions.value = pqRes.status === 'fulfilled' ? pqRes.value : []
+    candidateCount.value = candRes.status === 'fulfilled' ? candRes.value.length : 0
+
+    // 空圈冷启动：补拉起步清单判定所需数据
+    if (overview.value.memberCount <= 1) {
+      const [mo, codes] = await Promise.allSettled([
+        circleManageApi.getOverview(circleId.value),
+        inviteApi.listCodes(circleId.value),
+      ])
+      manageOv.value = mo.status === 'fulfilled' ? mo.value : null
+      hasInviteCode.value = codes.status === 'fulfilled' && codes.value.length > 0
+    }
+  } catch {
+    error.value = true
   } finally {
     loading.value = false
   }
 }
 
-function fmtNum(n: number) {
-  if (n >= 10000) return (n / 10000).toFixed(1) + '万'
-  if (n >= 1000) return (n / 1000).toFixed(1) + 'k'
-  return String(n)
-}
-function rankColor(i: number) { return ['#FFD700', '#C0C0C0', '#CD7F32'][i] || '' }
-function hotBg(i: number) { return ['#FFD70020', '#C0C0C020', '#CD7F3220'][i] || '#F5F5F5' }
-function hotColor(i: number) { return ['#B8860B', '#808080', '#8B4513'][i] || '#999999' }
-
-async function refresh() {
-  if (refreshing.value || loading.value) return
-  refreshing.value = true
-  try {
-    await loadAll()
-    uni.showToast({ title: '已刷新', icon: 'success' })
-  } finally {
-    refreshing.value = false
-  }
-}
-function openPost(id: string) {
-  if (!id) return
-  navigateTo(`/pkg-circle/circles/post?id=${id}&circleId=${circleId.value}`)
-}
-// 跳转到提问详情页（圈主可在详情页直接回答/拒答）
-function openQuestion(id: string) {
-  if (!id) return
-  navigateTo(`/pkg-circle/circles/question-detail?id=${id}`)
-}
-// 跳转到成员洞察（智能名片，需带圈子 id）
-function openMembersInsight() {
-  if (!circleId.value) return
-  navigateTo(`/pkg-circle/circles/members-insight?id=${circleId.value}`)
+function go(url: string) { navigateTo(url) }
+function goQuestions() {
+  const first = pendingQuestions.value[0]
+  if (first) navigateTo(`/pkg-circle/circles/question-detail?id=${first.id}`)
 }
 
-onLoad((query) => {
-  circleId.value = (query?.id as string) || ''
-  loadAll()
+onLoad((q) => {
+  circleId.value = q?.id || q?.circleId || ''
+  if (circleId.value) load()
+  else { loading.value = false; error.value = true }
 })
 </script>
 
 <template>
-  <view class="db">
+  <view class="page">
     <!-- 顶栏 -->
-    <view class="db-hdr">
-      <view class="db-hdr-l">
-        <view class="db-hdr-btn" @tap="goBack"><app-icon name="arrow-left" :size="34" color="#2C2C2C" /></view>
-        <text class="db-hdr-title">数据看板</text>
-      </view>
-      <view class="db-hdr-btn" @tap="refresh">
-        <app-icon name="refresh-cw" :size="34" color="#666666" :class="{ spin: refreshing }" />
-      </view>
+    <view class="topbar">
+      <view class="back-btn" @tap="goBack"><app-icon name="chevron-left" :size="40" color="#2C2C2C" /></view>
+      <text class="topbar-title">管理后台</text>
+      <text v-if="overview?.name" class="circle-name">{{ overview.name }}</text>
     </view>
 
-    <!-- 首屏加载 -->
-    <view v-if="loading" class="db-state">
-      <app-icon name="loader" :size="48" color="#c41e3a" class="spin" />
-      <text class="db-state-t">加载中…</text>
+    <!-- loading 骨架 -->
+    <view v-if="loading" class="skeleton">
+      <view class="sk-metrics">
+        <view v-for="i in 4" :key="i" class="sk-metric" />
+      </view>
+      <view class="sk-block" />
+      <view class="sk-block tall" />
     </view>
 
-    <!-- 错误态 -->
-    <view v-else-if="error" class="db-state">
-      <app-icon name="alert-circle" :size="48" color="#FF4D4F" />
-      <text class="db-state-t">{{ error }}</text>
-      <view class="db-state-btn" @tap="loadAll"><text class="db-state-btn-t">重试</text></view>
+    <!-- error 重试 -->
+    <view v-else-if="error || !overview" class="state-view">
+      <app-icon name="alert-circle" :size="72" color="#C9A96E" />
+      <text class="state-title">加载失败</text>
+      <text class="state-desc">请检查网络后重试（需圈主身份访问）</text>
+      <view class="state-btn" @tap="load"><text class="state-btn-txt">重新加载</text></view>
     </view>
 
-    <scroll-view v-else scroll-y class="db-body">
-      <!-- 今日宜忌轻栏（自包含拉取，失败自动隐藏；db-body 自带 24rpx 内边距，故去掉左右外边距） -->
-      <almanac-bar margin="0 0 24rpx" />
-
-      <!-- 经营顾问（自包含，无建议自动隐藏） -->
-      <advisor-card role-type="CIRCLE_OWNER" />
-
-      <!-- 圈子健康度（前端纯函数用 overview 真实数据合成，权重见 lib 注释） -->
-      <view v-if="health" class="db-health">
-        <view class="db-health-score-wrap">
-          <text class="db-health-score" :style="{ color: HEALTH_COLORS[health.level] }">{{ health.score }}</text>
-          <text class="db-health-unit">分</text>
+    <scroll-view v-else scroll-y class="body">
+      <!-- ═══ 空态：新圈冷启动 ═══ -->
+      <template v-if="isEmptyCircle">
+        <view class="metrics">
+          <view class="metric">
+            <text class="metric-label">成员总数</text>
+            <text class="metric-num">{{ overview.memberCount }}</text>
+            <text class="metric-delta down">只有你自己，从邀请开始</text>
+          </view>
+          <view class="metric">
+            <text class="metric-label">本月收入</text>
+            <text class="metric-num gold">¥{{ fmtMoney(overview.monthRevenue) }}</text>
+            <text class="metric-delta down">开启付费后开始累计</text>
+          </view>
         </view>
-        <view class="db-health-info">
-          <view class="db-health-head">
-            <text class="db-health-title">圈子健康度</text>
-            <view class="db-health-track">
-              <view class="db-health-fill" :style="{ width: health.score + '%', background: HEALTH_COLORS[health.level] }" />
+
+        <text class="section-label">待办</text>
+        <view class="todo-empty">
+          <view class="todo-empty-icon"><app-icon name="check" :size="40" color="#5B8A5E" /></view>
+          <text class="todo-empty-title">暂无待办</text>
+          <text class="todo-empty-desc">有加入申请、退款、付费提问需要处理时会在这里提醒你</text>
+        </view>
+
+        <text class="section-label">圈子起步 · 完成 {{ starterDone }} / {{ starterSteps.length }}</text>
+        <view class="starter">
+          <view v-for="(s, i) in starterSteps" :key="s.title" class="starter-row">
+            <view class="step-dot" :class="{ done: s.done }">
+              <app-icon v-if="s.done" name="check" :size="22" color="#FFFFFF" />
+              <text v-else class="step-num">{{ i + 1 }}</text>
             </view>
-          </view>
-          <text class="db-health-comment">{{ health.comment }}</text>
-        </view>
-      </view>
-
-      <!-- 概览卡片 -->
-      <view class="db-kpis">
-        <view v-for="k in KPI_META" :key="k.key" class="db-kpi">
-          <view class="db-kpi-top">
-            <view class="db-kpi-icon" :style="{ background: k.color + '15' }"><app-icon :name="k.icon" :size="26" :color="k.color" /></view>
-            <text class="db-kpi-label">{{ k.label }}</text>
-          </view>
-          <view class="db-kpi-bot">
-            <text class="db-kpi-value">{{ fmtNum(overview?.[k.key] || 0) }}</text>
-          </view>
-        </view>
-      </view>
-
-      <!-- 近30天趋势（接口失败整块隐藏；有接口但全 0 展示轻空态） -->
-      <view v-if="trendDays" class="db-card">
-        <view class="db-card-head">
-          <text class="db-card-title">近30天趋势</text>
-          <view class="db-trend-tabs">
-            <view class="db-trend-tab" :class="{ on: trendMetric === 'newMembers' }" @tap="trendMetric = 'newMembers'">
-              <text class="db-trend-tab-t" :class="{ on: trendMetric === 'newMembers' }">新增成员</text>
+            <view class="starter-main">
+              <text class="starter-title" :class="{ done: s.done }">{{ s.title }}</text>
+              <text class="starter-desc">{{ s.desc }}</text>
             </view>
-            <view class="db-trend-tab" :class="{ on: trendMetric === 'revenue' }" @tap="trendMetric = 'revenue'">
-              <text class="db-trend-tab-t" :class="{ on: trendMetric === 'revenue' }">收入</text>
-            </view>
+            <view v-if="!s.done" class="starter-go" @tap="go(s.url)"><text class="starter-go-txt">{{ s.goLabel }}</text></view>
           </view>
         </view>
-        <template v-if="trendHasData">
-          <text class="db-trend-total">
-            近30天{{ trendMetric === 'newMembers' ? '新增成员' : '入圈收入' }}合计
-            {{ trendMetric === 'newMembers' ? fmtNum(trendTotal) + ' 人' : '¥' + fmtNum(trendTotal) }}
-          </text>
-          <view class="db-chart">
-            <view
-              v-for="(b, i) in trendBars"
-              :key="b.date"
-              class="db-bar"
-              :class="{ last: i === trendBars.length - 1 }"
-              :style="{ height: b.percent + '%' }"
-            />
-          </view>
-          <view class="db-chart-axis">
-            <text class="db-axis-t">{{ trendAxis.start }}</text>
-            <text class="db-axis-t">{{ trendAxis.end }}</text>
-          </view>
-        </template>
-        <view v-else class="db-empty"><text class="db-empty-t">近30天暂无新增与收入</text></view>
-      </view>
 
-      <!-- 成员洞察入口（智能名片：成员活跃/消费/兴趣画像，需 circleId） -->
-      <view v-if="circleId" class="db-card db-mi-entry" @tap="openMembersInsight">
-        <view class="db-mi-icon"><app-icon name="users" :size="34" color="#C41E3A" /></view>
-        <view class="db-mi-info">
-          <text class="db-mi-title">成员洞察</text>
-          <text class="db-mi-sub">了解成员兴趣与消费画像，精准运营</text>
+        <text class="section-label">近 30 天趋势</text>
+        <view class="trend-empty">
+          <text class="trend-empty-txt">成员和收入数据积累后，这里会出现趋势图</text>
         </view>
-        <app-icon name="chevron-right" :size="28" color="#bbbbbb" />
-      </view>
+      </template>
 
-      <!-- 待回复提问入口卡（无待回复则隐藏，避免噪音） -->
-      <view v-if="pendingQuestions && pendingQuestions.length" class="db-card">
-        <view class="db-card-head">
-          <view class="db-pq-head-l">
-            <text class="db-card-title">待回复提问</text>
-            <view class="db-pq-badge"><text class="db-pq-badge-t">{{ pendingQuestions.length }}</text></view>
+      <!-- ═══ 正常态 ═══ -->
+      <template v-else>
+        <!-- 健康度指标 2×2（仅后端真实字段：无同比/7日活跃/内容分项 → 降级口径） -->
+        <view class="metrics">
+          <view class="metric">
+            <text class="metric-label">成员总数</text>
+            <text class="metric-num">{{ overview.memberCount.toLocaleString() }}</text>
+            <text class="metric-delta">本月 +{{ overview.newMembers }}</text>
           </view>
-          <text class="db-pq-tip">及时回复可提升口碑</text>
-        </view>
-        <view class="db-list">
-          <view v-for="q in pendingQuestions" :key="q.id" class="db-pq-item" @tap="openQuestion(q.id)">
-            <view class="db-pq-info">
-              <text class="db-pq-title">{{ q.title }}</text>
-              <text class="db-pq-meta">{{ q.askerName }} · 悬赏 {{ q.priceCoin }} 币</text>
-            </view>
-            <app-icon name="chevron-right" :size="28" color="#bbbbbb" />
+          <view class="metric">
+            <text class="metric-label">本月收入</text>
+            <text class="metric-num gold">¥{{ fmtMoney(overview.monthRevenue) }}</text>
+            <text class="metric-delta down">入圈费口径</text>
           </view>
-        </view>
-      </view>
-
-      <!-- 流失预警（近14天不活跃；无预警或接口失败则隐藏） -->
-      <view v-if="churn && churn.count > 0" class="db-churn">
-        <view class="db-churn-head">
-          <app-icon name="alert-triangle" :size="30" color="#FA8C16" />
-          <text class="db-churn-title">流失预警</text>
-          <view class="db-churn-count"><text class="db-churn-count-t">{{ churn.count }} 人</text></view>
-        </view>
-        <view class="db-churn-list">
-          <view v-for="m in churn.atRisk.slice(0, 5)" :key="m.userId" class="db-churn-item">
-            <view class="db-churn-avatar">
-              <image v-if="m.avatar" lazy-load class="db-churn-avatar-img" :src="m.avatar" mode="aspectFill" />
-              <text v-else class="db-churn-avatar-t">{{ m.name[0] }}</text>
-            </view>
-            <view class="db-churn-info">
-              <text class="db-churn-name">{{ m.name }}</text>
-              <text class="db-churn-days">近14天无发帖/评论</text>
-            </view>
+          <view class="metric">
+            <text class="metric-label">本月互动率</text>
+            <text class="metric-num">{{ overview.interactionRate }}</text>
+            <text class="metric-delta down">发帖+评论+点赞 / 成员</text>
+          </view>
+          <view class="metric">
+            <text class="metric-label">本月新帖</text>
+            <text class="metric-num">{{ overview.monthPosts }}</text>
+            <text class="metric-delta down">评论 {{ overview.monthComments }} · 点赞 {{ overview.monthLikes }}</text>
           </view>
         </view>
-        <text v-if="churn.count > 5" class="db-churn-more">另有 {{ churn.count - 5 }} 位成员近期不活跃</text>
-      </view>
 
-      <!-- 活跃贡献者 -->
-      <view class="db-card">
-        <text class="db-card-title">活跃贡献者 TOP5</text>
-        <view v-if="contributors.length" class="db-list">
-          <view v-for="(c, i) in contributors" :key="c.userId" class="db-contrib">
-            <view class="db-contrib-avatar-wrap">
-              <view class="db-contrib-avatar"><text class="db-contrib-avatar-t">{{ c.name[0] }}</text></view>
-              <view v-if="i < 3" class="db-contrib-rank" :style="{ background: rankColor(i) }"><text class="db-contrib-rank-t">{{ i + 1 }}</text></view>
+        <!-- 待办区 -->
+        <text class="section-label">待办 · 需要你处理</text>
+        <view v-if="todoCount > 0" class="todos">
+          <view v-if="joinPending" class="todo-row" @tap="go(`/pkg-circle/circles/join-requests?id=${circleId}`)">
+            <view class="todo-icon"><app-icon name="user" :size="34" color="#6E6E73" /></view>
+            <view class="todo-main">
+              <text class="todo-title">待审核加入申请</text>
+              <text class="todo-desc">{{ joinOldestDays > 0 ? `最早一条已等待 ${joinOldestDays} 天` : '今天新申请' }}</text>
             </view>
-            <view class="db-contrib-info">
-              <text class="db-contrib-name">{{ c.name }}</text>
-              <text class="db-contrib-posts">{{ c.postCount }}篇帖子</text>
+            <view class="todo-count"><text class="todo-count-txt">{{ joinPending }}</text></view>
+            <app-icon name="chevron-right" :size="28" color="#999999" />
+          </view>
+          <view v-if="refundPending.length" class="todo-row" @tap="go(`/pkg-circle/circles/join-requests?id=${circleId}&type=refund`)">
+            <view class="todo-icon"><app-icon name="refresh-cw" :size="34" color="#6E6E73" /></view>
+            <view class="todo-main">
+              <text class="todo-title">待审核退款申请</text>
+              <text class="todo-desc">涉及金额 ¥{{ fmtMoney(refundAmount) }}</text>
             </view>
+            <view class="todo-count"><text class="todo-count-txt">{{ refundPending.length }}</text></view>
+            <app-icon name="chevron-right" :size="28" color="#999999" />
+          </view>
+          <view v-if="pendingQuestions.length" class="todo-row" @tap="goQuestions">
+            <view class="todo-icon"><app-icon name="message-circle" :size="34" color="#6E6E73" /></view>
+            <view class="todo-main">
+              <text class="todo-title">待回复付费提问</text>
+              <text class="todo-desc">超时未回复将自动退款</text>
+            </view>
+            <view class="todo-count"><text class="todo-count-txt">{{ pendingQuestions.length }}</text></view>
+            <app-icon name="chevron-right" :size="28" color="#999999" />
+          </view>
+          <view v-if="candidateCount" class="todo-row" @tap="go(`/pkg-circle/circles/knowledge?id=${circleId}&tab=pending`)">
+            <view class="todo-icon"><app-icon name="message-square" :size="34" color="#6E6E73" /></view>
+            <view class="todo-main">
+              <text class="todo-title">待确认知识库候选</text>
+              <text class="todo-desc">AI 从你的回答中提炼了 {{ candidateCount }} 条</text>
+            </view>
+            <view class="todo-count"><text class="todo-count-txt">{{ candidateCount }}</text></view>
+            <app-icon name="chevron-right" :size="28" color="#999999" />
           </view>
         </view>
-        <view v-else class="db-empty"><text class="db-empty-t">暂无贡献数据</text></view>
-      </view>
+        <view v-else class="todo-empty">
+          <view class="todo-empty-icon"><app-icon name="check" :size="40" color="#5B8A5E" /></view>
+          <text class="todo-empty-title">暂无待办</text>
+          <text class="todo-empty-desc">有加入申请、退款、付费提问需要处理时会在这里提醒你</text>
+        </view>
 
-      <!-- 热门内容 -->
-      <view class="db-card">
-        <text class="db-card-title">热门内容 TOP5</text>
-        <view v-if="hotPosts.length" class="db-list">
-          <view v-for="(p, i) in hotPosts" :key="p.id" class="db-hot" @tap="openPost(p.id)">
-            <view class="db-hot-rank" :style="{ background: hotBg(i), color: hotColor(i) }"><text class="db-hot-rank-t" :style="{ color: hotColor(i) }">{{ i + 1 }}</text></view>
-            <view class="db-hot-info">
-              <text class="db-hot-title">{{ p.title }}</text>
-              <view class="db-hot-meta">
-                <view class="db-hot-stat"><app-icon name="heart" :size="20" color="#999999" /><text class="db-hot-stat-t">{{ fmtNum(p.likeCount) }}</text></view>
-                <view class="db-hot-stat"><app-icon name="message-circle" :size="20" color="#999999" /><text class="db-hot-stat-t">{{ p.commentCount }}</text></view>
+        <!-- 近 30 天趋势（柱状·双指标切换） -->
+        <text class="section-label">近 30 天趋势</text>
+        <view class="trend-card">
+          <view class="trend-head">
+            <text class="trend-title">成员 ＆ 收入</text>
+            <view class="trend-legend">
+              <view class="legend-item" :class="{ active: trendMetric === 'newMembers' }" @tap="trendMetric = 'newMembers'">
+                <view class="dot member" /><text class="legend-txt">新增成员</text>
+              </view>
+              <view class="legend-item" :class="{ active: trendMetric === 'revenue' }" @tap="trendMetric = 'revenue'">
+                <view class="dot income" /><text class="legend-txt">收入</text>
               </view>
             </view>
           </view>
-        </view>
-        <view v-else class="db-empty"><text class="db-empty-t">暂无热门内容</text></view>
-      </view>
-
-      <!-- 收益构成 -->
-      <view class="db-card">
-        <view class="db-card-head">
-          <text class="db-card-title">收益概览</text>
-          <text class="db-revenue-total">¥{{ fmtNum(revenue?.totalAmount || 0) }}</text>
-        </view>
-        <view v-if="revenueItems.length" class="db-revenue-list">
-          <view v-for="(item, i) in revenueItems" :key="i" class="db-revenue-item">
-            <view class="db-revenue-row">
-              <view class="db-revenue-name-wrap">
-                <view class="db-revenue-dot" :style="{ background: item.color }" />
-                <text class="db-revenue-name">{{ item.name }}</text>
+          <view v-if="trendHasData" class="trend-chart">
+            <view class="trend-bars">
+              <view v-for="b in trendBars" :key="b.date" class="trend-bar-slot">
+                <view
+                  class="trend-bar" :class="trendMetric === 'revenue' ? 'income' : 'member'"
+                  :style="{ height: b.percent + '%' }"
+                />
               </view>
-              <text class="db-revenue-value">¥{{ fmtNum(item.value) }}</text>
             </view>
-            <view class="db-revenue-track">
-              <view class="db-revenue-fill" :style="{ width: item.percent + '%', background: item.color }" />
+            <view class="trend-foot">
+              <text class="trend-foot-txt">{{ trendAxis.start }}</text>
+              <text class="trend-foot-txt">{{ trendAxis.mid }}</text>
+              <text class="trend-foot-txt">{{ trendAxis.end }}</text>
+            </view>
+          </view>
+          <view v-else class="trend-none"><text class="trend-empty-txt">成员和收入数据积累后，这里会出现趋势图</text></view>
+        </view>
+
+        <!-- 管理分区 2×3 -->
+        <text class="section-label">管理分区</text>
+        <view class="sections">
+          <view class="section-card" @tap="go(`/pkg-circle/circles/manage?id=${circleId}&tab=members`)">
+            <view class="section-icon"><app-icon name="users" :size="34" color="#6E6E73" /></view>
+            <view class="section-main">
+              <text class="section-title">成员管理</text>
+              <text class="section-desc">列表 · 角色 · 嘉宾分账</text>
+            </view>
+          </view>
+          <view class="section-card" @tap="go(`/pkg-circle/circles/join-requests?id=${circleId}`)">
+            <view class="section-icon"><app-icon name="shield" :size="34" color="#6E6E73" /></view>
+            <view class="section-main">
+              <text class="section-title">审核</text>
+              <text class="section-desc">加入申请 · 退款初审</text>
+            </view>
+            <view v-if="reviewBadge" class="section-badge"><text class="section-badge-txt">{{ reviewBadge }}</text></view>
+          </view>
+          <view class="section-card" @tap="go(`/pkg-circle/circles/manage?id=${circleId}&tab=posts`)">
+            <view class="section-icon"><app-icon name="file-text" :size="34" color="#6E6E73" /></view>
+            <view class="section-main">
+              <text class="section-title">内容管理</text>
+              <text class="section-desc">帖子治理 · 推荐电子书</text>
+            </view>
+          </view>
+          <view class="section-card" @tap="go(`/pkg-circle/circles/earnings?id=${circleId}`)">
+            <view class="section-icon"><app-icon name="wallet" :size="34" color="#6E6E73" /></view>
+            <view class="section-main">
+              <text class="section-title">收益</text>
+              <text class="section-desc">构成 · 邀请码</text>
+            </view>
+          </view>
+          <view class="section-card" @tap="go(`/pkg-circle/circles/knowledge?id=${circleId}`)">
+            <view class="section-icon"><app-icon name="book-open" :size="34" color="#6E6E73" /></view>
+            <view class="section-main">
+              <text class="section-title">知识库与 AI</text>
+              <text class="section-desc">条目管理 · AI 助理</text>
+            </view>
+            <text class="tag-ai">AI</text>
+          </view>
+          <view class="section-card" @tap="go(`/pkg-circle/circles/manage?id=${circleId}&tab=settings`)">
+            <view class="section-icon"><app-icon name="settings" :size="34" color="#6E6E73" /></view>
+            <view class="section-main">
+              <text class="section-title">设置</text>
+              <text class="section-desc">圈子信息 · 公告 · 加入方式</text>
             </view>
           </view>
         </view>
-        <view v-else class="db-empty"><text class="db-empty-t">暂无收益数据</text></view>
-      </view>
-      <view class="db-spacer" />
+      </template>
+
+      <view class="safe-bottom" />
     </scroll-view>
   </view>
 </template>
 
 <style scoped lang="scss">
-.db { display: flex; flex-direction: column; height: 100vh; background: #faf8f5; }
-.db-hdr { display: flex; align-items: center; justify-content: space-between; height: 88rpx; padding: 0 16rpx; background: #ffffff; border-bottom: 2rpx solid #e8e3db; padding-top: var(--status-bar-height, 0); flex-shrink: 0; }
-.db-hdr-l { display: flex; align-items: center; gap: 12rpx; }
-.db-hdr-btn { width: 56rpx; height: 56rpx; border-radius: 999rpx; display: flex; align-items: center; justify-content: center; }
-.db-hdr-title { font-size: 32rpx; font-weight: 600; color: #2c2c2c; }
-.spin { animation: db-spin 1s linear infinite; }
-@keyframes db-spin { to { transform: rotate(360deg); } }
-.db-body { flex: 1; overflow: hidden; padding: 24rpx; }
-.db-kpis { display: grid; grid-template-columns: 1fr 1fr; gap: 18rpx; margin-bottom: 24rpx; }
-.db-kpi { background: #ffffff; border-radius: 24rpx; padding: 24rpx; box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.04); }
-.db-kpi-top { display: flex; align-items: center; gap: 12rpx; margin-bottom: 16rpx; }
-.db-kpi-icon { width: 52rpx; height: 52rpx; border-radius: 14rpx; display: flex; align-items: center; justify-content: center; }
-.db-kpi-label { font-size: 22rpx; color: #999999; }
-.db-kpi-bot { display: flex; align-items: flex-end; justify-content: space-between; }
-.db-kpi-value { font-size: 38rpx; font-weight: 700; color: #2c2c2c; }
-.db-kpi-growth { display: flex; align-items: center; gap: 2rpx; }
-.db-kpi-growth-t { font-size: 22rpx; }
-.db-card { background: #ffffff; border-radius: 24rpx; padding: 24rpx; box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.04); margin-bottom: 24rpx; }
-.db-card-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24rpx; }
-.db-card-title { font-size: 30rpx; font-weight: 600; color: #2c2c2c; }
-.db-trend-tabs { display: flex; gap: 8rpx; }
-.db-trend-tab { padding: 8rpx 18rpx; border-radius: 999rpx; background: #faf8f5; }
-.db-trend-tab.on { background: var(--brand); }
-.db-trend-tab-t { font-size: 22rpx; color: #666666; }
-.db-trend-tab-t.on { color: #ffffff; }
-.db-chart { height: 200rpx; display: flex; align-items: flex-end; gap: 4rpx; }
-.db-bar { flex: 1; border-radius: 6rpx 6rpx 0 0; background: linear-gradient(180deg, #e8e3db 0%, #f5f0e8 100%); }
-.db-bar.last { background: linear-gradient(180deg, var(--brand) 0%, #e85a71 100%); }
-.db-chart-axis { display: flex; justify-content: space-between; margin-top: 12rpx; }
-.db-axis-t { font-size: 22rpx; color: #999999; }
-.db-list { display: flex; flex-direction: column; gap: 24rpx; }
-.db-contrib { display: flex; align-items: center; gap: 18rpx; }
-.db-contrib-avatar-wrap { position: relative; }
-.db-contrib-avatar { width: 72rpx; height: 72rpx; border-radius: 999rpx; background: linear-gradient(135deg, #c9a96e, #e8d5b7); display: flex; align-items: center; justify-content: center; }
-.db-contrib-avatar-t { font-size: 26rpx; color: #ffffff; font-weight: 500; }
-.db-contrib-rank { position: absolute; top: -6rpx; right: -6rpx; width: 30rpx; height: 30rpx; border-radius: 999rpx; display: flex; align-items: center; justify-content: center; }
-.db-contrib-rank-t { font-size: 18rpx; font-weight: 700; color: #ffffff; }
-.db-contrib-info { flex: 1; min-width: 0; }
-.db-contrib-name { display: block; font-size: 26rpx; font-weight: 500; color: #2c2c2c; }
-.db-contrib-posts { display: block; font-size: 22rpx; color: #999999; margin-top: 2rpx; }
-.db-contrib-likes { display: flex; align-items: center; gap: 4rpx; }
-.db-contrib-likes-t { font-size: 22rpx; color: var(--brand); }
-.db-hot { display: flex; align-items: flex-start; gap: 16rpx; padding: 12rpx; border-radius: 16rpx; }
-.db-hot-rank { width: 40rpx; height: 40rpx; border-radius: 10rpx; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.db-hot-rank-t { font-size: 22rpx; font-weight: 700; }
-.db-hot-info { flex: 1; min-width: 0; }
-.db-hot-title { display: block; font-size: 26rpx; color: #2c2c2c; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.db-hot-meta { display: flex; align-items: center; gap: 20rpx; margin-top: 8rpx; }
-.db-hot-stat { display: flex; align-items: center; gap: 4rpx; }
-.db-hot-stat-t { font-size: 20rpx; color: #999999; }
-.db-churn { background: linear-gradient(90deg, #fff7e6, #fff1d6); border-radius: 24rpx; padding: 24rpx; border: 2rpx solid #ffd591; margin-bottom: 24rpx; }
-.db-churn-head { display: flex; align-items: center; gap: 8rpx; margin-bottom: 18rpx; }
-.db-churn-title { font-size: 30rpx; font-weight: 600; color: #2c2c2c; }
-.db-churn-count { margin-left: auto; padding: 2rpx 14rpx; background: #fa8c16; border-radius: 999rpx; }
-.db-churn-count-t { font-size: 20rpx; color: #ffffff; }
-.db-churn-list { display: flex; flex-direction: column; gap: 12rpx; }
-.db-churn-item { display: flex; align-items: center; gap: 16rpx; padding: 16rpx; background: rgba(255,255,255,0.6); border-radius: 16rpx; }
-.db-churn-avatar { width: 56rpx; height: 56rpx; border-radius: 999rpx; background: #faf8f5; display: flex; align-items: center; justify-content: center; overflow: hidden; }
-.db-churn-avatar-img { width: 100%; height: 100%; }
-.db-churn-avatar-t { font-size: 24rpx; color: #999999; }
-.db-churn-more { display: block; margin-top: 12rpx; font-size: 22rpx; color: #d48806; text-align: center; }
-.db-churn-info { flex: 1; }
-.db-churn-name { display: block; font-size: 26rpx; color: #2c2c2c; }
-.db-churn-days { display: block; font-size: 22rpx; color: #999999; margin-top: 2rpx; }
-.db-churn-wake { font-size: 22rpx; color: #fa8c16; }
-.db-revenue-total { font-size: 34rpx; font-weight: 700; color: var(--brand); }
-.db-revenue-list { display: flex; flex-direction: column; gap: 24rpx; }
-.db-revenue-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8rpx; }
-.db-revenue-name-wrap { display: flex; align-items: center; gap: 12rpx; }
-.db-revenue-dot { width: 16rpx; height: 16rpx; border-radius: 999rpx; }
-.db-revenue-name { font-size: 26rpx; color: #666666; }
-.db-revenue-value { font-size: 26rpx; font-weight: 500; color: #2c2c2c; }
-.db-revenue-track { height: 16rpx; background: #f5f5f5; border-radius: 999rpx; overflow: hidden; }
-.db-revenue-fill { height: 100%; border-radius: 999rpx; }
-.db-spacer { height: 40rpx; }
-/* 健康度分数卡 */
-.db-health { display: flex; align-items: center; gap: 28rpx; background: #ffffff; border-radius: 24rpx; padding: 28rpx 24rpx; box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.04); margin-bottom: 24rpx; }
-.db-health-score-wrap { display: flex; align-items: baseline; flex-shrink: 0; }
-.db-health-score { font-size: 64rpx; font-weight: 700; line-height: 1; }
-.db-health-unit { font-size: 22rpx; color: #999999; margin-left: 4rpx; }
-.db-health-info { flex: 1; min-width: 0; }
-.db-health-head { display: flex; align-items: center; gap: 16rpx; margin-bottom: 10rpx; }
-.db-health-title { font-size: 28rpx; font-weight: 600; color: #2c2c2c; flex-shrink: 0; }
-.db-health-track { flex: 1; height: 12rpx; background: #f5f5f5; border-radius: 999rpx; overflow: hidden; }
-.db-health-fill { height: 100%; border-radius: 999rpx; transition: width 0.4s ease; }
-.db-health-comment { display: block; font-size: 22rpx; color: #999999; }
-/* 近30天趋势 */
-.db-trend-total { display: block; font-size: 22rpx; color: #666666; margin-bottom: 16rpx; }
-/* 成员洞察入口卡 */
-.db-mi-entry { display: flex; align-items: center; gap: 18rpx; }
-.db-mi-icon { width: 72rpx; height: 72rpx; border-radius: 20rpx; background: #fdecef; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.db-mi-info { flex: 1; min-width: 0; }
-.db-mi-title { display: block; font-size: 30rpx; font-weight: 600; color: #2c2c2c; }
-.db-mi-sub { display: block; font-size: 22rpx; color: #999999; margin-top: 4rpx; }
-/* 待回复提问入口卡 */
-.db-pq-head-l { display: flex; align-items: center; gap: 12rpx; }
-.db-pq-badge { min-width: 36rpx; height: 36rpx; padding: 0 10rpx; border-radius: 999rpx; background: var(--brand); display: flex; align-items: center; justify-content: center; }
-.db-pq-badge-t { font-size: 20rpx; font-weight: 600; color: #ffffff; }
-.db-pq-tip { font-size: 22rpx; color: #999999; }
-.db-pq-item { display: flex; align-items: center; gap: 12rpx; padding: 16rpx; background: #faf8f5; border-radius: 16rpx; }
-.db-pq-info { flex: 1; min-width: 0; }
-.db-pq-title { display: block; font-size: 26rpx; color: #2c2c2c; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.db-pq-meta { display: block; font-size: 22rpx; color: #999999; margin-top: 4rpx; }
-.db-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20rpx; }
-.db-state-t { font-size: 26rpx; color: #999999; }
-.db-state-btn { margin-top: 8rpx; padding: 14rpx 48rpx; background: var(--brand); border-radius: 999rpx; }
-.db-state-btn-t { font-size: 26rpx; color: #ffffff; }
-.db-empty { padding: 48rpx 0; display: flex; align-items: center; justify-content: center; }
-.db-empty-t { font-size: 24rpx; color: #bbbbbb; }
+.page { min-height: 100vh; background: var(--bg-page, #faf8f5); display: flex; flex-direction: column; }
+
+/* 顶栏 */
+.topbar {
+  position: sticky; top: 0; z-index: 10;
+  display: flex; align-items: center; gap: 20rpx;
+  padding: 28rpx 32rpx 20rpx;
+  padding-top: calc(var(--status-bar-height, 0px) + 28rpx);
+  background: rgba(250, 248, 245, 0.92); backdrop-filter: blur(24rpx);
+}
+.back-btn { display: flex; align-items: center; }
+.topbar-title { font-size: 34rpx; font-weight: 600; color: var(--text-primary, #2c2c2c); flex: 1; }
+.circle-name { font-size: 24rpx; color: var(--text-tertiary, #999999); }
+
+.body { flex: 1; }
+
+/* 指标 2×2 */
+.metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 20rpx; margin: 16rpx 32rpx 0; }
+.metric {
+  background: var(--bg-card, #ffffff); border-radius: 28rpx;
+  box-shadow: 0 2rpx 6rpx rgba(44, 44, 44, 0.05); padding: 28rpx 32rpx;
+}
+.metric-label { display: block; font-size: 24rpx; color: var(--text-tertiary, #999999); }
+.metric-num { display: block; font-size: 48rpx; font-weight: 700; margin-top: 8rpx; letter-spacing: -1rpx; color: var(--text-primary, #2c2c2c); }
+.metric-num.gold { color: var(--gold, #c9a96e); }
+.metric-delta { display: block; font-size: 22rpx; margin-top: 4rpx; color: #5b8a5e; }
+.metric-delta.down { color: var(--text-tertiary, #999999); }
+
+/* 分区标题 */
+.section-label { display: block; margin: 44rpx 36rpx 16rpx; font-size: 24rpx; color: var(--text-tertiary, #999999); letter-spacing: 1rpx; }
+
+/* 待办 */
+.todos {
+  margin: 0 32rpx; background: var(--bg-card, #ffffff);
+  border-radius: 36rpx; box-shadow: 0 2rpx 6rpx rgba(44, 44, 44, 0.05); overflow: hidden;
+}
+.todo-row { display: flex; align-items: center; gap: 24rpx; padding: 28rpx 32rpx; }
+.todo-row + .todo-row { border-top: 1rpx solid var(--separator, #ede7dd); }
+.todo-row:active { background: var(--bg-warm, #f8f4ec); }
+.todo-icon {
+  width: 68rpx; height: 68rpx; border-radius: 20rpx; flex-shrink: 0;
+  background: var(--bg-warm, #f8f4ec);
+  display: flex; align-items: center; justify-content: center;
+}
+.todo-main { flex: 1; min-width: 0; }
+.todo-title { display: block; font-size: 28rpx; font-weight: 500; color: var(--text-primary, #2c2c2c); }
+.todo-desc { display: block; font-size: 24rpx; color: var(--text-tertiary, #999999); margin-top: 2rpx; }
+.todo-count {
+  min-width: 44rpx; height: 44rpx; padding: 0 14rpx; border-radius: 22rpx;
+  background: var(--brand, #c41e3a); flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.todo-count-txt { color: #ffffff; font-size: 24rpx; font-weight: 600; }
+
+/* 暂无待办 */
+.todo-empty {
+  margin: 0 32rpx; background: var(--bg-card, #ffffff);
+  border-radius: 36rpx; box-shadow: 0 2rpx 6rpx rgba(44, 44, 44, 0.05);
+  padding: 56rpx 40rpx; display: flex; flex-direction: column; align-items: center; gap: 8rpx;
+}
+.todo-empty-icon {
+  width: 88rpx; height: 88rpx; border-radius: 999rpx;
+  background: rgba(91, 138, 94, 0.1);
+  display: flex; align-items: center; justify-content: center; margin-bottom: 8rpx;
+}
+.todo-empty-title { font-size: 28rpx; font-weight: 600; color: var(--text-primary, #2c2c2c); }
+.todo-empty-desc { font-size: 24rpx; color: var(--text-tertiary, #999999); text-align: center; line-height: 1.6; }
+
+/* 起步清单 */
+.starter {
+  margin: 0 32rpx; background: var(--bg-card, #ffffff);
+  border-radius: 36rpx; box-shadow: 0 2rpx 6rpx rgba(44, 44, 44, 0.05); overflow: hidden;
+}
+.starter-row { display: flex; align-items: center; gap: 24rpx; padding: 28rpx 32rpx; }
+.starter-row + .starter-row { border-top: 1rpx solid var(--separator, #ede7dd); }
+.step-dot {
+  width: 44rpx; height: 44rpx; border-radius: 999rpx; flex-shrink: 0;
+  background: var(--bg-warm, #f8f4ec);
+  display: flex; align-items: center; justify-content: center;
+}
+.step-dot.done { background: #5b8a5e; }
+.step-num { font-size: 24rpx; font-weight: 600; color: var(--text-secondary, #6e6e73); }
+.starter-main { flex: 1; min-width: 0; }
+.starter-title { display: block; font-size: 28rpx; font-weight: 500; color: var(--text-primary, #2c2c2c); }
+.starter-title.done { color: var(--text-tertiary, #999999); text-decoration: line-through; }
+.starter-desc { display: block; font-size: 24rpx; color: var(--text-tertiary, #999999); margin-top: 2rpx; }
+.starter-go {
+  flex-shrink: 0; height: 56rpx; padding: 0 24rpx; border-radius: 28rpx;
+  background: var(--brand-soft, rgba(196, 30, 58, 0.08));
+  display: flex; align-items: center; justify-content: center;
+}
+.starter-go:active { opacity: 0.8; }
+.starter-go-txt { font-size: 24rpx; font-weight: 500; color: var(--brand, #c41e3a); }
+
+/* 趋势 */
+.trend-card {
+  margin: 0 32rpx; background: var(--bg-card, #ffffff);
+  border-radius: 36rpx; box-shadow: 0 2rpx 6rpx rgba(44, 44, 44, 0.05); padding: 32rpx;
+}
+.trend-head { display: flex; align-items: center; justify-content: space-between; }
+.trend-title { font-size: 28rpx; font-weight: 600; color: var(--text-primary, #2c2c2c); }
+.trend-legend { display: flex; gap: 20rpx; }
+.legend-item { display: flex; align-items: center; gap: 8rpx; padding: 4rpx 12rpx; border-radius: 12rpx; opacity: 0.55; }
+.legend-item.active { opacity: 1; background: var(--bg-warm, #f8f4ec); }
+.legend-txt { font-size: 22rpx; color: var(--text-secondary, #6e6e73); }
+.dot { width: 14rpx; height: 14rpx; border-radius: 999rpx; }
+.dot.member { background: var(--brand, #c41e3a); }
+.dot.income { background: var(--gold, #c9a96e); }
+.trend-chart { margin-top: 24rpx; }
+.trend-bars { display: flex; align-items: flex-end; gap: 4rpx; height: 192rpx; }
+.trend-bar-slot { flex: 1; height: 100%; display: flex; align-items: flex-end; }
+.trend-bar { width: 100%; border-radius: 4rpx 4rpx 0 0; min-height: 0; }
+.trend-bar.member { background: var(--brand, #c41e3a); }
+.trend-bar.income { background: var(--gold, #c9a96e); }
+.trend-foot { display: flex; justify-content: space-between; margin-top: 12rpx; }
+.trend-foot-txt { font-size: 20rpx; color: var(--text-tertiary, #999999); }
+.trend-none { padding: 48rpx 0 24rpx; display: flex; justify-content: center; }
+.trend-empty {
+  margin: 0 32rpx; padding: 56rpx 40rpx;
+  background: var(--bg-card, #ffffff); border-radius: 36rpx;
+  box-shadow: 0 2rpx 6rpx rgba(44, 44, 44, 0.05);
+  display: flex; justify-content: center;
+}
+.trend-empty-txt { font-size: 24rpx; color: var(--text-tertiary, #999999); text-align: center; line-height: 1.7; }
+
+/* 管理分区 2×3 */
+.sections { display: grid; grid-template-columns: 1fr 1fr; gap: 20rpx; margin: 0 32rpx; }
+.section-card {
+  background: var(--bg-card, #ffffff); border-radius: 28rpx;
+  box-shadow: 0 2rpx 6rpx rgba(44, 44, 44, 0.05); padding: 28rpx 24rpx;
+  display: flex; align-items: center; gap: 20rpx;
+}
+.section-card:active { transform: scale(0.98); }
+.section-icon {
+  width: 68rpx; height: 68rpx; border-radius: 20rpx; flex-shrink: 0;
+  background: var(--bg-warm, #f8f4ec);
+  display: flex; align-items: center; justify-content: center;
+}
+.section-main { flex: 1; min-width: 0; }
+.section-title { display: block; font-size: 28rpx; font-weight: 500; color: var(--text-primary, #2c2c2c); }
+.section-desc { display: block; font-size: 22rpx; color: var(--text-tertiary, #999999); margin-top: 2rpx; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.section-badge {
+  min-width: 36rpx; height: 36rpx; padding: 0 10rpx; border-radius: 18rpx;
+  background: var(--brand, #c41e3a); flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.section-badge-txt { color: #ffffff; font-size: 22rpx; font-weight: 600; }
+.tag-ai {
+  font-size: 20rpx; color: var(--gold, #c9a96e); border: 1rpx solid var(--gold, #c9a96e);
+  padding: 2rpx 10rpx; border-radius: 10rpx; flex-shrink: 0;
+}
+
+/* 骨架 */
+.skeleton { padding: 16rpx 32rpx; }
+.sk-metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 20rpx; }
+.sk-metric { height: 160rpx; border-radius: 28rpx; background: var(--separator, #ede7dd); opacity: 0.5; }
+.sk-block { height: 320rpx; border-radius: 36rpx; background: var(--separator, #ede7dd); opacity: 0.4; margin-top: 44rpx; }
+.sk-block.tall { height: 420rpx; opacity: 0.3; }
+
+/* 三态 */
+.state-view { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12rpx; padding: 120rpx 80rpx; }
+.state-title { font-size: 32rpx; font-weight: 600; color: var(--text-primary, #2c2c2c); margin-top: 16rpx; }
+.state-desc { font-size: 26rpx; color: var(--text-tertiary, #999999); text-align: center; }
+.state-btn { margin-top: 32rpx; height: 76rpx; padding: 0 56rpx; border-radius: 38rpx; background: var(--brand, #c41e3a); display: flex; align-items: center; }
+.state-btn-txt { color: #ffffff; font-size: 28rpx; font-weight: 500; }
+
+.safe-bottom { height: 60rpx; }
 </style>

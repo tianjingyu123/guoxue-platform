@@ -57,6 +57,7 @@
           @play="onVideoPlay"
           @pause="onVideoPause"
           @error="onVideoError"
+          @timeupdate="onTimeUpdate"
         />
         <!-- 暂停图标 -->
         <view v-if="!isPlaying" class="vp__pause">
@@ -87,26 +88,24 @@
       </view>
     </view>
 
-    <!-- 滑动提示 -->
-    <view v-if="currentIndex === 0 && !isTransitioning" class="vp__swipe-tip">
+    <!-- 滑动提示（V0 swipe-hint：底部居中·仅首条视频） -->
+    <view v-if="currentIndex === 0 && !isTransitioning" class="vp__swipe-tip" :style="{ bottom: 'calc(' + safeBottom + 'px + 36rpx)' }">
       <AppIcon name="chevron-up" :size="32" color="rgba(255,255,255,0.5)" />
       <text class="vp__swipe-tip-txt">上滑看下一个</text>
     </view>
 
-    <!-- 顶部导航 -->
+    <!-- 顶部导航：返回 + 来源圈子胶囊 + 购物车/静音 -->
     <view class="vp__top" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="vp__top-row">
         <view class="vp__icon-btn" @tap="onBack">
           <AppIcon name="chevron-left" :size="36" color="#ffffff" />
         </view>
-        <!-- 进度指示器 -->
-        <view class="vp__progress">
-          <view
-            v-for="(_, i) in videos"
-            :key="i"
-            class="vp__dot"
-            :class="{ 'vp__dot--active': i === currentIndex }"
-          />
+        <!-- 来源圈子胶囊（V0 source-pill）：每条视频标明出处，可点进圈子详情 -->
+        <view v-if="currentVideo.circle" class="vp__source-pill" @tap="goCircle">
+          <view class="vp__source-pill-ico">
+            <AppIcon name="users" :size="24" color="#ffffff" />
+          </view>
+          <text class="vp__source-pill-name">{{ currentVideo.circle.name }}</text>
         </view>
         <view class="vp__top-right">
           <view v-if="cartTotal > 0" class="vp__icon-btn vp__icon-btn--cart" @tap="showCart = true">
@@ -120,75 +119,65 @@
       </view>
     </view>
 
-    <!-- 右侧互动按钮 -->
+    <!-- 右侧互动按钮（V0 actions：头像白描边+朱红关注钮·图标白描边带投影·数字白 72% 透明） -->
     <view class="vp__actions">
       <!-- 作者头像 -->
       <view class="vp__avatar-wrap">
         <image lazy-load class="vp__avatar" :src="currentVideo.author.avatar" mode="aspectFill" />
-        <view v-if="currentVideo.author.verified" class="vp__verified">
-          <AppIcon name="check" :size="18" color="#ffffff" />
-        </view>
         <view v-if="!currentVideo.author.isFollowed" class="vp__follow-plus" @tap="onFollow">
           <AppIcon name="plus" :size="22" color="#ffffff" />
         </view>
       </view>
 
-      <!-- 点赞 -->
+      <!-- 点赞（已赞 → 朱红实心） -->
       <view class="vp__act" @tap="onLike">
-        <view class="vp__act-circle" :class="{ 'vp__act-circle--liked': currentVideo.isLiked }">
-          <AppIcon name="heart" :size="42" :color="currentVideo.isLiked ? '#c41e3a' : '#ffffff'" :fill="currentVideo.isLiked" />
-        </view>
+        <AppIcon name="heart" :size="56" :color="currentVideo.isLiked ? '#c41e3a' : '#ffffff'" :fill="currentVideo.isLiked" />
         <text class="vp__act-txt">{{ fmt(currentVideo.likes) }}</text>
       </view>
 
       <!-- 评论 -->
       <view class="vp__act" @tap="openComments">
-        <view class="vp__act-circle">
-          <AppIcon name="message-circle" :size="42" color="#ffffff" />
-        </view>
+        <AppIcon name="message-circle" :size="52" color="#ffffff" />
         <text class="vp__act-txt">{{ fmt(currentVideo.comments) }}</text>
       </view>
 
       <!-- 收藏 -->
       <view class="vp__act" @tap="onCollect">
-        <view class="vp__act-circle" :class="{ 'vp__act-circle--collected': currentVideo.isCollected }">
-          <AppIcon name="bookmark" :size="42" :color="currentVideo.isCollected ? '#F5A623' : '#ffffff'" :fill="currentVideo.isCollected" />
-        </view>
+        <AppIcon name="bookmark" :size="52" :color="currentVideo.isCollected ? '#F5A623' : '#ffffff'" :fill="currentVideo.isCollected" />
         <text class="vp__act-txt">收藏</text>
       </view>
 
       <!-- 分享 -->
       <view class="vp__act">
-        <view class="vp__act-circle">
-          <AppIcon name="share-2" :size="38" color="#ffffff" />
-        </view>
+        <AppIcon name="share-2" :size="52" color="#ffffff" />
         <text class="vp__act-txt">{{ fmt(currentVideo.shares) }}</text>
-      </view>
-
-      <!-- 音乐唱片 -->
-      <view class="vp__disc">
-        <view class="vp__disc-core" />
       </view>
     </view>
 
-    <!-- 底部信息区 -->
-    <view class="vp__bottom" :style="{ paddingBottom: 'calc(' + safeBottom + 'px + 16rpx)' }">
+    <!-- 底部信息区（V0 info：作者名 15px 粗体 + 认证金描边徽章 + 标题 14px/1.6 + 推广浮卡） -->
+    <view class="vp__bottom" :style="{ paddingBottom: 'calc(' + safeBottom + 'px + 56rpx)' }">
       <view class="vp__author-row">
-        <text class="vp__author-name">@{{ currentVideo.author.name }}</text>
+        <text class="vp__author-name">{{ currentVideo.author.name }}</text>
         <view v-if="currentVideo.author.verified" class="vp__auth-badge"><text class="vp__auth-badge-txt">认证</text></view>
-        <view v-if="!currentVideo.author.isFollowed" class="vp__follow-btn" @tap="onFollow"><text class="vp__follow-btn-txt">关注</text></view>
       </view>
       <text class="vp__title">{{ currentVideo.title }}</text>
-      <view class="vp__music">
-        <AppIcon name="music" :size="26" color="rgba(255,255,255,0.7)" />
-        <text class="vp__music-txt">{{ currentVideo.music }}</text>
+      <!-- 推广浮卡（V0 promo-float）：首件带货商品·深色毛玻璃·点开商品弹层（价格为人民币） -->
+      <view v-if="currentVideo.products.length > 0" class="vp__promo" @tap="showProducts = true">
+        <image lazy-load class="vp__promo-img" :src="currentVideo.products[0].image" mode="aspectFill" />
+        <view class="vp__promo-main">
+          <text class="vp__promo-name">{{ currentVideo.products[0].name }}</text>
+          <view class="vp__promo-price-row">
+            <text class="vp__promo-price">¥{{ currentVideo.products[0].price }}</text>
+            <text v-if="currentVideo.products.length > 1" class="vp__promo-more">等{{ currentVideo.products.length }}件</text>
+          </view>
+        </view>
+        <AppIcon name="chevron-right" :size="28" color="rgba(255,255,255,0.5)" />
       </view>
-      <!-- 商品入口 -->
-      <view v-if="currentVideo.products.length > 0" class="vp__goods-entry" @tap="showProducts = true">
-        <view class="vp__goods-icon"><AppIcon name="shopping-bag" :size="26" color="#ffffff" /></view>
-        <text class="vp__goods-txt">{{ currentVideo.products.length }}件同款好物</text>
-        <AppIcon name="chevron-up" :size="28" color="rgba(255,255,255,0.6)" />
-      </view>
+    </view>
+
+    <!-- 播放进度条（V0 progress：底部细条·仅有真实视频源时渲染） -->
+    <view v-if="currentVideo.videoUrl && !playError" class="vp__progress-bar" :style="{ bottom: 'calc(' + safeBottom + 'px + 8rpx)' }">
+      <view class="vp__progress-played" :style="{ width: playProgress + '%' }" />
     </view>
     </template>
 
@@ -338,7 +327,8 @@ function retry() { loadFeed() }
 
 // ===== 播放/UI 状态 =====
 const isPlaying = ref(true)
-const isMuted = ref(false)
+// 打开即播放：移动端浏览器禁止「有声」视频自动播放，必须静音起步才能自动播（用户可点喇叭开声音）
+const isMuted = ref(true)
 const playError = ref(false) // 视频源加载失败 → 隐藏 player 回退到封面
 
 // ===== 播放器控制（uni video context）=====
@@ -363,6 +353,20 @@ function togglePlay() {
 function onVideoPlay() { isPlaying.value = true }
 function onVideoPause() { isPlaying.value = false }
 function onVideoError() { playError.value = true; isPlaying.value = false }
+
+// ===== 播放进度（V0 底部细进度条）=====
+const playProgress = ref(0) // 0-100
+function onTimeUpdate(e: any /* uni video 事件经 vue-tsc 按原生签名校验，参数须 any */) {
+  const cur = Number(e?.detail?.currentTime) || 0
+  const dur = Number(e?.detail?.duration) || 0
+  playProgress.value = dur > 0 ? Math.min(100, (cur / dur) * 100) : 0
+}
+
+// ===== 来源圈子胶囊 → 圈子详情 =====
+function goCircle() {
+  const cid = currentVideo.value?.circle?.id
+  if (cid) navigateTo(`/pkg-circle/circles/detail?id=${cid}`)
+}
 const showComments = ref(false)
 const showProducts = ref(false)
 const showCart = ref(false)
@@ -544,6 +548,7 @@ watch(() => currentVideo.value?.id, async () => {
   // 但同源视频(videoUrl 不变)或移动端 autoplay 受限时不重播 → 需滑好几次。改为切换后主动 ctx.play()
   // （用户滑动已构成交互上下文，规避移动端自动播放限制）。
   playError.value = false
+  playProgress.value = 0 // 切换视频 → 进度条清零
   // video 元素随 :key=id 重建，旧 context 已失效：置空让下方 nextTick 重新获取指向新元素，
   // 否则切到新视频时仍控制旧 <video> 导致画面不换（用户现象：滑动有切换动效但播放内容没变）。
   videoCtx = null
@@ -645,10 +650,11 @@ function onBack() {
 </script>
 
 <style scoped lang="scss">
+/* V0 深色沉浸场景 token（播放页为全板块唯一深色页面） */
 .vp {
   position: fixed;
   inset: 0;
-  background: #000;
+  background: #111; /* V0：html/body #111，视频层 #000 */
   overflow: hidden;
 }
 .vp__state { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24rpx; z-index: 30; }
@@ -660,9 +666,15 @@ function onBack() {
 .vp__cover { width: 100%; height: 100%; }
 /* 播放器覆盖在封面之上；pointer-events:none 让单击/上下滑手势穿透到父层由脚本统一控制 */
 .vp__video { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; }
-.vp__shade {
-  position: absolute; inset: 0; pointer-events: none; z-index: 2;
-  background: linear-gradient(to bottom, rgba(0,0,0,0.3), transparent 35%, transparent 65%, rgba(0,0,0,0.6));
+/* 上下渐隐遮罩（V0：顶部 96px / 底部 220px 渐隐保证文字可读） */
+.vp__shade { position: absolute; inset: 0; pointer-events: none; z-index: 2; }
+.vp__shade::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 192rpx;
+  background: linear-gradient(to bottom, rgba(0,0,0,0.55), transparent);
+}
+.vp__shade::after {
+  content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 440rpx;
+  background: linear-gradient(to top, rgba(0,0,0,0.55), transparent);
 }
 .vp__pause { position: absolute; inset: 0; z-index: 2; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.2); }
 .vp__pause-btn { width: 140rpx; height: 140rpx; border-radius: 999rpx; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; }
@@ -673,13 +685,14 @@ function onBack() {
   100% { transform: scale(1) translateY(-100px); opacity: 0; }
 }
 
+/* 滑动提示（V0 swipe-hint：底部居中·箭头轻浮动画） */
 .vp__swipe-tip {
-  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-  display: flex; flex-direction: column; align-items: center; gap: 8rpx;
-  pointer-events: none; animation: tip-pulse 1.5s ease-in-out infinite;
+  position: absolute; left: 50%; transform: translateX(-50%);
+  display: flex; flex-direction: column; align-items: center; gap: 12rpx;
+  z-index: 10; pointer-events: none; animation: tip-pulse 2s ease-in-out infinite;
 }
 .vp__swipe-tip-txt { font-size: 22rpx; color: rgba(255,255,255,0.5); }
-@keyframes tip-pulse { 0%,100% { opacity: 0.4; } 50% { opacity: 0.9; } }
+@keyframes tip-pulse { 0%,100% { opacity: 0.5; transform: translateX(-50%) translateY(0); } 50% { opacity: 1; transform: translateX(-50%) translateY(-8rpx); } }
 
 /* 顶部导航 */
 .vp__top { position: absolute; top: 0; left: 0; right: 0; z-index: 30; }
@@ -687,39 +700,61 @@ function onBack() {
 .vp__icon-btn { position: relative; width: 64rpx; height: 64rpx; border-radius: 999rpx; background: rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; }
 .vp__top-right { display: flex; align-items: center; gap: 12rpx; }
 .vp__cart-badge { position: absolute; top: -6rpx; right: -6rpx; min-width: 32rpx; height: 32rpx; padding: 0 6rpx; border-radius: 999rpx; background: var(--brand); color: #fff; font-size: 18rpx; font-weight: 700; display: flex; align-items: center; justify-content: center; }
-.vp__progress { display: flex; align-items: center; gap: 6rpx; }
-.vp__dot { width: 10rpx; height: 10rpx; border-radius: 999rpx; background: rgba(255,255,255,0.4); transition: all 0.2s; }
-.vp__dot--active { width: 28rpx; background: #fff; }
 
-/* 右侧互动 */
-.vp__actions { position: absolute; right: 20rpx; bottom: 320rpx; z-index: 30; display: flex; flex-direction: column; align-items: center; gap: 36rpx; }
-.vp__avatar-wrap { position: relative; margin-bottom: 8rpx; }
-.vp__avatar { width: 84rpx; height: 84rpx; border-radius: 999rpx; border: 3rpx solid #fff; background: #333; }
-.vp__verified { position: absolute; bottom: -2rpx; right: -2rpx; width: 30rpx; height: 30rpx; border-radius: 999rpx; background: var(--brand); display: flex; align-items: center; justify-content: center; }
-.vp__follow-plus { position: absolute; bottom: -16rpx; left: 50%; transform: translateX(-50%); width: 36rpx; height: 36rpx; border-radius: 999rpx; background: var(--brand); display: flex; align-items: center; justify-content: center; }
-.vp__act { display: flex; flex-direction: column; align-items: center; gap: 6rpx; }
-.vp__act-circle { width: 80rpx; height: 80rpx; border-radius: 999rpx; background: rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
-.vp__act-circle--liked { background: rgba(230,57,80,0.2); }
-.vp__act-circle--collected { background: rgba(245,166,35,0.2); }
-.vp__act-txt { font-size: 22rpx; color: #fff; font-weight: 500; }
-.vp__disc { width: 80rpx; height: 80rpx; border-radius: 999rpx; background: linear-gradient(135deg, #2b2b2b, #111); border: 3rpx solid #444; display: flex; align-items: center; justify-content: center; animation: spin 3s linear infinite; }
-.vp__disc-core { width: 28rpx; height: 28rpx; border-radius: 999rpx; background: rgba(255,255,255,0.2); }
-@keyframes spin { from { transform: rotate(0); } to { transform: rotate(360deg); } }
+/* 来源圈子胶囊（V0 source-pill：深色毛玻璃圆角胶囊） */
+.vp__source-pill {
+  display: flex; align-items: center; gap: 12rpx;
+  height: 64rpx; padding: 0 24rpx 0 8rpx; max-width: 380rpx;
+  background: rgba(0,0,0,0.35); border-radius: 32rpx;
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+}
+/* 圈子头像后端无 → 用小图标替位（V0 胶囊内 24px 圆头像位） */
+.vp__source-pill-ico {
+  width: 48rpx; height: 48rpx; border-radius: 999rpx;
+  background: rgba(255,255,255,0.14);
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.vp__source-pill-name { font-size: 24rpx; font-weight: 500; color: #fff; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 
-/* 底部信息 */
-.vp__bottom { position: absolute; left: 0; right: 130rpx; bottom: 0; z-index: 30; padding: 28rpx; }
-.vp__author-row { display: flex; align-items: center; gap: 12rpx; margin-bottom: 14rpx; }
+/* 右侧互动（V0 actions：无底圈·图标白描边带投影·数字 11px 白 72%） */
+.vp__actions { position: absolute; right: 24rpx; bottom: 352rpx; z-index: 30; display: flex; flex-direction: column; align-items: center; gap: 40rpx; }
+.vp__avatar-wrap { position: relative; margin-bottom: 12rpx; }
+.vp__avatar { width: 88rpx; height: 88rpx; border-radius: 999rpx; border: 3rpx solid #fff; background: #333; }
+.vp__follow-plus { position: absolute; bottom: -14rpx; left: 50%; transform: translateX(-50%); width: 32rpx; height: 32rpx; border-radius: 999rpx; background: var(--brand); display: flex; align-items: center; justify-content: center; }
+.vp__act { display: flex; flex-direction: column; align-items: center; gap: 8rpx; filter: drop-shadow(0 2rpx 4rpx rgba(0,0,0,0.4)); }
+.vp__act-txt { font-size: 22rpx; color: rgba(255,255,255,0.72); }
+
+/* 底部信息（V0 info：left 16px / right 76px / bottom 88px 区域） */
+.vp__bottom { position: absolute; left: 0; right: 152rpx; bottom: 0; z-index: 30; padding: 28rpx 0 0 32rpx; }
+.vp__author-row { display: flex; align-items: center; gap: 12rpx; margin-bottom: 16rpx; }
 .vp__author-name { font-size: 30rpx; font-weight: 600; color: #fff; }
-.vp__auth-badge { padding: 2rpx 10rpx; border-radius: 6rpx; background: rgba(201,168,106,0.8); }
-.vp__auth-badge-txt { font-size: 18rpx; color: #fff; }
-.vp__follow-btn { padding: 4rpx 18rpx; border-radius: 999rpx; background: var(--brand); }
-.vp__follow-btn-txt { font-size: 22rpx; color: #fff; font-weight: 500; }
-.vp__title { display: block; font-size: 26rpx; color: #fff; line-height: 1.5; margin-bottom: 16rpx; }
-.vp__music { display: flex; align-items: center; gap: 10rpx; margin-bottom: 16rpx; }
-.vp__music-txt { font-size: 22rpx; color: rgba(255,255,255,0.7); flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.vp__goods-entry { display: inline-flex; align-items: center; gap: 10rpx; padding: 12rpx 20rpx; background: rgba(255,255,255,0.1); border-radius: 999rpx; align-self: flex-start; }
-.vp__goods-icon { width: 40rpx; height: 40rpx; border-radius: 8rpx; background: linear-gradient(135deg, #F5C24B, #F5853F); display: flex; align-items: center; justify-content: center; }
-.vp__goods-txt { font-size: 22rpx; color: #fff; }
+/* 认证徽章（V0 badge：金描边小徽章） */
+.vp__auth-badge { padding: 2rpx 12rpx; border-radius: 10rpx; border: 1rpx solid #C9A96E; background: transparent; }
+.vp__auth-badge-txt { font-size: 20rpx; color: #C9A96E; }
+.vp__title { display: block; font-size: 28rpx; color: #fff; line-height: 1.6; }
+
+/* 推广浮卡（V0 promo-float：深色毛玻璃小卡·首件商品+金色价格） */
+.vp__promo {
+  display: flex; align-items: center; gap: 16rpx;
+  margin-top: 24rpx; height: 80rpx; padding: 0 24rpx 0 10rpx;
+  max-width: 500rpx;
+  background: rgba(0,0,0,0.35); border-radius: 20rpx;
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+}
+.vp__promo-img { width: 60rpx; height: 60rpx; border-radius: 14rpx; flex-shrink: 0; background: #333; }
+.vp__promo-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.vp__promo-name { font-size: 24rpx; font-weight: 500; color: #fff; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.vp__promo-price-row { display: flex; align-items: baseline; gap: 12rpx; }
+.vp__promo-price { font-size: 22rpx; color: #C9A96E; font-weight: 600; }
+.vp__promo-more { font-size: 20rpx; color: rgba(255,255,255,0.5); }
+
+/* 播放进度条（V0 progress：2.5px 细条） */
+.vp__progress-bar {
+  position: absolute; left: 32rpx; right: 32rpx; z-index: 30;
+  height: 5rpx; border-radius: 4rpx; background: rgba(255,255,255,0.25);
+  overflow: hidden;
+}
+.vp__progress-played { height: 100%; border-radius: 4rpx; background: #fff; }
 
 /* 弹层通用 */
 .sheet-mask { position: fixed; inset: 0; z-index: 40; background: rgba(0,0,0,0.5); }

@@ -53,6 +53,8 @@ export interface VideoItem {
   music: string
   products: VideoProduct[]
   hotComments: VideoHotComment[]
+  /** 来源圈子（内容圈子化：每条视频标明出处，顶栏来源胶囊可点跳圈子详情） */
+  circle?: { id: string; name: string }
 }
 
 export const mockVideos: VideoItem[] = [
@@ -300,6 +302,8 @@ interface RawVideo {
   coverUrl?: string; videoUrl?: string
   likeCount?: number; likes?: number; commentCount?: number; comments?: number; shareCount?: number; shares?: number
   products?: RawVideoProduct[]
+  /** 来源圈子（后端 /videos 与 /videos/:id 均 include circle:{id,name}） */
+  circle?: { id?: string; name?: string } | null
 }
 /** 通用评论原始响应（GET /comment·targetType=VIDEO） */
 interface RawComment {
@@ -333,6 +337,8 @@ function adaptVideoItem(v: RawVideo): VideoItem {
       ? v.products.map((p: RawVideoProduct) => ({ id: String(p.productId ?? p.id ?? ''), name: p.title || p.name || '', price: Number(p.price) || 0, originalPrice: Number(p.originalPrice) || 0, image: (Array.isArray(p.images) && p.images[0]) || p.image || '', sales: p.salesCount ?? p.sales ?? 0 }))
       : [],
     hotComments: [],
+    // 来源圈子：仅当后端确实返回圈子关联时映射（无圈子 → undefined，顶栏胶囊不渲染）
+    circle: v.circle?.id ? { id: v.circle.id, name: v.circle.name || '' } : undefined,
   }
 }
 

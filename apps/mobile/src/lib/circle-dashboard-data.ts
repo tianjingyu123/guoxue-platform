@@ -121,6 +121,32 @@ export interface MemberTimelineEvent {
   occurredAt: string
 }
 
+/**
+ * 圈子经营概览（GET /circles/:id/dashboard/overview，圈主鉴权，按 circleId）
+ * 后端真实返回：name/memberCount/newMembers(本月)/monthRevenue(入圈费·元)/
+ * interactionRate(如"12.3%")/monthPosts/monthComments/monthLikes。无 7 日活跃与同比字段。
+ */
+export interface CircleDashboardOverview {
+  name: string
+  memberCount: number
+  /** 本月新增成员 */
+  newMembers: number
+  /** 本月入圈费收入（元） */
+  monthRevenue: number
+  /** 本月互动率（后端已格式化百分比字符串，如 "12.3%"） */
+  interactionRate: string
+  monthPosts: number
+  monthComments: number
+  monthLikes: number
+}
+
+/** 收入构成条目（GET /circles/:id/dashboard/revenue-breakdown·全期 PAID 口径，无时间过滤） */
+export interface RevenueBreakdownItem {
+  type: string
+  label: string
+  amount: number
+}
+
 // ─── 后端原始返回类型（仅声明本层用到的字段） ───
 interface RawOverview {
   memberCount?: number
@@ -180,6 +206,17 @@ interface RawMemberInsight {
 interface RawMembersInsightResp { customers?: RawMemberInsight[]; total?: number }
 interface RawMemberTimelineEvent { action?: string; path?: string; summary?: string; occurredAt?: string }
 interface RawMemberTimelineResp { events?: RawMemberTimelineEvent[] }
+interface RawCircleDashboardOverview {
+  name?: string
+  memberCount?: number
+  newMembers?: number
+  monthRevenue?: number | string
+  interactionRate?: string
+  monthPosts?: number
+  monthComments?: number
+  monthLikes?: number
+}
+interface RawBreakdownItem { type?: string; label?: string; amount?: number | string }
 
 // ─── 工具 ───
 const num = (v: unknown): number => {
@@ -209,6 +246,28 @@ export const dashboardApi = {
       totalTransactions: num(raw?.totalTransactions),
       period: raw?.period || '',
     }
+  },
+
+  /** 圈子经营概览（需 circleId·圈主鉴权）— GET /circles/:id/dashboard/overview */
+  async circleOverview(circleId: string): Promise<CircleDashboardOverview> {
+    const raw = await apiGet<RawCircleDashboardOverview>(`/circles/${circleId}/dashboard/overview`)
+    return {
+      name: raw?.name || '',
+      memberCount: num(raw?.memberCount),
+      newMembers: num(raw?.newMembers),
+      monthRevenue: num(raw?.monthRevenue),
+      interactionRate: raw?.interactionRate || '0%',
+      monthPosts: num(raw?.monthPosts),
+      monthComments: num(raw?.monthComments),
+      monthLikes: num(raw?.monthLikes),
+    }
+  },
+
+  /** 收入构成（全期 PAID 口径·入圈费/课程/商品）— GET /circles/:id/dashboard/revenue-breakdown */
+  async revenueBreakdown(circleId: string): Promise<RevenueBreakdownItem[]> {
+    const raw = await apiGet<{ breakdown?: RawBreakdownItem[] }>(`/circles/${circleId}/dashboard/revenue-breakdown`)
+    const list = Array.isArray(raw?.breakdown) ? raw.breakdown : []
+    return list.map((b) => ({ type: b.type || '', label: b.label || '', amount: num(b.amount) }))
   },
 
   /** 活跃贡献者 TOP5（需 circleId） */

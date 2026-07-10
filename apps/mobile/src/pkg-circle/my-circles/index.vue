@@ -154,7 +154,7 @@
             <view
               v-if="circle.role === 'owner' || circle.role === 'admin'"
               class="manage-btn"
-              @tap.stop="navigateTo(`/pkg-circle/circles/manage?id=${circle.id}`)"
+              @tap.stop="navigateTo(`/pkg-circle/circles/dashboard?id=${circle.id}`)"
             >
               <AppIcon name="settings" :size="16" color="#666" />
             </view>

@@ -82,10 +82,13 @@
       <!-- 封面上传 -->
       <view class="card">
         <text class="label">直播封面 <text class="req">*</text></text>
-        <view class="cover-upload">
-          <AppIcon name="camera" :size="80" color="#999999" />
-          <text class="cover-tip">点击上传封面</text>
-          <text class="cover-hint">建议尺寸 16:9，支持 JPG/PNG</text>
+        <view class="cover-upload" @tap="uploadCover">
+          <image v-if="cover" class="cover-preview" :src="cover" mode="aspectFill" />
+          <template v-else>
+            <AppIcon name="camera" :size="80" color="#999999" />
+            <text class="cover-tip">{{ coverUploading ? '上传中...' : '点击上传封面' }}</text>
+            <text class="cover-hint">建议尺寸 16:9，支持 JPG/PNG</text>
+          </template>
         </view>
       </view>
 
@@ -99,15 +102,26 @@
             <text class="char-count">{{ title.length }}/30</text>
           </view>
         </view>
-        <!-- 开播时间 -->
+        <!-- 开播时间（不选=立即开播） -->
         <view class="field">
-          <text class="label">开播时间 <text class="req">*</text></text>
-          <view class="picker-btn" @tap="showDatePicker = true">
-            <view class="picker-left">
-              <AppIcon name="calendar" :size="40" color="#999999" />
-              <text class="picker-ph">请选择开播时间</text>
-            </view>
-            <AppIcon name="chevron-right" :size="40" color="#999999" />
+          <text class="label">开播时间 <text class="label-note">（不选则立即开播）</text></text>
+          <view class="dt-row">
+            <picker class="dt-flex" mode="date" :start="todayStr" :value="startDate" @change="onDateChange">
+              <view class="picker-btn">
+                <view class="picker-left">
+                  <AppIcon name="calendar" :size="40" color="#999999" />
+                  <text class="picker-ph" :class="{ 'picker-val': startDate }">{{ startDate || '选择日期' }}</text>
+                </view>
+              </view>
+            </picker>
+            <picker class="dt-flex" mode="time" :value="startClock" @change="onTimeChange">
+              <view class="picker-btn">
+                <view class="picker-left">
+                  <AppIcon name="clock" :size="40" color="#999999" />
+                  <text class="picker-ph" :class="{ 'picker-val': startClock }">{{ startClock || '选择时间' }}</text>
+                </view>
+              </view>
+            </picker>
           </view>
         </view>
         <!-- 直播类型 -->
@@ -164,6 +178,21 @@
             <view class="switch-dot" :class="{ 'switch-dot-on': isPublic }" />
           </view>
         </view>
+        <!-- 收费设置 -->
+        <view class="field">
+          <text class="label">收费设置</text>
+          <view class="type-grid">
+            <view class="type-card" :class="{ 'type-active': !isCharge }" @tap="isCharge = false">
+              <text class="type-name" :class="{ 'type-name-active': !isCharge }">免费直播</text>
+              <text class="type-desc">所有人可观看</text>
+            </view>
+            <view class="type-card" :class="{ 'type-active': isCharge }" @tap="isCharge = true">
+              <text class="type-name" :class="{ 'type-name-active': isCharge }">付费直播</text>
+              <text class="type-desc">购票后可观看</text>
+            </view>
+          </view>
+          <input v-if="isCharge" v-model="chargePrice" class="input charge-input" type="digit" placeholder="请输入观看价格（元）" placeholder-class="ph" />
+        </view>
       </view>
 
       <!-- 提示 -->
@@ -207,6 +236,7 @@ import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { liveApi, type LiveCategory, type LiveQuota } from '@/lib/live-data'
+import { uploadImage } from '@/utils/request'
 
 // 三态UI
 const loading = ref(true)
@@ -236,8 +266,33 @@ const tagInput = ref('')
 const isPublic = ref(true)
 const categoryId = ref('')
 const showCategoryPicker = ref(false)
-const showDatePicker = ref(false)
 const categories = ref<LiveCategory[]>([])
+
+// 封面上传（后端 LiveRoom.cover 支持）
+const cover = ref('')
+const coverUploading = ref(false)
+function uploadCover() {
+  if (coverUploading.value) return
+  uni.chooseImage({ count: 1, success: async (res) => {
+    coverUploading.value = true
+    uni.showLoading({ title: '上传中' })
+    try { cover.value = await uploadImage(res.tempFilePaths[0]) }
+    catch (e) { uni.showToast({ title: (e as Error)?.message || '封面上传失败', icon: 'none' }) }
+    finally { coverUploading.value = false; uni.hideLoading() }
+  } })
+}
+
+// 开播时间（不选则立即开播；后端 createRoom 支持 startTime）
+const startDate = ref('')
+const startClock = ref('')
+const todayStr = (() => { const d = new Date(); const p = (n: number) => String(n).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}` })()
+function onDateChange(e: any) { startDate.value = e.detail.value }
+function onTimeChange(e: any) { startClock.value = e.detail.value }
+const startTime = computed(() => (startDate.value && startClock.value ? `${startDate.value} ${startClock.value}` : ''))
+
+// 收费设置（后端 chargeType/chargePrice 支持）
+const isCharge = ref(false)
+const chargePrice = ref('')
 
 const typeOptions = [
   { value: 'knowledge' as const, label: '知识授课', desc: '适合课程讲解' },
@@ -249,15 +304,11 @@ const selectedCategoryName = computed(() => categories.value.find((c) => c.id ==
 async function fetchData() {
   loading.value = true
   error.value = ''
-  try {
-    categories.value = await liveApi.getCategories()
-    // 画质额度：需登录，未登录降级为 0（不阻断开播·选高清超清额度不足会降级标清）
-    quota.value = await liveApi.getQuota().catch(() => ({ hdMinutes: 0, uhdMinutes: 0 }))
-  } catch (e) {
-    error.value = (e as Error)?.message || '加载失败，请重试'
-  } finally {
-    loading.value = false
-  }
+  // 分类/额度加载失败一律降级为空，绝不因接口异常把整个表单挡在三态之外
+  //（原实现：getCategories 抛错→error 被设→表单永远出不来，是「填不了直播信息」的根因）
+  categories.value = await liveApi.getCategories().catch(() => [])
+  quota.value = await liveApi.getQuota().catch(() => ({ hdMinutes: 0, uhdMinutes: 0 }))
+  loading.value = false
 }
 
 onMounted(() => { fetchData() })
@@ -276,9 +327,21 @@ async function onCreate() {
     uni.showToast({ title: '请输入直播标题', icon: 'none' })
     return
   }
+  const price = isCharge.value ? Number(chargePrice.value) : 0
+  if (isCharge.value && !(price > 0)) {
+    uni.showToast({ title: '请输入正确的收费金额', icon: 'none' })
+    return
+  }
   submitting.value = true
   try {
-    await liveApi.createRoom({ title: title.value.trim(), chargeType: 'FREE', quality: quality.value })
+    await liveApi.createRoom({
+      title: title.value.trim(),
+      cover: cover.value || undefined,
+      startTime: startTime.value || undefined,
+      chargeType: isCharge.value ? 'PAID' : 'FREE',
+      chargePrice: isCharge.value ? price : undefined,
+      quality: quality.value,
+    })
     uni.showToast({ title: '创建成功', icon: 'success' })
     setTimeout(() => goBack(), 800)
   } catch (e) {
@@ -769,4 +832,13 @@ async function onCreate() {
   background: #fef2f2;
   color: var(--brand);
 }
+
+/* 封面预览 */
+.cover-preview { width: 100%; height: 100%; border-radius: 20rpx; }
+/* 开播时间：日期 + 时间并排 */
+.dt-row { display: flex; gap: 16rpx; }
+.dt-flex { flex: 1; }
+.picker-val { color: #2C2C2C; }
+/* 收费价格 */
+.charge-input { margin-top: 24rpx; }
 </style>

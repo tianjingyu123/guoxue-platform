@@ -20,12 +20,15 @@ const selectedType = ref<string | null>(null)
 
 const contentTypes = [
   { id: 'article', name: '文章', icon: 'file-text', desc: '发布图文内容' },
+  { id: 'video', name: '短视频', icon: 'video', desc: '发布短视频作品' },
   { id: 'course', name: '课程', icon: 'book-open', desc: '上传视频课程' },
   { id: 'live', name: '直播', icon: 'radio', desc: '发起在线直播' },
 ]
 
 onLoad((q) => {
   if (q?.circleId) { circleId.value = q.circleId; circle.id = q.circleId }
+  // 支持从发布 sheet 直达指定表单（type=article/course），免二次选类型
+  if (q?.type === 'article' || q?.type === 'course') selectedType.value = q.type
   loadCircle()
 })
 
@@ -44,6 +47,8 @@ async function loadCircle() {
 
 function selectType(t: typeof contentTypes[0]) {
   if (t.id === 'live') { navigateTo(`/pkg-live/create/index?circleId=${circleId.value}`); return }
+  // 短视频复用独立发布页（已支持 circleId 入参，发布后归属当前圈子）
+  if (t.id === 'video') { navigateTo(`/pkg-video/publish/index?circleId=${circleId.value}`); return }
   selectedType.value = t.id
 }
 

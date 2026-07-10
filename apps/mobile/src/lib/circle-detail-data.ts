@@ -376,12 +376,27 @@ export const circleDetailApi = {
    *    detail.isJoined 恒 false、myRole 恒 null。故登录态下须单独查此鉴权端点覆盖真实加入态。
    * 失败返回 { joined:false }（不阻断页面渲染）。
    */
-  getJoinStatus: async (id: string): Promise<{ joined: boolean; role: CircleMemberRole | null; expired: boolean }> => {
+  getJoinStatus: async (id: string): Promise<{ joined: boolean; role: CircleMemberRole | null; expired: boolean; joinedAt: string | null; expireAt: string | null }> => {
     try {
-      const r = await apiGet<{ joined?: boolean; role?: string; expired?: boolean }>(`/circles/${id}/join/status`)
-      return { joined: !!r?.joined, role: (r?.role as CircleMemberRole) ?? null, expired: !!r?.expired }
+      const r = await apiGet<{ joined?: boolean; role?: string; expired?: boolean; joinedAt?: string; expireAt?: string | null }>(`/circles/${id}/join/status`)
+      return {
+        joined: !!r?.joined,
+        role: (r?.role as CircleMemberRole) ?? null,
+        expired: !!r?.expired,
+        joinedAt: r?.joinedAt ? String(r.joinedAt) : null,
+        expireAt: r?.expireAt ? String(r.expireAt) : null,
+      }
     } catch {
-      return { joined: false, role: null, expired: false }
+      return { joined: false, role: null, expired: false, joinedAt: null, expireAt: null }
     }
   },
+  /**
+   * 续费年费圈子·第一步创建现金订单 — POST /circles/:id/renew。
+   * 董事长拍板 2026-07-10：入圈与续费都只能人民币（微信/支付宝），不支持虚拟币。
+   */
+  renewPrepare: (id: string, payMethod: 'WECHAT' | 'ALIPAY') =>
+    apiPost<{ needPayment?: boolean; orderId?: string; priceYuan?: number; message?: string }>(`/circles/${id}/renew`, { payMethod }),
+  /** 续费·第二步支付完成后确认 — POST /circles/:id/renew/confirm（顺延到期时间·返回 newExpireAt） */
+  renewConfirm: (id: string, orderId: string) =>
+    apiPost<{ newExpireAt?: string }>(`/circles/${id}/renew/confirm`, { orderId }),
 }

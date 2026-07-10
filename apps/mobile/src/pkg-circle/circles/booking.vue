@@ -1,308 +1,220 @@
 <script setup lang="ts">
 /**
- * 连麦预约（从原型 app/circles/[id]/booking/page.tsx 高保真迁移）
- * 选择专家(横滑卡)+自定义日历选日期+时段网格+时长+咨询主题+费用预览+底部预约 → 成功态。
- * 原型接 circleApi，vue3 直接用内联 mock(无后端,1:1还原)。
+ * 通话预约（连麦咨询）— V0 circle-consult-call-book.html 还原（2026-07-10 批④）
+ * V0 稿即 App/H5 对照：App 端预约流程 + H5/小程序降级引导，按端条件编译分流。
+ * 数据：consultApi.listExperts(circleId) 反查达人核实单价（入口参数仅兜底展示，价格以后端为准）。
+ * 降级（后端为准·记台账）：
+ *  - 后端无预约模型（ConsultCall.initiate 为即时通话·无时段/预约时长字段）→ V0「选择时段/预计时长/
+ *    预扣金额=时长×单价」不做，费用区改为真实计费规则说明（预扣按后端 initiate 返回为准）。
+ *  - App 端 TRTC 通话组件尚未集成（后端 initiate 已就绪但无通话界面）→ 发起按钮暂不接真实预扣，
+ *    防「扣金币无界面」资金事故；提示待通话组件联调后开放。
  */
 import { ref, computed } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
-import { goBack } from '@/utils/router'
-import { formatPrice } from '@/utils/format'
+import { goBack, navigateTo } from '@/utils/router'
+import { consultApi, type ConsultExpert } from '@/lib/circle-consult-data'
 
-interface Expert { id: string; name: string; title: string; specialty: string[]; pricePerMinute: number; rating: number; sessions: number; available: boolean }
-interface TimeSlot { id: string; startTime: string; endTime: string; available: boolean; duration: number }
+const circleId = ref('')
+const expertId = ref('')
+const fallbackName = ref('')
+const fallbackAvatar = ref('')
+const fallbackPrice = ref(0)
 
-const experts: Expert[] = [
-  { id: '1', name: '张明远', title: '资深命理师', specialty: ['八字', '紫微'], pricePerMinute: 5, rating: 4.9, sessions: 328, available: true },
-  { id: '2', name: '李易风', title: '风水大师', specialty: ['风水', '择日'], pricePerMinute: 8, rating: 4.8, sessions: 156, available: true },
-  { id: '3', name: '王国学', title: '易学研究员', specialty: ['周易', '六爻'], pricePerMinute: 6, rating: 4.7, sessions: 89, available: false },
-]
-const slots: TimeSlot[] = [
-  { id: '1', startTime: '09:00', endTime: '09:30', available: true, duration: 30 },
-  { id: '2', startTime: '09:30', endTime: '10:00', available: false, duration: 30 },
-  { id: '3', startTime: '10:00', endTime: '10:30', available: true, duration: 30 },
-  { id: '4', startTime: '10:30', endTime: '11:00', available: true, duration: 30 },
-  { id: '5', startTime: '14:00', endTime: '14:30', available: true, duration: 30 },
-  { id: '6', startTime: '14:30', endTime: '15:00', available: true, duration: 30 },
-  { id: '7', startTime: '15:00', endTime: '15:30', available: false, duration: 30 },
-  { id: '8', startTime: '15:30', endTime: '16:00', available: true, duration: 30 },
-]
+const loading = ref(true)
+const error = ref('')
+const expert = ref<ConsultExpert | null>(null)
+const callType = ref<'VOICE' | 'VIDEO'>('VOICE')
 
-const selectedExpert = ref<Expert>(experts[0])
-const selectedDate = ref(new Date())
-const selectedSlot = ref<TimeSlot | null>(null)
-const duration = ref(30)
-const topic = ref('')
-const submitting = ref(false)
-const showSuccess = ref(false)
-const durations = [15, 30, 45, 60]
+const name = computed(() => expert.value?.name || fallbackName.value || '达人')
+const avatar = computed(() => expert.value?.avatar || fallbackAvatar.value)
+const price = computed(() => expert.value?.callPrice || fallbackPrice.value)
 
-// 日历
-const weekDays = ['日', '一', '二', '三', '四', '五', '六']
-const today = (() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d })()
-const currentMonth = ref(new Date())
-
-const monthDays = computed<(Date | null)[]>(() => {
-  const year = currentMonth.value.getFullYear()
-  const month = currentMonth.value.getMonth()
-  const firstDay = new Date(year, month, 1)
-  const lastDay = new Date(year, month + 1, 0)
-  const days: (Date | null)[] = []
-  for (let i = 0; i < firstDay.getDay(); i++) days.push(null)
-  for (let i = 1; i <= lastDay.getDate(); i++) days.push(new Date(year, month, i))
-  return days
-})
-function prevMonth() { currentMonth.value = new Date(currentMonth.value.getFullYear(), currentMonth.value.getMonth() - 1) }
-function nextMonth() { currentMonth.value = new Date(currentMonth.value.getFullYear(), currentMonth.value.getMonth() + 1) }
-function isSelected(d: Date) { return d.toDateString() === selectedDate.value.toDateString() }
-function isPast(d: Date) { return d < today }
-function selectDate(d: Date) { if (!isPast(d)) { selectedDate.value = d; selectedSlot.value = null } }
-
-function selectExpert(e: Expert) { if (e.available) { selectedExpert.value = e; selectedSlot.value = null } }
-const price = computed(() => selectedExpert.value ? selectedExpert.value.pricePerMinute * duration.value : 0)
-const canSubmit = computed(() => !!selectedExpert.value && !!selectedSlot.value && topic.value.trim().length > 0 && !submitting.value)
-
-function dateLabel(d: Date) { return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}` }
-
-function handleSubmit() {
-  if (!canSubmit.value) return
-  submitting.value = true
-  setTimeout(() => { submitting.value = false; showSuccess.value = true }, 600)
+async function load() {
+  if (!circleId.value || !expertId.value) { error.value = '缺少达人参数，请从达人列表进入'; loading.value = false; return }
+  loading.value = true
+  error.value = ''
+  try {
+    const list = await consultApi.listExperts(circleId.value)
+    expert.value = list.find(e => e.id === expertId.value) || null
+    if (!expert.value && !fallbackPrice.value) error.value = '该达人暂未开通连麦咨询'
+  } catch {
+    // 反查失败但入口带了价格 → 用兜底展示；否则报错
+    if (!fallbackPrice.value) error.value = '加载失败'
+  } finally {
+    loading.value = false
+  }
 }
-function addToCalendar() { uni.showToast({ title: '已尝试添加到日历', icon: 'none' }) }
-function backToCircle() { goBack() }
+
+/** App 端发起：TRTC 通话组件未集成，暂不接真实预扣（后端 initiate 已就绪） */
+function onInitiate() {
+  uni.showToast({ title: '实时通话组件正在真机联调，暂未开放', icon: 'none' })
+}
+
+function goMyCalls() { navigateTo('/pkg-circle/circles/my-calls') }
+function goExperts() { navigateTo(`/pkg-circle/circles/consult-experts?circleId=${circleId.value}`) }
+
+onLoad((opt) => {
+  circleId.value = (opt?.circleId || opt?.id || '') as string
+  expertId.value = (opt?.expertId || '') as string
+  fallbackName.value = decodeURIComponent((opt?.name || '') as string)
+  fallbackAvatar.value = decodeURIComponent((opt?.avatar || '') as string)
+  fallbackPrice.value = Number(opt?.price) || 0
+  load()
+})
 </script>
 
 <template>
-  <!-- 预约成功页 -->
-  <view v-if="showSuccess && selectedSlot" class="bk-success">
-    <view class="bk-success-main">
-      <view class="bk-success-icon"><app-icon name="check" :size="48" color="#22C55E" /></view>
-      <text class="bk-success-title">预约成功</text>
-      <text class="bk-success-sub">我们已向专家发送通知，请准时参加</text>
-      <view class="bk-success-card">
-        <view class="bk-success-expert">
-          <view class="bk-avatar bk-avatar-lg"><text class="bk-avatar-t">{{ selectedExpert.name[0] }}</text></view>
-          <view>
-            <text class="bk-success-name">{{ selectedExpert.name }}</text>
-            <text class="bk-success-title-sub">{{ selectedExpert.title }}</text>
-          </view>
-        </view>
-        <view class="bk-success-rows">
-          <view class="bk-success-row"><text class="bk-success-row-l">日期</text><text class="bk-success-row-v">{{ dateLabel(selectedDate) }}</text></view>
-          <view class="bk-success-row"><text class="bk-success-row-l">时间</text><text class="bk-success-row-v">{{ selectedSlot.startTime }} - {{ selectedSlot.endTime }}</text></view>
-          <view class="bk-success-row"><text class="bk-success-row-l">咨询主题</text><text class="bk-success-row-v">{{ topic }}</text></view>
-          <view class="bk-success-row"><text class="bk-success-row-l">费用</text><text class="bk-success-row-v is-price">¥{{ formatPrice(price) }}</text></view>
-        </view>
-      </view>
-    </view>
-    <view class="bk-success-footer">
-      <view class="bk-success-cal" @tap="addToCalendar"><app-icon name="calendar" :size="30" color="#C41E3A" /><text class="bk-success-cal-t">添加到日历</text></view>
-      <view class="bk-success-back" @tap="backToCircle"><text class="bk-success-back-t">返回圈子</text></view>
-    </view>
-  </view>
-
-  <!-- 预约表单页 -->
-  <view v-else class="bk-page">
-    <view class="bk-nav">
-      <view class="bk-nav-btn" @tap="goBack"><app-icon name="arrow-left" :size="34" color="#2C2C2C" /></view>
-      <text class="bk-nav-title">连麦预约</text>
-      <view class="bk-nav-btn" />
+  <view class="bk-page">
+    <view class="bk-topbar">
+      <view class="bk-back" @tap="goBack"><app-icon name="chevron-left" :size="40" color="#2C2C2C" /></view>
+      <text class="bk-title">预约连麦</text>
     </view>
 
-    <view class="bk-body">
-      <!-- 选择专家 -->
-      <view class="bk-section">
-        <text class="bk-section-title">选择专家</text>
-        <scroll-view scroll-x class="bk-experts" :show-scrollbar="false">
-          <view class="bk-experts-inner">
-            <view v-for="e in experts" :key="e.id" class="bk-expert" :class="{ 'is-active': selectedExpert.id === e.id, 'is-disabled': !e.available }" @tap="selectExpert(e)">
-              <view class="bk-avatar"><text class="bk-avatar-t">{{ e.name[0] }}</text></view>
-              <text class="bk-expert-name">{{ e.name }}</text>
-              <text class="bk-expert-title">{{ e.title }}</text>
-              <view class="bk-expert-rate"><app-icon name="star" :size="20" color="#C9A96E" :fill="true" /><text class="bk-expert-rate-t">{{ e.rating }}</text></view>
-              <view class="bk-expert-price"><text class="bk-expert-price-num">¥{{ formatPrice(e.pricePerMinute) }}</text><text class="bk-expert-price-unit">/分钟</text></view>
-              <text v-if="!e.available" class="bk-expert-na">暂不可约</text>
-            </view>
-          </view>
-        </scroll-view>
-      </view>
-
-      <!-- 选择日期 -->
-      <view class="bk-section">
-        <text class="bk-section-title">选择日期</text>
-        <view class="bk-calendar">
-          <view class="bk-cal-head">
-            <view class="bk-cal-arrow" @tap="prevMonth"><app-icon name="chevron-left" :size="30" color="#666666" /></view>
-            <text class="bk-cal-month">{{ currentMonth.getFullYear() }}年{{ currentMonth.getMonth() + 1 }}月</text>
-            <view class="bk-cal-arrow" @tap="nextMonth"><app-icon name="chevron-right" :size="30" color="#666666" /></view>
-          </view>
-          <view class="bk-cal-week">
-            <text v-for="w in weekDays" :key="w" class="bk-cal-week-d">{{ w }}</text>
-          </view>
-          <view class="bk-cal-grid">
-            <view v-for="(d, i) in monthDays" :key="i" class="bk-cal-cell">
-              <view v-if="d" class="bk-cal-day" :class="{ 'is-selected': isSelected(d), 'is-past': isPast(d) }" @tap="selectDate(d)">
-                <text class="bk-cal-day-t" :class="{ 'is-selected': isSelected(d), 'is-past': isPast(d) }">{{ d.getDate() }}</text>
-              </view>
-            </view>
-          </view>
-        </view>
-      </view>
-
-      <!-- 选择时段 -->
-      <view class="bk-section">
-        <text class="bk-section-title">选择时段</text>
-        <view class="bk-slots-wrap">
-          <view v-if="slots.length" class="bk-slots">
-            <view v-for="s in slots" :key="s.id" class="bk-slot" :class="{ 'is-selected': selectedSlot && selectedSlot.id === s.id, 'is-disabled': !s.available }" @tap="s.available && (selectedSlot = s)">
-              <text class="bk-slot-t" :class="{ 'is-selected': selectedSlot && selectedSlot.id === s.id, 'is-disabled': !s.available }">{{ s.startTime }}</text>
-            </view>
-          </view>
-          <text v-else class="bk-slots-empty">该日期暂无可用时段</text>
-        </view>
-      </view>
-
-      <!-- 咨询时长 -->
-      <view class="bk-section">
-        <text class="bk-section-title">咨询时长</text>
-        <view class="bk-durations">
-          <view v-for="m in durations" :key="m" class="bk-duration" :class="{ 'is-active': duration === m }" @tap="duration = m">
-            <text class="bk-duration-t" :class="{ 'is-active': duration === m }">{{ m }}分钟</text>
-          </view>
-        </view>
-      </view>
-
-      <!-- 咨询主题 -->
-      <view class="bk-section">
-        <text class="bk-section-title">咨询主题</text>
-        <view class="bk-topic">
-          <textarea v-model="topic" class="bk-topic-input" placeholder="请简要描述您想咨询的问题..." placeholder-class="bk-ph" />
-          <view class="bk-topic-tip"><app-icon name="message-square" :size="24" color="#999999" /><text class="bk-topic-tip-t">专家将根据您的主题提前准备</text></view>
-        </view>
-      </view>
-
-      <!-- 费用预览 -->
-      <view class="bk-fee">
-        <text class="bk-section-title">费用预览</text>
-        <view class="bk-fee-rows">
-          <view class="bk-fee-row"><text class="bk-fee-l">单价</text><text class="bk-fee-v">¥{{ formatPrice(selectedExpert.pricePerMinute) }}/分钟</text></view>
-          <view class="bk-fee-row"><text class="bk-fee-l">时长</text><text class="bk-fee-v">{{ duration }}分钟</text></view>
-          <view class="bk-fee-total"><text class="bk-fee-total-l">合计</text><text class="bk-fee-total-v">¥{{ formatPrice(price) }}</text></view>
-        </view>
-      </view>
+    <!-- 三态 -->
+    <view v-if="loading" class="bk-state"><view class="bk-skel" /></view>
+    <view v-else-if="error" class="bk-state">
+      <text class="bk-state-t">{{ error }}</text>
+      <view class="bk-retry" @tap="load"><text class="bk-retry-t">重试</text></view>
     </view>
 
-    <!-- 底部固定 -->
-    <view class="bk-footer">
-      <view class="bk-footer-top">
-        <view class="bk-footer-time"><app-icon name="clock" :size="24" color="#999999" /><text class="bk-footer-time-t">{{ selectedSlot ? `${dateLabel(selectedDate)} ${selectedSlot.startTime}` : '请选择时段' }}</text></view>
-        <view class="bk-footer-pay"><text class="bk-footer-pay-l">需支付</text><text class="bk-footer-pay-v">¥{{ formatPrice(price) }}</text></view>
+    <template v-else>
+      <!-- 达人与单价 -->
+      <view class="bk-card">
+        <view class="bk-expert-row">
+          <view class="bk-expert-avatar">
+            <image v-if="avatar" lazy-load class="bk-expert-img" :src="avatar" mode="aspectFill" />
+            <view v-else class="bk-expert-img bk-expert-ph"><app-icon name="user" :size="36" color="#C9A96E" /></view>
+          </view>
+          <view class="bk-expert-main">
+            <text class="bk-expert-name">{{ name }} · 连麦咨询</text>
+            <text class="bk-expert-price"><text class="bk-price-b">{{ price }}</text> 金币/分钟 · 按实际通话时长结算</text>
+          </view>
+        </view>
+
+        <!-- App 端：通话方式 + 计费规则 + 发起 -->
+        <!-- #ifdef APP-PLUS -->
+        <text class="bk-field-label">通话方式</text>
+        <view class="bk-types">
+          <view class="bk-type" :class="{ 'is-active': callType === 'VOICE' }" @tap="callType = 'VOICE'">
+            <app-icon name="phone" :size="30" :color="callType === 'VOICE' ? '#C41E3A' : '#6E6E73'" />
+            <text class="bk-type-t" :class="{ 'is-active': callType === 'VOICE' }">语音通话</text>
+          </view>
+          <view class="bk-type" :class="{ 'is-active': callType === 'VIDEO' }" @tap="callType = 'VIDEO'">
+            <app-icon name="video" :size="30" :color="callType === 'VIDEO' ? '#C41E3A' : '#6E6E73'" />
+            <text class="bk-type-t" :class="{ 'is-active': callType === 'VIDEO' }">视频通话</text>
+          </view>
+        </view>
+        <!-- #endif -->
+
+        <!-- 计费规则（后端真实规则：预扣→按实结算多退少不补→不足1分钟按1分钟→未接通全额退） -->
+        <view class="bk-fee">
+          <view class="bk-fee-row"><text class="bk-fee-l">计费单价</text><text class="bk-fee-v">{{ price }} 金币/分钟</text></view>
+          <view class="bk-fee-row"><text class="bk-fee-l">计费方式</text><text class="bk-fee-v">发起时预扣 · 按实际时长结算</text></view>
+          <text class="bk-fee-note">发起通话时预扣一定时长的金币额度，通话结束按实际时长结算：多扣部分自动退回，不足 1 分钟按 1 分钟计；未接通则预扣金币全额退还。</text>
+        </view>
+
+        <!-- #ifdef APP-PLUS -->
+        <view class="bk-book-btn" @tap="onInitiate"><text class="bk-book-btn-t">发起{{ callType === 'VIDEO' ? '视频' : '语音' }}通话</text></view>
+        <text class="bk-book-note">实时通话组件正在真机联调，开放后此处将直接预扣并进入通话。</text>
+        <!-- #endif -->
       </view>
-      <view class="bk-submit" :class="{ 'is-disabled': !canSubmit }" @tap="handleSubmit">
-        <text class="bk-submit-t">{{ submitting ? '预约中...' : '立即预约' }}</text>
+
+      <!-- H5/小程序端：优雅降级，不做死按钮 -->
+      <!-- #ifndef APP-PLUS -->
+      <view class="bk-downgrade">
+        <view class="bk-down-icon"><app-icon name="smartphone" :size="56" color="#6E6E73" /></view>
+        <text class="bk-down-title">连麦咨询请在 App 中使用</text>
+        <text class="bk-down-desc">实时语音/视频通话依赖 App 专属能力，网页端暂不支持。你的通话记录在网页端仍可随时查看。</text>
+        <view class="bk-down-btn" @tap="goMyCalls"><text class="bk-down-btn-t">查看我的通话记录</text></view>
+        <text class="bk-down-alt" @tap="goExperts">先看看达人的图文咨询</text>
       </view>
-    </view>
+      <!-- #endif -->
+    </template>
   </view>
 </template>
 
 <style scoped lang="scss">
-.bk-page { min-height: 100vh; background: #FAF8F5; padding-bottom: 220rpx; }
-.bk-nav { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; justify-content: space-between; height: 96rpx; padding: 0 24rpx; background: #fff; border-bottom: 1rpx solid #E8E3DB; }
-.bk-nav-btn { width: 56rpx; height: 56rpx; display: flex; align-items: center; justify-content: center; }
-.bk-nav-title { font-size: 30rpx; font-weight: 500; color: #2C2C2C; }
-.bk-body { padding: 24rpx; display: flex; flex-direction: column; gap: 40rpx; }
-.bk-section-title { display: block; font-size: 26rpx; font-weight: 500; color: #2C2C2C; margin-bottom: 20rpx; }
-/* 专家 */
-.bk-experts { white-space: nowrap; }
-.bk-experts-inner { display: inline-flex; gap: 20rpx; }
- .bk-expert { flex-shrink: 0; width: 200rpx; border-radius: 20rpx; padding: 20rpx; border: 3rpx solid transparent; background: #fff; }
-.bk-expert.is-active { border-color: var(--brand); background: #FEF0F2; }
-.bk-expert.is-disabled { background: #F2F2F2; opacity: 0.6; }
-.bk-avatar { width: 88rpx; height: 88rpx; border-radius: 50%; background: linear-gradient(135deg, var(--brand), #E85A6B); margin: 0 auto 14rpx; display: flex; align-items: center; justify-content: center; }
-.bk-avatar-lg { width: 88rpx; height: 88rpx; margin: 0; }
-.bk-avatar-t { font-size: 34rpx; font-weight: 500; color: #fff; }
-.bk-expert-name { display: block; font-size: 26rpx; font-weight: 500; color: #2C2C2C; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.bk-expert-title { display: block; font-size: 22rpx; color: #999; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.bk-expert-rate { display: flex; align-items: center; justify-content: center; gap: 4rpx; margin-top: 6rpx; }
-.bk-expert-rate-t { font-size: 22rpx; color: #666; }
-.bk-expert-price { text-align: center; margin-top: 12rpx; }
-.bk-expert-price-num { font-size: 28rpx; font-weight: 700; color: var(--brand); }
-.bk-expert-price-unit { font-size: 22rpx; color: #999; }
-.bk-expert-na { display: block; font-size: 22rpx; color: #999; text-align: center; margin-top: 8rpx; }
-/* 日历 */
-.bk-calendar { background: #fff; border-radius: 20rpx; padding: 24rpx; }
-.bk-cal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24rpx; }
-.bk-cal-arrow { width: 56rpx; height: 56rpx; display: flex; align-items: center; justify-content: center; }
-.bk-cal-month { font-size: 28rpx; font-weight: 500; color: #2C2C2C; }
-.bk-cal-week { display: flex; margin-bottom: 12rpx; }
-.bk-cal-week-d { flex: 1; text-align: center; font-size: 22rpx; color: #999; padding: 8rpx 0; }
-.bk-cal-grid { display: flex; flex-wrap: wrap; }
-.bk-cal-cell { width: 14.285%; aspect-ratio: 1; display: flex; align-items: center; justify-content: center; }
-.bk-cal-day { width: 64rpx; height: 64rpx; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
-.bk-cal-day.is-selected { background: var(--brand); }
-.bk-cal-day-t { font-size: 26rpx; color: #2C2C2C; }
-.bk-cal-day-t.is-selected { color: #fff; }
-.bk-cal-day-t.is-past { color: #CCC; }
-/* 时段 */
-.bk-slots-wrap { background: #fff; border-radius: 20rpx; padding: 24rpx; }
-.bk-slots { display: flex; flex-wrap: wrap; gap: 16rpx; }
-.bk-slot { width: calc((100% - 48rpx) / 4); height: 64rpx; border-radius: 12rpx; background: #FAF8F5; display: flex; align-items: center; justify-content: center; }
-.bk-slot.is-selected { background: var(--brand); }
-.bk-slot.is-disabled { background: #F2F2F2; }
-.bk-slot-t { font-size: 26rpx; color: #2C2C2C; }
-.bk-slot-t.is-selected { color: #fff; }
-.bk-slot-t.is-disabled { color: #CCC; text-decoration: line-through; }
-.bk-slots-empty { display: block; text-align: center; font-size: 26rpx; color: #999; padding: 32rpx 0; }
-/* 时长 */
-.bk-durations { display: flex; gap: 20rpx; }
-.bk-duration { flex: 1; height: 84rpx; border-radius: 16rpx; background: #fff; display: flex; align-items: center; justify-content: center; }
-.bk-duration.is-active { background: var(--brand); }
-.bk-duration-t { font-size: 26rpx; font-weight: 500; color: #2C2C2C; }
-.bk-duration-t.is-active { color: #fff; }
-/* 主题 */
-.bk-topic { background: #fff; border-radius: 20rpx; padding: 24rpx; }
-.bk-topic-input { width: 100%; box-sizing: border-box; height: 120rpx; font-size: 28rpx; color: #2C2C2C; }
-.bk-ph { color: #CCC; }
-.bk-topic-tip { display: flex; align-items: center; gap: 8rpx; padding-top: 16rpx; border-top: 1rpx solid #E8E3DB; margin-top: 8rpx; }
-.bk-topic-tip-t { font-size: 22rpx; color: #999; }
-/* 费用 */
-.bk-fee { background: #fff; border-radius: 20rpx; padding: 24rpx; }
-.bk-fee-rows { display: flex; flex-direction: column; gap: 16rpx; }
-.bk-fee-row { display: flex; align-items: center; justify-content: space-between; }
-.bk-fee-l { font-size: 26rpx; color: #666; }
-.bk-fee-v { font-size: 26rpx; color: #2C2C2C; }
-.bk-fee-total { display: flex; align-items: center; justify-content: space-between; padding-top: 16rpx; border-top: 1rpx solid #E8E3DB; }
-.bk-fee-total-l { font-size: 28rpx; font-weight: 500; color: #2C2C2C; }
-.bk-fee-total-v { font-size: 36rpx; font-weight: 700; color: var(--brand); }
-/* 底部 */
-.bk-footer { position: fixed; bottom: 0; left: 0; right: 0; background: #fff; border-top: 1rpx solid #E8E3DB; padding: 24rpx; }
-.bk-footer-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20rpx; }
-.bk-footer-time { display: flex; align-items: center; gap: 8rpx; }
-.bk-footer-time-t { font-size: 26rpx; color: #666; }
-.bk-footer-pay-l { font-size: 26rpx; color: #999; }
-.bk-footer-pay-v { font-size: 38rpx; font-weight: 700; color: var(--brand); margin-left: 8rpx; }
-.bk-submit { height: 88rpx; border-radius: 16rpx; background: linear-gradient(90deg, var(--brand), #E85A6B); display: flex; align-items: center; justify-content: center; }
-.bk-submit.is-disabled { opacity: 0.5; }
-.bk-submit-t { font-size: 30rpx; font-weight: 500; color: #fff; }
-/* 成功页 */
-.bk-success { min-height: 100vh; background: #FAF8F5; display: flex; flex-direction: column; }
-.bk-success-main { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 48rpx; }
-.bk-success-icon { width: 160rpx; height: 160rpx; border-radius: 50%; background: #DCFCE7; display: flex; align-items: center; justify-content: center; margin-bottom: 32rpx; }
-.bk-success-title { font-size: 40rpx; font-weight: 700; color: #2C2C2C; margin-bottom: 12rpx; }
-.bk-success-sub { font-size: 28rpx; color: #666; text-align: center; margin-bottom: 48rpx; }
-.bk-success-card { width: 100%; background: #fff; border-radius: 20rpx; padding: 24rpx; }
-.bk-success-expert { display: flex; align-items: center; gap: 20rpx; margin-bottom: 24rpx; }
-.bk-success-name { display: block; font-size: 28rpx; font-weight: 500; color: #2C2C2C; }
-.bk-success-title-sub { display: block; font-size: 26rpx; color: #999; }
-.bk-success-rows { border-top: 1rpx solid #E8E3DB; padding-top: 24rpx; display: flex; flex-direction: column; gap: 16rpx; }
-.bk-success-row { display: flex; align-items: center; justify-content: space-between; }
-.bk-success-row-l { font-size: 26rpx; color: #999; }
-.bk-success-row-v { font-size: 26rpx; color: #2C2C2C; }
-.bk-success-row-v.is-price { color: var(--brand); font-weight: 500; }
-.bk-success-footer { padding: 24rpx; display: flex; flex-direction: column; gap: 20rpx; }
-.bk-success-cal { height: 88rpx; border: 1rpx solid var(--brand); border-radius: 16rpx; display: flex; align-items: center; justify-content: center; gap: 12rpx; }
-.bk-success-cal-t { font-size: 28rpx; font-weight: 500; color: var(--brand); }
-.bk-success-back { height: 88rpx; border-radius: 16rpx; background: linear-gradient(90deg, var(--brand), #E85A6B); display: flex; align-items: center; justify-content: center; }
-.bk-success-back-t { font-size: 28rpx; font-weight: 500; color: #fff; }
+.bk-page { min-height: 100vh; background: var(--bg-page, #faf8f5); padding-bottom: 80rpx; }
+
+.bk-topbar {
+  position: sticky; top: 0; z-index: 10;
+  display: flex; align-items: center; gap: 20rpx;
+  padding: 24rpx 32rpx;
+  padding-top: calc(var(--status-bar-height, 0px) + 24rpx);
+  background: rgba(250, 248, 245, 0.92); backdrop-filter: blur(24rpx);
+  border-bottom: 1rpx solid var(--separator, #ede7dd);
+}
+.bk-back { display: flex; padding: 8rpx; margin-left: -8rpx; }
+.bk-title { flex: 1; font-size: 34rpx; font-weight: 600; color: var(--text-primary, #2c2c2c); }
+
+.bk-state { padding: 120rpx 32rpx; display: flex; flex-direction: column; align-items: center; gap: 24rpx; }
+.bk-state-t { font-size: 26rpx; color: var(--text-tertiary, #999); }
+.bk-retry { padding: 14rpx 56rpx; border-radius: 999rpx; background: var(--brand, #c41e3a); }
+.bk-retry-t { font-size: 26rpx; color: #fff; }
+.bk-skel { width: 100%; height: 360rpx; border-radius: 36rpx; background: #ede7dd; }
+
+/* 预约卡 */
+.bk-card {
+  margin: 24rpx 32rpx 0; padding: 32rpx;
+  background: var(--bg-card, #fff); border-radius: 36rpx;
+  box-shadow: 0 2rpx 6rpx rgba(44, 44, 44, 0.05);
+}
+.bk-expert-row { display: flex; align-items: center; gap: 24rpx; }
+.bk-expert-avatar { width: 88rpx; height: 88rpx; border-radius: 999rpx; overflow: hidden; flex-shrink: 0; box-shadow: 0 0 0 3rpx var(--gold, #c9a96e); }
+.bk-expert-img { width: 88rpx; height: 88rpx; border-radius: 999rpx; }
+.bk-expert-ph { background: var(--bg-warm, #f8f4ec); display: flex; align-items: center; justify-content: center; }
+.bk-expert-main { flex: 1; min-width: 0; }
+.bk-expert-name { display: block; font-size: 30rpx; font-weight: 600; color: var(--text-primary, #2c2c2c); }
+.bk-expert-price { display: block; font-size: 24rpx; color: var(--text-tertiary, #999); margin-top: 4rpx; }
+.bk-price-b { color: var(--gold, #c9a96e); font-weight: 700; font-size: 28rpx; }
+
+.bk-field-label { display: block; font-size: 26rpx; font-weight: 600; color: var(--text-primary, #2c2c2c); margin: 32rpx 0 20rpx; }
+.bk-types { display: flex; gap: 16rpx; }
+.bk-type {
+  flex: 1; padding: 20rpx 0; border-radius: 16rpx; text-align: center;
+  border: 1rpx solid var(--separator, #ede7dd); background: var(--bg-card, #fff);
+  display: flex; align-items: center; justify-content: center; gap: 10rpx;
+}
+.bk-type.is-active { border-color: var(--brand, #c41e3a); background: var(--brand-soft, rgba(196, 30, 58, 0.08)); }
+.bk-type-t { font-size: 26rpx; color: var(--text-secondary, #6e6e73); }
+.bk-type-t.is-active { color: var(--brand, #c41e3a); font-weight: 600; }
+
+/* 计费规则 */
+.bk-fee { margin-top: 32rpx; padding: 26rpx 28rpx; background: var(--bg-warm, #f8f4ec); border-radius: 28rpx; }
+.bk-fee-row { display: flex; justify-content: space-between; font-size: 24rpx; color: var(--text-secondary, #6e6e73); }
+.bk-fee-row + .bk-fee-row { margin-top: 14rpx; }
+.bk-fee-v { font-weight: 600; color: var(--text-primary, #2c2c2c); }
+.bk-fee-note { display: block; font-size: 20rpx; color: var(--text-tertiary, #999); line-height: 1.7; margin-top: 18rpx; }
+
+.bk-book-btn {
+  height: 92rpx; margin-top: 28rpx; border-radius: 46rpx;
+  background: var(--brand, #c41e3a);
+  display: flex; align-items: center; justify-content: center;
+}
+.bk-book-btn:active { opacity: 0.88; }
+.bk-book-btn-t { font-size: 30rpx; font-weight: 600; letter-spacing: 2rpx; color: #fff; }
+.bk-book-note { display: block; font-size: 20rpx; color: var(--text-tertiary, #999); text-align: center; margin-top: 16rpx; line-height: 1.6; }
+
+/* H5 降级引导卡 */
+.bk-downgrade {
+  margin: 24rpx 32rpx 0; padding: 64rpx 48rpx; text-align: center;
+  background: var(--bg-card, #fff); border-radius: 36rpx;
+  box-shadow: 0 2rpx 6rpx rgba(44, 44, 44, 0.05);
+}
+.bk-down-icon {
+  width: 128rpx; height: 128rpx; margin: 0 auto 32rpx; border-radius: 999rpx;
+  background: var(--bg-warm, #f8f4ec);
+  display: flex; align-items: center; justify-content: center;
+}
+.bk-down-title { display: block; font-size: 32rpx; font-weight: 600; color: var(--text-primary, #2c2c2c); }
+.bk-down-desc { display: block; font-size: 26rpx; color: var(--text-secondary, #6e6e73); line-height: 1.8; margin-top: 16rpx; }
+.bk-down-btn {
+  margin: 36rpx auto 0; padding: 0 64rpx; height: 88rpx; border-radius: 44rpx;
+  background: var(--brand, #c41e3a);
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.bk-down-btn:active { opacity: 0.88; }
+.bk-down-btn-t { font-size: 28rpx; font-weight: 600; color: #fff; }
+.bk-down-alt { display: block; margin-top: 28rpx; font-size: 24rpx; color: var(--text-tertiary, #999); text-decoration: underline; }
 </style>

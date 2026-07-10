@@ -225,6 +225,7 @@ async function onSubmit() {
       intro: form.intro.trim() || undefined,
       cover: form.cover || undefined,
       categoryLevel1: form.categoryLevel1 || undefined,
+      validityDays: form.validityDays ? Number(form.validityDays) : 0,
     })
     uni.showToast({ title: '已提交审核', icon: 'success' })
     setTimeout(() => goBack(), 800)

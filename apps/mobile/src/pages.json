@@ -705,6 +705,12 @@
       "root": "pkg-circle",
       "pages": [
         {
+          "path": "circles/me",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
           "path": "user/profile",
           "style": {
             "navigationStyle": "custom"
@@ -837,6 +843,18 @@
           }
         },
         {
+          "path": "circles/my-audits",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "circles/renew",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
           "path": "circles/exit-requests",
           "style": {
             "navigationStyle": "custom"
@@ -904,6 +922,12 @@
         },
         {
           "path": "circles/my-calls",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "circles/call-end",
           "style": {
             "navigationStyle": "custom"
           }

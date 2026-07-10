@@ -1,10 +1,13 @@
 <script setup lang="ts">
 /**
- * 我的退款（规则 V2.0）：用户查看自己提交的退款申请进度。真连 circle-refund 后端。
+ * 我的退款 — V0 circle-refunds-my.html + circle-refunds-empty.html 还原（2026-07-10）
+ * 结构：钱包卡（可提现余额·退款到账去处）→ 退款记录卡（金额+状态徽章+三节点双审进度轨+驳回原因）→ 空态。
+ * 五种状态：圈主审核中 / 平台审核中 / 退款处理中 / 退款已到账 / 已驳回（圈主或平台）。
+ * 数据：refundApi.myRefunds + wallet（真连 circle-refund 后端）。去提现 → /pkg-mine/wallet/withdraw。
  */
 import { ref, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
-import { goBack } from '@/utils/router'
+import { goBack, navigateTo } from '@/utils/router'
 import { refundApi, type RefundRequestItem } from '@/lib/circle-refund-data'
 import { formatPrice } from '@/utils/format'
 
@@ -27,90 +30,282 @@ async function load() {
   }
 }
 
-/** 状态文案 + 颜色 + 副说明 */
-function statusInfo(it: RefundRequestItem): { label: string; color: string; sub: string } {
-  if (it.refundStatus === 'refunded') return { label: '退款已到账', color: '#16A34A', sub: `¥${it.actualRefund} 已退至钱包余额` }
-  if (it.refundStatus === 'refunding') return { label: '退款处理中', color: '#C41E3A', sub: '预计 1-3 个工作日到账钱包余额' }
-  if (it.ownerStatus === 'rejected') return { label: '圈主驳回', color: '#999999', sub: it.ownerRejectReason || '可重新申请' }
-  if (it.adminStatus === 'rejected') return { label: '平台驳回', color: '#999999', sub: it.adminRejectReason || '可重新申请' }
-  if (it.ownerStatus === 'approved' && it.adminStatus === 'pending') return { label: '平台审核中', color: '#EA580C', sub: '圈主已通过，平台审核约 3-5 个工作日' }
-  return { label: '圈主审核中', color: '#EA580C', sub: '预计 1-3 个工作日' }
+type BadgeKind = 'pending' | 'refunding' | 'done' | 'rejected'
+interface StatusView {
+  badge: BadgeKind
+  label: string
+  timeSub: string
+  /** 三节点：done/active/fail/idle */
+  nodes: { label: string; state: 'done' | 'active' | 'fail' | 'idle' }[]
+  rejectReason: string
 }
 
-function fmtDate(s: string) {
-  if (!s) return ''
-  const d = new Date(s)
-  return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`
+/** 状态映射：徽章 + 副说明 + 双审进度轨三节点 */
+function statusView(it: RefundRequestItem): StatusView {
+  if (it.refundStatus === 'refunded') {
+    return {
+      badge: 'done', label: '退款已到账', timeSub: '已退至可提现余额', rejectReason: '',
+      nodes: [
+        { label: '圈主已通过', state: 'done' },
+        { label: '平台已通过', state: 'done' },
+        { label: '已到账余额', state: 'done' },
+      ],
+    }
+  }
+  if (it.refundStatus === 'refunding') {
+    return {
+      badge: 'refunding', label: '退款处理中', timeSub: '双审已通过', rejectReason: '',
+      nodes: [
+        { label: '圈主已通过', state: 'done' },
+        { label: '平台已通过', state: 'done' },
+        { label: '处理中', state: 'active' },
+      ],
+    }
+  }
+  if (it.ownerStatus === 'rejected') {
+    return {
+      badge: 'rejected', label: '已驳回', timeSub: '圈主驳回', rejectReason: it.ownerRejectReason || '',
+      nodes: [
+        { label: '圈主驳回', state: 'fail' },
+        { label: '平台审核', state: 'idle' },
+        { label: '到账', state: 'idle' },
+      ],
+    }
+  }
+  if (it.adminStatus === 'rejected') {
+    return {
+      badge: 'rejected', label: '已驳回', timeSub: '平台驳回', rejectReason: it.adminRejectReason || '',
+      nodes: [
+        { label: '圈主已通过', state: 'done' },
+        { label: '平台驳回', state: 'fail' },
+        { label: '到账', state: 'idle' },
+      ],
+    }
+  }
+  if (it.ownerStatus === 'approved') {
+    return {
+      badge: 'pending', label: '平台审核中', timeSub: '圈主已通过', rejectReason: '',
+      nodes: [
+        { label: '圈主已通过', state: 'done' },
+        { label: '平台审核', state: 'active' },
+        { label: '到账', state: 'idle' },
+      ],
+    }
+  }
+  return {
+    badge: 'pending', label: '圈主审核中', timeSub: '预计到账 ¥' + formatPrice(it.actualRefund), rejectReason: '',
+    nodes: [
+      { label: '圈主审核', state: 'active' },
+      { label: '平台审核', state: 'idle' },
+      { label: '到账', state: 'idle' },
+    ],
+  }
+}
+
+/** 相对时间「今天 / 昨天 / x天前 / M月D日」 */
+function relTime(iso: string): string {
+  if (!iso) return ''
+  const t = new Date(iso).getTime()
+  if (Number.isNaN(t)) return ''
+  const day = Math.floor((Date.now() - t) / 86400000)
+  if (day < 1) return '今天'
+  if (day === 1) return '昨天'
+  if (day < 30) return `${day} 天前`
+  const d = new Date(iso)
+  return `${d.getMonth() + 1}月${d.getDate()}日`
+}
+
+function toWithdraw() { navigateTo('/pkg-mine/wallet/withdraw') }
+function showRules() {
+  uni.showModal({
+    title: '退款规则',
+    content: '虚拟内容服务一经使用不支持无理由退款；申请时按实际使用天数折算扣费，剩余金额收取 20% 手续费后退还；经圈主与平台两步审核，通过后退款到账你的可提现余额。',
+    showCancel: false,
+    confirmText: '我知道了',
+    confirmColor: '#C41E3A',
+  })
 }
 
 onMounted(load)
 </script>
 
 <template>
-  <view class="mr">
-    <view class="mr-nav">
-      <view class="mr-back" @tap="goBack"><app-icon name="arrow-left" :size="40" color="#2C2C2C" /></view>
-      <text class="mr-title">我的退款</text>
+  <view class="rf-page">
+    <!-- 顶栏 -->
+    <view class="rf-topbar">
+      <view class="rf-back" @tap="goBack"><app-icon name="chevron-left" :size="32" color="#2C2C2C" /></view>
+      <text class="rf-title">我的退款</text>
     </view>
 
-    <!-- 钱包余额卡（退款到账可见，复用现有提现拿现金） -->
-    <view class="mr-wallet">
-      <text class="mr-wallet-label">退款余额（可提现）</text>
-      <text class="mr-wallet-balance">¥{{ balance.toFixed(2) }}</text>
-      <text class="mr-wallet-tip">退款审核通过后到账此处，可在「提现」中申请提现</text>
-    </view>
-
-    <view v-if="loading" class="mr-state"><text class="mr-state-t">加载中…</text></view>
-    <view v-else-if="error" class="mr-state">
-      <text class="mr-state-t">{{ error }}</text>
-      <view class="mr-retry" @tap="load"><text class="mr-retry-t">重试</text></view>
-    </view>
-    <view v-else-if="list.length === 0" class="mr-state">
-      <app-icon name="coins" :size="56" color="#C9A96E" />
-      <text class="mr-state-t">暂无退款申请</text>
-    </view>
-
-    <view v-else class="mr-list">
-      <view v-for="it in list" :key="it.id" class="mr-card">
-        <view class="mr-card-head">
-          <text class="mr-circle">{{ it.circleName }}</text>
-          <text class="mr-status" :style="{ color: statusInfo(it).color }">{{ statusInfo(it).label }}</text>
-        </view>
-        <view class="mr-amount-row">
-          <text class="mr-amount-label">实际退款</text>
-          <text class="mr-amount">¥{{ formatPrice(it.actualRefund) }}</text>
-        </view>
-        <text class="mr-sub">{{ statusInfo(it).sub }}</text>
-        <view class="mr-meta">
-          <text class="mr-meta-t">已付 ¥{{ formatPrice(it.paidAmount) }} · 手续费 ¥{{ formatPrice(it.feeAmount) }}</text>
-          <text class="mr-meta-t">{{ fmtDate(it.createdAt) }}</text>
-        </view>
+    <!-- 余额钱包：退款到账的去处（常驻） -->
+    <view class="rf-wallet">
+      <view class="rf-wallet-main">
+        <text class="rf-wallet-label">可提现余额</text>
+        <text class="rf-wallet-amount">¥{{ formatPrice(balance) }}</text>
       </view>
+      <view class="rf-wallet-btn" @tap="toWithdraw"><text class="rf-wallet-btn-t">去提现</text></view>
     </view>
+    <text class="rf-wallet-note">余额与提现由平台钱包统一管理，提现明细见个人中心。</text>
+
+    <!-- 加载态 -->
+    <view v-if="loading" class="rf-state">
+      <view class="rf-skel" /><view class="rf-skel" />
+    </view>
+    <!-- 错误态 -->
+    <view v-else-if="error" class="rf-state center">
+      <text class="rf-state-t">{{ error }}</text>
+      <view class="rf-retry" @tap="load"><text class="rf-retry-t">重试</text></view>
+    </view>
+    <!-- 空态（V0 circle-refunds-empty） -->
+    <view v-else-if="!list.length" class="rf-empty">
+      <view class="rf-empty-icon"><app-icon name="credit-card" :size="56" color="#999999" /></view>
+      <text class="rf-empty-title">暂无退款记录</text>
+      <text class="rf-empty-sub">你在圈子里的每一笔付费都受保障，如需退款可在圈子详情「更多 → 退出圈子」中申请。</text>
+      <view class="rf-empty-btn" @tap="showRules"><text class="rf-empty-btn-t">查看退款规则</text></view>
+    </view>
+
+    <!-- 退款记录 -->
+    <template v-else>
+      <text class="rf-label">退款记录</text>
+      <view v-for="it in list" :key="it.id" class="rf-refund">
+        <view class="rf-head">
+          <view class="rf-main">
+            <text class="rf-name">{{ it.circleName }}</text>
+            <text class="rf-time">{{ relTime(it.createdAt) }}提交 · {{ statusView(it).timeSub }}</text>
+          </view>
+          <view class="rf-amount">
+            <text class="rf-amount-num">¥{{ formatPrice(it.actualRefund) }}</text>
+            <text class="rf-badge" :class="statusView(it).badge">{{ statusView(it).label }}</text>
+          </view>
+        </view>
+
+        <!-- 双审进度：三节点 -->
+        <view class="rf-track">
+          <template v-for="(n, i) in statusView(it).nodes" :key="i">
+            <view v-if="i > 0" class="rf-track-line" />
+            <view class="rf-node" :class="n.state">
+              <view class="rf-node-dot" :class="n.state" />
+              <text class="rf-node-t" :class="n.state">{{ n.label }}</text>
+            </view>
+          </template>
+        </view>
+
+        <!-- 驳回原因 -->
+        <text v-if="statusView(it).rejectReason" class="rf-reject">
+          <text class="rf-reject-b">驳回原因：</text>{{ statusView(it).rejectReason }}
+        </text>
+      </view>
+      <view class="rf-bottom-pad" />
+    </template>
   </view>
 </template>
 
 <style scoped lang="scss">
-.mr { min-height: 100vh; background: #FAF8F5; padding-bottom: 48rpx; }
-.mr-nav { position: sticky; top: 0; z-index: 20; background: #fff; border-bottom: 1rpx solid #E8E3DB; height: 96rpx; display: flex; align-items: center; gap: 16rpx; padding: 0 24rpx; }
-.mr-title { font-size: 32rpx; font-weight: 600; color: #2C2C2C; }
-.mr-wallet { margin: 24rpx; padding: 32rpx; border-radius: 24rpx; background: linear-gradient(135deg, var(--brand), #A01530); }
-.mr-wallet-label { display: block; font-size: 24rpx; color: rgba(255,255,255,0.85); }
-.mr-wallet-balance { display: block; font-size: 56rpx; font-weight: 700; color: #fff; margin-top: 8rpx; }
-.mr-wallet-tip { display: block; font-size: 20rpx; color: rgba(255,255,255,0.7); margin-top: 14rpx; }
-.mr-state { display: flex; flex-direction: column; align-items: center; gap: 24rpx; padding: 160rpx 0; }
-.mr-state-t { font-size: 28rpx; color: #999; }
-.mr-retry { padding: 12rpx 48rpx; border-radius: 999rpx; background: var(--brand); }
-.mr-retry-t { font-size: 26rpx; color: #fff; }
-.mr-list { padding: 24rpx; display: flex; flex-direction: column; gap: 20rpx; }
-.mr-card { background: #fff; border-radius: 24rpx; padding: 28rpx; box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.04); }
-.mr-card-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18rpx; }
-.mr-circle { font-size: 28rpx; font-weight: 600; color: #2C2C2C; }
-.mr-status { font-size: 24rpx; font-weight: 500; }
-.mr-amount-row { display: flex; align-items: baseline; justify-content: space-between; }
-.mr-amount-label { font-size: 24rpx; color: #999; }
-.mr-amount { font-size: 40rpx; font-weight: 700; color: var(--brand); }
-.mr-sub { display: block; font-size: 24rpx; color: #888; margin-top: 10rpx; line-height: 1.5; }
-.mr-meta { display: flex; align-items: center; justify-content: space-between; margin-top: 18rpx; padding-top: 18rpx; border-top: 1rpx solid #F0EBE3; }
-.mr-meta-t { font-size: 22rpx; color: #BBB; }
+.rf-page { min-height: 100vh; background: var(--bg-page, #faf8f5); padding-bottom: 64rpx; }
+
+/* 顶栏 */
+.rf-topbar {
+  position: sticky; top: 0; z-index: 10;
+  display: flex; align-items: center; gap: 20rpx;
+  padding: 24rpx 32rpx;
+  padding-top: calc(var(--status-bar-height, 0px) + 24rpx);
+  background: rgba(250, 248, 245, 0.88); backdrop-filter: blur(24rpx);
+}
+.rf-back {
+  width: 64rpx; height: 64rpx; border-radius: 999rpx;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--bg-card, #fff); box-shadow: 0 2rpx 6rpx rgba(44, 44, 44, 0.05);
+}
+.rf-title { font-size: 34rpx; font-weight: 700; color: var(--text-primary, #2c2c2c); }
+
+/* 钱包卡 */
+.rf-wallet {
+  margin: 16rpx 32rpx 0; padding: 32rpx 36rpx;
+  background: var(--bg-card, #fff); border-radius: 36rpx;
+  box-shadow: 0 2rpx 6rpx rgba(44, 44, 44, 0.05);
+  display: flex; align-items: center; gap: 24rpx;
+}
+.rf-wallet-main { flex: 1; display: flex; flex-direction: column; }
+.rf-wallet-label { font-size: 24rpx; color: var(--text-tertiary, #999); }
+.rf-wallet-amount { font-size: 52rpx; font-weight: 700; color: var(--gold, #c9a96e); margin-top: 4rpx; }
+.rf-wallet-btn {
+  flex-shrink: 0; height: 68rpx; padding: 0 32rpx; border-radius: 34rpx;
+  background: var(--brand-soft, rgba(196, 30, 58, 0.08));
+  display: flex; align-items: center; justify-content: center;
+}
+.rf-wallet-btn:active { opacity: 0.85; }
+.rf-wallet-btn-t { font-size: 26rpx; font-weight: 500; color: var(--brand, #c41e3a); }
+.rf-wallet-note { display: block; margin: 16rpx 44rpx 0; font-size: 22rpx; color: var(--text-tertiary, #999); }
+
+/* 三态 */
+.rf-state { padding: 40rpx 32rpx; }
+.rf-state.center { padding: 120rpx 80rpx; display: flex; flex-direction: column; align-items: center; gap: 24rpx; }
+.rf-skel { height: 220rpx; border-radius: 36rpx; background: #fff; margin-bottom: 24rpx; }
+.rf-state-t { font-size: 28rpx; color: var(--text-tertiary, #999); }
+.rf-retry { padding: 14rpx 56rpx; border-radius: 999rpx; background: var(--brand, #c41e3a); }
+.rf-retry-t { font-size: 26rpx; color: #fff; }
+
+/* 空态 */
+.rf-empty { margin-top: 140rpx; padding: 0 80rpx; display: flex; flex-direction: column; align-items: center; }
+.rf-empty-icon {
+  width: 128rpx; height: 128rpx; border-radius: 40rpx;
+  background: var(--bg-warm, #f8f4ec);
+  display: flex; align-items: center; justify-content: center;
+}
+.rf-empty-title { font-size: 32rpx; font-weight: 600; color: var(--text-primary, #2c2c2c); margin-top: 36rpx; }
+.rf-empty-sub { font-size: 26rpx; color: var(--text-tertiary, #999); margin-top: 12rpx; line-height: 1.7; text-align: center; }
+.rf-empty-btn {
+  margin-top: 40rpx; height: 80rpx; padding: 0 48rpx; border-radius: 40rpx;
+  background: var(--bg-card, #fff); box-shadow: 0 2rpx 6rpx rgba(44, 44, 44, 0.05);
+  display: flex; align-items: center; justify-content: center;
+}
+.rf-empty-btn-t { font-size: 28rpx; color: var(--text-secondary, #6e6e73); font-weight: 500; }
+
+/* 退款条目 */
+.rf-label { display: block; margin: 40rpx 40rpx 16rpx; font-size: 26rpx; color: var(--text-tertiary, #999); }
+.rf-refund {
+  margin: 0 32rpx 24rpx; background: var(--bg-card, #fff);
+  border-radius: 36rpx; box-shadow: 0 2rpx 6rpx rgba(44, 44, 44, 0.05);
+  padding: 28rpx 32rpx;
+}
+.rf-head { display: flex; align-items: center; gap: 24rpx; }
+.rf-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.rf-name { font-size: 29rpx; font-weight: 600; color: var(--text-primary, #2c2c2c); }
+.rf-time { font-size: 23rpx; color: var(--text-tertiary, #999); margin-top: 2rpx; }
+.rf-amount { flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; }
+.rf-amount-num { font-size: 32rpx; font-weight: 700; color: var(--text-primary, #2c2c2c); }
+.rf-badge {
+  margin-top: 6rpx; padding: 4rpx 18rpx; border-radius: 22rpx;
+  font-size: 22rpx; font-weight: 500;
+}
+.rf-badge.pending { background: rgba(201, 123, 45, 0.1); color: #c97b2d; }
+.rf-badge.refunding { background: var(--brand-soft, rgba(196, 30, 58, 0.08)); color: var(--brand, #c41e3a); }
+.rf-badge.done { background: rgba(91, 138, 94, 0.1); color: #5b8a5e; }
+.rf-badge.rejected { background: var(--bg-warm, #f8f4ec); color: var(--text-tertiary, #999); }
+
+/* 双审进度轨 */
+.rf-track {
+  display: flex; align-items: center; gap: 16rpx;
+  margin-top: 24rpx; padding-top: 24rpx; border-top: 1rpx solid var(--separator, #ede7dd);
+}
+.rf-node { display: flex; align-items: center; gap: 10rpx; flex-shrink: 0; }
+.rf-node-dot { width: 14rpx; height: 14rpx; border-radius: 999rpx; background: var(--separator, #ede7dd); }
+.rf-node-dot.done { background: #5b8a5e; }
+.rf-node-dot.active { background: #c97b2d; }
+.rf-node-dot.fail { background: var(--text-tertiary, #999); }
+.rf-node-t { font-size: 23rpx; color: var(--text-tertiary, #999); }
+.rf-node-t.done { color: #5b8a5e; }
+.rf-node-t.active { color: #c97b2d; font-weight: 500; }
+.rf-node-t.fail { color: var(--text-secondary, #6e6e73); }
+.rf-track-line { flex: 1; height: 1rpx; background: var(--separator, #ede7dd); min-width: 24rpx; }
+
+/* 驳回原因 */
+.rf-reject {
+  display: block; margin-top: 20rpx; padding: 20rpx 24rpx;
+  background: var(--bg-warm, #f8f4ec); border-radius: 16rpx;
+  font-size: 24rpx; color: var(--text-secondary, #6e6e73); line-height: 1.6;
+}
+.rf-reject-b { font-weight: 600; color: var(--text-primary, #2c2c2c); }
+
+.rf-bottom-pad { height: 40rpx; }
 </style>

@@ -12,7 +12,75 @@
       <view class="watch-error__retry" @tap="retry"><text class="watch-error__retry-txt">重试</text></view>
     </view>
 
-    <!-- 正常内容 -->
+    <!-- ===== 预约态（WAITING·V0 状态B：封面压暗 + 倒计时 + 预约提醒）===== -->
+    <scroll-view v-else-if="isWaiting" scroll-y class="pre">
+      <view class="pre__cover-wrap">
+        <image v-if="room.cover" lazy-load class="pre__cover" :src="room.cover" mode="aspectFill" />
+        <view v-else class="pre__cover pre__cover--ph" />
+        <view class="pre__overlay">
+          <text class="pre__label">距开播还有</text>
+          <text class="pre__time">{{ countdownText }}</text>
+          <!-- 预约人数：真实值（0 或拉取失败不显示该行） -->
+          <text v-if="bookingCount > 0" class="pre__count">已有 {{ bookingCount }} 人预约</text>
+        </view>
+        <view class="state-back" :style="{ top: (statusBarHeight + 10) + 'px' }" @tap="onClose">
+          <AppIcon name="chevron-left" :size="30" color="#fff" />
+        </view>
+      </view>
+      <!-- 标题 + 开播时间 + 预约按钮 -->
+      <view class="pre__reserve">
+        <view class="pre__reserve-main">
+          <text class="pre__reserve-title">{{ room.title }}</text>
+          <text v-if="startTimeText" class="pre__reserve-sub">{{ startTimeText }} 开播</text>
+        </view>
+        <view class="pre__btn" :class="{ 'pre__btn--booked': booked }" @tap="onToggleBook">
+          <text class="pre__btn-txt" :class="{ 'pre__btn-txt--booked': booked }">{{ bookingSubmitting ? '提交中…' : booked ? '已预约' : '预约提醒' }}</text>
+        </view>
+      </view>
+      <!-- 付费场说明（移动端无直播购票支付接线 → 只如实展示票价，不做假支付按钮） -->
+      <view v-if="isPaidRoom" class="pre__ticket">
+        <text class="pre__ticket-txt">本场为付费直播 <text class="pre__ticket-price">¥{{ room.chargePrice }}</text></text>
+      </view>
+    </scroll-view>
+
+    <!-- ===== 回放态（ENDED/REPLAY·V0 状态C：封面 + 回放徽章 + 点播）===== -->
+    <scroll-view v-else-if="isReplayState" scroll-y class="rp">
+      <view class="rp__cover-wrap">
+        <!-- 点击播放后原地渲染点播 video（回放是点播，不走 live-player 直播内核） -->
+        <video
+          v-if="replayPlaying && room.replayUrl"
+          class="rp__video"
+          :src="room.replayUrl"
+          :controls="true"
+          autoplay
+          object-fit="contain"
+        />
+        <template v-else>
+          <image v-if="room.cover" lazy-load class="rp__cover" :src="room.cover" mode="aspectFill" />
+          <view v-else class="rp__cover rp__cover--ph" />
+          <view class="rp__badge"><text class="rp__badge-txt">回放</text></view>
+          <view v-if="room.replayUrl" class="rp__play" @tap="replayPlaying = true">
+            <AppIcon name="play" :size="40" color="#ffffff" :fill="true" />
+          </view>
+        </template>
+        <view class="state-back" :style="{ top: (statusBarHeight + 10) + 'px' }" @tap="onClose">
+          <AppIcon name="chevron-left" :size="30" color="#fff" />
+        </view>
+      </view>
+      <view class="rp__info">
+        <text class="rp__title">{{ room.title }}</text>
+        <view class="rp__host-row">
+          <image lazy-load class="rp__host-avatar" :src="room.hostAvatar" mode="aspectFill" />
+          <text class="rp__host-name">{{ room.hostName }}</text>
+        </view>
+        <!-- 无回放：空态 -->
+        <view v-if="!room.replayUrl" class="rp__empty">
+          <text class="rp__empty-txt">直播已结束 · 暂无回放</text>
+        </view>
+      </view>
+    </scroll-view>
+
+    <!-- 正常内容（直播中 LIVING：既有全屏沉浸层原样保留） -->
     <template v-else>
     <!-- 直播画面背景（占位渐变，接入推流后替换） -->
     <view class="watch__stage">
@@ -67,6 +135,15 @@
         <!-- 直播间标题 -->
         <view class="watch__title-row">
           <text class="watch__title">{{ room.title }}</text>
+        </view>
+
+        <!-- 画质角标（V0 quality-badge·basic 不显示）+ 来源圈子（可点跳圈子详情） -->
+        <view v-if="qualityLabel || (room.circleName && room.circleId)" class="watch__meta-row">
+          <view v-if="qualityLabel" class="quality-badge"><text class="quality-badge__txt">{{ qualityLabel }}</text></view>
+          <view v-if="room.circleName && room.circleId" class="circle-link" @tap="goCircleDetail">
+            <text class="circle-link__txt">来自圈子 {{ room.circleName }}</text>
+            <AppIcon name="chevron-right" :size="22" color="rgba(232,220,196,0.8)" />
+          </view>
         </view>
 
         <!-- 合规提示 -->
@@ -253,8 +330,8 @@
       </view>
     </view>
 
-    <!-- 礼物面板 -->
-    <GiftPanel :open="showGiftPanel" :balance="coinBalance" @close="showGiftPanel = false" @send="onSendGift" />
+    <!-- 礼物面板（真连：真实礼物清单直传·送礼直接用礼物 uuid 扣费） -->
+    <GiftPanel :open="showGiftPanel" :balance="coinBalance" :gifts="gifts" @close="showGiftPanel = false" @send="onSendGift" />
 
     <!-- 连麦 -->
     <MicConnectSheet :open="showMicSheet" :host-name="room.hostName" @close="showMicSheet = false" />
@@ -284,14 +361,13 @@ import Disclaimer from '@/components/compliance/disclaimer.vue'
 import GiftPanel from '@/components/live/gift-panel.vue'
 import MicConnectSheet from '@/components/live/mic-connect-sheet.vue'
 import LivePlayer from '@/components/live/live-player.vue'
-import { type LiveGift } from '@/lib/live-gifts'
 import { goBack, navigateTo } from '@/utils/router'
 import { getToken } from '@/utils/storage'
 import { useTim, type TimMessage } from '@/composables/useTim'
 import { formatPrice } from '@/utils/format'
 import {
-  liveWatchRoom,
   liveApi,
+  type LiveGift,
   type VerticalLiveComment,
   type VerticalLiveProduct,
   type LiveWatchRankItem,
@@ -303,8 +379,32 @@ const statusBarHeight = ref(0)
 // ===== 直播间数据 =====
 const loading = ref(true)
 const error = ref('')
+// 房间默认值（本地空对象·真实数据由 fetchRoomData 填充；原 mock 常量 liveWatchRoom 已按数据流铁律移除）
+const defaultWatchRoom = {
+  id: '',
+  type: 'knowledge' as 'knowledge' | 'commerce',
+  title: '',
+  hostName: '',
+  hostAvatar: '',
+  hostId: '',
+  followers: 0,
+  viewerCount: 0,
+  likeCount: 0,
+  isFollowing: false,
+  onlineAvatars: [] as string[],
+  imGroupId: '',
+  circleId: '',
+  status: '',
+  cover: '',
+  startTime: '',
+  chargeType: 'FREE',
+  chargePrice: 0,
+  quality: '',
+  replayUrl: '',
+  circleName: '',
+}
 // 模板裸访问大量房间字段，保留 any 避免收敛触发大量报错
-const room = ref<any>({ ...liveWatchRoom })
+const room = ref<any>({ ...defaultWatchRoom })
 const comments = ref<VerticalLiveComment[]>([])
 const products = ref<VerticalLiveProduct[]>([])
 const rankList = ref<LiveWatchRankItem[]>([])
@@ -363,13 +463,15 @@ async function fetchRoomData(roomId: string) {
   error.value = ''
   try {
     const data = await liveApi.getWatchRoom(roomId)
-    room.value = { ...liveWatchRoom, ...data.room }
+    room.value = { ...defaultWatchRoom, ...data.room }
     comments.value = data.comments
     products.value = data.products
     // 直播中且有弹幕群 → 加入 TIM 群实时弹幕
     if (room.value.imGroupId) joinDanmaku(room.value.imGroupId)
     // 佣-V2-P3：进直播间视同该圈子全店渠道点击（仅已登录且直播间关联圈子才上报·失败静默不扰观看）
     if (getToken() && room.value.circleId) liveApi.reportCircleChannelClick(room.value.circleId)
+    // 预约态 → 拉取真实预约人数（失败归零则该行不显示）
+    if (isWaiting.value) fetchBookingCount(room.value.id)
   } catch (e) {
     error.value = (e as Error)?.message || '加载失败，请重试'
   } finally {
@@ -377,13 +479,89 @@ async function fetchRoomData(roomId: string) {
   }
 }
 
-// 后端礼物清单（用于把 GiftPanel 的展示礼物按名映射到真实 uuid，供 sendGift 真扣费）
-const backendGifts = ref<{ id: string; name: string; price: number }[]>([])
+// ===== 房间状态三分支（WAITING 预约态 / ENDED·REPLAY 回放态 / 其余走既有沉浸层） =====
+const roomStatus = computed(() => String(room.value?.status || '').toUpperCase())
+const isWaiting = computed(() => roomStatus.value === 'WAITING')
+const isReplayState = computed(() => roomStatus.value === 'ENDED' || roomStatus.value === 'REPLAY')
+/** 付费场：只如实展示票价（移动端无 LIVESTREAM 支付接线 → 不做购票按钮） */
+const isPaidRoom = computed(() => room.value?.chargeType && room.value.chargeType !== 'FREE' && Number(room.value.chargePrice) > 0)
+
+// ===== 画质角标（V0 quality-badge·观众侧只见结果不见计费；basic 不显示） =====
+const qualityLabel = computed(() => {
+  const q = String(room.value?.quality || '').toLowerCase()
+  if (q === 'hd') return '高清 720P'
+  if (q === 'uhd') return '超清 1080P'
+  return ''
+})
+
+// ===== 来源圈子 → 圈子详情 =====
+function goCircleDetail() {
+  if (room.value?.circleId) navigateTo(`/pkg-circle/circles/detail?id=${room.value.circleId}`)
+}
+
+// ===== 预约态：倒计时（每分钟刷新·onUnmounted 清理） =====
+const nowTs = ref(Date.now())
+let countdownTimer: ReturnType<typeof setInterval> | null = null
+const countdownText = computed(() => {
+  const raw = room.value?.startTime
+  const st = raw ? new Date(raw).getTime() : NaN
+  if (!Number.isFinite(st)) return '即将开播' // 无 startTime → 兜底文案
+  const diff = st - nowTs.value
+  if (diff <= 0) return '即将开播'
+  const days = Math.floor(diff / 86400000)
+  const hours = Math.floor((diff % 86400000) / 3600000)
+  const mins = Math.floor((diff % 3600000) / 60000)
+  return days > 0 ? `${days} 天 ${hours} 小时` : `${hours} 小时 ${mins} 分`
+})
+/** 开播时间行「M月D日 HH:mm」 */
+const startTimeText = computed(() => {
+  const raw = room.value?.startTime
+  if (!raw) return ''
+  const d = new Date(raw)
+  if (Number.isNaN(d.getTime())) return ''
+  return `${d.getMonth() + 1}月${d.getDate()}日 ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+})
+
+// ===== 预约（POST/DELETE /live/rooms/:id/book·后端无「我是否已预约」查询 → 本次会话乐观维护） =====
+const bookingCount = ref(0)
+const booked = ref(false)
+const bookingSubmitting = ref(false)
+async function fetchBookingCount(roomId: string) {
+  try { bookingCount.value = await liveApi.getBookingCount(roomId) } catch { bookingCount.value = 0 }
+}
+async function onToggleBook() {
+  if (bookingSubmitting.value) return
+  bookingSubmitting.value = true
+  try {
+    if (!booked.value) {
+      const res = await liveApi.bookRoom(room.value.id)
+      booked.value = true
+      bookingCount.value = res.bookingCount || bookingCount.value + 1
+      uni.showToast({ title: '预约成功', icon: 'none' })
+    } else {
+      await liveApi.unbookRoom(room.value.id)
+      booked.value = false
+      bookingCount.value = Math.max(0, bookingCount.value - 1)
+      uni.showToast({ title: '已取消预约', icon: 'none' })
+    }
+  } catch (e) {
+    // 未登录/非 WAITING 等 → 透传后端错误信息
+    uni.showToast({ title: (e as Error)?.message || '操作失败，请重试', icon: 'none' })
+  } finally {
+    bookingSubmitting.value = false
+  }
+}
+
+// ===== 回放态：点击封面播放钮后原地渲染点播 video =====
+const replayPlaying = ref(false)
+
+// 后端礼物清单（真连：完整礼物对象直传 GiftPanel·送礼直接用礼物 uuid，无需再按名映射）
+const gifts = ref<LiveGift[]>([])
 async function fetchGifts() {
   try {
     const data = await liveApi.getGifts()
     coinBalance.value = data.balance
-    backendGifts.value = data.gifts.map((g) => ({ id: g.id, name: g.name, price: g.price }))
+    gifts.value = data.gifts
   } catch {}
 }
 
@@ -472,30 +650,25 @@ function spawnHeart() {
 }
 
 let sendingGift = false
-async function onSendGift(gift: LiveGift) {
+async function onSendGift(gift: LiveGift, quantity: number) {
   if (sendingGift) return
-  const count = 1
-  // 送礼前余额校验（后端事务也会校验，这里做即时反馈）
+  const count = Math.min(99, Math.max(1, Math.floor(quantity) || 1))
+  // 送礼前余额校验（面板已禁用不足态·此处为后端事务前的最后即时反馈）
   if (coinBalance.value < gift.price * count) {
-    uni.showToast({ title: '国学币余额不足', icon: 'none' })
-    return
-  }
-  // 按名映射到后端礼物取真实 uuid（后端未配同名礼物则无法真扣费）
-  const backendGift = backendGifts.value.find((g) => g.name === gift.name)
-  if (!backendGift) {
-    uni.showToast({ title: '该礼物暂不可用', icon: 'none' })
+    uni.showToast({ title: '金币余额不足', icon: 'none' })
     return
   }
   sendingGift = true
   showGiftPanel.value = false
   try {
-    // 真实送礼：后端事务扣国学币 + 记打赏
-    await liveApi.sendGift(room.value.id, backendGift.id, count)
-    // 成功后飘屏 + 弹幕 + 扣余额
+    // 真实送礼：直接用后端礼物 uuid（后端事务扣国学币 + 记打赏）
+    await liveApi.sendGift(room.value.id, gift.id, count)
+    // 成功后飘屏 + 弹幕 + 扣余额（icon 为图片链接时飘屏文本位传空串容错）
+    const flyIcon = gift.icon && !/^https?:\/\//.test(gift.icon) ? gift.icon : ''
     const fid = ++flyerId
-    giftFlyers.value.push({ id: fid, user: '我', avatar: room.value.hostAvatar, giftName: gift.name, giftIcon: gift.icon, count })
+    giftFlyers.value.push({ id: fid, user: '我', avatar: room.value.hostAvatar, giftName: gift.name, giftIcon: flyIcon, count })
     setTimeout(() => { giftFlyers.value = giftFlyers.value.filter((g) => g.id !== fid) }, 4000)
-    comments.value.push({ id: 'gift-' + Date.now(), userName: '我', content: `送出 ${gift.name}`, type: 'gift', giftInfo: { name: gift.name, icon: gift.icon, count } })
+    comments.value.push({ id: 'gift-' + Date.now(), userName: '我', content: `送出 ${gift.name} x${count}`, type: 'gift', giftInfo: { name: gift.name, icon: flyIcon, count } })
     scrollDanmakuToBottom()
     coinBalance.value = Math.max(0, coinBalance.value - gift.price * count)
     // 送礼后刷新打赏榜 + 通过 TIM 群广播（让其他观众看到）
@@ -546,12 +719,16 @@ onMounted(() => {
     const sys = uni.getSystemInfoSync()
     statusBarHeight.value = sys.statusBarHeight || 0
   } catch (e) {}
+  // 预约态倒计时每分钟刷新（常驻轻量 ticker·非 WAITING 态无副作用）
+  countdownTimer = setInterval(() => { nowTs.value = Date.now() }, 60000)
 })
 
 onUnmounted(() => {
   // 退订 TIM 群消息 + 退出弹幕群
   if (offTimMessage) offTimMessage()
   if (danmakuGroupId) tim.quitGroup(danmakuGroupId)
+  // 清理倒计时定时器
+  if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null }
 })
 </script>
 
@@ -672,6 +849,90 @@ onUnmounted(() => {
   overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
 }
 .watch__disclaimer { margin-top: 16rpx; }
+
+/* 画质角标 + 来源圈子（V0 quality-badge：深底毛玻璃 + 暖金字） */
+.watch__meta-row { display: flex; align-items: center; gap: 16rpx; margin-top: 16rpx; }
+.quality-badge {
+  height: 40rpx; padding: 0 16rpx; border-radius: 20rpx;
+  background: rgba(0,0,0,0.5);
+  display: inline-flex; align-items: center;
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+}
+.quality-badge__txt { font-size: 21rpx; font-weight: 600; color: #E8DCC4; }
+.circle-link { display: inline-flex; align-items: center; gap: 4rpx; }
+.circle-link__txt { font-size: 21rpx; color: rgba(232,220,196,0.8); }
+
+/* ===== 三态共用：状态页返回钮（深底毛玻璃圆钮） ===== */
+.state-back {
+  position: absolute; left: 24rpx;
+  width: 60rpx; height: 60rpx; border-radius: 50%;
+  background: rgba(0,0,0,0.4);
+  display: flex; align-items: center; justify-content: center;
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  z-index: 5;
+}
+
+/* ===== 预约态（V0 状态B·深色 --bg-page:#141210 系） ===== */
+.pre { position: absolute; inset: 0; background: #141210; }
+.pre__cover-wrap { position: relative; }
+/* 16:9 封面压暗（brightness 0.45） */
+.pre__cover { display: block; width: 100%; height: 422rpx; filter: brightness(0.45); }
+.pre__cover--ph { background: linear-gradient(180deg, #2A2620, #141210); filter: none; }
+.pre__overlay {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12rpx;
+}
+.pre__label { font-size: 24rpx; color: #E8DCC4; letter-spacing: 4rpx; }
+.pre__time { font-size: 44rpx; font-weight: 700; color: #FFFFFF; }
+.pre__count { font-size: 23rpx; color: rgba(255,255,255,0.75); }
+.pre__reserve { padding: 28rpx 32rpx; display: flex; align-items: center; gap: 24rpx; }
+.pre__reserve-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6rpx; }
+.pre__reserve-title { font-size: 29rpx; font-weight: 600; color: #F5F2ED; line-height: 1.4; }
+.pre__reserve-sub { font-size: 23rpx; color: #7A7468; }
+.pre__btn {
+  height: 76rpx; padding: 0 44rpx; border-radius: 38rpx; flex-shrink: 0;
+  background: #C41E3A; /* --brand */
+  display: flex; align-items: center; justify-content: center;
+}
+/* 已预约：灰态（可再点取消） */
+.pre__btn--booked { background: rgba(255,255,255,0.12); }
+.pre__btn-txt { font-size: 27rpx; font-weight: 600; color: #FFFFFF; white-space: nowrap; }
+.pre__btn-txt--booked { color: #B8B2A8; }
+.pre__ticket {
+  margin: 0 32rpx; padding: 20rpx 28rpx;
+  background: #2A2620; /* --bg-warm */ border-radius: 16rpx;
+}
+.pre__ticket-txt { font-size: 23rpx; color: #B8B2A8; line-height: 1.65; }
+.pre__ticket-price { color: #C9A96E; font-weight: 600; }
+
+/* ===== 回放态（V0 状态C·点播） ===== */
+.rp { position: absolute; inset: 0; background: #141210; }
+.rp__cover-wrap { position: relative; background: #000; }
+.rp__cover { display: block; width: 100%; height: 422rpx; }
+.rp__cover--ph { background: linear-gradient(180deg, #2A2620, #141210); }
+.rp__video { display: block; width: 100%; height: 422rpx; }
+.rp__badge {
+  position: absolute; top: 20rpx; left: 20rpx;
+  height: 44rpx; padding: 0 18rpx; border-radius: 22rpx;
+  background: rgba(0,0,0,0.55);
+  display: inline-flex; align-items: center;
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+}
+.rp__badge-txt { font-size: 22rpx; font-weight: 600; color: #E8DCC4; }
+.rp__play {
+  position: absolute; inset: 0; margin: auto;
+  width: 108rpx; height: 108rpx; border-radius: 50%;
+  background: rgba(0,0,0,0.45);
+  display: flex; align-items: center; justify-content: center;
+  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+}
+.rp__info { padding: 24rpx 32rpx 0; }
+.rp__title { font-size: 32rpx; font-weight: 700; color: #F5F2ED; line-height: 1.4; }
+.rp__host-row { display: flex; align-items: center; gap: 16rpx; margin-top: 24rpx; }
+.rp__host-avatar { width: 76rpx; height: 76rpx; border-radius: 50%; border: 3rpx solid #C9A96E; background: #2A2620; }
+.rp__host-name { font-size: 28rpx; font-weight: 600; color: #F5F2ED; }
+.rp__empty { margin-top: 48rpx; padding: 64rpx 0; display: flex; justify-content: center; background: #211E1A; border-radius: 36rpx; }
+.rp__empty-txt { font-size: 26rpx; color: #7A7468; }
 
 /* 右上角榜单入口 */
 .rank-entry-wrap { position: absolute; top: 220rpx; right: 24rpx; z-index: 20; }

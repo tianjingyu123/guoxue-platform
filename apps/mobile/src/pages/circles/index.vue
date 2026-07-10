@@ -1,58 +1,43 @@
 <script setup lang="ts">
 /**
- * 圈子主列表页（从原型 app/circles/page.tsx 557行 1:1 高保真迁移）
- * 自定义顶栏(标题+搜索+日历+创建，创建按钮在右上角) + 主Tab(发现/动态/我的)
- * 发现: 直播预告横幅 + 今日活动横滚 + 分类Tab + 排行榜入口 + 圈子2列网格
- * 动态: 沉浸式帖子信息流(空态引导)
- * 我的: 数据卡片 + 我加入的圈子列表
+ * 圈子首页（圈子广场）— V0「两段式一屏」重构（2026-07-10）
+ * 结构：我的圈子(横滑·回访) + 发现圈子(分类+推荐列表) + 动态(已加入圈子聚合)
+ * 顶栏：标题 + 搜索 + 创建 + 「圈子·我的」头像入口（板块门户 4.3）
+ * 数据层沿用原实现：circleApi.list/my/getHotPosts/getMyStats/join + joinedIds 标记 + onShow 刷新
  */
 import { ref, onMounted } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import BottomNav from '@/components/bottom-nav/bottom-nav.vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import SmartCover from '@/components/common/smart-cover.vue'
-import CircleCard from '@/components/circle/circle-card.vue'
 import { navigateTo } from '@/utils/router'
 import {
   circleApi, circleCategories, formatMembers,
-  type Circle, type UpcomingLive, type TodayActivity, type HotPost, type MyCircleStats, type RankingCircle,
+  type Circle, type HotPost, type MyCircleStats,
 } from '@/lib/circle-data'
-
-type Tab = 'discover' | 'feed' | 'mine'
 
 const category = ref('')
 const circles = ref<Circle[]>([])
 const myCircles = ref<Circle[]>([])
-// 已加入圈子的 id 集合（来自 my()）：用于给广场列表项正确标记「已加入」，
-// 修复"只有本次会话刚加入的显示已加入、早先加入的仍显示加入"的 bug。
+// 已加入圈子 id 集合（来自 my()）：给发现列表正确标「已加入」
 const joinedIds = ref<Set<string>>(new Set())
 function markJoined() {
   if (!joinedIds.value.size) return
   circles.value = circles.value.map((c) => (joinedIds.value.has(String(c.id)) ? { ...c, isJoined: true } : c))
 }
-const ranking = ref<RankingCircle[]>([])
-const upcomingLives = ref<UpcomingLive[]>([])
-const todayActivities = ref<TodayActivity[]>([])
 const hotPosts = ref<HotPost[]>([])
 const loading = ref(true)
 const error = ref(false)
-const activeTab = ref<Tab>('discover')
 const myStats = ref<MyCircleStats>({ joinedCount: 0, postCount: 0, likeReceived: 0 })
 
-const mainTabs: { id: Tab; label: string }[] = [
-  { id: 'discover', label: '发现' },
-  { id: 'feed', label: '动态' },
-  { id: 'mine', label: '我的' },
-]
-
-/** 圈子网格（随分类变化，单独重载） */
+/** 发现圈子网格（随分类变化，单独重载） */
 async function loadCircles() {
   loading.value = true
   error.value = false
   try {
     const res = await circleApi.list({ category: category.value })
     circles.value = res.data
-    markJoined() // 用已加入集合标记（分类切换重载后也保持正确的已加入态）
+    markJoined()
   } catch {
     error.value = true
     circles.value = []
@@ -61,23 +46,16 @@ async function loadCircles() {
   }
 }
 
-/** 发现/我的页的其余板块（与分类无关，仅首屏加载一次；各自空数据走空态隐藏） */
+/** 我的圈子 + 动态 + 统计（与分类无关，首屏加载一次；各自空数据走空态） */
 async function loadExtras() {
-  const [myRes, rankRes, liveRes, actRes, postRes, statsRes] = await Promise.allSettled([
+  const [myRes, postRes, statsRes] = await Promise.allSettled([
     circleApi.my(),
-    circleApi.getRanking(),
-    circleApi.getUpcomingLives(),
-    circleApi.getActivities(),
     circleApi.getHotPosts(),
     circleApi.getMyStats(),
   ])
   myCircles.value = myRes.status === 'fulfilled' ? myRes.value : []
-  // 建立已加入 id 集合并回标广场列表（list 与 my 并行加载，谁后到都再标一次，保证一致）
   joinedIds.value = new Set(myCircles.value.map((c) => String(c.id)))
   markJoined()
-  ranking.value = rankRes.status === 'fulfilled' ? rankRes.value : []
-  upcomingLives.value = liveRes.status === 'fulfilled' ? liveRes.value : []
-  todayActivities.value = actRes.status === 'fulfilled' ? actRes.value : []
   hotPosts.value = postRes.status === 'fulfilled' ? postRes.value : []
   if (statsRes.status === 'fulfilled') myStats.value = statsRes.value
 }
@@ -89,8 +67,7 @@ function selectCategory(id: string) {
 }
 
 async function handleJoin(id: string) {
-  // 乐观更新
-  const idx = circles.value.findIndex(c => c.id === id)
+  const idx = circles.value.findIndex((c) => c.id === id)
   if (idx < 0) return
   circles.value[idx] = { ...circles.value[idx], isJoined: true, members: circles.value[idx].members + 1 }
   joinedIds.value.add(String(id))
@@ -102,20 +79,10 @@ async function handleJoin(id: string) {
   }
 }
 
-function activityTypeLabel(t: string) {
-  return t === 'checkin' ? '打卡' : t === 'homework' ? '作业' : t === 'qa' ? '问答' : '动态'
-}
-function activityTypeIcon(t: string) {
-  return t === 'checkin' ? 'book-open' : t === 'homework' ? 'award' : t === 'qa' ? 'message-square' : 'zap'
-}
-function activityTypeColor(t: string) {
-  return t === 'checkin' ? '#52C41A' : t === 'homework' ? '#C41E3A' : t === 'qa' ? '#1890FF' : '#FF6B35'
-}
-
 function go(url: string) { navigateTo(url) }
 
 onMounted(() => { loadCircles(); loadExtras() })
-// 返回本页时刷新"已加入"态（在圈子详情页加入/退出后回来即时反映·首次由 onMounted 加载故跳过）
+// 返回本页刷新「已加入」态（详情页加入/退出后回来即时反映）
 let _firstShow = true
 onShow(() => {
   if (_firstShow) { _firstShow = false; return }
@@ -127,147 +94,143 @@ onShow(() => {
   <view class="page">
     <app-network-bar />
     <customer-service-fab />
-    <!-- 自定义顶栏 -->
+
+    <!-- 顶栏：标题 + 搜索 + 创建 + 圈子·我的入口 -->
     <view class="topbar">
-      <view class="topbar-head">
-        <text class="title">圈子</text>
-        <view class="actions">
-          <view class="icon-btn" @tap="go('/pkg-circle/circles/search')"><app-icon name="search" :size="36" color="#666666" /></view>
-          <view class="icon-btn" @tap="go('/pkg-circle/circles/calendar')"><app-icon name="calendar" :size="36" color="#666666" /></view>
-          <!-- 创建圈子=重要入口：做成带文字的醒目按钮，不再混在灰色图标里 -->
-          <view class="create-btn" @tap="go('/pkg-circle/circles/create')">
-            <app-icon name="plus" :size="30" color="#ffffff" />
-            <text class="create-btn-txt">创建</text>
-          </view>
+      <text class="title">圈子</text>
+      <view class="actions">
+        <view class="icon-btn" @tap="go('/pkg-circle/circles/search')">
+          <app-icon name="search" :size="36" color="#2C2C2C" />
         </view>
-      </view>
-      <!-- 主Tab -->
-      <view class="main-tabs">
-        <view
-          v-for="t in mainTabs" :key="t.id"
-          class="main-tab" @tap="activeTab = t.id"
-        >
-          <text class="main-tab-text" :class="{ on: activeTab === t.id }">{{ t.label }}</text>
-          <view v-if="activeTab === t.id" class="main-tab-underline" />
+        <view class="create-btn" @tap="go('/pkg-circle/circles/create')">
+          <app-icon name="plus" :size="28" color="#ffffff" />
+          <text class="create-btn-txt">创建</text>
+        </view>
+        <!-- 「圈子·我的」板块门户入口（非全局个人中心） -->
+        <view class="me-entry" @tap="go('/pkg-circle/circles/me')">
+          <app-icon name="user" :size="34" color="#666666" />
         </view>
       </view>
     </view>
 
     <scroll-view scroll-y class="body">
-      <!-- ════ 发现 Tab ════ -->
-      <template v-if="activeTab === 'discover'">
-
-        <!-- 圈子网格 -->
-        <view v-if="loading" class="grid">
-          <view v-for="i in 6" :key="i" class="skeleton">
-            <view class="sk-cover" />
-            <view class="sk-line w3" />
-            <view class="sk-line w2" />
+      <!-- ════ 区① 我的圈子 · 横滑 ════ -->
+      <view v-if="myCircles.length" class="section">
+        <view class="sec-head">
+          <text class="sec-title">我的圈子</text>
+          <view class="sec-more" @tap="go('/pkg-circle/circles/me')">
+            <text class="sec-more-txt">更多</text>
+            <app-icon name="chevron-right" :size="24" color="#6E6E73" />
           </view>
         </view>
-        <app-error v-else-if="error" title="圈子加载失败" desc="网络异常，请稍后重试" @retry="loadCircles" />
-        <view v-else-if="circles.length" class="grid">
-          <circle-card v-for="c in circles" :key="c.id" :circle="c" @join="handleJoin" />
+        <scroll-view scroll-x class="mine-scroll">
+          <view class="mine-row">
+            <view
+              v-for="c in myCircles" :key="c.id"
+              class="mine-card" @tap="go(`/pkg-circle/circles/detail?id=${c.id}`)"
+            >
+              <view class="mine-cover-wrap">
+                <smart-cover :src="c.cover" :title="c.name" type="circle" class="mine-cover" />
+                <view v-if="c.todayActive && c.todayActive > 0" class="dot-new" />
+              </view>
+              <text class="mine-name">{{ c.name }}</text>
+            </view>
+          </view>
+        </scroll-view>
+      </view>
+
+      <!-- ════ 区② 发现圈子 ════ -->
+      <view class="section">
+        <view class="sec-head"><text class="sec-title">发现圈子</text></view>
+        <!-- 分类筛选 -->
+        <scroll-view scroll-x class="cat-scroll">
+          <view class="cat-row">
+            <view
+              class="cat-chip" :class="{ on: category === '' }"
+              @tap="selectCategory('')"
+            ><text class="cat-text" :class="{ on: category === '' }">推荐</text></view>
+            <view
+              v-for="cat in circleCategories" :key="cat.id"
+              class="cat-chip" :class="{ on: category === cat.id }"
+              @tap="selectCategory(cat.id)"
+            ><text class="cat-text" :class="{ on: category === cat.id }">{{ cat.name }}</text></view>
+          </view>
+        </scroll-view>
+
+        <!-- 加载态：骨架 -->
+        <view v-if="loading" class="discover-list">
+          <view v-for="i in 4" :key="i" class="sk-card">
+            <view class="sk-cover" />
+            <view class="sk-body"><view class="sk-line w3" /><view class="sk-line w2" /></view>
+          </view>
         </view>
+        <!-- 错误态 -->
+        <app-error v-else-if="error" title="圈子加载失败" desc="网络异常，请稍后重试" @retry="loadCircles" />
+        <!-- 列表 -->
+        <view v-else-if="circles.length" class="discover-list">
+          <view
+            v-for="c in circles" :key="c.id"
+            class="circle-card" @tap="go(`/pkg-circle/circles/detail?id=${c.id}`)"
+          >
+            <smart-cover :src="c.cover" :title="c.name" type="circle" class="card-cover" />
+            <view class="card-body">
+              <text class="card-title">{{ c.name }}</text>
+              <text class="card-desc">{{ c.description }}</text>
+              <view class="card-meta">
+                <text>{{ formatMembers(c.members) }}成员</text>
+                <template v-if="c.todayActive && c.todayActive > 0">
+                  <view class="sep" /><text>今日 {{ c.todayActive }} 条新内容</text>
+                </template>
+              </view>
+            </view>
+            <view class="card-side">
+              <text v-if="c.isPaid" class="join-price">¥{{ c.price }}/年</text>
+              <text v-else class="join-free">免费</text>
+              <view
+                v-if="c.isJoined" class="btn-joined"
+              ><text class="btn-joined-txt">已加入</text></view>
+              <view
+                v-else class="btn-join" @tap.stop="handleJoin(c.id)"
+              ><text class="btn-join-txt">加入</text></view>
+            </view>
+          </view>
+        </view>
+        <!-- 空态 -->
         <view v-else class="empty">
           <view class="empty-icon"><app-icon name="users" :size="56" color="#999999" /></view>
           <text class="empty-text">暂无相关圈子</text>
         </view>
-      </template>
+      </view>
 
-      <!-- ════ 动态 Tab（全平台热门动态）════ -->
-      <template v-else-if="activeTab === 'feed'">
-        <view v-if="hotPosts.length === 0" class="feed-empty">
-          <view class="empty-icon big"><app-icon name="message-square" :size="64" color="#999999" /></view>
-          <text class="empty-title">暂无圈子动态</text>
-          <text class="empty-sub">加入感兴趣的圈子，参与话题讨论吧</text>
-          <view class="go-btn" @tap="activeTab = 'discover'"><text class="go-btn-text">去发现圈子</text></view>
+      <!-- ════ 区③ 动态 · 已加入圈子聚合 ════ -->
+      <view v-if="hotPosts.length" class="section">
+        <view class="sec-head">
+          <view class="sec-title-wrap">
+            <text class="sec-title">动态</text>
+            <text class="sec-sub">来自你加入的圈子</text>
+          </view>
         </view>
-        <view v-else class="feed">
+        <view class="feed-list">
           <view
             v-for="post in hotPosts" :key="post.id"
-            class="post" @tap="go(`/pkg-circle/circles/post?id=${post.id}&circleId=${post.circleId}`)"
+            class="feed-item" @tap="go(`/pkg-circle/circles/post?id=${post.id}&circleId=${post.circleId}`)"
           >
-            <view class="post-source">
-              <view class="post-source-left" @tap.stop="go(`/pkg-circle/circles/detail?id=${post.circleId}`)">
-                <text class="post-circle">#{{ post.circleName }}</text>
-                <text v-if="post.isPinned" class="post-pin">置顶</text>
+            <image lazy-load :src="post.author.avatar" class="feed-avatar" mode="aspectFill" />
+            <view class="feed-body">
+              <view class="feed-source">
+                <text class="feed-circle" @tap.stop="go(`/pkg-circle/circles/detail?id=${post.circleId}`)">{{ post.circleName }}</text>
+                <text class="feed-dot">·</text>
+                <text class="feed-author">{{ post.author.name }}</text>
+                <text class="feed-dot">·</text>
+                <text class="feed-time">{{ post.time }}</text>
+                <text v-if="post.isPinned" class="tag-featured">置顶</text>
               </view>
-              <text class="post-time">{{ post.time }}</text>
+              <text class="feed-text">{{ post.content }}</text>
             </view>
-            <view class="post-author">
-              <image lazy-load :src="post.author.avatar" class="post-avatar" mode="aspectFill" />
-              <view class="post-author-info">
-                <text class="post-author-name">{{ post.author.name }}</text>
-                <text v-if="post.author.title" class="post-author-title">{{ post.author.title }}</text>
-              </view>
-            </view>
-            <view class="post-content"><text class="post-text">{{ post.content }}</text></view>
-            <view v-if="post.images.length" class="post-imgs" :class="post.images.length === 1 ? 'one' : 'multi'">
-              <image lazy-load
-                v-for="(img, idx) in post.images" :key="idx" :src="img"
-                class="post-img" :class="post.images.length === 1 ? 'single' : 'grid-img'" mode="aspectFill"
-              />
-            </view>
-            <view class="post-actions">
-              <view class="post-act"><app-icon name="message-square" :size="28" color="#666666" /><text class="post-act-num">{{ post.comments }}</text></view>
-              <view class="post-act"><app-icon name="trending-up" :size="28" color="#666666" /><text class="post-act-num">{{ post.likes }}</text></view>
-            </view>
+            <image v-if="post.images.length" lazy-load :src="post.images[0]" class="feed-thumb" mode="aspectFill" />
           </view>
         </view>
-      </template>
-
-      <!-- ════ 我的 Tab ════ -->
-      <template v-else>
-        <view class="section">
-          <!-- 数据卡片 -->
-          <view class="mine-stats">
-            <view class="mine-stats-head">
-              <text class="mine-stats-title">我的圈子数据</text>
-              <view class="mine-stats-more" @tap="go('/pkg-circle/circles/stats')">
-                <text class="mine-stats-more-text">详情</text>
-                <app-icon name="chevron-right" :size="28" color="#ffffff" />
-              </view>
-            </view>
-            <view class="mine-stats-grid">
-              <view class="mine-stat"><text class="mine-stat-num">{{ myStats.joinedCount }}</text><text class="mine-stat-label">已加入</text></view>
-              <view class="mine-stat"><text class="mine-stat-num">{{ myStats.postCount }}</text><text class="mine-stat-label">发帖数</text></view>
-              <view class="mine-stat"><text class="mine-stat-num">{{ formatMembers(myStats.likeReceived) }}</text><text class="mine-stat-label">获赞数</text></view>
-            </view>
-          </view>
-
-          <!-- 我的圈子（统一入口·含我加入/我创建管理·带管理入口） -->
-          <view class="mine-list-head" @tap="go('/pkg-circle/my-circles/index')">
-            <text class="mine-list-title">我的圈子</text>
-            <view class="mine-list-more">
-              <text class="mine-list-count">{{ myCircles.length }}个</text>
-              <app-icon name="chevron-right" :size="28" color="#999999" />
-            </view>
-          </view>
-          <view v-if="myCircles.length === 0" class="mine-empty">
-            <view class="empty-icon"><app-icon name="users" :size="48" color="#999999" /></view>
-            <text class="empty-text">还没有加入任何圈子</text>
-            <view class="go-btn" @tap="activeTab = 'discover'"><text class="go-btn-text">去发现圈子</text></view>
-          </view>
-          <view v-else class="mine-list">
-            <view
-              v-for="c in myCircles" :key="c.id"
-              class="mine-item" @tap="go(`/pkg-circle/circles/detail?id=${c.id}`)"
-            >
-              <smart-cover :src="c.cover" :title="c.name" type="circle" class="mine-cover" />
-              <view class="mine-item-info">
-                <text class="mine-item-name">{{ c.name }}</text>
-                <text class="mine-item-meta">{{ formatMembers(c.members) }}成员 · {{ c.posts }}帖子</text>
-                <view v-if="c.todayActive && c.todayActive > 0" class="mine-item-active">
-                  <app-icon name="flame" :size="22" color="#FF6B35" />
-                  <text class="mine-item-active-text">今日{{ c.todayActive }}条新动态</text>
-                </view>
-              </view>
-              <app-icon name="chevron-right" :size="32" color="#cccccc" />
-            </view>
-          </view>
-        </view>
-      </template>
+      </view>
 
       <view class="bottom-spacer" />
     </scroll-view>
@@ -277,170 +240,125 @@ onShow(() => {
 </template>
 
 <style scoped lang="scss">
-.page { min-height: 100vh; background: var(--bg-paper, #faf8f5); display: flex; flex-direction: column; }
+.page { min-height: 100vh; background: var(--bg-page, #faf8f5); display: flex; flex-direction: column; }
 
 /* 顶栏 */
 .topbar {
   position: sticky; top: 0; z-index: 40;
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(10rpx);
-  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.04);
-  padding-top: var(--status-bar-height, 0);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 20rpx 32rpx 12rpx;
+  padding-top: calc(var(--status-bar-height, 0px) + 20rpx);
+  background: rgba(250, 248, 245, 0.92);
+  backdrop-filter: blur(20rpx);
 }
-.topbar-head { display: flex; align-items: center; justify-content: space-between; padding: 20rpx 32rpx; }
-.title { font-size: 40rpx; font-weight: 700; color: var(--text-ink, #2c2c2c); }
-.actions { display: flex; align-items: center; gap: 16rpx; }
-.icon-btn {
-  width: 72rpx; height: 72rpx; border-radius: 999rpx;
-  background: var(--line-soft, #f5f0e8);
-  display: flex; align-items: center; justify-content: center;
-}
-/* 创建圈子=醒目主按钮（brand 底 + 文字），突出重要入口 */
+.title { font-size: 44rpx; font-weight: 700; color: var(--text-primary, #2c2c2c); letter-spacing: 1rpx; }
+.actions { display: flex; align-items: center; gap: 14rpx; }
+.icon-btn { width: 64rpx; height: 64rpx; border-radius: 999rpx; display: flex; align-items: center; justify-content: center; }
+.icon-btn:active { background: var(--separator, #ede7dd); }
+/* 创建=关键动作·朱红实底 */
 .create-btn {
   display: flex; align-items: center; gap: 6rpx;
-  height: 72rpx; padding: 0 26rpx; border-radius: 999rpx;
-  background: var(--brand);
-  box-shadow: 0 4rpx 12rpx rgba(196, 30, 58, 0.28);
+  height: 60rpx; padding: 0 24rpx; border-radius: 30rpx;
+  background: var(--brand, #c41e3a);
 }
-.create-btn-txt { font-size: 26rpx; color: #fff; font-weight: 600; }
-.main-tabs { display: flex; align-items: center; border-bottom: 2rpx solid var(--line-nav, #e8e3db); }
-.main-tab { flex: 1; padding: 24rpx 0; display: flex; flex-direction: column; align-items: center; position: relative; }
-.main-tab-text { font-size: 28rpx; font-weight: 500; color: var(--text-faint, #999); }
-.main-tab-text.on { color: var(--brand, var(--brand)); }
-.main-tab-underline { position: absolute; bottom: 0; width: 48rpx; height: 4rpx; background: var(--brand, var(--brand)); border-radius: 999rpx; }
+.create-btn-txt { font-size: 26rpx; color: #fff; font-weight: 500; }
+.create-btn:active { opacity: 0.85; }
+/* 圈子·我的入口 */
+.me-entry {
+  width: 60rpx; height: 60rpx; border-radius: 999rpx;
+  display: flex; align-items: center; justify-content: center;
+  background: #fff; box-shadow: 0 0 0 1rpx var(--separator, #ede7dd);
+}
+.me-entry:active { opacity: 0.8; }
 
 .body { flex: 1; }
-.section { padding: 32rpx 32rpx 0; }
+.section { margin-top: 40rpx; }
 .bottom-spacer { height: 180rpx; }
 
-/* 直播横幅 */
-.live-banner { background: linear-gradient(135deg, #1a1a2e, #16213e); border-radius: 32rpx; padding: 32rpx; position: relative; overflow: hidden; }
-.live-badge { position: absolute; top: 16rpx; right: 16rpx; display: flex; align-items: center; gap: 6rpx; padding: 4rpx 16rpx; background: #ef4444; border-radius: 999rpx; }
-.live-badge-text { font-size: 18rpx; color: #fff; font-weight: 500; }
-.live-row { display: flex; align-items: center; gap: 24rpx; }
-.live-avatar { width: 96rpx; height: 96rpx; border-radius: 999rpx; border: 4rpx solid rgba(255, 255, 255, 0.2); flex-shrink: 0; }
-.live-info { flex: 1; min-width: 0; }
-.live-title { display: block; color: #fff; font-weight: 500; font-size: 28rpx; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.live-sub { display: block; color: rgba(255, 255, 255, 0.6); font-size: 24rpx; margin-top: 4rpx; }
-.live-meta { display: flex; align-items: center; gap: 24rpx; margin-top: 12rpx; }
-.live-time { display: flex; align-items: center; gap: 6rpx; }
-.live-time-text { color: #FFD700; font-size: 24rpx; }
-.live-viewers { color: rgba(255, 255, 255, 0.5); font-size: 22rpx; }
-.live-btn { display: flex; align-items: center; gap: 6rpx; padding: 16rpx 28rpx; background: var(--brand, var(--brand)); border-radius: 999rpx; flex-shrink: 0; }
-.live-btn-text { color: #fff; font-size: 24rpx; font-weight: 500; }
+/* 分区标题 */
+.sec-head { display: flex; align-items: baseline; justify-content: space-between; padding: 0 32rpx; margin-bottom: 20rpx; }
+.sec-title { font-size: 34rpx; font-weight: 650; color: var(--text-primary, #2c2c2c); }
+.sec-title-wrap { display: flex; align-items: baseline; gap: 14rpx; }
+.sec-sub { font-size: 22rpx; color: var(--text-tertiary, #999); }
+.sec-more { display: flex; align-items: center; gap: 2rpx; }
+.sec-more-txt { font-size: 24rpx; color: var(--text-secondary, #6e6e73); }
 
-/* 区块标题 */
-.sec-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24rpx; }
-.sec-title { display: flex; align-items: center; gap: 12rpx; }
-.sec-title-text { font-size: 30rpx; font-weight: 600; color: var(--text-ink, #2c2c2c); }
-.sec-more { display: flex; align-items: center; }
-.sec-more-text { font-size: 24rpx; color: var(--text-faint, #999); }
+/* 区① 我的圈子横滑 */
+.mine-scroll { width: 100%; white-space: nowrap; }
+.mine-row { display: inline-flex; gap: 32rpx; padding: 8rpx 32rpx 16rpx; }
+.mine-card { width: 132rpx; display: inline-flex; flex-direction: column; align-items: center; }
+.mine-cover-wrap { position: relative; width: 120rpx; height: 120rpx; }
+.mine-cover { width: 120rpx; height: 120rpx; border-radius: 36rpx; }
+.dot-new {
+  position: absolute; top: -4rpx; right: -4rpx;
+  width: 20rpx; height: 20rpx; border-radius: 999rpx;
+  background: var(--brand, #c41e3a); border: 4rpx solid var(--bg-page, #faf8f5);
+}
+.mine-name {
+  margin-top: 14rpx; font-size: 24rpx; color: var(--text-primary, #2c2c2c);
+  max-width: 132rpx; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center;
+}
 
-/* 今日活动横滚 */
-.act-scroll { width: 100%; white-space: nowrap; }
-.act-row { display: inline-flex; gap: 24rpx; padding-bottom: 8rpx; }
-.act-card { width: 400rpx; background: var(--card, #fff); border-radius: 24rpx; padding: 24rpx; box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.04); border: 2rpx solid var(--line-soft, #f5f0e8); white-space: normal; }
-.act-top { display: flex; align-items: center; gap: 12rpx; margin-bottom: 16rpx; }
-.act-tag { font-size: 18rpx; padding: 4rpx 12rpx; border-radius: 8rpx; }
-.act-title { display: block; font-size: 26rpx; font-weight: 500; color: var(--text-ink, #2c2c2c); line-height: 1.5; min-height: 78rpx; }
-.act-meta { display: flex; align-items: center; justify-content: space-between; margin-top: 12rpx; }
-.act-part { font-size: 22rpx; color: var(--text-faint, #999); }
-.act-reward { font-size: 22rpx; color: #FF6B35; }
-.act-deadline { margin-top: 16rpx; padding-top: 16rpx; border-top: 2rpx solid var(--line-soft, #f5f0e8); }
-.act-deadline-text { font-size: 20rpx; color: var(--text-faint, #999); }
-
-/* 分类 */
-.cat-section { padding: 32rpx 32rpx 16rpx; }
+/* 区② 发现圈子 */
 .cat-scroll { width: 100%; white-space: nowrap; }
-.cat-row { display: inline-flex; gap: 16rpx; }
-.cat-chip { flex-shrink: 0; padding: 12rpx 28rpx; border-radius: 999rpx; background: var(--card, #fff); border: 2rpx solid var(--line-nav, #e8e3db); }
-.cat-chip.on { background: var(--brand, var(--brand)); border-color: var(--brand, var(--brand)); }
-.cat-text { font-size: 26rpx; font-weight: 500; color: var(--text-soft, #666); white-space: nowrap; }
-.cat-text.on { color: #fff; }
+.cat-row { display: inline-flex; gap: 16rpx; padding: 0 32rpx 24rpx; }
+.cat-chip {
+  flex-shrink: 0; height: 60rpx; padding: 0 30rpx; border-radius: 30rpx;
+  display: flex; align-items: center;
+  background: var(--bg-card, #fff); border: 1rpx solid var(--separator, #ede7dd);
+}
+.cat-chip.on { background: var(--text-primary, #2c2c2c); border-color: var(--text-primary, #2c2c2c); }
+.cat-text { font-size: 26rpx; color: var(--text-secondary, #6e6e73); white-space: nowrap; }
+.cat-text.on { color: #fff; font-weight: 500; }
 
-/* 排行榜入口 */
-.rank-entry { margin: 0 32rpx 32rpx; background: linear-gradient(90deg, #FFF9E6, #FFF5F5); border-radius: 24rpx; padding: 24rpx; border: 2rpx solid #F5E6D3; }
-.rank-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16rpx; }
-.rank-head-left { display: flex; align-items: center; gap: 12rpx; }
-.rank-crown { width: 48rpx; height: 48rpx; border-radius: 999rpx; background: linear-gradient(135deg, #facc15, #f97316); display: flex; align-items: center; justify-content: center; }
-.rank-title { font-size: 28rpx; font-weight: 600; color: var(--text-ink, #2c2c2c); }
-.rank-scroll { width: 100%; white-space: nowrap; }
-.rank-row { display: inline-flex; gap: 16rpx; }
-.rank-pill { display: inline-flex; align-items: center; gap: 12rpx; background: var(--card, #fff); border-radius: 999rpx; padding: 6rpx 20rpx 6rpx 6rpx; }
-.rank-no { width: 36rpx; height: 36rpx; border-radius: 999rpx; display: flex; align-items: center; justify-content: center; font-size: 18rpx; font-weight: 700; color: #fff; }
-.rank-no-1 { background: linear-gradient(135deg, #facc15, #f97316); }
-.rank-no-2 { background: linear-gradient(135deg, #d1d5db, #9ca3af); }
-.rank-no-3 { background: linear-gradient(135deg, #fdba74, #fb923c); }
-.rank-no-4, .rank-no-5 { background: #999; }
-.rank-name { font-size: 22rpx; color: var(--text-ink, #2c2c2c); white-space: nowrap; }
+.discover-list { display: flex; flex-direction: column; gap: 20rpx; padding: 0 32rpx; }
+.circle-card {
+  display: flex; gap: 24rpx; align-items: flex-start;
+  background: var(--bg-card, #fff); border-radius: 32rpx; padding: 24rpx;
+  box-shadow: 0 2rpx 8rpx rgba(44, 44, 44, 0.04);
+}
+.circle-card:active { transform: scale(0.99); }
+.card-cover { width: 140rpx; height: 140rpx; border-radius: 24rpx; flex-shrink: 0; }
+.card-body { flex: 1; min-width: 0; }
+.card-title { display: block; font-size: 30rpx; font-weight: 600; color: var(--text-primary, #2c2c2c); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.card-desc { display: block; font-size: 24rpx; color: var(--text-secondary, #6e6e73); margin-top: 6rpx; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; }
+.card-meta { display: flex; align-items: center; gap: 12rpx; margin-top: 14rpx; font-size: 22rpx; color: var(--text-tertiary, #999); }
+.card-meta .sep { width: 4rpx; height: 4rpx; border-radius: 999rpx; background: var(--text-tertiary, #999); }
+.card-side { display: flex; flex-direction: column; align-items: flex-end; justify-content: space-between; align-self: stretch; flex-shrink: 0; }
+/* 付费价格·国学金（价值感） */
+.join-price { font-size: 24rpx; font-weight: 650; color: var(--gold, #c9a96e); }
+.join-free { font-size: 24rpx; color: var(--text-tertiary, #999); }
+/* 加入·朱红软底 */
+.btn-join { height: 56rpx; padding: 0 30rpx; border-radius: 28rpx; background: var(--brand-soft, rgba(196, 30, 58, 0.08)); display: flex; align-items: center; }
+.btn-join-txt { font-size: 26rpx; font-weight: 600; color: var(--brand, #c41e3a); }
+.btn-join:active { opacity: 0.8; }
+.btn-joined { height: 56rpx; padding: 0 24rpx; border-radius: 28rpx; border: 1rpx solid var(--separator, #ede7dd); display: flex; align-items: center; }
+.btn-joined-txt { font-size: 26rpx; color: var(--text-tertiary, #999); }
 
-/* 圈子网格 */
-.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24rpx; padding: 16rpx 32rpx 0; }
-.skeleton { background: var(--card, #fff); border-radius: 24rpx; padding: 24rpx; }
-.sk-cover { aspect-ratio: 4 / 3; background: var(--line-soft, #f2efea); border-radius: 16rpx; margin-bottom: 24rpx; }
-.sk-line { height: 28rpx; background: var(--line-soft, #f2efea); border-radius: 8rpx; margin-bottom: 16rpx; }
-.sk-line.w3 { width: 75%; }
-.sk-line.w2 { width: 50%; }
+/* 骨架 */
+.sk-card { display: flex; gap: 24rpx; background: var(--bg-card, #fff); border-radius: 32rpx; padding: 24rpx; }
+.sk-cover { width: 140rpx; height: 140rpx; border-radius: 24rpx; background: #f2efea; flex-shrink: 0; }
+.sk-body { flex: 1; padding-top: 12rpx; }
+.sk-line { height: 28rpx; background: #f2efea; border-radius: 8rpx; margin-bottom: 16rpx; }
+.sk-line.w3 { width: 70%; }
+.sk-line.w2 { width: 45%; }
 
 /* 空态 */
-.empty { display: flex; flex-direction: column; align-items: center; padding: 120rpx 0; }
-.empty-icon { width: 128rpx; height: 128rpx; border-radius: 999rpx; background: var(--line-soft, #f5f0e8); display: flex; align-items: center; justify-content: center; margin-bottom: 32rpx; }
-.empty-icon.big { width: 128rpx; height: 128rpx; }
-.empty-text { font-size: 28rpx; color: var(--text-faint, #999); }
+.empty { display: flex; flex-direction: column; align-items: center; padding: 100rpx 0; }
+.empty-icon { width: 128rpx; height: 128rpx; border-radius: 999rpx; background: var(--separator, #f5f0e8); display: flex; align-items: center; justify-content: center; margin-bottom: 28rpx; }
+.empty-text { font-size: 28rpx; color: var(--text-tertiary, #999); }
 
-/* 动态信息流 */
-.feed { padding: 32rpx; display: flex; flex-direction: column; gap: 32rpx; }
-.feed-empty { display: flex; flex-direction: column; align-items: center; padding: 140rpx 0; }
-.empty-title { font-size: 28rpx; color: var(--text-faint, #999); margin-bottom: 12rpx; }
-.empty-sub { font-size: 24rpx; color: #bbb; margin-bottom: 32rpx; }
-.go-btn { padding: 16rpx 32rpx; background: var(--brand, var(--brand)); border-radius: 999rpx; margin-top: 8rpx; }
-.go-btn-text { font-size: 26rpx; color: #fff; }
-.post { background: var(--card, #fff); border-radius: 32rpx; overflow: hidden; box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.04); }
-.post-source { padding: 24rpx 32rpx 16rpx; display: flex; align-items: center; justify-content: space-between; border-bottom: 2rpx solid var(--line-soft, #f5f0e8); }
-.post-source-left { display: flex; align-items: center; gap: 12rpx; }
-.post-circle { font-size: 24rpx; color: var(--brand, var(--brand)); font-weight: 500; }
-.post-pin { font-size: 18rpx; padding: 4rpx 12rpx; background: #FFF0F0; color: var(--brand, var(--brand)); border-radius: 6rpx; }
-.post-time { font-size: 22rpx; color: #bbb; }
-.post-author { padding: 24rpx 32rpx 0; display: flex; align-items: center; gap: 16rpx; }
-.post-avatar { width: 80rpx; height: 80rpx; border-radius: 999rpx; }
-.post-author-info { display: flex; align-items: center; gap: 12rpx; }
-.post-author-name { font-size: 28rpx; font-weight: 500; color: var(--text-ink, #2c2c2c); }
-.post-author-title { font-size: 18rpx; padding: 4rpx 12rpx; background: rgba(201, 169, 110, 0.1); color: var(--gold, #c9a96e); border-radius: 6rpx; }
-.post-content { padding: 24rpx 32rpx; }
-.post-text { font-size: 28rpx; color: var(--text-ink, #2c2c2c); line-height: 1.6; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
-.post-imgs { padding: 0 32rpx 24rpx; display: grid; gap: 16rpx; }
-.post-imgs.one { grid-template-columns: 1fr; }
-.post-imgs.multi { grid-template-columns: 1fr 1fr; }
-.post-img { width: 100%; border-radius: 16rpx; }
-.post-img.single { height: 384rpx; }
-.post-img.grid-img { aspect-ratio: 1 / 1; }
-.post-actions { padding: 24rpx 32rpx; border-top: 2rpx solid var(--line-soft, #f5f0e8); display: flex; align-items: center; gap: 48rpx; }
-.post-act { display: flex; align-items: center; gap: 12rpx; }
-.post-act-num { font-size: 24rpx; color: var(--text-soft, #666); }
-
-/* 我的 Tab */
-.mine-stats { background: linear-gradient(135deg, var(--brand), #a01530); border-radius: 32rpx; padding: 32rpx; margin-bottom: 32rpx; }
-.mine-stats-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24rpx; }
-.mine-stats-title { font-size: 28rpx; font-weight: 500; color: #fff; }
-.mine-stats-more { display: flex; align-items: center; }
-.mine-stats-more-text { font-size: 22rpx; color: rgba(255, 255, 255, 0.7); }
-.mine-stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16rpx; }
-.mine-stat { display: flex; flex-direction: column; align-items: center; }
-.mine-stat-num { font-size: 40rpx; font-weight: 700; color: #fff; }
-.mine-stat-label { font-size: 22rpx; color: rgba(255, 255, 255, 0.7); margin-top: 4rpx; }
-.mine-list-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24rpx; }
-.mine-list-title { font-size: 30rpx; font-weight: 600; color: var(--text-ink, #2c2c2c); }
-  .mine-list-count { font-size: 24rpx; color: var(--text-faint, #999); }
-  .mine-list-more { display: flex; align-items: center; gap: 4rpx; }
-.mine-empty { display: flex; flex-direction: column; align-items: center; padding: 80rpx 0; background: var(--card, #fff); border-radius: 32rpx; }
-.mine-list { display: flex; flex-direction: column; gap: 24rpx; }
-.mine-item { background: var(--card, #fff); border-radius: 24rpx; padding: 24rpx; display: flex; align-items: center; gap: 24rpx; box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.04); }
-.mine-cover { width: 112rpx; height: 112rpx; border-radius: 24rpx; flex-shrink: 0; }
-.mine-item-info { flex: 1; min-width: 0; }
-.mine-item-name { display: block; font-size: 28rpx; font-weight: 500; color: var(--text-ink, #2c2c2c); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.mine-item-meta { display: block; font-size: 24rpx; color: var(--text-faint, #999); margin-top: 4rpx; }
-.mine-item-active { display: flex; align-items: center; gap: 6rpx; margin-top: 8rpx; }
-.mine-item-active-text { font-size: 22rpx; color: #FF6B35; }
-
-/* FAB */
+/* 区③ 动态 */
+.feed-list { padding: 0 32rpx; }
+.feed-item { display: flex; gap: 20rpx; padding: 28rpx 0; border-bottom: 1rpx solid var(--separator, #ede7dd); }
+.feed-item:last-child { border-bottom: none; }
+.feed-avatar { width: 72rpx; height: 72rpx; border-radius: 22rpx; flex-shrink: 0; }
+.feed-body { flex: 1; min-width: 0; }
+.feed-source { display: flex; align-items: center; gap: 8rpx; flex-wrap: wrap; }
+.feed-circle { font-size: 22rpx; color: var(--text-secondary, #6e6e73); font-weight: 500; }
+.feed-dot { font-size: 22rpx; color: var(--text-tertiary, #999); }
+.feed-author, .feed-time { font-size: 22rpx; color: var(--text-tertiary, #999); }
+.tag-featured { font-size: 18rpx; color: var(--gold, #c9a96e); font-weight: 600; border: 1rpx solid var(--gold, #c9a96e); border-radius: 6rpx; padding: 0 8rpx; line-height: 28rpx; }
+.feed-text { display: -webkit-box; margin-top: 8rpx; font-size: 27rpx; color: var(--text-primary, #2c2c2c); line-height: 1.55; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.feed-thumb { width: 104rpx; height: 104rpx; border-radius: 16rpx; flex-shrink: 0; align-self: center; }
 </style>

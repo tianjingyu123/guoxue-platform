@@ -1,176 +1,303 @@
-<!--
-  圈子收益明细（从原型 app/circles/[id]/earnings/detail/page.tsx 高保真迁移）
-  收益概览渐变卡 + 收入构成进度条 + 历史收益 + 收益说明
--->
+<script setup lang="ts">
+/**
+ * 圈主管理后台 · 收益 — V0 circle-admin-revenue.html 还原（2026-07-10 批③）
+ * 注：旧版整页为 mock 死数据（totalEarnings 285400 等），本次重写全部清除，真连后端。
+ * 结构：收益总卡（本月/累计）→ 收入构成堆叠条 → 邀请码（统计+列表+生成）。
+ * 数据：dashboardApi.revenue（GET /circle-backend/revenue·当月·含嘉宾分账后实得）+
+ *      dashboardApi.revenueBreakdown(circleId)（全期 PAID·入圈费/课程/商品）+
+ *      inviteApi（listCodes/getTotalInvited/generate）。
+ * 降级（后端无来源）：V0"较上月 +18%"同比、"自 2023 年开圈"、逐笔收入明细（无明细端点）、
+ *      "付费问答"构成分类（breakdown 无此项）、邀请码"免入圈费"文案（无该语义字段）→ 均不做。
+ *      "本月收入构成"后端 breakdown 为全期口径无时间过滤 → 如实标"累计收入构成"。
+ */
+import { ref, computed } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
+import AppIcon from '@/components/common/app-icon.vue'
+import { goBack } from '@/utils/router'
+import {
+  dashboardApi,
+  type DashboardRevenue,
+  type RevenueBreakdownItem,
+} from '@/lib/circle-dashboard-data'
+import { inviteApi, type InviteCodeItem } from '@/lib/circle-invite-data'
+
+const circleId = ref('')
+const loading = ref(true)
+const error = ref(false)
+
+const revenue = ref<DashboardRevenue | null>(null)
+const breakdown = ref<RevenueBreakdownItem[]>([])
+const codes = ref<InviteCodeItem[]>([])
+const totalInvited = ref(0)
+const generating = ref(false)
+
+const MIX_COLORS = ['#C9A96E', '#D4B87D', '#B7A99A', '#D9CDBB']
+
+const breakdownTotal = computed(() => breakdown.value.reduce((s, b) => s + b.amount, 0))
+/** 构成条分段（占比宽度·仅有金额的分类） */
+const mixSegs = computed(() => {
+  const total = breakdownTotal.value
+  if (total <= 0) return []
+  return breakdown.value
+    .map((b, i) => ({ ...b, color: MIX_COLORS[i % MIX_COLORS.length], percent: (b.amount / total) * 100 }))
+    .filter((b) => b.amount > 0)
+})
+
+const usedCodes = computed(() => codes.value.filter((c) => c.status === 'used' || (c.maxUses > 0 && c.usedCount >= c.maxUses)).length)
+const openCodes = computed(() => codes.value.filter((c) => c.status === 'active').length)
+
+function money(n: number) {
+  return n.toLocaleString('zh-CN', { maximumFractionDigits: 2 })
+}
+function fmtDate(iso: string) {
+  const d = new Date(iso)
+  return Number.isNaN(d.getTime()) ? '' : `${d.getMonth() + 1}月${d.getDate()}日`
+}
+function codeStatusLabel(c: InviteCodeItem) {
+  if (c.status === 'expired') return '已过期'
+  if (c.status === 'used') return '已使用'
+  return '待使用'
+}
+
+async function load() {
+  loading.value = true
+  error.value = false
+  try {
+    // 收益总卡是页面主体，失败走 error 态
+    revenue.value = await dashboardApi.revenue()
+    // 其余区块并行拉取，单块失败降级为空
+    const [bRes, cRes, iRes] = await Promise.allSettled([
+      dashboardApi.revenueBreakdown(circleId.value),
+      inviteApi.listCodes(circleId.value),
+      inviteApi.getTotalInvited(circleId.value),
+    ])
+    breakdown.value = bRes.status === 'fulfilled' ? bRes.value : []
+    codes.value = cRes.status === 'fulfilled' ? cRes.value : []
+    totalInvited.value = iRes.status === 'fulfilled' ? iRes.value : 0
+  } catch {
+    error.value = true
+  } finally {
+    loading.value = false
+  }
+}
+
+async function generate() {
+  if (generating.value) return
+  generating.value = true
+  try {
+    await inviteApi.generate(circleId.value, 1)
+    uni.showToast({ title: '邀请码已生成', icon: 'success' })
+    codes.value = await inviteApi.listCodes(circleId.value)
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '生成失败', icon: 'none' })
+  } finally {
+    generating.value = false
+  }
+}
+
+function copyCode(c: InviteCodeItem) {
+  uni.setClipboardData({
+    data: c.code,
+    success: () => uni.showToast({ title: '已复制', icon: 'none' }),
+  })
+}
+
+onLoad((q) => {
+  circleId.value = q?.id || q?.circleId || ''
+  load()
+})
+</script>
+
 <template>
   <view class="page">
-    <!-- 顶部导航 -->
-    <view class="nav" :style="{ paddingTop: statusBarH + 'px' }">
-      <view class="nav-inner">
-        <view class="nav-btn" @tap="goBack"><app-icon name="arrow-left" :size="40" color="#2C2C2C" /></view>
-        <text class="nav-title">收益明细</text>
-        <view class="nav-btn" />
-      </view>
+    <!-- 顶栏 -->
+    <view class="topbar">
+      <view class="back-btn" @tap="goBack"><app-icon name="chevron-left" :size="40" color="#2C2C2C" /></view>
+      <text class="topbar-title">收益</text>
     </view>
 
-    <scroll-view scroll-y class="scroll">
-      <view class="body">
-        <!-- 收益概览 -->
-        <view class="overview">
-          <view class="ov-top">
-            <view>
-              <text class="ov-label">本月收益</text>
-              <text class="ov-month">¥{{ fmt(formatPrice(data.monthEarnings)) }}</text>
-            </view>
-            <view class="ov-total">
-              <text class="ov-label">累计收益</text>
-              <text class="ov-total-num">¥{{ fmt(formatPrice(data.totalEarnings)) }}</text>
-            </view>
-          </view>
-          <view class="ov-stats">
-            <view class="ov-stat"><app-icon name="users" :size="28" color="#ffffff" /><text class="ov-stat-t">{{ data.memberCount }} 名成员</text></view>
-            <view class="ov-stat"><app-icon name="trending-up" :size="28" color="#ffffff" /><text class="ov-stat-t">↑ 15% 同比增长</text></view>
-          </view>
-        </view>
+    <!-- 三态 -->
+    <view v-if="loading" class="state-view"><app-icon name="loader" :size="56" color="#C41E3A" class="spin" /><text class="state-desc">加载中…</text></view>
+    <view v-else-if="error || !revenue" class="state-view">
+      <app-icon name="alert-circle" :size="64" color="#C9A96E" />
+      <text class="state-desc">加载失败（需圈主身份访问）</text>
+      <view class="state-btn" @tap="load"><text class="state-btn-txt">重试</text></view>
+    </view>
 
-        <!-- 收入构成 -->
-        <view class="sec">
-          <text class="sec-title">收入构成</text>
-          <view class="list">
-            <view v-for="item in data.earningsList" :key="item.id" class="card">
-              <view class="card-head">
-                <view class="card-info">
-                  <text class="card-source">{{ item.source }}</text>
-                  <text class="card-desc">{{ item.description }}</text>
-                </view>
-                <text class="card-trend" :class="item.trend === 'up' ? 'up' : 'down'">{{ item.trend === 'up' ? '↑' : '↓' }}</text>
-              </view>
-              <view class="card-bar-row">
-                <view class="bar-track"><view class="bar-fill" :style="{ width: item.percentage + '%' }" /></view>
-                <view class="card-amount">
-                  <text class="card-amount-num">¥{{ fmt(formatPrice(item.amount)) }}</text>
-                  <text class="card-amount-pct">{{ item.percentage }}%</text>
-                </view>
-              </view>
-            </view>
+    <scroll-view v-else scroll-y class="body">
+      <!-- 收益总卡：本月 / 累计 -->
+      <view class="hero">
+        <view class="hero-row">
+          <view class="hero-col">
+            <text class="hero-label">本月收入{{ revenue.period ? `（${revenue.period}）` : '' }}</text>
+            <text class="hero-num">¥{{ money(revenue.totalAmount) }}</text>
+            <text class="hero-sub">嘉宾分账后实得 ¥{{ money(revenue.ownerRevenue) }}</text>
           </view>
-        </view>
-
-        <!-- 历史收益 -->
-        <view class="sec">
-          <text class="sec-title">历史收益</text>
-          <view class="list">
-            <view v-for="(item, idx) in data.history" :key="idx" class="card hist">
-              <view class="hist-left">
-                <app-icon name="calendar" :size="32" color="#999999" />
-                <view>
-                  <text class="hist-month">{{ item.month }}</text>
-                  <text class="hist-members">{{ item.members }} 名成员</text>
-                </view>
-              </view>
-              <view class="hist-right">
-                <text class="hist-earn">¥{{ fmt(formatPrice(item.earnings)) }}</text>
-                <text class="hist-badge">月均 ¥{{ Math.round(item.earnings / item.members) }}</text>
-              </view>
-            </view>
-          </view>
-        </view>
-
-        <!-- 说明 -->
-        <view class="note">
-          <text class="note-title">收益说明</text>
-          <view class="note-list">
-            <text class="note-li">• 圈费：新成员加入圈子的费用</text>
-            <text class="note-li">• 课程销售：圈内付费课程的销售额</text>
-            <text class="note-li">• 咨询服务：一对一付费咨询费用</text>
-            <text class="note-li">• 商品销售：圈子内销售的相关商品</text>
-            <text class="note-li">• 收益结算：每月月底统一结算，次月1日可提现</text>
+          <view class="hero-col with-divider">
+            <text class="hero-label">累计收入</text>
+            <text class="hero-num plain">¥{{ money(breakdownTotal) }}</text>
+            <text class="hero-sub">本月成交 {{ revenue.totalTransactions }} 笔</text>
           </view>
         </view>
       </view>
+
+      <!-- 收入构成（后端 breakdown 为全期口径 → 如实标"累计"） -->
+      <template v-if="mixSegs.length">
+        <text class="section-label">累计收入构成</text>
+        <view class="mix-card">
+          <view class="mix-bar">
+            <view
+              v-for="s in mixSegs" :key="s.type"
+              class="mix-seg" :style="{ width: s.percent + '%', background: s.color }"
+            />
+          </view>
+          <view class="mix-legend">
+            <view v-for="s in mixSegs" :key="s.type" class="mix-item">
+              <view class="mix-dot" :style="{ background: s.color }" />
+              <text class="mix-label">{{ s.label }}</text>
+              <text class="mix-amt">¥{{ money(s.amount) }}</text>
+            </view>
+          </view>
+        </view>
+      </template>
+      <template v-else>
+        <text class="section-label">收入构成</text>
+        <view class="empty-card">
+          <text class="empty-txt">还没有收入记录。开启付费入圈、发布课程或上架商品后，收入构成会在这里展示</text>
+        </view>
+      </template>
+
+      <!-- 邀请码 -->
+      <text class="section-label">邀请码</text>
+      <view class="invite-stats">
+        <view class="invite-stat"><text class="invite-n">{{ codes.length }}</text><text class="invite-t">总数</text></view>
+        <view class="invite-stat"><text class="invite-n">{{ usedCodes }}</text><text class="invite-t">已使用</text></view>
+        <view class="invite-stat"><text class="invite-n">{{ openCodes }}</text><text class="invite-t">待使用</text></view>
+        <view class="invite-stat"><text class="invite-n">{{ totalInvited }}</text><text class="invite-t">邀请人数</text></view>
+      </view>
+      <view v-if="codes.length" class="invite-list">
+        <view v-for="c in codes" :key="c.id" class="invite-row">
+          <view class="invite-main">
+            <text class="invite-code">{{ c.code }}</text>
+            <text class="invite-meta">{{ fmtDate(c.createdAt) }}生成{{ c.maxUses ? ` · 限 ${c.maxUses} 次` : '' }}{{ c.usedCount ? ` · 已用 ${c.usedCount} 次` : '' }}</text>
+          </view>
+          <text class="invite-state" :class="c.status === 'active' ? 'open' : 'used'">{{ codeStatusLabel(c) }}</text>
+          <view class="invite-copy" @tap="copyCode(c)"><text class="invite-copy-txt">复制</text></view>
+        </view>
+      </view>
+      <view class="gen-btn" :class="{ disabled: generating }" @tap="generate">
+        <app-icon name="plus" :size="26" color="#FFFFFF" />
+        <text class="gen-btn-txt">{{ generating ? '生成中…' : '生成邀请码' }}</text>
+      </view>
+
+      <view class="safe-bottom" />
     </scroll-view>
   </view>
 </template>
 
-<script setup lang="ts">
-/**
- * 圈子收益明细页（纯展示）
- */
-import AppIcon from '@/components/common/app-icon.vue'
-import { goBack } from '@/utils/router'
-import { formatPrice } from '@/utils/format'
-
-const statusBarH = uni.getSystemInfoSync().statusBarHeight || 20
-
-const data = {
-  totalEarnings: 285400,
-  monthEarnings: 28540,
-  memberCount: 12800,
-  earningsList: [
-    { id: '1', source: '圈费收入', amount: 12500, percentage: 43.8, description: '圈子成员加入费用', trend: 'up' },
-    { id: '2', source: '课程销售', amount: 8200, percentage: 28.7, description: '付费课程收入', trend: 'up' },
-    { id: '3', source: '咨询服务', amount: 5100, percentage: 17.9, description: '一对一咨询费用', trend: 'down' },
-    { id: '4', source: '商品销售', amount: 2740, percentage: 9.6, description: '圈子商品销售', trend: 'up' },
-  ],
-  history: [
-    { month: '2024年1月', earnings: 28540, members: 12800, rate: 123 },
-    { month: '2023年12月', earnings: 26800, members: 12100, rate: 98 },
-    { month: '2023年11月', earnings: 24900, members: 11450, rate: 82 },
-    { month: '2023年10月', earnings: 23200, members: 10800, rate: 76 },
-  ],
-}
-
-function fmt(n: number) {
-  return n.toLocaleString('zh-CN', { minimumFractionDigits: 2 })
-}
-</script>
-
 <style scoped lang="scss">
-.page { min-height: 100vh; background: #F7F4EE; }
-.nav { background: #F7F4EE; position: sticky; top: 0; z-index: 10; border-bottom: 1rpx solid #ECE7DD; }
-.nav-inner { display: flex; align-items: center; justify-content: space-between; padding: 16rpx 24rpx; }
-.nav-btn { width: 56rpx; height: 56rpx; display: flex; align-items: center; justify-content: center; }
-.nav-title { font-size: 34rpx; font-weight: 600; color: #2C2C2C; }
-.scroll { height: calc(100vh - 100rpx); }
-.body { padding-bottom: 60rpx; }
+.page { min-height: 100vh; background: var(--bg-page, #faf8f5); display: flex; flex-direction: column; }
 
-.overview { margin: 32rpx 32rpx 0; padding: 32rpx; border-radius: 24rpx; background: linear-gradient(135deg, var(--brand), #9A1528); }
-.ov-top { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 32rpx; }
-.ov-label { display: block; font-size: 24rpx; color: rgba(255,255,255,0.8); margin-bottom: 8rpx; }
-.ov-month { font-size: 56rpx; font-weight: 700; color: #ffffff; }
-.ov-total { text-align: right; }
-.ov-total-num { font-size: 36rpx; font-weight: 700; color: #ffffff; }
-.ov-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 16rpx; }
-.ov-stat { display: flex; align-items: center; gap: 10rpx; }
-.ov-stat-t { font-size: 24rpx; color: #ffffff; }
+/* 顶栏 */
+.topbar {
+  position: sticky; top: 0; z-index: 10;
+  display: flex; align-items: center; gap: 20rpx;
+  padding: 28rpx 32rpx 20rpx;
+  padding-top: calc(var(--status-bar-height, 0px) + 28rpx);
+  background: rgba(250, 248, 245, 0.92); backdrop-filter: blur(24rpx);
+}
+.back-btn { display: flex; align-items: center; }
+.topbar-title { font-size: 34rpx; font-weight: 600; color: var(--text-primary, #2c2c2c); flex: 1; }
 
-.sec { margin: 48rpx 32rpx 0; }
-.sec-title { display: block; font-size: 26rpx; font-weight: 600; color: #2C2C2C; margin-bottom: 20rpx; }
-.list { display: flex; flex-direction: column; gap: 16rpx; }
-.card { background: #ffffff; border-radius: 20rpx; padding: 24rpx; box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.04); }
-.card-head { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 16rpx; }
-.card-source { display: block; font-size: 28rpx; font-weight: 600; color: #2C2C2C; }
-.card-desc { display: block; font-size: 22rpx; color: #999999; margin-top: 4rpx; }
-.card-trend { font-size: 24rpx; font-weight: 700; }
-.card-trend.up { color: #16A34A; }
-.card-trend.down { color: #DC2626; }
-.card-bar-row { display: flex; align-items: center; }
-.bar-track { flex: 1; height: 14rpx; background: #F0EDE6; border-radius: 999rpx; overflow: hidden; }
-.bar-fill { height: 100%; background: var(--brand); border-radius: 999rpx; }
-.card-amount { margin-left: 24rpx; text-align: right; }
-.card-amount-num { display: block; font-size: 28rpx; font-weight: 700; color: #2C2C2C; }
-.card-amount-pct { display: block; font-size: 22rpx; color: #999999; }
+.body { flex: 1; }
 
-.hist { display: flex; align-items: center; justify-content: space-between; }
-.hist-left { display: flex; align-items: center; gap: 14rpx; }
-.hist-month { display: block; font-size: 26rpx; font-weight: 500; color: #2C2C2C; }
-.hist-members { display: block; font-size: 22rpx; color: #999999; margin-top: 2rpx; }
-.hist-right { text-align: right; }
-.hist-earn { display: block; font-size: 28rpx; font-weight: 700; color: #2C2C2C; }
-.hist-badge { display: inline-block; font-size: 20rpx; color: #666666; background: #F0EDE6; padding: 2rpx 12rpx; border-radius: 999rpx; margin-top: 8rpx; }
+/* 收益总卡 */
+.hero {
+  margin: 16rpx 32rpx 0; padding: 40rpx 36rpx;
+  background: var(--bg-card, #ffffff); border-radius: 36rpx;
+  box-shadow: 0 2rpx 6rpx rgba(44, 44, 44, 0.05);
+}
+.hero-row { display: flex; }
+.hero-col { flex: 1; min-width: 0; }
+.hero-col.with-divider { border-left: 1rpx solid var(--separator, #ede7dd); padding-left: 36rpx; }
+.hero-label { display: block; font-size: 24rpx; color: var(--text-tertiary, #999999); }
+.hero-num { display: block; font-size: 52rpx; font-weight: 700; color: var(--gold, #c9a96e); margin-top: 8rpx; letter-spacing: -1rpx; }
+.hero-num.plain { color: var(--text-primary, #2c2c2c); font-size: 40rpx; }
+.hero-sub { display: block; font-size: 22rpx; color: var(--text-tertiary, #999999); margin-top: 4rpx; }
 
-.note { margin: 48rpx 32rpx 0; padding: 28rpx; background: #EFF6FF; border: 1rpx solid #BFDBFE; border-radius: 16rpx; }
-.note-title { display: block; font-size: 26rpx; font-weight: 600; color: #1E3A8A; margin-bottom: 14rpx; }
-.note-list { display: flex; flex-direction: column; gap: 8rpx; }
-.note-li { font-size: 22rpx; color: #1E40AF; line-height: 1.6; }
+/* 分区标题 */
+.section-label { display: block; margin: 44rpx 36rpx 16rpx; font-size: 24rpx; color: var(--text-tertiary, #999999); }
+
+/* 收入构成 */
+.mix-card {
+  margin: 0 32rpx; background: var(--bg-card, #ffffff);
+  border-radius: 36rpx; box-shadow: 0 2rpx 6rpx rgba(44, 44, 44, 0.05); padding: 32rpx;
+}
+.mix-bar { display: flex; height: 20rpx; border-radius: 10rpx; overflow: hidden; }
+.mix-seg { height: 100%; }
+.mix-legend { display: grid; grid-template-columns: 1fr 1fr; gap: 16rpx 32rpx; margin-top: 28rpx; }
+.mix-item { display: flex; align-items: center; gap: 14rpx; }
+.mix-dot { width: 16rpx; height: 16rpx; border-radius: 6rpx; flex-shrink: 0; }
+.mix-label { font-size: 24rpx; color: var(--text-secondary, #6e6e73); }
+.mix-amt { margin-left: auto; font-size: 24rpx; font-weight: 600; color: var(--text-primary, #2c2c2c); }
+
+/* 空构成 */
+.empty-card {
+  margin: 0 32rpx; padding: 48rpx 40rpx;
+  background: var(--bg-card, #ffffff); border-radius: 36rpx;
+  box-shadow: 0 2rpx 6rpx rgba(44, 44, 44, 0.05);
+  display: flex; justify-content: center;
+}
+.empty-txt { font-size: 24rpx; color: var(--text-tertiary, #999999); text-align: center; line-height: 1.7; }
+
+/* 邀请码统计 */
+.invite-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16rpx; margin: 0 32rpx; }
+.invite-stat {
+  background: var(--bg-card, #ffffff); border-radius: 28rpx;
+  box-shadow: 0 2rpx 6rpx rgba(44, 44, 44, 0.05); padding: 22rpx 8rpx;
+  display: flex; flex-direction: column; align-items: center;
+}
+.invite-n { font-size: 36rpx; font-weight: 700; color: var(--text-primary, #2c2c2c); }
+.invite-t { font-size: 22rpx; color: var(--text-tertiary, #999999); margin-top: 4rpx; }
+
+/* 邀请码列表 */
+.invite-list {
+  margin: 20rpx 32rpx 0; background: var(--bg-card, #ffffff);
+  border-radius: 36rpx; box-shadow: 0 2rpx 6rpx rgba(44, 44, 44, 0.05); overflow: hidden;
+}
+.invite-row { display: flex; align-items: center; gap: 24rpx; padding: 26rpx 32rpx; }
+.invite-row + .invite-row { border-top: 1rpx solid var(--separator, #ede7dd); }
+.invite-main { flex: 1; min-width: 0; }
+.invite-code { display: block; font-size: 28rpx; font-weight: 600; letter-spacing: 2rpx; color: var(--text-primary, #2c2c2c); font-family: ui-monospace, 'SF Mono', Menlo, monospace; }
+.invite-meta { display: block; font-size: 24rpx; color: var(--text-tertiary, #999999); margin-top: 2rpx; }
+.invite-state { font-size: 24rpx; flex-shrink: 0; }
+.invite-state.used { color: var(--text-tertiary, #999999); }
+.invite-state.open { color: #5b8a5e; }
+.invite-copy {
+  flex-shrink: 0; height: 56rpx; padding: 0 24rpx; border-radius: 28rpx;
+  background: var(--brand-soft, rgba(196, 30, 58, 0.08));
+  display: flex; align-items: center;
+}
+.invite-copy:active { opacity: 0.8; }
+.invite-copy-txt { font-size: 24rpx; font-weight: 500; color: var(--brand, #c41e3a); }
+
+/* 生成按钮 */
+.gen-btn {
+  margin: 24rpx 32rpx 0; height: 88rpx; border-radius: 44rpx;
+  background: var(--brand, #c41e3a);
+  display: flex; align-items: center; justify-content: center; gap: 12rpx;
+}
+.gen-btn.disabled { opacity: 0.6; }
+.gen-btn:active { opacity: 0.85; }
+.gen-btn-txt { color: #ffffff; font-size: 30rpx; font-weight: 600; letter-spacing: 2rpx; }
+
+/* 三态 */
+.state-view { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12rpx; padding: 160rpx 80rpx; }
+.state-desc { font-size: 26rpx; color: var(--text-tertiary, #999999); text-align: center; }
+.state-btn { margin-top: 24rpx; height: 72rpx; padding: 0 48rpx; border-radius: 36rpx; background: var(--brand, #c41e3a); display: flex; align-items: center; }
+.state-btn-txt { color: #ffffff; font-size: 26rpx; font-weight: 500; }
+.spin { animation: rotate 1s linear infinite; }
+@keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+.safe-bottom { height: 60rpx; }
 </style>

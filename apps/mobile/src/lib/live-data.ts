@@ -1,7 +1,7 @@
 // ============ 直播板块(live) mock 数据（从原型 app/live 迁移） ============
 // 说明：原型封面/头像为 mock 配图，dev 下回退占位；此处统一用 /marketing 占位路径，比对时会被中和
 
-import { apiGet, apiPost, useMock } from '@/utils/request'
+import { apiGet, apiPost, apiDelete, useMock } from '@/utils/request'
 
 export type LiveStatus = 'live' | 'upcoming' | 'replay'
 export type LiveType = 'knowledge' | 'commerce'
@@ -350,6 +350,34 @@ export const liveWatchRoom = {
   onlineAvatars: ['https://api.rebugx.cn/assets/marketing/course.webp', 'https://api.rebugx.cn/assets/marketing/course.webp', 'https://api.rebugx.cn/assets/marketing/course.webp'],
   imGroupId: '', // TIM 弹幕群 ID
   circleId: '', // 发起直播的圈子 ID（佣-V2-P3：进房上报圈子渠道点击/购买带 LIVE 来源）
+}
+
+/** 观看页房间数据（getWatchRoom 适配后的完整形状·三态改造：预约/直播中/回放共用） */
+export interface LiveWatchRoomInfo {
+  id: string
+  type: 'knowledge' | 'commerce'
+  title: string
+  hostName: string
+  hostAvatar: string
+  hostId: string
+  followers: number
+  viewerCount: number
+  likeCount: number
+  isFollowing: boolean
+  onlineAvatars: string[]
+  imGroupId: string
+  circleId: string
+  /** 房间状态 WAITING/LIVING/ENDED/REPLAY（大写原样透传） */
+  status: string
+  cover: string
+  startTime: string
+  /** 收费类型（大写）：FREE | 其他=付费 */
+  chargeType: string
+  chargePrice: number
+  /** 画质档位：basic | hd | uhd（空=未知） */
+  quality: string
+  replayUrl: string
+  circleName: string
 }
 // 原型 mockDanmaku 全部为普通弹幕(type:normal)，无"系统/欢迎"项；系统消息走 liveWatchSystemPool 横幅
 export const liveWatchComments: VerticalLiveComment[] = [
@@ -1184,6 +1212,9 @@ interface RawLiveRoomDetail extends RawLiveRoom {
   circleId?: string | null // 发起直播的圈子（佣-V2-P3 内容场景归因：直播购买佣金归圈子）
   user?: (RawLiveUser & { id?: string }) | null
   products?: { id?: string; productId?: string }[] | null
+  quality?: string | null // 画质档位 basic|hd|uhd（C5 分档）
+  replayUrl?: string | null // 回放地址（ENDED/REPLAY 态有回放时返回）
+  circle?: { id?: string; name?: string } | null // 圈子关联（观看页展示「来自圈子」）
 }
 /** GET /shop/products/:id 精简形状（直播带货商品充实用·仅声明访问到的字段） */
 interface RawLiveShopProduct {
@@ -1443,7 +1474,7 @@ export const liveApi = {
   },
 
   /** 创建直播间 — POST /live/rooms（预约直播，status=WAITING；quality 画质档 basic/hd/uhd） */
-  async createRoom(payload: { title: string; cover?: string; startTime?: string; chargeType?: string; quality?: string }): Promise<{ id: string }> {
+  async createRoom(payload: { title: string; cover?: string; startTime?: string; chargeType?: string; chargePrice?: number; quality?: string }): Promise<{ id: string }> {
     return await apiPost<{ id: string }>('/live/rooms', payload)
   },
 
@@ -1863,10 +1894,10 @@ export const liveApi = {
    * 弹幕(comments)走 TIM 群·初始空；商品详情关联表无字段 → 降级空。
    */
   async getWatchRoom(id: string): Promise<{
-    room: typeof liveWatchRoom & { status: string }; comments: VerticalLiveComment[]; products: VerticalLiveProduct[]
+    room: LiveWatchRoomInfo; comments: VerticalLiveComment[]; products: VerticalLiveProduct[]
   }> {
     const r = await apiGet<RawLiveRoomDetail>(`/live/rooms/${id}`)
-    const room: typeof liveWatchRoom & { status: string } = {
+    const room: LiveWatchRoomInfo = {
       id: r.id || id,
       type: (Array.isArray(r.products) && r.products.length ? 'commerce' : 'knowledge'),
       title: r.title || '',
@@ -1881,6 +1912,13 @@ export const liveApi = {
       imGroupId: r.imGroupId || '',
       circleId: r.circleId || '', // 佣-V2-P3：进房渠道点击上报 + 购买 LIVE 来源归因
       status: r.status || '', // 房间状态(WAITING/LIVING/ENDED/REPLAY)→供未开播占位文案精确判断
+      cover: r.cover || '', // 封面（预约态压暗展示/回放态封面）
+      startTime: r.startTime || '', // 开播时间（预约态倒计时/时间行）
+      chargeType: String(r.chargeType || 'FREE').toUpperCase(), // FREE|付费（付费场如实展示票价，不做假支付）
+      chargePrice: Number(r.chargePrice) || 0,
+      quality: String(r.quality || ''), // basic|hd|uhd（LIVING 态画质角标）
+      replayUrl: r.replayUrl || '', // 回放地址（ENDED/REPLAY 态点播）
+      circleName: r.circle?.name || '', // 来源圈子名（「来自圈子」一行小字）
     }
     // 带货商品充实（佣-V2-P3 顺带修通）：关联表仅存 productId → 逐个拉商品详情组装带货列表
     // （限 10 件·单件失败跳过·全部失败=空态与此前降级一致，不阻断直播间加载）
@@ -1968,6 +2006,25 @@ export const liveApi = {
   /** 直播点赞 — POST /live/rooms/:id/like */
   async likeRoom(roomId: string): Promise<void> {
     await apiPost(`/live/rooms/${roomId}/like`)
+  },
+
+  // ───────── 开播预约（仅 WAITING 可约；后端无「我是否已预约」查询 → 已预约态由页面本次会话乐观维护）─────────
+
+  /** 预约直播 — POST /live/rooms/:id/book（返回 {booked, bookingCount}·未登录/非 WAITING 抛错给页面 toast） */
+  async bookRoom(roomId: string): Promise<{ booked: boolean; bookingCount: number }> {
+    const res = await apiPost<{ booked?: boolean; bookingCount?: number }>(`/live/rooms/${roomId}/book`)
+    return { booked: !!res?.booked, bookingCount: Number(res?.bookingCount) || 0 }
+  },
+
+  /** 取消预约 — DELETE /live/rooms/:id/book */
+  async unbookRoom(roomId: string): Promise<void> {
+    await apiDelete(`/live/rooms/${roomId}/book`)
+  },
+
+  /** 预约人数 — GET /live/rooms/:id/bookings（返回 {roomId, bookingCount}·失败交页面容错） */
+  async getBookingCount(roomId: string): Promise<number> {
+    const res = await apiGet<{ bookingCount?: number }>(`/live/rooms/${roomId}/bookings`)
+    return Number(res?.bookingCount) || 0
   },
 
   /** 发送直播评论/弹幕（业务侧持久化，与 TIM 群实时下发并行） — POST /live/rooms/:id/comment */
