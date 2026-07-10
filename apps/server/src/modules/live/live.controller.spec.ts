@@ -105,10 +105,17 @@ describe("LiveController", () => {
     expect(result.title).toBe("更新标题");
   });
 
-  it("PUT /live/rooms/:id/start — 开始直播", async () => {
-    const result: any = await ctrl.startRoom("r1");
+  it("PUT /live/rooms/:id/start — 房主开播（登录即可·房主/管理员校验下沉 service）", async () => {
+    const req: any = { user: { id: "u1", roles: [] } };
+    const result: any = await ctrl.startRoom("r1", req);
     expect(result.pushUrl).toBeTruthy();
-    expect(mockLiveSvc.startLive).toHaveBeenCalledWith("r1");
+    expect(mockLiveSvc.startLive).toHaveBeenCalledWith("r1", "u1", false);
+  });
+
+  it("PUT /live/rooms/:id/start — 管理员开播（isAdmin=true 透传）", async () => {
+    const req: any = { user: { id: "admin1", roles: ["SUPER_ADMIN"] } };
+    await ctrl.startRoom("r1", req);
+    expect(mockLiveSvc.startLive).toHaveBeenCalledWith("r1", "admin1", true);
   });
 
   it("GET /live/rooms/:id/stream-urls — 推拉流地址", async () => {
@@ -123,9 +130,11 @@ describe("LiveController", () => {
     expect(result.playUrl).toBeTruthy();
   });
 
-  it("PUT /live/rooms/:id/end — 结束直播", async () => {
-    const result: any = await ctrl.endRoom("r1");
+  it("PUT /live/rooms/:id/end — 房主结束直播（校验下沉 service）", async () => {
+    const req: any = { user: { id: "u1", roles: [] } };
+    const result: any = await ctrl.endRoom("r1", req);
     expect(result.status).toBe("ENDED");
+    expect(mockLiveSvc.endRoom).toHaveBeenCalledWith("r1", "u1", false);
   });
 
   it("PUT /live/rooms/:id/replay — 设置回放", async () => {

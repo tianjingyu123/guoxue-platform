@@ -167,11 +167,11 @@
               </view>
               <view
                 v-else-if="item.status === 'preview'"
-                class="act-btn act-btn-outline"
-                @tap="goCreate"
+                class="act-btn act-btn-live"
+                @tap="startLive(item)"
               >
-                <app-icon name="edit-3" :size="24" color="#1a1a1a" />
-                <text class="act-btn-text act-btn-text-dark">编辑</text>
+                <app-icon name="play" :size="24" color="#fff" />
+                <text class="act-btn-text">开始直播</text>
               </view>
               <view
                 v-else-if="item.status === 'draft'"
@@ -292,8 +292,34 @@ function goCreate() {
   uni.navigateTo({ url: '/pkg-live/create/index' })
 }
 
-function enterLive(_item: LiveManageItem) {
-  uni.navigateTo({ url: '/pkg-live/console/index' })
+function enterLive(item: LiveManageItem) {
+  uni.navigateTo({ url: `/pkg-live/console/index?id=${item.id}` })
+}
+
+// 开始直播 — PUT /live/rooms/:id/start（房主本人·2026-07-11 拍板放开），成功跳中控台
+const starting = ref(false)
+function startLive(item: LiveManageItem) {
+  if (starting.value) return
+  uni.showModal({
+    title: '开始直播',
+    content: `确定现在开播「${item.title}」吗？`,
+    confirmText: '开播',
+    success: async (res) => {
+      if (!res.confirm) return
+      starting.value = true
+      uni.showLoading({ title: '开播中…' })
+      try {
+        await liveApi.startLive(String(item.id))
+        uni.hideLoading()
+        uni.navigateTo({ url: `/pkg-live/console/index?id=${item.id}` })
+      } catch (e) {
+        uni.hideLoading()
+        uni.showToast({ title: (e as Error)?.message || '开播失败，请重试', icon: 'none' })
+      } finally {
+        starting.value = false
+      }
+    },
+  })
 }
 
 function viewData(item: LiveManageItem) {

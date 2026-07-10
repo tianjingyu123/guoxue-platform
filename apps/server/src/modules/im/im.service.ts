@@ -155,7 +155,7 @@ export class ImService {
 
   // ───────── 群组管理 ─────────
 
-  /** 创建 IM 群组 */
+  /** 创建 IM 群组（AVChatRoom 直播大群不支持 ApplyJoinOption·加群本就自由进出） */
   async createGroup(
     groupId: string,
     name: string,
@@ -167,7 +167,7 @@ export class ImService {
       Type: type,
       Name: name,
       Owner_Account: ownerId || this.adminId,
-      ApplyJoinOption: type === "Public" ? "FreeAccess" : "NeedPermission",
+      ...(type === "AVChatRoom" ? {} : { ApplyJoinOption: type === "Public" ? "FreeAccess" : "NeedPermission" }),
     });
   }
 

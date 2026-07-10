@@ -6,6 +6,7 @@ import { LiveStreamService } from "./live-stream.service";
 import { WebhookService } from "../webhook/webhook.service";
 import { AuditService } from "../audit/audit.service";
 import { NotificationService } from "../notification/notification.service";
+import { ImService } from "../im/im.service";
 import { BusinessException } from "../../common/business.exception";
 
 const mockPrisma = {
@@ -36,8 +37,12 @@ const mockNotification = {
   send: jest.fn().mockResolvedValue({ id: "n1" }),
   batchSend: jest.fn().mockResolvedValue({ success: true, count: 0 }),
 };
-const mockStream = {};
+const mockStream = {
+  genPushUrl: jest.fn().mockReturnValue("rtmp://push.example.com/live/room_r1"),
+  genPlayUrls: jest.fn().mockReturnValue({ flv: "https://play.example.com/live/room_r1.flv" }),
+};
 const mockWebhook = { fire: jest.fn().mockResolvedValue(undefined) };
+const mockIm = { createGroup: jest.fn().mockResolvedValue({ GroupId: "live_r1" }) };
 const mockAudit = {
   moderateTextOrThrow: jest.fn().mockResolvedValue(undefined),
   moderateImageOrThrow: jest.fn().mockResolvedValue(undefined),
@@ -60,6 +65,7 @@ describe("LiveService", () => {
         { provide: WebhookService, useValue: mockWebhook },
         { provide: AuditService, useValue: mockAudit },
         { provide: NotificationService, useValue: mockNotification },
+        { provide: ImService, useValue: mockIm },
       ],
     }).compile();
     svc = mod.get(LiveService);
@@ -173,11 +179,67 @@ describe("LiveService", () => {
     });
   });
 
+  describe("startLive（房主自主开播·拍板 20260711）", () => {
+    const waitingRoom = {
+      id: "r1", status: "WAITING", auditStatus: "APPROVED", hostUserId: "host1", title: "国学直播", circleId: null,
+    };
+
+    it("非房主且非管理员 → 403", async () => {
+      mockPrisma.liveRoom.findUnique.mockResolvedValue(waitingRoom);
+      await expect(svc.startLive("r1", "someone-else", false)).rejects.toThrow(BusinessException);
+      expect(mockPrisma.liveRoom.update).not.toHaveBeenCalled();
+    });
+
+    it("房主本人开播成功，创建 IM AVChatRoom 弹幕群并回写 imGroupId", async () => {
+      mockPrisma.liveRoom.findUnique.mockResolvedValue(waitingRoom);
+      mockPrisma.liveRoom.update.mockImplementation(({ data }) => Promise.resolve({ id: "r1", ...data }));
+      mockIm.createGroup.mockResolvedValue({ GroupId: "live_r1" });
+      const result: any = await svc.startLive("r1", "host1", false);
+      expect(result.status).toBe("LIVING");
+      expect(mockIm.createGroup).toHaveBeenCalledWith("live_r1", expect.any(String), "AVChatRoom", "host1");
+      // imGroupId 回写落库
+      expect(mockPrisma.liveRoom.update).toHaveBeenCalledWith(
+        expect.objectContaining({ data: { imGroupId: "live_r1" } }),
+      );
+      expect(result.imGroupId).toBe("live_r1");
+    });
+
+    it("管理员可代任意房间开播", async () => {
+      mockPrisma.liveRoom.findUnique.mockResolvedValue(waitingRoom);
+      mockPrisma.liveRoom.update.mockImplementation(({ data }) => Promise.resolve({ id: "r1", ...data }));
+      const result: any = await svc.startLive("r1", "admin1", true);
+      expect(result.status).toBe("LIVING");
+    });
+
+    it("IM 建群失败 fail-open：只记日志，开播不受影响", async () => {
+      mockPrisma.liveRoom.findUnique.mockResolvedValue(waitingRoom);
+      mockPrisma.liveRoom.update.mockImplementation(({ data }) => Promise.resolve({ id: "r1", ...data }));
+      mockIm.createGroup.mockRejectedValue(new Error("IM 未配置，请联系管理员"));
+      const result: any = await svc.startLive("r1", "host1", false);
+      expect(result.status).toBe("LIVING");
+      expect(result.imGroupId).toBeUndefined();
+    });
+  });
+
   describe("endRoom", () => {
-    it("结束直播间成功", async () => {
+    it("结束直播间成功（内部调用·无操作者时跳过房主校验）", async () => {
+      mockPrisma.liveRoom.findUnique.mockResolvedValue({ id: "r1", status: "LIVING", hostUserId: "host1" });
       mockPrisma.liveRoom.update.mockResolvedValue({ id: "r1", status: "ENDED" });
       const result = await svc.endRoom("r1");
       expect(result.status).toBe("ENDED");
+    });
+
+    it("房主本人可结束直播", async () => {
+      mockPrisma.liveRoom.findUnique.mockResolvedValue({ id: "r1", status: "LIVING", hostUserId: "host1" });
+      mockPrisma.liveRoom.update.mockResolvedValue({ id: "r1", status: "ENDED" });
+      const result = await svc.endRoom("r1", "host1", false);
+      expect(result.status).toBe("ENDED");
+    });
+
+    it("非房主且非管理员结束直播 → 403", async () => {
+      mockPrisma.liveRoom.findUnique.mockResolvedValue({ id: "r1", status: "LIVING", hostUserId: "host1" });
+      await expect(svc.endRoom("r1", "someone-else", false)).rejects.toThrow(BusinessException);
+      expect(mockPrisma.liveRoom.update).not.toHaveBeenCalled();
     });
   });
 

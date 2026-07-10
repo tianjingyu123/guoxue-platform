@@ -27,6 +27,12 @@ export class LiveController {
     private qualitySvc: LiveQualityService,
   ) {}
 
+  /** 是否平台管理员（超管/运营）——开播/下播/推流地址在 service 层做「房主或管理员」逻辑校验 */
+  private isAdmin(req: AuthRequest): boolean {
+    const roles = (req.user as { roles?: string[] }).roles || [];
+    return roles.some((r) => r === "SUPER_ADMIN" || r === "OPERATION_ADMIN");
+  }
+
   // ───────── 直播间 CRUD ─────────
 
   @Post("rooms")
@@ -122,6 +128,19 @@ export class LiveController {
     return this.svc.getStreamerReviews(req.user.id, filter);
   }
 
+  @Post("reviews/:reviewId/reply")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "回复直播评价（仅评价所属直播间的房主）" })
+  @ApiResponse({ status: 201, description: "回复成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "仅房主可回复" })
+  @ApiResponse({ status: 404, description: "评价不存在" })
+  @ApiBearerAuth()
+  replyReview(@Param("reviewId") reviewId: string, @Req() req: AuthRequest, @Body("reply") reply: string) {
+    return this.svc.replyStreamerReview(req.user.id, reviewId, reply);
+  }
+
   @Get("team")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "主播端直播团队 — 团队成员 + 可邀请成员" })
@@ -165,18 +184,17 @@ export class LiveController {
   }
 
   @Put("rooms/:id/start")
-  @UseGuards(JwtAuthGuard, FeatureFlagGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, FeatureFlagGuard)
   @RequireFeature("live_start")
-  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
-  @ApiOperation({ summary: "开始直播（生成推拉流地址）" })
+  @ApiOperation({ summary: "开始直播（房主或管理员·生成推拉流地址）" })
   @ApiResponse({ status: 200, description: "更新成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 404, description: "资源不存在" })
   @ApiResponse({ status: 401, description: "未登录" })
-  @ApiResponse({ status: 403, description: "无权限" })
+  @ApiResponse({ status: 403, description: "无权限（仅房主本人或管理员）" })
   @ApiBearerAuth()
-  startRoom(@Param("id") id: string) {
-    return this.svc.startLive(id);
+  startRoom(@Param("id") id: string, @Req() req: AuthRequest) {
+    return this.svc.startLive(id, req.user.id, this.isAdmin(req));
   }
 
   @Get("rooms/:id/stream-urls")
@@ -187,7 +205,7 @@ export class LiveController {
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   getStreamUrls(@Param("id") id: string, @Req() req: AuthRequest) {
-    return this.svc.getStreamUrls(id, req.user.id);
+    return this.svc.getStreamUrls(id, req.user.id, this.isAdmin(req));
   }
 
   @Get("rooms/:id/play-url")
@@ -202,17 +220,16 @@ export class LiveController {
   }
 
   @Put("rooms/:id/end")
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
-  @ApiOperation({ summary: "结束直播" })
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "结束直播（房主或管理员）" })
   @ApiResponse({ status: 200, description: "更新成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 404, description: "资源不存在" })
   @ApiResponse({ status: 401, description: "未登录" })
-  @ApiResponse({ status: 403, description: "无权限" })
+  @ApiResponse({ status: 403, description: "无权限（仅房主本人或管理员）" })
   @ApiBearerAuth()
-  endRoom(@Param("id") id: string) {
-    return this.svc.endRoom(id);
+  endRoom(@Param("id") id: string, @Req() req: AuthRequest) {
+    return this.svc.endRoom(id, req.user.id, this.isAdmin(req));
   }
 
   @Put("rooms/:id/replay")
@@ -387,16 +404,15 @@ export class LiveController {
   // ───────── 禁言管理 ─────────
 
   @Post("rooms/:id/mute")
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
-  @ApiOperation({ summary: "禁言用户" })
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "禁言用户（主播或管理员）" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 401, description: "未登录" })
-  @ApiResponse({ status: 403, description: "无权限" })
+  @ApiResponse({ status: 403, description: "无权限（仅主播本人或管理员）" })
   @ApiBearerAuth()
   muteUser(@Param("id") id: string, @Req() req: AuthRequest, @Body() dto: MuteUserDto) {
-    return this.svc.muteUser(id, req.user.id, dto);
+    return this.svc.muteUser(id, req.user.id, dto, this.isAdmin(req));
   }
 
   @Delete("rooms/:id/mute/:userId")
@@ -408,7 +424,7 @@ export class LiveController {
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   unmuteUser(@Param("id") id: string, @Param("userId") userId: string, @Req() req: AuthRequest) {
-    return this.svc.unmuteUser(id, userId, req.user.id);
+    return this.svc.unmuteUser(id, userId, req.user.id, this.isAdmin(req));
   }
 
   @Get("rooms/:id/muted-users")

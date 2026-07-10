@@ -148,7 +148,7 @@
                   <view class="dm-act" @tap="onPinDanmaku(item.id)"><AppIcon name="pin" :size="24" color="#666" /></view>
                   <view class="dm-act" @tap="onReplyDanmaku(item.id)"><AppIcon name="reply" :size="24" color="#666" /></view>
                   <view class="dm-act" @tap="handleDeleteDanmaku(item.id)"><AppIcon name="trash-2" :size="24" color="#ef4444" /></view>
-                  <view class="dm-act" @tap="handleBanUser(item.id)"><AppIcon name="ban" :size="24" color="#ef4444" /></view>
+                  <view class="dm-act" @tap="handleBanUser(item)"><AppIcon name="ban" :size="24" color="#ef4444" /></view>
                 </view>
               </view>
             </scroll-view>
@@ -532,8 +532,27 @@ function onReplyDanmaku(_id: number) {}
 function handleDeleteDanmaku(id: number) {
   danmakuList.value = danmakuList.value.filter((d) => d.id !== id)
 }
-// @data-needs: 禁言用户，入参 userId
-function handleBanUser(_id: number) {}
+// 禁言用户 — POST /live/rooms/:id/mute（主播或管理员）
+function handleBanUser(item: ConsoleDanmaku) {
+  if (!item.userId) {
+    uni.showToast({ title: '无法定位该用户', icon: 'none' })
+    return
+  }
+  uni.showModal({
+    title: '禁言用户',
+    content: `确定禁言「${item.user}」吗？禁言后其将无法在本直播间发言。`,
+    confirmText: '禁言',
+    success: async (res) => {
+      if (!res.confirm) return
+      try {
+        await liveApi.muteUser(consoleId.value, item.userId!)
+        uni.showToast({ title: '已禁言', icon: 'success' })
+      } catch (e) {
+        uni.showToast({ title: (e as Error)?.message || '禁言失败', icon: 'none' })
+      }
+    },
+  })
+}
 // 接受/拒绝连麦（纯前端移除，实际接通走后端 RTC）
 // @data-needs: 接通连麦，入参 申请 id，建立 RTC 连接
 function handleAcceptConnect(id: number) {
@@ -552,11 +571,24 @@ function onRefreshStock() {}
 function onRestock() {}
 // @data-needs: 推送秒杀活动
 function onPushFlashSale() {}
-// @data-needs: 结束直播接口，落库本场数据后跳转直播管理首页
-function onConfirmEnd() {
-  isLive.value = false
-  showEndDialog.value = false
-  goBack()
+// 结束直播 — PUT /live/rooms/:id/end（房主或管理员），成功后跳下播统计页
+const ending = ref(false)
+async function onConfirmEnd() {
+  if (ending.value) return
+  ending.value = true
+  uni.showLoading({ title: '正在下播…' })
+  try {
+    await liveApi.endLive(consoleId.value)
+    isLive.value = false
+    showEndDialog.value = false
+    uni.hideLoading()
+    uni.redirectTo({ url: `/pkg-live/end/index?id=${consoleId.value}` })
+  } catch (e) {
+    uni.hideLoading()
+    uni.showToast({ title: (e as Error)?.message || '下播失败，请重试', icon: 'none' })
+  } finally {
+    ending.value = false
+  }
 }
 </script>
 

@@ -1,7 +1,7 @@
 // ============ 直播板块(live) mock 数据（从原型 app/live 迁移） ============
 // 说明：原型封面/头像为 mock 配图，dev 下回退占位；此处统一用 /marketing 占位路径，比对时会被中和
 
-import { apiGet, apiPost, apiDelete, useMock } from '@/utils/request'
+import { apiGet, apiPost, apiPut, apiDelete, useMock } from '@/utils/request'
 
 export type LiveStatus = 'live' | 'upcoming' | 'replay'
 export type LiveType = 'knowledge' | 'commerce'
@@ -317,6 +317,7 @@ export const verticalLiveRoom = {
   title: '开光吉祥物专场：招财貔貅限时特惠',
   hostName: '福缘阁主',
   hostAvatar: 'https://api.rebugx.cn/assets/marketing/course.webp',
+  hostId: '', // 主播 userId（关注主播用·真连时由后端房间返回）
   hostLevel: 5,
   followers: 12800,
   viewerCount: 8920,
@@ -735,7 +736,7 @@ export const consoleLiveStats = {
 }
 
 // @data-needs: 实时弹幕流，后端推送追加；含等级/VIP 标记
-export interface ConsoleDanmaku { id: number; user: string; content: string; time: string; level: number; isVip: boolean }
+export interface ConsoleDanmaku { id: number; userId?: string; user: string; content: string; time: string; level: number; isVip: boolean }
 export const consoleDanmaku: ConsoleDanmaku[] = [
   { id: 1, user: '易学小白', content: '老师讲得真好！', time: '10:23:15', level: 3, isVip: false },
   { id: 2, user: '命理爱好者', content: '这个八字怎么看财运？', time: '10:23:18', level: 5, isVip: true },
@@ -1485,6 +1486,49 @@ export const liveApi = {
     return await apiPost<{ id: string }>('/live/rooms', payload)
   },
 
+  /** 开始直播（房主本人或管理员） — PUT /live/rooms/:id/start（后端生成推拉流地址+建 IM 弹幕群） */
+  async startLive(roomId: string): Promise<{ id: string; status?: string; imGroupId?: string }> {
+    return await apiPut<{ id: string; status?: string; imGroupId?: string }>(`/live/rooms/${roomId}/start`)
+  },
+
+  /** 结束直播（房主本人或管理员） — PUT /live/rooms/:id/end */
+  async endLive(roomId: string): Promise<{ id: string; status?: string }> {
+    return await apiPut<{ id: string; status?: string }>(`/live/rooms/${roomId}/end`)
+  },
+
+  /** 禁言用户（房主或管理员） — POST /live/rooms/:id/mute */
+  async muteUser(roomId: string, userId: string, durationMinutes?: number): Promise<void> {
+    await apiPost(`/live/rooms/${roomId}/mute`, { userId, ...(durationMinutes ? { durationMinutes } : {}) })
+  },
+
+  /** 解除禁言 — DELETE /live/rooms/:id/mute/:userId */
+  async unmuteUser(roomId: string, userId: string): Promise<void> {
+    await apiDelete(`/live/rooms/${roomId}/mute/${userId}`)
+  },
+
+  /** 回复直播评价（仅房主） — POST /live/reviews/:id/reply */
+  async replyReview(reviewId: string, reply: string): Promise<void> {
+    await apiPost(`/live/reviews/${reviewId}/reply`, { reply })
+  },
+
+  // ───────── 关注主播（复用平台用户关注端点·与短视频批同一套）─────────
+
+  /** 是否已关注主播 — GET /users/:id/is-following */
+  async isFollowingHost(userId: string): Promise<boolean> {
+    const res = await apiGet<{ isFollowing?: boolean; following?: boolean }>(`/users/${userId}/is-following`)
+    return !!(res?.isFollowing ?? res?.following)
+  },
+
+  /** 关注主播 — POST /users/:id/follow */
+  async followHost(userId: string): Promise<void> {
+    await apiPost(`/users/${userId}/follow`)
+  },
+
+  /** 取关主播 — DELETE /users/:id/follow */
+  async unfollowHost(userId: string): Promise<void> {
+    await apiDelete(`/users/${userId}/follow`)
+  },
+
   // ───────── 画质分档商业化（C5·时长包/额度）─────────
 
   /** 时长包列表 — GET /live/quality-packages（公开） */
@@ -1814,6 +1858,7 @@ export const liveApi = {
       title: r.title || '',
       hostName: r.user?.nickname || '',
       hostAvatar: r.user?.avatar || '',
+      hostId: r.user?.id || r.hostUserId || '', // 关注主播用
       hostLevel: 0, // 后端无主播等级 → 降级
       followers: 0, // 后端房间未聚合粉丝数 → 降级
       viewerCount: r.viewCount ?? 0,

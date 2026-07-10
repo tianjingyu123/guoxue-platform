@@ -14,6 +14,7 @@ import { CoinService } from "../coin/coin.service";
 import { RevenueService } from "../revenue/revenue.service";
 import { AuditService } from "../audit/audit.service";
 import { NotificationService } from "../notification/notification.service";
+import { ImService } from "../im/im.service";
 import { safePagination } from "../../common/pagination";
 
 @Injectable()
@@ -29,6 +30,7 @@ export class LiveService {
     @Optional() private coin?: CoinService,
     @Optional() private revenue?: RevenueService,
     @Optional() private notification?: NotificationService,
+    @Optional() private im?: ImService,
   ) {}
 
   async createRoom(userId: string, dto: CreateRoomDto, isAdmin = false) {
@@ -141,10 +143,13 @@ export class LiveService {
     });
   }
 
-  /** 开始直播，自动生成推拉流地址 */
-  async startLive(id: string) {
+  /** 开始直播（房主本人或管理员），自动生成推拉流地址 + 创建 IM 弹幕群（fail-open） */
+  async startLive(id: string, operatorId?: string, isAdmin = false) {
     const room = await this.prisma.liveRoom.findUnique({ where: { id } });
     if (!room) throw new BusinessException(ErrorCode.LIVE_ROOM_NOT_FOUND);
+    if (operatorId && room.hostUserId !== operatorId && !isAdmin) {
+      throw new BusinessException(ErrorCode.FORBIDDEN, "只有主播本人或管理员可以开播");
+    }
     if (room.auditStatus === "REJECTED") throw new BusinessException(ErrorCode.FORBIDDEN, "该直播间已被下架，无法开播");
     if (room.status !== "WAITING") throw new BusinessException(ErrorCode.BAD_REQUEST, "只能在等待状态开始直播");
 
@@ -158,6 +163,10 @@ export class LiveService {
       trtcRoomId: streamKey,
     });
 
+    // IM 弹幕群：开播时才建（WAITING 房可能永不开播·不浪费群资源）。
+    // fail-open：IM 未配置/建群失败只记 warn，不阻断开播（前端有 if(imGroupId) 守卫自动降级为轮询弹幕）。
+    const imGroupId = await this.createLiveImGroup(id, room.title, room.hostUserId);
+
     this.webhook.fire("LIVE_STARTED", {
       roomId: id,
       title: room.title,
@@ -165,14 +174,35 @@ export class LiveService {
       circleId: room.circleId,
     }).catch((e: unknown) => this.logger.warn("LIVE_STARTED webhook 发送失败", e instanceof Error ? e.message : String(e)));
 
-    return result;
+    return imGroupId ? { ...result, imGroupId } : result;
   }
 
-  /** 获取指定房间的推/拉流地址（主播用） */
-  async getStreamUrls(id: string, userId?: string) {
+  /**
+   * 创建直播弹幕群（腾讯 IM AVChatRoom 直播大群）并回写 LiveRoom.imGroupId。
+   * fail-open：任何失败（含 IM 未配置）只记 warn 返回 null，绝不阻断开播。
+   */
+  private async createLiveImGroup(roomId: string, title?: string | null, hostUserId?: string): Promise<string | null> {
+    if (!this.im) return null;
+    try {
+      const groupId = `live_${roomId}`;
+      // 群名限 30 字节（UTF-8 中文 3 字节/字），截断防超限
+      const name = (title || "直播间").slice(0, 9);
+      await this.im.createGroup(groupId, name, "AVChatRoom", hostUserId);
+      await this.prisma.liveRoom.update({ where: { id: roomId }, data: { imGroupId: groupId } });
+      return groupId;
+    } catch (e: unknown) {
+      this.logger.warn(
+        `IM 弹幕群创建失败（fail-open·开播不受影响） room=${roomId}: ${e instanceof Error ? e.message : String(e)}`,
+      );
+      return null;
+    }
+  }
+
+  /** 获取指定房间的推/拉流地址（主播或管理员用） */
+  async getStreamUrls(id: string, userId?: string, isAdmin = false) {
     const room = await this.prisma.liveRoom.findUnique({ where: { id } });
     if (!room) throw new BusinessException(ErrorCode.LIVE_ROOM_NOT_FOUND);
-    if (userId && room.hostUserId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只有主播可获取推流地址");
+    if (userId && room.hostUserId !== userId && !isAdmin) throw new BusinessException(ErrorCode.FORBIDDEN, "只有主播可获取推流地址");
 
     const streamKey = `room_${id}`;
     return {
@@ -196,8 +226,15 @@ export class LiveService {
     return { ...this.stream.genPlayUrlWithAuth(streamKey, userId), quality };
   }
 
-  async endRoom(id: string) {
+  /** 结束直播（房主本人或管理员） */
+  async endRoom(id: string, operatorId?: string, isAdmin = false) {
     const room = await this.prisma.liveRoom.findUnique({ where: { id } });
+    if (operatorId) {
+      if (!room) throw new BusinessException(ErrorCode.LIVE_ROOM_NOT_FOUND);
+      if (room.hostUserId !== operatorId && !isAdmin) {
+        throw new BusinessException(ErrorCode.FORBIDDEN, "只有主播本人或管理员可以结束直播");
+      }
+    }
     const result = await this.updateStatus(id, "ENDED");
 
     this.webhook.fire("LIVE_ENDED", {
@@ -444,6 +481,26 @@ export class LiveService {
     return { dist, reviews, filters };
   }
 
+  /** 回复直播评价（仅评价所属直播间的房主）。LiveReview 为新表，用原生 SQL 访问。 */
+  async replyStreamerReview(userId: string, reviewId: string, reply: string) {
+    const content = (reply || "").trim();
+    if (!content) throw new BusinessException(ErrorCode.BAD_REQUEST, "回复内容不能为空");
+    if (content.length > 500) throw new BusinessException(ErrorCode.BAD_REQUEST, "回复内容不能超过 500 字");
+
+    const rows = await this.prisma.$queryRawUnsafe<{ id: string; roomId: string }[]>(
+      `SELECT id, "roomId" FROM "LiveReview" WHERE id = $1`, reviewId);
+    if (!rows.length) throw new BusinessException(ErrorCode.NOT_FOUND, "评价不存在");
+
+    const room = await this.prisma.liveRoom.findUnique({ where: { id: rows[0].roomId }, select: { hostUserId: true } });
+    if (!room || room.hostUserId !== userId) {
+      throw new BusinessException(ErrorCode.FORBIDDEN, "只有主播本人可以回复评价");
+    }
+
+    await this.prisma.$executeRawUnsafe(
+      `UPDATE "LiveReview" SET reply = $1 WHERE id = $2`, content, reviewId);
+    return { id: reviewId, reply: content };
+  }
+
   /** 主播端直播团队 — 团队成员 + 可邀请成员。LiveTeamMember 为新表，用原生 SQL 访问。 */
   async getStreamerTeam(userId: string) {
     const memberRows = await this.prisma.$queryRawUnsafe<any[]>(
@@ -514,7 +571,8 @@ export class LiveService {
       const x = new Date(d);
       return `${String(x.getHours()).padStart(2, "0")}:${String(x.getMinutes()).padStart(2, "0")}:${String(x.getSeconds()).padStart(2, "0")}`;
     };
-    const danmaku = comments.map((c, i) => ({ id: i + 1, user: nick.get(c.userId) || "观众", content: c.content, time: fmtTime(c.createdAt), level: 1, isVip: false }));
+    // userId 随弹幕返回：主播控制台禁言操作需要定位真实用户
+    const danmaku = comments.map((c, i) => ({ id: i + 1, userId: c.userId, user: nick.get(c.userId) || "观众", content: c.content, time: fmtTime(c.createdAt), level: 1, isVip: false }));
 
     const prodIds = liveProds.map((p) => p.productId);
     const prodDetails = await this.prisma.product.findMany({ where: { id: { in: prodIds } }, select: { id: true, title: true, price: true, stock: true, salesCount: true } });
@@ -789,8 +847,14 @@ export class LiveService {
 
   // ───────── 禁言管理 ─────────
 
-  /** 禁言用户 */
-  async muteUser(roomId: string, operatorId: string, dto: { userId: string; durationMinutes?: number }) {
+  /** 禁言用户（主播本人或管理员） */
+  async muteUser(roomId: string, operatorId: string, dto: { userId: string; durationMinutes?: number }, isAdmin = false) {
+    const room = await this.prisma.liveRoom.findUnique({ where: { id: roomId }, select: { hostUserId: true } });
+    if (!room) throw new BusinessException(ErrorCode.LIVE_ROOM_NOT_FOUND);
+    if (room.hostUserId !== operatorId && !isAdmin) {
+      throw new BusinessException(ErrorCode.FORBIDDEN, "只有主播本人或管理员可以禁言");
+    }
+
     const expiresAt = dto.durationMinutes
       ? new Date(Date.now() + dto.durationMinutes * 60000)
       : null;
@@ -802,10 +866,10 @@ export class LiveService {
     });
   }
 
-  /** 解除禁言（主播或管理员操作） */
-  async unmuteUser(roomId: string, userId: string, operatorId: string) {
+  /** 解除禁言（主播本人或管理员） */
+  async unmuteUser(roomId: string, userId: string, operatorId: string, isAdmin = false) {
     const room = await this.prisma.liveRoom.findUnique({ where: { id: roomId }, select: { hostUserId: true } });
-    if (!room || room.hostUserId !== operatorId) throw new BusinessException(ErrorCode.FORBIDDEN, "只有主播可以解除禁言");
+    if (!room || (room.hostUserId !== operatorId && !isAdmin)) throw new BusinessException(ErrorCode.FORBIDDEN, "只有主播本人或管理员可以解除禁言");
     await this.prisma.liveMutedUser.deleteMany({
       where: { liveRoomId: roomId, userId },
     });

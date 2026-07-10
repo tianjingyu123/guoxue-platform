@@ -489,6 +489,10 @@ async function fetchRoomData(roomId: string) {
     products.value = data.products
     // 直播中且有弹幕群 → 加入 TIM 群实时弹幕
     if (room.value.imGroupId) joinDanmaku(room.value.imGroupId)
+    // 关注态初始化（未登录/失败降级为未关注，不阻断）
+    if (room.value.hostId) {
+      liveApi.isFollowingHost(room.value.hostId).then((v) => { isFollowing.value = v }).catch(() => {})
+    }
     // 佣-V2-P3：进直播间视同该圈子全店渠道点击（仅已登录且直播间关联圈子才上报·失败静默不扰观看）
     if (getToken() && room.value.circleId) liveApi.reportCircleChannelClick(room.value.circleId)
     // 预约态 → 拉取真实预约人数（失败归零则该行不显示）
@@ -690,9 +694,27 @@ function onClose() {
   goBack()
 }
 
-function onFollow() {
-  isFollowing.value = !isFollowing.value
-  // @data-needs: 关注/取关接口, POST /api/live/{id}/follow
+// 关注/取关主播 — 复用平台用户关注端点 POST/DELETE /users/:id/follow（与短视频批同一套）
+let followSubmitting = false
+async function onFollow() {
+  const hostId = room.value.hostId
+  if (!hostId) {
+    uni.showToast({ title: '暂无法关注该主播', icon: 'none' })
+    return
+  }
+  if (followSubmitting) return
+  followSubmitting = true
+  const prev = isFollowing.value
+  isFollowing.value = !prev // 乐观切换，失败回滚
+  try {
+    if (prev) await liveApi.unfollowHost(hostId)
+    else await liveApi.followHost(hostId)
+  } catch (e) {
+    isFollowing.value = prev
+    uni.showToast({ title: (e as Error)?.message || '操作失败，请重试', icon: 'none' })
+  } finally {
+    followSubmitting = false
+  }
 }
 
 let sendingComment = false

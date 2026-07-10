@@ -135,7 +135,11 @@ function selectSort(v: string) {
 onMounted(() => { fetchData() })
 
 function onSearch() {}
-function openReplay(_item: { id: string }) {}
+// 回放播放在 watch 页（三态观看页已支持回放态播 replayUrl）
+function openReplay(item: { id: string }) {
+  if (!item?.id) return
+  uni.navigateTo({ url: `/pkg-live/watch/index?id=${item.id}` })
+}
 </script>
 
 <style scoped>

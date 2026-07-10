@@ -138,9 +138,9 @@
 
     <!-- 底部预约按钮 -->
     <view class="footer">
-      <view class="book-btn">
+      <view class="book-btn" :class="{ 'book-btn--booked': booked }" @tap="onToggleBook">
         <AppIcon name="bell" :size="40" color="#fff" />
-        <text class="book-txt">立即预约</text>
+        <text class="book-txt">{{ bookingSubmitting ? '提交中…' : booked ? '已预约' : '立即预约' }}</text>
       </view>
     </view>
     </template>
@@ -171,9 +171,39 @@ async function fetchData(previewId: string) {
   }
 }
 
+const roomId = ref('')
 onLoad((opts) => {
-  fetchData(opts?.id || '1')
+  roomId.value = String(opts?.id || '1')
+  fetchData(roomId.value)
 })
+
+// ===== 预约（复用 watch 页 bookRoom 逻辑：POST/DELETE /live/rooms/:id/book·本次会话乐观维护） =====
+const booked = ref(false)
+const bookingSubmitting = ref(false)
+async function onToggleBook() {
+  if (bookingSubmitting.value) return
+  const id = String(room.value?.id || roomId.value)
+  if (!id) return
+  bookingSubmitting.value = true
+  try {
+    if (!booked.value) {
+      await liveApi.bookRoom(id)
+      booked.value = true
+      if (typeof room.value?.bookedCount === 'number') room.value.bookedCount += 1
+      uni.showToast({ title: '预约成功，开播前将提醒你', icon: 'none' })
+    } else {
+      await liveApi.unbookRoom(id)
+      booked.value = false
+      if (typeof room.value?.bookedCount === 'number') room.value.bookedCount = Math.max(0, room.value.bookedCount - 1)
+      uni.showToast({ title: '已取消预约', icon: 'none' })
+    }
+  } catch (e) {
+    // 未登录/非 WAITING 等 → 透传后端错误信息
+    uni.showToast({ title: (e as Error)?.message || '操作失败，请重试', icon: 'none' })
+  } finally {
+    bookingSubmitting.value = false
+  }
+}
 
 // 开播时间 = 当前时间 + 2 小时（与原型一致：动态计算 + 实时倒计时）
 const startTime = Date.now() + 2 * 60 * 60 * 1000
@@ -560,5 +590,8 @@ const descLines = computed(() => {
   font-size: 32rpx;
   font-weight: 500;
   color: #fff;
+}
+.book-btn--booked {
+  background: #B8B2A8;
 }
 </style>

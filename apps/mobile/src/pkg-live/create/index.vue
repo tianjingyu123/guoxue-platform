@@ -445,7 +445,7 @@ async function onCreate() {
   }
   submitting.value = true
   try {
-    await liveApi.createRoom({
+    const created = await liveApi.createRoom({
       circleId: circleId.value || undefined,
       title: title.value.trim(),
       cover: cover.value || undefined,
@@ -458,7 +458,30 @@ async function onCreate() {
     })
     // 审核无感化（20260711 第八节）：创建即生效，机审后台异步完成，无任何审核提示
     uni.showToast({ title: '创建成功', icon: 'success' })
-    setTimeout(() => goBack(), 800)
+    // 未选开播时间（=立即开播意图）→ 提供一键开播（PUT start·房主自主开播），成功进中控台
+    if (created?.id && !startTime.value) {
+      uni.showModal({
+        title: '立即开播',
+        content: '直播间已创建，是否立即开播？',
+        confirmText: '立即开播',
+        cancelText: '稍后再播',
+        success: async (r) => {
+          if (r.confirm) {
+            try {
+              await liveApi.startLive(created.id)
+              uni.redirectTo({ url: `/pkg-live/console/index?id=${created.id}` })
+            } catch (e) {
+              uni.showToast({ title: (e as Error)?.message || '开播失败，可稍后到直播管理开播', icon: 'none' })
+              setTimeout(() => goBack(), 1200)
+            }
+          } else {
+            goBack()
+          }
+        },
+      })
+    } else {
+      setTimeout(() => goBack(), 800)
+    }
   } catch (e) {
     uni.showToast({ title: (e as Error)?.message || '创建失败', icon: 'none' })
   } finally {

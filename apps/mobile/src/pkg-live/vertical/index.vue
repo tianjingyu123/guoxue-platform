@@ -302,6 +302,10 @@ async function fetchData(roomId: string) {
     likeCount.value = roomData.room.likeCount || 0
     // 直播中且有弹幕群 → 加入 TIM 群实时弹幕
     if (room.value.imGroupId) joinDanmaku(room.value.imGroupId)
+    // 关注态初始化（未登录/失败降级为未关注，不阻断）
+    if (room.value.hostId) {
+      liveApi.isFollowingHost(room.value.hostId).then((v) => { isFollowing.value = v }).catch(() => {})
+    }
   } catch (e) {
     error.value = (e as Error)?.message || '加载失败，请重试'
   } finally {
@@ -347,8 +351,28 @@ function formatCount(count: number) {
 }
 
 // ===== 交互 =====
-// @data-needs: 关注/取关主播接口（后端未提供，UI 本地态占位）
-function onToggleFollow() { isFollowing.value = !isFollowing.value }
+// 关注/取关主播 — 复用平台用户关注端点 POST/DELETE /users/:id/follow（与短视频批同一套）
+const followSubmitting = ref(false)
+async function onToggleFollow() {
+  const hostId = room.value.hostId
+  if (!hostId) {
+    uni.showToast({ title: '暂无法关注该主播', icon: 'none' })
+    return
+  }
+  if (followSubmitting.value) return
+  followSubmitting.value = true
+  const prev = isFollowing.value
+  isFollowing.value = !prev // 乐观切换，失败回滚
+  try {
+    if (prev) await liveApi.unfollowHost(hostId)
+    else await liveApi.followHost(hostId)
+  } catch (e) {
+    isFollowing.value = prev
+    uni.showToast({ title: (e as Error)?.message || '操作失败，请重试', icon: 'none' })
+  } finally {
+    followSubmitting.value = false
+  }
+}
 // @data-needs: 分享直播间（uni.share 待接入）
 function onShare() {}
 // 双击点赞 + 飘心动画（点赞计数 fire-and-forget 上报，失败不影响动画）
