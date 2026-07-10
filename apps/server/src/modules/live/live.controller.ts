@@ -144,11 +144,12 @@ export class LiveController {
   }
 
   @Get("rooms/:id")
-  @ApiOperation({ summary: "获取直播间详情" })
+  @UseGuards(OptionalAuthGuard)
+  @ApiOperation({ summary: "获取直播间详情（SELF_ONLY/已下架直播间仅主播本人可见）" })
   @ApiResponse({ status: 200, description: "成功" })
   @ApiResponse({ status: 404, description: "资源不存在" })
-  getRoom(@Param("id") id: string) {
-    return this.svc.getRoom(id);
+  getRoom(@Param("id") id: string, @Req() req: Request) {
+    return this.svc.getRoom(id, req.user?.id);
   }
 
   @Put("rooms/:id")

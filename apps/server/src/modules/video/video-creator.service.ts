@@ -74,6 +74,7 @@ export class VideoCreatorService {
         commentCount: true,
         shareCount: true,
         status: true,
+        visibility: true,
         createdAt: true,
         _count: { select: { products: true } },
       },
@@ -89,7 +90,9 @@ export class VideoCreatorService {
       shares: v.shareCount,
       sales: v._count.products,
       gmv: 0,
-      status: v.status === "PUBLISHED" ? "published" : "draft",
+      // removed=严重违规已下架（作者列表显示「已下架」）；selfOnly=机审降级仅自己可见（灰色小标）
+      status: v.status === "REJECTED" ? "removed" : v.status === "PUBLISHED" ? "published" : "draft",
+      selfOnly: v.visibility === "SELF_ONLY",
       publishTime: v.createdAt.toISOString().slice(0, 10),
       products: [] as { id: string; name: string; price: number }[],
     }));

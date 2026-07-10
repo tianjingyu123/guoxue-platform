@@ -44,6 +44,7 @@ const mockAudit = {
   // 默认按 CIRCLE_ONLY 直生效；分流逻辑本体在 audit.service.spec 覆盖
   resolveContentVisibility: jest.fn().mockResolvedValue({ visibility: "CIRCLE_ONLY", auditStatus: "APPROVED" }),
   openContentAudit: jest.fn().mockResolvedValue(undefined),
+  queueContentModeration: jest.fn(),
 };
 
 describe("LiveService", () => {
@@ -198,12 +199,14 @@ describe("LiveService", () => {
       );
     });
 
-    it("带 circleId（圈内列表）不加开放范围过滤", async () => {
+    it("带 circleId（圈内列表）不加开放范围过滤，但排除 SELF_ONLY/已下架", async () => {
       mockPrisma.liveRoom.findMany.mockResolvedValue([]);
       mockPrisma.liveRoom.count.mockResolvedValue(0);
       await svc.listRooms("LIVING", 1, 20, "c1");
       expect(mockPrisma.liveRoom.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { status: "LIVING", circleId: "c1" } }),
+        expect.objectContaining({
+          where: { status: "LIVING", circleId: "c1", visibility: { not: "SELF_ONLY" }, auditStatus: { not: "REJECTED" } },
+        }),
       );
     });
 

@@ -62,9 +62,9 @@ describe("VideoController", () => {
   });
 
   it("GET /videos/:id — 视频详情", async () => {
-    const result: any = await ctrl.detail("v1");
+    const result: any = await ctrl.detail("v1", { user: undefined } as any);
     expect(result.title).toBe("国学讲座");
-    expect(mockVideoSvc.getDetail).toHaveBeenCalledWith("v1");
+    expect(mockVideoSvc.getDetail).toHaveBeenCalledWith("v1", undefined);
   });
 
   it("PUT /videos/:id — 更新视频", async () => {

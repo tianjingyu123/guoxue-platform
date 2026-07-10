@@ -65,6 +65,7 @@ describe("VideoService", () => {
             // 默认按 CIRCLE_ONLY 直生效；分流逻辑本体在 audit.service.spec 覆盖
             resolveContentVisibility: jest.fn().mockResolvedValue({ visibility: "CIRCLE_ONLY", auditStatus: "APPROVED" }),
             openContentAudit: jest.fn().mockResolvedValue(undefined),
+            queueContentModeration: jest.fn(),
           },
         },
       ],
@@ -122,12 +123,12 @@ describe("VideoService", () => {
       expect(result.total).toBe(0);
     });
 
-    it("按 circleId 和 status 过滤", async () => {
+    it("按 circleId 和 status 过滤（圈内列表排除机审降级 SELF_ONLY）", async () => {
       mockPrisma.video.findMany.mockResolvedValue([]);
       mockPrisma.video.count.mockResolvedValue(0);
       await svc.list({ circleId: "c1", status: "PUBLISHED" });
       expect(mockPrisma.video.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { circleId: "c1", status: "PUBLISHED" } }),
+        expect.objectContaining({ where: { circleId: "c1", status: "PUBLISHED", visibility: { not: "SELF_ONLY" } } }),
       );
     });
   });

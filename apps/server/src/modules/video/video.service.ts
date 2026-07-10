@@ -54,16 +54,16 @@ export class VideoService {
 
   @CacheEvict({ key: "video:list:*", pattern: true })
   async create(userId: string, dto: { circleId?: string; title?: string; description?: string; videoUrl: string; coverUrl?: string; duration?: number; tags?: string[]; isPrivate?: boolean; visibility?: string; products?: string[]; stationId?: string }, isAdmin = false) {
-    await this.auditService.moderateTextOrThrow([dto.title, dto.description].filter(Boolean).join(" "), { scene: "VIDEO", userId });
     // 带货商品去重 + 限 5 件
     const productIds = Array.from(new Set((dto.products ?? []).filter(Boolean))).slice(0, 5);
     // 短视频=圈子内容：未指定圈子时兜底落「官方圈子」(供 AI/后台自动发布种子内容，人工前端在圈子内发时会带上下文 circleId)
     const circleId = await this.resolveCircleId(dto.circleId);
-    // 开放范围分流：CIRCLE_ONLY 圈内直生效；PLATFORM 须平台审核（管理员/官方圈自动过审）
+    // 审核无感化（20260711 第八节）：发布即可见（instantPublish），机审改异步分级处置（pass 不动 / mild 降 SELF_ONLY / severe 下架+通知）
     const { visibility, auditStatus } = await this.auditService.resolveContentVisibility({
       visibility: dto.visibility,
       circleId,
       isAdmin,
+      instantPublish: true,
     });
     const video = await this.prisma.video.create({
       data: {
@@ -87,6 +87,15 @@ export class VideoService {
     if (auditStatus === "PENDING") {
       await this.auditService.openContentAudit({ contentType: "VIDEO", contentId: video.id, circleId, submitterId: userId });
     }
+    // 异步机审（fire-and-forget·不阻塞发布响应）：标题+简介文本 / 封面图
+    this.auditService.queueContentModeration({
+      contentType: "VIDEO",
+      contentId: video.id,
+      userId,
+      circleId,
+      text: [dto.title, dto.description].filter(Boolean).join(" "),
+      images: dto.coverUrl,
+    });
     return video;
   }
 
@@ -96,8 +105,12 @@ export class VideoService {
     const video = await this.prisma.video.findUnique({ where: { id }, select: { userId: true } });
     if (!video) throw new BusinessException(ErrorCode.NOT_FOUND, "视频不存在");
     if (video.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能修改自己的视频");
-    await this.auditService.moderateTextOrThrow([dto.title].filter(Boolean).join(" "), { scene: "VIDEO_EDIT", userId, dataId: id });
-    return this.prisma.video.update({ where: { id }, data: dto as Prisma.VideoUpdateInput });
+    const updated = await this.prisma.video.update({ where: { id }, data: dto as Prisma.VideoUpdateInput });
+    // 改标题/封面同样先生效后异步机审（审核无感化）
+    if (dto.title || dto.coverUrl) {
+      this.auditService.queueContentModeration({ contentType: "VIDEO", contentId: id, userId, text: dto.title, images: dto.coverUrl });
+    }
+    return updated;
   }
 
   @CacheEvict({ key: (args) => `video:detail:${args[1]}`, pattern: true })
@@ -137,6 +150,9 @@ export class VideoService {
       where.visibility = "PLATFORM";
       where.auditStatus = "APPROVED";
       where.isPrivate = false;
+    } else if (circleId && scope !== "all") {
+      // 圈内列表：机审降级 SELF_ONLY 的作品仅作者本人可见（走「我的作品」），圈内流不出
+      where.visibility = { not: "SELF_ONLY" };
     }
 
     const [videos, total] = await Promise.all([
@@ -156,8 +172,21 @@ export class VideoService {
     return { videos: videos.map((v) => this.normalizeVideoUrls(v)), total, page, pageSize };
   }
 
+  /**
+   * 详情（带可见性收口）：SELF_ONLY / 已下架(REJECTED) 内容仅作者本人可访问，他人一律 404。
+   * 校验放在缓存读取之后（getDetailRaw 的缓存 key 只含 id，不能把 viewer 相关判断缓存进去）。
+   */
+  async getDetail(id: string, viewerId?: string) {
+    const video = await this.getDetailRaw(id);
+    const isOwner = !!viewerId && video.userId === viewerId;
+    if (!isOwner && (video.visibility === "SELF_ONLY" || video.status === "REJECTED")) {
+      throw new BusinessException(ErrorCode.NOT_FOUND, "视频不存在");
+    }
+    return video;
+  }
+
   @Cacheable({ key: (args) => `video:detail:${args[0]}`, ttl: 120 })
-  async getDetail(id: string) {
+  async getDetailRaw(id: string) {
     const video = await this.prisma.video.findUnique({
       where: { id },
       include: {
@@ -422,11 +451,11 @@ export class VideoService {
     }));
   }
 
-  /** 搜索视频 — 标题/标签模糊匹配 */
+  /** 搜索视频 — 标题/标签模糊匹配（平台级搜索=公共池口径：不出圈内封闭/SELF_ONLY/私密内容） */
   async searchVideos(params: { keyword?: string; category?: string; page: number; pageSize: number }) {
     const { keyword, category } = params;
     const { page, pageSize, skip } = safePagination(params.page, params.pageSize);
-    const where: any = { status: "PUBLISHED" };
+    const where: any = { status: "PUBLISHED", visibility: "PLATFORM", auditStatus: "APPROVED", isPrivate: false };
 
     if (keyword) {
       where.OR = [

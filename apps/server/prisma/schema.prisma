@@ -804,6 +804,8 @@ model Course {
   courseOrigin   String? // 课程来源标识：INSTITUTE_LECTURE=研究院大师讲座归档（研-P1·分享回放沉淀为付费知识库）；null=普通课程
   validityDays   Int        @default(0) // 购买后有效期（天），0=永久
   scheduledAt    DateTime? // 定时发布时间
+  scheduledOnAt  DateTime? // 定时上架时间（到点 cron 翻转 auditStatus→APPROVED 并清空·2026-07-11 后台课程编辑器重做）
+  scheduledOffAt DateTime? // 定时下架时间（到点 cron 翻转 auditStatus→DRAFT 并清空）
   stationId      String? // 分站数据隔离（null = 平台级）
   deletedAt      DateTime? // 软删除
   createdAt      DateTime   @default(now())

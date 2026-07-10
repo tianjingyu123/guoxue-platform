@@ -16,6 +16,7 @@ import {
   AskQuestionDto, QaListQueryDto,
 } from "./course.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
+import { OptionalAuthGuard } from "../../common/optional-auth.guard";
 import { FeatureFlagGuard } from "../../common/feature-flag.guard";
 import { RequireFeature } from "../../common/feature-flag.decorator";
 import { MemberGuard } from "../../common/member.guard";
@@ -181,12 +182,12 @@ export class CourseController {
   }
 
   @Get(":id")
-  @UseGuards(StationIsolationGuard)
-  @ApiOperation({ summary: "获取课程详情" })
+  @UseGuards(OptionalAuthGuard, StationIsolationGuard)
+  @ApiOperation({ summary: "获取课程详情（SELF_ONLY/已下架课程仅作者本人可见）" })
   @ApiResponse({ status: 200, description: "成功返回课程详情" })
   @ApiResponse({ status: 404, description: "课程不存在" })
-  detail(@Param("id") id: string) {
-    return this.course.getDetail(id);
+  detail(@Param("id") id: string, @Req() req: Request) {
+    return this.course.getDetail(id, req.user?.id);
   }
 
   @Put(":id")

@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { IsString, IsOptional, IsInt, IsBoolean, IsEnum, IsNumber, IsArray, IsDateString, IsIn, Min, Max, MinLength, MaxLength } from "class-validator";
+import { IsString, IsOptional, IsInt, IsBoolean, IsEnum, IsNumber, IsArray, IsDateString, IsIn, Min, Max, MinLength, MaxLength, ValidateIf } from "class-validator";
 import { Type, Transform } from "class-transformer";
 
 export enum CourseType {
@@ -71,6 +71,14 @@ export class CreateCourseDto {
   @ApiPropertyOptional({ description: "定时发布时间" })
   @IsOptional() @IsDateString()
   scheduledAt?: string;
+
+  @ApiPropertyOptional({ description: "定时上架时间（到点自动 APPROVED·null/空串=清除）" })
+  @IsOptional() @ValidateIf((o) => o.scheduledOnAt !== null && o.scheduledOnAt !== "") @IsDateString()
+  scheduledOnAt?: string | null;
+
+  @ApiPropertyOptional({ description: "定时下架时间（到点自动 DRAFT·null/空串=清除）" })
+  @IsOptional() @ValidateIf((o) => o.scheduledOffAt !== null && o.scheduledOffAt !== "") @IsDateString()
+  scheduledOffAt?: string | null;
 }
 
 export class UpdateCourseDto {
@@ -125,6 +133,22 @@ export class UpdateCourseDto {
   @ApiPropertyOptional({ description: "所属分站ID" })
   @IsOptional() @IsString()
   stationId?: string;
+
+  @ApiPropertyOptional({ description: "课程介绍详情图（最多6张·2026-07-11 编辑器重做：whitelist 会 strip 未声明字段，DTO 必须显式声明）" })
+  @IsOptional() @IsArray() @IsString({ each: true })
+  detailImages?: string[];
+
+  @ApiPropertyOptional({ description: "开放范围：CIRCLE_ONLY=仅本圈 / PLATFORM=全平台", enum: ["CIRCLE_ONLY", "PLATFORM"] })
+  @IsOptional() @IsIn(["CIRCLE_ONLY", "PLATFORM"])
+  visibility?: "CIRCLE_ONLY" | "PLATFORM";
+
+  @ApiPropertyOptional({ description: "定时上架时间（到点自动 APPROVED·null/空串=清除）" })
+  @IsOptional() @ValidateIf((o) => o.scheduledOnAt !== null && o.scheduledOnAt !== "") @IsDateString()
+  scheduledOnAt?: string | null;
+
+  @ApiPropertyOptional({ description: "定时下架时间（到点自动 DRAFT·null/空串=清除）" })
+  @IsOptional() @ValidateIf((o) => o.scheduledOffAt !== null && o.scheduledOffAt !== "") @IsDateString()
+  scheduledOffAt?: string | null;
 }
 
 export class CreateChapterDto {

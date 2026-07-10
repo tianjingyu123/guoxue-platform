@@ -9,7 +9,7 @@ import { MerchantGuard } from "./merchant.guard";
 import {
   UpdateMerchantProfileDto, ProductQueryDto, MerchantOrderQueryDto,
   ShipOrderDto, RejectRefundDto, ReviewQueryDto, ReplyReviewDto,
-  PaginationDto, AppealViolationDto, MerchantProductDto, ProcessAfterSaleDto,
+  PaginationDto, AppealViolationDto, MerchantProductDto, MerchantSkuDto, ProcessAfterSaleDto,
 } from "./merchant.dto";
 
 type AuthRequest = Omit<Request, "user"> & { user: { id: string; [key: string]: unknown } };
@@ -102,6 +102,22 @@ export class MerchantBackendController {
   @ApiResponse({ status: 404, description: "资源不存在" })
   deleteProduct(@Req() req: AuthRequest, @Param("id") id: string) {
     return this.merchantService.deleteProduct(this.shopUserId(req), id);
+  }
+
+  @Post("products/:id/skus")
+  @ApiOperation({ summary: "添加商品SKU（店铺身份·操作员可用）" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  addSku(@Req() req: AuthRequest, @Param("id") id: string, @Body() dto: MerchantSkuDto) {
+    return this.merchantService.addProductSku(this.shopUserId(req), id, dto);
+  }
+
+  @Delete("skus/:skuId")
+  @ApiOperation({ summary: "删除商品SKU（店铺身份·操作员可用）" })
+  @ApiResponse({ status: 200, description: "删除成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  deleteSku(@Req() req: AuthRequest, @Param("skuId") skuId: string) {
+    return this.merchantService.deleteProductSku(this.shopUserId(req), skuId);
   }
 
   @Post("products/:id/list")

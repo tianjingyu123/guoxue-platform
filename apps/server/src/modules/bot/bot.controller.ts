@@ -438,6 +438,19 @@ export class BotController {
     return this.svc.approveBot(circleId);
   }
 
+  @Post("manage/approvals/:circleId/reject")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "驳回圈主助理开通" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
+  @ApiBearerAuth()
+  rejectBot(@Param("circleId") circleId: string, @Body() body: { reason?: string }) {
+    return this.svc.rejectBot(circleId, body?.reason);
+  }
+
   @Get("manage/knowledge/:circleId")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")

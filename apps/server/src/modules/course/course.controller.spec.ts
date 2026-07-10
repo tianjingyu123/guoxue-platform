@@ -113,7 +113,7 @@ describe("CourseController", () => {
   });
 
   it("GET /courses/:id — 课程详情", async () => {
-    const result: any = await ctrl.detail("c1");
+    const result: any = await ctrl.detail("c1", { user: undefined } as any);
     expect(result.title).toBe("国学入门");
   });
 

@@ -438,7 +438,7 @@ export class BotService {
     const { skip, page: p, pageSize: ps } = safePagination(page, pageSize);
     this.logger.log(`查询圈主助理审批列表: page=${p}, pageSize=${ps}`);
 
-    const where = { status: { not: "ACTIVE" } };
+    const where = { status: { notIn: ["ACTIVE", "REJECTED"] } };
     const [records, total] = await Promise.all([
       this.prisma.circleBot.findMany({
         where,
@@ -486,6 +486,19 @@ export class BotService {
     return this.prisma.circleBot.update({
       where: { circleId },
       data: { status: "ACTIVE" },
+    });
+  }
+
+  /** 驳回圈主助理开通申请（驳回原因仅记审计日志，CircleBot 不落 reason 列） */
+  async rejectBot(circleId: string, reason?: string) {
+    this.logger.log(`驳回圈主助理开通: circleId=${circleId} reason=${reason || "-"}`);
+    const circleBot = await this.prisma.circleBot.findUnique({ where: { circleId } });
+    if (!circleBot) {
+      throw new BusinessException(ErrorCode.NOT_FOUND, "该圈子暂无助理开通申请");
+    }
+    return this.prisma.circleBot.update({
+      where: { circleId },
+      data: { status: "REJECTED" },
     });
   }
 

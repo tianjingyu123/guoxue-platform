@@ -75,11 +75,12 @@ export class VideoController {
   }
 
   @Get(":id")
-  @ApiOperation({ summary: "获取视频详情" })
+  @UseGuards(OptionalAuthGuard)
+  @ApiOperation({ summary: "获取视频详情（SELF_ONLY/已下架内容仅作者本人可见）" })
   @ApiResponse({ status: 200, description: "成功返回视频详情" })
   @ApiResponse({ status: 404, description: "视频不存在" })
-  detail(@Param("id") id: string) {
-    return this.svc.getDetail(id);
+  detail(@Param("id") id: string, @Req() req: Request) {
+    return this.svc.getDetail(id, req.user?.id);
   }
 
   @Put(":id")

@@ -33,6 +33,18 @@ export class AuditController {
     return this.svc.list(q);
   }
 
+  @Post("admin/backfill-moderation")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN")
+  @ApiOperation({ summary: "存量内容机审兜底扫描（配合存量 PENDING 放行 SQL 使用）" })
+  @ApiResponse({ status: 201, description: "已排队" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
+  @ApiBearerAuth()
+  backfillModeration(@Body() body: { type: "VIDEO" | "COURSE" | "LIVE"; limit?: number; beforeDate?: string }) {
+    return this.svc.backfillModeration(body.type, body.limit ?? 200, body.beforeDate);
+  }
+
   @Post("moderate/image")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "图片内容审核" })

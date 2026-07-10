@@ -32,15 +32,12 @@ export class LiveService {
   ) {}
 
   async createRoom(userId: string, dto: CreateRoomDto, isAdmin = false) {
-    // 开播前机审封面/标题（直播实时内容走 LiveAuditLog 机审）
-    await this.audit.moderateTextOrThrow(dto.title, { scene: "LIVE", userId });
-    await this.audit.moderateImageOrThrow(dto.cover, { scene: "LIVE", userId });
-
-    // 开放范围分流：CIRCLE_ONLY 圈内直生效；PLATFORM 须平台审核（管理员/官方圈自动过审）
+    // 审核无感化（20260711 第八节）：创建即生效，封面/标题机审改异步分级处置（直播实时内容仍走 LiveAuditLog 机审）
     const { visibility, auditStatus } = await this.audit.resolveContentVisibility({
       visibility: dto.visibility,
       circleId: dto.circleId,
       isAdmin,
+      instantPublish: true,
     });
 
     const data: Record<string, unknown> = {
@@ -71,6 +68,16 @@ export class LiveService {
     if (auditStatus === "PENDING") {
       await this.audit.openContentAudit({ contentType: "LIVE", contentId: room.id, circleId: dto.circleId, submitterId: userId });
     }
+
+    // 异步机审（fire-and-forget·不阻塞创建响应）：标题文本 / 封面图
+    this.audit.queueContentModeration({
+      contentType: "LIVE",
+      contentId: room.id,
+      userId,
+      circleId: dto.circleId,
+      text: dto.title,
+      images: dto.cover,
+    });
 
     return room;
   }
@@ -138,6 +145,7 @@ export class LiveService {
   async startLive(id: string) {
     const room = await this.prisma.liveRoom.findUnique({ where: { id } });
     if (!room) throw new BusinessException(ErrorCode.LIVE_ROOM_NOT_FOUND);
+    if (room.auditStatus === "REJECTED") throw new BusinessException(ErrorCode.FORBIDDEN, "该直播间已被下架，无法开播");
     if (room.status !== "WAITING") throw new BusinessException(ErrorCode.BAD_REQUEST, "只能在等待状态开始直播");
 
     const streamKey = `room_${id}`;
@@ -211,6 +219,10 @@ export class LiveService {
     if (!circleId && scope !== "all") {
       where.visibility = "PLATFORM";
       where.auditStatus = "APPROVED";
+    } else if (circleId && scope !== "all") {
+      // 圈内列表：机审降级 SELF_ONLY / 严重违规下架(REJECTED) 的直播间不出圈内流
+      where.visibility = { not: "SELF_ONLY" };
+      where.auditStatus = { not: "REJECTED" };
     }
 
     const [rooms, total] = await Promise.all([
@@ -263,6 +275,9 @@ export class LiveService {
         startTime: r.startTime,
         endTime: r.endTime,
         createdAt: r.createdAt,
+        // 审核无感化：selfOnly=机审降级仅自己可见（灰色小标）；removed=严重违规已下架
+        selfOnly: r.visibility === "SELF_ONLY",
+        removed: r.auditStatus === "REJECTED",
       })),
     };
   }
@@ -513,7 +528,7 @@ export class LiveService {
     return { title: room.title, stats, danmaku, requests: [], products, script: [] };
   }
 
-  async getRoom(id: string) {
+  async getRoom(id: string, viewerId?: string) {
     const room = await this.prisma.liveRoom.findUnique({
       where: { id },
       include: {
@@ -523,6 +538,11 @@ export class LiveService {
       },
     });
     if (!room) throw new BusinessException(ErrorCode.LIVE_ROOM_NOT_FOUND);
+    // 可见性收口（审核无感化）：SELF_ONLY / 已下架(REJECTED) 直播间仅主播本人可访问
+    const isOwner = !!viewerId && (room.hostUserId === viewerId || room.userId === viewerId);
+    if (!isOwner && (room.visibility === "SELF_ONLY" || room.auditStatus === "REJECTED")) {
+      throw new BusinessException(ErrorCode.LIVE_ROOM_NOT_FOUND);
+    }
 
     await this.prisma.liveRoom.update({ where: { id }, data: { viewCount: { increment: 1 } } });
     // #21 回放章节点随详情返回（raw 读绕过 prisma generate；列未就绪/查询失败不阻断详情）

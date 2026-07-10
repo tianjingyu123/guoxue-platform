@@ -524,6 +524,11 @@ export class MerchantProductDto {
   @Type(() => Number)
   price: number;
 
+  @ApiPropertyOptional({ description: "原价（划线价·展示用，应大于售价）" })
+  @IsOptional() @IsNumber() @Min(0)
+  @Type(() => Number)
+  originalPrice?: number;
+
   @ApiProperty({ description: "库存数量" })
   @IsNumber() @Min(0)
   @Type(() => Number)
@@ -536,4 +541,25 @@ export class MerchantProductDto {
   @ApiPropertyOptional({ description: "商品标签" })
   @IsOptional() @IsArray() @IsString({ each: true })
   tags?: string[];
+}
+
+/** 商家后台 SKU（店铺身份·操作员经 merchant.guard 归一到 owner） */
+export class MerchantSkuDto {
+  @ApiPropertyOptional({ description: "规格名（如 颜色:红·与 specs 二选一）" })
+  @IsOptional() @IsString()
+  name?: string;
+
+  @ApiPropertyOptional({ description: "规格键值对（如 {颜色:'红'}）" })
+  @IsOptional()
+  specs?: Record<string, string>;
+
+  @ApiProperty({ description: "SKU 价格" })
+  @IsNumber() @Min(0)
+  @Type(() => Number)
+  price: number;
+
+  @ApiPropertyOptional({ description: "库存" })
+  @IsOptional() @IsNumber() @Min(0)
+  @Type(() => Number)
+  stock?: number;
 }

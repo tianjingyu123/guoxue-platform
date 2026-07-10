@@ -13,6 +13,17 @@ import { safePagination, NO_PAGE_LIMIT } from "../../common/pagination";
 export type ContentVisibility = "CIRCLE_ONLY" | "PLATFORM";
 export type ContentAuditType = "ARTICLE" | "POST" | "COURSE" | "VIDEO" | "LIVE";
 
+/**
+ * UGC 后审分级（审核无感化·发布权限与实名认证体系-20260711 第八节）：
+ * - pass      机审通过 → 内容不动，用户无感知
+ * - mild      轻度违规（敏感但非红线）→ 内容降级「仅自己可见」SELF_ONLY + 温和站内信
+ * - severe    严重违规（红线词/Block 级）→ 下架/软删 + 站内信（附原因类别）
+ * - uncertain 机审拿不准 → 进 admin 人工复审队列（内容保持可见，用户无感知）
+ */
+export type UgcRiskVerdict = "pass" | "mild" | "severe" | "uncertain";
+/** 先发后审适用的三类内容（帖子/文章/商品维持现状，勿扩） */
+export type PostPublishContentType = "VIDEO" | "COURSE" | "LIVE";
+
 @Injectable()
 export class AuditService {
   private readonly logger = new Logger(AuditService.name);
@@ -292,6 +303,272 @@ export class AuditService {
     }
   }
 
+  // ───────── 审核无感化：先发后审 · 异步机审 · 三档处置（2026-07-11 第八节）─────────
+
+  /** 分级处置的内容表配置：模型名 / 各档更新数据 / 缓存失效 pattern / 通知内容类型名 */
+  private static readonly POST_PUBLISH_TARGETS: Record<
+    PostPublishContentType,
+    { model: "video" | "course" | "liveRoom"; typeName: string; cachePatterns: string[]; detailKey: (id: string) => string }
+  > = {
+    VIDEO: { model: "video", typeName: "短视频", cachePatterns: ["video:list:*"], detailKey: (id) => `video:detail:${id}` },
+    COURSE: { model: "course", typeName: "课程", cachePatterns: ["courses:list:*"], detailKey: (id) => `courses:detail:${id}` },
+    LIVE: { model: "liveRoom", typeName: "直播", cachePatterns: ["live:rooms:*"], detailKey: (id) => `live:rooms:${id}` },
+  };
+
+  /**
+   * 三层漏斗文本分级（非阻断版·与 moderateTextOrThrow 同漏斗不同出口）：
+   * - 本地红线词库命中 → severe（红线级·硬违规）
+   * - 腾讯云 Block → severe
+   * - 腾讯云 Review + DeepSeek block → mild（敏感但非红线）
+   * - 腾讯云 Review + DeepSeek pass → pass（救回疑似误杀）
+   * - 腾讯云 Review + DeepSeek 不可用 → uncertain（转人工·内容保持可见）
+   * - 审核基建异常 → pass（延续 fail-open 基调，不因第三方抖动错杀内容）
+   */
+  async classifyTextRisk(
+    content: string | undefined | null,
+    opts: { scene: string; userId?: string; dataId?: string },
+  ): Promise<{ verdict: UgcRiskVerdict; category?: string }> {
+    const text = (content ?? "").trim();
+    if (!text) return { verdict: "pass" };
+
+    // 第1层：本地红线词库
+    const hits = this.sensitiveWord.check(text);
+    if (hits.length > 0) {
+      await this.log({
+        userId: opts.userId,
+        action: "CONTENT_BLOCK_LOCAL",
+        targetType: opts.scene,
+        targetId: opts.dataId,
+        detail: JSON.stringify({ hits, sample: text.slice(0, 100) }),
+      }).catch((err) => this.logger.warn("审核日志写入失败", err));
+      return { verdict: "severe", category: "违禁信息" };
+    }
+
+    // 第2层：腾讯云 TMS
+    let suggestion: "Pass" | "Review" | "Block";
+    let labels: string[];
+    try {
+      const result = await this.moderateText(text, opts.scene, opts.dataId);
+      suggestion = result.suggestion;
+      labels = result.labels;
+    } catch (err) {
+      this.logger.warn(`腾讯云文本审核不可用，后审 fail-open [scene=${opts.scene}]`, err instanceof Error ? err.message : err);
+      return { verdict: "pass" };
+    }
+    if (suggestion === "Pass") return { verdict: "pass" };
+    if (suggestion === "Block") return { verdict: "severe", category: labels?.[0] || "违规内容" };
+
+    // 第3层：DeepSeek 语义复审（仅 Review）
+    const aiVerdict = await this.moderationAi.review(text, { labels, scene: opts.scene });
+    if (aiVerdict?.decision === "block") return { verdict: "mild", category: aiVerdict.category || labels?.[0] || "敏感内容" };
+    if (aiVerdict?.decision === "pass") return { verdict: "pass" };
+    return { verdict: "uncertain", category: labels?.[0] };
+  }
+
+  /** 图片分级（非阻断版）：Block → severe；Review → uncertain（图片无 AI 二次复审）；异常 → pass */
+  async classifyImageRisk(
+    images: string | string[] | undefined | null,
+    opts: { scene: string; userId?: string; dataId?: string },
+  ): Promise<{ verdict: UgcRiskVerdict; category?: string }> {
+    const urls = (Array.isArray(images) ? images : [images]).map((u) => (u ?? "").trim()).filter((u) => u.length > 0);
+    if (urls.length === 0) return { verdict: "pass" };
+    let worst: UgcRiskVerdict = "pass";
+    let category: string | undefined;
+    for (const url of urls) {
+      try {
+        const raw = await this.moderation.imageModeration({ imageUrl: url, bizType: opts.scene });
+        const suggestion = this.moderation.getImageSuggestion(raw);
+        if (suggestion === "Block") return { verdict: "severe", category: this.moderation.getBlockedLabels(raw)?.[0] || "违规图片" };
+        if (suggestion === "Review" && worst === "pass") {
+          worst = "uncertain";
+          category = this.moderation.getBlockedLabels(raw)?.[0];
+        }
+      } catch (err) {
+        this.logger.warn(`腾讯云图片审核不可用，后审 fail-open [scene=${opts.scene}]`, err instanceof Error ? err.message : err);
+      }
+    }
+    return { verdict: worst, category };
+  }
+
+  /**
+   * 存量内容机审兜底扫描（董事长 2026-07-11 拍板：存量 PENDING 一次性放行 + 机审兜底）。
+   * 对指定类型、指定时刻前创建的已可见内容重新排队机审；每条间隔 2s 错峰，避免打爆第三方审核配额。
+   */
+  async backfillModeration(type: PostPublishContentType, limit = 200, beforeDate?: string) {
+    const before = beforeDate ? new Date(beforeDate) : new Date();
+    let rows: Array<{ id: string; userId: string; circleId: string | null; text: string; images?: string }> = [];
+    if (type === "VIDEO") {
+      const list = await this.prisma.video.findMany({
+        where: { auditStatus: "APPROVED", createdAt: { lt: before } },
+        orderBy: { createdAt: "desc" },
+        take: limit,
+        select: { id: true, userId: true, circleId: true, title: true, description: true, coverUrl: true },
+      });
+      rows = list.map((v) => ({ id: v.id, userId: v.userId, circleId: v.circleId, text: [v.title, v.description].filter(Boolean).join(" "), images: v.coverUrl ?? undefined }));
+    } else if (type === "COURSE") {
+      const list = await this.prisma.course.findMany({
+        where: { auditStatus: "APPROVED", deletedAt: null, createdAt: { lt: before } },
+        orderBy: { createdAt: "desc" },
+        take: limit,
+        select: { id: true, userId: true, circleId: true, title: true, intro: true, cover: true },
+      });
+      rows = list.map((c) => ({ id: c.id, userId: c.userId, circleId: c.circleId, text: [c.title, c.intro].filter(Boolean).join(" "), images: c.cover ?? undefined }));
+    } else {
+      const list = await this.prisma.liveRoom.findMany({
+        where: { auditStatus: "APPROVED", createdAt: { lt: before } },
+        orderBy: { createdAt: "desc" },
+        take: limit,
+        select: { id: true, userId: true, circleId: true, title: true, cover: true },
+      });
+      rows = list.map((r) => ({ id: r.id, userId: r.userId, circleId: r.circleId, text: r.title, images: r.cover ?? undefined }));
+    }
+    rows.forEach((r, i) => {
+      setTimeout(() => this.queueContentModeration({ contentType: type, contentId: r.id, userId: r.userId, circleId: r.circleId, text: r.text, images: r.images }), i * 2000);
+    });
+    this.logger.log(`存量机审兜底扫描已排队: type=${type} queued=${rows.length} before=${before.toISOString()}`);
+    return { queued: rows.length, type, before: before.toISOString() };
+  }
+
+  /**
+   * 后审派发（发布即可见的机审入口）：fire-and-forget，不阻塞发布响应；
+   * 意外异常重试 2 次（30s/60s 退避）后记 CONTENT_ASYNC_MODERATION_FAILED 兜底日志（漏斗内部已 fail-open，此处只兜编程性异常）。
+   */
+  queueContentModeration(opts: {
+    contentType: PostPublishContentType;
+    contentId: string;
+    userId: string;
+    circleId?: string | null;
+    text?: string;
+    images?: string | string[];
+  }): void {
+    const run = (attempt: number) => {
+      this.moderateContentAsync(opts).catch((err) => {
+        if (attempt < 3) {
+          setTimeout(() => run(attempt + 1), 30_000 * attempt);
+          return;
+        }
+        this.logger.error(`异步机审最终失败 [${opts.contentType}:${opts.contentId}]`, err instanceof Error ? err.stack : err);
+        void this.log({
+          userId: opts.userId,
+          action: "CONTENT_ASYNC_MODERATION_FAILED",
+          targetType: opts.contentType,
+          targetId: opts.contentId,
+          detail: JSON.stringify({ message: err instanceof Error ? err.message : String(err) }),
+        }).catch(() => undefined);
+      });
+    };
+    setImmediate(() => run(1));
+  }
+
+  /** 执行一次后审并按三档处置（pass 不动 / mild 降 SELF_ONLY / severe 下架软删 / uncertain 进人工队列） */
+  async moderateContentAsync(opts: {
+    contentType: PostPublishContentType;
+    contentId: string;
+    userId: string;
+    circleId?: string | null;
+    text?: string;
+    images?: string | string[];
+  }): Promise<void> {
+    const scene = opts.contentType;
+    const rank: Record<UgcRiskVerdict, number> = { pass: 0, uncertain: 1, mild: 2, severe: 3 };
+    let risk = await this.classifyTextRisk(opts.text, { scene, userId: opts.userId, dataId: opts.contentId });
+    if (risk.verdict !== "severe" && opts.images) {
+      const imgRisk = await this.classifyImageRisk(opts.images, { scene, userId: opts.userId, dataId: opts.contentId });
+      if (rank[imgRisk.verdict] > rank[risk.verdict]) risk = imgRisk;
+    }
+
+    if (risk.verdict === "pass") return;
+
+    if (risk.verdict === "uncertain") {
+      // 拿不准 → 登记 admin 人工复审队列（POST_PUBLISH·内容保持可见·用户无感知）
+      await this.prisma.contentAuditRecord
+        .create({
+          data: {
+            contentType: opts.contentType,
+            contentId: opts.contentId,
+            circleId: opts.circleId || null,
+            submitterId: opts.userId,
+            auditMode: "POST_PUBLISH",
+            machineStatus: "PENDING",
+            machineResult: JSON.stringify({ verdict: "uncertain", category: risk.category ?? null }),
+            machineAuditAt: new Date(),
+            machineAuditBy: "SYSTEM",
+          },
+        })
+        .catch((err) => this.logger.error(`后审人工复审登记失败 [${opts.contentType}:${opts.contentId}]`, err instanceof Error ? err.stack : err));
+      return;
+    }
+
+    await this.applyModerationVerdict(opts.contentType, opts.contentId, risk.verdict, risk.category, "SYSTEM");
+  }
+
+  /**
+   * 分级处置执行器（机审与 admin 人工改判共用）：
+   * - mild   → visibility=SELF_ONLY（作者可见带标识·他人/公共流不可见）+ 温和站内信（附申诉指引）
+   * - severe → VIDEO status=REJECTED / COURSE 软删 deletedAt+REJECTED / LIVE auditStatus=REJECTED+结束 + 站内信（附原因类别）
+   * 原状态存 AuditLog.rollbackData 供申诉恢复。
+   */
+  async applyModerationVerdict(
+    contentType: PostPublishContentType,
+    contentId: string,
+    verdict: "mild" | "severe",
+    category?: string,
+    operator = "SYSTEM",
+  ): Promise<void> {
+    const target = AuditService.POST_PUBLISH_TARGETS[contentType];
+    const delegate = this.prisma[target.model] as unknown as {
+      findUnique: (args: unknown) => Promise<Record<string, any> | null>;
+      update: (args: unknown) => Promise<unknown>;
+    };
+    const row = await delegate.findUnique({ where: { id: contentId } });
+    if (!row) return; // 内容已被删除，无需处置
+
+    const reason = verdict === "mild" ? `轻度违规:${category || "敏感内容"}` : `严重违规:${category || "违规内容"}`;
+    const data: Record<string, unknown> = {};
+    if (verdict === "mild") {
+      data.visibility = "SELF_ONLY";
+      if (contentType !== "COURSE") data.auditReason = reason; // Course 无 auditReason 列
+    } else {
+      if (contentType === "VIDEO") Object.assign(data, { status: "REJECTED", auditStatus: "REJECTED", auditReason: reason });
+      else if (contentType === "COURSE") Object.assign(data, { deletedAt: new Date(), auditStatus: "REJECTED" });
+      else Object.assign(data, { auditStatus: "REJECTED", auditReason: reason, ...(row.status === "WAITING" || row.status === "LIVING" ? { status: "ENDED", endTime: new Date() } : {}) });
+    }
+
+    await delegate.update({ where: { id: contentId }, data });
+    await Promise.all([
+      ...target.cachePatterns.map((p) => this.redis.delByPattern(p)),
+      this.redis.del(target.detailKey(contentId)),
+    ]).catch(() => undefined);
+
+    await this.log({
+      userId: row.userId,
+      executor: operator,
+      action: verdict === "mild" ? "CONTENT_DEMOTE_SELF_ONLY" : "CONTENT_REMOVE_VIOLATION",
+      targetType: contentType,
+      targetId: contentId,
+      detail: JSON.stringify({ verdict, category: category ?? null }),
+      rollbackData: { visibility: row.visibility, status: row.status ?? null, auditStatus: row.auditStatus ?? null, deletedAt: row.deletedAt ?? null },
+    }).catch((err) => this.logger.warn("处置审计日志写入失败", err));
+
+    // 站内信（文案温和·附申诉入口；发送失败不影响处置结果）
+    const title = String(row.title || "").slice(0, 30) || target.typeName;
+    await this.prisma.notification
+      .create({
+        data: {
+          userId: row.userId,
+          type: "AUDIT",
+          title: verdict === "mild" ? "内容可见范围调整通知" : "内容下架通知",
+          content:
+            verdict === "mild"
+              ? `您发布的${target.typeName}「${title}」经系统复核，暂时调整为仅自己可见，不影响您查看和管理。如有疑问，请联系客服申诉，我们会尽快为您复核。`
+              : `您发布的${target.typeName}「${title}」因涉及${category || "违规内容"}已被下架。如有疑问，请联系客服申诉。`,
+          targetType: contentType,
+          targetId: contentId,
+        },
+      })
+      .catch((err) => this.logger.warn(`处置通知发送失败 [${contentType}:${contentId}]`, err));
+  }
+
   // ───────── 内容开放范围 + 平台审核分流（内容开放范围与审核体系 P2/P3）─────────
 
   /** 审核结果回写目标：各内容表的 auditStatus 快照 + 缓存失效 pattern（Article/Course 无 auditReason 列，驳回原因只存 ContentAuditRecord.rejectReason） */
@@ -315,14 +592,16 @@ export class AuditService {
    * 发布分流：按开放范围决定内容初始平台审核态。
    * - CIRCLE_ONLY（默认）→ APPROVED：圈内直生效（UGC 机审已在 create 前拦截），圈主自治，不进平台人工审核队列
    * - PLATFORM → 平台管理员 / 官方圈内容自动 APPROVED；其余 PENDING（圈内可见、平台不可见，待人工审）
+   * - instantPublish=true（审核无感化·短视频/课程/直播先发后审）→ 一律 APPROVED 立即可见，机审走 queueContentModeration 异步分级处置
    */
   async resolveContentVisibility(opts: {
     visibility?: string;
     circleId?: string | null;
     isAdmin?: boolean;
+    instantPublish?: boolean;
   }): Promise<{ visibility: ContentVisibility; auditStatus: "APPROVED" | "PENDING" }> {
     const visibility: ContentVisibility = opts.visibility === "PLATFORM" ? "PLATFORM" : "CIRCLE_ONLY";
-    if (visibility === "CIRCLE_ONLY" || opts.isAdmin) return { visibility, auditStatus: "APPROVED" };
+    if (visibility === "CIRCLE_ONLY" || opts.isAdmin || opts.instantPublish) return { visibility, auditStatus: "APPROVED" };
     if (opts.circleId) {
       const officialCircleId = await this.getOfficialCircleId();
       if (officialCircleId && officialCircleId === opts.circleId) return { visibility, auditStatus: "APPROVED" };
@@ -468,6 +747,18 @@ export class AuditService {
           ),
         );
       await Promise.all(target.cachePatterns.map((p) => this.redis.delByPattern(p))).catch(() => undefined);
+    }
+
+    // 审核无感化（第八节）：三类先发后审内容的人工改判驳回 = 轻度违规处置（降 SELF_ONLY + 温和站内信）
+    // 严重违规已由机审直接下架，人工队列里的是「拿不准」样本，改判从轻。ARTICLE/POST 维持原有语义。
+    if (!approved && (["VIDEO", "COURSE", "LIVE"] as string[]).includes(record.contentType)) {
+      await this.applyModerationVerdict(
+        record.contentType as PostPublishContentType,
+        record.contentId,
+        "mild",
+        rejectReason ?? undefined,
+        auditorId,
+      ).catch((err) => this.logger.error(`人工改判处置失败 [${record.contentType}:${record.contentId}]`, err instanceof Error ? err.stack : err));
     }
 
     await this.log({

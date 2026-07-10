@@ -94,7 +94,7 @@ describe("LiveController", () => {
   });
 
   it("GET /live/rooms/:id — 直播间详情", async () => {
-    const result: any = await ctrl.getRoom("r1");
+    const result: any = await ctrl.getRoom("r1", { user: undefined } as any);
     expect(result.status).toBe("LIVE");
   });
 

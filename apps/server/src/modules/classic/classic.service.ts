@@ -218,7 +218,7 @@ export class ClassicService {
       this.prisma.bookmark.findMany({
         where,
         include: {
-          book: { select: { title: true, cover: true } },
+          book: { select: { title: true, cover: true, author: true, dynasty: true } },
           chapter: { select: { title: true, sortOrder: true } },
         },
         orderBy: { createdAt: "desc" },
@@ -515,7 +515,7 @@ export class ClassicService {
       this.prisma.classicReadingNote.findMany({
         where,
         include: {
-          book: { select: { id: true, title: true } },
+          book: { select: { id: true, title: true, author: true, dynasty: true } },
           chapter: { select: { id: true, title: true } },
         },
         orderBy: { updatedAt: "desc" },

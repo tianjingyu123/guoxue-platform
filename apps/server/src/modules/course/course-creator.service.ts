@@ -36,6 +36,7 @@ export class CourseCreatorService {
           type: true,
           price: true,
           auditStatus: true,
+          visibility: true, // SELF_ONLY=机审降级仅自己可见（前端灰色小标）
           studentCount: true,
           circleId: true,
           createdAt: true,
@@ -133,9 +134,17 @@ export class CourseCreatorService {
     if (!course) throw new BusinessException(ErrorCode.COURSE_NOT_FOUND, "草稿不存在");
     if (course.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能发布自己的草稿");
     if (course.auditStatus !== "DRAFT") throw new BusinessException(ErrorCode.BAD_REQUEST, "该课程不是草稿");
+    // 审核无感化（20260711 第八节）：发布即可见，机审异步分级处置
     const updated = await this.prisma.course.update({
       where: { id },
-      data: { auditStatus: "PENDING" },
+      data: { auditStatus: "APPROVED" },
+    });
+    this.auditService.queueContentModeration({
+      contentType: "COURSE",
+      contentId: id,
+      userId,
+      circleId: course.circleId,
+      text: [course.title, course.intro].filter(Boolean).join(" "),
     });
     await this.redis.delByPattern("courses:list:*");
     return updated;

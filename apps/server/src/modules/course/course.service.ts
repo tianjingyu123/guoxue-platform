@@ -54,15 +54,13 @@ export class CourseService {
   }
 
   async create(userId: string, dto: CreateCourseDto, autoApprove = false) {
-    // UGC 机审（标题+简介）——与文章/短视频发布对齐
-    await this.auditSvc.moderateTextOrThrow([dto.title, dto.intro].filter(Boolean).join(" "), { scene: "COURSE", userId });
-
     const circleId = await this.resolveCircleId(dto.circleId);
-    // 开放范围分流：CIRCLE_ONLY 圈内直生效；PLATFORM 须平台审核（管理员/官方圈自动过审）
+    // 审核无感化（20260711 第八节）：发布即可见（instantPublish），机审改异步分级处置（pass 不动 / mild 降 SELF_ONLY / severe 软删+通知）
     const { visibility, auditStatus } = await this.auditSvc.resolveContentVisibility({
       visibility: dto.visibility,
       circleId,
       isAdmin: autoApprove,
+      instantPublish: true,
     });
     const course = await this.prisma.course.create({
       data: {
@@ -83,6 +81,8 @@ export class CourseService {
         categoryLevel2: dto.categoryLevel2,
         validityDays: dto.validityDays ?? 0,
         scheduledAt: dto.scheduledAt ? new Date(dto.scheduledAt) : null,
+        scheduledOnAt: dto.scheduledOnAt ? new Date(dto.scheduledOnAt) : null,
+        scheduledOffAt: dto.scheduledOffAt ? new Date(dto.scheduledOffAt) : null,
       },
       include: { chapters: { orderBy: { sortOrder: "asc" } } },
     });
@@ -91,14 +91,35 @@ export class CourseService {
       await this.auditSvc.openContentAudit({ contentType: "COURSE", contentId: course.id, circleId, submitterId: userId });
     }
 
+    // 异步机审（fire-and-forget·不阻塞发布响应）：标题+简介文本
+    this.auditSvc.queueContentModeration({
+      contentType: "COURSE",
+      contentId: course.id,
+      userId,
+      circleId,
+      text: [dto.title, dto.intro].filter(Boolean).join(" "),
+    });
+
     await this.redis.delByPattern("courses:list:*");
     return course;
+  }
+
+  /** 是否平台管理员（SUPER_ADMIN/OPERATION_ADMIN·后台编辑他人课程放行用） */
+  private async isPlatformAdmin(userId: string): Promise<boolean> {
+    const admin = await this.prisma.userRole.findFirst({
+      where: { userId, roleType: { in: ["SUPER_ADMIN", "OPERATION_ADMIN"] } },
+      select: { id: true },
+    });
+    return !!admin;
   }
 
   async update(courseId: string, userId: string, dto: UpdateCourseDto) {
     const course = await this.prisma.course.findUnique({ where: { id: courseId } });
     if (!course) throw new BusinessException(ErrorCode.COURSE_NOT_FOUND, "课程不存在");
-    if (course.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能编辑自己的课程");
+    // 平台运营可编辑任意课程（后台课程编辑器·与 setMemberFree 同口径）；普通用户仅限本人
+    if (course.userId !== userId && !(await this.isPlatformAdmin(userId))) {
+      throw new BusinessException(ErrorCode.FORBIDDEN, "只能编辑自己的课程");
+    }
 
     const data: Prisma.CourseUpdateInput = {};
     if (dto.title !== undefined) data.title = dto.title;
@@ -108,11 +129,16 @@ export class CourseService {
     if (dto.price !== undefined) data.price = dto.price;
     if (dto.originalPrice !== undefined) data.originalPrice = dto.originalPrice;
     if (dto.tags !== undefined) data.tags = dto.tags;
-    if ((dto as any).detailImages !== undefined) data.detailImages = ((dto as any).detailImages as string[]).slice(0, 6);
-    if ((dto as any).validityDays !== undefined) data.validityDays = (dto as any).validityDays;
+    if (dto.detailImages !== undefined) data.detailImages = dto.detailImages.slice(0, 6);
+    if (dto.validityDays !== undefined) data.validityDays = dto.validityDays;
     if (dto.categoryLevel1 !== undefined) data.categoryLevel1 = dto.categoryLevel1;
     if (dto.categoryLevel2 !== undefined) data.categoryLevel2 = dto.categoryLevel2;
     if (dto.circleId !== undefined) (data as any).circleId = dto.circleId;
+    if (dto.stationId !== undefined) (data as any).stationId = dto.stationId || null;
+    if (dto.visibility !== undefined) data.visibility = dto.visibility;
+    if (dto.scheduledAt !== undefined) data.scheduledAt = dto.scheduledAt ? new Date(dto.scheduledAt) : null;
+    if (dto.scheduledOnAt !== undefined) data.scheduledOnAt = dto.scheduledOnAt ? new Date(dto.scheduledOnAt) : null;
+    if (dto.scheduledOffAt !== undefined) data.scheduledOffAt = dto.scheduledOffAt ? new Date(dto.scheduledOffAt) : null;
     if ((dto as any).description !== undefined) (data as any).description = (dto as any).description;
 
     const updated = await this.prisma.course.update({
@@ -142,10 +168,18 @@ export class CourseService {
     return { success: true };
   }
 
-  async getDetail(courseId: string) {
+  /** 可见性收口（审核无感化）：SELF_ONLY 仅作者可见；严重违规软删(deletedAt)一律 404。缓存命中同样校验。 */
+  private assertCourseVisible(course: { userId?: string; visibility?: string; deletedAt?: Date | string | null }, viewerId?: string) {
+    if (course.deletedAt) throw new BusinessException(ErrorCode.COURSE_NOT_FOUND, "课程不存在");
+    const isOwner = !!viewerId && course.userId === viewerId;
+    if (!isOwner && course.visibility === "SELF_ONLY") throw new BusinessException(ErrorCode.COURSE_NOT_FOUND, "课程不存在");
+  }
+
+  async getDetail(courseId: string, viewerId?: string) {
     const cacheKey = `courses:detail:${courseId}`;
     const cached = await this.redis.getJson<any>(cacheKey);
     if (cached) {
+      this.assertCourseVisible(cached, viewerId);
       this.prisma.course.update({
         where: { id: courseId },
         data: { studentCount: { increment: 1 } },
@@ -162,6 +196,7 @@ export class CourseService {
       },
     });
     if (!course) throw new BusinessException(ErrorCode.COURSE_NOT_FOUND, "课程不存在");
+    this.assertCourseVisible(course, viewerId);
 
     await this.prisma.course.update({
       where: { id: courseId },
@@ -198,8 +233,10 @@ export class CourseService {
     else if (filterStatus) where.auditStatus = filterStatus; // 管理端显式指定状态时不加开放范围过滤
     else {
       where.auditStatus = "APPROVED";
-      // 平台公共池（未按圈子过滤）只出「全平台开放」课程；圈内列表（带 circleId）圈内课程全可见
+      where.deletedAt = null; // 严重违规软删的课程不出公开列表
+      // 平台公共池（未按圈子过滤）只出「全平台开放」课程；圈内列表（带 circleId）不出机审降级 SELF_ONLY 的课程
       if (!circleId) where.visibility = "PLATFORM";
+      else where.visibility = { not: "SELF_ONLY" };
     }
     if (stationId) where.stationId = stationId;
     if (type) where.type = type as any;
@@ -224,8 +261,10 @@ export class CourseService {
         where,
         select: {
           id: true, title: true, cover: true, intro: true,
-          type: true, price: true, originalPrice: true, categoryLevel1: true,
+          type: true, price: true, originalPrice: true, categoryLevel1: true, categoryLevel2: true,
           studentCount: true, auditStatus: true, createdAt: true,
+          validityDays: true, memberFree: true, visibility: true,
+          scheduledOnAt: true, scheduledOffAt: true,
           user: { select: { id: true, nickname: true, avatar: true } },
           circle: { select: { id: true, name: true } },
           _count: { select: { chapters: true } },

@@ -5,7 +5,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { CreateCommentDto, UpdateCommentDto, CommentQueryDto } from "./comment.dto";
 import { Prisma } from "@prisma/client";
 import { safePagination } from "../../common/pagination";
-import { Cacheable } from "../../common/cache.decorator";
+import { Cacheable, CacheEvict } from "../../common/cache.decorator";
 import { resolveTargets, targetKey } from "../interaction/target-resolver";
 import { AuditService } from "../audit/audit.service";
 
@@ -23,6 +23,8 @@ export class CommentService {
     private audit: AuditService,
   ) {}
 
+  // 发布评论后立刻失效该目标的列表缓存（findByTarget @Cacheable ttl15s·否则新评论要等缓存过期才可见）
+  @CacheEvict({ key: (args: any[]) => `comment:target:${args[1]?.targetType || ""}:${args[1]?.targetId || ""}:*`, pattern: true })
   async create(userId: string, dto: CreateCommentDto) {
     if (dto.parentId) {
       const parent = await this.prisma.comment.findUnique({

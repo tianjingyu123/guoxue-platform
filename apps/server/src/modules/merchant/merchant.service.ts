@@ -487,7 +487,7 @@ export class MerchantService {
     return this.prisma.product.create({
       data: {
         userId, title: dto.title, intro: dto.intro, detail: dto.detail,
-        images: dto.images ?? [], price: dto.price, stock: dto.stock,
+        images: dto.images ?? [], price: dto.price, originalPrice: dto.originalPrice, stock: dto.stock,
         categoryId: dto.categoryId, tags: dto.tags ?? [],
         isPlatform: false, supplierType: "CERTIFIED_MERCHANT",
         // 官方旗舰店免审自动上架；普通商家仍走 PENDING 审核（标准不变）
@@ -506,6 +506,28 @@ export class MerchantService {
     const product = await this.prisma.product.findFirst({ where: { id: productId, userId } });
     if (!product) throw new BusinessException(ErrorCode.BAD_REQUEST, "商品不存在");
     return this.prisma.product.update({ where: { id: productId }, data: dto });
+  }
+
+  /** 店铺身份加 SKU（操作员经 merchant.guard 归一到 owner·与 shop.addSku 同校验逻辑） */
+  async addProductSku(userId: string, productId: string, dto: { name?: string; specs?: Record<string, string>; price: number; stock?: number }) {
+    const product = await this.prisma.product.findFirst({ where: { id: productId, userId } });
+    if (!product) throw new BusinessException(ErrorCode.BAD_REQUEST, "商品不存在");
+    let specs = dto.specs || {};
+    if (!dto.specs && dto.name) {
+      const parts = dto.name.split(":");
+      specs = parts.length >= 2 ? { [parts[0].trim()]: parts.slice(1).join(":").trim() } : { name: dto.name };
+    }
+    return this.prisma.productSku.create({
+      data: { productId, specs, price: dto.price, stock: dto.stock ?? 0 },
+    });
+  }
+
+  /** 店铺身份删 SKU */
+  async deleteProductSku(userId: string, skuId: string) {
+    const sku = await this.prisma.productSku.findUnique({ where: { id: skuId }, include: { product: { select: { userId: true } } } });
+    if (!sku || sku.product.userId !== userId) throw new BusinessException(ErrorCode.BAD_REQUEST, "SKU不存在或无权操作");
+    await this.prisma.productSku.delete({ where: { id: skuId } });
+    return { success: true };
   }
 
   async deleteProduct(userId: string, productId: string) {
