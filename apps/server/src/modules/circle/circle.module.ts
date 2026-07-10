@@ -5,6 +5,7 @@ import { CircleCoreService } from "./services/circle-core.service";
 import { CircleMembershipService } from "./services/circle-membership.service";
 import { CirclePostService } from "./services/circle-post.service";
 import { CircleExpertService } from "./services/circle-expert.service";
+import { CircleInsightService } from "./services/circle-insight.service";
 import { CircleController } from "./circle.controller";
 import { CircleKnowledgeService } from "./circle-knowledge.service";
 import { CircleKnowledgeController } from "./circle-knowledge.controller";
@@ -30,7 +31,7 @@ import { TrackModule } from "../track/track.module";
 @Module({
   imports: [AiGatewayModule, CoinModule, CommissionModule, NotificationModule, PricingModule, AuditModule, TrackModule],
   controllers: [CircleController, CircleKnowledgeController, CircleAssistantController, CircleDashboardController, CircleBackendController, CircleGovernanceController],
-  providers: [CircleService, CircleSharedService, CircleCoreService, CircleMembershipService, CirclePostService, CircleExpertService, CircleGovernanceService, CircleKnowledgeService, CircleAssistantService, CircleDashboardService, CircleKnowledgeTask, UgcKnowledgeService, UgcKnowledgeTask, StationIsolationGuard],
+  providers: [CircleService, CircleSharedService, CircleCoreService, CircleMembershipService, CirclePostService, CircleExpertService, CircleInsightService, CircleGovernanceService, CircleKnowledgeService, CircleAssistantService, CircleDashboardService, CircleKnowledgeTask, UgcKnowledgeService, UgcKnowledgeTask, StationIsolationGuard],
   exports: [CircleService, CircleGovernanceService, CircleKnowledgeService, CircleAssistantService, UgcKnowledgeService],
 })
 export class CircleModule {}

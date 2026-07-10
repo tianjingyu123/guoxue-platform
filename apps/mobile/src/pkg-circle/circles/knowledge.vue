@@ -3,8 +3,9 @@
  * 圈主管理后台 · 知识库与 AI — V0 circle-admin-knowledge.html 还原（2026-07-10 批③）
  * 结构：AI 助理入口（金描边+呼吸 orb·跳 assistant.vue）→ 双 Tab（已入库/待确认）→
  *      候选卡（确认入库/忽略）→ 已入库列表（删除）→ 手动新增（弹层）→ 说明。
- * 数据：knowledgeApi（list/candidates/confirm/reject/add/remove·circle-knowledge 后端全真连）。
- * 降级：AI 入口"今日代答 N 次·命中率 N%"后端无统计字段 → 显示知识库真实条数；
+ * 数据：knowledgeApi（list/candidates/confirm/reject/add/remove/extract·circle-knowledge 后端全真连）。
+ * #38：待确认 Tab 顶部「AI 提炼」入口 → POST extract-candidates（近30天达人回答→AI提炼候选）。
+ * 降级：AI 入口"今日代答 N 次·命中率 N%"后端无统计字段（TODO #38 命中率统计）→ 显示知识库真实条数；
  *      候选"编辑"无候选编辑端点 → 不做；"被 AI 引用 N 次"无字段 → 显示 qualityScore（有则显示）。
  * 入口：dashboard 待办/分区（?id=xxx&tab=pending 直达待确认）。
  */
@@ -29,6 +30,26 @@ const menuId = ref<string | null>(null)
 const showAdd = ref(false)
 const addContent = ref('')
 const adding = ref(false)
+
+// #38 AI 提炼（从达人回答提炼候选·手动触发）
+const extracting = ref(false)
+async function doExtract() {
+  if (extracting.value) return
+  extracting.value = true
+  try {
+    const r = await knowledgeApi.extract(circleId.value)
+    uni.showToast({ title: r?.message || (r?.created ? `已提炼 ${r.created} 条候选` : '暂无可提炼内容'), icon: 'none', duration: 2500 })
+    if (r?.created) {
+      activeTab.value = 'pending'
+      await load()
+    }
+  } catch (e) {
+    // AI 未配置/失败 → 后端友好错误原样透出
+    uni.showToast({ title: (e as Error)?.message || 'AI 提炼失败，请稍后再试', icon: 'none', duration: 2500 })
+  } finally {
+    extracting.value = false
+  }
+}
 
 const pendingCount = computed(() => pendingItems.value.length)
 
@@ -176,6 +197,15 @@ onLoad((q) => {
 
       <!-- ═══ 待确认候选 ═══ -->
       <template v-else-if="activeTab === 'pending'">
+        <!-- #38 AI 提炼入口（从达人回答提炼·手动触发） -->
+        <view class="extract-bar" :class="{ disabled: extracting }" @tap="doExtract">
+          <app-icon name="sparkles" :size="30" color="#C9A96E" />
+          <view class="extract-main">
+            <text class="extract-title">{{ extracting ? 'AI 提炼中…' : 'AI 提炼：从达人回答生成候选' }}</text>
+            <text class="extract-desc">取近 30 天已回答的付费问答，提炼为知识候选供你确认</text>
+          </view>
+          <app-icon name="chevron-right" :size="30" color="#999999" />
+        </view>
         <view v-if="!pendingItems.length" class="state-view">
           <app-icon name="sparkles" :size="64" color="#C9A96E" />
           <text class="state-title">暂无待确认候选</text>
@@ -320,6 +350,21 @@ onLoad((q) => {
 .n-txt { color: #ffffff; font-size: 20rpx; font-weight: 600; }
 
 .body { flex: 1; }
+
+/* #38 AI 提炼入口条 */
+.extract-bar {
+  margin: 24rpx 32rpx 0; padding: 24rpx 28rpx;
+  display: flex; align-items: center; gap: 20rpx;
+  background: var(--bg-card, #ffffff);
+  border: 2rpx solid rgba(201, 169, 110, 0.4);
+  border-radius: 28rpx;
+  box-shadow: 0 2rpx 6rpx rgba(44, 44, 44, 0.05);
+}
+.extract-bar:active { opacity: 0.85; }
+.extract-bar.disabled { opacity: 0.6; }
+.extract-main { flex: 1; min-width: 0; }
+.extract-title { display: block; font-size: 27rpx; font-weight: 600; color: var(--text-primary, #2c2c2c); }
+.extract-desc { display: block; font-size: 22rpx; color: var(--text-tertiary, #999999); margin-top: 2rpx; }
 
 /* 候选卡 */
 .cand-card {

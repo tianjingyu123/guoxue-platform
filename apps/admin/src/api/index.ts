@@ -711,6 +711,22 @@ export const auditApi = {
     api.put(`/audit/content-audits/${id}/review`, data),
 };
 
+// 圈子申诉仲裁（治理体系·平台侧·不经圈主）
+export const circleAppealApi = {
+  list: (params?: { page?: number; pageSize?: number; status?: string }) =>
+    api.get("/circle-governance/admin/appeals", { params }),
+  resolve: (id: string, data: { uphold: boolean; resolution: string }) =>
+    api.post(`/circle-governance/admin/appeals/${id}/resolve`, data),
+};
+
+// 通话账单申诉（达人咨询·只记结论不动资金·退款走人工金币退款审批流）
+export const callDisputeApi = {
+  list: (params?: { page?: number; pageSize?: number; status?: string }) =>
+    api.get("/consult-calls/admin/disputes", { params }),
+  resolve: (id: string, data: { status: "RESOLVED" | "REJECTED"; note?: string }) =>
+    api.post(`/consult-calls/admin/disputes/${id}/resolve`, data),
+};
+
 // 业务哨兵（O-T1·告警查看/处置）
 export const sentinelApi = {
   listAlerts: (params?: { page?: number; pageSize?: number; status?: string; level?: string; rule?: string }) =>

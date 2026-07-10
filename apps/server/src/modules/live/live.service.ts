@@ -13,6 +13,7 @@ import { ErrorCode } from "../../common/error-codes";
 import { CoinService } from "../coin/coin.service";
 import { RevenueService } from "../revenue/revenue.service";
 import { AuditService } from "../audit/audit.service";
+import { NotificationService } from "../notification/notification.service";
 import { safePagination } from "../../common/pagination";
 
 @Injectable()
@@ -27,6 +28,7 @@ export class LiveService {
     private audit: AuditService,
     @Optional() private coin?: CoinService,
     @Optional() private revenue?: RevenueService,
+    @Optional() private notification?: NotificationService,
   ) {}
 
   async createRoom(userId: string, dto: CreateRoomDto, isAdmin = false) {
@@ -104,7 +106,32 @@ export class LiveService {
     if (status === "REPLAY" && extra?.replayUrl) data.replayUrl = extra.replayUrl;
     if (status === "ENDED") data.endTime = new Date();
 
-    return this.prisma.liveRoom.update({ where: { id }, data: data as Prisma.LiveRoomUpdateInput });
+    const updated = await this.prisma.liveRoom.update({ where: { id }, data: data as Prisma.LiveRoomUpdateInput });
+
+    // 开播 → 通知预约用户（圈内通知中心·直播 LIVE·fire-and-forget 不阻断开播）
+    // TODO(#25 通知部分·后续)：开播前 15 分钟提醒需定时任务扫描预约集合，本轮只做开播即时通知。
+    if (status === "LIVING") {
+      this.notifyBookedUsers(updated).catch((err) => this.logger.warn(`开播预约通知发送失败 room=${id}`, err));
+    }
+
+    return updated;
+  }
+
+  /** 开播时通知 Redis 预约集合中的用户（live:bookings:{roomId}·bookRoom 写入） */
+  private async notifyBookedUsers(room: { id: string; title: string | null; circleId: string | null }) {
+    if (!this.notification) return;
+    const userIds = await this.redis.smembers(`live:bookings:${room.id}`);
+    if (!userIds?.length) return;
+    await this.notification.batchSend({
+      userIds,
+      type: "LIVE_STARTED",
+      title: "你预约的直播已开播",
+      content: `直播「${room.title || "直播间"}」已开播，点击进入直播间观看`,
+      targetType: "LIVE_ROOM",
+      targetId: room.id,
+      category: "LIVE",
+      circleId: room.circleId ?? undefined,
+    });
   }
 
   /** 开始直播，自动生成推拉流地址 */
@@ -498,7 +525,51 @@ export class LiveService {
     if (!room) throw new BusinessException(ErrorCode.LIVE_ROOM_NOT_FOUND);
 
     await this.prisma.liveRoom.update({ where: { id }, data: { viewCount: { increment: 1 } } });
-    return room;
+    // #21 回放章节点随详情返回（raw 读绕过 prisma generate；列未就绪/查询失败不阻断详情）
+    const replayChapters = await this.getReplayChapters(id);
+    return { ...room, replayChapters };
+  }
+
+  // ───────── 回放章节点（#21·主播标注） ─────────
+
+  /** 读取回放章节（raw SQL 绕过 prisma client 旧类型；异常时返回 null 不阻断） */
+  private async getReplayChapters(id: string): Promise<Array<{ t: number; title: string }> | null> {
+    try {
+      const rows = await this.prisma.$queryRaw<Array<{ replayChapters: unknown }>>(
+        Prisma.sql`SELECT "replayChapters" FROM "LiveRoom" WHERE "id" = ${id}`,
+      );
+      const raw = rows?.[0]?.replayChapters;
+      return Array.isArray(raw) ? (raw as Array<{ t: number; title: string }>) : null;
+    } catch {
+      return null; // 列未应用（manual SQL 未跑）或查询异常 → 详情照常返回
+    }
+  }
+
+  /**
+   * 主播标注回放章节点（PUT /live/rooms/:id/replay-chapters·仅主播本人）。
+   * chapters: [{ t: 秒(>=0 整数), title: 1~80 字 }]，按 t 升序存储，上限 100 条；传 [] 即清空。
+   * TODO(#21): AI 自动生成章节（依赖回放转写）暂不做；观看进度记忆当前由前端本地存储，后端进度表待做。
+   */
+  async setReplayChapters(userId: string, roomId: string, chapters: Array<{ t?: unknown; title?: unknown }>) {
+    const room = await this.prisma.liveRoom.findUnique({ where: { id: roomId }, select: { hostUserId: true } });
+    if (!room) throw new BusinessException(ErrorCode.LIVE_ROOM_NOT_FOUND);
+    if (room.hostUserId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "仅主播本人可标注回放章节");
+
+    if (!Array.isArray(chapters)) throw new BusinessException(ErrorCode.BAD_REQUEST, "chapters 必须是数组");
+    if (chapters.length > 100) throw new BusinessException(ErrorCode.BAD_REQUEST, "章节最多 100 条");
+    const normalized = chapters.map((c) => {
+      const t = Math.floor(Number(c?.t));
+      const title = String(c?.title ?? "").trim();
+      if (!Number.isFinite(t) || t < 0) throw new BusinessException(ErrorCode.BAD_REQUEST, "章节时间点 t 须为不小于 0 的秒数");
+      if (!title || title.length > 80) throw new BusinessException(ErrorCode.BAD_REQUEST, "章节标题须为 1~80 字");
+      return { t, title };
+    });
+    normalized.sort((a, b) => a.t - b.t);
+
+    await this.prisma.$executeRaw(
+      Prisma.sql`UPDATE "LiveRoom" SET "replayChapters" = ${JSON.stringify(normalized)}::jsonb, "updatedAt" = now() WHERE "id" = ${roomId}`,
+    );
+    return { success: true, count: normalized.length, replayChapters: normalized };
   }
 
   async deleteRoom(userId: string, id: string, isAdmin = false) {

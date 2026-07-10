@@ -4,14 +4,15 @@
  * 结构：搜索顶栏 → 输入前(最近搜索/热门词/热门圈子推荐) → 结果(圈子单组·关键词高亮·加入按钮进预览页)
  *       → 空结果转创建 CTA → 骨架/错误三态。
  * 数据：GET /circles?keyword=（circleApi.list·仅圈子名称/简介检索）。
- * 降级（后端缺）：① AI 智能搜索/推荐追问 chips（待办#37 无接口）→ 热门圈子推荐（list 接口真实数据）；
- * ② 结果「内容」分组（后端无跨圈内容搜索端点）→ 仅圈子单组；
- * ③ 结果行「需审批」标识（list 端点不返回 needApproval）→ 仅显示 免费/年费价格。
+ * #37 AI 智能推荐：搜索时并行 POST /circles/search/ai → 返回有内容才渲染推荐组+追问 chips
+ *（点击追问=以该词重新搜索）；AI 失败/未配置完全不渲染（保持热门推荐降级）。
+ * 降级（后端缺）：① 结果「内容」分组（后端无跨圈内容搜索端点）→ 仅圈子单组；
+ * ② 结果行「需审批」标识（list 端点不返回 needApproval）→ 仅显示 免费/年费价格。
  */
 import { ref, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
-import { circleApi, formatMembers, type Circle, type RankingCircle } from '@/lib/circle-data'
+import { circleApi, formatMembers, type Circle, type RankingCircle, type AiSearchResult } from '@/lib/circle-data'
 
 // 热门搜索：运营引导词（非冒充统计的假数据）
 const HOT_SEARCHES = ['八字命理', '紫微斗数', '风水堪舆', '易经', '六爻', '奇门遁甲', '宝宝起名', '国学']
@@ -37,6 +38,10 @@ function saveHistory(k: string) {
   uni.setStorageSync(HISTORY_KEY, history.value)
 }
 
+// ── #37 AI 智能推荐（与主搜索并行·失败/无内容不渲染） ──
+const aiResult = ref<AiSearchResult | null>(null)
+let aiSeq = 0 // 并发防错序：只采纳最后一次搜索的 AI 结果
+
 async function doSearch(kw: string) {
   const k = kw.trim()
   if (!k) return
@@ -45,6 +50,10 @@ async function doSearch(kw: string) {
   searching.value = true
   error.value = ''
   saveHistory(k)
+  // AI 推荐并行请求，不阻塞主搜索；旧结果先清（避免上个词的推荐串场）
+  aiResult.value = null
+  const seq = ++aiSeq
+  circleApi.aiSearch(k).then((r) => { if (seq === aiSeq) aiResult.value = r })
   try {
     const res = await circleApi.list({ keyword: k })
     results.value = res.data
@@ -57,7 +66,7 @@ async function doSearch(kw: string) {
 }
 
 function clearHistory() { history.value = []; uni.removeStorageSync(HISTORY_KEY) }
-function clearKeyword() { keyword.value = ''; hasSearched.value = false; results.value = [] }
+function clearKeyword() { keyword.value = ''; hasSearched.value = false; results.value = []; aiResult.value = null; aiSeq++ }
 function openCircle(id: string) { navigateTo(`/pkg-circle/circles/detail?id=${id}`) }
 /** 加入按钮 → 圈子预览页（加入漏斗：免费/审批/付费在预览页分流） */
 function openPreview(id: string) { navigateTo(`/pkg-circle/circles/preview?id=${id}`) }
@@ -164,40 +173,74 @@ onMounted(loadHot)
       <view class="cs-empty-cta" @tap="doSearch(keyword)"><text class="cs-empty-cta-t">重试</text></view>
     </view>
 
-    <!-- 空结果：转创建 -->
-    <view v-else-if="results.length === 0" class="cs-empty">
-      <view class="cs-empty-icon"><app-icon name="search" :size="52" color="#999999" /></view>
-      <text class="cs-empty-t1">没有找到「{{ keyword }}」相关的圈子</text>
-      <text class="cs-empty-t2">换个关键词试试，或者——{{ '\n' }}成为第一个开这个圈的人</text>
-      <view class="cs-empty-cta" @tap="goCreate"><text class="cs-empty-cta-t">创建「{{ keyword }}」圈子</text></view>
-    </view>
+    <!-- 空结果 / 结果（含 #37 AI 智能推荐区块·AI 无内容完全不渲染） -->
+    <template v-else>
+      <!-- #37 AI 智能推荐（V0 ai-card：金描边+呼吸点+推荐组+追问 chips） -->
+      <view v-if="aiResult" class="cs-ai-card">
+        <view class="cs-ai-head">
+          <view class="cs-ai-dot" />
+          <text class="cs-ai-name">AI 智能搜索</text>
+        </view>
+        <text v-if="aiResult.reason" class="cs-ai-summary">{{ aiResult.reason }}</text>
+        <view v-if="aiResult.circles?.length" class="cs-ai-recs-group">
+          <view v-for="c in aiResult.circles" :key="c.id" class="cs-row ai" @tap="openCircle(c.id)">
+            <view class="cs-row-cover">
+              <image v-if="c.cover" :src="c.cover" class="cs-row-cover-img" mode="aspectFill" lazy-load />
+              <view v-else class="cs-row-cover-ph"><app-icon name="users" :size="36" color="#C9A96E" /></view>
+            </view>
+            <view class="cs-row-main">
+              <text class="cs-row-name">{{ c.name }}</text>
+              <view class="cs-row-meta">
+                <text class="cs-row-meta-t">{{ formatMembers(c.memberCount || 0) }} 成员<template v-if="c.category"> · {{ c.category }}</template></text>
+              </view>
+            </view>
+            <view class="cs-join-mini" @tap.stop="openPreview(c.id)"><text class="cs-join-mini-t">去看看</text></view>
+          </view>
+        </view>
+        <view v-if="aiResult.followUps?.length" class="cs-ai-recs">
+          <view v-for="(f, i) in aiResult.followUps" :key="i" class="cs-ai-rec" @tap="doSearch(f)">
+            <app-icon name="search" :size="22" color="#C9A96E" />
+            <text class="cs-ai-rec-t">{{ f }}</text>
+          </view>
+        </view>
+        <text class="cs-ai-note">AI 生成内容仅供参考 · 推荐基于你的圈子偏好</text>
+      </view>
 
-    <!-- 结果：圈子单组（后端无跨圈内容搜索 → 内容分组降级不做） -->
-    <view v-else>
-      <text class="cs-result-label">圈子 · {{ results.length }} 个</text>
-      <view class="cs-group">
-        <view v-for="c in results" :key="c.id" class="cs-row" @tap="openCircle(c.id)">
-          <view class="cs-row-cover">
-            <image v-if="c.cover" :src="c.cover" class="cs-row-cover-img" mode="aspectFill" lazy-load />
-            <view v-else class="cs-row-cover-ph"><app-icon name="users" :size="36" color="#C9A96E" /></view>
-          </view>
-          <view class="cs-row-main">
-            <view class="cs-row-name-line">
-              <text
-                v-for="(seg, i) in highlightSegments(c.name)" :key="i"
-                class="cs-row-name" :class="{ hit: seg.hit }"
-              >{{ seg.text }}</text>
+      <!-- 空结果：转创建 -->
+      <view v-if="results.length === 0" class="cs-empty">
+        <view class="cs-empty-icon"><app-icon name="search" :size="52" color="#999999" /></view>
+        <text class="cs-empty-t1">没有找到「{{ keyword }}」相关的圈子</text>
+        <text class="cs-empty-t2">换个关键词试试，或者——{{ '\n' }}成为第一个开这个圈的人</text>
+        <view class="cs-empty-cta" @tap="goCreate"><text class="cs-empty-cta-t">创建「{{ keyword }}」圈子</text></view>
+      </view>
+
+      <!-- 结果：圈子单组（后端无跨圈内容搜索 → 内容分组降级不做） -->
+      <view v-else>
+        <text class="cs-result-label">圈子 · {{ results.length }} 个</text>
+        <view class="cs-group">
+          <view v-for="c in results" :key="c.id" class="cs-row" @tap="openCircle(c.id)">
+            <view class="cs-row-cover">
+              <image v-if="c.cover" :src="c.cover" class="cs-row-cover-img" mode="aspectFill" lazy-load />
+              <view v-else class="cs-row-cover-ph"><app-icon name="users" :size="36" color="#C9A96E" /></view>
             </view>
-            <view class="cs-row-meta">
-              <text class="cs-row-meta-t">{{ formatMembers(c.members) }} 成员 · </text>
-              <text class="cs-row-meta-t" :class="{ gold: c.type === 'YEARLY' || c.isPaid }">{{ priceLabel(c) }}</text>
+            <view class="cs-row-main">
+              <view class="cs-row-name-line">
+                <text
+                  v-for="(seg, i) in highlightSegments(c.name)" :key="i"
+                  class="cs-row-name" :class="{ hit: seg.hit }"
+                >{{ seg.text }}</text>
+              </view>
+              <view class="cs-row-meta">
+                <text class="cs-row-meta-t">{{ formatMembers(c.members) }} 成员 · </text>
+                <text class="cs-row-meta-t" :class="{ gold: c.type === 'YEARLY' || c.isPaid }">{{ priceLabel(c) }}</text>
+              </view>
             </view>
+            <view v-if="c.isJoined" class="cs-joined-mini"><text class="cs-joined-mini-t">已加入</text></view>
+            <view v-else class="cs-join-mini" @tap.stop="openPreview(c.id)"><text class="cs-join-mini-t">加入</text></view>
           </view>
-          <view v-if="c.isJoined" class="cs-joined-mini"><text class="cs-joined-mini-t">已加入</text></view>
-          <view v-else class="cs-join-mini" @tap.stop="openPreview(c.id)"><text class="cs-join-mini-t">加入</text></view>
         </view>
       </view>
-    </view>
+    </template>
   </view>
 </template>
 
@@ -247,6 +290,36 @@ onMounted(loadHot)
 .cs-chip-t.dark { color: var(--text-primary, #2C2C2C); }
 .cs-chip-rank { font-size: 22rpx; font-weight: 700; color: #C9A96E; }
 .cs-chip-rank.top { color: var(--brand, #C41E3A); }
+
+/* #37 AI 智能推荐卡（V0 ai-card：金描边+呼吸点+追问 chips） */
+.cs-ai-card {
+  margin: 28rpx 32rpx 0; padding: 28rpx 32rpx;
+  background: var(--bg-card, #fff);
+  border: 2rpx solid rgba(201, 169, 110, 0.55);
+  border-radius: 36rpx;
+  box-shadow: 0 2rpx 6rpx rgba(44, 44, 44, 0.05);
+}
+.cs-ai-head { display: flex; align-items: center; gap: 12rpx; }
+.cs-ai-dot {
+  width: 16rpx; height: 16rpx; border-radius: 999rpx;
+  background: radial-gradient(circle at 35% 35%, #e8dcc4, #c9a96e);
+  animation: cs-breathe 2.4s ease-in-out infinite;
+}
+@keyframes cs-breathe { 0%, 100% { opacity: 0.45; } 50% { opacity: 1; } }
+.cs-ai-name { font-size: 24rpx; font-weight: 600; color: var(--gold, #c9a96e); }
+.cs-ai-summary { display: block; margin-top: 16rpx; font-size: 26rpx; color: var(--text-secondary, #6e6e73); line-height: 1.7; }
+.cs-ai-recs-group { margin-top: 16rpx; }
+.cs-row.ai { padding: 20rpx 0; }
+.cs-row.ai + .cs-row.ai { border-top: 1rpx solid var(--separator, #ede7dd); }
+.cs-ai-recs { display: flex; flex-wrap: wrap; gap: 14rpx; margin-top: 20rpx; }
+.cs-ai-rec {
+  display: inline-flex; align-items: center; gap: 8rpx;
+  height: 56rpx; padding: 0 24rpx; border-radius: 28rpx;
+  background: var(--bg-warm, #f8f4ec);
+}
+.cs-ai-rec:active { opacity: 0.8; }
+.cs-ai-rec-t { font-size: 24rpx; color: var(--text-primary, #2c2c2c); }
+.cs-ai-note { display: block; margin-top: 18rpx; font-size: 20rpx; color: var(--text-tertiary, #999); }
 
 /* 结果分组 */
 .cs-result-label { display: block; margin: 40rpx 36rpx 16rpx; font-size: 24rpx; color: var(--text-tertiary, #999); }

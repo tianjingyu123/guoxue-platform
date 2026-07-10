@@ -1,6 +1,7 @@
 import { Test } from "@nestjs/testing"
 import { InteractionService } from "./interaction.service"
 import { PrismaService } from "../../prisma/prisma.service"
+import { NotificationService } from "../notification/notification.service"
 import { BusinessException } from "../../common/business.exception"
 
 const mockPrisma = {
@@ -55,11 +56,23 @@ const mockPrisma = {
   },
   post: {
     findMany: jest.fn().mockResolvedValue([]),
+    findUnique: jest.fn().mockResolvedValue(null),
+    updateMany: jest.fn().mockResolvedValue({ count: 0 }),
+  },
+  // 治理 TODO#3：举报满阈值自动隐藏（圈子治理配置 + 圈子）
+  circleGovernanceConfig: {
+    findUnique: jest.fn().mockResolvedValue(null),
+  },
+  circle: {
+    findUnique: jest.fn().mockResolvedValue(null),
+    update: jest.fn().mockResolvedValue({}),
   },
   userBehavior: {
     create: jest.fn().mockResolvedValue({}),
   },
 }
+
+const mockNotification = { send: jest.fn().mockResolvedValue({}) }
 
 describe("InteractionService", () => {
   let svc: InteractionService
@@ -69,6 +82,7 @@ describe("InteractionService", () => {
       providers: [
         InteractionService,
         { provide: PrismaService, useValue: mockPrisma },
+        { provide: NotificationService, useValue: mockNotification },
       ],
     }).compile()
     svc = mod.get(InteractionService)
@@ -282,6 +296,70 @@ describe("InteractionService", () => {
       mockPrisma.report.create.mockResolvedValue({ id: "r1", reason: "违规内容" })
       const result = await svc.report("u1", { targetType: "COMMENT", targetId: "c1", reason: "违规内容" })
       expect(result.id).toBe("r1")
+      // 非 POST 举报不触发自动隐藏链路
+      expect(mockPrisma.post.findUnique).not.toHaveBeenCalled()
+    })
+  })
+
+  // 治理 TODO#3（2026-07-11）：圈内帖子被举报满阈值自动隐藏
+  describe("report 满阈值自动隐藏", () => {
+    const reportDto = { targetType: "POST", targetId: "p1", reason: "广告" }
+
+    beforeEach(() => {
+      mockPrisma.report.create.mockResolvedValue({ id: "r1" })
+      mockPrisma.circleGovernanceConfig.findUnique.mockResolvedValue({ reportAutoHideEnabled: true, reportAutoHideThreshold: 3 })
+      mockPrisma.circle.findUnique.mockResolvedValue({ ownerId: "owner1", name: "测试圈" })
+    })
+
+    it("去重举报人满阈值：帖子置 HIDDEN+修正 postCount+通知圈主", async () => {
+      mockPrisma.post.findUnique.mockResolvedValue({ id: "p1", circleId: "c1", status: "PUBLISHED", title: "违规帖" })
+      mockPrisma.report.findMany.mockResolvedValue([{ reporterId: "a" }, { reporterId: "b" }, { reporterId: "c" }])
+      mockPrisma.post.updateMany.mockResolvedValue({ count: 1 })
+
+      await svc.report("u1", reportDto)
+
+      expect(mockPrisma.post.updateMany).toHaveBeenCalledWith({
+        where: { id: "p1", status: { not: "HIDDEN" } },
+        data: { status: "HIDDEN" },
+      })
+      expect(mockPrisma.circle.update).toHaveBeenCalledWith({ where: { id: "c1" }, data: { postCount: { decrement: 1 } } })
+      expect(mockNotification.send).toHaveBeenCalledTimes(1)
+      expect(mockNotification.send.mock.calls[0][0]).toBe("owner1")
+      expect(mockNotification.send.mock.calls[0][1].title).toContain("自动隐藏")
+      // 只数未处理举报且按举报人去重
+      expect(mockPrisma.report.findMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: { targetType: "POST", targetId: "p1", status: "PENDING" },
+        distinct: ["reporterId"],
+      }))
+    })
+
+    it("未达阈值：不隐藏不通知", async () => {
+      mockPrisma.post.findUnique.mockResolvedValue({ id: "p1", circleId: "c1", status: "PUBLISHED", title: "帖" })
+      mockPrisma.report.findMany.mockResolvedValue([{ reporterId: "a" }, { reporterId: "b" }])
+      await svc.report("u1", reportDto)
+      expect(mockPrisma.post.updateMany).not.toHaveBeenCalled()
+      expect(mockNotification.send).not.toHaveBeenCalled()
+    })
+
+    it("已隐藏的帖子不重复处理·圈子关闭 reportAutoHide 不处理", async () => {
+      // 已隐藏
+      mockPrisma.post.findUnique.mockResolvedValue({ id: "p1", circleId: "c1", status: "HIDDEN", title: "帖" })
+      await svc.report("u1", reportDto)
+      expect(mockPrisma.circleGovernanceConfig.findUnique).not.toHaveBeenCalled()
+      expect(mockPrisma.post.updateMany).not.toHaveBeenCalled()
+      // 开关关闭
+      mockPrisma.post.findUnique.mockResolvedValue({ id: "p1", circleId: "c1", status: "PUBLISHED", title: "帖" })
+      mockPrisma.circleGovernanceConfig.findUnique.mockResolvedValue({ reportAutoHideEnabled: false, reportAutoHideThreshold: 3 })
+      await svc.report("u1", reportDto)
+      expect(mockPrisma.report.findMany).not.toHaveBeenCalled()
+      expect(mockPrisma.post.updateMany).not.toHaveBeenCalled()
+    })
+
+    it("非圈内帖子（无 circleId）不触发", async () => {
+      mockPrisma.post.findUnique.mockResolvedValue({ id: "p1", circleId: null, status: "PUBLISHED", title: "帖" })
+      await svc.report("u1", reportDto)
+      expect(mockPrisma.circleGovernanceConfig.findUnique).not.toHaveBeenCalled()
+      expect(mockPrisma.post.updateMany).not.toHaveBeenCalled()
     })
   })
 

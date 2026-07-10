@@ -166,6 +166,20 @@ export class SanctionDto {
   muteDays?: number;
 }
 
+// ───────── 待审帖子审核（TODO#2·新成员先审/敏感词转审·content.review 矩阵位） ─────────
+
+export class ReviewPostDto {
+  @ApiProperty({ description: "是否通过（true=发布·false=驳回隐藏）" })
+  @IsBoolean()
+  approve: boolean;
+
+  @ApiPropertyOptional({ description: "驳回理由（同步给作者）" })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  reason?: string;
+}
+
 // ───────── 申诉 ─────────
 
 export class CreateAppealDto {

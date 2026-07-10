@@ -18,6 +18,7 @@ import { NotificationService } from "../../notification/notification.service";
 import { JoinCircleDto, UpdateMemberRoleDto } from "../circle.dto";
 import { Prisma, CircleMemberRole } from "@prisma/client";
 import { CircleSharedService } from "./circle-shared.service";
+import { CircleGovernanceService } from "../governance/circle-governance.service";
 
 /**
  * 圈子-成员与入圈支付域（从 circle.service 拆出·纯搬家不改逻辑）。
@@ -37,6 +38,7 @@ export class CircleMembershipService {
     @Optional() private coinService?: CoinService,
     @Optional() private commissionService?: CommissionService,
     @Optional() private notificationService?: NotificationService,
+    @Optional() private governance?: CircleGovernanceService,
   ) {}
 
   /**
@@ -59,6 +61,9 @@ export class CircleMembershipService {
 
     // 免费圈子
     if (circle.type === "FREE") {
+      // requireRuleAck 强制（治理 TODO#5·2026-07-11）：开了「加入须确认圈规」且有圈规时，
+      // 直接加入与产生入圈申请前都必须先 ack（前端据 RULE_ACK_REQUIRED 引导确认页）
+      if (this.governance) await this.governance.assertRuleAck(circleId, userId);
       // needApproval 列绕过 generate 锁，原生查（circle 对象不含该字段）
       const appr = await this.prisma.$queryRawUnsafe<any[]>(
         `SELECT "needApproval" FROM "Circle" WHERE id=$1`,
@@ -180,6 +185,9 @@ export class CircleMembershipService {
       throw new BusinessException(ErrorCode.CIRCLE_MEMBER_EXISTS, "已是圈子成员");
     }
 
+    // requireRuleAck 强制（治理 TODO#5·2026-07-11）：付费确认链路建成员前同样校验圈规确认
+    if (this.governance) await this.governance.assertRuleAck(circleId, userId);
+
     // 计算到期时间
     let expireAt: Date | null = null;
     if (circle.type === "YEARLY") {
@@ -246,12 +254,82 @@ export class CircleMembershipService {
     return member;
   }
 
+  // ───────── 续费折扣（#34·配置驱动·默认关闭零行为变化·待董事长拍板开启） ─────────
+
+  /**
+   * 读续费折扣配置 ConfigSystem `circle.renew_discount`（json）。
+   * 缺省/解析失败/比例非法 → { enabled:false }（零行为变化）。
+   * 结构：{ enabled: boolean, renewRate: 0.8, twoYearRate: 0.75 }（rate ∈ (0,1]）。
+   */
+  private async getRenewDiscountConfig(): Promise<{ enabled: boolean; renewRate: number; twoYearRate: number }> {
+    const defaults = { enabled: false, renewRate: 0.8, twoYearRate: 0.75 };
+    try {
+      const row = await this.prisma.configSystem.findUnique({ where: { configKey: "circle.renew_discount" } });
+      if (!row?.configValue) return defaults;
+      const parsed = JSON.parse(row.configValue) as { enabled?: unknown; renewRate?: unknown; twoYearRate?: unknown };
+      const rate = (v: unknown, dft: number) => {
+        const n = Number(v);
+        return Number.isFinite(n) && n > 0 && n <= 1 ? n : dft;
+      };
+      return {
+        enabled: parsed.enabled === true,
+        renewRate: rate(parsed.renewRate, defaults.renewRate),
+        twoYearRate: rate(parsed.twoYearRate, defaults.twoYearRate),
+      };
+    } catch {
+      return defaults; // 配置异常 → 视为未开启，绝不影响原价续费
+    }
+  }
+
+  /**
+   * 续费报价（纯计算·不建单·不动资金）：
+   * - 基价 = 统一价格引擎单年有效价（与入圈同价，限时折扣同样生效）；
+   * - 折扣关闭（默认）：应付 = round2(基价 × years)（与既有行为完全一致）；
+   * - 折扣开启：1 年应付 = round2(基价 × renewRate)；2 年应付 = round2(基价 × 2 × twoYearRate)。
+   *   金额计算：先乘完再 round2 到分（round2(x)=Math.round(x*100)/100），避免逐步取整累积尾差。
+   */
+  private async quoteRenewPrice(circleId: string, userId: string, years: 1 | 2) {
+    const pricing = await this.unifiedPricing.calculateTargetPrice(circleId, "CIRCLE", userId);
+    const baseYuan = pricing.effectivePrice;
+    if (baseYuan <= 0) throw new BusinessException(ErrorCode.BAD_REQUEST, "圈子价格配置异常");
+
+    const cfg = await this.getRenewDiscountConfig();
+    const round2 = (x: number) => Math.round(x * 100) / 100;
+    const originalPriceYuan = round2(baseYuan * years);
+    let priceYuan = originalPriceYuan;
+    if (cfg.enabled) {
+      priceYuan = years === 2 ? round2(baseYuan * 2 * cfg.twoYearRate) : round2(baseYuan * cfg.renewRate);
+    }
+    return {
+      years,
+      originalPriceYuan,
+      priceYuan,
+      discountEnabled: cfg.enabled,
+      discountApplied: cfg.enabled && priceYuan < originalPriceYuan,
+      // 价格引擎的"划线原价"（限时促销场景 originalPrice > effectivePrice）·仅用于订单 originalAmount 记录，保持旧行为
+      pricingOriginalYuan: round2((pricing.originalPrice || 0) * years),
+    };
+  }
+
+  /** 续费报价查询（GET :id/renew/quote·前端展示原价划线+折后价用·关闭时 priceYuan === originalPriceYuan） */
+  async renewQuote(circleId: string, userId: string) {
+    const circle = await this.prisma.circle.findUnique({ where: { id: circleId } });
+    if (!circle || circle.status !== "ACTIVE") throw new BusinessException(ErrorCode.CIRCLE_NOT_FOUND, "圈子不存在或已下架");
+    if (circle.type !== "YEARLY") throw new BusinessException(ErrorCode.BAD_REQUEST, "仅年费圈子支持续费");
+    const oneYear = await this.quoteRenewPrice(circleId, userId, 1);
+    const twoYear = await this.quoteRenewPrice(circleId, userId, 2);
+    return { ...oneYear, twoYear }; // 两年档后端已支持（years=2）·档位 UI 前端 TODO
+  }
+
   /**
    * 续费年费圈子（第一步：创建待支付订单）。
    * 董事长拍板（2026-07-10）：续费与入圈一样**只能人民币支付**——本方法建 CIRCLE_RENEW 现金订单，
    * 前端拉起聚合支付，支付成功后调 confirmRenew 顺延到期时间（对齐 prepareJoin/confirmJoin 双段模式）。
+   * #34 老成员续费折扣：读 ConfigSystem `circle.renew_discount`，默认关闭=原价（零行为变化）；
+   * 开启时按 renewRate/twoYearRate 计算应付价（见 quoteRenewPrice）。
+   * years=2 两年档后端已支持：订单 quantity 记年数，confirmRenew 按 365×quantity 顺延（前端档位 UI TODO）。
    */
-  async renewCircle(circleId: string, userId: string, dto?: { payMethod?: string }) {
+  async renewCircle(circleId: string, userId: string, dto?: { payMethod?: string; years?: number }) {
     const circle = await this.prisma.circle.findUnique({ where: { id: circleId } });
     if (!circle || circle.status !== "ACTIVE") throw new BusinessException(ErrorCode.CIRCLE_NOT_FOUND, "圈子不存在或已下架");
     if (circle.type !== "YEARLY") throw new BusinessException(ErrorCode.BAD_REQUEST, "仅年费圈子支持续费");
@@ -265,19 +343,22 @@ export class CircleMembershipService {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "续费仅支持人民币支付（微信/支付宝），请选择支付方式");
     }
 
-    // 与入圈同价（走统一价格引擎，限时折扣同样生效）
-    const pricing = await this.unifiedPricing.calculateTargetPrice(circleId, "CIRCLE", userId);
-    const effectivePriceYuan = pricing.effectivePrice;
-    if (effectivePriceYuan <= 0) throw new BusinessException(ErrorCode.BAD_REQUEST, "圈子价格配置异常");
+    // 年数只认 1/2；quote 内部按配置决定是否打折（默认关=原价，与旧行为逐字一致）
+    const years: 1 | 2 = Number(dto.years) === 2 ? 2 : 1;
+    const quote = await this.quoteRenewPrice(circleId, userId, years);
 
     const order = await this.prisma.order.create({
       data: {
         userId,
         type: "CIRCLE_RENEW",
         targetId: circleId,
-        amount: effectivePriceYuan,
-        payAmount: effectivePriceYuan,
-        originalAmount: pricing.originalPrice > effectivePriceYuan ? pricing.originalPrice : undefined,
+        quantity: years, // 年数记在 quantity（confirmRenew 按 365×quantity 顺延）
+        amount: quote.priceYuan,
+        payAmount: quote.priceYuan,
+        // 划线原价取「续费原价」与「价格引擎促销划线价」较大者（折扣关+无促销时与旧行为一致=不记录）
+        originalAmount: Math.max(quote.originalPriceYuan, quote.pricingOriginalYuan) > quote.priceYuan
+          ? Math.max(quote.originalPriceYuan, quote.pricingOriginalYuan)
+          : undefined,
         status: "PENDING",
         payMethod: dto.payMethod,
       },
@@ -286,7 +367,10 @@ export class CircleMembershipService {
     return {
       needPayment: true,
       payMethod: dto.payMethod,
-      priceYuan: effectivePriceYuan,
+      priceYuan: quote.priceYuan,
+      originalPriceYuan: quote.originalPriceYuan,
+      discountApplied: quote.discountApplied,
+      years,
       coinNeeded: 0,
       orderId: order.id,
       message: "请完成支付",
@@ -322,7 +406,9 @@ export class CircleMembershipService {
     const baseDate = member.expireAt && new Date(member.expireAt) > new Date()
       ? new Date(member.expireAt)
       : new Date();
-    const newExpireAt = new Date(baseDate.getTime() + 365 * 24 * 60 * 60 * 1000);
+    // #34 两年档：下单时年数记在 order.quantity（1 或 2），按 365×年数顺延；历史订单 quantity 默认 1 行为不变
+    const years = order.quantity === 2 ? 2 : 1;
+    const newExpireAt = new Date(baseDate.getTime() + years * 365 * 24 * 60 * 60 * 1000);
 
     // 顺延与订单完结在同一事务，防止重复确认重复顺延
     const updated = await this.prisma.$transaction(async (tx) => {
@@ -425,6 +511,8 @@ export class CircleMembershipService {
             content: "您的圈子会员已过期，可续费重新加入",
             targetType: "CIRCLE",
             targetId: m.circleId,
+            category: "GOVERN",
+            circleId: m.circleId,
           }).catch((err) => this.logger.warn("圈子通知发送失败", err));
         }
       }
@@ -465,6 +553,8 @@ export class CircleMembershipService {
             content: `您的圈子会员将于 ${days} 天后到期，请及时续费`,
             targetType: "CIRCLE",
             targetId: m.circleId,
+            category: "GOVERN",
+            circleId: m.circleId,
           }).catch((err) => this.logger.warn("圈子通知发送失败", err));
         }
       }

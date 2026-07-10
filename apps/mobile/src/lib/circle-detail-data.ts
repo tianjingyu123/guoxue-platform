@@ -393,10 +393,55 @@ export const circleDetailApi = {
   /**
    * 续费年费圈子·第一步创建现金订单 — POST /circles/:id/renew。
    * 董事长拍板 2026-07-10：入圈与续费都只能人民币（微信/支付宝），不支持虚拟币。
+   * #34：折扣开启时后端返回折后 priceYuan + originalPriceYuan（前端展示以此为准，不硬编码折扣文案）。
+   * TODO(#34)：两年档 years=2 后端已支持，档位选择 UI 待做。
    */
-  renewPrepare: (id: string, payMethod: 'WECHAT' | 'ALIPAY') =>
-    apiPost<{ needPayment?: boolean; orderId?: string; priceYuan?: number; message?: string }>(`/circles/${id}/renew`, { payMethod }),
+  renewPrepare: (id: string, payMethod: 'WECHAT' | 'ALIPAY', years?: number) =>
+    apiPost<{ needPayment?: boolean; orderId?: string; priceYuan?: number; originalPriceYuan?: number; discountApplied?: boolean; message?: string }>(
+      `/circles/${id}/renew`,
+      { payMethod, ...(years === 2 ? { years } : {}) },
+    ),
   /** 续费·第二步支付完成后确认 — POST /circles/:id/renew/confirm（顺延到期时间·返回 newExpireAt） */
   renewConfirm: (id: string, orderId: string) =>
     apiPost<{ newExpireAt?: string }>(`/circles/${id}/renew/confirm`, { orderId }),
+  /**
+   * 续费报价 — GET /circles/:id/renew/quote（#34·纯查询不建单）。
+   * 折扣关闭（默认）时 priceYuan === originalPriceYuan → 页面无任何折扣露出（零变化）。
+   * 失败返回 null（页面回落 circle.price 展示，不阻断）。
+   */
+  renewQuote: async (id: string): Promise<RenewQuote | null> => {
+    try {
+      const r = await apiGet<RenewQuote>(`/circles/${id}/renew/quote`)
+      return r && typeof r.priceYuan === 'number' ? r : null
+    } catch { return null }
+  },
+  /**
+   * 成员年度报告 — GET /circles/:id/annual-report（#33·本人过去 365 天在本圈真实聚合）。
+   * 查不到的字段后端不返回（如无分成则无 earningsRmb）；失败返回 null（报告卡不渲染·保持降级）。
+   */
+  annualReport: async (id: string): Promise<CircleAnnualReport | null> => {
+    try {
+      return await apiGet<CircleAnnualReport>(`/circles/${id}/annual-report`)
+    } catch { return null }
+  },
+}
+
+/** #34 续费报价（后端 renewQuote 返回形状） */
+export interface RenewQuote {
+  years: number
+  originalPriceYuan: number
+  priceYuan: number
+  discountEnabled: boolean
+  discountApplied: boolean
+  twoYear?: { originalPriceYuan: number; priceYuan: number }
+}
+
+/** #33 年度报告（全部真实聚合·earningsRmb 仅有分成记录时返回） */
+export interface CircleAnnualReport {
+  joinedDays: number
+  posts: number
+  questions: number
+  liveCount: number
+  likesReceived: number
+  earningsRmb?: number
 }

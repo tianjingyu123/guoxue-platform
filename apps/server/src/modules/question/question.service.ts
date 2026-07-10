@@ -40,6 +40,16 @@ export class QuestionService {
     });
     if (!member) throw new BusinessException(ErrorCode.BAD_REQUEST, "回答者不在该圈子中");
 
+    // 圈子治理 #10（2026-07-11）：被禁言成员在该圈内不能发起付费提问（轻量直查 CircleViolation·避免跨模块依赖·置于扣币前）
+    const mute = await this.prisma.circleViolation.findFirst({
+      where: { circleId: dto.circleId, userId, type: "MUTE", status: "ACTIVE", expiresAt: { gt: new Date() } },
+      select: { expiresAt: true },
+    });
+    if (mute) {
+      const until = mute.expiresAt ? mute.expiresAt.toISOString().slice(0, 16).replace("T", " ") : "";
+      throw new BusinessException(ErrorCode.FORBIDDEN, `你在该圈处于禁言期${until ? `（至 ${until}）` : ""}，暂不能发起提问`);
+    }
+
     // 内容审核（先审后发；置于扣币事务前，违规内容不扣币）
     await this.audit.moderateTextOrThrow([dto.questionTitle, dto.question].filter(Boolean).join(" "), {
       scene: "PAID_QUESTION",

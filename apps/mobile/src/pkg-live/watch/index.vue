@@ -49,11 +49,14 @@
         <!-- 点击播放后原地渲染点播 video（回放是点播，不走 live-player 直播内核） -->
         <video
           v-if="replayPlaying && room.replayUrl"
+          id="replay-video"
           class="rp__video"
           :src="room.replayUrl"
           :controls="true"
           autoplay
           object-fit="contain"
+          @play="onReplayPlay"
+          @timeupdate="onReplayTimeUpdate"
         />
         <template v-else>
           <image v-if="room.cover" lazy-load class="rp__cover" :src="room.cover" mode="aspectFill" />
@@ -73,6 +76,21 @@
           <image lazy-load class="rp__host-avatar" :src="room.hostAvatar" mode="aspectFill" />
           <text class="rp__host-name">{{ room.hostName }}</text>
         </view>
+        <!-- #21 回放章节点（主播标注·点击 seek·无标注不渲染） -->
+        <template v-if="room.replayUrl && room.replayChapters?.length">
+          <text class="rp__chapter-label">回放章节</text>
+          <view class="rp__chapter-list">
+            <view
+              v-for="(c, i) in room.replayChapters" :key="i"
+              class="rp__chapter-row" @tap="seekToChapter(c.t)"
+            >
+              <text class="rp__chapter-time">{{ fmtChapterTime(c.t) }}</text>
+              <text class="rp__chapter-name">{{ c.title }}</text>
+            </view>
+          </view>
+        </template>
+        <!-- 续播提示（本地进度记忆·>30s 才显示） -->
+        <text v-if="!replayPlaying && savedReplayPos > 30" class="rp__resume-tip">上次看到 {{ fmtChapterTime(savedReplayPos) }}，点击播放自动续播</text>
         <!-- 无回放：空态 -->
         <view v-if="!room.replayUrl" class="rp__empty">
           <text class="rp__empty-txt">直播已结束 · 暂无回放</text>
@@ -354,7 +372,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, getCurrentInstance } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
@@ -375,6 +393,8 @@ import {
 
 // ===== 系统信息（状态栏） =====
 const statusBarHeight = ref(0)
+// 组件实例（uni.createVideoContext 在组件内需传 this·回放章节 seek 用）
+const instance = getCurrentInstance()
 
 // ===== 直播间数据 =====
 const loading = ref(true)
@@ -401,6 +421,7 @@ const defaultWatchRoom = {
   chargePrice: 0,
   quality: '',
   replayUrl: '',
+  replayChapters: [] as { t: number; title: string }[], // #21 回放章节点
   circleName: '',
 }
 // 模板裸访问大量房间字段，保留 any 避免收敛触发大量报错
@@ -472,6 +493,8 @@ async function fetchRoomData(roomId: string) {
     if (getToken() && room.value.circleId) liveApi.reportCircleChannelClick(room.value.circleId)
     // 预约态 → 拉取真实预约人数（失败归零则该行不显示）
     if (isWaiting.value) fetchBookingCount(room.value.id)
+    // 回放态 → 读本地观看进度（#21 续播记忆）
+    if (isReplayState.value) loadReplayPos(room.value.id || roomId)
     // 播放地址只在直播中才拉（预告/回放态请求必被后端 400 拒，白耗一次请求+控制台报错）
     if (roomStatus.value === 'LIVING') fetchPlayUrl(room.value.id || roomId)
   } catch (e) {
@@ -556,6 +579,59 @@ async function onToggleBook() {
 
 // ===== 回放态：点击封面播放钮后原地渲染点播 video =====
 const replayPlaying = ref(false)
+
+// ===== #21 回放章节点 + 观看进度记忆（本地 uni.setStorageSync·后端进度表 TODO） =====
+const REPLAY_POS_PREFIX = 'live_replay_pos_'
+const savedReplayPos = ref(0)
+let replayCtx: UniApp.VideoContext | null = null
+let lastPosSaveAt = 0
+let resumeDone = false
+
+function getReplayCtx(): UniApp.VideoContext | null {
+  if (!replayCtx) replayCtx = uni.createVideoContext('replay-video', instance?.proxy || undefined)
+  return replayCtx
+}
+/** 秒 → mm:ss / h:mm:ss（章节时间点展示） */
+function fmtChapterTime(sec: number): string {
+  const s = Math.max(0, Math.floor(sec))
+  const h = Math.floor(s / 3600)
+  const m = Math.floor((s % 3600) / 60)
+  const ss = String(s % 60).padStart(2, '0')
+  return h > 0 ? `${h}:${String(m).padStart(2, '0')}:${ss}` : `${m}:${ss}`
+}
+/** 章节点击：未播则先起播（video v-if 渲染后再 seek），已播直接 seek */
+function seekToChapter(t: number) {
+  resumeDone = true // 手动选章节 → 不再自动续播覆盖
+  if (!replayPlaying.value) {
+    replayPlaying.value = true
+    setTimeout(() => getReplayCtx()?.seek(t), 600) // 等 video 挂载完成
+  } else {
+    getReplayCtx()?.seek(t)
+  }
+}
+/** 起播回调：首次播放时按本地记忆续播（>30s 才续，避免开头几秒也跳） */
+function onReplayPlay() {
+  if (resumeDone) return
+  resumeDone = true
+  if (savedReplayPos.value > 30) {
+    getReplayCtx()?.seek(savedReplayPos.value)
+    uni.showToast({ title: `已为你续播至 ${fmtChapterTime(savedReplayPos.value)}`, icon: 'none' })
+  }
+}
+/** 播放进度本地记忆（5 秒节流写 storage）·uni video timeupdate 事件 detail.currentTime */
+function onReplayTimeUpdate(e: Event) {
+  const detail = (e as unknown as { detail?: { currentTime?: number } })?.detail
+  const cur = Number(detail?.currentTime) || 0
+  const now = Date.now()
+  if (cur > 5 && now - lastPosSaveAt > 5000) {
+    lastPosSaveAt = now
+    try { uni.setStorageSync(REPLAY_POS_PREFIX + room.value.id, Math.floor(cur)) } catch { /* storage 满/不可用 → 忽略 */ }
+  }
+}
+/** 读本地进度（fetchRoomData 成功后调用） */
+function loadReplayPos(roomId: string) {
+  try { savedReplayPos.value = Number(uni.getStorageSync(REPLAY_POS_PREFIX + roomId)) || 0 } catch { savedReplayPos.value = 0 }
+}
 
 // 后端礼物清单（真连：完整礼物对象直传 GiftPanel·送礼直接用礼物 uuid，无需再按名映射）
 const gifts = ref<LiveGift[]>([])
@@ -934,6 +1010,16 @@ onUnmounted(() => {
 .rp__host-name { font-size: 28rpx; font-weight: 600; color: #F5F2ED; }
 .rp__empty { margin-top: 48rpx; padding: 64rpx 0; display: flex; justify-content: center; background: #211E1A; border-radius: 36rpx; }
 .rp__empty-txt { font-size: 26rpx; color: #7A7468; }
+
+/* #21 回放章节点（V0 circle-live-viewer chapter-list·深色卡+金色时间点） */
+.rp__chapter-label { display: block; margin: 40rpx 4rpx 16rpx; font-size: 24rpx; color: #7A7468; }
+.rp__chapter-list { background: #211E1A; border-radius: 36rpx; padding: 8rpx 0; }
+.rp__chapter-row { display: flex; align-items: center; gap: 24rpx; padding: 24rpx 32rpx; }
+.rp__chapter-row + .rp__chapter-row { border-top: 1rpx solid rgba(255, 255, 255, 0.08); }
+.rp__chapter-row:active { background: rgba(255, 255, 255, 0.04); }
+.rp__chapter-time { flex-shrink: 0; font-size: 24rpx; font-weight: 600; color: #C9A96E; font-variant-numeric: tabular-nums; }
+.rp__chapter-name { flex: 1; min-width: 0; font-size: 26rpx; color: #B8B2A8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rp__resume-tip { display: block; margin: 20rpx 4rpx 0; font-size: 22rpx; color: #7A7468; }
 
 /* 右上角榜单入口 */
 .rank-entry-wrap { position: absolute; top: 220rpx; right: 24rpx; z-index: 20; }

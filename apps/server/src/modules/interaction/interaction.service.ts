@@ -1,8 +1,10 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, Optional } from "@nestjs/common";
 import { HttpStatus } from "@nestjs/common";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
+import { NotificationService } from "../notification/notification.service";
+import { DEFAULT_GOVERNANCE_CONFIG } from "../circle/governance/circle-governance.constants";
 import {
   LikeDto, CreateCommentDto, CollectDto,
   FollowDto, ReportDto, CommentListQueryDto, ReportListQueryDto,
@@ -16,7 +18,10 @@ import { safePagination } from "../../common/pagination";
 export class InteractionService {
   private readonly logger = new Logger(InteractionService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    @Optional() private notification?: NotificationService,
+  ) {}
 
   // ═══════════════════ 点赞 ═══════════════════
 
@@ -100,7 +105,32 @@ export class InteractionService {
     // 异步记录行为
     this.prisma.userBehavior.create({ data: { userId, targetType: dto.targetType, targetId: dto.targetId, behavior: "COMMENT", weight: 1.5 } }).catch((err) => this.logger.warn("用户行为记录失败", err));
 
+    // 圈内帖子被回复 → 通知帖子作者（圈内通知中心·互动 INTERACT·fire-and-forget 不阻断评论）
+    if (dto.targetType === "POST") {
+      this.notifyPostAuthorOnComment(userId, dto.targetId, dto.content, comment.user?.nickname)
+        .catch((err) => this.logger.warn("帖子回复通知发送失败", err));
+    }
+
     return comment;
+  }
+
+  /** 圈内帖子有新回复时通知作者（仅圈子帖·不通知自己回复自己） */
+  private async notifyPostAuthorOnComment(commenterId: string, postId: string, content: string, commenterNickname?: string | null) {
+    if (!this.notification) return;
+    const post = await this.prisma.post.findUnique({
+      where: { id: postId },
+      select: { userId: true, circleId: true, title: true },
+    });
+    if (!post?.circleId || post.userId === commenterId) return;
+    await this.notification.send(post.userId, {
+      type: "POST_COMMENT",
+      title: "帖子有新回复",
+      content: `${commenterNickname || "圈友"} 回复了你的帖子${post.title ? `「${post.title}」` : ""}：${content.slice(0, 60)}`,
+      targetType: "POST",
+      targetId: postId,
+      category: "INTERACT",
+      circleId: post.circleId,
+    });
   }
 
   async listComments(dto: CommentListQueryDto) {
@@ -265,7 +295,7 @@ export class InteractionService {
   // ═══════════════════ 举报 ═══════════════════
 
   async report(userId: string, dto: ReportDto) {
-    return this.prisma.report.create({
+    const report = await this.prisma.report.create({
       data: {
         reporterId: userId,
         targetType: dto.targetType,
@@ -273,6 +303,78 @@ export class InteractionService {
         reason: dto.reason,
       },
     });
+
+    // 圈子治理 TODO#3（2026-07-11）：圈内帖子被举报满阈值自动隐藏（幂等·失败不影响举报本身落库）
+    if (String(dto.targetType || "").toUpperCase() === "POST") {
+      await this.maybeAutoHideReportedPost(dto.targetId).catch((err) =>
+        this.logger.warn(`举报自动隐藏处理失败 post=${dto.targetId}`, err),
+      );
+    }
+    return report;
+  }
+
+  /**
+   * 举报满 N 自动隐藏（治理 TODO#3）：帖子属于圈子、圈子开启 reportAutoHide 且
+   * 待处理举报的**去重举报人数**达到阈值时，自动把帖子置 HIDDEN 并通知圈主处理。
+   * 已隐藏的不重复处理；配置未落库时回落治理默认值（开·阈值 3）。
+   */
+  private async maybeAutoHideReportedPost(postId: string) {
+    const post = await this.prisma.post.findUnique({
+      where: { id: postId },
+      select: { id: true, circleId: true, status: true, title: true },
+    });
+    if (!post?.circleId) return; // 不存在或非圈内帖子
+    if (post.status === "HIDDEN") return; // 已隐藏不重复处理
+
+    const cfg = await this.prisma.circleGovernanceConfig.findUnique({
+      where: { circleId: post.circleId },
+      select: { reportAutoHideEnabled: true, reportAutoHideThreshold: true },
+    });
+    const enabled = cfg?.reportAutoHideEnabled ?? DEFAULT_GOVERNANCE_CONFIG.reportAutoHideEnabled;
+    const threshold = cfg?.reportAutoHideThreshold ?? DEFAULT_GOVERNANCE_CONFIG.reportAutoHideThreshold;
+    if (!enabled) return;
+
+    // 去重举报人（同一人重复举报只算一票·只数未处理的举报）
+    const reporters = await this.prisma.report.findMany({
+      where: { targetType: "POST", targetId: postId, status: "PENDING" },
+      distinct: ["reporterId"],
+      select: { reporterId: true },
+    });
+    if (reporters.length < threshold) return;
+
+    // 幂等置隐藏（并发下只有一次生效）
+    const updated = await this.prisma.post.updateMany({
+      where: { id: postId, status: { not: "HIDDEN" } },
+      data: { status: "HIDDEN" },
+    });
+    if (!updated.count) return;
+
+    // 已发布帖子隐藏后修正圈子帖子计数（与删帖口径一致）
+    if (post.status === "PUBLISHED") {
+      await this.prisma.circle
+        .update({ where: { id: post.circleId }, data: { postCount: { decrement: 1 } } })
+        .catch((err) => this.logger.warn("举报隐藏后修正 postCount 失败", err));
+    }
+
+    // 通知圈主待处理（可在治理/内容管理侧复核后决定恢复或处理成员）
+    const circle = await this.prisma.circle.findUnique({
+      where: { id: post.circleId },
+      select: { ownerId: true, name: true },
+    });
+    if (circle?.ownerId && this.notification) {
+      this.notification
+        .send(circle.ownerId, {
+          type: "CIRCLE_GOVERNANCE",
+          category: "GOVERN",
+          circleId: post.circleId,
+          title: "圈内帖子被举报已自动隐藏",
+          content: `圈子「${circle.name}」内帖子「${post.title || "无标题"}」被 ${reporters.length} 人举报，已按治理配置自动隐藏，请尽快核实处理。`,
+          targetType: "POST",
+          targetId: postId,
+        })
+        .catch((err) => this.logger.warn("举报隐藏圈主通知失败", err));
+    }
+    this.logger.log(`举报满阈值自动隐藏 post=${postId} circle=${post.circleId} reporters=${reporters.length}/${threshold}`);
   }
 
   async listReports(dto: ReportListQueryDto) {

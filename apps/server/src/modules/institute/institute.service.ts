@@ -1,4 +1,4 @@
-import { Injectable, Optional } from "@nestjs/common";
+import { Injectable, Logger, Optional } from "@nestjs/common";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
@@ -43,6 +43,7 @@ const INSTITUTE_DEFAULT_DEPOSIT = 10000;
 
 @Injectable()
 export class InstituteService {
+  private readonly logger = new Logger(InstituteService.name);
   constructor(
     private prisma: PrismaService,
     @Optional() private fundApproval?: FundApprovalService,
@@ -329,6 +330,15 @@ export class InstituteService {
       where: { circleId_userId: { circleId, userId } },
     });
     if (exist) return;
+    // 治理 #10 旁路补全（2026-07-11）：被移出且禁入者不自动入圈——静默跳过不阻断研究院入会主流程
+    const ban = await this.prisma.circleViolation.findFirst({
+      where: { circleId, userId, type: "REMOVE", status: "ACTIVE" },
+      select: { id: true },
+    });
+    if (ban) {
+      this.logger.warn(`用户 ${userId} 在圈子 ${circleId} 有禁入记录，跳过研究院自动入圈`);
+      return;
+    }
     try {
       await this.prisma.$transaction([
         this.prisma.circleMember.create({ data: { circleId, userId, role: "MEMBER" } }),

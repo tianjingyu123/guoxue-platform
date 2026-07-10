@@ -27,6 +27,18 @@ export class BountyService {
   // ───────── 创建悬赏 ─────────
 
   async createQuestion(userId: string, dto: CreateBountyDto) {
+    // 圈子治理 #10（2026-07-11）：圈内悬赏同受禁言约束（仅当悬赏带 circleId 且该圈禁言生效时拦截·轻量直查避免跨模块依赖）
+    if (dto.circleId) {
+      const mute = await this.prisma.circleViolation.findFirst({
+        where: { circleId: dto.circleId, userId, type: "MUTE", status: "ACTIVE", expiresAt: { gt: new Date() } },
+        select: { expiresAt: true },
+      });
+      if (mute) {
+        const until = mute.expiresAt ? mute.expiresAt.toISOString().slice(0, 16).replace("T", " ") : "";
+        throw new BusinessException(ErrorCode.FORBIDDEN, `你在该圈处于禁言期${until ? `（至 ${until}）` : ""}，暂不能发布悬赏`);
+      }
+    }
+
     // 冻结赏金与创建悬赏放进同一事务：冻结失败则回滚，避免"钱冻结了却没有悬赏记录"的孤儿冻结。
     return this.prisma.$transaction(async (tx) => {
       const question = await tx.bountyQuestion.create({

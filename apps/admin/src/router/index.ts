@@ -121,6 +121,18 @@ const routes = [
         meta: { title: "圈子退款审核", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
       },
       {
+        path: "circle-appeals",
+        name: "CircleAppealArbitration",
+        component: () => import("@/views/circles/CircleAppealArbitration.vue"),
+        meta: { title: "圈子申诉仲裁", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
+      },
+      {
+        path: "call-disputes",
+        name: "CallDisputeArbitration",
+        component: () => import("@/views/circles/CallDisputeArbitration.vue"),
+        meta: { title: "通话账单申诉", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
+      },
+      {
         path: "circles/:id",
         name: "CircleDetail",
         component: () => import("@/views/circles/CircleDetail.vue"),

@@ -4,14 +4,16 @@
  * 结构：到期提醒卡 → 续费方案（单档） → 续费规则 → 到期后将暂停 → 保留说明 → 吸底续费栏。
  * 数据：circleDetailApi.detail + getJoinStatus（到期时间）+ renewPrepare/renewConfirm（现金订单双段）。
  * 董事长拍板 2026-07-10：续费与入圈一样只能人民币（微信/支付宝）——建 CIRCLE_RENEW 订单→拉起聚合支付→确认顺延。
- * 降级（后端缺）：年度报告 / 老成员折扣 / 两年档 → 不做（后端无统计与折扣模型，只有单价续一年）。
+ * #33 年度报告：GET annual-report 真实聚合 →「你的这一年」卡（有数据才渲染·失败不渲染）。
+ * #34 老成员折扣：GET renew/quote 真实报价 → 折扣开启时原价划线+折后价（默认关闭无任何变化·不硬编码折扣文案）。
+ * TODO(#34)：两年档 years=2 后端已支持（quote.twoYear），档位选择 UI 待做。
  */
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
 import { formatPrice } from '@/utils/format'
-import { circleDetailApi, type CircleDetail } from '@/lib/circle-detail-data'
+import { circleDetailApi, type CircleDetail, type RenewQuote, type CircleAnnualReport } from '@/lib/circle-detail-data'
 import { purchaseApi, type PayChannel } from '@/lib/purchase-data'
 
 const circleId = ref('')
@@ -43,6 +45,28 @@ const newExpireDate = computed(() => {
   return fmtDate(new Date(base.getTime() + 365 * 86400000).toISOString())
 })
 
+// ── #34 续费报价（折扣关闭时 priceYuan===originalPriceYuan → 页面零变化） ──
+const quote = ref<RenewQuote | null>(null)
+/** 实际应付价（有报价用报价·失败回落圈子标价） */
+const payPrice = computed(() => quote.value?.priceYuan ?? Number(circle.value?.price ?? 0))
+/** 折扣露出条件：报价存在且折后价 < 原价（读后端真实价，不硬编码折扣文案） */
+const hasDiscount = computed(() => !!quote.value && quote.value.priceYuan < quote.value.originalPriceYuan)
+/** 折扣标签（由真实价格反推，如 292/365 → 8折） */
+const discountTag = computed(() => {
+  if (!hasDiscount.value || !quote.value) return ''
+  const z = (quote.value.priceYuan / quote.value.originalPriceYuan) * 10
+  const txt = (Math.round(z * 10) / 10).toString().replace(/\.0$/, '')
+  return `老成员 ${txt} 折`
+})
+
+// ── #33 年度报告（真实聚合·有数据才渲染） ──
+const report = ref<CircleAnnualReport | null>(null)
+const showReport = computed(() => {
+  const r = report.value
+  if (!r) return false
+  return (r.posts || 0) + (r.questions || 0) + (r.liveCount || 0) + (r.likesReceived || 0) > 0 || r.earningsRmb !== undefined
+})
+
 async function loadData() {
   isLoading.value = true
   error.value = ''
@@ -54,6 +78,9 @@ async function loadData() {
     circle.value = c
     expireAt.value = st.expireAt
     joined.value = st.joined || st.expired
+    // 增值信息并行拉取（各自失败静默：报价回落标价·报告卡不渲染）
+    circleDetailApi.renewQuote(circleId.value).then((q) => { quote.value = q })
+    circleDetailApi.annualReport(circleId.value).then((r) => { report.value = r })
   } catch {
     error.value = '加载失败，请重试'
   } finally {
@@ -143,17 +170,57 @@ onLoad((q) => {
         </view>
       </view>
 
-      <!-- 续费方案（后端单档：续一年） -->
-      <text class="rn-label">续费方案</text>
+      <!-- #33 你的这一年（真实聚合·有数据才渲染·V0 report-card） -->
+      <template v-if="showReport && report">
+        <text class="rn-label">你的这一年</text>
+        <view class="rn-report-card">
+          <view class="rn-report-head">
+            <app-icon name="bar-chart-3" :size="30" color="#C9A96E" />
+            <view class="rn-report-head-main">
+              <text class="rn-report-title">在圈子里的一年</text>
+              <text class="rn-report-sub">数据由系统自动统计生成 · 入圈 {{ report.joinedDays }} 天</text>
+            </view>
+          </view>
+          <view class="rn-report-grid">
+            <view class="rn-report-item">
+              <text class="rn-report-num">{{ report.posts }}<text class="rn-report-unit">篇</text></text>
+              <text class="rn-report-label">发布的帖子</text>
+            </view>
+            <view class="rn-report-item">
+              <text class="rn-report-num">{{ report.questions }}<text class="rn-report-unit">次</text></text>
+              <text class="rn-report-label">向达人提问</text>
+            </view>
+            <view class="rn-report-item">
+              <text class="rn-report-num">{{ report.liveCount }}<text class="rn-report-unit">场</text></text>
+              <text class="rn-report-label">参与的直播</text>
+            </view>
+            <view class="rn-report-item">
+              <text class="rn-report-num">{{ report.likesReceived }}<text class="rn-report-unit">赞</text></text>
+              <text class="rn-report-label">获得的点赞</text>
+            </view>
+            <view v-if="report.earningsRmb !== undefined" class="rn-report-item wide">
+              <text class="rn-report-num">+{{ formatPrice(report.earningsRmb) }}<text class="rn-report-unit">元</text></text>
+              <text class="rn-report-label">在圈内获得的分成收益</text>
+            </view>
+          </view>
+        </view>
+      </template>
+
+      <!-- 续费方案（#34：折扣开启时原价划线+折后价·两年档 UI TODO） -->
+      <text class="rn-label">续费方案{{ hasDiscount ? ' · 老成员专享' : '' }}</text>
       <view class="rn-plan-card">
         <view class="rn-plan-option">
           <view class="rn-radio"><view class="rn-radio-dot" /></view>
           <view class="rn-plan-main">
-            <text class="rn-plan-name">续费一年</text>
+            <view class="rn-plan-name-row">
+              <text class="rn-plan-name">续费一年</text>
+              <view v-if="hasDiscount" class="rn-plan-tag"><text class="rn-plan-tag-t">{{ discountTag }}</text></view>
+            </view>
             <text class="rn-plan-desc">有效期顺延至 {{ newExpireDate }}</text>
           </view>
           <view class="rn-plan-price">
-            <text class="rn-plan-now">¥{{ formatPrice(circle.price) }}<text class="rn-plan-unit"> /年</text></text>
+            <text class="rn-plan-now">¥{{ formatPrice(payPrice) }}<text class="rn-plan-unit"> /年</text></text>
+            <text v-if="hasDiscount && quote" class="rn-plan-was">原价 ¥{{ formatPrice(quote.originalPriceYuan) }}</text>
           </view>
         </view>
       </view>
@@ -191,11 +258,12 @@ onLoad((q) => {
       </view>
       <text class="rn-keep">你发布过的内容与获得的收益<text class="rn-rule-b">永久保留</text>，重新加入后自动恢复。</text>
 
-      <!-- 吸底续费栏 -->
+      <!-- 吸底续费栏（#34：展示后端真实应付价·折扣态附原价划线） -->
       <view class="rn-bar">
         <view class="rn-bar-price">
-          <text class="rn-bar-num">¥{{ formatPrice(circle.price) }}</text>
+          <text class="rn-bar-num">¥{{ formatPrice(payPrice) }}</text>
           <text class="rn-bar-unit"> /年</text>
+          <text v-if="hasDiscount && quote" class="rn-bar-was">¥{{ formatPrice(quote.originalPriceYuan) }}</text>
         </view>
         <view class="rn-bar-btn" :class="{ disabled: submitting || renewed }" @tap="doRenew">
           <text class="rn-bar-btn-t">{{ submitting ? '处理中…' : renewed ? '已续费' : '立即续费' }}</text>
@@ -258,6 +326,29 @@ onLoad((q) => {
 /* 分区标题 */
 .rn-label { display: block; margin: 44rpx 40rpx 16rpx; font-size: 26rpx; color: var(--text-tertiary, #999); }
 
+/* #33 年度报告卡（V0 report-card·米金渐变+金描边） */
+.rn-report-card {
+  margin: 0 32rpx; padding: 30rpx 32rpx;
+  background: linear-gradient(135deg, #fdfbf7, #f8f2e7);
+  border: 1rpx solid #e8dcc4; border-radius: 36rpx;
+  box-shadow: 0 2rpx 6rpx rgba(44, 44, 44, 0.05);
+}
+.rn-report-head { display: flex; align-items: center; gap: 18rpx; }
+.rn-report-head-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.rn-report-title { font-size: 29rpx; font-weight: 700; color: var(--text-primary, #2c2c2c); }
+.rn-report-sub { font-size: 22rpx; color: var(--text-tertiary, #999); margin-top: 2rpx; }
+.rn-report-grid { display: flex; flex-wrap: wrap; gap: 20rpx; margin-top: 26rpx; }
+.rn-report-item {
+  width: calc(50% - 10rpx); box-sizing: border-box;
+  padding: 20rpx 24rpx; border-radius: 24rpx;
+  background: rgba(255, 255, 255, 0.72);
+  display: flex; flex-direction: column;
+}
+.rn-report-item.wide { width: 100%; }
+.rn-report-num { font-size: 40rpx; font-weight: 700; color: var(--gold, #c9a96e); font-variant-numeric: tabular-nums; }
+.rn-report-unit { font-size: 22rpx; font-weight: 400; color: var(--text-tertiary, #999); margin-left: 4rpx; }
+.rn-report-label { font-size: 23rpx; color: var(--text-secondary, #6e6e73); margin-top: 4rpx; }
+
 /* 续费方案 */
 .rn-plan-card {
   margin: 0 32rpx; background: var(--bg-card, #fff);
@@ -282,7 +373,16 @@ onLoad((q) => {
 .rn-pay-badge-t { font-size: 26rpx; font-weight: 700; color: #fff; }
 .rn-pay-name { flex: 1; font-size: 28rpx; color: var(--text-primary, #2c2c2c); }
 .rn-plan-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.rn-plan-name-row { display: flex; align-items: center; gap: 12rpx; }
 .rn-plan-name { font-size: 30rpx; font-weight: 500; color: var(--text-primary, #2c2c2c); }
+/* #34 折扣标签（由后端真实价反推折数·非硬编码文案） */
+.rn-plan-tag {
+  height: 34rpx; padding: 0 12rpx; border-radius: 10rpx;
+  background: var(--brand-soft, rgba(196, 30, 58, 0.08));
+  display: inline-flex; align-items: center;
+}
+.rn-plan-tag-t { font-size: 20rpx; font-weight: 600; color: var(--brand, #c41e3a); }
+.rn-plan-was { display: block; font-size: 22rpx; color: var(--text-tertiary, #999); text-decoration: line-through; margin-top: 2rpx; text-align: right; }
 .rn-plan-desc { font-size: 23rpx; color: var(--text-tertiary, #999); margin-top: 4rpx; }
 .rn-plan-price { flex-shrink: 0; }
 .rn-plan-now { font-size: 34rpx; font-weight: 700; color: var(--gold, #c9a96e); }
@@ -312,6 +412,7 @@ onLoad((q) => {
 .rn-bar-price { display: flex; align-items: baseline; }
 .rn-bar-num { font-size: 40rpx; font-weight: 700; color: var(--gold, #c9a96e); }
 .rn-bar-unit { font-size: 24rpx; color: var(--text-tertiary, #999); }
+.rn-bar-was { font-size: 24rpx; color: var(--text-tertiary, #999); text-decoration: line-through; margin-left: 12rpx; }
 .rn-bar-btn {
   height: 88rpx; padding: 0 68rpx; border-radius: 44rpx;
   background: var(--brand, #c41e3a);

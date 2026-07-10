@@ -53,11 +53,13 @@ export class CirclePostService {
     // 图片审核（发帖配图，先审后发）
     await this.audit.moderateImageOrThrow(dto.images, { scene: "CIRCLE_POST", userId });
 
-    // 圈内敏感词命中：发布态强制降级为 AUDITING（不直接展示·转人工复核）；草稿不动
+    // 治理转审（敏感词命中/新成员先审）：发布态强制降级为 AUDITING（不直接展示·转圈主人工复核）；草稿不动
     let status = dto.status ?? "PUBLISHED";
     if (gate.forceAudit && status === "PUBLISHED") {
       status = "AUDITING";
-      this.logger.log(`圈内敏感词命中转审 circle=${circleId} user=${userId} words=${gate.hitWords.join(",")}`);
+      this.logger.log(
+        `圈内发帖转审 circle=${circleId} user=${userId} reason=${gate.auditReason ?? "SENSITIVE_WORDS"}${gate.hitWords.length ? ` words=${gate.hitWords.join(",")}` : ""}`,
+      );
     }
 
     const post = await this.prisma.post.create({
@@ -406,14 +408,16 @@ export class CirclePostService {
         .catch((err) => this.logger.warn("打赏作者入账失败", err));
     }
 
-    // 通知帖子作者
+    // 通知帖子作者（圈内通知·交易类：金额按作者实际入账口径，注明已扣除平台服务费）
     if (this.notificationService) {
       this.notificationService.send(post.userId, {
         type: "POST_REWARD",
         title: "收到打赏",
-        content: message ? `有人打赏了你的帖子: ${message}` : `有人打赏了你的帖子，金额: ${amount} 币`,
+        content: `有人打赏了你的帖子，入账 ${authorShare} 币（已扣除平台服务费）${message ? `：${message}` : ""}`,
         targetType: "POST",
         targetId: postId,
+        category: "TRADE",
+        circleId,
       }).catch((err) => this.logger.warn("打赏通知发送失败", err));
     }
 

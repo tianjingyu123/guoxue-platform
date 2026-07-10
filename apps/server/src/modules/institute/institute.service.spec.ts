@@ -47,6 +47,10 @@ describe("InstituteService", () => {
       circle: {
         update: jest.fn(),
       },
+      // 治理 #10：自动入圈前禁入直查（默认无禁入）
+      circleViolation: {
+        findFirst: jest.fn().mockResolvedValue(null),
+      },
       user: {
         findUnique: jest.fn().mockResolvedValue({ id: "u-vip" }),
       },
@@ -138,6 +142,17 @@ describe("InstituteService", () => {
       expect(prisma.circle.update).toHaveBeenCalledWith(
         expect.objectContaining({ data: { memberCount: { increment: 1 } } }),
       );
+    });
+
+    it("治理禁入者：自动入圈静默跳过（不阻断研究院入会主流程）", async () => {
+      prisma.institute.findFirst.mockResolvedValue({ id: "i1", name: "国学研究院", circleId: "big-c" });
+      prisma.instituteMember.findFirst.mockResolvedValue(null);
+      prisma.instituteMember.create.mockResolvedValue({ id: "m1", user: {} });
+      prisma.circleMember.findUnique.mockResolvedValue(null);
+      prisma.circleViolation.findFirst.mockResolvedValue({ id: "v1" }); // REMOVE ACTIVE 禁入
+      const res = await svc.join("u1", { role: "TYPE_A", joinYear: 2026 });
+      expect(res.id).toBe("m1"); // 入会本身不受影响
+      expect(prisma.circleMember.create).not.toHaveBeenCalled(); // 但不自动入圈
     });
 
     it("自动入圈幂等：已在圈内则不重复建", async () => {

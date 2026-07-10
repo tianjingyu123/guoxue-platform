@@ -377,6 +377,8 @@ export interface LiveWatchRoomInfo {
   /** 画质档位：basic | hd | uhd（空=未知） */
   quality: string
   replayUrl: string
+  /** #21 回放章节点（主播标注·无则空数组） */
+  replayChapters: { t: number; title: string }[]
   circleName: string
 }
 // 原型 mockDanmaku 全部为普通弹幕(type:normal)，无"系统/欢迎"项；系统消息走 liveWatchSystemPool 横幅
@@ -1214,6 +1216,7 @@ interface RawLiveRoomDetail extends RawLiveRoom {
   products?: { id?: string; productId?: string }[] | null
   quality?: string | null // 画质档位 basic|hd|uhd（C5 分档）
   replayUrl?: string | null // 回放地址（ENDED/REPLAY 态有回放时返回）
+  replayChapters?: { t?: number; title?: string }[] | null // #21 回放章节点（主播标注·[{t 秒, title}]）
   circle?: { id?: string; name?: string } | null // 圈子关联（观看页展示「来自圈子」）
 }
 /** GET /shop/products/:id 精简形状（直播带货商品充实用·仅声明访问到的字段） */
@@ -1918,6 +1921,10 @@ export const liveApi = {
       chargePrice: Number(r.chargePrice) || 0,
       quality: String(r.quality || ''), // basic|hd|uhd（LIVING 态画质角标）
       replayUrl: r.replayUrl || '', // 回放地址（ENDED/REPLAY 态点播）
+      // #21 回放章节点：仅收有效项（t 数字秒 + 非空标题），后端未标注/列未就绪 → 空数组不渲染
+      replayChapters: (Array.isArray(r.replayChapters) ? r.replayChapters : [])
+        .map((c) => ({ t: Math.max(0, Math.floor(Number(c?.t)) || 0), title: String(c?.title || '').trim() }))
+        .filter((c) => c.title),
       circleName: r.circle?.name || '', // 来源圈子名（「来自圈子」一行小字）
     }
     // 带货商品充实（佣-V2-P3 顺带修通）：关联表仅存 productId → 逐个拉商品详情组装带货列表

@@ -5,8 +5,10 @@
  * 数据：后端无 GET /consult-calls/:id 单条端点 → 经 GET /consult-calls/my 反查（记录仅当事人可见，口径一致）。
  * 账单全真字段：durationSec/pricePerMinute/prepaidCoin/settledCoin/refundedCoin；
  *   达人侧入账 = settledCoin × 50%（与后端 end() 分账硬编码 rate 0.5 一致）。
- * 降级（记台账）：①通话评价后端无端点/无字段（待办 #31）→ 评价区降级为「即将开放」说明，不做假星级；
- *   ②V0「账单申诉」后端无申诉端点 → 不做。
+ * 评价（待办 #31·2026-07-11 解锁）：星级 1-5 + 标签 chips（V0 稿文案）+ 文字 ≤200 字，
+ *   真连 POST /consult-calls/:id/rate（仅发起方·仅 ENDED·仅一次·结束后 24h 内）；已评态回显；超窗提示。
+ * 账单申诉（同批解锁）：POST /consult-calls/:id/dispute（双方·24h 内·一次），提交后回显状态；
+ *   处理只记结论，退款走人工金币退款审批流（资金零触碰）。
  */
 import { ref, computed, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
@@ -60,6 +62,89 @@ async function load() {
     error.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
+  }
+}
+
+/* ───────── 评价（待办 #31）：星级 + 标签 + 文字 ≤200 字 ───────── */
+
+/** 快捷评价标签（V0 circle-consult-call-end.html 稿文案） */
+const RATE_TAGS = ['讲解清楚', '有实际方案', '耐心细致', '准时守约', '性价比高']
+/** 星级对应文案（V0 稿 5 星=非常满意） */
+const RATE_TEXT = ['', '不满意', '一般', '满意', '很满意', '非常满意']
+
+const rateStars = ref(0)
+const rateTags = ref<string[]>([])
+const rateComment = ref('')
+const rateSubmitting = ref(false)
+
+const rated = computed(() => !!call.value?.ratedAt)
+const ratedTags = computed(() => (call.value?.ratingTags || '').split(',').filter(Boolean))
+/** 评价/申诉共用 24h 窗口（自通话结束 endAt 起算·与后端口径一致） */
+const within24h = computed(() => {
+  const end = call.value?.endAt ? new Date(String(call.value.endAt)).getTime() : 0
+  return end > 0 && Date.now() - end <= 24 * 60 * 60 * 1000
+})
+const canRate = computed(() => ended.value && isCaller.value && !rated.value && within24h.value)
+
+function toggleTag(t: string) {
+  const i = rateTags.value.indexOf(t)
+  if (i >= 0) rateTags.value.splice(i, 1)
+  else rateTags.value.push(t)
+}
+
+async function submitRate() {
+  if (!call.value || rateSubmitting.value) return
+  if (!rateStars.value) { uni.showToast({ title: '请先点亮星级', icon: 'none' }); return }
+  if (rateComment.value.length > 200) { uni.showToast({ title: '评价最多 200 字', icon: 'none' }); return }
+  rateSubmitting.value = true
+  try {
+    const comment = rateComment.value.trim()
+    await callApi.rate(call.value.id, { rating: rateStars.value, tags: rateTags.value, comment: comment || undefined })
+    // 就地切已评态回显（不整页重载）
+    call.value = {
+      ...call.value,
+      rating: rateStars.value,
+      ratingTags: rateTags.value.join(','),
+      ratingComment: comment || null,
+      ratedAt: new Date().toISOString(),
+    }
+    uni.showToast({ title: '感谢你的评价', icon: 'success' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '提交失败，请重试', icon: 'none' })
+  } finally {
+    rateSubmitting.value = false
+  }
+}
+
+/* ───────── 24h 账单申诉（只落记录·退款走人工审批流） ───────── */
+
+const disputeOpen = ref(false)
+const disputeReason = ref('')
+const disputeSubmitting = ref(false)
+
+const disputed = computed(() => !!call.value?.disputedAt)
+const canDispute = computed(() => ended.value && !disputed.value && within24h.value)
+const DISPUTE_STATUS_TEXT: Record<string, string> = {
+  PENDING: '账单申诉已提交，平台核查中（24 小时内）',
+  RESOLVED: '账单申诉已处理，如涉退款将由平台人工执行',
+  REJECTED: '账单申诉核查未通过',
+}
+const disputeStatusText = computed(() => DISPUTE_STATUS_TEXT[call.value?.disputeStatus || 'PENDING'] || DISPUTE_STATUS_TEXT.PENDING)
+
+async function submitDispute() {
+  if (!call.value || disputeSubmitting.value) return
+  const reason = disputeReason.value.trim()
+  if (!reason) { uni.showToast({ title: '请填写申诉原因', icon: 'none' }); return }
+  disputeSubmitting.value = true
+  try {
+    await callApi.dispute(call.value.id, reason)
+    call.value = { ...call.value, disputeReason: reason, disputedAt: new Date().toISOString(), disputeStatus: 'PENDING' }
+    disputeOpen.value = false
+    uni.showToast({ title: '申诉已提交', icon: 'success' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '提交失败，请重试', icon: 'none' })
+  } finally {
+    disputeSubmitting.value = false
   }
 }
 
@@ -125,17 +210,89 @@ onMounted(load)
       </view>
       <text class="cle-bill-note">不足 1 分钟按 1 分钟计 · 结算明细与对方看到的完全一致</text>
 
-      <!-- 评价区：后端无评价端点 → 降级说明（不做假星级） -->
-      <text class="cle-label">评价本次咨询</text>
-      <view class="cle-rate">
-        <app-icon name="star" :size="40" color="#C9A96E" />
-        <text class="cle-rate-t">通话评价功能即将开放</text>
-        <text class="cle-rate-sub">上线后你的评价将帮助其他圈友选择合适的达人</text>
+      <!-- 账单申诉：24h 内一次；提交后回显状态（处理只记结论·退款走人工审批流） -->
+      <view v-if="ended && (disputed || canDispute)" class="cle-dispute">
+        <view v-if="disputed" class="cle-dispute-status">
+          <app-icon name="info" :size="28" color="#9A9A9A" />
+          <text class="cle-dispute-status-t">{{ disputeStatusText }}</text>
+        </view>
+        <template v-else>
+          <text v-if="!disputeOpen" class="cle-dispute-link" @tap="disputeOpen = true">对时长或金额有异议？提交申诉（24 小时内平台核查）</text>
+          <view v-else class="cle-dispute-form">
+            <view class="cle-input-wrap">
+              <textarea v-model="disputeReason" class="cle-input" :maxlength="500" placeholder="请说明对时长或金额的异议，平台将在 24 小时内核查" placeholder-class="cle-input-ph" />
+            </view>
+            <view class="cle-dispute-btns">
+              <view class="cle-dispute-cancel" @tap="disputeOpen = false"><text class="cle-dispute-cancel-t">取消</text></view>
+              <view class="cle-dispute-submit" :class="{ 'is-disabled': disputeSubmitting }" @tap="submitDispute">
+                <text class="cle-dispute-submit-t">{{ disputeSubmitting ? '提交中…' : '提交申诉' }}</text>
+              </view>
+            </view>
+          </view>
+        </template>
       </view>
 
-      <!-- 吸底返回 -->
+      <!-- 评价区（待办 #31 解锁）：发起方 ENDED 后 24h 内一次；已评回显；超窗提示 -->
+      <template v-if="ended && (isCaller || rated)">
+        <text class="cle-label">评价本次咨询</text>
+
+        <!-- 已评态回显 -->
+        <view v-if="rated" class="cle-rate">
+          <text class="cle-rate-t">{{ isCaller ? '你已评价本次咨询' : '对方的评价' }}</text>
+          <view class="cle-stars">
+            <view v-for="i in 5" :key="i" class="cle-star">
+              <app-icon name="star" :size="48" :color="i <= (call.rating || 0) ? '#C9A96E' : '#EDE7DD'" />
+            </view>
+          </view>
+          <text v-if="call.rating" class="cle-rate-level">{{ RATE_TEXT[call.rating] }}</text>
+          <view v-if="ratedTags.length" class="cle-tags">
+            <view v-for="t in ratedTags" :key="t" class="cle-tag is-on"><text class="cle-tag-t is-on">{{ t }}</text></view>
+          </view>
+          <text v-if="call.ratingComment" class="cle-comment-view">{{ call.ratingComment }}</text>
+        </view>
+
+        <!-- 可评态：星级 + 标签 chips + 文字 200 字 -->
+        <view v-else-if="canRate" class="cle-rate">
+          <text class="cle-rate-t">这次通话解决你的问题了吗？</text>
+          <text class="cle-rate-sub">你的评价将帮助其他圈友选择合适的达人</text>
+          <view class="cle-stars">
+            <view v-for="i in 5" :key="i" class="cle-star" @tap="rateStars = i">
+              <app-icon name="star" :size="60" :color="i <= rateStars ? '#C9A96E' : '#EDE7DD'" />
+            </view>
+          </view>
+          <text v-if="rateStars" class="cle-rate-level">{{ RATE_TEXT[rateStars] }}</text>
+          <view class="cle-tags">
+            <view
+              v-for="t in RATE_TAGS" :key="t"
+              class="cle-tag" :class="{ 'is-on': rateTags.includes(t) }"
+              @tap="toggleTag(t)"
+            >
+              <text class="cle-tag-t" :class="{ 'is-on': rateTags.includes(t) }">{{ t }}</text>
+            </view>
+          </view>
+          <view class="cle-input-wrap">
+            <textarea v-model="rateComment" class="cle-input" :maxlength="200" placeholder="补充评价（选填，最多 200 字）" placeholder-class="cle-input-ph" />
+            <text class="cle-input-count">{{ rateComment.length }}/200</text>
+          </view>
+        </view>
+
+        <!-- 超窗未评 -->
+        <view v-else class="cle-rate">
+          <app-icon name="star" :size="40" color="#C9A96E" />
+          <text class="cle-rate-t">评价窗口已关闭</text>
+          <text class="cle-rate-sub">通话结束 24 小时内可评价</text>
+        </view>
+      </template>
+
+      <!-- 吸底：可评时=暂不评价+提交评价（评价可跳过不强制）；否则=完成 -->
       <view class="cle-bottom">
-        <view class="cle-back-btn" @tap="goBack"><text class="cle-back-btn-t">完成</text></view>
+        <template v-if="canRate">
+          <view class="cle-skip-btn" @tap="goBack"><text class="cle-skip-btn-t">暂不评价</text></view>
+          <view class="cle-back-btn cle-flex1" :class="{ 'is-disabled': !rateStars || rateSubmitting }" @tap="submitRate">
+            <text class="cle-back-btn-t">{{ rateSubmitting ? '提交中…' : '提交评价' }}</text>
+          </view>
+        </template>
+        <view v-else class="cle-back-btn cle-flex1" @tap="goBack"><text class="cle-back-btn-t">完成</text></view>
       </view>
     </template>
   </view>
@@ -207,27 +364,98 @@ onMounted(load)
 .cle-total-v { font-size: 36rpx; font-weight: 700; color: var(--gold, #c9a96e); }
 .cle-bill-note { display: block; padding: 20rpx 36rpx 0; font-size: 22rpx; color: var(--text-tertiary, #999); line-height: 1.7; }
 
-/* 评价降级区 */
+/* 账单申诉（V0：异议出口不让用户没地方说话） */
+.cle-dispute { margin: 0 32rpx; padding-top: 20rpx; }
+.cle-dispute-link {
+  display: block; text-align: center; padding: 4rpx 8rpx;
+  font-size: 24rpx; color: var(--text-tertiary, #999);
+  text-decoration: underline; text-underline-offset: 6rpx;
+}
+.cle-dispute-status {
+  display: flex; align-items: flex-start; gap: 12rpx;
+  padding: 20rpx 24rpx; background: var(--bg-warm, #f8f4ec); border-radius: 24rpx;
+}
+.cle-dispute-status-t { flex: 1; font-size: 24rpx; color: var(--text-secondary, #6e6e73); line-height: 1.6; }
+.cle-dispute-form {
+  padding: 24rpx; background: var(--bg-card, #fff); border-radius: 28rpx;
+  box-shadow: 0 2rpx 6rpx rgba(44, 44, 44, 0.05);
+}
+.cle-dispute-btns { display: flex; gap: 16rpx; margin-top: 20rpx; }
+.cle-dispute-cancel {
+  flex: 1; height: 72rpx; border-radius: 36rpx;
+  border: 1rpx solid var(--separator, #ede7dd);
+  display: flex; align-items: center; justify-content: center;
+}
+.cle-dispute-cancel-t { font-size: 26rpx; color: var(--text-secondary, #6e6e73); }
+.cle-dispute-submit {
+  flex: 2; height: 72rpx; border-radius: 36rpx; background: var(--brand, #c41e3a);
+  display: flex; align-items: center; justify-content: center;
+}
+.cle-dispute-submit.is-disabled { opacity: 0.5; }
+.cle-dispute-submit:active { opacity: 0.88; }
+.cle-dispute-submit-t { font-size: 26rpx; font-weight: 600; color: #fff; }
+
+/* 评价卡（V0：星级 + 标签 chips + 文字输入） */
 .cle-rate {
-  margin: 0 32rpx; padding: 44rpx 32rpx; text-align: center;
+  margin: 0 32rpx; padding: 36rpx 32rpx; text-align: center;
   background: var(--bg-card, #fff); border-radius: 36rpx;
   box-shadow: 0 2rpx 6rpx rgba(44, 44, 44, 0.05);
   display: flex; flex-direction: column; align-items: center; gap: 12rpx;
 }
 .cle-rate-t { font-size: 28rpx; font-weight: 600; color: var(--text-primary, #2c2c2c); }
 .cle-rate-sub { font-size: 22rpx; color: var(--text-tertiary, #999); }
+.cle-stars { display: flex; justify-content: center; gap: 20rpx; margin-top: 12rpx; }
+.cle-star { display: flex; padding: 4rpx; }
+.cle-star:active { opacity: 0.8; }
+.cle-rate-level { font-size: 26rpx; color: var(--gold, #c9a96e); font-weight: 600; }
+.cle-tags { display: flex; flex-wrap: wrap; justify-content: center; gap: 16rpx; margin-top: 12rpx; }
+.cle-tag {
+  padding: 12rpx 28rpx; border-radius: 32rpx;
+  border: 1rpx solid var(--separator, #ede7dd); background: transparent;
+}
+.cle-tag.is-on { border-color: var(--gold, #c9a96e); background: rgba(201, 169, 110, 0.07); }
+.cle-tag-t { font-size: 24rpx; color: var(--text-secondary, #6e6e73); }
+.cle-tag-t.is-on { color: var(--gold, #c9a96e); font-weight: 500; }
+.cle-comment-view {
+  align-self: stretch; margin-top: 8rpx; padding: 24rpx 28rpx; text-align: left;
+  background: var(--bg-warm, #f8f4ec); border-radius: 28rpx;
+  font-size: 26rpx; color: var(--text-secondary, #6e6e73); line-height: 1.6;
+}
+/* 文本输入（评价/申诉共用） */
+.cle-input-wrap { position: relative; align-self: stretch; margin-top: 16rpx; }
+.cle-input {
+  box-sizing: border-box; width: 100%; height: 160rpx;
+  padding: 24rpx 28rpx 44rpx; text-align: left;
+  background: var(--bg-warm, #f8f4ec); border-radius: 28rpx;
+  font-size: 26rpx; color: var(--text-primary, #2c2c2c); line-height: 1.6;
+}
+:deep(.cle-input-ph) { color: var(--text-tertiary, #999); }
+.cle-input-count {
+  position: absolute; right: 24rpx; bottom: 14rpx;
+  font-size: 20rpx; color: var(--text-tertiary, #999);
+}
 
-/* 吸底 */
+/* 吸底：可评时=暂不评价+提交评价；否则=完成 */
 .cle-bottom {
   position: fixed; bottom: 0; left: 0; right: 0; z-index: 20;
+  display: flex; align-items: center; gap: 20rpx;
   padding: 24rpx 32rpx calc(24rpx + env(safe-area-inset-bottom));
   background: rgba(250, 248, 245, 0.94); backdrop-filter: blur(24rpx);
   border-top: 1rpx solid var(--separator, #ede7dd);
 }
+.cle-skip-btn {
+  height: 92rpx; padding: 0 36rpx; border-radius: 46rpx;
+  border: 1rpx solid var(--separator, #ede7dd);
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.cle-skip-btn:active { opacity: 0.8; }
+.cle-skip-btn-t { font-size: 28rpx; color: var(--text-secondary, #6e6e73); }
 .cle-back-btn {
   height: 92rpx; border-radius: 46rpx; background: var(--brand, #c41e3a);
   display: flex; align-items: center; justify-content: center;
 }
+.cle-back-btn.is-disabled { opacity: 0.5; }
 .cle-back-btn:active { opacity: 0.88; }
 .cle-back-btn-t { font-size: 30rpx; font-weight: 600; color: #fff; }
+.cle-flex1 { flex: 1; }
 </style>

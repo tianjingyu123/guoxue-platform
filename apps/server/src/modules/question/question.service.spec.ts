@@ -14,6 +14,8 @@ const mockPrisma: any = {
   $transaction: jest.fn((arg: any) => typeof arg === "function" ? arg(txProxy) : Promise.all(Array.isArray(arg) ? arg : [arg])),
   circle: { findUnique: jest.fn() },
   circleMember: { findFirst: jest.fn() },
+  // 圈子治理 #10：发起提问前禁言直查（默认无禁言）
+  circleViolation: { findFirst: jest.fn().mockResolvedValue(null) },
   paidQuestion: {
     create: jest.fn(),
     findUnique: jest.fn(),
@@ -84,6 +86,26 @@ describe("QuestionService", () => {
       expect(result.status).toBe("PENDING")
       // coin.spend 在事务内调用，传入了 tx 参数
       expect(mockCoin.spend).toHaveBeenCalledWith("u1", expect.objectContaining({ scene: "PAID_QUESTION" }), expect.any(Object))
+    })
+
+    // 圈子治理 #10（2026-07-11）：被禁言成员在该圈内不能发起付费提问
+    it("圈内禁言中：发起提问被拦且不扣币", async () => {
+      mockPrisma.circle.findUnique.mockResolvedValue({ id: "c1" })
+      mockPrisma.circleMember.findFirst.mockResolvedValue({ id: "m1" })
+      mockPrisma.circleViolation.findFirst.mockResolvedValueOnce({ expiresAt: new Date(Date.now() + 86400000) })
+      await expect(svc.ask("u1", askDto)).rejects.toThrow("禁言")
+      expect(mockCoin.spend).not.toHaveBeenCalled()
+      expect(mockPrisma.paidQuestion.create).not.toHaveBeenCalled()
+    })
+
+    it("禁言查询限定本圈生效禁言（circleId+MUTE+ACTIVE+未到期）·无禁言正常提问", async () => {
+      mockPrisma.circle.findUnique.mockResolvedValue({ id: "c1" })
+      mockPrisma.circleMember.findFirst.mockResolvedValue({ id: "m1" })
+      mockPrisma.paidQuestion.create.mockResolvedValue({ id: "q1", status: "PENDING" })
+      await svc.ask("u1", askDto)
+      const where = mockPrisma.circleViolation.findFirst.mock.calls[0][0].where
+      expect(where).toMatchObject({ circleId: "c1", userId: "u1", type: "MUTE", status: "ACTIVE" })
+      expect(where.expiresAt).toHaveProperty("gt")
     })
   })
 

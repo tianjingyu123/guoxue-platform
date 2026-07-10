@@ -127,8 +127,13 @@ export class CircleService {
     return this.membershipSvc.confirmJoin(circleId, userId, dto);
   }
 
-  renewCircle(circleId: string, userId: string, dto?: { payMethod?: string }) {
+  renewCircle(circleId: string, userId: string, dto?: { payMethod?: string; years?: number }) {
     return this.membershipSvc.renewCircle(circleId, userId, dto);
+  }
+
+  /** 续费报价（#34·纯查询不建单·折扣关闭时 priceYuan === originalPriceYuan） */
+  renewQuote(circleId: string, userId: string) {
+    return this.membershipSvc.renewQuote(circleId, userId);
   }
 
   confirmRenew(circleId: string, userId: string, dto: { orderId?: string; orderNo?: string }) {

@@ -4,7 +4,13 @@ import { ErrorCode } from "../../common/error-codes";
 import { createHash } from "crypto";
 import { PrismaService } from "../../prisma/prisma.service";
 import { VectorService } from "../ai-gateway/vector.service";
+import { AiGatewayService } from "../ai-gateway/ai-gateway.service";
+import type { AiMessage } from "../ai-gateway/adapters/base.adapter";
 import { safePagination } from "../../common/pagination";
+import {
+  RolePermissionOverrides,
+  resolvePermission,
+} from "./governance/circle-governance.constants";
 
 @Injectable()
 export class CircleKnowledgeService {
@@ -13,17 +19,31 @@ export class CircleKnowledgeService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly vector: VectorService,
+    private readonly aiGateway: AiGatewayService,
   ) {}
 
-  /** 校验调用者是该圈管理员（OWNER/PARTNER/ADMIN），否则拒绝。知识库管理仅限圈主/管理员。 */
+  /**
+   * 知识库管理鉴权（治理权限矩阵 #8·knowledge.manage·2026-07-11 起接入）：
+   * 圈主恒通过；其余角色按 CircleGovernanceConfig.rolePermissions 覆盖位判断，
+   * 缺省回落默认矩阵（管理员✓ 合伙人✓ 嘉宾✗·可由圈主在矩阵中调整）。
+   */
   async assertManager(circleId: string, userId: string) {
     const member = await this.prisma.circleMember.findUnique({
       where: { circleId_userId: { circleId, userId } },
       select: { role: true },
     });
-    if (!member || !["OWNER", "PARTNER", "ADMIN"].includes(member.role)) {
-      throw new BusinessException(ErrorCode.FORBIDDEN, "仅圈主或管理员可管理圈子知识库");
-    }
+    if (!member) throw new BusinessException(ErrorCode.FORBIDDEN, "仅圈主或被授权的管理角色可管理圈子知识库");
+    if (member.role === "OWNER") return;
+    const config = await this.prisma.circleGovernanceConfig.findUnique({
+      where: { circleId },
+      select: { rolePermissions: true },
+    });
+    const allowed = resolvePermission(
+      member.role,
+      "knowledge.manage",
+      (config?.rolePermissions as RolePermissionOverrides | null) ?? null,
+    );
+    if (!allowed) throw new BusinessException(ErrorCode.FORBIDDEN, "无知识库管理权限");
   }
 
   // ───────── 知识库 CRUD ─────────
@@ -229,6 +249,92 @@ export class CircleKnowledgeService {
       where: { id: candidateId },
       data: { status: "confirmed" },
     });
+  }
+
+  /**
+   * #38 从达人回答提炼知识候选（手动触发·POST /circles/:circleId/knowledge/extract-candidates）。
+   * 取本圈近 30 天已回答 PaidQuestion 前 10 条 → AiGateway 总结提炼为候选条目（sourceType=expert_qa）落候选队列，
+   * 仍走既有「圈主确认才入库」流程。AI 未配置/失败 → 抛友好错误（不落任何数据）。
+   * TODO(#38)：命中率统计（AI 代答命中知识条目次数）无数据源暂不做。
+   */
+  async extractFromExpertAnswers(circleId: string) {
+    const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const questions = await this.prisma.paidQuestion.findMany({
+      where: { circleId, status: "ANSWERED", answeredAt: { gte: since }, answer: { not: null } },
+      select: { id: true, questionTitle: true, question: true, answer: true },
+      orderBy: { answeredAt: "desc" },
+      take: 10,
+    });
+    if (questions.length === 0) {
+      return { scanned: 0, created: 0, message: "近 30 天没有已回答的付费问答，暂无可提炼内容" };
+    }
+
+    const qaText = questions
+      .map((q, i) => `【问答${i + 1}】\n问：${(q.questionTitle || "").trim()} ${q.question.slice(0, 300)}\n答：${(q.answer || "").slice(0, 800)}`)
+      .join("\n\n");
+
+    const messages: AiMessage[] = [
+      {
+        role: "system",
+        content:
+          "你是圈子知识库整理助手。把达人问答提炼成可复用的知识条目：每条自成一体（不依赖上下文即可读懂）、保留达人的核心观点与方法、120~300字。" +
+          '只输出 JSON 数组（不要 markdown 代码块），格式：[{"questionIndex":1,"content":"知识条目正文"}]。' +
+          "questionIndex 是来源问答的序号；无提炼价值的问答可跳过；最多输出 10 条。",
+      },
+      { role: "user", content: qaText },
+    ];
+
+    let content = "";
+    try {
+      const result = await this.aiGateway.chat({ scene: "circle_knowledge_extract", messages, skipCache: true });
+      content = result?.content || "";
+    } catch (err) {
+      this.logger.warn(`知识候选 AI 提炼失败 circleId=${circleId}: ${(err as Error)?.message}`);
+      throw new BusinessException(ErrorCode.THIRD_AI_FAILED, "AI 服务未配置或暂不可用，请稍后再试");
+    }
+
+    const entries = this.parseExtractedEntries(content);
+    if (entries.length === 0) {
+      return { scanned: questions.length, created: 0, message: "AI 未提炼出有效条目，可稍后重试" };
+    }
+
+    let created = 0;
+    for (const e of entries.slice(0, 10)) {
+      const src = questions[e.questionIndex - 1];
+      try {
+        const r = await this.addCandidate({
+          circleId,
+          sourceType: "expert_qa",
+          sourceId: src?.id,
+          content: e.content,
+        });
+        if (r) created++;
+      } catch (err) {
+        // 单条失败（如向量服务异常/重复）跳过，不影响其余候选
+        this.logger.warn(`知识候选落库跳过: ${(err as Error)?.message}`);
+      }
+    }
+    return { scanned: questions.length, created, message: created > 0 ? `已提炼 ${created} 条候选，请在「待确认」中审核` : "内容均已存在或落库失败" };
+  }
+
+  /** 宽容解析 AI 输出的候选数组（剥 ```json 围栏/截取首尾中括号） */
+  private parseExtractedEntries(text: string): Array<{ questionIndex: number; content: string }> {
+    const stripped = (text || "").replace(/```json|```/g, "").trim();
+    const start = stripped.indexOf("[");
+    const end = stripped.lastIndexOf("]");
+    if (start < 0 || end <= start) return [];
+    try {
+      const arr = JSON.parse(stripped.slice(start, end + 1));
+      if (!Array.isArray(arr)) return [];
+      return arr
+        .map((x: { questionIndex?: unknown; content?: unknown }) => ({
+          questionIndex: Math.floor(Number(x?.questionIndex)) || 0,
+          content: String(x?.content || "").trim(),
+        }))
+        .filter((x) => x.content.length >= 20);
+    } catch {
+      return [];
+    }
   }
 
   /** 拒绝候选 */

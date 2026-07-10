@@ -3,20 +3,24 @@
  * 达人咨询 · 达人列表 — V0 circle-consult-experts.html 还原（2026-07-10 批④）
  * 结构：顶栏(我的咨询) → 平台担保条 → 本圈达人卡(身份标签三类 + 服务价格明码 + 未开通不渲染)。
  * 数据：consultApi.listExperts(circleId) 真连 GET /circles/:id/experts。
- * 降级（后端缺字段·不造假）：认证徽章/头衔简介/已答数/好评率/平均回复时长均无字段→不渲染，
- *   仅展示真实 responseHours（提问响应时限）。
+ * 好评率（待办 #31·2026-07-11 解锁）：通话评价回流，consultApi.getExpertRatingStats 真连
+ *   GET /consult-calls/expert-stats（rating≥4 占比）；无评价/未登录/失败不渲染该行（不编数）。
+ * 降级（后端缺字段·不造假）：认证徽章/头衔简介/已答数/平均回复时长仍无字段→不渲染，
+ *   另展示真实 responseHours（提问响应时限）。
  * 通话：TRTC 仅 App 端，H5/小程序按 V0 做「去 App 预约」弱化按钮 → 通话预约页(booking)。
  */
 import { ref, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
-import { consultApi, type ConsultExpert } from '@/lib/circle-consult-data'
+import { consultApi, type ConsultExpert, type ExpertRatingStat } from '@/lib/circle-consult-data'
 
 const circleId = ref('')
 const loading = ref(true)
 const error = ref('')
 const experts = ref<ConsultExpert[]>([])
+/** 达人好评率（通话评价回流）：无数据的达人不在 map 里 → 不渲染该行 */
+const ratingStats = ref<Record<string, ExpertRatingStat>>({})
 
 /** 身份标签样式三类：圈主金实底 / 合伙人金描边 / 嘉宾灰描边 */
 function roleClass(label: string) {
@@ -30,6 +34,10 @@ async function load() {
   error.value = ''
   try {
     experts.value = await consultApi.listExperts(circleId.value)
+    // 好评率回流（失败静默 {}，达人卡不渲染该行）
+    if (experts.value.length) {
+      ratingStats.value = await consultApi.getExpertRatingStats(experts.value.map(e => e.id))
+    }
   } catch {
     error.value = '加载失败'
   } finally {
@@ -96,6 +104,7 @@ onMounted(load)
               <text class="ce-name">{{ e.name || '达人' }}</text>
               <text class="ce-role" :class="'ce-role-' + roleClass(e.roleLabel)">{{ e.roleLabel }}</text>
             </view>
+            <text v-if="ratingStats[e.id]" class="ce-stats">好评率 <text class="ce-stats-b">{{ ratingStats[e.id].goodRate }}%</text> · {{ ratingStats[e.id].ratingCount }} 次评价</text>
             <text v-if="e.responseHours" class="ce-stats">图文提问 <text class="ce-stats-b">{{ e.responseHours }}</text> 小时内响应</text>
           </view>
         </view>

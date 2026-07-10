@@ -1306,6 +1306,7 @@ model LiveRoom {
   visibility       String       @default("CIRCLE_ONLY") // 开放范围：CIRCLE_ONLY=仅本圈 / PLATFORM=全平台（需审核通过才进公共池）
   replayVisibility String       @default("CIRCLE_ONLY") // 回放开放范围：CIRCLE_ONLY / PLATFORM
   replayCharge     Boolean      @default(false) // 回放是否对圈外收费
+  replayChapters   Json? // 回放章节点（#21·主播标注）：[{t 秒, title}]。代码读写走 $queryRaw 绕过 generate（见 manual/2026-07-11-growth-batch.sql）
   stationId        String? // 分站数据隔离（null = 平台级）
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
@@ -3026,6 +3027,8 @@ model Notification {
   content    String
   targetType String? // 跳转目标类型
   targetId   String? // 跳转目标ID
+  category   String? // 圈内事件四分类 INTERACT/TRADE/GOVERN/LIVE；非圈子通知为 NULL（列由 manual/2026-07-11-circle-notifications.sql 添加·代码经原生 SQL 访问）
+  circleId   String? // 事件所属圈子（无外键）
   isRead     Boolean  @default(false)
   createdAt  DateTime @default(now())
 
@@ -3033,6 +3036,7 @@ model Notification {
 
   @@index([userId, isRead, createdAt])
   @@index([userId, type, createdAt])
+  @@index([userId, category, createdAt])
 }
 
 /// 行为埋点事件（page_view/click/purchase/search/share/custom）。
@@ -6628,8 +6632,24 @@ model ConsultCall {
   refundedCoin   Int       @default(0)
   createdAt      DateTime  @default(now())
 
+  // ── 评价（待办 #31·2026-07-11·manual/2026-07-11-call-rating.sql·仅原生 SQL 访问） ──
+  rating        Int? // 星级 1-5（仅发起方·ENDED 后 24h 内·一次）
+  ratingTags    String? // 快捷标签（逗号串）
+  ratingComment String? // 文字评价（≤200 字·应用层校验）
+  ratedAt       DateTime? // 非空即已评价（幂等锚点）
+
+  // ── 24 小时账单申诉（处理只记结论·资金零触碰·退款走人工金币退款审批流） ──
+  disputeReason      String?
+  disputedAt         DateTime? // 非空即已申诉（幂等锚点）
+  disputeStatus      String? // PENDING/RESOLVED/REJECTED
+  disputeResolveNote String?
+  disputeResolvedAt  DateTime?
+  disputeReviewerId  String?
+
   @@index([callerId])
   @@index([expertId, status])
+  @@index([expertId, rating])
+  @@index([disputeStatus])
 }
 
 // ───────── IM 社交权限（阶段一·2026-06-28） ─────────

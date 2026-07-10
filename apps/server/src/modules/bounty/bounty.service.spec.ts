@@ -15,6 +15,8 @@ describe("BountyService", () => {
         updateMany: jest.fn(),
         count: jest.fn(),
       },
+      // 圈子治理 #10：圈内悬赏创建前禁言直查（默认无禁言）
+      circleViolation: { findFirst: jest.fn().mockResolvedValue(null) },
       $transaction: jest.fn((arg: any) => typeof arg === "function" ? arg(prisma) : Promise.all(arg)),
     };
 
@@ -47,6 +49,28 @@ describe("BountyService", () => {
       const result = await svc.createQuestion("u1", dto);
 
       expect(result.circleId).toBe("c1");
+      // 带 circleId 才做禁言直查，且限定本圈生效禁言
+      expect(prisma.circleViolation.findFirst).toHaveBeenCalledTimes(1);
+      expect(prisma.circleViolation.findFirst.mock.calls[0][0].where).toMatchObject({
+        circleId: "c1", userId: "u1", type: "MUTE", status: "ACTIVE",
+      });
+    });
+
+    // 圈子治理 #10（2026-07-11）：被禁言成员在该圈内不能发布悬赏
+    it("圈内禁言中：发布悬赏被拦且不建记录", async () => {
+      prisma.circleViolation.findFirst.mockResolvedValue({ expiresAt: new Date(Date.now() + 86400000) });
+      const dto = { title: "风水问题", description: "布局", bountyCoin: 200, category: "FENGSHUI", circleId: "c1" };
+      await expect(svc.createQuestion("u1", dto)).rejects.toThrow("禁言");
+      expect(prisma.bountyQuestion.create).not.toHaveBeenCalled();
+    });
+
+    it("不带 circleId 的平台悬赏不受圈内禁言影响", async () => {
+      prisma.circleViolation.findFirst.mockResolvedValue({ expiresAt: new Date(Date.now() + 86400000) });
+      prisma.bountyQuestion.create.mockResolvedValue({ id: "q3", status: "OPEN" });
+      const dto = { title: "平台悬赏", description: "无圈", bountyCoin: 100, category: "BAZI" };
+      const result = await svc.createQuestion("u1", dto);
+      expect(result.id).toBe("q3");
+      expect(prisma.circleViolation.findFirst).not.toHaveBeenCalled();
     });
   });
 

@@ -91,6 +91,40 @@ export class NotificationController {
     return this.svc.updatePreferences(req.user.id, prefs);
   }
 
+  // ───────── 圈内通知中心（必须在 :id 路由之前）─────────
+
+  /** 我的圈内通知列表（四类筛选+分页+未读计数） */
+  @Get("circle")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "获取我的圈内通知列表（互动/交易/圈务/直播）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 400, description: "分类不合法" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiBearerAuth()
+  @ApiQuery({ name: "category", required: false, type: String, description: "分类 INTERACT/TRADE/GOVERN/LIVE，缺省为全部" })
+  @ApiQuery({ name: "page", required: false, type: Number, description: "页码" })
+  @ApiQuery({ name: "pageSize", required: false, type: Number, description: "每页数量" })
+  myCircleNotifications(
+    @Req() req: Request,
+    @Query("category") category?: string,
+    @Query("page") page = 1,
+    @Query("pageSize") pageSize = 20,
+  ) {
+    return this.svc.getCircleNotifications(req.user.id, category || undefined, +page, +pageSize);
+  }
+
+  /** 圈内通知全部已读 */
+  @Put("circle/read-all")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "圈内通知全部标记已读（可按分类）" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "分类不合法" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiBearerAuth()
+  markCircleAllRead(@Req() req: Request, @Body() body?: { category?: string }) {
+    return this.svc.markCircleAllRead(req.user.id, body?.category || undefined);
+  }
+
   /** 通知详情 */
   @Get(":id")
   @UseGuards(JwtAuthGuard)

@@ -14,12 +14,12 @@ const mockPrisma: any = {
   circle: { findUnique: jest.fn(), update: jest.fn(), findMany: jest.fn() },
   circleMember: { findUnique: jest.fn(), delete: jest.fn() },
   circleGovernanceConfig: { findUnique: jest.fn(), upsert: jest.fn(), create: jest.fn() },
-  circleRule: { findMany: jest.fn(), findUnique: jest.fn(), create: jest.fn(), update: jest.fn(), delete: jest.fn(), aggregate: jest.fn() },
+  circleRule: { findMany: jest.fn(), findUnique: jest.fn(), create: jest.fn(), update: jest.fn(), delete: jest.fn(), aggregate: jest.fn(), count: jest.fn() },
   circleRuleAck: { upsert: jest.fn(), findUnique: jest.fn() },
   circleViolation: { create: jest.fn(), count: jest.fn(), findFirst: jest.fn(), findMany: jest.fn(), findUnique: jest.fn(), update: jest.fn(), updateMany: jest.fn() },
   circleAppeal: { create: jest.fn(), findUnique: jest.fn(), findMany: jest.fn(), count: jest.fn(), update: jest.fn(), updateMany: jest.fn() },
   user: { findMany: jest.fn() },
-  post: { findFirst: jest.fn() },
+  post: { findFirst: jest.fn(), findUnique: jest.fn(), findMany: jest.fn(), count: jest.fn(), update: jest.fn() },
   $transaction: jest.fn(),
 };
 
@@ -301,6 +301,117 @@ describe("CircleGovernanceService", () => {
     it("无禁言/无命中/无限流：正常放行", async () => {
       const res = await svc.checkPostGate("c1", "u1", ["正常内容"]);
       expect(res.forceAudit).toBe(false);
+    });
+  });
+
+  // ═════════ 新成员 7 天先审（TODO#2·2026-07-11） ═════════
+
+  /** 完整配置行（按需覆盖字段） */
+  const cfgRow = (overrides: Record<string, unknown> = {}) => ({
+    requireRuleAck: true, warningThreshold: 3, warningResetDays: 90, muteDays: 7,
+    removeBanRejoin: true, newMemberReviewEnabled: false, newMemberReviewDays: 7,
+    sensitiveWordsEnabled: true, sensitiveWords: [], postIntervalSeconds: 0,
+    reportAutoHideEnabled: true, reportAutoHideThreshold: 3, rolePermissions: null,
+    ...overrides,
+  });
+
+  describe("checkPostGate 新成员先审", () => {
+    it("开启后加入不足 N 天的普通成员发帖：forceAudit=NEW_MEMBER_REVIEW", async () => {
+      mockPrisma.circleGovernanceConfig.findUnique.mockResolvedValue(cfgRow({ newMemberReviewEnabled: true, newMemberReviewDays: 7 }));
+      mockPrisma.circleMember.findUnique.mockResolvedValue({ role: "MEMBER", joinedAt: new Date(Date.now() - 2 * DAY) });
+      const res = await svc.checkPostGate("c1", "u1", ["新人第一帖"]);
+      expect(res.forceAudit).toBe(true);
+      expect(res.auditReason).toBe("NEW_MEMBER_REVIEW");
+    });
+
+    it("加入已满 N 天：不转审", async () => {
+      mockPrisma.circleGovernanceConfig.findUnique.mockResolvedValue(cfgRow({ newMemberReviewEnabled: true, newMemberReviewDays: 7 }));
+      mockPrisma.circleMember.findUnique.mockResolvedValue({ role: "MEMBER", joinedAt: new Date(Date.now() - 8 * DAY) });
+      const res = await svc.checkPostGate("c1", "u1", ["老成员发帖"]);
+      expect(res.forceAudit).toBe(false);
+    });
+
+    it("管理角色不受新成员先审限制（仅普通 MEMBER）", async () => {
+      mockPrisma.circleGovernanceConfig.findUnique.mockResolvedValue(cfgRow({ newMemberReviewEnabled: true, newMemberReviewDays: 7 }));
+      mockPrisma.circleMember.findUnique.mockResolvedValue({ role: "ADMIN", joinedAt: new Date(Date.now() - 1 * DAY) });
+      const res = await svc.checkPostGate("c1", "u1", ["管理员发帖"]);
+      expect(res.forceAudit).toBe(false);
+    });
+  });
+
+  describe("待审帖子审核（content.review 矩阵位）", () => {
+    it("listPendingPosts：只查 AUDITING·按 content.review 鉴权", async () => {
+      mockPrisma.post.findMany.mockResolvedValue([{ id: "p1", status: "AUDITING" }]);
+      mockPrisma.post.count.mockResolvedValue(1);
+      const res = await svc.listPendingPosts("c1", "admin1", 1, 20);
+      expect(mockShared.checkPermission).toHaveBeenCalledWith("c1", "admin1", "content.review");
+      expect(mockPrisma.post.findMany.mock.calls[0][0].where).toEqual({ circleId: "c1", status: "AUDITING" });
+      expect(res.total).toBe(1);
+    });
+
+    it("审核通过：PUBLISHED+postCount+1+通知作者", async () => {
+      mockPrisma.post.findUnique.mockResolvedValue({ id: "p1", circleId: "c1", status: "AUDITING", userId: "u1", title: "待审帖" });
+      const res = await svc.reviewPost("c1", "admin1", "p1", { approve: true });
+      expect(mockShared.checkPermission).toHaveBeenCalledWith("c1", "admin1", "content.review");
+      expect(res.status).toBe("PUBLISHED");
+      expect(mockPrisma.post.update).toHaveBeenCalledWith({ where: { id: "p1" }, data: { status: "PUBLISHED" } });
+      expect(mockPrisma.circle.update).toHaveBeenCalledWith({ where: { id: "c1" }, data: { postCount: { increment: 1 } } });
+      expect(mockNotification.send).toHaveBeenCalledTimes(1);
+      expect(mockNotification.send.mock.calls[0][0]).toBe("u1");
+      expect(mockNotification.send.mock.calls[0][1].title).toContain("通过");
+    });
+
+    it("审核驳回：HIDDEN+通知作者（附理由）", async () => {
+      mockPrisma.post.findUnique.mockResolvedValue({ id: "p1", circleId: "c1", status: "AUDITING", userId: "u1", title: "待审帖" });
+      const res = await svc.reviewPost("c1", "admin1", "p1", { approve: false, reason: "疑似广告" });
+      expect(res.status).toBe("HIDDEN");
+      expect(mockPrisma.post.update).toHaveBeenCalledWith({ where: { id: "p1" }, data: { status: "HIDDEN" } });
+      expect(mockPrisma.circle.update).not.toHaveBeenCalled(); // 驳回不计数
+      expect(mockNotification.send.mock.calls[0][1].content).toContain("疑似广告");
+    });
+
+    it("非待审状态/跨圈帖子拒绝审核", async () => {
+      mockPrisma.post.findUnique.mockResolvedValue({ id: "p1", circleId: "c1", status: "PUBLISHED", userId: "u1" });
+      await expect(svc.reviewPost("c1", "admin1", "p1", { approve: true })).rejects.toThrow("待审");
+      mockPrisma.post.findUnique.mockResolvedValue({ id: "p1", circleId: "c2", status: "AUDITING", userId: "u1" });
+      await expect(svc.reviewPost("c1", "admin1", "p1", { approve: true })).rejects.toThrow("不存在");
+    });
+  });
+
+  // ═════════ requireRuleAck 服务端强制（TODO#5·2026-07-11） ═════════
+
+  describe("assertRuleAck", () => {
+    it("开启确认+有圈规+未确认：拦截（RULE_ACK_REQUIRED）", async () => {
+      // 默认配置 requireRuleAck=true
+      mockPrisma.circleRule.count.mockResolvedValue(3);
+      mockPrisma.circleRuleAck.findUnique.mockResolvedValue(null);
+      await expect(svc.assertRuleAck("c1", "u1")).rejects.toThrow("RULE_ACK_REQUIRED");
+    });
+
+    it("已确认圈规：放行", async () => {
+      mockPrisma.circleRule.count.mockResolvedValue(3);
+      mockPrisma.circleRuleAck.findUnique.mockResolvedValue({ id: "ack1" });
+      await expect(svc.assertRuleAck("c1", "u1")).resolves.toBeUndefined();
+    });
+
+    it("无生效圈规：不强制", async () => {
+      mockPrisma.circleRule.count.mockResolvedValue(0);
+      await expect(svc.assertRuleAck("c1", "u1")).resolves.toBeUndefined();
+      expect(mockPrisma.circleRuleAck.findUnique).not.toHaveBeenCalled();
+    });
+
+    it("关闭 requireRuleAck：不强制", async () => {
+      mockPrisma.circleGovernanceConfig.findUnique.mockResolvedValue(cfgRow({ requireRuleAck: false }));
+      await expect(svc.assertRuleAck("c1", "u1")).resolves.toBeUndefined();
+      expect(mockPrisma.circleRule.count).not.toHaveBeenCalled();
+    });
+
+    it("ackRules 允许未入圈用户确认（加入确认页在建成员前调用）", async () => {
+      mockPrisma.circleRule.findMany.mockResolvedValue([{ id: "r1", text: "第一条" }]);
+      mockPrisma.circleRuleAck.upsert.mockImplementation(async ({ create }: any) => ({ ackAt: new Date(), ...create }));
+      const res = await svc.ackRules("c1", "outsider");
+      expect(res.ruleCount).toBe(1);
+      expect(mockShared.ensureMember).not.toHaveBeenCalled();
     });
   });
 

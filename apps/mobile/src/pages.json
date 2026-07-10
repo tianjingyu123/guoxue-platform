@@ -849,6 +849,12 @@
           }
         },
         {
+          "path": "circles/notifications",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
           "path": "circles/rules",
           "style": {
             "navigationStyle": "custom"

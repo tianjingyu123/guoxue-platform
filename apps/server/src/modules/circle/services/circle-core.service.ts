@@ -344,6 +344,15 @@ export class CircleCoreService {
     });
     if (existingMember) throw new BusinessException(ErrorCode.CIRCLE_MEMBER_EXISTS, "已加入该圈子");
 
+    // 治理 #10 旁路补全（TODO#5·2026-07-11）：被移出且禁入（REMOVE ACTIVE）者不能靠邀请码绕回
+    const ban = await this.prisma.circleViolation.findFirst({
+      where: { circleId: inviteCode.circleId, userId: inviteeId, type: "REMOVE", status: "ACTIVE" },
+      select: { id: true },
+    });
+    if (ban) {
+      throw new BusinessException(ErrorCode.FORBIDDEN, "你已被移出该圈子且被限制重新加入，如有异议可在处理通知中申诉");
+    }
+
     await this.prisma.$transaction(async (tx) => {
       await tx.circleMember.create({
         data: { circleId: inviteCode.circleId, userId: inviteeId, role: "MEMBER" },

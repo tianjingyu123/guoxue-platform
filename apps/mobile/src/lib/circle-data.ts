@@ -282,6 +282,14 @@ function adaptHotPost(p: RawHotPost): HotPost {
 }
 
 // ─── API（真实接口优先，失败回退 mock；后端字段经 adaptCircle 适配） ───
+/** #37 AI 搜索推荐结果（后端 fail-open：AI 不可用时返回 {} → 前端归一为 null 不渲染） */
+export interface AiSearchResult {
+  recommendCircleIds?: string[]
+  circles?: { id: string; name: string; cover?: string; intro?: string; memberCount?: number; category?: string }[]
+  reason?: string
+  followUps?: string[]
+}
+
 export const circleApi = {
   list: async (params?: { category?: string; keyword?: string }): Promise<{ data: Circle[]; total: number }> => {
     try {
@@ -304,6 +312,20 @@ export const circleApi = {
       return arr.map(adaptCircle)
     } catch {
       return mockCircles.filter(c => c.isJoined)
+    }
+  },
+  /**
+   * AI 搜索推荐 — POST /circles/search/ai（#37·可匿名）。
+   * 后端组合「已加入圈子偏好 + 平台圈子清单」走 AiGateway；AI 失败/未配置后端返回 {}。
+   * 前端口径：无有效内容或请求失败一律返回 null → AI 区块不渲染（保持既有热门推荐降级）。
+   */
+  aiSearch: async (query: string): Promise<AiSearchResult | null> => {
+    try {
+      const r = await apiPost<AiSearchResult>('/circles/search/ai', { query })
+      if (!r || (!r.reason && !(r.circles?.length) && !(r.followUps?.length))) return null
+      return r
+    } catch {
+      return null
     }
   },
   /**

@@ -126,6 +126,11 @@ onMounted(load)
       <view class="section">
         <view class="section-head"><text class="section-title">圈子事务</text></view>
         <view class="row-list">
+          <view class="row" @tap="go('/pkg-circle/circles/notifications')">
+            <view class="row-icon"><app-icon name="bell" :size="30" color="#6E6E73" /></view>
+            <text class="row-label">圈内通知</text>
+            <app-icon name="chevron-right" :size="30" color="#999999" />
+          </view>
           <view class="row" @tap="go('/pkg-circle/circles/my-audits')">
             <view class="row-icon"><app-icon name="file-text" :size="30" color="#6E6E73" /></view>
             <text class="row-label">发布审核与草稿</text>

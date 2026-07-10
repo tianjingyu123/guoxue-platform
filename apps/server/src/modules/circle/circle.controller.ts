@@ -3,6 +3,8 @@ import { ApiTags, ApiOperation, ApiBearerAuth, ApiBody, ApiQuery, ApiResponse } 
 import { CircleService } from "./circle.service";
 import { CreateCircleDto, UpdateCircleDto, CreatePostDto, JoinCircleDto, UpdateMemberRoleDto, ExpertConfigDto } from "./circle.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
+import { OptionalAuthGuard } from "../../common/optional-auth.guard";
+import { CircleInsightService } from "./services/circle-insight.service";
 import { StationIsolationGuard } from "../../common/station-isolation.guard";
 import { StationId } from "../../common/station-id.decorator";
 import { SanitizePipe } from "../../common/sanitize.pipe";
@@ -13,7 +15,21 @@ import { Request } from "express";
 @ApiTags("圈子")
 @Controller("circles")
 export class CircleController {
-  constructor(private circle: CircleService) {}
+  constructor(
+    private circle: CircleService,
+    private insight: CircleInsightService,
+  ) {}
+
+  // ───────── #37 AI 搜索推荐（静态段路由·可匿名·fail-open） ─────────
+
+  @Post("search/ai")
+  @UseGuards(OptionalAuthGuard)
+  @ApiOperation({ summary: "AI 搜索推荐（#37·可匿名·AI 失败/未配置返回 {} fail-open）" })
+  @ApiBody({ schema: { properties: { query: { type: "string" } } } })
+  @ApiResponse({ status: 201, description: "{ recommendCircleIds, circles, reason, followUps } 或 {}" })
+  aiSearch(@Req() req: Request, @Body() body: { query?: string }) {
+    return this.insight.aiSearchRecommend(body?.query || "", req.user?.id);
+  }
 
   @Post()
   @UseGuards(JwtAuthGuard)
@@ -277,12 +293,30 @@ export class CircleController {
     return this.circle.getJoinStatus(circleId, req.user.id);
   }
 
+  @Get(":id/renew/quote")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "续费报价（#34·纯查询不建单·折扣关闭时 priceYuan===originalPriceYuan）" })
+  @ApiBearerAuth()
+  @ApiResponse({ status: 200, description: "{ originalPriceYuan, priceYuan, discountEnabled, discountApplied, twoYear }" })
+  renewQuote(@Param("id") circleId: string, @Req() req: Request) {
+    return this.circle.renewQuote(circleId, req.user.id);
+  }
+
+  @Get(":id/annual-report")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "成员年度报告（#33·本人过去365天在本圈真实聚合·实时计算）" })
+  @ApiBearerAuth()
+  @ApiResponse({ status: 200, description: "{ posts, questions, liveCount, likesReceived, earningsRmb?, joinedDays }" })
+  annualReport(@Param("id") circleId: string, @Req() req: Request) {
+    return this.insight.annualReport(circleId, req.user.id);
+  }
+
   @Post(":id/renew")
   @UseGuards(JwtAuthGuard)
-  @ApiOperation({ summary: "续费年费圈子（创建现金订单·仅人民币）" })
+  @ApiOperation({ summary: "续费年费圈子（创建现金订单·仅人民币·#34 支持 years=2 两年档）" })
   @ApiBearerAuth()
   @ApiResponse({ status: 201, description: "返回支付信息" })
-  renewCircle(@Param("id") circleId: string, @Req() req: Request, @Body() dto?: { payMethod?: string }) {
+  renewCircle(@Param("id") circleId: string, @Req() req: Request, @Body() dto?: { payMethod?: string; years?: number }) {
     return this.circle.renewCircle(circleId, req.user.id, dto);
   }
 

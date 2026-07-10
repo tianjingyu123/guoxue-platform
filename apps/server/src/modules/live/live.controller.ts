@@ -228,6 +228,23 @@ export class LiveController {
     return this.svc.updateStatus(id, "REPLAY", { replayUrl });
   }
 
+  @Put("rooms/:id/replay-chapters")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "标注回放章节点（仅主播本人·[{t 秒, title}]·随房间详情返回）" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "仅主播本人可操作" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiBearerAuth()
+  setReplayChapters(
+    @Req() req: AuthRequest,
+    @Param("id") id: string,
+    @Body("chapters") chapters: Array<{ t?: number; title?: string }>,
+  ) {
+    return this.svc.setReplayChapters(req.user.id, id, chapters || []);
+  }
+
   @Delete("rooms/:id")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "删除直播间（房主或管理员）" })

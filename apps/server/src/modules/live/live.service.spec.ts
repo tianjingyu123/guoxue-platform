@@ -5,6 +5,7 @@ import { RedisService } from "../../redis/redis.service";
 import { LiveStreamService } from "./live-stream.service";
 import { WebhookService } from "../webhook/webhook.service";
 import { AuditService } from "../audit/audit.service";
+import { NotificationService } from "../notification/notification.service";
 import { BusinessException } from "../../common/business.exception";
 
 const mockPrisma = {
@@ -29,6 +30,11 @@ const mockRedis = {
   sadd: jest.fn().mockResolvedValue(1),
   srem: jest.fn().mockResolvedValue(1),
   scard: jest.fn().mockResolvedValue(5),
+  smembers: jest.fn().mockResolvedValue([]),
+};
+const mockNotification = {
+  send: jest.fn().mockResolvedValue({ id: "n1" }),
+  batchSend: jest.fn().mockResolvedValue({ success: true, count: 0 }),
 };
 const mockStream = {};
 const mockWebhook = { fire: jest.fn().mockResolvedValue(undefined) };
@@ -52,6 +58,7 @@ describe("LiveService", () => {
         { provide: LiveStreamService, useValue: mockStream },
         { provide: WebhookService, useValue: mockWebhook },
         { provide: AuditService, useValue: mockAudit },
+        { provide: NotificationService, useValue: mockNotification },
       ],
     }).compile();
     svc = mod.get(LiveService);
@@ -127,6 +134,41 @@ describe("LiveService", () => {
       );
       const result = await svc.updateStatus("r1", "REPLAY", { replayUrl: "https://example.com/replay.mp4" });
       expect(result.replayUrl).toBe("https://example.com/replay.mp4");
+    });
+
+    it("开播（→LIVING）时给预约用户发 LIVE 类圈内通知（#25/#36）", async () => {
+      mockPrisma.liveRoom.findUnique.mockResolvedValue({ status: "WAITING" });
+      mockPrisma.liveRoom.update.mockResolvedValue({ id: "r1", status: "LIVING", title: "客厅布局答疑", circleId: "c1" });
+      mockRedis.smembers.mockResolvedValue(["u1", "u2"]);
+      await svc.updateStatus("r1", "LIVING", { pushUrl: "rtmp://example.com" });
+      await new Promise((r) => setImmediate(r)); // fire-and-forget 刷微任务
+      expect(mockRedis.smembers).toHaveBeenCalledWith("live:bookings:r1");
+      expect(mockNotification.batchSend).toHaveBeenCalledWith(expect.objectContaining({
+        userIds: ["u1", "u2"],
+        type: "LIVE_STARTED",
+        category: "LIVE",
+        circleId: "c1",
+        targetType: "LIVE_ROOM",
+        targetId: "r1",
+      }));
+    });
+
+    it("开播但无人预约：不发通知", async () => {
+      mockPrisma.liveRoom.findUnique.mockResolvedValue({ status: "WAITING" });
+      mockPrisma.liveRoom.update.mockResolvedValue({ id: "r1", status: "LIVING", title: "t", circleId: null });
+      mockRedis.smembers.mockResolvedValue([]);
+      await svc.updateStatus("r1", "LIVING");
+      await new Promise((r) => setImmediate(r));
+      expect(mockNotification.batchSend).not.toHaveBeenCalled();
+    });
+
+    it("非开播流转（→ENDED）不触发预约通知", async () => {
+      mockPrisma.liveRoom.findUnique.mockResolvedValue({ status: "LIVING" });
+      mockPrisma.liveRoom.update.mockResolvedValue({ id: "r1", status: "ENDED" });
+      await svc.updateStatus("r1", "ENDED");
+      await new Promise((r) => setImmediate(r));
+      expect(mockRedis.smembers).not.toHaveBeenCalled();
+      expect(mockNotification.batchSend).not.toHaveBeenCalled();
     });
   });
 

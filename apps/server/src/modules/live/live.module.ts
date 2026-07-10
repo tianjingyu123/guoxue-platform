@@ -11,9 +11,11 @@ import { WebhookModule } from "../webhook/webhook.module";
 import { CoinModule } from "../coin/coin.module";
 import { RevenueModule } from "../revenue/revenue.module";
 import { AuditModule } from "../audit/audit.module";
+import { NotificationModule } from "../notification/notification.module";
 
 @Module({
-  imports: [WebhookModule, CoinModule, RevenueModule, AuditModule],
+  // NotificationModule：开播时给预约用户发圈内通知（LIVE 类·V0 待办 #36/#25）
+  imports: [WebhookModule, CoinModule, RevenueModule, AuditModule, NotificationModule],
   controllers: [LiveController, LiveDashboardController],
   providers: [LiveService, LiveQualityService, LiveStreamService, LiveDashboardService, LiveDataCollectorService, LiveReportService],
   exports: [LiveService, LiveStreamService],

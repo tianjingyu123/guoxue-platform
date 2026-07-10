@@ -5,6 +5,7 @@ import { CircleCoreService } from "./services/circle-core.service";
 import { CircleMembershipService } from "./services/circle-membership.service";
 import { CirclePostService } from "./services/circle-post.service";
 import { CircleExpertService } from "./services/circle-expert.service";
+import { CircleGovernanceService } from "./governance/circle-governance.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { UnifiedPricingService } from "../pricing/unified-pricing.service";
@@ -38,7 +39,10 @@ const mockPrisma = {
   userRole: { upsert: jest.fn() },
   // 治理 #10：加入前禁入校验（默认无移出禁入记录）
   circleViolation: { findFirst: jest.fn().mockResolvedValue(null) },
-  $transaction: jest.fn((ops: any[]) => Promise.all(ops)),
+  // 邀请码入圈（治理旁路禁入拦截测试用）
+  circleInviteCode: { findUnique: jest.fn(), findFirst: jest.fn(), create: jest.fn(), update: jest.fn() },
+  circleInvitation: { create: jest.fn(), count: jest.fn(), findMany: jest.fn() },
+  $transaction: jest.fn((arg: any) => (typeof arg === "function" ? arg(mockPrisma) : Promise.all(arg))),
   // 圈子 needApproval 列绕过 Prisma generate 锁，service 用原生 SQL 读写（默认非审批制）
   $queryRawUnsafe: jest.fn().mockResolvedValue([{ needApproval: false }]),
   $executeRawUnsafe: jest.fn().mockResolvedValue(undefined),
@@ -52,8 +56,15 @@ const mockRedis = {
   runExclusive: jest.fn((_n: string, _t: number, fn: () => Promise<unknown>) => fn()),
 };
 
+// 治理 service mock：requireRuleAck 强制/发帖闸门（默认放行·单测可按用例覆盖）
+const mockGovernance = {
+  assertRuleAck: jest.fn().mockResolvedValue(undefined),
+  checkPostGate: jest.fn().mockResolvedValue({ forceAudit: false, hitWords: [] }),
+};
+
 describe("CircleService", () => {
   let svc: CircleService;
+  let coreSvc: CircleCoreService;
 
   beforeAll(async () => {
     const mockUnifiedPricing = {
@@ -83,9 +94,12 @@ describe("CircleService", () => {
         { provide: UnifiedPricingService, useValue: mockUnifiedPricing },
         // 内容审核：默认放行（resolve），拦截逻辑由 audit 模块自身测试覆盖
         { provide: AuditService, useValue: { moderateTextOrThrow: jest.fn().mockResolvedValue(undefined), moderateImageOrThrow: jest.fn().mockResolvedValue(undefined) } },
+        // 治理：requireRuleAck 强制/发帖闸门（默认放行）
+        { provide: CircleGovernanceService, useValue: mockGovernance },
       ],
     }).compile();
     svc = mod.get(CircleService);
+    coreSvc = mod.get(CircleCoreService);
   });
 
   beforeEach(() => { jest.clearAllMocks(); });
@@ -161,6 +175,43 @@ describe("CircleService", () => {
       mockPrisma.circle.findUnique.mockResolvedValue({ id: "c1", status: "ACTIVE", type: "FREE" });
       mockPrisma.circleMember.findUnique.mockResolvedValue({ userId: "u2", role: "MEMBER" });
       await expect(svc.join("c1", "u2")).rejects.toThrow(BusinessException);
+    });
+
+    // 治理 TODO#5（2026-07-11）：requireRuleAck 服务端强制
+    it("requireRuleAck 未确认圈规：免费加入被拦且不建成员", async () => {
+      mockPrisma.circle.findUnique.mockResolvedValue({ id: "c1", status: "ACTIVE", type: "FREE" });
+      mockPrisma.circleMember.findUnique.mockResolvedValue(null);
+      mockGovernance.assertRuleAck.mockRejectedValueOnce(new Error("RULE_ACK_REQUIRED：请先阅读并确认圈规"));
+      await expect(svc.join("c1", "u2")).rejects.toThrow("RULE_ACK_REQUIRED");
+      expect(mockPrisma.circleMember.create).not.toHaveBeenCalled();
+    });
+  });
+
+  // 治理 #10 旁路补全（2026-07-11）：邀请码入圈的禁入拦截
+  describe("joinByInviteCode 禁入拦截", () => {
+    const inviteCode = { id: "ic1", code: "ABC123", circleId: "c1", userId: "inviter", expiredAt: null, maxUses: 0, useCount: 0 };
+
+    it("被移出且禁入者不能靠邀请码绕回", async () => {
+      mockPrisma.circleInviteCode.findUnique.mockResolvedValue(inviteCode);
+      mockPrisma.circle.findUnique.mockResolvedValue({ id: "c1", status: "ACTIVE" });
+      mockPrisma.circleMember.findUnique.mockResolvedValue(null);
+      mockPrisma.circleViolation.findFirst.mockResolvedValueOnce({ id: "v1" });
+      await expect(coreSvc.joinByInviteCode("ABC123", "banned-user")).rejects.toThrow("限制重新加入");
+      expect(mockPrisma.circleMember.create).not.toHaveBeenCalled();
+      // 查询限定 REMOVE ACTIVE（禁入态）
+      expect(mockPrisma.circleViolation.findFirst.mock.calls[0][0].where).toMatchObject({
+        circleId: "c1", userId: "banned-user", type: "REMOVE", status: "ACTIVE",
+      });
+    });
+
+    it("无禁入记录：邀请码正常入圈", async () => {
+      mockPrisma.circleInviteCode.findUnique.mockResolvedValue(inviteCode);
+      mockPrisma.circle.findUnique.mockResolvedValue({ id: "c1", status: "ACTIVE" });
+      mockPrisma.circleMember.findUnique.mockResolvedValue(null);
+      mockPrisma.circleMember.create.mockResolvedValue({ id: "m1" });
+      const res = await coreSvc.joinByInviteCode("ABC123", "u9");
+      expect(res.success).toBe(true);
+      expect(mockPrisma.circleMember.create).toHaveBeenCalled();
     });
   });
 

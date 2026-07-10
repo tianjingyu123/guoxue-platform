@@ -40,7 +40,30 @@ interface RawExpertMember {
   circleId?: string; circle?: { id?: string; name?: string; cover?: string } | null
 }
 
+/** 达人好评率（来自通话评价·rating≥4 占比）。无评价的达人不在结果里 → 前端不渲染该行 */
+export interface ExpertRatingStat {
+  ratingCount: number
+  goodRate: number // 0-100 整数百分比
+}
+
 export const consultApi = {
+  /**
+   * 达人好评率聚合 — GET /consult-calls/expert-stats?expertIds=a,b
+   * 失败/未登录返回 {}，调用方按"无数据不渲染"降级（不编数）。
+   */
+  getExpertRatingStats: async (expertIds: string[]): Promise<Record<string, ExpertRatingStat>> => {
+    const ids = expertIds.filter(Boolean)
+    if (!ids.length) return {}
+    try {
+      const res = await apiGet<Record<string, ExpertRatingStat>>(
+        `/consult-calls/expert-stats?expertIds=${encodeURIComponent(ids.join(','))}`,
+      )
+      return res && typeof res === 'object' ? res : {}
+    } catch {
+      return {}
+    }
+  },
+
   /** 圈子达人列表 — GET /circles/:id/experts */
   listExperts: async (circleId: string): Promise<ConsultExpert[]> => {
     try {

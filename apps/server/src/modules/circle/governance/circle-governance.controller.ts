@@ -10,6 +10,7 @@ import {
   CreateRuleDto,
   ReorderRulesDto,
   ResolveAppealDto,
+  ReviewPostDto,
   SanctionDto,
   UpdateGovernanceConfigDto,
   UpdatePermissionMatrixDto,
@@ -137,6 +138,30 @@ export class CircleGovernanceController {
   @ApiOperation({ summary: "保存权限矩阵（锁定项忽略·资金/移出永远仅圈主）" })
   updatePermissionMatrix(@Req() req: Request, @Param("circleId") circleId: string, @Body() dto: UpdatePermissionMatrixDto) {
     return this.svc.updatePermissionMatrix(circleId, req.user.id, dto);
+  }
+
+  // ───────── 待审帖子队列（TODO#2·新成员先审/敏感词转审·content.review 矩阵位） ─────────
+
+  @Get(":circleId/posts/pending")
+  @ApiOperation({ summary: "待审帖子列表（新成员先审/敏感词转审·按矩阵 content.review 鉴权）" })
+  listPendingPosts(
+    @Req() req: Request,
+    @Param("circleId") circleId: string,
+    @Query("page") page = 1,
+    @Query("pageSize") pageSize = 20,
+  ) {
+    return this.svc.listPendingPosts(circleId, req.user.id, +page, +pageSize);
+  }
+
+  @Post(":circleId/posts/:postId/review")
+  @ApiOperation({ summary: "审核待审帖子（通过=发布并计数·驳回=隐藏并通知作者）" })
+  reviewPost(
+    @Req() req: Request,
+    @Param("circleId") circleId: string,
+    @Param("postId") postId: string,
+    @Body() dto: ReviewPostDto,
+  ) {
+    return this.svc.reviewPost(circleId, req.user.id, postId, dto);
   }
 
   // ───────── 违规处理与留痕（#10/#13） ─────────

@@ -78,9 +78,10 @@ export class CircleGovernanceService {
     };
   }
 
-  private notify(userId: string, payload: { type: string; title: string; content: string; targetType?: string; targetId?: string }) {
+  private notify(userId: string, payload: { type: string; title: string; content: string; targetType?: string; targetId?: string; circleId?: string }) {
+    // 治理通知统一归入圈内通知中心「圈务 GOVERN」分类（V0 待办 #36）
     this.notification
-      ?.send(userId, payload)
+      ?.send(userId, { category: "GOVERN", ...payload })
       .catch((err) => this.logger.warn(`治理通知发送失败 user=${userId}`, err));
   }
 
@@ -176,9 +177,13 @@ export class CircleGovernanceService {
     return { success: true, created, updated, skipped };
   }
 
-  /** 加入确认（#9）：记录成员对当前全部条文的逐条确认（快照留痕·重复确认覆盖为最新） */
+  /**
+   * 加入确认（#9）：记录用户对当前全部条文的逐条确认（快照留痕·重复确认覆盖为最新）。
+   * ⚠️ 不要求已是成员——requireRuleAck 强制后（TODO#5·2026-07-11），加入确认页在建成员**之前**调用本端点。
+   */
   async ackRules(circleId: string, userId: string) {
-    await this.shared.ensureMember(circleId, userId);
+    const circle = await this.prisma.circle.findUnique({ where: { id: circleId }, select: { id: true } });
+    if (!circle) throw new BusinessException(ErrorCode.CIRCLE_NOT_FOUND, "圈子不存在");
     const rules = await this.prisma.circleRule.findMany({
       where: { circleId },
       orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
@@ -196,6 +201,25 @@ export class CircleGovernanceService {
   async getMyAck(circleId: string, userId: string) {
     const ack = await this.prisma.circleRuleAck.findUnique({ where: { circleId_userId: { circleId, userId } } });
     return { acked: !!ack, ackAt: ack?.ackAt ?? null, rulesSnapshot: ack?.rulesSnapshot ?? null };
+  }
+
+  /**
+   * requireRuleAck 服务端强制（TODO#5·2026-07-11）：圈子开启「加入须确认圈规」且存在生效圈规时，
+   * 建成员前必须已有 CircleRuleAck 记录，否则拒绝加入。
+   * 前端识别：errorCode=CIRCLE_JOIN_DENIED 且 message 含「RULE_ACK_REQUIRED」→ 引导至圈规确认页 ack 后重试。
+   */
+  async assertRuleAck(circleId: string, userId: string) {
+    const cfg = await this.getEffectiveConfig(circleId);
+    if (!cfg.requireRuleAck) return;
+    const ruleCount = await this.prisma.circleRule.count({ where: { circleId } });
+    if (ruleCount === 0) return; // 没有生效圈规则不强制
+    const ack = await this.prisma.circleRuleAck.findUnique({
+      where: { circleId_userId: { circleId, userId } },
+      select: { id: true },
+    });
+    if (!ack) {
+      throw new BusinessException(ErrorCode.CIRCLE_JOIN_DENIED, "RULE_ACK_REQUIRED：请先阅读并确认圈规");
+    }
   }
 
   // ═════════ 治理配置与权限矩阵（#8/#11） ═════════
@@ -352,6 +376,7 @@ export class CircleGovernanceService {
           `警告记录 ${cfg.warningResetDays} 天后自动清零。对处理有异议可在 ${APPEAL_WINDOW_HOURS} 小时内申诉，由平台仲裁复核。`,
         targetType: "CIRCLE_VIOLATION",
         targetId: violation.id,
+        circleId,
       });
 
       // 满阈值自动升级禁言（阶梯第二级·已在禁言中不重复叠加）
@@ -440,6 +465,7 @@ export class CircleGovernanceService {
         `付费成员剩余费用按圈子退款规则结算（不没收），可在退款入口申请。对处理有异议可在 ${APPEAL_WINDOW_HOURS} 小时内申诉，由平台仲裁复核。`,
       targetType: "CIRCLE_VIOLATION",
       targetId: violation.id,
+      circleId,
     });
     return { violation, autoMuted: false };
   }
@@ -491,6 +517,7 @@ export class CircleGovernanceService {
         `对处理有异议可在 ${APPEAL_WINDOW_HOURS} 小时内申诉，由平台仲裁复核（申诉期间处理照常生效）。`,
       targetType: "CIRCLE_VIOLATION",
       targetId: violation.id,
+      circleId,
     });
     return violation;
   }
@@ -509,6 +536,7 @@ export class CircleGovernanceService {
       content: `圈子「${circleName}」的圈主已解除对你的${violation.type === "MUTE" ? "禁言" : violation.type === "REMOVE" ? "重新加入限制" : "处理"}。`,
       targetType: "CIRCLE_VIOLATION",
       targetId: violationId,
+      circleId,
     });
     return { success: true };
   }
@@ -690,18 +718,23 @@ export class CircleGovernanceService {
       content: `圈子「${circleName}」的处理申诉仲裁结果：${dto.uphold ? "成立，相关处理已撤销并清除记录" : "不成立，处理维持"}。仲裁说明：${dto.resolution.trim()}`,
       targetType: "CIRCLE_VIOLATION",
       targetId: appeal.violationId,
+      circleId: appeal.circleId,
     });
     // 被移出成员申诉成立仅解除禁入·不自动恢复成员关系（需自行重新加入）
     return { success: true, status: dto.uphold ? "UPHELD" : "REJECTED" };
   }
 
-  // ═════════ 发帖链路闸门（#11·敏感词转审 + 刷屏限流；先审/举报隐藏 TODO） ═════════
+  // ═════════ 发帖链路闸门（#11·敏感词转审 + 刷屏限流 + 新成员先审） ═════════
 
   /**
-   * 发帖前闸门：禁言拦截 + 刷屏间隔限流 + 圈内敏感词命中转人工审核。
-   * 返回 forceAudit=true 时调用方应把帖子落为 AUDITING（不直接展示）。
+   * 发帖前闸门：禁言拦截 + 刷屏间隔限流 + 新成员 N 天先审（TODO#2）+ 圈内敏感词命中转人工审核。
+   * 返回 forceAudit=true 时调用方应把帖子落为 AUDITING（不直接展示）；auditReason 供日志区分来源。
    */
-  async checkPostGate(circleId: string, userId: string, texts: (string | undefined)[]): Promise<{ forceAudit: boolean; hitWords: string[] }> {
+  async checkPostGate(
+    circleId: string,
+    userId: string,
+    texts: (string | undefined)[],
+  ): Promise<{ forceAudit: boolean; hitWords: string[]; auditReason?: "NEW_MEMBER_REVIEW" | "SENSITIVE_WORDS" }> {
     const mute = await this.getActiveMute(circleId, userId);
     if (mute) {
       const until = mute.expiresAt ? mute.expiresAt.toISOString().slice(0, 16).replace("T", " ") : "";
@@ -726,13 +759,91 @@ export class CircleGovernanceService {
       }
     }
 
+    // 新成员先审（TODO#2·2026-07-11）：开启后加入不足 N 天的普通成员发帖一律先审后发（AUDITING）
+    if (cfg.newMemberReviewEnabled) {
+      const member = await this.prisma.circleMember.findUnique({
+        where: { circleId_userId: { circleId, userId } },
+        select: { joinedAt: true, role: true },
+      });
+      if (
+        member?.role === "MEMBER" &&
+        Date.now() - member.joinedAt.getTime() < cfg.newMemberReviewDays * DAY
+      ) {
+        return { forceAudit: true, hitWords: [], auditReason: "NEW_MEMBER_REVIEW" };
+      }
+    }
+
     // 圈内敏感词：命中不拒绝·转人工审核（AUDITING·不直接展示）
     if (cfg.sensitiveWordsEnabled && cfg.sensitiveWords.length) {
       const text = texts.filter(Boolean).join(" ");
       const hits = cfg.sensitiveWords.filter((w) => w && text.includes(w));
-      if (hits.length) return { forceAudit: true, hitWords: hits };
+      if (hits.length) return { forceAudit: true, hitWords: hits, auditReason: "SENSITIVE_WORDS" };
     }
     return { forceAudit: false, hitWords: [] };
+  }
+
+  // ═════════ 待审帖子队列（TODO#2·新成员先审/敏感词转审的圈主审核侧·content.review 矩阵位） ═════════
+
+  /** 待审帖子列表（status=AUDITING·按矩阵 content.review 鉴权） */
+  async listPendingPosts(circleId: string, operatorId: string, rawPage = 1, rawPageSize = 20) {
+    await this.shared.checkPermission(circleId, operatorId, "content.review");
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
+    const where: Prisma.PostWhereInput = { circleId, status: "AUDITING" };
+    const [items, total] = await Promise.all([
+      this.prisma.post.findMany({
+        where,
+        include: { user: { select: { id: true, nickname: true, avatar: true } } },
+        orderBy: { createdAt: "asc" },
+        skip,
+        take: pageSize,
+      }),
+      this.prisma.post.count({ where }),
+    ]);
+    return { items, total, page, pageSize };
+  }
+
+  /**
+   * 审核待审帖子（content.review 矩阵位）：
+   * 通过 → PUBLISHED + 圈子 postCount+1（创建时 AUDITING 未计数）+ 通知作者；
+   * 驳回 → HIDDEN（Post 无 REJECTED 态·留档不删）+ 通知作者（附理由）。
+   */
+  async reviewPost(circleId: string, operatorId: string, postId: string, dto: { approve: boolean; reason?: string }) {
+    await this.shared.checkPermission(circleId, operatorId, "content.review");
+    const post = await this.prisma.post.findUnique({
+      where: { id: postId },
+      select: { id: true, circleId: true, status: true, userId: true, title: true },
+    });
+    if (!post || post.circleId !== circleId) throw new BusinessException(ErrorCode.NOT_FOUND, "帖子不存在");
+    if (post.status !== "AUDITING") throw new BusinessException(ErrorCode.BAD_REQUEST, "该帖子不在待审状态");
+
+    const circleName = await this.getCircleName(circleId);
+    if (dto.approve) {
+      await this.prisma.$transaction([
+        this.prisma.post.update({ where: { id: postId }, data: { status: "PUBLISHED" } }),
+        this.prisma.circle.update({ where: { id: circleId }, data: { postCount: { increment: 1 } } }),
+      ]);
+      this.notify(post.userId, {
+        type: "CIRCLE_GOVERNANCE",
+        title: "帖子已通过审核",
+        content: `你在圈子「${circleName}」的帖子「${post.title || "无标题"}」已通过审核并发布。`,
+        targetType: "POST",
+        targetId: postId,
+      });
+      return { success: true, status: "PUBLISHED" };
+    }
+
+    await this.prisma.post.update({ where: { id: postId }, data: { status: "HIDDEN" } });
+    this.notify(post.userId, {
+      type: "CIRCLE_GOVERNANCE",
+      title: "帖子未通过审核",
+      content:
+        `你在圈子「${circleName}」的帖子「${post.title || "无标题"}」未通过审核。` +
+        (dto.reason?.trim() ? `理由：${dto.reason.trim()}。` : "") +
+        "可修改后重新发布，如有疑问可联系圈主。",
+      targetType: "POST",
+      targetId: postId,
+    });
+    return { success: true, status: "HIDDEN" };
   }
 
   // ═════════ Cron 状态机（多实例 redis 锁） ═════════
@@ -766,6 +877,7 @@ export class CircleGovernanceService {
             content: `你在圈子「${circleName}」的禁言期已满，已恢复发言，欢迎回来。`,
             targetType: "CIRCLE_VIOLATION",
             targetId: m.id,
+            circleId: m.circleId,
           });
         }
       }
@@ -806,6 +918,7 @@ export class CircleGovernanceService {
             content: `你对圈子「${circleName}」处理的申诉超过 ${APPEAL_REPLY_HOURS} 小时未获平台答复，按承诺自动裁定成立，相关处理已撤销并清除记录。`,
             targetType: "CIRCLE_VIOLATION",
             targetId: appeal.violationId,
+            circleId: appeal.circleId,
           });
         } catch (err) {
           this.logger.error(`申诉超时自动裁决失败 appeal=${appeal.id}`, err);
