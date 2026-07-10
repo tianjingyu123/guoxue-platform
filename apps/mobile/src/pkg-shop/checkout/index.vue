@@ -79,13 +79,15 @@
         </view>
       </view>
 
-      <!-- 价格明细 -->
+      <!-- 价格明细（后端试算优先：与下单定价引擎同口径，含券后价与分销自购立减；试算不可用回退前端预估） -->
       <view class="amount-card">
         <text class="amount-title">价格明细</text>
-        <view class="amount-row"><text>商品金额</text><text class="amount-val">¥{{ goodsTotal.toFixed(2) }}</text></view>
+        <view class="amount-row"><text>商品金额</text><text class="amount-val">¥{{ displayGoods.toFixed(2) }}</text></view>
         <view class="amount-row"><text>运费</text><text class="amount-val">免运费</text></view>
-        <view class="amount-row" v-if="selectedCoupon"><text>优惠券抵扣</text><text class="discount">-¥{{ selectedCoupon.value.toFixed(2) }}</text></view>
-        <view class="amount-row total"><text>实付金额</text><text class="pay-amount">¥{{ payTotal.toFixed(2) }}</text></view>
+        <view class="amount-row" v-if="displayCouponDiscount > 0"><text>优惠券抵扣</text><text class="discount">-¥{{ displayCouponDiscount.toFixed(2) }}</text></view>
+        <!-- 分销自购立减：仅后端试算确认有该身份优惠时展示（拿不到身份不猜） -->
+        <view class="amount-row" v-if="estimate && estimate.selfDiscount > 0"><text>分销自购立减</text><text class="discount">-¥{{ estimate.selfDiscount.toFixed(2) }}</text></view>
+        <view class="amount-row total"><text>实付金额</text><text class="pay-amount">¥{{ displayPayTotal.toFixed(2) }}</text></view>
       </view>
       <view style="height: 140rpx;" />
     </scroll-view>
@@ -95,9 +97,9 @@
       <view class="footer-total">
         <view class="ft-line">
           <text class="ft-label">合计:</text>
-          <text class="ft-amount">¥{{ payTotal.toFixed(2) }}</text>
+          <text class="ft-amount">¥{{ displayPayTotal.toFixed(2) }}</text>
         </view>
-        <text v-if="selectedCoupon" class="ft-saved">已优惠 ¥{{ selectedCoupon.value }}</text>
+        <text v-if="displaySaved > 0" class="ft-saved">已优惠 ¥{{ displaySaved.toFixed(2) }}</text>
       </view>
       <view class="pay-btn" @tap="submitOrder"><text>提交订单</text></view>
     </view>
@@ -153,10 +155,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
 import { redirectTo, navigateTo } from '@/utils/router'
-import { shopApi, formatCountdown, type ShippingAddress, type CheckoutCoupon } from '@/lib/shop-data'
+import { shopApi, formatCountdown, type ShippingAddress, type CheckoutCoupon, type OrderEstimate } from '@/lib/shop-data'
 
 const loading = ref(true)
 const error = ref('')
@@ -180,6 +182,48 @@ const SOURCE_TYPES = ['LIVE', 'ARTICLE', 'VIDEO']
 
 const goodsTotal = computed(() => items.value.reduce((s: number, i: any) => s + i.price * i.quantity, 0))
 const payTotal = computed(() => Math.max(0, goodsTotal.value - (selectedCoupon.value?.value || 0)))
+
+/*
+ * 后端试算（POST /shop/orders/estimate）：与下单定价引擎同口径（活动价×数量 − 券 − 分销自购立减），
+ * 保证「展示价 = 下单实付」。多商品与提交订单同规则逐单试算（券只用于第一单）后求和。
+ * 试算失败（网络/旧后端）回退前端预估（displayX 兜底 goodsTotal/payTotal），且不显示自购立减行（拿不到身份不猜）。
+ */
+const estimate = ref<OrderEstimate | null>(null)
+let estimateSeq = 0
+async function refreshEstimate() {
+  const seq = ++estimateSeq
+  if (!items.value.length) { estimate.value = null; return }
+  try {
+    const results: OrderEstimate[] = []
+    for (let i = 0; i < items.value.length; i++) {
+      const it = items.value[i]
+      results.push(await shopApi.estimateOrder({
+        targetId: it.productId,
+        skuId: it.skuId,
+        quantity: it.quantity,
+        couponId: i === 0 ? selectedCoupon.value?.id : undefined,
+      }))
+    }
+    if (seq !== estimateSeq) return // 过期响应丢弃（快速切换券）
+    estimate.value = results.reduce((acc, r) => ({
+      goodsAmount: acc.goodsAmount + r.goodsAmount,
+      couponDiscount: acc.couponDiscount + r.couponDiscount,
+      selfDiscount: acc.selfDiscount + r.selfDiscount,
+      payableAmount: acc.payableAmount + r.payableAmount,
+    }), { goodsAmount: 0, couponDiscount: 0, selfDiscount: 0, payableAmount: 0 })
+  } catch (e) {
+    if (seq !== estimateSeq) return
+    estimate.value = null // 回退前端预估
+    console.warn('[checkout] 订单试算失败，回退前端预估', e)
+  }
+}
+watch([items, selectedCoupon], () => { refreshEstimate() }, { deep: false })
+
+// 展示口径：试算可用用试算（=实付），否则回退前端预估
+const displayGoods = computed(() => estimate.value ? estimate.value.goodsAmount : goodsTotal.value)
+const displayCouponDiscount = computed(() => estimate.value ? estimate.value.couponDiscount : (selectedCoupon.value?.value || 0))
+const displayPayTotal = computed(() => estimate.value ? estimate.value.payableAmount : payTotal.value)
+const displaySaved = computed(() => displayCouponDiscount.value + (estimate.value?.selfDiscount || 0))
 
 async function fetchCheckoutData() {
   error.value = ''

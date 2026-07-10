@@ -85,6 +85,8 @@
       <view v-if="order.status === 'completed' || order.status === 'pending_receive'" class="quick-acts">
         <view v-if="order.canReview" class="quick primary" @tap="goReview"><app-icon name="star" :size="30" color="#C41E3A" /><text>评价晒单</text></view>
         <view v-if="!order.isVirtual" class="quick ghost" @tap="goAfterSale"><app-icon name="undo-2" :size="30" color="#666666" /><text>申请售后</text></view>
+        <!-- 换货挂订单售后（董事长拍板）：带 orderId 进换货页，提交落售后 type=exchange -->
+        <view v-if="!order.isVirtual" class="quick ghost" @tap="goExchange"><app-icon name="refresh-cw" :size="30" color="#666666" /><text>申请换货</text></view>
       </view>
     </view>
 
@@ -203,8 +205,10 @@ function copyNo() {
 function goLogistics() { if (!order.value) return; navigateTo(`/orders/logistics?orderId=${order.value.id}`) }
 function goReview() { if (!order.value) return; navigateTo(`/orders/${order.value.id}/review`) }
 function goAfterSale() { if (!order.value) return; navigateTo(`/shop/after-sale?orderId=${order.value.id}`) }
+// 换货入口：挂订单售后（换货页读该订单商品/SKU/地址，提交走 after-sale type=exchange）
+function goExchange() { if (!order.value) return; navigateTo(`/shop/exchange?orderId=${order.value.id}`) }
 function goPay() { if (!order.value) return; navigateTo(`/shop/paying?orderId=${order.value.id}`) }
-function goShop() { navigateTo('/shop') }
+function goShop() { navigateTo('/mall') }
 function toService() { navigateTo('/customer-service') }
 async function confirmReceive() {
   if (!order.value || submitting.value) return; submitting.value = true

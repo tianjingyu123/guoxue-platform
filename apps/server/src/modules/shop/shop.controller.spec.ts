@@ -27,6 +27,8 @@ const mockShopSvc = {
   getOrder: jest.fn().mockResolvedValue({ id: "o1", amount: 99, status: "PAID" }),
   createJsapiPayment: jest.fn().mockResolvedValue({ prepayId: "prepay123", paySign: {} }),
   createNativePayment: jest.fn().mockResolvedValue({ codeUrl: "weixin://..." }),
+  createH5Payment: jest.fn().mockResolvedValue({ mwebUrl: "https://wx.tenpay.com/h5/pay/xxx", outTradeNo: "GX1" }),
+  estimateOrder: jest.fn().mockResolvedValue({ goodsAmount: 79, couponDiscount: 10, selfDiscount: 13.8, payableAmount: 55.2 }),
   queryPaymentStatus: jest.fn().mockResolvedValue({ status: "PAID" }),
   shipOrder: jest.fn().mockResolvedValue({ id: "o1", status: "SHIPPED" }),
   adminPayOrder: jest.fn().mockResolvedValue({ id: "o1", status: "PAID" }),
@@ -190,6 +192,27 @@ describe("ShopController", () => {
     expect(result.codeUrl).toBeTruthy();
   });
 
+  it("POST /shop/pay/h5 — H5支付（透传当前用户做归属校验 + 代理头取客户端IP）", async () => {
+    const req: any = { user: { id: "u1" }, headers: { "x-forwarded-for": "8.8.8.8, 10.0.0.1" }, ip: "10.0.0.1" };
+    const result: any = await ctrl.h5Pay(req, { orderId: "o1" } as any);
+    expect(result.mwebUrl).toContain("wx.tenpay.com");
+    // 归属校验依赖：必须把当前登录用户 id 传给 service；IP 取 x-forwarded-for 首段
+    expect(mockShopSvc.createH5Payment).toHaveBeenCalledWith("o1", "u1", "8.8.8.8", undefined);
+  });
+
+  it("POST /shop/pay/h5 — 无代理头时回退连接 IP", async () => {
+    const req: any = { user: { id: "u1" }, headers: {}, ip: "127.0.0.1" };
+    await ctrl.h5Pay(req, { orderId: "o1" } as any);
+    expect(mockShopSvc.createH5Payment).toHaveBeenCalledWith("o1", "u1", "127.0.0.1", undefined);
+  });
+
+  it("POST /shop/orders/estimate — 订单试算（结算页价格明细）", async () => {
+    const req: any = { user: { id: "u1" } };
+    const result: any = await ctrl.estimateOrder(req, { targetId: "p1", quantity: 1, couponId: "uc1" } as any);
+    expect(result.payableAmount).toBe(55.2);
+    expect(mockShopSvc.estimateOrder).toHaveBeenCalledWith("u1", expect.objectContaining({ targetId: "p1" }));
+  });
+
   it("GET /shop/orders/:id/payment-status — 支付状态", async () => {
     const result: any = await ctrl.queryPaymentStatus({ user: { id: "u1", roles: [] } } as any, "o1");
     expect(result.status).toBe("PAID");
@@ -200,9 +223,14 @@ describe("ShopController", () => {
     expect(result.status).toBe("SHIPPED");
   });
 
-  it("PUT /shop/orders/:id/pay — 管理员确认支付", async () => {
-    const result: any = await ctrl.adminPayOrder({ user: { id: "admin", roles: ["SUPER_ADMIN"], nickname: "管理员" } } as any, "o1", { payTransactionId: "TXN-001" });
+  it("PUT /shop/orders/:id/pay — 管理员确认支付（测试通道·必须落审计日志记录谁用了）", async () => {
+    const result: any = await ctrl.adminPayOrder({ user: { id: "admin", roles: ["SUPER_ADMIN"], nickname: "管理员" }, ip: "127.0.0.1" } as any, "o1", { payTransactionId: "TXN-001" });
     expect(result.status).toBe("PAID");
+    expect(mockSystemSvc.logAudit).toHaveBeenCalledWith(expect.objectContaining({
+      userId: "admin",
+      action: "ADMIN_MARK_PAID",
+      targetId: "o1",
+    }));
   });
 
   it("PUT /shop/orders/:id/complete — 完成订单", async () => {

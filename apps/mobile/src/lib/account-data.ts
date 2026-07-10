@@ -361,7 +361,7 @@ export const accountApi = {
 
   /**
    * 提交售后申请 → POST /shop/orders/:orderId/after-sale。
-   * 后端 body 仅 { type, reason, amount }；问题描述并入 reason，凭证图片后端不落库（不传）。
+   * body { type, reason, amount, images }；问题描述并入 reason，凭证图为已上传 COS 的真实 URL（后端并入售后记录）。
    */
   async submitAfterSale(data: RawSubmitAfterSale): Promise<{ success: boolean; id?: string }> {
     if (!data?.orderId) throw new Error('缺少订单信息')
@@ -371,6 +371,7 @@ export const accountApi = {
       type,
       reason: reason || '用户申请售后',
       amount: data.amount,
+      images: data.images?.length ? data.images : undefined,
     })
     return { success: true, id: res?.id }
   },

@@ -161,17 +161,81 @@ async function startPaying() {
     console.warn('[paying] JSAPI 支付未完成，继续轮询订单状态', e)
   }
   // #endif
-  // #ifndef MP-WEIXIN
-  // 【H5支付产品审核期·临时测试免支付】非小程序端(H5/浏览器)调管理员确认支付直接标记 PAID，
-  // 让下单/订单/发货等后续流程可测、不被支付卡住。仅超管测试号有效(真实用户非超管会403无害)。
-  // ⚠️H5支付开通后：改回 payOrderNative + 按环境的 H5支付分流(微信内JSAPI/浏览器MWEB)。
+  // #ifdef H5
+  /*
+   * H5 真实微信支付分流（2026-07-11 接线）：
+   * ① 微信内置浏览器（UA 含 micromessenger）：微信内不允许 H5 支付（mweb_url 打不开）——
+   *    优先走 JSAPI：调现有 /shop/orders/:id/pay/jsapi（后端从用户已绑定的微信授权查 openid），
+   *    拿到支付参数后用 WeixinJSBridge 调起收银台；未绑定微信/调起失败 → 提示「请在外部浏览器打开支付」，
+   *    不阻断：继续轮询订单状态（用户可能换端完成支付）。
+   * ② 外部浏览器：调 POST /shop/pay/h5 拿 mweb_url → 跳转微信收银台中间页，
+   *    携带 redirect_url 回跳当前页；回跳后页面重新加载走 onLoad→startPaying→startPolling，
+   *    轮询订单状态恢复（已支付则进成功态）。
+   * 无商户证书/H5 支付域名未配置时后端返回结构化 400，错误文案透出到失败态。
+   */
   try {
-    await shopApi.mockPayForTest(orderId.value)
+    const ua = (typeof navigator !== 'undefined' ? navigator.userAgent : '').toLowerCase()
+    const isWechatBrowser = ua.includes('micromessenger')
+    if (isWechatBrowser) {
+      // 微信内 → JSAPI（需用户已绑微信 openid）
+      try {
+        const p = await shopApi.payOrderJsapi(orderId.value)
+        await invokeWechatJsapiPay(p)
+      } catch (e) {
+        const msg = (e as Error)?.message || ''
+        if (msg.includes('取消')) {
+          status.value = 'cancelled'
+          clearTimers('all')
+          return
+        }
+        // 未绑定微信/调起失败：引导外部浏览器，继续轮询兜底
+        uni.showToast({ title: msg.includes('未绑定') ? msg : '微信内暂无法支付，请点击右上角在浏览器打开后支付', icon: 'none', duration: 3500 })
+      }
+    } else {
+      // 外部浏览器 → 微信 H5 支付（mweb_url 跳转，redirect_url 回跳本页恢复轮询）
+      const { mwebUrl } = await shopApi.payOrderH5(orderId.value)
+      if (mwebUrl) {
+        window.location.href = mwebUrl + '&redirect_url=' + encodeURIComponent(window.location.href)
+      } else {
+        throw new Error('支付下单失败，请稍后重试')
+      }
+    }
   } catch (e) {
-    console.warn('[paying] H5测试免支付需超管测试号', e)
+    // 结构化错误（如未配置商户证书 400）直接进入失败态，文案透出
+    status.value = 'failed'
+    failReason.value = (e as Error)?.message || '支付发起失败，请稍后重试'
+    clearTimers('all')
+    return
   }
   // #endif
+  // #ifndef MP-WEIXIN || H5
+  // App 等其他端：微信 APP 支付需客户端 SDK 接入（未接），提示改用小程序/H5 支付；仍轮询兜底（可换端支付）
+  uni.showToast({ title: '当前端暂不支持在线支付，请在小程序或浏览器中完成支付', icon: 'none', duration: 3000 })
+  // #endif
   startPolling()
+}
+
+/** 微信内置浏览器 JSAPI 调起收银台（WeixinJSBridge.getBrandWCPayRequest） */
+function invokeWechatJsapiPay(p: { appId: string; timeStamp: string; nonceStr: string; package: string; signType: string; paySign: string }): Promise<void> {
+  return new Promise((resolve, reject) => {
+    // #ifdef H5
+    const w = window as unknown as { WeixinJSBridge?: { invoke: (api: string, params: Record<string, string>, cb: (res: { err_msg?: string }) => void) => void } }
+    const bridge = w.WeixinJSBridge
+    if (!bridge) { reject(new Error('微信支付环境未就绪，请在外部浏览器打开支付')); return }
+    bridge.invoke(
+      'getBrandWCPayRequest',
+      { appId: p.appId, timeStamp: p.timeStamp, nonceStr: p.nonceStr, package: p.package, signType: p.signType, paySign: p.paySign },
+      (res) => {
+        if (res?.err_msg === 'get_brand_wcpay_request:ok') resolve()
+        else if (res?.err_msg === 'get_brand_wcpay_request:cancel') reject(new Error('支付已取消'))
+        else reject(new Error('微信支付调起失败'))
+      },
+    )
+    // #endif
+    // #ifndef H5
+    reject(new Error('非 H5 环境'))
+    // #endif
+  })
 }
 
 function startCountdown() {

@@ -222,7 +222,7 @@ async function clearInvalid() {
     submitting.value = false
   }
 }
-function goShop() { reLaunch('/shop') }
+function goShop() { reLaunch('/mall') }
 function goCheckout() {
   if (submitting.value) return
   if (selectedCount.value === 0) { uni.showToast({ title: '请选择商品', icon: 'none' }); return }

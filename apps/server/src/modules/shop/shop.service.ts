@@ -13,7 +13,7 @@ import { ShopOrderLifecycleService } from "./shop-order-lifecycle.service";
 import { ShopPaymentService } from "./shop-payment.service";
 import { ShopRefundService } from "./shop-refund.service";
 import {
-  CreateProductDto, UpdateProductDto, CreateOrderDto,
+  CreateProductDto, UpdateProductDto, CreateOrderDto, EstimateOrderDto,
   CreateReviewDto, UpdateLogisticsDto,
   CreateFreightTemplateDto, UpdateFreightTemplateDto,
   ProductListQueryDto, OrderListQueryDto,
@@ -103,6 +103,10 @@ export class ShopService {
     return this.orderSvc.createOrder(userId, dto);
   }
 
+  estimateOrder(userId: string, dto: EstimateOrderDto) {
+    return this.orderSvc.estimateOrder(userId, dto);
+  }
+
   createGroupBuyOrder(userId: string, params: {
     groupBuyId: string; productId: string; skuId?: string; groupPrice: number; groupId: string;
   }) {
@@ -135,6 +139,10 @@ export class ShopService {
 
   createNativePayment(orderId: string, userId: string, notifyUrl?: string) {
     return this.paymentSvc.createNativePayment(orderId, userId, notifyUrl);
+  }
+
+  createH5Payment(orderId: string, userId: string, clientIp: string, notifyUrl?: string) {
+    return this.paymentSvc.createH5Payment(orderId, userId, clientIp, notifyUrl);
   }
 
   createRechargePayment(userId: string, openid: string, amountCoin: number, notifyUrl?: string) {

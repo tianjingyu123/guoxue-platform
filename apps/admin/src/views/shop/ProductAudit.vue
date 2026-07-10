@@ -291,7 +291,8 @@ async function fetchList() {
   try {
     const params: Record<string, unknown> = { page: page.value, pageSize: pageSize.value }
     if (keyword.value.trim()) params.keyword = keyword.value.trim()
-    if (status.value) params.status = status.value
+    // 「全部状态」须显式传 ALL：后端 C 端不传 status 默认只出 ON_SALE，审核巡检要看到待审/下架
+    params.status = status.value || 'ALL'
     if (categoryId.value) params.categoryId = categoryId.value
     const { data } = await api.get('/shop/products', { params })
     products.value = data.items || data.products || []

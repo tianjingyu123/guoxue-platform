@@ -112,66 +112,11 @@ export class ShopOrderService {
       };
     }
 
-    // ── 推荐归因（2026-07-02 拍板）──
-    // 全平台单一分享链接（ref=分享者用户ID或分站推广码）：最近分享者=临时推荐人（前端7天窗口传入），
-    // 优先于永久归属分站；永久归属由服务端从 ReferralRelation 回填，不信任前端传入的 referrerId。
-    let tempReferrerId = await this.attribution.resolveReferrerUserId(dto.tempReferrerId, userId);
-    // ── 佣-V2-P2 渠道主体临时链接归因（2026-07-04 拍板·设计 §3.2）──
-    // 灰度开关 ConfigSystem[commission_v2_attribution]="true" 才启用（关=完全走上面现行逻辑·回滚路径）。
-    // 服务端受信任来源：查 ChannelClick（该用户对该商品 targetId 精确优先，其次 SHOP_ALL 全店）
-    // 未过期记录中 clickedAt 最新一条 → tempReferrerId=点击时解析好的渠道受益人（last-click 抢佣）；
-    // 无命中 → 现行归因逻辑不变。查询失败不阻塞下单。
-    let tempRefSubjectType: string | null = null;
-    // ── 佣-V2-P3 内容来源（拍板规则6）：纯记录下单入口的内容场景（LIVE/ARTICLE/VIDEO·成对才落库·不改金额库存支付）
-    const sourceContentType = dto.sourceContentType && dto.sourceContentId ? dto.sourceContentType : null;
-    const sourceContentId = sourceContentType ? dto.sourceContentId ?? null : null;
-    try {
-      if (await this.attribution.isChannelAttributionEnabled()) {
-        const click = await this.attribution.findLatestChannelClick(userId, dto.targetId);
-        if (click && click.beneficiaryUserId !== userId) {
-          tempReferrerId = click.beneficiaryUserId;
-          tempRefSubjectType = click.subjectType;
-        }
-        // ── 佣-V2-P3：直播间购买视同圈子渠道点击（设计§3.2-4·直播更接近成交，优先级不低于 ChannelClick 查询结果）。
-        // 直播→LiveRoom.circleId→圈主为受益人；无圈子/圈主即买家本人 → 静默跳过不覆盖。
-        // ARTICLE/VIDEO 本批只落来源字段不做受益人路由（作者渠道身份判定在 P4 积分侧统一处理）。
-        if (sourceContentType === "LIVE" && sourceContentId) {
-          const circleOwner = await this.attribution.resolveLiveCircleOwner(sourceContentId);
-          if (circleOwner && circleOwner !== userId) {
-            tempReferrerId = circleOwner;
-            tempRefSubjectType = "CIRCLE";
-          }
-        }
-      }
-    } catch (e) {
-      this.logger.warn("渠道点击归因查询失败，回落现行归因逻辑", e);
-    }
-    let permanentReferrerId: string | null = null;
-    try {
-      const relation = await this.prisma.referralRelation.findFirst({
-        where: { userId, referrerType: "STATION_MASTER", relationStatus: "ACTIVE" },
-        orderBy: { createdAt: "asc" },
-        select: { referrerId: true },
-      });
-      permanentReferrerId = relation?.referrerId ?? null;
-    } catch {
-      /* 归属查询失败不阻塞下单，按无永久归属处理 */
-    }
-    const effectiveReferrerId = tempReferrerId || permanentReferrerId;
-
-    // 分销角色自购立减（2026-07-02 拍板站长版·供-P3 泛化到全部分销角色）：
-    // 站长/圈主/驿站运营者/认证从业者/运营商本人购买（无推荐人或推荐人为本人）直接按直推佣金比例立减成交
-    // （比例=CommissionConfig.rateA·后台可配），不产生佣金；退款按实付价退。杜绝自购返佣/刷单套利。
-    let selfPurchaseRate = 0;
-    if (this.commissionSvc && (!effectiveReferrerId || effectiveReferrerId === userId)) {
-      try {
-        if (await this.attribution.isDistributorSelfPurchaseEligible(userId)) {
-          selfPurchaseRate = (await this.commissionSvc.getStationRate(dto.type)) ?? 0;
-        }
-      } catch (e) {
-        this.logger.warn("分销角色自购立减查询失败，按原价下单", e);
-      }
-    }
+    // 归因 + 分销自购立减解析（与 estimateOrder 共用同一实现，保证试算与实付一致）
+    const {
+      tempReferrerId, tempRefSubjectType, permanentReferrerId, effectiveReferrerId,
+      selfPurchaseRate, sourceContentType, sourceContentId,
+    } = await this.resolveAttribution(userId, dto);
 
     // ── 白标贺卡（供-P2）──
     // 实物订单归因到分销者时，自动组装贺卡任务 meta（从业者署名+祝语+名片二维码内容），
@@ -188,34 +133,9 @@ export class ShopOrderService {
     }
 
     return this.prisma.$transaction(async (tx) => {
-      // 优惠券校验与折扣计算（服务端计算，防篡改）
+      // 优惠券校验与折扣计算（服务端计算，防篡改；计算逻辑与 estimateOrder 共用同一实现）
       if (dto.couponId) {
-        const userCoupon = await tx.userCoupon.findFirst({
-          where: { id: dto.couponId, userId, used: false },
-          include: { coupon: true },
-        });
-        if (!userCoupon) throw new BusinessException(ErrorCode.COUPON_INVALID, "优惠券不存在或已被使用");
-
-        const coupon = userCoupon.coupon;
-        if (coupon.status !== "ACTIVE") throw new BusinessException(ErrorCode.COUPON_INVALID, "优惠券已失效");
-        const now = new Date();
-        if (now < coupon.validStart) throw new BusinessException(ErrorCode.COUPON_INVALID, "优惠券尚未生效");
-        if (now > coupon.validEnd) throw new BusinessException(ErrorCode.COUPON_EXPIRED, "优惠券已过期");
-        if (coupon.scope === "PRODUCT" && coupon.scopeId && coupon.scopeId !== dto.targetId) {
-          throw new BusinessException(ErrorCode.COUPON_INVALID, "优惠券不适用于该商品");
-        }
-        if (coupon.minAmount && actualAmount < Number(coupon.minAmount)) {
-          throw new BusinessException(ErrorCode.BAD_REQUEST, `不满足优惠券最低消费 ¥${Number(coupon.minAmount).toFixed(2)}`);
-        }
-
-        // 服务端计算优惠后金额
-        if (coupon.type === "FULL_REDUCE" || coupon.type === "NO_THRESHOLD") {
-          actualAmount = Math.max(0.01, actualAmount - Number(coupon.discountAmount || coupon.value || 0));
-        } else if (coupon.type === "DISCOUNT") {
-          const rate = Number(coupon.discountRate || (coupon.value ? Number(coupon.value) / 100 : 1));
-          actualAmount = Math.max(0.01, actualAmount * rate);
-        }
-        actualAmount = Math.round(actualAmount * 100) / 100;
+        actualAmount = await this.applyCouponPricing(tx, userId, dto.couponId, dto.targetId, actualAmount);
 
         // 条件更新防并发双花：仅当券仍 used:false 才置为已用；两并发单只有一个 count>0
         const claimed = await tx.userCoupon.updateMany({
@@ -317,6 +237,179 @@ export class ShopOrderService {
 
       return order;
     });
+  }
+
+  /**
+   * 归因与分销自购立减解析（createOrder / estimateOrder 共用同一实现，保证「试算=实付」）。
+   * 逻辑原样自 createOrder 抽出（2026-07-11 商城收敛·行为零变化）：
+   * 临时推荐人（分享链接 7 天窗口）→ 渠道点击归因（灰度开关）→ 直播圈主归因 → 永久归属分站 → 自购立减比例。
+   */
+  private async resolveAttribution(
+    userId: string,
+    dto: { targetId: string; type?: string; tempReferrerId?: string; sourceContentType?: string; sourceContentId?: string },
+  ) {
+    // ── 推荐归因（2026-07-02 拍板）──
+    // 全平台单一分享链接（ref=分享者用户ID或分站推广码）：最近分享者=临时推荐人（前端7天窗口传入），
+    // 优先于永久归属分站；永久归属由服务端从 ReferralRelation 回填，不信任前端传入的 referrerId。
+    let tempReferrerId = await this.attribution.resolveReferrerUserId(dto.tempReferrerId, userId);
+    // ── 佣-V2-P2 渠道主体临时链接归因（2026-07-04 拍板·设计 §3.2）──
+    // 灰度开关 ConfigSystem[commission_v2_attribution]="true" 才启用（关=完全走上面现行逻辑·回滚路径）。
+    // 服务端受信任来源：查 ChannelClick（该用户对该商品 targetId 精确优先，其次 SHOP_ALL 全店）
+    // 未过期记录中 clickedAt 最新一条 → tempReferrerId=点击时解析好的渠道受益人（last-click 抢佣）；
+    // 无命中 → 现行归因逻辑不变。查询失败不阻塞下单。
+    let tempRefSubjectType: string | null = null;
+    // ── 佣-V2-P3 内容来源（拍板规则6）：纯记录下单入口的内容场景（LIVE/ARTICLE/VIDEO·成对才落库·不改金额库存支付）
+    const sourceContentType = dto.sourceContentType && dto.sourceContentId ? dto.sourceContentType : null;
+    const sourceContentId = sourceContentType ? dto.sourceContentId ?? null : null;
+    try {
+      if (await this.attribution.isChannelAttributionEnabled()) {
+        const click = await this.attribution.findLatestChannelClick(userId, dto.targetId);
+        if (click && click.beneficiaryUserId !== userId) {
+          tempReferrerId = click.beneficiaryUserId;
+          tempRefSubjectType = click.subjectType;
+        }
+        // ── 佣-V2-P3：直播间购买视同圈子渠道点击（设计§3.2-4·直播更接近成交，优先级不低于 ChannelClick 查询结果）。
+        // 直播→LiveRoom.circleId→圈主为受益人；无圈子/圈主即买家本人 → 静默跳过不覆盖。
+        // ARTICLE/VIDEO 本批只落来源字段不做受益人路由（作者渠道身份判定在 P4 积分侧统一处理）。
+        if (sourceContentType === "LIVE" && sourceContentId) {
+          const circleOwner = await this.attribution.resolveLiveCircleOwner(sourceContentId);
+          if (circleOwner && circleOwner !== userId) {
+            tempReferrerId = circleOwner;
+            tempRefSubjectType = "CIRCLE";
+          }
+        }
+      }
+    } catch (e) {
+      this.logger.warn("渠道点击归因查询失败，回落现行归因逻辑", e);
+    }
+    let permanentReferrerId: string | null = null;
+    try {
+      const relation = await this.prisma.referralRelation.findFirst({
+        where: { userId, referrerType: "STATION_MASTER", relationStatus: "ACTIVE" },
+        orderBy: { createdAt: "asc" },
+        select: { referrerId: true },
+      });
+      permanentReferrerId = relation?.referrerId ?? null;
+    } catch {
+      /* 归属查询失败不阻塞下单，按无永久归属处理 */
+    }
+    const effectiveReferrerId = tempReferrerId || permanentReferrerId;
+
+    // 分销角色自购立减（2026-07-02 拍板站长版·供-P3 泛化到全部分销角色）：
+    // 站长/圈主/驿站运营者/认证从业者/运营商本人购买（无推荐人或推荐人为本人）直接按直推佣金比例立减成交
+    // （比例=CommissionConfig.rateA·后台可配），不产生佣金；退款按实付价退。杜绝自购返佣/刷单套利。
+    let selfPurchaseRate = 0;
+    if (this.commissionSvc && (!effectiveReferrerId || effectiveReferrerId === userId)) {
+      try {
+        if (await this.attribution.isDistributorSelfPurchaseEligible(userId)) {
+          selfPurchaseRate = (await this.commissionSvc.getStationRate(dto.type ?? "PRODUCT")) ?? 0;
+        }
+      } catch (e) {
+        this.logger.warn("分销角色自购立减查询失败，按原价下单", e);
+      }
+    }
+
+    return { tempReferrerId, tempRefSubjectType, permanentReferrerId, effectiveReferrerId, selfPurchaseRate, sourceContentType, sourceContentId };
+  }
+
+  /**
+   * 优惠券校验与折扣计算（createOrder 事务内 / estimateOrder 只读 共用；不做核销）。
+   * 逻辑原样自 createOrder 抽出（行为零变化）：状态/有效期/适用范围/门槛校验 + FULL_REDUCE/NO_THRESHOLD/DISCOUNT 计算。
+   */
+  private async applyCouponPricing(
+    db: Pick<Prisma.TransactionClient, "userCoupon">,
+    userId: string,
+    couponId: string,
+    targetId: string,
+    amount: number,
+  ): Promise<number> {
+    let actualAmount = amount;
+    const userCoupon = await db.userCoupon.findFirst({
+      where: { id: couponId, userId, used: false },
+      include: { coupon: true },
+    });
+    if (!userCoupon) throw new BusinessException(ErrorCode.COUPON_INVALID, "优惠券不存在或已被使用");
+
+    const coupon = userCoupon.coupon;
+    if (coupon.status !== "ACTIVE") throw new BusinessException(ErrorCode.COUPON_INVALID, "优惠券已失效");
+    const now = new Date();
+    if (now < coupon.validStart) throw new BusinessException(ErrorCode.COUPON_INVALID, "优惠券尚未生效");
+    if (now > coupon.validEnd) throw new BusinessException(ErrorCode.COUPON_EXPIRED, "优惠券已过期");
+    if (coupon.scope === "PRODUCT" && coupon.scopeId && coupon.scopeId !== targetId) {
+      throw new BusinessException(ErrorCode.COUPON_INVALID, "优惠券不适用于该商品");
+    }
+    if (coupon.minAmount && actualAmount < Number(coupon.minAmount)) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, `不满足优惠券最低消费 ¥${Number(coupon.minAmount).toFixed(2)}`);
+    }
+
+    // 服务端计算优惠后金额
+    if (coupon.type === "FULL_REDUCE" || coupon.type === "NO_THRESHOLD") {
+      actualAmount = Math.max(0.01, actualAmount - Number(coupon.discountAmount || coupon.value || 0));
+    } else if (coupon.type === "DISCOUNT") {
+      const rate = Number(coupon.discountRate || (coupon.value ? Number(coupon.value) / 100 : 1));
+      actualAmount = Math.max(0.01, actualAmount * rate);
+    }
+    return Math.round(actualAmount * 100) / 100;
+  }
+
+  /**
+   * 订单试算（POST /shop/orders/estimate）——结算页价格明细预演，与 createOrder 完全同口径：
+   * 活动单价×数量（统一定价引擎）→ 优惠券折扣（同一 applyCouponPricing，不核销）→ 分销自购立减（同一 resolveAttribution）。
+   * 只读：不建单、不占券、不扣库存、不做秒杀限购/库存闸（那些在真实下单时拦截）。
+   */
+  async estimateOrder(userId: string, dto: { targetId: string; skuId?: string; quantity?: number; couponId?: string; tempReferrerId?: string }) {
+    const qty = Math.max(1, Math.floor(Number(dto.quantity) || 1));
+
+    // 商品可购校验（与 createOrder 同口径）
+    if (dto.skuId) {
+      const sku = await this.prisma.productSku.findUnique({
+        where: { id: dto.skuId },
+        select: { product: { select: { status: true } } },
+      });
+      if (!sku || sku.product.status !== "ON_SALE") {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "商品不可购买");
+      }
+    } else {
+      const product = await this.prisma.product.findUnique({
+        where: { id: dto.targetId },
+        select: { status: true },
+      });
+      if (!product || product.status !== "ON_SALE") {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "商品不可购买");
+      }
+    }
+
+    // 活动价（统一定价引擎·scene 与下单一致）
+    const pricing = await this.unifiedPricing.calculateEffectivePrice(
+      dto.targetId, dto.skuId, userId, { scene: "checkout" },
+    );
+    const goodsAmount = Math.round(pricing.effectivePrice * qty * 100) / 100;
+
+    // 券后价（同一计算实现·只读不核销）
+    let payableAmount = goodsAmount;
+    if (dto.couponId) {
+      payableAmount = await this.applyCouponPricing(this.prisma, userId, dto.couponId, dto.targetId, payableAmount);
+    }
+    const couponDiscount = Math.round((goodsAmount - payableAmount) * 100) / 100;
+
+    // 分销自购立减（同一归因实现）
+    const { selfPurchaseRate } = await this.resolveAttribution(userId, { targetId: dto.targetId, type: "PRODUCT", tempReferrerId: dto.tempReferrerId });
+    let selfDiscount = 0;
+    if (selfPurchaseRate > 0) {
+      selfDiscount = Math.round(payableAmount * selfPurchaseRate * 100) / 100;
+      payableAmount = Math.max(0.01, Math.round((payableAmount - selfDiscount) * 100) / 100);
+    }
+
+    return {
+      goodsAmount,
+      couponDiscount,
+      selfDiscount,
+      selfDiscountRate: selfPurchaseRate,
+      payableAmount,
+      unitPrice: pricing.effectivePrice,
+      quantity: qty,
+      appliedPromotion: pricing.appliedPromotion ?? null,
+    };
   }
 
   /**

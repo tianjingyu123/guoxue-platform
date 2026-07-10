@@ -17,7 +17,7 @@ import {
   CreateCouponV2Dto, CreateReviewDto, UpdateLogisticsDto,
   CreateFreightTemplateDto, UpdateFreightTemplateDto, ReplyReviewDto,
   ProductListQueryDto, OrderListQueryDto,
-  CreateSkuDto, JsapiPayDto, NativePayDto, RefundOrderDto, RechargeJsapiDto,
+  CreateSkuDto, JsapiPayDto, NativePayDto, H5PayDto, EstimateOrderDto, RefundOrderDto, RechargeJsapiDto,
   AddToCartDto, AdminPayOrderDto, AlipayRefundDto,
   UnionpayRefundDto, ApplyAfterSaleDto, ModerateProductDto, SetCommissionRateDto, BatchGrantShopCouponDto,
 } from "./shop.dto";
@@ -302,6 +302,33 @@ export class ShopController {
     return this.shop.createCoinRechargeJsapi(req.user.id, body.amountCoin);
   }
 
+  @Post("pay/h5")
+  @UseGuards(JwtAuthGuard, StrictRedisThrottleGuard)
+  @ApiOperation({ summary: "H5支付（外部浏览器·返回 mwebUrl 跳转微信收银台）" })
+  @ApiResponse({ status: 201, description: "创建成功，返回 { mwebUrl }" })
+  @ApiResponse({ status: 400, description: "订单状态不可支付 / 微信支付未配置" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "只能支付自己的订单" })
+  @ApiResponse({ status: 404, description: "订单不存在" })
+  @ApiBearerAuth()
+  async h5Pay(@Req() req: AuthRequest, @Body() body: H5PayDto) {
+    // 微信 H5 下单要求 payer_client_ip：优先代理头（生产 nginx 转发），否则连接 IP
+    const fwd = req.headers["x-forwarded-for"];
+    const clientIp = (Array.isArray(fwd) ? fwd[0] : fwd)?.split(",")[0]?.trim() || req.ip || "127.0.0.1";
+    return this.shop.createH5Payment(body.orderId, req.user.id, clientIp, body.notifyUrl);
+  }
+
+  @Post("orders/estimate")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "订单试算（结算页价格明细·与下单定价引擎同口径·不落库不占券）" })
+  @ApiResponse({ status: 201, description: "返回 { goodsAmount, couponDiscount, selfDiscount, payableAmount }" })
+  @ApiResponse({ status: 400, description: "商品不可购买/优惠券无效" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiBearerAuth()
+  estimateOrder(@Req() req: AuthRequest, @Body() dto: EstimateOrderDto) {
+    return this.shop.estimateOrder(req.user.id, dto);
+  }
+
   @Post("orders/:id/pay/native")
   @UseGuards(JwtAuthGuard, StrictRedisThrottleGuard)
   @ApiOperation({ summary: "Native扫码支付（PC端）" })
@@ -355,6 +382,16 @@ export class ShopController {
   @ApiBearerAuth()
   adminPayOrder(@Req() req: AuthRequest, @Param("id") id: string, @Body() body: AdminPayOrderDto) {
     const u = req.user;
+    // 超管测试端点保留（H5 真实支付已接线，前端 mockPayForTest 调用点已删）：
+    // 显式落 AuditLog 记录谁用了（@Auditable 拦截器之外再落一条明细，防止测试通道被滥用无迹可查）
+    this.systemService.logAudit({
+      userId: u.id,
+      action: "ADMIN_MARK_PAID",
+      targetType: "ORDER",
+      targetId: id,
+      detail: `管理员确认支付（测试通道）: order=${id}, tx=${body.payTransactionId}, operator=${u.nickname || u.id}`,
+      ip: req.ip,
+    }).catch((err) => this.logger.warn("审计日志写入失败", err));
     return this.shop.adminPayOrder(id, body.payTransactionId, u.nickname || u.id);
   }
 
@@ -887,7 +924,7 @@ export class ShopController {
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   applyAfterSale(@Req() req: AuthRequest, @Param("id") orderId: string, @Body() dto: ApplyAfterSaleDto) {
-    return this.couponSvc.applyAfterSale(req.user.id, orderId, dto.type, dto.reason, dto.amount);
+    return this.couponSvc.applyAfterSale(req.user.id, orderId, dto.type, dto.reason, dto.amount, dto.images);
   }
 
   @Get("after-sales")

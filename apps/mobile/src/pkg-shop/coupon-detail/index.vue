@@ -146,7 +146,7 @@ function goItem(item: CouponApplicableItem) {
 function goUse() {
   if (submitting.value) return
   submitting.value = true
-  navigateTo('/shop')
+  navigateTo('/mall')
   setTimeout(() => (submitting.value = false), 500)
 }
 </script>

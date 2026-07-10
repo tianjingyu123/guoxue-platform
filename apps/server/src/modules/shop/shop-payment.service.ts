@@ -1,4 +1,4 @@
-import { Injectable, Inject, Logger, Optional } from "@nestjs/common";
+import { Injectable, Inject, Logger, Optional, HttpStatus } from "@nestjs/common";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { isUniqueConstraintError } from "../../common/prisma-errors";
@@ -93,6 +93,10 @@ export class ShopPaymentService {
     if (!order) throw new BusinessException(ErrorCode.ORDER_NOT_FOUND, "订单不存在");
     if (order.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能支付自己的订单");
     if (order.status !== "PENDING") throw new BusinessException(ErrorCode.ORDER_STATUS_INVALID, "订单状态不可支付");
+    // 无商户证书/密钥时 crypto 签名会抛裸 500 → 前置检查返回结构化 400
+    if (!this.wechatPay.isConfigured) {
+      throw new BusinessException(ErrorCode.PAY_FAILED, "微信支付未配置（缺商户证书/密钥），请联系平台或稍后再试");
+    }
 
     const outTradeNo = `GX${Date.now()}${orderId.slice(0, 8)}`;
     const totalFen = Math.round(Number(order.amount) * RMB_TO_FEN);
@@ -111,6 +115,46 @@ export class ShopPaymentService {
     });
 
     return result;
+  }
+
+  /**
+   * 创建微信 H5 支付（外部浏览器·mweb_url 跳转收银台）。
+   * 校验与 JSAPI/Native 同口径：归属（只能付自己的单·403）+ 状态（PENDING 才可发起·400）；
+   * 未配置商户证书时返回结构化 400（非 500 裸奔）。微信内置浏览器不支持 H5 支付，前端分流走 JSAPI。
+   */
+  async createH5Payment(orderId: string, userId: string, clientIp: string, notifyUrl?: string) {
+    const order = await this.orderSvc.getOrder(orderId);
+    if (!order) throw new BusinessException(ErrorCode.ORDER_NOT_FOUND, "订单不存在");
+    if (order.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能支付自己的订单");
+    if (order.status !== "PENDING") {
+      // 显式 400：已支付/已取消等状态非权限问题（ORDER_STATUS_INVALID 默认映射 403，此处覆写）
+      throw new BusinessException(ErrorCode.ORDER_STATUS_INVALID, "订单状态不可支付", HttpStatus.BAD_REQUEST);
+    }
+    if (!this.wechatPay.isConfigured) {
+      throw new BusinessException(ErrorCode.PAY_FAILED, "微信支付未配置（缺商户证书/密钥），请联系平台或稍后再试");
+    }
+
+    const outTradeNo = `GX${Date.now()}${orderId.slice(0, 8)}`;
+    const totalFen = Math.round(Number(order.amount) * RMB_TO_FEN);
+
+    const result = await this.wechatPay.createH5Order({
+      outTradeNo,
+      description: `国学平台订单-${orderId.slice(0, 8)}`,
+      amount: { total: totalFen },
+      sceneInfo: {
+        payerClientIp: clientIp || "127.0.0.1",
+        h5Info: { type: "Wap", appName: "热卜国学", appUrl: process.env.H5_BASE_URL || "https://api.rebugx.cn" },
+      },
+      attach: orderId,
+      notifyUrl,
+    });
+
+    await this.prisma.order.update({
+      where: { id: orderId },
+      data: { payTransactionId: outTradeNo },
+    });
+
+    return { mwebUrl: result.h5Url, outTradeNo };
   }
 
   /** 创建虚拟币充值支付订单 */

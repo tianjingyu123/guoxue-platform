@@ -162,7 +162,7 @@ export class ShopCouponService {
 
   // ═══════════════════ 售后管理 ═══════════════════
 
-  async applyAfterSale(userId: string, orderId: string, type: string, reason: string, amount?: number) {
+  async applyAfterSale(userId: string, orderId: string, type: string, reason: string, amount?: number, images?: string[]) {
     const order = await this.prisma.order.findUnique({ where: { id: orderId } });
     if (!order) throw new BusinessException(ErrorCode.ORDER_NOT_FOUND, "订单不存在");
     if (order.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能对自己的订单申请售后");
@@ -172,8 +172,11 @@ export class ShopCouponService {
     // 退款金额上限=订单实付：防客户端传超额金额（一旦接自动退款即成资金损失，现在就 clamp）
     const orderAmount = Number(order.amount);
     const refundAmount = amount != null ? Math.min(amount, orderAmount) : orderAmount;
+    // 凭证图（前端已上传 COS 的真实 URL）：AfterSale 无独立 images 列（schema 另一线在用暂不动），
+    // 服务端并入 reason 存档（DTO 500 字限制只约束用户输入，不影响此追加），管理端可直接打开链接核验
+    const fullReason = images?.length ? `${reason}\n[凭证图片] ${images.slice(0, 5).join(" ")}` : reason;
     return this.prisma.afterSale.create({
-      data: { orderId, userId, type, reason, amount: refundAmount, status: "PENDING" },
+      data: { orderId, userId, type, reason: fullReason, amount: refundAmount, status: "PENDING" },
     });
   }
 

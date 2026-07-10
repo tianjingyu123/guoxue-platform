@@ -77,23 +77,38 @@
 import { ref, reactive } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { navigateTo, reLaunch } from '@/utils/router'
+import { shopApi } from '@/lib/shop-data'
 
 const orderInfo = reactive({
-  orderId: '202401150001',
-  amount: 344,
-  payMethod: '微信支付',
+  orderId: '',
+  amount: 0,
+  payMethod: '在线支付',
   paidAt: '',
-  itemCount: 2,
+  itemCount: 1,
 })
 const copied = ref(false)
 const showAnim = ref(false)
 const submitting = ref(false)
 
-onLoad((q) => {
+onLoad(async (q) => {
   if (q?.orderId) orderInfo.orderId = q.orderId as string
-  const d = new Date()
-  orderInfo.paidAt = `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
   setTimeout(() => { showAnim.value = true }, 100)
+  // 按 orderId 真查订单摘要（金额/支付方式/支付时间/件数），替代硬编码展示
+  if (orderInfo.orderId) {
+    try {
+      const s = await shopApi.getOrderSummary(orderInfo.orderId)
+      orderInfo.amount = s.amount
+      orderInfo.payMethod = s.payMethod
+      orderInfo.paidAt = s.paidAt || orderInfo.paidAt
+      orderInfo.itemCount = s.itemCount
+    } catch (e) {
+      console.warn('[pay-success] 订单摘要查询失败', e)
+    }
+  }
+  if (!orderInfo.paidAt) {
+    const d = new Date()
+    orderInfo.paidAt = `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+  }
 })
 
 function handleCopy() {
@@ -109,7 +124,8 @@ function handleCopy() {
 function goOrder() {
   if (submitting.value) return
   submitting.value = true
-  navigateTo(`/shop/orders/${orderInfo.orderId}`)
+  // 走订单详情真路由 /orders/:id（原 /shop/orders/:id 无映射为死链）
+  navigateTo(`/orders/${orderInfo.orderId}`)
   setTimeout(() => { submitting.value = false }, 500)
 }
 function goHome() {
@@ -120,7 +136,7 @@ function goHome() {
 function goShop() {
   if (submitting.value) return
   submitting.value = true
-  navigateTo('/shop')
+  navigateTo('/mall')
   setTimeout(() => { submitting.value = false }, 500)
 }
 </script>

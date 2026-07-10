@@ -277,7 +277,16 @@ export class WechatPayService {
         total: params.amount.total,
         currency: params.amount.currency || "CNY",
       },
-      scene_info: params.sceneInfo,
+      // 微信 V3 API 要求 snake_case：payer_client_ip 必填、h5_info.type 固定 "Wap"
+      // （原实现把 camelCase 的 sceneInfo 原样透传会被微信拒收 PARAM_ERROR）
+      scene_info: {
+        payer_client_ip: params.sceneInfo.payerClientIp,
+        h5_info: {
+          type: params.sceneInfo.h5Info?.type || "Wap",
+          ...(params.sceneInfo.h5Info?.appName ? { app_name: params.sceneInfo.h5Info.appName } : {}),
+          ...(params.sceneInfo.h5Info?.appUrl ? { app_url: params.sceneInfo.h5Info.appUrl } : {}),
+        },
+      },
     };
     if (params.attach) body.attach = params.attach;
 

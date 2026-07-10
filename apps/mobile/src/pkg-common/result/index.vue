@@ -109,7 +109,8 @@ interface ResultConfig { success: StatusConfig; failed: StatusConfig }
 const resultConfigs: Record<string, ResultConfig> = {
   payment: {
     success: { title: '支付成功', description: '订单已支付完成，我们已开始为您准备商品', primaryBtn: { text: '查看订单', href: '/orders' }, secondaryBtn: { text: '继续逛逛', href: '/mall' } },
-    failed: { title: '支付失败', description: '余额不足，请充值后重试', primaryBtn: { text: '重新支付', href: '/checkout' }, secondaryBtn: { text: '返回首页', href: '/' } },
+    // 重新支付：href 兜底订单列表；onPrimary 中若带真实 orderId 则跳 paying 重新拉起支付（原 /checkout 为假结算孤岛页·断流改掉）
+    failed: { title: '支付失败', description: '余额不足，请充值后重试', primaryBtn: { text: '重新支付', href: '/orders' }, secondaryBtn: { text: '返回首页', href: '/' } },
   },
   enroll: {
     success: { title: '报名成功', description: '您已成功报名，请准时参加课程', primaryBtn: { text: '查看详情', href: '/reservations' }, secondaryBtn: { text: '返回首页', href: '/' } },
@@ -142,6 +143,8 @@ const recommendations = [
 const type = ref('payment')
 const status = ref('success')
 const orderId = ref('')
+/** 链接真实带入的订单号（不含展示用随机兜底·仅它可用于导航） */
+const realOrderId = ref('')
 const customTitle = ref('')
 const customDesc = ref('')
 const showAnimation = ref(false)
@@ -153,6 +156,7 @@ const resultData = computed(() => (isSuccess.value ? config.value.success : conf
 onLoad((options?: Record<string, string>) => {
   if (options?.type) type.value = options.type
   if (options?.status) status.value = options.status
+  realOrderId.value = options?.orderId || ''
   orderId.value = options?.orderId || ('20260509' + Math.random().toString().slice(2, 8))
   if (options?.title) customTitle.value = options.title
   if (options?.desc) customDesc.value = options.desc
@@ -160,6 +164,11 @@ onLoad((options?: Record<string, string>) => {
 })
 
 function onPrimary() {
+  // 支付失败「重新支付」：带真实订单号则回 paying 页重新拉起支付；否则走兜底 href（订单列表）
+  if (type.value === 'payment' && !isSuccess.value && realOrderId.value) {
+    navigateTo(`/shop/paying?orderId=${realOrderId.value}`)
+    return
+  }
   const href = resultData.value.primaryBtn.href
   if (href) navigateTo(href)
   else goBack()

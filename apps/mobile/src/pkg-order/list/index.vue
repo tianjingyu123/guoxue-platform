@@ -250,7 +250,7 @@ function goPay(id: string) { navigateTo(`/shop/paying?orderId=${id}`) }
 function goLogistics(id: string) { navigateTo(`/orders/logistics?orderId=${id}`) }
 function goReview(id: string) { navigateTo(`/orders/${id}/review`) }
 function goAfterSale(id: string) { navigateTo(`/shop/after-sale?orderId=${id}`) }
-function goShop() { navigateTo('/shop') }
+function goShop() { navigateTo('/mall') }
 function buyAgain() { navigateTo('/shop/cart') }
 async function confirmReceive(id: string) {
   if (submitting.value) return; submitting.value = true

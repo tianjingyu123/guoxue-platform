@@ -82,15 +82,16 @@ const ROUTE_MAP: Record<string, string> = {
   '/mall/category': '/pkg-mall/category/index',
   // 商品评价（入口不带 id，静态须优先于动态 /mall/product/:id/reviews）
   '/mall/product/reviews': '/pkg-mall/product/reviews',
-  '/shop': '/pkg-shop/home/index',
-  '/shop/compare': '/pkg-shop/compare/index',
-  // shop 商品板块（详情/分类/评价/换货）
-  '/shop/categories': '/pkg-shop/categories/index',
-  // 为你推荐"更多"入口（原型无独立商品列表页，复用分类浏览页；静态须优先于动态 /shop/:id）
-  '/shop/products': '/pkg-shop/categories/index',
+  /* ── 商城收敛（2026-07-11 砍孤岛）：旧 pkg-shop 孤岛页已删，
+   * 旧别名一律重定向到真版，防外部旧链接/分享链接 404 ── */
+  '/shop': '/pkg-mall/home/index', // 旧 shop 首页 → mall 首页
+  '/shop/compare': '/pkg-mall/home/index', // 对比死页(无真版) → mall 首页
+  '/shop/categories': '/pkg-mall/category/index', // 旧分类 → mall 分类
+  // 为你推荐"更多"入口（原型无独立商品列表页，复用 mall 分类浏览页；静态须优先于动态 /shop/:id）
+  '/shop/products': '/pkg-mall/category/index',
   // 商城内搜索入口（原型无独立 shop 搜索页，复用全局搜索页）
   '/shop/search': '/pkg-search/search/index',
-  '/shop/reviews': '/pkg-shop/reviews/index',
+  '/shop/reviews': '/pkg-mall/product/reviews', // 旧评价 → mall 商品评价
   '/shop/exchange': '/pkg-shop/exchange/index',
   // 营销活动
   '/shop/flash-sale': '/pkg-shop/flash-sale/index',
@@ -99,16 +100,16 @@ const ROUTE_MAP: Record<string, string> = {
   '/shop/group-buy-fail': '/pkg-shop/group-buy/fail',
   '/shop/coupons': '/pkg-shop/coupons/index',
   '/shop/coupon-detail': '/pkg-shop/coupon-detail/index',
-  // 购物车 / 结算 / 支付（双轨：根 /cart /checkout 与 /shop/cart /shop/checkout 是两套不同设计）
-  '/cart': '/pkg-shop/cart/index',
+  // 购物车 / 结算 / 支付（收敛后单轨：旧 /cart /checkout 别名重定向到真版 sku 购物车 / index 结算）
+  '/cart': '/pkg-shop/cart/sku', // 旧购物车已删 → 真版 SKU 购物车
   '/shop/cart': '/pkg-shop/cart/sku',
-  '/checkout': '/pkg-shop/checkout/order',
+  '/checkout': '/pkg-shop/checkout/index', // 假结算页已删 → 真版结算
   '/shop/checkout': '/pkg-shop/checkout/index',
   '/shop/paying': '/pkg-shop/paying/index',
   '/shop/pay-success': '/pkg-shop/pay-success/index',
   '/shop/pay-fail': '/pkg-shop/pay-fail/index',
   '/shop/pay-timeout': '/pkg-shop/pay-timeout/index',
-  '/shop/payment-methods': '/pkg-shop/payment-methods/index',
+  '/shop/payment-methods': '/pkg-settings/payment-methods/index', // 无后端死页已删 → 设置-支付方式
   '/payment/result': '/pkg-shop/pay-success/index',
   // 订单中心
   '/orders': '/pkg-order/list/index',
@@ -270,7 +271,7 @@ const ROUTE_MAP: Record<string, string> = {
   '/discover': '/pages/discover/index', // tab 页：收藏/下载空态"去发现内容"，需走 reLaunch
   '/profile': '/pages/profile/index', // tab 页：扫码结果/帮助页跳个人中心
   '/courses/study-plan': '/pkg-course/study-plan/index', // 我的课程→学习计划
-  '/seckill/rules': '/pkg-shop/seckill/rules/index', // 秒杀页→活动规则
+  '/seckill/rules': '/pkg-shop/flash-sale/index', // 重复秒杀页已删（含规则子页）→ 真版秒杀 flash-sale
   '/station/earnings': '/pkg-operator/station-earnings/index', // 站长面板→收益（运营端）
   '/publish': '/pkg-circle/circles/publish', // 草稿箱→发布
   '/content/community-rules': '/pkg-report/community-rules/index', // 举报详情→社区规范（本轮新迁页）
@@ -283,8 +284,8 @@ const ROUTE_MAP: Record<string, string> = {
   '/auth/recover': '/pkg-auth/recover/index',
   // 智能客服（/customer-service 已在前面映射；这里仅补 /agent 前缀的调用方）
   '/agent/customer-service': '/pkg-agent/agent/customer-service',
-  // 秒杀首页（活动详情页"秒杀"入口；页已迁好仅缺映射。注：/seckill/rules 上面已有）
-  '/seckill': '/pkg-shop/seckill/index',
+  // 秒杀首页（重复 seckill 页已删 → 真版秒杀 flash-sale，同端点两套 UI 收敛为一）
+  '/seckill': '/pkg-shop/flash-sale/index',
   // 隐私政策（设置页"隐私政策"指向；页已迁好仅缺映射）
   '/policy/privacy': '/pkg-settings/privacy-policy/index',
   // 用户服务协议（设置页"服务协议"指向；页已迁好仅缺映射）
@@ -423,9 +424,9 @@ const DYNAMIC_ROUTES: Array<[RegExp, string, string]> = [
   // shop 商品评价（/shop/:id/reviews 更具体，须在通用商品详情之前��
   // shop C 端店铺主页（/shop/store/:merchantId 两段，须先于通用 /shop/:id 单段兜底）
   [/^\/shop\/store\/([^/?]+)$/, '/pkg-shop/store/index', 'id'],
-  [/^\/shop\/([^/?]+)\/reviews$/, '/pkg-shop/reviews/index', 'id'],
-  // shop 商品详情（/shop/:id，兜�����；所有 /shop/xxx ���态页已在 ROUTE_MAP 优先命中）
-  [/^\/shop\/([^/?]+)$/, '/pkg-shop/product/index', 'id'],
+  [/^\/shop\/([^/?]+)\/reviews$/, '/pkg-mall/product/reviews', 'id'], // 旧 shop 评价页已删 → mall 商品评价
+  // shop 商品详情兜底（/shop/:id；旧 pkg-shop/product 已删 → mall 商品详情；所有 /shop/xxx 静态页已在 ROUTE_MAP 优先命中）
+  [/^\/shop\/([^/?]+)$/, '/pkg-mall/product/detail', 'id'],
   // 课程详情系列（/courses/:id/xxx 更具体须在通用详情之前；静态 /courses/xxx 已在 ROUTE_MAP 优先命中）
   [/^\/courses\/([^/?]+)\/chapters$/, '/pkg-course/chapters/index', 'id'],
   [/^\/courses\/([^/?]+)\/learn$/, '/pkg-course/learn/index', 'id'],

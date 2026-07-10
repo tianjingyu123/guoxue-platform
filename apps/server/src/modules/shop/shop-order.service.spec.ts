@@ -605,4 +605,81 @@ describe("ShopOrderService", () => {
       )
     })
   })
+
+  // ═══════════════════ 订单试算（结算页价格明细·商城收敛 2026-07-11） ═══════════════════
+
+  describe("estimateOrder（与 createOrder 定价同口径·只读不核销）", () => {
+    const now = new Date()
+    const fullReduce10 = {
+      id: "c1", userId: "u1", used: false,
+      coupon: {
+        status: "ACTIVE", type: "FULL_REDUCE", value: 10, discountAmount: 10, discountRate: null,
+        minAmount: 0, validStart: new Date(now.getTime() - 86400000), validEnd: new Date(now.getTime() + 86400000),
+        scope: "ALL", scopeId: null,
+      },
+    }
+    function setup79() {
+      mockUnifiedPricing.calculateEffectivePrice.mockResolvedValue({
+        productId: "p1", effectivePrice: 79, originalPrice: 79,
+        appliedPromotion: null, activePromotions: [], hasPromotion: false,
+      })
+      mockPrisma.product.findUnique.mockResolvedValue({ id: "p1", price: 79, status: "ON_SALE" })
+    }
+
+    it("摸底同款复算：¥79 − 10券 − 分销自购立减20% = 55.20", async () => {
+      setup79()
+      mockPrisma.userCoupon.findFirst.mockResolvedValue(fullReduce10)
+      // 分销身份：eligible=true + rateA=0.2
+      const attribution = (svc as any).attribution
+      const eligibleSpy = jest.spyOn(attribution, "isDistributorSelfPurchaseEligible").mockResolvedValue(true)
+      mockCommission.getStationRate.mockResolvedValue(0.2)
+      try {
+        const est = await svc.estimateOrder("u1", { targetId: "p1", quantity: 1, couponId: "c1" })
+        expect(est.goodsAmount).toBe(79)
+        expect(est.couponDiscount).toBe(10)
+        expect(est.selfDiscount).toBe(13.8) // (79-10)×20%
+        expect(est.payableAmount).toBe(55.2)
+        // 只读：绝不核销优惠券、不建单、不扣库存
+        expect(mockPrisma.userCoupon.updateMany).not.toHaveBeenCalled()
+        expect(mockPrisma.order.create).not.toHaveBeenCalled()
+        expect(mockPrisma.product.updateMany).not.toHaveBeenCalled()
+      } finally {
+        eligibleSpy.mockRestore()
+        mockCommission.getStationRate.mockResolvedValue(0.25)
+      }
+    })
+
+    it("试算=实付：同参数 createOrder 落库金额与试算 payableAmount 一致", async () => {
+      setup79()
+      mockPrisma.userCoupon.findFirst.mockResolvedValue(fullReduce10)
+      const attribution = (svc as any).attribution
+      const eligibleSpy = jest.spyOn(attribution, "isDistributorSelfPurchaseEligible").mockResolvedValue(true)
+      mockCommission.getStationRate.mockResolvedValue(0.2)
+      mockPrisma.userCoupon.updateMany.mockResolvedValue({ count: 1 })
+      mockPrisma.order.create.mockResolvedValue({ id: "o-est", status: "PENDING" })
+      try {
+        const est = await svc.estimateOrder("u1", { targetId: "p1", quantity: 1, couponId: "c1" })
+        await svc.createOrder("u1", { type: "PRODUCT", targetId: "p1", amount: 1, couponId: "c1" })
+        const orderData = mockPrisma.order.create.mock.calls[0][0].data
+        expect(orderData.amount).toBe(est.payableAmount) // 展示价与实付必须一致
+        expect(orderData.selfDiscount).toBe(est.selfDiscount)
+      } finally {
+        eligibleSpy.mockRestore()
+        mockCommission.getStationRate.mockResolvedValue(0.25)
+      }
+    })
+
+    it("非分销身份：selfDiscount=0，仅券后价", async () => {
+      setup79()
+      mockPrisma.userCoupon.findFirst.mockResolvedValue(fullReduce10)
+      const est = await svc.estimateOrder("u1", { targetId: "p1", quantity: 1, couponId: "c1" })
+      expect(est.selfDiscount).toBe(0)
+      expect(est.payableAmount).toBe(69)
+    })
+
+    it("商品不可购买（下架/待审）：结构化 400", async () => {
+      mockPrisma.product.findUnique.mockResolvedValue({ id: "p1", price: 79, status: "PENDING" })
+      await expect(svc.estimateOrder("u1", { targetId: "p1" })).rejects.toThrow("商品不可购买")
+    })
+  })
 })

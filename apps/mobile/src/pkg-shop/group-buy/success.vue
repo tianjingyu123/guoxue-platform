@@ -165,7 +165,7 @@ function viewOrder() {
   navigateTo(`/orders/${data.value.orderId}`)
 }
 function goShop() {
-  navigateTo('/shop')
+  navigateTo('/mall')
 }
 async function retryLoad() {
   loading.value = true

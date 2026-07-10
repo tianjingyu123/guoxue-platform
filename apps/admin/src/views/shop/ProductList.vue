@@ -559,7 +559,8 @@ async function fetchList() {
   loading.value = true
   error.value = false
   try {
-    const { data } = await productApi.list({ page: page.value, pageSize: 20 })
+    // status=ALL：后端 C 端默认只出 ON_SALE，管理端工作队列须看到待审/下架商品，显式查全量
+    const { data } = await productApi.list({ page: page.value, pageSize: 20, status: 'ALL' })
     products.value = data.items || data.products || []; total.value = data.total || 0
   } catch {
     products.value = []; total.value = 0; error.value = true

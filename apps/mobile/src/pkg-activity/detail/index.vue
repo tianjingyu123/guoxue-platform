@@ -117,7 +117,7 @@
             <text class="block-title">限时秒杀</text>
             <view class="hot-badge"><text class="hot-txt">抢购中</text></view>
           </view>
-          <view class="block-more" @tap="go('/seckill')">
+          <view class="block-more" @tap="go('/shop/flash-sale')">
             <text class="more-txt">更多</text>
             <app-icon name="chevron-right" :size="24" color="#999" />
           </view>

@@ -190,6 +190,30 @@ export class CreateOrderDto {
   sourceContentId?: string;
 }
 
+/** 订单试算（结算页价格明细预演·与 createOrder 定价同口径·只读不落库不占券） */
+export class EstimateOrderDto {
+  @ApiProperty({ description: "商品ID" })
+  @IsString()
+  @MinLength(1)
+  targetId: string;
+
+  @ApiPropertyOptional({ description: "SKU ID" })
+  @IsOptional() @IsString()
+  skuId?: string;
+
+  @ApiPropertyOptional({ description: "购买数量", minimum: 1, default: 1 })
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1)
+  quantity?: number;
+
+  @ApiPropertyOptional({ description: "优惠券ID（UserCoupon.id·只校验计算不核销）" })
+  @IsOptional() @IsString()
+  couponId?: string;
+
+  @ApiPropertyOptional({ description: "临时推荐人ID（与 createOrder 同源传入，保证自购立减判定一致）" })
+  @IsOptional() @IsString()
+  tempReferrerId?: string;
+}
+
 export class CreateCouponDto {
   @ApiProperty({ description: "优惠券类型（FIXED/DISCOUNT）" })
   @IsString()
@@ -242,7 +266,7 @@ export class ProductListQueryDto {
   @IsOptional() @IsString()
   categoryId?: string;
 
-  @ApiPropertyOptional({ description: "商品状态" })
+  @ApiPropertyOptional({ description: "商品状态（缺省=ON_SALE 只出在售；ALL=全量·管理端工作队列用；支持逗号多值如 PENDING,OFF_SHELF）" })
   @IsOptional() @IsString()
   status?: string;
 
@@ -312,6 +336,18 @@ export class RechargeJsapiDto {
 }
 
 export class NativePayDto {
+  @ApiPropertyOptional({ description: "回调通知地址" })
+  @IsOptional() @IsString()
+  notifyUrl?: string;
+}
+
+/** H5 支付（外部浏览器 mweb_url 跳转微信收银台） */
+export class H5PayDto {
+  @ApiProperty({ description: "订单ID" })
+  @IsString()
+  @MinLength(1)
+  orderId: string;
+
   @ApiPropertyOptional({ description: "回调通知地址" })
   @IsOptional() @IsString()
   notifyUrl?: string;
@@ -633,6 +669,10 @@ export class ApplyAfterSaleDto {
   @IsPositive()
   @Type(() => Number)
   amount?: number;
+
+  @ApiPropertyOptional({ description: "凭证图片 URL（已上传 COS 的可访问地址，最多 5 张）", type: [String] })
+  @IsOptional() @IsArray() @ArrayMaxSize(5) @IsString({ each: true })
+  images?: string[];
 }
 
 // ── 商品分类 DTO ──

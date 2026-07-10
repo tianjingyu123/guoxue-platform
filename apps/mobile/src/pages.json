@@ -312,31 +312,7 @@
       "root": "pkg-shop",
       "pages": [
         {
-          "path": "home/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
           "path": "store/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "product/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "categories/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "reviews/index",
           "style": {
             "navigationStyle": "custom"
           }
@@ -348,31 +324,7 @@
           }
         },
         {
-          "path": "compare/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
           "path": "flash-sale/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "seckill/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "seckill/rules/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "payment-result/index",
           "style": {
             "navigationStyle": "custom"
           }
@@ -414,12 +366,6 @@
           }
         },
         {
-          "path": "cart/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
           "path": "cart/sku",
           "style": {
             "navigationStyle": "custom"
@@ -427,12 +373,6 @@
         },
         {
           "path": "checkout/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "checkout/order",
           "style": {
             "navigationStyle": "custom"
           }
@@ -457,12 +397,6 @@
         },
         {
           "path": "pay-timeout/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "payment-methods/index",
           "style": {
             "navigationStyle": "custom"
           }

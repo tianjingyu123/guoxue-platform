@@ -253,6 +253,7 @@ import {
   type ShopExchangeProduct,
   type ShopExchangeAddress,
 } from '@/lib/shop-data'
+import { uploadImage } from '@/utils/request'
 import { formatPrice } from '@/utils/format'
 
 const safeBottom = ref(0)
@@ -328,9 +329,24 @@ function pickAddress(a: ShopExchangeAddress) {
   selectedAddress.value = a
   showAddressPicker.value = false
 }
+// 选图 → 真实上传 COS（uploadImage 返回可访问 URL），失败提示不落假图
 function addImage() {
   if (images.value.length >= 5) return
-  images.value.push(`https://picsum.photos/200/200?random=${Date.now()}`)
+  uni.chooseImage({
+    count: 5 - images.value.length,
+    success: async (res) => {
+      const paths = res.tempFilePaths as string[]
+      for (const p of paths) {
+        if (images.value.length >= 5) break
+        try {
+          const url = await uploadImage(p)
+          images.value.push(url)
+        } catch (e) {
+          uni.showToast({ title: (e as Error)?.message || '图片上传失败', icon: 'none' })
+        }
+      }
+    },
+  })
 }
 function removeImage(idx: number) {
   images.value.splice(idx, 1)
@@ -354,13 +370,15 @@ async function handleSubmit() {
     const newSku = exchangeType.value === 'different'
       ? availableSkus.value.find((s) => s.id === newSkuId.value)?.name
       : ''
+    const addr = selectedAddress.value
     const parts = [
       `换货商品：${selectedProduct.value?.name || ''}`,
       `换货方式：${typeLabel}${newSku ? `（${newSku}）` : ''}`,
       `原因：${reasons.value.find((r) => r.value === reason.value)?.label || reason.value}`,
+      addr ? `取件地址：${addr.name} ${addr.phone} ${fullAddress(addr)}` : '',
       description.value ? `补充：${description.value}` : '',
     ].filter(Boolean)
-    await shopApi.submitExchange(orderId.value, parts.join('；').slice(0, 500))
+    await shopApi.submitExchange(orderId.value, parts.join('；').slice(0, 500), images.value)
     uni.showToast({ title: '换货申请已提交', icon: 'success' })
     setTimeout(() => navigateTo('/shop/my-after-sales'), 1200)
   } catch (e) {

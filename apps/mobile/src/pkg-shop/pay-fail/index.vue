@@ -101,7 +101,7 @@ const amountText = computed(() => parseFloat(amount.value || '0').toFixed(2))
 function goRePay() { redirectTo(`/shop/paying?orderId=${orderId.value}`) }
 function goChangeMethod() { navigateTo(`/shop/checkout?orderId=${orderId.value}`) }
 function goOrder() { navigateTo(`/orders/${orderId.value}`) }
-function goShop() { navigateTo('/shop') }
+function goShop() { navigateTo('/mall') }
 </script>
 
 <style lang="scss" scoped>

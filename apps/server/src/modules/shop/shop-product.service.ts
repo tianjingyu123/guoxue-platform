@@ -212,7 +212,19 @@ export class ShopProductService {
     const where: Prisma.ProductWhereInput = {};
     if (categoryId) where.categoryId = categoryId;
     if (circleId) where.circleId = circleId;
-    if (status) where.status = status;
+    // P0 状态过滤（商城收敛·断流止血 2026-07）：C 端不传 status 默认只出在售，
+    // 待审核/违规下架商品不得在列表曝光；管理端工作队列显式传 status=ALL 查全量，
+    // 支持逗号多值（如 status=PENDING,OFF_SHELF）
+    if (status) {
+      const s = status.trim();
+      if (s.toUpperCase() !== "ALL") {
+        const list = s.split(",").map((v) => v.trim()).filter(Boolean);
+        if (list.length > 1) where.status = { in: list };
+        else where.status = list[0] || "ON_SALE";
+      }
+    } else {
+      where.status = "ON_SALE";
+    }
     if (stationId) where.stationId = stationId;
     if (keyword) where.title = { contains: keyword, mode: "insensitive" };
     if (categoryLevel1) where.categoryLevel1 = categoryLevel1;

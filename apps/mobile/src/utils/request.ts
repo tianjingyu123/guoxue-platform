@@ -56,7 +56,7 @@ function isAuthEntryPath(path: string): boolean {
  * 并发去重：多个请求同时 401 时只发一次刷新、共享结果。返回是否刷新成功。
  */
 let _refreshing: Promise<boolean> | null = null
-function refreshAccessToken(): Promise<boolean> {
+export function refreshAccessToken(): Promise<boolean> {
   if (_refreshing) return _refreshing
   _refreshing = new Promise<boolean>((resolve) => {
     const done = (ok: boolean) => { _refreshing = null; resolve(ok) }

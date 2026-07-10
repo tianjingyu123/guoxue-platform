@@ -34,7 +34,7 @@ async function fetchData(productId?: string) {
     // 底栏收藏态/购物车角标（未登录/失败静默降级，不阻塞详情渲染）
     shopApi.isProductFavorited(String(data.id)).then((v) => { isFavorite.value = v })
     shopApi.getCart()
-      .then((res) => { cartCount.value = (res.items || []).reduce((s, i) => s + i.quantity, 0) })
+      .then((res: { items?: Array<{ quantity: number }> }) => { cartCount.value = (res.items || []).reduce((s: number, i: { quantity: number }) => s + i.quantity, 0) })
       .catch(() => {})
     // 详情加载成功后拉取推荐（内置降级，无需 try/catch）
     recItems.value = await recommendApi.getForScene('product_detail', String(product.value?.id ?? productId ?? '1'))

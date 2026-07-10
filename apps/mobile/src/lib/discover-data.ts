@@ -56,7 +56,7 @@ export const categories = [
 // 运营专栏 - 平台手动配置（死入口大扫除 2026-07：href 从空话题聚合改指平台真实板块页）
 export const columns = [
   { id: 'best-courses', title: '精选好课', subtitle: '名师系统课程', count: 36, href: '/courses-list', cover: 'https://api.rebugx.cn/assets/discover/board-courses.webp', accent: '#A0621A' },
-  { id: 'hot-products', title: '热门好物', subtitle: '开运法器精选', count: 128, href: '/shop/categories', cover: 'https://api.rebugx.cn/assets/discover/board-products.webp', accent: '#8B2E2E' },
+  { id: 'hot-products', title: '热门好物', subtitle: '开运法器精选', count: 128, href: '/mall/category', cover: 'https://api.rebugx.cn/assets/discover/board-products.webp', accent: '#8B2E2E' },
   { id: 'new-classics', title: '古籍新上', subtitle: '经典原著典藏', count: 24, href: '/pkg-classics/home/index', cover: 'https://api.rebugx.cn/assets/discover/board-classics.webp', accent: '#7A5A20' },
   { id: 'rec-circles', title: '推荐圈子', subtitle: '同好交流社群', count: 52, href: '/pages/circles/index', cover: 'https://api.rebugx.cn/assets/discover/board-circles.webp', accent: '#5A3E6B' },
 ]

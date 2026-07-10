@@ -74,6 +74,39 @@ describe("ShopProductService", () => {
       expect(result.products).toHaveLength(1)
     })
 
+    // P0 状态过滤（商城收敛·断流止血）：C 端缺省只出在售，管理端 ALL 查全量，支持逗号多值
+    it("不传 status 默认只查 ON_SALE（C 端防待审/下架曝光）", async () => {
+      mockPrisma.product.findMany.mockResolvedValue([])
+      mockPrisma.product.count.mockResolvedValue(0)
+      await svc.listProducts({ page: 1, pageSize: 10 })
+      const arg = mockPrisma.product.findMany.mock.calls.at(-1)![0]
+      expect(arg.where.status).toBe("ON_SALE")
+    })
+
+    it("status=ALL 查全量（管理端工作队列·不加状态过滤）", async () => {
+      mockPrisma.product.findMany.mockResolvedValue([])
+      mockPrisma.product.count.mockResolvedValue(0)
+      await svc.listProducts({ page: 1, pageSize: 10, status: "ALL" })
+      const arg = mockPrisma.product.findMany.mock.calls.at(-1)![0]
+      expect(arg.where.status).toBeUndefined()
+    })
+
+    it("status 逗号多值转 in 查询", async () => {
+      mockPrisma.product.findMany.mockResolvedValue([])
+      mockPrisma.product.count.mockResolvedValue(0)
+      await svc.listProducts({ page: 1, pageSize: 10, status: "PENDING,OFF_SHELF" })
+      const arg = mockPrisma.product.findMany.mock.calls.at(-1)![0]
+      expect(arg.where.status).toEqual({ in: ["PENDING", "OFF_SHELF"] })
+    })
+
+    it("显式单值 status 照常过滤", async () => {
+      mockPrisma.product.findMany.mockResolvedValue([])
+      mockPrisma.product.count.mockResolvedValue(0)
+      await svc.listProducts({ page: 1, pageSize: 10, status: "PENDING" })
+      const arg = mockPrisma.product.findMany.mock.calls.at(-1)![0]
+      expect(arg.where.status).toBe("PENDING")
+    })
+
     // P2-4 分页入参加固：非法 page 归一化，防 skip:NaN 进 Prisma 抛 500
     it("非法 page(NaN) 归一化第1页·skip 不为 NaN", async () => {
       mockPrisma.product.findMany.mockResolvedValue([])

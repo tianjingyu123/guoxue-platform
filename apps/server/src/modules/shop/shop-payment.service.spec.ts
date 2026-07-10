@@ -76,5 +76,57 @@ describe("ShopPaymentService", () => {
       mockPrisma.order.findUnique.mockResolvedValue(null)
       await expect(svc.createNativePayment("no", "u1")).rejects.toThrow(BusinessException)
     })
+
+    it("无商户证书时返回结构化错误（优雅 400 非 500）", async () => {
+      mockPrisma.order.findUnique.mockResolvedValue(mockOrder)
+      mockWechatPay.isConfigured = false
+      try {
+        await expect(svc.createNativePayment("o1", "u1")).rejects.toThrow("微信支付未配置")
+        await expect(svc.createNativePayment("o1", "u1")).rejects.toMatchObject({ status: 400 })
+      } finally {
+        mockWechatPay.isConfigured = true
+      }
+    })
+  })
+
+  describe("createH5Payment", () => {
+    const mockOrder = { id: "o1", userId: "u1", type: "PRODUCT", amount: "99", status: "PENDING" }
+
+    it("创建 H5 支付成功（返回 mwebUrl）", async () => {
+      mockPrisma.order.findUnique.mockResolvedValue(mockOrder)
+      mockPrisma.order.update.mockResolvedValue({ ...mockOrder })
+      const result = await svc.createH5Payment("o1", "u1", "1.2.3.4")
+      expect(result.mwebUrl).toBe("https://wx.tenpay.com/h5/pay/mock")
+      // 微信 V3 场景信息按客户端 IP 传入
+      expect(mockWechatPay.createH5Order).toHaveBeenCalledWith(expect.objectContaining({
+        sceneInfo: expect.objectContaining({ payerClientIp: "1.2.3.4" }),
+      }))
+    })
+
+    it("归属校验：别人的订单 403", async () => {
+      mockPrisma.order.findUnique.mockResolvedValue({ ...mockOrder, userId: "someone-else" })
+      await expect(svc.createH5Payment("o1", "u1", "1.2.3.4")).rejects.toMatchObject({ status: 403 })
+    })
+
+    it("状态校验：已支付订单 400", async () => {
+      mockPrisma.order.findUnique.mockResolvedValue({ ...mockOrder, status: "PAID" })
+      await expect(svc.createH5Payment("o1", "u1", "1.2.3.4")).rejects.toMatchObject({ status: 400 })
+    })
+
+    it("订单不存在 404", async () => {
+      mockPrisma.order.findUnique.mockResolvedValue(null)
+      await expect(svc.createH5Payment("no", "u1", "1.2.3.4")).rejects.toMatchObject({ status: 404 })
+    })
+
+    it("无商户证书时返回结构化 400（非 500 裸奔）", async () => {
+      mockPrisma.order.findUnique.mockResolvedValue(mockOrder)
+      mockWechatPay.isConfigured = false
+      try {
+        await expect(svc.createH5Payment("o1", "u1", "1.2.3.4")).rejects.toThrow("微信支付未配置")
+        await expect(svc.createH5Payment("o1", "u1", "1.2.3.4")).rejects.toMatchObject({ status: 400 })
+      } finally {
+        mockWechatPay.isConfigured = true
+      }
+    })
   })
 })

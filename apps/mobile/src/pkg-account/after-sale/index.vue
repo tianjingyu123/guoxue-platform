@@ -152,6 +152,7 @@ import { ref, reactive } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { goBack, redirectTo } from '@/utils/router'
 import { accountApi, afterSaleReasons } from '@/lib/account-data'
+import { uploadImage } from '@/utils/request'
 
 const statusBarHeight = ref(20)
 const navHeight = ref(64)
@@ -218,13 +219,17 @@ function addImage() {
     count: 5 - images.value.length,
     success: (res) => {
       const paths = res.tempFilePaths as string[]
-      // 模拟上传中状态：逐张占位 -> 上传完成
-      paths.forEach((p) => {
+      // 真实上传 COS：逐张占位 → uploadImage 返回可访问 URL 落列表；失败提示并撤占位
+      paths.forEach(async (p) => {
         uploadingCount.value++
-        setTimeout(() => {
-          images.value.push(p)
+        try {
+          const url = await uploadImage(p)
+          images.value.push(url)
+        } catch (e) {
+          uni.showToast({ title: (e as Error)?.message || '图片上传失败', icon: 'none' })
+        } finally {
           uploadingCount.value--
-        }, 800)
+        }
       })
     },
   })

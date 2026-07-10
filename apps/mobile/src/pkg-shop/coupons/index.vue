@@ -175,7 +175,7 @@ async function claim(c: CouponTemplate) {
 }
 
 function goUse() {
-  navigateTo('/shop')
+  navigateTo('/mall')
 }
 </script>
 
