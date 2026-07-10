@@ -190,7 +190,7 @@ export class QuestionService {
   /** 超时自动退款（由定时任务调用） */
   async refundExpiredQuestions() {
     const now = new Date();
-    const TIMEOUT_HOURS = 72;
+    const TIMEOUT_HOURS = 48; // 董事长拍板 2026-07-10：图文提问超时退款与悬赏统一为 48 小时
     const deadline = new Date(now.getTime() - TIMEOUT_HOURS * 3600000);
 
     const expiredQuestions = await this.prisma.paidQuestion.findMany({

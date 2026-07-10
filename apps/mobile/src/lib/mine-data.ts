@@ -1628,6 +1628,11 @@ export const mineApi = {
     }
   },
 
+  /** 收益转金币 —— POST /users/wallet/convert-to-coin（可提现余额→金币·1元=10币·单向不可逆·董事长拍板2026-07-10） */
+  async convertToCoin(amountRmb: number): Promise<{ amountRmb: number; amountCoin: number }> {
+    return apiPost<{ amountRmb: number; amountCoin: number }>('/users/wallet/convert-to-coin', { amountRmb })
+  },
+
   /** 申请提现 —— POST /users/wallet/withdraw（后端校验可提现余额/门槛100-50000/并发锁） */
   async withdraw(_amount: number, _method: string, _account: string | Record<string, string>): Promise<{ success: boolean; message: string }> {
     try {

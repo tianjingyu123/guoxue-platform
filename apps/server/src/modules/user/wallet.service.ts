@@ -6,6 +6,7 @@ import { CoinService } from "../coin/coin.service";
 import { RedisService } from "../../redis/redis.service";
 import { LedgerBalanceService } from "../settlement/ledger-balance.service";
 import { Prisma } from "@prisma/client";
+import { COIN_TO_RMB } from "../../common/constants";
 
 /** 提现门槛与上限（元），与 PRD 一致 */
 const MIN_WITHDRAW_RMB = 100;
@@ -16,8 +17,9 @@ const WITHDRAW_MIN_FEE = 1;
 /** 代扣代缴税款配置键（后台可配） */
 const TAX_ENABLED_KEY = "finance.tax.enabled";
 const TAX_RATE_KEY = "finance.tax.rate";
-/** 计算可提现余额时视为"占用额度"的提现状态（驳回 REJECTED 自动释放额度，无需退款补偿） */
-const OCCUPYING_WITHDRAW_STATUSES = ["PENDING", "APPROVED", "PAID"];
+/** 计算可提现余额时视为"占用额度"的提现状态（驳回 REJECTED 自动释放额度，无需退款补偿）。
+ *  CONVERTED=收益转金币（董事长拍板 2026-07-10·转出即永久占用可提现额度，金币侧同事务入账） */
+const OCCUPYING_WITHDRAW_STATUSES = ["PENDING", "APPROVED", "PAID", "CONVERTED"];
 
 @Injectable()
 export class WalletService {
@@ -136,6 +138,57 @@ export class WalletService {
    *
    * 驳回(REJECTED)的提现自动释放额度，因为 REJECTED 不在 OCCUPYING_STATUSES 中。
    */
+  /**
+   * 收益转金币（董事长拍板 2026-07-10）：可提现 RMB 收益 → 金币（1元=10币·单向不可逆）。
+   * 打赏等收益既可提现也可转金币消费全平台虚拟币项目。
+   * 记一条 status=CONVERTED 的提现申请单占用可提现额度（对账留痕），金币入账同一事务。
+   */
+  async convertToCoin(userId: string, amountRmb: number) {
+    if (!Number.isInteger(amountRmb) || amountRmb <= 0) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "转换金额须为正整数（元）");
+    }
+
+    const lockKey = `withdraw:lock:${userId}`; // 与提现同锁：防转币+提现并发双花同一笔余额
+    const locked = await this.redis.setNX(lockKey, "1", 10);
+    if (!locked) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "处理中，请稍后再试");
+    }
+    try {
+      const available = await this.getWithdrawableBalance(userId);
+      if (amountRmb > available) {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, `可提现余额不足，当前可提现 ${available.toFixed(2)} 元`);
+      }
+
+      const amountCoin = amountRmb * COIN_TO_RMB;
+      const application = await this.prisma.$transaction(async (tx) => {
+        const app = await tx.withdrawalApplication.create({
+          data: {
+            userId,
+            amount: amountRmb,
+            fee: 0,
+            taxAmount: 0,
+            taxRate: 0,
+            actualAmount: amountRmb,
+            payMethod: "COIN_CONVERT",
+            accountInfo: { type: "COIN", note: "收益转金币" },
+            status: "CONVERTED",
+          },
+        });
+        await this.coin.income(userId, {
+          amountCoin,
+          scene: "EARNING_CONVERT",
+          refId: app.id,
+          description: `收益转金币 ¥${amountRmb} → ${amountCoin} 金币`,
+        }, tx);
+        return app;
+      });
+
+      return { amountRmb, amountCoin, applicationId: application.id };
+    } finally {
+      await this.redis.del(lockKey);
+    }
+  }
+
   async submitWithdraw(userId: string, data: { amount: number; method: string; account: Record<string, string> }) {
     if (!data.amount || data.amount <= 0) {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "提现金额必须大于0");

@@ -7,7 +7,7 @@
  *       余额 GET /coin/balance（getCoinBalance·失败隐藏余额行）；附图 chooseAndUploadImage 真传 COS。
  * 口径修正（后端为准·不照抄 V0）：
  *  - V0「围观收入你与达人各得 40%/平台 20%」与后端不符（围观收益全记回答者·比例走 SettlementRule）→ 不写比例。
- *  - V0「48 小时未回复退还」→ 后端超时退款为 72 小时；「7 天申诉」后端无 → 不写。
+ *  - 超时退款 48 小时（董事长拍板 2026-07-10 与悬赏统一·后端已改）；「7 天申诉」后端无 → 不写。
  * 悬赏 Tab：跳 pkg-bounty/create（真实承载页）带 circleId。
  */
 import { ref, computed } from 'vue'
@@ -180,7 +180,7 @@ onLoad((opt) => {
     </view>
 
     <!-- 担保与扣费说明（口径=后端真实规则） -->
-    <text class="ca-assure"><text class="ca-assure-b">担保规则：</text>提问金币由平台托管，达人 72 小时内未回复将自动全额退还；达人拒答同样全额退还。</text>
+    <text class="ca-assure"><text class="ca-assure-b">担保规则：</text>提问金币由平台托管，达人 48 小时内未回复将自动全额退还；达人拒答同样全额退还。</text>
 
     <view v-if="!canAsk" class="ca-warn">
       <app-icon name="alert-circle" :size="26" color="#C97B2D" />

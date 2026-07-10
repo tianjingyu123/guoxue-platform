@@ -228,7 +228,8 @@ onLoad(async (opt) => {
     <view class="bc-rules">
       <text class="bc-rules-t">悬赏规则</text>
       <view class="bc-rule"><view class="bc-rule-dot" /><text class="bc-rule-txt">悬赏金币发布时托管，你采纳回答后全额支付给答主</text></view>
-      <view class="bc-rule"><view class="bc-rule-dot" /><text class="bc-rule-txt">答主抢答后需在 72 小时内作答，超时悬赏自动重新开放</text></view>
+      <view class="bc-rule"><view class="bc-rule-dot" /><text class="bc-rule-txt">悬赏自发布起 48 小时有效，到期未获解答自动全额退回</text></view>
+      <view class="bc-rule"><view class="bc-rule-dot" /><text class="bc-rule-txt">答主抢答后须在悬赏有效期内作答，超时自动重新开放</text></view>
       <view class="bc-rule"><view class="bc-rule-dot" /><text class="bc-rule-txt">未有回答前可随时撤销悬赏，金币原路退回钱包</text></view>
       <view class="bc-rule"><view class="bc-rule-dot" /><text class="bc-rule-txt">悬赏问答公开可见，回答计入答主应答数据</text></view>
     </view>

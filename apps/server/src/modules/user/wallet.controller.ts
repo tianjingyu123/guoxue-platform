@@ -59,6 +59,15 @@ export class WalletController {
     return this.svc.submitWithdraw(req.user.id, body);
   }
 
+  @Post("convert-to-coin")
+  @RedLineGate(RedLine.MONEY)
+  @ApiOperation({ summary: "收益转金币（可提现余额→金币·1元=10币·单向不可逆）" })
+  @ApiResponse({ status: 201, description: "转换成功" })
+  @ApiResponse({ status: 400, description: "余额不足/金额非法" })
+  convertToCoin(@Req() req: Request, @Body() body: { amountRmb: number }) {
+    return this.svc.convertToCoin(req.user.id, Number(body?.amountRmb));
+  }
+
   @Post("recharge")
   @ApiOperation({ summary: "充值国学币（微信/支付宝/云闪付；演示模式下单后模拟到账）" })
   @ApiResponse({ status: 201, description: "充值成功" })

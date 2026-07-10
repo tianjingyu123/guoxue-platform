@@ -3397,7 +3397,8 @@ enum CoinScene {
   BOUNTY_UNFREEZE // 悬赏解冻
   POST_REWARD // 帖子打赏（2026-07-03 补：代码早在用但枚举缺失，落库被 DB 拒）
   CONSULT_CALL_PREPAY // 咨询通话预扣（同上）
-  LIVE_GIFT_INCOME // 直播打赏分成收入（主播侧·入金币余额可直接消费）
+  LIVE_GIFT_INCOME // （预留）直播打赏分成直接入币·终版拍板改走 UserEarning+收益转金币
+  EARNING_CONVERT // 收益转金币（可提现 RMB 收益 → 金币·单向·董事长拍板 2026-07-10）
 }
 
 model VirtualCoinTransaction {

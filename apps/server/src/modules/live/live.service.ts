@@ -939,19 +939,14 @@ export class LiveService {
         },
       });
 
-      // 打赏分账：主播实时入账 50%（平台留 50%·2026-07-01 业务规则），同一事务原子。
-      // 董事长拍板 2026-07-10：打赏金币与平台虚拟币消费通用——主播分成直接进金币余额（可消费直播画质/咨询等虚拟币项目），
-      // 不再记 UserEarning RMB 提现收益（避免双记；历史 UserEarning 记录保留不动）。
-      if (this.coin && room.hostUserId && room.hostUserId !== userId) {
-        const hostCoin = Math.floor(totalCoin * 0.5);
-        if (hostCoin > 0) {
-          await this.coin.income(room.hostUserId, {
-            amountCoin: hostCoin,
-            scene: "LIVE_GIFT_INCOME",
-            refId: giftRecord.id,
-            description: `直播间 ${room.title} 收到 ${gift.name} x${quantity} 打赏分成（50%）`,
-          }, tx);
-        }
+      // 打赏分账：主播实时入账 50%（平台留 50%·2026-07-01 业务规则），记为可提现 RMB 收益（同一事务·原子）。
+      // 董事长拍板 2026-07-10（终版）：打赏收入既支持提现（走 UserEarning → 提现流），
+      // 也可通过「收益转金币」（wallet convert-to-coin·单向）转成金币消费全平台虚拟币项目——两全。
+      if (this.revenue && room.hostUserId && room.hostUserId !== userId) {
+        await this.revenue.record(
+          { userId: room.hostUserId, scene: "LIVE_GIFT", refId: giftRecord.id, amountCoin: totalCoin, rate: 0.5 },
+          tx,
+        );
       }
 
       return giftRecord;

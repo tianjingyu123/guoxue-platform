@@ -52,10 +52,10 @@ function fmtTime(s: string) {
   if (days < 7) return `${days} 天前`
   return `${d.getMonth() + 1}/${d.getDate()}`
 }
-/** 72h 超时退款剩余小时（后端固定 72h） */
+/** 48h 超时退款剩余小时（董事长拍板 2026-07-10：图文提问与悬赏统一 48h） */
 function refundLeft(q: PaidQuestion) {
   const elapsed = (Date.now() - new Date(q.createdAt).getTime()) / 3_600_000
-  return Math.max(0, Math.ceil(72 - elapsed))
+  return Math.max(0, Math.ceil(48 - elapsed))
 }
 
 async function load() {

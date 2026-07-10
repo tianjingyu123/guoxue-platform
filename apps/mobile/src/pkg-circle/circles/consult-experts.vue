@@ -67,7 +67,7 @@ onMounted(load)
     <!-- 平台担保：扣费前的信任基础 -->
     <view class="ce-trust">
       <app-icon name="shield" :size="28" color="#C9A96E" />
-      <text class="ce-trust-t">平台金币托管：提问 72 小时未回复自动全额退还；通话预扣费用、按实际时长结算，多扣部分自动退回。</text>
+      <text class="ce-trust-t">平台金币托管：提问 48 小时未回复自动全额退还；通话预扣费用、按实际时长结算，多扣部分自动退回。</text>
     </view>
 
     <!-- 三态 -->

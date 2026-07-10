@@ -19,6 +19,31 @@ const info = ref<WithdrawBalanceInfo>({
 })
 
 const retry = () => { error.value = ''; loadData() }
+
+/** 收益转金币（1元=10币·单向不可逆·拍板 2026-07-10）：弹窗输入整数元 → 真转换 → 刷新余额 */
+const converting = ref(false)
+function openConvert() {
+  if (converting.value) return
+  uni.showModal({
+    title: '收益转金币',
+    editable: true,
+    placeholderText: `输入转换金额（整数元·当前可提现 ¥${info.value.availableBalance.toFixed(2)}）`,
+    content: '',
+    success: async (res) => {
+      if (!res.confirm) return
+      const n = parseInt(String(res.content || '').trim(), 10)
+      if (!Number.isInteger(n) || n <= 0) { uni.showToast({ title: '请输入正整数金额（元）', icon: 'none' }); return }
+      converting.value = true
+      try {
+        const r = await mineApi.convertToCoin(n)
+        uni.showToast({ title: `已转入 ${r.amountCoin} 金币（不可逆）`, icon: 'none' })
+        loadData()
+      } catch (e) {
+        uni.showToast({ title: (e as Error)?.message || '转换失败', icon: 'none' })
+      } finally { converting.value = false }
+    },
+  })
+}
 async function loadData() {
   loading.value = true; error.value = ''
   try {
@@ -210,6 +235,11 @@ function continueWithdraw() {
         <view v-if="info.frozenBalance > 0 || info.pendingBalance > 0" class="bal-extra">
           <text v-if="info.frozenBalance > 0">冻结中: ¥{{ info.frozenBalance.toFixed(2) }}</text>
           <text v-if="info.pendingBalance > 0">待结算: ¥{{ info.pendingBalance.toFixed(2) }}</text>
+        </view>
+        <!-- 收益转金币（拍板 2026-07-10：收益既可提现也可转金币消费·1元=10币·单向） -->
+        <view class="bal-convert" @tap="openConvert">
+          <app-icon name="refresh-cw" :size="24" color="rgba(255,255,255,0.85)" />
+          <text class="bal-convert-t">转为金币消费（1元=10金币）</text>
         </view>
       </view>
 
@@ -434,6 +464,17 @@ function continueWithdraw() {
   font-size: 22rpx;
   color: rgba(255, 255, 255, 0.7);
 }
+.bal-convert {
+  margin-top: 20rpx;
+  display: inline-flex;
+  align-items: center;
+  gap: 10rpx;
+  padding: 10rpx 22rpx;
+  border-radius: 999rpx;
+  background: rgba(255, 255, 255, 0.16);
+}
+.bal-convert:active { opacity: 0.8; }
+.bal-convert-t { font-size: 24rpx; color: rgba(255, 255, 255, 0.9); }
 
 /* 通用卡片 */
 .card {
