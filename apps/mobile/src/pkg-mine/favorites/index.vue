@@ -296,7 +296,7 @@ const linkMap: Record<FavType, string> = {
   course: '/course',
   circle_post: '/post',
   article: '/article',
-  product: '/shop/product',
+  product: '/shop', // 商品详情动态路由为单段 /shop/:id → pkg-mall/product/detail（旧 /shop/product/:id 已随商城收敛删除）
   video: '/video',
   comment: '',
   poem: '/poetry',
