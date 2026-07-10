@@ -5,6 +5,7 @@ import { AiMessage } from "../ai-gateway/adapters/base.adapter";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { ADMIN_GUIDE, pageHint } from "./admin-guide";
+import { formatChangelog } from "./admin-changelog";
 
 const ASSISTANT_SCENE = "admin_assistant";
 
@@ -46,6 +47,8 @@ export class AdminAssistantService {
   async chat(userId: string, dto: AssistantChatDto): Promise<{ answer: string }> {
     const messages: AiMessage[] = [
       { role: "system", content: ADMIN_GUIDE },
+      // 后台最近变更自动注入（admin-changelog.ts 与代码同版本发布——助手始终知道最新状态）
+      { role: "system", content: formatChangelog(15) },
     ];
     if (dto.page) {
       messages.push({ role: "system", content: `【当前员工所在页面】${dto.page}\n${pageHint(dto.page)}` });

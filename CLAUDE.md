@@ -294,3 +294,5 @@ bash apps/mobile/scripts/scan-mock-imports.sh
 **模块化上线验收主线（工作法）**：分模块逐一过，一遍做到上线标准不返工。每模块完成判据：① 页面真连后端(无 mock/无 if(true)/无假算法) ② 三态齐全 ③ 逻辑层 Vue 化 ④ 发现的问题/优化就地做(开发阶段免请示，业务规则除外) ⑤ 后端 tsc+jest、前端 vue-tsc、接口实测、mock 扫描全绿。详见记忆 [[guoxue-module-launch-mainline]]。
 
 **授权**（见记忆 [[guoxue-frontend-optimization-mandate]]）：开发阶段未上线，优化类(UI/交互/信息架构/视觉/文案/三态/性能/代码质量/后端字段补全/合理端点增强)**直接做不请示**；仅业务规则(付费/权益/数据语义/删功能/品牌大改/资金)先提案。现有项目+原型只是**基础**，发现问题与提升空间就优化，目标=顶级国际国学平台。
+
+**后台变更必须同步运营助手知识库（2026-07-11 董事长拍板·铁律）**：任何改动 apps/admin 功能的提交（新增/重做/下线页面、改操作流程、改业务规则），必须同步在 `apps/server/src/modules/admin-assistant/admin-changelog.ts` 数组头部追加变更条目（面向后台员工口吻：什么变了、现在怎么操作）。运营助手每次对话自动注入最近条目——不更新它，助手就会拿旧手册误导员工。changelog 积累多了要定期沉淀回 `admin-guide.ts` 手册正文并清理旧条目。操作流程大改时同步检查 `admin-guide.ts` 的对应段落与 `pageHint()`。
