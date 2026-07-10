@@ -1,16 +1,20 @@
 <script setup lang="ts">
 /**
- * 圈子搜索（视觉层沿用原型 app/circles/search/page.tsx；逻辑层重写为真连后端）
- * 搜索栏 + 历史(本地存储)/热门(运营引导词) + 骨架(搜索中) + 结果列表/空/错误三态
- * 真连 GET /circles?keyword=（circleApi.list）。
+ * 圈子搜索 — V0 circle-search.html 还原（批⑥ 2026-07-10 重写视图层）
+ * 结构：搜索顶栏 → 输入前(最近搜索/热门词/热门圈子推荐) → 结果(圈子单组·关键词高亮·加入按钮进预览页)
+ *       → 空结果转创建 CTA → 骨架/错误三态。
+ * 数据：GET /circles?keyword=（circleApi.list·仅圈子名称/简介检索）。
+ * 降级（后端缺）：① AI 智能搜索/推荐追问 chips（待办#37 无接口）→ 热门圈子推荐（list 接口真实数据）；
+ * ② 结果「内容」分组（后端无跨圈内容搜索端点）→ 仅圈子单组；
+ * ③ 结果行「需审批」标识（list 端点不返回 needApproval）→ 仅显示 免费/年费价格。
  */
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
-import { circleApi, type Circle } from '@/lib/circle-data'
+import { circleApi, formatMembers, type Circle, type RankingCircle } from '@/lib/circle-data'
 
 // 热门搜索：运营引导词（非冒充统计的假数据）
-const hotSearches = ['八字命理', '紫微斗数', '风水堪舆', '易经', '六爻', '奇门遁甲', '四柱', '国学']
+const HOT_SEARCHES = ['八字命理', '紫微斗数', '风水堪舆', '易经', '六爻', '奇门遁甲', '宝宝起名', '国学']
 const HISTORY_KEY = 'circle_search_history'
 
 const keyword = ref('')
@@ -20,10 +24,16 @@ const results = ref<Circle[]>([])
 const searching = ref(false)
 const error = ref('')
 
-function formatCount(n: number) { return n >= 10000 ? `${(n / 10000).toFixed(1)}万` : String(n) }
+// 热门圈子推荐（AI 智能推荐降级：真实排行榜接口按成员数取前 5；
+// 不用 list() 无关键词分支——其失败回退 mockCircles 会展示假圈子）
+const hotCircles = ref<RankingCircle[]>([])
+
+async function loadHot() {
+  hotCircles.value = (await circleApi.getRanking('memberCount')).slice(0, 5)
+}
 
 function saveHistory(k: string) {
-  history.value = [k, ...history.value.filter(h => h !== k)].slice(0, 10)
+  history.value = [k, ...history.value.filter((h) => h !== k)].slice(0, 10)
   uni.setStorageSync(HISTORY_KEY, history.value)
 }
 
@@ -45,93 +55,146 @@ async function doSearch(kw: string) {
     searching.value = false
   }
 }
+
 function clearHistory() { history.value = []; uni.removeStorageSync(HISTORY_KEY) }
 function clearKeyword() { keyword.value = ''; hasSearched.value = false; results.value = [] }
 function openCircle(id: string) { navigateTo(`/pkg-circle/circles/detail?id=${id}`) }
+/** 加入按钮 → 圈子预览页（加入漏斗：免费/审批/付费在预览页分流） */
+function openPreview(id: string) { navigateTo(`/pkg-circle/circles/preview?id=${id}`) }
+/** 空结果 → 创建圈子（透传关键词预填名称） */
+function goCreate() { navigateTo(`/pkg-circle/circles/create?name=${encodeURIComponent(keyword.value)}`) }
+
+/** 名称按关键词切分（高亮渲染用） */
+function highlightSegments(name: string): { text: string; hit: boolean }[] {
+  const k = keyword.value.trim()
+  if (!k || !name.includes(k)) return [{ text: name, hit: false }]
+  const segs: { text: string; hit: boolean }[] = []
+  let rest = name
+  while (rest.length) {
+    const i = rest.indexOf(k)
+    if (i < 0) { segs.push({ text: rest, hit: false }); break }
+    if (i > 0) segs.push({ text: rest.slice(0, i), hit: false })
+    segs.push({ text: k, hit: true })
+    rest = rest.slice(i + k.length)
+  }
+  return segs
+}
+
+/** 结果行价格口径：YEARLY=¥x/年·PAID=¥x·FREE=免费 */
+function priceLabel(c: Circle): string {
+  if (c.type === 'YEARLY') return `¥${c.price ?? 0}/年`
+  if (c.type === 'PAID' || c.isPaid) return `¥${c.price ?? 0}`
+  return '免费'
+}
+
+onMounted(loadHot)
 </script>
 
 <template>
-  <view class="sr">
-    <!-- 搜索栏 -->
-    <view class="sr-bar">
-      <view @tap="goBack" class="sr-back"><app-icon name="arrow-left" :size="44" color="#2C2C2C" /></view>
-      <view class="sr-input-wrap">
-        <app-icon name="search" :size="28" color="#999999" class="sr-input-icon" />
-        <input v-model="keyword" class="sr-input" placeholder="搜索圈子名称、分类..." placeholder-class="sr-ph" confirm-type="search" @confirm="doSearch(keyword)" />
-        <view v-if="keyword" class="sr-clear" @tap="clearKeyword"><app-icon name="x" :size="28" color="#999999" /></view>
+  <view class="cs-page">
+    <!-- 搜索顶栏 -->
+    <view class="cs-bar">
+      <view class="cs-back" @tap="goBack"><app-icon name="arrow-left" :size="40" color="#2C2C2C" /></view>
+      <view class="cs-input-wrap">
+        <app-icon name="search" :size="30" color="#999999" />
+        <input
+          v-model="keyword" class="cs-input" placeholder="搜索圈子" placeholder-class="cs-ph"
+          confirm-type="search" focus @confirm="doSearch(keyword)"
+        />
+        <view v-if="keyword" class="cs-clear" @tap="clearKeyword"><app-icon name="x" :size="22" color="#6E6E73" /></view>
       </view>
-      <text class="sr-cancel" @tap="goBack">取消</text>
+      <text class="cs-cancel" @tap="goBack">取消</text>
     </view>
 
-    <view class="sr-body">
-      <!-- 未搜索 -->
-      <view v-if="!hasSearched" class="sr-pre">
-        <view v-if="history.length" class="sr-sec">
-          <view class="sr-sec-head">
-            <text class="sr-sec-title">搜索历史</text>
-            <text class="sr-sec-clear" @tap="clearHistory">清空</text>
-          </view>
-          <view class="sr-tags">
-            <view v-for="(kw, i) in history" :key="i" class="sr-tag" @tap="doSearch(kw)"><text class="sr-tag-txt">{{ kw }}</text></view>
-          </view>
-        </view>
-        <view class="sr-sec">
-          <view class="sr-sec-head start">
-            <app-icon name="trending-up" :size="28" color="#C41E3A" />
-            <text class="sr-sec-title">热门搜索</text>
-          </view>
-          <view class="sr-tags">
-            <view v-for="(kw, i) in hotSearches" :key="i" class="sr-tag" @tap="doSearch(kw)">
-              <text v-if="i < 3" class="sr-tag-rank">{{ i + 1 }}</text>
-              <text class="sr-tag-txt">{{ kw }}</text>
-            </view>
-          </view>
+    <!-- 输入前：历史 + 热门词 + 热门圈子推荐 -->
+    <view v-if="!hasSearched">
+      <view v-if="history.length" class="cs-pre-label">
+        <text>最近搜索</text>
+        <view class="cs-pre-clear" @tap="clearHistory"><app-icon name="x" :size="26" color="#999999" /></view>
+      </view>
+      <view v-if="history.length" class="cs-chips">
+        <view v-for="(kw, i) in history" :key="i" class="cs-chip" @tap="doSearch(kw)"><text class="cs-chip-t">{{ kw }}</text></view>
+      </view>
+
+      <view class="cs-pre-label mt"><text>大家都在搜</text></view>
+      <view class="cs-chips">
+        <view v-for="(kw, i) in HOT_SEARCHES" :key="i" class="cs-chip" @tap="doSearch(kw)">
+          <text v-if="i < 3" class="cs-chip-rank top">{{ i + 1 }}</text>
+          <text v-else-if="i < 5" class="cs-chip-rank">{{ i + 1 }}</text>
+          <text class="cs-chip-t dark">{{ kw }}</text>
         </view>
       </view>
 
-      <!-- 搜索中骨架 -->
-      <view v-else-if="searching" class="sr-skeleton">
-        <view v-for="i in 3" :key="i" class="sr-sk-row">
-          <view class="sr-sk-avatar" />
-          <view class="sr-sk-main">
-            <view class="sr-sk-line w75" />
-            <view class="sr-sk-line w50" />
-            <view class="sr-sk-line w66" />
+      <!-- 热门圈子推荐（AI 推荐降级：真实排行榜数据·无加入方式/价格字段仅显成员数） -->
+      <template v-if="hotCircles.length">
+        <text class="cs-result-label">热门圈子</text>
+        <view class="cs-group">
+          <view v-for="c in hotCircles" :key="c.id" class="cs-row" @tap="openCircle(c.id)">
+            <view class="cs-row-cover">
+              <image v-if="c.cover" :src="c.cover" class="cs-row-cover-img" mode="aspectFill" lazy-load />
+              <view v-else class="cs-row-cover-ph"><app-icon name="users" :size="36" color="#C9A96E" /></view>
+            </view>
+            <view class="cs-row-main">
+              <text class="cs-row-name">{{ c.name }}</text>
+              <view class="cs-row-meta">
+                <text class="cs-row-meta-t">{{ formatMembers(c.memberCount) }} 成员<template v-if="c.category"> · {{ c.category }}</template></text>
+              </view>
+            </view>
+            <view class="cs-join-mini" @tap.stop="openPreview(c.id)"><text class="cs-join-mini-t">加入</text></view>
           </view>
         </view>
-      </view>
+      </template>
+    </view>
 
-      <!-- 错误态 -->
-      <view v-else-if="error" class="sr-empty">
-        <view class="sr-empty-icon"><app-icon name="search" :size="56" color="#999999" /></view>
-        <text class="sr-empty-title">{{ error }}</text>
-        <view class="sr-retry" @tap="doSearch(keyword)"><text class="sr-retry-txt">重试</text></view>
+    <!-- 搜索中骨架 -->
+    <view v-else-if="searching" class="cs-skeleton">
+      <view v-for="i in 4" :key="i" class="cs-sk-row">
+        <view class="cs-sk-cover" />
+        <view class="cs-sk-main">
+          <view class="cs-sk-line w70" />
+          <view class="cs-sk-line w45" />
+        </view>
       </view>
+    </view>
 
-      <!-- 无结果 -->
-      <view v-else-if="results.length === 0" class="sr-empty">
-        <view class="sr-empty-icon"><app-icon name="search" :size="56" color="#999999" /></view>
-        <text class="sr-empty-title">没有找到相关圈子</text>
-        <text class="sr-empty-sub">换个关键词试试？</text>
-      </view>
+    <!-- 错误态 -->
+    <view v-else-if="error" class="cs-empty">
+      <view class="cs-empty-icon"><app-icon name="search" :size="52" color="#999999" /></view>
+      <text class="cs-empty-t1">{{ error }}</text>
+      <view class="cs-empty-cta" @tap="doSearch(keyword)"><text class="cs-empty-cta-t">重试</text></view>
+    </view>
 
-      <!-- 结果 -->
-      <view v-else class="sr-results">
-        <text class="sr-count">找到 <text class="sr-count-num">{{ results.length }}</text> 个相关圈子</text>
-        <view v-for="c in results" :key="c.id" class="sr-result" @tap="openCircle(c.id)">
-          <image lazy-load :src="c.cover" class="sr-result-avatar" mode="aspectFill" />
-          <view class="sr-result-main">
-            <view class="sr-result-top">
-              <text class="sr-result-name">{{ c.name }}</text>
-              <text v-if="c.isPaid" class="sr-result-paid">付费</text>
+    <!-- 空结果：转创建 -->
+    <view v-else-if="results.length === 0" class="cs-empty">
+      <view class="cs-empty-icon"><app-icon name="search" :size="52" color="#999999" /></view>
+      <text class="cs-empty-t1">没有找到「{{ keyword }}」相关的圈子</text>
+      <text class="cs-empty-t2">换个关键词试试，或者——{{ '\n' }}成为第一个开这个圈的人</text>
+      <view class="cs-empty-cta" @tap="goCreate"><text class="cs-empty-cta-t">创建「{{ keyword }}」圈子</text></view>
+    </view>
+
+    <!-- 结果：圈子单组（后端无跨圈内容搜索 → 内容分组降级不做） -->
+    <view v-else>
+      <text class="cs-result-label">圈子 · {{ results.length }} 个</text>
+      <view class="cs-group">
+        <view v-for="c in results" :key="c.id" class="cs-row" @tap="openCircle(c.id)">
+          <view class="cs-row-cover">
+            <image v-if="c.cover" :src="c.cover" class="cs-row-cover-img" mode="aspectFill" lazy-load />
+            <view v-else class="cs-row-cover-ph"><app-icon name="users" :size="36" color="#C9A96E" /></view>
+          </view>
+          <view class="cs-row-main">
+            <view class="cs-row-name-line">
+              <text
+                v-for="(seg, i) in highlightSegments(c.name)" :key="i"
+                class="cs-row-name" :class="{ hit: seg.hit }"
+              >{{ seg.text }}</text>
             </view>
-            <text class="sr-result-desc">{{ c.description }}</text>
-            <view class="sr-result-bottom">
-              <view class="sr-result-members"><app-icon name="users" :size="24" color="#999999" /><text class="sr-result-members-txt">{{ formatCount(c.members) }} 成员</text></view>
-              <text v-if="c.isJoined" class="sr-result-joined">已加入</text>
-              <text v-else class="sr-result-price">{{ c.isPaid ? `¥${c.price}/年` : '免费加入' }}</text>
+            <view class="cs-row-meta">
+              <text class="cs-row-meta-t">{{ formatMembers(c.members) }} 成员 · </text>
+              <text class="cs-row-meta-t" :class="{ gold: c.type === 'YEARLY' || c.isPaid }">{{ priceLabel(c) }}</text>
             </view>
           </view>
+          <view v-if="c.isJoined" class="cs-joined-mini"><text class="cs-joined-mini-t">已加入</text></view>
+          <view v-else class="cs-join-mini" @tap.stop="openPreview(c.id)"><text class="cs-join-mini-t">加入</text></view>
         </view>
       </view>
     </view>
@@ -139,55 +202,106 @@ function openCircle(id: string) { navigateTo(`/pkg-circle/circles/detail?id=${id
 </template>
 
 <style scoped lang="scss">
-.sr { min-height: 100vh; background: var(--bg-paper, #FAF8F5); }
-.sr-bar { position: sticky; top: 0; z-index: 10; background: var(--bg-paper, #FAF8F5); border-bottom: 2rpx solid var(--border, #EDE8E0); display: flex; align-items: center; gap: 16rpx; padding: 16rpx 32rpx; padding-top: calc(16rpx + var(--status-bar-height, 0px)); }
-.sr-back { flex-shrink: 0; }
-.sr-input-wrap { flex: 1; position: relative; display: flex; align-items: center; }
-.sr-input-icon { position: absolute; left: 24rpx; z-index: 1; }
-.sr-input { width: 100%; padding: 16rpx 64rpx; background: #F0EBE3; border-radius: 999rpx; font-size: 28rpx; color: var(--text-ink, #2C2C2C); box-sizing: border-box; }
-.sr-ph { color: #999; }
-.sr-clear { position: absolute; right: 24rpx; }
-.sr-cancel { font-size: 28rpx; color: #999; flex-shrink: 0; }
-.sr-body { padding-bottom: 160rpx; }
-.sr-pre { padding: 40rpx 32rpx 0; display: flex; flex-direction: column; gap: 48rpx; }
-.sr-sec-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24rpx; }
-.sr-sec-head.start { justify-content: flex-start; gap: 16rpx; }
-.sr-sec-title { font-size: 28rpx; font-weight: 600; color: var(--text-ink, #2C2C2C); }
-.sr-sec-clear { font-size: 24rpx; color: #999; }
-.sr-tags { display: flex; flex-wrap: wrap; gap: 16rpx; }
-.sr-tag { display: flex; align-items: center; gap: 8rpx; padding: 12rpx 24rpx; background: #F0EBE3; border-radius: 999rpx; }
-.sr-tag-rank { font-size: 24rpx; font-weight: 700; color: var(--brand, var(--brand)); }
-.sr-tag-txt { font-size: 28rpx; color: var(--text-ink, #2C2C2C); }
+.cs-page { min-height: 100vh; background: var(--bg-page, #FAF8F5); padding-bottom: 80rpx; }
+
+/* 搜索顶栏 */
+.cs-bar {
+  position: sticky; top: 0; z-index: 20;
+  display: flex; align-items: center; gap: 20rpx;
+  padding: 24rpx 32rpx;
+  padding-top: calc(var(--status-bar-height, 0px) + 24rpx);
+  background: rgba(250, 248, 245, 0.92); backdrop-filter: blur(24rpx);
+  border-bottom: 1rpx solid var(--separator, #EDE7DD);
+}
+.cs-back { display: flex; flex-shrink: 0; }
+.cs-input-wrap {
+  flex: 1; display: flex; align-items: center; gap: 16rpx;
+  height: 72rpx; padding: 0 28rpx;
+  background: var(--bg-card, #fff); border-radius: 36rpx;
+  box-shadow: 0 2rpx 6rpx rgba(44, 44, 44, 0.05);
+}
+.cs-input { flex: 1; height: 56rpx; line-height: 56rpx; font-size: 28rpx; color: var(--text-primary, #2C2C2C); background: transparent; }
+.cs-ph { color: var(--text-tertiary, #999); }
+.cs-clear {
+  width: 32rpx; height: 32rpx; border-radius: 999rpx; flex-shrink: 0;
+  background: var(--separator, #EDE7DD);
+  display: flex; align-items: center; justify-content: center;
+}
+.cs-cancel { font-size: 28rpx; color: var(--text-secondary, #6E6E73); flex-shrink: 0; }
+
+/* 输入前：历史 + 热门 */
+.cs-pre-label {
+  margin: 36rpx 36rpx 20rpx;
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 24rpx; color: var(--text-tertiary, #999);
+}
+.cs-pre-label.mt { margin-top: 40rpx; }
+.cs-pre-clear { display: flex; padding: 4rpx; }
+.cs-chips { display: flex; flex-wrap: wrap; gap: 16rpx; padding: 0 32rpx; }
+.cs-chip {
+  display: inline-flex; align-items: center; gap: 10rpx; height: 60rpx; padding: 0 26rpx;
+  border-radius: 30rpx; background: var(--bg-card, #fff);
+  box-shadow: 0 2rpx 6rpx rgba(44, 44, 44, 0.05);
+}
+.cs-chip-t { font-size: 26rpx; color: var(--text-secondary, #6E6E73); }
+.cs-chip-t.dark { color: var(--text-primary, #2C2C2C); }
+.cs-chip-rank { font-size: 22rpx; font-weight: 700; color: #C9A96E; }
+.cs-chip-rank.top { color: var(--brand, #C41E3A); }
+
+/* 结果分组 */
+.cs-result-label { display: block; margin: 40rpx 36rpx 16rpx; font-size: 24rpx; color: var(--text-tertiary, #999); }
+.cs-group {
+  margin: 0 32rpx; background: var(--bg-card, #fff);
+  border-radius: 36rpx; box-shadow: 0 2rpx 6rpx rgba(44, 44, 44, 0.05); overflow: hidden;
+}
+.cs-row { display: flex; align-items: center; gap: 24rpx; padding: 24rpx 32rpx; }
+.cs-row + .cs-row { border-top: 1rpx solid var(--separator, #EDE7DD); }
+.cs-row-cover { width: 104rpx; height: 104rpx; border-radius: 28rpx; overflow: hidden; flex-shrink: 0; background: var(--bg-warm, #F8F4EC); }
+.cs-row-cover-img { width: 100%; height: 100%; }
+.cs-row-cover-ph { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
+.cs-row-main { flex: 1; min-width: 0; }
+.cs-row-name-line { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cs-row-name { font-size: 29rpx; font-weight: 600; color: var(--text-primary, #2C2C2C); }
+.cs-row-name.hit { color: var(--brand, #C41E3A); }
+.cs-row-meta { margin-top: 6rpx; display: flex; align-items: baseline; }
+.cs-row-meta-t { font-size: 24rpx; color: var(--text-tertiary, #999); }
+.cs-row-meta-t.gold { color: #C9A96E; font-weight: 600; }
+.cs-join-mini {
+  flex-shrink: 0; height: 60rpx; padding: 0 28rpx; border-radius: 30rpx;
+  background: var(--brand-soft, rgba(196, 30, 58, 0.08));
+  display: flex; align-items: center;
+}
+.cs-join-mini-t { font-size: 26rpx; font-weight: 500; color: var(--brand, #C41E3A); }
+.cs-joined-mini {
+  flex-shrink: 0; height: 60rpx; padding: 0 28rpx; border-radius: 30rpx;
+  border: 1rpx solid var(--separator, #EDE7DD);
+  display: flex; align-items: center;
+}
+.cs-joined-mini-t { font-size: 26rpx; color: var(--text-tertiary, #999); }
+
 /* 骨架 */
-.sr-skeleton { padding: 40rpx 32rpx 0; display: flex; flex-direction: column; gap: 24rpx; }
-.sr-sk-row { display: flex; gap: 24rpx; }
-.sr-sk-avatar { width: 128rpx; height: 128rpx; border-radius: 24rpx; background: #F0EBE3; flex-shrink: 0; }
-.sr-sk-main { flex: 1; display: flex; flex-direction: column; gap: 16rpx; padding-top: 8rpx; }
-.sr-sk-line { height: 28rpx; background: #F0EBE3; border-radius: 8rpx; }
-.sr-sk-line.w75 { width: 75%; }
-.sr-sk-line.w50 { width: 50%; }
-.sr-sk-line.w66 { width: 66%; }
-/* 空态/错误态 */
-.sr-empty { display: flex; flex-direction: column; align-items: center; padding-top: 192rpx; }
-.sr-empty-icon { width: 128rpx; height: 128rpx; border-radius: 999rpx; background: #F0EBE3; display: flex; align-items: center; justify-content: center; margin-bottom: 32rpx; }
-.sr-empty-title { font-size: 28rpx; font-weight: 500; color: var(--text-ink, #2C2C2C); margin-bottom: 8rpx; }
-.sr-empty-sub { font-size: 26rpx; color: #999; }
-.sr-retry { margin-top: 24rpx; padding: 12rpx 48rpx; border-radius: 999rpx; background: var(--brand, var(--brand)); }
-.sr-retry-txt { font-size: 26rpx; color: #fff; }
-/* 结果 */
-.sr-results { padding: 32rpx; display: flex; flex-direction: column; gap: 24rpx; }
-.sr-count { font-size: 26rpx; color: #999; }
-.sr-count-num { color: var(--brand, var(--brand)); font-weight: 500; }
-.sr-result { display: flex; gap: 24rpx; padding: 24rpx; border: 2rpx solid var(--border, #EDE8E0); background: var(--card, #fff); border-radius: 24rpx; }
-.sr-result-avatar { width: 128rpx; height: 128rpx; border-radius: 24rpx; flex-shrink: 0; }
-.sr-result-main { flex: 1; min-width: 0; }
-.sr-result-top { display: flex; align-items: center; gap: 16rpx; margin-bottom: 4rpx; }
-.sr-result-name { font-size: 28rpx; font-weight: 600; color: var(--text-ink, #2C2C2C); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 320rpx; }
-.sr-result-paid { font-size: 20rpx; padding: 2rpx 12rpx; background: #FEF3C7; color: #92400E; border-radius: 8rpx; flex-shrink: 0; }
-.sr-result-desc { display: block; font-size: 24rpx; color: #999; margin-bottom: 16rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.sr-result-bottom { display: flex; align-items: center; justify-content: space-between; }
-.sr-result-members { display: flex; align-items: center; gap: 8rpx; }
-.sr-result-members-txt { font-size: 24rpx; color: #999; }
-.sr-result-joined { font-size: 24rpx; color: #999; }
-.sr-result-price { font-size: 24rpx; color: var(--brand, var(--brand)); font-weight: 500; }
+.cs-skeleton { margin: 28rpx 32rpx 0; background: var(--bg-card, #fff); border-radius: 36rpx; padding: 8rpx 0; }
+.cs-sk-row { display: flex; align-items: center; gap: 24rpx; padding: 24rpx 32rpx; }
+.cs-sk-cover { width: 104rpx; height: 104rpx; border-radius: 28rpx; background: var(--bg-warm, #F8F4EC); flex-shrink: 0; animation: cs-pulse 1.4s ease-in-out infinite; }
+.cs-sk-main { flex: 1; display: flex; flex-direction: column; gap: 16rpx; }
+.cs-sk-line { height: 26rpx; border-radius: 8rpx; background: var(--bg-warm, #F8F4EC); animation: cs-pulse 1.4s ease-in-out infinite; }
+.cs-sk-line.w70 { width: 70%; }
+.cs-sk-line.w45 { width: 45%; }
+@keyframes cs-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
+
+/* 空/错误态 */
+.cs-empty { margin: 96rpx 64rpx 0; display: flex; flex-direction: column; align-items: center; text-align: center; }
+.cs-empty-icon {
+  width: 128rpx; height: 128rpx; border-radius: 999rpx; margin-bottom: 28rpx;
+  background: var(--bg-warm, #F8F4EC);
+  display: flex; align-items: center; justify-content: center;
+}
+.cs-empty-t1 { font-size: 30rpx; font-weight: 500; color: var(--text-primary, #2C2C2C); }
+.cs-empty-t2 { margin-top: 12rpx; font-size: 26rpx; color: var(--text-tertiary, #999); line-height: 1.7; white-space: pre-line; }
+.cs-empty-cta {
+  margin-top: 32rpx; height: 76rpx; padding: 0 44rpx; border-radius: 38rpx;
+  background: var(--brand, #C41E3A);
+  display: inline-flex; align-items: center;
+}
+.cs-empty-cta-t { font-size: 28rpx; font-weight: 500; color: #fff; }
 </style>

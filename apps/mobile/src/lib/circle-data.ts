@@ -17,6 +17,8 @@ export interface Circle {
   rank?: number
   isPaid?: boolean
   price?: number
+  /** 后端圈子类型原值（FREE/PAID/YEARLY），YEARLY 年费圈 isPaid 口径外的补充判断 */
+  type?: string
 }
 
 export interface CircleCategory { id: string; name: string; icon: string }
@@ -164,6 +166,7 @@ function adaptCircle(c: RawCircle): Circle {
     rank: c.rank,
     isPaid: c.type ? c.type === 'PAID' : (c.isPaid ?? false),
     price: c.price != null ? Number(c.price) : 0,
+    type: c.type,
   }
 }
 
