@@ -12,6 +12,7 @@ import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { CoinService } from "../coin/coin.service";
 import { RevenueService } from "../revenue/revenue.service";
+import { AuditService } from "../audit/audit.service";
 import { safePagination } from "../../common/pagination";
 
 @Injectable()
@@ -23,11 +24,23 @@ export class LiveService {
     private redis: RedisService,
     private stream: LiveStreamService,
     private webhook: WebhookService,
+    private audit: AuditService,
     @Optional() private coin?: CoinService,
     @Optional() private revenue?: RevenueService,
   ) {}
 
-  async createRoom(userId: string, dto: CreateRoomDto) {
+  async createRoom(userId: string, dto: CreateRoomDto, isAdmin = false) {
+    // 开播前机审封面/标题（直播实时内容走 LiveAuditLog 机审）
+    await this.audit.moderateTextOrThrow(dto.title, { scene: "LIVE", userId });
+    await this.audit.moderateImageOrThrow(dto.cover, { scene: "LIVE", userId });
+
+    // 开放范围分流：CIRCLE_ONLY 圈内直生效；PLATFORM 须平台审核（管理员/官方圈自动过审）
+    const { visibility, auditStatus } = await this.audit.resolveContentVisibility({
+      visibility: dto.visibility,
+      circleId: dto.circleId,
+      isAdmin,
+    });
+
     const data: Record<string, unknown> = {
       userId,
       title: dto.title,
@@ -40,13 +53,23 @@ export class LiveService {
       chargeType: dto.chargeType || "FREE",
       chargePrice: dto.chargePrice,
       status: "WAITING",
+      visibility,
+      auditStatus,
+      replayVisibility: dto.replayVisibility || "CIRCLE_ONLY",
+      replayCharge: dto.replayCharge ?? false,
       ...(dto.startTime ? { startTime: new Date(dto.startTime) } : {}),
       ...(dto.courseId ? { courseId: dto.courseId } : {}),
       ...(dto.stationId ? { stationId: dto.stationId } : {}),
       ...(dto.productIds?.length ? { products: { create: dto.productIds.map(productId => ({ productId })) } } : {}),
     };
 
-    return this.prisma.liveRoom.create({ data: data as Prisma.LiveRoomCreateInput, include: { products: true } });
+    const room = await this.prisma.liveRoom.create({ data: data as Prisma.LiveRoomCreateInput, include: { products: true } });
+
+    if (auditStatus === "PENDING") {
+      await this.audit.openContentAudit({ contentType: "LIVE", contentId: room.id, circleId: dto.circleId, submitterId: userId });
+    }
+
+    return room;
   }
 
   async updateRoom(userId: string, id: string, dto: UpdateRoomDto) {
@@ -149,13 +172,18 @@ export class LiveService {
     return result;
   }
 
-  @Cacheable({ key: (args: any[]) => `live:rooms:${args[0] || "all"}:${args[1]}:${args[2]}:${args[3] || ""}:${args[4] || ""}`, ttl: 15 })
-  async listRooms(status?: string, rawPage = 1, rawPageSize = 20, circleId?: string, stationId?: string) {
+  @Cacheable({ key: (args: any[]) => `live:rooms:${args[0] || "all"}:${args[1]}:${args[2]}:${args[3] || ""}:${args[4] || ""}:${args[5] || ""}`, ttl: 15 })
+  async listRooms(status?: string, rawPage = 1, rawPageSize = 20, circleId?: string, stationId?: string, scope?: string) {
     const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
     const where: Prisma.LiveRoomWhereInput = {};
     if (status) where.status = status as LiveStatus;
     if (circleId) where.circleId = circleId;
     if (stationId) where.stationId = stationId;
+    // 平台公共池（直播广场·未按圈子过滤·非管理端 scope=all）：只出「全平台开放+审核通过」——绝不展示他圈封闭直播
+    if (!circleId && scope !== "all") {
+      where.visibility = "PLATFORM";
+      where.auditStatus = "APPROVED";
+    }
 
     const [rooms, total] = await Promise.all([
       this.prisma.liveRoom.findMany({

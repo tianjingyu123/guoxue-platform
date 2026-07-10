@@ -704,6 +704,11 @@ export const auditApi = {
   getOperationLogs: (params?: { page?: number; pageSize?: number; action?: string; userId?: string }) =>
     api.get("/audit/operation-logs", { params }),
   getOperationLog: (id: string) => api.get(`/audit/operation-logs/${id}`),
+  // 平台内容审核队列（向全平台开放必审·ARTICLE/POST/COURSE/VIDEO/LIVE 统一台账）
+  listContentAudits: (params?: { finalStatus?: string; contentType?: string; circleId?: string; page?: number; pageSize?: number }) =>
+    api.get("/audit/content-audits", { params }),
+  reviewContentAudit: (id: string, data: { action: "approve" | "reject"; reason?: string }) =>
+    api.put(`/audit/content-audits/${id}/review`, data),
 };
 
 // 业务哨兵（O-T1·告警查看/处置）

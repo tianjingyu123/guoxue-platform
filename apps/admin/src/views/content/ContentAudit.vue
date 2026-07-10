@@ -81,6 +81,10 @@
         name="PENDING"
       />
       <el-tab-pane
+        label="平台开放申请"
+        name="PLATFORM_OPEN"
+      />
+      <el-tab-pane
         label="AI生成"
         name="AI_GENERATED"
       />
@@ -111,7 +115,151 @@
       </el-button>
     </el-alert>
 
+    <!-- 平台开放审核队列（向全平台开放必审·五类内容统一台账）-->
+    <template v-if="activeTab === 'PLATFORM_OPEN'">
+      <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center">
+        <el-select
+          v-model="platformStatus"
+          size="small"
+          style="width:130px"
+          @change="fetchList"
+        >
+          <el-option
+            label="待审核"
+            value="PENDING"
+          />
+          <el-option
+            label="已通过"
+            value="APPROVED"
+          />
+          <el-option
+            label="已驳回"
+            value="REJECTED"
+          />
+        </el-select>
+        <el-select
+          v-model="platformType"
+          size="small"
+          placeholder="按类型筛选"
+          clearable
+          style="width:130px"
+          @change="fetchList"
+        >
+          <el-option
+            v-for="t in ['ARTICLE', 'POST', 'COURSE', 'VIDEO', 'LIVE']"
+            :key="t"
+            :label="typeLabel(t)"
+            :value="t"
+          />
+        </el-select>
+        <span style="font-size:12px;color:var(--color-text-secondary)">圈内内容自治不进此队列；只有申请「向全平台开放」的内容在此人工审核，通过后才进平台公共池</span>
+      </div>
+      <el-table
+        v-loading="platformLoading"
+        :data="platformList"
+        stripe
+      >
+        <template #empty>
+          <el-empty description="暂无待处理申请" />
+        </template>
+        <el-table-column
+          label="类型"
+          width="90"
+        >
+          <template #default="{ row }">
+            <el-tag
+              size="small"
+              :type="typeTag(row.contentType)"
+            >
+              {{ typeLabel(row.contentType) }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column
+          label="内容标题"
+          min-width="200"
+          show-overflow-tooltip
+        >
+          <template #default="{ row }">
+            {{ row.contentTitle || row.contentId }}
+          </template>
+        </el-table-column>
+        <el-table-column
+          label="提交人"
+          width="130"
+        >
+          <template #default="{ row }">
+            {{ row.submitter?.nickname || row.submitterId }}
+          </template>
+        </el-table-column>
+        <el-table-column
+          label="来源圈子"
+          width="130"
+          show-overflow-tooltip
+        >
+          <template #default="{ row }">
+            {{ row.circleId || '-' }}
+          </template>
+        </el-table-column>
+        <el-table-column
+          label="提交时间"
+          width="170"
+        >
+          <template #default="{ row }">
+            {{ formatDate(row.createdAt) }}
+          </template>
+        </el-table-column>
+        <el-table-column
+          v-if="platformStatus === 'REJECTED'"
+          label="驳回原因"
+          min-width="150"
+          show-overflow-tooltip
+        >
+          <template #default="{ row }">
+            {{ row.rejectReason || '-' }}
+          </template>
+        </el-table-column>
+        <el-table-column
+          label="操作"
+          width="170"
+          fixed="right"
+        >
+          <template #default="{ row }">
+            <template v-if="platformStatus === 'PENDING'">
+              <el-button
+                size="small"
+                type="success"
+                @click="platformApprove(row)"
+              >
+                通过
+              </el-button>
+              <el-button
+                size="small"
+                type="danger"
+                @click="platformReject(row)"
+              >
+                驳回
+              </el-button>
+            </template>
+            <span
+              v-else
+              style="font-size:12px;color:var(--color-text-secondary)"
+            >{{ row.humanAuditorId ? `审核人 ${row.humanAuditorId}` : '-' }}</span>
+          </template>
+        </el-table-column>
+      </el-table>
+      <el-pagination
+        v-model:current-page="platformPage"
+        :total="platformTotal"
+        :page-size="20"
+        layout="total, prev, pager, next"
+        style="margin-top:16px;justify-content:flex-end"
+        @current-change="fetchList"
+      />
+    </template>
+
     <el-table
+      v-if="activeTab !== 'PLATFORM_OPEN'"
       v-loading="loading"
       :data="list"
       stripe
@@ -226,6 +374,7 @@
     </el-table>
 
     <el-pagination
+      v-if="activeTab !== 'PLATFORM_OPEN'"
       v-model:current-page="page"
       :total="total"
       :page-size="20"
@@ -329,6 +478,27 @@ const pendingItem = ref<ContentRow | null>(null)
 const drawerVisible = ref(false)
 const currentItem = ref<ContentRow | null>(null)
 
+// ── 平台开放审核队列（ContentAuditRecord 统一台账）──
+interface PlatformAuditRow {
+  id: string
+  contentType: string
+  contentId: string
+  contentTitle?: string | null
+  circleId?: string | null
+  submitterId: string
+  submitter?: { nickname?: string } | null
+  finalStatus: string
+  rejectReason?: string | null
+  humanAuditorId?: string | null
+  createdAt?: string
+}
+const platformLoading = ref(false)
+const platformList = ref<PlatformAuditRow[]>([])
+const platformTotal = ref(0)
+const platformPage = ref(1)
+const platformStatus = ref('PENDING')
+const platformType = ref('')
+
 function isAiContent(row: ContentRow): boolean {
   const tags: string[] = row.tags || [];
   const title: string = row.title || '';
@@ -350,11 +520,11 @@ async function loadCategories() {
 }
 
 function typeLabel(t: string) {
-  const map: Record<string, string> = { ARTICLE: '文章', POEM: '诗词', CLASSIC: '古籍', COURSE: '课程', VIDEO: '视频', POST: '帖子' }
+  const map: Record<string, string> = { ARTICLE: '文章', POEM: '诗词', CLASSIC: '古籍', COURSE: '课程', VIDEO: '视频', POST: '帖子', LIVE: '直播' }
   return map[t] || t
 }
 function typeTag(t: string) {
-  const map: Record<string, string> = { ARTICLE: '', POEM: 'success', CLASSIC: 'warning', COURSE: 'danger', VIDEO: 'info', POST: '' }
+  const map: Record<string, string> = { ARTICLE: '', POEM: 'success', CLASSIC: 'warning', COURSE: 'danger', VIDEO: 'info', POST: '', LIVE: 'warning' }
   return map[t] || ''
 }
 function formatDate(d?: string) {
@@ -364,6 +534,7 @@ function formatDate(d?: string) {
 function handleSelection(rows: ContentRow[]) { selected.value = rows }
 
 async function fetchList() {
+  if (activeTab.value === 'PLATFORM_OPEN') return fetchPlatformQueue()
   loading.value = true
   error.value = false
   try {
@@ -410,6 +581,44 @@ async function fetchList() {
     list.value = []
     total.value = 0
   } finally { loading.value = false }
+}
+
+async function fetchPlatformQueue() {
+  platformLoading.value = true
+  error.value = false
+  try {
+    const { data } = await auditApi.listContentAudits({
+      finalStatus: platformStatus.value,
+      contentType: platformType.value || undefined,
+      page: platformPage.value,
+      pageSize: 20,
+    })
+    platformList.value = data.records || []
+    platformTotal.value = data.total ?? 0
+  } catch {
+    error.value = true
+    platformList.value = []
+    platformTotal.value = 0
+  } finally { platformLoading.value = false }
+}
+
+function platformApprove(row: PlatformAuditRow) {
+  ElMessageBox.confirm(`确定通过「${row.contentTitle || row.contentId}」向全平台开放？通过后进入平台公共池。`, '平台开放审核', { type: 'success' }).then(async () => {
+    await auditApi.reviewContentAudit(row.id, { action: 'approve' })
+    ElMessage.success('已通过，内容将进入平台公共池')
+    fetchPlatformQueue()
+  }).catch(() => {})
+}
+
+function platformReject(row: PlatformAuditRow) {
+  ElMessageBox.prompt('请填写驳回原因（发布者可见，内容保持圈内可见）', '驳回申请', {
+    inputType: 'textarea',
+    inputValidator: (v: string) => (v && v.trim().length > 0) || '驳回原因必填',
+  }).then(async ({ value }) => {
+    await auditApi.reviewContentAudit(row.id, { action: 'reject', reason: value.trim() })
+    ElMessage.success('已驳回')
+    fetchPlatformQueue()
+  }).catch(() => {})
 }
 
 function approveOne(row: ContentRow) {

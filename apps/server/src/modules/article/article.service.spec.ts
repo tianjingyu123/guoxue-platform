@@ -44,7 +44,15 @@ describe("ArticleService", () => {
         { provide: PrismaService, useValue: mockPrisma },
         { provide: RedisService, useValue: mockRedis },
         { provide: RecommendService, useValue: mockRecommend },
-        { provide: AuditService, useValue: { moderateTextOrThrow: jest.fn().mockResolvedValue(undefined) } },
+        {
+          provide: AuditService,
+          useValue: {
+            moderateTextOrThrow: jest.fn().mockResolvedValue(undefined),
+            // 默认按 CIRCLE_ONLY 直生效（圈主自治）；分流逻辑本体在 audit.service.spec 覆盖
+            resolveContentVisibility: jest.fn().mockResolvedValue({ visibility: "CIRCLE_ONLY", auditStatus: "APPROVED" }),
+            openContentAudit: jest.fn().mockResolvedValue(undefined),
+          },
+        },
       ],
     }).compile();
     svc = mod.get(ArticleService);

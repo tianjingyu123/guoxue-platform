@@ -60,6 +60,9 @@ const mockPrisma = {
   userBehavior: {
     create: jest.fn().mockResolvedValue({}),
   },
+  configSystem: {
+    findUnique: jest.fn().mockResolvedValue(null), // 官方圈未配置：circleId 缺省保持 undefined
+  },
 };
 
 const mockRedis = {
@@ -101,7 +104,15 @@ describe("CourseService", () => {
         { provide: RedisService, useValue: mockRedis },
         { provide: AiGatewayService, useValue: mockAiGateway },
         { provide: UnifiedPricingService, useValue: mockUnifiedPricing },
-        { provide: AuditService, useValue: { moderateTextOrThrow: jest.fn().mockResolvedValue(undefined) } },
+        {
+          provide: AuditService,
+          useValue: {
+            moderateTextOrThrow: jest.fn().mockResolvedValue(undefined),
+            // 默认按 CIRCLE_ONLY 直生效；分流逻辑本体在 audit.service.spec 覆盖
+            resolveContentVisibility: jest.fn().mockResolvedValue({ visibility: "CIRCLE_ONLY", auditStatus: "APPROVED" }),
+            openContentAudit: jest.fn().mockResolvedValue(undefined),
+          },
+        },
       ],
     }).compile();
     svc = mod.get(CourseService);

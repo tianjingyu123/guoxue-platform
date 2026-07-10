@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsNumber, IsArray, IsInt, IsIn, Min, Max, MinLength } from "class-validator";
+import { IsString, IsOptional, IsNumber, IsArray, IsInt, IsIn, IsBoolean, Min, Max, MinLength } from "class-validator";
 import { Type } from "class-transformer";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 
@@ -47,6 +47,18 @@ export class CreateRoomDto {
   @ApiPropertyOptional({ description: "关联课程ID，回放将自动同步为课程章节" })
   @IsOptional() @IsString()
   courseId?: string;
+
+  @ApiPropertyOptional({ description: "开放范围：CIRCLE_ONLY=仅本圈（默认）/ PLATFORM=全平台（需平台审核）", enum: ["CIRCLE_ONLY", "PLATFORM"] })
+  @IsOptional() @IsIn(["CIRCLE_ONLY", "PLATFORM"])
+  visibility?: "CIRCLE_ONLY" | "PLATFORM";
+
+  @ApiPropertyOptional({ description: "回放开放范围：CIRCLE_ONLY（默认）/ PLATFORM", enum: ["CIRCLE_ONLY", "PLATFORM"] })
+  @IsOptional() @IsIn(["CIRCLE_ONLY", "PLATFORM"])
+  replayVisibility?: "CIRCLE_ONLY" | "PLATFORM";
+
+  @ApiPropertyOptional({ description: "回放是否对圈外收费" })
+  @IsOptional() @IsBoolean()
+  replayCharge?: boolean;
 
   @ApiPropertyOptional({ description: "分站ID" })
   @IsOptional() @IsString()

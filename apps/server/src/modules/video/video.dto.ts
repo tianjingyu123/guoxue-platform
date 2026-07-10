@@ -39,6 +39,10 @@ export class CreateVideoDto {
   @IsOptional() @IsBoolean()
   isPrivate?: boolean;
 
+  @ApiPropertyOptional({ description: "开放范围：CIRCLE_ONLY=仅本圈（默认）/ PLATFORM=全平台（需平台审核）", enum: ["CIRCLE_ONLY", "PLATFORM"] })
+  @IsOptional() @IsIn(["CIRCLE_ONLY", "PLATFORM"])
+  visibility?: "CIRCLE_ONLY" | "PLATFORM";
+
   @ApiPropertyOptional({ description: "关联带货商品ID列表（最多5件）" })
   @IsOptional() @IsArray() @IsString({ each: true })
   products?: string[];
@@ -81,6 +85,10 @@ export class VideoListQueryDto {
   @ApiPropertyOptional({ description: "状态筛选" })
   @IsOptional() @IsString()
   status?: string;
+
+  @ApiPropertyOptional({ description: "查询范围：all=不限开放范围（仅管理员生效·管理端用）", enum: ["all"] })
+  @IsOptional() @IsIn(["all"])
+  scope?: string;
 
   @ApiPropertyOptional({ description: "页码", default: 1 })
   @IsOptional() @Type(() => Number) @IsInt() @Min(1)

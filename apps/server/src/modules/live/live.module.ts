@@ -10,9 +10,10 @@ import { LiveReportService } from "./live-report.service";
 import { WebhookModule } from "../webhook/webhook.module";
 import { CoinModule } from "../coin/coin.module";
 import { RevenueModule } from "../revenue/revenue.module";
+import { AuditModule } from "../audit/audit.module";
 
 @Module({
-  imports: [WebhookModule, CoinModule, RevenueModule],
+  imports: [WebhookModule, CoinModule, RevenueModule, AuditModule],
   controllers: [LiveController, LiveDashboardController],
   providers: [LiveService, LiveQualityService, LiveStreamService, LiveDashboardService, LiveDataCollectorService, LiveReportService],
   exports: [LiveService, LiveStreamService],

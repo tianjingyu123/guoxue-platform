@@ -28,14 +28,21 @@ export class VideoController {
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 401, description: "未认证" })
   create(@Req() req: Request, @Body() dto: CreateVideoDto) {
-    return this.svc.create(req.user.id, dto);
+    const roles = (req.user as { roles?: string[] }).roles || [];
+    const isAdmin = roles.some((r) => r === "SUPER_ADMIN" || r === "OPERATION_ADMIN");
+    return this.svc.create(req.user.id, dto, isAdmin);
   }
 
   @Get()
+  @UseGuards(OptionalAuthGuard)
   @ApiOperation({ summary: "获取视频列表" })
   @ApiResponse({ status: 200, description: "成功返回视频列表" })
-  list(@Query() q: VideoListQueryDto, @StationId() stationId?: string) {
-    return this.svc.list({ circleId: q.circleId, status: q.status, page: +(q.page || 1), pageSize: +(q.pageSize || 20), stationId });
+  list(@Req() req: Request, @Query() q: VideoListQueryDto, @StationId() stationId?: string) {
+    // scope=all（不限开放范围）仅管理员生效——防公共端点带参绕过圈内内容隔离
+    const roles = (req.user as { roles?: string[] } | undefined)?.roles || [];
+    const isAdmin = roles.some((r) => r === "SUPER_ADMIN" || r === "OPERATION_ADMIN" || r === "CONTENT_AUDITOR");
+    const scope = q.scope === "all" && isAdmin ? "all" : undefined;
+    return this.svc.list({ circleId: q.circleId, status: q.status, page: +(q.page || 1), pageSize: +(q.pageSize || 20), stationId, scope });
   }
 
   // ───────── 瀑布流列表/搜索/商品库（公开，必须在 :id 之前）─────────

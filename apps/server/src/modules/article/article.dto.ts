@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsArray, IsBoolean, MinLength, MaxLength, IsNumber } from "class-validator";
+import { IsString, IsOptional, IsArray, IsBoolean, MinLength, MaxLength, IsNumber, IsIn } from "class-validator";
 
 export class CreateArticleDto {
   @IsString()
@@ -33,6 +33,10 @@ export class CreateArticleDto {
   @IsString()
   @IsOptional()
   circleId?: string;
+
+  @IsIn(["CIRCLE_ONLY", "PLATFORM"])
+  @IsOptional()
+  visibility?: "CIRCLE_ONLY" | "PLATFORM";
 }
 
 export class UpdateArticleDto {

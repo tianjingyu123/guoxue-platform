@@ -30,6 +30,9 @@ const mockPrisma = {
     upsert: jest.fn(),
     deleteMany: jest.fn(),
   },
+  configSystem: {
+    findUnique: jest.fn().mockResolvedValue(null), // 官方圈未配置：circleId 缺省保持 undefined
+  },
 };
 
 const mockVod = {
@@ -55,7 +58,15 @@ describe("VideoService", () => {
         VideoService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: VodService, useValue: mockVod },
-        { provide: AuditService, useValue: { moderateTextOrThrow: jest.fn().mockResolvedValue(undefined) } },
+        {
+          provide: AuditService,
+          useValue: {
+            moderateTextOrThrow: jest.fn().mockResolvedValue(undefined),
+            // 默认按 CIRCLE_ONLY 直生效；分流逻辑本体在 audit.service.spec 覆盖
+            resolveContentVisibility: jest.fn().mockResolvedValue({ visibility: "CIRCLE_ONLY", auditStatus: "APPROVED" }),
+            openContentAudit: jest.fn().mockResolvedValue(undefined),
+          },
+        },
       ],
     }).compile();
     svc = mod.get(VideoService);

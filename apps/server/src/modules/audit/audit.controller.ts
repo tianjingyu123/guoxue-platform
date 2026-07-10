@@ -9,7 +9,7 @@ import { ComplianceScanService } from "./compliance-scan.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
-import { AuditListQueryDto, ModerateImageDto, ModerateTextDto, OperationLogListQueryDto, AddSensitiveWordDto, AddSensitiveWordsDto, CheckSensitiveDto, ComplianceScanQueryDto, ComplianceScanStatusDto } from "./audit.dto";
+import { AuditListQueryDto, ModerateImageDto, ModerateTextDto, OperationLogListQueryDto, AddSensitiveWordDto, AddSensitiveWordsDto, CheckSensitiveDto, ComplianceScanQueryDto, ComplianceScanStatusDto, ContentAuditListQueryDto, ContentAuditReviewDto } from "./audit.dto";
 
 @ApiTags("审核与审计")
 @Controller("audit")
@@ -230,6 +230,34 @@ export class AuditController {
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR")
   updateComplianceStatus(@Req() req: Request, @Param("id") id: string, @Body() dto: ComplianceScanStatusDto) {
     return this.complianceScan.updateStatus(id, dto.status, req.user.id);
+  }
+
+  // ─── 平台内容审核（开放范围=PLATFORM 的五类内容统一审核队列）───
+
+  @Get("content-audits")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @ApiOperation({ summary: "平台内容审核队列（向全平台开放必审·五类内容统一台账）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
+  @ApiBearerAuth()
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR")
+  listContentAudits(@Query() q: ContentAuditListQueryDto) {
+    return this.svc.listContentAudits(q);
+  }
+
+  @Put("content-audits/:id/review")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @ApiOperation({ summary: "审核裁决（通过→进平台公共池 / 驳回→记原因·内容保持圈内可见）" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "记录已审结" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
+  @ApiBearerAuth()
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR")
+  reviewContent(@Req() req: Request, @Param("id") id: string, @Body() dto: ContentAuditReviewDto) {
+    return this.svc.reviewContent(id, req.user.id, dto.action, dto.reason);
   }
 
   // ─── 平台操作日志 ───

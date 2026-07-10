@@ -1,6 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
+import { RedisService } from "../../redis/redis.service";
 import { ModerationService } from "./moderation.service";
 import { ModerationAiService } from "./moderation-ai.service";
 import { SensitiveWordService } from "./sensitive-word.service";
@@ -8,12 +9,17 @@ import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { safePagination, NO_PAGE_LIMIT } from "../../common/pagination";
 
+/** 内容开放范围（方案：docs/design/内容开放范围与审核体系-方案-20260710.md） */
+export type ContentVisibility = "CIRCLE_ONLY" | "PLATFORM";
+export type ContentAuditType = "ARTICLE" | "POST" | "COURSE" | "VIDEO" | "LIVE";
+
 @Injectable()
 export class AuditService {
   private readonly logger = new Logger(AuditService.name);
 
   constructor(
     private prisma: PrismaService,
+    private redis: RedisService,
     private moderation: ModerationService,
     private moderationAi: ModerationAiService,
     private sensitiveWord: SensitiveWordService,
@@ -284,6 +290,194 @@ export class AuditService {
         detail: JSON.stringify({ urls: review.map((r) => r.url), labels: review.flatMap((r) => r.labels) }),
       }).catch((err) => this.logger.warn("审核日志写入失败", err));
     }
+  }
+
+  // ───────── 内容开放范围 + 平台审核分流（内容开放范围与审核体系 P2/P3）─────────
+
+  /** 审核结果回写目标：各内容表的 auditStatus 快照 + 缓存失效 pattern（Article/Course 无 auditReason 列，驳回原因只存 ContentAuditRecord.rejectReason） */
+  private static readonly CONTENT_AUDIT_TARGETS: Record<
+    string,
+    { model: "article" | "course" | "video" | "liveRoom"; hasReason: boolean; cachePatterns: string[] }
+  > = {
+    ARTICLE: { model: "article", hasReason: false, cachePatterns: ["articles:list:*"] },
+    COURSE: { model: "course", hasReason: false, cachePatterns: ["courses:list:*"] },
+    VIDEO: { model: "video", hasReason: true, cachePatterns: ["video:list:*"] },
+    LIVE: { model: "liveRoom", hasReason: true, cachePatterns: ["live:rooms:*"] },
+  };
+
+  /** 官方圈ID（ConfigSystem.official_circle_id·未配置返回 undefined） */
+  private async getOfficialCircleId(): Promise<string | undefined> {
+    const cfg = await this.prisma.configSystem.findUnique({ where: { configKey: "official_circle_id" } });
+    return cfg?.configValue || undefined;
+  }
+
+  /**
+   * 发布分流：按开放范围决定内容初始平台审核态。
+   * - CIRCLE_ONLY（默认）→ APPROVED：圈内直生效（UGC 机审已在 create 前拦截），圈主自治，不进平台人工审核队列
+   * - PLATFORM → 平台管理员 / 官方圈内容自动 APPROVED；其余 PENDING（圈内可见、平台不可见，待人工审）
+   */
+  async resolveContentVisibility(opts: {
+    visibility?: string;
+    circleId?: string | null;
+    isAdmin?: boolean;
+  }): Promise<{ visibility: ContentVisibility; auditStatus: "APPROVED" | "PENDING" }> {
+    const visibility: ContentVisibility = opts.visibility === "PLATFORM" ? "PLATFORM" : "CIRCLE_ONLY";
+    if (visibility === "CIRCLE_ONLY" || opts.isAdmin) return { visibility, auditStatus: "APPROVED" };
+    if (opts.circleId) {
+      const officialCircleId = await this.getOfficialCircleId();
+      if (officialCircleId && officialCircleId === opts.circleId) return { visibility, auditStatus: "APPROVED" };
+    }
+    return { visibility, auditStatus: "PENDING" };
+  }
+
+  /**
+   * PLATFORM 待审内容登记 ContentAuditRecord（责任到人：submitterId + circleId + 审核员全链路可追溯）。
+   * UGC 机审漏斗在内容 create 前已跑过 → machineStatus=PASSED。
+   * 登记失败只记日志不回滚发布（内容 auditStatus=PENDING 仍圈内可见，可由管理员在内容列表补审）。
+   */
+  async openContentAudit(opts: {
+    contentType: ContentAuditType;
+    contentId: string;
+    circleId?: string | null;
+    submitterId: string;
+  }): Promise<void> {
+    try {
+      await this.prisma.contentAuditRecord.create({
+        data: {
+          contentType: opts.contentType,
+          contentId: opts.contentId,
+          circleId: opts.circleId || null,
+          submitterId: opts.submitterId,
+          auditMode: "PRE_PUBLISH",
+          machineStatus: "PASSED",
+          machineAuditAt: new Date(),
+          machineAuditBy: "SYSTEM",
+        },
+      });
+    } catch (err) {
+      this.logger.error(
+        `内容审核记录登记失败 [${opts.contentType}:${opts.contentId}]`,
+        err instanceof Error ? err.stack : err,
+      );
+    }
+  }
+
+  /** 平台内容审核队列（五类内容统一台账·附提交人与内容标题） */
+  async listContentAudits(params: {
+    finalStatus?: string;
+    contentType?: string;
+    circleId?: string;
+    page?: number;
+    pageSize?: number;
+  }) {
+    const { page, pageSize, skip } = safePagination(params.page, params.pageSize, NO_PAGE_LIMIT);
+    const where: Prisma.ContentAuditRecordWhereInput = {
+      deletedAt: null,
+      finalStatus: params.finalStatus || "PENDING",
+    };
+    if (params.contentType) where.contentType = params.contentType;
+    if (params.circleId) where.circleId = params.circleId;
+
+    const [records, total] = await Promise.all([
+      this.prisma.contentAuditRecord.findMany({
+        where,
+        skip,
+        take: pageSize,
+        orderBy: { createdAt: "asc" }, // 先进先审
+      }),
+      this.prisma.contentAuditRecord.count({ where }),
+    ]);
+
+    // 责任到人展示：批量补提交人昵称 + 各类型内容标题
+    const submitterIds = [...new Set(records.map((r) => r.submitterId))];
+    const users = submitterIds.length
+      ? await this.prisma.user.findMany({
+          where: { id: { in: submitterIds } },
+          select: { id: true, nickname: true, avatar: true },
+        })
+      : [];
+    const userMap = new Map(users.map((u) => [u.id, u]));
+
+    const idsByType: Record<string, string[]> = {};
+    records.forEach((r) => (idsByType[r.contentType] ??= []).push(r.contentId));
+    const titleMap = new Map<string, string | null>();
+    await Promise.all(
+      Object.entries(idsByType).map(async ([type, ids]) => {
+        const target = AuditService.CONTENT_AUDIT_TARGETS[type];
+        if (!target) return;
+        const rows = await (this.prisma[target.model] as unknown as {
+          findMany: (args: unknown) => Promise<Array<{ id: string; title: string | null }>>;
+        }).findMany({ where: { id: { in: ids } }, select: { id: true, title: true } });
+        rows.forEach((row) => titleMap.set(`${type}:${row.id}`, row.title));
+      }),
+    );
+
+    return {
+      records: records.map((r) => ({
+        ...r,
+        submitter: userMap.get(r.submitterId) || null,
+        contentTitle: titleMap.get(`${r.contentType}:${r.contentId}`) ?? null,
+      })),
+      total,
+      page,
+      pageSize,
+    };
+  }
+
+  /**
+   * 人工审核裁决：通过 → 内容 auditStatus=APPROVED 进平台公共池；驳回 → 记原因（发布者可见），内容保持圈内可见。
+   * 同步回写内容表快照 + 失效对应列表缓存。
+   */
+  async reviewContent(recordId: string, auditorId: string, action: "approve" | "reject", reason?: string) {
+    const record = await this.prisma.contentAuditRecord.findUnique({ where: { id: recordId } });
+    if (!record) throw new BusinessException(ErrorCode.NOT_FOUND, "审核记录不存在");
+    if (record.finalStatus !== "PENDING") throw new BusinessException(ErrorCode.BAD_REQUEST, "该记录已审结，不可重复审核");
+
+    const approved = action === "approve";
+    const finalStatus = approved ? "APPROVED" : "REJECTED";
+    const rejectReason = approved ? null : reason || "内容不符合平台开放规范";
+    const now = new Date();
+
+    const updated = await this.prisma.contentAuditRecord.update({
+      where: { id: recordId },
+      data: {
+        humanAuditorId: auditorId,
+        humanStatus: approved ? "PASSED" : "REJECTED",
+        humanResult: reason ?? null,
+        humanAuditAt: now,
+        finalStatus,
+        rejectReason,
+        finishedAt: now,
+      },
+    });
+
+    // 回写内容表 auditStatus 快照（内容已被删除等异常不回滚审核结论，只记日志）
+    const target = AuditService.CONTENT_AUDIT_TARGETS[record.contentType];
+    if (target) {
+      const data: Record<string, unknown> = { auditStatus: finalStatus };
+      if (target.hasReason) data.auditReason = rejectReason;
+      await (this.prisma[target.model] as unknown as {
+        update: (args: unknown) => Promise<unknown>;
+      })
+        .update({ where: { id: record.contentId }, data })
+        .catch((err: unknown) =>
+          this.logger.error(
+            `审核结果回写内容表失败 [${record.contentType}:${record.contentId}]`,
+            err instanceof Error ? err.stack : err,
+          ),
+        );
+      await Promise.all(target.cachePatterns.map((p) => this.redis.delByPattern(p))).catch(() => undefined);
+    }
+
+    await this.log({
+      userId: auditorId,
+      action: approved ? "CONTENT_AUDIT_APPROVE" : "CONTENT_AUDIT_REJECT",
+      targetType: record.contentType,
+      targetId: record.contentId,
+      detail: JSON.stringify({ recordId, circleId: record.circleId, submitterId: record.submitterId, reason: reason ?? null }),
+    }).catch((err) => this.logger.warn("审核日志写入失败", err));
+
+    return updated;
   }
 
   async list(params: {

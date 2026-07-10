@@ -6,6 +6,7 @@ import { LiveService } from "./live.service";
 import { LiveQualityService } from "./live-quality.service";
 import { CreateRoomDto, UpdateRoomDto, MicManageDto, SlideCreateDto, MuteUserDto, FlashSaleDto, CreateGiftDto, UpdateGiftDto, SendGiftDto, SendCommentDto } from "./live.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
+import { OptionalAuthGuard } from "../../common/optional-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
 import { TencentCallbackGuard } from "../../common/tencent-callback.guard";
@@ -36,15 +37,19 @@ export class LiveController {
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   createRoom(@Req() req: AuthRequest, @Body() dto: CreateRoomDto) {
-    return this.svc.createRoom(req.user.id, dto);
+    const roles = (req.user as { roles?: string[] }).roles || [];
+    const isAdmin = roles.some((r) => r === "SUPER_ADMIN" || r === "OPERATION_ADMIN");
+    return this.svc.createRoom(req.user.id, dto, isAdmin);
   }
 
   @Get("rooms")
+  @UseGuards(OptionalAuthGuard)
   @ApiOperation({ summary: "获取直播间列表" })
   @ApiResponse({ status: 200, description: "成功" })
   @ApiQuery({ name: "status", required: false, type: String })
   @ApiQuery({ name: "courseId", required: false, type: String, description: "按课程ID过滤" })
   @ApiQuery({ name: "circleId", required: false, type: String, description: "按圈子ID过滤" })
+  @ApiQuery({ name: "scope", required: false, type: String, description: "all=不限开放范围（仅管理员生效·管理端用）" })
   @ApiQuery({ name: "page", required: false, type: Number })
   @ApiQuery({ name: "pageSize", required: false, type: Number })
   listRooms(
@@ -54,9 +59,14 @@ export class LiveController {
     @Query("page") page = 1,
     @Query("pageSize") pageSize = 20,
     @StationId() stationId?: string,
+    @Query("scope") scope?: string,
+    @Req() req?: Request,
   ) {
     if (courseId) return this.svc.listCourseRooms(courseId, +page, +pageSize, stationId);
-    return this.svc.listRooms(status, +page, +pageSize, circleId, stationId);
+    // scope=all（不限开放范围）仅管理员生效——防公共端点带参绕过圈内内容隔离
+    const roles = (req?.user as { roles?: string[] } | undefined)?.roles || [];
+    const isAdmin = roles.some((r) => r === "SUPER_ADMIN" || r === "OPERATION_ADMIN" || r === "CONTENT_AUDITOR");
+    return this.svc.listRooms(status, +page, +pageSize, circleId, stationId, scope === "all" && isAdmin ? "all" : undefined);
   }
 
   @Get("my-rooms")

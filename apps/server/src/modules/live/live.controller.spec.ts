@@ -77,13 +77,14 @@ describe("LiveController", () => {
     const dto: any = { title: "国学直播" };
     const result: any = await ctrl.createRoom(req, dto);
     expect(result.title).toBe("国学直播");
-    expect(mockLiveSvc.createRoom).toHaveBeenCalledWith("u1", dto);
+    expect(mockLiveSvc.createRoom).toHaveBeenCalledWith("u1", dto, false);
   });
 
   it("GET /live/rooms — 直播列表", async () => {
     const result: any = await ctrl.listRooms("LIVE", undefined, undefined, 1 as any, 20 as any);
     expect(result).toHaveLength(1);
-    expect(mockLiveSvc.listRooms).toHaveBeenCalledWith("LIVE", 1, 20, undefined, undefined);
+    // 末位 undefined = scope（非管理员不生效·公共池过滤在 service 层）
+    expect(mockLiveSvc.listRooms).toHaveBeenCalledWith("LIVE", 1, 20, undefined, undefined, undefined);
   });
 
   it("GET /live/rooms — 按课程过滤", async () => {

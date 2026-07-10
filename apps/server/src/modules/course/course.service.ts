@@ -5,6 +5,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { Prisma } from "@prisma/client";
 import { safePagination } from "../../common/pagination";
 import { RedisService } from "../../redis/redis.service";
+import { AuditService } from "../audit/audit.service";
 import { CourseRecommendService } from "./course-recommend.service";
 import { CourseAdminService } from "./course-admin.service";
 import { CourseCreatorService } from "./course-creator.service";
@@ -33,6 +34,7 @@ export class CourseService {
   constructor(
     private prisma: PrismaService,
     private redis: RedisService,
+    private auditSvc: AuditService,
     private recommendSvc: CourseRecommendService,
     private adminSvc: CourseAdminService,
     private creatorSvc: CourseCreatorService,
@@ -52,12 +54,21 @@ export class CourseService {
   }
 
   async create(userId: string, dto: CreateCourseDto, autoApprove = false) {
+    // UGC 机审（标题+简介）——与文章/短视频发布对齐
+    await this.auditSvc.moderateTextOrThrow([dto.title, dto.intro].filter(Boolean).join(" "), { scene: "COURSE", userId });
+
     const circleId = await this.resolveCircleId(dto.circleId);
+    // 开放范围分流：CIRCLE_ONLY 圈内直生效；PLATFORM 须平台审核（管理员/官方圈自动过审）
+    const { visibility, auditStatus } = await this.auditSvc.resolveContentVisibility({
+      visibility: dto.visibility,
+      circleId,
+      isAdmin: autoApprove,
+    });
     const course = await this.prisma.course.create({
       data: {
         userId,
-        // 管理员/运营建的课程直接通过审核（跳过 PENDING），避免"保存后列表看不到"
-        ...(autoApprove ? { auditStatus: "APPROVED" } : {}),
+        visibility,
+        auditStatus,
         circleId,
         title: dto.title,
         cover: dto.cover,
@@ -74,6 +85,10 @@ export class CourseService {
       },
       include: { chapters: { orderBy: { sortOrder: "asc" } } },
     });
+
+    if (auditStatus === "PENDING") {
+      await this.auditSvc.openContentAudit({ contentType: "COURSE", contentId: course.id, circleId, submitterId: userId });
+    }
 
     await this.redis.delByPattern("courses:list:*");
     return course;
@@ -178,8 +193,12 @@ export class CourseService {
     // ALL=管理端查看全部状态（含待审核/草稿/驳回），不加 auditStatus 过滤；
     // 指定具体状态则精确过滤；未传（移动端公开列表）默认只看已通过。
     if (filterStatus === "ALL") { /* 不过滤状态 */ }
-    else if (filterStatus) where.auditStatus = filterStatus;
-    else where.auditStatus = "APPROVED";
+    else if (filterStatus) where.auditStatus = filterStatus; // 管理端显式指定状态时不加开放范围过滤
+    else {
+      where.auditStatus = "APPROVED";
+      // 平台公共池（未按圈子过滤）只出「全平台开放」课程；圈内列表（带 circleId）圈内课程全可见
+      if (!circleId) where.visibility = "PLATFORM";
+    }
     if (stationId) where.stationId = stationId;
     if (type) where.type = type as any;
     if (keyword) where.title = { contains: keyword };
@@ -223,7 +242,8 @@ export class CourseService {
 
   /** 课程一级品类聚合(供课程列表页 tab：仅返回真实有课程的品类+计数，分页后无法从单页聚合) */
   async listCourseCategoryTabs(stationId?: string) {
-    const where: Prisma.CourseWhereInput = { auditStatus: "APPROVED", categoryLevel1: { not: null } };
+    // 品类 tab 服务于平台课程列表页 → 与公共池口径一致（只统计全平台开放课程）
+    const where: Prisma.CourseWhereInput = { auditStatus: "APPROVED", visibility: "PLATFORM", categoryLevel1: { not: null } };
     if (stationId) where.stationId = stationId;
     const grouped = await this.prisma.course.groupBy({
       by: ["categoryLevel1"],

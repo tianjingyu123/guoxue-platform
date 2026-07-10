@@ -27,13 +27,19 @@ export class VideoService {
   }
 
   @CacheEvict({ key: "video:list:*", pattern: true })
-  async create(userId: string, dto: { circleId?: string; title?: string; description?: string; videoUrl: string; coverUrl?: string; duration?: number; tags?: string[]; isPrivate?: boolean; products?: string[]; stationId?: string }) {
+  async create(userId: string, dto: { circleId?: string; title?: string; description?: string; videoUrl: string; coverUrl?: string; duration?: number; tags?: string[]; isPrivate?: boolean; visibility?: string; products?: string[]; stationId?: string }, isAdmin = false) {
     await this.auditService.moderateTextOrThrow([dto.title, dto.description].filter(Boolean).join(" "), { scene: "VIDEO", userId });
     // 带货商品去重 + 限 5 件
     const productIds = Array.from(new Set((dto.products ?? []).filter(Boolean))).slice(0, 5);
     // 短视频=圈子内容：未指定圈子时兜底落「官方圈子」(供 AI/后台自动发布种子内容，人工前端在圈子内发时会带上下文 circleId)
     const circleId = await this.resolveCircleId(dto.circleId);
-    return this.prisma.video.create({
+    // 开放范围分流：CIRCLE_ONLY 圈内直生效；PLATFORM 须平台审核（管理员/官方圈自动过审）
+    const { visibility, auditStatus } = await this.auditService.resolveContentVisibility({
+      visibility: dto.visibility,
+      circleId,
+      isAdmin,
+    });
+    const video = await this.prisma.video.create({
       data: {
         userId,
         circleId,
@@ -44,12 +50,18 @@ export class VideoService {
         duration: dto.duration,
         tags: (dto.tags ?? []).slice(0, 5),
         isPrivate: dto.isPrivate ?? false,
+        visibility,
+        auditStatus,
         stationId: dto.stationId || undefined,
         products: productIds.length
           ? { create: productIds.map((productId, i) => ({ productId, sortOrder: i })) }
           : undefined,
       },
     });
+    if (auditStatus === "PENDING") {
+      await this.auditService.openContentAudit({ contentType: "VIDEO", contentId: video.id, circleId, submitterId: userId });
+    }
+    return video;
   }
 
   @CacheEvict({ key: (args) => `video:detail:${args[1]}`, pattern: true })
@@ -86,14 +98,20 @@ export class VideoService {
   }
 
   @Cacheable({ key: (args) => `video:list:${JSON.stringify(args[0])}`, ttl: 60 })
-  async list(params: { circleId?: string; status?: string; page?: number; pageSize?: number; stationId?: string }) {
-    const { circleId, status, stationId } = params;
+  async list(params: { circleId?: string; status?: string; page?: number; pageSize?: number; stationId?: string; scope?: string }) {
+    const { circleId, status, stationId, scope } = params;
     const { page, pageSize, skip } = safePagination(params.page, params.pageSize);
     const where: Prisma.VideoWhereInput = {};
     if (circleId) where.circleId = circleId;
     if (status) where.status = status;
     else where.status = "PUBLISHED";
     if (stationId) where.stationId = stationId;
+    // 平台公共池（未按圈子过滤·非管理端 scope=all）：只出「全平台开放+审核通过+非私密」——绝不展示他圈封闭作品
+    if (!circleId && scope !== "all") {
+      where.visibility = "PLATFORM";
+      where.auditStatus = "APPROVED";
+      where.isPrivate = false;
+    }
 
     const [videos, total] = await Promise.all([
       this.prisma.video.findMany({
@@ -332,7 +350,8 @@ export class VideoService {
    */
   async listItems(rawPage: number, rawPageSize: number, opts?: { sort?: string; followerId?: string }) {
     const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
-    const where: Prisma.VideoWhereInput = { status: "PUBLISHED" };
+    // 瀑布流=平台公共池：只出「全平台开放+审核通过+非私密」内容（圈内封闭作品不外泄）
+    const where: Prisma.VideoWhereInput = { status: "PUBLISHED", visibility: "PLATFORM", auditStatus: "APPROVED", isPrivate: false };
 
     // 关注 tab：仅拉取已关注作者的视频；未登录或未关注任何人 → 空列表（前端引导登录/去关注）
     if (opts?.sort === "follow") {

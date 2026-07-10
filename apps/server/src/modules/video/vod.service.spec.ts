@@ -66,26 +66,30 @@ describe('VodService', () => {
   });
 
   // ── 2. 上传签名 genUploadSignature ──────────────────────────
+  // 注：2026-07-08 修复「VOD 签名真 bug」后已是 UGC 客户端上传签名（base64(hmac+原文)·小写参数），
+  // 断言按解码后的原文校验（原云 API 大写参数断言随修复作废）。
+  const decodeSignature = (sig: string) => Buffer.from(sig, 'base64').toString('utf8');
+
   describe('genUploadSignature', () => {
-    it('应生成基本签名，包含 SecretId / CurrentTimeStamp / ExpireTime / Random / VodSubAppId', () => {
+    it('应生成基本签名，包含 secretId / currentTimeStamp / expireTime / random / vodSubAppId', () => {
       const result = service.genUploadSignature();
-      expect(result.signature).toContain('SecretId=test-secret-id');
-      expect(result.signature).toContain('CurrentTimeStamp=');
-      expect(result.signature).toContain('ExpireTime=');
-      expect(result.signature).toContain('Random=');
-      expect(result.signature).toContain('VodSubAppId=1500012345');
-      expect(result.signature).toMatch(/&Signature=[^&]+$/);
+      const decoded = decodeSignature(result.signature);
+      expect(decoded).toContain('secretId=test-secret-id');
+      expect(decoded).toContain('currentTimeStamp=');
+      expect(decoded).toContain('expireTime=');
+      expect(decoded).toContain('random=');
+      expect(decoded).toContain('vodSubAppId=1500012345');
       expect(result.expiredTime).toBeGreaterThan(Math.floor(Date.now() / 1000));
     });
 
     it('procedure 参数应出现在签名字符串中', () => {
       const result = service.genUploadSignature({ procedure: 'MyProcedure' });
-      expect(result.signature).toContain('Procedure=MyProcedure');
+      expect(decodeSignature(result.signature)).toContain('procedure=MyProcedure');
     });
 
     it('classId 参数应出现在签名字符串中', () => {
       const result = service.genUploadSignature({ classId: 42 });
-      expect(result.signature).toContain('ClassId=42');
+      expect(decodeSignature(result.signature)).toContain('classId=42');
     });
 
     it('subAppId 为空时应不包含 VodSubAppId', () => {

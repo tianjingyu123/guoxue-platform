@@ -309,7 +309,8 @@ async function fetchList() {
   loading.value = true;
   loadError.value = false;
   try {
-    const params: any = { pageSize: 100 };
+    // scope=all：管理端可见全部开放范围（仅圈内/全平台）的视频，公共池过滤只作用于 C 端
+    const params: any = { pageSize: 100, scope: "all" };
     if (statusFilter.value) params.status = statusFilter.value;
     const { data } = await videoApi.list(params);
     list.value = data.items || data.videos || [];

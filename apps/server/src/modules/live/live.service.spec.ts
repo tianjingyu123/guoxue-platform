@@ -4,6 +4,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { LiveStreamService } from "./live-stream.service";
 import { WebhookService } from "../webhook/webhook.service";
+import { AuditService } from "../audit/audit.service";
 import { BusinessException } from "../../common/business.exception";
 
 const mockPrisma = {
@@ -31,6 +32,13 @@ const mockRedis = {
 };
 const mockStream = {};
 const mockWebhook = { fire: jest.fn().mockResolvedValue(undefined) };
+const mockAudit = {
+  moderateTextOrThrow: jest.fn().mockResolvedValue(undefined),
+  moderateImageOrThrow: jest.fn().mockResolvedValue(undefined),
+  // 默认按 CIRCLE_ONLY 直生效；分流逻辑本体在 audit.service.spec 覆盖
+  resolveContentVisibility: jest.fn().mockResolvedValue({ visibility: "CIRCLE_ONLY", auditStatus: "APPROVED" }),
+  openContentAudit: jest.fn().mockResolvedValue(undefined),
+};
 
 describe("LiveService", () => {
   let svc: LiveService;
@@ -43,6 +51,7 @@ describe("LiveService", () => {
         { provide: RedisService, useValue: mockRedis },
         { provide: LiveStreamService, useValue: mockStream },
         { provide: WebhookService, useValue: mockWebhook },
+        { provide: AuditService, useValue: mockAudit },
       ],
     }).compile();
     svc = mod.get(LiveService);
@@ -138,10 +147,28 @@ describe("LiveService", () => {
       expect(result.total).toBe(0);
     });
 
-    it("按状态过滤", async () => {
+    it("按状态过滤（公共池自动附加开放范围隔离）", async () => {
       mockPrisma.liveRoom.findMany.mockResolvedValue([]);
       mockPrisma.liveRoom.count.mockResolvedValue(0);
       await svc.listRooms("LIVING");
+      expect(mockPrisma.liveRoom.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { status: "LIVING", visibility: "PLATFORM", auditStatus: "APPROVED" } }),
+      );
+    });
+
+    it("带 circleId（圈内列表）不加开放范围过滤", async () => {
+      mockPrisma.liveRoom.findMany.mockResolvedValue([]);
+      mockPrisma.liveRoom.count.mockResolvedValue(0);
+      await svc.listRooms("LIVING", 1, 20, "c1");
+      expect(mockPrisma.liveRoom.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { status: "LIVING", circleId: "c1" } }),
+      );
+    });
+
+    it("scope=all（管理端）不加开放范围过滤", async () => {
+      mockPrisma.liveRoom.findMany.mockResolvedValue([]);
+      mockPrisma.liveRoom.count.mockResolvedValue(0);
+      await svc.listRooms("LIVING", 1, 20, undefined, undefined, "all");
       expect(mockPrisma.liveRoom.findMany).toHaveBeenCalledWith(
         expect.objectContaining({ where: { status: "LIVING" } }),
       );

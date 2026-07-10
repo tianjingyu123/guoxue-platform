@@ -33,6 +33,13 @@ export class ArticleService {
       { scene: "ARTICLE", userId },
     );
 
+    // 开放范围分流：CIRCLE_ONLY 圈内直生效；PLATFORM 须平台审核（管理员/官方圈自动过审）
+    const { visibility, auditStatus } = await this.audit.resolveContentVisibility({
+      visibility: dto.visibility,
+      circleId,
+      isAdmin,
+    });
+
     const article = await this.prisma.article.create({
       data: {
         circleId,
@@ -44,10 +51,14 @@ export class ArticleService {
         tags: dto.tags,
         isPushHome: dto.isPushHome ?? false,
         stationId: dto.stationId || undefined,
-        // 平台管理员发文免审直接可见（对齐课程/商品的 admin 自动过审）
-        ...(isAdmin ? { auditStatus: "APPROVED" } : {}),
+        visibility,
+        auditStatus,
       },
     });
+
+    if (auditStatus === "PENDING") {
+      await this.audit.openContentAudit({ contentType: "ARTICLE", contentId: article.id, circleId, submitterId: userId });
+    }
 
     // 文章列表缓存失效
     await this.redis.delByPattern("articles:list:*");
@@ -163,8 +174,12 @@ export class ArticleService {
     if (circleId) where.circleId = circleId;
     if (tag) where.tags = { has: tag };
     if (isPushHome !== undefined) where.isPushHome = isPushHome;
-    if (auditStatus) where.auditStatus = auditStatus;
-    else where.auditStatus = "APPROVED"; // 默认只返回审核通过的
+    if (auditStatus) where.auditStatus = auditStatus; // 管理端显式指定状态时不加开放范围过滤（可见全部）
+    else {
+      where.auditStatus = "APPROVED"; // 默认只返回审核通过的
+      // 平台公共池（未按圈子过滤）只出「全平台开放」内容；圈内列表（带 circleId）圈内内容全可见
+      if (!circleId) where.visibility = "PLATFORM";
+    }
     if (stationId) where.stationId = stationId;
 
     const [articles, total] = await Promise.all([
@@ -193,7 +208,8 @@ export class ArticleService {
 
   async getHomeFeed(params: { page: number; pageSize: number; userId?: string }) {
     const { page, pageSize, skip } = safePagination(params.page, params.pageSize);
-    const where: Prisma.ArticleWhereInput = { isPushHome: true, auditStatus: "APPROVED" };
+    // 首页信息流=平台公共池：只出「全平台开放」且审核通过的内容
+    const where: Prisma.ArticleWhereInput = { isPushHome: true, auditStatus: "APPROVED", visibility: "PLATFORM" };
 
     // 热度加权：浏览量×1 + 点赞×2 + 收藏×3
     const [articles, total] = await Promise.all([
@@ -228,8 +244,9 @@ export class ArticleService {
         id: { not: articleId },
         auditStatus: "APPROVED",
         OR: [
-          { circleId: article.circleId },
-          ...(article.tags?.length ? [{ tags: { hasSome: article.tags } }] : []),
+          { circleId: article.circleId }, // 本圈相关：圈内内容全可见
+          // 跨圈按标签相关：只出「全平台开放」内容（不外泄他圈封闭内容）
+          ...(article.tags?.length ? [{ tags: { hasSome: article.tags }, visibility: "PLATFORM" }] : []),
         ],
       },
       select: {

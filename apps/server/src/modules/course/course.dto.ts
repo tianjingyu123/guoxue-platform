@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { IsString, IsOptional, IsInt, IsBoolean, IsEnum, IsNumber, IsArray, IsDateString, Min, Max, MinLength, MaxLength } from "class-validator";
+import { IsString, IsOptional, IsInt, IsBoolean, IsEnum, IsNumber, IsArray, IsDateString, IsIn, Min, Max, MinLength, MaxLength } from "class-validator";
 import { Type, Transform } from "class-transformer";
 
 export enum CourseType {
@@ -59,6 +59,10 @@ export class CreateCourseDto {
   @ApiPropertyOptional({ description: "购买后有效期（天），0=永久", default: 0 })
   @IsOptional() @IsInt()
   validityDays?: number;
+
+  @ApiPropertyOptional({ description: "开放范围：CIRCLE_ONLY=仅本圈（默认）/ PLATFORM=全平台（需平台审核）", enum: ["CIRCLE_ONLY", "PLATFORM"] })
+  @IsOptional() @IsIn(["CIRCLE_ONLY", "PLATFORM"])
+  visibility?: "CIRCLE_ONLY" | "PLATFORM";
 
   @ApiPropertyOptional({ description: "定时发布时间" })
   @IsOptional() @IsDateString()
