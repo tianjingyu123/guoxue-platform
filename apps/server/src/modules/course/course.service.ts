@@ -78,6 +78,7 @@ export class CourseService {
         originalPrice: dto.originalPrice,
         stationId: dto.stationId,
         tags: dto.tags || [],
+        detailImages: (dto.detailImages || []).slice(0, 6),
         categoryLevel1: dto.categoryLevel1,
         categoryLevel2: dto.categoryLevel2,
         validityDays: dto.validityDays ?? 0,
@@ -107,6 +108,7 @@ export class CourseService {
     if (dto.price !== undefined) data.price = dto.price;
     if (dto.originalPrice !== undefined) data.originalPrice = dto.originalPrice;
     if (dto.tags !== undefined) data.tags = dto.tags;
+    if ((dto as any).detailImages !== undefined) data.detailImages = ((dto as any).detailImages as string[]).slice(0, 6);
     if ((dto as any).validityDays !== undefined) data.validityDays = (dto as any).validityDays;
     if (dto.categoryLevel1 !== undefined) data.categoryLevel1 = dto.categoryLevel1;
     if (dto.categoryLevel2 !== undefined) data.categoryLevel2 = dto.categoryLevel2;

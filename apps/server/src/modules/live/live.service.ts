@@ -50,6 +50,7 @@ export class LiveService {
       hostType: dto.circleId ? "CIRCLE_OWNER" : "STATION_MASTER",
       coHostIds: dto.coHostIds || [],
       quality: dto.quality || "basic",
+      orientation: dto.orientation || "portrait",
       chargeType: dto.chargeType || "FREE",
       chargePrice: dto.chargePrice,
       status: "WAITING",

@@ -32,6 +32,10 @@ export class CreateRoomDto {
   @IsOptional() @IsString() @IsIn(["basic", "hd", "uhd"])
   quality?: string;
 
+  @ApiPropertyOptional({ description: "画面方向: portrait=手机竖屏 / landscape=OBS横屏推流", enum: ["portrait", "landscape"] })
+  @IsOptional() @IsIn(["portrait", "landscape"])
+  orientation?: string;
+
   @ApiPropertyOptional({ description: "收费类型: FREE/PAID/CIRCLE_ONLY/MEMBER_FREE" })
   @IsOptional() @IsString()
   chargeType?: string;

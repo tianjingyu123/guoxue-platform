@@ -64,6 +64,10 @@ export class CreateCourseDto {
   @IsOptional() @IsIn(["CIRCLE_ONLY", "PLATFORM"])
   visibility?: "CIRCLE_ONLY" | "PLATFORM";
 
+  @ApiPropertyOptional({ description: "课程介绍详情图（最多6张·展示在课程详情页介绍区）" })
+  @IsOptional() @IsArray() @IsString({ each: true })
+  detailImages?: string[];
+
   @ApiPropertyOptional({ description: "定时发布时间" })
   @IsOptional() @IsDateString()
   scheduledAt?: string;

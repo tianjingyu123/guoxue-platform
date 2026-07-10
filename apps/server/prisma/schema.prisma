@@ -704,6 +704,7 @@ model Course {
   categoryLevel2 String? // 二级品类
   auditStatus    String     @default("PENDING")
   visibility     String     @default("CIRCLE_ONLY") // 开放范围：CIRCLE_ONLY=仅本圈 / PLATFORM=全平台（需审核通过才对外可见）
+  detailImages   String[]   @default([]) // 课程介绍详情图（最多6张·展示在课程详情页介绍区·V0 publish-course）
   memberFree     Boolean    @default(false) // 会员专属精品课：有效会员免费学习（2026-07-03 会员权益拍板）
   courseOrigin   String? // 课程来源标识：INSTITUTE_LECTURE=研究院大师讲座归档（研-P1·分享回放沉淀为付费知识库）；null=普通课程
   validityDays   Int        @default(0) // 购买后有效期（天），0=永久
@@ -1198,6 +1199,7 @@ model LiveRoom {
   imGroupId        String?
   status           LiveStatus   @default(WAITING)
   quality          String       @default("basic") // 画质档：basic(标清·免费·不转码) / hd(720p转码) / uhd(1080p转码)
+  orientation      String       @default("portrait") // 画面方向：portrait=手机竖屏 / landscape=OBS横屏推流（董事长2026-07-10要求·观看端按此渲染）
   viewCount        Int          @default(0)
   chargeType       String       @default("FREE") // FREE, PAID, CIRCLE_ONLY, MEMBER_FREE
   chargePrice      Decimal?     @db.Decimal(10, 2)
