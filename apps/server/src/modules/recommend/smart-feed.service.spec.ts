@@ -6,7 +6,23 @@ import { SmartFeedService } from "./smart-feed.service";
  * 通过 jest 假时钟固定系统时间（用 UTC 换算 Asia/Shanghai=UTC+8），
  * 断言三个时段各自的内容族权重 ×1.3 生效、响应带 timeSlot 字段、
  * 以及 AI 重排/用户分层原有逻辑不受影响（回归）。
+ *
+ * 九类信封改造后：feed 会注入 paipan/agent 两张运营固定卡。断言时用 CONTENT_TYPES
+ * 过滤出内容卡验证时段/质量/AI 机制，注入卡单独断言存在性，避免与固定卡序耦合。
  */
+/** 内容卡类型（排除运营固定卡 paipan/agent 后用于机制断言） */
+const CONTENT_TYPES = new Set([
+  "video",
+  "article",
+  "post",
+  "course",
+  "product",
+  "classic",
+  "live",
+]);
+const contentTypes = (items: { type: string }[]) =>
+  items.filter((i) => CONTENT_TYPES.has(i.type)).map((i) => i.type);
+
 describe("SmartFeedService", () => {
   // ─── 数据夹具（新用户 feed 四类各一条） ───
   const mockArticle = { id: "a1", title: "晨读文章", excerpt: "摘要", cover: "" };
@@ -37,6 +53,9 @@ describe("SmartFeedService", () => {
       classicBook: { findMany: jest.fn().mockResolvedValue([mockClassic]) },
       ebook: { findMany: jest.fn().mockResolvedValue([mockEbook]) },
       product: { findMany: jest.fn().mockResolvedValue([mockProduct]) },
+      // 九类信封新增源（默认空 → 不影响既有分层序，仅验证降级容错）
+      video: { findMany: jest.fn().mockResolvedValue([]) },
+      liveRoom: { findMany: jest.fn().mockResolvedValue([]) },
       // 内容质量分（创-P1）：默认无评分记录 → 质量因子不生效（既有用例回归不受影响）
       contentQualityScore: { findMany: jest.fn().mockResolvedValue([]) },
     };
@@ -92,11 +111,13 @@ describe("SmartFeedService", () => {
       const result = await svc.getFeed("u1");
 
       expect(result.timeSlot).toBe("evening");
-      // 电子书板块已下线：加权族仅剩 course，置顶后其余保持原序
-      expect(result.items.map((i) => i.type)).toEqual(["course", "article", "classic"]);
-      expect(result.items[0].score).toBeCloseTo(1.3);
-      expect(result.items[1].score).toBe(1);
-      expect(result.items[2].score).toBe(1);
+      // 电子书板块已下线：加权族仅剩 course，置顶后其余保持原序（内容卡序·排除注入的 paipan/agent）
+      expect(contentTypes(result.items)).toEqual(["course", "article", "classic"]);
+      const courseCard = result.items.find((i) => i.type === "course")!;
+      expect(courseCard.score).toBeCloseTo(1.3);
+      // 注入运营固定卡存在
+      expect(result.items.some((i) => i.type === "paipan")).toBe(true);
+      expect(result.items.some((i) => i.type === "agent")).toBe(true);
     });
 
     it("凌晨 0-5 时顺延晚间（上海 02:00）：timeSlot=evening", async () => {
@@ -131,9 +152,10 @@ describe("SmartFeedService", () => {
 
       const result = await svc.getFeed("u1");
 
-      // 仍在列表中（软限流·不删除），但排在最后
+      // 仍在列表中（软限流·不删除），但排在所有内容卡的最后（注入的 agent 固定卡可能更靠后）
       expect(result.items.some((i) => i.type === "article")).toBe(true);
-      expect(result.items[result.items.length - 1].type).toBe("article");
+      const ct = contentTypes(result.items);
+      expect(ct[ct.length - 1]).toBe("article");
     });
 
     it("质量分查询失败按无因子降级：feed 正常返回、时段排序不受影响", async () => {
@@ -157,8 +179,8 @@ describe("SmartFeedService", () => {
       expect(gateway.chat).toHaveBeenCalledWith(
         expect.objectContaining({ scene: "smart_feed", userId: "u1" }),
       );
-      // AI 序号作用于加权后的候选序：2→course, 1→article, 3→classic
-      expect(result.items.map((i) => i.type)).toEqual(["course", "article", "classic"]);
+      // AI 序号作用于加权后的候选序：2→course, 1→article, 3→classic（内容卡序·排除注入固定卡）
+      expect(contentTypes(result.items)).toEqual(["course", "article", "classic"]);
       expect(result.timeSlot).toBe("morning");
     });
 
@@ -170,16 +192,20 @@ describe("SmartFeedService", () => {
 
       expect(result.userSegment).toBe("premium");
       expect(result.timeSlot).toBe("morning");
-      // premium feed 只含 course/product；早间两者均非加权族，保持原序与基准分
-      expect(result.items.map((i) => i.type)).toEqual(["course", "product"]);
-      expect(result.items.every((i) => i.score === 1)).toBe(true);
+      // premium feed 只含 course/product；早间两者均非加权族，保持原序与基准分（内容卡·排除注入固定卡）
+      expect(contentTypes(result.items)).toEqual(["course", "product"]);
+      expect(
+        result.items.filter((i) => CONTENT_TYPES.has(i.type)).every((i) => i.score === 1),
+      ).toBe(true);
     });
 
     it("分页切片仍生效", async () => {
-      setSystemTimeUtc("2026-07-03T12:00:00Z"); // 晚间·序 [course, article, classic]（电子书已下线）
+      setSystemTimeUtc("2026-07-03T12:00:00Z"); // 晚间·内容序 [course, article, classic]（电子书已下线）
+      // 注入固定卡后完整序 [course, article, paipan, classic, agent]，第 2 页 size=2 → slice(2,4)
       const result = await svc.getFeed("u1", 2, 2);
 
-      expect(result.items.map((i) => i.type)).toEqual(["classic"]);
+      expect(result.items).toHaveLength(2);
+      expect(result.items.map((i) => i.type)).toEqual(["paipan", "classic"]);
       expect(result.timeSlot).toBe("evening");
     });
   });

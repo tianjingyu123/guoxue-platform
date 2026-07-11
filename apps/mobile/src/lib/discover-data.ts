@@ -198,3 +198,144 @@ export const discoverApi = {
     }
   },
 }
+
+// ============ 分板块橱窗（发现页策展）============
+// 发现页四橱窗（本周新课/直播预告/新书上架/掌柜好物）复用各板块真实 list 接口，
+// 每节仅取头几条真数据；接口失败/空 → 该节隐藏（诚实降级，不造假）。
+
+/** 橱窗小卡统一形状（各板块字段归一为发现页横滑卡消费） */
+export interface ShowcaseCard {
+  id: string
+  title: string
+  cover?: string
+  /** 封面档位：course=信息类模糊延展 / classic=书封 / product=白底 / live=预告 */
+  coverType: 'course' | 'classic' | 'product' | 'live'
+  ratio: '4:3' | '3:4' | '1:1'
+  /** 主辅信息：价格文案 / 讲师 / 朝代 等 */
+  price?: number
+  meta?: string
+  /** 右上角标（直播预告时间 / 免费等），可空 */
+  badge?: string
+  badgeStrong?: boolean
+  /** 点击去向（真实板块页） */
+  href: string
+}
+
+/** 主题策展带（后台运营位，当前无接口 → 用真数据合成一张「本周精选」，见 getThemeBand 注释） */
+export interface ThemeBand {
+  eyebrow: string
+  title: string
+  subtitle: string
+  cover?: string
+  href: string
+}
+
+function sNum(v: unknown): number { const x = Number(v); return Number.isFinite(x) ? x : 0 }
+
+export const discoverShowcaseApi = {
+  /** 本周新课 — GET /courses?sort=newest（课程 4:3 信息类模糊延展） */
+  async newCourses(): Promise<ShowcaseCard[]> {
+    try {
+      const { coursesListApi } = await import('@/lib/courses-list-data')
+      const { items } = await coursesListApi.list({ sort: 'newest', pageSize: 6 })
+      return items.slice(0, 6).map((c) => ({
+        id: String(c.id), title: c.title, cover: c.cover, coverType: 'course', ratio: '4:3',
+        price: c.free ? undefined : sNum(c.price),
+        meta: c.free ? '免费学' : (c.teacher || (c.lessons ? `共 ${c.lessons} 讲` : '精品好课')),
+        href: `/course/${c.id}`,
+      }))
+    } catch { return [] }
+  },
+
+  /** 直播预告 — GET /live/plaza，取即将开播/直播中（3:4 竖卡 + 时间角标） */
+  async livePreviews(): Promise<ShowcaseCard[]> {
+    try {
+      const { liveApi } = await import('@/lib/live-data')
+      const list = await liveApi.getPlaza()
+      const arr = Array.isArray(list) ? list : []
+      // 预告优先，其次直播中，凑够 5 条
+      const upcoming = arr.filter((l) => l.status === 'upcoming')
+      const living = arr.filter((l) => l.status === 'live')
+      return [...upcoming, ...living].slice(0, 5).map((l) => ({
+        id: String(l.id), title: l.title, cover: l.cover, coverType: 'live', ratio: '3:4',
+        meta: l.hostName || (l.type === 'commerce' ? '带货专场' : '知识授课'),
+        badge: l.status === 'upcoming' ? (l.scheduledTime || '预告') : '直播中',
+        badgeStrong: true,
+        href: `/live/${l.id}`,
+      }))
+    } catch { return [] }
+  },
+
+  /** 新书上架 — GET /classics/ranking?sort=new（书封 3:4，无封面走 smart-cover 兜底） */
+  async newClassics(): Promise<ShowcaseCard[]> {
+    try {
+      const { classicsApi } = await import('@/lib/classics-data')
+      const { books } = await classicsApi.ranking('new')
+      const arr = Array.isArray(books) ? books : []
+      return arr.slice(0, 6).map((b) => ({
+        id: String(b.id), title: b.title, cover: '', coverType: 'classic', ratio: '3:4',
+        meta: [b.dynasty && `${b.dynasty}代`, b.author].filter(Boolean).join(' · ') || '典藏',
+        href: `/classics/${b.id}`,
+      }))
+    } catch { return [] }
+  },
+
+  /** 掌柜好物 — GET /shop/products?sort=newest（商品 1:1 白底 contain） */
+  async newProducts(): Promise<ShowcaseCard[]> {
+    try {
+      const { shopApi } = await import('@/lib/shop-data')
+      const { items } = await shopApi.getMallProducts({ sort: 'newest', pageSize: 6 })
+      return items.slice(0, 6).map((p) => ({
+        id: String(p.id), title: p.name, cover: p.cover, coverType: 'product', ratio: '1:1',
+        price: sNum(p.price),
+        meta: p.sales ? `已售 ${p.sales}` : '掌柜精选',
+        href: `/mall/product/${p.id}`,
+      }))
+    } catch { return [] }
+  },
+
+  /**
+   * 今日热榜 — 后端暂无「全站热度榜」聚合端点，复用发现页推荐流 getFeed 头部真数据取标题。
+   * 返回 Top3 {title, tail}，tail 为类型文案。运营位/真榜接口待后端补。
+   */
+  async hotBoard(): Promise<{ title: string; tail: string; href: string }[]> {
+    try {
+      const items = await discoverApi.getFeed('all')
+      const tailMap: Record<string, string> = {
+        live: '直播中', course: '热学好课', classic: '全站热读',
+        product: '掌柜热卖', agent: '智能体热榜', video: '今日必看',
+      }
+      const hrefMap: Record<FeedItem['kind'], (id: string) => string> = {
+        live: (id) => `/live/${id}`,
+        course: (id) => `/course/${id}`,
+        classic: (id) => `/classics/${id}`,
+        product: (id) => `/mall/product/${id}`,
+        agent: (id) => `/agent/${id}`,
+        video: (id) => `/video/${id}`,
+      }
+      return items.slice(0, 3).map((it) => {
+        const title = it.kind === 'agent' ? it.data.name : it.data.title
+        return { title, tail: tailMap[it.kind] || '全站热议', href: hrefMap[it.kind](String(it.data.id)) }
+      })
+    } catch { return [] }
+  },
+
+  /**
+   * 主题策展带 — ⚠️ 后端暂无「专题运营位」CMS/接口。当前用「本周新课」首条真数据
+   * 合成一张导流卡（点击进课程列表）作为诚实占位；待后端补运营位后替换为真专题。
+   */
+  async getThemeBand(): Promise<ThemeBand | null> {
+    try {
+      const courses = await this.newCourses()
+      const first = courses[0]
+      if (!first) return null
+      return {
+        eyebrow: '本周精选',
+        title: '名师新课 · 系统进阶',
+        subtitle: `${first.title} 等好课上新`,
+        cover: first.cover,
+        href: '/courses-list',
+      }
+    } catch { return null }
+  },
+}
