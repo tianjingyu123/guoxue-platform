@@ -53,7 +53,27 @@ const CATEGORY_ICON: Record<string, { icon: string; color: string }> = {
   国学: { icon: 'landmark', color: '#B7791F' },
   命理: { icon: 'scroll-text', color: '#C0392B' },
 }
-function catIcon(name: string) { return CATEGORY_ICON[name] || { icon: 'graduation-cap', color: '#C41E3A' } }
+// 先精确匹配，再按关键词子串匹配（真实分类名如「易学风水和命理」含「风水」→罗盘），兜底 graduation-cap
+const CATEGORY_KEYWORD: { kw: string; icon: string; color: string }[] = [
+  { kw: '风水', icon: 'compass', color: '#16A085' },
+  { kw: '八字', icon: 'scroll-text', color: '#C0392B' },
+  { kw: '紫微', icon: 'star', color: '#8E44AD' },
+  { kw: '奇门', icon: 'mountain', color: '#2C3E50' },
+  { kw: '易经', icon: 'book-marked', color: '#2980B9' },
+  { kw: '周易', icon: 'book-marked', color: '#2980B9' },
+  { kw: '命理', icon: 'scroll-text', color: '#C0392B' },
+  { kw: '中医', icon: 'stethoscope', color: '#27AE60' },
+  { kw: '养生', icon: 'leaf', color: '#7F8C8D' },
+  { kw: '书法', icon: 'pen-tool', color: '#D35400' },
+  { kw: '绘画', icon: 'pen-tool', color: '#D35400' },
+  { kw: '国学', icon: 'landmark', color: '#B7791F' },
+  { kw: '经典', icon: 'book-open', color: '#B7791F' },
+]
+function catIcon(name: string) {
+  if (CATEGORY_ICON[name]) return CATEGORY_ICON[name]
+  const hit = CATEGORY_KEYWORD.find((k) => name.includes(k.kw))
+  return hit ? { icon: hit.icon, color: hit.color } : { icon: 'graduation-cap', color: '#C41E3A' }
+}
 // 图标分类导航：取真实有课程的一级品类（去「全部」），最多 10 个成 2 行
 const iconCategories = computed(() => categoryTabs.value.filter((t) => t.id !== 'all').slice(0, 10))
 
