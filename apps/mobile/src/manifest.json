@@ -20,7 +20,8 @@
     "appid": "wx06397e8ab26bed9e",
     "setting": { "urlCheck": false, "es6": true, "minified": true },
     "usingComponents": true,
-    "lazyCodeLoading": "requiredComponents"
+    "lazyCodeLoading": "requiredComponents",
+    "optimization": { "subPackages": true }
   },
   "h5": {
     "title": "热卜国学",

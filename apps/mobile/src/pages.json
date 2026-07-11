@@ -169,6 +169,54 @@
           "style": {
             "navigationStyle": "custom"
           }
+        },
+        {
+          "path": "wannianli/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "meihua/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "meihua/result",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "xiaoliuren/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "kongming/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "luopan/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "ziwei/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "ziwei/result",
+          "style": {
+            "navigationStyle": "custom"
+          }
         }
       ]
     },

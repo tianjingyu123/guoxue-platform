@@ -3,50 +3,72 @@
  * href 保持原型路径风格，路由跳转时由 utils/router 统一处理（详见路由表）。
  * 未开发工具统一指向 coming-soon 占位页。
  */
-import { apiGet, useMock } from '@/utils/request'
+import { defaultFavoriteToolIds } from '@/lib/paipan/tool-prefs'
 
-export interface Tool { id: string; name: string; iconId: string; href: string; badge?: boolean }
+export { defaultFavoriteToolIds }
+
+export type ToolCategory = 'mingli' | 'bushi' | 'qimen' | 'fengshui' | 'xingming' | 'lifa' | 'service'
+
+/** 工具分类元数据（推荐区色点/分组用，顺序即展示顺序） */
+export const toolCategories: { key: ToolCategory; label: string }[] = [
+  { key: 'mingli', label: '命理' },
+  { key: 'bushi', label: '占卜' },
+  { key: 'qimen', label: '奇门' },
+  { key: 'fengshui', label: '风水' },
+  { key: 'xingming', label: '姓名' },
+  { key: 'lifa', label: '历法' },
+  { key: 'service', label: '服务' },
+]
+
+export interface Tool { id: string; name: string; iconId: string; href: string; badge?: boolean; category?: ToolCategory }
 export interface MedicalTool { id: string; name: string; iconId: string; href: string; badge?: boolean }
 export interface Agent { id: string; name: string; description: string; avatar: string; href: string }
 
-// 排盘工具 - 前 32 个默认展示，其余展开显示
+// 排盘工具 - 首页收起态显示 3 排（12 个），展开显示全部
 export const tools: Tool[] = [
-  { id: 'bazi', name: '八字排盘', iconId: 'bazi', href: '/paipan/bazi' },
-  { id: 'bazi-analysis', name: '八字解析', iconId: 'bazi-analysis', href: '/paipan/tools/coming-soon?name=八字解析', badge: true },
-  { id: 'qimen', name: '奇门遁甲', iconId: 'qimen', href: '/paipan/qimen' },
-  { id: 'yinqimen', name: '阴盘奇门', iconId: 'yinqimen', href: '/paipan/tools/coming-soon?name=阴盘奇门' },
-  { id: 'liuyao', name: '六爻排盘', iconId: 'liuyao', href: '/paipan/tools/coming-soon?name=六爻排盘' },
-  { id: 'meihua', name: '梅花易数', iconId: 'meihua', href: '/paipan/tools/coming-soon?name=梅花易数' },
-  { id: 'yangming', name: '阳盘命理', iconId: 'yangming', href: '/paipan/yangpan' },
-  { id: 'mingli-qimen', name: '命理奇门', iconId: 'mingli-qimen', href: '/paipan/tools/coming-soon?name=命理奇门' },
-  { id: 'ziwei', name: '紫微斗数', iconId: 'ziwei', href: '/paipan/tools/coming-soon?name=紫微斗数' },
-  { id: 'daliuren', name: '大六壬', iconId: 'daliuren', href: '/paipan/tools/coming-soon?name=大六壬' },
-  { id: 'xiaoliuren', name: '小六壬', iconId: 'xiaoliuren', href: '/paipan/tools/coming-soon?name=小六壬' },
-  { id: 'jinkoujue', name: '金口诀', iconId: 'jinkoujue', href: '/paipan/tools/coming-soon?name=金口诀' },
-  { id: 'naming', name: '起名工具', iconId: 'naming', href: '/paipan/tools/coming-soon?name=起名工具', badge: true },
-  { id: 'name-analysis', name: '姓名解析', iconId: 'name-analysis', href: '/paipan/tools/coming-soon?name=姓名解析', badge: true },
-  { id: 'phone-analysis', name: '手机号分析', iconId: 'phone-analysis', href: '/paipan/tools/coming-soon?name=手机号分析' },
-  { id: 'zhuge', name: '诸葛神数', iconId: 'zhuge', href: '/paipan/tools/coming-soon?name=诸葛神数' },
-  { id: 'compass', name: '电子罗盘', iconId: 'compass', href: '/paipan/tools/coming-soon?name=电子罗盘' },
-  { id: 'ruler', name: '立极尺', iconId: 'ruler', href: '/paipan/tools/coming-soon?name=立极尺' },
-  { id: 'direction-map', name: '山向地图', iconId: 'direction-map', href: '/paipan/tools/coming-soon?name=山向地图' },
-  { id: 'flying-star', name: '玄空飞星', iconId: 'flying-star', href: '/paipan/tools/coming-soon?name=玄空飞星' },
-  { id: 'kongming', name: '孔明神卦', iconId: 'kongming', href: '/paipan/tools/coming-soon?name=孔明神卦' },
-  { id: 'bazhai', name: '八宅排盘', iconId: 'bazhai', href: '/paipan/tools/coming-soon?name=八宅排盘' },
-  { id: 'feigong', name: '飞宫小奇门', iconId: 'feigong', href: '/paipan/tools/coming-soon?name=飞宫小奇门' },
-  { id: 'taiyi', name: '太乙神数', iconId: 'taiyi', href: '/paipan/tools/coming-soon?name=太乙神数' },
-  { id: 'xiaocheng', name: '小成图', iconId: 'xiaocheng', href: '/paipan/tools/coming-soon?name=小成图' },
-  { id: 'calendar', name: '万年历', iconId: 'calendar', href: '/paipan/tools/coming-soon?name=万年历' },
-  { id: 'jinqianke', name: '金钱课', iconId: 'jinqianke', href: '/paipan/tools/coming-soon?name=金钱课' },
-  { id: 'qimen-chuanren', name: '奇门穿壬', iconId: 'qimen-chuanren', href: '/paipan/tools/coming-soon?name=奇门穿壬' },
-  { id: 'shanxiang-qimen', name: '山向奇门', iconId: 'shanxiang-qimen', href: '/paipan/tools/coming-soon?name=山向奇门' },
-  { id: 'solar-terms', name: '节气查询', iconId: 'solar-terms', href: '/paipan/tools/coming-soon?name=节气查询' },
-  { id: 'dictionary', name: '字典查询', iconId: 'dictionary', href: '/paipan/tools/coming-soon?name=字典查询' },
-  { id: 'char-filter', name: '汉字筛选', iconId: 'char-filter', href: '/paipan/tools/coming-soon?name=汉字筛选' },
-  { id: 'partner', name: '合伙人', iconId: 'partner', href: '/paipan/tools/coming-soon?name=合伙人' },
-  { id: 'mini-program', name: '小程序开发', iconId: 'mini-program', href: '/paipan/tools/coming-soon?name=小程序开发' },
-  { id: 'vip-service', name: '会员服务', iconId: 'vip-service', href: '/paipan/tools/coming-soon?name=会员服务' },
-  { id: 'customer-service', name: '在线客服', iconId: 'customer-service', href: '/paipan/tools/coming-soon?name=在线客服' },
+  // 命理推算
+  { id: 'bazi', name: '八字排盘', iconId: 'bazi', href: '/paipan/bazi', category: 'mingli' },
+  { id: 'bazi-analysis', name: '八字解析', iconId: 'bazi-analysis', href: '/paipan/tools/coming-soon?name=八字解析', badge: true, category: 'mingli' },
+  { id: 'ziwei', name: '紫微斗数', iconId: 'ziwei', href: '/paipan/ziwei', badge: true, category: 'mingli' },
+  { id: 'yangming', name: '阳盘命理', iconId: 'yangming', href: '/paipan/yangpan', category: 'mingli' },
+  { id: 'mingli-qimen', name: '命理奇门', iconId: 'mingli-qimen', href: '/paipan/tools/coming-soon?name=命理奇门', category: 'mingli' },
+  { id: 'taiyi', name: '太乙神数', iconId: 'taiyi', href: '/paipan/tools/coming-soon?name=太乙神数', category: 'mingli' },
+  // 占卜起卦
+  { id: 'liuyao', name: '六爻排盘', iconId: 'liuyao', href: '/paipan/tools/coming-soon?name=六爻排盘', category: 'bushi' },
+  { id: 'meihua', name: '梅花易数', iconId: 'meihua', href: '/paipan/meihua', badge: true, category: 'bushi' },
+  { id: 'xiaoliuren', name: '小六壬', iconId: 'xiaoliuren', href: '/paipan/xiaoliuren', badge: true, category: 'bushi' },
+  { id: 'daliuren', name: '大六壬', iconId: 'daliuren', href: '/paipan/tools/coming-soon?name=大六壬', category: 'bushi' },
+  { id: 'jinkoujue', name: '金口诀', iconId: 'jinkoujue', href: '/paipan/tools/coming-soon?name=金口诀', category: 'bushi' },
+  { id: 'kongming', name: '孔明神卦', iconId: 'kongming', href: '/paipan/kongming', badge: true, category: 'bushi' },
+  { id: 'jinqianke', name: '金钱课', iconId: 'jinqianke', href: '/paipan/tools/coming-soon?name=金钱课', category: 'bushi' },
+  { id: 'xiaocheng', name: '小成图', iconId: 'xiaocheng', href: '/paipan/tools/coming-soon?name=小成图', category: 'bushi' },
+  { id: 'zhuge', name: '诸葛神数', iconId: 'zhuge', href: '/paipan/tools/coming-soon?name=诸葛神数', category: 'bushi' },
+  // 奇门遁甲
+  { id: 'qimen', name: '奇门遁甲', iconId: 'qimen', href: '/paipan/qimen', category: 'qimen' },
+  { id: 'yinqimen', name: '阴盘奇门', iconId: 'yinqimen', href: '/paipan/tools/coming-soon?name=阴盘奇门', category: 'qimen' },
+  { id: 'feigong', name: '飞宫小奇门', iconId: 'feigong', href: '/paipan/tools/coming-soon?name=飞宫小奇门', category: 'qimen' },
+  { id: 'qimen-chuanren', name: '奇门穿壬', iconId: 'qimen-chuanren', href: '/paipan/tools/coming-soon?name=奇门穿壬', category: 'qimen' },
+  { id: 'shanxiang-qimen', name: '山向奇门', iconId: 'shanxiang-qimen', href: '/paipan/tools/coming-soon?name=山向奇门', category: 'qimen' },
+  // 风水堪舆
+  { id: 'compass', name: '电子罗盘', iconId: 'compass', href: '/paipan/luopan', badge: true, category: 'fengshui' },
+  { id: 'ruler', name: '立极尺', iconId: 'ruler', href: '/paipan/tools/coming-soon?name=立极尺', category: 'fengshui' },
+  { id: 'flying-star', name: '玄空飞星', iconId: 'flying-star', href: '/paipan/tools/coming-soon?name=玄空飞星', category: 'fengshui' },
+  { id: 'bazhai', name: '八宅排盘', iconId: 'bazhai', href: '/paipan/tools/coming-soon?name=八宅排盘', category: 'fengshui' },
+  { id: 'direction-map', name: '山向地图', iconId: 'direction-map', href: '/paipan/tools/coming-soon?name=山向地图', category: 'fengshui' },
+  // 姓名数字
+  { id: 'naming', name: '起名工具', iconId: 'naming', href: '/paipan/tools/coming-soon?name=起名工具', category: 'xingming' },
+  { id: 'name-analysis', name: '姓名解析', iconId: 'name-analysis', href: '/paipan/tools/coming-soon?name=姓名解析', category: 'xingming' },
+  { id: 'phone-analysis', name: '手机号分析', iconId: 'phone-analysis', href: '/paipan/tools/coming-soon?name=手机号分析', category: 'xingming' },
+  // 历法查询
+  { id: 'calendar', name: '万年历', iconId: 'calendar', href: '/paipan/wannianli', badge: true, category: 'lifa' },
+  { id: 'solar-terms', name: '节气查询', iconId: 'solar-terms', href: '/pkg-solar-term/index/index', category: 'lifa' },
+  { id: 'dictionary', name: '字典查询', iconId: 'dictionary', href: '/paipan/tools/coming-soon?name=字典查询', category: 'lifa' },
+  { id: 'char-filter', name: '汉字筛选', iconId: 'char-filter', href: '/paipan/tools/coming-soon?name=汉字筛选', category: 'lifa' },
+  // 更多服务
+  { id: 'partner', name: '合伙人', iconId: 'partner', href: '/paipan/tools/coming-soon?name=合伙人', category: 'service' },
+  { id: 'mini-program', name: '小程序开发', iconId: 'mini-program', href: '/paipan/tools/coming-soon?name=小程序开发', category: 'service' },
+  { id: 'vip-service', name: '会员服务', iconId: 'vip-service', href: '/paipan/tools/coming-soon?name=会员服务', category: 'service' },
+  { id: 'customer-service', name: '在线客服', iconId: 'customer-service', href: '/paipan/tools/coming-soon?name=在线客服', category: 'service' },
 ]
 
 // 中医工具 - 前 8 个默认展示
@@ -95,18 +117,9 @@ export const AGENT_AVATAR_GRADIENT: Record<string, [string, string]> = {
 
 // ============ API 层 ============
 
-/** 后端 /paipan/tools 原始响应（可能为 { items } 包裹或裸数组，字段宽松） */
-interface RawToolsResp { items?: Tool[] }
-
 export const toolsApi = {
-  /** 获取排盘工具列表 — GET /paipan/tools */
+  /** 获取排盘工具列表（工具清单即前端配置，本地即真源，无后端依赖） */
   async getTools(): Promise<Tool[]> {
-    if (true) return tools
-    try {
-      const data = await apiGet<RawToolsResp>('/paipan/tools')
-      return (data?.items || data) as Tool[]
-    } catch {
-      return tools
-    }
+    return tools
   },
 }

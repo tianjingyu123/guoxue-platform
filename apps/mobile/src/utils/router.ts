@@ -71,10 +71,19 @@ const ROUTE_MAP: Record<string, string> = {
   '/paipan/yangpan/result': '/pkg-paipan/yangpan/result',
   '/paipan/yangpan/history': '/pkg-paipan/yangpan/history/index',
   '/paipan/yangpan/history/groups': '/pkg-paipan/yangpan/history/groups',
+  // V0 排盘工具批（2026-07-10 版还原）：万年历/梅花/小六壬/孔明/罗盘/紫微
+  '/paipan/wannianli': '/pkg-paipan/wannianli/index',
+  '/paipan/meihua': '/pkg-paipan/meihua/index',
+  '/paipan/meihua/result': '/pkg-paipan/meihua/result',
+  '/paipan/xiaoliuren': '/pkg-paipan/xiaoliuren/index',
+  '/paipan/kongming': '/pkg-paipan/kongming/index',
+  '/paipan/luopan': '/pkg-paipan/luopan/index',
+  '/paipan/ziwei': '/pkg-paipan/ziwei/index',
+  '/paipan/ziwei/result': '/pkg-paipan/ziwei/result',
   // 工具占位页（30+ 未上线工具入口，name 参数透传；命理/中医两个前缀同指一页）
   '/paipan/tools/coming-soon': '/pkg-paipan/tools/coming-soon',
   '/tools/coming-soon': '/pkg-paipan/tools/coming-soon',
-  // 紫微/六爻 历史/结果页未实现(排盘工具延后)→优雅占位，避免"功能开发中"toast
+  // 紫微历史/六爻结果页未实现(排盘工具延后)→优雅占位，避免"功能开发中"toast
   '/paipan/ziwei/history': '/pkg-paipan/tools/coming-soon',
   '/paipan/liuyao/result': '/pkg-paipan/tools/coming-soon',
   // 商城

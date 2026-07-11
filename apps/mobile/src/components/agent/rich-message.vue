@@ -4,13 +4,14 @@
  *
  * ## 扩展方法（新增一种卡片，不动对话页主体）
  * 1. 在 components/agent/cards/ 下新建 xxx-card.vue（props: { payload: unknown }）；
- * 2. 在下方 CARD_COMPONENTS 注册表加一行 `'xxx-card': XxxCard`；
+ * 2. 在下方 import + KNOWN_CARDS 加类型名 + template 加一行 v-else-if 分发；
  * 3. 后端在消息流里下发 {type:'card', cardType:'xxx-card', payload}（流式）
  *    或 messages 数组里插 {type:'xxx-card', payload}（非流式）即可。
  *
+ * 注意：小程序端不支持 <component :is>（vite:vue 编译期报错），故用显式 v-if 分发，
+ * KNOWN_CARDS 仍作为"是否已注册"的单一判断源。
  * 向前兼容：未注册的 type 自动降级显示 content 文本（旧客户端不至于白屏）。
  */
-import type { Component } from 'vue'
 import BaziCard from './cards/bazi-card.vue'
 
 const props = defineProps<{
@@ -22,17 +23,15 @@ const props = defineProps<{
   payload?: unknown
 }>()
 
-/** 卡片注册表：新增卡片只需在此登记 */
-const CARD_COMPONENTS: Record<string, Component> = {
-  'bazi-card': BaziCard,
-}
+/** 已注册卡片类型清单：新增卡片在此登记 + template 加 v-else-if */
+const KNOWN_CARDS = ['bazi-card']
 
-const cardComp = props.type && props.type !== 'text' ? CARD_COMPONENTS[props.type] : undefined
+const isKnownCard = !!props.type && props.type !== 'text' && KNOWN_CARDS.includes(props.type)
 </script>
 
 <template>
-  <!-- 已注册卡片：分发到对应组件 -->
-  <component :is="cardComp" v-if="cardComp" :payload="payload" />
+  <!-- 已注册卡片：显式分发（新卡片在此追加 v-else-if 分支） -->
+  <bazi-card v-if="isKnownCard && type === 'bazi-card'" :payload="payload" />
   <!-- 文本 / 未知类型降级 -->
   <text v-else class="rm-text">{{ content || '' }}</text>
 </template>

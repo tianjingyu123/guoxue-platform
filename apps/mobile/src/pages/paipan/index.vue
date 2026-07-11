@@ -1,26 +1,34 @@
 <script setup lang="ts">
 /**
- * 排盘工具入口页（从原型 app/paipan/page.tsx 1:1 高保真迁移）
- * 结构：顶栏 / AI智能解盘卡 / 排盘工具网格(展开收起) / 中医工具 / AI智能体横滚 / 合规提示 / 底部导航
- * @data-needs tools 通过 toolsApi.getTools() 获取；medicalTools/agents 为纯静态工具列表配置保留直接导入
+ * 排盘工具主页（V0 排盘工具 7月10日版 v0.5-v0.7 首页重构还原）
+ * 结构：顶栏 / 今日时刻Hero / AI智能解盘卡 / 双人合盘卡 / 为你推荐(收藏夹·可管理) /
+ *       全部工具(收起3排·展开全部) / 中医工具(折叠) / AI智能体横滚 / 合规提示 / 底部导航
+ * 收藏与频次本地持久化（lib/paipan/tool-prefs），拖拽交互降级为「管理」编辑模式（uni-app 多端稳妥）。
+ * R4 合规（微信小程序无占卜类目）：占卜类工具 MP 端隐藏入口，八字类改历法表述——仅展示层，路由/逻辑不变。
  */
 import { ref, computed, onMounted } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import ToolIcon from '@/components/paipan/tool-icon.vue'
+import TodayHero from '@/components/paipan/today-hero.vue'
 import BottomNav from '@/components/bottom-nav/bottom-nav.vue'
-import { toolsApi, AGENT_AVATAR_GRADIENT, type Tool, medicalTools, agents } from '@/lib/tools-data'
+import { AGENT_AVATAR_GRADIENT, type Tool, type ToolCategory, tools, medicalTools, agents } from '@/lib/tools-data'
+import { getFavorites, saveFavorites, addFavorite, removeFavorite, recordToolUsage } from '@/lib/paipan/tool-prefs'
 import { navigateTo } from '@/utils/router'
+
+const GRID_COLS = 4
+const COLLAPSED_ROWS = 3
+const COLLAPSED_COUNT = GRID_COLS * COLLAPSED_ROWS // 收起时显示 3 排
+const MEDICAL_COLLAPSED = 12
 
 const showAllTools = ref(false)
 const showMedical = ref(false)
-const tools = ref<Tool[]>([])
-const loading = ref(true)
-const error = ref('')
+const editing = ref(false)
+const favIds = ref<string[]>([])
 
 // ── R4 合规（微信小程序无占卜类目）：仅展示层差异，路由/数据/逻辑不动 ──
-// 纯占卜/风水测算类工具在 MP 端隐藏入口（页面保留）；八字排盘类改民俗/历法表述
 let pageTitle = '排盘工具'
-let secToolsTitle = '排盘工具'
+let secToolsTitle = '全部工具'
 let aiTitle = 'AI 智能解盘'
 let aiSub = '输入命盘信息，AI 为您深度解析'
 let disclaimerText = '平台命理工具仅供传统文化爱好者研究学习，排盘与分析结果不构成任何决策建议。'
@@ -42,34 +50,69 @@ MP_TOOL_RENAME = { 'bazi': '干支历法', 'bazi-analysis': '干支解析', 'qim
 MP_VISIBLE_AGENT_IDS = ['classic-expert', 'study-assistant']
 // #endif
 
-const visibleTools = computed(() => tools.value
+// 分类色点（为你推荐卡片角注）
+const CATEGORY_ACCENT: Record<ToolCategory, { color: string; label: string }> = {
+  mingli: { color: '#c41e3a', label: '命理' },
+  bushi: { color: '#4f5d95', label: '占卜' },
+  qimen: { color: '#b8985f', label: '奇门' },
+  fengshui: { color: '#2f9d6a', label: '风水' },
+  xingming: { color: '#a0522d', label: '姓名' },
+  lifa: { color: '#8a8a8a', label: '历法' },
+  service: { color: '#8a8a8a', label: '服务' },
+}
+
+const byId = new Map(tools.map((t) => [t.id, t]))
+
+const visibleTools = computed(() => tools
   .filter((t) => !MP_HIDDEN_TOOL_IDS.includes(t.id))
   .map((t) => (MP_TOOL_RENAME[t.id] ? { ...t, name: MP_TOOL_RENAME[t.id] } : t)))
-const displayTools = computed(() => (showAllTools.value ? visibleTools.value : visibleTools.value.slice(0, 32)))
-const displayMedical = computed(() => (showMedical.value ? medicalTools : medicalTools.slice(0, 8)))
+
+const displayTools = computed(() => (showAllTools.value ? visibleTools.value : visibleTools.value.slice(0, COLLAPSED_COUNT)))
+
+const favTools = computed(() => favIds.value
+  .map((id) => byId.get(id))
+  .filter((t): t is Tool => !!t && !MP_HIDDEN_TOOL_IDS.includes(t.id))
+  .map((t) => (MP_TOOL_RENAME[t.id] ? { ...t, name: MP_TOOL_RENAME[t.id] } : t)))
+
+const displayMedical = computed(() => (showMedical.value ? medicalTools : medicalTools.slice(0, MEDICAL_COLLAPSED)))
 const displayAgents = computed(() =>
   (MP_VISIBLE_AGENT_IDS ? agents.filter((a) => (MP_VISIBLE_AGENT_IDS as string[]).includes(a.id)) : agents).slice(0, 6))
+
+function accentOf(t: Tool) {
+  return CATEGORY_ACCENT[t.category ?? 'service']
+}
+
+function isFav(id: string) {
+  return favIds.value.includes(id)
+}
+
+function openTool(t: Tool) {
+  if (editing.value) {
+    // 编辑态：点全部工具格 = 切换收藏
+    favIds.value = isFav(t.id) ? removeFavorite(t.id) : addFavorite(t.id)
+    return
+  }
+  recordToolUsage(t.id)
+  navigateTo(t.href)
+}
+
+function openFav(t: Tool) {
+  if (editing.value) return
+  recordToolUsage(t.id)
+  navigateTo(t.href)
+}
+
+function removeFav(id: string) {
+  favIds.value = removeFavorite(id)
+}
 
 function gradientStyle(avatar: string) {
   const g = AGENT_AVATAR_GRADIENT[avatar] || AGENT_AVATAR_GRADIENT.master
   return { background: `linear-gradient(135deg, ${g[0]}, ${g[1]})` }
 }
 
-async function fetchTools() {
-  loading.value = true
-  error.value = ''
-  try {
-    tools.value = await toolsApi.getTools()
-  } catch {
-    error.value = '加载失败，请重试'
-  } finally {
-    loading.value = false
-  }
-}
-
-function retry() { fetchTools() }
-
-onMounted(() => { fetchTools() })
+onMounted(() => { favIds.value = getFavorites() })
+onShow(() => { favIds.value = getFavorites() })
 </script>
 
 <template>
@@ -85,6 +128,11 @@ onMounted(() => { fetchTools() })
     </view>
 
     <scroll-view scroll-y class="content">
+      <!-- 今日时刻 Hero -->
+      <view class="section-px hero-wrap">
+        <today-hero />
+      </view>
+
       <!-- AI 智能解盘入口 -->
       <view class="section-px ai-wrap">
         <view class="ai-card" @tap="navigateTo('/paipan/ai?name=AI%E6%99%BA%E8%83%BD%E8%A7%A3%E7%9B%98')">
@@ -125,48 +173,70 @@ onMounted(() => { fetchTools() })
       </view>
       <!-- #endif -->
 
-      <!-- 排盘工具加载骨架 -->
-      <view v-if="loading" class="section-px section-tools">
+      <!-- 为你推荐（收藏夹） -->
+      <view class="section-px section-tools">
         <view class="sec-head">
-          <text class="sec-title">{{ secToolsTitle }}</text>
-        </view>
-        <view class="grid">
-          <view v-for="i in 8" :key="'sk-'+i" class="cell">
-            <view class="cell-icon"><view class="skel-icon" /></view>
-            <view class="skel-name" />
+          <text class="sec-title">为你推荐</text>
+          <view class="sec-link" @tap="editing = !editing">
+            <text class="sec-link-text">{{ editing ? '完成' : '管理' }}</text>
+            <app-icon :name="editing ? 'check' : 'settings'" :size="28" color="#c41e3a" />
           </view>
+        </view>
+        <view v-if="favTools.length" class="fav-grid">
+          <view
+            v-for="t in favTools"
+            :key="t.id"
+            class="fav-card"
+            :class="{ 'fav-card-editing': editing }"
+            @tap="openFav(t)"
+          >
+            <view class="fav-icon">
+              <tool-icon :icon-id="t.iconId" :size="64" />
+            </view>
+            <view class="fav-texts">
+              <text class="fav-name">{{ t.name }}</text>
+              <view class="fav-cat">
+                <view class="fav-cat-dot" :style="{ background: accentOf(t).color }" />
+                <text class="fav-cat-label" :style="{ color: accentOf(t).color }">{{ accentOf(t).label }}</text>
+              </view>
+            </view>
+            <view v-if="editing" class="fav-remove" @tap.stop="removeFav(t.id)">
+              <app-icon name="x" :size="24" color="#ffffff" />
+            </view>
+          </view>
+        </view>
+        <view v-else class="fav-empty">
+          <text class="fav-empty-text">点「管理」后在下方全部工具中选择常用工具</text>
         </view>
       </view>
 
-      <!-- 排盘工具加载失败 -->
-      <view v-else-if="error" class="section-px section-tools">
-        <view class="err-state">
-          <text class="err-txt">{{ error }}</text>
-          <view class="err-retry" @tap="retry"><text class="err-retry-t">重试</text></view>
-        </view>
-      </view>
-
-      <!-- 排盘工具网格 -->
-      <view v-else class="section-px section-tools">
+      <!-- 全部工具（收起 3 排 / 展开全部） -->
+      <view class="section-px section-tools">
         <view class="sec-head">
           <text class="sec-title">{{ secToolsTitle }}</text>
-          <view class="sec-link" @tap="navigateTo('/paipan/history?name=%E5%8E%86%E5%8F%B2%E8%AE%B0%E5%BD%95')">
-            <text class="sec-link-text">历史记录</text>
-            <app-icon name="chevron-right" :size="28" color="#c41e3a" />
-          </view>
+          <text v-if="editing" class="sec-hint">点选工具加入/移出推荐</text>
         </view>
         <view class="grid">
-          <view v-for="tool in displayTools" :key="tool.id" class="cell" @tap="navigateTo(tool.href)">
+          <view
+            v-for="tool in displayTools"
+            :key="tool.id"
+            class="cell"
+            :class="{ 'cell-editing': editing }"
+            @tap="openTool(tool)"
+          >
             <view class="cell-icon">
               <tool-icon :icon-id="tool.iconId" :size="88" />
-              <view v-if="tool.badge" class="badge badge-red" />
+              <view v-if="tool.badge && !editing" class="badge badge-red" />
+              <view v-if="editing" class="cell-fav-mark" :class="{ 'cell-fav-on': isFav(tool.id) }">
+                <app-icon :name="isFav(tool.id) ? 'check' : 'plus'" :size="22" color="#ffffff" />
+              </view>
             </view>
             <text class="cell-name">{{ tool.name }}</text>
           </view>
         </view>
-        <view v-if="visibleTools.length > 32" class="toggle" @tap="showAllTools = !showAllTools">
-          <text class="toggle-text">{{ showAllTools ? '收起' : '展开更多' }}</text>
-          <app-icon :name="showAllTools ? 'chevron-up' : 'chevron-down'" :size="32" color="#999999" />
+        <view v-if="visibleTools.length > COLLAPSED_COUNT" class="toggle" @tap="showAllTools = !showAllTools">
+          <text class="toggle-text">{{ showAllTools ? '收起' : `展开全部 ${visibleTools.length} 个工具` }}</text>
+          <app-icon :name="showAllTools ? 'chevron-up' : 'chevron-down'" :size="32" color="#c41e3a" />
         </view>
       </view>
 
@@ -187,8 +257,8 @@ onMounted(() => { fetchTools() })
             <text class="cell-name">{{ tool.name }}</text>
           </view>
         </view>
-        <view v-if="medicalTools.length > 8" class="toggle" @tap="showMedical = !showMedical">
-          <text class="toggle-text">{{ showMedical ? '收起' : '展开更多' }}</text>
+        <view v-if="medicalTools.length > MEDICAL_COLLAPSED" class="toggle" @tap="showMedical = !showMedical">
+          <text class="toggle-text">{{ showMedical ? '收起' : `展开全部 ${medicalTools.length} 个工具` }}</text>
           <app-icon :name="showMedical ? 'chevron-up' : 'chevron-down'" :size="32" color="#999999" />
         </view>
       </view>
@@ -242,8 +312,11 @@ onMounted(() => { fetchTools() })
 .content { position: absolute; top: 88rpx; bottom: 112rpx; left: 0; right: 0; }
 .section-px { padding-left: 32rpx; padding-right: 32rpx; }
 
+/* 今日时刻 */
+.hero-wrap { padding-top: 32rpx; }
+
 /* AI 解盘卡 */
-.ai-wrap { padding-top: 32rpx; }
+.ai-wrap { padding-top: 24rpx; }
 .ai-card {
   position: relative; overflow: hidden;
   border-radius: 32rpx; padding: 32rpx;
@@ -296,20 +369,79 @@ onMounted(() => { fetchTools() })
 .sec-title { font-size: 32rpx; font-weight: 600; color: var(--text-ink, #2c2c2c); }
 .sec-title-row { display: flex; align-items: center; gap: 16rpx; }
 .sec-link { display: flex; align-items: center; gap: 4rpx; }
-.sec-link-text { font-size: 24rpx; color: var(--brand, var(--brand)); }
+.sec-link-text { font-size: 24rpx; color: var(--brand); }
+.sec-hint { font-size: 22rpx; color: var(--text-soft, #999); }
+
+/* 为你推荐（收藏夹）：2 列横卡 */
+.fav-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20rpx; }
+.fav-card {
+  position: relative;
+  display: flex; align-items: center; gap: 20rpx;
+  padding: 24rpx;
+  border-radius: 24rpx;
+  background: var(--card, #fff);
+  border: 2rpx solid var(--line, #e8e0d5);
+  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.04);
+}
+.fav-card-editing { animation: fav-wiggle 0.35s ease-in-out infinite; }
+@keyframes fav-wiggle {
+  0%, 100% { transform: rotate(-0.6deg); }
+  50% { transform: rotate(0.6deg); }
+}
+.fav-icon {
+  width: 80rpx; height: 80rpx; flex-shrink: 0;
+  border-radius: 20rpx; background: rgba(0, 0, 0, 0.03);
+  display: flex; align-items: center; justify-content: center;
+}
+.fav-texts { min-width: 0; flex: 1; }
+.fav-name {
+  display: block;
+  font-family: Georgia, 'Songti SC', serif;
+  font-size: 28rpx; font-weight: 700; color: var(--text-ink, #2c2c2c);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.fav-cat { margin-top: 6rpx; display: flex; align-items: center; gap: 8rpx; }
+.fav-cat-dot { width: 12rpx; height: 12rpx; border-radius: 50%; }
+.fav-cat-label { font-size: 22rpx; }
+.fav-remove {
+  position: absolute; right: -10rpx; top: -10rpx; z-index: 5;
+  width: 40rpx; height: 40rpx; border-radius: 50%;
+  background: var(--brand);
+  border: 4rpx solid var(--card, #fff);
+  display: flex; align-items: center; justify-content: center;
+}
+.fav-empty {
+  padding: 48rpx 0; text-align: center;
+  border: 2rpx dashed var(--line, #e8e0d5); border-radius: 24rpx;
+}
+.fav-empty-text { font-size: 24rpx; color: var(--text-soft, #999); }
 
 /* 工具网格 4 列 */
 .grid { display: grid; grid-template-columns: repeat(4, 1fr); row-gap: 24rpx; }
 .cell { display: flex; flex-direction: column; align-items: center; gap: 12rpx; padding: 16rpx 0; }
+.cell-editing { animation: fav-wiggle 0.35s ease-in-out infinite; }
 .cell-icon { position: relative; }
 .badge { position: absolute; top: -4rpx; right: -4rpx; width: 16rpx; height: 16rpx; border-radius: 50%; }
-.badge-red { background: var(--brand, var(--brand)); }
+.badge-red { background: var(--brand); }
 .badge-green { background: #10b981; }
+.cell-fav-mark {
+  position: absolute; top: -8rpx; right: -8rpx;
+  width: 36rpx; height: 36rpx; border-radius: 50%;
+  background: rgba(0, 0, 0, 0.35);
+  border: 3rpx solid var(--card, #fff);
+  display: flex; align-items: center; justify-content: center;
+}
+.cell-fav-on { background: #2f9d6a; }
 .cell-name { font-size: 24rpx; color: var(--text-ink, #2c2c2c); text-align: center; line-height: 1.2; }
 
 /* 展开/收起 */
-.toggle { display: flex; align-items: center; justify-content: center; gap: 8rpx; padding: 24rpx 0; margin-top: 8rpx; }
-.toggle-text { font-size: 28rpx; color: var(--text-soft, #999); }
+.toggle {
+  display: flex; align-items: center; justify-content: center; gap: 8rpx;
+  margin-top: 20rpx; padding: 20rpx 0;
+  border: 2rpx solid rgba(196, 30, 58, 0.3); border-radius: 999rpx;
+  background: rgba(196, 30, 58, 0.05);
+}
+.toggle-text { font-size: 28rpx; font-weight: 500; color: var(--brand); }
 
 /* 智能体横滚 */
 .agents-scroll { width: 100%; white-space: nowrap; }
@@ -327,15 +459,6 @@ onMounted(() => { fetchTools() })
 }
 .agent-name { font-size: 28rpx; font-weight: 500; color: var(--text-ink, #2c2c2c); margin-top: 16rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .agent-desc { font-size: 24rpx; color: var(--text-soft, #999); margin-top: 4rpx; white-space: normal; line-height: 1.3; }
-
-/* 加载骨架 */
-.skel-icon { width: 88rpx; height: 88rpx; border-radius: 20rpx; background: #e8e0d5; }
-.skel-name { width: 72rpx; height: 20rpx; margin-top: 12rpx; background: #e8e0d5; border-radius: 6rpx; }
-/* 错误重试 */
-.err-state { display: flex; flex-direction: column; align-items: center; padding: 80rpx 0; }
-.err-txt { font-size: 28rpx; color: #999; margin-bottom: 24rpx; }
-.err-retry { padding: 16rpx 48rpx; border-radius: 999rpx; background: var(--brand, var(--brand)); }
-.err-retry-t { font-size: 26rpx; color: #fff; }
 
 /* 合规提示 */
 .disclaimer { padding-top: 16rpx; padding-bottom: 32rpx; }
