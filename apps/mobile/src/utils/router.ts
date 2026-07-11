@@ -363,11 +363,8 @@ const ROUTE_MAP: Record<string, string> = {
   '/videos/publish': '/pkg-video/publish/index',
   // 视频创作者中心(发布页"商品管理"入口、首页内6页跳转)。原型嵌套路径->扁平vue路径
   '/videos/creator': '/pkg-video/creator/index',
-  '/videos/creator/analytics': '/pkg-video/creator/analytics/index',
-  '/videos/creator/sales': '/pkg-video/creator/sales/index',
-  '/videos/creator/products/add': '/pkg-video/creator/products-add/index',
-  '/videos/creator/withdraw': '/pkg-video/creator/withdraw/index',
-  '/videos/creator/earnings/history': '/pkg-video/creator/earnings-history/index',
+  // C 档收敛（2026-07-11 短视频 V0 重构）：analytics 并入 creator 首页 / sales+withdraw 并入 earnings-history / products-add 退役（创作者不自建商品，改「去选品」）
+  '/videos/creator/earnings-history': '/pkg-video/creator/earnings-history/index',
   '/videos/creator/settings': '/pkg-video/creator/settings/index',
   // 商家入驻链路（引导→申请→状态中枢→编辑/签约/保证金/协议）。原型嵌套路径->扁平vue路径
   '/merchant/join': '/pkg-merchant/join/index',

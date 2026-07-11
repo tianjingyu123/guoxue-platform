@@ -1,17 +1,14 @@
 <template>
   <view class="video-search-page">
-    <!-- 顶部搜索栏 -->
+    <!-- 顶部搜索栏：白底胶囊 + 描边 + 取消返回上一页 -->
     <view class="vs-header" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="vs-header-row">
-        <view class="vs-back" @tap="goBack">
-          <AppIcon name="arrow-left" :size="36" color="#1A1A1A" />
-        </view>
-        <view class="vs-input-wrap">
-          <AppIcon name="search" :size="28" color="#9CA3AF" />
+        <view class="vs-input-wrap" :class="{ filled: query }">
+          <AppIcon name="search" :size="30" color="#999999" :stroke-width="2" />
           <input
             class="vs-input"
             type="text"
-            placeholder="搜索视频"
+            placeholder="搜索短视频"
             placeholder-class="vs-input-ph"
             v-model="query"
             :focus="true"
@@ -19,104 +16,216 @@
             @input="onInput"
             @confirm="doSearch(query)"
           />
-          <view v-if="query" class="vs-clear" @tap="clearQuery">
-            <AppIcon name="x" :size="28" color="#9CA3AF" />
+          <view v-if="query" class="vs-clear" hover-class="vs-tap" @tap="clearQuery">
+            <AppIcon name="x" :size="20" color="#FFFFFF" :stroke-width="2.6" />
           </view>
         </view>
-        <text class="vs-search-btn" @tap="doSearch(query)">搜索</text>
+        <text class="vs-cancel" hover-class="vs-tap" @tap="goBack">取消</text>
       </view>
     </view>
 
     <view class="vs-body">
-      <!-- 未搜索：历史 + 热门 -->
+      <!-- ===== 未输入态：热门搜索 + 历史搜索 ===== -->
       <block v-if="!searched">
-        <view v-if="history.length > 0" class="vs-section">
-          <view class="vs-section-head">
-            <text class="vs-section-title">搜索历史</text>
-            <view class="vs-clear-history" @tap="clearHistory">
-              <AppIcon name="x" :size="22" color="#9CA3AF" />
-              <text class="vs-clear-txt">清空</text>
-            </view>
+        <!-- 热门搜索（真连 /search/hot；前 3 名朱红序号 + 火苗） -->
+        <block v-if="hotKeywords.length > 0">
+          <view class="vs-sec">
+            <text class="vs-sec-title">热门搜索</text>
           </view>
-          <view class="vs-chips">
-            <view
-              v-for="h in history"
-              :key="h"
-              class="vs-chip"
-              @tap="doSearch(h)"
-            >
-              <text class="vs-chip-txt">{{ h }}</text>
-            </view>
-          </view>
-        </view>
-
-        <view class="vs-section">
-          <view class="vs-hot-head">
-            <AppIcon name="trending-up" :size="28" color="#c41e3a" />
-            <text class="vs-section-title">热门搜索</text>
-          </view>
-          <view class="vs-chips">
+          <view class="vs-tags">
             <view
               v-for="(kw, i) in hotKeywords"
               :key="kw"
-              class="vs-chip"
-              :class="{ 'vs-chip-hot': i < 3 }"
+              class="vs-tag"
+              hover-class="vs-tap"
               @tap="doSearch(kw)"
             >
-              <text v-if="i < 3" class="vs-chip-rank">{{ i + 1 }}</text>
-              <text class="vs-chip-txt" :class="{ 'vs-chip-txt-hot': i < 3 }">{{ kw }}</text>
+              <text class="vs-tag-rank" :class="{ plain: i >= 3 }">{{ i + 1 }}</text>
+              <text class="vs-tag-txt">{{ kw }}</text>
+              <AppIcon v-if="i < 3" name="flame" :size="22" color="#C41E3A" :fill="true" />
             </view>
           </view>
-        </view>
+        </block>
+
+        <!-- 历史搜索（本地存储，可清空；无历史整块隐藏） -->
+        <block v-if="history.length > 0">
+          <view class="vs-sec">
+            <text class="vs-sec-title">历史搜索</text>
+            <view class="vs-sec-op" hover-class="vs-tap" @tap="clearHistory">
+              <AppIcon name="history" :size="24" color="#999999" :stroke-width="2" />
+              <text class="vs-sec-op-txt">清空</text>
+            </view>
+          </view>
+          <view class="vs-tags">
+            <view
+              v-for="h in history"
+              :key="h"
+              class="vs-tag vs-tag-history"
+              hover-class="vs-tap"
+              @tap="doSearch(h)"
+            >
+              <text class="vs-tag-txt vs-tag-txt-history">{{ h }}</text>
+            </view>
+          </view>
+        </block>
       </block>
 
-      <!-- 已搜索：结果列表（三态） -->
+      <!-- ===== 已搜索态 ===== -->
       <block v-else>
-        <view v-if="loading" class="vs-empty"><text class="vs-empty-txt">搜索中...</text></view>
+        <!-- 骨架态：搜索请求中（双列错位微光） -->
+        <view v-if="loading" class="vs-feed">
+          <view class="vs-col">
+            <view class="vs-sk vs-sk-cover" style="padding-bottom: 133.33%" />
+            <view class="vs-sk vs-sk-line" style="width: 90%" />
+            <view class="vs-sk vs-sk-cover" style="padding-bottom: 177.78%" />
+          </view>
+          <view class="vs-col">
+            <view class="vs-sk vs-sk-cover" style="padding-bottom: 177.78%" />
+            <view class="vs-sk vs-sk-line" style="width: 70%" />
+            <view class="vs-sk vs-sk-cover" style="padding-bottom: 133.33%" />
+          </view>
+        </view>
+
+        <!-- 错误态 -->
         <view v-else-if="error" class="vs-empty">
-          <text class="vs-empty-txt">{{ error }}</text>
-          <view class="vs-retry" @tap="retry"><text class="vs-retry-txt">重试</text></view>
+          <AppIcon name="video" :size="120" color="#D8D0C4" />
+          <text class="vs-empty-msg">{{ error }}</text>
+          <view class="vs-ghost-btn" hover-class="vs-tap" @tap="retry"><text class="vs-ghost-txt">重试</text></view>
         </view>
-        <template v-else>
-        <text class="vs-result-count">找到 {{ results.length }} 个相关视频</text>
-        <view v-if="results.length === 0" class="vs-empty">
-          <text class="vs-empty-txt">未找到相关视频</text>
-        </view>
-        <view v-else class="vs-results">
-          <view
-            v-for="video in results"
-            :key="video.id"
-            class="vs-result"
-            @tap="goDetail(video.id)"
-          >
-            <view class="vs-result-cover">
-              <smart-cover class="vs-result-img" :src="video.cover" :title="video.title" type="video" />
-              <text class="vs-result-dur">{{ video.duration }}</text>
-              <view class="vs-result-play-wrap">
-                <view class="vs-result-play">
-                  <AppIcon name="play" :size="32" color="#ffffff" :fill="true" />
+
+        <!-- 结果态：双列瀑布卡（复用 V1 卡样式） -->
+        <template v-else-if="results.length > 0">
+          <view class="vs-feed">
+            <view class="vs-col">
+              <view
+                v-for="(video, i) in resultLeft"
+                :key="video.id"
+                class="vs-card"
+                hover-class="vs-card-hover"
+                :hover-stay-time="120"
+                @tap="goDetail(video.id)"
+              >
+                <view class="vs-cover" :style="{ paddingBottom: ratioByIndex(i * 2) }">
+                  <smart-cover class="vs-cover-img" :src="video.cover" :title="video.title" type="video" />
+                  <view class="vs-cover-shade" />
+                  <view class="vs-plays">
+                    <AppIcon name="play" :size="20" color="#ffffff" :fill="true" />
+                    <text class="vs-plays-txt num">{{ formatNum(video.views) }}</text>
+                  </view>
+                </view>
+                <view class="vs-info">
+                  <text class="vs-card-title">{{ video.title }}</text>
+                  <view class="vs-author">
+                    <image lazy-load class="vs-avatar" :src="video.authorAvatar" mode="aspectFill" />
+                    <text class="vs-author-name">{{ video.author }}</text>
+                    <text class="vs-card-dur num">{{ video.duration }}</text>
+                  </view>
                 </view>
               </view>
             </view>
-            <view class="vs-result-info">
-              <image lazy-load class="vs-result-avatar" :src="video.authorAvatar" mode="aspectFill" />
-              <view class="vs-result-meta">
-                <text class="vs-result-title">{{ video.title }}</text>
-                <view class="vs-result-stats">
-                  <text class="vs-stat">{{ video.author }}</text>
-                  <view class="vs-stat-ic">
-                    <AppIcon name="eye" :size="22" color="#9CA3AF" />
-                    <text class="vs-stat">{{ (video.views / 1000).toFixed(1) }}k</text>
+            <view class="vs-col">
+              <view
+                v-for="(video, i) in resultRight"
+                :key="video.id"
+                class="vs-card"
+                hover-class="vs-card-hover"
+                :hover-stay-time="120"
+                @tap="goDetail(video.id)"
+              >
+                <view class="vs-cover" :style="{ paddingBottom: ratioByIndex(i * 2 + 1) }">
+                  <smart-cover class="vs-cover-img" :src="video.cover" :title="video.title" type="video" />
+                  <view class="vs-cover-shade" />
+                  <view class="vs-plays">
+                    <AppIcon name="play" :size="20" color="#ffffff" :fill="true" />
+                    <text class="vs-plays-txt num">{{ formatNum(video.views) }}</text>
                   </view>
-                  <view class="vs-stat-ic">
-                    <AppIcon name="clock" :size="22" color="#9CA3AF" />
-                    <text class="vs-stat">{{ video.publishedAt }}</text>
+                </view>
+                <view class="vs-info">
+                  <text class="vs-card-title">{{ video.title }}</text>
+                  <view class="vs-author">
+                    <image lazy-load class="vs-avatar" :src="video.authorAvatar" mode="aspectFill" />
+                    <text class="vs-author-name">{{ video.author }}</text>
+                    <text class="vs-card-dur num">{{ video.duration }}</text>
                   </view>
                 </view>
               </view>
             </view>
           </view>
-        </view>
+        </template>
+
+        <!-- 空结果态：水墨留白空态 + 大家都在看（真连热门兜底） -->
+        <template v-else>
+          <view class="vs-empty">
+            <AppIcon name="video" :size="120" color="#D8D0C4" />
+            <text class="vs-empty-msg">没有找到相关视频，换个词试试</text>
+          </view>
+          <block v-if="hotVideos.length > 0">
+            <view class="vs-sec">
+              <text class="vs-sec-title">大家都在看</text>
+            </view>
+            <view class="vs-feed">
+              <view class="vs-col">
+                <view
+                  v-for="(video, i) in hotLeft"
+                  :key="video.id"
+                  class="vs-card"
+                  hover-class="vs-card-hover"
+                  :hover-stay-time="120"
+                  @tap="goDetail(video.id)"
+                >
+                  <view class="vs-cover" :style="{ paddingBottom: ratioByIndex(i * 2) }">
+                    <smart-cover class="vs-cover-img" :src="video.coverUrl" :title="video.title" type="video" />
+                    <view class="vs-cover-shade" />
+                    <view class="vs-plays">
+                      <AppIcon name="play" :size="20" color="#ffffff" :fill="true" />
+                      <text class="vs-plays-txt num">{{ formatNum(video.plays) }}</text>
+                    </view>
+                  </view>
+                  <view class="vs-info">
+                    <text class="vs-card-title">{{ video.title }}</text>
+                    <view class="vs-author">
+                      <image lazy-load class="vs-avatar" :src="video.author.avatar" mode="aspectFill" />
+                      <text class="vs-author-name">{{ video.author.name }}</text>
+                      <view class="vs-likes">
+                        <AppIcon name="heart" :size="22" color="#999999" :stroke-width="1.6" />
+                        <text class="vs-likes-txt num">{{ formatNum(video.likes) }}</text>
+                      </view>
+                    </view>
+                  </view>
+                </view>
+              </view>
+              <view class="vs-col">
+                <view
+                  v-for="(video, i) in hotRight"
+                  :key="video.id"
+                  class="vs-card"
+                  hover-class="vs-card-hover"
+                  :hover-stay-time="120"
+                  @tap="goDetail(video.id)"
+                >
+                  <view class="vs-cover" :style="{ paddingBottom: ratioByIndex(i * 2 + 1) }">
+                    <smart-cover class="vs-cover-img" :src="video.coverUrl" :title="video.title" type="video" />
+                    <view class="vs-cover-shade" />
+                    <view class="vs-plays">
+                      <AppIcon name="play" :size="20" color="#ffffff" :fill="true" />
+                      <text class="vs-plays-txt num">{{ formatNum(video.plays) }}</text>
+                    </view>
+                  </view>
+                  <view class="vs-info">
+                    <text class="vs-card-title">{{ video.title }}</text>
+                    <view class="vs-author">
+                      <image lazy-load class="vs-avatar" :src="video.author.avatar" mode="aspectFill" />
+                      <text class="vs-author-name">{{ video.author.name }}</text>
+                      <view class="vs-likes">
+                        <AppIcon name="heart" :size="22" color="#999999" :stroke-width="1.6" />
+                        <text class="vs-likes-txt num">{{ formatNum(video.likes) }}</text>
+                      </view>
+                    </view>
+                  </view>
+                </view>
+              </view>
+            </view>
+          </block>
         </template>
       </block>
     </view>
@@ -124,11 +233,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import SmartCover from '@/components/common/smart-cover.vue'
 import { navigateTo } from '@/utils/router'
-import { videoApi, videoFallbackKeywords, fetchVideoHotKeywords, type VideoSearchResult } from '@/lib/video-data'
+import { videoApi, videoFallbackKeywords, fetchVideoHotKeywords, formatVideoNumber, type VideoSearchResult, type VideoListItem } from '@/lib/video-data'
 
 const statusBarHeight = ref(0)
 uni.getSystemInfo({ success: (r) => { statusBarHeight.value = r.statusBarHeight || 0 } })
@@ -168,6 +277,8 @@ async function doSearch(q: string) {
   error.value = ''
   try {
     results.value = await videoApi.search({ keyword: q.trim() })
+    // 无结果：拉热门兜底「大家都在看」，避免死胡同
+    if (results.value.length === 0) loadHotVideos()
   } catch (e) {
     error.value = (e as Error)?.message || '搜索失败，请重试'
     results.value = []
@@ -184,6 +295,30 @@ function clearHistory() {
   history.value = []
   saveHistory()
 }
+
+const formatNum = formatVideoNumber
+
+// 空结果态兜底「大家都在看」：真连 GET /videos/items?sort=hot 取前 4 条热门（不造假）
+const hotVideos = ref<VideoListItem[]>([])
+async function loadHotVideos() {
+  if (hotVideos.value.length > 0) return
+  try {
+    hotVideos.value = (await videoApi.listItems({ sort: 'hot' })).slice(0, 4)
+  } catch { /* 兜底推荐失败则不显示，不阻断空结果提示 */ }
+}
+// 结果卡双列瀑布：按顺序前半 / 后半（与 V1 列表页一致）
+const resultHalf = computed(() => Math.ceil(results.value.length / 2))
+const resultLeft = computed(() => results.value.slice(0, resultHalf.value))
+const resultRight = computed(() => results.value.slice(resultHalf.value))
+// 推荐卡双列
+const hotHalf = computed(() => Math.ceil(hotVideos.value.length / 2))
+const hotLeft = computed(() => hotVideos.value.slice(0, hotHalf.value))
+const hotRight = computed(() => hotVideos.value.slice(hotHalf.value))
+// 封面比例：照搬 V1 index%3 的 3/4、9/16、5/4 交替（撑 padding-top）
+function ratioByIndex(i: number): string {
+  const r = i % 3 === 0 ? 4 / 3 : i % 3 === 1 ? 16 / 9 : 5 / 4
+  return r * 100 + '%'
+}
 function goBack() {
   uni.navigateBack({ fail: () => navigateTo('/videos') })
 }
@@ -194,140 +329,171 @@ function goDetail(id: string) {
 </script>
 
 <style scoped>
+/* 视觉 token：宣纸白 #FAF8F5 页底 / 卡片白 / 朱红 #C41E3A / 文字 #2C2C2C·#6E6E73·#999 / 圆角 36·999 */
 .video-search-page {
   min-height: 100vh;
-  background-color: #FFFFFF;
+  background-color: #FAF8F5;
 }
+.num { font-variant-numeric: tabular-nums; }
+.vs-tap { opacity: 0.6; }
 
-/* 顶部搜索栏 */
+/* 顶部搜索栏：白胶囊 + 描边 + 取消 */
 .vs-header {
   position: sticky;
   top: 0;
-  z-index: 10;
-  background-color: #FFFFFF;
-  border-bottom: 2rpx solid #F0F0F0;
+  z-index: 40;
+  background-color: #FAF8F5;
 }
 .vs-header-row {
   display: flex;
   align-items: center;
-  gap: 16rpx;
-  padding: 0 32rpx;
-  height: 96rpx;
+  gap: 24rpx;
+  padding: 24rpx 40rpx 20rpx;
 }
-.vs-back { flex-shrink: 0; }
 .vs-input-wrap {
   flex: 1;
   display: flex;
   align-items: center;
   gap: 16rpx;
   height: 72rpx;
-  padding: 0 24rpx;
-  border-radius: 16rpx;
-  background-color: #F3F4F6;
+  padding: 0 28rpx;
+  border-radius: 999rpx;
+  background-color: #FFFFFF;
+  border: 1rpx solid #EDE7DD;
 }
-.vs-input { flex: 1; font-size: 28rpx; color: #1A1A1A; }
-.vs-input-ph { color: #9CA3AF; }
-.vs-clear { flex-shrink: 0; }
-.vs-search-btn { font-size: 28rpx; font-weight: 500; color: var(--brand); flex-shrink: 0; }
+.vs-input { flex: 1; font-size: 26rpx; color: #999999; }
+.vs-input-wrap.filled .vs-input { color: #2C2C2C; }
+.vs-input-ph { color: #999999; }
+.vs-clear {
+  flex-shrink: 0;
+  width: 34rpx;
+  height: 34rpx;
+  border-radius: 50%;
+  background-color: #E5E0D8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.vs-cancel { font-size: 28rpx; color: #6E6E73; flex-shrink: 0; }
 
-.vs-body { padding: 32rpx 32rpx 160rpx; }
+.vs-body { padding-bottom: 60rpx; }
 
-/* section */
-.vs-section { margin-bottom: 48rpx; }
-.vs-section-head {
+/* 分区标题 */
+.vs-sec {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 24rpx;
+  padding: 36rpx 40rpx 20rpx;
 }
-.vs-hot-head {
+.vs-sec-title { font-size: 30rpx; font-weight: 700; color: #2C2C2C; }
+.vs-sec-op { display: flex; align-items: center; gap: 8rpx; }
+.vs-sec-op-txt { font-size: 24rpx; color: #999999; }
+
+/* 标签云胶囊：白底描边；前 3 名朱红序号 + 火苗 */
+.vs-tags { display: flex; flex-wrap: wrap; gap: 20rpx; padding: 0 40rpx; }
+.vs-tag {
   display: flex;
   align-items: center;
   gap: 12rpx;
-  margin-bottom: 24rpx;
+  padding: 14rpx 28rpx;
+  border-radius: 999rpx;
+  background-color: #FFFFFF;
+  border: 1rpx solid #EDE7DD;
 }
-.vs-section-title { font-size: 28rpx; font-weight: 600; color: #1A1A1A; }
-.vs-clear-history { display: flex; align-items: center; gap: 4rpx; }
-.vs-clear-txt { font-size: 22rpx; color: #9CA3AF; }
+.vs-tag-rank { font-size: 24rpx; font-weight: 700; color: #C41E3A; }
+.vs-tag-rank.plain { color: #999999; font-weight: 400; }
+.vs-tag-txt { font-size: 26rpx; color: #2C2C2C; }
+.vs-tag-history { }
+.vs-tag-txt-history { color: #6E6E73; }
 
-.vs-chips { display: flex; flex-wrap: wrap; gap: 16rpx; }
-.vs-chip {
+/* 空 / 错误态：水墨留白 */
+.vs-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24rpx;
+  padding: 120rpx 80rpx 40rpx;
+}
+.vs-empty-msg { font-size: 28rpx; color: #6E6E73; text-align: center; }
+.vs-ghost-btn {
+  margin-top: 8rpx;
+  width: 300rpx;
+  height: 84rpx;
+  border-radius: 999rpx;
+  border: 1rpx solid #E5DED2;
+  background-color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.vs-ghost-txt { font-size: 28rpx; color: #2C2C2C; }
+
+/* 双列瀑布卡流（复用 V1 卡样式） */
+.vs-feed { display: flex; gap: 20rpx; padding: 20rpx 40rpx; }
+.vs-col { flex: 1; display: flex; flex-direction: column; gap: 20rpx; min-width: 0; }
+.vs-card {
+  background-color: #FFFFFF;
+  border-radius: 36rpx;
+  overflow: hidden;
+  box-shadow: 0 4rpx 20rpx rgba(44, 44, 44, 0.05);
+}
+.vs-card-hover { transform: scale(0.97); transition: transform 0.12s; }
+.vs-cover { position: relative; width: 100%; height: 0; overflow: hidden; }
+.vs-cover-img { position: absolute; inset: 0; width: 100%; height: 100%; }
+.vs-cover-shade {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 88rpx;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.45) 100%);
+}
+.vs-plays {
+  position: absolute;
+  left: 16rpx;
+  bottom: 14rpx;
   display: flex;
   align-items: center;
   gap: 8rpx;
-  padding: 12rpx 24rpx;
-  border-radius: 999rpx;
-  background-color: #F3F4F6;
 }
-.vs-chip-hot { background-color: rgba(196, 30, 58, 0.1); }
-.vs-chip-rank { font-size: 26rpx; font-weight: 700; color: var(--brand); }
-.vs-chip-txt { font-size: 28rpx; color: #1A1A1A; }
-.vs-chip-txt-hot { color: var(--brand); font-weight: 500; }
+.vs-plays-txt { font-size: 22rpx; color: #FFFFFF; }
 
-/* 结果 */
-.vs-result-count { display: block; font-size: 22rpx; color: #9CA3AF; margin-bottom: 32rpx; }
-.vs-empty { text-align: center; padding: 128rpx 0; display: flex; flex-direction: column; align-items: center; gap: 24rpx; }
-.vs-empty-txt { font-size: 28rpx; color: #9CA3AF; }
-.vs-retry { padding: 14rpx 44rpx; background: var(--brand); border-radius: 999rpx; }
-.vs-retry-txt { color: #fff; font-size: 26rpx; }
-
-.vs-results { display: flex; flex-direction: column; gap: 32rpx; }
-.vs-result-cover {
-  position: relative;
-  width: 100%;
-  height: 352rpx;
-  border-radius: 16rpx;
-  overflow: hidden;
-  margin-bottom: 16rpx;
-}
-.vs-result-img { width: 100%; height: 100%; background-color: #E5E5E5; }
-.vs-result-dur {
-  position: absolute;
-  bottom: 16rpx;
-  right: 16rpx;
-  font-size: 22rpx;
-  color: #ffffff;
-  background-color: rgba(0, 0, 0, 0.7);
-  padding: 4rpx 12rpx;
-  border-radius: 8rpx;
-}
-.vs-result-play-wrap {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.vs-result-play {
-  width: 96rpx;
-  height: 96rpx;
-  border-radius: 50%;
-  background-color: rgba(0, 0, 0, 0.4);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.vs-result-info { display: flex; gap: 16rpx; }
-.vs-result-avatar {
-  width: 64rpx;
-  height: 64rpx;
-  border-radius: 50%;
-  flex-shrink: 0;
-  margin-top: 4rpx;
-  background-color: #E5E5E5;
-}
-.vs-result-meta { flex: 1; min-width: 0; }
-.vs-result-title {
+.vs-info { padding: 18rpx 20rpx 20rpx; display: flex; flex-direction: column; gap: 14rpx; }
+.vs-card-title {
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   overflow: hidden;
-  font-size: 28rpx;
+  font-size: 26rpx;
   font-weight: 500;
-  color: #1A1A1A;
-  margin-bottom: 8rpx;
+  color: #2C2C2C;
+  line-height: 1.45;
 }
-.vs-result-stats { display: flex; align-items: center; gap: 16rpx; }
-.vs-stat-ic { display: flex; align-items: center; gap: 4rpx; }
-.vs-stat { font-size: 22rpx; color: #9CA3AF; }
+.vs-author { display: flex; align-items: center; gap: 12rpx; min-width: 0; }
+.vs-avatar { width: 40rpx; height: 40rpx; border-radius: 50%; flex-shrink: 0; background-color: #E5E5E5; }
+.vs-author-name {
+  font-size: 22rpx;
+  color: #6E6E73;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.vs-card-dur { margin-left: auto; font-size: 22rpx; color: #999999; flex-shrink: 0; }
+.vs-likes { margin-left: auto; display: flex; align-items: center; gap: 6rpx; flex-shrink: 0; }
+.vs-likes-txt { font-size: 22rpx; color: #999999; }
+
+/* 骨架态：与 V1 同一套微光 */
+.vs-sk {
+  border-radius: 36rpx;
+  background: linear-gradient(90deg, #EFEBE4 25%, #F7F4EF 37%, #EFEBE4 63%);
+  background-size: 400% 100%;
+  animation: vs-shimmer 1.4s ease infinite;
+}
+.vs-sk-cover { width: 100%; height: 0; }
+.vs-sk-line { height: 28rpx; border-radius: 8rpx; }
+@keyframes vs-shimmer {
+  0% { background-position: 100% 50%; }
+  100% { background-position: 0 50%; }
+}
 </style>

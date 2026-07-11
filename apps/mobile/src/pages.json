@@ -1494,30 +1494,6 @@
           }
         },
         {
-          "path": "creator/analytics/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "creator/sales/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "creator/products-add/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "creator/withdraw/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
           "path": "creator/earnings-history/index",
           "style": {
             "navigationStyle": "custom"

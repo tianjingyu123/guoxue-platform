@@ -58,6 +58,12 @@ export interface VideoItem {
   hotComments: VideoHotComment[]
   /** 来源圈子（内容圈子化：每条视频标明出处，顶栏来源胶囊可点跳圈子详情） */
   circle?: { id: string; name: string }
+  /**
+   * 「仅自己可见」灰标（内容被机审降级时仅作者可见的展示标识）。
+   * 纯前瞻声明：当前列表/详情接口尚未下发该字段，故 UI 恒不显示；
+   * 后端补字段后自动生效。不参与任何交互/数据组装逻辑。
+   */
+  selfOnly?: boolean
 }
 
 export const mockVideos: VideoItem[] = [

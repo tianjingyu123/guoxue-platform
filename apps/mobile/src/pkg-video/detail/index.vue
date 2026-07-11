@@ -122,38 +122,56 @@
         </view>
       </view>
 
-      <!-- 点赞（已赞 → 朱红实心） -->
+      <!-- 点赞（已赞 → 朱红实心·爆红心 scale 动效 200ms·纯 transform 无 filter） -->
       <view class="vp__act" @tap="onLike">
-        <AppIcon name="heart" :size="56" :color="currentVideo.isLiked ? '#c41e3a' : '#ffffff'" :fill="currentVideo.isLiked" />
-        <text class="vp__act-txt">{{ fmt(currentVideo.likes) }}</text>
+        <view class="vp__act-ico" :class="{ 'vp__act-ico--liked': currentVideo.isLiked }">
+          <AppIcon name="heart" :size="58" :color="currentVideo.isLiked ? '#C41E3A' : 'rgba(255,255,255,0.94)'" :fill="currentVideo.isLiked" />
+        </view>
+        <text class="vp__act-txt vp__act-txt--num">{{ fmt(currentVideo.likes) }}</text>
       </view>
 
       <!-- 评论 -->
       <view class="vp__act" @tap="openComments">
-        <AppIcon name="message-circle" :size="52" color="#ffffff" />
-        <text class="vp__act-txt">{{ fmt(currentVideo.comments) }}</text>
+        <view class="vp__act-ico">
+          <AppIcon name="message-circle" :size="54" color="rgba(255,255,255,0.94)" />
+        </view>
+        <text class="vp__act-txt vp__act-txt--num">{{ fmt(currentVideo.comments) }}</text>
       </view>
 
-      <!-- 收藏 -->
+      <!-- 收藏（收藏 → 金星 scale 动效 240ms·star 图标·金 #C9A96E） -->
       <view class="vp__act" @tap="onCollect">
-        <AppIcon name="bookmark" :size="52" :color="currentVideo.isCollected ? '#F5A623' : '#ffffff'" :fill="currentVideo.isCollected" />
+        <view class="vp__act-ico" :class="{ 'vp__act-ico--starred': currentVideo.isCollected }">
+          <AppIcon name="star" :size="54" :color="currentVideo.isCollected ? '#C9A96E' : 'rgba(255,255,255,0.94)'" :fill="currentVideo.isCollected" />
+        </view>
         <text class="vp__act-txt">收藏</text>
       </view>
 
       <!-- 分享（弹分享面板：复制链接 + 微信内转发引导） -->
       <view class="vp__act" @tap.stop="onShare">
-        <AppIcon name="share-2" :size="52" color="#ffffff" />
-        <text class="vp__act-txt">{{ fmt(currentVideo.shares) }}</text>
+        <view class="vp__act-ico">
+          <AppIcon name="share-2" :size="54" color="rgba(255,255,255,0.94)" />
+        </view>
+        <text class="vp__act-txt vp__act-txt--num">{{ fmt(currentVideo.shares) }}</text>
       </view>
     </view>
 
     <!-- 底部信息区（V0 info：作者名 15px 粗体 + 认证金描边徽章 + 标题 14px/1.6 + 推广浮卡） -->
     <view class="vp__bottom" :style="{ paddingBottom: 'calc(' + safeBottom + 'px + 56rpx)' }">
+      <!-- 「仅自己可见」灰标（精修点6·内容被机审降级时仅作者可见·灰底不突兀·当前接口未下发该字段故恒不显示） -->
+      <view v-if="currentVideo.selfOnly" class="vp__self-only">
+        <AppIcon name="eye-off" :size="22" color="rgba(255,255,255,0.85)" />
+        <text class="vp__self-only-txt">仅自己可见</text>
+      </view>
       <view class="vp__author-row">
         <text class="vp__author-name">{{ currentVideo.author.name }}</text>
         <view v-if="currentVideo.author.verified" class="vp__auth-badge"><text class="vp__auth-badge-txt">认证</text></view>
       </view>
       <text class="vp__title">{{ currentVideo.title }}</text>
+      <!-- 圈子小胶囊（精修点3·可点进圈子·复用现有 goCircle 跳转逻辑·白16%底+金点缀） -->
+      <view v-if="currentVideo.circle" class="vp__circle-pill" hover-class="vp__circle-pill--hover" @tap.stop="goCircle">
+        <AppIcon name="users" :size="22" color="#C9A96E" />
+        <text class="vp__circle-pill-txt">{{ currentVideo.circle.name }}</text>
+      </view>
       <!-- 推广浮卡（V0 promo-float）：首件带货商品·深色毛玻璃·点开商品弹层（价格为人民币） -->
       <view v-if="currentVideo.products.length > 0" class="vp__promo" @tap="showProducts = true">
         <image lazy-load class="vp__promo-img" :src="currentVideo.products[0].image" mode="aspectFill" />
@@ -214,7 +232,7 @@
                       </view>
                     </view>
                     <view class="cs-item__like" @tap="onLikeComment(r)">
-                      <AppIcon name="heart" :size="30" :color="likedIds.includes(r.id) ? '#c41e3a' : 'rgba(255,255,255,0.45)'" :fill="likedIds.includes(r.id)" />
+                      <AppIcon name="heart" :size="30" :color="likedIds.includes(r.id) ? '#C41E3A' : 'rgba(233,228,221,0.45)'" :fill="likedIds.includes(r.id)" />
                       <text class="cs-item__like-num" :class="{ 'cs-item__like-num--on': likedIds.includes(r.id) }">{{ r.likes > 0 ? fmt(r.likes) : '' }}</text>
                     </view>
                   </view>
@@ -230,7 +248,7 @@
             </view>
             <!-- 右侧点赞小柱 -->
             <view class="cs-item__like" @tap="onLikeComment(c)">
-              <AppIcon name="heart" :size="32" :color="likedIds.includes(c.id) ? '#c41e3a' : 'rgba(255,255,255,0.45)'" :fill="likedIds.includes(c.id)" />
+              <AppIcon name="heart" :size="32" :color="likedIds.includes(c.id) ? '#C41E3A' : 'rgba(233,228,221,0.45)'" :fill="likedIds.includes(c.id)" />
               <text class="cs-item__like-num" :class="{ 'cs-item__like-num--on': likedIds.includes(c.id) }">{{ c.likes > 0 ? fmt(c.likes) : '' }}</text>
             </view>
           </view>
@@ -271,7 +289,7 @@
         </view>
         <view class="share-opts">
           <view class="share-opt" @tap="copyShareLink">
-            <view class="share-opt__ico"><AppIcon name="link-2" :size="44" color="#ffffff" /></view>
+            <view class="share-opt__ico"><AppIcon name="link-2" :size="44" color="#E9E4DD" /></view>
             <text class="share-opt__txt">复制链接</text>
           </view>
         </view>
@@ -785,7 +803,7 @@ function onBack() {
 .vp {
   position: fixed;
   inset: 0;
-  background: #111; /* V0：html/body #111，视频层 #000 */
+  background: #141216; /* V2 深色沉浸场景底（V0：#141216），视频层实际画面盖住 */
   overflow: hidden;
   /* 安卓微信 X5：禁掉页面下拉刷新/边界回弹，避免下滑手势被页面消费（返回上一个失灵的元凶） */
   overscroll-behavior: none;
@@ -812,11 +830,12 @@ function onBack() {
 .vp__shade { position: absolute; inset: 0; pointer-events: none; z-index: 2; }
 .vp__shade::before {
   content: ''; position: absolute; top: 0; left: 0; right: 0; height: 192rpx;
-  background: linear-gradient(to bottom, rgba(0,0,0,0.55), transparent);
+  background: linear-gradient(to bottom, rgba(20,18,22,0.55), transparent);
 }
+/* 底部渐变衬底（V2·深底 #141216 0→72%·保证任意画面文字可读·不依赖毛玻璃承载信息） */
 .vp__shade::after {
-  content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 440rpx;
-  background: linear-gradient(to top, rgba(0,0,0,0.55), transparent);
+  content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 400rpx;
+  background: linear-gradient(to top, rgba(20,18,22,0.72), rgba(20,18,22,0));
 }
 .vp__pause { position: absolute; inset: 0; z-index: 2; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.2); }
 .vp__pause-btn { width: 140rpx; height: 140rpx; border-radius: 999rpx; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; }
@@ -865,22 +884,41 @@ function onBack() {
 /* 关注钮：44rpx 可点面积（原 32rpx 安卓难命中）·已关注变√灰底 */
 .vp__follow-plus { position: absolute; bottom: -20rpx; left: 50%; transform: translateX(-50%); width: 44rpx; height: 44rpx; border-radius: 999rpx; background: var(--brand); border: 3rpx solid rgba(255,255,255,0.9); display: flex; align-items: center; justify-content: center; transition: background 0.2s; }
 .vp__follow-plus--ok { background: rgba(120,120,128,0.75); }
-.vp__act { display: flex; flex-direction: column; align-items: center; gap: 8rpx; filter: drop-shadow(0 2rpx 4rpx rgba(0,0,0,0.4)); }
-.vp__act-txt { font-size: 22rpx; color: rgba(255,255,255,0.72); }
+.vp__act { display: flex; flex-direction: column; align-items: center; gap: 8rpx; }
+/* 图标 wrap：柔投影保任意画面可读（V0 drop-shadow 0 2px 5px .45）·激活动效作用于此层（纯 transform·X5 禁 filter 动画） */
+.vp__act-ico { display: flex; align-items: center; justify-content: center; filter: drop-shadow(0 2rpx 5rpx rgba(0,0,0,0.45)); transform: scale(1); }
+/* 点赞「爆红心」：80ms 放大 1.28 → 200ms 回 1（transform/opacity·无 filter 动画） */
+.vp__act-ico--liked { animation: act-burst-heart 0.2s ease-out; }
+@keyframes act-burst-heart { 0% { transform: scale(1); } 40% { transform: scale(1.28); } 100% { transform: scale(1); } }
+/* 收藏「金星」：100ms 放大 1.3 带轻摆 → 240ms 回正 */
+.vp__act-ico--starred { animation: act-burst-star 0.24s ease-out; }
+@keyframes act-burst-star { 0% { transform: scale(1) rotate(0); } 42% { transform: scale(1.3) rotate(-8deg); } 100% { transform: scale(1) rotate(0); } }
+.vp__act-txt { font-size: 22rpx; color: rgba(255,255,255,0.92); text-shadow: 0 1rpx 3rpx rgba(0,0,0,0.5); }
+/* 计数等宽·投影保底可读（V0 11px 白 92%） */
+.vp__act-txt--num { font-variant-numeric: tabular-nums; }
 
-/* 底部信息（V0 info：left 16px / right 76px / bottom 88px 区域） */
-.vp__bottom { position: absolute; left: 0; right: 152rpx; bottom: 0; z-index: 30; padding: 28rpx 0 0 32rpx; }
-.vp__author-row { display: flex; align-items: center; gap: 12rpx; margin-bottom: 16rpx; }
-.vp__author-name { font-size: 30rpx; font-weight: 600; color: #fff; }
+/* 底部信息（V0 info：left 16px / right 76px 区域·字级 作者名>标题>标签） */
+.vp__bottom { position: absolute; left: 0; right: 152rpx; bottom: 0; z-index: 30; padding: 28rpx 0 0 32rpx; display: flex; flex-direction: column; gap: 16rpx; }
+/* 「仅自己可见」灰标（V0 self-only：灰底 6px 圆角·眼斜杠图标·不突兀） */
+.vp__self-only { display: inline-flex; align-items: center; gap: 8rpx; width: fit-content; padding: 5rpx 16rpx; border-radius: 12rpx; background: rgba(110,110,115,0.55); }
+.vp__self-only-txt { font-size: 22rpx; color: rgba(255,255,255,0.85); }
+.vp__author-row { display: flex; align-items: center; gap: 12rpx; }
+/* 作者名 16/700（信息区字级顶层）·投影保可读 */
+.vp__author-name { font-size: 32rpx; font-weight: 700; color: #fff; text-shadow: 0 1rpx 4rpx rgba(0,0,0,0.4); }
 /* 认证徽章（V0 badge：金描边小徽章） */
 .vp__auth-badge { padding: 2rpx 12rpx; border-radius: 10rpx; border: 1rpx solid #C9A96E; background: transparent; }
 .vp__auth-badge-txt { font-size: 20rpx; color: #C9A96E; }
-.vp__title { display: block; font-size: 28rpx; color: #fff; line-height: 1.6; }
+/* 标题 13.5/1.55（次层）·投影保可读 */
+.vp__title { display: block; font-size: 27rpx; color: rgba(255,255,255,0.88); line-height: 1.55; text-shadow: 0 1rpx 3rpx rgba(0,0,0,0.4); }
+/* 圈子小胶囊（V0 circle-pill：白16%底+白30%描边+金点缀·可点进圈子·标签字级最底层） */
+.vp__circle-pill { display: inline-flex; align-items: center; gap: 8rpx; width: fit-content; padding: 6rpx 18rpx 6rpx 14rpx; border-radius: 999rpx; background: rgba(255,255,255,0.16); border: 1rpx solid rgba(255,255,255,0.3); transition: background 0.15s; }
+.vp__circle-pill--hover { background: rgba(255,255,255,0.26); }
+.vp__circle-pill-txt { font-size: 23rpx; color: #fff; max-width: 340rpx; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 
 /* 推广浮卡（V0 promo-float：深色毛玻璃小卡·首件商品+金色价格） */
 .vp__promo {
   display: flex; align-items: center; gap: 16rpx;
-  margin-top: 24rpx; height: 80rpx; padding: 0 24rpx 0 10rpx;
+  margin-top: 8rpx; height: 80rpx; padding: 0 24rpx 0 10rpx;
   max-width: 500rpx;
   background: rgba(0,0,0,0.35); border-radius: 20rpx;
   backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
@@ -892,13 +930,13 @@ function onBack() {
 .vp__promo-price { font-size: 22rpx; color: #C9A96E; font-weight: 600; }
 .vp__promo-more { font-size: 20rpx; color: rgba(255,255,255,0.5); }
 
-/* 播放进度条（V0 progress：2.5px 细条） */
+/* 播放进度条（V0 progress：底部细线·常态 2px 白22%·已播白90% 圆角·无拖动逻辑故仅常态视觉） */
 .vp__progress-bar {
   position: absolute; left: 32rpx; right: 32rpx; z-index: 30;
-  height: 5rpx; border-radius: 4rpx; background: rgba(255,255,255,0.25);
+  height: 4rpx; border-radius: 4rpx; background: rgba(255,255,255,0.22);
   overflow: hidden;
 }
-.vp__progress-played { height: 100%; border-radius: 4rpx; background: #fff; }
+.vp__progress-played { height: 100%; border-radius: 0 4rpx 4rpx 0; background: rgba(255,255,255,0.9); }
 
 /* 弹层通用 */
 .sheet-mask { position: fixed; inset: 0; z-index: 40; background: rgba(0,0,0,0.5); }
@@ -914,14 +952,15 @@ function onBack() {
 .cs-mask { position: fixed; inset: 0; z-index: 40; background: rgba(0,0,0,0.5); }
 .cs {
   position: absolute; left: 0; right: 0; bottom: 0;
-  background: #1c1c1e; border-radius: 32rpx 32rpx 0 0;
+  background: rgba(28,25,32,0.97); border-radius: 36rpx 36rpx 0 0;
   height: 68vh; display: flex; flex-direction: column;
+  color: #E9E4DD;
   animation: slide-up 0.28s ease-out;
 }
 .cs--share { height: auto; padding-bottom: 48rpx; }
 .cs__grabber { width: 72rpx; height: 8rpx; border-radius: 999rpx; background: rgba(255,255,255,0.22); margin: 16rpx auto 0; flex-shrink: 0; }
 .cs__head { position: relative; display: flex; align-items: center; justify-content: center; padding: 20rpx 28rpx 16rpx; flex-shrink: 0; }
-.cs__title { font-size: 26rpx; font-weight: 500; color: rgba(255,255,255,0.85); }
+.cs__title { font-size: 26rpx; font-weight: 500; color: rgba(233,228,221,0.9); }
 .cs__close { position: absolute; right: 24rpx; top: 50%; transform: translateY(-50%); width: 56rpx; height: 56rpx; display: flex; align-items: center; justify-content: center; }
 .cs__body { flex: 1; min-height: 0; padding: 8rpx 28rpx 24rpx; box-sizing: border-box; }
 .cs__hint { display: block; text-align: center; font-size: 24rpx; color: rgba(255,255,255,0.4); padding: 48rpx 0; }
@@ -939,14 +978,15 @@ function onBack() {
 .cs-item__avatar--sub { width: 48rpx; height: 48rpx; }
 .cs-item__avatar-txt { font-size: 26rpx; font-weight: 500; color: rgba(255,255,255,0.6); }
 .cs-item__main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-.cs-item__user { font-size: 24rpx; color: rgba(255,255,255,0.45); margin-bottom: 6rpx; }
-.cs-item__content { font-size: 28rpx; line-height: 1.55; color: rgba(255,255,255,0.92); word-break: break-all; }
+.cs-item__user { font-size: 24rpx; color: rgba(233,228,221,0.55); margin-bottom: 6rpx; }
+/* 正文暖白 #E9E4DD 14/1.55（V0） */
+.cs-item__content { font-size: 28rpx; line-height: 1.55; color: #E9E4DD; word-break: break-all; }
 .cs-item__meta { display: flex; align-items: center; gap: 32rpx; margin-top: 10rpx; }
-.cs-item__time { font-size: 22rpx; color: rgba(255,255,255,0.32); }
-.cs-item__reply-btn { font-size: 22rpx; font-weight: 500; color: rgba(255,255,255,0.55); padding: 6rpx 0; }
+.cs-item__time { font-size: 22rpx; color: rgba(233,228,221,0.4); }
+.cs-item__reply-btn { font-size: 22rpx; font-weight: 500; color: rgba(233,228,221,0.55); padding: 6rpx 0; }
 .cs-item__like { display: flex; flex-direction: column; align-items: center; gap: 4rpx; padding: 4rpx 0 0 8rpx; flex-shrink: 0; min-width: 56rpx; }
-.cs-item__like-num { font-size: 20rpx; color: rgba(255,255,255,0.45); min-height: 24rpx; }
-.cs-item__like-num--on { color: #c41e3a; }
+.cs-item__like-num { font-size: 20rpx; color: rgba(233,228,221,0.45); min-height: 24rpx; }
+.cs-item__like-num--on { color: #C41E3A; }
 /* 楼中楼 */
 .cs-item__replies { margin-top: 6rpx; }
 .cs-item__expand { display: flex; align-items: center; gap: 12rpx; padding: 14rpx 0 4rpx; }
@@ -954,7 +994,7 @@ function onBack() {
 .cs-item__expand-txt { font-size: 22rpx; color: rgba(255,255,255,0.45); }
 
 /* 底部常驻输入条 */
-.cs-input { flex-shrink: 0; border-top: 1rpx solid rgba(255,255,255,0.08); background: #1c1c1e; padding: 16rpx 28rpx 0; }
+.cs-input { flex-shrink: 0; border-top: 1rpx solid rgba(255,255,255,0.1); background: rgba(28,25,32,0.97); padding: 16rpx 28rpx 0; }
 .cs-input__reply-bar { display: flex; align-items: center; justify-content: space-between; padding: 0 8rpx 12rpx; }
 .cs-input__reply-txt { font-size: 22rpx; color: rgba(255,255,255,0.5); }
 .cs-input__reply-cancel { width: 44rpx; height: 44rpx; display: flex; align-items: center; justify-content: center; }
@@ -969,9 +1009,9 @@ function onBack() {
 /* 分享面板 */
 .share-opts { display: flex; gap: 48rpx; padding: 24rpx 40rpx 8rpx; }
 .share-opt { display: flex; flex-direction: column; align-items: center; gap: 14rpx; }
-.share-opt__ico { width: 108rpx; height: 108rpx; border-radius: 999rpx; background: rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; }
-.share-opt__txt { font-size: 22rpx; color: rgba(255,255,255,0.65); }
-.share-tip { display: block; padding: 20rpx 40rpx 0; font-size: 22rpx; line-height: 1.6; color: rgba(255,255,255,0.35); }
+.share-opt__ico { width: 104rpx; height: 104rpx; border-radius: 999rpx; background: rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; }
+.share-opt__txt { font-size: 22rpx; color: rgba(233,228,221,0.75); }
+.share-tip { display: block; padding: 20rpx 40rpx 0; font-size: 22rpx; line-height: 1.6; color: rgba(233,228,221,0.4); }
 
 /* 商品 */
 .prod { display: flex; gap: 20rpx; padding: 20rpx; background: var(--surface-sunken, #f7f7f7); border-radius: 20rpx; margin-bottom: 18rpx; }

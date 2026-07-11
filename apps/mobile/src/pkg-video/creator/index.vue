@@ -1,332 +1,268 @@
 <template>
-  <view class="creator-page">
-    <!-- 顶部导航 -->
-    <view class="cc-header" :style="{ paddingTop: statusBarHeight + 'px' }">
-      <view class="cc-header-inner">
-        <view class="cc-icon-btn" @tap="goBack">
-          <AppIcon name="arrow-left" :size="20" color="#1a1a1a" />
+  <view class="cc-page">
+    <!-- 自定义导航 -->
+    <view class="cc-nav" :style="{ paddingTop: statusBarHeight + 'px' }">
+      <view class="cc-nav-inner">
+        <view class="cc-nav-btn" hover-class="cc-hover" @tap="goBack">
+          <AppIcon name="arrow-left" :size="40" color="#2C2C2C" :stroke-width="2" />
         </view>
-        <text class="cc-title">创作者中心</text>
-        <view class="cc-icon-btn" @tap="go('/videos/creator/settings')">
-          <AppIcon name="settings" :size="20" color="#999" />
+        <text class="cc-nav-title">创作中心</text>
+        <view class="cc-nav-btn" hover-class="cc-hover" @tap="go('/videos/creator/settings')">
+          <AppIcon name="settings" :size="38" color="#6E6E73" :stroke-width="1.8" />
         </view>
       </view>
     </view>
 
     <scroll-view scroll-y class="cc-scroll" :style="{ paddingTop: statusBarHeight + 44 + 'px' }">
-      <!-- 加载态 -->
-      <view v-if="loading" class="cc-state">
-        <text class="cc-state-txt">加载中…</text>
+      <!-- ===== 骨架态 ===== -->
+      <view v-if="loading" class="cc-body">
+        <view class="cc-sk-head">
+          <view class="cc-sk cc-sk-avatar" />
+          <view class="cc-sk-head-lines">
+            <view class="cc-sk cc-sk-line" style="width: 220rpx; height: 32rpx;" />
+            <view class="cc-sk cc-sk-line" style="width: 152rpx; height: 22rpx;" />
+          </view>
+        </view>
+        <view class="cc-sk cc-sk-card" />
+        <view class="cc-sk-quick">
+          <view class="cc-sk cc-sk-quick-item" />
+          <view class="cc-sk cc-sk-quick-item" />
+          <view class="cc-sk cc-sk-quick-item" />
+        </view>
+        <view class="cc-sk-work">
+          <view class="cc-sk cc-sk-cover" />
+          <view class="cc-sk-work-lines">
+            <view class="cc-sk cc-sk-line" style="width: 90%; height: 28rpx;" />
+            <view class="cc-sk cc-sk-line" style="width: 50%; height: 22rpx;" />
+            <view class="cc-sk cc-sk-line" style="width: 70%; height: 22rpx;" />
+          </view>
+        </view>
       </view>
-      <!-- 错误态 -->
+
+      <!-- ===== 错误态 ===== -->
       <view v-else-if="errMsg" class="cc-state">
-        <AppIcon name="alert-circle" :size="40" color="#ccc" />
+        <AppIcon name="alert-circle" :size="120" color="#D8D0C4" />
         <text class="cc-state-txt">{{ errMsg }}</text>
-        <view class="cc-state-btn" @tap="loadAll">重试</view>
+        <view class="cc-ghost-btn" hover-class="cc-hover" @tap="loadAll">
+          <text class="cc-ghost-txt">重试</text>
+        </view>
       </view>
 
       <template v-else-if="stats">
-      <!-- 创作者信息卡片 -->
-      <view class="cc-profile">
-        <view class="cc-profile-top">
-          <image lazy-load class="cc-avatar" :src="profile.avatar || ('https://api.dicebear.com/7.x/notionists/svg?seed=' + encodeURIComponent(profile.nickname))" mode="aspectFill" />
-          <view class="cc-profile-info">
-            <view class="cc-name-row">
+        <view class="cc-body">
+          <!-- ===== 头部：头像 + 昵称 + 认证头衔 ===== -->
+          <view class="cc-head">
+            <image
+              class="cc-avatar"
+              :src="profile.avatar || ('https://api.dicebear.com/7.x/notionists/svg?seed=' + encodeURIComponent(profile.nickname))"
+              mode="aspectFill"
+            />
+            <view class="cc-head-info">
               <text class="cc-name">{{ profile.nickname }}</text>
+              <view v-if="verifiedTitle" class="cc-badge">
+                <AppIcon name="award" :size="20" color="#A8823F" :stroke-width="2" />
+                <text class="cc-badge-txt">{{ verifiedTitle }}</text>
+              </view>
+              <text v-else class="cc-followers num">{{ fmt(stats.followers) }} 粉丝</text>
             </view>
-            <text class="cc-followers">{{ fmt(stats.followers) }} 粉丝</text>
           </view>
-          <view class="cc-publish-btn" @tap="go('/videos/publish')">
-            <AppIcon name="plus" :size="16" color="#c41e3a" />
-            <text class="cc-publish-txt">发布</text>
-          </view>
-        </view>
 
-        <!-- 核心数据 -->
-        <view class="cc-core-stats">
-          <view class="cc-core-item">
-            <text class="cc-core-num">{{ fmt(stats.totalViews) }}</text>
-            <text class="cc-core-label">总播放</text>
-          </view>
-          <view class="cc-core-item">
-            <text class="cc-core-num">{{ fmt(stats.totalLikes) }}</text>
-            <text class="cc-core-label">总点赞</text>
-          </view>
-          <view class="cc-core-item">
-            <text class="cc-core-num">{{ stats.totalSales }}</text>
-            <text class="cc-core-label">带货商品</text>
-          </view>
-          <view class="cc-core-item">
-            <text class="cc-core-num">¥{{ fmt(formatPrice(stats.totalEarnings)) }}</text>
-            <text class="cc-core-label">累计收益</text>
-          </view>
-        </view>
-      </view>
-
-      <!-- Tab切换 -->
-      <view class="cc-tabs">
-        <view
-          v-for="tab in tabs"
-          :key="tab.id"
-          class="cc-tab"
-          :class="{ 'cc-tab-active': activeTab === tab.id }"
-          @tap="activeTab = tab.id"
-        >
-          <AppIcon :name="tab.icon" :size="16" :color="activeTab === tab.id ? '#c41e3a' : '#999'" />
-          <text class="cc-tab-label">{{ tab.label }}</text>
-          <view v-if="activeTab === tab.id" class="cc-tab-line" />
-        </view>
-      </view>
-
-      <!-- 数据概览 -->
-      <view v-if="activeTab === 'overview'" class="cc-panel">
-        <!-- 数据总览（「较上周」趋势缺每日快照支撑，不编造，仅展示真实累计）-->
-        <view class="cc-card">
-          <view class="cc-card-head">
-            <text class="cc-card-title">数据总览</text>
-          </view>
-          <view class="cc-trend-grid">
-            <view class="cc-trend-item">
-              <view>
-                <text class="cc-trend-label">总播放量</text>
-                <text class="cc-trend-num">{{ fmt(stats.totalViews) }}</text>
+          <!-- ===== 数据概览卡 ===== -->
+          <view class="cc-stats">
+            <!-- 概览头：点击展开/收起 -->
+            <view class="cc-stats-top" hover-class="cc-hover" @tap="toggleExpand">
+              <text class="cc-stats-t">{{ expanded ? '详细数据' : '数据总览（累计）' }}</text>
+              <view class="cc-stats-op">
+                <text class="cc-stats-op-txt">{{ expanded ? '收起' : '查看详细' }}</text>
+                <AppIcon :name="expanded ? 'chevron-up' : 'chevron-down'" :size="26" color="#999" :stroke-width="2" />
               </view>
             </view>
-            <view class="cc-trend-item">
-              <view>
-                <text class="cc-trend-label">粉丝数</text>
-                <text class="cc-trend-num">{{ fmt(stats.followers) }}</text>
-              </view>
-            </view>
-            <view class="cc-trend-item">
-              <view>
-                <text class="cc-trend-label">互动量</text>
-                <text class="cc-trend-num">{{ fmt(stats.totalLikes + stats.totalComments) }}</text>
-              </view>
-            </view>
-            <view class="cc-trend-item">
-              <view>
-                <text class="cc-trend-label">带货商品</text>
-                <text class="cc-trend-num">{{ stats.totalSales }}</text>
-              </view>
-            </view>
-          </view>
-        </view>
 
-        <!-- 带货数据 -->
-        <view class="cc-card">
-          <view class="cc-card-head">
-            <text class="cc-card-title">带货数据</text>
-            <view class="cc-link" @tap="go('/videos/creator/sales')">
-              <text>查看详情</text>
-              <AppIcon name="chevron-right" :size="14" color="#c41e3a" />
+            <!-- 四格数据：累计口径（后端无近7天快照，诚实展示累计，不造「较上周」）-->
+            <view class="cc-grid">
+              <view class="cc-grid-item">
+                <text class="cc-grid-n num">{{ fmt(stats.totalViews) }}</text>
+                <text class="cc-grid-cap">总播放</text>
+              </view>
+              <view class="cc-grid-item">
+                <text class="cc-grid-n num">{{ fmt(stats.totalLikes) }}</text>
+                <text class="cc-grid-cap">总点赞</text>
+              </view>
+              <view class="cc-grid-item">
+                <text class="cc-grid-n num">{{ fmt(stats.followers) }}</text>
+                <text class="cc-grid-cap">粉丝数</text>
+              </view>
+              <view class="cc-grid-item">
+                <text class="cc-grid-n cc-gold num">¥{{ formatPrice(stats.totalEarnings) }}</text>
+                <text class="cc-grid-cap">累计收益</text>
+              </view>
             </view>
-          </view>
-          <view v-if="hasBizStats" class="cc-sales-grid">
-            <view class="cc-sales-item cc-sales-red">
-              <AppIcon name="shopping-bag" :size="20" color="#c41e3a" />
-              <text class="cc-sales-num">{{ stats.totalSales }}</text>
-              <text class="cc-sales-label">带货商品</text>
-            </view>
-            <view class="cc-sales-item cc-sales-amber">
-              <AppIcon name="dollar-sign" :size="20" color="#d97706" />
-              <text class="cc-sales-num">¥{{ fmt(formatPrice(stats.totalGMV)) }}</text>
-              <text class="cc-sales-label">带货GMV</text>
-            </view>
-            <view class="cc-sales-item cc-sales-green">
-              <AppIcon name="trending-up" :size="20" color="#22c55e" />
-              <text class="cc-sales-num">{{ stats.conversionRate }}%</text>
-              <text class="cc-sales-label">转化率</text>
-            </view>
-          </view>
-          <view v-else class="cc-biz-empty">
-            <text class="cc-biz-num">{{ stats.totalSales }}</text>
-            <text class="cc-biz-label">已关联带货商品</text>
-            <text class="cc-biz-tip">成交额 / 转化率统计即将开放</text>
-          </view>
-        </view>
 
-        <!-- 热门作品 -->
-        <view class="cc-card">
-          <view class="cc-card-head">
-            <text class="cc-card-title">热门作品</text>
-            <view class="cc-link" @tap="activeTab = 'videos'">
-              <text>查看全部</text>
-              <AppIcon name="chevron-right" :size="14" color="#c41e3a" />
+            <!-- 概览趋势小图（无近7天快照数据→柱全为 0 虚线，不造假）-->
+            <view v-if="!expanded" class="cc-chart">
+              <view
+                v-for="(bar, i) in miniBars"
+                :key="i"
+                class="cc-bar"
+                :class="{ 'cc-bar-zero': bar <= 0 }"
+                :style="bar > 0 ? { height: bar + '%' } : {}"
+              />
             </view>
-          </view>
-          <view class="cc-hot-list">
-            <view v-for="(video, index) in videos.slice(0, 2)" :key="video.id" class="cc-hot-item" @tap="go('/video/' + video.id)">
-              <view class="cc-hot-cover">
-                <image lazy-load :src="video.cover" mode="aspectFill" class="cc-hot-img" />
-                <view class="cc-hot-mask">
-                  <AppIcon name="play" :size="24" color="#ffffff" :fill="true" />
+
+            <!-- ===== 展开态：详细数据（合并自 analytics 页）===== -->
+            <template v-else>
+              <!-- 时间范围切换 -->
+              <view class="cc-pill-row">
+                <view
+                  v-for="r in ranges"
+                  :key="r.id"
+                  class="cc-pill"
+                  :class="{ 'cc-pill-on': range === r.id }"
+                  hover-class="cc-hover"
+                  @tap="range = r.id"
+                >
+                  <text class="cc-pill-txt">{{ r.label }}</text>
                 </view>
-                <text class="cc-hot-rank">#{{ index + 1 }}</text>
               </view>
-              <view class="cc-hot-info">
-                <text class="cc-hot-title">{{ video.title }}</text>
-                <view class="cc-hot-stats">
-                  <view class="cc-hot-stat"><AppIcon name="eye" :size="14" color="#999" /><text>{{ fmt(video.views) }}</text></view>
-                  <view class="cc-hot-stat"><AppIcon name="heart" :size="14" color="#999" /><text>{{ fmt(video.likes) }}</text></view>
+              <!-- 指标切换 -->
+              <view class="cc-pill-row">
+                <view
+                  v-for="m in metrics"
+                  :key="m.id"
+                  class="cc-pill"
+                  :class="{ 'cc-pill-on': metric === m.id }"
+                  hover-class="cc-hover"
+                  @tap="metric = m.id"
+                >
+                  <text class="cc-pill-txt">{{ m.label }}</text>
                 </view>
-                <view v-if="video.products.length > 0" class="cc-hot-sale">
-                  <AppIcon name="shopping-bag" :size="14" color="#c41e3a" />
-                  <text class="cc-hot-sale-txt">{{ video.sales }}单 · ¥{{ fmt(formatPrice(video.gmv)) }}</text>
+              </view>
+
+              <!-- 趋势大图（真连 analytics.viewTrend；缺快照→0 虚线柱不造假）-->
+              <view class="cc-chart cc-chart-lg">
+                <view
+                  v-for="(bar, i) in trendBars"
+                  :key="i"
+                  class="cc-bar"
+                  :class="{ 'cc-bar-zero': bar <= 0 }"
+                  :style="bar > 0 ? { height: bar + '%' } : {}"
+                />
+              </view>
+              <text v-if="!hasTrend" class="cc-chart-note">暂无每日趋势数据</text>
+            </template>
+          </view>
+
+          <!-- ===== 展开态：单作品排行 ===== -->
+          <template v-if="expanded">
+            <view class="cc-sec-t">
+              <text class="cc-sec-tt">单作品排行</text>
+              <text class="cc-sec-tc">按{{ metricLabel }}</text>
+            </view>
+            <view v-if="rankList.length === 0" class="cc-rank-empty">
+              <text class="cc-rank-empty-txt">还没有作品数据</text>
+            </view>
+            <view
+              v-for="(v, idx) in rankList"
+              :key="v.id"
+              class="cc-rank"
+              hover-class="cc-hover"
+              @tap="go('/video/' + v.id)"
+            >
+              <text class="cc-rank-no num" :class="{ 'cc-rank-no-plain': idx > 1 }">{{ idx + 1 }}</text>
+              <view class="cc-rank-cover">
+                <smart-cover class="cc-rank-img" :src="v.cover" :title="v.title" type="video" />
+              </view>
+              <view class="cc-rank-body">
+                <text class="cc-rank-title">{{ v.title }}</text>
+                <view class="cc-rank-data num">
+                  <view class="cc-rank-stat"><AppIcon name="play" :size="22" color="#999" :fill="true" /><text>{{ fmt(v.views) }}</text></view>
+                  <view class="cc-rank-stat"><AppIcon name="heart" :size="22" color="#999" :stroke-width="1.8" /><text>{{ fmt(v.likes) }}</text></view>
                 </view>
               </view>
             </view>
-          </view>
-        </view>
-      </view>
+          </template>
 
-      <!-- 我的作品 -->
-      <view v-if="activeTab === 'videos'" class="cc-panel">
-        <view v-if="videos.length === 0" class="cc-empty">
-          <AppIcon name="file-video" :size="40" color="#ccc" />
-          <text class="cc-empty-txt">还没有作品，去发布第一个视频吧</text>
-          <view class="cc-empty-btn" @tap="go('/videos/publish')">发布视频</view>
-        </view>
-        <view v-for="video in videos" :key="video.id" class="cc-card cc-video-card">
-          <view class="cc-video-row">
-            <view class="cc-video-cover">
-              <image lazy-load :src="video.cover" mode="aspectFill" class="cc-hot-img" />
-              <view class="cc-hot-mask">
-                <AppIcon name="play" :size="24" color="#ffffff" :fill="true" />
-              </view>
+          <!-- ===== 快捷入口行 ===== -->
+          <view class="cc-quick">
+            <view class="cc-quick-item" hover-class="cc-hover" @tap="go('/videos/creator/earnings-history')">
+              <AppIcon name="wallet" :size="40" color="#A8823F" :stroke-width="1.7" />
+              <text class="cc-quick-l">收益</text>
             </view>
-            <view class="cc-video-info">
-              <text class="cc-hot-title">{{ video.title }}</text>
-              <view class="cc-video-badges" v-if="video.selfOnly || video.status === 'removed'">
-                <text v-if="video.status === 'removed'" class="cc-badge cc-badge-removed" @tap.stop="showRemovedTip">已下架</text>
-                <text v-else-if="video.selfOnly" class="cc-badge cc-badge-selfonly" @tap.stop="showSelfOnlyTip">仅自己可见</text>
-              </view>
-              <text class="cc-video-time">{{ video.publishTime }}</text>
-              <view class="cc-video-metrics">
-                <view class="cc-metric"><text class="cc-metric-num">{{ fmt(video.views) }}</text><text class="cc-metric-label">播放</text></view>
-                <view class="cc-metric"><text class="cc-metric-num">{{ fmt(video.likes) }}</text><text class="cc-metric-label">点赞</text></view>
-                <view class="cc-metric"><text class="cc-metric-num">{{ video.comments }}</text><text class="cc-metric-label">评论</text></view>
-                <view class="cc-metric"><text class="cc-metric-num">{{ video.shares }}</text><text class="cc-metric-label">分享</text></view>
-              </view>
-              <view v-if="video.products.length > 0" class="cc-video-foot">
-                <view class="cc-video-foot-left">
-                  <AppIcon name="shopping-bag" :size="16" color="#c41e3a" />
-                  <text class="cc-video-foot-txt">{{ video.products.length }}件商品</text>
-                </view>
-                <view class="cc-video-foot-right">
-                  <text class="cc-foot-sale">{{ video.sales }}单</text>
-                  <text class="cc-foot-gmv"> · ¥{{ fmt(formatPrice(video.gmv)) }}</text>
-                </view>
-              </view>
+            <view class="cc-quick-item" hover-class="cc-hover" @tap="go('/videos/creator/settings')">
+              <AppIcon name="settings" :size="40" color="#6E6E73" :stroke-width="1.7" />
+              <text class="cc-quick-l">设置</text>
+            </view>
+            <view class="cc-quick-item" hover-class="cc-hover" @tap="go('/videos/publish')">
+              <AppIcon name="plus" :size="40" color="#C41E3A" :stroke-width="2" />
+              <text class="cc-quick-l cc-quick-l-red">发布新视频</text>
             </view>
           </view>
-        </view>
-      </view>
 
-      <!-- 商品管理 -->
-      <view v-if="activeTab === 'products'" class="cc-panel">
-        <view class="cc-card">
-          <view class="cc-prod-head">
-            <view>
-              <text class="cc-card-title">可带货商品库</text>
-              <text class="cc-prod-sub">共 {{ products.length }} 件平台商品可选</text>
-            </view>
-            <view class="cc-add-btn" @tap="go('/videos/creator/products/add')">
-              <AppIcon name="info" :size="16" color="#ffffff" />
-              <text class="cc-add-txt">带货说明</text>
+          <!-- ===== 我的作品 ===== -->
+          <view class="cc-sec-t">
+            <text class="cc-sec-tt">我的作品</text>
+            <text class="cc-sec-tc num">（{{ videos.length }}）</text>
+          </view>
+
+          <!-- 空态 -->
+          <view v-if="videos.length === 0" class="cc-empty">
+            <AppIcon name="file-video" :size="120" color="#D8D0C4" />
+            <text class="cc-empty-msg">还没有作品，发布第一条短视频吧</text>
+            <view class="cc-primary-btn" hover-class="cc-primary-hover" @tap="go('/videos/publish')">
+              <text class="cc-primary-txt">发布第一条视频</text>
             </view>
           </view>
-        </view>
-        <view v-if="products.length === 0" class="cc-empty">
-          <AppIcon name="package" :size="40" color="#ccc" />
-          <text class="cc-empty-txt">平台暂无可带货商品</text>
-        </view>
-        <view class="cc-prod-list">
-          <view v-for="product in products" :key="product.id" class="cc-card cc-prod-card">
-            <view class="cc-prod-row">
-              <image lazy-load :src="product.image" mode="aspectFill" class="cc-prod-img" />
-              <view class="cc-prod-info">
-                <text class="cc-prod-name">{{ product.name }}</text>
-                <view class="cc-prod-price-row">
-                  <text class="cc-prod-price">¥{{ formatPrice(product.price) }}</text>
-                  <text class="cc-prod-commission">{{ product.commission }}%佣金</text>
-                </view>
-                <view class="cc-prod-meta">
-                  <text>销量 {{ product.sales }}</text>
-                  <text>库存 {{ product.stock }}</text>
-                </view>
+
+          <!-- 作品卡列表 -->
+          <view
+            v-for="video in videos"
+            :key="video.id"
+            class="cc-work"
+          >
+            <view class="cc-work-cover" hover-class="cc-hover" @tap="go('/video/' + video.id)">
+              <smart-cover class="cc-work-img" :src="video.cover" :title="video.title" type="video" />
+            </view>
+            <view class="cc-work-body">
+              <text class="cc-work-title">{{ video.title }}</text>
+              <text class="cc-work-time num">{{ video.publishTime }} 发布</text>
+              <view class="cc-work-data num">
+                <view class="cc-work-stat"><AppIcon name="play" :size="20" color="#6E6E73" :fill="true" /><text>{{ fmt(video.views) }}</text></view>
+                <view class="cc-work-stat"><AppIcon name="heart" :size="20" color="#6E6E73" :stroke-width="1.8" /><text>{{ fmt(video.likes) }}</text></view>
+                <view class="cc-work-stat"><AppIcon name="message-square" :size="20" color="#6E6E73" :stroke-width="1.8" /><text>{{ video.comments }}</text></view>
               </view>
-              <view class="cc-prod-action">
-                <view class="cc-prod-promote" @tap="go('/videos/publish?product=' + product.id)">
-                  <text>去带货</text>
+              <view class="cc-work-foot">
+                <!-- 状态标：正常 / 仅自己可见（点看申诉指引）/ 已下架（红标） -->
+                <text
+                  v-if="video.status === 'removed'"
+                  class="cc-st cc-st-down"
+                  @tap.stop="showRemovedTip"
+                >已下架</text>
+                <view
+                  v-else-if="video.selfOnly"
+                  class="cc-st cc-st-self"
+                  @tap.stop="showSelfOnlyTip"
+                >
+                  <text class="cc-st-self-txt">仅自己可见</text>
+                  <AppIcon name="info" :size="20" color="#6E6E73" :stroke-width="1.8" />
+                </view>
+                <text v-else class="cc-st cc-st-ok">正常</text>
+
+                <!-- 操作：已下架仅留删除 -->
+                <view class="cc-work-ops">
+                  <text
+                    v-if="video.status !== 'removed'"
+                    class="cc-op"
+                    hover-class="cc-op-hover"
+                    @tap.stop="editVideo(video)"
+                  >编辑</text>
+                  <text class="cc-op" hover-class="cc-op-hover" @tap.stop="deleteVideo(video)">删除</text>
                 </view>
               </view>
             </view>
           </view>
         </view>
-      </view>
 
-      <!-- 收益中心 -->
-      <view v-if="activeTab === 'earnings'" class="cc-panel">
-        <!-- 收益概览 -->
-        <view class="cc-card cc-earn-card">
-          <view class="cc-earn-head">
-            <view>
-              <text class="cc-earn-label">累计收益 (元)</text>
-              <text class="cc-earn-total">¥{{ stats.totalEarnings.toFixed(2) }}</text>
-            </view>
-            <view class="cc-withdraw-btn" @tap="go('/videos/creator/withdraw')">
-              <text>提现</text>
-            </view>
-          </view>
-          <view class="cc-earn-grid">
-            <view class="cc-earn-sub">
-              <text class="cc-earn-sub-label">待结算</text>
-              <text class="cc-earn-sub-num">¥{{ stats.pendingEarnings.toFixed(2) }}</text>
-            </view>
-            <view class="cc-earn-sub">
-              <text class="cc-earn-sub-label">已提现</text>
-              <text class="cc-earn-sub-num">¥{{ stats.withdrawnEarnings.toFixed(2) }}</text>
-            </view>
-          </view>
-        </view>
-
-        <!-- 收益明细 -->
-        <view class="cc-card">
-          <view class="cc-card-head">
-            <text class="cc-card-title">收益明细</text>
-            <view class="cc-link" @tap="go('/videos/creator/earnings/history')">
-              <text>全部记录</text>
-              <AppIcon name="chevron-right" :size="14" color="#c41e3a" />
-            </view>
-          </view>
-          <view class="cc-earn-list">
-            <view v-if="earningsPreview.length === 0" class="cc-earn-empty">
-              <text class="cc-earn-empty-txt">暂无收益记录</text>
-            </view>
-            <view v-for="(item, index) in earningsPreview" :key="index" class="cc-earn-item">
-              <view>
-                <text class="cc-earn-type">{{ item.type }}</text>
-                <text class="cc-earn-detail">{{ item.product }} · {{ item.time }}</text>
-              </view>
-              <text class="cc-earn-amount">+¥{{ item.amount.toFixed(2) }}</text>
-            </view>
-          </view>
-        </view>
-
-        <!-- 收益规则 -->
-        <view class="cc-card">
-          <text class="cc-card-title cc-rule-title">收益规则</text>
-          <view class="cc-rule-list">
-            <text class="cc-rule">1. 带货佣金：按商品设定的佣金比例结算</text>
-            <text class="cc-rule">2. 结算周期：订单确认收货后7天自动结算</text>
-            <text class="cc-rule">3. 提现门槛：满100元可申请提现</text>
-            <text class="cc-rule">4. 到账时间：提现申请后1-3个工作日到账</text>
-          </view>
-        </view>
-      </view>
-
-      <view class="cc-bottom-pad" />
+        <view class="cc-bottom-pad" />
       </template>
     </scroll-view>
   </view>
@@ -335,57 +271,107 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import SmartCover from '@/components/common/smart-cover.vue'
 import { navigateTo, goBack } from '@/utils/router'
 import {
   creatorApi,
   formatCreatorNumber,
   type CreatorOverview,
   type CreatorVideo,
-  type CreatorProduct,
-  type CreatorEarningItem,
+  type CreatorAnalytics,
 } from '@/lib/creator-data'
+import { videoApi } from '@/lib/video-data'
 import { formatPrice } from '@/utils/format'
 
 const statusBarHeight = ref(0)
-const activeTab = ref<'overview' | 'videos' | 'products' | 'earnings'>('overview')
-
-const tabs = [
-  { id: 'overview' as const, label: '数据概览', icon: 'bar-chart-3' },
-  { id: 'videos' as const, label: '我的作品', icon: 'file-video' },
-  { id: 'products' as const, label: '商品管理', icon: 'package' },
-  { id: 'earnings' as const, label: '收益中心', icon: 'wallet' },
-]
-
 const fmt = formatCreatorNumber
 
-// ===== 数据 + 三态 =====
+// ===== 三态数据 =====
 const loading = ref(true)
 const errMsg = ref('')
 const stats = ref<CreatorOverview | null>(null)
 const videos = ref<CreatorVideo[]>([])
-const products = ref<CreatorProduct[]>([])
-const earningsPreview = ref<CreatorEarningItem[]>([])
-const profile = ref({ nickname: '创作者', avatar: '', bio: '' })
+const analytics = ref<CreatorAnalytics | null>(null)
+const profile = ref({ nickname: '创作者', avatar: '', specialty: '' })
 
-// 带货 GMV/转化率后端暂无统计支撑（恒 0）→ 是否有任一可展示
-const hasBizStats = computed(() => !!stats.value && (stats.value.totalGMV > 0 || stats.value.conversionRate > 0))
+// 认证头衔：来自创作者设置的 specialty（无则隐藏胶囊）
+const verifiedTitle = computed(() => profile.value.specialty?.trim() || '')
+
+// ===== 详细数据展开（合并自 analytics 页）=====
+const expanded = ref(false)
+type RangeId = '7' | '30'
+type MetricId = 'views' | 'likes' | 'followers' | 'earnings'
+const ranges: { id: RangeId; label: string }[] = [
+  { id: '7', label: '近 7 天' },
+  { id: '30', label: '近 30 天' },
+]
+const metrics: { id: MetricId; label: string }[] = [
+  { id: 'views', label: '播放' },
+  { id: 'likes', label: '点赞' },
+  { id: 'followers', label: '粉丝' },
+  { id: 'earnings', label: '收益' },
+]
+const range = ref<RangeId>('7')
+const metric = ref<MetricId>('views')
+const metricLabel = computed(() => metrics.find((m) => m.id === metric.value)?.label ?? '播放')
+
+// 趋势序列：真连 analytics.viewTrend（后端当前无每日快照 → 返空）
+const trend = computed(() => analytics.value?.viewTrend ?? [])
+const hasTrend = computed(() => trend.value.length > 0)
+
+// 概览小图：7 根柱；有真实趋势按当前范围取尾部，否则全 0（虚线柱不造假）
+function barsFromTrend(count: number): number[] {
+  const src = trend.value
+  if (!src.length) return new Array(count).fill(0)
+  const slice = src.slice(-count)
+  // followers 指标暂用 comments 近似（后端 viewTrend 无每日粉丝快照）
+  const vals = slice.map((d) =>
+    (metric.value === 'likes' ? d.likes : metric.value === 'followers' ? d.comments : d.views) ?? 0,
+  )
+  const max = Math.max(...vals, 1)
+  const bars = vals.map((v) => (v > 0 ? Math.max(6, Math.round((v / max) * 100)) : 0))
+  while (bars.length < count) bars.unshift(0)
+  return bars
+}
+const miniBars = computed(() => barsFromTrend(7))
+const trendBars = computed(() => barsFromTrend(range.value === '30' ? 30 : 7))
+
+// 单作品排行：按当前指标降序取前 10（真连 analytics.videoMetrics，回退我的作品列表）
+const rankList = computed(() => {
+  const metricsList = analytics.value?.videoMetrics ?? []
+  const source = metricsList.length
+    ? metricsList.map((m) => ({
+        id: m.id,
+        title: m.title,
+        cover: videos.value.find((v) => v.id === m.id)?.cover || '',
+        views: m.views,
+        likes: m.likes,
+      }))
+    : videos.value.map((v) => ({ id: v.id, title: v.title, cover: v.cover, views: v.views, likes: v.likes }))
+  const metricVal = (o: { views: number; likes: number }) => (metric.value === 'likes' ? o.likes : o.views)
+  return [...source].sort((a, b) => metricVal(b) - metricVal(a)).slice(0, 10)
+})
 
 async function loadAll() {
   loading.value = true
   errMsg.value = ''
   try {
-    const [ov, vs, ps, ep, st] = await Promise.all([
+    const [ov, vs, an, st] = await Promise.all([
       creatorApi.getOverview(),
       creatorApi.getMyVideos(),
-      creatorApi.getProducts(),
-      creatorApi.getEarningsPreview(),
+      creatorApi.getAnalytics(),
       creatorApi.getSettings(),
     ])
     stats.value = ov
     videos.value = vs
-    products.value = ps
-    earningsPreview.value = ep
-    if (st?.profile) profile.value = { nickname: st.profile.nickname || '创作者', avatar: st.profile.avatar, bio: st.profile.bio }
+    analytics.value = an
+    if (st?.profile) {
+      profile.value = {
+        nickname: st.profile.nickname || '创作者',
+        avatar: st.profile.avatar,
+        specialty: st.profile.specialty || '',
+      }
+    }
   } catch (e) {
     errMsg.value = (e as Error)?.message || '加载失败'
   } finally {
@@ -393,11 +379,53 @@ async function loadAll() {
   }
 }
 
+function toggleExpand() {
+  expanded.value = !expanded.value
+}
+
 function go(url: string) {
   navigateTo(url)
 }
 
-// 审核无感化（20260711 第八节）：SELF_ONLY / 已下架说明 + 申诉指引
+// 编辑：跳发布页并带 videoId 回填（V4 发布页复用回填口径，按钮文案「保存修改」）
+function editVideo(video: CreatorVideo) {
+  navigateTo('/videos/publish?id=' + video.id)
+}
+
+// 删除：二次确认 → 真删（DELETE /videos/:id）→ 本地移除并刷新概览
+const deleting = ref(false)
+function deleteVideo(video: CreatorVideo) {
+  uni.showModal({
+    title: '删除作品',
+    content: `确定删除「${video.title}」吗？删除后不可恢复。`,
+    confirmText: '删除',
+    confirmColor: '#C41E3A',
+    success: async (res) => {
+      if (!res.confirm || deleting.value) return
+      deleting.value = true
+      uni.showLoading({ title: '删除中', mask: true })
+      try {
+        const r = await videoApi.delete(video.id)
+        uni.hideLoading()
+        if (r?.success === false) {
+          uni.showToast({ title: r.message || '删除失败', icon: 'none' })
+          return
+        }
+        // 本地即时移除，避免整列表重拉的闪烁；概览计数后台刷新
+        videos.value = videos.value.filter((v) => v.id !== video.id)
+        uni.showToast({ title: '已删除', icon: 'success' })
+        creatorApi.getOverview().then((ov) => { stats.value = ov }).catch(() => {})
+      } catch (e) {
+        uni.hideLoading()
+        uni.showToast({ title: (e as { message?: string })?.message || '删除失败', icon: 'none' })
+      } finally {
+        deleting.value = false
+      }
+    },
+  })
+}
+
+// 审核无感化：SELF_ONLY / 已下架说明 + 申诉指引
 function showSelfOnlyTip() {
   uni.showModal({
     title: '仅自己可见',
@@ -406,7 +434,6 @@ function showSelfOnlyTip() {
     confirmText: '知道了',
   })
 }
-
 function showRemovedTip() {
   uni.showModal({
     title: '已下架',
@@ -423,633 +450,342 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.creator-page {
+/* 视觉 token：宣纸白 #FAF8F5 / 卡片白 / 朱红 #C41E3A / 金 #C9A96E·深金 #A8823F / 文字 #2C2C2C·#6E6E73·#999 / 圆角 36·999 */
+.cc-page {
   min-height: 100vh;
-  background: #f5f5f5;
+  background-color: #FAF8F5;
 }
-.cc-header {
+.num { font-variant-numeric: tabular-nums; }
+.cc-hover { opacity: 0.6; }
+
+/* 自定义导航 */
+.cc-nav {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
-  z-index: 50;
-  background: #ffffff;
-  border-bottom: 1px solid #eee;
+  z-index: 40;
+  background-color: #FAF8F5;
 }
-.cc-header-inner {
+.cc-nav-inner {
   display: flex;
   align-items: center;
   justify-content: space-between;
   height: 44px;
-  padding: 0 12px;
+  padding: 0 24rpx;
 }
-.cc-icon-btn {
-  padding: 4px;
+.cc-nav-btn {
+  width: 68rpx;
+  height: 68rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
-.cc-title {
-  font-size: 16px;
+.cc-nav-title {
+  font-size: 34rpx;
   font-weight: 700;
-  color: #1a1a1a;
+  color: #2C2C2C;
+  letter-spacing: 1rpx;
 }
 .cc-scroll {
   height: 100vh;
   box-sizing: border-box;
 }
-/* 创作者信息卡片 */
-.cc-profile {
-  background: linear-gradient(135deg, var(--brand), #d94452);
-  color: #ffffff;
-  padding: 16px;
-}
-.cc-profile-top {
+.cc-body { padding-bottom: 20rpx; }
+
+/* ===== 头部 ===== */
+.cc-head {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 16px;
+  gap: 26rpx;
+  padding: 36rpx 40rpx 28rpx;
 }
 .cc-avatar {
-  width: 56px;
-  height: 56px;
+  width: 104rpx;
+  height: 104rpx;
   border-radius: 50%;
-  border: 2px solid rgba(255, 255, 255, 0.3);
+  border: 4rpx solid #FFFFFF;
+  box-shadow: 0 4rpx 16rpx rgba(44, 44, 44, 0.1);
+  background-color: #E5E5E5;
+  flex-shrink: 0;
 }
-.cc-profile-info {
-  flex: 1;
-}
-.cc-name-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.cc-name {
-  font-size: 18px;
-  font-weight: 700;
-  color: #ffffff;
-}
+.cc-head-info { display: flex; flex-direction: column; gap: 10rpx; min-width: 0; }
+.cc-name { font-size: 34rpx; font-weight: 700; color: #2C2C2C; }
 .cc-badge {
-  background: rgba(255, 255, 255, 0.2);
-  color: #ffffff;
-  font-size: 10px;
-  padding: 2px 6px;
-  border-radius: 4px;
-}
-.cc-followers {
-  display: block;
-  color: rgba(255, 255, 255, 0.7);
-  font-size: 14px;
-  margin-top: 2px;
-}
-.cc-publish-btn {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 6px 12px;
-  background: #ffffff;
-  border-radius: 999px;
+  gap: 8rpx;
+  align-self: flex-start;
+  background-color: rgba(201, 169, 110, 0.14);
+  border: 1rpx solid rgba(201, 169, 110, 0.5);
+  border-radius: 999rpx;
+  padding: 5rpx 20rpx;
 }
-.cc-publish-txt {
-  color: var(--brand);
-  font-size: 14px;
-  font-weight: 500;
+.cc-badge-txt { font-size: 21rpx; color: #A8823F; }
+.cc-followers { font-size: 26rpx; color: #999; }
+
+/* ===== 数据概览卡 ===== */
+.cc-stats {
+  margin: 0 40rpx;
+  background-color: #FFFFFF;
+  border-radius: 36rpx;
+  box-shadow: 0 4rpx 24rpx rgba(44, 44, 44, 0.05);
+  overflow: hidden;
 }
-.cc-core-stats {
-  display: flex;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
-  padding: 12px;
-}
-.cc-core-item {
-  flex: 1;
-  text-align: center;
-}
-.cc-core-num {
-  display: block;
-  font-size: 20px;
-  font-weight: 700;
-  color: #ffffff;
-}
-.cc-core-label {
-  display: block;
-  color: rgba(255, 255, 255, 0.7);
-  font-size: 12px;
-  margin-top: 2px;
-}
-/* Tab */
-.cc-tabs {
-  display: flex;
-  align-items: center;
-  background: #ffffff;
-  border-bottom: 1px solid #eee;
-}
-.cc-tab {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 12px 0;
-  font-size: 14px;
-  font-weight: 500;
-  color: #999;
-  position: relative;
-}
-.cc-tab-active {
-  color: var(--brand);
-}
-.cc-tab-label {
-  font-size: 14px;
-}
-.cc-tab-line {
-  position: absolute;
-  bottom: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 48px;
-  height: 2px;
-  background: var(--brand);
-  border-radius: 999px;
-}
-/* 面板 */
-.cc-panel {
-  padding: 16px;
-}
-.cc-card {
-  background: #ffffff;
-  border-radius: 12px;
-  padding: 16px;
-  margin-bottom: 16px;
-  border: 1px solid #f0f0f0;
-}
-.cc-card-head {
+.cc-stats-top {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 12px;
+  padding: 28rpx 32rpx 8rpx;
 }
-.cc-card-title {
-  font-size: 15px;
-  font-weight: 600;
-  color: #1a1a1a;
-}
-.cc-card-sub {
-  font-size: 12px;
-  color: #999;
-}
-.cc-link {
-  display: flex;
-  align-items: center;
-  font-size: 12px;
-  color: var(--brand);
-}
-/* 趋势 */
-.cc-trend-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-}
-.cc-trend-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px;
-  background: rgba(0, 0, 0, 0.03);
-  border-radius: 8px;
-}
-.cc-trend-label {
-  display: block;
-  color: #999;
-  font-size: 12px;
-}
-.cc-trend-num {
-  display: block;
-  font-size: 18px;
-  font-weight: 700;
-  color: #1a1a1a;
-}
-.cc-trend-tag {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  font-size: 14px;
-  font-weight: 500;
-}
-.cc-up {
-  color: #22c55e;
-}
-.cc-down {
-  color: #ef4444;
-}
-/* 带货数据 */
-.cc-sales-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 12px;
-}
-.cc-sales-item {
-  text-align: center;
-  padding: 12px;
-  border-radius: 8px;
-}
-.cc-sales-red {
-  background: rgba(196, 30, 58, 0.05);
-}
-.cc-sales-amber {
-  background: rgba(217, 119, 6, 0.05);
-}
-.cc-sales-green {
-  background: rgba(34, 197, 94, 0.05);
-}
-.cc-sales-num {
-  display: block;
-  font-size: 18px;
-  font-weight: 700;
-  color: #1a1a1a;
-  margin-top: 4px;
-}
-.cc-sales-label {
-  display: block;
-  color: #999;
-  font-size: 12px;
-}
-/* 热门作品 */
-.cc-hot-list {
+.cc-stats-t { font-size: 26rpx; font-weight: 700; color: #2C2C2C; }
+.cc-stats-op { display: flex; align-items: center; gap: 4rpx; }
+.cc-stats-op-txt { font-size: 23rpx; color: #999; }
+.cc-grid { display: flex; padding: 16rpx 12rpx 4rpx; }
+.cc-grid-item {
+  flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-}
-.cc-hot-item {
-  display: flex;
-  gap: 12px;
-  padding: 8px;
-  border-radius: 8px;
-}
-.cc-hot-cover {
-  position: relative;
-  width: 80px;
-  height: 112px;
-  border-radius: 8px;
-  overflow: hidden;
-  flex-shrink: 0;
-}
-.cc-hot-img {
-  width: 100%;
-  height: 100%;
-}
-.cc-hot-mask {
-  position: absolute;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.2);
-  display: flex;
   align-items: center;
-  justify-content: center;
+  gap: 8rpx;
+  padding: 12rpx 4rpx;
 }
-.cc-hot-rank {
-  position: absolute;
-  top: 4px;
-  left: 4px;
-  background: rgba(0, 0, 0, 0.6);
-  color: #ffffff;
-  font-size: 10px;
-  padding: 1px 5px;
-  border-radius: 4px;
+.cc-grid-n { font-size: 36rpx; font-weight: 700; color: #2C2C2C; }
+.cc-gold { color: #A8823F; }
+.cc-grid-cap { font-size: 21rpx; color: #999; }
+
+/* 趋势柱图（CSS 柱，无 SVG/canvas）*/
+.cc-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 14rpx;
+  height: 132rpx;
+  padding: 16rpx 32rpx 28rpx;
 }
-.cc-hot-info {
+.cc-chart-lg { height: 236rpx; padding-top: 28rpx; }
+.cc-bar {
   flex: 1;
-  min-width: 0;
-  padding: 4px 0;
+  min-height: 6rpx;
+  background: linear-gradient(180deg, #D8899B, #C41E3A);
+  border-radius: 6rpx 6rpx 0 0;
 }
-.cc-hot-title {
-  font-size: 14px;
-  font-weight: 500;
-  color: #1a1a1a;
-  line-height: 1.4;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+.cc-bar-zero {
+  height: 6rpx;
+  background: none;
+  border: 1rpx dashed #E3DCD0;
+  border-radius: 4rpx;
 }
-.cc-hot-stats {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-top: 8px;
-}
-.cc-hot-stat {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  font-size: 12px;
-  color: #999;
-}
-.cc-hot-sale {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  margin-top: 8px;
-}
-.cc-hot-sale-txt {
-  font-size: 12px;
-  color: var(--brand);
-  font-weight: 500;
-}
-/* 我的作品 */
-.cc-video-card {
-  padding: 12px;
-}
-.cc-video-row {
-  display: flex;
-  gap: 12px;
-}
-.cc-video-cover {
-  position: relative;
-  width: 96px;
-  height: 128px;
-  border-radius: 8px;
-  overflow: hidden;
-  flex-shrink: 0;
-}
-.cc-video-info {
-  flex: 1;
-  min-width: 0;
-}
-.cc-video-time {
+.cc-chart-note {
   display: block;
-  font-size: 12px;
-  color: #999;
-  margin-top: 4px;
-}
-.cc-video-badges {
-  margin-top: 4px;
-}
-.cc-badge {
-  display: inline-block;
-  font-size: 10px;
-  line-height: 1;
-  padding: 3px 8px;
-  border-radius: 8px;
-}
-.cc-badge-selfonly {
-  color: #8c8c8c;
-  background: #f0f0f0;
-  border: 1px solid #e0e0e0;
-}
-.cc-badge-removed {
-  color: #c4443a;
-  background: #fdf0ef;
-  border: 1px solid #f3d6d3;
-}
-.cc-video-metrics {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 8px;
-  margin-top: 12px;
-}
-.cc-metric {
   text-align: center;
-}
-.cc-metric-num {
-  display: block;
-  font-size: 13px;
-  font-weight: 500;
-  color: #1a1a1a;
-}
-.cc-metric-label {
-  display: block;
-  font-size: 12px;
+  font-size: 22rpx;
   color: #999;
+  padding: 0 0 24rpx;
 }
-.cc-video-foot {
+
+/* 时间/指标胶囊 */
+.cc-pill-row { display: flex; gap: 16rpx; padding: 20rpx 32rpx 0; flex-wrap: wrap; }
+.cc-pill {
+  border: 1rpx solid #EDE7DD;
+  background-color: #FFFFFF;
+  border-radius: 999rpx;
+  padding: 10rpx 26rpx;
+}
+.cc-pill-txt { font-size: 23rpx; color: #6E6E73; }
+.cc-pill-on {
+  border-color: #C41E3A;
+  background-color: rgba(196, 30, 58, 0.05);
+}
+.cc-pill-on .cc-pill-txt { color: #C41E3A; font-weight: 700; }
+
+/* ===== 单作品排行 ===== */
+.cc-sec-t {
+  display: flex;
+  align-items: baseline;
+  gap: 12rpx;
+  padding: 24rpx 40rpx 16rpx;
+}
+.cc-sec-tt { font-size: 30rpx; font-weight: 700; color: #2C2C2C; }
+.cc-sec-tc { font-size: 24rpx; color: #999; }
+.cc-rank {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid #f0f0f0;
+  gap: 22rpx;
+  background-color: #FFFFFF;
+  border-radius: 28rpx;
+  margin: 0 40rpx 16rpx;
+  padding: 18rpx 24rpx;
+  box-shadow: 0 4rpx 20rpx rgba(44, 44, 44, 0.04);
 }
-.cc-video-foot-left {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-.cc-video-foot-txt {
-  font-size: 12px;
-  color: #999;
-}
-.cc-foot-sale {
-  font-size: 12px;
-  color: var(--brand);
-  font-weight: 500;
-}
-.cc-foot-gmv {
-  font-size: 12px;
-  color: #999;
-}
-/* 商品管理 */
-.cc-prod-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-.cc-prod-sub {
-  display: block;
-  font-size: 12px;
-  color: #999;
-  margin-top: 2px;
-}
-.cc-add-btn {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 6px 12px;
-  background: var(--brand);
-  border-radius: 999px;
-}
-.cc-add-txt {
-  color: #ffffff;
-  font-size: 14px;
-  font-weight: 500;
-}
-.cc-prod-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-.cc-prod-card {
-  padding: 12px;
-  margin-bottom: 0;
-}
-.cc-prod-row {
-  display: flex;
-  gap: 12px;
-}
-.cc-prod-img {
-  width: 64px;
-  height: 64px;
-  border-radius: 8px;
+.cc-rank-no {
+  width: 40rpx;
+  text-align: center;
+  font-size: 30rpx;
+  font-weight: 700;
+  font-style: italic;
+  color: #C9A96E;
   flex-shrink: 0;
 }
-.cc-prod-info {
-  flex: 1;
-  min-width: 0;
+.cc-rank-no-plain { color: #C7C0B4; }
+.cc-rank-cover {
+  position: relative;
+  width: 88rpx;
+  height: 118rpx;
+  border-radius: 16rpx;
+  overflow: hidden;
+  flex-shrink: 0;
 }
-.cc-prod-name {
-  font-size: 14px;
+.cc-rank-img { position: absolute; inset: 0; width: 100%; height: 100%; }
+.cc-rank-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8rpx; }
+.cc-rank-title {
+  font-size: 26rpx;
   font-weight: 500;
-  color: #1a1a1a;
+  color: #2C2C2C;
   display: -webkit-box;
   -webkit-line-clamp: 1;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
-.cc-prod-price-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 4px;
-}
-.cc-prod-price {
-  color: var(--brand);
-  font-weight: 700;
-  font-size: 15px;
-}
-.cc-prod-commission {
-  background: rgba(34, 197, 94, 0.1);
-  color: #22c55e;
-  font-size: 10px;
-  padding: 2px 6px;
-  border-radius: 4px;
-}
-.cc-prod-meta {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  margin-top: 8px;
-  font-size: 12px;
-  color: #999;
-}
-.cc-prod-action {
+.cc-rank-data { display: flex; gap: 20rpx; }
+.cc-rank-stat { display: flex; align-items: center; gap: 6rpx; font-size: 22rpx; color: #999; }
+.cc-rank-empty { padding: 40rpx; text-align: center; }
+.cc-rank-empty-txt { font-size: 24rpx; color: #999; }
+
+/* ===== 快捷入口行 ===== */
+.cc-quick { display: flex; gap: 20rpx; padding: 24rpx 40rpx; }
+.cc-quick-item {
+  flex: 1;
+  background-color: #FFFFFF;
+  border-radius: 28rpx;
+  box-shadow: 0 4rpx 20rpx rgba(44, 44, 44, 0.04);
   display: flex;
   flex-direction: column;
+  align-items: center;
+  gap: 12rpx;
+  padding: 26rpx 8rpx;
+}
+.cc-quick-l { font-size: 23rpx; color: #6E6E73; }
+.cc-quick-l-red { color: #C41E3A; font-weight: 600; }
+
+/* ===== 作品卡 ===== */
+.cc-work {
+  display: flex;
+  gap: 24rpx;
+  background-color: #FFFFFF;
+  border-radius: 32rpx;
+  margin: 0 40rpx 20rpx;
+  padding: 20rpx;
+  box-shadow: 0 4rpx 20rpx rgba(44, 44, 44, 0.04);
+}
+.cc-work-cover {
+  position: relative;
+  width: 148rpx;
+  height: 197rpx;
+  border-radius: 20rpx;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.cc-work-img { position: absolute; inset: 0; width: 100%; height: 100%; }
+.cc-work-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 10rpx; padding: 4rpx 0; }
+.cc-work-title {
+  font-size: 26rpx;
+  font-weight: 500;
+  color: #2C2C2C;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.cc-work-time { font-size: 22rpx; color: #999; }
+.cc-work-data { display: flex; gap: 20rpx; }
+.cc-work-stat { display: flex; align-items: center; gap: 6rpx; font-size: 22rpx; color: #6E6E73; }
+.cc-work-foot {
+  display: flex;
+  align-items: center;
+  margin-top: auto;
+  padding-top: 8rpx;
+}
+.cc-work-ops { margin-left: auto; display: flex; gap: 28rpx; }
+.cc-op { font-size: 23rpx; color: #6E6E73; }
+.cc-op-hover { opacity: 0.5; }
+
+/* 状态标三种 */
+.cc-st { font-size: 20rpx; border-radius: 10rpx; padding: 4rpx 14rpx; }
+.cc-st-ok { background-color: #F1EEE8; color: #999; }
+.cc-st-self {
+  display: inline-flex;
+  align-items: center;
+  gap: 6rpx;
+  background-color: rgba(110, 110, 115, 0.12);
+}
+.cc-st-self-txt { font-size: 20rpx; color: #6E6E73; }
+.cc-st-down { background-color: rgba(214, 69, 65, 0.08); color: #D64541; }
+
+/* ===== 空态 ===== */
+.cc-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 28rpx;
+  padding: 80rpx 80rpx 40rpx;
+}
+.cc-empty-msg { font-size: 28rpx; color: #6E6E73; text-align: center; }
+.cc-primary-btn {
+  width: 344rpx;
+  height: 88rpx;
+  border-radius: 999rpx;
+  background-color: #C41E3A;
+  box-shadow: 0 8rpx 24rpx rgba(196, 30, 58, 0.3);
+  display: flex;
+  align-items: center;
   justify-content: center;
 }
-.cc-prod-promote {
-  padding: 4px 12px;
-  background: rgba(196, 30, 58, 0.1);
-  color: var(--brand);
-  border-radius: 4px;
-  font-size: 12px;
-  font-weight: 500;
-}
-/* 收益中心 */
-.cc-earn-card {
-  background: linear-gradient(135deg, rgba(217, 119, 6, 0.1), rgba(217, 119, 6, 0.05));
-}
-.cc-earn-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 16px;
-}
-.cc-earn-label {
-  display: block;
-  color: #999;
-  font-size: 14px;
-}
-.cc-earn-total {
-  display: block;
-  font-size: 30px;
-  font-weight: 700;
-  color: #1a1a1a;
-  margin-top: 4px;
-}
-.cc-withdraw-btn {
-  padding: 8px 16px;
-  background: var(--brand);
-  color: #ffffff;
-  border-radius: 999px;
-  font-size: 14px;
-  font-weight: 500;
-}
-.cc-earn-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-}
-.cc-earn-sub {
-  background: rgba(255, 255, 255, 0.5);
-  border-radius: 8px;
-  padding: 12px;
-}
-.cc-earn-sub-label {
-  display: block;
-  color: #999;
-  font-size: 12px;
-}
-.cc-earn-sub-num {
-  display: block;
-  font-size: 18px;
-  font-weight: 700;
-  color: #1a1a1a;
-  margin-top: 2px;
-}
-.cc-earn-list {
+.cc-primary-hover { opacity: 0.85; }
+.cc-primary-txt { font-size: 28rpx; color: #FFFFFF; font-weight: 600; }
+
+/* ===== 状态：加载/错误 ===== */
+.cc-state {
   display: flex;
   flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 28rpx;
+  padding: 180rpx 80rpx;
 }
-.cc-earn-item {
+.cc-state-txt { font-size: 28rpx; color: #6E6E73; text-align: center; }
+.cc-ghost-btn {
+  width: 300rpx;
+  height: 84rpx;
+  border-radius: 999rpx;
+  border: 1rpx solid #E5DED2;
+  background-color: #FFFFFF;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 8px 0;
-  border-bottom: 1px solid #f0f0f0;
+  justify-content: center;
 }
-.cc-earn-item:last-child {
-  border-bottom: 0;
+.cc-ghost-txt { font-size: 28rpx; color: #2C2C2C; }
+
+/* ===== 骨架态 ===== */
+.cc-sk {
+  background: linear-gradient(90deg, #EFEBE4 25%, #F7F4EF 37%, #EFEBE4 63%);
+  background-size: 400% 100%;
+  animation: cc-shimmer 1.4s ease infinite;
 }
-.cc-earn-type {
-  display: block;
-  font-size: 14px;
-  font-weight: 500;
-  color: #1a1a1a;
+@keyframes cc-shimmer {
+  0% { background-position: 100% 50%; }
+  100% { background-position: 0 50%; }
 }
-.cc-earn-detail {
-  display: block;
-  font-size: 12px;
-  color: #999;
-  margin-top: 2px;
-}
-.cc-earn-amount {
-  color: #22c55e;
-  font-weight: 500;
-}
-.cc-rule-title {
-  display: block;
-  margin-bottom: 8px;
-}
-.cc-rule-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.cc-rule {
-  font-size: 12px;
-  color: #999;
-  line-height: 1.5;
-}
-.cc-bottom-pad {
-  height: 80px;
-}
-/* 三态 + 空态 + 降级 */
-.cc-state { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 80px 32px; }
-.cc-state-txt { font-size: 14px; color: #999; }
-.cc-state-btn { margin-top: 4px; padding: 8px 24px; background: var(--brand); color: #ffffff; border-radius: 999px; font-size: 14px; }
-.cc-empty { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 48px 32px; }
-.cc-empty-txt { font-size: 14px; color: #999; }
-.cc-empty-btn { margin-top: 4px; padding: 8px 24px; background: var(--brand); color: #ffffff; border-radius: 999px; font-size: 14px; }
-.cc-biz-empty { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 16px; background: rgba(0, 0, 0, 0.02); border-radius: 8px; }
-.cc-biz-num { font-size: 28px; font-weight: 700; color: var(--brand); }
-.cc-biz-label { font-size: 13px; color: #1a1a1a; }
-.cc-biz-tip { font-size: 12px; color: #999; }
-.cc-earn-empty { padding: 24px; text-align: center; }
-.cc-earn-empty-txt { font-size: 13px; color: #999; }
+.cc-sk-head { display: flex; gap: 26rpx; padding: 36rpx 40rpx; }
+.cc-sk-avatar { width: 104rpx; height: 104rpx; border-radius: 50%; flex-shrink: 0; }
+.cc-sk-head-lines { display: flex; flex-direction: column; justify-content: center; gap: 16rpx; }
+.cc-sk-line { border-radius: 8rpx; }
+.cc-sk-card { margin: 0 40rpx; height: 296rpx; border-radius: 36rpx; }
+.cc-sk-quick { display: flex; gap: 20rpx; padding: 24rpx 40rpx; }
+.cc-sk-quick-item { flex: 1; height: 116rpx; border-radius: 28rpx; }
+.cc-sk-work { display: flex; gap: 24rpx; padding: 12rpx 40rpx; }
+.cc-sk-cover { width: 148rpx; height: 197rpx; border-radius: 20rpx; flex-shrink: 0; }
+.cc-sk-work-lines { flex: 1; display: flex; flex-direction: column; gap: 18rpx; padding-top: 8rpx; }
+
+.cc-bottom-pad { height: 60rpx; }
 </style>
