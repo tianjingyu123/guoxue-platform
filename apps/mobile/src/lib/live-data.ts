@@ -1094,6 +1094,22 @@ export interface LiveProductItem {
   cover: string
   status: 'on' | 'off'
 }
+// 本场已配商品（GET /live/rooms/:id 关联 productId → /shop/products/:id 充实）
+export interface LiveConfiguredProduct {
+  id: string
+  name: string
+  price: number
+  stock: number
+  sold: number
+  cover: string
+}
+// 选品层商品池（GET /shop/products?status=ON_SALE 平台在售商品）
+export interface LivePickerProduct {
+  id: string
+  name: string
+  price: number
+  cover: string
+}
 export const liveProducts: LiveProductItem[] = [
   { id: '1', name: '《渊海子平》精装典藏版', price: 168, stock: 200, sold: 86, cover: 'https://api.rebugx.cn/assets/marketing/course.webp', status: 'on' },
   { id: '2', name: '紫微斗数入门教程（平装）', price: 88, stock: 150, sold: 142, cover: 'https://api.rebugx.cn/assets/marketing/course.webp', status: 'on' },
@@ -1156,8 +1172,14 @@ export const liveManageStats: LiveManageStat[] = [
 export interface LiveManageItem {
   id: number | string
   title: string
+  cover: string // 封面（9:16 小图）
   type: 'knowledge' | 'commerce'
   status: 'preview' | 'live' | 'ended' | 'draft'
+  orientation: 'portrait' | 'landscape' // 竖屏 / OBS横屏（场次卡形态标签）
+  quality: string // 画质档 basic|hd|uhd
+  priceType: 'free' | 'paid'
+  price: number // 付费金额（元）
+  replayUrl: string // 已结束有回放时展示「查看回放」
   scheduledTime: string
   duration: string
   viewers: number
@@ -1168,24 +1190,23 @@ export interface LiveManageItem {
   selfOnly?: boolean // 机审降级仅自己可见（管理列表灰色小标·点击看说明与申诉指引）
   removed?: boolean // 严重违规已下架
 }
+// 兜底展示样例（getManageList 走真实 my-rooms，异常仅回退空列表，此常量不用于线上渲染）
+const _mDefault = { cover: '', orientation: 'portrait' as const, quality: 'basic', priceType: 'free' as const, price: 0, replayUrl: '' }
 export const liveManageList: LiveManageItem[] = [
-  { id: 1, title: '八字命理入门：如何快速解读四柱八字', type: 'knowledge', status: 'live', scheduledTime: '2024-01-15 20:00', duration: '进行中', viewers: 1258, peakViewers: 2100, income: 680, likes: 3200 },
-  { id: 2, title: '开光貔貅专场：招财转运好物推荐', type: 'commerce', status: 'preview', scheduledTime: '2024-01-16 19:30', duration: '-', viewers: 0, peakViewers: 0, income: 0, likes: 0, previewCount: 328 },
-  { id: 3, title: '紫微斗数命盘实战解析', type: 'knowledge', status: 'ended', scheduledTime: '2024-01-14 20:00', duration: '2小时15分', viewers: 5680, peakViewers: 3200, income: 1280, likes: 8900 },
-  { id: 4, title: '风水布局直播：家居风水调整指南', type: 'knowledge', status: 'ended', scheduledTime: '2024-01-12 19:00', duration: '1小时45分', viewers: 4200, peakViewers: 2800, income: 960, likes: 6500 },
-  { id: 5, title: '新品预告直播（未发布）', type: 'commerce', status: 'draft', scheduledTime: '', duration: '-', viewers: 0, peakViewers: 0, income: 0, likes: 0 },
+  { id: 1, title: '八字命理入门：如何快速解读四柱八字', ..._mDefault, type: 'knowledge', status: 'live', scheduledTime: '2024-01-15 20:00', duration: '进行中', viewers: 1258, peakViewers: 2100, income: 680, likes: 3200 },
+  { id: 2, title: '开光貔貅专场：招财转运好物推荐', ..._mDefault, type: 'commerce', status: 'preview', scheduledTime: '2024-01-16 19:30', duration: '-', viewers: 0, peakViewers: 0, income: 0, likes: 0, previewCount: 328 },
+  { id: 3, title: '紫微斗数命盘实战解析', ..._mDefault, type: 'knowledge', status: 'ended', scheduledTime: '2024-01-14 20:00', duration: '2小时15分', viewers: 5680, peakViewers: 3200, income: 1280, likes: 8900 },
 ]
 
 export const liveManageTabs = [
   { key: 'all', label: '全部' },
-  { key: 'preview', label: '预告中' },
+  { key: 'preview', label: '待开播' },
   { key: 'live', label: '直播中' },
   { key: 'ended', label: '已结束' },
-  { key: 'draft', label: '草稿' },
 ]
 export const liveManageStatusConfig: Record<string, { label: string; color: string }> = {
-  preview: { label: '预告中', color: '#3b6fd4' },
-  live: { label: '直播中', color: '#ef4444' },
+  preview: { label: '待开播', color: '#3b6fd4' },
+  live: { label: '直播中', color: '#C41E3A' },
   ended: { label: '已结束', color: '#9ca3af' },
   draft: { label: '草稿', color: '#d99423' },
 }
@@ -1207,6 +1228,10 @@ interface RawLiveRoom {
   startTime?: string
   endTime?: string
   hasProducts?: boolean
+  productCount?: number // my-rooms 返回：本场商品数
+  orientation?: string | null // my-rooms 返回：portrait 竖屏 / landscape OBS横屏
+  quality?: string | null // my-rooms 返回：画质档 basic|hd|uhd
+  replayUrl?: string | null // my-rooms 返回：已结束有回放时
   selfOnly?: boolean // my-rooms 返回：机审降级仅自己可见
   removed?: boolean // my-rooms 返回：严重违规已下架
   _count?: { products?: number } | null
@@ -1496,6 +1521,11 @@ export const liveApi = {
     return await apiPut<{ id: string; status?: string }>(`/live/rooms/${roomId}/end`)
   },
 
+  /** 删除直播间（房主本人或管理员） — DELETE /live/rooms/:id */
+  async deleteRoom(roomId: string): Promise<void> {
+    await apiDelete(`/live/rooms/${roomId}`)
+  },
+
   /** 禁言用户（房主或管理员） — POST /live/rooms/:id/mute */
   async muteUser(roomId: string, userId: string, durationMinutes?: number): Promise<void> {
     await apiPost(`/live/rooms/${roomId}/mute`, { userId, ...(durationMinutes ? { durationMinutes } : {}) })
@@ -1575,11 +1605,18 @@ export const liveApi = {
         const mins = Math.round((new Date(r.endTime).getTime() - new Date(r.startTime).getTime()) / 60000)
         if (mins > 0) duration = mins >= 60 ? `${Math.floor(mins / 60)}小时${mins % 60}分` : `${mins}分钟`
       }
+      const price = Number(r.chargePrice ?? 0)
       return {
         id: r.id || '',
         title: r.title || '',
+        cover: r.cover || '',
         type: r.hasProducts ? 'commerce' : 'knowledge',
         status,
+        orientation: r.orientation === 'landscape' ? 'landscape' : 'portrait',
+        quality: r.quality || 'basic',
+        priceType: r.chargeType === 'PAID' && price > 0 ? 'paid' : 'free',
+        price,
+        replayUrl: r.replayUrl || '',
         scheduledTime: fmtLiveTime(r.startTime) || '',
         duration,
         viewers: r.viewCount || 0,
@@ -1816,6 +1853,64 @@ export const liveApi = {
       return data?.items || []
     } catch {
       // 未登录 / 无商品 → 空列表（页面走空态，不回退假数据）
+      return []
+    }
+  },
+
+  /**
+   * 本场已配带货商品 — GET /live/rooms/:id（关联表仅存 productId → 逐个拉 /shop/products/:id 充实）。
+   * 真连：房间标题 + 已配商品列表（排序即讲解顺序·后端关联表当前无排序/讲解中字段，前端按返回顺序展示）。
+   * 单件失败跳过；房间不存在/未登录 → 抛错交页面三态。
+   */
+  async getRoomProducts(roomId: string): Promise<{ roomTitle: string; products: LiveConfiguredProduct[] }> {
+    const r = await apiGet<RawLiveRoomDetail>(`/live/rooms/${roomId}`)
+    const rawProds = Array.isArray(r?.products) ? r.products.slice(0, 30) : []
+    const enriched = await Promise.all(
+      rawProds.map(async (lp): Promise<LiveConfiguredProduct | null> => {
+        const pid = lp.productId || ''
+        if (!pid) return null
+        try {
+          const p = await apiGet<RawLiveShopProduct>(`/shop/products/${pid}`)
+          return {
+            id: pid,
+            name: p?.title || '商品',
+            cover: (Array.isArray(p?.images) && p.images[0]) || p?.cover || '',
+            price: Number(p?.effectivePrice ?? p?.price) || 0,
+            stock: p?.stock ?? 0,
+            sold: p?.salesCount ?? 0,
+          }
+        } catch {
+          return null // 商品已删/下架 → 跳过
+        }
+      }),
+    )
+    return {
+      roomTitle: r?.title || '',
+      products: enriched.filter((p): p is LiveConfiguredProduct => !!p),
+    }
+  },
+
+  /**
+   * 选品层商品池 — GET /shop/products?status=ON_SALE（平台在售商品·多选加入直播间）。
+   * 真连；search 走后端 keyword 过滤。失败/未登录 → 空列表（页面空态，不回退假商品）。
+   */
+  async getShopProductPool(search?: string): Promise<LivePickerProduct[]> {
+    try {
+      const q = search ? `&keyword=${encodeURIComponent(search)}` : ''
+      const r = await apiGet<unknown>(`/shop/products?status=ON_SALE&pageSize=50${q}`)
+      const arr: RawLiveShopProduct[] = Array.isArray(r)
+        ? (r as RawLiveShopProduct[])
+        : ((r as { products?: RawLiveShopProduct[]; items?: RawLiveShopProduct[]; data?: RawLiveShopProduct[] })?.products
+            ?? (r as { items?: RawLiveShopProduct[] })?.items
+            ?? (r as { data?: RawLiveShopProduct[] })?.data
+            ?? [])
+      return arr.map((p) => ({
+        id: String(p.id ?? ''),
+        name: p.title || '商品',
+        cover: (Array.isArray(p.images) && p.images[0]) || p.cover || '',
+        price: Number(p.effectivePrice ?? p.price) || 0,
+      }))
+    } catch {
       return []
     }
   },

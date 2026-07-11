@@ -1,129 +1,135 @@
 <template>
-  <view class="earnings-page">
+  <!-- 加载骨架屏 -->
+  <view v-if="loading" class="sk-page">
+    <view class="sk-sec"><view class="sk-pills"><view class="sk-block sk-h56 sk-pill" /><view class="sk-block sk-h56 sk-pill" /><view class="sk-block sk-h56 sk-pill" /></view></view>
+    <view class="sk-sec"><view class="sk-block sk-h280" /></view>
+    <view class="sk-sec"><view class="sk-block sk-h136" /></view>
+    <view class="sk-sec"><view class="sk-line sk-w80" /><view class="sk-block sk-h140" /><view class="sk-block sk-h140" /></view>
+  </view>
+
+  <!-- 错误状态 -->
+  <view v-else-if="error" class="error-state">
+    <text class="error-text">{{ error }}</text>
+    <view class="retry-btn" @tap="fetchData">重试</view>
+  </view>
+
+  <!-- 正常内容 -->
+  <view v-else class="page">
     <!-- 顶部导航 -->
-    <view class="nav-bar">
-      <view class="nav-left">
-        <view class="nav-back" @tap="goBack">
-          <app-icon name="arrow-left" :size="40" color="#1a1a1a" />
-        </view>
-        <text class="nav-title">直播收益</text>
+    <view class="nav">
+      <view class="nav-btn" @tap="goBack">
+        <AppIcon name="chevron-left" :size="44" color="#2C2C2C" />
       </view>
-      <view class="nav-export">
-        <app-icon name="download" :size="32" color="#999" />
-        <text class="nav-export-text">导出</text>
-      </view>
+      <text class="nav-title">直播收益</text>
+      <view class="nav-placeholder" />
     </view>
 
-    <view class="page-body">
-      <!-- 时间范围选择 -->
-      <view class="range-row">
-        <view
-          v-for="r in ranges"
-          :key="r.key"
-          class="range-chip"
-          :class="{ 'range-chip-active': range === r.key }"
-          @tap="range = r.key"
-        >
-          {{ r.label }}
+    <scroll-view scroll-y class="scroll">
+      <!-- 时间范围 -->
+      <view class="sec">
+        <view class="pills">
+          <view
+            v-for="r in ranges"
+            :key="r.key"
+            class="pill"
+            :class="{ sel: range === r.key }"
+            @tap="switchRange(r.key)"
+          >{{ r.label }}</view>
         </view>
       </view>
 
-      <!-- 收益总览卡片 -->
-      <view class="overview-card">
-        <text class="overview-label">总收益（元）</text>
-        <view class="overview-total">
-          <text class="total-num">{{ stats.total.toLocaleString() }}</text>
-          <view class="trend" :class="stats.trend >= 0 ? 'trend-up' : 'trend-down'">
-            <app-icon
-              :name="stats.trend >= 0 ? 'trending-up' : 'trending-down'"
-              :size="28"
-              :color="stats.trend >= 0 ? '#22c55e' : '#ef4444'"
-            />
-            <text>{{ Math.abs(stats.trend) }}%</text>
-          </view>
-        </view>
-        <view class="overview-grid">
-          <view class="overview-item">
-            <view class="item-head">
-              <app-icon name="gift" :size="28" color="#d4a017" />
-              <text class="item-label">打赏收益</text>
+      <!-- 收益总览卡 -->
+      <view class="sec">
+        <view class="overview">
+          <text class="ov-label">总收益（元）</text>
+          <view class="ov-total">
+            <text class="ov-num">{{ totalText }}</text>
+            <view v-if="stats.trend !== 0" class="trend" :class="stats.trend >= 0 ? 'up' : 'down'">
+              <AppIcon :name="stats.trend >= 0 ? 'trending-up' : 'trending-down'" :size="26" :color="stats.trend >= 0 ? '#3A9E5C' : '#C0392B'" />
+              <text class="trend-txt">{{ Math.abs(stats.trend) }}%</text>
             </view>
-            <text class="item-value">¥{{ formatPrice(stats.reward).toLocaleString() }}</text>
           </view>
-          <view class="overview-item">
-            <view class="item-head">
-              <app-icon name="shopping-bag" :size="28" color="#C41E3A" />
-              <text class="item-label">带货收益</text>
+          <view class="ov-grid">
+            <view class="ov-item">
+              <view class="ov-item-head">
+                <AppIcon name="gift" :size="28" color="#C9A96E" />
+                <text class="ov-item-label">打赏收益</text>
+              </view>
+              <text class="ov-item-val">¥<text class="gold">{{ formatMoney(stats.reward) }}</text></text>
             </view>
-            <text class="item-value">¥{{ formatPrice(stats.goods).toLocaleString() }}</text>
+            <view class="ov-item">
+              <view class="ov-item-head">
+                <AppIcon name="shopping-bag" :size="28" color="#C41E3A" />
+                <text class="ov-item-label">带货收益</text>
+              </view>
+              <text class="ov-item-val">¥{{ formatMoney(stats.goods) }}</text>
+            </view>
           </view>
         </view>
       </view>
 
-      <!-- 提现入口 -->
-      <view class="withdraw-card" @tap="goWithdraw">
-        <view class="withdraw-left">
-          <view class="withdraw-icon">
-            <app-icon name="credit-card" :size="36" color="#C41E3A" />
+      <!-- 提现入口 → 钱包既有提现 -->
+      <view class="sec">
+        <view class="withdraw" @tap="goWithdraw">
+          <view class="wd-left">
+            <view class="wd-icon">
+              <AppIcon name="wallet" :size="36" color="#C41E3A" />
+            </view>
+            <view>
+              <text class="wd-title">收益提现</text>
+              <text class="wd-desc">收益已计入国学钱包，提现 T+1 到账</text>
+            </view>
           </view>
-          <view>
-            <text class="withdraw-title">可提现金额</text>
-            <text class="withdraw-desc">T+1 结算，最低100元可提</text>
-          </view>
-        </view>
-        <view class="withdraw-right">
-          <text class="withdraw-amount">¥{{ (stats.total * 0.7).toFixed(0) }}</text>
-          <app-icon name="chevron-right" :size="32" color="#999" />
+          <AppIcon name="chevron-right" :size="32" color="#B8B2A8" />
         </view>
       </view>
 
-      <!-- 明细列表 -->
-      <view>
-        <!-- 筛选 -->
-        <view class="type-row">
+      <!-- 收益明细 -->
+      <view class="sec">
+        <view class="label">收益明细</view>
+        <view class="types">
           <view
             v-for="f in typeFilters"
             :key="f.key"
-            class="type-chip"
-            :class="{ 'type-chip-active': typeFilter === f.key }"
+            class="type"
+            :class="{ sel: typeFilter === f.key }"
             @tap="typeFilter = f.key"
-          >
-            {{ f.label }}
+          >{{ f.label }}</view>
+        </view>
+
+        <view v-if="filtered.length" class="records">
+          <view v-for="record in filtered" :key="record.id" class="record">
+            <view class="rec-left">
+              <view class="rec-icon" :class="record.type === 'reward' ? 'ic-reward' : 'ic-goods'">
+                <AppIcon :name="record.type === 'reward' ? 'gift' : 'shopping-bag'" :size="32" :color="record.type === 'reward' ? '#C9A96E' : '#C41E3A'" />
+              </view>
+              <view class="rec-info">
+                <text class="rec-desc">{{ record.desc }}</text>
+                <text class="rec-live">{{ record.live }}</text>
+                <text class="rec-date">{{ record.date }}</text>
+              </view>
+            </view>
+            <text class="rec-amount">+¥{{ formatMoney(record.amount) }}</text>
           </view>
         </view>
 
-        <view class="record-list">
-          <view v-for="record in filtered" :key="record.id" class="record-card">
-            <view class="record-left">
-              <view
-                class="record-icon"
-                :class="record.type === 'reward' ? 'icon-reward' : 'icon-goods'"
-              >
-                <app-icon
-                  :name="record.type === 'reward' ? 'gift' : 'shopping-bag'"
-                  :size="32"
-                  :color="record.type === 'reward' ? '#d4a017' : '#C41E3A'"
-                />
-              </view>
-              <view class="record-info">
-                <text class="record-desc">{{ record.desc }}</text>
-                <text class="record-live">{{ record.live }}</text>
-                <text class="record-date">{{ record.date }}</text>
-              </view>
-            </view>
-            <text class="record-amount">+¥{{ formatPrice(record.amount) }}</text>
-          </view>
+        <!-- 空态 -->
+        <view v-else class="empty">
+          <AppIcon name="inbox" :size="72" color="#D8D0C4" />
+          <text class="empty-txt">该周期暂无收益记录</text>
         </view>
       </view>
-    </view>
-    <view class="bottom-spacer" />
+
+      <view class="foot-space" />
+    </scroll-view>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
-import { goBack } from '@/utils/router'
-import { liveApi, liveEarningRanges } from '@/lib/live-data'
+import { ref, computed, watch } from 'vue'
+import AppIcon from '@/components/common/app-icon.vue'
+import { goBack, navigateTo } from '@/utils/router'
+import { liveApi, liveEarningRanges, type LiveEarningStats, type LiveEarningRecord } from '@/lib/live-data'
 import { formatPrice } from '@/utils/format'
 
 const ranges = liveEarningRanges
@@ -133,14 +139,24 @@ const typeFilters = [
   { key: 'goods', label: '带货' },
 ]
 
+// 三态 UI
 const loading = ref(true)
 const error = ref('')
+
 const range = ref('30d')
 const typeFilter = ref('all')
-// 模板裸访问收益统计字段，保留 any 避免收敛触发大量报错
-const stats = ref<any>({ total: 0, reward: 0, goods: 0, trend: 0 })
-// 收益记录列表，元素结构由后端返回，保留 any[]
-const records = ref<any[]>([])
+const stats = ref<LiveEarningStats>({ total: 0, reward: 0, goods: 0, trend: 0 })
+const records = ref<LiveEarningRecord[]>([])
+
+/** 金额（后端返回单位为元）格式化：两位精度 + 千分位 */
+function formatMoney(n: number): string {
+  return formatPrice(n).toLocaleString('zh-CN', { minimumFractionDigits: 0, maximumFractionDigits: 2 })
+}
+const totalText = computed(() => formatMoney(stats.value.total))
+
+const filtered = computed(() =>
+  records.value.filter((r) => typeFilter.value === 'all' || r.type === typeFilter.value),
+)
 
 async function fetchData() {
   loading.value = true
@@ -156,293 +172,114 @@ async function fetchData() {
   }
 }
 
-const filtered = computed(() =>
-  records.value.filter((r) => typeFilter.value === 'all' || r.type === typeFilter.value),
-)
-
-watch(range, () => { fetchData() })
-
-function goWithdraw() {
-  uni.navigateTo({
-    url: '/pkg-live/withdraw/index',
-    fail: () => uni.showToast({ title: '功能开发中', icon: 'none' }),
-  })
+// 切周期不整页重载三态，仅刷新数据（避免骨架屏闪烁）
+function switchRange(key: string) {
+  if (range.value === key) return
+  range.value = key
+}
+watch(range, () => { refresh() })
+async function refresh() {
+  try {
+    const res = await liveApi.getEarnings(range.value)
+    stats.value = res.stats
+    records.value = res.records
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '刷新失败', icon: 'none' })
+  }
 }
 
-onMounted(() => { fetchData() })
+// 提现走钱包既有提现页（收益已折算入国学钱包余额）
+function goWithdraw() {
+  navigateTo('/pkg-mine/wallet/withdraw')
+}
+
+fetchData()
 </script>
 
 <style scoped>
-.earnings-page {
-  min-height: 100vh;
-  background: #faf8f5;
-}
+/* 骨架屏 */
+.sk-page { min-height: 100vh; background: #FAF8F5; padding-top: 96rpx; }
+.sk-sec { padding: 32rpx 40rpx 0; }
+.sk-line { height: 28rpx; border-radius: 8rpx; margin-bottom: 20rpx; background: #EFEAE1; }
+.sk-w80 { width: 160rpx; }
+.sk-block { border-radius: 24rpx; background: linear-gradient(90deg, #EFEAE1 25%, #F7F4EE 50%, #EFEAE1 75%); background-size: 200% 100%; animation: sk 1.4s infinite; margin-bottom: 20rpx; }
+@keyframes sk { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+.sk-h56 { height: 56rpx; }
+.sk-h136 { height: 136rpx; }
+.sk-h140 { height: 140rpx; }
+.sk-h280 { height: 280rpx; }
+.sk-pills { display: flex; gap: 20rpx; }
+.sk-pill { flex: 1; border-radius: 999rpx; }
 
-/* 顶部 */
-.nav-bar {
-  position: sticky;
-  top: 0;
-  z-index: 50;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  height: 96rpx;
-  padding: 0 32rpx;
-  background: #faf8f5;
-  border-bottom: 1px solid #ece8e1;
-}
-.nav-left {
-  display: flex;
-  align-items: center;
-  gap: 16rpx;
-}
-.nav-back {
-  display: flex;
-  align-items: center;
-}
-.nav-title {
-  font-size: 32rpx;
-  font-weight: 600;
-  color: #1a1a1a;
-}
-.nav-export {
-  display: flex;
-  align-items: center;
-  gap: 6rpx;
-}
-.nav-export-text {
-  font-size: 24rpx;
-  color: #999;
-}
+/* 错误状态 */
+.error-state { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #FAF8F5; padding: 48rpx; }
+.error-text { font-size: 28rpx; color: #999; margin-bottom: 32rpx; }
+.retry-btn { padding: 20rpx 64rpx; background: #C41E3A; color: #fff; border-radius: 24rpx; font-size: 28rpx; }
 
-.page-body {
-  padding: 32rpx;
-  display: flex;
-  flex-direction: column;
-  gap: 32rpx;
-}
+/* 页面 */
+.page { display: flex; flex-direction: column; height: 100vh; background: #FAF8F5; }
 
-/* 时间范围 */
-.range-row {
-  display: flex;
-  gap: 16rpx;
-}
-.range-chip {
-  flex: 1;
-  text-align: center;
-  padding: 14rpx 0;
-  border-radius: 999rpx;
-  font-size: 24rpx;
-  font-weight: 500;
-  color: #1a1a1a;
-  background: #f0ece5;
-}
-.range-chip-active {
-  background: var(--brand);
-  color: #fff;
-}
+/* 导航 */
+.nav { flex-shrink: 0; background: #FAF8F5; height: 96rpx; padding: 0 32rpx; display: flex; align-items: center; justify-content: space-between; }
+.nav-btn { margin-left: -8rpx; width: 48rpx; height: 48rpx; display: flex; align-items: center; }
+.nav-title { font-size: 32rpx; font-weight: 600; color: #2C2C2C; }
+.nav-placeholder { width: 48rpx; }
 
-/* 总览卡片 */
-.overview-card {
-  background: #fff;
-  border: 1px solid #ece8e1;
-  border-radius: 24rpx;
-  padding: 32rpx;
-}
-.overview-label {
-  font-size: 22rpx;
-  color: #999;
-}
-.overview-total {
-  display: flex;
-  align-items: flex-end;
-  gap: 16rpx;
-  margin: 8rpx 0 24rpx;
-}
-.total-num {
-  font-size: 60rpx;
-  font-weight: 800;
-  color: #1a1a1a;
-  line-height: 1;
-}
-.trend {
-  display: flex;
-  align-items: center;
-  gap: 4rpx;
-  padding-bottom: 8rpx;
-  font-size: 22rpx;
-  font-weight: 500;
-}
-.trend-up {
-  color: #22c55e;
-}
-.trend-down {
-  color: #ef4444;
-}
-.overview-grid {
-  display: flex;
-  gap: 24rpx;
-}
-.overview-item {
-  flex: 1;
-  background: #faf8f5;
-  border-radius: 16rpx;
-  padding: 24rpx;
-}
-.item-head {
-  display: flex;
-  align-items: center;
-  gap: 10rpx;
-  margin-bottom: 8rpx;
-}
-.item-label {
-  font-size: 22rpx;
-  color: #999;
-}
-.item-value {
-  font-size: 34rpx;
-  font-weight: 700;
-  color: #1a1a1a;
-}
+.scroll { flex: 1; }
+
+/* 分区 */
+.sec { padding: 32rpx 40rpx 0; }
+.label { font-size: 28rpx; font-weight: 600; color: #2C2C2C; margin-bottom: 16rpx; }
+.gold { color: #C9A96E; font-weight: 700; }
+
+/* 周期胶囊 */
+.pills { display: flex; gap: 20rpx; }
+.pill { flex: 1; height: 72rpx; border: 1rpx solid #E8E2D8; background: #fff; border-radius: 999rpx; display: flex; align-items: center; justify-content: center; font-size: 26rpx; color: #6E6E73; }
+.pill.sel { border: 1rpx solid #C41E3A; color: #C41E3A; font-weight: 600; background: #FBF0F2; }
+
+/* 总览卡 */
+.overview { background: #fff; border: 1rpx solid #F0EBE2; border-radius: 36rpx; padding: 36rpx 32rpx; }
+.ov-label { font-size: 24rpx; color: #999; }
+.ov-total { display: flex; align-items: flex-end; gap: 16rpx; margin: 12rpx 0 28rpx; }
+.ov-num { font-size: 64rpx; font-weight: 800; color: #2C2C2C; line-height: 1; font-family: "SF Mono", Menlo, Consolas, monospace; }
+.trend { display: flex; align-items: center; gap: 4rpx; padding-bottom: 8rpx; }
+.trend-txt { font-size: 24rpx; font-weight: 600; }
+.trend.up .trend-txt { color: #3A9E5C; }
+.trend.down .trend-txt { color: #C0392B; }
+.ov-grid { display: flex; gap: 24rpx; }
+.ov-item { flex: 1; background: #FAF8F5; border: 1rpx solid #F0EBE2; border-radius: 24rpx; padding: 24rpx; }
+.ov-item-head { display: flex; align-items: center; gap: 10rpx; margin-bottom: 12rpx; }
+.ov-item-label { font-size: 24rpx; color: #999; }
+.ov-item-val { font-size: 34rpx; font-weight: 700; color: #2C2C2C; }
 
 /* 提现入口 */
-.withdraw-card {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background: rgba(196, 30, 58, 0.05);
-  border: 1px solid rgba(196, 30, 58, 0.2);
-  border-radius: 24rpx;
-  padding: 32rpx;
-}
-.withdraw-left {
-  display: flex;
-  align-items: center;
-  gap: 20rpx;
-}
-.withdraw-icon {
-  width: 72rpx;
-  height: 72rpx;
-  border-radius: 50%;
-  background: rgba(196, 30, 58, 0.1);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.withdraw-title {
-  display: block;
-  font-size: 28rpx;
-  font-weight: 600;
-  color: #1a1a1a;
-}
-.withdraw-desc {
-  display: block;
-  font-size: 22rpx;
-  color: #999;
-  margin-top: 4rpx;
-}
-.withdraw-right {
-  display: flex;
-  align-items: center;
-  gap: 12rpx;
-}
-.withdraw-amount {
-  font-size: 34rpx;
-  font-weight: 700;
-  color: var(--brand);
-}
+.withdraw { display: flex; align-items: center; justify-content: space-between; background: #FBF0F2; border: 1rpx solid #F0C9CF; border-radius: 36rpx; padding: 28rpx 32rpx; }
+.wd-left { display: flex; align-items: center; gap: 20rpx; }
+.wd-icon { width: 76rpx; height: 76rpx; border-radius: 50%; background: #F7DCE1; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.wd-title { display: block; font-size: 28rpx; font-weight: 600; color: #2C2C2C; }
+.wd-desc { display: block; font-size: 22rpx; color: #999; margin-top: 4rpx; }
 
 /* 明细筛选 */
-.type-row {
-  display: flex;
-  gap: 16rpx;
-  margin-bottom: 24rpx;
-}
-.type-chip {
-  padding: 12rpx 24rpx;
-  border-radius: 999rpx;
-  font-size: 24rpx;
-  font-weight: 500;
-  color: #1a1a1a;
-  background: #f0ece5;
-}
-.type-chip-active {
-  background: var(--brand);
-  color: #fff;
-}
+.types { display: flex; gap: 20rpx; margin-bottom: 24rpx; }
+.type { padding: 12rpx 28rpx; border-radius: 999rpx; font-size: 24rpx; color: #6E6E73; background: #F0ECE5; }
+.type.sel { background: #C41E3A; color: #fff; font-weight: 600; }
 
 /* 明细列表 */
-.record-list {
-  display: flex;
-  flex-direction: column;
-  gap: 16rpx;
-}
-.record-card {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16rpx;
-  background: #fff;
-  border: 1px solid #ece8e1;
-  border-radius: 24rpx;
-  padding: 28rpx;
-}
-.record-left {
-  display: flex;
-  align-items: flex-start;
-  gap: 20rpx;
-  min-width: 0;
-}
-.record-icon {
-  width: 64rpx;
-  height: 64rpx;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  margin-top: 4rpx;
-}
-.icon-reward {
-  background: rgba(212, 160, 23, 0.15);
-}
-.icon-goods {
-  background: rgba(196, 30, 58, 0.1);
-}
-.record-info {
-  min-width: 0;
-}
-.record-desc {
-  display: block;
-  font-size: 28rpx;
-  font-weight: 500;
-  color: #1a1a1a;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.record-live {
-  display: block;
-  font-size: 22rpx;
-  color: #999;
-  margin-top: 4rpx;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.record-date {
-  display: block;
-  font-size: 22rpx;
-  color: #999;
-  margin-top: 2rpx;
-}
-.record-amount {
-  font-size: 28rpx;
-  font-weight: 700;
-  color: #22c55e;
-  flex-shrink: 0;
-}
-.bottom-spacer {
-  height: 64rpx;
-}
+.records { display: flex; flex-direction: column; gap: 16rpx; }
+.record { display: flex; align-items: flex-start; justify-content: space-between; gap: 16rpx; background: #fff; border: 1rpx solid #F0EBE2; border-radius: 28rpx; padding: 28rpx; }
+.rec-left { display: flex; align-items: flex-start; gap: 20rpx; min-width: 0; flex: 1; }
+.rec-icon { width: 64rpx; height: 64rpx; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 4rpx; }
+.ic-reward { background: #FBF6EC; }
+.ic-goods { background: #FBF0F2; }
+.rec-info { min-width: 0; flex: 1; }
+.rec-desc { display: block; font-size: 28rpx; font-weight: 500; color: #2C2C2C; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rec-live { display: block; font-size: 22rpx; color: #999; margin-top: 4rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rec-date { display: block; font-size: 22rpx; color: #B8B2A8; margin-top: 2rpx; }
+.rec-amount { font-size: 28rpx; font-weight: 700; color: #C0392B; flex-shrink: 0; }
+
+/* 空态 */
+.empty { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 96rpx 0 64rpx; gap: 20rpx; }
+.empty-txt { font-size: 26rpx; color: #B8B2A8; }
+
+.foot-space { height: calc(48rpx + env(safe-area-inset-bottom)); }
 </style>

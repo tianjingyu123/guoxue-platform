@@ -22,6 +22,7 @@ import {
 } from '@/lib/circle-detail-data'
 import { track } from '@/composables/useTrack'
 import { formatPrice } from '@/utils/format'
+import { liveApi } from '@/lib/live-data'
 
 const circleId = ref('1')
 const circle = ref<CircleDetail | null>(null)
@@ -216,14 +217,26 @@ function openQuickPost() { navigateTo(`/pkg-circle/circles/editor?circleId=${cir
  * 文章/课程走 publish 表单页，短视频/直播走各自独立发布页。
  * 退出入口已移至「圈子·我的」圈子卡 ···（管理员/圈主不显示退出·董事长反馈）。
  */
-function openCreate() { showPublish.value = true }
+// 打开发布面板时顺带查一下是否有正在进行的直播（有则「发直播」→「我的直播」）
+const hasActiveLive = ref(false)
+function openCreate() {
+  showPublish.value = true
+  if (!canCreate.value) return
+  liveApi.getManageList()
+    .then(({ list }) => { hasActiveLive.value = list.some((r) => r.status === 'live') })
+    .catch(() => { hasActiveLive.value = false })
+}
 const createItems = computed(() => {
   if (!canCreate.value) return []
+  // 有正在进行的直播 → 入口变「我的直播」(去管理/下播)；下播后无直播 → 「发直播」(去创建)
+  const liveEntry = hasActiveLive.value
+    ? { icon: 'radio', title: '我的直播', desc: '你有正在进行的直播 · 点击进入管理', url: '/pkg-live/manage/index' }
+    : { icon: 'radio', title: '发直播', desc: '立即或预约开播', url: `/pkg-live/create/index?circleId=${circleId.value}` }
   return [
     { icon: 'file-text', title: '写文章', desc: '富文本长图文，可向全平台开放', url: `/pkg-circle/circles/publish?circleId=${circleId.value}&type=article` },
     { icon: 'video', title: '发短视频', desc: '竖屏视频，可关联商品', url: `/pkg-video/publish/index?circleId=${circleId.value}` },
     { icon: 'graduation-cap', title: '发课程', desc: '图文 / 音视频', url: `/pkg-circle/circles/publish?circleId=${circleId.value}&type=course` },
-    { icon: 'radio', title: '发直播', desc: '立即或预约开播', url: `/pkg-live/create/index?circleId=${circleId.value}` },
+    liveEntry,
   ]
 })
 function pickPublish(url: string) {
