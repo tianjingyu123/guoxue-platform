@@ -88,14 +88,18 @@ const JIE_LIST = ["立春", "惊蛰", "清明", "立夏", "芒种", "小暑", "�
 /** 月柱。返回 gan/zhi 及月序（1=寅月） */
 export function monthGanzhi(y: number, m: number, d: number, hour = 12, minute = 0): { gan: Gan; zhi: Zhi; monthNo: number } {
   const t = beijingMs(y, m, d, hour, minute)
-  // 找最近已过的"节"
+  // 找最近已过的"节"：先扫本年立春..大雪（时间单调递增，最后一个已过者即当月）
   let monthNo = 0 // 1=寅月...12=丑月
-  for (let i = 0; i < 12; i++) {
-    const termYear = i === 11 ? (m === 1 ? y : y + 1) : y
-    const term = findTerm(termYear, JIE_LIST[i]).getTime()
+  for (let i = 0; i < 11; i++) {
+    const term = findTerm(y, JIE_LIST[i]).getTime()
     if (t >= term) monthNo = i + 1
   }
-  if (monthNo === 0) monthNo = 11 // 1月小寒前=子月（上一年大雪后）
+  // 立春前（1 月全月与 2 月立春前）：以本年小寒分丑月/子月。
+  // （V0 原版把小寒混在循环里且对非 1 月取次年小寒，导致 2 月立春前的丑月被判成子月，
+  //  三方对拍发现后重写此段：见 docs/progress/排盘算法核验报告-20260711.md）
+  if (monthNo === 0) {
+    monthNo = t >= findTerm(y, '小寒').getTime() ? 12 : 11
+  }
   const zhi = ZHIS[(monthNo + 1) % 12] // 寅=idx2
   // 五虎遁：甲己之年丙作首
   const yg = yearGanzhi(y, m, d, hour, minute).gan
