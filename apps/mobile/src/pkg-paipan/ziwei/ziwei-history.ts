@@ -9,8 +9,16 @@ export interface ZiweiHistoryItem {
   y: number
   m: number
   d: number
-  /** 时辰代表钟点：早子=0 丑=2 … 亥=22 晚子=23 */
+  /** 时辰代表钟点：早子=0 丑=2 … 亥=22 晚子=23；真太阳时模式下为精确小时 */
   hour: number
+  /** 精确分钟（真太阳时模式），默认 0 */
+  minute?: number
+  /** 出生城市（真太阳时模式） */
+  city?: string
+  /** 出生地东经（真太阳时模式） */
+  lng?: number
+  /** 是否启用真太阳时 */
+  useTrueSolar?: boolean
   ts: number
 }
 

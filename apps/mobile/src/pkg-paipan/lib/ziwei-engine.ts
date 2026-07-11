@@ -129,7 +129,11 @@ const MISC_BRIGHT: Record<string, Record<number, string>> = {
   副截: {},
 }
 
-// ─── 农历转换（Intl chinese calendar，与小六壬同方案）───
+// ─── 农历转换（lunar-typescript 寿星历法，多端一致）───
+// 2026-07-11 修复：原用 Intl chinese calendar——ICU 农历与寿星历法部分日期差一天
+// （verify-ziwei 案例2 即中招），且微信小程序端无 Intl。统一改查 lunar-typescript。
+import { Solar as ZwSolar } from "./lunar/index.js"
+
 const CN_NUM = ["零", "一", "二", "三", "四", "五", "六", "七", "八", "九", "十"]
 const LUNAR_MONTH_NAMES = ["正月", "二月", "三月", "四月", "五月", "六月", "七月", "八月", "九月", "十月", "冬月", "腊月"]
 
@@ -148,26 +152,14 @@ export interface LunarInfo {
 }
 
 export function solarToLunar(d: Date): LunarInfo {
-  const fmt = new Intl.DateTimeFormat("zh-CN-u-ca-chinese", {
-    year: "numeric",
-    month: "numeric",
-    day: "numeric",
-    timeZone: "Asia/Shanghai",
-  })
-  const parts = fmt.formatToParts(d)
-  const get = (t: string) => parts.find((p) => p.type === t)?.value || ""
-  const rawMonth = get("month")
-  const isLeap = rawMonth.includes("闰")
-  // Intl 中文历月份输出为中文（如"十月""冬月"），按名称表解析；兼容数字输出
-  const MONTH_PARSE: Record<string, number> = {
-    正月: 1, 一月: 1, 二月: 2, 三月: 3, 四月: 4, 五月: 5, 六月: 6,
-    七月: 7, 八月: 8, 九月: 9, 十月: 10, 十一月: 11, 冬月: 11, 十二月: 12, 腊月: 12,
-  }
-  const monthName = rawMonth.replace("闰", "")
-  const month = MONTH_PARSE[monthName] || Number(monthName.replace(/[^0-9]/g, "")) || 1
-  const day = Number(get("day")) || 1
-  const relatedYear =
-    Number(parts.find((p) => (p.type as string) === "relatedYear")?.value || get("year")) || d.getFullYear()
+  const lunar = ZwSolar.fromYmdHms(
+    d.getFullYear(), d.getMonth() + 1, d.getDate(), d.getHours(), d.getMinutes(), 0,
+  ).getLunar()
+  const rawMonth = lunar.getMonth() // 负数表示闰月
+  const isLeap = rawMonth < 0
+  const month = Math.abs(rawMonth)
+  const day = lunar.getDay()
+  const relatedYear = lunar.getYear() // 农历年（正月初一换年，与紫微年干口径一致）
   const yearGan = ZW_GAN[M10(relatedYear - 4)]
   const yearZhi = ZW_ZHI[M(relatedYear - 4)]
   const dayText =

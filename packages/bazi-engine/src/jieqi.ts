@@ -41,39 +41,63 @@ function jdToGregorian(jd: number): { y: number; m: number; d: number; frac: num
   return { y: year, m: month, d: Math.floor(day), frac: F + (day - Math.floor(day)) }
 }
 
-// ── 太阳黄经计算（Meeus低精度公式，±0.01°） ──
+// ── 太阳黄经计算（VSOP87 截断级数，±1分钟；与寿星历法/lunar-typescript 逐分钟对拍一致） ──
+// 2026-07-11 修复：原 Meeus 低精度公式（±15分钟）+ 输出漏 UT→北京时间转换（恒偏早 8 小时），
+// 已替换为与前端 lib/paipan/jieqi.ts 同源的 VSOP87 实现。见 docs/progress/排盘算法核验报告-20260711.md
 
-/** 获取太阳视黄经（度，已修正光行差+章动近似） */
+const VSOP_L0: [number, number, number][] = [
+  [175347046, 0, 0], [3341656, 4.6692568, 6283.07585], [34894, 4.6261, 12566.1517],
+  [3497, 2.7441, 5753.3849], [3418, 2.8289, 3.5231], [3136, 3.6277, 77713.7715],
+  [2676, 4.4181, 7860.4194], [2343, 6.1352, 3930.2097], [1324, 0.7425, 11506.7698],
+  [1273, 2.0371, 529.691], [1199, 1.1096, 1577.3435], [990, 5.233, 5884.927],
+  [902, 2.045, 26.298], [857, 3.508, 398.149], [780, 1.179, 5223.694],
+  [753, 2.533, 5507.553], [505, 4.583, 18849.228], [492, 4.205, 775.523],
+  [357, 2.92, 0.067], [317, 5.849, 11790.629], [284, 1.899, 796.298],
+  [271, 0.315, 10977.079], [243, 0.345, 5486.778], [206, 4.806, 2544.314],
+  [205, 1.869, 5573.143], [202, 2.458, 6069.777], [156, 0.833, 213.299],
+  [132, 3.411, 2942.463], [126, 1.083, 20.775], [115, 0.645, 0.98],
+  [103, 0.636, 4694.003], [102, 0.976, 15720.839], [102, 4.267, 7.114],
+  [99, 6.21, 2146.17], [98, 0.68, 155.42], [86, 5.98, 161000.69],
+  [85, 1.3, 6275.96], [85, 3.67, 71430.7], [80, 1.81, 17260.15],
+]
+const VSOP_L1: [number, number, number][] = [
+  [628331966747, 0, 0], [206059, 2.678235, 6283.07585], [4303, 2.6351, 12566.1517],
+  [425, 1.59, 3.523], [119, 5.796, 26.298], [109, 2.966, 1577.344],
+  [93, 2.59, 18849.23], [72, 1.14, 529.69], [68, 1.87, 398.15], [67, 4.41, 5507.55],
+]
+const VSOP_L2: [number, number, number][] = [
+  [52919, 0, 0], [8720, 1.0721, 6283.0758], [309, 0.867, 12566.152],
+  [27, 0.05, 3.52], [16, 5.19, 26.3], [16, 3.68, 155.42], [10, 0.76, 18849.23],
+]
+const VSOP_L3: [number, number, number][] = [[289, 5.844, 6283.076], [35, 0, 0], [17, 5.49, 12566.15]]
+
+function vsopSum(terms: [number, number, number][], tau: number): number {
+  let s = 0
+  for (const [a, b, c] of terms) s += a * Math.cos(b + c * tau)
+  return s
+}
+
+/** 太阳视黄经（度）：VSOP87 截断级数 + 章动/光行差修正，含 ΔT（UT→TT） */
 function sunApparentLongitude(jd: number): number {
-  const T = (jd - 2451545.0) / 36525  // J2000.0 起算儒略世纪
-
-  // 太阳平黄经
-  const L0 = 280.46646 + 36000.76983 * T + 0.0003032 * T * T
-  // 太阳平近点角
-  const M = 357.52911 + 35999.05029 * T - 0.0001537 * T * T
-  // 地球轨道离心率
-  const Mrad = M * Math.PI / 180
-  const sinM = Math.sin(Mrad)
-  const sin2M = Math.sin(2 * Mrad)
-  const sin3M = Math.sin(3 * Mrad)
-
-  // 中心差
-  const C = (1.914602 - 0.004817 * T - 0.000014 * T * T) * sinM
-          + (0.019993 - 0.000101 * T) * sin2M
-          + 0.000289 * sin3M
-
-  // 真黄经
-  let lon = L0 + C
-
-  // 章动近似（仅黄经章动主项）
-  const omega = 125.04 - 1934.136 * T
-  const dLonNutation = -0.0048 * Math.sin(omega * Math.PI / 180)
-  lon += dLonNutation
-
-  // 光行差
-  lon -= 0.00569
-
-  return ((lon % 360) + 360) % 360
+  // ΔT ≈ 69s（2020s 年代），UT → 力学时
+  const jde = jd + 69 / 86400
+  const tau = (jde - 2451545.0) / 365250
+  const L =
+    (vsopSum(VSOP_L0, tau) +
+      vsopSum(VSOP_L1, tau) * tau +
+      vsopSum(VSOP_L2, tau) * tau * tau +
+      vsopSum(VSOP_L3, tau) * tau * tau * tau) /
+    1e8 // 弧度
+  // 地心太阳黄经 = 地球日心黄经 + 180°
+  let lon = (L * 180) / Math.PI + 180
+  // 章动 + 光行差（视黄经）
+  const T = tau * 10
+  const omega = (125.04452 - 1934.136261 * T) * (Math.PI / 180)
+  const nutation = (-17.2 * Math.sin(omega) - 1.32 * Math.sin(2 * ((L * 2) % (2 * Math.PI)))) / 3600
+  lon += nutation - 0.005692
+  lon %= 360
+  if (lon < 0) lon += 360
+  return lon
 }
 
 // ── 迭代求解太阳黄经到达指定角度的时刻 ──
@@ -172,7 +196,8 @@ export function calcAllJieQi(year: number): Map<string, { month: number; day: nu
 
   for (const term of ALL_24_TERMS) {
     const jd = findSolarLongitudeCrossing(year, term.lon, term.month)
-    const greg = jdToGregorian(jd)
+    // jd 为 UT 儒略日：+8h 转北京钟面再取年月日时分（此前漏转恒偏早 8 小时，2026-07-11 修复）
+    const greg = jdToGregorian(jd + 8 / 24)
 
     const totalHours = greg.frac * 24
     const hour = Math.floor(totalHours)
@@ -208,7 +233,7 @@ const JIE_NAMES = ['立春','惊蛰','清明','立夏','芒种','小暑','立秋
  * 立春为寅月(ZHI索引2)，以此类推
  * 返回: ZHI 数组中的索引 (0=子, 1=丑, 2=寅, ..., 11=亥)
  */
-export function getYueZhiIndex(month: number, day: number, year?: number): number {
+export function getYueZhiIndex(month: number, day: number, year?: number, hour = 12, minute = 0): number {
   // 向后兼容：无年份参数时用旧查表法（保留旧SOLAR_TERM_DAY常量作为回退）
   if (year === undefined) {
     const SOLAR_TERM_DAY = [6, 4, 6, 5, 6, 6, 7, 8, 8, 8, 7, 7]
@@ -221,7 +246,8 @@ export function getYueZhiIndex(month: number, day: number, year?: number): numbe
   const allJieQi = calcAllJieQi(year)
 
   // 构造日期数值用于比较: MMDDHHmm
-  const birthValue = month * 1000000 + day * 10000
+  // （2026-07-11 修复：原实现漏 hour/minute 位，节气交界当天时刻已过者被误判进上个月）
+  const birthValue = month * 1000000 + day * 10000 + hour * 100 + minute
 
   // 默认取 month-1 → month 之间的节
   for (let i = 0; i < 12; i++) {
@@ -262,11 +288,11 @@ export function getYueZhiIndex(month: number, day: number, year?: number): numbe
  * @param hour 小时(可选，用于精确判定)
  * @returns 年柱对应的农历年
  */
-export function getNianZhuYear(year: number, month: number, day: number, hour?: number): number {
+export function getNianZhuYear(year: number, month: number, day: number, hour?: number, minute = 0): number {
   const allJieQi = calcAllJieQi(year)
   const lichun = allJieQi.get('立春')!
 
-  const birthValue = month * 1000000 + day * 10000 + (hour ?? 12) * 100
+  const birthValue = month * 1000000 + day * 10000 + (hour ?? 12) * 100 + minute
   const lichunValue = lichun.month * 1000000 + lichun.day * 10000 + lichun.hour * 100 + lichun.minute
 
   if (birthValue < lichunValue) {

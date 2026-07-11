@@ -10,7 +10,9 @@ import PaperCard from '@/components/paipan/paper-card.vue'
 import SectionTitle from '@/components/paipan/section-title.vue'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import LocationPickerModal from '@/components/bazi/location-picker-modal.vue'
 import { navigateTo } from '@/utils/router'
+import { cityLongitude } from '@/pkg-paipan/lib/bazi-engine'
 import { loadZiweiHistory, clearZiweiHistory, shichenLabel, type ZiweiHistoryItem } from './ziwei-history'
 
 // R4 合规：小程序端无占卜类目，标题改文化研究表述（仅展示文案）
@@ -56,6 +58,46 @@ const parsedDate = computed(() => {
   return { y: y || 1990, m: m || 1, d: d || 1 }
 })
 
+// ── 出生地/真太阳时（选填·远离东八区中心的地区如新疆建议开启） ──
+const locOpen = ref(false)
+const birthCity = ref('')
+const birthLng = ref<number | undefined>(undefined)
+const exactTime = ref('') // 'HH:mm'，选定出生地后启用
+
+function onLocationConfirm(v: { province: string; city: string; district: string }) {
+  const cityName = (v.city || v.province).replace(/市$/, '')
+  const lng = cityLongitude(cityName)
+  if (!lng) {
+    birthCity.value = ''
+    birthLng.value = undefined
+    exactTime.value = ''
+    uni.showToast({ title: '该城市暂无经度数据，将按时辰排盘', icon: 'none' })
+    return
+  }
+  birthCity.value = cityName
+  birthLng.value = lng
+  if (!exactTime.value) {
+    // 默认取当前所选时辰的中点
+    const h = hour.value === 0 ? 0 : hour.value === 23 ? 23 : hour.value - 1
+    exactTime.value = `${String(h).padStart(2, '0')}:30`
+  }
+}
+
+function clearLocation() {
+  birthCity.value = ''
+  birthLng.value = undefined
+  exactTime.value = ''
+}
+
+function onExactTimeChange(e: { detail: { value: string } }) {
+  exactTime.value = e.detail.value
+  // 联动时辰宫格高亮（丑=01-03→2 …；23 归晚子、0 归早子）
+  const h = Number(exactTime.value.split(':')[0]) || 0
+  hour.value = h === 23 ? 23 : h === 0 ? 0 : Math.ceil(h / 2) * 2
+}
+
+const useTrueSolar = computed(() => !!birthLng.value && !!exactTime.value)
+
 // ── 历史记录 ──
 const history = ref<ZiweiHistoryItem[]>([])
 onShow(() => {
@@ -66,7 +108,15 @@ function fillFromHistory(h: ZiweiHistoryItem) {
   name.value = h.name === '未知' ? '' : h.name
   gender.value = h.gender
   dateStr.value = `${h.y}-${String(h.m).padStart(2, '0')}-${String(h.d).padStart(2, '0')}`
-  hour.value = h.hour
+  if (h.useTrueSolar && h.city && h.lng) {
+    birthCity.value = h.city
+    birthLng.value = h.lng
+    exactTime.value = `${String(h.hour).padStart(2, '0')}:${String(h.minute ?? 0).padStart(2, '0')}`
+    hour.value = h.hour === 23 ? 23 : h.hour === 0 ? 0 : Math.ceil(h.hour / 2) * 2
+  } else {
+    clearLocation()
+    hour.value = h.hour
+  }
   uni.showToast({ title: '已回填', icon: 'none' })
 }
 
@@ -90,7 +140,16 @@ function formatHistoryDate(h: ZiweiHistoryItem) {
 // ── 起盘 ──
 function handleSubmit() {
   const { y, m, d } = parsedDate.value
-  const payload = { name: name.value.trim() || '未知', gender: gender.value, y, m, d, hour: hour.value }
+  let payload: Record<string, unknown>
+  if (useTrueSolar.value) {
+    const [eh, em] = exactTime.value.split(':').map(Number)
+    payload = {
+      name: name.value.trim() || '未知', gender: gender.value, y, m, d,
+      hour: eh, minute: em || 0, city: birthCity.value, lng: birthLng.value, useTrueSolar: true,
+    }
+  } else {
+    payload = { name: name.value.trim() || '未知', gender: gender.value, y, m, d, hour: hour.value }
+  }
   navigateTo(`/pkg-paipan/ziwei/result?payload=${encodeURIComponent(JSON.stringify(payload))}`)
 }
 </script>
@@ -153,11 +212,47 @@ function handleSubmit() {
               </view>
             </view>
           </view>
+          <!-- 出生地（真太阳时·选填） -->
+          <view class="row row-bd row-tap" @tap="locOpen = true">
+            <view class="row-left">
+              <view class="row-icon"><app-icon name="map-pin" :size="28" color="#2d5a87" /></view>
+              <text class="row-label">出生地点<text class="row-hint">（选填·真太阳时）</text></text>
+            </view>
+            <view class="row-right">
+              <text class="row-value" :class="{ 'row-value-empty': !birthCity }">{{ birthCity || '未设置' }}</text>
+              <view v-if="birthCity" class="loc-clear" @tap.stop="clearLocation">
+                <app-icon name="x" :size="24" color="#9ca3af" />
+              </view>
+              <app-icon v-else name="chevron-right" :size="28" color="#9ca3af" />
+            </view>
+          </view>
+          <!-- 精确时刻（选定出生地后启用） -->
+          <picker v-if="birthCity" mode="time" :value="exactTime" @change="onExactTimeChange">
+            <view class="row row-bd row-tap">
+              <view class="row-left">
+                <view class="row-icon"><app-icon name="clock-3" :size="28" color="#2d5a87" /></view>
+                <text class="row-label">精确时刻<text class="row-hint">（真太阳时按此校正）</text></text>
+              </view>
+              <view class="row-right">
+                <text class="row-value">{{ exactTime }}</text>
+                <app-icon name="chevron-right" :size="28" color="#9ca3af" />
+              </view>
+            </view>
+          </picker>
+          <view v-if="useTrueSolar" class="solar-tip">
+            <text class="solar-tip-text">已启用真太阳时：{{ birthCity }}（东经{{ birthLng }}°），远离东八区中心的地区（如新疆）排盘更准</text>
+          </view>
           <!-- 起盘 -->
           <view class="submit-wrap">
             <view class="submit" @tap="handleSubmit"><text class="submit-text">开始排盘</text></view>
           </view>
         </paper-card>
+
+        <location-picker-modal
+          :open="locOpen"
+          @close="locOpen = false"
+          @confirm="onLocationConfirm"
+        />
 
         <!-- 排盘记录 -->
         <view v-if="history.length" class="his-sec">
@@ -215,6 +310,11 @@ function handleSubmit() {
 .row-icon { width: 56rpx; height: 56rpx; border-radius: 16rpx; background: var(--indigo-light, rgba(45, 90, 135, 0.08)); display: flex; align-items: center; justify-content: center; }
 .row-right { display: flex; align-items: center; gap: 8rpx; }
 .row-value { font-size: 28rpx; color: var(--text-ink); }
+.row-value-empty { color: rgba(153, 153, 153, 0.6); }
+.row-hint { font-size: 20rpx; color: var(--text-soft); margin-left: 6rpx; }
+.loc-clear { padding: 8rpx; }
+.solar-tip { padding: 16rpx 32rpx; background: rgba(45, 90, 135, 0.05); }
+.solar-tip-text { font-size: 22rpx; line-height: 1.5; color: #2d5a87; }
 
 /* 性别 */
 .genders { display: flex; align-items: center; background: rgba(0, 0, 0, 0.04); border-radius: 16rpx; padding: 4rpx; }

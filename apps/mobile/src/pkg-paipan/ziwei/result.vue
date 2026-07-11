@@ -39,11 +39,22 @@ onLoad((q: Record<string, string> = {}) => {
     const name = String(p.name || '未知')
     if (!y || !m || !d || Number.isNaN(hour)) throw new Error('排盘参数不完整')
 
-    const result = computeZiwei({ year: y, month: m, day: d, hour, minute: 0, gender })
+    const minute = Number(p.minute) || 0
+    const useTrueSolar = p.useTrueSolar === true
+    const lng = typeof p.lng === 'number' ? p.lng : undefined
+    const city = typeof p.city === 'string' ? p.city : undefined
+
+    const result = computeZiwei({ year: y, month: m, day: d, hour, minute, gender, useTrueSolar, lng })
     chart.value = toZiweiChart(result, name, y)
-    solarText.value = `${y}年${m}月${d}日 ${shichenLabel(hour)}`
+    if (useTrueSolar && city) {
+      const adj = result.adjusted
+      const pad = (n: number) => String(n).padStart(2, '0')
+      solarText.value = `${y}年${m}月${d}日 ${pad(hour)}:${pad(minute)} · 真太阳时 ${pad(adj.getHours())}:${pad(adj.getMinutes())}（${city}）`
+    } else {
+      solarText.value = `${y}年${m}月${d}日 ${shichenLabel(hour)}`
+    }
     // 记入本地排盘记录（index 起盘与深链进入均覆盖）
-    saveZiweiHistory({ name, gender, y, m, d, hour })
+    saveZiweiHistory({ name, gender, y, m, d, hour, minute, city, lng, useTrueSolar })
   } catch (e) {
     loadError.value = (e as Error)?.message || '排盘参数无效'
   }
