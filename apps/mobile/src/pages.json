@@ -367,12 +367,54 @@
           "style": {
             "navigationStyle": "custom"
           }
+        },
+        {
+          "path": "wuyunliuqi/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
         }
       ]
     },
     {
       "root": "pkg-paipan2",
       "pages": [
+        {
+          "path": "qiming/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "qiming/result",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "qiming/detail",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "xingming/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "xingming/result",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "shuzi/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
         {
           "path": "zhuge/index",
           "style": {

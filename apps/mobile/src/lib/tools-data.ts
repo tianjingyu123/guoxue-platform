@@ -56,9 +56,9 @@ export const tools: Tool[] = [
   { id: 'bazhai', name: '八宅排盘', iconId: 'bazhai', href: '/paipan/bazhai', badge: true, category: 'fengshui' },
   { id: 'direction-map', name: '山向地图', iconId: 'direction-map', href: '/paipan/tools/coming-soon?name=山向地图', category: 'fengshui' },
   // 姓名数字
-  { id: 'naming', name: '起名工具', iconId: 'naming', href: '/paipan/tools/coming-soon?name=起名工具', category: 'xingming' },
-  { id: 'name-analysis', name: '姓名解析', iconId: 'name-analysis', href: '/paipan/tools/coming-soon?name=姓名解析', category: 'xingming' },
-  { id: 'phone-analysis', name: '手机号分析', iconId: 'phone-analysis', href: '/paipan/tools/coming-soon?name=手机号分析', category: 'xingming' },
+  { id: 'naming', name: '起名工具', iconId: 'naming', href: '/paipan/qiming', badge: true, category: 'xingming' },
+  { id: 'name-analysis', name: '姓名解析', iconId: 'name-analysis', href: '/paipan/xingming', badge: true, category: 'xingming' },
+  { id: 'phone-analysis', name: '数字能量解读', iconId: 'phone-analysis', href: '/paipan/shuzi', badge: true, category: 'xingming' },
   // 历法查询
   { id: 'calendar', name: '万年历', iconId: 'calendar', href: '/paipan/wannianli', badge: true, category: 'lifa' },
   { id: 'solar-terms', name: '节气查询', iconId: 'solar-terms', href: '/pkg-solar-term/index/index', category: 'lifa' },
@@ -85,7 +85,7 @@ export const medicalTools: MedicalTool[] = [
   { id: 'health-calendar', name: '养生日历', iconId: 'health-calendar', href: '/tools/coming-soon?name=养生日历' },
   { id: 'five-elements', name: '五行体质', iconId: 'five-elements', href: '/tools/coming-soon?name=五行体质' },
   { id: 'food-therapy', name: '食疗方案', iconId: 'food-therapy', href: '/tools/coming-soon?name=食疗方案' },
-  { id: 'wuyun', name: '五运六气', iconId: 'wuyun', href: '/tools/coming-soon?name=五运六气', badge: true },
+  { id: 'wuyun', name: '五运六气', iconId: 'wuyun', href: '/paipan/wuyunliuqi', badge: true },
   { id: 'ziwu', name: '子午流注', iconId: 'ziwu', href: '/tools/coming-soon?name=子午流注' },
   { id: 'lingguibafa', name: '灵龟八法', iconId: 'lingguibafa', href: '/tools/coming-soon?name=灵龟八法' },
   { id: 'health-ai', name: '健康顾问', iconId: 'health-ai', href: '/tools/coming-soon?name=健康顾问', badge: true },

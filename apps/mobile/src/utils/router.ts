@@ -109,6 +109,14 @@ const ROUTE_MAP: Record<string, string> = {
   '/paipan/xuankong/result': '/pkg-paipan/xuankong/result',
   '/paipan/bazhai': '/pkg-paipan/bazhai/index',
   '/paipan/bazhai/result': '/pkg-paipan/bazhai/result',
+  // V0 排盘第四批（姓名数字+五运六气）
+  '/paipan/qiming': '/pkg-paipan2/qiming/index',
+  '/paipan/qiming/result': '/pkg-paipan2/qiming/result',
+  '/paipan/qiming/detail': '/pkg-paipan2/qiming/detail',
+  '/paipan/xingming': '/pkg-paipan2/xingming/index',
+  '/paipan/xingming/result': '/pkg-paipan2/xingming/result',
+  '/paipan/shuzi': '/pkg-paipan2/shuzi/index',
+  '/paipan/wuyunliuqi': '/pkg-paipan/wuyunliuqi/index',
   // 工具占位页（30+ 未上线工具入口，name 参数透传；命理/中医两个前缀同指一页）
   '/paipan/tools/coming-soon': '/pkg-paipan/tools/coming-soon',
   '/tools/coming-soon': '/pkg-paipan/tools/coming-soon',
