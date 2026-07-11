@@ -271,6 +271,102 @@
           "style": {
             "navigationStyle": "custom"
           }
+        },
+        {
+          "path": "yinpan/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "yinpan/result",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "yinpan-mingli/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "yinpan-mingli/result",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "feigong/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "feigong/result",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "chuanren/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "chuanren/result",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "shanxiang/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "shanxiang/result",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "lijichi/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "lijichi/result",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "xuankong/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "xuankong/result",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "bazhai/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "bazhai/result",
+          "style": {
+            "navigationStyle": "custom"
+          }
         }
       ]
     },

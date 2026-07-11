@@ -31,7 +31,7 @@ export const tools: Tool[] = [
   { id: 'bazi-analysis', name: '八字解析', iconId: 'bazi-analysis', href: '/paipan/tools/coming-soon?name=八字解析', badge: true, category: 'mingli' },
   { id: 'ziwei', name: '紫微斗数', iconId: 'ziwei', href: '/paipan/ziwei', badge: true, category: 'mingli' },
   { id: 'yangming', name: '阳盘命理', iconId: 'yangming', href: '/paipan/yangpan', category: 'mingli' },
-  { id: 'mingli-qimen', name: '命理奇门', iconId: 'mingli-qimen', href: '/paipan/tools/coming-soon?name=命理奇门', category: 'mingli' },
+  { id: 'mingli-qimen', name: '命理奇门', iconId: 'mingli-qimen', href: '/paipan/yinpan-mingli', badge: true, category: 'mingli' },
   { id: 'taiyi', name: '太乙神数', iconId: 'taiyi', href: '/paipan/taiyi', badge: true, category: 'mingli' },
   // 占卜起卦
   { id: 'liuyao', name: '六爻排盘', iconId: 'liuyao', href: '/paipan/tools/coming-soon?name=六爻排盘', category: 'bushi' },
@@ -45,15 +45,15 @@ export const tools: Tool[] = [
   { id: 'zhuge', name: '诸葛神数', iconId: 'zhuge', href: '/paipan/zhuge', badge: true, category: 'bushi' },
   // 奇门遁甲
   { id: 'qimen', name: '奇门遁甲', iconId: 'qimen', href: '/paipan/qimen', category: 'qimen' },
-  { id: 'yinqimen', name: '阴盘奇门', iconId: 'yinqimen', href: '/paipan/tools/coming-soon?name=阴盘奇门', category: 'qimen' },
-  { id: 'feigong', name: '飞宫小奇门', iconId: 'feigong', href: '/paipan/tools/coming-soon?name=飞宫小奇门', category: 'qimen' },
-  { id: 'qimen-chuanren', name: '奇门穿壬', iconId: 'qimen-chuanren', href: '/paipan/tools/coming-soon?name=奇门穿壬', category: 'qimen' },
-  { id: 'shanxiang-qimen', name: '山向奇门', iconId: 'shanxiang-qimen', href: '/paipan/tools/coming-soon?name=山向奇门', category: 'qimen' },
+  { id: 'yinqimen', name: '阴盘奇门', iconId: 'yinqimen', href: '/paipan/yinpan', badge: true, category: 'qimen' },
+  { id: 'feigong', name: '飞宫小奇门', iconId: 'feigong', href: '/paipan/feigong', badge: true, category: 'qimen' },
+  { id: 'qimen-chuanren', name: '奇门穿壬', iconId: 'qimen-chuanren', href: '/paipan/chuanren', badge: true, category: 'qimen' },
+  { id: 'shanxiang-qimen', name: '山向奇门', iconId: 'shanxiang-qimen', href: '/paipan/shanxiang', badge: true, category: 'qimen' },
   // 风水堪舆
   { id: 'compass', name: '电子罗盘', iconId: 'compass', href: '/paipan/luopan', badge: true, category: 'fengshui' },
-  { id: 'ruler', name: '立极尺', iconId: 'ruler', href: '/paipan/tools/coming-soon?name=立极尺', category: 'fengshui' },
-  { id: 'flying-star', name: '玄空飞星', iconId: 'flying-star', href: '/paipan/tools/coming-soon?name=玄空飞星', category: 'fengshui' },
-  { id: 'bazhai', name: '八宅排盘', iconId: 'bazhai', href: '/paipan/tools/coming-soon?name=八宅排盘', category: 'fengshui' },
+  { id: 'ruler', name: '立极尺', iconId: 'ruler', href: '/paipan/lijichi', badge: true, category: 'fengshui' },
+  { id: 'flying-star', name: '玄空飞星', iconId: 'flying-star', href: '/paipan/xuankong', badge: true, category: 'fengshui' },
+  { id: 'bazhai', name: '八宅排盘', iconId: 'bazhai', href: '/paipan/bazhai', badge: true, category: 'fengshui' },
   { id: 'direction-map', name: '山向地图', iconId: 'direction-map', href: '/paipan/tools/coming-soon?name=山向地图', category: 'fengshui' },
   // 姓名数字
   { id: 'naming', name: '起名工具', iconId: 'naming', href: '/paipan/tools/coming-soon?name=起名工具', category: 'xingming' },
