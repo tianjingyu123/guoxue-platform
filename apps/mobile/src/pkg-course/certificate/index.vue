@@ -14,6 +14,7 @@ import { BRAND } from '@/lib/brand'
 
 const instance = getCurrentInstance()?.proxy
 
+const statusBarHeight = ref(0)
 const loading = ref(true)
 const error = ref('')
 const courseId = ref('')
@@ -253,6 +254,7 @@ onLoad((options) => {
   courseId.value = options?.id || '1'
   uni.getSystemInfo({
     success: (e) => {
+      statusBarHeight.value = e.statusBarHeight || 0
       // 按屏宽适配画布尺寸（保持 2:3 竖版比例）
       const w = Math.min(320, Math.max(260, (e.windowWidth || 375) - 80))
       canvasW.value = Math.round(w)
@@ -278,98 +280,62 @@ onMounted(() => {
   </view>
   <!-- Content -->
   <view v-else class="page">
-    <!-- 顶部导航 -->
-    <view class="nav">
-      <view class="nav-back" @tap="goBack"><app-icon name="arrow-left" :size="40" color="#ffffff" /></view>
-      <text class="nav-title">结业证书</text>
+    <!-- ══ 顶部导航（深底白字·自定义状态栏高度）══ -->
+    <view class="nav" :style="{ paddingTop: statusBarHeight + 'px' }">
+      <view class="nav-back" hover-class="btn-press" @tap="goBack">
+        <app-icon name="chevron-left" :size="36" color="#ffffff" />
+      </view>
+      <text class="nav-title serif">结课证书</text>
       <view class="nav-right" />
     </view>
 
-    <!-- 恭喜提示 -->
-    <view class="congrats-wrap">
-      <view class="congrats">
-        <app-icon name="check-circle" :size="32" color="#C9A96E" />
-        <text class="congrats-txt">恭喜您完成课程学习！</text>
-      </view>
-    </view>
-
-    <!-- 证书展示（产品中由 canvas 生成图填充；比对时图片被中和露出底色） -->
-    <view class="cert-area">
-      <view class="cert-card">
+    <!-- ══ 舞台：竖版描金证书卡 + 按钮 ══ -->
+    <view class="stage">
+      <!-- ── 竖版证书卡（宣纸白底 + 描金双线边框 + 右下朱红印章）── -->
+      <view class="cert">
         <view class="cert-inner">
-          <view class="cert-badge"><text class="cert-star">★</text></view>
-          <text class="cert-title">结业证书</text>
-          <text class="cert-en">CERTIFICATE OF COMPLETION</text>
-          <text class="cert-name">{{ cert.studentName }}</text>
-          <text class="cert-desc">已完成</text>
-          <text class="cert-course">《{{ cert.courseName }}》</text>
-          <text class="cert-hours">全部课程学习，共计 {{ cert.totalHours }} 学时</text>
-          <text v-if="cert.score" class="cert-score">综合评分：{{ cert.score }} 分</text>
-          <view class="cert-divider" />
-          <view class="cert-foot">
-            <view class="cert-foot-col left">
-              <text class="cert-foot-label">授课讲师</text>
-              <text class="cert-foot-val italic">{{ cert.instructor }}</text>
-            </view>
-            <view class="cert-foot-col right">
-              <text class="cert-foot-label">颁发日期</text>
-              <text class="cert-foot-val">{{ fmtDate(dateStr) }}</text>
-            </view>
+          <view class="cert-inner2">
+            <text class="cert-platform serif">{{ BRAND.name }}</text>
+            <text class="cert-title serif">结课证书</text>
+            <view class="cert-divider" />
+            <text class="cert-line">兹证明</text>
+            <text class="cert-student serif">{{ cert.studentName }}</text>
+            <text class="cert-line">已完成课程</text>
+            <text class="cert-course serif">《{{ cert.courseName }}》</text>
+            <text class="cert-line">全部课程学习，共计 {{ cert.totalHours }} 学时</text>
+            <text v-if="cert.score" class="cert-score">综合评分 {{ cert.score }} 分</text>
+            <text class="cert-instructor">授课讲师：{{ cert.instructor }}</text>
+            <text class="cert-date">{{ fmtDate(dateStr) }}</text>
+            <text class="cert-no">证书编号 {{ cert.certificateNo }}</text>
+            <!-- 印章位：右下角朱红圆章（实际上线接入平台电子章图）-->
+            <view class="cert-seal"><text class="cert-seal-txt serif">热卜</text><text class="cert-seal-txt serif">国学</text></view>
           </view>
-          <text class="cert-no">证书编号：{{ cert.certificateNo }}</text>
-          <text class="cert-platform">{{ BRAND.name }}</text>
         </view>
       </view>
-    </view>
 
-    <!-- 触点 #9 进阶之路·下一门：证书卡下方·服务端裁决无卡则不渲染（一页一触点） -->
-    <touchpoint-card v-if="tp?.card" :card="tp.card" scene="cert_next_course" />
+      <!-- 触点 #9 进阶之路·下一门：证书卡下方·服务端裁决无卡则不渲染（一页一触点） -->
+      <touchpoint-card v-if="tp?.card" :card="tp.card" scene="cert_next_course" />
 
-    <!-- 证书信息 -->
-    <view class="info-card">
-      <view class="info-grid">
-        <view class="info-item">
-          <app-icon name="user" :size="28" color="#C9A96E" />
-          <text class="info-label">学员：</text>
-          <text class="info-val">{{ cert.studentName }}</text>
+      <!-- ── 底部按钮：保存图片 / 分享 ── -->
+      <view class="actions">
+        <view class="btn btn-save" :class="{ disabled: submitting }" hover-class="btn-press" @tap="onSavePoster">
+          <app-icon name="download" :size="34" color="#ffffff" />
+          <text class="btn-txt">{{ submitting ? '生成中...' : '保存图片' }}</text>
         </view>
-        <view class="info-item">
-          <app-icon name="clock" :size="28" color="#C9A96E" />
-          <text class="info-label">学时：</text>
-          <text class="info-val">{{ cert.totalHours }}小时</text>
+        <!-- 分享给好友：小程序用原生转发按钮，H5/App 复制炫耀文案+带 ref 链接 -->
+        <!-- #ifdef MP-WEIXIN -->
+        <button class="btn btn-share share-btn" open-type="share">
+          <app-icon name="share-2" :size="34" color="#ffffff" />
+          <text class="btn-txt">分享</text>
+        </button>
+        <!-- #endif -->
+        <!-- #ifndef MP-WEIXIN -->
+        <view class="btn btn-share" hover-class="btn-press" @tap="copyShareLink">
+          <app-icon name="share-2" :size="34" color="#ffffff" />
+          <text class="btn-txt">分享</text>
         </view>
-        <view class="info-item">
-          <app-icon name="calendar" :size="28" color="#C9A96E" />
-          <text class="info-label">日期：</text>
-          <text class="info-val">{{ fmtDate(dateStr) }}</text>
-        </view>
-        <view class="info-item">
-          <app-icon name="qr-code" :size="28" color="#C9A96E" />
-          <text class="info-label">编号：</text>
-          <text class="info-val small">{{ cert.certificateNo }}</text>
-        </view>
+        <!-- #endif -->
       </view>
-    </view>
-
-    <!-- 底部操作 -->
-    <view class="actions">
-      <view class="btn-primary" :class="{ disabled: submitting }" @tap="onSavePoster">
-        <app-icon name="download" :size="40" color="#ffffff" />
-        <text class="btn-primary-txt">{{ submitting ? '生成中...' : '保存到相册' }}</text>
-      </view>
-      <!-- 分享给好友：小程序用原生转发按钮，H5/App 复制炫耀文案+带 ref 链接 -->
-      <!-- #ifdef MP-WEIXIN -->
-      <button class="btn-secondary share-btn" open-type="share">
-        <app-icon name="share-2" :size="40" color="#ffffff" />
-        <text class="btn-secondary-txt">分享给好友</text>
-      </button>
-      <!-- #endif -->
-      <!-- #ifndef MP-WEIXIN -->
-      <view class="btn-secondary" @tap="copyShareLink">
-        <app-icon name="share-2" :size="40" color="#ffffff" />
-        <text class="btn-secondary-txt">分享给好友</text>
-      </view>
-      <!-- #endif -->
     </view>
 
     <!-- 离屏海报画布（不占布局，供「保存到相册」导出图片） -->
@@ -382,62 +348,66 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.page { min-height: 100vh; background: linear-gradient(to bottom, #1a1a2e, #16213e); display: flex; flex-direction: column; }
+/* ── 整页暖黑背景（#1C1917）衬托证书，分享海报感 ── */
+.page { min-height: 100vh; background: #1C1917; display: flex; flex-direction: column; }
+.serif { font-family: "Songti SC", "STSong", "SimSun", serif; }
+.btn-press { opacity: 0.7; }
 
-.nav { display: flex; align-items: center; justify-content: space-between; padding: 24rpx 32rpx; }
-.nav-back { width: 80rpx; height: 80rpx; border-radius: 999rpx; background: rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; }
-.nav-title { font-size: 30rpx; font-weight: 500; color: #fff; }
-.nav-right { width: 80rpx; }
+/* ── 顶部导航（深底白字）── */
+.nav { display: flex; align-items: center; justify-content: space-between; padding: 32rpx 40rpx; }
+.nav-back { width: 72rpx; height: 72rpx; border-radius: 999rpx; background: rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; }
+.nav-title { color: rgba(255,255,255,0.85); font-size: 32rpx; font-weight: 600; letter-spacing: 4rpx; }
+.nav-right { width: 72rpx; }
 
-.congrats-wrap { padding: 16rpx 32rpx; text-align: center; }
-.congrats { display: inline-flex; align-items: center; gap: 16rpx; padding: 16rpx 32rpx; border-radius: 999rpx; background: linear-gradient(to right, rgba(201,169,110,0.2), rgba(196,30,58,0.2)); }
-.congrats-txt { font-size: 26rpx; color: #C9A96E; }
+/* ── 舞台 ── */
+.stage { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24rpx 72rpx 48rpx; gap: 56rpx; }
 
-.cert-area { flex: 1; display: flex; align-items: center; justify-content: center; padding: 32rpx; }
-.cert-card { width: 100%; max-width: 670rpx; aspect-ratio: 3 / 4; background: linear-gradient(to bottom, #FDF8F3, #F5EDE4); border: 6rpx solid #C9A96E; border-radius: 16rpx; box-shadow: 0 24rpx 64rpx rgba(0,0,0,0.5); padding: 20rpx; }
-.cert-inner { width: 100%; height: 100%; border: 2rpx solid #E8D5B5; border-radius: 8rpx; display: flex; flex-direction: column; align-items: center; padding: 32rpx 40rpx; }
-.cert-badge { width: 88rpx; height: 88rpx; border-radius: 999rpx; background: var(--brand); display: flex; align-items: center; justify-content: center; margin-top: 8rpx; }
-.cert-star { font-size: 40rpx; color: #fff; }
-.cert-title { font-size: 48rpx; font-weight: 700; color: var(--brand); margin-top: 24rpx; font-family: serif; }
-.cert-en { font-size: 18rpx; color: #999; margin-top: 8rpx; letter-spacing: 1rpx; }
-.cert-name { font-size: 44rpx; font-weight: 700; color: #2C2C2C; margin-top: 40rpx; }
-.cert-desc { font-size: 24rpx; color: #666; margin-top: 24rpx; }
-.cert-course { font-size: 32rpx; font-weight: 700; color: var(--brand); margin-top: 16rpx; font-family: serif; }
-.cert-hours { font-size: 22rpx; color: #666; margin-top: 16rpx; }
-.cert-score { font-size: 28rpx; font-weight: 700; color: #C9A96E; margin-top: 16rpx; }
-.cert-divider { width: 80%; height: 1rpx; background: #E8D5B5; margin: 32rpx 0; }
-.cert-foot { width: 100%; display: flex; justify-content: space-between; }
-.cert-foot-col { display: flex; flex-direction: column; gap: 8rpx; }
-.cert-foot-col.right { align-items: flex-end; }
-.cert-foot-label { font-size: 20rpx; color: #666; }
-.cert-foot-val { font-size: 26rpx; color: #2C2C2C; }
-.cert-foot-val.italic { font-style: italic; font-family: serif; }
-.cert-no { font-size: 18rpx; color: #999; margin-top: 24rpx; }
-.cert-platform { font-size: 22rpx; font-weight: 700; color: var(--brand); margin-top: 12rpx; }
+/* ── 竖版证书卡：宣纸白底 + 描金双线边框（X5 兼容：纯色 + 边框，无毛玻璃）── */
+.cert { width: 100%; background: #FDFBF7; border-radius: 16rpx; padding: 20rpx; box-shadow: 0 24rpx 96rpx rgba(0,0,0,0.5); }
+.cert-inner { border: 4rpx solid #C9A96E; border-radius: 8rpx; padding: 6rpx; }
+.cert-inner2 {
+  border: 2rpx solid rgba(201,169,110,0.5); border-radius: 4rpx;
+  padding: 64rpx 44rpx 52rpx;
+  display: flex; flex-direction: column; align-items: center; text-align: center;
+  position: relative;
+}
+.cert-platform { font-size: 24rpx; letter-spacing: 8rpx; color: #C9A96E; font-weight: 600; }
+.cert-title { font-size: 52rpx; font-weight: 700; color: #2C2C2C; letter-spacing: 12rpx; margin-top: 20rpx; }
+.cert-divider { width: 88rpx; height: 2rpx; background: #C9A96E; margin: 32rpx 0; }
+.cert-line { font-size: 26rpx; color: #6E6E73; line-height: 2; }
+.cert-student { font-size: 40rpx; font-weight: 700; color: #2C2C2C; margin: 12rpx 0; letter-spacing: 4rpx; }
+.cert-course { font-size: 32rpx; font-weight: 700; color: #C41E3A; margin: 12rpx 0 4rpx; line-height: 1.5; }
+.cert-score { font-size: 26rpx; font-weight: 700; color: #C9A96E; margin-top: 12rpx; }
+.cert-instructor { font-size: 24rpx; color: #6E6E73; margin-top: 28rpx; }
+.cert-date { font-size: 24rpx; color: #999999; margin-top: 12rpx; }
+.cert-no { font-size: 22rpx; color: #999999; margin-top: 8rpx; font-variant-numeric: tabular-nums; }
+/* 印章位：右下角朱红圆章示意（实际为平台电子章图）*/
+.cert-seal {
+  position: absolute; right: 36rpx; bottom: 88rpx;
+  width: 128rpx; height: 128rpx; border-radius: 50%;
+  border: 5rpx solid rgba(196,30,58,0.75);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  transform: rotate(-12deg);
+}
+.cert-seal-txt { font-size: 24rpx; color: rgba(196,30,58,0.85); font-weight: 700; line-height: 1.3; letter-spacing: 2rpx; }
 
-.info-card { margin: 0 32rpx 32rpx; padding: 24rpx 32rpx; background: rgba(255,255,255,0.05); border-radius: 24rpx; }
-.info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 32rpx; }
-.info-item { display: flex; align-items: center; gap: 12rpx; }
-.info-label { font-size: 26rpx; color: rgba(255,255,255,0.6); }
-.info-val { font-size: 26rpx; color: #fff; }
-.info-val.small { font-size: 22rpx; }
-
-.actions { padding: 32rpx; padding-bottom: 64rpx; display: flex; flex-direction: column; gap: 24rpx; }
-.btn-primary { height: 96rpx; border-radius: 999rpx; background: linear-gradient(to right, var(--brand), #E74C3C); display: flex; align-items: center; justify-content: center; gap: 16rpx; }
-.btn-primary.disabled { opacity: 0.6; }
-.btn-primary-txt { font-size: 30rpx; font-weight: 500; color: #fff; }
-.btn-secondary { height: 96rpx; border-radius: 999rpx; background: rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; gap: 16rpx; }
-.btn-secondary-txt { font-size: 30rpx; font-weight: 500; color: #fff; }
+/* ── 底部按钮 ── */
+.actions { display: flex; gap: 24rpx; width: 100%; padding: 0 0 16rpx; }
+.btn { flex: 1; height: 96rpx; border-radius: 999rpx; display: flex; align-items: center; justify-content: center; gap: 14rpx; }
+.btn-txt { font-size: 30rpx; font-weight: 600; color: #fff; }
+.btn-save { background: #C41E3A; }
+.btn-save.disabled { opacity: 0.6; }
+.btn-share { background: rgba(255,255,255,0.12); border: 2rpx solid rgba(255,255,255,0.25); }
 /* 原生 button 复位（去默认边框/背景，与 view 版视觉一致） */
-.share-btn { padding: 0; line-height: normal; border: none; }
+.share-btn { padding: 0; line-height: normal; }
 .share-btn::after { border: none; }
 
 /* 离屏海报画布：移出可视区但仍参与渲染（小程序 canvasToTempFilePath 要求非 display:none） */
 .poster-canvas-offscreen { position: fixed; left: -9999rpx; top: 0; }
 
-/* 加载 / 错误 */
-.loading-wrap, .error-wrap { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; gap: 24rpx; }
-.loading-text, .error-text { font-size: 28rpx; color: var(--text-soft); }
-.retry-btn { padding: 16rpx 48rpx; background: var(--brand); border-radius: 999rpx; }
+/* 加载 / 错误（暗底适配） */
+.loading-wrap, .error-wrap { min-height: 100vh; background: #1C1917; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24rpx; }
+.loading-text, .error-text { font-size: 28rpx; color: rgba(255,255,255,0.7); }
+.retry-btn { padding: 16rpx 48rpx; background: #C41E3A; border-radius: 999rpx; }
 .retry-text { font-size: 28rpx; color: #fff; }
 </style>

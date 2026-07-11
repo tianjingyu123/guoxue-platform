@@ -439,19 +439,7 @@
           }
         },
         {
-          "path": "courses-list/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
           "path": "detail/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "chapters/index",
           "style": {
             "navigationStyle": "custom"
           }
@@ -469,43 +457,13 @@
           }
         },
         {
-          "path": "flash-sale/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "purchase-confirm/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
           "path": "certificate/index",
           "style": {
             "navigationStyle": "custom"
           }
         },
         {
-          "path": "study-plan/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
           "path": "work-submit/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "work-review/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "work-result/index",
           "style": {
             "navigationStyle": "custom"
           }
@@ -523,13 +481,13 @@
           }
         },
         {
-          "path": "market/index",
+          "path": "reviews/index",
           "style": {
             "navigationStyle": "custom"
           }
         },
         {
-          "path": "complete/index",
+          "path": "qa/index",
           "style": {
             "navigationStyle": "custom"
           }

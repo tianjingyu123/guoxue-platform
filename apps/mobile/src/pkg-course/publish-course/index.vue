@@ -1,91 +1,145 @@
 <template>
   <view class="pc-page">
-    <!-- 头部 -->
-    <view class="pc-header" :style="{ paddingTop: statusBarHeight + 'px' }">
-      <view class="pc-back" @tap="back">
-        <AppIcon name="chevron-left" :size="22" color="#2c2c2c" />
+    <!-- ══ 自定义导航顶栏（paddingTop 让位状态栏）══ -->
+    <view class="pc-nav" :style="{ paddingTop: statusBarHeight + 'px' }">
+      <view class="pc-nav-back" hover-class="pc-press" @tap="back">
+        <AppIcon name="chevron-left" :size="36" color="#2C2C2C" />
       </view>
-      <text class="pc-title">发布课程</text>
-      <view class="pc-back" />
+      <text class="pc-nav-title serif">发布课程</text>
+      <view class="pc-nav-back" />
     </view>
 
-    <!-- 加载中 -->
-    <view v-if="loading" class="pc-status">
-      <AppIcon name="loader" :size="44" color="#c41e3a" />
-      <text class="pc-status-text">加载中…</text>
+    <!-- ══ 加载中骨架 ══ -->
+    <view v-if="loading" class="pc-body">
+      <view class="pc-card">
+        <view class="pc-sk pc-sk-head" />
+        <view class="pc-sk pc-sk-cover" />
+      </view>
+      <view class="pc-card">
+        <view class="pc-sk pc-sk-head" />
+        <view class="pc-sk pc-sk-line" style="width:70%" />
+        <view class="pc-sk pc-sk-line" style="width:50%" />
+        <view class="pc-sk pc-sk-line" style="width:60%" />
+      </view>
     </view>
 
-    <!-- 资格门控：非认证讲师 -->
-    <view v-else-if="!isTeacher" class="pc-status">
-      <AppIcon name="award" :size="56" color="#c41e3a" />
-      <text class="pc-status-title">
+    <!-- ══ 资格门控：非认证讲师 ══ -->
+    <view v-else-if="!isTeacher" class="pc-gate">
+      <view class="pc-gate-art">
+        <AppIcon name="award" :size="72" color="#C41E3A" />
+      </view>
+      <text class="pc-gate-title serif">
         {{ certStatus === 'pending' ? '认证审核中' : '需先成为认证讲师' }}
       </text>
-      <text class="pc-status-desc">
+      <text class="pc-gate-desc">
         {{ certStatus === 'pending'
           ? '您的讲师认证正在审核，通过后即可发布课程。'
           : '只有通过讲师认证的用户才能发布线上课程。' }}
       </text>
-      <button class="pc-btn pc-btn-full" @tap="goCertify">
-        {{ certStatus === 'pending' ? '查看进度' : '去认证' }}
-      </button>
+      <view class="pc-gate-btn" hover-class="pc-press" @tap="goCertify">
+        <text class="pc-gate-btn-txt">{{ certStatus === 'pending' ? '查看进度' : '去认证' }}</text>
+      </view>
     </view>
 
-    <!-- 发课表单 -->
-    <view v-else class="pc-form">
-      <view class="pc-field">
-        <text class="pc-label">课程封面</text>
-        <view class="pc-cover" @tap="chooseCover">
-          <image lazy-load v-if="form.cover" class="pc-cover-img" :src="form.cover" mode="aspectFill" />
-          <view v-else class="pc-cover-empty">
-            <AppIcon :name="uploadingCover ? 'loader' : 'image'" :size="32" :color="uploadingCover ? '#c41e3a' : '#bbb'" />
-            <text class="pc-cover-text">{{ uploadingCover ? '上传中…' : '点击上传封面' }}</text>
+    <!-- ══ 发课表单（分区块白卡）══ -->
+    <view v-else class="pc-body">
+
+      <!-- ── 卡1 封面（16:9 上传位）── -->
+      <view class="pc-card">
+        <view class="pc-card-head">
+          <text class="pc-card-title">课程封面 <text class="pc-req">*</text></text>
+        </view>
+        <view class="pc-cover" hover-class="pc-press" @tap="chooseCover">
+          <view class="pc-cover-ratio">
+            <image v-if="form.cover" class="pc-cover-img" :src="form.cover" mode="aspectFill" lazy-load />
+            <view v-else class="pc-cover-empty">
+              <AppIcon :name="uploadingCover ? 'loader' : 'image-plus'" :size="44" :color="uploadingCover ? '#C41E3A' : '#C9C3B8'" />
+              <text class="pc-cover-text">{{ uploadingCover ? '上传中…' : '点击上传封面' }}</text>
+            </view>
+            <view v-if="form.cover && !uploadingCover" class="pc-cover-replace">
+              <text class="pc-cover-replace-txt">替换封面</text>
+            </view>
           </view>
+        </view>
+        <text class="pc-hint">建议尺寸 16:9，JPG/PNG</text>
+      </view>
+
+      <!-- ── 卡2 基本信息 ── -->
+      <view class="pc-card">
+        <view class="pc-card-head">
+          <text class="pc-card-title">基本信息 <text class="pc-req">*</text></text>
+        </view>
+
+        <view class="pc-field">
+          <text class="pc-field-label">课程标题</text>
+          <input
+            class="pc-field-input"
+            placeholder="请输入课程标题"
+            placeholder-class="pc-ph"
+            :value="form.title"
+            @input="(e: any) => form.title = e.detail.value"
+            :maxlength="50"
+          />
+        </view>
+
+        <view class="pc-field">
+          <text class="pc-field-label">课程类型</text>
+          <view class="pc-pills">
+            <view
+              v-for="(label, i) in typeLabels" :key="i"
+              class="pc-pill" :class="{ on: typeIndex === i }"
+              hover-class="pc-press"
+              @tap="typeIndex = i"
+            >
+              <text class="pc-pill-txt" :class="{ on: typeIndex === i }">{{ label }}</text>
+            </view>
+          </view>
+        </view>
+
+        <view class="pc-field">
+          <text class="pc-field-label">所属品类</text>
+          <picker mode="selector" :range="categoryLabels" :value="categoryIndex" @change="onCategoryChange">
+            <view class="pc-select">
+              <text class="pc-select-txt" :class="{ ph: categoryIndex === 0 }">{{ categoryLabels[categoryIndex] }}</text>
+              <AppIcon name="chevron-right" :size="30" color="#999999" />
+            </view>
+          </picker>
+        </view>
+
+        <view class="pc-field pc-field-col">
+          <text class="pc-field-label">课程简介</text>
+          <textarea
+            class="pc-textarea"
+            placeholder="介绍课程内容、亮点与适合人群"
+            placeholder-class="pc-ph"
+            :value="form.intro"
+            @input="(e: any) => form.intro = e.detail.value"
+            :maxlength="500"
+          />
         </view>
       </view>
 
-      <view class="pc-field">
-        <text class="pc-label">课程标题 <text class="pc-req">*</text></text>
-        <input
-          class="pc-input"
-          placeholder="请输入课程标题"
-          placeholder-class="pc-ph"
-          :value="form.title"
-          @input="(e: any) => form.title = e.detail.value"
-          :maxlength="50"
-        />
-      </view>
+      <!-- ── 卡3 定价 ── -->
+      <view class="pc-card">
+        <view class="pc-card-head">
+          <text class="pc-card-title">定价</text>
+        </view>
 
-      <view class="pc-field">
-        <text class="pc-label">课程类型</text>
-        <picker mode="selector" :range="typeLabels" :value="typeIndex" @change="onTypeChange">
-          <view class="pc-picker">
-            <text class="pc-picker-text">{{ typeLabels[typeIndex] }}</text>
-            <AppIcon name="chevron-down" :size="18" color="#bbb" />
+        <view class="pc-field">
+          <text class="pc-field-label">售价（元）</text>
+          <view class="pc-price-wrap">
+            <text class="pc-price-unit">¥</text>
+            <input
+              class="pc-price-input num"
+              type="digit"
+              placeholder="0 表示免费"
+              placeholder-class="pc-ph"
+              :value="form.price"
+              @input="(e: any) => form.price = e.detail.value"
+            />
           </view>
-        </picker>
-      </view>
+        </view>
 
-      <view class="pc-field">
-        <text class="pc-label">课程分类</text>
-        <picker mode="selector" :range="categoryLabels" :value="categoryIndex" @change="onCategoryChange">
-          <view class="pc-picker">
-            <text class="pc-picker-text">{{ categoryLabels[categoryIndex] }}</text>
-            <AppIcon name="chevron-down" :size="18" color="#bbb" />
-          </view>
-        </picker>
-      </view>
-
-      <view class="pc-field">
-        <text class="pc-label">售价（元）</text>
-        <input
-          class="pc-input"
-          type="digit"
-          placeholder="0 表示免费"
-          placeholder-class="pc-ph"
-          :value="form.price"
-          @input="(e: any) => form.price = e.detail.value"
-        />
         <!-- T3 定价参考卡（供给侧·仅类目维度·平台不干预定价） -->
         <PricingReferenceCard
           bizType="COURSE"
@@ -93,43 +147,55 @@
           :currentPrice="Number(form.price) || undefined"
           @adopt="onAdoptPrice"
         />
+
+        <view class="pc-field">
+          <view class="pc-field-main">
+            <text class="pc-field-label">有效期（天）</text>
+            <text class="pc-sub-note">填 0 为永久有效</text>
+          </view>
+          <view class="pc-price-wrap">
+            <input
+              class="pc-price-input num"
+              type="number"
+              placeholder="0"
+              placeholder-class="pc-ph"
+              :value="form.validityDays"
+              @input="(e: any) => form.validityDays = e.detail.value"
+            />
+          </view>
+        </view>
       </view>
 
-      <view class="pc-field">
-        <text class="pc-label">有效期（天）</text>
-        <input
-          class="pc-input"
-          type="number"
-          placeholder="0 表示永久有效"
-          placeholder-class="pc-ph"
-          :value="form.validityDays"
-          @input="(e: any) => form.validityDays = e.detail.value"
-        />
-      </view>
-
-      <view class="pc-field">
-        <text class="pc-label">课程简介</text>
-        <textarea
-          class="pc-textarea"
-          placeholder="介绍课程内容、亮点与适合人群"
-          placeholder-class="pc-ph"
-          :value="form.intro"
-          @input="(e: any) => form.intro = e.detail.value"
-          :maxlength="500"
-        />
-      </view>
-
-      <text class="pc-hint">发布后即可在课程管理台上架并添加章节。</text>
-
-      <view class="pc-footer">
-        <button
-          class="pc-btn pc-btn-full"
-          :class="{ 'pc-btn-disabled': submitting || !form.title.trim() }"
-          :disabled="submitting || !form.title.trim()"
-          @tap="onSubmit"
+      <!-- ── 卡4 开放范围（纯 UI 单选）── -->
+      <view class="pc-card">
+        <view class="pc-card-head">
+          <text class="pc-card-title">开放范围</text>
+        </view>
+        <view
+          v-for="opt in scopeOptions" :key="opt.value"
+          class="pc-radio-row" hover-class="pc-press"
+          @tap="scope = opt.value"
         >
-          {{ submitting ? '发布中…' : '发布课程' }}
-        </button>
+          <view class="pc-radio" :class="{ on: scope === opt.value }" />
+          <text class="pc-radio-label">{{ opt.label }}</text>
+        </view>
+        <view v-if="scope === 'platform'" class="pc-audit-note">
+          <text class="pc-audit-txt">全平台发布需平台审核，审核通过后自动上架</text>
+        </view>
+      </view>
+
+      <text class="pc-tail-hint">发布后即可在课程管理台上架并添加章节。</text>
+    </view>
+
+    <!-- ══ 吸底发布按钮 ══ -->
+    <view v-if="!loading && isTeacher" class="pc-bottom">
+      <view
+        class="pc-submit"
+        :class="{ disabled: submitting || !form.title.trim() }"
+        hover-class="pc-press"
+        @tap="onSubmit"
+      >
+        <text class="pc-submit-txt">{{ submitting ? '发布中…' : '发布课程' }}</text>
       </view>
     </view>
   </view>
@@ -173,9 +239,13 @@ const form = reactive({
 
 const uploadingCover = ref(false)
 
-function onTypeChange(e: { detail: { value: string } }) {
-  typeIndex.value = Number(e.detail.value)
-}
+// 开放范围（纯 UI 单选·委托书 P6 第 6 项）：仅前端展示状态，
+// 现有 courseApi.create 暂无对应入参，故不写入提交体（不造假接口参数）。
+const scopeOptions = [
+  { value: 'circle', label: '仅圈子内' },
+  { value: 'platform', label: '全平台' },
+] as const
+const scope = ref<'circle' | 'platform'>('platform')
 
 function onCategoryChange(e: { detail: { value: string } }) {
   categoryIndex.value = Number(e.detail.value)
@@ -268,160 +338,166 @@ onLoad(() => {
 </script>
 
 <style scoped>
+/* ── 视觉 token（V0 委托书第七节）── */
 .pc-page {
   min-height: 100vh;
-  background: #f7f7f7;
+  background: #FAF8F5;
+  padding-bottom: calc(160rpx + env(safe-area-inset-bottom));
 }
-.pc-header {
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  background: #fff;
-  border-bottom: 2rpx solid #f0f0f0;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 16rpx 24rpx;
-}
-.pc-back {
-  width: 48rpx;
-  height: 48rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.pc-title {
-  font-size: 32rpx;
-  font-weight: 600;
-  color: #2c2c2c;
-}
+.serif { font-family: "Songti SC", "STSong", "SimSun", serif; }
+.num { font-family: "SF Mono", "Roboto Mono", monospace; }
+.pc-press { opacity: 0.6; }
 
-/* 状态 / 门控 */
-.pc-status {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 130rpx 48rpx;
-  gap: 18rpx;
+/* ── 自定义导航顶栏 ── */
+.pc-nav {
+  position: sticky; top: 0; z-index: 20;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 20rpx 32rpx 20rpx;
+  background: #FAF8F5;
 }
-.pc-status-title {
-  font-size: 32rpx;
-  font-weight: 600;
-  color: #2c2c2c;
+.pc-nav-back {
+  width: 72rpx; height: 72rpx; border-radius: 999rpx;
+  display: flex; align-items: center; justify-content: center;
+  background: #FFFFFF;
+  box-shadow: 0 2rpx 6rpx rgba(0,0,0,0.04);
 }
-.pc-status-text {
-  font-size: 28rpx;
-  color: #999;
-}
-.pc-status-desc {
-  font-size: 26rpx;
-  color: #999;
-  text-align: center;
-  line-height: 1.6;
-}
+.pc-nav-title { font-size: 40rpx; font-weight: 700; letter-spacing: 2rpx; color: #2C2C2C; }
 
-/* 表单 */
-.pc-form {
-  padding: 28rpx 28rpx 60rpx;
+/* ── 主体间距 ── */
+.pc-body { padding: 24rpx 40rpx 40rpx; display: flex; flex-direction: column; gap: 24rpx; }
+
+/* ── 白卡 ── */
+.pc-card {
+  background: #FFFFFF; border-radius: 36rpx; padding: 32rpx;
+  box-shadow: 0 2rpx 6rpx rgba(0,0,0,0.04);
 }
-.pc-field {
-  margin-bottom: 32rpx;
-}
-.pc-label {
-  display: block;
-  font-size: 28rpx;
-  font-weight: 600;
-  color: #2c2c2c;
-  margin-bottom: 14rpx;
-}
-.pc-req {
-  color: var(--brand);
-}
-.pc-input {
-  width: 100%;
-  height: 88rpx;
-  padding: 0 24rpx;
-  background: #fff;
-  border-radius: 14rpx;
-  font-size: 28rpx;
-  color: #2c2c2c;
-  box-sizing: border-box;
-}
-.pc-picker {
-  height: 88rpx;
-  padding: 0 24rpx;
-  background: #fff;
-  border-radius: 14rpx;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-.pc-picker-text {
-  font-size: 28rpx;
-  color: #2c2c2c;
-}
-.pc-cover {
-  width: 100%;
-  height: 280rpx;
-  background: #fff;
-  border-radius: 14rpx;
-  overflow: hidden;
-}
-.pc-cover-img {
-  width: 100%;
-  height: 100%;
-}
+.pc-card-head { margin-bottom: 24rpx; }
+.pc-card-title { font-size: 30rpx; font-weight: 700; color: #2C2C2C; }
+.pc-req { color: #C41E3A; }
+.pc-hint { display: block; font-size: 24rpx; color: #999999; margin-top: 20rpx; line-height: 1.5; }
+
+/* ── 卡1 封面（16:9 padding 撑高）── */
+.pc-cover { width: 100%; border-radius: 16rpx; overflow: hidden; background: #F8F4EC; }
+.pc-cover-ratio { position: relative; width: 100%; padding-top: 56.25%; }
+.pc-cover-img { position: absolute; inset: 0; width: 100%; height: 100%; }
 .pc-cover-empty {
-  width: 100%;
-  height: 100%;
-  border: 4rpx dashed #e5e5e5;
-  border-radius: 14rpx;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 14rpx;
-  box-sizing: border-box;
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16rpx;
 }
-.pc-cover-text {
-  font-size: 26rpx;
-  color: #999;
+.pc-cover-text { font-size: 26rpx; color: #999999; }
+.pc-cover-replace {
+  position: absolute; right: 20rpx; bottom: 20rpx;
+  background: rgba(0,0,0,0.55); border-radius: 999rpx; padding: 10rpx 24rpx;
 }
+.pc-cover-replace-txt { font-size: 24rpx; color: #FFFFFF; }
+
+/* ── 字段行（横排 label + 控件）── */
+.pc-field {
+  padding: 26rpx 0;
+  display: flex; align-items: center; justify-content: space-between; gap: 20rpx;
+}
+.pc-field + .pc-field { border-top: 2rpx solid #EDE7DD; }
+.pc-field-col { flex-direction: column; align-items: stretch; gap: 16rpx; }
+.pc-field-main { display: flex; flex-direction: column; gap: 6rpx; }
+.pc-field-label { font-size: 26rpx; color: #999999; flex-shrink: 0; }
+.pc-field-col .pc-field-label { color: #999999; }
+.pc-sub-note { font-size: 24rpx; color: #999999; }
+
+/* 单行输入（右对齐随内容）*/
+.pc-field-input {
+  flex: 1; text-align: right;
+  font-size: 30rpx; color: #2C2C2C;
+}
+.pc-ph { color: #999999; }
+
+/* 类型胶囊单选 */
+.pc-pills { display: flex; gap: 16rpx; flex-wrap: wrap; justify-content: flex-end; flex: 1; }
+.pc-pill { padding: 12rpx 28rpx; border-radius: 999rpx; background: #F8F4EC; }
+.pc-pill.on { background: rgba(196,30,58,0.08); }
+.pc-pill-txt { font-size: 26rpx; color: #6E6E73; }
+.pc-pill-txt.on { color: #C41E3A; font-weight: 600; }
+
+/* 品类选择器 */
+.pc-select { flex: 1; display: flex; align-items: center; justify-content: flex-end; gap: 8rpx; }
+.pc-select-txt { font-size: 30rpx; color: #2C2C2C; }
+.pc-select-txt.ph { color: #999999; }
+
+/* 简介多行 */
 .pc-textarea {
-  width: 100%;
-  min-height: 200rpx;
-  padding: 20rpx 24rpx;
-  background: #fff;
-  border-radius: 14rpx;
-  font-size: 28rpx;
-  color: #2c2c2c;
-  box-sizing: border-box;
+  width: 100%; min-height: 180rpx; box-sizing: border-box;
+  padding: 20rpx 24rpx; background: #F8F4EC; border-radius: 16rpx;
+  font-size: 28rpx; color: #2C2C2C; line-height: 1.6;
 }
-.pc-ph {
-  color: #bbb;
+
+/* 定价输入 */
+.pc-price-wrap { flex: 1; display: flex; align-items: baseline; justify-content: flex-end; gap: 8rpx; }
+.pc-price-unit { font-size: 30rpx; color: #2C2C2C; }
+.pc-price-input {
+  min-width: 200rpx; text-align: right;
+  font-size: 36rpx; font-weight: 700; color: #2C2C2C;
 }
-.pc-hint {
-  display: block;
-  font-size: 24rpx;
-  color: #999;
-  line-height: 1.6;
-  margin-bottom: 32rpx;
+
+/* ── 卡4 开放范围 ── */
+.pc-radio-row {
+  display: flex; align-items: center; gap: 20rpx; padding: 26rpx 0;
 }
-.pc-footer {
-  margin-top: 8rpx;
+.pc-radio-row + .pc-radio-row { border-top: 2rpx solid #EDE7DD; }
+.pc-radio {
+  position: relative; width: 40rpx; height: 40rpx; border-radius: 50%;
+  border: 4rpx solid #D9D3C8; box-sizing: border-box; flex-shrink: 0;
 }
-.pc-btn {
-  height: 88rpx;
-  line-height: 88rpx;
-  background: var(--brand);
-  color: #fff;
-  font-size: 30rpx;
-  border-radius: 999rpx;
+.pc-radio.on { border-color: #C41E3A; }
+.pc-radio.on::after {
+  content: ""; position: absolute; inset: 8rpx; border-radius: 50%; background: #C41E3A;
 }
-.pc-btn-full {
-  width: 100%;
+.pc-radio-label { font-size: 30rpx; color: #2C2C2C; }
+.pc-audit-note {
+  margin-top: 16rpx; background: #F8F4EC; border-radius: 16rpx; padding: 20rpx 24rpx;
 }
-.pc-btn-disabled {
-  opacity: 0.5;
+.pc-audit-txt { font-size: 24rpx; color: #999999; line-height: 1.5; }
+
+/* 尾部提示 */
+.pc-tail-hint { display: block; font-size: 24rpx; color: #999999; line-height: 1.6; text-align: center; margin-top: 8rpx; }
+
+/* ── 门控态 ── */
+.pc-gate {
+  display: flex; flex-direction: column; align-items: center; text-align: center;
+  padding: 140rpx 60rpx; gap: 24rpx;
 }
+.pc-gate-art {
+  width: 200rpx; height: 200rpx; border-radius: 50%; background: #F8F4EC;
+  display: flex; align-items: center; justify-content: center;
+}
+.pc-gate-title { font-size: 36rpx; font-weight: 700; color: #2C2C2C; }
+.pc-gate-desc { font-size: 26rpx; color: #999999; line-height: 1.6; }
+.pc-gate-btn {
+  margin-top: 8rpx; height: 88rpx; padding: 0 60rpx; border-radius: 999rpx;
+  background: #C41E3A; display: flex; align-items: center;
+}
+.pc-gate-btn-txt { font-size: 30rpx; font-weight: 600; color: #FFFFFF; }
+
+/* ── 吸底发布按钮 ── */
+.pc-bottom {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
+  background: #FFFFFF; border-top: 2rpx solid #EDE7DD;
+  padding: 20rpx 40rpx calc(24rpx + env(safe-area-inset-bottom));
+}
+.pc-submit {
+  height: 88rpx; border-radius: 999rpx; background: #C41E3A;
+  display: flex; align-items: center; justify-content: center;
+}
+.pc-submit.disabled { opacity: 0.5; }
+.pc-submit-txt { font-size: 30rpx; font-weight: 600; color: #FFFFFF; }
+
+/* ── 骨架屏（#F0EBE2 微光 1.4s）── */
+.pc-sk { position: relative; overflow: hidden; background: #F0EBE2; border-radius: 12rpx; }
+.pc-sk::after {
+  content: ""; position: absolute; inset: 0; transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.6), transparent);
+  animation: pc-shimmer 1.4s infinite;
+}
+@keyframes pc-shimmer { 100% { transform: translateX(100%); } }
+.pc-sk-head { width: 200rpx; height: 34rpx; margin-bottom: 24rpx; }
+.pc-sk-cover { width: 100%; padding-top: 56.25%; border-radius: 16rpx; }
+.pc-sk-line { height: 30rpx; margin-bottom: 20rpx; }
 </style>

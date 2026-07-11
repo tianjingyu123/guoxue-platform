@@ -240,7 +240,7 @@ function typeMeta(order: OrderListItem) {
 }
 function goLearn(order: OrderListItem) {
   const cid = order.products[0]?.id
-  if (cid) navigateTo(`/courses/${cid}/learn`)
+  if (cid) navigateTo(`/courses/${cid}/player`)
 }
 function copyNo(no: string) {
   uni.setClipboardData({ data: no, success: () => uni.showToast({ title: '订单号已复制', icon: 'none' }) })

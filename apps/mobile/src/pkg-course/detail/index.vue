@@ -1,5 +1,11 @@
 <script setup lang="ts">
-/** 课程详情页 - 从原型 app/courses/[id]/page.tsx 迁移 */
+/** 课程详情页 P2（转化页）— V0 视觉还原
+ * 三大吸收：①独立目录页 chapters 并入详情（目录卡展示课时·试看一步进 P3 自动起播）
+ *           ②购买确认改半屏弹层（PurchaseSheet·全程弹层完成不跳页）
+ *           ③秒杀态挂详情价格区（仅价格区差异·派生自 originalPrice>price）
+ * 三态：未购态（含购买半屏弹层）/ 已购态（进度+继续学习）/ 秒杀态（价格区差异）
+ * 真连接口全部保留：courseApi.getDetail/getChapters/getReviews/checkAccess/isFavorited/toggleFavorite
+ */
 import { ref, computed, onMounted } from 'vue'
 import { onLoad, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 import { navigateTo, goBack } from '@/utils/router'
@@ -30,38 +36,46 @@ const viewTracked = ref(false)
 // F1 认证分级：讲师认证徽章数据（课程详情响应不含认证字段·独立并行拉取，null=未认证/无讲师不显示）
 const instructorCert = ref<{ verifiedTitle: string; institute: TeacherInstituteBadge | null } | null>(null)
 
-// 纯 UI 状态
-const activeTab = ref<'intro' | 'chapters' | 'reviews'>('intro')
-// 章节手风琴：默认全展开（真实章节 id 是 cuid，旧初值 {c1:true} 永不命中 → 全折叠，试看课时要先点章节展开再点课时，多一步）
-const expanded = ref<Record<string, boolean>>({})
-const isLiked = ref(false)
 // 收藏写操作防重复
 const favSubmitting = ref(false)
 // 自定义导航栏状态栏占位高度（避免顶部返回/收藏/分享按钮被系统状态栏遮挡）
 const statusBarHeight = ref(0)
-const showGroupBuyBanner = ref(true)
 const showConsultPanel = ref(false)
 const showGroupPanel = ref(false)
 const hasAccess = ref(false)
 const showPurchase = ref(false)
+const isLiked = ref(false)
 
 const totalLessons = computed(() => chapters.value.reduce((s, c) => s + c.lessons.length, 0))
 const totalDuration = computed(() => chapters.value.reduce((s, c) => s + c.duration, 0))
+// 秒杀态派生：有划线价且现价 < 原价即视为限时优惠（course-data flashSale 同源口径·无真实倒计时接口不臆造时分秒）
+const isSeckill = computed(() => !course.value?.isFree && Number(course.value?.originalPrice) > Number(course.value?.price) && Number(course.value?.price) > 0)
+// 已购进度派生：真连章节 isCompleted 计数（后端逐课时进度）
+const completedCount = computed(() => chapters.value.reduce((s, c) => s + c.lessons.filter((l: any) => l.isCompleted).length, 0))
+const progressPercent = computed(() => (totalLessons.value ? Math.round((completedCount.value / totalLessons.value) * 100) : 0))
+// 已购态「继续学习」定位：首个未完成课时（全部完成→最后一课）
+const nextLesson = computed(() => {
+  for (const c of chapters.value) {
+    for (const l of c.lessons) { if (!l.isCompleted) return l }
+  }
+  const last = chapters.value[chapters.value.length - 1]?.lessons
+  return last ? last[last.length - 1] : null
+})
 
-const tabs = computed(() => [
-  { key: 'intro', label: '简介' },
-  { key: 'chapters', label: `目录(${totalLessons.value})` },
-  { key: 'reviews', label: `评价(${reviews.value.length})` },
-])
+const priceText = (v: any) => Math.round(Number(v) * 100) / 100
 
-function toggleChapter(id: string) { expanded.value[id] = !expanded.value[id] }
 function fmtDuration(min: number) {
   if (min >= 60) { const h = Math.floor(min / 60); const m = min % 60; return `${h}小时${m > 0 ? m + '分钟' : ''}` }
   return `${min}分钟`
 }
-function fmtStudents(n: number) { return n.toLocaleString() }
-// 点击课时：试看/已购 → 直达播放页并播放（不再经学习中心二次选择）；未购付费章节 → 提示购买
-function onLessonTap(chapter: any, lesson: any) {
+function fmtStudents(n: number) { return (n ?? 0).toLocaleString() }
+// 课时时长展示为「分:秒」样式（V0 数字等宽风格·后端 duration 单位分钟）
+function fmtLessonDur(min: number) {
+  const m = Math.floor(min)
+  return `${String(m).padStart(2, '0')}:00`
+}
+// 点击课时：试看/已购 → 直达播放页并播放；未购付费章节 → 提示购买
+function onLessonTap(lesson: any) {
   if (hasAccess.value || lesson.isFree) {
     navigateTo(`/courses/${course.value?.id}/player?lesson=${lesson.id}`)
   } else {
@@ -88,7 +102,7 @@ function onShare() {
   openPoster('course', course.value?.id || courseId.value)
 }
 function onPurchase() {
-  if (hasAccess.value) { onStartLearning(); return }
+  if (hasAccess.value) { onContinueLearning(); return }
   // F3 电商漏斗埋点：购买点击（D-T1）
   track.custom('buy_click', { type: 'course', id: course.value?.id })
   showPurchase.value = true
@@ -103,9 +117,14 @@ async function onPurchased() {
     chapters.value = await courseApi.getChapters(courseId.value)
   } catch { /* 静默：本地 hasAccess=true 已保证解锁 */ }
 }
-function onStartLearning() { navigateTo(`/courses/${course.value?.id}/learn`) }
-// 拼课：后端拼团功能尚未实现，先诚实提示即将上线(避免点击无反应)
-function onGroupBuy() { uni.showToast({ title: '拼课功能即将上线', icon: 'none' }) }
+// 已购态：继续学习 → 直达上次进度课时（无则第一课）
+function onContinueLearning() {
+  const l = nextLesson.value
+  if (l) { navigateTo(`/courses/${course.value?.id}/player?lesson=${l.id}`); return }
+  navigateTo(`/courses/${course.value?.id}/player`)
+}
+// 会员免费金标：跳现有会员购买页
+function goMember() { navigateTo('/pkg-mine/memberships/index') }
 /** 讲师公开主页（讲师 userId 缺失时不可点；未认证讲师由主页 404 错误态诚实提示） */
 function goTeacherProfile() {
   const uid = course.value?.instructor?.id
@@ -124,11 +143,6 @@ async function loadInstructorCert(uid?: string) {
   }
 }
 
-const ratingBars = computed(() => [5, 4, 3, 2, 1].map((star) => {
-  const count = reviews.value.filter((r) => r.rating === star).length
-  return { star, percent: reviews.value.length ? (count / reviews.value.length) * 100 : 0 }
-}))
-
 async function loadData() {
   loading.value = true
   error.value = ''
@@ -141,8 +155,6 @@ async function loadData() {
     course.value = detail
     chapters.value = chaps
     reviews.value = revs
-    // 目录默认全展开：试看/课时一眼可见，点一次直达播放（不再经「展开二级目录」中间步骤）
-    for (const c of chaps) expanded.value[c.id] = true
     // 访问权限 + 收藏态并行回填（各自静默降级，不阻塞主内容，修复重进不回显/购买后不解锁）
     void courseApi.checkAccess(courseId.value).then((v) => { hasAccess.value = v })
     void courseApi.isFavorited(courseId.value).then((v) => { isLiked.value = v })
@@ -189,64 +201,103 @@ onMounted(() => {
 
 <template>
   <customer-service-fab />
-  <!-- Loading -->
-  <view v-if="loading" class="loading-wrap">
-    <text class="loading-text">加载中...</text>
+  <!-- 骨架屏（加载中） -->
+  <view v-if="loading" class="page">
+    <view class="sk sk-hero" />
+    <view class="stack">
+      <view class="card">
+        <view class="sk sk-line" style="width:88%;height:44rpx" />
+        <view class="sk sk-line" style="width:55%;height:44rpx" />
+        <view class="sk sk-line" style="width:70%;height:28rpx;margin-top:8rpx" />
+        <view class="sk sk-line" style="width:40%;height:60rpx;margin-top:16rpx" />
+      </view>
+      <view class="card">
+        <view class="sk sk-line" style="width:35%;height:34rpx" />
+        <view class="sk sk-line" style="width:92%;height:30rpx" />
+        <view class="sk sk-line" style="width:85%;height:30rpx" />
+      </view>
+    </view>
   </view>
+
   <!-- Error -->
   <view v-else-if="error" class="error-wrap">
     <text class="error-text">{{ error }}</text>
     <view class="retry-btn" @tap="loadData"><text class="retry-text">重试</text></view>
   </view>
+
   <!-- Content -->
   <view v-else class="page">
-    <!-- 封面区域 -->
-    <view class="cover">
-      <smart-cover class="cover-img" :src="course.cover" :title="course.title" type="course" />
-      <view class="cover-mask" />
-      <!-- 顶部导航（顶部留系统状态栏占位，防按钮被遮挡） -->
-      <view class="cover-nav" :style="{ paddingTop: statusBarHeight + 'px' }">
-        <view class="nav-btn" @tap="goBack">
-          <app-icon name="arrow-left" :size="40" color="#ffffff" />
-        </view>
-        <view class="nav-right">
-          <view class="nav-btn" @tap="toggleFavorite">
-            <app-icon name="heart" :size="40" :color="isLiked ? '#C41E3A' : '#ffffff'" :fill="isLiked" />
-          </view>
-          <view class="nav-btn" @tap="onShare">
-            <app-icon name="share-2" :size="40" color="#ffffff" />
-          </view>
-        </view>
+    <!-- ══ 区块1 头图 16:9 ══ -->
+    <view class="hero">
+      <view class="ratio-169">
+        <smart-cover class="hero-img" :src="course.cover" :title="course.title" type="course" />
       </view>
-      <!-- 课程基本信息 -->
-      <view class="cover-info">
-        <text v-if="course.tag" class="ci-tag">{{ course.tag }}</text>
-        <text class="ci-title">{{ course.title }}</text>
-        <view class="ci-meta">
-          <view class="ci-meta-item">
-            <app-icon name="users" :size="28" color="rgba(255,255,255,0.8)" />
-            <text class="ci-meta-txt">{{ fmtStudents(course.students) }}人学习</text>
-          </view>
-          <view class="ci-meta-item">
-            <app-icon name="star" :size="28" color="#FAAD14" :fill="true" />
-            <text class="ci-meta-txt">{{ course.rating }}分</text>
-          </view>
-          <view class="ci-meta-item">
-            <app-icon name="book-open" :size="28" color="rgba(255,255,255,0.8)" />
-            <text class="ci-meta-txt">{{ totalLessons }}节课</text>
-          </view>
+      <view class="hero-nav" :style="{ paddingTop: statusBarHeight + 'px' }">
+        <view class="hero-btn" @tap="goBack">
+          <app-icon name="chevron-left" :size="36" color="#ffffff" />
+        </view>
+        <view class="hero-btn" @tap="onShare">
+          <app-icon name="share-2" :size="34" color="#ffffff" />
         </view>
       </view>
     </view>
 
-    <!-- 讲师信息（有讲师 userId 时可点击进公开主页，无则不可点） -->
-    <view class="inst-wrap">
-      <view class="inst-card" @tap="goTeacherProfile">
-        <image lazy-load class="inst-avatar" :src="course.instructor.avatar" mode="aspectFill" />
-        <view class="inst-info">
-          <view class="inst-name-row">
-            <text class="inst-name">{{ course.instructor.name }}</text>
-            <!-- F1 认证徽章（讲师 userId 缺失/未认证时 instructorCert 为 null → 整体跳过） -->
+    <view class="stack">
+      <!-- ══ 区块2 标题价格区 ══ -->
+      <view class="card">
+        <text v-if="course.tag" class="course-tag">{{ course.tag }}</text>
+        <text class="course-title serif">{{ course.title }}</text>
+        <text v-if="course.description" class="course-sub">{{ course.description }}</text>
+        <view class="data-row">
+          <text class="data-txt">{{ fmtStudents(course.students) }} 人在学</text>
+          <text v-if="course.rating >= 0.1" class="data-dot">·</text>
+          <view v-if="course.rating >= 0.1" class="star-inline">
+            <app-icon name="star" :size="24" color="#C9A96E" :fill="true" />
+            <text class="star-num">{{ course.rating }}</text>
+          </view>
+          <text class="data-dot">·</text>
+          <text class="data-txt">共 {{ totalLessons }} 讲</text>
+        </view>
+
+        <!-- 已购态：进度 + 继续学习大按钮 -->
+        <view v-if="hasAccess" class="owned-wrap">
+          <view class="progress-txt">
+            <text class="progress-l">已学 {{ progressPercent }}%</text>
+            <text class="progress-r">{{ completedCount }}/{{ totalLessons }} 讲</text>
+          </view>
+          <view class="progress-bar"><view class="progress-fill" :style="{ width: progressPercent + '%' }" /></view>
+          <view class="continue-btn" hover-class="btn-press" @tap="onContinueLearning">
+            <app-icon name="play" :size="30" color="#ffffff" :fill="true" />
+            <text class="continue-txt">继续学习<text v-if="nextLesson"> · {{ nextLesson.title }}</text></text>
+          </view>
+        </view>
+
+        <!-- 未购态 / 秒杀态：价格行 -->
+        <template v-else>
+          <!-- 秒杀横条（金色浅底·深色文字·派生自划线价，无真实倒计时接口故只展示活动语义） -->
+          <view v-if="isSeckill" class="seckill-bar">
+            <text class="seckill-tag">限时优惠</text>
+            <text class="seckill-price">¥{{ priceText(course.price) }}</text>
+            <text class="seckill-hint">活动结束恢复原价</text>
+          </view>
+          <view class="price-row" :class="{ 'price-row--seckill': isSeckill }">
+            <text v-if="course.isFree" class="price-free">免费</text>
+            <template v-else>
+              <text class="price-now">¥{{ priceText(course.price) }}</text>
+              <text v-if="Number(course.originalPrice) > Number(course.price)" class="price-old">¥{{ priceText(course.originalPrice) }}</text>
+              <text v-if="course.memberFree" class="vip-tag" @tap="goMember">会员免费</text>
+              <text v-if="course.memberFree" class="vip-hint" @tap="goMember">开通会员免费学 ›</text>
+            </template>
+          </view>
+        </template>
+      </view>
+
+      <!-- ══ 区块3 讲师卡 ══ -->
+      <view class="card teacher-card" hover-class="card-press" @tap="goTeacherProfile">
+        <image lazy-load class="teacher-avatar" :src="course.instructor.avatar" mode="aspectFill" />
+        <view class="teacher-info">
+          <view class="teacher-name-row">
+            <text class="teacher-name serif">{{ course.instructor.name }}</text>
             <teacher-cert-badge
               v-if="course.instructor.id && instructorCert"
               size="sm"
@@ -254,200 +305,137 @@ onMounted(() => {
               :institute="instructorCert.institute"
             />
           </view>
-          <text class="inst-title">{{ course.instructor.title }}</text>
+          <text class="teacher-bio">{{ course.instructor.title }}</text>
         </view>
-        <text v-if="course.instructor.id" class="inst-link">查看主页 &gt;</text>
+        <text v-if="course.instructor.id" class="teacher-link">主页 ›</text>
       </view>
-    </view>
 
-    <!-- Tab 切换 -->
-    <view class="tabs">
-      <view
-        v-for="tab in tabs" :key="tab.key"
-        class="tab-item" :class="{ active: activeTab === tab.key }"
-        @tap="activeTab = (tab.key as any)"
-      >
-        <text class="tab-txt">{{ tab.label }}</text>
-        <view v-if="activeTab === tab.key" class="tab-underline" />
-      </view>
-    </view>
-
-    <!-- Tab 内容 -->
-    <view class="tab-content">
-      <!-- 简介 -->
-      <view v-if="activeTab === 'intro'" class="intro">
-        <view class="sec">
-          <text class="sec-title">课程简介</text>
-          <text class="sec-desc">{{ course.description }}</text>
-          <!-- 介绍详情图（后台编辑器上传·按顺序无缝拼接） -->
-          <view v-if="course.detailImages && course.detailImages.length" class="detail-imgs">
-            <image
-              v-for="(img, i) in course.detailImages" :key="i"
-              class="detail-img" :src="img" mode="widthFix" :lazy-load="true"
-            />
-          </view>
-        </view>
-        <view v-if="course.objectives && course.objectives.length" class="sec">
-          <text class="sec-title">学完你将收获</text>
-          <view class="obj-list">
-            <view v-for="(obj, i) in course.objectives" :key="i" class="obj-item">
-              <app-icon name="check-circle" :size="32" color="#52C41A" />
-              <text class="obj-txt">{{ obj }}</text>
-            </view>
-          </view>
-        </view>
-        <view v-if="course.suitable && course.suitable.length" class="sec">
-          <text class="sec-title">适合人群</text>
-          <view class="suit-list">
-            <text v-for="(item, i) in course.suitable" :key="i" class="suit-chip">{{ item }}</text>
-          </view>
-        </view>
-        <view class="stat-grid">
-          <view class="stat-card">
-            <text class="stat-num">{{ totalLessons }}</text>
-            <text class="stat-label">课时</text>
-          </view>
-          <view class="stat-card">
-            <text class="stat-num">{{ Math.floor(totalDuration / 60) }}+</text>
-            <text class="stat-label">小时</text>
-          </view>
-          <view class="stat-card">
-            <text class="stat-num">{{ fmtStudents(course.students) }}</text>
-            <text class="stat-label">学员</text>
-          </view>
+      <!-- ══ 区块4 课程亮点（学完你将收获·有则显示） ══ -->
+      <view v-if="course.objectives && course.objectives.length" class="card">
+        <text class="sec-title serif">课程亮点</text>
+        <view class="hl" v-for="(obj, i) in course.objectives" :key="i">
+          <app-icon name="check" :size="30" color="#34A853" />
+          <text class="hl-txt">{{ obj }}</text>
         </view>
       </view>
 
-      <!-- 目录 -->
-      <view v-else-if="activeTab === 'chapters'" class="chapters">
-        <view v-for="(chapter, index) in chapters" :key="chapter.id" class="chapter-card">
-          <view class="chapter-hdr" @tap="toggleChapter(chapter.id)">
-            <view class="chapter-hdr-left">
-              <text class="chapter-idx">{{ index + 1 }}</text>
-              <view class="chapter-meta">
-                <text class="chapter-title">{{ chapter.title }}</text>
-                <view class="chapter-sub">
-                  <text class="chapter-sub-txt">{{ chapter.lessons.length }}节 · {{ fmtDuration(chapter.duration) }}</text>
-                  <text v-if="chapter.isFree" class="chapter-free">免费试看</text>
-                </view>
-              </view>
-            </view>
-            <app-icon :name="expanded[chapter.id] ? 'chevron-up' : 'chevron-down'" :size="40" color="#999999" />
-          </view>
-          <view v-if="expanded[chapter.id]" class="lesson-list">
+      <!-- 适合人群（有则显示） -->
+      <view v-if="course.suitable && course.suitable.length" class="card">
+        <text class="sec-title serif">适合人群</text>
+        <view class="suit-list">
+          <text v-for="(item, i) in course.suitable" :key="i" class="suit-chip">{{ item }}</text>
+        </view>
+      </view>
+
+      <!-- ══ 区块5 课程目录（核心·默认全展开·试看一步进播放） ══ -->
+      <view class="card">
+        <view class="sec-title-row">
+          <text class="sec-title serif">课程目录</text>
+          <text class="sec-title-sub">共 {{ chapters.length }} 章 · {{ totalLessons }} 讲</text>
+        </view>
+        <view v-if="chapters.length === 0" class="empty-line">
+          <text class="empty-txt">课程内容整理中</text>
+        </view>
+        <template v-else>
+          <view v-for="(chapter, ci) in chapters" :key="chapter.id" class="chapter-block">
+            <text class="chapter-name serif">第{{ ci + 1 }}章 · {{ chapter.title }}</text>
             <view
               v-for="lesson in chapter.lessons" :key="lesson.id"
-              class="lesson-item" :class="{ locked: !hasAccess && !lesson.isFree }"
-              @tap="onLessonTap(chapter, lesson)"
+              class="lesson" :class="{ 'lesson--locked': !hasAccess && !lesson.isFree, 'lesson--done': hasAccess && lesson.isCompleted }"
+              hover-class="lesson-press"
+              @tap="onLessonTap(lesson)"
             >
-              <view class="lesson-left">
-                <view class="lesson-ico" :class="lesson.isFree ? 'free' : 'paid'">
-                  <app-icon v-if="hasAccess || lesson.isFree" name="play" :size="28" :color="lesson.isFree ? '#52C41A' : '#666666'" />
-                  <app-icon v-else name="lock" :size="28" color="#999999" />
-                </view>
-                <view class="lesson-meta">
-                  <text class="lesson-title">{{ lesson.title }}</text>
-                  <text class="lesson-dur">{{ lesson.duration }}分钟</text>
-                </view>
-              </view>
-              <text v-if="lesson.isFree && !hasAccess" class="lesson-trial">试看</text>
-              <app-icon v-if="lesson.isCompleted" name="check-circle" :size="28" color="#52C41A" />
+              <!-- 状态图标：已购完成绿勾 / 试看或已购可播 / 未购锁 -->
+              <app-icon v-if="hasAccess && lesson.isCompleted" name="check" :size="26" color="#34A853" />
+              <app-icon v-else-if="hasAccess || lesson.isFree" name="play" :size="26" :color="lesson.isFree && !hasAccess ? '#34A853' : '#C41E3A'" :fill="true" />
+              <app-icon v-else name="lock" :size="24" color="#999999" />
+              <text class="lesson-name">{{ lesson.title }}</text>
+              <text v-if="lesson.isFree && !hasAccess" class="trial-tag">试看</text>
+              <text class="lesson-dur">{{ fmtLessonDur(lesson.duration) }}</text>
             </view>
           </view>
-        </view>
+        </template>
       </view>
 
-      <!-- 评价 -->
-      <view v-else class="reviews">
-        <view class="rating-overview">
-          <view class="rating-score">
-            <text class="rating-num">{{ course.rating }}</text>
-            <view class="rating-stars">
-              <app-icon
-                v-for="i in 5" :key="i" name="star" :size="24"
-                :color="i <= Math.floor(course.rating) ? '#FAAD14' : '#E8E3DB'" :fill="i <= Math.floor(course.rating)"
-              />
-            </view>
-            <text class="rating-count">{{ reviews.length }}条评价</text>
+      <!-- ══ 区块6 学员评价摘要 ══ -->
+      <view class="card">
+        <view class="review-head">
+          <text class="score-big">{{ course.rating || '—' }}</text>
+          <view class="stars">
+            <app-icon
+              v-for="i in 5" :key="i" name="star" :size="26"
+              :color="i <= Math.round(course.rating) ? '#C9A96E' : '#EDE7DD'" :fill="i <= Math.round(course.rating)"
+            />
           </view>
-          <view class="rating-bars">
-            <view v-for="b in ratingBars" :key="b.star" class="rating-bar-row">
-              <text class="rating-bar-label">{{ b.star }}星</text>
-              <view class="rating-bar-track">
-                <view class="rating-bar-fill" :style="{ width: b.percent + '%' }" />
-              </view>
-            </view>
-          </view>
+          <text class="review-count">{{ reviews.length }} 条评价</text>
         </view>
-        <view class="review-list">
-          <view v-for="review in reviews" :key="review.id" class="review-card">
-            <view class="review-hdr">
+        <view v-if="reviews.length === 0" class="empty-line">
+          <text class="empty-txt">暂无评价，购买后欢迎首评</text>
+        </view>
+        <template v-else>
+          <view v-for="review in reviews" :key="review.id" class="review-item">
+            <view class="review-user">
               <image lazy-load class="review-avatar" :src="review.user.avatar" mode="aspectFill" />
-              <view class="review-user">
-                <text class="review-name">{{ review.user.name }}</text>
-                <view class="review-stars">
-                  <app-icon
-                    v-for="i in 5" :key="i" name="star" :size="20"
-                    :color="i <= review.rating ? '#FAAD14' : '#E8E3DB'" :fill="i <= review.rating"
-                  />
-                  <text class="review-date">{{ review.createdAt }}</text>
-                </view>
+              <text class="review-nick">{{ review.user.name }}</text>
+              <view class="review-stars">
+                <app-icon
+                  v-for="i in 5" :key="i" name="star" :size="20"
+                  :color="i <= review.rating ? '#C9A96E' : '#EDE7DD'" :fill="i <= review.rating"
+                />
               </view>
+              <text class="review-date">{{ review.createdAt }}</text>
             </view>
-            <text class="review-content">{{ review.content }}</text>
+            <text class="review-text">{{ review.content }}</text>
+            <view v-if="review.reply" class="reply">
+              <text class="reply-b">讲师回复：</text><text class="reply-txt">{{ review.reply }}</text>
+            </view>
           </view>
+        </template>
+      </view>
+
+      <!-- ══ 区块8 图文详情（通栏无缝拼接） ══ -->
+      <view v-if="course.detailImages && course.detailImages.length" class="rich-wrap">
+        <text class="rich-title serif">课程详情</text>
+        <view class="rich">
+          <image
+            v-for="(img, i) in course.detailImages" :key="i"
+            class="rich-img" :src="img" mode="widthFix" :lazy-load="true"
+          />
         </view>
       </view>
+
+      <!-- 推荐：学了这门课的人还在学 -->
+      <recommend-section title="学了这门课的人还在学" :items="recItems" />
     </view>
 
-    <!-- 推荐：学了这门课的人还在学 -->
-    <recommend-section title="学了这门课的人还在学" :items="recItems" />
-
-    <!-- 拼课优惠 Banner -->
-    <view v-if="showGroupBuyBanner && !hasAccess && !course.isFree" class="groupbuy-banner">
-      <view class="gb-inner">
-        <view class="gb-left">
-          <app-icon name="user-plus" :size="40" color="#ffffff" />
-          <view class="gb-text">
-            <text class="gb-title">邀请好友拼课，立省¥100</text>
-            <text class="gb-sub">2人成团，每人仅需¥{{ Math.round((course.price - 50) * 100) / 100 }}</text>
-          </view>
-        </view>
-        <view class="gb-right">
-          <text class="gb-btn" @tap="onGroupBuy">发起拼课</text>
-          <view class="gb-close" @tap="showGroupBuyBanner = false">
-            <app-icon name="x" :size="32" color="rgba(255,255,255,0.7)" />
-          </view>
-        </view>
+    <!-- ══ 区块9 吸底操作栏 ══ -->
+    <view class="bottom-bar" :style="{ paddingBottom: 'calc(22rpx + env(safe-area-inset-bottom))' }">
+      <!-- 已购态：整栏一个继续学习 -->
+      <view v-if="hasAccess" class="full-btn" hover-class="btn-press" @tap="onContinueLearning">
+        <text class="full-btn-txt">继续学习</text>
       </view>
+      <!-- 未购态 / 秒杀态 -->
+      <template v-else>
+        <view class="mini-act" hover-class="card-press" @tap="toggleFavorite">
+          <app-icon name="heart" :size="40" :color="isLiked ? '#C41E3A' : '#6E6E73'" :fill="isLiked" />
+          <text class="mini-txt">收藏</text>
+        </view>
+        <view class="mini-act" hover-class="card-press" @tap="showConsultPanel = true">
+          <app-icon name="message-circle" :size="40" color="#6E6E73" />
+          <text class="mini-txt">客服</text>
+        </view>
+        <view class="buy-btn" hover-class="btn-press" @tap="onPurchase">
+          <text class="buy-btn-main">
+            <text v-if="course.isFree">免费学习</text>
+            <text v-else-if="isSeckill">立即抢购 ¥{{ priceText(course.price) }}</text>
+            <text v-else>立即购买 ¥{{ priceText(course.price) }}</text>
+          </text>
+          <text v-if="course.memberFree && !course.isFree" class="buy-btn-sub">会员免费学</text>
+        </view>
+      </template>
     </view>
 
-    <!-- 底部固定购买栏 -->
-    <view class="buy-bar">
-      <view class="buy-action" hover-class="card-press" @tap="showConsultPanel = true">
-        <app-icon name="message-circle" :size="44" color="#2c2c2c" />
-        <text class="buy-action-txt">咨询</text>
-      </view>
-      <view class="buy-action" hover-class="card-press" @tap="showGroupPanel = true">
-        <app-icon name="users" :size="44" color="#2c2c2c" />
-        <text class="buy-action-txt">学习群</text>
-      </view>
-      <view class="buy-price">
-        <text v-if="course.isFree" class="price-free">免费</text>
-        <view v-else class="price-row">
-          <text class="price-sym">¥</text>
-          <text class="price-now">{{ Math.round(Number(course.price) * 100) / 100 }}</text>
-          <text class="price-old">¥{{ Math.round(Number(course.originalPrice) * 100) / 100 }}</text>
-          <!-- 会员精品课标识（有效会员打开即可学，checkAccess 已放行） -->
-          <text v-if="course.memberFree" class="member-free-tag">会员免费</text>
-        </view>
-      </view>
-      <view class="buy-cta" @tap="hasAccess ? onStartLearning() : onPurchase()">
-        <text class="buy-cta-txt">{{ hasAccess ? '继续学习' : '立即购买' }}</text>
-      </view>
-    </view>
-
-    <!-- 购买弹窗（课程购买，统一下单 type=COURSE） -->
+    <!-- 购买半屏弹层（课程购买，统一下单 type=COURSE·全程本页完成不跳页） -->
     <purchase-sheet
       :open="showPurchase"
       :product="course ? { id: course.id, name: course.title, cover: course.cover, price: course.price, originalPrice: course.originalPrice } : null"
@@ -461,20 +449,21 @@ onMounted(() => {
     <view v-if="showConsultPanel" class="modal">
       <view class="modal-mask" @tap="showConsultPanel = false" />
       <view class="sheet">
+        <view class="sheet-handle" />
         <view class="sheet-hdr">
-          <text class="sheet-title">课程咨询</text>
-          <view @tap="showConsultPanel = false"><app-icon name="x" :size="40" color="#999999" /></view>
+          <text class="sheet-title serif">课程咨询</text>
+          <view @tap="showConsultPanel = false"><app-icon name="x" :size="36" color="#999999" /></view>
         </view>
         <view class="sheet-body">
           <view class="consult-item">
-            <view class="consult-ico" style="background:#C41E3A"><app-icon name="message-circle" :size="40" color="#ffffff" /></view>
+            <view class="consult-ico" style="background:#C41E3A"><app-icon name="message-circle" :size="36" color="#ffffff" /></view>
             <view class="consult-meta">
               <text class="consult-name">在线客服</text>
               <text class="consult-sub">9:00-22:00 在线解答</text>
             </view>
           </view>
           <view class="consult-item">
-            <view class="consult-ico" style="background:#07C160"><app-icon name="qr-code" :size="40" color="#ffffff" /></view>
+            <view class="consult-ico" style="background:#34A853"><app-icon name="qr-code" :size="36" color="#ffffff" /></view>
             <view class="consult-meta">
               <text class="consult-name">微信咨询</text>
               <text class="consult-sub">扫码添加课程顾问</text>
@@ -488,17 +477,15 @@ onMounted(() => {
     <view v-if="showGroupPanel" class="modal">
       <view class="modal-mask" @tap="showGroupPanel = false" />
       <view class="sheet">
+        <view class="sheet-handle" />
         <view class="sheet-hdr">
-          <text class="sheet-title">加入学习群</text>
-          <view @tap="showGroupPanel = false"><app-icon name="x" :size="40" color="#999999" /></view>
+          <text class="sheet-title serif">加入学习群</text>
+          <view @tap="showGroupPanel = false"><app-icon name="x" :size="36" color="#999999" /></view>
         </view>
         <view class="group-body">
           <view class="group-qr"><app-icon name="qr-code" :size="160" color="#999999" /></view>
           <text class="group-tip">扫码加入「{{ course.title }}」学习群</text>
-          <text class="group-sub">与{{ fmtStudents(course.students) }}位同学一起学习交流</text>
-        </view>
-        <view class="group-welfare">
-          <text class="group-welfare-txt">入群福利：课程答疑、学习资料、作业批改、结业证书</text>
+          <text class="group-sub">与 {{ fmtStudents(course.students) }} 位同学一起学习交流</text>
         </view>
       </view>
     </view>
@@ -506,147 +493,151 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.page { min-height: 100vh; background: #FAF8F5; padding-bottom: 192rpx; }
+.page { min-height: 100vh; background: #FAF8F5; padding-bottom: 200rpx; }
 
-/* 封面 */
-.cover { position: relative; height: 448rpx; }
-.cover-img { width: 100%; height: 100%; }
-.cover-mask { position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,0.7), rgba(0,0,0,0.2) 50%, transparent); }
-.cover-nav { position: absolute; top: 0; left: 0; right: 0; padding: 32rpx; display: flex; align-items: center; justify-content: space-between; }
-.nav-btn { width: 72rpx; height: 72rpx; border-radius: 50%; background: rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; }
-.nav-right { display: flex; gap: 16rpx; }
-.cover-info { position: absolute; bottom: 32rpx; left: 32rpx; right: 32rpx; }
-.ci-tag { display: inline-block; padding: 2rpx 16rpx; background: var(--brand); color: #fff; font-size: 22rpx; font-weight: 700; border-radius: 8rpx; margin-bottom: 16rpx; }
-.ci-title { display: block; font-size: 40rpx; font-weight: 700; color: #fff; line-height: 1.3; margin-bottom: 16rpx; }
-.ci-meta { display: flex; align-items: center; gap: 32rpx; }
-.ci-meta-item { display: flex; align-items: center; gap: 8rpx; }
-.ci-meta-txt { font-size: 24rpx; color: rgba(255,255,255,0.8); }
+/* ── 头图 16:9 ── */
+.hero { position: relative; }
+.ratio-169 { position: relative; width: 100%; padding-top: 56.25%; }
+.hero-img { position: absolute; inset: 0; width: 100%; height: 100%; }
+.hero-nav { position: absolute; top: 0; left: 0; right: 0; display: flex; justify-content: space-between; padding: 28rpx 32rpx; }
+.hero-btn { width: 68rpx; height: 68rpx; border-radius: 50%; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; }
 
-/* 讲师 */
-.inst-wrap { padding: 0 32rpx; margin-top: -16rpx; position: relative; z-index: 10; }
-.inst-card { background: #fff; border-radius: 24rpx; padding: 32rpx; display: flex; align-items: center; gap: 24rpx; box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.04); }
-.inst-avatar { width: 96rpx; height: 96rpx; border-radius: 50%; background: #F2EFEA; }
-.inst-info { flex: 1; }
-.inst-name-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12rpx; }
-.inst-name { font-size: 30rpx; font-weight: 500; color: #2C2C2C; }
-.inst-title { display: block; font-size: 24rpx; color: #999; margin-top: 4rpx; }
-.inst-link { font-size: 24rpx; color: var(--brand); }
+/* ── 卡片栈 ── */
+.stack { padding: 24rpx 40rpx 24rpx; display: flex; flex-direction: column; gap: 24rpx; margin-top: -48rpx; position: relative; z-index: 2; }
+.card { background: #FFFFFF; border-radius: 36rpx; padding: 32rpx; box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.04); }
+.serif { font-family: "Songti SC", "STSong", "SimSun", serif; }
 
-/* Tabs */
-.tabs { display: flex; gap: 48rpx; padding: 0 32rpx; margin-top: 32rpx; border-bottom: 1rpx solid #E8E3DB; }
-.tab-item { position: relative; padding-bottom: 24rpx; }
-.tab-txt { font-size: 28rpx; font-weight: 500; color: #666; }
-.tab-item.active .tab-txt { color: var(--brand); }
-.tab-underline { position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 40rpx; height: 4rpx; background: var(--brand); border-radius: 4rpx; }
+/* ── 标题价格区 ── */
+.course-tag { display: inline-block; padding: 4rpx 16rpx; background: rgba(196,30,58,0.08); color: #C41E3A; font-size: 22rpx; font-weight: 700; border-radius: 8rpx; margin-bottom: 16rpx; }
+.course-title { display: block; font-size: 40rpx; font-weight: 700; color: #2C2C2C; line-height: 1.4; }
+.course-sub { display: block; font-size: 28rpx; color: #6E6E73; margin-top: 16rpx; line-height: 1.5; }
+.data-row { display: flex; align-items: center; gap: 12rpx; font-size: 26rpx; color: #999; margin-top: 20rpx; flex-wrap: wrap; }
+.data-dot { color: #EDE7DD; }
+.star-inline { display: flex; align-items: center; gap: 6rpx; }
+.star-num { font-size: 26rpx; font-weight: 600; color: #C9A96E; font-variant-numeric: tabular-nums; }
 
-.tab-content { padding: 32rpx; }
+/* 价格行 */
+.price-row { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8rpx 16rpx; margin-top: 28rpx; padding-top: 28rpx; border-top: 1rpx solid #EDE7DD; }
+.price-row--seckill { margin-top: 20rpx; padding-top: 0; border-top: none; }
+.price-free { font-size: 44rpx; font-weight: 700; color: #34A853; }
+.price-now { font-size: 52rpx; font-weight: 700; color: #C41E3A; font-variant-numeric: tabular-nums; }
+.price-old { font-size: 28rpx; color: #999; text-decoration: line-through; }
+.vip-tag { padding: 4rpx 14rpx; font-size: 22rpx; font-weight: 600; color: #8A6D3B; background: rgba(201,169,110,0.14); border-radius: 8rpx; }
+.vip-hint { font-size: 22rpx; color: #999; }
 
-/* 简介 */
-.sec { margin-bottom: 48rpx; }
-.sec-title { display: block; font-size: 30rpx; font-weight: 700; color: #2C2C2C; margin-bottom: 24rpx; }
-.sec-desc { font-size: 26rpx; color: #666; line-height: 1.6; }
-.detail-imgs { margin-top: 24rpx; border-radius: 16rpx; overflow: hidden; }
-.detail-img { width: 100%; display: block; }
-.obj-list { display: flex; flex-direction: column; gap: 16rpx; }
-.obj-item { display: flex; align-items: flex-start; gap: 16rpx; }
-.obj-txt { font-size: 26rpx; color: #666; flex: 1; line-height: 1.5; }
-.suit-list { display: flex; flex-wrap: wrap; gap: 16rpx; }
-.suit-chip { padding: 12rpx 24rpx; background: rgba(196,30,58,0.05); color: var(--brand); font-size: 24rpx; border-radius: 999rpx; }
-.stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24rpx; }
-.stat-card { background: #fff; border-radius: 24rpx; padding: 24rpx; text-align: center; box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.04); }
-.stat-num { display: block; font-size: 40rpx; font-weight: 700; color: var(--brand); }
-.stat-label { display: block; font-size: 22rpx; color: #999; margin-top: 4rpx; }
+/* 秒杀横条（金浅底·深色文字·不用金字保证 X5 可读） */
+.seckill-bar { display: flex; align-items: center; gap: 16rpx; background: rgba(201,169,110,0.14); border-radius: 16rpx; padding: 18rpx 22rpx; margin-top: 28rpx; }
+.seckill-tag { flex-shrink: 0; padding: 4rpx 14rpx; background: #C41E3A; color: #fff; font-size: 22rpx; font-weight: 700; letter-spacing: 2rpx; border-radius: 8rpx; }
+.seckill-price { font-size: 32rpx; font-weight: 700; color: #C41E3A; font-variant-numeric: tabular-nums; }
+.seckill-hint { margin-left: auto; font-size: 22rpx; color: #6E6E73; }
 
-/* 目录 */
-.chapters { display: flex; flex-direction: column; gap: 24rpx; }
-.chapter-card { background: #fff; border-radius: 24rpx; overflow: hidden; box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.04); }
-.chapter-hdr { padding: 24rpx 32rpx; display: flex; align-items: center; justify-content: space-between; }
-.chapter-hdr-left { display: flex; align-items: center; gap: 24rpx; flex: 1; }
-.chapter-idx { width: 48rpx; height: 48rpx; border-radius: 50%; background: rgba(196,30,58,0.1); color: var(--brand); font-size: 24rpx; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.chapter-title { display: block; font-size: 28rpx; font-weight: 500; color: #2C2C2C; }
-.chapter-sub { display: flex; align-items: center; gap: 16rpx; margin-top: 4rpx; }
-.chapter-sub-txt { font-size: 24rpx; color: #999; }
-.chapter-free { font-size: 24rpx; color: #52C41A; }
-.lesson-list { border-top: 1rpx solid #F2EFEA; }
-.lesson-item { padding: 24rpx 32rpx; display: flex; align-items: center; justify-content: space-between; border-top: 1rpx solid #F2EFEA; }
-.lesson-item:first-child { border-top: none; }
-.lesson-item.locked { opacity: 0.6; }
-.lesson-left { display: flex; align-items: center; gap: 24rpx; }
-.lesson-ico { width: 64rpx; height: 64rpx; border-radius: 16rpx; display: flex; align-items: center; justify-content: center; }
-.lesson-ico.free { background: rgba(82,196,26,0.1); }
-.lesson-ico.paid { background: #F2EFEA; }
-.lesson-title { display: block; font-size: 26rpx; color: #2C2C2C; }
-.lesson-dur { display: block; font-size: 22rpx; color: #999; margin-top: 2rpx; }
-.lesson-trial { font-size: 22rpx; color: #52C41A; background: rgba(82,196,26,0.1); padding: 2rpx 16rpx; border-radius: 8rpx; }
+/* 已购态：进度 + 继续学习 */
+.owned-wrap { margin-top: 28rpx; padding-top: 28rpx; border-top: 1rpx solid #EDE7DD; }
+.progress-txt { display: flex; justify-content: space-between; font-size: 24rpx; color: #6E6E73; margin-bottom: 14rpx; }
+.progress-bar { height: 8rpx; border-radius: 999rpx; background: #F8F4EC; overflow: hidden; }
+.progress-fill { height: 100%; border-radius: 999rpx; background: #C41E3A; transition: width 0.4s; }
+.continue-btn { margin-top: 24rpx; height: 92rpx; border-radius: 999rpx; background: #C41E3A; display: flex; align-items: center; justify-content: center; gap: 12rpx; }
+.continue-txt { font-size: 30rpx; font-weight: 700; color: #fff; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; max-width: 480rpx; }
+.btn-press { opacity: 0.88; }
 
-/* 评价 */
-.rating-overview { background: #fff; border-radius: 24rpx; padding: 32rpx; margin-bottom: 32rpx; display: flex; align-items: center; gap: 32rpx; box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.04); }
-.rating-score { text-align: center; }
-.rating-num { display: block; font-size: 64rpx; font-weight: 700; color: var(--brand); }
-.rating-stars { display: flex; align-items: center; justify-content: center; gap: 4rpx; }
-.rating-count { display: block; font-size: 22rpx; color: #999; margin-top: 8rpx; }
-.rating-bars { flex: 1; display: flex; flex-direction: column; gap: 8rpx; }
-.rating-bar-row { display: flex; align-items: center; gap: 16rpx; }
-.rating-bar-label { font-size: 22rpx; color: #999; width: 48rpx; }
-.rating-bar-track { flex: 1; height: 12rpx; background: #F2EFEA; border-radius: 999rpx; overflow: hidden; }
-.rating-bar-fill { height: 100%; background: #FAAD14; border-radius: 999rpx; }
-.review-list { display: flex; flex-direction: column; gap: 32rpx; }
-.review-card { background: #fff; border-radius: 24rpx; padding: 32rpx; }
-.review-hdr { display: flex; align-items: center; gap: 24rpx; margin-bottom: 16rpx; }
-.review-avatar { width: 72rpx; height: 72rpx; border-radius: 50%; background: #F2EFEA; }
-.review-user { flex: 1; }
-.review-name { display: block; font-size: 26rpx; font-weight: 500; color: #2C2C2C; }
-.review-stars { display: flex; align-items: center; gap: 4rpx; margin-top: 4rpx; }
-.review-date { font-size: 22rpx; color: #999; margin-left: 8rpx; }
-.review-content { font-size: 26rpx; color: #666; line-height: 1.6; }
+/* ── 讲师卡 ── */
+.teacher-card { display: flex; align-items: center; gap: 24rpx; }
+.teacher-avatar { width: 96rpx; height: 96rpx; border-radius: 50%; flex-shrink: 0; background: #F8F4EC; }
+.teacher-info { flex: 1; min-width: 0; }
+.teacher-name-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12rpx; }
+.teacher-name { font-size: 30rpx; font-weight: 700; color: #2C2C2C; }
+.teacher-bio { display: block; font-size: 26rpx; color: #999; margin-top: 6rpx; line-height: 1.5; }
+.teacher-link { flex-shrink: 0; font-size: 26rpx; color: #6E6E73; }
+.card-press { opacity: 0.9; }
 
-/* 拼课 Banner */
-.groupbuy-banner { position: fixed; bottom: 144rpx; left: 32rpx; right: 32rpx; z-index: 40; }
-.gb-inner { background: linear-gradient(to right, #FF6B35, #FF8C5A); border-radius: 24rpx; padding: 24rpx; box-shadow: 0 8rpx 24rpx rgba(255,107,53,0.3); display: flex; align-items: center; justify-content: space-between; }
-.gb-left { display: flex; align-items: center; gap: 16rpx; }
-.gb-title { display: block; font-size: 28rpx; font-weight: 500; color: #fff; }
-.gb-sub { display: block; font-size: 22rpx; color: rgba(255,255,255,0.8); margin-top: 2rpx; }
-.gb-right { display: flex; align-items: center; gap: 16rpx; }
-.gb-btn { padding: 12rpx 24rpx; background: #fff; color: #FF6B35; font-size: 22rpx; font-weight: 500; border-radius: 999rpx; white-space: nowrap; }
-.gb-close { display: flex; }
+/* ── 亮点 ── */
+.sec-title { font-size: 34rpx; font-weight: 700; color: #2C2C2C; }
+.sec-title-row { display: flex; align-items: baseline; gap: 16rpx; margin-bottom: 8rpx; }
+.sec-title-sub { font-size: 24rpx; color: #999; font-weight: 400; }
+.hl { display: flex; align-items: flex-start; gap: 14rpx; margin-top: 20rpx; }
+.hl:first-of-type { margin-top: 20rpx; }
+.hl-txt { flex: 1; font-size: 28rpx; color: #2C2C2C; line-height: 1.5; }
 
-/* 底部购买栏 */
-.buy-bar { position: fixed; bottom: 0; left: 0; right: 0; background: #fff; border-top: 1rpx solid #E8E3DB; padding: 24rpx 24rpx; display: flex; align-items: center; gap: 16rpx; z-index: 50; }
-.card-press { opacity: 0.85; }
-/* 底栏图标组：≥88rpx 触达区+文字（X5 防御：内容层 relative+z-index） */
-.buy-action { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6rpx; flex-shrink: 0; min-width: 88rpx; min-height: 88rpx; border-radius: 16rpx; }
-.buy-action-txt { position: relative; z-index: 1; font-size: 20rpx; line-height: 1; color: var(--text-strong, #2c2c2c); }
-.buy-price { flex: 1; min-width: 0; margin-left: 8rpx; }
-.price-free { font-size: 36rpx; font-weight: 700; color: #52C41A; }
-.price-row { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4rpx 8rpx; }
-.price-sym { font-size: 24rpx; color: var(--brand); }
-.price-now { font-size: 44rpx; font-weight: 700; color: var(--brand); }
-.price-old { font-size: 24rpx; color: #999; text-decoration: line-through; }
-.member-free-tag { padding: 4rpx 14rpx; font-size: 22rpx; color: #a9741a; background: #fbf3e2; border: 1rpx solid #eadcb8; border-radius: 8rpx; }
-.buy-cta { flex-shrink: 0; padding: 0 44rpx; height: 88rpx; background: linear-gradient(to right, var(--brand), #E74C3C); border-radius: 999rpx; display: flex; align-items: center; justify-content: center; }
-.buy-cta-txt { font-size: 30rpx; font-weight: 700; color: #fff; white-space: nowrap; }
+/* 适合人群 */
+.suit-list { display: flex; flex-wrap: wrap; gap: 16rpx; margin-top: 20rpx; }
+.suit-chip { padding: 12rpx 24rpx; background: rgba(196,30,58,0.08); color: #C41E3A; font-size: 24rpx; border-radius: 999rpx; }
 
-/* 弹窗 */
+/* ── 目录 ── */
+.chapter-block { margin-top: 24rpx; }
+.chapter-block:first-of-type { margin-top: 24rpx; }
+.chapter-name { display: block; font-size: 28rpx; font-weight: 700; color: #2C2C2C; padding: 8rpx 0 4rpx; }
+.lesson { display: flex; align-items: center; gap: 18rpx; padding: 22rpx 0; border-bottom: 1rpx solid #EDE7DD; }
+.lesson:last-child { border-bottom: none; }
+.lesson-press { background: #F8F4EC; }
+.lesson--locked .lesson-name { color: #999; }
+.lesson--done .lesson-name { color: #6E6E73; }
+.lesson-name { flex: 1; min-width: 0; font-size: 28rpx; color: #2C2C2C; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.trial-tag { flex-shrink: 0; padding: 4rpx 14rpx; background: rgba(52,168,83,0.12); color: #34A853; font-size: 20rpx; font-weight: 600; border-radius: 8rpx; }
+.lesson-dur { flex-shrink: 0; font-size: 24rpx; color: #999; font-variant-numeric: tabular-nums; }
+
+/* ── 评价 ── */
+.review-head { display: flex; align-items: center; gap: 18rpx; margin-bottom: 8rpx; }
+.score-big { font-size: 52rpx; font-weight: 700; color: #C9A96E; font-variant-numeric: tabular-nums; }
+.stars { display: flex; gap: 4rpx; }
+.review-count { margin-left: auto; font-size: 24rpx; color: #999; }
+.review-item { padding: 24rpx 0; border-top: 1rpx solid #EDE7DD; }
+.review-user { display: flex; align-items: center; gap: 12rpx; flex-wrap: wrap; }
+.review-avatar { width: 52rpx; height: 52rpx; border-radius: 50%; background: #F8F4EC; }
+.review-nick { font-size: 26rpx; font-weight: 600; color: #2C2C2C; }
+.review-stars { display: flex; gap: 2rpx; }
+.review-date { font-size: 22rpx; color: #999; }
+.review-text { display: block; font-size: 28rpx; color: #2C2C2C; line-height: 1.6; margin-top: 14rpx; }
+.reply { background: rgba(201,169,110,0.14); border-radius: 16rpx; padding: 18rpx 22rpx; margin-top: 14rpx; }
+.reply-b { font-size: 26rpx; color: #8A6D3B; font-weight: 600; }
+.reply-txt { font-size: 26rpx; color: #6E6E73; line-height: 1.5; }
+
+/* 区块级空态 */
+.empty-line { padding: 40rpx 0; text-align: center; }
+.empty-txt { font-size: 26rpx; color: #999; }
+
+/* ── 图文详情（通栏无缝） ── */
+.rich-wrap { margin: 0 -40rpx; }
+.rich-title { display: block; padding: 8rpx 40rpx 16rpx; font-size: 34rpx; font-weight: 700; color: #2C2C2C; }
+.rich { display: flex; flex-direction: column; }
+.rich-img { width: 100%; display: block; }
+
+/* ── 吸底操作栏 ── */
+.bottom-bar { position: fixed; left: 0; right: 0; bottom: 0; background: #FFFFFF; border-top: 1rpx solid #EDE7DD; display: flex; align-items: center; gap: 16rpx; padding: 20rpx 24rpx; z-index: 50; }
+.mini-act { flex-shrink: 0; min-width: 96rpx; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6rpx; }
+.mini-txt { font-size: 20rpx; line-height: 1; color: #6E6E73; }
+.buy-btn { flex: 1; height: 96rpx; border-radius: 999rpx; background: #C41E3A; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2rpx; }
+.buy-btn-main { font-size: 30rpx; font-weight: 700; color: #fff; }
+.buy-btn-sub { font-size: 20rpx; color: rgba(255,255,255,0.85); }
+.full-btn { flex: 1; height: 96rpx; border-radius: 999rpx; background: #C41E3A; display: flex; align-items: center; justify-content: center; }
+.full-btn-txt { font-size: 30rpx; font-weight: 700; color: #fff; }
+
+/* ── 弹窗 ── */
 .modal { position: fixed; inset: 0; z-index: 60; }
-.modal-mask { position: absolute; inset: 0; background: rgba(0,0,0,0.5); }
-.sheet { position: absolute; bottom: 0; left: 0; right: 0; background: #fff; border-radius: 48rpx 48rpx 0 0; padding: 32rpx 32rpx 64rpx; }
-.sheet-hdr { display: flex; align-items: center; justify-content: space-between; margin-bottom: 32rpx; }
+.modal-mask { position: absolute; inset: 0; background: rgba(0,0,0,0.45); }
+.sheet { position: absolute; bottom: 0; left: 0; right: 0; background: #FFFFFF; border-radius: 36rpx 36rpx 0 0; padding: 20rpx 32rpx 64rpx; }
+.sheet-handle { width: 72rpx; height: 8rpx; border-radius: 4rpx; background: #EDE7DD; margin: 0 auto 24rpx; }
+.sheet-hdr { display: flex; align-items: center; justify-content: space-between; margin-bottom: 28rpx; }
 .sheet-title { font-size: 36rpx; font-weight: 700; color: #2C2C2C; }
-.sheet-body { display: flex; flex-direction: column; gap: 24rpx; }
-.consult-item { padding: 32rpx; background: #F5F1EB; border-radius: 24rpx; display: flex; align-items: center; gap: 24rpx; }
-.consult-ico { width: 80rpx; height: 80rpx; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.consult-name { display: block; font-size: 28rpx; font-weight: 500; color: #2C2C2C; }
+.sheet-body { display: flex; flex-direction: column; gap: 20rpx; }
+.consult-item { padding: 28rpx; background: #F8F4EC; border-radius: 24rpx; display: flex; align-items: center; gap: 24rpx; }
+.consult-ico { width: 76rpx; height: 76rpx; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.consult-name { display: block; font-size: 28rpx; font-weight: 600; color: #2C2C2C; }
 .consult-sub { display: block; font-size: 22rpx; color: #999; margin-top: 4rpx; }
-.group-body { text-align: center; padding: 32rpx 0; }
-.group-qr { width: 320rpx; height: 320rpx; margin: 0 auto 24rpx; background: #F5F1EB; border-radius: 24rpx; display: flex; align-items: center; justify-content: center; }
-.group-tip { display: block; font-size: 28rpx; color: #666; margin-bottom: 8rpx; }
+.group-body { text-align: center; padding: 24rpx 0; }
+.group-qr { width: 300rpx; height: 300rpx; margin: 0 auto 24rpx; background: #F8F4EC; border-radius: 24rpx; display: flex; align-items: center; justify-content: center; }
+.group-tip { display: block; font-size: 28rpx; color: #6E6E73; margin-bottom: 8rpx; }
 .group-sub { display: block; font-size: 22rpx; color: #999; }
-.group-welfare { background: #FFF9E6; border-radius: 24rpx; padding: 24rpx; margin-top: 16rpx; }
-.group-welfare-txt { font-size: 22rpx; color: #996600; line-height: 1.5; }
 
-/* 加载 / 错误 */
-.loading-wrap, .error-wrap { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; gap: 24rpx; }
-.loading-text, .error-text { font-size: 28rpx; color: var(--text-soft); }
-.retry-btn { padding: 16rpx 48rpx; background: var(--brand); border-radius: 999rpx; }
+/* ── 骨架屏 ── */
+.sk { position: relative; overflow: hidden; background: #EFEAE2; border-radius: 12rpx; }
+.sk::after { content: ""; position: absolute; inset: 0; transform: translateX(-100%); background: linear-gradient(90deg, transparent, rgba(255,255,255,0.6), transparent); animation: shimmer 1.4s infinite; }
+@keyframes shimmer { 100% { transform: translateX(100%); } }
+.sk-hero { width: 100%; padding-top: 56.25%; border-radius: 0; }
+.sk-line { height: 30rpx; margin-bottom: 16rpx; }
+
+/* 错误态 */
+.error-wrap { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; gap: 24rpx; }
+.error-text { font-size: 28rpx; color: #6E6E73; }
+.retry-btn { padding: 16rpx 48rpx; background: #C41E3A; border-radius: 999rpx; }
 .retry-text { font-size: 28rpx; color: #fff; }
 </style>

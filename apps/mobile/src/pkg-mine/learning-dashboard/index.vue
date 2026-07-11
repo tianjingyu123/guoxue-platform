@@ -185,7 +185,7 @@ function goCourseList() {
   navigateTo('/courses-list')
 }
 function goLearn(courseId: string) {
-  navigateTo(`/courses/${courseId}/learn`)
+  navigateTo(`/courses/${courseId}/player`)
 }
 
 onMounted(fetchData)

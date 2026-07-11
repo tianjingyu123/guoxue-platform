@@ -198,8 +198,9 @@ async function refresh() {
   try { await fetchData() } finally { isRefreshing.value = false }
 }
 function openCourse(c: MyCourseItem) {
+  // 课程 V0 重构：per-course learn 页已退役，进行中课程直接进播放页续学
   if (c.status === 'completed') navigateTo(`/courses/${c.id}`)
-  else navigateTo(`/courses/${c.id}/learn`)
+  else navigateTo(`/courses/${c.id}/player`)
 }
 function continueStudy(c: MyCourseItem) {
   navigateTo(`/courses/${c.id}/player`)

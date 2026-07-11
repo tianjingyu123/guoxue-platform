@@ -104,7 +104,7 @@ function adaptFeed(items: FeedItem[]): StationFeedCard[] {
 // 模块 → 平台频道入口映射（path 均为 pages.json 真实路径，确保可跳转）
 const MODULE_ENTRY: Record<string, Omit<StationFeature, 'key'>> = {
   article: { icon: 'file-text', name: '文章', path: '/pages/discover/index', color: '#C41E3A' },
-  course: { icon: 'book-open', name: '课程', path: '/pkg-course/courses-list/index', color: '#C41E3A' },
+  course: { icon: 'book-open', name: '课程', path: '/pkg-course/home/index', color: '#C41E3A' },
   circle: { icon: 'users', name: '圈子', path: '/pages/circles/index', color: '#C9A96E' },
   product: { icon: 'shopping-bag', name: '商城', path: '/pkg-mall/home/index', color: '#6366F1' },
   video: { icon: 'play-circle', name: '视频', path: '/pkg-video/list/index', color: '#0EA5E9' },

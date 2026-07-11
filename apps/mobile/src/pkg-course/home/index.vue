@@ -1,229 +1,477 @@
 <script setup lang="ts">
-/** 国学课程首页 - 从原型 app/courses/page.tsx 迁移 */
-import { ref, computed, onMounted } from 'vue'
-import { navigateTo, goBack } from '@/utils/router'
+/**
+ * P1 课程首页（发现课程）— 合并原 home + market + courses-list 三入口页
+ * 视觉：V0 阶段二视觉稿 p1-home.html / p1-home-states.html（单列大卡流）
+ * 真连：
+ *   - courseApi.getHome()          → 推荐轮播 banners + 秒杀横条 flashSale（含现价/原价）
+ *   - coursesListApi.getCategoryTabs → 分类 Tab（真实有课程的一级品类）
+ *   - coursesListApi.list()（useList）→ 主列表单列大卡，分类/排序全下沉后端·上拉分页
+ * 数据一律走已有方法，不造假。评分列表接口恒 0（详情页另取）→ 按 V0「≥4.5 才显示」规则恒隐藏，不臆造。
+ */
+import { ref, computed, onUnmounted } from 'vue'
+import { onLoad, onReachBottom } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
-import HomeBanner from '@/components/home/home-banner.vue'
-import CourseCard from '@/components/cards/course-card.vue'
-import SectionHeader from '@/components/courses/section-header.vue'
+import AppLoadMore from '@/components/common/app-load-more.vue'
+import SmartCover from '@/components/common/smart-cover.vue'
+import { navigateTo } from '@/utils/router'
 import { courseApi } from '@/lib/course-data'
+import { coursesListApi, courseSortOptions } from '@/lib/courses-list-data'
+import { useList } from '@/composables/useList'
+import { formatPrice } from '@/utils/format'
+import { formatCount } from '@/lib/card-utils'
+import type { CourseCardData } from '@/lib/card-utils'
 
-const loading = ref(true)
-const error = ref('')
+// 自定义导航状态栏高度
+const statusBarHeight = ref(0)
 
-// 首页聚合数据对象，下方多个 computed 裸取字段，保留 any 避免 null 链式报错
-const homeData = ref<any>(null)
+// —— 头部区块（一次性加载，与主列表分页解耦；失败静默，三态由主列表承载）——
+// 推荐轮播（运营推荐位，有数据才显示）
+const banners = ref<any[]>([])
+// 秒杀横条课程（含现价/原价/折扣）
+const flashSaleCourses = ref<any[]>([])
+// 分类 Tab（真实有课程的一级品类，含「全部」）
+const categoryTabs = ref<{ id: string; name: string }[]>([])
 
-// 通过 computed 保持 template 变量名不变
-const courseBanners = computed(() => homeData.value?.banners ?? [])
-const categoryNav = computed(() => homeData.value?.categories ?? [])
-const allCourses = computed(() => homeData.value?.allCourses ?? [])
-const featured = computed(() => homeData.value?.featured ?? [])
-const ranking = computed(() => homeData.value?.ranking ?? [])
-const flashSaleCourses = computed(() => homeData.value?.flashSale ?? [])
-const freeCourses = computed(() => homeData.value?.free ?? [])
-const newCourses = computed(() => homeData.value?.newCourses ?? [])
-const feedFilters = computed(() => homeData.value?.feedFilters ?? [])
+// 轮播
+const currentBanner = ref(0)
+let bannerTimer: ReturnType<typeof setInterval> | null = null
 
+// 秒杀倒计时（时:分:秒；派生自当日 23:59:59）
+const countdown = ref({ h: '00', m: '00', s: '00' })
+let cdTimer: ReturnType<typeof setInterval> | null = null
+let cdEnd = 0
+
+// 排序底部弹层
+const showSortSheet = ref(false)
+const activeSort = ref('recommend')
+const activeSortName = computed(() => courseSortOptions.find((s) => s.id === activeSort.value)?.name ?? '综合排序')
+
+// 分类
 const activeCategory = ref('all')
 
-const selected = computed(() =>
-  allCourses.value.filter((c: any) => activeCategory.value === 'all' || c.category === activeCategory.value),
-)
-// react-masonry-css 按索引轮流填列:偶数→左列,奇数→右列
-const colLeft = computed(() => selected.value.filter((_: any, i: number) => i % 2 === 0))
-const colRight = computed(() => selected.value.filter((_: any, i: number) => i % 2 === 1))
+// —— 主列表：分类 + 排序 下沉后端，切条件重载第一页 ——
+const { list: courses, loading, error, loadStatus, refresh, loadMore } = useList<
+  CourseCardData & { category: string; free: boolean },
+  { category: string; sort: string }
+>({
+  fetcher: ({ page, pageSize, category, sort }) =>
+    coursesListApi.list({ page, pageSize, category, sort }),
+  getParams: () => ({ category: activeCategory.value, sort: activeSort.value }),
+})
 
-async function loadData() {
-  loading.value = true
-  error.value = ''
-  try {
-    const res = await courseApi.getHome()
-    homeData.value = res
-  } catch (e) {
-    error.value = (e as Error)?.message || '加载失败'
-  } finally {
-    loading.value = false
+function startBannerTimer() {
+  if (banners.value.length > 1) {
+    bannerTimer = setInterval(() => {
+      currentBanner.value = (currentBanner.value + 1) % banners.value.length
+    }, 4000)
   }
 }
 
-onMounted(() => {
-  loadData()
+function updateCountdown() {
+  const remaining = Math.max(0, cdEnd - Date.now())
+  const h = Math.floor(remaining / 3600000)
+  const m = Math.floor((remaining % 3600000) / 60000)
+  const s = Math.floor((remaining % 60000) / 1000)
+  countdown.value = {
+    h: String(h).padStart(2, '0'),
+    m: String(m).padStart(2, '0'),
+    s: String(s).padStart(2, '0'),
+  }
+}
+
+function startCountdown() {
+  const now = new Date()
+  cdEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59).getTime()
+  updateCountdown()
+  cdTimer = setInterval(updateCountdown, 1000)
+}
+
+// 头部：推荐轮播 + 秒杀 + 分类 tab（并行，失败不阻塞主列表）
+async function loadHeader() {
+  try {
+    const [home, tabs] = await Promise.all([
+      courseApi.getHome(),
+      coursesListApi.getCategoryTabs(),
+    ])
+    banners.value = home.banners ?? []
+    flashSaleCourses.value = home.flashSale ?? []
+    categoryTabs.value = tabs
+    startBannerTimer()
+    if (flashSaleCourses.value.length) startCountdown()
+  } catch {
+    /* 头部失败静默；分类 tab 兜底仅「全部」 */
+    if (!categoryTabs.value.length) categoryTabs.value = [{ id: 'all', name: '全部' }]
+  }
+}
+
+onLoad((opts?: Record<string, string>) => {
+  uni.getSystemInfo({ success: (e) => { statusBarHeight.value = e.statusBarHeight || 0 } })
+  if (opts?.category) activeCategory.value = opts.category
+  if (opts?.sort) activeSort.value = opts.sort
+  loadHeader()
+  refresh()
+})
+onReachBottom(() => loadMore())
+
+onUnmounted(() => {
+  if (bannerTimer) clearInterval(bannerTimer)
+  if (cdTimer) clearInterval(cdTimer)
 })
 
-function openCategory(id: string) { navigateTo(`/courses-list?category=${id}`) }
+function retry() { loadHeader(); refresh() }
+
+function selectCategory(id: string) {
+  if (activeCategory.value === id) return
+  activeCategory.value = id
+  refresh()
+}
+function selectSort(id: string) {
+  activeSort.value = id
+  showSortSheet.value = false
+  refresh()
+}
+function backToAll() {
+  activeCategory.value = 'all'
+  refresh()
+}
+
+function openCourse(id: string) { navigateTo(`/course/${id}`) }
+function openSearch() { navigateTo('/search') }
+// 「我的学习」→ P4 我的学习（全局）
+function openMyLearning() { navigateTo('/courses/my-learning') }
 </script>
 
 <template>
-  <!-- Loading -->
-  <view v-if="loading" class="loading-wrap">
-    <text class="loading-text">加载中...</text>
-  </view>
-  <!-- Error -->
-  <view v-else-if="error" class="error-wrap">
-    <text class="error-text">{{ error }}</text>
-    <view class="retry-btn" @tap="loadData"><text class="retry-text">重试</text></view>
-  </view>
-  <!-- Content -->
-  <view v-else class="page">
-    <!-- 顶部栏 -->
-    <view class="hdr">
-      <view class="hdr-bar">
-        <view class="back-btn" @tap="goBack">
-          <app-icon name="chevron-left" :size="44" color="var(--text-strong)" />
+  <view class="page">
+    <!-- ══ 区块1 顶部导航（左标题·右搜索+我的学习）══ -->
+    <view class="nav" :style="{ paddingTop: statusBarHeight + 'px' }">
+      <text class="nav-title serif">课程</text>
+      <view class="nav-icons">
+        <view class="nav-btn" hover-class="btn-press" @tap="openSearch">
+          <app-icon name="search" :size="38" color="#2C2C2C" />
         </view>
-        <text class="hdr-title">国学课程</text>
-      </view>
-      <!-- AI 搜索栏 -->
-      <view class="search-wrap">
-        <search-bar default-tab="course" placeholder="搜索课程、讲师..." />
-      </view>
-    </view>
-
-    <!-- Banner -->
-    <home-banner :banners="courseBanners" />
-
-    <!-- 分类导航 -->
-    <view class="cat-grid">
-      <view v-for="cat in categoryNav" :key="cat.id" class="cat-item" @tap="openCategory(cat.id)">
-        <view class="cat-ico" :style="{ background: cat.color + '1a' }">
-          <app-icon :name="cat.icon" :size="48" :color="cat.color" />
-        </view>
-        <text class="cat-label">{{ cat.label }}</text>
-      </view>
-    </view>
-
-    <!-- 限时优惠 -->
-    <view v-if="flashSaleCourses.length" class="sec sec-flash">
-      <section-header icon="clock" title="限时优惠" subtitle="好课五折抢" more-link="/courses/flash-sale" icon-color="#e67e22" />
-      <scroll-view class="rail-row" scroll-x :show-scrollbar="false">
-        <view class="rail-inner">
-          <course-card v-for="c in flashSaleCourses" :key="c.id" :data="c" variant="rail" />
-        </view>
-      </scroll-view>
-    </view>
-
-    <!-- 精选好课 -->
-    <view v-if="featured.length" class="sec">
-      <section-header icon="award" title="精选好课" subtitle="编辑严选" more-link="/courses-list?sort=recommend" icon-color="#c0392b" />
-      <scroll-view class="rail-row" scroll-x :show-scrollbar="false">
-        <view class="rail-inner">
-          <course-card v-for="c in featured" :key="c.id" :data="c" variant="rail" />
-        </view>
-      </scroll-view>
-    </view>
-
-    <!-- 热门排行 -->
-    <view v-if="ranking.length" class="sec">
-      <section-header icon="flame" title="热门排行" subtitle="学员都在学" more-link="/courses-list?sort=popular" icon-color="#e74c3c" />
-      <view class="rank-card">
-        <view v-for="(c, i) in ranking" :key="c.id" class="rank-cell" :class="{ 'rank-div': i > 0 }">
-          <course-card :data="c" variant="rank" :rank="i + 1" />
+        <view class="nav-btn" hover-class="btn-press" @tap="openMyLearning">
+          <app-icon name="book-open" :size="38" color="#2C2C2C" />
         </view>
       </view>
     </view>
 
-    <!-- 会员免费 -->
-    <view v-if="freeCourses.length" class="sec">
-      <section-header icon="crown" title="会员免费" subtitle="开通会员畅学" more-link="/courses-list?filter=free" icon-color="#16a085" />
-      <scroll-view class="rail-row" scroll-x :show-scrollbar="false">
-        <view class="rail-inner">
-          <course-card v-for="c in freeCourses" :key="c.id" :data="c" variant="rail" />
+    <!-- ══ 区块2 分类 Tab 横滑（朱红下划线选中态）══ -->
+    <scroll-view class="tabs" scroll-x :show-scrollbar="false">
+      <view class="tabs-inner">
+        <view
+          v-for="t in categoryTabs" :key="t.id"
+          class="tab" :class="{ active: activeCategory === t.id }"
+          hover-class="tab-press"
+          @tap="selectCategory(t.id)"
+        >
+          <text class="tab-txt" :class="{ active: activeCategory === t.id }">{{ t.name }}</text>
+          <view v-if="activeCategory === t.id" class="tab-line" />
         </view>
-      </scroll-view>
-    </view>
-
-    <!-- 新上架 -->
-    <view v-if="newCourses.length" class="sec">
-      <section-header icon="sparkles" title="新上架" subtitle="抢先学习" more-link="/courses-list?sort=newest" icon-color="#2980b9" />
-      <scroll-view class="rail-row" scroll-x :show-scrollbar="false">
-        <view class="rail-inner">
-          <course-card v-for="c in newCourses" :key="c.id" :data="c" variant="rail" />
-        </view>
-      </scroll-view>
-    </view>
-
-    <!-- 为你精选 瀑布流 -->
-    <view class="sec-feed">
-      <view class="feed-hd">
-        <text class="feed-title">为你精选</text>
-        <text class="feed-more" @tap="navigateTo('/courses-list')">更多课程</text>
       </view>
-      <scroll-view class="filter-row" scroll-x :show-scrollbar="false">
-        <view class="filter-inner">
-          <view
-            v-for="f in feedFilters" :key="f.id"
-            class="filter-chip" :class="{ on: activeCategory === f.id }"
-            @tap="activeCategory = f.id"
-          >
-            <text class="filter-txt" :class="{ on: activeCategory === f.id }">{{ f.label }}</text>
+    </scroll-view>
+
+    <!-- ══ Error 态 ══ -->
+    <view v-if="error" class="state-wrap">
+      <text class="state-text">{{ error }}</text>
+      <view class="retry-btn" hover-class="btn-press" @tap="retry"><text class="retry-text">重试</text></view>
+    </view>
+
+    <!-- ══ Loading 骨架屏 ══ -->
+    <view v-else-if="loading" class="body-pad">
+      <view class="sk sk-banner" />
+      <view v-for="n in 2" :key="n" class="sk-card">
+        <view class="sk sk-cover" />
+        <view class="sk-card-body">
+          <view class="sk sk-line" style="width:86%" />
+          <view class="sk sk-line" style="width:55%" />
+          <view class="sk sk-line sk-line-sm" style="width:40%" />
+        </view>
+      </view>
+    </view>
+
+    <!-- ══ Content ══ -->
+    <view v-else class="body-pad">
+      <!-- ══ 区块3 推荐位轮播（可选·有运营数据才显示）══ -->
+      <view v-if="banners.length" class="banner">
+        <view
+          v-for="(b, i) in banners" :key="b.id"
+          class="banner-slide" :class="{ on: i === currentBanner }"
+          @tap="b.link && navigateTo(b.link)"
+        >
+          <view class="ratio-169">
+            <image class="banner-img" :src="b.image" mode="aspectFill" lazy-load />
+          </view>
+          <view class="banner-overlay">
+            <text class="banner-title serif">{{ b.title }}</text>
           </view>
         </view>
-      </scroll-view>
-      <view v-if="selected.length" class="masonry">
-        <view class="masonry-col">
-          <course-card v-for="c in colLeft" :key="c.id" :data="c" variant="feed" />
-        </view>
-        <view class="masonry-col">
-          <course-card v-for="c in colRight" :key="c.id" :data="c" variant="feed" />
+        <view v-if="banners.length > 1" class="banner-dots">
+          <view v-for="(_, i) in banners" :key="i" class="dot" :class="{ on: i === currentBanner }" />
         </view>
       </view>
-      <view v-else class="empty">
-        <text class="empty-txt">该分类暂无课程</text>
+
+      <!-- ══ 区块4 限时秒杀横条（有秒杀活动才显示）══ -->
+      <view v-if="flashSaleCourses.length" class="seckill">
+        <view class="seckill-head">
+          <text class="seckill-tag">限时优惠</text>
+          <view class="countdown">
+            <text class="cd-label">距结束</text>
+            <text class="cd-num">{{ countdown.h }}</text>
+            <text class="cd-sep">:</text>
+            <text class="cd-num">{{ countdown.m }}</text>
+            <text class="cd-sep">:</text>
+            <text class="cd-num">{{ countdown.s }}</text>
+          </view>
+        </view>
+        <scroll-view class="seckill-cards" scroll-x :show-scrollbar="false">
+          <view class="seckill-cards-inner">
+            <view
+              v-for="c in flashSaleCourses" :key="c.id"
+              class="sk-item" hover-class="card-press" @tap="openCourse(c.id)"
+            >
+              <view class="sk-item-cover">
+                <smart-cover class="sk-item-img" :src="c.cover" :title="c.title" type="course" />
+              </view>
+              <view class="sk-item-body">
+                <text class="sk-item-name">{{ c.title }}</text>
+                <view class="sk-item-price">
+                  <text class="sk-now">¥{{ formatPrice(c.price) }}</text>
+                  <text v-if="c.originalPrice > c.price" class="sk-old">¥{{ formatPrice(c.originalPrice) }}</text>
+                </view>
+              </view>
+            </view>
+          </view>
+        </scroll-view>
+      </view>
+
+      <!-- ══ 区块6 排序切换（列表标题 + 右侧胶囊）══ -->
+      <view class="sort-row">
+        <text class="sort-label serif">精选课程</text>
+        <view class="sort-btn" hover-class="btn-press" @tap="showSortSheet = true">
+          <text class="sort-btn-txt">{{ activeSortName }}</text>
+          <app-icon name="chevron-down" :size="24" color="#6E6E73" />
+        </view>
+      </view>
+
+      <!-- ══ 区块5 课程列表（主体·单列大卡流）══ -->
+      <!-- 空态：当前分类暂无课程（导航/Tab 保留，仅列表区变空态）-->
+      <view v-if="courses.length === 0" class="empty">
+        <view class="empty-art">
+          <app-icon name="book-open" :size="56" color="#C9A96E" />
+        </view>
+        <text class="empty-title serif">该分类暂无课程</text>
+        <text class="empty-desc">讲师正在筹备中，先去别的分类逛逛吧</text>
+        <view v-if="activeCategory !== 'all'" class="empty-btn" hover-class="btn-press" @tap="backToAll">
+          <text class="empty-btn-txt">看看全部课程</text>
+        </view>
+      </view>
+
+      <template v-else>
+        <view
+          v-for="c in courses" :key="c.id"
+          class="card" hover-class="card-press" @tap="openCourse(String(c.id))"
+        >
+          <view class="card-cover">
+            <view class="ratio-169">
+              <smart-cover class="card-cover-img" :src="c.cover" :title="c.title" type="course" />
+            </view>
+            <text class="type-tag">课程</text>
+          </view>
+          <view class="card-body">
+            <text class="card-title serif">{{ c.title }}</text>
+            <!-- 讲师行 -->
+            <view v-if="c.teacher" class="teacher-row">
+              <view class="avatar">
+                <image v-if="c.teacherAvatar" class="avatar-img" :src="c.teacherAvatar" mode="aspectFill" lazy-load />
+                <text v-else class="avatar-ph">{{ c.teacher.charAt(0) }}</text>
+              </view>
+              <text class="teacher-name">{{ c.teacher }}</text>
+            </view>
+            <!-- 底行：学习人数 / 评分（≥4.5 才显示） · 价格三形态 -->
+            <view class="bottom-row">
+              <view class="meta">
+                <text v-if="c.students" class="meta-txt">{{ formatCount(c.students) }} 人在学</text>
+                <view v-if="(c.rating ?? 0) >= 4.5" class="rating">
+                  <app-icon name="star" :size="24" color="#C9A96E" />
+                  <text class="rating-num">{{ c.rating }}</text>
+                </view>
+              </view>
+              <view class="price">
+                <text v-if="c.free" class="price-free">免费</text>
+                <template v-else>
+                  <text class="price-now">¥{{ formatPrice(c.price) }}</text>
+                  <text v-if="c.originalPrice && c.originalPrice > (c.price ?? 0)" class="price-old">¥{{ formatPrice(c.originalPrice) }}</text>
+                </template>
+              </view>
+            </view>
+          </view>
+        </view>
+        <app-load-more :status="loadStatus" />
+      </template>
+    </view>
+
+    <!-- ══ 排序底部弹层 ══ -->
+    <view v-if="showSortSheet" class="sheet-mask" @tap="showSortSheet = false">
+      <view class="sheet" @tap.stop>
+        <view class="sheet-hd">
+          <text class="sheet-title">排序方式</text>
+          <view class="sheet-close" @tap="showSortSheet = false">
+            <app-icon name="chevron-down" :size="32" color="#999999" />
+          </view>
+        </view>
+        <view
+          v-for="opt in courseSortOptions" :key="opt.id"
+          class="sheet-opt" :class="{ on: activeSort === opt.id }"
+          hover-class="tab-press"
+          @tap="selectSort(opt.id)"
+        >
+          <text class="sheet-opt-txt" :class="{ on: activeSort === opt.id }">{{ opt.name }}</text>
+        </view>
       </view>
     </view>
   </view>
 </template>
 
 <style scoped lang="scss">
-.page { min-height: 100vh; background: var(--bg); padding-bottom: 40rpx; }
+/* ── 视觉 token（V0 委托书第七节）── */
+.page {
+  min-height: 100vh;
+  background: #FAF8F5;
+  padding-bottom: 40rpx;
+}
+.serif { font-family: "Songti SC", "STSong", "SimSun", serif; }
+.btn-press { opacity: 0.6; }
+.card-press { transform: scale(0.98); }
+.tab-press { opacity: 0.7; }
 
-/* 顶部栏 */
-.hdr { position: sticky; top: 0; z-index: 20; background: var(--surface); border-bottom: 2rpx solid var(--line); }
-.hdr-bar { display: flex; align-items: center; gap: 16rpx; padding: 0 24rpx; height: 88rpx; }
-.back-btn { display: flex; align-items: center; justify-content: center; width: 56rpx; height: 56rpx; margin-left: -12rpx; }
-.hdr-title { font-size: 36rpx; font-weight: 600; color: var(--text-strong); }
-.search-wrap { padding: 0 32rpx 20rpx; }
-.search-bar { display: flex; align-items: center; gap: 14rpx; height: 72rpx; padding: 0 24rpx; border-radius: 999rpx; background: var(--surface-sunken); }
-.search-ph { flex: 1; font-size: 28rpx; color: var(--text-soft); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.ai-tag { flex-shrink: 0; display: flex; align-items: center; gap: 6rpx; padding: 4rpx 16rpx; border-radius: 999rpx; background: rgba(196,30,58,0.12); }
-.ai-txt { font-size: 22rpx; font-weight: 500; color: var(--brand); }
+/* ── 区块1 顶部导航 ── */
+.nav {
+  position: sticky; top: 0; z-index: 20;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 24rpx 40rpx 20rpx;
+  background: #FAF8F5;
+}
+.nav-title { font-size: 48rpx; font-weight: 700; letter-spacing: 2rpx; color: #2C2C2C; }
+.nav-icons { display: flex; align-items: center; gap: 28rpx; }
+.nav-btn {
+  position: relative;
+  width: 72rpx; height: 72rpx; border-radius: 999rpx;
+  display: flex; align-items: center; justify-content: center;
+  background: #FFFFFF;
+  box-shadow: 0 2rpx 6rpx rgba(0,0,0,0.04);
+}
 
-/* 分类导航 */
-.cat-grid { display: grid; grid-template-columns: repeat(4, 1fr); row-gap: 32rpx; padding: 24rpx 32rpx; }
-.cat-item { display: flex; flex-direction: column; align-items: center; gap: 12rpx; }
-.cat-ico { display: flex; align-items: center; justify-content: center; width: 96rpx; height: 96rpx; border-radius: 32rpx; }
-.cat-label { font-size: 24rpx; color: var(--text-strong); }
+/* ── 区块2 分类 Tab ── */
+.tabs { white-space: nowrap; background: #FAF8F5; }
+.tabs-inner { display: inline-flex; gap: 44rpx; padding: 8rpx 40rpx 0; }
+.tab { position: relative; flex-shrink: 0; padding-bottom: 20rpx; display: flex; flex-direction: column; align-items: center; }
+.tab-txt { font-size: 30rpx; color: #6E6E73; }
+.tab-txt.active { font-size: 32rpx; font-weight: 700; color: #2C2C2C; }
+.tab-line { position: absolute; left: 50%; bottom: 0; transform: translateX(-50%); width: 40rpx; height: 6rpx; border-radius: 4rpx; background: #C41E3A; }
 
-/* 专栏 */
-.sec { margin-top: 40rpx; }
-.sec-flash { margin-top: 16rpx; }
-.rail-row { white-space: nowrap; }
-.rail-inner { display: inline-flex; gap: 24rpx; padding: 0 32rpx 8rpx; }
+/* ── 内容主体间距 ── */
+.body-pad { padding: 24rpx 40rpx 32rpx; display: flex; flex-direction: column; gap: 24rpx; }
 
-/* 排行榜卡 */
-.rank-card { margin: 0 32rpx; padding: 0 24rpx; border-radius: 32rpx; background: var(--surface); border: 2rpx solid var(--line); }
-.rank-div { border-top: 2rpx solid var(--line); }
+/* ── 区块3 推荐位轮播 16:9 ── */
+.banner { position: relative; border-radius: 36rpx; overflow: hidden; box-shadow: 0 2rpx 6rpx rgba(0,0,0,0.04); }
+.ratio-169 { position: relative; width: 100%; padding-top: 56.25%; }
+.banner-slide { position: absolute; inset: 0; opacity: 0; transition: opacity 0.5s; pointer-events: none; }
+.banner-slide.on { position: relative; opacity: 1; pointer-events: auto; }
+.banner-img { position: absolute; inset: 0; width: 100%; height: 100%; }
+.banner-overlay {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  padding: 64rpx 32rpx 28rpx;
+  background: linear-gradient(to top, rgba(0,0,0,0.62), rgba(0,0,0,0));
+  display: flex; align-items: flex-end;
+}
+.banner-title { color: #fff; font-size: 34rpx; font-weight: 700; line-height: 1.4; }
+.banner-dots { position: absolute; right: 28rpx; top: 24rpx; display: flex; gap: 10rpx; }
+.dot { width: 10rpx; height: 10rpx; border-radius: 999rpx; background: rgba(255,255,255,0.5); transition: all 0.3s; }
+.dot.on { width: 28rpx; border-radius: 6rpx; background: #fff; }
 
-/* 为你精选 */
-.sec-feed { margin-top: 48rpx; }
-.feed-hd { display: flex; align-items: center; padding: 0 32rpx; margin-bottom: 24rpx; }
-.feed-title { font-size: 34rpx; font-weight: 700; letter-spacing: -0.5rpx; color: var(--text-strong); }
-.feed-more { margin-left: auto; font-size: 26rpx; color: var(--text-soft); }
-.filter-row { white-space: nowrap; }
-.filter-inner { display: inline-flex; gap: 16rpx; padding: 0 32rpx 24rpx; }
-.filter-chip { flex-shrink: 0; padding: 12rpx 28rpx; border-radius: 999rpx; background: var(--surface-sunken); }
-.filter-chip.on { background: var(--brand); }
-.filter-txt { font-size: 28rpx; color: var(--text-soft); white-space: nowrap; }
-.filter-txt.on { color: #fff; }
-.masonry { display: flex; gap: 24rpx; padding: 0 32rpx; }
-.masonry-col { flex: 1; display: flex; flex-direction: column; gap: 24rpx; min-width: 0; }
-.empty { padding: 128rpx 0; text-align: center; }
-.empty-txt { font-size: 28rpx; color: var(--text-soft); }
+/* ── 区块4 限时秒杀横条（金色浅底·深字，X5 安全）── */
+.seckill { background: rgba(201,169,110,0.14); border-radius: 36rpx; padding: 28rpx 32rpx; display: flex; flex-direction: column; gap: 24rpx; }
+.seckill-head { display: flex; align-items: center; gap: 20rpx; }
+.seckill-tag { flex-shrink: 0; background: #C41E3A; color: #fff; font-size: 22rpx; font-weight: 700; padding: 6rpx 16rpx; border-radius: 12rpx; letter-spacing: 2rpx; }
+.countdown { display: flex; align-items: center; gap: 8rpx; }
+.cd-label { font-size: 26rpx; color: #6E6E73; margin-right: 4rpx; }
+.cd-num { min-width: 40rpx; text-align: center; background: #2C2C2C; color: #fff; font-size: 24rpx; font-weight: 700; padding: 4rpx 6rpx; border-radius: 8rpx; font-family: "SF Mono", "Roboto Mono", monospace; }
+.cd-sep { color: #2C2C2C; font-size: 24rpx; font-weight: 700; }
+.seckill-more { margin-left: auto; display: flex; align-items: center; }
+.seckill-more-txt { font-size: 26rpx; color: #999999; }
+.seckill-cards { white-space: nowrap; }
+.seckill-cards-inner { display: inline-flex; gap: 20rpx; padding-bottom: 4rpx; }
+.sk-item { flex-shrink: 0; width: 264rpx; background: #FFFFFF; border-radius: 16rpx; overflow: hidden; box-shadow: 0 2rpx 6rpx rgba(0,0,0,0.04); }
+.sk-item-cover { position: relative; width: 100%; padding-top: 56.25%; }
+.sk-item-img { position: absolute; inset: 0; width: 100%; height: 100%; }
+.sk-item-body { padding: 16rpx 20rpx 20rpx; }
+.sk-item-name { display: block; font-size: 26rpx; font-weight: 600; color: #2C2C2C; line-height: 1.35; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sk-item-price { margin-top: 8rpx; display: flex; align-items: baseline; gap: 10rpx; }
+.sk-now { color: #C41E3A; font-size: 30rpx; font-weight: 700; }
+.sk-old { color: #999999; font-size: 22rpx; text-decoration: line-through; }
 
-/* 加载 / 错误 */
-.loading-wrap, .error-wrap { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; gap: 24rpx; }
-.loading-text, .error-text { font-size: 28rpx; color: var(--text-soft); }
-.retry-btn { padding: 16rpx 48rpx; background: var(--brand); border-radius: 999rpx; }
+/* ── 区块6 排序切换 ── */
+.sort-row { display: flex; align-items: center; justify-content: space-between; margin-top: 8rpx; }
+.sort-label { font-size: 34rpx; font-weight: 700; color: #2C2C2C; }
+.sort-btn { display: flex; align-items: center; gap: 8rpx; background: #FFFFFF; padding: 12rpx 24rpx; border-radius: 999rpx; box-shadow: 0 2rpx 6rpx rgba(0,0,0,0.04); }
+.sort-btn-txt { font-size: 26rpx; color: #6E6E73; }
+
+/* ── 区块5 课程大卡 ── */
+.card { background: #FFFFFF; border-radius: 36rpx; overflow: hidden; box-shadow: 0 2rpx 6rpx rgba(0,0,0,0.04); }
+.card-cover { position: relative; width: 100%; }
+.card-cover-img { position: absolute; inset: 0; width: 100%; height: 100%; }
+.type-tag { position: absolute; top: 20rpx; left: 20rpx; background: rgba(0,0,0,0.55); color: #fff; font-size: 22rpx; padding: 6rpx 16rpx; border-radius: 12rpx; }
+.card-body { padding: 28rpx 32rpx 32rpx; display: flex; flex-direction: column; gap: 18rpx; }
+.card-title { font-size: 34rpx; font-weight: 700; color: #2C2C2C; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.teacher-row { display: flex; align-items: center; gap: 14rpx; }
+.avatar { width: 40rpx; height: 40rpx; border-radius: 999rpx; overflow: hidden; background: #F0EBE2; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.avatar-img { width: 100%; height: 100%; }
+.avatar-ph { font-size: 22rpx; color: #6E6E73; }
+.teacher-name { font-size: 26rpx; font-weight: 500; color: #2C2C2C; }
+.bottom-row { display: flex; align-items: center; justify-content: space-between; }
+.meta { display: flex; align-items: center; gap: 20rpx; }
+.meta-txt { font-size: 26rpx; color: #999999; }
+.rating { display: flex; align-items: center; gap: 6rpx; }
+.rating-num { font-size: 26rpx; font-weight: 600; color: #C9A96E; }
+.price { display: flex; align-items: baseline; gap: 12rpx; }
+.price-now { color: #C41E3A; font-size: 34rpx; font-weight: 700; }
+.price-old { color: #999999; font-size: 26rpx; text-decoration: line-through; }
+.price-free { color: #34A853; font-size: 34rpx; font-weight: 700; }
+
+/* ── 空态 ── */
+.empty { display: flex; flex-direction: column; align-items: center; gap: 24rpx; padding: 128rpx 60rpx; text-align: center; }
+.empty-art { width: 200rpx; height: 200rpx; border-radius: 50%; background: #F8F4EC; display: flex; align-items: center; justify-content: center; }
+.empty-title { font-size: 34rpx; font-weight: 700; color: #2C2C2C; }
+.empty-desc { font-size: 26rpx; color: #999999; line-height: 1.5; }
+.empty-btn { margin-top: 8rpx; height: 84rpx; padding: 0 48rpx; border-radius: 999rpx; background: rgba(196,30,58,0.08); display: flex; align-items: center; }
+.empty-btn-txt { font-size: 28rpx; font-weight: 600; color: #C41E3A; }
+
+/* ── 错误态 ── */
+.state-wrap { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 200rpx 0; gap: 24rpx; }
+.state-text { font-size: 28rpx; color: #6E6E73; }
+.retry-btn { padding: 16rpx 48rpx; background: #C41E3A; border-radius: 999rpx; }
 .retry-text { font-size: 28rpx; color: #fff; }
+
+/* ── 骨架屏（#F0EBE2 微光 1.4s）── */
+.sk { position: relative; overflow: hidden; background: #F0EBE2; border-radius: 12rpx; }
+.sk::after { content: ""; position: absolute; inset: 0; transform: translateX(-100%); background: linear-gradient(90deg, transparent, rgba(255,255,255,0.6), transparent); animation: shimmer 1.4s infinite; }
+@keyframes shimmer { 100% { transform: translateX(100%); } }
+.sk-banner { width: 100%; padding-top: 56.25%; border-radius: 36rpx; }
+.sk-card { background: #FFFFFF; border-radius: 36rpx; overflow: hidden; box-shadow: 0 2rpx 6rpx rgba(0,0,0,0.04); }
+.sk-cover { width: 100%; padding-top: 56.25%; border-radius: 0; }
+.sk-card-body { padding: 28rpx 32rpx 32rpx; display: flex; flex-direction: column; gap: 20rpx; }
+.sk-line { height: 32rpx; }
+.sk-line-sm { height: 26rpx; }
+
+/* ── 排序底部弹层 ── */
+.sheet-mask { position: fixed; inset: 0; z-index: 60; background: rgba(0,0,0,0.4); display: flex; flex-direction: column; justify-content: flex-end; }
+.sheet { background: #FFFFFF; border-radius: 36rpx 36rpx 0 0; padding: 32rpx 40rpx calc(40rpx + env(safe-area-inset-bottom)); }
+.sheet-hd { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16rpx; }
+.sheet-title { font-size: 30rpx; font-weight: 700; color: #2C2C2C; }
+.sheet-close { width: 48rpx; height: 48rpx; display: flex; align-items: center; justify-content: center; }
+.sheet-opt { padding: 26rpx 8rpx; border-bottom: 2rpx solid #EDE7DD; }
+.sheet-opt:last-child { border-bottom: none; }
+.sheet-opt-txt { font-size: 30rpx; color: #2C2C2C; }
+.sheet-opt-txt.on { color: #C41E3A; font-weight: 600; }
 </style>

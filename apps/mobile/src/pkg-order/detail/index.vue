@@ -184,7 +184,7 @@ const status = computed(() => {
 const isCourseOrder = computed(() => order.value?.orderType === 'COURSE')
 function goLearn() {
   const cid = order.value?.products[0]?.id
-  if (cid) navigateTo(`/courses/${cid}/learn`)
+  if (cid) navigateTo(`/courses/${cid}/player`)
 }
 
 const retry = () => { error.value = ''; loadData() }

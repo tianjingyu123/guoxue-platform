@@ -33,10 +33,10 @@ const ROUTE_MAP: Record<string, string> = {
   // 全局搜索（主页 + 结果页，结果页携带 ?keyword= 由 resolve 透传）
   '/search': '/pkg-search/search/index',
   '/search/result': '/pkg-search/search/result',
-  // 课程列表（携带 ?category= / ?sort= / ?filter= 由 resolve 透传）
-  '/courses-list': '/pkg-course/courses-list/index',
-  // 课程限时特惠（静态须优先于动态 /courses/:id，否则被误判为课程详情 id=flash-sale）
-  '/courses/flash-sale': '/pkg-course/flash-sale/index',
+  // 课程 V0 重构（2026-07-11·17→10 页收敛）：列表/市场并入 P1 首页，courses-list 别名重定向到首页（兼容存量入站链接）
+  '/courses-list': '/pkg-course/home/index',
+  // 我的学习 P4（全局·吸收 study-plan）；须优先于动态 /courses/:id
+  '/courses/my-learning': '/pkg-course/learn/index',
   // 消息会话列表
   '/im/conversations': '/pkg-im/im/conversations/index',
   // 消息中心（系统/互动/交易/客服通知）
@@ -279,7 +279,7 @@ const ROUTE_MAP: Record<string, string> = {
   // ===== V0 6.24 新增14条静态路由 =====
   '/login/forgot-password': '/pkg-auth/forgot-password/index',
   '/renew': '/pkg-profile/renew/index',
-  '/courses': '/pkg-course/market/index',
+  '/courses': '/pkg-course/home/index',
   // （死入口大扫除：/admin/user-audit、/admin/batch-coupon-send 两条死映射已删——目标页已从 pkg-mine 路由移除且全库无调用方）
   '/splash': '/pkg-common/splash/index',
   '/poster': '/pkg-common/poster/index',
@@ -316,7 +316,7 @@ const ROUTE_MAP: Record<string, string> = {
    * pages.json 注册，仅补别名即可恢复可达。详见 vue3/MIGRATION_NOTES.md。 */
   '/discover': '/pages/discover/index', // tab 页：收藏/下载空态"去发现内容"，需走 reLaunch
   '/profile': '/pages/profile/index', // tab 页：扫码结果/帮助页跳个人中心
-  '/courses/study-plan': '/pkg-course/study-plan/index', // 我的课程→学习计划
+  '/courses/study-plan': '/pkg-course/learn/index', // 学习计划已并入 P4 我的学习（别名重定向）
   '/seckill/rules': '/pkg-shop/flash-sale/index', // 重复秒杀页已删（含规则子页）→ 真版秒杀 flash-sale
   '/station/earnings': '/pkg-operator/station-earnings/index', // 站长面板→收益（运营端）
   '/publish': '/pkg-circle/circles/publish', // 草稿箱→发布
@@ -471,13 +471,11 @@ const DYNAMIC_ROUTES: Array<[RegExp, string, string]> = [
   // shop 商品详情兜底（/shop/:id；旧 pkg-shop/product 已删 → mall 商品详情；所有 /shop/xxx 静态页已在 ROUTE_MAP 优先命中）
   [/^\/shop\/([^/?]+)$/, '/pkg-mall/product/detail', 'id'],
   // 课程详情系列（/courses/:id/xxx 更具体须在通用详情之前；静态 /courses/xxx 已在 ROUTE_MAP 优先命中）
-  [/^\/courses\/([^/?]+)\/chapters$/, '/pkg-course/chapters/index', 'id'],
-  [/^\/courses\/([^/?]+)\/learn$/, '/pkg-course/learn/index', 'id'],
+  // V0 重构：chapters 目录并入详情、purchase 改详情半屏弹层、complete 完课态并入播放页 → 三条 regex 退役
   [/^\/courses\/([^/?]+)\/player$/, '/pkg-course/player/index', 'id'],
-  [/^\/courses\/([^/?]+)\/purchase$/, '/pkg-course/purchase-confirm/index', 'id'],
+  [/^\/courses\/([^/?]+)\/reviews$/, '/pkg-course/reviews/index', 'id'], // F3 评价列表（学员/讲师双视角）
+  [/^\/courses\/([^/?]+)\/qa$/, '/pkg-course/qa/index', 'id'], // F4 课程问答
   [/^\/courses\/([^/?]+)$/, '/pkg-course/detail/index', 'id'],
-  // 课程完成页 /course/:id/complete（须在 /course/:id 之前，否则 complete 段被当作课程 id）
-  [/^\/course\/([^/?]+)\/complete$/, '/pkg-course/complete/index', 'id'],
   // 课程卡片 /course/:id（单数）暂复用课程详情
   [/^\/course\/([^/?]+)$/, '/pkg-course/detail/index', 'id'],
   // ��章详情 /articles/:id（复数为真源，单数 /article/:id 原型为重定向，统一指向详情）

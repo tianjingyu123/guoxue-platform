@@ -1,11 +1,11 @@
 <script setup lang="ts">
-/** 课程视频播放页 - 从原型 app/courses/[id]/player/page.tsx 迁移 */
+/** 课程播放页 P3 · V0 还原（视频态 + 图文态 + 音频态 + 试看态 + 完课态/证书弹层） */
 import { ref, computed, onMounted, onUnmounted, getCurrentInstance } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
-import { goBack } from '@/utils/router'
+import { goBack, navigateTo } from '@/utils/router'
 import AppIcon from '@/components/common/app-icon.vue'
 import PurchaseSheet from '@/components/common/purchase-sheet.vue'
-import { courseApi, type PlayerChapter, type PlayerChapterLesson } from '@/lib/course-data'
+import { courseApi, type PlayerChapter, type PlayerChapterLesson, type Certificate } from '@/lib/course-data'
 
 const loading = ref(true)
 const error = ref('')
@@ -29,23 +29,46 @@ const showChapterDrawer = ref(false)
 const showQuestionPanel = ref(false)
 const showSpeedMenu = ref(false)
 const isAudioMode = ref(false)
-const isPipMode = ref(false)
 const questionContent = ref('')
 const submittingQuestion = ref(false)
-const speeds = [0.5, 0.75, 1, 1.25, 1.5, 2]
+// 倍速：拍板清单 0.75/1/1.25/1.5/2x（不增不减）
+const speeds = [0.75, 1, 1.25, 1.5, 2]
 const currentLessonId = ref('')
 // 是否已起播过：起播前只显示单个居中播放钮（uni 原生 cover 钮已关），起播后封面层永久隐藏
 const started = ref(false)
 // 课时就地切换中（防并发重复点击）
 const switching = ref(false)
+// 自动连播（默认开，可关）
+const autoNext = ref(true)
+// 下部 Tab：目录 / 简介 / 讨论
+const activeTab = ref<'catalog' | 'intro' | 'discuss'>('catalog')
 // 访问权限 + 课程概要（试看提示条 / 播放页内购买用，静默拉取不阻塞播放）
 const hasAccess = ref(false)
 const courseDetail = ref<any>(null)
 const showPurchase = ref(false)
 // 试看态：付费课未购（能进播放页的必是免费试看章节，后端 content 端点已鉴权）
 const trialMode = computed(() => !!courseDetail.value && !courseDetail.value.isFree && !hasAccess.value)
+// 图文态判定：课时无播放媒体地址（videoUrl 为空）→ 图文课时，走沉浸阅读
+const isArticleMode = computed(() => !!content.value && !content.value.videoUrl)
+
+// 完课态：全部课时学完（getProgress 完成数==总数）
+const completedAll = ref(false)
+const showCongrats = ref(false)
+// 证书弹层
+const showCert = ref(false)
+const cert = ref<Certificate | null>(null)
+const certLoading = ref(false)
 
 const progressPercent = computed(() => duration.value ? (currentTime.value / duration.value) * 100 : 0)
+
+// 当前课时在目录中的序号（第 N / 共 M 讲）
+const flatLessons = computed<PlayerChapterLesson[]>(() =>
+  (chapters.value as PlayerChapter[]).flatMap((c) => c.lessons || []))
+const lessonIndex = computed(() => {
+  const i = flatLessons.value.findIndex((l) => l.id === currentLessonId.value)
+  return i >= 0 ? i + 1 : 0
+})
+const lessonTotal = computed(() => flatLessons.value.length)
 
 function formatTime(seconds: number) {
   const mins = Math.floor(seconds / 60)
@@ -57,6 +80,12 @@ const inst = getCurrentInstance()
 function playerCtx() { return uni.createVideoContext('courseVideo', inst?.proxy) }
 function togglePlay() { if (isPlaying.value) playerCtx().pause(); else playerCtx().play() }
 function changeSpeed(rate: number) { playbackRate.value = rate; showSpeedMenu.value = false; playerCtx().playbackRate(rate) }
+// 前进/后退 15 秒（音频态控件，视频态复用 seek）
+function seekBy(delta: number) {
+  const t = Math.max(0, Math.min(duration.value || 0, currentTime.value + delta))
+  currentTime.value = t
+  playerCtx().seek(t)
+}
 // 控制层自动隐藏：播放中 4 秒无操作淡出，暂停/操作时常显
 let hideTimer: ReturnType<typeof setTimeout> | null = null
 function scheduleHideControls() {
@@ -79,8 +108,11 @@ function onTimeUpdate(e: any) {
   currentTime.value = e?.detail?.currentTime || 0
   if (e?.detail?.duration) duration.value = e.detail.duration
 }
-// 播完自动进入下一节
-function onEnded() { isPlaying.value = false; if (content.value?.nextLesson) switchLesson(content.value.nextLesson.id) }
+// 播完自动进入下一节（可关）
+function onEnded() {
+  isPlaying.value = false
+  if (autoNext.value && content.value?.nextLesson) switchLesson(content.value.nextLesson.id)
+}
 function toggleFullscreen() {
   isFullscreen.value = !isFullscreen.value
   if (isFullscreen.value) playerCtx().requestFullScreen({ direction: 0 })
@@ -109,8 +141,9 @@ async function switchLesson(id: string) {
     content.value = next
     currentTime.value = 0
     duration.value = next.duration || 0
+    started.value = !!next.videoUrl ? started.value : true
     // 换源后立即续播（用户已有交互，程序化播放不被拦截）
-    setTimeout(() => playerCtx().play(), 60)
+    if (next.videoUrl) setTimeout(() => playerCtx().play(), 60)
   } catch (e) {
     uni.showToast({ title: (e as Error)?.message || '切换失败，请重试', icon: 'none' })
   } finally {
@@ -153,6 +186,45 @@ function onPurchased() {
   uni.showToast({ title: '购买成功，已解锁全部章节', icon: 'success' })
 }
 
+// 图文态「完成本讲」：切换到下一课时（末讲则触发完课横幅刷新）
+function onArticleDone() {
+  if (content.value?.nextLesson) switchLesson(content.value.nextLesson.id)
+  else refreshProgress()
+}
+
+// 完课进度检查（静默）：全部课时学完则展示祝贺横幅
+async function refreshProgress() {
+  if (!courseId.value) return
+  try {
+    const p = await courseApi.getProgress(courseId.value)
+    if (p.totalLessons > 0 && p.completedLessons >= p.totalLessons) {
+      completedAll.value = true
+      showCongrats.value = true
+    }
+  } catch { /* 静默：无进度不显示完课横幅 */ }
+}
+// 打开证书弹层：真连 getCertificate（未学完后端 403 → toast 提示）
+async function openCert() {
+  showCongrats.value = false
+  showCert.value = true
+  if (cert.value || certLoading.value) return
+  certLoading.value = true
+  try {
+    cert.value = await courseApi.getCertificate(courseId.value)
+  } catch (e) {
+    showCert.value = false
+    uni.showToast({ title: (e as Error)?.message || '证书暂未生成', icon: 'none' })
+  } finally {
+    certLoading.value = false
+  }
+}
+// 「写个评价」：跳课程详情评价区（complete 页已退役，F3 写评价弹层未上线前先落详情页真实评价入口，不制造死链）
+function goReview() {
+  showCongrats.value = false
+  showCert.value = false
+  navigateTo(`/pkg-course/detail/index?id=${courseId.value}&tab=review`)
+}
+
 async function loadData() {
   loading.value = true
   error.value = ''
@@ -168,9 +240,13 @@ async function loadData() {
       currentLessonId.value = first.id
     }
     content.value = await courseApi.getPlayerContent(lessonId.value)
-    // 权限 + 课程概要并行静默回填（试看提示条/页内购买用，不阻塞播放主链路）
+    duration.value = content.value?.duration || 0
+    // 图文课时无视频，无需起播封面
+    if (isArticleMode.value) started.value = true
+    // 权限 + 课程概要 + 完课进度并行静默回填（不阻塞播放主链路）
     void courseApi.checkAccess(courseId.value).then((v) => { hasAccess.value = v }).catch(() => { /* 静默 */ })
     void courseApi.getDetail(courseId.value).then((d) => { courseDetail.value = d }).catch(() => { /* 静默：无概要则不显示试看条 */ })
+    void refreshProgress()
   } catch (e) {
     error.value = (e as Error)?.message || '加载失败'
   } finally {
@@ -190,153 +266,74 @@ onMounted(() => {
 </script>
 
 <template>
-  <!-- Loading -->
-  <view v-if="loading" class="loading-wrap">
-    <text class="loading-text">加载中...</text>
+  <!-- 骨架屏 -->
+  <view v-if="loading" class="page">
+    <view class="sk sk-dark sk-video" />
+    <view class="sk-lines">
+      <view class="sk sk-l1" />
+      <view class="sk-tabs">
+        <view class="sk sk-tab" /><view class="sk sk-tab" /><view class="sk sk-tab" />
+      </view>
+      <view class="sk sk-l2" /><view class="sk sk-l2" /><view class="sk sk-l2" />
+    </view>
   </view>
+
   <!-- Error -->
   <view v-else-if="error" class="error-wrap">
     <text class="error-text">{{ error }}</text>
     <view class="retry-btn" @tap="loadData"><text class="retry-text">重试</text></view>
   </view>
-  <!-- Content -->
-  <view v-else class="page">
-    <!-- 视频播放器 -->
-    <view class="player" @tap="onPlayerTap">
-      <!-- 真实视频：自定义控件经 videoContext 驱动，故关原生 controls + 关 uni 自带居中播放钮（否则与自定义播放钮双层叠加） -->
-      <video
-        id="courseVideo"
-        class="video-el"
-        :src="content.videoUrl"
-        :controls="false"
-        :show-center-play-btn="false"
-        :muted="isMuted"
-        autoplay
-        object-fit="contain"
-        :poster="content.cover || ''"
-        @play="onPlay"
-        @pause="onPause"
-        @timeupdate="onTimeUpdate"
-        @ended="onEnded"
-      />
 
-      <!-- 起播前封面层：唯一的一层播放按钮，整层可点，点一次即播（autoplay 被浏览器拦截时的兜底）；起播后永久隐藏 -->
-      <view v-if="!started" class="start-cover" @tap.stop="togglePlay">
-        <view class="ctrl-back start-back" @tap.stop="goBack">
-          <app-icon name="arrow-left" :size="44" color="#ffffff" />
-        </view>
-        <view class="start-btn">
-          <app-icon name="play" :size="64" color="#ffffff" :fill="true" />
-        </view>
+  <!-- ══════════ 图文态：整页沉浸阅读 ══════════ -->
+  <view v-else-if="isArticleMode" class="page">
+    <!-- 完课横幅 -->
+    <view v-if="showCongrats" class="congrats">
+      <view class="congrats-title serif">
+        <app-icon name="award" :size="40" color="#C9A96E" />
+        <text class="congrats-title-txt">恭喜完成全部课程</text>
       </view>
-
-      <!-- 控制层（起播后出现：播放中 4 秒自动淡出，点视频区域唤起） -->
-      <view v-else class="control-layer" :class="{ hidden: !showControls }">
-        <!-- 顶部导航 -->
-        <view class="ctrl-top" @tap.stop>
-          <view class="ctrl-back" @tap="goBack">
-            <app-icon name="arrow-left" :size="44" color="#ffffff" />
-          </view>
-          <view class="ctrl-titles">
-            <text class="ctrl-title">{{ content.title }}</text>
-            <text class="ctrl-subtitle">{{ content.courseTitle }}</text>
-          </view>
-        </view>
-
-        <!-- 中央播放按钮 -->
-        <view class="ctrl-center" @tap.stop="togglePlay">
-          <app-icon :name="isPlaying ? 'pause' : 'play'" :size="56" color="#ffffff" :fill="!isPlaying" />
-        </view>
-
-        <!-- 底部控制栏 -->
-        <view class="ctrl-bottom" @tap.stop>
-          <view class="progress-track">
-            <view class="progress-fill" :style="{ width: progressPercent + '%' }" />
-          </view>
-          <view class="ctrl-row">
-            <view class="ctrl-left">
-              <view @tap="togglePlay"><app-icon :name="isPlaying ? 'pause' : 'play'" :size="40" color="#ffffff" /></view>
-              <view :class="{ disabled: !content.prevLesson }" @tap="content.prevLesson && switchLesson(content.prevLesson.id)">
-                <app-icon name="skip-back" :size="34" color="#ffffff" />
-              </view>
-              <view :class="{ disabled: !content.nextLesson }" @tap="content.nextLesson && switchLesson(content.nextLesson.id)">
-                <app-icon name="skip-forward" :size="34" color="#ffffff" />
-              </view>
-              <text class="ctrl-time">{{ formatTime(currentTime) }} / {{ formatTime(duration) }}</text>
-            </view>
-            <view class="ctrl-rt">
-              <view class="speed-wrap">
-                <text class="speed-btn" @tap="showSpeedMenu = !showSpeedMenu">{{ playbackRate }}x</text>
-                <view v-if="showSpeedMenu" class="speed-menu">
-                  <text
-                    v-for="r in speeds" :key="r"
-                    class="speed-item" :class="{ active: playbackRate === r }"
-                    @tap="changeSpeed(r)"
-                  >{{ r }}x</text>
-                </view>
-              </view>
-              <view class="ctrl-icon" :class="{ on: isAudioMode }" @tap="isAudioMode = !isAudioMode">
-                <app-icon name="headphones" :size="34" color="#ffffff" />
-              </view>
-              <view class="ctrl-icon" :class="{ on: isPipMode }" @tap="isPipMode = !isPipMode">
-                <app-icon name="picture-in-picture-2" :size="34" color="#ffffff" />
-              </view>
-              <view @tap="isMuted = !isMuted"><app-icon :name="isMuted ? 'volume-x' : 'volume-2'" :size="34" color="#ffffff" /></view>
-              <view @tap="toggleFullscreen"><app-icon :name="isFullscreen ? 'minimize' : 'maximize'" :size="34" color="#ffffff" /></view>
-            </view>
-          </view>
-        </view>
-      </view>
-
-      <!-- 纯音频模式遮罩 -->
-      <view v-if="isAudioMode" class="audio-mask">
-        <app-icon name="headphones" :size="96" color="#C41E3A" />
-        <text class="audio-title">纯音频模式</text>
-        <text class="audio-sub">已关闭视频画面，节省流量</text>
-        <view class="audio-resume" @tap="isAudioMode = false"><text class="audio-resume-txt">恢复视频</text></view>
+      <text class="congrats-sub">{{ lessonTotal }} 讲全部学完 · 学习证书已生成</text>
+      <view class="congrats-btns">
+        <view class="cbtn primary" @tap="openCert"><text class="cbtn-txt-w">查看证书</text></view>
+        <view class="cbtn soft" @tap="goReview"><text class="cbtn-txt-r">写个评价</text></view>
       </view>
     </view>
 
-    <!-- 试看提示条（非阻断：不挡播放，购买按钮页内直接拉起下单面板） -->
-    <view v-if="trialMode" class="trial-bar">
-      <view class="trial-left">
-        <text class="trial-tag">试看中</text>
-        <text class="trial-txt">购买解锁全部章节</text>
+    <!-- 顶栏：返回 + 课时切换入口 -->
+    <view class="a-nav">
+      <view class="a-nav-btn" @tap="goBack"><app-icon name="arrow-left" :size="32" color="#2C2C2C" /></view>
+      <view class="a-nav-mid" @tap="showChapterDrawer = true">
+        <text class="a-nav-mid-txt">第 {{ lessonIndex }}/{{ lessonTotal }} 讲 · 目录</text>
+        <app-icon name="chevron-down" :size="24" color="#6E6E73" />
       </view>
-      <view class="trial-buy" @tap="showPurchase = true"><text class="trial-buy-txt">立即购买</text></view>
+      <view class="a-nav-btn" />
     </view>
 
-    <!-- 底部功能区 -->
-    <view class="bottom">
-      <view class="cur-info">
-        <text class="cur-title">{{ content.title }}</text>
-        <text class="cur-course">{{ content.courseTitle }}</text>
+    <scroll-view scroll-y class="a-scroll">
+      <view class="article">
+        <text class="a-title serif">{{ content.title }}</text>
+        <text class="a-meta">第 {{ lessonIndex }} 讲 · 图文</text>
+        <!-- 图文正文：后端把课时富文本落在 content 字段（getPlayerContent 未单列此字段时为空，走占位诚实降级，不臆造正文） -->
+        <rich-text v-if="content.content" class="a-body" :nodes="content.content" />
+        <text v-else class="a-body-text">本讲为图文课时，暂无正文内容。</text>
       </view>
-      <view class="func-row">
-        <view class="func-btn" @tap="showChapterDrawer = true">
-          <app-icon name="list" :size="30" color="#C41E3A" /><text class="func-txt">目录</text>
+      <!-- 完成本讲 -->
+      <view class="done-zone">
+        <view class="done-btn" @tap="onArticleDone">
+          <text class="done-btn-txt">{{ content.nextLesson ? '完成本讲，下一讲' : '完成本讲' }}</text>
+          <app-icon name="chevron-right" :size="30" color="#ffffff" />
         </view>
-        <!-- 笔记：后端暂无课程笔记写端点，入口移除（原为假 toast 不落库）——端点就绪后恢复 -->
-        <view class="func-btn" @tap="showQuestionPanel = true">
-          <app-icon name="message-circle" :size="30" color="#C41E3A" /><text class="func-txt">提问</text>
-        </view>
+        <text v-if="content.nextLesson" class="done-hint">下一讲 · {{ content.nextLesson.title }}</text>
       </view>
-      <view v-if="content.nextLesson" class="next-lesson" @tap="switchLesson(content.nextLesson.id)">
-        <view>
-          <text class="next-label">下一课</text>
-          <text class="next-title">{{ content.nextLesson.title }}</text>
-        </view>
-        <app-icon name="chevron-right" :size="36" color="#71717A" />
-      </view>
-    </view>
+    </scroll-view>
 
-    <!-- 章节抽屉 -->
+    <!-- 目录抽屉（图文态复用） -->
     <view v-if="showChapterDrawer" class="drawer-modal">
       <view class="drawer-mask" @tap="showChapterDrawer = false" />
       <view class="drawer">
         <view class="drawer-hdr">
-          <text class="drawer-title">课程目录</text>
-          <view @tap="showChapterDrawer = false"><app-icon name="x" :size="36" color="#333333" /></view>
+          <text class="drawer-title serif">课程目录</text>
+          <view @tap="showChapterDrawer = false"><app-icon name="x" :size="36" color="#2C2C2C" /></view>
         </view>
         <scroll-view scroll-y class="drawer-body">
           <view v-for="chapter in chapters" :key="chapter.id" class="dw-chapter">
@@ -348,8 +345,8 @@ onMounted(() => {
                 :class="{ current: lesson.id === currentLessonId, locked: lessonLocked(chapter, lesson) }"
                 @tap="onDrawerLessonTap(chapter, lesson)"
               >
-                <app-icon v-if="lesson.isCompleted" name="check" :size="28" color="#22C55E" />
-                <app-icon v-else-if="lessonLocked(chapter, lesson)" name="lock" :size="28" color="#71717A" />
+                <app-icon v-if="lesson.isCompleted" name="check-circle" :size="30" color="#34A853" />
+                <app-icon v-else-if="lessonLocked(chapter, lesson)" name="lock" :size="28" color="#999999" />
                 <app-icon v-else name="play" :size="28" color="#999999" />
                 <text class="dw-lesson-title">{{ lesson.title }}</text>
                 <text class="dw-lesson-dur">{{ formatTime(lesson.duration) }}</text>
@@ -360,31 +357,294 @@ onMounted(() => {
       </view>
     </view>
 
-    <!-- 播放页内购买弹窗（试看条/锁定课时直接拉起，统一下单 type=COURSE） -->
     <purchase-sheet
       :open="showPurchase"
       :product="courseDetail ? { id: courseDetail.id, name: courseDetail.title, cover: courseDetail.cover, price: courseDetail.price, originalPrice: courseDetail.originalPrice } : null"
-      biz-type="COURSE"
-      :allow-qty="false"
-      @close="showPurchase = false"
-      @paid="onPurchased"
+      biz-type="COURSE" :allow-qty="false"
+      @close="showPurchase = false" @paid="onPurchased"
+    />
+    <!-- 证书弹层（图文态复用，见下方公共弹层） -->
+    <view v-if="showCert" class="cert-mask" @tap="showCert = false">
+      <view class="cert-modal" @tap.stop>
+        <view v-if="certLoading" class="cert-loading"><text class="cert-loading-txt">证书生成中…</text></view>
+        <view v-else-if="cert" class="cert-paper">
+          <view class="cert-head">
+            <app-icon name="award" :size="56" color="#C9A96E" />
+            <text class="cert-h-title serif">结业证书</text>
+            <text class="cert-h-sub">CERTIFICATE OF COMPLETION</text>
+          </view>
+          <text class="cert-name serif">{{ cert.studentName }}</text>
+          <text class="cert-line">恭喜您完成</text>
+          <text class="cert-subject serif">《{{ cert.courseName }}》</text>
+          <view class="cert-stats">
+            <view class="cert-stat"><text class="cert-stat-v">{{ cert.totalHours }}h</text><text class="cert-stat-l">学习时长</text></view>
+            <view class="cert-stat"><text class="cert-stat-v">{{ lessonTotal }}节</text><text class="cert-stat-l">完成章节</text></view>
+            <view v-if="cert.score != null" class="cert-stat"><text class="cert-stat-v">{{ cert.score }}</text><text class="cert-stat-l">成绩</text></view>
+          </view>
+          <view class="cert-foot">
+            <text class="cert-foot-t">讲师：{{ cert.instructor }}</text>
+            <text class="cert-foot-t">证书编号：{{ cert.certificateNo }}</text>
+            <text class="cert-foot-t">颁发日期：{{ cert.completedAt }}</text>
+          </view>
+        </view>
+        <view class="cert-actions">
+          <view class="cert-action save" @tap="showCert = false"><text class="cert-action-save-txt">关闭</text></view>
+          <view class="cert-action more" @tap="goReview"><text class="cert-action-more-txt">写个评价</text></view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- ══════════ 视频态 / 音频态 / 试看态 ══════════ -->
+  <view v-else class="page">
+    <!-- 完课横幅（顶部下弹） -->
+    <view v-if="showCongrats" class="congrats">
+      <view class="congrats-title serif">
+        <app-icon name="award" :size="40" color="#C9A96E" />
+        <text class="congrats-title-txt">恭喜完成全部课程</text>
+      </view>
+      <text class="congrats-sub">{{ lessonTotal }} 讲全部学完 · 学习证书已生成</text>
+      <view class="congrats-btns">
+        <view class="cbtn primary" @tap="openCert"><text class="cbtn-txt-w">查看证书</text></view>
+        <view class="cbtn soft" @tap="goReview"><text class="cbtn-txt-r">写个评价</text></view>
+      </view>
+    </view>
+
+    <!-- ── 播放区（深色沉浸 #111） ── -->
+    <view class="player-zone">
+      <!-- 顶条：返回 + 课程名 -->
+      <view class="player-top">
+        <view class="p-btn" @tap="goBack"><app-icon name="chevron-left" :size="30" color="#ffffff" /></view>
+        <text class="p-top-title">{{ content.courseTitle }}</text>
+        <view class="p-btn-ph" />
+      </view>
+
+      <!-- 音频态：封面大图 + 波形 + 播控 -->
+      <view v-if="isAudioMode" class="audio-stage">
+        <view class="audio-cover"><image class="audio-cover-img" :src="content.cover || courseDetail?.cover || ''" mode="aspectFill" /></view>
+        <view class="wave">
+          <view v-for="n in 40" :key="n" class="wave-i" :class="{ on: (n / 40) * 100 <= progressPercent }" :style="{ height: (10 + (n * 7) % 18) + 'rpx' }" />
+        </view>
+        <view class="audio-time"><text class="audio-time-t">{{ formatTime(currentTime) }}</text><text class="audio-time-t">{{ formatTime(duration) }}</text></view>
+        <view class="audio-ctrl">
+          <view class="a-skip" @tap="seekBy(-15)"><app-icon name="skip-back" :size="44" color="rgba(255,255,255,0.85)" /><text class="a-skip-t">15s</text></view>
+          <view class="a-play" @tap="togglePlay"><app-icon :name="isPlaying ? 'pause' : 'play'" :size="44" color="#111111" :fill="!isPlaying" /></view>
+          <view class="a-skip" @tap="seekBy(15)"><app-icon name="skip-forward" :size="44" color="rgba(255,255,255,0.85)" /><text class="a-skip-t">15s</text></view>
+        </view>
+        <view class="a-speed-wrap">
+          <text class="a-speed" @tap="showSpeedMenu = !showSpeedMenu">{{ playbackRate }}x</text>
+          <view v-if="showSpeedMenu" class="speed-menu speed-menu-audio">
+            <text v-for="r in speeds" :key="r" class="speed-item" :class="{ active: playbackRate === r }" @tap="changeSpeed(r)">{{ r }}x</text>
+          </view>
+        </view>
+        <view class="audio-exit" @tap="isAudioMode = false"><text class="audio-exit-t">恢复视频</text></view>
+      </view>
+
+      <!-- 视频态 / 试看态 -->
+      <view v-else class="video" @tap="onPlayerTap">
+        <video
+          id="courseVideo"
+          class="video-el"
+          :src="content.videoUrl"
+          :controls="false"
+          :show-center-play-btn="false"
+          :muted="isMuted"
+          autoplay
+          object-fit="contain"
+          :poster="content.cover || ''"
+          @play="onPlay"
+          @pause="onPause"
+          @timeupdate="onTimeUpdate"
+          @ended="onEnded"
+        />
+
+        <!-- 起播前封面层：唯一一层中央播放钮，整层可点 -->
+        <view v-if="!started" class="start-cover" @tap.stop="togglePlay">
+          <view class="start-btn"><app-icon name="play" :size="60" color="#ffffff" :fill="true" /></view>
+        </view>
+
+        <!-- 控制条（起播后出现，播放中 4 秒淡出） -->
+        <view v-else class="ctrl" :class="{ hidden: !showControls }" @tap.stop>
+          <!-- 进度：当前时长 · 可拖轨 · 总时长 -->
+          <view class="ctrl-progress">
+            <text class="time">{{ formatTime(currentTime) }}</text>
+            <view class="track"><view class="track-fill" :style="{ width: progressPercent + '%' }" /><view class="track-dot" :style="{ left: progressPercent + '%' }" /></view>
+            <text class="time">{{ formatTime(duration) }}</text>
+          </view>
+          <view class="ctrl-row">
+            <view class="ctrl-play" @tap="togglePlay"><app-icon :name="isPlaying ? 'pause' : 'play'" :size="40" color="#ffffff" :fill="!isPlaying" /></view>
+            <view class="ctrl-right">
+              <!-- 倍速 -->
+              <view class="speed-wrap">
+                <text class="ctrl-txt" @tap="showSpeedMenu = !showSpeedMenu">{{ playbackRate }}x</text>
+                <view v-if="showSpeedMenu" class="speed-menu">
+                  <text v-for="r in speeds" :key="r" class="speed-item" :class="{ active: playbackRate === r }" @tap="changeSpeed(r)">{{ r }}x</text>
+                </view>
+              </view>
+              <!-- 音频模式 -->
+              <view @tap="isAudioMode = true"><app-icon name="headphones" :size="34" color="#ffffff" /></view>
+              <!-- 全屏 -->
+              <view @tap="toggleFullscreen"><app-icon :name="isFullscreen ? 'minimize' : 'maximize'" :size="34" color="#ffffff" /></view>
+            </view>
+          </view>
+        </view>
+
+        <!-- 试看中：非阻断提示条（底部半透明深底 + 白字 + 小购买钮） -->
+        <view v-if="trialMode && started" class="trial-bar" @tap.stop>
+          <text class="trial-txt">试看中 · 购买解锁全部 {{ lessonTotal }} 讲</text>
+          <view class="trial-buy" @tap="showPurchase = true"><text class="trial-buy-t">¥{{ courseDetail?.price }} 购买</text></view>
+        </view>
+      </view>
+    </view>
+
+    <!-- ── 课时标题行 ── -->
+    <view class="lesson-head">
+      <text class="lesson-title serif">{{ content.title }}</text>
+      <text class="lesson-idx">第 {{ lessonIndex }}/{{ lessonTotal }} 讲</text>
+    </view>
+
+    <!-- ── Tab 三栏 ── -->
+    <view class="tabs">
+      <view class="tab" :class="{ active: activeTab === 'catalog' }" @tap="activeTab = 'catalog'"><text class="tab-txt">目录</text></view>
+      <view class="tab" :class="{ active: activeTab === 'intro' }" @tap="activeTab = 'intro'"><text class="tab-txt">简介</text></view>
+      <view class="tab" :class="{ active: activeTab === 'discuss' }" @tap="activeTab = 'discuss'"><text class="tab-txt">讨论</text></view>
+    </view>
+
+    <!-- Tab · 目录 -->
+    <view v-if="activeTab === 'catalog'" class="tab-body">
+      <view class="autoplay-row">
+        <text class="autoplay-txt">播完自动播放下一课时</text>
+        <view class="switch" :class="{ off: !autoNext }" @tap="autoNext = !autoNext"><view class="switch-knob" /></view>
+      </view>
+      <view v-for="chapter in chapters" :key="chapter.id" class="cat-chapter">
+        <text class="cat-chapter-title">{{ chapter.title }}</text>
+        <view
+          v-for="lesson in chapter.lessons" :key="lesson.id"
+          class="lesson-row"
+          :class="{ current: lesson.id === currentLessonId, done: lesson.isCompleted, locked: lessonLocked(chapter, lesson) }"
+          @tap="onDrawerLessonTap(chapter, lesson)"
+        >
+          <!-- 状态图标：播放中动效 / 已完成 / 锁定 / 序号 -->
+          <view v-if="lesson.id === currentLessonId && isPlaying" class="eq"><view class="eq-i" /><view class="eq-i" /><view class="eq-i" /></view>
+          <app-icon v-else-if="lesson.isCompleted" name="check-circle" :size="28" color="#34A853" />
+          <app-icon v-else-if="lessonLocked(chapter, lesson)" name="lock" :size="26" color="#999999" />
+          <app-icon v-else name="play" :size="24" color="#999999" />
+          <text class="lesson-name">{{ lesson.title }}</text>
+          <text class="lesson-dur" :class="{ playing: lesson.id === currentLessonId }">{{ lesson.id === currentLessonId ? '播放中' : formatTime(lesson.duration) }}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- Tab · 简介 -->
+    <view v-else-if="activeTab === 'intro'" class="tab-body">
+      <text class="sec-title">课程简介</text>
+      <text class="intro-text">{{ courseDetail?.description || content.courseTitle || '暂无课程简介' }}</text>
+      <view v-if="courseDetail?.instructor" class="teacher" @tap="courseDetail.instructor.id && navigateTo(`/pkg-course/instructor/index?id=${courseDetail.instructor.id}`)">
+        <image v-if="courseDetail.instructor.avatar" class="teacher-avatar" :src="courseDetail.instructor.avatar" mode="aspectFill" />
+        <view v-else class="teacher-avatar teacher-avatar-ph"><text class="teacher-avatar-t">{{ (courseDetail.instructor.name || '师')[0] }}</text></view>
+        <view class="t-info">
+          <text class="t-name">{{ courseDetail.instructor.name }}</text>
+          <text class="t-title">{{ courseDetail.instructor.title || '主讲老师' }}</text>
+        </view>
+        <app-icon name="chevron-right" :size="30" color="#999999" />
+      </view>
+    </view>
+
+    <!-- Tab · 讨论（评论流后端暂无课时级列表端点，入口保留：向老师提问 + 吸底输入） -->
+    <view v-else class="tab-body discuss-body">
+      <view class="discuss-empty">
+        <app-icon name="message-circle" :size="64" color="#C9A96E" />
+        <text class="discuss-empty-t">还没有讨论，来问老师第一个问题</text>
+      </view>
+      <view class="input-bar" @tap="showQuestionPanel = true">
+        <view class="input-box"><text class="input-box-t">说说你的想法…</text></view>
+      </view>
+    </view>
+
+    <!-- 章节抽屉（视频态目录快捷入口，与 Tab 目录同规则） -->
+    <view v-if="showChapterDrawer" class="drawer-modal">
+      <view class="drawer-mask" @tap="showChapterDrawer = false" />
+      <view class="drawer">
+        <view class="drawer-hdr">
+          <text class="drawer-title serif">课程目录</text>
+          <view @tap="showChapterDrawer = false"><app-icon name="x" :size="36" color="#2C2C2C" /></view>
+        </view>
+        <scroll-view scroll-y class="drawer-body">
+          <view v-for="chapter in chapters" :key="chapter.id" class="dw-chapter">
+            <text class="dw-chapter-title">{{ chapter.title }}</text>
+            <view class="dw-lessons">
+              <view
+                v-for="lesson in chapter.lessons" :key="lesson.id"
+                class="dw-lesson"
+                :class="{ current: lesson.id === currentLessonId, locked: lessonLocked(chapter, lesson) }"
+                @tap="onDrawerLessonTap(chapter, lesson)"
+              >
+                <app-icon v-if="lesson.isCompleted" name="check-circle" :size="30" color="#34A853" />
+                <app-icon v-else-if="lessonLocked(chapter, lesson)" name="lock" :size="28" color="#999999" />
+                <app-icon v-else name="play" :size="28" color="#999999" />
+                <text class="dw-lesson-title">{{ lesson.title }}</text>
+                <text class="dw-lesson-dur">{{ formatTime(lesson.duration) }}</text>
+              </view>
+            </view>
+          </view>
+        </scroll-view>
+      </view>
+    </view>
+
+    <!-- 播放页内购买弹窗 -->
+    <purchase-sheet
+      :open="showPurchase"
+      :product="courseDetail ? { id: courseDetail.id, name: courseDetail.title, cover: courseDetail.cover, price: courseDetail.price, originalPrice: courseDetail.originalPrice } : null"
+      biz-type="COURSE" :allow-qty="false"
+      @close="showPurchase = false" @paid="onPurchased"
     />
 
     <!-- 提问面板 -->
     <view v-if="showQuestionPanel" class="sheet-modal">
       <view class="sheet-mask" @tap="showQuestionPanel = false" />
-      <view class="dark-sheet">
-        <view class="dark-sheet-hdr">
-          <text class="dark-sheet-title">向老师提问</text>
-          <view @tap="showQuestionPanel = false"><app-icon name="x" :size="36" color="#333333" /></view>
+      <view class="q-sheet">
+        <view class="q-sheet-hdr">
+          <text class="q-sheet-title serif">向老师提问</text>
+          <view @tap="showQuestionPanel = false"><app-icon name="x" :size="36" color="#2C2C2C" /></view>
         </view>
-        <view class="dark-sheet-body">
-          <textarea v-model="questionContent" class="dark-input" placeholder="描述你的问题，老师会尽快回复..." placeholder-class="dark-ph" />
+        <view class="q-sheet-body">
+          <textarea v-model="questionContent" class="q-input" placeholder="描述你的问题，老师会尽快回复..." placeholder-class="q-ph" />
         </view>
-        <view class="dark-sheet-foot">
-          <view class="dark-submit" :class="{ disabled: !questionContent.trim() || submittingQuestion }" @tap="submitQuestion">
-            <text class="dark-submit-txt">{{ submittingQuestion ? '提交中...' : '提交问题' }}</text>
+        <view class="q-sheet-foot">
+          <view class="q-submit" :class="{ disabled: !questionContent.trim() || submittingQuestion }" @tap="submitQuestion">
+            <text class="q-submit-txt">{{ submittingQuestion ? '提交中...' : '提交问题' }}</text>
           </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 证书弹层 -->
+    <view v-if="showCert" class="cert-mask" @tap="showCert = false">
+      <view class="cert-modal" @tap.stop>
+        <view v-if="certLoading" class="cert-loading"><text class="cert-loading-txt">证书生成中…</text></view>
+        <view v-else-if="cert" class="cert-paper">
+          <view class="cert-head">
+            <app-icon name="award" :size="56" color="#C9A96E" />
+            <text class="cert-h-title serif">结业证书</text>
+            <text class="cert-h-sub">CERTIFICATE OF COMPLETION</text>
+          </view>
+          <text class="cert-name serif">{{ cert.studentName }}</text>
+          <text class="cert-line">恭喜您完成</text>
+          <text class="cert-subject serif">《{{ cert.courseName }}》</text>
+          <view class="cert-stats">
+            <view class="cert-stat"><text class="cert-stat-v">{{ cert.totalHours }}h</text><text class="cert-stat-l">学习时长</text></view>
+            <view class="cert-stat"><text class="cert-stat-v">{{ lessonTotal }}节</text><text class="cert-stat-l">完成章节</text></view>
+            <view v-if="cert.score != null" class="cert-stat"><text class="cert-stat-v">{{ cert.score }}</text><text class="cert-stat-l">成绩</text></view>
+          </view>
+          <view class="cert-foot">
+            <text class="cert-foot-t">讲师：{{ cert.instructor }}</text>
+            <text class="cert-foot-t">证书编号：{{ cert.certificateNo }}</text>
+            <text class="cert-foot-t">颁发日期：{{ cert.completedAt }}</text>
+          </view>
+        </view>
+        <view class="cert-actions">
+          <view class="cert-action save" @tap="showCert = false"><text class="cert-action-save-txt">关闭</text></view>
+          <view class="cert-action more" @tap="goReview"><text class="cert-action-more-txt">写个评价</text></view>
         </view>
       </view>
     </view>
@@ -392,104 +652,219 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.page { min-height: 100vh; background: #FAF8F5; }
+.page { min-height: 100vh; background: #FAF8F5; position: relative; }
+.serif { font-family: "Songti SC", "STSong", "SimSun", serif; }
 
-/* 播放器 16:9 */
-.player { position: relative; width: 100%; aspect-ratio: 16 / 9; background: #000; }
-.video-placeholder { position: absolute; inset: 0; background: #000; }
+/* ═══ 播放区（深色 #111） ═══ */
+.player-zone { background: #111; position: relative; }
+.player-top { display: flex; align-items: center; justify-content: space-between; padding: 24rpx 32rpx; }
+.p-btn { width: 64rpx; height: 64rpx; border-radius: 50%; background: rgba(255,255,255,0.12); display: flex; align-items: center; justify-content: center; }
+.p-btn-ph { width: 64rpx; }
+.p-top-title { flex: 1; text-align: center; color: rgba(255,255,255,0.85); font-size: 26rpx; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; margin: 0 16rpx; }
+
+/* 视频 16:9（padding-top 撑高，X5 安全） */
+.video { position: relative; width: 100%; padding-top: 56.25%; background: #000; }
 .video-el { position: absolute; inset: 0; width: 100%; height: 100%; background: #000; }
 
-/* 起播前封面层（唯一播放钮，整层可点） */
-.start-cover { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.25); }
-.start-back { position: absolute; top: 24rpx; left: 24rpx; }
-.start-btn { width: 136rpx; height: 136rpx; border-radius: 50%; background: rgba(196,30,58,0.9); display: flex; align-items: center; justify-content: center; box-shadow: 0 8rpx 32rpx rgba(0,0,0,0.4); }
+/* 起播前封面层 */
+.start-cover { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.28); }
+.start-btn { width: 128rpx; height: 128rpx; border-radius: 50%; background: rgba(196,30,58,0.9); display: flex; align-items: center; justify-content: center; box-shadow: 0 8rpx 32rpx rgba(0,0,0,0.4); }
 
-/* 试看提示条（非阻断） */
-.trial-bar { margin: 20rpx 20rpx 0; padding: 20rpx 24rpx; background: #FFF7E8; border: 1rpx solid #F5DCA9; border-radius: 16rpx; display: flex; align-items: center; justify-content: space-between; }
-.trial-left { display: flex; align-items: center; gap: 16rpx; min-width: 0; }
-.trial-tag { flex-shrink: 0; padding: 4rpx 14rpx; background: var(--brand); color: #fff; font-size: 22rpx; font-weight: 500; border-radius: 8rpx; }
-.trial-txt { font-size: 26rpx; color: #8a6d3b; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.trial-buy { flex-shrink: 0; padding: 12rpx 28rpx; background: var(--brand); border-radius: 999rpx; margin-left: 16rpx; }
-.trial-buy-txt { font-size: 24rpx; font-weight: 500; color: #fff; }
-
-/* 控制层 */
-.control-layer { position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(0,0,0,0.6), transparent 35%, transparent 65%, rgba(0,0,0,0.8)); transition: opacity 0.3s; }
-.control-layer.hidden { opacity: 0; pointer-events: none; }
-.ctrl-top { position: absolute; top: 0; left: 0; right: 0; padding: 24rpx; display: flex; align-items: center; gap: 16rpx; }
-.ctrl-back { padding: 8rpx; }
-.ctrl-titles { flex: 1; min-width: 0; }
-.ctrl-title { display: block; font-size: 26rpx; font-weight: 500; color: #fff; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.ctrl-subtitle { display: block; font-size: 22rpx; color: rgba(255,255,255,0.6); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.ctrl-center { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 112rpx; height: 112rpx; border-radius: 50%; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; }
-.ctrl-bottom { position: absolute; bottom: 0; left: 0; right: 0; padding: 24rpx; }
-.progress-track { height: 6rpx; background: rgba(255,255,255,0.3); border-radius: 999rpx; margin-bottom: 16rpx; }
-.progress-fill { height: 100%; background: var(--brand); border-radius: 999rpx; }
-.ctrl-row { display: flex; align-items: center; justify-content: space-between; }
-.ctrl-left { display: flex; align-items: center; gap: 28rpx; }
-.ctrl-rt { display: flex; align-items: center; gap: 24rpx; }
-.disabled { opacity: 0.3; }
-.ctrl-time { font-size: 22rpx; color: #fff; font-variant-numeric: tabular-nums; }
+/* 控制条 */
+.ctrl { position: absolute; left: 0; right: 0; bottom: 0; padding: 44rpx 28rpx 20rpx; background: linear-gradient(to top, rgba(0,0,0,0.72), rgba(0,0,0,0)); transition: opacity 0.3s; }
+.ctrl.hidden { opacity: 0; pointer-events: none; }
+.ctrl-progress { display: flex; align-items: center; gap: 16rpx; }
+.time { color: #fff; font-size: 22rpx; font-variant-numeric: tabular-nums; flex-shrink: 0; }
+.track { flex: 1; height: 6rpx; border-radius: 4rpx; background: rgba(255,255,255,0.28); position: relative; }
+.track-fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 4rpx; background: #C41E3A; }
+.track-dot { position: absolute; top: 50%; width: 24rpx; height: 24rpx; border-radius: 50%; background: #fff; transform: translate(-50%, -50%); box-shadow: 0 2rpx 8rpx rgba(0,0,0,0.4); }
+.ctrl-row { display: flex; align-items: center; gap: 32rpx; margin-top: 16rpx; }
+.ctrl-play { display: flex; align-items: center; }
+.ctrl-right { margin-left: auto; display: flex; align-items: center; gap: 28rpx; }
+.ctrl-txt { color: #fff; font-size: 24rpx; font-weight: 600; }
 .speed-wrap { position: relative; }
-.speed-btn { font-size: 22rpx; color: #fff; }
-.speed-menu { position: absolute; bottom: 100%; right: 0; margin-bottom: 16rpx; background: #27272A; border-radius: 16rpx; padding: 8rpx 0; min-width: 96rpx; }
-.speed-item { display: block; padding: 12rpx 24rpx; font-size: 22rpx; color: #fff; }
-.speed-item.active { color: var(--brand); }
-.ctrl-icon { padding: 6rpx; border-radius: 8rpx; }
-.ctrl-icon.on { background: var(--brand); }
+.speed-menu { position: absolute; bottom: 100%; right: 0; margin-bottom: 16rpx; background: #27272A; border-radius: 16rpx; padding: 8rpx 0; min-width: 108rpx; }
+.speed-item { display: block; padding: 14rpx 24rpx; font-size: 24rpx; color: #fff; text-align: center; }
+.speed-item.active { color: #C41E3A; }
 
-/* 音频遮罩 */
-.audio-mask { position: absolute; inset: 0; background: #18181B; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 10; }
-.audio-title { font-size: 26rpx; color: rgba(255,255,255,0.8); margin-top: 24rpx; }
-.audio-sub { font-size: 22rpx; color: rgba(255,255,255,0.5); margin-top: 8rpx; }
-.audio-resume { margin-top: 24rpx; padding: 16rpx 32rpx; background: rgba(255,255,255,0.1); border-radius: 999rpx; }
-.audio-resume-txt { font-size: 26rpx; color: #fff; }
+/* 试看提示条 */
+.trial-bar { position: absolute; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.66); display: flex; align-items: center; gap: 20rpx; padding: 18rpx 28rpx; }
+.trial-txt { color: #fff; font-size: 26rpx; flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.trial-buy { background: #C41E3A; border-radius: 999rpx; padding: 12rpx 28rpx; flex-shrink: 0; }
+.trial-buy-t { color: #fff; font-size: 24rpx; font-weight: 700; }
 
-/* 底部功能区（浅色白卡片，与学习页统一） */
-.bottom { background: #fff; margin: 20rpx; border-radius: 24rpx; overflow: hidden; box-shadow: 0 2rpx 16rpx rgba(0,0,0,0.05); }
-.cur-info { padding: 24rpx; border-bottom: 1rpx solid rgba(0,0,0,0.06); }
-.cur-title { display: block; font-size: 28rpx; font-weight: 600; color: #2C2C2C; margin-bottom: 8rpx; }
-.cur-course { font-size: 26rpx; color: #8A8A8A; }
-.func-row { display: flex; border-bottom: 1rpx solid rgba(0,0,0,0.06); }
-.func-btn { flex: 1; display: flex; align-items: center; justify-content: center; gap: 12rpx; padding: 24rpx 0; }
-.func-txt { font-size: 26rpx; color: #2C2C2C; }
-.next-lesson { padding: 24rpx; display: flex; align-items: center; justify-content: space-between; }
-.next-label { display: block; font-size: 22rpx; color: #A88C5A; margin-bottom: 8rpx; }
-.next-title { font-size: 26rpx; color: #2C2C2C; }
+/* ═══ 音频态 ═══ */
+.audio-stage { display: flex; flex-direction: column; align-items: center; padding: 52rpx 40rpx 48rpx; }
+.audio-cover { width: 400rpx; height: 400rpx; border-radius: 36rpx; overflow: hidden; box-shadow: 0 24rpx 72rpx rgba(0,0,0,0.5); background: #222; }
+.audio-cover-img { width: 100%; height: 100%; }
+.wave { display: flex; align-items: center; gap: 6rpx; height: 56rpx; margin-top: 52rpx; }
+.wave-i { width: 6rpx; border-radius: 4rpx; background: rgba(255,255,255,0.25); }
+.wave-i.on { background: #C41E3A; }
+.audio-time { display: flex; justify-content: space-between; width: 100%; max-width: 600rpx; margin-top: 16rpx; }
+.audio-time-t { color: rgba(255,255,255,0.6); font-size: 22rpx; font-variant-numeric: tabular-nums; }
+.audio-ctrl { display: flex; align-items: center; gap: 68rpx; margin-top: 36rpx; }
+.a-skip { display: flex; flex-direction: column; align-items: center; gap: 6rpx; }
+.a-skip-t { color: rgba(255,255,255,0.75); font-size: 20rpx; }
+.a-play { width: 120rpx; height: 120rpx; border-radius: 50%; background: #fff; display: flex; align-items: center; justify-content: center; box-shadow: 0 8rpx 32rpx rgba(0,0,0,0.4); }
+.a-speed-wrap { position: relative; margin-top: 36rpx; }
+.a-speed { color: #fff; font-size: 26rpx; font-weight: 600; background: rgba(255,255,255,0.12); padding: 10rpx 24rpx; border-radius: 999rpx; }
+.speed-menu-audio { bottom: auto; top: 100%; right: 50%; transform: translateX(50%); margin: 16rpx 0 0; }
+.audio-exit { margin-top: 28rpx; padding: 14rpx 36rpx; background: rgba(255,255,255,0.1); border-radius: 999rpx; }
+.audio-exit-t { color: #fff; font-size: 24rpx; }
 
-/* 章节抽屉 */
+/* ═══ 课时标题行 ═══ */
+.lesson-head { display: flex; align-items: center; justify-content: space-between; padding: 28rpx 40rpx 20rpx; }
+.lesson-title { font-size: 34rpx; font-weight: 700; color: #2C2C2C; flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.lesson-idx { font-size: 26rpx; color: #999999; flex-shrink: 0; margin-left: 20rpx; }
+
+/* ═══ Tab 三栏 ═══ */
+.tabs { display: flex; gap: 52rpx; padding: 0 40rpx; border-bottom: 1rpx solid #EDE7DD; }
+.tab { padding: 16rpx 0 20rpx; position: relative; }
+.tab-txt { font-size: 30rpx; color: #6E6E73; }
+.tab.active .tab-txt { color: #2C2C2C; font-weight: 700; }
+.tab.active::after { content: ""; position: absolute; left: 50%; transform: translateX(-50%); bottom: 0; width: 40rpx; height: 6rpx; border-radius: 4rpx; background: #C41E3A; }
+
+.tab-body { padding: 28rpx 40rpx 56rpx; }
+
+/* 自动连播开关 */
+.autoplay-row { display: flex; align-items: center; justify-content: space-between; padding-bottom: 20rpx; }
+.autoplay-txt { font-size: 26rpx; color: #6E6E73; }
+.switch { width: 80rpx; height: 48rpx; border-radius: 24rpx; background: #C41E3A; position: relative; flex-shrink: 0; transition: background 0.2s; }
+.switch.off { background: #D8D3CB; }
+.switch-knob { position: absolute; top: 4rpx; right: 4rpx; width: 40rpx; height: 40rpx; border-radius: 50%; background: #fff; box-shadow: 0 2rpx 6rpx rgba(0,0,0,0.2); transition: all 0.2s; }
+.switch.off .switch-knob { right: auto; left: 4rpx; }
+
+/* 目录列表 */
+.cat-chapter-title { display: block; font-size: 30rpx; font-weight: 700; color: #2C2C2C; padding: 20rpx 0 8rpx; }
+.lesson-row { display: flex; align-items: center; gap: 20rpx; padding: 24rpx 0; border-bottom: 1rpx solid #EDE7DD; }
+.lesson-name { flex: 1; font-size: 30rpx; color: #2C2C2C; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.lesson-dur { font-size: 26rpx; color: #999999; flex-shrink: 0; }
+.lesson-dur.playing { color: #C41E3A; }
+.lesson-row.done .lesson-name { color: #6E6E73; }
+.lesson-row.current .lesson-name { color: #C41E3A; font-weight: 700; }
+.lesson-row.locked { opacity: 0.5; }
+/* 播放中动效（三根跳动竖条） */
+.eq { display: flex; align-items: flex-end; gap: 4rpx; height: 24rpx; flex-shrink: 0; width: 28rpx; justify-content: center; }
+.eq-i { width: 6rpx; border-radius: 2rpx; background: #C41E3A; }
+.eq-i:nth-child(1) { height: 12rpx; animation: eq 1s ease-in-out infinite; }
+.eq-i:nth-child(2) { height: 24rpx; animation: eq 1s ease-in-out 0.2s infinite; }
+.eq-i:nth-child(3) { height: 16rpx; animation: eq 1s ease-in-out 0.4s infinite; }
+@keyframes eq { 50% { transform: scaleY(0.4); } }
+
+/* 简介 Tab */
+.sec-title { display: block; font-size: 30rpx; font-weight: 700; color: #2C2C2C; margin: 8rpx 0 20rpx; }
+.intro-text { display: block; font-size: 28rpx; line-height: 1.8; color: #6E6E73; }
+.teacher { display: flex; align-items: center; gap: 24rpx; background: #FFFFFF; border: 1rpx solid #EDE7DD; border-radius: 28rpx; padding: 26rpx 28rpx; margin-top: 32rpx; }
+.teacher-avatar { width: 92rpx; height: 92rpx; border-radius: 50%; flex-shrink: 0; }
+.teacher-avatar-ph { background: rgba(201,169,110,0.16); display: flex; align-items: center; justify-content: center; }
+.teacher-avatar-t { font-size: 34rpx; font-weight: 700; color: #C9A96E; }
+.t-info { flex: 1; min-width: 0; }
+.t-name { display: block; font-size: 30rpx; font-weight: 700; color: #2C2C2C; }
+.t-title { font-size: 24rpx; color: #C9A96E; margin-top: 4rpx; }
+
+/* 讨论 Tab */
+.discuss-body { min-height: 400rpx; }
+.discuss-empty { display: flex; flex-direction: column; align-items: center; gap: 20rpx; padding: 72rpx 0; }
+.discuss-empty-t { font-size: 26rpx; color: #999999; }
+.input-bar { position: fixed; left: 0; right: 0; bottom: 0; background: #FFFFFF; border-top: 1rpx solid #EDE7DD; padding: 20rpx 32rpx calc(20rpx + env(safe-area-inset-bottom)); }
+.input-box { height: 76rpx; border-radius: 999rpx; background: #F8F4EC; display: flex; align-items: center; padding: 0 32rpx; }
+.input-box-t { font-size: 28rpx; color: #999999; }
+
+/* ═══ 完课横幅 ═══ */
+.congrats { position: absolute; top: 0; left: 0; right: 0; background: #FFFFFF; padding: 32rpx 40rpx 36rpx; box-shadow: 0 12rpx 48rpx rgba(0,0,0,0.16); border-radius: 0 0 36rpx 36rpx; z-index: 30; }
+.congrats-title { display: flex; align-items: center; gap: 16rpx; }
+.congrats-title-txt { font-size: 34rpx; font-weight: 700; color: #2C2C2C; }
+.congrats-sub { display: block; font-size: 26rpx; color: #6E6E73; margin-top: 8rpx; }
+.congrats-btns { display: flex; gap: 20rpx; margin-top: 28rpx; }
+.cbtn { flex: 1; height: 80rpx; border-radius: 999rpx; display: flex; align-items: center; justify-content: center; }
+.cbtn.primary { background: #C41E3A; }
+.cbtn.soft { background: rgba(196,30,58,0.08); }
+.cbtn-txt-w { font-size: 28rpx; font-weight: 600; color: #fff; }
+.cbtn-txt-r { font-size: 28rpx; font-weight: 600; color: #C41E3A; }
+
+/* ═══ 图文态 ═══ */
+.a-nav { position: sticky; top: 0; display: flex; align-items: center; justify-content: space-between; padding: 24rpx 32rpx; background: #FAF8F5; border-bottom: 1rpx solid #EDE7DD; z-index: 10; }
+.a-nav-btn { width: 68rpx; height: 68rpx; border-radius: 50%; background: #FFFFFF; display: flex; align-items: center; justify-content: center; box-shadow: 0 2rpx 6rpx rgba(0,0,0,0.04); }
+.a-nav-mid { display: flex; align-items: center; gap: 10rpx; }
+.a-nav-mid-txt { font-size: 26rpx; color: #6E6E73; }
+.a-scroll { height: 100vh; }
+.article { padding: 44rpx 40rpx 28rpx; }
+.a-title { display: block; font-size: 44rpx; font-weight: 700; line-height: 1.45; color: #2C2C2C; }
+.a-meta { display: block; font-size: 26rpx; color: #999999; margin-top: 20rpx; padding-bottom: 36rpx; border-bottom: 1rpx solid #EDE7DD; }
+.a-body { margin-top: 20rpx; font-size: 32rpx; line-height: 1.8; color: #2C2C2C; }
+.a-body-text { display: block; margin-top: 36rpx; font-size: 32rpx; line-height: 1.8; color: #2C2C2C; }
+.done-zone { padding: 16rpx 40rpx 80rpx; }
+.done-btn { height: 96rpx; border-radius: 999rpx; background: #C41E3A; display: flex; align-items: center; justify-content: center; gap: 12rpx; }
+.done-btn-txt { font-size: 32rpx; font-weight: 700; color: #fff; }
+.done-hint { display: block; text-align: center; font-size: 24rpx; color: #999999; margin-top: 20rpx; }
+
+/* ═══ 章节抽屉 ═══ */
 .drawer-modal { position: fixed; inset: 0; z-index: 50; }
 .drawer-mask { position: absolute; inset: 0; background: rgba(0,0,0,0.6); }
-.drawer { position: absolute; right: 0; top: 0; bottom: 0; width: 560rpx; background: #fff; display: flex; flex-direction: column; }
-.drawer-hdr { padding: 24rpx; border-bottom: 1rpx solid rgba(0,0,0,0.06); display: flex; align-items: center; justify-content: space-between; }
-.drawer-title { font-size: 28rpx; font-weight: 600; color: #2C2C2C; }
-.drawer-body { flex: 1; padding: 24rpx; }
-.dw-chapter { margin-bottom: 32rpx; }
-.dw-chapter-title { display: block; font-size: 26rpx; font-weight: 500; color: #8A8A8A; margin-bottom: 16rpx; }
+.drawer { position: absolute; right: 0; top: 0; bottom: 0; width: 580rpx; background: #FFFFFF; display: flex; flex-direction: column; }
+.drawer-hdr { padding: 32rpx; border-bottom: 1rpx solid #EDE7DD; display: flex; align-items: center; justify-content: space-between; }
+.drawer-title { font-size: 32rpx; font-weight: 700; color: #2C2C2C; }
+.drawer-body { flex: 1; padding: 24rpx 32rpx; }
+.dw-chapter { margin-bottom: 40rpx; }
+.dw-chapter-title { display: block; font-size: 28rpx; font-weight: 500; color: #6E6E73; margin-bottom: 16rpx; }
 .dw-lessons { display: flex; flex-direction: column; gap: 8rpx; }
-.dw-lesson { display: flex; align-items: center; gap: 24rpx; padding: 24rpx; border-radius: 16rpx; }
+.dw-lesson { display: flex; align-items: center; gap: 24rpx; padding: 24rpx; border-radius: 20rpx; }
 .dw-lesson.current { background: rgba(196,30,58,0.08); }
 .dw-lesson.locked { opacity: 0.5; }
-.dw-lesson-title { flex: 1; font-size: 26rpx; color: #2C2C2C; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.dw-lesson.current .dw-lesson-title { color: var(--brand); }
-.dw-lesson-dur { font-size: 22rpx; color: #A1A1AA; }
+.dw-lesson-title { flex: 1; font-size: 28rpx; color: #2C2C2C; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.dw-lesson.current .dw-lesson-title { color: #C41E3A; font-weight: 700; }
+.dw-lesson-dur { font-size: 24rpx; color: #999999; }
 
-/* 提问面板（浅色） */
+/* ═══ 提问面板 ═══ */
 .sheet-modal { position: fixed; inset: 0; z-index: 50; }
 .sheet-mask { position: absolute; inset: 0; background: rgba(0,0,0,0.6); }
-.dark-sheet { position: absolute; bottom: 0; left: 0; right: 0; background: #fff; border-radius: 32rpx 32rpx 0 0; }
-.dark-sheet-hdr { padding: 24rpx; border-bottom: 1rpx solid rgba(0,0,0,0.06); display: flex; align-items: center; justify-content: space-between; }
-.dark-sheet-title { font-size: 28rpx; font-weight: 600; color: #2C2C2C; }
-.dark-sheet-body { padding: 24rpx; }
-.dark-input { width: 100%; height: 256rpx; background: #F5F3EF; border-radius: 16rpx; padding: 24rpx; font-size: 26rpx; color: #2C2C2C; box-sizing: border-box; }
-.dark-ph { color: #A1A1AA; }
-.dark-sheet-foot { padding: 24rpx; border-top: 1rpx solid rgba(0,0,0,0.06); }
-.dark-submit { width: 100%; padding: 24rpx 0; background: var(--brand); border-radius: 16rpx; display: flex; align-items: center; justify-content: center; }
-.dark-submit.disabled { opacity: 0.5; }
-.dark-submit-txt { font-size: 28rpx; font-weight: 500; color: #fff; }
+.q-sheet { position: absolute; bottom: 0; left: 0; right: 0; background: #FFFFFF; border-radius: 40rpx 40rpx 0 0; }
+.q-sheet-hdr { padding: 32rpx; border-bottom: 1rpx solid #EDE7DD; display: flex; align-items: center; justify-content: space-between; }
+.q-sheet-title { font-size: 32rpx; font-weight: 700; color: #2C2C2C; }
+.q-sheet-body { padding: 32rpx; }
+.q-input { width: 100%; height: 256rpx; background: #F8F4EC; border-radius: 20rpx; padding: 28rpx; font-size: 28rpx; color: #2C2C2C; box-sizing: border-box; }
+.q-ph { color: #999999; }
+.q-sheet-foot { padding: 24rpx 32rpx calc(32rpx + env(safe-area-inset-bottom)); }
+.q-submit { width: 100%; height: 92rpx; background: #C41E3A; border-radius: 20rpx; display: flex; align-items: center; justify-content: center; }
+.q-submit.disabled { opacity: 0.5; }
+.q-submit-txt { font-size: 30rpx; font-weight: 600; color: #fff; }
 
-/* 加载 / 错误 */
-.loading-wrap, .error-wrap { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; gap: 24rpx; }
-.loading-text, .error-text { font-size: 28rpx; color: var(--text-soft); }
-.retry-btn { padding: 16rpx 48rpx; background: var(--brand); border-radius: 999rpx; }
+/* ═══ 证书弹层（纯色纸面，X5 无毛玻璃承载） ═══ */
+.cert-mask { position: fixed; inset: 0; z-index: 60; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; padding: 48rpx; }
+.cert-modal { width: 100%; max-width: 660rpx; }
+.cert-loading { background: #FFFDF7; border-radius: 32rpx; padding: 96rpx 0; text-align: center; }
+.cert-loading-txt { font-size: 28rpx; color: #999999; }
+.cert-paper { background: #FDF7E9; border: 2rpx solid rgba(201,169,110,0.5); border-radius: 32rpx; padding: 56rpx 48rpx; text-align: center; }
+.cert-head { display: flex; flex-direction: column; align-items: center; gap: 10rpx; margin-bottom: 32rpx; }
+.cert-h-title { font-size: 40rpx; font-weight: 700; color: #C9A96E; margin-top: 8rpx; }
+.cert-h-sub { font-size: 20rpx; letter-spacing: 4rpx; color: #C9A96E; }
+.cert-name { display: block; font-size: 48rpx; font-weight: 700; color: #2C2C2C; margin-bottom: 16rpx; }
+.cert-line { display: block; font-size: 26rpx; color: #6E6E73; }
+.cert-subject { display: block; font-size: 32rpx; font-weight: 700; color: #C41E3A; margin: 16rpx 0 32rpx; }
+.cert-stats { display: flex; justify-content: space-around; padding: 32rpx 0; border-top: 1rpx solid rgba(201,169,110,0.3); border-bottom: 1rpx solid rgba(201,169,110,0.3); margin-bottom: 32rpx; }
+.cert-stat { display: flex; flex-direction: column; gap: 8rpx; }
+.cert-stat-v { font-size: 36rpx; font-weight: 700; color: #2C2C2C; }
+.cert-stat-l { font-size: 24rpx; color: #999999; }
+.cert-foot { display: flex; flex-direction: column; gap: 8rpx; }
+.cert-foot-t { font-size: 22rpx; color: #999999; }
+.cert-actions { display: flex; gap: 20rpx; margin-top: 32rpx; }
+.cert-action { flex: 1; height: 88rpx; border-radius: 20rpx; display: flex; align-items: center; justify-content: center; }
+.cert-action.save { background: #FFFFFF; border: 1rpx solid #C41E3A; }
+.cert-action-save-txt { font-size: 28rpx; font-weight: 600; color: #C41E3A; }
+.cert-action.more { background: #C41E3A; }
+.cert-action-more-txt { font-size: 28rpx; font-weight: 600; color: #fff; }
+
+/* ═══ 骨架屏 / 错误 ═══ */
+.sk { position: relative; overflow: hidden; background: #EFEAE2; }
+.sk-dark { background: #1E1E1E; }
+.sk-video { width: 100%; padding-top: 56.25%; }
+.sk-lines { padding: 28rpx 40rpx; display: flex; flex-direction: column; gap: 28rpx; }
+.sk-l1 { height: 36rpx; width: 70%; border-radius: 8rpx; }
+.sk-tabs { display: flex; gap: 52rpx; }
+.sk-tab { height: 30rpx; width: 64rpx; border-radius: 8rpx; }
+.sk-l2 { height: 30rpx; width: 90%; border-radius: 8rpx; }
+.error-wrap { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; gap: 24rpx; }
+.error-text { font-size: 28rpx; color: #6E6E73; }
+.retry-btn { padding: 16rpx 48rpx; background: #C41E3A; border-radius: 999rpx; }
 .retry-text { font-size: 28rpx; color: #fff; }
 </style>
