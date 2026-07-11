@@ -80,6 +80,18 @@ const ROUTE_MAP: Record<string, string> = {
   '/paipan/luopan': '/pkg-paipan/luopan/index',
   '/paipan/ziwei': '/pkg-paipan/ziwei/index',
   '/paipan/ziwei/result': '/pkg-paipan/ziwei/result',
+  // V0 排盘第二批（占卜类）：大六壬/金口诀/金钱课/小成图/太乙/诸葛
+  '/paipan/daliuren': '/pkg-paipan/daliuren/index',
+  '/paipan/daliuren/result': '/pkg-paipan/daliuren/result',
+  '/paipan/jinkoujue': '/pkg-paipan/jinkoujue/index',
+  '/paipan/jinkoujue/result': '/pkg-paipan/jinkoujue/result',
+  '/paipan/jinqianke': '/pkg-paipan/jinqianke/index',
+  '/paipan/xiaochengtu': '/pkg-paipan/xiaochengtu/index',
+  '/paipan/xiaochengtu/result': '/pkg-paipan/xiaochengtu/result',
+  '/paipan/taiyi': '/pkg-paipan/taiyi/index',
+  '/paipan/taiyi/result': '/pkg-paipan/taiyi/result',
+  '/paipan/zhuge': '/pkg-paipan2/zhuge/index',
+  '/paipan/zhuge/result': '/pkg-paipan2/zhuge/result',
   // 工具占位页（30+ 未上线工具入口，name 参数透传；命理/中医两个前缀同指一页）
   '/paipan/tools/coming-soon': '/pkg-paipan/tools/coming-soon',
   '/tools/coming-soon': '/pkg-paipan/tools/coming-soon',

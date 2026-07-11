@@ -1,9 +1,9 @@
-// 孔明神卦（文王六十四卦金钱卦）签辞数据层——自 V0 lib/yijing/jinqianke-data.ts 搬移
-// 卦名/卦画/卦辞复用 @/pkg-paipan/lib/meihua-data（HEX_NAMES / BAGUA_LINES / GUACI / getPalace）
+// 金钱课（文王六十四卦金钱卦）签辞数据层
+// 卦名/卦画/卦辞复用 lib/meihua-data.ts（HEX_NAMES / BAGUA_LINES / GUACI / getPalace）
 // 签辞按传统金钱课体例整理：吉凶等级、题辞、签诗、诗曰、断曰、白话解、分类论断
 // 内容为传统签辞白话整理，仅供文化参考
 
-import { HEX_NAMES, BAGUA_LINES, GUACI, getPalace } from "@/pkg-paipan/lib/meihua-data"
+import { HEX_NAMES, BAGUA_LINES, GUACI, getPalace } from "./meihua-data"
 
 /** 吉凶等级：5上上 4上 3中平 2中下 1下下 */
 export type QianLevel = 1 | 2 | 3 | 4 | 5
@@ -167,7 +167,7 @@ export const QIAN_DB: Record<string, QianEntry> = {
       career: "适合带队攻坚或参与大项目，令行禁止则胜。",
       wealth: "宜集体协作取财，单打独斗不如借势团队。",
       love: "以正相待，明确关系名分，感情方能长久。",
-      health: "防操劳过度，腰腿劳损宜及早调理。",
+      health: "防操劳过度，腰腿劳损宜early调理。",
       travel: "宜结队出行，安排周密则一路顺畅。",
       decision: "谋定后动，名正言顺，则众人相助。",
     },
@@ -969,7 +969,7 @@ export const QIAN_DB: Record<string, QianEntry> = {
       love: "温柔攻势最有效，细语暖话多说。",
       health: "呼吸道与风邪留意，避风保暖。",
       travel: "顺风顺水行程宜，航班船期皆利。",
-      decision: "方向认准后柔性坚持，水滴石穿。",
+      decision: "方向认准后柔性坚持，water滴石穿。",
     },
   },
   兑为泽: {

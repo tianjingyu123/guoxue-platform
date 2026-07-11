@@ -217,6 +217,77 @@
           "style": {
             "navigationStyle": "custom"
           }
+        },
+        {
+          "path": "daliuren/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "daliuren/result",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "jinkoujue/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "jinkoujue/result",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "jinqianke/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "xiaochengtu/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "xiaochengtu/result",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "taiyi/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "taiyi/result",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        }
+      ]
+    },
+    {
+      "root": "pkg-paipan2",
+      "pages": [
+        {
+          "path": "zhuge/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "zhuge/result",
+          "style": {
+            "navigationStyle": "custom"
+          }
         }
       ]
     },

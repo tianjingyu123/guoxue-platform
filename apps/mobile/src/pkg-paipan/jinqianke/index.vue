@@ -1,8 +1,9 @@
 <script setup lang="ts">
 /**
- * 孔明神卦——自 V0 app/kongming/page.tsx 还原
- * 摇卦仪式（5 枚铜钱）→ 真随机六爻定卦 → 六十四卦金钱课签辞（题辞/签诗/诗曰/断曰/解卦/分类论断）
- * 取舍：V0 铜钱实拍图（coin-front/back.png）改为纯 CSS 铜钱（多端无图片依赖）；AI 深断区块本批不还原
+ * 金钱课（文王六十四卦金钱卦）——自 V0 app/jinqianke/page.tsx 还原
+ * 摇卦仪式（6 枚铜钱=六爻，自下而上爻位一至六）→ 真随机定卦 → 签辞（题辞/签诗/诗曰/断曰/解卦/分类论断）
+ * 取舍：V0 铜钱实拍图（coin-front/back.png 3D 翻面）改为纯 CSS 铜钱（沿用第一批 kongming 范式，多端无图片依赖）；
+ *       AI 深断区块本批砍掉；卦象六爻图按 V0 体例（阳爻墨色整条、阴爻朱红两段）以 CSS 绘制。
  */
 import { ref, computed, onUnmounted } from 'vue'
 import ToolHeader from '@/components/paipan/tool-header.vue'
@@ -18,8 +19,8 @@ import {
 type Phase = 'idle' | 'shaking' | 'done'
 
 const phase = ref<Phase>('idle')
-// 展示 5 枚铜钱作为摇卦仪式（true=字面阳 false=背面阴 null=未掷）
-const coins = ref<(boolean | null)[]>([null, null, null, null, null])
+// 6 枚铜钱即六爻（true=字面阳 false=背面阴 null=未掷），index 0=初爻
+const coins = ref<(boolean | null)[]>([null, null, null, null, null, null])
 const castResult = ref<CoinCast | null>(null)
 let timer: ReturnType<typeof setInterval> | null = null
 
@@ -42,21 +43,22 @@ function startShake() {
   phase.value = 'shaking'
   castResult.value = null
   timer = setInterval(() => {
-    coins.value = Array.from({ length: 5 }, () => Math.random() > 0.5)
-  }, 110)
+    coins.value = Array.from({ length: 6 }, () => Math.random() > 0.5)
+  }, 120)
 }
 
 function stopShake() {
   if (timer) { clearInterval(timer); timer = null }
-  // 铜钱定格（5 枚），另取真随机六爻定卦（自下而上爻位一至六）
-  coins.value = randomBools(5)
-  castResult.value = randomBools(6) as CoinCast
+  // 真随机六爻定卦，铜钱定格即卦象（与 V0 一致：六钱直接成六爻）
+  const cast = randomBools(6) as CoinCast
+  coins.value = cast
+  castResult.value = cast
   phase.value = 'done'
 }
 
 function reset() {
   phase.value = 'idle'
-  coins.value = [null, null, null, null, null]
+  coins.value = [null, null, null, null, null, null]
   castResult.value = null
 }
 
@@ -76,7 +78,7 @@ const levelColor = computed(() => {
 })
 
 const tipText = computed(() => {
-  if (phase.value === 'idle') return '请集中精力默想所想之事，点击「开始摇卦」。'
+  if (phase.value === 'idle') return '请集中精力默想所问之事，点击「开始摇卦」。'
   if (phase.value === 'shaking') return '心念所问，觉得时机到了就点「停止摇卦」。'
   return hexName.value ? `得【${hexName.value}】，签辞如下。` : ''
 })
@@ -85,10 +87,10 @@ const tipText = computed(() => {
 <template>
   <view class="page">
     <tool-header
-      title="孔明神卦"
-      subtitle="所想之事 · 皆可提示"
+      title="金钱课"
+      subtitle="文王六十四卦 · 金钱起卦"
       share
-      share-title="孔明神卦"
+      share-title="金钱课"
     >
       <template #actions>
         <view
@@ -110,7 +112,7 @@ const tipText = computed(() => {
       class="body"
     >
       <view class="inner">
-        <!-- 摇卦区（5 枚铜钱横排） -->
+        <!-- 摇卦区（6 枚铜钱横排=六爻） -->
         <paper-card padding="md">
           <view class="coins">
             <view
@@ -144,7 +146,7 @@ const tipText = computed(() => {
         </view>
 
         <!-- 结果区 -->
-        <template v-if="phase === 'done' && entry && hexName">
+        <template v-if="phase === 'done' && entry && hexName && castResult">
           <!-- 卦名卦象 -->
           <paper-card padding="md">
             <section-title title="卦名卦象" />
@@ -161,18 +163,24 @@ const tipText = computed(() => {
               <text class="hex-meta">
                 {{ palaceName }}宫 · {{ guaci ? guaci.slice(0, 24) : '' }}
               </text>
-              <!-- 定格铜钱 -->
-              <view class="coins coins-sm">
+              <!-- 卦象六爻图（自下而上，上爻在顶；阳爻整条、阴爻两段） -->
+              <view class="hexfig">
                 <view
-                  v-for="(h, i) in coins"
+                  v-for="(yang, i) in castResult"
                   :key="i"
-                  class="coin coin-sm"
-                  :class="{ 'coin-back': h === false }"
+                  class="hf-row"
                 >
-                  <view class="coin-hole coin-hole-sm" />
-                  <text class="coin-mark coin-mark-sm">
-                    {{ h ? '字' : '背' }}
-                  </text>
+                  <view
+                    v-if="yang"
+                    class="hf-bar"
+                  />
+                  <view
+                    v-else
+                    class="hf-split"
+                  >
+                    <view class="hf-bar hf-yin" />
+                    <view class="hf-bar hf-yin" />
+                  </view>
                 </view>
               </view>
               <!-- 签诗（金色签诗匣） -->
@@ -248,7 +256,7 @@ const tipText = computed(() => {
         <!-- 说明与合规 -->
         <view class="footnote">
           <text class="footnote-text">
-            《孔明神卦》相传为武侯所著，所想之事皆可提示，签辞源于古书。签辞仅提供一种启示，或作为其他工具的辅助参考，切不可太过依赖、迷信，内容仅供参考。
+            金钱课，即六十四卦金钱卦，相传为周文王所创，故又称文王六十四卦。签辞源自古籍，仅提供一种启示，可作为其他工具的辅助参考。
           </text>
         </view>
         <disclaimer
@@ -272,16 +280,16 @@ const tipText = computed(() => {
   &:active { background: rgba(0, 0, 0, 0.05); }
 }
 
-/* ── 铜钱（纯 CSS 乾隆通宝意象：铜底圆钱 + 方孔） ── */
-.coins { display: flex; justify-content: center; gap: 16rpx; }
-.coins-sm { margin-top: 32rpx; }
+/* ── 铜钱（纯 CSS 乾隆通宝意象：铜底圆钱 + 方孔；6 枚横排） ── */
+.coins { display: flex; justify-content: center; gap: 12rpx; }
 .coin {
   position: relative;
-  width: 104rpx; height: 104rpx; border-radius: 50%;
+  width: 88rpx; height: 88rpx; border-radius: 50%;
   background: radial-gradient(circle at 35% 30%, #e8c87c, #c9a353 55%, #9a7532);
   border: 4rpx solid #8a6828;
   box-shadow: inset 0 2rpx 8rpx rgba(255, 255, 255, 0.5), 0 4rpx 10rpx rgba(0, 0, 0, 0.15);
   display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
 }
 .coin-back {
   background: radial-gradient(circle at 35% 30%, #c4a464, #a07f3d 55%, #6f5322);
@@ -295,17 +303,14 @@ const tipText = computed(() => {
 }
 .coin-hole {
   position: absolute; top: 50%; left: 50%;
-  width: 28rpx; height: 28rpx; transform: translate(-50%, -50%);
+  width: 24rpx; height: 24rpx; transform: translate(-50%, -50%);
   background: var(--bg-paper); border: 3rpx solid #8a6828; border-radius: 4rpx;
 }
 .coin-mark {
-  position: absolute; right: 8rpx; bottom: 6rpx;
+  position: absolute; right: 6rpx; bottom: 4rpx;
   font-family: Georgia, 'Times New Roman', 'Songti SC', 'SimSun', serif;
-  font-size: 24rpx; font-weight: 700; color: #5f471d;
+  font-size: 22rpx; font-weight: 700; color: #5f471d;
 }
-.coin-sm { width: 88rpx; height: 88rpx; }
-.coin-hole-sm { width: 24rpx; height: 24rpx; }
-.coin-mark-sm { font-size: 22rpx; }
 
 .coins-tip { margin-top: 32rpx; padding-top: 24rpx; border-top: 1rpx solid var(--line); }
 .coins-tip-text { display: block; text-align: center; font-size: 26rpx; line-height: 1.7; color: var(--text-soft); }
@@ -334,6 +339,18 @@ const tipText = computed(() => {
   font-size: 34rpx; font-weight: 700;
 }
 .hex-meta { margin-top: 8rpx; font-size: 26rpx; color: var(--text-soft); }
+
+/* ── 卦象六爻图（V0 HexFigure：w120/barH10/gap8 → 240/20/16rpx；lines 自下而上用 column-reverse） ── */
+.hexfig {
+  margin-top: 32rpx;
+  display: flex; flex-direction: column-reverse; gap: 16rpx;
+  width: 240rpx;
+}
+.hf-row { width: 100%; }
+.hf-bar { width: 100%; height: 20rpx; border-radius: 4rpx; background: var(--text-ink); }
+.hf-split { display: flex; gap: 34rpx; width: 100%; }
+.hf-split .hf-bar { flex: 1; }
+.hf-yin { background: #c2413b; }
 
 .poem-box {
   margin-top: 40rpx; width: 100%; box-sizing: border-box;
