@@ -13,6 +13,8 @@ import { onLoad, onReachBottom } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import AppLoadMore from '@/components/common/app-load-more.vue'
 import SmartCover from '@/components/common/smart-cover.vue'
+import CourseCard from '@/components/cards/course-card.vue'
+import SectionHeader from '@/components/courses/section-header.vue'
 import { navigateTo } from '@/utils/router'
 import { courseApi } from '@/lib/course-data'
 import { coursesListApi, courseSortOptions } from '@/lib/courses-list-data'
@@ -29,8 +31,31 @@ const statusBarHeight = ref(0)
 const banners = ref<any[]>([])
 // 秒杀横条课程（含现价/原价/折扣）
 const flashSaleCourses = ref<any[]>([])
+// 分专栏数据（精选/排行/新课·getHome 一次返回，横向陈列做层次）
+const featured = ref<any[]>([])
+const ranking = ref<any[]>([])
+const newCourses = ref<any[]>([])
 // 分类 Tab（真实有课程的一级品类，含「全部」）
 const categoryTabs = ref<{ id: string; name: string }[]>([])
+
+// 分类名 → 图标/色（国学质感线条）。未知分类兜底 graduation-cap
+const CATEGORY_ICON: Record<string, { icon: string; color: string }> = {
+  八字命理: { icon: 'scroll-text', color: '#C0392B' },
+  紫微斗数: { icon: 'star', color: '#8E44AD' },
+  风水堪舆: { icon: 'compass', color: '#16A085' },
+  风水: { icon: 'compass', color: '#16A085' },
+  易经: { icon: 'book-marked', color: '#2980B9' },
+  周易: { icon: 'book-marked', color: '#2980B9' },
+  中医养生: { icon: 'stethoscope', color: '#27AE60' },
+  养生: { icon: 'leaf', color: '#7F8C8D' },
+  书法: { icon: 'pen-tool', color: '#D35400' },
+  奇门遁甲: { icon: 'mountain', color: '#2C3E50' },
+  国学: { icon: 'landmark', color: '#B7791F' },
+  命理: { icon: 'scroll-text', color: '#C0392B' },
+}
+function catIcon(name: string) { return CATEGORY_ICON[name] || { icon: 'graduation-cap', color: '#C41E3A' } }
+// 图标分类导航：取真实有课程的一级品类（去「全部」），最多 10 个成 2 行
+const iconCategories = computed(() => categoryTabs.value.filter((t) => t.id !== 'all').slice(0, 10))
 
 // 轮播
 const currentBanner = ref(0)
@@ -95,6 +120,9 @@ async function loadHeader() {
     ])
     banners.value = home.banners ?? []
     flashSaleCourses.value = home.flashSale ?? []
+    featured.value = home.featured ?? []
+    ranking.value = home.ranking ?? []
+    newCourses.value = home.newCourses ?? []
     categoryTabs.value = tabs
     startBannerTimer()
     if (flashSaleCourses.value.length) startCountdown()
@@ -192,6 +220,22 @@ function openMyLearning() { navigateTo('/courses/my-learning') }
 
     <!-- ══ Content ══ -->
     <view v-else class="body-pad">
+      <!-- ══ 图标分类导航（国学质感线条·点击筛选主列表）══ -->
+      <view v-if="iconCategories.length" class="cat-grid">
+        <view
+          v-for="t in iconCategories" :key="t.id"
+          class="cat-item" hover-class="btn-press"
+          @tap="selectCategory(t.id)"
+        >
+          <view class="cat-ico" :style="{ background: catIcon(t.name).color + '1a' }">
+            <app-icon :name="catIcon(t.name).icon" :size="42" :color="catIcon(t.name).color" />
+          </view>
+          <text class="cat-label">{{ t.name }}</text>
+        </view>
+      </view>
+
+      <!-- 分专栏（默认「全部」态才陈列，进入具体分类时聚焦列表）-->
+      <template v-if="activeCategory === 'all'">
       <!-- ══ 区块3 推荐位轮播（可选·有运营数据才显示）══ -->
       <view v-if="banners.length" class="banner">
         <view
@@ -245,9 +289,41 @@ function openMyLearning() { navigateTo('/courses/my-learning') }
         </scroll-view>
       </view>
 
-      <!-- ══ 区块6 排序切换（列表标题 + 右侧胶囊）══ -->
+      <!-- ══ 精选好课（横滑大卡·编辑严选）══ -->
+      <view v-if="featured.length" class="sec">
+        <section-header icon="award" title="精选好课" subtitle="编辑严选" icon-color="#C0392B" />
+        <scroll-view class="rail-row" scroll-x :show-scrollbar="false">
+          <view class="rail-inner">
+            <course-card v-for="c in featured" :key="c.id" :data="c" variant="rail" />
+          </view>
+        </scroll-view>
+      </view>
+
+      <!-- ══ 热门排行（榜单·学员都在学）══ -->
+      <view v-if="ranking.length" class="sec">
+        <section-header icon="flame" title="热门排行" subtitle="学员都在学" icon-color="#E74C3C" />
+        <view class="rank-list">
+          <course-card
+            v-for="(c, i) in ranking" :key="c.id"
+            :data="c" variant="rank" :rank="i + 1"
+          />
+        </view>
+      </view>
+
+      <!-- ══ 新上架（横滑·抢先学习）══ -->
+      <view v-if="newCourses.length" class="sec">
+        <section-header icon="sparkles" title="新上架" subtitle="抢先学习" icon-color="#2980B9" />
+        <scroll-view class="rail-row" scroll-x :show-scrollbar="false">
+          <view class="rail-inner">
+            <course-card v-for="c in newCourses" :key="c.id" :data="c" variant="rail" />
+          </view>
+        </scroll-view>
+      </view>
+      </template>
+
+      <!-- ══ 区块6 全部课程（分类筛选 + 排序 + 单列大卡）══ -->
       <view class="sort-row">
-        <text class="sort-label serif">精选课程</text>
+        <text class="sort-label serif">{{ activeCategory === 'all' ? '全部课程' : categoryTabs.find(t => t.id === activeCategory)?.name || '课程' }}</text>
         <view class="sort-btn" hover-class="btn-press" @tap="showSortSheet = true">
           <text class="sort-btn-txt">{{ activeSortName }}</text>
           <app-icon name="chevron-down" :size="24" color="#6E6E73" />
@@ -372,6 +448,28 @@ function openMyLearning() { navigateTo('/courses/my-learning') }
 
 /* ── 内容主体间距 ── */
 .body-pad { padding: 24rpx 40rpx 32rpx; display: flex; flex-direction: column; gap: 24rpx; }
+
+/* ── 图标分类导航（2 行网格·宣纸质感）── */
+.cat-grid {
+  display: flex; flex-wrap: wrap;
+  background: #FFFFFF; border-radius: 28rpx;
+  padding: 28rpx 8rpx 12rpx; box-shadow: 0 2rpx 6rpx rgba(0,0,0,0.04);
+}
+.cat-item {
+  width: 20%; display: flex; flex-direction: column; align-items: center;
+  gap: 14rpx; margin-bottom: 20rpx;
+}
+.cat-ico {
+  width: 88rpx; height: 88rpx; border-radius: 24rpx;
+  display: flex; align-items: center; justify-content: center;
+}
+.cat-label { font-size: 24rpx; color: #2C2C2C; }
+
+/* ── 分专栏（section）── */
+.sec { display: flex; flex-direction: column; gap: 20rpx; }
+.rail-row { white-space: nowrap; }
+.rail-inner { display: inline-flex; gap: 20rpx; padding-bottom: 4rpx; }
+.rank-list { display: flex; flex-direction: column; background: #FFFFFF; border-radius: 28rpx; padding: 8rpx 24rpx; box-shadow: 0 2rpx 6rpx rgba(0,0,0,0.04); }
 
 /* ── 区块3 推荐位轮播 16:9 ── */
 .banner { position: relative; border-radius: 36rpx; overflow: hidden; box-shadow: 0 2rpx 6rpx rgba(0,0,0,0.04); }

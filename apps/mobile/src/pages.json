@@ -2088,6 +2088,12 @@
       "root": "pkg-mine",
       "pages": [
         {
+          "path": "role-apply/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
           "path": "settings/index",
           "style": {
             "navigationStyle": "custom"

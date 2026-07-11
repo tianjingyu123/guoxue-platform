@@ -167,6 +167,12 @@ export class SmartFeedService {
         items = await this.getDefaultFeed(userId, pageSize);
     }
 
+    // 空兜底：某分层策略无产出（如 normal 段 personalized 返空 / 该段数据源恰好为空）时，
+    // 回落到热门混排（新手池：热门文章/课程/古籍/视频），确保任何用户首页都有内容、不留白。
+    if (items.length === 0) {
+      items = await this.getNewUserFeed(userId, pageSize);
+    }
+
     // 质量因子（创-P1·任务八接线）：qualityScore 作为排序因子（权重 0.3）·<40 分标记软限流
     const { items: qualityWeighted, lowQuality } = await this.applyQualityWeight(items);
 
