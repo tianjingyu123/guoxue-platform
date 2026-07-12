@@ -461,6 +461,15 @@ export class MarketingController {
     return this.marketing.listPages(stationId);
   }
 
+  // 用户端公开接口：须声明在 pages/:id 之前，否则 /pages/by-route 被 :id 动态段捕获→命中鉴权 401
+  @Get("pages/by-route")
+  @ApiOperation({ summary: "根据路由获取已发布的微页面（用户端公开·游客可读）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiQuery({ name: "route", required: true, type: String, description: "页面路由路径" })
+  getPublishedPageByRoute(@Query("route") route: string) {
+    return this.marketing.getPublishedPageByRoute(route);
+  }
+
   @Get("pages/:id")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
@@ -598,18 +607,6 @@ export class MarketingController {
   @ApiBearerAuth()
   rollbackPage(@Param("id") id: string, @Param("versionId") versionId: string) {
     return this.marketing.rollbackPage(id, versionId);
-  }
-
-  // ═══════════════════════════════════════
-  // 用户端公开接口
-  // ═══════════════════════════════════════
-
-  @Get("pages/by-route")
-  @ApiOperation({ summary: "根据路由获取已发布的微页面（用户端公开）" })
-  @ApiResponse({ status: 200, description: "成功" })
-  @ApiQuery({ name: "route", required: true, type: String, description: "页面路由路径" })
-  getPublishedPageByRoute(@Query("route") route: string) {
-    return this.marketing.getPublishedPageByRoute(route);
   }
 
   // ═══════════════════════════════════════
