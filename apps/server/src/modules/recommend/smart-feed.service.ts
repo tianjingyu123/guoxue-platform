@@ -13,7 +13,7 @@ import { AiGatewayService } from "../ai-gateway/ai-gateway.service";
  *   classic 古籍 / live 直播 / paipan 排盘钩子卡 / agent 智能体引导卡。
  * circle、ebook 保留仅作历史兼容（首页帖子统一走 post；电子书板块已下线）。
  */
-interface FeedItem {
+export interface FeedItem {
   id: string;
   type:
     | "video"
@@ -250,6 +250,46 @@ export class SmartFeedService {
       return new Set(arr.map((t) => String(t) as FeedItem["type"]));
     } catch {
       return null; // 读取/解析失败 → 不限制（诚实降级，不误伤内容）
+    }
+  }
+
+  /**
+   * 按类别取内容 feed（发现页分区用·统一信封）。type ∈ course/classic/video/live/article/post/product。
+   * 复用各类型查询与 mapXxx 映射，返回该类别的一页 FeedItem[]（分页）。
+   */
+  async getCategoryFeed(type: string, page = 1, size = 6): Promise<FeedItem[]> {
+    const skip = (Math.max(1, page) - 1) * size;
+    try {
+      switch (type) {
+        case "course": {
+          const rows = await this.prisma.course.findMany({ where: { auditStatus: "APPROVED" }, select: COURSE_SELECT, orderBy: { studentCount: "desc" }, take: size, skip });
+          return rows.map((c) => this.mapCourse(c, "精选课程"));
+        }
+        case "classic": {
+          const rows = await this.prisma.classicBook.findMany({ where: { status: "PUBLISHED" }, select: CLASSIC_SELECT, orderBy: { viewCount: "desc" }, take: size, skip });
+          return rows.map((b) => this.mapClassic(b, "经典古籍"));
+        }
+        case "article": {
+          const rows = await this.prisma.article.findMany({ where: { auditStatus: "APPROVED" }, select: ARTICLE_SELECT, orderBy: { viewCount: "desc" }, take: size, skip });
+          return rows.map((a) => this.mapArticle(a, "热门文章"));
+        }
+        case "product": {
+          const rows = await this.prisma.product.findMany({ where: { status: "ON_SALE" }, select: PRODUCT_SELECT, orderBy: { createdAt: "desc" }, take: size, skip });
+          return rows.map((p) => this.mapProduct(p, "严选好物"));
+        }
+        case "post": {
+          const rows = await this.prisma.post.findMany({ where: { status: "PUBLISHED", isEssence: true }, select: POST_SELECT, orderBy: { createdAt: "desc" }, take: size, skip });
+          return rows.map((p) => this.mapPost(p, "圈内精华"));
+        }
+        case "video":
+          return this.getVideoItems(size, "热门短视频", skip);
+        case "live":
+          return this.getLiveItems(size, "正在直播", skip);
+        default:
+          return [];
+      }
+    } catch {
+      return [];
     }
   }
 
@@ -611,7 +651,7 @@ export class SmartFeedService {
    * 短视频源 → 信封。查已发布、全平台可见、非私密视频；author 取创作者昵称/头像。
    * 该表在部分单测 mock 中未提供，捕获异常按空源降级（不影响其它类）。
    */
-  private async getVideoItems(take: number, reason: string): Promise<FeedItem[]> {
+  private async getVideoItems(take: number, reason: string, skip = 0): Promise<FeedItem[]> {
     if (take <= 0) return [];
     try {
       const videos = await this.prisma.video.findMany({
@@ -628,6 +668,7 @@ export class SmartFeedService {
         },
         orderBy: { viewCount: "desc" },
         take,
+        skip,
       });
       return videos.map((v: any): FeedItem => ({
         id: v.id,
@@ -652,7 +693,7 @@ export class SmartFeedService {
    * 直播源 → 信封。查进行中（LIVING）与预告（WAITING）、全平台可见、审核通过的直播；
    * 进行中优先（isLive）。该表在部分单测 mock 中未提供，捕获异常按空源降级。
    */
-  private async getLiveItems(take: number, reason: string): Promise<FeedItem[]> {
+  private async getLiveItems(take: number, reason: string, skip = 0): Promise<FeedItem[]> {
     if (take <= 0) return [];
     try {
       const lives = await this.prisma.liveRoom.findMany({
@@ -671,6 +712,7 @@ export class SmartFeedService {
         },
         orderBy: [{ status: "asc" }, { viewCount: "desc" }],
         take,
+        skip,
       });
       return lives.map((l: any): FeedItem => {
         const isLive = l.status === "LIVING";

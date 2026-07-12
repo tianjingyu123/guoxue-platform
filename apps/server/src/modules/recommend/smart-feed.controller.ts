@@ -48,6 +48,20 @@ export class SmartFeedController {
     return this.feed.getFeed(userId, Number(page), Number(pageSize));
   }
 
+  @Get("smart-feed/category")
+  @ApiOperation({ summary: "按类别取内容流（发现页分区·公开）", description: "type∈course/classic/video/live/article/post/product·统一信封·分页" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiQuery({ name: "type", required: true, type: String })
+  @ApiQuery({ name: "page", required: false, type: Number })
+  @ApiQuery({ name: "size", required: false, type: Number })
+  async getCategoryFeed(
+    @Query("type") type: string,
+    @Query("page") page = 1,
+    @Query("size") size = 6,
+  ) {
+    return { items: await this.feed.getCategoryFeed(String(type), Number(page), Number(size)) };
+  }
+
   @Post("smart-feed/refresh")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "刷新AI智能信息流（重新生成排序）" })
