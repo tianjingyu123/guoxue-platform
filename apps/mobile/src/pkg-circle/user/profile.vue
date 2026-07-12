@@ -94,7 +94,9 @@ async function loadRelationAndConsult() {
   try {
     const p = await imApi.getRelationPolicy(userIdStr.value)
     relation.value = p.relation
-    canDM.value = p.relation === 'circle' || p.relation === 'paid' || p.relation === 'mutual' || p.relation === 'following'
+    // IM 私信暂未开放（待腾讯 TIM 打通）：董事长拍板全平台暂时隐藏发私信入口，避免用户进入收发不了的私信流。
+    // TIM 集成完成后恢复下行原判定即可。付费咨询/关注不受影响。
+    canDM.value = false
   } catch {
     // 拿不到关系：保守按"不可私信"处理（策略B 下隐藏私信入口）
     canDM.value = false

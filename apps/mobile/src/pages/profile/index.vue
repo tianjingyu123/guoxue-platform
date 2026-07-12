@@ -110,8 +110,8 @@ const orderStatus = computed(() => [
 const matrixItems: { icon: string; label: string; href?: string; star?: boolean; comingSoon?: boolean }[] = [
   { icon: 'bookmark', label: '收藏', href: '/favorites' },
   { icon: 'history', label: '足迹', href: '/history' },
-  // 「我的发布」暂无真实页（全平台无 my-posts/my-articles/my-content 页）→ 诚实降级为「功能开发中」，避免指向死页
-  { icon: 'edit', label: '我的发布', comingSoon: true },
+  // 「我的发布」价值有限（多数用户不发布·发布走圈子/创作者流各自管理）→ 董事长拍板换为「我的评价」（真实页·更有用）
+  { icon: 'message-circle', label: '我的评价', href: '/mine/my-comments' },
   { icon: 'compass', label: '我的排盘记录', href: '/paipan', star: true },
   { icon: 'book-open', label: '我的课程', href: '/courses/my-learning' },
   // 我的书架 → 古籍板块「我的书房」书架（真连收藏/进度），与古籍馆书架对齐
