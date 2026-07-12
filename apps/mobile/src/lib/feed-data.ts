@@ -228,6 +228,22 @@ function adapt(raw: RawFeedItem): FeedEnvelope | null {
  * - 登录：个性化分层流；未登录：后端返回匿名热门流（游客也能预览首页，不再白屏）。
  * - 失败/空：返回 []，静默降级。
  */
+/**
+ * 按类别取内容流（发现页分区用）— GET /recommend/smart-feed/category（公开）。
+ * type ∈ course/classic/video/live/article/post/product。返回该类别一页统一信封卡。
+ */
+export async function getCategoryFeed(type: string, page = 1, size = 6): Promise<FeedEnvelope[]> {
+  try {
+    const data = await apiGet<{ items?: RawFeedItem[] }>(
+      `/recommend/smart-feed/category?type=${encodeURIComponent(type)}&page=${page}&size=${size}`,
+    )
+    const raw = Array.isArray(data?.items) ? data.items : []
+    return raw.map(adapt).filter((x): x is FeedEnvelope => x !== null)
+  } catch {
+    return []
+  }
+}
+
 export async function getSmartFeed(page = 1, pageSize = 20): Promise<FeedEnvelope[]> {
   try {
     const data = await apiGet<{ items?: RawFeedItem[] }>(
