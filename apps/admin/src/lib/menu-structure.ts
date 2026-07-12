@@ -90,7 +90,8 @@ const MENU_GROUPS: Array<LeafDef | GroupDef> = [
       {
         title: "推荐与搜索",
         children: [
-          M("/platform-layout", "平台页面布局"),
+          // 平台页面布局：可视化搭建器体验不佳（无拖拽），平台布局改由研发代码调整（董事长拍板 2026-07-12）→ 菜单隐藏，路由保留可直达
+          // M("/platform-layout", "平台页面布局"),
           M("/contents/recommend"),
           M("/recommend/rules"),
           M("/recommend/ab-tests"),
@@ -141,7 +142,8 @@ const MENU_GROUPS: Array<LeafDef | GroupDef> = [
           M("/marketing/full-reductions"),
           M("/coupons"),
           M("/marketing/coupons"),
-          M("/marketing/pages"),
+          // 站长促销微页面管理：将被「站长主推位前端自服务」取代（董事长拍板 2026-07-12）→ 菜单隐藏，路由保留可直达
+          // M("/marketing/pages"),
           M("/marketing/landing-pages"),
         ],
       },
