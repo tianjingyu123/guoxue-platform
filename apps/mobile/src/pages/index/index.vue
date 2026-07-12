@@ -14,6 +14,7 @@ import FeedCard from '@/components/feed/feed-card.vue'
 import BottomNav from '@/components/bottom-nav/bottom-nav.vue'
 import { navigateTo } from '@/utils/router'
 import { getSmartFeed, sendFeedback, ratioPadding, type FeedEnvelope } from '@/lib/feed-data'
+import { getUiConfig } from '@/lib/ui-config-data'
 
 // 自定义导航栏留白
 const statusBarHeight = ref(0)
@@ -57,6 +58,8 @@ async function loadFeed(reset = false) {
 
 async function init() {
   loading.value = true
+  // 运营配置驱动：大卡出现频率由后端 ConfigSystem(home.bigCardInterval) 决定（失败用默认 6）
+  getUiConfig().then((cfg) => { bigCardInterval.value = cfg.home.bigCardInterval }).catch(() => {})
   try {
     await loadFeed(true)
   } finally {

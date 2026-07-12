@@ -145,6 +145,14 @@ export class SystemController {
     return this.systemService.healthCheck();
   }
 
+  // ── 前端 UI 运营配置（公开只读·P1 运营配置最小闭环）──
+  @Get("ui-config")
+  @ApiOperation({ summary: "前端 UI 运营配置（公开·配置驱动首页大卡频率/智能体色系等）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  async getUiConfig() {
+    return this.systemService.getUiConfig();
+  }
+
   // ── 维护模式 ──
 
   @Get("maintenance")

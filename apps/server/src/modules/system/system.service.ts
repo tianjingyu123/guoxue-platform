@@ -47,6 +47,42 @@ export class SystemService {
     return config;
   }
 
+  /**
+   * 前端 UI 运营配置（公开只读·P1 运营配置最小闭环）。
+   * 从 ConfigSystem 读取 UI 相关键，缺省用默认值，保证前端永不拿到空配置。
+   * 后台改 ConfigSystem 对应键即前端生效（配置驱动展示）。
+   */
+  async getUiConfig() {
+    const readNum = async (key: string, def: number): Promise<number> => {
+      try {
+        const row = await this.getConfig(key);
+        const n = Number((row as { configValue?: string } | null)?.configValue);
+        return Number.isFinite(n) && n > 0 ? n : def;
+      } catch {
+        return def;
+      }
+    };
+    const readJson = async <T>(key: string, def: T): Promise<T> => {
+      try {
+        const row = await this.getConfig(key);
+        const raw = (row as { configValue?: string } | null)?.configValue;
+        return raw ? (JSON.parse(raw) as T) : def;
+      } catch {
+        return def;
+      }
+    };
+    const [bigCardInterval, agentCardColors] = await Promise.all([
+      readNum("home.bigCardInterval", 6),
+      readJson<Record<string, string>>("agent_card.categoryColors", {
+        文案生成: "g-copy",
+        分析报告: "g-analyze",
+        古籍查询: "g-classic",
+        办公效率: "g-office",
+      }),
+    ]);
+    return { home: { bigCardInterval }, agentCard: { categoryColors: agentCardColors } };
+  }
+
   async setConfig(key: string, value: string, description?: string, updatedBy?: string) {
     // 第三方密钥：merge（掩码/空字段不覆盖原值）+ 加密存储
     const storedValue = this.thirdParty.isThirdPartyKey(key)
@@ -106,13 +142,17 @@ export class SystemService {
 
   /** 公开：获取品牌配置（全端品牌露出的唯一来源·无记录时返回内置默认值） */
   async getBrandConfig() {
+    // H5 支付通道开关（pay_h5_provider: 'huifu'=走汇付聚合 / 其它=直连兜底·默认 direct）。
+    // 单独读取、不进品牌缓存 → 后台切换即时生效；前端启动拉 brand-config 时一并拿到。
+    const flagRow = await this.getConfig("pay_h5_provider");
+    const payH5Provider = flagRow?.configValue === "huifu" ? "huifu" : "direct";
     const cached = await this.redis.getJson<Record<string, string>>(CONFIG_CACHE_PREFIX + "brand");
-    if (cached) return cached;
+    if (cached) return { ...cached, payH5Provider };
     const row = await this.prisma.brandConfig.findUnique({ where: { id: "default" } });
     // merge 默认值：将来新增字段时旧记录也能拿到兜底值
     const result = { ...SystemService.DEFAULT_BRAND_CONFIG, ...(row ?? {}) };
     await this.redis.setJson(CONFIG_CACHE_PREFIX + "brand", result, CONFIG_CACHE_TTL);
-    return result;
+    return { ...result, payH5Provider };
   }
 
   /** 管理端：更新品牌配置（只更新传入字段·改一处配置全端生效） */
