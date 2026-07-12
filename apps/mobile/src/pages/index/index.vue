@@ -111,6 +111,30 @@ function goFocus() {
 const leftColumn = computed(() => flowItems.value.filter((_, i) => i % 2 === 0))
 const rightColumn = computed(() => flowItems.value.filter((_, i) => i % 2 === 1))
 
+// ── 分段混排：每 N 张标准卡（双列）后插 1 张 2:1 全宽大卡，打破节奏突出重点 ──
+// N（大卡出现频率）预留后端运营配置驱动（微页面/运营位机制）：后端配置就绪后由 loadHomeConfig 覆盖，
+// 现默认 6（规范：每 5-10 条一次）。TODO(config): GET /system/home-config → bigCardInterval
+const bigCardInterval = ref(6)
+type FeedSegment = { left: FeedEnvelope[]; right: FeedEnvelope[]; big: FeedEnvelope | null }
+const feedSegments = computed<FeedSegment[]>(() => {
+  const items = flowItems.value
+  const step = Math.max(3, bigCardInterval.value || 6)
+  const segs: FeedSegment[] = []
+  let i = 0
+  while (i < items.length) {
+    const chunk = items.slice(i, i + step)
+    i += step
+    let big: FeedEnvelope | null = null
+    if (i < items.length) { big = items[i]; i += 1 } // 段末取一张作全宽大卡（不与双列重复）
+    segs.push({
+      left: chunk.filter((_, k) => k % 2 === 0),
+      right: chunk.filter((_, k) => k % 2 === 1),
+      big,
+    })
+  }
+  return segs
+})
+
 // ── Tab 切换 ──
 function switchTab(id: TabId) {
   // 直播广场胶囊在模板内单独走 goPlaza，此处只处理频道 Tab
@@ -284,33 +308,39 @@ function backToTop() {
         </view>
       </view>
 
-      <!-- 双列瀑布流：feed-card 九类卡分发（长按呼负反馈浮层） -->
-      <view class="flow">
-        <view class="col">
-          <view
-            v-for="item in leftColumn"
-            :key="item.id"
-            @touchstart="onCardTouchStart(item, $event)"
-            @touchmove="onCardTouchMove"
-            @touchend="onCardTouchEnd"
-            @touchcancel="onCardTouchEnd"
-          >
-            <feed-card :item="item" />
+      <!-- 分段混排瀑布流：每段双列九类卡 + 段末 2:1 全宽大卡（长按呼负反馈浮层） -->
+      <template v-for="(seg, si) in feedSegments" :key="'seg' + si">
+        <view class="flow">
+          <view class="col">
+            <view
+              v-for="item in seg.left"
+              :key="item.id"
+              @touchstart="onCardTouchStart(item, $event)"
+              @touchmove="onCardTouchMove"
+              @touchend="onCardTouchEnd"
+              @touchcancel="onCardTouchEnd"
+            >
+              <feed-card :item="item" />
+            </view>
+          </view>
+          <view class="col">
+            <view
+              v-for="item in seg.right"
+              :key="item.id"
+              @touchstart="onCardTouchStart(item, $event)"
+              @touchmove="onCardTouchMove"
+              @touchend="onCardTouchEnd"
+              @touchcancel="onCardTouchEnd"
+            >
+              <feed-card :item="item" />
+            </view>
           </view>
         </view>
-        <view class="col">
-          <view
-            v-for="item in rightColumn"
-            :key="item.id"
-            @touchstart="onCardTouchStart(item, $event)"
-            @touchmove="onCardTouchMove"
-            @touchend="onCardTouchEnd"
-            @touchcancel="onCardTouchEnd"
-          >
-            <feed-card :item="item" />
-          </view>
+        <!-- 2:1 全宽大卡 -->
+        <view v-if="seg.big" class="big-wrap">
+          <feed-card :item="seg.big" :big="true" />
         </view>
-      </view>
+      </template>
 
       <!-- 加载更多 / 到底提示 -->
       <view v-if="loadingMore" class="more-tip"><text class="more-tip-txt">加载中…</text></view>
@@ -502,8 +532,10 @@ function backToTop() {
 }
 
 /* ── 双列瀑布流 ── */
-.flow { display: flex; gap: 18rpx; padding: 0 24rpx 24rpx; }
+.flow { display: flex; gap: 18rpx; padding: 0 24rpx 18rpx; }
 .col { flex: 1; display: flex; flex-direction: column; gap: 18rpx; min-width: 0; }
+/* 2:1 全宽大卡：独占一行，页边距与瀑布流一致 */
+.big-wrap { padding: 0 24rpx 18rpx; }
 
 /* 加载更多 / 到底 */
 .more-tip { display: flex; align-items: center; justify-content: center; padding: 32rpx 0; }
