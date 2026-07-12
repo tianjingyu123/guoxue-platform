@@ -12,6 +12,7 @@
 
 import { apiGet, apiPost } from '@/utils/request'
 import { getToken } from '@/utils/storage'
+import { getCachedUiConfig } from '@/lib/ui-config-data'
 
 // ============================================
 // 统一信封契约（与后端 smart-feed 对齐）
@@ -145,9 +146,23 @@ const AGENT_THEMES: Record<AgentColorScheme, AgentTheme> = {
   classic: { scheme: 'classic', gradient: 'linear-gradient(135deg,#F5F0E8,#EBE0D0,#F1E8DA)', icon: 'book-open',  iconStroke: '#8A7A55', accent: '#C9A96E' },
   office:  { scheme: 'office',  gradient: 'linear-gradient(135deg,#EEF0F5,#E0E5EE,#EAEDF4)', icon: 'briefcase',  iconStroke: '#6B7896', accent: '#9BAAD1' },
 }
-/** payload.category（或 subtitle 领域）→ 色系主题；无法判定则暖金 */
+/**
+ * payload.category（或 subtitle 领域）→ 色系主题；无法判定则暖金。
+ * 后台配置优先：category 精确命中 ConfigSystem.agent_card.categoryColors（如 文案生成→g-copy）→ 用配置色系；
+ * 否则退回关键字正则。→ 智能体卡配色后台可配。
+ */
 export function agentTheme(item: FeedEnvelope): AgentTheme {
-  const raw = (payloadStr(item, 'category') || item.subtitle || '').toString()
+  const cat = (payloadStr(item, 'category') || '').toString()
+  // 配置驱动：精确匹配后台 category→色系映射（值形如 'g-copy'/'copy'，归一去 g- 前缀）
+  if (cat) {
+    const map = getCachedUiConfig().agentCard.categoryColors
+    const val = map?.[cat]
+    if (val) {
+      const scheme = String(val).replace(/^g-/, '') as AgentColorScheme
+      if (AGENT_THEMES[scheme]) return AGENT_THEMES[scheme]
+    }
+  }
+  const raw = (cat || item.subtitle || '').toString()
   if (/分析|报告|命理|八字|占|测|运势|数据/.test(raw)) return AGENT_THEMES.analyze
   if (/古籍|典故|字|经|书|译|注|查询/.test(raw)) return AGENT_THEMES.classic
   if (/办公|效率|纪要|周报|待办|助理|工作/.test(raw)) return AGENT_THEMES.office
