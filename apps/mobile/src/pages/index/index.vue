@@ -15,6 +15,8 @@ import BottomNav from '@/components/bottom-nav/bottom-nav.vue'
 import { navigateTo } from '@/utils/router'
 import { getSmartFeed, sendFeedback, ratioPadding, type FeedEnvelope } from '@/lib/feed-data'
 import { getUiConfig } from '@/lib/ui-config-data'
+import { getPublishedLayout, type LayoutBlock } from '@/lib/page-layout-data'
+import BlockRenderer from '@/components/layout/block-renderer.vue'
 
 // 自定义导航栏留白
 const statusBarHeight = ref(0)
@@ -56,10 +58,15 @@ async function loadFeed(reset = false) {
   if (items.length < PAGE_SIZE) noMore.value = true
 }
 
+// 平台微页面：首页顶部运营楼层（后台「微页面编辑器」搭 route='home' 平台页发布 → 此处渲染；无则不显示）
+const homeBlocks = ref<LayoutBlock[]>([])
+
 async function init() {
   loading.value = true
   // 运营配置驱动：大卡出现频率由后端 ConfigSystem(home.bigCardInterval) 决定（失败用默认 6）
   getUiConfig().then((cfg) => { bigCardInterval.value = cfg.home.bigCardInterval }).catch(() => {})
+  // 运营楼层：拉已发布平台微页面（有则渲染在瀑布流之上·无则空）
+  getPublishedLayout('home').then((l) => { homeBlocks.value = l.blocks }).catch(() => {})
   try {
     await loadFeed(true)
   } finally {
@@ -284,6 +291,9 @@ function backToTop() {
       @scroll="onScroll"
       @scrolltolower="onLoadMore"
     >
+      <!-- 运营楼层（后台微页面编辑器·route='home'·有已发布则渲染在最上，无则不显示） -->
+      <view v-if="homeBlocks.length" class="home-blocks"><block-renderer :blocks="homeBlocks" /></view>
+
       <!-- 焦点区（编辑式·直播优先）：16:10 大卡 + 底部渐变衬底 + 直播中动效 -->
       <view v-if="focusItem" class="focus" hover-class="focus-press" @tap="goFocus">
         <view class="focus-ratio">
@@ -539,6 +549,8 @@ function backToTop() {
 .col { flex: 1; display: flex; flex-direction: column; gap: 18rpx; min-width: 0; }
 /* 2:1 全宽大卡：独占一行，页边距与瀑布流一致 */
 .big-wrap { padding: 0 24rpx 18rpx; }
+/* 运营楼层（微页面区块） */
+.home-blocks { padding: 8rpx 0 12rpx; }
 
 /* 加载更多 / 到底 */
 .more-tip { display: flex; align-items: center; justify-content: center; padding: 32rpx 0; }
