@@ -12,7 +12,7 @@
       <view class="sheet-head">
         <view class="head-row">
           <text class="sheet-title">{{ board === 'home' ? '首页主推位 · 选择内容' : '选择' + boardLabel }}</text>
-          <view class="close-btn" @tap="emitClose"><text>×</text></view>
+          <view class="close-btn" @tap="emitClose"><text class="close-x">×</text></view>
         </view>
 
         <!-- 搜索框 -->
@@ -284,19 +284,24 @@ onMounted(loadList)
   font-weight: 600;
   color: #2c2c2c;
 }
+/* 关闭按钮：视觉 54rpx 圆，热区扩到 76rpx（负 margin 抵消占位·v2.1 热区规范） */
 .close-btn {
-  width: 54rpx;
-  height: 54rpx;
-  border-radius: 50%;
-  background: #f5f2ec;
+  width: 76rpx;
+  height: 76rpx;
+  margin: -11rpx -11rpx -11rpx 0;
   display: flex;
   align-items: center;
   justify-content: center;
 }
-.close-btn text {
-  font-size: 34rpx;
+.close-x {
+  width: 54rpx;
+  height: 54rpx;
+  border-radius: 50%;
+  background: #f5f2ec;
   color: #9b9691;
-  line-height: 1;
+  font-size: 34rpx;
+  line-height: 54rpx;
+  text-align: center;
 }
 
 /* 搜索 */

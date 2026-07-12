@@ -52,7 +52,7 @@
                   <text v-if="!slot.content.cover" class="cover-char">{{ firstChar(slot.content.title) }}</text>
                   <text class="replace-badge">点击替换</text>
                 </view>
-                <view class="pin-remove" @tap.stop="removeContent(b, slot)"><text>×</text></view>
+                <view class="pin-remove" @tap.stop="removeContent(b, slot)"><view class="pin-remove-ic"><text>×</text></view></view>
                 <view class="pin-body">
                   <text class="pin-title">{{ slot.content.title }}</text>
                   <text class="pin-sub">{{ typeLabel(slot.content.contentType) }}</text>
@@ -468,10 +468,20 @@ onLoad((q?: Record<string, string>) => {
   background: rgba(0, 0, 0, 0.45);
   padding: 4rpx 0;
 }
+/* 移除角标：视觉 38rpx 黑圆，热区扩到 64rpx 防误触（v2.1 热区规范） */
 .pin-remove {
   position: absolute;
-  top: 8rpx;
-  right: 8rpx;
+  top: 0;
+  right: 0;
+  width: 64rpx;
+  height: 64rpx;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  padding: 6rpx;
+  z-index: 2;
+}
+.pin-remove-ic {
   width: 38rpx;
   height: 38rpx;
   border-radius: 50%;
@@ -479,9 +489,8 @@ onLoad((q?: Record<string, string>) => {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 2;
 }
-.pin-remove text {
+.pin-remove-ic text {
   color: #fff;
   font-size: 26rpx;
   line-height: 1;
