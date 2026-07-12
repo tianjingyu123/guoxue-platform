@@ -116,9 +116,10 @@ const matrixItems: { icon: string; label: string; href?: string; star?: boolean;
   { icon: 'book-open', label: '我的课程', href: '/courses/my-learning' },
   // 我的书架 → 古籍板块「我的书房」书架（真连收藏/进度），与古籍馆书架对齐
   { icon: 'book-open', label: '我的书架', href: '/pkg-classics/bookshelf/index' },
-  { icon: 'users', label: '我的圈子', href: '/pkg-circle/my-circles/index' },
-  // 我的会话 → AI 对话历史（真连智能体对话记录），不再指向未做的 IM 私信
-  { icon: 'message-circle', label: '我的会话', href: '/agents/history' },
+  // 我的圈子 → 圈子板块「我的」门户 /pkg-circle/circles/me（与圈子页右上角头像入口指向同一页）
+  { icon: 'users', label: '我的圈子', href: '/pkg-circle/circles/me' },
+  // AI 会话 → AI 对话历史（真连智能体对话记录），不再指向未做的 IM 私信
+  { icon: 'message-circle', label: 'AI会话', href: '/agents/history' },
 ]
 
 async function fetchData() {
@@ -351,7 +352,7 @@ function applyRole(role: string) {
     <!-- ===== ⑦ 服务与设置 ===== -->
     <view class="svc">
       <view class="svc-item" @tap="go('/agents/history')">
-        <AppIcon name="message-circle" :size="40" color="#2B2620" /><text class="svc-label">我的会话</text>
+        <AppIcon name="message-circle" :size="40" color="#2B2620" /><text class="svc-label">AI会话</text>
       </view>
       <view class="svc-item" @tap="go('/agent/customer-service')">
         <AppIcon name="customer-service" :size="40" color="#2B2620" /><text class="svc-label">联系客服</text>

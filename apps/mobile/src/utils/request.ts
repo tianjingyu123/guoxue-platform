@@ -55,13 +55,20 @@ function isAuthEntryPath(path: string): boolean {
  * access token(2h)过期时，用 refreshToken(30天)无感换取新 token，避免频繁重新短信登录(降成本)。
  * 并发去重：多个请求同时 401 时只发一次刷新、共享结果。返回是否刷新成功。
  */
-let _refreshing: Promise<boolean> | null = null
-export function refreshAccessToken(): Promise<boolean> {
+/**
+ * 刷新结果三态（修复"链接服务器超时被误退出登录"）：
+ * - 'ok'          刷新成功，重试原请求
+ * - 'auth-fail'   refreshToken 缺失/失效（真·登录过期）→ 才清登录态跳登录
+ * - 'network-fail' 刷新请求网络失败/超时（瞬时）→ 绝不退出登录，原请求走网络错误由页面重试
+ */
+export type RefreshResult = 'ok' | 'auth-fail' | 'network-fail'
+let _refreshing: Promise<RefreshResult> | null = null
+export function refreshAccessToken(): Promise<RefreshResult> {
   if (_refreshing) return _refreshing
-  _refreshing = new Promise<boolean>((resolve) => {
-    const done = (ok: boolean) => { _refreshing = null; resolve(ok) }
+  _refreshing = new Promise<RefreshResult>((resolve) => {
+    const done = (r: RefreshResult) => { _refreshing = null; resolve(r) }
     const rt = getRefreshToken()
-    if (!rt) { done(false); return }
+    if (!rt) { done('auth-fail'); return } // 无 refreshToken = 真未登录
     uni.request({
       url: `${BASE_URL}${PREFIX}/auth/refresh`,
       method: 'POST',
@@ -73,12 +80,14 @@ export function refreshAccessToken(): Promise<boolean> {
         if (res.statusCode === 200 && body?.code === 200 && body.data?.accessToken) {
           setToken(body.data.accessToken)
           if (body.data.refreshToken) setRefreshToken(body.data.refreshToken)
-          done(true)
+          done('ok')
         } else {
-          done(false)
+          // 服务端明确拒绝（refreshToken 过期/无效）→ 真登录过期
+          done('auth-fail')
         }
       },
-      fail: () => done(false),
+      // 网络失败/超时：瞬时问题，不判定为登录过期（此前 fail 返 false 导致超时即被退出）
+      fail: () => done('network-fail'),
     })
   })
   return _refreshing
@@ -148,9 +157,10 @@ function apiFetch<T>(path: string, method: Method, data?: unknown, header?: Reco
             reject(new Error(body?.message || '账号或验证码错误'))
           } else if (!_retried) {
             // access 过期：用 refreshToken 无感换新 token 后重试原请求(30天免登录，降短信成本)；
-            // 刷新失败(refreshToken 也过期)才清登录态跳登录页。
-            refreshAccessToken().then((ok) => {
-              if (ok) resolve(apiFetch<T>(path, method, data, header, true, timeoutMs))
+            // 仅当 refreshToken 真失效(auth-fail)才退出；刷新时网络超时(network-fail)不退出，避免"链接超时被误退出"。
+            refreshAccessToken().then((r) => {
+              if (r === 'ok') resolve(apiFetch<T>(path, method, data, header, true, timeoutMs))
+              else if (r === 'network-fail') reject(new Error('网络连接超时，请稍后重试'))
               else { handleUnauthorized(); reject(new Error('未登录或登录已过期')) }
             })
           } else {
@@ -198,8 +208,9 @@ export function apiGetPaged<T>(path: string, header?: Record<string, string>, _r
           // 与 apiFetch 同款无感续期（此前直接登出是「几小时就要重新登录」的真凶之一：
           // access 2h 过期后碰到任何分页列表页即被踢，refreshToken 30 天形同虚设——董事长 2026-07-11 反馈修复）
           if (!_retried) {
-            refreshAccessToken().then((ok) => {
-              if (ok) resolve(apiGetPaged<T>(path, header, true))
+            refreshAccessToken().then((r) => {
+              if (r === 'ok') resolve(apiGetPaged<T>(path, header, true))
+              else if (r === 'network-fail') reject(new Error('网络连接超时，请稍后重试'))
               else { handleUnauthorized(); reject(new Error('未登录或登录已过期')) }
             })
           } else {
@@ -246,8 +257,9 @@ export function uploadImage(filePath: string, _retried = false): Promise<string>
       success: (res) => {
         if (res.statusCode === 401) {
           if (!_retried) {
-            refreshAccessToken().then((ok) => {
-              if (ok) resolve(uploadImage(filePath, true))
+            refreshAccessToken().then((r) => {
+              if (r === 'ok') resolve(uploadImage(filePath, true))
+              else if (r === 'network-fail') reject(new Error('网络连接超时，请稍后重试'))
               else { handleUnauthorized(); reject(new Error('未登录或登录已过期')) }
             })
             return
@@ -289,8 +301,9 @@ export function uploadVideo(filePath: string, onProgress?: (percent: number) => 
       success: (res) => {
         if (res.statusCode === 401) {
           if (!_retried) {
-            refreshAccessToken().then((ok) => {
-              if (ok) resolve(uploadVideo(filePath, onProgress, true))
+            refreshAccessToken().then((r) => {
+              if (r === 'ok') resolve(uploadVideo(filePath, onProgress, true))
+              else if (r === 'network-fail') reject(new Error('网络连接超时，请稍后重试'))
               else { handleUnauthorized(); reject(new Error('未登录或登录已过期')) }
             })
             return
@@ -333,8 +346,9 @@ export function uploadDocument(filePath: string, _retried = false): Promise<stri
       success: (res) => {
         if (res.statusCode === 401) {
           if (!_retried) {
-            refreshAccessToken().then((ok) => {
-              if (ok) resolve(uploadDocument(filePath, true))
+            refreshAccessToken().then((r) => {
+              if (r === 'ok') resolve(uploadDocument(filePath, true))
+              else if (r === 'network-fail') reject(new Error('网络连接超时，请稍后重试'))
               else { handleUnauthorized(); reject(new Error('未登录或登录已过期')) }
             })
             return

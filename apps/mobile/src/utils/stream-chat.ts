@@ -77,10 +77,11 @@ export async function streamChat(
     body: JSON.stringify(body ?? {}),
   })
 
-  // 401：access token 过期 → 无感续期后重试一次
+  // 401：access token 过期 → 无感续期后重试一次（网络超时不判为登录过期）
   if (resp.status === 401 && !_retried) {
-    const ok = await refreshAccessToken()
-    if (ok) return streamChat(path, body, handlers, true)
+    const r = await refreshAccessToken()
+    if (r === 'ok') return streamChat(path, body, handlers, true)
+    if (r === 'network-fail') throw new Error('网络连接超时，请稍后重试')
     throw new Error('未登录或登录已过期')
   }
 
