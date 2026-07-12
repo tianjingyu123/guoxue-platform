@@ -1469,6 +1469,7 @@ function adaptProductCard(p: RawShopProduct): ProductCardData {
     sales: p.salesCount ?? 0,
     tag: p.hasPromotion ? (p.promotionTag || '促销') : undefined,
     isOfficialSelfOwned: !!p.isOfficialSelfOwned,
+    coverRatio: '1:1', // 商城商品主图规范=1:1（电商通用 800×800）；此处仅商城板块数据源，不影响发现页 feed 的 3:4 容器
   }
 }
 

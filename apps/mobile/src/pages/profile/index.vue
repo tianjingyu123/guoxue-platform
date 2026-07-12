@@ -107,15 +107,18 @@ const orderStatus = computed(() => [
 ])
 
 /* ===== 内容矩阵 2×4（排盘记录=战略位轻强调 star） ===== */
-const matrixItems: { icon: string; label: string; href: string; star?: boolean }[] = [
+const matrixItems: { icon: string; label: string; href?: string; star?: boolean; comingSoon?: boolean }[] = [
   { icon: 'bookmark', label: '收藏', href: '/favorites' },
   { icon: 'history', label: '足迹', href: '/history' },
-  { icon: 'edit', label: '我的发布', href: '/mine/my-posts' },
+  // 「我的发布」暂无真实页（全平台无 my-posts/my-articles/my-content 页）→ 诚实降级为「功能开发中」，避免指向死页
+  { icon: 'edit', label: '我的发布', comingSoon: true },
   { icon: 'compass', label: '我的排盘记录', href: '/paipan', star: true },
   { icon: 'book-open', label: '我的课程', href: '/courses/my-learning' },
-  { icon: 'book-open', label: '我的书架', href: '/mine/notes' },
+  // 我的书架 → 古籍板块「我的书房」书架（真连收藏/进度），与古籍馆书架对齐
+  { icon: 'book-open', label: '我的书架', href: '/pkg-classics/bookshelf/index' },
   { icon: 'users', label: '我的圈子', href: '/pkg-circle/my-circles/index' },
-  { icon: 'message-circle', label: '我的会话', href: '/pkg-im/im/conversations' },
+  // 我的会话 → AI 对话历史（真连智能体对话记录），不再指向未做的 IM 私信
+  { icon: 'message-circle', label: '我的会话', href: '/agents/history' },
 ]
 
 async function fetchData() {
@@ -155,7 +158,7 @@ onMounted(() => {
   fetchEquippedTitle()
 })
 
-function go(href: string) {
+function go(href?: string) {
   if (href) navigateTo(href)
 }
 /** 我的页订单状态 key → 订单列表页 tab key */
@@ -196,7 +199,7 @@ function applyRole(role: string) {
     <view class="id-area" :style="{ paddingTop: statusBarHeight + 14 + 'px' }">
       <!-- 右上角操作：消息（带未读红点）+ 设置 -->
       <view class="top-acts" :style="{ top: statusBarHeight + 6 + 'px' }">
-        <view class="top-act" @tap="go('/pkg-im/im/conversations')">
+        <view class="top-act" @tap="go('/notifications')">
           <AppIcon name="message-circle" :size="44" color="#2B2620" />
           <view v-if="totalMessages > 0" class="dot" />
         </view>
@@ -230,7 +233,7 @@ function applyRole(role: string) {
       </view>
 
       <!-- 会员金卡条：会员=暖金渐变金底深字 / 非会员=宣纸衬底金描边 -->
-      <view v-if="userData.isVip" class="gold-bar gold-bar--member" @tap="go('/pkg-mine/memberships/index')">
+      <view v-if="userData.isVip" class="gold-bar gold-bar--member" @tap="go('/vip')">
         <view class="gb-crown"><AppIcon name="crown" :size="34" color="#8A6B38" /></view>
         <view class="gb-txt">
           <text class="gb-title gb-title--member">书院会员 · {{ userData.vipLevel || '专属权益' }}</text>
@@ -238,7 +241,7 @@ function applyRole(role: string) {
         </view>
         <view class="gb-cta gb-cta--member"><text class="gb-cta-txt gb-cta-txt--member">续费</text></view>
       </view>
-      <view v-else class="gold-bar gold-bar--guest" @tap="go('/pkg-mine/memberships/index')">
+      <view v-else class="gold-bar gold-bar--guest" @tap="go('/vip')">
         <view class="gb-crown"><AppIcon name="crown" :size="34" color="#C9A96E" /></view>
         <view class="gb-txt">
           <text class="gb-title gb-title--guest">开通书院会员</text>
@@ -306,7 +309,7 @@ function applyRole(role: string) {
 
     <!-- ===== ⑤ 我的内容矩阵 2×4 ===== -->
     <view class="matrix">
-      <view v-for="m in matrixItems" :key="m.label" class="m-item" :class="{ star: m.star }" @tap="go(m.href)">
+      <view v-for="m in matrixItems" :key="m.label" class="m-item" :class="{ star: m.star }" @tap="m.comingSoon ? toastComingSoon() : go(m.href)">
         <view class="m-icon">
           <AppIcon :name="m.icon" :size="40" :color="m.star ? '#B4884A' : '#2B2620'" />
           <view v-if="m.star" class="m-star-dot" />
@@ -347,10 +350,10 @@ function applyRole(role: string) {
 
     <!-- ===== ⑦ 服务与设置 ===== -->
     <view class="svc">
-      <view class="svc-item" @tap="go('/pkg-im/im/conversations')">
+      <view class="svc-item" @tap="go('/agents/history')">
         <AppIcon name="message-circle" :size="40" color="#2B2620" /><text class="svc-label">我的会话</text>
       </view>
-      <view class="svc-item" @tap="go('/help')">
+      <view class="svc-item" @tap="go('/agent/customer-service')">
         <AppIcon name="customer-service" :size="40" color="#2B2620" /><text class="svc-label">联系客服</text>
       </view>
       <view class="svc-item" @tap="go('/help')">

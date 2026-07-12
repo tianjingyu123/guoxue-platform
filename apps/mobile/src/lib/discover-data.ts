@@ -11,7 +11,7 @@ export const coreEntries = [
   { id: 'classics', icon: 'scroll-text', label: '古籍馆', href: '/pkg-classics/home/index' },
   { id: 'audiobook', icon: 'headphones', label: '听书', href: '/pkg-classics/audiobooks/index' },
   { id: 'paipan', icon: 'layout-grid', label: '排盘', href: '/pages/paipan/index' },
-  { id: 'competition', icon: 'trophy', label: '赛事', href: '/competition/home' },
+  { id: 'article', icon: 'file-text', label: '文章', href: '/pkg-circle/articles/index' },
   { id: 'agent', icon: 'bot', label: '智能体广场', href: '/agents' },
   { id: 'circles', icon: 'users', label: '圈子广场', href: '/pages/circles/index' },
   { id: 'video', icon: 'play', label: '视频', href: '/videos' },
