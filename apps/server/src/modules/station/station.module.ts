@@ -10,14 +10,16 @@ import { PromotionService } from "./promotion.service";
 import { StationPaipanSyncService } from "./station-paipan-sync.service";
 import { TeamTaskService } from "./team-task.service";
 import { StationMicroPageController } from "./station-micro-page.controller";
+import { StationPinnedController } from "./station-pinned.controller";
+import { StationPinnedService } from "./station-pinned.service";
 import { RedisModule } from "../../redis/redis.module";
 import { MarketingModule } from "../marketing/marketing.module";
 import { TrackModule } from "../track/track.module";
 
 @Module({
   imports: [RedisModule, MarketingModule, TrackModule],
-  controllers: [StationController, AdminReferralController, PromotionController, StationDashboardController, OperatorDashboardController, StationMicroPageController],
-  providers: [StationService, AdminReferralService, PromotionService, StationDashboardService, StationPaipanSyncService, TeamTaskService],
+  controllers: [StationController, AdminReferralController, PromotionController, StationDashboardController, OperatorDashboardController, StationMicroPageController, StationPinnedController],
+  providers: [StationService, AdminReferralService, PromotionService, StationDashboardService, StationPaipanSyncService, TeamTaskService, StationPinnedService],
   exports: [StationService, AdminReferralService, PromotionService, StationDashboardService, StationPaipanSyncService, TeamTaskService],
 })
 export class StationModule {}

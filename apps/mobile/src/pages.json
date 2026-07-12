@@ -1671,6 +1671,18 @@
       "root": "pkg-operator",
       "pages": [
         {
+          "path": "station-workbench/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "pinned-manage/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
           "path": "customers/index",
           "style": {
             "navigationStyle": "custom"

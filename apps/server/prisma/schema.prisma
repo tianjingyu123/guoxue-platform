@@ -2079,6 +2079,7 @@ model Station {
   paipanLink     String? // 分站在旧排盘系统的专属推广链接（含分站ID参数）
   paipanUserId   String? // 分站在旧排盘系统的用户ID（用于佣金结算同步）
   expireAt       DateTime? // 到期时间
+  pinnedUpdatedAt DateTime? // 最近一次主推位更新时间（S1 工作台展示·主推位自服务）
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
@@ -2145,6 +2146,7 @@ model Station {
   circles         Circle[]
   liveRooms       LiveRoom[]
   picks           StationPick[]
+  pinnedContents  StationPinnedContent[]
   toolConfigs     StationToolConfig[]
   toolRecords     ToolRecord[]
   bountyQuestions BountyQuestion[]
@@ -2174,6 +2176,33 @@ model StationPick {
 
   @@unique([stationId, contentType, contentId])
   @@index([stationId, sortOrder])
+}
+
+// ─────────────────────────────────────────────────
+// 分站主推位（V0 重构·三个「没有」模型的灵魂）
+// 站长把平台内容锁定到「9 板块 × 每板块 6 位」的主推位，
+// 分散注入平台各板块主推位，展示给该站长引流来的归属用户。
+// 无分站装修 / 无独立分站页 / 无独立账号。
+// ─────────────────────────────────────────────────
+
+model StationPinnedContent {
+  id          String   @id @default(uuid())
+  stationId   String
+  board       String // 板块：home/mall/course/circle/agent/ebook/article/video/live
+  slotIndex   Int // 位序 0–5（每板块 6 个主推位）
+  contentType String // 内容类型：course/product/post/agent/ebook/article/video/live_room
+  contentId   String // 对应内容表主键
+  lockedAt    DateTime @default(now()) // 锁定时间
+  lockedBy    String // 操作站长 userId
+  isActive    Boolean  @default(true) // 软删除 / 直播结束后自动置 false
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  station Station @relation(fields: [stationId], references: [id], onDelete: Cascade)
+
+  @@unique([stationId, board, slotIndex])
+  @@index([stationId, board])
+  @@index([board, contentType, contentId]) // 直播结束批量失活用
 }
 
 model Operator {
