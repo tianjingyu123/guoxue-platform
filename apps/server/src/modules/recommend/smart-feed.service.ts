@@ -217,8 +217,12 @@ export class SmartFeedService {
   async getAnonymousFeed(page = 1, pageSize = 20): Promise<SmartFeedResult> {
     const timeSlot = this.resolveTimeSlot();
     let items = await this.getNewUserFeed("", pageSize); // _userId 未被使用，安全传空
+    // 游客可见内容控制：后台配置 ConfigSystem.guest.visibleTypes（JSON 类型白名单）·空/未配 = 全部可见
+    const allow = await this.getGuestVisibleTypes();
+    if (allow) items = items.filter((i) => allow.has(i.type));
     items = this.applyTimeSlotWeight(items, timeSlot);
-    if (items.length > 0) items = this.injectHookCards(items);
+    // 钩子卡（排盘/智能体）也受游客白名单约束
+    if (items.length > 0) items = this.injectHookCards(items, allow);
     items = this.enforceMixDiscipline(items);
     return {
       userId: null as unknown as string,
@@ -227,6 +231,26 @@ export class SmartFeedService {
       timeSlot,
       generatedAt: new Date().toISOString(),
     };
+  }
+
+  /**
+   * 游客可见内容类型白名单（后台 ConfigSystem.guest.visibleTypes）。
+   * 返回 Set 表示仅这些类型对游客可见；返回 null 表示未配置=全部可见。
+   * 后台改此键即控制"未登录用户能看到哪些内容"。
+   */
+  private async getGuestVisibleTypes(): Promise<Set<FeedItem["type"]> | null> {
+    try {
+      const row = await this.prisma.configSystem.findUnique({
+        where: { configKey: "guest.visibleTypes" },
+        select: { configValue: true },
+      });
+      if (!row?.configValue) return null;
+      const arr = JSON.parse(row.configValue) as unknown;
+      if (!Array.isArray(arr) || arr.length === 0) return null; // 空数组视为不限制（避免误配全屏蔽）
+      return new Set(arr.map((t) => String(t) as FeedItem["type"]));
+    } catch {
+      return null; // 读取/解析失败 → 不限制（诚实降级，不误伤内容）
+    }
   }
 
   /** 按请求时刻求当前时段（Asia/Shanghai 时区·与服务器本地时区无关） */
@@ -652,7 +676,7 @@ export class SmartFeedService {
    * agent 插入到稍后位置（第 8 位左右），两者错开避免工具卡相邻；后续 enforceMixDiscipline
    * 再统一保证一屏窗口内工具卡不超过 1 张。
    */
-  private injectHookCards(items: FeedItem[]): FeedItem[] {
+  private injectHookCards(items: FeedItem[], allow?: Set<FeedItem["type"]> | null): FeedItem[] {
     const paipanCard: FeedItem = {
       id: "hook-paipan",
       type: "paipan",
@@ -677,12 +701,17 @@ export class SmartFeedService {
     };
 
     const result = [...items];
-    // paipan 靠前：插到第 3 位（首屏内·前三屏必出）；列表过短则追加到末尾。
-    const paipanPos = Math.min(2, result.length);
-    result.splice(paipanPos, 0, paipanCard);
-    // agent 稍后：插到第 8 位左右，与 paipan 错开一屏。
-    const agentPos = Math.min(7, result.length);
-    result.splice(agentPos, 0, agentCard);
+    // 游客白名单约束：paipan/agent 不在允许类型内则不注入（受"游客可见内容"控制）
+    if (!allow || allow.has("paipan")) {
+      // paipan 靠前：插到第 3 位（首屏内·前三屏必出）；列表过短则追加到末尾。
+      const paipanPos = Math.min(2, result.length);
+      result.splice(paipanPos, 0, paipanCard);
+    }
+    if (!allow || allow.has("agent")) {
+      // agent 稍后：插到第 8 位左右，与 paipan 错开一屏。
+      const agentPos = Math.min(7, result.length);
+      result.splice(agentPos, 0, agentCard);
+    }
     return result;
   }
 
