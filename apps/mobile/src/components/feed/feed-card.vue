@@ -22,8 +22,13 @@ import ClassicCard from './cards/classic-card.vue'
 import LiveCard from './cards/live-card.vue'
 import PaipanCard from './cards/paipan-card.vue'
 import AgentCard from './cards/agent-card.vue'
+import BigCard from './big-card.vue'
 
-const props = defineProps<{ item: FeedEnvelope }>()
+/**
+ * big=true 时渲染 2:1 大卡（独占全宽，H1 按 5-10 条节奏插入时传入），
+ * 否则走九类标准卡注册表分发。点击导航/埋点统一在本组件承载。
+ */
+const props = defineProps<{ item: FeedEnvelope; big?: boolean }>()
 
 const t = computed(() => props.item.type)
 
@@ -64,7 +69,9 @@ function go() {
 
 <template>
   <view class="feed-card-wrap" hover-class="feed-card-press" @tap="go">
-    <video-card v-if="t === 'video'" :item="item" />
+    <!-- 2:1 大卡（独占全宽·按节奏插入） -->
+    <big-card v-if="big" :item="item" />
+    <video-card v-else-if="t === 'video'" :item="item" />
     <article-card v-else-if="t === 'article'" :item="item" />
     <post-card v-else-if="t === 'post'" :item="item" />
     <course-card v-else-if="t === 'course'" :item="item" />

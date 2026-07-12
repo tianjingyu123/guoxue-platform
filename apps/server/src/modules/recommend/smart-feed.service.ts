@@ -209,6 +209,26 @@ export class SmartFeedService {
     };
   }
 
+  /**
+   * 匿名热门流（未登录游客预览用）：不做个性化分层/AI 排序（无 userId），
+   * 直接取热门内容混排（新手池含热门文章/课程/古籍/视频）+ 时段权重 + 钩子卡注入 + 混排纪律。
+   * 让游客也能预览首页，不再白屏。
+   */
+  async getAnonymousFeed(page = 1, pageSize = 20): Promise<SmartFeedResult> {
+    const timeSlot = this.resolveTimeSlot();
+    let items = await this.getNewUserFeed("", pageSize); // _userId 未被使用，安全传空
+    items = this.applyTimeSlotWeight(items, timeSlot);
+    if (items.length > 0) items = this.injectHookCards(items);
+    items = this.enforceMixDiscipline(items);
+    return {
+      userId: null as unknown as string,
+      userSegment: "anonymous",
+      items: items.slice((page - 1) * pageSize, page * pageSize),
+      timeSlot,
+      generatedAt: new Date().toISOString(),
+    };
+  }
+
   /** 按请求时刻求当前时段（Asia/Shanghai 时区·与服务器本地时区无关） */
   private resolveTimeSlot(now: Date = new Date()): TimeSlot {
     const hour = Number(

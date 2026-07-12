@@ -42,8 +42,8 @@ export class SmartFeedController {
   ) {
     const userId = (req as any).user?.id;
     if (!userId) {
-      // 未登录：不构造个性化流（服务需 userId），返回空由前端热门降级
-      return { userId: null, userSegment: "anonymous", items: [], generatedAt: new Date().toISOString() };
+      // 未登录：返回匿名热门流（非个性化），支持游客预览首页（不再返回空白）
+      return this.feed.getAnonymousFeed(Number(page), Number(pageSize));
     }
     return this.feed.getFeed(userId, Number(page), Number(pageSize));
   }

@@ -110,6 +110,52 @@ export function payloadBool(item: FeedEnvelope, key: string): boolean {
 }
 
 // ============================================
+// 时长格式化：秒 → mm:ss（短视频右下 duration 角标用；已是 "mm:ss" 字符串则原样返回）
+// ============================================
+export function formatDuration(v?: number | string): string {
+  if (v == null || v === '') return ''
+  if (typeof v === 'string' && v.includes(':')) return v // 已是 mm:ss
+  const total = typeof v === 'string' ? Number(v) : v
+  if (!Number.isFinite(total) || total <= 0) return ''
+  const m = Math.floor(total / 60)
+  const s = Math.floor(total % 60)
+  return `${m < 10 ? '0' + m : m}:${s < 10 ? '0' + s : s}`
+}
+
+// ============================================
+// 智能体卡分类色系（card-system.html §智能体·4 色系）
+//  文案生成=暖金 / 分析报告=冷紫 / 古籍查询=温润棕 / 办公效率=蓝灰
+//  payload.category 命中关键字 → 对应色系；缺省默认暖金（copy）
+// ============================================
+export type AgentColorScheme = 'copy' | 'analyze' | 'classic' | 'office'
+export interface AgentTheme {
+  scheme: AgentColorScheme
+  /** 动态渐变（background-position 流动） */
+  gradient: string
+  /** 中央图标名（AppIcon） */
+  icon: string
+  /** 图标描边色 */
+  iconStroke: string
+  /** 光晕/角标主色 */
+  accent: string
+}
+const AGENT_THEMES: Record<AgentColorScheme, AgentTheme> = {
+  copy:    { scheme: 'copy',    gradient: 'linear-gradient(135deg,#F5EFE0,#E8DFD0,#F0E7D6)', icon: 'edit',       iconStroke: '#8A7A55', accent: '#C9A96E' },
+  analyze: { scheme: 'analyze', gradient: 'linear-gradient(135deg,#F0E8F5,#E8DCF0,#EFE6F6)', icon: 'trending-up',iconStroke: '#7E6B96', accent: '#B49BD1' },
+  classic: { scheme: 'classic', gradient: 'linear-gradient(135deg,#F5F0E8,#EBE0D0,#F1E8DA)', icon: 'book-open',  iconStroke: '#8A7A55', accent: '#C9A96E' },
+  office:  { scheme: 'office',  gradient: 'linear-gradient(135deg,#EEF0F5,#E0E5EE,#EAEDF4)', icon: 'briefcase',  iconStroke: '#6B7896', accent: '#9BAAD1' },
+}
+/** payload.category（或 subtitle 领域）→ 色系主题；无法判定则暖金 */
+export function agentTheme(item: FeedEnvelope): AgentTheme {
+  const raw = (payloadStr(item, 'category') || item.subtitle || '').toString()
+  if (/分析|报告|命理|八字|占|测|运势|数据/.test(raw)) return AGENT_THEMES.analyze
+  if (/古籍|典故|字|经|书|译|注|查询/.test(raw)) return AGENT_THEMES.classic
+  if (/办公|效率|纪要|周报|待办|助理|工作/.test(raw)) return AGENT_THEMES.office
+  if (/文案|写作|生成|创作|营销|获客/.test(raw)) return AGENT_THEMES.copy
+  return AGENT_THEMES.copy
+}
+
+// ============================================
 // API 层
 // ============================================
 
@@ -164,11 +210,10 @@ function adapt(raw: RawFeedItem): FeedEnvelope | null {
 
 /**
  * 获取智能信息流 — GET /recommend/smart-feed/feed（OptionalAuth）。
- * - 未登录：不发请求（个性化需 userId），返回 []，由页面回退热门流承载，绝不白屏。
+ * - 登录：个性化分层流；未登录：后端返回匿名热门流（游客也能预览首页，不再白屏）。
  * - 失败/空：返回 []，静默降级。
  */
 export async function getSmartFeed(page = 1, pageSize = 20): Promise<FeedEnvelope[]> {
-  if (!getToken()) return []
   try {
     const data = await apiGet<{ items?: RawFeedItem[] }>(
       `/recommend/smart-feed/feed?page=${page}&pageSize=${pageSize}`,

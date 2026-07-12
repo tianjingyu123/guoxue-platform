@@ -191,9 +191,8 @@ function backToTop() {
     <app-network-bar />
     <customer-service-fab />
 
-    <!-- 品牌行（自定义导航顶栏，实色吸顶） -->
+    <!-- 顶栏（自定义导航·实色吸顶）：品牌字按董事长要求去掉，仅留搜索入口靠右 -->
     <view class="brand-row" :style="{ paddingTop: statusBarHeight + 'px' }">
-      <view class="brand">热<text class="brand-em">卜</text>国学</view>
       <view class="search-btn" hover-class="btn-press" @tap="goSearch">
         <AppIcon name="search" :size="32" color="#8A8578" :stroke-width="2" />
       </view>
@@ -358,7 +357,7 @@ function backToTop() {
   height: auto;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   padding: 12rpx 24rpx 8rpx;
   background-color: #FAF8F5;
 }

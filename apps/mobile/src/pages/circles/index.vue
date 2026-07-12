@@ -172,7 +172,10 @@ onShow(() => {
             v-for="c in circles" :key="c.id"
             class="circle-card" @tap="go(`/pkg-circle/circles/detail?id=${c.id}`)"
           >
-            <smart-cover :src="c.cover" :title="c.name" type="circle" class="card-cover" />
+            <!-- 首图 3:4（上传规范：圈子封面 960×1280·3:4）-->
+            <view class="card-cover">
+              <smart-cover :src="c.cover" :title="c.name" type="circle" class="card-cover-img" />
+            </view>
             <view class="card-body">
               <text class="card-title">{{ c.name }}</text>
               <text class="card-desc">{{ c.description }}</text>
@@ -319,7 +322,9 @@ onShow(() => {
   box-shadow: 0 2rpx 8rpx rgba(44, 44, 44, 0.04);
 }
 .circle-card:active { transform: scale(0.99); }
-.card-cover { width: 140rpx; height: 140rpx; border-radius: 24rpx; flex-shrink: 0; }
+/* 首图 3:4（上传规范：圈子封面 3:4·960×1280）：150×200rpx 缩略图完整展示比例 */
+.card-cover { position: relative; width: 150rpx; height: 200rpx; border-radius: 24rpx; overflow: hidden; flex-shrink: 0; background: #f2efea; }
+.card-cover-img { position: absolute; inset: 0; width: 100%; height: 100%; }
 .card-body { flex: 1; min-width: 0; }
 .card-title { display: block; font-size: 30rpx; font-weight: 600; color: var(--text-primary, #2c2c2c); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .card-desc { display: block; font-size: 24rpx; color: var(--text-secondary, #6e6e73); margin-top: 6rpx; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; }
@@ -338,7 +343,7 @@ onShow(() => {
 
 /* 骨架 */
 .sk-card { display: flex; gap: 24rpx; background: var(--bg-card, #fff); border-radius: 32rpx; padding: 24rpx; }
-.sk-cover { width: 140rpx; height: 140rpx; border-radius: 24rpx; background: #f2efea; flex-shrink: 0; }
+.sk-cover { width: 150rpx; height: 200rpx; border-radius: 24rpx; background: #f2efea; flex-shrink: 0; }
 .sk-body { flex: 1; padding-top: 12rpx; }
 .sk-line { height: 28rpx; background: #f2efea; border-radius: 8rpx; margin-bottom: 16rpx; }
 .sk-line.w3 { width: 70%; }

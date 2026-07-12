@@ -1,34 +1,27 @@
 <script setup lang="ts">
-/** 短视频卡 · 首帧竖图 3:4 · 右上时长胶囊 · ▶播放量 */
+/**
+ * 短视频卡 · 统一 3:4（首帧 cover 填满）· 左上「视」朱红印章 · 右下时长角标（mm:ss ▶）
+ * 去数字化：不显播放量，meta 右侧钩子（subtitle 或「看视频」）
+ */
 import { computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import SmartCover from '@/components/common/smart-cover.vue'
-import {
-  type FeedEnvelope,
-  ratioPadding,
-  formatCount,
-  payloadStr,
-} from '@/lib/feed-data'
+import { type FeedEnvelope, payloadStr, formatDuration } from '@/lib/feed-data'
 
 const props = defineProps<{ item: FeedEnvelope }>()
-const pad = computed(() => ratioPadding(props.item.coverRatio || '3:4'))
-const duration = computed(() => payloadStr(props.item, 'duration'))
-const metricVal = computed(() => {
-  const m = props.item.metric
-  if (m && (m.kind === 'play' || m.kind === 'view')) return formatCount(m.value as number)
-  return m ? String(m.value) : ''
-})
+const duration = computed(() => formatDuration(payloadStr(props.item, 'duration')))
+const hook = computed(() => props.item.subtitle || '看视频')
 const avatarChar = computed(() => (props.item.author?.name || '').charAt(0))
 </script>
 
 <template>
   <view class="fcard">
-    <view class="cov" :style="{ paddingTop: pad }">
+    <view class="cov">
       <smart-cover :src="item.cover" :title="item.title" type="default" class="cov-img" />
-      <!-- 播放遮罩按钮 -->
-      <view class="play-btn"><app-icon name="play" :size="36" color="#ffffff" :fill="true" /></view>
-      <!-- 右上时长胶囊（深底白字） -->
-      <text v-if="duration" class="dur">{{ duration }}</text>
+      <view class="play-btn"><app-icon name="play" :size="34" color="#ffffff" :fill="true" /></view>
+      <text class="seal serif">视</text>
+      <!-- 右下时长角标 -->
+      <text v-if="duration" class="badge br">{{ duration }} ▶</text>
     </view>
     <view class="body">
       <text class="title">{{ item.title }}</text>
@@ -36,26 +29,34 @@ const avatarChar = computed(() => (props.item.author?.name || '').charAt(0))
         <view v-if="item.author?.avatar" class="ava"><image class="ava-img" :src="item.author.avatar" mode="aspectFill" /></view>
         <view v-else class="ava"><text class="ava-char">{{ avatarChar }}</text></view>
         <text class="name">{{ item.author?.name }}</text>
-        <view class="metric"><app-icon name="play" :size="22" color="#999999" :fill="true" /><text class="metric-t">{{ metricVal }}</text></view>
+        <text class="hook">{{ hook }} ›</text>
       </view>
     </view>
   </view>
 </template>
 
 <style scoped>
-.fcard { background: #fff; border-radius: 24rpx; overflow: hidden; box-shadow: 0 2rpx 12rpx rgba(60,50,40,.06); }
-.cov { position: relative; width: 100%; overflow: hidden; background: #f2efea; }
+.fcard { background: #fff; border-radius: 24rpx; overflow: hidden; box-shadow: 0 2rpx 8rpx rgba(60,50,40,.06); }
+.cov { position: relative; width: 100%; padding-top: 133.33%; overflow: hidden; background: #f6f1e7; }
 .cov-img { position: absolute; inset: 0; width: 100%; height: 100%; }
 .play-btn {
   position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-  width: 76rpx; height: 76rpx; border-radius: 999rpx; background: rgba(0,0,0,.38);
-  display: flex; align-items: center; justify-content: center;
+  width: 72rpx; height: 72rpx; border-radius: 999rpx; background: rgba(0,0,0,.38);
+  display: flex; align-items: center; justify-content: center; z-index: 2;
 }
-.dur {
-  position: absolute; top: 16rpx; right: 16rpx;
-  font-size: 20rpx; color: #fff; padding: 4rpx 12rpx; border-radius: 999rpx; background: rgba(0,0,0,.6);
+.seal {
+  position: absolute; top: 16rpx; left: 16rpx; width: 44rpx; height: 44rpx; border-radius: 12rpx;
+  background: rgba(196,30,58,.92); color: #fff; font-size: 24rpx; font-weight: 700;
+  display: flex; align-items: center; justify-content: center; z-index: 3;
+  font-family: var(--font-serif, 'STSong', serif);
 }
-.body { padding: 20rpx; }
+.badge {
+  position: absolute; font-size: 20rpx; color: #fff; background: rgba(20,15,10,.55);
+  border-radius: 8rpx; padding: 4rpx 12rpx; z-index: 3;
+}
+.badge.br { right: 16rpx; bottom: 16rpx; }
+.serif { font-family: var(--font-serif, 'STSong', serif); }
+.body { padding: 18rpx 20rpx 22rpx; }
 .title {
   display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
   font-size: 28rpx; line-height: 1.45; font-weight: 500; color: #2c2c2c;
@@ -64,7 +65,6 @@ const avatarChar = computed(() => (props.item.author?.name || '').charAt(0))
 .ava { width: 36rpx; height: 36rpx; border-radius: 999rpx; overflow: hidden; flex-shrink: 0; background: rgba(150,150,150,.18); display: flex; align-items: center; justify-content: center; }
 .ava-img { width: 100%; height: 100%; }
 .ava-char { font-size: 20rpx; color: #6e6e73; }
-.name { flex: 1; min-width: 0; font-size: 24rpx; color: #6e6e73; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.metric { display: flex; align-items: center; gap: 4rpx; flex-shrink: 0; }
-.metric-t { font-size: 22rpx; color: #999; }
+.name { flex: 1; min-width: 0; font-size: 22rpx; color: #9a9184; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.hook { flex-shrink: 0; font-size: 22rpx; color: #8a6420; }
 </style>

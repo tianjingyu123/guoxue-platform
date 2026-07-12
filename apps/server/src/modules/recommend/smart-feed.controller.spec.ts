@@ -14,6 +14,7 @@ describe("SmartFeedController", () => {
           provide: SmartFeedService,
           useValue: {
             getFeed: jest.fn(),
+            getAnonymousFeed: jest.fn(),
           },
         },
       ],
@@ -80,11 +81,14 @@ describe("SmartFeedController", () => {
       expect(result).toEqual(feedResult);
     });
 
-    it("未登录返回空信息流（热门降级），不调用 getFeed", async () => {
+    it("未登录返回匿名热门流（游客预览），走 getAnonymousFeed 不调用 getFeed", async () => {
+      const anonResult = { userId: null as unknown as string, userSegment: "anonymous", items: [{ id: "a1", type: "course" as const, title: "热门课", score: 1, reason: "热门" }], generatedAt: "2026-05-15T00:00:00.000Z" };
+      svc.getAnonymousFeed.mockResolvedValue(anonResult);
       const result = await ctrl.getSmartFeedOptional({} as any);
       expect(svc.getFeed).not.toHaveBeenCalled();
-      expect(result.items).toEqual([]);
+      expect(svc.getAnonymousFeed).toHaveBeenCalled();
       expect(result.userSegment).toBe("anonymous");
+      expect(result.items.length).toBeGreaterThan(0);
     });
 
     it("自定义分页参数透传", async () => {
