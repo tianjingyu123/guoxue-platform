@@ -216,7 +216,7 @@ export class SmartFeedService {
    */
   async getAnonymousFeed(page = 1, pageSize = 20): Promise<SmartFeedResult> {
     const timeSlot = this.resolveTimeSlot();
-    let items = await this.getNewUserFeed("", pageSize); // _userId 未被使用，安全传空
+    let items = await this.getBroadFeed(pageSize); // 广口径 7 类·首页展示全部卡片形态
     // 游客可见内容控制：后台配置 ConfigSystem.guest.visibleTypes（JSON 类型白名单）·空/未配 = 全部可见
     const allow = await this.getGuestVisibleTypes();
     if (allow) items = items.filter((i) => allow.has(i.type));
@@ -373,6 +373,32 @@ export class SmartFeedService {
       ...courses.map((c): FeedItem => this.mapCourse(c, "入门课程")),
       ...classics.map((b): FeedItem => this.mapClassic(b, "经典必读")),
       ...videos,
+    ];
+  }
+
+  /**
+   * 广口径混排（游客/预览首页用）：7 类内容全覆盖（文章/课程/古籍/视频/直播/商品/精华帖），
+   * 确保首页能展示全部卡片形态。仅 getAnonymousFeed 使用，不影响登录分层策略与其测试。
+   */
+  private async getBroadFeed(size: number): Promise<FeedItem[]> {
+    const per = Math.max(2, Math.floor(size / 6));
+    const [articles, courses, classics, videos, lives, products, posts] = await Promise.all([
+      this.prisma.article.findMany({ where: { auditStatus: "APPROVED" }, select: ARTICLE_SELECT, orderBy: { viewCount: "desc" }, take: per }),
+      this.prisma.course.findMany({ where: { auditStatus: "APPROVED" }, select: COURSE_SELECT, orderBy: { studentCount: "desc" }, take: per }),
+      this.prisma.classicBook.findMany({ where: { status: "PUBLISHED" }, select: CLASSIC_SELECT, orderBy: { viewCount: "desc" }, take: per }),
+      this.getVideoItems(per, "为你推荐"),
+      this.getLiveItems(per, "正在直播"),
+      this.prisma.product.findMany({ where: { status: "ON_SALE" }, select: PRODUCT_SELECT, orderBy: { createdAt: "desc" }, take: per }),
+      this.prisma.post.findMany({ where: { status: "PUBLISHED", isEssence: true }, select: POST_SELECT, orderBy: { createdAt: "desc" }, take: per }),
+    ]);
+    return [
+      ...articles.map((a): FeedItem => this.mapArticle(a, "新手推荐")),
+      ...courses.map((c): FeedItem => this.mapCourse(c, "入门课程")),
+      ...classics.map((b): FeedItem => this.mapClassic(b, "经典必读")),
+      ...videos,
+      ...lives,
+      ...products.map((p): FeedItem => this.mapProduct(p, "严选好物")),
+      ...posts.map((p): FeedItem => this.mapPost(p, "圈内精华")),
     ];
   }
 
