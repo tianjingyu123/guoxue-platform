@@ -534,6 +534,11 @@ export class UpdateMarketingPageDto {
   @IsOptional()
   @IsBoolean()
   entryVisible?: boolean;
+
+  // 页面状态：DRAFT（草稿/下线）/ PUBLISHED（已发布）。用于「下线/停用」把已发布页改回草稿态。
+  @IsOptional()
+  @IsIn(["DRAFT", "PUBLISHED"])
+  status?: string;
 }
 
 export class CreatePageComponentDto {

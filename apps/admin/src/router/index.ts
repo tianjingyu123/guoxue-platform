@@ -433,6 +433,12 @@ const routes = [
         meta: { title: "微页面管理", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
       },
       {
+        path: "platform-layout",
+        name: "PlatformLayout",
+        component: () => import("@/views/marketing/PlatformLayout.vue"),
+        meta: { title: "平台页面布局", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
+      },
+      {
         path: "marketing/full-reductions",
         name: "FullReductionList",
         component: () => import("@/views/marketing/FullReductionList.vue"),

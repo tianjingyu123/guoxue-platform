@@ -90,6 +90,7 @@ const MENU_GROUPS: Array<LeafDef | GroupDef> = [
       {
         title: "推荐与搜索",
         children: [
+          M("/platform-layout", "平台页面布局"),
           M("/contents/recommend"),
           M("/recommend/rules"),
           M("/recommend/ab-tests"),

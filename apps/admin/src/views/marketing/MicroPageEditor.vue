@@ -16,7 +16,12 @@
       style="margin-bottom:12px"
     >
       <template #title>
-        <span style="font-size:13px">展示位置：通过路径（如 <b>/promo/spring</b>）在小程序中独立展示。可嵌入轮播、秒杀、拼团、商品等组件。发布后用户可见。</span>
+        <div style="font-size:13px;line-height:1.7">
+          <div><b>微页面 = 独立的促销/活动页</b>，通过路径（如 <b>/promo/spring</b>）在小程序中独立展示，可嵌入轮播、秒杀、拼团、商品、大卡等区块。</div>
+          <div style="color:#8b4513">
+            使用流程：① 点「创建微页面」填名称与路径 → ② 进入「编辑」拖入组件 → ③ 点「预览」查看效果 → ④ 点「发布」用户即可见；如需临时隐藏点「下线」回到草稿。
+          </div>
+        </div>
       </template>
     </el-alert>
     <el-alert
@@ -55,15 +60,28 @@
       </el-table-column>
       <el-table-column
         label="状态"
-        width="90"
+        width="110"
       >
         <template #default="{ row }">
           <el-tag
-            :type="row.status === 'PUBLISHED' ? 'success' : 'info'"
+            v-if="row.status === 'PUBLISHED'"
+            type="success"
             size="small"
           >
-            {{ row.status === 'PUBLISHED' ? '已发布' : '草稿' }}
+            已发布 · 用户可见
           </el-tag>
+          <el-tooltip
+            v-else
+            content="草稿状态用户不可见。曾发布后「下线」也会回到草稿状态。点「发布」即可上线。"
+            placement="top"
+          >
+            <el-tag
+              type="info"
+              size="small"
+            >
+              草稿 · 未上线
+            </el-tag>
+          </el-tooltip>
         </template>
       </el-table-column>
       <el-table-column
@@ -96,18 +114,11 @@
             编辑
           </el-button>
           <el-button
-            v-if="row.status === 'PUBLISHED'"
             size="small"
             type="warning"
             @click="openPreview(row)"
           >
             预览
-          </el-button>
-          <el-button
-            size="small"
-            @click="openVersions(row)"
-          >
-            版本
           </el-button>
           <el-button
             v-if="row.status !== 'PUBLISHED'"
@@ -116,6 +127,26 @@
             @click="doPublish(row)"
           >
             发布
+          </el-button>
+          <el-popconfirm
+            v-if="row.status === 'PUBLISHED'"
+            title="下线后用户将无法访问此页面，确定下线？"
+            @confirm="doUnpublish(row)"
+          >
+            <template #reference>
+              <el-button
+                size="small"
+                type="info"
+              >
+                下线
+              </el-button>
+            </template>
+          </el-popconfirm>
+          <el-button
+            size="small"
+            @click="openVersions(row)"
+          >
+            版本
           </el-button>
           <el-popconfirm
             title="确定删除此页面？"
@@ -1630,7 +1661,13 @@ function formatDate(d: string) { return d ? new Date(d).toLocaleString() : '-' }
 async function fetchList() {
   loading.value = true
   error.value = false
-  try { const { data } = await marketingApi.listPages(); list.value = data.items || data.pages || data.data || []; total.value = data.total || 0 } catch { list.value = []; error.value = true } finally { loading.value = false }
+  try {
+    const { data } = await marketingApi.listPages()
+    // 后端 listPages 返回裸数组（经拦截器解包后 data 即数组）；同时兼容分页包裹结构
+    const rows = Array.isArray(data) ? data : (data.items || data.pages || data.data || [])
+    list.value = rows
+    total.value = Array.isArray(data) ? rows.length : (data.total || rows.length)
+  } catch { list.value = []; error.value = true } finally { loading.value = false }
 }
 
 function openCreate() { editingId.value = ''; Object.assign(form, { name: '', route: '', description: '', entryVisible: false, entryTitle: '', entryIcon: '', entrySort: 0 }); vis.value = true }
@@ -1789,7 +1826,7 @@ async function doSort() {
 // ───────── 可视化编辑器 ─────────
 async function openVisualEditor(row: PageRow) {
   currentPageId.value = row.id
-  vePageTitle.value = row.title ?? ''
+  vePageTitle.value = row.title ?? row.name ?? ''
   try {
     const { data } = await marketingApi.getPage(row.id)
     veComponents.value = ((data.components || []) as PageComponent[]).map((c: PageComponent) => ({ ...c, _key: `comp_${veCompKey++}` }))
@@ -1941,12 +1978,25 @@ async function veSave() {
       })
     }
     ElMessage.success('已保存')
+    // 保存组件后刷新列表，使「组件数」等信息立即更新
+    fetchList()
   } catch { ElMessage.error('保存失败') } finally { veSaving.value = false }
 }
 
 async function vePublish() {
   await veSave()
   try { await marketingApi.publishPage(currentPageId.value); ElMessage.success('已发布'); fetchList() } catch { ElMessage.error('发布失败') }
+}
+
+// 下线/停用：把已发布页改回草稿态，用户即不可见
+async function doUnpublish(row: PageRow) {
+  try {
+    await marketingApi.updatePage(row.id, { status: 'DRAFT' })
+    ElMessage.success('已下线，用户不再可见')
+    fetchList()
+  } catch (e) {
+    ElMessage.error((e as ApiError)?.response?.data?.message || '下线失败')
+  }
 }
 
 // 渲染预览组件
@@ -2088,7 +2138,7 @@ async function doRollback(versionId: string) {
 
 // ───────── 用户端预览 ─────────
 async function openPreview(row: PageRow) {
-  previewPageTitle.value = row.title ?? ''
+  previewPageTitle.value = row.title ?? row.name ?? ''
   previewPageComps.value = []
   previewPageVis.value = true
   try {

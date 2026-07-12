@@ -11,10 +11,15 @@ import ClassicCard from '@/components/cards/classic-card.vue'
 import VideoCard from '@/components/cards/video-card.vue'
 import { navigateTo } from '@/utils/router'
 import { formatPrice } from '@/utils/format'
+import { getPublishedLayout, type LayoutBlock } from '@/lib/page-layout-data'
+import BlockRenderer from '@/components/layout/block-renderer.vue'
 import {
   discoverApi, discoverShowcaseApi, coreEntries, serviceGroups,
   type FeedItem, type ShowcaseCard, type ThemeBand,
 } from '@/lib/discover-data'
+
+// 平台微页面运营楼层（后台「平台页面布局」搭 route='discover' 发布 → 此处渲染；无则不显示）
+const discoverBlocks = ref<LayoutBlock[]>([])
 
 // —— 金刚区 2×5：十大板块正门（真跳各板块，href/icon 均来自 coreEntries 真源）——
 const kingGrid = coreEntries
@@ -79,7 +84,10 @@ async function loadMeta() {
   allCats.value = await discoverApi.getCategories()
 }
 
-onMounted(() => { loadMeta(); loadShowcase(); fetchFeed() })
+onMounted(() => {
+  loadMeta(); loadShowcase(); fetchFeed()
+  getPublishedLayout('discover').then((l) => { discoverBlocks.value = l.blocks }).catch(() => {})
+})
 
 function retry() { fetchFeed() }
 function goEntry(href: string) { navigateTo(href) }
@@ -101,6 +109,9 @@ function goRankNo(idx: number): string { return idx === 0 ? 'no-1' : idx === 1 ?
     <view class="search-row">
       <search-bar default-tab="all" placeholder="搜古籍 · 课程 · 直播 · 掌柜好物" />
     </view>
+
+    <!-- 运营楼层（后台平台页面布局·route='discover'·有已发布则渲染，无则不显示） -->
+    <view v-if="discoverBlocks.length" class="disc-blocks"><block-renderer :blocks="discoverBlocks" /></view>
 
     <!-- ② 金刚区 2×5：十大板块正门 -->
     <view class="kong">
@@ -343,6 +354,8 @@ $ink: #2C2C2C; $sub: #6E6E73; $faint: #999999; $wash: #F6F1E7; $line: #F2EDE4;
 
 /* ① 搜索 */
 .search-row { padding: 96rpx 40rpx 8rpx; }
+/* 运营楼层（微页面区块） */
+.disc-blocks { padding: 8rpx 0 4rpx; }
 
 /* ② 金刚区 2×5 */
 .kong { display: flex; flex-wrap: wrap; padding: 28rpx 24rpx 8rpx; }
