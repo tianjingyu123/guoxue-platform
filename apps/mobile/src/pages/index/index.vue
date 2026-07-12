@@ -131,12 +131,35 @@ function goSearch() {
 }
 
 // ── 卡片长按 → 负反馈轻浮层 ──
+// 自定义长按：原生 @longpress 阈值太短（滑动中手指稍停就误触），改 touch 计时 700ms，
+// 且滑动（touchmove 超过阈值）立即取消，避免上下滑时误弹负反馈。
 const fbOpen = ref(false)
 const fbItem = ref<FeedEnvelope | null>(null)
-function onCardLongpress(item: FeedEnvelope) {
-  fbItem.value = item
-  fbOpen.value = true
+let lpTimer: ReturnType<typeof setTimeout> | null = null
+let lpStartY = 0
+let lpStartX = 0
+const LONGPRESS_MS = 700
+const LONGPRESS_MOVE_TOL = 10 // px：移动超过此值判定为滑动，取消长按
+function clearLp() { if (lpTimer) { clearTimeout(lpTimer); lpTimer = null } }
+function onCardTouchStart(item: FeedEnvelope, e: any) {
+  const t = e?.touches?.[0] || e?.changedTouches?.[0]
+  lpStartX = t?.clientX ?? 0
+  lpStartY = t?.clientY ?? 0
+  clearLp()
+  lpTimer = setTimeout(() => {
+    lpTimer = null
+    fbItem.value = item
+    fbOpen.value = true
+  }, LONGPRESS_MS)
 }
+function onCardTouchMove(e: any) {
+  if (!lpTimer) return
+  const t = e?.touches?.[0] || e?.changedTouches?.[0]
+  const dx = Math.abs((t?.clientX ?? 0) - lpStartX)
+  const dy = Math.abs((t?.clientY ?? 0) - lpStartY)
+  if (dx > LONGPRESS_MOVE_TOL || dy > LONGPRESS_MOVE_TOL) clearLp()
+}
+function onCardTouchEnd() { clearLp() }
 function closeFb() {
   fbOpen.value = false
   fbItem.value = null
@@ -268,7 +291,10 @@ function backToTop() {
           <view
             v-for="item in leftColumn"
             :key="item.id"
-            @longpress="onCardLongpress(item)"
+            @touchstart="onCardTouchStart(item, $event)"
+            @touchmove="onCardTouchMove"
+            @touchend="onCardTouchEnd"
+            @touchcancel="onCardTouchEnd"
           >
             <feed-card :item="item" />
           </view>
@@ -277,7 +303,10 @@ function backToTop() {
           <view
             v-for="item in rightColumn"
             :key="item.id"
-            @longpress="onCardLongpress(item)"
+            @touchstart="onCardTouchStart(item, $event)"
+            @touchmove="onCardTouchMove"
+            @touchend="onCardTouchEnd"
+            @touchcancel="onCardTouchEnd"
           >
             <feed-card :item="item" />
           </view>

@@ -46,11 +46,12 @@
             :enable-progress-gesture="false"
             :loop="true"
             autoplay
-            object-fit="cover"
+            :object-fit="currentLandscape ? 'contain' : 'cover'"
             @play="onVideoPlay"
             @pause="onVideoPause"
             @error="onVideoError"
             @timeupdate="onTimeUpdate"
+            @loadedmetadata="onVideoMeta"
           />
           <!-- 不可播诚实态：源加载失败（如 .mov 格式安卓不支持/转码中）-->
           <view v-if="i === currentIndex && playError" class="vp__unplayable">
@@ -409,6 +410,14 @@ function retry() { loadFeed() }
 // 若浏览器拦截「有声」自动播放（@play 不触发），中央播放按钮保持可见，用户点一下即有声开播。
 const isPlaying = ref(false)
 const playError = ref(false) // 视频源加载失败 → 隐藏 player 回退到封面 + 诚实态提示
+// 横屏视频适配：竖屏(9:16)用 cover 填满；横屏(16:9 如 OBS 录屏/风景课)用 contain 居中留黑边，
+// 完整显示画面不裁切（抖音式）。宽>高×1.1 判为横屏。由 @loadedmetadata 跨端拿真实宽高。
+const currentLandscape = ref(false)
+function onVideoMeta(e: any /* uni video @loadedmetadata：detail.{width,height}·vue-tsc 按 HTML video 校验须 any */) {
+  const w = Number(e?.detail?.width) || 0
+  const h = Number(e?.detail?.height) || 0
+  currentLandscape.value = w > 0 && h > 0 && w > h * 1.1
+}
 
 // ===== 播放器控制（uni video context）=====
 const instance = getCurrentInstance()
@@ -515,7 +524,10 @@ onShareTimeline(() => toTimeline({
 // ===== 滑动切换（swiper 纵向轮播·双向可靠）=====
 function onSwiperChange(e: any /* uni swiper 事件经 vue-tsc 按原生签名校验，参数须 any */) {
   const idx = Number(e?.detail?.current)
-  if (Number.isFinite(idx) && idx !== currentIndex.value) currentIndex.value = idx
+  if (Number.isFinite(idx) && idx !== currentIndex.value) {
+    currentIndex.value = idx
+    currentLandscape.value = false // 重置横竖屏标记，等新视频 @loadedmetadata 回填
+  }
 }
 
 // ===== 单击暂停 / 双击点赞 =====

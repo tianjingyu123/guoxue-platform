@@ -327,6 +327,18 @@ onMounted(() => {
         </view>
       </view>
 
+      <!-- ══ 区块4.5 课程介绍（购买前详细介绍·简介全文 + 详情图无缝拼接）══ -->
+      <view v-if="course.description || (course.detailImages && course.detailImages.length)" class="card">
+        <text class="sec-title serif">课程介绍</text>
+        <text v-if="course.description" class="intro-desc">{{ course.description }}</text>
+        <view v-if="course.detailImages && course.detailImages.length" class="intro-imgs">
+          <image
+            v-for="(img, i) in course.detailImages" :key="i"
+            class="intro-img" :src="img" mode="widthFix" lazy-load
+          />
+        </view>
+      </view>
+
       <!-- ══ 区块5 课程目录（核心·默认全展开·试看一步进播放） ══ -->
       <view class="card">
         <view class="sec-title-row">
@@ -561,6 +573,10 @@ onMounted(() => {
 /* 适合人群 */
 .suit-list { display: flex; flex-wrap: wrap; gap: 16rpx; margin-top: 20rpx; }
 .suit-chip { padding: 12rpx 24rpx; background: rgba(196,30,58,0.08); color: #C41E3A; font-size: 24rpx; border-radius: 999rpx; }
+/* 课程介绍：简介全文 + 详情图无缝拼接（像商品详情图） */
+.intro-desc { display: block; margin-top: 16rpx; font-size: 28rpx; color: #6E6E73; line-height: 1.75; white-space: pre-wrap; }
+.intro-imgs { margin-top: 20rpx; display: flex; flex-direction: column; font-size: 0; }
+.intro-img { width: 100%; display: block; }
 
 /* ── 目录 ── */
 .chapter-block { margin-top: 24rpx; }
