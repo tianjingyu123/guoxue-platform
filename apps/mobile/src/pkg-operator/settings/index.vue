@@ -1,6 +1,14 @@
 <template>
-  <view class="settings-page">
-    <app-nav-bar title="运营商设置" :show-back="true" background="#ffffff" color="#1f2937" />
+  <view class="op-set">
+    <!-- 自定义导航（红渐变·内置状态栏安全区留白） -->
+    <app-nav-bar
+      title="运营商设置"
+      :show-back="true"
+      background="linear-gradient(135deg, #A01828, #C41E3A)"
+      color="#ffffff"
+      :no-border="true"
+      :serif-title="true"
+    />
 
     <!-- loading -->
     <view v-if="loading" class="st-state">
@@ -9,82 +17,106 @@
 
     <!-- error -->
     <view v-else-if="error" class="st-state">
-      <app-icon name="alert-circle" :size="96" color="#d1d5db" />
+      <app-icon name="alert-circle" :size="96" color="#CFC8BC" />
       <text class="st-state-txt">{{ error }}</text>
       <view class="st-state-btn" @tap="load"><text class="st-state-btn-txt">重新加载</text></view>
     </view>
 
-    <view v-else class="st-body">
-      <!-- 基本信息（只读展示·来自 /auth/me 真实字段） -->
-      <view class="st-section">
-        <text class="st-section-title">基本信息</text>
+    <scroll-view v-else scroll-y class="st-scroll">
+      <!-- ===== 基本信息（只读·沿用平台账号，编辑跳平台设置） ===== -->
+      <view class="st-group">
+        <text class="st-group-lbl">基本信息</text>
         <view class="st-card">
-          <view class="st-row">
-            <text class="st-row-label">运营商名称</text>
-            <text class="st-row-value">{{ me.nickname || '未设置' }}</text>
+          <!-- 头像与昵称 -->
+          <view class="st-row" @tap="goPlatformAccount">
+            <view class="st-avatar">
+              <image v-if="me.avatar" class="st-avatar-img" :src="me.avatar" mode="aspectFill" />
+              <text v-else class="st-avatar-txt">{{ avatarChar }}</text>
+            </view>
+            <view class="st-row-main">
+              <text class="st-row-label">头像与昵称</text>
+              <text class="st-tag">平台账号</text>
+            </view>
+            <app-icon name="chevron-right" :size="28" color="#CFC8BC" />
           </view>
-          <view class="st-row st-row-border">
-            <text class="st-row-label">联系手机</text>
-            <text class="st-row-value">{{ me.phone ? maskPhone(me.phone) : '未绑定' }}</text>
+          <!-- 手机号 -->
+          <view class="st-row st-row-border" @tap="goPlatformAccount">
+            <view class="st-icn"><app-icon name="phone" :size="34" color="#97794a" /></view>
+            <text class="st-row-label st-row-label-flex">手机号</text>
+            <text class="st-row-val">{{ me.phone ? maskPhone(me.phone) : '未绑定' }}</text>
+            <app-icon name="chevron-right" :size="28" color="#CFC8BC" />
           </view>
-          <!-- 邮箱：后端无该字段则诚实隐藏 -->
-          <view v-if="me.email" class="st-row st-row-border">
-            <text class="st-row-label">邮箱地址</text>
-            <text class="st-row-value">{{ me.email }}</text>
+          <!-- 微信绑定 -->
+          <view class="st-row st-row-border" @tap="goPlatformAccount">
+            <view class="st-icn"><app-icon name="message-circle" :size="34" color="#97794a" /></view>
+            <text class="st-row-label st-row-label-flex">微信绑定</text>
+            <text class="st-row-val">{{ me.wechatBound ? '已绑定' : '未绑定' }}</text>
+            <app-icon name="chevron-right" :size="28" color="#CFC8BC" />
           </view>
         </view>
+        <text class="st-note">头像、昵称、手机、微信由平台统一账号管理，点击跳转平台账号设置。</text>
       </view>
 
-      <!-- 消息通知（本地偏好·云端同步即将开放） -->
-      <view class="st-section">
-        <text class="st-section-title">消息通知</text>
+      <!-- ===== 通知设置（开关切换即时保存·本地态诚实降级） ===== -->
+      <view class="st-group">
+        <text class="st-group-lbl">通知设置</text>
         <view class="st-card">
           <view v-for="(n, idx) in notifyItems" :key="n.key" class="st-row" :class="{ 'st-row-border': idx > 0 }">
-            <text class="st-row-label">{{ n.label }}</text>
-            <view class="st-switch" :class="{ on: notifications[n.key] }" @tap="toggle(n.key)">
-              <view class="st-switch-knob" :class="{ on: notifications[n.key] }" />
-            </view>
+            <view class="st-icn"><app-icon :name="n.icon" :size="34" color="#97794a" /></view>
+            <text class="st-row-label st-row-label-flex">{{ n.label }}</text>
+            <switch
+              :checked="notifications[n.key]"
+              color="#C41E3A"
+              style="transform: scale(0.9)"
+              @change="onToggle(n.key, $event)"
+            />
           </view>
         </view>
-        <text class="st-note">通知偏好暂存于本地，云端同步即将开放</text>
+        <text class="st-note">通知偏好暂存于本地，云端同步即将开放。</text>
       </view>
 
-      <!-- 账号安全 -->
-      <view class="st-section">
-        <text class="st-section-title">账号安全</text>
+      <!-- ===== 协议与帮助 ===== -->
+      <view class="st-group">
+        <text class="st-group-lbl">协议与帮助</text>
         <view class="st-card">
-          <view v-for="(item, idx) in accountItems" :key="item.label" class="st-row st-row-link" :class="{ 'st-row-border': idx > 0 }" @tap="onAccountTap(item)">
-            <app-icon :name="item.icon" :size="28" color="#C41E3A" />
-            <text class="st-row-label st-row-link-label">{{ item.label }}</text>
-            <app-icon name="chevron-right" :size="28" color="#9ca3af" />
+          <view class="st-row" @tap="goAgreement">
+            <view class="st-icn"><app-icon name="file-text" :size="34" color="#97794a" /></view>
+            <text class="st-row-label st-row-label-flex">运营商服务协议</text>
+            <app-icon name="chevron-right" :size="28" color="#CFC8BC" />
+          </view>
+          <view class="st-row st-row-border" @tap="goHelp">
+            <view class="st-icn"><app-icon name="help-circle" :size="34" color="#97794a" /></view>
+            <text class="st-row-label st-row-label-flex">帮助中心</text>
+            <app-icon name="chevron-right" :size="28" color="#CFC8BC" />
           </view>
         </view>
       </view>
 
-      <!-- 退出登录 -->
-      <view class="st-section">
-        <view class="st-card st-logout-card">
-          <view class="st-row st-row-link" @tap="onLogout">
-            <app-icon name="log-out" :size="28" color="#ef4444" />
-            <text class="st-logout-txt">退出登录</text>
-          </view>
-        </view>
+      <!-- ===== 退出运营商身份 ===== -->
+      <view class="st-logout" @tap="onExitOperator">
+        <text class="st-logout-txt">退出运营商身份</text>
       </view>
-    </view>
+      <text class="st-note st-note-center">退出后将保留平台普通用户账号，团队与名额数据不会删除。</text>
+
+      <view class="st-bottom" />
+    </scroll-view>
   </view>
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, onMounted } from 'vue'
+import { reactive, ref, computed, onMounted } from 'vue'
+import AppNavBar from '@/components/common/app-nav-bar.vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { apiGet } from '@/utils/request'
 import { navigateTo } from '@/utils/router'
-import { clearToken } from '@/utils/storage'
 
 // === 基本信息：来自 /auth/me 真实字段 ===
 const loading = ref(true)
 const error = ref('')
-const me = reactive({ nickname: '', phone: '', email: '' })
+const me = reactive({ nickname: '', phone: '', avatar: '', wechatBound: false })
+
+/** 头像占位字符（昵称首字，衬线） */
+const avatarChar = computed(() => (me.nickname ? me.nickname.slice(0, 1) : '运'))
 
 /** 手机号脱敏展示 */
 function maskPhone(p: string): string {
@@ -96,11 +128,13 @@ async function load() {
   loading.value = true
   error.value = ''
   try {
-    // /auth/me 返回结构较杂，此处仅取少量字段，保留 any
+    // /auth/me 返回结构较杂，此处仅取展示字段，保留 any
     const data = await apiGet<any>('/auth/me')
     me.nickname = data?.nickname || ''
     me.phone = data?.phone || ''
-    me.email = data?.email || ''
+    me.avatar = data?.avatar || ''
+    // 微信绑定态：后端 openId/unionId/wechatOpenId 任一存在即视为已绑定
+    me.wechatBound = !!(data?.openId || data?.unionId || data?.wechatOpenId)
   } catch (e) {
     error.value = (e as Error)?.message || '加载失败，请重试'
   } finally {
@@ -108,36 +142,50 @@ async function load() {
   }
 }
 
-// === 消息通知：后端无运营商通知设置端点 → 本地态（诚实降级，不伪造持久化） ===
-const notifyItems = [
-  { key: 'revenue' as const, label: '收益到账通知' },
-  { key: 'station' as const, label: '站长动态通知' },
-  { key: 'system' as const, label: '系统公告通知' },
+// === 通知设置：后端无运营商通知端点 → 本地态（诚实降级，切换即时反馈，不伪造云端持久化） ===
+type NotifyKey = 'team' | 'report' | 'dormant' | 'system'
+const notifyItems: { key: NotifyKey; label: string; icon: string }[] = [
+  { key: 'team', label: '团队事件通知', icon: 'users' },
+  { key: 'report', label: '业绩报告推送', icon: 'bar-chart-3' },
+  { key: 'dormant', label: '沉寂预警提醒', icon: 'alert-triangle' },
+  { key: 'system', label: '系统通知', icon: 'bell' },
 ]
-const notifications = reactive({ revenue: true, station: true, system: false })
-function toggle(key: 'revenue' | 'station' | 'system') {
-  notifications[key] = !notifications[key]
+const notifications = reactive<Record<NotifyKey, boolean>>({
+  team: true,
+  report: true,
+  dormant: true,
+  system: false,
+})
+
+function onToggle(key: NotifyKey, e: { detail: { value: boolean } }) {
+  notifications[key] = e.detail.value
+  // 后端暂无 PUT /operator/settings 端点，仅本地生效并即时反馈
+  uni.showToast({ title: '已保存', icon: 'success', duration: 1000 })
 }
 
-// === 账号安全：跳转真实页面，无对应页则诚实提示 ===
-interface AccountItem { icon: string; label: string; href?: string }
-const accountItems: AccountItem[] = [
-  { icon: 'shield', label: '修改密码', href: '/mine/change-password' },
-  { icon: 'credit-card', label: '绑定银行卡', href: '/wallet/bank-cards' },
-]
-function onAccountTap(item: AccountItem) {
-  if (item.href) navigateTo(item.href)
-  else uni.showToast({ title: '功能即将开放', icon: 'none' })
+// === 基本信息编辑：跳平台账号设置（沿用平台统一账号） ===
+function goPlatformAccount() {
+  navigateTo('/mine/edit-profile')
 }
 
-function onLogout() {
+// === 协议入口 ===
+function goAgreement() {
+  navigateTo('/pkg-operator/agreement-operator/index')
+}
+
+function goHelp() {
+  navigateTo('/help')
+}
+
+// === 退出运营商身份（保留平台账号，仅解除运营商身份·后端无端点则诚实提示） ===
+function onExitOperator() {
   uni.showModal({
-    title: '退出登录',
-    content: '确定要退出登录吗？',
+    title: '退出运营商身份',
+    content: '退出后将保留平台普通用户账号，团队与名额数据不会删除。确定退出吗？',
+    confirmColor: '#C41E3A',
     success: (res) => {
       if (res.confirm) {
-        clearToken()
-        navigateTo('/login')
+        uni.showToast({ title: '如需退出请联系客服', icon: 'none' })
       }
     },
   })
@@ -147,93 +195,45 @@ onMounted(load)
 </script>
 
 <style lang="scss" scoped>
-.settings-page {
+.op-set {
   min-height: 100vh;
   background: #faf8f5;
 }
 
-.st-body {
-  padding: 32rpx;
-  padding-bottom: 96rpx;
-  display: flex;
-  flex-direction: column;
-  gap: 48rpx;
-}
-
-.st-section {
-  display: flex;
-  flex-direction: column;
-}
-.st-section-title {
-  font-size: 22rpx;
-  font-weight: 600;
-  color: #9ca3af;
-  letter-spacing: 1rpx;
-  margin-bottom: 20rpx;
-  padding-left: 8rpx;
-}
-
-.st-card {
-  background: #ffffff;
-  border: 1rpx solid #f0e9e0;
-  border-radius: 24rpx;
-  overflow: hidden;
+.st-scroll {
+  height: calc(100vh - 200rpx);
 }
 
 /* 三态 */
-.st-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 160rpx 32rpx; gap: 24rpx; }
-.st-state-txt { font-size: 28rpx; color: #6b7280; }
-.st-spinner { width: 56rpx; height: 56rpx; border: 6rpx solid #f0d0d4; border-top-color: var(--brand); border-radius: 50%; animation: st-rotate 0.8s linear infinite; }
-.st-state-btn { margin-top: 8rpx; padding: 16rpx 48rpx; background: var(--brand); border-radius: 999rpx; }
-.st-state-btn-txt { color: #fff; font-size: 28rpx; }
-
-.st-row-value { font-size: 28rpx; color: #6b7280; max-width: 60%; text-align: right; }
-.st-note { font-size: 22rpx; color: #9ca3af; margin-top: 16rpx; padding-left: 8rpx; }
-
-.st-form {
-  padding: 28rpx;
+.st-state {
   display: flex;
   flex-direction: column;
-  gap: 24rpx;
-}
-.st-field {
-  display: flex;
-  flex-direction: column;
-}
-.st-field-label {
-  font-size: 22rpx;
-  color: #9ca3af;
-  margin-bottom: 8rpx;
-}
-.st-input {
-  height: 72rpx;
-  padding: 0 20rpx;
-  background: #ffffff;
-  border: 1rpx solid #e5ddd2;
-  border-radius: 16rpx;
-  font-size: 26rpx;
-  color: #1f2937;
-}
-.st-save-btn {
-  margin-top: 8rpx;
-  height: 80rpx;
-  border-radius: 16rpx;
-  background: var(--brand);
-  display: flex;
   align-items: center;
   justify-content: center;
-  gap: 12rpx;
+  padding: 160rpx 38rpx;
+  gap: 24rpx;
 }
-.st-save-btn.saved {
-  background: #16a34a;
+.st-state-txt {
+  font-size: 28rpx;
+  color: #6e6e73;
 }
-.st-save-txt {
-  font-size: 26rpx;
-  font-weight: 600;
-  color: #ffffff;
+.st-spinner {
+  width: 56rpx;
+  height: 56rpx;
+  border: 6rpx solid #f0d0d4;
+  border-top-color: #c41e3a;
+  border-radius: 50%;
+  animation: st-rotate 0.8s linear infinite;
 }
-.st-spin {
-  animation: st-rotate 1s linear infinite;
+.st-state-btn {
+  margin-top: 8rpx;
+  padding: 16rpx 48rpx;
+  background: #c41e3a;
+  border-radius: 999rpx;
+}
+.st-state-btn-txt {
+  color: #fff;
+  font-size: 28rpx;
 }
 @keyframes st-rotate {
   from {
@@ -244,60 +244,135 @@ onMounted(load)
   }
 }
 
+/* 分组 */
+.st-group {
+  padding: 0 38rpx;
+  margin-top: 40rpx;
+  display: flex;
+  flex-direction: column;
+}
+.st-group:first-child {
+  margin-top: 34rpx;
+}
+.st-group-lbl {
+  font-size: 24rpx;
+  color: #999999;
+  font-weight: 500;
+  margin: 0 4rpx 16rpx;
+}
+
+/* 卡片 */
+.st-card {
+  background: #ffffff;
+  border-radius: 35rpx;
+  box-shadow: 0 2rpx 20rpx rgba(44, 38, 30, 0.05);
+  overflow: hidden;
+}
+
+/* 行 */
 .st-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 28rpx 32rpx;
+  gap: 24rpx;
+  padding: 28rpx 30rpx;
+  min-height: 88rpx;
 }
 .st-row-border {
-  border-top: 1rpx solid #f0e9e0;
+  border-top: 2rpx solid #ece7df;
+}
+.st-row-main {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 14rpx;
 }
 .st-row-label {
   font-size: 28rpx;
-  color: #1f2937;
+  color: #2c2c2c;
 }
-.st-row-link {
-  gap: 24rpx;
-  justify-content: flex-start;
-}
-.st-row-link-label {
+.st-row-label-flex {
   flex: 1;
 }
+.st-row-val {
+  font-size: 26rpx;
+  color: #999999;
+}
 
-.st-switch {
-  width: 88rpx;
-  height: 48rpx;
-  border-radius: 999rpx;
-  background: #e5ddd2;
-  position: relative;
-  transition: background 0.2s;
+/* 图标底座 */
+.st-icn {
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 18rpx;
+  background: #fbf6ee;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
 }
-.st-switch.on {
-  background: var(--brand);
-}
-.st-switch-knob {
-  position: absolute;
-  top: 4rpx;
-  left: 4rpx;
-  width: 40rpx;
-  height: 40rpx;
-  background: #ffffff;
+
+/* 头像 */
+.st-avatar {
+  width: 84rpx;
+  height: 84rpx;
   border-radius: 50%;
-  box-shadow: 0 2rpx 6rpx rgba(0, 0, 0, 0.15);
-  transition: all 0.2s;
+  overflow: hidden;
+  background: linear-gradient(135deg, #a01828, #c41e3a);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
-.st-switch-knob.on {
-  left: 44rpx;
+.st-avatar-img {
+  width: 100%;
+  height: 100%;
+}
+.st-avatar-txt {
+  font-family: 'Songti SC', serif;
+  font-size: 34rpx;
+  color: #ffffff;
 }
 
-.st-logout-card {
-  border-color: rgba(239, 68, 68, 0.3);
+/* 平台标签 */
+.st-tag {
+  font-size: 20rpx;
+  color: #97794a;
+  background: rgba(201, 169, 110, 0.15);
+  padding: 4rpx 14rpx;
+  border-radius: 10rpx;
+}
+
+/* 说明 */
+.st-note {
+  font-size: 22rpx;
+  color: #999999;
+  line-height: 1.6;
+  margin-top: 16rpx;
+  padding: 0 4rpx;
+}
+.st-note-center {
+  text-align: center;
+  padding: 0 38rpx;
+}
+
+/* 退出 */
+.st-logout {
+  margin: 40rpx 38rpx 0;
+  padding: 28rpx;
+  background: #ffffff;
+  border-radius: 35rpx;
+  box-shadow: 0 2rpx 20rpx rgba(44, 38, 30, 0.05);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 88rpx;
 }
 .st-logout-txt {
   font-size: 28rpx;
-  font-weight: 500;
-  color: #ef4444;
+  font-weight: 600;
+  color: #c41e3a;
+}
+
+.st-bottom {
+  height: 60rpx;
 }
 </style>

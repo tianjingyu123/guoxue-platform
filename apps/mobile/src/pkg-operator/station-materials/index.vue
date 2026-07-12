@@ -1,176 +1,142 @@
 <template>
   <view class="mat-page">
-    <!-- 导航栏 -->
+    <!-- 自定义导航（statusBarHeight 留白） -->
     <view class="mat-nav" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="mat-nav-inner">
-        <view class="mat-nav-btn" @tap="goBack">
-          <app-icon name="arrow-left" :size="40" color="#374151" />
+        <view class="mat-nav-btn hit" @tap="goBack">
+          <app-icon name="arrow-left" :size="40" color="#2C2C2C" />
         </view>
         <text class="mat-nav-title">推广素材库</text>
-        <view class="mat-nav-btn" :class="{ spinning: loading }" @tap="onRefresh">
-          <app-icon name="refresh-cw" :size="36" color="#4b5563" />
+        <view class="mat-nav-btn hit" :class="{ spinning: loading }" @tap="onRefresh">
+          <app-icon name="refresh-cw" :size="34" color="#6E6E73" />
         </view>
+      </view>
+    </view>
+
+    <!-- 类型 Tab（下划线激活） -->
+    <view v-if="!notOpened" class="mat-ttabs">
+      <view
+        v-for="t in tabs"
+        :key="t.value"
+        class="mat-ttab hit"
+        :class="{ on: activeTab === t.value }"
+        @tap="activeTab = t.value"
+      >
+        <text class="mat-ttab-txt">{{ t.label }}</text>
+        <view v-if="activeTab === t.value" class="mat-ttab-line" />
       </view>
     </view>
 
     <!-- loading -->
     <view v-if="loading" class="mat-state">
-      <view class="mat-spinner" /><text class="mat-state-txt">加载中...</text>
+      <view class="mat-spinner" />
+      <text class="mat-state-txt">加载中…</text>
     </view>
 
     <!-- 未开通分站 -->
     <view v-else-if="notOpened" class="mat-state">
-      <app-icon name="store" :size="96" color="#d1d5db" />
-      <text class="mat-state-txt">你还没有开通分站</text>
-      <view class="mat-state-btn" @tap="goJoin"><text class="mat-state-btn-txt">去开通分站</text></view>
+      <view class="mat-state-ic"><app-icon name="store" :size="72" color="#C9A96E" /></view>
+      <text class="mat-state-title">你还没有开通分站</text>
+      <text class="mat-state-desc">开通后即可获取专属推广海报、文案与推广码</text>
+      <view class="mat-state-btn hit" @tap="goJoin"><text class="mat-state-btn-txt">去开通分站</text></view>
     </view>
 
     <!-- error -->
     <view v-else-if="error" class="mat-state">
-      <app-icon name="alert-circle" :size="96" color="#d1d5db" />
-      <text class="mat-state-txt">{{ error }}</text>
-      <view class="mat-state-btn" @tap="load"><text class="mat-state-btn-txt">重新加载</text></view>
+      <view class="mat-state-ic"><app-icon name="alert-circle" :size="72" color="#C9A96E" /></view>
+      <text class="mat-state-title">加载失败</text>
+      <text class="mat-state-desc">{{ error }}</text>
+      <view class="mat-state-btn hit" @tap="load"><text class="mat-state-btn-txt">重新加载</text></view>
     </view>
 
     <template v-else>
-      <!-- 搜索框 -->
-      <view class="mat-search-wrap">
-        <view class="mat-search">
-          <app-icon name="search" :size="32" color="#9ca3af" />
-          <input v-model="searchKeyword" class="mat-search-input" placeholder="搜索素材..." placeholder-class="mat-search-ph" />
+      <!-- ══════════ ① 海报 Tab ══════════ -->
+      <view v-if="activeTab === 'poster'">
+        <view v-if="posters.length === 0" class="mat-empty">
+          <view class="mat-empty-ic"><app-icon name="image" :size="60" color="#C9A96E" /></view>
+          <text class="mat-empty-title">暂无海报素材</text>
+          <text class="mat-empty-desc">平台正在筹备中，敬请期待</text>
         </view>
-      </view>
-
-      <!-- 生成专属海报入口 -->
-      <view class="mat-poster-entry-wrap">
-        <view class="mat-poster-entry" @tap="goPoster">
-          <view class="mat-poster-entry-left">
-            <view class="mat-poster-entry-icon">
-              <app-icon name="image" :size="40" color="#ffffff" />
+        <view v-else class="mat-pgrid">
+          <view v-for="p in posters" :key="p.id" class="mat-pcard">
+            <view class="mat-pcover">
+              <image v-if="p.imageUrl" lazy-load :src="p.imageUrl" class="mat-pcover-img" mode="aspectFill" />
+              <view v-else class="mat-pcover-ph">
+                <text class="mat-pcover-ph-s">热卜国学</text>
+                <text class="mat-pcover-ph-b serif">{{ p.title }}</text>
+              </view>
+              <view v-if="p.tags.length" class="mat-pbadge"><text class="mat-pbadge-txt">{{ p.tags[0] }}</text></view>
             </view>
-            <view>
-              <text class="mat-poster-entry-title">生成专属分站海报</text>
-              <text class="mat-poster-entry-sub">自定义风格，含专属二维码</text>
+            <view class="mat-pfoot">
+              <text class="mat-pname">{{ p.title }}</text>
+              <text class="mat-puse">已使用 {{ p.usageCount }} 次</text>
+              <view class="mat-pbtn hit" :class="{ disabled: actingId === p.id }" @tap="savePoster(p)">
+                <app-icon name="download" :size="26" color="#C41E3A" />
+                <text class="mat-pbtn-txt">保存 / 分享</text>
+              </view>
             </view>
-          </view>
-          <app-icon name="qr-code" :size="32" color="#ffffff" />
-        </view>
-      </view>
-
-      <!-- 分类Tab -->
-      <view class="mat-tabs-wrap">
-        <view class="mat-tabs">
-          <view
-            v-for="t in tabs"
-            :key="t.value"
-            class="mat-tab"
-            :class="{ active: activeTab === t.value }"
-            @tap="activeTab = t.value"
-          >
-            <app-icon v-if="t.icon" :name="t.icon" :size="24" :color="activeTab === t.value ? '#111827' : '#6b7280'" />
-            <text class="mat-tab-txt">{{ t.label }}</text>
-            <text class="mat-tab-count">{{ t.count }}</text>
           </view>
         </view>
       </view>
 
-      <!-- 内容区 -->
-      <view v-if="currentEmpty" class="mat-empty">
-        <app-icon name="image" :size="96" color="#d1d5db" />
-        <text class="mat-empty-txt">{{ activeTab === 'all' ? '暂无推广素材' : '暂无该类型素材' }}</text>
+      <!-- ══════════ ② 推广文案 Tab ══════════ -->
+      <view v-else-if="activeTab === 'copy'">
+        <view v-if="copys.length === 0" class="mat-empty">
+          <view class="mat-empty-ic"><app-icon name="file-text" :size="60" color="#C9A96E" /></view>
+          <text class="mat-empty-title">暂无推广文案</text>
+          <text class="mat-empty-desc">平台正在筹备中，敬请期待</text>
+        </view>
+        <view v-else class="mat-tlist">
+          <view v-for="c in copys" :key="c.id" class="mat-titem">
+            <view class="mat-ttag-row">
+              <text v-if="c.tags.length" class="mat-ttag" :class="tagClass(c.tags[0])">{{ c.tags[0] }}</text>
+              <text v-else class="mat-ttag mat-ttag-course">推广文案</text>
+              <text class="mat-tuse">被使用 {{ c.usageCount }} 次</text>
+            </view>
+            <text class="mat-tbody" :class="{ clamp: expandedId !== c.id }">{{ c.content }}</text>
+            <text
+              v-if="c.content.length > 60 || c.content.split('\n').length > 3"
+              class="mat-ttoggle hit"
+              @tap="expandedId = expandedId === c.id ? '' : c.id"
+            >{{ expandedId === c.id ? '收起' : '展开全文' }}</text>
+            <view
+              class="mat-tcopy hit"
+              :class="{ copied: copiedId === c.id, disabled: actingId === c.id }"
+              @tap="handleCopy(c)"
+            >
+              <app-icon :name="copiedId === c.id ? 'check' : 'copy'" :size="26" :color="copiedId === c.id ? '#ffffff' : '#C41E3A'" />
+              <text class="mat-tcopy-txt" :style="{ color: copiedId === c.id ? '#fff' : '#C41E3A' }">{{ copiedId === c.id ? '已复制' : '一键复制' }}</text>
+            </view>
+          </view>
+        </view>
       </view>
-      <view v-else class="mat-body">
-        <!-- 海报区 -->
-        <view v-if="showPoster" class="mat-section">
-          <view class="mat-section-title">
-            <app-icon name="image" :size="32" color="#C41E3A" />
-            <text class="mat-section-title-txt">海报素材</text>
-            <text class="mat-section-count">({{ posters.length }})</text>
-          </view>
-          <view class="mat-grid">
-            <view v-for="p in posters" :key="p.id" class="mat-poster-card">
-              <view class="mat-poster-thumb">
-                <image lazy-load v-if="p.imageUrl" :src="p.imageUrl" class="mat-poster-img" mode="aspectFill" />
-                <view v-else class="mat-poster-ph">
-                  <app-icon name="image" :size="64" color="#cbd5e1" />
-                </view>
-                <view class="mat-poster-use">
-                  <text class="mat-poster-use-txt">使用 {{ p.usageCount }} 次</text>
-                </view>
-              </view>
-              <view class="mat-poster-info">
-                <text class="mat-poster-card-title">{{ p.title }}</text>
-                <view v-if="p.tags.length" class="mat-tags">
-                  <text v-for="tag in p.tags.slice(0, 2)" :key="tag" class="mat-tag">{{ tag }}</text>
-                </view>
-                <view class="mat-use-btn" :class="{ disabled: actingId === p.id }" @tap="useMaterial(p)">
-                  <app-icon name="image" :size="24" color="#C41E3A" />
-                  <text class="mat-use-btn-txt">使用素材</text>
-                </view>
-              </view>
-            </view>
-          </view>
-        </view>
 
-        <!-- 文案区 -->
-        <view v-if="showCopy" class="mat-section">
-          <view class="mat-section-title">
-            <app-icon name="file-text" :size="32" color="#C41E3A" />
-            <text class="mat-section-title-txt">文案素材</text>
-            <text class="mat-section-count">({{ copys.length }})</text>
-          </view>
-          <view class="mat-copy-list">
-            <view v-for="c in copys" :key="c.id" class="mat-copy-card">
-              <view class="mat-copy-head">
-                <text class="mat-copy-title">{{ c.title }}</text>
-                <view
-                  class="mat-copy-btn"
-                  :class="{ copied: copiedId === c.id, disabled: actingId === c.id }"
-                  @tap="handleCopy(c)"
-                >
-                  <app-icon :name="copiedId === c.id ? 'check' : 'copy'" :size="24" :color="copiedId === c.id ? '#ffffff' : '#374151'" />
-                  <text class="mat-copy-btn-txt" :style="{ color: copiedId === c.id ? '#fff' : '#374151' }">{{ copiedId === c.id ? '已复制' : '复制文案' }}</text>
-                </view>
+      <!-- ══════════ ③ 推广码 Tab ══════════ -->
+      <view v-else-if="activeTab === 'qrcode'">
+        <view class="mat-qwrap">
+          <view class="mat-qcard">
+            <text class="mat-qtitle serif">我的专属推广码</text>
+            <text class="mat-qsub">用户扫码进入 = 自动归属你的分站</text>
+            <view class="mat-qcode">
+              <image v-if="qrImageUrl" :src="qrImageUrl" class="mat-qcode-img" mode="aspectFit" />
+              <app-icon v-else name="qr-code" :size="120" color="#C9A96E" />
+            </view>
+            <text class="mat-qname">{{ stationName || '我的分站' }}</text>
+            <text v-if="stationCode" class="mat-qid">推广码 {{ stationCode }}</text>
+            <view class="mat-qbtns">
+              <view class="mat-qbtn ghost hit" @tap="copyInviteLink">
+                <app-icon name="copy" :size="28" color="#C41E3A" />
+                <text class="mat-qbtn-txt mat-qbtn-txt-red">复制链接</text>
               </view>
-              <text class="mat-copy-content" :class="{ clamp: expandedId !== c.id }">{{ c.content }}</text>
-              <text
-                v-if="c.content.split('\n').length > 3 || c.content.length > 80"
-                class="mat-copy-toggle"
-                @tap="expandedId = expandedId === c.id ? '' : c.id"
-              >
-                {{ expandedId === c.id ? '收起' : '展开全文' }}
-              </text>
-              <view class="mat-copy-foot">
-                <text class="mat-copy-count">已使用 {{ c.usageCount }} 次</text>
-                <view v-if="c.tags.length" class="mat-tags">
-                  <text v-for="tag in c.tags" :key="tag" class="mat-tag mat-tag-red">{{ tag }}</text>
-                </view>
+              <view class="mat-qbtn primary hit" :class="{ disabled: !qrImageUrl }" @tap="saveQrImage">
+                <app-icon name="download" :size="28" color="#ffffff" />
+                <text class="mat-qbtn-txt mat-qbtn-txt-white">保存图片</text>
               </view>
             </view>
           </view>
-        </view>
 
-        <!-- 推广码区 -->
-        <view v-if="showQr" class="mat-section">
-          <view class="mat-section-title">
-            <app-icon name="qr-code" :size="32" color="#C41E3A" />
-            <text class="mat-section-title-txt">推广码</text>
-            <text class="mat-section-count">({{ qrcodes.length }})</text>
-          </view>
-          <view class="mat-grid">
-            <view v-for="q in qrcodes" :key="q.id" class="mat-qr-card">
-              <view class="mat-qr-thumb">
-                <image lazy-load v-if="q.imageUrl" :src="q.imageUrl" class="mat-qr-img" mode="aspectFit" />
-                <app-icon v-else name="qr-code" :size="96" color="#9ca3af" />
-              </view>
-              <text class="mat-qr-title">{{ q.title }}</text>
-              <text class="mat-qr-scan">使用 {{ q.usageCount }} 次</text>
-              <view class="mat-use-btn mat-use-btn-block" :class="{ disabled: actingId === q.id }" @tap="useMaterial(q)">
-                <app-icon name="qr-code" :size="24" color="#C41E3A" />
-                <text class="mat-use-btn-txt">使用素材</text>
-              </view>
-            </view>
-          </view>
+          <!-- 无二维码素材时诚实降级说明 -->
+          <text v-if="!qrImageUrl" class="mat-qtip">二维码图片将由平台生成后自动同步，当前可先复制专属链接分享</text>
         </view>
       </view>
     </template>
@@ -194,45 +160,70 @@ const error = ref('')
 const notOpened = ref(false)
 
 const materials = ref<PromotionMaterialItem[]>([])
-const actingId = ref('') // 写操作防重（同一时刻仅一条素材可触发记录）
+const actingId = ref('') // 写操作防重
 const copiedId = ref('') // 复制成功反馈
 const expandedId = ref('') // 文案展开
 
-const activeTab = ref<'all' | 'poster' | 'copy' | 'qrcode'>('all')
-const searchKeyword = ref('')
-const kw = computed(() => searchKeyword.value.trim())
+// 推广码 Tab 所需分站信息（复用 getStationConfig → /station/my）
+const stationName = ref('')
+const stationCode = ref('')
 
-function matchKw(m: PromotionMaterialItem): boolean {
-  if (!kw.value) return true
-  return m.title.includes(kw.value) || m.content.includes(kw.value) || m.tags.some((t) => t.includes(kw.value))
+const activeTab = ref<'poster' | 'copy' | 'qrcode'>('poster')
+
+const posters = computed(() => materials.value.filter((m) => m.type === 'poster'))
+const copys = computed(() => materials.value.filter((m) => m.type === 'copy'))
+const qrcodes = computed(() => materials.value.filter((m) => m.type === 'qrcode'))
+// 专属二维码图：取第一条 qrcode 素材的图
+const qrImageUrl = computed(() => qrcodes.value.find((q) => q.imageUrl)?.imageUrl || '')
+
+const tabs = [
+  { value: 'poster' as const, label: '海报' },
+  { value: 'copy' as const, label: '推广文案' },
+  { value: 'qrcode' as const, label: '推广码' },
+]
+
+// 文案标签配色（对齐 V0：课程/商品/品牌）
+function tagClass(tag: string): string {
+  if (tag.includes('商品') || tag.includes('产品')) return 'mat-ttag-product'
+  if (tag.includes('品牌')) return 'mat-ttag-brand'
+  return 'mat-ttag-course'
 }
 
-const searched = computed(() => materials.value.filter(matchKw))
-const posters = computed(() => searched.value.filter((m) => m.type === 'poster'))
-const copys = computed(() => searched.value.filter((m) => m.type === 'copy'))
-const qrcodes = computed(() => searched.value.filter((m) => m.type === 'qrcode'))
-
-const tabs = computed(() => [
-  { value: 'all' as const, label: '全部', icon: '', count: searched.value.length },
-  { value: 'poster' as const, label: '海报', icon: 'image', count: posters.value.length },
-  { value: 'copy' as const, label: '文案', icon: 'file-text', count: copys.value.length },
-  { value: 'qrcode' as const, label: '推广码', icon: 'qr-code', count: qrcodes.value.length },
-])
-
-const showPoster = computed(() => (activeTab.value === 'all' || activeTab.value === 'poster') && posters.value.length > 0)
-const showCopy = computed(() => (activeTab.value === 'all' || activeTab.value === 'copy') && copys.value.length > 0)
-const showQr = computed(() => (activeTab.value === 'all' || activeTab.value === 'qrcode') && qrcodes.value.length > 0)
-const currentEmpty = computed(() => !showPoster.value && !showCopy.value && !showQr.value)
+// 专属邀请链接（与 operator-data getDashboardInviteLink 同源规则，用分站 code）
+const inviteUrl = computed(() => {
+  const base = (import.meta as unknown as { env?: { VITE_H5_URL?: string } }).env?.VITE_H5_URL || 'https://api.rebugx.cn/h5'
+  return stationCode.value ? `${base}/#/pages/index/index?s=${stationCode.value}` : ''
+})
 
 async function load() {
   loading.value = true
   error.value = ''
   notOpened.value = false
   try {
-    materials.value = await operatorApi.getMyStationMaterials()
+    // 分站信息（推广码 Tab 用）+ 素材列表并行；分站信息失败不阻断素材
+    const [cfg, list] = await Promise.allSettled([
+      operatorApi.getStationConfig(),
+      operatorApi.getMyStationMaterials(),
+    ])
+
+    if (list.status === 'fulfilled') {
+      materials.value = list.value
+    } else {
+      const msg = (list.reason as Error)?.message || ''
+      if (msg.includes('开通分站') || msg.includes('没有开通') || msg.includes('NOT_FOUND') || msg.includes('404')) {
+        notOpened.value = true
+        return
+      }
+      throw list.reason
+    }
+
+    if (cfg.status === 'fulfilled') {
+      stationName.value = cfg.value.name
+      stationCode.value = cfg.value.code
+    }
   } catch (e) {
     const msg = (e as Error)?.message || ''
-    if (msg.includes('开通分站') || msg.includes('没有开通') || msg.includes('NOT_FOUND')) {
+    if (msg.includes('开通分站') || msg.includes('没有开通') || msg.includes('NOT_FOUND') || msg.includes('404')) {
       notOpened.value = true
     } else {
       error.value = msg || '加载失败，请重试'
@@ -242,22 +233,53 @@ async function load() {
   }
 }
 
-// 海报/推广码：记录使用 + 诚实降级（后端无 OSS，不伪造图片下载）
-async function useMaterial(m: PromotionMaterialItem) {
+// 海报：保存图片到相册（uni saveImageToPhotosAlbum）+ 记录使用
+async function savePoster(m: PromotionMaterialItem) {
   if (actingId.value) return
+  if (!m.imageUrl) {
+    uni.showToast({ title: '该海报图片即将开放', icon: 'none' })
+    return
+  }
   actingId.value = m.id
+  uni.showLoading({ title: '保存中…' })
   try {
-    await operatorApi.useStationMaterial(m.id)
-    m.usageCount = (m.usageCount || 0) + 1
-    uni.showToast({ title: '素材已记录使用，图片下载即将开放', icon: 'none' })
+    const url = await new Promise<string>((resolve, reject) => {
+      uni.downloadFile({
+        url: m.imageUrl,
+        success: (r) => (r.statusCode === 200 ? resolve(r.tempFilePath) : reject(new Error('下载失败'))),
+        fail: () => reject(new Error('下载失败')),
+      })
+    })
+    await new Promise<void>((resolve, reject) => {
+      uni.saveImageToPhotosAlbum({
+        filePath: url,
+        success: () => resolve(),
+        fail: (err) => reject(new Error(err?.errMsg || '保存失败')),
+      })
+    })
+    uni.hideLoading()
+    uni.showToast({ title: '已保存到相册', icon: 'success' })
+    try {
+      await operatorApi.useStationMaterial(m.id)
+      m.usageCount = (m.usageCount || 0) + 1
+    } catch (e) {
+      // 保存已成功，记录失败不打断
+    }
   } catch (e) {
-    uni.showToast({ title: (e as Error)?.message || '操作失败', icon: 'none' })
+    uni.hideLoading()
+    const msg = (e as Error)?.message || '保存失败'
+    // 用户拒绝授权相册权限
+    if (msg.includes('auth') || msg.includes('deny')) {
+      uni.showToast({ title: '请授权保存到相册', icon: 'none' })
+    } else {
+      uni.showToast({ title: msg, icon: 'none' })
+    }
   } finally {
     actingId.value = ''
   }
 }
 
-// 文案：复制全文 + 记录使用
+// 文案：复制全文（uni.setClipboardData + toast）+ 记录使用
 async function handleCopy(c: PromotionMaterialItem) {
   if (actingId.value) return
   actingId.value = c.id
@@ -274,12 +296,60 @@ async function handleCopy(c: PromotionMaterialItem) {
       await operatorApi.useStationMaterial(c.id)
       c.usageCount = (c.usageCount || 0) + 1
     } catch (e) {
-      // 复制已成功，记录失败不打断用户
+      // 复制已成功，记录失败不打断
     }
   } catch (e) {
     uni.showToast({ title: '复制失败', icon: 'none' })
   } finally {
     actingId.value = ''
+  }
+}
+
+// 推广码：复制专属链接
+function copyInviteLink() {
+  if (!inviteUrl.value) {
+    uni.showToast({ title: '推广链接生成中', icon: 'none' })
+    return
+  }
+  uni.setClipboardData({
+    data: inviteUrl.value,
+    success: () => uni.showToast({ title: '链接已复制', icon: 'none' }),
+    fail: () => uni.showToast({ title: '复制失败', icon: 'none' }),
+  })
+}
+
+// 推广码：保存二维码图片到相册
+async function saveQrImage() {
+  if (!qrImageUrl.value) {
+    uni.showToast({ title: '二维码图片生成中', icon: 'none' })
+    return
+  }
+  uni.showLoading({ title: '保存中…' })
+  try {
+    const url = await new Promise<string>((resolve, reject) => {
+      uni.downloadFile({
+        url: qrImageUrl.value,
+        success: (r) => (r.statusCode === 200 ? resolve(r.tempFilePath) : reject(new Error('下载失败'))),
+        fail: () => reject(new Error('下载失败')),
+      })
+    })
+    await new Promise<void>((resolve, reject) => {
+      uni.saveImageToPhotosAlbum({
+        filePath: url,
+        success: () => resolve(),
+        fail: (err) => reject(new Error(err?.errMsg || '保存失败')),
+      })
+    })
+    uni.hideLoading()
+    uni.showToast({ title: '已保存到相册', icon: 'success' })
+  } catch (e) {
+    uni.hideLoading()
+    const msg = (e as Error)?.message || '保存失败'
+    if (msg.includes('auth') || msg.includes('deny')) {
+      uni.showToast({ title: '请授权保存到相册', icon: 'none' })
+    } else {
+      uni.showToast({ title: msg, icon: 'none' })
+    }
   }
 }
 
@@ -293,35 +363,55 @@ function goBack() {
 function goJoin() {
   navigateTo('/pkg-operator/join-station/index')
 }
-function goPoster() {
-  navigateTo('/pkg-operator/station-poster/index')
-}
 
 onMounted(load)
 </script>
 
 <style lang="scss" scoped>
+/* ===== token ===== */
+$paper: #faf8f5;
+$card: #ffffff;
+$red: #c41e3a;
+$red-deep: #a01828;
+$gold: #c9a96e;
+$t1: #2c2c2c;
+$t2: #6e6e73;
+$t3: #9a9a9a;
+$line: #efebe4;
+$px: 38rpx;
+$radius: 35rpx;
+$shadow: 0 2rpx 20rpx rgba(44, 38, 30, 0.05);
+
+.serif {
+  font-family: 'Songti SC', 'STSong', serif;
+}
+
 .mat-page {
   min-height: 100vh;
-  background: #faf8f5;
+  background: $paper;
 }
+.hit {
+  /* 热区兜底 ≥88rpx（通过 padding/尺寸保证） */
+}
+
+/* 自定义导航 */
 .mat-nav {
   position: sticky;
   top: 0;
   z-index: 50;
-  background: #fff;
-  border-bottom: 1rpx solid #f3f4f6;
+  background: $card;
+  border-bottom: 1rpx solid $line;
 }
 .mat-nav-inner {
-  height: 112rpx;
+  height: 92rpx;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 32rpx;
+  padding: 0 $px;
 }
 .mat-nav-btn {
-  width: 48rpx;
-  height: 48rpx;
+  width: 88rpx;
+  height: 88rpx;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -335,9 +425,41 @@ onMounted(load)
   }
 }
 .mat-nav-title {
-  font-size: 36rpx;
+  font-size: 33rpx;
   font-weight: 600;
-  color: #111827;
+  color: $t1;
+}
+
+/* 类型 Tab（下划线激活） */
+.mat-ttabs {
+  display: flex;
+  background: $card;
+  border-bottom: 1rpx solid $line;
+}
+.mat-ttab {
+  flex: 1;
+  height: 88rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+.mat-ttab-txt {
+  font-size: 28rpx;
+  color: $t2;
+}
+.mat-ttab.on .mat-ttab-txt {
+  color: $red;
+  font-weight: 600;
+}
+.mat-ttab-line {
+  position: absolute;
+  bottom: 0;
+  width: 46rpx;
+  height: 4rpx;
+  background: $red;
+  border-radius: 2rpx;
 }
 
 /* 三态 */
@@ -346,362 +468,360 @@ onMounted(load)
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 160rpx 32rpx;
-  gap: 24rpx;
+  padding: 160rpx $px;
+  gap: 20rpx;
+}
+.mat-state-ic {
+  width: 140rpx;
+  height: 140rpx;
+  border-radius: 40rpx;
+  background: rgba(201, 169, 110, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 8rpx;
+}
+.mat-state-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: $t1;
+}
+.mat-state-desc {
+  font-size: 26rpx;
+  color: $t3;
+  text-align: center;
+  line-height: 1.6;
 }
 .mat-state-txt {
   font-size: 28rpx;
-  color: #6b7280;
+  color: $t2;
 }
 .mat-spinner {
   width: 56rpx;
   height: 56rpx;
-  border: 6rpx solid #f0d0d4;
-  border-top-color: var(--brand);
+  border: 6rpx solid rgba(196, 30, 58, 0.15);
+  border-top-color: $red;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
 .mat-state-btn {
-  margin-top: 8rpx;
-  padding: 16rpx 48rpx;
-  background: var(--brand);
+  margin-top: 16rpx;
+  min-height: 88rpx;
+  padding: 0 60rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: $red;
   border-radius: 999rpx;
 }
 .mat-state-btn-txt {
   color: #fff;
   font-size: 28rpx;
+  font-weight: 600;
 }
 
-.mat-search-wrap {
-  padding: 24rpx 32rpx;
-  background: #fff;
-  border-bottom: 1rpx solid #f3f4f6;
-}
-.mat-search {
-  display: flex;
-  align-items: center;
-  gap: 16rpx;
-  height: 72rpx;
-  background: #f9fafb;
-  border-radius: 16rpx;
-  padding: 0 24rpx;
-}
-.mat-search-input {
-  flex: 1;
-  font-size: 28rpx;
-  color: #374151;
-}
-.mat-search-ph {
-  color: #9ca3af;
-}
-
-.mat-poster-entry-wrap {
-  padding: 24rpx 32rpx 0;
-}
-.mat-poster-entry {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background: linear-gradient(to right, var(--brand), #a01830);
-  border-radius: 16rpx;
-  padding: 24rpx 32rpx;
-}
-.mat-poster-entry-left {
-  display: flex;
-  align-items: center;
-  gap: 24rpx;
-}
-.mat-poster-entry-icon {
-  width: 72rpx;
-  height: 72rpx;
-  border-radius: 16rpx;
-  background: rgba(255, 255, 255, 0.2);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.mat-poster-entry-title {
-  font-size: 28rpx;
-  font-weight: 500;
-  color: #fff;
-  display: block;
-}
-.mat-poster-entry-sub {
-  font-size: 22rpx;
-  color: rgba(255, 255, 255, 0.7);
-}
-
-.mat-tabs-wrap {
-  padding: 24rpx 32rpx;
-  background: #fff;
-}
-.mat-tabs {
-  display: flex;
-  background: rgba(243, 244, 246, 0.8);
-  border-radius: 16rpx;
-  padding: 6rpx;
-}
-.mat-tab {
-  flex: 1;
-  height: 64rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6rpx;
-  border-radius: 12rpx;
-}
-.mat-tab.active {
-  background: #fff;
-  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.06);
-}
-.mat-tab-txt {
-  font-size: 28rpx;
-  color: #6b7280;
-}
-.mat-tab.active .mat-tab-txt {
-  color: #111827;
-  font-weight: 500;
-}
-.mat-tab-count {
-  font-size: 22rpx;
-  color: #9ca3af;
-}
-
+/* 空态 */
 .mat-empty {
-  padding: 120rpx 32rpx;
+  padding: 130rpx $px 80rpx;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 24rpx;
-}
-.mat-empty-txt {
-  font-size: 28rpx;
-  color: #9ca3af;
-}
-.mat-body {
-  padding: 32rpx;
-  display: flex;
-  flex-direction: column;
-  gap: 48rpx;
-}
-.mat-section-title {
-  display: flex;
   align-items: center;
   gap: 16rpx;
-  margin-bottom: 24rpx;
 }
-.mat-section-title-txt {
-  font-size: 28rpx;
-  font-weight: 500;
-  color: #111827;
-}
-.mat-section-count {
-  font-size: 22rpx;
-  color: #9ca3af;
-}
-.mat-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 24rpx;
-}
-.mat-poster-card {
-  background: #fff;
-  border-radius: 16rpx;
-  overflow: hidden;
-  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.04);
-}
-.mat-poster-thumb {
-  position: relative;
-  aspect-ratio: 3 / 4;
-  background: #f1f5f9;
-}
-.mat-poster-img {
-  width: 100%;
-  height: 100%;
-  display: block;
-}
-.mat-poster-ph {
-  width: 100%;
-  height: 100%;
+.mat-empty-ic {
+  width: 130rpx;
+  height: 130rpx;
+  border-radius: 38rpx;
+  background: rgba(201, 169, 110, 0.12);
   display: flex;
   align-items: center;
   justify-content: center;
+  margin-bottom: 8rpx;
 }
-.mat-poster-use {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background: linear-gradient(to top, rgba(0, 0, 0, 0.6), transparent);
-  padding: 16rpx;
+.mat-empty-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: $t2;
 }
-.mat-poster-use-txt {
+.mat-empty-desc {
+  font-size: 26rpx;
+  color: $t3;
+}
+
+/* ① 海报网格 */
+.mat-pgrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 27rpx;
+  padding: 30rpx $px 60rpx;
+}
+.mat-pcard {
+  background: $card;
+  border: 1rpx solid $line;
+  border-radius: 31rpx;
+  overflow: hidden;
+  box-shadow: $shadow;
+}
+.mat-pcover {
+  height: 358rpx;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(160deg, $red-deep, $red);
+}
+.mat-pcover-img {
+  width: 100%;
+  height: 100%;
+}
+.mat-pcover-ph {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0 20rpx;
+}
+.mat-pcover-ph-s {
   font-size: 22rpx;
-  color: rgba(255, 255, 255, 0.8);
+  color: rgba(255, 255, 255, 0.85);
+  letter-spacing: 4rpx;
+  margin-bottom: 12rpx;
 }
-.mat-poster-info {
-  padding: 16rpx;
+.mat-pcover-ph-b {
+  font-size: 34rpx;
+  font-weight: 700;
+  color: #fff;
+  text-align: center;
+  line-height: 1.4;
 }
-.mat-poster-card-title {
-  font-size: 28rpx;
-  font-weight: 500;
-  color: #111827;
+.mat-pbadge {
+  position: absolute;
+  top: 18rpx;
+  left: 18rpx;
+  height: 42rpx;
+  padding: 0 16rpx;
+  border-radius: 13rpx;
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+}
+.mat-pbadge-txt {
+  color: #fff;
+  font-size: 21rpx;
+}
+.mat-pfoot {
+  padding: 21rpx 23rpx 25rpx;
+}
+.mat-pname {
+  font-size: 25rpx;
+  font-weight: 600;
+  color: $t1;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   display: block;
 }
-.mat-tags {
-  display: flex;
-  gap: 8rpx;
-  margin-top: 8rpx;
-  flex-wrap: wrap;
+.mat-puse {
+  font-size: 21rpx;
+  color: $t3;
+  margin-top: 6rpx;
+  display: block;
 }
-.mat-tag {
-  font-size: 22rpx;
-  padding: 4rpx 12rpx;
-  background: #f3f4f6;
-  color: #6b7280;
-  border-radius: 6rpx;
-}
-.mat-tag-red {
-  background: rgba(196, 30, 58, 0.05);
-  color: var(--brand);
-}
-
-.mat-use-btn {
-  margin-top: 16rpx;
-  height: 56rpx;
+.mat-pbtn {
+  margin-top: 17rpx;
+  min-height: 62rpx;
+  border-radius: 17rpx;
+  background: rgba(196, 30, 58, 0.08);
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8rpx;
-  background: #fef2f4;
-  border-radius: 12rpx;
+  gap: 10rpx;
 }
-.mat-use-btn-block {
-  margin-top: 24rpx;
-}
-.mat-use-btn.disabled {
+.mat-pbtn.disabled {
   opacity: 0.5;
 }
-.mat-use-btn-txt {
-  font-size: 24rpx;
-  color: var(--brand);
-  font-weight: 500;
+.mat-pbtn-txt {
+  font-size: 23rpx;
+  font-weight: 600;
+  color: $red;
 }
 
-.mat-copy-list {
+/* ② 文案列表 */
+.mat-tlist {
+  padding: 30rpx $px 60rpx;
   display: flex;
   flex-direction: column;
-  gap: 24rpx;
+  gap: 27rpx;
 }
-.mat-copy-card {
-  background: #fff;
-  border-radius: 16rpx;
-  padding: 32rpx;
-  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.04);
+.mat-titem {
+  background: $card;
+  border: 1rpx solid $line;
+  border-radius: 31rpx;
+  padding: 31rpx;
+  box-shadow: $shadow;
 }
-.mat-copy-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16rpx;
-  margin-bottom: 16rpx;
-}
-.mat-copy-title {
-  font-size: 30rpx;
-  font-weight: 500;
-  color: #111827;
-  flex: 1;
-  min-width: 0;
-}
-.mat-copy-btn {
+.mat-ttag-row {
   display: flex;
   align-items: center;
-  gap: 8rpx;
-  height: 56rpx;
-  padding: 0 24rpx;
-  border: 1rpx solid #e5e7eb;
-  border-radius: 12rpx;
-  flex-shrink: 0;
+  justify-content: space-between;
+  margin-bottom: 19rpx;
 }
-.mat-copy-btn.copied {
-  background: #22c55e;
-  border-color: #22c55e;
+.mat-ttag {
+  font-size: 21rpx;
+  font-weight: 600;
+  padding: 6rpx 19rpx;
+  border-radius: 13rpx;
 }
-.mat-copy-btn.disabled {
-  opacity: 0.5;
+.mat-ttag-course {
+  background: rgba(196, 30, 58, 0.1);
+  color: $red;
 }
-.mat-copy-btn-txt {
-  font-size: 24rpx;
+.mat-ttag-product {
+  background: rgba(201, 169, 110, 0.16);
+  color: #97794a;
 }
-.mat-copy-content {
-  font-size: 28rpx;
-  color: #4b5563;
-  line-height: 1.6;
+.mat-ttag-brand {
+  background: rgba(46, 110, 139, 0.1);
+  color: #2e6e8b;
+}
+.mat-tuse {
+  font-size: 21rpx;
+  color: $t3;
+}
+.mat-tbody {
+  font-size: 25rpx;
+  color: $t2;
+  line-height: 1.75;
   white-space: pre-wrap;
 }
-.mat-copy-content.clamp {
+.mat-tbody.clamp {
   display: -webkit-box;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 4;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
-.mat-copy-toggle {
-  font-size: 24rpx;
-  color: var(--brand);
-  margin-top: 16rpx;
+.mat-ttoggle {
+  font-size: 23rpx;
+  color: $red;
+  margin-top: 12rpx;
   display: inline-block;
+  padding: 6rpx 0;
 }
-.mat-copy-foot {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-top: 24rpx;
-  padding-top: 24rpx;
-  border-top: 1rpx solid #f3f4f6;
-}
-.mat-copy-count {
-  font-size: 22rpx;
-  color: #9ca3af;
-}
-
-.mat-qr-card {
-  background: #fff;
-  border-radius: 16rpx;
-  padding: 32rpx;
-  text-align: center;
-  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.04);
-}
-.mat-qr-thumb {
-  width: 192rpx;
-  height: 192rpx;
-  margin: 0 auto 24rpx;
-  background: #f3f4f6;
-  border-radius: 16rpx;
+.mat-tcopy {
+  margin-top: 27rpx;
+  min-height: 73rpx;
+  border-radius: 21rpx;
+  border: 1rpx solid $red;
   display: flex;
   align-items: center;
   justify-content: center;
-  overflow: hidden;
+  gap: 12rpx;
 }
-.mat-qr-img {
+.mat-tcopy.copied {
+  background: #22c55e;
+  border-color: #22c55e;
+}
+.mat-tcopy.disabled {
+  opacity: 0.6;
+}
+.mat-tcopy-txt {
+  font-size: 25rpx;
+  font-weight: 600;
+  color: $red;
+}
+
+/* ③ 推广码 */
+.mat-qwrap {
+  padding: 46rpx $px;
+}
+.mat-qcard {
+  background: $card;
+  border: 1rpx solid $line;
+  border-radius: $radius;
+  padding: 54rpx 46rpx;
+  text-align: center;
+  box-shadow: $shadow;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.mat-qtitle {
+  font-size: 31rpx;
+  font-weight: 600;
+  color: $t1;
+  margin-bottom: 8rpx;
+}
+.mat-qsub {
+  font-size: 23rpx;
+  color: $t3;
+  margin-bottom: 42rpx;
+}
+.mat-qcode {
+  width: 346rpx;
+  height: 346rpx;
+  border-radius: 27rpx;
+  background: #fff;
+  border: 1rpx solid $line;
+  padding: 23rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.mat-qcode-img {
   width: 100%;
   height: 100%;
 }
-.mat-qr-title {
-  font-size: 28rpx;
-  font-weight: 500;
-  color: #111827;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  display: block;
+.mat-qname {
+  font-size: 27rpx;
+  font-weight: 600;
+  color: $t1;
+  margin-top: 35rpx;
 }
-.mat-qr-scan {
-  font-size: 22rpx;
-  color: #9ca3af;
+.mat-qid {
+  font-size: 23rpx;
+  color: $t3;
   margin-top: 8rpx;
+}
+.mat-qbtns {
+  display: flex;
+  gap: 23rpx;
+  margin-top: 46rpx;
+  width: 100%;
+}
+.mat-qbtn {
+  flex: 1;
+  min-height: 88rpx;
+  border-radius: 23rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12rpx;
+}
+.mat-qbtn.primary {
+  background: $red;
+}
+.mat-qbtn.ghost {
+  background: $card;
+  border: 1rpx solid $red;
+}
+.mat-qbtn.disabled {
+  opacity: 0.5;
+}
+.mat-qbtn-txt {
+  font-size: 27rpx;
+  font-weight: 600;
+}
+.mat-qbtn-txt-red {
+  color: $red;
+}
+.mat-qbtn-txt-white {
+  color: #fff;
+}
+.mat-qtip {
   display: block;
+  margin-top: 27rpx;
+  font-size: 23rpx;
+  color: $t3;
+  text-align: center;
+  line-height: 1.6;
 }
 </style>
