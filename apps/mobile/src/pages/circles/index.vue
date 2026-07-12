@@ -80,6 +80,11 @@ async function handleJoin(id: string) {
 }
 
 function go(url: string) { navigateTo(url) }
+// 未加入 → 购买/加入引导页 preview（转化关键·付费圈走确认支付）；已加入 → 圈子详情
+function openCircle(c: Circle) {
+  if (c.isJoined) navigateTo(`/pkg-circle/circles/detail?id=${c.id}`)
+  else navigateTo(`/pkg-circle/circles/preview?id=${c.id}`)
+}
 
 onMounted(() => { loadCircles(); loadExtras() })
 // 返回本页刷新「已加入」态（详情页加入/退出后回来即时反映）
@@ -170,7 +175,7 @@ onShow(() => {
         <view v-else-if="circles.length" class="discover-list">
           <view
             v-for="c in circles" :key="c.id"
-            class="circle-card" @tap="go(`/pkg-circle/circles/detail?id=${c.id}`)"
+            class="circle-card" @tap="openCircle(c)"
           >
             <!-- 首图 3:4（上传规范：圈子封面 960×1280·3:4）-->
             <view class="card-cover">
