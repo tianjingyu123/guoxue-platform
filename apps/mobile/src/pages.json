@@ -1517,12 +1517,6 @@
           }
         },
         {
-          "path": "archive/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
           "path": "talents/index",
           "style": {
             "navigationStyle": "custom"
@@ -1976,24 +1970,6 @@
           }
         },
         {
-          "path": "teacher-pool/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "teacher-demand/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "demand-create/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
           "path": "members/index",
           "style": {
             "navigationStyle": "custom"
@@ -2001,12 +1977,6 @@
         },
         {
           "path": "member-apply/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "demands-create/index",
           "style": {
             "navigationStyle": "custom"
           }
@@ -2035,12 +2005,6 @@
           }
         },
         {
-          "path": "station-home/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
           "path": "manage-brand/index",
           "style": {
             "navigationStyle": "custom"
@@ -2054,18 +2018,6 @@
         },
         {
           "path": "course-detail/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "teacher-booking/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "events/index",
           "style": {
             "navigationStyle": "custom"
           }
@@ -2102,42 +2054,6 @@
         },
         {
           "path": "manage-teachers/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "students/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "events/detail",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "manage-events/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "manage-calendar/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "onboarding/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "sop/index",
           "style": {
             "navigationStyle": "custom"
           }
