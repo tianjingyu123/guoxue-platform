@@ -157,8 +157,8 @@ const notifications = reactive<Record<NotifyKey, boolean>>({
   system: false,
 })
 
-function onToggle(key: NotifyKey, e: { detail: { value: boolean } }) {
-  notifications[key] = e.detail.value
+function onToggle(key: NotifyKey, e: Event) {
+  notifications[key] = Boolean((e as CustomEvent<{ value: boolean }>).detail?.value)
   // 后端暂无 PUT /operator/settings 端点，仅本地生效并即时反馈
   uni.showToast({ title: '已保存', icon: 'success', duration: 1000 })
 }
