@@ -953,7 +953,9 @@ export const orderApi = {
   list: (params?: { page?: number; pageSize?: number; status?: string; type?: string; orderNo?: string; userId?: string; startDate?: string; endDate?: string }) =>
     api.get("/shop/orders", { params }),
   detail: (id: string) => api.get(`/shop/orders/${id}`),
-  pay: (id: string) => api.put(`/shop/orders/${id}/pay`),
+  // 管理员确认支付（测试通道）：后端强制要求流水号，未显式传入时自动生成手动确认流水号
+  pay: (id: string, payTransactionId?: string) =>
+    api.put(`/shop/orders/${id}/pay`, { payTransactionId: payTransactionId || `MANUAL-${Date.now()}` }),
   ship: (id: string) => api.put(`/shop/orders/${id}/ship`),
   refund: (id: string) => api.put(`/shop/orders/${id}/refund`),
   complete: (id: string) => api.put(`/shop/orders/${id}/complete`),
