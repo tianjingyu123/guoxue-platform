@@ -81,6 +81,18 @@ export interface MerchantProfile {
 /** 商品状态（后端枚举） */
 export type ProductStatus = 'ON_SALE' | 'OFF_SHELF' | 'PENDING'
 
+/** 商品 SKU（多规格·B3 商品编辑器矩阵态） */
+export interface MerchantProductSku {
+  id: string
+  productId: string
+  /** 规格键值对，如 { 材质: '桃木', 尺寸: '小' } */
+  specs: Record<string, string>
+  price: string | number
+  stock: number
+  skuCode?: string | null
+  createdAt?: string
+}
+
 export interface MerchantProduct {
   id: string
   title: string
@@ -94,6 +106,8 @@ export interface MerchantProduct {
   status: ProductStatus
   categoryId?: string | null
   tags: string[]
+  /** 多规格 SKU 列表（getProduct 详情含·编辑态回填矩阵） */
+  skus?: MerchantProductSku[]
   createdAt: string
 }
 
@@ -191,6 +205,37 @@ export interface MerchantNotice {
   read: boolean
 }
 
+// ───────── 操作员（MerchantMember·B8） ─────────
+/** 操作员权限枚举（与后端 MerchantMember.permissions 对齐；纯前端展示映射见 memberPermConfig） */
+export type MerchantMemberPerm = 'PRODUCT' | 'ORDER' | 'REVIEW' | 'MESSAGE' | 'SETTLEMENT'
+
+export interface MerchantMember {
+  id: string
+  userId: string
+  nickname: string
+  avatar?: string | null
+  /** 平台账号（手机号，后端已脱敏 138****6789） */
+  phone?: string | null
+  /** 角色：OWNER=店主（全部权限·不可移除）/ OPERATOR=操作员 */
+  role: 'OWNER' | 'OPERATOR'
+  /** 授予的权限集（OWNER 可能为空数组，前端按 role 判「全部权限」） */
+  permissions: MerchantMemberPerm[]
+  /** 最近操作摘要（后端 enrich·可空） */
+  lastAction?: string | null
+  lastActiveAt?: string | null
+  createdAt: string
+}
+
+/** 操作审计记录（谁·何时·做了什么；后端未实现时页面诚实占位） */
+export interface MerchantMemberAudit {
+  id: string
+  memberId: string
+  operatorName: string
+  action: string
+  target?: string | null
+  createdAt: string
+}
+
 export interface MerchantContentStats {
   totalProducts: number
   publishedProducts: number
@@ -234,6 +279,13 @@ export const merchantBackendApi = {
   deleteProduct: (id: string) => apiDelete(`/merchant-backend/products/${id}`),
   listProduct: (id: string) => apiPost(`/merchant-backend/products/${id}/list`, {}),
   unlistProduct: (id: string) => apiPost(`/merchant-backend/products/${id}/unlist`, {}),
+
+  // SKU（B3 多规格矩阵·店铺身份·后端归一到 owner）
+  /** 为商品添加一条 SKU：specs=规格键值对，price 必填，stock 选填 */
+  addSku: (productId: string, data: { specs?: Record<string, string>; name?: string; price: number; stock?: number }) =>
+    apiPost<MerchantProductSku>(`/merchant-backend/products/${productId}/skus`, data),
+  /** 删除一条 SKU（按 skuId） */
+  deleteSku: (skuId: string) => apiDelete(`/merchant-backend/skus/${skuId}`),
 
   // 订单
   getOrders: (params?: { status?: MerchantOrderStatus; page?: number; pageSize?: number }) => {
@@ -282,6 +334,20 @@ export const merchantBackendApi = {
     // 后端咨询子系统未实现（诚实降级返回空），结构未定 → 用宽松记录类型占位
     apiGetPaged<Record<string, unknown>>(`/merchant-backend/inquiries?page=${params?.page ?? 1}&pageSize=${params?.pageSize ?? 20}`),
   getContentStats: () => apiGet<MerchantContentStats>('/merchant-backend/content-stats'),
+
+  // 操作员（B8·MerchantMember·仅旗舰店/大商家可用）
+  /** 店铺成员列表（含店主 OWNER + 操作员 OPERATOR·后端按当前店铺归属返回） */
+  getMembers: () => apiGet<MerchantMember[]>('/merchant-backend/members'),
+  /** 添加操作员：绑定已注册平台用户（account=手机号/用户ID）并授予权限 */
+  addMember: (account: string, permissions: MerchantMemberPerm[]) =>
+    apiPost<MerchantMember>('/merchant-backend/members', { account, permissions }),
+  /** 移除操作员（DELETE members/:memberId·归属仍记店主·仅解除鉴权） */
+  removeMember: (memberId: string) => apiDelete(`/merchant-backend/members/${memberId}`),
+  /** 操作审计（后端未实现时可能 404 → 页面诚实占位「审计明细开发中」） */
+  getMemberAudit: (params?: { page?: number; pageSize?: number }) =>
+    apiGetPaged<MerchantMemberAudit>(
+      `/merchant-backend/members/audit?page=${params?.page ?? 1}&pageSize=${params?.pageSize ?? 20}`,
+    ),
 
   // 履约健康（履-P1·后端 GET /merchant/my/metrics·MerchantGuard 商家身份校验）
   getMyMetrics: (days = 7) => apiGet<MerchantMetricsResp>(`/merchant/my/metrics?days=${days}`),
@@ -442,6 +508,19 @@ export const settlementStatusConfig: Record<string, { label: string; color: stri
   PENDING: { label: '待结算', color: '#b45309', bg: '#fef3c7' },
   PAID: { label: '已结算', color: '#15803d', bg: '#dcfce7' },
   CANCELLED: { label: '已取消', color: '#4b5563', bg: '#f3f4f6' },
+}
+
+/** 操作员权限展示映射（B8·添加弹层勾选项 + 列表权限胶囊）。sensitive=敏感权限默认不勾选。 */
+export const memberPermConfig: { key: MerchantMemberPerm; label: string; sub: string; sensitive?: boolean }[] = [
+  { key: 'PRODUCT', label: '商品管理', sub: '新建 / 编辑 / 上下架' },
+  { key: 'ORDER', label: '订单处理', sub: '发货 / 售后' },
+  { key: 'REVIEW', label: '评价回复', sub: '' },
+  { key: 'MESSAGE', label: '消息中心', sub: '' },
+  { key: 'SETTLEMENT', label: '结算查看', sub: '敏感，默认关', sensitive: true },
+]
+
+export function memberPermLabel(k: MerchantMemberPerm): string {
+  return memberPermConfig.find((p) => p.key === k)?.label ?? k
 }
 
 /** 物流公司（发货选择器） */

@@ -1664,6 +1664,12 @@
           "style": {
             "navigationStyle": "custom"
           }
+        },
+        {
+          "path": "operators/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
         }
       ]
     },

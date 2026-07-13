@@ -497,7 +497,11 @@ export class MerchantService {
   }
 
   async getProduct(userId: string, productId: string) {
-    const product = await this.prisma.product.findFirst({ where: { id: productId, userId } });
+    // include skus：编辑态需回填多规格矩阵（B3 商品编辑器）
+    const product = await this.prisma.product.findFirst({
+      where: { id: productId, userId },
+      include: { skus: { orderBy: { createdAt: "asc" } } },
+    });
     if (!product) throw new BusinessException(ErrorCode.BAD_REQUEST, "商品不存在");
     return product;
   }

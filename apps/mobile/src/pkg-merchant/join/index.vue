@@ -1,359 +1,667 @@
+<!--
+  M1 · 成为商家（静态介绍页 · 合并 join + terms）
+  V0 视觉稿真源：public/merchant/mockup/mockup-M1-成为商家.html
+  规格：价值主张(如实陈述·禁收益承诺) + 4步入驻流程 + 供货/结算/保证金规则 + 条款入口(弹层) + 开始入驻→M2。
+  真实接线：进页探测 merchantApi.getApplication()：已申请→按钮改为「查看申请状态」跳 M3；未申请(404)→「开始入驻」跳 M2。
+-->
 <template>
-  <view class="mj-page">
+  <view class="page">
     <!-- 顶部导航 -->
-    <view class="mj-header" :style="{ paddingTop: statusBarHeight + 'px' }">
-      <view class="mj-header-inner">
-        <view class="mj-icon-btn" @tap="goBack">
-          <AppIcon name="arrow-left" :size="20" color="#1a1a1a" />
-        </view>
-        <text class="mj-title">商家入驻</text>
-        <text class="mj-header-link" @tap="go('/merchant/apply')">立即入驻</text>
+    <view class="nav-bar" :style="{ paddingTop: statusBarH + 'px' }">
+      <view class="nav-back" @tap="goBack">
+        <AppIcon name="arrow-left" :size="36" color="#2C2C2C" />
       </view>
+      <text class="nav-title">成为商家</text>
     </view>
 
-    <scroll-view scroll-y class="mj-scroll" :style="{ paddingTop: statusBarHeight + 44 + 'px' }">
-      <!-- Hero Banner -->
-      <view class="mj-hero">
-        <view class="mj-hero-deco mj-hero-deco1" />
-        <view class="mj-hero-deco mj-hero-deco2" />
-        <view class="mj-hero-content">
-          <view class="mj-hero-badge">
-            <AppIcon name="zap" :size="12" color="#ffffff" />
-            <text>限时福利</text>
-          </view>
-          <text class="mj-hero-title">入驻{{ BRAND.nameShort }}平台</text>
-          <text class="mj-hero-sub">千万国学爱好者等你来，开启你的国学生意</text>
-          <view class="mj-hero-btns">
-            <view class="mj-hero-btn-primary" @tap="go('/merchant/apply')">
-              <text>立即入驻</text>
-              <AppIcon name="arrow-right" :size="16" color="#c41e3a" />
-            </view>
-            <view class="mj-hero-btn-outline">
-              <text>咨询客服</text>
-            </view>
-          </view>
-        </view>
-      </view>
+    <!-- 加载态 -->
+    <view v-if="loading" class="state">
+      <text class="state-t">加载中…</text>
+    </view>
 
-      <!-- 入驻优势 -->
-      <view class="mj-section">
-        <text class="mj-sec-title">为什么选择我们</text>
-        <view class="mj-adv-grid">
-          <view v-for="(item, i) in advantages" :key="i" class="mj-adv-card">
-            <AppIcon :name="item.icon" :size="32" color="#c41e3a" />
-            <text class="mj-adv-high">{{ item.highlight }}</text>
-            <text class="mj-adv-name">{{ item.title }}</text>
-            <text class="mj-adv-desc">{{ item.desc }}</text>
-          </view>
+    <!-- 错误态 -->
+    <view v-else-if="error" class="state">
+      <text class="state-t">{{ error }}</text>
+      <view class="state-btn" @tap="load"><text>重试</text></view>
+    </view>
+
+    <!-- 正常态 -->
+    <scroll-view v-else scroll-y class="scroll" :style="{ paddingTop: statusBarH + 44 + 'px' }">
+      <!-- Hero 朱红品牌头 -->
+      <view class="hero">
+        <text class="hero-deco">商</text>
+        <view class="hero-inner">
+          <view class="hero-badge"><text>热卜 · 供货商家</text></view>
+          <text class="hero-h">入驻热卜，成为供货商家</text>
+          <text class="hero-s">把商品放进平台商品池，接入圈子 / 驿站 / 商城 / 站长主推位等多个分销渠道。你专注供货与履约，流量与分销由平台侧配置。</text>
         </view>
       </view>
 
       <!-- 入驻流程 -->
-      <view class="mj-section mj-section-gray">
-        <text class="mj-sec-title">入驻流程</text>
-        <view class="mj-steps">
-          <view v-for="(item, i) in steps" :key="i" class="mj-step">
-            <view class="mj-step-num">{{ item.step }}</view>
-            <text class="mj-step-title">{{ item.title }}</text>
-            <text class="mj-step-desc">{{ item.desc }}</text>
-            <view v-if="i < steps.length - 1" class="mj-step-arrow">
-              <AppIcon name="chevron-right" :size="16" color="#bbb" />
+      <view class="sect">
+        <view class="sect-t"><view class="sect-bar" /><text class="sect-tt">入驻流程</text></view>
+        <view class="flow">
+          <template v-for="(s, i) in flowSteps" :key="i">
+            <view class="step">
+              <view class="step-n"><text>{{ s.n }}</text></view>
+              <text class="step-l">{{ s.l }}</text>
             </view>
+            <view v-if="i < flowSteps.length - 1" class="flow-arrow"><text>›</text></view>
+          </template>
+        </view>
+      </view>
+
+      <!-- 合作规则 -->
+      <view class="sect">
+        <view class="sect-t"><view class="sect-bar" /><text class="sect-tt">合作规则</text></view>
+        <view v-for="(r, i) in rules" :key="i" class="rule">
+          <view class="rule-ic">
+            <AppIcon :name="r.icon" :size="40" color="#C41E3A" :stroke-width="1.8" />
+          </view>
+          <view class="rule-body">
+            <text class="rule-t">{{ r.title }}</text>
+            <text class="rule-d">{{ r.desc }}</text>
           </view>
         </view>
       </view>
 
-      <!-- 商家类型 -->
-      <view class="mj-section">
-        <text class="mj-sec-title">选择店铺类型</text>
-        <view class="mj-types">
-          <view
-            v-for="type in merchantTypes"
-            :key="type.id"
-            class="mj-type-card"
-            :class="{ 'mj-type-active': selectedType === type.id }"
-            @tap="selectedType = type.id"
-          >
-            <view class="mj-type-head">
-              <view class="mj-type-head-left">
-                <view class="mj-type-name-row">
-                  <text class="mj-type-name">{{ type.title }}</text>
-                  <text class="mj-type-badge" :class="'mj-badge-' + type.id">{{ type.badge }}</text>
-                </view>
-                <text class="mj-type-desc">{{ type.desc }}</text>
-              </view>
-              <view class="mj-type-radio" :class="{ 'mj-type-radio-on': selectedType === type.id }">
-                <AppIcon v-if="selectedType === type.id" name="check-circle-2" :size="16" color="#ffffff" />
-              </view>
-            </view>
-            <view class="mj-type-features">
-              <text v-for="(f, fi) in type.features" :key="fi" class="mj-type-feat">{{ f }}</text>
-            </view>
-          </view>
+      <!-- 合规提示（禁承诺式宣传） -->
+      <view class="anno">
+        <text class="anno-t">平台如实说明供货与结算规则，不作"月入过万 / 躺赚 / 包爆单"等收益承诺。实际收益取决于你的商品与经营。</text>
+      </view>
+
+      <!-- 条款入口 -->
+      <view class="terms" @tap="toggleAgree">
+        <view class="terms-box" :class="{ on: agreed }">
+          <AppIcon v-if="agreed" name="check-circle-2" :size="24" color="#C41E3A" :fill="true" />
+        </view>
+        <view class="terms-txt">
+          <text class="terms-line">我已阅读并同意</text>
+          <text class="terms-link" @tap.stop="openTerms('merchant')">《商家入驻协议》</text>
+          <text class="terms-line">与</text>
+          <text class="terms-link" @tap.stop="openTerms('service')">《平台服务条款》</text>
         </view>
       </view>
 
-      <!-- 成功案例 -->
-      <view class="mj-section mj-section-gray">
-        <text class="mj-sec-title">成功商家案例</text>
-        <scroll-view scroll-x class="mj-cases">
-          <view class="mj-cases-row">
-            <view v-for="item in successCases" :key="item.id" class="mj-case-card">
-              <view class="mj-case-head">
-                <view class="mj-case-avatar">{{ item.avatar }}</view>
-                <view>
-                  <text class="mj-case-name">{{ item.name }}</text>
-                  <text class="mj-case-cat">{{ item.category }}</text>
-                </view>
-              </view>
-              <view class="mj-case-mid">
-                <view>
-                  <text class="mj-case-label">月销售额</text>
-                  <text class="mj-case-sales">{{ item.monthSales }}</text>
-                </view>
-                <view class="mj-case-rating">
-                  <AppIcon name="star" :size="12" color="#f59e0b" :fill="true" />
-                  <text class="mj-case-rate">{{ item.rating }}</text>
-                </view>
-              </view>
-              <text class="mj-case-desc">{{ item.desc }}</text>
-            </view>
-          </view>
-        </scroll-view>
-      </view>
-
-      <!-- 平台数据 -->
-      <view class="mj-section">
-        <text class="mj-sec-title">平台实力</text>
-        <view class="mj-stats">
-          <view class="mj-stat">
-            <AppIcon name="bar-chart-3" :size="24" color="#c41e3a" />
-            <text class="mj-stat-num">1000万+</text>
-            <text class="mj-stat-label">注册用户</text>
-          </view>
-          <view class="mj-stat">
-            <AppIcon name="store" :size="24" color="#c41e3a" />
-            <text class="mj-stat-num">5000+</text>
-            <text class="mj-stat-label">入驻商家</text>
-          </view>
-          <view class="mj-stat">
-            <AppIcon name="truck" :size="24" color="#c41e3a" />
-            <text class="mj-stat-num">100万+</text>
-            <text class="mj-stat-label">月订单量</text>
-          </view>
-        </view>
-      </view>
-
-      <!-- 常见问题 -->
-      <view class="mj-section mj-section-gray">
-        <text class="mj-sec-title">常见问题</text>
-        <view class="mj-faqs">
-          <view v-for="(faq, i) in faqs" :key="i" class="mj-faq">
-            <view class="mj-faq-q" @tap="expandedFaq = expandedFaq === i ? -1 : i">
-              <text class="mj-faq-q-txt">{{ faq.q }}</text>
-              <view class="mj-faq-chevron" :class="{ 'mj-faq-chevron-on': expandedFaq === i }">
-                <AppIcon name="chevron-right" :size="16" color="#999" />
-              </view>
-            </view>
-            <view v-if="expandedFaq === i" class="mj-faq-a">
-              <text class="mj-faq-a-txt">{{ faq.a }}</text>
-            </view>
-          </view>
-        </view>
-      </view>
-
-      <!-- 底部CTA -->
-      <view class="mj-section">
-        <view class="mj-cta">
-          <AppIcon name="gift" :size="40" color="#c41e3a" />
-          <text class="mj-cta-title">新商家专属福利</text>
-          <text class="mj-cta-sub">现在入驻享30天流量扶持+首月佣金减半</text>
-          <view class="mj-cta-btn" @tap="go('/merchant/apply')">
-            <text>立即入驻，领取福利</text>
-          </view>
-        </view>
-      </view>
-
-      <view class="mj-bottom-placeholder" />
+      <view class="bottom-ph" />
     </scroll-view>
 
-    <!-- 底部固定按钮 -->
-    <view class="mj-footer">
-      <view class="mj-footer-outline">
-        <AppIcon name="headphones" :size="16" color="#1a1a1a" />
-        <text>咨询客服</text>
+    <!-- 底部固定 CTA -->
+    <view v-if="!loading && !error" class="foot" :style="{ paddingBottom: 'calc(18px + ' + safeBottom + 'px)' }">
+      <view class="cta" :class="{ disabled: !agreed && !hasApplied }" @tap="onCta">
+        <text>{{ ctaText }}</text>
       </view>
-      <view class="mj-footer-primary" @tap="go('/merchant/apply')">
-        <text>立即入驻</text>
-        <AppIcon name="arrow-right" :size="16" color="#ffffff" />
+    </view>
+
+    <!-- 条款弹层 -->
+    <view v-if="termsShow" class="mask" @tap="termsShow = false">
+      <view class="sheet" @tap.stop>
+        <view class="sheet-head">
+          <text class="sheet-title">{{ termsTitle }}</text>
+          <view class="sheet-close" @tap="termsShow = false"><text>✕</text></view>
+        </view>
+        <scroll-view scroll-y class="sheet-scroll">
+          <text class="sheet-update">最后更新：2026年07月01日</text>
+          <text class="sheet-intro">{{ termsIntro }}</text>
+          <view v-for="(sec, i) in currentTermsSections" :key="i" class="sheet-sec">
+            <text class="sheet-sec-t">{{ sec.title }}</text>
+            <text class="sheet-sec-c">{{ sec.content }}</text>
+          </view>
+          <view style="height: 24rpx" />
+        </scroll-view>
+        <view class="sheet-foot">
+          <view class="sheet-btn" @tap="agreeFromSheet"><text>我已阅读并同意</text></view>
+        </view>
       </view>
     </view>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo, goBack } from '@/utils/router'
-import { BRAND } from '@/lib/brand'
+import { merchantApi } from '@/lib/merchant-data'
 
-const advantages = [
-  { icon: 'users', title: '海量用户', desc: '千万级国学爱好者用户群体', highlight: '1000万+' },
-  { icon: 'trending-up', title: '流量扶持', desc: '新店流量扶持，快速起步', highlight: '30天' },
-  { icon: 'shield', title: '平台保障', desc: '交易担保，资金安全', highlight: '100%' },
-  { icon: 'headphones', title: '专属客服', desc: '一对一运营指导服务', highlight: '7x24h' },
+const statusBarH = ref(0)
+const safeBottom = ref(0)
+const loading = ref(true)
+const error = ref('')
+const agreed = ref(false)
+// 已提交申请标记：进页探测，已申请则 CTA 指向状态页而非重复申请
+const hasApplied = ref(false)
+
+// ── 入驻流程（4 步，与 V0 一致） ──
+const flowSteps = [
+  { n: 1, l: '提交入驻申请' },
+  { n: 2, l: '平台资质审核' },
+  { n: 3, l: '签署合作协议' },
+  { n: 4, l: '开通上架商品' },
 ]
 
-const steps = [
-  { step: 1, title: '提交申请', desc: '填写店铺信息和资质' },
-  { step: 2, title: '资质审核', desc: '1-3个工作日完成审核' },
-  { step: 3, title: '签订协议', desc: '在线签署入驻协议' },
-  { step: 4, title: '开店成功', desc: '发布商品开始经营' },
+// ── 合作规则（如实陈述供货/结算/保证金） ──
+const rules = [
+  { icon: 'package', title: '供货模式', desc: '商家供货入池，由平台各渠道分销；商家负责发货与售后履约。' },
+  { icon: 'dollar-sign', title: '结算方式', desc: '按平台结算周期结算，可在「结算与收入」查看结算单与周期说明。' },
+  { icon: 'shield-check', title: '保证金', desc: '本平台当前免保证金入驻。（后续如调整以协议为准）' },
 ]
 
-const merchantTypes = [
-  { id: 'individual', title: '个人店铺', desc: '适合个人卖家、手艺人', features: ['无需营业执照', '快速入驻', '佣金8%'], badge: '推荐' },
-  { id: 'enterprise', title: '企业店铺', desc: '适合公司、品牌商家', features: ['需营业执照', '品牌认证', '佣金5%'], badge: '专业' },
-  { id: 'flagship', title: '旗舰店铺', desc: '适合知名品牌、连锁机构', features: ['品牌授权', '专属扶持', '佣金3%'], badge: '尊享' },
+// ── 条款弹层内容（并入自 terms 页） ──
+const merchantSections = [
+  { title: '1. 商家资质要求', content: '申请成为热卜平台商家，须具备合法的营业执照或个体工商户登记证明；具备履行本协议及提供相关服务的能力；不存在违法经营记录。个人卖家须提供身份证明及相关资质。' },
+  { title: '2. 平台规则遵守', content: '商家须遵守平台内容审核规范，不得发布违法违规内容；须保证商品/服务信息的真实性和准确性；须按时履行与用户达成的交易；须妥善处理用户投诉。' },
+  { title: '3. 供货与履约', content: '商家将商品放入平台商品池，由圈子 / 驿站 / 商城 / 站长主推位等渠道分销。商家负责按约定发货、售后与退换货履约，保证商品质量与库存真实。' },
+  { title: '4. 结算与费率', content: '平台按结算周期结算商家应得款项，具体费率与结算周期以商家后台费率说明及本协议为准。相关税务由商家自行承担。' },
+  { title: '5. 保证金', content: '本平台当前免保证金入驻。若后续政策调整需缴纳保证金，将以届时生效的协议条款为准，并提前告知商家。' },
+  { title: '6. 违规处理', content: '商家违反平台规则，平台有权视情节采取警告整改、下架违规商品、暂停权限、解除合作并追缴违规所得等措施；情节严重者将向相关部门举报。' },
+  { title: '7. 协议终止', content: '双方均可提前书面通知对方终止本协议。协议终止后，平台将结算商家应得款项，商家须停止使用平台提供的资源与工具。' },
+]
+const serviceSections = [
+  { title: '1. 服务范围', content: '平台为商家提供商品池接入、多渠道分销配置、订单与结算工具、经营数据看板等服务。具体功能以平台实际提供为准，平台可依运营需要迭代调整。' },
+  { title: '2. 账号与安全', content: '商家须妥善保管账号与密码，对账号下的一切操作负责。如发现账号异常应及时联系平台处理。' },
+  { title: '3. 数据与隐私', content: '平台依法收集与处理经营必要的数据，保护用户与商家信息安全，不向无关第三方泄露。商家不得滥用平台内获取的用户信息。' },
+  { title: '4. 责任与免责', content: '因不可抗力、第三方原因或商家自身过错导致的损失，平台在法律允许范围内不承担责任。平台对服务持续性尽合理努力，但不保证不间断可用。' },
+  { title: '5. 条款变更', content: '平台可根据法律法规及运营需要修订本条款，修订后将以适当方式公示。商家继续使用即视为接受修订后的条款。' },
 ]
 
-const successCases = [
-  { id: '1', name: '古韵斋', avatar: '古', category: '文房用品', monthSales: '12.8万', rating: 4.9, desc: '入驻3个月，月销突破10万' },
-  { id: '2', name: '国学书苑', avatar: '国', category: '国学书籍', monthSales: '8.5万', rating: 4.8, desc: '专注古籍善本，复购率超60%' },
-  { id: '3', name: '易道坊', avatar: '易', category: '命理工具', monthSales: '6.2万', rating: 4.9, desc: '罗盘销量全网TOP3' },
-]
+const termsShow = ref(false)
+const termsType = ref<'merchant' | 'service'>('merchant')
+const termsTitle = computed(() => (termsType.value === 'merchant' ? '商家入驻协议' : '平台服务条款'))
+const termsIntro = computed(() =>
+  termsType.value === 'merchant'
+    ? '本协议规定了商家在热卜国学文化平台开展供货经营的权利与义务，请在申请入驻前仔细阅读。'
+    : '本条款规定了平台向商家提供服务的范围、账号安全、数据隐私与责任边界，请仔细阅读。',
+)
+const currentTermsSections = computed(() =>
+  termsType.value === 'merchant' ? merchantSections : serviceSections,
+)
 
-const faqs = [
-  { q: '入驻需要什么条件？', a: '个人店铺需年满18周岁，企业店铺需提供营业执照。所有商家需保证商品质量和售后服务。' },
-  { q: '入驻收费吗？', a: '入驻免费，平台按成交订单收取佣金。个人店铺8%，企业店铺5%，旗舰店3%。' },
-  { q: '审核需要多久？', a: '一般1-3个工作日完成审核，资料齐全可当日通过。' },
-  { q: '可以卖什么商品？', a: '国学相关的书籍、文创、法器、服饰、课程等均可销售，需符合平台规范。' },
-]
+const ctaText = computed(() => (hasApplied.value ? '查看申请状态' : '开始入驻'))
 
-const selectedType = ref('individual')
-const expandedFaq = ref(-1)
-const statusBarHeight = ref(0)
-
-function go(url: string) {
-  navigateTo(url)
+function toggleAgree() {
+  agreed.value = !agreed.value
+}
+function openTerms(type: 'merchant' | 'service') {
+  termsType.value = type
+  termsShow.value = true
+}
+function agreeFromSheet() {
+  agreed.value = true
+  termsShow.value = false
 }
 
-uni.getSystemInfo({
-  success: (res) => {
-    statusBarHeight.value = res.statusBarHeight || 0
-  },
+function onCta() {
+  // 已提交申请：直接进状态页（M3），不重复申请
+  if (hasApplied.value) {
+    navigateTo('/pkg-merchant/apply/index')
+    return
+  }
+  if (!agreed.value) {
+    uni.showToast({ title: '请先阅读并同意入驻协议', icon: 'none' })
+    return
+  }
+  navigateTo('/pkg-merchant/apply/index')
+}
+
+async function load() {
+  loading.value = true
+  error.value = ''
+  try {
+    // 探测是否已提交过申请（后端未申请返回 404 → 抛错，视为未申请）
+    await merchantApi.getApplication()
+    hasApplied.value = true
+  } catch (e) {
+    const msg = (e as Error)?.message || ''
+    // 404 / 不存在 / 未申请 → 正常的未申请态，展示介绍页
+    if (/404|不存在|未申请|未找到|no.*application/i.test(msg)) {
+      hasApplied.value = false
+    } else if (/登录|未授权|401|token/i.test(msg)) {
+      // 未登录也允许浏览介绍页，仅当作未申请
+      hasApplied.value = false
+    } else {
+      // 其余网络/服务异常仍不阻塞介绍页展示，静默降级为未申请
+      hasApplied.value = false
+    }
+  } finally {
+    loading.value = false
+  }
+}
+
+onLoad(() => {
+  try {
+    const sys = uni.getSystemInfoSync()
+    statusBarH.value = sys.statusBarHeight || 0
+    safeBottom.value = (sys.safeAreaInsets && sys.safeAreaInsets.bottom) || 0
+  } catch (e) {
+    statusBarH.value = 0
+    safeBottom.value = 0
+  }
+  load()
 })
 </script>
 
-<style scoped>
-.mj-page { min-height: 100vh; background: #ffffff; }
+<style lang="scss" scoped>
+$red: #c41e3a;
+$gold: #c9a96e;
+$paper: #faf8f5;
+$card: #fff;
+$ink: #2c2c2c;
+$ink2: #6e6e73;
+$ink3: #9a9a9a;
+$line: #ece7e0;
+$wash: #f5f1eb;
+
+.page {
+  min-height: 100vh;
+  background: $paper;
+  display: flex;
+  flex-direction: column;
+}
 
 /* 顶部导航 */
-.mj-header { position: fixed; top: 0; left: 0; right: 0; z-index: 50; background: rgba(255,255,255,0.95); backdrop-filter: blur(8px); border-bottom: 1px solid rgba(0,0,0,0.06); }
-.mj-header-inner { display: flex; align-items: center; justify-content: space-between; height: 44px; padding: 0 16px; }
-.mj-icon-btn { width: 32px; height: 32px; display: flex; align-items: center; }
-.mj-title { font-size: 16px; font-weight: 600; color: #1a1a1a; }
-.mj-header-link { font-size: 14px; color: var(--brand); font-weight: 500; }
+.nav-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  height: 88rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(250, 248, 245, 0.94);
+  border-bottom: 1rpx solid $line;
+}
+.nav-back {
+  position: absolute;
+  left: 28rpx;
+  width: 68rpx;
+  height: 68rpx;
+  border-radius: 50%;
+  background: $card;
+  border: 1rpx solid $line;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.nav-title {
+  font-family: 'Songti SC', serif;
+  font-size: 34rpx;
+  font-weight: 700;
+  color: $ink;
+}
 
-.mj-scroll { height: 100vh; box-sizing: border-box; }
+/* 状态态 */
+.state {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24rpx;
+  padding-top: 260rpx;
+}
+.state-t {
+  font-size: 27rpx;
+  color: $ink3;
+}
+.state-btn {
+  padding: 14rpx 44rpx;
+  border: 1rpx solid $red;
+  border-radius: 999rpx;
+}
+.state-btn text {
+  font-size: 27rpx;
+  color: $red;
+}
+
+/* 滚动区 */
+.scroll {
+  flex: 1;
+  height: 100vh;
+  box-sizing: border-box;
+}
 
 /* Hero */
-.mj-hero { position: relative; background: linear-gradient(135deg, var(--brand) 0%, var(--brand) 60%, #ad1a33 100%); padding: 32px 16px; overflow: hidden; }
-.mj-hero-deco { position: absolute; background: rgba(255,255,255,0.06); border-radius: 50%; }
-.mj-hero-deco1 { top: -64px; right: -64px; width: 128px; height: 128px; }
-.mj-hero-deco2 { bottom: -48px; left: -48px; width: 96px; height: 96px; }
-.mj-hero-content { position: relative; }
-.mj-hero-badge { display: inline-flex; align-items: center; gap: 4px; background: rgba(255,255,255,0.2); border-radius: 12px; padding: 4px 10px; margin-bottom: 12px; }
-.mj-hero-badge text { font-size: 12px; color: #fff; }
-.mj-hero-title { display: block; font-size: 24px; font-weight: 700; color: #fff; margin-bottom: 8px; }
-.mj-hero-sub { display: block; font-size: 14px; color: rgba(255,255,255,0.8); margin-bottom: 16px; line-height: 1.5; }
-.mj-hero-btns { display: flex; gap: 12px; }
-.mj-hero-btn-primary { display: flex; align-items: center; gap: 4px; background: #fff; border-radius: 8px; padding: 10px 20px; }
-.mj-hero-btn-primary text { font-size: 14px; font-weight: 600; color: var(--brand); }
-.mj-hero-btn-outline { display: flex; align-items: center; border: 1px solid rgba(255,255,255,0.3); border-radius: 8px; padding: 10px 20px; }
-.mj-hero-btn-outline text { font-size: 14px; color: #fff; }
+.hero {
+  position: relative;
+  margin: 32rpx 40rpx 0;
+  border-radius: 40rpx;
+  padding: 64rpx 44rpx;
+  overflow: hidden;
+  background: linear-gradient(140deg, #c41e3a, #9e1830);
+  box-shadow: 0 20rpx 52rpx rgba(196, 30, 58, 0.28);
+}
+.hero-deco {
+  position: absolute;
+  right: -20rpx;
+  bottom: -48rpx;
+  font-family: 'Songti SC', serif;
+  font-size: 240rpx;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.08);
+  line-height: 1;
+}
+.hero-inner {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+.hero-badge {
+  align-self: flex-start;
+  border: 1rpx solid rgba(255, 255, 255, 0.4);
+  border-radius: 999rpx;
+  padding: 6rpx 24rpx;
+  margin-bottom: 28rpx;
+}
+.hero-badge text {
+  font-size: 22rpx;
+  color: #fff;
+  letter-spacing: 2rpx;
+}
+.hero-h {
+  font-family: 'Songti SC', serif;
+  font-size: 46rpx;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 24rpx;
+}
+.hero-s {
+  font-size: 24rpx;
+  line-height: 1.75;
+  color: rgba(255, 255, 255, 0.9);
+}
 
-/* Section */
-.mj-section { padding: 24px 16px; }
-.mj-section-gray { background: rgba(0,0,0,0.02); }
-.mj-sec-title { display: block; font-size: 18px; font-weight: 700; color: #1a1a1a; margin-bottom: 16px; }
-
-/* 优势 */
-.mj-adv-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.mj-adv-card { background: #fff; border: 1px solid rgba(0,0,0,0.06); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; }
-.mj-adv-high { font-size: 20px; font-weight: 700; color: var(--brand); margin-top: 8px; }
-.mj-adv-name { font-size: 14px; font-weight: 500; color: #1a1a1a; margin-top: 2px; }
-.mj-adv-desc { font-size: 12px; color: #999; margin-top: 4px; line-height: 1.4; }
+/* 分区标题 */
+.sect {
+  margin: 48rpx 40rpx 0;
+}
+.sect-t {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  margin-bottom: 28rpx;
+}
+.sect-bar {
+  width: 8rpx;
+  height: 32rpx;
+  background: $red;
+  border-radius: 4rpx;
+}
+.sect-tt {
+  font-family: 'Songti SC', serif;
+  font-size: 32rpx;
+  font-weight: 700;
+  color: $ink;
+}
 
 /* 流程 */
-.mj-steps { display: flex; align-items: flex-start; justify-content: space-between; }
-.mj-step { position: relative; flex: 1; display: flex; flex-direction: column; align-items: center; text-align: center; }
-.mj-step-num { width: 40px; height: 40px; border-radius: 50%; background: var(--brand); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 700; margin-bottom: 8px; }
-.mj-step-title { font-size: 12px; font-weight: 500; color: #1a1a1a; }
-.mj-step-desc { font-size: 10px; color: #999; margin-top: 2px; line-height: 1.3; }
-.mj-step-arrow { position: absolute; top: 12px; right: -8px; }
+.flow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+.step {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+.step-n {
+  width: 68rpx;
+  height: 68rpx;
+  border-radius: 50%;
+  background: $gold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16rpx;
+}
+.step-n text {
+  font-family: 'Songti SC', serif;
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #fff;
+}
+.step-l {
+  font-size: 20rpx;
+  color: $ink2;
+  line-height: 1.45;
+}
+.flow-arrow {
+  padding-top: 16rpx;
+}
+.flow-arrow text {
+  color: $gold;
+  font-size: 28rpx;
+}
 
-/* 类型 */
-.mj-types { display: flex; flex-direction: column; gap: 12px; }
-.mj-type-card { border: 2px solid transparent; background: #fff; border-radius: 12px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
-.mj-type-active { border-color: var(--brand); background: rgba(196,30,58,0.05); }
-.mj-type-head { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 8px; }
-.mj-type-name-row { display: flex; align-items: center; gap: 8px; }
-.mj-type-name { font-size: 16px; font-weight: 700; color: #1a1a1a; }
-.mj-type-badge { font-size: 10px; padding: 2px 6px; border-radius: 4px; color: #fff; }
-.mj-badge-individual { background: var(--brand); }
-.mj-badge-enterprise { background: #3b82f6; }
-.mj-badge-flagship { background: #f59e0b; }
-.mj-type-desc { display: block; font-size: 14px; color: #999; margin-top: 2px; }
-.mj-type-radio { width: 20px; height: 20px; border-radius: 50%; border: 2px solid rgba(0,0,0,0.2); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.mj-type-radio-on { border-color: var(--brand); background: var(--brand); }
-.mj-type-features { display: flex; flex-wrap: wrap; gap: 8px; }
-.mj-type-feat { font-size: 12px; padding: 4px 8px; background: rgba(0,0,0,0.04); border-radius: 4px; color: #666; }
+/* 规则卡 */
+.rule {
+  background: $card;
+  border: 1rpx solid $line;
+  border-radius: 28rpx;
+  padding: 28rpx;
+  margin-bottom: 22rpx;
+  display: flex;
+  gap: 24rpx;
+  box-shadow: 0 4rpx 16rpx rgba(80, 60, 40, 0.04);
+}
+.rule-ic {
+  width: 76rpx;
+  height: 76rpx;
+  border-radius: 20rpx;
+  background: $wash;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.rule-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.rule-t {
+  font-size: 26rpx;
+  font-weight: 600;
+  color: $ink;
+  margin-bottom: 6rpx;
+}
+.rule-d {
+  font-size: 22rpx;
+  color: $ink2;
+  line-height: 1.55;
+}
 
-/* 案例 */
-.mj-cases { width: 100%; white-space: nowrap; }
-.mj-cases-row { display: inline-flex; gap: 12px; }
-.mj-case-card { width: 224px; background: #fff; border: 1px solid rgba(0,0,0,0.06); border-radius: 12px; padding: 16px; white-space: normal; }
-.mj-case-head { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
-.mj-case-avatar { width: 40px; height: 40px; border-radius: 50%; background: rgba(196,30,58,0.1); color: var(--brand); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 16px; }
-.mj-case-name { display: block; font-size: 14px; font-weight: 500; color: #1a1a1a; }
-.mj-case-cat { display: block; font-size: 12px; color: #999; }
-.mj-case-mid { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
-.mj-case-label { display: block; font-size: 12px; color: #999; }
-.mj-case-sales { display: block; font-size: 16px; font-weight: 700; color: var(--brand); }
-.mj-case-rating { display: flex; align-items: center; gap: 4px; }
-.mj-case-rate { font-size: 14px; font-weight: 500; color: #1a1a1a; }
-.mj-case-desc { font-size: 12px; color: #999; line-height: 1.4; }
+/* 合规提示 */
+.anno {
+  margin: 28rpx 40rpx 0;
+  background: rgba(196, 30, 58, 0.05);
+  border: 1rpx solid rgba(196, 30, 58, 0.18);
+  border-radius: 18rpx;
+  padding: 20rpx 22rpx;
+}
+.anno-t {
+  font-size: 21rpx;
+  color: $red;
+  line-height: 1.6;
+}
 
-/* 平台数据 */
-.mj-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
-.mj-stat { text-align: center; padding: 16px; background: rgba(0,0,0,0.03); border-radius: 12px; display: flex; flex-direction: column; align-items: center; }
-.mj-stat-num { font-size: 20px; font-weight: 700; color: #1a1a1a; margin-top: 8px; }
-.mj-stat-label { font-size: 12px; color: #999; margin-top: 2px; }
+/* 条款入口 */
+.terms {
+  margin: 32rpx 40rpx 0;
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+.terms-box {
+  width: 32rpx;
+  height: 32rpx;
+  border: 3rpx solid $gold;
+  border-radius: 10rpx;
+  background: rgba(201, 169, 110, 0.12);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.terms-box.on {
+  border-color: $red;
+  background: rgba(196, 30, 58, 0.08);
+}
+.terms-txt {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.terms-line {
+  font-size: 22rpx;
+  color: $ink2;
+  line-height: 1.6;
+}
+.terms-link {
+  font-size: 22rpx;
+  color: $red;
+  text-decoration: underline;
+  line-height: 1.6;
+}
 
-/* FAQ */
-.mj-faqs { display: flex; flex-direction: column; gap: 8px; }
-.mj-faq { background: #fff; border: 1px solid rgba(0,0,0,0.06); border-radius: 12px; overflow: hidden; }
-.mj-faq-q { display: flex; align-items: center; justify-content: space-between; padding: 16px; }
-.mj-faq-q-txt { font-size: 14px; font-weight: 500; color: #1a1a1a; flex: 1; }
-.mj-faq-chevron { transition: transform 0.2s; }
-.mj-faq-chevron-on { transform: rotate(90deg); }
-.mj-faq-a { padding: 0 16px 16px; }
-.mj-faq-a-txt { font-size: 14px; color: #999; line-height: 1.5; }
+.bottom-ph {
+  height: 160rpx;
+}
 
-/* CTA */
-.mj-cta { padding: 24px; background: linear-gradient(135deg, rgba(196,30,58,0.05), rgba(196,30,58,0.1)); border: 1px solid rgba(196,30,58,0.2); border-radius: 16px; text-align: center; display: flex; flex-direction: column; align-items: center; }
-.mj-cta-title { font-size: 18px; font-weight: 700; color: #1a1a1a; margin-top: 12px; }
-.mj-cta-sub { font-size: 14px; color: #999; margin: 8px 0 16px; }
-.mj-cta-btn { width: 100%; background: var(--brand); border-radius: 10px; padding: 14px; }
-.mj-cta-btn text { font-size: 16px; font-weight: 600; color: #fff; }
+/* 底部固定 CTA */
+.foot {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 40;
+  padding: 28rpx 40rpx 36rpx;
+  background: rgba(250, 248, 245, 0.96);
+  border-top: 1rpx solid $line;
+}
+.cta {
+  height: 100rpx;
+  background: $red;
+  border-radius: 999rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 12rpx 32rpx rgba(196, 30, 58, 0.32);
+}
+.cta text {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #fff;
+}
+.cta.disabled {
+  background: #d9b6bd;
+  box-shadow: none;
+}
 
-.mj-bottom-placeholder { height: 88px; }
-
-/* 底部固定 */
-.mj-footer { position: fixed; bottom: 0; left: 0; right: 0; background: #fff; border-top: 1px solid rgba(0,0,0,0.06); padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); display: flex; gap: 12px; }
-.mj-footer-outline { flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; border: 1px solid rgba(0,0,0,0.15); border-radius: 8px; padding: 12px; }
-.mj-footer-outline text { font-size: 14px; color: #1a1a1a; }
-.mj-footer-primary { flex: 1; display: flex; align-items: center; justify-content: center; gap: 4px; background: var(--brand); border-radius: 8px; padding: 12px; }
-.mj-footer-primary text { font-size: 14px; font-weight: 600; color: #fff; }
+/* 条款弹层 */
+.mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 100;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: flex-end;
+}
+.sheet {
+  width: 100%;
+  max-height: 82vh;
+  background: $paper;
+  border-radius: 36rpx 36rpx 0 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.sheet-head {
+  position: relative;
+  height: 96rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-bottom: 1rpx solid $line;
+  flex-shrink: 0;
+}
+.sheet-title {
+  font-family: 'Songti SC', serif;
+  font-size: 32rpx;
+  font-weight: 700;
+  color: $ink;
+}
+.sheet-close {
+  position: absolute;
+  right: 32rpx;
+  width: 56rpx;
+  height: 56rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.sheet-close text {
+  font-size: 34rpx;
+  color: $ink3;
+}
+.sheet-scroll {
+  flex: 1;
+  padding: 32rpx 40rpx;
+  box-sizing: border-box;
+}
+.sheet-update {
+  display: block;
+  font-size: 22rpx;
+  color: $ink3;
+  margin-bottom: 20rpx;
+}
+.sheet-intro {
+  display: block;
+  font-size: 24rpx;
+  color: $ink2;
+  line-height: 1.7;
+  margin-bottom: 32rpx;
+}
+.sheet-sec {
+  margin-bottom: 32rpx;
+}
+.sheet-sec-t {
+  display: block;
+  font-size: 26rpx;
+  font-weight: 600;
+  color: $ink;
+  margin-bottom: 12rpx;
+}
+.sheet-sec-c {
+  font-size: 24rpx;
+  color: $ink2;
+  line-height: 1.75;
+}
+.sheet-foot {
+  padding: 20rpx 40rpx calc(24rpx + env(safe-area-inset-bottom));
+  border-top: 1rpx solid $line;
+  background: $card;
+  flex-shrink: 0;
+}
+.sheet-btn {
+  height: 92rpx;
+  background: $red;
+  border-radius: 999rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.sheet-btn text {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #fff;
+}
 </style>

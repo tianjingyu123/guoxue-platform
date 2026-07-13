@@ -1,10 +1,15 @@
+<!--
+  B6 · 评价管理（V0 视觉稿 1:1 还原 · uni-app Vue3）
+  评分汇总（综合分+好/中/差评占比条）+ 胶囊筛选 + 评价列表（金星/内容/商品/时间）+ 商家回复（replyReview）
+  真连 merchantBackendApi.getReviews / replyReview · 三态 · token 见 style
+-->
 <template>
   <view class="page">
-    <!-- 顶部导航 -->
+    <!-- 顶部导航（朱红渐变） -->
     <view class="nav" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="nav-bar">
         <view class="nav-back" @tap="goBack">
-          <app-icon name="arrow-left" :size="20" color="#1a1a1a" />
+          <app-icon name="arrow-left" :size="20" color="#ffffff" />
         </view>
         <text class="nav-title">评价管理</text>
         <view class="nav-placeholder" />
@@ -12,124 +17,150 @@
     </view>
 
     <scroll-view scroll-y class="scroll" :style="{ paddingTop: navHeight + 'px' }">
-      <!-- Loading -->
+      <!-- 加载态 -->
       <view v-if="loading" class="state">
         <text class="state-txt">加载中…</text>
       </view>
-      <!-- Error -->
+      <!-- 错误态 -->
       <view v-else-if="error" class="state">
-        <app-icon name="alert-circle" :size="48" color="#dc2626" />
+        <app-icon name="alert-circle" :size="48" color="#C41E3A" />
         <text class="state-title">加载失败</text>
         <text class="state-txt">{{ error }}</text>
         <view class="retry" @tap="load"><text>重试</text></view>
       </view>
 
       <template v-else>
-        <!-- 统计概览 -->
-        <view class="card stat-card">
-          <view class="stat-item">
-            <text class="stat-num">{{ avgRating }}</text>
-            <view class="stat-stars">
-              <app-icon
-                v-for="i in 5"
-                :key="i"
-                name="star"
-                :size="12"
-                :color="i <= Math.round(Number(avgRating)) ? '#fbbf24' : '#fcd34d80'"
-              />
-            </view>
-            <text class="stat-label">平均评分</text>
-          </view>
-          <view class="stat-item">
-            <text class="stat-num">{{ reviews.length }}</text>
-            <text class="stat-label">总评价数</text>
-          </view>
-          <view class="stat-item">
-            <text class="stat-num stat-orange">{{ pendingCount }}</text>
-            <text class="stat-label">待回复</text>
-          </view>
-        </view>
-
-        <!-- 筛选标签 -->
-        <view class="tabs">
-          <view
-            v-for="t in tabs"
-            :key="t.key"
-            class="tab"
-            :class="{ 'tab-active': activeTab === t.key }"
-            @tap="activeTab = t.key"
-          >
-            <text class="tab-text" :class="{ 'tab-text-active': activeTab === t.key }">{{ t.label }}</text>
-          </view>
-        </view>
-
-        <!-- 评价列表 -->
-        <view class="list">
-          <view v-for="review in filteredReviews" :key="review.id" class="card review-card">
-            <!-- 商品信息 -->
-            <view class="review-product">
-              <view class="product-thumb">
-                <app-icon name="package" :size="20" color="#9ca3af" />
-              </view>
-              <text class="product-name">{{ review.product?.title || '商品' }}</text>
-            </view>
-
-            <!-- 评价内容 -->
-            <view class="review-head">
-              <view class="review-stars">
-                <app-icon v-for="i in 5" :key="i" name="star" :size="14" :color="i <= review.rating ? '#fbbf24' : '#e5e7eb'" />
-              </view>
-              <text class="review-meta">匿名用户</text>
-              <text class="review-meta">{{ dt(review.createdAt) }}</text>
-            </view>
-            <text class="review-content">{{ review.content }}</text>
-
-            <view v-if="review.images && review.images.length > 0" class="review-images">
-              <view v-for="(img, i) in review.images" :key="i" class="review-image">
-                <image lazy-load v-if="img" :src="img" class="review-image-img" mode="aspectFill" />
-                <app-icon v-else name="image" :size="20" color="#9ca3af" />
+        <view class="body">
+          <!-- 评分汇总 -->
+          <view class="summary">
+            <view class="score">
+              <text class="score-n">{{ avgRating }}</text>
+              <text class="score-s">综合评分</text>
+              <view class="score-st">
+                <app-icon
+                  v-for="i in 5"
+                  :key="i"
+                  name="star"
+                  :size="12"
+                  :color="i <= Math.round(Number(avgRating)) ? '#C9A96E' : '#E8DFD3'"
+                />
               </view>
             </view>
-
-            <!-- 商家回复 -->
-            <view v-if="review.reply" class="reply-box">
-              <view class="reply-head">
-                <text class="reply-badge">商家回复</text>
-                <text class="reply-time">{{ dt(review.repliedAt) }}</text>
+            <view class="bars">
+              <view class="bar-row">
+                <text class="bar-lbl">好评</text>
+                <view class="track"><view class="fill" :style="{ width: goodPct + '%' }" /></view>
+                <text class="bar-pct">{{ goodPct }}%</text>
               </view>
-              <text class="reply-content">{{ review.reply }}</text>
+              <view class="bar-row">
+                <text class="bar-lbl">中评</text>
+                <view class="track"><view class="fill" :style="{ width: midPct + '%' }" /></view>
+                <text class="bar-pct">{{ midPct }}%</text>
+              </view>
+              <view class="bar-row">
+                <text class="bar-lbl">差评</text>
+                <view class="track"><view class="fill" :style="{ width: badPct + '%' }" /></view>
+                <text class="bar-pct">{{ badPct }}%</text>
+              </view>
             </view>
+          </view>
 
-            <!-- 回复输入框 -->
-            <view v-if="replyingId === review.id" class="reply-form">
-              <textarea
-                v-model="replyText"
-                class="reply-textarea"
-                placeholder="输入回复内容..."
-                :maxlength="-1"
-              />
-              <view class="reply-actions">
-                <view class="btn-outline" @tap="cancelReply">
-                  <text class="btn-outline-text">取消</text>
+          <!-- 筛选 Tab（胶囊） -->
+          <view class="tabs">
+            <view
+              v-for="t in tabs"
+              :key="t.key"
+              class="tab"
+              :class="{ on: activeTab === t.key }"
+              @tap="activeTab = t.key"
+            >
+              <text class="tab-txt" :class="{ 'tab-txt-on': activeTab === t.key }">{{ t.label }}</text>
+            </view>
+          </view>
+
+          <!-- 评价列表 -->
+          <view class="list">
+            <view
+              v-for="review in filteredReviews"
+              :key="review.id"
+              class="rcard"
+              :class="{ warn: review.rating <= 2 && !review.reply }"
+            >
+              <!-- 头部：用户 + 星 -->
+              <view class="rhead">
+                <view class="ruser">
+                  <view class="ravatar" />
+                  <text class="ruser-name">匿名用户</text>
                 </view>
-                <view class="btn-primary" :class="{ 'btn-disabled': submitting }" @tap="sendReply(review.id)">
-                  <text class="btn-primary-text">{{ submitting ? '发送中…' : '发送回复' }}</text>
+                <view class="stars">
+                  <app-icon
+                    v-for="i in 5"
+                    :key="i"
+                    name="star"
+                    :size="13"
+                    :color="i <= review.rating ? '#C9A96E' : '#E8DFD3'"
+                  />
                 </view>
               </view>
-            </view>
 
-            <!-- 操作按钮 -->
-            <view v-if="!review.reply && replyingId !== review.id" class="review-foot">
-              <view class="btn-primary btn-reply" @tap="startReply(review.id)">
-                <app-icon name="message-square" :size="14" color="#ffffff" />
-                <text class="btn-primary-text">回复</text>
+              <!-- 评价内容 -->
+              <text class="rtext">{{ review.content }}</text>
+
+              <!-- 评价图片 -->
+              <view v-if="review.images && review.images.length > 0" class="rimages">
+                <view v-for="(img, i) in review.images" :key="i" class="rimage">
+                  <image v-if="img" lazy-load :src="img" class="rimage-img" mode="aspectFill" />
+                  <app-icon v-else name="image" :size="20" color="#999999" />
+                </view>
+              </view>
+
+              <!-- 商品 · 时间 -->
+              <text class="rmeta">{{ review.product?.title || '商品' }} · {{ dt(review.createdAt) }}</text>
+
+              <!-- 已回复：展示回复内容 -->
+              <view v-if="review.reply" class="reply">
+                <text class="reply-b">商家回复：</text><text class="reply-txt">{{ review.reply }}</text>
+              </view>
+
+              <!-- 回复输入框 -->
+              <view v-else-if="replyingId === review.id" class="reply-form">
+                <textarea
+                  v-model="replyText"
+                  class="reply-textarea"
+                  placeholder="输入回复内容…"
+                  placeholder-class="ta-ph"
+                  :maxlength="-1"
+                />
+                <view class="reply-actions">
+                  <view class="rbtn ghost" @tap="cancelReply"><text class="rbtn-txt-ghost">取消</text></view>
+                  <view class="rbtn pri" :class="{ disabled: submitting }" @tap="sendReply(review.id)">
+                    <text class="rbtn-txt-pri">{{ submitting ? '发送中…' : '发送回复' }}</text>
+                  </view>
+                </view>
+              </view>
+
+              <!-- 未回复：回复按钮（中差评朱红优先，好评描边） -->
+              <view v-else class="rfoot">
+                <view
+                  class="rbtn"
+                  :class="review.rating <= 2 ? 'pri' : 'ghost'"
+                  @tap="startReply(review.id)"
+                >
+                  <text :class="review.rating <= 2 ? 'rbtn-txt-pri' : 'rbtn-txt-ghost'">
+                    {{ review.rating <= 2 ? '优先回复 ›' : '回复评价' }}
+                  </text>
+                </view>
               </view>
             </view>
-          </view>
 
-          <view v-if="filteredReviews.length === 0" class="empty">
-            <app-icon name="message-square" :size="40" color="#cccccc" />
-            <text class="empty-text">暂无评价</text>
+            <!-- 空态 -->
+            <view v-if="filteredReviews.length === 0" class="empty">
+              <view class="empty-ic">
+                <app-icon name="star" :size="40" color="#C9A96E" />
+              </view>
+              <text class="empty-title">还没有买家评价</text>
+              <text class="empty-txt">买家完成订单并评价后会显示在这里。用心的商品与服务，是好评的开始。</text>
+            </view>
           </view>
         </view>
       </template>
@@ -155,29 +186,33 @@ const replyingId = ref<string | null>(null)
 const replyText = ref('')
 
 const pendingCount = computed(() => reviews.value.filter((r) => !r.reply).length)
-const negativeCount = computed(() => reviews.value.filter((r) => r.rating <= 2).length)
 const avgRating = computed(() => {
   if (!reviews.value.length) return '0.0'
   const sum = reviews.value.reduce((acc, r) => acc + (Number(r.rating) || 0), 0)
   return (sum / reviews.value.length).toFixed(1)
 })
 
+// 好/中/差评占比（四舍五入到整数百分比）
+function pct(n: number): number {
+  if (!reviews.value.length) return 0
+  return Math.round((n / reviews.value.length) * 100)
+}
+const goodPct = computed(() => pct(reviews.value.filter((r) => r.rating >= 4).length))
+const midPct = computed(() => pct(reviews.value.filter((r) => r.rating === 3).length))
+const badPct = computed(() => pct(reviews.value.filter((r) => r.rating <= 2).length))
+
 const tabs = computed(() => [
   { key: 'all', label: '全部' },
-  { key: 'pending', label: `待回复(${pendingCount.value})` },
+  { key: 'pending', label: `待回复 ${pendingCount.value}` },
   { key: 'good', label: '好评' },
-  { key: 'mid', label: '中评' },
-  { key: 'negative', label: `差评(${negativeCount.value})` },
-  { key: 'hasImage', label: '有图' },
+  { key: 'bad', label: '中差评' },
 ])
 
 const filteredReviews = computed(() =>
   reviews.value.filter((r) => {
     if (activeTab.value === 'pending') return !r.reply
     if (activeTab.value === 'good') return r.rating >= 4
-    if (activeTab.value === 'mid') return r.rating === 3
-    if (activeTab.value === 'negative') return r.rating <= 2
-    if (activeTab.value === 'hasImage') return !!(r.images && r.images.length > 0)
+    if (activeTab.value === 'bad') return r.rating <= 3
     return true
   }),
 )
@@ -235,66 +270,358 @@ onMounted(() => {
 })
 </script>
 
-<style scoped>
-.page { min-height: 100vh; background: #f5f5f5; }
-.nav { position: fixed; top: 0; left: 0; right: 0; z-index: 50; background: #ffffff; border-bottom: 1px solid #ededed; }
-.nav-bar { display: flex; align-items: center; height: 44px; padding: 0 16px; }
-.nav-back { width: 32px; height: 32px; display: flex; align-items: center; }
-.nav-title { flex: 1; font-size: 17px; font-weight: 600; color: #1a1a1a; }
-.nav-placeholder { width: 32px; }
-.scroll { height: 100vh; box-sizing: border-box; padding-bottom: 40px; }
+<style lang="scss" scoped>
+$paper: #faf8f5;
+$card: #ffffff;
+$crimson: #c41e3a;
+$gold: #c9a96e;
+$t1: #2c2c2c;
+$t2: #6e6e73;
+$t3: #999999;
+$line: #edeae4;
 
-.card { background: #ffffff; border-radius: 12px; margin: 12px 16px 0; padding: 16px; }
-.stat-card { display: flex; }
-.stat-item { flex: 1; display: flex; flex-direction: column; align-items: center; }
-.stat-num { font-size: 24px; font-weight: 700; color: #1a1a1a; }
-.stat-orange { color: #ea580c; }
-.stat-stars { display: flex; gap: 2px; margin-top: 4px; }
-.stat-label { font-size: 12px; color: #9ca3af; margin-top: 4px; }
+.page {
+  min-height: 100vh;
+  background: $paper;
+}
 
-.tabs { display: flex; gap: 8px; padding: 12px 16px 0; flex-wrap: wrap; }
-.tab { height: 34px; padding: 0 14px; border-radius: 8px; background: #f3f4f6; display: flex; align-items: center; justify-content: center; }
-.tab-active { background: var(--brand); }
-.tab-text { font-size: 12px; color: #4b5563; }
-.tab-text-active { color: #ffffff; }
+/* 顶部导航 · 朱红渐变 */
+.nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  background: linear-gradient(135deg, #c41e3a, #a01830);
+}
+.nav-bar {
+  display: flex;
+  align-items: center;
+  height: 44px;
+  padding: 0 32rpx;
+}
+.nav-back {
+  width: 64rpx;
+  height: 64rpx;
+  display: flex;
+  align-items: center;
+}
+.nav-title {
+  flex: 1;
+  font-size: 36rpx;
+  font-weight: 700;
+  color: #ffffff;
+}
+.nav-placeholder {
+  width: 64rpx;
+}
+.scroll {
+  height: 100vh;
+  box-sizing: border-box;
+}
+.body {
+  padding: 32rpx 40rpx 60rpx;
+}
 
-.list { padding: 0 16px; }
-.review-card { margin: 12px 0 0; }
-.review-product { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
-.product-thumb { width: 40px; height: 40px; border-radius: 6px; background: #f3f4f6; display: flex; align-items: center; justify-content: center; }
-.product-name { flex: 1; font-size: 14px; font-weight: 500; color: #1a1a1a; }
-.review-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.review-stars { display: flex; gap: 2px; }
-.review-meta { font-size: 12px; color: #9ca3af; }
-.review-content { display: block; font-size: 14px; color: #1a1a1a; line-height: 1.5; margin-top: 8px; }
-.review-images { display: flex; gap: 8px; margin-top: 8px; }
-.review-image { width: 64px; height: 64px; border-radius: 6px; background: #f3f4f6; display: flex; align-items: center; justify-content: center; overflow: hidden; }
-.review-image-img { width: 100%; height: 100%; }
+/* 评分汇总 */
+.summary {
+  background: $card;
+  border-radius: 18px;
+  padding: 36rpx;
+  display: flex;
+  gap: 40rpx;
+  align-items: center;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
+  margin-bottom: 32rpx;
+}
+.score {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.score-n {
+  font-size: 76rpx;
+  font-weight: 700;
+  color: $crimson;
+  line-height: 1;
+}
+.score-s {
+  font-size: 22rpx;
+  color: $t3;
+  margin-top: 12rpx;
+}
+.score-st {
+  display: flex;
+  gap: 2rpx;
+  margin-top: 6rpx;
+}
+.bars {
+  flex: 1;
+}
+.bar-row {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  margin-bottom: 12rpx;
+}
+.bar-row:last-child {
+  margin-bottom: 0;
+}
+.bar-lbl {
+  width: 60rpx;
+  font-size: 22rpx;
+  color: $t2;
+}
+.track {
+  flex: 1;
+  height: 12rpx;
+  background: #f0eae0;
+  border-radius: 6rpx;
+  overflow: hidden;
+}
+.fill {
+  height: 100%;
+  background: $gold;
+  border-radius: 6rpx;
+}
+.bar-pct {
+  width: 64rpx;
+  text-align: right;
+  font-size: 22rpx;
+  color: $t2;
+}
 
-.reply-box { margin-top: 12px; padding: 12px; background: #f9fafb; border-radius: 8px; }
-.reply-head { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
-.reply-badge { font-size: 10px; color: #4b5563; background: #e5e7eb; padding: 2px 6px; border-radius: 4px; }
-.reply-time { font-size: 12px; color: #9ca3af; }
-.reply-content { font-size: 14px; color: #1a1a1a; line-height: 1.5; }
+/* Tab · 胶囊 */
+.tabs {
+  display: flex;
+  gap: 16rpx;
+  margin-bottom: 28rpx;
+  flex-wrap: wrap;
+}
+.tab {
+  border: 1px solid #e0d8cc;
+  border-radius: 999px;
+  padding: 12rpx 28rpx;
+  background: $card;
+}
+.tab.on {
+  background: $crimson;
+  border-color: $crimson;
+}
+.tab-txt {
+  font-size: 24rpx;
+  color: $t2;
+}
+.tab-txt-on {
+  color: #ffffff;
+  font-weight: 600;
+}
 
-.reply-form { margin-top: 12px; }
-.reply-textarea { width: 100%; box-sizing: border-box; height: 72px; padding: 10px; border: 1px solid #e5e7eb; border-radius: 8px; font-size: 14px; }
-.reply-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
-.btn-outline { padding: 6px 16px; border: 1px solid #e5e7eb; border-radius: 8px; }
-.btn-outline-text { font-size: 13px; color: #4b5563; }
-.btn-primary { display: flex; align-items: center; justify-content: center; gap: 4px; padding: 6px 16px; background: var(--brand); border-radius: 8px; }
-.btn-primary-text { font-size: 13px; color: #ffffff; }
-.btn-disabled { opacity: 0.6; }
-.review-foot { margin-top: 12px; padding-top: 12px; border-top: 1px solid #ededed; display: flex; justify-content: flex-end; }
-.btn-reply { padding: 6px 20px; }
+/* 评价卡 */
+.list {
+  display: flex;
+  flex-direction: column;
+}
+.rcard {
+  background: $card;
+  border-radius: 16px;
+  padding: 28rpx;
+  margin-bottom: 24rpx;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
+}
+.rcard.warn {
+  border: 1px solid #f0d0d5;
+}
+.rhead {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16rpx;
+}
+.ruser {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+.ravatar {
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #e8dfd3, #d8ccb8);
+}
+.ruser-name {
+  font-size: 26rpx;
+  color: $t1;
+}
+.stars {
+  display: flex;
+  gap: 2rpx;
+}
+.rtext {
+  display: block;
+  font-size: 26rpx;
+  color: $t1;
+  line-height: 1.6;
+  margin-bottom: 12rpx;
+}
+.rimages {
+  display: flex;
+  gap: 16rpx;
+  margin-bottom: 12rpx;
+  flex-wrap: wrap;
+}
+.rimage {
+  width: 128rpx;
+  height: 128rpx;
+  border-radius: 12rpx;
+  background: #f5f1ea;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.rimage-img {
+  width: 100%;
+  height: 100%;
+}
+.rmeta {
+  display: block;
+  font-size: 22rpx;
+  color: $t3;
+}
 
-.empty { padding: 80px 0; display: flex; flex-direction: column; align-items: center; gap: 12px; }
-.empty-text { font-size: 14px; color: #9ca3af; }
+/* 已回复 · 朱红左边框 */
+.reply {
+  margin-top: 20rpx;
+  border-left: 3px solid $crimson;
+  background: #fbeff0;
+  padding: 20rpx 24rpx;
+  border-radius: 0 20rpx 20rpx 0;
+}
+.reply-b {
+  font-size: 24rpx;
+  color: $crimson;
+  font-weight: 600;
+}
+.reply-txt {
+  font-size: 24rpx;
+  color: $t2;
+  line-height: 1.6;
+}
+
+/* 回复输入框 */
+.reply-form {
+  margin-top: 20rpx;
+}
+.reply-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  height: 144rpx;
+  padding: 20rpx;
+  border: 1px solid #e0d8cc;
+  border-radius: 12rpx;
+  font-size: 26rpx;
+  color: $t1;
+  background: $paper;
+}
+.ta-ph {
+  color: $t3;
+}
+.reply-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 16rpx;
+  margin-top: 16rpx;
+}
+
+/* 回复按钮 */
+.rfoot {
+  margin-top: 20rpx;
+}
+.rbtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 12rpx 32rpx;
+}
+.rbtn.ghost {
+  border: 1px solid #dddddd;
+  background: $card;
+}
+.rbtn.pri {
+  background: $crimson;
+}
+.rbtn.disabled {
+  opacity: 0.6;
+}
+.rbtn-txt-ghost {
+  font-size: 24rpx;
+  color: $t2;
+}
+.rbtn-txt-pri {
+  font-size: 24rpx;
+  color: #ffffff;
+}
+
+/* 空态 */
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 180rpx 48rpx;
+  text-align: center;
+}
+.empty-ic {
+  width: 176rpx;
+  height: 176rpx;
+  border-radius: 50%;
+  background: #f5f1ea;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 36rpx;
+}
+.empty-title {
+  font-size: 32rpx;
+  font-weight: 700;
+  color: $t1;
+  margin-bottom: 16rpx;
+}
+.empty-txt {
+  font-size: 24rpx;
+  color: $t3;
+  line-height: 1.7;
+  max-width: 480rpx;
+}
 
 /* 三态 */
-.state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 80px 24px; gap: 12px; }
-.state-title { font-size: 16px; font-weight: 600; color: #1a1a1a; }
-.state-txt { font-size: 14px; color: #9ca3af; text-align: center; }
-.retry { margin-top: 8px; padding: 10px 32px; border: 1px solid var(--brand); border-radius: 8px; }
-.retry text { font-size: 14px; color: var(--brand); }
+.state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 160rpx 48rpx;
+  gap: 24rpx;
+}
+.state-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: $t1;
+}
+.state-txt {
+  font-size: 26rpx;
+  color: $t3;
+  text-align: center;
+}
+.retry {
+  margin-top: 16rpx;
+  padding: 20rpx 64rpx;
+  border: 1px solid $crimson;
+  border-radius: 999px;
+}
+.retry text {
+  font-size: 26rpx;
+  color: $crimson;
+}
 </style>
