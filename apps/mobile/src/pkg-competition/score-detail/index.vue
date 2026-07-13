@@ -17,9 +17,10 @@
     </view>
     <!-- error -->
     <view v-else-if="error" class="state">
-      <app-icon name="alert-circle" :size="44" color="#d8cfc0" />
+      <app-icon :name="notJoined ? 'award' : 'alert-circle'" :size="44" color="#d8cfc0" />
       <text class="state-txt">{{ error }}</text>
-      <view class="retry-btn" @tap="load"><text class="retry-txt">重新加载</text></view>
+      <view v-if="notJoined" class="retry-btn" @tap="go('/pkg-competition/detail/index?id=' + compId)"><text class="retry-txt">去参加赛事</text></view>
+      <view v-else class="retry-btn" @tap="load"><text class="retry-txt">重新加载</text></view>
     </view>
 
     <scroll-view v-else-if="result" scroll-y class="scroll" :style="{ height: scrollHeight + 'px' }">
@@ -155,6 +156,7 @@ const scrollHeight = computed(() => sysH.value - statusBarHeight.value - 44)
 const compId = ref('')
 const loading = ref(true)
 const error = ref('')
+const notJoined = ref(false) // true=未参加该赛事(引导去报名)·区别于真错误(重试)
 const result = ref<MyResults | null>(null)
 
 const expanded = ref<string[]>([])
@@ -250,10 +252,18 @@ function toggleQ(id: string) {
 async function load() {
   loading.value = true
   error.value = ''
+  notJoined.value = false
   try {
     result.value = await competitionApi.myResults(compId.value)
   } catch (e) {
-    error.value = (e as Error)?.message || '暂无成绩，请先报名参赛并完成答题'
+    const msg = (e as Error)?.message || ''
+    // 后端对未报名返回「未找到报名记录」→ 引导态(去参赛)，非错误重试
+    if (msg.includes('报名') || msg.includes('未找到') || msg.includes('未参加')) {
+      notJoined.value = true
+      error.value = '你还没有参加该赛事'
+    } else {
+      error.value = msg || '暂无成绩，请先报名参赛并完成答题'
+    }
   } finally {
     loading.value = false
   }
