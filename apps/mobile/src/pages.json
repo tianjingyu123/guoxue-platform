@@ -1527,6 +1527,48 @@
           "style": {
             "navigationStyle": "custom"
           }
+        },
+        {
+          "path": "analyst-profile/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "rules/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "invite-rewards/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "invite/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "live-arena/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "offline-detail/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "offline-checkin/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
         }
       ]
     },
@@ -2096,6 +2138,12 @@
         },
         {
           "path": "sop/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "manage-settlement/index",
           "style": {
             "navigationStyle": "custom"
           }

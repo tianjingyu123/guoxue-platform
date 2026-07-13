@@ -159,6 +159,31 @@ export interface MyTalentProfile {
   verifiedTitle?: string | null
 }
 
+// ─────────── 易学分析师等级（前端推算·A12/A13） ───────────
+// 🔴 后端 CompetitionTalent 无 level 字段、无自动晋级规则（见摸底）。
+// 前端按真实 talentScore（冠100/亚60/季40/晋级10/参与2 累计）分档展示，
+// 页面须标注"等级依据战绩积分推算"，避免误导为后端权威认证。
+export type AnalystLevel = 'TRAINEE' | 'JUNIOR' | 'INTERMEDIATE' | 'SENIOR' | 'MASTER'
+export interface AnalystLevelInfo { key: AnalystLevel; label: string; min: number; next?: number }
+export const ANALYST_LEVELS: AnalystLevelInfo[] = [
+  { key: 'TRAINEE', label: '见习分析师', min: 0, next: 50 },
+  { key: 'JUNIOR', label: '初级分析师', min: 50, next: 150 },
+  { key: 'INTERMEDIATE', label: '中级分析师', min: 150, next: 400 },
+  { key: 'SENIOR', label: '高级分析师', min: 400, next: 800 },
+  { key: 'MASTER', label: '资深分析师', min: 800 },
+]
+/** 按 talentScore 推算分析师等级 + 距下一级进度（真实分数分档·非后端权威字段） */
+export function analystLevel(talentScore: number): { info: AnalystLevelInfo; progress: number; toNext: number } {
+  let idx = 0
+  for (let i = ANALYST_LEVELS.length - 1; i >= 0; i--) {
+    if (talentScore >= ANALYST_LEVELS[i].min) { idx = i; break }
+  }
+  const info = ANALYST_LEVELS[idx]
+  const toNext = info.next ? Math.max(0, info.next - talentScore) : 0
+  const progress = info.next ? Math.min(100, Math.round(((talentScore - info.min) / (info.next - info.min)) * 100)) : 100
+  return { info, progress, toNext }
+}
+
 export interface PaperAnswerItem { questionId: string; answer: Record<string, any>; duration?: number }
 export interface BatchSubmitResult {
   totalScore: number
