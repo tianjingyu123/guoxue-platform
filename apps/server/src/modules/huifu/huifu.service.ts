@@ -402,12 +402,17 @@ export class HuifuService {
     // 商户订单号即斗拱 req_seq_id（查询/退款用 org_req_seq_id 回溯，保持自洽）
     const outTradeNo = `HF${Date.now()}${dto.orderId.slice(0, 8)}`;
 
-    // 渠道 → 斗拱 jspay trade_type（T_MINIAPP 微信小程序预留）
+    // 渠道 → 斗拱 trade_type。外部浏览器 H5 场景（微信唤起小程序 / 支付宝 Native）的
+    // trade_type 因商户开通的「H5支付」产品而异，做成【配置可覆盖】：后台 huifuConfig 里设
+    // tradeType_WECHAT_H5 / tradeType_ALIPAY 即生效，无需改代码。默认值保持原样 → 不设配置时
+    // 行为零变化（安全）。待汇付「H5支付」接口文档确认确切 trade_type 后在后台填准。
+    const wechatH5Tt = (await this.getConfig("tradeType_WECHAT_H5")) || "T_JSAPI";
+    const alipayTt = (await this.getConfig("tradeType_ALIPAY")) || "A_JSAPI";
     const tradeTypeMap: Record<string, string> = {
-      WECHAT_H5: "T_JSAPI",
-      WECHAT_JSAPI: "T_JSAPI",
+      WECHAT_H5: wechatH5Tt, // 外部浏览器微信H5（可配·默认沿用JSAPI）
+      WECHAT_JSAPI: "T_JSAPI", // 微信内公众号（返回调起参数）
       WECHAT_MINIAPP: "T_MINIAPP", // 预留
-      ALIPAY: "A_JSAPI",
+      ALIPAY: alipayTt, // 支付宝（可配·默认沿用A_JSAPI）
       UNIONPAY: "U_JSAPI",
     };
     const tradeType = tradeTypeMap[dto.payType || "WECHAT_JSAPI"] || "T_JSAPI";

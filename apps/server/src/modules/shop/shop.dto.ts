@@ -353,6 +353,34 @@ export class H5PayDto {
   notifyUrl?: string;
 }
 
+/**
+ * 外部浏览器唤起小程序中转页支付（生成 url_link 短链）。
+ * 直连微信 H5 支付类目被驳回后的自建替代路径：外部浏览器点本链接 → 唤起微信小程序
+ * pay-relay 中转页 → 页内 uni.login + 令牌走 JSAPI 支付。仅需订单号（H5 已鉴权态）。
+ */
+export class UrlLinkPayDto {
+  @ApiProperty({ description: "订单ID" })
+  @IsString()
+  @MinLength(1)
+  orderId: string;
+}
+
+/**
+ * pay-relay 中转页凭「一次性支付令牌 + 小程序 uni.login code」发起 JSAPI 支付。
+ * 无需登录态：payToken 即支付这一笔订单的凭证；code 换取当前打开小程序者的小程序 openid 完成支付。
+ */
+export class RelayJsapiDto {
+  @ApiProperty({ description: "一次性支付令牌（url_link query t=）" })
+  @IsString()
+  @MinLength(1)
+  payToken: string;
+
+  @ApiProperty({ description: "小程序 uni.login 返回的临时登录凭证 code" })
+  @IsString()
+  @MinLength(1)
+  code: string;
+}
+
 export class RefundOrderDto {
   @ApiPropertyOptional({ description: "退款原因" })
   @IsOptional() @IsString()

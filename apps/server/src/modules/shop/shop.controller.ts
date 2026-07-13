@@ -17,7 +17,7 @@ import {
   CreateCouponV2Dto, CreateReviewDto, UpdateLogisticsDto,
   CreateFreightTemplateDto, UpdateFreightTemplateDto, ReplyReviewDto,
   ProductListQueryDto, OrderListQueryDto,
-  CreateSkuDto, JsapiPayDto, NativePayDto, H5PayDto, EstimateOrderDto, RefundOrderDto, RechargeJsapiDto,
+  CreateSkuDto, JsapiPayDto, NativePayDto, H5PayDto, UrlLinkPayDto, RelayJsapiDto, EstimateOrderDto, RefundOrderDto, RechargeJsapiDto,
   AddToCartDto, AdminPayOrderDto, AlipayRefundDto,
   UnionpayRefundDto, ApplyAfterSaleDto, ModerateProductDto, SetCommissionRateDto, BatchGrantShopCouponDto,
 } from "./shop.dto";
@@ -316,6 +316,29 @@ export class ShopController {
     const fwd = req.headers["x-forwarded-for"];
     const clientIp = (Array.isArray(fwd) ? fwd[0] : fwd)?.split(",")[0]?.trim() || req.ip || "127.0.0.1";
     return this.shop.createH5Payment(body.orderId, req.user.id, clientIp, body.notifyUrl);
+  }
+
+  @Post("pay/url-link")
+  @UseGuards(JwtAuthGuard, StrictRedisThrottleGuard)
+  @ApiOperation({ summary: "生成外部浏览器唤起小程序中转页的支付短链（url_link·直连微信H5被驳回的替代路径）" })
+  @ApiResponse({ status: 201, description: "创建成功，返回 { urlLink }" })
+  @ApiResponse({ status: 400, description: "订单状态不可支付" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "只能支付自己的订单" })
+  @ApiResponse({ status: 404, description: "订单不存在" })
+  @ApiBearerAuth()
+  async urlLinkPay(@Req() req: AuthRequest, @Body() body: UrlLinkPayDto) {
+    return this.shop.createH5UrlLink(body.orderId, req.user.id);
+  }
+
+  @Post("pay/relay-jsapi")
+  @UseGuards(StrictRedisThrottleGuard)
+  @ApiOperation({ summary: "pay-relay 中转页凭一次性令牌+uni.login code 发起 JSAPI 支付（公开·令牌即凭证）" })
+  @ApiResponse({ status: 201, description: "创建成功，返回 { orderId, payParams }" })
+  @ApiResponse({ status: 400, description: "令牌过期/订单状态不可支付/微信未配置" })
+  @ApiResponse({ status: 404, description: "订单不存在" })
+  async relayJsapiPay(@Body() body: RelayJsapiDto) {
+    return this.shop.createRelayJsapi(body.payToken, body.code);
   }
 
   @Post("orders/estimate")

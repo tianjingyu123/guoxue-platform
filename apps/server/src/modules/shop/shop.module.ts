@@ -28,9 +28,10 @@ import { HuifuModule } from "../huifu/huifu.module";
 import { PricingModule } from "../pricing/pricing.module";
 import { AuditModule } from "../audit/audit.module";
 import { MemberModule } from "../member/member.module";
+import { AuthModule } from "../auth/auth.module";
 
 @Module({
-  imports: [CommissionModule, SystemModule, CoinModule, WebhookModule, HuifuModule, PricingModule, AuditModule, MemberModule],
+  imports: [CommissionModule, SystemModule, CoinModule, WebhookModule, HuifuModule, PricingModule, AuditModule, MemberModule, AuthModule],
   controllers: [ShopController, AddressController, ProductCategoryController],
   providers: [ShopService, ShopAttributionService, ShopProductService, ShopOrderService, ShopOrderLifecycleService, ShopPaymentService, ShopRefundService, ShopCouponService, AfterSaleSlaService, WechatPayService, AlipayService, UnionpayService, PaymentProviderFactory, LogisticsService, AddressService, ProductCategoryService, ActiveUserGuard, StationIsolationGuard],
   exports: [ShopService, ShopCouponService, WechatPayService, AlipayService, UnionpayService, LogisticsService, AddressService, ProductCategoryService],

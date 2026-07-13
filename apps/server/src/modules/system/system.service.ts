@@ -142,10 +142,14 @@ export class SystemService {
 
   /** 公开：获取品牌配置（全端品牌露出的唯一来源·无记录时返回内置默认值） */
   async getBrandConfig() {
-    // H5 支付通道开关（pay_h5_provider: 'huifu'=走汇付聚合 / 其它=直连兜底·默认 direct）。
+    // H5 支付通道开关（pay_h5_provider）：
+    //   'urllink'=外部浏览器生成小程序 url_link 唤起 pay-relay 中转页走 JSAPI（直连H5被驳回的自建路径）
+    //   'huifu'  =走汇付聚合 H5
+    //   其它/未配 =直连微信 H5 兜底（默认 direct）
     // 单独读取、不进品牌缓存 → 后台切换即时生效；前端启动拉 brand-config 时一并拿到。
     const flagRow = await this.getConfig("pay_h5_provider");
-    const payH5Provider = flagRow?.configValue === "huifu" ? "huifu" : "direct";
+    const flagVal = flagRow?.configValue;
+    const payH5Provider = flagVal === "urllink" || flagVal === "huifu" ? flagVal : "direct";
     const cached = await this.redis.getJson<Record<string, string>>(CONFIG_CACHE_PREFIX + "brand");
     if (cached) return { ...cached, payH5Provider };
     const row = await this.prisma.brandConfig.findUnique({ where: { id: "default" } });

@@ -84,6 +84,7 @@ import { ref, computed, onUnmounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { redirectTo, navigateTo } from '@/utils/router'
 import { shopApi } from '@/lib/shop-data'
+import { purchaseApi } from '@/lib/purchase-data'
 import { track } from '@/composables/useTrack'
 import { BRAND } from '@/lib/brand'
 import { formatPrice } from '@/utils/format'
@@ -191,8 +192,36 @@ async function startPaying() {
         // 未绑定微信/调起失败：引导外部浏览器，继续轮询兜底
         uni.showToast({ title: msg.includes('未绑定') ? msg : '微信内暂无法支付，请点击右上角在浏览器打开后支付', icon: 'none', duration: 3500 })
       }
+    } else if (BRAND.payH5Provider === 'urllink' && payMethod.value !== 'alipay') {
+      // 外部浏览器 + 开关=urllink + 微信支付 → 生成小程序 url_link → 跳转唤起微信小程序 pay-relay
+      // 中转页 → 页内 uni.login + 一次性令牌走已审批通过的 JSAPI 支付。直连微信 H5 被驳回的自建路径。
+      // 支付在小程序内完成（回调置 PAID）；url_link 无回跳机制，用户从微信切回本页时若已唤起过，
+      // 不再重复唤起（避免死循环），改交给下方轮询兜底：已支付→成功态，未支付→超时可手动重试。
+      const jumpedKey = `__payrelay_jumped_${orderId.value}`
+      const alreadyJumped = typeof sessionStorage !== 'undefined' && sessionStorage.getItem(jumpedKey) === '1'
+      if (alreadyJumped) {
+        try { sessionStorage.removeItem(jumpedKey) } catch { /* ignore */ }
+        // 落到 startPolling()：轮询订单状态，微信内已支付则进成功态
+      } else {
+        const { urlLink } = await shopApi.payOrderUrlLink(orderId.value)
+        if (!urlLink) throw new Error('支付发起失败，请稍后重试')
+        try { sessionStorage.setItem(jumpedKey, '1') } catch { /* ignore */ }
+        window.location.href = urlLink
+        return // 导航离开微信，后续由中转页完成支付；切回本页后走轮询兜底
+      }
+    } else if (BRAND.payH5Provider === 'huifu') {
+      // 外部浏览器 + 开关=汇付 → 汇付聚合 H5 支付（微信唤起小程序 / 支付宝 Native）。
+      // 直连微信 H5 类目被驳回后走此通道；结果以服务端异步通知(notify)为准，回本页后继续轮询。
+      const channel = payMethod.value === 'alipay' ? 'alipay' : 'wechat'
+      const r = await purchaseApi.payByChannel(orderId.value, channel)
+      const payUrl = r.h5Url || r.payUrl || (typeof r.payInfo === 'string' && /^https?:\/\//.test(r.payInfo) ? r.payInfo : '')
+      if (payUrl) {
+        window.location.href = payUrl
+      } else {
+        throw new Error('支付下单失败，请稍后重试')
+      }
     } else {
-      // 外部浏览器 → 微信 H5 支付（mweb_url 跳转，redirect_url 回跳本页恢复轮询）
+      // 外部浏览器 → 直连微信 H5（默认兜底：mweb_url 跳转 + redirect_url 回跳本页恢复轮询）
       const { mwebUrl } = await shopApi.payOrderH5(orderId.value)
       if (mwebUrl) {
         window.location.href = mwebUrl + '&redirect_url=' + encodeURIComponent(window.location.href)

@@ -26,7 +26,8 @@
       "path": "pages/circles/index",
       "style": {
         "navigationBarTitleText": "圈子",
-        "navigationStyle": "custom"
+        "navigationStyle": "custom",
+        "enablePullDownRefresh": true
       }
     },
     {
@@ -40,14 +41,16 @@
       "path": "pages/discover/index",
       "style": {
         "navigationBarTitleText": "发现",
-        "navigationStyle": "custom"
+        "navigationStyle": "custom",
+        "enablePullDownRefresh": true
       }
     },
     {
       "path": "pages/profile/index",
       "style": {
         "navigationBarTitleText": "我的",
-        "navigationStyle": "custom"
+        "navigationStyle": "custom",
+        "enablePullDownRefresh": true
       }
     },
     {
@@ -435,7 +438,8 @@
         {
           "path": "home/index",
           "style": {
-            "navigationStyle": "custom"
+            "navigationStyle": "custom",
+            "enablePullDownRefresh": true
           }
         },
         {
@@ -500,7 +504,8 @@
         {
           "path": "home/index",
           "style": {
-            "navigationStyle": "custom"
+            "navigationStyle": "custom",
+            "enablePullDownRefresh": true
           }
         },
         {
@@ -517,6 +522,12 @@
         },
         {
           "path": "category/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "pay-relay/index",
           "style": {
             "navigationStyle": "custom"
           }
@@ -725,7 +736,8 @@
         {
           "path": "home/index",
           "style": {
-            "navigationStyle": "custom"
+            "navigationStyle": "custom",
+            "enablePullDownRefresh": true
           }
         },
         {
@@ -1257,7 +1269,8 @@
         {
           "path": "plaza/index",
           "style": {
-            "navigationStyle": "custom"
+            "navigationStyle": "custom",
+            "enablePullDownRefresh": true
           }
         },
         {
@@ -1430,7 +1443,8 @@
         {
           "path": "list/index",
           "style": {
-            "navigationStyle": "custom"
+            "navigationStyle": "custom",
+            "enablePullDownRefresh": true
           }
         },
         {

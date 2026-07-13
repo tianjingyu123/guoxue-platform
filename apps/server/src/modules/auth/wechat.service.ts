@@ -63,6 +63,10 @@ interface WechatShortLinkResponse extends WechatBaseResponse {
   link: string;
 }
 
+interface WechatUrlLinkResponse extends WechatBaseResponse {
+  url_link?: string;
+}
+
 interface WechatDatacubeResponse extends WechatBaseResponse {
   list?: Record<string, unknown>[];
   data?: Record<string, unknown>[];
@@ -403,6 +407,42 @@ export class WechatService {
       throw new BusinessException(ErrorCode.THIRD_WECHAT_FAILED, `短链接生成失败: ${result.errmsg}`);
     }
     return result.link;
+  }
+
+  /**
+   * 生成小程序 URL Link（用于「外部浏览器 → 唤起小程序」，直连微信 H5 支付被拒后的自建替代方案）。
+   * 微信外浏览器点击本链接 → 唤起微信 → 打开小程序指定页面（如支付中转页）→ 页面内走 JSAPI 支付。
+   * 复用 getMiniAccessToken()。要求 path 对应的页面必须在「已发布」的小程序里真实存在
+   * （envVersion=release 时需正式版已上线；envVersion=trial 可先用体验版联调）。
+   * 文档: https://developers.weixin.qq.com/miniprogram/dev/OpenApiDoc/qrcode-link/url-link/generateUrlLink.html
+   */
+  async generateUrlLink(params: {
+    path: string;            // 小程序页面路径，如 pkg-shop/pay-relay/index
+    query?: string;          // 页面参数，如 t=xxx（不含 ?，需自行 URL 编码特殊字符）
+    envVersion?: "release" | "trial" | "develop";
+    expireInterval?: number; // 到期天数 1-30（expire_type=1 生效）
+  }): Promise<string> {
+    const token = await this.getMiniAccessToken();
+    const resp = await fetch(
+      `https://api.weixin.qq.com/wxa/generate_urllink?access_token=${token}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          path: params.path,
+          query: params.query || "",
+          env_version: params.envVersion || "release",
+          expire_type: 1,
+          expire_interval: params.expireInterval ?? 1, // 支付链接短寿命，默认 1 天
+        }),
+      },
+    );
+    const result = await resp.json() as WechatUrlLinkResponse;
+    if (result.errcode || !result.url_link) {
+      this.logger.error("URL Link 生成失败", result);
+      throw new BusinessException(ErrorCode.THIRD_WECHAT_FAILED, `URL Link 生成失败: ${result.errmsg || "未知错误"}`);
+    }
+    return result.url_link;
   }
 
   // ───────── 客服消息 ─────────

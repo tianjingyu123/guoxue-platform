@@ -42,6 +42,8 @@ export interface BrandConfig {
   companyName: string
   /** 协议主体：平台名 */
   platformName: string
+  /** H5 支付通道：'huifu'=外部浏览器走汇付聚合 / 'direct'=直连微信H5（默认兜底） */
+  payH5Provider: string
 }
 
 /** 后端字段 → 前端字段映射（后端 siteName* 命名，前端沿用历史 name* 命名） */
@@ -62,6 +64,7 @@ const FIELD_MAP: Record<string, keyof BrandConfig> = {
   serviceWechat: 'serviceWechat',
   companyName: 'companyName',
   platformName: 'platformName',
+  payH5Provider: 'payH5Provider',
 }
 
 export const BRAND = reactive<BrandConfig>({
@@ -81,6 +84,7 @@ export const BRAND = reactive<BrandConfig>({
   serviceWechat: 'rebu_guoxue',
   companyName: '',
   platformName: '热卜国学',
+  payH5Provider: 'direct',
 })
 
 let hydrating: Promise<void> | null = null

@@ -145,6 +145,14 @@ export class ShopService {
     return this.paymentSvc.createH5Payment(orderId, userId, clientIp, notifyUrl);
   }
 
+  createH5UrlLink(orderId: string, userId: string) {
+    return this.paymentSvc.createH5UrlLink(orderId, userId);
+  }
+
+  createRelayJsapi(payToken: string, code: string, notifyUrl?: string) {
+    return this.paymentSvc.createRelayJsapi(payToken, code, notifyUrl);
+  }
+
   createRechargePayment(userId: string, openid: string, amountCoin: number, notifyUrl?: string) {
     return this.paymentSvc.createRechargePayment(userId, openid, amountCoin, notifyUrl);
   }

@@ -1,4 +1,5 @@
 import { Injectable, Inject, Logger, Optional, HttpStatus } from "@nestjs/common";
+import { randomUUID } from "crypto";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { isUniqueConstraintError } from "../../common/prisma-errors";
@@ -7,6 +8,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { CommissionService } from "../commission/commission.service";
 import { WechatPayService } from "./wechat-pay.service";
+import { WechatService } from "../auth/wechat.service";
 import { AlipayService } from "./alipay.service";
 import { UnionpayService } from "./unionpay.service";
 import { HuifuService } from "../huifu/huifu.service";
@@ -31,6 +33,7 @@ export class ShopPaymentService {
     private prisma: PrismaService,
     private redis: RedisService,
     private wechatPay: WechatPayService,
+    private wechat: WechatService,
     private alipay: AlipayService,
     private unionpay: UnionpayService,
     private webhook: WebhookService,
@@ -155,6 +158,96 @@ export class ShopPaymentService {
     });
 
     return { mwebUrl: result.h5Url, outTradeNo };
+  }
+
+  /** 支付中转令牌前缀（Redis）·映射 payToken → orderId，供 pay-relay 中转页凭 token 定位订单 */
+  private static readonly RELAY_TOKEN_PREFIX = "pay:relay:";
+  /** 支付中转令牌有效期（秒）·15 分钟，覆盖用户从外部浏览器唤起→小程序完成支付的合理时长 */
+  private static readonly RELAY_TOKEN_TTL = 900;
+
+  /**
+   * 生成「外部浏览器 → 唤起小程序中转页」的支付短链（url_link）。
+   * 直连微信 H5 支付类目被驳回后的自建替代路径：外部浏览器打开本链接 → 唤起微信小程序
+   * pay-relay 中转页 → 页内 uni.login 取 code + 本 token → 后端 JSAPI 下单 → 调起微信收银台。
+   *
+   * 【为何用一次性 payToken 而非直接带 orderId】外部浏览器登录态与小程序登录态相互独立，
+   * 且可能不是同一账号（如 H5 手机号登录 vs 小程序微信登录）。若中转页靠小程序登录态取 openid，
+   * 未登录会 401、账号不一致会归属校验失败。故此处（H5 已鉴权态）生成一次性令牌锁定订单，
+   * 中转页凭令牌定位订单、凭 uni.login 的 code 取「当前打开小程序者」的 openid 完成支付（代付合法·
+   * 订单归属不变）。令牌 15 分钟有效、随机不可枚举、映射存 Redis。
+   * 校验与 H5/JSAPI 同口径：订单存在 + 归属本人(403) + PENDING(400)。
+   */
+  async createH5UrlLink(orderId: string, userId: string) {
+    const order = await this.orderSvc.getOrder(orderId);
+    if (!order) throw new BusinessException(ErrorCode.ORDER_NOT_FOUND, "订单不存在");
+    if (order.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能支付自己的订单");
+    if (order.status !== "PENDING") {
+      throw new BusinessException(ErrorCode.ORDER_STATUS_INVALID, "订单状态不可支付", HttpStatus.BAD_REQUEST);
+    }
+
+    // 一次性支付令牌 → orderId（15 分钟）。用 UUID 去横线，随机不可枚举。
+    const payToken = randomUUID().replace(/-/g, "");
+    await this.redis.set(
+      ShopPaymentService.RELAY_TOKEN_PREFIX + payToken,
+      orderId,
+      ShopPaymentService.RELAY_TOKEN_TTL,
+    );
+
+    // envVersion：正式版已上线用 release；体验版联调用 trial（须 WECHAT_MP_ENV_VERSION 覆盖）。
+    // 要求 pay-relay 页面已随对应版本发布，否则微信侧唤起会失败。
+    const envVersion = (process.env.WECHAT_MP_ENV_VERSION as "release" | "trial" | "develop") || "release";
+    const urlLink = await this.wechat.generateUrlLink({
+      path: "pkg-mall/pay-relay/index",
+      query: `t=${payToken}`,
+      envVersion,
+      expireInterval: 1, // 支付短链短寿命，1 天到期
+    });
+    return { urlLink };
+  }
+
+  /**
+   * pay-relay 中转页凭「一次性令牌 + 小程序 uni.login code」发起 JSAPI 支付。
+   * 无需登录态（令牌即支付这一笔订单的凭证）：token → orderId → 校验 PENDING；
+   * code → jscode2session 换「当前打开小程序者」的小程序 openid（代付合法·订单归属不变）→ 微信 JSAPI 下单。
+   * 返回 { orderId, payParams }：payParams 为 uni.requestPayment 所需的调起参数。
+   */
+  async createRelayJsapi(payToken: string, code: string, notifyUrl?: string) {
+    if (!payToken || !code) throw new BusinessException(ErrorCode.BAD_REQUEST, "缺少支付令牌或登录凭证");
+
+    const orderId = await this.redis.get(ShopPaymentService.RELAY_TOKEN_PREFIX + payToken);
+    if (!orderId) throw new BusinessException(ErrorCode.BAD_REQUEST, "支付链接已过期，请重新发起支付");
+
+    const order = await this.orderSvc.getOrder(orderId);
+    if (!order) throw new BusinessException(ErrorCode.ORDER_NOT_FOUND, "订单不存在");
+    if (order.status !== "PENDING") {
+      throw new BusinessException(ErrorCode.ORDER_STATUS_INVALID, "订单状态不可支付", HttpStatus.BAD_REQUEST);
+    }
+    if (!this.wechatPay.isConfigured) {
+      throw new BusinessException(ErrorCode.PAY_FAILED, "微信支付未配置（缺商户证书/密钥），请联系平台或稍后再试");
+    }
+
+    // 当前打开小程序者的小程序 openid（谁付款用谁的 openid，代付合法）
+    const session = await this.wechat.exchangeMiniCode(code);
+    const payerOpenid = session.openId;
+
+    const outTradeNo = `GX${Date.now()}${orderId.slice(0, 8)}`;
+    const totalFen = Math.round(Number(order.amount) * RMB_TO_FEN);
+
+    const result = await this.wechatPay.createJsapiOrder({
+      outTradeNo,
+      description: `国学平台订单-${orderId.slice(0, 8)}`,
+      amount: { total: totalFen },
+      payer: { openid: payerOpenid },
+      attach: orderId,
+      notifyUrl,
+    });
+
+    await this.prisma.order.update({
+      where: { id: orderId },
+      data: { payTransactionId: outTradeNo },
+    });
+
+    return { orderId, payParams: result.paySign };
   }
 
   /** 创建虚拟币充值支付订单 */

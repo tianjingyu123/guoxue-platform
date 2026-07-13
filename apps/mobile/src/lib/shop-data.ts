@@ -49,7 +49,7 @@ export interface MallQuickEntry {
 export const mallQuickEntries: MallQuickEntry[] = [
   { id: 'seckill', label: '限时秒杀', icon: 'zap', href: '/shop/flash-sale', state: '进行中' },
   { id: 'group', label: '超值拼团', icon: 'users', href: '/shop/group-buy', state: '进行中' },
-  { id: 'orders', label: '我的订单', icon: 'file-text', href: '/orders' },
+  { id: 'orders', label: '我的订单', icon: 'file-text', href: '/pkg-order/list/index' },
   { id: 'coupons', label: '优惠券', icon: 'ticket', href: '/shop/coupons' }, // badge 由 getMallHome 按真实可领券数量动态注入
 ]
 
@@ -1791,6 +1791,25 @@ export const shopApi = {
   async payOrderH5(orderId: string): Promise<{ mwebUrl?: string }> {
     const res = await apiPost<{ mwebUrl?: string; mweb_url?: string; h5Url?: string }>('/shop/pay/h5', { orderId })
     return { mwebUrl: res?.mwebUrl || res?.mweb_url || res?.h5Url }
+  },
+
+  /**
+   * 生成「外部浏览器唤起小程序中转页」的支付短链 — POST /shop/pay/url-link。
+   * 直连微信 H5 类目被驳回的自建替代路径：拿到 url_link 后跳转 → 唤起微信小程序 pay-relay
+   * 中转页 → 页内走已审批通过的 JSAPI 支付。仅微信支付适用（url_link 是微信小程序能力）。
+   */
+  async payOrderUrlLink(orderId: string): Promise<{ urlLink?: string }> {
+    const res = await apiPost<{ urlLink?: string; url_link?: string }>('/shop/pay/url-link', { orderId })
+    return { urlLink: res?.urlLink || res?.url_link }
+  },
+
+  /**
+   * pay-relay 中转页发起支付 — POST /shop/pay/relay-jsapi（公开·令牌即凭证，无需登录态）。
+   * 凭 url_link 带来的一次性 payToken + 小程序 uni.login 的 code，换取 uni.requestPayment 调起参数。
+   * 返回 { orderId, payParams }：payParams 即 WechatJsapiPayParams；orderId 供支付后跳转订单/成功页。
+   */
+  async payOrderRelayJsapi(payToken: string, code: string): Promise<{ orderId: string; payParams: WechatJsapiPayParams }> {
+    return await apiPost<{ orderId: string; payParams: WechatJsapiPayParams }>('/shop/pay/relay-jsapi', { payToken, code })
   },
 
   /**
