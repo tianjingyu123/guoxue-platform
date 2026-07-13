@@ -1,10 +1,10 @@
 <!--
-  B2 · 商品管理（商家端 V0 重构版）
-  规格：商品列表 + 状态筛选Tab(全部/在售/下架/审核中) + 库存预警 + 新建商品跳 B3 编辑器。
-  每项可上/下架、编辑(带 id)、删除。下拉刷新 + 触底加载。
-  设计token：页底#FAF8F5·卡片#FFF·朱红#C41E3A·金#C9A96E·描边#EDEAE4·圆角18px≈36rpx·胶囊999rpx。
-  硬约束：纯 uni-app · @tap · rpx · 商品图 padding-top 比例框 · 实色卡片 · 真实数据接线。
-  注：后端 ProductStatus 仅 ON_SALE/OFF_SHELF/PENDING（无「驳回」枚举），Tab 按真实状态呈现，不造假。
+  B2 · 商品管理（商家端 V0 重构版·对着 mockup-B2 1:1 还原）
+  态A 在售列表：搜索 + 状态Tab(带计数) + 商品卡(封面左/信息中/竖排操作右) + 库存预警(补库存) + 悬浮新建FAB。
+  态C 空态：新店无商品引导「发布第一个商品」→ B3 空白态。
+  设计token：宣纸白#FAF8F5·卡片#FFF·朱红#C41E3A·金#C9A96E·描边#ECE7E0·圆角16px·胶囊999px。
+  注：后端 ProductStatus 仅 ON_SALE/OFF_SHELF/PENDING（无「驳回/草稿」枚举），Tab 按真实状态呈现不造假；
+      故 mockup 里的「驳回/草稿」两 Tab 不做（不造空壳）。
 -->
 <template>
   <view class="page">
@@ -12,166 +12,170 @@
     <view class="nav-bar" :style="{ paddingTop: statusBarH + 'px' }">
       <view class="nav-inner">
         <view class="nav-back" @tap="go('/merchant/dashboard')">
-          <AppIcon name="arrow-left" :size="40" color="#2c2c2c" />
+          <AppIcon name="chevron-left" :size="34" color="#6e6e73" />
+          <text class="nav-back-t">工作台</text>
         </view>
-        <text class="nav-title">商品管理</text>
-        <view class="nav-add" @tap="goNew">
-          <AppIcon name="plus" :size="30" color="#fff" />
-          <text class="nav-add-t">新建</text>
-        </view>
+        <text class="nav-title serif">商品管理</text>
+        <view class="nav-right" />
       </view>
     </view>
 
-    <!-- 状态筛选 Tab -->
-    <view class="tabs-wrap" :style="{ top: statusBarH + 44 + 'px' }">
+    <scroll-view
+      scroll-y
+      class="scroll-area"
+      :style="{ paddingTop: statusBarH + 44 + 'px' }"
+      refresher-enabled
+      :refresher-triggered="refreshing"
+      @refresherrefresh="onRefresh"
+      @scrolltolower="onReachBottom"
+    >
+      <!-- 搜索栏 -->
+      <view class="search">
+        <AppIcon name="search" :size="26" color="#9a9a9a" />
+        <input
+          class="search-input"
+          v-model="keyword"
+          type="text"
+          placeholder="搜索商品名称"
+          placeholder-class="search-ph"
+          confirm-type="search"
+        />
+        <text v-if="keyword" class="search-clear" @tap="keyword = ''">×</text>
+      </view>
+
+      <!-- 状态筛选 Tab（带计数） -->
       <scroll-view scroll-x class="tabs-scroll" :show-scrollbar="false">
         <view class="tabs">
           <view
             v-for="t in tabs"
             :key="t.key"
             class="tab"
-            :class="{ active: activeTab === t.key }"
+            :class="{ on: activeTab === t.key }"
             @tap="switchTab(t.key)"
           >
-            <text class="tab-t">{{ t.label }}</text>
+            <text class="tab-t">{{ t.label }}<text v-if="counts[t.key] != null" class="tab-n"> {{ counts[t.key] }}</text></text>
           </view>
         </view>
       </scroll-view>
-    </view>
 
-    <scroll-view
-      scroll-y
-      class="scroll-area"
-      :style="{ paddingTop: statusBarH + 44 + 88 + 'px' }"
-      refresher-enabled
-      :refresher-triggered="refreshing"
-      @refresherrefresh="onRefresh"
-      @scrolltolower="onReachBottom"
-    >
-      <!-- 加载态（首屏） -->
-      <view v-if="loading && !products.length" class="state">
-        <text class="state-t">加载中…</text>
-      </view>
-
-      <!-- 错误态 -->
-      <view v-else-if="error && !products.length" class="state">
-        <AppIcon name="alert-circle" :size="88" color="#d0342c" />
-        <text class="state-t">{{ error }}</text>
-        <view class="state-btn" @tap="reload"><text class="state-btn-t">重试</text></view>
-      </view>
-
-      <!-- 空态 -->
-      <view v-else-if="!products.length" class="state">
-        <AppIcon name="package" :size="96" color="#d8cfc0" />
-        <text class="state-t">{{ activeTab === 'ALL' ? '还没有商品' : '该状态下暂无商品' }}</text>
-        <view v-if="activeTab === 'ALL'" class="state-btn" @tap="goNew">
-          <text class="state-btn-t">发布第一个商品</text>
+      <view class="body">
+        <!-- 加载态（首屏） -->
+        <view v-if="loading && !products.length" class="state">
+          <text class="state-t">加载中…</text>
         </view>
-      </view>
 
-      <!-- 商品列表 -->
-      <view v-else class="list">
-        <view v-for="p in products" :key="p.id" class="card" @tap="goEdit(p)">
-          <view class="card-body">
-            <!-- 商品图：padding-top 比例框 -->
-            <view class="thumb">
-              <view class="thumb-ratio">
+        <!-- 错误态 -->
+        <view v-else-if="error && !products.length" class="state">
+          <AppIcon name="alert-circle" :size="80" color="#d0342c" />
+          <text class="state-t">{{ error }}</text>
+          <view class="state-btn" @tap="reload"><text class="state-btn-t">重试</text></view>
+        </view>
+
+        <!-- 空态（态C 新店无商品 / 筛选无结果） -->
+        <view v-else-if="!filtered.length" class="empty">
+          <view class="empty-ic"><AppIcon name="package" :size="42" color="#c9a96e" /></view>
+          <text class="empty-t serif">{{ emptyTitle }}</text>
+          <text class="empty-d">{{ emptyDesc }}</text>
+          <view v-if="activeTab === 'ALL' && !keyword" class="empty-btn" @tap="goNew">
+            <AppIcon name="plus" :size="28" color="#fff" />
+            <text class="empty-btn-t">发布第一个商品</text>
+          </view>
+        </view>
+
+        <!-- 商品列表 -->
+        <block v-else>
+          <view
+            v-for="p in filtered"
+            :key="p.id"
+            class="card"
+            :class="{ warn: isLowStock(p) }"
+            @tap="goEdit(p)"
+          >
+            <!-- 封面（1:1·padding-top 比例框） -->
+            <view class="cover">
+              <view class="cover-ratio">
                 <image
                   v-if="p.images && p.images.length"
                   :src="p.images[0]"
-                  class="thumb-img"
+                  class="cover-img"
                   mode="aspectFill"
                   lazy-load
                 />
-                <view v-else class="thumb-ph">
-                  <AppIcon name="package" :size="56" color="#c9a96e" />
-                </view>
-              </view>
-              <!-- 库存预警角标 -->
-              <view v-if="isLowStock(p)" class="thumb-warn">
-                <text class="thumb-warn-t">{{ p.stock <= 0 ? '缺货' : '库存紧张' }}</text>
+                <view v-else class="cover-ph"><text>主图 1:1</text></view>
               </view>
             </view>
 
-            <!-- 信息区 -->
+            <!-- 信息 -->
             <view class="info">
-              <text class="name">{{ p.title }}</text>
-              <view class="tag-row">
-                <text class="tag-cat">{{ categoryName(p.categoryId) }}</text>
-                <text
-                  class="tag-status"
-                  :style="{ color: statusLabel(p).color, background: statusLabel(p).bg }"
-                >{{ statusLabel(p).label }}</text>
-              </view>
+              <text class="title">{{ p.title }}</text>
+              <text class="meta">销量 {{ p.salesCount || 0 }} · 库存 <text :class="{ 'meta-warn': isLowStock(p) }">{{ p.stock }}</text></text>
               <view class="price-row">
-                <text class="price">¥{{ Number(p.price).toFixed(2) }}</text>
+                <text class="price serif">¥{{ Number(p.price).toFixed(2) }}</text>
                 <text
                   v-if="p.originalPrice && Number(p.originalPrice) > Number(p.price)"
-                  class="price-origin"
+                  class="strike"
                 >¥{{ Number(p.originalPrice).toFixed(2) }}</text>
               </view>
-              <view class="meta-row">
-                <text class="meta">库存 <text :class="{ 'meta-warn': isLowStock(p) }">{{ p.stock }}</text></text>
-                <text class="meta-dot">·</text>
-                <text class="meta">销量 {{ p.salesCount }}</text>
+              <view class="tags">
+                <text v-if="isLowStock(p)" class="tag tag-warn">⚠ 库存预警</text>
+                <text
+                  class="tag tag-status"
+                  :style="{ color: statusLabel(p).color, background: statusLabel(p).bg, borderColor: statusLabel(p).color + '4d' }"
+                >{{ statusLabel(p).label }}</text>
               </view>
             </view>
+
+            <!-- 竖排操作 -->
+            <view class="ops">
+              <view v-if="isLowStock(p)" class="op pri" @tap.stop="goEdit(p)"><text>补库存</text></view>
+              <view v-else class="op" @tap.stop="goEdit(p)"><text>编辑</text></view>
+              <view v-if="p.status === 'ON_SALE'" class="op" @tap.stop="doUnlist(p)"><text>下架</text></view>
+              <view v-else-if="p.status === 'OFF_SHELF'" class="op pri" @tap.stop="doList(p)"><text>上架</text></view>
+              <view class="op danger" @tap.stop="doDelete(p)"><text>删除</text></view>
+            </view>
           </view>
 
-          <!-- 操作条 -->
-          <view class="actions">
-            <view class="act" @tap.stop="goEdit(p)">
-              <AppIcon name="edit" :size="30" color="#6e6e73" />
-              <text class="act-t">编辑</text>
-            </view>
-            <view v-if="p.status === 'ON_SALE'" class="act" @tap.stop="doUnlist(p)">
-              <AppIcon name="eye-off" :size="30" color="#6e6e73" />
-              <text class="act-t">下架</text>
-            </view>
-            <view v-else-if="p.status === 'OFF_SHELF'" class="act" @tap.stop="doList(p)">
-              <AppIcon name="eye" :size="30" color="#c9a96e" />
-              <text class="act-t gold">上架</text>
-            </view>
-            <view class="act" @tap.stop="doDelete(p)">
-              <AppIcon name="trash-2" :size="30" color="#d0342c" />
-              <text class="act-t danger">删除</text>
-            </view>
+          <!-- 触底加载态 -->
+          <view class="loadmore">
+            <text v-if="loadingMore">加载中…</text>
+            <text v-else-if="!hasMore">— 没有更多了 —</text>
+            <text v-else>— 上拉加载更多 —</text>
           </view>
-        </view>
-
-        <!-- 触底加载态 -->
-        <view class="foot">
-          <text v-if="loadingMore" class="foot-t">加载中…</text>
-          <text v-else-if="!hasMore" class="foot-t">没有更多了</text>
-        </view>
+        </block>
       </view>
 
-      <view style="height: 40rpx" />
+      <view style="height: 140rpx" />
     </scroll-view>
+
+    <!-- 悬浮新建 FAB -->
+    <view class="fab" :style="{ bottom: 40 + safeBottom + 'px' }" @tap="goNew">
+      <AppIcon name="plus" :size="32" color="#fff" />
+      <text class="fab-t">新建商品</text>
+    </view>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
 import {
   merchantBackendApi,
-  categoryName,
   productStatusLabel,
   type MerchantProduct,
   type ProductStatus,
 } from '@/lib/merchant-data'
 
 const statusBarH = ref(0)
+const safeBottom = ref(0)
 
 type TabKey = 'ALL' | ProductStatus
-// 后端 ProductStatus 仅 ON_SALE/OFF_SHELF/PENDING，故无「驳回」页（不造假）。
+// 后端 ProductStatus 仅 ON_SALE/OFF_SHELF/PENDING —— 无「驳回/草稿」，故不做那两 Tab（不造空壳）。
 const tabs: { key: TabKey; label: string }[] = [
   { key: 'ALL', label: '全部' },
   { key: 'ON_SALE', label: '在售' },
-  { key: 'OFF_SHELF', label: '已下架' },
+  { key: 'OFF_SHELF', label: '下架' },
   { key: 'PENDING', label: '审核中' },
 ]
 
@@ -179,7 +183,9 @@ const PAGE_SIZE = 20
 const LOW_STOCK = 5 // 库存预警阈值
 
 const activeTab = ref<TabKey>('ALL')
+const keyword = ref('')
 const products = ref<MerchantProduct[]>([])
+const counts = ref<Record<string, number>>({})
 const page = ref(1)
 const hasMore = ref(true)
 const loading = ref(true)
@@ -189,6 +195,24 @@ const error = ref('')
 const submitting = ref(false)
 
 const statusLabel = (p: MerchantProduct) => productStatusLabel(p)
+
+/** 前端关键词过滤（对已加载列表按标题筛，搜索栏即时反馈） */
+const filtered = computed(() => {
+  const kw = keyword.value.trim()
+  if (!kw) return products.value
+  return products.value.filter((p) => (p.title || '').includes(kw))
+})
+
+const emptyTitle = computed(() => {
+  if (keyword.value.trim()) return '没有匹配的商品'
+  return activeTab.value === 'ALL' ? '还没有商品' : '该状态下暂无商品'
+})
+const emptyDesc = computed(() => {
+  if (keyword.value.trim()) return '换个关键词试试'
+  return activeTab.value === 'ALL'
+    ? '发布你的第一个商品，通过审核后即可进入全平台商品池对外售卖。'
+    : ''
+})
 
 /** 库存预警：在售商品且库存 <= 阈值 */
 function isLowStock(p: MerchantProduct): boolean {
@@ -209,6 +233,24 @@ async function fetchPage(reset: boolean) {
   if (reset) products.value = res.items
   else products.value = products.value.concat(res.items)
   hasMore.value = products.value.length < res.total && res.items.length > 0
+  counts.value[activeTab.value] = res.total
+}
+
+/** 拉取各 Tab 计数（轻量·pageSize:1 只读 total） */
+async function loadCounts() {
+  const jobs: Array<Promise<void>> = tabs.map(async (t) => {
+    try {
+      const res = await merchantBackendApi.getProducts({
+        status: t.key === 'ALL' ? undefined : (t.key as ProductStatus),
+        page: 1,
+        pageSize: 1,
+      })
+      counts.value[t.key] = res.total
+    } catch {
+      /* 计数失败不影响主列表 */
+    }
+  })
+  await Promise.all(jobs)
 }
 
 /** 首屏 / 切 Tab 加载 */
@@ -243,6 +285,7 @@ async function onRefresh() {
   error.value = ''
   try {
     await fetchPage(true)
+    loadCounts()
   } catch (e) {
     uni.showToast({ title: (e as Error)?.message || '刷新失败', icon: 'none' })
   } finally {
@@ -279,6 +322,7 @@ async function doList(p: MerchantProduct) {
     await merchantBackendApi.listProduct(p.id)
     uni.showToast({ title: '已上架', icon: 'success' })
     await load()
+    loadCounts()
   } catch (e) {
     uni.showToast({ title: (e as Error)?.message || '操作失败', icon: 'none' })
   } finally {
@@ -293,6 +337,7 @@ async function doUnlist(p: MerchantProduct) {
     await merchantBackendApi.unlistProduct(p.id)
     uni.showToast({ title: '已下架', icon: 'success' })
     await load()
+    loadCounts()
   } catch (e) {
     uni.showToast({ title: (e as Error)?.message || '操作失败', icon: 'none' })
   } finally {
@@ -312,6 +357,7 @@ function doDelete(p: MerchantProduct) {
         await merchantBackendApi.deleteProduct(p.id)
         uni.showToast({ title: '已删除', icon: 'success' })
         await load()
+        loadCounts()
       } catch (e) {
         uni.showToast({ title: (e as Error)?.message || '删除失败', icon: 'none' })
       } finally {
@@ -327,11 +373,14 @@ function go(path: string) {
 
 onLoad(() => {
   try {
-    statusBarH.value = uni.getSystemInfoSync().statusBarHeight || 0
+    const sys = uni.getSystemInfoSync()
+    statusBarH.value = sys.statusBarHeight || 0
+    safeBottom.value = sys.safeAreaInsets?.bottom || 0
   } catch (e) {
     statusBarH.value = 0
   }
   load()
+  loadCounts()
 })
 </script>
 
@@ -340,13 +389,17 @@ $brand: #c41e3a;
 $gold: #c9a96e;
 $ink: #2c2c2c;
 $ink2: #6e6e73;
-$ink3: #999999;
-$border: #edeae4;
+$ink3: #9a9a9a;
+$line: #ece7e0;
+$wash: #f5f1eb;
 $bg: #faf8f5;
 
 .page {
   min-height: 100vh;
   background: $bg;
+}
+.serif {
+  font-family: 'Songti SC', 'STSong', serif;
 }
 
 /* 顶部导航 */
@@ -356,79 +409,33 @@ $bg: #faf8f5;
   left: 0;
   right: 0;
   z-index: 50;
-  background: #fff;
-  border-bottom: 1rpx solid $border;
+  background: rgba(250, 248, 245, 0.94);
+  border-bottom: 1rpx solid $line;
 }
 .nav-inner {
   height: 88rpx;
   display: flex;
   align-items: center;
-  padding: 0 40rpx;
+  justify-content: space-between;
+  padding: 0 30rpx;
 }
 .nav-back {
-  width: 56rpx;
   display: flex;
   align-items: center;
+  gap: 4rpx;
+  width: 120rpx;
 }
-.nav-title {
-  flex: 1;
-  font-size: 34rpx;
-  font-weight: 600;
-  color: $ink;
-}
-.nav-add {
-  display: flex;
-  align-items: center;
-  gap: 6rpx;
-  background: $brand;
-  padding: 12rpx 26rpx;
-  border-radius: 999rpx;
-  box-shadow: 0 6rpx 18rpx rgba(196, 30, 58, 0.22);
-}
-.nav-add-t {
-  font-size: 25rpx;
-  color: #fff;
-  font-weight: 500;
-}
-
-/* 状态 Tab */
-.tabs-wrap {
-  position: fixed;
-  left: 0;
-  right: 0;
-  z-index: 49;
-  height: 88rpx;
-  background: $bg;
-  display: flex;
-  align-items: center;
-}
-.tabs-scroll {
-  width: 100%;
-  white-space: nowrap;
-}
-.tabs {
-  display: inline-flex;
-  align-items: center;
-  gap: 18rpx;
-  padding: 0 40rpx;
-}
-.tab {
-  padding: 12rpx 34rpx;
-  border-radius: 999rpx;
-  background: #fff;
-  border: 1rpx solid $border;
-}
-.tab.active {
-  background: $brand;
-  border-color: $brand;
-}
-.tab-t {
-  font-size: 26rpx;
+.nav-back-t {
+  font-size: 24rpx;
   color: $ink2;
 }
-.tab.active .tab-t {
-  color: #fff;
-  font-weight: 600;
+.nav-title {
+  font-size: 34rpx;
+  font-weight: 700;
+  color: $ink;
+}
+.nav-right {
+  width: 120rpx;
 }
 
 /* 滚动区 */
@@ -437,48 +444,105 @@ $bg: #faf8f5;
   box-sizing: border-box;
 }
 
-/* 列表 */
-.list {
-  padding: 24rpx 40rpx 0;
+/* 搜索 */
+.search {
+  margin: 28rpx 40rpx 0;
+  background: #fff;
+  border: 1rpx solid $line;
+  border-radius: 999rpx;
+  height: 72rpx;
+  padding: 0 30rpx;
   display: flex;
-  flex-direction: column;
-  gap: 24rpx;
+  align-items: center;
+  gap: 14rpx;
+}
+.search-input {
+  flex: 1;
+  height: 72rpx;
+  font-size: 26rpx;
+  color: $ink;
+}
+.search-ph {
+  color: $ink3;
+}
+.search-clear {
+  font-size: 34rpx;
+  color: $ink3;
+  padding: 0 6rpx;
+}
+
+/* Tab */
+.tabs-scroll {
+  white-space: nowrap;
+  margin-top: 24rpx;
+}
+.tabs {
+  display: inline-flex;
+  align-items: center;
+  gap: 14rpx;
+  padding: 0 40rpx;
+}
+.tab {
+  border: 1rpx solid $line;
+  border-radius: 999rpx;
+  padding: 10rpx 26rpx;
+  background: #fff;
+}
+.tab.on {
+  background: $brand;
+  border-color: $brand;
+}
+.tab-t {
+  font-size: 24rpx;
+  color: $ink2;
+}
+.tab.on .tab-t {
+  color: #fff;
+  font-weight: 700;
+}
+.tab-n {
+  font-size: 22rpx;
+}
+
+/* 列表 */
+.body {
+  padding: 24rpx 40rpx 0;
 }
 .card {
   background: #fff;
-  border-radius: 36rpx;
-  border: 1rpx solid $border;
-  overflow: hidden;
-  box-shadow: 0 2rpx 20rpx rgba(44, 38, 30, 0.05);
-}
-.card-body {
+  border-radius: 32rpx;
+  border: 1rpx solid $line;
+  padding: 26rpx;
+  margin-bottom: 24rpx;
   display: flex;
   gap: 24rpx;
-  padding: 26rpx;
+  box-shadow: 0 2rpx 20rpx rgba(80, 60, 40, 0.04);
+}
+.card.warn {
+  border-color: rgba(196, 30, 58, 0.35);
 }
 
-/* 商品图：padding-top 比例框（1:1） */
-.thumb {
-  width: 176rpx;
+/* 封面 1:1 */
+.cover {
+  width: 156rpx;
   flex-shrink: 0;
-  position: relative;
 }
-.thumb-ratio {
+.cover-ratio {
   width: 100%;
   padding-top: 100%;
   position: relative;
   border-radius: 24rpx;
   overflow: hidden;
-  background: #f5f2ec;
+  background: linear-gradient(135deg, #ede4d6, #e3d6c2);
 }
-.thumb-img {
+.cover-img {
   position: absolute;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
 }
-.thumb-ph {
+.cover-ph {
   position: absolute;
   top: 0;
   left: 0;
@@ -487,19 +551,8 @@ $bg: #faf8f5;
   display: flex;
   align-items: center;
   justify-content: center;
-}
-.thumb-warn {
-  position: absolute;
-  top: 10rpx;
-  left: 10rpx;
-  background: rgba(196, 30, 58, 0.92);
-  padding: 4rpx 14rpx;
-  border-radius: 999rpx;
-}
-.thumb-warn-t {
   font-size: 20rpx;
-  color: #fff;
-  font-weight: 500;
+  color: #b09a78;
 }
 
 /* 信息 */
@@ -509,8 +562,8 @@ $bg: #faf8f5;
   display: flex;
   flex-direction: column;
 }
-.name {
-  font-size: 29rpx;
+.title {
+  font-size: 28rpx;
   font-weight: 600;
   color: $ink;
   line-height: 1.4;
@@ -520,97 +573,88 @@ $bg: #faf8f5;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
 }
-.tag-row {
-  display: flex;
-  align-items: center;
-  gap: 12rpx;
-  margin-top: 12rpx;
+.meta {
+  font-size: 22rpx;
+  color: $ink3;
+  margin-top: 8rpx;
 }
-.tag-cat {
-  font-size: 21rpx;
-  color: $ink2;
-  background: #f5f2ec;
-  padding: 4rpx 14rpx;
-  border-radius: 8rpx;
-}
-.tag-status {
-  font-size: 21rpx;
-  padding: 4rpx 14rpx;
-  border-radius: 8rpx;
+.meta-warn {
+  color: $brand;
+  font-weight: 700;
 }
 .price-row {
   display: flex;
   align-items: baseline;
   gap: 12rpx;
-  margin-top: 14rpx;
+  margin-top: 10rpx;
 }
 .price {
-  font-size: 34rpx;
+  font-size: 32rpx;
   font-weight: 700;
   color: $brand;
 }
-.price-origin {
+.strike {
   font-size: 22rpx;
   color: $ink3;
   text-decoration: line-through;
 }
-.meta-row {
+.tags {
   display: flex;
   align-items: center;
   gap: 10rpx;
-  margin-top: 10rpx;
+  margin-top: 12rpx;
+  flex-wrap: wrap;
 }
-.meta {
-  font-size: 23rpx;
-  color: $ink3;
-}
-.meta-warn {
-  color: $brand;
-  font-weight: 600;
-}
-.meta-dot {
-  font-size: 23rpx;
-  color: #d8cfc0;
-}
-
-/* 操作条 */
-.actions {
-  display: flex;
-  align-items: center;
-  border-top: 1rpx solid $border;
-}
-.act {
-  flex: 1;
-  height: 82rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8rpx;
-}
-.act + .act {
-  border-left: 1rpx solid $border;
-}
-.act-t {
-  font-size: 25rpx;
+.tag {
+  font-size: 20rpx;
+  padding: 3rpx 14rpx;
+  border-radius: 8rpx;
+  border: 1rpx solid $line;
   color: $ink2;
 }
-.act-t.gold {
-  color: $gold;
+.tag-warn {
+  border-color: rgba(196, 30, 58, 0.4);
+  background: rgba(196, 30, 58, 0.06);
+  color: $brand;
+  font-weight: 700;
 }
-.act-t.danger {
+.tag-status {
+  font-weight: 600;
+}
+
+/* 竖排操作 */
+.ops {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 12rpx;
+  flex-shrink: 0;
+}
+.op {
+  border: 1rpx solid $line;
+  border-radius: 999rpx;
+  padding: 8rpx 20rpx;
+  font-size: 22rpx;
+  color: $ink2;
+  text-align: center;
+  font-weight: 600;
+  min-width: 96rpx;
+}
+.op.pri {
+  border-color: $brand;
+  color: $brand;
+}
+.op.danger {
+  border-color: rgba(208, 52, 44, 0.4);
   color: #d0342c;
 }
 
 /* 触底 */
-.foot {
-  padding: 28rpx 0 12rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.foot-t {
-  font-size: 23rpx;
+.loadmore {
+  text-align: center;
+  font-size: 22rpx;
   color: $ink3;
+  padding: 20rpx 0;
 }
 
 /* 状态占位 */
@@ -619,7 +663,7 @@ $bg: #faf8f5;
   flex-direction: column;
   align-items: center;
   gap: 24rpx;
-  padding: 180rpx 60rpx 0;
+  padding: 160rpx 60rpx 0;
 }
 .state-t {
   font-size: 27rpx;
@@ -631,11 +675,75 @@ $bg: #faf8f5;
   background: $brand;
   padding: 20rpx 48rpx;
   border-radius: 999rpx;
-  box-shadow: 0 8rpx 24rpx rgba(196, 30, 58, 0.22);
 }
 .state-btn-t {
   font-size: 27rpx;
   color: #fff;
   font-weight: 500;
+}
+
+/* 空态 */
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 140rpx 48rpx 0;
+  text-align: center;
+}
+.empty-ic {
+  width: 184rpx;
+  height: 184rpx;
+  border-radius: 50%;
+  background: $wash;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 36rpx;
+}
+.empty-t {
+  font-size: 34rpx;
+  font-weight: 700;
+  color: $ink;
+  margin-bottom: 16rpx;
+}
+.empty-d {
+  font-size: 24rpx;
+  color: $ink3;
+  line-height: 1.7;
+  max-width: 480rpx;
+  margin-bottom: 40rpx;
+}
+.empty-btn {
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+  background: $brand;
+  padding: 22rpx 56rpx;
+  border-radius: 999rpx;
+  box-shadow: 0 8rpx 24rpx rgba(196, 30, 58, 0.28);
+}
+.empty-btn-t {
+  font-size: 28rpx;
+  color: #fff;
+  font-weight: 600;
+}
+
+/* 悬浮 FAB */
+.fab {
+  position: fixed;
+  right: 36rpx;
+  z-index: 60;
+  background: $brand;
+  border-radius: 999rpx;
+  padding: 22rpx 36rpx;
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+  box-shadow: 0 10rpx 28rpx rgba(196, 30, 58, 0.35);
+}
+.fab-t {
+  font-size: 27rpx;
+  color: #fff;
+  font-weight: 600;
 }
 </style>
