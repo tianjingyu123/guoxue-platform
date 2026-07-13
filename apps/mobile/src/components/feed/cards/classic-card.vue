@@ -16,7 +16,8 @@ const coverColor = computed(() => coverColorForBook(props.item.title))
 <template>
   <view class="fcard">
     <view class="cov">
-      <image v-if="hasCover" class="cov-img" :src="item.cover" mode="aspectFill" />
+      <!-- 古籍/电子书素材 2:3 装入 3:4 容器：scaleToFill 适度纵向变形保全整幅书封（书名不被裁切），优于 aspectFill 裁边 -->
+      <image v-if="hasCover" class="cov-img" :src="item.cover" mode="scaleToFill" />
       <view v-else class="cov-img flat-wrap">
         <flat-cover :title="item.title" :footer="item.author?.name" :cover-color="coverColor" title-size="40rpx" />
       </view>

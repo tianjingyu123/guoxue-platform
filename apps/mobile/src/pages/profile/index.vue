@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { onPullDownRefresh } from '@dcloudio/uni-app'
 import BottomNav from '@/components/bottom-nav/bottom-nav.vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo, toastComingSoon } from '@/utils/router'
@@ -157,6 +158,15 @@ onMounted(() => {
   } catch { /* 降级默认 20 */ }
   fetchData()
   fetchEquippedTitle()
+})
+
+// 下拉刷新：重拉个人资料与装备称号
+onPullDownRefresh(async () => {
+  try {
+    await Promise.all([fetchData(), fetchEquippedTitle()])
+  } finally {
+    uni.stopPullDownRefresh()
+  }
 })
 
 function go(href?: string) {

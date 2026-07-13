@@ -5,13 +5,12 @@ import { navigateTo } from '@/utils/router'
 import { track } from '@/composables/useTrack'
 import AppIcon from '@/components/common/app-icon.vue'
 import SmartCover from '@/components/common/smart-cover.vue'
-import { type CourseCardData, type CardVariant, normalizeRatio, formatCount, courseHotKind } from '@/lib/card-utils'
+import { type CourseCardData, type CardVariant, formatCount, courseHotKind } from '@/lib/card-utils'
 import { formatPrice } from '@/utils/format'
 
 const props = withDefaults(defineProps<{ data: CourseCardData; variant?: CardVariant; rank?: number }>(), {
   variant: 'feed',
 })
-const ratio = computed(() => normalizeRatio(props.data.coverRatio))
 const kind = computed(() => courseHotKind(props.data.tag))
 const hotText = computed(() => (kind.value === 'hot' ? '热销' : kind.value === 'new' ? '新品' : ''))
 const rankClass = computed(() => {
@@ -30,7 +29,7 @@ function open() {
 <template>
   <!-- ---------- 横滑小卡 rail ---------- -->
   <view v-if="variant === 'rail'" class="rail" hover-class="card-press" @tap="open">
-    <view class="cover r-sq">
+    <view class="cover r-169">
       <smart-cover class="cover-img" :src="data.cover" :title="data.title" type="course" />
       <text class="type-badge">课程</text>
     </view>
@@ -89,7 +88,7 @@ function open() {
 
   <!-- ---------- 瀑布流竖卡 feed(默认) ---------- -->
   <view v-else class="card" hover-class="card-press" @tap="open">
-    <view class="cover" :class="ratio === '1:1' ? 'r-sq' : 'r-34'">
+    <view class="cover r-169">
       <smart-cover class="cover-img" :src="data.cover" :title="data.title" type="course" />
       <text class="type-badge">课程</text>
       <text v-if="kind" class="hot-badge" :class="kind === 'new' ? 'hot-new' : 'hot-red'">{{ hotText }}</text>
@@ -123,6 +122,7 @@ function open() {
 .cover { position: relative; width: 100%; background: var(--surface-sunken); overflow: hidden; }
 .r-34 { padding-bottom: 133.33%; }
 .r-sq { padding-bottom: 100%; }
+.r-169 { padding-bottom: 56.25%; } /* 课程素材原生 16:9（规范）：所见即所得不裁切 */
 .cover-img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
 .type-badge { position: absolute; top: 16rpx; left: 16rpx; z-index: 10; font-size: 20rpx; padding: 2rpx 14rpx; border-radius: 999rpx; color: rgba(255,255,255,0.95); font-weight: 500; background: rgba(0,0,0,0.45); }
 .hot-badge { position: absolute; top: 16rpx; right: 16rpx; z-index: 10; font-size: 20rpx; padding: 2rpx 14rpx; border-radius: 999rpx; font-weight: 500; }
@@ -159,14 +159,14 @@ function open() {
 .rk-2 { background: #B8B8C0; color: #fff; }
 .rk-3 { background: #C9885B; color: #fff; }
 .rk-n { background: var(--surface-sunken); color: var(--text-soft); }
-.rank-cover { flex-shrink: 0; position: relative; width: 96rpx; height: 96rpx; border-radius: 16rpx; overflow: hidden; background: var(--surface-sunken); }
+.rank-cover { flex-shrink: 0; position: relative; width: 128rpx; height: 72rpx; border-radius: 12rpx; overflow: hidden; background: var(--surface-sunken); } /* 16:9 课程原生比例 */
 .rank-info { flex: 1; min-width: 0; }
 .rank-title { display: block; font-size: 26rpx; font-weight: 500; color: var(--text-strong); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .rank-meta { display: flex; align-items: center; gap: 16rpx; margin-top: 6rpx; }
 
 /* list 横向列表卡 */
 .list { display: flex; gap: 24rpx; padding: 16rpx; background: var(--surface); border-radius: 24rpx; box-shadow: 0 2rpx 16rpx rgba(0,0,0,0.05); }
-.list-cover { flex-shrink: 0; position: relative; width: 240rpx; height: 240rpx; border-radius: 20rpx; overflow: hidden; background: var(--surface-sunken); }
+.list-cover { flex-shrink: 0; position: relative; width: 240rpx; height: 135rpx; border-radius: 16rpx; overflow: hidden; background: var(--surface-sunken); } /* 16:9 课程原生比例 */
 .list-body { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: space-between; padding: 4rpx 0; }
 .list-title { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; font-size: 28rpx; font-weight: 500; color: var(--text-strong); line-height: 1.35; margin-bottom: 8rpx; }
 .list-foot { display: flex; align-items: flex-end; justify-content: space-between; }

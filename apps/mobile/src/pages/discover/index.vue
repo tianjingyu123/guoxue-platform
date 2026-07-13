@@ -12,6 +12,7 @@
  * 追加返回空则隐藏「查看更多」（到底）。
  */
 import { ref, reactive, onMounted } from 'vue'
+import { onPullDownRefresh } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import BottomNav from '@/components/bottom-nav/bottom-nav.vue'
 import FeedCard from '@/components/feed/feed-card.vue'
@@ -105,6 +106,16 @@ async function loadMore(type: string) {
 onMounted(() => {
   loadFirstPages()
   getPublishedLayout('discover').then((l) => { discoverBlocks.value = l.blocks }).catch(() => {})
+})
+
+// 下拉刷新：重拉各分区首屏 + 运营楼层，完成后收起刷新态
+onPullDownRefresh(async () => {
+  try {
+    await loadFirstPages()
+    await getPublishedLayout('discover').then((l) => { discoverBlocks.value = l.blocks }).catch(() => {})
+  } finally {
+    uni.stopPullDownRefresh()
+  }
 })
 
 function goEntry(href: string) { navigateTo(href) }

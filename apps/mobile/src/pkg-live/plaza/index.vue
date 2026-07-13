@@ -3,6 +3,7 @@
  * 真连保留：直播中/预告 = liveApi.getPlaza(按 status 分组)；回放 = liveApi.getReplays；预约 = bookRoom/unbookRoom
  */
 import { ref, computed, onMounted } from 'vue'
+import { onPullDownRefresh } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import SmartCover from '@/components/common/smart-cover.vue'
 import DegradedBanner from '@/components/degraded-banner.vue'
@@ -90,6 +91,15 @@ function onTabChange(tab: string) {
 
 onMounted(() => {
   fetchData()
+})
+
+// 下拉刷新：重拉直播广场
+onPullDownRefresh(async () => {
+  try {
+    await fetchData()
+  } finally {
+    uni.stopPullDownRefresh()
+  }
 })
 
 function onSearch() {

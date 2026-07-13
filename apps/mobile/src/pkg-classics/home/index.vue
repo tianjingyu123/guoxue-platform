@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { onPullDownRefresh } from '@dcloudio/uni-app'
 import FlatCover from '@/components/classics/flat-cover.vue'
 import { coverColorForBook } from '@/lib/classics-cover'
 import { classicsApi, _mockFilterTypes, fmtReads, type CategoryTile, type BookListItem, type RankItem, type AudioItem, type FeaturedItem } from '@/lib/classics-data'
@@ -42,6 +43,15 @@ async function fetchData() {
 }
 
 onMounted(() => { fetchData() })
+
+// 下拉刷新：重拉古籍馆首页
+onPullDownRefresh(async () => {
+  try {
+    await fetchData()
+  } finally {
+    uni.stopPullDownRefresh()
+  }
+})
 
 function goSearch() {
   uni.navigateTo({ url: '/pkg-classics/search/index' })

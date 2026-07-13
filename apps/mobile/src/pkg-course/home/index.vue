@@ -9,7 +9,7 @@
  * 数据一律走已有方法，不造假。评分列表接口恒 0（详情页另取）→ 按 V0「≥4.5 才显示」规则恒隐藏，不臆造。
  */
 import { ref, computed, onUnmounted } from 'vue'
-import { onLoad, onReachBottom } from '@dcloudio/uni-app'
+import { onLoad, onReachBottom, onPullDownRefresh } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import AppLoadMore from '@/components/common/app-load-more.vue'
 import SmartCover from '@/components/common/smart-cover.vue'
@@ -160,6 +160,15 @@ onLoad((opts?: Record<string, string>) => {
   refresh()
 })
 onReachBottom(() => loadMore())
+
+// 下拉刷新：重拉课程首页头部与列表
+onPullDownRefresh(async () => {
+  try {
+    await Promise.all([loadHeader(), refresh()])
+  } finally {
+    uni.stopPullDownRefresh()
+  }
+})
 
 onUnmounted(() => {
   if (bannerTimer) clearInterval(bannerTimer)

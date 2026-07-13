@@ -6,7 +6,7 @@
  * 数据层沿用原实现：circleApi.list/my/getHotPosts/getMyStats/join + joinedIds 标记 + onShow 刷新
  */
 import { ref, onMounted } from 'vue'
-import { onShow } from '@dcloudio/uni-app'
+import { onShow, onPullDownRefresh } from '@dcloudio/uni-app'
 import BottomNav from '@/components/bottom-nav/bottom-nav.vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import SmartCover from '@/components/common/smart-cover.vue'
@@ -87,6 +87,14 @@ function openCircle(c: Circle) {
 }
 
 onMounted(() => { loadCircles(); loadExtras() })
+// 下拉刷新：重拉圈子列表与附加数据
+onPullDownRefresh(async () => {
+  try {
+    await Promise.all([loadCircles(), loadExtras()])
+  } finally {
+    uni.stopPullDownRefresh()
+  }
+})
 // 返回本页刷新「已加入」态（详情页加入/退出后回来即时反映）
 let _firstShow = true
 onShow(() => {

@@ -131,6 +131,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { onPullDownRefresh } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import SmartCover from '@/components/common/smart-cover.vue'
 import PublishGuideSheet from '@/components/video/publish-guide-sheet.vue'
@@ -184,6 +185,15 @@ function reload() {
 }
 
 onMounted(() => { loadVideos(activeTab.value) })
+
+// 下拉刷新：按当前 Tab 重拉短视频列表
+onPullDownRefresh(async () => {
+  try {
+    await loadVideos(activeTab.value)
+  } finally {
+    uni.stopPullDownRefresh()
+  }
+})
 
 // 双列瀑布流：原型用 CSS columns-2,按文档顺序顺序填充前后两半(非奇偶交替)
 // 左列=前半[0..3]，右列=后半[4..7]

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 /** 商城首页 - 从原型 app/mall/page.tsx 1:1 迁移 */
 import { ref, computed, onMounted } from 'vue'
+import { onPullDownRefresh } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import ProductCard from '@/components/cards/product-card.vue'
 import LiveCard from '@/components/cards/live-card.vue'
@@ -50,6 +51,15 @@ async function fetchCartCount() {
 const cartBadge = computed(() => (cartCount.value > 99 ? '99+' : String(cartCount.value)))
 
 onMounted(() => { fetchData(); fetchCartCount() })
+
+// 下拉刷新：重拉商城首页数据与购物车角标
+onPullDownRefresh(async () => {
+  try {
+    await Promise.all([fetchData(), fetchCartCount()])
+  } finally {
+    uni.stopPullDownRefresh()
+  }
+})
 
 function onBannerChange(e: { detail: { current: number } }) { bannerIndex.value = e.detail.current }
 
