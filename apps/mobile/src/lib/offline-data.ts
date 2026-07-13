@@ -79,6 +79,8 @@ export interface CourseRegistration {
   userId: string
   status: string // REGISTERED/SIGNED_IN/CANCELLED
   qrCode: string | null
+  /** 6位到店核销码（扫码不便时口报·同课程内唯一·当天有效·核销即作废；存量记录可能为 null） */
+  verifyCode?: string | null
   signedAt: string | null
 }
 
@@ -88,6 +90,8 @@ export interface MyRegistration {
   userId: string
   status: string // REGISTERED/SIGNED_IN/CANCELLED
   qrCode: string | null
+  /** 6位到店核销码（C4 凭证展示·B4 输码核销双向对应同一码） */
+  verifyCode?: string | null
   signedAt: string | null
   course: OfflineCourse & { station?: { id: string; name: string; address?: string; phone?: string }; teacher?: StationTeacherLite | null }
 }
@@ -227,6 +231,17 @@ export const num = (v: string | number | null | undefined) => (v == null ? 0 : t
 
 // ===== 预约状态（teacher-booking）=====
 export type BookingStatus = 'PENDING' | 'CONFIRMED' | 'CANCELLED'
+
+/** 讲师预约记录（B端师资排期·bookingDate 为单点时间·后端未 enrich 课程名） */
+export interface TeacherBooking {
+  id: string
+  stationId: string
+  teacherId: string
+  courseId: string | null
+  bookingDate: string
+  remark: string | null
+  status: BookingStatus | string
+}
 export const bookingStatusLabel: Record<BookingStatus, string> = {
   PENDING: '待确认', CONFIRMED: '已确认', CANCELLED: '已取消',
 }
@@ -399,6 +414,12 @@ export const offlineApi = {
     return apiGet<MyRegistration | null>(`/offline/courses/${courseId}/my-registration`)
   },
 
+  /** 我的全部线下课报名（C4 我的报名·含本人凭证码·拆包兼容数组/对象两形态） */
+  async getMyCourseRegistrations(): Promise<MyRegistration[]> {
+    const d = await apiGet<{ registrations?: MyRegistration[] } | MyRegistration[]>('/offline/my-course-registrations?pageSize=100')
+    return Array.isArray(d) ? d : d?.registrations || []
+  },
+
   /** 取消报名 POST /offline/courses/:id/cancel */
   cancelRegistration(courseId: string): Promise<{ success?: boolean }> {
     return apiPost<{ success?: boolean }>(`/offline/courses/${courseId}/cancel`)
@@ -423,6 +444,11 @@ export const offlineApi = {
   /** 扫码/签到码签到 POST /offline/courses/sign-in?stationId */
   signIn(stationId: string, qrCode: string): Promise<unknown> {
     return apiPost<unknown>(`/offline/courses/sign-in?stationId=${stationId}`, { qrCode })
+  },
+
+  /** 输码核销 POST /offline/courses/verify-code（6位到店码·后端做当天有效/幂等/归属防作弊·业务异常 message 直接 toast） */
+  signInByCode(courseId: string, code: string): Promise<unknown> {
+    return apiPost<unknown>('/offline/courses/verify-code', { courseId, code })
   },
 
   /** 课程评价分页 GET /offline/courses/:id/reviews?page&pageSize（公开·错误抛给页面走三态） */
@@ -504,6 +530,46 @@ export interface StationProduct {
   stock: number
   isPlatform: boolean
   status: string
+}
+
+/** B 端课程报名名单行（后端 listRegistrations·已脱敏·不含 qrCode/verifyCode·防伪造） */
+export interface RegistrationRow {
+  id: string
+  userId: string
+  status: string // REGISTERED/SIGNED_IN/CANCELLED
+  signedAt: string | null
+  createdAt: string
+  user: { nickname: string; avatar: string | null }
+}
+
+// ===== B7 订单与结算（后端真实口径：平台抽成30%/驿站70%·非设计稿示例5%）=====
+export type StationOrderType = 'OFFLINE_COURSE' | 'PRODUCT' | 'SERVICE' | 'TEACHER_BOOKING'
+/** 驿站订单（GET /offline/stations/:id/orders·orderType/status筛选） */
+export interface StationOrder {
+  id: string
+  stationId: string
+  orderType: string // OFFLINE_COURSE/PRODUCT/SERVICE/TEACHER_BOOKING
+  targetId: string
+  amount: string | number
+  stationIncome: string | number // = amount × 0.7（后端算·驿站70%）
+  status: string
+  createdAt: string
+}
+/** 驿站结算单（GET /offline/stations/:id/settlements·服务端生成·只读·驿站侧不可发起打款）
+ * 🔴后端真实字段：totalIncome/stationShare(70%)/platformShare(30%)/settled·无退款抵扣/课程商品分项/orderCount */
+export interface StationSettlement {
+  id: string
+  stationId: string
+  period: string // 结算周期 如 "2026-05"
+  totalIncome: string | number
+  stationShare: string | number // 驿站分成 = totalIncome × 0.7
+  platformShare: string | number // 平台分成 = totalIncome × 0.3
+  settled: boolean
+  settledAt: string | null
+  createdAt: string
+}
+export const orderTypeLabel: Record<string, string> = {
+  OFFLINE_COURSE: '线下课', PRODUCT: '商品自提', SERVICE: '服务', TEACHER_BOOKING: '讲师预约',
 }
 
 export interface SignedLecturer {
@@ -590,15 +656,20 @@ export const offlineManageApi = {
     return apiPost<OfflineCourse>('/offline/courses', data)
   },
 
-  /** 课程报名列表 GET /offline/courses/:id/registrations */
-  async getRegistrations(courseId: string): Promise<CourseRegistration[]> {
-    const d = await apiGet<{ registrations?: CourseRegistration[] } | CourseRegistration[]>(`/offline/courses/${courseId}/registrations?pageSize=200`)
+  /** 课程报名名单 GET /offline/courses/:id/registrations（B端·脱敏·含 user 昵称头像·不含核销码） */
+  async getRegistrations(courseId: string): Promise<RegistrationRow[]> {
+    const d = await apiGet<{ registrations?: RegistrationRow[] } | RegistrationRow[]>(`/offline/courses/${courseId}/registrations?pageSize=200`)
     return Array.isArray(d) ? d : d?.registrations || []
   },
 
   /** 扫码核销学员报名 POST /offline/courses/sign-in?stationId */
   signIn(stationId: string, qrCode: string): Promise<unknown> {
     return apiPost<unknown>(`/offline/courses/sign-in?stationId=${stationId}`, { qrCode })
+  },
+
+  /** 输码核销学员报名 POST /offline/courses/verify-code（6位到店码·B4 扫码不便兜底） */
+  signInByCode(courseId: string, code: string): Promise<unknown> {
+    return apiPost<unknown>('/offline/courses/verify-code', { courseId, code })
   },
 
   /** 商品列表 GET /offline/stations/:id/products（products 拆包→数组）*/
@@ -629,6 +700,24 @@ export const offlineManageApi = {
   /** 引入签约讲师 POST /offline/stations/:id/teachers/from-signed */
   createTeacherFromSigned(stationId: string, sourceUserId: string, specialties?: string[]): Promise<StationTeacherLite> {
     return apiPost<StationTeacherLite>(`/offline/stations/${stationId}/teachers/from-signed`, { sourceUserId, specialties })
+  },
+
+  /** 讲师预约记录 GET /offline/stations/:id/teacher-bookings（可按 teacherId/status 筛选·拆包兼容） */
+  async getTeacherBookings(stationId: string, teacherId?: string): Promise<TeacherBooking[]> {
+    const q = new URLSearchParams({ pageSize: '100' })
+    if (teacherId) q.set('teacherId', teacherId)
+    const d = await apiGet<{ bookings?: TeacherBooking[] } | TeacherBooking[]>(`/offline/stations/${stationId}/teacher-bookings?${q.toString()}`)
+    return Array.isArray(d) ? d : d?.bookings || []
+  },
+
+  /** 确认讲师预约 PUT /offline/teacher-bookings/:id/confirm */
+  confirmBooking(bookingId: string): Promise<TeacherBooking> {
+    return apiPut<TeacherBooking>(`/offline/teacher-bookings/${bookingId}/confirm`, {})
+  },
+
+  /** 取消讲师预约 PUT /offline/teacher-bookings/:id/cancel */
+  cancelBooking(bookingId: string): Promise<TeacherBooking> {
+    return apiPut<TeacherBooking>(`/offline/teacher-bookings/${bookingId}/cancel`, {})
   },
 
   /** 驿站讲师列表 GET /offline/stations/:id/teachers */
@@ -715,6 +804,30 @@ export const offlineManageApi = {
   /** 开业 SOP 进度 GET /offline/dashboard/onboarding（T8-P1b·驿站主·错误抛给页面走三态） */
   getOnboarding(): Promise<OnboardingData> {
     return apiGet<OnboardingData>('/offline/dashboard/onboarding')
+  },
+
+  // ===== B7 订单与结算（驿站主·只读展示·打款由平台发起）=====
+
+  /** 驿站订单列表 GET /offline/stations/:id/orders（orderType/status筛选·拆包兼容orders键） */
+  async getStationOrders(stationId: string, params?: { orderType?: string; status?: string; page?: number; pageSize?: number }): Promise<{ items: StationOrder[]; total: number }> {
+    const q = new URLSearchParams()
+    if (params?.orderType) q.set('orderType', params.orderType)
+    if (params?.status) q.set('status', params.status)
+    q.set('page', String(params?.page || 1))
+    q.set('pageSize', String(params?.pageSize || 50))
+    const d = await apiGet<{ orders?: StationOrder[]; total?: number } | StationOrder[]>(`/offline/stations/${stationId}/orders?${q.toString()}`)
+    if (Array.isArray(d)) return { items: d, total: d.length }
+    return { items: d?.orders || [], total: d?.total || 0 }
+  },
+
+  /** 驿站结算单列表 GET /offline/stations/:id/settlements（服务端生成·只读·拆包兼容settlements键） */
+  async getStationSettlements(stationId: string, params?: { page?: number; pageSize?: number }): Promise<{ items: StationSettlement[]; total: number }> {
+    const q = new URLSearchParams()
+    q.set('page', String(params?.page || 1))
+    q.set('pageSize', String(params?.pageSize || 50))
+    const d = await apiGet<{ settlements?: StationSettlement[]; total?: number } | StationSettlement[]>(`/offline/stations/${stationId}/settlements?${q.toString()}`)
+    if (Array.isArray(d)) return { items: d, total: d.length }
+    return { items: d?.settlements || [], total: d?.total || 0 }
   },
 }
 
