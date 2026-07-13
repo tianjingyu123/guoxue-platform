@@ -91,6 +91,10 @@ export class OfflineService {
     return this.courseSvc.getMyRegistration(courseId, userId);
   }
 
+  listMyCourseRegistrations(userId: string, rawPage = 1, rawPageSize = 20) {
+    return this.courseSvc.listMyCourseRegistrations(userId, rawPage, rawPageSize);
+  }
+
   registerCourse(userId: string, courseId: string) {
     return this.courseSvc.registerCourse(userId, courseId);
   }
@@ -101,6 +105,10 @@ export class OfflineService {
 
   signInCourse(operatorUserId: string, stationId: string, qrCode: string) {
     return this.courseSvc.signInCourse(operatorUserId, stationId, qrCode);
+  }
+
+  signInByCode(operatorUserId: string, courseId: string, code: string) {
+    return this.courseSvc.signInByCode(operatorUserId, courseId, code);
   }
 
   listRegistrations(operatorUserId: string, courseId: string, rawPage = 1, rawPageSize = 20) {

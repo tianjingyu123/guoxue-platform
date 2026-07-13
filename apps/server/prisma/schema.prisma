@@ -2408,17 +2408,19 @@ model OfflineCourseReview {
 }
 
 model OfflineCourseRegistration {
-  id        String    @id @default(uuid())
-  courseId  String
-  userId    String
-  status    String    @default("REGISTERED") // REGISTERED, SIGNED_IN, CANCELLED
-  qrCode    String?
-  signedAt  DateTime?
-  createdAt DateTime  @default(now())
+  id         String    @id @default(uuid())
+  courseId   String
+  userId     String
+  status     String    @default("REGISTERED") // REGISTERED, SIGNED_IN, CANCELLED
+  qrCode     String?
+  verifyCode String? // 6位到店核销码（扫码不便时口报·同课程内唯一·当天有效·核销即作废）
+  signedAt   DateTime?
+  createdAt  DateTime  @default(now())
 
   course OfflineCourse @relation(fields: [courseId], references: [id], onDelete: Cascade)
 
   @@unique([courseId, userId])
+  @@unique([courseId, verifyCode]) // 同课程内6位码唯一（null 不参与唯一约束，存量记录无码不冲突）
   @@index([userId])
 }
 

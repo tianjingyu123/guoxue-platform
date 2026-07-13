@@ -110,6 +110,19 @@ export class SignInCourseDto {
   qrCode: string;
 }
 
+export class VerifyByCodeDto {
+  @ApiProperty({ description: "课程ID" })
+  @IsString()
+  @MinLength(1)
+  courseId: string;
+
+  @ApiProperty({ description: "学员口报的6位到店核销码" })
+  @IsString()
+  @MinLength(6)
+  @MaxLength(6)
+  code: string;
+}
+
 // ───────── 驿站商品 ─────────
 
 export class CreateProductDto {

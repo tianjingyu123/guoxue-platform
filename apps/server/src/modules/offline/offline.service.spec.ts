@@ -616,6 +616,37 @@ describe("OfflineService", () => {
       });
     });
 
+    describe("signInByCode（输码核销·6位到店码）", () => {
+      it("驿站主输当天有效码核销成功", async () => {
+        mockPrisma.offlineCourse.findUnique.mockResolvedValue({ stationId: "s1" });
+        asOwnedBy(OWNER);
+        mockPrisma.offlineCourseRegistration.findFirst.mockResolvedValue({ id: "reg1", status: "REGISTERED", course: { startTime: new Date() } });
+        mockPrisma.offlineCourseRegistration.update.mockResolvedValue({ id: "reg1", status: "SIGNED_IN" });
+        const result = await svc.signInByCode(OWNER, "oc1", "826194");
+        expect(result.status).toBe("SIGNED_IN");
+      });
+      it("非驿站主输码抛 FORBIDDEN 且不查核销码", async () => {
+        mockPrisma.offlineCourse.findUnique.mockResolvedValue({ stationId: "s1" });
+        asOwnedBy(OWNER);
+        await expect(svc.signInByCode(ATTACKER, "oc1", "826194")).rejects.toThrow(BusinessException);
+        expect(mockPrisma.offlineCourseRegistration.findFirst).not.toHaveBeenCalled();
+      });
+      it("已核销的码重复核销被拦截", async () => {
+        mockPrisma.offlineCourse.findUnique.mockResolvedValue({ stationId: "s1" });
+        asOwnedBy(OWNER);
+        mockPrisma.offlineCourseRegistration.findFirst.mockResolvedValue({ id: "reg1", status: "SIGNED_IN", course: { startTime: new Date() } });
+        await expect(svc.signInByCode(OWNER, "oc1", "826194")).rejects.toThrow(BusinessException);
+        expect(mockPrisma.offlineCourseRegistration.update).not.toHaveBeenCalled();
+      });
+      it("非当天课程的码核销被拦截（已失效）", async () => {
+        mockPrisma.offlineCourse.findUnique.mockResolvedValue({ stationId: "s1" });
+        asOwnedBy(OWNER);
+        mockPrisma.offlineCourseRegistration.findFirst.mockResolvedValue({ id: "reg1", status: "REGISTERED", course: { startTime: new Date("2020-01-01T09:00:00") } });
+        await expect(svc.signInByCode(OWNER, "oc1", "826194")).rejects.toThrow(BusinessException);
+        expect(mockPrisma.offlineCourseRegistration.update).not.toHaveBeenCalled();
+      });
+    });
+
     describe("listRegistrations", () => {
       it("驿站主查报名列表：脱敏且不含 qrCode", async () => {
         mockPrisma.offlineCourse.findUnique.mockResolvedValue({ stationId: "s1" });

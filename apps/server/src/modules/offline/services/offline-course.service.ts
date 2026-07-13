@@ -104,6 +104,42 @@ export class OfflineCourseService {
     return { ...reg, course: { ...reg.course, teacher } };
   }
 
+  /** 生成同课程内唯一的 6 位到店核销码（锁内调用·冲突重试） */
+  private async genVerifyCode(tx: Prisma.TransactionClient, courseId: string): Promise<string> {
+    for (let i = 0; i < 8; i++) {
+      const code = String(Math.floor(100000 + Math.random() * 900000)); // 100000–999999
+      const dup = await tx.offlineCourseRegistration.findFirst({ where: { courseId, verifyCode: code }, select: { id: true } });
+      if (!dup) return code;
+    }
+    // 极小概率连撞 8 次：退化为时间戳后 6 位兜底（仍受唯一约束保护）
+    return String(Date.now()).slice(-6);
+  }
+
+  /** 我的所有线下课报名列表（C4 我的报名·含本人凭证 qrCode/verifyCode·按报名时间倒序） */
+  async listMyCourseRegistrations(userId: string, rawPage = 1, rawPageSize = 20) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
+    const where = { userId };
+    const [registrations, total] = await Promise.all([
+      this.prisma.offlineCourseRegistration.findMany({
+        where,
+        include: {
+          course: {
+            select: {
+              id: true, title: true, cover: true, startTime: true, endTime: true,
+              location: true, status: true, auditStatus: true, price: true, circleId: true,
+              station: { select: { id: true, name: true, city: true, address: true, phone: true } },
+            },
+          },
+        },
+        skip,
+        take: pageSize,
+        orderBy: { createdAt: "desc" },
+      }),
+      this.prisma.offlineCourseRegistration.count({ where }),
+    ]);
+    return { registrations, total, page, pageSize };
+  }
+
   async registerCourse(userId: string, courseId: string) {
     const course = await this.prisma.offlineCourse.findUnique({
       where: { id: courseId },
@@ -125,9 +161,10 @@ export class OfflineCourseService {
         throw new BusinessException(ErrorCode.BAD_REQUEST, "课程名额已满");
       }
 
+      const verifyCode = await this.genVerifyCode(tx, courseId);
       try {
         return await tx.offlineCourseRegistration.create({
-          data: { courseId, userId, qrCode },
+          data: { courseId, userId, qrCode, verifyCode },
         });
       } catch (e: unknown) {
         if (isUniqueConstraintError(e)) throw new BusinessException(ErrorCode.BAD_REQUEST, "已报名该课程");
@@ -180,6 +217,44 @@ export class OfflineCourseService {
       where: { id: reg.id },
       data: { status: "SIGNED_IN", signedAt: new Date() },
     });
+  }
+
+  /**
+   * 输码核销（B4 扫码不便兜底）：运营者输入学员口报的 6 位到店核销码完成 sign-in。
+   * 防作弊校验（务必服务端做）：
+   *   ① 操作者身份=本驿站运营者（assertStationOwner）；
+   *   ② 码归属=本驿站本课程（where courseId + course.stationId，跨场次/异地天然拦截）；
+   *   ③ 当天有效=仅开课当天可核销（过期拦截）；
+   *   ④ 幂等=已核销不可重复（重复拦截）；
+   *   ⑤ 状态=报名有效（已取消不可核销）。
+   * 失败按拦截类型返回差异化 message，前端红字提示 + 抖动，不写记录。
+   */
+  async signInByCode(operatorUserId: string, courseId: string, code: string) {
+    // 归属以 courseId 反查的真实驿站为准（不信任前端传参），再校验操作者为该驿站主
+    const course = await this.prisma.offlineCourse.findUnique({ where: { id: courseId }, select: { stationId: true } });
+    if (!course) throw new BusinessException(ErrorCode.NOT_FOUND, "课程不存在");
+    await this.shared.assertStationOwner(operatorUserId, course.stationId);
+
+    const reg = await this.prisma.offlineCourseRegistration.findFirst({
+      where: { courseId, verifyCode: code },
+      include: { course: true },
+    });
+    if (!reg) throw new BusinessException(ErrorCode.NOT_FOUND, "核销码无效，请核对");
+    if (reg.status === "CANCELLED") throw new BusinessException(ErrorCode.BAD_REQUEST, "该报名已取消");
+    if (reg.status === "SIGNED_IN") throw new BusinessException(ErrorCode.BAD_REQUEST, "该凭证已核销过，请勿重复核销");
+    if (!this.isSameDay(reg.course.startTime, new Date())) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "核销码非当天有效，已失效");
+    }
+
+    return this.prisma.offlineCourseRegistration.update({
+      where: { id: reg.id },
+      data: { status: "SIGNED_IN", signedAt: new Date() },
+    });
+  }
+
+  /** 同一自然日判定（当天有效核销用·按服务器时区） */
+  private isSameDay(a: Date, b: Date): boolean {
+    return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
   }
 
   async listRegistrations(operatorUserId: string, courseId: string, rawPage = 1, rawPageSize = 20) {

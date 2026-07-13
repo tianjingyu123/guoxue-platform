@@ -8,6 +8,7 @@ import { Roles } from "../../common/roles.decorator";
 import {
   CreateStationDto, CreateOfflineCourseDto, UpdateMemberDto, AuditStationDto,
   SignInCourseDto,
+  VerifyByCodeDto,
   CreateProductDto, UpdateProductDto,
   CreateTeacherBookingDto,
   CreateStationOrderDto, CreateSettlementDto,
@@ -245,6 +246,18 @@ export class OfflineController {
     return this.svc.getMyRegistration(id, req.user.id);
   }
 
+  @Get("my-course-registrations")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "我的线下课报名列表（C4·含本人凭证码）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiBearerAuth()
+  @ApiQuery({ name: "page", required: false, type: Number })
+  @ApiQuery({ name: "pageSize", required: false, type: Number })
+  listMyCourseRegistrations(@Req() req: Request, @Query("page") page?: number, @Query("pageSize") pageSize?: number) {
+    return this.svc.listMyCourseRegistrations(req.user.id, Number(page) || 1, Number(pageSize) || 20);
+  }
+
   @Post("courses/:id/cancel")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "取消报名" })
@@ -266,6 +279,19 @@ export class OfflineController {
   @ApiBearerAuth()
   signInCourse(@Req() req: Request, @Body() dto: SignInCourseDto, @Query("stationId") stationId: string) {
     return this.svc.signInCourse(req.user.id, stationId, dto.qrCode);
+  }
+
+  @Post("courses/verify-code")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "输码核销（扫码不便兜底·6位到店核销码）" })
+  @ApiResponse({ status: 201, description: "核销成功" })
+  @ApiResponse({ status: 400, description: "已核销/已过期/已取消/参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "非该驿站主" })
+  @ApiResponse({ status: 404, description: "核销码无效" })
+  @ApiBearerAuth()
+  signInByCode(@Req() req: Request, @Body() dto: VerifyByCodeDto) {
+    return this.svc.signInByCode(req.user.id, dto.courseId, dto.code);
   }
 
   @Get("courses/:id/registrations")
