@@ -22,8 +22,8 @@ interface UQRCodeInstance {
   margin: number
   /** 生成点阵 */
   make(): void
-  /** make() 后可读：布尔点阵（true=深色码点） */
-  modules: boolean[][]
+  /** make() 后可读：码点矩阵（uqrcodejs 4.x 元素为对象，.isBlack=true 表示深色码点） */
+  modules: { isBlack: boolean }[][]
   /** make() 后可读：点阵边长 */
   moduleCount: number
 }
@@ -82,13 +82,17 @@ export function drawQrToCanvas(
     roundRectPath(ctx, x - padding, y - padding, size + padding * 2, size + padding * 2, radius)
     ctx.fill()
 
-    // 码点（cell 向上取 0.5 重叠，避免缩放白缝）
-    const cell = size / count
+    // 码点：精确整数边界（round(i*size/count)）逐格填充，无重叠无白缝
+    // 注意 uqrcodejs 4.x 的 modules[r][c] 是对象，以 .isBlack 判定深色码点（历史 bug：误当 boolean 导致全黑）
     ctx.setFillStyle(foreground)
     for (let row = 0; row < count; row++) {
       for (let col = 0; col < count; col++) {
-        if (!modules[row][col]) continue
-        ctx.fillRect(x + col * cell, y + row * cell, cell + 0.5, cell + 0.5)
+        if (!modules[row][col] || !modules[row][col].isBlack) continue
+        const px0 = x + Math.round((col * size) / count)
+        const px1 = x + Math.round(((col + 1) * size) / count)
+        const py0 = y + Math.round((row * size) / count)
+        const py1 = y + Math.round(((row + 1) * size) / count)
+        ctx.fillRect(px0, py0, px1 - px0, py1 - py0)
       }
     }
 
