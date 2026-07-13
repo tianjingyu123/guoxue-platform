@@ -54,13 +54,16 @@ import { TtsModule } from "../tts/tts.module";
 import { MemberModule } from "../member/member.module";
 import { ZhixuanController } from "./zhixuan.controller";
 import { ZhixuanService } from "./zhixuan.service";
+import { PaipanInterpretController } from "./paipan-interpret.controller";
+import { PaipanInterpretService } from "./paipan-interpret.service";
 
 @Module({
   imports: [SystemModule, PrismaModule, RedisModule, TtsModule, MemberModule],
-  controllers: [AiGatewayController, ZhixuanController, CustomerServiceController, KnowledgeSyncController, AdminDedupController, AdminModelRoutingController, PublishAssistController, MediaAiController, AdminRagController, MarketplaceController, QualityScorerController, PlatformKnowledgeController, AiEventBusController, CapabilityRegistryController, DecisionLedgerController, CollaborationController, AnomalyDetectorController, DataExplorerController],
+  controllers: [AiGatewayController, ZhixuanController, PaipanInterpretController, CustomerServiceController, KnowledgeSyncController, AdminDedupController, AdminModelRoutingController, PublishAssistController, MediaAiController, AdminRagController, MarketplaceController, QualityScorerController, PlatformKnowledgeController, AiEventBusController, CapabilityRegistryController, DecisionLedgerController, CollaborationController, AnomalyDetectorController, DataExplorerController],
   providers: [
     AiGatewayService,
     ZhixuanService,
+    PaipanInterpretService,
     ModelRouterService,
     AiLoggerService,
     SemanticCacheService,

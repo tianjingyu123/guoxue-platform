@@ -173,6 +173,23 @@ export class SmartFeedService {
       items = await this.getNewUserFeed(userId, pageSize);
     }
 
+    // 全类型露出（上线前展示需求·董事长反馈"各板块卡片都要见到"）：
+    // 在分层结果基础上补齐"分层里还缺席的类型"的广口径卡，保证首页九类卡形态齐全。
+    // 仅在最终流上做并集去重，不改分层策略本身与其单测；hook 卡随后再注入 paipan/agent。
+    {
+      const broad = await this.getBroadFeed(pageSize);
+      const seen = new Set(items.map((i) => `${i.type}:${i.id}`));
+      const haveTypes = new Set(items.map((i) => i.type));
+      for (const b of broad) {
+        if (seen.has(`${b.type}:${b.id}`)) continue;
+        if (!haveTypes.has(b.type)) {
+          items.push(b);
+          seen.add(`${b.type}:${b.id}`);
+          haveTypes.add(b.type);
+        }
+      }
+    }
+
     // 质量因子（创-P1·任务八接线）：qualityScore 作为排序因子（权重 0.3）·<40 分标记软限流
     const { items: qualityWeighted, lowQuality } = await this.applyQualityWeight(items);
 
@@ -199,6 +216,23 @@ export class SmartFeedService {
     // 混排纪律轻量重排：一屏窗口（≈5 卡）内至多 1 张工具/交易卡（product/paipan/agent），
     // 避免工具卡扎堆；内容卡为主序不变。
     items = this.enforceMixDiscipline(items);
+
+    // 首屏类型多样性保障（董事长"各板块卡片都要见到"）：某类型（如 product 被混排纪律沉到
+    // 首屏之外）在第一页窗口缺席时，把它在后续位置的首次出现上提进窗口，确保首屏尽量露全类型。
+    if (page === 1 && items.length > pageSize) {
+      const win = pageSize;
+      const inWindow = new Set(items.slice(0, win).map((i) => i.type));
+      const allTypes = new Set(items.map((i) => i.type));
+      for (const t of allTypes) {
+        if (inWindow.has(t)) continue;
+        const idx = items.findIndex((i, k) => k >= win && i.type === t);
+        if (idx > -1) {
+          const [moved] = items.splice(idx, 1);
+          items.splice(win - 1, 0, moved); // 放到首屏窗口末位，挤出原末位到次屏
+          inWindow.add(t);
+        }
+      }
+    }
 
     return {
       userId,

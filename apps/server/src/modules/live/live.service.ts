@@ -308,7 +308,12 @@ export class LiveService {
         status: r.status,
         viewCount: r.viewCount,
         hasProducts: r._count.products > 0,
+        productCount: r._count.products,
         chargeType: r.chargeType,
+        chargePrice: r.chargePrice,
+        orientation: r.orientation, // 竖屏 portrait / OBS横屏 landscape（场次卡形态标签）
+        quality: r.quality, // 画质档 basic|hd|uhd（场次卡画质标签）
+        replayUrl: r.replayUrl, // 已结束有回放时展示「查看回放」
         startTime: r.startTime,
         endTime: r.endTime,
         createdAt: r.createdAt,

@@ -20,7 +20,7 @@ import { serverConfig } from "../../config/server-config";
     PassportModule,
     JwtModule.register({
       secret: serverConfig.jwtSecret,
-      signOptions: { expiresIn: "2h" },
+      signOptions: { expiresIn: "24h" }, // 2h→24h：降低 access 过期→刷新频次，减少"不定期强退"窗口（refreshToken 仍 30 天）
     }),
     SystemModule,
     ImModule,

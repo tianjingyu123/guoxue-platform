@@ -101,8 +101,8 @@ export class AuthService {
       await this.redis.del(`refresh:${t}`);
     }
     await this.redis.del(`refresh:user:${userId}`);
-    // 记录撤销时刻，JwtStrategy 用 iat 比对拒绝撤销前签发的 accessToken；TTL 覆盖 accessToken 最长生命期(2h)
-    await this.redis.set(`revoked:user:${userId}`, String(Date.now()), 2 * 3600 + 60);
+    // 记录撤销时刻，JwtStrategy 用 iat 比对拒绝撤销前签发的 accessToken；TTL 需覆盖 accessToken 最长生命期(24h)
+    await this.redis.set(`revoked:user:${userId}`, String(Date.now()), 24 * 3600 + 60);
   }
 
   /** 生成仅 accessToken（兼容旧接口） */
