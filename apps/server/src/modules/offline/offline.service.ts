@@ -197,8 +197,8 @@ export class OfflineService {
 
   // ───────── 收益看板 ─────────
 
-  getRevenueDashboard(stationId: string) {
-    return this.commerceSvc.getRevenueDashboard(stationId);
+  getRevenueDashboard(userId: string, stationId: string) {
+    return this.commerceSvc.getRevenueDashboard(userId, stationId);
   }
 
   // ───────── 课程审核 ─────────

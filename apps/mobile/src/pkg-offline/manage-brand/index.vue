@@ -244,9 +244,9 @@ async function onSave() {
   }
 }
 
-/** 预览：以学员视角打开公开品牌主页（未保存的改动不生效） */
+/** 预览：以学员视角打开对外驿站详情页（未保存的改动不生效） */
 function onPreview() {
-  if (station.value) navigateTo(`/pkg-offline/station-home/index?id=${station.value.id}`)
+  if (station.value) navigateTo(`/pkg-offline/station-detail/index?id=${station.value.id}`)
 }
 </script>
 

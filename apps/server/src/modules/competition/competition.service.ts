@@ -156,6 +156,30 @@ export class CompetitionService {
     return { data, total, page, pageSize };
   }
 
+  /**
+   * 赛后题目公示（公开·A16 高透明）：仅 FINISHED 赛事返回题目+标准答案+解析，
+   * 进行中/未结束赛事抛错——防止提前泄题（合规：题目公示仅针对已结束赛事）。
+   */
+  async disclosureQuestions(competitionId: string) {
+    const comp = await this.prisma.competition.findUnique({
+      where: { id: competitionId },
+      select: { id: true, status: true, title: true },
+    });
+    if (!comp) throw new BusinessException(ErrorCode.NOT_FOUND, "赛事不存在");
+    if (comp.status !== "FINISHED") {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "题目公示仅针对已结束赛事，进行中赛事题目不公开");
+    }
+    const questions = await this.prisma.competitionQuestion.findMany({
+      where: { competitionId },
+      orderBy: { sortOrder: "asc" },
+      select: {
+        id: true, type: true, score: true, difficulty: true,
+        stem: true, options: true, answer: true, analysis: true, source: true, tags: true,
+      },
+    });
+    return { competitionId, title: comp.title, total: questions.length, questions };
+  }
+
   /** 生成试卷：按轮次随机抽题或按难度递进 */
   async generatePaper(roundId: string, questionCount = 30) {
     const round = await this.prisma.competitionRound.findUnique({ where: { id: roundId } });

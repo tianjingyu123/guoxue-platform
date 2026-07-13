@@ -353,6 +353,15 @@ export class CompetitionPublicController {
     return this.service.getRankings({ ...query, competitionId: id });
   }
 
+  @Get(":id/questions/disclosure")
+  @ApiOperation({ summary: "赛后题目公示（公开·仅已结束赛事·含答案解析·A16 高透明）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 400, description: "赛事未结束，题目不公开" })
+  @ApiResponse({ status: 404, description: "赛事不存在" })
+  disclosureQuestions(@Param("id") id: string) {
+    return this.service.disclosureQuestions(id);
+  }
+
   @Post(":id/register")
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()

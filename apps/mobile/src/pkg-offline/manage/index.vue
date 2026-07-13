@@ -209,8 +209,6 @@ function onModule(m: { key: string }) {
     case 'teachers': navigateTo(`/offline/manage/teachers?stationId=${id}`); break
     case 'products': navigateTo(`/offline/manage/products?stationId=${id}`); break
     case 'brand': navigateTo('/pkg-offline/manage-brand/index'); break
-    case 'events': navigateTo(`/pkg-offline/manage-events/index?stationId=${id}`); break
-    case 'calendar': navigateTo('/pkg-offline/manage-calendar/index'); break
     case 'settlement': navigateTo(`/pkg-offline/manage-settlement/index?stationId=${id}`); break
   }
 }

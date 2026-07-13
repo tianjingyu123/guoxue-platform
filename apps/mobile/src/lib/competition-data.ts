@@ -93,6 +93,26 @@ export interface PaperQuestion {
   difficulty: number
 }
 
+/** 赛后题目公示项（A16·仅 FINISHED 赛事·含标准答案与解析） */
+export interface DisclosureQuestion {
+  id: string
+  type: QuestionType
+  score: number
+  difficulty: number
+  stem: string
+  options?: { key: string; text: string }[] | null
+  answer: Record<string, unknown> // 标准答案（客观题 {correctKey/correctKeys}·主观题评分要点）
+  analysis?: string | null
+  source?: string | null
+  tags: string[]
+}
+export interface DisclosureResult {
+  competitionId: string
+  title: string
+  total: number
+  questions: DisclosureQuestion[]
+}
+
 export interface MyResultAnswer {
   questionId: string
   stem?: string
@@ -299,6 +319,10 @@ export const competitionApi = {
   /** 获取试卷（登录，题目+选项乱序，不含答案） */
   getPaper(roundId: string, count = 30) {
     return apiGet<PaperQuestion[]>(`/competitions/rounds/${roundId}/paper?count=${count}`)
+  },
+  /** 赛后题目公示（公开·仅 FINISHED 赛事·含答案解析；未结束后端抛 400，页面据此提示进行中不公开） */
+  disclosureQuestions(id: string) {
+    return apiGet<DisclosureResult>(`/competitions/${id}/questions/disclosure`)
   },
   /** 整卷提交（登录，后端自动判客观题） */
   batchSubmit(roundId: string, body: { registrationId: string; answers: PaperAnswerItem[] }) {
