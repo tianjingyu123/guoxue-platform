@@ -6292,6 +6292,7 @@ model CompetitionTalent {
   totalCompetitions Int      @default(0) // 累计参赛数（收官赛事计数·badges 判重防重复累计）
   totalWins         Int      @default(0) // 累计夺冠数
   talentScore       Int      @default(0) // 人才积分：冠军100/亚军60/季军40/每次晋级10/参与2 加权累计
+  level             String   @default("TRAINEE") // 易学分析师段位（收官重算按 talentScore 阈值自动晋级·前端读真值）：TRAINEE见习/JUNIOR初级/INTERMEDIATE中级/SENIOR高级/MASTER资深
   badges            Json     @default("[]") // 战绩徽章 [{competitionId,title,status,rank,score,finishedAt}]（含 competitionId 判重幂等）
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt

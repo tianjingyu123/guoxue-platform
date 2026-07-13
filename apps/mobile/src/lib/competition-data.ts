@@ -141,6 +141,8 @@ export interface TalentItem {
   totalCompetitions: number
   totalWins: number
   talentScore: number
+  /** 后端权威分析师段位（收官重算落库·与前端 analystLevel 阈值一致）·存量已回填 */
+  level?: AnalystLevel | string
   medals: TalentMedal[]
   isCertified: boolean
   verifiedTitle?: string | null
@@ -153,6 +155,8 @@ export interface MyTalentProfile {
   totalCompetitions: number
   totalWins: number
   talentScore: number
+  /** 后端权威分析师段位（收官重算落库） */
+  level?: AnalystLevel | string
   badges: TalentMedal[]
   position?: number | null
   isCertified: boolean
