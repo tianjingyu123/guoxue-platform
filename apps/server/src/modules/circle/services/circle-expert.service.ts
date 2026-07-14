@@ -96,6 +96,37 @@ export class CircleExpertService {
   }
 
   /**
+   * 全平台达人列表（跨圈聚合·发现页全局入口用）。
+   * 达人判定与 listCircleExperts 一致：角色 ∈ OWNER/PARTNER/GUEST 且 提问价或连麦价 > 0。
+   * 必须带回 circle —— 定价按圈子走，前端提问时要用这一项的 circleId 下单。
+   */
+  async listAllExperts(limit = 50) {
+    const take = Math.min(Math.max(Math.trunc(limit) || 50, 1), 100);
+    return this.prisma.circleMember.findMany({
+      where: {
+        role: { in: ["OWNER", "PARTNER", "GUEST"] },
+        OR: [
+          { questionPriceCoin: { gt: 0 } },
+          { callPricePerMinuteCoin: { gt: 0 } },
+        ],
+      },
+      select: {
+        circleId: true,
+        userId: true,
+        role: true,
+        questionPriceCoin: true,
+        peekPriceCoin: true,
+        questionTimeoutHours: true,
+        callPricePerMinuteCoin: true,
+        circle: { select: { id: true, name: true, cover: true } },
+        user: { select: { id: true, nickname: true, avatar: true } },
+      },
+      orderBy: { questionPriceCoin: "desc" },
+      take,
+    });
+  }
+
+  /**
    * 聚合某用户在所有圈子中开通的达人咨询服务（个人主页"付费咨询"入口用）。
    * 达人判定与 listCircleExperts 一致：角色 ∈ OWNER/PARTNER/GUEST 且 提问价或连麦价 > 0。
    */

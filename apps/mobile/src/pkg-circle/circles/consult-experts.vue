@@ -9,7 +9,7 @@
  *   另展示真实 responseHours（提问响应时限）。
  * 通话：TRTC 仅 App 端，H5/小程序按 V0 做「去 App 预约」弱化按钮 → 通话预约页(booking)。
  */
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
@@ -29,11 +29,21 @@ function roleClass(label: string) {
   return 'guest'
 }
 
+/**
+ * 两种模式：
+ *  - 带 circleId（从圈子详情进）：只看本圈达人
+ *  - 不带 circleId（从发现页「达人咨询」全局入口进）：跨圈看全平台达人
+ * 原先不带 circleId 时会请求 GET /circles//experts → 恒空列表 + 提问按钮点不动。
+ */
+const isDiscoverMode = computed(() => !circleId.value)
+
 async function load() {
   loading.value = true
   error.value = ''
   try {
-    experts.value = await consultApi.listExperts(circleId.value)
+    experts.value = isDiscoverMode.value
+      ? await consultApi.listAllExperts()
+      : await consultApi.listExperts(circleId.value)
     // 好评率回流（失败静默 {}，达人卡不渲染该行）
     if (experts.value.length) {
       ratingStats.value = await consultApi.getExpertRatingStats(experts.value.map(e => e.id))
@@ -45,15 +55,22 @@ async function load() {
   }
 }
 
+/** 该达人下单用的圈子：跨圈模式用达人自己的 circleId（定价按圈走） */
+function circleOf(e: ConsultExpert) {
+  return circleId.value || e.circleId || ''
+}
+
 /** 图文提问：跳发起付费提问页（带圈子/达人/提问价/围观价/达人名·围观价供提问页只读展示） */
 function goAsk(e: ConsultExpert) {
-  if (!circleId.value || !e.questionPrice) return
-  navigateTo(`/pkg-circle/circles/consult-ask?circleId=${circleId.value}&answererId=${e.id}&priceCoin=${e.questionPrice}&peekPriceCoin=${e.peekPrice}&expertName=${encodeURIComponent(e.name)}&expertAvatar=${encodeURIComponent(e.avatar || '')}`)
+  const cid = circleOf(e)
+  if (!cid || !e.questionPrice) return
+  navigateTo(`/pkg-circle/circles/consult-ask?circleId=${cid}&answererId=${e.id}&priceCoin=${e.questionPrice}&peekPriceCoin=${e.peekPrice}&expertName=${encodeURIComponent(e.name)}&expertAvatar=${encodeURIComponent(e.avatar || '')}`)
 }
 /** 连麦咨询：通话预约页（App/H5 对照·预约页内分端降级） */
 function goBook(e: ConsultExpert) {
-  if (!circleId.value || !e.callPrice) return
-  navigateTo(`/pkg-circle/circles/booking?circleId=${circleId.value}&expertId=${e.id}&name=${encodeURIComponent(e.name)}&avatar=${encodeURIComponent(e.avatar || '')}&price=${e.callPrice}`)
+  const cid = circleOf(e)
+  if (!cid || !e.callPrice) return
+  navigateTo(`/pkg-circle/circles/booking?circleId=${cid}&expertId=${e.id}&name=${encodeURIComponent(e.name)}&avatar=${encodeURIComponent(e.avatar || '')}&price=${e.callPrice}`)
 }
 function goMyOrders() {
   navigateTo(`/pkg-circle/circles/consult-orders?circleId=${circleId.value}`)
@@ -87,11 +104,11 @@ onMounted(load)
       <view class="ce-retry" @tap="load"><text class="ce-retry-t">重试</text></view>
     </view>
     <view v-else-if="experts.length === 0" class="ce-state">
-      <text class="ce-state-t">本圈暂无开通咨询的达人</text>
+      <text class="ce-state-t">{{ isDiscoverMode ? '平台暂无开通咨询的达人' : '本圈暂无开通咨询的达人' }}</text>
     </view>
 
     <template v-else>
-      <text class="ce-label">本圈达人 · {{ experts.length }} 位</text>
+      <text class="ce-label">{{ isDiscoverMode ? '全平台达人' : '本圈达人' }} · {{ experts.length }} 位</text>
 
       <view v-for="e in experts" :key="e.id" class="ce-card">
         <view class="ce-head">
@@ -104,6 +121,8 @@ onMounted(load)
               <text class="ce-name">{{ e.name || '达人' }}</text>
               <text class="ce-role" :class="'ce-role-' + roleClass(e.roleLabel)">{{ e.roleLabel }}</text>
             </view>
+            <!-- 跨圈模式必须标明所属圈子：达人定价按圈子走，同一个人在不同圈价格可能不同 -->
+            <text v-if="isDiscoverMode && e.circleName" class="ce-stats">来自「<text class="ce-stats-b">{{ e.circleName }}</text>」</text>
             <text v-if="ratingStats[e.id]" class="ce-stats">好评率 <text class="ce-stats-b">{{ ratingStats[e.id].goodRate }}%</text> · {{ ratingStats[e.id].ratingCount }} 次评价</text>
             <text v-if="e.responseHours" class="ce-stats">图文提问 <text class="ce-stats-b">{{ e.responseHours }}</text> 小时内响应</text>
           </view>

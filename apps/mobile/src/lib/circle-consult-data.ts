@@ -16,6 +16,9 @@ export interface ConsultExpert {
   peekPrice: number      // 围观价（金币/次），由达人本人设定，0=不开放围观
   callPrice: number      // 电话连麦价（金币/分钟），0 表示未开通
   responseHours: number  // 提问响应时限（小时）
+  /** 所属圈子（仅跨圈模式 listAllExperts 返回）。定价按圈子走，下单必须用这一项的 circleId */
+  circleId?: string
+  circleName?: string
 }
 
 /** 某用户在某圈子开通的咨询服务（个人主页"付费咨询"入口聚合用） */
@@ -81,6 +84,32 @@ export const consultApi = {
         peekPrice: Number(m.peekPriceCoin) || 0,
         callPrice: Number(m.callPricePerMinuteCoin) || 0,
         responseHours: Number(m.questionTimeoutHours) || 0,
+      }))
+    } catch {
+      return []
+    }
+  },
+
+  /**
+   * 全平台达人列表 — GET /circles/experts/discover（跨圈聚合·发现页全局入口用）。
+   * 发现页的「达人咨询」不带 circleId，此前跳达人列表页时 circleId 为空 → 恒空列表、
+   * 提问按钮点不动。跨圈模式下每个达人带自己的 circleId，下单用它。
+   */
+  listAllExperts: async (limit = 50): Promise<ConsultExpert[]> => {
+    try {
+      const res = await apiGet<RawExpertMember[] | { data?: RawExpertMember[] }>(`/circles/experts/discover?limit=${limit}`)
+      const arr = Array.isArray(res) ? res : (res?.data ?? [])
+      return arr.map((m: RawExpertMember): ConsultExpert => ({
+        id: m.user?.id != null ? String(m.user.id) : (m.userId || ''),
+        name: m.user?.nickname || '',
+        avatar: m.user?.avatar || '',
+        roleLabel: ROLE_LABEL[m.role || ''] || '达人',
+        questionPrice: Number(m.questionPriceCoin) || 0,
+        peekPrice: Number(m.peekPriceCoin) || 0,
+        callPrice: Number(m.callPricePerMinuteCoin) || 0,
+        responseHours: Number(m.questionTimeoutHours) || 0,
+        circleId: m.circleId || m.circle?.id || '',
+        circleName: m.circle?.name || '',
       }))
     } catch {
       return []

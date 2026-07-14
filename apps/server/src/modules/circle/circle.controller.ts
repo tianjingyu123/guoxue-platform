@@ -502,6 +502,19 @@ export class CircleController {
     return this.circle.getExpertConfig(circleId, userId);
   }
 
+  /**
+   * 全平台达人列表（跨圈聚合）。
+   * 必须声明在 @Get(":id/experts") 之前：否则 "experts" 会被当成 :id 吃掉。
+   * 背景：发现页「达人咨询」是全局入口、不带 circleId，而达人定价是按圈子的 ——
+   * 此前该入口跳达人列表页时 circleId 为空 → GET /circles//experts → 恒空列表 + 提问按钮点不动。
+   */
+  @Get("experts/discover")
+  @ApiOperation({ summary: "全平台达人列表", description: "跨圈聚合所有开通了提问/连麦的达人，供发现页全局入口使用" })
+  @ApiResponse({ status: 200, description: "成功返回达人列表（含所属圈子）" })
+  listAllExperts(@Query("limit") limit?: string) {
+    return this.circle.listAllExperts(Number(limit) || 50);
+  }
+
   @Get(":id/experts")
   @ApiOperation({ summary: "圈子达人列表", description: "获取圈子内所有可提问/连麦的达人" })
   @ApiResponse({ status: 200, description: "成功返回达人列表" })
