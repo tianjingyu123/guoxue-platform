@@ -3537,6 +3537,7 @@ enum CoinScene {
   CONSULT_CALL_PREPAY // 咨询通话预扣（同上）
   LIVE_GIFT_INCOME // （预留）直播打赏分成直接入币·终版拍板改走 UserEarning+收益转金币
   EARNING_CONVERT // 收益转金币（可提现 RMB 收益 → 金币·单向·董事长拍板 2026-07-10）
+  CASE_CONTRIBUTION // 案例投稿奖励（审核通过后按质量档发放）
 }
 
 model VirtualCoinTransaction {
@@ -7317,4 +7318,97 @@ model PractitionerLedger {
   createdAt  DateTime @default(now())
 
   @@index([ownerId, occurredAt])
+}
+
+// ─────────────────────────────────────────────────────────────
+// 八字案例库（爱好者练手 / 同类八字参考）
+//
+// 🔴 董事长定的口径：**答案 = 这个八字的真实人生经历；断语和思路只是参考。**
+//    所以本表的核心是 life（分维度经历）+ events（大事年表，用来验应期），
+//    commentary（断语）只是附带参考，不是答案。
+//    这也是它与旧 CelebrityCase（只有「谁+八字+分类」，无经历）的根本区别。
+//
+// 玩法：
+//   ① 练手：选案例 → 自己断（BaziCaseAttempt.guess）→ 点「公布答案」→ 逐维度对照
+//   ② 参考：用户排完盘，若案例库里有「日柱相同 + 年/月/时任意两柱相同」的案例，
+//          提示「有同类八字可参考」，用户点了才看（不强推）
+//
+// 合规（硬约束，不是可选项）：真人经历属敏感信息，且投稿的多半是别人的八字。
+//   consent 必须为 true（本人 / 已获授权）；一律脱敏（不存真名/精确地点）；
+//   必须审核通过（status=APPROVED）才对外可见。名人/古籍只取公开史料。
+// ─────────────────────────────────────────────────────────────
+
+model BaziCase {
+  id String @id @default(uuid())
+
+  // 八字：四柱拆列存，三柱匹配要走索引（塞数组里只能扫全表）
+  gender      String // male / female
+  yearPillar  String // 甲子
+  monthPillar String
+  dayPillar   String // 🔴 匹配时日柱必须相同（日柱 = 命主自身）
+  hourPillar  String
+  // 生辰：古籍案例常只留八字、无确切生辰 → 允许空
+  birthYear   Int?
+  birthMonth  Int?
+  birthDay    Int?
+  birthHour   Int?
+
+  // 身份（脱敏后）
+  source   String // CELEBRITY / CLASSIC / CURATED / USER
+  title    String // 「某商界人士」/「李世民」/「《滴天髓》案例三」
+  realName String? // 仅名人/古籍（公开史料）；用户投稿恒为 null
+  era      String?
+  tags     String[] @default([])
+
+  // 答案：真实人生经历
+  life   Json @default("{}") // {career,marriage,wealth,health,family,character}
+  events Json @default("[]") // [{year,ganzhi,event,category}] 大事年表 → 验应期
+
+  // 参考（明确不是答案）
+  commentary    String?
+  commentarySrc String?
+
+  // 投稿 / 审核 / 合规
+  contributorId String?
+  status        String    @default("PENDING") // PENDING / APPROVED / REJECTED
+  reviewNote    String?
+  reviewedAt    DateTime?
+  reviewedBy    String?
+  consent       Boolean   @default(false) // 本人 / 已获当事人授权
+  desensitized  Boolean   @default(true) // 已脱敏
+
+  // 质量分（有年表 + 维度齐全的才是好案例）→ 决定奖励档位与是否精品
+  quality   Int     @default(0)
+  isPremium Boolean @default(false)
+
+  viewCount    Int @default(0)
+  attemptCount Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  attempts BaziCaseAttempt[]
+
+  @@index([dayPillar, status])
+  @@index([status, source])
+  @@index([status, isPremium])
+  @@index([contributorId])
+}
+
+model BaziCaseAttempt {
+  id     String @id @default(uuid())
+  caseId String
+  userId String
+
+  guess      Json      @default("{}") // 用户自己断的（与 life 同维度，便于逐项对照）
+  revealedAt DateTime? // null = 还没点「公布答案」——没 reveal 就不给答案
+  selfScore  Int? // 用户自评断中几项
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  case BaziCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  @@unique([caseId, userId])
+  @@index([userId])
 }
