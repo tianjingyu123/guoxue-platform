@@ -314,11 +314,16 @@ export class WalletService {
 
   /** 支持的充值支付渠道（云闪付=UNIONPAY） */
   private static readonly RECHARGE_METHODS = ["WECHAT", "ALIPAY", "UNIONPAY"];
+  /** 单次充值上限（币）：前端标称 5 万元 = 50 万币，服务端必须强制，防刷单/误操作/洗钱通道 */
+  private static readonly MAX_RECHARGE_COIN = 500_000;
 
   /** 创建充值订单（PENDING）。真实支付需对接微信/支付宝/云闪付下单 API（本地无密钥）→ 返回订单待支付。 */
   async createRecharge(userId: string, dto: { amountCoin: number; payMethod: string }) {
     if (!dto.amountCoin || dto.amountCoin <= 0) {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "充值金额必须大于0");
+    }
+    if (dto.amountCoin > WalletService.MAX_RECHARGE_COIN) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "单次充值金额超过上限");
     }
     const pm = String(dto.payMethod || "WECHAT").toUpperCase();
     if (!WalletService.RECHARGE_METHODS.includes(pm)) {

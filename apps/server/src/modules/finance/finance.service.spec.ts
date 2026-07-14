@@ -286,6 +286,20 @@ describe("FinanceService", () => {
       mockPrisma.withdrawalApplication.findUnique.mockResolvedValue({ id: "w1", userId: "u1", status: "APPROVED" });
       await expect(svc.confirmWithdrawalPay("w1", "u1")).rejects.toThrow(BusinessException);
     });
+
+    // 🔴 四眼原则：审批人不得同时打款，防单人一手审批一手放款套现
+    it("审批人不能同时打款（四眼原则）", async () => {
+      mockPrisma.withdrawalApplication.findUnique.mockResolvedValue({ id: "w1", userId: "u1", reviewedBy: "admin1", status: "APPROVED" });
+      await expect(svc.confirmWithdrawalPay("w1", "admin1")).rejects.toThrow(BusinessException);
+    });
+
+    it("手动打款写入 payoutRef 便于对账追溯", async () => {
+      mockPrisma.withdrawalApplication.updateMany.mockResolvedValue({ count: 1 });
+      mockPrisma.withdrawalApplication.findUnique.mockResolvedValue({ id: "w1", userId: "u1", reviewedBy: "admin2", status: "PAID" });
+      await svc.confirmWithdrawalPay("w1", "admin1");
+      const call = mockPrisma.withdrawalApplication.updateMany.mock.calls[0][0];
+      expect(call.data.payoutRef).toBeTruthy();
+    });
   });
 
   // ─── 5. 资金冻结/解冻 ───

@@ -498,11 +498,18 @@ export class FinanceService {
     return this.transitWithdrawal(id, "PENDING", "REJECTED", { reviewedBy: adminId, reviewNote }, "当前状态不允许驳回");
   }
 
-  async confirmWithdrawalPay(id: string, adminId: string) {
-    // 防自审自批：受益人不得给自己的提现打款
+  async confirmWithdrawalPay(id: string, adminId: string, payoutRef?: string) {
     const app = await this.prisma.withdrawalApplication.findUnique({ where: { id } });
+    // 防自审自批：受益人不得给自己的提现打款
     if (app && app.userId === adminId) throw new BusinessException(ErrorCode.FORBIDDEN, "不能给自己的提现打款");
-    return this.transitWithdrawal(id, "APPROVED", "PAID", {}, "当前状态不允许打款");
+    // 🔴 四眼原则：审批人与打款人必须是两个人，否则单个财务可一手审批一手放款给同伙账户套现
+    if (app && app.reviewedBy === adminId) {
+      throw new BusinessException(ErrorCode.FORBIDDEN, "审批人不能同时打款，需由另一名财务操作");
+    }
+    // 手动打款也要留出款凭据：便于对账关联、防与自动代付交错重复出款。
+    // payoutRef @unique，缺省用 MANUAL-<id> 作幂等/审计标记。
+    const ref = payoutRef?.trim() || `MANUAL${id.replace(/-/g, "").slice(0, 26)}`;
+    return this.transitWithdrawal(id, "APPROVED", "PAID", { payoutRef: ref }, "当前状态不允许打款");
   }
 
   // ───────── 6. 资金冻结/解冻 ─────────

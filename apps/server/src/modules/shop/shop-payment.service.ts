@@ -198,6 +198,10 @@ export class ShopPaymentService {
     if (!amountCoin || amountCoin <= 0) {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "充值金额必须大于0");
     }
+    // 单次充值上限（币）：前端标称 5 万元=50 万币，服务端必须强制，防刷单/误操作/洗钱通道
+    if (amountCoin > 500_000) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "单次充值金额超过上限");
+    }
     const wechatAuth = await this.prisma.auth.findFirst({
       where: { userId, provider: "WECHAT" },
       select: { openId: true },
