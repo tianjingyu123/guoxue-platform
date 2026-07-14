@@ -26,6 +26,7 @@ const SUITES: { file: string; desc: string }[] = [
   { file: 'verify-jieqi.ts', desc: '二十四节气 · 与 VSOP87 对撞 192 个交节点 + 跨时区' },
   { file: 'verify-wannianli.ts', desc: '万年历 · 四柱/宜忌/物候/星期' },
   { file: 'verify-lunar-convert.ts', desc: '农历→公历转换（13 个页面的输入口径）' },
+  { file: 'verify-backend-parity.ts', desc: '前后端同源 · 后端 calculator 与 shared 引擎逐值一致（去伪存真防线）' },
 ]
 
 let failed = 0
