@@ -225,6 +225,22 @@ export class CommissionService {
       return null;
     }
 
+    /**
+     * 🔴 计费引擎的「牙齿」：非 ACTIVE 分站不再产生新佣金。
+     *
+     * station-billing 会把过期分站置为 EXPIRED，但在此之前**全仓库没有一处消费这个状态** ——
+     * 停用等于只改了个字段，分站不续费照样躺着收佣金，加盟费就成了纯自愿。
+     * 与下方运营商链路（operator.status !== "ACTIVE" → 不发管理奖）口径一致。
+     *
+     * 只拦新佣金，不动已结算收益（续费后由支付后处理器改回 ACTIVE，立刻恢复）。
+     */
+    if (station.status !== "ACTIVE") {
+      this.logger.warn(
+        `订单 ${orderId} 的分站 ${station.id} 状态为 ${station.status}（非 ACTIVE），不产生佣金`,
+      );
+      return null;
+    }
+
     // 佣-V2-P1 佣金取值链（2026-07-04 拍板）：PRODUCT 类订单优先用逐品站长佣金率，回落类型默认 rateA
     const rate = await this.resolveEffectiveRate(type, orderTargetId, Number(config.rateA));
     // 规整到分（四舍五入），与本文件管理奖/平台抽成一致，避免 JS 浮点尾数（如 99.9*0.7）污染分账与累加

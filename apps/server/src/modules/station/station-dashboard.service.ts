@@ -68,24 +68,48 @@ function teamHealthLevel(score: number): { level: string; levelKey: TeamHealth["
 export class StationDashboardService {
   constructor(private readonly prisma: PrismaService) {}
 
-  /** 站长概览 — 本月核心指标 */
+  /**
+   * 站长概览 — 本月核心指标 + 资格状态。
+   *
+   * 🔴 resign（资格状态）不是装饰：分站过期后不再产生新佣金（见 commission.recordCommission），
+   *    站长若在后台看不到「已过期/还剩几天」，就会遇到「佣金突然归零且不知道为什么」。
+   */
   async getOverview(stationId: string) {
     const now = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
-    const [earningsAgg] = await Promise.all([
+    const [earningsAgg, station] = await Promise.all([
       this.prisma.stationEarning.aggregate({
         where: { stationId, createdAt: { gte: monthStart } },
         _sum: { earned: true, amount: true },
         _count: true,
       }),
+      this.prisma.station.findUnique({
+        where: { id: stationId },
+        select: { status: true, expireAt: true },
+      }),
     ]);
+
+    const expireAt = station?.expireAt ?? null;
+    const daysLeft = expireAt
+      ? Math.ceil((expireAt.getTime() - now.getTime()) / 86400000)
+      : null;
 
     return {
       monthEarned: earningsAgg._sum.earned || 0,
       monthAmount: earningsAgg._sum.amount || 0,
       monthOrders: earningsAgg._count,
       conversionRate: "0",
+      // 加盟资格（expireAt=null 为计费引擎上线前的存量分站，不设到期日）
+      qualification: {
+        status: station?.status ?? "ACTIVE",
+        expireAt,
+        daysLeft,
+        /** true = 已过期，新订单不再产生佣金，需续费恢复 */
+        expired: station?.status !== "ACTIVE",
+        /** true = 7 天内到期，前端应显著提示续费 */
+        expiringSoon: daysLeft !== null && daysLeft > 0 && daysLeft <= 7,
+      },
     };
   }
 

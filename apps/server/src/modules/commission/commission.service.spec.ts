@@ -232,7 +232,7 @@ describe("CommissionService", () => {
   describe("calculateAndRecord", () => {
     it("有效推荐计算佣金并创建记录", async () => {
       mockPrisma.commissionConfig.findUnique.mockResolvedValue({ configKey: "course_basic", rateA: 0.1 });
-      mockPrisma.station.findUnique.mockResolvedValue({ id: "station-1", userId: "user-1", totalEarning: 0 });
+      mockPrisma.station.findUnique.mockResolvedValue({ id: "station-1", userId: "user-1", status: "ACTIVE", totalEarning: 0 });
       mockPrisma.stationEarning.create.mockResolvedValue({ id: "earning-1", stationId: "station-1", amount: 100, earned: 10 });
       mockPrisma.notification.create.mockResolvedValue({});
       const result = await svc.calculateAndRecord("order-1", "COURSE", 100, "referrer-1");
@@ -246,6 +246,31 @@ describe("CommissionService", () => {
       const result = await svc.calculateAndRecord("order-1", "COURSE", 100, "referrer-1");
       expect(result).toBeNull();
     });
+
+    /**
+     * 🔴 计费引擎的牙齿：station-billing 把过期分站置为 EXPIRED，但在此之前
+     *    全仓库没有一处消费这个状态 —— 分站不续费照样躺着收佣金，加盟费形同自愿。
+     */
+    it("过期分站(EXPIRED)不产生新佣金（加盟费到期即停收益）", async () => {
+      mockPrisma.commissionConfig.findUnique.mockResolvedValue({ configKey: "course_basic", rateA: 0.1 });
+      mockPrisma.station.findUnique.mockResolvedValue({
+        id: "station-1", userId: "user-1", status: "EXPIRED", totalEarning: 0,
+      });
+      const result = await svc.calculateAndRecord("order-1", "COURSE", 100, "referrer-1");
+      expect(result).toBeNull();
+      expect(mockPrisma.stationEarning.create).not.toHaveBeenCalled();
+      expect(mockPrisma.station.update).not.toHaveBeenCalled();
+    });
+
+    it("停用分站(SUSPENDED)同样不产生佣金", async () => {
+      mockPrisma.commissionConfig.findUnique.mockResolvedValue({ configKey: "course_basic", rateA: 0.1 });
+      mockPrisma.station.findUnique.mockResolvedValue({
+        id: "station-1", userId: "user-1", status: "SUSPENDED", totalEarning: 0,
+      });
+      const result = await svc.calculateAndRecord("order-1", "COURSE", 100, "referrer-1");
+      expect(result).toBeNull();
+      expect(mockPrisma.stationEarning.create).not.toHaveBeenCalled();
+    });
     it("无推荐人时返回 null", async () => {
       mockPrisma.commissionConfig.findUnique.mockResolvedValue({ configKey: "course_basic", rateA: 0.1 });
       const result = await svc.calculateAndRecord("order-1", "COURSE", 100);
@@ -254,7 +279,7 @@ describe("CommissionService", () => {
     it("佣金金额规整到分，避免 JS 浮点尾数", async () => {
       // 99.9 * 0.7 = 69.93000000000001（JS 浮点），应规整为 69.93 再存储与累加
       mockPrisma.commissionConfig.findUnique.mockResolvedValue({ configKey: "course_basic", rateA: 0.7 });
-      mockPrisma.station.findUnique.mockResolvedValue({ id: "station-1", userId: "user-1", totalEarning: 0 });
+      mockPrisma.station.findUnique.mockResolvedValue({ id: "station-1", userId: "user-1", status: "ACTIVE", totalEarning: 0 });
       mockPrisma.stationEarning.create.mockResolvedValue({ id: "earning-1" });
       await svc.calculateAndRecord("order-1", "COURSE", 99.9, "referrer-1");
       const createArg = mockPrisma.stationEarning.create.mock.calls[0][0];
@@ -276,7 +301,7 @@ describe("CommissionService", () => {
     it("普通站长的分站：管理奖归其运营商，且单笔订单仅一笔管理奖", async () => {
       mockCourseConfig();
       mockPrisma.station.findUnique
-        .mockResolvedValueOnce({ id: "station-1", userId: "st-user", totalEarning: 0 })
+        .mockResolvedValueOnce({ id: "station-1", userId: "st-user", status: "ACTIVE", totalEarning: 0 })
         .mockResolvedValueOnce({ userId: "st-user", operatorId: "op-1" });
       mockPrisma.operator.findUnique.mockResolvedValue({
         id: "op-1", userId: "op-user", level: "GOLD", parentOperatorId: "op-0", status: "ACTIVE", channelType: "ONLINE", mgmtRate: null,
@@ -293,7 +318,7 @@ describe("CommissionService", () => {
     it("运营商自营分站：管理奖上浮给上级运营商（上级只对下级站长角色收入计酬）", async () => {
       mockCourseConfig();
       mockPrisma.station.findUnique
-        .mockResolvedValueOnce({ id: "station-1", userId: "op-user", totalEarning: 0 })
+        .mockResolvedValueOnce({ id: "station-1", userId: "op-user", status: "ACTIVE", totalEarning: 0 })
         .mockResolvedValueOnce({ userId: "op-user", operatorId: "op-1" });
       mockPrisma.operator.findUnique
         .mockResolvedValueOnce({ id: "op-1", userId: "op-user", level: "GOLD", parentOperatorId: "op-0", status: "ACTIVE" })
@@ -309,7 +334,7 @@ describe("CommissionService", () => {
     it("顶级运营商自营分站：无管理奖（平台留存），不产生任何计酬", async () => {
       mockCourseConfig();
       mockPrisma.station.findUnique
-        .mockResolvedValueOnce({ id: "station-1", userId: "op-user", totalEarning: 0 })
+        .mockResolvedValueOnce({ id: "station-1", userId: "op-user", status: "ACTIVE", totalEarning: 0 })
         .mockResolvedValueOnce({ userId: "op-user", operatorId: "op-1" });
       mockPrisma.operator.findUnique.mockResolvedValue({
         id: "op-1", userId: "op-user", level: "GOLD", parentOperatorId: null, status: "ACTIVE",
@@ -321,7 +346,7 @@ describe("CommissionService", () => {
 
   describe("佣-V2-P1 商品级佣金（Product.commissionRate 取值链）", () => {
     function mockStation() {
-      mockPrisma.station.findUnique.mockResolvedValue({ id: "station-1", userId: "st-user", totalEarning: 0 });
+      mockPrisma.station.findUnique.mockResolvedValue({ id: "station-1", userId: "st-user", status: "ACTIVE", totalEarning: 0 });
       mockPrisma.stationEarning.create.mockResolvedValue({ id: "earning-1" });
     }
 
@@ -380,7 +405,7 @@ describe("CommissionService", () => {
       mockPrisma.stationEarning.create.mockResolvedValue({ id: "earning-1" });
       mockPrisma.order.findUnique.mockResolvedValue({ userId: "buyer-1", targetId: "course-1" });
       mockPrisma.station.findUnique
-        .mockResolvedValueOnce({ id: "station-1", userId: "st-user", totalEarning: 0 })
+        .mockResolvedValueOnce({ id: "station-1", userId: "st-user", status: "ACTIVE", totalEarning: 0 })
         .mockResolvedValueOnce({ userId: "st-user", operatorId: "op-1" });
       mockPrisma.operator.findUnique.mockResolvedValue(operator);
     }
@@ -497,7 +522,7 @@ describe("CommissionService", () => {
       mockPrisma.commissionConfig.findUnique.mockResolvedValue({ configKey: "product_platform", rateA: 0.2 });
       mockPrisma.order.findUnique.mockResolvedValue({ userId: "buyer-1", targetId: "prod-1", tempRefSubjectType: "STATION" });
       mockPrisma.product.findUnique.mockResolvedValue({ commissionRate: null });
-      mockPrisma.station.findUnique.mockResolvedValue({ id: "station-1", userId: "st-user", totalEarning: 0 });
+      mockPrisma.station.findUnique.mockResolvedValue({ id: "station-1", userId: "st-user", status: "ACTIVE", totalEarning: 0 });
       mockPrisma.stationEarning.create.mockResolvedValue({ id: "earning-1" });
       await svc.calculateAndRecord("order-1", "PRODUCT", 100, undefined, "st-user");
       expect(mockPrisma.stationEarning.create).toHaveBeenCalled();
@@ -508,7 +533,7 @@ describe("CommissionService", () => {
       mockPrisma.commissionConfig.findUnique.mockResolvedValue({ configKey: "product_platform", rateA: 0.2 });
       mockPrisma.order.findUnique.mockResolvedValue({ userId: "buyer-1", targetId: "prod-1", tempRefSubjectType: null });
       mockPrisma.product.findUnique.mockResolvedValue({ commissionRate: null });
-      mockPrisma.station.findUnique.mockResolvedValue({ id: "station-1", userId: "st-user", totalEarning: 0 });
+      mockPrisma.station.findUnique.mockResolvedValue({ id: "station-1", userId: "st-user", status: "ACTIVE", totalEarning: 0 });
       mockPrisma.stationEarning.create.mockResolvedValue({ id: "earning-1" });
       const result = await svc.calculateAndRecord("order-1", "PRODUCT", 100, undefined, "st-user");
       expect(result).toBeTruthy();
@@ -544,7 +569,7 @@ describe("CommissionService", () => {
     it("渠道主体（推荐人有 Station）不发积分：走现金佣金主路径", async () => {
       mockPrisma.commissionConfig.findUnique.mockResolvedValue({ configKey: "course_basic", rateA: 0.1 });
       mockPrisma.order.findUnique.mockResolvedValue({ userId: "buyer-1", targetId: "course-1", tempRefSubjectType: null });
-      mockPrisma.station.findUnique.mockResolvedValue({ id: "station-1", userId: "st-user", totalEarning: 0 });
+      mockPrisma.station.findUnique.mockResolvedValue({ id: "station-1", userId: "st-user", status: "ACTIVE", totalEarning: 0 });
       mockPrisma.stationEarning.create.mockResolvedValue({ id: "earning-1" });
       const result = await svc.calculateAndRecord("order-1", "COURSE", 100, "st-user");
       expect(result).toBeTruthy();
