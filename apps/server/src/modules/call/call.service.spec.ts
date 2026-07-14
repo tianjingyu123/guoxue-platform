@@ -35,7 +35,7 @@ describe("CallService", () => {
       getBalance: jest.fn().mockResolvedValue({ balance: 500, frozen: 0 }),
       spend: jest.fn().mockResolvedValue({ account: { balance: 400 }, record: { id: "tx1" } }),
     };
-    revenue = { record: jest.fn().mockResolvedValue({}) };
+    revenue = { record: jest.fn().mockResolvedValue({}), settleLedger: jest.fn().mockResolvedValue(undefined) };
     trtc = {
       generateRoomId: jest.fn().mockReturnValue("room_abc"),
       genRoomToken: jest.fn().mockReturnValue("token_xyz"),

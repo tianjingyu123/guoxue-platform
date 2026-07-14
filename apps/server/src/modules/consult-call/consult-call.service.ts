@@ -102,6 +102,17 @@ export class ConsultCallService {
       this.revenue
         .record({ userId: call.expertId, scene: "AUDIO_CALL", refId: callId, amountCoin: settledCoin, rate: 0.5 })
         .catch((err) => this.logger.warn(`通话分账记录失败（callId ${callId}），需补偿: ${err.message}`));
+
+      // 统一总账影子双写。scene 用 CONSULT_CALL（达人咨询·独立规则），与 call 模块的连麦
+      // AUDIO_CALL 区分；两条规则当前同为 达人50%/平台50%，与上方硬传的 rate 0.5 一致。
+      this.revenue.settleLedger({
+        scene: "CONSULT_CALL",
+        refType: "CONSULT_CALL",
+        refId: callId,
+        amountCoin: settledCoin,
+        payerId: call.callerId,
+        parties: { PROVIDER: { type: "USER", id: call.expertId, userId: call.expertId } },
+      }).catch(() => undefined);
     }
 
     return { id: callId, status: "ENDED", durationSec, minutes, settledCoin, refundedCoin };

@@ -8,6 +8,7 @@ import { Auditable } from "../../common/audit.decorator";
 import { RedLineGate, RedLine } from "../../common/red-lines";
 import { SettlementRuleAdminService } from "./settlement-rule-admin.service";
 import { SettlementFreezeService } from "./settlement-freeze.service";
+import { SettlementBalanceReconcileService } from "./settlement-balance-reconcile.service";
 import { CreateSettlementRuleDto, UpdateSettlementRuleDto } from "./settlement-rule.dto";
 import { FreezeBeneficiaryDto } from "./settlement-freeze.dto";
 
@@ -22,7 +23,26 @@ export class SettlementController {
   constructor(
     private readonly adminSvc: SettlementRuleAdminService,
     private readonly freezeSvc: SettlementFreezeService,
+    private readonly balanceReconcileSvc: SettlementBalanceReconcileService,
   ) {}
+
+  @Get("reconcile-balances")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "FINANCE_ADMIN")
+  @ApiOperation({
+    summary: "余额级对账：引擎口径转正的红绿灯（只读）",
+    description:
+      "逐受益主体核对「旧口径余额」与「总账全量净额」，回答唯一重要的问题：现在打开 " +
+      "settlement.ledger_withdrawable.enabled，每个人的可提现余额会凭空变动多少。" +
+      "canSwitch=true（全部 gap 在 1 分容差内）是转正的唯一放行条件。" +
+      "注意这与每日 2AM 的逐订单对账不同：那个只覆盖双写订单，查不出「旧口径有、总账没有」的存量缺口。",
+  })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
+  reconcileBalances() {
+    return this.balanceReconcileSvc.reconcileBalances();
+  }
 
   @Get("rules")
   @UseGuards(JwtAuthGuard, RolesGuard)

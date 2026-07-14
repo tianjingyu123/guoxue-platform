@@ -9,7 +9,7 @@ import { BusinessException } from "../../common/business.exception";
 describe("ConsultCallService · 评价与账单申诉", () => {
   let prisma: { $queryRawUnsafe: jest.Mock; $executeRawUnsafe: jest.Mock; $transaction: jest.Mock };
   let coin: { spend: jest.Mock; refund: jest.Mock };
-  let revenue: { record: jest.Mock };
+  let revenue: { record: jest.Mock; settleLedger: jest.Mock };
   let svc: ConsultCallService;
 
   /** 一条刚结束 1 小时的已结算通话（在 24h 窗口内） */
@@ -32,7 +32,7 @@ describe("ConsultCallService · 评价与账单申诉", () => {
       $transaction: jest.fn(),
     };
     coin = { spend: jest.fn(), refund: jest.fn() };
-    revenue = { record: jest.fn() };
+    revenue = { record: jest.fn(), settleLedger: jest.fn().mockResolvedValue(undefined) };
     svc = new ConsultCallService(prisma as any, coin as any, revenue as any);
   });
 

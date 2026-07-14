@@ -1,8 +1,9 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Logger, Optional } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { COIN_TO_RMB } from "../../common/constants";
 import { safePagination, NO_PAGE_LIMIT } from "../../common/pagination";
+import { SettlementService, SettleParty } from "../settlement/settlement.service";
 
 // 分佣比例回退默认值（优先读 SettlementRule 场景规则表，未配置时回退此处）
 const DEFAULT_RATES = {
@@ -17,9 +18,13 @@ const RATE_CACHE_TTL_MS = 60_000;
 
 @Injectable()
 export class RevenueService {
+  private readonly logger = new Logger(RevenueService.name);
   private rateCache = new Map<string, { rate: number | null; expires: number }>();
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    @Optional() private settlement?: SettlementService,
+  ) {}
 
   /** T1-P1 配置收编：优先读 SettlementRule 中 PROVIDER 分成比例；规则缺失/异常回退硬编码默认值，不阻塞收益入账 */
   private async lookupProviderRate(scene: string): Promise<number | null> {
@@ -65,6 +70,43 @@ export class RevenueService {
         rate,
       },
     });
+  }
+
+  /**
+   * 统一总账影子双写（引擎口径转正前的双轨期）。
+   *
+   * record() 只写旧口径 UserEarning；本方法把同一笔交易按 SettlementRule 落 LedgerEntry。
+   * 转正后（settlement.ledger_withdrawable.enabled=true）可提现余额读的就是这本账
+   * （wallet.service.getWithdrawableBalance），两本账必须逐分一致。
+   *
+   * 为什么落账入口留在业务层而不是塞进 record()：
+   * 围观(PEEK)是「一次交易、两个受益人」，业务层调两次 record（达人 + 提问者），
+   * 而 settle() 必须一次传全 parties —— 幂等守卫会拦掉第二次调用，
+   * 若在 record() 内触发，ASKER 条目将永远落不了账。
+   *
+   * 失败仅记日志，绝不阻断收益主流程（与 commission.service 影子双写范式一致）。
+   */
+  async settleLedger(params: {
+    scene: string;
+    refType: string;
+    refId: string;
+    amountCoin: number;
+    payerId: string;
+    parties: Record<string, SettleParty | undefined>;
+  }): Promise<void> {
+    if (!this.settlement) return;
+    try {
+      await this.settlement.settle({
+        scene: params.scene,
+        refType: params.refType,
+        refId: params.refId,
+        amount: params.amountCoin / COIN_TO_RMB,
+        payerId: params.payerId,
+        parties: params.parties,
+      });
+    } catch (e) {
+      this.logger.warn(`统一总账影子双写失败(${params.refType}:${params.refId})`, e);
+    }
   }
 
   /** 查询用户收益汇总 */

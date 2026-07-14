@@ -1107,6 +1107,18 @@ export class LiveService {
       return giftRecord;
     });
 
+    // 统一总账影子双写（事务外·fire-and-forget，绝不阻断送礼主流程）
+    if (this.revenue && record.toUserId && record.toUserId !== userId) {
+      this.revenue.settleLedger({
+        scene: "LIVE_GIFT",
+        refType: "GIFT_RECORD",
+        refId: record.id,
+        amountCoin: record.totalCoin,
+        payerId: userId,
+        parties: { PROVIDER: { type: "USER", id: record.toUserId, userId: record.toUserId } },
+      }).catch(() => undefined);
+    }
+
     return record;
   }
 

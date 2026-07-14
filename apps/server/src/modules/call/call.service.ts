@@ -175,6 +175,16 @@ export class CallService {
         refId: callId,
         amountCoin: totalCoin,
       }).catch((err) => this.logger.warn("通话收益记录失败", err));
+
+      // 统一总账影子双写
+      this.revenue.settleLedger({
+        scene: "AUDIO_CALL",
+        refType: "AUDIO_CALL",
+        refId: callId,
+        amountCoin: totalCoin,
+        payerId: call.callerId,
+        parties: { PROVIDER: { type: "USER", id: call.calleeId, userId: call.calleeId } },
+      }).catch(() => undefined);
     } else {
       // WAITING 状态：未正式开始就挂断，直接标记结束
       updated = await this.prisma.audioCallRecord.update({

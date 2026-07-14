@@ -125,7 +125,17 @@ export class QuestionService {
       scene: "QUESTION",
       refId: questionId,
       amountCoin: question.priceCoin,
-    }).catch((err) => this.logger.warn("退款通知失败", err));
+    }).catch((err) => this.logger.warn("回答者收益入账失败", err));
+
+    // 统一总账影子双写（引擎口径转正后即为可提现真源）
+    this.revenue.settleLedger({
+      scene: "QUESTION",
+      refType: "QUESTION",
+      refId: questionId,
+      amountCoin: question.priceCoin,
+      payerId: question.askerId,
+      parties: { PROVIDER: { type: "USER", id: answererId, userId: answererId } },
+    }).catch(() => undefined); // settleLedger 内部已兜底，此处仅防未处理 rejection
 
     return updated;
   }
@@ -193,6 +203,21 @@ export class QuestionService {
       refId: questionId,
       amountCoin: question.peekPriceCoin,
     }).catch((err) => this.logger.warn("围观提问者分成入账失败", err));
+
+    // 统一总账影子双写：一次 settle 落全三方（达人/提问者/平台）。
+    // 凭据 refId 必须带围观者 userId —— 围观是「每人每次一笔交易」，
+    // 若只用 questionId，settle() 的幂等守卫会把第二个围观者的分成整个吃掉。
+    this.revenue.settleLedger({
+      scene: "PEEK",
+      refType: "PEEK",
+      refId: `${questionId}:${userId}`,
+      amountCoin: question.peekPriceCoin,
+      payerId: userId,
+      parties: {
+        PROVIDER: { type: "USER", id: question.answererId, userId: question.answererId },
+        ASKER: { type: "USER", id: question.askerId, userId: question.askerId },
+      },
+    }).catch(() => undefined);
 
     return question;
   }
