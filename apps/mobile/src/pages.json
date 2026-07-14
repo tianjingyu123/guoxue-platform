@@ -1208,12 +1208,7 @@
             "navigationStyle": "custom"
           }
         },
-        {
-          "path": "circles/settings-knowledge",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
+        
         {
           "path": "circles/consult-ask",
           "style": {
@@ -1268,12 +1263,7 @@
             "navigationStyle": "custom"
           }
         },
-        {
-          "path": "circles/refund-review",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
+        
         {
           "path": "circles/my-refunds",
           "style": {

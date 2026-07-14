@@ -353,7 +353,9 @@ function onShareRoom() {
 
 // ===== 时长续购（时长包体系尚未接入·占位）=====
 function onRenewDuration() {
-  uni.showToast({ title: '时长续购开发中', icon: 'none' })
+  // 🔴 2026-07-14：原为「开发中」假 toast，而 quality-packages 画质时长包页早已完整建好（真连
+  //    liveApi.purchaseQualityPackage）——直播时长快用完点「续购」却弹开发中，等于这页永远进不去。
+  uni.navigateTo({ url: '/pkg-live/quality-packages/index' })
 }
 
 // ===== 下播 — PUT /live/rooms/:id/end（房主本人有权）=====

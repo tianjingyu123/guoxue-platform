@@ -39,6 +39,20 @@ const activeTab = ref<'home' | 'essence' | 'articles'>('home')
 const showAnnouncement = ref(false)
 const isJoined = ref(false)
 const applied = ref(false)
+// 年费圈会员到期信息（用于续费提醒·2026-07-14 接线：此前 getJoinStatus 的 expireAt 被丢弃，
+// 导致续费页 circles/renew 全项目零入口——年费圈到期了成员根本找不到地方续费）
+const memberExpireAt = ref<string | null>(null)
+const memberExpired = ref(false)
+/** 续费提醒：仅年费圈已加入成员·已过期或 15 天内到期时露出 */
+const renewInfo = computed(() => {
+  if (!isJoined.value || circle.value?.type !== 'YEARLY' || !memberExpireAt.value) return null
+  const days = Math.ceil((new Date(memberExpireAt.value).getTime() - Date.now()) / 86400000)
+  if (!memberExpired.value && days > 15) return null
+  return {
+    text: memberExpired.value ? '会员已到期，续费后继续查看圈内内容' : `会员将于 ${days} 天后到期`,
+    urgent: memberExpired.value,
+  }
+})
 // 角色权限
 const isOwner = computed(() => circle.value?.myRole === 'OWNER')
 const canCreate = computed(() => ['OWNER', 'PARTNER', 'ADMIN'].includes(circle.value?.myRole || ''))
@@ -138,6 +152,8 @@ async function loadData() {
     postedArticles.value = pas.status === 'fulfilled' ? pas.value : []
     if (st.status === 'fulfilled') {
       isJoined.value = st.value.joined
+      memberExpireAt.value = st.value.expireAt
+      memberExpired.value = st.value.expired
       if (circle.value) circle.value.myRole = st.value.role
     }
     likedPosts.value = new Set((p.status === 'fulfilled' ? p.value.data : []).filter((x) => x.isLiked).map((x) => x.id))
@@ -191,6 +207,8 @@ async function onPurchased() {
   track.purchase({ type: 'circle', id: circle.value?.id, amount: circle.value?.price })
   const st = await circleDetailApi.getJoinStatus(circleId.value)
   isJoined.value = st.joined
+  memberExpireAt.value = st.expireAt
+  memberExpired.value = st.expired
   if (circle.value) circle.value.myRole = st.role
   if (st.joined) {
     uni.showToast({ title: '加入成功', icon: 'success' })
@@ -253,6 +271,7 @@ function onBodyScroll() {
   fabTimer = setTimeout(() => { fabDim.value = false }, 400)
 }
 function openManage() { navigateTo(`/pkg-circle/circles/dashboard?id=${circleId.value}`) }
+function goRenew() { navigateTo(`/pkg-circle/circles/renew?id=${circleId.value}`) }
 function openMembers() { navigateTo(`/pkg-circle/circles/members?id=${circleId.value}`) }
 function openAnnouncement() { navigateTo(`/pkg-circle/circles/announcements?id=1&circleId=${circleId.value}`) }
 function openUser(id: string) { navigateTo(`/pkg-circle/user/profile?id=${id}`) }
@@ -306,6 +325,12 @@ function openShowcase() { navigateTo('/pkg-circle/circles/activities') }
               <image lazy-load :src="circle.owner.avatar" class="meta-owner-avatar" mode="aspectFill" />
               <text class="meta-owner-txt">{{ circle.owner.name }} · 圈主</text>
             </view>
+          </view>
+          <!-- 年费圈到期续费提醒（临期/已过期才露出·点击进续费页 circles/renew） -->
+          <view v-if="renewInfo" class="renew-bar" :class="{ urgent: renewInfo.urgent }" @tap="goRenew">
+            <app-icon name="alert-circle" :size="30" :color="renewInfo.urgent ? '#C41E3A' : '#B4884A'" />
+            <text class="renew-txt">{{ renewInfo.text }}</text>
+            <view class="renew-btn"><text class="renew-btn-txt">立即续费</text></view>
           </view>
           <!-- 置顶公告（收起态可展开） -->
           <view v-if="circle.announcement" class="announce" @tap="showAnnouncement = !showAnnouncement">
@@ -608,6 +633,15 @@ function openShowcase() { navigateTo('/pkg-circle/circles/activities') }
 .meta-owner { display: flex; align-items: center; gap: 10rpx; margin-left: auto; }
 .meta-owner-avatar { width: 40rpx; height: 40rpx; border-radius: 999rpx; box-shadow: 0 0 0 2rpx var(--gold, #c9a96e); }
 .meta-owner-txt { font-size: 24rpx; color: var(--gold, #c9a96e); }
+
+/* 年费圈续费提醒条 */
+.renew-bar { display: flex; align-items: center; gap: 16rpx; margin-top: 20rpx; padding: 20rpx 24rpx; border-radius: 16rpx; background: #FBF5EA; border: 1rpx solid #E8D8B8; }
+.renew-bar.urgent { background: #FDECEE; border-color: #F3C6CE; }
+.renew-txt { flex: 1; font-size: 24rpx; color: #6E5A32; }
+.renew-bar.urgent .renew-txt { color: #A32432; }
+.renew-btn { flex-shrink: 0; padding: 10rpx 24rpx; border-radius: 999rpx; background: #B4884A; }
+.renew-bar.urgent .renew-btn { background: #C41E3A; }
+.renew-btn-txt { font-size: 22rpx; color: #fff; font-weight: 500; }
 
 /* 公告 */
 .announce { display: flex; align-items: center; gap: 16rpx; margin-top: 20rpx; padding: 20rpx 24rpx; background: var(--bg-warm, #f8f4ec); border-radius: 28rpx; }
