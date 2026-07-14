@@ -2578,61 +2578,13 @@
       "root": "pkg-settings",
       "pages": [
         {
-          "path": "index/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "notifications/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
           "path": "privacy/index",
           "style": {
             "navigationStyle": "custom"
           }
         },
         {
-          "path": "phone/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "password/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "payment-password/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
           "path": "payment-methods/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "blacklist/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "bindaccount/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "delete-account/index",
           "style": {
             "navigationStyle": "custom"
           }
@@ -2669,29 +2621,6 @@
         },
         {
           "path": "child-privacy/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        }
-      ]
-    },
-    {
-      "root": "pkg-wallet",
-      "pages": [
-        {
-          "path": "index/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "bank-cards/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "bill/index",
           "style": {
             "navigationStyle": "custom"
           }
