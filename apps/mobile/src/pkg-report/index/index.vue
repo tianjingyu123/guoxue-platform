@@ -35,9 +35,9 @@
               <app-icon name="message-square" :size="36" color="#999999" />
             </view>
             <view class="rp-target-main">
-              <view class="rp-target-meta">
-                <text class="rp-target-author">{{ target.author }}</text>
-                <text class="rp-target-time">{{ target.time }}</text>
+              <view v-if="target.author || target.time" class="rp-target-meta">
+                <text v-if="target.author" class="rp-target-author">{{ target.author }}</text>
+                <text v-if="target.time" class="rp-target-time">{{ target.time }}</text>
               </view>
               <text class="rp-target-content">{{ target.content }}</text>
             </view>
@@ -48,12 +48,14 @@
               <app-icon name="file-text" :size="36" color="#999999" />
             </view>
             <view class="rp-target-main">
-              <view class="rp-target-meta">
-                <view class="rp-avatar rp-avatar-xs">
-                  <text class="rp-avatar-letter">{{ (target.author || '某')[0] }}</text>
+              <!-- 作者/时间来自调用方，可能没有 —— 没有就整行不渲染，
+                   别再兜底成「某」（真机走查里就是它，看着像 bug） -->
+              <view v-if="target.author || target.time" class="rp-target-meta">
+                <view v-if="target.author" class="rp-avatar rp-avatar-xs">
+                  <text class="rp-avatar-letter">{{ target.author[0] }}</text>
                 </view>
-                <text class="rp-target-author">{{ target.author }}</text>
-                <text class="rp-target-time">{{ target.time }}</text>
+                <text v-if="target.author" class="rp-target-author">{{ target.author }}</text>
+                <text v-if="target.time" class="rp-target-time">{{ target.time }}</text>
               </view>
               <text class="rp-target-content">{{ target.content }}</text>
             </view>

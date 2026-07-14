@@ -193,11 +193,25 @@ export const searchApi = {
     }))
   },
 
-  /** 我的搜索历史 — GET /search/history（未登录返回空数组，不报错） */
-  async getHistory(): Promise<string[]> {
+  /**
+   * 我的搜索历史 — GET /search/history（未登录返回空数组，不报错）
+   * 后端 SearchHistory 每搜一次存一行（这是热搜词频的数据源，本就该保留每一次），
+   * 但展示要按词去重 —— 否则同一个词搜 16 次，历史栏就铺 16 个「八字」（真机走查实测）。
+   * 按时间倒序取首次出现，保留"最近搜的在最前"。
+   */
+  async getHistory(limit = 10): Promise<string[]> {
     try {
       const rows = await apiGet<Array<{ keyword?: string }>>('/search/history')
-      return (Array.isArray(rows) ? rows : []).map((r) => r?.keyword || '').filter(Boolean)
+      const seen = new Set<string>()
+      const out: string[] = []
+      for (const r of Array.isArray(rows) ? rows : []) {
+        const k = (r?.keyword || '').trim()
+        if (!k || seen.has(k)) continue
+        seen.add(k)
+        out.push(k)
+        if (out.length >= limit) break
+      }
+      return out
     } catch {
       return [] // 未登录/失败 → 不展示历史，不打扰
     }
