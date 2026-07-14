@@ -80,7 +80,7 @@ function openRecord(r: LijichiHistoryItem) {
 
 <template>
   <view class="page">
-    <tool-header
+    <tool-header history-href="/paipan/lijichi/history"
       :title="hdrTitle"
       subtitle="以宅中心立极 · 定二十四山向"
       share

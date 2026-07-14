@@ -122,7 +122,7 @@ function handleSubmit() {
 
 <template>
   <view class="page">
-    <tool-header :title="hdrTitle" subtitle="双人四柱 · 五维合参" share />
+    <tool-header history-href="/paipan/hepan/history" :title="hdrTitle" subtitle="双人四柱 · 五维合参" share />
 
     <scroll-view scroll-y class="body">
       <view class="body-inner">

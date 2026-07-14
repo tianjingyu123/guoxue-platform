@@ -108,7 +108,7 @@ function handleSubmit() {
 
 <template>
   <view class="page">
-    <tool-header :title="hdrTitle" subtitle="大游年起星 · 东西四宅" share />
+    <tool-header history-href="/paipan/bazhai/history" :title="hdrTitle" subtitle="大游年起星 · 东西四宅" share />
 
     <scroll-view scroll-y class="body">
       <view class="body-inner">

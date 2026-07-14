@@ -1,9 +1,11 @@
 /**
- * 紫微斗数·本地排盘记录（uni.storage，最近 20 条）
- * 仅供 ziwei 页面使用：index 读取展示回填 / result 计算成功后写入。
+ * 紫微斗数·本地排盘记录
+ * 走统一底座 lib/paipan/history-core（带 id/pinned，支持删单条/置顶，V0 排盘记录页依赖）。
+ * 老 key「rebu:ziwei-history」存的是裸数组（无 id），底座 load 时会自动补 id 回写，故沿用同一 key。
  */
+import { createHistory, type HistoryItem } from '@/lib/paipan/history-core'
 
-export interface ZiweiHistoryItem {
+export interface ZiweiParams {
   name: string
   gender: '男' | '女'
   y: number
@@ -19,11 +21,9 @@ export interface ZiweiHistoryItem {
   lng?: number
   /** 是否启用真太阳时 */
   useTrueSolar?: boolean
-  ts: number
 }
 
-const KEY = 'rebu:ziwei-history'
-const MAX = 20
+export type ZiweiHistoryItem = HistoryItem<ZiweiParams>
 
 const ZHI = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥']
 
@@ -34,32 +34,14 @@ export function shichenLabel(hour: number): string {
   return `${ZHI[Math.floor(((hour + 1) % 24) / 2)]}时`
 }
 
-export function loadZiweiHistory(): ZiweiHistoryItem[] {
-  try {
-    const v = uni.getStorageSync(KEY)
-    return Array.isArray(v) ? (v as ZiweiHistoryItem[]) : []
-  } catch {
-    return []
-  }
-}
+const store = createHistory<ZiweiParams>('rebu:ziwei-history', {
+  max: 50,
+  sameAs: (a, b) =>
+    a.name === b.name && a.gender === b.gender && a.y === b.y && a.m === b.m && a.d === b.d && a.hour === b.hour,
+})
 
-/** 写入一条记录（同参去重置顶，截断 20 条） */
-export function saveZiweiHistory(item: Omit<ZiweiHistoryItem, 'ts'>): void {
-  const list = loadZiweiHistory().filter(
-    (h) => !(h.name === item.name && h.gender === item.gender && h.y === item.y && h.m === item.m && h.d === item.d && h.hour === item.hour),
-  )
-  list.unshift({ ...item, ts: Date.now() })
-  try {
-    uni.setStorageSync(KEY, list.slice(0, MAX))
-  } catch {
-    // 存储失败不阻断排盘
-  }
-}
-
-export function clearZiweiHistory(): void {
-  try {
-    uni.removeStorageSync(KEY)
-  } catch {
-    // 忽略
-  }
-}
+export const loadZiweiHistory = store.load
+export const saveZiweiHistory = store.save
+export const removeZiweiHistory = store.remove
+export const pinZiweiHistory = store.togglePin
+export const clearZiweiHistory = store.clear

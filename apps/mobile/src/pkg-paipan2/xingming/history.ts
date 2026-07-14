@@ -1,10 +1,11 @@
 /**
- * 姓名解析 · 本地历史（key: rebu:xingming-history · 上限 50 · 同名同生辰去重置顶）
- * V0 history 页砍成入口页内嵌卡。
+ * 姓名解析 · 本地历史
+ * 走统一底座 lib/paipan/history-core（带 id/pinned，支持删单条/置顶，V0 解析记录页依赖）；
+ * 老 key「rebu:xingming-history」的 JSON 字符串记录首次读取时自动迁入新 key。
  */
+import { createHistory, type HistoryItem } from '@/lib/paipan/history-core'
 
-export interface XingmingHistoryRecord {
-  id: number
+export interface XingmingParams {
   name: string
   gender: '男' | '女'
   /** 出生时间 "YYYY-MM-DD HH:mm" */
@@ -15,42 +16,50 @@ export interface XingmingHistoryRecord {
   dateText: string
 }
 
-const KEY = 'rebu:xingming-history'
+export type XingmingHistoryRecord = HistoryItem<XingmingParams>
+
+const KEY = 'rebu:xingming-records'
+const LEGACY_KEY = 'rebu:xingming-history'
 const LIMIT = 50
 
-export function loadXingmingHistory(): XingmingHistoryRecord[] {
-  try {
-    const raw = uni.getStorageSync(KEY) as string
-    const list = raw ? (JSON.parse(raw) as XingmingHistoryRecord[]) : []
-    return Array.isArray(list) ? list : []
-  } catch {
-    return []
-  }
+const store = createHistory<XingmingParams>(KEY, {
+  max: LIMIT,
+  sameAs: (a, b) => a.name === b.name && a.gender === b.gender && a.birth === b.birth,
+})
+
+function nowText(): string {
+  const n = new Date()
+  const pad = (x: number) => String(x).padStart(2, '0')
+  return `${n.getFullYear()}-${pad(n.getMonth() + 1)}-${pad(n.getDate())} ${pad(n.getHours())}:${pad(n.getMinutes())}`
 }
 
-export function saveXingmingHistory(rec: Omit<XingmingHistoryRecord, 'id' | 'dateText'>): void {
+/** 老格式（JSON 字符串、数字 id）一次性迁入新库 */
+function migrateLegacy(): void {
   try {
-    const now = new Date()
-    const pad = (n: number) => String(n).padStart(2, '0')
-    const full: XingmingHistoryRecord = {
-      ...rec,
-      id: Date.now(),
-      dateText: `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`,
+    const raw = uni.getStorageSync(LEGACY_KEY)
+    if (!raw) return
+    const old = (typeof raw === 'string' ? JSON.parse(raw) : raw) as any[]
+    if (Array.isArray(old)) {
+      for (const r of [...old].reverse()) {
+        const { id: _id, ...rest } = r || {}
+        store.save(rest as XingmingParams)
+      }
     }
-    const next = [
-      full,
-      ...loadXingmingHistory().filter((x) => !(x.name === rec.name && x.gender === rec.gender && x.birth === rec.birth)),
-    ].slice(0, LIMIT)
-    uni.setStorageSync(KEY, JSON.stringify(next))
+    uni.removeStorageSync(LEGACY_KEY)
   } catch {
-    /* 存储异常忽略（非关键路径） */
+    /* 迁移失败不阻断 */
   }
 }
 
-export function clearXingmingHistory(): void {
-  try {
-    uni.setStorageSync(KEY, '[]')
-  } catch {
-    /* 忽略 */
-  }
+export function loadXingmingHistory(): XingmingHistoryRecord[] {
+  migrateLegacy()
+  return store.load()
 }
+
+export function saveXingmingHistory(rec: Omit<XingmingParams, 'dateText'>): void {
+  store.save({ ...rec, dateText: nowText() } as XingmingParams)
+}
+
+export const removeXingmingHistory = store.remove
+export const pinXingmingHistory = store.togglePin
+export const clearXingmingHistory = store.clear

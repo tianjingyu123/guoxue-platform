@@ -78,13 +78,17 @@ const ROUTE_MAP: Record<string, string> = {
   '/paipan/qizheng/result': '/pkg-paipan/qizheng/result',
   '/paipan/hepan': '/pkg-paipan/hepan/index',
   '/paipan/hepan/result': '/pkg-paipan/hepan/result',
+  '/paipan/hepan/history': '/pkg-paipan/hepan/history/index',
   // 六爻：2026-07-14 重做为 V0 版并迁至 pkg-paipan2（与 liuyao-engine 同分包，本地装卦，73/73 黄金测试）。
   // 旧的 pkg-paipan/liuyao/* + lib/liuyao-result-data.ts 是 `if(true) return _mock` 假盘，已删除。
   '/paipan/liuyao': '/pkg-paipan2/liuyao/index',
   '/paipan/liuyao/result': '/pkg-paipan2/liuyao/result',
+  '/paipan/liuyao/history': '/pkg-paipan2/liuyao/history/index',
   '/paipan/meihua': '/pkg-paipan/meihua/index',
   '/paipan/meihua/result': '/pkg-paipan/meihua/result',
+  '/paipan/meihua/history': '/pkg-paipan/meihua/history/index',
   '/paipan/xiaoliuren': '/pkg-paipan/xiaoliuren/index',
+  '/paipan/xiaoliuren/history': '/pkg-paipan/xiaoliuren/history/index',
   '/paipan/kongming': '/pkg-paipan/kongming/index',
   '/paipan/luopan': '/pkg-paipan/luopan/index',
   '/paipan/ziwei': '/pkg-paipan/ziwei/index',
@@ -104,6 +108,7 @@ const ROUTE_MAP: Record<string, string> = {
   // V0 排盘第三批（奇门风水类）
   '/paipan/yinpan': '/pkg-paipan/yinpan/index',
   '/paipan/yinpan/result': '/pkg-paipan/yinpan/result',
+  '/paipan/yinpan/history': '/pkg-paipan/yinpan/history/index',
   '/paipan/yinpan-mingli': '/pkg-paipan/yinpan-mingli/index',
   '/paipan/yinpan-mingli/result': '/pkg-paipan/yinpan-mingli/result',
   '/paipan/feigong': '/pkg-paipan/feigong/index',
@@ -114,16 +119,21 @@ const ROUTE_MAP: Record<string, string> = {
   '/paipan/shanxiang/result': '/pkg-paipan/shanxiang/result',
   '/paipan/lijichi': '/pkg-paipan/lijichi/index',
   '/paipan/lijichi/result': '/pkg-paipan/lijichi/result',
+  '/paipan/lijichi/history': '/pkg-paipan/lijichi/history/index',
   '/paipan/xuankong': '/pkg-paipan/xuankong/index',
   '/paipan/xuankong/result': '/pkg-paipan/xuankong/result',
+  '/paipan/xuankong/history': '/pkg-paipan/xuankong/history/index',
   '/paipan/bazhai': '/pkg-paipan/bazhai/index',
   '/paipan/bazhai/result': '/pkg-paipan/bazhai/result',
+  '/paipan/bazhai/history': '/pkg-paipan/bazhai/history/index',
   // V0 排盘第四批（姓名数字+五运六气）
   '/paipan/qiming': '/pkg-paipan2/qiming/index',
   '/paipan/qiming/result': '/pkg-paipan2/qiming/result',
   '/paipan/qiming/detail': '/pkg-paipan2/qiming/detail',
+  '/paipan/qiming/history': '/pkg-paipan2/qiming/history/index',
   '/paipan/xingming': '/pkg-paipan2/xingming/index',
   '/paipan/xingming/result': '/pkg-paipan2/xingming/result',
+  '/paipan/xingming/history': '/pkg-paipan2/xingming/history/index',
   '/paipan/shuzi': '/pkg-paipan2/shuzi/index',
   '/paipan/wuyunliuqi': '/pkg-paipan/wuyunliuqi/index',
   // 国学字典（释义走后端 /zidian，其余 24 字段前端本地算）
@@ -131,8 +141,7 @@ const ROUTE_MAP: Record<string, string> = {
   // 工具占位页（30+ 未上线工具入口，name 参数透传；命理/中医两个前缀同指一页）
   '/paipan/tools/coming-soon': '/pkg-paipan/tools/coming-soon',
   '/tools/coming-soon': '/pkg-paipan/tools/coming-soon',
-  // 紫微历史页未实现(排盘工具延后)→优雅占位，避免"功能开发中"toast
-  '/paipan/ziwei/history': '/pkg-paipan/tools/coming-soon',
+  '/paipan/ziwei/history': '/pkg-paipan/ziwei/history/index',
   // 商城
   '/mall': '/pkg-mall/home/index',
   '/mall/category': '/pkg-mall/category/index',

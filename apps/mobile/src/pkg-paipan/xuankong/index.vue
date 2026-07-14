@@ -150,7 +150,7 @@ function handleSubmit() {
 
 <template>
   <view class="page">
-    <tool-header :title="hdrTitle" subtitle="三元九运 · 挨星飞布" share />
+    <tool-header history-href="/paipan/xuankong/history" :title="hdrTitle" subtitle="三元九运 · 挨星飞布" share />
 
     <scroll-view scroll-y class="body">
       <view class="body-inner">

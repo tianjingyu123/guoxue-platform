@@ -2,14 +2,16 @@
 /**
  * 小六壬排盘——自 V0 app/xiaoliuren/page.tsx（入口表单）+ app/xiaoliuren/result/page.tsx（推算展示）还原
  * 单页两相：input 起课表单 → result 六宫盘展示（V0 为两个路由，此处合并，减少注册页面）
- * 取舍：历史记录/笔记/AI 解析本批不还原；分享走 tool-header 内置分享
+ * 记录：起课即落本地记录（xiaoliuren-history），记录页 /paipan/xiaoliuren/history 可回放
  */
 import { ref, computed } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import ToolHeader from '@/components/paipan/tool-header.vue'
 import PaperCard from '@/components/paipan/paper-card.vue'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateBack } from '@/utils/router'
+import { saveXiaoliurenHistory } from './xiaoliuren-history'
 import { formatJieqiRange } from '@/lib/paipan/jieqi'
 import {
   PALACES, GRID_ORDER, PALACE_WX, WX_TEXT, WX_BAR, GAN_WX, ZHI_WX,
@@ -77,7 +79,33 @@ function handleSubmit() {
   if (!numbersValid.value) return
   selectedPalace.value = null
   phase.value = 'result'
+  // 落本地记录（落宫结果一并存下，记录卡不必重算）
+  saveXiaoliurenHistory({
+    matter: matter.value,
+    year: dateTime.value.year, month: dateTime.value.month, day: dateTime.value.day,
+    hour: dateTime.value.hour, minute: dateTime.value.minute,
+    school: school.value,
+    qikeMode: qikeMode.value,
+    numbers: qikeMode.value === 'number' ? numbers.value : undefined,
+    palace: PALACES[result.value.hourPalace],
+  })
 }
+
+/** 从记录页回放（带参进来直接出盘） */
+onLoad((opts: Record<string, string> = {}) => {
+  if (!opts.replay) return
+  try {
+    const r = JSON.parse(decodeURIComponent(opts.replay))
+    matter.value = r.matter || ''
+    dateTime.value = { year: r.year, month: r.month, day: r.day, hour: r.hour, minute: r.minute }
+    school.value = r.school
+    qikeMode.value = r.qikeMode
+    numbers.value = r.numbers || ''
+    phase.value = 'result'
+  } catch {
+    // 参数坏了就停在表单相
+  }
+})
 
 // ─── 结果相 ───
 const selectedPalace = ref<number | null>(null)
@@ -136,7 +164,7 @@ function handleBack() {
 
 <template>
   <view class="page">
-    <tool-header
+    <tool-header history-href="/paipan/xiaoliuren/history"
       :title="phase === 'input' ? '小六壬排盘' : '热卜小六壬'"
       subtitle="掐指一算 · 六宫定吉凶"
       share

@@ -165,7 +165,7 @@ function handleSubmit() {
 
 <template>
   <view class="page">
-    <tool-header title="梅花易数" subtitle="观物取象 · 体用生克" share>
+    <tool-header history-href="/paipan/meihua/history" title="梅花易数" subtitle="观物取象 · 体用生克" share>
       <template #actions>
         <view class="th-history-btn" @tap="openHistory">
           <app-icon name="history" :size="36" color="var(--text-ink)" />

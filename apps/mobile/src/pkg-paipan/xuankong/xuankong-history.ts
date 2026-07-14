@@ -3,6 +3,7 @@
  * 存排盘输入（XuankongParams），结果页排盘成功后写入，入口页历史卡展示（点击重看）。
  * 去重键忽略客户名称：结果页改名后可原位覆盖同参记录。
  */
+import { createHistory, type HistoryItem } from '@/lib/paipan/history-core'
 
 export interface XuankongParams {
   /** 客户名称（选填，≤20 字） */
@@ -22,49 +23,57 @@ export interface XuankongParams {
   ti: boolean
 }
 
-export interface XuankongHistoryItem {
+export interface XuankongRecord {
   params: XuankongParams
   /** 盘面摘要，如「八运 癸山丁向 下卦 · 旺山旺向」 */
   summary: string
-  ts: number
 }
 
-const HISTORY_KEY = 'rebu:xuankong-history'
-const MAX_ITEMS = 50
+export type XuankongHistoryItem = HistoryItem<XuankongRecord>
 
-/** 去重键：同参不同客户名视为同一盘（改名覆盖） */
+const KEY = 'rebu:xuankong-records'
+const LEGACY_KEY = 'rebu:xuankong-history'
+
+/** 去重键（沿用原规则） */
 function dedupeKey(p: XuankongParams): string {
   return JSON.stringify({ ...p, customer: '' })
 }
 
+const store = createHistory<XuankongRecord>(KEY, {
+  max: 50,
+  sameAs: (a, b) => dedupeKey(a.params) === dedupeKey(b.params),
+})
+
+/** 老记录（JSON 字符串数组、无 id）一次性迁入新库 */
+function migrateLegacy(): void {
+  try {
+    const raw = uni.getStorageSync(LEGACY_KEY)
+    if (!raw) return
+    const old = (typeof raw === 'string' ? JSON.parse(raw) : raw) as any[]
+    if (Array.isArray(old)) {
+      for (const r of [...old].reverse()) {
+        if (r?.params) store.save({ params: r.params, summary: r.summary ?? '' } as XuankongRecord)
+      }
+    }
+    uni.removeStorageSync(LEGACY_KEY)
+  } catch {
+    /* 迁移失败不阻断 */
+  }
+}
+
 export function loadXuankongHistory(): XuankongHistoryItem[] {
-  try {
-    const raw = uni.getStorageSync(HISTORY_KEY)
-    return raw ? (JSON.parse(raw) as XuankongHistoryItem[]) : []
-  } catch {
-    return []
-  }
+  migrateLegacy()
+  return store.load()
 }
 
-/** 写入一条记录（同参去重置顶，截断 50 条；存储失败不阻断排盘） */
+/** 写入一条记录（签名与旧版一致，调用方无需改） */
 export function saveXuankongHistory(params: XuankongParams, summary: string) {
-  try {
-    const key = dedupeKey(params)
-    const list = loadXuankongHistory().filter((it) => dedupeKey(it.params) !== key)
-    list.unshift({ params, summary, ts: Date.now() })
-    uni.setStorageSync(HISTORY_KEY, JSON.stringify(list.slice(0, MAX_ITEMS)))
-  } catch {
-    /* 本地存储失败不阻断排盘 */
-  }
+  store.save({ params, summary } as XuankongRecord)
 }
 
-export function clearXuankongHistory() {
-  try {
-    uni.setStorageSync(HISTORY_KEY, '[]')
-  } catch {
-    /* noop */
-  }
-}
+export const removeXuankongHistory = store.remove
+export const pinXuankongHistory = store.togglePin
+export const clearXuankongHistory = store.clear
 
 export function formatParamsTime(p: XuankongParams): string {
   const pad = (n: number) => String(n).padStart(2, '0')

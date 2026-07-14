@@ -3,6 +3,7 @@
  * 存排盘输入（BazhaiParams），结果页排盘成功后写入，入口页历史卡展示（点击重看）。
  * 去重键忽略客户名称：结果页改名后可原位覆盖同参记录。
  */
+import { createHistory, type HistoryItem } from '@/lib/paipan/history-core'
 
 export type BazhaiGender = 'male' | 'female'
 
@@ -16,49 +17,57 @@ export interface BazhaiParams {
   birthYear: number
 }
 
-export interface BazhaiHistoryItem {
+export interface BazhaiRecord {
   params: BazhaiParams
   /** 盘面摘要，如「坎宅 壬山丙向 · 巽命」 */
   summary: string
-  ts: number
 }
 
-const HISTORY_KEY = 'rebu:bazhai-history'
-const MAX_ITEMS = 50
+export type BazhaiHistoryItem = HistoryItem<BazhaiRecord>
 
-/** 去重键：同参不同客户名视为同一盘（改名覆盖） */
+const KEY = 'rebu:bazhai-records'
+const LEGACY_KEY = 'rebu:bazhai-history'
+
+/** 去重键（沿用原规则） */
 function dedupeKey(p: BazhaiParams): string {
   return JSON.stringify({ ...p, customer: '' })
 }
 
+const store = createHistory<BazhaiRecord>(KEY, {
+  max: 50,
+  sameAs: (a, b) => dedupeKey(a.params) === dedupeKey(b.params),
+})
+
+/** 老记录（JSON 字符串数组、无 id）一次性迁入新库 */
+function migrateLegacy(): void {
+  try {
+    const raw = uni.getStorageSync(LEGACY_KEY)
+    if (!raw) return
+    const old = (typeof raw === 'string' ? JSON.parse(raw) : raw) as any[]
+    if (Array.isArray(old)) {
+      for (const r of [...old].reverse()) {
+        if (r?.params) store.save({ params: r.params, summary: r.summary ?? '' } as BazhaiRecord)
+      }
+    }
+    uni.removeStorageSync(LEGACY_KEY)
+  } catch {
+    /* 迁移失败不阻断 */
+  }
+}
+
 export function loadBazhaiHistory(): BazhaiHistoryItem[] {
-  try {
-    const raw = uni.getStorageSync(HISTORY_KEY)
-    return raw ? (JSON.parse(raw) as BazhaiHistoryItem[]) : []
-  } catch {
-    return []
-  }
+  migrateLegacy()
+  return store.load()
 }
 
-/** 写入一条记录（同参去重置顶，截断 50 条；存储失败不阻断排盘） */
+/** 写入一条记录（签名与旧版一致，调用方无需改） */
 export function saveBazhaiHistory(params: BazhaiParams, summary: string) {
-  try {
-    const key = dedupeKey(params)
-    const list = loadBazhaiHistory().filter((it) => dedupeKey(it.params) !== key)
-    list.unshift({ params, summary, ts: Date.now() })
-    uni.setStorageSync(HISTORY_KEY, JSON.stringify(list.slice(0, MAX_ITEMS)))
-  } catch {
-    /* 本地存储失败不阻断排盘 */
-  }
+  store.save({ params, summary } as BazhaiRecord)
 }
 
-export function clearBazhaiHistory() {
-  try {
-    uni.setStorageSync(HISTORY_KEY, '[]')
-  } catch {
-    /* noop */
-  }
-}
+export const removeBazhaiHistory = store.remove
+export const pinBazhaiHistory = store.togglePin
+export const clearBazhaiHistory = store.clear
 
 export function formatHistoryTime(ts: number): string {
   const d = new Date(ts)

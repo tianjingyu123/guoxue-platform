@@ -1,11 +1,12 @@
 /**
  * 周易起名 · 本地存储（历史 + 收藏）
- * 历史 key: rebu:qiming-history（上限 50 · 同参去重置顶）——V0 history 页砍成入口页内嵌卡
+ * 历史：走统一底座 lib/paipan/history-core（带 id/pinned，支持删单条/置顶，V0 起名记录页依赖）；
+ *       老 key「rebu:qiming-history」的 JSON 字符串记录首次读取时自动迁入新 key。
  * 收藏 key: rebu:qiming-favorites（上限 50 · 按全名去重）——结果页星标/详批收藏共用
  */
+import { createHistory, type HistoryItem } from '@/lib/paipan/history-core'
 
-export interface QimingHistoryRecord {
-  id: number
+export interface QimingParams {
   surname: string
   gender: '男' | '女'
   nameType: 'double' | 'single'
@@ -20,6 +21,8 @@ export interface QimingHistoryRecord {
   dateText: string
 }
 
+export type QimingHistoryRecord = HistoryItem<QimingParams>
+
 export interface QimingFavorite {
   /** 全名（姓+名） */
   name: string
@@ -29,7 +32,8 @@ export interface QimingFavorite {
   dateText: string
 }
 
-const HISTORY_KEY = 'rebu:qiming-history'
+const HISTORY_KEY = 'rebu:qiming-records'
+const LEGACY_HISTORY_KEY = 'rebu:qiming-history'
 const FAVORITES_KEY = 'rebu:qiming-favorites'
 const LIMIT = 50
 
@@ -57,24 +61,46 @@ function saveList<T>(key: string, list: T[]): void {
   }
 }
 
-/* ── 起名历史 ── */
+/* ── 起名历史（统一底座） ── */
+
+const historyStore = createHistory<QimingParams>(HISTORY_KEY, {
+  max: LIMIT,
+  sameAs: (a, b) =>
+    a.surname === b.surname && a.gender === b.gender && a.nameType === b.nameType &&
+    a.style === b.style && a.birth === b.birth && (a.fixChar ?? '') === (b.fixChar ?? '') &&
+    (a.blockChars ?? '') === (b.blockChars ?? ''),
+})
+
+/** 老格式（JSON 字符串、数字 id）一次性迁入新库 */
+function migrateLegacyHistory(): void {
+  try {
+    const raw = uni.getStorageSync(LEGACY_HISTORY_KEY)
+    if (!raw) return
+    const old = (typeof raw === 'string' ? JSON.parse(raw) : raw) as any[]
+    if (Array.isArray(old)) {
+      for (const r of [...old].reverse()) {
+        const { id: _id, ...rest } = r || {}
+        historyStore.save(rest as QimingParams)
+      }
+    }
+    uni.removeStorageSync(LEGACY_HISTORY_KEY)
+  } catch {
+    /* 迁移失败不阻断 */
+  }
+}
 
 export function loadQimingHistory(): QimingHistoryRecord[] {
-  return loadList<QimingHistoryRecord>(HISTORY_KEY)
+  migrateLegacyHistory()
+  return historyStore.load()
 }
 
-export function saveQimingHistory(rec: Omit<QimingHistoryRecord, 'id' | 'dateText'>): void {
-  const sameKey = (x: QimingHistoryRecord) =>
-    x.surname === rec.surname && x.gender === rec.gender && x.nameType === rec.nameType &&
-    x.style === rec.style && x.birth === rec.birth && (x.fixChar ?? '') === (rec.fixChar ?? '') &&
-    (x.blockChars ?? '') === (rec.blockChars ?? '')
-  const full: QimingHistoryRecord = { ...rec, id: Date.now(), dateText: nowText() }
-  saveList(HISTORY_KEY, [full, ...loadQimingHistory().filter((x) => !sameKey(x))])
+export function saveQimingHistory(rec: Omit<QimingParams, 'dateText'>): void {
+  historyStore.save({ ...rec, dateText: nowText() } as QimingParams)
 }
 
-export function clearQimingHistory(): void {
-  saveList(HISTORY_KEY, [])
-}
+export const removeQimingHistory = historyStore.remove
+export const pinQimingHistory = historyStore.togglePin
+export const clearQimingHistory = historyStore.clear
 
 /* ── 名字收藏 ── */
 

@@ -102,7 +102,7 @@ function onClearHistory() {
 
 <template>
   <view class="page">
-    <tool-header :title="hdrTitle" />
+    <tool-header history-href="/paipan/xingming/history" :title="hdrTitle" />
 
     <scroll-view scroll-y class="body">
       <view class="inner">

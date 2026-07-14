@@ -3,6 +3,7 @@
  * 存起卦输入（LiuyaoParams），结果页装卦成功后写入，入口页历史卡展示（点击重看）。
  * 去重键忽略事项名：结果页改名后可原位覆盖同参记录。
  */
+import { createHistory, type HistoryItem } from '@/lib/paipan/history-core'
 import type { QiguaMethodKey } from '@/pkg-paipan2/lib/liuyao-data'
 
 export interface LiuyaoParams {
@@ -22,49 +23,57 @@ export interface LiuyaoParams {
   guaPick?: { benUp: string; benDown: string; bianUp: string; bianDown: string }
 }
 
-export interface LiuyaoHistoryItem {
+export interface LiuyaoRecord {
   params: LiuyaoParams
   /** 盘面摘要，如「乾为天 → 天风姤 · 二爻动」 */
   summary: string
-  ts: number
 }
 
-const HISTORY_KEY = 'rebu:liuyao-history'
-const MAX_ITEMS = 50
+export type LiuyaoHistoryItem = HistoryItem<LiuyaoRecord>
 
-/** 去重键：同参不同事项名视为同一盘（改名覆盖） */
+const KEY = 'rebu:liuyao-records'
+const LEGACY_KEY = 'rebu:liuyao-history'
+
+/** 去重键（沿用原规则） */
 function dedupeKey(p: LiuyaoParams): string {
   return JSON.stringify({ ...p, matter: '' })
 }
 
+const store = createHistory<LiuyaoRecord>(KEY, {
+  max: 50,
+  sameAs: (a, b) => dedupeKey(a.params) === dedupeKey(b.params),
+})
+
+/** 老记录（JSON 字符串数组、无 id）一次性迁入新库 */
+function migrateLegacy(): void {
+  try {
+    const raw = uni.getStorageSync(LEGACY_KEY)
+    if (!raw) return
+    const old = (typeof raw === 'string' ? JSON.parse(raw) : raw) as any[]
+    if (Array.isArray(old)) {
+      for (const r of [...old].reverse()) {
+        if (r?.params) store.save({ params: r.params, summary: r.summary ?? '' } as LiuyaoRecord)
+      }
+    }
+    uni.removeStorageSync(LEGACY_KEY)
+  } catch {
+    /* 迁移失败不阻断 */
+  }
+}
+
 export function loadLiuyaoHistory(): LiuyaoHistoryItem[] {
-  try {
-    const raw = uni.getStorageSync(HISTORY_KEY)
-    return raw ? (JSON.parse(raw) as LiuyaoHistoryItem[]) : []
-  } catch {
-    return []
-  }
+  migrateLegacy()
+  return store.load()
 }
 
-/** 写入一条记录（同参去重置顶，截断 50 条；存储失败不阻断排盘） */
+/** 写入一条记录（签名与旧版一致，调用方无需改） */
 export function saveLiuyaoHistory(params: LiuyaoParams, summary: string) {
-  try {
-    const key = dedupeKey(params)
-    const list = loadLiuyaoHistory().filter((it) => dedupeKey(it.params) !== key)
-    list.unshift({ params, summary, ts: Date.now() })
-    uni.setStorageSync(HISTORY_KEY, JSON.stringify(list.slice(0, MAX_ITEMS)))
-  } catch {
-    /* 本地存储失败不阻断排盘 */
-  }
+  store.save({ params, summary } as LiuyaoRecord)
 }
 
-export function clearLiuyaoHistory() {
-  try {
-    uni.setStorageSync(HISTORY_KEY, '[]')
-  } catch {
-    /* noop */
-  }
-}
+export const removeLiuyaoHistory = store.remove
+export const pinLiuyaoHistory = store.togglePin
+export const clearLiuyaoHistory = store.clear
 
 export function formatParamsTime(p: LiuyaoParams): string {
   const pad = (n: number) => String(n).padStart(2, '0')

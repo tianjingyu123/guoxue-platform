@@ -187,7 +187,7 @@ function handleSubmit() {
 
 <template>
   <view class="page">
-    <tool-header :title="hdrTitle" subtitle="纳甲装卦 · 六亲六神" share />
+    <tool-header history-href="/paipan/liuyao/history" :title="hdrTitle" subtitle="纳甲装卦 · 六亲六神" share />
 
     <scroll-view scroll-y class="body">
       <view class="body-inner">

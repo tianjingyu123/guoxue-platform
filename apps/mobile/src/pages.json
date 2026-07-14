@@ -391,6 +391,54 @@
           "style": {
             "navigationStyle": "custom"
           }
+        },
+        {
+          "path": "bazhai/history/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "xuankong/history/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "yinpan/history/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "hepan/history/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "meihua/history/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "lijichi/history/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "xiaoliuren/history/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "ziwei/history/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
         }
       ]
     },
@@ -459,6 +507,24 @@
         },
         {
           "path": "zhuge/result",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "liuyao/history/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "xingming/history/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "qiming/history/index",
           "style": {
             "navigationStyle": "custom"
           }

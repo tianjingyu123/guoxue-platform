@@ -134,7 +134,7 @@ function handleSubmit() {
 
 <template>
   <view class="page">
-    <tool-header :title="hdrTitle" subtitle="阴盘遁甲 · 拆补定局" share />
+    <tool-header history-href="/paipan/yinpan/history" :title="hdrTitle" subtitle="阴盘遁甲 · 拆补定局" share />
 
     <scroll-view scroll-y class="body">
       <view class="body-inner">
