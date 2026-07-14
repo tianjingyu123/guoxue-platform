@@ -167,12 +167,16 @@ function stopPolling() {
   }
 }
 
-/** 支付成功：后端支付后处理器已建号并设到期日，此处仅提示 + 回到工作台 */
+/**
+ * 支付成功：后端支付后处理器已建号并设到期日，此处仅提示 + 回到工作台。
+ * 🔴 原跳 /pkg-operator/operator-dashboard/index —— 该目录根本不存在（真实页是 dashboard），
+ *    navigateTo 失败后统一弹「功能开发中」：用户交完 4999 加盟费，第一眼看到的是报错。
+ */
 function onPaid() {
   stopPolling()
   payPending.value = null
   uni.showToast({ title: '开通成功', icon: 'success' })
-  setTimeout(() => navigateTo('/pkg-operator/operator-dashboard/index'), 1200)
+  setTimeout(() => navigateTo('/pkg-operator/dashboard/index'), 1200)
 }
 
 function copyCodeUrl() {
