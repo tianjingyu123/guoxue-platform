@@ -44,6 +44,24 @@ export class SettlementController {
     return this.balanceReconcileSvc.reconcileBalances();
   }
 
+  @Post("switch-authoritative")
+  @RedLineGate(RedLine.MONEY)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN")
+  @Auditable({ action: "切换引擎口径转正开关", targetType: "SETTLEMENT_FLAG" })
+  @ApiOperation({
+    summary: "安全切换引擎口径转正开关（顺序守卫）",
+    description:
+      "开启(enable=true)前强制先跑余额对账，canSwitch=false 一律拒绝——防止在账没对平时转正导致" +
+      "达人/站长可提现余额瞬间归零。force=true 仅极端人工兜底，会留审计告警。关闭永远安全无需对账。",
+  })
+  @ApiResponse({ status: 201, description: "切换成功" })
+  @ApiResponse({ status: 400, description: "对账未通过，禁止转正" })
+  @ApiResponse({ status: 403, description: "无权限" })
+  switchAuthoritative(@Req() req: Request, @Body() body: { enable: boolean; force?: boolean }) {
+    return this.balanceReconcileSvc.setAuthoritativeMode(!!body?.enable, req.user.id, !!body?.force);
+  }
+
   @Get("rules")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "FINANCE_ADMIN")

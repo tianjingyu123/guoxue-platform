@@ -400,6 +400,7 @@ model CircleMember {
   joinedAt               DateTime         @default(now())
   expireAt               DateTime?
   questionPriceCoin      Int              @default(0) // 提问价格（币），0=不接提问
+  peekPriceCoin          Int              @default(0) // 围观价格（币），0=不开放围观·由达人本人定价
   questionTimeoutHours   Int              @default(72) // 超时退款时间（小时）
   callPricePerMinuteCoin Int              @default(0) // 连麦价格（币/分钟），0=不接连麦
   callAvailableHours     Json? // 可接连麦时段 [{day, start, end}]

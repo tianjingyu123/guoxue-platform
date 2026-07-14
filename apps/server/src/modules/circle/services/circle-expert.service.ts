@@ -24,6 +24,7 @@ export class CircleExpertService {
 
   async setExpertConfig(circleId: string, userId: string, dto: {
     questionPriceCoin: number;
+    peekPriceCoin?: number;
     questionTimeoutHours: number;
     callPricePerMinuteCoin: number;
     callAvailableHours?: Array<{ day: string; start: string; end: string }>;
@@ -40,6 +41,8 @@ export class CircleExpertService {
       where: { circleId_userId: { circleId, userId } },
       data: {
         questionPriceCoin: dto.questionPriceCoin,
+        // 围观价由达人本人定（0=不开放围观）；提问定价权归收款方，见 question.service.ask
+        peekPriceCoin: dto.peekPriceCoin ?? 0,
         questionTimeoutHours: dto.questionTimeoutHours,
         callPricePerMinuteCoin: dto.callPricePerMinuteCoin,
         callAvailableHours: dto.callAvailableHours || undefined,
@@ -57,6 +60,7 @@ export class CircleExpertService {
         userId: true,
         role: true,
         questionPriceCoin: true,
+        peekPriceCoin: true,
         questionTimeoutHours: true,
         callPricePerMinuteCoin: true,
         callAvailableHours: true,
@@ -82,6 +86,7 @@ export class CircleExpertService {
         userId: true,
         role: true,
         questionPriceCoin: true,
+        peekPriceCoin: true,
         questionTimeoutHours: true,
         callPricePerMinuteCoin: true,
         callAvailableHours: true,

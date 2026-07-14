@@ -81,7 +81,7 @@ describe("QuestionService", () => {
 
     it("提问成功", async () => {
       mockPrisma.circle.findUnique.mockResolvedValue({ id: "c1" })
-      mockPrisma.circleMember.findFirst.mockResolvedValue({ id: "m1" })
+      mockPrisma.circleMember.findFirst.mockResolvedValue({ id: "m1", questionPriceCoin: 50, peekPriceCoin: 10 })
       mockPrisma.paidQuestion.create.mockResolvedValue({ id: "q1", status: "PENDING" })
       const result = await svc.ask("u1", askDto)
       expect(result.status).toBe("PENDING")
@@ -89,10 +89,30 @@ describe("QuestionService", () => {
       expect(mockCoin.spend).toHaveBeenCalledWith("u1", expect.objectContaining({ scene: "PAID_QUESTION" }), expect.any(Object))
     })
 
+    // 🔴 定价以达人配置为准，忽略客户端传入 priceCoin —— 防提问者压低达人收入
+    it("扣费与围观价以达人(answerer)配置为准，不信客户端 priceCoin", async () => {
+      mockPrisma.circle.findUnique.mockResolvedValue({ id: "c1" })
+      mockPrisma.circleMember.findFirst.mockResolvedValue({ id: "m1", questionPriceCoin: 50, peekPriceCoin: 10 })
+      mockPrisma.paidQuestion.create.mockResolvedValue({ id: "q1", status: "PENDING" })
+      // 客户端恶意传 priceCoin=1 想只花 1 币
+      await svc.ask("u1", { ...askDto, priceCoin: 1, peekPriceCoin: 1 })
+      expect(mockCoin.spend).toHaveBeenCalledWith("u1", expect.objectContaining({ amountCoin: 50 }), expect.any(Object))
+      const created = mockPrisma.paidQuestion.create.mock.calls[0][0].data
+      expect(created.priceCoin).toBe(50)     // 达人提问价
+      expect(created.peekPriceCoin).toBe(10) // 达人围观价
+    })
+
+    it("达人未开放付费提问(questionPriceCoin=0)时拒绝且不扣币", async () => {
+      mockPrisma.circle.findUnique.mockResolvedValue({ id: "c1" })
+      mockPrisma.circleMember.findFirst.mockResolvedValue({ id: "m1", questionPriceCoin: 0, peekPriceCoin: 0 })
+      await expect(svc.ask("u1", askDto)).rejects.toThrow(BusinessException)
+      expect(mockCoin.spend).not.toHaveBeenCalled()
+    })
+
     // 圈子治理 #10（2026-07-11）：被禁言成员在该圈内不能发起付费提问
     it("圈内禁言中：发起提问被拦且不扣币", async () => {
       mockPrisma.circle.findUnique.mockResolvedValue({ id: "c1" })
-      mockPrisma.circleMember.findFirst.mockResolvedValue({ id: "m1" })
+      mockPrisma.circleMember.findFirst.mockResolvedValue({ id: "m1", questionPriceCoin: 50, peekPriceCoin: 10 })
       mockPrisma.circleViolation.findFirst.mockResolvedValueOnce({ expiresAt: new Date(Date.now() + 86400000) })
       await expect(svc.ask("u1", askDto)).rejects.toThrow("禁言")
       expect(mockCoin.spend).not.toHaveBeenCalled()
@@ -101,7 +121,7 @@ describe("QuestionService", () => {
 
     it("禁言查询限定本圈生效禁言（circleId+MUTE+ACTIVE+未到期）·无禁言正常提问", async () => {
       mockPrisma.circle.findUnique.mockResolvedValue({ id: "c1" })
-      mockPrisma.circleMember.findFirst.mockResolvedValue({ id: "m1" })
+      mockPrisma.circleMember.findFirst.mockResolvedValue({ id: "m1", questionPriceCoin: 50, peekPriceCoin: 10 })
       mockPrisma.paidQuestion.create.mockResolvedValue({ id: "q1", status: "PENDING" })
       await svc.ask("u1", askDto)
       const where = mockPrisma.circleViolation.findFirst.mock.calls[0][0].where

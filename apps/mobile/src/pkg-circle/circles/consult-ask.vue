@@ -28,7 +28,9 @@ const newContent = ref('')
 const images = ref<string[]>([])
 const uploading = ref(false)
 const isPublic = ref(true)
-const peekPrice = ref(1)
+// 🔴 围观价由达人本人设定（从达人配置带出·只读），提问者不能改 —— 后端也只认达人配置。
+//    0 表示达人未开放围观。
+const peekPrice = ref(0)
 const submitting = ref(false)
 const balance = ref<number | null>(null)
 
@@ -55,11 +57,6 @@ async function loadList() {
 }
 
 async function loadBalance() { balance.value = await getCoinBalance() }
-
-function stepPeek(delta: number) {
-  const next = (peekPrice.value || 0) + delta
-  peekPrice.value = Math.max(1, next)
-}
 
 async function addImage() {
   if (images.value.length >= 3 || uploading.value) return
@@ -116,8 +113,8 @@ onLoad((opt) => {
   expertName.value = decodeURIComponent((opt?.expertName || '') as string)
   expertAvatar.value = decodeURIComponent((opt?.expertAvatar || '') as string)
   priceCoin.value = Number(opt?.priceCoin) || 0
-  const pk = Number(opt?.peekPriceCoin) || 0
-  if (pk > 0) peekPrice.value = pk
+  // 围观价直接取达人配置（0=达人未开放围观），提问者不可改
+  peekPrice.value = Number(opt?.peekPriceCoin) || 0
   loadList()
   loadBalance()
 })
@@ -169,13 +166,9 @@ onLoad((opt) => {
       <view v-if="isPublic" class="ca-peek-row">
         <view class="ca-peek-main">
           <text class="ca-peek-name">围观价</text>
-          <text class="ca-peek-desc">建议 1–5 金币，价格越低围观越多</text>
+          <text class="ca-peek-desc">{{ peekPrice > 0 ? '由达人设定' : '该达人未开放付费围观（公开后可免费围观）' }}</text>
         </view>
-        <view class="ca-stepper">
-          <view class="ca-step-btn" @tap="stepPeek(-1)"><app-icon name="minus" :size="26" color="#6E6E73" /></view>
-          <view class="ca-step-btn" @tap="stepPeek(1)"><app-icon name="plus" :size="26" color="#6E6E73" /></view>
-        </view>
-        <text class="ca-peek-price">{{ peekPrice }}<text class="ca-peek-unit"> 金币</text></text>
+        <text class="ca-peek-price">{{ peekPrice > 0 ? peekPrice : '免费' }}<text v-if="peekPrice > 0" class="ca-peek-unit"> 金币</text></text>
       </view>
     </view>
 

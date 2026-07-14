@@ -202,6 +202,7 @@ export class CircleService {
 
   setExpertConfig(circleId: string, userId: string, dto: {
     questionPriceCoin: number;
+    peekPriceCoin?: number;
     questionTimeoutHours: number;
     callPricePerMinuteCoin: number;
     callAvailableHours?: Array<{ day: string; start: string; end: string }>;

@@ -252,6 +252,12 @@ export class ExpertConfigDto {
   @Min(0)
   questionPriceCoin: number;
 
+  @ApiPropertyOptional({ description: "围观价格（虚拟币），0=不开放围观·由达人本人定价", minimum: 0 })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  peekPriceCoin?: number;
+
   @ApiProperty({ description: "超时退款时间（小时）", minimum: 1, maximum: 720 })
   @IsInt()
   @Min(1)

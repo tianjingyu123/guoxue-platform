@@ -1,5 +1,8 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
+import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
+import { LEDGER_WITHDRAWABLE_FLAG } from "./ledger-balance.service";
 
 /** 金额比对容差（元）：分账按分规整，差额超过 1 分即视为缺口 */
 const TOLERANCE = 0.01;
@@ -65,6 +68,52 @@ export class SettlementBalanceReconcileService {
       );
     }
     return report;
+  }
+
+  /**
+   * 安全切换引擎口径转正开关（settlement.ledger_withdrawable.enabled）。
+   *
+   * 🔴 这是「翻开关顺序守卫」：开启前**强制先跑余额对账**，canSwitch=false 一律拒绝 —— 否则
+   *    在规则没修好/账没对平时开开关，可提现口径切到 LedgerEntry，未落账场景的达人/站长余额瞬间归零。
+   *    唯有全量 gap 在容差内（canSwitch=true）才放行。force=true 仅供极端人工兜底，会留审计告警。
+   *    关闭开关(enable=false)无需对账（回退旧口径永远安全）。
+   */
+  async setAuthoritativeMode(
+    enable: boolean,
+    operatorId: string,
+    force = false,
+  ): Promise<{ enabled: boolean; canSwitch: boolean; gappedCount: number; totalGap: number; forced: boolean }> {
+    let report: BalanceReconcileReport | null = null;
+    if (enable) {
+      report = await this.reconcileBalances();
+      if (!report.canSwitch && !force) {
+        throw new BusinessException(
+          ErrorCode.BAD_REQUEST,
+          `禁止转正：${report.gappedCount} 个受益主体存在余额缺口（合计 ${report.totalGap} 元）。` +
+            `请先回填/查明缺口至 canSwitch=true 再开启，或经审批 force 强制。`,
+        );
+      }
+      if (!report.canSwitch && force) {
+        this.logger.error(
+          `⚠️【强制转正】operator=${operatorId} 在 ${report.gappedCount} 个主体存在缺口(合计 ${report.totalGap} 元)时强制开启开关`,
+        );
+      }
+    }
+
+    await this.prisma.configSystem.upsert({
+      where: { configKey: LEDGER_WITHDRAWABLE_FLAG },
+      create: { configKey: LEDGER_WITHDRAWABLE_FLAG, configValue: enable ? "true" : "false", updatedBy: operatorId },
+      update: { configValue: enable ? "true" : "false", updatedBy: operatorId },
+    });
+    this.logger.log(`引擎口径转正开关 → ${enable ? "开启" : "关闭"}（operator=${operatorId}${force ? "·强制" : ""}）`);
+
+    return {
+      enabled: enable,
+      canSwitch: report?.canSwitch ?? true,
+      gappedCount: report?.gappedCount ?? 0,
+      totalGap: report?.totalGap ?? 0,
+      forced: enable && !!force && !(report?.canSwitch ?? true),
+    };
   }
 
   /** 分站站长：Station.totalEarning（提现读这个）vs LedgerEntry(STATION) */

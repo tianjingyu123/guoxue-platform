@@ -40,6 +40,14 @@ export class QuestionService {
     });
     if (!member) throw new BusinessException(ErrorCode.BAD_REQUEST, "回答者不在该圈子中");
 
+    // 🔴 定价以达人(answerer)本人在该圈的配置为准，绝不信客户端传入的 priceCoin/peekPriceCoin。
+    //    否则提问者可自设最低价(@Min10)压达人收入 —— 付款方单方面决定了收款方的收益。
+    const priceCoin = member.questionPriceCoin;
+    if (!priceCoin || priceCoin <= 0) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "该达人未开放付费提问");
+    }
+    const peekPriceCoin = member.peekPriceCoin ?? 0;
+
     // 圈子治理 #10（2026-07-11）：被禁言成员在该圈内不能发起付费提问（轻量直查 CircleViolation·避免跨模块依赖·置于扣币前）
     const mute = await this.prisma.circleViolation.findFirst({
       where: { circleId: dto.circleId, userId, type: "MUTE", status: "ACTIVE", expiresAt: { gt: new Date() } },
@@ -63,7 +71,7 @@ export class QuestionService {
     // 扣币与创建问题在同一事务内，确保中间异常时币不会丢失
     return this.prisma.$transaction(async (tx) => {
       await this.coin.spend(userId, {
-        amountCoin: dto.priceCoin,
+        amountCoin: priceCoin,
         scene: "PAID_QUESTION",
         description: `向圈主/嘉宾付费提问`,
       }, tx);
@@ -76,8 +84,8 @@ export class QuestionService {
           answererId: dto.answererId,
           question: questionText,
           images: dto.images || [],
-          priceCoin: dto.priceCoin,
-          peekPriceCoin: dto.peekPriceCoin || 0,
+          priceCoin,
+          peekPriceCoin,
           status: "PENDING",
         },
         include: {
