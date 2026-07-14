@@ -342,6 +342,15 @@ const ROUTE_MAP: Record<string, string> = {
   '/courses/study-plan': '/pkg-course/learn/index', // 学习计划已并入 P4 我的学习（别名重定向）
   '/seckill/rules': '/pkg-shop/flash-sale/index', // 重复秒杀页已删（含规则子页）→ 真版秒杀 flash-sale
   '/station/earnings': '/pkg-operator/station-earnings/index', // 站长面板→收益（运营端）
+  /* 站长面板九宫格的另 5 个入口（2026-07-14 补）：页面早已做完且在 pages.json 注册，
+   * 只是别名从未登记 → resolve() 原样返回 → navigateTo 失败 → 统一弹「功能开发中」。
+   * 站长点九宫格 9 个格子有 5 个点不动，是"流程串不起来"的典型现场。
+   * 入口定义见 lib/operator-data.ts stationPanelQuickActions。 */
+  '/station/promote': '/pkg-operator/station-promote/index',
+  '/station/team': '/pkg-operator/team/index', // 注意目标是 team 不是 station-team（后者不存在）
+  '/station/materials': '/pkg-operator/station-materials/index',
+  '/station/config': '/pkg-operator/station-config/index',
+  '/station/assistant': '/pkg-operator/station-assistant/index',
   '/publish': '/pkg-circle/circles/publish', // 草稿箱→发布
   '/content/community-rules': '/pkg-report/community-rules/index', // 举报详情→社区规范（本轮新迁页）
   // 积分中心（顶级活页，profile/wallet 顶部"积分"指向；页早已迁好仅缺映射）。/mine/points 为孤岛旧版
