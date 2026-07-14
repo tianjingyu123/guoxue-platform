@@ -227,6 +227,25 @@ describe("CommissionService", () => {
       const result = await svc.calculatePlatformFee("COURSE", 100);
       expect(result).toBeNull();
     });
+
+    // 🔴 加盟费全额归平台，不走商品分佣兜底：STATION_MASTER/OPERATOR 此前落到 product_platform，
+    //    导致上线按商品率白拿佣金 + 平台费错记。映射到不存在的 key → config 查不到 → 返回 null。
+    it("加盟费 STATION_MASTER 映射到无佣金哨兵 key，平台费返回 null（不按商品率错记）", async () => {
+      mockPrisma.commissionConfig.findUnique.mockResolvedValue(null);
+      const result = await svc.calculatePlatformFee("STATION_MASTER", 999);
+      expect(mockPrisma.commissionConfig.findUnique).toHaveBeenCalledWith({
+        where: { configKey: "__franchise_no_commission__" },
+      });
+      expect(result).toBeNull();
+    });
+
+    it("加盟费 OPERATOR 同样不落 product_platform 兜底", async () => {
+      mockPrisma.commissionConfig.findUnique.mockResolvedValue(null);
+      await svc.calculatePlatformFee("OPERATOR", 4999);
+      expect(mockPrisma.commissionConfig.findUnique).toHaveBeenCalledWith({
+        where: { configKey: "__franchise_no_commission__" },
+      });
+    });
   });
 
   describe("calculateAndRecord", () => {
@@ -271,6 +290,18 @@ describe("CommissionService", () => {
       expect(result).toBeNull();
       expect(mockPrisma.stationEarning.create).not.toHaveBeenCalled();
     });
+    // 🔴 加盟费订单即使买家有 ACTIVE 上线站长，也不得给上线发佣金（加盟费全额归平台）。
+    //    此前 STATION_MASTER 落 product_platform 兜底 → 上线白拿一笔 999 的 StationEarning（资损）。
+    it("加盟费订单(STATION_MASTER)不产生上线佣金（哨兵 key → config 查无 → null）", async () => {
+      mockPrisma.commissionConfig.findUnique.mockResolvedValue(null); // __franchise_no_commission__ 查不到
+      const result = await svc.calculateAndRecord("order-1", "STATION_MASTER", 999, "uplineReferrer");
+      expect(mockPrisma.commissionConfig.findUnique).toHaveBeenCalledWith({
+        where: { configKey: "__franchise_no_commission__" },
+      });
+      expect(result).toBeNull();
+      expect(mockPrisma.stationEarning.create).not.toHaveBeenCalled();
+    });
+
     it("无推荐人时返回 null", async () => {
       mockPrisma.commissionConfig.findUnique.mockResolvedValue({ configKey: "course_basic", rateA: 0.1 });
       const result = await svc.calculateAndRecord("order-1", "COURSE", 100);

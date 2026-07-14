@@ -364,10 +364,17 @@ export class QuestionService {
     if (question.isPublic && question.peekPriceCoin <= 0) {
       return true;
     }
-    // 已围观（付费查看过）：查 PEEK_ANSWER 消费记录
+    // 已围观（付费查看过）：查 PEEK_ANSWER 消费记录。
+    // 🔴 纵深防御：必须校验金额付够了（spend 落库 amountCoin 为负，故 lte:-围观价）。
+    //    否则即使有人绕过 /coin/spend 白名单造出一条 1 币的 PEEK_ANSWER 流水，也拿不到答案。
     if (currentUserId) {
       const peeked = await this.prisma.virtualCoinTransaction.findFirst({
-        where: { userId: currentUserId, scene: "PEEK_ANSWER", refId: question.id },
+        where: {
+          userId: currentUserId,
+          scene: "PEEK_ANSWER",
+          refId: question.id,
+          amountCoin: { lte: -question.peekPriceCoin },
+        },
         select: { id: true },
       });
       if (peeked) return true;

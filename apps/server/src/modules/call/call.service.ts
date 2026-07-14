@@ -146,45 +146,55 @@ export class CallService {
     if (call.status === "IN_PROGRESS" && call.startedAt) {
       durationSeconds = Math.ceil((now.getTime() - call.startedAt.getTime()) / 1000);
       const minutes = Math.ceil(durationSeconds / 60);
-      totalCoin = minutes * call.pricePerMinuteCoin;
+      // 🔴 主叫实付总额 = max(按时长算的应付, cron 已逐分钟预扣的 call.totalCoin)。
+      //    cron 按「当前进行分钟」(floor(elapsed/60)+1) 提前预扣，挂断按 ceil 结算，
+      //    两者常相等甚至 cron 扣得更多 → 差额 ≤0。此时若照旧 spend(差额) 会抛
+      //    「消费币数必须大于0」→ 整个挂断事务回滚 → 通话永远卡 IN_PROGRESS 被 cron 继续扣。
+      //    达人收益也必须按这个实付总额记，否则主叫多扣的分钟数达人拿不到。
+      totalCoin = Math.max(minutes * call.pricePerMinuteCoin, call.totalCoin);
+      const delta = totalCoin - call.totalCoin;
 
       // 扣币与记录更新在同一事务
       updated = await this.prisma.$transaction(async (tx) => {
-        await this.coin.spend(call.callerId, {
-          amountCoin: totalCoin - call.totalCoin,
-          scene: "AUDIO_CALL",
-          refId: callId,
-          description: `连麦通话结束结算（${minutes}分钟）`,
-        }, tx);
+        if (delta > 0) {
+          await this.coin.spend(call.callerId, {
+            amountCoin: delta,
+            scene: "AUDIO_CALL",
+            refId: callId,
+            description: `连麦通话结束结算（${minutes}分钟）`,
+          }, tx);
+        }
 
         return tx.audioCallRecord.update({
           where: { id: callId },
           data: {
             status: "COMPLETED",
             durationSeconds,
-            totalCoin: totalCoin > 0 ? totalCoin : call.totalCoin,
+            totalCoin,
             endedAt: now,
           },
         });
       });
 
       // 收益分佣（事务外，fire-and-forget）
-      this.revenue.record({
-        userId: call.calleeId,
-        scene: "AUDIO_CALL",
-        refId: callId,
-        amountCoin: totalCoin,
-      }).catch((err) => this.logger.warn("通话收益记录失败", err));
+      if (totalCoin > 0) {
+        this.revenue.record({
+          userId: call.calleeId,
+          scene: "AUDIO_CALL",
+          refId: callId,
+          amountCoin: totalCoin,
+        }).catch((err) => this.logger.warn("通话收益记录失败", err));
 
-      // 统一总账影子双写
-      this.revenue.settleLedger({
-        scene: "AUDIO_CALL",
-        refType: "AUDIO_CALL",
-        refId: callId,
-        amountCoin: totalCoin,
-        payerId: call.callerId,
-        parties: { PROVIDER: { type: "USER", id: call.calleeId, userId: call.calleeId } },
-      }).catch(() => undefined);
+        // 统一总账影子双写
+        this.revenue.settleLedger({
+          scene: "AUDIO_CALL",
+          refType: "AUDIO_CALL",
+          refId: callId,
+          amountCoin: totalCoin,
+          payerId: call.callerId,
+          parties: { PROVIDER: { type: "USER", id: call.calleeId, userId: call.calleeId } },
+        }).catch(() => undefined);
+      }
     } else {
       // WAITING 状态：未正式开始就挂断，直接标记结束
       updated = await this.prisma.audioCallRecord.update({
@@ -294,6 +304,27 @@ export class CallService {
       where: { id: callId },
       data: { status: "COMPLETED", durationSeconds, endedAt: now },
     });
+
+    // 🔴 达人收益补记：cron 逐分钟只扣主叫、从不给达人记收益，收益本来只在正常 hangup 记。
+    //    余额耗尽走 forceHangup 时若不补记，主叫的币已被逐分钟扣光而达人一分钱拿不到（收款方资损）。
+    //    按已实际扣费的 call.totalCoin 记，与正常挂断口径一致。
+    if (call.totalCoin > 0) {
+      this.revenue.record({
+        userId: call.calleeId,
+        scene: "AUDIO_CALL",
+        refId: callId,
+        amountCoin: call.totalCoin,
+      }).catch((err) => this.logger.warn("强制挂断达人收益记录失败", err));
+
+      this.revenue.settleLedger({
+        scene: "AUDIO_CALL",
+        refType: "AUDIO_CALL",
+        refId: callId,
+        amountCoin: call.totalCoin,
+        payerId: call.callerId,
+        parties: { PROVIDER: { type: "USER", id: call.calleeId, userId: call.calleeId } },
+      }).catch(() => undefined);
+    }
 
     this.wsGateway.sendToUser(callerId, "call_ended", { callId, reason: "余额耗尽" });
     this.wsGateway.sendToUser(calleeId, "call_ended", { callId, reason: "对方余额耗尽" });

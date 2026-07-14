@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Optional } from "@nestjs/common";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
@@ -6,6 +6,7 @@ import { FeatureFlagService } from "../feature-flag/feature-flag.service";
 import { NotificationService } from "../notification/notification.service";
 import { SystemService } from "../system/system.service";
 import { AuditService } from "../audit/audit.service";
+import { ShopRefundService } from "../shop/shop-refund.service";
 import { MERCHANT_CONFIG_KEYS, MERCHANT_FEATURE_FLAGS } from "./merchant.types";
 import { encrypt, decrypt, maskIdCard, maskPhone, phoneHmac } from "../../common/crypto.util";
 import { safePagination, NO_PAGE_LIMIT } from "../../common/pagination";
@@ -24,6 +25,8 @@ export class MerchantService {
     private readonly notification: NotificationService,
     private readonly systemService: SystemService,
     private readonly audit: AuditService,
+    // 退款必须走统一退款服务（真实渠道退款/线下降级 + CAS 置 REFUNDED + 冲正分佣）
+    @Optional() private readonly shopRefund?: ShopRefundService,
   ) {}
 
   // ─── 入驻申请 ───
@@ -621,10 +624,14 @@ export class MerchantService {
     const order = await this.prisma.order.findFirst({ where: { id: orderId, merchantId } });
     if (!order) throw new BusinessException(ErrorCode.BAD_REQUEST, "订单不存在");
     if (order.status === "REFUNDED") throw new BusinessException(ErrorCode.BAD_REQUEST, "订单已退款");
-    await this.prisma.order.update({
-      where: { id: orderId }, data: { status: "REFUNDED", refundedAt: new Date() },
-    });
-    return { success: true };
+    // 🔴 绝不能只把状态改成 REFUNDED：那样买家的钱不会退、已发的分佣不冲正，
+    //    还会把订单锁死在终态、令正规退款路径(refundOrder)因 status!==REFUNDED 永久失效。
+    //    必须委托统一退款服务：真实渠道退款（未配置则降级线下打款）+ CAS 置 REFUNDED + 冲正分佣 + webhook。
+    if (!this.shopRefund) {
+      throw new BusinessException(ErrorCode.INTERNAL_ERROR, "退款服务暂不可用，请稍后重试");
+    }
+    const result = await this.shopRefund.refundOrder(orderId, "商家同意退款");
+    return { success: true, refundStatus: result.status };
   }
 
   async rejectRefund(merchantId: string, orderId: string, reason: string) {

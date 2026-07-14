@@ -1346,6 +1346,9 @@ export class CommissionService {
     return { records, total, page, pageSize };
   }
 
+  /** 加盟费订单类型（分站/运营商资格费）：全额归平台，不产生任何上线佣金/分佣平台费 */
+  private static readonly FRANCHISE_ORDER_TYPES = ["STATION_MASTER", "OPERATOR"];
+
   private mapTypeToConfigKey(type: string): string {
     const map: Record<string, string> = {
       COURSE: "course_basic",
@@ -1355,6 +1358,13 @@ export class CommissionService {
       BOT: "bot_call",
       MERCHANT_PRODUCT: "merchant_product",
     };
+    // 🔴 加盟费（分站/运营商资格费）全额归平台，不产生任何上线佣金。
+    //    此前它们不在 map、又是大写枚举 → 落到下面 product_platform 兜底 →
+    //    买家若有 ACTIVE 上线站长，上线会按【商品佣金率】白拿一笔 999/4999 的
+    //    StationEarning（可提现·真实资损），平台费也只按商品率错记。
+    //    返回一个 commissionConfig 里不存在的 key → calculateAndRecord 与
+    //    calculatePlatformFee 都会 `if(!config) return null` 而正确跳过。
+    if (CommissionService.FRANCHISE_ORDER_TYPES.includes(type)) return "__franchise_no_commission__";
     // 大写订单类型枚举 → 配置key
     if (type in map) return map[type];
     // 幂等：圈子收益侧(recordCircleRevenue)直传的已是配置key(小写，如 circle_join / gift / circle_join_referral)，

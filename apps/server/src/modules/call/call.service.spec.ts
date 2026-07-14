@@ -147,6 +147,43 @@ describe("CallService", () => {
       expect(revenue.record).toHaveBeenCalled();
       expect(ws.sendToUser).toHaveBeenCalledTimes(2);
     });
+
+    // 🔴 cron 已按「当前进行分钟」预扣满，挂断时差额为 0 → 绝不能再 spend(0)（会抛错回滚→卡 IN_PROGRESS）
+    it("cron 已预扣满时挂断不再扣币且不崩，仍标 COMPLETED 并记达人收益", async () => {
+      const startedAt = new Date(Date.now() - 65000); // 65s → ceil=2 分钟
+      prisma.audioCallRecord.findUnique.mockResolvedValue({
+        id: "call1", callerId: "u1", calleeId: "u2",
+        status: "IN_PROGRESS", pricePerMinuteCoin: 10, totalCoin: 20, // cron 已扣 2 分钟=20
+        startedAt,
+      });
+      prisma.audioCallRecord.update.mockResolvedValue({ id: "call1", status: "COMPLETED" });
+      const result = await svc.hangup("u1", "call1");
+      expect(result.status).toBe("COMPLETED");
+      expect(coin.spend).not.toHaveBeenCalled();        // 差额=0，不补扣
+      expect(revenue.record).toHaveBeenCalled();         // 达人收益按实付 20 记
+      expect(revenue.record.mock.calls[0][0].amountCoin).toBe(20);
+    });
+  });
+
+  describe("forceHangup（余额耗尽·经 billingTick 触发）", () => {
+    // 🔴 cron 逐分钟只扣主叫从不记达人收益，强制挂断若不补记 → 达人整场白干
+    it("余额不足触发强制挂断时补记达人收益", async () => {
+      const startedAt = new Date(Date.now() - 125000); // 125s → 当前第 3 分钟
+      // totalCoin=20（已扣 2 分钟）→ 第 3 分钟待扣，但余额不足 → forceHangup
+      prisma.audioCallRecord.findMany.mockResolvedValue([{
+        id: "call1", callerId: "u1", calleeId: "u2",
+        status: "IN_PROGRESS", pricePerMinuteCoin: 10, totalCoin: 20, startedAt,
+      }]);
+      prisma.audioCallRecord.findUnique.mockResolvedValue({
+        id: "call1", callerId: "u1", calleeId: "u2",
+        status: "IN_PROGRESS", pricePerMinuteCoin: 10, totalCoin: 20, startedAt,
+      });
+      prisma.audioCallRecord.update.mockResolvedValue({ id: "call1", status: "COMPLETED" });
+      coin.getBalance.mockResolvedValue({ balance: 5, frozen: 0 }); // < 单分钟价 → 强制挂断
+      await svc.billingTick();
+      expect(revenue.record).toHaveBeenCalled();
+      expect(revenue.record.mock.calls[0][0].amountCoin).toBe(20); // 按已扣的 call.totalCoin
+    });
   });
 
   describe("getStatus", () => {
