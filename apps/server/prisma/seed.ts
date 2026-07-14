@@ -2566,7 +2566,9 @@ async function main() {
     { key: "ai_translate", name: "AI翻译", description: "AI文言文-白话文翻译功能", enabled: true, percentage: 100 },
     { key: "ai_bazi_analysis", name: "AI八字分析", description: "AI命理分析功能（消耗虚拟币）", enabled: true, percentage: 100 },
     { key: "live_streaming", name: "直播功能", description: "直播间创建与观看", enabled: true, percentage: 100 },
-    { key: "ebook_feature", name: "电子书", description: "电子书阅读、购买、进度同步", enabled: true, percentage: 100 },
+    // 🔴 2026-07-14 关停：电子书板块 07-08 瘦身时已整体下线（前端 pkg-ebook 分包删除、
+    //    后端 /ebook/* 全部移除）。开关留着但置 false，避免任何地方误判"电子书还在"。
+    { key: "ebook_feature", name: "电子书（已下线）", description: "板块 2026-07-08 下线，前后端均已移除", enabled: false, percentage: 0 },
     { key: "coin_recharge", name: "虚拟币充值", description: "微信/支付宝/银联充值虚拟币", enabled: true, percentage: 100 },
     { key: "member_system", name: "会员系统", description: "会员等级、权益、自动续费", enabled: true, percentage: 100 },
     { key: "shop_feature", name: "商城", description: "商品浏览与购买", enabled: true, percentage: 100 },

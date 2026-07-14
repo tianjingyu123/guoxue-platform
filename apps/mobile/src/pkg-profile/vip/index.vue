@@ -59,15 +59,13 @@
             </view>
           </view>
 
-          <!-- 核心数据（对应五项权益中的前三项） -->
+          <!-- 核心数据（只列兑现得了的权益）
+               🔴 2026-07-14 撤下「付费精品电子书·畅读」一栏：电子书板块 07-08 已整体下线，
+               这条权益兑现不了，挂在付费页上就是虚假宣传。不虚构新权益顶替 —— 要补需董事长拍板。 -->
           <view class="card-stats">
             <view class="stat-col">
               <text class="stat-num">不限量</text>
               <text class="stat-label">AI 伴读·白话对照</text>
-            </view>
-            <view class="stat-col">
-              <text class="stat-num">畅读</text>
-              <text class="stat-label">付费精品电子书</text>
             </view>
             <view class="stat-col">
               <text class="stat-num">{{ selectedPlan?.monthlyPoints ?? 0 }}</text>
@@ -411,7 +409,7 @@ async function loadData() {
       planGroups: [{
         level: 'vip',
         levelName: '书院会员',
-        description: 'AI 伴读不限量 · 付费电子书畅读 · 每月赠积分与优惠券 · 专属标识与客服',
+        description: 'AI 伴读不限量 · 每月赠积分与优惠券 · 专属标识与客服',
         plans,
       }],
     }
