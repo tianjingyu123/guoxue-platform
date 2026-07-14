@@ -89,9 +89,10 @@ export class SearchService {
     if (!type || type === "classic") {
       searches.push(this.ftsOrLike("ClassicBook", q, limit, offset, weightMap).then((rows) => { results.classics = rows; }));
     }
-    if (!type || type === "ebook") {
-      searches.push(this.ftsOrLike("Ebook", q, limit, offset, weightMap).then((rows) => { results.ebooks = rows; }));
-    }
+    // 🔴 2026-07-14 下架电子书搜索：电子书板块 2026-07-08 瘦身时已拍板删除，
+    //    前端 pkg-ebook 分包整个删掉了，但搜索这里还在返回 10 本库存电子书 ——
+    //    用户搜到卡片点进去跳 /ebook/:id，全项目没有这个页 → 必然白屏。
+    //    （库里的 Ebook 表和数据保留不动，只是不再对外可搜。）
     if (!type || type === "content") {
       searches.push(this.ftsOrLike("Content", q, limit, offset, weightMap).then((rows) => { results.contents = rows; }));
     }

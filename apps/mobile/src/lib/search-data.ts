@@ -3,7 +3,8 @@ import { apiGet, apiPost, apiDelete } from '@/utils/request'
 /**
  * 全局搜索数据层。
  * 后端真源：GET /search?q=&type=&page=&pageSize=（FTS + ILIKE 回退 + 权重 + redis 缓存）。
- * 后端按类型返回 { articles, courses, products, circles, videos, users, classics, ebooks, contents }，
+ * 后端按类型返回 { articles, courses, products, circles, videos, users, classics, contents }，
+ * （ebooks 已于 2026-07-14 从后端搜索摘除：电子书板块 07-08 瘦身已下线，前端无详情页）
  * 各数组元素字段见下方 RawX。本层负责映射为前端统一展示结构，并把
  * articles + videos + contents 合并为一个「内容」列表（综合模式后端三类都给，content 模式只给 contents）。
  *
@@ -18,7 +19,6 @@ interface RawCourse { id: string; title: string; cover?: string | null; intro?: 
 interface RawProduct { id: string; title: string; images?: string[]; price?: number | string; salesCount?: number }
 interface RawCircle { id: string; name: string; cover?: string | null; intro?: string | null; memberCount?: number }
 interface RawClassic { id: string; title: string; author?: string | null; cover?: string | null; category?: string | null; dynasty?: string | null }
-interface RawEbook { id: string; title: string; author?: string | null; cover?: string | null; description?: string | null; price?: number | string; purchaseCount?: number }
 interface RawUser { id: string; nickname?: string | null; avatar?: string | null }
 
 interface RawSearchResponse {
@@ -31,7 +31,6 @@ interface RawSearchResponse {
   products?: RawProduct[]
   circles?: RawCircle[]
   classics?: RawClassic[]
-  ebooks?: RawEbook[]
   users?: RawUser[]
 }
 
@@ -65,10 +64,6 @@ export interface SearchClassic {
   id: string; title: string; author?: string; cover?: string
   category?: string; dynasty?: string; href: string
 }
-export interface SearchEbook {
-  id: string; title: string; author?: string; cover?: string; description?: string
-  price: number; purchaseCount: number; href: string
-}
 export interface SearchUser {
   id: string; name: string; avatar?: string; href: string
 }
@@ -79,12 +74,11 @@ export interface SearchResults {
   products: SearchProduct[]
   circles: SearchCircle[]
   classics: SearchClassic[]
-  ebooks: SearchEbook[]
   users: SearchUser[]
 }
 
 /** 前端 Tab key → 后端 type（'all' 不传 type，后端各类返回前 5 条混排） */
-export type SearchTab = 'all' | 'content' | 'course' | 'product' | 'circle' | 'classic' | 'ebook' | 'user'
+export type SearchTab = 'all' | 'content' | 'course' | 'product' | 'circle' | 'classic' | 'user'
 
 const dNum = (v: unknown): number => {
   const n = Number(v)
@@ -102,7 +96,7 @@ function contentKind(t?: string): ContentKind {
 }
 
 function emptyResults(): SearchResults {
-  return { contents: [], courses: [], products: [], circles: [], classics: [], ebooks: [], users: [] }
+  return { contents: [], courses: [], products: [], circles: [], classics: [], users: [] }
 }
 
 /** 后端原始响应 → 前端统一结构 */
@@ -139,10 +133,6 @@ function adapt(res: RawSearchResponse): SearchResults {
     classics: (res.classics || []).map((c): SearchClassic => ({
       id: c.id, title: c.title || '', author: s(c.author), cover: s(c.cover),
       category: s(c.category), dynasty: s(c.dynasty), href: `/classics/${c.id}`,
-    })),
-    ebooks: (res.ebooks || []).map((e): SearchEbook => ({
-      id: e.id, title: e.title || '', author: s(e.author), cover: s(e.cover), description: s(e.description),
-      price: dNum(e.price), purchaseCount: dNum(e.purchaseCount), href: `/ebook/${e.id}`,
     })),
     users: (res.users || []).map((u): SearchUser => ({
       id: u.id, name: s(u.nickname) || '用户', avatar: s(u.avatar), href: `/user/${u.id}`,

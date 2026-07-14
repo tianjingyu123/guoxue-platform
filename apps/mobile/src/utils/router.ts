@@ -322,7 +322,8 @@ const ROUTE_MAP: Record<string, string> = {
   // （死入口大扫除：/admin/user-audit、/admin/batch-coupon-send 两条死映射已删——目标页已从 pkg-mine 路由移除且全库无调用方）
   '/splash': '/pkg-common/splash/index',
   '/poster': '/pkg-common/poster/index',
-  '/result': '/pkg-common/result/index',
+  // （/result 已退役 2026-07-14：通用「操作结果」页全项目零入口——各业务流各自处理成功/失败态，
+  //   没人跳它，页内还硬编码 /circle/1、/learn/1 等假链。.vue 已删）
   '/publish/video': '/pkg-video/publish/index',
   '/teacher/dashboard': '/pkg-creator/teacher-dashboard/index',
   '/teacher-certification': '/pkg-creator/teacher-certification/index',
@@ -334,8 +335,9 @@ const ROUTE_MAP: Record<string, string> = {
   '/circles/badges': '/pkg-circle/circles/badges',
   '/rankings': '/pkg-circle/rankings/index',
   '/articles': '/pkg-circle/articles/index',
-  // 扫码结果（接 ?content= query，9种类型解析，从 offline/checkin 等扫码入口调起）
-  '/common/scan': '/pkg-common/scan/index',
+  // （/common/scan 已退役 2026-07-14：注释说"从 offline/checkin 扫码入口调起"，实际零入口——
+  //   全项目唯一的 uni.scanCode 在 pkg-offline/manage-checkin，它自己走 offlineManageApi.signIn
+  //   真后端核销，根本不跳这页。页内还硬编码 /pay/transfer、/auth/register 等死链。.vue 已删）
   // 全屏图片查看器（接 ?images=&index= query，缩放/旋转/切换/手势）
   '/common/image-viewer': '/pkg-common/image-viewer/index',
   // 交易申诉（3步表单：选订单/选类型/填详情→提交进度时间线，fallback /orders）

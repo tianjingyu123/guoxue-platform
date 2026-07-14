@@ -595,16 +595,10 @@ onLoad((q) => {
           </view>
         </template>
 
-        <!-- 推荐电子书：复用已有配置页（后端 recommended-ebooks 真连于彼页） -->
-        <text class="section-label">推荐电子书 · 显示在圈子详情「文章」Tab 顶部</text>
-        <view class="book-entry" @tap="go(`/pkg-circle/circles/recommend-ebook?id=${circleId}`)">
-          <view class="todo-icon"><app-icon name="book-open" :size="32" color="#6E6E73" /></view>
-          <view class="todo-main">
-            <text class="todo-title">推荐电子书配置</text>
-            <text class="todo-desc">开启推荐后展示给全体成员；关闭立即下架，不删除文件</text>
-          </view>
-          <app-icon name="chevron-right" :size="28" color="#999999" />
-        </view>
+        <!-- 🔴 2026-07-14 撤除「推荐电子书配置」入口：整条链依附于已下线的电子书板块。
+             后端 GET/PUT /circles/:id/recommended-ebooks 是在的，但圈主用来挑书的书城
+             /ebook/books 已随 07-08 瘦身一起删掉（生产 404）—— 圈主点进去只会看到一个
+             无书可选的空页。配置页 recommend-ebook.vue 已删。 -->
       </template>
 
       <!-- ═══════════ 设置分区 ═══════════ -->

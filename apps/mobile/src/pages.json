@@ -1293,12 +1293,6 @@
           }
         },
         {
-          "path": "circles/recommend-ebook",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
           "path": "circles/preview",
           "style": {
             "navigationStyle": "custom"
@@ -2927,12 +2921,6 @@
       "root": "pkg-common",
       "pages": [
         {
-          "path": "scan/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
           "path": "image-viewer/index",
           "style": {
             "navigationStyle": "custom"
@@ -2952,12 +2940,6 @@
         },
         {
           "path": "poster/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "result/index",
           "style": {
             "navigationStyle": "custom"
           }

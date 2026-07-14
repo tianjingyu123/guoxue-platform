@@ -41,7 +41,8 @@ function hrefOf(vo: RecommendVO): string {
     case 'PRODUCT': return `/mall/product/${id}`
     case 'CIRCLE': return `/circles/${id}`
     case 'VIDEO': return `/video/${id}`
-    case 'EBOOK': return `/ebook/${id}`
+    // （EBOOK 分支已删 2026-07-14：电子书板块 07-08 下线，前端无详情页。
+    //   后端 recommend 策略实测也不查 Ebook 表、吐不出 EBOOK，这里本就是死分支。）
     case 'CLASSIC': return `/classics/${id}`
     case 'ARTICLE':
     case 'CONTENT':

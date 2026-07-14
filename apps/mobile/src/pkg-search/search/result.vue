@@ -208,67 +208,6 @@
             </view>
           </view>
 
-          <!-- 电子书结果 -->
-          <view v-if="(activeTab === 'all' || activeTab === 'ebook') && results.ebooks.length" class="result-group">
-            <view v-if="activeTab === 'all'" class="group-head">
-              <text class="group-title">相关电子书</text>
-              <text class="group-more" @click="activeTab = 'ebook'">查看全部</text>
-            </view>
-            <view class="course-list">
-              <view
-                v-for="ebook in results.ebooks"
-                :key="ebook.id"
-                class="course-card-row"
-                @click="navigateTo(ebook.href)"
-              >
-                <view class="course-cover-row">
-                  <image lazy-load v-if="ebook.cover" :src="ebook.cover" class="row-cover-img" mode="aspectFill" />
-                  <app-icon v-else name="book" :size="56" color="#C41E3A" />
-                </view>
-                <view class="course-meta-row">
-                  <rich-text class="course-title" :nodes="highlight(ebook.title)" />
-                  <text v-if="ebook.author" class="course-teacher">{{ ebook.author }}</text>
-                  <view class="course-sub">
-                    <text class="course-students">{{ formatNumber(ebook.purchaseCount) }}人购买</text>
-                  </view>
-                  <view class="course-price-row">
-                    <text class="course-price">¥{{ formatPrice(ebook.price) }}</text>
-                  </view>
-                </view>
-              </view>
-            </view>
-          </view>
-
-          <!-- 商品结果 -->
-          <view v-if="(activeTab === 'all' || activeTab === 'product') && results.products.length" class="result-group">
-            <view v-if="activeTab === 'all'" class="group-head">
-              <text class="group-title">相关商品</text>
-              <text class="group-more" @click="activeTab = 'product'">查看全部</text>
-            </view>
-            <view class="product-grid">
-              <view
-                v-for="product in results.products"
-                :key="product.id"
-                class="product-card"
-                @click="navigateTo(product.href)"
-              >
-                <view class="product-cover">
-                  <image lazy-load v-if="product.cover" :src="product.cover" class="product-cover-img" mode="aspectFill" />
-                  <app-icon v-else name="shopping-bag" :size="72" color="rgba(196,30,58,0.5)" />
-                </view>
-                <view class="product-meta">
-                  <rich-text class="product-name" :nodes="highlight(product.title)" />
-                  <view class="product-foot">
-                    <view class="product-price-wrap">
-                      <text class="product-price">¥{{ formatPrice(product.price) }}</text>
-                    </view>
-                    <text class="product-sales">{{ formatNumber(product.salesCount) }}人购买</text>
-                  </view>
-                </view>
-              </view>
-            </view>
-          </view>
-
           <!-- 用户结果 -->
           <view v-if="(activeTab === 'all' || activeTab === 'user') && results.users.length" class="result-group">
             <view v-if="activeTab === 'all'" class="group-head">
@@ -332,7 +271,6 @@ const tabs: { key: SearchTab; label: string }[] = [
   { key: 'product', label: '商品' },
   { key: 'circle', label: '圈子' },
   { key: 'classic', label: '古籍' },
-  { key: 'ebook', label: '电子书' },
   { key: 'user', label: '用户' },
 ]
 
@@ -343,7 +281,6 @@ const fromToTab: Record<string, SearchTab> = {
   shop: 'product',
   circle: 'circle',
   classics: 'classic',
-  ebook: 'ebook',
 }
 
 // ===== UI 状态 =====
@@ -360,20 +297,20 @@ const emptyHotWords = ['八字入门', '紫微斗数', '风水布局', '奇门�
 
 // ===== 真连后端：搜索结果 =====
 const results = ref<SearchResults>({
-  contents: [], courses: [], products: [], circles: [], classics: [], ebooks: [], users: [],
+  contents: [], courses: [], products: [], circles: [], classics: [], users: [],
 })
 
 const isEmpty = computed(() => {
   const r = results.value
   return !loading.value && !error.value &&
     !r.contents.length && !r.courses.length && !r.products.length &&
-    !r.circles.length && !r.classics.length && !r.ebooks.length && !r.users.length
+    !r.circles.length && !r.classics.length && !r.users.length
 })
 
 /** 拉取搜索结果（关键词/Tab 变化触发） */
 async function loadResults() {
   if (!keyword.value.trim()) {
-    results.value = { contents: [], courses: [], products: [], circles: [], classics: [], ebooks: [], users: [] }
+    results.value = { contents: [], courses: [], products: [], circles: [], classics: [], users: [] }
     aiSummaryText.value = ''
     loading.value = false
     return
@@ -385,7 +322,7 @@ async function loadResults() {
     searchApi.saveHistory(keyword.value) // 静默保存历史，不阻塞
     const r = results.value
     const hasAny = r.contents.length || r.courses.length || r.products.length ||
-      r.circles.length || r.classics.length || r.ebooks.length || r.users.length
+      r.circles.length || r.classics.length || r.users.length
     if (activeTab.value === 'all' && hasAny) {
       loadAiSummary()
     } else {
