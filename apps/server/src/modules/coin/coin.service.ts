@@ -311,6 +311,25 @@ export class CoinService {
     return DEFAULT_RECHARGE_TIERS;
   }
 
+  /**
+   * 按「基础充值币数」解析对应档位的赠币。
+   * 🔴 赠币是营销（充得多送得多），只加币、绝不加价 —— 实付永远按基础币数收，
+   *    赠币由服务端按档位权威计算，绝不能相信前端把 (基础+赠) 当作要付款的币数传上来
+   *    （那会让用户为赠币多付钱）。基础币数精确匹配某档位才送；自定义金额不匹配→不送。
+   */
+  private async resolveRechargeBonus(baseCoin: number): Promise<number> {
+    try {
+      const tiers = await this.getRechargeTiers();
+      const tier = (tiers as Array<{ amountCoin?: number; bonus?: number }>).find(
+        (t) => Number(t.amountCoin) === baseCoin,
+      );
+      const bonus = tier ? Number(tier.bonus ?? 0) : 0;
+      return bonus > 0 ? bonus : 0;
+    } catch {
+      return 0; // 档位不可用时不影响到账，只是不送赠币
+    }
+  }
+
   /** 获取当前汇率（国学币:人民币），优先从 ConfigSystem 读取 */
   async getCoinRate(): Promise<number> {
     if (this.systemService) {
@@ -453,9 +472,11 @@ export class CoinService {
     if (attach.type !== "COIN_RECHARGE") return;
 
     const userId = attach.userId as string;
-    const amountCoin = attach.amountCoin as number;
+    // 🔴 attach.amountCoin 是用户实付对应的「基础币数」，不含赠币。
+    //    赠币由服务端按档位算并只在到账时加，绝不参与实付金额核对（防「为赠币多付钱」）。
+    const baseCoin = attach.amountCoin as number;
 
-    if (!userId || !amountCoin) {
+    if (!userId || !baseCoin) {
       this.logger.error("充值回调参数缺失", attach);
       return;
     }
@@ -477,7 +498,8 @@ export class CoinService {
       });
       if (existing?.status === "PAID") return;
 
-      const amountRmb = amountCoin / (await this.getCoinRate());
+      // 实付应付金额只按「基础币数」算，赠币不参与核对
+      const amountRmb = baseCoin / (await this.getCoinRate());
 
       // M2 金额比对：attach 是我方下单侧写入的期望值，入账前必须与微信实付金额(amount.total·分)核对
       const wxTotal = (body.amount as Record<string, unknown> | undefined)?.total;
@@ -488,11 +510,14 @@ export class CoinService {
         return;
       }
 
+      // 到账 = 基础币 + 档位赠币（赠币只加币不加价，服务端权威计算）
+      const bonus = await this.resolveRechargeBonus(baseCoin);
+      const creditCoin = baseCoin + bonus;
       await this.recharge(userId, {
-        amountCoin,
+        amountCoin: creditCoin,
         payMethod: "WECHAT",
         orderNo,
-        description: `微信支付充值${amountCoin}币`,
+        description: bonus > 0 ? `微信支付充值${baseCoin}币+赠${bonus}币` : `微信支付充值${baseCoin}币`,
       });
 
       // 更新充值金额
@@ -501,7 +526,7 @@ export class CoinService {
         data: { amountRmb, status: "PAID", paidAt: new Date() },
       });
 
-      this.logger.log(`用户 ${userId} 充值 ${amountCoin} 币成功, 微信订单: ${orderNo}`);
+      this.logger.log(`用户 ${userId} 充值 ${creditCoin} 币成功（实付${amountRmb}元）, 微信订单: ${orderNo}`);
     } finally {
       await this.redis.del(lockKey);
     }

@@ -85,8 +85,9 @@ async function handleSubmit() {
   isSubmitting.value = true
   try {
     const selectedOpt = options.value.find(o => o.coins === selectedCoins.value)
-    // 到账币数：档位=基础币+赠送币；自定义=金额(元)×10
-    const amountCoin = selectedOpt ? (selectedOpt.coins + selectedOpt.bonus) : (parseInt(customAmount.value) || 0) * 10
+    // 🔴 提交给后端的是「基础充值币数」，不含赠币 —— 赠币只加币不加价，由后端按档位权威发放。
+    //    若把 (基础+赠) 传上去，后端会按总币数/汇率收款，等于让用户为赠币多付钱（反向收费）。
+    const amountCoin = selectedOpt ? selectedOpt.coins : (parseInt(customAmount.value) || 0) * 10
     // #ifdef MP-WEIXIN
     // 微信小程序内且选微信支付：走真实微信支付
     if (payMethod.value === 'wechat') {
