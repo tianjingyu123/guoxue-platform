@@ -12,8 +12,14 @@
       <view class="re-save-btn" :class="{ disabled: isSaving }" @tap="handleSave">{{ isSaving ? '保存中…' : '保存' }}</view>
     </view>
 
+    <!-- 加载失败：如实报错，不静默展示空书架让圈主以为"书库是空的" -->
+    <view v-if="loadError" class="re-tip re-tip--err">
+      <app-icon name="alert-circle" :size="28" color="#C41E3A" />
+      <text class="re-tip-t">{{ loadError }}</text>
+    </view>
+
     <!-- 说明提示 -->
-    <view class="re-tip">
+    <view v-else class="re-tip">
       <app-icon name="crown" :size="28" color="#C41E3A" />
       <text class="re-tip-t">圈主推荐的电子书将显示在圈子首页，吸引成员购买阅读（最多 12 本）</text>
     </view>
@@ -84,38 +90,46 @@
 
 <script setup lang="ts">
 /**
- * 推荐电子书（从原型 app/circles/[id]/recommend-ebook/page.tsx 高保真迁移）
- * 浅色书库主题，双Tab选书/已推荐，最多推荐12本
+ * 圈子推荐电子书
+ *
+ * 🔴 2026-07-14 真连：此前整页是假的 —— 8 本写死的书（《滴天髓》68元、8560人读…）、
+ *    圈子名写死「八字命理研习圈」、保存是 `setTimeout(800)` 后直接返回。
+ *    圈主辛辛苦苦挑完书点保存，什么都没存下；后端 GET/PUT /circles/:id/recommended-ebooks 一直都在。
  */
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
 import { formatPrice } from '@/utils/format'
+import { apiGet, apiPut } from '@/utils/request'
+import { ebookApi, type EbookStoreBook } from '@/lib/ebook-data'
+import { circleDetailApi } from '@/lib/circle-detail-data'
 
-const circleInfo = { id: '1', name: '八字命理研习圈' }
+const circleInfo = ref<{ id: string; name: string }>({ id: '', name: '' })
 
-interface Book { id: string; title: string; author: string; cover: string; price: number; rating: number; readers: number; isMemberFree: boolean; isRecommended: boolean }
-const allBooks: Book[] = [
-  { id: '1', title: '《滴天髓》白话精解', author: '古籍研究院', cover: '', price: 68, rating: 4.9, readers: 8560, isMemberFree: false, isRecommended: true },
-  { id: '2', title: '《穷通宝鉴》注解版', author: '命理古籍馆', cover: '', price: 0, rating: 4.7, readers: 5280, isMemberFree: true, isRecommended: false },
-  { id: '3', title: '八字实战案例精选 100例', author: '玄微子', cover: '', price: 48, rating: 4.8, readers: 12800, isMemberFree: false, isRecommended: true },
-  { id: '4', title: '紫微斗数入门到精通', author: '星命研究所', cover: '', price: 58, rating: 4.6, readers: 7320, isMemberFree: false, isRecommended: false },
-  { id: '5', title: '《三命通会》现代解析', author: '传统命学院', cover: '', price: 38, rating: 4.5, readers: 4160, isMemberFree: true, isRecommended: false },
-  { id: '6', title: '六爻预测实战手册', author: '易学大师', cover: '', price: 42, rating: 4.7, readers: 6890, isMemberFree: false, isRecommended: false },
-  { id: '7', title: '四柱预测学精讲', author: '邵伟华传承', cover: '', price: 0, rating: 4.8, readers: 15600, isMemberFree: false, isRecommended: false },
-  { id: '8', title: '命理十神详解', author: '玄微子', cover: '', price: 29, rating: 4.9, readers: 9320, isMemberFree: true, isRecommended: false },
-]
+/** 页面用的书条目：由真实电子书城数据映射（readers 用真实销量，不再编造） */
+interface Book { id: string; title: string; author: string; cover: string; price: number; rating: number; readers: number; isMemberFree: boolean }
+const allBooks = ref<Book[]>([])
+const loading = ref(true)
+const loadError = ref('')
 
 const coverColors = ['#1e3a5f', '#1a4731', '#4a1942', '#3d1f00', '#2d3561', '#1e3a2f', '#3a1a1a', '#1a2a4a']
-function coverColor(id: string) { return coverColors[parseInt(id) % coverColors.length] }
+/** 书 id 是 uuid（不是数字），用字符和做稳定取色 */
+function coverColor(id: string) {
+  let s = 0
+  for (let i = 0; i < (id || '').length; i++) s += id.charCodeAt(i)
+  return coverColors[s % coverColors.length]
+}
 
 const search = ref('')
 const activeTab = ref<'search' | 'recommended'>('recommended')
 const isSaving = ref(false)
-const recommended = ref<string[]>(allBooks.filter((b) => b.isRecommended).map((b) => b.id))
+const recommended = ref<string[]>([])
 
-const filteredBooks = computed(() => allBooks.filter((b) => b.title.includes(search.value) || b.author.includes(search.value)))
-const recommendedBooks = computed(() => allBooks.filter((b) => recommended.value.includes(b.id)))
+const filteredBooks = computed(() =>
+  allBooks.value.filter((b) => b.title.includes(search.value) || b.author.includes(search.value)),
+)
+const recommendedBooks = computed(() => allBooks.value.filter((b) => recommended.value.includes(b.id)))
 function isRec(id: string) { return recommended.value.includes(id) }
 function toggleRecommend(id: string) {
   if (recommended.value.includes(id)) {
@@ -125,12 +139,59 @@ function toggleRecommend(id: string) {
     recommended.value = [...recommended.value, id]
   }
 }
+
+onLoad((opt) => {
+  circleInfo.value.id = String((opt as Record<string, string>)?.id || (opt as Record<string, string>)?.circleId || '')
+})
+
+function mapBook(b: EbookStoreBook): Book {
+  return {
+    id: b.id, title: b.title, author: b.author, cover: '',
+    price: b.price, rating: b.rating, readers: b.salesCount,
+    isMemberFree: !!b.isMemberFree,
+  }
+}
+
+async function load() {
+  loading.value = true
+  loadError.value = ''
+  try {
+    const [books, recIds, detail] = await Promise.all([
+      ebookApi.store(),
+      apiGet<string[] | { ebookIds?: string[] }>(`/circles/${circleInfo.value.id}/recommended-ebooks`),
+      circleDetailApi.detail(circleInfo.value.id).catch(() => null),
+    ])
+    allBooks.value = books.map(mapBook)
+    recommended.value = Array.isArray(recIds) ? recIds : (recIds?.ebookIds ?? [])
+    if (detail?.name) circleInfo.value.name = detail.name
+  } catch (e) {
+    loadError.value = (e as Error)?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(() => {
+  if (!circleInfo.value.id) {
+    loadError.value = '缺少圈子参数，请从圈子管理页进入'
+    loading.value = false
+    return
+  }
+  load()
+})
+
 async function handleSave() {
   if (isSaving.value) return
   isSaving.value = true
-  await new Promise((r) => setTimeout(r, 800))
-  isSaving.value = false
-  goBack()
+  try {
+    await apiPut(`/circles/${circleInfo.value.id}/recommended-ebooks`, { ebookIds: recommended.value })
+    uni.showToast({ title: '已保存', icon: 'success' })
+    setTimeout(() => goBack(), 800)
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '保存失败', icon: 'none' })
+  } finally {
+    isSaving.value = false
+  }
 }
 </script>
 

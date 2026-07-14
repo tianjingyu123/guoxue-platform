@@ -61,7 +61,7 @@
       </view>
 
       <!-- 热门搜索 -->
-      <view class="sec">
+      <view v-if="hotList.length" class="sec">
         <view class="sec-head">
           <view class="sec-title-row">
             <app-icon name="flame" :size="32" color="#e8743b" />
@@ -86,8 +86,8 @@
         </view>
       </view>
 
-      <!-- 猜你想搜 -->
-      <view class="sec">
+      <!-- 猜你想搜（无推荐时整栏隐藏，不露空标题） -->
+      <view v-if="guessList.length" class="sec">
         <view class="sec-head">
           <text class="sec-title">猜你想搜</text>
         </view>
@@ -117,6 +117,7 @@ import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import AiSearchModal from '@/components/common/ai-search-modal.vue'
 import { navigateTo, navigateBack } from '@/utils/router'
+import { searchApi, type HotSearchItem } from '@/lib/search-data'
 import { track } from '@/composables/useTrack'
 
 // ===== UI 状态 =====
@@ -125,26 +126,29 @@ const autoFocus = ref(false)
 const aiModalOpen = ref(false)
 const keyword = ref('')
 
-// ===== Mock 数据（照抄原型 lib/api/search.ts，交接后由 Claude Code 接入接口）=====
-// @data-needs: GET /api/search/history → string[]
-const historyList = ref<string[]>(['八字命理', '紫微斗数', '风水布局', '梅花易数'])
+/**
+ * 🔴 2026-07-14 真连：这三块原来全是写死的假数据（「八字入门教程 12.8万」等 8 条假热搜、
+ *    4 条假历史、6 条假"猜你想搜"），而后端 /search/hot、/search/history、/search/suggest 一直都在。
+ *    最荒唐的是历史：doSearch 一直在往后端 saveHistory 写，前端却从来不读 —— 写进去的永远看不见，
+ *    用户看到的始终是那 4 个假词。
+ */
+const historyList = ref<string[]>([])
+const hotList = ref<HotSearchItem[]>([])
+const guessList = ref<string[]>([])
 
-// @data-needs: GET /api/search/hot → { keyword, count, hot }[]
-const hotList = ref([
-  { keyword: '八字入门教程', count: '12.8万', hot: true },
-  { keyword: '紫微斗数排盘', count: '9.6万', hot: true },
-  { keyword: '六爻预测', count: '7.2万', hot: true },
-  { keyword: '奇门遁甲', count: '5.4万', hot: false },
-  { keyword: '风水罗盘使用', count: '4.1万', hot: false },
-  { keyword: '手相面相', count: '3.5万', hot: false },
-  { keyword: '塔罗牌占卜', count: '2.9万', hot: false },
-  { keyword: '黄历择吉', count: '2.3万', hot: false },
-])
-
-// @data-needs: GET /api/search/guess → string[]
-const guessList = ref<string[]>([
-  '今日运势', '生肖配对', '姓名测试', '周公解梦', '星座运程', '财运分析',
-])
+/** 热搜 + 历史并行拉取；任一失败都不阻断页面（搜索框本身要能用） */
+async function loadPanels() {
+  const [hot, history] = await Promise.all([
+    searchApi.getHot(8).catch(() => [] as HotSearchItem[]),
+    searchApi.getHistory().catch(() => [] as string[]),
+  ])
+  hotList.value = hot
+  historyList.value = history
+  // 「猜你想搜」按热搜首词做语义相似推荐；没有热搜就不显示这一栏（不再编 6 个假词）
+  if (hot.length) {
+    guessList.value = await searchApi.getSuggestions(hot[0].keyword, 6).catch(() => [])
+  }
+}
 
 onLoad((opt) => {
   try {
@@ -158,24 +162,33 @@ onLoad((opt) => {
   } else {
     autoFocus.value = true
   }
+  loadPanels()
 })
 
 function goBack() {
   navigateBack()
 }
 
-function clearHistory() {
-  historyList.value = []
+async function clearHistory() {
+  const list = historyList.value
+  historyList.value = [] // 先清 UI，失败再回滚（清历史是高频轻操作，不该等一个 loading）
+  try {
+    await searchApi.clearHistory()
+  } catch (e) {
+    historyList.value = list
+    uni.showToast({ title: (e as Error)?.message || '清空失败', icon: 'none' })
+  }
 }
 
 function doSearch(kw: string) {
   const q = (kw || '').trim()
   if (!q) return
   track.search(q) // 搜索词埋点（搜索词分析）
-  // 记录历史（UI 临时，交接后由后端持久化）
+  // 真持久化历史（后端 SearchHistory 表 —— 也是热搜词频的数据源）；本地先插一条让用户立刻看见
   if (!historyList.value.includes(q)) {
     historyList.value = [q, ...historyList.value].slice(0, 10)
   }
+  searchApi.saveHistory(q) // fire-and-forget：失败不该挡住跳转
   navigateTo(`/search/result?keyword=${encodeURIComponent(q)}`)
 }
 </script>

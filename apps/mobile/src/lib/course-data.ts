@@ -325,6 +325,15 @@ export const courseApi = {
   replyReview: (reviewId: string, reply: string) =>
     apiPut(`/courses/reviews/${reviewId}/reply`, { reply }),
 
+  /**
+   * 学员提交课程评价 — POST /courses/:id/reviews
+   * 🔴 此端点后端一直都在，但前端注释写的是「需后端补 POST /courses/:id/reviews」，
+   *    提交时只弹「评价功能即将开放」→ 用户写的评价被直接丢弃。
+   * 后端会校验：未购买 403、已评价 400。
+   */
+  createReview: (courseId: string, rating: number, content: string) =>
+    apiPost(`/courses/${courseId}/reviews`, { rating, content }),
+
   /** 课程首页 — GET /courses 列表 + 前端派生（banner/分类=运营配置；错误传播给页面三态，不回退假数据）*/
   async getHome(): Promise<{
     banners: BannerItem[]

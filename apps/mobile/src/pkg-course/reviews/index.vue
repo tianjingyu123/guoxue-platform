@@ -6,7 +6,8 @@
  * 真连接口：
  *   - 评价读取：courseApi.getReviews(courseId)
  *   - 讲师回复：courseApi.replyReview(reviewId, reply)  ← course-data 已有
- *   - 写评价（学员提交新评价）：course-data 暂无对应方法 → 诚实降级（提交时 toast 提示，见 submitReview）
+ *   - 写评价（学员提交新评价）：courseApi.createReview(courseId, rating, content) → POST /courses/:id/reviews
+ *     （2026-07-14 接线：此前是「即将开放」假 toast，用户写的评价被丢弃；后端端点其实一直都在）
  * onLoad 取 evt.courseId（兼容 id）；role=instructor 进讲师视角
  */
 import { ref, computed } from 'vue'
@@ -90,11 +91,15 @@ async function submitReview() {
   }
   writeSubmitting.value = true
   try {
-    // 诚实降级：course-data 暂无「学员提交课程评价」写接口
-    // （后端评价通常由订单完成后评价链路产生，此处需后端补 POST /courses/:id/reviews）
-    // @data-needs: 学员提交课程评价 POST /courses/:id/reviews { rating, content }
-    uni.showToast({ title: '评价功能即将开放', icon: 'none' })
+    // 🔴 原来这里是「评价功能即将开放」的假 toast，用户写的评价被直接丢弃 ——
+    //    而后端 POST /courses/:id/reviews 一直都在（注释却写着"需后端补"）。
+    await courseApi.createReview(courseId.value, writeRating.value, writeContent.value.trim())
     showWriteSheet.value = false
+    uni.showToast({ title: '评价已发布', icon: 'success' })
+    await loadReviews() // 立刻回读，让用户看到自己的评价真的在列表里
+  } catch (e) {
+    // 后端会挡：未购买 403 / 已评价 400 —— 如实回显，不吞掉
+    uni.showToast({ title: (e as Error)?.message || '发布失败，请稍后重试', icon: 'none' })
   } finally {
     writeSubmitting.value = false
   }

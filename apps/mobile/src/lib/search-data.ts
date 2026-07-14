@@ -1,4 +1,4 @@
-import { apiGet, apiPost } from '@/utils/request'
+import { apiGet, apiPost, apiDelete } from '@/utils/request'
 
 /**
  * 全局搜索数据层。
@@ -176,4 +176,69 @@ export const searchApi = {
   async saveHistory(keyword: string): Promise<void> {
     try { await apiGet(`/search/history/save?keyword=${encodeURIComponent(keyword)}`) } catch { /* 非关键 */ }
   },
+
+  /**
+   * 热门搜索 — GET /search/hot
+   * 🔴 2026-07-14 接线：搜索页原本是 8 条写死的假热搜（「八字入门教程 12.8万」…），
+   *    而后端按真实词频聚合（无数据时回退后台 search_hot_words 配置）。
+   *    历史更荒唐：saveHistory 一直在往后端写，但前端从来不读 —— 写进去的永远看不见。
+   */
+  async getHot(limit = 10): Promise<HotSearchItem[]> {
+    const rows = await apiGet<RawHotItem[]>(`/search/hot?limit=${limit}`)
+    const list = Array.isArray(rows) ? rows : []
+    return list.map((r, i) => ({
+      keyword: r.keyword,
+      count: formatSearchCount(r.count ?? r._count?.keyword ?? 0),
+      hot: i < 3, // 前三名标「热」，与原型一致（不再写死）
+    }))
+  },
+
+  /** 我的搜索历史 — GET /search/history（未登录返回空数组，不报错） */
+  async getHistory(): Promise<string[]> {
+    try {
+      const rows = await apiGet<Array<{ keyword?: string }>>('/search/history')
+      return (Array.isArray(rows) ? rows : []).map((r) => r?.keyword || '').filter(Boolean)
+    } catch {
+      return [] // 未登录/失败 → 不展示历史，不打扰
+    }
+  },
+
+  /** 清空搜索历史 — DELETE /search/history */
+  async clearHistory(): Promise<void> {
+    await apiDelete('/search/history')
+  },
+
+  /** 搜索建议（猜你想搜）— GET /search/suggest?q= */
+  async getSuggestions(q: string, limit = 6): Promise<string[]> {
+    try {
+      const rows = await apiGet<Array<string | { keyword?: string }>>(
+        `/search/suggest?q=${encodeURIComponent(q)}&limit=${limit}`,
+      )
+      return (Array.isArray(rows) ? rows : [])
+        .map((r) => (typeof r === 'string' ? r : r?.keyword || ''))
+        .filter(Boolean)
+    } catch {
+      return []
+    }
+  },
+}
+
+/** 后端热搜原始行：真实词频聚合走 _count.keyword，回退配置走 count */
+interface RawHotItem {
+  keyword: string
+  count?: number
+  _count?: { keyword?: number }
+}
+
+export interface HotSearchItem {
+  keyword: string
+  count: string
+  hot: boolean
+}
+
+/** 搜索次数展示：1.2万 / 3560 —— 原型里的「12.8万」是写死的，这里按真实值格式化 */
+function formatSearchCount(n: number): string {
+  if (!n || n < 0) return '0'
+  if (n >= 10000) return `${(n / 10000).toFixed(1)}万`
+  return String(n)
 }

@@ -66,6 +66,10 @@ export const quickFunctions: { icon: string; label: string; href: string; color:
   { icon: 'shield-check', label: '我的资质', href: '/pkg-creator/my-qualifications/index', color: '#16A34A' },
   { icon: 'users', label: '我的圈子', href: '/pkg-circle/my-circles/index', color: '#722ED1' },
   { icon: 'radio', label: '我的直播', href: '/pkg-live/manage/index', color: '#C41E3A' },
+  // 🔴 创作中心（作品/数据/收益/提现）整棵树此前**外部零入口**——只有它自己内部页能互跳，
+  //    从个人中心根本进不去。创作不需要角色（人人可发短视频），所以不该走 roleHref 角色映射
+  //    （后端 RoleType 枚举里压根没有 CREATOR，"角色映射漏了 CREATOR"是个错误结论）。
+  { icon: 'video', label: '创作中心', href: '/videos/creator', color: '#722ED1' },
   { icon: 'sticky-note', label: '我的笔记', href: '/mine/notes', color: '#C9A96E' }, // 统一页(古籍+电子书聚合)·原/ebook/notes只有电子书
   { icon: 'heart', label: '我的收藏', href: '/favorites', color: '#C41E3A' },
   { icon: 'clipboard-list', label: '我的申请', href: '/mine/applications', color: '#FA8C16' },

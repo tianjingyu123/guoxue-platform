@@ -7,7 +7,7 @@
  * 降级（后端无来源·不造假）：
  * - 成员行"本月活跃 N 天/帖子 N"无字段 → 仅加入时间；嘉宾行分账比例来自 guests 真实 shareRate。
  * - 帖子卡"评论/点赞/浏览"统计：posts 列表无字段 → 不显示；"被举报"筛选与"删除并禁言"无举报/禁言端点 → 不做。
- * - 推荐电子书区 → 入口行复用已有 recommend-ebook.vue（后端 GET/PUT recommended-ebooks 已真连该页）。
+ * - 推荐电子书区 → 入口行复用已有 recommend-ebook.vue（该页 2026-07-14 才真连；此前是 8 本写死的书 + setTimeout 假保存）。
  * - 设置"圈主的话"circle_intro 图文块后端缺 → 不放；加入方式 type(FREE/PAID/YEARLY) UpdateCircleDto 不收 →
  *   类型只读展示：免费圈可切"免费↔审批"（needApproval），付费圈可改价格（price），跨类型切换禁用并说明。
  */
