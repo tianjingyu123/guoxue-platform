@@ -128,7 +128,6 @@ interface RawBaziResponse {
   geJu?: unknown
 }
 /** 八字古籍参考内容原始响应 */
-interface RawClassicContent { title?: string; original?: string; translation?: string }
 
 const _PILLAR_BE = { year: 'nian', month: 'yue', day: 'ri', hour: 'shi' } as const
 const _SS_PILLAR_FE: Record<string, string> = { nian: 'year', yue: 'month', ri: 'day', shi: 'hour' }
@@ -319,21 +318,13 @@ export const baziApi = {
     return { items: Array.isArray(res?.items) ? res.items : [], pricing: res?.pricing ?? null }
   },
 
-  /** 古籍参考内容（返回确定的视图模型，供页面直接渲染） */
+  /**
+   * 古籍参考内容 —— 本地随包内容，非假数据。
+   * 后端没有 /paipan/bazi/classics 端点（不是漏了，是这几篇古籍原文+白话就随包发，
+   * 不值得为它开一条网络请求）。原先这里写成「先请求、失败再回落本地」的形状，
+   * 但请求的端点根本不存在，等于每次都白跑一趟 404 再回落 —— 已收敛为直接读本地。
+   */
   async classicsRef(bookId: string): Promise<{ title: string; original: string; translation: string } | null> {
-    if (true) return _mockClassicsContent[bookId] || null
-    try {
-      const data = await apiGet<RawClassicContent>(`/paipan/bazi/classics/${bookId}`)
-      return data
-        ? { title: data.title || '', original: data.original || '', translation: data.translation || '' }
-        : (_mockClassicsContent[bookId] || null)
-    } catch { return _mockClassicsContent[bookId] || null }
-  },
-
-  /** 保存排盘记录 */
-  async save(input: Record<string, unknown>) {
-    if (true) return { id: 'mock-bazi-id' }
-    try { return await apiGet<{ id?: string }>('/paipan/bazi/save') }
-    catch { return { id: 'mock-bazi-id' } }
+    return _mockClassicsContent[bookId] || null
   },
 }

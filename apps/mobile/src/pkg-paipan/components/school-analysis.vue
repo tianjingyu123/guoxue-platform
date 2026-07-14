@@ -5,7 +5,7 @@
  * 数据流：首次点卡片时懒创建排盘记录（POST /paipan/bazi）→ analyze(school)；
  * 若页面带 record-id（如从历史进入）则进场即拉 GET analyses 回显。
  */
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import {
   baziApi,
@@ -83,6 +83,21 @@ async function loadHistory() {
   }
 }
 onMounted(loadHistory)
+
+/**
+ * 结果页排盘成功后才拿到 recordId（登录用户会把盘同步落库），此时才 mount 完。
+ * ref 只在初始化取一次 props，不 watch 的话这个 id 永远进不来 ——
+ * 后果是 ensureRecord() 又去建一条重复记录，且已有点评回显不出来。
+ */
+watch(
+  () => props.recordId,
+  (id) => {
+    if (id && id !== recordId.value) {
+      recordId.value = id
+      loadHistory()
+    }
+  },
+)
 
 /** 静默补拉计费元数据（懒建记录后 pricing 尚未拉到时用；失败不打扰，走保守确认策略） */
 async function ensurePricing() {

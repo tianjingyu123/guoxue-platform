@@ -15,6 +15,7 @@ import SchoolAnalysis from '../components/school-analysis.vue'
 import { baziApi } from '@/lib/bazi-result-data'
 import { saveBaziHistory } from './bazi-history'
 import { navigateBack } from '@/utils/router'
+import { getToken } from '@/utils/storage'
 import { BRAND } from '@/lib/brand'
 
 const activeMode = ref<'traditional' | 'analysis'>('traditional')
@@ -47,7 +48,7 @@ async function loadResult(q: Record<string, string> = {}) {
       minute: q.minute ? Number(q.minute) : 31,
     })
     baziResult.value = result
-    saveRecord(result)
+    await saveRecord(result)
   } catch (e) {
     error.value = (e as Error)?.message || '加载失败'
   } finally {
@@ -55,10 +56,21 @@ async function loadResult(q: Record<string, string> = {}) {
   }
 }
 
-/** 排盘成功后落本地记录（记录页读它；此前八字排完根本不落盘，记录页全是假数据） */
-function saveRecord(result: any) {
+/**
+ * 排盘成功后落记录 —— 本地 + 后端双写。
+ *
+ * 🔴 此前只写本地：后端 PaipanRecord 表因此长期是空的，导致
+ *    ① AI 智能解盘页（读 GET /paipan/bazi）对所有人恒空；
+ *    ② 「请师父点评」每次都要临时补建一条记录；
+ *    ③ 换设备/重装后排盘记录全丢。
+ *    盘明明排出来了，后端却不知道 —— 现在补上这一步。
+ *
+ * 未登录只写本地（不弹登录打断排盘），已登录才同步落库；
+ * 落库失败也不打断（本地记录已在，用户无感），只是拿不到 serverId。
+ */
+async function saveRecord(result: any) {
   const sz = result?.siZhu || {}
-  saveBaziHistory({
+  const params = {
     name: userInput.name || '未命名',
     gender: userInput.gender,
     year: userInput.year, month: userInput.month, day: userInput.day,
@@ -70,7 +82,31 @@ function saveRecord(result: any) {
       dayGan: sz.day?.gan || '', dayZhi: sz.day?.zhi || '',
       hourGan: sz.hour?.gan || '', hourZhi: sz.hour?.zhi || '',
     },
-  })
+  }
+
+  // 从历史/记录页带 id 进来的，本就是后端已有的盘，不必重复落库
+  if (recordIdFromQuery.value) {
+    saveBaziHistory({ ...params, serverId: recordIdFromQuery.value })
+    return
+  }
+
+  let serverId: string | undefined
+  if (getToken()) {
+    try {
+      serverId = (await baziApi.createRecord({
+        name: userInput.name || undefined,
+        gender: userInput.gender,
+        year: userInput.year, month: userInput.month, day: userInput.day,
+        hour: userInput.hour, minute: userInput.minute,
+      })).id
+      // 交给 school-analysis：它拿到 recordId 就不会再自己建一条
+      recordIdFromQuery.value = serverId
+    } catch {
+      // 静默：本地记录仍然写，用户看得到自己的盘
+    }
+  }
+
+  saveBaziHistory({ ...params, serverId })
 }
 
 onLoad((q: Record<string, string> = {}) => {

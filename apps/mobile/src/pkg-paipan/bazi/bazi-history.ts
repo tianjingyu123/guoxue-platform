@@ -15,6 +15,12 @@ export interface BaziParams {
   hour: number
   minute: number
   city?: string
+  /**
+   * 后端 PaipanRecord 的 id（已登录时排盘会同步落库）。
+   * 有它才能请师父点评 / 做 AI 解盘 —— 那两个功能都是拿 recordId 去后端取盘的。
+   * 未登录排的盘只有本地记录，没有这个 id，属正常降级。
+   */
+  serverId?: string
   /** 四柱八字（写入时由排盘结果带上，记录卡直接展示，不必重算） */
   pillars?: {
     yearGan: string; yearZhi: string
