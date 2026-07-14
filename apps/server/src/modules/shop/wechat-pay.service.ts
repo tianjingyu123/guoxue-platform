@@ -1,5 +1,5 @@
 import { Injectable, Logger, Inject, Optional } from "@nestjs/common";
-import { createSign, createVerify, randomUUID, createDecipheriv } from "crypto";
+import { createSign, createVerify, randomUUID, createDecipheriv, publicEncrypt, constants } from "crypto";
 import { readFileSync } from "fs";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
@@ -65,11 +65,16 @@ export class WechatPayService {
     return { authorization, timestamp, nonce };
   }
 
-  /** 调用微信支付 V3 API */
+  /**
+   * 调用微信支付 V3 API。
+   * extraHeaders 用于携带 Wechatpay-Serial —— 请求体里含敏感字段密文（如商家转账的收款人姓名）时，
+   * 必须告诉微信用的是哪个平台证书公钥加的密，否则微信解不开、直接报错。
+   */
   private async callApi(
     method: "GET" | "POST",
     path: string,
     body?: Record<string, any>,
+    extraHeaders?: Record<string, string>,
   ): Promise<Record<string, unknown>> {
     const bodyStr = body ? JSON.stringify(body) : "";
     const { authorization } = this.sign(method, path, bodyStr);
@@ -84,6 +89,7 @@ export class WechatPayService {
           "Accept": "application/json",
           "User-Agent": "guoxue-platform/1.0",
           ...(method === "POST" ? { "Idempotency-Key": `${Date.now()}-${Math.random().toString(36).slice(2, 10)}` } : {}),
+          ...extraHeaders,
         },
         body: bodyStr || undefined,
         signal: AbortSignal.timeout(15000),
@@ -152,12 +158,126 @@ export class WechatPayService {
     return valid;
   }
 
+  // ───────── 商家转账（提现代付）─────────
+  //
+  // 【为什么是这个接口】微信「企业付款到银行卡」已下线，「商家转账到零钱」是唯一出路 ——
+  // 只能打零钱、必须要 openid。银行卡提现只能走汇付代付，支付宝账号走支付宝转账。
+  //
+  // 【一个会改变产品流程的硬约束】新版商家转账不是无感到账：
+  // 发起后状态可能是 WAIT_USER_CONFIRM，用户要在微信里点「确认收款」，钱才真正到账
+  // （超时未确认自动退回）。所以提现流程必须是：
+  //   审核通过 → 发起转账（拿 packageInfo）→ 通知用户确认 → 用户点确认 → 回调 SUCCESS → 标记 PAID
+  // 绝不能一发起就把提现标成已打款 —— 那是「钱没出去却记成出去了」。
+  //
+  // 【幂等】outBillNo 就是我们的 payoutRef（提现出款幂等键，DB 唯一约束）。
+  // 同一个 outBillNo 重复发起，微信返回同一笔单，不会重复打款。
+
+  /**
+   * 发起商家转账到零钱。
+   * @param outBillNo 商户单号 = payoutRef（幂等键）
+   * @param openid    收款人 openid（必须是本商户号绑定 appid 下的 openid）
+   * @param amountFen 金额（分）
+   * @param userName  收款人真实姓名；转账金额 ≥ 2000 元时微信要求必填，会加密提交
+   */
+  async transferToBalance(params: {
+    outBillNo: string;
+    openid: string;
+    amountFen: number;
+    remark: string;
+    userName?: string;
+    /** 转账场景 ID，需先在商户平台申请开通。佣金报酬 = 1005 */
+    sceneId?: string;
+    /** 场景报备信息（微信要求随场景提交，字段随场景而异） */
+    sceneReportInfos?: Array<{ info_type: string; info_content: string }>;
+    notifyUrl?: string;
+  }) {
+    const body: Record<string, unknown> = {
+      appid: this.appId,
+      out_bill_no: params.outBillNo,
+      transfer_scene_id: params.sceneId || process.env.WECHAT_TRANSFER_SCENE_ID || "1005",
+      openid: params.openid,
+      transfer_amount: params.amountFen,
+      transfer_remark: params.remark.slice(0, 32),
+      notify_url: params.notifyUrl || process.env.WECHAT_TRANSFER_NOTIFY_URL || "",
+      transfer_scene_report_infos:
+        params.sceneReportInfos || [{ info_type: "岗位类型", info_content: "推广员" }, { info_type: "报酬说明", info_content: "推广佣金" }],
+    };
+
+    // 收款人姓名需用平台证书公钥加密，并在 Wechatpay-Serial 头声明证书序列号
+    const headers: Record<string, string> = {};
+    if (params.userName) {
+      const { ciphertext, serialNo } = await this.encryptSensitive(params.userName);
+      body.user_name = ciphertext;
+      headers["Wechatpay-Serial"] = serialNo;
+    }
+
+    const result = (await this.callApi(
+      "POST",
+      "/v3/fund-app/mch-transfer/transfer-bills",
+      body,
+      headers,
+    )) as Record<string, unknown>;
+
+    return {
+      /** 微信转账单号 */
+      transferBillNo: result.transfer_bill_no as string,
+      outBillNo: result.out_bill_no as string,
+      /** ACCEPTED / PROCESSING / WAIT_USER_CONFIRM / TRANSFERING / SUCCESS / FAIL / CANCELLED */
+      state: result.state as string,
+      /**
+       * 待用户确认收款时返回。前端需用它调起微信确认页（wx.requestMerchantTransfer）。
+       * 拿不到它，用户就没法确认，钱永远到不了账。
+       */
+      packageInfo: (result.package_info as string) || null,
+      createTime: result.create_time as string,
+      raw: result,
+    };
+  }
+
+  /** 按商户单号（payoutRef）查转账状态 —— 回调之外的兜底核实手段 */
+  async queryTransferByOutBillNo(outBillNo: string) {
+    const result = (await this.callApi(
+      "GET",
+      `/v3/fund-app/mch-transfer/transfer-bills/out-bill-no/${outBillNo}`,
+    )) as Record<string, unknown>;
+    return {
+      transferBillNo: result.transfer_bill_no as string,
+      outBillNo: result.out_bill_no as string,
+      state: result.state as string,
+      failReason: (result.fail_reason as string) || null,
+      raw: result,
+    };
+  }
+
+  /** 撤销转账（仅 WAIT_USER_CONFIRM / ACCEPTED 可撤） */
+  async cancelTransfer(outBillNo: string) {
+    return this.callApi("POST", `/v3/fund-app/mch-transfer/transfer-bills/out-bill-no/${outBillNo}/cancel`);
+  }
+
   /** 根据序列号获取指定平台证书 */
   async getPlatformCertBySerial(serialNo: string): Promise<string> {
     const certs = await this.getPlatformCerts();
     const pem = certs.get(serialNo);
     if (!pem) throw new BusinessException(ErrorCode.THIRD_WECHAT_FAILED, `平台证书不存在: ${serialNo}`);
     return pem;
+  }
+
+  /**
+   * 敏感字段加密（RSA-OAEP + 微信平台证书公钥）。
+   * 商家转账的收款人姓名必须密文提交（≥2000元时必填），且要在 Wechatpay-Serial 头里
+   * 声明用的是哪个平台证书 —— 否则微信解不开。
+   */
+  async encryptSensitive(plaintext: string): Promise<{ ciphertext: string; serialNo: string }> {
+    const certs = await this.getPlatformCerts();
+    const [serialNo, entry] = [...certs.entries()][0] ?? [];
+    if (!serialNo || !entry) {
+      throw new BusinessException(ErrorCode.THIRD_WECHAT_FAILED, "无可用的微信平台证书，无法加密敏感字段");
+    }
+    const ciphertext = publicEncrypt(
+      { key: entry, padding: constants.RSA_PKCS1_OAEP_PADDING, oaepHash: "sha1" },
+      Buffer.from(plaintext, "utf-8"),
+    ).toString("base64");
+    return { ciphertext, serialNo };
   }
 
   /** AES-256-GCM 解密（用于证书和回调数据解密） */

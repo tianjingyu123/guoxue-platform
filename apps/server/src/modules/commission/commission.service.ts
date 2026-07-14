@@ -19,7 +19,7 @@ import { safePagination, NO_PAGE_LIMIT } from "../../common/pagination";
 /** 提现上限（元），与钱包提现口径一致 */
 const MAX_WITHDRAW_RMB = 50000;
 /** 计算可提现余额时视为"占用额度"的提现状态（PENDING 也占额度，防重复提现；REJECTED 自动释放） */
-const OCCUPYING_WITHDRAW_STATUSES = ["PENDING", "APPROVED", "PAID"];
+const OCCUPYING_WITHDRAW_STATUSES = ["PENDING", "APPROVED", "TRANSFERRING", "PAID"];
 /**
  * 审核允许的目标状态白名单。
  * 曾经 dto.status 是任意字符串直接写库；且允许 PENDING 一步直达 PAID。

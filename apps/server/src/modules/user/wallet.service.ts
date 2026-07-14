@@ -19,7 +19,12 @@ const TAX_ENABLED_KEY = "finance.tax.enabled";
 const TAX_RATE_KEY = "finance.tax.rate";
 /** 计算可提现余额时视为"占用额度"的提现状态（驳回 REJECTED 自动释放额度，无需退款补偿）。
  *  CONVERTED=收益转金币（董事长拍板 2026-07-10·转出即永久占用可提现额度，金币侧同事务入账） */
-const OCCUPYING_WITHDRAW_STATUSES = ["PENDING", "APPROVED", "PAID", "CONVERTED"];
+/**
+ * 计算可提现余额时视为「占用额度」的提现状态。
+ * 🔴 TRANSFERRING 必须在列：渠道转账已发起、钱已从平台账户发出，只是用户还没在微信里点
+ *    「确认收款」。此时若不占额度，用户就能拿同一笔余额再提一次 —— 直接资损。
+ */
+const OCCUPYING_WITHDRAW_STATUSES = ["PENDING", "APPROVED", "TRANSFERRING", "PAID", "CONVERTED"];
 
 @Injectable()
 export class WalletService {

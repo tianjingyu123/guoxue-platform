@@ -4446,12 +4446,28 @@ model WithdrawalApplication {
   actualAmount Decimal  @default(0) @db.Decimal(10, 2) // 实际到账 = amount − fee − taxAmount
   payMethod    String // WECHAT/ALIPAY/BANK
   accountInfo  Json // 收款账户信息
-  status       String   @default("PENDING") // PENDING/APPROVED/REJECTED/PAID
+  /// PENDING 待审 / APPROVED 已通过待打款 / TRANSFERRING 已发起渠道转账（钱还没到用户手上！）
+  /// / REJECTED 驳回 / PAID 已到账
+  /// 🔴 TRANSFERRING 必须计入「占用额度」——钱已从平台发出但用户尚未确认收款，
+  ///    不占额度的话用户能拿同一笔余额再提一次。
+  status       String   @default("PENDING")
   level        Int      @default(1) // 审批级别
   reviewedBy   String?
   reviewNote   String?
   /// 出款幂等键（同 Withdrawal.payoutRef）：线下流水号 / 渠道 out_bill_no·唯一防重复打款
   payoutRef    String?  @unique
+
+  // ── 渠道自动代付（微信商家转账）──
+  /// 微信转账单号（渠道侧凭据）
+  transferBillNo String?
+  /// 渠道转账状态：ACCEPTED / PROCESSING / WAIT_USER_CONFIRM / TRANSFERING / SUCCESS / FAIL / CANCELLED
+  transferState  String?
+  /// 待用户确认收款时微信返回的 packageInfo —— 前端凭它调起微信确认页。
+  /// 🔴 新版商家转账不是无感到账：用户不点「确认收款」，钱就永远不到账（超时自动退回）。
+  /// 敏感：只能返回给提现人本人。到账后清空。
+  packageInfo    String?
+  transferFailReason String?
+
   createdAt    DateTime @default(now())
 
   @@index([userId, status])
