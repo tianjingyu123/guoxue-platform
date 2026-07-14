@@ -25,6 +25,7 @@ const SUITES: { file: string; desc: string }[] = [
   { file: 'verify-zidian.ts', desc: '国学字典 · 康熙笔画/字形五行/81数理/结构/笔顺数据' },
   { file: 'verify-jieqi.ts', desc: '二十四节气 · 与 VSOP87 对撞 192 个交节点 + 跨时区' },
   { file: 'verify-wannianli.ts', desc: '万年历 · 四柱/宜忌/物候/星期' },
+  { file: 'verify-zeji.ts', desc: '择吉 · 推荐日与黄历宜忌逐条对撞（绝不推荐黄历写着「忌」的日子）' },
   { file: 'verify-lunar-convert.ts', desc: '农历→公历转换（13 个页面的输入口径）' },
   { file: 'verify-backend-parity.ts', desc: '前后端同源 · 后端 calculator 与 shared 引擎逐值一致（去伪存真防线）' },
 ]

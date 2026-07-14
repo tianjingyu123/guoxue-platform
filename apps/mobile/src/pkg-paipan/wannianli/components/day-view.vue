@@ -4,9 +4,13 @@
  * 朱砂红头栏 + 中央大字日号 + 干支纪年 + 朱印 + 宜忌红黑套印双栏
  * + 冲煞/值神 + 五行穿衣/五方吉神/倒计时/节气物候/四柱/五行
  * + 可展开专业区（黄历详解/九宫飞星/时辰/方位/神煞/彭祖百忌）。
- * 取舍：V0"历史上的今天"来自 mock 假数据、宜忌点击跳 AI 择日 → 均砍掉；
+ * 取舍：V0"历史上的今天"来自 mock 假数据 → 砍掉；
  *       朱印印文取当日第一条宜事（V0 硬编码"宜嫁娶"是假数据）；
  *       语音播报仅 H5 端（Web Speech），其余端提示暂不支持。
+ *
+ * 🔴 2026-07-14 补回 V0 的宜忌联动：点一条「宜」/「忌」→ 跳择日并带入该事项。
+ *    此前连同择日 tab 一起被砍了，黄历看到「宜嫁娶」却无从查「哪天更宜嫁娶」——
+ *    而这恰是老黄历最常见的用法。
  */
 import { ref, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
@@ -29,6 +33,8 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'change-date', d: Date): void
+  /** 点宜/忌某一项 → 跳择日查「哪天更宜此事」 */
+  (e: 'pick-yiji', term: string): void
 }>()
 
 const proOpen = ref(true)
@@ -135,24 +141,34 @@ function handleSpeak() {
         </view>
       </view>
 
-      <!-- 宜 / 忌 红黑套印双栏 -->
+      <!-- 宜 / 忌 红黑套印双栏（点任一项 → 择日查「哪天更宜此事」） -->
       <view class="yiji">
         <view class="yiji-col yiji-col-line">
           <view class="yiji-head">
             <view class="yiji-badge yiji-badge-yi"><text class="yiji-badge-text">宜</text></view>
-            <text class="yiji-hint">今日所宜</text>
+            <text class="yiji-hint">点事项择吉日</text>
           </view>
           <view class="yiji-items">
-            <text v-for="item in d.yi" :key="item.text" class="yiji-item">{{ item.text }}</text>
+            <text
+              v-for="item in d.yi"
+              :key="item.text"
+              class="yiji-item yiji-item-tap"
+              @tap="emit('pick-yiji', item.text)"
+            >{{ item.text }}</text>
           </view>
         </view>
         <view class="yiji-col">
           <view class="yiji-head">
             <view class="yiji-badge yiji-badge-ji"><text class="yiji-badge-text">忌</text></view>
-            <text class="yiji-hint">今日所忌</text>
+            <text class="yiji-hint">点事项择吉日</text>
           </view>
           <view class="yiji-items">
-            <text v-for="item in d.ji" :key="item.text" class="yiji-item">{{ item.text }}</text>
+            <text
+              v-for="item in d.ji"
+              :key="item.text"
+              class="yiji-item yiji-item-tap"
+              @tap="emit('pick-yiji', item.text)"
+            >{{ item.text }}</text>
           </view>
         </view>
       </view>
@@ -484,6 +500,8 @@ $gold-soft: rgba(201, 169, 110, 0.15);
 .yiji-hint { font-family: $serif; font-size: 24rpx; color: var(--text-soft); }
 .yiji-items { display: flex; flex-wrap: wrap; column-gap: 24rpx; row-gap: 12rpx; }
 .yiji-item { font-family: $serif; font-size: 30rpx; line-height: 1.6; color: var(--text-ink); }
+/* 可点：虚线下划线做暗示（不加会让人以为只是文字） */
+.yiji-item-tap { border-bottom: 1rpx dashed rgba(196, 30, 58, 0.35); padding-bottom: 2rpx; }
 
 /* 冲煞 / 值神 */
 .cs-bar { display: flex; border-top: 1rpx solid $gold-line; background: rgba(240, 235, 229, 0.4); }
