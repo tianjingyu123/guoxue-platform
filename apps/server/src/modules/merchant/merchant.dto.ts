@@ -54,9 +54,23 @@ export class CreateMerchantApplyDto {
   @IsOptional() @IsString()
   idCardBack?: string;
 
-  @ApiPropertyOptional({ description: "营业执照URL" })
-  @IsOptional() @IsString()
-  businessLicense?: string;
+  /**
+   * 营业执照 —— 新商家入驻必填（2026-07-14 资金架构拍板）。
+   *
+   * 不是形式要求，是合规架构的物理前提：
+   *   无执照 → 办不下商户号 → 无法进件 → 无法自己收款
+   *          → 只能平台代收再结算给商家 = 二清（无证清算·违法）。
+   * 商家必须自收款：钱直接进商家的渠道账户，平台通过分账收技术服务费。
+   * 开票关系随之厘清 —— 商家给用户开商品发票，平台给商家开服务费发票；
+   * 平台不需要「结算给商家」，因为钱压根没到过平台手上。
+   *
+   * 注：DB 列仍可空（存量商家兼容）。硬门槛在进件环节：
+   * PayeeAccount.submitToChannel 无执照直接拒绝提交，进不了件就自收不了款。
+   */
+  @ApiProperty({ description: "营业执照URL（必填·无执照无法进件收款）" })
+  @IsString()
+  @MinLength(1, { message: "营业执照为必填项：无营业执照无法开通商户号，也就无法自主收款" })
+  businessLicense: string;
 
   @ApiPropertyOptional({ description: "品牌授权书URL" })
   @IsOptional() @IsString()

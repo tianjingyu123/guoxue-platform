@@ -100,6 +100,7 @@ model User {
   renewalRecords        RenewalRecord[]
   instituteDividends    InstituteDividend[]
   withdrawals           Withdrawal[]
+  payeeAccounts         PayeeAccount[]
   referralLinks         ReferralLink[]
   coinAccount           VirtualCoinAccount?
   coinTransactions      VirtualCoinTransaction[]
@@ -2060,28 +2061,28 @@ enum OperatorLevel {
 }
 
 model Station {
-  id             String    @id @default(uuid())
-  userId         String    @unique
-  name           String
-  code           String    @unique // 推广码
-  logo           String? // 分站Logo
-  themeColor     String?   @default("#8B4513") // 主题色
-  intro          String?
-  status         String    @default("ACTIVE")
-  totalEarning   Decimal   @default(0) @db.Decimal(12, 2)
+  id              String    @id @default(uuid())
+  userId          String    @unique
+  name            String
+  code            String    @unique // 推广码
+  logo            String? // 分站Logo
+  themeColor      String?   @default("#8B4513") // 主题色
+  intro           String?
+  status          String    @default("ACTIVE")
+  totalEarning    Decimal   @default(0) @db.Decimal(12, 2)
   // 多小程序配置
-  miniAppId      String? // 分站独立小程序 AppId
-  mpAppId        String? // 分站公众号 AppId（H5 兜底分享）
-  miniPages      Json? // 小程序页面自定义配置 { homePath, sharePath, ... }
+  miniAppId       String? // 分站独立小程序 AppId
+  mpAppId         String? // 分站公众号 AppId（H5 兜底分享）
+  miniPages       Json? // 小程序页面自定义配置 { homePath, sharePath, ... }
   // 模版系统
-  templateId     String?   @default("default") // 模版ID: default/paipan/lecturer/ecommerce/minimal
-  templateConfig Json? // 模版个性化参数 { modules, order, hero, tabs, showSections }
-  paipanLink     String? // 分站在旧排盘系统的专属推广链接（含分站ID参数）
-  paipanUserId   String? // 分站在旧排盘系统的用户ID（用于佣金结算同步）
-  expireAt       DateTime? // 到期时间
+  templateId      String?   @default("default") // 模版ID: default/paipan/lecturer/ecommerce/minimal
+  templateConfig  Json? // 模版个性化参数 { modules, order, hero, tabs, showSections }
+  paipanLink      String? // 分站在旧排盘系统的专属推广链接（含分站ID参数）
+  paipanUserId    String? // 分站在旧排盘系统的用户ID（用于佣金结算同步）
+  expireAt        DateTime? // 到期时间
   pinnedUpdatedAt DateTime? // 最近一次主推位更新时间（S1 工作台展示·主推位自服务）
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   operatorId String? // 归属运营商ID
 
@@ -2134,8 +2135,8 @@ model Station {
    */
   autoSuspendOnExpiry Boolean @default(true)
 
-  user            User                @relation(fields: [userId], references: [id])
-  operator        Operator?           @relation("OperatorStations", fields: [operatorId], references: [id])
+  user            User                   @relation(fields: [userId], references: [id])
+  operator        Operator?              @relation("OperatorStations", fields: [operatorId], references: [id])
   earnings        StationEarning[]
   withdrawals     Withdrawal[]
   contents        Content[]
@@ -4903,7 +4904,10 @@ model Merchant {
   idCardNumber    String // 身份证号（加密存储）
   idCardFront     String? // 身份证正面照
   idCardBack      String? // 身份证反面照
-  businessLicense String? // 营业执照（可选）
+  /// 营业执照。DB 列可空仅为兼容存量商家；【新入驻必填】（CreateMerchantApplyDto 强制）。
+  /// 硬门槛在进件：无执照 → 办不下商户号 → 进不了件 → 自收不了款 → 只能平台代收 = 二清。
+  /// 见 PayeeAccount / docs/design/资金与分账架构-设计文档-20260714.md
+  businessLicense String?
   brandAuth       String? // 品牌授权书（可选）
   categoryIds     String[]       @default([]) // 经营类目
   status          MerchantStatus @default(PENDING_REVIEW)
@@ -7099,4 +7103,72 @@ model AdminFeedback {
 
   @@index([status, createdAt])
   @@index([category, status])
+}
+
+/// 收款主体（分账接收方）—— 资金架构的地基，见 docs/design/资金与分账架构-设计文档-20260714.md
+///
+/// 【为什么统一成一张表，而不在 Merchant/StationOffline/Circle 各加字段】
+/// 进件流程对所有主体是同一套（采资质 → 提渠道 → 回调落号 → 状态机）；分散建模就要写三遍，
+/// 且分账时还得写三个分支去找收款方身份。统一后分账只问一句「这个主体的 PayeeAccount 是谁」。
+///
+/// 【它解决的根因】此前 Merchant/StationOffline/Circle 一个渠道商户号字段都没有 ——
+/// 商家/驿站/圈主在支付渠道眼里根本不存在，这是所有分账接不通的唯一根因。
+///
+/// 【二清红线】平台永不做「收了再转」。SELF_COLLECT 的钱直接进主体自己的渠道账户，
+/// 由持牌机构（汇付/微信）执行分账把平台那份分过来；平台只下指令，不碰资金分发。
+model PayeeAccount {
+  id String @id @default(uuid())
+
+  // ── 主体 ──
+  subjectType String // MERCHANT / OFFLINE_STATION / CIRCLE / INSTITUTE
+  subjectId   String // 对应业务表的主键
+  userId      String // 主体负责人（法人/圈主/驿站长）——代付与责任归属
+
+  // ── 结算模式：决定「谁是收款主体」，也就决定了责任归属 ──
+  // PLATFORM_COLLECT 平台收款 → 平台是经营者，担商品/内容/纠纷责任（无照主体只能走这条）
+  // SELF_COLLECT     主体自收 → 责任随钱外移到主体（须有营业执照才能进件）
+  settlementMode String @default("PLATFORM_COLLECT")
+
+  /// 平台分成比例。圈子双轨的落点：无照 0.5 / 有照 0.2（费率差驱动圈主自己去办执照）；
+  /// 驿站 0.3（微信分账硬顶 30% 且基数是扣费后金额，故驿站默认走汇付）；商家按类目。
+  platformRate Decimal @default(0) @db.Decimal(5, 4)
+
+  // ── 资质（SELF_COLLECT 必需·进件材料）──
+  subjectName  String? // 主体名称（须与营业执照一致）
+  licenseNo    String? // 统一社会信用代码
+  licenseImage String? // 营业执照图
+  legalName    String? // 法人姓名
+  legalIdCard  String? // 法人身份证号（加密存储·crypto.util encrypt）
+  legalIdFront String?
+  legalIdBack  String?
+  bankName     String? // 结算银行
+  bankBranch   String? // 支行
+  bankAccount  String? // 结算账号（加密存储）
+  bankHolder   String? // 户名
+
+  // ── 渠道身份（进件成功后由渠道回调回填·分账接收方就靠这几个 ID）──
+  huifuId     String? @unique // 汇付商户号（主通道：无 30% 上限，且我们是服务商可开户）
+  wxSubMchId  String? // 微信特约商户号
+  alipayPid   String? // 支付宝 PID
+  payeeOpenid String? // 微信代付/分账用 openid（个人接收方）
+
+  // ── 进件状态机 ──
+  // DRAFT 资料待完善 → SUBMITTED 已提交渠道 → APPROVING 渠道审核中
+  //   → ACTIVE 可收款可分账 / REJECTED 被拒 / DISABLED 停用
+  status         String    @default("DRAFT")
+  channel        String    @default("HUIFU") // HUIFU / WECHAT / ALIPAY
+  channelApplyId String? // 渠道返回的进件申请单号（查进度用）
+  submittedAt    DateTime?
+  activatedAt    DateTime?
+  rejectReason   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([subjectType, subjectId]) // 一个主体一个收款账户
+  @@index([status])
+  @@index([userId])
+  @@index([settlementMode, status])
 }

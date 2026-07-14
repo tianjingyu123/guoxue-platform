@@ -738,4 +738,144 @@ export class HuifuService {
   async downloadBill(_billDate: string): Promise<never> {
     throw new BusinessException(ErrorCode.BAD_REQUEST, "汇付对账单下载暂未接入斗拱协议，请在斗拱控制台查看对账文件");
   }
+
+  // ───────── 商户进件（服务商开户）─────────
+  //
+  // 我们在汇付是「服务商」身份，可以给下级客户开户 —— 这是整个分账架构的地基：
+  // 分账的本质是「把钱分给某个持牌机构认识的账户」，进件就是让驿站/商家/圈主
+  // 在汇付眼里「存在」（拿到 huifu_id）。没有它，任何分账都无从谈起。
+  //
+  // ⚠️ 字段结构按斗拱 V2 企业进件规范编写，但【未经沙箱实测】。
+  //    上线前必须用汇付给的接口文档 + 沙箱环境校准字段名与必填项，
+  //    尤其是：地区码(prov_id/area_id/district_id)、银行编码(bank_code)、
+  //    影像资料(file_list)的上传方式、以及费率配置(fee_conf)的结构。
+  //    校准点集中在本方法的 data 组包处，改动不外溢。
+
+  /**
+   * 企业商户进件（/v2/merchant/basicdata/ent）。
+   * 适用：线下驿站、商家、有营业执照的圈主、研究院 —— 凡是要「自己收款」的主体。
+   * 返回渠道申请单号与（若同步返回的）huifu_id；多数情况下审核异步，需轮询 queryMerchantApply。
+   */
+  async applyEntMerchant(payload: HuifuEntApplyPayload) {
+    const upperHuifuId = await this.getConfig("merchantId"); // 服务商自身 huifu_id = 进件的上级
+    if (!upperHuifuId) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "汇付服务商商户号未配置，请到后台「第三方配置→汇付天下」填写");
+    }
+
+    const reqSeqId = this.reqSeqId();
+    const data: Record<string, unknown> = {
+      req_date: this.reqDate(),
+      req_seq_id: reqSeqId,
+      upper_huifu_id: upperHuifuId,
+
+      // 主体信息
+      reg_name: payload.subjectName,
+      short_name: payload.shortName || payload.subjectName,
+      ent_type: payload.entType || "1", // 1 企业 / 2 个体工商户
+      license_code: payload.licenseNo,
+      license_validity_type: payload.licenseLongTerm ? "1" : "0",
+      license_begin_date: payload.licenseBeginDate,
+      license_end_date: payload.licenseLongTerm ? undefined : payload.licenseEndDate,
+
+      // 法人（身份证号为明文传渠道 —— 调用方负责解密后传入，本方法不落库）
+      legal_name: payload.legalName,
+      legal_cert_type: "00", // 00 = 身份证
+      legal_cert_no: payload.legalIdCard,
+
+      // 联系人
+      contact_name: payload.contactName,
+      contact_mobile_no: payload.contactPhone,
+      contact_email: payload.contactEmail,
+
+      // 结算卡（对公/对私）
+      card_info: {
+        card_type: payload.bankCardType || "0", // 0 对公 / 1 对私
+        card_name: payload.bankHolder,
+        card_no: payload.bankAccount,
+        bank_code: payload.bankCode,
+        prov_id: payload.bankProvId,
+        area_id: payload.bankAreaId,
+      },
+
+      // 经营地址
+      prov_id: payload.provId,
+      area_id: payload.areaId,
+      district_id: payload.districtId,
+      detail_addr: payload.address,
+
+      // 影像资料（营业执照/身份证正反面等）
+      file_list: payload.files,
+    };
+
+    const result = await this.callApi("/v2/merchant/basicdata/ent", data);
+    const ok = result.resp_code === HuifuService.RESP_SUCCESS;
+
+    return {
+      ok,
+      reqSeqId,
+      /** 渠道申请单号（查进度用）；部分场景汇付直接回 huifu_id */
+      applyId: (result.apply_no as string) || (result.req_seq_id as string) || reqSeqId,
+      /** 进件成功时的下级商户号 —— 分账接收方身份就是它 */
+      huifuId: (result.huifu_id as string) || null,
+      respCode: result.resp_code as string,
+      respDesc: result.resp_desc as string,
+      raw: result,
+    };
+  }
+
+  /**
+   * 查询进件进度（/v2/merchant/basicdata/query）。
+   * 汇付审核异步，进件后需轮询直到拿到 huifu_id 或被拒。
+   */
+  async queryMerchantApply(applyId: string, originalReqDate: string) {
+    const upperHuifuId = await this.getConfig("merchantId");
+    const result = await this.callApi("/v2/merchant/basicdata/query", {
+      req_date: this.reqDate(),
+      req_seq_id: this.reqSeqId(),
+      upper_huifu_id: upperHuifuId,
+      org_req_seq_id: applyId,
+      org_req_date: originalReqDate,
+    });
+
+    const huifuId = (result.huifu_id as string) || null;
+    // 汇付审核态：多数返回 apply_stat / audit_stat，取值以文档为准（待沙箱校准）
+    const stat = (result.apply_stat as string) || (result.audit_stat as string) || "";
+    return {
+      huifuId,
+      /** 归一化后的状态：APPROVING 审核中 / ACTIVE 已通过 / REJECTED 被拒 */
+      status: huifuId ? "ACTIVE" : stat === "R" || stat === "F" ? "REJECTED" : "APPROVING",
+      rejectReason: (result.resp_desc as string) || null,
+      raw: result,
+    };
+  }
+}
+
+/**
+ * 企业进件入参。身份证号/银行账号是【明文】——
+ * 调用方（PayeeAccountService）从库里读出加密值、解密后传入；本服务不接触密文、也不落库。
+ */
+export interface HuifuEntApplyPayload {
+  subjectName: string;
+  shortName?: string;
+  entType?: string; // 1 企业 / 2 个体工商户
+  licenseNo: string;
+  licenseLongTerm?: boolean;
+  licenseBeginDate?: string; // yyyyMMdd
+  licenseEndDate?: string;
+  legalName: string;
+  legalIdCard: string; // 明文
+  contactName: string;
+  contactPhone: string;
+  contactEmail?: string;
+  bankHolder: string;
+  bankAccount: string; // 明文
+  bankCode?: string;
+  bankCardType?: string; // 0 对公 / 1 对私
+  bankProvId?: string;
+  bankAreaId?: string;
+  provId?: string;
+  areaId?: string;
+  districtId?: string;
+  address?: string;
+  files?: Array<{ file_type: string; file_id: string }>;
 }

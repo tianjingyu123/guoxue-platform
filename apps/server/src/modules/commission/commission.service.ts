@@ -12,6 +12,7 @@ import { RedisService } from "../../redis/redis.service";
 import { FundApprovalService } from "../fund-approval/fund-approval.service";
 import { SettlementService } from "../settlement/settlement.service";
 import { LedgerBalanceService } from "../settlement/ledger-balance.service";
+import { PayeeAccountService } from "../payee-account/payee-account.service";
 import { UserGrowthService } from "../user-growth/user-growth.service";
 import { safePagination, NO_PAGE_LIMIT } from "../../common/pagination";
 
@@ -72,6 +73,7 @@ export class CommissionService {
     @Optional() private settlement?: SettlementService,
     @Optional() private ledgerBalance?: LedgerBalanceService,
     @Optional() private userGrowth?: UserGrowthService, // 佣-V2-P4 分享积分（单测缺 provider 时兜底跳过）
+    @Optional() private payeeAccount?: PayeeAccountService, // 圈子双轨费率（未注入则回落全局费率体系）
   ) {}
 
   // ───────── 分佣比例变更审批（发起端，不立即生效） ─────────
@@ -1116,6 +1118,33 @@ export class CommissionService {
    * 计算平台抽成
    * @returns { platformFee, platformRate } 或 null（未配置时）
    */
+  /**
+   * 圈子双轨费率：由该圈子的收款主体（PayeeAccount）决定平台分成。
+   * 返回 null = 该圈子尚未进件 → 调用方回落原有全局费率体系（存量行为不变）。
+   *
+   * 注：SELF_COLLECT 时钱直接进圈主的渠道账户、平台通过分账取走这一份，
+   * 本记录仍然写（口径一致、可对账），但资金通道的切换在批次2（汇付收单+分账）。
+   */
+  private async resolveCircleSplit(
+    circleId: string,
+    amount: number,
+  ): Promise<{ platformFee: number; platformRate: number } | null> {
+    if (!this.payeeAccount) return null;
+    try {
+      const s = await this.payeeAccount.resolveSettlement("CIRCLE", circleId);
+      if (s.status === "NONE") return null; // 未进件 → 回落原体系
+      const rate = s.platformRate;
+      if (!(rate > 0 && rate <= 1)) return null;
+      return {
+        platformFee: Math.round(amount * rate * 100) / 100,
+        platformRate: rate,
+      };
+    } catch (e) {
+      this.logger.warn(`圈子双轨费率解析失败(circle=${circleId})，回落全局费率`, e as Error);
+      return null;
+    }
+  }
+
   async calculatePlatformFee(type: string, amount: number): Promise<{ platformFee: number; platformRate: number } | null> {
     // 与正向分佣(calculateAndRecord)口径统一：订单类型枚举(COURSE/PRODUCT/...)需先映射成 CommissionConfig.configKey。
     // 原实现用原始 type 直查，订单侧(大写枚举)恒查不到 → 平台费从不入账(财务对账漏记)。
@@ -1207,8 +1236,16 @@ export class CommissionService {
     sourceId: string,
     amount: number,
   ) {
-    // 计算平台抽成
-    const fee = await this.calculatePlatformFee(type, amount);
+    // ── 圈子双轨（董事长 2026-07-14 拍板）──
+    // 平台分成由该圈子的【收款主体】决定，而不是按收入类型查全局费率：
+    //   无执照圈主 → 平台收款（平台是经营者，担内容/纠纷责任）→ 平台抽 50%
+    //   有执照圈主 → 圈主企业自收款（责任随钱外移）      → 平台抽 20%
+    // 费率差本身就是治理工具：圈主收入越大，这 30 个点越肉疼，他自己会去办执照。
+    // 平台背高风险时收高价、风险外移后主动降价 —— 定价与风险严格对称。
+    //
+    // 未进件的圈子回落到原有的全局费率体系，存量行为不变（additive）。
+    let fee = await this.resolveCircleSplit(circleId, amount);
+    if (!fee) fee = await this.calculatePlatformFee(type, amount);
     const platformFee = fee?.platformFee || 0;
 
     // 圈主分成 = 金额 - 平台抽成

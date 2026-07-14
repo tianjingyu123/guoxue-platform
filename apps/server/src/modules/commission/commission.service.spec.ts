@@ -5,6 +5,7 @@ import { WebhookService } from "../webhook/webhook.service";
 import { RedisService } from "../../redis/redis.service";
 import { UserGrowthService } from "../user-growth/user-growth.service";
 import { SystemService } from "../system/system.service";
+import { PayeeAccountService } from "../payee-account/payee-account.service";
 import { BusinessException } from "../../common/business.exception";
 import { encrypt } from "../../common/crypto.util";
 
@@ -19,9 +20,10 @@ const mockPrisma = {
   notification: { create: jest.fn().mockReturnValue({ catch: jest.fn() }) },
   withdrawal: { create: jest.fn(), findMany: jest.fn(), count: jest.fn(), findUnique: jest.fn(), update: jest.fn(), updateMany: jest.fn(), aggregate: jest.fn() },
   referralLink: { create: jest.fn(), findMany: jest.fn(), findUnique: jest.fn(), update: jest.fn() },
-  platformFeeRecord: { findMany: jest.fn(), findFirst: jest.fn(), createMany: jest.fn() },
+  platformFeeRecord: { findMany: jest.fn(), findFirst: jest.fn(), createMany: jest.fn(), create: jest.fn().mockResolvedValue({ id: "pf1" }) },
   ledgerEntry: { findFirst: jest.fn(), create: jest.fn() },
   settlementRule: { findUnique: jest.fn() },
+  circleRevenueRecord: { create: jest.fn().mockResolvedValue({ id: "cr1" }) },
   $transaction: jest.fn().mockImplementation((cb: any) => cb(mockPrisma)),
 };
 const mockWebhook = { fire: jest.fn().mockResolvedValue(undefined) };
@@ -32,6 +34,8 @@ const mockSystemService = {
 };
 const mockRedis = { setNX: jest.fn().mockResolvedValue(true), del: jest.fn(), get: jest.fn().mockResolvedValue(null), set: jest.fn() };
 const mockGrowth = { addExp: jest.fn().mockResolvedValue(undefined) };
+// 圈子双轨费率：平台分成由圈子的收款主体决定（无照 50% / 有照自收款 20%）
+const mockPayeeAccount = { resolveSettlement: jest.fn().mockResolvedValue({ status: "NONE" }) };
 
 describe("CommissionService", () => {
   let svc: CommissionService;
@@ -45,6 +49,7 @@ describe("CommissionService", () => {
         { provide: RedisService, useValue: mockRedis },
         { provide: UserGrowthService, useValue: mockGrowth },
         { provide: SystemService, useValue: mockSystemService },
+        { provide: PayeeAccountService, useValue: mockPayeeAccount },
       ],
     }).compile();
     svc = mod.get(CommissionService);
@@ -128,6 +133,64 @@ describe("CommissionService", () => {
     it("配置不存在抛出 NotFoundException", async () => {
       mockPrisma.commissionConfig.findUnique.mockResolvedValue(null);
       await expect(svc.updateConfig("invalid", {})).rejects.toThrow(BusinessException);
+    });
+  });
+
+  // 圈子双轨（董事长 2026-07-14 拍板）：平台分成由圈子的【收款主体】决定，而非按收入类型查全局费率。
+  // 无照圈主 → 平台收款（平台是经营者、担内容责任）→ 抽 50%
+  // 有照圈主 → 圈主企业自收款（责任随钱外移）      → 抽 20%
+  // 费率差本身就是治理工具：收入越大，这 30 个点越肉疼，圈主自己会去办执照。
+  describe("recordCircleRevenue — 圈子双轨费率", () => {
+    it("无执照圈主（平台收款）：平台抽 50%，圈主实得 50%", async () => {
+      mockPayeeAccount.resolveSettlement.mockResolvedValue({
+        status: "ACTIVE", settlementMode: "PLATFORM_COLLECT", platformRate: 0.5, payeeHuifuId: null,
+      });
+      await svc.recordCircleRevenue("c1", "circle_join", "src1", 1000);
+
+      expect(mockPrisma.circleRevenueRecord.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ platformFee: 500, ownerShare: 500, splitRate: 0.5 }),
+        }),
+      );
+    });
+
+    it("有执照圈主（自收款）：平台只抽 20%，圈主实得 80%", async () => {
+      mockPayeeAccount.resolveSettlement.mockResolvedValue({
+        status: "ACTIVE", settlementMode: "SELF_COLLECT", platformRate: 0.2, payeeHuifuId: "H001",
+      });
+      await svc.recordCircleRevenue("c1", "circle_join", "src1", 1000);
+
+      expect(mockPrisma.circleRevenueRecord.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ platformFee: 200, ownerShare: 800, splitRate: 0.8 }),
+        }),
+      );
+    });
+
+    // 存量圈子（从未进件）必须保持原有行为不变 —— 双轨是 additive，不能改动存量分成。
+    it("未进件的圈子：回落原有全局费率体系，存量行为不变", async () => {
+      mockPayeeAccount.resolveSettlement.mockResolvedValue({ status: "NONE", platformRate: 0.5 });
+      mockPrisma.commissionConfig.findUnique.mockResolvedValue({ configKey: "circle_join", rateB: 0.3 });
+
+      await svc.recordCircleRevenue("c1", "circle_join", "src1", 1000);
+
+      // 走的是 CommissionConfig.rateB=0.3，不是双轨的 0.5
+      expect(mockPrisma.circleRevenueRecord.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ platformFee: 300, ownerShare: 700 }),
+        }),
+      );
+    });
+
+    it("双轨解析异常时回落全局费率，绝不阻断收益入账", async () => {
+      mockPayeeAccount.resolveSettlement.mockRejectedValue(new Error("DB 抖动"));
+      mockPrisma.commissionConfig.findUnique.mockResolvedValue({ configKey: "circle_join", rateB: 0.3 });
+
+      const r = await svc.recordCircleRevenue("c1", "circle_join", "src1", 1000);
+      expect(r).toBeTruthy();
+      expect(mockPrisma.circleRevenueRecord.create).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ platformFee: 300 }) }),
+      );
     });
   });
 
