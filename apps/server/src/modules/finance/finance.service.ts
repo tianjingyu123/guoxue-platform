@@ -75,10 +75,18 @@ export class FinanceService {
     if (source === "WECHAT" && this.wechatPay) {
       try {
         const billCsv = await this.wechatPay.downloadTradeBill({ billDate: billDateStr.replace(/-/g, "") });
-        billEntries = billCsv ? this.parseBillCsv(billCsv) : [];
-        billStatus = "DOWNLOADED";
+        if (billCsv) {
+          billEntries = this.parseBillCsv(billCsv);
+          billStatus = "DOWNLOADED";
+        } else {
+          // 🔴 downloadTradeBill 失败/无账单时返回 null（其内部吞掉了异常）。
+          //    绝不能把「没拉到账单」标成 DOWNLOADED —— 否则下面 billEntries 为空、
+          //    逐笔比对被整段跳过、diffCount=0，最终生成一条「对账通过·全额匹配」的假绿灯，
+          //    把渠道掉单/金额差全部隐藏。必须标记为不可用，判为 PENDING 待人工核。
+          billStatus = "BILL_UNAVAILABLE";
+        }
       } catch (err) {
-        this.logger.warn(`微信账单下载失败: ${(err as Error).message}，仅以内部分汇总对账`);
+        this.logger.warn(`微信账单下载失败: ${(err as Error).message}，仅以内部汇总对账`);
         billStatus = "BILL_UNAVAILABLE";
       }
     }
@@ -111,7 +119,10 @@ export class FinanceService {
     }
 
     const diffCount = mismatches.length;
-    const matchAmount = diffCount === 0 && billStatus !== "BILL_UNAVAILABLE"
+    // 🔴 账单「可用」的严格定义：成功下载(DOWNLOADED) 且 不存在「内部有订单却拿到空账单」。
+    //    内部有单但账单空，说明账单没下全或渠道确实缺单 —— 属未完成对账，绝不能判匹配。
+    const billUsable = billStatus === "DOWNLOADED" && (orders.length === 0 || billEntries.length > 0);
+    const matchAmount = diffCount === 0 && billUsable
       ? totalAmount
       : billEntries.reduce((sum, b) => sum + b.amount, 0);
 
@@ -119,7 +130,8 @@ export class FinanceService {
       data: {
         source: source,
         billDate: startOfDay,
-        status: mismatches.length > 0 ? "MISMATCHED" : billStatus === "BILL_UNAVAILABLE" ? "PENDING" : "MATCHED",
+        // 只有「账单可用 + 逐笔零差异」才算对账通过；账单不可用/内部有单账单空 → PENDING 待人工核
+        status: mismatches.length > 0 ? "MISMATCHED" : billUsable ? "MATCHED" : "PENDING",
         totalAmount,
         matchAmount,
         diffCount,

@@ -76,16 +76,24 @@ describe("FinanceService", () => {
   // ─── 1. 对账中心 ───
 
   describe("triggerReconciliation", () => {
-    it("触发对账并生成对账记录", async () => {
+    // 🔴 假绿灯回归防护：有内部订单却拿不到渠道账单（此处未注入 wechatPay → billStatus 非 DOWNLOADED）
+    //    时，绝不能判 MATCHED，必须 PENDING 待人工核。回显 create 的 data 才能断言真实计算的 status。
+    it("有内部订单但无账单可比对时判 PENDING（不生成假绿灯 MATCHED）", async () => {
       mockPrisma.order.findMany.mockResolvedValue([
         { id: "o1", payAmount: 99, payMethod: "WECHAT", payTransactionId: "tx1" },
         { id: "o2", payAmount: 49, payMethod: "WECHAT", payTransactionId: "tx2" },
       ]);
-      mockPrisma.reconciliationRecord.create.mockResolvedValue({
-        id: "r1", source: "WECHAT", status: "MATCHED", totalAmount: 148,
-      });
+      mockPrisma.reconciliationRecord.create.mockImplementation(({ data }: { data: Record<string, unknown> }) => ({ id: "r1", ...data }));
       const result = await svc.triggerReconciliation({ source: "WECHAT", billDate: "2026-05-10" });
-      expect(result.status).toBe("MATCHED");
+      expect(result.status).toBe("PENDING");
+    });
+
+    // 内部当天零订单、也无账单 → 无可对内容，不算异常，判 PENDING（billUsable=false）
+    it("零订单且无账单时判 PENDING", async () => {
+      mockPrisma.order.findMany.mockResolvedValue([]);
+      mockPrisma.reconciliationRecord.create.mockImplementation(({ data }: { data: Record<string, unknown> }) => ({ id: "r2", ...data }));
+      const result = await svc.triggerReconciliation({ source: "WECHAT", billDate: "2026-05-10" });
+      expect(result.status).toBe("PENDING");
     });
   });
 
