@@ -12,6 +12,7 @@ import Disclaimer from '@/components/compliance/disclaimer.vue'
 import GenerateReportButton from '@/components/paipan/generate-report-button.vue'
 import NotesPanel from '@/components/bazi/notes-panel.vue'
 import SchoolAnalysis from '../components/school-analysis.vue'
+import SimilarCases from '../components/similar-cases.vue'
 import { baziApi } from '@/lib/bazi-result-data'
 import { saveBaziHistory } from './bazi-history'
 import { navigateBack } from '@/utils/router'
@@ -55,6 +56,18 @@ async function loadResult(q: Record<string, string> = {}) {
     loading.value = false
   }
 }
+
+/** 本盘四柱（拼成「甲子」这样的干支）—— 拿去案例库找同类八字 */
+const myPillars = computed(() => {
+  const sz = baziResult.value?.siZhu
+  if (!sz?.year?.gan || !sz?.month?.gan || !sz?.day?.gan || !sz?.hour?.gan) return null
+  return {
+    year: `${sz.year.gan}${sz.year.zhi}`,
+    month: `${sz.month.gan}${sz.month.zhi}`,
+    day: `${sz.day.gan}${sz.day.zhi}`,
+    hour: `${sz.hour.gan}${sz.hour.zhi}`,
+  }
+})
 
 /**
  * 排盘成功后落记录 —— 本地 + 后端双写。
@@ -199,6 +212,8 @@ function onShare() {
       <template v-else>
         <traditional-mode v-if="activeMode === 'traditional'" :data="data" @edit="openEdit" />
         <analysis-mode v-else :data="data" @edit="openEdit" />
+        <!-- 同类八字：案例库里有日柱相同+另两柱相同的，才出现（没命中整块不显示） -->
+        <similar-cases :pillars="myPillars" />
         <!-- AI 师徒 · 请师父看盘（流派虚拟师父点评对照，T6 §三） -->
         <school-analysis :input="userInput" :record-id="recordIdFromQuery" />
         <generate-report-button

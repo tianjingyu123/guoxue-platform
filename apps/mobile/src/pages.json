@@ -457,6 +457,24 @@
           "style": {
             "navigationStyle": "custom"
           }
+        },
+        {
+          "path": "cases/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "cases/detail",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "cases/submit",
+          "style": {
+            "navigationStyle": "custom"
+          }
         }
       ]
     },

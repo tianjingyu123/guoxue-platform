@@ -172,6 +172,20 @@ onShow(() => { favIds.value = getFavorites() })
         </view>
       </view>
 
+      <!-- 八字案例库入口（练手场：先自己断，再看真实人生经历） -->
+      <view class="section-px case-wrap">
+        <view class="case-card" @tap="navigateTo('/paipan/cases')">
+          <view class="case-icon">
+            <app-icon name="book-open" :size="44" color="#C41E3A" />
+          </view>
+          <view class="case-text">
+            <text class="case-title">八字案例库</text>
+            <text class="case-sub">先自己断，再看真实人生经历 · 练手 · 印证</text>
+          </view>
+          <app-icon name="chevron-right" :size="36" color="#B8AA9A" />
+        </view>
+      </view>
+
       <!-- 双人合盘入口（合婚裂变）· R4 合规：小程序端隐藏（页面保留） -->
       <!-- #ifndef MP-WEIXIN -->
       <view class="section-px couple-wrap">
@@ -414,6 +428,41 @@ onShow(() => { favIds.value = getFavorites() })
 .ai-sub { display: block; font-size: 28rpx; color: rgba(255,255,255,0.8); margin-top: 4rpx; }
 
 /* 双人合盘入口 */
+/* 案例库入口：低调横条，不跟 AI 卡抢视觉 */
+.case-wrap { padding-top: 24rpx; }
+.case-card {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  padding: 24rpx;
+  border-radius: 16rpx;
+  background: #fff;
+  border: 1rpx solid rgba(58, 42, 30, 0.08);
+}
+.case-icon {
+  width: 84rpx;
+  height: 84rpx;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14rpx;
+  background: rgba(196, 30, 58, 0.08);
+}
+.case-text { flex: 1; min-width: 0; }
+.case-title {
+  display: block;
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #3A2A1E;
+}
+.case-sub {
+  display: block;
+  margin-top: 6rpx;
+  font-size: 22rpx;
+  color: #9A8C7E;
+}
+
 .couple-wrap { padding-top: 24rpx; }
 .couple-card {
   position: relative; overflow: hidden;
