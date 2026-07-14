@@ -129,4 +129,106 @@ describe("ShopPaymentService", () => {
       }
     })
   })
+
+  // ═══════════════════ 加盟费支付后处理（分站年租 / 运营商开通）═══════════════════
+
+  /** 极简 fake tx：只提供两个处理器实际用到的表 */
+  const makeTx = (over: any = {}) => ({
+    configSystem: { findUnique: jest.fn().mockResolvedValue({ configValue: "12" }) },
+    // SILVER 为唯一对外档位：¥4999 / 6 名额（1 自用 + 5 可售·对齐合规文案）
+    commissionConfig: { findUnique: jest.fn().mockResolvedValue({ rateA: 4999, rateB: 6 }) },
+    station: { findUnique: jest.fn(), update: jest.fn() },
+    operator: { findUnique: jest.fn().mockResolvedValue(null), create: jest.fn(), update: jest.fn() },
+    ...over,
+  })
+
+  /** 月差（四舍五入到整月），用于断言到期日叠加了正确的周期 */
+  const monthsBetween = (from: Date, to: Date) =>
+    Math.round(((to.getTime() - from.getTime()) / 86400000) / 30.44)
+
+  describe("processStationMasterPaid（分站年租）", () => {
+    it("首次缴费：PENDING → ACTIVE，到期日 = 当下 + 12 个月", async () => {
+      const tx = makeTx()
+      tx.station.findUnique.mockResolvedValue({ id: "st1", expireAt: null, status: "PENDING" })
+      await (svc as any).processStationMasterPaid({ id: "o1", userId: "u1", targetId: "st1" }, tx)
+
+      const data = tx.station.update.mock.calls[0][0].data
+      expect(data.status).toBe("ACTIVE")
+      expect(monthsBetween(new Date(), data.expireAt)).toBe(12)
+    })
+
+    it("续期不吞剩余天数：未到期时从原到期日起算叠加", async () => {
+      const tx = makeTx()
+      // 还剩 6 个月到期 → 续费后应为 6 + 12 = 18 个月后
+      const remaining = new Date()
+      remaining.setMonth(remaining.getMonth() + 6)
+      tx.station.findUnique.mockResolvedValue({ id: "st1", expireAt: remaining, status: "ACTIVE" })
+
+      await (svc as any).processStationMasterPaid({ id: "o1", userId: "u1", targetId: "st1" }, tx)
+
+      const data = tx.station.update.mock.calls[0][0].data
+      expect(monthsBetween(new Date(), data.expireAt)).toBe(18)
+    })
+
+    it("分站不存在：记录错误但不抛（不阻断已成功的支付记账）", async () => {
+      const tx = makeTx()
+      tx.station.findUnique.mockResolvedValue(null)
+      await expect(
+        (svc as any).processStationMasterPaid({ id: "o1", userId: "u1", targetId: "gone" }, tx),
+      ).resolves.toBeUndefined()
+      expect(tx.station.update).not.toHaveBeenCalled()
+    })
+  })
+
+  describe("processOperatorPaid（运营商开通）", () => {
+    it("首次开通：按档位建号，名额取 rateB，mgmtRate 留空以走 channelType 默认", async () => {
+      const tx = makeTx()
+      await (svc as any).processOperatorPaid({ id: "o1", userId: "u1", targetId: "SILVER" }, tx)
+
+      const data = tx.operator.create.mock.calls[0][0].data
+      expect(data.level).toBe("SILVER")
+      expect(data.containQuota).toBe(6) // 1 自用 + 5 可售
+      expect(data.channelType).toBe("ONLINE")
+      expect(data.status).toBe("ACTIVE")
+      // 关键：不得写入 mgmtRate（seed 里的 rateC 是已废止的旧分级费率，读它会与现行口径打架）
+      expect(data.mgmtRate).toBeUndefined()
+      expect(monthsBetween(new Date(), data.expireAt)).toBe(12)
+    })
+
+    it("等级只升不降：已是 DIAMOND 再买 SILVER，仍保持 DIAMOND 且名额取大者", async () => {
+      const tx = makeTx()
+      tx.operator.findUnique.mockResolvedValue({
+        id: "op1", level: "DIAMOND", containQuota: 100, expireAt: null,
+      })
+      // 买的是 SILVER（rateA=4999 / rateB=10）
+      await (svc as any).processOperatorPaid({ id: "o1", userId: "u1", targetId: "SILVER" }, tx)
+
+      const data = tx.operator.update.mock.calls[0][0].data
+      expect(data.level).toBe("DIAMOND")
+      expect(data.containQuota).toBe(100)
+    })
+
+    it("升档：已是 SILVER 再买 DIAMOND，升为 DIAMOND 并提升名额", async () => {
+      const tx = makeTx({
+        commissionConfig: { findUnique: jest.fn().mockResolvedValue({ rateA: 19999, rateB: 100 }) },
+      })
+      tx.operator.findUnique.mockResolvedValue({
+        id: "op1", level: "SILVER", containQuota: 6, expireAt: null,
+      })
+      await (svc as any).processOperatorPaid({ id: "o1", userId: "u1", targetId: "DIAMOND" }, tx)
+
+      const data = tx.operator.update.mock.calls[0][0].data
+      expect(data.level).toBe("DIAMOND")
+      expect(data.containQuota).toBe(100)
+    })
+
+    it("非法档位：不建号，记录错误后返回", async () => {
+      const tx = makeTx()
+      await expect(
+        (svc as any).processOperatorPaid({ id: "o1", userId: "u1", targetId: "PLATINUM" }, tx),
+      ).resolves.toBeUndefined()
+      expect(tx.operator.create).not.toHaveBeenCalled()
+      expect(tx.operator.update).not.toHaveBeenCalled()
+    })
+  })
 })

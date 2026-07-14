@@ -146,7 +146,9 @@ export class SystemService {
     // 单独读取、不进品牌缓存 → 后台切换即时生效；前端启动拉 brand-config 时一并拿到。
     const flagRow = await this.getConfig("pay_h5_provider");
     const payH5Provider = flagRow?.configValue === "huifu" ? "huifu" : "direct";
-    const cached = await this.redis.getJson<Record<string, string>>(CONFIG_CACHE_PREFIX + "brand");
+    // 泛型须为完整品牌类型：用 Record<string,string> 会让展开后丢失具体字段，
+    // 使返回值退化成联合类型（缓存分支只剩 payH5Provider），调用方读 siteName 即类型报错。
+    const cached = await this.redis.getJson<typeof SystemService.DEFAULT_BRAND_CONFIG>(CONFIG_CACHE_PREFIX + "brand");
     if (cached) return { ...cached, payH5Provider };
     const row = await this.prisma.brandConfig.findUnique({ where: { id: "default" } });
     // merge 默认值：将来新增字段时旧记录也能拿到兜底值

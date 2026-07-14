@@ -127,8 +127,8 @@ export class OfflineController {
   @ApiResponse({ status: 404, description: "资源不存在" })
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
-  getRevenueDashboard(@Param("id") id: string) {
-    return this.svc.getRevenueDashboard(id);
+  getRevenueDashboard(@Req() req: Request, @Param("id") id: string) {
+    return this.svc.getRevenueDashboard(req.user.id, id);
   }
 
   // ───────── 线下课程 ─────────

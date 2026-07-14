@@ -6,6 +6,7 @@ import { PrismaService } from "../../prisma/prisma.service"
 import { RedisService } from "../../redis/redis.service"
 import { UnifiedPricingService } from "../pricing/unified-pricing.service"
 import { CommissionService } from "../commission/commission.service"
+import { ShopPaymentService } from "./shop-payment.service"
 import { BusinessException } from "../../common/business.exception"
 import { makeMockPrisma, makeMockRedis, makeMockUnifiedPricing, makeMockCommission } from "./shop-test-mocks"
 
@@ -13,6 +14,8 @@ const mockPrisma = makeMockPrisma()
 const mockRedis = makeMockRedis()
 const mockUnifiedPricing = makeMockUnifiedPricing()
 const mockCommission = makeMockCommission()
+// adminPayOrder 现在会在事务内跑支付后处理器（会员开通/分站激活/运营商建号）
+const mockPayment = { runPaidPostProcessors: jest.fn() }
 
 describe("ShopOrderLifecycleService", () => {
   let svc: ShopOrderLifecycleService
@@ -27,6 +30,7 @@ describe("ShopOrderLifecycleService", () => {
         { provide: RedisService, useValue: mockRedis },
         { provide: UnifiedPricingService, useValue: mockUnifiedPricing },
         { provide: CommissionService, useValue: mockCommission },
+        { provide: ShopPaymentService, useValue: mockPayment },
       ],
     }).compile()
     svc = mod.get(ShopOrderLifecycleService)
@@ -105,6 +109,39 @@ describe("ShopOrderLifecycleService", () => {
       })
       await svc.cancelOrder("o1", "u1")
       expect(mockPrisma.flashSaleItem.updateMany).not.toHaveBeenCalled()
+    })
+  })
+
+  // 端到端实测抓到的 bug：adminPayOrder 此前绕过 paidPostProcessors，
+  // 导致线下确认收款的订单「变 PAID 但权益不开通」（会员不开通/分站不激活/运营商不建号）= 钱收了货不发。
+  // B 端加盟费的线下转账正是主要付款路径，此处必须锁死。
+  describe("adminPayOrder（线下确认收款）", () => {
+    it("确认收款后必须触发支付后处理器（否则钱收了货不发）", async () => {
+      const order = { id: "o9", type: "STATION_MASTER", userId: "u1", targetId: "st1", amount: 999, status: "PENDING" }
+      mockPrisma.order.findUnique.mockResolvedValue(order)
+      mockPrisma.order.updateMany.mockResolvedValue({ count: 1 })
+
+      await svc.adminPayOrder("o9", "TX-001", "admin")
+
+      expect(mockPayment.runPaidPostProcessors).toHaveBeenCalledWith(order, expect.anything())
+    })
+
+    it("CAS 落空（并发重复确认）：不跑后处理器，防重复开通", async () => {
+      mockPrisma.order.findUnique.mockResolvedValue({ id: "o9", type: "MEMBER", userId: "u1", status: "PENDING" })
+      mockPrisma.order.updateMany.mockResolvedValue({ count: 0 })
+
+      await expect(svc.adminPayOrder("o9", "TX-002", "admin")).rejects.toThrow(BusinessException)
+      expect(mockPayment.runPaidPostProcessors).not.toHaveBeenCalled()
+    })
+
+    it("非待支付订单：直接拒绝", async () => {
+      mockPrisma.order.findUnique.mockResolvedValue({ id: "o9", type: "MEMBER", status: "PAID" })
+      await expect(svc.adminPayOrder("o9", "TX-003", "admin")).rejects.toThrow("仅待支付订单可确认支付")
+      expect(mockPayment.runPaidPostProcessors).not.toHaveBeenCalled()
+    })
+
+    it("缺流水号：拒绝（资金操作须可追溯）", async () => {
+      await expect(svc.adminPayOrder("o9", "", "admin")).rejects.toThrow("必须提供支付流水号")
     })
   })
 })

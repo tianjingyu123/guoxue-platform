@@ -2,6 +2,7 @@ import { INestApplication } from "@nestjs/common"
 import { JwtService } from "@nestjs/jwt"
 import request from "supertest"
 import { createE2eApp } from "./e2e-setup"
+import { WechatPayService } from "../src/modules/shop/wechat-pay.service"
 
 /**
  * 核心业务流程集成测试 — 覆盖 5 条完整业务链路
@@ -353,6 +354,12 @@ describe("核心业务流程 E2E", () => {
       prisma.order.findUnique.mockResolvedValue({
         id: "ord-flow-4", userId: "u-flow-4", status: "PENDING", amount: 29900,
       })
+      // 测试环境无商户证书 → isConfigured 恒 false，会被前置检查拦成 400（产品的正确防护，
+      // 见 shop-payment.service.ts createNativePayment）。stub 掉才测得到本流程真正的目标。
+      // isConfigured 是 prototype 上的 getter，jest.spyOn 在实例上找不到 → 直接在实例上覆盖定义。
+      const wechatPay: any = app.get(WechatPayService)
+      Object.defineProperty(wechatPay, "isConfigured", { get: () => true, configurable: true })
+      jest.spyOn(wechatPay, "createNativeOrder").mockResolvedValue({ code_url: "weixin://wxpay/bizpayurl?pr=flow4" })
 
       const payRes = await request(app.getHttpServer())
         .post("/api/v1/shop/orders/ord-flow-4/pay/native")

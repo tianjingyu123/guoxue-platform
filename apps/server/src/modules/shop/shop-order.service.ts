@@ -17,6 +17,18 @@ const ORDER_CACHE_TTL = 300;
 const ORDER_LIST_CACHE_TTL = 60;
 /** 缓存前缀 */
 const CACHE_PREFIX = "shop:";
+/** 运营商档位白名单（对齐 schema enum OperatorLevel 与 CommissionConfig 的 operator_* 配置键） */
+const OPERATOR_LEVELS = ["SILVER", "GOLD", "DIAMOND", "BLACK_GOLD"];
+/**
+ * 无库存概念的订单类型：targetId 指向的不是商品（会员套餐/分站/运营商档位），不参与库存扣减。
+ * 漏加会导致扣库存 updateMany 匹配 0 行 → 误报「商品库存不足」而下单失败。
+ */
+const STOCKLESS_ORDER_TYPES = ["MEMBER", "STATION_MASTER", "OPERATOR"];
+/**
+ * 加盟费订单：B 端资格费，不是商品 → 不参与优惠券、不参与分销自购立减。
+ * 站长/运营商本身就是分销角色，不排除会被自己的分销比例打折（实测 4999 → 3999.2）。
+ */
+const FRANCHISE_ORDER_TYPES = ["STATION_MASTER", "OPERATOR"];
 
 /**
  * 商城订单-下单与查询域（从 shop.service 拆出·纯搬家不改逻辑）。
@@ -35,6 +47,19 @@ export class ShopOrderService {
     @Inject(CommissionService) private commissionSvc?: CommissionService,
   ) {}
 
+  /**
+   * 加盟费定价（分站年租/运营商档位）——真源 CommissionConfig.rateA，禁硬编码。
+   * 沿用既有约定（同 withdrawal_min）：价格塞 rateA、名额塞 rateB。改价受 FundApproval 审批流保护。
+   */
+  private async resolveBillingPrice(configKey: string, label: string): Promise<number> {
+    const cfg = await this.prisma.commissionConfig.findUnique({ where: { configKey } });
+    const price = Number(cfg?.rateA ?? 0);
+    if (!cfg || !(price > 0)) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, `${label}未配置价格，请联系管理员`);
+    }
+    return Math.round(price * 100) / 100;
+  }
+
   async createOrder(userId: string, dto: CreateOrderDto) {
     // 服务端计算实际金额，无视前端传入的 amount（防篡改）
     let actualAmount = 0;
@@ -52,6 +77,22 @@ export class ShopOrderService {
       if (!plan) throw new BusinessException(ErrorCode.BAD_REQUEST, "会员方案不存在");
       if (!plan.isActive) throw new BusinessException(ErrorCode.BAD_REQUEST, "该会员方案已停售");
       actualAmount = Number(plan.price);
+    } else if (dto.type === "STATION_MASTER") {
+      // 分站年租：targetId = stationId（须先 applyStation 建记录）。价格真源 CommissionConfig.rateA，禁硬编码。
+      const station = await this.prisma.station.findUnique({
+        where: { id: dto.targetId },
+        select: { id: true, userId: true },
+      });
+      if (!station) throw new BusinessException(ErrorCode.STATION_NOT_FOUND, "分站不存在，请先提交开通申请");
+      if (station.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能为自己的分站缴纳年租");
+      actualAmount = await this.resolveBillingPrice("station_master_price", "分站年租");
+    } else if (dto.type === "OPERATOR") {
+      // 运营商开通/续期：targetId = 档位（SILVER/GOLD/DIAMOND/BLACK_GOLD）。价格真源 CommissionConfig.rateA。
+      const level = String(dto.targetId || "").toUpperCase();
+      if (!OPERATOR_LEVELS.includes(level)) {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "运营商档位不存在");
+      }
+      actualAmount = await this.resolveBillingPrice(`operator_${level}`, "运营商档位");
     } else {
       const productId = dto.targetId;
       if (dto.skuId) {
@@ -132,9 +173,13 @@ export class ShopOrderService {
       giftCardMeta = (await this.attribution.buildGiftCardMeta(effectiveReferrerId)) ?? undefined;
     }
 
+    // 加盟费（分站年租/运营商开通）是 B 端资格费，不是商品：不参与任何促销。
+    // 尤其自购立减——站长本身是分销角色，不排除的话他买运营商资格会被自己的分销比例打折（实测 4999→3999.2，平台白丢 1000）。
+    const isFranchiseFee = FRANCHISE_ORDER_TYPES.includes(dto.type);
+
     return this.prisma.$transaction(async (tx) => {
       // 优惠券校验与折扣计算（服务端计算，防篡改；计算逻辑与 estimateOrder 共用同一实现）
-      if (dto.couponId) {
+      if (dto.couponId && !isFranchiseFee) {
         actualAmount = await this.applyCouponPricing(tx, userId, dto.couponId, dto.targetId, actualAmount);
 
         // 条件更新防并发双花：仅当券仍 used:false 才置为已用；两并发单只有一个 count>0
@@ -147,7 +192,7 @@ export class ShopOrderService {
 
       // 分销角色自购立减（供-P3 泛化）：在券后价基础上按直推佣金比例立减，并清空推荐关系（佣金天然不产生）
       let selfDiscount = 0;
-      if (selfPurchaseRate > 0) {
+      if (selfPurchaseRate > 0 && !isFranchiseFee) {
         selfDiscount = Math.round(actualAmount * selfPurchaseRate * 100) / 100;
         actualAmount = Math.max(0.01, Math.round((actualAmount - selfDiscount) * 100) / 100);
       }
@@ -218,8 +263,9 @@ export class ShopOrderService {
         },
       });
 
-      // 扣减库存（非会员订单），带库存 >= 数量 约束防止超卖（按 qty 扣减，钱货严谨）
-      if (dto.type !== "MEMBER") {
+      // 扣减库存（仅有库存概念的订单），带库存 >= 数量 约束防止超卖（按 qty 扣减，钱货严谨）。
+      // 无库存概念的订单（会员/分站年租/运营商开通）targetId 不是商品ID，扣库存会匹配 0 行 → 误报「库存不足」。
+      if (!STOCKLESS_ORDER_TYPES.includes(dto.type)) {
         if (dto.skuId) {
           const skuResult = await tx.productSku.updateMany({
             where: { id: dto.skuId, stock: { gte: qty } },

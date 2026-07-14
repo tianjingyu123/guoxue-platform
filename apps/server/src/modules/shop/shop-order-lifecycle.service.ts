@@ -7,6 +7,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { ShopAttributionService } from "./shop-attribution.service";
 import { ShopOrderService } from "./shop-order.service";
+import { ShopPaymentService } from "./shop-payment.service";
 
 /** 缓存前缀 */
 const CACHE_PREFIX = "shop:";
@@ -27,6 +28,7 @@ export class ShopOrderLifecycleService {
     private redis: RedisService,
     private attribution: ShopAttributionService,
     private orderSvc: ShopOrderService,
+    private paymentSvc: ShopPaymentService,
   ) {}
 
   async shipOrder(orderId: string) {
@@ -47,12 +49,17 @@ export class ShopOrderLifecycleService {
     const order = await this.prisma.order.findUnique({ where: { id: orderId } });
     if (!order || order.status !== "PENDING") throw new BusinessException(ErrorCode.ORDER_STATUS_INVALID, "仅待支付订单可确认支付");
 
-    // CAS 状态翻转防并发重复确认
-    const flipped = await this.prisma.order.updateMany({
-      where: { id: orderId, status: "PENDING" },
-      data: { status: "PAID", paidAt: new Date(), payTransactionId },
+    // CAS 状态翻转防并发重复确认 + 同事务跑支付后处理器。
+    // ⚠️ 后处理器不可省：它负责会员开通/分站激活/运营商建号。此前本方法绕过了它，
+    //    导致线下确认收款的订单「变 PAID 但权益不开通」（钱收了货不发）。与网关回调路径同口径。
+    await this.prisma.$transaction(async (tx) => {
+      const flipped = await tx.order.updateMany({
+        where: { id: orderId, status: "PENDING" },
+        data: { status: "PAID", paidAt: new Date(), payTransactionId },
+      });
+      if (flipped.count === 0) throw new BusinessException(ErrorCode.ORDER_STATUS_INVALID, "订单状态已变更");
+      await this.paymentSvc.runPaidPostProcessors(order, tx);
     });
-    if (flipped.count === 0) throw new BusinessException(ErrorCode.ORDER_STATUS_INVALID, "订单状态已变更");
     await this.redis.del(`${CACHE_PREFIX}order:${orderId}`);
     // 线下确认收款同样记分佣 + 平台费（与网关支付路径一致，避免账目漏记）
     await this.attribution.recordOrderCommissionAndFee(order);

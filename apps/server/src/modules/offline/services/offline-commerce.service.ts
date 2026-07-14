@@ -173,7 +173,8 @@ export class OfflineCommerceService {
 
   // ───────── 收益看板 ─────────
 
-  async getRevenueDashboard(stationId: string) {
+  async getRevenueDashboard(userId: string, stationId: string) {
+    await this.shared.assertStationOwner(userId, stationId);
     const station = await this.prisma.stationOffline.findUnique({ where: { id: stationId } });
     if (!station) throw new BusinessException(ErrorCode.NOT_FOUND, "驿站不存在");
 

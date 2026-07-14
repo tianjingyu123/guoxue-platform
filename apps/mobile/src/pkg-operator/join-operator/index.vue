@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
 import { operatorApi } from '@/lib/operator-data'
+import { shopApi } from '@/lib/shop-data'
 
 // —— 自定义导航：顶部状态栏留白 ——
 const statusBarHeight = ref(0)
@@ -19,6 +20,9 @@ const expandedFaq = ref<number | null>(0)
 const PRICE = 4999
 const OWN_SLOTS = 1
 const SELLABLE_SLOTS = 5
+// 唯一对外档位（对应后端 CommissionConfig.operator_SILVER）。真实计费金额由服务端读配置决定，
+// 上面的 PRICE 只用于合规文案展示，不参与计费。
+const OPERATOR_LEVEL = 'SILVER'
 
 const heroNums = [
   { value: '¥4999', label: '唯一对外档位', gold: false },
@@ -95,16 +99,97 @@ function goBack() {
   uni.navigateBack({ delta: 1 })
 }
 
+// —— 支付状态（范式对齐 pkg-profile/vip：Native 扫码 + 轮询 + 渠道未就绪诚实降级）——
+const payPending = ref<{ orderId: string; codeUrl: string; amount: number } | null>(null)
+const payUnavailable = ref(false)
+const pollCount = ref(0)
+const POLL_MAX = 40 // 3s × 40 ≈ 2 分钟
+let pollTimer: ReturnType<typeof setTimeout> | null = null
+
 async function onSubmit() {
-  if (submitting.value) return
+  if (submitting.value || !agreed.value) return
   submitting.value = true
   try {
-    // 沿用平台账号：确认开通 → 走支付/申请流程（后端 POST /operator/apply）
-    uni.showToast({ title: '功能开发中', icon: 'none' })
+    // 1) 创建运营商订单。targetId=档位；金额由服务端按 CommissionConfig.operator_<level>.rateA 定价，
+    //    前端 PRICE 仅用于合规文案展示，绝不参与计费（防篡改）。
+    const order = await shopApi.createOrder({
+      type: 'OPERATOR',
+      targetId: OPERATOR_LEVEL,
+      quantity: 1,
+    })
+    if (!order.id) throw new Error('订单创建失败')
+
+    // 2) 发起微信 Native 扫码支付
+    const pay = await shopApi.payOrderNative(order.id)
+    if (pay.codeUrl) {
+      payPending.value = { orderId: order.id, codeUrl: pay.codeUrl, amount: order.amount }
+      startPolling(order.id)
+    } else {
+      // 未返回 code_url = 渠道未就绪，不假装成功
+      payUnavailable.value = true
+    }
+  } catch {
+    // 支付渠道未就绪（商户资质审核中必现）→ 诚实提示，订单保留在购买记录中
+    payUnavailable.value = true
   } finally {
     submitting.value = false
   }
 }
+
+function startPolling(orderId: string) {
+  stopPolling()
+  pollCount.value = 0
+  const tick = async () => {
+    pollCount.value++
+    try {
+      const st = await shopApi.getOrderPayState(orderId)
+      if (st.paid) {
+        onPaid()
+        return
+      }
+    } catch {
+      // 单次查询失败不中断轮询
+    }
+    if (pollCount.value >= POLL_MAX) {
+      uni.showToast({ title: '未检测到支付结果，可稍后在订单记录中查看', icon: 'none' })
+      payPending.value = null
+      return
+    }
+    pollTimer = setTimeout(tick, 3000)
+  }
+  pollTimer = setTimeout(tick, 3000)
+}
+
+function stopPolling() {
+  if (pollTimer) {
+    clearTimeout(pollTimer)
+    pollTimer = null
+  }
+}
+
+/** 支付成功：后端支付后处理器已建号并设到期日，此处仅提示 + 回到工作台 */
+function onPaid() {
+  stopPolling()
+  payPending.value = null
+  uni.showToast({ title: '开通成功', icon: 'success' })
+  setTimeout(() => navigateTo('/pkg-operator/operator-dashboard/index'), 1200)
+}
+
+function copyCodeUrl() {
+  if (!payPending.value) return
+  uni.setClipboardData({
+    data: payPending.value.codeUrl,
+    success: () => uni.showToast({ title: '已复制', icon: 'none' }),
+  })
+}
+
+/** 取消只关弹层、停轮询；订单保留在订单记录中可继续支付（不擅自取消订单） */
+function cancelPay() {
+  stopPolling()
+  payPending.value = null
+}
+
+onUnmounted(() => stopPolling())
 </script>
 
 <template>
@@ -231,6 +316,32 @@ async function onSubmit() {
         </view>
       </view>
     </template>
+
+    <!-- 待支付：微信 Native 扫码 + 轮询（范式同 pkg-profile/vip） -->
+    <view v-if="payPending" class="modal-mask">
+      <view class="modal-card" @tap.stop>
+        <text class="modal-title">请使用微信扫码支付</text>
+        <text class="pay-amount"><text class="pay-amount-yuan">¥</text>{{ payPending.amount }}</text>
+        <text class="pay-tip">复制以下支付链接，在微信中打开完成支付：</text>
+        <text class="pay-url" :selectable="true">{{ payPending.codeUrl }}</text>
+        <view class="modal-btn" @tap="copyCodeUrl">
+          <text class="modal-btn-txt">复制支付链接</text>
+        </view>
+        <text class="pay-poll">正在等待支付结果（{{ pollCount }}/{{ POLL_MAX }}），支付成功后自动开通</text>
+        <text class="pay-cancel" @tap="cancelPay">取消</text>
+      </view>
+    </view>
+
+    <!-- 支付渠道未就绪：诚实降级，不假装成功 -->
+    <view v-if="payUnavailable" class="modal-mask" @tap="payUnavailable = false">
+      <view class="modal-card" @tap.stop>
+        <text class="modal-title">支付渠道正在开通中</text>
+        <text class="modal-desc">微信支付商户资质审核中，暂时无法在线支付。订单已保留，可稍后在订单记录中继续支付。</text>
+        <view class="modal-btn" @tap="payUnavailable = false">
+          <text class="modal-btn-txt">我知道了</text>
+        </view>
+      </view>
+    </view>
   </view>
 </template>
 
@@ -330,4 +441,18 @@ async function onSubmit() {
 .state-error-text { font-size: 28rpx; color: #C41E3A; text-align: center; }
 .state-retry-btn { padding: 20rpx 60rpx; background: #C41E3A; border-radius: 999rpx; }
 .state-retry-text { font-size: 28rpx; color: #fff; }
+
+/* 支付弹层（待支付扫码 / 渠道未就绪） */
+.modal-mask { position: fixed; inset: 0; background: rgba(0,0,0,0.55); display: flex; align-items: center; justify-content: center; z-index: 100; }
+.modal-card { width: 600rpx; background: #FFFFFF; border-radius: 27rpx; padding: 46rpx 38rpx; display: flex; flex-direction: column; align-items: center; }
+.modal-title { font-size: 33rpx; font-weight: 700; color: #1A1A1A; text-align: center; }
+.modal-desc { font-size: 25rpx; color: #6E6E73; line-height: 1.6; text-align: center; margin-top: 20rpx; }
+.modal-btn { margin-top: 31rpx; width: 100%; height: 84rpx; border-radius: 21rpx; background: #C41E3A; display: flex; align-items: center; justify-content: center; }
+.modal-btn-txt { font-size: 28rpx; color: #FFFFFF; font-weight: 600; }
+.pay-amount { margin-top: 21rpx; font-size: 54rpx; font-weight: 700; color: #C41E3A; }
+.pay-amount-yuan { font-size: 31rpx; }
+.pay-tip { margin-top: 21rpx; font-size: 23rpx; color: #6E6E73; text-align: center; line-height: 1.6; }
+.pay-url { margin-top: 15rpx; width: 100%; padding: 18rpx; background: #F7F5F2; border-radius: 12rpx; font-size: 21rpx; color: #3A3A3C; word-break: break-all; line-height: 1.5; }
+.pay-poll { margin-top: 23rpx; font-size: 21rpx; color: #9A9A9A; text-align: center; line-height: 1.6; }
+.pay-cancel { margin-top: 20rpx; font-size: 25rpx; color: #9A9A9A; }
 </style>

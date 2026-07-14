@@ -82,9 +82,11 @@ describe("OfflineController", () => {
     expect(result.status).toBe("APPROVED");
   });
 
-  it("GET /offline/stations/:id/revenue-dashboard — 收益看板", async () => {
-    const result: any = await ctrl.getRevenueDashboard("s1");
+  it("GET /offline/stations/:id/revenue-dashboard — 收益看板（须带登录态·防越权）", async () => {
+    const req: any = { user: { id: "u1" } };
+    const result: any = await ctrl.getRevenueDashboard(req, "s1");
     expect(result.revenue).toBe(50000);
+    expect(mockOfflineSvc.getRevenueDashboard).toHaveBeenCalledWith("u1", "s1");
   });
 
   // ─── 线下课程 ───

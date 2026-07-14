@@ -146,6 +146,11 @@ export function makeMockPrisma(): any {
     station: {
       findFirst: jest.fn().mockResolvedValue(null),
       findUnique: jest.fn().mockResolvedValue(null),
+      update: jest.fn(),
+    },
+    // 加盟费定价真源（价格塞 rateA·名额塞 rateB）：默认无配置 → 下单应报「未配置价格」
+    commissionConfig: {
+      findUnique: jest.fn().mockResolvedValue(null),
     },
     circle: {
       findFirst: jest.fn().mockResolvedValue(null),
@@ -158,6 +163,9 @@ export function makeMockPrisma(): any {
     },
     operator: {
       findFirst: jest.fn().mockResolvedValue(null),
+      findUnique: jest.fn().mockResolvedValue(null),
+      create: jest.fn(),
+      update: jest.fn(),
     },
     referralRelation: {
       findFirst: jest.fn().mockResolvedValue(null),

@@ -682,4 +682,76 @@ describe("ShopOrderService", () => {
       await expect(svc.estimateOrder("u1", { targetId: "p1" })).rejects.toThrow("商品不可购买")
     })
   })
+
+  // ═══════════════════ 加盟费下单（分站年租 / 运营商开通）═══════════════════
+
+  describe("加盟费下单定价（服务端定价·真源 CommissionConfig.rateA）", () => {
+    it("分站年租：价格取自配置，无视前端传入的 amount（防篡改）", async () => {
+      mockPrisma.station.findUnique.mockResolvedValue({ id: "st1", userId: "u1" })
+      mockPrisma.commissionConfig.findUnique.mockResolvedValue({ rateA: 999 })
+      mockPrisma.order.create.mockResolvedValue({ id: "o1" })
+
+      // 前端谎报 1 元
+      await svc.createOrder("u1", { type: "STATION_MASTER", targetId: "st1", amount: 1 })
+
+      expect(mockPrisma.order.create.mock.calls[0][0].data.amount).toBe(999)
+    })
+
+    it("分站年租：只能为自己的分站缴费（越权 403）", async () => {
+      mockPrisma.station.findUnique.mockResolvedValue({ id: "st1", userId: "someone-else" })
+      await expect(
+        svc.createOrder("u1", { type: "STATION_MASTER", targetId: "st1", amount: 999 }),
+      ).rejects.toThrow("只能为自己的分站缴纳年租")
+    })
+
+    it("分站年租：分站不存在 → 引导先申请开通", async () => {
+      mockPrisma.station.findUnique.mockResolvedValue(null)
+      await expect(
+        svc.createOrder("u1", { type: "STATION_MASTER", targetId: "gone", amount: 999 }),
+      ).rejects.toThrow("请先提交开通申请")
+    })
+
+    it("分站年租：未配置价格 → 结构化报错，绝不按 0 元放行", async () => {
+      mockPrisma.station.findUnique.mockResolvedValue({ id: "st1", userId: "u1" })
+      mockPrisma.commissionConfig.findUnique.mockResolvedValue(null)
+      await expect(
+        svc.createOrder("u1", { type: "STATION_MASTER", targetId: "st1", amount: 999 }),
+      ).rejects.toThrow("未配置价格")
+      expect(mockPrisma.order.create).not.toHaveBeenCalled()
+    })
+
+    it("运营商开通：价格按档位取配置", async () => {
+      mockPrisma.commissionConfig.findUnique.mockResolvedValue({ rateA: 4999, rateB: 10 })
+      mockPrisma.order.create.mockResolvedValue({ id: "o2" })
+
+      await svc.createOrder("u1", { type: "OPERATOR", targetId: "SILVER", amount: 1 })
+
+      expect(mockPrisma.commissionConfig.findUnique).toHaveBeenCalledWith({
+        where: { configKey: "operator_SILVER" },
+      })
+      expect(mockPrisma.order.create.mock.calls[0][0].data.amount).toBe(4999)
+    })
+
+    it("运营商开通：非法档位直接拒单", async () => {
+      await expect(
+        svc.createOrder("u1", { type: "OPERATOR", targetId: "PLATINUM", amount: 4999 }),
+      ).rejects.toThrow("运营商档位不存在")
+      expect(mockPrisma.order.create).not.toHaveBeenCalled()
+    })
+
+    // 端到端实测抓到的漏钱 bug：站长本身是分销角色，买运营商资格时命中自购立减 → 4999 被打八折成 3999.2。
+    // 加盟费是 B 端资格费，不是商品，不得参与任何促销。
+    it("加盟费不参与分销自购立减（站长买运营商仍付全款）", async () => {
+      mockPrisma.commissionConfig.findUnique.mockResolvedValue({ rateA: 4999, rateB: 6 })
+      mockPrisma.order.create.mockResolvedValue({ id: "o3" })
+      // 让该用户命中站长身份（自购立减 20%）
+      mockPrisma.station.findFirst.mockResolvedValue({ id: "st1", userId: "u1" })
+
+      await svc.createOrder("u1", { type: "OPERATOR", targetId: "SILVER", amount: 1 })
+
+      const data = mockPrisma.order.create.mock.calls[0][0].data
+      expect(data.amount).toBe(4999) // 不是 3999.2
+      expect(data.selfDiscount).toBeNull()
+    })
+  })
 })

@@ -17,6 +17,14 @@ import { ShopAttributionService } from "./shop-attribution.service";
 import { ShopOrderService } from "./shop-order.service";
 import { COIN_TO_RMB, RMB_TO_FEN } from "../../common/constants";
 
+/** 运营商档位高低序（用于开通/续期时「只升不降」判定；对齐 schema enum OperatorLevel） */
+const OPERATOR_LEVEL_RANK: Record<string, number> = {
+  SILVER: 1,
+  GOLD: 2,
+  DIAMOND: 3,
+  BLACK_GOLD: 4,
+};
+
 /**
  * 商城支付域（从 shop.service 拆出·纯搬家不改逻辑）。
  * 职责：微信JSAPI/Native下单、国学币充值下单、微信/支付宝/银联/汇付支付回调处理、
@@ -436,7 +444,20 @@ export class ShopPaymentService {
   /** 订单类型 × 支付后处理器 — 新增类型在此注册 */
   private readonly paidPostProcessors: Record<string, (order: Order, tx: any) => Promise<void>> = {
     MEMBER: (order, tx) => this.processMemberPaid(order, tx),
+    STATION_MASTER: (order, tx) => this.processStationMasterPaid(order, tx),
+    OPERATOR: (order, tx) => this.processOperatorPaid(order, tx),
   };
+
+  /**
+   * 按订单类型跑支付后处理器（会员开通 / 分站激活 / 运营商建号）。
+   * 供非网关支付路径复用——管理员线下确认收款（ShopOrderLifecycleService.adminPayOrder）必须调它，
+   * 否则订单变 PAID 但开通逻辑不跑 = 钱收了货不发（B 端加盟费的线下转账正是主要付款路径）。
+   * 必须在翻状态的同一事务内调用，保证「订单 PAID」与「权益开通」原子。
+   */
+  async runPaidPostProcessors(order: Order, tx: any) {
+    const processor = this.paidPostProcessors[order.type];
+    if (processor) await processor(order, tx);
+  }
 
   /** 事务内更新订单状态为 PAID + 按类型触发后处理 */
   private async processPaidOrder(order: { id: string; type: string; userId: string; amount: any; targetId?: string | null; referrerId?: string | null }, payMethod: string, tradeNo: string) {
@@ -509,6 +530,100 @@ export class ShopPaymentService {
     });
     // 权益③首月发放（同事务原子；月度 cron 按 member_monthly_YYYYMM 幂等，本月不会重复发）
     await this.memberBenefit.grantMonthlyBenefits(order.userId, planLevel, tx);
+  }
+
+  /** 加盟费计费周期（月）— 真源 ConfigSystem，缺省 12（按年） */
+  private async resolveBillingMonths(tx: any): Promise<number> {
+    const cfg = await tx.configSystem.findUnique({ where: { configKey: "station.billing_period_months" } });
+    const months = Number(cfg?.configValue ?? 12);
+    return Number.isFinite(months) && months > 0 ? Math.floor(months) : 12;
+  }
+
+  /** 到期日叠加：续期不吞剩余天数（未到期则从原到期日起算，已过期则从当下起算）— 同会员口径 */
+  private calcRenewedExpiry(current: Date | null | undefined, months: number): Date {
+    const now = new Date();
+    const base = new Date(current && current > now ? current : now);
+    base.setMonth(base.getMonth() + months);
+    return base;
+  }
+
+  /**
+   * STATION_MASTER 支付后处理 — 分站年租缴纳/续期。
+   * targetId = stationId（下单时已校验存在且归属付款人）。
+   * 付款即激活：已上线协议文案明示「开通分站无准入门槛」，故不再等待管理员审核；
+   * 管理员保留后置停用能力（status 可改）。
+   */
+  private async processStationMasterPaid(order: Order, tx: any) {
+    if (!order.targetId) {
+      this.logger.error(`STATION_MASTER 订单缺 targetId: ${order.id}`);
+      return;
+    }
+    const station = await tx.station.findUnique({
+      where: { id: order.targetId },
+      select: { id: true, expireAt: true, status: true },
+    });
+    if (!station) {
+      this.logger.error(`STATION_MASTER 订单指向的分站不存在: order=${order.id} station=${order.targetId}`);
+      return;
+    }
+    const months = await this.resolveBillingMonths(tx);
+    await tx.station.update({
+      where: { id: station.id },
+      data: {
+        status: "ACTIVE",
+        expireAt: this.calcRenewedExpiry(station.expireAt, months),
+      },
+    });
+  }
+
+  /**
+   * OPERATOR 支付后处理 — 运营商开通/续期/升档。
+   * targetId = 档位（SILVER/GOLD/DIAMOND/BLACK_GOLD，下单时已校验）。
+   * 名额取 CommissionConfig.operator_<level>.rateB；档位只升不降（同会员「等级只升不降」）。
+   * ⚠️ mgmtRate 一律留空 → 走 channelType 默认（ONLINE 0.10 / OFFLINE 0.20）。
+   *    seed 里的 rateC（旧分级管理奖）已废止，禁止读取，否则会与现行口径打架。
+   */
+  private async processOperatorPaid(order: Order, tx: any) {
+    const level = String(order.targetId || "").toUpperCase();
+    if (!OPERATOR_LEVEL_RANK[level]) {
+      this.logger.error(`OPERATOR 订单档位非法: order=${order.id} level=${order.targetId}`);
+      return;
+    }
+    const cfg = await tx.commissionConfig.findUnique({ where: { configKey: `operator_${level}` } });
+    const quota = Math.max(0, Math.floor(Number(cfg?.rateB ?? 0)));
+    const months = await this.resolveBillingMonths(tx);
+
+    const existing = await tx.operator.findUnique({
+      where: { userId: order.userId },
+      select: { id: true, level: true, containQuota: true, expireAt: true },
+    });
+
+    if (!existing) {
+      await tx.operator.create({
+        data: {
+          userId: order.userId,
+          level: level as any,
+          containQuota: quota,
+          channelType: "ONLINE",
+          status: "ACTIVE",
+          expireAt: this.calcRenewedExpiry(null, months),
+        },
+      });
+      return;
+    }
+
+    // 只升不降：买低档不覆盖已有高档（名额同理取大者）
+    const keepLevel =
+      OPERATOR_LEVEL_RANK[existing.level] >= OPERATOR_LEVEL_RANK[level] ? existing.level : level;
+    await tx.operator.update({
+      where: { id: existing.id },
+      data: {
+        level: keepLevel as any,
+        containQuota: Math.max(existing.containQuota ?? 0, quota),
+        status: "ACTIVE",
+        expireAt: this.calcRenewedExpiry(existing.expireAt, months),
+      },
+    });
   }
 
   // ═══════════════════ 汇付天下支付 ═══════════════════
