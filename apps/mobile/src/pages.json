@@ -2143,6 +2143,12 @@
           }
         },
         {
+          "path": "teacher-booking/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
           "path": "station-detail/index",
           "style": {
             "navigationStyle": "custom"
@@ -2556,12 +2562,6 @@
         },
         {
           "path": "follows/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "learning/index",
           "style": {
             "navigationStyle": "custom"
           }

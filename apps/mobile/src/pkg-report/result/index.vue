@@ -333,8 +333,20 @@ function viewDetail(record: ReportRecord) {
   showDetail.value = true
 }
 
-function goAppeal(id: number) {
-  navigateTo(`/report/appeal?id=${id}`)
+/**
+ * 申诉：/report/appeal 这个页面**根本不存在**（点了没反应），后端也没有举报申诉端点。
+ * 不留死按钮，也不假装能提交 —— 引导到客服（客服链路是真的）。
+ */
+function goAppeal(_id: number) {
+  uni.showModal({
+    title: '对处理结果有异议',
+    content: '如对本次举报的处理结果有异议，请联系平台客服，我们会安排人工复核。',
+    confirmText: '联系客服',
+    confirmColor: '#C41E3A',
+    success: (r) => {
+      if (r.confirm) navigateTo('/customer-service')
+    },
+  })
 }
 
 function goBack() {

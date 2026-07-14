@@ -237,7 +237,7 @@ async function load() {
 
 function goBack() { navigateBack() }
 function goHome() { navigateTo('/competition/home') }
-function goLogin() { navigateTo('/pages/login/index') }
+function goLogin() { navigateTo('/login') }
 function goCertify() { navigateTo('/pkg-creator/teacher-certification/index') }
 // 🔻降级：达人咨询挂牌后端未实现，点击提示即将开放，不造假跳转
 function goMount() { uni.showToast({ title: '分析师挂牌接单即将开放', icon: 'none' }) }

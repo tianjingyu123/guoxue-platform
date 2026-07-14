@@ -15,7 +15,7 @@ export interface BannerItem {
 }
 
 export const defaultBanners: BannerItem[] = [
-  { id: '1', image: 'https://api.rebugx.cn/assets/images/banners/banner-1.webp', title: '八字命理入门精讲 限时优惠', link: '/pages/courses/index' },
+  { id: '1', image: 'https://api.rebugx.cn/assets/images/banners/banner-1.webp', title: '八字命理入门精讲 限时优惠', link: '/courses' },
   { id: '2', image: 'https://api.rebugx.cn/assets/images/banners/banner-2.webp', title: '大师直播：2024下半年运势解读', link: '/pages/live/index' },
   { id: '3', image: 'https://api.rebugx.cn/assets/images/banners/banner-3.webp', title: '新人专享 首单立减50元', link: '/pages/mall/index' },
 ]
@@ -171,7 +171,7 @@ export interface MarketingBanner {
 
 export const marketingBanners: MarketingBanner[] = [
   { label: '限时优惠', title: '新人专属 · 首月免费', subtitle: '加入圈子，与万名命理爱好者共同成长', href: '/pages/circles/index', bgFrom: '#C41E3A', bgTo: '#8B1228', accent: 'rgba(255,220,180,0.95)' },
-  { label: '精品课程', title: '八字精研班 · 开课倒计时', subtitle: '名师带教，系统掌握四柱命理核心', href: '/pages/courses/index', bgFrom: '#7B4F12', bgTo: '#4A2E08', accent: 'rgba(255,210,130,0.95)' },
+  { label: '精品课程', title: '八字精研班 · 开课倒计时', subtitle: '名师带教，系统掌握四柱命理核心', href: '/courses', bgFrom: '#7B4F12', bgTo: '#4A2E08', accent: 'rgba(255,210,130,0.95)' },
   { label: '线下活动', title: '研学营 · 实地勘察风水', subtitle: '理论结合实践，深度感受山川气场', href: '/pages/discover/index', bgFrom: '#1A4A2E', bgTo: '#0D2E1A', accent: 'rgba(180,230,180,0.95)' },
 ]
 

@@ -158,7 +158,7 @@ function goPaipan(c: any) {
   }
   const m = /^(\d{4})-(\d{2})-(\d{2})(?: (\d{2}):(\d{2}))?$/.exec(c.birth)
   if (!m) {
-    uni.navigateTo({ url: '/pkg-paipan/paipan/bazi' })
+    uni.navigateTo({ url: '/pkg-paipan/bazi/index' })
     return
   }
   const q = [
@@ -174,7 +174,9 @@ function goPaipan(c: any) {
     .filter(Boolean)
     .join('&')
   detail.value = null
-  uni.navigateTo({ url: `/pkg-paipan/paipan/bazi?${q}` })
+  // 🔴 原来写的是 /pkg-paipan/paipan/bazi（多了一层 paipan）→ 页面不存在，
+  //    工作台里点客户「去排盘」直接跳不动。真实页是 /pkg-paipan/bazi/index。
+  uni.navigateTo({ url: `/pkg-paipan/bazi/index?${q}` })
 }
 
 function dateText(iso?: string | null): string {

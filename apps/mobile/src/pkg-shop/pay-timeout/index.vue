@@ -101,7 +101,8 @@ onLoad((q) => {
 
 function goRePay() { redirectTo(`/shop/paying?orderId=${orderId.value}`) }
 function goChangeMethod() { navigateTo(`/shop/checkout?orderId=${orderId.value}`) }
-function goOrder() { navigateTo(`/shop/orders/${orderId.value}`) }
+// 真别名是 /orders/:id（原来写的 /shop/orders/:id 没登记 → 支付超时后点「查看订单」没反应）
+function goOrder() { navigateTo(`/orders/${orderId.value}`) }
 </script>
 
 <style lang="scss" scoped>

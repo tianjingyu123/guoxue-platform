@@ -277,7 +277,10 @@ const ROUTE_MAP: Record<string, string> = {
   // 旧套 /mine/{downloads,follows,my-courses,edit-profile,memberships,invite-records} 已 deprecated，见 compare/DEPRECATED.md
   '/downloads': '/pkg-profile/downloads/index',
   '/follows': '/pkg-profile/follows/index',
-  '/learning': '/pkg-profile/learning/index',
+  /* 🔴 2026-07-14：/learning 原本指向 pkg-profile/learning —— 那是个**写死三门假课**的死页
+   * （"八字入门实战课·周易大师·已学65%"），而个人中心的「我的课程」正是走这个别名。
+   * 真页是 pkg-course/learn（真连课程进度）。假页已退役删除。 */
+  '/learning': '/pkg-course/learn/index',
   '/invite': '/pkg-profile/invite/index',
   '/invite/history': '/pkg-profile/invite/history/index',
   '/vip': '/pkg-profile/vip/index',
@@ -441,6 +444,8 @@ const ROUTE_MAP: Record<string, string> = {
   // 研究院（书院）：首页 + 讲师广场 + 活动列表 + 讲师申请（详情页为动态 /institute/instructors|events/:id）
   '/institute': '/pkg-institute/index/index',
   '/institute/instructors': '/pkg-institute/instructors/index',
+  // 研究院内容库（我的任务页「查看内容库」入口原本点了没反应：页面在，别名漏登记）
+  '/institute/contents': '/pkg-institute/contents/index',
   '/institute/events': '/pkg-institute/events/index',
   '/institute/apply': '/pkg-institute/apply/index',
   // 讲师工作台第二批：我的任务 / 线下老师人才库 / 课程需求大厅 / 发布师资需求
@@ -484,6 +489,9 @@ const DYNAMIC_ROUTES: Array<[RegExp, string, string]> = [
   [/^\/competition\/([^/?]+)\/result$/, '/pkg-competition/result/index', 'id'],
   [/^\/competition\/([^/?]+)\/score-detail$/, '/pkg-competition/score-detail/index', 'id'],
   [/^\/competition\/([^/?]+)\/certificate$/, '/pkg-competition/certificate/index', 'id'],
+  // 结业证书 /courses/:id/certificate —— 页面早就在，别名漏登记：
+  // 学员在「我的学习」里点「查看证书」原本点了没反应
+  [/^\/courses\/([^/?]+)\/certificate$/, '/pkg-course/certificate/index', 'id'],
   [/^\/competition\/([^/?]+)\/poster$/, '/pkg-competition/poster/index', 'id'],
   [/^\/competition\/([^/?]+)$/, '/pkg-competition/detail/index', 'id'],
   // 短视频全屏播放详情（/video/:id；video-card 等多处已上线页跳此，原为断链）
@@ -538,9 +546,16 @@ const DYNAMIC_ROUTES: Array<[RegExp, string, string]> = [
   [/^\/instructor\/([^/?]+)$/, '/pkg-course/instructor/index', 'id'],
   // 圈子详情 /circles/:id（原型��格路径，搜索结果等入口使用��
   [/^\/circles\/([^/?]+)$/, '/pkg-circle/circles/detail', 'id'],
+  // 回放详情 /live/replay/:id（直播广场「看回放」入口 —— 页面早就在，别名漏登记，点了没反应）
+  // 必须先于下面的 /live/:id 单段兜底，否则 "replay" 会被当成 roomId
+  [/^\/live\/replay\/([^/?]+)$/, '/pkg-live/replay-detail/index', 'id'],
   // 直播间观看页 /live/:id（直播卡片入口；静态 /live/xxx 均用内部完整路径，不冲突）
   [/^\/live\/([^/?]+)$/, '/pkg-live/watch/index', 'id'],
   // 古籍详情 /classic/:id（供"我的收藏"等统一入口跳转；古籍馆内部多用全路径 /pkg-classics/detail/index）
+  // 🔴 2026-07-14：卡片组件/发现页/搜索结果统一跳的是**复数** `/classics/:id`，而这里只登记了单数 ——
+  //    结果首页九类卡里的古籍卡、发现页新书上架、搜索结果的古籍条目，**点了全都没反应**。
+  //    两种写法都收，别再因为单复数丢一整类内容的入口。
+  [/^\/classics\/([^/?]+)$/, '/pkg-classics/detail/index', 'id'],
   [/^\/classic\/([^/?]+)$/, '/pkg-classics/detail/index', 'id'],
   // 悬赏���情 /bounty/:id（静态 /bounty、/bounty/create、/bounty/answer、/bounty/my 已在 ROUTE_MAP 优先命中）
   [/^\/bounty\/([^/?]+)$/, '/pkg-bounty/detail/index', 'id'],

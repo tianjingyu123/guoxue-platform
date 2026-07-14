@@ -132,9 +132,12 @@ function closePickers() {
   showMonthPicker.value = false
   showTypePicker.value = false
 }
-function openDetail(id: string) {
-  navigateTo(`/wallet/transactions/${id}`)
-}
+/**
+ * 🔴 原来每条流水都可点，跳 `/wallet/transactions/:id` —— **这个详情页根本不存在**，
+ *    后端也没有流水详情端点，点了就是没反应。
+ *    而流水行本身已经展示了类型/标题/时间/金额（后端返回的就这几个字段），没有更多可看的。
+ *    → 去掉点击，不留死交互。将来后端补了流水详情（含关联订单/对手方）再加回来。
+ */
 </script>
 
 <template>
@@ -232,7 +235,6 @@ function openDetail(id: string) {
               :key="t.id"
               class="tx-item"
               :class="{ bordered: idx > 0 }"
-              @tap="openDetail(t.id)"
             >
               <view class="tx-icon" :class="catClass[t.category]">
                 <app-icon :name="catIcon[t.category]" :size="28" />

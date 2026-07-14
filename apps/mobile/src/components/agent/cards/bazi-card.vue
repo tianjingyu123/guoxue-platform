@@ -83,7 +83,7 @@ const birthLine = computed(() => {
 function goFullResult() {
   const d = data.value
   if (!d.year) {
-    navigateTo('/paipan/bazi/index')
+    navigateTo('/paipan/bazi')
     return
   }
   const q = [

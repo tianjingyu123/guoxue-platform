@@ -23,7 +23,7 @@ function onBack() {
   // 默认返回行为
   const pages = getCurrentPages()
   if (pages.length > 1) uni.navigateBack()
-  else uni.switchTab?.({ url: '/pages/home/index' }).catch?.(() => {})
+  else uni.switchTab?.({ url: '/pages/index/index' }).catch?.(() => {})
 }
 
 function goSearch() {

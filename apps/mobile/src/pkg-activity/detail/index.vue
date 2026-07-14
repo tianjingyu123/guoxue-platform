@@ -77,7 +77,8 @@
             <app-icon name="ticket" :size="40" color="#C9A96E" />
             <text class="block-title">优惠券专区</text>
           </view>
-          <view class="block-more" @tap="go('/coupons')">
+          <!-- 真别名是 /shop/coupons（原来写的 /coupons 没登记 → 点了没反应） -->
+          <view class="block-more" @tap="go('/shop/coupons')">
             <text class="more-txt">我的券</text>
             <app-icon name="chevron-right" :size="24" color="#999" />
           </view>
@@ -216,7 +217,8 @@
               <text class="rank-amount">{{ rankingType === 'consume' ? '¥' + formatPrice(u.amount).toLocaleString() : u.amount + '人' }}</text>
             </view>
           </view>
-          <view class="rank-foot" @tap="go('/ranking')">
+          <!-- 真别名是 /rankings（复数）—— 原来写的 /ranking 点了没反应 -->
+          <view class="rank-foot" @tap="go('/rankings')">
             <text class="rank-foot-txt">查看完整榜单</text>
             <app-icon name="chevron-right" :size="24" color="#999" />
           </view>

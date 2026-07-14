@@ -174,7 +174,7 @@ const faqs = [
 ]
 
 function goFaq() {
-  navigateTo('/help/faq?topic=teen-mode')
+  navigateTo('/help')
 }
 
 function openTeenMode() {
