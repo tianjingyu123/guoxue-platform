@@ -8,6 +8,7 @@ import Disclaimer from '@/components/compliance/disclaimer.vue'
 import { navigateTo } from '@/utils/router'
 import { getToken } from '@/utils/storage'
 import { qimenApi, type QimenResult, type QimenInput } from '@/lib/qimen-data'
+import { computeQimenLocal } from '@/pkg-paipan/lib/qimen-adapter'
 import { BRAND } from '@/lib/brand'
 
 // ─── 奇门常量 ───
@@ -60,13 +61,18 @@ function buildInput(): QimenInput {
   }
 }
 
-async function load() {
+/**
+ * 本地重算（2026-07-14 去伪存真）：改用 pkg-paipan/lib/qimen-engine（84/84 黄金测试）。
+ * 此前走 qimenApi.calculate → 后端 qimen.calculator 只有转盘法，飞盘被错误委托给阴盘引擎
+ * （阴盘是另一流派，以月柱推局），导致选「飞盘」时拿到的是阴盘。
+ */
+function load() {
   loading.value = true
   errMsg.value = ''
   try {
-    result.value = await qimenApi.calculate(buildInput())
+    result.value = computeQimenLocal(buildInput())
   } catch (e) {
-    errMsg.value = (e as Error)?.message || '排盘失败，请稍后重试'
+    errMsg.value = (e as Error)?.message || '排盘失败，请检查起局参数'
   } finally {
     loading.value = false
   }

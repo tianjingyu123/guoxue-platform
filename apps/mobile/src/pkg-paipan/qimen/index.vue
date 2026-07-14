@@ -4,6 +4,7 @@ import { ref, reactive, onMounted, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import DatePickerModal from '@/components/bazi/date-picker-modal.vue'
 import { navigateTo } from '@/utils/router'
+import { toSolarSafe } from '@/pkg-paipan/lib/date-convert'
 import { BRAND } from '@/lib/brand'
 
 // R4 合规：小程序端无占卜类目，标题改文化研究表述（仅展示文案·路由/逻辑不变）
@@ -53,12 +54,23 @@ const formatDateTime = computed(() =>
   `${dateTime.year}年${dateTime.month}月${dateTime.day}日 ${String(dateTime.hour).padStart(2, '0')}时${String(dateTime.minute).padStart(2, '0')}分`,
 )
 
-function onDateConfirm(date: { year: number; month: number; day: number; hour: number | null; minute: number | null }) {
+function onDateConfirm(d: {
+  year: number; month: number; day: number
+  hour: number | null; minute: number | null; isLunar?: boolean
+}) {
+  const hour = d.hour ?? dateTime.hour
+  const minute = d.minute ?? dateTime.minute
+  // 农历输入归一为公历：引擎入参恒为公历，否则农历数字会被当公历排盘
+  const { date, ok } = toSolarSafe({ year: d.year, month: d.month, day: d.day, hour, minute, isLunar: d.isLunar })
+  if (!ok) {
+    uni.showToast({ title: '农历日期无效，请重新选择', icon: 'none' })
+    return
+  }
   dateTime.year = date.year
   dateTime.month = date.month
   dateTime.day = date.day
-  dateTime.hour = date.hour ?? dateTime.hour
-  dateTime.minute = date.minute ?? dateTime.minute
+  dateTime.hour = date.hour
+  dateTime.minute = date.minute
   showDatePicker.value = false
 }
 

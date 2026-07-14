@@ -13,6 +13,7 @@ import DatePickerModal from '@/components/bazi/date-picker-modal.vue'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
+import { toSolarSafe } from '@/pkg-paipan/lib/date-convert'
 import {
   loadDaliurenHistory,
   clearDaliurenHistory,
@@ -73,14 +74,19 @@ function refreshTime() {
   }
 }
 
-function onDateConfirm(d: { year: number; month: number; day: number; hour: number | null; minute: number | null }) {
-  dateTime.value = {
-    year: d.year,
-    month: d.month,
-    day: d.day,
-    hour: d.hour ?? dateTime.value.hour,
-    minute: d.minute ?? dateTime.value.minute,
+function onDateConfirm(d: {
+  year: number; month: number; day: number
+  hour: number | null; minute: number | null; isLunar?: boolean
+}) {
+  const hour = d.hour ?? dateTime.value.hour
+  const minute = d.minute ?? dateTime.value.minute
+  // 农历输入归一为公历：引擎入参恒为公历，否则农历数字会被当公历排盘
+  const { date, ok } = toSolarSafe({ year: d.year, month: d.month, day: d.day, hour, minute, isLunar: d.isLunar })
+  if (!ok) {
+    uni.showToast({ title: '农历日期无效，请重新选择', icon: 'none' })
+    return
   }
+  dateTime.value = date
 }
 
 function onBirthYearChange(e: { detail: { value: number | string } }) {

@@ -25,6 +25,7 @@ import {
   calculatePhoneAnalysis,
   calculateXingmingJiexi,
   calculateQimenMingli,
+  calculateQimenYin,
   calculateQimenYinMingli,
   calculateQimenChuanren,
   calculateShanXiangQiMen,
@@ -197,9 +198,14 @@ export class ToolCalculationService {
     switch (toolId) {
       case "bazi":              return calculateBaZi(input);
       case "ziwei":             return calculateZiWei(input);
+      // "qimen" 是 admin 奇门页（QimenPan.vue）历史上使用的 toolId，实现登记在 qimen-yang，
+      // 此前 dispatch 无此 case，该页必然报「计算引擎暂未实现」——补别名修复。
+      case "qimen":
       case "qimen-yang":        return calculateQimenYang(input);
       case "qimen-yang-mingli": return calculateQimenMingli(input);
-      case "qimen-yin":
+      // 2026-07-14 修：qimen-yin（阴盘奇门）此前被并入命理盘分支，直接返回阴盘命理盘。
+      // 两者起局法不同（阴盘=王凤麟以月柱推局；阴盘命理=以生辰数理起局），不可混用。
+      case "qimen-yin":         return calculateQimenYin(input);
       case "qimen-yin-mingli":  return calculateQimenYinMingli(input);
       case "daliuren":          return calculateDaLiuRen(input);
       case "xiaoliuren":        return calculateXiaoLiuRen(input);

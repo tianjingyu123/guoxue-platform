@@ -16,6 +16,7 @@ import DatePickerModal from '@/components/bazi/date-picker-modal.vue'
 import LocationPickerModal from '@/components/bazi/location-picker-modal.vue'
 import { navigateTo } from '@/utils/router'
 import { QIMING_STYLES, FIX_POSITIONS } from '@/pkg-paipan2/lib/qiming-data'
+import { toSolarSafe } from '@/pkg-paipan2/lib/date-convert'
 import { loadQimingHistory, clearQimingHistory, type QimingHistoryRecord } from './store'
 
 // R4 合规：小程序端无占卜类目，标题改文化研究表述（仅展示文案）
@@ -46,8 +47,20 @@ const placeText = computed(() =>
 
 const canSubmit = computed(() => surname.value.trim().length > 0)
 
-function onDateConfirm(v: { year: number; month: number; day: number; hour: number | null; minute: number | null }) {
-  birthDate.value = { year: v.year, month: v.month, day: v.day, hour: v.hour ?? 12, minute: v.minute ?? 0 }
+function onDateConfirm(v: {
+  year: number; month: number; day: number
+  hour: number | null; minute: number | null; isLunar?: boolean
+}) {
+  // 农历输入归一为公历：computeBazi 入参恒为公历，否则农历数字会被当公历排四柱
+  const { date, ok } = toSolarSafe({
+    year: v.year, month: v.month, day: v.day,
+    hour: v.hour ?? 12, minute: v.minute ?? 0, isLunar: v.isLunar,
+  })
+  if (!ok) {
+    uni.showToast({ title: '农历日期无效，请重新选择', icon: 'none' })
+    return
+  }
+  birthDate.value = date
 }
 
 function handleSubmit() {

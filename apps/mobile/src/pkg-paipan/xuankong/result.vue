@@ -34,6 +34,7 @@ import {
   type XuankongChart,
 } from '@/pkg-paipan/lib/xuankong-data'
 import { saveXuankongHistory, type XuankongParams } from './xuankong-history'
+import { toSolarSafe } from '@/pkg-paipan/lib/date-convert'
 
 // R4 合规：小程序端无占卜类目，标题改文化研究表述（仅展示文案）
 let hdrTitle = '玄空飞星'
@@ -143,14 +144,19 @@ function goInput() {
   navigateTo('/pkg-paipan/xuankong/index')
 }
 
-function onDateConfirm(d: { year: number; month: number; day: number; hour: number | null; minute: number | null }) {
-  flyDate.value = {
-    year: d.year,
-    month: d.month,
-    day: d.day,
-    hour: d.hour ?? flyDate.value.hour,
-    minute: d.minute ?? flyDate.value.minute,
+function onDateConfirm(d: {
+  year: number; month: number; day: number
+  hour: number | null; minute: number | null; isLunar?: boolean
+}) {
+  const hour = d.hour ?? flyDate.value.hour
+  const minute = d.minute ?? flyDate.value.minute
+  // 农历输入归一为公历：引擎入参恒为公历，否则农历数字会被当公历排盘
+  const { date, ok } = toSolarSafe({ year: d.year, month: d.month, day: d.day, hour, minute, isLunar: d.isLunar })
+  if (!ok) {
+    uni.showToast({ title: '农历日期无效，请重新选择', icon: 'none' })
+    return
   }
+  flyDate.value = date
 }
 
 /** 分享：复制盘面文字摘要 */

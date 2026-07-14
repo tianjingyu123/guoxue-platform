@@ -65,9 +65,24 @@ const CITY_LNG: Record<string, number> = {
   南宁: 108.37, 海口: 110.32, 银川: 106.28, 西宁: 101.78, 呼和浩特: 111.75,
 }
 
+// 主要城市纬度（与 CITY_LNG 同一份城市清单；七政四余需纬度算命宫与日月出没）
+const CITY_LAT: Record<string, number> = {
+  北京: 39.9, 上海: 31.23, 广州: 23.13, 深圳: 22.54, 杭州: 30.27, 南京: 32.06,
+  成都: 30.57, 重庆: 29.56, 武汉: 30.59, 西安: 34.34, 天津: 39.13, 苏州: 31.3,
+  郑州: 34.75, 长沙: 28.23, 沈阳: 41.8, 青岛: 36.07, 大连: 38.91, 厦门: 24.48,
+  福州: 26.07, 昆明: 25.04, 兰州: 36.06, 乌鲁木齐: 43.83, 拉萨: 29.65, 哈尔滨: 45.8,
+  长春: 43.82, 石家庄: 38.04, 太原: 37.87, 合肥: 31.86, 南昌: 28.68, 贵阳: 26.65,
+  南宁: 22.82, 海口: 20.04, 银川: 38.49, 西宁: 36.62, 呼和浩特: 40.84,
+}
+
 /** 城市经度查询（查不到返回 undefined，其他排盘引擎复用） */
 export function cityLongitude(city?: string | null): number | undefined {
   return city ? CITY_LNG[city] : undefined
+}
+
+/** 城市纬度查询（查不到返回 undefined；七政四余排盘用） */
+export function cityLatitude(city?: string | null): number | undefined {
+  return city ? CITY_LAT[city] : undefined
 }
 
 export function lunarText(y: number, m: number, d: number): string {

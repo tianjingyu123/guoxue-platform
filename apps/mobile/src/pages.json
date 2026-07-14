@@ -177,6 +177,30 @@
           }
         },
         {
+          "path": "qizheng/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "qizheng/result",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "hepan/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "hepan/result",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
           "path": "meihua/index",
           "style": {
             "navigationStyle": "custom"
@@ -379,6 +403,24 @@
     {
       "root": "pkg-paipan2",
       "pages": [
+        {
+          "path": "zidian/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "liuyao/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "liuyao/result",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
         {
           "path": "qiming/index",
           "style": {

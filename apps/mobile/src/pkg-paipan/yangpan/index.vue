@@ -5,6 +5,7 @@ import AppIcon from '@/components/common/app-icon.vue'
 import DatePickerModal from '@/components/bazi/date-picker-modal.vue'
 import LocationPickerModal from '@/components/bazi/location-picker-modal.vue'
 import { navigateTo } from '@/utils/router'
+import { toSolarSafe } from '@/pkg-paipan/lib/date-convert'
 
 // R4 合规：小程序端无占卜类目，标题改历法研究表述（仅展示文案·路由/逻辑不变）
 let yangpanTitle = '阳盘命理奇门'
@@ -39,12 +40,23 @@ const formatDateTime = computed(() =>
   `${birth.year}年${birth.month}月${birth.day}日 ${birth.hour}时${birth.minute}分`,
 )
 
-function onDateConfirm(date: { year: number; month: number; day: number; hour: number | null; minute: number | null }) {
+function onDateConfirm(d: {
+  year: number; month: number; day: number
+  hour: number | null; minute: number | null; isLunar?: boolean
+}) {
+  const hour = d.hour ?? birth.hour
+  const minute = d.minute ?? birth.minute
+  // 农历输入归一为公历：引擎入参恒为公历，否则农历数字会被当公历排盘
+  const { date, ok } = toSolarSafe({ year: d.year, month: d.month, day: d.day, hour, minute, isLunar: d.isLunar })
+  if (!ok) {
+    uni.showToast({ title: '农历日期无效，请重新选择', icon: 'none' })
+    return
+  }
   birth.year = date.year
   birth.month = date.month
   birth.day = date.day
-  birth.hour = date.hour ?? birth.hour
-  birth.minute = date.minute ?? birth.minute
+  birth.hour = date.hour
+  birth.minute = date.minute
   showDatePicker.value = false
 }
 

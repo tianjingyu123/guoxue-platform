@@ -30,11 +30,13 @@ export const tools: Tool[] = [
   { id: 'bazi', name: '八字排盘', iconId: 'bazi', href: '/paipan/bazi', category: 'mingli' },
   { id: 'bazi-analysis', name: '八字解析', iconId: 'bazi-analysis', href: '/paipan/tools/coming-soon?name=八字解析', badge: true, category: 'mingli' },
   { id: 'ziwei', name: '紫微斗数', iconId: 'ziwei', href: '/paipan/ziwei', badge: true, category: 'mingli' },
+  { id: 'qizheng', name: '七政四余', iconId: 'qizheng', href: '/paipan/qizheng', badge: true, category: 'mingli' },
   { id: 'yangming', name: '阳盘命理', iconId: 'yangming', href: '/paipan/yangpan', category: 'mingli' },
+  { id: 'hepan', name: '八字合盘', iconId: 'hepan', href: '/paipan/hepan', badge: true, category: 'mingli' },
   { id: 'mingli-qimen', name: '命理奇门', iconId: 'mingli-qimen', href: '/paipan/yinpan-mingli', badge: true, category: 'mingli' },
   { id: 'taiyi', name: '太乙神数', iconId: 'taiyi', href: '/paipan/taiyi', badge: true, category: 'mingli' },
   // 占卜起卦
-  { id: 'liuyao', name: '六爻排盘', iconId: 'liuyao', href: '/paipan/tools/coming-soon?name=六爻排盘', category: 'bushi' },
+  { id: 'liuyao', name: '六爻排盘', iconId: 'liuyao', href: '/paipan/liuyao', category: 'bushi' },
   { id: 'meihua', name: '梅花易数', iconId: 'meihua', href: '/paipan/meihua', badge: true, category: 'bushi' },
   { id: 'xiaoliuren', name: '小六壬', iconId: 'xiaoliuren', href: '/paipan/xiaoliuren', badge: true, category: 'bushi' },
   { id: 'daliuren', name: '大六壬', iconId: 'daliuren', href: '/paipan/daliuren', badge: true, category: 'bushi' },
@@ -62,7 +64,7 @@ export const tools: Tool[] = [
   // 历法查询
   { id: 'calendar', name: '万年历', iconId: 'calendar', href: '/paipan/wannianli', badge: true, category: 'lifa' },
   { id: 'solar-terms', name: '节气查询', iconId: 'solar-terms', href: '/pkg-solar-term/index/index', category: 'lifa' },
-  { id: 'dictionary', name: '字典查询', iconId: 'dictionary', href: '/paipan/tools/coming-soon?name=字典查询', category: 'lifa' },
+  { id: 'dictionary', name: '字典查询', iconId: 'dictionary', href: '/paipan/zidian', category: 'lifa' },
   { id: 'char-filter', name: '汉字筛选', iconId: 'char-filter', href: '/paipan/tools/coming-soon?name=汉字筛选', category: 'lifa' },
   // 更多服务
   { id: 'partner', name: '合伙人', iconId: 'partner', href: '/paipan/tools/coming-soon?name=合伙人', category: 'service' },

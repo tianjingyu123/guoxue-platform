@@ -16,6 +16,7 @@ import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
 import { HEX_NAMES } from '@/pkg-paipan/lib/meihua-data'
 import type { XctCastMethod, ZhongGongMethod } from '@/pkg-paipan/lib/xiaochengtu-engine'
+import { toSolarSafe } from '@/pkg-paipan/lib/date-convert'
 
 const GUA_OPTIONS = ['乾', '兑', '离', '震', '巽', '坎', '艮', '坤']
 const UPPER_LABELS = GUA_OPTIONS.map((g) => `上${g}`)
@@ -94,14 +95,19 @@ const dateTimeText = computed(() => {
   return `${t.year}年${t.month}月${t.day}日 ${pad(t.hour)}时${pad(t.minute)}分`
 })
 
-function onDateConfirm(d: { year: number; month: number; day: number; hour: number | null; minute: number | null }) {
-  dateTime.value = {
-    year: d.year,
-    month: d.month,
-    day: d.day,
-    hour: d.hour ?? dateTime.value.hour,
-    minute: d.minute ?? dateTime.value.minute,
+function onDateConfirm(d: {
+  year: number; month: number; day: number
+  hour: number | null; minute: number | null; isLunar?: boolean
+}) {
+  const hour = d.hour ?? dateTime.value.hour
+  const minute = d.minute ?? dateTime.value.minute
+  // 农历输入归一为公历：引擎入参恒为公历，否则农历数字会被当公历排盘
+  const { date, ok } = toSolarSafe({ year: d.year, month: d.month, day: d.day, hour, minute, isLunar: d.isLunar })
+  if (!ok) {
+    uni.showToast({ title: '农历日期无效，请重新选择', icon: 'none' })
+    return
   }
+  dateTime.value = date
 }
 
 function onMethodChange(e: { detail: { value: number | string } }) {
