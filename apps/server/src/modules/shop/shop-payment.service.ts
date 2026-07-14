@@ -450,6 +450,7 @@ export class ShopPaymentService {
     MEMBER: (order, tx) => this.processMemberPaid(order, tx),
     STATION_MASTER: (order, tx) => this.processStationMasterPaid(order, tx),
     OPERATOR: (order, tx) => this.processOperatorPaid(order, tx),
+    PRACTITIONER_PRO: (order, tx) => this.processPractitionerProPaid(order, tx),
   };
 
   /**
@@ -746,5 +747,37 @@ export class ShopPaymentService {
       base.setMonth(base.getMonth() + 1);
     }
     return base;
+  }
+
+  /**
+   * PRACTITIONER_PRO 支付后处理 —— 从业者会员（¥98/月）开通/续期。
+   *
+   * 🔴 与书院会员（MEMBER）完全隔离：只写 PractitionerProfile.proExpireAt，
+   * 绝不碰 user.memberLevel/memberExpire——两者是两个产品，一个是 C 端书院权益（电子书/积分/AI 伴读），
+   * 一个是 B 端执业工具权益（报告导出/案例库/品牌落款）。用户可以同时是两者。
+   *
+   * 续期不吞剩余天数：未到期则从「当前到期日」起算叠加，已过期则从当下起算。
+   */
+  private async processPractitionerProPaid(order: Order, tx: any) {
+    const now = new Date();
+    const existing = await tx.practitionerProfile.findUnique({
+      where: { userId: order.userId },
+      select: { id: true, proExpireAt: true, proFirstAt: true },
+    });
+    const base = existing?.proExpireAt && existing.proExpireAt > now ? existing.proExpireAt : now;
+    const expire = new Date(base);
+    expire.setMonth(expire.getMonth() + 1); // 月付
+
+    if (existing) {
+      await tx.practitionerProfile.update({
+        where: { userId: order.userId },
+        data: { proExpireAt: expire, proFirstAt: existing.proFirstAt ?? now },
+      });
+    } else {
+      await tx.practitionerProfile.create({
+        data: { userId: order.userId, proExpireAt: expire, proFirstAt: now },
+      });
+    }
+    this.logger.log(`从业者会员开通/续期 user=${order.userId} 到期=${expire.toISOString()}`);
   }
 }

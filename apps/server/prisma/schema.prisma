@@ -1066,6 +1066,7 @@ enum OrderType {
   PAIPAN
   LIVESTREAM
   BUNDLE
+  PRACTITIONER_PRO // 从业者会员 ¥98/月（独立于 MEMBER 书院会员）
 }
 
 enum OrderStatus {
@@ -7048,6 +7049,7 @@ model ClientBook {
   name         String // 客户称呼/昵称
   phoneEnc     String? // 手机号密文（M4 AES-256-GCM·展示时 decrypt，列表脱敏）
   birthEnc     String? // 生辰密文（M4·明文格式 YYYY-MM-DD[ HH:mm]·仅用于生日/流年提醒）
+  birthPlace   String? // 出生地（排盘真太阳时校正用·非敏感明文）
   gender       String? // male / female
   tags         String[]  @default([]) // 客户标签（如 事业/婚恋/老客）
   source       String    @default("manual") // manual手工 / card名片 / order订单归因
@@ -7216,4 +7218,103 @@ model HanziStroke {
   radStrokes Json? // 部首笔画下标
 
   createdAt DateTime @default(now())
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 从业者工作台（2026-07-14 · V0 还原批次4）
+// 建表 SQL：prisma/sql/2026-07-14-practitioner-workspace.sql（additive，已执行）
+// 约定：客户档案复用 CRM 的 ClientBook，不另开一张客户表；
+//      命理字段（日主/五行/喜忌）由生辰现算，不落库（引擎是唯一真源）。
+// ═══════════════════════════════════════════════════════════════
+
+/// 从业者档案：会员状态（¥98/月，独立于书院会员 user.memberLevel）+ 报告品牌落款
+model PractitionerProfile {
+  id          String    @id @default(cuid())
+  userId      String    @unique
+  proExpireAt DateTime? // 空/已过期 = 非会员
+  proFirstAt  DateTime?
+  brandName   String? // 工作室名
+  title       String? // 职称
+  avatarText  String?
+  logoUrl     String?
+  sealText    String? // 印章字
+  slogan      String?
+  contact     String? // 报告页脚联系方式
+  disclaimer  String? // 报告免责声明（覆盖平台默认）
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+/// 报告：AI 初稿 → 老师定稿 → 只读链接交付客户
+model PractitionerReport {
+  id          String    @id @default(cuid())
+  ownerId     String // 从业者 userId（隔离主键·所有查询必带）
+  clientId    String? // ClientBook.id（可空=临时客户）
+  toolKey     String? // 来源排盘工具
+  type        String // bazi/liunian/hepan/qiming/zeji
+  typeLabel   String
+  title       String
+  clientName  String
+  clientBirth String?
+  status      String    @default("draft") // draft/final/delivered
+  style       String    @default("classic")
+  paipan      Json? // 盘面快照（图文报告素材）
+  chapters    Json? // 章节正文
+  shareToken  String?   @unique // 只读交付链接令牌
+  sharedAt    DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([ownerId, updatedAt])
+}
+
+/// 案例库：老师沉淀的复盘（可由报告一键归档）
+model PractitionerCase {
+  id         String   @id @default(cuid())
+  ownerId    String
+  reportId   String?
+  title      String
+  clientName String?
+  category   String   @default("bazi") // bazi/liuyao/zeji/fengshui/hehun
+  summary    String?
+  tags       String[] @default([])
+  fee        Decimal  @default(0) @db.Decimal(12, 2)
+  occurredAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([ownerId, occurredAt])
+}
+
+/// 执业日程：老师自建预约（平台内咨询单另由 question/consult-call 承载，工作台首页合并展示）
+model PractitionerAppointment {
+  id         String   @id @default(cuid())
+  ownerId    String
+  clientId   String?
+  clientName String
+  startAt    DateTime
+  service    String
+  channel    String   @default("到店")
+  status     String   @default("pending") // pending/confirmed/done/cancelled
+  note       String?
+  fee        Decimal? @db.Decimal(12, 2)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([ownerId, startAt])
+}
+
+/// 线下收入手记（平台内收入不写这里·从 revenue 模块读，账本合并展示）
+model PractitionerLedger {
+  id         String   @id @default(cuid())
+  ownerId    String
+  clientName String?
+  service    String
+  amount     Decimal  @db.Decimal(12, 2)
+  payMethod  String   @default("现金") // 微信/支付宝/现金/转账
+  note       String?
+  occurredAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+
+  @@index([ownerId, occurredAt])
 }

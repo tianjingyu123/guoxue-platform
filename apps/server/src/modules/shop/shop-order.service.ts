@@ -86,6 +86,9 @@ export class ShopOrderService {
       if (!station) throw new BusinessException(ErrorCode.STATION_NOT_FOUND, "分站不存在，请先提交开通申请");
       if (station.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能为自己的分站缴纳年租");
       actualAmount = await this.resolveBillingPrice("station_master_price", "分站年租");
+    } else if (dto.type === "PRACTITIONER_PRO") {
+      // 从业者会员（工作台专业版）月付：价格真源 CommissionConfig.rateA，禁硬编码
+      actualAmount = await this.resolveBillingPrice("practitioner_pro_monthly", "从业者会员");
     } else if (dto.type === "OPERATOR") {
       // 运营商开通/续期：targetId = 档位（SILVER/GOLD/DIAMOND/BLACK_GOLD）。价格真源 CommissionConfig.rateA。
       const level = String(dto.targetId || "").toUpperCase();

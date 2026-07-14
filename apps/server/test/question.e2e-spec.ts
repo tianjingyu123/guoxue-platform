@@ -44,14 +44,22 @@ describe("Question E2E", () => {
         .expect(409)
     })
 
-    it("发起提问成功", async () => {
+    /**
+     * 定价权归收款方（董事长拍板 2026-07-14）：提问价/围观价一律取达人 CircleMember 的配置，
+     * 客户端传值一概忽略——否则提问者可自行压价，付款方单方面决定了收款方的收益。
+     */
+    it("发起提问成功，且以达人配置定价（忽略客户端传的价格）", async () => {
       const token = jwt.sign({ sub: "u1" })
       prisma.user.findUnique.mockImplementation((args: any) => {
         if (args?.where?.id === "u1") return { id: "u1", status: "ACTIVE", roles: [] }
         return null
       })
       prisma.circle.findUnique.mockResolvedValue({ id: "ci1", name: "国学圈" })
-      prisma.circleMember.findFirst.mockResolvedValue({ id: "cm1", circleId: "ci1", userId: "u2" })
+      // 达人 u2 的定价：提问 50 / 围观 10
+      prisma.circleMember.findFirst.mockResolvedValue({
+        id: "cm1", circleId: "ci1", userId: "u2", role: "GUEST",
+        questionPriceCoin: 50, peekPriceCoin: 10, questionTimeoutHours: 72,
+      })
       prisma.virtualCoinAccount.findUnique.mockResolvedValue({
         userId: "u1", balance: 500, totalRecharged: 1000, totalSpent: 500,
       })
@@ -68,11 +76,34 @@ describe("Question E2E", () => {
       const res = await request(app.getHttpServer())
         .post("/api/v1/question/ask")
         .set("Authorization", `Bearer ${token}`)
-        .send({ circleId: "ci1", answererId: "u2", questionTitle: "学论语", question: "请问如何学论语？", priceCoin: 50, peekPriceCoin: 10 })
+        // 客户端试图压价：提问 10（低于达人的 50）、围观 999
+        .send({ circleId: "ci1", answererId: "u2", questionTitle: "学论语", question: "请问如何学论语？", priceCoin: 10, peekPriceCoin: 999 })
         .expect(201)
 
       expect(res.body.id).toBe("q1")
       expect(res.body.status).toBe("PENDING")
+      // 落库的是达人的价，不是客户端传的
+      const created = prisma.paidQuestion.create.mock.calls[0][0]
+      expect(created.data.priceCoin).toBe(50)
+      expect(created.data.peekPriceCoin).toBe(10)
+    })
+
+    it("达人未开放付费提问（questionPriceCoin=0）时拒绝", async () => {
+      const token = jwt.sign({ sub: "u1" })
+      prisma.user.findUnique.mockImplementation((args: any) => {
+        if (args?.where?.id === "u1") return { id: "u1", status: "ACTIVE", roles: [] }
+        return null
+      })
+      prisma.circle.findUnique.mockResolvedValue({ id: "ci1", name: "国学圈" })
+      prisma.circleMember.findFirst.mockResolvedValue({
+        id: "cm1", circleId: "ci1", userId: "u2", role: "GUEST", questionPriceCoin: 0, peekPriceCoin: 0,
+      })
+
+      await request(app.getHttpServer())
+        .post("/api/v1/question/ask")
+        .set("Authorization", `Bearer ${token}`)
+        .send({ circleId: "ci1", answererId: "u2", questionTitle: "学论语", question: "请问如何学论语？", priceCoin: 50 })
+        .expect(400)
     })
   })
 

@@ -20,7 +20,7 @@ const CACHE_PREFIX = "shop:";
 @Injectable()
 export class ShopOrderLifecycleService {
   /** 虚拟商品类型 — 无需库存恢复，新增类型追加此集合 */
-  private static readonly NO_INVENTORY_TYPES = new Set(["MEMBER"]);
+  private static readonly NO_INVENTORY_TYPES = new Set(["MEMBER", "PRACTITIONER_PRO"]);
   private readonly logger = new Logger(ShopOrderLifecycleService.name);
 
   constructor(

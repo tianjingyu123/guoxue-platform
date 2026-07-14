@@ -113,6 +113,8 @@ export class CircleExpertService {
         circleId: true,
         role: true,
         questionPriceCoin: true,
+        // 围观价：与 listCircleExperts 口径一致，缺了会导致前端回填时被重置为 0
+        peekPriceCoin: true,
         questionTimeoutHours: true,
         callPricePerMinuteCoin: true,
         callAvailableHours: true,
