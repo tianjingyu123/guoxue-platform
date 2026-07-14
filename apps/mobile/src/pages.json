@@ -2202,6 +2202,12 @@
           }
         },
         {
+          "path": "verification/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
           "path": "settings/index",
           "style": {
             "navigationStyle": "custom"

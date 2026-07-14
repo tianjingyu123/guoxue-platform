@@ -217,6 +217,9 @@ const ROUTE_MAP: Record<string, string> = {
   '/mine/notes': '/pkg-mine/notes/index',
   '/mine/settings': '/pkg-mine/settings/index',
   '/mine/security': '/pkg-mine/security/index',
+  /* 实名认证 —— 后端 identity 模块早已做完但前端零调用；账号安全页的「实名认证」原本
+   * href 指向 /mine/security（页面自己）→ 点了原地跳回，是个死循环。2026-07-14 新建真页接线。 */
+  '/mine/verification': '/pkg-mine/verification/index',
   '/mine/change-password': '/pkg-mine/change-password/index',
   '/mine/change-phone': '/pkg-mine/change-phone/index',
   '/mine/payment-password': '/pkg-mine/payment-password/index',

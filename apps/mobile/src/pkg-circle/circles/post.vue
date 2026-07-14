@@ -350,7 +350,8 @@ async function submitComment() {
   }
 }
 
-function openShare() { navigateTo(`/pkg-circle/common/share-poster?type=post&targetId=${postId.value}`) }
+// 海报需 circleId：后端帖子详情端点是 GET /circles/:circleId/posts/:postId（缺它查不到内容）
+function openShare() { navigateTo(`/pkg-circle/common/share-poster?type=post&targetId=${postId.value}&circleId=${circleId.value || ''}`) }
 function openUser(id: string) { navigateTo(`/pkg-circle/user/profile?id=${id}`) }
 function openCircle() { if (circleId.value) navigateTo(`/pkg-circle/circles/detail?id=${circleId.value}`) }
 function fmt(n: number) { return n >= 10000 ? (n / 10000).toFixed(1) + 'w' : String(n) }

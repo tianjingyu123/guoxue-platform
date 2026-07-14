@@ -112,7 +112,7 @@ function confirmDeactivate() {
       <view v-for="g in groups" :key="g.title" class="group">
         <text class="group-title">{{ g.title }}</text>
         <view class="card">
-          <view v-for="item in g.items" :key="item.id" class="row" @tap="navigateTo(item.href)">
+          <view v-for="item in g.items" :key="item.id" class="row" @tap="item.href && navigateTo(item.href)">
             <view class="row-icon" :style="{ background: item.iconBg }">
               <AppIcon :name="item.icon" :size="18" color="#fff" />
             </view>
@@ -123,7 +123,8 @@ function confirmDeactivate() {
                 <AppIcon :name="isPositive(item.status) ? 'check-circle' : 'x-circle'" :size="10" :color="isPositive(item.status) ? '#16a34a' : '#ea580c'" />
                 <text class="tag-text" :class="isPositive(item.status) ? 'tag-ok-text' : 'tag-warn-text'">{{ statusText(item.status) }}</text>
               </view>
-              <AppIcon name="chevron-right" :size="16" color="#cbb" />
+              <!-- href 为空 = 纯展示行，不给箭头（否则用户以为能点） -->
+              <AppIcon v-if="item.href" name="chevron-right" :size="16" color="#cbb" />
             </view>
           </view>
         </view>

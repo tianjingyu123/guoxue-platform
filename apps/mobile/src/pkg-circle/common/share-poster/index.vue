@@ -40,8 +40,9 @@
                     <text class="poster-card__author-from" :style="{ color: activeTheme.sub }">来自 {{ BRAND.name }}</text>
                   </view>
                 </view>
+                <!-- 预览区二维码：与导出图同源（都按 data.link 现画），避免"看到的和存下来的不一致" -->
                 <view class="poster-card__qr">
-                  <image lazy-load :src="posterData.qrcode" class="poster-card__qr-img" mode="aspectFit" />
+                  <canvas canvas-id="previewQr" id="previewQr" class="poster-card__qr-img" />
                   <text class="poster-card__qr-label" :style="{ color: activeTheme.sub }">{{ posterData.qrLabel }}</text>
                 </view>
               </view>
@@ -135,10 +136,14 @@ import {
   type PosterData,
 } from '@/lib/poster-data'
 import { BRAND } from '@/lib/brand'
+import { drawQrToCanvas } from '@/utils/qrcode'
 
 const statusBarHeight = ref(0)
 const posterType = ref<PosterType>('invite')
-const targetId = ref<number | undefined>(undefined)
+/** 🔴 原为 number：圈子/文章 id 是 uuid，Number() 会得到 NaN → 真连后拿不到任何内容 */
+const targetId = ref<string | undefined>(undefined)
+/** 仅 type=post 需要（后端帖子详情端点要 circleId + postId） */
+const circleId = ref<string | undefined>(undefined)
 
 const isLoading = ref(true)
 const posterData = ref<PosterData | null>(null)
@@ -159,22 +164,28 @@ const currentTone = computed(() =>
 
 onLoad((q) => {
   if (q?.type) posterType.value = q.type as PosterType
-  if (q?.targetId) targetId.value = Number(q.targetId)
+  if (q?.targetId) targetId.value = String(q.targetId)
+  if (q?.circleId) circleId.value = String(q.circleId)
   const sys = uni.getSystemInfoSync()
   statusBarHeight.value = sys.statusBarHeight || 0
   loadData()
 })
 
+const loadError = ref('')
+
 async function loadData() {
   isLoading.value = true
+  loadError.value = ''
   try {
-    const res = await getPosterData(posterType.value, targetId.value)
+    const res = await getPosterData(posterType.value, targetId.value, circleId.value)
     if (res.code === 200 && res.data) {
       posterData.value = res.data
       setTimeout(() => drawPoster(), 100)
     }
-  } catch {
-    uni.showToast({ title: '加载失败', icon: 'none' })
+  } catch (e) {
+    // 绝不回退成假数据：错误的海报会被用户发到朋友圈
+    loadError.value = (e as Error)?.message || '内容加载失败，请重试'
+    uni.showToast({ title: loadError.value, icon: 'none' })
   } finally {
     isLoading.value = false
   }
@@ -225,11 +236,17 @@ function drawPoster() {
   ctx.setFontSize(12)
   wrapText(ctx, data.desc, 32, 208, W - 64, 20, 3)
 
-  // 底部二维码 + 作者
+  // 底部作者
   ctx.setFillStyle(theme.sub)
   ctx.setFontSize(11)
-  ctx.fillText(data.author, 32, H - 60)
+  if (data.author) ctx.fillText(data.author, 32, H - 60)
   ctx.fillText(`来自 ${BRAND.name}`, 32, H - 42)
+
+  /* 真二维码（2026-07-14 补）：原代码注释写「底部二维码 + 作者」，但只画了作者文字 ——
+   * 导出的海报根本没有二维码，用户发出去别人连扫都没得扫，分享零转化。
+   * 现按 data.link 用 uqrcodejs 现画指向真实内容的码（失败静默降级，不影响存图）。 */
+  const QR = 72
+  drawQrToCanvas(ctx, data.link, W - 32 - QR, H - 32 - QR, QR, { padding: 4 })
 
   ctx.draw(false, () => {
     setTimeout(() => {
@@ -242,6 +259,11 @@ function drawPoster() {
       })
     }, 150)
   })
+
+  // 预览区的小二维码（与导出图同一 link，保证所见即所存）
+  const pctx = uni.createCanvasContext('previewQr')
+  drawQrToCanvas(pctx, data.link, 0, 0, 56, { padding: 2 })
+  pctx.draw()
 }
 
 // 重绘随主题切换

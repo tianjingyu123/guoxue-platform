@@ -1,7 +1,18 @@
-// 分享海报数据层（迁移自原型 lib/types/poster + lib/poster/templates + lib/brand + lib/api/poster）
-// @data-needs: 海报数据, 参数 type(invite|circle|post|article|live) + targetId, 返回 PosterData
-
+/**
+ * 分享海报数据层
+ *
+ * 🔴 2026-07-14 真连改造：原 getPosterData() 忽略 targetId、直接返回写死的 MOCK_POSTER ——
+ *    不管分享哪个圈子/哪篇文章，海报永远显示「周易研习社 · 张明远 · 已有12,800位同好」，
+ *    二维码还是一张扫不出来的静态占位图。**用户发一次朋友圈就是一次对外事故**（传播错误信息 + 死码）。
+ *    现改为按 type 真连各自的详情端点，并生成指向真实内容的分享链接（二维码由页面用
+ *    utils/qrcode 的 drawQrToCanvas 现画，不再用静态图）。
+ */
 import { BRAND } from '@/lib/brand'
+import { circleDetailApi } from '@/lib/circle-detail-data'
+import { articleApi } from '@/lib/article-data'
+import { liveApi } from '@/lib/live-data'
+import { apiGet } from '@/utils/request'
+import { getStorage } from '@/utils/storage'
 
 export type PosterType = 'invite' | 'circle' | 'post' | 'article' | 'live'
 
@@ -12,9 +23,24 @@ export interface PosterData {
   desc: string
   author: string
   authorAvatar: string
+  /** 静态兜底图（仅 invite 无链接时用）。真二维码由页面按 link 现画 */
   qrcode: string
   qrLabel: string
   tag: string
+  /** 二维码承载的真实分享链接（扫码直达该内容）。空则不画码 */
+  link: string
+}
+
+/** 拼真实 H5 分享链接（生产 H5 是 history 模式，无 # 前缀） */
+function h5Link(path: string): string {
+  const base = (BRAND.h5Url || 'https://api.rebugx.cn/h5/').replace(/\/$/, '')
+  return `${base}/${path.replace(/^\//, '')}`
+}
+
+/** 富文本/长文取摘要（海报 desc 位有限） */
+function excerpt(html: string, max = 54): string {
+  const text = (html || '').replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim()
+  return text.length > max ? text.slice(0, max) + '…' : text
 }
 
 export interface PosterTheme {
@@ -109,78 +135,124 @@ export function getPosterTypeTitle(type: PosterType): string {
   return TYPE_TITLE[type] || '分享海报'
 }
 
-// mock 海报内容
-const MOCK_POSTER: Record<PosterType, PosterData> = {
-  invite: {
-    type: 'invite',
-    title: BRAND.name,
-    subtitle: '观天之道，执天之行',
-    desc: '汇聚易学、命理、风水名师，与万千同好一同探寻传统智慧。',
-    author: '张明远',
-    authorAvatar: 'https://api.rebugx.cn/assets/images/circles/circle-1.webp',
-    qrcode: '/static/images/poster-qrcode.webp',
-    qrLabel: `长按识别，加入${BRAND.nameShort}`,
-    tag: '邀请函',
-  },
-  circle: {
-    type: 'circle',
-    title: '周易研习社',
-    subtitle: '群贤毕至，共参易理',
-    desc: '一个专注《周易》六十四卦研习的圈子，已有 12,800 位同好相聚于此。',
-    author: '张明远',
-    authorAvatar: 'https://api.rebugx.cn/assets/images/circles/circle-1.webp',
-    qrcode: '/static/images/poster-qrcode.webp',
-    qrLabel: '长按识别，加入圈子',
-    tag: '圈子',
-  },
-  post: {
-    type: 'post',
-    title: '五行调和与日常养生',
-    subtitle: '顺四时而适寒暑',
-    desc: '从五行生克之理出发，谈谈起居饮食中的养生智慧，愿与诸位共参。',
-    author: '清风道长',
-    authorAvatar: 'https://api.rebugx.cn/assets/images/circles/circle-2.webp',
-    qrcode: '/static/images/poster-qrcode.webp',
-    qrLabel: '长按识别，查看全文',
-    tag: '动态',
-  },
-  article: {
-    type: 'article',
-    title: '紫微斗数命盘入门',
-    subtitle: '星耀十二宫，命运一图明',
-    desc: '系统梳理紫微斗数的排盘方法与十二宫含义，适合初学者按图索骥。',
-    author: '紫微星君',
-    authorAvatar: 'https://api.rebugx.cn/assets/images/circles/circle-3.webp',
-    qrcode: '/static/images/poster-qrcode.webp',
-    qrLabel: '长按识别，阅读文章',
-    tag: '文章',
-  },
-  live: {
-    type: 'live',
-    title: '《周易》六十四卦精讲',
-    subtitle: '名师直播，在线解卦',
-    desc: '张明远老师在线精讲六十四卦，实时互动答疑，错过不再有。',
-    author: '张明远',
-    authorAvatar: 'https://api.rebugx.cn/assets/images/circles/circle-1.webp',
-    qrcode: '/static/images/poster-qrcode.webp',
-    qrLabel: '长按识别，进入直播',
-    tag: '直播',
-  },
-}
-
 export interface PosterRes {
   code: number
   data: PosterData | null
 }
 
-export function getPosterData(type: PosterType, _targetId?: number): Promise<PosterRes> {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve({ code: 200, data: MOCK_POSTER[type] || MOCK_POSTER.invite })
-    }, 400)
-  })
+/** 帖子详情（海报用·后端 GET /circles/:circleId/posts/:postId） */
+interface RawPostForPoster {
+  id?: string
+  title?: string
+  content?: string
+  author?: { nickname?: string; avatar?: string } | null
+  circle?: { id?: string; name?: string } | null
 }
 
-export function recordPosterShare(_type: PosterType, _targetId: number | undefined, _action: string): Promise<{ code: number }> {
+/**
+ * 真连海报数据。
+ * @param targetId 内容 id（uuid 字符串 —— 注意不是 number，圈子/文章 id 都是 uuid）
+ * @param circleId 仅 type=post 需要（后端帖子详情端点要 circleId + postId 两个参数）
+ * 任一步失败上抛，由页面走错误态 —— 绝不回退成假数据（错误的海报会被发到朋友圈）。
+ */
+export async function getPosterData(type: PosterType, targetId?: string, circleId?: string): Promise<PosterRes> {
+  // 邀请海报：平台自我介绍，本就是静态品牌文案（非假数据）；链接指向平台首页
+  if (type === 'invite' || !targetId) {
+    const me = getStorage<{ nickname?: string; avatar?: string }>('userInfo')
+    return {
+      code: 200,
+      data: {
+        type: 'invite',
+        title: BRAND.name,
+        subtitle: BRAND.slogan || '观天之道，执天之行',
+        desc: '汇聚易学、命理、风水名师，与万千同好一同探寻传统智慧。',
+        author: me?.nickname || '',
+        authorAvatar: me?.avatar || '',
+        qrcode: '',
+        qrLabel: `长按识别，加入${BRAND.nameShort}`,
+        tag: '邀请函',
+        link: h5Link('pages/index/index'),
+      },
+    }
+  }
+
+  if (type === 'circle') {
+    const c = await circleDetailApi.detail(targetId)
+    return {
+      code: 200,
+      data: {
+        type: 'circle',
+        title: c.name,
+        subtitle: c.category || '',
+        desc: excerpt(c.description),
+        author: c.owner?.name || '',
+        authorAvatar: c.owner?.avatar || '',
+        qrcode: '',
+        qrLabel: '长按识别，加入圈子',
+        tag: '圈子',
+        link: h5Link(`pkg-circle/circles/detail?id=${targetId}`),
+      },
+    }
+  }
+
+  if (type === 'article') {
+    const a = await articleApi.detail(targetId)
+    return {
+      code: 200,
+      data: {
+        type: 'article',
+        title: a.title,
+        subtitle: (a.tags && a.tags[0]) || '',
+        desc: excerpt(a.content),
+        author: a.author?.name || '',
+        authorAvatar: a.author?.avatar || '',
+        qrcode: '',
+        qrLabel: '长按识别，阅读全文',
+        tag: '文章',
+        link: h5Link(`pkg-circle/articles/detail?id=${targetId}`),
+      },
+    }
+  }
+
+  if (type === 'post') {
+    // 帖子详情端点需要 circleId；调用方（circles/post.vue）已带上
+    const p = await apiGet<RawPostForPoster>(`/circles/${circleId}/posts/${targetId}`)
+    return {
+      code: 200,
+      data: {
+        type: 'post',
+        title: p?.title || excerpt(p?.content || '', 20) || '圈内动态',
+        subtitle: p?.circle?.name || '',
+        desc: excerpt(p?.content || ''),
+        author: p?.author?.nickname || '',
+        authorAvatar: p?.author?.avatar || '',
+        qrcode: '',
+        qrLabel: '长按识别，查看全文',
+        tag: '动态',
+        link: h5Link(`pkg-circle/circles/post?id=${targetId}&circleId=${circleId || ''}`),
+      },
+    }
+  }
+
+  // live —— 后端 LiveItem 无简介字段，不编（数据流铁律），desc 只陈述真实信息
+  const r = await liveApi.getWatch(targetId)
+  return {
+    code: 200,
+    data: {
+      type: 'live',
+      title: r?.title || '直播',
+      subtitle: '名师直播 · 在线互动',
+      desc: r?.hostName ? `${r.hostName} 主讲，实时互动答疑。` : '',
+      author: r?.hostName || '',
+      authorAvatar: r?.hostAvatar || '',
+      qrcode: '',
+      qrLabel: '长按识别，进入直播',
+      tag: '直播',
+      link: h5Link(`pkg-live/watch/index?id=${targetId}`),
+    },
+  }
+}
+
+export function recordPosterShare(_type: PosterType, _targetId: string | undefined, _action: string): Promise<{ code: number }> {
   return Promise.resolve({ code: 200 })
 }

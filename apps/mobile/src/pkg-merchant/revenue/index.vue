@@ -37,9 +37,13 @@
           <!-- 金色深色总览卡 -->
           <view class="rv-overview">
             <view class="rv-ov-mark">◈</view>
-            <text class="rv-ov-label">可提现余额（元）</text>
+            <!-- 🔴 原文案「可提现余额（元）· 提现至绑定的平台钱包」是错的：
+                 后端 getRevenueOverview 返回的是订单聚合的【累计应得分成】(totalSales × 分成率)，
+                 不是一笔可提取的钱包余额；且商家侧本就只读、无自助提现（结算单由平台生成并打款）。
+                 照原文案商家会以为"钱看得见却拿不出、提现按钮找不到"——按事实陈述。 -->
+            <text class="rv-ov-label">累计应得分成（元）</text>
             <text class="rv-ov-amount">{{ money(revenue.merchantShare) }}</text>
-            <text class="rv-ov-hint">已扣除平台服务费 · 提现至绑定的平台钱包</text>
+            <text class="rv-ov-hint">已扣除平台服务费 · 由平台按结算周期生成结算单并打款</text>
             <view class="rv-ov-row">
               <view class="rv-ov-cell">
                 <text class="rv-ov-n">¥{{ money(pendingAmount) }}</text>
@@ -56,9 +60,10 @@
             </view>
           </view>
 
-          <!-- 只读提示条 -->
+          <!-- 只读提示条：讲清「钱怎么到账」，否则商家会一直找提现按钮（本页无自助提现是设计如此） -->
           <view class="rv-readonly">
             <text class="rv-readonly-txt">◈ 结算数据由平台统一核算，商家侧仅供查看，不可修改</text>
+            <text class="rv-readonly-txt">◈ 无需手动提现：平台按结算周期生成结算单，审核后打款至你的收款账户，进度见下方账单</text>
           </view>
 
           <!-- 结算账单 -->

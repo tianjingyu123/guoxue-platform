@@ -65,6 +65,7 @@ export interface SecurityItem {
   label: string
   value?: string
   status?: 'set' | 'unset' | 'verified' | 'unverified'
+  /** 空串 = 纯展示行，不可点（如登录设备：只有数量展示，无独立管理页，别再指回本页造成"点了没反应"） */
   href: string
 }
 export const securityLoginItems: SecurityItem[] = [
@@ -74,10 +75,10 @@ export const securityLoginItems: SecurityItem[] = [
 ]
 export const securityPaymentItems: SecurityItem[] = [
   { id: 'pay-password', icon: 'credit-card', iconBg: '#a855f7', label: '支付密码', status: mineProfile.payPasswordSet ? 'set' : 'unset', href: '/mine/payment-password' },
-  { id: 'real-name', icon: 'shield', iconBg: '#C41E3A', label: '实名认证', value: mineProfile.realNameVerified ? mineProfile.realName : undefined, status: mineProfile.realNameVerified ? 'verified' : 'unverified', href: '/mine/security' },
+  { id: 'real-name', icon: 'shield', iconBg: '#C41E3A', label: '实名认证', value: mineProfile.realNameVerified ? mineProfile.realName : undefined, status: mineProfile.realNameVerified ? 'verified' : 'unverified', href: '/mine/verification' },
 ]
 export const securityDeviceItems: SecurityItem[] = [
-  { id: 'devices', icon: 'monitor', iconBg: '#64748b', label: '登录设备管理', value: '2 台设备已登录', href: '/mine/security' },
+  { id: 'devices', icon: 'monitor', iconBg: '#64748b', label: '登录设备管理', value: '2 台设备已登录', href: '' },
 ]
 export const securityScoreItems = [
   { label: '密码', done: true },
@@ -1470,11 +1471,13 @@ export const mineApi = {
     }
     const payment: SecurityItem[] = [
       { id: 'pay-password', icon: 'credit-card', iconBg: '#a855f7', label: '支付密码', status: paySet ? 'set' : 'unset', href: '/mine/payment-password' },
-      { id: 'real-name', icon: 'shield', iconBg: '#C41E3A', label: '实名认证', status: verified ? 'verified' : 'unverified', href: '/mine/security' },
+      // 🔴 原 href 指向 /mine/security（本页自己）→ 点了原地跳回，实名永远做不了；后端 identity 模块整套是好的
+      { id: 'real-name', icon: 'shield', iconBg: '#C41E3A', label: '实名认证', status: verified ? 'verified' : 'unverified', href: '/mine/verification' },
     ]
     const deviceCount = Array.isArray(devices) ? devices.length : 0
     const device: SecurityItem[] = [
-      { id: 'devices', icon: 'monitor', iconBg: '#64748b', label: '登录设备管理', value: `${deviceCount} 台设备已登录`, href: '/mine/security' },
+      // 无独立设备管理页，此行仅展示数量（原 href 同样指回本页）
+      { id: 'devices', icon: 'monitor', iconBg: '#64748b', label: '登录设备管理', value: `${deviceCount} 台设备已登录`, href: '' },
     ]
     const score = [
       { label: '密码', done: true },
@@ -2070,4 +2073,24 @@ export const mineApi = {
       benefits: Array.isArray(config?.benefits) ? config.benefits : [],
     }]
   },
+}
+
+/* ───────────────────────── 实名认证 ─────────────────────────
+ * 🔴 2026-07-14 接线：后端 identity 模块（OCR/二要素核验/人脸核身 + admin 审核）早已整套做完，
+ *    前端却零调用；账号安全页的「实名认证」href 还指向页面自己（点了原地跳回）——
+ *    而实名是【提现 / 发课程 / 讲师认证】的前置，卡死一大片。
+ *    本次接【二要素核验】（姓名+身份证号→腾讯云 CheckIdCardInformation），
+ *    它不依赖 OCR 上传与活体配置，是最短可用路径；通过后后端写 user.identityVerified=true。
+ */
+
+export interface IdentityVerifyResult {
+  passed: boolean
+  result: string
+  description: string
+}
+
+export const identityApi = {
+  /** 二要素核验 — POST /identity/verify（每日限 3 次·防撞库；已认证用户再调会 400） */
+  verify: (name: string, idCard: string): Promise<IdentityVerifyResult> =>
+    apiPost<IdentityVerifyResult>('/identity/verify', { name, idCard }),
 }

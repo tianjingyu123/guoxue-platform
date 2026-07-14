@@ -27,7 +27,7 @@
 
       <!-- 基础：实名认证 -->
       <view class="mq-group-label">基础认证</view>
-      <view class="mq-card" @tap="go('/pkg-mine/security/index')">
+      <view class="mq-card" @tap="go('/pkg-mine/verification/index')">
         <view class="mq-icon" style="background: #eff6ff;">
           <AppIcon name="shield-check" :size="26" :color="identityVerified ? '#16a34a' : '#94a3b8'" />
         </view>
