@@ -146,6 +146,8 @@ export class MediaAiService {
         service: "asr",
         action: "SentenceRecognition",
         version: "2019-06-14",
+        // 腾讯云要求 Region，漏传则恒报 missing required parameter `Region`（同 2026-07-14 短信事故）
+        region: process.env.TENCENT_ASR_REGION || process.env.COS_REGION || "ap-guangzhou",
         payload: {
           ProjectId: 0,
           SubServiceType: 2,

@@ -100,6 +100,8 @@ export class PublishAssistService {
           service: "aiart",
           action: "TextToImage",
           version: "2022-12-29",
+          // 腾讯云要求 Region，漏传则恒报 missing required parameter `Region`（同 2026-07-14 短信事故）
+          region: process.env.TENCENT_AIART_REGION || process.env.COS_REGION || "ap-guangzhou",
           payload: {
             Prompt: enhancedPrompt,
             NegativePrompt: "lowres, bad anatomy, extra fingers, blurry, ugly, text, watermark",

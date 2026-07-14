@@ -23,6 +23,8 @@ export class SmsService {
   private readonly templateId: string;
   private readonly host = "sms.tencentcloudapi.com";
   private readonly apiVersion = "2021-01-11";
+  /** 腾讯云短信必需 Region（与短信应用 SdkAppId 所在地域一致；默认广州） */
+  private readonly region: string;
 
   constructor(
     private redis: RedisService,
@@ -34,6 +36,7 @@ export class SmsService {
     this.appId = process.env.SMS_APP_ID || "";
     this.signName = process.env.SMS_SIGN_NAME || "国学平台";
     this.templateId = process.env.SMS_TEMPLATE_ID || "";
+    this.region = process.env.SMS_REGION || process.env.COS_REGION || "ap-guangzhou";
 
     if (!this.secretId || !this.secretKey) {
       this.logger.warn("腾讯云密钥未配置，短信服务将不可用");
@@ -49,6 +52,10 @@ export class SmsService {
       action,
       version: this.apiVersion,
       payload: params,
+      // 🔴 2026-07-14 生产实测修复：漏传 region → 腾讯云恒返回
+      //    "The request is missing the required parameter `Region`" → 短信 100% 发不出去
+      //    → 真实用户收不到验证码 → 注册/登录整条路断死（其余 tc3 调用方都传了，唯独短信漏了）
+      region: this.region,
     });
 
     const start = Date.now();
