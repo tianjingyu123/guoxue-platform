@@ -9,7 +9,7 @@ import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import SmartCover from '@/components/common/smart-cover.vue'
 import { goBack, navigateTo } from '@/utils/router'
-import { circleApi, formatMembers, type MyCircle, type MyCircleStats } from '@/lib/circle-data'
+import { circleApi, formatMembers, isExpertRole, type MyCircle, type MyCircleStats } from '@/lib/circle-data'
 import { refundApi, type RefundRequestItem } from '@/lib/circle-refund-data'
 
 const loading = ref(true)
@@ -19,6 +19,11 @@ const refunds = ref<RefundRequestItem[]>([])
 
 // 圈主/管理员的圈子（有则显示圈主后台入口）
 const ownerCircle = computed(() => myCircles.value.find((c) => c.role === 'owner' || c.role === 'admin'))
+/**
+ * 达人资格（可自助配置咨询价格）：后端白名单 OWNER/PARTNER/GUEST。
+ * 必须看 rawRole —— role 的三档归并会把 GUEST 压成 member，用它会漏掉嘉宾达人。
+ */
+const expertCircles = computed(() => myCircles.value.filter((c) => isExpertRole(c.rawRole)))
 const createdCount = computed(() => myCircles.value.filter((c) => c.role === 'owner').length)
 // 退款进行中提示
 const activeRefund = computed(() =>
@@ -92,6 +97,21 @@ onMounted(load)
             <text class="owner-badge">{{ roleLabel(ownerCircle.role) }}</text>
           </view>
           <text class="owner-sub">{{ ownerCircle.name }}</text>
+        </view>
+        <app-icon name="chevron-right" :size="30" color="#999999" />
+      </view>
+
+      <!-- 达人设置入口：圈主/合伙人/嘉宾可自助定价（提问价/围观价/连麦价） -->
+      <view v-if="expertCircles.length" class="owner-card expert-card" @tap="go('/pkg-circle/circles/expert-config')">
+        <view class="owner-icon expert-icon"><app-icon name="message-square" :size="32" color="#C41E3A" /></view>
+        <view class="owner-body">
+          <view class="owner-title">
+            <text class="owner-title-txt">我的达人设置</text>
+            <text class="expert-badge">咨询定价</text>
+          </view>
+          <text class="owner-sub">
+            设置提问价 · 围观价 · 连麦价{{ expertCircles.length > 1 ? ` · ${expertCircles.length} 个圈子` : '' }}
+          </text>
         </view>
         <app-icon name="chevron-right" :size="30" color="#999999" />
       </view>
@@ -246,6 +266,15 @@ onMounted(load)
 .owner-title-txt { font-size: 28rpx; font-weight: 650; color: var(--text-primary, #2c2c2c); }
 .owner-badge { font-size: 18rpx; color: var(--gold, #c9a96e); font-weight: 600; border: 1rpx solid var(--gold, #c9a96e); border-radius: 6rpx; padding: 0 8rpx; line-height: 28rpx; }
 .owner-sub { display: block; font-size: 24rpx; color: var(--text-secondary, #6e6e73); margin-top: 2rpx; }
+
+/* 达人设置入口（同圈主卡骨架·换朱红点缀，与"经营身份"区分） */
+.expert-card { margin-top: 20rpx; border-color: rgba(196, 30, 58, 0.25); background: var(--bg-card, #fff); }
+.expert-icon { background: rgba(196, 30, 58, 0.08); }
+.expert-badge {
+  font-size: 18rpx; color: var(--brand, #c41e3a); font-weight: 600;
+  border: 1rpx solid var(--brand, #c41e3a); border-radius: 6rpx;
+  padding: 0 8rpx; line-height: 28rpx;
+}
 
 /* 分区 */
 .section { margin-top: 48rpx; }

@@ -1089,6 +1089,12 @@
           }
         },
         {
+          "path": "circles/expert-config",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
           "path": "circles/consult-orders",
           "style": {
             "navigationStyle": "custom"

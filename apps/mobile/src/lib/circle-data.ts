@@ -201,6 +201,7 @@ function adaptMyCircle(m: RawMyCircleMember): MyCircle {
     name: c.name || '',
     cover: c.cover || '',
     role: mapMemberRole(m.role),
+    rawRole: (m.role || '').toUpperCase(),
     memberCount: Number(c.memberCount) || 0,
     postCount: Number(c.postCount) || 0,
   }
@@ -444,8 +445,21 @@ export interface MyCircle {
   name: string
   cover: string
   role: MyCircleRole
+  /**
+   * 后端原始角色（OWNER/PARTNER/ADMIN/GUEST/VOLUNTEER/MEMBER）。
+   * role 的三档归并会把 GUEST 压成 member、PARTNER 并进 admin，判达人资格
+   * （OWNER/PARTNER/GUEST）必须看这个原文，见 EXPERT_ROLES。
+   */
+  rawRole: string
   memberCount: number
   postCount: number
+}
+
+/** 可配置咨询价格的角色（对齐后端 CircleExpertService.setExpertConfig 白名单） */
+export const EXPERT_ROLES = ['OWNER', 'PARTNER', 'GUEST']
+/** 我在该圈是否有达人资格（可配置提问价/围观价/连麦价） */
+export function isExpertRole(rawRole: string): boolean {
+  return EXPERT_ROLES.includes((rawRole || '').toUpperCase())
 }
 
 /** 我的圈子数据汇总 */

@@ -13,6 +13,7 @@ export interface ConsultExpert {
   avatar: string
   roleLabel: string   // 圈主 / 合伙人 / 嘉宾
   questionPrice: number  // 图文提问价（金币/次），0 表示未开通
+  peekPrice: number      // 围观价（金币/次），由达人本人设定，0=不开放围观
   callPrice: number      // 电话连麦价（金币/分钟），0 表示未开通
   responseHours: number  // 提问响应时限（小时）
 }
@@ -26,6 +27,7 @@ export interface UserConsultService {
   expertName: string
   expertAvatar: string
   questionPrice: number  // 图文提问价（金币/次），0=未开通
+  peekPrice: number      // 围观价（金币/次），0=不开放围观
   callPrice: number      // 连麦价（金币/分钟），0=未开通
   responseHours: number
 }
@@ -36,7 +38,8 @@ const ROLE_LABEL: Record<string, string> = { OWNER: '圈主', PARTNER: '合伙�
 interface RawQUser { id?: string | number; nickname?: string; avatar?: string }
 interface RawExpertMember {
   userId?: string; user?: RawQUser | null; role?: string
-  questionPriceCoin?: number | string; callPricePerMinuteCoin?: number | string; questionTimeoutHours?: number | string
+  questionPriceCoin?: number | string; peekPriceCoin?: number | string
+  callPricePerMinuteCoin?: number | string; questionTimeoutHours?: number | string
   circleId?: string; circle?: { id?: string; name?: string; cover?: string } | null
 }
 
@@ -75,6 +78,7 @@ export const consultApi = {
         avatar: m.user?.avatar || '',
         roleLabel: ROLE_LABEL[m.role || ''] || '达人',
         questionPrice: Number(m.questionPriceCoin) || 0,
+        peekPrice: Number(m.peekPriceCoin) || 0,
         callPrice: Number(m.callPricePerMinuteCoin) || 0,
         responseHours: Number(m.questionTimeoutHours) || 0,
       }))
@@ -96,12 +100,55 @@ export const consultApi = {
         expertName: m.user?.nickname || '',
         expertAvatar: m.user?.avatar || '',
         questionPrice: Number(m.questionPriceCoin) || 0,
+        peekPrice: Number(m.peekPriceCoin) || 0,
         callPrice: Number(m.callPricePerMinuteCoin) || 0,
         responseHours: Number(m.questionTimeoutHours) || 0,
       }))
     } catch {
       return []
     }
+  },
+}
+
+/* ───────────────────────── 达人自助配置（我的达人设置）─────────────────────────
+ * 真连 GET /circles/:id/expert/:userId（读回）+ POST /circles/:id/expert/config（保存）。
+ * 后端只认 JWT 里的 userId（只能配置自己），且要求 role ∈ OWNER/PARTNER/GUEST，否则 403。
+ * 保存是全量覆盖：四个价格/时限字段必须一起提交，漏传 questionTimeoutHours /
+ * callPricePerMinuteCoin 会 400，漏传 peekPriceCoin 会被重置为 0。
+ */
+
+/** 达人在某个圈子的咨询配置 */
+export interface ExpertConfig {
+  role: string            // 后端原始角色 OWNER/PARTNER/GUEST
+  questionPriceCoin: number      // 图文提问价（金币/次），0=不接提问
+  peekPriceCoin: number          // 围观价（金币/次），0=不开放围观
+  questionTimeoutHours: number   // 响应时限（小时），超时自动全额退款
+  callPricePerMinuteCoin: number // 连麦价（金币/分钟），0=不接连麦
+}
+
+export const expertConfigApi = {
+  /** 读回我在该圈的咨询配置 — GET /circles/:id/expert/:userId（错误上抛，供页面三态） */
+  get: async (circleId: string, userId: string): Promise<ExpertConfig> => {
+    const m = await apiGet<RawExpertMember & { questionTimeoutHours?: number | string }>(
+      `/circles/${circleId}/expert/${userId}`,
+    )
+    return {
+      role: (m?.role || '').toUpperCase(),
+      questionPriceCoin: Number(m?.questionPriceCoin) || 0,
+      peekPriceCoin: Number(m?.peekPriceCoin) || 0,
+      questionTimeoutHours: Number(m?.questionTimeoutHours) || 72,
+      callPricePerMinuteCoin: Number(m?.callPricePerMinuteCoin) || 0,
+    }
+  },
+
+  /** 保存配置 — POST /circles/:id/expert/config（全量覆盖·错误上抛由页面 toast） */
+  set: async (circleId: string, cfg: Omit<ExpertConfig, 'role'>): Promise<void> => {
+    await apiPost<unknown>(`/circles/${circleId}/expert/config`, {
+      questionPriceCoin: cfg.questionPriceCoin,
+      peekPriceCoin: cfg.peekPriceCoin,
+      questionTimeoutHours: cfg.questionTimeoutHours,
+      callPricePerMinuteCoin: cfg.callPricePerMinuteCoin,
+    })
   },
 }
 
@@ -152,7 +199,6 @@ export interface AskQuestionPayload {
   questionTitle: string
   question: string
   priceCoin: number
-  peekPriceCoin?: number
   isPublic?: boolean
   images?: string[]
 }
@@ -237,7 +283,11 @@ function buildQuery(p: QuestionListQuery): string {
 }
 
 export const questionApi = {
-  /** 发起付费提问 — POST /question/ask（事务内扣币 + 建 PENDING 记录） */
+  /**
+   * 发起付费提问 — POST /question/ask（事务内扣币 + 建 PENDING 记录）。
+   * 定价权归收款方：后端一律以达人本人的 CircleMember 配置为准，忽略客户端传的
+   * priceCoin/peekPriceCoin（防提问者压价）。priceCoin 仍传，仅用于前端展示核对。
+   */
   ask: async (payload: AskQuestionPayload): Promise<PaidQuestion> => {
     const body: Record<string, unknown> = {
       circleId: payload.circleId,
@@ -247,8 +297,6 @@ export const questionApi = {
       priceCoin: payload.priceCoin,
     }
     if (payload.isPublic != null) body.isPublic = payload.isPublic
-    // 后端 peekPriceCoin 校验 @Min(1)，0/未填一律不传（0 表示不可围观由后端默认处理）
-    if (payload.peekPriceCoin && payload.peekPriceCoin > 0) body.peekPriceCoin = payload.peekPriceCoin
     if (payload.images && payload.images.length) body.images = payload.images
     return mapQuestion(await apiPost<RawPaidQuestion>('/question/ask', body))
   },
