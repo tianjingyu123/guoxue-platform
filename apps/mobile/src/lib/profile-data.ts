@@ -77,7 +77,7 @@ export const quickFunctions: { icon: string; label: string; href: string; color:
   //    没法在"我的"里新增/修改/删除（买了实体商品的用户找不到地方改地址）
   { icon: 'map-pin', label: '收货地址', href: '/shop/addresses', color: '#4A90D9' },
   { icon: 'history', label: '浏览历史', href: '/history', color: '#64748B' },
-  { icon: 'help-circle', label: '帮助中心', href: '/help', color: '#999999' },
+  // 帮助中心不放这里 —— 个人中心下方的「服务与设置」已有该入口，别重复
 ]
 
 // 全部可开通角色

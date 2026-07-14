@@ -5,7 +5,7 @@ import BottomNav from '@/components/bottom-nav/bottom-nav.vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo, toastComingSoon } from '@/utils/router'
 import {
-  profileApi, getGreeting, roleHref, type UserRole,
+  profileApi, getGreeting, roleHref, quickFunctions, type UserRole,
 } from '@/lib/profile-data'
 import { recommendApi } from '@/lib/recommend-data'
 import { growthApi } from '@/lib/growth-data'
@@ -359,6 +359,23 @@ function applyRole(role: string) {
       </view>
     </view>
 
+    <!-- ===== ⑥.5 常用功能 =====
+         🔴 2026-07-14：这一整块此前**根本没有渲染** —— lib/profile-data 里的 quickFunctions
+         是个死常量，没有任何页面读它。结果就是个人中心里进不去自己的课程/圈子/收藏/笔记/
+         直播/申请/浏览历史/收货地址 —— 这些页面全都成了"做完了但没人能跳进去"的孤岛。
+         （用户体感的"这个没做、那个也没做"，很大一部分是这么来的。） -->
+    <view class="quick-title-row">
+      <text class="quick-title">常用功能</text>
+    </view>
+    <view class="quick">
+      <view v-for="q in quickFunctions" :key="q.href" class="quick-item" @tap="go(q.href)">
+        <view class="quick-icon" :style="{ background: q.color + '14' }">
+          <AppIcon :name="q.icon" :size="36" :color="q.color" />
+        </view>
+        <text class="quick-label">{{ q.label }}</text>
+      </view>
+    </view>
+
     <!-- ===== ⑦ 服务与设置 ===== -->
     <view class="svc">
       <view class="svc-item" @tap="go('/agents/history')">
@@ -499,6 +516,25 @@ function applyRole(role: string) {
 .role-more-txt { font-size: 22rpx; color: #B0A99A; }
 
 /* ⑦ 服务行 */
+/* 常用功能宫格（4 列） */
+.quick-title-row { margin: 32rpx 32rpx 0; }
+.quick-title { font-size: 26rpx; font-weight: 600; color: #2B2620; }
+.quick {
+  display: flex; flex-wrap: wrap;
+  margin: 16rpx 32rpx 0; padding: 20rpx 8rpx 8rpx;
+  background: #fff; border-radius: 24rpx;
+  box-shadow: 0 2rpx 8rpx rgba(60,50,40,.06);
+}
+.quick-item {
+  width: 25%; display: flex; flex-direction: column; align-items: center;
+  gap: 12rpx; padding: 16rpx 0 24rpx;
+}
+.quick-icon {
+  width: 76rpx; height: 76rpx; border-radius: 22rpx;
+  display: flex; align-items: center; justify-content: center;
+}
+.quick-label { font-size: 22rpx; color: #6E6A62; }
+
 .svc { display: flex; margin: 20rpx 32rpx 0; background: #fff; border-radius: 24rpx; padding: 12rpx 0 16rpx; box-shadow: 0 2rpx 8rpx rgba(60,50,40,.06); }
 .svc-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 12rpx; padding: 26rpx 0 18rpx; }
 .svc-label { font-size: 20rpx; color: #8A8578; }
