@@ -220,7 +220,7 @@ function diZhiCls(r: string) {
       </view>
     </view>
 
-    <classics-section />
+    <classics-section :data="data" />
 
     <view class="btn-pair">
       <view class="pair-btn brand"><app-icon name="sparkles" :size="36" color="#ffffff" /><text class="pair-text">AI辅助分析</text></view>

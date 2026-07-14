@@ -27,6 +27,72 @@ export class BaziKnowledgeService {
     private readonly vector: VectorService,
   ) {}
 
+  /**
+   * 按【当前八字】检索相关古籍条目 —— 八字结果页「古籍参考」用。
+   *
+   * 🔴 此前那一块是 4 段硬编码原文（「论丁火」「论丁生午月」），不管用户排的是什么盘
+   *    都给同一份内容，却在页面上标着《滴天髓》—— 那不是兜底，是**假的针对性**，
+   *    比空着更糟：它让用户以为这是为他这一盘检索出来的。
+   *
+   * 现在按盘面特征给知识条目打分排序，并且每条都说得出**为什么推它**（matchedOn），
+   * 不做黑箱召回。相关度权重（越靠近这一盘的命理结论，越优先）：
+   *   格局   +10  这一盘是什么格局，是最贴身的信息
+   *   用神   +8
+   *   日主干 +6   日主是命主自身
+   *   月令支 +4   月令司权
+   *   神煞   +3   命带的神煞
+   *   五行   +2   最泛，兜底
+   * 一条都命中不了就返回空 —— 宁可不显示，也不塞一段不相干的原文冒充「参考」。
+   */
+  async forBazi(input: {
+    dayGan?: string;
+    dayZhi?: string;
+    monthZhi?: string;
+    geju?: string;
+    yongshen?: string;
+    shenSha?: string[];
+    wuxing?: string;
+    limit?: number;
+  }) {
+    const signals: { value: string; weight: number; reason: string }[] = [];
+    const push = (v: string | undefined, weight: number, reason: string) => {
+      const s = (v || "").trim();
+      if (s) signals.push({ value: s, weight, reason });
+    };
+
+    push(input.geju, 10, "格局");
+    push(input.yongshen, 8, "用神");
+    push(input.dayGan, 6, "日主");
+    push(input.monthZhi, 4, "月令");
+    push(input.wuxing, 2, "五行");
+    for (const s of (input.shenSha ?? []).slice(0, 6)) push(s, 3, "神煞");
+
+    if (!signals.length) return [];
+
+    // 只捞 tags 命中任一信号的条目（走 GIN 索引，不扫全表）
+    const rows = await this.prisma.baziKnowledge.findMany({
+      where: {
+        status: "PUBLISHED",
+        tags: { hasSome: signals.map((s) => s.value) },
+      },
+      select: { id: true, title: true, category: true, tags: true, content: true, source: true },
+      take: 60,
+    });
+
+    const scored = rows
+      .map((r) => {
+        const hits = signals.filter((s) => r.tags.includes(s.value));
+        const score = hits.reduce((sum, h) => sum + h.weight, 0);
+        // 去重：同一维度（如「格局」）命中多次只记一次理由
+        const matchedOn = [...new Set(hits.map((h) => `${h.reason}「${h.value}」`))];
+        return { ...r, score, matchedOn };
+      })
+      .filter((r) => r.score > 0)
+      .sort((a, b) => b.score - a.score);
+
+    return scored.slice(0, input.limit ?? 6);
+  }
+
   /** 按分类列出知识条目 */
   async listByCategory(category: string, rawPage = 1, rawPageSize = 20) {
     const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);

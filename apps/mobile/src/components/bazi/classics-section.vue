@@ -1,82 +1,106 @@
 <script setup lang="ts">
-/** 古籍参考（书封网格 + 原文/译文/对照切换）——对应原型 ClassicsSection */
-import { ref } from 'vue'
+/**
+ * 古籍参考 —— 按【当前这一盘】检索。
+ *
+ * 🔴 2026-07-14 改真检索。此前是 4 本书封 + 4 段硬编码原文（「论丁火」「论丁生午月」），
+ *    不管用户排的是什么八字都给同一份内容，页面上却标着《滴天髓》。那不是兜底，是假的针对性。
+ *    现在按盘面特征（格局/用神/日主/月令/神煞/五行）从知识库召回，每条都标出命中理由；
+ *    一条都没命中就诚实空态 —— 宁可不显示，也不塞不相干的原文冒充「参考」。
+ */
+import { ref, watch } from 'vue'
 import SectionTitle from './section-title.vue'
-import FlatCover from '@/components/classics/flat-cover.vue'
-import { coverColorForBook } from '@/lib/classics-cover'
-import { classics, baziApi } from '@/lib/bazi-result-data'
+import { baziApi, type ClassicRef } from '@/lib/bazi-result-data'
 
-const selected = ref<string | null>(null)
-const mode = ref<'原文' | '译文' | '对照'>('原文')
-const contentLoading = ref(false)
-const currentContent = ref<{ title: string; original: string; translation: string } | null>(null)
+// data 为排盘结果聚合对象（adaptBazi 产物），多层嵌套，保留 any 与两个 mode 组件一致
+const props = defineProps<{ data: any }>()
 
-async function toggle(id: string) {
-  if (selected.value === id) { selected.value = null; currentContent.value = null; return }
-  selected.value = id
-  contentLoading.value = true
+/** 天干五行（用于把日主折成五行信号） */
+const GAN_WUXING: Record<string, string> = {
+  甲: '木', 乙: '木', 丙: '火', 丁: '火', 戊: '土',
+  己: '土', 庚: '金', 辛: '金', 壬: '水', 癸: '水',
+}
+
+const list = ref<ClassicRef[]>([])
+const loading = ref(false)
+const failed = ref(false)
+const expanded = ref<string | null>(null)
+
+function toggle(id: string) {
+  expanded.value = expanded.value === id ? null : id
+}
+
+async function load() {
+  const d = props.data
+  const dayGan = d?.siZhu?.day?.gan || ''
+  if (!dayGan) return
+  const ss = d?.shenSha || {}
+  loading.value = true
+  failed.value = false
   try {
-    currentContent.value = await baziApi.classicsRef(id)
+    list.value = await baziApi.classicsForBazi({
+      dayGan,
+      dayZhi: d?.siZhu?.day?.zhi || '',
+      monthZhi: d?.siZhu?.month?.zhi || '',
+      geju: d?.geJu?.name || '',
+      yongshen: d?.geJu?.yongShen || '',
+      shenSha: [...(ss.year || []), ...(ss.month || []), ...(ss.day || []), ...(ss.hour || [])],
+      wuxing: GAN_WUXING[dayGan] || '',
+    })
   } catch {
-    currentContent.value = null
+    list.value = []
+    failed.value = true
   } finally {
-    contentLoading.value = false
+    loading.value = false
   }
 }
+
+watch(() => props.data?.siZhu?.day?.gan, load, { immediate: true })
 </script>
 
 <template>
   <view class="cs">
     <section-title title="古籍参考">
-      <template #extra><text class="cs-more">更多古籍</text></template>
+      <template #extra><text class="cs-hint">按本盘检索</text></template>
     </section-title>
-    <view class="cs-grid">
-      <view v-for="b in classics" :key="b.id" class="cs-book" @tap="toggle(b.id)">
-        <view class="cs-cover" :class="{ 'cs-cover-on': selected === b.id }">
-          <flat-cover :title="b.name" :cover-color="coverColorForBook(b.name)" title-size="24rpx" />
+
+    <view v-if="loading" class="cs-empty"><text class="cs-empty-text">检索中…</text></view>
+
+    <view v-else-if="list.length" class="cs-list">
+      <view v-for="c in list" :key="c.id" class="cs-item" @tap="toggle(c.id)">
+        <view class="cs-head">
+          <text class="cs-title">{{ c.title }}</text>
+          <text v-if="c.source" class="cs-source">{{ c.source }}</text>
         </view>
-        <text class="cs-label" :class="{ 'cs-label-on': selected === b.id }">{{ b.name }}</text>
+        <view class="cs-tags">
+          <text v-for="m in c.matchedOn" :key="m" class="cs-tag">{{ m }}</text>
+        </view>
+        <text class="cs-body" :class="{ 'cs-body-fold': expanded !== c.id }">{{ c.content }}</text>
+        <text class="cs-toggle">{{ expanded === c.id ? '收起' : '展开全文' }}</text>
       </view>
     </view>
-    <view v-if="selected && contentLoading" class="cs-detail">
-      <view class="cs-card"><text class="cs-body" style="color:#999;text-align:center">加载中...</text></view>
-    </view>
-    <view v-else-if="selected && currentContent" class="cs-detail">
-      <view class="cs-modes">
-        <view v-for="m in (['原文','译文','对照'] as const)" :key="m" class="cs-mode" :class="{ 'cs-mode-on': mode === m }" @tap="mode = m">
-          <text class="cs-mode-text" :class="{ 'cs-mode-text-on': mode === m }">{{ m }}</text>
-        </view>
-      </view>
-      <view class="cs-card">
-        <text class="cs-title">{{ currentContent.title }}</text>
-        <text v-if="mode === '原文'" class="cs-body">{{ currentContent.original }}</text>
-        <text v-else-if="mode === '译文'" class="cs-body">{{ currentContent.translation }}</text>
-        <text v-else class="cs-body"><text class="cs-tag-ink">【原文】</text>{{ currentContent.original }}{{ '\n\n' }}<text class="cs-tag-brand">【译文】</text>{{ currentContent.translation }}</text>
-      </view>
+
+    <!-- 诚实空态：说清楚为什么没有，不拿别的内容顶上 -->
+    <view v-else class="cs-empty">
+      <text class="cs-empty-text">{{ failed ? '古籍检索暂时不可用，稍后再试' : '这一盘暂未检索到相关古籍论断' }}</text>
+      <text class="cs-empty-sub">古籍库仍在扩充，只展示与本盘格局、用神、日主真正对应的条目</text>
     </view>
   </view>
 </template>
 
 <style scoped lang="scss">
 .cs { background: var(--card); border-radius: 16rpx; border: 2rpx solid var(--border, rgba(0,0,0,0.08)); overflow: hidden; }
-.cs-more { font-size: 22rpx; color: var(--brand); }
-.cs-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24rpx; padding: 0 24rpx 24rpx; }
-.cs-book { display: flex; flex-direction: column; align-items: center; gap: 8rpx; }
-/* 书封：flat-cover 仿真书组件——只给宽度，高度由组件内部 3:4 比例撑出
-   （原手写 136×184rpx 比例 1:1.353 ≠ 3:4，轻微变形，已统一） */
-.cs-cover { position: relative; width: 100%; border-radius: 10rpx; }
-.cs-cover-on { box-shadow: 0 0 0 4rpx var(--brand), 0 4rpx 10rpx rgba(0,0,0,0.15); }
-.cs-label { font-size: 22rpx; color: var(--text-soft); line-height: 1.2; }
-.cs-label-on { color: var(--brand); font-weight: 600; }
-.cs-detail { border-top: 2rpx solid var(--border, rgba(0,0,0,0.08)); padding: 24rpx; background: rgba(0,0,0,0.02); }
-.cs-modes { display: flex; gap: 16rpx; margin-bottom: 20rpx; }
-.cs-mode { padding: 8rpx 24rpx; border-radius: 999rpx; background: var(--card); border: 2rpx solid var(--border, rgba(0,0,0,0.08)); }
-.cs-mode-on { background: var(--brand); border-color: var(--brand); }
-.cs-mode-text { font-size: 22rpx; color: var(--text-soft); }
-.cs-mode-text-on { color: #fff; }
-.cs-card { background: var(--card); border-radius: 16rpx; padding: 24rpx; border: 2rpx solid var(--border, rgba(0,0,0,0.08)); }
-.cs-title { display: block; font-size: 28rpx; font-weight: 600; color: var(--text-ink); margin-bottom: 12rpx; }
-.cs-body { font-size: 28rpx; line-height: 1.7; color: var(--text-soft); white-space: pre-line; }
-.cs-tag-ink { color: var(--text-ink); font-weight: 500; }
-.cs-tag-brand { color: var(--brand); font-weight: 500; }
+.cs-hint { font-size: 22rpx; color: var(--text-soft); }
+.cs-list { padding: 0 24rpx 24rpx; display: flex; flex-direction: column; gap: 16rpx; }
+.cs-item { background: rgba(0,0,0,0.02); border: 2rpx solid var(--border, rgba(0,0,0,0.08)); border-radius: 16rpx; padding: 20rpx; }
+.cs-head { display: flex; align-items: center; justify-content: space-between; gap: 12rpx; }
+.cs-title { font-size: 28rpx; font-weight: 600; color: var(--text-ink); flex: 1; }
+.cs-source { font-size: 22rpx; color: var(--brand); flex-shrink: 0; }
+.cs-tags { display: flex; flex-wrap: wrap; gap: 8rpx; margin: 12rpx 0; }
+.cs-tag { font-size: 20rpx; color: var(--text-soft); background: var(--card); border: 2rpx solid var(--border, rgba(0,0,0,0.08)); border-radius: 999rpx; padding: 4rpx 14rpx; }
+.cs-body { display: block; font-size: 26rpx; line-height: 1.7; color: var(--text-soft); white-space: pre-line; }
+.cs-body-fold { overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.cs-toggle { display: block; margin-top: 10rpx; font-size: 22rpx; color: var(--brand); }
+.cs-empty { padding: 40rpx 24rpx; display: flex; flex-direction: column; align-items: center; gap: 10rpx; }
+.cs-empty-text { font-size: 26rpx; color: var(--text-soft); }
+.cs-empty-sub { font-size: 22rpx; color: var(--text-soft); opacity: 0.7; text-align: center; }
 </style>

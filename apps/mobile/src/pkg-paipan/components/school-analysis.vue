@@ -77,7 +77,10 @@ async function loadHistory() {
     pricing.value = res.pricing
     if (!activeSchool.value && comparedSchools.value.length) activeSchool.value = comparedSchools.value[0].school
   } catch (e) {
-    historyError.value = (e as Error)?.message || '点评记录加载失败'
+    // 🔴 只展示人话。后端给了 message 就用它；给不出来时 request 层会造
+    //    「请求失败(404)」这种带错误码的字符串 —— 那是给开发看的，不该甩到用户脸上。
+    const msg = (e as Error)?.message || ''
+    historyError.value = /请求失败\(|timeout|fail/i.test(msg) ? '点评记录暂时读不出来' : msg || '点评记录加载失败'
   } finally {
     historyLoading.value = false
   }
@@ -168,8 +171,19 @@ async function askMaster(m: SchoolMaster) {
       uni.showToast({ title: `已消耗 ${rec.costCoin} 国学币`, icon: 'none' })
     }
   } catch (e) {
-    // 业务异常（限额「今日请师父看盘次数已用完」/「国学币不足，追加师父点评需 X 币」）——直接展示后端 message
-    uni.showToast({ title: (e as Error)?.message || '点评失败，请稍后再试', icon: 'none' })
+    const msg = (e as Error)?.message || ''
+    // 🔴 超时要说人话，且要提醒「可能已生成」——AI 点评是后端在跑，前端断了它还在写，
+    //    直接把 uni 的 request:fail timeout 甩给用户，用户只会以为坏了、反复重试、反复扣币。
+    if (/timeout|超时/i.test(msg)) {
+      uni.showModal({
+        title: '点评还在生成',
+        content: '师父落笔较慢（AI 生成需要一点时间）。请稍候刷新本页查看 —— 不必重复请，以免重复计费。',
+        showCancel: false,
+      })
+    } else {
+      // 业务异常（限额「今日请师父看盘次数已用完」/「国学币不足，追加师父点评需 X 币」）——后端 message 是人话，原样展示
+      uni.showToast({ title: msg || '点评失败，请稍后再试', icon: 'none' })
+    }
   } finally {
     analyzing[m.school] = false
   }

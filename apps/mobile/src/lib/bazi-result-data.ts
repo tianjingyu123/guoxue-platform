@@ -55,35 +55,6 @@ const _mockBaziData = {
   wuxingState: { 木: '旺', 火: '相', 土: '休', 金: '囚', 水: '死' } as Record<string, string>,
 }
 
-export const classics = [
-  { id: 'qiong', name: '穷通宝鉴' },
-  { id: 'di', name: '滴天髓' },
-  { id: 'san', name: '三命通会' },
-  { id: 'bazi', name: '八字提要' },
-]
-
-const _mockClassicsContent: Record<string, { title: string; original: string; translation: string }> = {
-  qiong: {
-    title: '论丁生午月',
-    original: '五月丁火建禄，正值火旺之时，火当令而旺，以金水为用神为宜。用壬不可少甲，最为紧要。丙丁并透，又加支中火多，无壬水制之，其人必操屠宰业。用壬者，金妻水子。若得庚辛壬三者齐透，科甲功名。',
-    translation: '五月丁火处于建禄之位，正值火势最旺的时候，火在当令之时非常旺盛，应该以金水作为用神。使用壬水时不能缺少甲木的配合，这是最关键的要点。如果丙丁都透出天干，再加上地支火多，没有壬水来制约，此人必定从事屠宰行业。用壬水为用神的，娶金命之妻、生水命之子。若庚辛壬三者都透出天干，可得科举功名。',
-  },
-  di: {
-    title: '论丁火',
-    original: '丁火柔中，内性昭融。抱乙而孝，合壬而忠。旺而不烈，衰而不穷。如有嫡母，可秋可冬。',
-    translation: '丁火属阴，性质柔和而内在光明通达。与乙木相依是慈孝之象，与壬水相合是忠义之征。丁火旺盛时不会过于猛烈，衰弱时也不会走投无路。如果命中有甲木正印来生助，即使在秋冬失令之时也能自立。丁火犹如灯烛之光，虽小而能照亮四方。',
-  },
-  san: {
-    title: '丁丑日柱论',
-    original: '丁丑坐墓库，为金神格局。丁火坐丑中己土食神、辛金偏财、癸水七杀。若身旺能任财杀，主富贵。丁火日主坐墓地，逢冲则发。丑中暗藏三奇：己辛癸，食神生偏财，偏财引七杀，一路顺生有情。',
-    translation: '丁丑日柱是丁火坐在墓库之上，属于金神格局。丑土中暗藏己土（食神）、辛金（偏财）、癸水（七杀）。如果日主身旺能够承担财杀，主人富贵。丁火日主坐在墓地，遇到冲击就会发达。丑土中暗藏食神、偏财、七杀三种元素，食神生偏财、偏财引七杀，形成一路顺生的有情组合。',
-  },
-  bazi: {
-    title: '五月提要（午月）',
-    original: '午月丁火建禄，火势炎上。宜壬水高透以制火，庚金佐之发水源。甲木不可少，引丁成文明之象。午月火旺土燥，金水为调候急需。若壬甲两透，定主科甲。壬透甲藏，亦可功名。无壬用癸，格局稍次。',
-    translation: '午月丁火正当建禄之时，火势极为旺盛向上。适宜壬水在天干高透来制约火势，庚金辅助壬水以发其源头。甲木不可缺少，引导丁火成为文明之象。午月火旺土燥，金水是调候的急切需要。如果壬水和甲木都透出天干，必定主科举功名。壬水透出而甲木暗藏在地支，也可以取得功名。没有壬水而用癸水代替，格局稍差一些。',
-  },
-}
 
 // ───────── 后端真实算法输出 → 前端组件结构适配 ─────────
 // 后端 GET /paipan/bazi/calculate（calcBaziPreview，真实排盘算法）输出结构与组件期望(_mockBaziData)不同，
@@ -306,9 +277,14 @@ export const baziApi = {
   /**
    * 请流派虚拟师父看盘（POST /paipan/bazi/analyze + school）。
    * 业务异常（限额「今日请师父看盘次数已用完」/计费「国学币不足，追加师父点评需 X 币」）message 直接 toast 展示。
+   *
+   * 🔴 必须传足超时：AI 写一份点评要 30–60 秒，而 request 的默认超时只有 15 秒。
+   *    不传的话必然超时 —— 用户看到的是 uni 抛的「request:fail timeout」这种错误码，
+   *    而后端其实还在跑、会写库、会扣币：**失败提示 + 币照扣**，比单纯报错更伤。
+   *    （AI 智能解盘页同样给了 90s，两处口径要一致。）
    */
   async analyzeSchool(recordId: string, school: BaziSchoolId): Promise<SchoolAnalysisRecord> {
-    return apiPost<SchoolAnalysisRecord>('/paipan/bazi/analyze', { recordId, school })
+    return apiPost<SchoolAnalysisRecord>('/paipan/bazi/analyze', { recordId, school }, undefined, 90000)
   },
 
   /** 该盘全部分析记录 + 计费元数据（GET /paipan/records/:id/analyses，回显已请过的师父点评） */
@@ -319,12 +295,40 @@ export const baziApi = {
   },
 
   /**
-   * 古籍参考内容 —— 本地随包内容，非假数据。
-   * 后端没有 /paipan/bazi/classics 端点（不是漏了，是这几篇古籍原文+白话就随包发，
-   * 不值得为它开一条网络请求）。原先这里写成「先请求、失败再回落本地」的形状，
-   * 但请求的端点根本不存在，等于每次都白跑一趟 404 再回落 —— 已收敛为直接读本地。
+   * 按【当前八字】检索古籍（POST /bazi/knowledge/for-bazi）。
+   *
+   * 🔴 2026-07-14 改真检索。此前这一块是 4 段硬编码原文（「论丁火」「论丁生午月」），
+   *    **不管用户排的是什么盘都给同一份内容**，页面上却标着《滴天髓》——
+   *    那不是兜底，是假的针对性：让用户以为这是为他这一盘检索出来的。比空着更糟。
+   *
+   *    后端其实一直有 BaziKnowledge 知识库（带 tags/出处/分类），只是前端从没调过。
+   *    现按格局/用神/日主/月令/神煞打分召回，每条都说得出为什么推它（matchedOn）。
+   *    命中不了就返回空 —— 宁可不显示，也不塞不相干的原文冒充「参考」。
    */
-  async classicsRef(bookId: string): Promise<{ title: string; original: string; translation: string } | null> {
-    return _mockClassicsContent[bookId] || null
+  async classicsForBazi(input: {
+    dayGan?: string
+    dayZhi?: string
+    monthZhi?: string
+    geju?: string
+    yongshen?: string
+    shenSha?: string[]
+    wuxing?: string
+  }): Promise<ClassicRef[]> {
+    return apiPost<ClassicRef[]>('/bazi/knowledge/for-bazi', { ...input, limit: 6 })
   },
+}
+
+/** 按八字检索出的古籍条目 */
+export interface ClassicRef {
+  id: string
+  title: string
+  category: string
+  tags: string[]
+  content: string
+  /** 出处古籍（《滴天髓》《渊海子平》…） */
+  source?: string | null
+  /** 相关度（供排序，前端不显示数字） */
+  score: number
+  /** 为什么推它：如「格局「正官格」」「日主「丁」」—— 不做黑箱召回 */
+  matchedOn: string[]
 }
