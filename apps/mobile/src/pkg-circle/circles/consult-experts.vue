@@ -45,10 +45,10 @@ async function load() {
   }
 }
 
-/** 图文提问：跳发起付费提问页（带圈子/达人/价格/达人名） */
+/** 图文提问：跳发起付费提问页（带圈子/达人/提问价/围观价/达人名·围观价供提问页只读展示） */
 function goAsk(e: ConsultExpert) {
   if (!circleId.value || !e.questionPrice) return
-  navigateTo(`/pkg-circle/circles/consult-ask?circleId=${circleId.value}&answererId=${e.id}&priceCoin=${e.questionPrice}&expertName=${encodeURIComponent(e.name)}&expertAvatar=${encodeURIComponent(e.avatar || '')}`)
+  navigateTo(`/pkg-circle/circles/consult-ask?circleId=${circleId.value}&answererId=${e.id}&priceCoin=${e.questionPrice}&peekPriceCoin=${e.peekPrice}&expertName=${encodeURIComponent(e.name)}&expertAvatar=${encodeURIComponent(e.avatar || '')}`)
 }
 /** 连麦咨询：通话预约页（App/H5 对照·预约页内分端降级） */
 function goBook(e: ConsultExpert) {

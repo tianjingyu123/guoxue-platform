@@ -199,7 +199,7 @@ function goConsult() {
   }
   const go = (s: UserConsultService) =>
     navigateTo(
-      `/pkg-circle/circles/consult-ask?circleId=${s.circleId}&answererId=${userIdStr.value}&priceCoin=${s.questionPrice}&expertName=${encodeURIComponent(s.expertName)}`,
+      `/pkg-circle/circles/consult-ask?circleId=${s.circleId}&answererId=${userIdStr.value}&priceCoin=${s.questionPrice}&peekPriceCoin=${s.peekPrice}&expertName=${encodeURIComponent(s.expertName)}`,
     )
   if (svcs.length === 1) {
     go(svcs[0])

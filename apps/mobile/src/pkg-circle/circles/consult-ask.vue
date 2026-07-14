@@ -87,7 +87,7 @@ async function submit() {
       question: newContent.value.trim(),
       priceCoin: priceCoin.value,
       isPublic: isPublic.value,
-      peekPriceCoin: isPublic.value && peekPrice.value > 0 ? peekPrice.value : undefined,
+      // 围观价不传：后端一律以达人本人配置为准（提问者不能左右达人的收益）
       images: images.value,
     })
     uni.showToast({ title: '提问已提交，金币已托管', icon: 'success' })
