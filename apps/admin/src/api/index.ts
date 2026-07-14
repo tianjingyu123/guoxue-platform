@@ -668,6 +668,10 @@ export const commissionApi = {
   stationBalance: (stationId: string) => api.get(`/commission/station-balance/${stationId}`),
   listWithdrawals: (params?: Record<string, unknown>) => api.get("/commission/admin/withdrawals", { params }),
   auditWithdrawal: (id: string, data: { status: string; remark?: string }) => api.put(`/commission/admin/withdrawals/${id}`, data),
+  // 打款专用：取完整收款账户（唯一返回明文卡号的接口·每次调用后端强制写审计日志）
+  revealPayoutAccount: (id: string) => api.get(`/commission/admin/withdrawals/${id}/payout-account`),
+  // 确认已线下打款：payoutRef=银行/支付宝转账流水号（必填·唯一·防重复打款）
+  confirmPayout: (id: string, payoutRef: string) => api.post(`/commission/admin/withdrawals/${id}/payout`, { payoutRef }),
   getQuickConfig: () => api.get("/commission/config"),
   updateQuickConfig: (data: Record<string, unknown>) => api.put("/commission/config", data),
   getPlatformFeeSummary: () => api.get("/commission/platform-fee/summary"),

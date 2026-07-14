@@ -4,7 +4,9 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { WebhookService } from "../webhook/webhook.service";
 import { RedisService } from "../../redis/redis.service";
 import { UserGrowthService } from "../user-growth/user-growth.service";
+import { SystemService } from "../system/system.service";
 import { BusinessException } from "../../common/business.exception";
+import { encrypt } from "../../common/crypto.util";
 
 const mockPrisma = {
   commissionConfig: { findMany: jest.fn(), findUnique: jest.fn(), update: jest.fn() },
@@ -15,7 +17,7 @@ const mockPrisma = {
   product: { findUnique: jest.fn() },
   operatorEarning: { create: jest.fn(), createMany: jest.fn(), findMany: jest.fn(), count: jest.fn(), aggregate: jest.fn(), findFirst: jest.fn() },
   notification: { create: jest.fn().mockReturnValue({ catch: jest.fn() }) },
-  withdrawal: { create: jest.fn(), findMany: jest.fn(), count: jest.fn(), findUnique: jest.fn(), update: jest.fn(), aggregate: jest.fn() },
+  withdrawal: { create: jest.fn(), findMany: jest.fn(), count: jest.fn(), findUnique: jest.fn(), update: jest.fn(), updateMany: jest.fn(), aggregate: jest.fn() },
   referralLink: { create: jest.fn(), findMany: jest.fn(), findUnique: jest.fn(), update: jest.fn() },
   platformFeeRecord: { findMany: jest.fn(), findFirst: jest.fn(), createMany: jest.fn() },
   ledgerEntry: { findFirst: jest.fn(), create: jest.fn() },
@@ -23,6 +25,11 @@ const mockPrisma = {
   $transaction: jest.fn().mockImplementation((cb: any) => cb(mockPrisma)),
 };
 const mockWebhook = { fire: jest.fn().mockResolvedValue(undefined) };
+// revealPayoutAccount 强制审计留痕：审计写失败即拒绝返回卡号，故必须可 mock
+const mockSystemService = {
+  logAudit: jest.fn().mockResolvedValue(undefined),
+  getConfig: jest.fn().mockResolvedValue(null),
+};
 const mockRedis = { setNX: jest.fn().mockResolvedValue(true), del: jest.fn(), get: jest.fn().mockResolvedValue(null), set: jest.fn() };
 const mockGrowth = { addExp: jest.fn().mockResolvedValue(undefined) };
 
@@ -37,6 +44,7 @@ describe("CommissionService", () => {
         { provide: WebhookService, useValue: mockWebhook },
         { provide: RedisService, useValue: mockRedis },
         { provide: UserGrowthService, useValue: mockGrowth },
+        { provide: SystemService, useValue: mockSystemService },
       ],
     }).compile();
     svc = mod.get(CommissionService);
@@ -610,10 +618,12 @@ describe("CommissionService", () => {
 
   describe("auditWithdrawal", () => {
     it("审核通过", async () => {
-      mockPrisma.withdrawal.findUnique.mockResolvedValue({ id: "w-1", userId: "user-1", status: "PENDING" });
-      mockPrisma.withdrawal.update.mockResolvedValue({ id: "w-1", status: "APPROVED" });
+      mockPrisma.withdrawal.findUnique
+        .mockResolvedValueOnce({ id: "w-1", userId: "user-1", status: "PENDING" })
+        .mockResolvedValueOnce({ id: "w-1", status: "APPROVED" });
+      mockPrisma.withdrawal.updateMany.mockResolvedValue({ count: 1 });
       const result = await svc.auditWithdrawal("w-1", { status: "APPROVED" }, "admin1");
-      expect(result.status).toBe("APPROVED");
+      expect(result!.status).toBe("APPROVED");
     });
     it("不存在抛出 NotFoundException", async () => {
       mockPrisma.withdrawal.findUnique.mockResolvedValue(null);
@@ -621,11 +631,92 @@ describe("CommissionService", () => {
     });
     it("已处理记录不可重复审核", async () => {
       mockPrisma.withdrawal.findUnique.mockResolvedValue({ id: "w-1", userId: "user-1", status: "APPROVED" });
-      await expect(svc.auditWithdrawal("w-1", { status: "PAID" }, "admin1")).rejects.toThrow(BusinessException);
+      await expect(svc.auditWithdrawal("w-1", { status: "REJECTED" }, "admin1")).rejects.toThrow(BusinessException);
     });
     it("不能审核自己的提现申请（防自审自批）", async () => {
       mockPrisma.withdrawal.findUnique.mockResolvedValue({ id: "w-1", userId: "user-1", status: "PENDING" });
       await expect(svc.auditWithdrawal("w-1", { status: "APPROVED" }, "user-1")).rejects.toThrow(BusinessException);
+    });
+
+    // 🔴 资金安全护栏（2026-07-13）
+    it("审核不能一步置 PAID：打款必须走独立端点带流水号", async () => {
+      mockPrisma.withdrawal.findUnique.mockResolvedValue({ id: "w-1", userId: "user-1", status: "PENDING" });
+      await expect(svc.auditWithdrawal("w-1", { status: "PAID" }, "admin1")).rejects.toThrow("只能是");
+      expect(mockPrisma.withdrawal.updateMany).not.toHaveBeenCalled();
+    });
+    it("非法状态值一律拒绝（不得写入任意字符串）", async () => {
+      mockPrisma.withdrawal.findUnique.mockResolvedValue({ id: "w-1", userId: "user-1", status: "PENDING" });
+      await expect(svc.auditWithdrawal("w-1", { status: "APPROVE" }, "admin1")).rejects.toThrow(BusinessException);
+    });
+    it("CAS 落空（并发双审）：第二个请求失败，不重复翻转", async () => {
+      mockPrisma.withdrawal.findUnique.mockResolvedValue({ id: "w-1", userId: "user-1", status: "PENDING" });
+      mockPrisma.withdrawal.updateMany.mockResolvedValue({ count: 0 }); // 已被他人抢先处理
+      await expect(svc.auditWithdrawal("w-1", { status: "APPROVED" }, "admin1")).rejects.toThrow("已被处理");
+    });
+  });
+
+  // 🔴 P0：打款链路（此前完全不存在 —— 管理员拿不到完整卡号，线下打款都做不了）
+  describe("revealPayoutAccount（取完整收款账户·强制审计）", () => {
+    it("APPROVED 记录：返回完整卡号，且必须先写审计日志", async () => {
+      mockPrisma.withdrawal.findUnique.mockResolvedValue({
+        id: "w-1", userId: "user-1", status: "APPROVED", amount: 500,
+        bankName: "工商银行", bankAccount: encrypt("6222021234567890"), bankHolder: encrypt("张三"), alipayAccount: null,
+      });
+      const r = await svc.revealPayoutAccount("w-1", "admin1", "1.2.3.4");
+      expect(r.bankAccount).toBe("6222021234567890"); // 完整卡号（非脱敏）
+      expect(r.bankHolder).toBe("张三");
+      expect(mockSystemService.logAudit).toHaveBeenCalledWith(
+        expect.objectContaining({ action: "REVEAL_PAYOUT_ACCOUNT", targetId: "w-1", userId: "admin1" }),
+      );
+    });
+    it("未审核（PENDING）不给看卡号：最小化明文暴露面", async () => {
+      mockPrisma.withdrawal.findUnique.mockResolvedValue({ id: "w-1", userId: "user-1", status: "PENDING" });
+      await expect(svc.revealPayoutAccount("w-1", "admin1")).rejects.toThrow("仅已审核通过");
+    });
+    it("不能查看自己提现的收款账户（防自审自批）", async () => {
+      mockPrisma.withdrawal.findUnique.mockResolvedValue({ id: "w-1", userId: "user-1", status: "APPROVED" });
+      await expect(svc.revealPayoutAccount("w-1", "user-1")).rejects.toThrow(BusinessException);
+    });
+    it("审计写入失败 → 拒绝返回卡号（不可有『看了但查不到是谁』）", async () => {
+      mockPrisma.withdrawal.findUnique.mockResolvedValue({
+        id: "w-1", userId: "user-1", status: "APPROVED", amount: 500,
+        bankAccount: encrypt("6222021234567890"), bankHolder: null, alipayAccount: null, bankName: null,
+      });
+      mockSystemService.logAudit.mockRejectedValueOnce(new Error("audit down"));
+      await expect(svc.revealPayoutAccount("w-1", "admin1")).rejects.toThrow();
+    });
+  });
+
+  describe("confirmPayout（确认已打款·幂等）", () => {
+    it("APPROVED → PAID，落流水号", async () => {
+      mockPrisma.withdrawal.findUnique
+        .mockResolvedValueOnce({ id: "w-1", userId: "user-1", status: "APPROVED", amount: 500 })
+        .mockResolvedValueOnce({ id: "w-1", status: "PAID", payoutRef: "BANK-20260713-001" });
+      mockPrisma.withdrawal.updateMany.mockResolvedValue({ count: 1 });
+
+      const r = await svc.confirmPayout("w-1", "BANK-20260713-001", "admin1");
+
+      expect(r!.status).toBe("PAID");
+      const data = mockPrisma.withdrawal.updateMany.mock.calls[0][0];
+      expect(data.where).toEqual({ id: "w-1", status: "APPROVED" }); // CAS
+      expect(data.data.payoutRef).toBe("BANK-20260713-001");
+    });
+    it("缺流水号：拒绝（每笔打款必须能对上真实银行流水）", async () => {
+      await expect(svc.confirmPayout("w-1", "  ", "admin1")).rejects.toThrow("必须提供打款流水号");
+    });
+    it("重复打款：CAS 落空，明确报『已打款』", async () => {
+      mockPrisma.withdrawal.findUnique.mockResolvedValue({ id: "w-1", userId: "user-1", status: "PAID" });
+      mockPrisma.withdrawal.updateMany.mockResolvedValue({ count: 0 });
+      await expect(svc.confirmPayout("w-1", "BANK-001", "admin1")).rejects.toThrow("已打款");
+    });
+    it("未审核就打款：拒绝", async () => {
+      mockPrisma.withdrawal.findUnique.mockResolvedValue({ id: "w-1", userId: "user-1", status: "PENDING" });
+      mockPrisma.withdrawal.updateMany.mockResolvedValue({ count: 0 });
+      await expect(svc.confirmPayout("w-1", "BANK-001", "admin1")).rejects.toThrow("仅已审核通过");
+    });
+    it("不能为自己的提现确认打款（防自审自批）", async () => {
+      mockPrisma.withdrawal.findUnique.mockResolvedValue({ id: "w-1", userId: "user-1", status: "APPROVED" });
+      await expect(svc.confirmPayout("w-1", "BANK-001", "user-1")).rejects.toThrow(BusinessException);
     });
   });
 

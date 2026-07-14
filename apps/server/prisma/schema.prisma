@@ -3446,6 +3446,9 @@ model Withdrawal {
   alipayAccount String? // 支付宝账号
   status        String    @default("PENDING") // PENDING, APPROVED, PAID, REJECTED
   remark        String? // 审核备注
+  /// 出款幂等键：线下打款=银行/支付宝流水号；接入自动代付后=渠道 out_bill_no。
+  /// 唯一约束是防重复打款的最后一道兜底——同一笔流水不可能被记两次。
+  payoutRef     String?   @unique
   processedAt   DateTime?
   createdAt     DateTime  @default(now())
 
@@ -3830,6 +3833,7 @@ enum WebhookEvent {
   USER_REGISTERED
   CONTENT_PUBLISHED
   WITHDRAWAL_REQUESTED
+  WITHDRAWAL_PAID
   COURSE_ENROLLED
   LIVE_STARTED
   LIVE_ENDED
@@ -4445,6 +4449,8 @@ model WithdrawalApplication {
   level        Int      @default(1) // 审批级别
   reviewedBy   String?
   reviewNote   String?
+  /// 出款幂等键（同 Withdrawal.payoutRef）：线下流水号 / 渠道 out_bill_no·唯一防重复打款
+  payoutRef    String?  @unique
   createdAt    DateTime @default(now())
 
   @@index([userId, status])

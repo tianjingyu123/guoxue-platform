@@ -49,10 +49,13 @@ describe("Commission DTO 校验", () => {
       const errors = await validate(dto);
       expect(errors.length).toBe(0);
     });
-    it("合法状态 PAID 通过", async () => {
+    // 🔴 2026-07-13 契约变更：审核不再接受 PAID。
+    // 打款是独立动作（POST admin/withdrawals/:id/payout）且必须带转账流水号——
+    // 此前允许审核时一步 PENDING→PAID，等于「没看卡号、没转账、没流水号」就把提现标成已打款。
+    it("PAID 被拒绝：打款必须走独立端点并提供流水号", async () => {
       const dto = Object.assign(new WithdrawalAuditDto(), { status: "PAID" });
       const errors = await validate(dto);
-      expect(errors.length).toBe(0);
+      expect(errors.length).toBe(1);
     });
     it("合法状态 REJECTED 通过", async () => {
       const dto = Object.assign(new WithdrawalAuditDto(), { status: "REJECTED", remark: "信息不完整" });

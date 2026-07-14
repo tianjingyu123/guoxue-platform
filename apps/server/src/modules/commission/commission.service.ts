@@ -19,6 +19,12 @@ import { safePagination, NO_PAGE_LIMIT } from "../../common/pagination";
 const MAX_WITHDRAW_RMB = 50000;
 /** 计算可提现余额时视为"占用额度"的提现状态（PENDING 也占额度，防重复提现；REJECTED 自动释放） */
 const OCCUPYING_WITHDRAW_STATUSES = ["PENDING", "APPROVED", "PAID"];
+/**
+ * 审核允许的目标状态白名单。
+ * 曾经 dto.status 是任意字符串直接写库；且允许 PENDING 一步直达 PAID。
+ * 现在审核只能 APPROVED/REJECTED，打款是独立动作（confirmPayout），必须先经审核。
+ */
+const AUDIT_TARGET_STATUSES = ["APPROVED", "REJECTED"];
 
 /**
  * 【已废止·仅作历史参考】运营商等级管理奖率（V2 改制前按 Operator.level 取率）。
@@ -750,21 +756,131 @@ export class CommissionService {
     return { withdrawals: decoded, total, page, pageSize };
   }
 
+  /**
+   * 审核提现（管理员）。
+   *
+   * 🔴 资金安全（2026-07-13 加固，接入自动代付前的必备地基）：
+   * 1. **状态白名单**：dto.status 曾是任意字符串直接写库 —— 管理员可写入任意值（含拼错的状态），
+   *    坏掉的状态会让记录永久卡死或绕过后续流转校验。现在只接受 APPROVED / REJECTED。
+   * 2. **CAS 防并发**：曾是 findUnique 检查 + update 无条件更新 —— 两个管理员同时点通过会双双成功
+   *    （TOCTOU）。接入真实代付后这就是**重复打款**。现在用条件 updateMany（仅 PENDING 才翻），
+   *    count===0 即说明已被他人处理。
+   * 3. PENDING 不再允许一步直接置 PAID：打款是独立动作（confirmPayout），必须先 APPROVED。
+   */
   async auditWithdrawal(id: string, dto: { status: string; remark?: string }, reviewerId: string) {
+    if (!AUDIT_TARGET_STATUSES.includes(dto.status)) {
+      throw new BusinessException(
+        ErrorCode.BAD_REQUEST,
+        `审核结果只能是 ${AUDIT_TARGET_STATUSES.join(" / ")}`,
+      );
+    }
+
     const w = await this.prisma.withdrawal.findUnique({ where: { id } });
     if (!w) throw new BusinessException(ErrorCode.NOT_FOUND, "提现记录不存在");
     // 防自审自批：受益人不得审核自己的提现申请
     if (w.userId === reviewerId) throw new BusinessException(ErrorCode.FORBIDDEN, "不能审核自己的提现申请");
     if (w.status !== "PENDING") throw new BusinessException(ErrorCode.BAD_REQUEST, "该记录已处理");
 
-    return this.prisma.withdrawal.update({
-      where: { id },
+    // CAS：仅当仍为 PENDING 才翻转，并发下只有一个请求能成功
+    const flipped = await this.prisma.withdrawal.updateMany({
+      where: { id, status: "PENDING" },
       data: {
         status: dto.status,
         remark: dto.remark,
         processedAt: new Date(),
       },
     });
+    if (flipped.count === 0) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "该记录已被处理，请刷新后重试");
+    }
+    return this.prisma.withdrawal.findUnique({ where: { id } });
+  }
+
+  /**
+   * 【P0·打款专用】取完整收款账户（解密）——线下人工打款的唯一合法通道。
+   *
+   * 此前列表接口一律脱敏返回（6222****1234），而注释里说的「独立的解密+审计接口」从未实现，
+   * 导致管理员拿不到完整卡号 → **连线下人工打款都执行不了**（整条提现链路在人工这步就断了）。
+   *
+   * 安全约束（每一条都是刻意的）：
+   * - 仅 APPROVED 状态可取：未审核/已驳回/已打款的记录不暴露卡号，最小化明文暴露面。
+   * - 防自审自批：受益人不得为自己取号。
+   * - **强制留痕**：每次取号写一条 AuditLog（谁、何时、取了哪条、金额）。审计写失败即拒绝返回卡号，
+   *   宁可打不了款，也不允许出现"有人看了卡号但查不到是谁"。
+   */
+  async revealPayoutAccount(id: string, operatorId: string, ip?: string) {
+    const w = await this.prisma.withdrawal.findUnique({ where: { id } });
+    if (!w) throw new BusinessException(ErrorCode.NOT_FOUND, "提现记录不存在");
+    if (w.userId === operatorId) {
+      throw new BusinessException(ErrorCode.FORBIDDEN, "不能查看自己提现申请的收款账户");
+    }
+    if (w.status !== "APPROVED") {
+      throw new BusinessException(
+        ErrorCode.BAD_REQUEST,
+        "仅已审核通过（APPROVED）的提现可查看收款账户",
+      );
+    }
+
+    // 先留痕再返回：审计失败则不给卡号（不可有"看了但无迹可查"的情况）
+    if (!this.systemService) {
+      throw new BusinessException(ErrorCode.INTERNAL_ERROR, "审计服务不可用，拒绝返回收款账户");
+    }
+    await this.systemService.logAudit({
+      userId: operatorId,
+      action: "REVEAL_PAYOUT_ACCOUNT",
+      targetType: "WITHDRAWAL",
+      targetId: id,
+      detail: `查看提现收款账户（打款用）: withdrawal=${id}, 受益人=${w.userId}, 金额=¥${w.amount}`,
+      ip,
+    });
+
+    return {
+      id: w.id,
+      amount: Number(w.amount),
+      bankName: w.bankName,
+      bankAccount: w.bankAccount ? decrypt(w.bankAccount) : null,
+      bankHolder: w.bankHolder ? decrypt(w.bankHolder) : null,
+      alipayAccount: w.alipayAccount ? decrypt(w.alipayAccount) : null,
+    };
+  }
+
+  /**
+   * 【P0·打款】确认已线下打款：APPROVED → PAID。
+   *
+   * payoutRef = 线下转账的银行流水号/支付宝订单号，**必填且全局唯一**——这是出款幂等键：
+   * - 可追溯：每一笔 PAID 都能对上一条真实的银行流水；
+   * - 防重复打款：同一流水号不可能被记两次（DB 唯一约束兜底）。
+   * 接入自动代付后，payoutRef 直接复用为渠道的 out_bill_no，幂等语义不变。
+   */
+  async confirmPayout(id: string, payoutRef: string, operatorId: string) {
+    const ref = (payoutRef || "").trim();
+    if (!ref) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "必须提供打款流水号（银行/支付宝转账凭证号）");
+    }
+
+    const w = await this.prisma.withdrawal.findUnique({ where: { id } });
+    if (!w) throw new BusinessException(ErrorCode.NOT_FOUND, "提现记录不存在");
+    if (w.userId === operatorId) {
+      throw new BusinessException(ErrorCode.FORBIDDEN, "不能为自己的提现申请确认打款");
+    }
+
+    // CAS：仅 APPROVED 可转 PAID，并发/重复点击只会成功一次
+    const flipped = await this.prisma.withdrawal.updateMany({
+      where: { id, status: "APPROVED" },
+      data: { status: "PAID", payoutRef: ref, processedAt: new Date() },
+    });
+    if (flipped.count === 0) {
+      throw new BusinessException(
+        ErrorCode.BAD_REQUEST,
+        w.status === "PAID" ? "该提现已打款，请勿重复操作" : "仅已审核通过的提现可确认打款",
+      );
+    }
+
+    this.webhook.fire("WITHDRAWAL_PAID", {
+      withdrawalId: id, userId: w.userId, amount: Number(w.amount), payoutRef: ref,
+    }).catch((err) => this.logger.warn("Webhook 发送失败", err));
+
+    return this.prisma.withdrawal.findUnique({ where: { id } });
   }
 
   async getUserWithdrawals(userId: string, rawPage = 1, rawPageSize = 20) {

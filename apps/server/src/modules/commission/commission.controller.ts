@@ -3,7 +3,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiBody, ApiResponse } 
 import { Request } from "express";
 import { CommissionService } from "./commission.service";
 import { ChannelClickService } from "./channel-click.service";
-import { ConfigUpdateDto, WithdrawalApplyDto, WithdrawalAuditDto, CreateReferralDto, CommissionRateDto, ChannelClickDto } from "./commission.dto";
+import { ConfigUpdateDto, WithdrawalApplyDto, WithdrawalAuditDto, ConfirmPayoutDto, CreateReferralDto, CommissionRateDto, ChannelClickDto } from "./commission.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RedisThrottleGuard, StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
 import { ActiveUserGuard } from "../../common/active-user.guard";
@@ -193,6 +193,44 @@ export class CommissionController {
   @ApiBearerAuth()
   auditWithdrawal(@Param("id") id: string, @Body() dto: WithdrawalAuditDto, @Req() req: Request) {
     return this.svc.auditWithdrawal(id, dto, req.user.id);
+  }
+
+  /**
+   * 打款专用：取完整收款账户（解密）。
+   * 🔴 唯一会返回明文卡号的端点 —— 权限收到财务/超管，且每次调用强制写 AuditLog（谁看了哪张卡）。
+   * 列表接口一律脱敏，不要为了省事去放宽那边。
+   */
+  @Get("admin/withdrawals/:id/payout-account")
+  @RedLineGate(RedLine.MONEY)
+  @Auditable({ action: "查看提现收款账户", targetType: "WITHDRAWAL" })
+  @UseGuards(JwtAuthGuard, RolesGuard, StrictRedisThrottleGuard)
+  @Roles("SUPER_ADMIN", "FINANCE_ADMIN")
+  @ApiOperation({ summary: "查看提现收款账户完整信息（打款用·强制审计留痕）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 400, description: "仅 APPROVED 状态可查看" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
+  @ApiBearerAuth()
+  revealPayoutAccount(@Param("id") id: string, @Req() req: Request) {
+    return this.svc.revealPayoutAccount(id, req.user.id, req.ip);
+  }
+
+  /** 确认已线下打款（APPROVED → PAID）。payoutRef=银行/支付宝流水号，必填且唯一（出款幂等键）。 */
+  @Post("admin/withdrawals/:id/payout")
+  @RedLineGate(RedLine.MONEY)
+  @Auditable({ action: "确认提现打款", targetType: "WITHDRAWAL" })
+  @UseGuards(JwtAuthGuard, RolesGuard, StrictRedisThrottleGuard)
+  @Roles("SUPER_ADMIN", "FINANCE_ADMIN")
+  @ApiOperation({ summary: "确认已打款（需提供转账流水号·幂等防重复打款）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 400, description: "状态不合法或缺流水号" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
+  @ApiBearerAuth()
+  confirmPayout(@Param("id") id: string, @Body() dto: ConfirmPayoutDto, @Req() req: Request) {
+    return this.svc.confirmPayout(id, dto.payoutRef, req.user.id);
   }
 
   // ───────── 推荐链接 ─────────
