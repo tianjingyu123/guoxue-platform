@@ -9,6 +9,7 @@ import AppIcon from '@/components/common/app-icon.vue'
 import TraditionalMode from '@/components/bazi/traditional-mode.vue'
 import AnalysisMode from '@/components/bazi/analysis-mode.vue'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
+import GenerateReportButton from '@/components/paipan/generate-report-button.vue'
 import NotesPanel from '@/components/bazi/notes-panel.vue'
 import SchoolAnalysis from '../components/school-analysis.vue'
 import { baziApi } from '@/lib/bazi-result-data'
@@ -99,6 +100,17 @@ const data = computed(() => {
   }
 })
 
+/** 报告摘要：只用引擎真算出来的字段，缺了就退回四柱本身，不编话 */
+const reportSummary = computed(() => {
+  const d: any = data.value
+  const parts = [
+    d.dayMaster ? `${d.dayMaster}日主` : '',
+    d.geju || d.pattern || '',
+    d.pillars ? Object.values(d.pillars).filter((x) => typeof x === 'string').join(' ') : '',
+  ].filter(Boolean)
+  return parts.join(' · ') || d.solarDate || ''
+})
+
 // 编辑弹窗草稿
 const draft = reactive({ ...userInput })
 const timeOpts = reactive([true, false, false]) // 真太阳时/早晚子时/夏令时
@@ -153,6 +165,14 @@ function onShare() {
         <analysis-mode v-else :data="data" @edit="openEdit" />
         <!-- AI 师徒 · 请师父看盘（流派虚拟师父点评对照，T6 §三） -->
         <school-analysis :input="userInput" :record-id="recordIdFromQuery" />
+        <generate-report-button
+          tool-key="bazi"
+          tool-label="八字排盘"
+          :client-name="data.name"
+          :client-birth="data.solarDate"
+          :data="data"
+          :summary="reportSummary"
+        />
         <view class="disc-wrap"><disclaimer variant="fortune" tone="card" /></view>
       </template>
     </scroll-view>

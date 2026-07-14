@@ -1,6 +1,7 @@
 <script setup lang="ts">
 /** 八字排盘输入表单——从原型 input-form.tsx 迁移 */
 import { ref, computed } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
 import DatePickerModal from './date-picker-modal.vue'
@@ -20,6 +21,32 @@ const saveRecord = ref(true)
 const showDatePicker = ref(false)
 const showLocationPicker = ref(false)
 const showGroupPicker = ref(false)
+
+/**
+ * 从 URL query 预填（从业者工作台的「客户档案 → 用八字看这位客户」走这条路）。
+ * 只认显式传参，不传就保持默认，不影响老的进入方式。
+ */
+onLoad((q?: Record<string, string>) => {
+  if (!q) return
+  if (q.name) name.value = decodeURIComponent(q.name)
+  if (q.gender === 'female' || q.gender === '女') gender.value = 'female'
+  else if (q.gender === 'male' || q.gender === '男') gender.value = 'male'
+  const y = Number(q.year), m = Number(q.month), d = Number(q.day)
+  if (y && m && d) {
+    birthDate.value = {
+      ...birthDate.value,
+      year: y, month: m, day: d,
+      hour: q.hour === undefined ? birthDate.value.hour : Number(q.hour),
+      minute: q.minute === undefined ? 0 : Number(q.minute),
+      // 工作台传来的一律是公历（客户档案里存的就是公历生辰）
+      isLunar: false,
+    }
+  }
+  if (q.city) {
+    const city = decodeURIComponent(q.city)
+    birthPlace.value = { ...birthPlace.value, province: city, city, district: '' }
+  }
+})
 
 function pad(n: number) { return String(n).padStart(2, '0') }
 const formatBirthDate = computed(() => {

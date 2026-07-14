@@ -3050,6 +3050,59 @@
           }
         }
       ]
+    },
+    {
+      "root": "pkg-workspace",
+      "pages": [
+        {
+          "path": "index/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "report/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "report/preview",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "shared/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "pro/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "ledger/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "cases/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "brand/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        }
+      ]
     }
   ],
   "preloadRule": {

@@ -4,12 +4,13 @@
  * onLoad 解析 payload 后本地调真实安星引擎重算（@/pkg-paipan/lib/ziwei-engine），无后端依赖。
  * 结构：命主信息卡 → 十二宫盘面 → 生年四化 → 盘面要点 → 合规声明。
  */
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import ToolHeader from '@/components/paipan/tool-header.vue'
 import PaperCard from '@/components/paipan/paper-card.vue'
 import SectionTitle from '@/components/paipan/section-title.vue'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
+import GenerateReportButton from '@/components/paipan/generate-report-button.vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import ZiweiChartGrid from './components/ziwei-chart-grid.vue'
 import { computeZiwei, toZiweiChart } from '@/pkg-paipan/lib/ziwei-engine'
@@ -24,6 +25,16 @@ hdrTitle = '紫微文化研究'
 // #endif
 
 const chart = ref<ZiweiChart | null>(null)
+
+/** 报告摘要：只用引擎算出的字段 */
+const ziweiSummary = computed(() => {
+  const c: any = chart.value
+  if (!c) return ''
+  return [c.wuxingJu, c.mingzhu ? `命主${c.mingzhu}` : '', c.shenzhu ? `身主${c.shenzhu}` : '']
+    .filter(Boolean)
+    .join(' · ')
+})
+
 const solarText = ref('')
 const loadError = ref('')
 
@@ -134,6 +145,15 @@ function onShare() {
           </view>
         </paper-card>
 
+        <generate-report-button
+          v-if="chart"
+          tool-key="ziwei"
+          tool-label="紫微斗数"
+          :client-name="chart.clientName || ''"
+          :client-birth="chart.lunarBirth || ''"
+          :data="chart as any"
+          :summary="ziweiSummary"
+        />
         <disclaimer variant="fortune" tone="card" />
       </view>
     </scroll-view>

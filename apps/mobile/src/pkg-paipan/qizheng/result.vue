@@ -13,6 +13,7 @@ import { onLoad } from '@dcloudio/uni-app'
 import ToolHeader from '@/components/paipan/tool-header.vue'
 import PaperCard from '@/components/paipan/paper-card.vue'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
+import GenerateReportButton from '@/components/paipan/generate-report-button.vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
 import { cityLongitude, cityLatitude } from '@/pkg-paipan/lib/bazi-engine'
@@ -74,6 +75,13 @@ const result = computed(() => {
     longitude: cityLongitude(p.city),
     latitude: cityLatitude(p.city),
   })
+})
+
+/** 报告摘要：命宫/身宫（引擎算的） */
+const qizhengSummary = computed(() => {
+  const r: any = result.value
+  if (!r) return ''
+  return [r.mingGong ? `命宫${r.mingGong}` : '', r.shenGong ? `身宫${r.shenGong}` : ''].filter(Boolean).join(' · ')
 })
 
 const highlightYear = computed(() => (mode.value === 'annual' ? viewTime.value?.year : undefined))
@@ -420,6 +428,16 @@ function onShare() {
         <text class="method">
           本盘依真实天文星历（VSOP87/ELP2000）排布，宿度采用现代天测宿钤（J2000 岁差修正至生时，回归今宿），立命安身参《果老星宗》古法，已与主流排盘软件逐项校准。星命之学，义理为上，数术为辅。
         </text>
+
+        <generate-report-button
+          v-if="result && params"
+          tool-key="qizheng"
+          tool-label="七政四余"
+          :client-name="params.name || ''"
+          :client-birth="`${params.year}-${params.month}-${params.day}`"
+          :data="result as any"
+          :summary="qizhengSummary"
+        />
 
         <disclaimer
           variant="custom"

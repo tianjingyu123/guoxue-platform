@@ -133,6 +133,24 @@ onShow(() => { favIds.value = getFavorites() })
         <today-hero />
       </view>
 
+      <!-- 从业者工作台入口（对应 V0 workspace-entry.tsx）
+           所有登录用户可见，功能分级：免费用排盘/客户/账本/案例 + 3 份报告草稿 -->
+      <view class="section-px">
+        <view class="ws-entry" @tap="navigateTo('/workspace')">
+          <view class="ws-entry-icon">
+            <app-icon name="crown" :size="36" color="#ffffff" />
+          </view>
+          <view class="ws-entry-body">
+            <view class="ws-entry-row">
+              <text class="ws-entry-title">从业者工作台</text>
+              <text class="ws-entry-tag">专业版</text>
+            </view>
+            <text class="ws-entry-desc">排盘 · 出报告 · 管客户，执业一站搞定</text>
+          </view>
+          <app-icon name="chevron-right" :size="32" color="#C41E3A" />
+        </view>
+      </view>
+
       <!-- AI 智能解盘入口 -->
       <view class="section-px ai-wrap">
         <view class="ai-card" @tap="navigateTo('/paipan/ai?name=AI%E6%99%BA%E8%83%BD%E8%A7%A3%E7%9B%98')">
@@ -313,6 +331,61 @@ onShow(() => { favIds.value = getFavorites() })
 .section-px { padding-left: 32rpx; padding-right: 32rpx; }
 
 /* 今日时刻 */
+/* 从业者工作台入口 */
+.ws-entry {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  margin-top: 24rpx;
+  padding: 24rpx;
+  border: 1rpx solid rgba(196, 30, 58, 0.28);
+  border-radius: 20rpx;
+  background: linear-gradient(135deg, rgba(196, 30, 58, 0.06), #ffffff 60%);
+}
+
+.ws-entry-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 88rpx;
+  height: 88rpx;
+  flex-shrink: 0;
+  border-radius: 20rpx;
+  background: #C41E3A;
+}
+
+.ws-entry-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.ws-entry-row {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+
+.ws-entry-title {
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #3A2A1E;
+}
+
+.ws-entry-tag {
+  padding: 2rpx 12rpx;
+  border-radius: 6rpx;
+  background: rgba(196, 30, 58, 0.1);
+  font-size: 20rpx;
+  color: #C41E3A;
+}
+
+.ws-entry-desc {
+  display: block;
+  margin-top: 6rpx;
+  font-size: 23rpx;
+  color: #9A8C7E;
+}
+
 .hero-wrap { padding-top: 32rpx; }
 
 /* AI 解盘卡 */

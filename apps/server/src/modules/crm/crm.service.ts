@@ -123,6 +123,7 @@ export class CrmService {
         name: dto.name.trim(),
         phoneEnc: dto.phone ? encrypt(dto.phone) : null,
         birthEnc: dto.birth ? encrypt(dto.birth) : null,
+        birthPlace: dto.birthPlace?.trim() || null,
         gender: dto.gender || null,
         tags: (dto.tags || []).map((t) => t.trim()).filter(Boolean).slice(0, 10),
         source: dto.source || "manual",
@@ -182,6 +183,7 @@ export class CrmService {
       ...this.toListItem(client),
       phone: client.phoneEnc ? decrypt(client.phoneEnc) : null,
       birth: client.birthEnc ? decrypt(client.birthEnc) : null,
+      birthPlace: client.birthPlace,
       notes: client.notes,
       serveLogs: serveLogs.map((l) => ({ ...l, amount: l.amount === null ? null : Number(l.amount) })),
       reminders,
@@ -194,6 +196,7 @@ export class CrmService {
     if (dto.name !== undefined) data.name = dto.name.trim();
     if (dto.phone !== undefined) data.phoneEnc = dto.phone ? encrypt(dto.phone) : null;
     if (dto.birth !== undefined) data.birthEnc = dto.birth ? encrypt(dto.birth) : null;
+    if (dto.birthPlace !== undefined) data.birthPlace = dto.birthPlace || null;
     if (dto.gender !== undefined) data.gender = dto.gender || null;
     if (dto.tags !== undefined) data.tags = dto.tags.map((t) => t.trim()).filter(Boolean).slice(0, 10);
     if (dto.notes !== undefined) data.notes = dto.notes.trim() || null;

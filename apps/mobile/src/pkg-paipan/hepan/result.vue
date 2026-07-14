@@ -15,6 +15,7 @@ import { onLoad, onReady } from '@dcloudio/uni-app'
 import ToolHeader from '@/components/paipan/tool-header.vue'
 import PaperCard from '@/components/paipan/paper-card.vue'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
+import GenerateReportButton from '@/components/paipan/generate-report-button.vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
 import { renderToCanvas } from '@/utils/canvas/adapter'
@@ -41,6 +42,14 @@ const result = computed(() => {
 })
 
 const scene = computed(() => HEPAN_SCENES.find((s) => s.key === params.value?.scene) ?? HEPAN_SCENES[0])
+
+/** 报告摘要：契合总分（引擎算的，不编） */
+const hepanSummary = computed(() => {
+  const r: any = result.value
+  const p = params.value
+  if (!r || !p) return ''
+  return `${p.a.name || '男'} × ${p.b.name || '女'} · 契合 ${r.totalScore ?? '--'} 分`
+})
 
 /** 契合总分环（conic-gradient，小程序无 SVG） */
 const ringStyle = computed(() => {
@@ -410,6 +419,16 @@ function onShare() {
             </view>
           </view>
         </paper-card>
+
+        <generate-report-button
+          v-if="result && params"
+          tool-key="hepan"
+          tool-label="八字合盘"
+          :client-name="`${params.a.name || '男方'} · ${params.b.name || '女方'}`"
+          client-birth=""
+          :data="result as any"
+          :summary="hepanSummary"
+        />
 
         <disclaimer
           variant="custom"

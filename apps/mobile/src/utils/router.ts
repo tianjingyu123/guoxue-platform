@@ -19,6 +19,7 @@ const ROUTE_MAP: Record<string, string> = {
   '/register': '/pkg-auth/register/index',
   '/forgot-password': '/pkg-auth/forgot-password/index',
   '/paipan': '/pages/paipan/index',
+  '/workspace': '/pkg-workspace/index/index', // 从业者工作台
   '/paipan/bazi': '/pkg-paipan/bazi/index',
   // 智能客服（首页 Header 入口）
   '/customer-service': '/pkg-agent/agent/customer-service',
