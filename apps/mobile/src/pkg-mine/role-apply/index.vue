@@ -1,18 +1,24 @@
 <script setup lang="ts">
 /**
- * 角色申请页 · 六角色共用模板（M1/M2 身份切换区「申请加入」落地页）
- * 六角色：讲师/商家/分站站长/运营商/线下驿站/研究院。差异全部数据驱动。
+ * 角色申请页 · 六角色（M1/M2 身份切换区「申请加入」落地页）
  *
- * 数据边界（诚实降级·见回报）：
- *   平台目前【无统一的角色申请后端端点】——各角色历史上走各自入驻流程
- *   （如分站 POST /station/apply 的 DTO 是分站名/编码，与通用报名表字段不一致），
- *   通用「角色申请字段配置 + 提交」属后端待办（V0 稿注释亦标注「字段配置列后端待办」）。
- *   因此本页字段用前端配置表驱动，提交暂以「提交申请意向」toast + 引导处理，
- *   端点就绪后把 submit() 内替换为真实请求即可（结构已按 role 分派预留）。
+ * 🔴 2026-07-14 重做（董事长拍板：退役统一报名表，各走各的真流程）：
+ *   原设计是「六角色共用一张通用报名表」，但 submit() 是 setTimeout + toast，
+ *   **用户填的表原地蒸发、后台什么都收不到** —— 员工申请完达人/讲师/商家，双向黑洞。
+ *   根因是这个设计与业务对不上：六个角色的真实路径本就不同 ——
+ *     · 讲师/商家：要资质审核（后端有 提交→查状态→admin审批 完整闭环）
+ *     · 站长/运营商：付费开通（付款即激活，压根没有审批态）
+ *     · 研究院：入会 + 保证金
+ *     · 线下驿站：直接建站待审（POST /offline/stations）
+ *   强行统一成一张表反而错。故本页改为「角色介绍 + 分派到各自真流程」：
+ *     五个角色 → 跳各自真页（零后端改动，全走已验证的真链路）
+ *     线下驿站 → 唯一保留表单的角色（后端建站 DTO 本身就是一张申请表），真提交。
+ *   全页零假提交。
  */
 import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
-import { navigateBack } from '@/utils/router'
+import { navigateBack, navigateTo } from '@/utils/router'
+import { offlineManageApi } from '@/lib/offline-data'
 
 /* —— 角色配置表（六角色，数据驱动 hero/权益/条件/字段） —— */
 interface FieldSpec {
@@ -28,15 +34,15 @@ interface RoleApplyConfig {
   tagline: string        // 定位句
   gains: { icon: string; title: string; sub: string }[]
   conds: string[]
+  /** 表单字段：仅「线下驿站」有（唯一在本页真提交的角色）。其余角色走 target 分派，不在此填表 */
   fields: FieldSpec[]
   agreement: string      // 协议名
+  /** 分派目标：该角色的真实入驻流程页。设了 target 就不显示表单，按钮改为「前往」 */
+  target?: string
+  /** 分派按钮文案 + 去向说明（如实告知下一步是什么，避免"点了不知道去哪") */
+  cta?: string
+  targetNote?: string
 }
-
-// 通用报名字段（多数角色共用）
-const COMMON_FIELDS: FieldSpec[] = [
-  { key: 'name', label: '姓名', required: true, placeholder: '请输入真实姓名', type: 'text' },
-  { key: 'phone', label: '联系电话', required: true, placeholder: '请输入常用手机号', type: 'phone' },
-]
 
 const ROLE_CONFIGS: Record<string, RoleApplyConfig> = {
   teacher: {
@@ -46,13 +52,12 @@ const ROLE_CONFIGS: Record<string, RoleApplyConfig> = {
       { icon: 'coins', title: '课程收益分成', sub: '学员付费收益按约定比例结算' },
       { icon: 'shield', title: '官方认证讲师', sub: '认证徽章全站可见，建立专业信任' },
     ],
-    conds: ['在相关领域有专业积累或作品', '提交后 3 个工作日内完成资质审核'],
-    fields: [
-      ...COMMON_FIELDS,
-      { key: 'field', label: '专业方向', required: true, placeholder: '如：八字命理 / 书法 / 中医养生', type: 'text' },
-      { key: 'works', label: '代表作品或经历', required: false, placeholder: '简述你的代表作、著作或授课经历（选填）', type: 'textarea' },
-    ],
+    conds: ['需先完成实名认证', '在相关领域有专业积累或作品', '提交后 3 个工作日内完成资质审核'],
+    fields: [],
     agreement: '《讲师合作协议》',
+    target: '/pkg-creator/teacher-certification/index',
+    cta: '前往讲师认证',
+    targetNote: '填写真实姓名、职称与资历证明，提交后由平台审核',
   },
   merchant: {
     seal: '商', name: '商家', tagline: '开店卖国学好物，平台代运营帮你卖',
@@ -61,13 +66,12 @@ const ROLE_CONFIGS: Record<string, RoleApplyConfig> = {
       { icon: 'coins', title: '订单收益结算', sub: '交易货款按周期结算到钱包' },
       { icon: 'award', title: '平台代运营', sub: '官方营销位与分销渠道扶持' },
     ],
-    conds: ['具备合法经营资质与货源', '提交后 3 个工作日内完成商家审核'],
-    fields: [
-      ...COMMON_FIELDS,
-      { key: 'category', label: '主营类目', required: true, placeholder: '如：文玩 / 香器 / 书画', type: 'text' },
-      { key: 'intro', label: '经营简介', required: false, placeholder: '简述你的货源与经营情况（选填）', type: 'textarea' },
-    ],
+    conds: ['需有营业执照等合法经营资质', '提交后 3 个工作日内完成商家审核'],
+    fields: [],
     agreement: '《商家入驻协议》',
+    target: '/pkg-merchant/join/index',
+    cta: '前往商家入驻',
+    targetNote: '已申请过会直接进入审核状态页；未申请则填写主体信息与资质证照',
   },
   station_owner: {
     seal: '站', name: '分站站长', tagline: '承包一城国学生态，做你城市的文化主理人',
@@ -76,13 +80,12 @@ const ROLE_CONFIGS: Record<string, RoleApplyConfig> = {
       { icon: 'user-plus', title: '专属运营支持', sub: '总部一对一运营指导与素材库' },
       { icon: 'award', title: '官方授权认证', sub: '平台授牌，站长身份全站可见' },
     ],
-    conds: ['认同国学文化，有本地资源或社群运营经验优先', '每城限一名站长，提交后 3 个工作日内电话回访'],
-    fields: [
-      ...COMMON_FIELDS,
-      { key: 'city', label: '意向城市', required: true, placeholder: '请选择省 / 市', type: 'city' },
-      { key: 'experience', label: '相关资源与经验', required: false, placeholder: '简述你的本地资源、社群或运营经验（选填）', type: 'textarea' },
-    ],
+    conds: ['认同国学文化，有本地资源或社群运营经验优先', '分站为付费开通（年费制），开通后即刻生效'],
+    fields: [],
     agreement: '《站长合作协议》',
+    target: '/pkg-operator/join-station/index',
+    cta: '前往开通分站',
+    targetNote: '分站为付费开通，付款成功后账号即刻激活（非审核制）',
   },
   operator: {
     seal: '运', name: '运营商', tagline: '区域推广合伙，多级分润共建生态',
@@ -91,13 +94,12 @@ const ROLE_CONFIGS: Record<string, RoleApplyConfig> = {
       { icon: 'user-plus', title: '团队管理权限', sub: '发展并管理站长团队' },
       { icon: 'award', title: '官方合伙授权', sub: '区域运营商官方授牌' },
     ],
-    conds: ['具备团队组建与区域拓展能力', '提交后 3 个工作日内商务对接回访'],
-    fields: [
-      ...COMMON_FIELDS,
-      { key: 'region', label: '意向区域', required: true, placeholder: '请填写意向省 / 市 / 区域', type: 'text' },
-      { key: 'experience', label: '资源与团队情况', required: false, placeholder: '简述你的团队与区域资源（选填）', type: 'textarea' },
-    ],
+    conds: ['具备团队组建与区域拓展能力', '运营商为付费加盟（分档位），开通后即刻生效'],
+    fields: [],
     agreement: '《运营商合作协议》',
+    target: '/pkg-operator/join-operator/index',
+    cta: '前往加盟运营商',
+    targetNote: '运营商为付费加盟，可选档位；付款成功后账号即刻激活（非审核制）',
   },
   offline_station: {
     seal: '驿', name: '线下驿站', tagline: '门店挂牌，线上线下互导客流',
@@ -106,11 +108,15 @@ const ROLE_CONFIGS: Record<string, RoleApplyConfig> = {
       { icon: 'landmark', title: '线上线下互导', sub: '线上引流到店，到店转化线上' },
       { icon: 'coins', title: '到店服务收益', sub: '线下课程与活动收益归属驿站' },
     ],
-    conds: ['拥有可挂牌的线下门店或活动空间', '提交后 3 个工作日内实地或电话核实'],
+    conds: ['拥有可挂牌的线下门店或活动空间', '提交后由平台审核，通过后开通驿站后台'],
+    /* 六角色里唯一在本页真提交的：后端 POST /offline/stations 的 DTO 本身就是一张申请表。
+     * 字段严格对齐 CreateStationDto（name/city/address/phone 四项后端全必填）——
+     * 注意 name 是「驿站名称」不是申请人姓名，故不复用 COMMON_FIELDS。 */
     fields: [
-      ...COMMON_FIELDS,
-      { key: 'city', label: '门店城市', required: true, placeholder: '请选择省 / 市', type: 'city' },
-      { key: 'address', label: '门店地址', required: false, placeholder: '请填写门店详细地址（选填）', type: 'textarea' },
+      { key: 'name', label: '驿站名称', required: true, placeholder: '如：明德书院·杭州西湖驿站', type: 'text' },
+      { key: 'city', label: '所在城市', required: true, placeholder: '如：杭州', type: 'text' },
+      { key: 'address', label: '详细地址', required: true, placeholder: '请填写门店详细地址', type: 'textarea' },
+      { key: 'phone', label: '联系电话', required: true, placeholder: '请填写常用联系电话', type: 'phone' },
     ],
     agreement: '《线下驿站合作协议》',
   },
@@ -121,13 +127,12 @@ const ROLE_CONFIGS: Record<string, RoleApplyConfig> = {
       { icon: 'graduation-cap', title: '学术共建席位', sub: '参与课程与典籍内容共建' },
       { icon: 'award', title: '权威机构认证', sub: '研究院身份官方背书' },
     ],
-    conds: ['为学术机构、研究团体或资深学者', '提交后 5 个工作日内学术委员会评审'],
-    fields: [
-      ...COMMON_FIELDS,
-      { key: 'org', label: '机构 / 团体名称', required: true, placeholder: '请填写机构或研究团体全称', type: 'text' },
-      { key: 'intro', label: '研究方向与成果', required: false, placeholder: '简述研究方向与代表成果（选填）', type: 'textarea' },
-    ],
+    conds: ['需通过入会门槛自检', '入会缴纳保证金，完成年度任务可全额退还'],
+    fields: [],
     agreement: '《研究院共建协议》',
+    target: '/pkg-institute/member-apply/index',
+    cta: '前往加入研究院',
+    targetNote: '含门槛自检与席位选择；完成年度任务可全额退还会费',
   },
 }
 
@@ -142,9 +147,13 @@ const form = ref<Record<string, string>>({})
 const agreed = ref(false)
 const submitting = ref(false)
 
-// 必填校验
+/** 分派型角色（五个）：不在本页填表，跳各自真流程 */
+const isDispatch = computed(() => !!config.value.target)
+
+// 必填校验（仅表单型=线下驿站）。分派型只需同意协议
 const canSubmit = computed(() => {
   if (!agreed.value) return false
+  if (isDispatch.value) return true
   return config.value.fields.every((f) => !f.required || (form.value[f.key] || '').trim().length > 0)
 })
 
@@ -171,11 +180,23 @@ async function submit() {
     else uni.showToast({ title: '请完整填写必填项', icon: 'none' })
     return
   }
+
+  // 分派型（讲师/商家/站长/运营商/研究院）：跳各自的真实入驻流程
+  if (config.value.target) {
+    navigateTo(config.value.target)
+    return
+  }
+
+  // 表单型（线下驿站）：真提交 POST /offline/stations，落库为待审核驿站
   submitting.value = true
   try {
-    // 诚实降级：平台暂无统一角色申请端点，提交按意向登记处理（端点就绪后按 roleKey 分派真实请求）
-    await new Promise((r) => setTimeout(r, 400))
-    uni.showToast({ title: '申请已提交，3 个工作日内回访', icon: 'none', duration: 2200 })
+    await offlineManageApi.createStation({
+      name: (form.value.name || '').trim(),
+      city: (form.value.city || '').trim(),
+      address: (form.value.address || '').trim(),
+      phone: (form.value.phone || '').trim(),
+    })
+    uni.showToast({ title: '申请已提交，平台审核后开通', icon: 'success', duration: 2200 })
     setTimeout(() => navigateBack(), 1600)
   } catch (e) {
     uni.showToast({ title: (e as Error)?.message || '提交失败，请重试', icon: 'none' })
@@ -231,29 +252,40 @@ async function submit() {
         </view>
       </view>
 
-      <!-- 报名表 -->
-      <text class="sec-h">报名表</text>
-      <view class="form">
-        <view v-for="f in config.fields" :key="f.key" class="field">
-          <text class="field-label">{{ f.label }}<text v-if="f.required" class="req"> *</text></text>
-          <textarea
-            v-if="f.type === 'textarea'"
-            class="inp inp-area"
-            :placeholder="f.placeholder"
-            placeholder-class="ph"
-            v-model="form[f.key]"
-            :maxlength="500"
-          />
-          <input
-            v-else
-            class="inp"
-            :placeholder="f.placeholder"
-            placeholder-class="ph"
-            :type="f.type === 'phone' ? 'number' : 'text'"
-            v-model="form[f.key]"
-          />
+      <!-- 分派型（讲师/商家/站长/运营商/研究院）：如实告知下一步去哪，不在此填表 -->
+      <template v-if="isDispatch">
+        <text class="sec-h">下一步</text>
+        <view class="next">
+          <view class="next-icon"><AppIcon name="arrow-right" :size="32" color="#B4884A" /></view>
+          <text class="next-t">{{ config.targetNote }}</text>
         </view>
-      </view>
+      </template>
+
+      <!-- 表单型（仅线下驿站）：真提交建站申请 -->
+      <template v-else>
+        <text class="sec-h">报名表</text>
+        <view class="form">
+          <view v-for="f in config.fields" :key="f.key" class="field">
+            <text class="field-label">{{ f.label }}<text v-if="f.required" class="req"> *</text></text>
+            <textarea
+              v-if="f.type === 'textarea'"
+              class="inp inp-area"
+              :placeholder="f.placeholder"
+              placeholder-class="ph"
+              v-model="form[f.key]"
+              :maxlength="500"
+            />
+            <input
+              v-else
+              class="inp"
+              :placeholder="f.placeholder"
+              placeholder-class="ph"
+              :type="f.type === 'phone' ? 'number' : 'text'"
+              v-model="form[f.key]"
+            />
+          </view>
+        </view>
+      </template>
 
       <!-- 协议 -->
       <view class="agree" @tap="agreed = !agreed">
@@ -269,7 +301,7 @@ async function submit() {
     <!-- 吸底提交 -->
     <view class="submit-wrap">
       <view class="submit" :class="{ disabled: !canSubmit || submitting }" @tap="submit">
-        <text class="submit-txt">{{ submitting ? '提交中…' : '提交申请' }}</text>
+        <text class="submit-txt">{{ submitting ? '提交中…' : (config.cta || '提交申请') }}</text>
       </view>
     </view>
   </view>
@@ -277,6 +309,20 @@ async function submit() {
 
 <style scoped lang="scss">
 .page { min-height: 100vh; background: #FAF8F5; }
+
+/* 下一步（分派型角色：如实说明去向） */
+.next {
+  margin: 0 32rpx; padding: 28rpx 32rpx;
+  display: flex; align-items: center; gap: 20rpx;
+  background: #FFFFFF; border-radius: 24rpx;
+  border: 1rpx solid rgba(180, 136, 74, 0.28);
+}
+.next-icon {
+  width: 64rpx; height: 64rpx; border-radius: 18rpx; flex-shrink: 0;
+  background: rgba(180, 136, 74, 0.12);
+  display: flex; align-items: center; justify-content: center;
+}
+.next-t { flex: 1; font-size: 26rpx; color: #6E6A63; line-height: 1.7; }
 
 /* 顶栏 */
 .tbar { position: fixed; top: 0; left: 0; right: 0; z-index: 20; background: #FFFFFF; }

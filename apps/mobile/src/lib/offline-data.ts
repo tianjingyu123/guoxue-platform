@@ -630,7 +630,24 @@ export interface CreateCoursePayload {
   cover?: string
 }
 
+/** 驿站入驻申请入参（对齐后端 CreateStationDto·四项后端均必填） */
+export interface CreateStationPayload {
+  name: string      // 驿站/门店名称（注意不是申请人姓名）
+  city: string
+  address: string
+  phone: string
+}
+
 export const offlineManageApi = {
+  /**
+   * 申请开设线下驿站 — POST /offline/stations（任意登录用户可提交）。
+   * 落库为待审核的 StationOffline，管理员在后台 PUT /offline/stations/:id/audit 通过/拒绝。
+   * 错误上抛由页面 toast。
+   */
+  createStation(data: CreateStationPayload): Promise<{ id: string }> {
+    return apiPost<{ id: string }>('/offline/stations', data)
+  },
+
   /** 我的驿站 GET /offline/stations/my（非驿站主返回 null）*/
   getMyStation(): Promise<MyStation | null> {
     return apiGet<MyStation | null>('/offline/stations/my')
