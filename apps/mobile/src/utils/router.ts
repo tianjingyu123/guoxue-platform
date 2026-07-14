@@ -172,19 +172,26 @@ const ROUTE_MAP: Record<string, string> = {
   '/shop/addresses': '/pkg-account/addresses/index',
   '/shop/addresses/edit': '/pkg-account/address-edit/index',
   '/address': '/pkg-account/address/index',
-  // 设置中心：账号安全类(设置主页/手机号/密码)重定向到真连后端的 pkg-mine 真页，
-  // 弃用 pkg-settings 的 mock 假页(硬编码手机号138****8888、假验证码逻辑)。
+  /* 设置中心 —— 唯一真源 = pkg-mine（真连后端）。pkg-settings 的账号安全类页是 mock 假页
+   * （硬编码 138****8888、假验证码、假黑名单写死 3 个陌生人），本轮（2026-07-14）整批退役剥离。
+   * 别名保留并改指真页（而非删除）：防存量分享链接/外部入站链接 404。
+   * pkg-settings 仅保留「无替代」的页：五个法务合规页 + payment-methods + privacy（见下）。 */
   '/settings': '/pkg-mine/settings/index',
-  '/settings/notifications': '/pkg-settings/notifications/index',
-  '/settings/privacy': '/pkg-settings/privacy/index',
+  '/settings/notifications': '/pkg-mine/notifications/index',
   '/settings/phone': '/pkg-mine/change-phone/index',
   '/settings/password': '/pkg-mine/change-password/index',
-  '/settings/payment-password': '/pkg-settings/payment-password/index',
-  '/settings/payment-methods': '/pkg-settings/payment-methods/index',
-  '/settings/blacklist': '/pkg-settings/blacklist/index',
-  '/settings/bindaccount': '/pkg-settings/bindaccount/index',
-  '/settings/delete-account': '/pkg-settings/delete-account/index',
-  // 个人中心 - 设置与账号安全（第②套，旧版，待废弃）
+  '/settings/payment-password': '/pkg-mine/payment-password/index',
+  '/settings/blacklist': '/pkg-mine/blacklist/index', // 原指假页：写死「用户123456/匿名用户/神秘访客」+unsplash 真人头像
+  '/settings/bindaccount': '/pkg-mine/bind-accounts/index',
+  '/settings/delete-account': '/pkg-mine/delete-account/index',
+  // ⚠️ 存疑保留：pkg-settings/privacy 是「个人信息可见性」开关（0 个 API，开关不落库=假），
+  //    与 pkg-mine/privacy-authorization（系统权限授权·真连）不是同一功能，无真替代。待拍板：接后端 or 砍入口。
+  '/settings/privacy': '/pkg-settings/privacy/index',
+  '/settings/payment-methods': '/pkg-settings/payment-methods/index', // 无 pkg-mine 替代，暂留
+  /* 个人中心 · 设置与账号安全 —— ✅ 这一套（pkg-mine）才是真连后端的现役唯一真源。
+   * 🔴 原注释写的是「第②套，旧版，待废弃」——写反了，是本次审计（2026-07-14）挖出的最危险的雷：
+   *    照它清理会删掉真页、留下 pkg-settings 的 mock 假页（硬编码 138****8888 + 假验证码）。
+   *    pkg-settings 的账号安全类页已全部退役剥离，勿再指回。 */
   '/mine/notes': '/pkg-mine/notes/index',
   '/mine/settings': '/pkg-mine/settings/index',
   '/mine/security': '/pkg-mine/security/index',
@@ -206,11 +213,14 @@ const ROUTE_MAP: Record<string, string> = {
   '/mine/data-export': '/pkg-mine/data-export/index',
   '/mine/delete-account': '/pkg-mine/delete-account/index',
   '/mine/delete-account-result': '/pkg-mine/delete-account-result/index',
-  // 钱包中心（第①套，/profile 主页 href="/wallet" 链接的活套）
-  '/wallet': '/pkg-wallet/index/index',
-  '/wallet/bank-cards': '/pkg-wallet/bank-cards/index',
-  '/wallet/bill': '/pkg-wallet/bill/index',
-  // 个人中心 - 资产与互动（第②套，旧版 pkg-mine/wallet，待评估降级）
+  /* 钱包中心 —— 唯一真源 = pkg-mine/wallet（真连余额/充值/提现/流水·2026-07-14 资金架构批）。
+   * 🔴 原映射把 /wallet 指向 pkg-wallet（零 API 调用、硬编码 1280 假币的死页），
+   *    还注释成「第①套活套」、把真钱包标成「旧版待评估降级」——完全写反。
+   *    走 /wallet 别名的入口看到的是假余额。pkg-wallet 整包已退役剥离，别名一律改指真页
+   *    （保留别名而非删除：防存量分享链接/外部入站链接 404）。 */
+  '/wallet': '/pkg-mine/wallet/index',
+  '/wallet/bank-cards': '/pkg-mine/wallet/withdraw', // 旧「银行卡」→ 真提现页（绑卡在提现流程内）
+  '/wallet/bill': '/pkg-mine/wallet/transactions', // 旧「账单」→ 真流水页
   '/mine/wallet': '/pkg-mine/wallet/index',
   '/wallet/recharge': '/pkg-mine/wallet/recharge',
   '/wallet/withdraw': '/pkg-mine/wallet/withdraw',
