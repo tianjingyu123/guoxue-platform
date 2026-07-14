@@ -310,9 +310,7 @@ export const baziApi = {
     dayZhi?: string
     monthZhi?: string
     geju?: string
-    yongshen?: string
     shenSha?: string[]
-    wuxing?: string
   }): Promise<ClassicRef[]> {
     return apiPost<ClassicRef[]>('/bazi/knowledge/for-bazi', { ...input, limit: 6 })
   },

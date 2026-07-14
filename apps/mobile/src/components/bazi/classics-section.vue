@@ -14,12 +14,6 @@ import { baziApi, type ClassicRef } from '@/lib/bazi-result-data'
 // data 为排盘结果聚合对象（adaptBazi 产物），多层嵌套，保留 any 与两个 mode 组件一致
 const props = defineProps<{ data: any }>()
 
-/** 天干五行（用于把日主折成五行信号） */
-const GAN_WUXING: Record<string, string> = {
-  甲: '木', 乙: '木', 丙: '火', 丁: '火', 戊: '土',
-  己: '土', 庚: '金', 辛: '金', 壬: '水', 癸: '水',
-}
-
 const list = ref<ClassicRef[]>([])
 const loading = ref(false)
 const failed = ref(false)
@@ -42,9 +36,7 @@ async function load() {
       dayZhi: d?.siZhu?.day?.zhi || '',
       monthZhi: d?.siZhu?.month?.zhi || '',
       geju: d?.geJu?.name || '',
-      yongshen: d?.geJu?.yongShen || '',
       shenSha: [...(ss.year || []), ...(ss.month || []), ...(ss.day || []), ...(ss.hour || [])],
-      wuxing: GAN_WUXING[dayGan] || '',
     })
   } catch {
     list.value = []
