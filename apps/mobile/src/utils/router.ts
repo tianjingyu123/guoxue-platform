@@ -214,6 +214,7 @@ const ROUTE_MAP: Record<string, string> = {
   '/mine/wallet': '/pkg-mine/wallet/index',
   '/wallet/recharge': '/pkg-mine/wallet/recharge',
   '/wallet/withdraw': '/pkg-mine/wallet/withdraw',
+  '/wallet/withdraw-records': '/pkg-mine/wallet/withdraw-records',
   '/wallet/transactions': '/pkg-mine/wallet/transactions',
   '/mine/points': '/pkg-mine/points/index',
   '/mine/history': '/pkg-mine/history/index',

@@ -86,6 +86,30 @@ describe("WalletService 提现（基于收益）", () => {
     expect(mockPrisma.withdrawalApplication.create).toHaveBeenCalledTimes(1);
   });
 
+  /**
+   * 🔴 出款侧（PayoutService / admin）按大写 'WECHAT' 判分支，前端历史上发的是小写 'wechat'。
+   *    口径不统一 → 微信提现永远匹配不上自动代付，只能人工打款。
+   */
+  it("payMethod 一律大写落库（前端传小写也要归一）", async () => {
+    mockPrisma.userEarning.aggregate.mockResolvedValue({ _sum: { amountRmb: 500 } });
+    mockPrisma.withdrawalApplication.aggregate.mockResolvedValue({ _sum: { amount: 0 } });
+    mockPrisma.withdrawalApplication.create.mockResolvedValue({ id: "w1", status: "PENDING" });
+
+    await svc.submitWithdraw("u1", { amount: 200, method: "wechat", account: { realName: "张三" } });
+
+    const arg = mockPrisma.withdrawalApplication.create.mock.calls[0][0];
+    expect(arg.data.payMethod).toBe("WECHAT");
+    // accountInfo 要带上 method，否则前端「上次收款账户」永远预填不出来
+    expect(arg.data.accountInfo).toMatchObject({ realName: "张三", method: "wechat" });
+  });
+
+  it("不支持的收款方式直接拒绝", async () => {
+    await expect(
+      svc.submitWithdraw("u1", { amount: 200, method: "PAYPAL", account: {} }),
+    ).rejects.toThrow(BusinessException);
+    expect(mockPrisma.withdrawalApplication.create).not.toHaveBeenCalled();
+  });
+
   it("扣除进行中/已完成提现后余额不足则拒绝（防止反复套现）", async () => {
     mockPrisma.userEarning.aggregate.mockResolvedValue({ _sum: { amountRmb: 500 } });
     // 已有 450 处于占用（PENDING/APPROVED/PAID）→ 可用仅 50

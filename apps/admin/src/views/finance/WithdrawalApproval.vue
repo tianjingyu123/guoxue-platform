@@ -9,6 +9,7 @@ interface WithdrawalRow {
   id: string
   userId?: string
   amount?: number
+  actualAmount?: number
   payMethod: string
   status: string
   createdAt: string
@@ -16,6 +17,10 @@ interface WithdrawalRow {
   accountInfo?: Record<string, any>
   reviewedBy?: string
   reviewNote?: string
+  // 渠道自动代付
+  transferState?: string
+  transferFailReason?: string
+  payoutRef?: string
 }
 
 const loading = ref(false)
@@ -56,18 +61,30 @@ function accountNo(row: WithdrawalRow | null | undefined) { const a = acct(row);
 function accountName(row: WithdrawalRow | null | undefined) { const a = acct(row); return a.name || a.accountName || a.realName || '' }
 
 // 后端字段：payMethod = WECHAT / ALIPAY / BANK
+// toUpperCase：存量行是前端直传的小写 'alipay'/'bank'（新行已在后端统一大写）
+function payMethodOf(m: string) { return String(m || '').toUpperCase() }
+function isWechat(m: string) { return payMethodOf(m) === 'WECHAT' }
 function payMethodLabel(m: string) {
-  const map: Record<string, string> = { WECHAT: '微信', ALIPAY: '支付宝', BANK: '银行卡' }
-  return map[m] || m || '-'
+  const map: Record<string, string> = { WECHAT: '微信零钱', ALIPAY: '支付宝', BANK: '银行卡' }
+  return map[payMethodOf(m)] || m || '-'
 }
 
-// 后端字段：status = PENDING / APPROVED / REJECTED / PAID
+// 后端字段：status = PENDING / APPROVED / TRANSFERRING / REJECTED / PAID
 function statusTagType(status: string) {
-  const m: Record<string, string> = { PAID: 'success', APPROVED: 'primary', REJECTED: 'danger', PENDING: 'warning' }
+  const m: Record<string, string> = {
+    PAID: 'success', APPROVED: 'primary', TRANSFERRING: 'warning', REJECTED: 'danger', PENDING: 'warning',
+  }
   return m[status] || 'info'
 }
 function statusLabel(status: string) {
-  const m: Record<string, string> = { PAID: '已打款', APPROVED: '已通过', REJECTED: '已拒绝', PENDING: '待审批' }
+  const m: Record<string, string> = {
+    PAID: '已到账',
+    // 🔴 转账已发起但钱还没到用户手上 —— 新版微信商家转账要用户在微信里点「确认收款」
+    TRANSFERRING: '待用户确认收款',
+    APPROVED: '已通过待打款',
+    REJECTED: '已拒绝',
+    PENDING: '待审批',
+  }
   return m[status] || status
 }
 
@@ -121,11 +138,61 @@ async function reject() {
   } catch { } finally { saving.value = false }
 }
 
+/**
+ * 自动代付（微信商家转账）。
+ *
+ * 🔴 发起 ≠ 到账：新版微信商家转账需要用户在微信里点「确认收款」，钱才真正到账。
+ * 所以这里成功只代表「已发起」，状态转 TRANSFERRING，不是已打款。
+ * 真正标记 PAID 的是微信回调确认 SUCCESS 之后。
+ */
+async function autoPayout(row: WithdrawalRow) {
+  if (!isWechat(row.payMethod)) {
+    ElMessage.warning('目前仅微信零钱支持自动代付，其他方式请走人工打款')
+    return
+  }
+  try {
+    await ElMessageBox.confirm(
+      `将通过微信商家转账向用户支付 ${formatMoney(row.actualAmount ?? row.amount)}（实际到账额）。\n\n` +
+      `注意：转账发起后，用户还需在微信中点击「确认收款」，钱才会真正到账。`,
+      '发起自动代付',
+      { type: 'warning', confirmButtonText: '确认发起', cancelButtonText: '取消' }
+    )
+    saving.value = true
+    const res: any = await financeApi.autoPayout(row.id)
+    if (res?.needUserConfirm) {
+      ElMessage.success('转账已发起，等待用户在微信中确认收款')
+    } else {
+      ElMessage.success('转账已发起')
+    }
+    fetchList()
+  } catch (e: any) {
+    if (e !== 'cancel' && e?.message) ElMessage.error(e.message)
+  } finally {
+    saving.value = false
+  }
+}
+
+/** 主动同步渠道转账状态（回调之外的兜底核实） */
+async function syncTransfer(row: WithdrawalRow) {
+  if (!row.payoutRef) { ElMessage.warning('该提现尚未发起渠道转账'); return }
+  try {
+    saving.value = true
+    await financeApi.syncPayout(row.payoutRef)
+    ElMessage.success('已同步渠道状态')
+    fetchList()
+  } catch { } finally { saving.value = false }
+}
+
+/**
+ * 人工打款兜底（银行卡/支付宝等自动代付未覆盖的通道）。
+ * 保留它是因为：微信只能打零钱，银行卡要等汇付代付、支付宝要等支付宝转账。
+ */
 async function markPaid(row: WithdrawalRow) {
   try {
     await ElMessageBox.confirm(
-      `确认已向用户 ${row.userId} 打款 ${formatMoney(row.amount)}？`,
-      '确认打款',
+      `确认已在网银/支付宝向用户 ${row.userId} 线下转账 ${formatMoney(row.actualAmount ?? row.amount)}？\n\n` +
+      `请确保已真实完成转账 —— 此操作只是把状态标记为已打款，不会真的出款。`,
+      '确认人工已打款',
       { type: 'warning', confirmButtonText: '确认已打款', cancelButtonText: '取消' }
     )
     await financeApi.payWithdrawal(row.id)
@@ -294,13 +361,32 @@ function handleExport() {
             >
               拒绝
             </el-button>
+            <!-- 已审核通过：微信零钱走自动代付，其他通道走人工打款兜底 -->
+            <el-button
+              v-if="row.status === 'APPROVED' && isWechat(row.payMethod)"
+              size="small"
+              type="primary"
+              :loading="saving"
+              @click="autoPayout(row)"
+            >
+              自动打款
+            </el-button>
             <el-button
               v-if="row.status === 'APPROVED'"
               size="small"
-              type="primary"
+              :type="isWechat(row.payMethod) ? 'default' : 'primary'"
               @click="markPaid(row)"
             >
-              确认打款
+              人工打款
+            </el-button>
+            <!-- 已发起渠道转账：钱还没到用户手上，等他在微信里确认收款 -->
+            <el-button
+              v-if="row.status === 'TRANSFERRING'"
+              size="small"
+              :loading="saving"
+              @click="syncTransfer(row)"
+            >
+              同步状态
             </el-button>
             <span
               v-else-if="row.status === 'PAID'"

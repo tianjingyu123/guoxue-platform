@@ -59,6 +59,20 @@ export class WalletController {
     return this.svc.submitWithdraw(req.user.id, body);
   }
 
+  @Get("withdrawals")
+  @ApiOperation({
+    summary: "我的提现记录",
+    description:
+      "TRANSFERRING 的单子会带 needConfirm=true —— 微信商家转账已发起但用户还没点「确认收款」，" +
+      "钱还没到他手上。前端要据此引导他去确认，否则超时自动退回。",
+  })
+  @ApiQuery({ name: "page", required: false, type: Number })
+  @ApiQuery({ name: "pageSize", required: false, type: Number })
+  @ApiResponse({ status: 200, description: "成功" })
+  getMyWithdrawals(@Req() req: Request, @Query("page") page = 1, @Query("pageSize") pageSize = 20) {
+    return this.svc.getMyWithdrawals(req.user.id, +page, +pageSize);
+  }
+
   @Post("convert-to-coin")
   @RedLineGate(RedLine.MONEY)
   @ApiOperation({ summary: "收益转金币（可提现余额→金币·1元=10币·单向不可逆）" })

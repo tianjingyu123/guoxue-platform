@@ -49,7 +49,8 @@ export class PayoutService {
     if (app.status !== PayoutService.PAYABLE_STATUS) {
       throw new BusinessException(ErrorCode.BAD_REQUEST, `当前状态 ${app.status} 不可发起打款（须先审核通过）`);
     }
-    if (app.payMethod !== "WECHAT") {
+    // toUpperCase：存量行是前端直传的小写 'alipay'/'bank'，新行已在 submitWithdraw 统一大写
+    if (String(app.payMethod).toUpperCase() !== "WECHAT") {
       throw new BusinessException(
         ErrorCode.BAD_REQUEST,
         `${app.payMethod} 暂不支持自动代付，请走人工打款（银行卡待接汇付代付，支付宝待接支付宝转账）`,

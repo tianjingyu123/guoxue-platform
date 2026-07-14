@@ -2184,6 +2184,12 @@
           }
         },
         {
+          "path": "wallet/withdraw-records",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
           "path": "wallet/transactions",
           "style": {
             "navigationStyle": "custom"

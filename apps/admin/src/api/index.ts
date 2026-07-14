@@ -1298,7 +1298,16 @@ export const financeApi = {
   listWithdrawals: (params?: Record<string, unknown>) => api.get("/finance/withdrawals", { params }),
   approveWithdrawal: (id: string, reviewNote?: string) => api.put(`/finance/withdrawals/${id}/approve`, { reviewNote }),
   rejectWithdrawal: (id: string, reviewNote: string) => api.put(`/finance/withdrawals/${id}/reject`, { reviewNote }),
+  /** 人工打款兜底：只标记状态，不真的出款。银行卡/支付宝暂时只能走这条。 */
   payWithdrawal: (id: string) => api.post(`/finance/withdrawals/${id}/pay`),
+  /**
+   * 自动代付（微信商家转账）。
+   * 🔴 成功只代表「已发起」：新版商家转账要用户在微信里点「确认收款」钱才到账。
+   * 返回 needUserConfirm=true 时，状态转 TRANSFERRING，等微信回调 SUCCESS 才是 PAID。
+   */
+  autoPayout: (id: string) => api.post(`/payout/admin/withdrawals/${id}/auto`),
+  /** 主动同步渠道转账状态（回调之外的兜底核实） */
+  syncPayout: (payoutRef: string) => api.post(`/payout/admin/withdrawals/sync`, { payoutRef }),
   // 资金冻结
   freezeFund: (data: Record<string, unknown>) => api.post("/finance/freeze", data),
   unfreezeFund: (data: Record<string, unknown>) => api.post("/finance/unfreeze", data),

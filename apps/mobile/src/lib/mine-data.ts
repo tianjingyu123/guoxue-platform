@@ -691,15 +691,52 @@ export const rechargePayMethods: RechargePayMethod[] = [
 ]
 
 /* —— 钱包提现页 —— */
-export type WithdrawMethod = 'alipay' | 'bank'
+/**
+ * 提现方式。
+ * wechat = 微信零钱（走微信商家转账·自动到账，是唯一自动化的通道）
+ *   🔴 但它不是无感到账：转账发起后用户还要在【微信小程序内】点「确认收款」钱才到账。
+ *      wx.requestMerchantTransfer 是小程序 API，H5 调不了 —— H5 用户只能去小程序确认。
+ * alipay / bank = 目前仍走人工打款（支付宝转账、汇付代付尚未接入）
+ */
+export type WithdrawMethod = 'wechat' | 'alipay' | 'bank'
 export interface WithdrawAccount {
   method: WithdrawMethod
+  /** 微信零钱：收款人真实姓名（≥2000元微信强制校验实名，加密后提交） */
+  realName?: string
   alipayAccount?: string
   alipayName?: string
   bankName?: string
   bankAccount?: string
   bankHolder?: string
 }
+
+/** 待确认收款的转账（微信商家转账 WAIT_USER_CONFIRM 时返回） */
+export interface TransferConfirmInfo {
+  needConfirm: boolean
+  /** 微信确认收款凭据，前端凭它调 wx.requestMerchantTransfer；敏感，只有本人拿得到 */
+  packageInfo: string | null
+  status: string
+  transferState?: string
+  amount?: number
+}
+/** 我的提现记录一条 */
+export interface WithdrawRecord {
+  id: string
+  amount: number
+  fee: number
+  taxAmount: number
+  actualAmount: number
+  payMethod: string
+  /** PENDING 待审 / APPROVED 待打款 / TRANSFERRING 已发起转账（钱还没到你手上）/ PAID 已到账 / REJECTED 驳回 */
+  status: string
+  transferState?: string | null
+  transferFailReason?: string | null
+  reviewNote?: string | null
+  /** true = 微信转账已发起，等你在微信里点「确认收款」，不点会自动退回 */
+  needConfirm: boolean
+  createdAt: string
+}
+
 export interface WithdrawBalanceInfo {
   availableBalance: number
   frozenBalance: number
@@ -1639,6 +1676,49 @@ export const mineApi = {
       await apiPost('/users/wallet/withdraw', { amount: _amount, method: _method, account: _account })
       return { success: true, message: '提现申请已提交' }
     } catch (e: any) { return { success: false, message: e?.message || '提现失败' } }
+  },
+
+  /** 我的提现记录 —— GET /users/wallet/withdrawals（needConfirm=true 的要引导用户去微信确认收款） */
+  async getMyWithdrawals(page = 1, pageSize = 20): Promise<{ list: WithdrawRecord[]; total: number }> {
+    // apiGet 第二参是 header 不是 query —— 查询串必须拼进 path
+    return apiGet<{ list: WithdrawRecord[]; total: number }>(
+      `/users/wallet/withdrawals?page=${page}&pageSize=${pageSize}`,
+    )
+  },
+
+  /**
+   * 查我的待确认转账 —— GET /payout/my/:id/confirm
+   * 🔴 微信商家转账不是无感到账：不点「确认收款」，钱永远不到账（超时自动退回）。
+   */
+  async getTransferConfirm(applicationId: string): Promise<TransferConfirmInfo> {
+    return apiGet<TransferConfirmInfo>(`/payout/my/${applicationId}/confirm`)
+  },
+
+  /**
+   * 调起微信「确认收款」页（仅小程序可用）。
+   * wx.requestMerchantTransfer 是小程序 API —— H5/APP 调不了，只能引导用户去小程序确认。
+   */
+  async confirmWechatTransfer(packageInfo: string): Promise<{ success: boolean; message: string }> {
+    // #ifdef MP-WEIXIN
+    return new Promise((resolve) => {
+      // 走 globalThis 取，避免 vue-tsc 在非小程序端找不到全局 wx 声明
+      const wxAny = (globalThis as any).wx
+      if (!wxAny?.requestMerchantTransfer) {
+        resolve({ success: false, message: '当前微信版本过低，请升级微信后再确认收款' })
+        return
+      }
+      wxAny.requestMerchantTransfer({
+        mchId: import.meta.env.VITE_WECHAT_MCH_ID || '',
+        appId: import.meta.env.VITE_WECHAT_APP_ID || '',
+        package: packageInfo,
+        success: () => resolve({ success: true, message: '已确认收款' }),
+        fail: (err: any) => resolve({ success: false, message: err?.errMsg || '确认收款失败' }),
+      })
+    })
+    // #endif
+    // #ifndef MP-WEIXIN
+    return { success: false, message: '请在微信小程序内打开并确认收款' }
+    // #endif
   },
 
   /** 验证支付密码 —— POST /users/me/payment-password/verify（后端 bcrypt 校验 + 连续错误锁定30分钟） */

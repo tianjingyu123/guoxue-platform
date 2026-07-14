@@ -74,6 +74,11 @@ const txIcon: Record<WalletTxCategory, { icon: string; color: string }> = {
             <AppIcon name="arrow-up-right" :size="18" color="#fff" />
             <text class="ba-text">提现</text>
           </view>
+          <!-- 微信提现要用户回来点「确认收款」，入口必须在钱包首页够显眼 -->
+          <view class="ba-btn" @tap="navigateTo('/wallet/withdraw-records')">
+            <AppIcon name="list" :size="18" color="#fff" />
+            <text class="ba-text">提现记录</text>
+          </view>
         </view>
       </view>
 

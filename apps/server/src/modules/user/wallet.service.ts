@@ -133,6 +133,53 @@ export class WalletService {
   }
 
   /**
+   * 我的提现记录。
+   *
+   * 🔴 needConfirm 是这个接口存在的理由：微信商家转账发起后钱并没到用户手上，
+   *    要他在微信里点「确认收款」，超时不点会自动退回。用户看不到这笔单 = 钱永远到不了。
+   *    packageInfo（能唤起确认页的凭据）不在列表里返回，要单独走 payout/my/:id/confirm。
+   */
+  async getMyWithdrawals(userId: string, page = 1, pageSize = 20) {
+    const skip = (Math.max(1, page) - 1) * pageSize;
+    const [list, total] = await Promise.all([
+      this.prisma.withdrawalApplication.findMany({
+        where: { userId },
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: pageSize,
+        select: {
+          id: true,
+          amount: true,
+          fee: true,
+          taxAmount: true,
+          actualAmount: true,
+          payMethod: true,
+          status: true,
+          transferState: true,
+          transferFailReason: true,
+          reviewNote: true, // 驳回原因存在这里（本表无 rejectReason 字段）
+          createdAt: true,
+        },
+      }),
+      this.prisma.withdrawalApplication.count({ where: { userId } }),
+    ]);
+
+    return {
+      total,
+      page,
+      pageSize,
+      list: list.map((w) => ({
+        ...w,
+        amount: Number(w.amount),
+        fee: Number(w.fee),
+        taxAmount: Number(w.taxAmount ?? 0),
+        actualAmount: Number(w.actualAmount),
+        needConfirm: w.status === "TRANSFERRING" && w.transferState === "WAIT_USER_CONFIRM",
+      })),
+    };
+  }
+
+  /**
    * 提交提现申请。
    *
    * 资金安全机制（三层防护）：
@@ -194,9 +241,17 @@ export class WalletService {
     }
   }
 
+  /** 提现收款方式白名单。落库一律大写 —— 出款侧（payout/admin）按大写判分支，
+   *  历史上前端发的是小写 'alipay'/'bank'，不统一口径会导致微信提现永远匹配不上自动代付。 */
+  private static readonly WITHDRAW_METHODS = ["WECHAT", "ALIPAY", "BANK"];
+
   async submitWithdraw(userId: string, data: { amount: number; method: string; account: Record<string, string> }) {
     if (!data.amount || data.amount <= 0) {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "提现金额必须大于0");
+    }
+    const payMethod = String(data.method || "").toUpperCase();
+    if (!WalletService.WITHDRAW_METHODS.includes(payMethod)) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "不支持的收款方式");
     }
     if (data.amount < MIN_WITHDRAW_RMB) {
       throw new BusinessException(ErrorCode.BAD_REQUEST, `最低提现金额为${MIN_WITHDRAW_RMB}元`);
@@ -242,8 +297,9 @@ export class WalletService {
           taxAmount,
           taxRate: tax.rate,
           actualAmount,
-          payMethod: data.method,
-          accountInfo: data.account,
+          payMethod,
+          // 前端「上次收款账户」按 accountInfo.method 匹配，不带上就永远预填不出来
+          accountInfo: { ...data.account, method: payMethod.toLowerCase() },
           status: "PENDING",
         },
       });
