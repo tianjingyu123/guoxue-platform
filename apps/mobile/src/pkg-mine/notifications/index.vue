@@ -36,6 +36,18 @@
       </view>
     </view>
 
+    <!-- 🔴 私信入口：会话列表页（真连腾讯 IM）此前是**孤岛** —— 全项目没有任何地方能跳进去，
+         用户根本看不到别人发来的私信。而私信是达人咨询、圈友交流的承载。
+         消息中心只管系统/互动/交易通知，私信独立一栏。 -->
+    <view class="dm-entry" @click="goConversations">
+      <view class="dm-icon"><app-icon name="message-circle" :size="22" color="#C41E3A" /></view>
+      <view class="dm-main">
+        <text class="dm-title">私信</text>
+        <text class="dm-sub">与老师、圈友的一对一对话</text>
+      </view>
+      <app-icon name="chevron-right" :size="18" color="#c8c8cd" />
+    </view>
+
     <!-- 加载骨架屏 -->
     <view v-if="loading" class="skeleton-wrap">
       <view v-for="i in 5" :key="i" class="skel-row">
@@ -218,6 +230,11 @@ function showToast(msg: string) {
   setTimeout(() => { toastMsg.value = '' }, 2000)
 }
 
+/** 私信会话列表（原本零入口的孤岛页） */
+function goConversations() {
+  navigateTo('/im/conversations')
+}
+
 function onBack() {
   goBack()
 }
@@ -300,6 +317,31 @@ function onBack() {
 }
 
 /* 分类 Tab */
+/* 私信入口行 */
+.dm-entry {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  margin: 16rpx 24rpx 0;
+  padding: 24rpx 28rpx;
+  background: #ffffff;
+  border-radius: 24rpx;
+  box-shadow: 0 2rpx 6rpx rgba(44, 44, 44, 0.05);
+}
+.dm-icon {
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 999rpx;
+  background: rgba(196, 30, 58, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.dm-main { flex: 1; min-width: 0; }
+.dm-title { display: block; font-size: 30rpx; font-weight: 500; color: #2c2c2c; }
+.dm-sub { display: block; margin-top: 4rpx; font-size: 24rpx; color: #999; }
+
 .cat-tabs {
   position: sticky;
   top: 112rpx;

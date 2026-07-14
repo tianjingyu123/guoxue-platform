@@ -73,6 +73,9 @@ export const quickFunctions: { icon: string; label: string; href: string; color:
   { icon: 'sticky-note', label: '我的笔记', href: '/mine/notes', color: '#C9A96E' }, // 统一页(古籍+电子书聚合)·原/ebook/notes只有电子书
   { icon: 'heart', label: '我的收藏', href: '/favorites', color: '#C41E3A' },
   { icon: 'clipboard-list', label: '我的申请', href: '/mine/applications', color: '#FA8C16' },
+  // 🔴 收货地址管理页此前是**孤岛**：全项目零入口，用户只能在下单结算时被动选地址，
+  //    没法在"我的"里新增/修改/删除（买了实体商品的用户找不到地方改地址）
+  { icon: 'map-pin', label: '收货地址', href: '/shop/addresses', color: '#4A90D9' },
   { icon: 'history', label: '浏览历史', href: '/history', color: '#64748B' },
   { icon: 'help-circle', label: '帮助中心', href: '/help', color: '#999999' },
 ]

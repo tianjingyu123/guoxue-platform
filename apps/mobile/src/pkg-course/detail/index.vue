@@ -125,6 +125,8 @@ function onContinueLearning() {
 }
 // 会员免费金标：跳现有会员购买页
 function goMember() { navigateTo('/pkg-mine/memberships/index') }
+/** 课程评价页（F3·学员写评价 + 讲师回复双视角） */
+function goReviews() { navigateTo(`/courses/${courseId.value}/reviews`) }
 /** 讲师公开主页（讲师 userId 缺失时不可点；未认证讲师由主页 404 错误态诚实提示） */
 function goTeacherProfile() {
   const uid = course.value?.instructor?.id
@@ -403,6 +405,13 @@ onMounted(() => {
             </view>
           </view>
         </template>
+
+        <!-- 🔴 补入口：评价页（F3·含学员写评价）此前是**孤岛**——全项目没有任何地方能跳进去，
+             详情页这块只是展示摘要。结果就是"能看别人的评价，但自己永远写不了"。 -->
+        <view class="review-more" @tap="goReviews">
+          <text class="review-more-t">{{ reviews.length ? '查看全部评价 · 写评价' : '写第一条评价' }}</text>
+          <app-icon name="chevron-right" :size="26" color="#999" />
+        </view>
       </view>
 
       <!-- ══ 区块8 图文详情（通栏无缝拼接） ══ -->
@@ -610,6 +619,12 @@ onMounted(() => {
 /* 区块级空态 */
 .empty-line { padding: 40rpx 0; text-align: center; }
 .empty-txt { font-size: 26rpx; color: #999; }
+.review-more {
+  margin-top: 8rpx; padding-top: 24rpx;
+  border-top: 1rpx solid #ede7dd;
+  display: flex; align-items: center; justify-content: center; gap: 6rpx;
+}
+.review-more-t { font-size: 26rpx; color: #6e6e73; }
 
 /* ── 图文详情（通栏无缝） ── */
 .rich-wrap { margin: 0 -40rpx; }
