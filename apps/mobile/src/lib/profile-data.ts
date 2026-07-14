@@ -58,27 +58,9 @@ export const roleConfig: Record<UserRole, { label: string; icon: string; color: 
   merchant: { label: '商家管理台', icon: 'store', color: '#FA8C16', bgColor: 'rgba(250,140,22,0.1)' },
 }
 
-// 常用功能入口
-export const quickFunctions: { icon: string; label: string; href: string; color: string }[] = [
-  { icon: 'compass', label: '排盘记录', href: '/paipan', color: '#C41E3A' },
-  { icon: 'book-open', label: '我的课程', href: '/learning', color: '#4A90D9' },
-  { icon: 'award', label: '讲师工作台', href: '/pkg-creator/teacher-dashboard/index', color: '#C41E3A' },
-  { icon: 'shield-check', label: '我的资质', href: '/pkg-creator/my-qualifications/index', color: '#16A34A' },
-  { icon: 'users', label: '我的圈子', href: '/pkg-circle/my-circles/index', color: '#722ED1' },
-  { icon: 'radio', label: '我的直播', href: '/pkg-live/manage/index', color: '#C41E3A' },
-  // 🔴 创作中心（作品/数据/收益/提现）整棵树此前**外部零入口**——只有它自己内部页能互跳，
-  //    从个人中心根本进不去。创作不需要角色（人人可发短视频），所以不该走 roleHref 角色映射
-  //    （后端 RoleType 枚举里压根没有 CREATOR，"角色映射漏了 CREATOR"是个错误结论）。
-  { icon: 'video', label: '创作中心', href: '/videos/creator', color: '#722ED1' },
-  { icon: 'sticky-note', label: '我的笔记', href: '/mine/notes', color: '#C9A96E' }, // 统一页(古籍+电子书聚合)·原/ebook/notes只有电子书
-  { icon: 'heart', label: '我的收藏', href: '/favorites', color: '#C41E3A' },
-  { icon: 'clipboard-list', label: '我的申请', href: '/mine/applications', color: '#FA8C16' },
-  // 🔴 收货地址管理页此前是**孤岛**：全项目零入口，用户只能在下单结算时被动选地址，
-  //    没法在"我的"里新增/修改/删除（买了实体商品的用户找不到地方改地址）
-  { icon: 'map-pin', label: '收货地址', href: '/shop/addresses', color: '#4A90D9' },
-  { icon: 'history', label: '浏览历史', href: '/history', color: '#64748B' },
-  // 帮助中心不放这里 —— 个人中心下方的「服务与设置」已有该入口，别重复
-]
+// 🔴 2026-07-14 删除 quickFunctions：它是个**死常量**，导出后没有任何页面 import 它。
+//    个人中心真正渲染的是 pages/profile/index.vue 里的 matrixItems —— 入口要加就加那里。
+//    （曾经往这个数组里加入口，结果线上毫无变化，白改一轮。）
 
 // 全部可开通角色
 export const allRoleTypes: { type: UserRole; applyHref: string }[] = [

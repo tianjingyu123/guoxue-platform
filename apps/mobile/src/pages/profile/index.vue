@@ -5,7 +5,7 @@ import BottomNav from '@/components/bottom-nav/bottom-nav.vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo, toastComingSoon } from '@/utils/router'
 import {
-  profileApi, getGreeting, roleHref, quickFunctions, type UserRole,
+  profileApi, getGreeting, roleHref, type UserRole,
 } from '@/lib/profile-data'
 import { recommendApi } from '@/lib/recommend-data'
 import { growthApi } from '@/lib/growth-data'
@@ -107,20 +107,32 @@ const orderStatus = computed(() => [
   { key: 'refund' as const, label: '售后', icon: 'refresh-cw', count: userData.value.orders.refund },
 ])
 
-/* ===== 内容矩阵 2×4（排盘记录=战略位轻强调 star） ===== */
+/* ===== 内容矩阵 4 列（排盘记录=战略位轻强调 star） =====
+   🔴 2026-07-14 补齐：此前只有 8 格，个人中心根本进不去自己的
+   笔记 / 直播 / 申请 / 收货地址 / 创作中心 / 讲师工作台 / 资质 ——
+   这些页面全是"做完了但没人跳得进去"的孤岛，用户体感就是"这个没做"。
+   （lib/profile-data 里那份 quickFunctions 是死常量、没人读，已删。） */
 const matrixItems: { icon: string; label: string; href?: string; star?: boolean; comingSoon?: boolean }[] = [
-  { icon: 'bookmark', label: '收藏', href: '/favorites' },
-  { icon: 'history', label: '足迹', href: '/history' },
-  // 「我的发布」价值有限（多数用户不发布·发布走圈子/创作者流各自管理）→ 董事长拍板换为「我的评价」（真实页·更有用）
-  { icon: 'message-circle', label: '我的评价', href: '/mine/my-comments' },
   { icon: 'compass', label: '我的排盘记录', href: '/paipan', star: true },
   { icon: 'book-open', label: '我的课程', href: '/courses/my-learning' },
-  // 我的书架 → 古籍板块「我的书房」书架（真连收藏/进度），与古籍馆书架对齐
-  { icon: 'book-open', label: '我的书架', href: '/pkg-classics/bookshelf/index' },
   // 我的圈子 → 圈子板块「我的」门户 /pkg-circle/circles/me（与圈子页右上角头像入口指向同一页）
   { icon: 'users', label: '我的圈子', href: '/pkg-circle/circles/me' },
-  // AI 会话 → AI 对话历史（真连智能体对话记录），不再指向未做的 IM 私信
-  { icon: 'message-circle', label: 'AI会话', href: '/agents/history' },
+  // 我的书架 → 古籍板块「我的书房」书架（真连收藏/进度），与古籍馆书架对齐
+  { icon: 'book-open', label: '我的书架', href: '/pkg-classics/bookshelf/index' },
+  { icon: 'bookmark', label: '收藏', href: '/favorites' },
+  { icon: 'history', label: '足迹', href: '/history' },
+  // 统一笔记页（古籍+电子书聚合），原 /ebook/notes 只有电子书
+  { icon: 'sticky-note', label: '我的笔记', href: '/mine/notes' },
+  // 「我的发布」价值有限（多数用户不发布·发布走圈子/创作者流各自管理）→ 董事长拍板换为「我的评价」（真实页·更有用）
+  { icon: 'message-circle', label: '我的评价', href: '/mine/my-comments' },
+  // 创作不需要角色（人人可发短视频），所以不走 roleHref 角色映射——后端 RoleType 枚举里压根没有 CREATOR
+  { icon: 'video', label: '创作中心', href: '/videos/creator' },
+  { icon: 'radio', label: '我的直播', href: '/pkg-live/manage/index' },
+  { icon: 'award', label: '讲师工作台', href: '/pkg-creator/teacher-dashboard/index' },
+  { icon: 'shield-check', label: '我的资质', href: '/pkg-creator/my-qualifications/index' },
+  { icon: 'clipboard-list', label: '我的申请', href: '/mine/applications' },
+  // 收货地址此前全项目零入口：买了实体商品的用户只能在结算时被动选，改不了地址
+  { icon: 'map-pin', label: '收货地址', href: '/shop/addresses' },
 ]
 
 async function fetchData() {
@@ -318,7 +330,7 @@ function applyRole(role: string) {
       </view>
     </view>
 
-    <!-- ===== ⑤ 我的内容矩阵 2×4 ===== -->
+    <!-- ===== ⑤ 我的内容矩阵（4 列 × 4 行·个人中心的入口集散地） ===== -->
     <view class="matrix">
       <view v-for="m in matrixItems" :key="m.label" class="m-item" :class="{ star: m.star }" @tap="m.comingSoon ? toastComingSoon() : go(m.href)">
         <view class="m-icon">
@@ -356,23 +368,6 @@ function applyRole(role: string) {
       <view v-if="hasMoreRoles" class="role-more" @tap="rolesExpanded = !rolesExpanded">
         <text class="role-more-txt">{{ rolesExpanded ? '收起更多身份' : '更多身份' }}</text>
         <AppIcon :name="rolesExpanded ? 'chevron-up' : 'chevron-down'" :size="22" color="#B0A99A" />
-      </view>
-    </view>
-
-    <!-- ===== ⑥.5 常用功能 =====
-         🔴 2026-07-14：这一整块此前**根本没有渲染** —— lib/profile-data 里的 quickFunctions
-         是个死常量，没有任何页面读它。结果就是个人中心里进不去自己的课程/圈子/收藏/笔记/
-         直播/申请/浏览历史/收货地址 —— 这些页面全都成了"做完了但没人能跳进去"的孤岛。
-         （用户体感的"这个没做、那个也没做"，很大一部分是这么来的。） -->
-    <view class="quick-title-row">
-      <text class="quick-title">常用功能</text>
-    </view>
-    <view class="quick">
-      <view v-for="q in quickFunctions" :key="q.href" class="quick-item" @tap="go(q.href)">
-        <view class="quick-icon" :style="{ background: q.color + '14' }">
-          <AppIcon :name="q.icon" :size="36" :color="q.color" />
-        </view>
-        <text class="quick-label">{{ q.label }}</text>
       </view>
     </view>
 
@@ -516,25 +511,6 @@ function applyRole(role: string) {
 .role-more-txt { font-size: 22rpx; color: #B0A99A; }
 
 /* ⑦ 服务行 */
-/* 常用功能宫格（4 列） */
-.quick-title-row { margin: 32rpx 32rpx 0; }
-.quick-title { font-size: 26rpx; font-weight: 600; color: #2B2620; }
-.quick {
-  display: flex; flex-wrap: wrap;
-  margin: 16rpx 32rpx 0; padding: 20rpx 8rpx 8rpx;
-  background: #fff; border-radius: 24rpx;
-  box-shadow: 0 2rpx 8rpx rgba(60,50,40,.06);
-}
-.quick-item {
-  width: 25%; display: flex; flex-direction: column; align-items: center;
-  gap: 12rpx; padding: 16rpx 0 24rpx;
-}
-.quick-icon {
-  width: 76rpx; height: 76rpx; border-radius: 22rpx;
-  display: flex; align-items: center; justify-content: center;
-}
-.quick-label { font-size: 22rpx; color: #6E6A62; }
-
 .svc { display: flex; margin: 20rpx 32rpx 0; background: #fff; border-radius: 24rpx; padding: 12rpx 0 16rpx; box-shadow: 0 2rpx 8rpx rgba(60,50,40,.06); }
 .svc-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 12rpx; padding: 26rpx 0 18rpx; }
 .svc-label { font-size: 20rpx; color: #8A8578; }
