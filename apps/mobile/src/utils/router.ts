@@ -138,6 +138,8 @@ const ROUTE_MAP: Record<string, string> = {
   '/paipan/wuyunliuqi': '/pkg-paipan/wuyunliuqi/index',
   // 国学字典（释义走后端 /zidian，其余 24 字段前端本地算）
   '/paipan/zidian': '/pkg-paipan2/zidian/index',
+  // 二十四节气工具页（V0 app/jieqi）——注意与 pkg-solar-term「节气仪式」打卡运营页不是一回事
+  '/paipan/jieqi': '/pkg-paipan/jieqi/index',
   // 工具占位页（30+ 未上线工具入口，name 参数透传；命理/中医两个前缀同指一页）
   '/paipan/tools/coming-soon': '/pkg-paipan/tools/coming-soon',
   '/tools/coming-soon': '/pkg-paipan/tools/coming-soon',

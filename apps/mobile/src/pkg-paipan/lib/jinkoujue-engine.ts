@@ -19,6 +19,7 @@
  */
 
 import { Solar } from "./lunar/index.js"
+import { jieqiRangeAt, type JieqiMoment } from "./jieqi-engine"
 
 // ─── 基础常量 ───
 
@@ -454,16 +455,12 @@ export function paiJinKouJue(opts: JkjOptions): JkjResult {
   else if (inausp > 0) summary.push("课体见阻滞之象，凡事多留余地、稳中求进。")
 
   // ── 节气区间 ──
-  const table = lunar.getJieQiTable()
-  const prevJq = lunar.getPrevJieQi(true)
-  const nextJq = lunar.getNextJieQi(true)
-  const fmtJq = (jq: { getName: () => string; getSolar: () => { toYmdHms: () => string } } | null) => {
-    if (!jq) return ""
-    const s = jq.getSolar().toYmdHms()
-    return `${jq.getName()}${s.slice(0, 16).replace(/-/g, ".")}`
-  }
-  void table
-  const jieqiRange = `${fmtJq(prevJq)} ~ ${fmtJq(nextJq)}`
+  // 🔴 节气区间按**瞬时**判：lunar.getPrevJieQi() 是按天判的——2026 立春交节在 04:02，
+  // 当天 03:00 问它就已答「立春」，而同一时刻月柱(Exact)还是丑月，盘面会自相矛盾。
+  const jqRange = jieqiRangeAt(d.getFullYear(), d.getMonth() + 1, d.getDate(), d.getHours(), d.getMinutes())
+  const fmtJq = (jq: JieqiMoment) =>
+    `${jq.name}${jq.year}.${String(jq.month).padStart(2, "0")}.${String(jq.day).padStart(2, "0")} ${jq.timeText.slice(0, 5)}`
+  const jieqiRange = `${fmtJq(jqRange.prev)} ~ ${fmtJq(jqRange.next)}`
 
   return {
     topic: opts.topic || "",

@@ -439,6 +439,12 @@
           "style": {
             "navigationStyle": "custom"
           }
+        },
+        {
+          "path": "jieqi/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
         }
       ]
     },

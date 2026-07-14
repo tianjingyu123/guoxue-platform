@@ -63,7 +63,7 @@ export const tools: Tool[] = [
   { id: 'phone-analysis', name: '数字能量解读', iconId: 'phone-analysis', href: '/paipan/shuzi', badge: true, category: 'xingming' },
   // 历法查询
   { id: 'calendar', name: '万年历', iconId: 'calendar', href: '/paipan/wannianli', badge: true, category: 'lifa' },
-  { id: 'solar-terms', name: '节气查询', iconId: 'solar-terms', href: '/pkg-solar-term/index/index', category: 'lifa' },
+  { id: 'solar-terms', name: '节气查询', iconId: 'solar-terms', href: '/paipan/jieqi', category: 'lifa' },
   { id: 'dictionary', name: '字典查询', iconId: 'dictionary', href: '/paipan/zidian', category: 'lifa' },
   { id: 'char-filter', name: '汉字筛选', iconId: 'char-filter', href: '/paipan/tools/coming-soon?name=汉字筛选', category: 'lifa' },
   // 更多服务
