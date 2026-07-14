@@ -12,6 +12,7 @@ import Disclaimer from '@/components/compliance/disclaimer.vue'
 import NotesPanel from '@/components/bazi/notes-panel.vue'
 import SchoolAnalysis from '../components/school-analysis.vue'
 import { baziApi } from '@/lib/bazi-result-data'
+import { saveBaziHistory } from './bazi-history'
 import { navigateBack } from '@/utils/router'
 import { BRAND } from '@/lib/brand'
 
@@ -45,11 +46,30 @@ async function loadResult(q: Record<string, string> = {}) {
       minute: q.minute ? Number(q.minute) : 31,
     })
     baziResult.value = result
+    saveRecord(result)
   } catch (e) {
     error.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
   }
+}
+
+/** 排盘成功后落本地记录（记录页读它；此前八字排完根本不落盘，记录页全是假数据） */
+function saveRecord(result: any) {
+  const sz = result?.siZhu || {}
+  saveBaziHistory({
+    name: userInput.name || '未命名',
+    gender: userInput.gender,
+    year: userInput.year, month: userInput.month, day: userInput.day,
+    hour: userInput.hour, minute: userInput.minute,
+    city: userInput.city || undefined,
+    pillars: {
+      yearGan: sz.year?.gan || '', yearZhi: sz.year?.zhi || '',
+      monthGan: sz.month?.gan || '', monthZhi: sz.month?.zhi || '',
+      dayGan: sz.day?.gan || '', dayZhi: sz.day?.zhi || '',
+      hourGan: sz.hour?.gan || '', hourZhi: sz.hour?.zhi || '',
+    },
+  })
 }
 
 onLoad((q: Record<string, string> = {}) => {

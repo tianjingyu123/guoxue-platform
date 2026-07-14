@@ -13,6 +13,7 @@ import AppIcon from '@/components/common/app-icon.vue'
 import QimenNotesPanel from '@/components/qimen/notes-panel.vue'
 import HexFigure from './components/hex-figure.vue'
 import { navigateTo, navigateBack } from '@/utils/router'
+import { saveMeihuaHistory } from './meihua-history'
 import { fourPillars, GAN_WUXING, ZHI_WUXING, ZHIS, type FourPillars } from '@/lib/paipan/ganzhi'
 import { formatJieqiRange } from '@/lib/paipan/jieqi'
 import {
@@ -29,7 +30,6 @@ import {
   type TiyongRelation,
 } from '@/pkg-paipan/lib/meihua-data'
 
-const HISTORY_KEY = 'rebu:meihua:history'
 const YAO_LABEL = ['初', '二', '三', '四', '五', '上']
 
 // 五行配色（全局 --wuxing-* token）
@@ -279,34 +279,25 @@ const dateText = computed(() =>
   `${q.value.year}年${pad(q.value.month)}月${pad(q.value.day)}日 ${pad(q.value.hour)}:${pad(q.value.minute)}`,
 )
 
-/** 保存排盘记录（本地存储，与入口页「排盘记录」弹层共用） */
+/** 保存排盘记录（统一走 meihua-history 模块，记录页/入口弹层同一份数据） */
 function handleSave() {
   if (saved.value) return
-  try {
-    const raw = uni.getStorageSync(HISTORY_KEY)
-    const records = raw ? (JSON.parse(raw) as unknown[]) : []
-    records.unshift({
-      id: Date.now(),
-      matter: matterText.value || '未命名事项',
-      dateText: dateText.value,
-      guaText: `${ben.value.name} 之 ${hexes.value.bian.name}`,
-      params: {
-        matter: matterText.value,
-        year: q.value.year, month: q.value.month, day: q.value.day, hour: q.value.hour, minute: q.value.minute,
-        mode: q.value.mode,
-        numbers: q.value.numbers,
-        plusHour: q.value.plusHour ? '1' : '0',
-        yaos: q.value.yaosParam,
-        moving: q.value.movingParam,
-      },
-      createdAt: Date.now(),
-    })
-    uni.setStorageSync(HISTORY_KEY, JSON.stringify(records.slice(0, 100)))
-    saved.value = true
-    uni.showToast({ title: '已保存到排盘记录', icon: 'success' })
-  } catch {
-    uni.showToast({ title: '保存失败', icon: 'none' })
-  }
+  saveMeihuaHistory({
+    matter: matterText.value || '未命名事项',
+    dateText: dateText.value,
+    guaText: `${ben.value.name} 之 ${hexes.value.bian.name}`,
+    params: {
+      matter: matterText.value,
+      year: q.value.year, month: q.value.month, day: q.value.day, hour: q.value.hour, minute: q.value.minute,
+      mode: q.value.mode,
+      numbers: q.value.numbers,
+      plusHour: q.value.plusHour ? '1' : '0',
+      yaos: q.value.yaosParam,
+      moving: q.value.movingParam,
+    },
+  })
+  saved.value = true
+  uni.showToast({ title: '已保存到排盘记录', icon: 'success' })
 }
 
 /** 分享：H5 系统分享/复制链接，其余端复制卦象摘要 */

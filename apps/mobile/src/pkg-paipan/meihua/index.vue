@@ -11,6 +11,7 @@ import DatePickerModal from '@/components/bazi/date-picker-modal.vue'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
+import { loadMeihuaHistory, clearMeihuaHistory, type MeihuaHistoryItem } from './meihua-history'
 import { toSolarSafe } from '@/pkg-paipan/lib/date-convert'
 
 type QiguaMode = 'time' | 'manual' | 'number1' | 'number2' | 'auto'
@@ -42,16 +43,6 @@ const MODE_NOTES: Record<QiguaMode, string[]> = {
 // 爻位名（自上而下展示）
 const YAO_NAMES = ['上爻', '五爻', '四爻', '三爻', '二爻', '初爻']
 
-const HISTORY_KEY = 'rebu:meihua:history'
-
-interface HistoryRecord {
-  id: number
-  matter: string
-  dateText: string
-  guaText: string
-  params: Record<string, unknown>
-  createdAt: number
-}
 
 const matter = ref('')
 const now = new Date()
@@ -71,7 +62,7 @@ const movingYao = ref<number | null>(null) // 索引 0=上爻
 const showModePicker = ref(false)
 const showDatePicker = ref(false)
 const showHistory = ref(false)
-const records = ref<HistoryRecord[]>([])
+const records = ref<MeihuaHistoryItem[]>([])
 
 function pad(n: number) { return String(n).padStart(2, '0') }
 
@@ -131,12 +122,7 @@ function pickMode(m: QiguaMode) {
 
 /** 读取本地排盘记录 */
 function loadRecords() {
-  try {
-    const raw = uni.getStorageSync(HISTORY_KEY)
-    records.value = raw ? (JSON.parse(raw) as HistoryRecord[]) : []
-  } catch {
-    records.value = []
-  }
+  records.value = loadMeihuaHistory()
 }
 onShow(loadRecords)
 
@@ -145,10 +131,10 @@ function openHistory() {
   showHistory.value = true
 }
 function clearHistory() {
-  uni.setStorageSync(HISTORY_KEY, '[]')
+  clearMeihuaHistory()
   records.value = []
 }
-function openRecord(r: HistoryRecord) {
+function openRecord(r: MeihuaHistoryItem) {
   showHistory.value = false
   navigateTo(`/pkg-paipan/meihua/result?payload=${encodeURIComponent(JSON.stringify(r.params))}`)
 }

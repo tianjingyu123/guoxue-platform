@@ -8,6 +8,7 @@ import Disclaimer from '@/components/compliance/disclaimer.vue'
 import { navigateTo } from '@/utils/router'
 import { getToken } from '@/utils/storage'
 import { yangpanApi, type YangpanResult, type YangpanInput } from '@/lib/yangpan-data'
+import { saveYangpanHistory } from './yangpan-history'
 
 // ─── 五行颜色映射 ───
 const wuxingColors: Record<string, string> = {
@@ -67,11 +68,24 @@ async function load() {
   errMsg.value = ''
   try {
     result.value = await yangpanApi.calculate(buildInput())
+    saveRecord(result.value)
   } catch (e) {
     errMsg.value = (e as Error)?.message || '排盘失败，请稍后重试'
   } finally {
     loading.value = false
   }
+}
+
+/** 排盘成功后落本地记录（无需登录）——记录页读的就是它；onSave 存后端是另一回事 */
+function saveRecord(r: YangpanResult | null) {
+  if (!r) return
+  saveYangpanHistory({
+    ...buildInput(),
+    name: q.name || '未命名',
+    juLabel: `${r.dunType === 'yang' ? '阳遁' : '阴遁'}${r.juNumber}局`,
+    zhiFu: r.zhiFu,
+    zhiShiMen: r.zhiShiMen,
+  })
 }
 
 /** 保存排盘记录（需登录，防重复提交） */

@@ -18,23 +18,11 @@ import ToolHeader from '@/components/paipan/tool-header.vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
 import { navigateTo } from '@/utils/router'
+import { saveLijichiHistory } from './lijichi-history'
 import LuopanPlate from '../luopan/luopan-plate.vue'
 import { PLATE_STYLES, mountainCenterDeg, type PlateStyle } from '@/pkg-paipan/lib/luopan-data'
 import { MOUNTAINS, currentPeriod } from '@/pkg-paipan/lib/xuankong-data'
 
-const HISTORY_KEY = 'rebu:lijichi-history'
-
-interface LjRecord {
-  id: number
-  client: string
-  dateText: string
-  shanxiang: string
-  sitting: number
-  heading?: number
-  plate?: string
-  note?: string
-  createdAt: number
-}
 
 const PLATE_IDS = PLATE_STYLES.map((p) => p.id)
 
@@ -255,8 +243,7 @@ function pad(n: number) { return String(n).padStart(2, '0') }
 function save() {
   const now = new Date()
   const dateText = `${now.getFullYear()}年${pad(now.getMonth() + 1)}月${pad(now.getDate())}日 ${pad(now.getHours())}:${pad(now.getMinutes())}`
-  const rec: LjRecord = {
-    id: Date.now(),
+  saveLijichiHistory({
     client: customer.value || '未命名',
     dateText,
     shanxiang: shanxiang.value,
@@ -264,17 +251,8 @@ function save() {
     heading: Math.round(heading.value * 10) / 10,
     plate: plate.value,
     note: note.value,
-    createdAt: Date.now(),
-  }
-  try {
-    const raw = uni.getStorageSync(HISTORY_KEY)
-    const list = raw ? (JSON.parse(raw) as LjRecord[]) : []
-    list.unshift(rec)
-    uni.setStorageSync(HISTORY_KEY, JSON.stringify(list.slice(0, 50)))
-    uni.showToast({ title: '已保存到历史记录', icon: 'none' })
-  } catch {
-    uni.showToast({ title: '保存失败', icon: 'none' })
-  }
+  })
+  uni.showToast({ title: '已保存到历史记录', icon: 'none' })
 }
 
 function share() {

@@ -1,13 +1,22 @@
 <script setup lang="ts">
 /**
- * 八字历史 · 用户列表（从原型 app/paipan/bazi/history/page.tsx 1:1 高保真迁移）
- * 结构：顶栏(返回/用户列表·案例库Tab/更多菜单) + 搜索栏 + 分组标签 + 记录列表(性别头像+信息+四柱八字) + 三种批量操作栏(删除/置顶/分组) + 分组选择弹窗
+ * 八字排盘记录（自 V0 app/bazi/history/page.tsx 还原）
+ *
+ * 🔴 原页是硬编码的 6 条假记录（孙哥儿子/王雷/老段女儿…），而八字排完根本不落盘。
+ * 现在：数据全部来自本地真实记录（result 页排盘成功即写入），无记录就是空态。
+ * 能力：搜索（姓名/四柱/出生年月）+ 分组标签 + 置顶 + 批量删除/分组。
  */
 import { ref, computed } from 'vue'
-import AppIcon from '@/components/common/app-icon.vue'
-import { navigateTo, navigateBack } from '@/utils/router'
+import { onShow } from '@dcloudio/uni-app'
+import HistoryPage, { type HistoryVM } from '@/components/paipan/history-page.vue'
+import { navigateTo } from '@/utils/router'
+import { formatRecordTime } from '@/lib/paipan/history-core'
+import {
+  loadBaziHistory, removeBaziHistory, pinBaziHistory, groupBaziHistory,
+  baziGroups, type BaziHistoryItem,
+} from '../bazi-history'
 
-// 五行 → 天干颜色
+// 天干地支 → 五行配色（沿用原页配色）
 const tianGanColors: Record<string, string> = {
   甲: 'wx-wood', 乙: 'wx-wood', 丙: 'wx-fire', 丁: 'wx-fire',
   戊: 'wx-earth', 己: 'wx-earth', 庚: 'wx-metal', 辛: 'wx-metal',
@@ -18,285 +27,150 @@ const diZhiColors: Record<string, string> = {
   辰: 'wx-earth', 巳: 'wx-fire', 午: 'wx-fire', 未: 'wx-earth',
   申: 'wx-metal', 酉: 'wx-metal', 戌: 'wx-earth', 亥: 'wx-water',
 }
-
-interface Rec {
-  id: number; name: string; gender: 'male' | 'female'; date: string; analyzed: boolean
-  pillars: { yearGan: string; yearZhi: string; monthGan: string; monthZhi: string; dayGan: string; dayZhi: string; hourGan: string; hourZhi: string }
-  group: string
+function colorOf(ch: string): string {
+  return tianGanColors[ch] || diZhiColors[ch] || ''
 }
 
-const records = ref<Rec[]>([
-  { id: 1, name: '孙哥儿子', gender: 'male', date: '05月08日 17:11', analyzed: true, pillars: { yearGan: '辛', yearZhi: '丑', monthGan: '丙', monthZhi: '申', dayGan: '甲', dayZhi: '午', hourGan: '壬', hourZhi: '申' }, group: '家人' },
-  { id: 2, name: '未知', gender: 'male', date: '04月13日 22:54', analyzed: true, pillars: { yearGan: '癸', yearZhi: '亥', monthGan: '戊', monthZhi: '午', dayGan: '丁', dayZhi: '丑', hourGan: '丁', hourZhi: '未' }, group: '全部' },
-  { id: 3, name: '亚楠闺女', gender: 'female', date: '02月17日 17:07', analyzed: false, pillars: { yearGan: '丙', yearZhi: '午', monthGan: '庚', monthZhi: '寅', dayGan: '辛', dayZhi: '酉', hourGan: '癸', hourZhi: '巳' }, group: '朋友' },
-  { id: 4, name: '王雷', gender: 'male', date: '2025年12月26日', analyzed: true, pillars: { yearGan: '甲', yearZhi: '子', monthGan: '乙', monthZhi: '亥', dayGan: '己', dayZhi: '巳', hourGan: '壬', hourZhi: '申' }, group: '客户' },
-  { id: 5, name: '老段女儿', gender: 'female', date: '2025年07月05日', analyzed: true, pillars: { yearGan: '庚', yearZhi: '子', monthGan: '己', monthZhi: '卯', dayGan: '癸', dayZhi: '酉', hourGan: '乙', hourZhi: '卯' }, group: '朋友' },
-  { id: 6, name: '徐哥侄女', gender: 'female', date: '2024年12月05日', analyzed: true, pillars: { yearGan: '戊', yearZhi: '寅', monthGan: '己', monthZhi: '未', dayGan: '庚', dayZhi: '辰', hourGan: '癸', hourZhi: '未' }, group: '家人' },
-])
+const records = ref<BaziHistoryItem[]>([])
+const groupNames = ref<string[]>(baziGroups.load())
+function reload() {
+  groupNames.value = baziGroups.load()
+  records.value = loadBaziHistory()
+}
+onShow(reload)
 
-const groups = ['全部', '家人', '朋友', '客户']
-type SelectMode = 'none' | 'delete' | 'pin' | 'group'
+function pillarChars(r: BaziHistoryItem): string[] {
+  const p = r.pillars
+  if (!p) return []
+  return [p.yearGan, p.yearZhi, p.monthGan, p.monthZhi, p.dayGan, p.dayZhi, p.hourGan, p.hourZhi]
+}
 
-const searchQuery = ref('')
-const activeGroup = ref('全部')
-const showMenu = ref(false)
-const selectMode = ref<SelectMode>('none')
-const selectedIds = ref<number[]>([])
-const showGroupPicker = ref(false)
-
-const filteredRecords = computed(() =>
-  records.value.filter((r) => {
-    const matchesSearch = r.name.includes(searchQuery.value)
-    const matchesGroup = activeGroup.value === '全部' || r.group === activeGroup.value
-    return matchesSearch && matchesGroup
-  }),
+const vms = computed<HistoryVM[]>(() =>
+  records.value.map((r) => ({
+    id: r.id,
+    pinned: r.pinned,
+    group: r.group,
+    keywords: [r.name, r.gender, `${r.year}`, `${r.month}`, `${r.day}`, r.city ?? '', ...pillarChars(r)].join(' '),
+    raw: r,
+  })),
 )
 
-const allSelected = computed(
-  () => selectedIds.value.length === filteredRecords.value.length && filteredRecords.value.length > 0,
-)
-
-function toggleSelect(id: number) {
-  selectedIds.value = selectedIds.value.includes(id)
-    ? selectedIds.value.filter((i) => i !== id)
-    : [...selectedIds.value, id]
+function open(vm: HistoryVM) {
+  const r = vm.raw as BaziHistoryItem
+  const q = [
+    `name=${encodeURIComponent(r.name)}`, `gender=${encodeURIComponent(r.gender)}`,
+    `year=${r.year}`, `month=${r.month}`, `day=${r.day}`, `hour=${r.hour}`, `minute=${r.minute}`,
+  ].join('&')
+  navigateTo(`/paipan/bazi/result?${q}`)
 }
-function selectAll() {
-  selectedIds.value = allSelected.value ? [] : filteredRecords.value.map((r) => r.id)
-}
-function enterMode(m: SelectMode) {
-  selectMode.value = m
-  showMenu.value = false
-}
-function exitMode() {
-  selectMode.value = 'none'
-  selectedIds.value = []
-}
-function handleChangeGroup(newGroup: string) {
-  records.value = records.value.map((r) =>
-    selectedIds.value.includes(r.id) ? { ...r, group: newGroup } : r,
-  )
-  showGroupPicker.value = false
-  exitMode()
-}
-const ganList = (p: Rec['pillars']) => [
-  { c: p.yearGan }, { c: p.monthGan }, { c: p.dayGan }, { c: p.hourGan },
-]
-const zhiList = (p: Rec['pillars']) => [
-  { c: p.yearZhi }, { c: p.monthZhi }, { c: p.dayZhi }, { c: p.hourZhi },
-]
+function onPin(ids: string[]) { pinBaziHistory(ids); reload() }
+function onDelete(ids: string[]) { removeBaziHistory(ids); reload() }
+function onGroup(p: { ids: string[]; group: string }) { groupBaziHistory(p.ids, p.group); reload() }
 </script>
 
 <template>
-  <view class="page">
-    <!-- 顶部导航 -->
-    <view class="hdr">
-      <view class="hdr-bar">
-        <view class="hdr-back" @tap="navigateBack()"><app-icon name="chevron-left" :size="40" color="#666666" /></view>
-        <view class="seg">
-          <view class="seg-item seg-on"><text class="seg-text seg-text-on">用户列表</text></view>
-          <view class="seg-item" @tap="navigateTo('/paipan/bazi/history/celebrities')">
-            <text class="seg-text">案例库</text>
-            <text class="vip-badge">VIP</text>
+  <HistoryPage
+    title="排盘记录"
+    back-href="/paipan/bazi"
+    :records="vms"
+    :groups="groupNames"
+    search-placeholder="搜索姓名 / 四柱 / 出生年月"
+    empty-text="暂无排盘记录，排盘后自动保存"
+    @pin="onPin"
+    @delete="onDelete"
+    @group="onGroup"
+    @open="open"
+  >
+    <template #card="{ rec }">
+      <view class="row">
+        <view :class="['avatar', rec.gender === '女' ? 'av-f' : 'av-m']">{{ rec.gender }}</view>
+        <view class="main">
+          <view class="line1">
+            <text class="name">{{ rec.name }}</text>
+            <text v-if="rec.group && rec.group !== '全部'" class="tag">{{ rec.group }}</text>
+            <text class="time">{{ formatRecordTime(rec.ts) }}</text>
           </view>
-        </view>
-        <view class="hdr-more" @tap="showMenu = !showMenu"><app-icon name="more-vertical" :size="40" color="#666666" /></view>
-      </view>
-
-      <!-- 下拉菜单 -->
-      <template v-if="showMenu">
-        <view class="menu-mask" @tap="showMenu = false" />
-        <view class="menu">
-          <view class="menu-item" @tap="showMenu = false; navigateTo('/paipan/bazi/history/groups')">
-            <app-icon name="users" :size="32" color="#999999" /><text class="menu-text">分组编辑</text>
-          </view>
-          <view class="menu-item" @tap="enterMode('group')">
-            <app-icon name="folder-pen" :size="32" color="#999999" /><text class="menu-text">修改分组</text>
-          </view>
-          <view class="menu-item" @tap="enterMode('pin')">
-            <app-icon name="star" :size="32" color="#999999" /><text class="menu-text">星标置顶</text>
-          </view>
-          <view class="menu-item" @tap="enterMode('delete')">
-            <app-icon name="trash-2" :size="32" color="#999999" /><text class="menu-text">批量删除</text>
-          </view>
-        </view>
-      </template>
-    </view>
-
-    <!-- 搜索栏 -->
-    <view class="search-wrap">
-      <view class="search-box">
-        <app-icon name="search" :size="30" color="#999999" />
-        <input v-model="searchQuery" class="search-input" placeholder="搜索客户名称" placeholder-class="search-ph" />
-      </view>
-    </view>
-
-    <!-- 分组标签 -->
-    <scroll-view scroll-x class="groups-wrap">
-      <view class="groups">
-        <view v-for="g in groups" :key="g" class="group-chip" :class="{ 'group-chip-on': activeGroup === g }" @tap="activeGroup = g">
-          <text class="group-text" :class="{ 'group-text-on': activeGroup === g }">{{ g }}</text>
-        </view>
-      </view>
-    </scroll-view>
-
-    <!-- 记录列表 -->
-    <scroll-view scroll-y class="list">
-      <view v-if="filteredRecords.length === 0" class="empty">
-        <app-icon name="search" :size="96" color="#cccccc" />
-        <text class="empty-text">暂无记录</text>
-      </view>
-      <view v-else>
-        <view v-for="rec in filteredRecords" :key="rec.id" class="row">
-          <!-- 复选框 -->
-          <view v-if="selectMode !== 'none'" class="cbox" :class="{ 'cbox-on': selectedIds.includes(rec.id) }" @tap="toggleSelect(rec.id)">
-            <app-icon v-if="selectedIds.includes(rec.id)" name="check" :size="20" color="#ffffff" />
-          </view>
-          <!-- 性别头像 -->
-          <view class="avatar" :class="rec.gender === 'male' ? 'avatar-m' : 'avatar-f'">
-            <app-icon name="user" :size="36" :color="rec.gender === 'male' ? '#60a5fa' : '#f472b6'" />
-          </view>
-          <!-- 信息 -->
-          <view class="info">
-            <view class="info-top">
-              <text class="info-name">{{ rec.name }}</text>
-              <text v-if="rec.analyzed" class="tag-analyzed">已解析</text>
-            </view>
-            <text class="info-date">{{ rec.date }}</text>
-          </view>
-          <!-- 四柱八字 -->
-          <view class="pillars">
-            <view class="pillar-row">
-              <text v-for="(g, i) in ganList(rec.pillars)" :key="'g' + i" class="gz" :class="tianGanColors[g.c]">{{ g.c }}</text>
-            </view>
-            <view class="pillar-row">
-              <text v-for="(z, i) in zhiList(rec.pillars)" :key="'z' + i" class="gz" :class="diZhiColors[z.c]">{{ z.c }}</text>
-            </view>
+          <text class="birth">
+            {{ rec.year }}年{{ rec.month }}月{{ rec.day }}日
+            {{ String(rec.hour).padStart(2, '0') }}:{{ String(rec.minute).padStart(2, '0') }}
+            <text v-if="rec.city"> · {{ rec.city }}</text>
+          </text>
+          <view v-if="rec.pillars" class="pillars">
+            <text v-for="(ch, i) in pillarChars(rec)" :key="i" :class="['gz', colorOf(ch)]">{{ ch }}</text>
           </view>
         </view>
       </view>
-    </scroll-view>
-
-    <!-- 批量操作栏 · 删除 -->
-    <view v-if="selectMode === 'delete'" class="opbar">
-      <view class="op-all" @tap="selectAll">
-        <view class="cbox" :class="{ 'cbox-on': allSelected }"><app-icon v-if="allSelected" name="check" :size="20" color="#ffffff" /></view>
-        <text class="op-all-text">全选</text>
-      </view>
-      <view class="op-btns">
-        <view class="op-cancel" @tap="exitMode"><text class="op-cancel-text">取消</text></view>
-        <view class="op-act op-del" :class="{ 'op-disabled': selectedIds.length === 0 }"><text class="op-act-text">删除</text></view>
-      </view>
-    </view>
-
-    <!-- 批量操作栏 · 置顶 -->
-    <view v-if="selectMode === 'pin'" class="opbar">
-      <view class="op-btns op-btns-full">
-        <view class="op-cancel op-flex" @tap="exitMode"><text class="op-cancel-text">取消</text></view>
-        <view class="op-act op-pin op-flex" :class="{ 'op-disabled': selectedIds.length === 0 }"><text class="op-act-text">置顶</text></view>
-      </view>
-    </view>
-
-    <!-- 批量操作栏 · 修改分组 -->
-    <view v-if="selectMode === 'group'" class="opbar">
-      <view class="op-all" @tap="selectAll">
-        <view class="cbox" :class="{ 'cbox-on': allSelected }"><app-icon v-if="allSelected" name="check" :size="20" color="#ffffff" /></view>
-        <text class="op-all-text">全选</text>
-      </view>
-      <view class="op-btns">
-        <view class="op-cancel" @tap="exitMode"><text class="op-cancel-text">取消</text></view>
-        <view class="op-act op-group" :class="{ 'op-disabled': selectedIds.length === 0 }" @tap="selectedIds.length && (showGroupPicker = true)"><text class="op-act-text">移动到分组</text></view>
-      </view>
-    </view>
-
-    <!-- 分组选择弹窗 -->
-    <view v-if="showGroupPicker" class="mask" @tap="showGroupPicker = false">
-      <view class="sheet" @tap.stop>
-        <view class="sheet-head"><text class="sheet-title">选择分组</text></view>
-        <scroll-view scroll-y class="sheet-list">
-          <view v-for="g in groups.filter((x) => x !== '全部')" :key="g" class="sheet-item" @tap="handleChangeGroup(g)">
-            <text class="sheet-item-text">{{ g }}</text>
-          </view>
-        </scroll-view>
-        <view class="sheet-foot">
-          <view class="sheet-cancel" @tap="showGroupPicker = false"><text class="sheet-cancel-text">取消</text></view>
-        </view>
-      </view>
-    </view>
-  </view>
+    </template>
+  </HistoryPage>
 </template>
 
 <style scoped lang="scss">
-.page { min-height: 100vh; background: var(--bg-paper); display: flex; flex-direction: column; }
-/* 顶栏 */
-.hdr { position: sticky; top: 0; z-index: 20; background: var(--card); border-bottom: 2rpx solid var(--border); padding-top: var(--status-bar-height, 0); }
-.hdr-bar { display: flex; align-items: center; justify-content: space-between; padding: 16rpx 24rpx; position: relative; }
-.hdr-back, .hdr-more { padding: 6rpx; }
-.seg { display: flex; background: var(--secondary); border-radius: 999rpx; padding: 4rpx; }
-.seg-item { padding: 10rpx 32rpx; border-radius: 999rpx; position: relative; }
-.seg-on { background: var(--card); box-shadow: 0 2rpx 8rpx rgba(0,0,0,0.08); }
-.seg-text { font-size: 26rpx; font-weight: 500; color: var(--text-soft); }
-.seg-text-on { color: var(--text-ink); }
-.vip-badge { position: absolute; top: -8rpx; right: -8rpx; font-size: 16rpx; font-weight: 500; color: var(--gold); background: rgba(201,169,110,0.18); border-radius: 6rpx; padding: 0 6rpx; line-height: 1.6; }
-/* 下拉菜单 */
-.menu-mask { position: fixed; inset: 0; z-index: 10; }
-.menu { position: absolute; right: 24rpx; top: 88rpx; background: var(--card); border-radius: 20rpx; box-shadow: 0 12rpx 32rpx rgba(0,0,0,0.18); z-index: 20; padding: 12rpx 0; min-width: 260rpx; }
-.menu-item { display: flex; align-items: center; gap: 20rpx; padding: 20rpx 28rpx; }
-.menu-text { font-size: 26rpx; color: var(--text-ink); }
-/* 搜索栏 */
-.search-wrap { background: var(--card); padding: 20rpx 24rpx; border-bottom: 2rpx solid var(--border); }
-.search-box { display: flex; align-items: center; gap: 12rpx; padding: 16rpx 24rpx; background: var(--secondary); border-radius: 20rpx; }
-.search-input { flex: 1; font-size: 26rpx; color: var(--text-ink); }
-.search-ph { color: rgba(153,153,153,0.6); }
-/* 分组标签 */
-.groups-wrap { background: var(--card); border-bottom: 2rpx solid var(--border); white-space: nowrap; }
-.groups { display: flex; gap: 16rpx; padding: 16rpx 24rpx; }
-.group-chip { padding: 10rpx 28rpx; border-radius: 999rpx; background: var(--secondary); flex-shrink: 0; }
-.group-chip-on { background: var(--brand); }
-.group-text { font-size: 26rpx; font-weight: 500; color: var(--text-soft); }
-.group-text-on { color: #fff; }
-/* 列表 */
-.list { flex: 1; background: var(--card); }
-.empty { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 120rpx 0; gap: 20rpx; }
-.empty-text { font-size: 28rpx; color: var(--text-soft); }
-.row { display: flex; align-items: center; gap: 20rpx; padding: 24rpx; border-bottom: 2rpx solid var(--border); }
-.cbox { width: 36rpx; height: 36rpx; border-radius: 999rpx; border: 3rpx solid var(--border); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.cbox-on { background: var(--brand); border-color: var(--brand); }
-.avatar { width: 72rpx; height: 72rpx; border-radius: 999rpx; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.avatar-m { background: #eff6ff; }
-.avatar-f { background: #fdf2f8; }
-.info { flex: 1; min-width: 0; }
-.info-top { display: flex; align-items: center; gap: 12rpx; }
-.info-name { font-size: 28rpx; font-weight: 500; color: var(--text-ink); }
-.tag-analyzed { font-size: 20rpx; color: var(--gold); background: rgba(201,169,110,0.18); border-radius: 6rpx; padding: 2rpx 10rpx; }
-.info-date { font-size: 22rpx; color: var(--text-soft); margin-top: 4rpx; }
-.pillars { display: flex; flex-direction: column; gap: 4rpx; align-items: flex-end; }
-.pillar-row { display: flex; gap: 4rpx; }
-.gz { font-size: 28rpx; font-weight: 500; }
-/* 批量操作栏 */
-.opbar { position: sticky; bottom: 0; background: var(--card); border-top: 2rpx solid var(--border); padding: 20rpx 24rpx; display: flex; align-items: center; gap: 20rpx; }
-.op-all { display: flex; align-items: center; gap: 12rpx; }
-.op-all-text { font-size: 26rpx; color: var(--text-ink); }
-.op-btns { flex: 1; display: flex; gap: 16rpx; justify-content: flex-end; }
-.op-btns-full { justify-content: stretch; }
-.op-flex { flex: 1; }
-.op-cancel { padding: 18rpx 44rpx; background: var(--secondary); border-radius: 999rpx; text-align: center; }
-.op-cancel-text { font-size: 26rpx; font-weight: 500; color: var(--text-soft); }
-.op-act { padding: 18rpx 44rpx; border-radius: 999rpx; text-align: center; }
-.op-act-text { font-size: 26rpx; font-weight: 500; color: #fff; }
-.op-del { background: #f87171; }
-.op-pin { background: #6b7280; }
-.op-group { background: var(--brand); }
-.op-disabled { opacity: 0.4; }
-/* 分组选择弹窗 */
-.mask { position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 50; display: flex; align-items: flex-end; }
-.sheet { background: var(--card); width: 100%; border-radius: 32rpx 32rpx 0 0; overflow: hidden; }
-.sheet-head { padding: 32rpx 24rpx; border-bottom: 2rpx solid var(--border); text-align: center; }
-.sheet-title { font-size: 30rpx; font-weight: 600; color: var(--text-ink); }
-.sheet-list { max-height: 50vh; }
-.sheet-item { padding: 32rpx 24rpx; border-bottom: 2rpx solid var(--border); }
-.sheet-item-text { font-size: 28rpx; color: var(--text-ink); }
-.sheet-foot { padding: 24rpx; border-top: 2rpx solid var(--border); }
-.sheet-cancel { width: 100%; padding: 24rpx 0; background: var(--secondary); border-radius: 999rpx; text-align: center; }
-.sheet-cancel-text { font-size: 28rpx; font-weight: 500; color: var(--text-soft); }
+.row {
+  display: flex;
+  gap: 20rpx;
+}
+.avatar {
+  width: 64rpx;
+  height: 64rpx;
+  flex-shrink: 0;
+  border-radius: 50%;
+  text-align: center;
+  line-height: 64rpx;
+  font-size: 24rpx;
+  color: #fff;
+}
+.av-m { background: #33628c; }
+.av-f { background: #b5432a; }
+.main {
+  flex: 1;
+  min-width: 0;
+}
+.line1 {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+.name {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #3d2f22;
+}
+.tag {
+  padding: 2rpx 10rpx;
+  border-radius: 6rpx;
+  background: #f0ebe3;
+  font-size: 20rpx;
+  color: #8a7a68;
+}
+.time {
+  margin-left: auto;
+  font-size: 20rpx;
+  color: #a89b8a;
+}
+.birth {
+  display: block;
+  margin-top: 6rpx;
+  font-size: 22rpx;
+  color: #8a7a68;
+}
+.pillars {
+  display: flex;
+  gap: 8rpx;
+  margin-top: 10rpx;
+}
+.gz {
+  width: 40rpx;
+  height: 40rpx;
+  border-radius: 6rpx;
+  text-align: center;
+  line-height: 40rpx;
+  font-size: 24rpx;
+  background: #f5f1ea;
+  color: #3d2f22;
+}
+.wx-wood { background: rgba(63, 125, 58, 0.12); color: #3f7d3a; }
+.wx-fire { background: rgba(181, 67, 42, 0.12); color: #b5432a; }
+.wx-earth { background: rgba(138, 109, 59, 0.12); color: #8a6d3b; }
+.wx-metal { background: rgba(168, 116, 44, 0.12); color: #a8742c; }
+.wx-water { background: rgba(51, 98, 140, 0.12); color: #33628c; }
 </style>

@@ -9,6 +9,7 @@ import { navigateTo } from '@/utils/router'
 import { getToken } from '@/utils/storage'
 import { qimenApi, type QimenResult, type QimenInput } from '@/lib/qimen-data'
 import { computeQimenLocal } from '@/pkg-paipan/lib/qimen-adapter'
+import { saveQimenHistory } from './qimen-history'
 import { BRAND } from '@/lib/brand'
 
 // ─── 奇门常量 ───
@@ -71,11 +72,28 @@ function load() {
   errMsg.value = ''
   try {
     result.value = computeQimenLocal(buildInput())
+    saveRecord(result.value)
   } catch (e) {
     errMsg.value = (e as Error)?.message || '排盘失败，请检查起局参数'
   } finally {
     loading.value = false
   }
+}
+
+/**
+ * 起局成功后落本地记录（无需登录）——记录页读的就是它。
+ * 与下方 onSave（登录后存后端、供 AI 解盘/从业者调阅）是两码事，不要合并。
+ */
+function saveRecord(r: QimenResult | null) {
+  if (!r) return
+  saveQimenHistory({
+    ...buildInput(),
+    matter: q.matter || '',
+    juLabel: `${r.dunType === 'yang' ? '阳遁' : '阴遁'}${r.juNumber}局`,
+    zhiFu: r.zhiFu,
+    zhiShiMen: r.zhiShiMen,
+    jieQi: r.jieQi,
+  })
 }
 
 /** 保存排盘记录（需登录，防重复提交） */

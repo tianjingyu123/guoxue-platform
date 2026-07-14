@@ -57,8 +57,9 @@ const ROUTE_MAP: Record<string, string> = {
   '/pkg-circle/common/share-poster': '/pkg-circle/common/share-poster/index',
   '/common/share-poster': '/pkg-circle/common/share-poster/index',
   '/paipan/bazi/result': '/pkg-paipan/bazi/result',
-  // 八字历史记录簇（案例库 celebrities / 分组编辑 groups 须先于通配匹配）
-  '/paipan/bazi/history/celebrities': '/pkg-paipan/bazi/history/celebrities',
+  // 八字历史记录簇（分组编辑 groups 须先于通配匹配）
+  // 名人案例库已下线（2026-07-14）：原页的名人八字是编的——实证「康熙 1654-05-04」月柱应为戊辰，
+  // 原页写丙寅；且把在世人物（马云）的虚构八字当案例展示，权威平台不能发。要重上须有可考生辰的策展数据。
   '/paipan/bazi/history/groups': '/pkg-paipan/bazi/history/groups',
   '/paipan/bazi/history': '/pkg-paipan/bazi/history/index',
   // 奇门遁甲簇（入口/结果/历史/分组）

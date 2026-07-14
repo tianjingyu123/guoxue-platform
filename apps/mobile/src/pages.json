@@ -105,12 +105,6 @@
           }
         },
         {
-          "path": "bazi/history/celebrities",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
           "path": "bazi/history/groups",
           "style": {
             "navigationStyle": "custom"

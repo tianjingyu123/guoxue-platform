@@ -12,6 +12,7 @@ import ToolHeader from '@/components/paipan/tool-header.vue'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
+import { loadLijichiHistory, clearLijichiHistory, type LijichiHistoryItem } from './lijichi-history'
 import { MOUNTAINS } from '@/pkg-paipan/lib/xuankong-data'
 
 // R4 合规：小程序端无占卜类目，标题改文化研究表述（仅展示文案）
@@ -20,19 +21,6 @@ let hdrTitle = '热卜立极尺'
 hdrTitle = '立极文化研究'
 // #endif
 
-const HISTORY_KEY = 'rebu:lijichi-history'
-
-interface LjRecord {
-  id: number
-  client: string
-  dateText: string
-  shanxiang: string
-  sitting: number
-  heading?: number
-  plate?: string
-  note?: string
-  createdAt: number
-}
 
 const customer = ref('')
 const sittingIdx = ref<number | null>(null)
@@ -62,15 +50,10 @@ function handleCreate() {
 
 // ── 本地历史记录（盘面页「保存」写入，此处只读展示） ──
 const showHistory = ref(false)
-const records = ref<LjRecord[]>([])
+const records = ref<LijichiHistoryItem[]>([])
 
 function loadRecords() {
-  try {
-    const raw = uni.getStorageSync(HISTORY_KEY)
-    records.value = raw ? (JSON.parse(raw) as LjRecord[]) : []
-  } catch {
-    records.value = []
-  }
+  records.value = loadLijichiHistory()
 }
 onShow(loadRecords)
 
@@ -79,10 +62,10 @@ function openHistory() {
   showHistory.value = true
 }
 function clearHistory() {
-  uni.setStorageSync(HISTORY_KEY, '[]')
+  clearLijichiHistory()
   records.value = []
 }
-function openRecord(r: LjRecord) {
+function openRecord(r: LijichiHistoryItem) {
   showHistory.value = false
   const params: Record<string, unknown> = {
     customer: r.client === '未命名' ? '' : r.client,
