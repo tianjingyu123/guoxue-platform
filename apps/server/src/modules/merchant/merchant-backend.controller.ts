@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, Req, UseGuards } from "@nestjs/common";
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, Req, UseGuards, ForbiddenException } from "@nestjs/common";
 import { Request } from "express";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from "@nestjs/swagger";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
@@ -10,6 +10,7 @@ import {
   UpdateMerchantProfileDto, ProductQueryDto, MerchantOrderQueryDto,
   ShipOrderDto, RejectRefundDto, ReviewQueryDto, ReplyReviewDto,
   PaginationDto, AppealViolationDto, MerchantProductDto, MerchantSkuDto, ProcessAfterSaleDto,
+  AddMerchantMemberDto,
 } from "./merchant.dto";
 
 type AuthRequest = Omit<Request, "user"> & { user: { id: string; [key: string]: unknown } };
@@ -312,5 +313,50 @@ export class MerchantBackendController {
   @ApiResponse({ status: 200, description: "成功" })
   getContentStats(@Req() req: AuthRequest) {
     return this.merchantService.getContentStats(this.getMerchant(req).id);
+  }
+
+  // ── 操作员管理（B8）──
+  // 🔴 2026-07-14 补齐：前端 B8「操作员管理」页早就做好并在调 /merchant-backend/members，
+  //    但后端只有 admin 侧的 /admin/merchants/:id/members（平台管理员专用）——
+  //    商家自己点进操作员管理必定 404。这是"前端做了、后端没做"的反向缺口。
+  //    店铺 id 由 MerchantGuard 注入，商家只能管自己的店（不接受 :id 入参，杜绝越权）。
+
+  /** 仅店主可增删操作员：操作员自己不能再拉人/踢人 */
+  private assertOwner(req: AuthRequest) {
+    if ((req as unknown as { merchantRole?: string }).merchantRole !== "OWNER") {
+      throw new ForbiddenException("仅店主可管理操作员");
+    }
+  }
+
+  @Get("members")
+  @ApiOperation({ summary: "本店成员列表（店主 + 操作员·手机号脱敏）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  listMembers(@Req() req: AuthRequest) {
+    return this.merchantService.listMembers(this.getMerchant(req).id);
+  }
+
+  @Post("members")
+  @Auditable({ action: "商家操作员添加", targetType: "MERCHANT" })
+  @ApiOperation({ summary: "添加操作员（按手机号·须已注册平台）" })
+  @ApiResponse({ status: 201, description: "添加成功" })
+  @ApiResponse({ status: 400, description: "手机号未注册/该用户是店主" })
+  @ApiResponse({ status: 403, description: "仅店主可管理操作员" })
+  addMember(@Req() req: AuthRequest, @Body() dto: AddMerchantMemberDto) {
+    this.assertOwner(req);
+    return this.merchantService.addMemberByPhone(
+      this.getMerchant(req).id,
+      dto.phone,
+      (req as unknown as { actingUserId: string }).actingUserId,
+    );
+  }
+
+  @Delete("members/:userId")
+  @Auditable({ action: "商家操作员移除", targetType: "MERCHANT" })
+  @ApiOperation({ summary: "移除操作员（软删·不可移除店主）" })
+  @ApiResponse({ status: 200, description: "移除成功" })
+  @ApiResponse({ status: 403, description: "仅店主可管理操作员" })
+  removeMember(@Req() req: AuthRequest, @Param("userId") userId: string) {
+    this.assertOwner(req);
+    return this.merchantService.removeMember(this.getMerchant(req).id, userId);
   }
 }

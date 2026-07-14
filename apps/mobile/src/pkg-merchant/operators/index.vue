@@ -62,16 +62,11 @@
                 <view v-if="m.role === 'OWNER'" class="owner-tag"><text class="owner-tag-t">店主</text></view>
               </view>
               <text class="mrole">{{ roleLine(m) }}</text>
+              <!-- 后端只有 OWNER/OPERATOR 两档，没有细分权限位 → 如实展示，不再列假权限标签 -->
               <view class="mperm">
-                <view v-if="m.role === 'OWNER'" class="perm-chip"><text class="perm-chip-t">全部权限</text></view>
-                <template v-else>
-                  <view v-for="p in m.permissions" :key="p" class="perm-chip">
-                    <text class="perm-chip-t">{{ permLabel(p) }}</text>
-                  </view>
-                  <view v-if="!m.permissions || m.permissions.length === 0" class="perm-chip">
-                    <text class="perm-chip-t">无权限</text>
-                  </view>
-                </template>
+                <view class="perm-chip">
+                  <text class="perm-chip-t">{{ m.role === 'OWNER' ? '全部权限' : '店铺经营权限' }}</text>
+                </view>
               </view>
             </view>
             <view v-if="m.role !== 'OWNER'" class="mdel" @tap="onRemove(m)">
@@ -101,27 +96,22 @@
         <text class="sheet-t">添加操作员</text>
 
         <view class="field">
-          <text class="field-label">对方平台账号（手机号 / 用户ID）</text>
+          <text class="field-label">对方手机号（须已注册本平台）</text>
           <input
             v-model="account"
             class="inp"
-            type="text"
+            type="number"
+            :maxlength="11"
             placeholder="请输入已注册平台用户的手机号"
             placeholder-class="inp-ph"
           />
         </view>
 
+        <!-- 权限说明：后端 MerchantMember 只有 OWNER/OPERATOR，没有细分权限位。
+             原来这里有一组权限勾选框 —— 勾了也不落库，是个假动作，已移除。 -->
         <view class="field">
-          <text class="field-label">授予权限</text>
-          <view class="perms">
-            <view v-for="p in permConfig" :key="p.key" class="perm-item" @tap="togglePerm(p.key)">
-              <view class="cbox" :class="{ on: checked[p.key] }">
-                <AppIcon v-if="checked[p.key]" name="check" :size="12" color="#ffffff" />
-              </view>
-              <text class="perm-item-label">{{ p.label }}</text>
-              <text v-if="p.sub" class="perm-item-sub">（{{ p.sub }}）</text>
-            </view>
-          </view>
+          <text class="field-label">操作员权限</text>
+          <text class="perm-note">操作员可以店铺身份管理商品、订单、评价与消息；不能管理操作员，也不能操作结算与提现。</text>
         </view>
 
         <view class="sheet-cta" :class="{ disabled: submitting }" @tap="onConfirmAdd">
@@ -163,16 +153,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
 import {
   merchantBackendApi,
-  memberPermConfig,
-  memberPermLabel,
   type MerchantMember,
-  type MerchantMemberPerm,
   type MerchantMemberAudit,
 } from '@/lib/merchant-data'
 
@@ -184,19 +171,10 @@ const loading = ref(true)
 const error = ref('')
 const members = ref<MerchantMember[]>([])
 
-const permConfig = memberPermConfig
-
-// —— 添加弹层态 ——
+// —— 添加弹层态（权限勾选已移除：后端只有 OWNER/OPERATOR 两档，勾了不落库＝假动作）——
 const showAdd = ref(false)
 const account = ref('')
 const submitting = ref(false)
-const checked = reactive<Record<MerchantMemberPerm, boolean>>({
-  PRODUCT: true,
-  ORDER: true,
-  REVIEW: false,
-  MESSAGE: false,
-  SETTLEMENT: false,
-})
 
 // —— 审计弹层态 ——
 const showAudit = ref(false)
@@ -206,9 +184,6 @@ const audits = ref<MerchantMemberAudit[]>([])
 
 function firstChar(t?: string): string {
   return (t || '·').trim().charAt(0)
-}
-function permLabel(k: MerchantMemberPerm): string {
-  return memberPermLabel(k)
 }
 function fmt(t?: string | null): string {
   if (!t) return ''
@@ -238,35 +213,23 @@ async function load() {
 // —— 添加 ——
 function openAdd() {
   account.value = ''
-  checked.PRODUCT = true
-  checked.ORDER = true
-  checked.REVIEW = false
-  checked.MESSAGE = false
-  checked.SETTLEMENT = false
   showAdd.value = true
 }
 function closeAdd() {
   if (submitting.value) return
   showAdd.value = false
 }
-function togglePerm(k: MerchantMemberPerm) {
-  checked[k] = !checked[k]
-}
 async function onConfirmAdd() {
   if (submitting.value) return
   const acc = account.value.trim()
-  if (!acc) {
-    uni.showToast({ title: '请输入对方平台账号', icon: 'none' })
-    return
-  }
-  const perms = (Object.keys(checked) as MerchantMemberPerm[]).filter((k) => checked[k])
-  if (perms.length === 0) {
-    uni.showToast({ title: '请至少授予一项权限', icon: 'none' })
+  if (!/^1[3-9]\d{9}$/.test(acc)) {
+    uni.showToast({ title: '请输入正确的手机号', icon: 'none' })
     return
   }
   submitting.value = true
   try {
-    await merchantBackendApi.addMember(acc, perms)
+    // 后端按手机号找已注册用户；未注册会明确报「该手机号未注册平台，请对方先登录一次」
+    await merchantBackendApi.addMember(acc)
     uni.showToast({ title: '已添加操作员', icon: 'success' })
     showAdd.value = false
     await load()
@@ -287,7 +250,7 @@ function onRemove(m: MerchantMember) {
     success: async (r) => {
       if (!r.confirm) return
       try {
-        await merchantBackendApi.removeMember(m.id)
+        await merchantBackendApi.removeMember(m.userId)
         uni.showToast({ title: '已移除', icon: 'success' })
         await load()
       } catch (e) {
@@ -628,6 +591,12 @@ onLoad(() => {
   font-size: 24rpx;
   color: #6e6e73;
   margin-bottom: 12rpx;
+}
+.perm-note {
+  display: block;
+  font-size: 24rpx;
+  color: #8a8a8f;
+  line-height: 1.7;
 }
 .inp {
   background: #ffffff;

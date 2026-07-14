@@ -210,7 +210,8 @@ export interface MerchantNotice {
 export type MerchantMemberPerm = 'PRODUCT' | 'ORDER' | 'REVIEW' | 'MESSAGE' | 'SETTLEMENT'
 
 export interface MerchantMember {
-  id: string
+  /** 后端 listMembers 返回行没有独立 id，唯一键就是 userId（移除也按 userId） */
+  id?: string
   userId: string
   nickname: string
   avatar?: string | null
@@ -218,8 +219,11 @@ export interface MerchantMember {
   phone?: string | null
   /** 角色：OWNER=店主（全部权限·不可移除）/ OPERATOR=操作员 */
   role: 'OWNER' | 'OPERATOR'
-  /** 授予的权限集（OWNER 可能为空数组，前端按 role 判「全部权限」） */
-  permissions: MerchantMemberPerm[]
+  /**
+   * ⚠️ 后端 MerchantMember 表没有 permissions 字段（只有 role: OWNER/OPERATOR）——
+   * 操作员就是"店铺经营权限"整包。此字段恒为空，UI 不再做权限勾选（勾了也不落库＝假动作）。
+   */
+  permissions?: MerchantMemberPerm[]
   /** 最近操作摘要（后端 enrich·可空） */
   lastAction?: string | null
   lastActiveAt?: string | null
@@ -335,14 +339,17 @@ export const merchantBackendApi = {
     apiGetPaged<Record<string, unknown>>(`/merchant-backend/inquiries?page=${params?.page ?? 1}&pageSize=${params?.pageSize ?? 20}`),
   getContentStats: () => apiGet<MerchantContentStats>('/merchant-backend/content-stats'),
 
-  // 操作员（B8·MerchantMember·仅旗舰店/大商家可用）
-  /** 店铺成员列表（含店主 OWNER + 操作员 OPERATOR·后端按当前店铺归属返回） */
+  // 操作员（B8·MerchantMember）
+  // 🔴 2026-07-14：这三个端点后端此前**根本不存在**（只有 admin 侧 /admin/merchants/:id/members），
+  //    商家点进操作员管理必 404。本次已在 merchant-backend.controller 补齐，契约按后端对齐：
+  //    店铺 id 由 MerchantGuard 从登录态推出（不传 id，杜绝越权）；添加按手机号；移除按 userId。
+  /** 店铺成员列表（店主 OWNER + 操作员 OPERATOR·手机号后端已脱敏） */
   getMembers: () => apiGet<MerchantMember[]>('/merchant-backend/members'),
-  /** 添加操作员：绑定已注册平台用户（account=手机号/用户ID）并授予权限 */
-  addMember: (account: string, permissions: MerchantMemberPerm[]) =>
-    apiPost<MerchantMember>('/merchant-backend/members', { account, permissions }),
-  /** 移除操作员（DELETE members/:memberId·归属仍记店主·仅解除鉴权） */
-  removeMember: (memberId: string) => apiDelete(`/merchant-backend/members/${memberId}`),
+  /** 添加操作员（按手机号·对方须已注册平台；仅店主可操作，否则 403） */
+  addMember: (phone: string) =>
+    apiPost<{ success: boolean; userId: string; nickname: string }>('/merchant-backend/members', { phone }),
+  /** 移除操作员（软删·不可移除店主；归属仍记店主·仅解除鉴权） */
+  removeMember: (userId: string) => apiDelete(`/merchant-backend/members/${userId}`),
   /** 操作审计（后端未实现时可能 404 → 页面诚实占位「审计明细开发中」） */
   getMemberAudit: (params?: { page?: number; pageSize?: number }) =>
     apiGetPaged<MerchantMemberAudit>(
