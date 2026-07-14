@@ -18,7 +18,7 @@
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
-import { goBack, navigateTo, toastComingSoon } from '@/utils/router'
+import { goBack, navigateTo } from '@/utils/router'
 import {
   userProfileApi,
   formatCount,
@@ -29,6 +29,8 @@ import {
 } from '@/lib/user-profile-data'
 import { imApi, type ImRelation } from '@/lib/im-data'
 import { consultApi, type UserConsultService } from '@/lib/circle-consult-data'
+import { gotoReport } from '@/lib/report-data'
+import { mineApi } from '@/lib/mine-data'
 
 /** 真实用户 id（uuid string），来源 query.id */
 const userIdStr = ref('')
@@ -185,6 +187,38 @@ function goChat() {
   navigateTo(`/pkg-im/im/chat/index?id=${userIdStr.value}`)
 }
 
+/**
+ * 举报 / 拉黑
+ * 🔴 原来两项都是 toastComingSoon（「功能开发中」）—— 但后端两条链路一直都在：
+ *    举报 POST /audit/reports（admin 有处理台）、拉黑 POST /users/:id/block（我的黑名单页能看到）。
+ */
+function onReportUser() {
+  showMoreMenu.value = false
+  gotoReport('USER', userIdStr.value, profile.value?.profile?.nickname)
+}
+
+async function onBlockUser() {
+  showMoreMenu.value = false
+  const name = profile.value?.profile?.nickname || '该用户'
+  const res = await new Promise<boolean>((resolve) => {
+    uni.showModal({
+      title: '拉黑用户',
+      content: `拉黑后将不再看到「${name}」的内容，也不会收到其私信。可在「我的-黑名单」中解除。`,
+      confirmText: '拉黑',
+      confirmColor: '#C41E3A',
+      success: (r) => resolve(!!r.confirm),
+      fail: () => resolve(false),
+    })
+  })
+  if (!res) return
+  try {
+    await mineApi.blockUser(userIdStr.value)
+    uni.showToast({ title: '已拉黑', icon: 'success' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '操作失败', icon: 'none' })
+  }
+}
+
 /** 编辑资料（①自己态）：主包已有路由 /pages/profile/edit */
 function goEditProfile() {
   navigateTo('/pages/profile/edit')
@@ -254,7 +288,7 @@ function avatarInitial(name?: string): string {
         />
         <!-- 顶部渐变压暗（V0 .cover::after） -->
         <view class="up-cover-shade" />
-        <!-- 左上圆形半透明返回钮 + 右上分享/更多（举报/拉黑 toastComingSoon 保留） -->
+        <!-- 左上圆形半透明返回钮 + 右上分享/更多（举报→pkg-report 真页；拉黑→POST /users/:id/block） -->
         <view class="up-nav">
           <view class="up-nav-btn" @tap="goBack">
             <app-icon name="arrow-left" :size="32" color="#ffffff" />
@@ -270,10 +304,10 @@ function avatarInitial(name?: string): string {
               <template v-if="showMoreMenu">
                 <view class="up-mask" @tap="showMoreMenu = false" />
                 <view class="up-menu">
-                  <view class="up-menu-item" @tap="() => { showMoreMenu = false; toastComingSoon() }">
+                  <view class="up-menu-item" @tap="onReportUser">
                     <text class="up-menu-txt">举报</text>
                   </view>
-                  <view class="up-menu-item" @tap="() => { showMoreMenu = false; toastComingSoon() }">
+                  <view class="up-menu-item" @tap="onBlockUser">
                     <text class="up-menu-txt up-menu-txt--danger">拉黑</text>
                   </view>
                 </view>

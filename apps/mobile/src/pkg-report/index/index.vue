@@ -149,8 +149,22 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+/**
+ * 举报页 —— 2026-07-14 真连改造
+ *
+ * 改造前：整页是假的 —— 举报对象是写死的「某用户/这里是被举报内容的摘要片段…」，
+ *   提交是 `setTimeout(800)` 后弹成功，**一个请求都不发**；而且全项目没有任何页面能跳进来。
+ *   后端举报端点（提交/列表/处理/统计）和 admin 举报处理台**早就做完了**，
+ *   结果运营的举报池永远是空的 —— 用户举报不了，平台也看不见违规内容（合规风险）。
+ *
+ * 现在：从调用方接 targetType/targetId（+ 可选摘要），真提交 POST /audit/reports。
+ * 后端 reason 是单个字符串字段、不收图片 —— 所以证据图先传 COS，链接附在 reason 末尾，
+ * 保证运营在后台点得开（不做"传了但丢掉"的假动作）。
+ */
+import { ref, computed, onMounted } from 'vue'
 import { navigateBack, navigateTo } from '@/utils/router'
+import { reportApi, REPORT_TARGET_LABEL, type ReportTargetType } from '@/lib/report-data'
+import { uploadImage } from '@/utils/request'
 
 const statusBarHeight = ref(0)
 try {
@@ -180,29 +194,36 @@ interface ReportTarget {
   name?: string
   description?: string
 }
-// 被举报对象（mock，按 type 区分）
-const targets: Record<string, ReportTarget> = {
-  post: {
-    type: 'post',
-    content: '这里是被举报内容的摘要片段，可能包含违规信息...',
-    author: '某用户',
-    time: '2小时前',
-  },
-  user: {
-    type: 'user',
-    name: '某用户',
-    description: '这是一个可能存在问题的用户账号',
-  },
-  comment: {
-    type: 'comment',
-    content: '这是一条可能违规的评论内容...',
-    author: '评论者',
-    time: '1小时前',
-  },
-}
 
-const targetType = ref('post')
-const target = computed(() => targets[targetType.value] || targets.post)
+/** 举报对象：由调用方通过 url 参数传入（targetType/targetId + 可选摘要），不再是写死的假数据 */
+const targetType = ref<ReportTargetType>('POST')
+const targetId = ref('')
+const targetTitle = ref('')
+const targetAuthor = ref('')
+
+/** 模板里按 type 分支渲染：用户走 user 分支、评论走 comment 分支、其余按内容卡渲染 */
+const target = computed<ReportTarget>(() => {
+  const t = targetType.value
+  const label = REPORT_TARGET_LABEL[t] || '内容'
+  if (t === 'USER') {
+    return { type: 'user', name: targetTitle.value || '该用户', description: `举报该${label}` }
+  }
+  if (t === 'COMMENT') {
+    return { type: 'comment', content: targetTitle.value || `（${label}）`, author: targetAuthor.value || '', time: '' }
+  }
+  return { type: 'post', content: targetTitle.value || `（${label}）`, author: targetAuthor.value || '', time: '' }
+})
+
+onMounted(() => {
+  // uni 的 onLoad 参数在 setup 里通过当前页面栈取，H5/小程序都可用
+  const pages = getCurrentPages()
+  const opts = (pages[pages.length - 1] as unknown as { options?: Record<string, string> })?.options || {}
+  const t = String(opts.targetType || '').toUpperCase()
+  if (t) targetType.value = t as ReportTargetType
+  targetId.value = String(opts.targetId || '')
+  targetTitle.value = decodeURIComponent(String(opts.title || ''))
+  targetAuthor.value = decodeURIComponent(String(opts.author || ''))
+})
 
 const selectedType = ref<string | null>(null)
 const reason = ref('')
@@ -228,16 +249,49 @@ function removeImage(index: number) {
   images.value = images.value.filter((_, i) => i !== index)
 }
 
-function handleSubmit() {
+async function handleSubmit() {
   if (!canSubmit.value || isSubmitting.value) {
     if (!selectedType.value) uni.showToast({ title: '请选择举报类型', icon: 'none' })
     return
   }
+  if (!targetId.value) {
+    uni.showToast({ title: '举报对象缺失，请从内容页进入', icon: 'none' })
+    return
+  }
   isSubmitting.value = true
-  setTimeout(() => {
-    isSubmitting.value = false
+  try {
+    // 证据图先传 COS（后端 reason 只有一个文本字段，不收图片数组）
+    let evidence = ''
+    if (images.value.length) {
+      uni.showLoading({ title: '上传凭证…', mask: true })
+      const urls: string[] = []
+      for (const p of images.value) {
+        try {
+          urls.push(await uploadImage(p))
+        } catch {
+          // 单张失败不阻断举报本身
+        }
+      }
+      uni.hideLoading()
+      if (urls.length) evidence = `\n[凭证] ${urls.join(' ')}`
+    }
+
+    const typeLabel = reportTypes.find((r) => r.id === selectedType.value)?.label || selectedType.value
+    const detail = reason.value.trim()
+    const reasonText = `【${typeLabel}】${detail ? detail : ''}${evidence}`.trim()
+
+    await reportApi.submit({
+      targetType: targetType.value,
+      targetId: targetId.value,
+      reason: reasonText,
+    })
     showSuccess.value = true
-  }, 800)
+  } catch (e) {
+    uni.hideLoading()
+    uni.showToast({ title: (e as Error)?.message || '提交失败，请稍后重试', icon: 'none' })
+  } finally {
+    isSubmitting.value = false
+  }
 }
 
 function goHome() {

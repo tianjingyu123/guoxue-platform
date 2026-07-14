@@ -380,6 +380,7 @@ import GiftPanel from '@/components/live/gift-panel.vue'
 import MicConnectSheet from '@/components/live/mic-connect-sheet.vue'
 import LivePlayer from '@/components/live/live-player.vue'
 import { goBack, navigateTo } from '@/utils/router'
+import { gotoReport } from '@/lib/report-data'
 import { getToken } from '@/utils/storage'
 import { useTim, type TimMessage } from '@/composables/useTim'
 import { formatPrice } from '@/utils/format'
@@ -795,10 +796,14 @@ function onShare(_key: string) {
   showShare.value = false
 }
 
+/**
+ * 举报直播间
+ * 🔴 原实现是假 toast「举报已提交，感谢反馈」—— 什么都没提交。
+ *    举报页（pkg-report）其实早就迁移好了，后端端点也一直在。
+ */
 function onReport() {
-  // 举报直播间。举报页尚未迁移，先以 toast 占位。
-  // @data-needs: 举报页路由 /pkg-mine/report/index?type=live&targetId={room.id}（待迁移后改为 navigateTo）
-  uni.showToast({ title: '举报已提交，感谢反馈', icon: 'none' })
+  showShare.value = false
+  gotoReport('LIVE', String(room.value?.id || ''), room.value?.title, room.value?.hostName)
 }
 
 function scrollDanmakuToBottom() {

@@ -13,6 +13,7 @@ import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import TouchpointCard from '@/components/common/touchpoint-card.vue'
 import { goBack, navigateTo } from '@/utils/router'
+import { gotoReport } from '@/lib/report-data'
 import { getToken } from '@/utils/storage'
 import {
   postDetailApi, parseMarkdown,
@@ -172,10 +173,14 @@ function govDeletePost() {
   })
 }
 
-/** 举报（普通成员菜单项·后端无举报端点 → toast 口径与 live 页一致） */
+/**
+ * 举报（普通成员菜单项）
+ * 🔴 原实现是假 toast「举报已提交，感谢反馈」—— 骗用户说提交了，实际一个请求都不发。
+ *    注释里写的「后端无举报端点」是错的：audit 模块的举报端点和 admin 处理台一直都在。
+ */
 function reportPost() {
   showMenu.value = false
-  uni.showToast({ title: '举报已提交，感谢反馈', icon: 'none' })
+  gotoReport('POST', String(postId.value), post.value?.content || post.value?.title, post.value?.author?.name)
 }
 
 // ─── 音频播放器（跨端；后端暂无音频，逻辑保留兼容将来） ───

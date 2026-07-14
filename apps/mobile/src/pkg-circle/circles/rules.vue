@@ -461,7 +461,7 @@ onLoad((query) => {
           <view class="auto-main">
             <text class="auto-title">被举报自动隐藏</text>
             <text class="auto-desc">同一内容被 {{ cfg?.reportAutoHideThreshold ?? 3 }} 人以上举报时先隐藏、转人工复核</text>
-            <text class="auto-scope">生效范围：配置可保存 · 举报链路本期未接入</text>
+            <text class="auto-scope">生效范围：举报入口已开通、举报会进后台处理台；达阈值自动隐藏尚未生效（当前一律人工复核）</text>
           </view>
           <view
             class="switch" :class="{ on: cfg?.reportAutoHideEnabled, locked: !canEdit }"
