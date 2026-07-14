@@ -362,8 +362,8 @@ const ROUTE_MAP: Record<string, string> = {
   // 驿站公告（站长面板"公告"指向；页已迁好仅缺映射）
   '/station/notices': '/pkg-notices/index/index',
   // 命理 AI 解盘 / 历史记录（原型自身即死链——proto 无 paipan/ai 与 paipan/history 页，仅 tools/coming-soon）。指向已迁占位页优雅提示"功能开发中"
-  '/paipan/ai': '/pkg-paipan/tools/coming-soon',
-  '/paipan/history': '/pkg-paipan/tools/coming-soon',
+  '/paipan/ai': '/pkg-paipan/ai/index', // AI 智能解盘（后端能力早已就绪·2026-07-14 接上）
+  '/paipan/history': '/pkg-paipan/history/index', // 全部排盘记录（跨工具聚合·2026-07-14 修死链）
   // offline 线下板块整体暂缓未迁，但已上线页（讲师中心/我的预约）有调用 → 指向通用 coming-soon 占位避免断链。
   // 线下板块 C 端：讲师预约/线下活动/课程签到（接 ?stationId=/teacherId=/courseId= query）
   '/offline/teacher-booking': '/pkg-offline/teacher-booking/index',
