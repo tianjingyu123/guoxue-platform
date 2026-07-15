@@ -10,7 +10,7 @@
     <!-- intro -->
     <scroll-view v-if="step === 'intro'" scroll-y class="scroll">
       <view class="hero">
-        <text class="hero-title">携手儒布，共创未来</text>
+        <text class="hero-title">携手热卜，共创未来</text>
         <text class="hero-desc">加入国学文化传播平台，将您的专业知识变现，影响更多国学爱好者。</text>
       </view>
 

@@ -18,6 +18,7 @@
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
+import SmartAvatar from '@/components/common/smart-avatar.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import {
   userProfileApi,
@@ -253,9 +254,6 @@ function toggleMore() {
   showMoreMenu.value = !showMoreMenu.value
 }
 
-function avatarInitial(name?: string): string {
-  return name ? name[0] : ''
-}
 </script>
 
 <template>
@@ -320,16 +318,7 @@ function avatarInitial(name?: string): string {
       <!-- ============ 身份区（-34px 上叠） ============ -->
       <view v-if="profile" class="up-identity">
         <view class="up-avatar-wrap">
-          <image
-            v-if="profile.profile.avatar"
-            lazy-load
-            class="up-avatar"
-            :src="profile.profile.avatar"
-            mode="aspectFill"
-          />
-          <view v-else class="up-avatar up-avatar--fallback">
-            <text class="up-avatar-initial">{{ avatarInitial(profile.profile.nickname) }}</text>
-          </view>
+          <smart-avatar :src="profile.profile.avatar" :name="profile.profile.nickname" class="up-avatar" />
           <!-- 右下金色认证徽章 -->
           <view v-if="profile.profile.verified" class="up-verify-badge">
             <app-icon name="check" :size="22" color="#ffffff" />

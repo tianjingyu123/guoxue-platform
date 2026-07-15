@@ -15,6 +15,7 @@
 import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
+import SmartAvatar from '@/components/common/smart-avatar.vue'
 import { navigateBack } from '@/utils/router'
 import { courseApi, type LearnQuestion } from '@/lib/course-data'
 
@@ -141,8 +142,7 @@ async function submitAsk() {
         <!-- 提问人行 -->
         <view class="q-head">
           <view class="q-avatar">
-            <image v-if="q.author.avatar" class="q-avatar-img" :src="q.author.avatar" mode="aspectFill" lazy-load />
-            <text v-else class="q-avatar-ph">{{ (q.author.name || '匿').charAt(0) }}</text>
+            <smart-avatar :src="q.author.avatar" :name="q.author.name || ''" class="q-avatar-img" />
           </view>
           <text class="q-name">{{ q.author.name || '匿名' }}</text>
           <text class="q-time num">{{ q.createdAt }}</text>

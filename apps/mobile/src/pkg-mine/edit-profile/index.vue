@@ -31,10 +31,7 @@
       <view class="avatar-section">
         <view class="avatar-btn" @tap="showAvatarSheet = true">
           <view class="avatar-box">
-            <image lazy-load v-if="profile.avatar" class="avatar-img" :src="profile.avatar" mode="aspectFill" />
-            <view v-else class="avatar-fallback">
-              <text class="avatar-fallback-text">{{ profile.nickname.charAt(0) || '?' }}</text>
-            </view>
+            <smart-avatar :src="profile.avatar" :name="profile.nickname" class="avatar-img" />
           </view>
           <view class="avatar-camera">
             <AppIcon name="camera" :size="32" color="#ffffff" />
@@ -126,6 +123,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import SmartAvatar from '@/components/common/smart-avatar.vue'
 import { mineApi } from '@/lib/mine-data'
 
 interface UserProfile {

@@ -461,7 +461,7 @@ const _mockListsPageData: BookListFull[] = [
     books: [{ title: '周易', color: 'cream' }, { title: '易传', color: 'brown' }, { title: '梅花易数', color: 'red' }],
   },
   {
-    id: '4', title: '国学文化综合推荐', author: '儒布官方', bookCount: 20, likes: 5678,
+    id: '4', title: '国学文化综合推荐', author: '热卜官方', bookCount: 20, likes: 5678,
     desc: '国学文化爱好者必读的综合书单', tags: ['国学', '文化'], liked: true, color: 'red',
     books: [{ title: '论语', color: 'red' }, { title: '道德经', color: 'green' }, { title: '庄子', color: 'cream' }],
   },

@@ -51,7 +51,7 @@
             <text class="title">{{ item.title }}</text>
             <view class="info-bottom">
               <view class="host-row">
-                <image lazy-load class="host-avatar" :src="item.hostAvatar" mode="aspectFill" />
+                <smart-avatar :src="item.hostAvatar" :name="item.hostName" class="host-avatar" />
                 <text class="host-name">{{ item.hostName }}</text>
                 <text class="cat-tag">{{ item.category }}</text>
               </view>
@@ -98,6 +98,7 @@
 import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import SmartCover from '@/components/common/smart-cover.vue'
+import SmartAvatar from '@/components/common/smart-avatar.vue'
 import { goBack } from '@/utils/router'
 import { liveApi, replaySortOptions, formatLiveDuration, formatLiveViews } from '@/lib/live-data'
 

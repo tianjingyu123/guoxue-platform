@@ -78,9 +78,12 @@ async function loadData() {
     circle.value = c
     expireAt.value = st.expireAt
     joined.value = st.joined || st.expired
-    // 增值信息并行拉取（各自失败静默：报价回落标价·报告卡不渲染）
-    circleDetailApi.renewQuote(circleId.value).then((q) => { quote.value = q })
-    circleDetailApi.annualReport(circleId.value).then((r) => { report.value = r })
+    // 增值信息仅对「年费圈 + 已加入」拉取：非年费圈走「无需续费」空态，调 renewQuote 只会 400（且无 catch 会冒 console 错误）
+    // 各自失败静默（报价回落标价·报告卡不渲染）
+    if (c?.type === 'YEARLY' && joined.value) {
+      circleDetailApi.renewQuote(circleId.value).then((q) => { quote.value = q }).catch(() => {})
+      circleDetailApi.annualReport(circleId.value).then((r) => { report.value = r }).catch(() => {})
+    }
   } catch {
     error.value = '加载失败，请重试'
   } finally {

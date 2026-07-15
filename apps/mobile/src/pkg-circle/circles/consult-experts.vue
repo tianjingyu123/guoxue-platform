@@ -12,6 +12,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
+import SmartAvatar from '@/components/common/smart-avatar.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { consultApi, type ConsultExpert, type ExpertRatingStat } from '@/lib/circle-consult-data'
 
@@ -113,8 +114,7 @@ onMounted(load)
       <view v-for="e in experts" :key="e.id" class="ce-card">
         <view class="ce-head">
           <view class="ce-avatar" :class="{ 'ring-owner': roleClass(e.roleLabel) === 'owner' }">
-            <image v-if="e.avatar" lazy-load class="ce-avatar-img" :src="e.avatar" mode="aspectFill" />
-            <view v-else class="ce-avatar-img ce-avatar-ph"><app-icon name="user" :size="40" color="#C9A96E" /></view>
+            <smart-avatar :src="e.avatar" :name="e.name || ''" class="ce-avatar-img" />
           </view>
           <view class="ce-main">
             <view class="ce-name-line">

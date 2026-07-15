@@ -195,7 +195,8 @@ onMounted(() => { myId.value = getCurrentUserId(); load() })
       <!-- ② 待回答（非回答者视角）：托管+超时退款保障 -->
       <view v-else-if="q.status === 'PENDING' && !canAnswer" class="qd-status-block">
         <text class="qd-status-t">你的提问已送达达人，金币由平台托管。</text>
-        <text class="qd-status-t">若 <text class="qd-status-b">{{ refundLeftHours }} 小时</text>内仍未回答，{{ q.priceCoin }} 金币将<text class="qd-refund">自动全额退回钱包</text>，无需操作。</text>
+        <text v-if="refundLeftHours > 0" class="qd-status-t">若 <text class="qd-status-b">{{ refundLeftHours }} 小时</text>内仍未回答，{{ q.priceCoin }} 金币将<text class="qd-refund">自动全额退回钱包</text>，无需操作。</text>
+        <text v-else class="qd-status-t">已超过回答时限，{{ q.priceCoin }} 金币将<text class="qd-refund">自动全额退回钱包</text>，无需操作。</text>
       </view>
 
       <!-- ③ 已拒答/退款：理由 + 退款说明 -->
@@ -206,7 +207,7 @@ onMounted(() => { myId.value = getCurrentUserId(); load() })
 
       <!-- ④ 回答者视角：结算说明 + 双操作 -->
       <view v-if="canAnswer" class="qd-answerer">
-        <text class="qd-answerer-note">回答后 <text class="qd-note-gold">{{ q.priceCoin }} 金币</text>按平台分成规则结算到你的收益账户{{ q.isPublic ? '；此问答已公开，后续围观收入同样按分成结算' : '' }}。若不便回答请及时拒答，金币将全额退还提问者。剩余回答时限约 <text class="qd-note-gold">{{ refundLeftHours }} 小时</text>。</text>
+        <text class="qd-answerer-note">回答后 <text class="qd-note-gold">{{ q.priceCoin }} 金币</text>按平台分成规则结算到你的收益账户{{ q.isPublic ? '；此问答已公开，后续围观收入同样按分成结算' : '' }}。若不便回答请及时拒答，金币将全额退还提问者。<text v-if="refundLeftHours > 0">剩余回答时限约 <text class="qd-note-gold">{{ refundLeftHours }} 小时</text>。</text><text v-else>回答时限已过。</text></text>
         <textarea v-model="answerText" class="qd-answer-input" maxlength="2000" placeholder="输入您的专业解答…（最多 2000 字）" placeholder-class="qd-ph" />
         <view class="qd-answerer-actions">
           <view class="qd-btn-answer" :class="{ 'is-disabled': answering || !answerText.trim() }" @tap="onAnswer">

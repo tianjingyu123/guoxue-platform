@@ -5,6 +5,7 @@
  */
 import { computed } from 'vue'
 import SmartCover from '@/components/common/smart-cover.vue'
+import SmartAvatar from '@/components/common/smart-avatar.vue'
 import { type FeedEnvelope, payloadBool, payloadStr } from '@/lib/feed-data'
 
 const props = defineProps<{ item: FeedEnvelope }>()
@@ -12,7 +13,6 @@ const isLive = computed(() => payloadBool(props.item, 'isLive'))
 // 左下状态标：subtitle（「正在讲·香方配伍」）或缺省
 const statusBadge = computed(() => props.item.subtitle || (isLive.value ? '正在直播' : '直播预告'))
 const hook = computed(() => (isLive.value ? '直播中' : '看回放'))
-const avatarChar = computed(() => (props.item.author?.name || '').charAt(0))
 </script>
 
 <template>
@@ -28,8 +28,7 @@ const avatarChar = computed(() => (props.item.author?.name || '').charAt(0))
     <view class="body">
       <text class="title">{{ item.title }}</text>
       <view class="meta">
-        <view v-if="item.author?.avatar" class="ava"><image class="ava-img" :src="item.author.avatar" mode="aspectFill" /></view>
-        <view v-else class="ava"><text class="ava-char">{{ avatarChar }}</text></view>
+        <smart-avatar :src="item.author?.avatar" :name="item.author?.name || ''" class="ava" />
         <text class="name">{{ item.author?.name }}</text>
         <text class="hook">{{ hook }} ›</text>
       </view>

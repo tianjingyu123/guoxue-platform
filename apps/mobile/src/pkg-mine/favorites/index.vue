@@ -177,9 +177,7 @@ const tabs = computed(() => {
   return [
     { id: 'all' as const, name: '全部', count: counts.all || 0 },
     { id: 'course' as const, name: '课程', count: counts.course || 0 },
-    { id: 'poem' as const, name: '诗词', count: counts.poem || 0 },
     { id: 'classic' as const, name: '古籍', count: counts.classic || 0 },
-    { id: 'ebook' as const, name: '电子书', count: counts.ebook || 0 },
     { id: 'article' as const, name: '文章', count: counts.article || 0 },
     { id: 'video' as const, name: '视频', count: counts.video || 0 },
     { id: 'product' as const, name: '商品', count: counts.product || 0 },

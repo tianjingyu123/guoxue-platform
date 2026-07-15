@@ -5,6 +5,7 @@ import { navigateTo } from '@/utils/router'
 import { track } from '@/composables/useTrack'
 import AppIcon from '@/components/common/app-icon.vue'
 import SmartCover from '@/components/common/smart-cover.vue'
+import SmartAvatar from '@/components/common/smart-avatar.vue'
 import { type CourseCardData, type CardVariant, formatCount, courseHotKind } from '@/lib/card-utils'
 import { formatPrice } from '@/utils/format'
 
@@ -104,10 +105,7 @@ function open() {
         </view>
       </view>
       <view v-if="data.teacher" class="author">
-        <view class="avatar">
-          <image lazy-load v-if="data.teacherAvatar" class="avatar-img" :src="data.teacherAvatar" mode="aspectFill" />
-          <text v-else class="avatar-ph">{{ data.teacher.charAt(0) }}</text>
-        </view>
+        <smart-avatar :src="data.teacherAvatar" :name="data.teacher" class="avatar" />
         <text class="author-name">{{ data.teacher }}</text>
         <text v-if="data.students" class="author-trail">{{ formatCount(data.students) }}人学</text>
       </view>

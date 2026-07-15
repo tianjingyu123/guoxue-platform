@@ -4,6 +4,7 @@ import { ref, computed, onMounted, onUnmounted, getCurrentInstance } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { goBack, navigateTo } from '@/utils/router'
 import AppIcon from '@/components/common/app-icon.vue'
+import SmartAvatar from '@/components/common/smart-avatar.vue'
 import PurchaseSheet from '@/components/common/purchase-sheet.vue'
 import { courseApi, type PlayerChapter, type PlayerChapterLesson, type Certificate } from '@/lib/course-data'
 
@@ -540,8 +541,7 @@ onMounted(() => {
       <text class="sec-title">课程简介</text>
       <text class="intro-text">{{ courseDetail?.description || content.courseTitle || '暂无课程简介' }}</text>
       <view v-if="courseDetail?.instructor" class="teacher" @tap="courseDetail.instructor.id && navigateTo(`/pkg-course/instructor/index?id=${courseDetail.instructor.id}`)">
-        <image v-if="courseDetail.instructor.avatar" class="teacher-avatar" :src="courseDetail.instructor.avatar" mode="aspectFill" />
-        <view v-else class="teacher-avatar teacher-avatar-ph"><text class="teacher-avatar-t">{{ (courseDetail.instructor.name || '师')[0] }}</text></view>
+        <smart-avatar :src="courseDetail.instructor.avatar" :name="courseDetail.instructor.name || ''" class="teacher-avatar" />
         <view class="t-info">
           <text class="t-name">{{ courseDetail.instructor.name }}</text>
           <text class="t-title">{{ courseDetail.instructor.title || '主讲老师' }}</text>

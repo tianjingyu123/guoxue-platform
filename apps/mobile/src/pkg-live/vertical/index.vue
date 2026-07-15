@@ -30,7 +30,7 @@
         <!-- 主播信息 -->
         <view class="host-pill">
           <view class="host-avatar-wrap">
-            <image lazy-load class="host-avatar" :src="room.hostAvatar" mode="aspectFill" />
+            <smart-avatar :src="room.hostAvatar" :name="room.hostName" class="host-avatar" />
             <view class="live-tag">LIVE</view>
           </view>
           <view class="host-text">
@@ -63,7 +63,7 @@
       <!-- 在线观众头像 -->
       <view class="online-row">
         <view v-for="(avatar, i) in room.onlineAvatars" :key="i" class="online-avatar" :class="{ 'online-avatar-first': i === 0 }">
-          <image lazy-load class="online-img" :src="avatar" mode="aspectFill" />
+          <smart-avatar :src="avatar" :name="''" class="online-img" />
         </view>
         <text class="online-more">+{{ formatCount(viewerCount - 3) }}</text>
       </view>
@@ -236,6 +236,7 @@
 import { ref, computed, onUnmounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
+import SmartAvatar from '@/components/common/smart-avatar.vue'
 import LivePlayer from '@/components/live/live-player.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { useTim, type TimMessage } from '@/composables/useTim'

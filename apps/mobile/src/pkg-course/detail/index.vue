@@ -12,6 +12,7 @@ import { navigateTo, goBack } from '@/utils/router'
 import { useShare } from '@/composables/useShare'
 import AppIcon from '@/components/common/app-icon.vue'
 import SmartCover from '@/components/common/smart-cover.vue'
+import SmartAvatar from '@/components/common/smart-avatar.vue'
 import PurchaseSheet from '@/components/common/purchase-sheet.vue'
 import TeacherCertBadge from '@/components/common/teacher-cert-badge.vue'
 import { courseApi } from '@/lib/course-data'
@@ -296,7 +297,7 @@ onMounted(() => {
 
       <!-- ══ 区块3 讲师卡 ══ -->
       <view class="card teacher-card" hover-class="card-press" @tap="goTeacherProfile">
-        <image lazy-load class="teacher-avatar" :src="course.instructor.avatar" mode="aspectFill" />
+        <smart-avatar :src="course.instructor.avatar" :name="course.instructor.name" class="teacher-avatar" />
         <view class="teacher-info">
           <view class="teacher-name-row">
             <text class="teacher-name serif">{{ course.instructor.name }}</text>
@@ -389,7 +390,7 @@ onMounted(() => {
         <template v-else>
           <view v-for="review in reviews" :key="review.id" class="review-item">
             <view class="review-user">
-              <image lazy-load class="review-avatar" :src="review.user.avatar" mode="aspectFill" />
+              <smart-avatar :src="review.user.avatar" :name="review.user.name" class="review-avatar" />
               <text class="review-nick">{{ review.user.name }}</text>
               <view class="review-stars">
                 <app-icon

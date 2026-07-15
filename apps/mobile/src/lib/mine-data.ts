@@ -1920,26 +1920,20 @@ export const mineApi = {
   },
 
   /**
-   * 我的收藏 —— 聚合 4 个来源并按收藏时间倒序：
+   * 我的收藏 —— 聚合来源并按收藏时间倒序：
    *   ① /interaction/collect（课程/文章/视频/商品/帖子·多态 target 已补全）
-   *   ② /poetry/collections（诗词·独立收藏表）
-   *   ③ /classic/favorites（古籍·独立收藏表）
-   *   ④ /ebook/favorites（电子书·独立收藏表）
-   * 各来源独立容错（某一路失败/未登录不影响其他），空则跳过。
+   *   ② /classic/favorites（古籍·独立收藏表）
+   * 诗词/电子书模块已下线，不再聚合其收藏。各来源独立容错，空则跳过。
    */
   async getFavorites(): Promise<FavItem[]> {
-    const [collectRes, poemRes, classicRes, ebookRes] = await Promise.all([
+    const [collectRes, classicRes] = await Promise.all([
       apiGet<{ items?: RawFavorite[] }>('/interaction/collect?page=1&pageSize=50').catch(() => null),
-      apiGet<{ id: string; title?: string; author?: string; dynasty?: string; collectedAt?: string }[]>('/poetry/collections').catch(() => null),
       apiGet<{ items?: { id: string; title?: string; author?: string; dynasty?: string; addedAt?: string }[] }>('/classic/favorites').catch(() => null),
-      apiGet<{ items?: { favoritedAt?: string; ebook?: { id: string; title?: string; author?: string; cover?: string } }[] }>('/ebook/favorites?page=1&pageSize=50').catch(() => null),
     ])
     const rawTs = (v: unknown): number => { const d = new Date(v as string); return Number.isNaN(d.getTime()) ? 0 : d.getTime() }
     const rows: { item: FavItem; ts: number }[] = []
     for (const it of (Array.isArray(collectRes?.items) ? collectRes!.items! : [])) rows.push({ item: adaptFavorite(it), ts: rawTs(it.createdAt) })
-    for (const c of (Array.isArray(poemRes) ? poemRes : [])) rows.push({ item: adaptPoemFav(c), ts: rawTs(c.collectedAt) })
     for (const b of (Array.isArray(classicRes?.items) ? classicRes!.items! : [])) rows.push({ item: adaptClassicFav(b), ts: rawTs(b.addedAt) })
-    for (const e of (Array.isArray(ebookRes?.items) ? ebookRes!.items! : [])) { const fi = adaptEbookFav(e); if (fi) rows.push({ item: fi, ts: rawTs(e.favoritedAt) }) }
     rows.sort((a, b) => b.ts - a.ts)
     return rows.map((r) => r.item)
   },
@@ -1956,14 +1950,11 @@ export const mineApi = {
   },
 
   /**
-   * 我的笔记 —— 聚合古籍读书笔记 + 电子书笔记（各自独立表），按更新时间倒序。
-   * 古籍 GET /classic/notes（{items,...}）、电子书 GET /ebook/notes（{notes,...}）；各来源独立容错。
+   * 我的笔记 —— 古籍读书笔记，按更新时间倒序。
+   * 古籍 GET /classic/notes（{items,...}）；电子书模块已下线，不再聚合其笔记。
    */
   async getNotes(): Promise<NoteItem[]> {
-    const [classicRes, ebookRes] = await Promise.all([
-      apiGet<{ items?: { id?: string; bookId?: string; book?: { title?: string } | null; chapter?: { title?: string } | null; content?: string; updatedAt?: string }[] }>('/classic/notes?pageSize=100').catch(() => null),
-      apiGet<{ notes?: { id?: string; ebookId?: string; ebook?: { title?: string } | null; chapter?: { title?: string } | null; content?: string; updatedAt?: string; createdAt?: string }[] }>('/ebook/notes?pageSize=100').catch(() => null),
-    ])
+    const classicRes = await apiGet<{ items?: { id?: string; bookId?: string; book?: { title?: string } | null; chapter?: { title?: string } | null; content?: string; updatedAt?: string }[] }>('/classic/notes?pageSize=100').catch(() => null)
     const rawTs = (v: unknown): number => { const d = new Date(v as string); return Number.isNaN(d.getTime()) ? 0 : d.getTime() }
     const fmt = (v?: string) => String(v || '').slice(0, 16).replace('T', ' ')
     const rows: { item: NoteItem; ts: number }[] = []
@@ -1971,12 +1962,6 @@ export const mineApi = {
       rows.push({ ts: rawTs(n.updatedAt), item: {
         id: `classic_${n.id}`, source: 'classic', sourceName: '古籍', bookId: n.bookId || '',
         bookTitle: n.book?.title || '古籍', chapter: n.chapter?.title || '', content: n.content || '', updatedAt: fmt(n.updatedAt),
-      } })
-    }
-    for (const n of (Array.isArray(ebookRes?.notes) ? ebookRes!.notes! : [])) {
-      rows.push({ ts: rawTs(n.updatedAt || n.createdAt), item: {
-        id: `ebook_${n.id}`, source: 'ebook', sourceName: '电子书', bookId: n.ebookId || '',
-        bookTitle: n.ebook?.title || '电子书', chapter: n.chapter?.title || '', content: n.content || '', updatedAt: fmt(n.updatedAt || n.createdAt),
       } })
     }
     rows.sort((a, b) => b.ts - a.ts)

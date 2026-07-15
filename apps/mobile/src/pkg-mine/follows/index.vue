@@ -50,7 +50,7 @@
           @tap="goUser(user.id)"
         >
           <view class="user-avatar-wrap">
-            <image lazy-load class="user-avatar" :src="user.avatar || defaultAvatar" mode="aspectFill" />
+            <smart-avatar :src="user.avatar || defaultAvatar" :name="user.name" class="user-avatar" />
             <view v-if="user.isFollowing && user.isFollowedBy" class="mutual-badge">
               <app-icon name="users" :size="18" color="#fff" />
             </view>
@@ -77,6 +77,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { navigateTo } from '@/utils/router'
 import { mineApi, type FollowUserItem } from '@/lib/mine-data'
+import SmartAvatar from '@/components/common/smart-avatar.vue'
 
 const defaultAvatar = '/static/placeholder-avatar.png'
 

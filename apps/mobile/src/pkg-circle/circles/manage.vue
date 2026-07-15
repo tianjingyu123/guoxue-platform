@@ -15,6 +15,7 @@ import { ref, reactive, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import SmartCover from '@/components/common/smart-cover.vue'
+import SmartAvatar from '@/components/common/smart-avatar.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { uploadImage } from '@/utils/request'
 import {
@@ -485,8 +486,7 @@ onLoad((q) => {
             <view v-for="m in filteredMembers" :key="m.id" class="member-block">
               <view class="member-row" @tap="m.role !== 'owner' && toggleMenu(m.id)">
                 <view class="avatar-wrap" :class="{ 'ring-gold': m.role === 'owner' }">
-                  <image v-if="m.avatar" lazy-load :src="m.avatar" class="avatar" mode="aspectFill" />
-                  <view v-else class="avatar avatar-fallback"><app-icon name="user" :size="36" color="#999999" /></view>
+                  <smart-avatar :src="m.avatar" :name="m.name" class="avatar" />
                 </view>
                 <view class="member-main">
                   <view class="member-name-row">
@@ -515,8 +515,7 @@ onLoad((q) => {
             <view v-for="g in guests" :key="g.userId" class="guest-card">
               <view class="guest-head">
                 <view class="avatar-wrap">
-                  <image v-if="g.user.avatar" lazy-load :src="g.user.avatar" class="avatar" mode="aspectFill" />
-                  <view v-else class="avatar avatar-fallback"><app-icon name="user" :size="36" color="#999999" /></view>
+                  <smart-avatar :src="g.user.avatar" :name="g.user.nickname" class="avatar" />
                 </view>
                 <view class="guest-main">
                   <text class="guest-name">{{ g.user.nickname }}</text>
@@ -572,8 +571,7 @@ onLoad((q) => {
           <view v-for="p in filteredPosts" :key="p.id" class="post-card">
             <view class="post-head">
               <view class="avatar-wrap sm">
-                <image v-if="p.author.avatar" lazy-load :src="p.author.avatar" class="avatar" mode="aspectFill" />
-                <view v-else class="avatar avatar-fallback"><app-icon name="user" :size="30" color="#999999" /></view>
+                <smart-avatar :src="p.author.avatar" :name="p.author.name" class="avatar" />
               </view>
               <view class="post-author">
                 <text class="post-name">{{ p.author.name }}</text>

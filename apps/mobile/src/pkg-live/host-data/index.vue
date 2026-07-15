@@ -119,10 +119,10 @@
             :style="{ height: barHeight(t) + '%' }"
           />
         </view>
-        <view class="chart-axis">
-          <text class="axis-label">{{ trend[0].dateLabel }}</text>
-          <text class="axis-label">{{ trend[14].dateLabel }}</text>
-          <text class="axis-label">{{ trend[29].dateLabel }}</text>
+        <view class="chart-axis" v-if="trend.length">
+          <text class="axis-label">{{ trend[0]?.dateLabel }}</text>
+          <text class="axis-label">{{ trend[14]?.dateLabel }}</text>
+          <text class="axis-label">{{ trend[29]?.dateLabel }}</text>
         </view>
       </view>
     </view>

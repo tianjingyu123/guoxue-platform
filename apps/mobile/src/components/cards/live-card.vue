@@ -3,6 +3,7 @@
 import { ref, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import SmartCover from '@/components/common/smart-cover.vue'
+import SmartAvatar from '@/components/common/smart-avatar.vue'
 import { navigateTo } from '@/utils/router'
 import { track } from '@/composables/useTrack'
 import { type LiveCardData, normalizeRatio, formatCount } from '@/lib/card-utils'
@@ -45,10 +46,7 @@ function toggleBook() { booked.value = !booked.value }
     <view class="body">
       <text class="title">{{ data.title }}</text>
       <view v-if="data.host" class="author">
-        <view class="avatar">
-          <image lazy-load v-if="data.hostAvatar" class="avatar-img" :src="data.hostAvatar" mode="aspectFill" />
-          <text v-else class="avatar-ph">{{ data.host.charAt(0) }}</text>
-        </view>
+        <smart-avatar :src="data.hostAvatar" :name="data.host" class="avatar" />
         <text class="author-name">{{ data.host }}</text>
       </view>
     </view>

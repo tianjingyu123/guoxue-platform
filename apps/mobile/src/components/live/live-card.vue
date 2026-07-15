@@ -3,6 +3,7 @@
 import { ref, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import SmartCover from '@/components/common/smart-cover.vue'
+import SmartAvatar from '@/components/common/smart-avatar.vue'
 import { navigateTo } from '@/utils/router'
 import type { LiveItem } from '@/lib/live-data'
 import { formatPrice } from '@/utils/format'
@@ -66,10 +67,7 @@ function toggleBook() {
     <view class="body">
       <text class="title">{{ data.title }}</text>
       <view class="host">
-        <view class="avatar">
-          <image lazy-load v-if="data.hostAvatar" class="avatar-img" :src="data.hostAvatar" mode="aspectFill" />
-          <text v-else class="avatar-ph">{{ data.hostName.charAt(0) }}</text>
-        </view>
+        <smart-avatar :src="data.hostAvatar" :name="data.hostName" class="avatar" />
         <text class="host-name">{{ data.hostName }}</text>
         <text v-if="data.priceType === 'paid'" class="price">¥{{ formatPrice(data.price) }}</text>
         <text v-else class="free">免费</text>

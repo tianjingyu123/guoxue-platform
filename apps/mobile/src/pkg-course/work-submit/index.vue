@@ -16,6 +16,7 @@ import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { goBack } from '@/utils/router'
 import AppIcon from '@/components/common/app-icon.vue'
+import SmartAvatar from '@/components/common/smart-avatar.vue'
 import { courseApi } from '@/lib/course-data'
 import type { WorkRequirement, WorkResult } from '@/lib/course-data'
 
@@ -238,10 +239,7 @@ function previewImage(urls: string[], current: string) {
         <!-- 讲师复核卡（后端补齐独立复核字段后展示） -->
         <view v-if="hasTeacherReview" class="review-card">
           <view class="review-head">
-            <image v-if="work?.gradedBy?.avatar" class="review-avatar" :src="work?.gradedBy?.avatar" mode="aspectFill" lazy-load />
-            <view v-else class="review-avatar review-avatar-ph">
-              <app-icon name="user-check" :size="30" color="#C41E3A" />
-            </view>
+            <smart-avatar :src="work?.gradedBy?.avatar" :name="work?.gradedBy?.name || ''" class="review-avatar" />
             <text class="review-name">{{ work?.gradedBy?.name }}</text>
             <view class="review-tag"><text class="review-tag-txt">讲师复核</text></view>
             <text v-if="work?.score != null" class="review-score">{{ work?.score }}<text class="review-score-unit"> 分</text></text>

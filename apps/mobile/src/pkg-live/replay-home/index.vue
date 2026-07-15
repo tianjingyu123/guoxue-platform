@@ -73,7 +73,7 @@
             </view>
             <view class="hot-foot">
               <view class="hot-host">
-                <image lazy-load class="hot-avatar" :src="item.hostAvatar" mode="aspectFill" />
+                <smart-avatar :src="item.hostAvatar" :name="item.hostName" class="hot-avatar" />
                 <text class="hot-host-name">{{ item.hostName }}</text>
                 <text class="hot-cat">{{ item.category }}</text>
               </view>
@@ -110,7 +110,7 @@
               <text class="grid-title">{{ item.title }}</text>
               <view class="grid-meta">
                 <view class="grid-host">
-                  <image lazy-load class="grid-avatar" :src="item.hostAvatar" mode="aspectFill" />
+                  <smart-avatar :src="item.hostAvatar" :name="item.hostName" class="grid-avatar" />
                   <text class="grid-host-name">{{ item.hostName }}</text>
                 </view>
                 <view class="grid-views">
@@ -161,6 +161,7 @@
 import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import SmartCover from '@/components/common/smart-cover.vue'
+import SmartAvatar from '@/components/common/smart-avatar.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import {
   liveApi,

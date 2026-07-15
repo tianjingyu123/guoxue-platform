@@ -43,8 +43,7 @@
       <!-- 评论列表 -->
       <view v-else class="cc-list">
         <view v-for="c in comments" :key="c.id" class="cc-item">
-          <image v-if="c.avatar" :src="c.avatar" class="cc-avatar" mode="aspectFill" />
-          <view v-else class="cc-avatar cc-avatar--text"><text class="cc-avatar-char">{{ c.nickname.charAt(0) }}</text></view>
+          <smart-avatar :src="c.avatar" :name="c.nickname" class="cc-avatar" />
           <view class="cc-item-body">
             <view class="cc-item-head">
               <text class="cc-name">{{ c.nickname }}</text>
@@ -86,6 +85,7 @@
  */
 import { ref, watch } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import SmartAvatar from '@/components/common/smart-avatar.vue'
 import { apiGet, apiPost } from '@/utils/request'
 import { formatCommentTime } from '@/lib/video-data'
 import { getToken } from '@/utils/storage'

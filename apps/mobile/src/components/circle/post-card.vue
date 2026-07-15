@@ -1,6 +1,7 @@
 <script setup lang="ts">
 /** 帖子卡片（从原型 [id]/page.tsx 内 PostCard 1:1 迁移），用于首页/帖子/精华 Tab */
 import AppIcon from '@/components/common/app-icon.vue'
+import SmartAvatar from '@/components/common/smart-avatar.vue'
 import { navigateTo } from '@/utils/router'
 import type { CirclePost } from '@/lib/circle-detail-data'
 
@@ -34,7 +35,7 @@ function openUser() {
     <!-- 作者信息 -->
     <view class="pc-head">
       <view class="pc-author" @tap="openUser">
-        <image lazy-load :src="post.author.avatar" class="pc-avatar" mode="aspectFill" />
+        <smart-avatar :src="post.author.avatar" :name="post.author.name" class="pc-avatar" />
         <view>
           <view class="pc-name-row">
             <text class="pc-name">{{ post.author.name }}</text>

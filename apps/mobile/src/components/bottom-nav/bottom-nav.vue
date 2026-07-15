@@ -9,11 +9,8 @@ const props = defineProps<{ active: string }>()
 const BRAND_RED = '#c41e3a'
 const MUTED = '#999999'
 
-// R4 合规：小程序端无占卜类目，「排盘」tab 改「民俗」表述（仅展示文案·路由不变）
-let paipanLabel = '排盘'
-// #ifdef MP-WEIXIN
-paipanLabel = '民俗'
-// #endif
+// 合规收敛：中间 tab 统一用中性「工具」表述（避免「排盘/占卜」敏感表达·路由不变·全端一致）
+const paipanLabel = '工具'
 
 const tabs = [
   { id: 'home', label: '首页', icon: 'home', url: '/pages/index/index' },

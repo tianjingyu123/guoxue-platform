@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import SmartAvatar from '@/components/common/smart-avatar.vue'
 import { mineApi, type BlacklistItem } from '@/lib/mine-data'
 
 const list = ref<BlacklistItem[]>([])
@@ -88,7 +89,7 @@ const isEmpty = computed(() => list.value.length === 0)
       <!-- 列表 -->
       <template v-else>
         <view v-for="u in list" :key="u.id" class="item">
-          <image lazy-load class="avatar" :src="u.avatar" mode="aspectFill" />
+          <smart-avatar :src="u.avatar" :name="u.nickname" class="avatar" />
           <view class="item-body">
             <text class="item-name">{{ u.nickname }}</text>
             <text class="item-time">{{ u.blockedAt }} 加入黑名单</text>

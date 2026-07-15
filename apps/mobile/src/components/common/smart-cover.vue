@@ -4,7 +4,7 @@
  * （国学风格渐变底 + 书法标题 + 分类印章），撑满父容器。
  * 用于内容封面普遍缺图时的优雅兜底，无需任何图片资源。
  */
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 
 interface Props {
@@ -12,8 +12,12 @@ interface Props {
   title?: string
   /** poetry诗词 / classic古籍 / course课程 / ebook电子书 / circle圈子 / live直播 / product商品 / default */
   type?: string
+  /** 短视频专用：无封面图时用视频首帧兜底（发布未传封面 → 取视频第一帧作封面） */
+  videoUrl?: string | null
+  /** 生成兜底时是否在角落显示类型印章。默认关：中心图标+标题已表意，且避免与卡片自身角标(日期/LIVE/状态)重叠 */
+  showSeal?: boolean
 }
-const props = withDefaults(defineProps<Props>(), { src: '', title: '', type: 'default' })
+const props = withDefaults(defineProps<Props>(), { src: '', title: '', type: 'default', videoUrl: '', showSeal: false })
 
 // 各类型的配色系 + 图标 + 印章标（雅致低饱和国学色）
 const THEMES: Record<string, { grad: string; icon: string; label: string }> = {
@@ -28,17 +32,37 @@ const THEMES: Record<string, { grad: string; icon: string; label: string }> = {
 }
 const theme = computed(() => THEMES[props.type] || THEMES.default)
 const hasImg = computed(() => typeof props.src === 'string' && props.src.trim() !== '')
+// 图片加载失败(URL失效/404)时翻到生成封面，避免留空框/破图标；src 变化(列表复用/换页)时重置重试
+const imgError = ref(false)
+watch(() => props.src, () => { imgError.value = false })
+// 无封面图但有视频源 → 用视频首帧兜底（#t=0.5 让 H5 定位到第 0.5s 首帧，避免纯黑帧）
+const hasVideoFrame = computed(() => !hasImg.value && typeof props.videoUrl === 'string' && props.videoUrl.trim() !== '')
+const videoFrameSrc = computed(() => (props.videoUrl || '') + '#t=0.5')
 </script>
 
 <template>
-  <image v-if="hasImg" class="sc-full" :src="src as string" mode="aspectFill" />
+  <image v-if="hasImg && !imgError" class="sc-full" :src="src as string" mode="aspectFill" @error="imgError = true" />
+  <!-- 首帧兜底：无封面图但有视频源，取视频第一帧（静音·不自动播·不显控件） -->
+  <video
+    v-else-if="hasVideoFrame"
+    class="sc-full"
+    :src="videoFrameSrc"
+    :controls="false"
+    :show-center-play-btn="false"
+    :show-play-btn="false"
+    :show-fullscreen-btn="false"
+    :enable-progress-gesture="false"
+    :muted="true"
+    :initial-time="0.5"
+    object-fit="cover"
+  />
   <view v-else class="sc-full sc-gen" :style="{ background: theme.grad }">
     <!-- 国学底纹：柔和光晕 + 角落纹样 -->
     <view class="sc-pattern" />
     <view class="sc-frame" />
     <AppIcon :name="theme.icon" :size="38" color="rgba(255,255,255,0.82)" />
     <text v-if="title" class="sc-title">{{ title }}</text>
-    <text v-if="theme.label" class="sc-seal">{{ theme.label }}</text>
+    <text v-if="showSeal && theme.label" class="sc-seal">{{ theme.label }}</text>
   </view>
 </template>
 

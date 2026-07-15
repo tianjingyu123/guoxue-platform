@@ -18,11 +18,9 @@ const sourceMeta: Record<NoteSource, { name: string; color: string; bg: string }
 
 const tabs = computed(() => {
   const c = notes.value.filter((n) => n.source === 'classic').length
-  const e = notes.value.filter((n) => n.source === 'ebook').length
   return [
     { id: 'all' as const, name: '全部', count: notes.value.length },
     { id: 'classic' as const, name: '古籍', count: c },
-    { id: 'ebook' as const, name: '电子书', count: e },
   ]
 })
 
@@ -85,7 +83,7 @@ function openNote(n: NoteItem) {
     <view v-else-if="displayList.length === 0" class="state">
       <app-icon name="book-open" :size="64" color="#cccccc" />
       <text class="state-t">还没有笔记</text>
-      <text class="state-sub">阅读古籍或电子书时，点击底部「笔记」即可记录</text>
+      <text class="state-sub">阅读古籍时，点击底部「笔记」即可记录</text>
     </view>
     <!-- 列表 -->
     <view v-else class="list">

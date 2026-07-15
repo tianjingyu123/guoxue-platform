@@ -79,7 +79,7 @@
     <view class="info">
       <text class="info-title">{{ replay.title }}</text>
       <view class="info-host">
-        <image lazy-load class="host-avatar" :src="replay.hostAvatar" mode="aspectFill" />
+        <smart-avatar :src="replay.hostAvatar" :name="replay.hostName" class="host-avatar" />
         <view class="host-meta">
           <view class="host-name-row">
             <text class="host-name">{{ replay.hostName }}</text>
@@ -87,7 +87,7 @@
               <text class="host-v-txt">V</text>
             </view>
           </view>
-          <text class="host-fans">{{ replay.hostFollowers.toLocaleString() }} 粉丝</text>
+          <text class="host-fans">{{ (replay.hostFollowers ?? 0).toLocaleString() }} 粉丝</text>
         </view>
         <view class="follow-btn">
           <text class="follow-txt">+ 关注</text>
@@ -100,11 +100,11 @@
         </view>
         <view class="stat">
           <AppIcon name="eye" :size="28" color="#999999" />
-          <text class="stat-txt">{{ replay.viewerCount.toLocaleString() }} 观看</text>
+          <text class="stat-txt">{{ (replay.viewerCount ?? 0).toLocaleString() }} 观看</text>
         </view>
         <view class="stat">
           <AppIcon name="heart" :size="28" color="#999999" />
-          <text class="stat-txt">{{ replay.likeCount.toLocaleString() }} 点赞</text>
+          <text class="stat-txt">{{ (replay.likeCount ?? 0).toLocaleString() }} 点赞</text>
         </view>
       </view>
     </view>
@@ -239,6 +239,7 @@
 import { ref, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
+import SmartAvatar from '@/components/common/smart-avatar.vue'
 import { goBack } from '@/utils/router'
 import { liveApi } from '@/lib/live-data'
 import { formatPrice } from '@/utils/format'

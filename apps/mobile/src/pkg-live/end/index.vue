@@ -48,7 +48,7 @@
     <!-- 主播信息（后端 end 无关注/粉丝维度 → 仅展示主播） -->
     <view class="host-card">
       <view class="host-left">
-        <image lazy-load class="host-avatar" :src="room.hostAvatar" mode="aspectFill" />
+        <smart-avatar :src="room.hostAvatar" :name="room.hostName" class="host-avatar" />
         <view class="host-meta">
           <text class="host-name">{{ room.hostName }}</text>
         </view>
@@ -152,6 +152,7 @@
 import { ref, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
+import SmartAvatar from '@/components/common/smart-avatar.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { liveApi } from '@/lib/live-data'
 import { formatPrice } from '@/utils/format'

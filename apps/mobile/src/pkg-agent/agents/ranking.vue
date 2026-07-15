@@ -45,7 +45,7 @@
         >
           <view class="rc-head">
             <view class="rc-avatar-wrap">
-              <image lazy-load class="rc-avatar" :src="agent.avatar" mode="aspectFill" />
+              <smart-avatar class="rc-avatar" :src="agent.avatar" :name="agent.name || ''" />
               <view v-if="agent.verified" class="rc-verified">
                 <app-icon name="check" :size="20" color="#ffffff" />
               </view>
@@ -89,6 +89,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import SmartAvatar from '@/components/common/smart-avatar.vue'
 import { navigateTo } from '@/utils/router'
 import { agentsSquareApi, type RankingAgent } from '@/lib/agents-square-data'
 

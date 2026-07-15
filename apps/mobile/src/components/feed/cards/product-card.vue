@@ -3,19 +3,22 @@
  * 商品卡 · 统一 3:4（1:1 商品图 cover 填满·居中裁剪绝不留白）· 左上「物」金印章 · price + hook「去看看 ›」
  * 去数字化：不显销量。
  */
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { formatPrice } from '@/utils/format'
 import { type FeedEnvelope, payloadNum } from '@/lib/feed-data'
 
 const props = defineProps<{ item: FeedEnvelope }>()
-const hasCover = computed(() => !!(props.item.cover && props.item.cover.trim()))
+// 封面加载失败(URL失效)时翻到「标题首字」占位，避免留空框；item 变化(列表复用)时重置
+const imgError = ref(false)
+watch(() => props.item?.cover, () => { imgError.value = false })
+const hasCover = computed(() => !!(props.item.cover && props.item.cover.trim()) && !imgError.value)
 const price = computed(() => payloadNum(props.item, 'price'))
 </script>
 
 <template>
   <view class="fcard">
     <view class="cov">
-      <image v-if="hasCover" class="cov-img" :src="item.cover" mode="aspectFill" />
+      <image v-if="hasCover" class="cov-img" :src="item.cover" mode="aspectFill" @error="imgError = true" />
       <view v-else class="cov-img ph"><text class="ph-t">{{ item.title.charAt(0) }}</text></view>
       <text class="seal gold serif">物</text>
     </view>

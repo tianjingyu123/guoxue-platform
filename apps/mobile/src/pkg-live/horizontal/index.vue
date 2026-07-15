@@ -20,7 +20,7 @@
             <view class="host-bar__close" @tap="goBack">
               <AppIcon name="x" :size="20" unit="px" color="rgba(255,255,255,0.8)" />
             </view>
-            <image lazy-load class="host-bar__avatar" :src="room.hostAvatar" mode="aspectFill" />
+            <smart-avatar :src="room.hostAvatar" :name="room.hostName" class="host-bar__avatar" />
             <view class="host-bar__info">
               <text class="host-bar__title">{{ room.title }}</text>
               <view class="host-bar__meta">
@@ -75,7 +75,7 @@
             />
             <view v-else class="teacher-cam__inner">
               <view class="teacher-cam__avatar">
-                <image lazy-load class="teacher-cam__img" :src="room.hostAvatar" mode="aspectFill" />
+                <smart-avatar :src="room.hostAvatar" :name="room.hostName" class="teacher-cam__img" />
               </view>
               <text class="teacher-cam__label">讲师画面</text>
             </view>
@@ -227,7 +227,7 @@
             </view>
             <view v-for="q in filteredQuestions" :key="q.id" class="qa-card">
               <view class="qa-card__head">
-                <image lazy-load class="qa-card__avatar" :src="q.userAvatar" mode="aspectFill" />
+                <smart-avatar :src="q.userAvatar" :name="q.userName" class="qa-card__avatar" />
                 <view class="qa-card__body">
                   <view class="qa-card__meta">
                     <text class="qa-card__name">{{ q.userName }}</text>
@@ -296,7 +296,7 @@
           <scroll-view scroll-y class="tab-intro__scroll">
             <view class="intro-host">
               <view class="intro-host__avatar">
-                <image lazy-load class="intro-host__img" :src="room.hostAvatar" mode="aspectFill" />
+                <smart-avatar :src="room.hostAvatar" :name="room.hostName" class="intro-host__img" />
               </view>
               <text class="intro-host__name">{{ room.hostName }}</text>
               <text class="intro-host__title">{{ room.hostTitle }}</text>
@@ -334,6 +334,7 @@
 import { ref, computed, onUnmounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
+import SmartAvatar from '@/components/common/smart-avatar.vue'
 import LivePlayer from '@/components/live/live-player.vue'
 import { goBack } from '@/utils/router'
 import { useTim, type TimMessage } from '@/composables/useTim'

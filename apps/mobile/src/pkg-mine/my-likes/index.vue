@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import SmartAvatar from '@/components/common/smart-avatar.vue'
 import { goBack } from '@/utils/router'
 import {
   mineApi,
@@ -111,7 +112,7 @@ function openTarget() {
             <text class="like-title">{{ item.target.title }}</text>
             <view class="like-meta">
               <view class="like-author" v-if="item.target.author">
-                <image lazy-load class="author-avatar" :src="item.target.author.avatar" mode="aspectFill" />
+                <smart-avatar :src="item.target.author.avatar" :name="item.target.author.nickname" class="author-avatar" />
                 <text class="author-name">{{ item.target.author.nickname }}</text>
               </view>
               <text class="like-type">{{ likeTypeNames[item.target.type] }}</text>

@@ -7,6 +7,7 @@
 import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
+import SmartAvatar from '@/components/common/smart-avatar.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { circleDetailApi, type CircleMember } from '@/lib/circle-detail-data'
 
@@ -67,7 +68,7 @@ function openUser(id: string) { navigateTo(`/pkg-circle/user/profile?id=${id}`) 
     <scroll-view v-else scroll-y class="body">
       <view class="member-list">
         <view v-for="m in members" :key="m.id" class="member" @tap="openUser(m.id)">
-          <image lazy-load :src="m.avatar" class="member-avatar" mode="aspectFill" />
+          <smart-avatar :src="m.avatar" :name="m.name" class="member-avatar" />
           <view class="member-main">
             <view class="member-name-row">
               <text class="member-name">{{ m.name }}</text>

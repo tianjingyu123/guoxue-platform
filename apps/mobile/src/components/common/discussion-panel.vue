@@ -40,10 +40,7 @@
       <view v-if="sorted.length === 0" class="dp-empty">还没有讨论，来说两句吧～</view>
       <view v-for="c in sorted" :key="c.id" class="dp-item">
         <!-- 头像 -->
-        <image lazy-load v-if="c.author.avatar" :src="c.author.avatar" class="dp-avatar" mode="aspectFill" />
-        <view v-else class="dp-avatar dp-avatar-letter" :style="{ background: avatarColor(c.author.name) }">
-          {{ c.author.name.charAt(0) }}
-        </view>
+        <smart-avatar :src="c.author.avatar" :name="c.author.name" class="dp-avatar" />
 
         <view class="dp-body">
           <!-- 作者行 -->
@@ -102,10 +99,7 @@
             </view>
             <view v-else class="dp-replies">
               <view v-for="r in c.replies" :key="r.id" class="dp-reply">
-                <image lazy-load v-if="r.author.avatar" :src="r.author.avatar" class="dp-reply-avatar" mode="aspectFill" />
-                <view v-else class="dp-reply-avatar dp-avatar-letter" :style="{ background: avatarColor(r.author.name) }">
-                  {{ r.author.name.charAt(0) }}
-                </view>
+                <smart-avatar :src="r.author.avatar" :name="r.author.name" class="dp-reply-avatar" />
                 <view class="dp-reply-body">
                   <text class="dp-reply-author">{{ r.author.name }}</text>
                   <text v-if="r.replyToName" class="dp-reply-to"> 回复 @{{ r.replyToName }}</text>
@@ -159,6 +153,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import AiAssistPopover from '@/components/common/ai-assist-popover.vue'
+import SmartAvatar from '@/components/common/smart-avatar.vue'
 import type {
   AuthorBadge,
   DiscussionConfig,
@@ -206,13 +201,6 @@ const sorted = computed(() => {
 })
 
 const total = computed(() => data.value.reduce((n, c) => n + 1 + c.replies.length, 0))
-
-const AVATAR_COLORS = ['#a06a38', '#2e5a88', '#3e7a52', '#c41e3a', '#8a6d2f', '#6b4a7a']
-function avatarColor(name: string) {
-  let sum = 0
-  for (const ch of name) sum += ch.charCodeAt(0)
-  return AVATAR_COLORS[sum % AVATAR_COLORS.length]
-}
 
 const BADGE_MAP: Record<Exclude<AuthorBadge, 'none'>, { icon: string; label: string }> = {
   teacher: { icon: 'graduation-cap', label: '讲师' },

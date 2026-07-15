@@ -14,7 +14,7 @@
           <app-icon name="arrow-left" :size="40" color="#fff" />
         </view>
         <view class="nav-bot">
-          <image lazy-load v-if="botDetail.avatar" class="nav-avatar" :src="botDetail.avatar" mode="aspectFill" />
+          <image lazy-load v-if="botDetail.avatar" class="nav-avatar" :src="botDetail.avatar" mode="aspectFill" @error="botDetail.avatar = ''" />
           <view v-else class="nav-avatar nav-avatar-fb">{{ botDetail.name.slice(0, 1) }}</view>
           <view class="nav-info">
             <text class="nav-name">{{ botDetail.name }}</text>
@@ -55,7 +55,7 @@
           <!-- 欢迎消息 -->
           <view v-if="messages.length === 0" class="welcome-block">
             <view class="msg-row">
-              <image lazy-load v-if="botDetail.avatar" class="msg-avatar" :src="botDetail.avatar" mode="aspectFill" />
+              <image lazy-load v-if="botDetail.avatar" class="msg-avatar" :src="botDetail.avatar" mode="aspectFill" @error="botDetail.avatar = ''" />
               <view v-else class="msg-avatar msg-avatar-bot">{{ botDetail.name.slice(0, 1) }}</view>
               <view class="bubble bubble-bot">
                 <text class="bubble-text">{{ botDetail.welcomeMessage }}</text>
@@ -72,7 +72,7 @@
           >
             <view v-if="msg.role === 'user'" class="msg-avatar msg-avatar-user">我</view>
             <template v-else>
-              <image lazy-load v-if="botDetail.avatar" class="msg-avatar" :src="botDetail.avatar" mode="aspectFill" />
+              <image lazy-load v-if="botDetail.avatar" class="msg-avatar" :src="botDetail.avatar" mode="aspectFill" @error="botDetail.avatar = ''" />
               <view v-else class="msg-avatar msg-avatar-bot">{{ botDetail.name.slice(0, 1) }}</view>
             </template>
 

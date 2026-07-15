@@ -11,6 +11,7 @@
 import { ref, computed, onUnmounted } from 'vue'
 import { onLoad, onReachBottom, onPullDownRefresh } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
+import SmartAvatar from '@/components/common/smart-avatar.vue'
 import AppLoadMore from '@/components/common/app-load-more.vue'
 import SmartCover from '@/components/common/smart-cover.vue'
 import CourseCard from '@/components/cards/course-card.vue'
@@ -388,8 +389,7 @@ function openMyLearning() { navigateTo('/courses/my-learning') }
             <!-- 讲师行 -->
             <view v-if="c.teacher" class="teacher-row">
               <view class="avatar">
-                <image v-if="c.teacherAvatar" class="avatar-img" :src="c.teacherAvatar" mode="aspectFill" lazy-load />
-                <text v-else class="avatar-ph">{{ c.teacher.charAt(0) }}</text>
+                <smart-avatar :src="c.teacherAvatar" :name="c.teacher" class="avatar-img" />
               </view>
               <text class="teacher-name">{{ c.teacher }}</text>
             </view>

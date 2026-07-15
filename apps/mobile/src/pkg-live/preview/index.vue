@@ -39,7 +39,7 @@
         <text class="cover-title">{{ room.title }}</text>
         <!-- 讲师 -->
         <view class="host-row">
-          <image lazy-load class="host-avatar" :src="room.hostAvatar" mode="aspectFill" />
+          <smart-avatar :src="room.hostAvatar" :name="room.hostName" class="host-avatar" />
           <view class="host-info">
             <text class="host-name">{{ room.hostName }}</text>
             <text class="host-fans">{{ room.hostFollowers.toLocaleString() }} 粉丝</text>
@@ -126,7 +126,7 @@
       <view class="detail-card">
         <text class="detail-title">讲师介绍</text>
         <view class="teacher-row">
-          <image lazy-load class="teacher-avatar" :src="room.hostAvatar" mode="aspectFill" />
+          <smart-avatar :src="room.hostAvatar" :name="room.hostName" class="teacher-avatar" />
           <view class="teacher-info">
             <text class="teacher-name">{{ room.hostName }}</text>
             <text class="teacher-fans">{{ room.hostFollowers.toLocaleString() }} 粉丝</text>
@@ -151,6 +151,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
+import SmartAvatar from '@/components/common/smart-avatar.vue'
 import { goBack } from '@/utils/router'
 import { liveApi } from '@/lib/live-data'
 

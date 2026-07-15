@@ -12,6 +12,7 @@ import { ref, reactive, computed, onUnmounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import TouchpointCard from '@/components/common/touchpoint-card.vue'
+import SmartAvatar from '@/components/common/smart-avatar.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { gotoReport } from '@/lib/report-data'
 import { getToken } from '@/utils/storage'
@@ -422,7 +423,7 @@ onUnmounted(() => { if (audioCtx) { try { audioCtx.destroy() } catch {} } })
     <scroll-view v-else-if="post" scroll-y class="pd-body">
       <!-- 作者行：头像 + 昵称(+头衔徽章) + 时间 · 来自圈子（圈名可点） -->
       <view class="pd-author">
-        <image lazy-load :src="post.author.avatar" class="pd-avatar" mode="aspectFill" @tap="openUser(post.author.id)" />
+        <view @tap="openUser(post.author.id)"><smart-avatar :src="post.author.avatar" :name="post.author.name" class="pd-avatar" /></view>
         <view class="pd-author-main">
           <view class="pd-author-name-row" @tap="openUser(post.author.id)">
             <text class="pd-author-name">{{ post.author.name }}</text>
@@ -533,7 +534,7 @@ onUnmounted(() => { if (audioCtx) { try { audioCtx.destroy() } catch {} } })
       </view>
 
       <view v-for="c in comments" :key="c.id" class="pd-comment">
-        <image lazy-load :src="c.author.avatar" class="pd-c-avatar" mode="aspectFill" @tap="openUser(c.author.id)" />
+        <view @tap="openUser(c.author.id)"><smart-avatar :src="c.author.avatar" :name="c.author.name" class="pd-c-avatar" /></view>
         <view class="pd-c-main">
           <text class="pd-c-name">{{ c.author.name }}</text>
           <text class="pd-c-text">{{ c.content }}</text>

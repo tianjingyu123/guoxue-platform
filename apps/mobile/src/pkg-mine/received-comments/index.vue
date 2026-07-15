@@ -2,6 +2,7 @@
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
+import SmartAvatar from '@/components/common/smart-avatar.vue'
 import AppError from '@/components/common/app-error.vue'
 import {
   mineApi,
@@ -128,7 +129,7 @@ function openContent() {
           :class="{ unreplied: !c.isReplied }"
         >
           <view class="card-top">
-            <image lazy-load class="avatar" :src="c.commenter.avatar" mode="aspectFill" />
+            <smart-avatar :src="c.commenter.avatar" :name="c.commenter.nickname" class="avatar" />
             <view class="card-body">
               <view class="name-row">
                 <text class="name">{{ c.commenter.nickname }}</text>
@@ -179,7 +180,7 @@ function openContent() {
         </view>
         <view v-if="replying" class="origin">
           <view class="origin-head">
-            <image lazy-load class="origin-avatar" :src="replying.commenter.avatar" mode="aspectFill" />
+            <smart-avatar :src="replying.commenter.avatar" :name="replying.commenter.nickname" class="origin-avatar" />
             <text class="origin-name">{{ replying.commenter.nickname }}</text>
           </view>
           <text class="origin-content">{{ replying.content }}</text>

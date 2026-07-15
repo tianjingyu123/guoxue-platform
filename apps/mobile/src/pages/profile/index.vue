@@ -260,7 +260,7 @@ function applyRole(role: string) {
         <view class="gb-crown"><AppIcon name="crown" :size="34" color="#8A6B38" /></view>
         <view class="gb-txt">
           <text class="gb-title gb-title--member">书院会员 · {{ userData.vipLevel || '专属权益' }}</text>
-          <text class="gb-sub gb-sub--member">{{ userData.vipExpiry ? userData.vipExpiry + ' 到期' : 'AI 伴读 · 电子书畅读 · 全场好课优惠' }}</text>
+          <text class="gb-sub gb-sub--member">{{ userData.vipExpiry ? userData.vipExpiry + ' 到期' : 'AI 伴读 · 古籍畅读 · 全场好课优惠' }}</text>
         </view>
         <view class="gb-cta gb-cta--member"><text class="gb-cta-txt gb-cta-txt--member">续费</text></view>
       </view>
@@ -268,7 +268,7 @@ function applyRole(role: string) {
         <view class="gb-crown"><AppIcon name="crown" :size="34" color="#C9A96E" /></view>
         <view class="gb-txt">
           <text class="gb-title gb-title--guest">开通书院会员</text>
-          <text class="gb-sub gb-sub--guest">AI 伴读 · 电子书畅读 · 全场好课优惠</text>
+          <text class="gb-sub gb-sub--guest">AI 伴读 · 古籍畅读 · 全场好课优惠</text>
         </view>
         <view class="gb-cta gb-cta--guest"><text class="gb-cta-txt gb-cta-txt--guest">立即开通</text></view>
       </view>

@@ -69,8 +69,7 @@
         <view v-for="bot in searchedBots" :key="bot.id" class="grid-card" @tap="openBot(bot.id)">
           <view class="gc-top">
             <view class="gc-avatar">
-              <image v-if="bot.avatar" lazy-load class="gc-avatar-img" :src="bot.avatar" mode="aspectFit" />
-              <app-icon v-else name="bot" :size="40" color="#c41e3a" />
+              <smart-avatar class="gc-avatar-img" :src="bot.avatar" :name="bot.name" />
             </view>
             <text v-if="bot.isNew" class="gc-new">NEW</text>
           </view>
@@ -134,8 +133,7 @@
           <view class="recent-row">
             <view v-for="c in recentConvs" :key="c.id" class="recent-card" @tap="resumeConv(c)">
               <view class="recent-avatar">
-                <image v-if="c.agentAvatar" lazy-load class="recent-avatar-img" :src="c.agentAvatar" mode="aspectFill" />
-                <app-icon v-else name="bot" :size="34" color="#c41e3a" />
+                <smart-avatar class="recent-avatar-img" :src="c.agentAvatar" :name="c.agentName" />
               </view>
               <view class="recent-info">
                 <text class="recent-name">{{ c.agentName }}</text>
@@ -164,8 +162,7 @@
             <view v-for="(r, i) in topRanking" :key="r.id" class="top-card" @tap="openBot(r.id)">
               <view class="top-rank" :class="'top-rank-' + i">{{ i + 1 }}</view>
               <view class="top-avatar">
-                <image v-if="r.avatar" lazy-load class="top-avatar-img" :src="r.avatar" mode="aspectFit" />
-                <app-icon v-else name="bot" :size="36" color="#c41e3a" />
+                <smart-avatar class="top-avatar-img" :src="r.avatar" :name="r.name" />
               </view>
               <text class="top-name">{{ r.name }}</text>
               <text v-if="r.sessions" class="top-heat">{{ formatCount(r.sessions) }}次对话</text>
@@ -216,8 +213,7 @@
           <view v-for="bot in group.bots" :key="bot.id" class="grid-card" @tap="openBot(bot.id)">
             <view class="gc-top">
               <view class="gc-avatar">
-                <image v-if="bot.avatar" lazy-load class="gc-avatar-img" :src="bot.avatar" mode="aspectFit" />
-                <app-icon v-else name="bot" :size="40" color="#c41e3a" />
+                <smart-avatar class="gc-avatar-img" :src="bot.avatar" :name="bot.name" />
               </view>
               <text v-if="bot.isNew" class="gc-new">NEW</text>
             </view>
@@ -255,6 +251,7 @@
  */
 import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import SmartAvatar from '@/components/common/smart-avatar.vue'
 import { navigateTo } from '@/utils/router'
 import {
   agentsSquareApi,

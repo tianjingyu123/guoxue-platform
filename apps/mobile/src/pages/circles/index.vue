@@ -158,10 +158,7 @@ onShow(() => {
         <!-- 分类筛选 -->
         <scroll-view scroll-x class="cat-scroll">
           <view class="cat-row">
-            <view
-              class="cat-chip" :class="{ on: category === '' }"
-              @tap="selectCategory('')"
-            ><text class="cat-text" :class="{ on: category === '' }">推荐</text></view>
+            <!-- 分类含首项 { id:'', name:'推荐' } 作为「全部/推荐」，勿再额外硬编码一枚，否则重复两个「推荐」 -->
             <view
               v-for="cat in circleCategories" :key="cat.id"
               class="cat-chip" :class="{ on: category === cat.id }"

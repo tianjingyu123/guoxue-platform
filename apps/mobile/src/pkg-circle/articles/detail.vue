@@ -11,6 +11,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
+import SmartCover from '@/components/common/smart-cover.vue'
 import { goBack, navigateTo, toastComingSoon } from '@/utils/router'
 import {
   articleApi, recommendRoute,
@@ -208,8 +209,10 @@ async function submitComment() {
     </view>
 
     <scroll-view v-else-if="article" scroll-y class="ad-body">
-      <!-- 封面：16:9 整宽 -->
-      <image v-if="article.cover" lazy-load class="ad-cover" :src="article.cover" mode="aspectFill" />
+      <!-- 封面：16:9 整宽（用 smart-cover：封面URL失效时优雅降级为生成封面，不再留空框） -->
+      <view v-if="article.cover" class="ad-cover">
+        <smart-cover :src="article.cover" :title="article.title" type="default" />
+      </view>
 
       <!-- 标题 + 作者元信息 -->
       <view class="ad-head">

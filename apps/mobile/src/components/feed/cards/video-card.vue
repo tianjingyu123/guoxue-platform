@@ -6,18 +6,19 @@
 import { computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import SmartCover from '@/components/common/smart-cover.vue'
+import SmartAvatar from '@/components/common/smart-avatar.vue'
 import { type FeedEnvelope, payloadStr, formatDuration } from '@/lib/feed-data'
 
 const props = defineProps<{ item: FeedEnvelope }>()
 const duration = computed(() => formatDuration(payloadStr(props.item, 'duration')))
+const videoUrl = computed(() => payloadStr(props.item, 'videoUrl'))
 const hook = computed(() => props.item.subtitle || '看视频')
-const avatarChar = computed(() => (props.item.author?.name || '').charAt(0))
 </script>
 
 <template>
   <view class="fcard">
     <view class="cov">
-      <smart-cover :src="item.cover" :title="item.title" type="default" class="cov-img" />
+      <smart-cover :src="item.cover" :video-url="videoUrl" :title="item.title" type="default" class="cov-img" />
       <view class="play-btn"><app-icon name="play" :size="34" color="#ffffff" :fill="true" /></view>
       <text class="seal serif">视</text>
       <!-- 右下时长角标 -->
@@ -26,8 +27,7 @@ const avatarChar = computed(() => (props.item.author?.name || '').charAt(0))
     <view class="body">
       <text class="title">{{ item.title }}</text>
       <view class="meta">
-        <view v-if="item.author?.avatar" class="ava"><image class="ava-img" :src="item.author.avatar" mode="aspectFill" /></view>
-        <view v-else class="ava"><text class="ava-char">{{ avatarChar }}</text></view>
+        <smart-avatar :src="item.author?.avatar" :name="item.author?.name || ''" class="ava" />
         <text class="name">{{ item.author?.name }}</text>
         <text class="hook">{{ hook }} ›</text>
       </view>

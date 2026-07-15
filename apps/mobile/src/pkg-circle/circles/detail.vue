@@ -12,6 +12,7 @@ import { onLoad, onShow, onUnload, onShareAppMessage, onShareTimeline } from '@d
 import { useShare } from '@/composables/useShare'
 import AppIcon from '@/components/common/app-icon.vue'
 import SmartCover from '@/components/common/smart-cover.vue'
+import SmartAvatar from '@/components/common/smart-avatar.vue'
 import PostCard from '@/components/circle/post-card.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { getToken } from '@/utils/storage'
@@ -313,16 +314,16 @@ function openShowcase() { navigateTo('/pkg-circle/circles/activities') }
             <view class="meta-members" @tap="openMembers">
               <text class="meta-stat"><text class="meta-num">{{ fmt(circle.members) }}</text>成员</text>
               <view v-if="members.length" class="meta-avatars">
-                <image
+                <smart-avatar
                   v-for="m in members.slice(0, 4)" :key="m.id"
-                  lazy-load :src="m.avatar" class="meta-avatar" mode="aspectFill"
+                  :src="m.avatar" :name="m.name" class="meta-avatar"
                 />
               </view>
               <app-icon name="chevron-right" :size="22" color="#999999" />
             </view>
             <text v-if="circle.todayActive" class="meta-stat"><text class="meta-num">{{ circle.todayActive }}</text>今日新帖</text>
             <view class="meta-owner" @tap="openUser(circle.owner.id)">
-              <image lazy-load :src="circle.owner.avatar" class="meta-owner-avatar" mode="aspectFill" />
+              <smart-avatar :src="circle.owner.avatar" :name="circle.owner.name" class="meta-owner-avatar" />
               <text class="meta-owner-txt">{{ circle.owner.name }} · 圈主</text>
             </view>
           </view>

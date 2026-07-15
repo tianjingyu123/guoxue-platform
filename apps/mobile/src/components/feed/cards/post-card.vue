@@ -6,12 +6,12 @@
  */
 import { computed } from 'vue'
 import SmartCover from '@/components/common/smart-cover.vue'
+import SmartAvatar from '@/components/common/smart-avatar.vue'
 import { type FeedEnvelope, payloadStr } from '@/lib/feed-data'
 
 const props = defineProps<{ item: FeedEnvelope }>()
 const hasCover = computed(() => !!(props.item.cover && props.item.cover.trim()))
 const circleName = computed(() => payloadStr(props.item, 'circleName'))
-const avatarChar = computed(() => (props.item.author?.name || '').charAt(0))
 </script>
 
 <template>
@@ -25,8 +25,7 @@ const avatarChar = computed(() => (props.item.author?.name || '').charAt(0))
     <view class="body">
       <text class="title">{{ item.title }}</text>
       <view class="meta">
-        <view v-if="item.author?.avatar" class="ava"><image class="ava-img" :src="item.author.avatar" mode="aspectFill" /></view>
-        <view v-else class="ava"><text class="ava-char">{{ avatarChar }}</text></view>
+        <smart-avatar :src="item.author?.avatar" :name="item.author?.name || ''" class="ava" />
         <text class="name">{{ item.author?.name }}</text>
         <text class="hook">来聊两句 ›</text>
       </view>
@@ -41,8 +40,7 @@ const avatarChar = computed(() => (props.item.author?.name || '').charAt(0))
     </view>
     <view class="digest-body">
       <view class="meta">
-        <view v-if="item.author?.avatar" class="ava"><image class="ava-img" :src="item.author.avatar" mode="aspectFill" /></view>
-        <view v-else class="ava"><text class="ava-char">{{ avatarChar }}</text></view>
+        <smart-avatar :src="item.author?.avatar" :name="item.author?.name || ''" class="ava" />
         <text class="name">{{ item.author?.name }}</text>
         <text class="hook">来聊两句 ›</text>
       </view>

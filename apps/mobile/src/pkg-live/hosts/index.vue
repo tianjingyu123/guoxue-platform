@@ -3,6 +3,7 @@
 import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import SmartCover from '@/components/common/smart-cover.vue'
+import SmartAvatar from '@/components/common/smart-avatar.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { liveApi, type LiveHost } from '@/lib/live-data'
 
@@ -119,7 +120,7 @@ function fmtLikes(n: number) {
           </view>
           <view class="host-info">
             <view class="avatar">
-              <image lazy-load class="avatar-img" :src="host.avatar" mode="aspectFill" />
+              <smart-avatar :src="host.avatar" :name="host.name" class="avatar-img" />
             </view>
             <view class="meta">
               <view class="name-row">

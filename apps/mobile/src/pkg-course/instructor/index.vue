@@ -7,6 +7,7 @@ import { onLoad } from '@dcloudio/uni-app'
 import { navigateTo, goBack } from '@/utils/router'
 import AppIcon from '@/components/common/app-icon.vue'
 import SmartCover from '@/components/common/smart-cover.vue'
+import SmartAvatar from '@/components/common/smart-avatar.vue'
 import { instructorApi, getInstructorLevelLabel } from '@/lib/instructor-data'
 
 const statusBarHeight = ref(0)
@@ -80,7 +81,7 @@ onMounted(() => {
     <view v-else class="body-pad">
       <!-- ── 区块1 头部讲师卡 ── -->
       <view class="profile">
-        <image class="p-avatar" :src="detail.avatar" mode="aspectFill" lazy-load />
+        <smart-avatar :src="detail.avatar" :name="detail.name" class="p-avatar" />
         <text class="p-name serif">{{ detail.name }}</text>
         <text v-if="badgeLabel" class="p-badge">{{ badgeLabel }}</text>
         <text

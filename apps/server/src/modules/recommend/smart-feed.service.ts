@@ -55,9 +55,10 @@ export type TimeSlot = "morning" | "afternoon" | "evening";
  *
  * 未命中的类型（circle/product 等）权重保持 1 不变。
  */
+// 注：圈子帖(post)不出圈，不参与平台 feed 混排与加权（仅文章可出圈）
 const TIME_SLOT_BOOSTED_TYPES: Record<TimeSlot, ReadonlyArray<FeedItem["type"]>> = {
-  morning: ["article", "post"],
-  afternoon: ["classic", "post"],
+  morning: ["article", "video"],
+  afternoon: ["classic", "course"],
   evening: ["course", "ebook"],
 };
 
@@ -421,15 +422,15 @@ export class SmartFeedService {
    * 确保首页能展示全部卡片形态。仅 getAnonymousFeed 使用，不影响登录分层策略与其测试。
    */
   private async getBroadFeed(size: number): Promise<FeedItem[]> {
+    // 圈子帖不出圈：平台混排仅含文章/课程/古籍/视频/直播/商品 6 类（不含 post）
     const per = Math.max(2, Math.floor(size / 6));
-    const [articles, courses, classics, videos, lives, products, posts] = await Promise.all([
+    const [articles, courses, classics, videos, lives, products] = await Promise.all([
       this.prisma.article.findMany({ where: { auditStatus: "APPROVED" }, select: ARTICLE_SELECT, orderBy: { viewCount: "desc" }, take: per }),
       this.prisma.course.findMany({ where: { auditStatus: "APPROVED" }, select: COURSE_SELECT, orderBy: { studentCount: "desc" }, take: per }),
       this.prisma.classicBook.findMany({ where: { status: "PUBLISHED" }, select: CLASSIC_SELECT, orderBy: { viewCount: "desc" }, take: per }),
       this.getVideoItems(per, "为你推荐"),
       this.getLiveItems(per, "正在直播"),
       this.prisma.product.findMany({ where: { status: "ON_SALE" }, select: PRODUCT_SELECT, orderBy: { createdAt: "desc" }, take: per }),
-      this.prisma.post.findMany({ where: { status: "PUBLISHED", isEssence: true }, select: POST_SELECT, orderBy: { createdAt: "desc" }, take: per }),
     ]);
     return [
       ...articles.map((a): FeedItem => this.mapArticle(a, "新手推荐")),
@@ -438,17 +439,17 @@ export class SmartFeedService {
       ...videos,
       ...lives,
       ...products.map((p): FeedItem => this.mapProduct(p, "严选好物")),
-      ...posts.map((p): FeedItem => this.mapPost(p, "圈内精华")),
     ];
   }
 
   private async getAdvancedFeed(_userId: string, size: number): Promise<FeedItem[]> {
     const quarter = Math.floor(size / 4);
-    const [posts, articles, classics, lives] = await Promise.all([
-      this.prisma.post.findMany({
-        where: { status: "PUBLISHED", isEssence: true },
-        select: POST_SELECT,
-        orderBy: { createdAt: "desc" },
+    // 圈子帖不出圈：登录分层 feed 以文章/课程/古籍/直播替代原 post 位
+    const [courses, articles, classics, lives] = await Promise.all([
+      this.prisma.course.findMany({
+        where: { auditStatus: "APPROVED" },
+        select: COURSE_SELECT,
+        orderBy: { studentCount: "desc" },
         take: quarter,
       }),
       this.prisma.article.findMany({
@@ -467,7 +468,7 @@ export class SmartFeedService {
     ]);
 
     return [
-      ...posts.map((p): FeedItem => this.mapPost(p, "精华内容")),
+      ...courses.map((c): FeedItem => this.mapCourse(c, "精品课程")),
       ...articles.map((a): FeedItem => this.mapArticle(a, "深度推荐")),
       ...classics.map((b): FeedItem => this.mapClassic(b, "经典研读")),
       ...lives,
@@ -661,6 +662,7 @@ export class SmartFeedService {
           title: true,
           description: true,
           coverUrl: true,
+          videoUrl: true,
           duration: true,
           viewCount: true,
           likeCount: true,
@@ -681,7 +683,8 @@ export class SmartFeedService {
         coverRatio: "3:4",
         author: v.user ? { name: v.user.nickname, avatar: v.user.avatar || undefined } : undefined,
         metric: { kind: "play", value: this.toNum(v.viewCount) },
-        payload: { duration: this.toNum(v.duration) },
+        // 无封面时前端用 videoUrl 首帧兜底（发布未传封面 → 取视频第一帧）
+        payload: { duration: this.toNum(v.duration), videoUrl: v.videoUrl || "" },
       }));
     } catch (err) {
       this.logger.warn(`短视频源查询失败，按空源降级: ${(err as Error).message}`);

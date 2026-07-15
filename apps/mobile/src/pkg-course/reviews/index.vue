@@ -14,6 +14,7 @@ import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { goBack } from '@/utils/router'
 import AppIcon from '@/components/common/app-icon.vue'
+import SmartAvatar from '@/components/common/smart-avatar.vue'
 import { courseApi, type CourseReview } from '@/lib/course-data'
 
 // 自定义导航栏状态栏占位高度
@@ -217,10 +218,7 @@ onLoad((options) => {
       <!-- ══ 区块2 评价流 ══ -->
       <view v-for="rv in reviews" :key="rv.id" class="card review">
         <view class="rv-head">
-          <image v-if="rv.user.avatar" lazy-load class="rv-avatar" :src="rv.user.avatar" mode="aspectFill" />
-          <view v-else class="rv-avatar rv-avatar--fb">
-            <app-icon name="user" :size="24" color="#C9B99A" />
-          </view>
+          <smart-avatar :src="rv.user.avatar" :name="rv.user.name" class="rv-avatar" />
           <view class="rv-meta">
             <text class="rv-name">{{ rv.user.name }}</text>
             <view class="stars stars--sm">

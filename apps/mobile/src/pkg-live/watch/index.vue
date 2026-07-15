@@ -73,7 +73,7 @@
       <view class="rp__info">
         <text class="rp__title">{{ room.title }}</text>
         <view class="rp__host-row">
-          <image lazy-load class="rp__host-avatar" :src="room.hostAvatar" mode="aspectFill" />
+          <smart-avatar :src="room.hostAvatar" :name="room.hostName" class="rp__host-avatar" />
           <text class="rp__host-name">{{ room.hostName }}</text>
         </view>
         <!-- #21 回放章节点（主播标注·点击 seek·无标注不渲染） -->
@@ -127,7 +127,7 @@
           <!-- 主播信息胶囊 -->
           <view class="host-card">
             <view class="host-card__avatar-wrap">
-              <image lazy-load class="host-card__avatar" :src="room.hostAvatar" mode="aspectFill" />
+              <smart-avatar :src="room.hostAvatar" :name="room.hostName" class="host-card__avatar" />
               <view class="host-card__live-dot" />
             </view>
             <view class="host-card__info">
@@ -206,7 +206,7 @@
     <!-- 飘屏礼物（大礼物横幅滑入） -->
     <view class="gift-flyers">
       <view v-for="g in giftFlyers" :key="g.id" class="gift-flyer">
-        <image lazy-load class="gift-flyer__avatar" :src="g.avatar" mode="aspectFill" />
+        <smart-avatar :src="g.avatar" :name="g.user" class="gift-flyer__avatar" />
         <view class="gift-flyer__info">
           <text class="gift-flyer__user">{{ g.user }}</text>
           <text class="gift-flyer__desc">送出 {{ g.giftName }}</text>
@@ -375,6 +375,7 @@
 import { ref, computed, onMounted, onUnmounted, getCurrentInstance } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
+import SmartAvatar from '@/components/common/smart-avatar.vue'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
 import GiftPanel from '@/components/live/gift-panel.vue'
 import MicConnectSheet from '@/components/live/mic-connect-sheet.vue'

@@ -6,6 +6,7 @@ import { ref, computed, onMounted } from 'vue'
 import { onPullDownRefresh } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import SmartCover from '@/components/common/smart-cover.vue'
+import SmartAvatar from '@/components/common/smart-avatar.vue'
 import DegradedBanner from '@/components/degraded-banner.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import {
@@ -211,8 +212,7 @@ async function toggleBook(item: LiveItem) {
                   <text class="ctitle">{{ live.title }}</text>
                   <view class="cmeta">
                     <view class="mavatar">
-                      <image v-if="live.hostAvatar" class="mavatar-img" :src="live.hostAvatar" mode="aspectFill" lazy-load />
-                      <text v-else class="mavatar-ph">{{ live.hostName.charAt(0) }}</text>
+                      <smart-avatar :src="live.hostAvatar" :name="live.hostName" class="mavatar-img" />
                     </view>
                     <text class="mname">{{ live.hostName }}</text>
                     <text class="mmetric">直播中</text>
@@ -244,8 +244,7 @@ async function toggleBook(item: LiveItem) {
                   <text class="ctitle">{{ live.title }}</text>
                   <view class="cmeta">
                     <view class="mavatar">
-                      <image v-if="live.hostAvatar" class="mavatar-img" :src="live.hostAvatar" mode="aspectFill" lazy-load />
-                      <text v-else class="mavatar-ph">{{ live.hostName.charAt(0) }}</text>
+                      <smart-avatar :src="live.hostAvatar" :name="live.hostName" class="mavatar-img" />
                     </view>
                     <text class="mname">{{ live.hostName }}</text>
                     <text class="mmetric">直播中</text>
@@ -354,8 +353,7 @@ async function toggleBook(item: LiveItem) {
                   <text class="ctitle">{{ rp.title }}</text>
                   <view class="cmeta">
                     <view class="mavatar">
-                      <image v-if="rp.hostAvatar" class="mavatar-img" :src="rp.hostAvatar" mode="aspectFill" lazy-load />
-                      <text v-else class="mavatar-ph">{{ rp.hostName.charAt(0) }}</text>
+                      <smart-avatar :src="rp.hostAvatar" :name="rp.hostName" class="mavatar-img" />
                     </view>
                     <text class="mname">{{ rp.hostName }}</text>
                     <text class="mmetric">{{ formatLiveViews(rp.viewers) }}次</text>
@@ -380,8 +378,7 @@ async function toggleBook(item: LiveItem) {
                   <text class="ctitle">{{ rp.title }}</text>
                   <view class="cmeta">
                     <view class="mavatar">
-                      <image v-if="rp.hostAvatar" class="mavatar-img" :src="rp.hostAvatar" mode="aspectFill" lazy-load />
-                      <text v-else class="mavatar-ph">{{ rp.hostName.charAt(0) }}</text>
+                      <smart-avatar :src="rp.hostAvatar" :name="rp.hostName" class="mavatar-img" />
                     </view>
                     <text class="mname">{{ rp.hostName }}</text>
                     <text class="mmetric">{{ formatLiveViews(rp.viewers) }}次</text>

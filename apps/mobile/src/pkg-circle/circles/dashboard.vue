@@ -367,7 +367,7 @@ onLoad((q) => {
             <view class="section-icon"><app-icon name="file-text" :size="34" color="#6E6E73" /></view>
             <view class="section-main">
               <text class="section-title">内容管理</text>
-              <text class="section-desc">帖子治理 · 推荐电子书</text>
+              <text class="section-desc">帖子治理 · 置顶精选</text>
             </view>
           </view>
           <view class="section-card" @tap="go(`/pkg-circle/circles/earnings?id=${circleId}`)">
