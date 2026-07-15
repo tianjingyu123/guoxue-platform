@@ -4,6 +4,7 @@ import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
+import { isStocklessOrderType } from "./shop-order-types.constants";
 import { RedisService } from "../../redis/redis.service";
 import { UnifiedPricingService } from "../pricing/unified-pricing.service";
 import { CommissionService } from "../commission/commission.service";
@@ -19,11 +20,6 @@ const ORDER_LIST_CACHE_TTL = 60;
 const CACHE_PREFIX = "shop:";
 /** 运营商档位白名单（对齐 schema enum OperatorLevel 与 CommissionConfig 的 operator_* 配置键） */
 const OPERATOR_LEVELS = ["SILVER", "GOLD", "DIAMOND", "BLACK_GOLD"];
-/**
- * 无库存概念的订单类型：targetId 指向的不是商品（会员套餐/分站/运营商档位），不参与库存扣减。
- * 漏加会导致扣库存 updateMany 匹配 0 行 → 误报「商品库存不足」而下单失败。
- */
-const STOCKLESS_ORDER_TYPES = ["MEMBER", "STATION_MASTER", "OPERATOR"];
 /**
  * 加盟费订单：B 端资格费，不是商品 → 不参与优惠券、不参与分销自购立减。
  * 站长/运营商本身就是分销角色，不排除会被自己的分销比例打折（实测 4999 → 3999.2）。
@@ -268,7 +264,7 @@ export class ShopOrderService {
 
       // 扣减库存（仅有库存概念的订单），带库存 >= 数量 约束防止超卖（按 qty 扣减，钱货严谨）。
       // 无库存概念的订单（会员/分站年租/运营商开通）targetId 不是商品ID，扣库存会匹配 0 行 → 误报「库存不足」。
-      if (!STOCKLESS_ORDER_TYPES.includes(dto.type)) {
+      if (!isStocklessOrderType(dto.type)) {
         if (dto.skuId) {
           const skuResult = await tx.productSku.updateMany({
             where: { id: dto.skuId, stock: { gte: qty } },

@@ -8,6 +8,7 @@ import { RedisService } from "../../redis/redis.service";
 import { ShopAttributionService } from "./shop-attribution.service";
 import { ShopOrderService } from "./shop-order.service";
 import { ShopPaymentService } from "./shop-payment.service";
+import { isStocklessOrderType } from "./shop-order-types.constants";
 
 /** 缓存前缀 */
 const CACHE_PREFIX = "shop:";
@@ -19,8 +20,6 @@ const CACHE_PREFIX = "shop:";
  */
 @Injectable()
 export class ShopOrderLifecycleService {
-  /** 虚拟商品类型 — 无需库存恢复，新增类型追加此集合 */
-  private static readonly NO_INVENTORY_TYPES = new Set(["MEMBER", "PRACTITIONER_PRO"]);
   private readonly logger = new Logger(ShopOrderLifecycleService.name);
 
   constructor(
@@ -114,8 +113,8 @@ export class ShopOrderLifecycleService {
         });
         if (result.count === 0) throw new BusinessException(ErrorCode.ORDER_STATUS_INVALID, "订单状态已变更，无法取消");
 
-        // 恢复库存（虚拟商品如 MEMBER 无需恢复）
-        if (!ShopOrderLifecycleService.NO_INVENTORY_TYPES.has(order.type)) {
+        // 恢复库存（虚拟商品如会员/分站/运营商无需恢复·单一真源见 shop-order-types.constants）
+        if (!isStocklessOrderType(order.type)) {
           if (order.skuId) {
             await tx.productSku.updateMany({
               where: { id: order.skuId },
@@ -231,7 +230,7 @@ export class ShopOrderLifecycleService {
         // 聚合 SKU 库存恢复（按下单数量 quantity 回补，与 createOrder 扣减对称）
         const skuCounts = new Map<string, number>();
         for (const o of toCancel) {
-          if (o.type !== "MEMBER" && o.skuId) {
+          if (!isStocklessOrderType(o.type) && o.skuId) {
             skuCounts.set(o.skuId, (skuCounts.get(o.skuId) || 0) + o.quantity);
           }
         }
@@ -245,7 +244,7 @@ export class ShopOrderLifecycleService {
         // 聚合商品库存恢复（按下单数量 quantity 回补，与 createOrder 扣减对称）
         const productCounts = new Map<string, number>();
         for (const o of toCancel) {
-          if (o.type !== "MEMBER" && !o.skuId && o.targetId) {
+          if (!isStocklessOrderType(o.type) && !o.skuId && o.targetId) {
             productCounts.set(o.targetId, (productCounts.get(o.targetId) || 0) + o.quantity);
           }
         }
