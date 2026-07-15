@@ -71,7 +71,9 @@ export class OfflineCommerceService {
   async createOrder(stationId: string, userId: string, dto: { orderType: string; targetId: string; amount: number }) {
     // 服务端校验金额：从数据库查询实际价格，忽略前端传入的 amount
     let actualAmount: number;
-    if (dto.orderType === "COURSE") {
+    // 命名统一修复(后端审计P2)：原判 "COURSE"，但 schema 注释/前端/dashboard 聚合/reminder 全用 "OFFLINE_COURSE"。
+    // 前端一直发 OFFLINE_COURSE → 原来恒落 else 抛"不支持的订单类型"，课程订单根本建不了、dashboard 课程收入恒 0。
+    if (dto.orderType === "OFFLINE_COURSE") {
       const course = await this.prisma.offlineCourse.findUnique({ where: { id: dto.targetId } });
       if (!course) throw new BusinessException(ErrorCode.NOT_FOUND, "课程不存在");
       actualAmount = Number(course.price);
