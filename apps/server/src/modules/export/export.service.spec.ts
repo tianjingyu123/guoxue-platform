@@ -8,6 +8,7 @@ const mockPrisma = {
   course: { findMany: jest.fn() },
   article: { findMany: jest.fn() },
   withdrawal: { findMany: jest.fn() },
+  auditLog: { create: jest.fn().mockResolvedValue({ id: "log1" }) },
 };
 
 describe("ExportService", () => {
@@ -30,11 +31,17 @@ describe("ExportService", () => {
       mockPrisma.user.findMany.mockResolvedValue([
         { id: "u1", nickname: "张三", phone: "13800001111", email: null, memberLevel: "NONE", status: "ACTIVE", roles: [], identityVerified: false, createdAt: new Date("2026-01-01") },
       ]);
-      const csv = await svc.exportUsers({});
+      const csv = await svc.exportUsers({}, "admin1");
       expect(csv).toContain("ID,昵称,手机号,邮箱,会员等级,状态,角色,实名认证,注册时间");
       expect(csv).toContain("张三");
-      expect(csv).toContain("13800001111");
+      // PII 脱敏(后端审计P2)：手机号打码，明文不得出现
+      expect(csv).toContain("138****1111");
+      expect(csv).not.toContain("13800001111");
       expect(csv).toContain("否");
+      // 导出审计留痕
+      expect(mockPrisma.auditLog.create).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ action: "DATA_EXPORT", targetType: "USER_CSV", userId: "admin1" }) }),
+      );
     });
 
     it("keyword 过滤传入 OR 条件", async () => {
@@ -102,12 +109,20 @@ describe("ExportService", () => {
   describe("exportWithdrawals", () => {
     it("返回提现 CSV", async () => {
       mockPrisma.withdrawal.findMany.mockResolvedValue([
-        { id: "w1", user: { nickname: "站长", phone: "138" }, amount: "500.00", bankName: "工商银行", bankAccount: "6222***", bankHolder: "张三", status: "PENDING", remark: null, createdAt: new Date(), processedAt: null },
+        { id: "w1", user: { nickname: "站长", phone: "13812345678" }, amount: "500.00", bankName: "工商银行", bankAccount: "6222021234567890", bankHolder: "张三丰", status: "PENDING", remark: null, createdAt: new Date(), processedAt: null },
       ]);
-      const csv = await svc.exportWithdrawals({});
+      const csv = await svc.exportWithdrawals({}, "fin1");
       expect(csv).toContain("站长");
       expect(csv).toContain("500.00");
       expect(csv).toContain("工商银行");
+      // PII 脱敏(后端审计P2)：卡号只留后4、手机打码、开户人保留姓氏，明文全不得出现
+      expect(csv).toContain("7890");
+      expect(csv).not.toContain("6222021234567890");
+      expect(csv).not.toContain("13812345678");
+      expect(csv).not.toContain("张三丰");
+      expect(mockPrisma.auditLog.create).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ action: "DATA_EXPORT", targetType: "WITHDRAWAL_CSV", userId: "fin1" }) }),
+      );
     });
 
     it("状态过滤", async () => {
