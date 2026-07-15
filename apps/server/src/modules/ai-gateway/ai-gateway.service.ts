@@ -20,6 +20,9 @@ export interface GatewayChatRequest {
   options?: AiChatOptions;
   /** 跳过语义缓存（创作型场景用：营销文案等要求每次生成都是新内容，且固定指令占比大易误命中） */
   skipCache?: boolean;
+  /** 缓存作用域键（数据隔离修复P1）：按实体隔离的场景传入(如圈主助理传 circleId)，
+   *  使语义缓存按实体分区、杜绝跨圈串答；不参与模型选路。 */
+  cacheScopeKey?: string;
 }
 
 @Injectable()
@@ -71,7 +74,7 @@ export class AiGatewayService {
 
     // 1. 语义缓存查找（创作型场景可通过 skipCache 跳过）
     if (userQuery.length > 0 && !req.skipCache) {
-      const cached = await this.semCache.lookup(req.scene, userQuery);
+      const cached = await this.semCache.lookup(req.scene, userQuery, req.cacheScopeKey);
       if (cached) {
         this.logger.debug(`语义缓存命中: scene=${req.scene}`);
         this.metrics.recordSemanticCacheHit(req.scene);
@@ -133,7 +136,7 @@ export class AiGatewayService {
       .catch((err) => this.logger.warn("AI分析记录写入失败", err));
 
     if (userQuery.length > 0 && result.content && !req.skipCache) {
-      this.semCache.store(req.scene, userQuery, result.content, actualModel).catch((err) => this.logger.warn("语义缓存存储失败", err));
+      this.semCache.store(req.scene, userQuery, result.content, actualModel, undefined, req.cacheScopeKey).catch((err) => this.logger.warn("语义缓存存储失败", err));
     }
 
     this.metrics.recordAiCall(req.scene, actualModel, true, latency);
@@ -149,7 +152,7 @@ export class AiGatewayService {
       .join(" ");
 
     if (userQuery.length > 0 && !req.skipCache) {
-      const cached = await this.semCache.lookup(req.scene, userQuery);
+      const cached = await this.semCache.lookup(req.scene, userQuery, req.cacheScopeKey);
       if (cached) {
         this.logger.debug(`流式语义缓存命中: scene=${req.scene}`);
         this.metrics.recordSemanticCacheHit(req.scene);
@@ -218,7 +221,7 @@ export class AiGatewayService {
       .catch((err) => this.logger.warn("AI分析记录写入失败", err));
 
     if (userQuery.length > 0 && fullContent && !req.skipCache) {
-      this.semCache.store(req.scene, userQuery, fullContent, actualModel).catch((err) => this.logger.warn("语义缓存存储失败", err));
+      this.semCache.store(req.scene, userQuery, fullContent, actualModel, undefined, req.cacheScopeKey).catch((err) => this.logger.warn("语义缓存存储失败", err));
     }
 
     this.metrics.recordAiCall(req.scene, actualModel, true, latency);
