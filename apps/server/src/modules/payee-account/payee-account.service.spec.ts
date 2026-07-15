@@ -105,6 +105,21 @@ describe("PayeeAccountService（收款主体进件）", () => {
     });
   });
 
+  describe("assertSubjectViewable —— 越权修复(后端审计P2)", () => {
+    it("管理员角色放行，不校验归属", async () => {
+      await expect(svc.assertSubjectViewable("anyone", ["FINANCE_ADMIN"], "CIRCLE", "c1")).resolves.toBeUndefined();
+    });
+
+    it("主体负责人本人放行", async () => {
+      // mock circle.findUnique → ownerId:"u1"
+      await expect(svc.assertSubjectViewable("u1", [], "CIRCLE", "c1")).resolves.toBeUndefined();
+    });
+
+    it("非负责人非管理员 → 403", async () => {
+      await expect(svc.assertSubjectViewable("u2", ["USER"], "CIRCLE", "c1")).rejects.toThrow(BusinessException);
+    });
+  });
+
   describe("activate —— 进件通过后责任外移，费率随之降档", () => {
     it("圈子进件通过：PLATFORM_COLLECT 50% → SELF_COLLECT 20%", async () => {
       prisma.payeeAccount.findUnique.mockResolvedValue(baseAcct);

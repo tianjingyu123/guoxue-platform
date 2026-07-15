@@ -282,36 +282,52 @@ export class PayeeAccountService {
   }
 
   /** 主体归属校验：只有主体的负责人能提交自己的资质 */
-  private async assertSubjectOwner(userId: string, subjectType: string, subjectId: string) {
-    let ownerId: string | null = null;
+  /** 解析主体负责人 userId（不存在返回 null） */
+  private async resolveSubjectOwnerId(subjectType: string, subjectId: string): Promise<string | null> {
     switch (subjectType) {
       case "MERCHANT": {
         const m = await this.prisma.merchant.findUnique({ where: { id: subjectId }, select: { userId: true } });
-        ownerId = m?.userId ?? null;
-        break;
+        return m?.userId ?? null;
       }
       case "OFFLINE_STATION": {
         const s = await this.prisma.stationOffline.findUnique({ where: { id: subjectId }, select: { ownerUserId: true } });
-        ownerId = s?.ownerUserId ?? null;
-        break;
+        return s?.ownerUserId ?? null;
       }
       case "CIRCLE": {
         const c = await this.prisma.circle.findUnique({ where: { id: subjectId }, select: { ownerId: true } });
-        ownerId = c?.ownerId ?? null;
-        break;
+        return c?.ownerId ?? null;
       }
       case "INSTITUTE": {
         // 研究院的负责人 = 其挂靠圈子的圈主（Institute.circleId 可空 → 未挂圈子则无从校验归属）
         const i = await this.prisma.institute.findUnique({ where: { id: subjectId }, select: { circleId: true } });
         if (i?.circleId) {
           const c = await this.prisma.circle.findUnique({ where: { id: i.circleId }, select: { ownerId: true } });
-          ownerId = c?.ownerId ?? null;
+          return c?.ownerId ?? null;
         }
-        break;
+        return null;
       }
+      default:
+        return null;
     }
+  }
+
+  private async assertSubjectOwner(userId: string, subjectType: string, subjectId: string) {
+    const ownerId = await this.resolveSubjectOwnerId(subjectType, subjectId);
     if (!ownerId) throw new BusinessException(ErrorCode.NOT_FOUND, "主体不存在");
     if (ownerId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能提交自己主体的收款资质");
+  }
+
+  /**
+   * 查看权校验(后端审计P2·越权)：getAccount/resolveSettlement 原仅 JwtAuthGuard，
+   * 任意登录用户可枚举任意主体的 payeeHuifuId(汇付商户号)+platformRate。
+   * 管理端角色放行(监督)，其余仅主体负责人可查。
+   */
+  async assertSubjectViewable(userId: string, roles: string[], subjectType: string, subjectId: string) {
+    const ADMIN_ROLES = ["SUPER_ADMIN", "FINANCE_ADMIN", "OPERATION_ADMIN"];
+    if (roles.some((r) => ADMIN_ROLES.includes(r))) return;
+    const ownerId = await this.resolveSubjectOwnerId(subjectType, subjectId);
+    if (!ownerId) throw new BusinessException(ErrorCode.NOT_FOUND, "主体不存在");
+    if (ownerId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能查看自己主体的收款信息");
   }
 
   /** 对外一律脱敏：法人身份证与结算账号只回尾号，明文/密文都不出接口 */

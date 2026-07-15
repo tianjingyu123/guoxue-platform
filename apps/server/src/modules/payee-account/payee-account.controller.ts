@@ -23,17 +23,24 @@ export class PayeeAccountController {
 
   @Get(":subjectType/:subjectId")
   @UseGuards(JwtAuthGuard)
-  @ApiOperation({ summary: "查主体的收款账户（敏感字段只回尾号）" })
+  @ApiOperation({ summary: "查主体的收款账户（敏感字段只回尾号·仅主体负责人/管理员）" })
   @ApiResponse({ status: 200, description: "成功；未进件则返回 null" })
   @ApiResponse({ status: 401, description: "未登录" })
-  getAccount(@Param("subjectType") subjectType: string, @Param("subjectId") subjectId: string) {
+  @ApiResponse({ status: 403, description: "只能查看自己主体的收款信息" })
+  async getAccount(
+    @Req() req: Request,
+    @Param("subjectType") subjectType: string,
+    @Param("subjectId") subjectId: string,
+  ) {
+    // 越权修复(后端审计P2)：原任意登录用户可枚举任意主体收款账户 → 补归属/管理员校验。
+    await this.svc.assertSubjectViewable(req.user.id, req.user.roles ?? [], subjectType, subjectId);
     return this.svc.getAccount(subjectType, subjectId);
   }
 
   @Get(":subjectType/:subjectId/settlement")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({
-    summary: "解析主体收款口径（下单/分账用）",
+    summary: "解析主体收款口径（下单/分账用·仅主体负责人/管理员）",
     description:
       "返回 settlementMode（PLATFORM_COLLECT 平台收款 / SELF_COLLECT 主体自收）、" +
       "payeeHuifuId（自收款时的分账接收方）与 platformRate（平台分成）。" +
@@ -41,7 +48,15 @@ export class PayeeAccountController {
   })
   @ApiResponse({ status: 200, description: "成功" })
   @ApiResponse({ status: 401, description: "未登录" })
-  resolveSettlement(@Param("subjectType") subjectType: string, @Param("subjectId") subjectId: string) {
+  @ApiResponse({ status: 403, description: "只能查看自己主体的收款信息" })
+  async resolveSettlement(
+    @Req() req: Request,
+    @Param("subjectType") subjectType: string,
+    @Param("subjectId") subjectId: string,
+  ) {
+    // 越权修复(后端审计P2)：payeeHuifuId(汇付商户号)+platformRate 不对无关用户下发。
+    // 注：下单/分账链路由 commission.service 内部直调 service 方法，不经此 HTTP 端点，故不受影响。
+    await this.svc.assertSubjectViewable(req.user.id, req.user.roles ?? [], subjectType, subjectId);
     return this.svc.resolveSettlement(subjectType, subjectId);
   }
 
