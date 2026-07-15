@@ -3,7 +3,7 @@
     <!-- 顶部 -->
     <view class="ck-head" :style="{ paddingTop: statusBarH + 'px' }">
       <view class="ck-nav">
-        <view class="ck-nav-btn" @tap="goBack"><app-icon name="arrow-left" :size="36" color="#ffffff" /></view>
+        <view class="ck-nav-btn" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#ffffff" /></view>
         <text class="ck-nav-title">共读签到</text>
         <view style="width: 72rpx" />
       </view>

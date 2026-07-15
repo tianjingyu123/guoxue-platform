@@ -3,7 +3,7 @@
     <!-- 顶部导航 -->
     <view class="nav-bar" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="nav-inner">
-        <view class="nav-btn" @tap="goBack"><app-icon name="arrow-left" :size="20" color="#2c2c2c" /></view>
+        <view class="nav-btn" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
         <text class="nav-title">{{ myRank ? '荣誉海报' : '邀请海报' }}</text>
         <view class="nav-btn" />
       </view>

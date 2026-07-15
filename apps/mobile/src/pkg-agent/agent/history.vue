@@ -51,7 +51,7 @@ function openChat(item: HistoryItem) {
     <!-- 顶部导航 -->
     <view class="header safe-pt">
       <view class="head-bar">
-        <view class="back" @tap="goBack()"><AppIcon name="arrow-left" :size="40" color="#1a1a1a" /></view>
+        <view class="back" @tap="goBack()"><AppIcon name="arrow-left" :size="44" color="#1A1A1A" /></view>
         <text class="title">对话历史</text>
         <view class="head-placeholder" />
       </view>

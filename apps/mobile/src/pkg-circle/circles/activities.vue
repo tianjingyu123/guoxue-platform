@@ -36,7 +36,7 @@ onMounted(load)
 <template>
   <view class="ac">
     <view class="ac-header">
-      <view @tap="goBack"><app-icon name="arrow-left" :size="40" color="#2C2C2C" /></view>
+      <view @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
       <text class="ac-title">圈子活动</text>
       <app-icon name="calendar" :size="40" color="#999999" />
     </view>

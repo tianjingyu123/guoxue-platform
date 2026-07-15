@@ -74,7 +74,7 @@ onMounted(load)
   <view class="page">
     <!-- 导航栏 -->
     <view class="navbar">
-      <view class="nav-back" @tap="goBack"><app-icon name="chevron-left" :size="40" color="#2C2C2C" /></view>
+      <view class="nav-back" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
       <text class="nav-title">圈子·我的</text>
     </view>
 

@@ -209,7 +209,7 @@ function reset() {
   <view class="page">
     <!-- 头部 -->
     <view class="header safe-pt">
-      <view class="back" @tap="goBack()"><AppIcon name="arrow-left" :size="40" color="#1a1a1a" /></view>
+      <view class="back" @tap="goBack()"><AppIcon name="arrow-left" :size="44" color="#1A1A1A" /></view>
       <view class="head-info">
         <view class="head-avatar" :style="{ background: iconBg }"><AppIcon :name="iconName" :size="28" :color="iconColor" /></view>
         <text class="head-title">{{ title }}</text>

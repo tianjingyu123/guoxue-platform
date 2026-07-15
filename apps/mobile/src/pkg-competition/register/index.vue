@@ -3,7 +3,7 @@
     <!-- 顶部导航 -->
     <view class="navbar" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="nav-inner">
-        <view class="nav-btn" @tap="goBack"><app-icon name="chevron-left" :size="22" color="#2C2C2C" /></view>
+        <view class="nav-btn" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
         <text class="nav-title">{{ step === 2 ? '报名成功' : '确认报名' }}</text>
         <view class="nav-btn" />
       </view>

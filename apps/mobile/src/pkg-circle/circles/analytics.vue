@@ -5,7 +5,7 @@
 <template>
   <view class="page">
     <view class="hdr" :style="{ paddingTop: statusBarH + 'px' }">
-      <view class="hdr-btn" @tap="goBack"><app-icon name="arrow-left" :size="36" color="#2C2C2C" /></view>
+      <view class="hdr-btn" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
       <text class="hdr-title">内容分析</text>
     </view>
 

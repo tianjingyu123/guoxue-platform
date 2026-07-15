@@ -141,7 +141,7 @@ onLoad((q) => {
   <view class="rn-page">
     <!-- 顶栏 -->
     <view class="rn-topbar">
-      <view class="rn-back" @tap="goBack"><app-icon name="chevron-left" :size="32" color="#2C2C2C" /></view>
+      <view class="rn-back" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
       <text class="rn-title">续费圈子</text>
     </view>
 

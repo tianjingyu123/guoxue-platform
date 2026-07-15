@@ -168,7 +168,7 @@ function goJoin() {
   <view v-else-if="notOpened" class="guide-page">
     <view class="statusbar" :style="{ height: statusBarHeight + 'px' }" />
     <view class="guide-nav">
-      <view class="nav-back" @tap="goBack"><AppIcon name="chevron-left" :size="40" color="#2C2C2C" /></view>
+      <view class="nav-back" @tap="goBack"><AppIcon name="arrow-left" :size="44" color="#1A1A1A" /></view>
       <text class="nav-title">运营商工作台</text>
       <view class="nav-holder" />
     </view>
@@ -222,7 +222,7 @@ function goJoin() {
     <view class="brand-head">
       <view class="statusbar" :style="{ height: statusBarHeight + 'px' }" />
       <view class="nav">
-        <view class="nav-back" @tap="goBack"><AppIcon name="chevron-left" :size="40" color="#fff" /></view>
+        <view class="nav-back" @tap="goBack"><AppIcon name="arrow-left" :size="44" color="#fff" /></view>
         <text class="nav-title-w">运营商工作台</text>
         <view class="nav-act" @tap="goSettings"><AppIcon name="settings" :size="40" color="#ffffff" /></view>
       </view>

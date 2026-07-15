@@ -116,7 +116,7 @@ onMounted(load)
   <view class="iv-page">
     <!-- 顶栏 -->
     <view class="iv-topbar">
-      <view class="iv-back" @tap="goBack"><app-icon name="arrow-left" :size="32" color="#2C2C2C" /></view>
+      <view class="iv-back" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
       <text class="iv-title">邀请好友加入</text>
     </view>
 

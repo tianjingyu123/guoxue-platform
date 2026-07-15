@@ -14,7 +14,6 @@ import FeedCard from '@/components/feed/feed-card.vue'
 import BottomNav from '@/components/bottom-nav/bottom-nav.vue'
 import { navigateTo } from '@/utils/router'
 import { getSmartFeed, sendFeedback, ratioPadding, type FeedEnvelope } from '@/lib/feed-data'
-import { getUiConfig } from '@/lib/ui-config-data'
 import { getPublishedLayout, type LayoutBlock } from '@/lib/page-layout-data'
 import BlockRenderer from '@/components/layout/block-renderer.vue'
 
@@ -63,8 +62,6 @@ const homeBlocks = ref<LayoutBlock[]>([])
 
 async function init() {
   loading.value = true
-  // 运营配置驱动：大卡出现频率由后端 ConfigSystem(home.bigCardInterval) 决定（失败用默认 6）
-  getUiConfig().then((cfg) => { bigCardInterval.value = cfg.home.bigCardInterval }).catch(() => {})
   // 运营楼层：拉已发布平台微页面（有则渲染在瀑布流之上·无则空）
   getPublishedLayout('home').then((l) => { homeBlocks.value = l.blocks }).catch(() => {})
   try {
@@ -120,30 +117,6 @@ function goFocus() {
 // ── 双列瀑布流：顺序分左右两列（按索引奇偶轮询，等权体量）──
 const leftColumn = computed(() => flowItems.value.filter((_, i) => i % 2 === 0))
 const rightColumn = computed(() => flowItems.value.filter((_, i) => i % 2 === 1))
-
-// ── 分段混排：每 N 张标准卡（双列）后插 1 张 2:1 全宽大卡，打破节奏突出重点 ──
-// N（大卡出现频率）预留后端运营配置驱动（微页面/运营位机制）：后端配置就绪后由 loadHomeConfig 覆盖，
-// 现默认 6（规范：每 5-10 条一次）。TODO(config): GET /system/home-config → bigCardInterval
-const bigCardInterval = ref(6)
-type FeedSegment = { left: FeedEnvelope[]; right: FeedEnvelope[]; big: FeedEnvelope | null }
-const feedSegments = computed<FeedSegment[]>(() => {
-  const items = flowItems.value
-  const step = Math.max(3, bigCardInterval.value || 6)
-  const segs: FeedSegment[] = []
-  let i = 0
-  while (i < items.length) {
-    const chunk = items.slice(i, i + step)
-    i += step
-    let big: FeedEnvelope | null = null
-    if (i < items.length) { big = items[i]; i += 1 } // 段末取一张作全宽大卡（不与双列重复）
-    segs.push({
-      left: chunk.filter((_, k) => k % 2 === 0),
-      right: chunk.filter((_, k) => k % 2 === 1),
-      big,
-    })
-  }
-  return segs
-})
 
 // ── Tab 切换 ──
 function switchTab(id: TabId) {
@@ -321,39 +294,34 @@ function backToTop() {
         </view>
       </view>
 
-      <!-- 分段混排瀑布流：每段双列九类卡 + 段末 2:1 全宽大卡（长按呼负反馈浮层） -->
-      <template v-for="(seg, si) in feedSegments" :key="'seg' + si">
-        <view class="flow">
-          <view class="col">
-            <view
-              v-for="item in seg.left"
-              :key="item.id"
-              @touchstart="onCardTouchStart(item, $event)"
-              @touchmove="onCardTouchMove"
-              @touchend="onCardTouchEnd"
-              @touchcancel="onCardTouchEnd"
-            >
-              <feed-card :item="item" />
-            </view>
-          </view>
-          <view class="col">
-            <view
-              v-for="item in seg.right"
-              :key="item.id"
-              @touchstart="onCardTouchStart(item, $event)"
-              @touchmove="onCardTouchMove"
-              @touchend="onCardTouchEnd"
-              @touchcancel="onCardTouchEnd"
-            >
-              <feed-card :item="item" />
-            </view>
+      <!-- 双列瀑布流：九类卡等权分左右两列（长按呼负反馈浮层）。
+           普通周期大卡已下线（董事长 #28）——重点主推位仅保留顶部焦点大卡；此处纯双列不再插全宽大卡 -->
+      <view class="flow">
+        <view class="col">
+          <view
+            v-for="item in leftColumn"
+            :key="item.id"
+            @touchstart="onCardTouchStart(item, $event)"
+            @touchmove="onCardTouchMove"
+            @touchend="onCardTouchEnd"
+            @touchcancel="onCardTouchEnd"
+          >
+            <feed-card :item="item" />
           </view>
         </view>
-        <!-- 2:1 全宽大卡 -->
-        <view v-if="seg.big" class="big-wrap">
-          <feed-card :item="seg.big" :big="true" />
+        <view class="col">
+          <view
+            v-for="item in rightColumn"
+            :key="item.id"
+            @touchstart="onCardTouchStart(item, $event)"
+            @touchmove="onCardTouchMove"
+            @touchend="onCardTouchEnd"
+            @touchcancel="onCardTouchEnd"
+          >
+            <feed-card :item="item" />
+          </view>
         </view>
-      </template>
+      </view>
 
       <!-- 加载更多 / 到底提示 -->
       <view v-if="loadingMore" class="more-tip"><text class="more-tip-txt">加载中…</text></view>

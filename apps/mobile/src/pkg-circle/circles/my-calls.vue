@@ -94,7 +94,7 @@ onMounted(load)
     <!-- 顶栏 + 方向筛选 -->
     <view class="mcl-topbar">
       <view class="mcl-topbar-row">
-        <view class="mcl-back" @tap="goBack"><app-icon name="chevron-left" :size="40" color="#2C2C2C" /></view>
+        <view class="mcl-back" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
         <text class="mcl-title">我的通话</text>
       </view>
       <view class="mcl-filters">

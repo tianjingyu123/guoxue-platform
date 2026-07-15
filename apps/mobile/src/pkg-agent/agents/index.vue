@@ -100,7 +100,7 @@
                 <text class="zx-official-txt">平台官方</text>
               </view>
             </view>
-            <text class="zx-desc">懂命理、通经典 · 会排盘的国学 AI，试试报出生辰看八字</text>
+            <text class="zx-desc">懂命理文化、通经典 · 会排盘的国学 AI，试试报出生辰起一盘</text>
             <view class="zx-caps">
               <text class="zx-cap">八字排盘</text>
               <text class="zx-cap">经典问答</text>

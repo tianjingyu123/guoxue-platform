@@ -3,7 +3,7 @@
     <!-- Header (动态主题色) -->
     <view class="cfg-header" :style="{ paddingTop: statusBarHeight + 'px', background: theme.primary }">
       <view class="cfg-header-inner">
-        <view class="cfg-hbtn" @tap="goBack"><app-icon name="arrow-left" :size="40" color="#ffffff" /></view>
+        <view class="cfg-hbtn" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#ffffff" /></view>
         <text class="cfg-title">分站装修</text>
         <view class="cfg-hbtn" @tap="handleSave">
           <app-icon :name="saving ? 'loader-2' : 'save'" :size="40" color="#ffffff" :class="{ 'cfg-spin': saving }" />

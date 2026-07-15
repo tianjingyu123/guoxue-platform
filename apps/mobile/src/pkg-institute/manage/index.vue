@@ -3,7 +3,7 @@
     <!-- 自绘导航栏（深棕渐变·金色角色徽章）-->
     <view class="nav" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="nav-bar">
-        <view class="nav-back" @tap="goBack"><app-icon name="chevron-left" :size="20" color="#fff" /></view>
+        <view class="nav-back" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#fff" /></view>
         <text class="nav-title serif">研究院管理端</text>
         <view class="nav-role"><text class="nav-role-t">{{ myRoleLabel }}</text></view>
       </view>

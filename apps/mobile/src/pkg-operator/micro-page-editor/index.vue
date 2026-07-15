@@ -206,7 +206,7 @@ function summarize(comp: MicroComponent): string {
   <view class="mp">
     <!-- Header -->
     <view class="mp-header">
-      <view class="mp-hbtn" @tap="goBack"><app-icon name="arrow-left" :size="40" color="#1f2937" /></view>
+      <view class="mp-hbtn" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1f2937" /></view>
       <view class="mp-htitle">
         <text class="mp-htitle-txt">装修分站首页</text>
         <text class="mp-hstatus" :class="published ? 'on' : 'off'">{{ published ? '已发布' : '草稿' }}</text>

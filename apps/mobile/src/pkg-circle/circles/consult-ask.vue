@@ -124,7 +124,7 @@ onLoad((opt) => {
   <view class="ca-page">
     <!-- 顶栏：向谁提问、花多少金币 -->
     <view class="ca-topbar">
-      <view class="ca-back" @tap="goBack"><app-icon name="chevron-left" :size="40" color="#2C2C2C" /></view>
+      <view class="ca-back" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
       <text class="ca-title">{{ expertName ? `向${expertName}提问` : '图文提问' }}</text>
       <text v-if="priceCoin" class="ca-price">{{ priceCoin }} 金币/次</text>
     </view>

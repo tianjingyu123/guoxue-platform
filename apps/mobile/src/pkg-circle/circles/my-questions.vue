@@ -84,7 +84,7 @@ onMounted(() => { myId.value = getCurrentUserId(); load() })
     <!-- 顶栏 + 状态筛选 -->
     <view class="mq-topbar">
       <view class="mq-topbar-row">
-        <view class="mq-back" @tap="goBack"><app-icon name="chevron-left" :size="40" color="#2C2C2C" /></view>
+        <view class="mq-back" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
         <text class="mq-title">我的问答</text>
       </view>
       <view class="mq-filters">

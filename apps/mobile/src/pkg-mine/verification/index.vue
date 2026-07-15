@@ -78,7 +78,7 @@ onMounted(load)
 <template>
   <view class="page">
     <view class="topbar">
-      <view class="back" @tap="goBack"><app-icon name="chevron-left" :size="40" color="#2C2C2C" /></view>
+      <view class="back" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
       <text class="topbar-title">实名认证</text>
     </view>
 

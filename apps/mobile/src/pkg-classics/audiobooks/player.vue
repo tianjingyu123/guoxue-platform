@@ -328,7 +328,7 @@ onLoad((q) => {
     <view class="ap-header">
       <view class="ap-statusbar" />
       <view class="ap-header-inner">
-        <view class="ap-circle-btn" @tap="goBack"><app-icon name="arrow-left" :size="40" color="#78350f" /></view>
+        <view class="ap-circle-btn" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#78350f" /></view>
         <text class="ap-header-title">听书 · AI 朗读</text>
         <view class="ap-circle-btn" @tap="showChapters = true"><app-icon name="list" :size="38" color="#78350f" /></view>
       </view>

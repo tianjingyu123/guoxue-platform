@@ -399,7 +399,7 @@ onLoad((q) => {
     <view class="rd-top">
       <view class="rd-statusbar" />
       <view class="rd-top-inner">
-        <view class="rd-icon-btn" @tap="goBack"><app-icon name="arrow-left" :size="40" :color="iconColor" /></view>
+        <view class="rd-icon-btn" @tap="goBack"><app-icon name="arrow-left" :size="44" :color="iconColor" /></view>
         <view class="rd-top-mid">
           <text class="rd-top-title">{{ bookTitle }}</text>
           <text v-if="curChapter" class="rd-top-sub">{{ curChapter.title }}</text>

@@ -91,7 +91,7 @@
     <view class="vp__top" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="vp__top-row">
         <view class="vp__icon-btn" @tap="onBack">
-          <AppIcon name="chevron-left" :size="36" color="#ffffff" />
+          <AppIcon name="arrow-left" :size="42" color="#ffffff" />
         </view>
         <!-- 来源圈子胶囊（V0 source-pill）：每条视频标明出处，可点进圈子详情 -->
         <view v-if="currentVideo.circle" class="vp__source-pill" @tap="goCircle">

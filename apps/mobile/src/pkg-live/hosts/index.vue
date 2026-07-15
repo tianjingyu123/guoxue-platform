@@ -58,7 +58,7 @@ function fmtLikes(n: number) {
   <view class="page">
     <!-- 头部 -->
     <view class="header">
-      <view class="nav-back" @tap="goBack"><AppIcon name="arrow-left" :size="40" color="#2c2c2c" /></view>
+      <view class="nav-back" @tap="goBack"><AppIcon name="arrow-left" :size="44" color="#1A1A1A" /></view>
       <text class="nav-title">主播列表</text>
     </view>
 

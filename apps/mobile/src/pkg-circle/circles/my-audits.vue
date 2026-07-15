@@ -66,7 +66,7 @@ onMounted(load)
   <view class="ma-page">
     <!-- 顶栏 -->
     <view class="ma-topbar">
-      <view class="ma-back" @tap="goBack"><app-icon name="chevron-left" :size="32" color="#2C2C2C" /></view>
+      <view class="ma-back" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
       <text class="ma-title">发布审核</text>
     </view>
 

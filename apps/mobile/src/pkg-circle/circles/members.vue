@@ -43,7 +43,7 @@ function openUser(id: string) { navigateTo(`/pkg-circle/user/profile?id=${id}`) 
   <view class="page">
     <!-- 顶部导航 -->
     <view class="nav">
-      <view class="nav-back" @tap="goBack"><app-icon name="chevron-left" :size="40" color="#2C2C2C" /></view>
+      <view class="nav-back" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
       <text class="nav-title">圈子成员<text v-if="total" class="nav-count">（{{ total }}）</text></text>
     </view>
 

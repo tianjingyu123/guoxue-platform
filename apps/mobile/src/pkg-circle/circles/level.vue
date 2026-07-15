@@ -17,7 +17,7 @@
       <!-- 顶部深色区 -->
       <view class="top" :style="{ paddingTop: statusBarH + 'px' }">
         <view class="nav">
-          <view class="nav-btn" @tap="goBack"><app-icon name="arrow-left" :size="34" color="#ffffff" /></view>
+          <view class="nav-btn" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#ffffff" /></view>
           <text class="nav-title">我的等级</text>
           <view class="nav-rank" @tap="goRank"><text class="nav-rank-t">排行</text><app-icon name="chevron-right" :size="28" color="rgba(255,255,255,0.7)" /></view>
         </view>

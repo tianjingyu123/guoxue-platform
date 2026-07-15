@@ -67,7 +67,7 @@ onLoad((opt) => {
 <template>
   <view class="bk-page">
     <view class="bk-topbar">
-      <view class="bk-back" @tap="goBack"><app-icon name="chevron-left" :size="40" color="#2C2C2C" /></view>
+      <view class="bk-back" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
       <text class="bk-title">预约连麦</text>
     </view>
 

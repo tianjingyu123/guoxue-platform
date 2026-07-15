@@ -138,7 +138,7 @@ async function submit() {
   <view class="cc-page">
     <!-- 顶栏 -->
     <view class="cc-topbar">
-      <view class="cc-back" @tap="goBack"><app-icon name="arrow-left" :size="40" color="#2C2C2C" /></view>
+      <view class="cc-back" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
       <text class="cc-topbar-title">创建圈子</text>
       <text class="cc-preview-link" @tap="openPreview">预览</text>
     </view>

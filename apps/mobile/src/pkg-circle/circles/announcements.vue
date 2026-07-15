@@ -120,7 +120,7 @@ function share() { uni.showToast({ title: '链接已复制', icon: 'none' }) }
   <view class="an">
     <!-- 顶栏 -->
     <view class="an-hdr">
-      <view class="an-hdr-btn" @tap="goBack"><app-icon name="arrow-left" :size="36" color="#ffffff" /></view>
+      <view class="an-hdr-btn" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#ffffff" /></view>
       <text class="an-hdr-title">圈子公告</text>
       <view class="an-hdr-btn" @tap="share"><app-icon name="share-2" :size="36" color="#ffffff" /></view>
     </view>

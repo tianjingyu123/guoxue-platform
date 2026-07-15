@@ -4,7 +4,7 @@
       <!-- 朱红渐变品牌头（自定义 navbar） -->
       <view class="a14-brand" :style="{ paddingTop: statusBarHeight + 'px' }">
         <view class="a14-brand-top">
-          <view class="a14-brand-btn" @tap="goBack"><app-icon name="chevron-left" :size="22" color="#fff" /></view>
+          <view class="a14-brand-btn" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#fff" /></view>
           <view class="a14-brand-title">
             <text class="a14-brand-h1">邀请好友同台</text>
             <text class="a14-brand-en">INVITE &amp; SHARE HONOR</text>

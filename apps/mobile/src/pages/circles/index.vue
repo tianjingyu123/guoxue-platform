@@ -66,19 +66,6 @@ function selectCategory(id: string) {
   loadCircles()
 }
 
-async function handleJoin(id: string) {
-  const idx = circles.value.findIndex((c) => c.id === id)
-  if (idx < 0) return
-  circles.value[idx] = { ...circles.value[idx], isJoined: true, members: circles.value[idx].members + 1 }
-  joinedIds.value.add(String(id))
-  try {
-    await circleApi.join(id)
-  } catch {
-    circles.value[idx] = { ...circles.value[idx], isJoined: false, members: circles.value[idx].members - 1 }
-    joinedIds.value.delete(String(id))
-  }
-}
-
 function go(url: string) { navigateTo(url) }
 // 未加入 → 购买/加入引导页 preview（转化关键·付费圈走确认支付）；已加入 → 圈子详情
 function openCircle(c: Circle) {
@@ -178,6 +165,8 @@ onShow(() => {
         <app-error v-else-if="error" title="圈子加载失败" desc="网络异常，请稍后重试" @retry="loadCircles" />
         <!-- 列表 -->
         <view v-else-if="circles.length" class="discover-list">
+          <!-- 整卡点击进详情页（像商品/课程卡）：未加入→加入引导页，已加入→圈子详情。
+               卡上不再「无感即加入」，加入/购买动作在详情页完成（董事长 #24） -->
           <view
             v-for="c in circles" :key="c.id"
             class="circle-card" @tap="openCircle(c)"
@@ -187,25 +176,23 @@ onShow(() => {
               <smart-cover :src="c.cover" :title="c.name" type="circle" class="card-cover-img" />
             </view>
             <view class="card-body">
-              <text class="card-title">{{ c.name }}</text>
+              <view class="card-head">
+                <text class="card-title">{{ c.name }}</text>
+                <view v-if="c.isJoined" class="tag-joined"><text class="tag-joined-txt">已加入</text></view>
+              </view>
+              <!-- 待加入卡留足描述空间（2 行），像商品卡展示卖点 -->
               <text class="card-desc">{{ c.description }}</text>
-              <view class="card-meta">
-                <text>{{ formatMembers(c.members) }}成员</text>
+              <view class="card-foot">
+                <text class="card-members">{{ formatMembers(c.members) }}成员</text>
                 <template v-if="c.todayActive && c.todayActive > 0">
-                  <view class="sep" /><text>今日 {{ c.todayActive }} 条新内容</text>
+                  <view class="sep" /><text class="card-members">今日 {{ c.todayActive }} 条</text>
                 </template>
+                <view class="foot-spacer" />
+                <text v-if="c.isPaid" class="card-price">¥{{ c.price }}<text class="card-price-unit">/年</text></text>
+                <text v-else class="card-price free">免费</text>
               </view>
             </view>
-            <view class="card-side">
-              <text v-if="c.isPaid" class="join-price">¥{{ c.price }}/年</text>
-              <text v-else class="join-free">免费</text>
-              <view
-                v-if="c.isJoined" class="btn-joined"
-              ><text class="btn-joined-txt">已加入</text></view>
-              <view
-                v-else class="btn-join" @tap.stop="handleJoin(c.id)"
-              ><text class="btn-join-txt">加入</text></view>
-            </view>
+            <app-icon name="chevron-right" :size="28" color="#C8C0B4" class="card-arrow" />
           </view>
         </view>
         <!-- 空态 -->
@@ -327,29 +314,32 @@ onShow(() => {
 
 .discover-list { display: flex; flex-direction: column; gap: 20rpx; padding: 0 32rpx; }
 .circle-card {
-  display: flex; gap: 24rpx; align-items: flex-start;
+  display: flex; gap: 24rpx; align-items: center;
   background: var(--bg-card, #fff); border-radius: 32rpx; padding: 24rpx;
   box-shadow: 0 2rpx 8rpx rgba(44, 44, 44, 0.04);
 }
 .circle-card:active { transform: scale(0.99); }
-/* 首图 3:4（上传规范：圈子封面 3:4·960×1280）：150×200rpx 缩略图完整展示比例 */
-.card-cover { position: relative; width: 150rpx; height: 200rpx; border-radius: 24rpx; overflow: hidden; flex-shrink: 0; background: #f2efea; }
+/* 首图 3:4（上传规范：圈子封面 3:4·960×1280）：160×214rpx 缩略图完整展示比例 */
+.card-cover { position: relative; width: 160rpx; height: 214rpx; border-radius: 24rpx; overflow: hidden; flex-shrink: 0; background: #f2efea; }
 .card-cover-img { position: absolute; inset: 0; width: 100%; height: 100%; }
-.card-body { flex: 1; min-width: 0; }
-.card-title { display: block; font-size: 30rpx; font-weight: 600; color: var(--text-primary, #2c2c2c); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.card-desc { display: block; font-size: 24rpx; color: var(--text-secondary, #6e6e73); margin-top: 6rpx; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; }
-.card-meta { display: flex; align-items: center; gap: 12rpx; margin-top: 14rpx; font-size: 22rpx; color: var(--text-tertiary, #999); }
-.card-meta .sep { width: 4rpx; height: 4rpx; border-radius: 999rpx; background: var(--text-tertiary, #999); }
-.card-side { display: flex; flex-direction: column; align-items: flex-end; justify-content: space-between; align-self: stretch; flex-shrink: 0; }
-/* 付费价格·国学金（价值感） */
-.join-price { font-size: 24rpx; font-weight: 650; color: var(--gold, #c9a96e); }
-.join-free { font-size: 24rpx; color: var(--text-tertiary, #999); }
-/* 加入·朱红软底 */
-.btn-join { height: 56rpx; padding: 0 30rpx; border-radius: 28rpx; background: var(--brand-soft, rgba(196, 30, 58, 0.08)); display: flex; align-items: center; }
-.btn-join-txt { font-size: 26rpx; font-weight: 600; color: var(--brand, #c41e3a); }
-.btn-join:active { opacity: 0.8; }
-.btn-joined { height: 56rpx; padding: 0 24rpx; border-radius: 28rpx; border: 1rpx solid var(--separator, #ede7dd); display: flex; align-items: center; }
-.btn-joined-txt { font-size: 26rpx; color: var(--text-tertiary, #999); }
+.card-body { flex: 1; min-width: 0; align-self: stretch; display: flex; flex-direction: column; }
+.card-head { display: flex; align-items: center; gap: 12rpx; }
+.card-title { flex: 1; min-width: 0; font-size: 31rpx; font-weight: 600; color: var(--text-primary, #2c2c2c); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* 已加入·轻标签 */
+.tag-joined { flex-shrink: 0; padding: 4rpx 16rpx; border-radius: 999rpx; background: var(--separator, #f2ede4); }
+.tag-joined-txt { font-size: 21rpx; color: var(--text-tertiary, #999); }
+/* 待加入卡留足描述空间：2 行卖点 */
+.card-desc { display: -webkit-box; font-size: 25rpx; color: var(--text-secondary, #6e6e73); margin-top: 10rpx; line-height: 1.5; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.card-foot { display: flex; align-items: center; gap: 12rpx; margin-top: auto; padding-top: 16rpx; }
+.card-members { font-size: 22rpx; color: var(--text-tertiary, #999); }
+.card-foot .sep { width: 4rpx; height: 4rpx; border-radius: 999rpx; background: var(--text-tertiary, #999); }
+.foot-spacer { flex: 1; }
+/* 价格·国学金（价值感）·像商品卡 */
+.card-price { font-size: 30rpx; font-weight: 700; color: var(--gold, #c9a96e); }
+.card-price-unit { font-size: 22rpx; font-weight: 500; }
+.card-price.free { font-size: 24rpx; font-weight: 500; color: var(--text-tertiary, #999); }
+/* 进入箭头（暗示可点进详情，像商品/课程卡） */
+.card-arrow { flex-shrink: 0; }
 
 /* 骨架 */
 .sk-card { display: flex; gap: 24rpx; background: var(--bg-card, #fff); border-radius: 32rpx; padding: 24rpx; }

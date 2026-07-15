@@ -3,7 +3,7 @@
     <!-- 顶部导航 -->
     <view class="a9-nav" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="a9-nav-row">
-        <view class="a9-nav-btn" @tap="goBack"><app-icon name="chevron-left" :size="22" color="#2c2c2c" /></view>
+        <view class="a9-nav-btn" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
         <text class="a9-nav-title">排行榜{{ navSuffix }}</text>
         <view class="a9-nav-btn" />
       </view>

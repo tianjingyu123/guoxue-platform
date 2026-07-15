@@ -53,7 +53,7 @@ function openNote(n: NoteItem) {
   <view class="notes-page">
     <!-- 头部 -->
     <view class="header">
-      <view class="hd-back" @tap="goBack"><app-icon name="arrow-left" :size="40" color="#2c2c2c" /></view>
+      <view class="hd-back" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
       <text class="hd-title">我的笔记</text>
       <view class="hd-back" />
     </view>

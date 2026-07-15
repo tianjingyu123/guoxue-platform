@@ -14,7 +14,7 @@
     <!-- 自绘导航栏 -->
     <view class="nav" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="nav-bar">
-        <view class="nav-back" @tap="goBack"><app-icon name="chevron-left" :size="20" color="#2C2C2C" /></view>
+        <view class="nav-back" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
         <text class="nav-title serif">我的会籍中心</text>
         <view class="nav-placeholder" />
       </view>

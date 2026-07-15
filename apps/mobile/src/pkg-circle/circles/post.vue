@@ -369,7 +369,7 @@ onUnmounted(() => { if (audioCtx) { try { audioCtx.destroy() } catch {} } })
   <view class="pd">
     <!-- 顶栏：sticky 毛玻璃（V0 .topbar） -->
     <view class="pd-topbar">
-      <view class="pd-top-btn" @tap="goBack"><app-icon name="arrow-left" :size="40" color="#2C2C2C" /></view>
+      <view class="pd-top-btn" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
       <text class="pd-top-title">帖子详情</text>
       <view class="pd-top-btn" @tap="showMenu = !showMenu"><app-icon name="more-horizontal" :size="40" color="#6E6E73" /></view>
     </view>

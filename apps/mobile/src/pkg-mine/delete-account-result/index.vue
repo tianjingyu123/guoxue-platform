@@ -74,7 +74,7 @@ function goCustomerService() {
   <!-- 冷静期 pending -->
   <view v-if="status === 'pending'" class="page">
     <view class="navbar">
-      <view class="nav-back" @tap="goBack"><AppIcon name="arrow-left" :size="40" color="#2c2c2c" /></view>
+      <view class="nav-back" @tap="goBack"><AppIcon name="arrow-left" :size="44" color="#1A1A1A" /></view>
       <text class="nav-title">注销申请</text>
       <view class="nav-right" />
     </view>

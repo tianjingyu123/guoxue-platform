@@ -3,7 +3,7 @@
     <!-- 自定义 navbar -->
     <view class="p-nav" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="p-nav-row">
-        <view class="p-nav-btn" @tap="goBack"><app-icon name="chevron-left" :size="22" color="#2C2C2C" /></view>
+        <view class="p-nav-btn" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
         <text class="p-nav-title">驿站商品</text>
         <view class="p-nav-btn add" @tap="openCreate"><app-icon name="plus" :size="20" color="#C41E3A" /></view>
       </view>

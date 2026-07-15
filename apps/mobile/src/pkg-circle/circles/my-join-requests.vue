@@ -69,7 +69,7 @@ onMounted(load)
   <view class="jr-page">
     <!-- 顶栏 -->
     <view class="jr-topbar">
-      <view class="jr-back" @tap="goBack"><app-icon name="chevron-left" :size="32" color="#2C2C2C" /></view>
+      <view class="jr-back" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
       <text class="jr-title">我的加入申请</text>
     </view>
 

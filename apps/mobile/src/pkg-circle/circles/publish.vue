@@ -218,7 +218,7 @@ async function submitCourse() {
   <view class="cr">
     <!-- 顶栏 -->
     <view class="cr-hdr">
-      <view class="cr-hdr-btn" @tap="goBack"><app-icon name="chevron-left" :size="40" color="#ffffff" /></view>
+      <view class="cr-hdr-btn" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#ffffff" /></view>
       <text class="cr-hdr-title">发布内容</text>
       <view class="cr-hdr-btn" />
     </view>

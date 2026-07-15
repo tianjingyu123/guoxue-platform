@@ -8,14 +8,14 @@
  *       tags 后端无话题聚合页 → 纯展示不可点。
  * 数据逻辑全部保留：articleApi 加载/互动/评论/recommends/related/sourceCircle，乐观更新+回滚+防重复。
  */
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import SmartCover from '@/components/common/smart-cover.vue'
 import { goBack, navigateTo, toastComingSoon } from '@/utils/router'
 import {
   articleApi, recommendRoute,
-  type ArticleDetail, type ArticleComment, type ArticleRecommendCard,
+  type ArticleDetail, type ArticleComment, type ArticleRecommendCard, type ArticleProductCard,
 } from '@/lib/article-data'
 import { setOrderSource } from '@/lib/shop-data'
 
@@ -24,6 +24,12 @@ const loading = ref(true)
 const error = ref('')
 const article = ref<ArticleDetail | null>(null)
 const comments = ref<ArticleComment[]>([])
+
+// 带货商品抽屉（抖音式：底部 2/3 屏弹层·单品直达详情/多品列表）
+const products = ref<ArticleProductCard[]>([])
+const showProducts = ref(false)
+// 内联推荐卡排除 PRODUCT（商品统一走带货抽屉·避免与抽屉重复）
+const inlineRecs = computed(() => (article.value?.recommends || []).filter(c => c.recommendType !== 'PRODUCT'))
 
 // 互动状态
 const isFollowed = ref(false)
@@ -52,6 +58,11 @@ async function load() {
     article.value = a
     likeCount.value = a.likes
     collectCount.value = a.collects
+    // 带货商品：先展示（封面+名），再逐件拉商品详情充实价格（失败不阻断主体）
+    products.value = a.products
+    if (a.products.length) {
+      articleApi.enrichProducts(a.products).then((ps) => { products.value = ps }).catch(() => {})
+    }
     // 评论 + 我的互动态并行拉取（失败不阻断主体）
     const [cs, chk] = await Promise.all([
       articleApi.getComments(articleId.value).catch(() => []),
@@ -91,6 +102,20 @@ const REC_ICON: Record<ArticleRecommendCard['recommendType'], string> = {
 }
 function recLabel(t: ArticleRecommendCard['recommendType']) { return REC_LABEL[t] || '相关推荐' }
 function recIcon(t: ArticleRecommendCard['recommendType']) { return REC_ICON[t] || 'link' }
+
+// ─── 带货商品（抖音式抽屉）───
+/** 带货商品 → 商品详情（记录 ARTICLE 来源供分佣归因·同 openRecommend 的 PRODUCT 逻辑） */
+function openProduct(p: ArticleProductCard) {
+  if (!p.id) return
+  setOrderSource('ARTICLE', articleId.value, p.id)
+  showProducts.value = false
+  navigateTo('/shop/' + p.id)
+}
+/** 带货入口点击：单品直达详情·多品打开抽屉 */
+function onPromoTap() {
+  if (products.value.length === 1) openProduct(products.value[0])
+  else showProducts.value = true
+}
 
 // ─── 互动（乐观更新 + 失败回滚 + 防重复）───
 async function toggleLike() {
@@ -177,7 +202,7 @@ async function submitComment() {
   <view class="ad">
     <!-- 顶栏：sticky 毛玻璃（返回 + 文章 + 分享） -->
     <view class="ad-topbar">
-      <view class="ad-top-btn" @tap="goBack"><app-icon name="arrow-left" :size="40" color="#2C2C2C" /></view>
+      <view class="ad-top-btn" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
       <text class="ad-top-title">文章</text>
       <view class="ad-top-btn" @tap="openShare"><app-icon name="share-2" :size="36" color="#6E6E73" /></view>
     </view>
@@ -242,9 +267,9 @@ async function submitComment() {
         <rich-text class="ad-rich" :nodes="article.content"></rich-text>
       </view>
 
-      <!-- 内联推荐卡（后端 recommends，5 类型；仅标题/封面 → 降级展示 + 跳转） -->
-      <view v-if="article.recommends.length" class="ad-recs">
-        <view v-for="c in article.recommends" :key="c.id" class="ad-rec-card" @tap="openRecommend(c)">
+      <!-- 内联推荐卡（后端 recommends；商品类走下方带货入口条·此处只出圈子/课程/排盘/智能体） -->
+      <view v-if="inlineRecs.length" class="ad-recs">
+        <view v-for="c in inlineRecs" :key="c.id" class="ad-rec-card" @tap="openRecommend(c)">
           <image v-if="c.cover" lazy-load class="ad-rec-cover" :src="c.cover" mode="aspectFill" />
           <view class="ad-rec-main">
             <view class="ad-rec-tag">
@@ -255,6 +280,18 @@ async function submitComment() {
           </view>
           <app-icon name="chevron-right" :size="32" color="#999999" />
         </view>
+      </view>
+
+      <!-- 带货入口条（抖音式·文中好物·配图=首件封面·单品直达详情/多品开抽屉） -->
+      <view v-if="products.length" class="ad-promo" @tap="onPromoTap">
+        <view class="ad-promo-img"><smart-cover :src="products[0].cover" :title="products[0].name" type="product" /></view>
+        <view class="ad-promo-main">
+          <view class="ad-promo-tag"><app-icon name="shopping-bag" :size="24" color="#C41E3A" /><text class="ad-promo-tag-t">文中好物</text></view>
+          <text class="ad-promo-name">{{ products[0].name }}</text>
+          <text v-if="products[0].price > 0" class="ad-promo-price">¥{{ products[0].price }}<text v-if="products.length > 1" class="ad-promo-more"> 等 {{ products.length }} 件</text></text>
+          <text v-else class="ad-promo-sub">{{ products.length > 1 ? `共 ${products.length} 件好物` : '查看商品详情' }}</text>
+        </view>
+        <view class="ad-promo-btn"><text class="ad-promo-btn-t">{{ products.length > 1 ? '看全部' : '去看看' }}</text></view>
       </view>
 
       <!-- 互动栏：V0 居中纵向（点赞/评论/收藏/分享·数字在下），上下留白 + 底部细分隔线 -->
@@ -362,6 +399,32 @@ async function submitComment() {
         <view class="ad-send" :class="{ disabled: commentSubmitting || !commentText.trim() }" @tap="submitComment">
           <text class="ad-send-t">{{ commentSubmitting ? '发送中' : '发送' }}</text>
         </view>
+      </view>
+    </view>
+
+    <!-- 带货商品抽屉（抖音式·底部 2/3 屏弹层·多品列表） -->
+    <view v-if="showProducts" class="ad-sheet-mask" @tap="showProducts = false">
+      <view class="ad-sheet" @tap.stop>
+        <view class="ad-sheet-head">
+          <text class="ad-sheet-title">文中好物 · {{ products.length }} 件</text>
+          <view @tap="showProducts = false"><app-icon name="x" :size="36" color="#999999" /></view>
+        </view>
+        <scroll-view scroll-y class="ad-sheet-body">
+          <view v-for="p in products" :key="p.id" class="ad-prod" @tap="openProduct(p)">
+            <view class="ad-prod-img"><smart-cover :src="p.cover" :title="p.name" type="product" /></view>
+            <view class="ad-prod-info">
+              <text class="ad-prod-name">{{ p.name }}</text>
+              <view class="ad-prod-foot">
+                <view v-if="p.price > 0" class="ad-prod-price-row">
+                  <text class="ad-prod-price">¥{{ p.price }}</text>
+                  <text v-if="p.originalPrice > p.price" class="ad-prod-origin">¥{{ p.originalPrice }}</text>
+                </view>
+                <text v-else class="ad-prod-sub">查看详情</text>
+                <view class="ad-prod-buy"><text class="ad-prod-buy-t">去购买</text></view>
+              </view>
+            </view>
+          </view>
+        </scroll-view>
       </view>
     </view>
   </view>
@@ -547,4 +610,41 @@ async function submitComment() {
 .ad-send { flex-shrink: 0; height: 76rpx; padding: 0 32rpx; border-radius: 38rpx; background: var(--brand, #c41e3a); display: flex; align-items: center; }
 .ad-send.disabled { opacity: 0.5; }
 .ad-send-t { font-size: 28rpx; font-weight: 500; color: #fff; }
+
+/* 带货入口条：暖底卡·配图 + 好物名/价格 + 去看看按钮 */
+.ad-promo {
+  margin: 32rpx 32rpx 0; padding: 24rpx 28rpx;
+  display: flex; align-items: center; gap: 24rpx;
+  background: linear-gradient(135deg, rgba(196,30,58,0.06), rgba(201,169,110,0.08));
+  border: 1rpx solid rgba(196,30,58,0.12); border-radius: 28rpx;
+}
+.ad-promo-img { width: 120rpx; height: 120rpx; border-radius: 16rpx; overflow: hidden; flex-shrink: 0; background: var(--bg-warm, #f8f4ec); }
+.ad-promo-main { flex: 1; min-width: 0; }
+.ad-promo-tag { display: flex; align-items: center; gap: 8rpx; }
+.ad-promo-tag-t { font-size: 20rpx; font-weight: 600; color: var(--brand, #c41e3a); }
+.ad-promo-name { display: block; font-size: 28rpx; font-weight: 500; color: var(--text-primary, #2c2c2c); line-height: 1.4; margin-top: 8rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ad-promo-price { display: block; font-size: 30rpx; font-weight: 700; color: var(--brand, #c41e3a); margin-top: 6rpx; }
+.ad-promo-more { font-size: 22rpx; font-weight: 400; color: var(--text-tertiary, #999); }
+.ad-promo-sub { display: block; font-size: 24rpx; color: var(--text-tertiary, #999); margin-top: 6rpx; }
+.ad-promo-btn { flex-shrink: 0; height: 64rpx; padding: 0 30rpx; border-radius: 32rpx; background: var(--brand, #c41e3a); display: flex; align-items: center; }
+.ad-promo-btn-t { font-size: 26rpx; font-weight: 500; color: #fff; }
+
+/* 带货抽屉：底部 2/3 屏弹层 */
+.ad-sheet-mask { position: fixed; inset: 0; z-index: 40; background: rgba(0,0,0,0.5); }
+.ad-sheet { position: absolute; left: 0; right: 0; bottom: 0; background: var(--bg-card, #fff); border-radius: 32rpx 32rpx 0 0; max-height: 66vh; display: flex; flex-direction: column; animation: ad-slide-up 0.28s ease-out; }
+@keyframes ad-slide-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
+.ad-sheet-head { display: flex; align-items: center; justify-content: space-between; padding: 28rpx 32rpx; border-bottom: 1rpx solid var(--separator, #ede7dd); }
+.ad-sheet-title { font-size: 30rpx; font-weight: 600; color: var(--text-primary, #2c2c2c); }
+.ad-sheet-body { padding: 24rpx 32rpx calc(24rpx + env(safe-area-inset-bottom)); max-height: 56vh; }
+.ad-prod { display: flex; gap: 20rpx; padding: 20rpx; background: var(--bg-warm, #f8f4ec); border-radius: 20rpx; margin-bottom: 18rpx; }
+.ad-prod-img { width: 150rpx; height: 150rpx; border-radius: 14rpx; overflow: hidden; flex-shrink: 0; background: var(--bg-card, #fff); }
+.ad-prod-info { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.ad-prod-name { font-size: 28rpx; font-weight: 500; color: var(--text-primary, #2c2c2c); line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.ad-prod-foot { margin-top: auto; display: flex; align-items: flex-end; justify-content: space-between; }
+.ad-prod-price-row { display: flex; align-items: baseline; gap: 12rpx; }
+.ad-prod-price { font-size: 32rpx; font-weight: 700; color: var(--brand, #c41e3a); }
+.ad-prod-origin { font-size: 22rpx; color: var(--text-tertiary, #999); text-decoration: line-through; }
+.ad-prod-sub { font-size: 24rpx; color: var(--text-tertiary, #999); }
+.ad-prod-buy { flex-shrink: 0; height: 60rpx; padding: 0 30rpx; border-radius: 30rpx; background: var(--brand, #c41e3a); display: flex; align-items: center; }
+.ad-prod-buy-t { font-size: 26rpx; font-weight: 500; color: #fff; }
 </style>

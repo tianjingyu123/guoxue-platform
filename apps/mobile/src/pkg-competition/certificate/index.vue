@@ -3,7 +3,7 @@
     <!-- 顶部导航（宋体标题·浅底描边分隔） -->
     <view class="nav-bar" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="nav-inner">
-        <view class="nav-btn" @tap="goBack"><app-icon name="arrow-left" :size="20" color="#2C2C2C" /></view>
+        <view class="nav-btn" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
         <text class="nav-title">荣誉证书</text>
         <view class="nav-btn" @tap="goPoster"><app-icon name="share-2" :size="18" color="#A5883F" /></view>
       </view>

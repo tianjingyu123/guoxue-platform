@@ -157,6 +157,15 @@ export interface ArticleRecommendCard {
   cover?: string
 }
 
+/** 文章带货商品卡（源自 recommends 里 PRODUCT 类型·价格逐件拉 /shop/products/:id 充实·参照短视频带货抽屉） */
+export interface ArticleProductCard {
+  id: string        // = 商品 id（recommend.targetId）
+  name: string
+  cover: string
+  price: number
+  originalPrice: number
+}
+
 /** 相关文章卡（对齐后端 getRelated 的 select 字段） */
 export interface RelatedArticleCard {
   id: string
@@ -180,6 +189,7 @@ export interface ArticleDetail {
   comments: number
   content: string // 富文本 HTML
   recommends: ArticleRecommendCard[]
+  products: ArticleProductCard[]  // 带货商品（recommends 里 PRODUCT 类型抽出·抖音式抽屉展示）
   sourceCircle?: { id: string; name: string; cover?: string | null; members: number }
   related: RelatedArticleCard[]
 }
@@ -237,6 +247,8 @@ interface RawReply {
 interface RawComment extends RawReply { replies?: RawReply[] }
 /** 我的收藏列表项（checkInteraction 比对用） */
 interface RawCollectItem { targetId?: string | number }
+/** GET /shop/products/:id 精简形状（文章带货商品充实用·仅声明访问到的字段·与短视频同款） */
+interface RawShopProductLite { id?: string; title?: string; price?: number | string; originalPrice?: number | string | null; effectivePrice?: number | string; images?: string[]; cover?: string | null; salesCount?: number }
 
 function adaptArticleDetail(a: RawArticleDetail): ArticleDetail {
   const recs: ArticleRecommendCard[] = (Array.isArray(a?.recommends) ? a.recommends : [])
@@ -255,6 +267,16 @@ function adaptArticleDetail(a: RawArticleDetail): ArticleDetail {
     cover: r.cover ?? null,
     likes: Number(r.likeCount ?? r.likes ?? 0),
   }))
+  // 带货商品：从 recommends 里抽出 PRODUCT 类型（ArticleRecommend 无价格 → 详情页加载后 enrichProducts 逐件充实）
+  const products: ArticleProductCard[] = (Array.isArray(a?.recommends) ? a.recommends : [])
+    .filter((r: RawRecommend) => r?.recommendType === 'PRODUCT' && r?.targetId != null && r?.targetId !== '')
+    .map((r: RawRecommend) => ({
+      id: String(r.targetId || ''),
+      name: r.title || '相关商品',
+      cover: r.cover || '',
+      price: 0,
+      originalPrice: 0,
+    }))
   const circle = a?.circle
   return {
     id: String(a?.id || ''),
@@ -275,6 +297,7 @@ function adaptArticleDetail(a: RawArticleDetail): ArticleDetail {
     // 富文本归一化：反转义 + 图片无缝（与商品详情同一工具链，见 @/utils/rich-content）
     content: normalizeRichContent(a?.content || ''),
     recommends: recs,
+    products,
     sourceCircle: circle ? {
       id: String(circle.id || ''),
       name: circle.name || '',
@@ -333,9 +356,29 @@ export const articleApi = {
 
   // ───────── 详情 / 评论（读） ─────────
 
-  /** 文章详情 GET /articles/:id（含 recommends 内联卡 + related 相关文章） */
+  /** 文章详情 GET /articles/:id（含 recommends 内联卡 + related 相关文章 + products 带货商品） */
   async detail(id: string): Promise<ArticleDetail> {
     return adaptArticleDetail(await apiGet<RawArticleDetail>(`/articles/${id}`))
+  },
+
+  /**
+   * 带货商品充实 — ArticleRecommend(PRODUCT) 仅存 targetId+title+cover 无价格 →
+   * 逐件拉 /shop/products/:id 补 price/originalPrice/cover（与短视频带货抽屉同款·失败保留原卡不阻断）。
+   */
+  async enrichProducts(products: ArticleProductCard[]): Promise<ArticleProductCard[]> {
+    if (!products.length) return products
+    return Promise.all(products.map(async (p) => {
+      try {
+        const d = await apiGet<RawShopProductLite>(`/shop/products/${p.id}`)
+        return {
+          ...p,
+          name: d?.title || p.name,
+          cover: (Array.isArray(d?.images) && d.images[0]) || d?.cover || p.cover,
+          price: Number(d?.effectivePrice ?? d?.price) || 0,
+          originalPrice: Number(d?.originalPrice) || 0,
+        }
+      } catch { return p }
+    }))
   },
 
   /** 文章评论列表 GET /comment?targetType=ARTICLE&targetId=（无评论返回 []，走空态） */

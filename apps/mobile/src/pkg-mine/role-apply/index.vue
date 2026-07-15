@@ -211,7 +211,7 @@ async function submit() {
     <!-- 顶栏 -->
     <view class="tbar" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="tbar-inner">
-        <view class="tbar-back" @tap="goBack"><AppIcon name="chevron-left" :size="40" color="#2B2620" /></view>
+        <view class="tbar-back" @tap="goBack"><AppIcon name="arrow-left" :size="44" color="#1A1A1A" /></view>
         <text class="tbar-title">申请成为{{ config.name }}</text>
         <view class="tbar-back" />
       </view>

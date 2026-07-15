@@ -123,7 +123,7 @@ async function doRemove(g: CircleGuest) {
     <!-- Header -->
     <view class="gt-nav">
       <view class="gt-nav-bar">
-        <view class="gt-back" @tap="goBack"><app-icon name="chevron-left" :size="40" color="#2C2C2C" /></view>
+        <view class="gt-back" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
         <text class="gt-title">嘉宾管理</text>
         <view class="gt-invite-btn" @tap="toastComingSoon()"><app-icon name="user-plus" :size="40" color="#C41E3A" /></view>
       </view>

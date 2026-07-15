@@ -262,7 +262,7 @@ onUnmounted(() => {
     <!-- 顶部导航 -->
     <view class="header safe-pt">
       <view class="head-bar">
-        <view class="back" @tap="goBack()"><AppIcon name="arrow-left" :size="40" color="#1a1a1a" /></view>
+        <view class="back" @tap="goBack()"><AppIcon name="arrow-left" :size="44" color="#1A1A1A" /></view>
         <view class="head-center">
           <view class="head-avatar agent-gradient-cool">
             <AppIcon name="bot" :size="28" color="#ffffff" />

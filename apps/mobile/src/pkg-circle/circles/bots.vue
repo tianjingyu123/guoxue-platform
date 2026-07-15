@@ -59,7 +59,7 @@ onMounted(load)
     <!-- 红色渐变头 -->
     <view class="cb-top">
       <view class="cb-top-nav" :style="{ paddingTop: 'calc(24rpx + var(--status-bar-height, 0px))' }">
-        <view class="cb-nav-btn" @tap="goBack"><app-icon name="arrow-left" :size="36" color="#ffffff" /></view>
+        <view class="cb-nav-btn" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#ffffff" /></view>
         <text class="cb-top-title">智能体广场</text>
         <view class="cb-nav-btn" />
       </view>
@@ -67,7 +67,7 @@ onMounted(load)
         <view class="cb-summary-icon"><app-icon name="sparkles" :size="40" color="#ffffff" /></view>
         <view class="cb-summary-main">
           <text class="cb-summary-name">国学智能体</text>
-          <text class="cb-summary-desc">命理 · 国学 · 客服，AI 助你随时随地求解</text>
+          <text class="cb-summary-desc">命理文化 · 国学 · 客服，AI 助你随时随地求解</text>
         </view>
         <view class="cb-summary-total">
           <text class="cb-summary-total-n">{{ bots.length }}</text>

@@ -165,7 +165,7 @@ export async function getPosterData(type: PosterType, targetId?: string, circleI
         type: 'invite',
         title: BRAND.name,
         subtitle: BRAND.slogan || '观天之道，执天之行',
-        desc: '汇聚易学、命理、风水名师，与万千同好一同探寻传统智慧。',
+        desc: '汇聚易学、命理文化、堪舆名师，与万千同好一同探寻传统智慧。',
         author: me?.nickname || '',
         authorAvatar: me?.avatar || '',
         qrcode: '',

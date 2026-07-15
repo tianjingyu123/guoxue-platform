@@ -49,7 +49,7 @@ const selLabel = computed(() => `${selected.value.slice(5, 7)}月${selected.valu
 <template>
   <view class="cal">
     <view class="cal-header">
-      <view @tap="goBack"><app-icon name="arrow-left" :size="40" color="#2C2C2C" /></view>
+      <view @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
       <text class="cal-title">活动日历</text>
     </view>
 

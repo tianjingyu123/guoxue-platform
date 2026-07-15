@@ -173,7 +173,7 @@ onMounted(() => { myId.value = getCurrentUserId(); load() })
     <!-- 顶栏 + 状态筛选 -->
     <view class="cor-topbar">
       <view class="cor-topbar-row">
-        <view class="cor-back" @tap="goBack"><app-icon name="chevron-left" :size="40" color="#2C2C2C" /></view>
+        <view class="cor-back" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
         <text class="cor-title">咨询订单</text>
       </view>
       <view class="cor-filters">

@@ -210,7 +210,7 @@ const rankingRest = computed(() => ranking.value.filter((r) => r.rank >= 4))
     <view class="tm-topbar">
       <view class="tm-statusbar" :style="{ height: statusBarHeight + 'px' }" />
       <view class="tm-header">
-        <view class="tm-hbtn" @tap="goBack"><app-icon name="arrow-left" :size="40" color="#fff" /></view>
+        <view class="tm-hbtn" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#fff" /></view>
         <text class="tm-title">我的站长团队</text>
         <view class="tm-invite-btn" @tap="openInvite"><app-icon name="user-plus" :size="30" color="#fff" /></view>
       </view>

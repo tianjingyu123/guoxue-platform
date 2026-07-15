@@ -3,7 +3,7 @@
     <!-- 顶部导航 -->
     <view class="nav-bar" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="nav-inner">
-        <view class="nav-btn" @tap="goBack"><app-icon name="chevron-left" :size="22" color="#2C2C2C" /></view>
+        <view class="nav-btn" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
         <text class="nav-title">我的成绩</text>
         <view class="nav-btn share" @tap="go('/competition/' + compId + '/poster')">
           <text class="share-txt">分享</text><app-icon name="share-2" :size="14" color="#C41E3A" />

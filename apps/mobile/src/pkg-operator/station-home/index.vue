@@ -105,7 +105,7 @@ function goBack() {
     <!-- 品牌导航栏 -->
     <view class="sh-header" :style="{ background: primary, paddingTop: 'var(--status-bar-height, 0px)' }">
       <view class="sh-header-inner">
-        <view class="sh-back" @tap="goBack"><app-icon name="chevron-left" :size="40" color="#ffffff" /></view>
+        <view class="sh-back" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#ffffff" /></view>
         <view class="sh-brand">
           <image lazy-load v-if="brand.logo" class="sh-logo" :src="brand.logo" mode="aspectFill" />
           <text class="sh-brand-name">{{ brand.name || '分站' }}</text>

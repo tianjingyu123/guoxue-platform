@@ -58,7 +58,7 @@ function setPreviewIndex(index: number) { if (previewImage.value) previewImage.v
     <!-- 顶部导航 -->
     <view class="header">
       <view class="header-inner">
-        <view class="back-btn" @tap="goBack"><AppIcon name="arrow-left" :size="40" color="var(--text-strong)" /></view>
+        <view class="back-btn" @tap="goBack"><AppIcon name="arrow-left" :size="44" color="#1A1A1A" /></view>
         <text class="header-title">商品评价</text>
         <view class="header-spacer" />
       </view>

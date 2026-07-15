@@ -310,7 +310,7 @@ onLoad((query) => {
   <view class="page">
     <!-- 顶栏 -->
     <view class="topbar">
-      <view class="back-btn" @tap="goBack"><app-icon name="chevron-left" :size="40" color="#2C2C2C" /></view>
+      <view class="back-btn" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
       <text class="topbar-title">圈规与治理</text>
     </view>
 

@@ -88,7 +88,7 @@ async function confirmReject() {
     <!-- 顶部导航 -->
     <view class="er-nav">
       <view class="er-nav-bar">
-        <view class="er-back" @tap="goBack"><app-icon name="chevron-left" :size="44" color="#2C2C2C" /></view>
+        <view class="er-back" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
         <text class="er-title">退出申请审核</text>
         <view class="er-nav-ph" />
       </view>

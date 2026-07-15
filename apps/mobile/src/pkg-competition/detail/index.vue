@@ -22,7 +22,7 @@
           <view class="hero-grad" />
           <!-- 顶部操作 -->
           <view class="hero-top" :style="{ paddingTop: statusBarHeight + 'px' }">
-            <view class="rbtn" @tap="goBack"><app-icon name="arrow-left" :size="18" color="#fff" /></view>
+            <view class="rbtn" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#fff" /></view>
             <view class="rbtn" @tap="sharePoster"><app-icon name="share-2" :size="16" color="#fff" /></view>
           </view>
         </view>

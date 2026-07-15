@@ -4,7 +4,7 @@
     <view v-if="loading" class="not-found-page">
       <view class="nav-simple" :style="{ paddingTop: statusBarHeight + 'px' }">
         <view class="nav-bar">
-          <view class="nav-back" @tap="goBack"><app-icon name="chevron-left" :size="22" color="#1a1a1a" /></view>
+          <view class="nav-back" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
           <text class="nav-title">活动详情</text>
         </view>
       </view>
@@ -18,7 +18,7 @@
     <view v-else-if="!event" class="not-found-page">
       <view class="nav-simple" :style="{ paddingTop: statusBarHeight + 'px' }">
         <view class="nav-bar">
-          <view class="nav-back" @tap="goBack"><app-icon name="chevron-left" :size="22" color="#1a1a1a" /></view>
+          <view class="nav-back" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
           <text class="nav-title">活动详情</text>
         </view>
       </view>
@@ -36,7 +36,7 @@
           <view class="cover-img"><app-icon name="calendar" :size="48" color="#d1d5db" /></view>
           <view class="cover-mask" />
           <view class="cover-header" :style="{ paddingTop: statusBarHeight + 'px' }">
-            <view class="round-btn" @tap="goBack"><app-icon name="chevron-left" :size="20" color="#fff" /></view>
+            <view class="round-btn" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#fff" /></view>
           </view>
           <view class="cover-tags">
             <text class="cover-tag" :style="{ color: eventTypeColor[event.type].color, background: eventTypeColor[event.type].bg }">{{ eventTypeLabel[event.type] }}</text>

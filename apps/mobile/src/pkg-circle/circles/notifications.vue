@@ -173,7 +173,7 @@ onMounted(load)
   <view class="cn-page">
     <!-- 顶栏：返回 + 标题 + 全部已读 -->
     <view class="cn-topbar">
-      <view class="cn-back" @tap="goBack"><app-icon name="chevron-left" :size="32" color="#2C2C2C" /></view>
+      <view class="cn-back" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
       <text class="cn-title">圈内通知</text>
       <view class="cn-mark" :class="{ disabled: marking || unread.ALL === 0 }" @tap="markAll">
         <text class="cn-mark-t">{{ marking ? '处理中…' : '全部已读' }}</text>

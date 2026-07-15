@@ -302,7 +302,7 @@ onMounted(() => {
 
     <!-- 顶栏：返回 + 课时切换入口 -->
     <view class="a-nav">
-      <view class="a-nav-btn" @tap="goBack"><app-icon name="arrow-left" :size="32" color="#2C2C2C" /></view>
+      <view class="a-nav-btn" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
       <view class="a-nav-mid" @tap="showChapterDrawer = true">
         <text class="a-nav-mid-txt">第 {{ lessonIndex }}/{{ lessonTotal }} 讲 · 目录</text>
         <app-icon name="chevron-down" :size="24" color="#6E6E73" />
@@ -415,7 +415,7 @@ onMounted(() => {
     <view class="player-zone">
       <!-- 顶条：返回 + 课程名 -->
       <view class="player-top">
-        <view class="p-btn" @tap="goBack"><app-icon name="chevron-left" :size="30" color="#ffffff" /></view>
+        <view class="p-btn" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#ffffff" /></view>
         <text class="p-top-title">{{ content.courseTitle }}</text>
         <view class="p-btn-ph" />
       </view>

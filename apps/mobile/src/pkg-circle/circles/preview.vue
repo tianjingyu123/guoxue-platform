@@ -161,7 +161,7 @@ onLoad((q) => {
   <view v-else class="jp-page has-bar">
     <!-- 顶栏：透明浮层 -->
     <view class="jp-topbar">
-      <view class="jp-icon-btn" @tap="goBack"><app-icon name="chevron-left" :size="32" color="#2C2C2C" /></view>
+      <view class="jp-icon-btn" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
       <view class="jp-icon-btn" @tap="openShare"><app-icon name="share-2" :size="30" color="#2C2C2C" /></view>
     </view>
 

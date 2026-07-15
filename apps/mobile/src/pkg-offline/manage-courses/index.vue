@@ -3,7 +3,7 @@
     <!-- 自定义 navbar -->
     <view class="b3-nav" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="b3-nav-row">
-        <view class="b3-nav-btn" @tap="goBack"><app-icon name="chevron-left" :size="22" color="#2C2C2C" /></view>
+        <view class="b3-nav-btn" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
         <text class="b3-nav-title">课程排期</text>
         <text class="b3-nav-action" @tap="openCreate">＋ 新建</text>
       </view>

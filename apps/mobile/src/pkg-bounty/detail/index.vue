@@ -3,7 +3,7 @@
     <customer-service-fab />
     <!-- 顶栏 -->
     <view class="bd-topbar">
-      <view class="bd-back" @tap="goBack"><app-icon name="chevron-left" :size="40" color="#2C2C2C" /></view>
+      <view class="bd-back" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
       <text class="bd-title">悬赏问答</text>
       <!-- 分享外溢裂变：微信原生转发，H5/App 复制带 ref 链接 -->
       <!-- #ifdef MP-WEIXIN -->

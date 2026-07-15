@@ -67,7 +67,7 @@ function openProduct(id: string | number) { navigateTo(`/mall/product/${id}`) }
     <!-- 顶部搜索栏 -->
     <view class="header">
       <view class="header-inner">
-        <view class="back-btn" @tap="goBack"><AppIcon name="arrow-left" :size="40" color="var(--text-strong)" /></view>
+        <view class="back-btn" @tap="goBack"><AppIcon name="arrow-left" :size="44" color="#1A1A1A" /></view>
         <view class="search-box">
           <view class="search-icon"><AppIcon name="search" :size="32" color="var(--text-soft)" /></view>
           <input v-model="searchQuery" class="search-input" type="text" confirm-type="search" placeholder="搜索商品后回车" placeholder-class="search-ph" @confirm="onSearch" />

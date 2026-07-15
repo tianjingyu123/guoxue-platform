@@ -27,7 +27,7 @@ function goBack() {
   <view class="page">
     <!-- 顶部导航 -->
     <view class="topbar">
-      <view class="topbar-back" @tap="goBack"><app-icon name="chevron-left" :size="44" color="var(--text-ink)" /></view>
+      <view class="topbar-back" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
       <text class="topbar-title">{{ toolName }}</text>
       <view class="topbar-spacer" />
     </view>

@@ -103,7 +103,7 @@ onMounted(loadHot)
   <view class="cs-page">
     <!-- 搜索顶栏 -->
     <view class="cs-bar">
-      <view class="cs-back" @tap="goBack"><app-icon name="arrow-left" :size="40" color="#2C2C2C" /></view>
+      <view class="cs-back" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
       <view class="cs-input-wrap">
         <app-icon name="search" :size="30" color="#999999" />
         <input

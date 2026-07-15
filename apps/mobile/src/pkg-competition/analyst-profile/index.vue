@@ -3,7 +3,7 @@
     <!-- 自定义导航（宣纸白·居中宋体标题） -->
     <view class="nav-bar" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="nav-inner">
-        <view class="nav-btn" @tap="goBack"><app-icon name="arrow-left" :size="20" color="#2C2C2C" /></view>
+        <view class="nav-btn" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
         <text class="nav-title">我的分析师档案</text>
         <view class="nav-btn" />
       </view>

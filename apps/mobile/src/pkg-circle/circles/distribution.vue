@@ -7,7 +7,7 @@
     <!-- Header -->
     <view class="hdr" :style="{ paddingTop: statusBarH + 'px' }">
       <view class="hdr-bar">
-        <view class="hdr-btn" @tap="goBack"><app-icon name="chevron-left" :size="36" color="#2C2C2C" /></view>
+        <view class="hdr-btn" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
         <text class="hdr-title">收益分配设置</text>
         <view class="hdr-btn" @tap="showHelp = true"><app-icon name="help-circle" :size="36" color="#999999" /></view>
       </view>

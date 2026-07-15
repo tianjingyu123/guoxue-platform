@@ -3,7 +3,7 @@
     <!-- 顶部导航 -->
     <view class="nav" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="nav-bar">
-        <view class="nav-back" @tap="goBack"><app-icon name="chevron-left" :size="22" color="#1a1a1a" /></view>
+        <view class="nav-back" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
         <text class="nav-title">私董会</text>
         <view class="nav-placeholder" />
       </view>

@@ -102,7 +102,7 @@ onMounted(() => { nextTick(() => setTimeout(drawLineChart, 100)) })
   <view class="st">
     <!-- 顶栏 -->
     <view class="st-hdr">
-      <view class="st-hdr-btn" @tap="goBack"><app-icon name="arrow-left" :size="40" color="#1a1a1a" /></view>
+      <view class="st-hdr-btn" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
       <text class="st-hdr-title">圈子统计</text>
       <view class="st-hdr-btn" />
     </view>

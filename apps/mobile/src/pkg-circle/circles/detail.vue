@@ -36,7 +36,7 @@ const circleProducts = ref<CircleProduct[]>([])
 const postedArticles = ref<CircleArticle[]>([])
 const isLoading = ref(true)
 const error = ref('')
-const activeTab = ref<'home' | 'essence' | 'articles'>('home')
+const activeTab = ref<'home' | 'essence' | 'articles' | 'qa'>('home')
 const showAnnouncement = ref(false)
 const isJoined = ref(false)
 const applied = ref(false)
@@ -81,10 +81,12 @@ const joinButtonText = computed(() => {
 })
 
 // 「成员」Tab 已去（与顶部成员信息重复·董事长反馈）→ 顶部成员数即入口，跳独立成员列表页
+// 董事长 #25：默认落「推荐」（原「动态」流即推荐流·改名）；「达人问答」从卡片降为内容分类 tab
 const tabs = [
-  { id: 'home', label: '动态' },
+  { id: 'home', label: '推荐' },
   { id: 'essence', label: '精华' },
   { id: 'articles', label: '文章' },
+  { id: 'qa', label: '问答' },
 ] as const
 
 const essencePosts = computed(() => posts.value.filter((p) => p.isEssence))
@@ -288,7 +290,7 @@ function openShowcase() { navigateTo('/pkg-circle/circles/activities') }
   <view class="cd-page" v-if="!isLoading && !error && circle">
     <!-- 顶部导航 -->
     <view class="nav">
-      <view class="nav-back" @tap="goBack"><app-icon name="chevron-left" :size="40" color="#2C2C2C" /></view>
+      <view class="nav-back" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
       <text class="nav-title">{{ circle.name }}</text>
       <view class="nav-action" @tap="openShare"><app-icon name="share-2" :size="34" color="#6E6E73" /></view>
     </view>
@@ -344,25 +346,8 @@ function openShowcase() { navigateTo('/pkg-circle/circles/activities') }
             <app-icon name="chevron-right" :size="22" color="#C41E3A" />
           </view>
 
-          <!-- 圈主 AI 助理入口（金色·科技感）：圈子特色能力 -->
-          <view class="ai-entry" @tap="openAssistant">
-            <view class="ai-orb"><app-icon name="sparkles" :size="30" color="#C9A96E" /></view>
-            <view class="ai-text">
-              <text class="ai-title">圈主助理</text>
-              <text class="ai-sub">圈子专属 AI，学习本圈内容，随时答疑</text>
-            </view>
-            <text class="ai-go">对话</text>
-          </view>
-
-          <!-- 达人咨询入口（图文提问 / 连麦·董事长 2026-07-11 反馈补·与 AI 助理同级并排） -->
-          <view class="ai-entry consult-entry" @tap="openConsult">
-            <view class="ai-orb"><app-icon name="headphones" :size="30" color="#C9A96E" /></view>
-            <view class="ai-text">
-              <text class="ai-title">达人咨询</text>
-              <text class="ai-sub">向圈内达人图文提问、悬赏或连麦一对一</text>
-            </view>
-            <text class="ai-go">去咨询</text>
-          </view>
+          <!-- 董事长 #25：圈主助理 → 右下角智能客服式浮层（见页面底部 assistant-fab）；
+               达人咨询 → 「问答」内容分类 tab（见下）·两者不再占用身份区卡片 -->
         </view>
       </view>
 
@@ -491,6 +476,13 @@ function openShowcase() { navigateTo('/pkg-circle/circles/activities') }
     <!-- 已加入：悬浮创作按钮（朱红圆形+笔图标·滚动时半透明） -->
     <view v-else class="fab" :class="{ dim: fabDim }" @tap="openCreate">
       <app-icon name="pen-line" :size="44" color="#ffffff" />
+    </view>
+
+    <!-- 圈主助理·智能客服式悬浮球（董事长 #25）：常驻右下角，点击进圈子专属 AI 对话。
+         错层于发帖 FAB / 加入通栏之上（isJoined 时抬更高避开 FAB） -->
+    <view class="assistant-fab" :class="{ raised: isJoined, dim: fabDim }" @tap="openAssistant">
+      <view class="assistant-orb"><app-icon name="sparkles" :size="34" color="#ffffff" /></view>
+      <view class="assistant-tag"><text class="assistant-tag-txt">助理</text></view>
     </view>
 
     <!-- 发布 Sheet（V0 circle-publish-sheet 稿）：遮罩+圆角面板+grabber+图标卡片 -->

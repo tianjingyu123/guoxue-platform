@@ -52,7 +52,7 @@ function fmtDate(s: string | null) { if (!s) return ''; const d = new Date(s); r
 <template>
   <view class="bg">
     <view class="bg-header">
-      <view @tap="goBack"><app-icon name="arrow-left" :size="40" color="#2C2C2C" /></view>
+      <view @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
       <text class="bg-title">我的徽章</text>
       <text class="bg-count">{{ earned.length }}/{{ badges.length }}</text>
     </view>

@@ -19,7 +19,7 @@
         <!-- 朱红品牌头 -->
         <view class="b1-topbar" :style="{ paddingTop: statusBarHeight + 'px' }">
           <view class="b1-topbar-row">
-            <view class="b1-icon-btn" @tap="goBack"><app-icon name="chevron-left" :size="22" color="#fff" /></view>
+            <view class="b1-icon-btn" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#fff" /></view>
             <text class="b1-topbar-title">驿站工作台</text>
             <view class="b1-icon-btn" />
           </view>

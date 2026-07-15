@@ -138,7 +138,7 @@ onLoad(async (opt) => {
   <view class="bc-page">
     <!-- 顶栏 -->
     <view class="bc-topbar">
-      <view class="bc-back" @tap="goBack"><app-icon name="chevron-left" :size="40" color="#2C2C2C" /></view>
+      <view class="bc-back" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
       <text class="bc-title">发起提问</text>
     </view>
 

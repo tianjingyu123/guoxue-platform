@@ -3,7 +3,7 @@
     <!-- 顶部导航（宣纸白·宋体标题） -->
     <view class="nav" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="nav-inner">
-        <view class="nav-btn" @tap="goBack"><app-icon name="chevron-left" :size="22" color="#2C2C2C" /></view>
+        <view class="nav-btn" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
         <text class="nav-title">易学分析师榜</text>
         <view class="nav-btn" @tap="goLevelSys"><app-icon name="info" :size="18" color="#A5883F" /></view>
       </view>

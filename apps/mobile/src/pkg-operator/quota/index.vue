@@ -3,7 +3,7 @@
   <view v-if="loading" class="q-page">
     <view class="q-nav" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="q-nav-inner">
-        <view class="q-nav-btn" @tap="goBack"><app-icon name="arrow-left" :size="40" color="#FFFFFF" /></view>
+        <view class="q-nav-btn" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#FFFFFF" /></view>
         <text class="q-nav-title">名额管理</text>
         <view class="q-nav-btn" />
       </view>
@@ -15,7 +15,7 @@
   <view v-else-if="error" class="q-page">
     <view class="q-nav" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="q-nav-inner">
-        <view class="q-nav-btn" @tap="goBack"><app-icon name="arrow-left" :size="40" color="#FFFFFF" /></view>
+        <view class="q-nav-btn" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#FFFFFF" /></view>
         <text class="q-nav-title">名额管理</text>
         <view class="q-nav-btn" />
       </view>
@@ -31,7 +31,7 @@
     <!-- 自定义导航（朱红渐变 + statusBar 留白） -->
     <view class="q-nav" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="q-nav-inner">
-        <view class="q-nav-btn" @tap="goBack"><app-icon name="arrow-left" :size="40" color="#FFFFFF" /></view>
+        <view class="q-nav-btn" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#FFFFFF" /></view>
         <text class="q-nav-title">名额管理</text>
         <view class="q-nav-btn" />
       </view>
