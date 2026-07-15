@@ -9,7 +9,11 @@ import { AdminAssistantService, AssistantChatDto, CreateFeedbackDto } from "./ad
 @ApiTags("后台运营助手")
 @ApiBearerAuth()
 @Controller("admin-assistant")
-@UseGuards(JwtAuthGuard)
+// 安全修复(后端审计P1)：原类级仅 JwtAuthGuard，员工侧 chat/feedback/my-feedback 无角色门槛 →
+// 任何 C 端登录用户都能调 /chat 读取内置《后台操作手册》并烧 DeepSeek 额度。
+// 补类级 RolesGuard + 6 类后台员工角色默认门槛；管理侧端点的方法级 @Roles 会 override 此默认值。
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN", "CUSTOMER_SERVICE", "CONTENT_AUDITOR", "GOODS_AUDITOR")
 export class AdminAssistantController {
   constructor(private readonly svc: AdminAssistantService) {}
 

@@ -78,7 +78,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       where: { id: payload.sub },
       include: { roles: true },
     });
-    if (!user || user.status === "DISABLED") throw new UnauthorizedException();
+    // 安全修复(后端审计P1)：原先只拒 DISABLED，风控封禁写的是 BANNED(risk-control.service ban_user)
+    // 且不撤 token → 被封用户 access/refresh 全程有效永不掉线。validate 每请求查库，此处补 BANNED 后
+    // 现存 token 也会在下次请求即被拒。
+    if (!user || user.status === "DISABLED" || user.status === "BANNED") throw new UnauthorizedException();
     return { id: user.id, roles: user.roles.map((r) => r.roleType) };
   }
 }

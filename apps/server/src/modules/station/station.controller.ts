@@ -58,7 +58,11 @@ export class StationController {
   async updateMyStation(@Req() req: Request, @Body() dto: UpdateStationDto) {
     const station = await this.svc.getStationByUserId(req.user.id);
     if (!station) throw new BusinessException(ErrorCode.NOT_FOUND, "你还没有开通分站");
-    return this.svc.updateStation(station.id, dto);
+    // 安全修复(后端审计P0)：status 是治理/计费门槛字段(commission 计费依赖"非 ACTIVE 不发佣金")，
+    // 绝不能经自服务接口设置——否则站长可 PUT {status:"ACTIVE"} 绕过加盟费白拿佣金。此处剥离 status，
+    // 状态变更只能走管理端审核流。
+    const { status: _ignoredStatus, ...safe } = dto;
+    return this.svc.updateStation(station.id, safe);
   }
 
   @Get("my/customers")

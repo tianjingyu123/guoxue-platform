@@ -91,6 +91,24 @@ export class UserController {
     return this.user.getBrowseHistory(req.user.id, +page, +pageSize);
   }
 
+  // ───────── 白名单管理（GET 必须在 :id 动态路由之前声明，否则被 :id 遮蔽 → 白名单页必 500·后端审计修复） ─────────
+
+  @Get("whitelist")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN")
+  @ApiOperation({ summary: "白名单用户列表" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
+  @ApiQuery({ name: "page", required: false, type: Number })
+  @ApiQuery({ name: "pageSize", required: false, type: Number })
+  getWhitelist(
+    @Query("page") page = 1,
+    @Query("pageSize") pageSize = 20,
+  ) {
+    return this.user.getWhitelist(+page, +pageSize);
+  }
+
   // ───────── 用户查询 ─────────
 
   @Get(":id")
@@ -384,22 +402,6 @@ export class UserController {
   }
 
   // ───────── 白名单管理 ─────────
-
-  @Get("whitelist")
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("SUPER_ADMIN")
-  @ApiOperation({ summary: "白名单用户列表" })
-  @ApiResponse({ status: 200, description: "成功" })
-  @ApiResponse({ status: 401, description: "未登录" })
-  @ApiResponse({ status: 403, description: "无权限" })
-  @ApiQuery({ name: "page", required: false, type: Number })
-  @ApiQuery({ name: "pageSize", required: false, type: Number })
-  getWhitelist(
-    @Query("page") page = 1,
-    @Query("pageSize") pageSize = 20,
-  ) {
-    return this.user.getWhitelist(+page, +pageSize);
-  }
 
   @Post("whitelist")
   @UseGuards(JwtAuthGuard, RolesGuard)

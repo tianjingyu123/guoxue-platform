@@ -4,6 +4,8 @@ import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { MetricsService } from "../../common/metrics.service";
 import { safePagination } from "../../common/pagination";
+// 合规修复(后端审计P1·R4红线)：32 工具 AI 分析原漏挂免责声明，此处统一在返回点追加。
+import { RISK_DISCLAIMER } from "../../common/ai-disclaimer";
 import { ALL_TOOLS } from "@guoxue/shared";
 import { buildBaziPrompt, buildZiWeiPrompt } from "./prompts/bazi-ziwei";
 import { buildQimenYangPrompt, buildQimenYangMingLiPrompt, buildQimenYinPrompt, buildQimenYinMingLiPrompt, buildShanXiangQimenPrompt, buildQimenChuanRenPrompt } from "./prompts/qimen";
@@ -64,7 +66,7 @@ export class ToolAiService {
       if (existing) {
         return {
           id: existing.id,
-          analysisContent: existing.analysisContent,
+          analysisContent: existing.analysisContent + RISK_DISCLAIMER,
           createdAt: existing.createdAt,
           isCached: true,
         };
@@ -85,7 +87,7 @@ export class ToolAiService {
       });
       return {
         id: record.id,
-        analysisContent: record.analysisContent,
+        analysisContent: record.analysisContent + RISK_DISCLAIMER,
         createdAt: record.createdAt,
         isCached: false,
       };
@@ -109,7 +111,7 @@ export class ToolAiService {
 
     return {
       id: record.id,
-      analysisContent: record.analysisContent,
+      analysisContent: record.analysisContent + RISK_DISCLAIMER,
       createdAt: record.createdAt,
       isCached: false,
     };
