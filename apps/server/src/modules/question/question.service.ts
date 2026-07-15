@@ -1,9 +1,11 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { HttpStatus } from "@nestjs/common";
+import { Cron, CronExpression } from "@nestjs/schedule";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
+import { RedisService } from "../../redis/redis.service";
 import { CoinService } from "../coin/coin.service";
 import { RevenueService } from "../revenue/revenue.service";
 import { AuditService } from "../audit/audit.service";
@@ -14,10 +16,24 @@ export class QuestionService {
   private readonly logger = new Logger(QuestionService.name);
   constructor(
     private prisma: PrismaService,
+    private redis: RedisService,
     private coin: CoinService,
     private revenue: RevenueService,
     private audit: AuditService,
   ) {}
+
+  /**
+   * 每小时自动退款超时未答的付费提问（分布式锁防多实例重复跑）。
+   * 修复(后端审计C2)：refundExpiredQuestions 原仅 admin 手动端点触发，达人不答则钱不自动退。
+   * 对齐 bounty 现有 hourly cron 范式。退款逻辑本身未改动（沿用已上线的手动路径）。
+   */
+  @Cron(CronExpression.EVERY_HOUR)
+  async refundExpiredQuestionsCron() {
+    await this.redis.runExclusive("question_refund_expired", 300, async () => {
+      const res = await this.refundExpiredQuestions();
+      if (res.refunded > 0) this.logger.log(`超时提问自动退款: ${res.refunded} 笔`);
+    });
+  }
 
   /** 发起付费提问（扣币与建记录同一事务，防丢钱） */
   async ask(userId: string, dto: {

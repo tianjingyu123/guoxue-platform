@@ -1,6 +1,7 @@
 import { Test } from "@nestjs/testing"
 import { QuestionService } from "./question.service"
 import { PrismaService } from "../../prisma/prisma.service"
+import { RedisService } from "../../redis/redis.service"
 import { CoinService } from "../coin/coin.service"
 import { RevenueService } from "../revenue/revenue.service"
 import { AuditService } from "../audit/audit.service"
@@ -49,6 +50,7 @@ describe("QuestionService", () => {
       providers: [
         QuestionService,
         { provide: PrismaService, useValue: mockPrisma },
+        { provide: RedisService, useValue: { runExclusive: (_n: string, _t: number, fn: () => Promise<unknown>) => fn() } },
         { provide: CoinService, useValue: mockCoin },
         { provide: RevenueService, useValue: mockRevenue },
         { provide: AuditService, useValue: mockAudit },
