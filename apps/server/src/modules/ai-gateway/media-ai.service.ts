@@ -10,6 +10,8 @@ interface AuditResult {
   category: string | null;
   reason: string;
   confidence: number;
+  /** 需人工复审：AI 无法给出明确判定时置 true（fail-close，不放行） */
+  needsManualReview?: boolean;
   rawResponse?: string;
 }
 
@@ -36,7 +38,15 @@ export class MediaAiService {
     private readonly tts: TtsService,
   ) {}
 
-  /** AI 图像内容审核 */
+  /**
+   * AI 图像内容审核（辅助建议·fail-close）
+   *
+   * ⚠️ 能力边界(后端审计P1)：当前经文本模型对图片 URL 作判断，非真·视觉理解，仅作
+   * "人工审核辅助建议"，未接入发帖/评论发布流水线。真发布审核在 circle-post/comment
+   * 走关键词+人工。接入真·多模态视觉模型(qwen-vl)是后续架构项。
+   * 本次修复：由 fail-open 改为 fail-close——AI 无法明确判定(未返JSON/解析失败/调用异常)
+   * 一律返回 safe:false + needsManualReview:true，绝不默认放行。
+   */
   async auditImage(params: {
     imageUrl: string;
     context?: string;
@@ -66,15 +76,32 @@ export class MediaAiService {
         options: { temperature: 0.1, maxTokens: 512 },
       });
 
-      // 尝试从回复中提取 JSON
-      let auditResult: AuditResult = { safe: true, category: null, reason: "AI分析完成", confidence: 0.5 };
+      // 尝试从回复中提取 JSON。fail-close：默认「不安全·转人工」，仅当 AI 明确判定 safe:true 才放行。
+      let auditResult: AuditResult = {
+        safe: false,
+        category: "UNKNOWN",
+        reason: "AI 未能给出明确判定，转人工复审",
+        confidence: 0,
+        needsManualReview: true,
+      };
       try {
         const jsonMatch = result.content.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
-          auditResult = JSON.parse(jsonMatch[0]);
+          const parsed = JSON.parse(jsonMatch[0]) as Partial<AuditResult>;
+          // 仅信任模型显式给出的布尔结论；缺失/非法一律按不安全处理。
+          const safe = parsed.safe === true;
+          auditResult = {
+            safe,
+            category: parsed.category ?? (safe ? null : "UNKNOWN"),
+            reason: parsed.reason || (safe ? "AI判定通过" : "AI判定疑似违规，转人工复审"),
+            confidence: typeof parsed.confidence === "number" ? parsed.confidence : 0,
+            needsManualReview: !safe,
+          };
+        } else {
+          auditResult.rawResponse = result.content;
         }
       } catch (err) {
-        this.logger.warn(`AI 审核 JSON 解析失败`, err);
+        this.logger.warn(`AI 审核 JSON 解析失败，按不安全转人工`, err);
         auditResult.rawResponse = result.content;
       }
 
@@ -85,8 +112,18 @@ export class MediaAiService {
         tokensUsed: result.usage?.totalTokens || 0,
       };
     } catch (err: unknown) {
-      this.logger.error(`图片审核失败: ${(err as Error).message}`);
-      throw err;
+      // 调用异常同样 fail-close：不抛错阻断，返回「不安全·转人工」，避免异常被上游当作放行。
+      this.logger.error(`图片审核失败，按不安全转人工: ${(err as Error).message}`);
+      return {
+        imageUrl: params.imageUrl,
+        safe: false,
+        category: "AUDIT_ERROR",
+        reason: "审核服务异常，转人工复审",
+        confidence: 0,
+        needsManualReview: true,
+        model: "none",
+        tokensUsed: 0,
+      };
     }
   }
 

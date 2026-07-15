@@ -50,6 +50,36 @@ describe("MediaAiService", () => {
       expect(result.safe).toBe(false);
       expect(result.category).toBe("violence");
     });
+
+    it("fail-close：AI 未返 JSON → 不放行·转人工", async () => {
+      gateway.chat.mockResolvedValue({
+        content: "这张图片看起来没什么问题吧",
+        model: "deepseek",
+        usage: { promptTokens: 10, completionTokens: 10, totalTokens: 20 },
+      });
+      const result = await svc.auditImage({ imageUrl: "https://example.com/x.jpg" });
+      expect(result.safe).toBe(false);
+      expect(result.needsManualReview).toBe(true);
+    });
+
+    it("fail-close：JSON 无 safe 字段 → 按不安全处理", async () => {
+      gateway.chat.mockResolvedValue({
+        content: '{"category":null,"reason":"看不清"}',
+        model: "deepseek",
+        usage: { promptTokens: 10, completionTokens: 10, totalTokens: 20 },
+      });
+      const result = await svc.auditImage({ imageUrl: "https://example.com/x.jpg" });
+      expect(result.safe).toBe(false);
+      expect(result.needsManualReview).toBe(true);
+    });
+
+    it("fail-close：网关调用异常 → 不抛错,返回不安全·转人工", async () => {
+      gateway.chat.mockRejectedValue(new Error("deepseek down"));
+      const result = await svc.auditImage({ imageUrl: "https://example.com/x.jpg" });
+      expect(result.safe).toBe(false);
+      expect(result.category).toBe("AUDIT_ERROR");
+      expect(result.needsManualReview).toBe(true);
+    });
   });
 
   describe("textToSpeech", () => {
