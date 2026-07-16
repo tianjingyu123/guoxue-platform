@@ -169,6 +169,10 @@ export class ShopRefundService {
       // 通过支付工厂统一路由退款（新增渠道无需修改此处）
       const payMethod = order.payMethod || "WECHAT";
       const outTradeNo = order.payTransactionId || outRefundNo;
+      // 修复(后端审计P1-2)：微信退款按 transaction_id 退（payTransactionId 存的就是微信 transaction_id，
+      // 非商户 out_trade_no）。原先把它当 out_trade_no 传给微信 → 查无单退款失败。仅微信路径生效，
+      // 支付宝/银联维持原 outTradeNo 行为不变。
+      const transactionId = payMethod === "WECHAT" ? (order.payTransactionId || undefined) : undefined;
 
       // 支付网关未配置（如管理员线下确认支付的订单、或本环境未接入网关）时无法调用网关退款，
       // 降级为「线下退款」：标记 REFUNDED + 冲正分佣，由财务线下打款。
@@ -180,6 +184,7 @@ export class ShopRefundService {
       } else {
         result = await this.paymentFactory.refund(payMethod, {
           outTradeNo,
+          transactionId,
           outRefundNo,
           totalYuan: Number(order.amount),
           totalFen,

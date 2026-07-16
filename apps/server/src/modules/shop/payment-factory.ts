@@ -6,6 +6,8 @@ import { UnionpayService } from "./unionpay.service";
 /** 标准化退款参数 */
 export interface RefundParams {
   outTradeNo: string;
+  /** 渠道交易号(微信 transaction_id/支付宝 trade_no)。微信退款优先用它,避免误把 transaction_id 当 out_trade_no。 */
+  transactionId?: string;
   outRefundNo: string;
   totalYuan: number;
   totalFen: number;
@@ -37,7 +39,10 @@ export class PaymentProviderFactory {
       channel: "WECHAT",
       refund: (p) =>
         this.wechatPay.refund({
-          outTradeNo: p.outTradeNo,
+          // 修复(后端审计P1-2)：支付时 payTransactionId 存的是微信 transaction_id(非商户 out_trade_no)。
+          // 优先按 transaction_id 退款；无则回退 out_trade_no。原先把 transaction_id 当 out_trade_no 传
+          // → 微信按商户单号查不到 → 退款报「订单不存在」。二选一,不同时下发。
+          ...(p.transactionId ? { transactionId: p.transactionId } : { outTradeNo: p.outTradeNo }),
           outRefundNo: p.outRefundNo,
           amount: { refund: p.totalFen, total: p.totalFen },
           reason: p.reason || "用户申请退款",
