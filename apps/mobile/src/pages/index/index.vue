@@ -34,27 +34,42 @@ const tabs: { id: TabId; label: string }[] = [
 ]
 const activeTab = ref<TabId>('recommend')
 
-// ── feed 数据 + 三态 ──
+// ── feed 数据 + 三态（+ 错误态）──
 const feed = ref<FeedEnvelope[]>([])
 const loading = ref(true)
 const refreshing = ref(false)
 const loadingMore = ref(false)
 const noMore = ref(false)
+// 首屏加载失败（服务器错误/断网）标志：与"真的没内容"（空态）区分，展示错误态+重试
+const loadError = ref(false)
 const page = ref(1)
 const PAGE_SIZE = 20
 
-/** 拉取一页 feed。reset=true 时重置为第一页（下拉刷新/切频道换一批） */
+/** 拉取一页 feed。reset=true 时重置为第一页（下拉刷新/切频道换一批）。
+ *  失败时（getSmartFeed 抛错）仅在首屏加载（reset）时置 loadError，交页面显示重试，不误当空态。 */
 async function loadFeed(reset = false) {
   if (reset) {
     page.value = 1
     noMore.value = false
   }
-  const items = await getSmartFeed(page.value, PAGE_SIZE)
-  if (reset) {
-    feed.value = items
-  } else {
-    feed.value = feed.value.concat(items)
+  let items: FeedEnvelope[]
+  try {
+    items = await getSmartFeed(page.value, PAGE_SIZE)
+    loadError.value = false
+  } catch {
+    // 服务器错误/断网：首屏失败标记错误态（重试），加载更多失败则静默停在原内容
+    if (reset) loadError.value = true
+    return
   }
+  // 过滤后端仍在塞的智能体卡：其 targetId 为占位 id（如 hook-agent），点进对话页查真实
+  // agent → "智能体不存在"死链。智能体入口改由金刚区真实入口承载，首页 feed 只排真实内容。
+  const real = items.filter((i) => i.type !== 'agent')
+  if (reset) {
+    feed.value = real
+  } else {
+    feed.value = feed.value.concat(real)
+  }
+  // 到底判定用后端原始返回条数（不含被过滤的智能体卡），避免因过滤而误判到底
   if (items.length < PAGE_SIZE) noMore.value = true
 }
 
@@ -74,12 +89,22 @@ async function init() {
 
 onMounted(() => { init() })
 
+// 加载失败后重试：清错误标志，重新首屏加载
+function retry() {
+  loadError.value = false
+  init()
+}
+
 // 下拉刷新换一批
 async function onRefresh() {
   if (refreshing.value) return
   refreshing.value = true
   try {
     await loadFeed(true)
+    // 刷新失败但已有旧内容时保留内容（不闪错误页），仅轻提示
+    if (loadError.value && feed.value.length > 0) {
+      uni.showToast({ title: '刷新失败，请稍后重试', icon: 'none' })
+    }
   } finally {
     refreshing.value = false
   }
@@ -247,6 +272,15 @@ function backToTop() {
         </view>
       </view>
     </scroll-view>
+
+    <!-- 错误态：首屏加载失败（服务器错误/断网），提供重试——区别于"真的没内容"的空态 -->
+    <view v-else-if="loadError && feed.length === 0" class="empty">
+      <AppIcon name="wifi-off" :size="120" color="#D8D0C4" />
+      <text class="empty-msg">加载失败，请检查网络后重试</text>
+      <view class="empty-btn" hover-class="btn-press" @tap="retry">
+        <text class="empty-btn-txt">重新加载</text>
+      </view>
+    </view>
 
     <!-- 空态：feed 为空（未登录/无个性化数据），诚实降级不白屏 -->
     <view v-else-if="feed.length === 0" class="empty">

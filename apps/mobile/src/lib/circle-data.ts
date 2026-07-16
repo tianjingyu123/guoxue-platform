@@ -57,18 +57,10 @@ export const circleCategories: CircleCategory[] = [
 // 注：直播预告 / 今日活动 / 热门帖子 已改为真实接口
 // （circleApi.getUpcomingLives / getActivities / getHotPosts）。
 // 后端无数据时返回空数组 → 页面对应板块走空态隐藏，不再展示写死假数据（遵守前端数据流铁律）。
-
-// ─── 圈子 mock（list/my/getRanking 接口失败时的兜底，原型 mockCircles） ───
-export const mockCircles: Circle[] = [
-  { id: '1', name: '八字研习社', cover: 'https://picsum.photos/400/300?random=101', description: '专注八字命理学习与交流', category: 'bazi', members: 12800, posts: 3560, isJoined: true, todayActive: 128, rank: 1 },
-  { id: '2', name: '紫微斗数爱好者', cover: 'https://picsum.photos/400/300?random=102', description: '探索紫微斗数的奥秘', category: 'ziwei', members: 8600, posts: 2180, isJoined: false, todayActive: 86, rank: 2 },
-  { id: '3', name: '风水学堂', cover: 'https://picsum.photos/400/300?random=103', description: '风水堪舆知识分享', category: 'fengshui', members: 6500, posts: 1820, isJoined: true, todayActive: 56, rank: 3 },
-  { id: '4', name: '易经读书会', cover: 'https://picsum.photos/400/300?random=104', description: '一起研读易经经典', category: 'yijing', members: 5200, posts: 1560, isJoined: false, todayActive: 42 },
-  { id: '5', name: '六爻预测交流', cover: 'https://picsum.photos/400/300?random=105', description: '六爻占卜实战分享', category: 'liuyao', members: 4800, posts: 1280, isJoined: false, todayActive: 38 },
-  { id: '6', name: '奇门遁甲研究', cover: 'https://picsum.photos/400/300?random=106', description: '奇门遁甲术数探讨', category: 'qimen', members: 3600, posts: 960, isJoined: false, todayActive: 28 },
-  { id: '7', name: '中医养生圈', cover: 'https://picsum.photos/400/300?random=107', description: '传统养生智慧分享', category: 'yangsheng', members: 9200, posts: 2860, isJoined: true, todayActive: 96 },
-  { id: '8', name: '书法艺术', cover: 'https://picsum.photos/400/300?random=108', description: '书法练习与鉴赏', category: 'shufa', members: 7800, posts: 2340, isJoined: false, todayActive: 68 },
-]
+//
+// 圈子列表 mock（原 mockCircles「八字研习社」等硬编码活跃数据）已删除：
+// 接口 500 时若回退这批假圈子，会让用户误以为平台有大量活跃内容（走查实证误导）。
+// 现 circleApi.list 故障时对分类/推荐浏览上抛错误，页面走真实 <app-error> 兜底。
 
 /* —— 后端原始响应类型（容错适配用，字段宽松全 optional，仅声明 adapter 实际访问到的字段） —— */
 interface RawCircle {
@@ -301,9 +293,12 @@ export const circleApi = {
       // apiGet 已剥离信封，res 即后端 data（圈子数组）
       const arr = Array.isArray(res) ? res : (res?.data ?? res?.circles ?? [])
       return { data: arr.map(adaptCircle), total: arr.length }
-    } catch {
-      // 关键词搜索失败返回空（走空态，不展示假数据）；分类浏览保留兜底
-      return params?.keyword ? { data: [], total: 0 } : { data: mockCircles, total: mockCircles.length }
+    } catch (e) {
+      // 关键词搜索失败返回空（走空态，不展示假数据）；
+      // 分类/推荐浏览失败上抛，让页面走真实错误 UI（circles 页 <app-error>），
+      // 不再回退 mockCircles 假圈子误导用户「平台有活跃内容」。
+      if (params?.keyword) return { data: [], total: 0 }
+      throw e
     }
   },
   my: async (): Promise<Circle[]> => {

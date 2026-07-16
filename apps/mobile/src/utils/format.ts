@@ -7,4 +7,8 @@
  * formatPrice：消除浮点误差、最多保留 2 位小数、返回 number（便于继续和 ¥ 拼接或参与展示）。
  * 仅用于「钱」的显示点，切勿用于数量/时长/评分/积分数量等非金额字段。
  */
-export const formatPrice = (n: unknown): number => Math.round(Number(n ?? 0) * 100) / 100
+export const formatPrice = (n: unknown): number => {
+  // Number(n ?? 0) 仅防 null/undefined，非数字串（如 Number("abc")=NaN）会渲染出「¥NaN」，用 isNaN 兜底为 0
+  const v = Number(n ?? 0)
+  return Number.isNaN(v) ? 0 : Math.round(v * 100) / 100
+}

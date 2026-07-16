@@ -10,6 +10,7 @@ import AppIcon from '@/components/common/app-icon.vue'
 import SmartCover from '@/components/common/smart-cover.vue'
 import VisibilitySettings, { type Visibility, type PaymentType } from '@/components/circle/visibility-settings.vue'
 import { goBack, navigateTo, reLaunch } from '@/utils/router'
+import { getToken } from '@/utils/storage'
 import { circleDetailApi } from '@/lib/circle-detail-data'
 import { articleApi } from '@/lib/article-data'
 import { courseApi } from '@/lib/course-data'
@@ -28,6 +29,8 @@ const contentTypes = [
 ]
 
 onLoad((q) => {
+  // 登录门：未登录直接进发布页会填完整表单、提交时才 401，入口即拦（与全局 401 处理一致，reLaunch 登录页不留返回栈）
+  if (!getToken()) { reLaunch('/login'); return }
   if (q?.circleId) { circleId.value = q.circleId; circle.id = q.circleId }
   // 支持从发布 sheet 直达指定表单（type=article/course），免二次选类型
   if (q?.type === 'article' || q?.type === 'course') selectedType.value = q.type

@@ -1,6 +1,14 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
+import { getToken } from '@/utils/storage'
+import { reLaunch } from '@/utils/router'
+
+// 登录门：未登录直接进编辑资料页会填一堆默认表单、提交时才 401，入口即拦（reLaunch 登录页不留返回栈，与全局 401 处理一致）
+onLoad(() => {
+  if (!getToken()) reLaunch('/login')
+})
 
 // 预置标签库
 const tagCategories = [

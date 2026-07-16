@@ -1602,7 +1602,8 @@ export const mineApi = {
 
   /** 获取钱包信息 —— GET /users/wallet/balance（后端返回币/积分/累计；会员等级属成长体系不在此接口→0，页面降级隐藏） */
   async getWallet(): Promise<WalletInfo> {
-    const b = await apiGet<{ coin?: number; points?: number; frozen?: number; totalRecharged?: number; totalSpent?: number }>('/users/wallet/balance')
+    // 防 data:null —— 接口返回 { data: null } 时 apiGet 会给到 null，直接读 b.coin 裸崩 TypeError
+    const b = (await apiGet<{ coin?: number; points?: number; frozen?: number; totalRecharged?: number; totalSpent?: number }>('/users/wallet/balance')) ?? {}
     return {
       balance: Number(b.coin ?? 0),
       rmb: 0,

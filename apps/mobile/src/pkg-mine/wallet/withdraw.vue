@@ -156,6 +156,8 @@ const success = ref(false)
 const result = reactive({ amount: 0, fee: 0, actualAmount: 0, estimatedArrival: '' })
 
 async function verifyAndSubmit() {
+  // 重入守卫：出款路径求稳，密码框满 6 位可能连触发，双提会重复发起提现
+  if (verifying.value) return
   verifying.value = true
   try {
     // 先验证支付密码（后端 bcrypt 校验 + 连续错误锁定30分钟）

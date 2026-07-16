@@ -23,6 +23,18 @@ const LOGIN_URL = '/pkg-auth/login/index'
 type Method = 'GET' | 'POST' | 'PUT' | 'DELETE'
 
 /**
+ * 网络失败文案归一化。
+ * uni.request/uploadFile 失败时 errMsg 恒为「request:fail ...」「uploadFile:fail timeout」等原始码，
+ * 直接抛给页面会显示裸英文（断网时用户看到「request:fail」）。此处仅把网络类原始码换成友好中文，
+ * 其余有语义的 errMsg 原样透传，不破坏后端/业务错误消息。
+ */
+function friendlyNetError(errMsg: string | undefined, fallback: string): string {
+  const raw = errMsg || ''
+  if (/:fail|timeout|abort|interrupt|fail$/i.test(raw)) return fallback
+  return raw || fallback
+}
+
+/**
  * 401 统一处理：清 token + 跳登录页。
  * 用 _redirecting 去重，避免多请求并发返回 401 时重复 reLaunch。
  */
@@ -181,7 +193,7 @@ function apiFetch<T>(path: string, method: Method, data?: unknown, header?: Reco
           resolve(apiFetch<T>(path, method, data, header, true, timeoutMs))
           return
         }
-        reject(new Error(err.errMsg || '网络错误'))
+        reject(new Error(friendlyNetError(err.errMsg, '网络连接失败，请检查网络后重试')))
       },
     })
     })
@@ -233,7 +245,7 @@ export function apiGetPaged<T>(path: string, header?: Record<string, string>, _r
           resolve(apiGetPaged<T>(path, header, true))
           return
         }
-        reject(new Error(err.errMsg || '网络错误'))
+        reject(new Error(friendlyNetError(err.errMsg, '网络连接失败，请检查网络后重试')))
       },
     })
   })
@@ -279,7 +291,7 @@ export function uploadImage(filePath: string, _retried = false): Promise<string>
           reject(new Error('上传响应解析失败'))
         }
       },
-      fail: (err) => reject(new Error(err.errMsg || '上传失败')),
+      fail: (err) => reject(new Error(friendlyNetError(err.errMsg, '上传失败，请检查网络后重试'))),
     })
   })
 }
@@ -323,7 +335,7 @@ export function uploadVideo(filePath: string, onProgress?: (percent: number) => 
           reject(new Error('上传响应解析失败'))
         }
       },
-      fail: (err) => reject(new Error(err.errMsg || '上传失败')),
+      fail: (err) => reject(new Error(friendlyNetError(err.errMsg, '上传失败，请检查网络后重试'))),
     })
     if (onProgress && task && typeof task.onProgressUpdate === 'function') {
       task.onProgressUpdate((p: { progress: number }) => onProgress(p.progress))
@@ -368,7 +380,7 @@ export function uploadDocument(filePath: string, _retried = false): Promise<stri
           reject(new Error('上传响应解析失败'))
         }
       },
-      fail: (err) => reject(new Error(err.errMsg || '上传失败')),
+      fail: (err) => reject(new Error(friendlyNetError(err.errMsg, '上传失败，请检查网络后重试'))),
     })
   })
 }

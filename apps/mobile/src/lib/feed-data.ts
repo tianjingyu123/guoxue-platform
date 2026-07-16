@@ -226,7 +226,9 @@ function adapt(raw: RawFeedItem): FeedEnvelope | null {
 /**
  * 获取智能信息流 — GET /recommend/smart-feed/feed（OptionalAuth）。
  * - 登录：个性化分层流；未登录：后端返回匿名热门流（游客也能预览首页，不再白屏）。
- * - 失败/空：返回 []，静默降级。
+ * - 空：正常返回 []（真的没内容）。
+ * - 失败（服务器错误/断网）：向上抛错，交页面区分"错误态（重试）"与"空态"，
+ *   不再静默吞成 []（否则 500/断网会被误当"暂无内容"，用户无从重试）。
  */
 /**
  * 按类别取内容流（发现页分区用）— GET /recommend/smart-feed/category（公开）。
@@ -245,15 +247,12 @@ export async function getCategoryFeed(type: string, page = 1, size = 6): Promise
 }
 
 export async function getSmartFeed(page = 1, pageSize = 20): Promise<FeedEnvelope[]> {
-  try {
-    const data = await apiGet<{ items?: RawFeedItem[] }>(
-      `/recommend/smart-feed/feed?page=${page}&pageSize=${pageSize}`,
-    )
-    const raw = Array.isArray(data?.items) ? data.items : []
-    return raw.map(adapt).filter((x): x is FeedEnvelope => x !== null)
-  } catch {
-    return []
-  }
+  // 不再吞异常：请求失败向上抛出，页面据此展示错误态+重试（区别于返回 [] 的"真空"）。
+  const data = await apiGet<{ items?: RawFeedItem[] }>(
+    `/recommend/smart-feed/feed?page=${page}&pageSize=${pageSize}`,
+  )
+  const raw = Array.isArray(data?.items) ? data.items : []
+  return raw.map(adapt).filter((x): x is FeedEnvelope => x !== null)
 }
 
 /**
