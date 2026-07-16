@@ -1773,8 +1773,8 @@ export const shopApi = {
    * 发起微信 JSAPI 支付（小程序内）— POST /shop/orders/:id/pay/jsapi。
    * openid 由后端从用户已绑定的微信授权记录中查取（无需前端传），返回 uni.requestPayment 所需参数。
    */
-  async payOrderJsapi(orderId: string): Promise<WechatJsapiPayParams> {
-    return await apiPost<WechatJsapiPayParams>(`/shop/orders/${orderId}/pay/jsapi`, {})
+  async payOrderJsapi(orderId: string, opts?: { openid?: string; channel?: 'MINI' | 'OFFICIAL' }): Promise<WechatJsapiPayParams> {
+    return await apiPost<WechatJsapiPayParams>(`/shop/orders/${orderId}/pay/jsapi`, { ...(opts?.openid ? { openid: opts.openid } : {}), ...(opts?.channel ? { channel: opts.channel } : {}) })
   },
 
   /** 发起微信 Native 扫码支付 — POST /shop/orders/:id/pay/native（返回 code_url 二维码；本地无商户证书会失败，走错误态） */

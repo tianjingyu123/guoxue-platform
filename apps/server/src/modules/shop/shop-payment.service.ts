@@ -50,16 +50,30 @@ export class ShopPaymentService {
     @Inject(CoinService) private coinSvc?: CoinService,
   ) {}
 
-  /** 创建微信支付JSAPI订单（小程序内支付） */
+  /** 创建微信支付JSAPI订单（channel 缺省/MINI=小程序内支付；OFFICIAL=公众号内H5支付） */
   async createJsapiPayment(
     userId: string,
     openid: string | undefined,
     orderId: string,
     notifyUrl?: string,
+    channel?: "MINI" | "OFFICIAL",
   ) {
     const order = await this.orderSvc.getOrder(orderId);
     if (!order || order.userId !== userId) throw new BusinessException(ErrorCode.ORDER_NOT_FOUND, "订单不存在");
     if (order.status !== "PENDING") throw new BusinessException(ErrorCode.ORDER_STATUS_INVALID, "订单状态不可支付");
+
+    // 公众号内 H5（OFFICIAL）：openid 必须来自公众号网页授权（微信要求 openid 与下单 appid 同应用），
+    // 不回退查 Auth 表——表里存的是小程序 openid，拿去公众号 appid 下单微信必拒
+    let officialAppId: string | undefined;
+    if (channel === "OFFICIAL") {
+      officialAppId = process.env.WECHAT_OFFICIAL_APPID || process.env.WECHAT_APP_ID || "";
+      if (!officialAppId) {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "公众号支付未配置，请在后台「微信公众号」卡片配置后重试");
+      }
+      if (!openid) {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "缺少微信授权，请刷新页面完成微信授权后重试");
+      }
+    }
 
     // openid 未显式传入时（小程序端不便获取），从用户已绑定的微信授权记录中查取，与充值 JSAPI 保持一致
     let payerOpenid = openid;
@@ -84,6 +98,7 @@ export class ShopPaymentService {
       payer: { openid: payerOpenid },
       attach: orderId,
       notifyUrl,
+      appId: officialAppId,
     });
 
     // 更新订单支付交易号

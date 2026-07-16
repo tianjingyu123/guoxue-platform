@@ -158,15 +158,27 @@ export class WechatService {
     return data.access_token;
   }
 
-  /** 生成 H5 微信 OAuth 授权 URL */
-  buildOAuthUrl(redirectUri: string, scope: "snsapi_base" | "snsapi_userinfo" = "snsapi_userinfo"): string {
-    const encoded = encodeURIComponent(redirectUri);
-    return `https://open.weixin.qq.com/connect/oauth2/authorize?appid=${this.appId}&redirect_uri=${encoded}&response_type=code&scope=${scope}&state=wechat#wechat_redirect`;
+  /**
+   * 公众号凭据（网页授权/JSAPI支付用）。
+   * 现读 env 而非构造器缓存：后台「微信公众号」卡片保存后 syncToEnv 写回 process.env 即热生效，无需重启。
+   * 回退 WECHAT_APP_ID/WECHAT_APP_SECRET 兼容历史配置。
+   */
+  private get officialAppId(): string {
+    return process.env.WECHAT_OFFICIAL_APPID || process.env.WECHAT_APP_ID || this.appId;
+  }
+  private get officialAppSecret(): string {
+    return process.env.WECHAT_OFFICIAL_APP_SECRET || process.env.WECHAT_APP_SECRET || this.appSecret;
   }
 
-  /** H5 OAuth: 用 code 换取 access_token 和 openId */
+  /** 生成 H5 微信 OAuth 授权 URL（公众号网页授权，appid 必须为公众号的） */
+  buildOAuthUrl(redirectUri: string, scope: "snsapi_base" | "snsapi_userinfo" = "snsapi_userinfo"): string {
+    const encoded = encodeURIComponent(redirectUri);
+    return `https://open.weixin.qq.com/connect/oauth2/authorize?appid=${this.officialAppId}&redirect_uri=${encoded}&response_type=code&scope=${scope}&state=wechat#wechat_redirect`;
+  }
+
+  /** H5 OAuth: 用 code 换取 access_token 和 openId（公众号网页授权） */
   async exchangeOAuthCode(code: string): Promise<{ openId: string; unionId?: string }> {
-    const url = `https://api.weixin.qq.com/sns/oauth2/access_token?appid=${this.appId}&secret=${this.appSecret}&code=${code}&grant_type=authorization_code`;
+    const url = `https://api.weixin.qq.com/sns/oauth2/access_token?appid=${this.officialAppId}&secret=${this.officialAppSecret}&code=${code}&grant_type=authorization_code`;
     const data = await this.callWechatApi<WechatTokenResponse>("sns/oauth2/access_token", url);
 
     if (data.errcode || !data.openid) {

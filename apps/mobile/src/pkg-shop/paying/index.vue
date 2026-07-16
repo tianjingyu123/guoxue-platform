@@ -83,6 +83,7 @@
 import { ref, computed, onUnmounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { redirectTo, navigateTo } from '@/utils/router'
+import { apiGet, apiPost } from '@/utils/request'
 import { shopApi } from '@/lib/shop-data'
 import { track } from '@/composables/useTrack'
 import { BRAND } from '@/lib/brand'
@@ -163,11 +164,14 @@ async function startPaying() {
   // #endif
   // #ifdef H5
   /*
-   * H5 真实微信支付分流（2026-07-11 接线）：
+   * H5 真实微信支付分流（2026-07-11 接线·2026-07-15 公众号授权改造）：
    * ① 微信内置浏览器（UA 含 micromessenger）：微信内不允许 H5 支付（mweb_url 打不开）——
-   *    优先走 JSAPI：调现有 /shop/orders/:id/pay/jsapi（后端从用户已绑定的微信授权查 openid），
-   *    拿到支付参数后用 WeixinJSBridge 调起收银台；未绑定微信/调起失败 → 提示「请在外部浏览器打开支付」，
+   *    走公众号 JSAPI：先经公众号网页授权(snsapi_base 静默)拿公众号 openid（ensureOaOpenid，
+   *    sessionStorage 缓存 / URL code 兑换 / 无 code 则跳授权后回本页），
+   *    再调 /shop/orders/:id/pay/jsapi（channel=OFFICIAL·公众号 appid 下单），
+   *    WeixinJSBridge 调起收银台；授权失败/调起失败 → 提示「请在外部浏览器打开支付」，
    *    不阻断：继续轮询订单状态（用户可能换端完成支付）。
+   *    ⚠️不再依赖 Auth 表的微信记录——那是小程序 openid，与公众号 appid 不同应用，微信必拒。
    * ② 外部浏览器：调 POST /shop/pay/h5 拿 mweb_url → 跳转微信收银台中间页，
    *    携带 redirect_url 回跳当前页；回跳后页面重新加载走 onLoad→startPaying→startPolling，
    *    轮询订单状态恢复（已支付则进成功态）。
@@ -177,9 +181,11 @@ async function startPaying() {
     const ua = (typeof navigator !== 'undefined' ? navigator.userAgent : '').toLowerCase()
     const isWechatBrowser = ua.includes('micromessenger')
     if (isWechatBrowser) {
-      // 微信内 → JSAPI（需用户已绑微信 openid）
+      // 微信内 → 公众号 JSAPI（openid 来自公众号网页授权）
       try {
-        const p = await shopApi.payOrderJsapi(orderId.value)
+        const openid = await ensureOaOpenid()
+        if (!openid) return // 已跳转微信授权页，本页即将卸载，回跳后重走 onLoad
+        const p = await shopApi.payOrderJsapi(orderId.value, { openid, channel: 'OFFICIAL' })
         await invokeWechatJsapiPay(p)
       } catch (e) {
         const msg = (e as Error)?.message || ''
@@ -188,8 +194,8 @@ async function startPaying() {
           clearTimers('all')
           return
         }
-        // 未绑定微信/调起失败：引导外部浏览器，继续轮询兜底
-        uni.showToast({ title: msg.includes('未绑定') ? msg : '微信内暂无法支付，请点击右上角在浏览器打开后支付', icon: 'none', duration: 3500 })
+        // 授权失败/未配置/调起失败：引导外部浏览器，继续轮询兜底
+        uni.showToast({ title: msg.includes('未配置') || msg.includes('授权') ? msg : '微信内暂无法支付，请点击右上角在浏览器打开后支付', icon: 'none', duration: 3500 })
       }
     } else {
       // 外部浏览器 → 微信 H5 支付（mweb_url 跳转，redirect_url 回跳本页恢复轮询）
@@ -215,22 +221,67 @@ async function startPaying() {
   startPolling()
 }
 
+// #ifdef H5
+const OA_OPENID_KEY = 'wx_oa_openid'
+
+/**
+ * 公众号网页授权取 openid（微信内 JSAPI 支付前置）：
+ * ① sessionStorage 有缓存 → 直接用（会话内一次授权多次支付）；
+ * ② URL 带授权回跳 code → 调后端兑换 openid，成功后缓存并用 replaceState 清掉 code（code 一次性，防刷新复用）；
+ * ③ 都没有 → 请求后端 oauth-url（snsapi_base 静默授权，无弹窗），整页跳转微信授权，回跳本页后重走 onLoad。
+ * 返回 ''=已发起跳转（调用方直接 return）；抛错=授权失败（调用方走外部浏览器引导兜底）。
+ */
+async function ensureOaOpenid(): Promise<string> {
+  const cached = sessionStorage.getItem(OA_OPENID_KEY)
+  if (cached) return cached
+
+  const sp = new URLSearchParams(window.location.search)
+  const code = sp.get('code')
+  if (code) {
+    try {
+      const res = await apiPost<{ openid: string }>('/auth/wechat/oa-openid', { code })
+      if (!res?.openid) throw new Error('微信授权失败，请重试')
+      sessionStorage.setItem(OA_OPENID_KEY, res.openid)
+      return res.openid
+    } finally {
+      // 无论成败都清掉 code：code 一次性，留在 URL 里刷新必报 40163(code been used)
+      sp.delete('code'); sp.delete('state')
+      const qs = sp.toString()
+      history.replaceState(null, '', window.location.pathname + (qs ? '?' + qs : '') + window.location.hash)
+    }
+  }
+
+  const { url } = await apiGet<{ url: string }>(`/auth/wechat/oauth-url?redirectUri=${encodeURIComponent(window.location.href)}&scope=snsapi_base`)
+  if (!url) throw new Error('微信授权发起失败')
+  window.location.href = url
+  return ''
+}
+// #endif
+
 /** 微信内置浏览器 JSAPI 调起收银台（WeixinJSBridge.getBrandWCPayRequest） */
 function invokeWechatJsapiPay(p: { appId: string; timeStamp: string; nonceStr: string; package: string; signType: string; paySign: string }): Promise<void> {
   return new Promise((resolve, reject) => {
     // #ifdef H5
+    const doInvoke = (bridge: { invoke: (api: string, params: Record<string, string>, cb: (res: { err_msg?: string }) => void) => void }) => {
+      bridge.invoke(
+        'getBrandWCPayRequest',
+        { appId: p.appId, timeStamp: p.timeStamp, nonceStr: p.nonceStr, package: p.package, signType: p.signType, paySign: p.paySign },
+        (res) => {
+          if (res?.err_msg === 'get_brand_wcpay_request:ok') resolve()
+          else if (res?.err_msg === 'get_brand_wcpay_request:cancel') reject(new Error('支付已取消'))
+          else reject(new Error(`微信支付调起失败${res?.err_msg ? `(${res.err_msg})` : ''}`))
+        },
+      )
+    }
     const w = window as unknown as { WeixinJSBridge?: { invoke: (api: string, params: Record<string, string>, cb: (res: { err_msg?: string }) => void) => void } }
-    const bridge = w.WeixinJSBridge
-    if (!bridge) { reject(new Error('微信支付环境未就绪，请在外部浏览器打开支付')); return }
-    bridge.invoke(
-      'getBrandWCPayRequest',
-      { appId: p.appId, timeStamp: p.timeStamp, nonceStr: p.nonceStr, package: p.package, signType: p.signType, paySign: p.paySign },
-      (res) => {
-        if (res?.err_msg === 'get_brand_wcpay_request:ok') resolve()
-        else if (res?.err_msg === 'get_brand_wcpay_request:cancel') reject(new Error('支付已取消'))
-        else reject(new Error('微信支付调起失败'))
-      },
-    )
+    if (w.WeixinJSBridge) { doInvoke(w.WeixinJSBridge); return }
+    // 微信内注入 WeixinJSBridge 是异步的，页面加载早期可能未就绪 → 等 ready 事件（5s 超时兜底）
+    const timer = setTimeout(() => reject(new Error('微信支付环境未就绪，请在外部浏览器打开支付')), 5000)
+    document.addEventListener('WeixinJSBridgeReady', () => {
+      clearTimeout(timer)
+      if (w.WeixinJSBridge) doInvoke(w.WeixinJSBridge)
+      else reject(new Error('微信支付环境未就绪，请在外部浏览器打开支付'))
+    }, { once: true })
     // #endif
     // #ifndef H5
     reject(new Error('非 H5 环境'))

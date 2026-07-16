@@ -317,13 +317,17 @@ export class ModerateProductDto {
 }
 
 export class JsapiPayDto {
-  @ApiPropertyOptional({ description: "微信openid（可选；不传则后端从用户已绑定的微信授权记录中查取）" })
+  @ApiPropertyOptional({ description: "微信openid（可选；不传则后端从用户已绑定的微信授权记录中查取。channel=OFFICIAL 时必传，须为公众号网页授权取得的 openid）" })
   @IsOptional() @IsString()
   openid?: string;
 
   @ApiPropertyOptional({ description: "回调通知地址" })
   @IsOptional() @IsString()
   notifyUrl?: string;
+
+  @ApiPropertyOptional({ description: "支付渠道：缺省/MINI=小程序内；OFFICIAL=公众号内H5（用公众号appid下单）", enum: ["MINI", "OFFICIAL"] })
+  @IsOptional() @IsIn(["MINI", "OFFICIAL"])
+  channel?: "MINI" | "OFFICIAL";
 }
 
 export class RechargeJsapiDto {

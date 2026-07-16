@@ -191,6 +191,14 @@ export const THIRD_PARTY_SERVICES: ThirdPartyService[] = [
   },
   // ───────── 微信 ─────────
   {
+    key: "wechat_official", label: "微信公众号", category: "微信",
+    note: "公众号内H5支付(JSAPI)+网页授权用。在微信公众平台 mp.weixin.qq.com（公众号后台）→设置与开发→基本配置获取。前置：公众号后台已配网页授权域名/JS安全域名=api.rebugx.cn；商户平台已关联该公众号AppID并配置JSAPI支付授权目录 https://api.rebugx.cn/h5/",
+    fields: [
+      S("appId", "公众号 AppID", "WECHAT_OFFICIAL_APPID", false, "公众号后台→设置与开发→基本配置→开发者ID(AppID)，wx开头"),
+      S("appSecret", "公众号 AppSecret", "WECHAT_OFFICIAL_APP_SECRET", true, "公众号后台→基本配置→开发者密码(AppSecret)，需管理员扫码生成，只显示一次"),
+    ],
+  },
+  {
     key: "wechat_mini", label: "微信小程序", category: "微信",
     note: "★注意：这才是你说的 AppID+AppSecret！在微信公众平台 mp.weixin.qq.com（小程序后台）获取，和腾讯云无关。",
     fields: [

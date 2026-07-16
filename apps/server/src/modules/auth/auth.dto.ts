@@ -62,6 +62,13 @@ export class SendCodeDto {
   scene?: string;
 }
 
+export class OaOpenidDto {
+  @ApiProperty({ description: "公众号网页授权 code", example: "081xxx" })
+  @IsString()
+  @MinLength(1)
+  code: string;
+}
+
 export class WechatLoginDto {
   @ApiProperty({ description: "微信授权 code", example: "081xxx" })
   @IsString()

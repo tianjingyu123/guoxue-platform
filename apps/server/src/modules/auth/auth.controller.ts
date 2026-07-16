@@ -15,6 +15,7 @@ import {
   RegisterDeviceDto,
   BindPhoneDto,
   ForgotPasswordDto,
+  OaOpenidDto,
 } from "./auth.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
@@ -133,6 +134,20 @@ export class AuthController {
     if (!redirectUri) throw new BadRequestException("redirectUri 参数必填");
     const url = this.wechat.buildOAuthUrl(redirectUri, (scope || "snsapi_userinfo") as "snsapi_base" | "snsapi_userinfo");
     return { url };
+  }
+
+  @Post("wechat/oa-openid")
+  @UseGuards(JwtAuthGuard, StrictRedisThrottleGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: "公众号网页授权 code 换 openid（微信内 JSAPI 支付用）",
+    description: "已登录用户在公众号内 H5 完成 snsapi_base 静默授权后，用 code 换取公众号 openid。仅返回 openid，不落库、不影响登录态与已绑定的小程序微信记录。",
+  })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  async oaOpenid(@Body() dto: OaOpenidDto) {
+    const { openId } = await this.wechat.exchangeOAuthCode(dto.code);
+    return { openid: openId };
   }
 
   @Post("login/wechat")

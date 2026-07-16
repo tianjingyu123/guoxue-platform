@@ -288,7 +288,7 @@ export class ShopController {
     @Param("id") id: string,
     @Body() body: JsapiPayDto,
   ) {
-    return this.shop.createJsapiPayment(req.user.id, body.openid, id, body.notifyUrl);
+    return this.shop.createJsapiPayment(req.user.id, body.openid, id, body.notifyUrl, body.channel);
   }
 
   @Post("recharge/jsapi")

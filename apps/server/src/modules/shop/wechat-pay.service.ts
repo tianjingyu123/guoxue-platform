@@ -296,7 +296,11 @@ export class WechatPayService {
 
   // ───────── 支付下单 ─────────
 
-  /** JSAPI 支付（小程序/公众号内支付） */
+  /**
+   * JSAPI 支付（小程序/公众号内支付）。
+   * appId 可覆盖：公众号内 H5 支付必须用公众号 appid + 该公众号下的 openid（微信要求 openid 与下单 appid 同应用），
+   * 覆盖时调起签名(signJsapiConfig)同步使用同一 appid，否则前端 getBrandWCPayRequest 验签必失败。
+   */
   async createJsapiOrder(params: {
     outTradeNo: string;
     description: string;
@@ -304,9 +308,11 @@ export class WechatPayService {
     payer: { openid: string };
     attach?: string;
     notifyUrl?: string;
+    appId?: string;
   }) {
+    const appId = params.appId || this.appId;
     const body: Record<string, unknown> = {
-      appid: this.appId,
+      appid: appId,
       mchid: this.mchId,
       description: params.description,
       out_trade_no: params.outTradeNo,
@@ -321,9 +327,9 @@ export class WechatPayService {
 
     const result = await this.callApi("POST", "/v3/pay/transactions/jsapi", body) as Record<string, unknown>;
 
-    // 二次签名用于小程序调起支付
+    // 二次签名用于小程序/公众号H5调起支付
     const prepayId = result.prepay_id as string;
-    const paySign = this.signJsapiConfig(prepayId);
+    const paySign = this.signJsapiConfig(prepayId, appId);
 
     return { prepayId, paySign, raw: result };
   }
@@ -448,19 +454,20 @@ export class WechatPayService {
 
   // ───────── JSAPI 调起支付签名 ─────────
 
-  /** 生成小程序调起支付的 paySign */
-  signJsapiConfig(prepayId: string) {
+  /** 生成小程序/公众号H5调起支付的 paySign（appId 必须与下单 appid 一致） */
+  signJsapiConfig(prepayId: string, appId?: string) {
+    const signAppId = appId || this.appId;
     const timestamp = Math.floor(Date.now() / 1000);
     const nonce = randomUUID().replace(/-/g, "");
     const pkg = `prepay_id=${prepayId}`;
-    const signMessage = `${this.appId}\n${timestamp}\n${nonce}\n${pkg}\n`;
+    const signMessage = `${signAppId}\n${timestamp}\n${nonce}\n${pkg}\n`;
 
     const signer = createSign("sha256WithRSAEncryption");
     signer.update(signMessage);
     const paySign = signer.sign(this.privateKey, "base64");
 
     return {
-      appId: this.appId,
+      appId: signAppId,
       timeStamp: String(timestamp),
       nonceStr: nonce,
       package: pkg,

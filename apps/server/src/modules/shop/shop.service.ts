@@ -133,8 +133,8 @@ export class ShopService {
     return this.orderSvc.getUserOrders(userId, page, pageSize, status);
   }
 
-  createJsapiPayment(userId: string, openid: string | undefined, orderId: string, notifyUrl?: string) {
-    return this.paymentSvc.createJsapiPayment(userId, openid, orderId, notifyUrl);
+  createJsapiPayment(userId: string, openid: string | undefined, orderId: string, notifyUrl?: string, channel?: "MINI" | "OFFICIAL") {
+    return this.paymentSvc.createJsapiPayment(userId, openid, orderId, notifyUrl, channel);
   }
 
   createNativePayment(orderId: string, userId: string, notifyUrl?: string) {

@@ -84,6 +84,41 @@ describe("WechatPayService", () => {
         }),
       ).rejects.toThrow("微信支付失败");
     });
+
+    it("appId 覆盖时（公众号内H5支付）下单与调起签名应使用同一覆盖 appid", async () => {
+      mockFetchJson({ prepay_id: "prepay_oa_001" });
+
+      const result = await service.createJsapiOrder({
+        outTradeNo: "GX_OA",
+        description: "公众号支付",
+        amount: { total: 100 },
+        payer: { openid: "oOaOpenId" },
+        appId: "wx_official_app_id",
+      });
+
+      // 下单请求体 appid = 覆盖值（openid 与 appid 必须同应用）
+      const fetchMock = (global as any).fetch as jest.Mock;
+      const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+      expect(body.appid).toBe("wx_official_app_id");
+      // 调起签名 appId 与下单一致，否则 getBrandWCPayRequest 验签失败
+      expect(result.paySign.appId).toBe("wx_official_app_id");
+    });
+
+    it("未传 appId 时保持默认 appid（小程序支付不受影响）", async () => {
+      mockFetchJson({ prepay_id: "prepay_mini_001" });
+
+      const result = await service.createJsapiOrder({
+        outTradeNo: "GX_MINI",
+        description: "小程序支付",
+        amount: { total: 100 },
+        payer: { openid: "oMiniOpenId" },
+      });
+
+      const fetchMock = (global as any).fetch as jest.Mock;
+      const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+      expect(body.appid).toBe("wx_test_app_id");
+      expect(result.paySign.appId).toBe("wx_test_app_id");
+    });
   });
 
   // ───────── APP 支付 ─────────
