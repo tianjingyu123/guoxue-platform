@@ -23,6 +23,7 @@ jest.mock("crypto", () => ({
 
 jest.mock("fs", () => ({
   readFileSync: jest.fn().mockReturnValue("mock-private-key-from-file"),
+  existsSync: jest.fn().mockReturnValue(false),
 }));
 
 import { WechatPayService } from "./wechat-pay.service";

@@ -1,6 +1,6 @@
 import {
   Controller, Get, Post, Put, Delete,
-  Body, Param, Query, Req, UseGuards, Logger, ForbiddenException,
+  Body, Param, Query, Req, UseGuards, Logger, ForbiddenException, HttpCode,
 } from "@nestjs/common";
 import { Request } from "express";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiResponse } from "@nestjs/swagger";
@@ -440,6 +440,7 @@ export class ShopController {
   // ───────── 支付回调（微信/支付宝/银联） ─────────
 
   @Post("pay/notify")
+  @HttpCode(200) // 微信V3仅认 200/204 为成功，Nest默认201会被判失败导致无限重试
   @SkipFormat()
   @ApiOperation({ summary: "微信支付回调通知" })
   @ApiResponse({ status: 201, description: "创建成功" })
@@ -464,6 +465,7 @@ export class ShopController {
   }
 
   @Post("alipay/notify")
+  @HttpCode(200) // 支付宝要求 HTTP 200 + body "success"
   @SkipFormat()
   @ApiOperation({ summary: "支付宝支付回调通知" })
   @ApiResponse({ status: 201, description: "创建成功" })
@@ -478,6 +480,7 @@ export class ShopController {
   }
 
   @Post("unionpay/notify")
+  @HttpCode(200) // 银联要求 HTTP 200 为成功应答
   @SkipFormat()
   @ApiOperation({ summary: "银联支付回调通知" })
   @ApiResponse({ status: 201, description: "创建成功" })
@@ -492,6 +495,7 @@ export class ShopController {
   }
 
   @Post("refund/notify")
+  @HttpCode(200) // 微信V3仅认 200/204 为成功
   @SkipFormat()
   @ApiOperation({ summary: "微信退款回调通知" })
   @ApiResponse({ status: 201, description: "创建成功" })

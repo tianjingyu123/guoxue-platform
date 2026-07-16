@@ -51,6 +51,7 @@ export const THIRD_PARTY_SERVICES: ThirdPartyService[] = [
       S("apiV3Key", "APIv3 密钥", "WECHAT_PAY_API_V3_KEY", true, "商户平台→账户中心→API安全→APIv3密钥（自己设一个32位字符串并牢记）"),
       S("serialNo", "证书序列号", "WECHAT_PAY_SERIAL_NO", false, "商户平台→账户中心→API安全→申请API证书后，证书详情里的序列号"),
       S("privateKey", "商户私钥（内容或路径）", "WECHAT_PAY_PRIVATE_KEY", true, "两种填法任选其一：① 用记事本打开 apiclient_key.pem，全选复制内容粘贴进来；② 或直接填服务器上证书文件的完整路径（如 /opt/guoxue/certs/apiclient_key.pem）。系统会自动识别是内容还是路径。", "", true, true),
+      S("publicKey", "微信支付公钥（内容或路径）", "WECHAT_PAY_PUBLIC_KEY", true, "2024年后的新商户号用「公钥模式」验回调：商户平台→账户中心→API安全→微信支付公钥→下载 pub_key.pem，粘贴内容进来。若你的商户号显示的是「平台证书」则此项留空。", "", true, true),
       S("notifyUrl", "支付回调地址", "WECHAT_PAY_NOTIFY_URL", false, "填 https://api.rebugx.cn/api/v1/shop/pay/notify"),
       S("refundNotifyUrl", "退款回调地址", "WECHAT_PAY_REFUND_NOTIFY_URL", false, "填 https://api.rebugx.cn/api/v1/shop/refund/notify"),
     ],

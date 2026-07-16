@@ -1,6 +1,6 @@
 import { Injectable, Logger, Inject, Optional } from "@nestjs/common";
 import { createSign, createVerify, randomUUID, createDecipheriv, publicEncrypt, constants } from "crypto";
-import { readFileSync } from "fs";
+import { readFileSync, existsSync } from "fs";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { MetricsService } from "../../common/metrics.service";
@@ -280,11 +280,16 @@ export class WechatPayService {
     return { ciphertext, serialNo };
   }
 
-  /** AES-256-GCM 解密（用于证书和回调数据解密） */
+  /**
+   * AES-256-GCM 解密（用于证书和回调数据解密）。
+   * 微信 V3 的 ciphertext 是 Base64 编码、末尾 16 字节为 authTag——
+   * 曾按 hex/末尾32字符解导致回调报文永远解不开（GCM 认证失败）、订单无法入账。
+   */
   aesGcmDecrypt(associatedData: string, nonce: string, ciphertext: string): string {
     const key = Buffer.from(this.apiV3Key, "utf-8");
-    const authTag = Buffer.from(ciphertext.slice(-32), "hex");
-    const data = Buffer.from(ciphertext.slice(0, -32), "hex");
+    const buf = Buffer.from(ciphertext, "base64");
+    const authTag = buf.subarray(buf.length - 16);
+    const data = buf.subarray(0, buf.length - 16);
 
     const decipher = createDecipheriv("aes-256-gcm", key, Buffer.from(nonce, "utf-8"));
     decipher.setAuthTag(authTag);
@@ -499,7 +504,22 @@ export class WechatPayService {
     };
   }
 
-  /** 验证回调签名（使用平台证书 RSA公钥 验签） */
+  /**
+   * 微信支付公钥（2024-05 后新商户默认「公钥模式」：回调 serial 为 PUB_KEY_ID_xxx，
+   * /v3/certificates 拉不到平台证书，须用商户平台下载的 pub_key.pem 验签）。
+   * 现读 env（后台卡片保存热生效）；支持内容或服务器文件路径两种填法。
+   */
+  private getWechatPayPublicKey(): string {
+    let v = process.env.WECHAT_PAY_PUBLIC_KEY || "";
+    if (v && !v.includes("BEGIN")) {
+      try {
+        if (existsSync(v)) v = readFileSync(v, "utf-8");
+      } catch { /* 按内容处理 */ }
+    }
+    return v.replace(/\\n/g, "\n");
+  }
+
+  /** 验证回调签名（平台证书 或 微信支付公钥 RSA 验签，按回调 serial 自动分流） */
   async verifyNotifySign(signHeader: string, body: string): Promise<boolean> {
     const parsed = this.parseNotifySign(signHeader);
     if (!parsed) return false;
@@ -507,7 +527,16 @@ export class WechatPayService {
     const { timestamp, nonce, signature, serialNo } = parsed;
 
     try {
-      const pem = await this.getPlatformCertBySerial(serialNo);
+      let pem: string;
+      if (serialNo.startsWith("PUB_KEY_ID_")) {
+        pem = this.getWechatPayPublicKey();
+        if (!pem) {
+          this.logger.error(`回调为微信支付公钥模式但未配置公钥，请在后台「微信支付」卡片粘贴 pub_key.pem 内容: serial=${serialNo}`);
+          return false;
+        }
+      } else {
+        pem = await this.getPlatformCertBySerial(serialNo);
+      }
       const signMessage = `${timestamp}\n${nonce}\n${body}\n`;
 
       const verifier = createVerify("sha256WithRSAEncryption");
