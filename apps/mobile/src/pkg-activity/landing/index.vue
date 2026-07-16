@@ -14,6 +14,14 @@
     <view :style="{ height: navH + 'px' }" />
 
     <scroll-view scroll-y class="scroll">
+      <!-- 诚实空态：暂无进行中的活动（后端活动查询端点未开放） -->
+      <view v-if="!activity" class="empty">
+        <app-icon name="calendar" :size="96" color="#D8D2C8" />
+        <text class="empty-txt">暂无进行中的活动</text>
+        <text class="empty-sub">限时活动功能完善中，敬请期待</text>
+      </view>
+
+      <template v-else>
       <!-- Banner -->
       <view class="banner">
         <view class="banner-mask" />
@@ -99,6 +107,7 @@
       </view>
 
       <view class="bottom-space" />
+      </template>
     </scroll-view>
   </view>
 </template>
@@ -110,23 +119,10 @@ import { navigateBack, navigateTo } from '@/utils/router'
 const statusBarHeight = ref(0)
 const navH = ref(44)
 
-const activity = {
-  title: '国学好课限时秒杀',
-  subtitle: '精选课程 低至3折 抢完即止',
-  endTime: '2024-11-11T23:59:59',
-  items: [
-    { id: 1, productId: 101, title: '八字命理入门精讲（30节系统课）', originalPrice: 299, salePrice: 99, soldCount: 42, totalStock: 50, limitPerUser: 1, status: 'ongoing' },
-    { id: 2, productId: 102, title: '紫微斗数实战案例解析', originalPrice: 399, salePrice: 149, soldCount: 28, totalStock: 30, limitPerUser: 2, status: 'ongoing' },
-    { id: 3, productId: 103, title: '风水堪舆入门到精通', originalPrice: 199, salePrice: 69, soldCount: 100, totalStock: 100, limitPerUser: 1, status: 'sold_out' },
-  ],
-  rules: [
-    '活动时间：2024年11月1日00:00 - 11月11日23:59',
-    '每个秒杀商品每人限购数量以页面显示为准',
-    '秒杀商品为虚拟课程，购买后立即生效，不支持退款',
-    '抢购成功后请在30分钟内完成支付，超时订单自动取消',
-    '本活动最终解释权归平台所有',
-  ],
-}
+// 秒杀活动详情：后端暂未提供活动/秒杀场次查询端点，
+// 故绝不硬编码假活动（旧版硬编码 3 商品 + 已过期日期）。
+// 拿不到真实活动数据时统一走诚实空态（见模板 v-else）。
+const activity = ref<ActivityData | null>(null)
 
 const showRules = ref(false)
 const countdown = ref({ days: 0, hours: 0, minutes: 0, seconds: 0 })
@@ -145,6 +141,14 @@ interface ActivityItem {
   totalStock: number
   limitPerUser: number
   status: string
+}
+// 秒杀活动详情
+interface ActivityData {
+  title: string
+  subtitle?: string
+  endTime: string
+  items: ActivityItem[]
+  rules: string[]
 }
 
 function pad(n: number) {
@@ -172,7 +176,8 @@ function onBack() {
   navigateBack()
 }
 function tick() {
-  const diff = new Date(activity.endTime).getTime() - Date.now()
+  if (!activity.value) return
+  const diff = new Date(activity.value.endTime).getTime() - Date.now()
   if (diff > 0) {
     ended.value = false
     countdown.value = {
@@ -236,6 +241,26 @@ onUnmounted(() => {
 }
 .scroll {
   height: calc(100vh - 44px);
+}
+/* 诚实空态 */
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 160rpx 48rpx;
+  gap: 16rpx;
+}
+.empty-txt {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #666;
+  margin-top: 16rpx;
+}
+.empty-sub {
+  font-size: 24rpx;
+  color: #aaa;
+  text-align: center;
 }
 .banner {
   position: relative;

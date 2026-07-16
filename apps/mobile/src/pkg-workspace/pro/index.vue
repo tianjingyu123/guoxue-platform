@@ -135,7 +135,7 @@ function dateText(iso?: string | null): string {
           </view>
           <view class="pro-hero-info">
             <text class="pro-hero-title">从业者会员</text>
-            <text class="pro-hero-sub">专为命理从业者的执业工具</text>
+            <text class="pro-hero-sub">专为传统文化 / 命理文化研究从业者打造</text>
           </view>
         </view>
 

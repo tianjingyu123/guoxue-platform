@@ -89,6 +89,9 @@ function open(r: RecentChart) {
           <AppIcon name="history" :size="44" color="#D5C9B8" />
           <text class="ph-empty-txt">还没有排盘记录</text>
           <text class="ph-empty-sub">回首页选个工具起一盘，记录会自动留在这里</text>
+          <view class="ph-empty-cta" @tap="navigateTo('/pages/paipan/index')">
+            <text class="ph-empty-cta-txt">去排盘</text>
+          </view>
         </view>
       </PaperCard>
 
@@ -292,6 +295,18 @@ function open(r: RecentChart) {
   font-size: 22rpx;
   color: #B8AA9A;
   text-align: center;
+}
+
+.ph-empty-cta {
+  margin-top: 20rpx;
+  padding: 16rpx 48rpx;
+  background: #c41e3a;
+  border-radius: 999rpx;
+}
+
+.ph-empty-cta-txt {
+  font-size: 26rpx;
+  color: #fff;
 }
 
 .ph-space {

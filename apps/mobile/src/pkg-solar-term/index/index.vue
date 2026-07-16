@@ -311,7 +311,7 @@ function currentBadge(): string {
 
 /** 节气页分享落地链接（卡面二维码内容·withRef 带我的 ref 归因，与小程序转发路径一致） */
 function shareLink(): string {
-  return withRef('https://api.rebugx.cn/h5/#/pkg-solar-term/index/index')
+  return withRef('https://api.rebugx.cn/h5/pkg-solar-term/index/index')
 }
 
 function openCard() {

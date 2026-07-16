@@ -46,6 +46,7 @@ function onDelete(ids: string[]) {
     :records="vms"
     search-placeholder="搜索事项 / 卦名"
     empty-text="暂无排盘记录，在结果页点「保存」后出现"
+    cta-text="去起卦"
     @pin="onPin"
     @delete="onDelete"
     @open="open"

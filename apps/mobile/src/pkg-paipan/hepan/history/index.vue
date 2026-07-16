@@ -48,6 +48,7 @@ function onDelete(ids: string[]) {
     :records="vms"
     search-placeholder="搜索姓名 / 合盘结论"
     empty-text="暂无合盘记录，合盘后自动保存"
+    cta-text="去合盘"
     @pin="onPin"
     @delete="onDelete"
     @open="open"

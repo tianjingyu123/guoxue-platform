@@ -90,7 +90,7 @@ async function onCreate() {
 function shareLink(): string {
   if (created.value?.shareUrl) return created.value.shareUrl
   const token = created.value?.inviteToken || ''
-  return `https://api.rebugx.cn/h5/#/pkg-classics/shared-reading/invite?token=${token}`
+  return `https://api.rebugx.cn/h5/pkg-classics/shared-reading/invite?token=${token}`
 }
 function copyLink() {
   const url = shareLink()

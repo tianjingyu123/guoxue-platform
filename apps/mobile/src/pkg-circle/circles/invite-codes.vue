@@ -88,7 +88,7 @@ function shareLink() {
   // #endif
   // #ifndef MP-WEIXIN
   // 链接进圈子预览页；邀请码以文案携带（预览页无自动核销邀请码参数，避免造假查询参数）
-  const url = `https://api.rebugx.cn/h5/#/pkg-circle/circles/preview?id=${circleId.value}`
+  const url = `https://api.rebugx.cn/h5/pkg-circle/circles/preview?id=${circleId.value}`
   const text = `邀请你加入「${circle.value?.name || '圈子'}」：${url} 邀请码 ${code}`
   uni.setClipboardData({ data: text, success: () => uni.showToast({ title: '邀请文案已复制', icon: 'none' }) })
   // #endif

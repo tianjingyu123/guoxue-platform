@@ -205,7 +205,7 @@ const selectedBg = ref(0)
 const INVITE_CODE = 'GUOXUE2026'
 const linkInfo = ref({
   inviteCode: INVITE_CODE,
-  inviteLink: `${BRAND.h5Url.replace(/\/$/, '')}/#/pages/index/index?invite=${INVITE_CODE}`,
+  inviteLink: `${BRAND.h5Url.replace(/\/$/, '')}/pages/index/index?invite=${INVITE_CODE}`,
   qrCodeUrl: '',
 })
 

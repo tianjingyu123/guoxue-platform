@@ -63,7 +63,7 @@ const cardStats = computed(() => (profile.value ? buildTeacherCardStats(profile.
 
 /** 名片二维码内容 = 本名片页 H5 链接（withRef 追加分享者 ref·本页 onLoad captureRef 完成归因闭环） */
 const cardLink = computed(() =>
-  withRef(`https://api.rebugx.cn/h5/#/pkg-creator/teacher-profile/index?userId=${encodeURIComponent(userId.value)}`),
+  withRef(`https://api.rebugx.cn/h5/pkg-creator/teacher-profile/index?userId=${encodeURIComponent(userId.value)}`),
 )
 
 // 微信原生分享（好友/朋友圈），toAppMessage/toTimeline 内部自动携带分享者 ref（推荐归因）

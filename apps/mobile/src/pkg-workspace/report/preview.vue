@@ -75,7 +75,7 @@ onLoad((q) => {
 
       <!-- 封面 -->
       <view class="rp-cover">
-        <text class="rp-cover-brand">{{ brand?.brandName || '国学平台' }}</text>
+        <text class="rp-cover-brand">{{ brand?.brandName || '热卜国学' }}</text>
         <view class="rp-cover-line" />
         <text class="rp-cover-title">{{ report.title }}</text>
         <text class="rp-cover-type">{{ report.typeLabel }}</text>
@@ -106,7 +106,7 @@ onLoad((q) => {
       <view class="rp-sign">
         <view class="rp-sign-left">
           <text v-if="brand?.title" class="rp-sign-title">{{ brand.title }}</text>
-          <text class="rp-sign-brand">{{ brand?.brandName || '国学平台' }}</text>
+          <text class="rp-sign-brand">{{ brand?.brandName || '热卜国学' }}</text>
           <text v-if="brand?.contact" class="rp-sign-contact">{{ brand.contact }}</text>
         </view>
         <view v-if="brand?.sealText" class="rp-seal">

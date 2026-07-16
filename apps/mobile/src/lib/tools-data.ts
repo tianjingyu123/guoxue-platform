@@ -20,15 +20,15 @@ export const toolCategories: { key: ToolCategory; label: string }[] = [
   { key: 'service', label: '服务' },
 ]
 
-export interface Tool { id: string; name: string; iconId: string; href: string; badge?: boolean; category?: ToolCategory }
-export interface MedicalTool { id: string; name: string; iconId: string; href: string; badge?: boolean }
+export interface Tool { id: string; name: string; iconId: string; href: string; badge?: boolean; category?: ToolCategory; comingSoon?: boolean }
+export interface MedicalTool { id: string; name: string; iconId: string; href: string; badge?: boolean; comingSoon?: boolean }
 export interface Agent { id: string; name: string; description: string; avatar: string; href: string }
 
 // 排盘工具 - 首页收起态显示 3 排（12 个），展开显示全部
 export const tools: Tool[] = [
   // 命理推算
   { id: 'bazi', name: '八字排盘', iconId: 'bazi', href: '/paipan/bazi', category: 'mingli' },
-  { id: 'bazi-analysis', name: '八字解析', iconId: 'bazi-analysis', href: '/paipan/tools/coming-soon?name=八字解析', badge: true, category: 'mingli' },
+  { id: 'bazi-analysis', name: '八字解析', iconId: 'bazi-analysis', href: '/paipan/tools/coming-soon?name=八字解析', category: 'mingli', comingSoon: true },
   { id: 'ziwei', name: '紫微斗数', iconId: 'ziwei', href: '/paipan/ziwei', badge: true, category: 'mingli' },
   { id: 'qizheng', name: '七政四余', iconId: 'qizheng', href: '/paipan/qizheng', badge: true, category: 'mingli' },
   { id: 'yangming', name: '阳盘命理', iconId: 'yangming', href: '/paipan/yangpan', category: 'mingli' },
@@ -56,7 +56,7 @@ export const tools: Tool[] = [
   { id: 'ruler', name: '立极尺', iconId: 'ruler', href: '/paipan/lijichi', badge: true, category: 'fengshui' },
   { id: 'flying-star', name: '玄空飞星', iconId: 'flying-star', href: '/paipan/xuankong', badge: true, category: 'fengshui' },
   { id: 'bazhai', name: '八宅排盘', iconId: 'bazhai', href: '/paipan/bazhai', badge: true, category: 'fengshui' },
-  { id: 'direction-map', name: '山向地图', iconId: 'direction-map', href: '/paipan/tools/coming-soon?name=山向地图', category: 'fengshui' },
+  { id: 'direction-map', name: '山向地图', iconId: 'direction-map', href: '/paipan/tools/coming-soon?name=山向地图', category: 'fengshui', comingSoon: true },
   // 姓名数字
   { id: 'naming', name: '起名工具', iconId: 'naming', href: '/paipan/qiming', badge: true, category: 'xingming' },
   { id: 'name-analysis', name: '姓名解析', iconId: 'name-analysis', href: '/paipan/xingming', badge: true, category: 'xingming' },
@@ -65,32 +65,32 @@ export const tools: Tool[] = [
   { id: 'calendar', name: '万年历', iconId: 'calendar', href: '/paipan/wannianli', badge: true, category: 'lifa' },
   { id: 'solar-terms', name: '节气查询', iconId: 'solar-terms', href: '/paipan/jieqi', category: 'lifa' },
   { id: 'dictionary', name: '字典查询', iconId: 'dictionary', href: '/paipan/zidian', category: 'lifa' },
-  { id: 'char-filter', name: '汉字筛选', iconId: 'char-filter', href: '/paipan/tools/coming-soon?name=汉字筛选', category: 'lifa' },
+  { id: 'char-filter', name: '汉字筛选', iconId: 'char-filter', href: '/paipan/tools/coming-soon?name=汉字筛选', category: 'lifa', comingSoon: true },
   // 更多服务
-  { id: 'partner', name: '合伙人', iconId: 'partner', href: '/paipan/tools/coming-soon?name=合伙人', category: 'service' },
-  { id: 'mini-program', name: '小程序开发', iconId: 'mini-program', href: '/paipan/tools/coming-soon?name=小程序开发', category: 'service' },
-  { id: 'vip-service', name: '会员服务', iconId: 'vip-service', href: '/paipan/tools/coming-soon?name=会员服务', category: 'service' },
-  { id: 'customer-service', name: '在线客服', iconId: 'customer-service', href: '/paipan/tools/coming-soon?name=在线客服', category: 'service' },
+  { id: 'partner', name: '合伙人', iconId: 'partner', href: '/paipan/tools/coming-soon?name=合伙人', category: 'service', comingSoon: true },
+  { id: 'mini-program', name: '小程序开发', iconId: 'mini-program', href: '/paipan/tools/coming-soon?name=小程序开发', category: 'service', comingSoon: true },
+  { id: 'vip-service', name: '会员服务', iconId: 'vip-service', href: '/paipan/tools/coming-soon?name=会员服务', category: 'service', comingSoon: true },
+  { id: 'customer-service', name: '在线客服', iconId: 'customer-service', href: '/paipan/tools/coming-soon?name=在线客服', category: 'service', comingSoon: true },
 ]
 
 // 中医工具 - 前 8 个默认展示
 export const medicalTools: MedicalTool[] = [
-  { id: 'tongue', name: '舌诊分析', iconId: 'tongue', href: '/tools/coming-soon?name=舌诊分析' },
-  { id: 'face', name: '面诊分析', iconId: 'face', href: '/tools/coming-soon?name=面诊分析' },
-  { id: 'pulse', name: '脉象查询', iconId: 'pulse', href: '/tools/coming-soon?name=脉象查询' },
-  { id: 'constitution', name: '体质辨识', iconId: 'constitution', href: '/tools/coming-soon?name=体质辨识' },
-  { id: 'acupoint', name: '穴位查询', iconId: 'acupoint', href: '/tools/coming-soon?name=穴位查询' },
-  { id: 'meridian', name: '经络图解', iconId: 'meridian', href: '/tools/coming-soon?name=经络图解' },
-  { id: 'herb', name: '中药查询', iconId: 'herb', href: '/tools/coming-soon?name=中药查询' },
-  { id: 'prescription', name: '方剂大全', iconId: 'prescription', href: '/tools/coming-soon?name=方剂大全' },
-  { id: 'syndrome', name: '证候分析', iconId: 'syndrome', href: '/tools/coming-soon?name=证候分析' },
-  { id: 'health-calendar', name: '养生日历', iconId: 'health-calendar', href: '/tools/coming-soon?name=养生日历' },
-  { id: 'five-elements', name: '五行体质', iconId: 'five-elements', href: '/tools/coming-soon?name=五行体质' },
-  { id: 'food-therapy', name: '食疗方案', iconId: 'food-therapy', href: '/tools/coming-soon?name=食疗方案' },
+  { id: 'tongue', name: '舌诊分析', iconId: 'tongue', href: '/tools/coming-soon?name=舌诊分析', comingSoon: true },
+  { id: 'face', name: '面诊分析', iconId: 'face', href: '/tools/coming-soon?name=面诊分析', comingSoon: true },
+  { id: 'pulse', name: '脉象查询', iconId: 'pulse', href: '/tools/coming-soon?name=脉象查询', comingSoon: true },
+  { id: 'constitution', name: '体质辨识', iconId: 'constitution', href: '/tools/coming-soon?name=体质辨识', comingSoon: true },
+  { id: 'acupoint', name: '穴位查询', iconId: 'acupoint', href: '/tools/coming-soon?name=穴位查询', comingSoon: true },
+  { id: 'meridian', name: '经络图解', iconId: 'meridian', href: '/tools/coming-soon?name=经络图解', comingSoon: true },
+  { id: 'herb', name: '中药查询', iconId: 'herb', href: '/tools/coming-soon?name=中药查询', comingSoon: true },
+  { id: 'prescription', name: '方剂大全', iconId: 'prescription', href: '/tools/coming-soon?name=方剂大全', comingSoon: true },
+  { id: 'syndrome', name: '证候分析', iconId: 'syndrome', href: '/tools/coming-soon?name=证候分析', comingSoon: true },
+  { id: 'health-calendar', name: '养生日历', iconId: 'health-calendar', href: '/tools/coming-soon?name=养生日历', comingSoon: true },
+  { id: 'five-elements', name: '五行体质', iconId: 'five-elements', href: '/tools/coming-soon?name=五行体质', comingSoon: true },
+  { id: 'food-therapy', name: '食疗方案', iconId: 'food-therapy', href: '/tools/coming-soon?name=食疗方案', comingSoon: true },
   { id: 'wuyun', name: '五运六气', iconId: 'wuyun', href: '/paipan/wuyunliuqi', badge: true },
-  { id: 'ziwu', name: '子午流注', iconId: 'ziwu', href: '/tools/coming-soon?name=子午流注' },
-  { id: 'lingguibafa', name: '灵龟八法', iconId: 'lingguibafa', href: '/tools/coming-soon?name=灵龟八法' },
-  { id: 'health-ai', name: '健康顾问', iconId: 'health-ai', href: '/tools/coming-soon?name=健康顾问', badge: true },
+  { id: 'ziwu', name: '子午流注', iconId: 'ziwu', href: '/tools/coming-soon?name=子午流注', comingSoon: true },
+  { id: 'lingguibafa', name: '灵龟八法', iconId: 'lingguibafa', href: '/tools/coming-soon?name=灵龟八法', comingSoon: true },
+  { id: 'health-ai', name: '健康顾问', iconId: 'health-ai', href: '/tools/coming-soon?name=健康顾问', comingSoon: true },
 ]
 
 // AI 智能体

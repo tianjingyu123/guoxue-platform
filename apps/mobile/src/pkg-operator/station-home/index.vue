@@ -217,7 +217,7 @@ function goBack() {
                 <text class="sh-feed-name">{{ item.title }}</text>
                 <view class="sh-feed-bottom">
                   <view class="sh-feed-author">
-                    <text class="sh-feed-author-name">{{ item.author || '国学平台' }}</text>
+                    <text class="sh-feed-author-name">{{ item.author || '热卜国学' }}</text>
                   </view>
                   <view class="sh-feed-stats">
                     <view v-if="item.viewers" class="sh-feed-stat"><app-icon name="eye" :size="24" color="#999" /><text class="sh-feed-stat-txt">{{ formatStatNumber(item.viewers) }}</text></view>

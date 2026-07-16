@@ -46,6 +46,7 @@ function onDelete(ids: string[]) {
     :records="vms"
     search-placeholder="搜索所问之事 / 局数"
     empty-text="暂无起局记录，起局后自动保存"
+    cta-text="去起局"
     @pin="onPin"
     @delete="onDelete"
     @open="open"

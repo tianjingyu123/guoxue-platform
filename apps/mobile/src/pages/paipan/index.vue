@@ -257,8 +257,9 @@ onShow(() => { favIds.value = getFavorites() })
             @tap="openTool(tool)"
           >
             <view class="cell-icon">
-              <tool-icon :icon-id="tool.iconId" :size="88" />
-              <view v-if="tool.badge && !editing" class="badge badge-red" />
+              <tool-icon :icon-id="tool.iconId" :size="88" :class="{ 'icon-dim': tool.comingSoon }" />
+              <view v-if="tool.badge && !tool.comingSoon && !editing" class="badge badge-red" />
+              <view v-if="tool.comingSoon && !editing" class="soon-tag"><text class="soon-tag-txt">即将</text></view>
               <view v-if="editing" class="cell-fav-mark" :class="{ 'cell-fav-on': isFav(tool.id) }">
                 <app-icon :name="isFav(tool.id) ? 'check' : 'plus'" :size="22" color="#ffffff" />
               </view>
@@ -283,8 +284,9 @@ onShow(() => { favIds.value = getFavorites() })
         <view class="grid">
           <view v-for="tool in displayMedical" :key="tool.id" class="cell" @tap="navigateTo(tool.href)">
             <view class="cell-icon">
-              <tool-icon :icon-id="tool.iconId" :size="88" />
-              <view v-if="tool.badge" class="badge badge-green" />
+              <tool-icon :icon-id="tool.iconId" :size="88" :class="{ 'icon-dim': tool.comingSoon }" />
+              <view v-if="tool.badge && !tool.comingSoon" class="badge badge-green" />
+              <view v-if="tool.comingSoon" class="soon-tag"><text class="soon-tag-txt">即将</text></view>
             </view>
             <text class="cell-name">{{ tool.name }}</text>
           </view>
@@ -546,6 +548,15 @@ onShow(() => { favIds.value = getFavorites() })
 .badge { position: absolute; top: -4rpx; right: -4rpx; width: 16rpx; height: 16rpx; border-radius: 50%; }
 .badge-red { background: var(--brand); }
 .badge-green { background: #10b981; }
+/* 即将上线：灰置图标 + 右上角「即将」小标 */
+.icon-dim { opacity: 0.4; }
+.soon-tag {
+  position: absolute; top: -10rpx; right: -14rpx;
+  background: #9a8f80; border-radius: 14rpx;
+  padding: 0 8rpx; height: 26rpx;
+  display: flex; align-items: center; justify-content: center;
+}
+.soon-tag-txt { font-size: 18rpx; color: #fff; line-height: 1; }
 .cell-fav-mark {
   position: absolute; top: -8rpx; right: -8rpx;
   width: 36rpx; height: 36rpx; border-radius: 50%;

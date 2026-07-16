@@ -22,8 +22,18 @@
       </view>
     </view>
 
+    <!-- 空态 -->
+    <view v-if="sortedConversations.length === 0" class="empty">
+      <AppIcon name="message-circle" :size="64" color="#d1d5db" />
+      <text class="empty-text">暂无消息</text>
+      <text class="empty-hint">去圈子结识同好，开启第一段交流</text>
+      <view class="empty-btn" @tap="goDiscover">
+        <text class="empty-btn-text">去圈子找同好</text>
+      </view>
+    </view>
+
     <!-- 会话列表 -->
-    <view class="conv-list">
+    <view v-else class="conv-list">
       <view
         v-for="conv in sortedConversations"
         :key="conv.id"
@@ -224,6 +234,11 @@ const searchMatches = computed(() => {
     (c) => c.targetName.includes(kw) || c.lastMessage.content.includes(kw),
   )
 })
+
+function goDiscover() {
+  // 引导去圈子结识同好（tab 页由 navigateTo 内部自动 reLaunch）
+  navigateTo('/pages/circles/index')
+}
 
 function summary(message: LastMessage) {
   return getMessageSummary(message)
@@ -684,6 +699,35 @@ async function handleDelete() {
   background: #dc2626;
 }
 .dialog-confirm-text {
+  font-size: 28rpx;
+  color: #ffffff;
+}
+
+/* 空态 */
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 160rpx 0;
+}
+.empty-text {
+  font-size: 30rpx;
+  font-weight: 500;
+  color: #2c2c2c;
+  margin: 32rpx 0 12rpx;
+}
+.empty-hint {
+  font-size: 26rpx;
+  color: #8a8178;
+  margin-bottom: 40rpx;
+}
+.empty-btn {
+  padding: 16rpx 48rpx;
+  background: var(--brand);
+  border-radius: 999rpx;
+}
+.empty-btn-text {
   font-size: 28rpx;
   color: #ffffff;
 }

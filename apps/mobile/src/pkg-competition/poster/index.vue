@@ -144,7 +144,7 @@ function medalLabel(rank: Ranking): string {
 /** 海报二维码落地链接（赛事详情·带 inviterId 邀请归因=当前 userId·后端 register 支持） */
 function posterQrUrl(): string {
   const uid = getUserInfo<{ id?: string | number }>()?.id
-  let url = `https://api.rebugx.cn/h5/#/pkg-competition/detail/index?id=${encodeURIComponent(compId.value)}`
+  let url = `https://api.rebugx.cn/h5/pkg-competition/detail/index?id=${encodeURIComponent(compId.value)}`
   if (uid != null && String(uid)) url += `&inviterId=${encodeURIComponent(String(uid))}`
   return url
 }

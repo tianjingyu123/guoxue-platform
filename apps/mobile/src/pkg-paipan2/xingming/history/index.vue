@@ -52,6 +52,7 @@ function onDelete(ids: string[]) {
     :records="vms"
     search-placeholder="搜索姓名 / 出生时间"
     empty-text="暂无解析记录，解析后自动保存"
+    cta-text="去解析"
     @pin="onPin"
     @delete="onDelete"
     @open="open"

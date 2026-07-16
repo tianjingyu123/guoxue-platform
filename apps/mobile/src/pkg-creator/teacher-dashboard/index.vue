@@ -256,7 +256,7 @@ const cardStats = computed(() =>
 )
 /** 二维码 = 我的公开主页 H5 链接（withRef 带本人 ref 归因·扫码进页完成推荐闭环） */
 const cardLink = computed(() =>
-  withRef(`https://api.rebugx.cn/h5/#/pkg-creator/teacher-profile/index?userId=${encodeURIComponent(myUserId.value)}`),
+  withRef(`https://api.rebugx.cn/h5/pkg-creator/teacher-profile/index?userId=${encodeURIComponent(myUserId.value)}`),
 )
 
 async function openPoster() {

@@ -180,7 +180,7 @@ const inviteTag = computed(() => {
 // 邀请链接：落赛事页并携带 inviterId，被邀请人报名时经 register(inviterId) 一次性绑定（仅一级）
 const inviteLink = computed(() => {
   if (!inviterId.value) return '登录后生成专属邀请链接'
-  const base = 'https://rebugx.cn/h5/#/pkg-competition/home/index'
+  const base = 'https://api.rebugx.cn/h5/pkg-competition/home/index'
   const q = `inviterId=${inviterId.value}${compId.value ? `&compId=${compId.value}` : ''}`
   return `${base}?${q}`
 })

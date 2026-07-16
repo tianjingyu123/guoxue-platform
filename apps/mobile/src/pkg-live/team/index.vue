@@ -325,7 +325,6 @@ function openRemove(member: TeamMember) {
 }
 function confirmRemove() {
   if (selectedMember.value?.hasActiveLive) return
-  console.log('[v0] 移除成员', selectedMember.value?.id)
   showRemoveDialog.value = false
   selectedMember.value = null
 }

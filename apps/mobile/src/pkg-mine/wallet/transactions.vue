@@ -224,6 +224,9 @@ function closePickers() {
           <app-icon name="wallet" :size="56" color="#d1d1d1" />
         </view>
         <text class="empty-txt">暂无交易记录</text>
+        <view class="empty-btn" @tap="navigateTo('/pkg-mine/wallet/recharge')">
+          <text class="empty-btn-text">去充值</text>
+        </view>
       </view>
 
       <view v-else class="groups">
@@ -526,6 +529,16 @@ function closePickers() {
 .empty-txt {
   font-size: 28rpx;
   color: #999999;
+}
+.empty-btn {
+  margin-top: 32rpx;
+  padding: 16rpx 48rpx;
+  background: var(--brand);
+  border-radius: 999rpx;
+}
+.empty-btn-text {
+  font-size: 28rpx;
+  color: #ffffff;
 }
 
 .picker-mask {

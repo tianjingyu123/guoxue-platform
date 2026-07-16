@@ -16,7 +16,7 @@ const tabs = [
   { id: 'home', label: '首页', icon: 'home', url: '/pages/index/index' },
   { id: 'circle', label: '圈子', icon: 'users', url: '/pages/circles/index' },
   { id: 'paipan', label: paipanLabel, icon: '', url: '/pages/paipan/index' },
-  { id: 'discover', label: '发现', icon: 'shopping-bag', url: '/pages/discover/index' },
+  { id: 'discover', label: '发现', icon: 'compass', url: '/pages/discover/index' },
   { id: 'profile', label: '我的', icon: 'user', url: '/pages/profile/index' },
 ]
 

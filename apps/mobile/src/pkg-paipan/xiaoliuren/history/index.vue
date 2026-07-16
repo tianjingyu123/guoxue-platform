@@ -48,6 +48,7 @@ function onDelete(ids: string[]) {
     :records="vms"
     search-placeholder="搜索所占之事 / 落宫"
     empty-text="暂无起课记录，起课后自动保存"
+    cta-text="去起课"
     @pin="onPin"
     @delete="onDelete"
     @open="open"

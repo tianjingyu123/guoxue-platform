@@ -72,7 +72,7 @@ function dateText(iso?: string): string {
     <scroll-view v-else class="sr-body" scroll-y :show-scrollbar="false">
       <!-- 封面 -->
       <view class="sr-cover">
-        <text class="sr-cover-brand">{{ data.brand.brandName || '国学平台' }}</text>
+        <text class="sr-cover-brand">{{ data.brand.brandName || '热卜国学' }}</text>
         <view class="sr-cover-line" />
         <text class="sr-cover-title">{{ data.title }}</text>
         <text class="sr-cover-type">{{ data.typeLabel }}</text>
@@ -103,7 +103,7 @@ function dateText(iso?: string): string {
       <view class="sr-sign">
         <view class="sr-sign-left">
           <text v-if="data.brand.title" class="sr-sign-title">{{ data.brand.title }}</text>
-          <text class="sr-sign-brand">{{ data.brand.brandName || '国学平台' }}</text>
+          <text class="sr-sign-brand">{{ data.brand.brandName || '热卜国学' }}</text>
           <text v-if="data.sharedAt" class="sr-sign-date">{{ dateText(data.sharedAt) }}</text>
           <text v-if="data.brand.contact" class="sr-sign-contact">{{ data.brand.contact }}</text>
         </view>

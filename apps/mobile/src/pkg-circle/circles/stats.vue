@@ -90,8 +90,8 @@ async function drawLineChart() {
       ctx.arc(x, y, 3, 0, Math.PI * 2)
       ctx.fill()
     })
-  } catch (e) {
-    console.log('[v0] stats line chart draw failed:', (e as Error).message)
+  } catch {
+    // 画布绘制失败时静默降级
   }
 }
 

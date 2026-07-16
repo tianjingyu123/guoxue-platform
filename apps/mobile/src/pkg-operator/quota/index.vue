@@ -258,12 +258,9 @@ function decCount() { if (giftCount.value > 1) giftCount.value-- }
 
 function doSearch() {
   if (isSearching.value || giftPhone.value.length < 11) return
-  isSearching.value = true
-  // 用户搜索接口后端未实现 → 诚实降级为占位结果
-  setTimeout(() => {
-    searchResult.value = { name: '张三丰', phone: giftPhone.value.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2') }
-    isSearching.value = false
-  }, 800)
+  // 用户搜索接口后端未实现 → 诚实降级，不返回假命中
+  searchResult.value = null
+  uni.showToast({ title: '用户搜索功能开发中', icon: 'none' })
 }
 
 function doGift() {

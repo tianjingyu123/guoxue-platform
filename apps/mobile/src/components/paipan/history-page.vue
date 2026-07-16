@@ -9,6 +9,7 @@
 import { ref, computed } from 'vue'
 import ToolHeader from '@/components/paipan/tool-header.vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import { navigateTo } from '@/utils/router'
 
 export interface HistoryVM {
   id: string
@@ -31,13 +32,20 @@ const props = withDefaults(
     /** 分组标签（传了才显示；第一项应为「全部」） */
     groups?: string[]
     emptyText?: string
+    /** 空态引导按钮文案（跳回 backHref 对应工具页；未传则用默认「去排盘」） */
+    ctaText?: string
   }>(),
   {
     title: '排盘记录',
     searchPlaceholder: '搜索记录',
     emptyText: '暂无排盘记录，起盘后自动保存',
+    ctaText: '去排盘',
   },
 )
+
+function goTool() {
+  if (props.backHref) navigateTo(props.backHref)
+}
 
 const emit = defineEmits<{
   (e: 'pin', ids: string[]): void
@@ -156,7 +164,10 @@ function doGroup(g: string) {
       <view class="hp-sec">
         <text v-if="pinnedList.length" class="hp-sec-title">全部</text>
         <view v-if="!filtered.length" class="hp-empty">
-          {{ keyword ? '没有匹配的记录' : emptyText }}
+          <text class="hp-empty-txt">{{ keyword ? '没有匹配的记录' : emptyText }}</text>
+          <view v-if="!keyword && backHref" class="hp-empty-cta" @tap="goTool">
+            <text class="hp-empty-cta-txt">{{ ctaText }}</text>
+          </view>
         </view>
         <view
           v-for="r in normalList"
@@ -308,12 +319,27 @@ function doGroup(g: string) {
   font-size: 24rpx;
 }
 .hp-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   padding: 80rpx 0;
   text-align: center;
-  font-size: 26rpx;
-  color: #8a7a68;
   border: 1rpx dashed #e7e0d5;
   border-radius: 16rpx;
+}
+.hp-empty-txt {
+  font-size: 26rpx;
+  color: #8a7a68;
+}
+.hp-empty-cta {
+  margin-top: 32rpx;
+  padding: 16rpx 48rpx;
+  background: #c41e3a;
+  border-radius: 999rpx;
+}
+.hp-empty-cta-txt {
+  font-size: 26rpx;
+  color: #fff;
 }
 
 .hp-bar {

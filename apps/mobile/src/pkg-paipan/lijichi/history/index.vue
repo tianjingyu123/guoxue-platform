@@ -50,6 +50,7 @@ function onDelete(ids: string[]) {
     :records="vms"
     search-placeholder="搜索客户 / 坐山朝向 / 笔记"
     empty-text="暂无测量记录，在盘面页点「保存」后出现"
+    cta-text="去测量"
     @pin="onPin"
     @delete="onDelete"
     @open="open"

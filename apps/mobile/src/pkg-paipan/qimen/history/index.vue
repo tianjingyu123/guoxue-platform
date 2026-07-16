@@ -63,6 +63,7 @@ function pad(n: number) {
     :groups="groupNames"
     search-placeholder="搜索所问之事 / 局数 / 值符"
     empty-text="暂无起局记录，起局后自动保存"
+    cta-text="去起局"
     @pin="onPin"
     @delete="onDelete"
     @group="onGroup"

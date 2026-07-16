@@ -318,7 +318,7 @@ onShareAppMessage(() =>
 
 /** H5/App：复制带 token + ref 的招徒链接 */
 function copyInviteLink() {
-  const link = withRef(`https://api.rebugx.cn/h5/#${acceptPath()}`)
+  const link = withRef(`https://api.rebugx.cn/h5${acceptPath()}`)
   const text = `拜我为师，一同修习国学之道！点击链接拜入师门：${link}`
   uni.setClipboardData({
     data: text,

@@ -11,7 +11,17 @@
       </view>
     </view>
 
-    <view class="rd-body">
+    <!-- 诚实空态：暂无法按编号查询举报处理结果（后端查询端点未开放） -->
+    <view v-if="!report" class="rd-empty">
+      <app-icon name="inbox" :size="96" color="#D8D2C8" />
+      <text class="rd-empty-txt">未找到该举报记录</text>
+      <text class="rd-empty-sub">举报处理结果查询功能完善中，如有疑问可联系客服</text>
+      <view class="rd-empty-btn" @tap="goHelp">
+        <text class="rd-empty-btn-txt">联系客服</text>
+      </view>
+    </view>
+
+    <view v-else class="rd-body">
       <!-- 处理结果状态卡片 -->
       <view class="rd-result-card" :class="isProcessed ? 'rd-result-success' : 'rd-result-neutral'">
         <view class="rd-result-icon" :class="isProcessed ? 'rd-result-icon-success' : 'rd-result-icon-neutral'">
@@ -130,7 +140,7 @@ interface ReportResultTarget {
   content?: string
   nickname: string
 }
-// 举报处理结果详情（对应下方内联 mock 的元素结构）
+// 举报处理结果详情（真实详情端点就绪后按此结构填充）
 interface ReportResult {
   id: string
   targetType: string
@@ -144,62 +154,10 @@ interface ReportResult {
   punishment?: string // 处罚措施（仅成立时有）
 }
 
-const reportResults: Record<string, ReportResult> = {
-  '1': {
-    id: 'R202401150001',
-    targetType: 'post',
-    target: {
-      title: '这个八字太神奇了，大家来看看',
-      content: '昨天遇到一个案例，真的是让我大开眼界...',
-      nickname: '算命先生',
-    },
-    reportType: '虚假宣传/欺诈',
-    reportTime: '2024-01-15 10:30',
-    result: 'processed',
-    resultTitle: '举报成立，已处理',
-    resultDescription: '经核实，该内容存在虚假宣传行为，已对相关内容进行下架处理，并对发布者进行警告处分。感谢你的举报，你的反馈有助于维护平台健康环境。',
-    processTime: '2024-01-16 14:22',
-    punishment: '内容下架 + 账号警告',
-  },
-  '2': {
-    id: 'R202401160002',
-    targetType: 'user',
-    target: { nickname: '神棍大师' },
-    reportType: '人身攻击/骚扰',
-    reportTime: '2024-01-16 15:45',
-    result: 'rejected',
-    resultTitle: '举报不成立',
-    resultDescription: '经平台审核，被举报用户的行为未违反平台社区规范。如有其他问题，建议你直接使用拉黑功能屏蔽该用户。如有异议，可联系客服进一步反馈。',
-    processTime: '2024-01-17 09:15',
-  },
-  '3': {
-    id: 'R202401170003',
-    targetType: 'comment',
-    target: {
-      content: '你这个分析完全是胡说八道，一点都不专业...',
-      nickname: '路人甲',
-    },
-    reportType: '人身攻击/骚扰',
-    reportTime: '2024-01-17 08:20',
-    result: 'processed',
-    resultTitle: '举报成立，已处理',
-    resultDescription: '经核实，该评论内容含有攻击性言论，已删除相关评论并对发布者进行禁言3天处理。感谢你对社区环境的维护。',
-    processTime: '2024-01-17 16:40',
-    punishment: '评论删除 + 禁言3天',
-  },
-}
-
-const reportId = ref('1')
-try {
-  const pages = getCurrentPages()
-  // uni-app Page 类型未声明 options/$page，保留 any 以兼容多端取参
-  const cur: any = pages[pages.length - 1]
-  const opt = cur?.options || cur?.$page?.options || {}
-  if (opt.id) reportId.value = String(opt.id)
-} catch (e) {}
-
-const report = computed(() => reportResults[reportId.value] || reportResults['1'])
-const isProcessed = computed(() => report.value.result === 'processed')
+// 举报处理结果详情：后端 audit 模块尚未开放「按举报编号查处理结果」的查询端点，
+// 故这里绝不硬编码假数据兜底。拿不到真实详情时统一走诚实空态（见模板 v-else）。
+const report = ref<ReportResult | null>(null)
+const isProcessed = computed(() => report.value?.result === 'processed')
 
 function goRules() {
   navigateTo('/content/community-rules')
@@ -258,6 +216,38 @@ function goBack() {
   display: flex;
   flex-direction: column;
   gap: 24rpx;
+}
+
+/* 诚实空态 */
+.rd-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 140rpx 48rpx;
+  gap: 16rpx;
+}
+.rd-empty-txt {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #666;
+  margin-top: 16rpx;
+}
+.rd-empty-sub {
+  font-size: 24rpx;
+  color: #aaa;
+  text-align: center;
+  line-height: 1.6;
+}
+.rd-empty-btn {
+  margin-top: 24rpx;
+  padding: 16rpx 56rpx;
+  border: 2rpx solid var(--brand);
+  border-radius: 999rpx;
+}
+.rd-empty-btn-txt {
+  font-size: 26rpx;
+  color: var(--brand);
 }
 
 /* 结果卡片 */

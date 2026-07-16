@@ -102,7 +102,11 @@ async function confirmReceive(r: WithdrawRecord) {
       <text>{{ error }}</text>
       <view class="retry-btn" @tap="loadData">重试</view>
     </view>
-    <view v-else-if="!list.length" class="state"><text>暂无提现记录</text></view>
+    <view v-else-if="!list.length" class="state">
+      <AppIcon name="wallet" :size="56" color="#d1c9bf" />
+      <text>暂无提现记录</text>
+      <text class="state-hint">你发起的提现申请将在这里查看进度</text>
+    </view>
 
     <view v-else class="body">
       <view v-for="r in list" :key="r.id" class="rec-card">
@@ -171,6 +175,11 @@ async function confirmReceive(r: WithdrawRecord) {
   gap: 24rpx;
   font-size: 28rpx;
   color: rgba(92, 64, 51, 0.6);
+}
+.state-hint {
+  font-size: 24rpx;
+  color: rgba(92, 64, 51, 0.45);
+  margin-top: -8rpx;
 }
 .retry-btn {
   padding: 16rpx 48rpx;

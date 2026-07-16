@@ -116,7 +116,7 @@ function toReader() {
 
 function copyLink() {
   // 招募态用后端下发的真邀请链接（shareUrl），其余态回落组详情深链
-  const link = detail.value?.shareUrl || `https://api.rebugx.cn/h5/#${sharePath.value}`
+  const link = detail.value?.shareUrl || `https://api.rebugx.cn/h5${sharePath.value}`
   uni.setClipboardData({
     data: link,
     success: () => uni.showToast({ title: '链接已复制，发给好友', icon: 'none' }),

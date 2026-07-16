@@ -49,6 +49,7 @@ function onDelete(ids: string[]) {
     :records="vms"
     search-placeholder="搜索姓氏 / 风格 / 出生时间"
     empty-text="暂无起名记录，起名后自动保存"
+    cta-text="去起名"
     @pin="onPin"
     @delete="onDelete"
     @open="open"

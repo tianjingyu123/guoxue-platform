@@ -325,14 +325,13 @@ function goCreate(id?: number | string) {
   uni.navigateTo({ url })
 }
 function onCopy(s: ScheduleItem) {
-  console.log('[v0] 复制场次', s.id)
+  void s
 }
 function onDelete(s: ScheduleItem) {
   selectedSchedule.value = s
   showDeleteDialog.value = true
 }
 function confirmDelete() {
-  console.log('[v0] 删除场次', selectedSchedule.value?.id)
   showDeleteDialog.value = false
 }
 

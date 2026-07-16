@@ -71,7 +71,7 @@ onShareTimeline(() => toTimeline({ title: shareTitle.value, path: sharePath.valu
 
 /** H5/App 端：复制炫耀文案 + 带 ref 的完整链接到剪贴板（好友点开自动记归因） */
 function copyShareLink() {
-  const link = withRef(`https://api.rebugx.cn/h5/#${sharePath.value}`)
+  const link = withRef(`https://api.rebugx.cn/h5${sharePath.value}`)
   const text = `${shareTitle.value} 快来和我一起研习国学吧 👉 ${link}`
   uni.setClipboardData({
     data: text,

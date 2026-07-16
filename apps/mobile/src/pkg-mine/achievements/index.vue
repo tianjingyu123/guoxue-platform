@@ -645,7 +645,7 @@ onShareAppMessage(() =>
 
 /** 成就卡完整落地链接（H5 复制分享与卡面二维码共用同一构造·withRef 带 ref 归因） */
 function shareLink(): string {
-  return withRef(`https://api.rebugx.cn/h5/#${cardPath()}`)
+  return withRef(`https://api.rebugx.cn/h5${cardPath()}`)
 }
 
 /** H5/App 端：复制邀请文案 + 带 ref 的完整落地页链接（withRef 按 query 有无自动拼 &ref=/?ref=） */
