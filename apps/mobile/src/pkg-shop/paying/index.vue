@@ -289,6 +289,22 @@ function invokeWechatJsapiPay(p: { appId: string; timeStamp: string; nonceStr: s
   })
 }
 
+/**
+ * 圈子订单支付兑现（2026-07-16 接线）：圈子入圈/续费是双段模式——支付回调只把订单标 PAID，
+ * 建成员关系/顺延到期须再调 confirm（后端 paidPostProcessors 无 CIRCLE 类型，此前无任何调用方=付了钱不入圈）。
+ * 幂等：重复调用后端报「已是圈子成员」，吞掉视为已兑现；COMPLETED 订单同理。
+ */
+async function settleCircleIfNeeded(st: { type?: string; targetId?: string }) {
+  if (!st.targetId) return
+  try {
+    if (st.type === 'CIRCLE_JOIN') await apiPost(`/circles/${st.targetId}/join/confirm`, { orderId: orderId.value })
+    else if (st.type === 'CIRCLE_RENEW') await apiPost(`/circles/${st.targetId}/renew/confirm`, { orderId: orderId.value })
+  } catch (e) {
+    const msg = (e as Error)?.message || ''
+    if (!msg.includes('已是圈子成员')) console.warn('[paying] 圈子兑现确认失败（订单已支付，稍后可在圈子页重试加入）', e)
+  }
+}
+
 function startCountdown() {
   clearTimers('cd')
   cdTimer = setInterval(() => {
@@ -309,6 +325,7 @@ function startPolling() {
     try {
       const st = await shopApi.getOrderPayState(orderId.value)
       if (st.paid) {
+        await settleCircleIfNeeded(st)
         status.value = 'success'
         track.purchase({ type: 'shop_order', orderId: orderId.value, amount: amount.value, method: payMethod.value })
         clearTimers('all')

@@ -115,6 +115,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import { navigateTo } from '@/utils/router'
 import { purchaseApi, type PurchaseProduct, type PurchaseBizType, type PayChannel } from '@/lib/purchase-data'
 
 const props = withDefaults(defineProps<{
@@ -178,7 +179,13 @@ function onClose() {
   emit('close')
 }
 
-/** 确认下单：创建订单 → 按所选渠道拉起聚合支付（本地/未配支付时止于订单创建） */
+/**
+ * 确认下单（2026-07-16 真支付接线）：
+ * - 微信渠道 → 创建订单后跳统一收银页 /pkg-shop/paying（微信内公众号JSAPI/外部浏览器mweb/小程序requestPayment
+ *   全端真支付+轮询到账，圈子/课程订单与商品同在 Order 表，pay/jsapi 可直接支付）。
+ * - 支付宝/云闪付 → 仍走汇付聚合；未接通时**诚实降级**引导订单中心，
+ *   不再吞异常后显示"成功"绿勾（原实现会误导用户以为已付款，实际订单还是 PENDING）。
+ */
 async function onPay() {
   if (paying.value || !props.product) return
   if (hasSku.value && !selectedSku.value) return
@@ -192,17 +199,30 @@ async function onPay() {
       skuId: selectedSku.value || undefined,
       channel,
     })
-    // 按所选渠道拉起支付（汇付聚合）；无支付环境时静默失败，订单已创建可在订单中心继续支付
+    if (channel === 'wechat') {
+      // 真支付：跳统一收银页（到账由支付回调驱动，入圈/开课等后处理自动完成）
+      const payAmount = Number(order.amount ?? total.value) || total.value
+      onClose()
+      navigateTo(`/pkg-shop/paying?orderId=${order.id}&method=wechat&amount=${payAmount}`)
+      return
+    }
+    // 支付宝/云闪付：汇付聚合通道
     try {
       const pay = await purchaseApi.payByChannel(order.id, channel)
       const jumpUrl = pay?.h5Url || pay?.payUrl
       // #ifdef H5
       if (jumpUrl) { window.location.href = jumpUrl; return }
       // #endif
-      if (pay?.qrCode || pay?.codeUrl) paidSub.value = '请使用所选方式扫码完成支付'
-    } catch { /* 无支付环境，止于下单 */ }
-    paid.value = true
-    setTimeout(() => { emit('paid', order.id); onClose() }, 1800)
+      if (pay?.qrCode || pay?.codeUrl) {
+        paidSub.value = '请使用所选方式扫码完成支付'
+        paid.value = true
+        setTimeout(() => { emit('paid', order.id); onClose() }, 1800)
+        return
+      }
+    } catch { /* 聚合支付未接通 → 走下方诚实降级 */ }
+    // 诚实降级：订单已创建但支付未发起，引导订单中心继续支付（不显示成功态）
+    uni.showToast({ title: '订单已创建，请到「我的-我的订单」完成支付', icon: 'none', duration: 3000 })
+    onClose()
   } catch (e) {
     uni.showToast({ title: (e as Error)?.message || '下单失败，请重试', icon: 'none' })
     paying.value = false

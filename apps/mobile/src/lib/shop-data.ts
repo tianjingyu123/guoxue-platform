@@ -1818,10 +1818,11 @@ export const shopApi = {
    * 查询订单支付状态（轮询用）— GET /shop/orders/:id 读 status。
    * 不用 /payment-status（依赖微信查单·本地不通），改读订单 status：微信回调或管理员确认支付后置 PAID，本地可验证闭环。
    */
-  async getOrderPayState(orderId: string): Promise<{ status: string; paid: boolean }> {
-    const res = await apiGet<{ status?: string }>(`/shop/orders/${orderId}`)
+  async getOrderPayState(orderId: string): Promise<{ status: string; paid: boolean; type?: string; targetId?: string }> {
+    const res = await apiGet<{ status?: string; type?: string; targetId?: string }>(`/shop/orders/${orderId}`)
     const status = res?.status || 'PENDING'
-    return { status, paid: ['PAID', 'SHIPPED', 'COMPLETED'].includes(status) }
+    // type/targetId 供支付页做业务兑现（圈子入圈/续费是双段模式，支付后需 confirm 建成员关系）
+    return { status, paid: ['PAID', 'SHIPPED', 'COMPLETED'].includes(status), type: res?.type, targetId: res?.targetId }
   },
 
   /** 支付成功页订单摘要 — GET /shop/orders/:id（真查金额/支付方式/支付时间/件数，替代硬编码展示） */
