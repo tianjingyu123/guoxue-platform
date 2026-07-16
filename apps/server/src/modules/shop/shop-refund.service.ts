@@ -1,4 +1,5 @@
 import { Injectable, Inject, Logger } from "@nestjs/common";
+import { Cron, CronExpression } from "@nestjs/schedule";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
@@ -31,6 +32,21 @@ export class ShopRefundService {
     private webhook: WebhookService,
     @Inject(CommissionService) private commissionSvc?: CommissionService,
   ) {}
+
+  /**
+   * 每 10 分钟自动退款超时未成团的拼团（分布式锁防多实例并发扫描）。
+   * 修复(后端审计P1-3)：refundExpiredGroupBuys 原仅管理员手动端点触发，用户付款后拼团未达
+   * minMembers 则订单恒 PAID、真金滞留，直到管理员记得手动点。此处补调度器兜底。
+   * 退款逻辑未改动：沿用 refundOrder（自带 per-order refund:lock + 状态 CAS），participant→REFUNDED
+   * 防重复扫描；本 cron 的 runExclusive 只防多实例同时扫描，与逐单退款锁正交。
+   */
+  @Cron(CronExpression.EVERY_10_MINUTES)
+  async refundExpiredGroupBuysCron() {
+    await this.redis.runExclusive("shop_refund_expired_groupbuys", 300, async () => {
+      const res = await this.refundExpiredGroupBuys();
+      if (res.refunded > 0) this.logger.log(`拼团超时自动退款: ${res.refunded}/${res.scanned} 笔`);
+    });
+  }
 
   /**
    * 扫描并退款超时未成团的拼团（管理员/定时触发）：

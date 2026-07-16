@@ -44,6 +44,17 @@ describe("ShopRefundService", () => {
     jest.clearAllMocks()
   })
 
+  describe("refundExpiredGroupBuysCron (P1-3)", () => {
+    it("经 redis.runExclusive 互斥执行拼团超时退款扫描", async () => {
+      mockPrisma.groupBuyParticipant.findMany.mockResolvedValue([]);
+      await svc.refundExpiredGroupBuysCron();
+      expect(mockRedis.runExclusive).toHaveBeenCalledWith(
+        "shop_refund_expired_groupbuys", 300, expect.any(Function),
+      );
+      expect(mockPrisma.groupBuyParticipant.findMany).toHaveBeenCalled();
+    });
+  })
+
   describe("refundOrder", () => {
     it("已支付订单可退款", async () => {
       mockPrisma.order.findUnique.mockResolvedValue({ id: "o1", status: "PAID", amount: "99", payTransactionId: "txn1" })

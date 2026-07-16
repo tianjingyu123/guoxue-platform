@@ -55,6 +55,7 @@ export function makeMockRedis() {
     del: jest.fn().mockResolvedValue(undefined),
     delByPattern: jest.fn().mockResolvedValue(undefined),
     setNX: jest.fn().mockResolvedValue(true),
+    runExclusive: jest.fn((_n: string, _t: number, fn: () => Promise<unknown>) => fn()),
   };
 }
 
@@ -138,8 +139,10 @@ export function makeMockPrisma(): any {
     },
     groupBuyParticipant: {
       findFirst: jest.fn(),
+      findMany: jest.fn().mockResolvedValue([]),
       count: jest.fn(),
       create: jest.fn(),
+      update: jest.fn(),
       updateMany: jest.fn().mockResolvedValue({ count: 0 }),
     },
     // 供-P3 自购立减泛化涉及的分销角色模型（默认全 null=普通用户·测试内用 mockResolvedValueOnce 命中角色）
