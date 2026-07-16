@@ -698,8 +698,17 @@ export class HuifuService {
       throw new BusinessException(ErrorCode.NOT_FOUND, "找不到支付记录");
     }
 
+    // 加固(后端审计P1-1)①退款额上限校验：退款金额不得超过订单已付总额，杜绝超额真金退款。
+    const paid = Number(splitRecord.totalAmount);
+    if (dto.amount > paid + 1e-6) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, `退款金额 ¥${dto.amount} 超过订单已付 ¥${paid.toFixed(2)}`);
+    }
+
     const merchantId = await this.getConfig("merchantId");
-    const outRefundNo = `RF${Date.now()}${orderId.slice(0, 8)}`;
+    // 加固(后端审计P1-1)②幂等：req_seq_id 由 orderId 确定性派生（非 Date.now），汇付按 req_seq_id 幂等去重。
+    // 原每次新流水号 → 二次审批/重试会以全新 req_seq_id 再次发起真金退款、重复出款。改稳定键后重复请求
+    // 命中汇付原结果不重复退。（汇付 req_seq_id ≤32 位·uuid 去横线为 32 位基准）
+    const outRefundNo = `RF${orderId.replace(/-/g, "")}`.slice(0, 32);
 
     const data: Record<string, unknown> = {
       huifu_id: merchantId,
@@ -712,11 +721,25 @@ export class HuifuService {
     };
 
     const result = await this.callApi("/v2/trade/payment/scanpay/refund", data);
+    const refundStatus = this.mapTransStat(result.trans_stat);
+
+    // 加固(后端审计P1-1)③落库供对账：退款无专用记录表（完整台账需建 HuifuRefundRecord 迁移·待拍板），
+    // 先写 AuditLog 留痕——谁在何时按什么流水号退了多少，供财务对账与排查。写审计失败不影响退款结果。
+    await this.prisma.auditLog
+      .create({
+        data: {
+          action: "HUIFU_REFUND",
+          targetType: "HUIFU_SPLIT",
+          targetId: orderId,
+          detail: JSON.stringify({ orderId, outRefundNo, amount: dto.amount, refundStatus, transStat: result.trans_stat }),
+        },
+      })
+      .catch((err) => this.logger.warn(`汇付退款审计写入失败 [${orderId}]`, err instanceof Error ? err.message : err));
 
     return {
       orderId: dto.orderId,
       outRefundNo,
-      refundStatus: this.mapTransStat(result.trans_stat),
+      refundStatus,
       raw: result,
     };
   }

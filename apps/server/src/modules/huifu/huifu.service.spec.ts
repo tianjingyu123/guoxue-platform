@@ -58,6 +58,7 @@ const mockPrisma = {
     update: jest.fn(),
     updateMany: jest.fn(),
   },
+  auditLog: { create: jest.fn().mockResolvedValue({ id: "log1" }) },
 };
 
 const mockRedis = {
@@ -603,7 +604,7 @@ describe("HuifuService（斗拱 BsPay v2 协议）", () => {
 
     it("scanpay/refund 报文映射：ord_amt 两位小数 + org 回溯", async () => {
       mockPrisma.huifuSplitRecord.findUnique.mockResolvedValue({
-        outTradeNo: "HF123", splitStatus: "PENDING",
+        outTradeNo: "HF123", splitStatus: "PENDING", totalAmount: 100,
         createdAt: new Date(2026, 6, 1),
         rawRequest: { req_seq_id: "HF123", req_date: "20260701" },
       });
@@ -618,6 +619,34 @@ describe("HuifuService（斗拱 BsPay v2 协议）", () => {
       expect(body.data.remark).toBe("多付");
       expect(res.outRefundNo).toMatch(/^RF/);
       expect(res.refundStatus).toBe("PROCESSING");
+      // 加固③：退款写审计留痕
+      expect(mockPrisma.auditLog.create).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ action: "HUIFU_REFUND", targetId: "order-1" }) }),
+      );
+    });
+
+    it("加固①：退款额超过订单已付 → 拒绝(防超额真金退款)", async () => {
+      mockPrisma.huifuSplitRecord.findUnique.mockResolvedValue({
+        outTradeNo: "HF123", splitStatus: "SUCCESS", totalAmount: 100,
+        createdAt: new Date(2026, 6, 1), rawRequest: {},
+      });
+      await expect(
+        svc.createRefund({ orderId: "order-1", amount: 150 }),
+      ).rejects.toThrow(/超过订单已付/);
+    });
+
+    it("加固②：req_seq_id 由 orderId 确定性派生(幂等·同单两次退款键相同)", async () => {
+      const split = {
+        outTradeNo: "HF123", splitStatus: "PENDING", totalAmount: 100,
+        createdAt: new Date(2026, 6, 1), rawRequest: { req_seq_id: "HF123", req_date: "20260701" },
+      };
+      mockPrisma.huifuSplitRecord.findUnique.mockResolvedValue(split);
+      mockFetchResponse({ resp_code: "00000000", trans_stat: "P" });
+      const r1 = await svc.createRefund({ orderId: "order-1", amount: 50 });
+      mockFetchResponse({ resp_code: "00000000", trans_stat: "P" });
+      const r2 = await svc.createRefund({ orderId: "order-1", amount: 50 });
+      expect(r1.outRefundNo).toBe(r2.outRefundNo); // 稳定键 → 汇付幂等去重
+      expect(r1.outRefundNo.length).toBeLessThanOrEqual(32);
     });
   });
 
