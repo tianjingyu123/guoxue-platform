@@ -535,10 +535,21 @@ describe("HuifuService（斗拱 BsPay v2 协议）", () => {
       ).rejects.toThrow("请提供分账接收方信息");
     });
 
+    it("加固：分账总额超过订单已付 → 拒绝(防超额分账)", async () => {
+      mockPrisma.huifuSplitRecord.findUnique.mockResolvedValue({
+        outTradeNo: "HF123", splitStatus: "PENDING", totalAmount: 100, createdAt: new Date(), rawRequest: null,
+      });
+      await expect(
+        svc.createSplit({ orderId: "order-1", amount: 0, receivers: [
+          { acctId: "A1", amount: 80, name: "张三" }, { acctId: "A2", amount: 40, name: "李四" },
+        ] }),
+      ).rejects.toThrow(/超过订单已付/);
+    });
+
     it("delaytrans/confirm 报文映射：acct_split_bunch.acct_infos + org 回溯，成功置 SUCCESS", async () => {
       mockPrisma.huifuSplitRecord.findUnique.mockResolvedValue({
         outTradeNo: "HF123",
-        splitStatus: "PENDING",
+        splitStatus: "PENDING", totalAmount: 100,
         createdAt: new Date(2026, 6, 1),
         rawRequest: { req_seq_id: "HF123", req_date: "20260701" },
       });
@@ -565,7 +576,7 @@ describe("HuifuService（斗拱 BsPay v2 协议）", () => {
 
     it("应支持 receiverId/receiverName 简写模式自动构建 receivers", async () => {
       mockPrisma.huifuSplitRecord.findUnique.mockResolvedValue({
-        outTradeNo: "HF123", splitStatus: "PENDING", createdAt: new Date(), rawRequest: null,
+        outTradeNo: "HF123", splitStatus: "PENDING", totalAmount: 100, createdAt: new Date(), rawRequest: null,
       });
       mockPrisma.huifuSplitRecord.update.mockResolvedValue({});
       mockFetchResponse({ resp_code: "00000000", trans_stat: "P" });

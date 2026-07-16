@@ -607,6 +607,16 @@ export class HuifuService {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "该订单已分账或分账处理中");
     }
 
+    // 加固(后端审计P2)：分账总额不得超过订单已付总额，防超额分账（资金守恒）。
+    // 注：四眼审批流程(单 OPERATION_ADMIN 直发→纳入 fundApproval)属流程决策，未在此改动。
+    const splitTotal = receivers.reduce((sum, r) => sum + Number(r.amount), 0);
+    if (splitTotal > Number(splitRecord.totalAmount) + 1e-6) {
+      throw new BusinessException(
+        ErrorCode.BAD_REQUEST,
+        `分账总额 ¥${splitTotal.toFixed(2)} 超过订单已付 ¥${Number(splitRecord.totalAmount).toFixed(2)}`,
+      );
+    }
+
     const merchantId = await this.getConfig("merchantId");
 
     const data: Record<string, unknown> = {
