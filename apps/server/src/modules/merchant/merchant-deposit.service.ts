@@ -65,7 +65,20 @@ export class MerchantDepositService {
     // 防自审自批：不得给自己名下的商家退还保证金
     if (merchant.userId === operatorId) throw new BusinessException(ErrorCode.FORBIDDEN, "不能给自己的商家退还保证金");
 
-    const refundAmount = dto.amount ?? Number(merchant.depositAmount ?? 0);
+    // 加固(后端审计P1-5)：未缴纳不可退 + 退款额不得超过已缴，防凭空/超额退还。
+    // 注：真实退款渠道回款、退还后 depositPaid/状态机回退属流程+架构决策，此处仅补账面防御守卫，未改动。
+    const paidAmount = Number(merchant.depositAmount ?? 0);
+    if (!merchant.depositPaid || paidAmount <= 0) {
+      throw new BusinessException(ErrorCode.MERCHANT_DEPOSIT_NOT_PAID, "该商家未缴纳保证金，无可退还");
+    }
+    const refundAmount = dto.amount ?? paidAmount;
+    if (refundAmount <= 0) throw new BusinessException(ErrorCode.BAD_REQUEST, "退款金额须大于0");
+    if (refundAmount > paidAmount + 1e-6) {
+      throw new BusinessException(
+        ErrorCode.BAD_REQUEST,
+        `退款额 ¥${refundAmount.toFixed(2)} 超过已缴保证金 ¥${paidAmount.toFixed(2)}`,
+      );
+    }
 
     return this.prisma.merchantDepositRecord.create({
       data: {

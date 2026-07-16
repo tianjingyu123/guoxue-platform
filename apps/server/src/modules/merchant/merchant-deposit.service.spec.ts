@@ -88,7 +88,7 @@ describe("MerchantDepositService", () => {
 
   describe("refundDeposit", () => {
     it("管理员退还保证金", async () => {
-      mockPrisma.merchant.findUnique.mockResolvedValue({ id: "m1", depositAmount: 2000 });
+      mockPrisma.merchant.findUnique.mockResolvedValue({ id: "m1", depositAmount: 2000, depositPaid: true });
       mockPrisma.merchantDepositRecord.create.mockResolvedValue({
         id: "dr2", merchantId: "m1", amount: 2000, type: "REFUND", status: "SUCCESS",
       });
@@ -98,8 +98,20 @@ describe("MerchantDepositService", () => {
     });
 
     it("不能给自己名下的商家退还保证金（防自审自批）", async () => {
-      mockPrisma.merchant.findUnique.mockResolvedValue({ id: "m1", userId: "u1", depositAmount: 2000 });
+      mockPrisma.merchant.findUnique.mockResolvedValue({ id: "m1", userId: "u1", depositAmount: 2000, depositPaid: true });
       await expect(svc.refundDeposit("m1", "u1", {})).rejects.toThrow(BusinessException);
+    });
+
+    it("加固：未缴纳保证金 → 无可退还（拒绝凭空退还）", async () => {
+      mockPrisma.merchant.findUnique.mockResolvedValue({ id: "m1", depositAmount: 0, depositPaid: false });
+      await expect(svc.refundDeposit("m1", "admin1", {})).rejects.toThrow("未缴纳保证金");
+      expect(mockPrisma.merchantDepositRecord.create).not.toHaveBeenCalled();
+    });
+
+    it("加固：退款额超过已缴保证金 → 拒绝（防超额退还）", async () => {
+      mockPrisma.merchant.findUnique.mockResolvedValue({ id: "m1", depositAmount: 2000, depositPaid: true });
+      await expect(svc.refundDeposit("m1", "admin1", { amount: 5000 })).rejects.toThrow("超过已缴保证金");
+      expect(mockPrisma.merchantDepositRecord.create).not.toHaveBeenCalled();
     });
   });
 
