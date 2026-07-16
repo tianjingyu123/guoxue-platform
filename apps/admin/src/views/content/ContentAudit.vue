@@ -528,7 +528,8 @@ function typeTag(t: string) {
   return map[t] || ''
 }
 function formatDate(d?: string) {
-  return d ? new Date(d).toLocaleString() : '-'
+  // 固定中文 24 小时制：默认 toLocaleString 在部分环境输出美式 "5/7/2026, 5:59 AM"
+  return d ? new Date(d).toLocaleString('zh-CN', { hour12: false }) : '-'
 }
 
 function handleSelection(rows: ContentRow[]) { selected.value = rows }
@@ -547,7 +548,8 @@ async function fetchList() {
     ])
     let items: ContentRow[] = [
       ...((contents.data.items || contents.data.contents || contents.data.data || []).map((c: ContentRow) => ({ ...c, type: c.type || 'ARTICLE' }))),
-      ...((courses.data?.items || courses.data?.courses || []).map((c: ContentRow) => ({ ...c, type: 'COURSE', title: c.title || c.name, content: c.intro }))),
+      // 课程审核态在 auditStatus 字段：不归一到 status 会导致顶部「待审核」统计恒 0 与列表自相矛盾（2026-07-15 走查修）
+      ...((courses.data?.items || courses.data?.courses || []).map((c: ContentRow & { auditStatus?: string }) => ({ ...c, type: 'COURSE', title: c.title || c.name, content: c.intro, status: c.status || c.auditStatus }))),
     ];
 
     // AI生成筛选

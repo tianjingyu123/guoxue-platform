@@ -17,7 +17,7 @@ const action = computed(() => payloadStr(props.item, 'action') || '测一测')
 <template>
   <view class="fcard">
     <view class="cov">
-      <smart-cover :src="item.cover" :title="item.title" type="default" class="cov-img" />
+      <smart-cover :src="item.cover" :title="item.title" type="paipan" deco class="cov-img" />
       <text class="seal serif">占</text>
       <view class="ov">
         <text class="ov-title serif">{{ item.title }}</text>

@@ -14,7 +14,7 @@
       <template v-else>
         <!-- 头部：商品信息 -->
         <view class="ps-head">
-          <image lazy-load class="ps-head__img" :src="product.cover" mode="aspectFill" />
+          <smart-cover class="ps-head__img" :src="product.cover" :title="product.name" type="product" deco :deco-size="40" />
           <view class="ps-head__info">
             <text class="ps-head__name">{{ product.name }}</text>
             <view class="ps-head__price-row">
@@ -115,6 +115,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import SmartCover from '@/components/common/smart-cover.vue'
 import { navigateTo } from '@/utils/router'
 import { purchaseApi, type PurchaseProduct, type PurchaseBizType, type PayChannel } from '@/lib/purchase-data'
 

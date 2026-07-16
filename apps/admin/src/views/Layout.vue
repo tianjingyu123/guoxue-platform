@@ -311,6 +311,19 @@ function logout() {
   gap: var(--spacing-sm);
 }
 
+/* 移动端菜单开关：桌面端隐藏——此前无任何样式，桌面顶栏面包屑前裸渲染一个"☰"（2026-07-15 走查修） */
+.mobile-toggle {
+  display: none;
+  font-size: 20px;
+  line-height: 1;
+  margin-right: var(--spacing-sm);
+  cursor: pointer;
+  color: var(--color-text-secondary);
+}
+@media (max-width: 768px) {
+  .mobile-toggle { display: block; }
+}
+
 /* 面包屑 */
 .breadcrumb-home {
   color: var(--color-text-secondary);

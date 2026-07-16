@@ -31,7 +31,7 @@ function open() {
   <!-- ---------- 横滑小卡 rail ---------- -->
   <view v-if="variant === 'rail'" class="rail" hover-class="card-press" @tap="open">
     <view class="cover r-169">
-      <smart-cover class="cover-img" :src="data.cover" :title="data.title" type="course" />
+      <smart-cover class="cover-img" :src="data.cover" :title="data.title" type="course" deco />
       <text class="type-badge">课程</text>
     </view>
     <view class="rail-body">
@@ -50,7 +50,7 @@ function open() {
   <view v-else-if="variant === 'rank'" class="rank" hover-class="card-press" @tap="open">
     <text class="rank-badge" :class="rankClass">{{ rank }}</text>
     <view class="rank-cover">
-      <smart-cover class="cover-img" :src="data.cover" :title="data.title" type="course" />
+      <smart-cover class="cover-img" :src="data.cover" :title="data.title" type="course" deco :deco-size="36" />
     </view>
     <view class="rank-info">
       <text class="rank-title">{{ data.title }}</text>
@@ -68,7 +68,7 @@ function open() {
   <!-- ---------- 横向列表卡 list ---------- -->
   <view v-else-if="variant === 'list'" class="list" hover-class="card-press" @tap="open">
     <view class="list-cover">
-      <smart-cover class="cover-img" :src="data.cover" :title="data.title" type="course" />
+      <smart-cover class="cover-img" :src="data.cover" :title="data.title" type="course" deco :deco-size="44" />
     </view>
     <view class="list-body">
       <view>
@@ -90,7 +90,7 @@ function open() {
   <!-- ---------- 瀑布流竖卡 feed(默认) ---------- -->
   <view v-else class="card" hover-class="card-press" @tap="open">
     <view class="cover r-169">
-      <smart-cover class="cover-img" :src="data.cover" :title="data.title" type="course" />
+      <smart-cover class="cover-img" :src="data.cover" :title="data.title" type="course" deco />
       <text class="type-badge">课程</text>
       <text v-if="kind" class="hot-badge" :class="kind === 'new' ? 'hot-new' : 'hot-red'">{{ hotText }}</text>
     </view>
@@ -145,7 +145,7 @@ function open() {
 .meta-soft { font-size: 22rpx; color: var(--text-soft); flex-shrink: 0; }
 
 /* rail 横滑小卡 */
-.rail { flex-shrink: 0; width: 300rpx; overflow: hidden; background: var(--surface); border-radius: 24rpx; box-shadow: 0 2rpx 16rpx rgba(0,0,0,0.05); }
+.rail { flex-shrink: 0; width: 360rpx; overflow: hidden; background: var(--surface); border-radius: 24rpx; box-shadow: 0 2rpx 16rpx rgba(0,0,0,0.05); }
 .rail-body { padding: 16rpx; }
 .rail-title { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; font-size: 26rpx; color: var(--text-strong); line-height: 1.35; margin-bottom: 8rpx; min-height: 72rpx; }
 .price-row-sm { display: flex; align-items: baseline; }

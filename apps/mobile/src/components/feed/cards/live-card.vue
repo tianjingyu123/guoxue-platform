@@ -18,7 +18,7 @@ const hook = computed(() => (isLive.value ? '直播中' : '看回放'))
 <template>
   <view class="fcard">
     <view class="cov">
-      <smart-cover :src="item.cover" :title="item.title" type="live" class="cov-img" />
+      <smart-cover :src="item.cover" :title="item.title" type="live" deco class="cov-img" />
       <text class="seal serif">播</text>
       <!-- LIVE 呼吸角标 -->
       <view v-if="isLive" class="badge live"><view class="live-dot" /><text class="live-t">LIVE</text></view>

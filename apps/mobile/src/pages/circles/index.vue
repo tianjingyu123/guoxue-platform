@@ -130,7 +130,7 @@ onShow(() => {
               class="mine-card" @tap="go(`/pkg-circle/circles/detail?id=${c.id}`)"
             >
               <view class="mine-cover-wrap">
-                <smart-cover :src="c.cover" :title="c.name" type="circle" class="mine-cover" />
+                <smart-cover :src="c.cover" :title="c.name" type="circle" deco :deco-size="40" class="mine-cover" />
                 <view v-if="c.todayActive && c.todayActive > 0" class="dot-new" />
               </view>
               <text class="mine-name">{{ c.name }}</text>
@@ -173,7 +173,7 @@ onShow(() => {
           >
             <!-- 首图 3:4（上传规范：圈子封面 960×1280·3:4）-->
             <view class="card-cover">
-              <smart-cover :src="c.cover" :title="c.name" type="circle" class="card-cover-img" />
+              <smart-cover :src="c.cover" :title="c.name" type="circle" deco :deco-size="52" class="card-cover-img" />
             </view>
             <view class="card-body">
               <view class="card-head">

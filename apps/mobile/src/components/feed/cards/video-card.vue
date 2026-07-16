@@ -18,7 +18,7 @@ const hook = computed(() => props.item.subtitle || '看视频')
 <template>
   <view class="fcard">
     <view class="cov">
-      <smart-cover :src="item.cover" :video-url="videoUrl" :title="item.title" type="default" class="cov-img" />
+      <smart-cover :src="item.cover" :video-url="videoUrl" :title="item.title" type="default" deco class="cov-img" />
       <view class="play-btn"><app-icon name="play" :size="34" color="#ffffff" :fill="true" /></view>
       <text class="seal serif">视</text>
       <!-- 右下时长角标 -->

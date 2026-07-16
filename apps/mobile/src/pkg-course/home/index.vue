@@ -274,7 +274,7 @@ function openMyLearning() { navigateTo('/courses/my-learning') }
           @tap="b.link && navigateTo(b.link)"
         >
           <view class="ratio-169">
-            <image class="banner-img" :src="b.image" mode="aspectFill" lazy-load />
+            <smart-cover class="banner-img" :src="b.image" :title="b.title" type="course" deco :deco-size="96" />
           </view>
           <view class="banner-overlay">
             <text class="banner-title serif">{{ b.title }}</text>
@@ -305,7 +305,7 @@ function openMyLearning() { navigateTo('/courses/my-learning') }
               class="sk-item" hover-class="card-press" @tap="openCourse(c.id)"
             >
               <view class="sk-item-cover">
-                <smart-cover class="sk-item-img" :src="c.cover" :title="c.title" type="course" />
+                <smart-cover class="sk-item-img" :src="c.cover" :title="c.title" type="course" deco />
               </view>
               <view class="sk-item-body">
                 <text class="sk-item-name">{{ c.title }}</text>
@@ -380,7 +380,7 @@ function openMyLearning() { navigateTo('/courses/my-learning') }
         >
           <view class="card-cover">
             <view class="ratio-169">
-              <smart-cover class="card-cover-img" :src="c.cover" :title="c.title" type="course" />
+              <smart-cover class="card-cover-img" :src="c.cover" :title="c.title" type="course" deco :deco-size="88" />
             </view>
             <text class="type-tag">课程</text>
           </view>
@@ -529,7 +529,7 @@ function openMyLearning() { navigateTo('/courses/my-learning') }
 .seckill-more-txt { font-size: 26rpx; color: #999999; }
 .seckill-cards { white-space: nowrap; }
 .seckill-cards-inner { display: inline-flex; gap: 20rpx; padding-bottom: 4rpx; }
-.sk-item { flex-shrink: 0; width: 264rpx; background: #FFFFFF; border-radius: 16rpx; overflow: hidden; box-shadow: 0 2rpx 6rpx rgba(0,0,0,0.04); }
+.sk-item { flex-shrink: 0; width: 320rpx; background: #FFFFFF; border-radius: 16rpx; overflow: hidden; box-shadow: 0 2rpx 6rpx rgba(0,0,0,0.04); }
 .sk-item-cover { position: relative; width: 100%; padding-top: 56.25%; }
 .sk-item-img { position: absolute; inset: 0; width: 100%; height: 100%; }
 .sk-item-body { padding: 16rpx 20rpx 20rpx; }

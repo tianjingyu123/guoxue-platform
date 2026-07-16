@@ -67,17 +67,20 @@
       </view>
       <view v-if="searchedBots.length" class="cat-grid">
         <view v-for="bot in searchedBots" :key="bot.id" class="grid-card" @tap="openBot(bot.id)">
-          <view class="gc-top">
+          <view class="gc-banner" :style="{ background: botGrad(bot.name) }">
+            <view class="gc-glyph serif">{{ (bot.name || '智')[0] }}</view>
             <view class="gc-avatar">
               <smart-avatar class="gc-avatar-img" :src="bot.avatar" :name="bot.name" />
             </view>
             <text v-if="bot.isNew" class="gc-new">NEW</text>
           </view>
-          <text class="gc-name">{{ bot.name }}</text>
-          <text class="gc-desc">{{ bot.description || '暂无简介' }}</text>
-          <view class="gc-foot">
-            <text v-if="bot.useCount" class="gc-count">{{ formatCount(bot.useCount) }}次对话</text>
-            <text v-else class="gc-count">{{ bot.categoryName }}</text>
+          <view class="gc-body">
+            <text class="gc-name">{{ bot.name }}</text>
+            <text class="gc-desc">{{ bot.description || '暂无简介' }}</text>
+            <view class="gc-foot">
+              <text v-if="bot.useCount" class="gc-count">{{ formatCount(bot.useCount) }}次对话</text>
+              <text v-else class="gc-count">{{ bot.categoryName }}</text>
+            </view>
           </view>
         </view>
       </view>
@@ -166,7 +169,8 @@
               </view>
               <text class="top-name">{{ r.name }}</text>
               <text v-if="r.sessions" class="top-heat">{{ formatCount(r.sessions) }}次对话</text>
-              <text v-else class="top-heat muted">{{ r.category }}</text>
+              <!-- 分类与名称相同则显示通用标签，避免上下两行重复同一文案 -->
+              <text v-else class="top-heat muted">{{ r.category && r.category !== r.name ? r.category : 'AI 智能体' }}</text>
             </view>
           </view>
         </scroll-view>
@@ -211,20 +215,23 @@
         </view>
         <view class="cat-grid">
           <view v-for="bot in group.bots" :key="bot.id" class="grid-card" @tap="openBot(bot.id)">
-            <view class="gc-top">
+            <view class="gc-banner" :style="{ background: botGrad(bot.name) }">
+              <view class="gc-glyph serif">{{ (bot.name || '智')[0] }}</view>
               <view class="gc-avatar">
                 <smart-avatar class="gc-avatar-img" :src="bot.avatar" :name="bot.name" />
               </view>
               <text v-if="bot.isNew" class="gc-new">NEW</text>
             </view>
-            <text class="gc-name">{{ bot.name }}</text>
-            <text class="gc-desc">{{ bot.description || '暂无简介' }}</text>
-            <view class="gc-foot">
-              <text v-if="bot.useCount" class="gc-count">{{ formatCount(bot.useCount) }}次对话</text>
-              <text v-else-if="bot.isFree" class="gc-count">免费使用</text>
-              <text v-else class="gc-count">按次计费</text>
-              <view v-if="bot.capabilities.includes('语音对话')" class="gc-voice">
-                <app-icon name="volume-2" :size="24" color="#7c3aed" />
+            <view class="gc-body">
+              <text class="gc-name">{{ bot.name }}</text>
+              <text class="gc-desc">{{ bot.description || '暂无简介' }}</text>
+              <view class="gc-foot">
+                <text v-if="bot.useCount" class="gc-count">{{ formatCount(bot.useCount) }}次对话</text>
+                <text v-else-if="bot.isFree" class="gc-count">免费使用</text>
+                <text v-else class="gc-count">按次计费</text>
+                <view v-if="bot.capabilities.includes('语音对话')" class="gc-voice">
+                  <app-icon name="volume-2" :size="24" color="#7c3aed" />
+                </view>
               </view>
             </view>
           </view>
@@ -267,6 +274,22 @@ const error = ref('')
 const statusBarHeight = ref(0)
 const searchQuery = ref('')
 const isListening = ref(false)
+
+/** 智能体卡横幅渐变：雅致国学色系按名称哈希轮换（董事长反馈"卡片无背景无设计感"） */
+const BOT_GRADS = [
+  'linear-gradient(135deg, #6d4f80, #3d2a54)',
+  'linear-gradient(135deg, #3a6b57, #1f3d31)',
+  'linear-gradient(135deg, #8a5c3b, #573620)',
+  'linear-gradient(135deg, #3e6390, #22405f)',
+  'linear-gradient(135deg, #9c4150, #5c2230)',
+  'linear-gradient(135deg, #8a6d3b, #54401e)',
+]
+function botGrad(name: string) {
+  let h = 0
+  const s = name || ''
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0
+  return BOT_GRADS[h % BOT_GRADS.length]
+}
 const voiceSupported = ref(false)
 
 // #ifdef H5
@@ -667,25 +690,39 @@ function goBack() {
   box-sizing: border-box;
   background: #ffffff;
   border-radius: 24rpx;
-  padding: 24rpx;
+  overflow: hidden;
   box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.04);
   display: flex; flex-direction: column;
 }
-.gc-top { display: flex; align-items: flex-start; justify-content: space-between; }
-.gc-avatar {
-  width: 80rpx; height: 80rpx; border-radius: 20rpx; overflow: hidden;
-  background: rgba(196, 30, 58, 0.08);
+/* 渐变横幅头：书法字水印 + 悬浮头像（设计感来源·色系按名称哈希轮换） */
+.gc-banner {
+  position: relative; height: 150rpx;
   display: flex; align-items: center; justify-content: center;
 }
-.gc-avatar-img { width: 56rpx; height: 56rpx; }
+.serif { font-family: 'STKaiti', 'KaiTi', 'STSong', serif; }
+.gc-glyph {
+  position: absolute; right: 16rpx; bottom: 4rpx;
+  font-size: 96rpx; font-weight: 700; line-height: 1;
+  color: rgba(255, 255, 255, 0.14);
+  pointer-events: none;
+}
+.gc-avatar {
+  width: 96rpx; height: 96rpx; border-radius: 999rpx; overflow: hidden;
+  background: rgba(255, 255, 255, 0.92);
+  border: 4rpx solid rgba(255, 255, 255, 0.85);
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.18);
+  display: flex; align-items: center; justify-content: center;
+}
+.gc-avatar-img { width: 100%; height: 100%; }
 .gc-new {
+  position: absolute; top: 12rpx; right: 12rpx;
   padding: 2rpx 10rpx;
   background: #52c41a; color: #ffffff;
   font-size: 18rpx; border-radius: 6rpx;
 }
+.gc-body { padding: 18rpx 24rpx 22rpx; display: flex; flex-direction: column; }
 .gc-name {
   font-size: 28rpx; font-weight: 700; color: var(--text-ink, #2c2c2c);
-  margin-top: 16rpx;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .gc-desc {
@@ -700,7 +737,7 @@ function goBack() {
 }
 .gc-foot {
   display: flex; align-items: center; justify-content: space-between;
-  margin-top: 16rpx;
+  margin-top: 14rpx;
 }
 .gc-count { font-size: 20rpx; color: #8b7355; }
 .gc-voice { display: flex; align-items: center; }

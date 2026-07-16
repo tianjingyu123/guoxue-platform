@@ -191,8 +191,9 @@ const pageSize = 20;
 const total = ref(0);
 
 function orderTypeLabel(t: string) { const m: Record<string,string> = { SHOP: "商城", MEMBER: "会员", BUNDLE: "组合包" }; return m[t] || t; }
-function statusLabel(s: string) { const m: Record<string,string> = { PAID: "已支付", PENDING: "待支付", REFUNDED: "已退款", CANCELLED: "已取消", CLAIMED: "已领取" }; return m[s] || s; }
-function statusType(s: string) { return s === "PAID" ? "success" : s === "PENDING" ? "warning" : s === "REFUNDED" ? "info" : s === "CANCELLED" ? "danger" : ""; }
+// 全量状态映射：漏一个就会英文枚举直出员工界面（2026-07-15 走查发现 SHIPPED/COMPLETED 裸奔）
+function statusLabel(s: string) { const m: Record<string,string> = { PAID: "已支付", PENDING: "待支付", PENDING_PAY: "待支付", REFUNDED: "已退款", REFUNDING: "退款中", CANCELLED: "已取消", CLAIMED: "已领取", SHIPPED: "已发货", DELIVERED: "已送达", RECEIVED: "已收货", COMPLETED: "已完成", CLOSED: "已关闭", PENDING_SHIP: "待发货", AFTER_SALE: "售后中" }; return m[s] || s; }
+function statusType(s: string) { const m: Record<string,string> = { PAID: "success", COMPLETED: "success", RECEIVED: "success", DELIVERED: "success", PENDING: "warning", PENDING_PAY: "warning", PENDING_SHIP: "warning", SHIPPED: "warning", REFUNDED: "info", REFUNDING: "info", AFTER_SALE: "info", CANCELLED: "danger", CLOSED: "danger" }; return m[s] ?? ""; }
 
 onMounted(() => fetchList());
 

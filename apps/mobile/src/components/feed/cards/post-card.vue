@@ -18,7 +18,7 @@ const circleName = computed(() => payloadStr(props.item, 'circleName'))
   <!-- 有图 -->
   <view v-if="hasCover" class="fcard">
     <view class="cov">
-      <smart-cover :src="item.cover" :title="item.title" type="circle" class="cov-img" />
+      <smart-cover :src="item.cover" :title="item.title" type="circle" deco class="cov-img" />
       <text class="seal serif">圈</text>
       <text v-if="circleName" class="badge bl">{{ circleName }}</text>
     </view>

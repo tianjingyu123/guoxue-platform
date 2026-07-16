@@ -44,7 +44,11 @@ const livesNow = computed(() =>
     .slice()
     .sort((a, b) => (b.viewerCount || 0) - (a.viewerCount || 0)),
 )
-const livesUpcoming = computed(() => filtered.value.filter((l) => l.status === 'upcoming'))
+// 预告只留未过期场次：预定时间已过 10 分钟仍未开播 = 过期噪音，不再向用户展示（无时间的「待定」保留）
+const livesUpcoming = computed(() => filtered.value.filter((l) =>
+  l.status === 'upcoming'
+  && (!l.scheduledAtRaw || new Date(l.scheduledAtRaw).getTime() > Date.now() - 10 * 60 * 1000)
+))
 
 // 空态规则：直播中 0 场 → 预告首场放大为 16:9 大卡
 const noLive = computed(() => livesNow.value.length === 0)
@@ -197,7 +201,7 @@ async function toggleBook(item: LiveItem) {
                 @tap="openLive(live.id)"
               >
                 <view class="cov r34 live">
-                  <smart-cover class="cov-img zoom" :src="live.cover" :title="live.title" type="live" />
+                  <smart-cover class="cov-img zoom" :src="live.cover" :title="live.title" type="live" deco :deco-size="64" />
                   <view class="badge tr live">
                     <view class="dot" />
                     <text class="badge-txt">LIVE</text>
@@ -229,7 +233,7 @@ async function toggleBook(item: LiveItem) {
                 @tap="openLive(live.id)"
               >
                 <view class="cov r34 live">
-                  <smart-cover class="cov-img zoom" :src="live.cover" :title="live.title" type="live" />
+                  <smart-cover class="cov-img zoom" :src="live.cover" :title="live.title" type="live" deco :deco-size="64" />
                   <view class="badge tr live">
                     <view class="dot" />
                     <text class="badge-txt">LIVE</text>
@@ -270,7 +274,7 @@ async function toggleBook(item: LiveItem) {
             @tap="openLive(featuredUpcoming.id)"
           >
             <view class="feat-cov r169">
-              <smart-cover class="cov-img" :src="featuredUpcoming.cover" :title="featuredUpcoming.title" type="live" />
+              <smart-cover class="cov-img" :src="featuredUpcoming.cover" :title="featuredUpcoming.title" type="live" deco :deco-size="80" />
               <view class="feat-mask" />
               <view class="badge tr up">
                 <AppIcon name="clock" :size="20" color="#ffffff" />
@@ -345,7 +349,7 @@ async function toggleBook(item: LiveItem) {
                 @tap="openReplay(rp.id)"
               >
                 <view class="cov r34">
-                  <smart-cover class="cov-img" :src="rp.cover" :title="rp.title" type="live" />
+                  <smart-cover class="cov-img" :src="rp.cover" :title="rp.title" type="live" deco :deco-size="64" />
                   <view class="badge tr rep"><text class="badge-txt">回放</text></view>
                   <view class="badge bl"><text class="badge-txt">{{ formatLiveDuration(rp.duration) }}</text></view>
                 </view>
@@ -370,7 +374,7 @@ async function toggleBook(item: LiveItem) {
                 @tap="openReplay(rp.id)"
               >
                 <view class="cov r34">
-                  <smart-cover class="cov-img" :src="rp.cover" :title="rp.title" type="live" />
+                  <smart-cover class="cov-img" :src="rp.cover" :title="rp.title" type="live" deco :deco-size="64" />
                   <view class="badge tr rep"><text class="badge-txt">回放</text></view>
                   <view class="badge bl"><text class="badge-txt">{{ formatLiveDuration(rp.duration) }}</text></view>
                 </view>

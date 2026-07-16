@@ -19,7 +19,7 @@ const hook = computed(() => (readMinutes.value ? `${readMinutes.value} 分钟读
   <!-- 有图：3:4 常规文章卡 -->
   <view v-if="hasCover" class="fcard">
     <view class="cov">
-      <smart-cover :src="item.cover" :title="item.title" type="default" class="cov-img" />
+      <smart-cover :src="item.cover" :title="item.title" type="default" deco class="cov-img" />
       <text class="seal serif">文</text>
     </view>
     <view class="body">

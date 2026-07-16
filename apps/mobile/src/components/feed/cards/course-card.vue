@@ -17,7 +17,7 @@ const hook = computed(() => (isFree.value ? '第 1 课免费' : '去看看 ›')
 <template>
   <view class="fcard">
     <view class="cov">
-      <smart-cover :src="item.cover" :title="item.title" type="course" class="cov-img" />
+      <smart-cover :src="item.cover" :title="item.title" type="course" deco class="cov-img" />
       <text class="seal serif">课</text>
     </view>
     <view class="body">

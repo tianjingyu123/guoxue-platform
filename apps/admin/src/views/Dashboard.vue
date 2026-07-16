@@ -9,7 +9,14 @@ const error = ref('')
 
 onMounted(async () => {
   try {
-    const cached = localStorage.getItem('user_roles')
+    let cached = localStorage.getItem('user_roles')
+    // 缓存缺失（清过浏览器缓存但 token 有效）时主动拉档案回填，
+    // 否则员工首屏退化成空欢迎页、看不到角色工作台（2026-07-15 走查修）
+    if (!cached) {
+      const { useAuthStore } = await import('@/store/auth')
+      await useAuthStore().fetchProfile().catch(() => {})
+      cached = localStorage.getItem('user_roles')
+    }
     const roles: string[] = cached ? JSON.parse(cached) : []
 
     let mod: { default: Component } | null = null

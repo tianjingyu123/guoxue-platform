@@ -21,6 +21,8 @@ export interface LiveItem {
   orientation: LiveOrientation
   priceType: LivePriceType
   scheduledTime?: string
+  /** 原始预定开播时间(ISO)：预告列表用于过滤已过期场次 */
+  scheduledAtRaw?: string
   duration?: string
   price?: number
   circleFree?: boolean
@@ -1356,6 +1358,7 @@ function adaptLiveItem(r: RawLiveRoom): LiveItem {
     price: r.chargePrice != null ? Number(r.chargePrice) : undefined,
     productCount: r._count?.products ?? undefined,
     scheduledTime: fmtLiveTime(r.startTime),
+    scheduledAtRaw: r.startTime || undefined,
   }
 }
 

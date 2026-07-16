@@ -11,6 +11,7 @@
 import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import FeedCard from '@/components/feed/feed-card.vue'
+import SmartCover from '@/components/common/smart-cover.vue'
 import BottomNav from '@/components/bottom-nav/bottom-nav.vue'
 import { navigateTo } from '@/utils/router'
 import { getSmartFeed, sendFeedback, ratioPadding, type FeedEnvelope } from '@/lib/feed-data'
@@ -106,6 +107,11 @@ const flowItems = computed<FeedEnvelope[]>(() => {
   return fid ? feed.value.filter((i) => i.id !== fid) : feed.value
 })
 const focusIsLive = computed(() => focusItem.value?.type === 'live')
+/** 主推位兜底封面主题：按内容类型取 smart-cover 色系 */
+const focusCoverType = computed(() => {
+  const t = focusItem.value?.type || ''
+  return ['live', 'course', 'classic', 'product', 'circle', 'paipan'].includes(t) ? t : 'default'
+})
 
 function goFocus() {
   const it = focusItem.value
@@ -270,14 +276,15 @@ function backToTop() {
       <!-- 焦点区（编辑式·直播优先）：16:10 大卡 + 底部渐变衬底 + 直播中动效 -->
       <view v-if="focusItem" class="focus" hover-class="focus-press" @tap="goFocus">
         <view class="focus-ratio">
-          <image
-            v-if="focusItem.cover"
+          <!-- smart-cover：有图显图（404 自动翻兜底），无图出书法水印生成底——主推位不允许空 banner -->
+          <smart-cover
             class="focus-cov"
             :class="{ live: focusIsLive }"
             :src="focusItem.cover"
-            mode="aspectFill"
+            :title="focusItem.title"
+            :type="focusCoverType"
+            deco
           />
-          <view v-else class="focus-cov focus-cov-fallback" />
           <view class="focus-shade" />
           <!-- 直播中胶囊：呼吸点 + 音浪律动 -->
           <view v-if="focusIsLive" class="live-chip">
@@ -455,7 +462,6 @@ function backToTop() {
 .focus-press { opacity: 0.94; }
 .focus-ratio { position: relative; width: 100%; height: 0; padding-top: 62.5%; overflow: hidden; }
 .focus-cov { position: absolute; inset: 0; width: 100%; height: 100%; }
-.focus-cov-fallback { background: linear-gradient(135deg, #E5DCC9 0%, #D8CDB5 100%); }
 /* 封面呼吸变焦（直播态·缓慢 14s alternate·纯装饰） */
 .focus-cov.live { animation: slowzoom 14s ease-in-out infinite alternate; }
 .focus-shade {

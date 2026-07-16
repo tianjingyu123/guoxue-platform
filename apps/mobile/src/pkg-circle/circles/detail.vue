@@ -24,6 +24,7 @@ import {
 import { track } from '@/composables/useTrack'
 import { formatPrice } from '@/utils/format'
 import { liveApi } from '@/lib/live-data'
+import { consultApi, type ConsultExpert } from '@/lib/circle-consult-data'
 
 const circleId = ref('1')
 const circle = ref<CircleDetail | null>(null)
@@ -90,6 +91,28 @@ const tabs = [
 ] as const
 
 const essencePosts = computed(() => posts.value.filter((p) => p.isEssence))
+
+// 「问答」Tab：本圈达人付费问答（董事长 #25 达人咨询降为内容分类 tab 后，此前 v-else 误落文章列表——2026-07-15 修）
+const qaExperts = ref<ConsultExpert[]>([])
+const qaLoading = ref(false)
+const qaLoaded = ref(false)
+async function loadQaExperts() {
+  if (qaLoaded.value || qaLoading.value) return
+  qaLoading.value = true
+  try {
+    qaExperts.value = await consultApi.listExperts(circleId.value)
+  } catch { qaExperts.value = [] }
+  finally { qaLoading.value = false; qaLoaded.value = true }
+}
+function onTabTap(id: typeof activeTab.value) {
+  activeTab.value = id
+  if (id === 'qa') loadQaExperts()
+}
+/** 图文提问：跳付费提问页（与达人咨询页同参数契约） */
+function goAskExpert(e: ConsultExpert) {
+  if (!e.questionPrice) return
+  navigateTo(`/pkg-circle/circles/consult-ask?circleId=${circleId.value}&answererId=${e.id}&priceCoin=${e.questionPrice}&peekPriceCoin=${e.peekPrice}&expertName=${encodeURIComponent(e.name)}&expertAvatar=${encodeURIComponent(e.avatar || '')}`)
+}
 
 onLoad((q) => {
   if (q?.id) circleId.value = q.id
@@ -387,7 +410,7 @@ function openShowcase() { navigateTo('/pkg-circle/circles/activities') }
 
       <!-- B. 内容区 Tab -->
       <view class="tabs">
-        <view v-for="tab in tabs" :key="tab.id" class="tab" @tap="activeTab = tab.id">
+        <view v-for="tab in tabs" :key="tab.id" class="tab" @tap="onTabTap(tab.id)">
           <text class="tab-txt" :class="{ on: activeTab === tab.id }">{{ tab.label }}</text>
           <view v-if="activeTab === tab.id" class="tab-line" />
         </view>
@@ -441,6 +464,37 @@ function openShowcase() { navigateTo('/pkg-circle/circles/activities') }
         <view v-else class="empty">
           <app-icon name="star" :size="88" color="#E8E3DB" />
           <text class="empty-txt">暂无精华内容</text>
+        </view>
+      </view>
+
+      <!-- 问答 Tab：本圈达人付费问答（提问入口+担保说明），不再误落文章列表 -->
+      <view v-else-if="activeTab === 'qa'" class="feed">
+        <view class="qa-trust">
+          <app-icon name="shield" :size="28" color="#C9A96E" />
+          <text class="qa-trust-t">平台托管：48 小时未回复自动全额退还</text>
+        </view>
+        <view v-if="qaLoading" class="empty"><text class="empty-txt">加载中…</text></view>
+        <template v-else-if="qaExperts.length">
+          <view v-for="e in qaExperts" :key="e.id" class="qa-card">
+            <smart-avatar :src="e.avatar" :name="e.name || ''" class="qa-avatar" />
+            <view class="qa-main">
+              <view class="qa-name-line">
+                <text class="qa-name">{{ e.name }}</text>
+                <text v-if="e.roleLabel" class="qa-role">{{ e.roleLabel }}</text>
+              </view>
+              <text class="qa-price">图文提问 {{ e.questionPrice }} 金币<text v-if="e.responseHours"> · {{ e.responseHours }}小时内回复</text></text>
+            </view>
+            <view class="qa-ask-btn" @tap.stop="goAskExpert(e)"><text class="qa-ask-txt">提问</text></view>
+          </view>
+          <view class="qa-links">
+            <text class="qa-link" @tap="openConsult">全部达人服务</text>
+            <text class="qa-link-sep">|</text>
+            <text class="qa-link" @tap="navigateTo(`/pkg-circle/circles/my-questions?circleId=${circleId}`)">我的提问</text>
+          </view>
+        </template>
+        <view v-else class="empty">
+          <app-icon name="message-circle" :size="88" color="#E8E3DB" />
+          <text class="empty-txt">本圈暂无开通问答的达人</text>
         </view>
       </view>
 
@@ -739,6 +793,59 @@ function openShowcase() { navigateTo('/pkg-circle/circles/activities') }
 }
 .fab.dim { opacity: 0.5; }
 .fab:active { transform: scale(0.95); }
+
+/* 圈主助理·智能客服式悬浮球（董事长 #25）：常驻右下角。
+   未加入=在加入通栏上方；已加入(raised)=错层于发帖 FAB 之上 */
+.assistant-fab {
+  position: fixed; right: 32rpx; bottom: calc(160rpx + env(safe-area-inset-bottom)); z-index: 31;
+  display: flex; flex-direction: column; align-items: center;
+  transition: opacity 0.25s ease;
+}
+.assistant-fab.raised { bottom: calc(200rpx + env(safe-area-inset-bottom)); }
+.assistant-fab.dim { opacity: 0.5; }
+.assistant-fab:active { transform: scale(0.95); }
+.assistant-orb {
+  width: 96rpx; height: 96rpx; border-radius: 999rpx;
+  background: linear-gradient(135deg, #d4af37, #c9a96e 55%, #b8860b);
+  box-shadow: 0 8rpx 24rpx rgba(201, 169, 110, 0.45);
+  display: flex; align-items: center; justify-content: center;
+}
+.assistant-tag {
+  margin-top: -14rpx; padding: 2rpx 14rpx; border-radius: 999rpx;
+  background: #ffffff; border: 1rpx solid var(--separator, #ede7dd);
+  box-shadow: 0 2rpx 8rpx rgba(44, 44, 44, 0.12);
+}
+.assistant-tag-txt { font-size: 20rpx; color: #8a6d3b; font-weight: 600; line-height: 1.4; }
+
+/* 问答 Tab（达人付费问答） */
+.qa-trust {
+  display: flex; align-items: center; gap: 10rpx;
+  padding: 16rpx 24rpx; border-radius: 16rpx;
+  background: rgba(201, 169, 110, 0.1);
+}
+.qa-trust-t { font-size: 24rpx; color: #8a6d3b; }
+.qa-card {
+  display: flex; align-items: center; gap: 20rpx;
+  background: #ffffff; border-radius: 24rpx; padding: 24rpx;
+  box-shadow: 0 2rpx 12rpx rgba(44, 44, 44, 0.04);
+}
+.qa-avatar { width: 88rpx; height: 88rpx; border-radius: 999rpx; overflow: hidden; flex-shrink: 0; }
+.qa-main { flex: 1; min-width: 0; }
+.qa-name-line { display: flex; align-items: center; gap: 12rpx; }
+.qa-name { font-size: 30rpx; font-weight: 600; color: var(--text-primary, #2c2c2c); }
+.qa-role {
+  padding: 2rpx 12rpx; border-radius: 8rpx; font-size: 20rpx;
+  color: #8a6d3b; background: rgba(201, 169, 110, 0.15);
+}
+.qa-price { display: block; margin-top: 8rpx; font-size: 24rpx; color: var(--text-tertiary, #999); }
+.qa-ask-btn {
+  flex-shrink: 0; padding: 14rpx 36rpx; border-radius: 999rpx;
+  background: var(--brand, #c41e3a);
+}
+.qa-ask-txt { font-size: 26rpx; color: #ffffff; font-weight: 600; }
+.qa-links { display: flex; align-items: center; justify-content: center; gap: 24rpx; padding: 20rpx 0 8rpx; }
+.qa-link { font-size: 26rpx; color: #8a6d3b; }
+.qa-link-sep { font-size: 22rpx; color: var(--separator, #ede7dd); }
 
 /* 发布 Sheet（V0 circle-publish-sheet 稿） */
 .pub-mask { position: fixed; inset: 0; z-index: 100; background: rgba(44, 44, 44, 0.35); display: flex; align-items: flex-end; }

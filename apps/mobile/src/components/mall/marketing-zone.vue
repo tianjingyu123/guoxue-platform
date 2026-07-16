@@ -2,6 +2,7 @@
 /** 营销活动区(限时秒杀 + 超值拼团) - 从原型 components/mall/marketing-zone.tsx 1:1 迁移 */
 import { ref, onMounted, onUnmounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import SmartCover from '@/components/common/smart-cover.vue'
 import { navigateTo } from '@/utils/router'
 import { shopApi } from '@/lib/shop-data'
 import { formatPrice } from '@/utils/format'
@@ -56,8 +57,8 @@ function off(price: number, original: number) {
 
 <template>
   <view class="mz">
-    <!-- 限时秒杀 -->
-    <view class="mz-card" hover-class="mz-press" @tap="navigateTo('/shop/flash-sale')">
+    <!-- 限时秒杀（无在售秒杀品则整卡隐藏，不留空白条） -->
+    <view v-if="seckillItems.length" class="mz-card" hover-class="mz-press" @tap="navigateTo('/shop/flash-sale')">
       <view class="mz-head mz-head-red">
         <view class="mz-head-l">
           <AppIcon name="zap" :size="28" color="#ffffff" :fill="true" />
@@ -77,7 +78,7 @@ function off(price: number, original: number) {
         <view class="mz-rail-inner">
           <view v-for="item in seckillItems" :key="item.id" class="mz-sk-item">
             <view class="mz-sk-cover">
-              <image lazy-load class="mz-sk-img" :src="item.cover" mode="aspectFill" />
+              <smart-cover class="mz-sk-img" :src="item.cover" :title="item.title" type="product" deco :deco-size="44" />
               <text class="mz-sk-off">-{{ off(item.price, item.originalPrice) }}%</text>
             </view>
             <text class="mz-sk-title">{{ item.title }}</text>
@@ -90,8 +91,8 @@ function off(price: number, original: number) {
       </scroll-view>
     </view>
 
-    <!-- 超值拼团 -->
-    <view class="mz-card" hover-class="mz-press" @tap="navigateTo('/shop/group-buy')">
+    <!-- 超值拼团（无进行中团则整卡隐藏） -->
+    <view v-if="groupItems.length" class="mz-card" hover-class="mz-press" @tap="navigateTo('/shop/group-buy')">
       <view class="mz-head mz-head-amber">
         <view class="mz-head-l">
           <AppIcon name="users" :size="28" color="#ffffff" />
@@ -102,7 +103,7 @@ function off(price: number, original: number) {
       </view>
       <view v-for="item in groupItems" :key="item.id" class="mz-gp">
         <view class="mz-gp-cover">
-          <image lazy-load class="mz-gp-img" :src="item.cover" mode="aspectFill" />
+          <smart-cover class="mz-gp-img" :src="item.cover" :title="item.title" type="product" deco :deco-size="40" />
         </view>
         <view class="mz-gp-body">
           <text class="mz-gp-title">{{ item.title }}</text>

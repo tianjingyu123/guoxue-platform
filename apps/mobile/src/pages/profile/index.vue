@@ -7,6 +7,8 @@ import { navigateTo, toastComingSoon } from '@/utils/router'
 import {
   profileApi, getGreeting, roleHref, type UserRole,
 } from '@/lib/profile-data'
+import SmartAvatar from '@/components/common/smart-avatar.vue'
+import { mineApi } from '@/lib/mine-data'
 import { recommendApi } from '@/lib/recommend-data'
 import { growthApi } from '@/lib/growth-data'
 import type { RecommendItem } from '@/components/common/recommend-section.vue'
@@ -92,8 +94,16 @@ const visibleRoleRows = computed(() =>
 const hasMoreRoles = computed(() => roleRows.value.length > 3)
 
 /* ===== 资产四宫格 ===== */
+// 钱包余额（可提现·真接口）：失败/未登录显示 —，不造假
+const walletBalance = ref<number | null>(null)
+async function loadWalletBalance() {
+  try {
+    const info = await mineApi.getWithdrawInfo()
+    walletBalance.value = info.availableBalance
+  } catch { walletBalance.value = null }
+}
 const assetCells = computed(() => [
-  { key: 'wallet', label: '钱包余额', value: '—', href: '/pkg-mine/wallet/index' },
+  { key: 'wallet', label: '钱包余额', value: walletBalance.value == null ? '—' : `¥${walletBalance.value.toFixed(walletBalance.value % 1 ? 2 : 0)}`, href: '/pkg-mine/wallet/index' },
   { key: 'coins', label: '国学币', value: String(userData.value.coins), href: '/pkg-mine/wallet/index' },
   { key: 'coupons', label: '优惠券', value: String(userData.value.coupons), href: '/pkg-shop/coupons/index' },
   { key: 'points', label: '积分', value: String(userData.value.points), href: '/pkg-mine/points/index' },
@@ -170,12 +180,13 @@ onMounted(() => {
   } catch { /* 降级默认 20 */ }
   fetchData()
   fetchEquippedTitle()
+  loadWalletBalance()
 })
 
 // 下拉刷新：重拉个人资料与装备称号
 onPullDownRefresh(async () => {
   try {
-    await Promise.all([fetchData(), fetchEquippedTitle()])
+    await Promise.all([fetchData(), fetchEquippedTitle(), loadWalletBalance()])
   } finally {
     uni.stopPullDownRefresh()
   }
@@ -233,8 +244,8 @@ function applyRole(role: string) {
 
       <view class="id-row">
         <view class="id-avatar" @tap="go('/pages/profile/edit')">
-          <image lazy-load v-if="userData.avatar" class="avatar-img" :src="userData.avatar" mode="aspectFill" />
-          <text v-else class="avatar-fallback">{{ userData.name[0] || '国' }}</text>
+          <!-- smart-avatar：头像 URL 失效自动翻昵称首字色块（原 image 裂图时是纯红空圈） -->
+          <smart-avatar class="avatar-img" :src="userData.avatar" :name="userData.name || '国'" />
         </view>
         <view class="id-info">
           <view class="id-name-row">

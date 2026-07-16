@@ -66,7 +66,7 @@
           @tap="goDetail(video.id)"
         >
           <view class="vl-cover" :style="{ paddingBottom: coverRatio(video) }">
-            <smart-cover class="vl-cover-img" :src="video.coverUrl" :title="video.title" type="video" />
+            <smart-cover class="vl-cover-img" :src="video.coverUrl" :title="video.title" type="video" deco :deco-size="72" />
             <view class="vl-cover-shade" />
             <view class="vl-plays">
               <AppIcon name="play" :size="20" color="#ffffff" :fill="true" />
@@ -76,7 +76,7 @@
           <view class="vl-info">
             <text class="vl-card-title">{{ video.title }}</text>
             <view class="vl-author">
-              <image lazy-load class="vl-avatar" :src="video.author.avatar" mode="aspectFill" />
+              <smart-avatar class="vl-avatar" :src="video.author.avatar" :name="video.author.name || ''" />
               <text class="vl-author-name">{{ video.author.name }}</text>
               <view class="vl-likes">
                 <AppIcon name="heart" :size="22" color="#999999" :stroke-width="1.6" />
@@ -97,7 +97,7 @@
           @tap="goDetail(video.id)"
         >
           <view class="vl-cover" :style="{ paddingBottom: coverRatio(video) }">
-            <smart-cover class="vl-cover-img" :src="video.coverUrl" :title="video.title" type="video" />
+            <smart-cover class="vl-cover-img" :src="video.coverUrl" :title="video.title" type="video" deco :deco-size="72" />
             <view class="vl-cover-shade" />
             <view class="vl-plays">
               <AppIcon name="play" :size="20" color="#ffffff" :fill="true" />
@@ -107,7 +107,7 @@
           <view class="vl-info">
             <text class="vl-card-title">{{ video.title }}</text>
             <view class="vl-author">
-              <image lazy-load class="vl-avatar" :src="video.author.avatar" mode="aspectFill" />
+              <smart-avatar class="vl-avatar" :src="video.author.avatar" :name="video.author.name || ''" />
               <text class="vl-author-name">{{ video.author.name }}</text>
               <view class="vl-likes">
                 <AppIcon name="heart" :size="22" color="#999999" :stroke-width="1.6" />
@@ -134,6 +134,7 @@ import { ref, computed, onMounted } from 'vue'
 import { onPullDownRefresh } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import SmartCover from '@/components/common/smart-cover.vue'
+import SmartAvatar from '@/components/common/smart-avatar.vue'
 import PublishGuideSheet from '@/components/video/publish-guide-sheet.vue'
 import { navigateTo } from '@/utils/router'
 import { checkVideoPublishPermission } from '@/lib/publish-permission'

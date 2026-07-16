@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <view class="search-page">
     <!-- 顶部搜索栏 -->
     <view class="search-header" :style="{ paddingTop: statusBarHeight + 'px' }">
@@ -11,7 +11,7 @@
           <input
             class="search-input"
             v-model="keyword"
-            placeholder="搜索国学课程、文章、命理师"
+            placeholder="搜索课程、文章、古籍、达人"
             placeholder-class="search-input-ph"
             confirm-type="search"
             :focus="autoFocus"

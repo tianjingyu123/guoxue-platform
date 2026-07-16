@@ -233,7 +233,7 @@ onMounted(() => {
     <!-- ══ 区块1 头图 16:9 ══ -->
     <view class="hero">
       <view class="ratio-169">
-        <smart-cover class="hero-img" :src="course.cover" :title="course.title" type="course" />
+        <smart-cover class="hero-img" :src="course.cover" :title="course.title" type="course" deco :deco-size="96" />
       </view>
       <view class="hero-nav" :style="{ paddingTop: statusBarHeight + 'px' }">
         <view class="hero-btn" @tap="goBack">
@@ -278,10 +278,10 @@ onMounted(() => {
         <!-- 未购态 / 秒杀态：价格行 -->
         <template v-else>
           <!-- 秒杀横条（金色浅底·深色文字·派生自划线价，无真实倒计时接口故只展示活动语义） -->
+          <!-- 价格只出现一次（下方大价签承载现价），横条只承载活动语义与原价锚点，不再重复 ¥现价 -->
           <view v-if="isSeckill" class="seckill-bar">
             <text class="seckill-tag">限时优惠</text>
-            <text class="seckill-price">¥{{ priceText(course.price) }}</text>
-            <text class="seckill-hint">活动结束恢复原价</text>
+            <text class="seckill-hint">活动结束恢复原价 ¥{{ priceText(course.originalPrice) }}</text>
           </view>
           <view class="price-row" :class="{ 'price-row--seckill': isSeckill }">
             <text v-if="course.isFree" class="price-free">免费</text>
