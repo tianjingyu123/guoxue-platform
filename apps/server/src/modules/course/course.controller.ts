@@ -64,14 +64,21 @@ export class CourseController {
   }
 
   @Get()
+  @UseGuards(OptionalAuthGuard)
   @ApiOperation({ summary: "获取课程列表" })
   @ApiResponse({ status: 200, description: "成功返回课程列表" })
-  list(@Query() q: CourseListQueryDto, @StationId() stationId?: string) {
+  list(@Req() req: Request, @Query() q: CourseListQueryDto, @StationId() stationId?: string) {
+    // 状态筛选（含 status 兼容字段）仅管理角色可用：
+    // ① 此前 status 参数被丢弃 → admin 待审列表落到公开默认"已通过"，把已上架课程当待审展示；
+    // ② 公开端点若不设门禁，任何人传 auditStatus=PENDING/ALL 可窥未过审内容（越权·2026-07-15 走查修）
+    const roles = ((req.user as { roles?: string[] } | undefined)?.roles) || [];
+    const isAdmin = roles.some((r) => ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"].includes(r));
+    const requestedStatus = q.auditStatus || q.status;
     return this.course.listCourses({
       page: q.page || 1,
       pageSize: q.pageSize || 20,
       circleId: q.circleId,
-      auditStatus: q.auditStatus,
+      auditStatus: isAdmin ? requestedStatus : undefined,
       stationId: stationId || q.stationId,
       type: q.type,
       keyword: q.keyword,

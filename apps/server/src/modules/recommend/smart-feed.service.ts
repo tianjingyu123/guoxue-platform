@@ -58,7 +58,9 @@ export type TimeSlot = "morning" | "afternoon" | "evening";
 // 注：圈子帖(post)不出圈，不参与平台 feed 混排与加权（仅文章可出圈）
 const TIME_SLOT_BOOSTED_TYPES: Record<TimeSlot, ReadonlyArray<FeedItem["type"]>> = {
   morning: ["article", "video"],
-  afternoon: ["classic", "course"],
+  // 午间=诗词古籍休闲类（见上方注释）；course 属晚间深度学习族，此前被误加进午间
+  // 导致课程与古籍同乘 1.3 抢占午间榜首（spec 时段因子用例失败·2026-07-15 修回）
+  afternoon: ["classic"],
   evening: ["course", "ebook"],
 };
 
@@ -757,7 +759,7 @@ export class SmartFeedService {
       reason: "每日一测",
       coverRatio: "4:3",
       metric: { kind: "action", value: "测一测" },
-      payload: { hint: "今日运势·点击测算", action: "paipan" },
+      payload: { hint: "宜忌 · 运程 · 每日更新", action: "测一测" },
     };
     const agentCard: FeedItem = {
       id: "hook-agent",
@@ -768,7 +770,7 @@ export class SmartFeedService {
       reason: "智能问答",
       coverRatio: "4:3",
       metric: { kind: "action", value: "问一问" },
-      payload: { question: "我的本命卦象是什么？", action: "agent" },
+      payload: { question: "我的本命卦象是什么？", action: "问一问" },
     };
 
     const result = [...items];

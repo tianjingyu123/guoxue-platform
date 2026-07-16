@@ -190,8 +190,14 @@ export class ClassicsBffService {
       ? {
           id: top.id, title: top.title,
           author: [top.author, top.dynasty].filter(Boolean).join(" · ") || "佚名",
-          tagline: "今日导读", quote: this.cleanIntro(top.intro, top.title).slice(0, 30),
-          desc: this.cleanIntro(top.intro, top.title).slice(0, 60),
+          // 标题句取简介第一句（整句·不再腰斩半句），简介从第二句起——
+          // 原先 quote=前30字/desc=前60字，首屏同一段文字出现两遍（2026-07-15 走查修）
+          ...(() => {
+            const intro = this.cleanIntro(top.intro, top.title);
+            const first = (intro.split(/[。！？!?]/)[0] || intro).slice(0, 26);
+            const rest = intro.slice(first.length).replace(/^[。！？!?，、；;\s"”]+/, "");
+            return { tagline: "今日导读", quote: first, desc: (rest || intro).slice(0, 60) };
+          })(),
         }
       : null;
 
