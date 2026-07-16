@@ -12,10 +12,14 @@
     </view>
 
     <scroll-view scroll-y class="scroll-area" :style="{ paddingTop: navHeight + 'px' }">
-      <view v-if="loading" class="loading-state">加载中...</view>
-      <view v-else-if="error" class="error-state">
-        <text>{{ error }}</text>
-        <view @tap="fetchData">重试</view>
+      <view v-if="loading" class="page-state">
+        <app-icon name="loader-2" :size="40" color="#C41E3A" class="state-spin" />
+        <text class="page-state-text">加载中...</text>
+      </view>
+      <view v-else-if="error" class="page-state">
+        <view class="page-state-icon"><app-icon name="alert-circle" :size="48" color="#C41E3A" /></view>
+        <text class="page-state-text">{{ error }}</text>
+        <view class="page-state-btn" @tap="fetchData"><text class="page-state-btn-text">重试</text></view>
       </view>
       <template v-else>
       <!-- 结果横幅 -->
@@ -134,8 +138,8 @@
       </template>
     </scroll-view>
 
-    <!-- 底部按钮 -->
-    <view class="footer" :style="{ paddingBottom: safeBottom + 'px' }">
+    <!-- 底部按钮（加载/错误态隐藏，避免空页浮出操作栏） -->
+    <view v-if="!loading && !error" class="footer" :style="{ paddingBottom: safeBottom + 'px' }">
       <view class="footer-row">
         <view class="footer-btn ghost" @tap="reApply">
           <app-icon name="refresh-cw" :size="30" color="#C41E3A" />
@@ -280,6 +284,46 @@ function viewOrder() {
 .scroll-area {
   height: 100vh;
   box-sizing: border-box;
+}
+
+/* 统一居中卡片式加载/错误态 */
+.page-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24rpx;
+  padding: 200rpx 48rpx;
+}
+.page-state-icon {
+  width: 128rpx;
+  height: 128rpx;
+  border-radius: 999rpx;
+  background: rgba(196, 30, 58, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.page-state-text {
+  font-size: 28rpx;
+  color: #999999;
+  text-align: center;
+}
+.page-state-btn {
+  margin-top: 8rpx;
+  padding: 16rpx 56rpx;
+  background: var(--brand);
+  border-radius: 999rpx;
+}
+.page-state-btn-text {
+  font-size: 28rpx;
+  color: #FFFFFF;
+}
+.state-spin {
+  animation: state-spin 1s linear infinite;
+}
+@keyframes state-spin {
+  to { transform: rotate(360deg); }
 }
 
 .result-banner {

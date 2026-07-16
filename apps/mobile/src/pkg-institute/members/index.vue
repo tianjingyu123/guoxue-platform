@@ -45,10 +45,7 @@
               :class="{ lead: mg.role === 'PRESIDENT' }"
               @tap="goDetailByUser(mg.user.id)"
             >
-              <view class="mc-av-wrap">
-                <image v-if="mg.user.avatar" lazy-load :src="mg.user.avatar" class="mc-av-img" mode="aspectFill" />
-                <view v-else class="mc-av"><text class="mc-av-t serif">{{ memberName(mg.user).slice(0, 1) }}</text></view>
-              </view>
+              <smart-avatar class="mc-av-wrap" :src="mg.user.avatar" :name="memberName(mg.user)" />
               <text class="mc-name">{{ memberName(mg.user) }}</text>
               <view
                 class="role"
@@ -83,8 +80,7 @@
                   </view>
                 </view>
                 <view class="gc-leader-av">
-                  <image v-if="g.leader.avatar" lazy-load :src="g.leader.avatar" class="face-img" mode="aspectFill" />
-                  <view v-else class="face"><text class="face-t">{{ (g.leader.nickname || '组').slice(0, 1) }}</text></view>
+                  <smart-avatar class="face-sa" :src="g.leader.avatar" :name="g.leader.nickname || '组'" />
                 </view>
               </view>
             </view>
@@ -103,10 +99,7 @@
               class="mrow"
               @tap="goDetail(m.id)"
             >
-              <view class="mr-av-wrap">
-                <image v-if="m.user.avatar" lazy-load :src="m.user.avatar" class="mr-av-img" mode="aspectFill" />
-                <view v-else class="mr-av"><text class="mr-av-t serif">{{ memberName(m.user).slice(0, 1) }}</text></view>
-              </view>
+              <smart-avatar class="mr-av-wrap" :src="m.user.avatar" :name="memberName(m.user)" />
               <view class="mr-info">
                 <view class="mr-name-row">
                   <text class="mr-name">{{ memberName(m.user) }}</text>
@@ -138,6 +131,7 @@
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
+import SmartAvatar from '@/components/common/smart-avatar.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import {
   instituteApi, roleLabel, isManagement, memberName,
@@ -293,7 +287,7 @@ $radius: 18rpx;
   box-shadow: 0 8rpx 28rpx rgba(140, 120, 90, 0.06);
 }
 .mcard.lead { border-color: $red; }
-.mc-av-wrap { width: 104rpx; height: 104rpx; margin: 0 auto 16rpx; }
+.mc-av-wrap { width: 104rpx; height: 104rpx; margin: 0 auto 16rpx; border-radius: 50%; }
 .mc-av {
   width: 104rpx; height: 104rpx; border-radius: 50%;
   background: linear-gradient(135deg, #E9DDC9, #D8C4A0);
@@ -329,6 +323,7 @@ $radius: 18rpx;
 }
 .gc-topic-t { flex: 1; font-size: 22rpx; color: $sub; line-height: 1.5; }
 .gc-leader-av { flex-shrink: 0; margin-left: 20rpx; }
+.face-sa { width: 56rpx; height: 56rpx; border-radius: 50%; border: 3rpx solid #fff; }
 .face {
   width: 56rpx; height: 56rpx; border-radius: 50%;
   border: 3rpx solid #fff;
@@ -344,7 +339,7 @@ $radius: 18rpx;
   padding: 24rpx 28rpx; margin-bottom: 20rpx;
   background: $card; border: 1rpx solid $line; border-radius: 28rpx;
 }
-.mr-av-wrap { width: 76rpx; height: 76rpx; flex-shrink: 0; }
+.mr-av-wrap { width: 76rpx; height: 76rpx; flex-shrink: 0; border-radius: 50%; }
 .mr-av {
   width: 76rpx; height: 76rpx; border-radius: 50%;
   background: linear-gradient(135deg, #E9DDC9, #D8C4A0);

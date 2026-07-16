@@ -55,7 +55,8 @@
         <view class="hot-list">
           <view v-for="(item, idx) in hotReplays" :key="item.id" class="hot-card" @tap="openReplay(item)">
             <view class="hot-cover">
-              <smart-cover class="hot-img" :src="item.cover" :title="item.title" type="live" />
+              <!-- plain：大卡自身已有居中播放按钮 + 卡底标题栏，兜底封面只出底纹不出文字，防撞按钮/重复标题 -->
+              <smart-cover class="hot-img" :src="item.cover" :title="item.title" type="live" plain />
               <view class="hot-mask" />
               <view class="hot-tag">
                 <text class="hot-tag-emoji">🔥</text>

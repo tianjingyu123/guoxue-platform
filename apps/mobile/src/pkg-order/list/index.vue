@@ -84,8 +84,7 @@
             class="product"
             :class="{ bordered: idx > 0 }"
           >
-            <image v-if="p.cover" lazy-load class="p-cover" :src="p.cover" mode="aspectFill" />
-            <view v-else class="p-cover p-cover-ph"><app-icon :name="typeMeta(order).icon" :size="40" color="var(--text-soft)" /></view>
+            <smart-cover class="p-cover" :src="p.cover" :title="p.name" type="product" deco :deco-size="48" />
             <view class="p-info">
               <text class="p-name">{{ p.name }}</text>
               <text v-if="p.skuName" class="p-sku">{{ p.skuName }}</text>
@@ -174,6 +173,7 @@
 import { ref, computed } from 'vue'
 import { onLoad, onReachBottom, onPullDownRefresh } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
+import SmartCover from '@/components/common/smart-cover.vue'
 import AppLoadMore from '@/components/common/app-load-more.vue'
 import { navigateTo } from '@/utils/router'
 import { useList } from '@/composables/useList'
@@ -323,8 +323,7 @@ async function doCancel() {
 .products { padding: 0 24rpx; }
 .product { display: flex; gap: 20rpx; padding: 8rpx 0; }
 .product.bordered { margin-top: 12rpx; padding-top: 20rpx; border-top: 1rpx solid var(--line, #e8e0d5); }
-.p-cover { width: 140rpx; height: 140rpx; border-radius: 16rpx; background: var(--surface-sunken, #f2efea); flex-shrink: 0; }
-.p-cover-ph { display: flex; align-items: center; justify-content: center; }
+.p-cover { width: 140rpx; height: 140rpx; border-radius: 16rpx; overflow: hidden; background: var(--surface-sunken, #f2efea); flex-shrink: 0; }
 .p-info { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .p-name { font-size: 28rpx; color: var(--text-strong, #2c2c2c); line-height: 1.4; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .p-sku { align-self: flex-start; max-width: 100%; font-size: 22rpx; color: var(--text-soft, #999); background: var(--surface-sunken, #f2efea); border-radius: 8rpx; padding: 4rpx 12rpx; margin-top: 8rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; box-sizing: border-box; }

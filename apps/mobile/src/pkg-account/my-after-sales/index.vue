@@ -55,7 +55,7 @@
           </view>
 
           <view class="as-body" @tap="navigateTo(`/shop/after-sale/${item.id}`)">
-            <image lazy-load class="as-cover" :src="item.product.cover" mode="aspectFill" />
+            <view class="as-cover"><smart-cover :src="item.product.cover" :title="item.product.name" type="product" deco :deco-size="44" /></view>
             <view class="as-info">
               <text class="as-name">{{ item.product.name }}</text>
               <text class="as-sku">{{ item.product.skuName }}</text>
@@ -116,6 +116,7 @@
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { goBack, navigateTo } from '@/utils/router'
+import SmartCover from '@/components/common/smart-cover.vue'
 import { accountApi, afterSaleTabs, afterSaleStatusConfig, type AfterSaleListItem } from '@/lib/account-data'
 import { formatPrice } from '@/utils/format'
 
@@ -341,6 +342,8 @@ async function doCancel() {
   height: 150rpx;
   border-radius: 16rpx;
   background: #FAF8F5;
+  overflow: hidden;
+  flex-shrink: 0;
 }
 .as-info {
   flex: 1;

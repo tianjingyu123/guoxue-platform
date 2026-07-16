@@ -176,10 +176,12 @@ const groupedEvents = computed(() => {
   return Array.from(map.entries())
     .sort((a, b) => a[0].localeCompare(b[0]))
     .map(([key, evs]) => {
-      const d = new Date(key)
+      // 直接从本地日期串 key(YYYY-MM-DD)取月日，避免 new Date(key) 按 UTC 解析导致
+      // 分组标题比卡片日期(本地 getDate)少一天的时区 off-by-one
+      const [, mm, dd] = key.split('-')
       return {
         key,
-        label: `${d.getMonth() + 1} 月 ${d.getDate()} 日`,
+        label: `${Number(mm)} 月 ${Number(dd)} 日`,
         events: evs.sort((x, y) => new Date(x.scheduleAt).getTime() - new Date(y.scheduleAt).getTime()),
       }
     })

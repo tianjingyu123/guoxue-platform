@@ -253,6 +253,10 @@ onUnmounted(() => {
 </script>
 
 <template>
+  <!-- 状态态返回栏：加载/硬失败时也能退出，避免卡死 -->
+  <view v-if="loading || error" class="state-back" @tap="goBack()">
+    <AppIcon name="arrow-left" :size="40" color="#1A1A1A" />
+  </view>
   <view v-if="loading" class="load-state"><text class="load-state-text">加载中...</text></view>
   <view v-else-if="error" class="load-state">
     <text class="load-state-text">{{ error }}</text>
@@ -418,6 +422,7 @@ onUnmounted(() => {
 .load-state-text { font-size: 28rpx; color: #8a8178; }
 .retry-btn { padding: 16rpx 48rpx; background: var(--brand); border-radius: 999rpx; }
 .retry-text { font-size: 28rpx; color: #fff; }
+.state-back { position: fixed; left: 24rpx; top: calc(var(--status-bar-height, 0px) + 20rpx); z-index: 10; width: 64rpx; height: 64rpx; display: flex; align-items: center; justify-content: center; }
 
 .page { display: flex; flex-direction: column; height: 100vh; background: #f7f5f0; }
 .safe-pt { padding-top: var(--status-bar-height, 0); }

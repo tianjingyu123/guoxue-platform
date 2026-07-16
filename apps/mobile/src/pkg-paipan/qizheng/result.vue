@@ -11,6 +11,7 @@
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import ToolHeader from '@/components/paipan/tool-header.vue'
+import ParamError from '@/components/paipan/param-error.vue'
 import PaperCard from '@/components/paipan/paper-card.vue'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
 import GenerateReportButton from '@/components/paipan/generate-report-button.vue'
@@ -194,12 +195,7 @@ function onShare() {
     <tool-header title="七政四余星盘" back-href="/paipan/qizheng" share @share="onShare" />
 
     <!-- 错误态 -->
-    <view v-if="loadError" class="status">
-      <text class="status-text">{{ loadError }}</text>
-      <view class="status-btn" @tap="navigateTo('/paipan/qizheng')">
-        <text class="status-btn-text">返回排盘</text>
-      </view>
-    </view>
+    <param-error v-if="loadError" :text="loadError" action-text="返回排盘" @action="navigateTo('/paipan/qizheng')" />
 
     <scroll-view v-else-if="result && params && birth" scroll-y class="body">
       <view class="body-inner">
@@ -456,11 +452,7 @@ $serif: Georgia, 'Songti SC', serif;
 .body { flex: 1; }
 .body-inner { padding: 0 0 48rpx; display: flex; flex-direction: column; gap: 20rpx; }
 
-/* 错误态 */
-.status { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 32rpx; padding: 80rpx 48rpx; }
-.status-text { font-size: 28rpx; color: var(--text-soft); text-align: center; }
-.status-btn { padding: 20rpx 48rpx; border-radius: 999rpx; background: var(--brand); }
-.status-btn-text { font-size: 28rpx; color: #fff; font-weight: 600; }
+/* 缺参空态样式已抽至 @/components/paipan/param-error.vue */
 
 /* 命主信息 */
 .meta { padding: 20rpx 32rpx; border-bottom: 1rpx solid var(--line); }

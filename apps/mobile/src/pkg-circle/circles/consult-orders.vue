@@ -98,7 +98,7 @@ function mapQa(q: PaidQuestion): OrderItem {
   }
   return {
     key: `qa-${q.id}`, kind: 'qa', id: q.id, mine,
-    title: p.title || p.body,
+    title: p.title || p.body || '图文咨询',
     counterpart: (mine ? q.answerer?.nickname : q.asker?.nickname) || (mine ? '达人' : '提问者'),
     bucket, createdAt: q.createdAt, amountText, amountCls, note,
   }

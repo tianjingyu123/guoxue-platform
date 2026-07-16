@@ -34,15 +34,17 @@ const channels = [
   { key: 'huifu', name: '汇付天下', badge: '汇', color: '#f97316' },
 ]
 
+// 后端暂无第三方支付渠道「绑定状态查询/绑定」接口（auth/bind 仅登录绑定·非支付渠道）
+// → 诚实降级：一律显示未绑定，不再伪造「已绑定」；点击提示功能即将开放
 const bound = reactive<Record<string, boolean>>({
-  wechat: true,
-  alipay: true,
+  wechat: false,
+  alipay: false,
   unionpay: false,
   huifu: false,
 })
 
-function toggle(key: string) {
-  bound[key] = !bound[key]
+function toggle(_key: string) {
+  uni.showToast({ title: '绑定功能即将开放', icon: 'none' })
 }
 </script>
 

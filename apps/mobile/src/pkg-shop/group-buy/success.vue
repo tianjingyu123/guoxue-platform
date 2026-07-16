@@ -18,6 +18,12 @@
     <template v-else-if="data">
       <!-- 成功头部 -->
       <view class="header">
+        <view class="gs-nav">
+          <view class="gs-nav-back" hover-class="nav-hover" @tap="onBack">
+            <app-icon name="chevron-left" :size="40" color="#fff" />
+          </view>
+          <text class="gs-nav-title">拼团结果</text>
+        </view>
         <view class="success-icon">
           <app-icon name="check-circle" :size="96" color="#22c55e" />
         </view>
@@ -29,7 +35,7 @@
       <!-- 商品卡片 -->
       <view class="card">
         <view class="prod">
-          <image lazy-load class="prod-cover" :src="data.productCover" mode="aspectFill" />
+          <smart-cover class="prod-cover" :src="data.productCover" :title="data.productName" type="product" deco :deco-size="44" />
           <view class="prod-info">
             <text class="prod-name">{{ data.productName }}</text>
             <view class="prod-price">
@@ -42,12 +48,11 @@
         <view class="row">
           <text class="row-label">成团成员</text>
           <view class="members">
-            <image lazy-load
+            <smart-avatar
               v-for="(m, i) in data.members"
               :key="i"
               class="member-avatar"
               :src="m.avatar"
-              mode="aspectFill"
             />
             <text class="member-count">共{{ data.members.length }}人</text>
           </view>
@@ -113,7 +118,9 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
-import { navigateTo } from '@/utils/router'
+import { navigateTo, goBack } from '@/utils/router'
+import SmartCover from '@/components/common/smart-cover.vue'
+import SmartAvatar from '@/components/common/smart-avatar.vue'
 import { shopApi } from '@/lib/shop-data'
 import { formatPrice } from '@/utils/format'
 
@@ -167,6 +174,9 @@ function viewOrder() {
 function goShop() {
   navigateTo('/mall')
 }
+function onBack() {
+  goBack()
+}
 async function retryLoad() {
   loading.value = true
   error.value = ''
@@ -187,13 +197,36 @@ async function retryLoad() {
 }
 .header {
   background: linear-gradient(to bottom right, #22c55e, #16a34a);
-  padding: 96rpx 32rpx 192rpx;
+  padding: 0 32rpx 192rpx;
   text-align: center;
+}
+.gs-nav {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  height: 88rpx;
+  padding-top: var(--status-bar-height, 0px);
+  text-align: left;
+}
+.gs-nav-back {
+  width: 56rpx;
+  height: 56rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.gs-nav-title {
+  font-size: 32rpx;
+  font-weight: 500;
+  color: #fff;
+}
+.nav-hover {
+  opacity: 0.6;
 }
 .success-icon {
   width: 160rpx;
   height: 160rpx;
-  margin: 0 auto 32rpx;
+  margin: 48rpx auto 32rpx;
   background: #fff;
   border-radius: 50%;
   display: flex;
@@ -234,6 +267,7 @@ async function retryLoad() {
   width: 144rpx;
   height: 144rpx;
   border-radius: 16rpx;
+  overflow: hidden;
   background: #f0ece2;
 }
 .prod-info {

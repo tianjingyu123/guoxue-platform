@@ -321,6 +321,51 @@ function fmtTime(iso?: string | null): string {
 
 const num = (v: unknown): number => { const n = Number(v); return isNaN(n) ? 0 : n }
 
+/**
+ * 清洗后端脏文本（历史售后单 reason 为 GBK 字节直存，被 UTF-8 误解码后损坏）。
+ *
+ * 损坏后的字节不只落成 U+FFFD 替换符，还会落成「合法但绝不出现在正常退款原因里」的
+ * 拉丁扩展 / IPA / 修饰符 / 组合附加符字符（如 Ʒ U+0292、ʽ U+02BD、ͬ U+036C），
+ * 旧实现只剔 U+FFFD + 控制符、兜底阈值 out.length<2 过松，导致这些伪合法字符整串放行仍显乱码。
+ *
+ * 新判定：
+ *  1. 逐字符剔除 U+FFFD 与控制符；
+ *  2. 统计「有效字符」= CJK 汉字 / CJK 及全角标点 / 基本 ASCII 可见字符；
+ *     统计「疑似乱码残片」= U+0100–U+036F（拉丁扩展 A/B + IPA + 修饰符 + 组合附加符）；
+ *  3. 仅当原串含 U+FFFD 或出现疑似残片时才做整串脏判定：
+ *     有效字符 < 2，或有效字符占比 (有效 / (有效+残片)) < 0.6 → 判为脏数据返回空串，
+ *     交页面兜底文案（退款页显示「未填写」）。
+ *
+ * 正常中文（全 CJK）/ 正常英文（全 ASCII）不含残片、无 U+FFFD → 直接原样返回，不会误伤；
+ * 含拼音声调符 / 重音字母的少量文本因占比高于阈值仍原样保留。
+ */
+function cleanText(v?: string | null): string {
+  if (!v) return ''
+  let hadMojibake = false
+  let meaningful = 0 // 有效字符数（CJK + 可见 ASCII）
+  let suspicious = 0 // 疑似乱码残片数（拉丁扩展 / IPA / 修饰符 / 组合附加符）
+  let out = ''
+  for (const ch of v) {
+    const code = ch.codePointAt(0) ?? 0
+    if (code === 0xFFFD) { hadMojibake = true; continue } // 替换符
+    if (code < 0x20 || code === 0x7F) continue // 控制符
+    if (code >= 0x4e00 && code <= 0x9fff) meaningful++ // CJK 统一表意
+    else if (code >= 0x3000 && code <= 0x303f) meaningful++ // CJK 标点
+    else if (code >= 0xff00 && code <= 0xffef) meaningful++ // 全角字符
+    else if (code >= 0x20 && code < 0x7f) meaningful++ // 基本 ASCII 可见
+    else if (code >= 0x0100 && code <= 0x036f) suspicious++ // 拉丁扩展/IPA/修饰符/组合附加符 → 疑似残片
+    out += ch
+  }
+  out = out.trim()
+  if (!out) return ''
+  // 仅在检测到损坏信号时才整串脏判定，避免误伤正常文本
+  if (hadMojibake || suspicious > 0) {
+    if (meaningful < 2) return ''
+    if (meaningful / (meaningful + suspicious) < 0.6) return ''
+  }
+  return out
+}
+
 /** 后端短订单号：取 UUID 前 8 位大写，供展示/复制 */
 function shortNo(id?: string): string {
   return id ? id.replace(/-/g, '').slice(0, 12).toUpperCase() : ''
@@ -506,7 +551,7 @@ function adaptDisputeDetail(a: RawAfterSale): DisputeDetail {
     orderNo: shortNo(a.orderId),
     type: typeText(a.type),
     status: AFTERSALE_STATUS_MAP[a.status || ''] || 'pending',
-    description: a.reason || '',
+    description: cleanText(a.reason),
     images: [],
     expectation: '',
     order: orderBrief,
@@ -529,9 +574,9 @@ function adaptRefundDetail(a: RawAfterSale): RefundDetail {
     orderNo: shortNo(a.orderId),
     type: a.type === 'return' ? 'return_refund' : 'refund_only',
     status: statusMap[a.status || ''] || 'submitted',
-    reason: a.reason || '',
+    reason: cleanText(a.reason),
     amount: num(a.amount ?? a.order?.amount),
-    description: a.reason || '',
+    description: cleanText(a.reason),
     product: a.product ? { id: a.product.id || '', name: a.product.title || '商品', cover: a.product.cover || '', skuName: '', price: num(a.product.price), quantity: 1 } : undefined,
     timeline: tl,
     createdAt: fmtTime(a.createdAt),

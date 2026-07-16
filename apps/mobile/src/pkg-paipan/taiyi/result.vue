@@ -8,6 +8,7 @@
 import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import ToolHeader from '@/components/paipan/tool-header.vue'
+import ParamError from '@/components/paipan/param-error.vue'
 import PaperCard from '@/components/paipan/paper-card.vue'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
 import AppIcon from '@/components/common/app-icon.vue'
@@ -141,11 +142,7 @@ function onShare() {
     />
 
     <!-- 参数错误态 -->
-    <view v-if="loadError" class="status">
-      <app-icon name="info" :size="64" color="#d1d5db" />
-      <text class="status-text">{{ loadError }}</text>
-      <view class="status-btn" @tap="goInput"><text class="status-btn-text">返回起课</text></view>
-    </view>
+    <param-error v-if="loadError" :text="loadError" action-text="返回起课" @action="goInput" />
 
     <!-- 主体 -->
     <scroll-view v-else-if="result" scroll-y class="body">
@@ -153,15 +150,15 @@ function onShare() {
         <!-- 课体信息表 -->
         <paper-card padding="none">
           <view class="tr tr-bd">
-            <view class="th"><text class="th-text">日期</text></view>
+            <view class="info-th"><text class="info-th-text">日期</text></view>
             <view class="td"><text class="td-text">{{ result.dateLabel }}（{{ result.lunarLabel }}）</text></view>
           </view>
           <view class="tr tr-bd">
-            <view class="th"><text class="th-text">节气</text></view>
+            <view class="info-th"><text class="info-th-text">节气</text></view>
             <view class="td"><text class="td-text td-xs">{{ result.jieQiLabel }}</text></view>
           </view>
           <view class="tr tr-bd">
-            <view class="th"><text class="th-text">四柱</text></view>
+            <view class="info-th"><text class="info-th-text">四柱</text></view>
             <view class="td pillars">
               <text class="pillar">{{ result.pillars.year }}</text>
               <text class="pillar">{{ result.pillars.month }}</text>
@@ -170,13 +167,13 @@ function onShare() {
             </view>
           </view>
           <view class="tr tr-bd">
-            <view class="th"><text class="th-text">空亡</text></view>
+            <view class="info-th"><text class="info-th-text">空亡</text></view>
             <view class="td">
               <text class="td-text td-xs td-soft">{{ result.kongWang.year }} · {{ result.kongWang.month }} · {{ result.kongWang.day }} · {{ result.kongWang.time }}</text>
             </view>
           </view>
           <view class="tr">
-            <view class="th"><text class="th-text">值使</text></view>
+            <view class="info-th"><text class="info-th-text">值使</text></view>
             <view class="td zhishi">
               <text class="zs-door">{{ result.zhiShi }}</text>
               <text class="zs-item">{{ result.dunType }}{{ result.juNumber }}局</text>
@@ -276,16 +273,12 @@ $serif: Georgia, 'Songti SC', serif;
 .body { flex: 1; }
 .body-inner { padding: 24rpx 24rpx 48rpx; display: flex; flex-direction: column; gap: 24rpx; }
 
-/* 错误态 */
-.status { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24rpx; padding: 80rpx 40rpx; }
-.status-text { font-size: 28rpx; color: var(--text-soft); }
-.status-btn { padding: 20rpx 56rpx; background: var(--brand); border-radius: 20rpx; }
-.status-btn-text { font-size: 28rpx; font-weight: 600; color: #fff; }
+/* 缺参空态样式已抽至 @/components/paipan/param-error.vue */
 
 /* 课体信息表 */
 .tr { display: flex; align-items: stretch; }
 .tr-bd { border-bottom: 1rpx solid var(--line); }
-.th {
+.info-th {
   flex-shrink: 0;
   width: 128rpx;
   display: flex;
@@ -293,7 +286,7 @@ $serif: Georgia, 'Songti SC', serif;
   padding: 18rpx 24rpx;
   background: rgba(0, 0, 0, 0.025);
 }
-.th-text { font-size: 26rpx; font-weight: 500; color: var(--text-soft); }
+.info-th-text { font-size: 26rpx; font-weight: 500; color: var(--text-soft); }
 .td { flex: 1; display: flex; align-items: center; padding: 18rpx 24rpx; min-width: 0; }
 .td-text { font-size: 26rpx; line-height: 1.5; color: var(--text-ink); }
 .td-xs { font-size: 22rpx; }

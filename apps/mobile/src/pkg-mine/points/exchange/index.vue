@@ -141,7 +141,7 @@ async function handleExchange(item: PointsExchangeItem) {
           <text class="card-title">{{ item.title }}</text>
           <text class="card-type">{{ typeLabel(item.type) }}</text>
           <text class="card-points">{{ item.points.toLocaleString() }} 积分</text>
-          <text class="card-stock">库存 {{ item.stock > 100 ? '充足' : item.stock }}</text>
+          <text class="card-stock">{{ item.stock < 0 ? '不限量' : `库存 ${item.stock > 100 ? '充足' : item.stock}` }}</text>
           <view
             class="card-btn"
             :class="{
@@ -200,7 +200,8 @@ async function handleExchange(item: PointsExchangeItem) {
 .nav-link {
   font-size: 28rpx;
   color: #9a2e22;
-  width: 48rpx;
+  min-width: 48rpx;
+  white-space: nowrap;
   text-align: right;
 }
 .scroll {

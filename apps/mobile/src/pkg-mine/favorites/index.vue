@@ -362,7 +362,8 @@ function openItem(item: FavItem) {
 .nav-action {
   font-size: 28rpx;
   color: var(--brand);
-  width: 56rpx;
+  min-width: 56rpx;
+  white-space: nowrap;
   text-align: right;
 }
 

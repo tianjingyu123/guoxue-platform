@@ -8,8 +8,8 @@
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import ToolHeader from '@/components/paipan/tool-header.vue'
+import ParamError from '@/components/paipan/param-error.vue'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
-import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
 import {
   paiChuanren,
@@ -138,11 +138,7 @@ function goInput() {
     <tool-header :title="hdrTitle" back-href="/pkg-paipan/chuanren/index" @share="onShare" />
 
     <!-- 参数错误态 -->
-    <view v-if="invalid" class="status">
-      <app-icon name="info" :size="64" color="#d1d5db" />
-      <text class="status-text">参数无效，请重新排盘。</text>
-      <view class="status-btn" @tap="goInput"><text class="status-btn-text">返回奇门穿壬</text></view>
-    </view>
+    <param-error v-if="invalid" text="参数无效，请重新排盘。" action-text="返回奇门穿壬" @action="goInput" />
 
     <scroll-view v-else-if="r" scroll-y class="body">
       <view class="body-inner">
@@ -336,11 +332,7 @@ $serif: Georgia, 'Times New Roman', 'Songti SC', 'SimSun', serif;
 .body { flex: 1; }
 .body-inner { padding: 24rpx 24rpx 48rpx; display: flex; flex-direction: column; gap: 24rpx; }
 
-/* 错误态 */
-.status { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24rpx; padding: 80rpx 40rpx; }
-.status-text { font-size: 28rpx; color: var(--text-soft); }
-.status-btn { padding: 20rpx 56rpx; background: var(--brand); border-radius: 20rpx; }
-.status-btn-text { font-size: 28rpx; font-weight: 600; color: #fff; }
+/* 缺参空态样式已抽至 @/components/paipan/param-error.vue */
 
 /* 通用卡片 */
 .card {

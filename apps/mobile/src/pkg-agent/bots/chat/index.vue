@@ -1,5 +1,9 @@
 <template>
   <view class="chat-page">
+    <!-- 状态态返回栏：加载/硬失败时也能退出，避免卡死 -->
+    <view v-if="loading || error" class="cc-state-back" @tap="goBack">
+      <app-icon name="arrow-left" :size="40" color="#2C2C2C" />
+    </view>
     <!-- 加载/错误态 -->
     <view v-if="loading" class="cc-state"><text class="cc-state-t">加载中...</text></view>
     <view v-else-if="error" class="cc-state">
@@ -501,6 +505,17 @@ function openRecommend(item: RecommendItem) {
 .cc-retry-t {
   font-size: 28rpx;
   color: #fff;
+}
+.cc-state-back {
+  position: fixed;
+  left: 24rpx;
+  top: calc(var(--status-bar-height, 0px) + 20rpx);
+  z-index: 10;
+  width: 64rpx;
+  height: 64rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* 顶栏 */

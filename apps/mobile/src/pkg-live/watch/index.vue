@@ -1017,7 +1017,8 @@ onUnmounted(() => {
 .rp__cover--ph { background: linear-gradient(180deg, #2A2620, #141210); }
 .rp__video { display: block; width: 100%; height: 422rpx; }
 .rp__badge {
-  position: absolute; top: 20rpx; left: 20rpx;
+  /* 移到右上角：左上角已被返回按钮(.state-back)占用，同处会露出「放」字碎片 */
+  position: absolute; top: 20rpx; right: 20rpx;
   height: 44rpx; padding: 0 18rpx; border-radius: 22rpx;
   background: rgba(0,0,0,0.55);
   display: inline-flex; align-items: center;

@@ -48,6 +48,12 @@ onLoad((q) => {
   load()
 })
 
+/** 兜底按钮：有 id 则重试加载，无 id（缺参）则返回上一页 */
+function onFallback() {
+  if (id.value) load()
+  else uni.navigateBack()
+}
+
 async function load() {
   if (!id.value) {
     failed.value = true
@@ -196,8 +202,15 @@ function archive() {
     <ToolHeader title="报告编辑" :subtitle="report?.typeLabel || ''" />
 
     <view v-if="loading" class="re-skeleton" />
-    <view v-else-if="failed" class="re-failed" @tap="load">
-      <text class="re-failed-txt">加载失败，点击重试</text>
+    <view v-else-if="failed" class="re-fallback">
+      <view class="re-fallback-icon">
+        <AppIcon name="alert-circle" :size="56" color="#C41E3A" />
+      </view>
+      <text class="re-fallback-title">{{ id ? '加载失败' : '缺少报告参数' }}</text>
+      <text class="re-fallback-desc">{{ id ? '网络异常或报告不存在，请重试' : '请从报告列表进入本页' }}</text>
+      <view class="re-fallback-btn" @tap="onFallback">
+        <text class="re-fallback-btn-txt">{{ id ? '重新加载' : '返回上一页' }}</text>
+      </view>
     </view>
 
     <template v-else-if="report">
@@ -336,14 +349,54 @@ function archive() {
   background: rgba(154, 140, 126, 0.1);
 }
 
-.re-failed {
-  padding: 80rpx;
+.re-fallback {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 120rpx 48rpx;
+}
+
+.re-fallback-icon {
+  width: 120rpx;
+  height: 120rpx;
+  border-radius: 50%;
+  background: rgba(196, 30, 58, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 28rpx;
+}
+
+.re-fallback-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #3A2A1E;
+}
+
+.re-fallback-desc {
+  margin-top: 12rpx;
+  font-size: 24rpx;
+  color: #9A8C7E;
   text-align: center;
 }
 
-.re-failed-txt {
+.re-fallback-btn {
+  margin-top: 40rpx;
+  height: 76rpx;
+  padding: 0 56rpx;
+  border-radius: 999rpx;
+  background: #C41E3A;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.re-fallback-btn-txt {
   font-size: 26rpx;
-  color: #C41E3A;
+  font-weight: 500;
+  color: #fff;
 }
 
 /* 抬头 */

@@ -5,6 +5,10 @@
 -->
 <template>
   <view class="page">
+    <!-- 状态态返回栏：加载/硬失败时也能退出，避免卡死 -->
+    <view v-if="isLoading || loadError" class="state-back" :style="{ top: 'calc(' + statusBarH + 'px + 20rpx)' }" @tap="goBack">
+      <app-icon name="arrow-left" :size="40" color="#2C2C2C" />
+    </view>
     <!-- 骨架/错误态覆盖 -->
     <view v-if="isLoading" class="state"><text class="state-t">加载中...</text></view>
     <view v-else-if="loadError" class="state">
@@ -265,6 +269,7 @@ function fmtDate(s: string | null) { if (!s) return ''; const d = new Date(s); r
 .page { min-height: 100vh; background: #FAF8F5; padding-bottom: 64rpx; }
 .state { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 60vh; gap: 24rpx; }
 .state-t { font-size: 28rpx; color: #999; }
+.state-back { position: fixed; left: 24rpx; z-index: 10; width: 64rpx; height: 64rpx; display: flex; align-items: center; justify-content: center; }
 .retry { padding: 14rpx 48rpx; background: var(--brand); color: #fff; font-size: 26rpx; border-radius: 999rpx; }
 .top { background: linear-gradient(135deg, #2C2C2C, #1a1a1a); padding-bottom: 64rpx; }
 .nav { display: flex; align-items: center; justify-content: space-between; padding: 16rpx 32rpx 32rpx; }

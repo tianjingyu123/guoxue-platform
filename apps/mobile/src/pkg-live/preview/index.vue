@@ -42,7 +42,7 @@
           <smart-avatar :src="room.hostAvatar" :name="room.hostName" class="host-avatar" />
           <view class="host-info">
             <text class="host-name">{{ room.hostName }}</text>
-            <text class="host-fans">{{ room.hostFollowers.toLocaleString() }} 粉丝</text>
+            <text class="host-fans">{{ (room.hostFollowers ?? 0).toLocaleString() }} 粉丝</text>
           </view>
         </view>
         <!-- 倒计时 -->
@@ -82,14 +82,14 @@
         <view class="info-col">
           <view class="info-top info-red">
             <AppIcon name="users" :size="32" color="#C41E3A" />
-            <text class="info-num">{{ room.bookedCount.toLocaleString() }}</text>
+            <text class="info-num">{{ (room.bookedCount ?? 0).toLocaleString() }}</text>
           </view>
           <text class="info-label">已预约</text>
         </view>
         <view class="info-col">
           <view class="info-top info-gold">
             <AppIcon name="clock" :size="32" color="#C9A96E" />
-            <text class="info-num">{{ room.estimatedDuration }}</text>
+            <text class="info-num">{{ room.estimatedDuration ?? 0 }}</text>
           </view>
           <text class="info-label">预计时长(分钟)</text>
         </view>
@@ -129,7 +129,7 @@
           <smart-avatar :src="room.hostAvatar" :name="room.hostName" class="teacher-avatar" />
           <view class="teacher-info">
             <text class="teacher-name">{{ room.hostName }}</text>
-            <text class="teacher-fans">{{ room.hostFollowers.toLocaleString() }} 粉丝</text>
+            <text class="teacher-fans">{{ (room.hostFollowers ?? 0).toLocaleString() }} 粉丝</text>
           </view>
           <text class="teacher-link">查看主页 →</text>
         </view>
@@ -164,7 +164,9 @@ async function fetchData(previewId: string) {
   loading.value = true
   error.value = ''
   try {
-    room.value = await liveApi.getPreview(previewId)
+    // getPreview 仅在 throw 时兜底示例数据；后端 200 空响应会返回 null，
+    // 若直接落 null 则模板 room.cover/bookedCount 全部读 null 崩页 → 兜到 {}
+    room.value = (await liveApi.getPreview(previewId)) || {}
   } catch (e) {
     error.value = (e as Error)?.message || '加载失败，请重试'
   } finally {

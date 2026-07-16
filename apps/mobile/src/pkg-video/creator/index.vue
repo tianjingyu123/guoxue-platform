@@ -95,8 +95,8 @@
               </view>
             </view>
 
-            <!-- 概览趋势小图（无近7天快照数据→柱全为 0 虚线，不造假）-->
-            <view v-if="!expanded" class="cc-chart">
+            <!-- 概览趋势小图：仅有真实趋势数据时渲染，避免一排虚线空柱像坏折线图 -->
+            <view v-if="!expanded && hasTrend" class="cc-chart">
               <view
                 v-for="(bar, i) in miniBars"
                 :key="i"
@@ -105,6 +105,7 @@
                 :style="bar > 0 ? { height: bar + '%' } : {}"
               />
             </view>
+            <text v-else-if="!expanded" class="cc-chart-note">暂无趋势数据</text>
 
             <!-- ===== 展开态：详细数据（合并自 analytics 页）===== -->
             <template v-else>

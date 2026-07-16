@@ -25,7 +25,7 @@ const converting = ref(false)
 function openConvert() {
   if (converting.value) return
   uni.showModal({
-    title: '收益转金币',
+    title: '收益转国学币',
     editable: true,
     placeholderText: `输入转换金额（整数元·当前可提现 ¥${info.value.availableBalance.toFixed(2)}）`,
     content: '',
@@ -36,7 +36,7 @@ function openConvert() {
       converting.value = true
       try {
         const r = await mineApi.convertToCoin(n)
-        uni.showToast({ title: `已转入 ${r.amountCoin} 金币（不可逆）`, icon: 'none' })
+        uni.showToast({ title: `已转入 ${r.amountCoin} 国学币（不可逆）`, icon: 'none' })
         loadData()
       } catch (e) {
         uni.showToast({ title: (e as Error)?.message || '转换失败', icon: 'none' })
@@ -274,7 +274,7 @@ function continueWithdraw() {
         <!-- 收益转金币（拍板 2026-07-10：收益既可提现也可转金币消费·1元=10币·单向） -->
         <view class="bal-convert" @tap="openConvert">
           <app-icon name="refresh-cw" :size="24" color="rgba(255,255,255,0.85)" />
-          <text class="bal-convert-t">转为金币消费（1元=10金币）</text>
+          <text class="bal-convert-t">转为国学币消费（1元=10国学币）</text>
         </view>
       </view>
 

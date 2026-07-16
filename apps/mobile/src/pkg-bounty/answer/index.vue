@@ -35,7 +35,7 @@
               <view class="ba-ref-gift">
                 <app-icon name="gift" :size="32" color="#ffffff" />
               </view>
-              <text class="ba-ref-amount-text">{{ bounty.bountyCoin }} 币</text>
+              <text class="ba-ref-amount-text">{{ bounty.bountyCoin > 0 ? bounty.bountyCoin + ' 币' : '赏金待定' }}</text>
             </view>
             <view v-if="bounty.status === 'CLAIMED' && bounty.lockExpireAt" class="ba-ref-remain">
               <app-icon name="clock" :size="24" color="#d97706" />
@@ -113,7 +113,7 @@
       <view v-if="canAnswer" class="ba-bottom">
         <view class="ba-bottom-info">
           <text class="ba-bottom-words">回答字数：<text :class="content.length < 20 ? 'ba-words-red' : 'ba-words-green'">{{ content.length }}</text>/2000</text>
-          <text class="ba-bottom-reward">可获赏金：<text class="ba-reward-num">{{ bounty.bountyCoin }} 币</text></text>
+          <text class="ba-bottom-reward">可获赏金：<text class="ba-reward-num">{{ bounty.bountyCoin > 0 ? bounty.bountyCoin + ' 币' : '待定' }}</text></text>
         </view>
         <view
           class="ba-submit"

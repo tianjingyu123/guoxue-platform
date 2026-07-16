@@ -95,14 +95,9 @@
             class="article-card"
             @tap="navigateTo(`/articles/${article.id}`)"
           >
-            <image lazy-load
-              v-if="article.cover"
-              :src="article.cover"
-              class="article-cover-img"
-              mode="aspectFill"
-            />
-            <view v-else class="article-cover" :style="{ background: coverColor(article.title) }">
-              <text class="article-cover-text">{{ article.title.slice(0, 1) }}</text>
+            <!-- 封面：有图显图，无图/坏图翻书法兜底（不再露破图/无关 stock 空框） -->
+            <view class="article-cover-wrap">
+              <smart-cover :src="article.cover" :title="article.title" type="default" deco :deco-size="56" />
             </view>
             <view class="article-body">
               <view class="article-title-row">
@@ -111,15 +106,7 @@
               <text v-if="article.excerpt" class="article-excerpt">{{ article.excerpt }}</text>
               <view class="article-foot">
                 <view class="article-author">
-                  <image lazy-load
-                    v-if="article.user?.avatar"
-                    :src="article.user.avatar"
-                    class="author-avatar-img"
-                    mode="aspectFill"
-                  />
-                  <view v-else class="author-avatar" :style="{ background: coverColor(article.user?.nickname || '匿名') }">
-                    <text class="author-avatar-text">{{ (article.user?.nickname || '匿')[0] }}</text>
-                  </view>
+                  <smart-avatar class="author-avatar-img" :src="article.user?.avatar" :name="article.user?.nickname || '匿名'" />
                   <text class="author-name">{{ article.user?.nickname || '匿名' }}</text>
                 </view>
                 <view class="article-stats">
@@ -164,6 +151,8 @@ import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import AiSearchModal from '@/components/common/ai-search-modal.vue'
+import SmartCover from '@/components/common/smart-cover.vue'
+import SmartAvatar from '@/components/common/smart-avatar.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { articleApi, tagApi, type ArticleListItem, type HotTag } from '@/lib/article-data'
 
@@ -275,13 +264,6 @@ function formatDate(dateStr: string) {
   if (diffDays === 1) return '昨天'
   if (diffDays < 7) return `${diffDays}天前`
   return `${date.getMonth() + 1}-${date.getDate()}`
-}
-
-const coverPalette = ['#C41E3A', '#B8860B', '#2E7D5B', '#1F6FB2', '#8B5A2B', '#9A3B5C']
-function coverColor(name: string) {
-  let sum = 0
-  for (let i = 0; i < name.length; i++) sum += name.charCodeAt(i)
-  return coverPalette[sum % coverPalette.length]
 }
 </script>
 
@@ -488,22 +470,12 @@ function coverColor(name: string) {
   border-radius: 20rpx;
   box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.06);
 }
-.article-cover,
-.article-cover-img {
+.article-cover-wrap {
   width: 200rpx;
   height: 144rpx;
   border-radius: 16rpx;
   flex-shrink: 0;
-}
-.article-cover {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.article-cover-text {
-  font-size: 72rpx;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.9);
+  overflow: hidden;
 }
 .article-body {
   flex: 1;
@@ -546,21 +518,11 @@ function coverColor(name: string) {
   align-items: center;
   gap: 8rpx;
 }
-.author-avatar,
 .author-avatar-img {
   width: 36rpx;
   height: 36rpx;
   border-radius: 999rpx;
   flex-shrink: 0;
-}
-.author-avatar {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.author-avatar-text {
-  font-size: 18rpx;
-  color: #fff;
 }
 .author-name {
   font-size: 22rpx;

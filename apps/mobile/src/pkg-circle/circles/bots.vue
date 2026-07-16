@@ -5,6 +5,7 @@
  */
 import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import SmartAvatar from '@/components/common/smart-avatar.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { botApi, botTypeLabel, type BotItem } from '@/lib/bot-data'
 
@@ -26,13 +27,6 @@ function isNew(createdAt: string): boolean {
   if (!createdAt) return false
   const t = new Date(createdAt).getTime()
   return !Number.isNaN(t) && Date.now() - t < 7 * 24 * 3600 * 1000
-}
-
-const palette = ['#C41E3A', '#C9A96E', '#2E7D5B', '#1F6FB2', '#8B5A2B', '#9A3B5C']
-function avatarColor(name: string) {
-  let sum = 0
-  for (let i = 0; i < name.length; i++) sum += name.charCodeAt(i)
-  return palette[sum % palette.length]
 }
 
 async function load() {
@@ -110,10 +104,8 @@ onMounted(load)
         <view v-for="bot in filtered" :key="bot.id" class="cb-card" @tap="openBot(bot)">
           <view class="cb-card-head">
             <view v-if="isNew(bot.createdAt)" class="cb-tag-badge green"><text class="cb-tag-badge-t">NEW</text></view>
-            <image lazy-load v-if="bot.avatar" :src="bot.avatar" class="cb-card-avatar" mode="aspectFill" />
-            <view v-else class="cb-card-avatar cb-card-avatar-ph" :style="{ background: avatarColor(bot.name) }">
-              <text class="cb-card-avatar-t">{{ bot.name.slice(0, 1) }}</text>
-            </view>
+            <!-- 智能体图标：有图显图，无图/坏图翻字母色块兜底（不再露米色空框） -->
+            <smart-avatar class="cb-card-avatar" :src="bot.avatar" :name="bot.name" />
             <text class="cb-card-name">{{ bot.name }}</text>
           </view>
           <text class="cb-card-desc">{{ bot.intro || '暂无简介' }}</text>

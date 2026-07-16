@@ -143,7 +143,7 @@ function openProduct(id: string | number) { navigateTo(`/mall/product/${id}`) }
               <text class="g-name">{{ p.name }}</text>
               <view class="g-price-row">
                 <text class="g-price">¥{{ formatPrice(p.price) }}</text>
-                <text class="g-orig">¥{{ formatPrice(p.originalPrice) }}</text>
+                <text v-if="p.originalPrice && p.originalPrice > p.price" class="g-orig">¥{{ formatPrice(p.originalPrice) }}</text>
               </view>
               <text class="g-sales">已售{{ formatSales(p.sales) }}</text>
             </view>

@@ -227,7 +227,7 @@
       </view>
       <view class="bottom-main">
         <view class="bottom-cta">
-          <text class="bottom-cta-txt">加入「{{ replay.circleName }}」</text>
+          <text class="bottom-cta-txt">{{ replay.circleName ? '加入「' + replay.circleName + '」' : '加入圈子' }}</text>
         </view>
       </view>
     </view>

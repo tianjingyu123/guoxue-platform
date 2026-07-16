@@ -153,7 +153,7 @@ function closePickers() {
     <!-- 余额卡 -->
     <view class="balance-card">
       <view class="bal-left">
-        <text class="bal-label">学习币余额</text>
+        <text class="bal-label">国学币余额</text>
         <text class="bal-coin">{{ balance.coin.toLocaleString() }}</text>
         <text v-if="balance.frozen > 0" class="bal-frozen">冻结: {{ balance.frozen }}</text>
       </view>

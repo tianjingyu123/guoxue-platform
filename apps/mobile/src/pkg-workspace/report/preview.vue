@@ -12,20 +12,22 @@ import { wsApi } from '../lib/workspace-api'
 
 const loading = ref(true)
 const failed = ref(false)
+const reportId = ref('')
 const report = ref<any>(null)
 const brand = ref<any>(null)
 
 const DEFAULT_DISCLAIMER = '本报告为传统文化解读，仅供参考，不构成医疗、投资、法律或其他专业决策依据。'
 
-onLoad(async (q) => {
-  const id = (q?.id as string) || ''
-  if (!id) {
+async function load() {
+  if (!reportId.value) {
     failed.value = true
     loading.value = false
     return
   }
+  loading.value = true
+  failed.value = false
   try {
-    const [r, p] = await Promise.all([wsApi.getReport(id), wsApi.profile()])
+    const [r, p] = await Promise.all([wsApi.getReport(reportId.value), wsApi.profile()])
     report.value = r
     brand.value = p.brand
   } catch {
@@ -33,6 +35,17 @@ onLoad(async (q) => {
   } finally {
     loading.value = false
   }
+}
+
+/** 兜底按钮：有 id 则重试，无 id（缺参）则返回 */
+function onFallback() {
+  if (reportId.value) load()
+  else uni.navigateBack()
+}
+
+onLoad((q) => {
+  reportId.value = (q?.id as string) || ''
+  load()
 })
 </script>
 
@@ -43,8 +56,15 @@ onLoad(async (q) => {
     <view v-if="loading" class="rp-loading">
       <text class="rp-loading-txt">载入中…</text>
     </view>
-    <view v-else-if="failed" class="rp-loading">
-      <text class="rp-loading-txt">加载失败</text>
+    <view v-else-if="failed" class="rp-fallback">
+      <view class="rp-fallback-icon">
+        <AppIcon name="alert-circle" :size="56" color="#C41E3A" />
+      </view>
+      <text class="rp-fallback-title">{{ reportId ? '加载失败' : '缺少报告参数' }}</text>
+      <text class="rp-fallback-desc">{{ reportId ? '网络异常或报告不存在，请重试' : '请从报告编辑页进入预览' }}</text>
+      <view class="rp-fallback-btn" @tap="onFallback">
+        <text class="rp-fallback-btn-txt">{{ reportId ? '重新加载' : '返回上一页' }}</text>
+      </view>
     </view>
 
     <scroll-view v-else class="rp-body" scroll-y :show-scrollbar="false">
@@ -121,6 +141,56 @@ onLoad(async (q) => {
 .rp-loading-txt {
   font-size: 26rpx;
   color: #9A8C7E;
+}
+
+.rp-fallback {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 120rpx 48rpx;
+}
+
+.rp-fallback-icon {
+  width: 120rpx;
+  height: 120rpx;
+  border-radius: 50%;
+  background: rgba(196, 30, 58, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 28rpx;
+}
+
+.rp-fallback-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #3A2A1E;
+}
+
+.rp-fallback-desc {
+  margin-top: 12rpx;
+  font-size: 24rpx;
+  color: #9A8C7E;
+  text-align: center;
+}
+
+.rp-fallback-btn {
+  margin-top: 40rpx;
+  height: 76rpx;
+  padding: 0 56rpx;
+  border-radius: 999rpx;
+  background: #C41E3A;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rp-fallback-btn-txt {
+  font-size: 26rpx;
+  font-weight: 500;
+  color: #fff;
 }
 
 .rp-body {

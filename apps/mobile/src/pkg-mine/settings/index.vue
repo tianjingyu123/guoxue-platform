@@ -12,6 +12,11 @@ const loading = ref(true)
 const error = ref('')
 const notifyItems = ref<SettingNotifyItem[]>([])
 
+// 账号安全预览值（与 /mine/security 同一接口 getSecurityItems，避免两页口径打架）
+const securityScore = ref(0)
+const phoneDisplay = ref('')
+const payPwdSet = ref(false)
+
 // 通知开关
 const notifications = ref<Record<string, boolean>>({})
 const notifySaving = ref<Record<string, boolean>>({})
@@ -35,13 +40,31 @@ async function fetchData() {
   loading.value = true
   error.value = ''
   try {
-    const data = await mineApi.getNotifySettings()
+    const [data] = await Promise.all([
+      mineApi.getNotifySettings(),
+      // 安全预览值独立容错：拉取失败不阻塞整页，仅令预览降级为默认值
+      loadSecurityPreview(),
+    ])
     notifyItems.value = data
     notifications.value = Object.fromEntries(data.map((i) => [i.key, i.value]))
   } catch (e) {
     error.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
+  }
+}
+
+/** 读取账号安全预览（安全分/手机尾号/支付密码状态），复用 security 页同一接口 */
+async function loadSecurityPreview() {
+  try {
+    const s = await mineApi.getSecurityItems()
+    const doneCount = s.score.filter((i) => i.done).length
+    securityScore.value = s.score.length > 0 ? Math.round((doneCount / s.score.length) * 100) : 0
+    phoneDisplay.value = s.login.find((i) => i.id === 'phone')?.value || '未绑定'
+    payPwdSet.value = s.payment.find((i) => i.id === 'pay-password')?.status === 'set'
+  } catch {
+    // 诚实降级：接口异常时不展示伪造的安全分/尾号
+    phoneDisplay.value = ''
   }
 }
 
@@ -117,7 +140,7 @@ function pickOption(v: string) {
           <view class="row" @tap="navigateTo('/mine/security')">
             <AppIcon name="shield" :size="18" color="#C41E3A" />
             <text class="row-label">账号安全中心</text>
-            <text class="row-badge">安全分 82</text>
+            <text class="row-badge">安全分 {{ securityScore }}</text>
             <AppIcon name="chevron-right" :size="16" color="#C9A96E" />
           </view>
           <view class="row" @tap="navigateTo('/mine/change-password')">
@@ -129,13 +152,13 @@ function pickOption(v: string) {
           <view class="row" @tap="navigateTo('/mine/change-phone')">
             <AppIcon name="phone" :size="18" color="#666" />
             <text class="row-label">修改手机号</text>
-            <text class="row-sub">138****8888</text>
+            <text v-if="phoneDisplay" class="row-sub">{{ phoneDisplay }}</text>
             <AppIcon name="chevron-right" :size="16" color="#C9A96E" />
           </view>
           <view class="row list-press" @tap="navigateTo('/mine/payment-password')">
             <AppIcon name="credit-card" :size="18" color="#666" />
             <text class="row-label">支付密码</text>
-            <text class="row-sub">已设置</text>
+            <text class="row-sub">{{ payPwdSet ? '已设置' : '未设置' }}</text>
             <AppIcon name="chevron-right" :size="16" color="#C9A96E" />
           </view>
           <view class="row list-press" @tap="navigateTo('/mine/delete-account')">

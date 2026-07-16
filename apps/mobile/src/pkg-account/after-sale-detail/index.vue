@@ -12,10 +12,17 @@
     </view>
 
     <scroll-view scroll-y class="scroll-area" :style="{ paddingTop: navHeight + 'px' }">
-      <view v-if="loading" class="loading-state">加载中...</view>
+      <view v-if="loading" class="loading-state">
+        <text class="loading-text">加载中...</text>
+      </view>
       <view v-else-if="error" class="error-state">
-        <text>{{ error }}</text>
-        <view @tap="fetchData">重试</view>
+        <view class="error-icon">
+          <app-icon name="alert-circle" :size="64" color="#D1D5DB" />
+        </view>
+        <text class="error-text">{{ error }}</text>
+        <view class="error-btn" @tap="fetchData">
+          <text class="error-btn-text">重试</text>
+        </view>
       </view>
       <template v-else>
       <!-- 状态卡 -->
@@ -301,6 +308,45 @@ async function doCancel() {
 .scroll-area {
   height: 100vh;
   box-sizing: border-box;
+}
+
+.loading-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 160rpx 48rpx;
+}
+.loading-text {
+  font-size: 26rpx;
+  color: #999999;
+}
+
+.error-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 200rpx 48rpx 0;
+}
+.error-icon {
+  margin-bottom: 24rpx;
+}
+.error-text {
+  font-size: 28rpx;
+  color: #999999;
+  text-align: center;
+  line-height: 1.6;
+  margin-bottom: 40rpx;
+}
+.error-btn {
+  padding: 20rpx 64rpx;
+  border-radius: 999rpx;
+  background: var(--brand);
+}
+.error-btn-text {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #FFFFFF;
 }
 
 .status-card {

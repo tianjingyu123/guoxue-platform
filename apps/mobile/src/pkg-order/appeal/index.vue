@@ -122,7 +122,16 @@
         <!-- 步骤1：选择订单 -->
         <view v-if="step === 1" class="step-section">
           <text class="step-hint">请选择需要申诉的订单</text>
+          <view v-if="ordersLoading" class="orders-state"><text class="orders-state-text">加载中...</text></view>
+          <view v-else-if="ordersError" class="orders-state">
+            <text class="orders-state-text">{{ ordersError }}</text>
+            <view class="orders-retry" @tap="loadOrders"><text class="orders-retry-text">重试</text></view>
+          </view>
+          <view v-else-if="appealableOrders.length === 0" class="orders-state">
+            <text class="orders-state-text">暂无可申诉的已完成订单</text>
+          </view>
           <view
+            v-else
             v-for="order in appealableOrders"
             :key="order.id"
             class="order-card"
@@ -234,15 +243,37 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateBack } from '@/utils/router'
 import { formatPrice } from '@/utils/format'
+import { orderApi } from '@/lib/order-data'
 
-const appealableOrders = [
-  { id: '20240115001', title: '《渊海子平》精装典藏版', price: 168, time: '2024-01-15 14:30', status: '已完成' },
-  { id: '20240112003', title: '八字命理入门课程', price: 299, time: '2024-01-12 09:15', status: '已完成' },
-  { id: '20240108002', title: '开运水晶手串', price: 388, time: '2024-01-08 16:45', status: '已完成' },
-]
+interface AppealOrder { id: string; title: string; price: number; status: string }
+// 可申诉订单：接真实「已完成」订单（原为渊海子平/开运水晶等硬编码假数据）
+const appealableOrders = ref<AppealOrder[]>([])
+const ordersLoading = ref(true)
+const ordersError = ref('')
+
+async function loadOrders() {
+  ordersLoading.value = true
+  ordersError.value = ''
+  try {
+    const { items } = await orderApi.list('completed', 1, 50)
+    appealableOrders.value = items.map((o) => ({
+      id: o.id,
+      title: o.products?.[0]?.name || '订单商品',
+      price: o.payAmount,
+      status: '已完成',
+    }))
+  } catch (e) {
+    ordersError.value = (e as Error)?.message || '加载失败，请重试'
+  } finally {
+    ordersLoading.value = false
+  }
+}
+
+onLoad(() => { loadOrders() })
 
 const appealTypes = [
   { id: 'not_received', label: '未收到货', desc: '付款后长时间未收到商品' },
@@ -268,7 +299,7 @@ const isSubmitting = ref(false)
 const isSubmitted = ref(false)
 const appealId = ref('')
 
-const selectedOrderData = computed(() => appealableOrders.find((o) => o.id === selectedOrder.value))
+const selectedOrderData = computed(() => appealableOrders.value.find((o) => o.id === selectedOrder.value))
 const selectedTypeData = computed(() => appealTypes.find((t) => t.id === selectedType.value))
 
 const canProceed = computed(() => (step.value === 1 ? selectedOrder.value !== null : selectedType.value !== null))
@@ -400,6 +431,26 @@ function goBack() {
 .step-hint {
   font-size: 26rpx;
   color: #9C8C7A;
+}
+.orders-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20rpx;
+  padding: 96rpx 0;
+}
+.orders-state-text {
+  font-size: 26rpx;
+  color: #9C8C7A;
+}
+.orders-retry {
+  padding: 12rpx 40rpx;
+  border: 2rpx solid var(--brand);
+  border-radius: 999rpx;
+}
+.orders-retry-text {
+  font-size: 26rpx;
+  color: var(--brand);
 }
 
 /* 订单卡 */

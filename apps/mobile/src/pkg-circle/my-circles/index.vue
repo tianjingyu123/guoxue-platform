@@ -418,6 +418,8 @@ function roleColor(role: MyCircleRole) {
   border-radius: 999rpx;
   background: #fff;
   border: 2rpx solid #e8e3db;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 .filter-chip.active {
   background: var(--brand);
@@ -427,6 +429,7 @@ function roleColor(role: MyCircleRole) {
   font-size: 24rpx;
   font-weight: 500;
   color: #666;
+  white-space: nowrap;
 }
 .filter-chip.active .filter-label {
   color: #fff;

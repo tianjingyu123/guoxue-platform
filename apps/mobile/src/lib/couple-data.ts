@@ -76,6 +76,34 @@ interface RawBaziHistory {
   total?: number
 }
 
+/**
+ * 生辰展示格式化：把后端解密后的生辰串规整为「YYYY-MM-DD HH:mm」。
+ * 兼容：后端存储格式「YYYY-M-D H:M」、管道分隔历史串（取首段）、ISO / 时间戳。
+ * 无法识别（如解密失败残留的密文）时返回空串，交由上层隐藏，避免把密文/原始串暴露给用户。
+ */
+function formatBirth(raw?: string | null): string {
+  const s = (raw || '').trim()
+  if (!s) return ''
+  // 取管道分隔的首段（历史遗留 birth|city|gender 之类）
+  const head = s.split('|')[0].trim()
+  const pad = (v: string | number) => String(v).padStart(2, '0')
+  // 匹配「YYYY-M-D[ H:M]」（后端主存储格式，月/日/时/分可能未补零）
+  const m = head.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:[ T](\d{1,2})(?::(\d{1,2}))?)?/)
+  if (m) {
+    const date = `${m[1]}-${pad(m[2])}-${pad(m[3])}`
+    return m[4] != null ? `${date} ${pad(m[4])}:${pad(m[5] || 0)}` : date
+  }
+  // ISO / 时间戳兜底（需含 4 位年份，规避把密文误当日期）
+  if (/\d{4}/.test(head)) {
+    const d = new Date(head)
+    if (!Number.isNaN(d.getTime())) {
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+    }
+  }
+  // 无法识别（密文残留等）→ 隐藏
+  return ''
+}
+
 /** 状态中文标签（页面共用，避免各页重复） */
 export const COUPLE_STATUS_LABEL: Record<CoupleStatus, string> = {
   PENDING_INVITE: '待授权',
@@ -98,7 +126,7 @@ export const coupleApi = {
     return list.map((r) => ({
       id: r.id,
       name: (r.clientName || '').trim() || '未命名命主',
-      birth: r.clientBirth || '',
+      birth: formatBirth(r.clientBirth),
       createdAt: r.createdAt,
     }))
   },

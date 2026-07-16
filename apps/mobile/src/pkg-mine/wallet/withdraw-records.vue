@@ -43,7 +43,7 @@ const STATUS_LABEL: Record<string, string> = {
   TRANSFERRING: '待你确认收款',
   PAID: '已到账',
   REJECTED: '已驳回',
-  CONVERTED: '已转金币',
+  CONVERTED: '已转国学币',
 }
 function statusLabel(r: WithdrawRecord) {
   return STATUS_LABEL[r.status] || r.status

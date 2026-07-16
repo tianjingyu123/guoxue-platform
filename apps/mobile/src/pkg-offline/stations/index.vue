@@ -115,18 +115,15 @@
             class="c1-card"
             @tap="goDetail(s.id)"
           >
-            <!-- 环境图 16:9·有值 cover/images → 真图；无 → 虚线占位框 -->
+            <!-- 环境图 16:9·有 cover/images → 真图；无 → smart-cover 书法水印雅致兜底（取代虚线灰框） -->
             <view class="c1-card-img">
-              <image
-                v-if="stationCover(s)"
-                lazy-load
-                :src="stationCover(s)"
-                class="c1-card-img-real"
-                mode="aspectFill"
-              />
-              <view v-else class="c1-card-img-ph">
-                <app-icon name="map-pin" :size="26" color="#cbbfa8" />
-                <text class="c1-card-img-tip">驿站环境图 16:9</text>
+              <view class="c1-card-cover">
+                <smart-cover
+                  :src="stationCover(s)"
+                  :title="s.name"
+                  type="default"
+                  deco
+                />
               </view>
               <view v-if="s.status !== 'ACTIVE'" class="c1-card-mask">
                 <text class="c1-card-mask-text">{{ stationStatusLabel[s.status] || '筹备中' }}</text>
@@ -176,6 +173,7 @@
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
+import SmartCover from '@/components/common/smart-cover.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import {
   offlineApi,
@@ -613,6 +611,11 @@ function goDetail(id: string) {
   inset: 0;
   width: 100%;
   height: 100%;
+}
+/* smart-cover 填充绝对定位包裹（父 padding-top 撑 16:9，内容高度为 0，需绝对填充） */
+.c1-card-cover {
+  position: absolute;
+  inset: 0;
 }
 .c1-card-img-ph {
   position: absolute;

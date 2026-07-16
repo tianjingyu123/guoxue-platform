@@ -153,6 +153,8 @@ function posterQrUrl(): string {
 function draw() {
   const c = comp.value
   if (!c) return
+  // 赛事名兜底：后端偶发 title 缺失时不再画出 "— undefined —"
+  const compTitle = (c.title && String(c.title).trim()) || `${BRAND.name}·国学竞技`
   const W = canvasW.value
   const H = canvasH.value
   const ctx = uni.createCanvasContext('posterCanvas', instance)
@@ -173,14 +175,14 @@ function draw() {
   // 赛事名 badge（— 平台/赛事名 —·带间距）
   ctx.setFillStyle('rgba(255,255,255,0.9)')
   ctx.setFontSize(11)
-  const eb = `— ${c.title} —`
+  const eb = `— ${compTitle} —`
   drawEllipsis(ctx, eb, W / 2, Math.round(headH * 0.36), W - 40)
   // 主标题（宋体感·获奖=类型专场·荣誉战报 / 邀请=赛事名）
   ctx.setFillStyle('#ffffff')
   ctx.setFontSize(19)
   const headTitle = myRank.value
     ? `${typeLabel(c.type)}专场 · 荣誉战报`
-    : c.title
+    : compTitle
   drawWrapped(ctx, headTitle, W / 2, Math.round(headH * 0.62), W - 40, 25, 2)
 
   // ── 中部主体区 ──

@@ -21,7 +21,7 @@
         <view class="cd-cover-row">
           <flat-cover
             :title="book.title"
-            :label="book.dynasty"
+            :label="dynastyLabel"
             :footer="book.author.split('/')[0]"
             :cover-color="coverColorForBook(book.title)"
             title-size="36rpx"
@@ -30,7 +30,7 @@
           <view class="cd-info">
             <view>
               <text class="cd-title">{{ book.title }}</text>
-              <text class="cd-author">[{{ book.dynasty }}] {{ book.author }}</text>
+              <text class="cd-author">{{ dynastyLabel ? `[${dynastyLabel}] ` : '' }}{{ book.author }}</text>
               <view class="cd-tags">
                 <text class="cd-tag cd-tag-muted">{{ book.version }}</text>
                 <text v-if="book.hasTranslation" class="cd-tag cd-tag-amber">译文</text>
@@ -40,7 +40,7 @@
             <view class="cd-stats">
               <view class="cd-stat">
                 <app-icon name="eye" :size="26" color="#999999" />
-                <text class="cd-stat-text">{{ (book.reads / 10000).toFixed(1) }}万</text>
+                <text class="cd-stat-text">{{ readsText }}</text>
               </view>
               <view class="cd-stat">
                 <app-icon name="file-text" :size="26" color="#999999" />
@@ -199,6 +199,17 @@ const showAllChapters = ref(false)
 const displayedChapters = computed(() =>
   book.value ? (showAllChapters.value ? book.value.chapters : book.value.chapters.slice(0, 6)) : [],
 )
+
+// 阅读量：万级才用「万」，小数尾零去掉；0 直接显示「0」而非「0.0万」
+const readsText = computed(() => {
+  const n = book.value?.reads ?? 0
+  return n >= 10000 ? (n / 10000).toFixed(1).replace(/\.0$/, '') + '万' : String(n)
+})
+// 朝代：空/占位（—、未知）不显示方括号，避免「[—]佚名」
+const dynastyLabel = computed(() => {
+  const d = (book.value?.dynasty || '').trim()
+  return d && d !== '—' && d !== '未知' && d !== '佚名' ? d : ''
+})
 
 async function fetchData(id: string) {
   loading.value = true

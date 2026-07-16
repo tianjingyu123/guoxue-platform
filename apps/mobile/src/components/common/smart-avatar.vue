@@ -16,7 +16,12 @@ const props = withDefaults(defineProps<Props>(), { src: '', name: '' })
 
 const imgError = ref(false)
 watch(() => props.src, () => { imgError.value = false })
-const hasImg = computed(() => typeof props.src === 'string' && props.src.trim() !== '' && !imgError.value)
+// dicebear/avataaars 卡通外链头像不专业且 H5 常加载失败 → 一律当作无图，走姓名首字兜底
+const JUNK_AVATAR_RE = /dicebear|avataaars/i
+const hasImg = computed(() => {
+  const s = typeof props.src === 'string' ? props.src.trim() : ''
+  return s !== '' && !JUNK_AVATAR_RE.test(s) && !imgError.value
+})
 
 // 昵称首字（中文/英文取第一个可见字符）
 const initial = computed(() => (props.name || '').trim().slice(0, 1))

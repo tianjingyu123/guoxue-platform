@@ -269,8 +269,11 @@ function toggleMore() {
       </view>
     </view>
 
-    <!-- 错误态 + 重试 -->
+    <!-- 错误态 + 重试（含返回栏，硬失败可退出不卡死） -->
     <view v-else-if="error" class="up-error">
+      <view class="up-state-back" @tap="goBack">
+        <app-icon name="arrow-left" :size="40" color="#2C2C2C" />
+      </view>
       <text class="up-error-text">{{ error }}</text>
       <view class="up-retry-btn" @tap="loadProfile">
         <text class="up-retry-txt">重试</text>
@@ -938,11 +941,22 @@ function toggleMore() {
 .up-retry-btn {
   padding: 16rpx 48rpx;
   border-radius: 999rpx;
-  border: 1rpx solid var(--brand, #c41e3a);
+  background: var(--brand, #c41e3a);
   margin-top: 8rpx;
 }
 .up-retry-txt {
   font-size: 28rpx;
-  color: var(--brand, #c41e3a);
+  color: #fff;
+}
+.up-state-back {
+  position: fixed;
+  left: 24rpx;
+  top: calc(var(--status-bar-height, 0px) + 20rpx);
+  z-index: 10;
+  width: 64rpx;
+  height: 64rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 </style>

@@ -11,6 +11,7 @@
  */
 import { ref, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import SmartCover from '@/components/common/smart-cover.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { circleApi, formatMembers, type Circle, type RankingCircle, type AiSearchResult } from '@/lib/circle-data'
 
@@ -139,10 +140,7 @@ onMounted(loadHot)
         <text class="cs-result-label">热门圈子</text>
         <view class="cs-group">
           <view v-for="c in hotCircles" :key="c.id" class="cs-row" @tap="openCircle(c.id)">
-            <view class="cs-row-cover">
-              <image v-if="c.cover" :src="c.cover" class="cs-row-cover-img" mode="aspectFill" lazy-load />
-              <view v-else class="cs-row-cover-ph"><app-icon name="users" :size="36" color="#C9A96E" /></view>
-            </view>
+            <view class="cs-row-cover"><smart-cover :src="c.cover" :title="c.name" type="circle" deco :deco-size="40" /></view>
             <view class="cs-row-main">
               <text class="cs-row-name">{{ c.name }}</text>
               <view class="cs-row-meta">
@@ -184,10 +182,7 @@ onMounted(loadHot)
         <text v-if="aiResult.reason" class="cs-ai-summary">{{ aiResult.reason }}</text>
         <view v-if="aiResult.circles?.length" class="cs-ai-recs-group">
           <view v-for="c in aiResult.circles" :key="c.id" class="cs-row ai" @tap="openCircle(c.id)">
-            <view class="cs-row-cover">
-              <image v-if="c.cover" :src="c.cover" class="cs-row-cover-img" mode="aspectFill" lazy-load />
-              <view v-else class="cs-row-cover-ph"><app-icon name="users" :size="36" color="#C9A96E" /></view>
-            </view>
+            <view class="cs-row-cover"><smart-cover :src="c.cover" :title="c.name" type="circle" deco :deco-size="40" /></view>
             <view class="cs-row-main">
               <text class="cs-row-name">{{ c.name }}</text>
               <view class="cs-row-meta">
@@ -219,10 +214,7 @@ onMounted(loadHot)
         <text class="cs-result-label">圈子 · {{ results.length }} 个</text>
         <view class="cs-group">
           <view v-for="c in results" :key="c.id" class="cs-row" @tap="openCircle(c.id)">
-            <view class="cs-row-cover">
-              <image v-if="c.cover" :src="c.cover" class="cs-row-cover-img" mode="aspectFill" lazy-load />
-              <view v-else class="cs-row-cover-ph"><app-icon name="users" :size="36" color="#C9A96E" /></view>
-            </view>
+            <view class="cs-row-cover"><smart-cover :src="c.cover" :title="c.name" type="circle" deco :deco-size="40" /></view>
             <view class="cs-row-main">
               <view class="cs-row-name-line">
                 <text

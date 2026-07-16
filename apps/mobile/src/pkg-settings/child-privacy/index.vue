@@ -84,16 +84,17 @@
               </view>
               <view class="contact-info">
                 <text class="contact-label">邮件联系</text>
-                <text class="contact-value">privacy@rebu.com</text>
+                <text class="contact-value">{{ BRAND.serviceEmail }}</text>
               </view>
             </view>
-            <view class="contact-item" @tap="onPhone">
+            <!-- 客服电话来自后台品牌配置（BRAND.servicePhone），未配置时不展示占位号码 -->
+            <view v-if="BRAND.servicePhone" class="contact-item" @tap="onPhone">
               <view class="contact-icon-wrap">
                 <app-icon name="phone" :size="20" color="#c41e3a" />
               </view>
               <view class="contact-info">
                 <text class="contact-label">电话联系</text>
-                <text class="contact-value">400-888-8888（工作日 9:00-18:00）</text>
+                <text class="contact-value">{{ BRAND.servicePhone }}（工作日 9:00-18:00）</text>
               </view>
             </view>
           </view>
@@ -150,8 +151,9 @@
 import { ref, onMounted } from 'vue'
 import { goBack } from '@/utils/router'
 import { legalApi, extractToc, type LegalDoc, type LegalTocItem } from '@/lib/legal-data'
+import { BRAND } from '@/lib/brand'
 
-// ⚠️ 后端 type 枚举无 child-privacy（仅 agreement/privacy/community），故 getDoc 恒返回 null → 空态
+// 后端 type 枚举无 child-privacy（仅 agreement/privacy/community）→ legalApi.getDoc 以内置合规文本兜底
 const TYPE = 'child-privacy'
 
 const doc = ref<LegalDoc | null>(null)
@@ -203,10 +205,12 @@ async function handleConfirm() {
 }
 
 const onMail = () => {
-  // 原型 mailto:privacy@rebu.com
+  // H5 端无统一 mailto 能力，复制邮箱供监护人联系
+  uni.setClipboardData({ data: BRAND.serviceEmail, success: () => uni.showToast({ title: '邮箱已复制', icon: 'none' }) })
 }
 const onPhone = () => {
-  uni.makePhoneCall({ phoneNumber: '400-888-8888', fail: () => {} })
+  if (!BRAND.servicePhone) return
+  uni.makePhoneCall({ phoneNumber: BRAND.servicePhone, fail: () => {} })
 }
 </script>
 

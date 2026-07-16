@@ -72,7 +72,7 @@
     <view class="card products">
       <view class="card-title-row"><text class="card-title">商品清单</text></view>
       <view v-for="p in order.products" :key="p.id" class="product">
-        <image lazy-load class="p-cover" :src="p.cover" mode="aspectFill" />
+        <smart-cover class="p-cover" :src="p.cover" :title="p.name" type="product" deco :deco-size="44" />
         <view class="p-info">
           <text class="p-name">{{ p.name }}</text>
           <text class="p-sku">{{ p.skuName }}</text>
@@ -157,6 +157,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
+import SmartCover from '@/components/common/smart-cover.vue'
 import { navigateTo } from '@/utils/router'
 import { orderApi, detailSteps, virtualDetailSteps, detailStatusConfig, virtualPaidStatus, type OrderDetail } from '@/lib/order-data'
 import { formatPrice } from '@/utils/format'
@@ -262,7 +263,7 @@ async function confirmReceive() {
 .card-title { font-size: 28rpx; font-weight: 500; color: #2C2C2C; }
 .card-title-row { padding-bottom: 20rpx; border-bottom: 1rpx solid #E8E3DB; margin-bottom: 20rpx; }
 .product { display: flex; gap: 20rpx; padding: 20rpx 0; border-bottom: 1rpx solid #F0EBE3; }
-.p-cover { width: 120rpx; height: 120rpx; border-radius: 12rpx; background: #FAF8F5; flex-shrink: 0; }
+.p-cover { width: 120rpx; height: 120rpx; border-radius: 12rpx; overflow: hidden; background: #FAF8F5; flex-shrink: 0; }
 .p-info { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .p-name { font-size: 28rpx; color: #2C2C2C; line-height: 1.4; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .p-sku { font-size: 24rpx; color: #999999; margin-top: 8rpx; }

@@ -299,7 +299,8 @@ function confirmExchange() {
 .nav-link {
   font-size: 28rpx;
   color: #9a2e22;
-  width: 48rpx;
+  min-width: 48rpx;
+  white-space: nowrap;
   text-align: right;
 }
 .scroll {

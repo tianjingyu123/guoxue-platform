@@ -27,9 +27,9 @@
       <view class="cd-bar">
         <view class="cd-left">
           <app-icon name="clock" :size="32" color="#C41E3A" />
-          <text class="cd-label">距结束</text>
+          <text class="cd-label">{{ ended ? '活动已结束' : '距结束' }}</text>
         </view>
-        <view class="cd-right">
+        <view v-if="!ended" class="cd-right">
           <text class="cd-box">{{ countdown.days }}</text>
           <text class="cd-unit">天</text>
           <text class="cd-box">{{ pad(countdown.hours) }}</text>
@@ -38,6 +38,7 @@
           <text class="cd-colon">:</text>
           <text class="cd-box">{{ pad(countdown.seconds) }}</text>
         </view>
+        <text v-else class="cd-ended-txt">感谢参与</text>
       </view>
 
       <!-- 限时秒杀商品区 -->
@@ -74,7 +75,7 @@
           <view class="sk-item-foot">
             <view
               class="sk-buy"
-              :class="{ disabled: item.status !== 'ongoing' }"
+              :class="{ disabled: ended || item.status !== 'ongoing' }"
               @tap.stop="onBuy(item)"
             >
               <text class="sk-buy-txt">{{ buyText(item) }}</text>
@@ -129,6 +130,8 @@ const activity = {
 
 const showRules = ref(false)
 const countdown = ref({ days: 0, hours: 0, minutes: 0, seconds: 0 })
+// 活动是否已结束（倒计时归零）：结束后改文案并禁用抢购
+const ended = ref(false)
 let cdTimer: ReturnType<typeof setInterval> | null = null
 
 // 秒杀活动商品项的本地类型定义
@@ -151,10 +154,11 @@ function progress(item: ActivityItem) {
   return Math.round((item.soldCount / item.totalStock) * 100)
 }
 function buyText(item: ActivityItem) {
+  if (ended.value) return '已结束'
   return item.status === 'sold_out' ? '已抢光' : item.status === 'ended' ? '已结束' : '立即抢购'
 }
 function onBuy(item: ActivityItem) {
-  if (item.status === 'ongoing') {
+  if (!ended.value && item.status === 'ongoing') {
     uni.showToast({ title: '抢购成功！', icon: 'success' })
   }
 }
@@ -170,12 +174,17 @@ function onBack() {
 function tick() {
   const diff = new Date(activity.endTime).getTime() - Date.now()
   if (diff > 0) {
+    ended.value = false
     countdown.value = {
       days: Math.floor(diff / 86400000),
       hours: Math.floor((diff % 86400000) / 3600000),
       minutes: Math.floor((diff % 3600000) / 60000),
       seconds: Math.floor((diff % 60000) / 1000),
     }
+  } else {
+    ended.value = true
+    countdown.value = { days: 0, hours: 0, minutes: 0, seconds: 0 }
+    if (cdTimer) { clearInterval(cdTimer); cdTimer = null }
   }
 }
 
@@ -295,6 +304,11 @@ onUnmounted(() => {
 .cd-unit, .cd-colon {
   font-size: 26rpx;
   color: #999;
+}
+.cd-ended-txt {
+  font-size: 26rpx;
+  font-weight: 600;
+  color: var(--brand);
 }
 .sk-section {
   padding: 32rpx;

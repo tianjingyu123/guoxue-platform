@@ -28,7 +28,9 @@ const ROUTE_MAP: Record<string, string> = {
   // 智能体主对话页（广场「热卜智能助手」入口）
   '/agent/main': '/pkg-agent/agent/main',
   // 智能体广场下游：对话历史 / 常见问题 / 热度榜
-  '/agents/history': '/pkg-agent/agents/history',
+  // 对话历史收敛：统一走高质量页 pkg-agent/agent/history（真头像 smart-avatar + 时间分组 + 未读）
+  // 原 pkg-agent/agents/history 低质量重复页已退役删除
+  '/agents/history': '/pkg-agent/agent/history',
   '/agents/questions': '/pkg-agent/agents/questions',
   '/agents/ranking': '/pkg-agent/agents/ranking',
   // 全局搜索（主页 + 结果页，结果页携带 ?keyword= 由 resolve 透传）
@@ -193,7 +195,7 @@ const ROUTE_MAP: Record<string, string> = {
   '/shop/my-after-sales': '/pkg-account/my-after-sales/index',
   '/shop/addresses': '/pkg-account/addresses/index',
   '/shop/addresses/edit': '/pkg-account/address-edit/index',
-  '/address': '/pkg-account/address/index',
+  '/address': '/pkg-account/addresses/index',
   /* 设置中心 —— 唯一真源 = pkg-mine（真连后端）。pkg-settings 的账号安全类页是 mock 假页
    * （硬编码 138****8888、假验证码、假黑名单写死 3 个陌生人），本轮（2026-07-14）整批退役剥离。
    * 别名保留并改指真页（而非删除）：防存量分享链接/外部入站链接 404。

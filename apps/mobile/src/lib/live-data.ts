@@ -827,12 +827,12 @@ export const obsPageFaq = [
 
 // ============ creator/live/theme 直播间装修(竖屏) ============
 export const themeTemplates = [
-  { id: 'default', name: '默认主题', desc: '简洁大气，适合日常直播', primaryColor: '#8B5CF6', secondaryColor: '#A78BFA', bg1: '#111827', bg2: '#1f2937', preview: '🎯', isFree: true, isUsing: true },
+  { id: 'default', name: '默认主题', desc: '简洁大气，适合日常直播', primaryColor: '#C41E3A', secondaryColor: '#C9A96E', bg1: '#2a1215', bg2: '#160b0d', preview: '📜', isFree: true, isUsing: true },
   { id: 'chinese', name: '新中式', desc: '古典韵味，国学文化氛围', primaryColor: '#DC2626', secondaryColor: '#F59E0B', bg1: '#450a0a', bg2: '#451a03', preview: '🏮', isFree: true, isUsing: false },
   { id: 'spring', name: '春节喜庆', desc: '红红火火，节日氛围拉满', primaryColor: '#EF4444', secondaryColor: '#FCD34D', bg1: '#dc2626', bg2: '#7f1d1d', preview: '🧧', isFree: false, isUsing: false },
-  { id: 'mid-autumn', name: '中秋团圆', desc: '月圆人圆，温馨典雅', primaryColor: '#F59E0B', secondaryColor: '#FDE68A', bg1: '#78350f', bg2: '#431407', preview: '🥮', isFree: false, isUsing: false },
+  { id: 'mid-autumn', name: '中秋团圆', desc: '月圆人圆，温馨典雅', primaryColor: '#F59E0B', secondaryColor: '#FDE68A', bg1: '#78350f', bg2: '#431407', preview: '🌕', isFree: false, isUsing: false },
   { id: 'minimalist', name: '极简白', desc: '干净清爽，专注内容', primaryColor: '#6366F1', secondaryColor: '#818CF8', bg1: '#f1f5f9', bg2: '#e2e8f0', preview: '⬜', isFree: true, isUsing: false },
-  { id: 'ink', name: '水墨风', desc: '淡雅水墨，文人气质', primaryColor: '#374151', secondaryColor: '#9CA3AF', bg1: '#292524', bg2: '#1c1917', preview: '🖌️', isFree: false, isUsing: false },
+  { id: 'ink', name: '水墨风', desc: '淡雅水墨，文人气质', primaryColor: '#374151', secondaryColor: '#9CA3AF', bg1: '#292524', bg2: '#1c1917', preview: '🖋️', isFree: false, isUsing: false },
 ]
 export const themePendants = [
   { id: 1, name: '福字', icon: '福', position: '左上', isActive: true },

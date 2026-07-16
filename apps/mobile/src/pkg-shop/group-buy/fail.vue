@@ -37,7 +37,7 @@
       <!-- 商品卡 -->
       <view class="card">
         <view class="prod">
-          <image lazy-load class="prod-cover" :src="info.productCover" mode="aspectFill" />
+          <smart-cover class="prod-cover" :src="info.productCover" :title="info.productName" type="product" deco :deco-size="44" />
           <view class="prod-info">
             <text class="prod-name">{{ info.productName }}</text>
             <text class="price-now">¥{{ formatPrice(info.price) }}</text>
@@ -47,12 +47,11 @@
         <view class="row">
           <text class="row-label">参团人数</text>
           <view class="members">
-            <image lazy-load
+            <smart-avatar
               v-for="(m, i) in info.members"
               :key="i"
               class="member-avatar"
               :src="m.avatar"
-              mode="aspectFill"
             />
             <view v-for="n in (info.minMembers - info.currentMembers)" :key="'e' + n" class="member-empty">
               <text class="member-q">?</text>
@@ -151,6 +150,8 @@
 import { ref, computed, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { goBack, navigateTo } from '@/utils/router'
+import SmartCover from '@/components/common/smart-cover.vue'
+import SmartAvatar from '@/components/common/smart-avatar.vue'
 import { shopApi } from '@/lib/shop-data'
 import { formatPrice } from '@/utils/format'
 
@@ -317,6 +318,7 @@ async function retryLoad() {
   width: 144rpx;
   height: 144rpx;
   border-radius: 16rpx;
+  overflow: hidden;
   background: #f0ece2;
 }
 .prod-info {

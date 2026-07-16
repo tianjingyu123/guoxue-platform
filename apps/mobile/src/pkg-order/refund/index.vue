@@ -73,7 +73,7 @@
         </view>
         <view class="info-row">
           <text class="info-label">退款原因</text>
-          <text class="info-val">{{ data.reason }}</text>
+          <text class="info-val">{{ data.reason || '未填写' }}</text>
         </view>
         <view class="info-row">
           <text class="info-label">申请时间</text>

@@ -15,6 +15,7 @@
 import { ref, computed, getCurrentInstance } from 'vue'
 import { onLoad, onReady } from '@dcloudio/uni-app'
 import ToolHeader from '@/components/paipan/tool-header.vue'
+import ParamError from '@/components/paipan/param-error.vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
 import { navigateTo } from '@/utils/router'
@@ -289,12 +290,7 @@ const fpStyle = computed(() => {
     />
 
     <!-- 参数无效 -->
-    <view v-if="invalid" class="invalid">
-      <text class="invalid-text">参数无效，请重新创建立极尺</text>
-      <view class="invalid-btn" @tap="navigateTo('/pkg-paipan/lijichi/index')">
-        <text class="invalid-btn-text">返回创建</text>
-      </view>
-    </view>
+    <param-error v-if="invalid" text="参数无效，请重新创建立极尺" action-text="返回创建" @action="navigateTo('/pkg-paipan/lijichi/index')" />
 
     <template v-else>
       <scroll-view scroll-y class="body">
@@ -501,15 +497,7 @@ const fpStyle = computed(() => {
   height: 0; /* 显式高度，规避 iOS flex 子项 min-height 坍缩 */
 }
 
-/* ── 参数无效 ── */
-.invalid { padding: 160rpx 48rpx; display: flex; flex-direction: column; align-items: center; gap: 32rpx; }
-.invalid-text { font-size: 28rpx; color: var(--text-soft); }
-.invalid-btn {
-  padding: 20rpx 64rpx; border-radius: 999rpx;
-  background: var(--brand);
-  &:active { opacity: 0.9; }
-}
-.invalid-btn-text { font-size: 28rpx; font-weight: 700; color: #fff; }
+/* 缺参空态样式已抽至 @/components/paipan/param-error.vue */
 
 /* ── 罗盘舞台 ── */
 .stage {

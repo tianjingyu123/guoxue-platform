@@ -76,10 +76,9 @@
             <view v-if="showRank && ins.rank" class="rank" :class="{ 'rank-r1': ins.rank === 1 }">
               <text class="rank-text">{{ ins.rank }}</text>
             </view>
-            <!-- 头像 -->
+            <!-- 头像（smart-avatar：过滤 dicebear 外链，无图/失效兜底姓名首字色块） -->
             <view class="av-wrap">
-              <image v-if="ins.avatar" lazy-load :src="ins.avatar" class="av-img" mode="aspectFill" />
-              <view v-else class="av av-fallback"><text class="av-char serif">{{ firstChar(ins.nickname) }}</text></view>
+              <smart-avatar class="av-img" :src="ins.avatar" :name="ins.nickname" />
             </view>
             <!-- 主信息 -->
             <view class="info">
@@ -88,8 +87,8 @@
                 <!-- 签约徽章（SIGNED 专属）/ 分享会员 -->
                 <text v-if="ins.lecturerLevel === 'SIGNED'" class="chip chip-signed">签约讲师</text>
                 <text v-else class="chip chip-share">分享会员</text>
-                <!-- 讲师等级 chip（金描边） -->
-                <text class="chip chip-lv">{{ lecturerLevelLabel[ins.lecturerLevel] }}</text>
+                <!-- 讲师等级 chip（金描边）：SIGNED 的等级标签文案即"签约讲师"，与上方签约徽章重复，故跳过 -->
+                <text v-if="ins.lecturerLevel !== 'SIGNED'" class="chip chip-lv">{{ lecturerLevelLabel[ins.lecturerLevel] }}</text>
               </view>
               <text class="brief">{{ briefOf(ins) }}</text>
               <!-- 真实维度胶囊：年度任务 / 驿站入驻 / 授课场次 -->
@@ -126,10 +125,11 @@
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
+import SmartAvatar from '@/components/common/smart-avatar.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import {
   instituteApi, lecturerLevelLabel,
-  type LecturerLevel, type RankingItem,
+  type RankingItem,
 } from '@/lib/institute-data'
 
 const statusBarHeight = ref(0)
@@ -170,10 +170,6 @@ function briefOf(it: RankingItem): string {
   const y = new Date().getFullYear() - (it.joinYear || new Date().getFullYear())
   const seniority = y > 0 ? `入院 ${y} 年` : '本年新入院'
   return `${lv} · ${seniority} · 研究院签约讲师体系成员`
-}
-
-function firstChar(name?: string): string {
-  return (name || '师').trim().charAt(0) || '师'
 }
 
 async function load() {

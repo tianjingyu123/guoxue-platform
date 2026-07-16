@@ -163,6 +163,14 @@ const chapterTitle = ref('')
 const guidingPrompts = ref<string[]>([])
 const promptsLoading = ref(true)
 
+// 后端未按章节生成引导问题时的通用兜底（章节无关，任何篇目都成立）
+const FALLBACK_PROMPTS = [
+  '这一章主要讲了什么？',
+  '帮我把本章原文翻译成白话',
+  '本章有哪些值得记住的名句？',
+  '这一章对今天的我们有什么启发？',
+]
+
 const messages = ref<CompanionMessage[]>([])
 const inputValue = ref('')
 const isLoading = ref(false)
@@ -228,9 +236,11 @@ async function loadPrompts() {
     const r = await classicsApi.companionPrompts(chapterId.value)
     bookTitle.value = r.bookTitle || bookTitle.value
     chapterTitle.value = r.chapterTitle || chapterTitle.value
-    guidingPrompts.value = Array.isArray(r.prompts) ? r.prompts : []
+    const list = Array.isArray(r.prompts) ? r.prompts.filter((p) => !!p && p.trim()) : []
+    // 后端没给（或全空）时用通用兜底，保证开场必有引导气泡
+    guidingPrompts.value = list.length ? list : FALLBACK_PROMPTS
   } catch {
-    guidingPrompts.value = []
+    guidingPrompts.value = FALLBACK_PROMPTS
   } finally {
     promptsLoading.value = false
   }

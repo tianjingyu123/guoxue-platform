@@ -15,6 +15,7 @@ const reviewSortOptions = ref<ReviewSortOption[]>([])
 const reviewSummary = ref<{ goodRatePercent: number; rating: number; total: number }>({ goodRatePercent: 0, rating: 0, total: 0 })
 
 const productId = ref('')
+const noProduct = ref(false)
 const selectedTag = ref('all')
 const sortBy = ref('default')
 const showSortMenu = ref(false)
@@ -39,6 +40,8 @@ const previewReview = computed(() => fullReviews.value.find((r) => r.id === prev
 
 onLoad((query) => {
   productId.value = query?.id || query?.productId || ''
+  // 缺商品参数：不触发注定失败的请求，改为友好引导（正常从商品详情进入会带 id）
+  if (!productId.value) { noProduct.value = true; return }
   refresh()
 })
 onReachBottom(() => loadMore())
@@ -64,8 +67,14 @@ function setPreviewIndex(index: number) { if (previewImage.value) previewImage.v
       </view>
     </view>
 
+    <!-- 缺商品参数：友好引导（而非整页加载失败） -->
+    <view v-if="noProduct" class="state-wrap">
+      <view class="state-icon"><AppIcon name="package" :size="56" color="var(--text-soft)" /></view>
+      <text class="state-text">未指定商品，无法查看评价</text>
+      <view class="state-retry" @tap="goBack"><text class="state-retry-text">返回上一页</text></view>
+    </view>
     <!-- 加载中 -->
-    <view v-if="loading" class="state-wrap">
+    <view v-else-if="loading" class="state-wrap">
       <view class="state-spinner" />
       <text class="state-text">加载中...</text>
     </view>

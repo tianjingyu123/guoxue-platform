@@ -678,7 +678,7 @@ function downloadInvoice(_rec: InvoiceRecord) {
 }
 
 .bottom-gap {
-  height: 180rpx;
+  height: calc(240rpx + env(safe-area-inset-bottom));
 }
 
 /* 提交栏 */

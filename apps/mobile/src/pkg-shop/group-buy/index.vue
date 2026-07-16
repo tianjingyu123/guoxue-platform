@@ -65,7 +65,7 @@
       <view v-for="item in groupBuyList" :key="item.id" class="card">
         <view class="card-main">
           <view class="card-img-wrap">
-            <image lazy-load class="card-img" :src="item.cover" mode="aspectFill" />
+            <smart-cover class="card-img" :src="item.cover" :title="item.title" type="product" deco :deco-size="52" />
             <view class="badge-team">{{ item.minMembers }}人团</view>
             <view v-if="item.status === 'success'" class="mask-done">
               <text class="mask-done-text">已成团</text>
@@ -134,7 +134,7 @@
           <text v-if="item.isOwner" class="my-owner">团长</text>
         </view>
         <view class="card-main">
-          <image lazy-load class="my-cover" :src="item.productCover" mode="aspectFill" />
+          <smart-cover class="my-cover" :src="item.productCover" :title="item.productName" type="product" deco :deco-size="48" />
           <view class="card-info">
             <text class="card-title">{{ item.productName }}</text>
             <text class="price-now my-price"><text class="price-unit">¥</text>{{ formatPrice(item.price) }}</text>
@@ -175,7 +175,7 @@
         <text class="share-title">邀请好友参团</text>
         <text class="share-sub">还差 <text class="share-num">{{ shareTarget.minMembers - shareTarget.currentMembers }}</text> 人即可成团</text>
         <view class="share-product">
-          <image lazy-load class="share-cover" :src="shareTarget.productCover" mode="aspectFill" />
+          <smart-cover class="share-cover" :src="shareTarget.productCover" :title="shareTarget.productName" type="product" deco :deco-size="40" />
           <view class="share-pinfo">
             <text class="share-pname">{{ shareTarget.productName }}</text>
             <text class="price-now">¥{{ formatPrice(shareTarget.price) }}</text>
@@ -210,6 +210,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
+import SmartCover from '@/components/common/smart-cover.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { shopApi, formatCountdown, type MyGroupBuyItem } from '@/lib/shop-data'
 import { formatPrice } from '@/utils/format'
@@ -686,6 +687,7 @@ function endMapCleanup() {
   height: 160rpx;
   flex-shrink: 0;
   border-radius: 16rpx;
+  overflow: hidden;
   background: #f0ece2;
 }
 .my-price {
@@ -778,6 +780,7 @@ function endMapCleanup() {
   width: 96rpx;
   height: 96rpx;
   border-radius: 12rpx;
+  overflow: hidden;
   background: #f0ece2;
 }
 .share-pinfo {

@@ -291,7 +291,9 @@ const contactEmail = () => {}
 .page {
   min-height: 100vh;
   background-color: #faf8f5;
-  padding-bottom: 192rpx;
+  /* 固定底部 CTA 实际高度 = 32rpx padding-top + 88rpx 按钮 + 32rpx padding-bottom + 安全区，
+     原 192rpx 在有安全区的机型上不够，末行「联系我们」会被固定栏遮挡，故留足底部空间 */
+  padding-bottom: calc(224rpx + env(safe-area-inset-bottom));
 }
 
 /* 导航栏 */

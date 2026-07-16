@@ -10,6 +10,7 @@
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import ToolHeader from '@/components/paipan/tool-header.vue'
+import ParamError from '@/components/paipan/param-error.vue'
 import PaperCard from '@/components/paipan/paper-card.vue'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
 import AppIcon from '@/components/common/app-icon.vue'
@@ -177,11 +178,7 @@ const guaDetail = computed(() => {
     />
 
     <!-- 参数错误态 -->
-    <view v-if="loadError" class="status">
-      <app-icon name="info" :size="64" color="#d1d5db" />
-      <text class="status-text">{{ loadError }}</text>
-      <view class="status-btn" @tap="goInput"><text class="status-btn-text">返回排盘</text></view>
-    </view>
+    <param-error v-if="loadError" :text="loadError" action-text="返回排盘" @action="goInput" />
 
     <!-- 主体 -->
     <scroll-view v-else-if="params && zhai && activeStars && activeBase" scroll-y class="body">
@@ -189,7 +186,7 @@ const guaDetail = computed(() => {
         <!-- 信息表 -->
         <paper-card padding="none">
           <view class="tr tr-bd">
-            <view class="th"><text class="th-text">客户名称</text></view>
+            <view class="info-th"><text class="info-th-text">客户名称</text></view>
             <view class="td td-center">
               <input
                 v-if="editingName"
@@ -398,16 +395,12 @@ $green: #2f9d6a;
 .c-ji { color: $green; }
 .c-xiong { color: var(--brand); }
 
-/* 错误态 */
-.status { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24rpx; padding: 80rpx 40rpx; }
-.status-text { font-size: 28rpx; color: var(--text-soft); }
-.status-btn { padding: 20rpx 56rpx; background: var(--brand); border-radius: 20rpx; }
-.status-btn-text { font-size: 28rpx; font-weight: 600; color: #fff; }
+/* 缺参空态样式已抽至 @/components/paipan/param-error.vue */
 
 /* 信息表 */
 .tr { display: flex; align-items: stretch; }
 .tr-bd { border-bottom: 1rpx solid var(--line); }
-.th {
+.info-th {
   flex-shrink: 0;
   width: 160rpx;
   display: flex;
@@ -415,7 +408,7 @@ $green: #2f9d6a;
   padding: 20rpx 24rpx;
   background: rgba(0, 0, 0, 0.025);
 }
-.th-text { font-size: 26rpx; font-weight: 500; color: #b45309; }
+.info-th-text { font-size: 26rpx; font-weight: 500; color: #b45309; }
 .td { flex: 1; display: flex; align-items: center; padding: 20rpx 24rpx; min-width: 0; gap: 8rpx; }
 .td-center { justify-content: center; }
 .td-text { font-size: 26rpx; line-height: 1.5; color: var(--text-ink); }

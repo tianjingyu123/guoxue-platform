@@ -13,6 +13,7 @@
 import { ref, computed, watch, nextTick } from 'vue'
 import { onLoad, onReady } from '@dcloudio/uni-app'
 import ToolHeader from '@/components/paipan/tool-header.vue'
+import ParamError from '@/components/paipan/param-error.vue'
 import PaperCard from '@/components/paipan/paper-card.vue'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
 import GenerateReportButton from '@/components/paipan/generate-report-button.vue'
@@ -215,12 +216,7 @@ function onShare() {
     <tool-header title="八字合盘" back-href="/paipan/hepan" share @share="onShare" />
 
     <!-- 错误态 -->
-    <view v-if="loadError" class="status">
-      <text class="status-text">{{ loadError }}</text>
-      <view class="status-btn" @tap="navigateTo('/paipan/hepan')">
-        <text class="status-btn-text">返回合盘</text>
-      </view>
-    </view>
+    <param-error v-if="loadError" :text="loadError" action-text="返回合盘" @action="navigateTo('/paipan/hepan')" />
 
     <scroll-view v-else-if="result" scroll-y class="body">
       <view class="body-inner">
@@ -473,11 +469,7 @@ $serif: Georgia, 'Songti SC', serif;
 .body { flex: 1; }
 .body-inner { padding: 24rpx 24rpx 48rpx; display: flex; flex-direction: column; gap: 24rpx; }
 
-/* 错误态 */
-.status { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 32rpx; padding: 80rpx 48rpx; }
-.status-text { font-size: 28rpx; color: var(--text-soft); text-align: center; }
-.status-btn { padding: 20rpx 48rpx; border-radius: 999rpx; background: var(--brand); }
-.status-btn-text { font-size: 28rpx; color: #fff; font-weight: 600; }
+/* 缺参空态样式已抽至 @/components/paipan/param-error.vue */
 
 /* 场景横幅 */
 .banner {

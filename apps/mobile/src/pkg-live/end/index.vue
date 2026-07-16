@@ -48,9 +48,9 @@
     <!-- 主播信息（后端 end 无关注/粉丝维度 → 仅展示主播） -->
     <view class="host-card">
       <view class="host-left">
-        <smart-avatar :src="room.hostAvatar" :name="room.hostName" class="host-avatar" />
+        <smart-avatar :src="room.hostAvatar" :name="hostDisplayName" class="host-avatar" />
         <view class="host-meta">
-          <text class="host-name">{{ room.hostName }}</text>
+          <text class="host-name">{{ hostDisplayName }}</text>
         </view>
       </view>
     </view>
@@ -149,7 +149,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import SmartAvatar from '@/components/common/smart-avatar.vue'
@@ -167,6 +167,9 @@ const room = ref<any>({})
 // 推荐直播/课程列表，元素结构由后端返回，保留 any[]
 const recommendLives = ref<any[]>([])
 const recommendCourses = ref<any[]>([])
+
+// 主播昵称缺失时兜底，避免头像旁整块空白
+const hostDisplayName = computed(() => (room.value?.hostName || '').trim() || '主播')
 
 async function fetchData(endId: string) {
   loading.value = true

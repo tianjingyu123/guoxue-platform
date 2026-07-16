@@ -26,8 +26,11 @@ interface Props {
   deco?: boolean
   /** 水印字号(rpx)：小缩略图传小值(如 40)防溢出，hero 大图传大值(如 96)，默认 56 */
   decoSize?: number
+  /** 纯底纹模式：只出国学渐变底纹，不出任何文字(水印/标题)。
+   *  用于卡片自身已有居中播放按钮 + 卡底标题时，避免生成封面文字撞按钮/重复标题 */
+  plain?: boolean
 }
-const props = withDefaults(defineProps<Props>(), { src: '', title: '', type: 'default', videoUrl: '', showSeal: false, deco: false, decoSize: 56 })
+const props = withDefaults(defineProps<Props>(), { src: '', title: '', type: 'default', videoUrl: '', showSeal: false, deco: false, decoSize: 56, plain: false })
 
 // 各类型的配色系（多套按标题哈希轮换）+ 图标 + 印章标（雅致低饱和国学色）
 const THEMES: Record<string, { grads: string[]; icon: string; label: string }> = {
@@ -163,10 +166,11 @@ const decoChars = computed(() => {
     <!-- 国学底纹：柔和光晕 + 内描边 -->
     <view class="sc-pattern" />
     <view class="sc-frame" />
+    <!-- 纯底纹模式(plain)：不出任何文字，只留渐变底纹，避免撞卡片播放按钮/重复卡底标题 -->
     <!-- 大字水印模式：书法二字，任何尺寸都成立（小缩略图不再空块，卡下有标题不再重复） -->
-    <text v-if="decoMode" class="sc-deco serif" :style="{ fontSize: decoSize + 'rpx' }">{{ decoChars }}</text>
+    <text v-if="!plain && decoMode" class="sc-deco serif" :style="{ fontSize: decoSize + 'rpx' }">{{ decoChars }}</text>
     <!-- 完整标题模式：图标 + 两行书法标题（图标不参与压缩，防小容器裁半字） -->
-    <template v-else>
+    <template v-else-if="!plain">
       <view class="sc-icon"><AppIcon :name="theme.icon" :size="34" color="rgba(255,255,255,0.82)" /></view>
       <text class="sc-title">{{ title }}</text>
     </template>

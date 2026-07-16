@@ -326,6 +326,16 @@ function notifyLink(targetType?: string | null, targetId?: string | null): strin
   return undefined
 }
 
+/**
+ * 内部运维/监控告警识别：依赖降级、探测异常、熔断、健康检查等技术黑话属系统内部监控，
+ * 误配到通知表后会刷屏普通用户消息中心（泄漏技术细节）。命中则从用户消息流过滤。
+ * 保守匹配运维专有语汇，避免误伤"会员降级/等级下调"等真实业务通知。
+ */
+function isInternalOpsAlert(n: RawNotification): boolean {
+  const s = `${n.type || ''} ${n.title || ''} ${n.content || ''}`
+  return /依赖降级|依赖.{0,6}降级|探测异常|连续探测|已自动降级|服务熔断|熔断降级|健康检查|OPS[_-]?ALERT|CIRCUIT[_-]?BREAK|HEALTH[_-]?CHECK|DEPENDENCY[_-]?DEGRAD/i.test(s)
+}
+
 /** 单条后端通知 → 前端展示模型 */
 function toNotifyMessage(n: RawNotification): NotifyMessage {
   return {
@@ -760,8 +770,12 @@ export const imApi = {
     const res = await apiGet<{ notifications: RawNotification[]; total: number; unreadCount: number }>(
       '/notifications?page=1&pageSize=50',
     )
-    const list = (res.notifications || []).map(toNotifyMessage)
-    return { list, unreadCounts: buildUnreadCounts(list, res.unreadCount ?? 0) }
+    const raw = res.notifications || []
+    // 过滤内部运维告警，并从总未读中扣减被过滤掉的未读条数，避免 badge 显示幽灵未读
+    const removedUnread = raw.filter((n) => isInternalOpsAlert(n) && !n.isRead).length
+    const list = raw.filter((n) => !isInternalOpsAlert(n)).map(toNotifyMessage)
+    const total = Math.max(0, (res.unreadCount ?? 0) - removedUnread)
+    return { list, unreadCounts: buildUnreadCounts(list, total) }
   },
 
   /** 标记单条通知已读 */

@@ -7,6 +7,7 @@
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import ToolHeader from '@/components/paipan/tool-header.vue'
+import ParamError from '@/components/paipan/param-error.vue'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo, navigateBack } from '@/utils/router'
@@ -181,11 +182,7 @@ function onShare() {
     <tool-header :title="hdrTitle" @share="onShare" />
 
     <!-- 参数错误态 -->
-    <view v-if="loadError" class="status">
-      <app-icon name="info" :size="64" color="#d1d5db" />
-      <text class="status-text">{{ loadError }}</text>
-      <view class="status-btn" @tap="goInput"><text class="status-btn-text">重新起课</text></view>
-    </view>
+    <param-error v-if="loadError" :text="loadError" action-text="重新起课" @action="goInput" />
 
     <!-- 主体 -->
     <scroll-view v-else-if="r" scroll-y class="body">
@@ -357,11 +354,7 @@ $serif: Georgia, 'Songti SC', serif;
 .body { flex: 1; }
 .body-inner { padding: 24rpx 24rpx 48rpx; display: flex; flex-direction: column; gap: 24rpx; }
 
-/* 错误态 */
-.status { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24rpx; padding: 80rpx 40rpx; }
-.status-text { font-size: 28rpx; color: var(--text-soft); }
-.status-btn { padding: 20rpx 56rpx; background: var(--brand); border-radius: 20rpx; }
-.status-btn-text { font-size: 28rpx; font-weight: 600; color: #fff; }
+/* 缺参空态样式已抽至 @/components/paipan/param-error.vue */
 
 /* 卡片基座 */
 .card {

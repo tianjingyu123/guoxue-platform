@@ -10,7 +10,7 @@
       <block v-else-if="view === 'create'">
         <!-- 订单信息 -->
         <view class="card order-card">
-          <image lazy-load class="order-cover" :src="order.productCover" mode="aspectFill" />
+          <smart-cover class="order-cover" :src="order.productCover" :title="order.productName" type="product" deco :deco-size="44" />
           <view class="order-info">
             <text class="order-name">{{ order.productName }}</text>
             <text class="order-no">订单号：{{ order.orderNo }}</text>
@@ -111,7 +111,7 @@
             </view>
           </view>
           <view class="dispute-body">
-            <image lazy-load class="dispute-cover" :src="d.productCover" mode="aspectFill" />
+            <smart-cover class="dispute-cover" :src="d.productCover" :title="d.productName" type="product" deco :deco-size="40" />
             <view class="dispute-info">
               <text class="dispute-name">{{ d.productName }}</text>
               <text class="dispute-type">{{ typeLabel(d.type) }}</text>
@@ -135,7 +135,7 @@
         <view class="card">
           <text class="section-title">申诉商品</text>
           <view class="order-card-inner">
-            <image lazy-load class="order-cover" :src="detail.order.productCover" mode="aspectFill" />
+            <smart-cover class="order-cover" :src="detail.order.productCover" :title="detail.order.productName" type="product" deco :deco-size="44" />
             <view class="order-info">
               <text class="order-name">{{ detail.order.productName }}</text>
               <text class="order-amount">¥{{ formatPrice(detail.order.amount) }}</text>
@@ -206,6 +206,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
+import SmartCover from '@/components/common/smart-cover.vue'
 import { goBack } from '@/utils/router'
 import {
   orderApi,
@@ -425,6 +426,7 @@ async function cancelDispute() {
   width: 120rpx;
   height: 120rpx;
   border-radius: 12rpx;
+  overflow: hidden;
   background: #F5F5F5;
 }
 .order-info {
@@ -639,6 +641,7 @@ async function cancelDispute() {
   width: 120rpx;
   height: 120rpx;
   border-radius: 12rpx;
+  overflow: hidden;
   background: #F5F5F5;
 }
 .dispute-info {

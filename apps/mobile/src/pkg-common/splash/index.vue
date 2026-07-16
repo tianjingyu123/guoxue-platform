@@ -24,7 +24,7 @@
 
       <!-- 底部版权 -->
       <view class="copyright">
-        <text class="copyright-text">Copyright 2024 {{ BRAND.name }} All Rights Reserved</text>
+        <text class="copyright-text">Copyright {{ currentYear }} {{ BRAND.name }} All Rights Reserved</text>
       </view>
     </view>
 
@@ -56,6 +56,7 @@ interface SplashAd {
   duration: number
 }
 
+const currentYear = new Date().getFullYear()
 const phase = ref<'brand' | 'ad'>('brand')
 const countdown = ref(3)
 const adCountdown = ref(5)

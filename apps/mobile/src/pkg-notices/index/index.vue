@@ -56,12 +56,7 @@
           @tap="goDetail(notice.id)"
         >
           <view class="card-inner">
-            <image lazy-load
-              v-if="notice.cover"
-              :src="notice.cover"
-              class="card-cover"
-              mode="aspectFill"
-            />
+            <smart-cover class="card-cover" :src="notice.cover" :title="notice.title" type="default" deco :deco-size="40" />
             <view class="card-content">
               <!-- 标题行 -->
               <view class="card-title-row">
@@ -109,6 +104,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
+import SmartCover from '@/components/common/smart-cover.vue'
 import { navigateBack, navigateTo } from '@/utils/router'
 
 type NoticeType = 'system' | 'update' | 'activity' | 'maintenance' | 'policy'
@@ -163,7 +159,7 @@ const ALL_NOTICES: NoticeItem[] = [
     type: 'system',
     title: '关于平台账号实名认证升级的通知',
     summary: '为保障用户账号安全，平台将于近期升级实名认证体系，请各位用户及时完成认证以免影响正常使用。',
-    cover: 'https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=400&q=80',
+    cover: '',
     isPinned: true,
     isRead: false,
     publishedAt: new Date(Date.now() - 2 * 3600000).toISOString(),
@@ -184,7 +180,7 @@ const ALL_NOTICES: NoticeItem[] = [
     type: 'activity',
     title: '双十一国学节火热进行中，海量优惠等你来',
     summary: '11月1日至11日，全场课程低至5折，名师一对一咨询限时特惠，更有国学币充值返利活动。',
-    cover: 'https://images.unsplash.com/photo-1513151233558-d860c5398176?w=400&q=80',
+    cover: '',
     isPinned: false,
     isRead: true,
     publishedAt: new Date(Date.now() - 2 * 86400000).toISOString(),
@@ -365,6 +361,7 @@ onLoad(() => {
   width: 160rpx;
   height: 112rpx;
   border-radius: 12rpx;
+  overflow: hidden;
   flex-shrink: 0;
   background-color: #F3F4F6;
 }

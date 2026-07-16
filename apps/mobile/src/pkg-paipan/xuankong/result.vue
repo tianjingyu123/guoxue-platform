@@ -12,6 +12,7 @@
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import ToolHeader from '@/components/paipan/tool-header.vue'
+import ParamError from '@/components/paipan/param-error.vue'
 import PaperCard from '@/components/paipan/paper-card.vue'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
 import AppIcon from '@/components/common/app-icon.vue'
@@ -260,11 +261,7 @@ const palaceDetail = computed(() => {
     />
 
     <!-- 参数错误态 -->
-    <view v-if="loadError" class="status">
-      <app-icon name="info" :size="64" color="#d1d5db" />
-      <text class="status-text">{{ loadError }}</text>
-      <view class="status-btn" @tap="goInput"><text class="status-btn-text">返回排盘</text></view>
-    </view>
+    <param-error v-if="loadError" :text="loadError" action-text="返回排盘" @action="goInput" />
 
     <!-- 主体 -->
     <scroll-view v-else-if="chart && params" scroll-y class="body">
@@ -272,7 +269,7 @@ const palaceDetail = computed(() => {
         <!-- 信息表 -->
         <paper-card padding="none">
           <view class="tr tr-bd">
-            <view class="th"><text class="th-text">客户名称</text></view>
+            <view class="info-th"><text class="info-th-text">客户名称</text></view>
             <view class="td td-center">
               <input
                 v-if="editingName"
@@ -306,7 +303,7 @@ const palaceDetail = computed(() => {
             <view class="grid4-c grid4-last"><text class="grid4-c-text">{{ params.ti ? '替卦' : '下卦' }}</text></view>
           </view>
           <view class="tr row-tap" @tap="showDatePicker = true">
-            <view class="th"><text class="th-text">选择飞星</text></view>
+            <view class="info-th"><text class="info-th-text">选择飞星</text></view>
             <view class="td td-center">
               <text class="td-text">公历：{{ flyDate.year }}年{{ flyDate.month }}月{{ flyDate.day }}日 {{ pad(flyDate.hour) }}时{{ pad(flyDate.minute) }}分</text>
               <app-icon name="chevron-down" :size="28" color="var(--text-soft)" />
@@ -462,17 +459,13 @@ $sky: #0284c7;
 .body { flex: 1; }
 .body-inner { padding: 24rpx 24rpx 48rpx; display: flex; flex-direction: column; gap: 20rpx; }
 
-/* 错误态 */
-.status { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24rpx; padding: 80rpx 40rpx; }
-.status-text { font-size: 28rpx; color: var(--text-soft); }
-.status-btn { padding: 20rpx 56rpx; background: var(--brand); border-radius: 20rpx; }
-.status-btn-text { font-size: 28rpx; font-weight: 600; color: #fff; }
+/* 缺参空态样式已抽至 @/components/paipan/param-error.vue */
 
 /* 信息表 */
 .tr { display: flex; align-items: stretch; }
 .tr-bd { border-bottom: 1rpx solid var(--line); }
 .row-tap:active { background: rgba(0, 0, 0, 0.02); }
-.th {
+.info-th {
   flex-shrink: 0;
   width: 160rpx;
   display: flex;
@@ -480,7 +473,7 @@ $sky: #0284c7;
   padding: 20rpx 24rpx;
   background: rgba(0, 0, 0, 0.025);
 }
-.th-text { font-size: 26rpx; font-weight: 500; color: #b45309; }
+.info-th-text { font-size: 26rpx; font-weight: 500; color: #b45309; }
 .td { flex: 1; display: flex; align-items: center; padding: 20rpx 24rpx; min-width: 0; gap: 8rpx; }
 .td-center { justify-content: center; }
 .td-text { font-size: 26rpx; line-height: 1.5; color: var(--text-ink); }

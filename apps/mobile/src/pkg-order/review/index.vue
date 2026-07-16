@@ -4,7 +4,7 @@
       <template #center>
         <view class="nav-title-wrap">
           <text class="nav-title">评价订单</text>
-          <text class="nav-id">#{{ orderId }}</text>
+          <text v-if="orderId" class="nav-id">#{{ orderId }}</text>
         </view>
       </template>
     </app-nav-bar>

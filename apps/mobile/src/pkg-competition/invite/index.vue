@@ -167,8 +167,15 @@ const inviterId = computed(() => {
   return u?.id != null ? String(u.id) : ''
 })
 
-// 邀请标识：userId 派生的可读展示（非后端下发的邀请码，仅用于「我的专属邀请」视觉锚点）
-const inviteTag = computed(() => (inviterId.value ? `邀请人 · ${inviterId.value}` : '登录后可分享'))
+// 邀请标识：优先展示昵称，其次用 userId 派生的短码（不暴露完整 UUID）
+const inviteTag = computed(() => {
+  if (!inviterId.value) return '登录后可分享'
+  const nick = getUserInfo<{ nickname?: string }>()?.nickname
+  if (nick && nick.trim()) return `邀请人 · ${nick.trim()}`
+  // 无昵称降级：取 id 去连字符后前 6 位大写作短码，避免整串 UUID 外露
+  const short = inviterId.value.replace(/-/g, '').slice(0, 6).toUpperCase()
+  return `邀请码 · ${short}`
+})
 
 // 邀请链接：落赛事页并携带 inviterId，被邀请人报名时经 register(inviterId) 一次性绑定（仅一级）
 const inviteLink = computed(() => {

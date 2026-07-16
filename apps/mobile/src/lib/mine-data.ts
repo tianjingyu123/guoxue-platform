@@ -792,7 +792,7 @@ export const walletBalanceBrief: WalletBalanceBrief = {
 export const walletTxRecords: WalletTxRecord[] = [
   { id: '1', type: 'expense', category: 'purchase', title: '购买课程', description: '紫微斗数入门精讲', amount: -299, balance: 2580, createdAt: '2024-01-15 14:30', orderNo: '202401151430001' },
   { id: '2', type: 'income', category: 'refund', title: '退款到账', description: '订单退款', amount: 199, balance: 2879, createdAt: '2024-01-14 10:20', orderNo: '202401141020001' },
-  { id: '3', type: 'income', category: 'recharge', title: '充值学习币', description: '微信支付充值', amount: 500, balance: 2680, createdAt: '2024-01-13 09:15' },
+  { id: '3', type: 'income', category: 'recharge', title: '充值国学币', description: '微信支付充值', amount: 500, balance: 2680, createdAt: '2024-01-13 09:15' },
   { id: '4', type: 'expense', category: 'purchase', title: '购买商品', description: '周易六十四卦详解', amount: -168, balance: 2180, createdAt: '2024-01-12 16:45', orderNo: '202401121645001' },
   { id: '5', type: 'income', category: 'reward', title: '签到奖励', description: '连续签到7天奖励', amount: 50, balance: 2348, createdAt: '2024-01-11 08:00' },
   { id: '6', type: 'expense', category: 'transfer', title: '打赏作者', description: '打赏文章《八字命理基础》', amount: -20, balance: 2298, createdAt: '2024-01-10 20:30' },
@@ -2003,11 +2003,24 @@ export const mineApi = {
     return true
   },
 
-  /** 通知列表 —— GET /notifications */
+  /** 通知列表 —— GET /notifications
+   * 🔴 防御性清洗：后端曾把「依赖降级/熔断/监控巡检」等内部运维通知也写进用户通知流，
+   *    对 C 端是看不懂的技术黑话且会刷屏。此处：① 过滤内部运维通知 ② 按标题+正文去重。
+   *    根治需后端不向 C 端用户投递此类系统内部通知（见交接说明）。 */
   async getNotifications(): Promise<NotifyItem[]> {
     const res = await apiGet<{ notifications?: RawNotification[] }>('/notifications?page=1&pageSize=50')
     const list = Array.isArray(res?.notifications) ? res!.notifications! : []
-    return list.map(adaptNotification)
+    const OPS_PATTERN = /(依赖降级|服务降级|降级通知|熔断|限流|监控告警|健康检查|巡检|运维|mock|超时告警|回源失败|接口异常告警)/i
+    const seen = new Set<string>()
+    return list
+      .map(adaptNotification)
+      .filter((n) => !OPS_PATTERN.test(`${n.title} ${n.content}`)) // 剔除内部运维/技术黑话通知
+      .filter((n) => {
+        const key = `${n.title}|${n.content}` // 同标题+正文视为重复，仅保留首条
+        if (seen.has(key)) return false
+        seen.add(key)
+        return true
+      })
   },
 
   /** 标记单条通知已读 —— PUT /notifications/:id/read */

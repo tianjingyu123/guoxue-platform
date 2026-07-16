@@ -39,9 +39,9 @@
         <view class="countdown-card">
           <view class="cd-left">
             <app-icon name="clock" :size="36" color="#C41E3A" />
-            <text class="cd-label">距离活动结束</text>
+            <text class="cd-label">{{ ended ? '活动已结束' : '距离活动结束' }}</text>
           </view>
-          <view class="cd-right">
+          <view v-if="!ended" class="cd-right">
             <text class="cd-box">{{ countdown.days }}</text>
             <text class="cd-unit">天</text>
             <text class="cd-box">{{ pad(countdown.hours) }}</text>
@@ -50,6 +50,7 @@
             <text class="cd-colon">:</text>
             <text class="cd-box">{{ pad(countdown.seconds) }}</text>
           </view>
+          <text v-else class="cd-ended-txt">感谢参与</text>
         </view>
       </view>
 
@@ -110,8 +111,8 @@
         </scroll-view>
       </view>
 
-      <!-- 限时秒杀 -->
-      <view class="block">
+      <!-- 限时秒杀（活动结束后隐藏，避免过期仍显"抢购中"） -->
+      <view v-if="!ended" class="block">
         <view class="block-head">
           <view class="block-title-wrap">
             <app-icon name="flame" :size="40" color="#C41E3A" />
@@ -318,6 +319,12 @@ const coupons = ref([
   { id: 4, amount: 111, condition: '满1111可用', scope: '双11专享', claimed: false },
 ])
 const countdown = ref({ days: 0, hours: 0, minutes: 0, seconds: 0 })
+// 活动是否已结束（倒计时归零）：结束后改文案并隐藏秒杀，避免"过期还显抢购中"
+// 【必须同步初始化】否则首帧 ended=false 会挂载秒杀区的 scroll-view(scroll-x)，
+// 随后 onMounted 里 tickCountdown() 把 ended 翻 true 又立刻卸载它，
+// uni scroll-view 排在 nextTick 的 _scrollLeftChanged 执行时 main ref 已为 null
+// → "Cannot set properties of null (setting 'scrollLeft')"。同步定态即杜绝该竞态。
+const ended = ref(new Date(config.endTime).getTime() <= Date.now())
 
 let cdTimer: ReturnType<typeof setInterval> | null = null
 let bannerTimer: ReturnType<typeof setInterval> | null = null
@@ -363,12 +370,18 @@ function tickCountdown() {
   const end = new Date(config.endTime).getTime()
   const diff = end - now
   if (diff > 0) {
+    ended.value = false
     countdown.value = {
       days: Math.floor(diff / 86400000),
       hours: Math.floor((diff % 86400000) / 3600000),
       minutes: Math.floor((diff % 3600000) / 60000),
       seconds: Math.floor((diff % 60000) / 1000),
     }
+  } else {
+    // 已结束：归零 + 置结束态，并停止滴答
+    ended.value = true
+    countdown.value = { days: 0, hours: 0, minutes: 0, seconds: 0 }
+    if (cdTimer) { clearInterval(cdTimer); cdTimer = null }
   }
 }
 
@@ -524,6 +537,11 @@ onUnmounted(() => {
 .cd-unit, .cd-colon {
   font-size: 28rpx;
   color: #1A1A1A;
+}
+.cd-ended-txt {
+  font-size: 26rpx;
+  font-weight: 600;
+  color: var(--brand);
 }
 .rules-card {
   border-radius: 16rpx;
@@ -909,21 +927,27 @@ onUnmounted(() => {
   color: #999;
 }
 .bottom-space {
-  height: 140rpx;
+  height: calc(160rpx + env(safe-area-inset-bottom));
 }
 .share-bar {
   position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
+  /* z-index 必须给：uni-app 的 scroll-view 用 transform 实现滚动会建立堆叠上下文，
+     无 z-index 的 fixed 底栏会被 scroll-view 内容(商品价格)盖过 → 视觉像"透明重叠" */
+  z-index: 55;
   height: 112rpx;
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 32rpx;
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(10px);
+  /* 不透明实底，杜绝与页面商品价格文字穿插 */
+  background: #FFFFFF;
   border-top: 2rpx solid #EEEEEE;
+  box-shadow: 0 -2rpx 12rpx rgba(0, 0, 0, 0.05);
+  padding-bottom: env(safe-area-inset-bottom);
+  box-sizing: content-box;
 }
 .share-bar-sub {
   font-size: 22rpx;

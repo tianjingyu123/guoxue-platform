@@ -14,8 +14,8 @@
     </view>
 
     <view class="detail-main">
-      <!-- 封面 -->
-      <image lazy-load v-if="notice.cover" :src="notice.cover" class="detail-cover" mode="aspectFill" />
+      <!-- 封面：无相关配图时用主题化书法banner兜底（原为无关英文税表stock图，图文不符） -->
+      <smart-cover class="detail-cover" :src="notice.cover" :title="notice.title" type="default" deco :deco-size="88" />
 
       <!-- 标题区 -->
       <view class="title-block">
@@ -112,6 +112,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
+import SmartCover from '@/components/common/smart-cover.vue'
 import { navigateBack } from '@/utils/router'
 import { BRAND } from '@/lib/brand'
 
@@ -142,7 +143,7 @@ const notice = ref({
   id: 1,
   type: 'system' as NoticeType,
   title: '关于平台账号实名认证升级的通知',
-  cover: 'https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=600&q=80',
+  cover: '',
   isPinned: true,
   publishedAt: '2025-11-08 10:30',
   viewCount: 23568,
@@ -182,7 +183,7 @@ onLoad(() => {
 .detail-page {
   min-height: 100vh;
   background-color: #F9FAFB;
-  padding-bottom: 160rpx;
+  padding-bottom: calc(200rpx + env(safe-area-inset-bottom));
 }
 
 .nav-bar {
@@ -220,6 +221,7 @@ onLoad(() => {
   width: 100%;
   height: 320rpx;
   border-radius: 20rpx;
+  overflow: hidden;
   background-color: #F3F4F6;
   margin-bottom: 32rpx;
 }

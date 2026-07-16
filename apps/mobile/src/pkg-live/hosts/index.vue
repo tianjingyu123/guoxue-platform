@@ -20,14 +20,18 @@ const loading = ref(true)
 const error = ref('')
 const list = ref<LiveHost[]>([])
 
-const filtered = computed<LiveHost[]>(() =>
-  list.value.filter((h) => {
+const filtered = computed<LiveHost[]>(() => {
+  // 后端可能返回重复主播（同 id 雷同数据）→ 前端按 id 去重，避免"三张卡全是同一人"
+  const seen = new Set<string>()
+  return list.value.filter((h) => {
+    if (seen.has(h.id)) return false
+    seen.add(h.id)
     const matchFilter = filter.value === 'all' ? true : filter.value === 'live' ? h.isLive : false
     const kw = search.value.trim()
     const matchSearch = !kw || h.name.includes(kw) || h.specialty.includes(kw) || h.tags.some((t) => t.includes(kw))
     return matchFilter && matchSearch
-  }),
-)
+  })
+})
 
 async function fetchData() {
   loading.value = true
@@ -47,10 +51,12 @@ function open(id: string) {
   navigateTo(`/live/${id}`)
 }
 function fmtFollowers(n: number) {
-  return (n / 1000).toFixed(0) + 'k'
+  if (!n || n < 0) return '0'
+  return n < 1000 ? String(n) : (n / 1000).toFixed(1).replace(/\.0$/, '') + 'k'
 }
 function fmtLikes(n: number) {
-  return (n / 10000).toFixed(0) + 'w'
+  if (!n || n < 0) return '0'
+  return n < 10000 ? String(n) : (n / 10000).toFixed(1).replace(/\.0$/, '') + 'w'
 }
 </script>
 

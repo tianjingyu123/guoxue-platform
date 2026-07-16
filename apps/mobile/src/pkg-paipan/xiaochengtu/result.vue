@@ -11,6 +11,7 @@
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import ToolHeader from '@/components/paipan/tool-header.vue'
+import ParamError from '@/components/paipan/param-error.vue'
 import PaperCard from '@/components/paipan/paper-card.vue'
 import SectionTitle from '@/components/paipan/section-title.vue'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
@@ -145,22 +146,7 @@ function isRising(gua: string) { return RISING.has(gua) }
     />
 
     <!-- 参数无效 -->
-    <view
-      v-if="invalid"
-      class="invalid"
-    >
-      <text class="invalid-text">
-        参数无效，请重新起卦
-      </text>
-      <view
-        class="invalid-btn"
-        @tap="navigateTo('/pkg-paipan/xiaochengtu/index')"
-      >
-        <text class="invalid-btn-text">
-          返回起卦
-        </text>
-      </view>
-    </view>
+    <param-error v-if="invalid" text="参数无效，请重新起卦" action-text="返回起卦" @action="navigateTo('/pkg-paipan/xiaochengtu/index')" />
 
     <scroll-view
       v-else-if="result && sel"
@@ -464,14 +450,7 @@ function isRising(gua: string) { return RISING.has(gua) }
 .body { flex: 1; height: 0; }
 .inner { padding: 24rpx 32rpx 96rpx; display: flex; flex-direction: column; gap: 28rpx; }
 
-/* ── 参数无效 ── */
-.invalid { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 28rpx; padding: 48rpx; }
-.invalid-text { font-size: 26rpx; color: var(--text-soft); }
-.invalid-btn {
-  padding: 16rpx 48rpx; border-radius: 999rpx; background: var(--brand);
-  &:active { opacity: 0.8; }
-}
-.invalid-btn-text { font-size: 26rpx; font-weight: 700; color: #fff; }
+/* 缺参空态样式已抽至 @/components/paipan/param-error.vue */
 
 /* ── 盘面信息表 ── */
 .info { border-radius: 24rpx; overflow: hidden; }

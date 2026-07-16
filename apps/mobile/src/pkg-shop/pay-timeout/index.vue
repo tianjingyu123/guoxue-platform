@@ -106,7 +106,7 @@ function goOrder() { navigateTo(`/orders/${orderId.value}`) }
 </script>
 
 <style lang="scss" scoped>
-.pay-timeout { min-height: 100vh; background: #FAF8F5; padding-bottom: 280rpx; }
+.pay-timeout { min-height: 100vh; background: #FAF8F5; padding-bottom: calc(320rpx + env(safe-area-inset-bottom)); }
 .hero {
   background: linear-gradient(180deg, #FB923C 0%, #F97316 100%);
   padding: 64rpx 32rpx 160rpx;

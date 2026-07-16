@@ -10,6 +10,7 @@
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import ToolHeader from '@/components/paipan/tool-header.vue'
+import ParamError from '@/components/paipan/param-error.vue'
 import SectionTitle from '@/components/paipan/section-title.vue'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
 import AppIcon from '@/components/common/app-icon.vue'
@@ -133,12 +134,7 @@ const xunshouText = computed(() => result.value?.chart.xunshou.name.slice(0, 2) 
     />
 
     <!-- 参数无效 -->
-    <view v-if="invalid" class="invalid">
-      <text class="invalid-text">参数无效，请重新排盘</text>
-      <view class="invalid-btn" @tap="navigateTo('/pkg-paipan/shanxiang/index')">
-        <text class="invalid-btn-text">返回起盘</text>
-      </view>
-    </view>
+    <param-error v-if="invalid" text="参数无效，请重新排盘" action-text="返回起盘" @action="navigateTo('/pkg-paipan/shanxiang/index')" />
 
     <scroll-view v-else-if="result" scroll-y class="body">
       <!-- 盘面信息表 -->
@@ -252,15 +248,7 @@ const xunshouText = computed(() => result.value?.chart.xunshou.name.slice(0, 2) 
 .page { min-height: 100vh; background: var(--bg-paper); display: flex; flex-direction: column; }
 .body { flex: 1; height: 0; }
 
-/* ── 参数无效 ── */
-.invalid { padding: 160rpx 48rpx; display: flex; flex-direction: column; align-items: center; gap: 32rpx; }
-.invalid-text { font-size: 28rpx; color: var(--text-soft); }
-.invalid-btn {
-  padding: 20rpx 64rpx; border-radius: 999rpx;
-  background: var(--brand);
-  &:active { opacity: 0.9; }
-}
-.invalid-btn-text { font-size: 28rpx; font-weight: 700; color: #fff; }
+/* 缺参空态样式已抽至 @/components/paipan/param-error.vue */
 
 /* ── 盘面信息表 ── */
 .info { background: var(--card); border-bottom: 1rpx solid var(--line); }

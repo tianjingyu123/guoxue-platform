@@ -113,7 +113,7 @@
     <view class="vp__actions">
       <!-- 作者头像（点头像进作者主页；加号关注·成功变√） -->
       <view class="vp__avatar-wrap" @tap.stop="goAuthor">
-        <image lazy-load class="vp__avatar" :src="currentVideo.author.avatar" mode="aspectFill" />
+        <smart-avatar class="vp__avatar" :src="currentVideo.author.avatar" :name="currentVideo.author.name" />
         <view
           class="vp__follow-plus"
           :class="{ 'vp__follow-plus--ok': currentVideo.author.isFollowed }"
@@ -364,6 +364,7 @@
 import { ref, computed, watch, getCurrentInstance, nextTick } from 'vue'
 import { onLoad, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
+import SmartAvatar from '@/components/common/smart-avatar.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { useShare } from '@/composables/useShare'
 import { withRef } from '@/utils/referral'
