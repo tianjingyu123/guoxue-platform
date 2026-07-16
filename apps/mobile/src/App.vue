@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onLaunch, onShow, onHide, onError } from '@dcloudio/uni-app'
+import { onLaunch, onShow, onHide, onError, onPageNotFound } from '@dcloudio/uni-app'
 import { track } from '@/composables/useTrack'
 import { initWebVitals } from '@/composables/useWebVitals'
 import { captureRefFromQuery, captureRefFromUrl } from '@/utils/referral'
@@ -96,6 +96,12 @@ onError((err) => {
   } catch {
     /* 上报失败不影响主流程 */
   }
+})
+// 全局路由兜底：访问不存在/已退役的页面路径（错误 URL、被删的旧路由）时，
+// 回首页而非留白屏（uni onPageNotFound 在 H5 亦触发；首页路径恒存在，不会循环）。
+onPageNotFound((res) => {
+  try { track.custom('page_not_found', { path: res?.path || '' }) } catch { /* 上报失败不影响兜底 */ }
+  uni.reLaunch({ url: '/pages/index/index' })
 })
 </script>
 
