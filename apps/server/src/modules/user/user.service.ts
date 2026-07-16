@@ -1,4 +1,5 @@
 import { Injectable, Logger } from "@nestjs/common";
+import { Cron, CronExpression } from "@nestjs/schedule";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
@@ -717,6 +718,37 @@ export class UserService {
   }
 
   /** 执行账号注销：匿名化个人数据、禁用账号、保留交易记录用于审计 */
+  /**
+   * 每日凌晨扫描冷静期已过的注销申请并自动执行（分布式锁防多实例·批量上限防跑飞）。
+   * 修复(后端审计#7)：deleteScheduledAt 原只被 admin 手动端点消费,无 Cron→「7天后自动注销」永不发生。
+   * 安全:executeAccountDeletion 是软匿名化(置 DISABLED+清 PII+审计)非硬删除;扫描条件带 status!=DISABLED
+   * 天然幂等(已注销的下轮不再命中);单轮上限 200 防异常批量;逐个 try/catch 单条失败不连累其余。
+   */
+  @Cron(CronExpression.EVERY_DAY_AT_1AM)
+  async autoExecuteScheduledDeletions() {
+    await this.redis.runExclusive("account_auto_deletion", 600, async () => {
+      const due = await this.prisma.user.findMany({
+        where: {
+          deleteScheduledAt: { lte: new Date() },
+          deleteRequestedAt: { not: null },
+          status: { not: "DISABLED" }, // 已匿名化(DISABLED)的不重复处理
+        },
+        select: { id: true },
+        take: 200,
+      });
+      let done = 0;
+      for (const u of due) {
+        try {
+          await this.executeAccountDeletion(u.id);
+          done++;
+        } catch (err) {
+          this.logger.warn(`自动注销失败 [${u.id}]`, err instanceof Error ? err.message : err);
+        }
+      }
+      if (done > 0) this.logger.log(`冷静期到期自动注销: ${done}/${due.length} 个账号`);
+    });
+  }
+
   async executeAccountDeletion(userId: string) {
     const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { deleteRequestedAt: true, status: true } });
     if (!user) throw new BusinessException(ErrorCode.USER_NOT_FOUND, "用户不存在");

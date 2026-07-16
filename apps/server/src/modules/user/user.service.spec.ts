@@ -12,6 +12,7 @@ const mockRedis = {
   del: jest.fn().mockResolvedValue(undefined),
   getJson: jest.fn().mockResolvedValue(null),
   setJson: jest.fn().mockResolvedValue(undefined),
+  runExclusive: jest.fn((_n: string, _t: number, fn: () => Promise<unknown>) => fn()),
 };
 
 const mockPrisma = {
@@ -654,6 +655,28 @@ describe("UserService", () => {
     it("用户未申请注销不能执行", async () => {
       mockPrisma.user.findUnique.mockResolvedValue({ deleteRequestedAt: null, status: "ACTIVE" });
       await expect(svc.executeAccountDeletion("u1")).rejects.toThrow("未申请注销");
+    });
+  });
+
+  describe("autoExecuteScheduledDeletions cron (#7)", () => {
+    it("扫冷静期到期(status!=DISABLED)并逐个执行·经runExclusive互斥", async () => {
+      mockPrisma.user.findMany.mockResolvedValueOnce([{ id: "u1" }, { id: "u2" }]);
+      // executeAccountDeletion 内部 findUnique 需返回已申请注销
+      mockPrisma.user.findUnique.mockResolvedValue({ deleteRequestedAt: new Date(), status: "ACTIVE" });
+
+      await svc.autoExecuteScheduledDeletions();
+
+      expect(mockRedis.runExclusive).toHaveBeenCalledWith("account_auto_deletion", 600, expect.any(Function));
+      // 扫描条件：deleteScheduledAt<=now + deleteRequestedAt非空 + status!=DISABLED + 上限200
+      expect(mockPrisma.user.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            deleteScheduledAt: expect.objectContaining({ lte: expect.any(Date) }),
+            status: { not: "DISABLED" },
+          }),
+          take: 200,
+        }),
+      );
     });
   });
 });
