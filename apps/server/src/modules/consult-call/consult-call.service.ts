@@ -1,6 +1,8 @@
 import { Injectable, Logger } from "@nestjs/common";
+import { Cron, CronExpression } from "@nestjs/schedule";
 import { randomUUID } from "crypto";
 import { PrismaService } from "../../prisma/prisma.service";
+import { RedisService } from "../../redis/redis.service";
 import { CoinService } from "../coin/coin.service";
 import { RevenueService } from "../revenue/revenue.service";
 import { BusinessException } from "../../common/business.exception";
@@ -20,11 +22,49 @@ export class ConsultCallService {
   private readonly logger = new Logger(ConsultCallService.name);
   private readonly PREPAY_MINUTES = 10; // 预扣额度（分钟）
 
+  /** 未接通超时阈值：WAITING 超过此时长仍未被 accept → 视为未接通，全额退还预扣金币 */
+  private readonly WAITING_TIMEOUT_MS = 10 * 60 * 1000;
+
   constructor(
     private prisma: PrismaService,
+    private redis: RedisService,
     private coin: CoinService,
     private revenue: RevenueService,
   ) {}
+
+  /**
+   * 每 5 分钟自动退款「超时未接通」的通话（分布式锁防多实例·上限 200）。
+   * 修复(后端审计·缺cron)：达人不接听则 WAITING 恒挂、发起方预扣金币滞留,原仅靠双方手动 cancel。
+   * 复用 cancel 的原子退款逻辑(CAS: WHERE status='WAITING')但走系统身份、无 userId 校验;
+   * 退的是预扣金币(虚拟币)。CAS 保证若期间被 accept(→ONGOING)/cancel 则 claimed=0 跳过,不误退进行中通话。
+   */
+  @Cron(CronExpression.EVERY_5_MINUTES)
+  async refundStaleWaitingCallsCron() {
+    await this.redis.runExclusive("consult_call_refund_stale_waiting", 300, async () => {
+      const cutoff = new Date(Date.now() - this.WAITING_TIMEOUT_MS);
+      const stale = await this.prisma.$queryRawUnsafe<any[]>(
+        `SELECT "id","callerId","prepaidCoin" FROM "ConsultCall" WHERE "status"='WAITING' AND "createdAt" < $1 LIMIT 200`,
+        cutoff,
+      );
+      let refunded = 0;
+      for (const call of stale) {
+        try {
+          await this.prisma.$transaction(async (tx) => {
+            const claimed = await tx.$executeRawUnsafe(
+              `UPDATE "ConsultCall" SET "status"='MISSED', "endAt"=CURRENT_TIMESTAMP, "refundedCoin"=$2 WHERE "id"=$1 AND "status"='WAITING'`,
+              call.id, call.prepaidCoin,
+            );
+            if (claimed === 0) return; // 期间已被接听/取消,不重复退
+            await this.coin.refund(call.callerId, call.prepaidCoin, `通话超时未接通全额退还（通话ID ${call.id}）`, tx);
+          });
+          refunded++;
+        } catch (err) {
+          this.logger.warn(`通话超时退款失败 [${call.id}]`, err instanceof Error ? err.message : err);
+        }
+      }
+      if (refunded > 0) this.logger.log(`通话超时未接通自动退款: ${refunded}/${stale.length} 笔`);
+    });
+  }
 
   private async getCall(id: string): Promise<any> {
     const rows = await this.prisma.$queryRawUnsafe<any[]>(`SELECT * FROM "ConsultCall" WHERE "id" = $1`, id);

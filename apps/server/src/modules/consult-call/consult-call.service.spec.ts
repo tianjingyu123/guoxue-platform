@@ -10,6 +10,7 @@ describe("ConsultCallService · 评价与账单申诉", () => {
   let prisma: { $queryRawUnsafe: jest.Mock; $executeRawUnsafe: jest.Mock; $transaction: jest.Mock };
   let coin: { spend: jest.Mock; refund: jest.Mock };
   let revenue: { record: jest.Mock; settleLedger: jest.Mock };
+  let redis: { runExclusive: jest.Mock };
   let svc: ConsultCallService;
 
   /** 一条刚结束 1 小时的已结算通话（在 24h 窗口内） */
@@ -33,7 +34,8 @@ describe("ConsultCallService · 评价与账单申诉", () => {
     };
     coin = { spend: jest.fn(), refund: jest.fn() };
     revenue = { record: jest.fn(), settleLedger: jest.fn().mockResolvedValue(undefined) };
-    svc = new ConsultCallService(prisma as any, coin as any, revenue as any);
+    redis = { runExclusive: jest.fn((_n: string, _t: number, fn: () => Promise<unknown>) => fn()) };
+    svc = new ConsultCallService(prisma as any, redis as any, coin as any, revenue as any);
   });
 
   const mockGetCall = (call: Record<string, unknown>) => prisma.$queryRawUnsafe.mockResolvedValueOnce([call]);
@@ -152,5 +154,28 @@ describe("ConsultCallService · 评价与账单申诉", () => {
   it("处理申诉：非 PENDING（已处理/未申诉）→ 拒绝", async () => {
     mockGetCall({ ...endedCall(), disputeStatus: "RESOLVED" });
     await expect(svc.resolveDispute("admin-1", "call-1", { status: "REJECTED" })).rejects.toThrow("该申诉不在待处理状态");
+  });
+
+  // ───────── 超时未接通自动退款 cron ─────────
+
+  it("refundStaleWaitingCallsCron：扫 WAITING 超时→CAS 置 MISSED 并退金币·经 runExclusive", async () => {
+    prisma.$queryRawUnsafe.mockResolvedValueOnce([{ id: "call-1", callerId: "u1", prepaidCoin: 100 }]);
+    const tx = { $executeRawUnsafe: jest.fn().mockResolvedValue(1) };
+    prisma.$transaction.mockImplementation((fn: any) => fn(tx));
+
+    await svc.refundStaleWaitingCallsCron();
+
+    expect(redis.runExclusive).toHaveBeenCalledWith("consult_call_refund_stale_waiting", 300, expect.any(Function));
+    expect(tx.$executeRawUnsafe.mock.calls[0][0]).toContain(`"status"='MISSED'`);
+    expect(coin.refund).toHaveBeenCalledWith("u1", 100, expect.stringContaining("超时未接通"), tx);
+  });
+
+  it("refundStaleWaitingCallsCron：期间已被接听(claimed=0)→不退款(防误退进行中通话)", async () => {
+    prisma.$queryRawUnsafe.mockResolvedValueOnce([{ id: "call-1", callerId: "u1", prepaidCoin: 100 }]);
+    const tx = { $executeRawUnsafe: jest.fn().mockResolvedValue(0) };
+    prisma.$transaction.mockImplementation((fn: any) => fn(tx));
+
+    await svc.refundStaleWaitingCallsCron();
+    expect(coin.refund).not.toHaveBeenCalled();
   });
 });
