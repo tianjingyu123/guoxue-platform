@@ -47,12 +47,8 @@
         <view v-if="tab === 'profile'" class="cs-section">
           <view class="cs-avatar-box">
             <view class="cs-avatar-wrap" hover-class="cs-hover" @tap="onEditAvatar">
-              <image
-                lazy-load
-                class="cs-avatar"
-                :src="profile.avatar || ('https://api.dicebear.com/7.x/notionists/svg?seed=' + encodeURIComponent(profile.nickname || 'creator'))"
-                mode="aspectFill"
-              />
+              <!-- 头像本地兜底：原 dicebear 外部URL H5 挡掉即空白（2026-07-16 深度走查修） -->
+              <smart-avatar class="cs-avatar" :src="profile.avatar" :name="profile.nickname || '创'" />
               <view class="cs-avatar-edit"><AppIcon name="upload" :size="12" color="#ffffff" /></view>
             </view>
             <text class="cs-avatar-tip">点击头像更换</text>
@@ -166,6 +162,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import SmartAvatar from '@/components/common/smart-avatar.vue'
 import { goBack } from '@/utils/router'
 import { creatorApi } from '@/lib/creator-data'
 

@@ -4,6 +4,7 @@ import { ref, computed } from 'vue'
 import { onLoad, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 import { useShare } from '@/composables/useShare'
 import AppIcon from '@/components/common/app-icon.vue'
+import SmartCover from '@/components/common/smart-cover.vue'
 import { navigateBack, navigateTo } from '@/utils/router'
 import { shopApi } from '@/lib/shop-data'
 import { track } from '@/composables/useTrack'
@@ -90,6 +91,9 @@ const previewReviews = computed(() => {
 })
 
 function onSwiperChange(e: { detail: { current: number } }) { swiperIndex.value = e.detail.current }
+// 主图加载失败（存量商品常有 /static/xxx.jpg 坏链）→ 该张切书法兜底，绝不留白
+const failedImages = ref<Set<number>>(new Set())
+function onImgError(i: number) { const s = new Set(failedImages.value); s.add(i); failedImages.value = s }
 function selectSpec(name: string, id: string) { selectedSpecs.value = { ...selectedSpecs.value, [name]: id } }
 function openSpecPanel(action: 'cart' | 'buy') { specAction.value = action; showSpecPanel.value = true }
 async function addToCart() {
@@ -162,17 +166,20 @@ async function toggleFavorite() {
     <view class="carousel">
       <view class="nav-btn nav-back" @tap="navigateBack()"><AppIcon name="chevron-left" :size="40" color="#1f1f1f" /></view>
       <view class="nav-btn nav-share"><AppIcon name="share-2" :size="32" color="#1f1f1f" /></view>
-      <swiper class="swiper" circular @change="onSwiperChange">
+      <swiper v-if="product.images && product.images.length" class="swiper" circular @change="onSwiperChange">
         <swiper-item v-for="(src, i) in product.images" :key="i">
           <view class="slide">
-            <image lazy-load class="slide-img" :src="src" mode="aspectFill" />
+            <image v-if="!failedImages.has(i)" lazy-load class="slide-img" :src="src" mode="aspectFill" @error="onImgError(i)" />
+            <smart-cover v-else class="slide-img" :src="''" :title="product.title" type="product" deco :deco-size="120" />
             <view v-if="i === 0 && product.hasVideo" class="play-wrap">
               <view class="play-btn"><AppIcon name="play" :size="48" color="#1f1f1f" /></view>
             </view>
           </view>
         </swiper-item>
       </swiper>
-      <view class="indicator">{{ swiperIndex + 1 }} / {{ product.images.length }}</view>
+      <!-- 无主图兜底：书法水印生成图，绝不留顶部空白大灰框（2026-07-16 深度走查修） -->
+      <smart-cover v-else class="swiper" :src="''" :title="product.title" type="product" deco :deco-size="120" />
+      <view v-if="product.images && product.images.length > 1" class="indicator">{{ swiperIndex + 1 }} / {{ product.images.length }}</view>
     </view>
 
     <!-- 价格区 -->
@@ -191,7 +198,8 @@ async function toggleFavorite() {
         <text>销量 {{ product.sales }}</text>
         <text>库存 {{ product.stock }}</text>
       </view>
-      <view class="coupon-entry">
+      <!-- 优惠券仅在有真实面额时露出：coupon 目前是占位 {0,0}，无券不再显示"满0减0"骗用户（2026-07-16 修） -->
+      <view v-if="product.coupon && product.coupon.value > 0" class="coupon-entry">
         <view class="coupon-left">
           <text class="coupon-badge">券</text>
           <text class="coupon-text">满{{ formatPrice(product.coupon.threshold) }}减{{ formatPrice(product.coupon.value) }}</text>
@@ -298,7 +306,7 @@ async function toggleFavorite() {
     <view v-if="showSpecPanel" class="mask" @tap="showSpecPanel = false" />
     <view v-if="showSpecPanel" class="spec-panel">
       <view class="sp-head">
-        <view class="sp-thumb"><image lazy-load class="sp-thumb-img" :src="product.images[0]" mode="aspectFill" /></view>
+        <view class="sp-thumb"><smart-cover class="sp-thumb-img" :src="product.images && product.images[0]" :title="product.title" type="product" deco :deco-size="36" /></view>
         <view class="sp-info">
           <text class="sp-price">¥{{ formatPrice(currentPrice) }}</text>
           <text class="sp-stock">库存 {{ currentStock }} 件</text>

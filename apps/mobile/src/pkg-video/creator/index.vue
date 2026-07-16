@@ -52,11 +52,8 @@
         <view class="cc-body">
           <!-- ===== 头部：头像 + 昵称 + 认证头衔 ===== -->
           <view class="cc-head">
-            <image
-              class="cc-avatar"
-              :src="profile.avatar || ('https://api.dicebear.com/7.x/notionists/svg?seed=' + encodeURIComponent(profile.nickname))"
-              mode="aspectFill"
-            />
+            <!-- 头像本地兜底：原用 dicebear 外部URL，H5 网络/CSP 挡掉即空白圆圈（2026-07-16 深度走查修） -->
+            <smart-avatar class="cc-avatar" :src="profile.avatar" :name="profile.nickname || '创'" />
             <view class="cc-head-info">
               <text class="cc-name">{{ profile.nickname }}</text>
               <view v-if="verifiedTitle" class="cc-badge">
@@ -272,6 +269,7 @@
 import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import SmartCover from '@/components/common/smart-cover.vue'
+import SmartAvatar from '@/components/common/smart-avatar.vue'
 import { navigateTo, goBack } from '@/utils/router'
 import {
   creatorApi,

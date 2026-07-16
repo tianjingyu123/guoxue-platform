@@ -7,6 +7,7 @@
 import { ref, reactive } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
+import SmartCover from '@/components/common/smart-cover.vue'
 import VisibilitySettings, { type Visibility, type PaymentType } from '@/components/circle/visibility-settings.vue'
 import { goBack, navigateTo, reLaunch } from '@/utils/router'
 import { circleDetailApi } from '@/lib/circle-detail-data'
@@ -226,7 +227,8 @@ async function submitCourse() {
     <scroll-view scroll-y class="cr-body">
       <!-- 圈子信息 -->
       <view class="cr-circle">
-        <image lazy-load :src="`https://api.dicebear.com/7.x/shapes/svg?seed=${circle.id}`" class="cr-circle-avatar" mode="aspectFill" />
+        <!-- 圈子头像本地兜底：原 dicebear 外部URL H5 挡掉即空白（2026-07-16 深度走查修）·circle 无 cover 字段直接走书法水印 -->
+        <smart-cover :src="''" :title="circle.name" type="circle" deco :deco-size="30" class="cr-circle-avatar" />
         <view class="cr-circle-info">
           <text class="cr-circle-name">{{ circle.name }}</text>
           <text class="cr-circle-members">{{ circle.members.toLocaleString() }} 成员</text>
