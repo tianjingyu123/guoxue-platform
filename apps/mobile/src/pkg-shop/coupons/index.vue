@@ -24,9 +24,7 @@
 
     <!-- 加载中 -->
     <view v-if="loading" class="body">
-      <view class="empty">
-        <text class="empty-text">加载中...</text>
-      </view>
+      <AppLoading />
     </view>
 
     <!-- 错误 -->
@@ -87,6 +85,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { goBack, navigateTo } from '@/utils/router'
 import CouponItem from '@/components/shop/coupon-item.vue'
+import AppLoading from '@/components/common/app-loading.vue'
 import {
   couponApi,
   couponTabs,

@@ -3,6 +3,7 @@
  *  点击笔记跳转对应书籍详情。三态齐全。 */
 import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppLoading from '@/components/common/app-loading.vue'
 import { navigateBack, navigateTo } from '@/utils/router'
 import { mineApi, type NoteItem, type NoteSource } from '@/lib/mine-data'
 
@@ -72,7 +73,7 @@ function openNote(n: NoteItem) {
 
     <!-- 加载中 -->
     <view v-if="isLoading" class="state">
-      <text class="state-t">加载中…</text>
+      <AppLoading />
     </view>
     <!-- 错误 -->
     <view v-else-if="error" class="state">

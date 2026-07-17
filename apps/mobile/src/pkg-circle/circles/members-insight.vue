@@ -18,7 +18,7 @@
 
       <!-- Loading -->
       <view v-if="loading" class="mi-state">
-        <text class="mi-state-txt">加载中...</text>
+        <AppLoading />
       </view>
 
       <!-- Error：无权限走提示态，其余走重试 -->
@@ -115,6 +115,7 @@ import { onLoad } from '@dcloudio/uni-app'
 import { ref, computed } from 'vue'
 import AppNavBar from '@/components/common/app-nav-bar.vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppLoading from '@/components/common/app-loading.vue'
 import AppLoadMore from '@/components/common/app-load-more.vue'
 import { useList } from '@/composables/useList'
 import {

@@ -7,6 +7,7 @@
  */
 import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppLoading from '@/components/common/app-loading.vue'
 import SmartCover from '@/components/common/smart-cover.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { circleApi, formatMembers, type RankingCircle, type RankSortBy } from '@/lib/circle-data'
@@ -73,7 +74,7 @@ onMounted(load)
     </view>
 
     <!-- 加载 / 错误 / 空 三态 -->
-    <view v-if="loading" class="rk-state"><text class="rk-state-txt">加载中…</text></view>
+    <view v-if="loading" class="rk-state"><AppLoading /></view>
     <view v-else-if="error" class="rk-state">
       <text class="rk-state-txt">{{ error }}</text>
       <view class="rk-state-btn" @tap="load">重试</view>

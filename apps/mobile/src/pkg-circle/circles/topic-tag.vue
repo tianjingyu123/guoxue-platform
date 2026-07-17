@@ -38,8 +38,7 @@
 
     <!-- loading -->
     <view v-if="loading" class="state">
-      <app-icon name="loader-2" :size="40" color="#C41E3A" class="spin" />
-      <text class="state-txt">加载中...</text>
+      <AppLoading />
     </view>
 
     <!-- error -->
@@ -100,6 +99,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { navigateBack, navigateTo } from '@/utils/router'
+import AppLoading from '@/components/common/app-loading.vue'
 import { tagApi, type TagContentItem } from '@/lib/article-data'
 
 const statusBarHeight = ref(20)

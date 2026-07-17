@@ -11,6 +11,7 @@ import { ref, computed } from 'vue'
 import { onLoad, onShow, onUnload, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 import { useShare } from '@/composables/useShare'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppLoading from '@/components/common/app-loading.vue'
 import SmartCover from '@/components/common/smart-cover.vue'
 import SmartAvatar from '@/components/common/smart-avatar.vue'
 import PostCard from '@/components/circle/post-card.vue'
@@ -515,7 +516,7 @@ function openShowcase() { navigateTo('/pkg-mall/home/index') }
           <app-icon name="shield" :size="28" color="#C41E3A" />
           <text class="qa-trust-t">平台托管：48 小时未回复自动全额退还</text>
         </view>
-        <view v-if="qaLoading" class="empty"><text class="empty-txt">加载中…</text></view>
+        <view v-if="qaLoading" class="empty"><AppLoading /></view>
         <template v-else-if="qaExperts.length">
           <view v-for="e in qaExperts" :key="e.id" class="qa-card">
             <smart-avatar :src="e.avatar" :name="e.name || ''" class="qa-avatar" />

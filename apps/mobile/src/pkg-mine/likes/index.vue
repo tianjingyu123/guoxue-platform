@@ -2,6 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppLoading from '@/components/common/app-loading.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import {
   mineApi,
@@ -117,7 +118,7 @@ function goHome() {
     <!-- 列表区域 -->
     <view class="list" :style="{ paddingTop: statusBarHeight + 56 + 49 + 12 + 'px' }">
       <!-- 加载 -->
-      <view v-if="loading" class="state-box"><text class="state-text">加载中...</text></view>
+      <view v-if="loading" class="state-box"><AppLoading /></view>
       <!-- 错误 -->
       <view v-else-if="error" class="state-box">
         <text class="state-text">{{ error }}</text>

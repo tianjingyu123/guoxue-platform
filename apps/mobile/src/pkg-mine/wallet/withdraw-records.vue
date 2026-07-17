@@ -10,6 +10,7 @@ import { ref, computed, onMounted } from 'vue'
 import { onReachBottom } from '@dcloudio/uni-app'
 import AppNavBar from '@/components/common/app-nav-bar.vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppLoading from '@/components/common/app-loading.vue'
 import AppLoadMore from '@/components/common/app-load-more.vue'
 import { goBack } from '@/utils/router'
 import { mineApi, type WithdrawRecord } from '@/lib/mine-data'
@@ -127,7 +128,7 @@ async function confirmReceive(r: WithdrawRecord) {
   <view class="page">
     <app-nav-bar title="提现记录" back-icon="arrow-left" @back="goBack" />
 
-    <view v-if="loading" class="state"><text>加载中...</text></view>
+    <view v-if="loading" class="state"><AppLoading /></view>
     <view v-else-if="error" class="state">
       <text>{{ error }}</text>
       <view class="retry-btn" @tap="loadData">重试</view>

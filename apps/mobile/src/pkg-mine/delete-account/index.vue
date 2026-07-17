@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppLoading from '@/components/common/app-loading.vue'
 import { goBack, redirectTo } from '@/utils/router'
 import { mineApi } from '@/lib/mine-data'
 import { formatPrice } from '@/utils/format'
@@ -95,7 +96,7 @@ async function doDelete() {
     </view>
 
     <!-- 个人信息加载/错误 -->
-    <view v-if="profileLoading" class="loading"><text>加载中...</text></view>
+    <view v-if="profileLoading" class="loading"><AppLoading /></view>
     <view v-else-if="profileError" class="error-state"><text>{{ profileError }}</text><view class="retry-btn" @tap="retryProfile">重试</view></view>
     <scroll-view v-else scroll-y class="scroll">
       <!-- Step 1: 须知 -->

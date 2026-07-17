@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppLoading from '@/components/common/app-loading.vue'
 import { navigateTo, toastComingSoon } from '@/utils/router'
 import { clearToken, clearRefreshToken, clearUserInfo } from '@/utils/storage'
 import { mineApi, type SettingNotifyItem } from '@/lib/mine-data'
@@ -178,7 +179,7 @@ function handleLogout() {
     <!-- 顶部导航 -->
     <app-nav-bar title="设置" />
 
-    <view v-if="loading" class="loading"><text>加载中...</text></view>
+    <view v-if="loading" class="loading"><AppLoading /></view>
     <view v-else-if="error" class="error-state">
       <text>{{ error }}</text>
       <view class="retry-btn" @tap="retry">重试</view>

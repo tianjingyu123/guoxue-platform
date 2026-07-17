@@ -76,8 +76,7 @@
       <view class="list">
         <!-- loading -->
         <view v-if="loading" class="state">
-          <AppIcon name="loader-2" :size="28" color="#C41E3A" class="spin" />
-          <text class="state-text">加载中...</text>
+          <AppLoading />
         </view>
 
         <!-- error -->
@@ -150,6 +149,7 @@
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppLoading from '@/components/common/app-loading.vue'
 import AiSearchModal from '@/components/common/ai-search-modal.vue'
 import SmartCover from '@/components/common/smart-cover.vue'
 import SmartAvatar from '@/components/common/smart-avatar.vue'
@@ -452,14 +452,6 @@ function formatDate(dateStr: string) {
 .retry-text {
   font-size: 26rpx;
   color: #fff;
-}
-.spin {
-  animation: spin 1s linear infinite;
-}
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
 }
 .article-card {
   display: flex;

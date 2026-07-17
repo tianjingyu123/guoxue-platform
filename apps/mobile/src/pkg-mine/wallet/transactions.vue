@@ -2,6 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { onReachBottom } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppLoading from '@/components/common/app-loading.vue'
 import AppLoadMore from '@/components/common/app-load-more.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import {
@@ -266,7 +267,7 @@ function closePickers() {
     </view>
 
     <!-- 加载/错误/列表 -->
-    <view v-if="loading" class="loading"><text>加载中...</text></view>
+    <view v-if="loading" class="loading"><AppLoading /></view>
     <view v-else-if="error" class="error-state">
       <text>{{ error }}</text>
       <view class="retry-btn" @tap="retry">重试</view>

@@ -46,7 +46,7 @@
       <view class="list">
         <!-- 加载态 -->
         <view v-if="loading" class="empty">
-          <text class="empty-txt">加载中...</text>
+          <AppLoading />
         </view>
         <!-- 错误态 -->
         <view v-else-if="error" class="empty">
@@ -138,6 +138,7 @@
 import { ref, computed, onMounted } from 'vue'
 import AppNavBar from '@/components/common/app-nav-bar.vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppLoading from '@/components/common/app-loading.vue'
 import { navigateTo } from '@/utils/router'
 import { mineApi, type MembershipItem } from '@/lib/mine-data'
 import { formatPrice } from '@/utils/format'

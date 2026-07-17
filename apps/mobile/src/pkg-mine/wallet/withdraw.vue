@@ -2,6 +2,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import AppNavBar from '@/components/common/app-nav-bar.vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppLoading from '@/components/common/app-loading.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import {
   mineApi,
@@ -239,7 +240,7 @@ function goResetPwd() {
   <!-- 加载/错误态 -->
   <view v-if="loading" class="page">
     <app-nav-bar title="提现" back-icon="arrow-left" @back="goBack" />
-    <view class="loading"><text>加载中...</text></view>
+    <view class="loading"><AppLoading /></view>
   </view>
   <view v-else-if="error" class="page">
     <app-nav-bar title="提现" back-icon="arrow-left" @back="goBack" />

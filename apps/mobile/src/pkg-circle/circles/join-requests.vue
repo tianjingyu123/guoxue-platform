@@ -11,6 +11,7 @@
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppLoading from '@/components/common/app-loading.vue'
 import { goBack } from '@/utils/router'
 import { growthApi, type JoinRequestItem } from '@/lib/circle-growth-data'
 import { refundApi, type RefundRequestItem } from '@/lib/circle-refund-data'
@@ -169,7 +170,7 @@ onLoad((q) => {
 
     <scroll-view scroll-y class="body">
       <!-- 三态 -->
-      <view v-if="loading" class="state-view"><app-icon name="loader" :size="56" color="#C41E3A" class="spin" /><text class="state-desc">加载中…</text></view>
+      <view v-if="loading" class="state-view"><AppLoading /></view>
       <view v-else-if="loadError" class="state-view">
         <app-icon name="alert-circle" :size="64" color="#C9A96E" />
         <text class="state-desc">加载失败（需圈主身份访问）</text>
@@ -405,8 +406,6 @@ onLoad((q) => {
 .state-desc { font-size: 26rpx; color: var(--text-tertiary, #999999); text-align: center; }
 .state-btn { margin-top: 24rpx; height: 72rpx; padding: 0 48rpx; border-radius: 36rpx; background: var(--brand, #c41e3a); display: flex; align-items: center; }
 .state-btn-txt { color: #ffffff; font-size: 26rpx; font-weight: 500; }
-.spin { animation: rotate 1s linear infinite; }
-@keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 
 /* 拒绝理由弹层 */
 .mask {

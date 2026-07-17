@@ -28,7 +28,7 @@
       <view class="follows-list">
         <!-- 加载态 -->
         <view v-if="loading" class="follows-empty">
-          <text class="empty-title">加载中...</text>
+          <AppLoading />
         </view>
         <!-- 错误态 -->
         <view v-else-if="error" class="follows-empty">
@@ -77,6 +77,7 @@
 import { ref, computed } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { navigateTo } from '@/utils/router'
+import AppLoading from '@/components/common/app-loading.vue'
 import { mineApi, type FollowUserItem } from '@/lib/mine-data'
 import SmartAvatar from '@/components/common/smart-avatar.vue'
 

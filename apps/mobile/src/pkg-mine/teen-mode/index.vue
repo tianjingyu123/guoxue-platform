@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppLoading from '@/components/common/app-loading.vue'
 import { goBack } from '@/utils/router'
 import { mineApi, teenTimeLimitOptions, teenFilterLevels, type TeenModeSettings } from '@/lib/mine-data'
 
@@ -161,7 +162,7 @@ async function save() {
       </template>
     </app-nav-bar>
 
-    <view v-if="loading" class="loading"><text>加载中...</text></view>
+    <view v-if="loading" class="loading"><AppLoading /></view>
     <view v-else-if="error" class="error-state">
       <text>{{ error }}</text>
       <view class="retry-btn" @tap="retry">重试</view>

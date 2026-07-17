@@ -3,7 +3,7 @@
     <customer-service-fab />
     <!-- 三态：加载/失败/空 -->
     <view v-if="loading || error || !currentVideo" class="vp__state">
-      <text v-if="loading" class="vp__state-txt">加载中...</text>
+      <AppLoading v-if="loading" />
       <block v-else-if="error">
         <text class="vp__state-txt">{{ error }}</text>
         <view class="vp__state-btn" @tap="retry"><text class="vp__state-btn-txt">重试</text></view>
@@ -398,6 +398,7 @@
 import { ref, computed, watch, getCurrentInstance, nextTick } from 'vue'
 import { onLoad, onShareAppMessage, onShareTimeline, onHide } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppLoading from '@/components/common/app-loading.vue'
 import SmartAvatar from '@/components/common/smart-avatar.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { useShare } from '@/composables/useShare'

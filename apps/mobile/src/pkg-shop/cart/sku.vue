@@ -8,7 +8,7 @@
 
     <!-- 加载中 -->
     <view v-if="loading" class="state-wrap">
-      <text class="state-text">加载中...</text>
+      <AppLoading />
     </view>
     <!-- 错误 -->
     <view v-else-if="error" class="state-wrap">
@@ -110,6 +110,7 @@
 import { ref, computed } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { navigateTo, reLaunch } from '@/utils/router'
+import AppLoading from '@/components/common/app-loading.vue'
 import { shopApi, type SkuCartItem } from '@/lib/shop-data'
 import { formatPrice } from '@/utils/format'
 

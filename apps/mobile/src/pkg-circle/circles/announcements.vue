@@ -6,6 +6,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppLoading from '@/components/common/app-loading.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { apiGet, apiPost } from '@/utils/request'
 
@@ -147,7 +148,7 @@ function share() { uni.showToast({ title: '链接已复制', icon: 'none' }) }
 
     <scroll-view scroll-y class="an-body">
       <!-- 加载态 -->
-      <view v-if="loading" class="an-empty"><text class="an-empty-t">加载中...</text></view>
+      <view v-if="loading" class="an-empty"><AppLoading /></view>
 
       <!-- 空态 -->
       <view v-else-if="!announcement" class="an-empty">

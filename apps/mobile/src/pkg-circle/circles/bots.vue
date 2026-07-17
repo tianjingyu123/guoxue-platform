@@ -5,6 +5,7 @@
  */
 import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppLoading from '@/components/common/app-loading.vue'
 import SmartAvatar from '@/components/common/smart-avatar.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { botApi, botTypeLabel, type BotItem } from '@/lib/bot-data'
@@ -84,8 +85,7 @@ onMounted(load)
 
       <!-- loading -->
       <view v-if="loading" class="cb-state">
-        <app-icon name="loader-2" :size="40" color="#C41E3A" class="spin" />
-        <text class="cb-state-t">加载中...</text>
+        <AppLoading />
       </view>
       <!-- error -->
       <view v-else-if="error" class="cb-state">
@@ -153,8 +153,6 @@ onMounted(load)
 .cb-state-t { font-size: 26rpx; color: #999; }
 .cb-retry { margin-top: 8rpx; padding: 16rpx 56rpx; background: var(--brand); border-radius: 999rpx; }
 .cb-retry-t { font-size: 26rpx; color: #fff; }
-.spin { animation: spin 1s linear infinite; }
-@keyframes spin { to { transform: rotate(360deg); } }
 /* 网格 */
 .cb-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20rpx; padding: 24rpx 32rpx 48rpx; }
 .cb-card { background: #fff; border-radius: 24rpx; border: 2rpx solid #E8E4DE; overflow: hidden; }

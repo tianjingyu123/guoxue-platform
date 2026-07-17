@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppLoading from '@/components/common/app-loading.vue'
 import { navigateTo } from '@/utils/router'
 import {
   pointsApi,
@@ -102,7 +103,7 @@ function confirmExchange() {
       <text class="nav-link" @tap="go('/pkg-mine/points/history/index')">明细</text>
     </view>
 
-    <view v-if="loading" class="loading"><text>加载中...</text></view>
+    <view v-if="loading" class="loading"><AppLoading /></view>
     <view v-else-if="error" class="error-state"><text>{{ error }}</text><view class="retry-btn" @tap="retry">重试</view></view>
     <scroll-view v-else scroll-y class="scroll" :style="{ height: 'calc(100vh - 92rpx - ' + statusBarHeight + 'px)' }">
       <!-- 积分余额卡片 -->

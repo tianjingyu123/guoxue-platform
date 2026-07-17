@@ -4,7 +4,7 @@
 
     <scroll-view scroll-y class="ce-scroll">
       <!-- 编辑模式加载三态 -->
-      <view v-if="loading" class="ce-state"><text class="ce-state-txt">加载中...</text></view>
+      <view v-if="loading" class="ce-state"><AppLoading /></view>
       <view v-else-if="loadError" class="ce-state">
         <text class="ce-state-txt">{{ loadError }}</text>
         <view class="ce-retry" @tap="loadDetail"><text class="ce-retry-txt">重试</text></view>
@@ -76,6 +76,7 @@
 import { ref, reactive, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppNavBar from '@/components/common/app-nav-bar.vue'
+import AppLoading from '@/components/common/app-loading.vue'
 import { crmApi } from '@/lib/crm-data'
 
 const clientId = ref('')

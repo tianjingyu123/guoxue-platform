@@ -9,7 +9,7 @@
     </app-nav-bar>
 
     <!-- 加载态 -->
-    <view v-if="loading" class="state-box"><text class="state-txt">加载中...</text></view>
+    <view v-if="loading" class="state-box"><AppLoading /></view>
     <!-- 错误态 -->
     <view v-else-if="error" class="state-box">
       <text class="state-txt">{{ error }}</text>
@@ -121,6 +121,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { navigateTo } from '@/utils/router'
+import AppLoading from '@/components/common/app-loading.vue'
 import { mineApi, type MyCourseItem } from '@/lib/mine-data'
 
 const loading = ref(true)

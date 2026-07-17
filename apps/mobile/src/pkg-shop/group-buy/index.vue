@@ -41,8 +41,7 @@
     <view v-if="tab === 'all'" class="list">
       <!-- 加载中 -->
       <view v-if="loading" class="state-box">
-        <view class="state-spin" />
-        <text class="state-text">加载中...</text>
+        <AppLoading />
       </view>
       <!-- 加载失败 -->
       <view v-else-if="error" class="state-box">
@@ -118,8 +117,7 @@
     <view v-else class="list">
       <!-- 加载中 -->
       <view v-if="loading" class="state-box">
-        <view class="state-spin" />
-        <text class="state-text">加载中...</text>
+        <AppLoading />
       </view>
       <!-- 空数据 -->
       <view v-else-if="!myGroups.length" class="empty">
@@ -214,6 +212,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import SmartCover from '@/components/common/smart-cover.vue'
+import AppLoading from '@/components/common/app-loading.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { shopApi, formatCountdown, type MyGroupBuyItem } from '@/lib/shop-data'
 import { formatPrice } from '@/utils/format'
@@ -857,17 +856,6 @@ function endMapCleanup() {
   flex-direction: column;
   align-items: center;
   gap: 24rpx;
-}
-.state-spin {
-  width: 64rpx;
-  height: 64rpx;
-  border: 4rpx solid #e8e3db;
-  border-top-color: var(--brand);
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-@keyframes spin {
-  to { transform: rotate(360deg); }
 }
 .state-icon {
   width: 120rpx;

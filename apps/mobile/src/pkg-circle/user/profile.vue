@@ -18,6 +18,7 @@
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppLoading from '@/components/common/app-loading.vue'
 import SmartAvatar from '@/components/common/smart-avatar.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import {
@@ -441,7 +442,7 @@ function toggleMore() {
       <view class="up-content">
         <!-- 加载中 -->
         <view v-if="postsLoading" class="up-empty">
-          <text class="up-empty-desc">加载中…</text>
+          <AppLoading />
         </view>
         <!-- 内容错误 + 重试 -->
         <view v-else-if="postsError" class="up-empty">

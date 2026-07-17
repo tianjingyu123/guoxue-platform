@@ -14,8 +14,7 @@
     <view class="content">
       <!-- 加载态 -->
       <view v-if="loading" class="state">
-        <app-icon name="loader-2" :size="32" color="#C41E3A" class="spin" />
-        <text class="state-text">加载中...</text>
+        <AppLoading />
       </view>
 
       <!-- 错误态 -->
@@ -70,6 +69,7 @@
 import { ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { navigateBack, navigateTo } from '@/utils/router'
+import AppLoading from '@/components/common/app-loading.vue'
 import { articleApi, type DraftListItem } from '@/lib/article-data'
 
 const drafts = ref<DraftListItem[]>([])
@@ -198,12 +198,6 @@ function goBack() {
 .retry-text {
   font-size: 26rpx;
   color: #666;
-}
-.spin {
-  animation: spin 1s linear infinite;
-}
-@keyframes spin {
-  to { transform: rotate(360deg); }
 }
 
 /* 空态 */

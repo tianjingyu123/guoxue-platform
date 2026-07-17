@@ -8,6 +8,7 @@ import { useShare } from '@/composables/useShare'
 import { withRef } from '@/utils/referral'
 import AppIcon from '@/components/common/app-icon.vue'
 import TouchpointCard from '@/components/common/touchpoint-card.vue'
+import AppLoading from '@/components/common/app-loading.vue'
 import { courseApi } from '@/lib/course-data'
 import { touchpointApi, type TouchpointResult } from '@/lib/touchpoint-data'
 import { BRAND } from '@/lib/brand'
@@ -271,7 +272,7 @@ onMounted(() => {
 <template>
   <!-- Loading -->
   <view v-if="loading" class="loading-wrap">
-    <text class="loading-text">加载中...</text>
+    <AppLoading />
   </view>
   <!-- Error -->
   <view v-else-if="error" class="error-wrap">
@@ -407,7 +408,7 @@ onMounted(() => {
 
 /* 加载 / 错误（暗底适配） */
 .loading-wrap, .error-wrap { min-height: 100vh; background: #1C1917; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24rpx; }
-.loading-text, .error-text { font-size: 28rpx; color: rgba(255,255,255,0.7); }
+.error-text { font-size: 28rpx; color: rgba(255,255,255,0.7); }
 .retry-btn { padding: 16rpx 48rpx; background: #C41E3A; border-radius: 999rpx; }
 .retry-text { font-size: 28rpx; color: #fff; }
 </style>

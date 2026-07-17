@@ -62,7 +62,7 @@
       <!-- 课程列表 -->
       <view class="list">
         <!-- 加载态 -->
-        <view v-if="loading" class="state-box"><text class="state-txt">加载中...</text></view>
+        <view v-if="loading" class="state-box"><AppLoading /></view>
         <!-- 错误态 -->
         <view v-else-if="error" class="state-box">
           <text class="state-txt">{{ error }}</text>
@@ -143,6 +143,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppLoading from '@/components/common/app-loading.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { mineApi, type MyCourseItem } from '@/lib/mine-data'
 

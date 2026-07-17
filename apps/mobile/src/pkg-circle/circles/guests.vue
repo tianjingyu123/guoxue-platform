@@ -18,6 +18,7 @@
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppLoading from '@/components/common/app-loading.vue'
 import { goBack, toastComingSoon } from '@/utils/router'
 import { circleGuestsApi, type CircleGuest } from '@/lib/circle-guests-data'
 
@@ -140,7 +141,7 @@ async function doRemove(g: CircleGuest) {
     <view class="gt-list">
       <!-- loading -->
       <view v-if="loading" class="gt-empty">
-        <text class="gt-empty-text">加载中…</text>
+        <AppLoading />
       </view>
 
       <!-- error -->

@@ -2,6 +2,7 @@
 import { ref, computed } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppLoading from '@/components/common/app-loading.vue'
 import { navigateTo } from '@/utils/router'
 import { mineApi, type WalletInfo, type RechargeOption, type WalletTxRecord, type WalletTxCategory, type WithdrawBalanceInfo } from '@/lib/mine-data'
 import { formatPrice } from '@/utils/format'
@@ -58,7 +59,7 @@ const txIcon: Record<WalletTxCategory, { icon: string; color: string }> = {
   <view class="page">
     <app-nav-bar title="我的钱包" back-icon="arrow-left" :title-size="36" />
 
-    <view v-if="loading" class="loading"><text>加载中...</text></view>
+    <view v-if="loading" class="loading"><AppLoading /></view>
     <view v-else-if="error" class="error-state"><text>{{ error }}</text><view class="retry-btn" @tap="retry">重试</view></view>
     <scroll-view v-else scroll-y class="scroll">
       <!-- 余额卡片 -->

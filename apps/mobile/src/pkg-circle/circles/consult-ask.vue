@@ -13,6 +13,7 @@
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppLoading from '@/components/common/app-loading.vue'
 import { goBack, navigateTo, redirectTo } from '@/utils/router'
 import { chooseAndUploadImage } from '@/utils/request'
 import { questionApi, getCoinBalance, splitQuestion, type PaidQuestion } from '@/lib/circle-consult-data'
@@ -182,7 +183,7 @@ onLoad((opt) => {
 
     <!-- 本圈大家都在问 -->
     <text class="ca-label">本圈大家都在问</text>
-    <view v-if="loading" class="ca-state"><text class="ca-state-t">加载中…</text></view>
+    <view v-if="loading" class="ca-state"><AppLoading /></view>
     <view v-else-if="listError" class="ca-state">
       <text class="ca-state-t">{{ listError }}</text>
       <view class="ca-retry" @tap="loadList"><text class="ca-retry-t">重试</text></view>

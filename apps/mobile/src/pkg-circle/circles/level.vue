@@ -10,7 +10,7 @@
       <app-icon name="arrow-left" :size="40" color="#2C2C2C" />
     </view>
     <!-- 骨架/错误态覆盖 -->
-    <view v-if="isLoading" class="state"><text class="state-t">加载中...</text></view>
+    <view v-if="isLoading" class="state"><AppLoading /></view>
     <view v-else-if="loadError" class="state">
       <app-icon name="alert-circle" :size="72" color="#CCCCCC" />
       <text class="state-t">加载失败</text>
@@ -159,6 +159,7 @@
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppLoading from '@/components/common/app-loading.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { growthApi, type LevelMe, type BadgeItem } from '@/lib/circle-growth-data'
 

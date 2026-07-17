@@ -7,6 +7,7 @@
  */
 import { ref, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppLoading from '@/components/common/app-loading.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { circleApi, type TodayActivity } from '@/lib/circle-data'
 
@@ -43,8 +44,7 @@ onMounted(load)
 
     <!-- loading -->
     <view v-if="loading" class="ac-state">
-      <app-icon name="loader-2" :size="40" color="#C41E3A" class="spin" />
-      <text class="ac-state-txt">加载中...</text>
+      <AppLoading />
     </view>
 
     <!-- error -->
@@ -90,8 +90,6 @@ onMounted(load)
 .ac-state-txt { font-size: 26rpx; color: #999; }
 .ac-retry { padding: 12rpx 48rpx; border-radius: 999rpx; background: var(--brand, var(--brand)); }
 .ac-retry-txt { font-size: 26rpx; color: #fff; }
-.spin { animation: spin 1s linear infinite; }
-@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 .ac-list { padding: 24rpx 32rpx 160rpx; display: flex; flex-direction: column; gap: 24rpx; }
 .ac-card { background: var(--card, #fff); border: 2rpx solid var(--border, #EDE8E0); border-radius: 24rpx; padding: 32rpx; }
 .ac-card-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16rpx; }

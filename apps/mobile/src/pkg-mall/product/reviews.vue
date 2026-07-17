@@ -3,6 +3,7 @@
 import { ref, computed } from 'vue'
 import { onLoad, onReachBottom } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppLoading from '@/components/common/app-loading.vue'
 import AppLoadMore from '@/components/common/app-load-more.vue'
 import { goBack } from '@/utils/router'
 import { shopApi } from '@/lib/shop-data'
@@ -75,8 +76,7 @@ function setPreviewIndex(index: number) { if (previewImage.value) previewImage.v
     </view>
     <!-- 加载中 -->
     <view v-else-if="loading" class="state-wrap">
-      <view class="state-spinner" />
-      <text class="state-text">加载中...</text>
+      <AppLoading />
     </view>
     <!-- 加载失败 -->
     <view v-else-if="error" class="state-wrap">
@@ -280,8 +280,6 @@ function setPreviewIndex(index: number) { if (previewImage.value) previewImage.v
 
 /* 三态：加载/错误 */
 .state-wrap { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 120rpx 0; }
-.state-spinner { width: 64rpx; height: 64rpx; border: 4rpx solid var(--border); border-top-color: var(--brand); border-radius: 50%; animation: spin 0.8s linear infinite; }
-@keyframes spin { to { transform: rotate(360deg); } }
 .state-icon { width: 120rpx; height: 120rpx; border-radius: 50%; background: rgba(196,30,58,0.08); display: flex; align-items: center; justify-content: center; margin-bottom: 24rpx; }
 .state-text { font-size: 26rpx; color: var(--text-soft); margin-top: 20rpx; }
 .state-retry { margin-top: 32rpx; padding: 16rpx 48rpx; border-radius: 999rpx; background: var(--brand); }

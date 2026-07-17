@@ -4,7 +4,7 @@
 
     <scroll-view scroll-y class="ins-scroll">
       <!-- 三态 -->
-      <view v-if="loading" class="ins-state"><text class="ins-state-txt">加载中...</text></view>
+      <view v-if="loading" class="ins-state"><AppLoading /></view>
       <view v-else-if="error" class="ins-state">
         <text class="ins-state-txt">{{ error }}</text>
         <view class="ins-retry" @tap="load"><text class="ins-retry-txt">重试</text></view>
@@ -114,6 +114,7 @@ import { ref, computed } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import AppNavBar from '@/components/common/app-nav-bar.vue'
 import { navigateTo } from '@/utils/router'
+import AppLoading from '@/components/common/app-loading.vue'
 import { crmApi, type CrmInsights, type RfmTier } from '@/lib/crm-data'
 
 const loading = ref(true)

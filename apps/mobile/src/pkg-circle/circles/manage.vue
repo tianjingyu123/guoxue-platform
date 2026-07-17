@@ -14,6 +14,7 @@
 import { ref, reactive, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppLoading from '@/components/common/app-loading.vue'
 import SmartCover from '@/components/common/smart-cover.vue'
 import SmartAvatar from '@/components/common/smart-avatar.vue'
 import { goBack, navigateTo } from '@/utils/router'
@@ -469,7 +470,7 @@ onLoad((q) => {
         </view>
 
         <!-- 三态 -->
-        <view v-if="membersLoading" class="state-view"><app-icon name="loader" :size="56" color="#C41E3A" class="spin" /><text class="state-desc">加载中…</text></view>
+        <view v-if="membersLoading" class="state-view"><AppLoading /></view>
         <view v-else-if="membersError" class="state-view">
           <app-icon name="alert-circle" :size="64" color="#C9A96E" />
           <text class="state-desc">成员加载失败</text>
@@ -556,7 +557,7 @@ onLoad((q) => {
           </view>
         </scroll-view>
 
-        <view v-if="postsLoading" class="state-view"><app-icon name="loader" :size="56" color="#C41E3A" class="spin" /><text class="state-desc">加载中…</text></view>
+        <view v-if="postsLoading" class="state-view"><AppLoading /></view>
         <view v-else-if="postsError" class="state-view">
           <app-icon name="alert-circle" :size="64" color="#C9A96E" />
           <text class="state-desc">帖子加载失败</text>
@@ -601,7 +602,7 @@ onLoad((q) => {
 
       <!-- ═══════════ 设置分区 ═══════════ -->
       <template v-else>
-        <view v-if="settingsLoading" class="state-view"><app-icon name="loader" :size="56" color="#C41E3A" class="spin" /><text class="state-desc">加载中…</text></view>
+        <view v-if="settingsLoading" class="state-view"><AppLoading /></view>
         <view v-else-if="settingsError" class="state-view">
           <app-icon name="alert-circle" :size="64" color="#C9A96E" />
           <text class="state-desc">设置加载失败</text>
@@ -987,8 +988,6 @@ onLoad((q) => {
 .state-desc { font-size: 26rpx; color: var(--text-tertiary, #999999); text-align: center; }
 .state-btn { margin-top: 16rpx; height: 72rpx; padding: 0 48rpx; border-radius: 36rpx; background: var(--brand, #c41e3a); display: flex; align-items: center; }
 .state-btn-txt { color: #ffffff; font-size: 26rpx; font-weight: 500; }
-.spin { animation: rotate 1s linear infinite; }
-@keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 
 /* 确认弹窗 */
 .mask {

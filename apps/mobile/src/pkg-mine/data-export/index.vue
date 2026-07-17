@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppLoading from '@/components/common/app-loading.vue'
 import { mineApi, type ExportRecord, type ExportRecordStatus } from '@/lib/mine-data'
 
 const activeTab = ref<'create' | 'records'>('create')
@@ -103,7 +104,7 @@ function reapply(r: ExportRecord) {
     </view>
 
     <!-- 加载/错误 -->
-    <view v-if="loading" class="loading"><text>加载中...</text></view>
+    <view v-if="loading" class="loading"><AppLoading /></view>
     <view v-else-if="error" class="error-state"><text>{{ error }}</text><view class="retry-btn" @tap="retry">重试</view></view>
     <scroll-view v-else scroll-y class="scroll">
       <!-- 申请导出 -->
