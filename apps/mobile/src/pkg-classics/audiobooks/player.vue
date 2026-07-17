@@ -74,7 +74,19 @@ async function fetchBook(id: string) {
     bookMeta.value = [data.book.dynasty, data.book.author].filter(Boolean).join(' · ')
     chapters.value = (data.book.chapters || []).map((c: { id: string; title: string }) => ({ id: c.id, title: c.title }))
     if (!chapters.value.length) throw new Error('本书暂无可朗读章节')
-    await loadChapter(0, false)
+    // 续播定位：读上次朗读进度（后端 /classic/progress·需登录·缺则从头，静默降级不阻塞）
+    let resumeIdx = 0
+    let resumePct = 0
+    if (getToken()) {
+      try {
+        const p = await classicsApi.getProgress(id) as { chapterId?: string; progress?: number } | null
+        if (p?.chapterId) {
+          const i = chapters.value.findIndex((c) => c.id === p.chapterId)
+          if (i >= 0) { resumeIdx = i; resumePct = Number(p.progress) || 0 }
+        }
+      } catch { /* 无进度/未登录 → 从头 */ }
+    }
+    await loadChapter(resumeIdx, false, resumePct)
   } catch (e) {
     error.value = (e as Error)?.message || '加载失败'
   } finally {
@@ -82,7 +94,7 @@ async function fetchBook(id: string) {
   }
 }
 
-async function loadChapter(idx: number, autoPlay = false) {
+async function loadChapter(idx: number, autoPlay = false, startPct = 0) {
   const ch = chapters.value[idx]
   if (!ch) return
   stop()
@@ -94,6 +106,12 @@ async function loadChapter(idx: number, autoPlay = false) {
     sentences.value = splitSentences(data?.content || '')
   } catch {
     sentences.value = []
+  }
+  // 续播定位：按上次百分比换算回句索引（progress = (curSentence+1)/len·反算减一），落到上次朗读句
+  if (startPct > 0 && sentences.value.length) {
+    const target = Math.round((startPct / 100) * sentences.value.length) - 1
+    curSentence.value = Math.min(sentences.value.length - 1, Math.max(0, target))
+    scrollToCurrent()
   }
   saveProgress()
   if (autoPlay && sentences.value.length) play()

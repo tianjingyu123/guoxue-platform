@@ -46,9 +46,9 @@
             <app-icon name="users" :size="28" color="#ff6b35" />
             <text class="meta-text">{{ detail.minMembers }}人成团</text>
           </view>
-          <view class="meta-item">
+          <view v-if="validityText" class="meta-item">
             <app-icon name="clock" :size="28" color="#ff6b35" />
-            <text class="meta-text">24小时有效</text>
+            <text class="meta-text">{{ validityText }}</text>
           </view>
         </view>
       </view>
@@ -140,6 +140,7 @@ interface GroupBuyDetailData {
   price: number
   originalPrice: number
   rules: string[]
+  expireMinutes?: number
 }
 interface ActiveGroup {
   id: string
@@ -153,6 +154,12 @@ interface ActiveGroup {
 const detail = ref<GroupBuyDetailData | null>(null)
 /** 节省金额：两位小数取整，避免浮点误差 */
 const savedAmount = computed(() => Math.max(0, Math.round(((detail.value?.originalPrice || 0) - (detail.value?.price || 0)) * 100) / 100))
+/** 有效期展示：用真实 expireMinutes 换算（整点→X小时，否则X分钟）；后端未配(0)则不显固定"24小时" */
+const validityText = computed(() => {
+  const min = detail.value?.expireMinutes || 0
+  if (min <= 0) return ''
+  return min % 60 === 0 ? `${min / 60}小时有效` : `${min}分钟有效`
+})
 const groups = ref<ActiveGroup[]>([])
 const loading = ref(true)
 const error = ref('')

@@ -178,6 +178,36 @@
             </view>
           </view>
 
+          <!-- 商品结果 -->
+          <view v-if="(activeTab === 'all' || activeTab === 'product') && results.products.length" class="result-group">
+            <view v-if="activeTab === 'all'" class="group-head">
+              <text class="group-title">相关商品</text>
+              <text class="group-more" @click="activeTab = 'product'">查看全部</text>
+            </view>
+            <view class="product-grid">
+              <view
+                v-for="product in results.products"
+                :key="product.id"
+                class="product-card"
+                @click="navigateTo(product.href)"
+              >
+                <view class="product-cover">
+                  <image lazy-load v-if="product.cover" :src="product.cover" class="product-cover-img" mode="aspectFill" />
+                  <app-icon v-else name="shopping-bag" :size="56" color="#C41E3A" />
+                </view>
+                <view class="product-meta">
+                  <rich-text class="product-name" :nodes="highlight(product.title)" />
+                  <view class="product-foot">
+                    <view class="product-price-wrap">
+                      <text class="product-price">¥{{ formatPrice(product.price) }}</text>
+                    </view>
+                    <text class="product-sales">{{ formatNumber(product.salesCount) }}人付款</text>
+                  </view>
+                </view>
+              </view>
+            </view>
+          </view>
+
           <!-- 古籍结果 -->
           <view v-if="(activeTab === 'all' || activeTab === 'classic') && results.classics.length" class="result-group">
             <view v-if="activeTab === 'all'" class="group-head">
@@ -293,12 +323,18 @@ const error = ref('')
 const aiExpanded = ref(true)
 const aiSummaryText = ref('')
 
-const emptyHotWords = ['八字入门', '紫微斗数', '风水布局', '奇门遁甲', '六爻预测']
+// 空态热门搜索（真连后端 /search/hot，onLoad 拉取；失败保持空数组不露假词）
+const emptyHotWords = ref<string[]>([])
 
 // ===== 真连后端：搜索结果 =====
 const results = ref<SearchResults>({
   contents: [], courses: [], products: [], circles: [], classics: [], users: [],
 })
+
+// 结果缓存：key = `${关键词}||${tab}`。切 Tab 命中缓存直接复用，不再整页骨架+重拉后端。
+const resultCache = new Map<string, SearchResults>()
+// AI 总结缓存（仅综合 Tab 用，按关键词缓存）
+const aiCache = new Map<string, string>()
 
 const isEmpty = computed(() => {
   const r = results.value
@@ -309,17 +345,29 @@ const isEmpty = computed(() => {
 
 /** 拉取搜索结果（关键词/Tab 变化触发） */
 async function loadResults() {
-  if (!keyword.value.trim()) {
+  const kw = keyword.value.trim()
+  if (!kw) {
     results.value = { contents: [], courses: [], products: [], circles: [], classics: [], users: [] }
     aiSummaryText.value = ''
     loading.value = false
     return
   }
+  // 命中缓存：切回已搜过的 Tab，直接复用不重拉（无骨架闪烁）
+  const cacheKey = `${kw}||${activeTab.value}`
+  const cached = resultCache.get(cacheKey)
+  if (cached) {
+    results.value = cached
+    error.value = ''
+    loading.value = false
+    aiSummaryText.value = activeTab.value === 'all' ? (aiCache.get(kw) || '') : ''
+    return
+  }
   loading.value = true
   error.value = ''
   try {
-    results.value = await searchApi.search(keyword.value, activeTab.value)
-    searchApi.saveHistory(keyword.value) // 静默保存历史，不阻塞
+    results.value = await searchApi.search(kw, activeTab.value)
+    resultCache.set(cacheKey, results.value)
+    searchApi.saveHistory(kw) // 静默保存历史，不阻塞
     const r = results.value
     const hasAny = r.contents.length || r.courses.length || r.products.length ||
       r.circles.length || r.classics.length || r.users.length
@@ -345,6 +393,7 @@ async function loadAiSummary() {
   if (!items.length) { aiSummaryText.value = ''; return }
   try {
     aiSummaryText.value = await searchApi.aiSummary(keyword.value, items)
+    aiCache.set(keyword.value.trim(), aiSummaryText.value) // 缓存供切回综合Tab复用
   } catch {
     aiSummaryText.value = ''
   }
@@ -364,7 +413,18 @@ onLoad((opt) => {
   searchValue.value = kw
   activeTab.value = (tabOpt && tabs.some((t) => t.key === tabOpt) ? tabOpt : fromToTab[from]) || 'all'
   loadResults()
+  loadHotWords()
 })
+
+/** 空态热门搜索词（真连 /search/hot，失败静默保持空数组） */
+async function loadHotWords() {
+  try {
+    const hot = await searchApi.getHot(6)
+    emptyHotWords.value = hot.map((h) => h.keyword)
+  } catch {
+    /* 静默：拉不到就不展示热词，不编假词 */
+  }
+}
 
 // 关键词或Tab变化 → 重新加载
 watch([keyword, activeTab], loadResults)

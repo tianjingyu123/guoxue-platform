@@ -47,8 +47,9 @@ export interface MallQuickEntry {
   badge?: number
 }
 export const mallQuickEntries: MallQuickEntry[] = [
-  { id: 'seckill', label: '限时秒杀', icon: 'zap', href: '/shop/flash-sale', state: '进行中' },
-  { id: 'group', label: '超值拼团', icon: 'users', href: '/shop/group-buy', state: '进行中' },
+  // seckill/group 的 state（"进行中"角标）由 getMallHome 按真实场次动态注入，不写死避免空场次仍显"进行中"
+  { id: 'seckill', label: '限时秒杀', icon: 'zap', href: '/shop/flash-sale' },
+  { id: 'group', label: '超值拼团', icon: 'users', href: '/shop/group-buy' },
   { id: 'orders', label: '我的订单', icon: 'file-text', href: '/orders' },
   { id: 'coupons', label: '优惠券', icon: 'ticket', href: '/shop/coupons' }, // badge 由 getMallHome 按真实可领券数量动态注入
 ]
@@ -501,6 +502,8 @@ export interface GroupBuyDetailData {
   minMembers: number
   description: string
   rules: string[]
+  /** 拼团有效期（分钟）：后端活动配置，用于详情页"有效期"展示；缺省/0 表示后端未配 */
+  expireMinutes?: number
 }
 export const groupBuyDetail: GroupBuyDetailData = {
   id: '1',
@@ -1435,6 +1438,7 @@ function adaptGroupBuyDetailData(gb: RawGroupBuy): GroupBuyDetailData {
     minMembers: gb.minMembers ?? 2,
     description: gb.product?.intro || '',
     rules: GROUP_BUY_RULES,
+    expireMinutes: gb.expireMinutes ?? 0, // 真实有效期（分钟），详情页据此展示"X小时有效"
   }
 }
 
@@ -2003,15 +2007,21 @@ export const shopApi = {
   async getMallHome() {
     // 商品真连 /shop/products；banners/quickEntries/categories 为运营 UI 配置（后端无 banner CMS/聚合 BFF，同 getHome 约定）
     // 优惠券入口角标改真实"可领券数量"（原为硬编码 badge:2 → 出现"提示2个但没有券"）；拉取失败/为0则不显角标
-    const [res, availCount] = await Promise.all([
+    // 并行拉真实秒杀/拼团场次，用于给 seckill/group 入口注入真实"进行中"角标（无场次不显，避免恒真误导）
+    const [res, availCount, hasFlash, hasGroup] = await Promise.all([
       apiGet<RawShopProduct[] | { products?: RawShopProduct[]; items?: RawShopProduct[] }>('/shop/products?pageSize=30'),
       couponApi.getAvailable().then((l) => l.length).catch(() => 0),
+      shopApi.getFlashSale().then((f) => (f?.products?.length ?? 0) > 0).catch(() => false),
+      shopApi.getActiveGroupBuys().then((l) => (l?.length ?? 0) > 0).catch(() => false),
     ])
     const arr = Array.isArray(res) ? res : (res?.products ?? res?.items ?? [])
     const products: ProductCardData[] = arr.map(adaptProductCard)
-    const quickEntries = mallQuickEntries.map((e) =>
-      e.id === 'coupons' ? { ...e, badge: availCount > 0 ? availCount : undefined } : e,
-    )
+    const quickEntries = mallQuickEntries.map((e) => {
+      if (e.id === 'coupons') return { ...e, badge: availCount > 0 ? availCount : undefined }
+      if (e.id === 'seckill') return { ...e, state: hasFlash ? '进行中' : undefined }
+      if (e.id === 'group') return { ...e, state: hasGroup ? '进行中' : undefined }
+      return e
+    })
     return {
       quickEntries,
       banners: mallBanners,

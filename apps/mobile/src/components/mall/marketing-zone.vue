@@ -14,18 +14,15 @@ interface GroupBuyCardItem { id: string; cover: string; title: string; need: num
 const seckillItems = ref<SeckillItem[]>([])
 const groupItems = ref<GroupBuyCardItem[]>([])
 
-// 秒杀倒计时：到今晚 22:00 结束，过点则顺延到次日
+// 秒杀倒计时：以真实场次结束时间为准（getFlashSale().durationSec 由后端 endTime 换算），非硬编码到当日 22:00
 const h = ref('00')
 const m = ref('00')
 const s = ref('00')
+let endTime = 0 // 真实场次结束时间戳(ms)，0=未加载/无场次
 let timer: ReturnType<typeof setInterval> | null = null
 
 function tick() {
-  const now = new Date()
-  const target = new Date()
-  target.setHours(22, 0, 0, 0)
-  if (target.getTime() <= now.getTime()) target.setDate(target.getDate() + 1)
-  const remain = Math.floor((target.getTime() - now.getTime()) / 1000)
+  const remain = endTime ? Math.max(0, Math.floor((endTime - Date.now()) / 1000)) : 0
   h.value = String(Math.floor(remain / 3600)).padStart(2, '0')
   m.value = String(Math.floor((remain % 3600) / 60)).padStart(2, '0')
   s.value = String(remain % 60).padStart(2, '0')
@@ -42,10 +39,13 @@ onMounted(async () => {
       id: p.id, cover: p.cover, title: p.name, price: p.price, originalPrice: p.originalPrice,
     }))
     groupItems.value = groups
+    // 用真实场次剩余秒数锚定结束时间（无场次时秒杀卡整体隐藏，倒计时不可见）
+    endTime = flash?.durationSec ? Date.now() + flash.durationSec * 1000 : 0
   } catch {
     // 错误时保持空态（铁律：不回退假 mock 掩盖）
     seckillItems.value = []
     groupItems.value = []
+    endTime = 0
   }
 })
 onUnmounted(() => { if (timer) clearInterval(timer) })

@@ -63,7 +63,8 @@
           <app-icon name="tag" :size="36" color="#C41E3A" />
           <text class="cell-label">优惠券</text>
         </view>
-        <text class="cell-value active">{{ selectedCoupon ? '-¥' + selectedCoupon.value : (coupons.length > 0 ? coupons.length + '张可用' : '暂无可用') }}</text>
+        <!-- 券抵扣与明细行同口径（displayCouponDiscount=后端试算，多商品券仅抵首单），避免顶部显原始面值与明细不一致 -->
+        <text class="cell-value active">{{ selectedCoupon ? '-¥' + displayCouponDiscount.toFixed(2) : (coupons.length > 0 ? coupons.length + '张可用' : '暂无可用') }}</text>
         <app-icon name="chevron-right" :size="32" color="#999999" />
       </view>
 

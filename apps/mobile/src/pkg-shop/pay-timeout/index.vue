@@ -55,7 +55,7 @@
         <view class="blue-dot"><text>!</text></view>
         <view class="blue-content">
           <text class="blue-title">温馨提示</text>
-          <text class="blue-text">如您已完成支付但显示超时，资金会在1-3个工作日内原路退回。如有疑问请联系客服。</text>
+          <text class="blue-text">如您已完成支付但显示超时，资金会在1-3个工作日内原路退回。如有疑问请<text class="blue-link" @tap="goService">联系客服</text>。</text>
         </view>
       </view>
     </view>
@@ -110,6 +110,7 @@ function goRePay() {
 function goChangeMethod() { navigateTo(`/shop/checkout?orderId=${orderId.value}`) }
 // 真别名是 /orders/:id（原来写的 /shop/orders/:id 没登记 → 支付超时后点「查看订单」没反应）
 function goOrder() { navigateTo(`/orders/${orderId.value}`) }
+function goService() { navigateTo('/customer-service') }
 </script>
 
 <style lang="scss" scoped>
@@ -167,6 +168,7 @@ function goOrder() { navigateTo(`/orders/${orderId.value}`) }
 .blue-content { flex: 1; display: flex; flex-direction: column; gap: 8rpx; }
 .blue-title { font-size: 26rpx; font-weight: 500; color: #1D4ED8; }
 .blue-text { font-size: 24rpx; color: #1D4ED8; line-height: 1.6; }
+.blue-link { font-size: 24rpx; color: #1D4ED8; font-weight: 600; text-decoration: underline; }
 .footer {
   position: fixed;
   bottom: 0;

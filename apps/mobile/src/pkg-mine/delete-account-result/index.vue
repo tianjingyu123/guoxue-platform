@@ -2,6 +2,7 @@
 import { ref, computed, onUnmounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
+import { BRAND } from '@/lib/brand'
 
 const status = ref<'pending' | 'completed'>('pending')
 const expireAt = ref('')
@@ -179,7 +180,8 @@ function goCustomerService() {
         </view>
         <view class="btn-muted" @tap="goHome"><text class="btn-muted-text">关闭应用</text></view>
       </view>
-      <text class="footer-note">如有问题请联系客服：400-xxx-xxxx</text>
+      <!-- 客服电话来自后台品牌配置（BRAND.servicePhone），未配置时不展示占位号码 -->
+      <text v-if="BRAND.servicePhone" class="footer-note">如有问题请联系客服：{{ BRAND.servicePhone }}</text>
     </view>
   </view>
 </template>

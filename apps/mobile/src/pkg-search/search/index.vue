@@ -15,9 +15,10 @@
             placeholder-class="search-input-ph"
             confirm-type="search"
             :focus="autoFocus"
+            @input="onInput"
             @confirm="doSearch(keyword)"
           />
-          <view v-if="keyword" class="clear-btn" @click="keyword = ''">
+          <view v-if="keyword" class="clear-btn" @click="keyword = ''; suggestList = []">
             <app-icon name="x" :size="28" color="var(--text-soft)" />
           </view>
         </view>
@@ -28,6 +29,19 @@
     </view>
 
     <scroll-view scroll-y class="search-body">
+      <!-- 输入联想（250ms 防抖拉 /search/suggest；点击回填并触发搜索） -->
+      <view v-if="suggestList.length" class="suggest-list">
+        <view
+          v-for="(sug, i) in suggestList"
+          :key="i"
+          class="suggest-item"
+          @click="doSearch(sug)"
+        >
+          <app-icon name="search" :size="28" color="var(--text-soft)" />
+          <text class="suggest-text">{{ sug }}</text>
+        </view>
+      </view>
+
       <!-- AI 智能搜索入口 -->
       <view class="ai-entry" @click="aiModalOpen = true">
         <view class="ai-entry-icon">
@@ -136,6 +150,22 @@ const historyList = ref<string[]>([])
 const hotList = ref<HotSearchItem[]>([])
 const guessList = ref<string[]>([])
 
+// 输入联想（防抖）：/search/suggest 已封装，原本只用来取热搜首词做「猜你想搜」，
+// 这里给输入框接上实时联想下拉
+const suggestList = ref<string[]>([])
+let suggestTimer: ReturnType<typeof setTimeout> | null = null
+
+function onInput() {
+  if (suggestTimer) clearTimeout(suggestTimer)
+  const q = keyword.value.trim()
+  if (!q) { suggestList.value = []; return }
+  suggestTimer = setTimeout(async () => {
+    // 防抖窗口内关键词可能又变，落地前再校验一次，避免旧词覆盖
+    if (keyword.value.trim() !== q) return
+    suggestList.value = await searchApi.getSuggestions(q, 8).catch(() => [])
+  }, 250)
+}
+
 /** 热搜 + 历史并行拉取；任一失败都不阻断页面（搜索框本身要能用） */
 async function loadPanels() {
   const [hot, history] = await Promise.all([
@@ -183,6 +213,7 @@ async function clearHistory() {
 function doSearch(kw: string) {
   const q = (kw || '').trim()
   if (!q) return
+  suggestList.value = [] // 收起联想下拉（点词或回车搜索后）
   track.search(q) // 搜索词埋点（搜索词分析）
   // 真持久化历史（后端 SearchHistory 表 —— 也是热搜词频的数据源）；本地先插一条让用户立刻看见
   if (!historyList.value.includes(q)) {
@@ -261,6 +292,30 @@ function doSearch(kw: string) {
 .search-body {
   flex: 1;
   overflow: hidden;
+}
+
+/* 输入联想下拉 */
+.suggest-list {
+  background: var(--surface);
+  border-bottom: 2rpx solid var(--line);
+}
+.suggest-item {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  padding: 24rpx 32rpx;
+  border-bottom: 2rpx solid var(--line);
+}
+.suggest-item:last-child {
+  border-bottom: none;
+}
+.suggest-text {
+  flex: 1;
+  font-size: 28rpx;
+  color: var(--text-main);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 /* AI 入口 */

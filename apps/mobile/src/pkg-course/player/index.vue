@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /** 课程播放页 P3 · V0 还原（视频态 + 图文态 + 音频态 + 试看态 + 完课态/证书弹层） */
 import { ref, computed, onMounted, onUnmounted, getCurrentInstance } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { onLoad, onHide } from '@dcloudio/uni-app'
 import { goBack, navigateTo } from '@/utils/router'
 import AppIcon from '@/components/common/app-icon.vue'
 import SmartAvatar from '@/components/common/smart-avatar.vue'
@@ -39,6 +39,12 @@ const currentLessonId = ref('')
 const started = ref(false)
 // 课时就地切换中（防并发重复点击）
 const switching = ref(false)
+// 视频源加载失败（404/转码中/格式不支持）→ 诚实态而非黑屏
+const playError = ref(false)
+// 续播：起播后跳到上次观看秒数（consume once·仅 currentProgress>0）
+const resumeAt = ref(0)
+// 进度回写节流时间戳（每 10s 最多回写一次）
+let lastSaveTs = 0
 // 自动连播（默认开，可关）
 const autoNext = ref(true)
 // 下部 Tab：目录 / 简介 / 讨论
@@ -94,8 +100,23 @@ function scheduleHideControls() {
   hideTimer = setTimeout(() => { if (isPlaying.value) showControls.value = false }, 4000)
 }
 onUnmounted(() => { if (hideTimer) clearTimeout(hideTimer) })
+// 切页/切后台时暂停视频，根除后台多音轨（点讲师/作者头像跳转时原视频不再后台出声）
+onHide(() => { try { playerCtx().pause() } catch { /* 图文态无 video 元素·忽略 */ } })
 // 起播/暂停事件：首次 @play 后封面层永久隐藏（autoplay 被浏览器拦截时封面层单钮点一次即播）
-function onPlay() { isPlaying.value = true; started.value = true; showControls.value = true; scheduleHideControls() }
+function onPlay() {
+  isPlaying.value = true; started.value = true; showControls.value = true; scheduleHideControls()
+  // 续播定位：起播后 seek 到上次观看秒数（后端 currentProgress 已算好·消费一次防重复跳）
+  // 已看完的课时（进度≈片尾）不跳，避免 seek 到末尾立即 ended 触发自动连播
+  if (resumeAt.value > 0 && (!duration.value || resumeAt.value < duration.value - 5)) {
+    const t = resumeAt.value
+    resumeAt.value = 0
+    setTimeout(() => playerCtx().seek(t), 80)
+  } else {
+    resumeAt.value = 0
+  }
+}
+// 视频源加载失败（.mov 安卓不支持 / 转码中 / 404）→ 诚实态提示而非黑屏
+function onVideoError() { playError.value = true; isPlaying.value = false }
 function onPause() { isPlaying.value = false; showControls.value = true; if (hideTimer) clearTimeout(hideTimer) }
 // 点播放器区域：起播后切换控制层显隐（控制层内交互元素已 stop 不冒泡到这里）
 function onPlayerTap() {
@@ -108,6 +129,30 @@ function onPlayerTap() {
 function onTimeUpdate(e: any) {
   currentTime.value = e?.detail?.currentTime || 0
   if (e?.detail?.duration) duration.value = e.detail.duration
+  saveProgressThrottled()
+}
+// 进度回写（节流 10s/次）：仅有真实观看权限时回写，试看未购不写避免 403 噪声
+function saveProgressThrottled() {
+  if (!currentLessonId.value || !duration.value || trialMode.value) return
+  const now = Date.now()
+  if (now - lastSaveTs < 10000) return
+  lastSaveTs = now
+  const pct = Math.min(100, Math.round((currentTime.value / duration.value) * 100))
+  if (pct <= 0) return
+  courseApi.saveProgress(currentLessonId.value, pct).catch(() => { /* 静默：进度回写失败不打断播放 */ })
+}
+// 视频态进度轨点击跳转（保守：只做 tap 定位，touchmove 拖动不做）
+function onTrackTap(e: any) {
+  if (!duration.value) return
+  uni.createSelectorQuery().in(inst?.proxy as any).select('.track').boundingClientRect((rect: any) => {
+    const r = Array.isArray(rect) ? rect[0] : rect
+    if (!r || !r.width) return
+    const x = e?.detail?.x ?? e?.changedTouches?.[0]?.clientX ?? e?.touches?.[0]?.clientX ?? 0
+    const ratio = Math.max(0, Math.min(1, (x - r.left) / r.width))
+    const t = ratio * duration.value
+    currentTime.value = t
+    playerCtx().seek(t)
+  }).exec()
 }
 // 播完自动进入下一节（可关）
 function onEnded() {
@@ -142,6 +187,9 @@ async function switchLesson(id: string) {
     content.value = next
     currentTime.value = 0
     duration.value = next.duration || 0
+    resumeAt.value = next.currentProgress || 0 // 续播定位：换课时后起播跳到上次进度
+    playError.value = false
+    lastSaveTs = 0
     started.value = !!next.videoUrl ? started.value : true
     // 换源后立即续播（用户已有交互，程序化播放不被拦截）
     if (next.videoUrl) setTimeout(() => playerCtx().play(), 60)
@@ -242,6 +290,9 @@ async function loadData() {
     }
     content.value = await courseApi.getPlayerContent(lessonId.value)
     duration.value = content.value?.duration || 0
+    resumeAt.value = content.value?.currentProgress || 0 // 续播定位：起播跳到上次观看秒数
+    playError.value = false
+    lastSaveTs = 0
     // 图文课时无视频，无需起播封面
     if (isArticleMode.value) started.value = true
     // 权限 + 课程概要 + 完课进度并行静默回填（不阻塞播放主链路）
@@ -457,10 +508,18 @@ onMounted(() => {
           @pause="onPause"
           @timeupdate="onTimeUpdate"
           @ended="onEnded"
+          @error="onVideoError"
         />
 
-        <!-- 起播前封面层：唯一一层中央播放钮，整层可点 -->
-        <view v-if="!started" class="start-cover" @tap.stop="togglePlay">
+        <!-- 不可播诚实态：源加载失败（.mov 安卓不支持 / 转码中 / 404）→ 提示而非黑屏 -->
+        <view v-if="playError" class="video-unplayable">
+          <app-icon name="video-off" :size="60" color="rgba(255,255,255,0.6)" />
+          <text class="video-unplayable-t">该课时视频暂不可播</text>
+          <text class="video-unplayable-s">格式暂不支持或正在转码，请稍后再试</text>
+        </view>
+
+        <!-- 起播前封面层：唯一一层中央播放钮，整层可点（失败态不显示，让位诚实态） -->
+        <view v-if="!started && !playError" class="start-cover" @tap.stop="togglePlay">
           <view class="start-btn"><app-icon name="play" :size="60" color="#ffffff" :fill="true" /></view>
         </view>
 
@@ -469,7 +528,7 @@ onMounted(() => {
           <!-- 进度：当前时长 · 可拖轨 · 总时长 -->
           <view class="ctrl-progress">
             <text class="time">{{ formatTime(currentTime) }}</text>
-            <view class="track"><view class="track-fill" :style="{ width: progressPercent + '%' }" /><view class="track-dot" :style="{ left: progressPercent + '%' }" /></view>
+            <view class="track" @tap.stop="onTrackTap"><view class="track-fill" :style="{ width: progressPercent + '%' }" /><view class="track-dot" :style="{ left: progressPercent + '%' }" /></view>
             <text class="time">{{ formatTime(duration) }}</text>
           </view>
           <view class="ctrl-row">
@@ -665,6 +724,11 @@ onMounted(() => {
 /* 视频 16:9（padding-top 撑高，X5 安全） */
 .video { position: relative; width: 100%; padding-top: 56.25%; background: #000; }
 .video-el { position: absolute; inset: 0; width: 100%; height: 100%; background: #000; }
+
+/* 不可播诚实态 */
+.video-unplayable { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16rpx; background: rgba(0,0,0,0.72); }
+.video-unplayable-t { color: rgba(255,255,255,0.9); font-size: 28rpx; }
+.video-unplayable-s { color: rgba(255,255,255,0.55); font-size: 22rpx; }
 
 /* 起播前封面层 */
 .start-cover { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.28); }

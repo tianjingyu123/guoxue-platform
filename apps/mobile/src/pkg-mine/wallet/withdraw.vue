@@ -210,6 +210,9 @@ function continueWithdraw() {
   success.value = false
   amount.value = ''
 }
+function goService() {
+  navigateTo('/customer-service')
+}
 </script>
 
 <template>
@@ -463,6 +466,11 @@ function continueWithdraw() {
         <text>• 支付宝提现预计2小时内到账</text>
         <text>• 银行卡提现预计1-3个工作日到账</text>
         <text>• 请确保收款账户信息准确无误</text>
+      </view>
+
+      <view class="service-entry" @tap="goService">
+        <app-icon name="message-circle" :size="28" color="var(--brand)" />
+        <text class="service-entry-t">提现遇到问题？联系客服</text>
       </view>
     </view>
 
@@ -742,6 +750,17 @@ function continueWithdraw() {
   gap: 8rpx;
   font-size: 22rpx;
   color: rgba(92, 64, 51, 0.6);
+}
+.service-entry {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10rpx;
+  padding: 8rpx 0;
+}
+.service-entry-t {
+  font-size: 26rpx;
+  color: var(--brand);
 }
 
 /* 成功态 */

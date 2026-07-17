@@ -84,7 +84,7 @@
           <view class="tips-text">
             <text class="tips-line">1. 平台将在1-3个工作日内完成审核</text>
             <text class="tips-line">2. 处理结果将通过消息通知推送给您</text>
-            <text class="tips-line">3. 如有疑问，可联系在线客服</text>
+            <text class="tips-line">3. 如有疑问，可<text class="tips-link" @tap="goService">联系在线客服</text></text>
           </view>
         </view>
       </scroll-view>
@@ -245,7 +245,7 @@
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
-import { navigateBack } from '@/utils/router'
+import { navigateBack, navigateTo } from '@/utils/router'
 import { formatPrice } from '@/utils/format'
 import { orderApi } from '@/lib/order-data'
 
@@ -330,6 +330,9 @@ function handleSubmit() {
 }
 function goBack() {
   navigateBack()
+}
+function goService() {
+  navigateTo('/customer-service')
 }
 </script>
 
@@ -658,6 +661,12 @@ function goBack() {
 .tips-line {
   font-size: 22rpx;
   color: #9C8C7A;
+}
+.tips-link {
+  font-size: 22rpx;
+  color: #C9A961;
+  font-weight: 600;
+  text-decoration: underline;
 }
 .tips-inline {
   flex: 1;

@@ -2,7 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import AppNavBar from '@/components/common/app-nav-bar.vue'
 import AppIcon from '@/components/common/app-icon.vue'
-import { goBack } from '@/utils/router'
+import { goBack, navigateTo } from '@/utils/router'
 import {
   mineApi,
   rechargePayMethods,
@@ -81,6 +81,9 @@ async function payByWechatMp(amountCoin: number) {
   uni.showToast({ title: '支付成功，到账处理中', icon: 'success' })
 }
 
+function goService() {
+  navigateTo('/customer-service')
+}
 async function handleSubmit() {
   if (selectedAmount.value <= 0 || isSubmitting.value) return
   isSubmitting.value = true
@@ -228,7 +231,7 @@ async function handleSubmit() {
         </view>
         <view class="notice-item">
           <text class="dot">•</text>
-          <text class="notice-txt">如有疑问，请联系客服处理</text>
+          <text class="notice-txt">如有疑问，请<text class="notice-link" @tap="goService">联系客服</text>处理</text>
         </view>
       </view>
     </view>
@@ -532,6 +535,12 @@ async function handleSubmit() {
   font-size: 22rpx;
   color: #8a7a6d;
   line-height: 1.5;
+}
+.notice-link {
+  font-size: 22rpx;
+  color: #C9A961;
+  font-weight: 600;
+  text-decoration: underline;
 }
 
 /* 底部栏 */

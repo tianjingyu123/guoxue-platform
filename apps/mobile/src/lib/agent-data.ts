@@ -112,7 +112,7 @@ export const csWelcome = `您好，欢迎联系智玄客服！
 
 请描述您的问题，我们将尽快为您解答。`
 
-export const csQuick = ['课程退款', 'VIP开通', '账号问题', '内容举报', '联系人工客服']
+export const csQuick = ['课程退款', 'VIP开通', '账号问题', '内容举报', '转接人工协助']
 
 // ===== 对话历史（history）=====
 export interface HistoryItem {

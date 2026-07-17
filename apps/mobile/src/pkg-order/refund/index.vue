@@ -193,7 +193,7 @@ function copyId() {
   })
 }
 function contactService() {
-  uni.showToast({ title: '正在接入客服', icon: 'none' })
+  navigateTo('/customer-service')
 }
 function viewOrder() {
   if (data.value?.orderId) navigateTo(`/orders/${data.value.orderId}`)

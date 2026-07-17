@@ -21,6 +21,7 @@
     <!-- #endif -->
     <!-- #ifdef MP-WEIXIN || APP-PLUS -->
     <live-player
+      :id="videoId"
       :src="lpSrc"
       mode="live"
       autoplay
@@ -40,7 +41,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch, getCurrentInstance } from 'vue'
 
 const props = withDefaults(
   defineProps<{ flvUrl?: string; hlsUrl?: string; objectFit?: 'contain' | 'fillCrop' | 'cover' }>(),
@@ -55,15 +56,55 @@ const lpSrc = computed(() => props.flvUrl || props.hlsUrl || '')
 let lpIndex = 0
 const videoId = `lp-video-${(lpIndex = (lpIndex + 1) % 1e6)}-${Date.now().toString(36)}`
 
+/* ===== 断流自动重连（退避重试，超上限才落手动态）===== */
+const MAX_RETRY = 3
+let retryCount = 0
+let retryTimer: ReturnType<typeof setTimeout> | null = null
+function clearRetryTimer() { if (retryTimer) { clearTimeout(retryTimer); retryTimer = null } }
+function resetRetry() { retryCount = 0; clearRetryTimer() }
+
+// #ifdef MP-WEIXIN || APP-PLUS
+const mpInstance = getCurrentInstance()
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let mpCtx: any = null
+// live-player 断流退避重连：stop→play 重新拉流，超上限落手动态
+function mpReconnect() {
+  if (retryCount >= MAX_RETRY) { loadError.value = true; return }
+  clearRetryTimer()
+  const delay = 1000 * (retryCount + 1) // 1s / 2s / 3s 递增退避
+  retryCount++
+  retryTimer = setTimeout(() => {
+    try {
+      if (!mpCtx) mpCtx = uni.createLivePlayerContext(videoId, mpInstance?.proxy as never)
+      mpCtx.stop({ complete: () => mpCtx.play({}) })
+    } catch { loadError.value = true }
+  }, delay)
+}
+// #endif
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function onStateChange(e: any) {
-  // 2004=开始拉流，-2301=断连
+  // 2004=开始拉流（视为恢复），-2301=网络断连
   const code = e?.detail?.code
-  if (code === -2301) loadError.value = true
-  else if (code === 2004) loadError.value = false
+  if (code === -2301) {
+    // #ifdef MP-WEIXIN || APP-PLUS
+    mpReconnect()
+    // #endif
+    // #ifndef MP-WEIXIN || APP-PLUS
+    loadError.value = true
+    // #endif
+  } else if (code === 2004) {
+    resetRetry()
+    loadError.value = false
+  }
 }
 function onLpError() {
+  // #ifdef MP-WEIXIN || APP-PLUS
+  mpReconnect()
+  // #endif
+  // #ifndef MP-WEIXIN || APP-PLUS
   loadError.value = true
+  // #endif
 }
 
 /* ================= H5：flv.js 低延时 ================= */
@@ -71,8 +112,18 @@ function onLpError() {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let flvPlayer: any = null
 
-async function initH5() {
+// H5 flv 断流退避重连：destroy→init 重新拉流，超上限落手动态
+function scheduleH5Reconnect() {
+  if (retryCount >= MAX_RETRY) { loadError.value = true; return }
+  clearRetryTimer()
+  const delay = 1000 * (retryCount + 1) // 1s / 2s / 3s 递增退避
+  retryCount++
+  retryTimer = setTimeout(() => { initH5(true) }, delay)
+}
+
+async function initH5(isRetry = false) {
   destroyH5()
+  if (!isRetry) resetRetry() // 首次/换源/手动重试清零计数，重连不清
   loadError.value = false
   // uni-app H5 的 <video> 会包一层 wrapper，真正的媒体元素是其内部的 <video>
   const wrapper = document.getElementById(videoId)
@@ -90,7 +141,9 @@ async function initH5() {
           flvConfig as Parameters<typeof flvjs.createPlayer>[1],
         )
         flvPlayer.attachMediaElement(el)
-        flvPlayer.on(flvjs.Events.ERROR, () => { loadError.value = true })
+        // 断流 → 退避自动重连；拿到流信息 = 连接成功，重连计数清零
+        flvPlayer.on(flvjs.Events.ERROR, () => { scheduleH5Reconnect() })
+        flvPlayer.on(flvjs.Events.MEDIA_INFO, () => { resetRetry(); loadError.value = false })
         flvPlayer.load()
         el.play().catch(() => { /* 自动播放被拦截，等用户交互 */ })
         return
@@ -115,11 +168,16 @@ function destroyH5() {
 // #endif
 
 function retry() {
+  resetRetry() // 手动重试清零退避计数
+  loadError.value = false
   // #ifdef H5
   initH5()
   // #endif
-  // #ifndef H5
-  loadError.value = false
+  // #ifdef MP-WEIXIN || APP-PLUS
+  try {
+    if (!mpCtx) mpCtx = uni.createLivePlayerContext(videoId, mpInstance?.proxy as never)
+    mpCtx.stop({ complete: () => mpCtx.play({}) })
+  } catch { /* ignore */ }
   // #endif
 }
 
@@ -131,12 +189,14 @@ onMounted(() => {
 
 // 播放地址变化（如直播开始后拿到地址）时重新初始化
 watch(() => [props.flvUrl, props.hlsUrl], () => {
+  resetRetry() // 换源清零退避计数
   // #ifdef H5
   if (props.flvUrl || props.hlsUrl) initH5()
   // #endif
 })
 
 onBeforeUnmount(() => {
+  clearRetryTimer()
   // #ifdef H5
   destroyH5()
   // #endif

@@ -528,6 +528,16 @@ export const courseApi = {
     }
   },
 
+  /**
+   * 回写课时学习进度 — PUT /courses/chapters/:chapterId/progress
+   * progress 为 0-100 百分比（后端 UpdateProgressDto 校验 0-100，upsert 落 ReadingProgress）。
+   * 播放器 onTimeUpdate 节流调用；失败由调用方静默降级，不打断播放。
+   */
+  async saveProgress(chapterId: string, progress: number): Promise<void> {
+    const p = Math.max(0, Math.min(100, Math.round(progress)))
+    await apiPut(`/courses/chapters/${chapterId}/progress`, { progress: p })
+  },
+
   /** 播放页章节目录 — GET /courses/:id/chapters + /progress（单级章节包成「章含一课时」） */
   async getPlayerChapters(id: string): Promise<PlayerChapter[]> {
     const [chapters, progress] = await Promise.all([

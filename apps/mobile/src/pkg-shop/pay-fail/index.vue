@@ -52,6 +52,10 @@
             <app-icon name="file-text" :size="34" color="#666666" />
             <text>查看订单详情</text>
           </view>
+          <view class="btn text" @tap="goService">
+            <app-icon name="message-circle" :size="34" color="#666666" />
+            <text>联系客服</text>
+          </view>
         </view>
       </view>
     </view>
@@ -109,6 +113,7 @@ function goRePay() {
 function goChangeMethod() { navigateTo(`/shop/checkout?orderId=${orderId.value}`) }
 function goOrder() { navigateTo(`/orders/${orderId.value}`) }
 function goShop() { navigateTo('/mall') }
+function goService() { navigateTo('/customer-service') }
 </script>
 
 <style lang="scss" scoped>

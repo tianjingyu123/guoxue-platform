@@ -362,7 +362,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, getCurrentInstance, nextTick } from 'vue'
-import { onLoad, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
+import { onLoad, onShareAppMessage, onShareTimeline, onHide } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import SmartAvatar from '@/components/common/smart-avatar.vue'
 import { goBack, navigateTo } from '@/utils/router'
@@ -458,6 +458,9 @@ function togglePlay() {
 function onVideoPlay() { isPlaying.value = true }
 function onVideoPause() { isPlaying.value = false }
 function onVideoError() { playError.value = true; isPlaying.value = false }
+
+// 切页/切后台时暂停视频，根除后台多音轨（点作者头像/圈子跳转时原视频不再后台出声）
+onHide(() => { getVideoCtx()?.pause(); isPlaying.value = false })
 
 // ===== 播放进度（V0 底部细进度条）=====
 const playProgress = ref(0) // 0-100
