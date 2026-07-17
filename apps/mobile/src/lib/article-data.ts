@@ -114,7 +114,7 @@ export const mockArticle: ArticleData = {
 }
 
 // ============ 真实 API 层（列表 / 发布 / 草稿 / 标签） ============
-import { apiGet, apiPost, apiGetPaged } from '@/utils/request'
+import { apiGet, apiPost, apiPut, apiDelete, apiGetPaged } from '@/utils/request'
 
 /** 文章列表项（对齐后端 article.service.listArticles 的 select 字段） */
 export interface ArticleListItem {
@@ -136,6 +136,15 @@ export interface HotTag {
   id: string
   name: string
   postCount?: number
+}
+
+/** 我的草稿列表项（对齐后端 getMyDrafts 的 select：id/title/cover/excerpt/updatedAt） */
+export interface DraftListItem {
+  id: string
+  title: string
+  cover?: string | null
+  excerpt?: string | null
+  updatedAt: string
 }
 
 /** 解析后端分页信封 paginated → {rows,total} / 兼容多种命名 */
@@ -349,6 +358,24 @@ export const articleApi = {
   /** 保存草稿 POST /articles/drafts */
   saveDraft: (body: { title: string; content: string; cover?: string; excerpt?: string; tags: string[]; circleId?: string }) =>
     apiPost<{ id: string }>('/articles/drafts', body),
+
+  /** 我的草稿列表 GET /articles/drafts?page=&pageSize=（后端 auditStatus=DRAFT 且归属当前用户） */
+  async getDrafts(page = 1, pageSize = 20): Promise<{ items: DraftListItem[]; total: number }> {
+    const res = await apiGet<unknown>(`/articles/drafts?page=${page}&pageSize=${pageSize}`)
+    return parseList<DraftListItem>(res)
+  },
+
+  /** 更新草稿 PUT /articles/drafts/:id（续编保存回写，避免每次续编生成新草稿） */
+  updateDraft: (id: string, body: { title?: string; content?: string; cover?: string; excerpt?: string; tags?: string[] }) =>
+    apiPut<{ id: string }>(`/articles/drafts/${id}`, body),
+
+  /** 删除草稿 DELETE /articles/drafts/:id */
+  deleteDraft: (id: string) =>
+    apiDelete<{ success: boolean }>(`/articles/drafts/${id}`),
+
+  /** 发布草稿（DRAFT→PENDING 进审核）POST /articles/drafts/:id/publish */
+  publishDraft: (id: string) =>
+    apiPost<{ id: string }>(`/articles/drafts/${id}/publish`, {}),
 
   /** 发动态/帖子 POST /circles/:circleId/posts（attachments=文件卡附件·后端 Post.attachments JSONB） */
   createPost: (circleId: string, body: { type: string; title?: string; content: string; images?: string[]; attachments?: { name: string; size: number; url: string }[]; status?: string }) =>

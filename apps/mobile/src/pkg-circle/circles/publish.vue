@@ -5,7 +5,7 @@
  * 音视频课程为高级功能，未开通弹申请提示（原型 FeatureApplyModal 子系统后续单独迁移）。
  */
 import { ref, reactive } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { onLoad, onUnload } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import SmartCover from '@/components/common/smart-cover.vue'
 import VisibilitySettings, { type Visibility, type PaymentType } from '@/components/circle/visibility-settings.vue'
@@ -35,6 +35,7 @@ onLoad((q) => {
   // 支持从发布 sheet 直达指定表单（type=article/course），免二次选类型
   if (q?.type === 'article' || q?.type === 'course') selectedType.value = q.type
   loadCircle()
+  restoreLocalDraft()
 })
 
 /** 加载真实圈子信息（名称/成员数/当前用户角色） */
@@ -95,6 +96,7 @@ function uploadCover(target: 'a' | 'c') {
 
 /** 发布成功后的去向：全平台开放 → 提示平台审核并可跳发布审核台账；仅本圈 → 回圈子详情 */
 function afterPublishSuccess(scope: 'CIRCLE_ONLY' | 'PLATFORM', successText: string) {
+  clearLocalDraft() // 发布成功，清本地兜底缓存
   if (scope === 'PLATFORM') {
     uni.showModal({
       title: successText,
@@ -216,6 +218,58 @@ async function submitCourse() {
     cSubmitting.value = false
   }
 }
+
+// ─── 本地草稿兜底（纯前端 storage·防误触返回丢失长内容·成功发布后清） ───
+const LOCAL_DRAFT_KEY = 'draft:circle-publish'
+let submittedClean = false
+
+function restoreLocalDraft() {
+  try {
+    const raw = uni.getStorageSync(LOCAL_DRAFT_KEY)
+    if (!raw) return
+    // 缓存结构由本页写入
+    const cache = (typeof raw === 'string' ? JSON.parse(raw) : raw) as {
+      selectedType?: string | null
+      a?: Partial<typeof a>
+      c?: Partial<typeof c>
+    }
+    const hasContent = !!(cache?.a?.title?.trim() || cache?.a?.content?.trim() || cache?.c?.title?.trim() || cache?.c?.description?.trim())
+    if (!hasContent) { uni.removeStorageSync(LOCAL_DRAFT_KEY); return }
+    // 当前已在填写则不覆盖
+    if (a.title.trim() || a.content.trim() || c.title.trim() || c.description.trim()) return
+    uni.showModal({
+      title: '恢复未完成的内容',
+      content: '检测到上次未发布的内容，是否恢复继续编辑？',
+      confirmText: '恢复',
+      cancelText: '不用了',
+      success: (r) => {
+        if (r.confirm) {
+          if (cache.a) Object.assign(a, cache.a)
+          if (cache.c) Object.assign(c, cache.c)
+          if (cache.selectedType === 'article' || cache.selectedType === 'course') selectedType.value = cache.selectedType
+        } else {
+          uni.removeStorageSync(LOCAL_DRAFT_KEY)
+        }
+      },
+    })
+  } catch {
+    try { uni.removeStorageSync(LOCAL_DRAFT_KEY) } catch { /* noop */ }
+  }
+}
+
+function clearLocalDraft() {
+  submittedClean = true
+  try { uni.removeStorageSync(LOCAL_DRAFT_KEY) } catch { /* noop */ }
+}
+
+onUnload(() => {
+  if (submittedClean) return
+  const hasContent = a.title.trim() || a.content.trim() || c.title.trim() || c.description.trim()
+  if (!hasContent) { try { uni.removeStorageSync(LOCAL_DRAFT_KEY) } catch { /* noop */ } ; return }
+  try {
+    uni.setStorageSync(LOCAL_DRAFT_KEY, JSON.stringify({ selectedType: selectedType.value, a: { ...a }, c: { ...c } }))
+  } catch { /* 存储失败静默 */ }
+})
 </script>
 
 <template>

@@ -301,7 +301,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { onLoad, onUnload } from '@dcloudio/uni-app'
 import { uploadImage, uploadDocument } from '@/utils/request'
 import { navigateBack } from '@/utils/router'
 import { circleApi } from '@/lib/circle-data'
@@ -339,6 +339,13 @@ const coverPrompt = ref('')
 const saving = ref(false)
 const publishing = ref(false)
 
+// 续编：从草稿箱带 draftId 进来，加载草稿全文续写；保存回写同一草稿（updateDraft），发布走 publishDraft
+const editingDraftId = ref<string | null>(null)
+// 本地草稿兜底 storage key（防误触返回丢失长内容·纯前端·成功提交后清）
+const LOCAL_DRAFT_KEY = 'draft:circle-editor'
+// 已成功提交/发布，onUnload 不再回写本地缓存
+let submittedClean = false
+
 // 发文章需圈主/合伙人/管理员（后端 ensureCircleAdmin）。前置查角色，非管理员只能发帖，避免写完才 403。
 const myRole = ref<string | null>(null)
 const roleLoaded = ref(false)
@@ -367,10 +374,100 @@ const aiPanelTitle = computed(() => {
 })
 
 onLoad((opts) => {
+  if (opts?.draftId) {
+    // 续编模式：加载后端草稿全文，忽略本地缓存
+    loadDraft(opts.draftId)
+    return
+  }
   if (opts?.circleId) {
     selectedCircle.value = opts.circleId
     refreshRole(opts.circleId)
   }
+  // 无草稿参数时，检测本地兜底草稿，提示恢复
+  restoreLocalDraft()
+})
+
+/** 续编：拉草稿全文（草稿也是 article，GET /articles/:id 可取），填充表单并回写模式 */
+async function loadDraft(draftId: string) {
+  editingDraftId.value = draftId
+  type.value = 'article'
+  uni.showLoading({ title: '加载中' })
+  try {
+    const d = await articleApi.detail(draftId)
+    title.value = d.title || ''
+    content.value = d.content || ''
+    cover.value = d.cover || ''
+    selectedTopics.value = Array.isArray(d.tags) ? d.tags.slice(0, 3) : []
+    if (d.circleId) {
+      selectedCircle.value = d.circleId
+      refreshRole(d.circleId)
+    }
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '草稿加载失败', icon: 'none' })
+  } finally {
+    uni.hideLoading()
+  }
+}
+
+/** 本地兜底草稿：读缓存 → 若有内容且当前为空则询问恢复 */
+function restoreLocalDraft() {
+  try {
+    const raw = uni.getStorageSync(LOCAL_DRAFT_KEY)
+    if (!raw) return
+    // 缓存结构由本页写入，字段与表单一一对应
+    const c = (typeof raw === 'string' ? JSON.parse(raw) : raw) as {
+      type?: 'post' | 'article'; title?: string; content?: string; cover?: string
+      images?: string[]; attachments?: { name: string; size: number; url: string }[]
+      selectedCircle?: string | null; selectedTopics?: string[]
+    }
+    if (!c || (!c.content?.trim() && !c.title?.trim())) { uni.removeStorageSync(LOCAL_DRAFT_KEY); return }
+    if (content.value.trim() || title.value.trim()) return // 当前已有内容，不覆盖
+    uni.showModal({
+      title: '恢复未完成的内容',
+      content: '检测到上次未发布的草稿，是否恢复继续编辑？',
+      confirmText: '恢复',
+      cancelText: '不用了',
+      success: (r) => {
+        if (r.confirm) {
+          type.value = c.type === 'article' ? 'article' : 'post'
+          title.value = c.title || ''
+          content.value = c.content || ''
+          cover.value = c.cover || ''
+          images.value = Array.isArray(c.images) ? c.images : []
+          attachments.value = Array.isArray(c.attachments) ? c.attachments : []
+          selectedTopics.value = Array.isArray(c.selectedTopics) ? c.selectedTopics : []
+          if (c.selectedCircle) { selectedCircle.value = c.selectedCircle; refreshRole(c.selectedCircle) }
+        } else {
+          uni.removeStorageSync(LOCAL_DRAFT_KEY)
+        }
+      },
+    })
+  } catch {
+    // 缓存解析失败：清掉脏数据，不阻断
+    try { uni.removeStorageSync(LOCAL_DRAFT_KEY) } catch { /* noop */ }
+  }
+}
+
+function clearLocalDraft() {
+  try { uni.removeStorageSync(LOCAL_DRAFT_KEY) } catch { /* noop */ }
+}
+
+// 切页/退出时兜底：有内容且非刚提交，则把关键字段存本地（防误触返回丢失长内容）
+onUnload(() => {
+  if (submittedClean) { clearLocalDraft(); return }
+  if (!content.value.trim() && !title.value.trim()) { clearLocalDraft(); return }
+  try {
+    uni.setStorageSync(LOCAL_DRAFT_KEY, JSON.stringify({
+      type: type.value,
+      title: title.value,
+      content: content.value,
+      cover: cover.value,
+      images: images.value,
+      attachments: attachments.value,
+      selectedCircle: selectedCircle.value,
+      selectedTopics: selectedTopics.value,
+    }))
+  } catch { /* 存储失败静默，不影响退出 */ }
 })
 
 onMounted(() => {
@@ -592,13 +689,25 @@ async function handleSaveDraft() {
   saving.value = true
   try {
     if (type.value === 'article') {
-      await articleApi.saveDraft({
-        title: title.value.trim() || '无标题',
-        content: content.value,
-        cover: cover.value || undefined,
-        tags: selectedTopics.value,
-        circleId: selectedCircle.value!,
-      })
+      if (editingDraftId.value) {
+        // 续编回写同一草稿，避免重复生成
+        await articleApi.updateDraft(editingDraftId.value, {
+          title: title.value.trim() || '无标题',
+          content: content.value,
+          cover: cover.value || undefined,
+          tags: selectedTopics.value,
+        })
+      } else {
+        const res = await articleApi.saveDraft({
+          title: title.value.trim() || '无标题',
+          content: content.value,
+          cover: cover.value || undefined,
+          tags: selectedTopics.value,
+          circleId: selectedCircle.value!,
+        })
+        // 记录草稿 id，后续保存走 updateDraft
+        if (res?.id) editingDraftId.value = res.id
+      }
     } else {
       await articleApi.createPost(selectedCircle.value!, {
         type: images.value.length ? 'IMAGE' : (attachments.value.length ? 'FILE' : 'TEXT'),
@@ -608,6 +717,8 @@ async function handleSaveDraft() {
         status: 'DRAFT',
       })
     }
+    // 草稿已入后端，清本地兜底缓存（避免下次误恢复旧内容）
+    clearLocalDraft()
     uni.showToast({ title: '草稿已保存', icon: 'success' })
   } catch (e) {
     uni.showToast({ title: (e as Error)?.message || '保存失败', icon: 'none' })
@@ -622,12 +733,23 @@ async function handlePublish() {
   publishing.value = true
   try {
     if (type.value === 'article') {
-      await articleApi.create(selectedCircle.value!, {
-        title: title.value.trim(),
-        content: content.value,
-        cover: cover.value || undefined,
-        tags: selectedTopics.value,
-      })
+      if (editingDraftId.value) {
+        // 续编发布：先回写最新内容，再走草稿发布（DRAFT→PENDING）
+        await articleApi.updateDraft(editingDraftId.value, {
+          title: title.value.trim(),
+          content: content.value,
+          cover: cover.value || undefined,
+          tags: selectedTopics.value,
+        })
+        await articleApi.publishDraft(editingDraftId.value)
+      } else {
+        await articleApi.create(selectedCircle.value!, {
+          title: title.value.trim(),
+          content: content.value,
+          cover: cover.value || undefined,
+          tags: selectedTopics.value,
+        })
+      }
     } else {
       await articleApi.createPost(selectedCircle.value!, {
         type: images.value.length ? 'IMAGE' : (attachments.value.length ? 'FILE' : 'TEXT'),
@@ -637,6 +759,9 @@ async function handlePublish() {
         status: 'PUBLISHED',
       })
     }
+    // 已发布，标记清缓存（onUnload 不再回写）
+    submittedClean = true
+    clearLocalDraft()
     uni.showToast({ title: '发布成功', icon: 'success' })
     // 广播圈子详情页立即刷新（配合后端 createPost 缓存失效，新帖即时可见·董事长反馈）
     uni.$emit('circle:refresh', selectedCircle.value)

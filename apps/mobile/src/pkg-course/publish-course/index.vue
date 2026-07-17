@@ -203,7 +203,7 @@
 
 <script setup lang="ts">
 import { ref, computed, reactive } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { onLoad, onUnload } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import PricingReferenceCard from '@/components/pricing-reference-card.vue'
 import { goBack, navigateTo } from '@/utils/router'
@@ -239,8 +239,9 @@ const form = reactive({
 
 const uploadingCover = ref(false)
 
-// 开放范围（纯 UI 单选·委托书 P6 第 6 项）：仅前端展示状态，
-// 现有 courseApi.create 暂无对应入参，故不写入提交体（不造假接口参数）。
+// 开放范围（委托书 P6 第 6 项）：courseApi.create 支持 visibility 入参（CIRCLE_ONLY/PLATFORM），
+// 提交时映射写入（此前误标"暂无入参"未接入，选了不生效——已修：真正接入使选择生效）。
+// 独立讲师无 circleId，后端 resolveCircleId 兜底官方圈：CIRCLE_ONLY=仅官方圈可见 / PLATFORM=全平台需审核进公共池。
 const scopeOptions = [
   { value: 'circle', label: '仅圈子内' },
   { value: 'platform', label: '全平台' },
@@ -296,8 +297,10 @@ async function onSubmit() {
       cover: form.cover || undefined,
       categoryLevel1: form.categoryLevel1 || undefined,
       validityDays: form.validityDays ? Number(form.validityDays) : 0,
+      visibility: scope.value === 'platform' ? 'PLATFORM' : 'CIRCLE_ONLY',
     })
     // 审核无感化（20260711 第八节）：发布即可见，机审后台异步完成，无任何审核提示
+    clearLocalDraft() // 发布成功，清本地兜底缓存
     uni.showToast({ title: '发布成功', icon: 'success' })
     setTimeout(() => goBack(), 800)
   } catch (e) {
@@ -326,6 +329,57 @@ function back() {
   goBack()
 }
 
+// ─── 本地草稿兜底（纯前端 storage·防误触返回丢失长简介·成功发布后清） ───
+const LOCAL_DRAFT_KEY = 'draft:publish-course'
+let submittedClean = false
+
+function restoreLocalDraft() {
+  try {
+    const raw = uni.getStorageSync(LOCAL_DRAFT_KEY)
+    if (!raw) return
+    // 缓存结构由本页写入
+    const cache = (typeof raw === 'string' ? JSON.parse(raw) : raw) as {
+      form?: Partial<typeof form>; typeIndex?: number; categoryIndex?: number; scope?: 'circle' | 'platform'
+    }
+    const hasContent = !!(cache?.form?.title?.trim() || cache?.form?.intro?.trim())
+    if (!hasContent) { uni.removeStorageSync(LOCAL_DRAFT_KEY); return }
+    if (form.title.trim() || form.intro.trim()) return // 当前已在填写不覆盖
+    uni.showModal({
+      title: '恢复未完成的内容',
+      content: '检测到上次未发布的课程信息，是否恢复继续编辑？',
+      confirmText: '恢复',
+      cancelText: '不用了',
+      success: (r) => {
+        if (r.confirm) {
+          if (cache.form) Object.assign(form, cache.form)
+          if (typeof cache.typeIndex === 'number') typeIndex.value = cache.typeIndex
+          if (typeof cache.categoryIndex === 'number') categoryIndex.value = cache.categoryIndex
+          if (cache.scope === 'circle' || cache.scope === 'platform') scope.value = cache.scope
+        } else {
+          uni.removeStorageSync(LOCAL_DRAFT_KEY)
+        }
+      },
+    })
+  } catch {
+    try { uni.removeStorageSync(LOCAL_DRAFT_KEY) } catch { /* noop */ }
+  }
+}
+
+function clearLocalDraft() {
+  submittedClean = true
+  try { uni.removeStorageSync(LOCAL_DRAFT_KEY) } catch { /* noop */ }
+}
+
+onUnload(() => {
+  if (submittedClean) return
+  if (!form.title.trim() && !form.intro.trim()) { try { uni.removeStorageSync(LOCAL_DRAFT_KEY) } catch { /* noop */ } ; return }
+  try {
+    uni.setStorageSync(LOCAL_DRAFT_KEY, JSON.stringify({
+      form: { ...form }, typeIndex: typeIndex.value, categoryIndex: categoryIndex.value, scope: scope.value,
+    }))
+  } catch { /* 存储失败静默 */ }
+})
+
 onLoad(() => {
   try {
     const info = uni.getWindowInfo ? uni.getWindowInfo() : uni.getSystemInfoSync()
@@ -334,6 +388,7 @@ onLoad(() => {
     statusBarHeight.value = 0
   }
   loadCert()
+  restoreLocalDraft()
 })
 </script>
 

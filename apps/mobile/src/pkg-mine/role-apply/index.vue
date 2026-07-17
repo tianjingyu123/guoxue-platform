@@ -88,9 +88,9 @@ const ROLE_CONFIGS: Record<string, RoleApplyConfig> = {
     targetNote: '分站为付费开通，付款成功后账号即刻激活（非审核制）',
   },
   operator: {
-    seal: '运', name: '运营商', tagline: '区域推广合伙，多级分润共建生态',
+    seal: '运', name: '运营商', tagline: '区域推广合伙，两级分润共建生态',
     gains: [
-      { icon: 'landmark', title: '区域推广分润', sub: '所辖区域交易多级分润' },
+      { icon: 'landmark', title: '区域推广分润', sub: '所辖区域交易两级分润' },
       { icon: 'user-plus', title: '团队管理权限', sub: '发展并管理站长团队' },
       { icon: 'award', title: '官方合伙授权', sub: '区域运营商官方授牌' },
     ],

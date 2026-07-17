@@ -64,7 +64,7 @@ const ROLE_SPECS: RoleSpec[] = [
   { applyType: 'teacher', ownType: 'teacher', seal: '讲', name: '讲师', benefit: '把你的学问变成课程，触达百万学友' },
   { applyType: 'merchant', ownType: 'merchant', seal: '商', name: '商家', benefit: '开店卖国学好物，平台代运营' },
   { applyType: 'station_owner', ownType: 'station_owner', seal: '站', name: '分站站长', benefit: '承包一城，独享分站收益' },
-  { applyType: 'operator', seal: '运', name: '运营商', benefit: '区域推广合伙，多级分润' },
+  { applyType: 'operator', seal: '运', name: '运营商', benefit: '区域推广合伙，两级分润' },
   { applyType: 'offline_station', seal: '驿', name: '线下驿站', benefit: '门店挂牌，线上线下互导' },
   { applyType: 'institute', seal: '研', name: '研究院', benefit: '学术共建，内容首发权益' },
 ]

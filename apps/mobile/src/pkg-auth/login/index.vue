@@ -109,9 +109,9 @@
           </view>
           <view class="terms-text">
             <text class="terms-normal">我已阅读并同意</text>
-            <text class="terms-link">《用户服务协议》</text>
+            <text class="terms-link" @tap.stop="navigateTo('/legal/user-agreement')">《用户服务协议》</text>
             <text class="terms-normal">和</text>
-            <text class="terms-link">《隐私政策》</text>
+            <text class="terms-link" @tap.stop="navigateTo('/legal/privacy-policy')">《隐私政策》</text>
           </view>
         </view>
 

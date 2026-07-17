@@ -209,16 +209,28 @@ async function submit() {
   }
 }
 
+// 本次会话已向服务端上报过点赞的评论 id。
+// 后端 /comment/:id/like 仅累加、无取消端点，故这里保证一条评论一个会话只上报一次，
+// 反复 toggle 只在本地生效，避免 likeCount 注水。
+const likeReported = new Set<string>()
+
 async function like(c: CommentVM) {
-  if (c.liked) return
   if (!getToken()) { needLogin(); return }
-  c.liked = true
-  c.likes += 1
-  try {
-    await apiPost<unknown>(`/comment/${c.id}/like`)
-  } catch {
-    c.liked = false
-    c.likes -= 1
+  const nextLiked = !c.liked
+  // 乐观更新：本地立即 toggle（可取消赞）
+  c.liked = nextLiked
+  c.likes = Math.max(0, c.likes + (nextLiked ? 1 : -1))
+  // 仅在「点赞」方向、且本会话尚未上报过时调后端累加；
+  // 取消赞与重复点赞均只在本地生效（后端无 unlike 端点）
+  if (nextLiked && !likeReported.has(c.id)) {
+    likeReported.add(c.id)
+    try {
+      await apiPost<unknown>(`/comment/${c.id}/like`)
+    } catch {
+      likeReported.delete(c.id)
+      c.liked = false
+      c.likes = Math.max(0, c.likes - 1)
+    }
   }
 }
 </script>
