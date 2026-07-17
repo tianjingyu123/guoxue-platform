@@ -12,11 +12,17 @@ import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { Request } from "express";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
+import { PrismaService } from "../../prisma/prisma.service";
 
 @ApiTags("互动")
 @Controller("interaction")
 export class InteractionController {
-  constructor(private svc: InteractionService) {}
+  constructor(
+    private svc: InteractionService,
+    // PrismaModule 为 @Global：注入用于驳回举报时补记处理结论(Report.result)，
+    // InteractionService.dismissReport 不收理由参数且该 service 不在本次改动范围
+    private prisma: PrismaService,
+  ) {}
 
   // ───────── 点赞 ─────────
 
@@ -207,7 +213,8 @@ export class InteractionController {
 
   @Get("report")
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  // 权限修复(角色断裂)：客服工作台负责举报处理，放行 CUSTOMER_SERVICE。
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "CUSTOMER_SERVICE")
   @ApiOperation({ summary: "获取举报列表（管理员）" })
   @ApiResponse({ status: 200, description: "成功" })
   @ApiResponse({ status: 401, description: "未登录" })
@@ -219,7 +226,8 @@ export class InteractionController {
 
   @Put("report/:id/process")
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  // 权限修复(角色断裂)：客服工作台负责举报处理，放行 CUSTOMER_SERVICE。
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "CUSTOMER_SERVICE")
   @ApiOperation({ summary: "处理举报（管理员）" })
   @ApiResponse({ status: 200, description: "更新成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -227,13 +235,19 @@ export class InteractionController {
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
-  processReport(@Param("id") id: string, @Body("result") result?: string) {
-    return this.svc.processReport(id, result);
+  processReport(
+    @Param("id") id: string,
+    @Body("result") result?: string,
+    @Body("reason") reason?: string,
+  ) {
+    // 兼容前端两种字段名：处理结论存入 Report.result
+    return this.svc.processReport(id, result ?? reason);
   }
 
   @Put("report/:id/dismiss")
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  // 权限修复(角色断裂)：客服工作台负责举报处理，放行 CUSTOMER_SERVICE。
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "CUSTOMER_SERVICE")
   @ApiOperation({ summary: "驳回举报（管理员）" })
   @ApiResponse({ status: 200, description: "更新成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -241,8 +255,18 @@ export class InteractionController {
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
-  dismissReport(@Param("id") id: string) {
-    return this.svc.dismissReport(id);
+  async dismissReport(
+    @Param("id") id: string,
+    @Body("reason") reason?: string,
+    @Body("result") result?: string,
+  ) {
+    const dismissed = await this.svc.dismissReport(id);
+    // 驳回理由持久化到 Report.result（service.dismissReport 不收理由参数，此处补记）
+    const conclusion = reason ?? result;
+    if (conclusion) {
+      return this.prisma.report.update({ where: { id }, data: { result: conclusion } });
+    }
+    return dismissed;
   }
 
   @Get("report/admin/:id/target")

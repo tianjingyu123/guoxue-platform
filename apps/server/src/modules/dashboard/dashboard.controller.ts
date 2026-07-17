@@ -25,6 +25,9 @@ export class DashboardController {
   ) {}
 
   @Get("stats")
+  // 权限修复(角色断裂)：六个角色工作台(Super/Operation/Finance/CustomerService/ContentAudit/GoodsAudit)均调本端点，
+  // 方法级 @Roles 覆盖类级默认，放行全部管理角色（仍不放任何 C 端角色）。
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN", "CUSTOMER_SERVICE", "CONTENT_AUDITOR", "GOODS_AUDITOR")
   @ApiOperation({ summary: "获取统计数据" })
   @ApiResponse({ status: 200, description: "成功" })
   getStats() {
@@ -39,6 +42,8 @@ export class DashboardController {
   }
 
   @Get("charts")
+  // 权限修复(角色断裂)：内容审核工作台(ContentAuditDashboard)调本端点，放行 CONTENT_AUDITOR。
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR")
   @ApiOperation({ summary: "获取图表数据" })
   @ApiResponse({ status: 200, description: "成功" })
   getCharts() {
@@ -46,6 +51,8 @@ export class DashboardController {
   }
 
   @Get("revenue")
+  // 权限修复(角色断裂)：财务工作台(FinanceDashboard)调本端点，放行 FINANCE_ADMIN；财务数据不放其他审核/客服角色。
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN")
   @ApiOperation({ summary: "营收概览（总额/环比/分类型）" })
   @ApiResponse({ status: 200, description: "成功" })
   getRevenueOverview() {
@@ -67,6 +74,8 @@ export class DashboardController {
   }
 
   @Get("content-health")
+  // 权限修复(角色断裂)：内容审核工作台(ContentAuditDashboard)调本端点，放行 CONTENT_AUDITOR。
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR")
   @ApiOperation({ summary: "内容健康度分析（低质内容识别）" })
   @ApiResponse({ status: 200, description: "成功" })
   getContentHealth() {
@@ -84,7 +93,8 @@ export class DashboardController {
 
   @Get("today-overview")
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  // 权限修复(角色断裂)：运营/客服/内容审核工作台均调本端点，属通用工作台概览，放行全部六个管理角色。
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN", "CUSTOMER_SERVICE", "CONTENT_AUDITOR", "GOODS_AUDITOR")
   @ApiOperation({ summary: "工作台今日概览（今日新增/趋势/待办）" })
   @ApiResponse({ status: 200, description: "成功" })
   @ApiResponse({ status: 401, description: "未登录" })

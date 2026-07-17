@@ -412,7 +412,8 @@ export class ShopController {
   @Put("orders/:id/refund")
   @Auditable({ action: "订单退款", targetType: "ORDER" })
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  // 权限修复(角色断裂)：财务角色前端路由放行退款页(/orders/refund)，后端对齐放行 FINANCE_ADMIN。仅加角色，逻辑不动。
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN")
   @ApiOperation({ summary: "退款（管理员），对接微信支付退款" })
   @ApiResponse({ status: 200, description: "更新成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -968,7 +969,8 @@ export class ShopController {
 
   @Get("admin/after-sales")
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  // 权限修复(角色断裂)：财务角色处理售后退款，放行 FINANCE_ADMIN。
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN")
   @ApiOperation({ summary: "获取售后列表（管理员）" })
   @ApiResponse({ status: 200, description: "成功" })
   @ApiResponse({ status: 401, description: "未登录" })
@@ -985,7 +987,8 @@ export class ShopController {
   @Put("admin/after-sales/:id/process")
   @Auditable({ action: "售后处理", targetType: "AFTER_SALE" })
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  // 权限修复(角色断裂)：财务角色处理售后退款，放行 FINANCE_ADMIN。
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN")
   @ApiOperation({ summary: "处理售后（管理员）" })
   @ApiResponse({ status: 200, description: "更新成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })

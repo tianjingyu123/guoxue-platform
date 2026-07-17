@@ -122,6 +122,28 @@ export class ContentService {
     return updated;
   }
 
+  /**
+   * 专用审核方法（区别于全量编辑 update）：
+   * 只允许改 status(APPROVED/REJECTED) + auditReason，审核员不具备内容编辑权。
+   */
+  async audit(id: string, status: "APPROVED" | "REJECTED", reason?: string) {
+    const content = await this.prisma.content.findUnique({ where: { id } });
+    if (!content) throw new BusinessException(ErrorCode.CONTENT_NOT_FOUND, "内容不存在");
+
+    const updated = await this.prisma.content.update({
+      where: { id },
+      data: {
+        status,
+        // 通过时清空历史驳回原因；驳回时记录原因
+        auditReason: status === "REJECTED" ? (reason ?? null) : null,
+      },
+    });
+
+    this.redis.del(`content:detail:${id}`).catch((err) => this.logger.warn("缓存删除失败", err));
+    this.redis.delByPattern("content:list:*").catch((err) => this.logger.warn("缓存清理失败", err));
+    return updated;
+  }
+
   async remove(id: string) {
     const content = await this.prisma.content.findUnique({ where: { id } });
     if (!content) throw new BusinessException(ErrorCode.CONTENT_NOT_FOUND, "内容不存在");

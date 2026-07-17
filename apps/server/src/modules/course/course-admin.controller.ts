@@ -49,7 +49,8 @@ export class CourseAdminController {
 
   @Put(":id/audit")
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  // 权限修复(角色断裂)：内容审核员负责课程审核，放行 CONTENT_AUDITOR。
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR")
   @ApiOperation({ summary: "审核课程" })
   @ApiResponse({ status: 200, description: "更新成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -57,14 +58,20 @@ export class CourseAdminController {
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
-  async audit(@Param("id") id: string, @Body("status") status: string, @Req() req: AuthRequest) {
+  async audit(
+    @Param("id") id: string,
+    @Body("status") status: string,
+    @Req() req: AuthRequest,
+    @Body("reason") reason?: string,
+  ) {
     const result = await this.course.audit(id, status);
+    // Course 模型无审核理由字段(仅 auditStatus)，reason 记入审计日志留痕，不加迁移
     this.systemService.logAudit({
       userId: req.user?.id,
       action: "AUDIT",
       targetType: "COURSE",
       targetId: id,
-      detail: `审核课程: ${status}`,
+      detail: `审核课程: ${status}${reason ? `，理由: ${reason}` : ""}`,
       ip: req.ip,
     }).catch((err) => this.logger.warn("审计日志记录失败", err));
     return result;

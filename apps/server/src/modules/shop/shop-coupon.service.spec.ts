@@ -1,5 +1,6 @@
 import { Test } from "@nestjs/testing";
 import { ShopCouponService } from "./shop-coupon.service";
+import { ShopRefundService } from "./shop-refund.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import { BusinessException } from "../../common/business.exception";
 
@@ -21,12 +22,18 @@ const mockPrisma = {
   $transaction: jest.fn().mockImplementation((fn: (prisma: typeof mockPrisma) => unknown) => fn(mockPrisma)),
 };
 
+const mockRefundSvc = { refundOrder: jest.fn() };
+
 describe("ShopCouponService", () => {
   let svc: ShopCouponService;
 
   beforeAll(async () => {
     const mod = await Test.createTestingModule({
-      providers: [ShopCouponService, { provide: PrismaService, useValue: mockPrisma }],
+      providers: [
+        ShopCouponService,
+        { provide: PrismaService, useValue: mockPrisma },
+        { provide: ShopRefundService, useValue: mockRefundSvc },
+      ],
     }).compile();
     svc = mod.get(ShopCouponService);
   });
@@ -271,18 +278,55 @@ describe("ShopCouponService", () => {
   });
 
   describe("processAfterSale", () => {
-    it("审批通过", async () => {
-      mockPrisma.afterSale.findUnique.mockResolvedValue({ id: "as1", status: "PENDING" });
+    it("审批通过（非退款类·换货不触发退款）", async () => {
+      mockPrisma.afterSale.findUnique.mockResolvedValue({ id: "as1", status: "PENDING", type: "exchange", orderId: "o1" });
       mockPrisma.afterSale.update.mockResolvedValue({ id: "as1", status: "APPROVED" });
       const result = await svc.processAfterSale("as1", "approve");
       expect(result.status).toBe("APPROVED");
+      expect(mockRefundSvc.refundOrder).not.toHaveBeenCalled();
     });
 
-    it("审批拒绝", async () => {
-      mockPrisma.afterSale.findUnique.mockResolvedValue({ id: "as1", status: "PENDING" });
+    it("退款类审批通过=先真退款再标记（资金原子化）", async () => {
+      mockPrisma.afterSale.findUnique.mockResolvedValue({ id: "as1", status: "PENDING", type: "refund_only", orderId: "o1", reason: "不想要了" });
+      mockPrisma.order.findUnique.mockResolvedValue({ id: "o1", status: "PAID" });
+      mockRefundSvc.refundOrder.mockResolvedValue({ status: "SUCCESS" });
+      mockPrisma.afterSale.update.mockResolvedValue({ id: "as1", status: "APPROVED" });
+      const result = await svc.processAfterSale("as1", "approve");
+      expect(mockRefundSvc.refundOrder).toHaveBeenCalledWith("o1", "不想要了");
+      expect(result.status).toBe("APPROVED");
+    });
+
+    it("退款类·订单已REFUNDED则幂等跳过退款只标状态（防RefundList两连调二次退款）", async () => {
+      mockPrisma.afterSale.findUnique.mockResolvedValue({ id: "as1", status: "PENDING", type: "refund", orderId: "o1" });
+      mockPrisma.order.findUnique.mockResolvedValue({ id: "o1", status: "REFUNDED" });
+      mockPrisma.afterSale.update.mockResolvedValue({ id: "as1", status: "APPROVED" });
+      const result = await svc.processAfterSale("as1", "approve");
+      expect(mockRefundSvc.refundOrder).not.toHaveBeenCalled();
+      expect(result.status).toBe("APPROVED");
+    });
+
+    it("退款类·退款失败则process整体失败（售后单不被标APPROVED）", async () => {
+      mockPrisma.afterSale.findUnique.mockResolvedValue({ id: "as1", status: "PENDING", type: "refund_with_return", orderId: "o1" });
+      mockPrisma.order.findUnique.mockResolvedValue({ id: "o1", status: "PAID" });
+      mockRefundSvc.refundOrder.mockRejectedValue(new Error("渠道退款失败"));
+      await expect(svc.processAfterSale("as1", "approve")).rejects.toThrow("渠道退款失败");
+      expect(mockPrisma.afterSale.update).not.toHaveBeenCalled();
+    });
+
+    it("退款类·关联订单不存在拒绝审批", async () => {
+      mockPrisma.afterSale.findUnique.mockResolvedValue({ id: "as1", status: "PENDING", type: "REFUND", orderId: "o-gone" });
+      mockPrisma.order.findUnique.mockResolvedValue(null);
+      await expect(svc.processAfterSale("as1", "approve")).rejects.toThrow("售后关联订单不存在");
+      expect(mockRefundSvc.refundOrder).not.toHaveBeenCalled();
+      expect(mockPrisma.afterSale.update).not.toHaveBeenCalled();
+    });
+
+    it("审批拒绝（退款类也不触发退款）", async () => {
+      mockPrisma.afterSale.findUnique.mockResolvedValue({ id: "as1", status: "PENDING", type: "refund_only", orderId: "o1" });
       mockPrisma.afterSale.update.mockResolvedValue({ id: "as1", status: "REJECTED" });
       const result = await svc.processAfterSale("as1", "reject");
       expect(result.status).toBe("REJECTED");
+      expect(mockRefundSvc.refundOrder).not.toHaveBeenCalled();
     });
 
     it("售后单不存在抛出异常", async () => {

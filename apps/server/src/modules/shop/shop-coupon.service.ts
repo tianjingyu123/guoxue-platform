@@ -5,11 +5,15 @@ import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
 import { safePagination } from "../../common/pagination";
 import { CreateCouponV2Dto } from "./shop.dto";
+import { ShopRefundService } from "./shop-refund.service";
 
 @Injectable()
 export class ShopCouponService {
   private readonly logger = new Logger(ShopCouponService.name);
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private refundSvc: ShopRefundService,
+  ) {}
 
   // ═══════════════════ 优惠券管理 ═══════════════════
 
@@ -258,9 +262,40 @@ export class ShopCouponService {
     return { items, total, page, pageSize };
   }
 
+  /**
+   * 退款类售后判定：type 含 "refund"（不区分大小写）即视为需要退钱。
+   * 覆盖线上实际存在的写法：C 端写入 refund_only / refund_with_return，
+   * 历史/管理端口径 refund / REFUND。return(仅退货)/exchange(换货) 不含退款动作，维持原状态流转。
+   */
+  private isRefundType(type?: string | null): boolean {
+    return /refund/i.test(type ?? "");
+  }
+
+  /**
+   * 管理端处理售后单（资金语义收敛·修"钱货两空"命门）：
+   * 原实现 approve 只改 AfterSale.status，不退钱——admin 的 AfterSaleList 页点"通过"后
+   * 售后单从退款审核队列消失，用户被告知批准但钱永远不退。现将资金动作收进后端原子化：
+   * approve + 退款类 → 先复用 ShopRefundService.refundOrder 真退款（渠道路由+分佣冲正+记账），
+   * 退款成功才标 APPROVED；退款抛错则整个 process 失败，售后单保持原状态不动。
+   * 幂等双保险：订单已 REFUNDED（如 RefundList 页"先 refund 再 process"两连调、或重复点击）
+   * 则跳过退款只标状态；refundOrder 自身另有 redis 锁 + 状态 CAS + 稳定退款单号兜底。
+   */
   async processAfterSale(id: string, action: string, remark?: string) {
     const existing = await this.prisma.afterSale.findUnique({ where: { id } });
     if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "售后单不存在");
+
+    if (action === "approve" && this.isRefundType(existing.type)) {
+      const order = await this.prisma.order.findUnique({ where: { id: existing.orderId } });
+      if (!order) throw new BusinessException(ErrorCode.ORDER_NOT_FOUND, "售后关联订单不存在，无法退款");
+      if (order.status === "REFUNDED") {
+        // 幂等：订单已退款（REFUNDED 由退款链路统一记账写入）→ 只标记状态，绝不二次退款
+        this.logger.log(`售后单 ${id} 关联订单 ${existing.orderId} 已是 REFUNDED，跳过退款仅标记 APPROVED`);
+      } else {
+        // 复用统一退款链路（渠道路由/幂等锁/CAS 记账/分佣冲正），退款失败则本次 process 整体失败
+        await this.refundSvc.refundOrder(existing.orderId, existing.reason || "售后退款");
+      }
+    }
+
     const status = action === "approve" ? "APPROVED" : action === "reject" ? "REJECTED" : "PROCESSING";
     const data: any = { status };
     if (remark) data.logistics = remark;
