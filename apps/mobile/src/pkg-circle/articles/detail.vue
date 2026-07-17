@@ -2,20 +2,23 @@
 /**
  * 文章详情页 — V0 circle-article-detail.html 还原（2026-07-10 浅色主题重写）
  * 结构：sticky 顶栏(返回+文章+分享) → 封面 16:9 → 标题/作者行(关注软底按钮) → rich-text 正文(17px/1.9) →
- *       内联推荐卡 → 互动栏(居中纵向) → 圈子引流暖底卡(circle-lead·替换原 fixed 底条) → 评论区(楼中楼) →
- *       猜你喜欢(白卡横排) → 底部固定互动/评论栏。三态 = V0 骨架屏 / 错误卡 / 空评论引导。
+ *       内联推荐卡 → 互动栏(居中纵向) → 圈子引流暖底卡(circle-lead·替换原 fixed 底条) →
+ *       统一评论区(CommentSection·列表+吸底输入条一站式) → 猜你喜欢(白卡横排)。
+ *       三态 = V0 骨架屏 / 错误卡（评论区三态由 CommentSection 自管）。
  * 降级：角色徽章(后端无作者圈内角色)/引流条营销文案(只写真实 members)/related 作者名与阅读数(后端不返回)不渲染；
  *       tags 后端无话题聚合页 → 纯展示不可点。
- * 数据逻辑全部保留：articleApi 加载/互动/评论/recommends/related/sourceCircle，乐观更新+回滚+防重复。
+ * 评论已切统一组件：走 /comment 数据层(lib/comment-data)，替换原自写评论区 + /interaction/comment 发送；
+ * 其余数据逻辑保留：articleApi 加载/互动/recommends/related/sourceCircle，乐观更新+回滚+防重复。
  */
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import SmartCover from '@/components/common/smart-cover.vue'
+import CommentSection from '@/components/comment/comment-section.vue'
 import { goBack, navigateTo, toastComingSoon } from '@/utils/router'
 import {
   articleApi, recommendRoute,
-  type ArticleDetail, type ArticleComment, type ArticleRecommendCard, type ArticleProductCard,
+  type ArticleDetail, type ArticleRecommendCard, type ArticleProductCard,
 } from '@/lib/article-data'
 import { setOrderSource } from '@/lib/shop-data'
 
@@ -23,7 +26,6 @@ const articleId = ref('')
 const loading = ref(true)
 const error = ref('')
 const article = ref<ArticleDetail | null>(null)
-const comments = ref<ArticleComment[]>([])
 
 // 带货商品抽屉（抖音式：底部 2/3 屏弹层·单品直达详情/多品列表）
 const products = ref<ArticleProductCard[]>([])
@@ -40,14 +42,11 @@ const collectCount = ref(0)
 const likeActing = ref(false)
 const collectActing = ref(false)
 const followActing = ref(false)
-const commentSubmitting = ref(false)
-const commentLikeActing = reactive<Record<string, boolean>>({})
 
-// 评论展开 / 输入
-const expandedReplies = reactive<Record<string, boolean>>({})
-const commentText = ref('')
-const replyTo = ref<ArticleComment | null>(null)
-const commentFocus = ref(false)
+// 评论计数（初值取文章详情·后续由 CommentSection count-change 联动刷新）
+const commentCount = ref(0)
+// 互动栏「评论」按钮 → scroll-view 滚动到评论区锚点（原聚焦输入框改为定位评论区）
+const scrollAnchor = ref('')
 
 async function load() {
   if (!articleId.value) { error.value = '缺少文章参数'; loading.value = false; return }
@@ -58,17 +57,14 @@ async function load() {
     article.value = a
     likeCount.value = a.likes
     collectCount.value = a.collects
+    commentCount.value = a.comments
     // 带货商品：先展示（封面+名），再逐件拉商品详情充实价格（失败不阻断主体）
     products.value = a.products
     if (a.products.length) {
       articleApi.enrichProducts(a.products).then((ps) => { products.value = ps }).catch(() => {})
     }
-    // 评论 + 我的互动态并行拉取（失败不阻断主体）
-    const [cs, chk] = await Promise.all([
-      articleApi.getComments(articleId.value).catch(() => []),
-      articleApi.checkInteraction(articleId.value).catch(() => ({ liked: false, collected: false })),
-    ])
-    comments.value = cs
+    // 我的互动态（失败不阻断主体·评论列表由 CommentSection 自行拉取）
+    const chk = await articleApi.checkInteraction(articleId.value).catch(() => ({ liked: false, collected: false }))
     isLiked.value = chk.liked
     isCollected.value = chk.collected
   } catch (e) {
@@ -149,52 +145,10 @@ async function toggleFollow() {
   catch { isFollowed.value = prev; uni.showToast({ title: '操作失败，请重试', icon: 'none' }) }
   finally { followActing.value = false }
 }
-async function toggleCommentLike(c: ArticleComment) {
-  if (commentLikeActing[c.id]) return
-  commentLikeActing[c.id] = true
-  const pl = c.isLiked, pn = c.likes
-  c.isLiked = !pl
-  c.likes = pn + (c.isLiked ? 1 : -1)
-  try { await articleApi.toggleCommentLike(c.id) }
-  catch { c.isLiked = pl; c.likes = pn; uni.showToast({ title: '操作失败，请重试', icon: 'none' }) }
-  finally { commentLikeActing[c.id] = false }
-}
-function toggleReplies(id: string) { expandedReplies[id] = !expandedReplies[id] }
-function startReply(c: ArticleComment) { replyTo.value = c; commentFocus.value = true }
-/** 空评论 CTA / 互动栏评论按钮：聚焦底部输入框 */
-function focusComment() { commentFocus.value = true }
-
-async function submitComment() {
-  if (commentSubmitting.value) return
-  const content = commentText.value.trim()
-  if (!content) return
-  commentSubmitting.value = true
-  try {
-    const created = await articleApi.createComment(articleId.value, content, replyTo.value?.id) as {
-      id?: string; content?: string; user?: { id?: string; nickname?: string; avatar?: string } | null
-    }
-    const parent = replyTo.value
-    commentText.value = ''
-    replyTo.value = null
-    // 乐观插入：后端评论列表有读写延迟/缓存，直接用创建返回本地插入，保证发布后立即可见（回复插入父评论 replies）
-    const author = { id: created?.user?.id ?? '', name: created?.user?.nickname ?? '我', avatar: created?.user?.avatar ?? '' }
-    const id = created?.id || `tmp_${Date.now()}`
-    if (parent) {
-      const p = comments.value.find(c => c.id === parent.id)
-      if (p) {
-        p.replies = [...(p.replies || []), { id, content, author, createdAt: '刚刚', likes: 0, isLiked: false }]
-        p.replyCount = (p.replyCount || 0) + 1
-      }
-    } else {
-      comments.value = [{ id, content, author, createdAt: '刚刚', likes: 0, isLiked: false, replies: [], replyCount: 0 }, ...comments.value]
-    }
-    if (article.value) article.value.comments = (article.value.comments || 0) + 1
-    uni.showToast({ title: '评论已发送', icon: 'success' })
-  } catch {
-    uni.showToast({ title: '发送失败，请重试', icon: 'none' })
-  } finally {
-    commentSubmitting.value = false
-  }
+/** 互动栏「评论」按钮：滚动定位到统一评论区（清空后 nextTick 重设锚点，保证重复点击也触发） */
+function focusComment() {
+  scrollAnchor.value = ''
+  nextTick(() => { scrollAnchor.value = 'adCommentsAnchor' })
 }
 </script>
 
@@ -233,7 +187,7 @@ async function submitComment() {
       <text class="ad-error-back" @tap="goBack">返回上一页</text>
     </view>
 
-    <scroll-view v-else-if="article" scroll-y class="ad-body">
+    <scroll-view v-else-if="article" scroll-y scroll-with-animation :scroll-into-view="scrollAnchor" class="ad-body">
       <!-- 封面：16:9 整宽（用 smart-cover：封面URL失效时优雅降级为生成封面，不再留空框） -->
       <view v-if="article.cover" class="ad-cover">
         <smart-cover :src="article.cover" :title="article.title" type="default" />
@@ -302,7 +256,7 @@ async function submitComment() {
         </view>
         <view class="ad-action" @tap="focusComment">
           <app-icon name="message-circle" :size="40" color="#999999" />
-          <text class="ad-action-t">{{ article.comments || '评论' }}</text>
+          <text class="ad-action-t">{{ commentCount || '评论' }}</text>
         </view>
         <view class="ad-action" @tap="toggleCollect">
           <app-icon name="bookmark" :size="40" :color="isCollected ? '#C9A96E' : '#999999'" :fill="isCollected" />
@@ -326,44 +280,16 @@ async function submitComment() {
         <view class="ad-lead-btn" @tap="openCircle"><text class="ad-lead-btn-t">进圈看看</text></view>
       </view>
 
-      <!-- 评论区（与帖子页同款语言） -->
-      <text class="ad-comments-head">评论 {{ article.comments }}</text>
-
-      <!-- 评论空态：V0 ③ 圆形暖底图标 + 引导第一条评论 -->
-      <view v-if="!comments.length" class="ad-c-empty">
-        <view class="ad-c-empty-icon"><app-icon name="message-circle" :size="44" color="#999999" /></view>
-        <text class="ad-c-empty-title">还没有评论</text>
-        <text class="ad-c-empty-desc">说说你的看法，作者和圈友都会看到</text>
-        <view class="ad-c-empty-cta" @tap="focusComment"><text class="ad-c-empty-cta-t">写下第一条评论</text></view>
-      </view>
-
-      <view v-for="c in comments" :key="c.id" class="ad-comment">
-        <image lazy-load class="ad-c-avatar" :src="c.author.avatar" mode="aspectFill" />
-        <view class="ad-c-main">
-          <text class="ad-c-name">{{ c.author.name }}</text>
-          <text class="ad-c-text">{{ c.content }}</text>
-          <view class="ad-c-meta">
-            <text class="ad-c-meta-t">{{ c.createdAt }}</text>
-            <text class="ad-c-meta-t" @tap="startReply(c)">回复</text>
-            <view class="ad-c-like" @tap="toggleCommentLike(c)">
-              <app-icon name="heart" :size="22" :color="c.isLiked ? '#C41E3A' : '#999999'" :fill="c.isLiked" />
-              <text v-if="c.likes > 0" class="ad-c-meta-t" :class="{ liked: c.isLiked }">{{ c.likes }}</text>
-            </view>
-          </view>
-
-          <!-- 楼中楼：暖底块·默认前 2 条 + 展开/收起（回复对象名后端不返回 → 只做「名字：内容」） -->
-          <view v-if="c.replies && c.replies.length" class="ad-replies">
-            <text
-              v-for="r in (expandedReplies[c.id] ? c.replies : c.replies.slice(0, 2))" :key="r.id"
-              class="ad-reply"
-            ><text class="ad-reply-name">{{ r.author.name }}：</text>{{ r.content }}</text>
-            <text
-              v-if="c.replies.length > 2"
-              class="ad-reply-expand"
-              @tap="toggleReplies(c.id)"
-            >{{ expandedReplies[c.id] ? '收起回复' : `展开 ${c.replies.length - 2} 条回复` }}</text>
-          </view>
-        </view>
+      <!-- 统一评论区：CommentSection 一站式（列表三态/楼中楼/点赞/分页 + 吸底输入条）
+           count-change 联动互动栏与标题角标；空态/骨架/错误由组件自管 -->
+      <view id="adCommentsAnchor" class="ad-comments-block">
+        <text class="ad-comments-head">评论{{ commentCount ? ' ' + commentCount : '' }}</text>
+        <comment-section
+          target-type="ARTICLE"
+          :target-id="articleId"
+          :author-id="article.author.id"
+          @count-change="(n: number) => { commentCount = n }"
+        />
       </view>
 
       <!-- 猜你喜欢：V0 related-card 白卡横排（副行仅 likes 真实字段·作者名/阅读数后端不返回 → 不显示） -->
@@ -380,27 +306,7 @@ async function submitComment() {
       <view class="ad-bottom-pad" />
     </scroll-view>
 
-    <!-- 底部固定评论栏（保证能评论·样式贴 token 毛玻璃条） -->
-    <view v-if="article" class="ad-input-bar">
-      <view v-if="replyTo" class="ad-reply-hint">
-        <view class="ad-reply-hint-l"><app-icon name="at-sign" :size="22" color="#6E6E73" /><text class="ad-reply-hint-t">回复 {{ replyTo.author.name }}</text></view>
-        <view @tap="replyTo = null"><app-icon name="x" :size="28" color="#999999" /></view>
-      </view>
-      <view class="ad-input-row">
-        <input
-          v-model="commentText"
-          class="ad-input"
-          :focus="commentFocus"
-          :placeholder="replyTo ? `回复 ${replyTo.author.name}…` : '说点什么…'"
-          confirm-type="send"
-          @blur="commentFocus = false"
-          @confirm="submitComment"
-        />
-        <view class="ad-send" :class="{ disabled: commentSubmitting || !commentText.trim() }" @tap="submitComment">
-          <text class="ad-send-t">{{ commentSubmitting ? '发送中' : '发送' }}</text>
-        </view>
-      </view>
-    </view>
+    <!-- 底部输入条：由 CommentSection 自带吸底输入条承担（原自写固定评论栏已删·避免双输入条） -->
 
     <!-- 带货商品抽屉（抖音式·底部 2/3 屏弹层·多品列表） -->
     <view v-if="showProducts" class="ad-sheet-mask" @tap="showProducts = false">
@@ -545,37 +451,9 @@ async function submitComment() {
 .ad-lead-btn { flex-shrink: 0; height: 64rpx; padding: 0 30rpx; border-radius: 32rpx; background: var(--brand, #c41e3a); display: flex; align-items: center; }
 .ad-lead-btn-t { font-size: 26rpx; font-weight: 500; color: #fff; }
 
-/* 评论区（与帖子页同款语言） */
-.ad-comments-head { display: block; padding: 48rpx 44rpx 8rpx; font-size: 30rpx; font-weight: 600; color: var(--text-primary, #2c2c2c); }
-.ad-comment { display: flex; gap: 20rpx; padding: 24rpx 44rpx 0; }
-.ad-c-avatar { width: 64rpx; height: 64rpx; border-radius: 999rpx; flex-shrink: 0; background: var(--bg-warm, #f8f4ec); }
-.ad-c-main { flex: 1; min-width: 0; padding-bottom: 24rpx; border-bottom: 1rpx solid var(--separator, #ede7dd); }
-.ad-comment:last-of-type .ad-c-main { border-bottom: none; }
-.ad-c-name { display: block; font-size: 24rpx; color: var(--text-tertiary, #999); }
-.ad-c-text { display: block; font-size: 28rpx; line-height: 1.65; color: var(--text-primary, #2c2c2c); margin-top: 6rpx; }
-.ad-c-meta { display: flex; align-items: center; gap: 32rpx; margin-top: 12rpx; }
-.ad-c-meta-t { font-size: 22rpx; color: var(--text-tertiary, #999); }
-.ad-c-meta-t.liked { color: var(--brand, #c41e3a); }
-.ad-c-like { display: flex; align-items: center; gap: 6rpx; }
-
-/* 楼中楼：暖底圆角块 */
-.ad-replies { margin-top: 20rpx; padding: 20rpx 24rpx; background: var(--bg-warm, #f8f4ec); border-radius: 16rpx; }
-.ad-reply { display: block; font-size: 26rpx; line-height: 1.6; color: var(--text-primary, #2c2c2c); }
-.ad-reply + .ad-reply { margin-top: 16rpx; }
-.ad-reply-name { font-weight: 600; }
-.ad-reply-expand { display: inline-block; margin-top: 16rpx; font-size: 24rpx; color: var(--brand, #c41e3a); }
-
-/* 评论空态（V0 ③） */
-.ad-c-empty { padding: 60rpx 32rpx 52rpx; display: flex; flex-direction: column; align-items: center; text-align: center; }
-.ad-c-empty-icon {
-  width: 96rpx; height: 96rpx; border-radius: 999rpx;
-  background: var(--bg-warm, #f8f4ec);
-  display: flex; align-items: center; justify-content: center;
-}
-.ad-c-empty-title { margin-top: 24rpx; font-size: 28rpx; font-weight: 500; color: var(--text-primary, #2c2c2c); }
-.ad-c-empty-desc { margin-top: 8rpx; font-size: 24rpx; color: var(--text-tertiary, #999); }
-.ad-c-empty-cta { margin-top: 32rpx; height: 72rpx; padding: 0 44rpx; border-radius: 36rpx; background: rgba(196, 30, 58, 0.08); display: flex; align-items: center; }
-.ad-c-empty-cta-t { font-size: 26rpx; font-weight: 500; color: var(--brand, #c41e3a); }
+/* 统一评论区：外层只管页面级留白与标题（列表/空态/输入条样式由 CommentSection 自管） */
+.ad-comments-block { padding: 0 40rpx; }
+.ad-comments-head { display: block; padding: 48rpx 4rpx 8rpx; font-size: 30rpx; font-weight: 600; color: var(--text-primary, #2c2c2c); }
 
 /* 猜你喜欢：白卡横排 */
 .ad-related-head { display: block; padding: 52rpx 44rpx 20rpx; font-size: 30rpx; font-weight: 600; color: var(--text-primary, #2c2c2c); }
@@ -593,23 +471,8 @@ async function submitComment() {
 }
 .ad-related-sub { display: block; font-size: 22rpx; color: var(--text-tertiary, #999); margin-top: 8rpx; }
 
-.ad-bottom-pad { height: 40rpx; }
-
-/* 底部固定评论栏：毛玻璃 + 朱红发送 */
-.ad-input-bar {
-  flex-shrink: 0;
-  background: rgba(250, 248, 245, 0.92); backdrop-filter: blur(24rpx);
-  border-top: 1rpx solid var(--separator, #ede7dd);
-  padding: 20rpx 32rpx calc(20rpx + env(safe-area-inset-bottom));
-}
-.ad-reply-hint { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12rpx; padding: 8rpx 20rpx; background: var(--bg-warm, #f8f4ec); border-radius: 12rpx; }
-.ad-reply-hint-l { display: flex; align-items: center; gap: 6rpx; }
-.ad-reply-hint-t { font-size: 22rpx; color: var(--text-secondary, #6e6e73); }
-.ad-input-row { display: flex; align-items: center; gap: 20rpx; }
-.ad-input { flex: 1; height: 76rpx; border-radius: 38rpx; background: var(--bg-warm, #f8f4ec); padding: 0 32rpx; font-size: 28rpx; color: var(--text-primary, #2c2c2c); }
-.ad-send { flex-shrink: 0; height: 76rpx; padding: 0 32rpx; border-radius: 38rpx; background: var(--brand, #c41e3a); display: flex; align-items: center; }
-.ad-send.disabled { opacity: 0.5; }
-.ad-send-t { font-size: 28rpx; font-weight: 500; color: #fff; }
+/* 底垫：给 CommentSection 的 fixed 吸底输入条让位（评论区后还有「猜你喜欢」等内容） */
+.ad-bottom-pad { height: calc(160rpx + env(safe-area-inset-bottom)); }
 
 /* 带货入口条：暖底卡·配图 + 好物名/价格 + 去看看按钮 */
 .ad-promo {

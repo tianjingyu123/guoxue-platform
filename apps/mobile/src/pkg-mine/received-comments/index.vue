@@ -49,23 +49,38 @@ function openReply(c: ReceivedCommentItem) {
   replyContent.value = ''
   replyOpen.value = true
 }
-function submitReply() {
-  if (!replying.value || !replyContent.value.trim()) return
+async function submitReply() {
+  if (!replying.value || !replyContent.value.trim() || sending.value) return
   sending.value = true
-  setTimeout(() => {
+  const content = replyContent.value.trim()
+  try {
+    // 真连回复（原为 setTimeout 假成功：用户以为回了、对方永远收不到）
+    await mineApi.replyReceivedComment(replying.value, content)
     const now = new Date().toISOString().slice(0, 16).replace('T', ' ')
     list.value = list.value.map((c) =>
       c.id === replying.value!.id
-        ? { ...c, isReplied: true, myReply: { content: replyContent.value.trim(), createdAt: now } }
+        ? { ...c, isReplied: true, myReply: { content, createdAt: now } }
         : c,
     )
-    sending.value = false
     replyOpen.value = false
     uni.showToast({ title: '回复成功', icon: 'none' })
-  }, 500)
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '回复失败，请重试', icon: 'none' })
+  } finally {
+    sending.value = false
+  }
 }
-function openContent() {
-  uni.showToast({ title: '内容详情开发中', icon: 'none' })
+/** 跳原内容页（原为"开发中"toast）。circle_post 详情页需 circleId 本数据没有 → 保持提示 */
+function openContent(c: ReceivedCommentItem) {
+  const { id, type } = c.myContent
+  const url =
+    type === 'article' ? `/pkg-circle/articles/detail?id=${id}`
+    : type === 'course' ? `/pkg-course/detail/index?id=${id}`
+    : type === 'video' ? `/pkg-video/detail/index?id=${id}`
+    : type === 'product' ? `/pkg-mall/product/detail?id=${id}`
+    : ''
+  if (!url) { uni.showToast({ title: '该内容暂不支持跳转', icon: 'none' }); return }
+  uni.navigateTo({ url, fail: () => uni.showToast({ title: '打开失败', icon: 'none' }) })
 }
 </script>
 
@@ -140,7 +155,7 @@ function openContent() {
               <text class="time">{{ c.createdAt }}</text>
 
               <!-- 我的内容 -->
-              <view class="my-content" @tap="openContent">
+              <view class="my-content" @tap="openContent(c)">
                 <text class="mc-label">评论了我的{{ commentTypeNames[c.myContent.type] }}</text>
                 <text class="mc-title">{{ c.myContent.title }}</text>
               </view>
@@ -158,7 +173,7 @@ function openContent() {
                   <AppIcon name="message-circle" :size="16" color="#fff" />
                   <text class="btn-reply-text">回复</text>
                 </view>
-                <view class="btn-view" @tap="openContent">
+                <view class="btn-view" @tap="openContent(c)">
                   <text class="btn-view-text">查看原文</text>
                 </view>
               </view>

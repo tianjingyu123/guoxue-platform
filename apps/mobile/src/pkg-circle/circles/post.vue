@@ -2,23 +2,24 @@
 /**
  * 帖子详情页 — V0 circle-post-detail.html 还原（2026-07-10 浅色主题重写）
  * 结构：sticky 顶栏(返回+标题+⋯菜单) → 作者行(头像/昵称/时间·来自圈子) → 正文(Markdown 块) →
- *       音频条(后端无音频·诚实降级不渲染) → 图片双列 → 触点卡 → 互动栏 → 评论区(楼中楼默认2条可展开) →
- *       底部固定评论输入条。三态 = V0 骨架屏 / 错误卡 / 空评论引导。
+ *       音频条(后端无音频·诚实降级不渲染) → 图片双列 → 触点卡 → 互动栏 → 评论区。
+ *       三态 = V0 骨架屏 / 错误卡（评论区三态由统一组件自带）。
+ * 评论区 = 统一 CommentSection 组件（列表+吸底输入条+乐观更新+楼中楼一站式，自写评论区已删）。
  * 「⋯」菜单：圈主/管理员(getJoinStatus.role) = 置顶/精华/删除（circleManageApi）；普通成员 = 举报（无端点·toast 口径与 live 页一致）。
  * 打赏区/弹窗：后端无打赏统计（reward 恒 0）→ 死代码已删（V0 注释同口径：诚实隐藏）。
- * 数据逻辑全部保留：加载/点赞/收藏/关注/评论/楼中楼/乐观更新+回滚/submitting 防重复/音频逻辑/触点。
  */
-import { ref, reactive, computed, onUnmounted } from 'vue'
+import { ref, computed, nextTick, onUnmounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import TouchpointCard from '@/components/common/touchpoint-card.vue'
 import SmartAvatar from '@/components/common/smart-avatar.vue'
+import CommentSection from '@/components/comment/comment-section.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { gotoReport } from '@/lib/report-data'
 import { getToken } from '@/utils/storage'
 import {
   postDetailApi, parseMarkdown,
-  type PostDetail, type Comment, type MdBlock,
+  type PostDetail, type MdBlock,
 } from '@/lib/post-detail-data'
 import { circleManageApi } from '@/lib/circle-manage-data'
 import { circleDetailApi, type CircleMemberRole } from '@/lib/circle-detail-data'
@@ -38,19 +39,10 @@ const likes = ref(0)
 const collects = ref(0)
 const isFollowed = ref(false)
 
-// 评论
-const comments = ref<Comment[]>([])
-const expandedReplies = reactive<Record<string, boolean>>({})
-const commentText = ref('')
-const replyTo = ref<Comment | null>(null)
-const commentFocus = ref(false)
-
 // 互动防重复（进行中直接 return，避免快点连发）
 const likeActing = ref(false)
 const collectActing = ref(false)
 const followActing = ref(false)
-const commentSubmitting = ref(false)
-const commentLikeActing = reactive<Record<string, boolean>>({})
 
 // 图片预览
 const previewImage = ref<string | null>(null)
@@ -83,7 +75,7 @@ async function loadData() {
     likes.value = p.likes
     collects.value = p.collects
     isFollowed.value = p.author.isFollowed ?? false
-    comments.value = await postDetailApi.getComments(postId.value)
+    // 评论列表由统一 CommentSection 组件自行加载（含三态/分页/点赞态补种）
     // 详情不返回当前用户点赞态 → 单独查询补上 isLiked（失败保持 false，不阻断页面）
     isLiked.value = await postDetailApi.checkPostLiked(postId.value)
     // 触点 #6 圈主的课（不 await·失败静默不出，绝不阻塞正文）
@@ -297,63 +289,22 @@ async function toggleFollow() {
   }
 }
 
-// 评论点赞
-async function toggleCommentLike(c: Comment) {
-  if (commentLikeActing[c.id]) return
-  commentLikeActing[c.id] = true
-  const prevLiked = c.isLiked
-  const prevLikes = c.likes
-  c.isLiked = !prevLiked
-  c.likes = prevLikes + (c.isLiked ? 1 : -1)
-  try {
-    await postDetailApi.toggleCommentLike(c.id)
-  } catch {
-    c.isLiked = prevLiked
-    c.likes = prevLikes
-    uni.showToast({ title: '操作失败，请重试', icon: 'none' })
-  } finally {
-    commentLikeActing[c.id] = false
-  }
+// ─── 评论区（统一 CommentSection 组件·点赞/回复/发送/楼中楼逻辑均在组件内） ───
+
+/**
+ * 互动栏「评论」按钮：滚动到评论区。
+ * CommentSection 只 expose 了 refresh()（无 focusInput）→ 用 scroll-view 的 scroll-into-view 锚点方案；
+ * 先清空再 nextTick 赋值，保证连点也能重新触发滚动。
+ */
+const scrollAnchor = ref('')
+function scrollToComments() {
+  scrollAnchor.value = ''
+  nextTick(() => { scrollAnchor.value = 'pd-comments-anchor' })
 }
 
-function startReply(c: Comment) {
-  replyTo.value = c
-  commentFocus.value = true
-}
-
-/** 空评论 CTA / 互动栏评论按钮：聚焦底部输入框 */
-function focusComment() { commentFocus.value = true }
-
-// 发评论/回复（防重复 + 真调后端 + 成功后本地乐观插入）
-async function submitComment() {
-  if (commentSubmitting.value) return
-  const content = commentText.value.trim()
-  if (!content) return
-  commentSubmitting.value = true
-  try {
-    const created = await postDetailApi.createComment(postId.value, content, replyTo.value?.id) as {
-      id?: string; content?: string; user?: { id?: string; nickname?: string; avatar?: string } | null
-    }
-    const parent = replyTo.value
-    commentText.value = ''
-    replyTo.value = null
-    // 乐观插入：后端评论列表有读写延迟/缓存，直接用创建返回本地插入，保证发布后立即可见（回复插入父评论 replies）
-    const author = { id: created?.user?.id ?? '', name: created?.user?.nickname ?? '我', avatar: created?.user?.avatar ?? '' }
-    const id = created?.id || `tmp_${Date.now()}`
-    if (parent) {
-      const p = comments.value.find(c => c.id === parent.id)
-      if (p) p.replies = [...(p.replies || []), { id, content, author, createdAt: '刚刚', likes: 0, isLiked: false }]
-    } else {
-      comments.value = [{ id, content, author, createdAt: '刚刚', likes: 0, isLiked: false, isPinned: false, replies: [] }, ...comments.value]
-    }
-    if (post.value) post.value.comments = (post.value.comments || 0) + 1
-    uni.showToast({ title: '评论已发送', icon: 'success' })
-  } catch {
-    // 失败：不清空输入，便于重发
-    uni.showToast({ title: '发送失败，请重试', icon: 'none' })
-  } finally {
-    commentSubmitting.value = false
-  }
+/** 评论计数联动：CommentSection 首载/发送/回滚时 emit count-change → 同步互动栏与评论区标题 */
+function onCommentCount(n: number) {
+  if (post.value) post.value.comments = n
 }
 
 // 海报需 circleId：后端帖子详情端点是 GET /circles/:circleId/posts/:postId（缺它查不到内容）
@@ -420,7 +371,7 @@ onUnmounted(() => { if (audioCtx) { try { audioCtx.destroy() } catch {} } })
       <text class="pd-error-back" @tap="goBack">返回上一页</text>
     </view>
 
-    <scroll-view v-else-if="post" scroll-y class="pd-body">
+    <scroll-view v-else-if="post" scroll-y :scroll-into-view="scrollAnchor" scroll-with-animation class="pd-body">
       <!-- 作者行：头像 + 昵称(+头衔徽章) + 时间 · 来自圈子（圈名可点） -->
       <view class="pd-author">
         <view @tap="openUser(post.author.id)"><smart-avatar :src="post.author.avatar" :name="post.author.name" class="pd-avatar" /></view>
@@ -508,7 +459,7 @@ onUnmounted(() => { if (audioCtx) { try { audioCtx.destroy() } catch {} } })
           <app-icon name="heart" :size="36" :color="isLiked ? '#C41E3A' : '#6e6e73'" :fill="isLiked" />
           <text class="pd-action-t" :class="{ liked: isLiked }">{{ likes ? fmt(likes) : '点赞' }}</text>
         </view>
-        <view class="pd-action" hover-class="pd-press" @tap="focusComment">
+        <view class="pd-action" hover-class="pd-press" @tap="scrollToComments">
           <app-icon name="message-circle" :size="36" color="#6e6e73" />
           <text class="pd-action-t">{{ post.comments ? fmt(post.comments) : '评论' }}</text>
         </view>
@@ -522,70 +473,17 @@ onUnmounted(() => { if (audioCtx) { try { audioCtx.destroy() } catch {} } })
         </view>
       </view>
 
-      <!-- 评论区 -->
-      <text class="pd-comments-head">评论 {{ post.comments }}</text>
-
-      <!-- 评论空态：V0 ③ 圆形暖底图标 + 引导第一条评论 -->
-      <view v-if="comments.length === 0" class="pd-c-empty">
-        <view class="pd-c-empty-icon"><app-icon name="message-circle" :size="44" color="#999999" /></view>
-        <text class="pd-c-empty-title">还没有评论</text>
-        <text class="pd-c-empty-desc">说说你的看法，作者和圈友都会看到</text>
-        <view class="pd-c-empty-cta" @tap="focusComment"><text class="pd-c-empty-cta-t">写下第一条评论</text></view>
-      </view>
-
-      <view v-for="c in comments" :key="c.id" class="pd-comment">
-        <view @tap="openUser(c.author.id)"><smart-avatar :src="c.author.avatar" :name="c.author.name" class="pd-c-avatar" /></view>
-        <view class="pd-c-main">
-          <text class="pd-c-name">{{ c.author.name }}</text>
-          <text class="pd-c-text">{{ c.content }}</text>
-          <view class="pd-c-meta">
-            <text class="pd-c-meta-t">{{ c.createdAt }}</text>
-            <text class="pd-c-meta-t" @tap="startReply(c)">回复</text>
-            <view class="pd-c-like" @tap="toggleCommentLike(c)">
-              <app-icon name="heart" :size="22" :color="c.isLiked ? '#C41E3A' : '#999999'" :fill="c.isLiked" />
-              <text v-if="c.likes > 0" class="pd-c-meta-t" :class="{ liked: c.isLiked }">{{ c.likes }}</text>
-            </view>
-          </view>
-
-          <!-- 楼中楼：暖底圆角块（V0 .replies）·默认前 2 条 + 展开/收起
-               回复对象名后端 replies 不含被回复人 → 只做「名字：内容」（降级） -->
-          <view v-if="c.replies && c.replies.length" class="pd-replies">
-            <text
-              v-for="r in (expandedReplies[c.id] ? c.replies : c.replies.slice(0, 2))" :key="r.id"
-              class="pd-reply"
-            ><text class="pd-reply-name">{{ r.author.name }}：</text>{{ r.content }}</text>
-            <text
-              v-if="c.replies.length > 2"
-              class="pd-reply-expand"
-              @tap="expandedReplies[c.id] = !expandedReplies[c.id]"
-            >{{ expandedReplies[c.id] ? '收起回复' : `展开 ${c.replies.length - 2} 条回复` }}</text>
-          </view>
-        </view>
-      </view>
-      <view class="pd-bottom-pad" />
-    </scroll-view>
-
-    <!-- 底部固定评论栏：V0 毛玻璃条（输入 + 朱红发送） -->
-    <view v-if="post" class="pd-input-bar">
-      <view v-if="replyTo" class="pd-reply-hint">
-        <view class="pd-reply-hint-l"><app-icon name="at-sign" :size="22" color="#6E6E73" /><text class="pd-reply-hint-t">回复 {{ replyTo.author.name }}</text></view>
-        <view @tap="replyTo = null"><app-icon name="x" :size="28" color="#999999" /></view>
-      </view>
-      <view class="pd-input-row">
-        <input
-          v-model="commentText"
-          class="pd-input"
-          :focus="commentFocus"
-          :placeholder="replyTo ? `回复 ${replyTo.author.name}…` : '说点什么…'"
-          confirm-type="send"
-          @blur="commentFocus = false"
-          @confirm="submitComment"
+      <!-- 评论区：统一 CommentSection（列表+吸底输入条+乐观更新一站式·三态/楼中楼/点赞组件自带） -->
+      <view id="pd-comments-anchor" class="pd-csec">
+        <text class="pd-comments-head">评论 {{ post.comments }}</text>
+        <comment-section
+          target-type="POST"
+          :target-id="postId"
+          :author-id="post.author.id"
+          @count-change="onCommentCount"
         />
-        <view class="pd-send" :class="{ disabled: commentSubmitting || !commentText.trim() }" @tap="submitComment">
-          <text class="pd-send-t">{{ commentSubmitting ? '发送中' : '发送' }}</text>
-        </view>
       </view>
-    </view>
+    </scroll-view>
 
     <!-- 图片预览 -->
     <view v-if="previewImage" class="pd-preview" @tap="previewImage = null">
@@ -759,55 +657,9 @@ onUnmounted(() => { if (audioCtx) { try { audioCtx.destroy() } catch {} } })
 .pd-action-t.liked { color: var(--brand, #c41e3a); font-weight: 500; }
 .pd-action-t.collected { color: #a8823f; font-weight: 500; }
 
-/* 评论区 */
-.pd-comments-head { display: block; padding: 32rpx 40rpx 8rpx; font-size: 28rpx; font-weight: 600; color: var(--text-primary, #2c2c2c); }
-.pd-comment { display: flex; gap: 20rpx; padding: 24rpx 40rpx 0; }
-.pd-c-avatar { width: 64rpx; height: 64rpx; border-radius: 999rpx; flex-shrink: 0; background: var(--bg-warm, #f8f4ec); }
-.pd-c-main { flex: 1; min-width: 0; padding-bottom: 24rpx; border-bottom: 1rpx solid var(--separator, #ede7dd); }
-.pd-comment:last-of-type .pd-c-main { border-bottom: none; }
-.pd-c-name { display: block; font-size: 24rpx; color: var(--text-tertiary, #999); }
-.pd-c-text { display: block; font-size: 28rpx; line-height: 1.65; color: var(--text-primary, #2c2c2c); margin-top: 6rpx; }
-.pd-c-meta { display: flex; align-items: center; gap: 32rpx; margin-top: 12rpx; }
-.pd-c-meta-t { font-size: 22rpx; color: var(--text-tertiary, #999); }
-.pd-c-meta-t.liked { color: var(--brand, #c41e3a); }
-.pd-c-like { display: flex; align-items: center; gap: 6rpx; }
-
-/* 楼中楼：暖底圆角块 */
-.pd-replies { margin-top: 20rpx; padding: 20rpx 24rpx; background: var(--bg-warm, #f8f4ec); border-radius: 16rpx; }
-.pd-reply { display: block; font-size: 26rpx; line-height: 1.6; color: var(--text-primary, #2c2c2c); }
-.pd-reply + .pd-reply { margin-top: 16rpx; }
-.pd-reply-name { font-weight: 600; }
-.pd-reply-expand { display: inline-block; margin-top: 16rpx; font-size: 24rpx; color: var(--brand, #c41e3a); }
-
-/* 评论空态（V0 ③） */
-.pd-c-empty { padding: 60rpx 32rpx 52rpx; display: flex; flex-direction: column; align-items: center; text-align: center; }
-.pd-c-empty-icon {
-  width: 96rpx; height: 96rpx; border-radius: 999rpx;
-  background: var(--bg-warm, #f8f4ec);
-  display: flex; align-items: center; justify-content: center;
-}
-.pd-c-empty-title { margin-top: 24rpx; font-size: 28rpx; font-weight: 500; color: var(--text-primary, #2c2c2c); }
-.pd-c-empty-desc { margin-top: 8rpx; font-size: 24rpx; color: var(--text-tertiary, #999); }
-.pd-c-empty-cta { margin-top: 32rpx; height: 72rpx; padding: 0 44rpx; border-radius: 36rpx; background: rgba(196, 30, 58, 0.08); display: flex; align-items: center; }
-.pd-c-empty-cta-t { font-size: 26rpx; font-weight: 500; color: var(--brand, #c41e3a); }
-
-.pd-bottom-pad { height: 40rpx; }
-
-/* 底部固定评论栏：毛玻璃 + 朱红发送 */
-.pd-input-bar {
-  flex-shrink: 0;
-  background: rgba(250, 248, 245, 0.92); backdrop-filter: blur(24rpx);
-  border-top: 1rpx solid var(--separator, #ede7dd);
-  padding: 20rpx 32rpx calc(20rpx + env(safe-area-inset-bottom));
-}
-.pd-reply-hint { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12rpx; padding: 8rpx 20rpx; background: var(--bg-warm, #f8f4ec); border-radius: 12rpx; }
-.pd-reply-hint-l { display: flex; align-items: center; gap: 6rpx; }
-.pd-reply-hint-t { font-size: 22rpx; color: var(--text-secondary, #6e6e73); }
-.pd-input-row { display: flex; align-items: center; gap: 20rpx; }
-.pd-input { flex: 1; height: 76rpx; border-radius: 38rpx; background: var(--bg-warm, #f8f4ec); padding: 0 32rpx; font-size: 28rpx; color: var(--text-primary, #2c2c2c); }
-.pd-send { flex-shrink: 0; height: 76rpx; padding: 0 32rpx; border-radius: 38rpx; background: var(--brand, #c41e3a); display: flex; align-items: center; }
-.pd-send.disabled { opacity: 0.5; }
-.pd-send-t { font-size: 28rpx; font-weight: 500; color: #fff; }
+/* 评论区（列表/输入条样式在统一组件内·此处只留标题与容器留白） */
+.pd-csec { padding: 0 24rpx; }
+.pd-comments-head { display: block; padding: 32rpx 16rpx 8rpx; font-size: 28rpx; font-weight: 600; color: var(--text-primary, #2c2c2c); }
 
 /* 图片预览 */
 .pd-preview { position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 200; background: #000; display: flex; align-items: center; justify-content: center; }

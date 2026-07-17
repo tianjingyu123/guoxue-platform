@@ -1461,12 +1461,6 @@
           }
         },
         {
-          "path": "replay-comment/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
           "path": "console/index",
           "style": {
             "navigationStyle": "custom"

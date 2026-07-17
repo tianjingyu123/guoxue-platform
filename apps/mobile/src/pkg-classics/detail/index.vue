@@ -140,8 +140,20 @@
         </view>
       </view>
 
-      <!-- 书友评论（真连通用评论模块·targetType=CLASSIC_BOOK） -->
-      <classic-comments :book-id="book.id" />
+      <!-- 书友评论（统一评论组件·targetType=CLASSIC_BOOK·吸底输入条随处可评） -->
+      <view class="cd-sec cd-comments">
+        <view class="cd-sec-head">
+          <text class="cd-sec-title">书友评论</text>
+          <text v-if="commentCount > 0" class="cd-sec-meta">{{ commentCount }} 条</text>
+        </view>
+        <view class="cd-card cd-comments-card">
+          <comment-section
+            target-type="CLASSIC_BOOK"
+            :target-id="book.id"
+            @count-change="commentCount = $event"
+          />
+        </view>
+      </view>
 
       <!-- 相关推荐 -->
       <view class="cd-sec cd-related-sec">
@@ -181,7 +193,7 @@ import { onLoad, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 import { useShare } from '@/composables/useShare'
 import ClassicsHeader from '@/components/classics/classics-header.vue'
 import FlatCover from '@/components/classics/flat-cover.vue'
-import ClassicComments from '@/components/classics/classic-comments.vue'
+import CommentSection from '@/components/comment/comment-section.vue'
 import { coverColorForBook } from '@/lib/classics-cover'
 import { classicsApi, _mockAI_FEATURES, type BookInfo } from '@/lib/classics-data'
 import { getToken } from '@/utils/storage'
@@ -193,6 +205,8 @@ const loading = ref(true)
 const error = ref('')
 
 const isInBookshelf = ref(false)
+// 书友评论总数（由统一评论组件 count-change 回传，用于小节头「N 条」）
+const commentCount = ref(0)
 const expandedChapters = ref<Set<string>>(new Set())
 const showAllChapters = ref(false)
 
@@ -338,6 +352,7 @@ async function toBook(id: string) {
   bookId.value = id
   showAllChapters.value = false
   expandedChapters.value = new Set()
+  commentCount.value = 0 // 切书先清计数，评论组件 watch targetId 重载后回传新值
   await fetchData(id)
   uni.pageScrollTo({ scrollTop: 0, duration: 0 })
 }
@@ -347,7 +362,9 @@ async function toBook(id: string) {
 .cd-page {
   min-height: 100vh;
   background: var(--classics-bg);
-  padding-bottom: 180rpx;
+  /* 底部两层固定条（操作栏 ~128rpx+安全区 + 评论输入条 ~106rpx）都要让出来 */
+  padding-bottom: calc(280rpx + constant(safe-area-inset-bottom));
+  padding-bottom: calc(280rpx + env(safe-area-inset-bottom));
 }
 .cd-main {
   max-width: 1280rpx;
@@ -655,6 +672,27 @@ async function toBook(id: string) {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* ── 统一评论组件与页面固定操作栏共存 ──
+ * comment-section 的吸底输入条恒为 fixed（组件未透传 :fixed），而本页已有
+ * .cd-bottom 固定操作栏（z-index 40）压在同一 bottom:0 上。
+ * 处理：把输入条整体抬到操作栏之上（bottom = 操作栏高 128rpx + 安全区），
+ * z-index 39 低于操作栏——「开始阅读/加入书架」始终在最底层完整可点，不被输入条盖住。 */
+.cd-comments-card {
+  padding: 8rpx 28rpx 20rpx;
+}
+.cd-comments :deep(.cib--fixed) {
+  bottom: calc(128rpx + constant(safe-area-inset-bottom));
+  bottom: calc(128rpx + env(safe-area-inset-bottom));
+  z-index: 39;
+  /* 不再贴屏幕底缘，安全区由下方操作栏承担，避免双重加高 */
+  padding-bottom: 16rpx;
+}
+/* 组件内自带的「给吸底输入条让位」垫片按贴屏底算高（140rpx+安全区），
+ * 且评论区后还有相关推荐，垫片会变成版心中段空洞——清零，让位改由 .cd-page 底部留白统一承担 */
+.cd-comments :deep(.csec__pad) {
+  height: 0;
+}
+
 .cd-bottom {
   position: fixed;
   left: 0;

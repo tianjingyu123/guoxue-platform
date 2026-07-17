@@ -1808,6 +1808,18 @@ export const mineApi = {
     return list.map(adaptReceivedComment)
   },
 
+  /** 回复收到的评论 —— POST /interaction/comment（parentId=对方评论 id·真连替代原 setTimeout 假回复）。
+   *  前端小写内容类型 → 后端大写枚举（circle_post→POST，其余直接大写） */
+  replyReceivedComment(item: ReceivedCommentItem, content: string): Promise<unknown> {
+    const targetType = item.myContent.type === 'circle_post' ? 'POST' : item.myContent.type.toUpperCase()
+    return apiPost<unknown>('/interaction/comment', {
+      targetType,
+      targetId: String(item.myContent.id),
+      content,
+      parentId: String(item.id),
+    })
+  },
+
   /** 获取反馈类型 —— GET /users/feedback/types（后端 {types,statusConfig} → 取 types） */
   async getFeedbackTypes(): Promise<FeedbackType[]> {
     const res = await apiGet<{ types?: FeedbackType[] } | FeedbackType[]>('/users/feedback/types')
