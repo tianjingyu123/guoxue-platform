@@ -258,6 +258,16 @@ interface RawComment extends RawReply { replies?: RawReply[] }
 interface RawCollectItem { targetId?: string | number }
 /** GET /shop/products/:id 精简形状（文章带货商品充实用·仅声明访问到的字段·与短视频同款） */
 interface RawShopProductLite { id?: string; title?: string; price?: number | string; originalPrice?: number | string | null; effectivePrice?: number | string; images?: string[]; cover?: string | null; salesCount?: number }
+/** GET /videos/products 商品库原始项（作者端挂品选品用·与 video-data.RawVideoProduct 同源字段） */
+interface RawProductLibItem { id?: string | number; productId?: string; title?: string; name?: string; price?: number | string; images?: string[]; image?: string; cover?: string }
+
+/** 作者端选品项（挂品抽屉展示用：图+名+价） */
+export interface ProductLibraryItem {
+  id: string
+  name: string
+  cover: string
+  price: number
+}
 
 function adaptArticleDetail(a: RawArticleDetail): ArticleDetail {
   const recs: ArticleRecommendCard[] = (Array.isArray(a?.recommends) ? a.recommends : [])
@@ -408,6 +418,35 @@ export const articleApi = {
     }))
   },
 
+  // ───────── 文章带货 · 作者端挂品（消费端「文中好物」抽屉已闭环，此处补作者侧断链） ─────────
+
+  /**
+   * 挂载推荐商品 POST /articles/:id/recommends（后端 AddRecommendDto：recommendType/targetId 必填 + title/cover/sortOrder 可选）。
+   * 需文章作者本人（后端校验 article.userId===userId）；title/cover 一并落库供详情页商品卡直显。
+   */
+  addRecommend: (articleId: string, productId: string, extra?: { title?: string; cover?: string; sortOrder?: number }) =>
+    apiPost<{ id: string }>(`/articles/${articleId}/recommends`, {
+      recommendType: 'PRODUCT',
+      targetId: productId,
+      ...(extra?.title ? { title: extra.title } : {}),
+      ...(extra?.cover ? { cover: extra.cover } : {}),
+      ...(extra?.sortOrder != null ? { sortOrder: extra.sortOrder } : {}),
+    }),
+
+  /** 商品库列表 GET /videos/products（全平台 ON_SALE 商品·与短视频带货选品同源） */
+  async getProductLibrary(): Promise<ProductLibraryItem[]> {
+    const res = await apiGet<RawProductLibItem[] | { items?: RawProductLibItem[]; data?: RawProductLibItem[] }>('/videos/products')
+    const arr = Array.isArray(res) ? res : (res?.items ?? res?.data ?? [])
+    return arr
+      .map((p: RawProductLibItem) => ({
+        id: String(p.productId ?? p.id ?? ''),
+        name: p.title || p.name || '',
+        cover: (Array.isArray(p.images) && p.images[0]) || p.image || p.cover || '',
+        price: Number(p.price) || 0,
+      }))
+      .filter((p) => p.id)
+  },
+
   /** 文章评论列表 GET /comment?targetType=ARTICLE&targetId=（无评论返回 []，走空态） */
   async getComments(id: string): Promise<ArticleComment[]> {
     const r = await apiGet<unknown>(`/comment?targetType=ARTICLE&targetId=${id}`)
@@ -448,6 +487,9 @@ export const articleApi = {
     }
   },
 }
+
+/** 挂载文章推荐商品（具名导出·等价 articleApi.addRecommend，供编辑器发布后循环挂品） */
+export const addArticleRecommend = articleApi.addRecommend
 
 /** 标签下的内容聚合项（对齐后端 GET /tags/:name/posts 的 select 字段，Content 表） */
 export interface TagContentItem {

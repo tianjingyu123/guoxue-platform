@@ -93,6 +93,35 @@
         </view>
       </view>
 
+      <!-- 带货商品（可选，最多 5 件挂车） -->
+      <view class="sec">
+        <view class="label">带货商品 <text class="label-sm">可选 · 最多 {{ MAX_LIVE_PRODUCTS }} 件</text></view>
+        <!-- 未选：入口条 -->
+        <view v-if="!selectedProducts.length" class="goods-entry" @tap="openProductSheet">
+          <AppIcon name="shopping-bag" :size="32" color="#999999" />
+          <text class="goods-entry-txt">从商品库选择要挂车的商品</text>
+          <view class="goods-entry-go">
+            <text class="goods-entry-go-txt">去选择</text>
+            <AppIcon name="chevron-right" :size="28" color="#B8B2A8" />
+          </view>
+        </view>
+        <!-- 已选：横滑小卡 -->
+        <scroll-view v-else scroll-x class="goods-strip" :show-scrollbar="false">
+          <view class="goods-strip-inner">
+            <view v-for="p in selectedProducts" :key="p.id" class="goods-card">
+              <view class="goods-card-rm" @tap.stop="removeProduct(p.id)">×</view>
+              <image class="goods-card-img" :src="p.cover" mode="aspectFill" />
+              <text class="goods-card-name">{{ p.name }}</text>
+              <text class="goods-card-price">¥{{ formatPrice(p.price) }}</text>
+            </view>
+            <view v-if="selectedProducts.length < MAX_LIVE_PRODUCTS" class="goods-card goods-card-add" @tap="openProductSheet">
+              <view class="goods-add-plus">+</view>
+              <text class="goods-add-txt">添加</text>
+            </view>
+          </view>
+        </scroll-view>
+      </view>
+
       <!-- 画质档 -->
       <view class="sec">
         <view class="label">画质档 <text class="label-sm">高清/超清消耗时长包</text></view>
@@ -218,6 +247,53 @@
         </scroll-view>
       </view>
     </view>
+
+    <!-- 带货选品抽屉（半屏 · 多选 · 上限 5 件） -->
+    <view v-if="showProductSheet" class="mask" @tap="showProductSheet = false">
+      <view class="sheet" @tap.stop>
+        <view class="sheet-h">
+          <text class="sheet-title">选择带货商品</text>
+          <text class="sheet-x" @tap="showProductSheet = false">×</text>
+        </view>
+        <!-- 搜索 -->
+        <view class="goods-search">
+          <AppIcon name="search" :size="32" color="#999999" />
+          <input
+            v-model="productKeyword"
+            class="goods-search-field"
+            placeholder="搜索商品名称"
+            placeholder-class="input-ph"
+            confirm-type="search"
+            @confirm="searchProducts"
+            @input="onKeywordInput"
+          />
+        </view>
+        <!-- 商品列表（多选） -->
+        <scroll-view scroll-y class="goods-list">
+          <text v-if="poolLoading" class="goods-list-empty">商品加载中…</text>
+          <text v-else-if="!productPool.length" class="goods-list-empty">暂无可带货商品</text>
+          <view
+            v-for="p in productPool"
+            :key="p.id"
+            class="goods-item"
+            @tap="togglePick(p)"
+          >
+            <image class="goods-item-img" :src="p.cover" mode="aspectFill" />
+            <view class="goods-item-info">
+              <text class="goods-item-name">{{ p.name }}</text>
+              <text class="goods-item-price">¥{{ formatPrice(p.price) }}</text>
+            </view>
+            <view class="goods-check" :class="{ on: isPicked(p.id) }">
+              <AppIcon v-if="isPicked(p.id)" name="check" :size="26" color="#FFFFFF" />
+            </view>
+          </view>
+        </scroll-view>
+        <!-- 确认 -->
+        <view class="cta sheet-cta" :class="{ dis: !pendingProducts.length }" @tap="confirmPick">
+          {{ pendingProducts.length ? `确认挂车（已选 ${pendingProducts.length}/${MAX_LIVE_PRODUCTS} 件）` : '请选择商品（可不选直接关闭）' }}
+        </view>
+      </view>
+    </view>
   </view>
 </template>
 
@@ -226,7 +302,7 @@ import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
-import { liveApi, type LiveQuota, type LiveQualityPackage } from '@/lib/live-data'
+import { liveApi, type LiveQuota, type LiveQualityPackage, type LivePickerProduct } from '@/lib/live-data'
 import { circleApi, type MyCircle } from '@/lib/circle-data'
 import { getCoinBalance } from '@/lib/circle-consult-data'
 import { uploadImage } from '@/utils/request'
@@ -379,6 +455,62 @@ const startTimeLabel = computed(() => (startTime.value ? `预约 · ${startDate.
 const isCharge = ref(false)
 const chargePrice = ref('')
 
+// ── 带货商品（可选 · 挂车上限 5 件，对齐观看页购物袋容量口径；后端 DTO productIds 无硬上限，前端收口） ──
+const MAX_LIVE_PRODUCTS = 5
+const selectedProducts = ref<LivePickerProduct[]>([]) // 已确认挂车的商品
+const showProductSheet = ref(false)
+const pendingProducts = ref<LivePickerProduct[]>([]) // 抽屉内暂选（确认才生效）
+const productPool = ref<LivePickerProduct[]>([]) // 商品库列表（GET /shop/products?status=ON_SALE）
+const poolLoading = ref(false)
+const productKeyword = ref('')
+let keywordTimer: ReturnType<typeof setTimeout> | null = null
+
+function formatPrice(n: number): string {
+  return Number.isInteger(n) ? String(n) : n.toFixed(2)
+}
+function isPicked(id: string): boolean {
+  return pendingProducts.value.some((p) => p.id === id)
+}
+function openProductSheet() {
+  pendingProducts.value = [...selectedProducts.value]
+  showProductSheet.value = true
+  if (!productPool.value.length && !poolLoading.value) searchProducts()
+}
+async function searchProducts() {
+  poolLoading.value = true
+  productPool.value = []
+  try {
+    productPool.value = await liveApi.getShopProductPool(productKeyword.value.trim() || undefined)
+  } finally {
+    poolLoading.value = false
+  }
+}
+// 输入即搜（300ms 防抖，避免每键一次请求）
+function onKeywordInput() {
+  if (keywordTimer) clearTimeout(keywordTimer)
+  keywordTimer = setTimeout(searchProducts, 300)
+}
+function togglePick(p: LivePickerProduct) {
+  const idx = pendingProducts.value.findIndex((x) => x.id === p.id)
+  if (idx >= 0) {
+    pendingProducts.value.splice(idx, 1)
+    return
+  }
+  if (pendingProducts.value.length >= MAX_LIVE_PRODUCTS) {
+    uni.showToast({ title: `最多挂车 ${MAX_LIVE_PRODUCTS} 件商品`, icon: 'none' })
+    return
+  }
+  pendingProducts.value.push(p)
+}
+function confirmPick() {
+  if (!pendingProducts.value.length) return
+  selectedProducts.value = [...pendingProducts.value]
+  showProductSheet.value = false
+}
+function removeProduct(id: string) {
+  selectedProducts.value = selectedProducts.value.filter((p) => p.id !== id)
+}
+
 // ── 数据加载 ──
 async function fetchData() {
   loading.value = true
@@ -434,6 +566,7 @@ async function onPrimary() {
       quality: quality.value,
       orientation: liveMode.value === 'obs' ? 'landscape' : 'portrait',
       visibility: visibility.value,
+      productIds: selectedProducts.value.length ? selectedProducts.value.map((p) => p.id) : undefined,
     })
     createdId.value = created?.id || ''
     // 审核无感化：创建即生效，机审后台异步完成，无审核提示
@@ -612,6 +745,37 @@ function goManageLater() {
 .sheet-note { display: flex; flex-direction: column; gap: 8rpx; margin-bottom: 8rpx; }
 .sheet-note-l { font-size: 22rpx; color: #999; line-height: 1.6; }
 .sheet-cta { margin-top: 24rpx; }
+
+/* 带货商品：入口条 */
+.goods-entry { height: 88rpx; box-sizing: border-box; border: 1rpx solid #E8E2D8; border-radius: 24rpx; background: #fff; display: flex; align-items: center; gap: 16rpx; padding: 0 28rpx; }
+.goods-entry-txt { flex: 1; font-size: 26rpx; color: #B8B2A8; }
+.goods-entry-go { display: flex; align-items: center; gap: 4rpx; flex-shrink: 0; }
+.goods-entry-go-txt { font-size: 24rpx; color: #C41E3A; font-weight: 600; }
+
+/* 带货商品：已选横滑小卡 */
+.goods-strip { width: 100%; white-space: nowrap; }
+.goods-strip-inner { display: flex; gap: 20rpx; padding: 8rpx 4rpx 8rpx 0; }
+.goods-card { width: 176rpx; flex-shrink: 0; background: #fff; border: 1rpx solid #E8E2D8; border-radius: 24rpx; padding: 12rpx; box-sizing: border-box; display: flex; flex-direction: column; gap: 8rpx; position: relative; }
+.goods-card-rm { position: absolute; top: -12rpx; right: -12rpx; z-index: 2; width: 40rpx; height: 40rpx; border-radius: 50%; background: rgba(0,0,0,.55); color: #fff; font-size: 28rpx; line-height: 1; display: flex; align-items: center; justify-content: center; }
+.goods-card-img { width: 152rpx; height: 152rpx; border-radius: 16rpx; background: #F0EBE2; }
+.goods-card-name { font-size: 22rpx; color: #2C2C2C; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.goods-card-price { font-size: 24rpx; font-weight: 700; color: #C41E3A; }
+.goods-card-add { align-items: center; justify-content: center; border-style: dashed; min-height: 232rpx; }
+.goods-add-plus { font-size: 48rpx; color: #C9A96E; line-height: 1; }
+.goods-add-txt { font-size: 22rpx; color: #999; }
+
+/* 带货选品抽屉 */
+.goods-search { height: 76rpx; box-sizing: border-box; border: 1rpx solid #E8E2D8; border-radius: 999rpx; background: #fff; display: flex; align-items: center; gap: 12rpx; padding: 0 28rpx; margin-bottom: 24rpx; }
+.goods-search-field { flex: 1; font-size: 26rpx; color: #2C2C2C; }
+.goods-list { max-height: 560rpx; }
+.goods-list-empty { display: block; text-align: center; font-size: 26rpx; color: #999; padding: 48rpx 0; }
+.goods-item { display: flex; align-items: center; gap: 20rpx; padding: 20rpx 8rpx; border-bottom: 1rpx solid #F0EBE2; }
+.goods-item-img { width: 96rpx; height: 96rpx; border-radius: 16rpx; background: #F0EBE2; flex-shrink: 0; }
+.goods-item-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6rpx; }
+.goods-item-name { font-size: 26rpx; color: #2C2C2C; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.goods-item-price { font-size: 26rpx; font-weight: 700; color: #C41E3A; }
+.goods-check { width: 40rpx; height: 40rpx; border-radius: 50%; border: 2rpx solid #D8D2C6; background: #fff; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+.goods-check.on { border-color: #C41E3A; background: #C41E3A; }
 
 /* 圈子选择 */
 .circle-list { max-height: 640rpx; }

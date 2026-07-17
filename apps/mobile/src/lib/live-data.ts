@@ -1509,8 +1509,8 @@ export const liveApi = {
     return liveCreateCategories
   },
 
-  /** 创建直播间 — POST /live/rooms（预约直播，status=WAITING；quality 画质档 basic/hd/uhd；orientation 开播方式 portrait=手机竖屏/landscape=OBS横屏；visibility 开放范围 CIRCLE_ONLY=仅本圈默认/PLATFORM=全平台·创建即生效，机审后台异步） */
-  async createRoom(payload: { circleId?: string; title: string; cover?: string; startTime?: string; chargeType?: string; chargePrice?: number; quality?: string; orientation?: 'portrait' | 'landscape'; visibility?: 'CIRCLE_ONLY' | 'PLATFORM' }): Promise<{ id: string }> {
+  /** 创建直播间 — POST /live/rooms（预约直播，status=WAITING；quality 画质档 basic/hd/uhd；orientation 开播方式 portrait=手机竖屏/landscape=OBS横屏；visibility 开放范围 CIRCLE_ONLY=仅本圈默认/PLATFORM=全平台·创建即生效，机审后台异步；productIds 带货商品挂车，后端落 LiveProduct 关联表） */
+  async createRoom(payload: { circleId?: string; title: string; cover?: string; startTime?: string; chargeType?: string; chargePrice?: number; quality?: string; orientation?: 'portrait' | 'landscape'; visibility?: 'CIRCLE_ONLY' | 'PLATFORM'; productIds?: string[] }): Promise<{ id: string }> {
     return await apiPost<{ id: string }>('/live/rooms', payload)
   },
 

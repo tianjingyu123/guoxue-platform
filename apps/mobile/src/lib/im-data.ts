@@ -322,7 +322,7 @@ function notifyLink(targetType?: string | null, targetId?: string | null): strin
   if (t.includes('ARTICLE') || t.includes('POST')) return `/pkg-circle/articles/detail?id=${targetId}`
   if (t.includes('ORDER')) return `/pkg-order/detail?id=${targetId}`
   if (t.includes('CIRCLE')) return `/pkg-circle/detail?id=${targetId}`
-  if (t.includes('LIVE')) return `/pkg-live/vertical/index?id=${targetId}`
+  if (t.includes('LIVE')) return `/pkg-live/watch/index?id=${targetId}` // 原指 vertical 半死页(products恒空)·改指真观看页
   return undefined
 }
 
@@ -366,7 +366,7 @@ function buildUnreadCounts(list: NotifyMessage[], totalUnread: number): MessageU
 
 export const mockNotifyMessages: NotifyMessage[] = [
   // 系统通知
-  { id: 'm1', type: 'system', category: '直播', title: '直播开播提醒', content: '您关注的「张明远·易学研究员」正在直播《周易》六十四卦精讲，快去看看吧。', time: '10分钟前', isRead: false, link: '/pkg-live/vertical/index' },
+  { id: 'm1', type: 'system', category: '直播', title: '直播开播提醒', content: '您关注的「张明远·易学研究员」正在直播《周易》六十四卦精讲，快去看看吧。', time: '10分钟前', isRead: false, link: '/pkg-live/watch/index' },
   { id: 'm2', type: 'system', category: '课程', title: '课程更新通知', content: '您购买的《八字命理入门》已更新第12讲：泰卦与否卦，点击继续学习。', time: '2小时前', isRead: false, link: '/pkg-course/detail' },
   { id: 'm3', type: 'system', category: '系统', title: '账号安全提醒', content: '您的账号于01月15日 09:23在新设备登录，如非本人操作请及时修改密码。', time: '01月15日', isRead: true, link: '/pkg-mine/security' },
   { id: 'm4', type: 'system', category: '活动', title: '新春祈福活动开启', content: '甲辰龙年新春祈福活动现已开启，参与即可领取专属开运礼包。', time: '01月12日', isRead: true },

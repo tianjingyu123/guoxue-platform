@@ -100,6 +100,25 @@
         </view>
         <text class="cover-hint">建议 16:9 横图 · 1280×720 以上，也可用底部「封面」AI 生成</text>
       </view>
+
+      <!-- 关联商品（文章带货作者端·可选·上限3件·帖子模式不显示；发布成功后逐件 POST /articles/:id/recommends 挂载） -->
+      <view v-if="type === 'article'" class="product-block">
+        <text class="cover-label">关联商品 <text class="product-optional">（可选 · 最多 3 件，展示在文章「文中好物」）</text></text>
+        <view v-if="linkedProducts.length > 0" class="linked-scroll">
+          <view v-for="(p, i) in linkedProducts" :key="p.id" class="linked-card">
+            <image lazy-load :src="p.cover" class="linked-img" mode="aspectFill" />
+            <text class="linked-name">{{ p.name }}</text>
+            <text class="linked-price">¥{{ p.price }}</text>
+            <view class="linked-del" @tap="removeLinkedProduct(i)">
+              <app-icon name="x" :size="12" color="#fff" />
+            </view>
+          </view>
+        </view>
+        <view v-if="linkedProducts.length < 3" class="product-add-btn" @tap="openProductSelect">
+          <app-icon name="shopping-bag" :size="16" color="#8a8a8a" />
+          <text class="product-add-text">{{ linkedProducts.length ? '继续添加商品' : '添加商品' }}</text>
+        </view>
+      </view>
     </view>
 
     <!-- 选择圈子（必选，后端发帖/发文章均需归属圈子） -->
@@ -204,6 +223,40 @@
             >
               #{{ tag.name }}
             </view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 选品抽屉（文章带货·商品库=GET /videos/products 全平台在售·多选上限3件） -->
+    <view v-if="showProductSelect" class="mask" @tap="showProductSelect = false">
+      <view class="sheet" @tap.stop>
+        <view class="sheet-header between">
+          <text class="sheet-count">已选 {{ linkedProducts.length }}/3</text>
+          <text class="sheet-title">选择商品</text>
+          <text class="sheet-done" @tap="showProductSelect = false">完成</text>
+        </view>
+        <view class="sheet-body">
+          <view v-if="productLibLoading" class="sheet-state">
+            <app-icon name="loader-2" :size="28" color="#a855f7" class="spin" />
+            <text class="sheet-state-text">加载中...</text>
+          </view>
+          <view v-else-if="productLib.length === 0" class="sheet-state">
+            <text class="sheet-state-text">暂无在售商品</text>
+          </view>
+          <view
+            v-for="p in productLib"
+            :key="p.id"
+            class="opt-row"
+            :class="{ active: isProductLinked(p.id) }"
+            @tap="toggleLinkedProduct(p)"
+          >
+            <view class="opt-product-img"><image lazy-load :src="p.cover" class="opt-avatar-img" mode="aspectFill" /></view>
+            <view class="opt-product-info">
+              <text class="opt-text ellipsis">{{ p.name }}</text>
+              <text class="opt-product-price">¥{{ p.price }}</text>
+            </view>
+            <app-icon v-if="isProductLinked(p.id)" name="check" :size="20" color="#C41E3A" class="opt-check" />
           </view>
         </view>
       </view>
@@ -314,7 +367,7 @@ import { uploadImage, uploadDocument } from '@/utils/request'
 import { navigateBack } from '@/utils/router'
 import { circleApi } from '@/lib/circle-data'
 import { circleDetailApi } from '@/lib/circle-detail-data'
-import { articleApi, tagApi } from '@/lib/article-data'
+import { articleApi, tagApi, addArticleRecommend, type ProductLibraryItem } from '@/lib/article-data'
 import { publishAssistApi } from '@/lib/publish-assist-data'
 import CreationAssistDrawer from '@/components/circle/creation-assist-drawer.vue'
 
@@ -335,6 +388,13 @@ const selectedTopics = ref<string[]>([])     // 已选标签名（文章 tags）
 const circles = ref<CircleItem[]>([])
 const circlesLoading = ref(false)
 const tags = ref<{ id: string; name: string }[]>([])
+
+// ── 文章带货 · 关联商品（可选 ≤3 件·发布成功后逐件 POST recommends 挂载·存草稿不挂）──
+const linkedProducts = ref<ProductLibraryItem[]>([])
+const showProductSelect = ref(false)
+const productLib = ref<ProductLibraryItem[]>([])
+const productLibLoading = ref(false)
+let productLibLoaded = false   // 商品库懒加载一次（打开抽屉才拉，避免发帖用户白拉）
 
 const showCircleSelect = ref(false)
 /** 从圈子详情带 circleId 进入时圈子锁定，选择行退化为只读展示 */
@@ -642,6 +702,38 @@ function onSelectType(t: 'post' | 'article') {
   }
   type.value = t
 }
+// ── 关联商品：打开抽屉（懒加载商品库）/ 勾选切换 / 移除 ──
+function isProductLinked(id: string) { return linkedProducts.value.some(p => p.id === id) }
+async function openProductSelect() {
+  showProductSelect.value = true
+  if (productLibLoaded) return
+  productLibLoading.value = true
+  try {
+    productLib.value = await articleApi.getProductLibrary()
+    productLibLoaded = true
+  } catch {
+    productLib.value = []
+  } finally {
+    productLibLoading.value = false
+  }
+}
+function toggleLinkedProduct(p: ProductLibraryItem) {
+  const idx = linkedProducts.value.findIndex(x => x.id === p.id)
+  if (idx >= 0) { linkedProducts.value.splice(idx, 1); return }
+  if (linkedProducts.value.length >= 3) { uni.showToast({ title: '最多关联 3 件商品', icon: 'none' }); return }
+  linkedProducts.value.push(p)
+}
+function removeLinkedProduct(i: number) { linkedProducts.value.splice(i, 1) }
+
+/** 发布成功后挂品（失败不阻断发布主流程，仅提示；后端校验作者本人） */
+async function attachLinkedProducts(articleId: string): Promise<number> {
+  if (!linkedProducts.value.length) return 0
+  const results = await Promise.allSettled(
+    linkedProducts.value.map((p, i) => addArticleRecommend(articleId, p.id, { title: p.name, cover: p.cover, sortOrder: i })),
+  )
+  return results.filter(r => r.status === 'rejected').length
+}
+
 function toggleTopic(name: string) {
   const idx = selectedTopics.value.indexOf(name)
   if (idx >= 0) selectedTopics.value.splice(idx, 1)
@@ -768,7 +860,11 @@ async function handlePublish() {
   if (type.value === 'article' && !cover.value) { uni.showToast({ title: '请上传文章封面（建议 16:9 横图）', icon: 'none' }); return }
   publishing.value = true
   try {
+    // 挂品失败数（挂品是发布后的附加动作，失败不阻断发布成功流程）
+    let recFailed = 0
     if (type.value === 'article') {
+      // 拿到文章 id 供发布后挂载关联商品（create 返回 {id}；草稿发布沿用 draftId 即文章 id）
+      let publishedArticleId: string | null = null
       if (editingDraftId.value) {
         // 续编发布：先回写最新内容，再走草稿发布（DRAFT→PENDING）
         await articleApi.updateDraft(editingDraftId.value, {
@@ -778,14 +874,19 @@ async function handlePublish() {
           tags: selectedTopics.value,
         })
         await articleApi.publishDraft(editingDraftId.value)
+        publishedArticleId = editingDraftId.value
       } else {
-        await articleApi.create(selectedCircle.value!, {
+        const res = await articleApi.create(selectedCircle.value!, {
           title: title.value.trim(),
           content: content.value,
           cover: cover.value || undefined,
           tags: selectedTopics.value,
         })
+        publishedArticleId = res?.id || null
       }
+      // 发布成功后挂载关联商品（存草稿不挂；失败仅提示可稍后重试）
+      if (publishedArticleId) recFailed = await attachLinkedProducts(publishedArticleId)
+      else if (linkedProducts.value.length) recFailed = linkedProducts.value.length
     } else {
       await articleApi.createPost(selectedCircle.value!, {
         type: images.value.length ? 'IMAGE' : (attachments.value.length ? 'FILE' : 'TEXT'),
@@ -798,7 +899,8 @@ async function handlePublish() {
     // 已发布，标记清缓存（onUnload 不再回写）
     submittedClean = true
     clearLocalDraft()
-    uni.showToast({ title: '发布成功', icon: 'success' })
+    if (recFailed > 0) uni.showToast({ title: '已发布，商品关联失败可稍后在文章中重试', icon: 'none' })
+    else uni.showToast({ title: '发布成功', icon: 'success' })
     // 广播圈子详情页立即刷新（配合后端 createPost 缓存失效，新帖即时可见·董事长反馈）
     uni.$emit('circle:refresh', selectedCircle.value)
     setTimeout(() => navigateBack(), 600)
@@ -998,6 +1100,60 @@ async function handlePublish() {
 .cover-upload-text { font-size: 26rpx; color: #8a8a8a; }
 /* 素材尺寸建议（体验标准 V1.0 五·附节） */
 .cover-hint { display: block; font-size: 22rpx; color: #999; margin-top: 12rpx; }
+
+/* 关联商品（文章带货作者端） */
+.product-block { margin-top: 32rpx; }
+.product-optional { color: #c4c4c4; font-size: 22rpx; }
+.linked-scroll { display: flex; gap: 16rpx; margin-bottom: 16rpx; overflow-x: auto; }
+.linked-card {
+  position: relative;
+  width: 176rpx;
+  flex-shrink: 0;
+  background: #faf8f5;
+  border: 1rpx solid #ececec;
+  border-radius: 16rpx;
+  overflow: hidden;
+  padding-bottom: 12rpx;
+}
+.linked-img { width: 176rpx; height: 176rpx; background: #f4f4f5; }
+.linked-name {
+  display: block;
+  font-size: 22rpx;
+  color: #1a1a1a;
+  padding: 8rpx 12rpx 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.linked-price { display: block; font-size: 22rpx; color: #C41E3A; font-weight: 600; padding: 4rpx 12rpx 0; }
+.linked-del {
+  position: absolute;
+  top: 8rpx;
+  right: 8rpx;
+  width: 36rpx;
+  height: 36rpx;
+  background: rgba(0,0,0,0.5);
+  border-radius: 999rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.product-add-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12rpx;
+  height: 88rpx;
+  border: 2rpx dashed #c4c4c4;
+  border-radius: 16rpx;
+  background: #fafafa;
+}
+.product-add-text { font-size: 26rpx; color: #8a8a8a; }
+/* 选品抽屉行 */
+.opt-product-img { width: 80rpx; height: 80rpx; border-radius: 12rpx; overflow: hidden; flex-shrink: 0; background: #f4f4f5; }
+.opt-product-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4rpx; }
+.opt-product-price { font-size: 24rpx; color: #C41E3A; font-weight: 600; }
+.opt-text.ellipsis { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
 
 /* 选择行 */
 .select-row {
