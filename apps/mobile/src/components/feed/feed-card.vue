@@ -25,12 +25,22 @@ import AgentCard from './cards/agent-card.vue'
 import BigCard from './big-card.vue'
 
 /**
- * big=true 时渲染 2:1 大卡（独占全宽，H1 按 5-10 条节奏插入时传入），
+ * big=true 时渲染 16:9 大卡（独占全宽，H1 按节奏插入时传入），
  * 否则走九类标准卡注册表分发。点击导航/埋点统一在本组件承载。
  */
 const props = defineProps<{ item: FeedEnvelope; big?: boolean }>()
 
 const t = computed(() => props.item.type)
+
+/**
+ * 大卡守卫（董事长 2026-07-17 拍板：2:1 废弃·16:9·仅 live/course 可升大卡）：
+ * 只有 live/course 且有真实封面才走大卡；其余即使传了 big 也落回下方
+ * v-else-if 普通卡注册表分发（守卫放本组件是因为回退需要这条分发链，
+ * big-card 内做守卫只能空渲染留白）。
+ */
+const bigOk = computed(
+  () => props.big === true && (t.value === 'live' || t.value === 'course') && !!props.item.cover
+)
 
 /** 类型 → 详情/落地路由（用真实动态路由前缀，与全站 router 映射对齐） */
 function targetUrl(it: FeedEnvelope): string {
@@ -69,8 +79,8 @@ function go() {
 
 <template>
   <view class="feed-card-wrap" hover-class="feed-card-press" @tap="go">
-    <!-- 2:1 大卡（独占全宽·按节奏插入） -->
-    <big-card v-if="big" :item="item" />
+    <!-- 16:9 大卡（独占全宽·按节奏插入·仅 live/course 且有封面，否则落回普通卡） -->
+    <big-card v-if="bigOk" :item="item" />
     <video-card v-else-if="t === 'video'" :item="item" />
     <article-card v-else-if="t === 'article'" :item="item" />
     <post-card v-else-if="t === 'post'" :item="item" />

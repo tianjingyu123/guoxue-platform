@@ -30,7 +30,7 @@ function open() {
 <template>
   <!-- ---------- 横滑小卡 rail ---------- -->
   <view v-if="variant === 'rail'" class="rail" hover-class="card-press" @tap="open">
-    <view class="cover r-169">
+    <view class="cover r-34">
       <smart-cover class="cover-img" :src="data.cover" :title="data.title" type="course" deco />
       <text class="type-badge">课程</text>
     </view>
@@ -89,8 +89,10 @@ function open() {
 
   <!-- ---------- 瀑布流竖卡 feed(默认) ---------- -->
   <view v-else class="card" hover-class="card-press" @tap="open">
-    <view class="cover r-169">
+    <view class="cover r-34">
       <smart-cover class="cover-img" :src="data.cover" :title="data.title" type="course" deco />
+      <!-- 16:9 源图进 3:4 容器裁切：底部深色渐变兜底可读性 -->
+      <view class="cover-shade" />
       <text class="type-badge">课程</text>
       <text v-if="kind" class="hot-badge" :class="kind === 'new' ? 'hot-new' : 'hot-red'">{{ hotText }}</text>
     </view>
@@ -118,10 +120,10 @@ function open() {
 .card { overflow: hidden; background: var(--surface); border-radius: 24rpx; box-shadow: 0 2rpx 16rpx rgba(0,0,0,0.05); margin-bottom: 12rpx; }
 .card-press { transform: scale(0.98); }
 .cover { position: relative; width: 100%; background: var(--surface-sunken); overflow: hidden; }
-.r-34 { padding-bottom: 133.33%; }
+.r-34 { padding-bottom: 133.33%; } /* 课程卡容器 3:4（规范§五：16:9 源图 aspectFill 裁剪填满）·X5 禁 aspect-ratio 用 padding 法 */
 .r-sq { padding-bottom: 100%; }
-.r-169 { padding-bottom: 56.25%; } /* 课程素材原生 16:9（规范）：所见即所得不裁切 */
 .cover-img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+.cover-shade { position: absolute; left: 0; right: 0; bottom: 0; height: 40%; background: linear-gradient(transparent, rgba(0,0,0,0.45)); z-index: 2; pointer-events: none; }
 .type-badge { position: absolute; top: 16rpx; left: 16rpx; z-index: 10; font-size: 20rpx; padding: 2rpx 14rpx; border-radius: 999rpx; color: rgba(255,255,255,0.95); font-weight: 500; background: rgba(0,0,0,0.45); }
 .hot-badge { position: absolute; top: 16rpx; right: 16rpx; z-index: 10; font-size: 20rpx; padding: 2rpx 14rpx; border-radius: 999rpx; font-weight: 500; }
 .hot-red { background: var(--brand); color: #fff; }
@@ -145,7 +147,7 @@ function open() {
 .meta-soft { font-size: 22rpx; color: var(--text-soft); flex-shrink: 0; }
 
 /* rail 横滑小卡 */
-.rail { flex-shrink: 0; width: 360rpx; overflow: hidden; background: var(--surface); border-radius: 24rpx; box-shadow: 0 2rpx 16rpx rgba(0,0,0,0.05); }
+.rail { flex-shrink: 0; width: 280rpx; overflow: hidden; background: var(--surface); border-radius: 24rpx; box-shadow: 0 2rpx 16rpx rgba(0,0,0,0.05); } /* 3:4 竖卡后收窄 360→280rpx 防横滑卡过高 */
 .rail-body { padding: 16rpx; }
 .rail-title { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; font-size: 26rpx; color: var(--text-strong); line-height: 1.35; margin-bottom: 8rpx; min-height: 72rpx; }
 .price-row-sm { display: flex; align-items: baseline; }
@@ -157,14 +159,14 @@ function open() {
 .rk-2 { background: #B8B8C0; color: #fff; }
 .rk-3 { background: #C9885B; color: #fff; }
 .rk-n { background: var(--surface-sunken); color: var(--text-soft); }
-.rank-cover { flex-shrink: 0; position: relative; width: 128rpx; height: 72rpx; border-radius: 12rpx; overflow: hidden; background: var(--surface-sunken); } /* 16:9 课程原生比例 */
+.rank-cover { flex-shrink: 0; position: relative; width: 108rpx; height: 144rpx; border-radius: 12rpx; overflow: hidden; background: var(--surface-sunken); } /* 3:4 课程卡容器（规范§五） */
 .rank-info { flex: 1; min-width: 0; }
 .rank-title { display: block; font-size: 26rpx; font-weight: 500; color: var(--text-strong); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .rank-meta { display: flex; align-items: center; gap: 16rpx; margin-top: 6rpx; }
 
 /* list 横向列表卡 */
 .list { display: flex; gap: 24rpx; padding: 16rpx; background: var(--surface); border-radius: 24rpx; box-shadow: 0 2rpx 16rpx rgba(0,0,0,0.05); }
-.list-cover { flex-shrink: 0; position: relative; width: 240rpx; height: 135rpx; border-radius: 16rpx; overflow: hidden; background: var(--surface-sunken); } /* 16:9 课程原生比例 */
+.list-cover { flex-shrink: 0; position: relative; width: 180rpx; height: 240rpx; border-radius: 16rpx; overflow: hidden; background: var(--surface-sunken); } /* 3:4 课程卡容器（规范§五） */
 .list-body { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: space-between; padding: 4rpx 0; }
 .list-title { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; font-size: 28rpx; font-weight: 500; color: var(--text-strong); line-height: 1.35; margin-bottom: 8rpx; }
 .list-foot { display: flex; align-items: flex-end; justify-content: space-between; }

@@ -67,8 +67,9 @@ function onJoin() {
   box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.04);
   border: 2rpx solid var(--line-soft, #f5f0e8);
 }
-.cover-wrap { position: relative; width: 100%; aspect-ratio: 4 / 3; overflow: hidden; }
-.cover { width: 100%; height: 100%; }
+/* 3:4 竖卡（小红书口径）：X5 红线禁 aspect-ratio，用 padding-top 百分比撑高，图 absolute 铺满 */
+.cover-wrap { position: relative; width: 100%; padding-top: 133.33%; overflow: hidden; }
+.cover { position: absolute; inset: 0; width: 100%; height: 100%; }
 .rank {
   position: absolute; top: 16rpx; left: 16rpx;
   width: 40rpx; height: 40rpx; border-radius: 999rpx;
@@ -92,8 +93,9 @@ function onJoin() {
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 6rpx;
 }
 .desc {
-  display: block; font-size: 22rpx; color: var(--text-faint, #999);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 16rpx;
+  font-size: 22rpx; color: var(--text-faint, #999); line-height: 1.5;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden; margin-bottom: 16rpx;
 }
 .meta-row { display: flex; align-items: center; justify-content: space-between; }
 .stats { display: flex; align-items: center; gap: 20rpx; }

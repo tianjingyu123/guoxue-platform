@@ -146,9 +146,36 @@ function goFocus() {
   else navigateTo(`/articles/${it.id}`)
 }
 
-// ── 双列瀑布流：顺序分左右两列（按索引奇偶轮询，等权体量）──
-const leftColumn = computed(() => flowItems.value.filter((_, i) => i % 2 === 0))
-const rightColumn = computed(() => flowItems.value.filter((_, i) => i % 2 === 1))
+// ── 双列瀑布流 + 16:9 全宽大卡节奏（董事长 2026-07-17 拍板：仅 live/course 可升大卡）──
+// 数据分段渲染：把 flowItems 切成若干段（段内普通卡走双列，段尾跟一张全宽大卡）。
+// 节奏 = 每累积 ≥8 条普通卡后，遇到的下一条 live/course 且有封面的项升为大卡；
+// feed 里此类项不足时自然没有大卡（不强凑）。段内仍按索引奇偶分左右两列。
+interface FlowSection { items: FeedEnvelope[]; big: FeedEnvelope | null }
+const BIG_INTERVAL = 8
+function canBig(i: FeedEnvelope): boolean {
+  return (i.type === 'live' || i.type === 'course') && !!i.cover
+}
+const flowSections = computed<FlowSection[]>(() => {
+  const sections: FlowSection[] = []
+  let buf: FeedEnvelope[] = []
+  let sinceBig = 0
+  for (const it of flowItems.value) {
+    if (sinceBig >= BIG_INTERVAL && canBig(it)) {
+      sections.push({ items: buf, big: it })
+      buf = []
+      sinceBig = 0
+    } else {
+      buf.push(it)
+      sinceBig++
+    }
+  }
+  if (buf.length) sections.push({ items: buf, big: null })
+  return sections
+})
+/** 段内按索引奇偶分左右两列（等权体量，与原全局分列逻辑一致） */
+function colItems(items: FeedEnvelope[], side: 0 | 1): FeedEnvelope[] {
+  return items.filter((_, i) => i % 2 === side)
+}
 
 // ── Tab 切换 ──
 function switchTab(id: TabId) {
@@ -352,34 +379,46 @@ function backToTop() {
       <!-- 今日学一点：按用户兴趣主题每日推 3 条真实内容（自拉数据·空则整体隐藏，兴趣个性化产物上屏） -->
       <daily-study />
 
-      <!-- 双列瀑布流：九类卡等权分左右两列（长按呼负反馈浮层）。
-           普通周期大卡已下线（董事长 #28）——重点主推位仅保留顶部焦点大卡；此处纯双列不再插全宽大卡 -->
-      <view class="flow">
-        <view class="col">
-          <view
-            v-for="item in leftColumn"
-            :key="item.id"
-            @touchstart="onCardTouchStart(item, $event)"
-            @touchmove="onCardTouchMove"
-            @touchend="onCardTouchEnd"
-            @touchcancel="onCardTouchEnd"
-          >
-            <feed-card :item="item" />
+      <!-- 双列瀑布流 + 16:9 全宽大卡（董事长 2026-07-17 拍板：每 ~8 条升 1 条 live/course）。
+           数据分段渲染：每段 = 双列区块 + 段尾全宽大卡；长按呼负反馈浮层（大卡同样支持） -->
+      <template v-for="(sec, si) in flowSections" :key="'sec-' + si">
+        <view v-if="sec.items.length" class="flow">
+          <view class="col">
+            <view
+              v-for="item in colItems(sec.items, 0)"
+              :key="item.id"
+              @touchstart="onCardTouchStart(item, $event)"
+              @touchmove="onCardTouchMove"
+              @touchend="onCardTouchEnd"
+              @touchcancel="onCardTouchEnd"
+            >
+              <feed-card :item="item" />
+            </view>
+          </view>
+          <view class="col">
+            <view
+              v-for="item in colItems(sec.items, 1)"
+              :key="item.id"
+              @touchstart="onCardTouchStart(item, $event)"
+              @touchmove="onCardTouchMove"
+              @touchend="onCardTouchEnd"
+              @touchcancel="onCardTouchEnd"
+            >
+              <feed-card :item="item" />
+            </view>
           </view>
         </view>
-        <view class="col">
-          <view
-            v-for="item in rightColumn"
-            :key="item.id"
-            @touchstart="onCardTouchStart(item, $event)"
-            @touchmove="onCardTouchMove"
-            @touchend="onCardTouchEnd"
-            @touchcancel="onCardTouchEnd"
-          >
-            <feed-card :item="item" />
-          </view>
+        <view
+          v-if="sec.big"
+          class="big-wrap"
+          @touchstart="onCardTouchStart(sec.big!, $event)"
+          @touchmove="onCardTouchMove"
+          @touchend="onCardTouchEnd"
+          @touchcancel="onCardTouchEnd"
+        >
+          <feed-card :item="sec.big!" big />
         </view>
-      </view>
+      </template>
 
       <!-- 加载更多 / 到底提示 -->
       <view v-if="loadingMore" class="more-tip"><text class="more-tip-txt">加载中…</text></view>
@@ -572,7 +611,7 @@ function backToTop() {
 /* ── 双列瀑布流 ── */
 .flow { display: flex; gap: 18rpx; padding: 0 24rpx 18rpx; }
 .col { flex: 1; display: flex; flex-direction: column; gap: 18rpx; min-width: 0; }
-/* 2:1 全宽大卡：独占一行，页边距与瀑布流一致 */
+/* 16:9 全宽大卡：独占一行，页边距与瀑布流一致 */
 .big-wrap { padding: 0 24rpx 18rpx; }
 /* 运营楼层（微页面区块） */
 .home-blocks { padding: 8rpx 0 12rpx; }

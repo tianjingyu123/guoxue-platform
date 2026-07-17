@@ -31,10 +31,10 @@
         <view class="vl-sk vl-sk-cover" style="padding-bottom: 133.33%" />
         <view class="vl-sk vl-sk-line" style="width: 92%" />
         <view class="vl-sk vl-sk-line" style="width: 60%" />
-        <view class="vl-sk vl-sk-cover" style="padding-bottom: 177.78%" />
+        <view class="vl-sk vl-sk-cover" style="padding-bottom: 133.33%" />
       </view>
       <view class="vl-col">
-        <view class="vl-sk vl-sk-cover" style="padding-bottom: 177.78%" />
+        <view class="vl-sk vl-sk-cover" style="padding-bottom: 133.33%" />
         <view class="vl-sk vl-sk-line" style="width: 80%" />
         <view class="vl-sk vl-sk-cover" style="padding-bottom: 133.33%" />
       </view>
@@ -65,7 +65,7 @@
           :hover-stay-time="120"
           @tap="goDetail(video.id)"
         >
-          <view class="vl-cover" :style="{ paddingBottom: coverRatio(video) }">
+          <view class="vl-cover" :style="{ paddingBottom: COVER_RATIO }">
             <smart-cover class="vl-cover-img" :src="video.coverUrl" :title="video.title" type="video" deco :deco-size="72" />
             <view class="vl-cover-shade" />
             <view class="vl-plays">
@@ -96,7 +96,7 @@
           :hover-stay-time="120"
           @tap="goDetail(video.id)"
         >
-          <view class="vl-cover" :style="{ paddingBottom: coverRatio(video) }">
+          <view class="vl-cover" :style="{ paddingBottom: COVER_RATIO }">
             <smart-cover class="vl-cover-img" :src="video.coverUrl" :title="video.title" type="video" deco :deco-size="72" />
             <view class="vl-cover-shade" />
             <view class="vl-plays">
@@ -202,12 +202,9 @@ const half = computed(() => Math.ceil(videoListItems.value.length / 2))
 const leftColumn = computed(() => videoListItems.value.slice(0, half.value))
 const rightColumn = computed(() => videoListItems.value.slice(half.value))
 
-// 封面比例：照搬原型 index%3 的 3/4、3/5、4/5
-function coverRatio(video: VideoListItem): string {
-  const idx = videoListItems.value.findIndex((v) => v.id === video.id)
-  const r = idx % 3 === 0 ? 4 / 3 : idx % 3 === 1 ? 5 / 3 : 5 / 4
-  return r * 100 + '%'
-}
+// 封面统一 3:4 竖卡（小红书口径·董事长拍板）：padding-bottom 百分比法（X5 红线禁 aspect-ratio）
+// 瀑布流错落感由标题行数自然差异承担（与首页 feed 一致），不再按 index 轮换比例随机裁切
+const COVER_RATIO = '133.33%'
 
 const formatNum = formatVideoNumber
 
