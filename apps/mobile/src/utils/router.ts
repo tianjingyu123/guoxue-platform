@@ -343,7 +343,6 @@ const ROUTE_MAP: Record<string, string> = {
   // 交易申诉（3步表单：选订单/选类型/填详情→提交进度时间线，fallback /orders）
   '/appeal': '/pkg-order/appeal/index',
   // 成为合作伙伴（讲师招募：intro权益介绍→apply申请表单→success提交成功）
-  '/become-partner': '/pkg-operator/become-partner/index',
   // 平台公告（驿站站长面板入口，分类筛选+置顶/普通分组，详情复用 notices 兜底）
   '/announcements': '/pkg-operator/announcements/index',
   // 智能体广场（去重：原 pkg-agent/bots/index 纯 mock 页已删除，统一指向真实化的 agents/index）
@@ -396,7 +395,6 @@ const ROUTE_MAP: Record<string, string> = {
   // offline 线下板块整体暂缓未迁，但已上线页（讲师中心/我的预约）有调用 → 指向通用 coming-soon 占位避免断链。
   // 线下板块 C 端：讲师预约/线下活动/课程签到（接 ?stationId=/teacherId=/courseId= query）
   '/offline/teacher-booking': '/pkg-offline/teacher-booking/index',
-  '/offline/events': '/pkg-offline/events/index',
   '/offline/checkin': '/pkg-offline/checkin/index',
   // 线下驿站 B 端运营者经营后台（工作台 + 课程/签到/商品/讲师管理）
   '/offline/manage': '/pkg-offline/manage/index',
@@ -450,22 +448,16 @@ const ROUTE_MAP: Record<string, string> = {
   '/institute/contents': '/pkg-institute/contents/index',
   '/institute/events': '/pkg-institute/events/index',
   '/institute/apply': '/pkg-institute/apply/index',
-  // 讲师工作台第二批：我的任务 / 线下老师人才库 / 课程需求大厅 / 发布师资需求
-  // 注：/institute/teacher-demand/create（发布师资需求表单）须先于动态 /institute/teacher-demand 段匹配，置于静态表优先命中
+  // 讲师工作台第二批：我的任务（teacher-pool/teacher-demand/demand-create 系页面未落地·别名已随孤儿清理删除）
   '/institute/my-tasks': '/pkg-institute/my-tasks/index',
-  '/institute/teacher-pool': '/pkg-institute/teacher-pool/index',
-  '/institute/teacher-demand': '/pkg-institute/teacher-demand/index',
-  '/institute/teacher-demand/create': '/pkg-institute/demand-create/index',
   // 成员管理第三批：成员列表 / 成员申请四步向导 / 发布通用需求（成员详情 /institute/members/:id 复用讲师详情页，见动态表）
   '/institute/members': '/pkg-institute/members/index',
   '/institute/member-apply': '/pkg-institute/member-apply/index',
   // 研究院管理端（院长/副院长/秘书长：审批/任命/荐才/财务分红）
   '/institute/manage': '/pkg-institute/manage/index',
-  '/institute/demands/create': '/pkg-institute/demands-create/index',
   // 赛事（竞技人才选拔）：列表/往届静态；详情/报名/答题/成绩/排行/证书/海报为动态（见 DYNAMIC_ROUTES）
   '/competition': '/pkg-competition/home/index',
   '/competition/home': '/pkg-competition/home/index',
-  '/competition/archive': '/pkg-competition/archive/index',
 
   /* ───────── 横向贯通·入口死链补全（2026-06-28）───────── */
   // 分站运营商/站长经营后台（operator-data 入口曾指向 /operator/dashboard 等均无映射）
@@ -504,7 +496,7 @@ const DYNAMIC_ROUTES: Array<[RegExp, string, string]> = [
   [/^\/institute\/events\/([^/?]+)$/, '/pkg-institute/event-detail/index', 'id'],
   // 研究院成员详情 /institute/members/:id（原型该页直接复用讲师详情组件，故复用 instructor-detail；静态 /institute/members 已优先命中）
   [/^\/institute\/members\/([^/?]+)$/, '/pkg-institute/instructor-detail/index', 'id'],
-  // 课程需求详情 /institute/demands/:id 暂未迁（demands/create 已迁）→ coming-soon 占位避免断链（静态 /institute/demands/create 已优先命中）
+  // 课程需求详情 /institute/demands/:id 页面未落地 → 动态命中后 coming-soon 占位避免断链
   [/^\/institute\/demands\/([^/?]+)$/, '/pkg-paipan/tools/coming-soon', 'id'],
   // 线下课程详情 /offline/courses/:id（静态 /offline/courses 已在 ROUTE_MAP 优先命中）
   [/^\/offline\/courses\/([^/?]+)$/, '/pkg-offline/course-detail/index', 'id'],
