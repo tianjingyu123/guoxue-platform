@@ -39,7 +39,8 @@
           </view>
           <input
             class="input"
-            type="text"
+            type="number"
+            inputmode="numeric"
             :value="phone"
             maxlength="11"
             placeholder="请输入手机号"
@@ -55,7 +56,8 @@
           </view>
           <input
             class="input input-code"
-            type="text"
+            type="number"
+            inputmode="numeric"
             :value="code"
             maxlength="6"
             placeholder="请输入验证码"

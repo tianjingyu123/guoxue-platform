@@ -31,16 +31,20 @@ function updateCols() {
   else cols.value = props.mobileCols
 }
 
+// 具名防抖处理器：addEventListener 与 removeEventListener 必须引用同一函数才能正确解绑
+function onResize() {
+  if (timer) clearTimeout(timer)
+  timer = setTimeout(updateCols, 100)
+}
+
 onMounted(() => {
   updateCols()
-  window.addEventListener('resize', () => {
-    if (timer) clearTimeout(timer)
-    timer = setTimeout(updateCols, 100)
-  })
+  window.addEventListener('resize', onResize)
 })
 
 onUnmounted(() => {
-  window.removeEventListener('resize', updateCols)
+  window.removeEventListener('resize', onResize)
+  if (timer) clearTimeout(timer)
 })
 </script>
 

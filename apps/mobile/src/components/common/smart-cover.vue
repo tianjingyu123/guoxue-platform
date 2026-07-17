@@ -133,7 +133,9 @@ const grad = computed(() => {
 const hasImg = computed(() => typeof props.src === 'string' && props.src.trim() !== '')
 // 图片加载失败(URL失效/404)时翻到生成封面，避免留空框/破图标；src 变化(列表复用/换页)时重置重试
 const imgError = ref(false)
-watch(() => props.src, () => { imgError.value = false })
+// 图片加载完成渐显（消除硬闪）：初始 false → @load 置 true 触发 content-fade-in
+const imgLoaded = ref(false)
+watch(() => props.src, () => { imgError.value = false; imgLoaded.value = false })
 // 无封面图但有视频源 → 用视频首帧兜底（#t=0.5 让 H5 定位到第 0.5s 首帧，避免纯黑帧）
 const hasVideoFrame = computed(() => !hasImg.value && typeof props.videoUrl === 'string' && props.videoUrl.trim() !== '')
 const videoFrameSrc = computed(() => (props.videoUrl || '') + '#t=0.5')
@@ -147,7 +149,7 @@ const decoChars = computed(() => {
 </script>
 
 <template>
-  <image v-if="hasImg && !imgError" class="sc-full" :src="src as string" mode="aspectFill" @error="imgError = true" />
+  <image v-if="hasImg && !imgError" class="sc-full" :class="{ 'content-fade-in': imgLoaded }" :style="imgLoaded ? '' : 'opacity:0'" :src="src as string" mode="aspectFill" @load="imgLoaded = true" @error="imgError = true" />
   <!-- 首帧兜底：无封面图但有视频源，取视频第一帧（静音·不自动播·不显控件） -->
   <video
     v-else-if="hasVideoFrame"

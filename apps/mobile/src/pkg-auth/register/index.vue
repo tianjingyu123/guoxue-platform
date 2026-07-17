@@ -47,7 +47,8 @@
           <view class="input-icon"><AppIcon name="phone" :size="20" color="#999999" /></view>
           <input
             class="input"
-            type="text"
+            type="number"
+            inputmode="numeric"
             :value="phone"
             maxlength="11"
             placeholder="请输入手机号"
@@ -70,7 +71,8 @@
           <view class="input-icon"><AppIcon name="shield" :size="20" color="#999999" /></view>
           <input
             class="input input-code"
-            type="text"
+            type="number"
+            inputmode="numeric"
             :value="code"
             maxlength="6"
             placeholder="请输入6位验证码"
@@ -120,6 +122,8 @@
             <AppIcon :name="showPassword ? 'eye-off' : 'eye'" :size="20" color="#999999" />
           </view>
         </view>
+        <!-- 密码字段级校验提示 -->
+        <text v-if="passwordError" class="error-text">{{ passwordError }}</text>
         <!-- 确认密码 -->
         <view class="input-wrap">
           <view class="input-icon"><AppIcon name="lock" :size="20" color="#999999" /></view>
@@ -194,6 +198,13 @@ const maskedPhone = computed(() => phone.value.replace(/(\d{3})\d{4}(\d{4})/, '$
 const canRegister = computed(
   () => password.value.length >= 6 && password.value === confirmPassword.value && !!nickname.value && agreed.value,
 )
+// 密码字段级校验：未输入时不打扰，输入后给出置灰按钮的具体原因（与 canRegister 的 >=6 门槛一致）
+const passwordError = computed(() => {
+  const pwd = password.value
+  if (!pwd) return ''
+  if (pwd.length < 6) return '密码长度不能少于6位'
+  return ''
+})
 
 function onPhoneInput(e: any /* uni 表单事件经 vue-tsc 按原生签名校验，参数须 any */) {
   phone.value = String(e.detail.value).replace(/\D/g, '').slice(0, 11)

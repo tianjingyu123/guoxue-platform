@@ -52,7 +52,7 @@ onLoad((query) => {
 })
 
 // 微信原生分享（好友 / 朋友圈）
-const { toAppMessage, toTimeline } = useShare()
+const { toAppMessage, toTimeline, openPoster } = useShare()
 onShareAppMessage(() => toAppMessage({
   title: product.value?.title || '精选好物',
   path: `/mall/product/${product.value?.id || '1'}`,
@@ -165,7 +165,7 @@ async function toggleFavorite() {
     <!-- 图片轮播 -->
     <view class="carousel">
       <view class="nav-btn nav-back" @tap="navigateBack()"><AppIcon name="chevron-left" :size="40" color="#1f1f1f" /></view>
-      <view class="nav-btn nav-share"><AppIcon name="share-2" :size="32" color="#1f1f1f" /></view>
+      <view class="nav-btn nav-share" @tap="openPoster('product', product.id)"><AppIcon name="share-2" :size="32" color="#1f1f1f" /></view>
       <swiper v-if="product.images && product.images.length" class="swiper" circular @change="onSwiperChange">
         <swiper-item v-for="(src, i) in product.images" :key="i">
           <view class="slide">
