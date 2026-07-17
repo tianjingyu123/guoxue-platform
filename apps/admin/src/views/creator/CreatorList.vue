@@ -27,6 +27,15 @@
       </template>
     </PageHeader>
 
+    <!-- 口径说明：后端 totalEarnings=totalRecharged（充值）、withdrawn=totalSpent（消费），不是创作收益（已亲核 video-creator.service.ts）·列名说真话 -->
+    <el-alert
+      type="info"
+      :closable="false"
+      show-icon
+      style="margin-bottom:12px"
+      title="口径说明：「累计充值 / 累计消费」为该创作者国学币账户的充值与消费总额，并非创作收益。创作收益专属统计字段已记入后端待办清单，上线后此处更名。"
+    />
+
     <el-alert
       v-if="error"
       type="error"
@@ -77,13 +86,13 @@
         {{ formatNum(row.totalLikes) }}
       </template>
       <template #balance="{ row }">
-        {{ formatNum(row.balance) }}
+        {{ formatCoin(row.balance) }}
       </template>
       <template #totalEarnings="{ row }">
-        {{ formatNum(row.totalEarnings) }}
+        {{ formatCoin(row.totalEarnings) }}
       </template>
       <template #withdrawn="{ row }">
-        {{ formatNum(row.withdrawn) }}
+        {{ formatCoin(row.withdrawn) }}
       </template>
       <template #actions="{ row }">
         <el-button
@@ -172,13 +181,13 @@
             {{ formatNum(detail.overview.totalComments) }}
           </el-descriptions-item>
           <el-descriptions-item label="可用余额(币)">
-            {{ formatNum(detail.overview.balance) }}
+            {{ formatCoin(detail.overview.balance) }}
           </el-descriptions-item>
-          <el-descriptions-item label="累计收益(币)">
-            {{ formatNum(detail.overview.totalEarnings) }}
+          <el-descriptions-item label="累计充值(币)">
+            {{ formatCoin(detail.overview.totalEarnings) }}
           </el-descriptions-item>
-          <el-descriptions-item label="已提现(币)">
-            {{ formatNum(detail.overview.withdrawn) }}
+          <el-descriptions-item label="累计消费(币)">
+            {{ formatCoin(detail.overview.withdrawn) }}
           </el-descriptions-item>
         </el-descriptions>
 
@@ -238,7 +247,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
 import { api } from "@/api";
-import { ElMessage } from "element-plus";
 import { exportCSV } from "@/utils/export";
 import DataTable from "@/components/DataTable.vue";
 import PageHeader from "@/components/PageHeader.vue";
@@ -294,9 +302,10 @@ const columns = [
   { prop: "videoCount", label: "已发布/作品", width: 110, slot: "videoCount" },
   { prop: "totalViews", label: "总播放", width: 100, slot: "totalViews" },
   { prop: "totalLikes", label: "总点赞", width: 100, slot: "totalLikes" },
-  { prop: "balance", label: "余额(币)", width: 100, slot: "balance" },
-  { prop: "totalEarnings", label: "累计收益(币)", width: 120, slot: "totalEarnings" },
-  { prop: "withdrawn", label: "已提现(币)", width: 110, slot: "withdrawn" },
+  // 口径说真话：后端字段 totalEarnings/withdrawn 实为币账户充值/消费额（见页首说明），列名不装"收益/提现"
+  { prop: "balance", label: "余额(币)", width: 110, align: "right", slot: "balance" },
+  { prop: "totalEarnings", label: "累计充值(币)", width: 120, align: "right", slot: "totalEarnings" },
+  { prop: "withdrawn", label: "累计消费(币)", width: 120, align: "right", slot: "withdrawn" },
   { prop: "joinedAt", label: "加入时间", width: 110 },
 ];
 
@@ -357,9 +366,14 @@ async function reloadDetail() {
 }
 
 function formatNum(n?: number) {
-  // 参数放宽为可选，运行时空值按 0 处理（与原逻辑等价）
+  // 参数放宽为可选，运行时空值按 0 处理（与原逻辑等价）·仅用于播放/点赞等热度数
   if ((n ?? 0) >= 10000) return ((n ?? 0) / 10000).toFixed(1) + "万";
   return String(n ?? 0);
+}
+
+/** 资金列不压缩万位：全额千分位（体验标准第四节·金额规范） */
+function formatCoin(n?: number) {
+  return Number(n ?? 0).toLocaleString("zh-CN");
 }
 
 const VIDEO_STATUS: Record<string, { label: string; type: "success" | "warning" | "danger" | "info" }> = {
@@ -387,8 +401,8 @@ function exportData() {
       { label: "总播放", key: "totalViews" },
       { label: "总点赞", key: "totalLikes" },
       { label: "余额(币)", key: "balance" },
-      { label: "累计收益(币)", key: "totalEarnings" },
-      { label: "已提现(币)", key: "withdrawn" },
+      { label: "累计充值(币)", key: "totalEarnings" },
+      { label: "累计消费(币)", key: "withdrawn" },
       { label: "加入时间", key: "joinedAt" },
     ],
     list.value,

@@ -49,8 +49,12 @@ const form = reactive({
   action: 'ALERT',
   enabled: true,
 })
-// conditions 为 JSON 对象，用文本框编辑后解析
+// 常用触发条件结构化输入（threshold/window 两个最常用键），高级场景用折叠里的完整 JSON
+const condThreshold = ref<number | null>(null)
+const condWindow = ref('')
+// conditions 为 JSON 对象，高级折叠面板中编辑完整 JSON
 const conditionsText = ref('{}')
+const advancedOpen = ref<string[]>([])
 
 onMounted(() => fetchList())
 
@@ -66,6 +70,12 @@ function getTypeLabel(type: string): string {
 function getActionLabel(action: string): string {
   const opt = actionOptions.find(a => a.value === action)
   return opt ? opt.label : action
+}
+
+// 筛选变更：回到第 1 页再查询
+function onFilterChange() {
+  page.value = 1
+  fetchList()
 }
 
 async function fetchList() {
@@ -90,7 +100,10 @@ async function fetchList() {
 function openCreate() {
   editingId.value = ''
   Object.assign(form, { name: '', type: 'FRAUD', action: 'ALERT', enabled: true })
+  condThreshold.value = null
+  condWindow.value = ''
   conditionsText.value = '{}'
+  advancedOpen.value = []
   dialogVisible.value = true
 }
 
@@ -102,7 +115,13 @@ function openEdit(row: RiskRule) {
     action: row.action || 'ALERT',
     enabled: row.enabled ?? true,
   })
-  conditionsText.value = JSON.stringify(row.conditions ?? {}, null, 2)
+  const cond = row.conditions ?? {}
+  // 常用键回填到结构化输入，其余键留在高级 JSON 中
+  condThreshold.value = typeof cond.threshold === 'number' ? cond.threshold : null
+  condWindow.value = typeof cond.window === 'string' ? cond.window : ''
+  conditionsText.value = JSON.stringify(cond, null, 2)
+  // 存在 threshold/window 以外的键时自动展开高级面板，避免编辑时看不见
+  advancedOpen.value = Object.keys(cond).some(k => k !== 'threshold' && k !== 'window') ? ['advanced'] : []
   dialogVisible.value = true
 }
 
@@ -112,16 +131,31 @@ async function save() {
     ElMessage.warning('请输入规则名称')
     return
   }
-  // 解析并校验 conditions JSON（后端要求为对象）
+  // 解析并校验高级 JSON（后端要求为对象），再叠加结构化输入的常用键
   let conditions: Record<string, any>
   try {
     conditions = conditionsText.value.trim() ? JSON.parse(conditionsText.value) : {}
   } catch {
-    ElMessage.error('触发条件不是合法的 JSON')
+    ElMessage.error('高级 JSON 配置不是合法的 JSON')
     return
   }
-  if (typeof conditions !== 'object' || Array.isArray(conditions)) {
-    ElMessage.error('触发条件必须是 JSON 对象')
+  if (typeof conditions !== 'object' || conditions === null || Array.isArray(conditions)) {
+    ElMessage.error('高级 JSON 配置必须是 JSON 对象')
+    return
+  }
+  // 结构化输入优先级高于高级 JSON 中的同名键
+  if (condThreshold.value != null) conditions.threshold = condThreshold.value
+  else delete conditions.threshold
+  if (condWindow.value.trim()) conditions.window = condWindow.value.trim()
+  else delete conditions.window
+  // 保存确认：规则保存后立即参与风控判定
+  try {
+    await ElMessageBox.confirm(
+      `确认保存规则「${form.name.trim()}」？${form.enabled ? '规则处于启用状态，保存后将立即参与风控判定并可能产生新预警。' : '规则当前为禁用状态，保存后不会触发预警。'}`,
+      '保存确认',
+      { type: 'warning', confirmButtonText: '确认保存', cancelButtonText: '再想想' },
+    )
+  } catch {
     return
   }
   saving.value = true
@@ -143,9 +177,22 @@ async function save() {
 }
 
 async function toggleRule(row: RiskRule) {
+  // L3：启停规则属规则变更，确认框写明规则名与影响
+  const willEnable = !row.enabled
   try {
-    await riskApi.toggleRule(row.id!, !row.enabled)
-    ElMessage.success(row.enabled ? '已禁用' : '已启用')
+    await ElMessageBox.confirm(
+      willEnable
+        ? `确认启用规则「${row.name || '-'}」？启用后该规则将立即参与风控判定，命中「${getActionLabel(row.action || '')}」处置的对象会实时产生预警。`
+        : `确认禁用规则「${row.name || '-'}」？禁用后该规则不再触发新预警，已产生的预警不受影响。`,
+      willEnable ? '启用确认' : '禁用确认',
+      { type: 'warning', confirmButtonText: willEnable ? '确认启用' : '确认禁用', cancelButtonText: '取消' },
+    )
+  } catch {
+    return
+  }
+  try {
+    await riskApi.toggleRule(row.id!, willEnable)
+    ElMessage.success(willEnable ? '已启用' : '已禁用')
     fetchList()
   } catch {
     // 错误已由响应拦截器统一提示
@@ -182,7 +229,7 @@ async function del(id: string) {
         placeholder="规则类型"
         clearable
         style="width:160px"
-        @change="fetchList"
+        @change="onFilterChange"
       >
         <el-option
           v-for="t in typeOptions"
@@ -196,7 +243,7 @@ async function del(id: string) {
         placeholder="状态"
         clearable
         style="width:120px"
-        @change="fetchList"
+        @change="onFilterChange"
       >
         <el-option
           label="启用"
@@ -360,12 +407,53 @@ async function del(id: string) {
           </el-select>
         </el-form-item>
         <el-form-item label="触发条件">
-          <el-input
-            v-model="conditionsText"
-            type="textarea"
-            :rows="5"
-            placeholder='JSON 对象，例如 {"threshold": 10, "window": "24h"}'
-          />
+          <div style="width:100%">
+            <div style="display:flex;gap:12px;align-items:center">
+              <div style="flex:1">
+                <div class="cond-label">
+                  触发阈值
+                </div>
+                <el-input-number
+                  v-model="condThreshold"
+                  :min="0"
+                  placeholder="如 10"
+                  style="width:100%"
+                />
+              </div>
+              <div style="flex:1">
+                <div class="cond-label">
+                  时间窗口
+                </div>
+                <el-input
+                  v-model="condWindow"
+                  placeholder="如 24h、7d"
+                  clearable
+                />
+              </div>
+            </div>
+            <div class="cond-hint">
+              示例：阈值 10 + 时间窗口 24h，即「24 小时内命中 10 次」触发本规则
+            </div>
+            <el-collapse
+              v-model="advancedOpen"
+              style="margin-top:8px"
+            >
+              <el-collapse-item
+                title="高级：完整 JSON 配置（供复杂条件使用）"
+                name="advanced"
+              >
+                <el-input
+                  v-model="conditionsText"
+                  type="textarea"
+                  :rows="5"
+                  placeholder='JSON 对象，例如 {"threshold": 10, "window": "24h"}'
+                />
+                <div class="cond-hint">
+                  上方结构化输入的「阈值 / 时间窗口」保存时会覆盖此处的同名 threshold / window 键
+                </div>
+              </el-collapse-item>
+            </el-collapse>
+          </div>
         </el-form-item>
         <el-form-item label="启用状态">
           <el-switch v-model="form.enabled" />
@@ -393,4 +481,6 @@ async function del(id: string) {
 .toolbar h3 { margin: 0; font-size: 18px; color: var(--color-text-title); }
 .filters { display: flex; gap: 12px; margin-bottom: 16px; }
 .error-state { padding: 40px 0; }
+.cond-label { font-size: 12px; color: var(--color-text-secondary, #909399); margin-bottom: 4px; }
+.cond-hint { font-size: 12px; color: var(--color-text-secondary, #909399); margin-top: 6px; line-height: 1.5; }
 </style>

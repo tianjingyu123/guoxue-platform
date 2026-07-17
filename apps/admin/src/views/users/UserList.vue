@@ -7,11 +7,11 @@
 
     <DataTable
       v-model:page="page"
+      v-model:page-size="pageSize"
       :columns="columns"
       :data="list"
       :loading="loading"
       :total="total"
-      :page-size="pageSize"
       selectable
       actions-width="280"
       @change="fetchList"
@@ -23,15 +23,15 @@
           placeholder="搜索昵称/手机号"
           style="width:200px"
           clearable
-          @keyup.enter="fetchList"
-          @clear="fetchList"
+          @keyup.enter="onFilterChange"
+          @clear="onFilterChange"
         />
         <el-select
           v-model="roleFilter"
           placeholder="角色筛选"
           clearable
           style="width:130px"
-          @change="fetchList"
+          @change="onFilterChange"
         >
           <el-option
             label="全部角色"
@@ -83,7 +83,7 @@
           placeholder="会员等级"
           clearable
           style="width:110px"
-          @change="fetchList"
+          @change="onFilterChange"
         >
           <el-option
             label="全部"
@@ -111,7 +111,7 @@
           placeholder="状态"
           clearable
           style="width:90px"
-          @change="fetchList"
+          @change="onFilterChange"
         >
           <el-option
             label="全部"
@@ -138,23 +138,32 @@
           end-placeholder="注册截止"
           style="width:240px"
           value-format="YYYY-MM-DD"
-          @change="fetchList"
+          @change="onFilterChange"
         />
         <el-button
           type="primary"
-          @click="fetchList"
+          @click="onFilterChange"
         >
           查询
         </el-button>
         <el-button @click="resetFilters">
           重置
         </el-button>
-        <el-button @click="exportData">
-          导出CSV
-        </el-button>
+        <el-tooltip
+          content="导出当前页已加载的数据（非全量）"
+          placement="top"
+        >
+          <el-button @click="exportData">
+            导出本页CSV
+          </el-button>
+        </el-tooltip>
       </template>
 
-      <template #batch>
+      <!-- 批量操作栏：勾选后才出现 -->
+      <template
+        v-if="selectedRows.length > 0"
+        #batch
+      >
         <span>已选 {{ selectedRows.length }} 项</span>
         <el-button
           v-permission="['SUPER_ADMIN','OPERATION_ADMIN']"
@@ -371,7 +380,7 @@
 import { ref, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
-import { userApi } from "@/api";
+import { api, userApi } from "@/api";
 import { exportCSV } from "@/utils/export";
 import DataTable from "@/components/DataTable.vue";
 import PageHeader from "@/components/PageHeader.vue";
@@ -401,7 +410,7 @@ const memberLevelFilter = ref("");
 const statusFilter = ref("");
 const dateRange = ref<[string, string] | null>(null);
 const page = ref(1);
-const pageSize = 20;
+const pageSize = ref(20);
 const total = ref(0);
 
 const roleVisible = ref(false);
@@ -421,7 +430,8 @@ function maskPhone(p?: string) {
 
 const columns = [
   { prop: "nickname", label: "昵称", width: 120, slot: "nickname" },
-  { prop: "phone", label: "手机号", width: 130 },
+  // slot 必须显式声明，否则 #phone 模板是死插槽、脱敏不生效
+  { prop: "phone", label: "手机号", width: 130, slot: "phone" },
   { prop: "roles", label: "角色", minWidth: 140, slot: "roles" },
   { prop: "memberLevel", label: "会员", width: 80, slot: "memberLevel" },
   { prop: "coinBalance", label: "国学币", width: 80, slot: "coinBalance" },
@@ -484,10 +494,16 @@ function formatRelative(t: string) {
   return t?.slice(0, 16).replace("T", " ");
 }
 
+/** 筛选条件变更：回到第 1 页再查询（防止停留在超出结果范围的页码看到空表） */
+function onFilterChange() {
+  page.value = 1;
+  fetchList();
+}
+
 async function fetchList() {
   loading.value = true;
   try {
-    const params: Record<string, string | number> = { page: page.value, pageSize };
+    const params: Record<string, string | number> = { page: page.value, pageSize: pageSize.value };
     if (keyword.value) params.keyword = keyword.value;
     if (roleFilter.value) params.roleType = roleFilter.value;
     if (memberLevelFilter.value) params.memberLevel = memberLevelFilter.value;
@@ -547,46 +563,94 @@ async function removeRole(userId: string, roleType: string) {
 async function handleBan(row: UserRow) {
   if (submitting.value) return;
   try {
-    await ElMessageBox.prompt("请输入封禁原因", "封禁用户", { type: "warning" });
+    // L2 危险操作：理由必填并随请求传后端（并行后端契约：PUT /users/:id/status 支持 reason）
+    const { value: reason } = await ElMessageBox.prompt(
+      `确定封禁「${row.nickname || maskPhone(row.phone)}」？请输入封禁原因（必填，将记录留痕）`,
+      "封禁用户",
+      {
+        type: "warning",
+        confirmButtonText: "确认封禁",
+        cancelButtonText: "取消",
+        inputPlaceholder: "如：发布违规内容 / 恶意刷单",
+        inputValidator: (v: string) => (v && v.trim().length >= 2) ? true : "请填写封禁原因（至少2个字）",
+      },
+    );
     submitting.value = true;
-    await userApi.ban(row.id);
+    await userApi.ban(row.id, reason.trim());
     ElMessage.success("已封禁"); fetchList();
-  } catch { /* */ } finally { submitting.value = false; }
+  } catch { /* 取消或失败（失败已由全局拦截器提示） */ } finally { submitting.value = false; }
 }
 
 async function handleUnban(row: UserRow) {
   if (submitting.value) return;
   try {
-    await ElMessageBox.confirm("确定解封该用户？", "提示", { type: "info" });
+    await ElMessageBox.confirm(
+      `确定解封「${row.nickname || maskPhone(row.phone)}」？解封后其可正常登录与使用平台功能。`,
+      "解封用户",
+      { type: "info", confirmButtonText: "确认解封", cancelButtonText: "取消" },
+    );
     submitting.value = true;
     await userApi.unban(row.id);
     ElMessage.success("已解封"); fetchList();
-  } catch { /* */ } finally { submitting.value = false; }
+  } catch { /* 取消或失败（失败已由全局拦截器提示） */ } finally { submitting.value = false; }
 }
 
 async function batchBan() {
   if (submitting.value) return;
+  const targets = selectedRows.value.filter((r) => r.status === "ACTIVE");
+  if (targets.length === 0) {
+    ElMessage.warning("选中的用户均已是封禁/禁用状态，无需操作");
+    return;
+  }
   try {
-    await ElMessageBox.confirm(`确定封禁选中的 ${selectedRows.value.length} 个用户？`, "批量封禁", { type: "warning" });
+    // L3 影响预告 + L2 理由必填
+    const { value: reason } = await ElMessageBox.prompt(
+      `已选 ${selectedRows.value.length} 人，其中 ${targets.length} 个正常状态用户将被封禁（其余已封禁的跳过）。被封禁用户将无法登录和使用平台功能。请输入封禁原因（必填，将记录留痕）`,
+      `批量封禁 ${targets.length} 个用户`,
+      {
+        type: "warning",
+        confirmButtonText: `确认封禁 ${targets.length} 人`,
+        cancelButtonText: "取消",
+        inputPlaceholder: "如：批量刷单账号",
+        inputValidator: (v: string) => (v && v.trim().length >= 2) ? true : "请填写封禁原因（至少2个字）",
+      },
+    );
     submitting.value = true;
-    for (const r of selectedRows.value) { if (r.status === "ACTIVE") await userApi.ban(r.id); }
-    ElMessage.success("批量封禁完成"); fetchList();
-  } catch { /* */ } finally { submitting.value = false; }
+    // 批量端点：PUT /users/batch/status（后端 user.controller.ts batchUpdateStatus·reason 为并行后端新契约）
+    await api.put("/users/batch/status", { ids: targets.map((r) => r.id), status: "DISABLED", reason: reason.trim() });
+    ElMessage.success(`已批量封禁 ${targets.length} 个用户`);
+    fetchList();
+  } catch { /* 取消或失败（失败已由全局拦截器提示） */ } finally { submitting.value = false; }
 }
 
 async function batchUnban() {
   if (submitting.value) return;
+  const targets = selectedRows.value.filter((r) => r.status !== "ACTIVE");
+  if (targets.length === 0) {
+    ElMessage.warning("选中的用户均是正常状态，无需解封");
+    return;
+  }
   try {
-    await ElMessageBox.confirm(`确定解封选中的 ${selectedRows.value.length} 个用户？`, "批量解封", { type: "info" });
+    // L3 影响预告
+    await ElMessageBox.confirm(
+      `已选 ${selectedRows.value.length} 人，其中 ${targets.length} 个封禁/禁用用户将被解封（其余正常状态的跳过）。`,
+      `批量解封 ${targets.length} 个用户`,
+      { type: "info", confirmButtonText: `确认解封 ${targets.length} 人`, cancelButtonText: "取消" },
+    );
     submitting.value = true;
-    for (const r of selectedRows.value) { if (r.status !== "ACTIVE") await userApi.unban(r.id); }
-    ElMessage.success("批量解封完成"); fetchList();
-  } catch { /* */ } finally { submitting.value = false; }
+    await api.put("/users/batch/status", { ids: targets.map((r) => r.id), status: "ACTIVE" });
+    ElMessage.success(`已批量解封 ${targets.length} 个用户`);
+    fetchList();
+  } catch { /* 取消或失败（失败已由全局拦截器提示） */ } finally { submitting.value = false; }
 }
 
 function exportData() {
+  if (list.value.length === 0) {
+    ElMessage.warning("当前页无数据可导出");
+    return;
+  }
   exportCSV(
-    "用户列表",
+    "用户列表-当前页",
     [
       { label: "昵称", key: "nickname" }, { label: "手机号", key: "phone" },
       { label: "角色", key: "rolesStr" }, { label: "会员", key: "memberLevel" },
@@ -597,13 +661,14 @@ function exportData() {
     list.value.map((u) => ({
       ...u,
       phone: maskPhone(u.phone),
-      rolesStr: (u.roles || []).map((r) => r.roleType).join(" "),
+      rolesStr: (u.roles || []).map((r) => roleLabel(r.roleType)).join(" "),
       createdAt: u.createdAt?.slice(0, 16).replace("T", " "),
       lastActiveAt: u.lastActiveAt?.slice(0, 16).replace("T", " "),
       status: u.status === "ACTIVE" ? "正常" : u.status === "BANNED" ? "封禁" : "禁用",
-      memberLevel: u.memberLevel === "NONE" ? "非会员" : u.memberLevel,
+      memberLevel: memberLabel(u.memberLevel || "NONE"),
     })),
   );
+  ElMessage.success(`已导出当前页 ${list.value.length} 条（如需全量导出请联系后端加导出端点）`);
 }
 </script>
 

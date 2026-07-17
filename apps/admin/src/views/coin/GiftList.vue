@@ -56,9 +56,18 @@
           <el-image
             v-if="row.icon"
             :src="row.icon"
+            :preview-src-list="[row.icon]"
+            preview-teleported
             style="width: 36px; height: 36px; border-radius: 4px"
             fit="cover"
-          />
+          >
+            <!-- 坏图占位：图标链接失效时不再显示裂图 -->
+            <template #error>
+              <div class="icon-broken">
+                🎁
+              </div>
+            </template>
+          </el-image>
           <span
             v-else
             style="color: #999"
@@ -434,4 +443,5 @@ function exportData() {
 .header { margin-bottom: 16px; }
 .header h2 { margin: 0 0 8px; font-size: 18px; color: var(--color-text-title); }
 .filter-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.icon-broken { width: 36px; height: 36px; border-radius: 4px; background: var(--el-fill-color-light); display: flex; align-items: center; justify-content: center; font-size: 18px; }
 </style>

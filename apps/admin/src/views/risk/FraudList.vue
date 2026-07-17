@@ -1,7 +1,11 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { CopyDocument } from '@element-plus/icons-vue'
+import { useRouter } from 'vue-router'
 import { riskApi } from '@/api'
+
+const router = useRouter()
 
 // 刷单检测行（依据表格列/详情/证据访问字段声明）
 interface FraudRow {
@@ -43,16 +47,45 @@ async function triggerScan() {
   if (scanning.value) return
   try {
     await ElMessageBox.confirm("确认手动触发全量刷单扫描？此操作可能需要一定时间。", "操作确认", { type: "warning" });
-    scanning.value = true;
+  } catch {
+    return; // 用户取消
+  }
+  scanning.value = true;
+  try {
     const { api } = await import("@/api");
     await api.post("/risk-control/fraud-detections/scan");
     ElMessage.success("扫描已触发，请稍后刷新查看结果");
     fetchList();
-  } catch {
-    // cancelled
+  } catch (e: unknown) {
+    // feature flag 未开时后端 FeatureFlagGuard 返回 404「资源不存在」（关闭态也可能配置成 403），给人话指引
+    const status = (e as { response?: { status?: number } })?.response?.status;
+    if (status === 404 || status === 403) {
+      ElMessage.warning("该功能未开启：请到「系统配置 - 功能开关」启用 risk_fraud_scan 后再试");
+    }
+    // 其他错误已由响应拦截器统一提示
   } finally {
     scanning.value = false;
   }
+}
+
+async function copyText(text?: string) {
+  if (!text) return
+  try {
+    await navigator.clipboard.writeText(text)
+    ElMessage.success('已复制')
+  } catch {
+    ElMessage.error('复制失败')
+  }
+}
+
+function gotoUser(id?: string) {
+  if (id) router.push(`/users/${id}`)
+}
+
+// 长ID截断显示（悬浮看全文）
+function shortId(id?: string): string {
+  if (!id) return '-'
+  return id.length > 10 ? id.slice(0, 8) + '…' : id
 }
 
 function formatDate(d?: string) {
@@ -234,13 +267,29 @@ function getScoreStatus(score: number) {
       stripe
     >
       <el-table-column
-        prop="userId"
         label="用户ID"
-        width="120"
-        show-overflow-tooltip
+        width="150"
       >
         <template #default="{ row }">
-          {{ row.userId || '-' }}
+          <template v-if="row.userId">
+            <el-link
+              type="primary"
+              :title="`${row.userId}（点击查看用户详情）`"
+              @click="gotoUser(row.userId)"
+            >
+              {{ shortId(row.userId) }}
+            </el-link>
+            <el-button
+              link
+              size="small"
+              type="primary"
+              style="margin-left:4px"
+              @click.stop="copyText(row.userId)"
+            >
+              复制
+            </el-button>
+          </template>
+          <span v-else>-</span>
         </template>
       </el-table-column>
       <el-table-column
@@ -359,7 +408,25 @@ function getScoreStatus(score: number) {
           border
         >
           <el-descriptions-item label="用户ID">
-            {{ detailData.userId || '-' }}
+            <template v-if="detailData.userId">
+              <el-link
+                type="primary"
+                :title="`${detailData.userId}（点击查看用户详情）`"
+                @click="gotoUser(detailData.userId)"
+              >
+                {{ shortId(detailData.userId) }}
+              </el-link>
+              <el-button
+                link
+                size="small"
+                type="primary"
+                style="margin-left:4px"
+                @click="copyText(detailData.userId)"
+              >
+                复制
+              </el-button>
+            </template>
+            <span v-else>-</span>
           </el-descriptions-item>
           <el-descriptions-item label="检测类型">
             {{ getTypeLabel(detailData.type) }}
@@ -411,8 +478,17 @@ function getScoreStatus(score: number) {
               :key="uid"
               size="small"
               type="info"
+              style="cursor:pointer"
+              :title="`${uid}（点击查看用户详情）`"
+              @click="gotoUser(uid)"
             >
-              {{ uid }}
+              {{ shortId(uid) }}
+              <el-icon
+                style="margin-left:2px;vertical-align:-2px"
+                @click.stop="copyText(uid)"
+              >
+                <CopyDocument />
+              </el-icon>
             </el-tag>
           </div>
         </template>

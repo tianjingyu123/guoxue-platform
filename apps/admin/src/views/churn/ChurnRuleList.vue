@@ -61,10 +61,22 @@
       <el-table-column
         prop="actionType"
         label="动作类型"
-        width="120"
+        width="150"
       >
         <template #default="{ row }">
-          <el-tag>{{ row.actionType }}</el-tag>
+          <el-tag
+            v-if="ACTION_TYPE_MAP[row.actionType]"
+            :title="row.actionType"
+          >
+            {{ ACTION_TYPE_MAP[row.actionType] }}
+          </el-tag>
+          <el-tag
+            v-else
+            type="info"
+            :title="`动作类型 ${row.actionType} 暂无执行器支持，规则命中后不会真正执行`"
+          >
+            {{ row.actionType }}（暂不可用）
+          </el-tag>
         </template>
       </el-table-column>
       <el-table-column
@@ -101,14 +113,10 @@
       </el-table-column>
     </el-table>
 
-    <el-pagination
-      v-model:current-page="page"
-      v-model:page-size="pageSize"
-      :total="total"
-      layout="total, sizes, prev, pager, next"
-      @current-change="fetchList"
-      @size-change="fetchList"
-    />
+    <!-- 后端 listRules 返回全量（最多100条）无分页，此处只显示总数，不做假分页 -->
+    <div class="total-hint">
+      共 {{ total }} 条规则{{ total >= 100 ? '（最多显示 100 条）' : '' }}
+    </div>
 
     <el-dialog
       v-model="dialogVisible"
@@ -178,25 +186,18 @@
           label="动作类型"
           prop="actionType"
         >
+          <!-- 只保留后端执行器真实现的动作（churn.service 仅支持 SMS/COUPON），不上假选项 -->
           <el-select
             v-model="form.actionType"
             style="width:100%"
           >
             <el-option
-              label="发送通知"
-              value="NOTIFY"
+              label="短信触达"
+              value="SMS"
             />
             <el-option
               label="发送优惠券"
               value="COUPON"
-            />
-            <el-option
-              label="标记关注"
-              value="FLAG"
-            />
-            <el-option
-              label="客服介入"
-              value="SERVICE"
             />
           </el-select>
         </el-form-item>
@@ -204,12 +205,23 @@
           label="动作配置"
           prop="actionConfig"
         >
-          <el-input
-            v-model="form.actionConfig"
-            type="textarea"
-            :rows="3"
-            placeholder="JSON格式配置"
-          />
+          <div style="width:100%">
+            <el-input
+              v-model="form.actionConfig"
+              type="textarea"
+              :rows="3"
+              :placeholder='form.actionType === "SMS" ? "JSON 对象，短信动作需包含 phone 字段，如 {\"phone\": \"138****0000\"}" : "JSON 对象，如 {\"couponId\": \"xxx\"}"'
+            />
+            <div class="config-hint">
+              {{ form.actionType === 'SMS'
+                ? '短信动作：配置中必须含 "phone" 字段，缺失时该次动作会跳过并记录日志'
+                : '优惠券动作：当前记录发放请求后由运营人工发放，配置写明优惠券信息即可' }}
+            </div>
+          </div>
+        </el-form-item>
+        <el-form-item label="启用状态">
+          <el-switch v-model="form.isActive" />
+          <span class="config-hint" style="margin-left:8px">禁用后规则不参与评分后的自动挽回</span>
         </el-form-item>
       </el-form>
       <template #footer>
@@ -247,21 +259,26 @@ interface ChurnRule {
 const loading = ref(false);
 const error = ref(false);
 const list = ref<ChurnRule[]>([]);
-const page = ref(1);
-const pageSize = ref(20);
 const total = ref(0);
 const dialogVisible = ref(false);
 const isEdit = ref(false);
 const submitting = ref(false);
 const currentRow = ref<ChurnRule | null>(null);
 
+// 动作类型词表：仅 SMS/COUPON 有后端执行器（churn.service.ts 执行 switch 只实现这两类）
+const ACTION_TYPE_MAP: Record<string, string> = {
+  SMS: "短信触达",
+  COUPON: "发送优惠券",
+};
+
 const form = reactive({
   name: "",
   riskLevel: "LOW",
   scoreThreshold: 50,
   daysThreshold: 30,
-  actionType: "NOTIFY",
+  actionType: "SMS",
   actionConfig: "",
+  isActive: true,
 });
 
 const rules = {
@@ -282,8 +299,8 @@ async function fetchList() {
   loading.value = true;
   error.value = false;
   try {
-    const res = await churnApi.listRules({ page: page.value, pageSize: pageSize.value });
-    // 后端 listRules 返回裸数组（take:100，无分页包装）
+    // 后端 listRules 无分页（take:100 全量返回），不传假分页参数
+    const res = await churnApi.listRules();
     const rows = Array.isArray(res.data) ? res.data : (res.data.items ?? res.data.rules ?? []);
     list.value = rows;
     total.value = rows.length;
@@ -301,8 +318,9 @@ function openAddDialog() {
   form.riskLevel = "LOW";
   form.scoreThreshold = 50;
   form.daysThreshold = 30;
-  form.actionType = "NOTIFY";
+  form.actionType = "SMS";
   form.actionConfig = "";
+  form.isActive = true;
   dialogVisible.value = true;
 }
 
@@ -314,6 +332,7 @@ function openEditDialog(row: ChurnRule) {
   form.scoreThreshold = row.scoreThreshold;
   form.daysThreshold = row.daysThreshold;
   form.actionType = row.actionType;
+  form.isActive = row.isActive ?? true;
   // 后端 actionConfig 为对象，回填到 JSON 文本域
   form.actionConfig =
     row.actionConfig && typeof row.actionConfig === "object"
@@ -371,4 +390,6 @@ onMounted(fetchList);
 .page { padding: 20px; }
 .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
 .error-bar { margin-bottom: 12px; }
+.total-hint { margin-top: 12px; font-size: 13px; color: var(--color-text-secondary, #909399); text-align: right; }
+.config-hint { font-size: 12px; color: var(--color-text-secondary, #909399); margin-top: 4px; line-height: 1.5; }
 </style>

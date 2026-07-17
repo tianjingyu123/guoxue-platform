@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { financeApi } from '@/api'
+import { api, financeApi } from '@/api'
 import { exportCSV } from '@/utils/export'
 
 // 结算单行（按列配置与模板访问字段定义的宽松本地类型；detail 含嵌套汇总，置为必填以满足模板内裸访问）
@@ -33,17 +33,36 @@ const detailData = ref<SettlementRow | null>(null)
 
 onMounted(() => fetchList())
 
-function formatDate(d: string) { return d ? new Date(d).toLocaleString() : '-' }
-function formatMoney(v: number | string | null | undefined) { return v != null ? '¥' + Number(v).toFixed(2) : '-' }
+function formatDate(d: string) { return d ? new Date(d).toLocaleString('zh-CN', { hour12: false }) : '—' }
+function formatMoney(v: number | string | null | undefined) {
+  if (v == null) return '—'
+  return '¥' + Number(v).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
 
-// 后端字段：status = PENDING / APPROVED / PAID / REJECTED
+// 后端真实状态流转：PENDING → APPROVED → PAID（无驳回端点；REJECTED 仅为历史遗留数据，保留翻译不提供筛选）
 function statusTagType(status: string) {
   const m: Record<string, string> = { PAID: 'success', APPROVED: 'primary', PENDING: 'warning', REJECTED: 'danger' }
   return m[status] || 'info'
 }
 function statusLabel(status: string) {
-  const m: Record<string, string> = { PAID: '已打款', APPROVED: '已审批', PENDING: '待审批', REJECTED: '已驳回' }
+  const m: Record<string, string> = { PAID: '已打款', APPROVED: '已审批', PENDING: '待审批', REJECTED: '已驳回(历史)' }
   return m[status] || status
+}
+
+/** 结算对象：无 userId 的平台级结算单落库为 "PLATFORM" */
+function settleTargetLabel(userId?: string) {
+  if (!userId) return '—'
+  return userId === 'PLATFORM' ? '平台自结' : userId
+}
+
+async function copyText(text?: string) {
+  if (!text) return
+  try {
+    await navigator.clipboard.writeText(text)
+    ElMessage.success('已复制')
+  } catch {
+    ElMessage.warning('复制失败，请手动复制')
+  }
 }
 
 async function fetchList() {
@@ -98,15 +117,33 @@ async function doApprove(row: SettlementRow) {
 
 async function doPay(row: SettlementRow) {
   try {
-    await ElMessageBox.confirm(
-      `确认已完成 ${row.period} 结算单的打款？\n金额：${formatMoney(row.amount)}`,
+    // 🔴 新契约：打款必须回填转账流水号 payoutRef（出款幂等键·防重复打款）。
+    //    未部署新后端时流水号不会被落库（旧接口忽略 body），但填了也不会造成假成功。
+    const { value } = await ElMessageBox.prompt(
+      `确认已完成 ${row.period} 结算单（${settleTargetLabel(row.userId)}）的线下打款？\n` +
+      `金额：${formatMoney(row.amount)}\n请回填转账流水号（银行回单号/支付宝转账单号，必填）：`,
       '确认打款',
-      { type: 'warning', confirmButtonText: '确认已打款', cancelButtonText: '取消' }
+      {
+        type: 'warning',
+        confirmButtonText: '确认已打款',
+        cancelButtonText: '取消',
+        inputPlaceholder: '转账流水号（必填·用于对账与防重复打款）',
+        inputValidator: (v: string) => ((v || '').trim().length >= 4 ? true : '请填写有效的转账流水号'),
+      },
     )
-    await financeApi.paySettlement(row.id)
+    // 直调端点带 payoutRef（api/index.ts 旧签名不带流水号，铁律：不改 api/index.ts）
+    await api.put(`/finance/settlements/${row.id}/pay`, { payoutRef: String(value).trim() })
     ElMessage.success('已标记打款')
     fetchList()
-  } catch { /* 取消 */ }
+  } catch (e: unknown) {
+    if (e !== 'cancel' && e !== 'close') {
+      const err = e as { response?: { status?: number; data?: { message?: string } } }
+      if (err?.response?.status === 404) {
+        ElMessage.error('打款端点不可用（后端待部署），本次未标记打款')
+      }
+      // 其余错误由拦截器统一提示
+    }
+  }
 }
 
 function handleExport() {
@@ -119,6 +156,7 @@ function handleExport() {
     { label: '生成时间', key: 'createdAt' },
   ], list.value.map(r => ({
     ...r,
+    userId: settleTargetLabel(r.userId),
     amount: formatMoney(r.amount),
     statusLabel: statusLabel(r.status),
     createdAt: formatDate(r.createdAt),
@@ -153,10 +191,6 @@ function handleExport() {
           <el-option
             label="已打款"
             value="PAID"
-          />
-          <el-option
-            label="已驳回"
-            value="REJECTED"
           />
         </el-select>
         <el-button
@@ -205,14 +239,34 @@ function handleExport() {
           width="140"
         />
         <el-table-column
-          prop="userId"
           label="结算对象"
-          width="160"
-          show-overflow-tooltip
-        />
+          width="130"
+        >
+          <template #default="{ row }">
+            <el-tag
+              v-if="row.userId === 'PLATFORM'"
+              type="info"
+              size="small"
+            >
+              平台自结
+            </el-tag>
+            <el-tooltip
+              v-else-if="row.userId"
+              :content="row.userId"
+              placement="top"
+            >
+              <span
+                class="copyable"
+                @click="copyText(row.userId)"
+              >{{ String(row.userId).slice(0, 8) }}</span>
+            </el-tooltip>
+            <span v-else>—</span>
+          </template>
+        </el-table-column>
         <el-table-column
           label="金额"
           width="130"
+          align="right"
         >
           <template #default="{ row }">
             <span style="font-weight:600">{{ formatMoney(row.amount) }}</span>
@@ -362,7 +416,7 @@ function handleExport() {
           {{ detailData.period || '-' }}
         </el-descriptions-item>
         <el-descriptions-item label="结算对象">
-          {{ detailData.userId || '-' }}
+          {{ settleTargetLabel(detailData.userId) }}
         </el-descriptions-item>
         <el-descriptions-item label="金额">
           <span style="font-weight:600;color:#e6a23c">{{ formatMoney(detailData.amount) }}</span>
@@ -417,4 +471,5 @@ function handleExport() {
 .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .toolbar h3 { margin: 0; font-size: 18px; color: var(--color-text-title); }
 .toolbar-right { display: flex; gap: 8px; align-items: center; }
+.copyable { cursor: pointer; color: var(--el-color-primary); }
 </style>

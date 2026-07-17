@@ -1,6 +1,10 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
+import { ElMessage } from "element-plus";
+import { useRouter } from "vue-router";
 import { api as rawApi } from "@/api";
+
+const router = useRouter();
 
 // 设备指纹行（依据表格列/详情实际访问字段声明）
 interface DeviceFp {
@@ -24,8 +28,16 @@ interface UserDevices {
   suspiciousCount?: number;
 }
 
+// 🔴 后端 listDeviceFingerprints（risk-control.service.ts:451）为全量 findMany，
+// DeviceFingerprintQueryDto 仅支持 userId/deviceId 过滤、不支持 page/pageSize；
+// 前端限制展示前 MAX_DISPLAY 条防全表灌入页面，全量分页已记后端待办清单。
+const MAX_DISPLAY = 200;
+
 const list = ref<DeviceFp[]>([]);
+const rawTotal = ref(0);
+const truncated = ref(false);
 const loading = ref(false);
+const error = ref(false);
 const searchUserId = ref("");
 const searchDeviceId = ref("");
 const detailVisible = ref(false);
@@ -35,12 +47,21 @@ onMounted(() => fetchList());
 
 async function fetchList() {
   loading.value = true;
+  error.value = false;
   try {
     const params: Record<string, string> = {};
     if (searchUserId.value) params.userId = searchUserId.value;
     if (searchDeviceId.value) params.deviceId = searchDeviceId.value;
     const { data } = await rawApi.get("/risk-control/device-fingerprints", { params });
-    list.value = data?.data ?? data ?? [];
+    const rows: DeviceFp[] = data?.data ?? data ?? [];
+    rawTotal.value = rows.length;
+    truncated.value = rows.length > MAX_DISPLAY;
+    list.value = rows.slice(0, MAX_DISPLAY);
+  } catch {
+    list.value = [];
+    rawTotal.value = 0;
+    truncated.value = false;
+    error.value = true;
   } finally {
     loading.value = false;
   }
@@ -51,7 +72,9 @@ async function showDetail(userId: string) {
     const { data } = await rawApi.get(`/risk-control/device-fingerprints/${userId}`);
     detailData.value = data ?? {};
     detailVisible.value = true;
-  } catch { /* ignored */ }
+  } catch {
+    // 错误已由响应拦截器统一提示
+  }
 }
 
 function onSearch() {
@@ -61,6 +84,34 @@ function onSearch() {
 function formatTime(v?: string) {
   if (!v) return "-";
   try { return new Date(v).toLocaleString(); } catch { return v; }
+}
+
+// 隐私脱敏：IP / 用户ID / 设备ID 后端未脱敏，前端展示时掩码（写法对齐 FraudList.vue）
+function maskIp(ip?: string): string {
+  if (!ip) return "-";
+  const parts = ip.split(".");
+  if (parts.length === 4) return `${parts[0]}.${parts[1]}.*.*`;
+  return ip.length > 6 ? ip.slice(0, 4) + "****" : "****";
+}
+
+function maskId(id?: string): string {
+  if (!id) return "-";
+  if (id.length <= 8) return id.slice(0, 2) + "****";
+  return id.slice(0, 4) + "****" + id.slice(-4);
+}
+
+function gotoUser(id?: string) {
+  if (id) router.push(`/users/${id}`);
+}
+
+async function copyText(text?: string) {
+  if (!text) return;
+  try {
+    await navigator.clipboard.writeText(text);
+    ElMessage.success("已复制");
+  } catch {
+    ElMessage.error("复制失败");
+  }
 }
 </script>
 
@@ -94,23 +145,78 @@ function formatTime(v?: string) {
       </el-button>
     </div>
 
+    <el-alert
+      v-if="truncated"
+      type="warning"
+      :closable="false"
+      show-icon
+      style="margin-top:12px"
+      :title="`结果共 ${rawTotal} 条，仅显示前 ${MAX_DISPLAY} 条 · 建议用用户ID/设备ID精确筛选；全量分页待后端支持`"
+    />
+
+    <div
+      v-if="error"
+      class="error-state"
+    >
+      <el-empty description="加载失败，请重试">
+        <el-button
+          type="primary"
+          @click="fetchList"
+        >
+          重试
+        </el-button>
+      </el-empty>
+    </div>
+
     <el-table
+      v-else
       v-loading="loading"
       :data="list"
       border
       stripe
       style="margin-top:12px"
     >
+      <template #empty>
+        <el-empty
+          v-if="!loading"
+          :description="searchUserId || searchDeviceId ? '未找到匹配的设备指纹，换个筛选条件试试' : '暂无设备指纹记录，用户登录后会自动采集'"
+        />
+        <span v-else />
+      </template>
       <el-table-column
-        prop="userId"
         label="用户ID"
-        width="280"
-      />
+        width="200"
+      >
+        <template #default="{ row }">
+          <template v-if="row.userId">
+            <el-link
+              type="primary"
+              title="点击查看用户详情"
+              @click="gotoUser(row.userId)"
+            >
+              {{ maskId(row.userId) }}
+            </el-link>
+            <el-button
+              link
+              size="small"
+              type="primary"
+              style="margin-left:4px"
+              @click.stop="copyText(row.userId)"
+            >
+              复制
+            </el-button>
+          </template>
+          <span v-else>-</span>
+        </template>
+      </el-table-column>
       <el-table-column
-        prop="deviceId"
         label="设备ID"
-        width="320"
-      />
+        width="200"
+      >
+        <template #default="{ row }">
+          {{ maskId(row.deviceId) }}
+        </template>
+      </el-table-column>
       <el-table-column
         prop="platform"
         label="平台"
@@ -130,10 +236,13 @@ function formatTime(v?: string) {
         </template>
       </el-table-column>
       <el-table-column
-        prop="ip"
         label="IP"
         width="150"
-      />
+      >
+        <template #default="{ row }">
+          {{ maskIp(row.ip) }}
+        </template>
+      </el-table-column>
       <el-table-column
         label="首次出现"
         width="170"
@@ -183,7 +292,22 @@ function formatTime(v?: string) {
             label="用户ID"
             :span="2"
           >
-            {{ detailData.userId }}
+            <el-link
+              type="primary"
+              title="点击查看用户详情"
+              @click="gotoUser(detailData.userId)"
+            >
+              {{ maskId(detailData.userId) }}
+            </el-link>
+            <el-button
+              link
+              size="small"
+              type="primary"
+              style="margin-left:4px"
+              @click="copyText(detailData.userId)"
+            >
+              复制
+            </el-button>
           </el-descriptions-item>
           <el-descriptions-item label="关联设备数">
             {{ detailData.devices?.length ?? detailData.totalDevices ?? 0 }}
@@ -200,20 +324,26 @@ function formatTime(v?: string) {
           style="margin-top:12px"
         >
           <el-table-column
-            prop="deviceId"
             label="设备ID"
             width="200"
-          />
+          >
+            <template #default="{ row }">
+              {{ maskId(row.deviceId) }}
+            </template>
+          </el-table-column>
           <el-table-column
             prop="platform"
             label="平台"
             width="80"
           />
           <el-table-column
-            prop="ip"
             label="IP"
             width="140"
-          />
+          >
+            <template #default="{ row }">
+              {{ maskIp(row.ip) }}
+            </template>
+          </el-table-column>
           <el-table-column
             label="首次出现"
             width="160"
@@ -238,4 +368,5 @@ function formatTime(v?: string) {
 .header { margin-bottom: 16px; }
 .header h2 { margin: 0; }
 .search-bar { display: flex; align-items: center; }
+.error-state { padding: 40px 0; }
 </style>

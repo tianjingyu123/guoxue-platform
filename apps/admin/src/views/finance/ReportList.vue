@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { financeApi } from '@/api'
 import { exportCSV } from '@/utils/export'
 
-// 财务月报行（指标展平为一层后的宽松本地类型）
+// 财务月报行（指标展平为一层后的宽松本地类型；id 仅已保存记录有 → 用于区分"预览"与"已保存"）
 interface ReportRow {
+  id?: string
   period?: string
   revenue?: number
   refund?: number
@@ -32,8 +33,11 @@ const detailData = ref<ReportRow | null>(null)
 
 onMounted(() => fetchList())
 
-function formatDate(d?: string) { return d ? new Date(d).toLocaleString() : '-' }
-function formatMoney(v: number | string | null | undefined) { return v != null ? '¥' + Number(v).toFixed(2) : '-' }
+function formatDate(d?: string) { return d ? new Date(d).toLocaleString('zh-CN', { hour12: false }) : '—' }
+function formatMoney(v: number | string | null | undefined) {
+  if (v == null) return '—'
+  return '¥' + Number(v).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
 
 // 已保存的 FinancialReport 记录指标存于 data(Json)；新生成(未保存)对象指标在顶层。
 // 统一展平为一层，便于表格/详情读取真实字段。（r 为原始接口对象，结构含嵌套 data，保留 any）
@@ -61,6 +65,17 @@ async function fetchList() {
 async function generateReport() {
   if (saving.value) return
   if (!month.value) { ElMessage.warning('请先选择月份'); return }
+  // L3 影响预告：后端 upsert 按月唯一，该月已有【已保存】月报（有 id）时重新生成会覆盖原数据
+  const exists = list.value.some((r) => r.period === month.value && !!r.id)
+  try {
+    await ElMessageBox.confirm(
+      exists
+        ? `${month.value} 月报已存在，重新生成将【覆盖】已保存的报表数据，且不可恢复。确定继续？`
+        : `将按 ${month.value} 全月订单/退款/分佣/收益数据生成月报并保存。确定生成？`,
+      exists ? '覆盖确认' : '生成月报',
+      { type: 'warning', confirmButtonText: exists ? '覆盖并重新生成' : '生成', cancelButtonText: '取消' },
+    )
+  } catch { return }
   saving.value = true
   try {
     await financeApi.generateMonthlyReport(month.value)
@@ -148,6 +163,7 @@ function handleExport() {
         <el-table-column
           label="营收"
           width="140"
+          align="right"
         >
           <template #default="{ row }">
             <span style="font-weight:600;color:#409eff">{{ formatMoney(row.revenue) }}</span>
@@ -156,6 +172,7 @@ function handleExport() {
         <el-table-column
           label="退款"
           width="130"
+          align="right"
         >
           <template #default="{ row }">
             <span style="color:#f56c6c">{{ formatMoney(row.refund) }}</span>
@@ -164,6 +181,7 @@ function handleExport() {
         <el-table-column
           label="分佣支出"
           width="130"
+          align="right"
         >
           <template #default="{ row }">
             {{ formatMoney(row.commissionExpense) }}
@@ -172,6 +190,7 @@ function handleExport() {
         <el-table-column
           label="净利润"
           width="140"
+          align="right"
         >
           <template #default="{ row }">
             <span

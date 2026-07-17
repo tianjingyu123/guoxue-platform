@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { InfoFilled } from '@element-plus/icons-vue'
 import { settlementRuleApi } from '@/api'
 
 // 单条分成方案（role+rate 为核心字段，允许后端扩展字段透传保留）
@@ -24,13 +25,13 @@ interface SettlementRule {
   updatedAt?: string
 }
 
-// 场景中文映射表（与 settlement-rules.seed.ts 12 场景对齐，未知场景显示原文）
+// 场景中文映射表（与 settlement-rules.seed.ts 12 场景 + INSTITUTE_LECTURE 对齐，未知场景显示原文）
 const SCENE_LABELS: Record<string, string> = {
   COURSE_ORDER: '课程订单',
   PRODUCT_ORDER: '商品订单',
   MERCHANT_PRODUCT_ORDER: '商家商品订单',
   MEMBER_PURCHASE: '会员购买',
-  COIN_RECHARGE: '虚拟币充值',
+  COIN_RECHARGE: '国学币充值',
   CIRCLE_JOIN: '圈子加入',
   LIVE_GIFT: '直播打赏',
   QUESTION: '付费提问',
@@ -38,6 +39,7 @@ const SCENE_LABELS: Record<string, string> = {
   CONSULT_CALL: '达人咨询通话',
   AUDIO_CALL: '语音通话',
   BOT_CALL: '智能体调用',
+  INSTITUTE_LECTURE: '研究院大师讲座',
 }
 
 // 分成角色中文映射（摘要展示用，未知角色显示原文）
@@ -51,6 +53,14 @@ const ROLE_LABELS: Record<string, string> = {
   MERCHANT: '商家',
   CREATOR: '创作者',
   INVITER: '邀请人',
+  PROVIDER: '服务提供方(讲师)',
+}
+
+// 计提类别中文（同一角色多条分成行时用于区分，如 INSTITUTE_LECTURE 的"平台×2"）
+const CATEGORY_LABELS: Record<string, string> = {
+  COMMISSION: '佣金',
+  SERVICE: '服务费',
+  PLATFORM: '平台留存',
 }
 
 const loading = ref(false)
@@ -111,11 +121,30 @@ function roleLabel(role: string) {
   return ROLE_LABELS[role] || role
 }
 
-// 表格列：分成方案摘要（角色×比例%）
+// 表格列：分成方案摘要（角色×比例%）。
+// 同一角色出现多行时（如研究院讲座 PLATFORM×2 = 研究院池 20% + 平台留存 30%），
+// 按 note/类别区分显示，不再出现看不懂的"平台 20% + 平台 30%"。
+function splitLabel(s: SettlementSplit, dupRoles: Set<string>): string {
+  const role = String(s.role ?? '')
+  const note = typeof s.note === 'string' ? s.note : ''
+  if (role === 'PLATFORM' && note.includes('研究院')) return '研究院池(平台代管)'
+  if (dupRoles.has(role)) {
+    const cat = CATEGORY_LABELS[String(s.category ?? '')] || String(s.category ?? '')
+    return cat ? `${roleLabel(role)}·${cat}` : roleLabel(role)
+  }
+  return roleLabel(role)
+}
+
 function splitsSummary(splits: SettlementSplit[] | null | undefined) {
   if (!Array.isArray(splits) || splits.length === 0) return '—'
+  const counts = new Map<string, number>()
+  for (const s of splits) {
+    const r = String(s.role ?? '')
+    counts.set(r, (counts.get(r) || 0) + 1)
+  }
+  const dupRoles = new Set([...counts.entries()].filter(([, c]) => c > 1).map(([r]) => r))
   return splits
-    .map((s) => `${roleLabel(String(s.role ?? ''))} ${Math.round(Number(s.rate ?? 0) * 10000) / 100}%`)
+    .map((s) => `${splitLabel(s, dupRoles)} ${Math.round(Number(s.rate ?? 0) * 10000) / 100}%`)
     .join(' + ')
 }
 
@@ -285,6 +314,17 @@ async function save() {
     return
   }
 
+  // L3 影响预告：保存即改变该场景后续订单的资金分账
+  try {
+    await ElMessageBox.confirm(
+      `确认保存「${editingId.value ? sceneLabel(form.scene) : form.scene.trim()}」结算规则？\n` +
+      `保存后该场景所有新订单将按以下方案分账：\n${splitsSummary(splits)}\n` +
+      `启用状态：${form.enabled ? '启用' : '停用'}`,
+      '结算规则变更确认',
+      { type: 'warning', confirmButtonText: '确认保存', cancelButtonText: '再检查一下' },
+    )
+  } catch { return }
+
   saving.value = true
   try {
     const payload: Record<string, unknown> = {
@@ -312,8 +352,21 @@ async function save() {
 }
 
 // 表格内就地切换启用开关（规则无删除，只允许停用）
+// L3 危险操作：启停直接改变该场景后续所有订单的分账行为，切换前必须影响预告确认
 async function toggleEnabled(row: SettlementRule) {
-  if (togglingId.value) return
+  if (togglingId.value) { row.enabled = !row.enabled; return }
+  try {
+    await ElMessageBox.confirm(
+      row.enabled
+        ? `确认【启用】「${sceneLabel(row.scene)}」结算规则？\n启用后该场景所有新订单将按此方案分账：\n${splitsSummary(row.splits)}`
+        : `确认【停用】「${sceneLabel(row.scene)}」结算规则？\n停用后该场景新订单将不再按此规则分账，请确认已有替代口径。`,
+      '结算规则变更确认',
+      { type: 'warning', confirmButtonText: row.enabled ? '确认启用' : '确认停用', cancelButtonText: '取消' },
+    )
+  } catch {
+    row.enabled = !row.enabled // 取消 → 回滚开关
+    return
+  }
   togglingId.value = row.id
   try {
     await settlementRuleApi.updateRule(row.id, {
@@ -443,14 +496,24 @@ onMounted(fetchList)
           />
         </template>
       </el-table-column>
+      <!-- 备注多为内部实现口径（种子来源/待拍板等黑话），折叠进 tooltip 不直接铺在表格里 -->
       <el-table-column
-        prop="remark"
         label="备注"
-        min-width="140"
-        show-overflow-tooltip
+        width="70"
+        align="center"
       >
         <template #default="{ row }">
-          {{ row.remark || '-' }}
+          <el-tooltip
+            v-if="row.remark"
+            :content="row.remark"
+            placement="top"
+            :show-after="100"
+          >
+            <el-icon style="cursor:help;color:var(--el-text-color-secondary)">
+              <InfoFilled />
+            </el-icon>
+          </el-tooltip>
+          <span v-else>—</span>
         </template>
       </el-table-column>
       <el-table-column

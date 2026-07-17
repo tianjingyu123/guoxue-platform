@@ -31,7 +31,7 @@
       <el-form-item>
         <el-button
           type="primary"
-          @click="fetchList"
+          @click="page = 1; fetchList()"
         >
           搜索
         </el-button>
@@ -60,16 +60,42 @@
       stripe
     >
       <el-table-column
-        prop="userId"
         label="用户ID"
         width="200"
-      />
-      <el-table-column
-        label="动作类型"
-        width="120"
       >
         <template #default="{ row }">
-          <el-tag>{{ actionTypeLabel(row.actionType) }}</el-tag>
+          <template v-if="row.userId">
+            <el-link
+              type="primary"
+              :title="`${row.userId}（点击查看用户详情）`"
+              @click="gotoUser(row.userId)"
+            >
+              {{ shortId(row.userId) }}
+            </el-link>
+            <el-button
+              link
+              size="small"
+              type="primary"
+              style="margin-left:4px"
+              @click.stop="copyText(row.userId)"
+            >
+              复制
+            </el-button>
+          </template>
+          <span v-else>-</span>
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="动作类型"
+        width="140"
+      >
+        <template #default="{ row }">
+          <el-tag
+            :type="isKnownActionType(row.actionType) ? '' : 'info'"
+            :title="isKnownActionType(row.actionType) ? row.actionType : `动作类型 ${row.actionType} 暂无执行器支持`"
+          >
+            {{ actionTypeLabel(row.actionType) }}
+          </el-tag>
         </template>
       </el-table-column>
       <el-table-column
@@ -88,26 +114,32 @@
         width="110"
       />
       <el-table-column
-        label="结果/错误"
+        label="结果/失败原因"
         min-width="200"
         show-overflow-tooltip
       >
         <template #default="{ row }">
-          <span :class="{ 'err-text': row.errorLog }">
-            {{ row.result || row.errorLog || '--' }}
+          <span :class="{ 'err-text': row.status === 'FAILED' }">
+            {{ resultText(row) }}
           </span>
         </template>
       </el-table-column>
       <el-table-column
-        prop="createdAt"
         label="创建时间"
         width="170"
-      />
+      >
+        <template #default="{ row }">
+          {{ formatDate(row.createdAt) }}
+        </template>
+      </el-table-column>
       <el-table-column
-        prop="executedAt"
         label="执行时间"
         width="170"
-      />
+      >
+        <template #default="{ row }">
+          {{ formatDate(row.executedAt) }}
+        </template>
+      </el-table-column>
     </el-table>
 
     <el-pagination
@@ -124,7 +156,10 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
 import { ElMessage } from "element-plus";
+import { useRouter } from "vue-router";
 import { churnApi } from "@/api";
+
+const router = useRouter();
 
 // 流失挽回动作记录行（按列配置与模板访问字段定义的宽松本地类型）
 interface ChurnActionRow {
@@ -146,11 +181,48 @@ const pageSize = ref(20);
 const total = ref(0);
 const filterStatus = ref("");
 
+// 动作类型词表：与后端执行器真实值对齐（churn.service 仅实现 SMS/COUPON），
+// 未知类型兜底显示原值+灰tag（历史遗留 NOTIFY/FLAG 等无执行器）
+const ACTION_TYPE_MAP: Record<string, string> = {
+  SMS: "短信触达", COUPON: "发送优惠券",
+};
+
 function actionTypeLabel(type: string) {
-  const map: Record<string, string> = {
-    SMS: "短信触达", COUPON: "发送优惠券", TEMPLATE_MSG: "模板消息", WEBHOOK: "回调通知",
-  };
-  return map[type] || type;
+  return ACTION_TYPE_MAP[type] || type;
+}
+
+function isKnownActionType(type: string) {
+  return !!ACTION_TYPE_MAP[type];
+}
+
+function formatDate(d?: string) {
+  return d ? new Date(d).toLocaleString() : "—";
+}
+
+// 长ID截断显示（悬浮看全文，点击跳用户详情）
+function shortId(id?: string): string {
+  if (!id) return "-";
+  return id.length > 10 ? id.slice(0, 8) + "…" : id;
+}
+
+async function copyText(text?: string) {
+  if (!text) return;
+  try {
+    await navigator.clipboard.writeText(text);
+    ElMessage.success("已复制");
+  } catch {
+    ElMessage.error("复制失败");
+  }
+}
+
+function gotoUser(id?: string) {
+  if (id) router.push(`/users/${id}`);
+}
+
+// 结果列：FAILED 优先展示失败原因（errorLog），其余展示执行结果，缺省 —
+function resultText(row: ChurnActionRow): string {
+  if (row.status === "FAILED") return row.errorLog || "—";
+  return row.result || "—";
 }
 
 function statusTag(status: string) {
