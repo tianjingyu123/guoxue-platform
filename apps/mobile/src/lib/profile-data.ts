@@ -1,7 +1,7 @@
 // 我的主页数据层（1:1 迁移自原型 app/profile/page.tsx）
 import { apiGet, apiPost } from '@/utils/request'
 
-export type UserRole = 'user' | 'circle_owner' | 'teacher' | 'station_owner' | 'streamer' | 'creator' | 'merchant'
+export type UserRole = 'user' | 'circle_owner' | 'teacher' | 'station_owner' | 'streamer' | 'creator' | 'merchant' | 'operator' | 'offline_station' | 'institute'
 
 export interface RoleEntry {
   type: UserRole
@@ -56,19 +56,14 @@ export const roleConfig: Record<UserRole, { label: string; icon: string; color: 
   streamer: { label: '主播中心', icon: 'radio', color: '#C41E3A', bgColor: 'rgba(196,30,58,0.1)' },
   creator: { label: '创作中心', icon: 'video', color: '#722ED1', bgColor: 'rgba(114,46,209,0.1)' },
   merchant: { label: '商家管理台', icon: 'store', color: '#FA8C16', bgColor: 'rgba(250,140,22,0.1)' },
+  operator: { label: '运营中心', icon: 'trending-up', color: '#B8860B', bgColor: 'rgba(184,134,11,0.1)' },
+  offline_station: { label: '驿站工作台', icon: 'store', color: '#B45309', bgColor: 'rgba(180,83,9,0.1)' },
+  institute: { label: '研究院', icon: 'graduation-cap', color: '#0E7490', bgColor: 'rgba(14,116,144,0.1)' },
 }
 
 // 🔴 2026-07-14 删除 quickFunctions：它是个**死常量**，导出后没有任何页面 import 它。
 //    个人中心真正渲染的是 pages/profile/index.vue 里的 matrixItems —— 入口要加就加那里。
 //    （曾经往这个数组里加入口，结果线上毫无变化，白改一轮。）
-
-// 全部可开通角色
-export const allRoleTypes: { type: UserRole; applyHref: string }[] = [
-  { type: 'circle_owner', applyHref: '/pkg-circle/circles/create' },
-  { type: 'teacher', applyHref: '/institute/apply' },
-  { type: 'station_owner', applyHref: '/join/station' },
-  { type: 'streamer', applyHref: '/creator/live/console' },
-]
 
 // 已开通身份点击进入的后台路由
 export function roleHref(type: UserRole, id: string | number): string {
@@ -79,6 +74,9 @@ export function roleHref(type: UserRole, id: string | number): string {
     case 'creator': return '/videos/creator'
     case 'station_owner': return '/operator/station-master-panel'
     case 'merchant': return '/pkg-merchant/dashboard/index'
+    case 'operator': return '/operator/dashboard'
+    case 'offline_station': return '/offline/manage'
+    case 'institute': return '/institute/manage'
     default: return '/pages/profile/index'
   }
 }
@@ -91,6 +89,11 @@ const _roleTypeMap: Record<string, UserRole> = {
   LECTURER: 'teacher',
   STATION_MASTER: 'station_owner',
   MERCHANT: 'merchant', // 商家/官方旗舰店操作员：后端 getProfile 在 ACTIVE 商家身份时注入
+  // 后端 /auth/me 原样返回 UserRoleBinding 全部 roleType（auth.service mergedRoles 无过滤），
+  // 以下三类此前未映射 → 已开通运营商/驿站/研究院的用户在身份区恒显「申请加入」，现补齐进工作台
+  OPERATOR: 'operator',
+  STATION_OFFLINE_OWNER: 'offline_station',
+  INSTITUTE_MEMBER: 'institute',
 }
 
 // 会员等级标签（书院会员·2026-07-03 档位改版）

@@ -50,8 +50,9 @@ async function fetchUnreadNotify() {
 }
 
 /* ===== 身份成长区（§六）：六角色统一模型（图章单字 + 一句权益 + 申请页路由）
-   注：运营商/线下驿站/研究院不在后端 UserRole 联合类型内（无对应身份后台），
-   仅作「申请加入」引导，故 applyType 用宽松字符串；已有身份的 3 类映射到 UserRole。 ===== */
+   六类均可查已加入态：后端 /auth/me 原样返回全部 roleType（含 OPERATOR/
+   STATION_OFFLINE_OWNER/INSTITUTE_MEMBER），profile-data _roleTypeMap 已补齐映射，
+   已开通者点入对应工作台，未开通者走「申请加入」引导。 ===== */
 interface RoleSpec {
   applyType: string       // 申请页 role 参数
   ownType?: UserRole      // 后端已有身份类型（用于查已加入态/进工作台），无则纯申请引导
@@ -64,9 +65,9 @@ const ROLE_SPECS: RoleSpec[] = [
   { applyType: 'teacher', ownType: 'teacher', seal: '讲', name: '讲师', benefit: '把你的学问变成课程，触达百万学友' },
   { applyType: 'merchant', ownType: 'merchant', seal: '商', name: '商家', benefit: '开店卖国学好物，平台代运营' },
   { applyType: 'station_owner', ownType: 'station_owner', seal: '站', name: '分站站长', benefit: '承包一城，独享分站收益' },
-  { applyType: 'operator', seal: '运', name: '运营商', benefit: '区域推广合伙，两级分润' },
-  { applyType: 'offline_station', seal: '驿', name: '线下驿站', benefit: '门店挂牌，线上线下互导' },
-  { applyType: 'institute', seal: '研', name: '研究院', benefit: '学术共建，内容首发权益' },
+  { applyType: 'operator', ownType: 'operator', seal: '运', name: '运营商', benefit: '区域推广合伙，两级分润' },
+  { applyType: 'offline_station', ownType: 'offline_station', seal: '驿', name: '线下驿站', benefit: '门店挂牌，线上线下互导' },
+  { applyType: 'institute', ownType: 'institute', seal: '研', name: '研究院', benefit: '学术共建，内容首发权益' },
 ]
 // 已加入身份集合（后端 roles → type）
 const ownedRoleMap = computed(() => {

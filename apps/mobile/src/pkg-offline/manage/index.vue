@@ -164,8 +164,6 @@ const modules = [
   { key: 'products', label: '驿站商品', icon: 'shopping-bag' },
   { key: 'settlement', label: '订单结算', icon: 'wallet' },
   { key: 'brand', label: '品牌资料', icon: 'edit' },
-  { key: 'events', label: '活动管理', icon: 'calendar-plus' },
-  { key: 'calendar', label: '经营日历', icon: 'calendar-days' },
 ]
 
 async function load() {

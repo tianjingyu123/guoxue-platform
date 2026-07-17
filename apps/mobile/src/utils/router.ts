@@ -313,8 +313,6 @@ const ROUTE_MAP: Record<string, string> = {
   '/favorites': '/pkg-mine/favorites/index',
   // 注册成功欢迎仪式（峰值时刻，3s倒计时自动进首页/兴趣引导）
   '/welcome': '/pkg-auth/welcome/index',
-  // 实名认证（4状态机：未认证表单/审核中/已认证/失败，fallback /settings）
-  '/verification': '/pkg-settings/verification/index',
   // 兴趣引导（注册流 welcome→interests-guide→首页，选3-8个兴趣领域）
   '/interests-guide': '/pkg-auth/interests-guide/index',
   // ===== V0 6.24 新增14条静态路由 =====

@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
-import { goBack, navigateTo } from '@/utils/router'
+import { navigateTo } from '@/utils/router'
 import { mineApi, pwdRules, calcPwdStrength } from '@/lib/mine-data'
+import { clearToken, clearRefreshToken, clearUserInfo } from '@/utils/storage'
 
 function goForgot() {
   navigateTo('/pkg-auth/forgot-password/index')
@@ -49,8 +50,14 @@ async function handleSubmit() {
   loading.value = true
   try {
     await mineApi.changePassword(oldPwd.value, newPwd.value)
-    showToast('密码修改成功', 'success')
-    setTimeout(() => goBack(), 1000)
+    showToast('密码修改成功，请重新登录', 'success')
+    // 改密后主动清空本地登录凭证并回登录页，强制用新密码重新登录（不再依赖后端让旧 token 失效，体验更明确）。
+    setTimeout(() => {
+      clearToken()
+      clearRefreshToken()
+      clearUserInfo()
+      uni.reLaunch({ url: '/pkg-auth/login/index' })
+    }, 1000)
   } catch (e) {
     showToast((e as Error)?.message || '修改失败', 'error')
   } finally {

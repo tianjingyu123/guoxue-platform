@@ -175,40 +175,6 @@ export interface OperatorQuickAction {
   badge?: number
 }
 
-export const operatorPanelInfo = {
-  id: 1001,
-  name: '华东区运营中心',
-  level: '金牌运营商',
-  joinDate: '2024-03-15',
-}
-
-export const operatorOverview: OperatorOverviewItem[] = [
-  { key: 'monthRevenue', label: '本月业绩', value: 128600, unit: '元', trend: 12.5, trendLabel: '较上月' },
-  { key: 'teamMembers', label: '团队成员', value: 45, unit: '人', trend: 3, trendLabel: '本月新增' },
-  { key: 'newCustomers', label: '新增客户', value: 386, unit: '人', trend: 8.2, trendLabel: '较上月' },
-  { key: 'commission', label: '待结算佣金', value: 15680, unit: '元' },
-  { key: 'coursesSold', label: '课程销售', value: 892, unit: '份', trend: 15.3, trendLabel: '较上月' },
-  { key: 'conversionRate', label: '转化率', value: '23.5%', trend: 2.1, trendLabel: '较上月' },
-]
-
-export const operatorTeamRanking: TeamMemberRanking[] = [
-  { rank: 1, userId: 101, nickname: '张明华', performance: 28500, performanceUnit: '元', change: 15.2 },
-  { rank: 2, userId: 102, nickname: '李小红', performance: 24300, performanceUnit: '元', change: 8.5 },
-  { rank: 3, userId: 103, nickname: '王建国', performance: 21800, performanceUnit: '元', change: -2.3 },
-  { rank: 4, userId: 104, nickname: '赵雅琴', performance: 19600, performanceUnit: '元', change: 12.1, isSelf: true },
-  { rank: 5, userId: 105, nickname: '陈志强', performance: 17200, performanceUnit: '元', change: 5.8 },
-  { rank: 6, userId: 106, nickname: '刘芳芳', performance: 15800, performanceUnit: '元', change: -1.2 },
-  { rank: 7, userId: 107, nickname: '孙伟', performance: 14500, performanceUnit: '元', change: 3.4 },
-  { rank: 8, userId: 108, nickname: '周丽娟', performance: 12900, performanceUnit: '元', change: 7.6 },
-]
-
-export const operatorQuotaUsage: QuotaUsageItem[] = [
-  { key: 'courseQuota', label: '课程推广配额', used: 450, total: 500, unit: '次', expireAt: '2026-06-30', isLow: true },
-  { key: 'liveQuota', label: '直播推广配额', used: 28, total: 100, unit: '场', expireAt: '2026-06-30', isLow: false },
-  { key: 'memberQuota', label: '团队成员上限', used: 45, total: 50, unit: '人', isLow: true },
-  { key: 'storageQuota', label: '存储空间', used: 8.5, total: 20, unit: 'GB', isLow: false },
-]
-
 export const operatorQuickActions: OperatorQuickAction[] = [
   { key: 'team', label: '团队管理', icon: 'users', href: '/operator/dashboard', badge: 3 },
   { key: 'commission', label: '佣金明细', icon: 'wallet', href: '/station/earnings' },
@@ -283,75 +249,16 @@ export const stationActionIconMap: Record<string, string> = {
   help: 'help-circle',
 }
 
-export const stationPanelInfo = {
-  id: 1001,
-  name: '国学文化推广站',
-  level: 3,
-  levelName: '金牌分站',
-  createTime: '2025-01-15',
-  expireTime: '2027-01-15',
-  status: 'active' as 'active' | 'expired' | 'paused',
-}
-
-export const stationPanelOverview: StationOverviewItem[] = [
-  { label: '团队成员', value: 1286, unit: '人', trend: 12.5, trendType: 'up', icon: 'users' },
-  { label: '本月收益', value: 28650, unit: '元', trend: 8.3, trendType: 'up', icon: 'revenue' },
-  { label: '本月订单', value: 486, unit: '单', trend: -2.1, trendType: 'down', icon: 'orders' },
-  { label: '累计收益', value: 156800, unit: '元', trend: 0, trendType: 'flat', icon: 'total' },
-  { label: '今日访问', value: 328, unit: '次', trend: 15.6, trendType: 'up', icon: 'visits' },
-  { label: '转化率', value: '6.8%', trend: 0.5, trendType: 'up', icon: 'conversion' },
-]
-
-export const stationPanelTrends: StationTrendData[] = [
-  {
-    type: 'revenue', label: '收益趋势', total: 28650, change: 8.3,
-    data: [
-      { date: '05-28', value: 3200 },
-      { date: '05-29', value: 4100 },
-      { date: '05-30', value: 3800 },
-      { date: '05-31', value: 5200 },
-      { date: '06-01', value: 4600 },
-      { date: '06-02', value: 3950 },
-      { date: '06-03', value: 3800 },
-    ],
-  },
-  {
-    type: 'orders', label: '订单趋势', total: 486, change: -2.1,
-    data: [
-      { date: '05-28', value: 62 },
-      { date: '05-29', value: 78 },
-      { date: '05-30', value: 71 },
-      { date: '05-31', value: 85 },
-      { date: '06-01', value: 69 },
-      { date: '06-02', value: 65 },
-      { date: '06-03', value: 56 },
-    ],
-  },
-]
-
-export const stationPanelBalance = {
-  available: 12680,
-  pending: 5230,
-  withdrawn: 138890,
-  frozen: 0,
-}
-
 export const stationPanelQuickActions: StationPanelQuickAction[] = [
   { id: 'promote', label: '推广中心', icon: 'share', path: '/station/promote', description: '生成推广链接与二维码' },
   { id: 'customers', label: '客户洞察', icon: 'users', path: '/pkg-operator/customers/index', description: '了解客户兴趣，精准跟进' },
-  { id: 'team', label: '团队管理', icon: 'users', path: '/station/team', badge: 5, description: '查看和管理团队成员' },
+  { id: 'team', label: '团队管理', icon: 'users', path: '/station/team', description: '查看和管理团队成员' },
   { id: 'materials', label: '推广素材', icon: 'image', path: '/station/materials', description: '获取推广海报和文案' },
   { id: 'config', label: '分站配置', icon: 'settings', path: '/station/config', description: '自定义分站设置' },
-  { id: 'income', label: '收益明细', icon: 'wallet', path: '/station/earnings', badge: 3, description: '查看收益和提现记录' },
+  { id: 'income', label: '收益明细', icon: 'wallet', path: '/station/earnings', description: '查看收益和提现记录' },
   { id: 'orders', label: '订单管理', icon: 'list', path: '/orders', description: '查看团队订单' },
   { id: 'assistant', label: '站长助理', icon: 'chart', path: '/station/assistant', description: 'AI 运营助理' },
   { id: 'help', label: '帮助中心', icon: 'help', path: '/help', description: '常见问题解答' },
-]
-
-export const stationPanelNotices: StationNotice[] = [
-  { id: 1, title: '恭喜！本月业绩达成奖励已发放', type: 'success', createdAt: '2026-06-03 10:00' },
-  { id: 2, title: '端午节活动推广素材已更新', type: 'info', createdAt: '2026-06-01 09:00' },
-  { id: 3, title: '分站等级即将到期，请及时续费', type: 'warning', createdAt: '2026-05-28 14:00' },
 ]
 
 // ===== 运营商工作台 dashboard 数据（对齐原型 app/operator/dashboard，页面内联）=====
@@ -393,31 +300,6 @@ export interface DashboardQuotaRecord {
   price?: number
   status: 'active' | 'pending'
 }
-
-export const operatorDashboardData: OperatorDashboardData = {
-  name: '国学推广联盟',
-  level: '金牌运营商',
-  joinDate: '2024-01-15',
-  quota: { total: 6, used: 1, sold: 3, available: 2 },
-  team: { total: 3, thisMonth: 1 },
-  earnings: { total: 32680, thisMonth: 5680, pending: 1280, teamBonus: 8600, quotaSales: 2997 },
-  stats: { totalUsers: 580, thisMonthUsers: 86, conversionRate: 12.5 },
-}
-
-export const dashboardTeamMembers: DashboardTeamMember[] = [
-  { id: 1, name: '易学驿站', joinDate: '2024-03-15', status: 'active', users: 128, earnings: 3680, myBonus: 184 },
-  { id: 2, name: '国学小站', joinDate: '2024-05-20', status: 'active', users: 86, earnings: 2560, myBonus: 128 },
-  { id: 3, name: '命理之家', joinDate: '2024-06-01', status: 'pending', users: 0, earnings: 0, myBonus: 0 },
-]
-
-export const dashboardQuotaRecords: DashboardQuotaRecord[] = [
-  { id: 1, type: 'self', name: '自用', date: '2024-01-15', status: 'active' },
-  { id: 2, type: 'sold', name: '易学驿站', date: '2024-03-15', price: 999, status: 'active' },
-  { id: 3, type: 'sold', name: '国学小站', date: '2024-05-20', price: 999, status: 'active' },
-  { id: 4, type: 'sold', name: '命理之家', date: '2024-06-01', price: 999, status: 'pending' },
-]
-
-export const operatorInviteLink = 'https://rebu.com/join/station?ref=OP12345'
 
 // ===== 团队管理 team 静态展示常量（真连方法见 operatorApi）=====
 
@@ -463,24 +345,6 @@ export interface QuotaRecord {
   status: string
 }
 
-export const quotaData = {
-  total: 6,
-  used: 1,
-  sold: 3,
-  gifted: 0,
-  available: 2,
-  price: 999,
-}
-
-export const quotaRecords: QuotaRecord[] = [
-  { id: 1, type: 'self', name: '自用开站', date: '2024-01-01', status: 'active' },
-  { id: 2, type: 'sold', name: '张***', phone: '138****8888', date: '2024-02-15', amount: 999, status: 'active' },
-  { id: 3, type: 'sold', name: '李***', phone: '139****9999', date: '2024-03-20', amount: 999, status: 'active' },
-  { id: 4, type: 'sold', name: '王***', phone: '137****7777', date: '2024-05-10', amount: 999, status: 'active' },
-]
-
-export const quotaSaleLink = `https://rebu.com/join/station?ref=OP12345&price=${quotaData.price}`
-
 // ===== 邀请站长 invite 数据（对齐原型 app/operator/invite，页面内联）=====
 
 export interface InvitedStation {
@@ -492,15 +356,6 @@ export interface InvitedStation {
   commission: string
 }
 
-export const invitedStations: InvitedStation[] = [
-  { id: '1', name: '北京命理文化站', joinedAt: '2024-01-10', status: 'active', revenue: '¥28,400', commission: '¥2,840' },
-  { id: '2', name: '上海国学传播站', joinedAt: '2024-01-18', status: 'active', revenue: '¥15,600', commission: '¥1,560' },
-  { id: '3', name: '广州易学研究站', joinedAt: '2024-02-05', status: 'pending', revenue: '¥0', commission: '¥0' },
-]
-
-export const operatorInviteLinkFull = 'https://rebu.com/join?ref=OP20240001'
-export const operatorInviteCode = 'OP20240001'
-
 // ===== 沉寂站长预警 dormant 数据（对齐原型 app/operator/dormant，页面内联）=====
 
 export interface DormantMember {
@@ -511,13 +366,6 @@ export interface DormantMember {
   totalCommission: number
   reminded: boolean
 }
-
-export const dormantMembers: DormantMember[] = [
-  { id: 'm1', name: '李静雅', level: '金牌站长', lastActiveDays: 32, totalCommission: 4820, reminded: false },
-  { id: 'm2', name: '王德发', level: '普通站长', lastActiveDays: 45, totalCommission: 1280, reminded: false },
-  { id: 'm3', name: '陈明', level: '普通站长', lastActiveDays: 38, totalCommission: 960, reminded: false },
-  { id: 'm4', name: '赵丽', level: '银牌站长', lastActiveDays: 61, totalCommission: 2340, reminded: true },
-]
 
 // ===== 下线业绩分析 analysis 数据（对齐原型 app/operator/analysis，页面内联）=====
 
@@ -532,13 +380,6 @@ export interface MemberPerf {
   trend: number
   diagnosis: { type: 'good' | 'warn'; text: string }
 }
-
-export const analysisMembers: MemberPerf[] = [
-  { id: 'm1', name: '孙悦', level: '金牌站长', visits: 3200, clicks: 890, orders: 142, commission: 8600, trend: 18, diagnosis: { type: 'good', text: '转化漏斗健康，流量与成交均衡' } },
-  { id: 'm2', name: '周明轩', level: '银牌站长', visits: 2800, clicks: 210, orders: 12, commission: 720, trend: -32, diagnosis: { type: 'warn', text: '点击率偏低，建议优化推广文案与素材' } },
-  { id: 'm3', name: '吴芳', level: '普通站长', visits: 480, clicks: 156, orders: 38, commission: 2280, trend: 8, diagnosis: { type: 'warn', text: '转化率高但流量不足，建议加大推广曝光' } },
-  { id: 'm4', name: '郑浩', level: '普通站长', visits: 1900, clicks: 620, orders: 8, commission: 480, trend: -15, diagnosis: { type: 'warn', text: '点击多成交少，建议推荐高性价比内容' } },
-]
 
 // ===== 后端真实结构 → 前端展示适配 =====
 

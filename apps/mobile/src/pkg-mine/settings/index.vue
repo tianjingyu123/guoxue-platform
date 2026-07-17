@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo, toastComingSoon } from '@/utils/router'
+import { clearToken, clearRefreshToken, clearUserInfo } from '@/utils/storage'
 import {
   mineApi, settingCollectOptions, settingFontOptions,
   settingCacheSize,
@@ -99,7 +100,12 @@ function handleClearCache() {
 }
 function handleLogout() {
   showLogout.value = false
-  navigateTo('/login')
+  // 退出必须清空本地登录凭证，否则「退出」只是跳页、登录态仍在 → 换账号会串号（安全事故）。
+  // 与 request.ts 的 handleUnauthorized 同一范式：清 token + refreshToken + 用户缓存，再 reLaunch 登录页。
+  clearToken()
+  clearRefreshToken()
+  clearUserInfo()
+  uni.reLaunch({ url: '/pkg-auth/login/index' })
 }
 
 // 选项弹窗通用处理

@@ -2586,12 +2586,6 @@
           }
         },
         {
-          "path": "verification/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
           "path": "third-party-sdk/index",
           "style": {
             "navigationStyle": "custom"

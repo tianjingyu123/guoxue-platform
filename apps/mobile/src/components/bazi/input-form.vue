@@ -154,12 +154,8 @@ function handleSubmit() {
           <text class="bf-opt-label">{{ o.label }}</text>
         </view>
       </view>
-      <!-- 真太阳时信息 + 保存 -->
+      <!-- 保存 -->
       <view class="bf-solar bf-bd">
-        <view class="bf-solar-info">
-          <text class="bf-solar-line">真太阳时：{{ formatBirthDate }}</text>
-          <text class="bf-solar-line">地址经纬：北纬39.93 东经116.42</text>
-        </view>
         <view class="bf-save">
           <text class="bf-save-label">保存</text>
           <view class="bf-switch" :class="{ 'bf-switch-on': saveRecord }" @tap="saveRecord = !saveRecord">
@@ -201,9 +197,7 @@ function handleSubmit() {
 .bf-check { width: 32rpx; height: 32rpx; border-radius: 8rpx; border: 4rpx solid #d1d5db; background: var(--card); display: flex; align-items: center; justify-content: center; }
 .bf-check-on { border-color: var(--brand); background: var(--brand); }
 .bf-opt-label { font-size: 22rpx; color: var(--text-soft); }
-.bf-solar { display: flex; align-items: center; justify-content: space-between; padding: 24rpx 32rpx; background: rgba(0,0,0,0.01); }
-.bf-solar-info { display: flex; flex-direction: column; gap: 4rpx; }
-.bf-solar-line { font-size: 22rpx; color: rgba(120,120,120,0.7); }
+.bf-solar { display: flex; align-items: center; justify-content: flex-end; padding: 24rpx 32rpx; background: rgba(0,0,0,0.01); }
 .bf-save { display: flex; align-items: center; gap: 16rpx; }
 .bf-save-label { font-size: 22rpx; color: var(--text-soft); }
 .bf-switch { width: 88rpx; height: 48rpx; border-radius: 999rpx; background: #d1d5db; position: relative; }

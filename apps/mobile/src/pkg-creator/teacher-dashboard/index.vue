@@ -651,35 +651,6 @@ onLoad(() => {
   border-radius: 20rpx;
 }
 
-/* 收入图表 */
-.td-chart {
-  display: flex;
-  align-items: flex-end;
-  gap: 16rpx;
-  height: 240rpx;
-}
-.td-bar-col {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10rpx;
-  height: 100%;
-  justify-content: flex-end;
-}
-.td-bar {
-  width: 100%;
-  border-radius: 8rpx 8rpx 0 0;
-  background: rgba(196, 30, 58, 0.3);
-}
-.td-bar-active {
-  background: var(--brand);
-}
-.td-bar-label {
-  font-size: 22rpx;
-  color: #999;
-}
-
 /* 课程 */
 .td-course-cover {
   width: 88rpx;

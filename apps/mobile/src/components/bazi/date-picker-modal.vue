@@ -107,6 +107,12 @@ const cols = ['year','month','day','hour'] as const
 const colNames = ['年柱','月柱','日柱','时柱']
 
 function confirm() {
+  // 四柱直接排盘需「四柱→公历」反查，当前排盘链路只吃公历/农历，尚未支持。
+  // 不能静默按默认公历日期出盘（会产错盘），这里拦下并诚实提示，不 emit 垃圾数据。
+  if (mode.value === 'sizhu') {
+    uni.showToast({ title: '四柱直接排盘开发中，请先用公历或农历录入', icon: 'none' })
+    return
+  }
   emit('confirm', {
     year: year.value, month: month.value, day: day.value,
     hour: hour.value, minute: minute.value, isLunar: mode.value === 'lunar',
@@ -156,6 +162,9 @@ function confirm() {
           <view class="dp-sz-clear" @tap="clearSizhu">
             <app-icon name="trash-2" :size="26" color="#9ca3af" /><text class="dp-sz-clear-text">清除</text>
           </view>
+        </view>
+        <view class="dp-sz-notice">
+          <text class="dp-sz-notice-text">四柱直接排盘（干支反查公历）开发中，暂请用「公历 / 农历」录入出生时间</text>
         </view>
         <view v-if="activeRow === 'gan'" class="dp-kb dp-kb-5">
           <view v-for="g in tianGan" :key="g" class="dp-key" @tap="selectGanZhi(g, true)">
@@ -230,6 +239,8 @@ function confirm() {
 .dp-sz-range-text { font-size: 22rpx; color: #9ca3af; }
 .dp-sz-clear { display: flex; align-items: center; gap: 8rpx; }
 .dp-sz-clear-text { font-size: 22rpx; color: #9ca3af; }
+.dp-sz-notice { margin-bottom: 20rpx; padding: 16rpx 20rpx; background: rgba(196,30,58,0.06); border-radius: 12rpx; }
+.dp-sz-notice-text { font-size: 22rpx; color: var(--brand); line-height: 1.5; }
 .dp-kb { display: grid; gap: 16rpx; }
 .dp-kb-5 { grid-template-columns: repeat(5, 1fr); }
 .dp-kb-6 { grid-template-columns: repeat(6, 1fr); }

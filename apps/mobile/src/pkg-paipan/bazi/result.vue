@@ -175,8 +175,29 @@ function confirmEdit() {
 function openNotes() {
   showNotes.value = true
 }
+/** 分享：复制盘面文字摘要（照搬八宅范式，只用引擎真算出来的四柱/五行，不编话） */
 function onShare() {
-  uni.showToast({ title: '分享功能开发中', icon: 'none' })
+  const d: any = data.value
+  const sz = d?.siZhu
+  if (!sz?.year?.gan || !sz?.month?.gan || !sz?.day?.gan || !sz?.hour?.gan) {
+    uni.showToast({ title: '盘面尚未就绪', icon: 'none' })
+    return
+  }
+  const pillar = (k: string) => `${sz[k].gan}${sz[k].zhi}`
+  const wx = d.wuxingState
+    ? Object.entries(d.wuxingState).map(([el, st]) => `${el}${st}`).join(' ')
+    : ''
+  const summary = [
+    `【${BRAND.nameShort}八字】${d.name} · ${d.qianKun}`,
+    `出生：${d.solarDate}${d.lunarDate ? `（${d.lunarDate}）` : ''}`,
+    `四柱：${pillar('year')} ${pillar('month')} ${pillar('day')} ${pillar('hour')}`,
+    wx ? `五行：${wx}` : '',
+    `—— 来自${BRAND.nameShort} · 专业排盘工具`,
+  ].filter(Boolean).join('\n')
+  uni.setClipboardData({
+    data: summary,
+    success: () => uni.showToast({ title: '盘面摘要已复制', icon: 'none' }),
+  })
 }
 </script>
 
