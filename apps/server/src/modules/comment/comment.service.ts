@@ -190,6 +190,18 @@ export class CommentService {
     });
   }
 
+  /** 恢复显示（管理员）——与 hide 对称，置回 PUBLISHED（Comment.status 仅 PUBLISHED/HIDDEN 两态） */
+  async show(commentId: string) {
+    const comment = await this.prisma.comment.findUnique({ where: { id: commentId } });
+    if (!comment) throw new BusinessException(ErrorCode.COMMENT_NOT_FOUND, "评论不存在");
+
+    return this.prisma.comment.update({
+      where: { id: commentId },
+      data: { status: "PUBLISHED" },
+      select: { id: true, status: true },
+    });
+  }
+
   async getCommentCount(targetType: string, targetId: string) {
     return this.prisma.comment.count({
       where: { targetType, targetId, status: "PUBLISHED" },

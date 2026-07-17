@@ -657,16 +657,89 @@ export class CircleMembershipService {
     return { success: true };
   }
 
-  async updateMemberRole(circleId: string, operatorId: string, targetUserId: string, dto: UpdateMemberRoleDto) {
-    await this.shared.checkOwnership(circleId, operatorId);
+  /**
+   * 管理员代加成员（admin 专用·controller 层已做 RolesGuard）。
+   * 复用内部 createMembership（含封禁校验/计数/缓存清理/唯一约束防重）；已是成员则幂等返回现有成员。
+   * role 可选（默认 MEMBER）；不允许 OWNER（转让圈主须走 updateMemberRole 流程）。
+   */
+  async adminAddMember(circleId: string, targetUserId: string, role?: string) {
+    const circle = await this.prisma.circle.findUnique({ where: { id: circleId } });
+    if (!circle) throw new BusinessException(ErrorCode.CIRCLE_NOT_FOUND, "圈子不存在");
+    const user = await this.prisma.user.findUnique({ where: { id: targetUserId }, select: { id: true } });
+    if (!user) throw new BusinessException(ErrorCode.NOT_FOUND, "用户不存在");
+
+    const desiredRole = (role || "MEMBER") as CircleMemberRole;
+    if (desiredRole === "OWNER") throw new BusinessException(ErrorCode.BAD_REQUEST, "不允许直接指定圈主，转让圈主请使用成员角色接口");
+    if (!Object.values(CircleMemberRole).includes(desiredRole)) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "无效的成员角色");
+    }
+
+    const existing = await this.prisma.circleMember.findUnique({
+      where: { circleId_userId: { circleId, userId: targetUserId } },
+    });
+    if (existing) return { ...existing, alreadyMember: true };
+
+    let member;
+    try {
+      member = await this.createMembership(circleId, targetUserId, null);
+    } catch (e: unknown) {
+      // 并发下唯一约束命中 → 幂等返回现有成员
+      if (e instanceof BusinessException && e.errorCode === ErrorCode.CIRCLE_MEMBER_EXISTS) {
+        const raced = await this.prisma.circleMember.findUnique({
+          where: { circleId_userId: { circleId, userId: targetUserId } },
+        });
+        if (raced) return { ...raced, alreadyMember: true };
+      }
+      throw e;
+    }
+    if (desiredRole !== "MEMBER") {
+      member = await this.prisma.circleMember.update({
+        where: { circleId_userId: { circleId, userId: targetUserId } },
+        data: { role: desiredRole },
+      });
+      await this.redis.del(`circles:member:${circleId}:${targetUserId}`);
+    }
+    return member;
+  }
+
+  async updateMemberRole(circleId: string, operatorId: string, targetUserId: string, dto: UpdateMemberRoleDto, opts?: { asAdmin?: boolean }) {
+    // 管理角色 bypass：SUPER_ADMIN/OPERATION_ADMIN（controller 判定）不要求为圈主/成员；C 端原逻辑零变化
+    if (!opts?.asAdmin) {
+      await this.shared.checkOwnership(circleId, operatorId);
+    }
 
     if (dto.role === "OWNER") {
-      // 转让圈主
-      await this.prisma.$transaction([
-        this.prisma.circleMember.update({
+      // 转让圈主。C 端：checkOwnership 已保证 operator 即现圈主；管理端：现圈主从 circle.ownerId 取
+      let fromOwnerId = operatorId;
+      if (opts?.asAdmin) {
+        const circle = await this.prisma.circle.findUnique({ where: { id: circleId } });
+        if (!circle) throw new BusinessException(ErrorCode.CIRCLE_NOT_FOUND, "圈子不存在");
+        fromOwnerId = circle.ownerId;
+        const target = await this.prisma.circleMember.findUnique({
+          where: { circleId_userId: { circleId, userId: targetUserId } },
+        });
+        if (!target) throw new BusinessException(ErrorCode.NOT_FOUND, "该用户不是圈子成员");
+        if (fromOwnerId === targetUserId) return { success: true };
+      }
+      const ops: Prisma.PrismaPromise<unknown>[] = [];
+      if (opts?.asAdmin) {
+        // 管理端：现圈主成员行存在才降级（容忍脏数据缺行）
+        const fromMember = await this.prisma.circleMember.findUnique({
+          where: { circleId_userId: { circleId, userId: fromOwnerId } },
+        });
+        if (fromMember) {
+          ops.push(this.prisma.circleMember.update({
+            where: { circleId_userId: { circleId, userId: fromOwnerId } },
+            data: { role: "MEMBER" },
+          }));
+        }
+      } else {
+        ops.push(this.prisma.circleMember.update({
           where: { circleId_userId: { circleId, userId: operatorId } },
           data: { role: "MEMBER" },
-        }),
+        }));
+      }
+      ops.push(
         this.prisma.circleMember.update({
           where: { circleId_userId: { circleId, userId: targetUserId } },
           data: { role: "OWNER" },
@@ -675,7 +748,9 @@ export class CircleMembershipService {
           where: { id: circleId },
           data: { ownerId: targetUserId },
         }),
-      ]);
+      );
+      await this.prisma.$transaction(ops);
+      await this.redis.del(`circles:member:${circleId}:${fromOwnerId}`);
     } else {
       const existing = await this.prisma.circleMember.findUnique({
         where: { circleId_userId: { circleId, userId: targetUserId } },
@@ -691,9 +766,12 @@ export class CircleMembershipService {
     return { success: true };
   }
 
-  async removeMember(circleId: string, operatorId: string, targetUserId: string) {
+  async removeMember(circleId: string, operatorId: string, targetUserId: string, opts?: { asAdmin?: boolean }) {
     // 治理 #8：移出圈子为锁定权限项·硬编码仅圈主（设计稿金锁·能禁言的不能移出）
-    await this.shared.checkPermission(circleId, operatorId, "member.remove");
+    // 管理角色 bypass：SUPER_ADMIN/OPERATION_ADMIN（controller 判定）跳过圈内身份校验；「不能移除圈主」硬约束保留
+    if (!opts?.asAdmin) {
+      await this.shared.checkPermission(circleId, operatorId, "member.remove");
+    }
 
     const member = await this.prisma.circleMember.findUnique({
       where: { circleId_userId: { circleId, userId: targetUserId } },

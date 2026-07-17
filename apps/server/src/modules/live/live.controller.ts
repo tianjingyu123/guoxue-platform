@@ -180,7 +180,8 @@ export class LiveController {
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   updateRoom(@Req() req: AuthRequest, @Param("id") id: string, @Body() dto: UpdateRoomDto) {
-    return this.svc.updateRoom(req.user.id, id, dto);
+    // 平台管理员（超管/运营）可编辑任意直播间——与开播/下播「房主或管理员」口径一致
+    return this.svc.updateRoom(req.user.id, id, dto, this.isAdmin(req));
   }
 
   @Put("rooms/:id/start")

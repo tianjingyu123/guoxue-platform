@@ -7,8 +7,8 @@ import { safePagination } from "../../../common/pagination";
 import { PrismaService } from "../../../prisma/prisma.service";
 import { RedisService } from "../../../redis/redis.service";
 import { AuditService } from "../../audit/audit.service";
-import { CreateCircleDto, UpdateCircleDto } from "../circle.dto";
-import { Prisma, CircleType } from "@prisma/client";
+import { CreateCircleDto, UpdateCircleDto, AdminUpdateCircleDto } from "../circle.dto";
+import { Prisma, CircleType, CircleStatus } from "@prisma/client";
 import { CircleSharedService } from "./circle-shared.service";
 
 /**
@@ -92,6 +92,59 @@ export class CircleCoreService {
       this.redis.del(`circles:detail:${circleId}`),
     ]);
     return { ...updated, ...(needApproval !== undefined ? { needApproval: !!needApproval } : {}) };
+  }
+
+  // ───────── 管理端专用（SUPER_ADMIN/OPERATION_ADMIN·不走 checkOwnership·controller 层已做 RolesGuard） ─────────
+
+  /** 管理员启停圈子：reason 必填并记入审计日志（含变更前状态，可回溯） */
+  async adminSetStatus(circleId: string, adminUserId: string, status: "ACTIVE" | "DISABLED", reason: string, ip?: string) {
+    const circle = await this.prisma.circle.findUnique({ where: { id: circleId } });
+    if (!circle) throw new BusinessException(ErrorCode.CIRCLE_NOT_FOUND, "圈子不存在");
+    const updated = await this.prisma.circle.update({
+      where: { id: circleId },
+      data: { status: status as CircleStatus },
+    });
+    await Promise.all([
+      this.redis.delByPattern("circles:list:*"),
+      this.redis.del(`circles:detail:${circleId}`),
+    ]);
+    await this.audit.log({
+      userId: adminUserId,
+      action: "管理员启停圈子",
+      targetType: "CIRCLE",
+      targetId: circleId,
+      detail: `状态 ${circle.status} -> ${status}；原因：${reason}`,
+      rollbackData: { prevStatus: circle.status },
+      ip,
+    });
+    return updated;
+  }
+
+  /** 管理员更新圈子资料：严格白名单（name/intro/cover/categoryLevel1/categoryLevel2），逐字段显式取值防越权写入 */
+  async adminUpdate(circleId: string, adminUserId: string, dto: AdminUpdateCircleDto, ip?: string) {
+    const circle = await this.prisma.circle.findUnique({ where: { id: circleId } });
+    if (!circle) throw new BusinessException(ErrorCode.CIRCLE_NOT_FOUND, "圈子不存在");
+    const data: Prisma.CircleUpdateInput = {};
+    if (dto.name !== undefined) data.name = dto.name;
+    if (dto.intro !== undefined) data.intro = dto.intro;
+    if (dto.cover !== undefined) data.cover = dto.cover;
+    if (dto.categoryLevel1 !== undefined) data.categoryLevel1 = dto.categoryLevel1;
+    if (dto.categoryLevel2 !== undefined) data.categoryLevel2 = dto.categoryLevel2;
+    if (Object.keys(data).length === 0) throw new BusinessException(ErrorCode.BAD_REQUEST, "没有需要更新的字段");
+    const updated = await this.prisma.circle.update({ where: { id: circleId }, data });
+    await Promise.all([
+      this.redis.delByPattern("circles:list:*"),
+      this.redis.del(`circles:detail:${circleId}`),
+    ]);
+    await this.audit.log({
+      userId: adminUserId,
+      action: "管理员更新圈子资料",
+      targetType: "CIRCLE",
+      targetId: circleId,
+      detail: `更新字段：${Object.keys(data).join(",")}`,
+      ip,
+    });
+    return updated;
   }
 
   async getDetail(circleId: string, userId?: string) {

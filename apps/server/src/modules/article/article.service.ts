@@ -159,39 +159,52 @@ export class ArticleService {
     tag?: string;
     isPushHome?: boolean;
     auditStatus?: string;
+    keyword?: string;
     stationId?: string;
+    isAdmin?: boolean;
   }) {
-    const { circleId, tag, isPushHome, auditStatus, stationId } = params;
+    const { circleId, tag, isPushHome, auditStatus, keyword, stationId, isAdmin } = params;
     const { page, pageSize, skip } = safePagination(params.page, params.pageSize);
     const filterHash = `${circleId ?? ""}:${tag ?? ""}:${isPushHome ?? ""}:${auditStatus ?? ""}`;
     const cacheKey = `articles:list:${page}:${pageSize}:${filterHash}`;
 
-    const cached = await this.redis.getJson<any>(cacheKey);
-    if (cached) return cached;
+    // 管理端（isAdmin）不走缓存：审核工作台需实时数据，且避免与 C 端共享缓存键互相污染
+    if (!isAdmin) {
+      const cached = await this.redis.getJson<any>(cacheKey);
+      if (cached) return cached;
+    }
 
     const where: Prisma.ArticleWhereInput = {};
 
     if (circleId) where.circleId = circleId;
     if (tag) where.tags = { has: tag };
     if (isPushHome !== undefined) where.isPushHome = isPushHome;
-    if (auditStatus) where.auditStatus = auditStatus; // 管理端显式指定状态时不加开放范围过滤（可见全部）
-    else {
+    if (isAdmin) {
+      // 管理角色：不强制 APPROVED、不强制 PLATFORM——审核闭环可见全量（含待审/驳回·排除草稿）
+      if (auditStatus) where.auditStatus = auditStatus;
+      else where.auditStatus = { not: "DRAFT" };
+      if (keyword) where.title = { contains: keyword, mode: "insensitive" };
+    } else {
       where.auditStatus = "APPROVED"; // 默认只返回审核通过的
       // 平台公共池（未按圈子过滤）只出「全平台开放」内容；圈内列表（带 circleId）圈内内容全可见
       if (!circleId) where.visibility = "PLATFORM";
     }
     if (stationId) where.stationId = stationId;
 
+    const select = {
+      id: true, title: true, cover: true, excerpt: true, tags: true,
+      viewCount: true, likeCount: true, collectCount: true,
+      createdAt: true,
+      user: { select: { id: true, nickname: true, avatar: true } },
+      circle: { select: { id: true, name: true } },
+      // 管理端补审核状态与开放范围（C 端 select 保持原样不变）
+      ...(isAdmin ? { auditStatus: true, visibility: true, isPushHome: true } : {}),
+    } satisfies Prisma.ArticleSelect;
+
     const [articles, total] = await Promise.all([
       this.prisma.article.findMany({
         where,
-        select: {
-          id: true, title: true, cover: true, excerpt: true, tags: true,
-          viewCount: true, likeCount: true, collectCount: true,
-          createdAt: true,
-          user: { select: { id: true, nickname: true, avatar: true } },
-          circle: { select: { id: true, name: true } },
-        },
+        select,
         skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
@@ -200,7 +213,7 @@ export class ArticleService {
     ]);
 
     const data = paginated(articles, total, page, pageSize);
-    await this.redis.setJson(cacheKey, data, 300);
+    if (!isAdmin) await this.redis.setJson(cacheKey, data, 300);
     return data;
   }
 
@@ -261,7 +274,7 @@ export class ArticleService {
 
   // ───────── 审核管理 ─────────
 
-  async auditArticle(articleId: string, auditStatus: string) {
+  async auditArticle(articleId: string, auditStatus: string, opts?: { operatorId?: string; reason?: string }) {
     const VALID_STATUSES = ["PENDING", "APPROVED", "REJECTED"];
     if (!VALID_STATUSES.includes(auditStatus)) {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "无效的审核状态");
@@ -269,10 +282,27 @@ export class ArticleService {
     const article = await this.prisma.article.findUnique({ where: { id: articleId } });
     if (!article) throw new BusinessException(ErrorCode.ARTICLE_NOT_FOUND, "文章不存在");
 
-    return this.prisma.article.update({
+    const updated = await this.prisma.article.update({
       where: { id: articleId },
       data: { auditStatus },
     });
+
+    // 留痕：Article 无驳回理由字段（只读核实 schema），审核动作+理由统一记 AuditLog（可回滚数据带原状态）
+    await this.audit.log({
+      userId: opts?.operatorId,
+      action: auditStatus === "APPROVED" ? "ARTICLE_AUDIT_APPROVE" : auditStatus === "REJECTED" ? "ARTICLE_AUDIT_REJECT" : "ARTICLE_AUDIT_PENDING",
+      targetType: "ARTICLE",
+      targetId: articleId,
+      detail: JSON.stringify({ from: article.auditStatus, to: auditStatus, reason: opts?.reason || undefined }),
+      rollbackData: { auditStatus: article.auditStatus },
+    });
+
+    // 审核状态变更影响 C 端可见性 → 列表/详情缓存失效（原实现漏了此步·顺带修复）
+    await Promise.all([
+      this.redis.delByPattern("articles:list:*"),
+      this.redis.del(`articles:detail:${articleId}`),
+    ]);
+    return updated;
   }
 
   // ───────── 推荐卡片 ─────────

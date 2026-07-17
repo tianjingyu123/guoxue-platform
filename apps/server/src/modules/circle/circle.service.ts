@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import { CreateCircleDto, UpdateCircleDto, CreatePostDto, JoinCircleDto, UpdateMemberRoleDto } from "./circle.dto";
+import { CreateCircleDto, UpdateCircleDto, AdminUpdateCircleDto, CreatePostDto, JoinCircleDto, UpdateMemberRoleDto } from "./circle.dto";
 import { CircleCoreService } from "./services/circle-core.service";
 import { CircleMembershipService } from "./services/circle-membership.service";
 import { CirclePostService } from "./services/circle-post.service";
@@ -34,6 +34,20 @@ export class CircleService {
 
   update(circleId: string, userId: string, dto: UpdateCircleDto) {
     return this.coreSvc.update(circleId, userId, dto);
+  }
+
+  // ───────── 管理端专用（SUPER_ADMIN/OPERATION_ADMIN·controller 层 RolesGuard 把关） ─────────
+
+  adminSetStatus(circleId: string, adminUserId: string, status: "ACTIVE" | "DISABLED", reason: string, ip?: string) {
+    return this.coreSvc.adminSetStatus(circleId, adminUserId, status, reason, ip);
+  }
+
+  adminUpdate(circleId: string, adminUserId: string, dto: AdminUpdateCircleDto, ip?: string) {
+    return this.coreSvc.adminUpdate(circleId, adminUserId, dto, ip);
+  }
+
+  adminAddMember(circleId: string, targetUserId: string, role?: string) {
+    return this.membershipSvc.adminAddMember(circleId, targetUserId, role);
   }
 
   getDetail(circleId: string, userId?: string) {
@@ -148,12 +162,12 @@ export class CircleService {
     return this.membershipSvc.leave(circleId, userId);
   }
 
-  updateMemberRole(circleId: string, operatorId: string, targetUserId: string, dto: UpdateMemberRoleDto) {
-    return this.membershipSvc.updateMemberRole(circleId, operatorId, targetUserId, dto);
+  updateMemberRole(circleId: string, operatorId: string, targetUserId: string, dto: UpdateMemberRoleDto, opts?: { asAdmin?: boolean }) {
+    return this.membershipSvc.updateMemberRole(circleId, operatorId, targetUserId, dto, opts);
   }
 
-  removeMember(circleId: string, operatorId: string, targetUserId: string) {
-    return this.membershipSvc.removeMember(circleId, operatorId, targetUserId);
+  removeMember(circleId: string, operatorId: string, targetUserId: string, opts?: { asAdmin?: boolean }) {
+    return this.membershipSvc.removeMember(circleId, operatorId, targetUserId, opts);
   }
 
   listMembers(circleId: string, rawPage = 1, rawPageSize = 20) {

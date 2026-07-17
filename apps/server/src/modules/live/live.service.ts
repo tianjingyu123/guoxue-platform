@@ -84,10 +84,11 @@ export class LiveService {
     return room;
   }
 
-  async updateRoom(userId: string, id: string, dto: UpdateRoomDto) {
+  async updateRoom(userId: string, id: string, dto: UpdateRoomDto, isAdmin = false) {
     const room = await this.prisma.liveRoom.findUnique({ where: { id }, select: { hostUserId: true } });
     if (!room) throw new BusinessException(ErrorCode.LIVE_ROOM_NOT_FOUND);
-    if (room.hostUserId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能修改自己的直播间");
+    // 平台管理员豁免归属校验（管理端编辑任意直播间）；普通用户仍只能改自己的
+    if (!isAdmin && room.hostUserId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能修改自己的直播间");
     return this.prisma.liveRoom.update({ where: { id }, data: dto as unknown as Prisma.LiveRoomUpdateInput });
   }
 

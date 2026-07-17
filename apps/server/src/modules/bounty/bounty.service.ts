@@ -182,29 +182,43 @@ export class BountyService {
     });
   }
 
-  async listReviews(rawPage = 1, rawPageSize = 20) {
+  async listReviews(rawPage = 1, rawPageSize = 20, status?: string) {
     const { page, pageSize, skip } = safePagination(rawPage, rawPageSize, NO_PAGE_LIMIT);
+    // 状态过滤（PENDING/APPROVED/REJECTED）——非法值忽略，行为同不传
+    const VALID_STATUSES = ["PENDING", "APPROVED", "REJECTED"];
+    const where = status && VALID_STATUSES.includes(status) ? { status } : undefined;
     const [reviews, total] = await Promise.all([
       this.prisma.bountyReview.findMany({
+        where,
         skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),
-      this.prisma.bountyReview.count(),
+      this.prisma.bountyReview.count({ where }),
     ]);
-    // 批量查询关联问题标题
+    // 批量查询关联问题（BountyReview 与 BountyQuestion 无 Prisma relation·只能按 questionId 手工联查）
+    // 补被审内容摘要与悬赏金额：标题+问题描述摘要+答案摘要+金额+问题状态
     const questionIds = [...new Set(reviews.map((r) => r.questionId))];
     const questions = questionIds.length
       ? await this.prisma.bountyQuestion.findMany({
           where: { id: { in: questionIds } },
-          select: { id: true, title: true },
+          select: { id: true, title: true, description: true, answer: true, bountyCoin: true, bountyRmb: true, status: true, category: true },
         })
       : [];
-    const titleMap = new Map(questions.map((q) => [q.id, q.title]));
-    const list = reviews.map((r) => ({
-      ...r,
-      questionTitle: titleMap.get(r.questionId) || "",
-    }));
+    const questionMap = new Map(questions.map((q) => [q.id, q]));
+    const list = reviews.map((r) => {
+      const q = questionMap.get(r.questionId);
+      return {
+        ...r,
+        questionTitle: q?.title || "",
+        questionExcerpt: q?.description ? q.description.slice(0, 100) : "",
+        answerExcerpt: q?.answer ? q.answer.slice(0, 100) : "",
+        bountyCoin: q?.bountyCoin ?? 0,
+        bountyRmb: q?.bountyRmb ?? null,
+        questionStatus: q?.status || "",
+        category: q?.category || "",
+      };
+    });
     return { list, total, page, pageSize };
   }
 

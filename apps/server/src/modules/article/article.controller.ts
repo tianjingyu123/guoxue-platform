@@ -3,6 +3,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiResponse } from "@ne
 import { ArticleService } from "./article.service";
 import { CreateArticleDto, UpdateArticleDto, AddRecommendDto } from "./article.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
+import { OptionalAuthGuard } from "../../common/optional-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
 import { RedLineGate, RedLine } from "../../common/red-lines";
@@ -36,21 +37,30 @@ export class ArticleController {
   }
 
   @Get()
-  @ApiOperation({ summary: "获取文章列表" })
+  @UseGuards(OptionalAuthGuard)
+  @ApiOperation({ summary: "获取文章列表（管理角色可传 auditStatus/keyword 查看全量·C 端行为不变）" })
   @ApiResponse({ status: 200, description: "成功" })
   @ApiQuery({ name: "page", required: false, type: Number, description: "页码" })
   @ApiQuery({ name: "pageSize", required: false, type: Number, description: "每页条数" })
   @ApiQuery({ name: "circleId", required: false, type: String, description: "圈子ID" })
   @ApiQuery({ name: "tag", required: false, type: String, description: "标签" })
   @ApiQuery({ name: "isPushHome", required: false, type: String, description: "是否推送首页" })
+  @ApiQuery({ name: "auditStatus", required: false, type: String, description: "审核状态过滤（仅管理角色生效）：PENDING/APPROVED/REJECTED" })
+  @ApiQuery({ name: "keyword", required: false, type: String, description: "标题模糊搜索（仅管理角色生效）" })
   list(
     @Query("page") page = 1,
     @Query("pageSize") pageSize = 20,
     @Query("circleId") circleId?: string,
     @Query("tag") tag?: string,
     @Query("isPushHome") isPushHome?: string,
+    @Query("auditStatus") auditStatus?: string,
+    @Query("keyword") keyword?: string,
     @StationId() stationId?: string,
+    @Req() req?: Request,
   ) {
+    // 管理角色判定：OptionalAuthGuard 有 JWT 时解析出 req.user（含 roles），无 JWT 时 req.user = undefined
+    const roles = (req?.user as { roles?: string[] } | undefined)?.roles || [];
+    const isAdmin = roles.some((r) => r === "SUPER_ADMIN" || r === "OPERATION_ADMIN" || r === "CONTENT_AUDITOR");
     return this.article.listArticles({
       page: +page,
       pageSize: +pageSize,
@@ -58,6 +68,10 @@ export class ArticleController {
       tag,
       isPushHome: isPushHome === "true" ? true : isPushHome === "false" ? false : undefined,
       stationId,
+      // 管理端专属参数：非管理角色一律忽略——C 端行为逐字节不变
+      auditStatus: isAdmin ? auditStatus : undefined,
+      keyword: isAdmin ? keyword : undefined,
+      isAdmin,
     });
   }
 
@@ -142,16 +156,21 @@ export class ArticleController {
   @Put(":id/audit")
   @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
-  @ApiOperation({ summary: "审核文章" })
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR")
+  @ApiOperation({ summary: "审核文章（通过/驳回·驳回理由记审计日志）" })
   @ApiResponse({ status: 200, description: "更新成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 404, description: "资源不存在" })
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
-  audit(@Param("id") id: string, @Body("status") status: string) {
-    return this.article.auditArticle(id, status);
+  audit(
+    @Param("id") id: string,
+    @Req() req: Request,
+    @Body("status") status: string,
+    @Body("reason") reason?: string,
+  ) {
+    return this.article.auditArticle(id, status, { operatorId: req.user.id, reason });
   }
 
   // ───────── 推荐卡片 ─────────

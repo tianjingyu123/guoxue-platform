@@ -100,9 +100,10 @@ describe("ArticleController", () => {
   });
 
   it("PUT /articles/:id/audit — 审核文章", async () => {
-    const result: any = await ctrl.audit("a1", "APPROVED");
+    const req: any = { user: { id: "admin1", roles: ["OPERATION_ADMIN"] } };
+    const result: any = await ctrl.audit("a1", req, "APPROVED");
     expect(result.auditStatus).toBe("APPROVED");
-    expect(mockArticleSvc.auditArticle).toHaveBeenCalledWith("a1", "APPROVED");
+    expect(mockArticleSvc.auditArticle).toHaveBeenCalledWith("a1", "APPROVED", { operatorId: "admin1", reason: undefined });
   });
 
   it("POST /articles/:id/recommends — 添加推荐", async () => {

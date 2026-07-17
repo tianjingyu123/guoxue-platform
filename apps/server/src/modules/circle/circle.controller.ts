@@ -1,9 +1,12 @@
 import { Controller, Get, Post, Put, Delete, Body, Param, Query, Req, UseGuards, UsePipes } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiBody, ApiQuery, ApiResponse } from "@nestjs/swagger";
 import { CircleService } from "./circle.service";
-import { CreateCircleDto, UpdateCircleDto, CreatePostDto, JoinCircleDto, UpdateMemberRoleDto, ExpertConfigDto } from "./circle.dto";
+import { CreateCircleDto, UpdateCircleDto, AdminSetCircleStatusDto, AdminUpdateCircleDto, AdminAddMemberDto, CreatePostDto, JoinCircleDto, UpdateMemberRoleDto, ExpertConfigDto } from "./circle.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { OptionalAuthGuard } from "../../common/optional-auth.guard";
+import { RolesGuard } from "../../common/roles.guard";
+import { Roles } from "../../common/roles.decorator";
+import { Auditable } from "../../common/audit.decorator";
 import { CircleInsightService } from "./services/circle-insight.service";
 import { StationIsolationGuard } from "../../common/station-isolation.guard";
 import { StationId } from "../../common/station-id.decorator";
@@ -19,6 +22,12 @@ export class CircleController {
     private circle: CircleService,
     private insight: CircleInsightService,
   ) {}
+
+  /** 平台管理角色判定（SUPER_ADMIN/OPERATION_ADMIN）——用于 C 端复用端点上的管理 bypass */
+  private isPlatformAdmin(req: Request): boolean {
+    const roles: string[] = (req.user?.roles as string[]) || [];
+    return roles.includes("SUPER_ADMIN") || roles.includes("OPERATION_ADMIN");
+  }
 
   // ───────── #37 AI 搜索推荐（静态段路由·可匿名·fail-open） ─────────
 
@@ -168,6 +177,48 @@ export class CircleController {
   @ApiResponse({ status: 404, description: "圈子不存在" })
   update(@Param("id") id: string, @Req() req: Request, @Body() dto: UpdateCircleDto) {
     return this.circle.update(id, req.user.id, dto);
+  }
+
+  // ───────── 管理端专用（SUPER_ADMIN/OPERATION_ADMIN·不走本人所有权校验） ─────────
+
+  @Put(":id/admin-status")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @Auditable({ action: "管理员启停圈子", targetType: "CIRCLE" })
+  @ApiOperation({ summary: "管理员启停圈子（admin 专用）", description: "reason 必填并记入审计日志；不走圈主所有权校验" })
+  @ApiBearerAuth()
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 403, description: "无权限（需 SUPER_ADMIN/OPERATION_ADMIN）" })
+  @ApiResponse({ status: 404, description: "圈子不存在" })
+  adminSetStatus(@Param("id") id: string, @Req() req: Request, @Body() dto: AdminSetCircleStatusDto) {
+    return this.circle.adminSetStatus(id, req.user.id, dto.status, dto.reason, req.ip);
+  }
+
+  @Put(":id/admin-update")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @UsePipes(new SanitizePipe())
+  @Auditable({ action: "管理员更新圈子资料", targetType: "CIRCLE" })
+  @ApiOperation({ summary: "管理员更新圈子资料（admin 专用）", description: "严格白名单：name/intro/cover/categoryLevel1/categoryLevel2；不走圈主所有权校验" })
+  @ApiBearerAuth()
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 403, description: "无权限（需 SUPER_ADMIN/OPERATION_ADMIN）" })
+  @ApiResponse({ status: 404, description: "圈子不存在" })
+  adminUpdate(@Param("id") id: string, @Req() req: Request, @Body() dto: AdminUpdateCircleDto) {
+    return this.circle.adminUpdate(id, req.user.id, dto, req.ip);
+  }
+
+  @Post(":id/admin-add-member")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @Auditable({ action: "管理员添加圈子成员", targetType: "CIRCLE" })
+  @ApiOperation({ summary: "管理员添加圈子成员（admin 专用）", description: "目标为指定 userId（非管理员本人）；已是成员则幂等返回；role 可选默认 MEMBER，不允许 OWNER" })
+  @ApiBearerAuth()
+  @ApiResponse({ status: 201, description: "添加成功（或已是成员幂等返回）" })
+  @ApiResponse({ status: 403, description: "无权限（需 SUPER_ADMIN/OPERATION_ADMIN）" })
+  @ApiResponse({ status: 404, description: "圈子或用户不存在" })
+  adminAddMember(@Param("id") id: string, @Body() dto: AdminAddMemberDto) {
+    return this.circle.adminAddMember(id, dto.userId, dto.role);
   }
 
   // ───────── 圈子公告 ─────────
@@ -363,7 +414,8 @@ export class CircleController {
     @Req() req: Request,
     @Body() dto: UpdateMemberRoleDto,
   ) {
-    return this.circle.updateMemberRole(circleId, req.user.id, targetUserId, dto);
+    // 管理角色（SUPER_ADMIN/OPERATION_ADMIN）bypass 圈内身份校验；普通用户原逻辑零变化
+    return this.circle.updateMemberRole(circleId, req.user.id, targetUserId, dto, { asAdmin: this.isPlatformAdmin(req) });
   }
 
   @Delete(":id/members/:userId")
@@ -379,7 +431,8 @@ export class CircleController {
     @Param("userId") targetUserId: string,
     @Req() req: Request,
   ) {
-    return this.circle.removeMember(circleId, req.user.id, targetUserId);
+    // 管理角色（SUPER_ADMIN/OPERATION_ADMIN）bypass 圈内身份校验；「不能移除圈主」硬约束保留
+    return this.circle.removeMember(circleId, req.user.id, targetUserId, { asAdmin: this.isPlatformAdmin(req) });
   }
 
   // ───────── 帖子 ─────────
@@ -491,7 +544,9 @@ export class CircleController {
   @ApiResponse({ status: 401, description: "未认证" })
   @ApiResponse({ status: 403, description: "无权限（需圈主/管理员/嘉宾）" })
   setExpertConfig(@Param("id") circleId: string, @Req() req: Request, @Body() dto: ExpertConfigDto) {
-    return this.circle.setExpertConfig(circleId, req.user.id, dto);
+    // 管理角色（SUPER_ADMIN/OPERATION_ADMIN）且传 userId 时替该用户配置；其余情况维持原状（配置本人）
+    const targetUserId = dto.userId && this.isPlatformAdmin(req) ? dto.userId : req.user.id;
+    return this.circle.setExpertConfig(circleId, targetUserId, dto);
   }
 
   @Get(":id/expert/:userId")

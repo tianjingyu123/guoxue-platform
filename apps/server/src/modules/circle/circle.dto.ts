@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { IsString, IsOptional, IsArray, MinLength, MaxLength, IsNumber, IsInt, Min, Max, IsBoolean, ValidateNested, ArrayMaxSize } from "class-validator";
+import { IsString, IsOptional, IsArray, MinLength, MaxLength, IsNumber, IsInt, Min, Max, IsBoolean, IsIn, ValidateNested, ArrayMaxSize } from "class-validator";
 import { Type } from "class-transformer";
 
 export class CreateCircleDto {
@@ -78,6 +78,69 @@ export class UpdateCircleDto {
   @IsBoolean()
   @IsOptional()
   needApproval?: boolean;
+}
+
+/**
+ * 管理员启停圈子 DTO（admin 专用·PUT /circles/:id/admin-status）。
+ * CircleStatus 枚举仅 ACTIVE/DISABLED/PENDING（schema.prisma:329-333），管理端只允许启/停两态。
+ */
+export class AdminSetCircleStatusDto {
+  @ApiProperty({ description: "目标状态", enum: ["ACTIVE", "DISABLED"] })
+  @IsIn(["ACTIVE", "DISABLED"])
+  status: "ACTIVE" | "DISABLED";
+
+  @ApiProperty({ description: "操作原因（必填·记入审计日志）", maxLength: 500 })
+  @IsString()
+  @MinLength(1)
+  @MaxLength(500)
+  reason: string;
+}
+
+/** 管理员更新圈子 DTO（admin 专用·严格白名单：仅 name/intro/cover/categoryLevel1/categoryLevel2） */
+export class AdminUpdateCircleDto {
+  @ApiPropertyOptional({ description: "圈子名称" })
+  @IsString()
+  @IsOptional()
+  @MinLength(2)
+  @MaxLength(30)
+  name?: string;
+
+  @ApiPropertyOptional({ description: "圈子简介" })
+  @IsString()
+  @IsOptional()
+  @MaxLength(500)
+  intro?: string;
+
+  @ApiPropertyOptional({ description: "封面图URL" })
+  @IsString()
+  @IsOptional()
+  @MaxLength(1000)
+  cover?: string;
+
+  @ApiPropertyOptional({ description: "一级品类" })
+  @IsString()
+  @IsOptional()
+  @MaxLength(50)
+  categoryLevel1?: string;
+
+  @ApiPropertyOptional({ description: "二级品类" })
+  @IsString()
+  @IsOptional()
+  @MaxLength(50)
+  categoryLevel2?: string;
+}
+
+/** 管理员代加成员 DTO（admin 专用·POST /circles/:id/admin-add-member·已是成员则幂等返回） */
+export class AdminAddMemberDto {
+  @ApiProperty({ description: "目标用户ID" })
+  @IsString()
+  @MinLength(1)
+  userId: string;
+
+  @ApiPropertyOptional({ description: "成员角色（默认 MEMBER；不允许 OWNER，转让圈主请走成员角色接口）", enum: ["PARTNER", "ADMIN", "GUEST", "VOLUNTEER", "MEMBER"] })
+  @IsString()
+  @IsOptional()
+  role?: string;
 }
 
 /** 帖子附件（文件卡：文件名+大小+下载 URL·存 Post.attachments JSONB） */
@@ -285,4 +348,9 @@ export class SetGuestShareRateDto {
   @Min(0)
   @Max(100)
   shareRate: number;
+
+  @ApiPropertyOptional({ description: "圈子ID（SUPER_ADMIN/OPERATION_ADMIN 跨圈操作时传入；圈主本人无需传）" })
+  @IsString()
+  @IsOptional()
+  circleId?: string;
 }
