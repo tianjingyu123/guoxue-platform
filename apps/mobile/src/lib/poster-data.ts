@@ -11,10 +11,13 @@ import { BRAND } from '@/lib/brand'
 import { circleDetailApi } from '@/lib/circle-detail-data'
 import { articleApi } from '@/lib/article-data'
 import { liveApi } from '@/lib/live-data'
+import { shopApi } from '@/lib/shop-data'
+import { courseApi } from '@/lib/course-data'
 import { apiGet } from '@/utils/request'
 import { getStorage } from '@/utils/storage'
+import { formatPrice } from '@/utils/format'
 
-export type PosterType = 'invite' | 'circle' | 'post' | 'article' | 'live'
+export type PosterType = 'invite' | 'circle' | 'post' | 'article' | 'live' | 'product' | 'course'
 
 export interface PosterData {
   type: PosterType
@@ -129,6 +132,8 @@ const TYPE_TITLE: Record<PosterType, string> = {
   post: '分享动态',
   article: '分享文章',
   live: '分享直播',
+  product: '分享商品',
+  course: '分享课程',
 }
 
 export function getPosterTypeTitle(type: PosterType): string {
@@ -234,23 +239,68 @@ export async function getPosterData(type: PosterType, targetId?: string, circleI
     }
   }
 
-  // live —— 后端 LiveItem 无简介字段，不编（数据流铁律），desc 只陈述真实信息
-  const r = await liveApi.getWatch(targetId)
-  return {
-    code: 200,
-    data: {
-      type: 'live',
-      title: r?.title || '直播',
-      subtitle: '名师直播 · 在线互动',
-      desc: r?.hostName ? `${r.hostName} 主讲，实时互动答疑。` : '',
-      author: r?.hostName || '',
-      authorAvatar: r?.hostAvatar || '',
-      qrcode: '',
-      qrLabel: '长按识别，进入直播',
-      tag: '直播',
-      link: h5Link(`pkg-live/watch/index?id=${targetId}`),
-    },
+  if (type === 'product') {
+    const p = await shopApi.getProduct(targetId)
+    return {
+      code: 200,
+      data: {
+        type: 'product',
+        title: p.title,
+        subtitle: `¥${formatPrice(p.price)}`,
+        desc: p.subtitle || excerpt(p.description),
+        author: p.merchant?.shopName || BRAND.name,
+        authorAvatar: p.merchant?.shopLogo || '',
+        qrcode: '',
+        qrLabel: '长按识别，查看商品',
+        tag: '商品',
+        link: h5Link(`pkg-mall/product/detail?id=${targetId}`),
+      },
+    }
   }
+
+  if (type === 'course') {
+    const c = await courseApi.getDetail(targetId)
+    return {
+      code: 200,
+      data: {
+        type: 'course',
+        title: c.title,
+        subtitle: c.isFree ? '免费课程' : `¥${formatPrice(c.price)}`,
+        desc: excerpt(c.description),
+        author: c.instructor?.name || '',
+        authorAvatar: c.instructor?.avatar || '',
+        qrcode: '',
+        qrLabel: '长按识别，查看课程',
+        tag: '课程',
+        link: h5Link(`pkg-course/detail/index?id=${targetId}`),
+      },
+    }
+  }
+
+  if (type === 'live') {
+    // live —— 后端 LiveItem 无简介字段，不编（数据流铁律），desc 只陈述真实信息
+    const r = await liveApi.getWatch(targetId)
+    return {
+      code: 200,
+      data: {
+        type: 'live',
+        title: r?.title || '直播',
+        subtitle: '名师直播 · 在线互动',
+        desc: r?.hostName ? `${r.hostName} 主讲，实时互动答疑。` : '',
+        author: r?.hostName || '',
+        authorAvatar: r?.hostAvatar || '',
+        qrcode: '',
+        qrLabel: '长按识别，进入直播',
+        tag: '直播',
+        link: h5Link(`pkg-live/watch/index?id=${targetId}`),
+      },
+    }
+  }
+
+  /* 🔴 原来这里是「未匹配一律按直播兜底」—— openPoster('product'/'course') 传进来的新类型
+   * 全被画成直播海报（标题/主播/二维码全指向别人的直播间），用户发出去就是对外事故。
+   * 未支持类型必须显式报错，由页面走错误态，绝不生成张冠李戴的海报。 */
+  throw new Error('暂不支持该内容的分享海报')
 }
 
 export function recordPosterShare(_type: PosterType, _targetId: string | undefined, _action: string): Promise<{ code: number }> {
