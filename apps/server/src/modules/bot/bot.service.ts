@@ -144,6 +144,16 @@ export class BotService {
     return { success: true };
   }
 
+  /** Coze 凭证是否真实可用：种子占位（botId "coze_xx_001"、apiKey "sk_dev_placeholder"）
+   *  能过非空校验但一对话必失败——广场不陈列坏品（董事长 2026-07-17 拍板下架不能用的） */
+  private isConfigured(bot: { botId: string; apiKey: string }): boolean {
+    if (!bot.botId || !bot.apiKey) return false;
+    if (bot.apiKey === "sk_dev_placeholder") return false;
+    // 真实 Coze bot_id 是纯数字长串；种子占位是 "coze_customer_001" 一类
+    if (/^coze_/i.test(bot.botId)) return false;
+    return true;
+  }
+
   async list(type?: string) {
     const where: Prisma.BotConfigWhereInput = { status: "ACTIVE" };
     if (type) where.type = type;
@@ -153,8 +163,10 @@ export class BotService {
       orderBy: { sortOrder: "asc" },
       take: 100,
     });
-    // apiKey 不对外暴露
-    return bots.map(({ apiKey: _apiKey, ...rest }) => rest);
+    // C 端只下发真实可对话的智能体（占位凭证=下架）；apiKey 不对外暴露
+    return bots
+      .filter((b) => this.isConfigured(b))
+      .map(({ apiKey: _apiKey, ...rest }) => rest);
   }
 
   async getDetail(id: string) {

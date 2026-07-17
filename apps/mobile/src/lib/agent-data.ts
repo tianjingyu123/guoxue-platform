@@ -24,6 +24,10 @@ export interface ChatMessage {
   recommendation?: Recommendation
   /** 用户是否已同意查看推荐 */
   recoConsented?: boolean
+  /** 回复失败气泡（气泡内展示错误+重试，不再只弹一次性 toast） */
+  isError?: boolean
+  /** 失败时暂存原提问，供「重试」直接重发 */
+  failedQuery?: string
 }
 
 export interface RecommendItem {

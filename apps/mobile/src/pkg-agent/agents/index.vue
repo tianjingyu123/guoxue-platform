@@ -214,13 +214,19 @@
           </view>
         </view>
         <view class="cat-grid">
+          <!-- 印面卡（2026-07-17 重设计）：1:1 主视觉=毛玻璃圆底楷体大字+呼吸金晕+流动渐变，
+               替换 150rpx 扁横幅里"小头像+水印首字出现两次"的旧观感；语音智能体凸显「可连麦」 -->
           <view v-for="bot in group.bots" :key="bot.id" class="grid-card" @tap="openBot(bot.id)">
-            <view class="gc-banner" :style="{ background: botGrad(bot.name) }">
-              <view class="gc-glyph serif">{{ (bot.name || '智')[0] }}</view>
-              <view class="gc-avatar">
-                <smart-avatar class="gc-avatar-img" :src="bot.avatar" :name="bot.name" />
+            <view class="gc-banner gc-flow" :style="{ background: botGrad(bot.name) }">
+              <view class="gc-face">
+                <view class="gc-halo" />
+                <smart-avatar v-if="bot.avatar" class="gc-avatar-img" :src="bot.avatar" :name="bot.name" />
+                <text v-else class="gc-face-glyph serif">{{ (bot.name || '智')[0] }}</text>
               </view>
               <text v-if="bot.isNew" class="gc-new">NEW</text>
+              <view v-if="bot.capabilities.includes('语音对话')" class="gc-mic">
+                <app-icon name="mic" :size="22" color="#ffffff" /><text class="gc-mic-txt">可连麦</text>
+              </view>
             </view>
             <view class="gc-body">
               <text class="gc-name">{{ bot.name }}</text>
@@ -229,9 +235,7 @@
                 <text v-if="bot.useCount" class="gc-count">{{ formatCount(bot.useCount) }}次对话</text>
                 <text v-else-if="bot.isFree" class="gc-count">免费使用</text>
                 <text v-else class="gc-count">按次计费</text>
-                <view v-if="bot.capabilities.includes('语音对话')" class="gc-voice">
-                  <app-icon name="volume-2" :size="24" color="#7c3aed" />
-                </view>
+                <text class="gc-hook">问一问 ›</text>
               </view>
             </view>
           </view>
@@ -693,27 +697,48 @@ function goBack() {
   overflow: hidden;
   box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.04);
   display: flex; flex-direction: column;
+  transition: transform 0.15s ease;
 }
-/* 渐变横幅头：书法字水印 + 悬浮头像（设计感来源·色系按名称哈希轮换） */
+.grid-card:active { transform: scale(0.97); }
+/* 印面主视觉：1:1 容器（规范=智能体图标 1:1），渐变底按名称哈希轮换 */
 .gc-banner {
-  position: relative; height: 150rpx;
-  display: flex; align-items: center; justify-content: center;
+  position: relative; width: 100%; padding-top: 100%;
 }
+/* 渐变流动（X5 安全：只动 background-position，同 feed 智能体卡） */
+.gc-flow {
+  background-size: 200% 200% !important;
+  animation: gcFlow 7s ease-in-out infinite alternate;
+}
+@keyframes gcFlow { 0% { background-position: 0% 0%; } 100% { background-position: 100% 100%; } }
 .serif { font-family: 'STKaiti', 'KaiTi', 'STSong', serif; }
-.gc-glyph {
-  position: absolute; right: 16rpx; bottom: 4rpx;
-  font-size: 96rpx; font-weight: 700; line-height: 1;
-  color: rgba(255, 255, 255, 0.14);
-  pointer-events: none;
-}
-.gc-avatar {
-  width: 96rpx; height: 96rpx; border-radius: 999rpx; overflow: hidden;
-  background: rgba(255, 255, 255, 0.92);
-  border: 4rpx solid rgba(255, 255, 255, 0.85);
-  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.18);
+/* 中央毛玻璃圆底：楷体大字如一方印面；有真实头像则显示头像 */
+.gc-face {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  width: 168rpx; height: 168rpx; border-radius: 999rpx; overflow: visible;
+  background: rgba(255, 255, 255, 0.5);
+  box-shadow: inset 0 2rpx 6rpx rgba(255, 255, 255, 0.7), 0 4rpx 16rpx rgba(120, 100, 60, 0.12);
   display: flex; align-items: center; justify-content: center;
 }
-.gc-avatar-img { width: 100%; height: 100%; }
+/* 呼吸金晕（只动 opacity） */
+.gc-halo {
+  position: absolute; inset: -4rpx; border-radius: 999rpx;
+  border: 4rpx solid #c9a96e; opacity: 0.3;
+  animation: gcHalo 3.5s ease-in-out infinite;
+}
+@keyframes gcHalo { 0%, 100% { opacity: 0.3; } 50% { opacity: 0.6; } }
+.gc-face-glyph {
+  font-size: 88rpx; font-weight: 700; line-height: 1; color: #ffffff;
+  text-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.18);
+}
+.gc-avatar-img { width: 152rpx; height: 152rpx; border-radius: 999rpx; overflow: hidden; }
+/* 语音智能体的稀缺能力标识 */
+.gc-mic {
+  position: absolute; left: 50%; transform: translateX(-50%); bottom: 20rpx;
+  display: flex; align-items: center; gap: 6rpx;
+  padding: 6rpx 18rpx; border-radius: 999rpx;
+  background: rgba(0, 0, 0, 0.28); backdrop-filter: blur(8rpx);
+}
+.gc-mic-txt { font-size: 20rpx; color: #ffffff; letter-spacing: 1rpx; }
 .gc-new {
   position: absolute; top: 12rpx; right: 12rpx;
   padding: 2rpx 10rpx;
@@ -722,13 +747,13 @@ function goBack() {
 }
 .gc-body { padding: 18rpx 24rpx 22rpx; display: flex; flex-direction: column; }
 .gc-name {
-  font-size: 28rpx; font-weight: 700; color: var(--text-ink, #2c2c2c);
+  font-size: 30rpx; font-weight: 600; color: var(--text-ink, #2c2c2c);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .gc-desc {
-  font-size: 22rpx; color: #999999; line-height: 1.5;
+  font-size: 24rpx; color: #8a8a8a; line-height: 1.55;
   margin-top: 8rpx;
-  height: 66rpx;
+  height: 74rpx;
   overflow: hidden;
   text-overflow: ellipsis;
   display: -webkit-box;
@@ -739,8 +764,8 @@ function goBack() {
   display: flex; align-items: center; justify-content: space-between;
   margin-top: 14rpx;
 }
-.gc-count { font-size: 20rpx; color: #8b7355; }
-.gc-voice { display: flex; align-items: center; }
+.gc-count { font-size: 22rpx; color: #8b7355; }
+.gc-hook { font-size: 22rpx; color: #8a6420; font-weight: 500; }
 
 /* 空态 */
 .empty-block { padding: 80rpx 32rpx; display: flex; justify-content: center; }

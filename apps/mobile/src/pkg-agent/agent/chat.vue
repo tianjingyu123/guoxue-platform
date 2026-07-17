@@ -154,6 +154,11 @@ async function handleSend() {
   if (!text || isTyping.value) return
   messages.value.push({ id: messages.value.length, role: 'user', content: text, time: nowTime() })
   inputValue.value = ''
+  sendCore(text)
+}
+
+/** 发送核心（handleSend 与失败重试共用；user 气泡由调用方保证已在列表中） */
+function sendCore(text: string) {
   isTyping.value = true
   if (freeRemaining.value > 0) freeRemaining.value -= 1
   scrollToBottom()
@@ -172,16 +177,29 @@ async function handleSend() {
       }
     } catch (e) {
       isTyping.value = false
+      freeRemaining.value += 1 // 失败不消耗额度，回退发送前的本地预扣
       const msg = (e as Error)?.message || ''
       if (msg.includes('追问次数已用完')) {
         // 额度耗尽：刷新额度并弹购买引导弹窗
         refreshQuota()
         showPurchaseModal.value = true
-      } else if (msg) {
-        uni.showToast({ title: msg, icon: 'none' })
+      } else {
+        // 失败态落在气泡内（含重试），一次性 toast 一闪即逝且不给出路
+        messages.value.push({
+          id: messages.value.length + 1, role: 'assistant', time: nowTime(),
+          content: msg || '回复失败了，请稍后重试', isError: true, failedQuery: text,
+        })
+        scrollToBottom()
       }
     }
   }, 600)
+}
+
+/** 重试失败的提问：移除失败气泡，原文重发（user 气泡还在列表里，不重复插入） */
+function retryFailed(m: ChatMessage) {
+  if (isTyping.value || !m.failedQuery) return
+  messages.value = messages.value.filter((x) => x !== m)
+  sendCore(m.failedQuery)
 }
 
 // ───── 耗尽购买弹窗：购买追问包 / 开通会员 ─────
@@ -305,8 +323,11 @@ onUnmounted(() => {
         <view v-for="msg in messages" :key="msg.id" class="msg-row" :class="{ 'msg-row-user': msg.role === 'user' }">
           <view v-if="msg.role === 'assistant'" class="msg-avatar agent-gradient-cool"><AppIcon name="bot" :size="24" color="#ffffff" /></view>
           <view class="msg-content" :class="{ 'content-user': msg.role === 'user' }">
-            <view class="bubble" :class="msg.role === 'user' ? 'bubble-user' : 'bubble-ai'">
+            <view class="bubble" :class="msg.role === 'user' ? 'bubble-user' : msg.isError ? 'bubble-error' : 'bubble-ai'">
               <text class="bubble-text" :class="{ 'streaming-cursor': msg.isStreaming }">{{ msg.content }}</text>
+              <view v-if="msg.isError" class="bubble-retry" @tap="retryFailed(msg)">
+                <AppIcon name="refresh-cw" :size="24" color="#c41e3a" /><text class="bubble-retry-txt">点击重试</text>
+              </view>
             </view>
             <!-- AI 风险免责声明（后端下发，仅 assistant 消息且非流式时展示） -->
             <text v-if="msg.role === 'assistant' && msg.disclaimer && !msg.isStreaming" class="ai-disclaimer">{{ msg.disclaimer }}</text>
@@ -465,6 +486,10 @@ onUnmounted(() => {
 .bubble { border-radius: 24rpx; padding: 22rpx 28rpx; }
 .bubble-ai { background: #fff; border: 1rpx solid #ececec; border-bottom-left-radius: 6rpx; }
 .bubble-user { background: var(--brand); border-bottom-right-radius: 6rpx; }
+.bubble-error { background: #fdf3f3; border: 1rpx solid rgba(196, 30, 58, 0.18); border-bottom-left-radius: 6rpx; }
+.bubble-error .bubble-text { color: #8a3a3a; }
+.bubble-retry { display: inline-flex; align-items: center; gap: 8rpx; margin-top: 14rpx; padding: 8rpx 20rpx 8rpx 14rpx; border-radius: 999rpx; background: rgba(196, 30, 58, 0.08); }
+.bubble-retry-txt { font-size: 24rpx; color: #c41e3a; font-weight: 500; }
 .bubble-text { font-size: 28rpx; line-height: 1.6; white-space: pre-wrap; color: #1a1a1a; }
 .bubble-user .bubble-text { color: #fff; }
 .typing { padding: 24rpx 28rpx; }
