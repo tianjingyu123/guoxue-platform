@@ -65,3 +65,95 @@ export function normalizeRichContent(html?: string): string {
   )
   return s
 }
+
+/* ============================================================================
+ * 文章正文排版（对标微信公众号/今日头条阅读体验）—— 仅 normalizeArticleContent 使用。
+ *
+ * 🔴 兼容性设计：normalizeRichContent 的行为一个字节都没改。
+ * 商品详情（shop-data.ts 的 normalizeRichDetail）依赖多图「无缝拼接」，圆角+外边距会
+ * 破坏无缝效果，所以文章排版全部收敛在新导出函数 normalizeArticleContent 里，
+ * 调用方不切换就完全不受影响。
+ *
+ * 同样受 rich-text 跨端约束：内部节点不吃页面 scoped CSS，只能行内样式注入。
+ * ========================================================================== */
+
+/** 文章段落：行高 1.85 + 段后距；不注入 font-size，字号继承页面 .ad-rich 的 34rpx 控制权 */
+const ARTICLE_P_STYLE = 'margin:0 0 1.1em;line-height:1.85;'
+/** 文章一二级标题 */
+const ARTICLE_H12_STYLE = 'font-size:40rpx;font-weight:700;margin:1.5em 0 0.7em;line-height:1.4;'
+/** 文章三级标题 */
+const ARTICLE_H3_STYLE = 'font-size:36rpx;font-weight:600;margin:1.2em 0 0.6em;'
+/** 文章引用块：朱红左线 + 米色底 + 右侧圆角 */
+const ARTICLE_QUOTE_STYLE =
+  'border-left:6rpx solid #c41e3a;background:#faf6f1;padding:20rpx 28rpx;margin:24rpx 0;color:#6e6e73;border-radius:0 12rpx 12rpx 0;'
+/** 文章链接：朱红主题色 */
+const ARTICLE_A_STYLE = 'color:#c41e3a;'
+/** 文章列表：还原缩进与段后距（rich-text 里 ul/ol 默认样式在部分端会丢） */
+const ARTICLE_LIST_STYLE = 'padding-left:1.4em;margin:0 0 1.1em;'
+/** 文章配图：在 IMG_SEAMLESS_STYLE 之后追加（后声明覆盖其 margin:0）→ 圆角 + 上下留白 */
+const ARTICLE_IMG_STYLE = 'border-radius:12rpx;margin:24rpx 0;'
+
+/** HTML 特殊字符转义（纯文本包 <p> 前防注入；顺序：& 必须最先） */
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+}
+
+/**
+ * 纯文本 → HTML 段落：C 端手机编辑器产出纯文本，\n 在 rich-text 里按 HTML 规则
+ * 折叠成空格 → 整篇糊成一段。按换行（\n\n 或单 \n）切段、逐段转义后包 <p>，空段丢弃。
+ * 这里只包裸 <p>，段落样式交给 normalizeArticleContent 的统一排版注入。
+ */
+function plainTextToHtml(text: string): string {
+  return text
+    .replace(/\r\n?/g, '\n')
+    .split(/\n+/)
+    .map((seg) => seg.trim())
+    .filter((seg) => seg.length > 0)
+    .map((seg) => `<p>${escapeHtml(seg)}</p>`)
+    .join('')
+}
+
+/**
+ * 文章正文归一化 = normalizeRichContent（反转义 + 图片无缝基建）+ 排版行内注入 + 纯文本归一。
+ * 页面零改动即生效（全部行内样式）。仅文章场景使用；商品/课程详情继续用 normalizeRichContent。
+ */
+export function normalizeArticleContent(html?: string): string {
+  let s = String(html ?? '')
+  if (!s.trim()) return ''
+  // ① 双源归一：不含 '<' 时——若有 &lt; 实体是被转义的存量 HTML（交给 normalizeRichContent
+  //    反转义）；否则视为手机编辑器产出的纯文本，切段包 <p>
+  if (!s.includes('<') && !s.includes('&lt;')) s = plainTextToHtml(s)
+  // ② 底层归一：反转义 + img 无缝通栏 + 纯图片段落去缝
+  s = normalizeRichContent(s)
+  // ③ 排版注入（沿用 mergeStyle：追加在原 style 之后，后声明覆盖）
+  // h1/h2
+  s = s.replace(
+    /<h([12])\b([^>]*)>/gi,
+    (_m, lvl: string, attrs: string) => `<h${lvl}${mergeStyle(attrs, ARTICLE_H12_STYLE)}>`,
+  )
+  // h3
+  s = s.replace(/<h3\b([^>]*)>/gi, (_m, attrs: string) => `<h3${mergeStyle(attrs, ARTICLE_H3_STYLE)}>`)
+  // blockquote
+  s = s.replace(
+    /<blockquote\b([^>]*)>/gi,
+    (_m, attrs: string) => `<blockquote${mergeStyle(attrs, ARTICLE_QUOTE_STYLE)}>`,
+  )
+  // a
+  s = s.replace(/<a\b([^>]*)>/gi, (_m, attrs: string) => `<a${mergeStyle(attrs, ARTICLE_A_STYLE)}>`)
+  // ul / ol
+  s = s.replace(
+    /<(ul|ol)\b([^>]*)>/gi,
+    (_m, tag: string, attrs: string) => `<${tag}${mergeStyle(attrs, ARTICLE_LIST_STYLE)}>`,
+  )
+  // p：跳过已被 normalizeRichContent 标记的「纯图片段落」（其 style 含 IMG_P_STYLE，
+  //    再追加段落样式会覆盖掉 margin:0/line-height:0 破坏图片段落）
+  s = s.replace(/<p\b([^>]*)>/gi, (m, attrs: string) =>
+    attrs.includes(IMG_P_STYLE) ? m : `<p${mergeStyle(attrs, ARTICLE_P_STYLE)}>`,
+  )
+  // img：在无缝样式之后追加圆角 + 上下留白（后声明覆盖 margin:0）
+  s = s.replace(
+    /<img\b([^>]*?)\/?>/gi,
+    (_m, attrs: string) => `<img${mergeStyle(attrs, ARTICLE_IMG_STYLE)} />`,
+  )
+  return s
+}

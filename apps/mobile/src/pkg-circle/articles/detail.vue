@@ -2,8 +2,10 @@
 /**
  * 文章详情页 — V0 circle-article-detail.html 还原（2026-07-10 浅色主题重写）
  * 结构：sticky 顶栏(返回+文章+分享) → 封面 16:9 → 标题/作者行(关注软底按钮) → rich-text 正文(17px/1.9) →
- *       内联推荐卡 → 互动栏(居中纵向) → 圈子引流暖底卡(circle-lead·替换原 fixed 底条) →
+ *       内联推荐卡 → 圈子引流暖底卡(circle-lead·替换原 fixed 底条) →
  *       统一评论区(CommentSection·列表+吸底输入条一站式) → 猜你喜欢(白卡横排)。
+ * 底栏：头条式吸底（写评论输入胶囊 + 点赞/评论/收藏/分享四图标经 bar-actions slot 进吸底条右侧·
+ *       原正文中部纵向互动栏已删，避免双入口）。
  *       三态 = V0 骨架屏 / 错误卡（评论区三态由 CommentSection 自管）。
  * 降级：角色徽章(后端无作者圈内角色)/引流条营销文案(只写真实 members)/related 作者名与阅读数(后端不返回)不渲染；
  *       tags 后端无话题聚合页 → 纯展示不可点。
@@ -145,7 +147,7 @@ async function toggleFollow() {
   catch { isFollowed.value = prev; uni.showToast({ title: '操作失败，请重试', icon: 'none' }) }
   finally { followActing.value = false }
 }
-/** 互动栏「评论」按钮：滚动定位到统一评论区（清空后 nextTick 重设锚点，保证重复点击也触发） */
+/** 底栏「评论」图标：滚动定位到统一评论区锚点（清空后 nextTick 重设，保证重复点击也触发） */
 function focusComment() {
   scrollAnchor.value = ''
   nextTick(() => { scrollAnchor.value = 'adCommentsAnchor' })
@@ -248,25 +250,7 @@ function focusComment() {
         <view class="ad-promo-btn"><text class="ad-promo-btn-t">{{ products.length > 1 ? '看全部' : '去看看' }}</text></view>
       </view>
 
-      <!-- 互动栏：V0 居中纵向（点赞/评论/收藏/分享·数字在下），上下留白 + 底部细分隔线 -->
-      <view class="ad-actions">
-        <view class="ad-action" @tap="toggleLike">
-          <app-icon name="heart" :size="40" :color="isLiked ? '#C41E3A' : '#999999'" :fill="isLiked" />
-          <text class="ad-action-t" :class="{ liked: isLiked }">{{ likeCount || '点赞' }}</text>
-        </view>
-        <view class="ad-action" @tap="focusComment">
-          <app-icon name="message-circle" :size="40" color="#999999" />
-          <text class="ad-action-t">{{ commentCount || '评论' }}</text>
-        </view>
-        <view class="ad-action" @tap="toggleCollect">
-          <app-icon name="bookmark" :size="40" :color="isCollected ? '#C9A96E' : '#999999'" :fill="isCollected" />
-          <text class="ad-action-t" :class="{ collected: isCollected }">{{ collectCount || '收藏' }}</text>
-        </view>
-        <view class="ad-action" @tap="openShare">
-          <app-icon name="share-2" :size="40" color="#999999" />
-          <text class="ad-action-t">分享</text>
-        </view>
-      </view>
+      <!-- 正文中部互动栏已删：四动作统一收进底部吸底栏（头条式·避免双入口臃肿） -->
 
       <!-- 圈子引流条：V0 circle-lead 暖底圆角卡（读完自然引导·替换原 fixed 底条）
            副行只写真实字段 members，不编造营销文案 -->
@@ -281,15 +265,37 @@ function focusComment() {
       </view>
 
       <!-- 统一评论区：CommentSection 一站式（列表三态/楼中楼/点赞/分页 + 吸底输入条）
-           count-change 联动互动栏与标题角标；空态/骨架/错误由组件自管 -->
+           count-change 联动底栏计数与标题角标；空态/骨架/错误由组件自管
+           no-pad：底部让位由页面 .ad-bottom-pad 承担，去掉组件垫片（消评论区与猜你喜欢间空白）
+           bar-actions：头条式底栏右侧四动作（点赞/评论/收藏/分享） -->
       <view id="adCommentsAnchor" class="ad-comments-block">
         <text class="ad-comments-head">评论{{ commentCount ? ' ' + commentCount : '' }}</text>
         <comment-section
           target-type="ARTICLE"
           :target-id="articleId"
           :author-id="article.author.id"
+          :no-pad="true"
           @count-change="(n: number) => { commentCount = n }"
-        />
+        >
+          <template #bar-actions>
+            <view class="ad-bar-act" @tap="toggleLike">
+              <app-icon name="heart" :size="40" :color="isLiked ? '#e63e31' : '#999999'" :fill="isLiked" />
+              <text class="ad-bar-num" :class="{ liked: isLiked }">{{ likeCount || '点赞' }}</text>
+            </view>
+            <view class="ad-bar-act" @tap="focusComment">
+              <app-icon name="message-circle" :size="40" color="#999999" />
+              <text class="ad-bar-num">{{ commentCount || '评论' }}</text>
+            </view>
+            <view class="ad-bar-act" @tap="toggleCollect">
+              <app-icon name="star" :size="40" :color="isCollected ? '#c9a96e' : '#999999'" :fill="isCollected" />
+              <text class="ad-bar-num" :class="{ collected: isCollected }">{{ collectCount || '收藏' }}</text>
+            </view>
+            <view class="ad-bar-act" @tap="openShare">
+              <app-icon name="share-2" :size="40" color="#999999" />
+              <text class="ad-bar-num">分享</text>
+            </view>
+          </template>
+        </comment-section>
       </view>
 
       <!-- 猜你喜欢：V0 related-card 白卡横排（副行仅 likes 真实字段·作者名/阅读数后端不返回 → 不显示） -->
@@ -428,16 +434,15 @@ function focusComment() {
 .ad-rec-tag-t { font-size: 20rpx; font-weight: 500; color: var(--brand, #c41e3a); }
 .ad-rec-title { display: block; font-size: 28rpx; font-weight: 500; color: var(--text-primary, #2c2c2c); line-height: 1.4; margin-top: 8rpx; }
 
-/* 互动栏：居中纵向 + 底部细分隔线 */
-.ad-actions {
-  display: flex; align-items: center; justify-content: center; gap: 80rpx;
-  padding: 52rpx 40rpx 44rpx; margin: 0 44rpx;
-  border-bottom: 1rpx solid var(--separator, #ede7dd);
+/* 头条式底栏四动作（渲染进 CommentSection 吸底输入条右侧 slot·scoped 对 slot 内容生效）
+   图标 40rpx·计数 20rpx 在下·每个热区 88rpx 见方 */
+.ad-bar-act {
+  width: 88rpx; min-height: 88rpx; margin: -14rpx 0; flex-shrink: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4rpx;
 }
-.ad-action { display: flex; flex-direction: column; align-items: center; gap: 10rpx; }
-.ad-action-t { font-size: 24rpx; color: var(--text-secondary, #6e6e73); }
-.ad-action-t.liked { color: var(--brand, #c41e3a); }
-.ad-action-t.collected { color: var(--gold, #c9a96e); }
+.ad-bar-num { font-size: 20rpx; line-height: 1.2; color: var(--text-secondary, #6e6e73); }
+.ad-bar-num.liked { color: #e63e31; }
+.ad-bar-num.collected { color: var(--gold, #c9a96e); }
 
 /* 圈子引流条：暖底圆角卡（正文流内） */
 .ad-lead {

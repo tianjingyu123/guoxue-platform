@@ -2,7 +2,7 @@
  * 文章详情页数据（从原型 app/articles/[id]/page.tsx 1:1 迁移）
  * 内容块模型支持正文内联嵌入推荐卡（圈子/课程/商品/排盘/智能体）
  */
-import { normalizeRichContent } from '@/utils/rich-content'
+import { normalizeArticleContent } from '@/utils/rich-content'
 
 export type EmbedType = 'circle' | 'course' | 'product' | 'paipan' | 'agent'
 
@@ -303,8 +303,8 @@ function adaptArticleDetail(a: RawArticleDetail): ArticleDetail {
     likes: Number(a?.likeCount ?? 0),
     collects: Number(a?.collectCount ?? 0),
     comments: Number(a?.commentCount ?? 0),
-    // 富文本归一化：反转义 + 图片无缝（与商品详情同一工具链，见 @/utils/rich-content）
-    content: normalizeRichContent(a?.content || ''),
+    // 文章排版归一：纯文本切段防糊 + 反转义 + 图片无缝圆角 + 公众号级标签排版注入（见 normalizeArticleContent）
+    content: normalizeArticleContent(a?.content || ''),
     recommends: recs,
     products,
     sourceCircle: circle ? {

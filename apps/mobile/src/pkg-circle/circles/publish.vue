@@ -65,7 +65,7 @@ const a = reactive({
   // 开放范围（后端 CreateArticleDto.visibility 已收）：文章特例——默认仍仅本圈，但"全平台开放"作为推荐选项引导（文章是圈子对外窗口）
   scope: 'CIRCLE_ONLY' as 'CIRCLE_ONLY' | 'PLATFORM',
 })
-const aErr = reactive<{ title?: string; content?: string }>({})
+const aErr = reactive<{ title?: string; content?: string; cover?: string }>({})
 const aSubmitting = ref(false)
 
 // 封面真上传（COS 图片端点·原实现把本地临时路径当 URL 提交，后端存不了）
@@ -82,7 +82,7 @@ function uploadCover(target: 'a' | 'c') {
       uni.showLoading({ title: '上传中' })
       try {
         const url = await uploadImage(path)
-        if (target === 'a') a.cover = url
+        if (target === 'a') { a.cover = url; aErr.cover = '' }
         else c.cover = url
       } catch (e) {
         uni.showToast({ title: (e as Error)?.message || '封面上传失败', icon: 'none' })
@@ -107,7 +107,13 @@ function afterPublishSuccess(scope: 'CIRCLE_ONLY' | 'PLATFORM', successText: str
 async function submitArticle() {
   aErr.title = a.title.trim() ? '' : '请输入文章标题'
   aErr.content = a.content.trim() ? '' : '请输入文章内容'
-  if (aErr.title || aErr.content) return
+  // 文章封面必选（体验标准 V1.0 五·附节·董事长 2026-07-17 拍板）
+  aErr.cover = a.cover ? '' : '请上传文章封面（建议 16:9 横图）'
+  if (aErr.cover && !aErr.title && !aErr.content) {
+    // 封面区在页面顶部，提交按钮在底部：toast 兜底提醒，避免错误提示在视口外用户无感
+    uni.showToast({ title: aErr.cover, icon: 'none' })
+  }
+  if (aErr.title || aErr.content || aErr.cover) return
   if (aSubmitting.value) return
   aSubmitting.value = true
   try {
@@ -307,12 +313,14 @@ onUnload(() => {
         </view>
 
         <view class="cr-panel">
-          <text class="cr-field-label">文章封面</text>
-          <view class="cr-cover" @tap="uploadCover('a')">
+          <text class="cr-field-label">文章封面 <text class="cr-req">*</text></text>
+          <view class="cr-cover" :class="{ err: aErr.cover }" @tap="uploadCover('a')">
             <image lazy-load v-if="a.cover" :src="a.cover" class="cr-cover-img" mode="aspectFill" />
             <view v-else class="cr-cover-empty"><app-icon name="camera" :size="48" color="rgba(255,255,255,0.4)" /><text class="cr-cover-tip">点击上传封面</text></view>
             <view v-if="a.cover" class="cr-cover-del" @tap.stop="a.cover = ''"><app-icon name="x" :size="28" color="#ffffff" /></view>
           </view>
+          <text class="cr-upload-hint">建议 16:9 横图 · 1280×720 以上</text>
+          <text v-if="aErr.cover" class="cr-err">{{ aErr.cover }}</text>
         </view>
 
         <view class="cr-panel">
@@ -402,6 +410,7 @@ onUnload(() => {
             <view v-else class="cr-cover-empty"><app-icon name="video" :size="48" color="rgba(255,255,255,0.4)" /><text class="cr-cover-tip">点击上传封面</text></view>
             <view v-if="c.cover" class="cr-cover-del" @tap.stop="c.cover = ''"><app-icon name="x" :size="28" color="#ffffff" /></view>
           </view>
+          <text class="cr-upload-hint">建议 16:9 横图 · 1280×720 以上</text>
         </view>
 
         <view class="cr-panel">
@@ -509,6 +518,9 @@ onUnload(() => {
 .cr-field-label { display: block; font-size: 28rpx; font-weight: 500; color: #fff; margin-bottom: 20rpx; }
 .cr-req { color: var(--brand); }
 .cr-cover { position: relative; width: 100%; aspect-ratio: 16/9; border-radius: 20rpx; overflow: hidden; border: 4rpx dashed rgba(255,255,255,0.2); background: rgba(255,255,255,0.05); }
+.cr-cover.err { border-color: var(--brand); }
+/* 素材尺寸建议（体验标准 V1.0 五·附节） */
+.cr-upload-hint { display: block; font-size: 22rpx; color: #999; margin-top: 12rpx; }
 .cr-cover-img { width: 100%; height: 100%; }
 .cr-cover-empty { width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12rpx; }
 .cr-cover-tip { font-size: 26rpx; color: rgba(255,255,255,0.6); }

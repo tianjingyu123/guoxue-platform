@@ -6,8 +6,10 @@
  * - 回复态：条上方「回复 @xx」+ 取消（emit cancel-reply）
  * - 发送只 emit('send', content)，成功/失败由父级处理；暴露 focus()/clear()/setText()
  * - 默认 fixed 吸底 + env(safe-area-inset-bottom)；半屏抽屉等 flex 布局场景传 :fixed="false"
+ * - 具名 slot「actions」：右侧动作区（头条式底栏图标排）。无 slot 时行为与旧版完全一致；
+ *   有 slot 时隐藏头像让胶囊变窄，图标排与发送按钮互斥切换（输入中显发送，否则显图标）
  */
-import { ref, computed } from 'vue'
+import { ref, computed, useSlots } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import SmartAvatar from '@/components/common/smart-avatar.vue'
 import { getUserInfo } from '@/utils/storage'
@@ -48,6 +50,13 @@ const myName = myInfo?.nickname || '我'
 
 const canSend = computed(() => !!text.value.trim() && !props.sending)
 
+// 右侧动作区 slot（头条式底栏）：有内容时胶囊变窄；输入态（聚焦/有字/发送中）切回发送按钮
+const slots = useSlots()
+const hasActions = computed(() => !!slots.actions)
+const showSend = computed(
+  () => !hasActions.value || focusing.value || !!text.value.trim() || props.sending,
+)
+
 function onSend() {
   if (!canSend.value) return
   emit('send', text.value.trim())
@@ -74,7 +83,7 @@ defineExpose({
       </view>
     </view>
     <view class="cib__row">
-      <smart-avatar class="cib__avatar" :src="myAvatar" :name="myName" />
+      <smart-avatar v-if="!hasActions" class="cib__avatar" :src="myAvatar" :name="myName" />
       <input
         class="cib__field"
         v-model="text"
@@ -86,8 +95,12 @@ defineExpose({
         @blur="focusing = false"
         @confirm="onSend"
       />
-      <view class="cib__send" :class="{ 'cib__send--on': canSend }" @tap="onSend">
+      <view v-if="showSend" class="cib__send" :class="{ 'cib__send--on': canSend }" @tap="onSend">
         <text class="cib__send-txt">{{ sending ? '发送中' : '发送' }}</text>
+      </view>
+      <!-- 右侧动作区（头条式：点赞/评论/收藏/分享图标排·与发送按钮互斥） -->
+      <view v-else class="cib__actions">
+        <slot name="actions" />
       </view>
     </view>
   </view>
@@ -117,6 +130,9 @@ defineExpose({
   font-size: 26rpx; color: #1f1f1f;
 }
 .cib__ph { color: #b0aba1; }
+
+/* 右侧动作区：图标排容器（具体图标/热区样式由页面 slot 内容自带） */
+.cib__actions { flex-shrink: 0; display: flex; align-items: center; }
 
 .cib__send { flex-shrink: 0; padding: 16rpx 34rpx; border-radius: 999rpx; background: #e5e2dc; transition: background 0.2s; }
 .cib__send--on { background: var(--brand, #c41e3a); }

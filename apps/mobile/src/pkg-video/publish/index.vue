@@ -27,6 +27,7 @@
           </view>
           <text class="vp-upload-t1">选择视频</text>
           <text class="vp-upload-t2">支持本地视频直传，最长 60 秒</text>
+          <text class="vp-hint">竖屏 9:16 · 1080×1920</text>
         </view>
 
         <!-- 已选：封面预览 + 操作 -->
@@ -53,6 +54,7 @@
               <view class="vp-btn-ghost" hover-class="vp-hover" @tap="pickCover">
                 <text class="vp-btn-ghost-txt">{{ uploadingCover ? '上传中…' : '更换封面' }}</text>
               </view>
+              <text class="vp-hint">封面建议 3:4 竖图 · 900×1200</text>
               <view class="vp-btn-ghost vp-btn-ghost-dashed" hover-class="vp-hover" @tap="pickFromAlbum">
                 <text class="vp-btn-ghost-txt vp-btn-ghost-txt-weak">重新选择视频</text>
               </view>
@@ -593,6 +595,9 @@ async function handlePublish() {
 /* 校验错误提示 */
 .vp-errmsg { display: flex; align-items: center; gap: 8rpx; }
 .vp-errmsg-txt { font-size: 23rpx; color: #D64541; }
+
+/* 素材尺寸建议（体验标准 V1.0 五·附节） */
+.vp-hint { font-size: 22rpx; color: #999999; }
 
 /* ===== 上传区（未选） ===== */
 .vp-upload {

@@ -21,8 +21,10 @@ interface Props {
   /** 内容作者 id（评论者命中显示金色「作者」标签） */
   authorId?: string
   theme?: 'light' | 'dark'
+  /** true 时不渲染底部占位垫片（页面自己有底垫时避免双份空白，如文章页 .ad-bottom-pad） */
+  noPad?: boolean
 }
-const props = withDefaults(defineProps<Props>(), { authorId: '', theme: 'light' })
+const props = withDefaults(defineProps<Props>(), { authorId: '', theme: 'light', noPad: false })
 
 const emit = defineEmits<{
   (e: 'count-change', total: number): void
@@ -92,9 +94,10 @@ async function onSend(content: string) {
   }
 }
 
-/** 供页面手动刷新（如页面下拉刷新时联动） */
+/** 供页面手动刷新（如页面下拉刷新时联动）+ 聚焦输入框（头条式底栏「写评论」入口） */
 defineExpose({
   refresh: () => listRef.value?.refresh(),
+  focusInput: () => inputRef.value?.focus(),
 })
 </script>
 
@@ -109,8 +112,8 @@ defineExpose({
       @reply="onReply"
       @count-change="(n) => emit('count-change', n)"
     />
-    <!-- 垫片：给 fixed 输入条让位（含安全区） -->
-    <view class="csec__pad" />
+    <!-- 垫片：给 fixed 输入条让位（含安全区）；页面自带底垫时传 no-pad 关掉 -->
+    <view v-if="!noPad" class="csec__pad" />
     <comment-input-bar
       ref="inputRef"
       :theme="theme"
@@ -118,7 +121,12 @@ defineExpose({
       :sending="sending"
       @send="onSend"
       @cancel-reply="replyTo = null"
-    />
+    >
+      <!-- 透传页面级右侧动作区（头条式底栏图标排）·不传时输入条保持旧版样式 -->
+      <template v-if="$slots['bar-actions']" #actions>
+        <slot name="bar-actions" />
+      </template>
+    </comment-input-bar>
   </view>
 </template>
 

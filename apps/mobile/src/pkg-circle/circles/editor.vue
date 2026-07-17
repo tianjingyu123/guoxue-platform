@@ -85,15 +85,20 @@
         </view>
       </view>
 
-      <!-- 封面预览 -->
-      <view v-if="cover && type === 'article'" class="cover-block">
-        <text class="cover-label">封面图</text>
-        <view class="cover-wrap">
+      <!-- 封面（文章必选·体验标准 V1.0 五·附节：手动上传 + 底部「封面」AI 生成双入口） -->
+      <view v-if="type === 'article'" class="cover-block">
+        <text class="cover-label">封面图 <text class="cover-req">*</text></text>
+        <view v-if="cover" class="cover-wrap">
           <image lazy-load :src="cover" class="cover-img" mode="aspectFill" />
           <view class="cover-del" @tap="cover = ''">
             <app-icon name="x" :size="16" color="#fff" />
           </view>
         </view>
+        <view v-else class="cover-upload-btn" :class="{ disabled: coverUploading }" @tap="handleCoverUpload">
+          <app-icon :name="coverUploading ? 'loader-2' : 'image-plus'" :size="40" color="#8a8a8a" :class="{ spin: coverUploading }" />
+          <text class="cover-upload-text">{{ coverUploading ? '上传中…' : '上传封面图' }}</text>
+        </view>
+        <text class="cover-hint">建议 16:9 横图 · 1280×720 以上，也可用底部「封面」AI 生成</text>
       </view>
     </view>
 
@@ -534,6 +539,29 @@ function handleImageUpload() {
 }
 function removeImage(i: number) { images.value.splice(i, 1) }
 
+/** 文章封面手动上传（封面必选后不能只留 AI 生成一条路——生图服务未配置时会把发文章堵死） */
+const coverUploading = ref(false)
+function handleCoverUpload() {
+  if (coverUploading.value) return
+  uni.chooseImage({
+    count: 1,
+    sizeType: ['compressed'],
+    // uni.chooseImage 成功回调类型由 SDK 重载约束，保留 any
+    success: async (res: any) => {
+      const p: string | undefined = (res.tempFilePaths || [])[0]
+      if (!p) return
+      coverUploading.value = true
+      try {
+        cover.value = await uploadImage(p)
+      } catch (e) {
+        uni.showToast({ title: (e as Error)?.message || '封面上传失败', icon: 'none' })
+      } finally {
+        coverUploading.value = false
+      }
+    },
+  })
+}
+
 /** 文档附件扩展名白名单（与后端 /upload/file MIME 白名单对应） */
 const DOC_EXTS = ['.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.txt', '.md', '.zip']
 const MAX_DOC_SIZE = 50 * 1024 * 1024
@@ -736,6 +764,8 @@ async function handlePublish() {
   if (!validateBase()) return
   if (type.value === 'article' && !canPublishArticle.value) { uni.showToast({ title: '仅圈主/合伙人/管理员可发文章', icon: 'none' }); return }
   if (type.value === 'article' && !title.value.trim()) { uni.showToast({ title: '请输入文章标题', icon: 'none' }); return }
+  // 文章封面必选（体验标准 V1.0 五·附节·董事长 2026-07-17 拍板）；发帖(post)不要求封面
+  if (type.value === 'article' && !cover.value) { uni.showToast({ title: '请上传文章封面（建议 16:9 横图）', icon: 'none' }); return }
   publishing.value = true
   try {
     if (type.value === 'article') {
@@ -951,6 +981,23 @@ async function handlePublish() {
   align-items: center;
   justify-content: center;
 }
+.cover-req { color: #C41E3A; }
+/* 封面手动上传入口（与 media-add-btn 同风格虚线框） */
+.cover-upload-btn {
+  height: 160rpx;
+  border: 2rpx dashed #c4c4c4;
+  border-radius: 16rpx;
+  background: #fafafa;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12rpx;
+}
+.cover-upload-btn.disabled { opacity: 0.6; }
+.cover-upload-text { font-size: 26rpx; color: #8a8a8a; }
+/* 素材尺寸建议（体验标准 V1.0 五·附节） */
+.cover-hint { display: block; font-size: 22rpx; color: #999; margin-top: 12rpx; }
 
 /* 选择行 */
 .select-row {
