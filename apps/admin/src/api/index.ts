@@ -455,8 +455,9 @@ export const userApi = {
 // 实名认证
 export const identityApi = {
   list: (params?: Record<string, unknown>) => api.get("/identity/admin/audit-list", { params }),
-  approve: (id: string) => api.post(`/identity/admin/approve/${id}`),
-  reject: (id: string, reason: string) => api.post(`/identity/admin/reject/${id}`, { reason }),
+  // 后端 DTO 要求 body 必带 id（identity.dto.ts:49-59），驳回字段名是 remark 非 reason
+  approve: (id: string) => api.post(`/identity/admin/approve/${id}`, { id }),
+  reject: (id: string, remark: string) => api.post(`/identity/admin/reject/${id}`, { id, remark }),
 };
 
 // 古籍

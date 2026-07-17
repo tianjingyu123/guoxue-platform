@@ -101,7 +101,7 @@
               </el-tag>
             </el-descriptions-item>
             <el-descriptions-item label="报名费">
-              {{ detail?.entryFee > 0 ? (detail.entryFee / 100).toFixed(2) + '元' : '免费' }}
+              {{ detail?.entryFee > 0 ? formatMoney(detail.entryFee) : '免费' }}
             </el-descriptions-item>
             <el-descriptions-item label="人数上限">
               {{ detail?.maxParticipants > 0 ? detail.maxParticipants + '人' : '不限' }}
@@ -116,7 +116,7 @@
               {{ detail?.minLevel > 0 ? 'Lv.' + detail.minLevel : '不限' }}
             </el-descriptions-item>
             <el-descriptions-item label="总奖金池">
-              {{ detail?.totalPrize > 0 ? (detail.totalPrize / 100).toFixed(2) + '元' : '未设置' }}
+              {{ detail?.totalPrize > 0 ? formatMoney(detail.totalPrize) : '未设置' }}
             </el-descriptions-item>
             <el-descriptions-item label="奖品类型">
               {{ ({ CASH: "现金奖金", PHYSICAL: "实物奖品", VIRTUAL: "虚拟商品", MIXED: "混合" } as any)[detail?.prizeType] || "现金" }}
@@ -151,7 +151,7 @@
                     </el-tag>
                   </template>
                   <template v-else>
-                    <span style="color:#C41E3A;font-weight:bold">¥{{ ((item.prize || 0) / 100).toFixed(0) }}</span>
+                    <span style="color:#C41E3A;font-weight:bold">{{ formatMoney(item.prize || 0) }}</span>
                   </template>
                   <span
                     v-if="item.description"
@@ -195,7 +195,7 @@
           <div
             class="markdown-body"
             style="min-height:40px"
-            v-html="sanitize(detail?.description || '暂无描述')"
+            v-html="renderMarkdown(detail?.description || '暂无描述')"
           />
 
           <el-divider v-if="detail?.rules">
@@ -204,7 +204,7 @@
           <div
             v-if="detail?.rules"
             class="markdown-body"
-            v-html="sanitize(detail?.rules || '')"
+            v-html="renderMarkdown(detail?.rules || '')"
           />
         </el-card>
       </el-tab-pane>
@@ -520,7 +520,7 @@
             width="80"
           >
             <template #default="{ row }">
-              {{ row.paidFee > 0 ? (row.paidFee / 100).toFixed(2) + '元' : '免费' }}
+              {{ row.paidFee > 0 ? formatMoney(row.paidFee) : '免费' }}
             </template>
           </el-table-column>
           <el-table-column
@@ -1124,6 +1124,48 @@ function formatDate(d: string) {
   return new Date(d).toLocaleString("zh-CN");
 }
 
+/** 金额：后端以「分」存储（entryFee/totalPrize/prize/paidFee），统一转元、千分位两位小数 */
+function formatMoney(fen: number) {
+  return "¥" + (fen / 100).toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+/**
+ * 轻量 Markdown 渲染（标题/加粗/斜体/无序列表/换行）。
+ * 项目无 markdown 依赖（package.json 已核实），不为此引新库；输出经 sanitize 消毒防 XSS。
+ */
+function renderMarkdown(md: string): string {
+  const escaped = md
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+  const lines = escaped.split(/\r?\n/);
+  const out: string[] = [];
+  let inList = false;
+  for (const line of lines) {
+    const inline = (s: string) => s
+      .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+      .replace(/\*([^*]+)\*/g, "<em>$1</em>");
+    const heading = line.match(/^(#{1,4})\s+(.*)$/);
+    const listItem = line.match(/^\s*[-*]\s+(.*)$/);
+    if (listItem) {
+      if (!inList) { out.push("<ul>"); inList = true; }
+      out.push(`<li>${inline(listItem[1])}</li>`);
+      continue;
+    }
+    if (inList) { out.push("</ul>"); inList = false; }
+    if (heading) {
+      const level = Math.min(heading[1].length + 2, 6); // #→h3 起，避免盖过页面标题层级
+      out.push(`<h${level}>${inline(heading[2])}</h${level}>`);
+    } else if (line.trim() === "") {
+      out.push("<br>");
+    } else {
+      out.push(`<p>${inline(line)}</p>`);
+    }
+  }
+  if (inList) out.push("</ul>");
+  return sanitize(out.join(""));
+}
+
 async function fetchDetail() {
   loading.value = true;
   error.value = false;
@@ -1137,17 +1179,24 @@ async function fetchDetail() {
 
 async function changeStatus(action: string) {
   if (statusChanging.value) return;
+  // 状态流转均为影响全平台用户的操作：发布/开始/结束都先确认
+  try {
+    if (action === "publish") {
+      await ElMessageBox.confirm("发布后赛事将对全平台用户可见并开放报名，确定发布？", "发布确认", { type: "warning" });
+    } else if (action === "start") {
+      await ElMessageBox.confirm("开始后赛事进入进行中状态，报名截止、选手开始比赛，确定开始？", "开始确认", { type: "warning" });
+    } else if (action === "finish") {
+      await ElMessageBox.confirm("确定结束该赛事？结束后不可恢复。", "结束确认", { type: "warning" });
+    }
+  } catch { return; /* 用户取消 */ }
   statusChanging.value = true;
   try {
     if (action === "publish") { await competitionApi.publish(competitionId); }
     else if (action === "start") { await competitionApi.start(competitionId); }
-    else if (action === "finish") {
-      await ElMessageBox.confirm("确定结束该赛事？", "提示", { type: "warning" });
-      await competitionApi.finish(competitionId);
-    }
+    else if (action === "finish") { await competitionApi.finish(competitionId); }
     ElMessage.success("操作成功");
     fetchDetail();
-  } catch { /* 取消或接口拦截器已提示 */ } finally { statusChanging.value = false }
+  } catch { /* 接口拦截器已提示 */ } finally { statusChanging.value = false }
 }
 
 // ─── 赛程管理 ───
@@ -1340,11 +1389,28 @@ async function fetchRegistrations() {
 }
 
 async function handleRegAction(regId: string, status: string) {
+  // L2：拒绝报名属驳回类操作，理由必填（后端 UpdateRegistrationDto 暂只消费 status，
+  // reason 会被 whitelist 剥离；前端先行收集并随请求带上，后端补契约后即留痕）
+  let reason: string | undefined;
+  if (status === "DISQUALIFIED") {
+    try {
+      const { value } = await ElMessageBox.prompt("请填写拒绝理由（将用于告知选手）：", "拒绝报名", {
+        type: "warning",
+        confirmButtonText: "确认拒绝",
+        confirmButtonClass: "el-button--danger",
+        inputPlaceholder: "如：资料不全 / 不符合参赛条件",
+        inputValidator: (v: string) => (v && v.trim().length > 0) || "拒绝理由必填",
+      });
+      reason = value.trim();
+    } catch { return; /* 用户取消 */ }
+  }
   try {
-    await competitionApi.updateRegistration(competitionId, regId, { status });
+    await competitionApi.updateRegistration(competitionId, regId, { status, ...(reason ? { reason } : {}) });
     ElMessage.success(status === "QUALIFIED" ? "已确认" : "已拒绝");
     fetchRegistrations();
-  } catch { /* */ }
+  } catch {
+    ElMessage.error("操作失败，请重试");
+  }
 }
 
 // ─── 排名管理 ───

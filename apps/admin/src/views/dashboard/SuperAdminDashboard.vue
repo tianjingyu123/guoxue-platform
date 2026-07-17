@@ -25,7 +25,7 @@ const quickActions: QuickAction[] = [
   { label: "角色权限", path: "/system/role-permission", icon: Lock },
   { label: "功能开关", path: "/system/feature-flags", icon: Operation },
   { label: "第三方配置", path: "/system/third-party", icon: Connection },
-  { label: "管理驾驶舱", path: "/admin/cockpit", icon: Odometer },
+  { label: "管理驾驶舱", path: "/cockpit", icon: Odometer },
   { label: "平台综合大屏", path: "/bigscreen/platform", icon: Monitor },
 ]
 // 待办角标（真实计数，无则为 0 不显示）

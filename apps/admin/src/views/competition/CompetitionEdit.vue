@@ -129,14 +129,15 @@
 
             <el-row :gutter="16">
               <el-col :span="8">
-                <el-form-item label="报名费（分）">
+                <el-form-item label="报名费（元）">
                   <el-input-number
                     v-model="form.entryFee"
                     :min="0"
-                    :step="100"
+                    :step="1"
+                    :precision="2"
                     style="width:100%"
                   />
-                  <span class="hint">0=免费报名</span>
+                  <span class="hint">0=免费报名，提交时自动按分存储</span>
                 </el-form-item>
               </el-col>
               <el-col :span="8">
@@ -208,15 +209,16 @@
                 </el-form-item>
               </el-col>
               <el-col :span="8">
-                <el-form-item label="总奖金池">
+                <el-form-item label="总奖金池（元）">
                   <el-input-number
                     v-model="form.totalPrize"
                     :min="0"
                     :step="100"
+                    :precision="2"
                     style="width:100%"
                     :disabled="form.prizeType === 'PHYSICAL' || form.prizeType === 'VIRTUAL'"
                   />
-                  <span class="hint">{{ form.totalPrize > 0 ? '= ¥' + (form.totalPrize / 100).toFixed(2) : '0=无现金' }}</span>
+                  <span class="hint">{{ form.totalPrize > 0 ? '= ¥' + form.totalPrize.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) : '0=无现金' }}</span>
                 </el-form-item>
               </el-col>
               <el-col :span="8">
@@ -274,11 +276,12 @@
                       v-model="item.prize"
                       :min="0"
                       :step="100"
+                      :precision="2"
                       size="small"
                       style="width:120px"
-                      placeholder="金额(分)"
+                      placeholder="金额(元)"
                     />
-                    <span class="hint">{{ (item.prize ?? 0) > 0 ? '¥' + ((item.prize ?? 0) / 100).toFixed(0) : '' }}</span>
+                    <span class="hint">{{ (item.prize ?? 0) > 0 ? '¥' + (item.prize ?? 0).toLocaleString('zh-CN', { minimumFractionDigits: 2 }) : '' }}</span>
                   </template>
                   <template v-else>
                     <el-input
@@ -514,14 +517,17 @@ onMounted(async () => {
         description: data.description || "",
         coverImage: data.coverImage || "",
         rules: data.rules || "",
-        entryFee: Number(data.entryFee) || 0,
+        // 后端金额字段以「分」存储，表单以「元」编辑：加载 ÷100、保存 ×100
+        entryFee: (Number(data.entryFee) || 0) / 100,
         maxParticipants: Number(data.maxParticipants) || 0,
         isInviteOnly: data.isInviteOnly || false,
         requireIdentity: data.requireIdentity || false,
         minLevel: Number(data.minLevel) || 0,
-        totalPrize: Number(data.totalPrize) || 0,
+        totalPrize: (Number(data.totalPrize) || 0) / 100,
         prizeType: data.prizeType || "CASH",
-        prizeConfig: Array.isArray(data.prizeConfig) ? [...data.prizeConfig] : [],
+        prizeConfig: Array.isArray(data.prizeConfig)
+          ? data.prizeConfig.map((p: { prize?: number }) => ({ ...p, prize: (Number(p.prize) || 0) / 100 }))
+          : [],
         invitationShare: Number(data.invitationShare) || 50,
         tags: data.tags || [],
         status: data.status || "DRAFT",
@@ -534,15 +540,20 @@ onMounted(async () => {
 
 async function save() {
   if (saving.value) return;
+  // 表单校验（标题/类型必填），失败定位到字段而非静默提交
+  const valid = await formRef.value?.validate?.().catch(() => false);
+  if (!valid) return;
   saving.value = true;
   try {
     const payload = {
       ...form,
-      entryFee: Number(form.entryFee) || 0,
+      // 表单以「元」编辑，后端以「分」存储：提交 ×100
+      entryFee: Math.round((Number(form.entryFee) || 0) * 100),
       maxParticipants: Number(form.maxParticipants) || 0,
       minLevel: Number(form.minLevel) || 0,
-      totalPrize: Number(form.totalPrize) || 0,
+      totalPrize: Math.round((Number(form.totalPrize) || 0) * 100),
       invitationShare: Number(form.invitationShare) || 0,
+      prizeConfig: form.prizeConfig.map((p) => ({ ...p, prize: Math.round((Number(p.prize) || 0) * 100) })),
     };
     if (isEdit.value) {
       await competitionApi.update(competitionId, payload);
@@ -561,17 +572,23 @@ async function save() {
 
 async function changeStatus(action: string) {
   if (statusChanging.value) return;
+  // 状态流转均为影响全平台用户的操作：发布/开始/结束都先确认
+  try {
+    if (action === "publish") {
+      await ElMessageBox.confirm("发布后赛事将对全平台用户可见并开放报名，确定发布？", "发布确认", { type: "warning" });
+    } else if (action === "start") {
+      await ElMessageBox.confirm("开始后赛事进入进行中状态，报名截止、选手开始比赛，确定开始？", "开始确认", { type: "warning" });
+    } else if (action === "finish") {
+      await ElMessageBox.confirm("确定结束该赛事？结束后不可恢复。", "结束确认", { type: "warning" });
+    }
+  } catch { return; /* 用户取消 */ }
   statusChanging.value = true;
   try {
     if (action === "publish") { await competitionApi.publish(competitionId); form.status = "PUBLISHED"; }
     else if (action === "start") { await competitionApi.start(competitionId); form.status = "IN_PROGRESS"; }
-    else if (action === "finish") {
-      await ElMessageBox.confirm("确定结束该赛事？", "提示", { type: "warning" });
-      await competitionApi.finish(competitionId);
-      form.status = "FINISHED";
-    }
+    else if (action === "finish") { await competitionApi.finish(competitionId); form.status = "FINISHED"; }
     ElMessage.success("操作成功");
-  } catch { /* 取消或接口拦截器已提示 */ } finally { statusChanging.value = false }
+  } catch { /* 接口拦截器已提示 */ } finally { statusChanging.value = false }
 }
 
 async function handleDelete() {

@@ -8,14 +8,14 @@
           placeholder="搜索名称"
           clearable
           style="width:200px"
-          @keyup.enter="fetchList"
+          @keyup.enter="handleSearch"
         />
         <el-select
           v-model="typeFilter"
           placeholder="类型"
           clearable
           style="width:120px"
-          @change="fetchList"
+          @change="handleSearch"
         >
           <el-option
             label="全部"
@@ -36,9 +36,12 @@
         </el-select>
         <el-button
           type="primary"
-          @click="fetchList"
+          @click="handleSearch"
         >
           查询
+        </el-button>
+        <el-button @click="handleReset">
+          重置
         </el-button>
         <el-button
           type="success"
@@ -447,14 +450,52 @@ function resetForm() {
   Object.assign(form, { name: "", type: "FREE_GIFT", target: "STATION", cover: "", intro: "", originalPrice: 0, sellPrice: 0, sortOrder: 0, status: "ACTIVE", items: [] });
 }
 
+function handleSearch() { page.value = 1; fetchList(); }
+function handleReset() { keyword.value = ""; typeFilter.value = ""; page.value = 1; fetchList(); }
+
 function openCreate() { resetForm(); isEdit.value = false; dialogVisible.value = true; }
-function openEdit(row: any) {
+
+// 编辑打开前保存的原组合项数量（用于保存时"清空组合项"确认）
+const originalItemCount = ref(0);
+
+async function openEdit(row: any) {
   isEdit.value = true; editId.value = row.id;
-  Object.assign(form, { name: row.name, type: row.type, target: row.target, cover: row.cover || "", intro: row.intro || "", originalPrice: row.originalPrice || 0, sellPrice: row.sellPrice || 0, sortOrder: row.sortOrder || 0, status: row.status || "ACTIVE", items: (row.items || []).map((i: any) => ({ itemType: i.itemType, itemId: i.itemId, sortOrder: i.sortOrder || 0 })) });
+  // 修复 P0：列表接口不含 items（只有 _count），直接用 row 回填会把 items 置空，
+  // 保存时后端全量替换导致所有组合项被清空。改为先拉详情（GET /bundles/:id 含 items）再回填。
+  let detail: any = row;
+  try {
+    const { data } = await bundleApi.getById(row.id);
+    detail = data || row;
+  } catch {
+    ElMessage.warning("组合包详情加载失败，组合项可能不完整，请勿直接保存");
+  }
+  originalItemCount.value = (detail.items || []).length || (row._count?.items || 0);
+  Object.assign(form, { name: detail.name, type: detail.type, target: detail.target, cover: detail.cover || "", intro: detail.intro || "", originalPrice: detail.originalPrice || 0, sellPrice: detail.sellPrice || 0, sortOrder: detail.sortOrder || 0, status: detail.status || "ACTIVE", items: (detail.items || []).map((i: any) => ({ itemType: i.itemType, itemId: i.itemId, sortOrder: i.sortOrder || 0 })) });
   dialogVisible.value = true;
 }
 
 async function save() {
+  // 名称必填真校验
+  if (!form.name || !String(form.name).trim()) {
+    ElMessage.warning("请填写组合包名称");
+    return;
+  }
+  // 组合项 itemId 空值校验
+  const emptyIdx = (form.items || []).findIndex((it: any) => !it.itemId || !String(it.itemId).trim());
+  if (emptyIdx >= 0) {
+    ElMessage.warning(`第 ${emptyIdx + 1} 个组合项未填写项目ID，请补全或删除该项`);
+    return;
+  }
+  // L3 影响预告：编辑态下把原有组合项全删光要二次确认
+  if (isEdit.value && form.items.length === 0 && originalItemCount.value > 0) {
+    try {
+      await ElMessageBox.confirm(
+        `保存后将清空该组合包原有的 ${originalItemCount.value} 个组合项，已领取用户将无法看到这些内容。确定继续？`,
+        "清空组合项确认",
+        { type: "warning", confirmButtonText: "确定清空并保存", cancelButtonText: "取消" },
+      );
+    } catch { return; }
+  }
   saving.value = true;
   try {
     if (isEdit.value) {
@@ -465,6 +506,8 @@ async function save() {
     ElMessage.success(isEdit.value ? "已更新" : "已创建");
     dialogVisible.value = false;
     fetchList();
+  } catch {
+    ElMessage.error("保存失败，请重试");
   } finally { saving.value = false; }
 }
 

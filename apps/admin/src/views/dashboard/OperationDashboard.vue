@@ -26,10 +26,10 @@ interface QuickAction { label: string; path: string; icon: Component }
 const quickActions: QuickAction[] = [
   { label: "内容管理", path: "/contents", icon: Document },
   { label: "内容审核", path: "/contents/audit", icon: Edit },
-  { label: "推荐管理", path: "/contents/recommend", icon: Star },
+  { label: "推荐规则", path: "/recommend/rules", icon: Star },
   { label: "营销活动", path: "/marketing/activities", icon: Promotion },
   { label: "用户管理", path: "/users", icon: User },
-  { label: "数据驾驶舱", path: "/admin/cockpit", icon: Odometer },
+  { label: "数据驾驶舱", path: "/cockpit", icon: Odometer },
 ]
 // 待办角标（真实计数，无则为 0 不显示）
 const badges = ref<Record<string, number>>({})

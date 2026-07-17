@@ -3,10 +3,11 @@
     <div class="edit-header">
       <h3>{{ isEdit ? '编辑内容' : '新建内容' }}</h3>
       <div class="header-actions">
+        <!-- 注意：不能写 @click="handleSave"，Vue 会把 MouseEvent 作为 status 参数传入导致提交 400 -->
         <el-button
           type="primary"
           :loading="saving"
-          @click="handleSave"
+          @click="() => handleSave()"
         >
           保存
         </el-button>
@@ -180,7 +181,8 @@ const form = reactive({
   body: '',
   cover: '',
   tags: [] as string[],
-  status: 'PUBLISHED' as string,
+  // 旧CMS双入口收敛观察期：新建默认存草稿，不直接发布（发布需在状态面板显式选择）
+  status: 'DRAFT' as string,
 })
 
 const tagInput = ref('')

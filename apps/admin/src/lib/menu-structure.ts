@@ -5,10 +5,19 @@
 // - 护栏：router 中存在但未被本配置认领的可见路由，自动兜底进「📦 其他」组，保证所有既有路由可达
 import router from "@/router";
 
+/**
+ * 工作区归属（体验标准 V1.0 第三节·董事长拍板 2026-07-18）：
+ * - human = 人工工作区（默认·人看/人点/人拍板）
+ * - ai    = AI 自动化工作区（数字员工车间·AI 自动执行 + 人监督兜底）
+ * 归属自上而下继承：组标了 ai，子项不标即视为 ai；全树缺省 human。
+ */
+export type Workspace = "human" | "ai";
+
 export interface MenuNode {
   title: string;
   icon?: string;
   path?: string;
+  workspace?: Workspace;
   children?: MenuNode[];
 }
 
@@ -16,14 +25,18 @@ interface LeafDef {
   path: string;
   /** 菜单显示名覆盖（命名统一：与 C 端叫法对齐）；缺省取 router meta.title */
   title?: string;
+  /** 工作区归属（缺省继承所属分组·顶层缺省 human） */
+  workspace?: Workspace;
 }
 interface GroupDef {
   title: string;
   icon?: string;
+  /** 工作区归属（缺省继承上层·顶层缺省 human） */
+  workspace?: Workspace;
   children: Array<LeafDef | GroupDef>;
 }
 
-const M = (path: string, title?: string): LeafDef => ({ path, title });
+const M = (path: string, title?: string, workspace?: Workspace): LeafDef => ({ path, title, workspace });
 
 function isGroup(d: LeafDef | GroupDef): d is GroupDef {
   return Array.isArray((d as GroupDef).children);
@@ -61,7 +74,7 @@ const MENU_GROUPS: Array<LeafDef | GroupDef> = [
         title: "圈子",
         children: [
           M("/circles"),
-          M("/circle-backend"),
+          // M("/circle-backend"), // 2026-07-18 Z2审计下架：只读死列表半僵尸页·拍板确认后删路由（同时在 NOT_IN_MENU 拦兜底组）
           M("/articles"), // 文章归圈子（发文由圈主授权·与 C 端一致）
           M("/questions", "付费问答（达人咨询）"),
           M("/bounty/questions", "悬赏问题"),
@@ -92,7 +105,7 @@ const MENU_GROUPS: Array<LeafDef | GroupDef> = [
         children: [
           // 平台页面布局：可视化搭建器体验不佳（无拖拽），平台布局改由研发代码调整（董事长拍板 2026-07-12）→ 菜单隐藏，路由保留可直达
           // M("/platform-layout", "平台页面布局"),
-          M("/contents/recommend"),
+          // M("/contents/recommend"), // 2026-07-18 Z2审计下架：字段全错必400·与推荐规则同端点双入口·拍板确认后删路由（同时在 NOT_IN_MENU 拦兜底组）
           M("/recommend/rules"),
           M("/recommend/ab-tests"),
           M("/search-analytics"),
@@ -175,19 +188,15 @@ const MENU_GROUPS: Array<LeafDef | GroupDef> = [
         children: [M("/notifications"), M("/sms"), M("/im")],
       },
       {
+        // 哨兵告警/刷单识别为 AI 自动巡检 → 已划入 AI 工作区"风控与巡检"（标准第三节 3.1）
+        // 流失挽回子组（流失预测/规则/挽回动作）整组划入 AI 工作区"流失预测与挽回"
         title: "风控",
         children: [
           M("/risk/alerts"),
-          M("/sentinel/alerts"),
           M("/risk/rules"),
-          M("/risk/fraud"),
           M("/risk/timeline"),
           M("/risk/device-fingerprints"),
         ],
-      },
-      {
-        title: "流失挽回",
-        children: [M("/churn"), M("/churn/rules"), M("/churn/actions")],
       },
     ],
   },
@@ -237,28 +246,79 @@ const MENU_GROUPS: Array<LeafDef | GroupDef> = [
       M("/operator-backend"),
     ],
   },
+  // ═══════ AI 自动化工作区（数字员工车间·体验标准第三节 3.1）═══════
+  // 原"🤖AI与数字员工"18 项全部划入 + 收编散落各区的 AI 自动化项
+  //（哨兵告警/刷单识别原在"用户与会员·风控"·流失挽回三项原为"用户与会员"子组·
+  //  合规扫描/系统任务池原在"⚙️ 系统"——已从人工区各组摘除，物理归位于此）
+  // 两个同名"任务池"（/system/ops-tasks·/operation/tasks）均划入并重命名区分，合并事宜待拍板
+  // 古籍管理组（/classics）保留人工区：按 3.2 判据页面主角是"人点按钮"的运营对象，
+  // AI 采集维护过程无独立页面（组名"🤖AI维护"横幅已表达），如需运行视图后续在 AI 区补页
+  M("/ai/overview", "AI工作总览", "ai"),
   {
-    title: "🤖 AI与数字员工",
+    title: "🤖 智能体与客服",
     icon: "Cpu",
+    workspace: "ai",
     children: [
       M("/ai/agent-marketplace"),
       M("/ai/circle-assistants"),
       M("/ai/customer-service"),
-      M("/knowledge"),
+      M("/bots"),
+    ],
+  },
+  {
+    title: "✍️ 内容生产",
+    icon: "EditPen",
+    workspace: "ai",
+    children: [
       M("/content-generation"),
+      M("/knowledge"),
       M("/ai/media-processing"),
       M("/ai/content-quality"),
+    ],
+  },
+  {
+    title: "🛡 风控与巡检",
+    icon: "Aim",
+    workspace: "ai",
+    children: [
+      M("/ai/anomaly-detector"),
+      M("/sentinel/alerts"),
+      M("/risk/fraud"),
+      M("/system/compliance-scan"),
+    ],
+  },
+  {
+    title: "📉 流失预测与挽回",
+    icon: "TrendCharts",
+    workspace: "ai",
+    children: [M("/churn"), M("/churn/rules"), M("/churn/actions")],
+  },
+  {
+    title: "🤝 协作与兜底",
+    icon: "Checked",
+    workspace: "ai",
+    children: [M("/ai/collaborations"), M("/advisor/rules")],
+  },
+  {
+    title: "📋 任务池",
+    icon: "List",
+    workspace: "ai",
+    children: [
+      M("/system/ops-tasks", "系统任务池"),
+      M("/operation/tasks", "运营任务池"),
+    ],
+  },
+  {
+    title: "⚙️ 模型与运行",
+    icon: "Setting",
+    workspace: "ai",
+    children: [
+      M("/system/ai-gateway"),
       M("/ai/rag-templates"),
       M("/ai/data-explorer"),
-      M("/ai/anomaly-detector"),
-      M("/ai/collaborations"),
       M("/ai/usage"),
       M("/ai/chat-logs"),
       M("/ai/call-monitor"),
-      M("/bots"),
-      M("/advisor/rules"),
-      M("/operation/tasks", "运营任务池"),
-      M("/system/ai-gateway"),
     ],
   },
   {
@@ -277,7 +337,7 @@ const MENU_GROUPS: Array<LeafDef | GroupDef> = [
     title: "📊 数据与大屏",
     icon: "DataAnalysis",
     children: [
-      M("/admin/cockpit"),
+      M("/cockpit"), // 2026-07-18 双前缀修复：原 /admin/cockpit 会生成 /admin/admin/cockpit
       {
         title: "运营看板",
         children: [
@@ -309,7 +369,7 @@ const MENU_GROUPS: Array<LeafDef | GroupDef> = [
           M("/bigscreen/content-eco"),
           M("/bigscreen/ai-capability"),
           M("/bigscreen/offline-map"),
-          M("/admin/bigscreen-tokens"),
+          M("/bigscreen-tokens"), // 2026-07-18 双前缀修复：原 /admin/bigscreen-tokens
         ],
       },
     ],
@@ -329,7 +389,7 @@ const MENU_GROUPS: Array<LeafDef | GroupDef> = [
       M("/system/legal-documents"),
       M("/system/app-versions"),
       M("/system/sensitive-words"),
-      M("/system/compliance-scan"),
+      // 合规扫描（AI 自动巡检）→ 已划入 AI 工作区"风控与巡检"（标准第三节 3.1）
       M("/system/referrals"),
       M("/system/coin-config"),
       M("/system/member-config"),
@@ -340,7 +400,7 @@ const MENU_GROUPS: Array<LeafDef | GroupDef> = [
       M("/system/import"),
       M("/system/export"),
       M("/system/backup"),
-      M("/system/ops-tasks", "系统任务池"),
+      // 系统任务池（AI 执行队列）→ 已划入 AI 工作区"任务池"（与运营任务池同区重命名区分·合并待拍板）
       M("/system/feedback"),
       M("/system/error-monitor"),
       M("/system/operation-logs"),
@@ -361,6 +421,10 @@ const NOT_IN_MENU = new Set<string>([
   "/dashboard/customer-service",
   "/dashboard/content-audit",
   "/dashboard/goods-audit",
+  // ↓ 2026-07-18 Z2审计下架（菜单隐藏·路由保留·拍板确认后删路由）
+  //   不加进本集合会被下方"覆盖护栏"兜底进「📦 其他」组，等于白隐藏
+  "/contents/recommend", // 推荐管理：字段全错必400·与推荐规则(/recommend/rules)同端点双入口
+  "/circle-backend", // 圈子后台管理：只读死列表半僵尸页·与 /circles 重复
 ]);
 
 /**
@@ -379,25 +443,26 @@ export function buildMenus(userRoles: string[]): MenuNode[] {
     return roles.some((r) => userRoles.includes(r));
   };
 
-  const resolveLeaf = (leaf: LeafDef): MenuNode | null => {
+  const resolveLeaf = (leaf: LeafDef, ws: Workspace): MenuNode | null => {
     const r = router.resolve(leaf.path);
     // 死路径防呆（如后端菜单里遗留的 /poetry 类已删板块）
     if (r.name === "NotFound" || r.matched.length === 0) return null;
     claimed.add(leaf.path);
     const meta = r.meta as { title?: string; roles?: string[] };
     if (!roleAllows(meta?.roles)) return null;
-    return { title: leaf.title || meta?.title || leaf.path, path: leaf.path };
+    return { title: leaf.title || meta?.title || leaf.path, path: leaf.path, workspace: ws };
   };
 
-  const buildList = (defs: Array<LeafDef | GroupDef>): MenuNode[] => {
+  const buildList = (defs: Array<LeafDef | GroupDef>, inheritedWs: Workspace = "human"): MenuNode[] => {
     const out: MenuNode[] = [];
     for (const d of defs) {
+      const ws = d.workspace ?? inheritedWs;
       if (isGroup(d)) {
-        const children = buildList(d.children);
+        const children = buildList(d.children, ws);
         if (children.length === 0) continue;
-        out.push({ title: d.title, icon: d.icon, children });
+        out.push({ title: d.title, icon: d.icon, workspace: ws, children });
       } else {
-        const leaf = resolveLeaf(d);
+        const leaf = resolveLeaf(d, ws);
         if (leaf) out.push(leaf);
       }
     }
@@ -429,4 +494,47 @@ export function buildMenus(userRoles: string[]): MenuNode[] {
   }
 
   return menus;
+}
+
+/**
+ * 按工作区过滤已构建的菜单树（Layout 层调用·不动 store/auth 的 menus 构建链）。
+ * 未标 workspace 的节点（后端兜底菜单/商家后台/「📦 其他」兜底组）按继承缺省 human，
+ * 保证任何来源的菜单在人工区都可达——只调展示不丢页面。
+ */
+export function filterMenusByWorkspace(
+  menus: MenuNode[],
+  ws: Workspace,
+  inherited: Workspace = "human",
+): MenuNode[] {
+  const out: MenuNode[] = [];
+  for (const n of menus) {
+    const eff = n.workspace ?? inherited;
+    if (n.children && n.children.length > 0) {
+      const children = filterMenusByWorkspace(n.children, ws, eff);
+      if (children.length > 0) out.push({ ...n, children });
+    } else if (eff === ws) {
+      out.push(n);
+    }
+  }
+  return out;
+}
+
+/**
+ * 查询某路由路径的工作区归属（用于直达 URL 时自动切区·菜单高亮正确）。
+ * 只认菜单声明里的叶子路径；菜单外页面（详情页/隐藏页）返回 null——不强行切区。
+ */
+export function pathWorkspace(path: string): Workspace | null {
+  const walk = (defs: Array<LeafDef | GroupDef>, inherited: Workspace): Workspace | null => {
+    for (const d of defs) {
+      const ws = d.workspace ?? inherited;
+      if (isGroup(d)) {
+        const hit = walk(d.children, ws);
+        if (hit) return hit;
+      } else if (d.path === path) {
+        return ws;
+      }
+    }
+    return null;
+  };
+  return walk(MENU_GROUPS, "human");
 }

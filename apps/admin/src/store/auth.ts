@@ -24,6 +24,7 @@ const ROLE_LABELS: Record<string, string> = {
   OPERATOR: "运营商",
   STATION_OFFLINE_OWNER: "驿站主",
   INSTITUTE_MEMBER: "研究院成员",
+  MERCHANT: "商家",
 };
 
 export const useAuthStore = defineStore("auth", () => {

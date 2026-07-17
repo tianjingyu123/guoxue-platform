@@ -130,7 +130,7 @@
         name="works"
       >
         <div class="section-header">
-          <span>共 {{ works.length }} 份作业</span>
+          <span>共 {{ workTotal }} 份作业</span>
           <div style="display:flex;gap:8px">
             <el-button
               size="small"
@@ -148,17 +148,49 @@
             </el-button>
           </div>
         </div>
+        <el-alert
+          v-if="workError"
+          type="error"
+          :closable="false"
+          show-icon
+          style="margin-top:12px"
+        >
+          <template #title>
+            作业列表加载失败，请
+            <el-button
+              link
+              type="primary"
+              @click="fetchWorks"
+            >
+              重试
+            </el-button>
+          </template>
+        </el-alert>
         <el-table
+          v-loading="workLoading"
           :data="works"
           stripe
           style="margin-top:12px"
         >
+          <template #empty>
+            <el-empty description="暂无学员提交作业" />
+          </template>
           <el-table-column
             label="学员"
-            width="100"
+            width="130"
           >
             <template #default="{ row }">
-              {{ row.userId?.slice(0, 8) || '-' }}
+              <span v-if="row.user?.nickname">{{ row.user.nickname }}</span>
+              <el-tooltip
+                v-else-if="row.userId"
+                :content="'用户ID：' + row.userId + '（点击复制）'"
+              >
+                <span
+                  style="cursor:pointer;color:#666"
+                  @click="copyText(row.userId)"
+                >{{ row.userId.slice(0, 8) }}…</span>
+              </el-tooltip>
+              <span v-else>—</span>
             </template>
           </el-table-column>
           <el-table-column
@@ -209,11 +241,21 @@
                 :loading="aiScoreLoading === row.id"
                 @click="handleAiScore(row)"
               >
-                AI 批改
+                AI 建议分
               </el-button>
             </template>
           </el-table-column>
         </el-table>
+        <el-pagination
+          v-if="workTotal > workPageSize"
+          v-model:current-page="workPage"
+          :page-size="workPageSize"
+          :total="workTotal"
+          layout="prev, pager, next"
+          size="small"
+          style="margin-top:12px;justify-content:flex-end"
+          @change="fetchWorks"
+        />
       </el-tab-pane>
 
       <!-- Tab 5: 评价管理 -->
@@ -554,13 +596,27 @@
       </el-tab-pane>
     </el-tabs>
 
-    <!-- 作业评分弹窗 -->
+    <!-- 作业评分弹窗（人工评分 / AI 建议分人工采纳共用） -->
     <el-dialog
       v-model="scoreDialog"
-      title="作业评分"
+      :title="aiSuggestedScore ? '作业评分（含 AI 建议）' : '作业评分'"
       width="500px"
     >
+      <el-alert
+        v-if="aiSuggestedScore"
+        type="info"
+        :closable="false"
+        show-icon
+        style="margin-bottom:12px"
+      >
+        <template #title>
+          AI 建议分 {{ aiSuggestedScore.score }} 分（模型：{{ aiSuggestedScore.model || 'AI' }}）·仅供参考，可调整后由您确认提交才会生效
+        </template>
+      </el-alert>
       <el-form label-width="80px">
+        <el-form-item label="学员">
+          <span>{{ scoringWork?.user?.nickname || (scoringWork?.userId ? scoringWork.userId.slice(0, 8) + '…' : '—') }}</span>
+        </el-form-item>
         <el-form-item label="作业内容">
           <div style="max-height:200px;overflow-y:auto;background:#f5f5f5;padding:12px;border-radius:4px">
             {{ scoringWork?.content }}
@@ -581,6 +637,19 @@
             placeholder="可选点评"
           />
         </el-form-item>
+        <el-form-item
+          v-if="aiSuggestedScore?.suggestions?.length"
+          label="AI 建议"
+        >
+          <div style="font-size:12px;color:#888;line-height:1.6">
+            <div
+              v-for="(s, i) in aiSuggestedScore.suggestions"
+              :key="i"
+            >
+              · {{ s }}
+            </div>
+          </div>
+        </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="scoreDialog = false">
@@ -588,9 +657,10 @@
         </el-button>
         <el-button
           type="primary"
+          :loading="scoreSubmitting"
           @click="submitScore"
         >
-          提交
+          {{ aiSuggestedScore ? '采纳并提交' : '提交' }}
         </el-button>
       </template>
     </el-dialog>
@@ -622,6 +692,7 @@
         </el-button>
         <el-button
           type="primary"
+          :loading="replySubmitting"
           @click="submitReply"
         >
           提交
@@ -664,6 +735,7 @@
         </el-button>
         <el-button
           type="primary"
+          :loading="qaSubmitting"
           @click="submitQaAnswer"
         >
           提交回答
@@ -763,7 +835,7 @@
 // 本页只保留学员/作业/评价/问答/统计的运营管理逻辑。
 import { ref, reactive, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { courseApi } from '@/api'
 
 const route = useRoute()
@@ -784,8 +856,11 @@ interface StudentRow {
 /** 作业行 */
 interface WorkRow {
   id: string; userId?: string; content?: string; score?: number; feedback?: string;
+  user?: { id?: string; nickname?: string; avatar?: string };
   chapter?: { title?: string }; createdAt?: string;
 }
+/** AI 建议分（单份批改端点只出建议不落库，采纳后经人工评分端点落库） */
+interface AiScoreSuggestion { score: number; feedback?: string; suggestions?: string[]; model?: string }
 /** 评价行 */
 interface ReviewRow {
   id: string; rating?: number; content?: string; status?: string; reply?: string;
@@ -812,11 +887,19 @@ const studentLoading = ref(false)
 
 // ─── 作业批改 ───
 const works = ref<WorkRow[]>([])
+const workTotal = ref(0)
+const workPage = ref(1)
+const workPageSize = ref(20)
+const workLoading = ref(false)
+const workError = ref(false)
 const scoreDialog = ref(false)
 const scoringWork = ref<WorkRow | null>(null)
 const scoreForm = reactive({ score: 80, feedback: '' })
+const scoreSubmitting = ref(false)
 const aiScoreLoading = ref('')
 const aiBatchLoading = ref(false)
+// 非空 = 当前评分弹窗由"AI 建议分"发起（展示 AI 来源标注，人工采纳才落库）
+const aiSuggestedScore = ref<AiScoreSuggestion | null>(null)
 
 // ─── 评价管理 ───
 const reviews = ref<ReviewRow[]>([])
@@ -883,39 +966,80 @@ async function viewStudentDetail(row: StudentRow) {
 
 // ─── 作业操作 ───
 async function fetchWorks() {
-  const { data } = await courseApi.getWorks(courseId)
-  works.value = Array.isArray(data) ? data : data.list || data.works || []
+  workLoading.value = true
+  workError.value = false
+  try {
+    const { data } = await courseApi.getWorks(courseId, { page: workPage.value, pageSize: workPageSize.value })
+    works.value = Array.isArray(data) ? data : data.list || data.works || data.items || []
+    workTotal.value = data.total ?? works.value.length
+  } catch {
+    works.value = []
+    workError.value = true
+  } finally { workLoading.value = false }
+}
+
+function copyText(text: string) {
+  navigator.clipboard?.writeText(text).then(
+    () => ElMessage.success('已复制'),
+    () => ElMessage.warning('复制失败，请手动复制'),
+  )
 }
 
 function openScoreDialog(work: WorkRow) {
   scoringWork.value = work
   scoreForm.score = work.score || 80
   scoreForm.feedback = work.feedback || ''
+  aiSuggestedScore.value = null
   scoreDialog.value = true
 }
 
 async function submitScore() {
-  await courseApi.scoreWork(scoringWork.value!.id, scoreForm.score, scoreForm.feedback)
-  ElMessage.success('评分已提交')
-  scoreDialog.value = false
-  fetchWorks()
+  if (scoreSubmitting.value) return
+  scoreSubmitting.value = true
+  try {
+    await courseApi.scoreWork(scoringWork.value!.id, scoreForm.score, scoreForm.feedback)
+    ElMessage.success(aiSuggestedScore.value ? '已采纳 AI 建议分并提交' : '评分已提交')
+    scoreDialog.value = false
+    aiSuggestedScore.value = null
+    fetchWorks()
+  } catch {
+    ElMessage.error('评分提交失败，请重试')
+  } finally { scoreSubmitting.value = false }
 }
 
+// AI 建议分（合规改造·标准3.3-1）：单份批改端点只返回建议分不落库；
+// 这里拿到建议后打开评分弹窗标注"AI 建议"，由人工采纳/调整后经评分端点落库。
 async function handleAiScore(work: WorkRow) {
   aiScoreLoading.value = work.id
   try {
     const { data } = await courseApi.aiScoreWork(work.id)
-    // 后台已自动填入评分，直接刷新列表
-    ElMessage.success(`AI 已批改 — ${data.suggestedScore}分 (${data.model || 'AI'})${data.suggestions?.length ? '，建议: ' + data.suggestions.join('; ') : ''}`)
-    fetchWorks()
+    scoringWork.value = work
+    scoreForm.score = Number(data.suggestedScore) || 70
+    scoreForm.feedback = data.feedback || ''
+    aiSuggestedScore.value = { score: Number(data.suggestedScore) || 70, feedback: data.feedback, suggestions: data.suggestions, model: data.model }
+    scoreDialog.value = true
   } catch { /* handled by interceptor */ } finally { aiScoreLoading.value = '' }
 }
 
+// 批量端点后端为"批改后直接写入评分"（course-work.service aiBatchScoreWorks），
+// 前置 L3 确认（影响预告+AI 来源声明），批改后可逐份人工复核修改。
 async function handleAiBatchScore() {
+  const pending = workTotal.value
+  try {
+    await ElMessageBox.confirm(
+      `AI 将自动批改该课程未评分的作业（单次最多 50 份${pending ? `，当前共 ${pending} 份作业` : ''}），批改结果为 AI 生成并会直接写入评分。写入后您仍可逐份人工复核修改。确定继续？`,
+      'AI 批量批改确认',
+      { type: 'warning', confirmButtonText: '确认批改', cancelButtonText: '取消' },
+    )
+  } catch { return }
   aiBatchLoading.value = true
   try {
     const { data } = await courseApi.aiBatchScoreWorks(courseId)
-    ElMessage.success(`AI 批量批改完成 — 处理 ${data.processed} 份，成功 ${data.successCount} 份${data.failCount > 0 ? `，失败 ${data.failCount} 份` : ''}`)
+    if (data.processed === 0) {
+      ElMessage.info(data.message || '没有待批改的作业')
+    } else {
+      ElMessage.success(`AI 批量批改完成 — 处理 ${data.processed} 份，成功 ${data.successCount} 份${data.failCount > 0 ? `，失败 ${data.failCount} 份` : ''}，评分已标注为 AI 批改，可逐份人工复核`)
+    }
     fetchWorks()
   } catch { /* handled by interceptor */ } finally { aiBatchLoading.value = false }
 }
@@ -936,11 +1060,19 @@ function openReplyDialog(review: ReviewRow) {
   replyDialog.value = true
 }
 
+const replySubmitting = ref(false)
 async function submitReply() {
-  await courseApi.replyReview(replyingReview.value!.id, replyContent.value)
-  ElMessage.success('回复成功')
-  replyDialog.value = false
-  fetchReviews()
+  if (!replyContent.value.trim()) { ElMessage.warning('请输入回复内容'); return }
+  if (replySubmitting.value) return
+  replySubmitting.value = true
+  try {
+    await courseApi.replyReview(replyingReview.value!.id, replyContent.value)
+    ElMessage.success('回复成功')
+    replyDialog.value = false
+    fetchReviews()
+  } catch {
+    ElMessage.error('回复失败，请重试')
+  } finally { replySubmitting.value = false }
 }
 
 async function toggleReview(review: ReviewRow) {
@@ -985,18 +1117,35 @@ function openQaAnswerDialog(qa: QaRow) {
   qaAnswerDialog.value = true
 }
 
+const qaSubmitting = ref(false)
 async function submitQaAnswer() {
   if (!qaAnswerContent.value.trim()) { ElMessage.warning('请输入回答内容'); return }
-  await courseApi.answerQuestion(answeringQa.value!.id, qaAnswerContent.value)
-  ElMessage.success('回答已提交')
-  qaAnswerDialog.value = false
-  fetchQas()
+  if (qaSubmitting.value) return
+  qaSubmitting.value = true
+  try {
+    await courseApi.answerQuestion(answeringQa.value!.id, qaAnswerContent.value)
+    ElMessage.success('回答已提交')
+    qaAnswerDialog.value = false
+    fetchQas()
+  } catch {
+    ElMessage.error('回答提交失败，请重试')
+  } finally { qaSubmitting.value = false }
 }
 
 async function handleCloseQa(qa: QaRow) {
-  await courseApi.closeQuestion(qa.id)
-  ElMessage.success('问题已关闭')
-  fetchQas()
+  // 关闭问答确认（关闭后学员不能再追问）
+  try {
+    await ElMessageBox.confirm('关闭后该问题将不再接受回答，学员端显示为已关闭。确定关闭？', '关闭问答', {
+      type: 'warning', confirmButtonText: '确定关闭', cancelButtonText: '取消',
+    })
+  } catch { return }
+  try {
+    await courseApi.closeQuestion(qa.id)
+    ElMessage.success('问题已关闭')
+    fetchQas()
+  } catch {
+    ElMessage.error('关闭失败，请重试')
+  }
 }
 
 async function handleAiSuggest(qa: QaRow) {

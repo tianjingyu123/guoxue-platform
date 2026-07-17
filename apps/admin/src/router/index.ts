@@ -613,12 +613,15 @@ const routes = [
         meta: { title: "挽回动作", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
       },
       // === 管理驾驶舱 ===
+      // 原 path "admin/cockpit"：应用本身部署在 /admin/ 子路径下，再叠一层 admin 前缀
+      // 导致浏览器 URL 变成 /admin/admin/cockpit（2026-07-18 双前缀修复·旧路径保留 redirect 兼容收藏夹）
       {
-        path: "admin/cockpit",
+        path: "cockpit",
         name: "Cockpit",
         component: () => import("@/views/dashboard/Cockpit.vue"),
         meta: { title: "管理驾驶舱", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
       },
+      { path: "admin/cockpit", redirect: "/cockpit" },
       // === 对外大屏 ===
       {
         path: "bigscreen/platform",
@@ -650,13 +653,22 @@ const routes = [
         component: () => import("@/views/dashboard/OfflineBigscreen.vue"),
         meta: { title: "线下驿站大屏", roles: ALL_ADMIN },
       },
+      // 原 path "admin/bigscreen-tokens" 同上双前缀问题（2026-07-18 修复·旧路径 redirect 兼容）
       {
-        path: "admin/bigscreen-tokens",
+        path: "bigscreen-tokens",
         name: "BigscreenTokenManage",
         component: () => import("@/views/dashboard/BigscreenTokenManage.vue"),
         meta: { title: "大屏Token管理", roles: ["SUPER_ADMIN"] },
       },
+      { path: "admin/bigscreen-tokens", redirect: "/bigscreen-tokens" },
       // === AI 管理 ===
+      // AI 工作区首页（数字员工驾驶舱·体验标准第三节·2026-07-18）
+      {
+        path: "ai/overview",
+        name: "AiWorkspaceOverview",
+        component: () => import("@/views/ai/AiWorkspaceOverview.vue"),
+        meta: { title: "AI工作总览", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
+      },
       {
         path: "ai/usage",
         name: "AiUsageStats",

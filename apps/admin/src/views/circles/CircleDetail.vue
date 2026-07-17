@@ -40,22 +40,31 @@
         >
           编辑信息
         </el-button>
-        <el-button
-          v-if="detail?.status === 'ACTIVE'"
-          size="small"
-          type="danger"
-          @click="disableCircle"
+        <!-- 封禁/解封按真实状态渲染：仅 DISABLED 显示解封；走 admin-status 契约（理由必填 L2） -->
+        <el-tooltip
+          :disabled="adminStatusSupported"
+          content="待后端部署新端点（admin-status）"
+          placement="bottom"
         >
-          封禁
-        </el-button>
-        <el-button
-          v-else
-          size="small"
-          type="success"
-          @click="enableCircle"
-        >
-          解封
-        </el-button>
+          <el-button
+            v-if="detail?.status === 'DISABLED'"
+            size="small"
+            type="success"
+            :disabled="!adminStatusSupported"
+            @click="enableCircle"
+          >
+            解封
+          </el-button>
+          <el-button
+            v-else
+            size="small"
+            type="danger"
+            :disabled="!adminStatusSupported"
+            @click="disableCircle"
+          >
+            封禁
+          </el-button>
+        </el-tooltip>
       </div>
     </div>
 
@@ -355,11 +364,21 @@
             min-width="160"
           >
             <template #default="{ row }">
-              <div>{{ row.user?.nickname || '-' }}</div><div
-                class="text-muted"
-                style="font-size:11px"
-              >
-                {{ row.userId }}
+              <div>{{ row.user?.nickname || '-' }}</div>
+              <div class="uid-row">
+                <span
+                  class="uid-chip"
+                  :title="`${row.userId}（点击复制）`"
+                  @click.stop="copyId(row.userId)"
+                >{{ shortId(row.userId) }}</span>
+                <el-link
+                  type="primary"
+                  :underline="false"
+                  style="font-size:11px"
+                  @click.stop="gotoUser(row.userId)"
+                >
+                  详情
+                </el-link>
               </div>
             </template>
           </el-table-column>
@@ -1285,11 +1304,21 @@
             min-width="150"
           >
             <template #default="{ row }">
-              <div>{{ row.user?.nickname || '-' }}</div><div
-                class="text-muted"
-                style="font-size:11px"
-              >
-                {{ row.userId }}
+              <div>{{ row.user?.nickname || '-' }}</div>
+              <div class="uid-row">
+                <span
+                  class="uid-chip"
+                  :title="`${row.userId}（点击复制）`"
+                  @click.stop="copyId(row.userId)"
+                >{{ shortId(row.userId) }}</span>
+                <el-link
+                  type="primary"
+                  :underline="false"
+                  style="font-size:11px"
+                  @click.stop="gotoUser(row.userId)"
+                >
+                  详情
+                </el-link>
               </div>
             </template>
           </el-table-column>
@@ -1767,17 +1796,30 @@
 
       <!-- ====== 设置 ====== -->
       <template v-if="activeTab === 'settings'">
+        <!--
+          审计整改（2026-07-18）：以下字段/开关已从设置表单移除——payload 从未发送它们或后端不支持，属装饰假开关（假成功红线）：
+          · 发帖审核 postAudit / 评论审核 commentAudit / 发言频率 postRateLimit / 启用AI助理 botEnabled / 助理欢迎语 botWelcome（五个装饰开关，后端无对应字段）
+          · 类型 type / 价格 price / 押金 depositAmount / 允许转发 allowForward / 标签 tags（admin-update 白名单外，管理员不可改）
+          以上均已记入后端需求清单；后端补齐端点后再恢复 UI。
+        -->
         <el-form
+          ref="settingsFormRef"
           :model="settingsForm"
+          :rules="circleFormRules"
           label-width="120px"
           size="small"
         >
           <el-divider content-position="left">
             基本信息
           </el-divider>
-          <el-form-item label="圈子名称">
+          <el-form-item
+            label="圈子名称"
+            prop="name"
+          >
             <el-input
               v-model="settingsForm.name"
+              maxlength="30"
+              show-word-limit
               style="width:300px"
             />
           </el-form-item>
@@ -1787,43 +1829,18 @@
               style="width:400px"
             />
           </el-form-item>
-          <el-form-item label="简介">
+          <el-form-item
+            label="简介"
+            prop="intro"
+          >
             <el-input
               v-model="settingsForm.intro"
               type="textarea"
               :rows="3"
+              maxlength="500"
+              show-word-limit
               style="width:400px"
-            />
-          </el-form-item>
-          <el-form-item label="类型">
-            <el-select v-model="settingsForm.type">
-              <el-option
-                label="免费"
-                value="FREE"
-              /><el-option
-                label="一次性付费"
-                value="PAID"
-              /><el-option
-                label="年费制"
-                value="YEARLY"
-              />
-            </el-select>
-          </el-form-item>
-          <el-form-item
-            v-if="settingsForm.type !== 'FREE'"
-            label="价格(元)"
-          >
-            <el-input-number
-              v-model="settingsForm.price"
-              :min="0"
-              :precision="2"
-            />
-          </el-form-item>
-          <el-form-item label="押金(元)">
-            <el-input-number
-              v-model="settingsForm.depositAmount"
-              :min="0"
-              :precision="2"
+              placeholder="至少 10 个字"
             />
           </el-form-item>
           <el-form-item label="品类">
@@ -1836,13 +1853,6 @@
               v-model="settingsForm.categoryLevel2"
               placeholder="二级品类"
               style="width:150px;margin-left:8px"
-            />
-          </el-form-item>
-          <el-form-item label="标签">
-            <el-input
-              v-model="settingsForm.tagsStr"
-              placeholder="逗号分隔"
-              style="width:300px"
             />
           </el-form-item>
 
@@ -1859,66 +1869,21 @@
             />
           </el-form-item>
 
-          <el-divider content-position="left">
-            审核设置
-          </el-divider>
-          <el-form-item label="发帖审核">
-            <el-switch
-              v-model="settingsForm.postAudit"
-              active-text="先审后发"
-              inactive-text="先发后审"
-            />
-          </el-form-item>
-          <el-form-item label="评论审核">
-            <el-switch
-              v-model="settingsForm.commentAudit"
-              active-text="开启"
-              inactive-text="关闭"
-            />
-          </el-form-item>
-          <el-form-item label="发言频率限制">
-            <el-input-number
-              v-model="settingsForm.postRateLimit"
-              :min="0"
-            /> 条/小时（0=不限制）
-          </el-form-item>
-
-          <el-divider content-position="left">
-            AI 助理
-          </el-divider>
-          <el-form-item label="启用AI助理">
-            <el-switch v-model="settingsForm.botEnabled" />
-          </el-form-item>
-          <el-form-item
-            v-if="settingsForm.botEnabled"
-            label="助理欢迎语"
-          >
-            <el-input
-              v-model="settingsForm.botWelcome"
-              style="width:400px"
-              placeholder="你好，我是圈子的AI助理..."
-            />
-          </el-form-item>
-
-          <el-divider content-position="left">
-            转发设置
-          </el-divider>
-          <el-form-item label="允许转发到其他圈子">
-            <el-switch
-              v-model="settingsForm.allowForward"
-              active-text="允许成员转发帖子到其他圈子"
-              inactive-text="禁止转发"
-            />
-          </el-form-item>
-
           <el-form-item>
-            <el-button
-              type="primary"
-              :loading="saving"
-              @click="saveSettings"
+            <el-tooltip
+              :disabled="adminUpdateSupported"
+              content="待后端部署新端点（admin-update）"
+              placement="top"
             >
-              保存设置
-            </el-button>
+              <el-button
+                type="primary"
+                :loading="saving"
+                :disabled="!adminUpdateSupported"
+                @click="saveSettings"
+              >
+                保存设置
+              </el-button>
+            </el-tooltip>
           </el-form-item>
         </el-form>
       </template>
@@ -1930,52 +1895,49 @@
       title="编辑圈子"
       width="500px"
     >
+      <!-- 编辑走 admin-update 白名单（name/intro/cover/categoryLevel1/categoryLevel2）；类型/价格/押金后端不支持管理员修改，已移除（记后端清单） -->
       <el-form
+        ref="editFormRef"
         :model="editForm"
+        :rules="circleFormRules"
         label-width="80px"
       >
-        <el-form-item label="名称">
-          <el-input v-model="editForm.name" />
+        <el-form-item
+          label="名称"
+          prop="name"
+        >
+          <el-input
+            v-model="editForm.name"
+            maxlength="30"
+            show-word-limit
+          />
         </el-form-item>
         <el-form-item label="封面URL">
           <el-input v-model="editForm.cover" />
         </el-form-item>
-        <el-form-item label="简介">
+        <el-form-item
+          label="简介"
+          prop="intro"
+        >
           <el-input
             v-model="editForm.intro"
             type="textarea"
             :rows="3"
+            maxlength="500"
+            show-word-limit
+            placeholder="至少 10 个字"
           />
         </el-form-item>
-        <el-form-item label="类型">
-          <el-select v-model="editForm.type">
-            <el-option
-              label="免费"
-              value="FREE"
-            /><el-option
-              label="一次性付费"
-              value="PAID"
-            /><el-option
-              label="年费制"
-              value="YEARLY"
-            />
-          </el-select>
-        </el-form-item>
-        <el-form-item
-          v-if="editForm.type !== 'FREE'"
-          label="价格"
-        >
-          <el-input-number
-            v-model="editForm.price"
-            :min="0"
-            :precision="2"
+        <el-form-item label="品类">
+          <el-input
+            v-model="editForm.categoryLevel1"
+            placeholder="一级品类"
+            style="width:150px"
           />
-        </el-form-item>
-        <el-form-item label="押金">
-          <el-input-number
-            v-model="editForm.depositAmount"
-            :min="0"
-            :precision="2"
+          <el-input
+            v-model="editForm.categoryLevel2"
+            placeholder="二级品类"
+            style="width:150px;margin-left:8px"
           />
         </el-form-item>
       </el-form>
@@ -1983,13 +1945,20 @@
         <el-button @click="editVisible = false">
           取消
         </el-button>
-        <el-button
-          type="primary"
-          :loading="saving"
-          @click="saveEdit"
+        <el-tooltip
+          :disabled="adminUpdateSupported"
+          content="待后端部署新端点（admin-update）"
+          placement="top"
         >
-          保存
-        </el-button>
+          <el-button
+            type="primary"
+            :loading="saving"
+            :disabled="!adminUpdateSupported"
+            @click="saveEdit"
+          >
+            保存
+          </el-button>
+        </el-tooltip>
       </template>
     </el-dialog>
 
@@ -2053,13 +2022,20 @@
         <el-button @click="addMemberVisible = false">
           取消
         </el-button>
-        <el-button
-          type="primary"
-          :loading="acting"
-          @click="addMember"
+        <el-tooltip
+          :disabled="addMemberSupported"
+          content="待后端部署新端点（admin-add-member）"
+          placement="top"
         >
-          添加
-        </el-button>
+          <el-button
+            type="primary"
+            :loading="acting"
+            :disabled="!addMemberSupported"
+            @click="addMember"
+          >
+            添加
+          </el-button>
+        </el-tooltip>
       </template>
     </el-dialog>
   </div>
@@ -2069,6 +2045,7 @@
 import { ref, reactive, onMounted, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
+import type { FormInstance, FormRules } from "element-plus";
 import { circleApi, articleApi, courseApi, knowledgeApi, circleDashboardApi } from "@/api";
 import { useAuthStore } from "@/store/auth";
 import api from "@/api";
@@ -2205,13 +2182,44 @@ const knowledgeSubTab = ref("indexed");
 // 排行
 const leaderboard = ref<LeaderboardRow[]>([]); const hotContent = ref<HotContentRow[]>([]);
 
-// 设置
+// 设置（仅保留 admin-update 白名单字段 + 公告；装饰开关与后端不支持字段已移除，见模板注释）
 const saving = ref(false);
-const settingsForm = reactive({ name: "", cover: "", intro: "", type: "FREE", price: 0, depositAmount: 0, categoryLevel1: "", categoryLevel2: "", tagsStr: "", announcement: "", postAudit: false, commentAudit: false, postRateLimit: 0, botEnabled: false, botWelcome: "", allowForward: true });
+const settingsForm = reactive({ name: "", cover: "", intro: "", categoryLevel1: "", categoryLevel2: "", announcement: "" });
+const settingsFormRef = ref<FormInstance>();
+let originalAnnouncement = ""; // 回读的现有公告，仅在变更时才重新发布，避免重复公告
 
-// 编辑弹窗
+// 编辑弹窗（admin-update 白名单）
 const editVisible = ref(false);
-const editForm = reactive({ name: "", cover: "", intro: "", type: "FREE", price: 0, depositAmount: 0 });
+const editForm = reactive({ name: "", cover: "", intro: "", categoryLevel1: "", categoryLevel2: "" });
+const editFormRef = ref<FormInstance>();
+
+// 名称/简介校验（后端 CreateCircleDto：name 2-30 字，intro ≥10 字）
+const circleFormRules: FormRules = {
+  name: [
+    { required: true, message: "请输入圈子名称", trigger: "blur" },
+    { min: 2, max: 30, message: "名称需 2-30 个字", trigger: "blur" },
+  ],
+  intro: [
+    { required: true, message: "请输入圈子简介", trigger: "blur" },
+    { min: 10, max: 500, message: "简介需 10-500 个字（后端要求至少 10 字）", trigger: "blur" },
+  ],
+};
+
+// 新契约端点降级开关：调用得到 404 时按钮置灰 + tooltip"待后端部署新端点"，绝不假成功
+const adminStatusSupported = ref(true);
+const adminUpdateSupported = ref(true);
+const addMemberSupported = ref(true);
+
+// ─── 裸 userId 人性化：截断 + 复制 + 跳用户详情 ───
+function shortId(id?: string) { return id ? (id.length > 8 ? id.slice(0, 8) + "…" : id) : "-"; }
+async function copyId(id?: string) {
+  if (!id) return;
+  try {
+    await navigator.clipboard.writeText(id);
+    ElMessage.success("已复制");
+  } catch { ElMessage.error("复制失败，请手动选择复制"); }
+}
+function gotoUser(id?: string) { if (id) router.push(`/users/${id}`); }
 
 // 分组
 const groupVisible = ref(false); const groupTargetUser = ref<GroupTargetUser | null>(null); const groupSelected = ref<string[]>([]); const memberGroups = ref<MemberGroup[]>([]);
@@ -2251,13 +2259,16 @@ async function refreshDetail() {
     // data 即 axios 响应原始负载（无类型来源），直接引用以避免 ref.value 的 null 收窄问题，运行时与 detail.value 等价
     Object.assign(settingsForm, {
       name: data.name || "", cover: data.cover || "", intro: data.intro || "",
-      type: data.type || "FREE", price: Number(data.price) || 0,
-      depositAmount: Number(data.depositAmount) || 0,
       categoryLevel1: data.categoryLevel1 || "", categoryLevel2: data.categoryLevel2 || "",
-      tagsStr: (data.tags || []).join(","), announcement: "",
-      allowForward: data.allowForward !== false,
     });
-  } catch { /* ignore */ }
+  } catch { ElMessage.error("加载圈子详情失败，请刷新重试"); }
+  // 公告回读回填（此前恒为空串，导致保存时看不到/覆盖不了现有公告）
+  try {
+    const res = await circleApi.getAnnouncement(circleId);
+    const a = res.data;
+    originalAnnouncement = (typeof a === "string" ? a : a?.content || a?.announcement?.content || "") as string;
+    settingsForm.announcement = originalAnnouncement;
+  } catch { /* 无公告端点数据时保持空，不阻断页面 */ }
 }
 
 async function fetchOverview() {
@@ -2296,13 +2307,23 @@ async function changeRole(row: MemberRow, role: string) {
   try {
     await circleApi.updateMember(circleId, row.userId, { role });
     ElMessage.success("角色已更新"); row.role = role;
-  } catch { /* ignore */ } finally { acting.value = false; }
+  } catch (e: unknown) {
+    // 后端管理员 bypass 在建：403 给人话提示而非静默失败
+    if ((e as { response?: { status?: number } })?.response?.status === 403) {
+      ElMessage.warning("当前管理员账号暂无权限改此圈成员角色（后端管理员通道部署后可用）");
+    }
+  } finally { acting.value = false; }
 }
 
 async function removeMember(row: MemberRow) {
   await ElMessageBox.confirm("确定移除该成员？", "确认", { type: "warning" });
   if (acting.value) return; acting.value = true;
-  try { await circleApi.removeMember(circleId, row.userId); ElMessage.success("已移除"); fetchMembers(); } catch { /* ignore */ } finally { acting.value = false; }
+  try { await circleApi.removeMember(circleId, row.userId); ElMessage.success("已移除"); fetchMembers(); }
+  catch (e: unknown) {
+    if ((e as { response?: { status?: number } })?.response?.status === 403) {
+      ElMessage.warning("当前管理员账号暂无权限移除此圈成员（后端管理员通道部署后可用）");
+    }
+  } finally { acting.value = false; }
 }
 
 async function showMemberGroups(row: MemberRow) {
@@ -2342,11 +2363,20 @@ async function saveMemberGroups() {
 
 async function showAddMemberDialog() { addMemberVisible.value = true; }
 async function addMember() {
+  const uid = addMemberForm.userId.trim();
+  if (!uid) return ElMessage.warning("请输入要添加的用户ID");
   if (acting.value) return; acting.value = true;
   try {
-    await api.post(`/circles/${circleId}/join`, { userId: addMemberForm.userId, role: addMemberForm.role });
+    // 新契约：POST /circles/:id/admin-add-member（旧 /join 端点按登录人入圈，会把管理员自己加进圈·审计 P0）
+    await api.post(`/circles/${circleId}/admin-add-member`, { userId: uid, role: addMemberForm.role });
     ElMessage.success("已添加"); addMemberVisible.value = false; fetchMembers();
-  } catch { /* ignore */ } finally { acting.value = false; }
+  } catch (e: unknown) {
+    if ((e as { response?: { status?: number } })?.response?.status === 404) {
+      addMemberSupported.value = false;
+      ElMessage.warning("添加成员待后端部署新端点（admin-add-member），本次未生效");
+    }
+    // 其余错误由 api 拦截器统一提示
+  } finally { acting.value = false; }
 }
 
 // ─── 帖子 ───
@@ -2469,14 +2499,31 @@ async function fetchExperts() {
 async function updateExpertPrice(row: ExpertRow, field: string, value: number) {
   if (acting.value) return; acting.value = true;
   try {
-    // setExpertConfig 类型未声明 questionTimeoutHours，as any 绕过超集字段校验
-    await circleApi.setExpertConfig(circleId, {
+    // 新契约：expert/config 请求体带 userId（管理员指定达人）。setExpertConfig 类型未声明 questionTimeoutHours，as any 绕过超集字段校验
+    const res = await circleApi.setExpertConfig(circleId, {
       userId: row.userId,
       questionPriceCoin: field === "question" ? value : row.questionPriceCoin,
       questionTimeoutHours: field === "timeout" ? value : row.questionTimeoutHours,
       callPricePerMinuteCoin: field === "call" ? value : row.callPricePerMinuteCoin,
     } as any);
-  } catch { /* ignore */ } finally { acting.value = false; }
+    // 防假成功：旧后端忽略 body.userId、按登录人落库；用返回的 userId 回显校验是否真的改到了目标达人
+    const savedUserId = (res.data as { userId?: string } | undefined)?.userId;
+    if (savedUserId && savedUserId !== row.userId) {
+      ElMessage.warning("后端暂不支持管理员指定达人（userId 被忽略），本次修改未生效，待后端部署新契约");
+      fetchExperts(); // 回读还原界面，避免显示未生效的值
+      return;
+    }
+    ElMessage.success("达人配置已保存");
+  } catch (e: unknown) {
+    const st = (e as { response?: { status?: number } })?.response?.status;
+    if (st === 404) {
+      // 旧端点按登录人查成员：管理员不在圈内 → 404"成员不存在"，即新契约未部署
+      ElMessage.warning("待后端部署新端点（expert/config 支持 userId），本次未生效");
+    } else {
+      ElMessage.error("保存达人配置失败，请重试");
+    }
+    fetchExperts();
+  } finally { acting.value = false; }
 }
 
 // ─── 收益 ───
@@ -2581,51 +2628,96 @@ async function addCourseToKnowledge(row: CourseRow) {
   } catch { ElMessage.error('添加失败') } finally { acting.value = false; }
 }
 
-// ─── 设置 ───
+// ─── 设置（走管理员契约 admin-update 白名单，不再走 C 端 update）───
 async function saveSettings() {
+  const valid = await settingsFormRef.value?.validate().catch(() => false);
+  if (!valid) return;
   if (saving.value) return; saving.value = true;
   try {
-    await circleApi.update(circleId, {
-      name: settingsForm.name, cover: settingsForm.cover, intro: settingsForm.intro,
-      type: settingsForm.type, price: settingsForm.price, depositAmount: settingsForm.depositAmount,
-      categoryLevel1: settingsForm.categoryLevel1, categoryLevel2: settingsForm.categoryLevel2,
-      tags: settingsForm.tagsStr.split(",").map(s => s.trim()).filter(Boolean),
-      allowForward: settingsForm.allowForward,
+    await api.put(`/circles/${circleId}/admin-update`, {
+      name: settingsForm.name, intro: settingsForm.intro,
+      cover: settingsForm.cover || undefined,
+      categoryLevel1: settingsForm.categoryLevel1 || undefined,
+      categoryLevel2: settingsForm.categoryLevel2 || undefined,
     });
-    if (settingsForm.announcement) {
-      await api.put(`/circles/${circleId}/announcement`, { content: settingsForm.announcement });
+    // 公告仅在有实际变更时重新发布，避免每次保存都重复发公告
+    if (settingsForm.announcement.trim() && settingsForm.announcement.trim() !== originalAnnouncement.trim()) {
+      await circleApi.setAnnouncement(circleId, settingsForm.announcement.trim());
     }
     ElMessage.success("设置已保存"); refreshDetail();
-  } catch { /* ignore */ } finally { saving.value = false; }
+  } catch (e: unknown) {
+    if ((e as { response?: { status?: number } })?.response?.status === 404) {
+      adminUpdateSupported.value = false;
+      ElMessage.warning("保存设置待后端部署新端点（admin-update），本次未生效");
+    }
+    // 其余错误由 api 拦截器统一提示
+  } finally { saving.value = false; }
 }
 
-// ─── 编辑弹窗 ───
+// ─── 编辑弹窗（admin-update 白名单）───
 function openEdit() {
   Object.assign(editForm, {
     name: detail.value?.name || "", cover: detail.value?.cover || "", intro: detail.value?.intro || "",
-    type: detail.value?.type || "FREE", price: Number(detail.value?.price) || 0,
-    depositAmount: Number(detail.value?.depositAmount) || 0,
+    categoryLevel1: detail.value?.categoryLevel1 || "", categoryLevel2: detail.value?.categoryLevel2 || "",
   });
   editVisible.value = true;
+  editFormRef.value?.clearValidate();
 }
 async function saveEdit() {
+  const valid = await editFormRef.value?.validate().catch(() => false);
+  if (!valid) return;
   if (saving.value) return; saving.value = true;
   try {
-    await circleApi.update(circleId, { ...editForm });
+    await api.put(`/circles/${circleId}/admin-update`, {
+      name: editForm.name, intro: editForm.intro,
+      cover: editForm.cover || undefined,
+      categoryLevel1: editForm.categoryLevel1 || undefined,
+      categoryLevel2: editForm.categoryLevel2 || undefined,
+    });
     ElMessage.success("已更新"); editVisible.value = false; refreshDetail();
-  } catch { /* ignore */ } finally { saving.value = false; }
+  } catch (e: unknown) {
+    if ((e as { response?: { status?: number } })?.response?.status === 404) {
+      adminUpdateSupported.value = false;
+      editVisible.value = false;
+      ElMessage.warning("编辑待后端部署新端点（admin-update），本次未保存");
+    }
+  } finally { saving.value = false; }
 }
 
-// ─── 封禁/解封 ───
-async function disableCircle() {
-  await ElMessageBox.confirm("确定封禁该圈子？封禁后用户无法访问", "确认", { type: "warning" });
+// ─── 封禁/解封（管理员契约 admin-status·理由必填 L2）───
+async function changeCircleStatus(status: "ACTIVE" | "DISABLED") {
+  const isBan = status === "DISABLED";
+  let reason = "";
+  try {
+    const { value } = await ElMessageBox.prompt(
+      isBan
+        ? `确定封禁圈子「${detail.value?.name || ""}」？封禁后 ${detail.value?.memberCount || 0} 名成员将无法访问。请填写封禁理由：`
+        : `确定解封圈子「${detail.value?.name || ""}」？请填写解封理由：`,
+      isBan ? "封禁圈子" : "解封圈子",
+      {
+        type: "warning",
+        confirmButtonText: isBan ? "确定封禁" : "确定解封",
+        cancelButtonText: "取消",
+        inputPlaceholder: "理由必填，将写入操作日志",
+        inputValidator: (v: string) => (v && v.trim().length >= 2) || "请填写理由（至少 2 个字）",
+      },
+    );
+    reason = value.trim();
+  } catch { return; } // 用户取消
   if (acting.value) return; acting.value = true;
-  try { await circleApi.update(circleId, { status: "DISABLED" }); ElMessage.success("已封禁"); refreshDetail(); } catch { /* ignore */ } finally { acting.value = false; }
+  try {
+    await api.put(`/circles/${circleId}/admin-status`, { status, reason });
+    ElMessage.success(isBan ? "已封禁" : "已解封");
+    refreshDetail();
+  } catch (e: unknown) {
+    if ((e as { response?: { status?: number } })?.response?.status === 404) {
+      adminStatusSupported.value = false;
+      ElMessage.warning("封禁/解封待后端部署新端点（admin-status），本次未生效");
+    }
+  } finally { acting.value = false; }
 }
-async function enableCircle() {
-  if (acting.value) return; acting.value = true;
-  try { await circleApi.update(circleId, { status: "ACTIVE" }); ElMessage.success("已解封"); refreshDetail(); } catch { /* ignore */ } finally { acting.value = false; }
-}
+const disableCircle = () => changeCircleStatus("DISABLED");
+const enableCircle = () => changeCircleStatus("ACTIVE");
 </script>
 
 <style scoped>
@@ -2644,4 +2736,7 @@ async function enableCircle() {
 .section-title { font-weight: 600; font-size: 14px; color: var(--color-text-title); margin-bottom: 10px; }
 .text-muted { color: var(--color-text-secondary); }
 .text-danger { color: var(--color-error); }
+.uid-row { display: flex; align-items: center; gap: 6px; }
+.uid-chip { font-size: 11px; color: var(--color-text-secondary); cursor: pointer; font-family: monospace; }
+.uid-chip:hover { color: var(--color-primary, #409eff); text-decoration: underline; }
 </style>

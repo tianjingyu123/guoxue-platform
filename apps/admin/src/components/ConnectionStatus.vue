@@ -78,6 +78,11 @@ onUnmounted(() => {
   height: 28px;
   font-size: 12px;
   transition: background 0.3s, color 0.3s;
+  /* 故障横幅叠在顶栏上沿：整条放行点击（铃铛/退出/面包屑不被拦截），仅重试按钮自身可点 */
+  pointer-events: none;
+}
+.conn-status .retry-btn {
+  pointer-events: auto;
 }
 .conn-dot {
   width: 6px;
