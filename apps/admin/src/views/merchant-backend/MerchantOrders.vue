@@ -2,38 +2,44 @@
   <div class="page">
     <div class="page-header">
       <h3>订单管理</h3>
-      <el-select
-        v-model="filterStatus"
-        placeholder="全部状态"
-        clearable
-        style="width:140px"
-        @change="fetchList"
-      >
-        <el-option
-          label="待付款"
-          value="PENDING_PAY"
-        />
-        <el-option
-          label="已付款"
-          value="PAID"
-        />
-        <el-option
-          label="已发货"
-          value="SHIPPED"
-        />
-        <el-option
-          label="已完成"
-          value="COMPLETED"
-        />
-        <el-option
-          label="退款中"
-          value="REFUNDING"
-        />
-        <el-option
-          label="已退款"
-          value="REFUNDED"
-        />
-      </el-select>
+      <div class="header-right">
+        <el-select
+          v-model="filterStatus"
+          placeholder="全部状态"
+          clearable
+          style="width:140px"
+          @change="onFilterChange"
+        >
+          <!-- 状态枚举与后端 OrderStatus 一致：PENDING/PAID/SHIPPED/COMPLETED/REFUNDED/CANCELLED -->
+          <el-option
+            label="待付款"
+            value="PENDING"
+          />
+          <el-option
+            label="已付款"
+            value="PAID"
+          />
+          <el-option
+            label="已发货"
+            value="SHIPPED"
+          />
+          <el-option
+            label="已完成"
+            value="COMPLETED"
+          />
+          <el-option
+            label="已退款"
+            value="REFUNDED"
+          />
+          <el-option
+            label="已取消"
+            value="CANCELLED"
+          />
+        </el-select>
+        <el-button @click="fetchList">
+          刷新
+        </el-button>
+      </div>
     </div>
 
     <el-result
@@ -59,7 +65,7 @@
       stripe
     >
       <template #empty>
-        <el-empty description="暂无订单数据" />
+        <el-empty description="暂无订单，买家下单后会出现在这里" />
       </template>
       <el-table-column type="expand">
         <template #default="{ row }">
@@ -70,88 +76,70 @@
               size="small"
             >
               <el-descriptions-item label="订单号">
-                {{ row.orderNo }}
+                {{ row.orderNo || row.id }}
+              </el-descriptions-item>
+              <el-descriptions-item label="商品">
+                {{ row.productTitle || "—" }}
+              </el-descriptions-item>
+              <el-descriptions-item label="数量">
+                {{ row.quantity ?? 1 }}
+              </el-descriptions-item>
+              <el-descriptions-item label="订单金额">
+                {{ fmtMoney(row.payAmount ?? row.amount) }}
               </el-descriptions-item>
               <el-descriptions-item label="买家">
-                {{ row.buyerName }}
+                {{ row.buyerNickname || "—" }}
               </el-descriptions-item>
-              <el-descriptions-item label="金额">
-                ¥{{ Number(row.totalAmount || 0).toFixed(2) }}
+              <el-descriptions-item label="买家手机号">
+                {{ row.buyerPhone || "—" }}
               </el-descriptions-item>
               <el-descriptions-item label="收件人">
-                {{ row.receiverName }}
+                {{ row.shippingInfo?.name || "—" }}
               </el-descriptions-item>
-              <el-descriptions-item label="手机号">
-                {{ row.receiverPhone }}
+              <el-descriptions-item label="收件电话">
+                {{ row.shippingInfo?.phone || "—" }}
               </el-descriptions-item>
-              <el-descriptions-item
-                label="地址"
-                :span="1"
-              >
-                {{ row.receiverAddress }}
+              <el-descriptions-item label="收货地址">
+                {{ shippingAddress(row) }}
               </el-descriptions-item>
-              <el-descriptions-item
-                v-if="row.trackingNo"
-                label="物流"
-              >
-                {{ row.shipCompany }} / {{ row.trackingNo }}
+              <el-descriptions-item label="下单时间">
+                {{ fmtTime(row.createdAt) }}
+              </el-descriptions-item>
+              <el-descriptions-item label="支付时间">
+                {{ fmtTime(row.paidAt) }}
+              </el-descriptions-item>
+              <el-descriptions-item label="发货时间">
+                {{ fmtTime(row.shippedAt) }}
               </el-descriptions-item>
             </el-descriptions>
-            <div
-              v-if="row.items?.length"
-              style="margin-top:12px"
-            >
-              <h5 style="margin:0 0 8px">
-                商品明细
-              </h5>
-              <el-table
-                :data="row.items"
-                size="small"
-                border
-              >
-                <el-table-column
-                  prop="productTitle"
-                  label="商品"
-                />
-                <el-table-column
-                  prop="price"
-                  label="单价"
-                  width="100"
-                >
-                  <template #default="{ row: item }">
-                    ¥{{ Number(item.price || 0).toFixed(2) }}
-                  </template>
-                </el-table-column>
-                <el-table-column
-                  prop="quantity"
-                  label="数量"
-                  width="70"
-                />
-                <el-table-column
-                  label="小计"
-                  width="100"
-                >
-                  <template #default="{ row: item }">
-                    ¥{{ (Number(item.price || 0) * Number(item.quantity || 0)).toFixed(2) }}
-                  </template>
-                </el-table-column>
-              </el-table>
-            </div>
           </div>
         </template>
       </el-table-column>
       <el-table-column
-        prop="orderNo"
         label="订单号"
         width="180"
         show-overflow-tooltip
-      />
-      <el-table-column
-        label="金额"
-        width="100"
       >
         <template #default="{ row }">
-          ¥{{ Number(row.totalAmount || 0).toFixed(2) }}
+          {{ row.orderNo || row.id }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="商品"
+        min-width="150"
+        show-overflow-tooltip
+      >
+        <template #default="{ row }">
+          {{ row.productTitle || "—" }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="金额"
+        width="110"
+        align="right"
+      >
+        <template #default="{ row }">
+          {{ fmtMoney(row.payAmount ?? row.amount) }}
         </template>
       </el-table-column>
       <el-table-column
@@ -168,16 +156,24 @@
         </template>
       </el-table-column>
       <el-table-column
-        prop="buyerName"
         label="买家"
-        width="100"
-      />
-      <el-table-column
-        label="下单时间"
-        width="160"
+        width="130"
+        show-overflow-tooltip
       >
         <template #default="{ row }">
-          {{ formatDate(row.createdAt) }}
+          {{ row.buyerNickname || "—" }}
+          <span
+            v-if="row.buyerPhone"
+            class="buyer-phone"
+          >{{ row.buyerPhone }}</span>
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="下单时间"
+        width="150"
+      >
+        <template #default="{ row }">
+          {{ fmtTime(row.createdAt) }}
         </template>
       </el-table-column>
       <el-table-column
@@ -195,20 +191,20 @@
           >
             发货
           </el-button>
+          <!-- approveRefund 后端仅拦 REFUNDED（走统一退款服务真金原路退），适用已付款后的各状态 -->
           <el-button
-            v-if="row.status === 'REFUNDING'"
-            size="small"
-            text
-            type="success"
-            @click="doApproveRefund(row)"
-          >
-            同意退款
-          </el-button>
-          <el-button
-            v-if="row.status === 'REFUNDING'"
+            v-if="REFUNDABLE.includes(row.status || '')"
             size="small"
             text
             type="danger"
+            @click="doApproveRefund(row)"
+          >
+            退款
+          </el-button>
+          <el-button
+            v-if="REFUNDABLE.includes(row.status || '')"
+            size="small"
+            text
             @click="openRejectRefund(row)"
           >
             拒绝退款
@@ -217,14 +213,23 @@
       </el-table-column>
     </el-table>
 
+    <div
+      v-if="!error"
+      class="list-tip"
+    >
+      买家发起的退款/退货申请，请到「售后管理」页处理（同意/拒绝在该页闭环）。
+    </div>
+
     <el-pagination
       v-if="!error"
       v-model:current-page="page"
+      v-model:page-size="pageSize"
       :total="total"
-      :page-size="20"
-      layout="total, prev, pager, next"
-      style="margin-top:16px;justify-content:flex-end"
+      :page-sizes="[10, 20, 50, 100]"
+      layout="total, sizes, prev, pager, next"
+      style="margin-top:12px;justify-content:flex-end"
       @current-change="fetchList"
+      @size-change="onFilterChange"
     />
 
     <!-- 发货 -->
@@ -244,32 +249,10 @@
             style="width:100%"
           >
             <el-option
-              label="顺丰速运"
-              value="顺丰速运"
-            />
-            <el-option
-              label="中通快递"
-              value="中通快递"
-            />
-            <el-option
-              label="圆通速递"
-              value="圆通速递"
-            />
-            <el-option
-              label="申通快递"
-              value="申通快递"
-            />
-            <el-option
-              label="韵达快递"
-              value="韵达快递"
-            />
-            <el-option
-              label="EMS"
-              value="EMS"
-            />
-            <el-option
-              label="京东物流"
-              value="京东物流"
+              v-for="c in couriers"
+              :key="c"
+              :label="c"
+              :value="c"
             />
           </el-select>
         </el-form-item>
@@ -312,7 +295,7 @@
             v-model="rejectReason"
             type="textarea"
             :rows="3"
-            placeholder="请输入拒绝退款原因"
+            placeholder="请输入拒绝退款原因（将告知买家）"
           />
         </el-form-item>
       </el-form>
@@ -337,31 +320,40 @@ import { ref, reactive, onMounted } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { merchantBackendApi } from "@/api";
 
-/** 订单商品明细行 */
-interface OrderItem { productTitle?: string; price?: number; quantity?: number }
-/** 订单行（字段宽松 optional） */
+/** 收货地址快照（Order.shippingInfo·下单时落库） */
+interface ShippingInfo { name?: string; phone?: string; province?: string; city?: string; district?: string; detail?: string }
+/**
+ * 订单行——与后端 enrichOrders 真实返回对齐：
+ * 原始 Order 字段（amount/payAmount/quantity/status/createdAt/paidAt/shippedAt/shippingInfo…）
+ * + 补全字段 productTitle/productImage/buyerNickname/buyerPhone；
+ * orderNo 为新契约透传字段（后端补齐中·缺省回退订单 id）。
+ */
 interface OrderRow {
   id: string;
   orderNo?: string;
-  buyerName?: string;
-  totalAmount?: number;
-  receiverName?: string;
-  receiverPhone?: string;
-  receiverAddress?: string;
-  trackingNo?: string;
-  shipCompany?: string;
-  items?: OrderItem[];
+  amount?: number | string;
+  payAmount?: number | string | null;
+  quantity?: number;
+  productTitle?: string;
+  buyerNickname?: string;
+  buyerPhone?: string | null;
+  shippingInfo?: ShippingInfo | null;
   status?: string;
   createdAt?: string;
+  paidAt?: string | null;
+  shippedAt?: string | null;
 }
 
 const list = ref<OrderRow[]>([]);
 const total = ref(0);
 const page = ref(1);
+const pageSize = ref(20);
 const loading = ref(false);
 const error = ref(false);
 const saving = ref(false);
 const filterStatus = ref("");
+
+const couriers = ["顺丰速运", "中通快递", "圆通速递", "申通快递", "韵达快递", "EMS", "京东物流", "极兔速递", "德邦快递"];
 
 const shipDialog = ref(false);
 const shipOrderId = ref("");
@@ -371,30 +363,58 @@ const rejectDialog = ref(false);
 const rejectOrderId = ref("");
 const rejectReason = ref("");
 
+/** 已付款后的可退款状态（approveRefund 后端仅拦 REFUNDED，PENDING/CANCELLED 无款可退） */
+const REFUNDABLE = ["PAID", "SHIPPED", "COMPLETED"];
+
+/** 与 prisma OrderStatus 枚举一一对应 */
 const STATUS = {
-  PENDING_PAY: ["待付款", "info"],
+  PENDING: ["待付款", "info"],
   PAID: ["已付款", "warning"],
-  SHIPPED: ["已发货", ""],
-  DELIVERED: ["已签收", ""],
+  SHIPPED: ["已发货", "primary"],
   COMPLETED: ["已完成", "success"],
-  REFUNDING: ["退款中", "danger"],
-  REFUNDED: ["已退款", "info"],
+  REFUNDED: ["已退款", "danger"],
   CANCELLED: ["已取消", "info"],
 } as Record<string, [string, string]>;
 
-function statusLabel(s: string) { return STATUS[s]?.[0] || s; }
-function statusType(s: string) { return STATUS[s]?.[1] || "info"; }
-function formatDate(d: string) {
-  return d ? new Date(d).toLocaleDateString("zh-CN", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }) : "-";
+function statusLabel(s?: string) { return (s && STATUS[s]?.[0]) || s || "—"; }
+function statusType(s?: string) { return (s && STATUS[s]?.[1]) || "info"; }
+
+/** 金额：千分位两位小数，空值显示 — */
+function fmtMoney(v?: number | string | null): string {
+  if (v == null || v === "") return "—";
+  const n = Number(v);
+  if (Number.isNaN(n)) return "—";
+  return "¥" + n.toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+/** 时间：YYYY-MM-DD HH:mm，空值显示 — */
+function fmtTime(d?: string | null): string {
+  if (!d) return "—";
+  const t = new Date(d);
+  if (Number.isNaN(t.getTime())) return "—";
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${t.getFullYear()}-${p(t.getMonth() + 1)}-${p(t.getDate())} ${p(t.getHours())}:${p(t.getMinutes())}`;
+}
+
+function shippingAddress(row: OrderRow): string {
+  const s = row.shippingInfo;
+  if (!s) return "—";
+  const addr = [s.province, s.city, s.district, s.detail].filter(Boolean).join(" ");
+  return addr || "—";
 }
 
 onMounted(() => fetchList());
+
+function onFilterChange() {
+  page.value = 1;
+  fetchList();
+}
 
 async function fetchList() {
   loading.value = true;
   error.value = false;
   try {
-    const params: Record<string, string | number> = { page: page.value, pageSize: 20 };
+    const params: Record<string, string | number> = { page: page.value, pageSize: pageSize.value };
     if (filterStatus.value) params.status = filterStatus.value;
     const res = await merchantBackendApi.listOrders(params);
     // 兼容两种响应包装：{ data: {...} } 或直接返回 data
@@ -421,16 +441,27 @@ async function doShip() {
     ElMessage.success("发货成功");
     shipDialog.value = false;
     fetchList();
-  } catch { /* */ } finally { saving.value = false; }
+  } catch { /* 请求错误已由拦截器提示 */ } finally { saving.value = false; }
 }
 
 async function doApproveRefund(row: OrderRow) {
+  const amountText = fmtMoney(row.payAmount ?? row.amount);
   try {
-    await ElMessageBox.confirm("确定同意该退款申请？", "提示", { type: "warning" });
+    // L4 资金操作：写明真金退款影响
+    await ElMessageBox.confirm(
+      `同意后将真金退款 ${amountText} 原路退回买家，分佣同步冲正，此操作不可撤销。确定退款？`,
+      "退款确认",
+      { type: "warning", confirmButtonText: "确认退款", cancelButtonText: "再想想", confirmButtonClass: "el-button--danger" },
+    );
+  } catch { return; }
+  try {
     await merchantBackendApi.approveRefund(row.id);
-    ElMessage.success("已同意退款");
+    ElMessage.success("退款已受理，款项将原路退回买家");
     fetchList();
-  } catch { /* */ }
+  } catch (e) {
+    const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message;
+    ElMessage.error(msg || "退款受理失败，请稍后重试");
+  }
 }
 
 function openRejectRefund(row: OrderRow) {
@@ -440,20 +471,28 @@ function openRejectRefund(row: OrderRow) {
 }
 
 async function doRejectRefund() {
-  if (!rejectReason.value) { ElMessage.warning("请填写拒绝原因"); return; }
+  if (!rejectReason.value.trim()) { ElMessage.warning("请填写拒绝原因"); return; }
   saving.value = true;
   try {
-    await merchantBackendApi.rejectRefund(rejectOrderId.value, { reason: rejectReason.value });
-    ElMessage.success("已拒绝退款");
+    await merchantBackendApi.rejectRefund(rejectOrderId.value, { reason: rejectReason.value.trim() });
+    ElMessage.success("已提交拒绝退款");
     rejectDialog.value = false;
     fetchList();
-  } catch { /* */ } finally { saving.value = false; }
+  } catch (e) {
+    // 后端拒绝退款真实语义补齐中：404/异常时诚实提示
+    const status = (e as { response?: { status?: number } })?.response?.status;
+    const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message;
+    ElMessage.error(status === 404 ? "拒绝退款功能后端上线中，请稍后重试或到「售后管理」处理" : (msg || "操作失败，请稍后重试"));
+  } finally { saving.value = false; }
 }
 </script>
 
 <style scoped>
 .page { padding: 20px; }
-.page-header { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
+.page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
 .page-header h3 { margin: 0; }
+.header-right { display: flex; gap: 12px; }
 .order-detail { padding: 12px 20px; }
+.buyer-phone { color: var(--color-text-secondary, #999); font-size: 12px; margin-left: 4px; }
+.list-tip { margin-top: 10px; font-size: 12px; color: var(--color-text-secondary, #999); }
 </style>

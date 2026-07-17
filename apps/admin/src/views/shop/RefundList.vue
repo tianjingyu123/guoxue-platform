@@ -28,12 +28,12 @@
       </el-col>
       <el-col :span="6">
         <div class="stat-card amount">
-          <span class="value">¥{{ fmt(stats.pendingAmount) }}</span><span class="label">待处理金额</span>
+          <span class="value">¥{{ fmt(stats.pendingAmount) }}</span><span class="label">待处理金额（近100条口径）</span>
         </div>
       </el-col>
       <el-col :span="6">
         <div class="stat-card">
-          <span class="value">¥{{ fmt(stats.todayRefund) }}</span><span class="label">今日退款</span>
+          <span class="value">¥{{ fmt(stats.todayRefund) }}</span><span class="label">今日退款（近100条口径）</span>
         </div>
       </el-col>
       <el-col :span="6">
@@ -107,7 +107,36 @@
         width="160"
       >
         <template #default="{ row }">
-          {{ row.user?.nickname || row.userId }}
+          <template v-if="row.user?.nickname">
+            <router-link
+              class="user-link"
+              :to="`/users/${row.userId}`"
+            >
+              {{ row.user.nickname }}
+            </router-link>
+          </template>
+          <template v-else-if="row.userId">
+            <el-tooltip
+              :content="row.userId"
+              placement="top"
+            >
+              <router-link
+                class="user-link mono"
+                :to="`/users/${row.userId}`"
+              >
+                {{ row.userId.slice(0, 8) }}…
+              </router-link>
+            </el-tooltip>
+            <el-button
+              size="small"
+              link
+              type="primary"
+              @click.stop="copyText(row.userId)"
+            >
+              复制
+            </el-button>
+          </template>
+          <span v-else>—</span>
         </template>
       </el-table-column>
       <el-table-column
@@ -227,8 +256,17 @@
           {{ approveTarget?.user?.nickname || approveTarget?.userId }}
         </el-descriptions-item>
       </el-descriptions>
-      <p style="margin-top:12px; color:#e6a23c">
-        ⚠️ 确认后将执行退款，资金将原路退回，此操作不可撤销。
+      <p
+        v-if="isRefundType(approveTarget?.type)"
+        class="danger-hint"
+      >
+        此操作真金退款不可逆：确认后将向用户真金退款 ¥{{ fmt(approveTarget?.amount) }}，资金原路退回支付渠道。
+      </p>
+      <p
+        v-else
+        style="margin-top:12px; color:#e6a23c"
+      >
+        该申请为{{ typeLabel(approveTarget?.type ?? '') }}类，同意后不发生退款，仅流转售后状态。
       </p>
       <template #footer>
         <el-button @click="approveVisible = false">
@@ -276,7 +314,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from "vue";
 import { ElMessage } from "element-plus";
-import { orderApi, api } from "@/api";
+import { api } from "@/api";
 
 // 退款审核基于「售后申请(AfterSale)」实体：其 status 枚举(PENDING/APPROVED/REJECTED/...)
 // 与本页标签完全对应，且平台侧仅 AfterSale 有「带原因拒绝退款」的真实端点
@@ -323,8 +361,30 @@ function fmt(v: number | string | undefined | null) {
 function formatDate(d: string) {
   return d ? new Date(d).toLocaleString("zh-CN", { hour12: false }) : "-";
 }
+/** 售后类型翻译：C 端真实写入 refund_only / refund_with_return（原映射漏这两值致英文直出） */
 function typeLabel(t: string) {
-  return ({ refund: "退款", return: "退货", exchange: "换货" } as Record<string, string>)[t] || t || "退款";
+  return ({
+    refund_only: "仅退款", refund_with_return: "退货退款",
+    refund: "退款", REFUND: "退款", return: "退货", exchange: "换货",
+  } as Record<string, string>)[t] || t || "退款";
+}
+/** 退款类判定（与后端 isRefundType 同口径：type 含 refund 即真金退款） */
+function isRefundType(t?: string | null) {
+  return /refund/i.test(t ?? "");
+}
+async function copyText(text: string) {
+  try {
+    await navigator.clipboard.writeText(text);
+    ElMessage.success("已复制");
+  } catch {
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand("copy");
+    ta.remove();
+    ElMessage.success("已复制");
+  }
 }
 
 onMounted(() => { fetchList(); fetchStats(); });
@@ -374,10 +434,10 @@ async function confirmApprove() {
   const target = approveTarget.value;
   processing.value = true;
   try {
-    // 同意退款：先对订单执行真实退款（原路退回 + 冲正分佣），再将售后单标记为已通过。
-    await orderApi.refund(target.orderId ?? "");
+    // P1 修复：只调 process 单端点。后端 processAfterSale 对退款类(type 含 refund)自动走统一退款链路
+    // （渠道路由+幂等锁+CAS 记账+分佣冲正），前置再调 orderApi.refund 是双写退款入口，已删除。
     await api.put(`/shop/admin/after-sales/${target.id}/process`, { action: "approve" });
-    ElMessage.success("退款已同意，资金将原路退回");
+    ElMessage.success(isRefundType(target.type) ? "退款已同意，资金将原路退回" : "售后已同意");
     approveVisible.value = false;
     await fetchList();
     await fetchStats();
@@ -444,4 +504,8 @@ function exportCSV() {
 
 .reason { font-size: 12px; }
 .text-muted { color: var(--color-text-secondary); }
+.user-link { color: var(--el-color-primary, #409eff); text-decoration: none; }
+.user-link:hover { text-decoration: underline; }
+.mono { font-family: monospace; }
+.danger-hint { margin-top: 12px; color: var(--color-error, #f56c6c); font-size: 13px; }
 </style>

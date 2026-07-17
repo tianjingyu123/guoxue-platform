@@ -19,7 +19,7 @@
  * - SKU 增删 → /shop/products/:id/skus + /shop/skus/:skuId（owner 校验·无更新端点·改=删+重建）
  */
 import { ref, reactive, computed, watch } from "vue";
-import { ElMessage } from "element-plus";
+import { ElMessage, ElMessageBox } from "element-plus";
 import { Plus, Delete, InfoFilled } from "@element-plus/icons-vue";
 import { merchantBackendApi, productApi } from "@/api";
 import CosImageUpload from "@/components/upload/CosImageUpload.vue";
@@ -215,6 +215,7 @@ async function loadProduct(id: string) {
     });
     origSkus = skuRows.value.filter((r): r is SkuRow & { id: string } => !!r.id).map((r) => ({ ...r, id: r.id as string }));
     multiSpec.value = skuRows.value.length > 0;
+    baseline = snapshot(); // 加载完成后的状态作为"未改动"基准
   } catch {
     ElMessage.error("商品加载失败，请重试");
     visible.value = false;
@@ -226,9 +227,42 @@ async function loadProduct(id: string) {
 watch(visible, (v) => {
   if (!v) return;
   resetForm();
+  baseline = snapshot(); // 新建：空表单为基准（编辑态在 loadProduct 完成后覆盖）
   loadCategories();
   if (props.productId) loadProduct(props.productId);
 });
+
+/* ══════════════ 未保存关闭确认（标准六-3） ══════════════ */
+
+/** 打开/加载完成时的表单快照，关闭前比对判断是否有未保存改动 */
+let baseline = "";
+function snapshot(): string {
+  return JSON.stringify({ form, skus: skuRows.value, multiSpec: multiSpec.value });
+}
+
+/** 取消按钮 / ESC / 弹窗内置关闭统一走这里：有改动先确认再关 */
+async function attemptClose() {
+  if (snapshot() !== baseline) {
+    try {
+      await ElMessageBox.confirm(
+        "当前编辑内容尚未保存，关闭后将丢失修改。确定放弃并关闭？",
+        "未保存提醒",
+        { type: "warning", confirmButtonText: "放弃修改", cancelButtonText: "继续编辑" },
+      );
+    } catch { return; } // 继续编辑
+  }
+  visible.value = false;
+}
+
+/** el-dialog before-close（ESC 等内置关闭路径） */
+function handleBeforeClose(done: () => void) {
+  if (snapshot() === baseline) { done(); return; }
+  ElMessageBox.confirm(
+    "当前编辑内容尚未保存，关闭后将丢失修改。确定放弃并关闭？",
+    "未保存提醒",
+    { type: "warning", confirmButtonText: "放弃修改", cancelButtonText: "继续编辑" },
+  ).then(() => done()).catch(() => { /* 继续编辑 */ });
+}
 
 /* ══════════════ SKU 表格 ══════════════ */
 
@@ -354,6 +388,7 @@ async function save() {
     } else {
       ElMessage.success(props.productId ? "保存成功" : "发布成功");
     }
+    baseline = snapshot(); // 已保存：关闭不再提示未保存
     visible.value = false;
     emit("saved");
   } catch { /* 请求错误已由拦截器提示 */ } finally {
@@ -380,6 +415,8 @@ const previewSupplement = computed(() => (htmlIsEmpty(form.supplement) ? "" : fo
     fullscreen
     destroy-on-close
     :show-close="false"
+    :close-on-click-modal="false"
+    :before-close="handleBeforeClose"
     class="product-editor-dialog"
   >
     <template #header>
@@ -389,7 +426,7 @@ const previewSupplement = computed(() => (htmlIsEmpty(form.supplement) ? "" : fo
           <span class="header-sub">左侧编辑 · 右侧手机实时预览，编辑即所见</span>
         </div>
         <div class="header-actions">
-          <el-button @click="visible = false">
+          <el-button @click="attemptClose">
             取消
           </el-button>
           <el-button

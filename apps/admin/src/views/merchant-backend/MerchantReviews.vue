@@ -22,19 +22,18 @@
       stripe
     >
       <template #empty>
-        <el-empty description="暂无评价数据" />
+        <el-empty description="暂无评价，买家评价后可在这里回复" />
       </template>
+      <!-- 后端 listReviews include product:{title}；不返回评价用户信息，故无用户列 -->
       <el-table-column
-        prop="productTitle"
         label="商品"
         min-width="150"
         show-overflow-tooltip
-      />
-      <el-table-column
-        prop="userName"
-        label="用户"
-        width="100"
-      />
+      >
+        <template #default="{ row }">
+          {{ row.product?.title || "—" }}
+        </template>
+      </el-table-column>
       <el-table-column
         label="评分"
         width="100"
@@ -56,11 +55,11 @@
         show-overflow-tooltip
       />
       <el-table-column
-        label="时间"
-        width="160"
+        label="评价时间"
+        width="150"
       >
         <template #default="{ row }">
-          {{ formatDate(row.createdAt) }}
+          {{ fmtTime(row.createdAt) }}
         </template>
       </el-table-column>
       <el-table-column
@@ -147,11 +146,10 @@ import { ref, onMounted } from "vue";
 import { ElMessage } from "element-plus";
 import { merchantBackendApi } from "@/api";
 
-/** 评价行（字段宽松 optional） */
+/** 评价行——后端 listReviews 返回 ProductReview 原始行 + product:{title}（不含评价用户信息） */
 interface ReviewRow {
   id: string;
-  productTitle?: string;
-  userName?: string;
+  product?: { title?: string } | null;
   rating?: number;
   content?: string;
   reply?: string;
@@ -168,8 +166,13 @@ const replyDialog = ref(false);
 const replyId = ref("");
 const replyContent = ref("");
 
-function formatDate(d: string) {
-  return d ? new Date(d).toLocaleDateString("zh-CN", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }) : "-";
+/** 时间：YYYY-MM-DD HH:mm，空值显示 — */
+function fmtTime(d?: string | null): string {
+  if (!d) return "—";
+  const t = new Date(d);
+  if (Number.isNaN(t.getTime())) return "—";
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${t.getFullYear()}-${p(t.getMonth() + 1)}-${p(t.getDate())} ${p(t.getHours())}:${p(t.getMinutes())}`;
 }
 
 onMounted(() => fetchList());

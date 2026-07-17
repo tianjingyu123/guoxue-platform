@@ -617,7 +617,7 @@
                 <el-button
                   type="success"
                   size="small"
-                  @click="openPaySettle(row.id)"
+                  @click="openPaySettle(row)"
                 >
                   标记支付
                 </el-button>
@@ -997,20 +997,34 @@
       </template>
     </el-dialog>
 
-    <!-- 保证金退还对话框 -->
+    <!-- 保证金退还对话框（资金支出·退还金额必填·不允许隐式全额） -->
     <el-dialog
       v-model="refundDialog"
       title="退还保证金"
-      width="400px"
+      width="440px"
     >
+      <el-alert
+        type="warning"
+        :closable="false"
+        show-icon
+        style="margin-bottom:12px"
+        :title="`该商家当前已缴保证金 ¥${currentDeposit.toFixed(2)}，退还为资金支出且不可逆，请仔细核对金额。`"
+      />
       <el-form label-width="80px">
-        <el-form-item label="退还金额">
+        <el-form-item
+          label="退还金额"
+          required
+        >
           <el-input-number
             v-model="refundAmount"
             :min="0"
+            :max="currentDeposit"
             :precision="2"
             style="width:100%"
           />
+          <div class="fund-hint">
+            金额必填（已预填当前保证金全额，可改为部分退还），不可超过已缴 ¥{{ currentDeposit.toFixed(2) }}
+          </div>
         </el-form-item>
         <el-form-item label="备注">
           <el-input v-model="refundRemark" />
@@ -1021,7 +1035,7 @@
           取消
         </el-button>
         <el-button
-          type="primary"
+          type="danger"
           :loading="saving"
           @click="doRefund"
         >
@@ -1034,7 +1048,7 @@
     <el-dialog
       v-model="adjustDialog"
       title="调整保证金"
-      width="400px"
+      width="420px"
     >
       <el-form label-width="80px">
         <el-form-item
@@ -1047,6 +1061,9 @@
             :precision="2"
             style="width:100%"
           />
+          <div class="fund-hint">
+            当前保证金 ¥{{ currentDeposit.toFixed(2) }}，保存后按新金额记账
+          </div>
         </el-form-item>
         <el-form-item label="调整原因">
           <el-input
@@ -1118,8 +1135,15 @@
     <el-dialog
       v-model="paySettleDialog"
       title="标记结算已支付"
-      width="400px"
+      width="420px"
     >
+      <el-alert
+        type="info"
+        :closable="false"
+        show-icon
+        style="margin-bottom:12px"
+        :title="`该结算单应付金额 ¥${paySettleDue.toFixed(2)}（已预填），确认前请核对线下实际打款金额。`"
+      />
       <el-form label-width="80px">
         <el-form-item
           label="支付金额"
@@ -1186,7 +1210,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowLeft } from '@element-plus/icons-vue'
@@ -1286,6 +1310,7 @@ const settleForm = ref({ periodStart: '', periodEnd: '' })
 
 const paySettleDialog = ref(false)
 const paySettleId = ref('')
+const paySettleDue = ref(0) // 结算单应付金额（预填与比对基准）
 const paySettleAmount = ref(0)
 const paySettleRemark = ref('')
 
@@ -1421,9 +1446,25 @@ async function doReject() {
 }
 async function changeStatus(status: string) {
   const label = status === 'SUSPENDED' ? '暂停' : status === 'ACTIVE' ? '恢复' : '关闭'
+  const shopName = merchant.value?.shopName || '该商家'
   try {
-    await ElMessageBox.confirm(`确定${label}该商家吗？`, '提示', { type: 'warning' })
-    await merchantApi.updateStatus(id, { status })
+    if (status === 'ACTIVE') {
+      await ElMessageBox.confirm(`确定恢复「${shopName}」经营吗？恢复后店铺与商品重新对用户可见。`, '恢复经营', { type: 'warning' })
+      await merchantApi.updateStatus(id, { status })
+    } else {
+      // 暂停/关闭为 L2 危险操作：理由必填 + 影响提示（理由将通知商家并写入审计）
+      const impact = status === 'SUSPENDED'
+        ? `暂停后「${shopName}」店铺冻结、全部商品对用户不可购买，需人工恢复。`
+        : `关闭后「${shopName}」永久停业、不可自助恢复，保证金与未结算货款需另行人工处理。`
+      const r = await ElMessageBox.prompt(`${impact}请填写${label}理由（将通知商家并记录审计）：`, `${label}店铺`, {
+        type: 'warning',
+        confirmButtonText: `确认${label}`,
+        cancelButtonText: '取消',
+        inputPlaceholder: `请输入${label}理由（必填）`,
+        inputValidator: (v: string) => (v && v.trim() ? true : '理由不能为空'),
+      })
+      await merchantApi.updateStatus(id, { status, reason: (r.value || '').trim() })
+    }
     ElMessage.success(`已${label}`)
     fetchDetail()
   } catch { /* cancelled */ }
@@ -1554,15 +1595,26 @@ async function doGenerateSettlement() {
   finally { saving.value = false }
 }
 
-function openPaySettle(sid: string) {
-  paySettleId.value = sid
-  paySettleAmount.value = 0
+function openPaySettle(row: SettlementRow) {
+  paySettleId.value = row.id
+  // 预填结算单应付金额，避免手输错账
+  paySettleDue.value = Number(row.settlementAmount || 0)
+  paySettleAmount.value = paySettleDue.value
   paySettleRemark.value = ''
   paySettleDialog.value = true
 }
 
 async function doPaySettlement() {
-  if (!paySettleAmount.value) { ElMessage.warning('请输入支付金额'); return }
+  if (!paySettleAmount.value || paySettleAmount.value <= 0) { ElMessage.warning('请输入支付金额（须大于 0）'); return }
+  const diff = Math.abs(paySettleAmount.value - paySettleDue.value) > 0.005
+  const diffWarn = diff ? `⚠ 输入金额 ¥${paySettleAmount.value.toFixed(2)} 与应付 ¥${paySettleDue.value.toFixed(2)} 不一致，请确认线下实际打款金额无误。` : ''
+  try {
+    await ElMessageBox.confirm(
+      `确认已线下向商家打款 ¥${paySettleAmount.value.toFixed(2)} 并标记该结算单为已支付？标记后不可撤销。${diffWarn}`,
+      '标记结算已支付（不可逆）',
+      { type: diff ? 'error' : 'warning', confirmButtonText: '确认标记', cancelButtonText: '取消' },
+    )
+  } catch { return }
   saving.value = true
   try {
     await merchantApi.paySettlement(id, paySettleId.value, {
@@ -1585,21 +1637,45 @@ async function doCancelSettlement(sid: string) {
   } catch { /* cancelled */ }
 }
 
-// 保证金
-function openRefund() { refundAmount.value = 0; refundRemark.value = ''; refundDialog.value = true }
+// 保证金（资金支出 L4 语义：金额显式必填 + 二次确认写明金额与不可逆；真四眼复核流待后端支持）
+const currentDeposit = computed(() => Number(merchant.value?.depositAmount || 0))
+
+function openRefund() {
+  // 预填当前保证金全额并显式展示，杜绝"留 0 → 后端隐式全额退"的陷阱
+  refundAmount.value = currentDeposit.value
+  refundRemark.value = ''
+  refundDialog.value = true
+}
 async function doRefund() {
+  if (!refundAmount.value || refundAmount.value <= 0) { ElMessage.warning('请输入退还金额（须大于 0）'); return }
+  if (refundAmount.value > currentDeposit.value) { ElMessage.warning(`退还金额不可超过已缴保证金 ¥${currentDeposit.value.toFixed(2)}`); return }
+  try {
+    await ElMessageBox.confirm(
+      `即将向商家「${merchant.value?.shopName || id}」退还保证金 ¥${refundAmount.value.toFixed(2)}（已缴 ¥${currentDeposit.value.toFixed(2)}）。资金支出不可逆，确认退还？`,
+      '退还保证金（不可逆）',
+      { type: 'error', confirmButtonText: '确认退还', cancelButtonText: '取消', confirmButtonClass: 'el-button--danger' },
+    )
+  } catch { return }
   saving.value = true
   try {
-    await merchantApi.refundDeposit(id, { amount: refundAmount.value || undefined, remark: refundRemark.value || undefined })
-    ElMessage.success('保证金已退还')
+    // 金额恒显式传递，绝不依赖后端"缺省=全额"语义
+    await merchantApi.refundDeposit(id, { amount: refundAmount.value, remark: refundRemark.value || undefined })
+    ElMessage.success(`已退还保证金 ¥${refundAmount.value.toFixed(2)}`)
     refundDialog.value = false
     fetchDetail()
   } catch (e) { }
   finally { saving.value = false }
 }
-function openAdjust() { adjustAmount.value = 0; adjustReason.value = ''; adjustDialog.value = true }
+function openAdjust() { adjustAmount.value = currentDeposit.value; adjustReason.value = ''; adjustDialog.value = true }
 async function doAdjust() {
   if (!adjustAmount.value) { ElMessage.warning('请输入新金额'); return }
+  try {
+    await ElMessageBox.confirm(
+      `保证金将由 ¥${currentDeposit.value.toFixed(2)} 调整为 ¥${adjustAmount.value.toFixed(2)}，将影响商家账面记录。确认调整？`,
+      '调整保证金',
+      { type: 'warning', confirmButtonText: '确认调整', cancelButtonText: '取消' },
+    )
+  } catch { return }
   saving.value = true
   try {
     await merchantApi.adjustDeposit(id, { amount: adjustAmount.value, reason: adjustReason.value || undefined })
@@ -1637,4 +1713,5 @@ async function doSetCommission() {
 .members-hint { font-size: 12px; color: var(--color-text-secondary); line-height: 1.5; flex: 1; }
 .members-owner-hint { color: var(--color-text-placeholder); }
 .members-add-tip { font-size: 12px; color: var(--color-text-secondary); line-height: 1.5; padding: 0 4px; }
+.fund-hint { font-size: 12px; color: var(--el-text-color-secondary); line-height: 1.5; margin-top: 4px; }
 </style>

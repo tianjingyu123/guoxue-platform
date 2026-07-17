@@ -15,7 +15,7 @@
       style="margin-bottom:12px"
     >
       <template #title>
-        <span style="font-size:13px">展示位置：<b>商城拼团专区</b>、<b>微页面拼团组件</b>。创建后即生效，用户可发起或参与拼团。</span>
+        <span style="font-size:13px">展示位置：<b>商城拼团专区</b>、<b>微页面拼团组件</b>。创建后为<b>草稿</b>，需点「启用」才对用户生效。</span>
       </template>
     </el-alert>
     <el-alert
@@ -40,21 +40,20 @@
       stripe
     >
       <el-table-column
-        prop="name"
-        label="活动名称"
-        min-width="150"
-      />
-      <el-table-column
-        prop="productTitle"
         label="商品"
-        min-width="120"
-      />
+        min-width="150"
+        show-overflow-tooltip
+      >
+        <template #default="{ row }">
+          {{ row.productTitle || row.productId || '-' }}
+        </template>
+      </el-table-column>
       <el-table-column
         label="成团人数"
         width="80"
       >
         <template #default="{ row }">
-          {{ row.groupSize }}人
+          {{ row.minMembers ?? row.groupSize ?? '-' }}人
         </template>
       </el-table-column>
       <el-table-column
@@ -70,7 +69,7 @@
         width="100"
       >
         <template #default="{ row }">
-          {{ row.durationHours }}小时
+          {{ formatExpire(row.expireMinutes) }}
         </template>
       </el-table-column>
       <el-table-column
@@ -79,10 +78,10 @@
       >
         <template #default="{ row }">
           <el-tag
-            :type="row.status === 'ACTIVE' ? 'success' : 'info'"
+            :type="row.status === 'ACTIVE' ? 'success' : row.status === 'ENDED' ? 'warning' : 'info'"
             size="small"
           >
-            {{ row.status === 'ACTIVE' ? '进行中' : '已结束' }}
+            {{ row.status === 'ACTIVE' ? '进行中' : row.status === 'ENDED' ? '已结束' : '草稿' }}
           </el-tag>
         </template>
       </el-table-column>
@@ -96,7 +95,7 @@
       </el-table-column>
       <el-table-column
         label="操作"
-        width="220"
+        width="280"
         fixed="right"
       >
         <template #default="{ row }">
@@ -107,6 +106,22 @@
             编辑
           </el-button>
           <el-button
+            v-if="row.status !== 'ACTIVE'"
+            size="small"
+            type="success"
+            @click="activate(row)"
+          >
+            启用
+          </el-button>
+          <el-button
+            v-if="row.status === 'ACTIVE'"
+            size="small"
+            type="warning"
+            @click="deactivate(row)"
+          >
+            停用
+          </el-button>
+          <el-button
             size="small"
             @click="openParticipants(row)"
           >
@@ -115,7 +130,7 @@
           <el-button
             size="small"
             type="danger"
-            @click="del(row.id)"
+            @click="del(row)"
           >
             删除
           </el-button>
@@ -148,13 +163,10 @@
         :model="form"
         label-width="100px"
       >
-        <el-form-item label="活动名称">
-          <el-input
-            v-model="form.name"
-            placeholder="如：新春拼团"
-          />
-        </el-form-item>
-        <el-form-item label="选择商品">
+        <el-form-item
+          label="选择商品"
+          required
+        >
           <ProductPicker v-model="form.productId" />
         </el-form-item>
         <el-form-item label="成团人数">
@@ -309,32 +321,64 @@ interface ParticipantRow {
 
 const loading = ref(false); const error = ref(false); const saving = ref(false); const list = ref<GroupBuyRow[]>([]); const total = ref(0); const page = ref(1); const pages = ref<PageOption[]>([])
 const vis = ref(false); const editingId = ref('')
-const form = reactive({ name: '', productId: '', minMembers: 2, groupPrice: 0, expireMinutes: 1440, scope: 'GLOBAL', scopePageId: '' })
+const form = reactive({ productId: '', minMembers: 2, groupPrice: 0, expireMinutes: 1440, scope: 'GLOBAL', scopePageId: '' })
 
 const participantsVis = ref(false); const participantsLoading = ref(false); const participants = ref<ParticipantRow[]>([])
 
 onMounted(() => { fetchList(); loadPages() })
-async function loadPages() { try { const { data } = await marketingApi.listPages(); pages.value = data.items || data.pages || data.data || [] } catch { /* 忽略 */ } }
+async function loadPages() { try { const { data } = await marketingApi.listPages(); pages.value = Array.isArray(data) ? data : (data.items || data.pages || data.data || []) } catch { /* 忽略 */ } }
 function formatDate(d: string) { return d ? new Date(d).toLocaleString() : '-' }
+/** 有效期人性化：分钟 → 小时/天 */
+function formatExpire(min?: number) {
+  if (!min || min <= 0) return '-'
+  if (min < 60) return `${min}分钟`
+  if (min % 1440 === 0) return `${min / 1440}天`
+  const h = min / 60
+  return `${Number.isInteger(h) ? h : h.toFixed(1)}小时`
+}
 
 async function fetchList() {
   loading.value = true
   error.value = false
   try { const { data } = await marketingApi.listGroupBuys({ page: page.value, pageSize: 20 }); list.value = data.items || data.groupBuys || data.data || []; total.value = data.total || 0 } catch { list.value = []; error.value = true } finally { loading.value = false }
 }
-function openCreate() { editingId.value = ''; Object.assign(form, { name: '', productId: '', minMembers: 2, groupPrice: 0, expireMinutes: 1440, scope: 'GLOBAL', scopePageId: '' }); vis.value = true }
-function openEdit(row: GroupBuyRow) { editingId.value = row.id; Object.assign(form, { name: row.name || '', productId: row.productId, minMembers: row.minMembers || row.groupSize || 2, groupPrice: Number(row.groupPrice), expireMinutes: row.expireMinutes || row.durationHours || 1440, scope: row.scope || 'GLOBAL', scopePageId: row.scopePageId || '' }); vis.value = true }
+function openCreate() { editingId.value = ''; Object.assign(form, { productId: '', minMembers: 2, groupPrice: 0, expireMinutes: 1440, scope: 'GLOBAL', scopePageId: '' }); vis.value = true }
+function openEdit(row: GroupBuyRow) { editingId.value = row.id; Object.assign(form, { productId: row.productId, minMembers: row.minMembers || row.groupSize || 2, groupPrice: Number(row.groupPrice), expireMinutes: row.expireMinutes || 1440, scope: row.scope || 'GLOBAL', scopePageId: row.scopePageId || '' }); vis.value = true }
 async function save() {
-  if (!form.name) { ElMessage.warning('请输入活动名称'); return }
+  if (!form.productId) { ElMessage.warning('请选择拼团商品'); return }
+  if (!form.groupPrice || form.groupPrice <= 0) { ElMessage.warning('请输入拼团价'); return }
   saving.value = true
   try {
     const payload: Record<string, unknown> = { ...form, scopePageId: form.scope === 'PAGE_ONLY' ? form.scopePageId : undefined }
     if (editingId.value) { await marketingApi.updateGroupBuy(editingId.value, payload); ElMessage.success('已更新') }
-    else { await marketingApi.createGroupBuy(payload); ElMessage.success('拼团活动创建成功，用户即可参与拼团') }
+    else { await marketingApi.createGroupBuy(payload); ElMessage.success('拼团活动已创建（草稿），点「启用」后用户端生效') }
     vis.value = false; fetchList()
   } catch (e) { ElMessage.error((e as ApiError)?.response?.data?.message || '操作失败') } finally { saving.value = false }
 }
-async function del(id: string) { try { await ElMessageBox.confirm('确定删除？', '提示', { type: 'warning' }); await marketingApi.deleteGroupBuy(id); ElMessage.success('已删除'); fetchList() } catch { /* 用户取消 */ } }
+/** 启用：DRAFT/ENDED → ACTIVE（L3 影响预告） */
+async function activate(row: GroupBuyRow) {
+  try {
+    await ElMessageBox.confirm(
+      `启用后该拼团立即对用户生效：商城拼团专区${row.scope === 'PAGE_ONLY' ? '（仅关联微页面）' : '及微页面'}可见，用户可发起/参与拼团。确定启用？`,
+      '启用拼团',
+      { type: 'warning', confirmButtonText: '确认启用', cancelButtonText: '取消' },
+    )
+  } catch { return }
+  try { await marketingApi.updateGroupBuy(row.id, { status: 'ACTIVE' }); ElMessage.success('已启用，用户端已生效'); fetchList() }
+  catch (e) { ElMessage.error((e as ApiError)?.response?.data?.message || '启用失败') }
+}
+/** 停用：ACTIVE → ENDED */
+async function deactivate(row: GroupBuyRow) {
+  try {
+    await ElMessageBox.confirm('停用后用户端立即不可再发起/参与该拼团，进行中的团不受影响。确定停用？', '停用拼团', { type: 'warning', confirmButtonText: '确认停用', cancelButtonText: '取消' })
+  } catch { return }
+  try { await marketingApi.updateGroupBuy(row.id, { status: 'ENDED' }); ElMessage.success('已停用'); fetchList() }
+  catch (e) { ElMessage.error((e as ApiError)?.response?.data?.message || '停用失败') }
+}
+async function del(row: GroupBuyRow) {
+  const warn = row.status === 'ACTIVE' ? '该拼团正在进行中，删除后用户端立即失效且参团记录不可再查看。' : '删除后不可恢复。'
+  try { await ElMessageBox.confirm(`${warn}确定删除？`, '删除拼团', { type: 'warning', confirmButtonText: '确认删除', cancelButtonText: '取消' }); await marketingApi.deleteGroupBuy(row.id); ElMessage.success('已删除'); fetchList() } catch { /* 用户取消 */ }
+}
 
 async function openParticipants(row: GroupBuyRow) {
   participantsVis.value = true; participantsLoading.value = true

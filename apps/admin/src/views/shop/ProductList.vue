@@ -46,23 +46,83 @@
       actions-width="280"
       @change="fetchList"
     >
+      <template #toolbar>
+        <el-input
+          v-model="filterKeyword"
+          placeholder="商品名关键词"
+          clearable
+          style="width:180px"
+          @keyup.enter="doSearch"
+          @clear="doSearch"
+        />
+        <el-select
+          v-model="filterStatus"
+          placeholder="状态"
+          clearable
+          style="width:110px"
+          @change="doSearch"
+        >
+          <el-option
+            label="在售"
+            value="ON_SALE"
+          />
+          <el-option
+            label="待审"
+            value="PENDING"
+          />
+          <el-option
+            label="下架"
+            value="OFF_SHELF"
+          />
+        </el-select>
+        <el-select
+          v-model="filterCategoryId"
+          placeholder="分类"
+          clearable
+          filterable
+          style="width:150px"
+          @change="doSearch"
+        >
+          <el-option
+            v-for="c in categories"
+            :key="c.id"
+            :label="c.name"
+            :value="c.id"
+          />
+        </el-select>
+        <el-button
+          type="primary"
+          @click="doSearch"
+        >
+          查询
+        </el-button>
+        <el-button @click="resetFilters">
+          重置
+        </el-button>
+      </template>
 
       <template #image="{ row }">
-        <img
+        <el-image
           v-if="row.images?.[0]"
           :src="row.images[0]"
+          :preview-src-list="row.images"
+          fit="cover"
+          preview-teleported
           class="thumb"
-        >
-        <span
+        />
+        <div
           v-else
-          class="no-img"
-        >无</span>
+          class="img-placeholder"
+        >
+          <el-icon><Picture /></el-icon>
+        </div>
       </template>
       <template #price="{ row }">
         ¥{{ Number(row.price).toFixed(2) }}
       </template>
       <template #originalPrice="{ row }">
-        ¥{{ Number(row.originalPrice).toFixed(2) }}
+        <span v-if="row.originalPrice != null && row.originalPrice !== ''">¥{{ Number(row.originalPrice).toFixed(2) }}</span>
+        <span v-else>—</span>
       </template>
       <template #status="{ row }">
         <el-tag
@@ -123,17 +183,17 @@
         <el-button
           size="small"
           type="danger"
-          @click="handleDelete(row.id)"
+          @click="handleDelete(row)"
         >
           删除
         </el-button>
       </template>
     </DataTable>
 
-    <!-- 编辑/新建弹窗 -->
+    <!-- 编辑弹窗（商品创建已统一到商家后台，本页无新建） -->
     <el-dialog
       v-model="dialogVisible"
-      :title="editingId ? '编辑商品' : '添加商品'"
+      title="编辑商品"
       width="700px"
       top="5vh"
       destroy-on-close
@@ -209,11 +269,8 @@
             </el-form-item>
           </el-col>
         </el-row>
-        <!-- 逐品站长推广佣金（佣-V2·仅编辑态·按商品利润逐品定·2026-07-04拍板） -->
-        <el-form-item
-          v-if="editingId"
-          label="推广佣金"
-        >
+        <!-- 逐品站长推广佣金（佣-V2·按商品利润逐品定·2026-07-04拍板·独立端点保存） -->
+        <el-form-item label="推广佣金">
           <el-input-number
             v-model="form.commissionRatePct"
             :min="0"
@@ -226,46 +283,15 @@
             %（站长推广佣金一档·留空用类目默认{{ form.commissionRatePct != null ? `·站长每单约得 ¥${((form.price * form.commissionRatePct) / 100).toFixed(2)}` : '' }}）
           </span>
         </el-form-item>
-        <el-row :gutter="16">
-          <el-col :span="8">
-            <el-form-item label="原价">
-              <el-input-number
-                v-model="form.originalPrice"
-                :min="0"
-                :precision="2"
-                style="width:100%"
-              />
-            </el-form-item>
-          </el-col>
-          <el-col :span="8">
-            <el-form-item label="分类">
-              <el-select
-                v-model="form.category"
-                placeholder="选择商品分类"
-                filterable
-                allow-create
-                default-first-option
-                clearable
-                style="width:100%"
-              >
-                <el-option
-                  v-for="c in categories"
-                  :key="c.id"
-                  :label="c.name"
-                  :value="c.name"
-                />
-              </el-select>
-            </el-form-item>
-          </el-col>
-          <el-col :span="8">
-            <el-form-item label="封面">
-              <CosImageUpload
-                v-model="form.cover"
-                tip="点击上传商品封面"
-              />
-            </el-form-item>
-          </el-col>
-        </el-row>
+        <!-- 原价/分类/封面：后端 UpdateProductDto 白名单不含这三字段（forbidNonWhitelisted·传即 400），
+             编辑态收敛不展示，避免"改了保存却不生效"的假成功；调整请到商家后台商品编辑。 -->
+        <el-alert
+          type="info"
+          :closable="false"
+          show-icon
+          style="margin-bottom:12px"
+          title="原价 / 分类 / 封面 本页不可修改（后端编辑接口不支持），如需调整请到「商家后台 · 商品管理」。"
+        />
         <el-form-item label="场景标签">
           <el-select
             v-model="form.sceneTags"
@@ -458,10 +484,8 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance } from 'element-plus'
-import { Plus } from '@element-plus/icons-vue'
+import { Plus, Picture } from '@element-plus/icons-vue'
 import { uploadApi, productApi, api } from '@/api'
-import ImageUpload from '@/components/ImageUpload.vue'
-import CosImageUpload from '@/components/upload/CosImageUpload.vue'
 import RichEditor from '@/components/editor/RichEditor.vue'
 import DataTable from '@/components/DataTable.vue'
 import PageHeader from "@/components/PageHeader.vue"
@@ -515,11 +539,17 @@ async function loadCategories() {
 }
 const acting = ref(false)
 
+// ── 筛选（productApi.list 已支持 keyword/status/categoryId·此前一直没接） ──
+const filterKeyword = ref('')
+const filterStatus = ref('')
+const filterCategoryId = ref('')
+
 const dialogVisible = ref(false)
 const editingId = ref('')
+// 编辑表单收敛：原价/分类/封面 不在 UpdateProductDto 白名单（forbidNonWhitelisted 多传即 400），从表单剔除
 const form = reactive({
-  title: '', intro: '', detail: '', price: 0, originalPrice: 0, stock: 0,
-  cover: '', category: '', images: [] as string[], status: 'ON_SALE' as string,
+  title: '', intro: '', detail: '', price: 0, stock: 0,
+  images: [] as string[], status: 'ON_SALE' as string,
   sceneTags: [] as string[],
   // 逐品站长推广佣金率（%显示·null=用类目默认·佣-V2·独立端点保存，与 UpdateProductDto 白名单无关）
   commissionRatePct: null as number | null,
@@ -559,12 +589,24 @@ async function fetchList() {
   loading.value = true
   error.value = false
   try {
-    // status=ALL：后端 C 端默认只出 ON_SALE，管理端工作队列须看到待审/下架商品，显式查全量
-    const { data } = await productApi.list({ page: page.value, pageSize: 20, status: 'ALL' })
+    // status 默认 ALL：后端 C 端默认只出 ON_SALE，管理端工作队列须看到待审/下架商品，显式查全量
+    const { data } = await productApi.list({
+      page: page.value, pageSize: 20,
+      status: filterStatus.value || 'ALL',
+      keyword: filterKeyword.value.trim() || undefined,
+      categoryId: filterCategoryId.value || undefined,
+    })
     products.value = data.items || data.products || []; total.value = data.total || 0
   } catch {
     products.value = []; total.value = 0; error.value = true
   } finally { loading.value = false }
+}
+
+function doSearch() { page.value = 1; fetchList() }
+function resetFilters() {
+  filterKeyword.value = ''; filterStatus.value = ''; filterCategoryId.value = ''
+  page.value = 1
+  fetchList()
 }
 
 async function fetchProduct(id: string) { const { data } = await productApi.detail(id); return data }
@@ -584,7 +626,7 @@ async function onImageFile(e: Event) {
 }
 
 function resetForm() {
-  Object.assign(form, { title: '', intro: '', detail: '', price: 0, originalPrice: 0, stock: 0, cover: '', category: '', images: [], status: 'ON_SALE', sceneTags: [], commissionRatePct: null })
+  Object.assign(form, { title: '', intro: '', detail: '', price: 0, stock: 0, images: [], status: 'ON_SALE', sceneTags: [], commissionRatePct: null })
   editingId.value = ''; imgUrl.value = ''
 }
 
@@ -593,8 +635,8 @@ async function openEdit(row: ProductRow) {
   const p = await fetchProduct(row.id ?? '')
   Object.assign(form, {
     title: p.title, intro: p.intro || '', detail: p.detail || '',
-    price: Number(p.price) || 0, originalPrice: Number(p.originalPrice) || 0,
-    stock: p.stock || 0, cover: p.cover || '', category: p.category || '',
+    price: Number(p.price) || 0,
+    stock: p.stock || 0,
     images: p.images || [], status: p.status || 'ON_SALE',
     sceneTags: p.sceneTags || [],
     commissionRatePct: p.commissionRate != null ? Math.round(Number(p.commissionRate) * 10000) / 100 : null,
@@ -602,33 +644,25 @@ async function openEdit(row: ProductRow) {
   dialogVisible.value = true
 }
 
+// 商品创建已统一到商家后台（本页原创建分支为死代码——入口按钮早已改为跳商家后台——已删除）
 async function saveProduct() {
+  if (!editingId.value) return
   saving.value = true
   try {
-    if (editingId.value) {
-      // 更新按 UpdateProductDto 白名单显式取字段（后端 forbidNonWhitelisted·多传即 400·打标即生效）
-      const payload = {
-        title: form.title, intro: form.intro, detail: form.detail, images: form.images,
-        price: form.price, stock: form.stock, status: form.status, sceneTags: form.sceneTags,
-      }
-      await productApi.update(editingId.value, payload)
-      // 佣金率走独立 admin 端点（不在 UpdateProductDto 白名单·商家不可自设）·%转 0-1 小数
-      await productApi.setCommissionRate(
-        editingId.value,
-        form.commissionRatePct != null ? Math.round(form.commissionRatePct * 100) / 10000 : null,
-      )
-      ElMessage.success('已更新')
-    } else {
-      // 创建按 CreateProductDto 白名单（无 status 字段·新建默认待审，用列表"上架"按钮流转）
-      const payload = {
-        title: form.title, intro: form.intro, detail: form.detail, images: form.images,
-        price: form.price, originalPrice: form.originalPrice, stock: form.stock,
-        cover: form.cover, category: form.category, sceneTags: form.sceneTags,
-      }
-      await productApi.create(payload); ElMessage.success('已创建')
+    // 更新按 UpdateProductDto 白名单显式取字段（后端 forbidNonWhitelisted·多传即 400·打标即生效）
+    const payload = {
+      title: form.title, intro: form.intro, detail: form.detail, images: form.images,
+      price: form.price, stock: form.stock, status: form.status, sceneTags: form.sceneTags,
     }
+    await productApi.update(editingId.value, payload)
+    // 佣金率走独立 admin 端点（不在 UpdateProductDto 白名单·商家不可自设）·%转 0-1 小数
+    await productApi.setCommissionRate(
+      editingId.value,
+      form.commissionRatePct != null ? Math.round(form.commissionRatePct * 100) / 10000 : null,
+    )
+    ElMessage.success('已更新')
     dialogVisible.value = false; fetchList()
-  } catch { /* */ } finally { saving.value = false }
+  } catch { /* 拦截器已提示 */ } finally { saving.value = false }
 }
 
 async function toggleStatus(row: ProductRow) {
@@ -642,12 +676,20 @@ async function toggleStatus(row: ProductRow) {
   } finally { acting.value = false }
 }
 
-async function handleDelete(id: string) {
+/** 删除确认（L2）：带商品名 + 在售警示，不再是无信息的"确定删除？" */
+async function handleDelete(row: ProductRow) {
+  const onSale = row.status === 'ON_SALE'
   try {
-    await ElMessageBox.confirm('确定删除？', '提示', { type: 'warning' })
+    await ElMessageBox.confirm(
+      onSale
+        ? `商品「${row.title || row.id}」当前在售（已售 ${row.salesCount ?? 0} 件）。删除后 C 端立即不可见、用户无法再购买，且不可恢复。确定删除？`
+        : `确定删除商品「${row.title || row.id}」吗？删除后不可恢复。`,
+      '删除商品',
+      { type: 'warning', confirmButtonText: '确认删除', confirmButtonClass: 'el-button--danger' },
+    )
     if (acting.value) return
     acting.value = true
-    await productApi.delete(id); ElMessage.success('已删除'); fetchList()
+    await productApi.delete(row.id ?? ''); ElMessage.success('已删除'); fetchList()
   } catch { /* */ } finally { acting.value = false }
 }
 
@@ -660,6 +702,9 @@ async function openSkus(row: ProductRow | null) {
 
 async function addSkuAction() {
   if (!skuProduct.value) return
+  // 必填校验：规格名/规格值缺一则后端存出 "颜色:" 之类的残缺规格
+  if (!skuKey.value.trim()) { ElMessage.warning('请输入规格名（如 颜色）'); return }
+  if (!skuVal.value.trim()) { ElMessage.warning('请输入规格值（如 红色）'); return }
   if (acting.value) return
   acting.value = true
   try {
@@ -686,6 +731,7 @@ async function delSku(skuId: string) {
 <style scoped>
 .product-page { padding: 0; }
 .thumb { width: 48px; height: 48px; object-fit: cover; border-radius: 4px; }
+.img-placeholder { width: 48px; height: 48px; border-radius: 4px; background: var(--color-bg-page, #f5f7fa); display: flex; align-items: center; justify-content: center; color: #c0c4cc; font-size: 20px; }
 .scene-tag { margin: 0 4px 2px 0; }
 .no-img { color: var(--color-text-placeholder); font-size: 11px; }
 .rate-hint { margin-left: 8px; font-size: 12px; color: #909399; }

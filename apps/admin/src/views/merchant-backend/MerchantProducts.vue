@@ -51,7 +51,7 @@
       stripe
     >
       <template #empty>
-        <el-empty description="暂无商品数据" />
+        <el-empty description="暂无商品，点击右上角「发布商品」上架第一件商品" />
       </template>
       <el-table-column
         label="图片"
@@ -79,10 +79,11 @@
       />
       <el-table-column
         label="价格"
-        width="100"
+        width="110"
+        align="right"
       >
         <template #default="{ row }">
-          ¥{{ Number(row.price || 0).toFixed(2) }}
+          {{ fmtMoney(row.price) }}
         </template>
       </el-table-column>
       <el-table-column
@@ -105,10 +106,10 @@
       </el-table-column>
       <el-table-column
         label="创建时间"
-        width="160"
+        width="150"
       >
         <template #default="{ row }">
-          {{ formatDate(row.createdAt) }}
+          {{ fmtTime(row.createdAt) }}
         </template>
       </el-table-column>
       <el-table-column
@@ -185,7 +186,7 @@ interface ProductRow {
   id: string;
   title?: string;
   images?: string[];
-  price?: number;
+  price?: number | string;
   stock?: number;
   status?: string;
   createdAt?: string;
@@ -201,8 +202,21 @@ const filterStatus = ref("");
 const editorVisible = ref(false);
 const editingId = ref("");
 
-function formatDate(d: string) {
-  return d ? new Date(d).toLocaleDateString("zh-CN", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }) : "-";
+/** 金额：千分位两位小数，空值显示 — */
+function fmtMoney(v?: number | string | null): string {
+  if (v == null || v === "") return "—";
+  const n = Number(v);
+  if (Number.isNaN(n)) return "—";
+  return "¥" + n.toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+/** 时间：YYYY-MM-DD HH:mm，空值显示 — */
+function fmtTime(d?: string | null): string {
+  if (!d) return "—";
+  const t = new Date(d);
+  if (Number.isNaN(t.getTime())) return "—";
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${t.getFullYear()}-${p(t.getMonth() + 1)}-${p(t.getDate())} ${p(t.getHours())}:${p(t.getMinutes())}`;
 }
 
 onMounted(() => fetchList());

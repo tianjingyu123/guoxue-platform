@@ -86,11 +86,22 @@
         </template>
       </el-table-column>
       <el-table-column
-        prop="reason"
         label="原因"
         min-width="150"
         show-overflow-tooltip
-      />
+      >
+        <template #default="{ row }">
+          {{ parsedReason(row).text || '-' }}
+          <el-tag
+            v-if="parsedReason(row).images.length"
+            size="small"
+            type="info"
+            effect="plain"
+          >
+            {{ parsedReason(row).images.length }}图
+          </el-tag>
+        </template>
+      </el-table-column>
       <el-table-column
         label="金额"
         width="100"
@@ -156,10 +167,15 @@
       </el-table-column>
       <el-table-column
         label="申请时间"
-        width="100"
+        width="120"
       >
         <template #default="{ row }">
-          {{ row.createdAt?.slice(0, 10) }}
+          <el-tooltip
+            :content="fmtFullTime(row.createdAt)"
+            placement="top"
+          >
+            <span>{{ fmtTime(row.createdAt) }}</span>
+          </el-tooltip>
         </template>
       </el-table-column>
       <el-table-column
@@ -203,11 +219,11 @@
       @current-change="fetchList"
     />
 
-    <!-- 处理弹窗 -->
+    <!-- 处理弹窗：审核弹窗内呈现被审内容本体（订单金额/申请原因/凭证图） -->
     <el-dialog
       v-model="dialogVisible"
       :title="dialogAction === 'approve' ? '同意售后' : '拒绝售后'"
-      width="420px"
+      width="520px"
     >
       <!-- 快速退款通道标注：投诉成立处置处提示（只标注·不自动退款） -->
       <el-alert
@@ -216,15 +232,62 @@
         :closable="false"
         show-icon
         style="margin-bottom:12px"
-        title="可快速退款：该订单资金仍在结算缓冲期内（未结算给商家），退款不涉追回，可走快速退款通道。资金操作需人工在结算/财务侧执行。"
+        title="可快速退款：该订单资金仍在结算缓冲期内（未结算给商家），退款不涉追回，可走快速退款通道。"
       />
-      <el-form label-width="60px">
+      <el-descriptions
+        :column="1"
+        border
+        size="small"
+      >
+        <el-descriptions-item label="订单编号">
+          {{ processRow?.orderId || '-' }}
+        </el-descriptions-item>
+        <el-descriptions-item label="售后类型">
+          {{ typeLabel(processRow?.type ?? '') }}
+        </el-descriptions-item>
+        <el-descriptions-item label="申请金额">
+          <span :class="{ 'amount-strong': isRefundType(processRow?.type) }">
+            ¥{{ processRow?.amount ? Number(processRow.amount).toFixed(2) : '-' }}
+          </span>
+        </el-descriptions-item>
+        <el-descriptions-item label="申请原因">
+          <span style="white-space:pre-wrap">{{ parsedReason(processRow).text || '-' }}</span>
+        </el-descriptions-item>
+        <el-descriptions-item
+          v-if="parsedReason(processRow).images.length"
+          label="凭证图片"
+        >
+          <div class="voucher-imgs">
+            <el-image
+              v-for="(img, i) in parsedReason(processRow).images"
+              :key="img"
+              :src="img"
+              :preview-src-list="parsedReason(processRow).images"
+              :initial-index="i"
+              fit="cover"
+              class="voucher-img"
+              preview-teleported
+            />
+          </div>
+        </el-descriptions-item>
+      </el-descriptions>
+      <p
+        v-if="dialogAction === 'approve' && isRefundType(processRow?.type)"
+        class="danger-hint"
+      >
+        此操作真金退款不可逆：同意后将向用户真金退款
+        ¥{{ processRow?.amount ? Number(processRow.amount).toFixed(2) : '-' }}，资金原路退回支付渠道。
+      </p>
+      <el-form
+        label-width="60px"
+        style="margin-top:12px"
+      >
         <el-form-item label="备注">
           <el-input
             v-model="processRemark"
             type="textarea"
             :rows="3"
-            :placeholder="dialogAction === 'reject' ? '请填写拒绝原因' : '可选填备注'"
+            :placeholder="dialogAction === 'reject' ? '请填写拒绝原因（必填）' : '可选填备注'"
           />
         </el-form-item>
       </el-form>
@@ -246,7 +309,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from "vue";
-import { ElMessage, ElMessageBox } from "element-plus";
+import { ElMessage } from "element-plus";
 import { api } from "@/api";
 
 /** 售后申请行（字段宽松 optional，仅覆盖模板/脚本实际访问字段） */
@@ -302,9 +365,47 @@ function slaColor(row: AfterSaleRow) {
   return remain < 4 * 3_600_000 ? "#e6a23c" : "#606266"; // 临期橙色
 }
 
+/** 售后类型翻译：C 端真实写入 refund_only / refund_with_return（原映射漏这两值致英文直出） */
 function typeLabel(t: string) {
-  const map: Record<string, string> = { refund: "退款", return: "退货", exchange: "换货" };
+  const map: Record<string, string> = {
+    refund_only: "仅退款", refund_with_return: "退货退款",
+    refund: "退款", REFUND: "退款", return: "退货", exchange: "换货",
+  };
   return map[t] || t;
+}
+/** 退款类判定（与后端 isRefundType 同口径：type 含 refund 即同意时真金退款） */
+function isRefundType(t?: string | null) {
+  return /refund/i.test(t ?? "");
+}
+
+/**
+ * 被审内容解析：后端 applyAfterSale 把凭证图并入 reason 存档
+ * （格式 "原因文本\n[凭证图片] url1 url2"），此处拆回 文本 + 图片列表 供弹窗呈现。
+ */
+function parsedReason(row: AfterSaleRow | null): { text: string; images: string[] } {
+  const raw = row?.reason || "";
+  const marker = "[凭证图片]";
+  const idx = raw.indexOf(marker);
+  if (idx < 0) return { text: raw, images: [] };
+  const text = raw.slice(0, idx).trim();
+  const images = raw.slice(idx + marker.length).trim().split(/\s+/).filter((u) => /^https?:\/\//.test(u));
+  return { text, images };
+}
+
+/** 列表时间：MM-DD HH:mm（原先只切到日期，同日多单无法排序核对） */
+function fmtTime(d?: string) {
+  if (!d) return "-";
+  const t = new Date(d);
+  if (isNaN(t.getTime())) return "-";
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${p(t.getMonth() + 1)}-${p(t.getDate())} ${p(t.getHours())}:${p(t.getMinutes())}`;
+}
+function fmtFullTime(d?: string) {
+  if (!d) return "-";
+  const t = new Date(d);
+  if (isNaN(t.getTime())) return "-";
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${t.getFullYear()}-${p(t.getMonth() + 1)}-${p(t.getDate())} ${p(t.getHours())}:${p(t.getMinutes())}:${p(t.getSeconds())}`;
 }
 
 function statusLabel(s: string) {
@@ -388,4 +489,8 @@ async function confirmProcess() {
 .page { padding: 16px; }
 .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .toolbar h3 { margin: 0; font-size: 16px; }
+.voucher-imgs { display: flex; gap: 8px; flex-wrap: wrap; }
+.voucher-img { width: 64px; height: 64px; border-radius: 4px; cursor: pointer; }
+.amount-strong { color: var(--color-error, #f56c6c); font-weight: 700; }
+.danger-hint { margin-top: 12px; color: var(--color-error, #f56c6c); font-size: 13px; }
 </style>

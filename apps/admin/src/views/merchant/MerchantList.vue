@@ -226,11 +226,69 @@
     <el-dialog
       v-model="approveDialog"
       title="审核通过"
-      width="500px"
+      width="620px"
     >
+      <!-- 被审资料本体 -->
+      <div
+        v-loading="reviewDetailLoading"
+        class="review-material"
+      >
+        <el-descriptions
+          v-if="reviewDetail"
+          :column="2"
+          border
+          size="small"
+        >
+          <el-descriptions-item label="店铺名称">
+            {{ reviewDetail.shopName || '—' }}
+          </el-descriptions-item>
+          <el-descriptions-item label="经营类目">
+            {{ reviewDetail.categoryIds?.join('、') || '未选择' }}
+          </el-descriptions-item>
+          <el-descriptions-item label="联系人">
+            {{ reviewDetail.contactName || '—' }}
+          </el-descriptions-item>
+          <el-descriptions-item label="联系电话">
+            {{ reviewDetail.contactPhone || '—' }}
+          </el-descriptions-item>
+          <el-descriptions-item
+            label="店铺简介"
+            :span="2"
+          >
+            {{ reviewDetail.shopIntro || '暂无' }}
+          </el-descriptions-item>
+        </el-descriptions>
+        <div
+          v-if="reviewDetail"
+          class="review-images"
+        >
+          <div
+            v-for="img in reviewImages"
+            :key="img.label"
+            class="review-image-item"
+          >
+            <div class="review-image-label">
+              {{ img.label }}
+            </div>
+            <el-image
+              v-if="img.url"
+              :src="img.url"
+              :preview-src-list="[img.url]"
+              fit="contain"
+              style="width:130px;height:90px;border:1px solid var(--el-border-color);border-radius:4px"
+              preview-teleported
+            />
+            <span
+              v-else
+              class="review-image-missing"
+            >未上传</span>
+          </div>
+        </div>
+      </div>
       <el-form
         :model="approveForm"
         label-width="100px"
+        style="margin-top:12px"
       >
         <el-form-item label="保证金金额">
           <el-input-number
@@ -277,9 +335,63 @@
     <el-dialog
       v-model="rejectDialog"
       title="审核驳回"
-      width="500px"
+      width="620px"
     >
-      <el-form label-width="80px">
+      <!-- 被审资料本体 -->
+      <div
+        v-loading="reviewDetailLoading"
+        class="review-material"
+      >
+        <el-descriptions
+          v-if="reviewDetail"
+          :column="2"
+          border
+          size="small"
+        >
+          <el-descriptions-item label="店铺名称">
+            {{ reviewDetail.shopName || '—' }}
+          </el-descriptions-item>
+          <el-descriptions-item label="经营类目">
+            {{ reviewDetail.categoryIds?.join('、') || '未选择' }}
+          </el-descriptions-item>
+          <el-descriptions-item label="联系人">
+            {{ reviewDetail.contactName || '—' }}
+          </el-descriptions-item>
+          <el-descriptions-item label="联系电话">
+            {{ reviewDetail.contactPhone || '—' }}
+          </el-descriptions-item>
+        </el-descriptions>
+        <div
+          v-if="reviewDetail"
+          class="review-images"
+        >
+          <div
+            v-for="img in reviewImages"
+            :key="img.label"
+            class="review-image-item"
+          >
+            <div class="review-image-label">
+              {{ img.label }}
+            </div>
+            <el-image
+              v-if="img.url"
+              :src="img.url"
+              :preview-src-list="[img.url]"
+              fit="contain"
+              style="width:130px;height:90px;border:1px solid var(--el-border-color);border-radius:4px"
+              preview-teleported
+            />
+            <span
+              v-else
+              class="review-image-missing"
+            >未上传</span>
+          </div>
+        </div>
+      </div>
+      <el-form
+        label-width="80px"
+        style="margin-top:12px"
+      >
         <el-form-item
           label="驳回原因"
           required
@@ -309,7 +421,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search } from '@element-plus/icons-vue'
@@ -330,6 +442,19 @@ interface MerchantRow {
   createdAt?: string
 }
 
+/** 被审资料（详情接口·审核弹窗展示本体用） */
+interface MerchantReviewDetail {
+  shopName?: string
+  contactName?: string
+  contactPhone?: string
+  categoryIds?: string[]
+  shopIntro?: string
+  idCardFront?: string
+  idCardBack?: string
+  businessLicense?: string
+  brandAuth?: string
+}
+
 const list = ref<MerchantRow[]>([])
 const total = ref(0)
 const page = ref(1)
@@ -345,6 +470,26 @@ const approveId = ref('')
 const rejectId = ref('')
 const rejectReason = ref('')
 const approveForm = ref({ depositAmount: undefined as number | undefined, commissionRate: undefined as number | undefined, remark: '' })
+
+// 被审资料本体（审核弹窗打开时拉详情展示）
+const reviewDetail = ref<MerchantReviewDetail | null>(null)
+const reviewDetailLoading = ref(false)
+const reviewImages = computed(() => [
+  { label: '营业执照', url: reviewDetail.value?.businessLicense || '' },
+  { label: '身份证正面', url: reviewDetail.value?.idCardFront || '' },
+  { label: '身份证反面', url: reviewDetail.value?.idCardBack || '' },
+  { label: '品牌授权书', url: reviewDetail.value?.brandAuth || '' },
+])
+
+async function loadReviewDetail(id: string) {
+  reviewDetail.value = null
+  reviewDetailLoading.value = true
+  try {
+    const res = await merchantApi.detail(id)
+    reviewDetail.value = res.data as MerchantReviewDetail
+  } catch { /* 弹窗内空态·不阻断审核 */ }
+  finally { reviewDetailLoading.value = false }
+}
 
 const STATUS_MAP: Record<string, string> = {
   PENDING_REVIEW: '待审核',
@@ -393,6 +538,7 @@ function goPunish(id: string) { router.push(`/merchants/${id}?tab=punishments`) 
 function openApprove(row: MerchantRow) {
   approveId.value = row.id
   approveForm.value = { depositAmount: undefined, commissionRate: undefined, remark: '' }
+  loadReviewDetail(row.id)
   approveDialog.value = true
 }
 
@@ -410,6 +556,7 @@ async function doApprove() {
 function openReject(row: MerchantRow) {
   rejectId.value = row.id
   rejectReason.value = ''
+  loadReviewDetail(row.id)
   rejectDialog.value = true
 }
 
@@ -428,8 +575,23 @@ async function doReject() {
 async function changeStatus(row: MerchantRow, status: string) {
   const label = status === 'SUSPENDED' ? '暂停' : status === 'ACTIVE' ? '恢复' : '关闭'
   try {
-    await ElMessageBox.confirm(`确定${label}商家"${row.shopName}"吗？`, '提示', { type: 'warning' })
-    await merchantApi.updateStatus(row.id, { status })
+    if (status === 'ACTIVE') {
+      await ElMessageBox.confirm(`确定恢复商家「${row.shopName}」经营吗？恢复后店铺与商品重新对用户可见。`, '恢复经营', { type: 'warning' })
+      await merchantApi.updateStatus(row.id, { status })
+    } else {
+      // 暂停/关闭为 L2 危险操作：理由必填 + 影响提示（理由将通知商家并写入审计）
+      const impact = status === 'SUSPENDED'
+        ? `暂停后商家「${row.shopName}」店铺冻结、全部商品对用户不可购买，需人工恢复。`
+        : `关闭后商家「${row.shopName}」永久停业、不可自助恢复，保证金与未结算货款需另行人工处理。`
+      const r = await ElMessageBox.prompt(`${impact}请填写${label}理由（将通知商家并记录审计）：`, `${label}商家`, {
+        type: 'warning',
+        confirmButtonText: `确认${label}`,
+        cancelButtonText: '取消',
+        inputPlaceholder: `请输入${label}理由（必填）`,
+        inputValidator: (v: string) => (v && v.trim() ? true : '理由不能为空'),
+      })
+      await merchantApi.updateStatus(row.id, { status, reason: (r.value || '').trim() })
+    }
     ElMessage.success(`已${label}`)
     fetchList()
   } catch { /* cancelled */ }
@@ -440,4 +602,9 @@ async function changeStatus(row: MerchantRow, status: string) {
 .page { padding: 20px; }
 .toolbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
 .toolbar-right { display: flex; align-items: center; gap: 12px; }
+.review-material { min-height: 60px; }
+.review-images { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 12px; }
+.review-image-item { display: flex; flex-direction: column; gap: 4px; }
+.review-image-label { font-size: 12px; color: var(--el-text-color-secondary); }
+.review-image-missing { font-size: 12px; color: var(--el-text-color-placeholder); display: inline-block; width: 130px; height: 90px; line-height: 90px; text-align: center; border: 1px dashed var(--el-border-color); border-radius: 4px; }
 </style>

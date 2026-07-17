@@ -164,7 +164,7 @@
         :closable="false"
         show-icon
         style="margin-bottom:12px"
-        title="发放后立即进入用户券包，下单可直接抵扣；已持有本券未使用的用户将自动跳过"
+        title="发放后立即进入用户券包，下单可直接抵扣；已持有本券未使用的用户将自动跳过。"
       />
       <el-input
         v-model="grantUserIdsText"
@@ -172,6 +172,9 @@
         :rows="6"
         placeholder="输入目标用户 ID，逗号或换行分隔，单次最多 500 人"
       />
+      <div class="grant-hint">
+        用户 ID 从哪来：在「用户管理」列表搜索目标用户后复制其 ID；也可从运营活动导出的用户名单粘贴。
+      </div>
       <template #footer>
         <el-button @click="grantVisible = false">取消</el-button>
         <el-button
@@ -560,9 +563,15 @@ async function toggleStatus(row: CouponRow) {
   } finally { toggling.value = false }
 }
 
+/** 删除确认（L3 影响预告）：带券名 + 已使用量警示（Coupon 表无已领取计数，以 usedCount 为已知影响口径） */
 async function handleDelete(row: CouponRow) {
   try {
-    await ElMessageBox.confirm('确定删除此优惠券？', '提示', { type: 'warning' })
+    await ElMessageBox.confirm(
+      `确定删除优惠券「${row.name || row.id}」吗？该券已被使用 ${row.usedCount ?? 0} 次；` +
+      '删除后已发放到用户券包的该券将无法继续使用，且不可恢复。如只是暂停发放，请用"禁用"。',
+      '删除优惠券',
+      { type: 'warning', confirmButtonText: '确认删除', confirmButtonClass: 'el-button--danger' },
+    )
     if (deleting.value) return
     deleting.value = true
     await shopApi.deleteCoupon(row.id ?? '')
@@ -576,4 +585,5 @@ async function handleDelete(row: CouponRow) {
 .coupon-page { padding: 16px; }
 .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .toolbar h3 { margin: 0; font-size: 18px; color: var(--color-text-title); }
+.grant-hint { margin-top: 8px; font-size: 12px; color: #909399; }
 </style>

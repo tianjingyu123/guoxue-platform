@@ -3,7 +3,7 @@
     <div class="toolbar">
       <h3>支付流水</h3>
       <el-button @click="handleExport">
-        导出CSV
+        导出CSV（当前页）
       </el-button>
     </div>
 
@@ -43,6 +43,9 @@
         </div>
       </el-col>
     </el-row>
+    <div class="stats-caliber">
+      统计口径：含已支付 / 已发货 / 已完成 订单（发货与完成同为已收款）；金额按每状态最多近 500 单汇总，历史累计每状态最多近 2000 单。
+    </div>
 
     <el-row
       :gutter="12"
@@ -70,12 +73,10 @@
           style="width:100%"
         >
           <el-option
-            label="已支付"
-            value="PAID"
-          />
-          <el-option
-            label="已退款"
-            value="REFUNDED"
+            v-for="(label, key) in statusLabels"
+            :key="key"
+            :label="label"
+            :value="key"
           />
         </el-select>
       </el-col>
@@ -151,10 +152,11 @@
       </el-table-column>
       <el-table-column
         label="金额"
-        width="100"
+        width="110"
+        align="right"
       >
         <template #default="{ row }">
-          ¥{{ Number(row.amount || row.totalAmount).toFixed(2) }}
+          ¥{{ fmt(row.amount || row.totalAmount) }}
         </template>
       </el-table-column>
       <el-table-column
@@ -162,7 +164,7 @@
         width="100"
       >
         <template #default="{ row }">
-          {{ row.payMethod || row.paymentMethod || '-' }}
+          {{ payMethodLabel(row.payMethod || row.paymentMethod) }}
         </template>
       </el-table-column>
       <el-table-column
@@ -171,10 +173,10 @@
       >
         <template #default="{ row }">
           <el-tag
-            :type="row.status === 'PAID' ? 'success' : 'info'"
+            :type="statusTagTypes[row.status] || 'info'"
             size="small"
           >
-            {{ row.status === 'PAID' ? '已支付' : row.status }}
+            {{ statusLabels[row.status] || row.status }}
           </el-tag>
         </template>
       </el-table-column>
@@ -238,11 +240,55 @@ function fmt(v: number | string | undefined | null) {
 
 onMounted(() => { fetchList(); fetchStats(); })
 
+/** OrderType 全量 12 值翻译（schema enum OrderType·漏一个就英文枚举直出员工界面） */
 function typeLabel(t: string) {
-  const m: Record<string, string> = { MEMBER: '会员', COURSE: '课程', PRODUCT: '商品', CIRCLE_JOIN: '入圈', PAIPAN: '排盘', LIVESTREAM: '直播' }
+  const m: Record<string, string> = {
+    MEMBER: '书院会员', COURSE: '课程', PRODUCT: '商品', CIRCLE_JOIN: '入圈',
+    CIRCLE_RENEW: '圈子续费', STATION_MASTER: '分站站长', OPERATOR: '运营商',
+    BOT_SERVICE: '智能体服务', PAIPAN: '排盘', LIVESTREAM: '直播', BUNDLE: '课程组合包',
+    PRACTITIONER_PRO: '从业者会员',
+  }
   return m[t] || t || '-'
 }
+const statusLabels: Record<string, string> = {
+  PENDING: '待支付', PAID: '已支付', SHIPPED: '已发货', COMPLETED: '已完成', REFUNDED: '已退款', CANCELLED: '已取消',
+}
+const statusTagTypes: Record<string, string> = {
+  PENDING: 'warning', PAID: 'success', SHIPPED: 'primary', COMPLETED: 'success', REFUNDED: 'info', CANCELLED: 'info',
+}
+function payMethodLabel(m?: string) {
+  if (!m) return '—'
+  const map: Record<string, string> = {
+    WECHAT: '微信支付', wechat: '微信支付', ALIPAY: '支付宝', alipay: '支付宝',
+    UNIONPAY: '银联', HUIFU: '汇付', COIN: '国学币', BALANCE: '余额', MANUAL: '人工确认',
+  }
+  return map[m] || m
+}
 function formatDate(d: string) { return d ? new Date(d).toLocaleString("zh-CN", { hour12: false }) : '-' }
+
+// 已收款订单状态口径：SHIPPED/COMPLETED 同为已收款（原统计只算 PAID，发货/完成后金额从看板"蒸发"）
+const PAID_LIKE_STATUSES = ['PAID', 'SHIPPED', 'COMPLETED'] as const
+
+/** 单状态某时间段的 笔数+金额（金额按最多 cap 条汇总·后端 listOrders 仅支持单状态过滤，故逐状态查再求和） */
+async function sumOneStatus(status: string, cap: number, startDate?: string, endDate?: string) {
+  const base: Record<string, string | number> = { status }
+  if (startDate && endDate) { base.startDate = startDate; base.endDate = endDate }
+  const head = await orderApi.list({ page: 1, pageSize: 1, ...base })
+  const total = ((head.data || {}) as OrderListResp).total || 0
+  let amount = 0
+  if (total > 0) {
+    const items = await orderApi.list({ page: 1, pageSize: Math.min(total, cap), ...base })
+    const data = items.data as OrderListResp
+    amount = (data?.orders || data?.data || []).reduce((s: number, r: PaymentRow) => s + Number(r.amount || r.totalAmount || 0), 0)
+  }
+  return { count: total, amount }
+}
+
+/** 三个已收款状态合并统计 */
+async function sumPaidLike(cap: number, startDate?: string, endDate?: string) {
+  const parts = await Promise.all(PAID_LIKE_STATUSES.map((s) => sumOneStatus(s, cap, startDate, endDate)))
+  return parts.reduce((acc, p) => ({ count: acc.count + p.count, amount: acc.amount + p.amount }), { count: 0, amount: 0 })
+}
 
 async function fetchStats() {
   try {
@@ -250,43 +296,17 @@ async function fetchStats() {
     const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10)
     const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10)
 
-    const [todayRes, yesterdayRes, monthRes, allRes] = await Promise.all([
-      orderApi.list({ page: 1, pageSize: 1, status: 'PAID', startDate: today, endDate: today }),
-      orderApi.list({ page: 1, pageSize: 1, status: 'PAID', startDate: yesterday, endDate: yesterday }),
-      orderApi.list({ page: 1, pageSize: 1, status: 'PAID', startDate: monthStart, endDate: today }),
-      orderApi.list({ page: 1, pageSize: 1, status: 'PAID' }),
+    const [td, yd, mo, al] = await Promise.all([
+      sumPaidLike(500, today, today),
+      sumPaidLike(500, yesterday, yesterday),
+      sumPaidLike(500, monthStart, today),
+      sumPaidLike(2000),
     ])
-    const td = (todayRes.data || {}) as OrderListResp
-    const yd = (yesterdayRes.data || {}) as OrderListResp
-    const mo = (monthRes.data || {}) as OrderListResp
-    const al = (allRes.data || {}) as OrderListResp
-    stats.todayCount = td.total || 0
-    stats.yesterdayCount = yd.total || 0
-    stats.monthCount = mo.total || 0
-    stats.totalCount = al.total || 0
-
-    // 金额汇总
-    if (td.total > 0) {
-      const items = await orderApi.list({ page: 1, pageSize: Math.min(td.total, 500), status: 'PAID', startDate: today, endDate: today })
-      const data = items.data as OrderListResp
-      stats.todayAmount = (data?.orders || data?.data || []).reduce((s: number, r: PaymentRow) => s + Number(r.amount || r.totalAmount || 0), 0)
-    }
-    if (yd.total > 0) {
-      const items = await orderApi.list({ page: 1, pageSize: Math.min(yd.total, 500), status: 'PAID', startDate: yesterday, endDate: yesterday })
-      const data = items.data as OrderListResp
-      stats.yesterdayAmount = (data?.orders || data?.data || []).reduce((s: number, r: PaymentRow) => s + Number(r.amount || r.totalAmount || 0), 0)
-    }
-    if (mo.total > 0) {
-      const items = await orderApi.list({ page: 1, pageSize: Math.min(mo.total, 2000), status: 'PAID', startDate: monthStart, endDate: today })
-      const data = items.data as OrderListResp
-      stats.monthAmount = (data?.orders || data?.data || []).reduce((s: number, r: PaymentRow) => s + Number(r.amount || r.totalAmount || 0), 0)
-    }
-    if (al.total > 0) {
-      const items = await orderApi.list({ page: 1, pageSize: Math.min(al.total, 5000), status: 'PAID' })
-      const data = items.data as OrderListResp
-      stats.totalAmount = (data?.orders || data?.data || []).reduce((s: number, r: PaymentRow) => s + Number(r.amount || r.totalAmount || 0), 0)
-    }
-  } catch { /* ignore */ }
+    stats.todayCount = td.count; stats.todayAmount = td.amount
+    stats.yesterdayCount = yd.count; stats.yesterdayAmount = yd.amount
+    stats.monthCount = mo.count; stats.monthAmount = mo.amount
+    stats.totalCount = al.count; stats.totalAmount = al.amount
+  } catch { /* 统计失败不阻塞列表主流程 */ }
 }
 
 async function fetchList() {
@@ -324,7 +344,9 @@ function handleExport() {
     ...item,
     userName: item.user?.nickname || item.userId,
     typeLabel: typeLabel(item.type || item.orderType || ''),
-    amount: `¥${Number(item.amount || item.totalAmount).toFixed(2)}`,
+    amount: `¥${fmt(item.amount || item.totalAmount)}`,
+    payMethod: payMethodLabel(item.payMethod || item.paymentMethod),
+    status: statusLabels[item.status ?? ''] || item.status,
     paidAt: formatDate(item.paidAt || item.createdAt || ''),
   })))
 }
@@ -340,4 +362,5 @@ function handleExport() {
 .stat-card .label { display: block; font-size: 13px; color: var(--color-text-secondary); margin-top: 4px; }
 
 .filter-row { background: var(--color-bg-page); padding: 12px; border-radius: 8px; }
+.stats-caliber { font-size: 12px; color: var(--color-text-secondary, #909399); margin: -8px 0 12px; }
 </style>

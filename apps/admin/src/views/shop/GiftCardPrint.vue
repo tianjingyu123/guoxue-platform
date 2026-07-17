@@ -76,7 +76,17 @@ async function load() {
       qrOk.value = drawQr(String(qrRef));
     }
   } catch (e) {
-    error.value = (e as Error)?.message || "订单查询失败";
+    // 报错人话化：原样抛 axios 的 "Request failed with status code 404" 运营看不懂
+    const err = e as { response?: { status?: number; data?: { message?: string } } };
+    const status = err?.response?.status;
+    if (status === 404) {
+      error.value = "未找到该订单，请核对订单号是否完整正确";
+    } else if (status === 403) {
+      error.value = "当前账号无权限查看该订单";
+    } else {
+      const serverMsg = err?.response?.data?.message;
+      error.value = serverMsg && /[一-龥]/.test(serverMsg) ? serverMsg : "订单查询失败，请稍后重试";
+    }
   } finally {
     loading.value = false;
   }
