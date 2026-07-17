@@ -96,7 +96,7 @@ function goCategory(id: string) { navigateTo(id === 'all' ? '/mall/category' : `
       <template v-else>
       <!-- 核心功能快捷入口 -->
       <view class="quick-grid">
-        <view v-for="entry in mallQuickEntries" :key="entry.id" class="quick-item" @tap="navigateTo(entry.href)">
+        <view v-for="entry in mallQuickEntries" :key="entry.id" class="quick-item tap-press" @tap="navigateTo(entry.href)">
           <view class="quick-icon"><AppIcon :name="entry.icon" :size="36" color="#c41e3a" /></view>
           <text class="quick-label">{{ entry.label }}</text>
           <text v-if="entry.state" class="quick-state">{{ entry.state }}</text>
@@ -159,7 +159,7 @@ function goCategory(id: string) { navigateTo(id === 'all' ? '/mall/category' : `
           </view>
         </view>
         <view class="cat-grid">
-          <view v-for="cat in mallCategories" :key="cat.id" class="cat-item" @tap="goCategory(cat.id)">
+          <view v-for="cat in mallCategories" :key="cat.id" class="cat-item tap-press" @tap="goCategory(cat.id)">
             <view class="cat-emoji"><AppIcon :name="cat.icon" :size="40" color="#c41e3a" /></view>
             <text class="cat-name">{{ cat.name }}</text>
           </view>

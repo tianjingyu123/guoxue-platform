@@ -349,7 +349,8 @@ function backToTop() {
       <view v-if="homeBlocks.length" class="home-blocks"><block-renderer :blocks="homeBlocks" /></view>
 
       <!-- 焦点区（编辑式·直播优先）：16:10 大卡 + 底部渐变衬底 + 直播中动效 -->
-      <view v-if="focusItem" class="focus" hover-class="focus-press" @tap="goFocus">
+      <!-- 直播态挂全局 live-card-glow（animations.scss·边框呼吸光晕） -->
+      <view v-if="focusItem" class="focus" :class="{ 'live-card-glow': focusIsLive }" hover-class="focus-press" @tap="goFocus">
         <view class="focus-ratio">
           <!-- smart-cover：有图显图（404 自动翻兜底），无图出书法水印生成底——主推位不允许空 banner -->
           <smart-cover

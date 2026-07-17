@@ -127,7 +127,7 @@ onShow(() => {
           <view class="mine-row">
             <view
               v-for="c in myCircles" :key="c.id"
-              class="mine-card" @tap="go(`/pkg-circle/circles/detail?id=${c.id}`)"
+              class="mine-card tap-press" @tap="go(`/pkg-circle/circles/detail?id=${c.id}`)"
             >
               <view class="mine-cover-wrap">
                 <smart-cover :src="c.cover" :title="c.name" type="circle" deco :deco-size="40" class="mine-cover" />
@@ -164,7 +164,8 @@ onShow(() => {
         <!-- 错误态 -->
         <app-error v-else-if="error" title="圈子加载失败" desc="网络异常，请稍后重试" @retry="loadCircles" />
         <!-- 列表 -->
-        <view v-else-if="circles.length" class="discover-list">
+        <!-- animate-fade-in 挂列表容器：进入渐入；不挂卡片（forwards 动画会压掉卡片 :active 缩放） -->
+        <view v-else-if="circles.length" class="discover-list animate-fade-in">
           <!-- 整卡点击进详情页（像商品/课程卡）：未加入→加入引导页，已加入→圈子详情。
                卡上不再「无感即加入」，加入/购买动作在详情页完成（董事长 #24） -->
           <view
@@ -213,7 +214,7 @@ onShow(() => {
         <view class="feed-list">
           <view
             v-for="post in hotPosts" :key="post.id"
-            class="feed-item" @tap="go(`/pkg-circle/circles/post?id=${post.id}&circleId=${post.circleId}`)"
+            class="feed-item list-press" @tap="go(`/pkg-circle/circles/post?id=${post.id}&circleId=${post.circleId}`)"
           >
             <image lazy-load :src="post.author.avatar" class="feed-avatar" mode="aspectFill" />
             <view class="feed-body">
@@ -317,6 +318,8 @@ onShow(() => {
   display: flex; gap: 24rpx; align-items: center;
   background: var(--bg-card, #fff); border-radius: 32rpx; padding: 24rpx;
   box-shadow: 0 2rpx 8rpx rgba(44, 44, 44, 0.04);
+  /* 补过渡使既有 :active 缩放平滑（X5 安全：仅动 transform） */
+  transition: transform 0.15s ease-out;
 }
 .circle-card:active { transform: scale(0.99); }
 /* 首图 3:4（上传规范：圈子封面 3:4·960×1280）：160×214rpx 缩略图完整展示比例 */

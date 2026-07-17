@@ -470,10 +470,10 @@ function formatDate(dateStr: string) {
   border-radius: 20rpx;
   box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.06);
 }
-/* 3:4 竖图缩略图（小红书口径·固定 rpx 宽高非 aspect-ratio，X5 安全） */
+/* 4:3 横图缩略图（头条式口径·规范§五修订=文章缩略图横小图·固定 rpx 宽高非 aspect-ratio，X5 安全） */
 .article-cover-wrap {
-  width: 132rpx;
-  height: 176rpx;
+  width: 176rpx;
+  height: 132rpx;
   border-radius: 16rpx;
   flex-shrink: 0;
   overflow: hidden;
@@ -481,7 +481,7 @@ function formatDate(dateStr: string) {
 .article-body {
   flex: 1;
   min-width: 0;
-  min-height: 176rpx; /* 与竖图齐平：底部作者/数据行 margin-top:auto 沉底对齐图底边 */
+  min-height: 132rpx; /* 与横图齐平兜底：底部作者/数据行 margin-top:auto 沉底 */
   display: flex;
   flex-direction: column;
 }

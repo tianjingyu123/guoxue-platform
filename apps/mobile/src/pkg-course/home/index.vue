@@ -527,8 +527,8 @@ function openMyLearning() { navigateTo('/courses/my-learning') }
 .seckill-more-txt { font-size: 26rpx; color: #999999; }
 .seckill-cards { white-space: nowrap; }
 .seckill-cards-inner { display: inline-flex; gap: 20rpx; padding-bottom: 4rpx; }
-.sk-item { flex-shrink: 0; width: 240rpx; background: #FFFFFF; border-radius: 16rpx; overflow: hidden; box-shadow: 0 2rpx 6rpx rgba(0,0,0,0.04); } /* 3:4 竖卡后收窄 320→240rpx 防横滑卡过高 */
-.sk-item-cover { position: relative; width: 100%; padding-top: 133.33%; } /* 课程卡容器 3:4（规范§五）·padding 法 */
+.sk-item { flex-shrink: 0; width: 320rpx; background: #FFFFFF; border-radius: 16rpx; overflow: hidden; box-shadow: 0 2rpx 6rpx rgba(0,0,0,0.04); } /* 16:9 横卡宽 320rpx（封面高 180rpx） */
+.sk-item-cover { position: relative; width: 100%; padding-top: 56.25%; } /* 课程卡容器 16:9（规范§五修订）·padding 法 */
 .sk-item-img { position: absolute; inset: 0; width: 100%; height: 100%; }
 .sk-item-body { padding: 16rpx 20rpx 20rpx; }
 .sk-item-name { display: block; font-size: 26rpx; font-weight: 600; color: #2C2C2C; line-height: 1.35; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -542,12 +542,12 @@ function openMyLearning() { navigateTo('/courses/my-learning') }
 .sort-btn { display: flex; align-items: center; gap: 8rpx; background: #FFFFFF; padding: 12rpx 24rpx; border-radius: 999rpx; box-shadow: 0 2rpx 6rpx rgba(0,0,0,0.04); }
 .sort-btn-txt { font-size: 26rpx; color: #6E6E73; }
 
-/* ── 区块5 课程大卡（左图右文：图 3:4 固定 210×280rpx·全宽 3:4 顶图会超高破版故改横排）── */
-.card { display: flex; gap: 24rpx; padding: 20rpx; background: #FFFFFF; border-radius: 28rpx; overflow: hidden; box-shadow: 0 2rpx 6rpx rgba(0,0,0,0.04); }
-.card-cover { flex-shrink: 0; position: relative; width: 210rpx; height: 280rpx; border-radius: 20rpx; overflow: hidden; background: #F0EBE2; } /* 3:4 课程卡容器（规范§五） */
+/* ── 区块5 课程大卡（全宽 16:9 顶图卡：670×377rpx·规范§五修订=容器跟随课程素材自然形态不裁切）── */
+.card { background: #FFFFFF; border-radius: 28rpx; overflow: hidden; box-shadow: 0 2rpx 6rpx rgba(0,0,0,0.04); }
+.card-cover { position: relative; width: 100%; padding-top: 56.25%; overflow: hidden; background: #F0EBE2; } /* 16:9 课程卡容器·X5 禁 aspect-ratio 用 padding 法 */
 .card-cover-img { position: absolute; inset: 0; width: 100%; height: 100%; }
-.type-tag { position: absolute; top: 12rpx; left: 12rpx; background: rgba(0,0,0,0.55); color: #fff; font-size: 20rpx; padding: 4rpx 12rpx; border-radius: 10rpx; }
-.card-body { flex: 1; min-width: 0; padding: 6rpx 0; display: flex; flex-direction: column; gap: 16rpx; }
+.type-tag { position: absolute; top: 16rpx; left: 16rpx; background: rgba(0,0,0,0.55); color: #fff; font-size: 20rpx; padding: 4rpx 12rpx; border-radius: 10rpx; z-index: 3; }
+.card-body { padding: 20rpx 24rpx 24rpx; display: flex; flex-direction: column; gap: 16rpx; }
 .card-title { font-size: 30rpx; font-weight: 700; color: #2C2C2C; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .teacher-row { display: flex; align-items: center; gap: 14rpx; }
 .avatar { width: 40rpx; height: 40rpx; border-radius: 999rpx; overflow: hidden; background: #F0EBE2; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
@@ -583,9 +583,9 @@ function openMyLearning() { navigateTo('/courses/my-learning') }
 .sk::after { content: ""; position: absolute; inset: 0; transform: translateX(-100%); background: linear-gradient(90deg, transparent, rgba(255,255,255,0.6), transparent); animation: shimmer 1.4s infinite; }
 @keyframes shimmer { 100% { transform: translateX(100%); } }
 .sk-banner { width: 100%; padding-top: 56.25%; border-radius: 36rpx; }
-.sk-card { display: flex; gap: 24rpx; padding: 20rpx; background: #FFFFFF; border-radius: 28rpx; overflow: hidden; box-shadow: 0 2rpx 6rpx rgba(0,0,0,0.04); }
-.sk-cover { flex-shrink: 0; width: 210rpx; height: 280rpx; border-radius: 20rpx; } /* 与左图右文大卡封面同尺寸（3:4） */
-.sk-card-body { flex: 1; min-width: 0; padding: 6rpx 0; display: flex; flex-direction: column; gap: 20rpx; }
+.sk-card { background: #FFFFFF; border-radius: 28rpx; overflow: hidden; box-shadow: 0 2rpx 6rpx rgba(0,0,0,0.04); }
+.sk-cover { width: 100%; padding-top: 56.25%; border-radius: 0; } /* 与全宽 16:9 顶图卡封面同比例 */
+.sk-card-body { padding: 20rpx 24rpx 24rpx; display: flex; flex-direction: column; gap: 20rpx; }
 .sk-line { height: 32rpx; }
 .sk-line-sm { height: 26rpx; }
 

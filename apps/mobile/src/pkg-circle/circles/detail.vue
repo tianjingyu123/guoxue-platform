@@ -279,7 +279,9 @@ const createItems = computed(() => {
     ? { icon: 'radio', title: '我的直播', desc: '你有正在进行的直播 · 点击进入管理', url: '/pkg-live/manage/index' }
     : { icon: 'radio', title: '发直播', desc: '立即或预约开播', url: `/pkg-live/create/index?circleId=${circleId.value}` }
   return [
-    { icon: 'file-text', title: '写文章', desc: '富文本长图文，可向全平台开放', url: `/pkg-circle/circles/publish?circleId=${circleId.value}&type=article` },
+    // 双轨合并（2026-07-17）：原指 publish.vue 老表单（无插图/无关联商品/无草稿/无AI）·
+    // 统一切到 editor（图文穿插+关联商品+封面必选+草稿+AI 标题封面标签全在这条轨）
+    { icon: 'file-text', title: '写文章', desc: '图文长文，可挂商品、可向全平台开放', url: `/pkg-circle/circles/editor?circleId=${circleId.value}&type=article` },
     { icon: 'video', title: '发短视频', desc: '竖屏视频，可关联商品', url: `/pkg-video/publish/index?circleId=${circleId.value}` },
     { icon: 'graduation-cap', title: '发课程', desc: '图文 / 音视频', url: `/pkg-circle/circles/publish?circleId=${circleId.value}&type=course` },
     liveEntry,

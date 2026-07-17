@@ -43,7 +43,8 @@ function open() { navigateTo(`/mall/product/${props.data.id}`) }
 </template>
 
 <style scoped lang="scss">
-.card { overflow: hidden; background: var(--surface); border-radius: 24rpx; box-shadow: 0 2rpx 16rpx rgba(0,0,0,0.05); margin-bottom: 12rpx; }
+/* transition 使 hover-class 按压缩放平滑（X5 安全：仅动 transform） */
+.card { overflow: hidden; background: var(--surface); border-radius: 24rpx; box-shadow: 0 2rpx 16rpx rgba(0,0,0,0.05); margin-bottom: 12rpx; transition: transform 0.15s ease-out; }
 .card-press { transform: scale(0.98); }
 .cover { position: relative; width: 100%; background: var(--surface-sunken); overflow: hidden; }
 .r-34 { padding-bottom: 133.33%; }

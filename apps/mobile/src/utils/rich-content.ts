@@ -157,3 +157,99 @@ export function normalizeArticleContent(html?: string): string {
   )
   return s
 }
+
+/* ============================================================================
+ * 文章编辑器「占位标记式插图」组装/反解（editor.vue 文章模式专用）。
+ *
+ * 编辑侧是纯 textarea（uni-app 无跨端富文本编辑器），采用微博长文同款方案：
+ * 正文里用 [图N] 占位标记表示第 N 张配图的位置，发布时 composeArticleHtml
+ * 把「纯文本 + 图片 URL 列表」组装成规范 HTML；草稿续编时 decomposeArticleHtml
+ * 反解回「文本 + 图列表」回填 textarea。
+ *
+ * 🔴 组装端不注入任何行内样式——排版（h2 字号/img 圆角通栏/p 行高）由渲染端
+ * normalizeArticleContent 统一行内注入，避免双重注入互相覆盖。
+ * ========================================================================== */
+
+/** 把 URL 转成可安全放进双引号属性的形态（escapeHtml 不管引号，属性位须补） */
+function escapeAttr(s: string): string {
+  return escapeHtml(s).replace(/"/g, '&quot;')
+}
+
+/**
+ * 纯文本 + 图列表 → 文章 HTML。规则：
+ * - 按 \n 分段，空段丢弃；
+ * - `## 标题` 行 → <h2>、`### 标题` 行 → <h3>（行首匹配，### 先于 ## 判）；
+ * - `[图N]` → <img src="images[N-1]">；独立成段或段内混排均可（混排时拆成 图/文 各自成块）；
+ * - 其余文字段 escapeHtml 后包裸 <p>；
+ * - 未被正文引用的图片按序追加文末（保证传了的图都能发出去）；
+ * - 指向不存在图片的标记（如手打 [图99]）静默丢弃。
+ */
+export function composeArticleHtml(text: string, images: string[]): string {
+  const used = new Set<number>()
+  const out: string[] = []
+  const pushImg = (n: number) => {
+    const src = images[n - 1]
+    if (!src) return
+    used.add(n - 1)
+    out.push(`<img src="${escapeAttr(src)}" />`)
+  }
+  const lines = String(text ?? '').replace(/\r\n?/g, '\n').split('\n')
+  for (const raw of lines) {
+    const seg = raw.trim()
+    if (!seg) continue
+    const h3 = seg.match(/^###\s+(.+)$/)
+    if (h3) { out.push(`<h3>${escapeHtml(h3[1].trim())}</h3>`); continue }
+    const h2 = seg.match(/^##\s+(.+)$/)
+    if (h2) { out.push(`<h2>${escapeHtml(h2[1].trim())}</h2>`); continue }
+    // 段内可能混排 [图N]：按标记切开，图与文字各自独立成块
+    for (const part of seg.split(/(\[图\d+\])/)) {
+      const m = part.match(/^\[图(\d+)\]$/)
+      if (m) { pushImg(parseInt(m[1], 10)); continue }
+      const t = part.trim()
+      if (t) out.push(`<p>${escapeHtml(t)}</p>`)
+    }
+  }
+  // 未引用的图兜底追加文末
+  images.forEach((src, i) => {
+    if (src && !used.has(i)) out.push(`<img src="${escapeAttr(src)}" />`)
+  })
+  return out.join('')
+}
+
+/**
+ * 文章 HTML → { text, images } 尽力反解（草稿续编回填 textarea 用）。
+ * - <img src> → 独立行 [图N]，src 依序收进 images；
+ * - <h1>/<h2> → `## ` 行、<h3> → `### ` 行；
+ * - 其余块级标签闭合处、<br> → 换行；剩余标签剥掉只留文字；实体反转义。
+ * 局限（如实声明）：粗体/斜体/链接/列表符号等富文本语义会丢（剥标签留文字）；
+ * 非本编辑器产出的复杂 HTML（嵌套表格等）只能得到线性化文本。
+ * 纯文本输入（旧草稿）原样返回，不做任何转换。
+ */
+export function decomposeArticleHtml(html?: string): { text: string; images: string[] } {
+  let s = String(html ?? '')
+  if (!s.trim()) return { text: '', images: [] }
+  // 存量转义脏数据先反转义出真实标签
+  if (!s.includes('<') && s.includes('&lt;')) s = unescapeEntities(s)
+  // 纯文本（本功能上线前的旧草稿）原样返回
+  if (!s.includes('<')) return { text: s, images: [] }
+  const images: string[] = []
+  // ① img → [图N] 占位（独立行）；src 若被转义过先还原
+  s = s.replace(/<img\b[^>]*?src\s*=\s*(["'])([\s\S]*?)\1[^>]*?\/?>/gi, (_m, _q: string, src: string) => {
+    const url = unescapeEntities(String(src)).trim()
+    if (!url) return '\n'
+    images.push(url)
+    return `\n[图${images.length}]\n`
+  })
+  s = s.replace(/<img\b[^>]*\/?>/gi, '') // 无 src 的残缺 img 直接剥掉
+  // ② 标题还原为 ##/### 行（h1 归并到 ##，与 compose 的 h2 同级展示）
+  s = s.replace(/<h[12]\b[^>]*>([\s\S]*?)<\/h[12]>/gi, (_m, inner: string) => `\n## ${inner.replace(/<[^>]+>/g, '').trim()}\n`)
+  s = s.replace(/<h3\b[^>]*>([\s\S]*?)<\/h3>/gi, (_m, inner: string) => `\n### ${inner.replace(/<[^>]+>/g, '').trim()}\n`)
+  // ③ 块级边界与换行标签 → \n；其余标签剥掉留文字
+  s = s.replace(/<\/(p|div|section|blockquote|li|h[1-6])>/gi, '\n')
+  s = s.replace(/<br\s*\/?>/gi, '\n')
+  s = s.replace(/<[^>]+>/g, '')
+  // ④ 实体反转义 + 空白收敛（连续空行压成一个空行）
+  s = unescapeEntities(s).replace(/&nbsp;/g, ' ')
+  const text = s.replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim()
+  return { text, images }
+}

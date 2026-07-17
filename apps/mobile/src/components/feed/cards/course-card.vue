@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * 课程卡 · 统一 3:4（16:9 封面 cover 填满）· 左上「课」朱红印章 · price（免费/¥价）+ hook
+ * 课程卡 · 统一 16:9 横封面（素材自然形态不裁切·规范§五修订）· 左上「课」朱红印章 · price（免费/¥价）+ hook
  * 去数字化：不显学习人数。hook = free ? "第1课免费" : "去看看 ›"
  */
 import { computed } from 'vue'
@@ -39,7 +39,7 @@ const hook = computed(() => (isFree.value ? '第 1 课免费' : '去看看 ›')
 
 <style scoped>
 .fcard { background: #fff; border-radius: 24rpx; overflow: hidden; box-shadow: 0 2rpx 8rpx rgba(60,50,40,.06); }
-.cov { position: relative; width: 100%; padding-top: 133.33%; overflow: hidden; background: #f6f1e7; }
+.cov { position: relative; width: 100%; padding-top: 56.25%; overflow: hidden; background: #f6f1e7; } /* 16:9 课程封面（瀑布流内素材匹配优先于全竖）·X5 padding 法 */
 .cov-img { position: absolute; inset: 0; width: 100%; height: 100%; }
 .seal {
   position: absolute; top: 16rpx; left: 16rpx; width: 44rpx; height: 44rpx; border-radius: 12rpx;

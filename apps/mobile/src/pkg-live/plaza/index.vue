@@ -196,7 +196,7 @@ async function toggleBook(item: LiveItem) {
               <view
                 v-for="live in liveCols[0]"
                 :key="live.id"
-                class="card"
+                class="card live-card-glow"
                 hover-class="card-press"
                 @tap="openLive(live.id)"
               >
@@ -228,7 +228,7 @@ async function toggleBook(item: LiveItem) {
               <view
                 v-for="live in liveCols[1]"
                 :key="live.id"
-                class="card"
+                class="card live-card-glow"
                 hover-class="card-press"
                 @tap="openLive(live.id)"
               >
@@ -526,6 +526,8 @@ async function toggleBook(item: LiveItem) {
   border-radius: 24rpx;
   overflow: hidden;
   box-shadow: 0 2rpx 8rpx rgba(60, 50, 40, 0.06);
+  /* 补过渡使 hover-class 按压缩放平滑（X5 安全：仅动 transform） */
+  transition: transform 0.15s ease-out;
 }
 .card-press {
   transform: scale(0.98);
@@ -685,6 +687,7 @@ async function toggleBook(item: LiveItem) {
   border-radius: 24rpx;
   overflow: hidden;
   box-shadow: 0 2rpx 8rpx rgba(60, 50, 40, 0.06);
+  transition: transform 0.15s ease-out;
 }
 .feat-cov {
   position: relative;

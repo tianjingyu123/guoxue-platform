@@ -96,6 +96,7 @@ function go() {
 </template>
 
 <style scoped>
-.feed-card-wrap { display: block; }
-.feed-card-press { opacity: 0.88; transition: opacity 0.1s; }
+/* 按压反馈：轻缩放 0.98 + 0.15s 过渡（X5 安全：仅动 opacity/transform） */
+.feed-card-wrap { display: block; transition: transform 0.15s ease-out, opacity 0.15s ease-out; }
+.feed-card-press { opacity: 0.88; transform: scale(0.98); }
 </style>

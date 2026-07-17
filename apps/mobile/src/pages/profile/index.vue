@@ -240,11 +240,11 @@ function applyRole(role: string) {
     <view class="id-area" :style="{ paddingTop: statusBarHeight + 14 + 'px' }">
       <!-- 右上角操作：消息（带未读红点）+ 设置 -->
       <view class="top-acts" :style="{ top: statusBarHeight + 6 + 'px' }">
-        <view class="top-act" @tap="go('/notifications')">
+        <view class="top-act tap-press" @tap="go('/notifications')">
           <AppIcon name="message-circle" :size="44" color="#2B2620" />
           <view v-if="unreadNotify > 0" class="dot" />
         </view>
-        <view class="top-act" @tap="go('/pkg-mine/settings/index')">
+        <view class="top-act tap-press" @tap="go('/pkg-mine/settings/index')">
           <AppIcon name="settings" :size="44" color="#2B2620" />
         </view>
       </view>
@@ -274,7 +274,7 @@ function applyRole(role: string) {
       </view>
 
       <!-- 会员金卡条：会员=暖金渐变金底深字 / 非会员=宣纸衬底金描边 -->
-      <view v-if="userData.isVip" class="gold-bar gold-bar--member" @tap="go('/vip')">
+      <view v-if="userData.isVip" class="gold-bar gold-bar--member card-press" @tap="go('/vip')">
         <view class="gb-crown"><AppIcon name="crown" :size="34" color="#8A6B38" /></view>
         <view class="gb-txt">
           <text class="gb-title gb-title--member">书院会员 · {{ userData.vipLevel || '专属权益' }}</text>
@@ -282,7 +282,7 @@ function applyRole(role: string) {
         </view>
         <view class="gb-cta gb-cta--member"><text class="gb-cta-txt gb-cta-txt--member">续费</text></view>
       </view>
-      <view v-else class="gold-bar gold-bar--guest" @tap="go('/vip')">
+      <view v-else class="gold-bar gold-bar--guest card-press" @tap="go('/vip')">
         <view class="gb-crown"><AppIcon name="crown" :size="34" color="#C9A96E" /></view>
         <view class="gb-txt">
           <text class="gb-title gb-title--guest">开通书院会员</text>
@@ -297,7 +297,7 @@ function applyRole(role: string) {
       <view class="sec-title"><text class="sec-h">继续</text><text class="sec-more" @tap="go('/courses/my-learning')">接着上次 ›</text></view>
       <scroll-view scroll-x class="cont-row" :show-scrollbar="false">
         <view class="cont-row-inner">
-          <view class="cont-card" @tap="go(`/pkg-course/detail/index?id=${userData.continueLearning?.id}`)">
+          <view class="cont-card tap-press" @tap="go(`/pkg-course/detail/index?id=${userData.continueLearning?.id}`)">
             <text class="cont-tag">继续学习</text>
             <view class="cont-main">
               <view class="cont-th"><AppIcon name="book-open" :size="34" color="#C9A96E" /></view>
@@ -313,7 +313,7 @@ function applyRole(role: string) {
     </template>
     <template v-else>
       <view class="sec-title"><text class="sec-h">继续</text></view>
-      <view class="empty-lead" @tap="go('/paipan')">
+      <view class="empty-lead card-press" @tap="go('/paipan')">
         <view class="empty-th"><AppIcon name="compass" :size="40" color="#C9A96E" /></view>
         <view class="el-txt">
           <text class="el-t">从一盘开始你的国学之旅</text>
@@ -325,7 +325,7 @@ function applyRole(role: string) {
 
     <!-- ===== ③ 资产四宫格 ===== -->
     <view class="assets">
-      <view v-for="c in assetCells" :key="c.key" class="asset" @tap="go(c.href)">
+      <view v-for="c in assetCells" :key="c.key" class="asset tap-press" @tap="go(c.href)">
         <text class="asset-b">{{ c.value }}</text>
         <text class="asset-s">{{ c.label }}</text>
       </view>
@@ -338,7 +338,7 @@ function applyRole(role: string) {
         <text class="orders-more" @tap="go('/pkg-order/list/index')">全部订单 ›</text>
       </view>
       <view class="orders-row">
-        <view v-for="item in orderStatus" :key="item.key" class="o-item" @tap="go(`/pkg-order/list/index?tab=${orderTabOf(item.key)}`)">
+        <view v-for="item in orderStatus" :key="item.key" class="o-item tap-press" @tap="go(`/pkg-order/list/index?tab=${orderTabOf(item.key)}`)">
           <view class="o-icon">
             <AppIcon :name="item.icon" :size="40" color="#2B2620" />
             <text v-if="item.count > 0" class="o-dot">{{ item.count }}</text>
@@ -350,7 +350,7 @@ function applyRole(role: string) {
 
     <!-- ===== ⑤ 我的内容矩阵（4 列 × 4 行·个人中心的入口集散地） ===== -->
     <view class="matrix">
-      <view v-for="m in matrixItems" :key="m.label" class="m-item" :class="{ star: m.star }" @tap="m.comingSoon ? toastComingSoon() : go(m.href)">
+      <view v-for="m in matrixItems" :key="m.label" class="m-item tap-press" :class="{ star: m.star }" @tap="m.comingSoon ? toastComingSoon() : go(m.href)">
         <view class="m-icon">
           <AppIcon :name="m.icon" :size="40" :color="m.star ? '#B4884A' : '#2B2620'" />
           <view v-if="m.star" class="m-star-dot" />
@@ -368,7 +368,7 @@ function applyRole(role: string) {
       <view
         v-for="row in visibleRoleRows"
         :key="row.applyType"
-        class="role-row"
+        class="role-row list-press"
         :class="{ joined: row.joined, pending: !row.joined }"
         @tap="row.joined ? openRole(row.href) : applyRole(row.applyType)"
       >
@@ -383,7 +383,7 @@ function applyRole(role: string) {
         </view>
         <view v-else class="role-apply"><text class="role-apply-txt">申请加入</text></view>
       </view>
-      <view v-if="hasMoreRoles" class="role-more" @tap="rolesExpanded = !rolesExpanded">
+      <view v-if="hasMoreRoles" class="role-more list-press" @tap="rolesExpanded = !rolesExpanded">
         <text class="role-more-txt">{{ rolesExpanded ? '收起更多身份' : '更多身份' }}</text>
         <AppIcon :name="rolesExpanded ? 'chevron-up' : 'chevron-down'" :size="22" color="#B0A99A" />
       </view>
@@ -391,13 +391,13 @@ function applyRole(role: string) {
 
     <!-- ===== ⑦ 服务与设置 ===== -->
     <view class="svc">
-      <view class="svc-item" @tap="go('/agents/history')">
+      <view class="svc-item tap-press" @tap="go('/agents/history')">
         <AppIcon name="message-circle" :size="40" color="#2B2620" /><text class="svc-label">AI会话</text>
       </view>
-      <view class="svc-item" @tap="go('/agent/customer-service')">
+      <view class="svc-item tap-press" @tap="go('/agent/customer-service')">
         <AppIcon name="customer-service" :size="40" color="#2B2620" /><text class="svc-label">联系客服</text>
       </view>
-      <view class="svc-item" @tap="go('/help')">
+      <view class="svc-item tap-press" @tap="go('/help')">
         <AppIcon name="help-circle" :size="40" color="#2B2620" /><text class="svc-label">帮助中心</text>
       </view>
     </view>
