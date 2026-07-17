@@ -563,7 +563,13 @@ export class ShopOrderService {
     const where: Prisma.OrderWhereInput = {};
     if (orderNo) where.id = { contains: orderNo };
     if (type) where.type = type as any;
-    if (status && this.VALID_ORDER_STATUSES.has(status)) where.status = status as any;
+    // status 支持逗号分隔多值（如 PAID,SHIPPED,COMPLETED —— 已收款口径统计需要，
+    // 已发货/已完成同样是收了钱的单，只算 PAID 会漏计）。单值行为不变，非法值忽略。
+    if (status) {
+      const statuses = status.split(",").map(s => s.trim()).filter(s => this.VALID_ORDER_STATUSES.has(s));
+      if (statuses.length === 1) where.status = statuses[0] as any;
+      else if (statuses.length > 1) where.status = { in: statuses as any };
+    }
     if (userId) where.userId = userId;
     if (startDate && endDate) {
       where.createdAt = {

@@ -367,6 +367,43 @@ export class ShopService {
     return { success: true };
   }
 
+  /**
+   * 管理员隐藏/恢复评价（评价治理）。
+   * schema 定义了 status: PUBLISHED/HIDDEN 但此前全模块没有任何写 HIDDEN 的代码，
+   * 隐藏能力有列无门 —— C 端 listReviews/listShopReviews/getReviewStats 均只查 PUBLISHED，
+   * 置 HIDDEN 后 C 端立即不可见（含评分统计），无需改 C 端。
+   */
+  async setProductReviewStatus(reviewId: string, status: "PUBLISHED" | "HIDDEN") {
+    const review = await this.prisma.productReview.findUnique({ where: { id: reviewId } });
+    if (!review) throw new BusinessException(ErrorCode.NOT_FOUND, "评价不存在");
+    if (review.status === status) return review; // 幂等：重复隐藏/恢复直接返回
+    return this.prisma.productReview.update({
+      where: { id: reviewId },
+      data: { status },
+    });
+  }
+
+  /**
+   * 管理员评价列表（聚合全部商品评价·治理视角）：
+   * 与公开的 listShopReviews 不同，默认返回全部状态（含 HIDDEN），支持 status 筛选。
+   */
+  async listShopReviewsAdmin(rawPage = 1, rawPageSize = 20, status?: string) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
+    const where: Prisma.ProductReviewWhereInput = {};
+    if (status === "PUBLISHED" || status === "HIDDEN") where.status = status;
+    const [rawReviews, total] = await Promise.all([
+      this.prisma.productReview.findMany({
+        where,
+        skip,
+        take: pageSize,
+        orderBy: { createdAt: "desc" },
+      }),
+      this.prisma.productReview.count({ where }),
+    ]);
+    const reviews = await this.enrichReviews(rawReviews, true);
+    return { reviews, total, page, pageSize };
+  }
+
   /** 获取店铺级评价列表（聚合所有商品评价） */
   async listShopReviews(rawPage = 1, rawPageSize = 20) {
     const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);

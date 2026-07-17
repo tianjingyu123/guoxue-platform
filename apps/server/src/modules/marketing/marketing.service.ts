@@ -222,7 +222,19 @@ export class MarketingService {
       this.prisma.groupBuy.count({ where }),
     ]);
 
-    return { items, total, page, pageSize };
+    // GroupBuy 无 name 列，活动展示名=关联商品标题。批量 join Product 补 productTitle
+    // 别名字段（GroupBuy 与 Product 无 Prisma relation，只能按 productId 批量查）。
+    const productIds = [...new Set(items.map(i => i.productId))];
+    const products = productIds.length
+      ? await this.prisma.product.findMany({
+          where: { id: { in: productIds } },
+          select: { id: true, title: true },
+        })
+      : [];
+    const titleMap = new Map(products.map(p => [p.id, p.title]));
+    const enriched = items.map(i => ({ ...i, productTitle: titleMap.get(i.productId) ?? null }));
+
+    return { items: enriched, total, page, pageSize };
   }
 
   async updateGroupBuy(id: string, dto: UpdateGroupBuyDto) {

@@ -544,8 +544,17 @@ export class MerchantService {
   }
 
   async listProduct(userId: string, productId: string) {
+    // 🔴 上架前置状态校验：只有「已下架(OFF_SHELF)」的商品可自助重新上架。
+    //    PENDING(待审核)商品若允许自助上架 = 商家绕过平台审核直接售卖，属审核旁路漏洞。
+    const product = await this.prisma.product.findFirst({ where: { id: productId, userId }, select: { id: true, status: true } });
+    if (!product) throw new BusinessException(ErrorCode.BAD_REQUEST, "商品不存在");
+    if (product.status === "ON_SALE") return { count: 0, message: "商品已在售" };
+    if (product.status !== "OFF_SHELF") {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "商品尚未通过平台审核，暂不能上架");
+    }
+    // where 带 status 条件 = CAS，防并发下 PENDING 被套进来
     return this.prisma.product.updateMany({
-      where: { id: productId, userId }, data: { status: "ON_SALE" },
+      where: { id: productId, userId, status: "OFF_SHELF" }, data: { status: "ON_SALE" },
     });
   }
 
@@ -597,6 +606,8 @@ export class MerchantService {
         buyerNickname: usr?.nickname ?? "用户",
         buyerPhone: usr?.phone ? maskPhone(usr.phone) : null,
         hasGiftCard: Boolean((o as { giftCardMeta?: unknown }).giftCardMeta), // 白标贺卡任务标记（供-P2）
+        // 收货地址快照显式透传（Order.shippingInfo Json·下单时落库），供商家端发货视图直接读；Order 无 orderNo 列，前端以 id 为单号
+        shippingInfo: (o as { shippingInfo?: unknown }).shippingInfo ?? null,
       };
     });
   }
@@ -637,8 +648,22 @@ export class MerchantService {
   async rejectRefund(merchantId: string, orderId: string, reason: string) {
     const order = await this.prisma.order.findFirst({ where: { id: orderId, merchantId } });
     if (!order) throw new BusinessException(ErrorCode.BAD_REQUEST, "订单不存在");
-    // 拒绝退款：暂不改变订单状态（OrderStatus枚举无REFUND_REJECTED），先验证订单归属后返回
-    return { orderId, status: "REFUND_REJECTED", reason };
+    if (order.status === "REFUNDED") throw new BusinessException(ErrorCode.BAD_REQUEST, "订单已退款，无法拒绝");
+    // 真实语义：把该订单待处理的退款类售后单置为 REJECTED 并落拒绝理由。
+    // 原实现只回显 {status:"REFUND_REJECTED"} 不落库 = 假操作：买家侧售后单永远 PENDING，理由被丢弃。
+    const afterSale = await this.prisma.afterSale.findFirst({
+      where: { orderId, status: "PENDING", type: { contains: "refund", mode: "insensitive" } },
+      orderBy: { createdAt: "desc" },
+    });
+    if (!afterSale) throw new BusinessException(ErrorCode.BAD_REQUEST, "该订单没有待处理的退款申请");
+    // CAS：仅当仍为 PENDING 时置 REJECTED，防与管理端处理并发互踩
+    const res = await this.prisma.afterSale.updateMany({
+      where: { id: afterSale.id, status: "PENDING" },
+      // AfterSale 无专用备注字段，拒绝理由与 shop 版 processAfterSale 同口径落 logistics（shop-coupon.service.ts 范式）
+      data: { status: "REJECTED", logistics: `商家拒绝退款：${reason}` },
+    });
+    if (res.count === 0) throw new BusinessException(ErrorCode.BAD_REQUEST, "售后单状态已变更，请刷新后重试");
+    return { orderId, afterSaleId: afterSale.id, status: "REJECTED", reason };
   }
 
   // ─── 评价管理 ───
@@ -751,39 +776,100 @@ export class MerchantService {
     return record;
   }
 
+  /**
+   * 退款类售后判定（与 shop-coupon.service.ts 同口径）：type 含 "refund"（不区分大小写）即视为需要退钱。
+   * 覆盖线上实际写法：refund / refund_only / refund_with_return / REFUND。return(仅退货)/exchange(换货) 不含退款动作。
+   */
+  private isRefundType(type?: string | null): boolean {
+    return /refund/i.test(type ?? "");
+  }
+
+  /**
+   * 商家处理售后单（资金语义收敛·修「同意退款却不退钱」命门）：
+   * 原实现 approve 只改 AfterSale.status —— 商家点"通过"后售后单消失，买家被告知批准但钱永远不退。
+   * 现收敛为：approve + 退款类 → 先走 ShopRefundService.refundOrder 真退款（渠道路由 + CAS 置 REFUNDED + 分佣冲正 + 记账），
+   * 退款成功才标 APPROVED；退款抛错则整个 process 失败，售后单保持原状态。
+   * 幂等：订单已 REFUNDED（重复点击/其他链路已退）则跳过退款只标状态；refundOrder 自身另有 redis 锁 + 状态 CAS 兜底。
+   */
   async processAfterSale(merchantId: string, afterSaleId: string, dto: { action: string; remark?: string }) {
-    await this.getAfterSale(merchantId, afterSaleId);
+    const record = await this.getAfterSale(merchantId, afterSaleId);
+    if (!record) throw new BusinessException(ErrorCode.BAD_REQUEST, "售后单不存在");
     const status = dto.action === "approve" ? "APPROVED" : dto.action === "reject" ? "REJECTED" : dto.action === "complete" ? "COMPLETED" : undefined;
     if (!status) throw new BusinessException(ErrorCode.BAD_REQUEST, "无效操作: " + dto.action);
+
+    if (dto.action === "approve" && this.isRefundType(record.type)) {
+      const order = await this.prisma.order.findFirst({ where: { id: record.orderId, merchantId } });
+      if (!order) throw new BusinessException(ErrorCode.BAD_REQUEST, "售后关联订单不存在，无法退款");
+      if (order.status !== "REFUNDED") {
+        // 🔴 绝不能只改售后状态不退钱；退款必须走统一退款服务（真实渠道退款/线下降级 + CAS + 分佣冲正）
+        if (!this.shopRefund) {
+          throw new BusinessException(ErrorCode.INTERNAL_ERROR, "退款服务暂不可用，请稍后重试");
+        }
+        await this.shopRefund.refundOrder(record.orderId, record.reason || "商家同意售后退款");
+      }
+      // 订单已 REFUNDED → 幂等跳过退款，只标记售后状态
+    }
+
+    const data: { status: string; logistics?: string } = { status };
+    // AfterSale 无专用备注字段，remark 与 shop 版同口径落 logistics（原实现直接丢弃）
+    if (dto.remark) data.logistics = dto.remark;
     return this.prisma.afterSale.update({
       where: { id: afterSaleId },
-      data: { status },
+      data,
     });
   }
 
   // ─── 客户管理 ───
 
-  async listCustomers(merchantId: string, q?: { page?: number; pageSize?: number }) {
+  async listCustomers(merchantId: string, q?: { page?: number; pageSize?: number; keyword?: string }) {
     const { page, pageSize, skip } = safePagination(q?.page, q?.pageSize, NO_PAGE_LIMIT);
+    const keyword = q?.keyword?.trim();
+    // keyword 过滤：昵称模糊匹配（参数化占位符防注入）；整串是 11 位手机号时另走 phoneHmac 精确匹配
+    // （手机号已 HMAC 哈希化，无法模糊搜，只能整号等值命中 phoneHash；明文列仍在则同时 OR 等值兜底）
+    let keywordCond = "";
+    const params: unknown[] = [merchantId, pageSize, skip];
+    if (keyword) {
+      if (/^1\d{10}$/.test(keyword)) {
+        keywordCond = `AND (u."phoneHash" = $4 OR u.phone = $5)`;
+        params.push(phoneHmac(keyword), keyword);
+      } else {
+        keywordCond = `AND u.nickname ILIKE $4`;
+        params.push(`%${keyword}%`);
+      }
+    }
     // 查询在该商家下过单的用户，按 userId 聚合
     const result = await this.prisma.$queryRawUnsafe<any[]>(`
       SELECT
-        u.id, u.nickname, u.avatar, u.phone,
+        u.id, u.nickname, u.avatar, u.phone, u."createdAt",
         COUNT(o.id)::int as "orderCount",
         COALESCE(SUM(o."amount"), 0)::decimal as "totalSpent",
         MAX(o."createdAt") as "lastOrderAt"
       FROM "User" u
       JOIN "Order" o ON o."userId" = u.id AND o."merchantId" = $1
-      GROUP BY u.id, u.nickname, u.avatar, u.phone
+      WHERE 1=1 ${keywordCond}
+      GROUP BY u.id, u.nickname, u.avatar, u.phone, u."createdAt"
       ORDER BY "totalSpent" DESC
       LIMIT $2 OFFSET $3
-    `, merchantId, pageSize, skip);
+    `, ...params);
 
+    // 计数与列表同 keyword 口径（占位符序号重排：count 语句只有 merchantId + keyword 参数）
+    const countParams: unknown[] = [merchantId];
+    let countCond = "";
+    if (keyword) {
+      if (/^1\d{10}$/.test(keyword)) {
+        countCond = `AND (u."phoneHash" = $2 OR u.phone = $3)`;
+        countParams.push(phoneHmac(keyword), keyword);
+      } else {
+        countCond = `AND u.nickname ILIKE $2`;
+        countParams.push(`%${keyword}%`);
+      }
+    }
     const countResult = await this.prisma.$queryRawUnsafe<any[]>(`
       SELECT COUNT(DISTINCT o."userId")::int as cnt
       FROM "Order" o
-      WHERE o."merchantId" = $1
-    `, merchantId);
+      JOIN "User" u ON u.id = o."userId"
+      WHERE o."merchantId" = $1 ${countCond}
+    `, ...countParams);
 
     // PII 脱敏：商家(非平台管理员)不应看到客户完整手机号，与 enrichOrders 的 buyerPhone 一致
     const masked = result.map((r) => ({ ...r, phone: r.phone ? maskPhone(r.phone) : null }));

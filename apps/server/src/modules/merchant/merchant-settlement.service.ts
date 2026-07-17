@@ -27,23 +27,52 @@ export class MerchantSettlementService {
     const merchant = await this.prisma.merchant.findUnique({ where: { id: merchantId } });
     if (!merchant) throw new BusinessException(ErrorCode.MERCHANT_NOT_FOUND, "商家不存在");
 
-    const salesAgg = await this.prisma.order.aggregate({
-      where: { merchantId, status: { in: ["PAID", "SHIPPED", "COMPLETED"] } },
-      _sum: { amount: true },
-      _count: true,
-    });
+    // 订单口径（实时流水）与结算单口径（MerchantSettlement 已生成的账期）并行聚合
+    const [salesAgg, settledAgg, pendingAgg, revenueAgg] = await Promise.all([
+      this.prisma.order.aggregate({
+        where: { merchantId, status: { in: ["PAID", "SHIPPED", "COMPLETED"] } },
+        _sum: { amount: true },
+        _count: true,
+      }),
+      // 已结算：PAID 结算单，实付 paidAmount（缺省回落应结 settlementAmount）
+      this.prisma.merchantSettlement.aggregate({
+        where: { merchantId, status: "PAID" },
+        _sum: { paidAmount: true, settlementAmount: true },
+      }),
+      // 待结算：PENDING 结算单的商家应得
+      this.prisma.merchantSettlement.aggregate({
+        where: { merchantId, status: "PENDING" },
+        _sum: { settlementAmount: true },
+      }),
+      // 累计入账流水：非 CANCELLED 结算单的账期总收入
+      this.prisma.merchantSettlement.aggregate({
+        where: { merchantId, status: { not: "CANCELLED" } },
+        _sum: { totalRevenue: true },
+      }),
+    ]);
 
     const totalSales = Number(salesAgg._sum.amount ?? 0);
-    const commissionRate = Number(merchant.commissionRate ?? 0.85);
-    const merchantShare = totalSales * commissionRate;
+    // commissionRate 存储的是商家留成比例（0.85 = 85% 归商家，平台抽 15%）
+    const merchantShareRate = Number(merchant.commissionRate ?? 0.85);
+    const merchantShare = totalSales * merchantShareRate;
     const platformShare = totalSales - merchantShare;
+
+    const settledPaid = settledAgg._sum.paidAmount;
+    const settledAmount = Number(settledPaid ?? settledAgg._sum.settlementAmount ?? 0);
+    const pendingSettlement = Number(pendingAgg._sum.settlementAmount ?? 0);
+    const totalRevenue = Number(revenueAgg._sum.totalRevenue ?? 0);
 
     return {
       totalSales: Math.round(totalSales * 100) / 100,
       totalOrders: salesAgg._count,
       merchantShare: Math.round(merchantShare * 100) / 100,
       platformShare: Math.round(platformShare * 100) / 100,
-      commissionRate,
+      commissionRate: merchantShareRate, // 兼容旧字段：语义同 merchantShareRate
+      merchantShareRate, // 命名清晰字段：商家留成比例（0.85 = 商家留 85%）
+      // 结算单口径三字段（MerchantSettlement 聚合）
+      totalRevenue: Math.round(totalRevenue * 100) / 100, // 已入结算账期的累计流水
+      pendingSettlement: Math.round(pendingSettlement * 100) / 100, // 待结算金额（PENDING 结算单商家应得）
+      settledAmount: Math.round(settledAmount * 100) / 100, // 已结算打款金额（PAID 结算单实付）
     };
   }
 

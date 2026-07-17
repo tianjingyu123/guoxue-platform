@@ -112,7 +112,7 @@ export class OrderCenterController {
   @ApiOperation({ summary: "管理员查看所有订单" })
   @ApiResponse({ status: 200, description: "成功" })
   @ApiResponse({ status: 403, description: "无权限" })
-  @ApiQuery({ name: "type", required: false, description: "SHOP/COURSE/MEMBER" })
+  @ApiQuery({ name: "type", required: false, description: "订单类型筛选：SHOP(兼容旧值=Order 表全部) 或真实 OrderType 枚举 MEMBER/COURSE/PRODUCT/CIRCLE_JOIN/CIRCLE_RENEW/STATION_MASTER/OPERATOR/BOT_SERVICE/PAIPAN/LIVESTREAM/BUNDLE/PRACTITIONER_PRO" })
   @ApiQuery({ name: "status", required: false })
   @ApiQuery({ name: "keyword", required: false })
   @ApiQuery({ name: "page", required: false, type: Number })
@@ -126,8 +126,22 @@ export class OrderCenterController {
   ) {
     const results: any[] = [];
 
-    if (!type || type === "SHOP") {
+    // Order 表的 12 种真实类型（与 schema OrderType 枚举一致），type 筛选参数支持直接传真实枚举值
+    const ORDER_TYPE_VALUES = new Set([
+      "MEMBER", "COURSE", "PRODUCT", "CIRCLE_JOIN", "CIRCLE_RENEW", "STATION_MASTER",
+      "OPERATOR", "BOT_SERVICE", "PAIPAN", "LIVESTREAM", "BUNDLE", "PRACTITIONER_PRO",
+    ]);
+    // 查 Order 表的条件：不筛/兼容旧值 SHOP(=Order 表全部)/真实枚举值。
+    // MEMBER 例外：会员购买支付成功时 Order(type=MEMBER) 与 MemberPurchase 双写，
+    // 若两个分支都返回会重复计——MEMBER 统一走下方 MemberPurchase 分支
+    // （MemberPurchase 才有 memberType 档位信息，且含无对应 Order 的发放记录，数据更全）。
+    const queryOrderTable = !type || type === "SHOP" || (ORDER_TYPE_VALUES.has(type) && type !== "MEMBER");
+
+    if (queryOrderTable) {
       const where: any = {};
+      // 传真实枚举值 → 精确筛类型；不筛/SHOP → 排除 MEMBER（避免与 MemberPurchase 分支重复计）
+      if (type && type !== "SHOP") where.type = type;
+      else where.type = { not: "MEMBER" };
       if (status) where.status = status;
       if (keyword) where.OR = [
         { id: { contains: keyword } },
@@ -139,14 +153,16 @@ export class OrderCenterController {
         orderBy: { createdAt: "desc" },
         take: 500,
       });
+      // orderType 透传真实 o.type（原来硬打 "SHOP" 把 12 种订单全标成商城订单）；type 字段保留兼容旧前端
       results.push(...orders.map(o => ({
-        id: o.id, orderType: "SHOP", type: o.type,
+        id: o.id, orderType: o.type, type: o.type,
         status: o.status, amount: o.amount, payAmount: o.payAmount,
         user: o.user, createdAt: o.createdAt,
       })));
     }
 
-    if (!type || type === "MEMBER") {
+    // MemberPurchase 无 status 列，记录全部为已支付（PAID）——status 筛选非 PAID 时该分支自然为空
+    if ((!type || type === "MEMBER") && (!status || status === "PAID")) {
       const where: any = {};
       if (keyword) where.user = { nickname: { contains: keyword } };
       const purchases = await this.prisma.memberPurchase.findMany({

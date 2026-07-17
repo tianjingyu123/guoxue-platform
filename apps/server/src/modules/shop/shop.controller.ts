@@ -872,6 +872,49 @@ export class ShopController {
     return this.shop.deleteProductReview(id);
   }
 
+  // ───────── 评价治理（管理员） ─────────
+
+  @Put("admin/reviews/:id/hide")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR")
+  @Auditable({ action: "评价隐藏", targetType: "PRODUCT_REVIEW" })
+  @ApiOperation({ summary: "管理员隐藏评价（C端不可见，可恢复，区别于删除）" })
+  @ApiResponse({ status: 200, description: "隐藏成功" })
+  @ApiResponse({ status: 404, description: "评价不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
+  @ApiBearerAuth()
+  hideReview(@Param("id") id: string) {
+    return this.shop.setProductReviewStatus(id, "HIDDEN");
+  }
+
+  @Put("admin/reviews/:id/show")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR")
+  @Auditable({ action: "评价恢复展示", targetType: "PRODUCT_REVIEW" })
+  @ApiOperation({ summary: "管理员恢复已隐藏评价" })
+  @ApiResponse({ status: 200, description: "恢复成功" })
+  @ApiResponse({ status: 404, description: "评价不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
+  @ApiBearerAuth()
+  showReview(@Param("id") id: string) {
+    return this.shop.setProductReviewStatus(id, "PUBLISHED");
+  }
+
+  @Get("admin/reviews")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR")
+  @ApiOperation({ summary: "管理员评价列表（聚合全部商品评价·默认含已隐藏·支持状态筛选）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiQuery({ name: "page", required: false, type: Number, description: "页码" })
+  @ApiQuery({ name: "pageSize", required: false, type: Number, description: "每页数量" })
+  @ApiQuery({ name: "status", required: false, type: String, description: "状态筛选: PUBLISHED / HIDDEN，不传=全部" })
+  @ApiBearerAuth()
+  listAdminReviews(@Query("page") page = 1, @Query("pageSize") pageSize = 20, @Query("status") status?: string) {
+    return this.shop.listShopReviewsAdmin(+page, +pageSize, status);
+  }
+
   // ───────── 店铺评价 ─────────
 
   @Get("reviews")

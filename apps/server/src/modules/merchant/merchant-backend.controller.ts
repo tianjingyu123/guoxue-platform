@@ -278,10 +278,12 @@ export class MerchantBackendController {
     @Req() req: AuthRequest,
     @Query("page") page?: string,
     @Query("pageSize") pageSize?: string,
+    @Query("keyword") keyword?: string,
   ) {
     return this.merchantService.listCustomers(this.getMerchant(req).id, {
       page: Number(page) || 1,
       pageSize: Number(pageSize) || 20,
+      keyword,
     });
   }
 
