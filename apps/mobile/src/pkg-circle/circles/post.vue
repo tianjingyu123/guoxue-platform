@@ -44,8 +44,12 @@ const likeActing = ref(false)
 const collectActing = ref(false)
 const followActing = ref(false)
 
-// 图片预览
-const previewImage = ref<string | null>(null)
+// 图片预览：原生 uni.previewImage（可左右滑切换/双指缩放·替换自写单图遮罩）
+function previewPostImages(current: number) {
+  const urls = (post.value?.images || []).map((im) => im.url).filter(Boolean)
+  if (!urls.length) return
+  uni.previewImage({ urls, current: urls[Math.min(current, urls.length - 1)] })
+}
 
 // ─── 「⋯」菜单：圈主治理 / 举报 ───
 const showMenu = ref(false)
@@ -428,12 +432,12 @@ onUnmounted(() => { if (audioCtx) { try { audioCtx.destroy() } catch {} } })
           <text class="pd-audio-dur">{{ fmtDuration(currentTime) }} / {{ fmtDuration(post.audio.duration) }}</text>
         </view>
 
-        <!-- 图片：双列 4:3 圆角（1 张整宽），点击预览 -->
+        <!-- 图片：双列 4:3 圆角（1 张整宽），点击原生大图预览（可滑动切换/缩放） -->
         <view v-if="post.images && post.images.length" class="pd-imgs" :class="{ single: post.images.length === 1 }">
           <image
             v-for="(img, i) in post.images" :key="i" lazy-load
             :src="img.url" class="pd-img" mode="aspectFill"
-            @tap="previewImage = img.url"
+            @tap="previewPostImages(i)"
           />
         </view>
 
@@ -484,12 +488,6 @@ onUnmounted(() => { if (audioCtx) { try { audioCtx.destroy() } catch {} } })
         />
       </view>
     </scroll-view>
-
-    <!-- 图片预览 -->
-    <view v-if="previewImage" class="pd-preview" @tap="previewImage = null">
-      <view class="pd-preview-close"><app-icon name="x" :size="44" color="#ffffff" /></view>
-      <image lazy-load :src="previewImage" class="pd-preview-img" mode="aspectFit" />
-    </view>
   </view>
 </template>
 
@@ -662,9 +660,4 @@ onUnmounted(() => { if (audioCtx) { try { audioCtx.destroy() } catch {} } })
 /* 评论区（列表/输入条样式在统一组件内·此处只留标题与容器留白） */
 .pd-csec { padding: 0 24rpx; }
 .pd-comments-head { display: block; padding: 32rpx 16rpx 8rpx; font-size: 28rpx; font-weight: 600; color: var(--text-primary, #2c2c2c); }
-
-/* 图片预览 */
-.pd-preview { position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 200; background: #000; display: flex; align-items: center; justify-content: center; }
-.pd-preview-close { position: absolute; top: 60rpx; right: 32rpx; }
-.pd-preview-img { width: 100%; height: 80%; }
 </style>

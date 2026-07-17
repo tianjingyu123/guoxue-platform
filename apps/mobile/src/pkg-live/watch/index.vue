@@ -132,7 +132,8 @@
             </view>
             <view class="host-card__info">
               <text class="host-card__name">{{ room.hostName }}</text>
-              <text class="host-card__fans">{{ formatCount(room.followers) }} 粉丝</text>
+              <!-- 粉丝数：房间接口无该字段（null）时整行隐藏，不显示假「0 粉丝」 -->
+              <text v-if="room.followers != null" class="host-card__fans">{{ formatCount(room.followers) }} 粉丝</text>
             </view>
             <view class="host-card__follow" :class="{ 'host-card__follow--on': isFollowing }" @tap="onFollow">
               <text class="host-card__follow-txt">{{ isFollowing ? '已关注' : '关注' }}</text>
@@ -267,10 +268,13 @@
         <view class="act-btn act-btn--gift" @tap="showGiftPanel = true">
           <AppIcon name="gift" :size="40" color="#fbbf24" />
         </view>
-        <!-- 连麦 -->
+        <!-- 连麦入口：🔴暂时下线。MicConnectSheet 为纯前端假实现（setTimeout 3.5s 假装主播同意，
+             无任何 API、无音频链路，观众进"通话态"实际对空气说话=假绿勾红线）。
+             TRTC 连麦链路接通后恢复（后端 voice-room 基建已有）。
         <view class="act-btn act-btn--mic" @tap="showMicSheet = true">
           <AppIcon name="phone" :size="40" color="#60a5fa" />
         </view>
+        -->
         <!-- 分享 -->
         <view class="act-btn" @tap="showShare = true">
           <AppIcon name="share-2" :size="40" color="rgba(255,255,255,0.8)" />
@@ -351,8 +355,9 @@
     <!-- 礼物面板（真连：真实礼物清单直传·送礼直接用礼物 uuid 扣费） -->
     <GiftPanel :open="showGiftPanel" :balance="coinBalance" :gifts="gifts" @close="showGiftPanel = false" @send="onSendGift" />
 
-    <!-- 连麦 -->
+    <!-- 连麦弹层：🔴随假连麦入口一并下线（组件为假实现·TRTC 链路接通后恢复）
     <MicConnectSheet :open="showMicSheet" :host-name="room.hostName" @close="showMicSheet = false" />
+    -->
 
     <!-- 分享 -->
     <view v-if="showShare" class="modal-mask modal-mask--bottom" @tap="showShare = false">
@@ -378,11 +383,12 @@ import AppIcon from '@/components/common/app-icon.vue'
 import SmartAvatar from '@/components/common/smart-avatar.vue'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
 import GiftPanel from '@/components/live/gift-panel.vue'
-import MicConnectSheet from '@/components/live/mic-connect-sheet.vue'
+// import MicConnectSheet from '@/components/live/mic-connect-sheet.vue' // 🔴假连麦下线：TRTC 链路接通后恢复
 import LivePlayer from '@/components/live/live-player.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { gotoReport } from '@/lib/report-data'
-import { getToken } from '@/utils/storage'
+import { getToken, getUserInfo } from '@/utils/storage'
+import { withRef } from '@/utils/referral'
 import { useTim, type TimMessage } from '@/composables/useTim'
 import { formatPrice } from '@/utils/format'
 import {
@@ -401,6 +407,8 @@ const instance = getCurrentInstance()
 // ===== 直播间数据 =====
 const loading = ref(true)
 const error = ref('')
+// 路由带入的 roomId（onLoad 时存下·重试/分享统一用它，避免首载失败时 room.value.id 恒空串导致重试必败）
+const loadedRoomId = ref('')
 // 房间默认值（本地空对象·真实数据由 fetchRoomData 填充；原 mock 常量 liveWatchRoom 已按数据流铁律移除）
 const defaultWatchRoom = {
   id: '',
@@ -409,7 +417,7 @@ const defaultWatchRoom = {
   hostName: '',
   hostAvatar: '',
   hostId: '',
-  followers: 0,
+  followers: null as number | null, // 无真实粉丝数 → null（页面隐藏该行）
   viewerCount: 0,
   likeCount: 0,
   isFollowing: false,
@@ -657,9 +665,12 @@ async function fetchRanking(roomId: string) {
 }
 
 function retry() {
-  fetchRoomData(room.value.id)
+  // 🔴修重试死循环：首载失败时 room.value.id 恒为空串（默认对象没被真实数据填充），
+  // 用 room.value.id 重试必然再 404 → 统一改用 onLoad 存下的路由 roomId
+  const rid = loadedRoomId.value || room.value.id
+  fetchRoomData(rid)
   fetchGifts()
-  fetchRanking(room.value.id)
+  fetchRanking(rid)
 }
 
 // ===== UI 状态（弹窗开关、临时输入，仅 UI 层） =====
@@ -668,7 +679,7 @@ const commentText = ref('')
 const showRank = ref(false)
 const showProductList = ref(false)
 const showGiftPanel = ref(false)
-const showMicSheet = ref(false)
+// const showMicSheet = ref(false) // 🔴假连麦下线：TRTC 链路接通后恢复
 const showShare = ref(false)
 
 const danmakuScrollTop = ref(0)
@@ -693,7 +704,14 @@ function formatCount(n: number): string {
 
 // ===== 交互函数（UI 状态切换由前端负责；关注/送礼/下单等业务交 Claude 接入） =====
 function onClose() {
-  goBack()
+  // 直播中（沉浸层）误触关闭很常见 → 弹确认；预约/回放/加载/错误态直接返回不打扰
+  if (loading.value || error.value || isWaiting.value || isReplayState.value) { goBack(); return }
+  uni.showModal({
+    content: '确认退出直播间？',
+    confirmText: '退出',
+    cancelText: '继续观看',
+    success: (res) => { if (res.confirm) goBack() },
+  })
 }
 
 // 关注/取关主播 — 复用平台用户关注端点 POST/DELETE /users/:id/follow（与短视频批同一套）
@@ -768,7 +786,9 @@ async function onSendGift(gift: LiveGift, quantity: number) {
     // 成功后飘屏 + 弹幕 + 扣余额（icon 为图片链接时飘屏文本位传空串容错）
     const flyIcon = gift.icon && !/^https?:\/\//.test(gift.icon) ? gift.icon : ''
     const fid = ++flyerId
-    giftFlyers.value.push({ id: fid, user: '我', avatar: room.value.hostAvatar, giftName: gift.name, giftIcon: flyIcon, count })
+    // 飘屏头像=当前用户自己（原误用主播头像）。未登录/无头像 → 空串，smart-avatar 按昵称「我」兜底
+    const myAvatar = getUserInfo<{ avatar?: string }>()?.avatar || ''
+    giftFlyers.value.push({ id: fid, user: '我', avatar: myAvatar, giftName: gift.name, giftIcon: flyIcon, count })
     setTimeout(() => { giftFlyers.value = giftFlyers.value.filter((g) => g.id !== fid) }, 4000)
     comments.value.push({ id: 'gift-' + Date.now(), userName: '我', content: `送出 ${gift.name} x${count}`, type: 'gift', giftInfo: { name: gift.name, icon: flyIcon, count } })
     scrollDanmakuToBottom()
@@ -792,9 +812,30 @@ function openQuickBuy(p: VerticalLiveProduct) {
   navigateTo(`/pkg-shop/checkout/index?productId=${p.id}&quantity=1&sourceContentType=LIVE&sourceContentId=${room.value.id}`)
 }
 
-function onShare(_key: string) {
-  // @data-needs: 分享渠道调用（uni.share），此处仅关闭面板
+/** 分享链接构造（照抄短视频页 buildShareUrl 范式·适配直播观看页路由·withRef 追加分享者 ref 归因） */
+function buildShareUrl(): string {
+  const rid = loadedRoomId.value || room.value.id || ''
+  // import.meta.env 在 uni-app 下缺少类型声明，保留 as any
+  let base = (import.meta as any).env?.VITE_H5_URL || 'https://api.rebugx.cn/h5'
+  // #ifdef H5
+  base = window.location.origin + ((import.meta as any).env?.BASE_URL || '/h5/')
+  // #endif
+  if (!base.endsWith('/')) base += '/'
+  return withRef(`${base}pkg-live/watch/index?id=${rid}`)
+}
+/**
+ * 分享：原三渠道只关面板=空操作。H5 无原生微信转发 → 统一复制链接 +
+ * 按渠道给转发引导文案（与短视频页 copyShareLink 同一套范式）；小程序端可后续接 onShareAppMessage。
+ */
+function onShare(key: string) {
   showShare.value = false
+  uni.setClipboardData({
+    data: buildShareUrl(),
+    success: () => uni.showToast({
+      title: key === 'copy' ? '链接已复制，粘贴给好友吧' : '链接已复制，去微信粘贴发送即可分享',
+      icon: 'none',
+    }),
+  })
 }
 
 /**
@@ -813,6 +854,7 @@ function scrollDanmakuToBottom() {
 
 onLoad((opts) => {
   const roomId = opts?.id || '1'
+  loadedRoomId.value = roomId // 路由 roomId 独立保存（重试/分享用·不依赖 room.value.id 是否已填充）
   if (opts?.type === 'commerce') room.value.type = 'commerce'
   fetchRoomData(roomId) // 播放地址在 fetchRoomData 内按 LIVING 态条件拉取
   fetchGifts()

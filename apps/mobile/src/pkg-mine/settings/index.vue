@@ -105,6 +105,9 @@ function handleLogout() {
   clearToken()
   clearRefreshToken()
   clearUserInfo()
+  // SWR 首页 feed 缓存（个性化推荐内容）也必须清：只清 token 不清它 → 换账号登录后
+  // 首页会先闪现上一账号的推荐流（跨账号残留）。login 成功侧也清一次，双保险。
+  try { uni.removeStorageSync('feed:home:cache') } catch { /* 清缓存失败不阻断退出 */ }
   uni.reLaunch({ url: '/pkg-auth/login/index' })
 }
 

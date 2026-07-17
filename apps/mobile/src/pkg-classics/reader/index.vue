@@ -41,6 +41,11 @@ const THEME_COLORS: Record<Theme, { fg: string; sub: string; brand: string }> = 
 const iconColor = computed(() => THEME_COLORS[theme.value].fg)
 const subColor = computed(() => THEME_COLORS[theme.value].sub)
 const brandColor = computed(() => THEME_COLORS[theme.value].brand)
+// 亮度 0-100（100=原亮度）·H5 用全屏压暗遮罩实现，最暗压到 0.7 不至于全黑
+const brightness = ref(100)
+const dimOpacity = computed(() => ((100 - brightness.value) / 100) * 0.7)
+function onBrightnessChanging(e: { detail: { value: number } }) { brightness.value = e.detail.value }
+function onBrightnessChange(e: { detail: { value: number } }) { brightness.value = e.detail.value; savePref() }
 const PREF_KEY = 'classics_reader_pref'
 function loadPref() {
   try {
@@ -48,11 +53,12 @@ function loadPref() {
     if (p && typeof p === 'object') {
       if (p.theme) theme.value = p.theme
       if (typeof p.fontIdx === 'number') fontIdx.value = Math.min(Math.max(p.fontIdx, 0), FONT_STEPS.length - 1)
+      if (typeof p.brightness === 'number') brightness.value = Math.min(Math.max(Math.round(p.brightness), 0), 100)
     }
   } catch { /* ignore */ }
 }
 function savePref() {
-  try { uni.setStorageSync(PREF_KEY, { theme: theme.value, fontIdx: fontIdx.value }) } catch { /* ignore */ }
+  try { uni.setStorageSync(PREF_KEY, { theme: theme.value, fontIdx: fontIdx.value, brightness: brightness.value }) } catch { /* ignore */ }
 }
 
 // ── 弹层开关 ──
@@ -63,6 +69,10 @@ const dictOpen = ref(false)
 
 // ── 目录抽屉页签（目录 / 书签 / 笔记·本书维度） ──
 const tocTab = ref<'toc' | 'marks' | 'notes'>('toc')
+// 长目录打开时定位到当前章（上移一项便于看到上下文）·关闭时置空避免残留锚点干扰手动滚动
+const tocScrollId = computed(() =>
+  tocOpen.value && chapters.value.length ? 'toc-' + Math.max(0, curIndex.value - 1) : '',
+)
 const bookMarks = ref<BookmarkItem[]>([])
 const bookNotes = ref<NoteItem[]>([])
 const marksLoading = ref(false)
@@ -187,6 +197,9 @@ function splitParagraphs(text: string): string[] {
   return parts
 }
 
+// 续读进入标记（详情页「继续阅读」带 resume=1）：定位成功且非第一章时轻提示
+const resumeToast = ref(false)
+
 async function fetchBook(id: string, chapterId?: string) {
   loading.value = true
   error.value = ''
@@ -199,6 +212,10 @@ async function fetchBook(id: string, chapterId?: string) {
     let idx = chapterId ? chapters.value.findIndex((c) => c.id === chapterId) : 0
     if (idx < 0) idx = 0
     await loadChapter(idx, false)
+    if (resumeToast.value) {
+      resumeToast.value = false
+      if (chapterId && idx > 0) uni.showToast({ title: '已定位到上次读到的章节', icon: 'none' })
+    }
     if (pendingPos.value != null) {
       scrollToParagraph(pendingPos.value)
       pendingPos.value = null
@@ -399,6 +416,7 @@ onLoad((q) => {
   loadPref()
   bookId.value = String(q?.bookId || q?.id || '')
   const chapterId = q?.chapterId ? String(q.chapterId) : undefined
+  resumeToast.value = String(q?.resume || '') === '1'
   // 书签/笔记回跳定位：?pos=段落索引（旧数据为滚动像素·scrollToParagraph 内兼容）
   const rawPos = Number(q?.pos)
   if (Number.isFinite(rawPos) && rawPos >= 0) pendingPos.value = Math.round(rawPos)
@@ -473,6 +491,9 @@ onLoad((q) => {
       <text class="rd-sel-txt">解读选中内容</text>
     </view>
 
+    <!-- 亮度压暗遮罩：盖正文与工具栏（z 50），低于抽屉（z 60），pointer-events:none 不拦截任何点击 -->
+    <view v-if="brightness < 100" class="rd-dim" :style="{ opacity: dimOpacity }" />
+
     <!-- 底部工具栏 -->
     <view class="rd-bottom">
       <view class="rd-prog"><view class="rd-prog-fill" :style="{ width: progressPct + '%' }" /></view>
@@ -529,9 +550,10 @@ onLoad((q) => {
           </view>
         </view>
         <!-- 目录 -->
-        <scroll-view v-if="tocTab === 'toc'" scroll-y class="rd-toc-body">
+        <scroll-view v-if="tocTab === 'toc'" scroll-y class="rd-toc-body" :scroll-into-view="tocScrollId">
           <view
             v-for="(c, i) in chapters"
+            :id="'toc-' + i"
             :key="c.id"
             class="rd-toc-item"
             :class="{ 'rd-toc-active': i === curIndex }"
@@ -607,6 +629,18 @@ onLoad((q) => {
             <view class="rd-theme-dot rd-dot-hugu" :class="{ 'rd-dot-on': theme === 'hugu' }" @tap="pickTheme('hugu')" />
             <view class="rd-theme-dot rd-dot-white" :class="{ 'rd-dot-on': theme === 'white' }" @tap="pickTheme('white')" />
             <view class="rd-theme-dot rd-dot-night" :class="{ 'rd-dot-on': theme === 'night' }" @tap="pickTheme('night')" />
+          </view>
+        </view>
+        <view class="rd-set-row">
+          <text class="rd-set-label">亮度</text>
+          <view class="rd-set-bright">
+            <slider
+              class="rd-bright-slider"
+              :value="brightness" :min="0" :max="100" :step="1"
+              :activeColor="brandColor" backgroundColor="rgba(150,130,90,0.2)" block-size="22"
+              @changing="onBrightnessChanging" @change="onBrightnessChange"
+            />
+            <text class="rd-bright-val">{{ brightness }}</text>
           </view>
         </view>
       </view>
@@ -823,6 +857,12 @@ export default { options: { styleIsolation: 'shared' } }
 .rd-font-btn { width: 88rpx; height: 64rpx; border-radius: 16rpx; background: rgba(150,130,90,0.12); display: flex; align-items: center; justify-content: center; font-size: 28rpx; color: var(--rd-fg,#2c2c2c); &:active { opacity: 0.6; } }
 .rd-font-cur { font-size: 28rpx; color: var(--rd-fg,#2c2c2c); min-width: 56rpx; text-align: center; }
 .rd-set-themes { display: flex; gap: 24rpx; }
+.rd-set-bright { flex: 1; display: flex; align-items: center; gap: 8rpx; margin-left: 40rpx; }
+.rd-bright-slider { flex: 1; margin: 0 12rpx; }
+.rd-bright-val { font-size: 26rpx; color: var(--rd-sub,#999); min-width: 52rpx; text-align: right; }
+
+/* 亮度压暗遮罩（最暗 opacity 0.7 不至于全黑） */
+.rd-dim { position: fixed; inset: 0; z-index: 50; background: #000; pointer-events: none; }
 .rd-theme-dot { width: 64rpx; height: 64rpx; border-radius: 999rpx; border: 4rpx solid transparent; box-shadow: 0 2rpx 8rpx rgba(0,0,0,0.1); }
 .rd-dot-yangpi { background: #f5ecd8; }
 .rd-dot-hugu { background: #dce9d5; }

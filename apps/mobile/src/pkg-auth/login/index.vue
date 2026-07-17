@@ -235,21 +235,34 @@ async function handleSendCode() {
  * 2) 有 login:redirect（401 被踢时 request.ts 记录的原页面完整路径·含 query）→ reLaunch 回原页
  *    （项目为自定义底部导航非原生 tabBar，主 tab 页与普通页统一走 reLaunch，无需 switchTab 分叉）；
  * 3) 无 redirect → 维持原行为回首页。
- * redirect 读到即清除（一次性），且拒绝 pkg-auth 自身路径防回跳成环。
+ * 🔴 消费顺序：读取时不删。只在「真正 reLaunch 回原页」的分支里才 remove（一次性凭证被用掉）；
+ * welcome 分支与非法值分支属明确放弃，也 remove（防残留下次登录误跳），但绝不"先删后判"——
+ * 原实现读到即删，命中 welcome 分支时 redirect 已删未用，纯属白丢。
+ * 拒绝 pkg-auth 自身路径防回跳成环。
  */
 function goAfterLogin() {
+  // SWR 首页 feed 缓存跨账号防串号：登录成功即清（覆盖"未退出直接换号"路径，
+  // 与 settings 退出登录处的清理成对；两处都清=双保险）。key 与首页 FEED_CACHE_KEY 同名。
+  try { uni.removeStorageSync('feed:home:cache') } catch { /* 清缓存失败不阻断登录流 */ }
   let redirect = ''
   try {
     redirect = uni.getStorageSync('login:redirect') || ''
-    if (redirect) uni.removeStorageSync('login:redirect')
   } catch {
     // 读取失败按无 redirect 处理
   }
+  const consumeRedirect = () => {
+    try { uni.removeStorageSync('login:redirect') } catch { /* 清除失败不阻断跳转 */ }
+  }
   if (!hasSelectedInterests()) {
+    // 欢迎峰值页优先于回跳：此处是「明确放弃」redirect（预期行为·引导流不被打断），
+    // 放弃时同样 remove，避免残留到下次登录被误消费
+    if (redirect) consumeRedirect()
     reLaunch('/welcome')
     return
   }
   if (redirect && redirect.startsWith('/') && !redirect.startsWith('/pkg-auth/')) {
+    // 唯一「真正消费」redirect 的分支：到这里才 remove（一次性）
+    consumeRedirect()
     uni.reLaunch({
       url: redirect,
       // 回跳失败（目标页被下架等）兜底回首页，不让用户卡在登录页
@@ -257,6 +270,8 @@ function goAfterLogin() {
     })
     return
   }
+  // redirect 为空或非法（非 / 开头 / pkg-auth 自身路径被拒）：非法值也清掉，防脏数据长期滞留
+  if (redirect) consumeRedirect()
   uni.reLaunch({ url: '/pages/index/index' })
 }
 

@@ -399,9 +399,15 @@ export const videoApi = {
     return await apiPost('/videos', data)
   },
 
-  /** 视频列表（全屏流）— GET /videos（错误传播给页面三态，不回退假 mock） */
-  async list(_params?: Record<string, unknown>): Promise<VideoItem[]> {
-    const res = await apiGet<RawVideo[] | { videos?: RawVideo[]; data?: RawVideo[] }>('/videos?pageSize=50')
+  /**
+   * 视频列表（全屏流）— GET /videos（错误传播给页面三态，不回退假 mock）
+   * 后端已支持分页（video.controller @Get() → svc.list({page,pageSize})·返回 {videos,total,page,pageSize}）。
+   * page 从 1 起；本方法内按标题去重仅限单页（seed 重复数据），跨页去重由调用方按 id 处理。
+   */
+  async list(params?: { page?: number; pageSize?: number }): Promise<VideoItem[]> {
+    const page = params?.page ?? 1
+    const pageSize = params?.pageSize ?? 50
+    const res = await apiGet<RawVideo[] | { videos?: RawVideo[]; data?: RawVideo[] }>(`/videos?page=${page}&pageSize=${pageSize}`)
     const arr = Array.isArray(res) ? res : (res?.videos ?? res?.data ?? [])
     const seen = new Set<string>()
     return arr.map(adaptVideoItem).filter((v: VideoItem) => { if (seen.has(v.title)) return false; seen.add(v.title); return true })

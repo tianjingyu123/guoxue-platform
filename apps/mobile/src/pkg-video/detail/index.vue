@@ -30,7 +30,16 @@
     >
       <swiper-item v-for="(v, i) in videos" :key="v.id">
         <!-- 只渲染当前±1（预加载前后各一条），其余留空壳，避免 50 条全挂载 -->
-        <view v-if="nearCurrent(i)" class="vp__layer" @tap="onSingleTap">
+        <!-- touchstart/move/end：长按 2 倍速判定（480ms·位移>10px 取消·与 tap 单双击互不冲突） -->
+        <view
+          v-if="nearCurrent(i)"
+          class="vp__layer"
+          @tap="onSingleTap"
+          @touchstart="onPressStart"
+          @touchmove="onPressMove"
+          @touchend="onPressEnd"
+          @touchcancel="onPressEnd"
+        >
           <!-- 封面作为播放器 poster/兜底：视频未就绪或无视频源时展示 -->
           <image lazy-load class="vp__cover" :src="v.coverUrl" mode="aspectFill" />
           <!-- 视频播放器：仅当前条挂载（H5=原生 video，小程序/App=原生组件）·不静音（董事长拍板：
@@ -190,9 +199,31 @@
       </view>
     </view>
 
-    <!-- 播放进度条（V0 progress：底部细条·仅有真实视频源时渲染） -->
-    <view v-if="currentVideo.videoUrl && !playError" class="vp__progress-bar" :style="{ bottom: 'calc(' + safeBottom + 'px + 8rpx)' }">
-      <view class="vp__progress-played" :style="{ width: playProgress + '%' }" />
+    <!-- 长按 2 倍速提示（顶部小胶囊） -->
+    <view v-if="speeding" class="vp__speed-tip" :style="{ top: 'calc(' + statusBarHeight + 'px + 120rpx)' }">
+      <text class="vp__speed-tip-txt">2x 快进中 ≫</text>
+    </view>
+
+    <!-- 播放进度条（V0 progress：底部细条·仅有真实视频源时渲染）
+         外层 vp__progress-zone = 透明拖拽热区（64rpx ≥40rpx 要求·视觉细条不变）：
+         touchstart/move 更新预览进度 + 时间气泡，touchend seek 到目标 -->
+    <view
+      v-if="currentVideo.videoUrl && !playError"
+      class="vp__progress-zone"
+      :style="{ bottom: 'calc(' + safeBottom + 'px - 16rpx)' }"
+      @touchstart="onSeekStart"
+      @touchmove.stop="onSeekMove"
+      @touchend="onSeekEnd"
+      @touchcancel="onSeekEnd"
+    >
+      <!-- 拖拽时间气泡：当前 / 总时长（mm:ss） -->
+      <view v-if="seeking" class="vp__seek-tip">
+        <text class="vp__seek-tip-cur">{{ fmtClock(seekPreviewTime) }}</text>
+        <text class="vp__seek-tip-dur"> / {{ fmtClock(videoDuration) }}</text>
+      </view>
+      <view class="vp__progress-bar" :class="{ 'vp__progress-bar--drag': seeking }">
+        <view class="vp__progress-played" :style="{ width: (seeking ? seekProgress : playProgress) + '%' }" />
+      </view>
     </view>
     </template>
 
@@ -391,12 +422,20 @@ const loading = ref(true)
 const error = ref('')
 const pendingId = ref('') // onLoad 传入的目标视频 id，加载后定位
 
+// ===== feed 分页（原固定 pageSize=50 一次取完，刷到 50 条断粮）=====
+const FEED_PAGE_SIZE = 50 // 首页保持原 50 条（深链 pendingId 定位覆盖范围不回退）
+const feedPage = ref(1)
+const feedHasMore = ref(true)
+const feedLoadingMore = ref(false)
+
 async function loadFeed() {
   loading.value = true
   error.value = ''
   try {
-    const list = await videoApi.list()
+    const list = await videoApi.list({ page: 1, pageSize: FEED_PAGE_SIZE })
     videos.value = list
+    feedPage.value = 1
+    feedHasMore.value = list.length > 0
     if (pendingId.value) {
       const idx = list.findIndex((v) => v.id === pendingId.value)
       if (idx !== -1) currentIndex.value = idx
@@ -408,6 +447,27 @@ async function loadFeed() {
   }
 }
 function retry() { loadFeed() }
+
+/**
+ * 追加下一页：滑到倒数第 3 条触发（onSwiperChange 挂钩）。
+ * 按 id + 标题双去重（list() 单页内已按标题去重·seed 重复数据跨页仍需防），
+ * 同时过滤本会话「不感兴趣」的作者；空页视为断粮 → 最后一条自然滑不动（不加 toast 打扰）。
+ */
+async function loadMoreFeed() {
+  if (feedLoadingMore.value || !feedHasMore.value) return
+  feedLoadingMore.value = true
+  try {
+    const next = feedPage.value + 1
+    const list = await videoApi.list({ page: next, pageSize: FEED_PAGE_SIZE })
+    feedPage.value = next
+    if (!list.length) { feedHasMore.value = false; return }
+    const seenIds = new Set(videos.value.map((v) => v.id))
+    const seenTitles = new Set(videos.value.map((v) => v.title))
+    const fresh = list.filter((v) => !seenIds.has(v.id) && !seenTitles.has(v.title) && !(v.author?.id && dislikedAuthors.has(v.author.id)))
+    if (fresh.length) videos.value.push(...fresh)
+  } catch { /* 静默失败：下次滑动重试，不打断观看 */ }
+  finally { feedLoadingMore.value = false }
+}
 
 // ===== 播放/UI 状态 =====
 // 不静音（董事长拍板去掉静音起步）：初始视为未播放，autoplay 成功后 @play 事件置 true；
@@ -463,14 +523,107 @@ function onVideoPause() { isPlaying.value = false }
 function onVideoError() { playError.value = true; isPlaying.value = false }
 
 // 切页/切后台时暂停视频，根除后台多音轨（点作者头像/圈子跳转时原视频不再后台出声）
-onHide(() => { getVideoCtx()?.pause(); isPlaying.value = false })
+// 长按 2x 中切页：倍速一并复位（否则回来续播仍是 2x）
+onHide(() => { getVideoCtx()?.pause(); isPlaying.value = false; if (speeding.value) { speeding.value = false; setPlaybackRate(1) } clearPressTimer() })
+
+// ===== 长按 2 倍速（抖音式）=====
+const speeding = ref(false)
+let pressTimer: ReturnType<typeof setTimeout> | null = null
+let suppressTap = false // 长按松手后紧随的 tap 属于长按残留 → 吞掉，不触发暂停/双击
+let pressStartX = 0
+let pressStartY = 0
+function setPlaybackRate(rate: number) {
+  // #ifdef H5
+  const media = document.querySelector<HTMLVideoElement>('.vp__video video') || document.querySelector<HTMLVideoElement>('video')
+  if (media) { media.playbackRate = rate; return }
+  // #endif
+  getVideoCtx()?.playbackRate(rate)
+}
+function clearPressTimer() { if (pressTimer) { clearTimeout(pressTimer); pressTimer = null } }
+function onPressStart(e: any /* uni touch 事件跨端形状不一，参数须 any */) {
+  clearPressTimer()
+  // 仅播放中的真实视频可倍速；暂停态长按不响应（避免吞掉恢复播放的点按）
+  if (!currentVideo.value?.videoUrl || playError.value || !isPlaying.value) return
+  const t = e?.touches?.[0] || {}
+  pressStartX = Number(t.clientX) || 0
+  pressStartY = Number(t.clientY) || 0
+  // 480ms 判定长按（> 双击窗口 280ms·短按/双击在 touchend 时先清掉计时器，互不冲突）
+  pressTimer = setTimeout(() => {
+    pressTimer = null
+    speeding.value = true
+    setPlaybackRate(2)
+  }, 480)
+}
+function onPressMove(e: any) {
+  if (!pressTimer) return
+  const t = e?.touches?.[0] || {}
+  const dx = (Number(t.clientX) || 0) - pressStartX
+  const dy = (Number(t.clientY) || 0) - pressStartY
+  if (Math.abs(dx) > 10 || Math.abs(dy) > 10) clearPressTimer() // 手指位移 → 视为滑动，取消长按
+}
+function onPressEnd() {
+  clearPressTimer()
+  if (speeding.value) {
+    speeding.value = false
+    setPlaybackRate(1) // touchend/touchcancel 统一恢复 1x
+    suppressTap = true
+    setTimeout(() => { suppressTap = false }, 350) // 兜底自清（部分端长按后不派发 tap）
+  }
+}
 
 // ===== 播放进度（V0 底部细进度条）=====
 const playProgress = ref(0) // 0-100
 function onTimeUpdate(e: any /* uni video 事件经 vue-tsc 按原生签名校验，参数须 any */) {
   const cur = Number(e?.detail?.currentTime) || 0
   const dur = Number(e?.detail?.duration) || 0
+  if (dur > 0) videoDuration.value = dur
+  // 拖拽中/seek 生效前的短暂窗口：暂停对进度的回写，防进度条跳动
+  if (seeking.value || Date.now() < seekSettleUntil) return
   playProgress.value = dur > 0 ? Math.min(100, (cur / dur) * 100) : 0
+}
+
+// ===== 进度条拖拽 seek（视觉细条不变·外层透明热区≥40rpx）=====
+const seeking = ref(false)
+const seekProgress = ref(0) // 拖拽中的目标进度 0-100
+const videoDuration = ref(0) // 秒·由 @timeupdate 回填
+let seekSettleUntil = 0 // touchend 后短窗口内不回写进度（等 seek 生效）
+const windowW = ref(sysInfo.windowWidth || 375)
+const seekPreviewTime = computed(() => (videoDuration.value * seekProgress.value) / 100)
+
+/** mm:ss（时间气泡用） */
+function fmtClock(sec: number): string {
+  const s = Math.max(0, Math.floor(Number(sec) || 0))
+  return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`
+}
+/** 触点 X → 进度比例（进度条左右各 32rpx 内边距） */
+function seekRatio(e: any /* uni touch 事件·跨端形状不一，参数须 any */): number {
+  const t = e?.touches?.[0] || e?.changedTouches?.[0] || {}
+  const x = Number(t.clientX) || 0
+  const pad = (windowW.value / 750) * 32
+  const track = Math.max(1, windowW.value - pad * 2)
+  return Math.min(1, Math.max(0, (x - pad) / track))
+}
+function onSeekStart(e: any) {
+  if (!videoDuration.value) return // 元数据未就绪（无时长）不可拖
+  seeking.value = true
+  seekProgress.value = seekRatio(e) * 100
+}
+function onSeekMove(e: any) {
+  if (!seeking.value) return
+  seekProgress.value = seekRatio(e) * 100
+}
+function onSeekEnd() {
+  if (!seeking.value) return
+  const target = (videoDuration.value * seekProgress.value) / 100
+  playProgress.value = seekProgress.value // 先回写视觉，防 seek 生效前跳回旧进度
+  seekSettleUntil = Date.now() + 600
+  seeking.value = false
+  // #ifdef H5
+  // 与 safePlay 同思路：H5 直接驱动原生 <video>（uni videoContext.seek 在 H5 偶发不生效）
+  const media = document.querySelector<HTMLVideoElement>('.vp__video video') || document.querySelector<HTMLVideoElement>('video')
+  if (media && Number.isFinite(target)) { media.currentTime = target; return }
+  // #endif
+  getVideoCtx()?.seek(target)
 }
 
 // ===== 来源圈子胶囊 → 圈子详情 =====
@@ -534,11 +687,14 @@ function onSwiperChange(e: any /* uni swiper 事件经 vue-tsc 按原生签名�
   if (Number.isFinite(idx) && idx !== currentIndex.value) {
     currentIndex.value = idx
     currentLandscape.value = false // 重置横竖屏标记，等新视频 @loadedmetadata 回填
+    // feed 分页：滑到倒数第 3 条时静默追加下一页
+    if (videos.value.length - idx <= 3) loadMoreFeed()
   }
 }
 
 // ===== 单击暂停 / 双击点赞 =====
 function onSingleTap(e: { changedTouches?: Array<{ clientX?: number; clientY?: number }>; detail?: { clientX?: number; clientY?: number } }) {
+  if (suppressTap) { suppressTap = false; return } // 长按 2x 松手残留的 tap → 吞掉
   const now = Date.now()
   if (now - lastTapTime < 280) {
     // 双击
@@ -637,6 +793,31 @@ async function copyShareLink() {
   try { await videoApi.share(v.id) } catch { v.shares -= 1 /* 计数失败回滚·不打扰 */ }
 }
 
+/**
+ * 不感兴趣（负反馈）：后端 video 模块无 dislike/负反馈端点（已核 controller 全部路由）→
+ * 纯本地过滤：本会话内移除当前作者的全部视频（无作者 id 时仅移除当前条），
+ * 分页追加时同样过滤该作者（dislikedAuthors），并跳到下一条。
+ */
+const dislikedAuthors = new Set<string>()
+function onNotInterested() {
+  showShare.value = false
+  const v = currentVideo.value
+  if (!v) return
+  const aid = v.author?.id || ''
+  if (aid) dislikedAuthors.add(aid)
+  const idx = currentIndex.value
+  const keep = (it: VideoItem, i: number) => i !== idx && (!aid || it.author?.id !== aid)
+  // 先记住「下一条」目标 = 原当前条之后第一条保留的视频
+  const nextTarget = videos.value.find((it, i) => i > idx && keep(it, i))
+  const filtered = videos.value.filter(keep)
+  videos.value = filtered
+  uni.showToast({ title: '将减少此类内容推荐', icon: 'none' })
+  if (!filtered.length) { loadMoreFeed(); return } // 全被过滤 → 尝试补一页，空则显示诚实空态
+  let ni = nextTarget ? filtered.findIndex((it) => it.id === nextTarget.id) : -1
+  if (ni < 0) ni = Math.min(idx, filtered.length - 1)
+  currentIndex.value = Math.max(0, ni) // 索引对应视频已变 → watch(currentVideo.id) 自动重置播放
+}
+
 // 切换视频时刷新真实关注态（后端列表默认 isFollowed=false）
 watch(() => currentVideo.value?.id, async () => {
   // 切换到新视频：重置状态 + 主动播放。原实现仅靠 video 组件 autoplay + videoUrl 变化触发，
@@ -644,6 +825,11 @@ watch(() => currentVideo.value?.id, async () => {
   // （用户滑动已构成交互上下文，规避移动端自动播放限制）。
   playError.value = false
   playProgress.value = 0 // 切换视频 → 进度条清零
+  videoDuration.value = 0 // 时长清零（等新视频 @timeupdate 回填·未回填前进度条不可拖）
+  seeking.value = false
+  seekSettleUntil = 0
+  speeding.value = false // 长按 2x 复位（新 video 元素随 :key 重建，默认 1x·无需再调 setPlaybackRate）
+  clearPressTimer()
   // 不静音策略：切换后先视为未播放（中央播放按钮可见），@play 事件触发才置 true；
   // 滑动手势本身构成用户交互上下文，多数浏览器允许随后的有声 ctx.play()，失败则按钮留给用户点。
   isPlaying.value = false

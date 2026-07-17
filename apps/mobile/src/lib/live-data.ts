@@ -363,7 +363,8 @@ export interface LiveWatchRoomInfo {
   hostName: string
   hostAvatar: string
   hostId: string
-  followers: number
+  /** 主播粉丝数：房间接口不返回该字段 → null（页面隐藏该行，不再写死 0 误导观众） */
+  followers: number | null
   viewerCount: number
   likeCount: number
   isFollowing: boolean
@@ -2056,7 +2057,7 @@ export const liveApi = {
       hostName: r.user?.nickname || '',
       hostAvatar: r.user?.avatar || '',
       hostId: r.user?.id || r.hostUserId || '',
-      followers: 0,
+      followers: null, // 后端房间接口无主播粉丝数 → null（页面 v-if 隐藏，不显示假「0 粉丝」）
       viewerCount: r.viewCount ?? 0,
       likeCount: r.likeCount ?? 0,
       isFollowing: false, // 后端房间未返回关注态 → 降级(页面按钮默认未关注)

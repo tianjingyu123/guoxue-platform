@@ -18,6 +18,11 @@
       webkit-playsinline
       playsinline
     />
+    <!-- H5 静音解除（P1 修复）：video 写死 muted 过 autoplay 策略，此前从未解除→观众全程无声。
+         首帧起播后先尝试有声自动播，被浏览器策略拦截才显示此胶囊，点击（手势上下文）解除静音 -->
+    <view v-if="showUnmuteTip" class="lp-unmute" @tap.stop="onUnmuteTap">
+      <text class="lp-unmute-txt">🔊 点击开启声音</text>
+    </view>
     <!-- #endif -->
     <!-- #ifdef MP-WEIXIN || APP-PLUS -->
     <live-player
@@ -112,6 +117,49 @@ function onLpError() {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let flvPlayer: any = null
 
+/* ===== H5 静音解除（P1）：muted 只为过 autoplay 策略，首帧后尽力恢复有声 ===== */
+const showUnmuteTip = ref(false)
+let mediaEl: HTMLVideoElement | null = null
+
+/** 首帧起播（playing 事件）：仍处静音则尝试有声自动播 */
+function onFirstFrame() {
+  if (mediaEl?.muted) attemptAutoUnmute()
+  else showUnmuteTip.value = false // 已是有声（用户此前点过/重连保留）→ 确保浮层不残留
+}
+
+/** 尝试有声播放：浏览器允许→静默解除并隐藏浮层；被 autoplay 策略拦→回退静音续播 + 显示提示胶囊 */
+function attemptAutoUnmute() {
+  const el = mediaEl
+  if (!el) return
+  el.muted = false
+  el.volume = 1
+  Promise.resolve(el.play()).then(() => {
+    if (el.muted || el.paused) {
+      // 个别浏览器解除静音后把视频暂停 → 回退静音保画面，等用户手动开声
+      el.muted = true
+      el.play().catch(() => {})
+      showUnmuteTip.value = true
+    } else {
+      showUnmuteTip.value = false
+    }
+  }).catch(() => {
+    // 无手势有声起播被拦 → 回退静音继续播，浮层等用户点击
+    el.muted = true
+    el.play().catch(() => {})
+    showUnmuteTip.value = true
+  })
+}
+
+/** 用户点击浮层：手势上下文内解除静音（浏览器必然放行），浮层消失 */
+function onUnmuteTap() {
+  if (mediaEl) {
+    mediaEl.muted = false
+    mediaEl.volume = 1
+    mediaEl.play().catch(() => {})
+  }
+  showUnmuteTip.value = false
+}
+
 // H5 flv 断流退避重连：destroy→init 重新拉流，超上限落手动态
 function scheduleH5Reconnect() {
   if (retryCount >= MAX_RETRY) { loadError.value = true; return }
@@ -129,6 +177,10 @@ async function initH5(isRetry = false) {
   const wrapper = document.getElementById(videoId)
   const el = (wrapper?.querySelector('video') || wrapper) as HTMLVideoElement | null
   if (!el) return
+  // 首帧起播钩子（flv 与 HLS 降级共用同一媒体元素）：先移除再挂，避免重连时重复注册
+  mediaEl = el
+  el.removeEventListener('playing', onFirstFrame)
+  el.addEventListener('playing', onFirstFrame)
 
   if (props.flvUrl) {
     try {
@@ -198,6 +250,7 @@ watch(() => [props.flvUrl, props.hlsUrl], () => {
 onBeforeUnmount(() => {
   clearRetryTimer()
   // #ifdef H5
+  if (mediaEl) { mediaEl.removeEventListener('playing', onFirstFrame); mediaEl = null }
   destroyH5()
   // #endif
 })
@@ -225,5 +278,21 @@ onBeforeUnmount(() => {
 .lp-error-txt {
   color: rgba(255, 255, 255, 0.9);
   font-size: 28rpx;
+}
+/* H5 静音解除胶囊：居中偏下，醒目但不挡主播画面核心区/底部互动栏 */
+.lp-unmute {
+  position: absolute;
+  left: 50%;
+  bottom: 25%;
+  transform: translateX(-50%);
+  z-index: 5;
+  padding: 16rpx 40rpx;
+  border-radius: 999rpx;
+  background-color: rgba(0, 0, 0, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+}
+.lp-unmute-txt {
+  color: #ffffff;
+  font-size: 27rpx;
 }
 </style>

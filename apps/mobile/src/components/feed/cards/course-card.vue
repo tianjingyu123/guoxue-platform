@@ -15,6 +15,9 @@ import { type FeedEnvelope, payloadNum, payloadBool, formatCount } from '@/lib/f
 const props = defineProps<{ item: FeedEnvelope }>()
 const isFree = computed(() => payloadBool(props.item, 'free') || payloadNum(props.item, 'price') === 0)
 const price = computed(() => payloadNum(props.item, 'price'))
+// 有效价格判定：payload 无 price / 脏数据（payloadNum 返回 undefined 或 NaN）时不渲染价格元素，
+// 否则 formatPrice(undefined)→0 会把没报价的课显示成「¥0」（真实价格 0 已由 isFree 分支显示「免费」）
+const hasPrice = computed(() => typeof price.value === 'number' && Number.isFinite(price.value))
 const hook = computed(() => (isFree.value ? '第 1 课免费' : '去看看 ›'))
 /** 学习人数：仅当 metric.kind=students 且 >0 才显示（无数据不造假） */
 const students = computed(() => {
@@ -47,7 +50,7 @@ const students = computed(() => {
         </view>
         <view class="meta">
           <text v-if="isFree" class="free">免费</text>
-          <text v-else class="price"><text class="yuan">¥</text>{{ formatPrice(price) }}</text>
+          <text v-else-if="hasPrice" class="price"><text class="yuan">¥</text>{{ formatPrice(price) }}</text>
           <text v-if="students" class="students">{{ formatCount(students) }}人在学</text>
           <text v-else class="hook">{{ hook }}</text>
         </view>

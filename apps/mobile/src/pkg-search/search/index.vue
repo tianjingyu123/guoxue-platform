@@ -168,7 +168,10 @@ function onInput() {
   suggestTimer = setTimeout(async () => {
     // 防抖窗口内关键词可能又变，落地前再校验一次，避免旧词覆盖
     if (keyword.value.trim() !== q) return
-    suggestList.value = await searchApi.getSuggestions(q, 8).catch(() => [])
+    const list = await searchApi.getSuggestions(q, 8).catch(() => [])
+    // 弱网慢响应晚到：请求期间输入词已变（或已清空），旧词联想不落地
+    if (keyword.value.trim() !== q) return
+    suggestList.value = list
   }, 250)
 }
 
@@ -197,7 +200,12 @@ onLoad((opt) => {
     entryTab.value = opt.tab
   }
   if (opt && opt.keyword) {
-    keyword.value = decodeURIComponent(opt.keyword)
+    // 安全解码：外部拼的 URL 可能带裸 "%"（如「涨50%」），裸 decode 抛 URIError 会中断 onLoad 白屏，失败时原样使用
+    try {
+      keyword.value = decodeURIComponent(opt.keyword)
+    } catch {
+      keyword.value = opt.keyword
+    }
   } else {
     autoFocus.value = true
   }
@@ -430,8 +438,11 @@ function doSearch(kw: string) {
   padding-right: 16rpx;
 }
 .tag-del {
-  width: 40rpx;
-  height: 40rpx;
+  /* 删除热区撑到 60×60rpx 防误触词身：负 margin 抵消超出部分，标签视觉尺寸不变；
+     icon 居中后与词身的可视间距同步拉开约 10rpx */
+  width: 60rpx;
+  height: 60rpx;
+  margin: -10rpx -10rpx -10rpx 0;
   display: flex;
   align-items: center;
   justify-content: center;

@@ -26,6 +26,8 @@ uni.getSystemInfo({ success: (r) => { statusBarHeight.value = r.statusBarHeight 
 // ── 顶部轻 Tab（推荐/关注/直播广场/古籍/课程/商城）──
 // 直播广场为胶囊入口（点击跳 H3 直播广场），其余为频道切换（推荐/关注驱动 feed，古籍/课程/商城跳板块）
 type TabId = 'recommend' | 'follow' | 'classic' | 'course' | 'mall'
+// 注：「关注」Tab 已在模板中暂下线（假功能：与推荐同请求同参数），此处配置与 switchTab
+// 的 follow 分支防御性保留，待后端 channel 参数上线后随模板一并恢复。
 const tabs: { id: TabId; label: string }[] = [
   { id: 'recommend', label: '推荐' },
   { id: 'follow', label: '关注' },
@@ -50,10 +52,17 @@ const PAGE_SIZE = 20
 // 首页 feed 首屏缓存 key（SWR：秒开旧内容 + 后台静默刷新替换）
 const FEED_CACHE_KEY = 'feed:home:cache'
 
+// 请求序号守卫：静默刷新（init 命中缓存后的后台刷新）与下拉刷新/切频道/加载更多可能并发，
+// 慢的旧响应晚到会覆盖新结果（乱序写 feed）。每次 loadFeed 领取自增序号，
+// 响应回来时序号已不是最新则整体丢弃（不写 feed/缓存/状态）。
+let feedReqSeq = 0
+
 /** 拉取一页 feed。reset=true 时重置为第一页（下拉刷新/切频道换一批）。
  *  失败时（getSmartFeed 抛错）仅在首屏加载（reset）时置 loadError，交页面显示重试，不误当空态。
- *  返回本次拉取是否成功（供加载更多失败回滚页码用）。 */
-async function loadFeed(reset = false): Promise<boolean> {
+ *  返回：true=成功；false=失败（供加载更多回滚页码用）；'stale'=响应过期被更新请求取代（
+ *  调用方不回滚不报错，结果由新请求负责）。 */
+async function loadFeed(reset = false): Promise<boolean | 'stale'> {
+  const seq = ++feedReqSeq
   if (reset) {
     page.value = 1
     noMore.value = false
@@ -62,20 +71,29 @@ async function loadFeed(reset = false): Promise<boolean> {
   let items: FeedEnvelope[]
   try {
     items = await getSmartFeed(page.value, PAGE_SIZE)
-    loadError.value = false
   } catch {
+    // 过期响应：期间已有更新请求发出，本次结果作废，不碰任何状态
+    if (seq !== feedReqSeq) return 'stale'
     // 服务器错误/断网：首屏失败标记错误态（重试），加载更多失败由调用方回滚页码+尾巴重试
     if (reset) loadError.value = true
     return false
   }
+  // 过期响应：丢弃，避免慢的旧请求覆盖新请求已上屏的结果
+  if (seq !== feedReqSeq) return 'stale'
+  loadError.value = false
   // 过滤后端仍在塞的智能体卡：其 targetId 为占位 id（如 hook-agent），点进对话页查真实
   // agent → "智能体不存在"死链。智能体入口改由金刚区真实入口承载，首页 feed 只排真实内容。
   const real = items.filter((i) => i.type !== 'agent')
   if (reset) {
     feed.value = real
-    // SWR 缓存：只存推荐频道的首页第一页（控制体积），关注频道/后续页不写
-    if (activeTab.value === 'recommend' && real.length > 0) {
-      try { uni.setStorageSync(FEED_CACHE_KEY, real) } catch { /* 存储满等异常不影响主流程 */ }
+    // SWR 缓存：只存推荐频道的首页第一页（控制体积），后续页不写
+    if (activeTab.value === 'recommend') {
+      if (real.length > 0) {
+        try { uni.setStorageSync(FEED_CACHE_KEY, real) } catch { /* 存储满等异常不影响主流程 */ }
+      } else {
+        // feed 真空：同步清掉旧缓存——否则 SWR 下次进页永远先闪一屏已不存在的旧内容再消失
+        try { uni.removeStorageSync(FEED_CACHE_KEY) } catch { /* 清缓存失败不影响主流程 */ }
+      }
     }
   } else {
     feed.value = feed.value.concat(real)
@@ -130,10 +148,12 @@ async function onRefresh() {
   const prevFirstId = feed.value[0]?.id
   try {
     const ok = await loadFeed(true)
-    // 刷新失败但已有旧内容时保留内容（不闪错误页），仅轻提示
-    if (loadError.value && feed.value.length > 0) {
+    if (ok === 'stale') {
+      // 本次刷新响应已被更新请求（如切频道）取代，结果与提示由新请求负责
+    } else if (loadError.value && feed.value.length > 0) {
+      // 刷新失败但已有旧内容时保留内容（不闪错误页），仅轻提示
       uni.showToast({ title: '刷新失败，请稍后重试', icon: 'none' })
-    } else if (ok) {
+    } else if (ok === true) {
       const newFirstId = feed.value[0]?.id
       uni.showToast({
         title: newFirstId !== undefined && newFirstId !== prevFirstId ? '已为你推荐新内容' : '暂无更新',
@@ -148,16 +168,18 @@ async function onRefresh() {
 // 无限滚动加载下一页：失败时回滚页码 -1 + 尾巴亮出「加载失败 · 点击重试」（原为静默吞掉，
 // 用户滑到底只看到转圈消失，还以为到底了——下次 scrolltolower 又用错页码跳页）
 async function onLoadMore() {
-  if (loadingMore.value || noMore.value || loading.value) return
+  // refreshing 也要挡：下拉刷新进行中触底会与 reset 请求并发（页码被 reset 归 1 后再 +1 乱序）
+  if (loadingMore.value || refreshing.value || noMore.value || loading.value) return
   loadingMore.value = true
   loadMoreError.value = false
   try {
     page.value += 1
     const ok = await loadFeed(false)
-    if (!ok) {
+    if (ok === false) {
       page.value -= 1
       loadMoreError.value = true
     }
+    // ok === 'stale'：响应期间有更新请求（刷新/切频道）已重置页码并接管状态，不回滚不报错
   } finally {
     loadingMore.value = false
   }
@@ -330,9 +352,14 @@ function backToTop() {
         <view class="tab" :class="{ on: activeTab === 'recommend' }" @tap="switchTab('recommend')">
           <text class="tab-label">推荐</text>
         </view>
+        <!-- 「关注」Tab 暂下线：当前 getSmartFeed 无频道参数，切"关注"与"推荐"发同一请求同参数，
+             属纯装饰假功能（用户以为在看关注流，实际还是推荐流）。
+             待关注聚合 feed 后端 channel 参数上线后恢复下方节点（switchTab('follow') 逻辑已防御性保留）。
         <view class="tab" :class="{ on: activeTab === 'follow' }" @tap="switchTab('follow')">
           <text class="tab-label">关注</text>
         </view>
+        -->
+
         <!-- 直播广场胶囊：朱红 8% 底 + 朱红字 + 呼吸红点，点击跳 H3 直播广场 -->
         <view class="tab-live" hover-class="btn-press" @tap="goPlaza">
           <view class="tab-live-dot" />
@@ -588,7 +615,8 @@ function backToTop() {
   position: absolute;
   left: 0;
   right: 0;
-  bottom: 112rpx;
+  /* 底部导航高度 + iOS 全面屏安全区（不加 safe-area 时刘海屏底部内容被 home 条遮挡） */
+  bottom: calc(112rpx + env(safe-area-inset-bottom));
   top: calc(160rpx + var(--status-bar-height, 0px));
 }
 
@@ -682,7 +710,8 @@ function backToTop() {
   left: 0;
   right: 0;
   top: calc(160rpx + var(--status-bar-height, 0px));
-  bottom: 112rpx;
+  /* 与 .content 同口径：底部导航 + 安全区 */
+  bottom: calc(112rpx + env(safe-area-inset-bottom));
   display: flex;
   flex-direction: column;
   align-items: center;

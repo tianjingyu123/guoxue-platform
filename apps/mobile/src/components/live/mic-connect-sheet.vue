@@ -1,3 +1,10 @@
+<!--
+  🔴 假实现·已从观看页下线（2026-07-17 R2 黑盒审计 P0）
+  本组件是纯前端演示壳：「申请连麦」后 setTimeout 3.5s 假装主播同意进入"通话态"，
+  全程无任何后端 API 调用、无 TRTC/音频链路 —— 观众会对着空气说话，属假绿勾红线。
+  观看页（pkg-live/watch/index.vue）的连麦入口与本组件挂载均已注释下线；
+  待 TRTC 连麦链路真实接通后再恢复（后端 voice-room 基建已有）。文件保留供接线时复用 UI。
+-->
 <template>
   <!-- 通话中：紧凑悬浮条 -->
   <view v-if="open && state === 'connected'" class="mic-bar">

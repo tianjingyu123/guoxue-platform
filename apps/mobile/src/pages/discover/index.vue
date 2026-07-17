@@ -23,6 +23,11 @@ import BlockRenderer from '@/components/layout/block-renderer.vue'
 import { getCategoryFeed, type FeedEnvelope } from '@/lib/feed-data'
 import { coreEntries, serviceGroups } from '@/lib/discover-data'
 
+// 状态栏适配：照首页模式动态取 statusBarHeight（原来写死 padding-top:96rpx，
+// 刘海屏会顶进状态栏、H5 无状态栏又留大白），搜索行 padding-top = 状态栏高 + 8px 呼吸位
+const statusBarHeight = ref(0)
+uni.getSystemInfo({ success: (r) => { statusBarHeight.value = r.statusBarHeight || 0 } })
+
 // 平台微页面运营楼层（后台「平台页面布局」搭 route='discover' 发布 → 此处渲染；无则不显示）
 const discoverBlocks = ref<LayoutBlock[]>([])
 
@@ -152,8 +157,8 @@ function goEntry(href: string) { navigateTo(href) }
     <app-network-bar />
     <customer-service-fab />
 
-    <!-- ① 大搜索框：全局搜索主场（框内热词跑马灯 + 点击跳 /search） -->
-    <view class="search-row">
+    <!-- ① 大搜索框：全局搜索主场（框内热词跑马灯 + 点击跳 /search）·padding-top 动态适配状态栏 -->
+    <view class="search-row" :style="{ paddingTop: statusBarHeight + 8 + 'px' }">
       <search-bar default-tab="all" placeholder="搜古籍 · 课程 · 直播 · 掌柜好物" />
     </view>
 
@@ -259,8 +264,8 @@ $ink: #2C2C2C; $sub: #6E6E73; $faint: #999999; $wash: #F6F1E7; $line: #F2EDE4;
 
 .page { min-height: 100vh; background: $paper; padding-bottom: 140rpx; }
 
-/* ① 搜索 */
-.search-row { padding: 96rpx 40rpx 8rpx; }
+/* ① 搜索：padding-top 由内联 style 按 statusBarHeight 动态计算（此处仅兜底） */
+.search-row { padding: 16rpx 40rpx 8rpx; }
 /* ② 运营楼层（微页面区块） */
 .disc-blocks { padding: 8rpx 0 4rpx; }
 

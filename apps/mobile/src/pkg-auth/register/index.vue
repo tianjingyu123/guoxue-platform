@@ -56,8 +56,8 @@
             @input="onPhoneInput"
           />
         </view>
-        <view class="btn" :class="{ 'btn-disabled': phone.length !== 11 }" @tap="sendCode">
-          <text class="btn-text">获取验证码</text>
+        <view class="btn" :class="{ 'btn-disabled': phone.length !== 11 || isSendingCode }" @tap="sendCode">
+          <text class="btn-text">{{ isSendingCode ? '发送中...' : '获取验证码' }}</text>
         </view>
       </view>
 
@@ -82,7 +82,7 @@
         </view>
         <view class="resend-row">
           <text class="resend-tip">{{ countdown > 0 ? countdown + '秒后可重发' : '没有收到验证码？' }}</text>
-          <text class="resend-btn" :class="{ 'resend-disabled': countdown > 0 }" @tap="sendCode">重新发送</text>
+          <text class="resend-btn" :class="{ 'resend-disabled': countdown > 0 || isSendingCode }" @tap="sendCode">{{ isSendingCode ? '发送中...' : '重新发送' }}</text>
         </view>
         <view class="btn" :class="{ 'btn-disabled': code.length !== 6 || isVerifying }" @tap="verifyCode">
           <text class="btn-text">{{ isVerifying ? '校验中...' : '下一步' }}</text>
@@ -194,6 +194,8 @@ const countdown = ref(0)
 const isLoading = ref(false)
 // 第 2 步验证码真校验中（防重复提交）
 const isVerifying = ref(false)
+// 发码请求在途锁（防快速双击连发短信·与 login 页同范式）
+const isSendingCode = ref(false)
 // 与 request.ts 同源的 API 地址（BASE_URL/PREFIX 未导出，此处按同一规则拼装）
 const API_BASE = `${(import.meta as any).env?.VITE_API_URL || ''}/api/v1`
 
@@ -235,8 +237,10 @@ function handleBack() {
 }
 
 // @data-needs: 发送注册验证码, 参数 {phone, scene:'register'}, 返回 {success, message}
+// 防重锁（照抄 login 的 isSendingCode 范式）：请求在途期间快速双击不再连发两条短信
 async function sendCode() {
-  if (countdown.value > 0 || phone.value.length !== 11) return
+  if (countdown.value > 0 || phone.value.length !== 11 || isSendingCode.value) return
+  isSendingCode.value = true
   try {
     const res = await authApi.sendCode(phone.value, 'register')
     if (!res.success) { uni.showToast({ title: res.message || '发送失败', icon: 'none' }); return }
@@ -248,6 +252,8 @@ async function sendCode() {
     if (step.value === 'phone') step.value = 'verify'
   } catch (e) {
     uni.showToast({ title: (e as Error)?.message || '发送失败', icon: 'none' })
+  } finally {
+    isSendingCode.value = false
   }
 }
 

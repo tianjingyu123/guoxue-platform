@@ -372,9 +372,15 @@ const isEmpty = computed(() => {
     !r.circles.length && !r.classics.length && !r.users.length
 })
 
+// 请求序号守卫：快速切 Tab / 改词时，弱网晚到的旧响应不得覆盖新结果。
+// 每次 loadResults 发起（含命中缓存的分支）都自增序号，在途旧请求回来发现序号不匹配即整体丢弃。
+let reqSeq = 0
+
 /** 拉取搜索结果（关键词/Tab 变化触发） */
 async function loadResults() {
+  const seq = ++reqSeq // 快照本次序号：切到缓存 Tab 也要作废在途旧请求
   const kw = keyword.value.trim()
+  const tab = activeTab.value // 快照发起时的 Tab，响应处理全部用快照值
   if (!kw) {
     results.value = { contents: [], courses: [], products: [], circles: [], classics: [], users: [] }
     aiSummaryText.value = ''
@@ -382,7 +388,7 @@ async function loadResults() {
     return
   }
   // 命中缓存：切回已搜过的 Tab，直接复用不重拉（无骨架闪烁），并恢复分页态
-  const cacheKey = `${kw}||${activeTab.value}`
+  const cacheKey = `${kw}||${tab}`
   const cached = resultCache.get(cacheKey)
   if (cached) {
     results.value = cached
@@ -391,7 +397,7 @@ async function loadResults() {
     const pc = pageCache.get(cacheKey)
     page.value = pc ? pc.page : 1
     noMore.value = pc ? pc.noMore : false
-    aiSummaryText.value = activeTab.value === 'all' ? (aiCache.get(kw) || '') : ''
+    aiSummaryText.value = tab === 'all' ? (aiCache.get(kw) || '') : ''
     return
   }
   loading.value = true
@@ -399,27 +405,29 @@ async function loadResults() {
   page.value = 1
   noMore.value = false
   try {
-    results.value = await searchApi.search(kw, activeTab.value)
-    resultCache.set(cacheKey, results.value)
+    const res = await searchApi.search(kw, tab)
+    if (seq !== reqSeq) return // 晚到的旧响应：期间已发起过新请求（或切了缓存 Tab），整体丢弃
+    results.value = res
+    resultCache.set(cacheKey, res)
     // 分类 Tab：首页不足一页即到底（search 抛错走 catch，这里的空/短返回可信）
-    const listKey = tabListKey[activeTab.value]
+    const listKey = tabListKey[tab]
     if (listKey) {
-      noMore.value = (results.value[listKey] as unknown[]).length < SEARCH_PAGE_SIZE
+      noMore.value = (res[listKey] as unknown[]).length < SEARCH_PAGE_SIZE
       pageCache.set(cacheKey, { page: 1, noMore: noMore.value })
     }
     searchApi.saveHistory(kw) // 静默保存历史，不阻塞
-    const r = results.value
-    const hasAny = r.contents.length || r.courses.length || r.products.length ||
-      r.circles.length || r.classics.length || r.users.length
-    if (activeTab.value === 'all' && hasAny) {
-      loadAiSummary()
+    const hasAny = res.contents.length || res.courses.length || res.products.length ||
+      res.circles.length || res.classics.length || res.users.length
+    if (tab === 'all' && hasAny) {
+      loadAiSummary(kw)
     } else {
       aiSummaryText.value = ''
     }
   } catch (e) {
+    if (seq !== reqSeq) return // 旧请求失败也不许污染新请求的三态
     error.value = '搜索失败，请重试'
   } finally {
-    loading.value = false
+    if (seq === reqSeq) loading.value = false
   }
 }
 
@@ -455,8 +463,9 @@ async function loadMoreResults() {
   }
 }
 
-/** AI 智能总结（需登录+后端配置，失败静默隐藏卡片） */
-async function loadAiSummary() {
+/** AI 智能总结（需登录+后端配置，失败静默隐藏卡片）。
+ *  kw = 发起时的关键词快照：慢响应回来若用户已换词/离开综合 Tab，只写按快照词的缓存，不覆盖当前展示态 */
+async function loadAiSummary(kw: string) {
   const r = results.value
   const items = [
     ...r.contents.slice(0, 4).map((c) => ({ title: c.title, content: c.summary || '' })),
@@ -464,10 +473,25 @@ async function loadAiSummary() {
   ]
   if (!items.length) { aiSummaryText.value = ''; return }
   try {
-    aiSummaryText.value = await searchApi.aiSummary(keyword.value, items)
-    aiCache.set(keyword.value.trim(), aiSummaryText.value) // 缓存供切回综合Tab复用
+    const text = await searchApi.aiSummary(kw, items)
+    aiCache.set(kw, text) // 按快照词写缓存，供切回综合Tab复用
+    if (keyword.value.trim() === kw && activeTab.value === 'all') {
+      aiSummaryText.value = text
+    }
   } catch {
-    aiSummaryText.value = ''
+    if (keyword.value.trim() === kw && activeTab.value === 'all') {
+      aiSummaryText.value = ''
+    }
+  }
+}
+
+/** 安全解码：外部拼的 URL 可能带裸 "%"（如搜「涨50%」被二次转发），
+ *  裸 decodeURIComponent 会抛 URIError 中断整个 onLoad 白屏；失败时原样使用 */
+function safeDecode(s: string): string {
+  try {
+    return decodeURIComponent(s)
+  } catch {
+    return s
   }
 }
 
@@ -478,7 +502,7 @@ onLoad((opt) => {
   } catch (e) {
     statusBarHeight.value = 0
   }
-  const kw = opt && opt.keyword ? decodeURIComponent(opt.keyword) : ''
+  const kw = opt && opt.keyword ? safeDecode(opt.keyword) : ''
   const tabOpt = opt && opt.tab ? (opt.tab as SearchTab) : ''
   const from = opt && opt.from ? opt.from : ''
   keyword.value = kw

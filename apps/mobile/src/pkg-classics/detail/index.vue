@@ -178,7 +178,7 @@
         </view>
         <view class="cd-read-btn" @tap="toReader()">
           <app-icon name="play" :size="34" color="#ffffff" :fill="true" />
-          <text class="cd-read-text">开始阅读</text>
+          <text class="cd-read-text">{{ lastChapterId ? '继续阅读' : '开始阅读' }}</text>
         </view>
       </view>
     </view>
@@ -189,7 +189,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { onLoad, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
+import { onLoad, onShow, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 import { useShare } from '@/composables/useShare'
 import ClassicsHeader from '@/components/classics/classics-header.vue'
 import FlatCover from '@/components/classics/flat-cover.vue'
@@ -205,6 +205,8 @@ const loading = ref(true)
 const error = ref('')
 
 const isInBookshelf = ref(false)
+// 上次读到的章节（阅读进度记录 chapterId）·有值时「开始阅读」变「继续阅读」并续读该章
+const lastChapterId = ref('')
 // 书友评论总数（由统一评论组件 count-change 回传，用于小节头「N 条」）
 const commentCount = ref(0)
 const expandedChapters = ref<Set<string>>(new Set())
@@ -232,9 +234,14 @@ async function fetchData(id: string) {
     const data = await classicsApi.detail(id)
     book.value = data.book
     isInBookshelf.value = data.book?.isInBookshelf ?? false
-    // 真实在架状态：登录用户查阅读进度，有记录即在书架
+    lastChapterId.value = ''
+    // 真实在架状态：登录用户查阅读进度，有记录即在书架（记录内 chapterId 用于续读）
     if (getToken() && data.book?.id) {
-      try { isInBookshelf.value = !!(await classicsApi.getProgress(data.book.id)) } catch { /* 未登录或无记录 */ }
+      try {
+        const prog = (await classicsApi.getProgress(data.book.id)) as { chapterId?: string } | null
+        isInBookshelf.value = !!prog
+        lastChapterId.value = (prog && typeof prog.chapterId === 'string') ? prog.chapterId : ''
+      } catch { /* 未登录或无记录 */ }
       try { isFavorited.value = (await classicsApi.favoriteStatus(data.book.id)).favorited } catch { /* 忽略 */ }
     }
   } catch (e) {
@@ -247,6 +254,20 @@ async function fetchData(id: string) {
 onLoad((q) => {
   if (q && q.id) bookId.value = String(q.id)
   fetchData(bookId.value)
+})
+
+// 从阅读器返回时轻量刷新续读章节（只查进度不重拉整页），保证「继续阅读」指向最新章
+let shownOnce = false
+onShow(async () => {
+  if (!shownOnce) { shownOnce = true; return } // 首次 onShow 紧随 onLoad，fetchData 已在查
+  if (!getToken() || !book.value) return
+  try {
+    const prog = (await classicsApi.getProgress(book.value.id)) as { chapterId?: string } | null
+    if (prog) {
+      isInBookshelf.value = true
+      lastChapterId.value = typeof prog.chapterId === 'string' ? prog.chapterId : ''
+    }
+  } catch { /* 忽略 */ }
 })
 
 // 微信原生分享（好友 / 朋友圈）；古籍封面为生成色块，无图片字段，故省略 cover
@@ -285,7 +306,13 @@ function toReader(chapterId?: string) {
     return
   }
   const base = `/pkg-classics/reader/index?bookId=${book.value.id}`
-  uni.navigateTo({ url: chapterId ? `${base}&chapterId=${chapterId}` : base })
+  // 未指定章节且有阅读进度：续读上次章节（resume=1 触发阅读器「已定位到上次读到的章节」提示）
+  const url = chapterId
+    ? `${base}&chapterId=${chapterId}`
+    : lastChapterId.value
+      ? `${base}&chapterId=${lastChapterId.value}&resume=1`
+      : base
+  uni.navigateTo({ url })
 }
 
 const isFavorited = ref(false)
