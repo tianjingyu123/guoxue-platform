@@ -6,9 +6,11 @@
  *    要他在微信里点「确认收款」，超时不点会自动退回平台。
  *    没有这个入口 = 用户拿不到 packageInfo = 钱永远到不了账。
  */
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { onReachBottom } from '@dcloudio/uni-app'
 import AppNavBar from '@/components/common/app-nav-bar.vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppLoadMore from '@/components/common/app-load-more.vue'
 import { goBack } from '@/utils/router'
 import { mineApi, type WithdrawRecord } from '@/lib/mine-data'
 
@@ -16,6 +18,14 @@ const loading = ref(false)
 const error = ref('')
 const list = ref<WithdrawRecord[]>([])
 const confirming = ref('')
+
+/** W7 服务端分页（后端 getMyWithdrawals 支持 page/pageSize+total·wallet.controller:62-74 亲核）：
+ *  原来固定拉 50 条，第 51 条起的历史记录永远看不到 */
+const PAGE_SIZE = 20
+const page = ref(1)
+const total = ref(0)
+const loadingMore = ref(false)
+const hasMore = computed(() => list.value.length < total.value)
 
 /** 小程序内才能调 wx.requestMerchantTransfer；其他端只能引导用户去小程序 */
 const canConfirmInApp = ref(false)
@@ -26,15 +36,35 @@ canConfirmInApp.value = true
 async function loadData() {
   loading.value = true
   error.value = ''
+  page.value = 1
   try {
-    const res = await mineApi.getMyWithdrawals(1, 50)
+    const res = await mineApi.getMyWithdrawals(1, PAGE_SIZE)
     list.value = res.list || []
+    total.value = Number(res.total ?? list.value.length)
   } catch (e) {
     error.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
   }
 }
+
+/** 上拉加载更多（追加下一页；单页失败不清已有数据） */
+async function loadMore() {
+  if (loading.value || loadingMore.value || !hasMore.value) return
+  loadingMore.value = true
+  try {
+    const next = page.value + 1
+    const res = await mineApi.getMyWithdrawals(next, PAGE_SIZE)
+    page.value = next
+    list.value = [...list.value, ...(res.list || [])]
+    total.value = Number(res.total ?? total.value)
+  } catch {
+    uni.showToast({ title: '加载失败，请重试', icon: 'none' })
+  } finally {
+    loadingMore.value = false
+  }
+}
+onReachBottom(loadMore)
 onMounted(loadData)
 
 const STATUS_LABEL: Record<string, string> = {
@@ -114,9 +144,10 @@ async function confirmReceive(r: WithdrawRecord) {
           <text class="rec-amount">¥{{ r.amount.toFixed(2) }}</text>
           <text class="rec-status" :class="statusClass(r)">{{ statusLabel(r) }}</text>
         </view>
+        <!-- W7 扣费明细：含税单要把代扣税款亮出来，只标手续费=到账差额对不上账 -->
         <view class="rec-row">
           <text class="rec-k">实际到账</text>
-          <text class="rec-v">¥{{ r.actualAmount.toFixed(2) }}（手续费 ¥{{ r.fee.toFixed(2) }}）</text>
+          <text class="rec-v">¥{{ r.actualAmount.toFixed(2) }}（手续费 ¥{{ r.fee.toFixed(2) }}<text v-if="r.taxAmount > 0"> · 代扣税款 ¥{{ r.taxAmount.toFixed(2) }}</text>）</text>
         </view>
         <view class="rec-row">
           <text class="rec-k">收款方式</text>
@@ -152,6 +183,9 @@ async function confirmReceive(r: WithdrawRecord) {
           </view>
         </view>
       </view>
+
+      <!-- W7 分页尾巴：上拉自动加载下一页 -->
+      <app-load-more :status="loadingMore ? 'loading' : hasMore ? 'more' : 'nomore'" />
     </view>
   </view>
 </template>

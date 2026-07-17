@@ -3,11 +3,14 @@ import { ref, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo, toastComingSoon } from '@/utils/router'
 import { clearToken, clearRefreshToken, clearUserInfo } from '@/utils/storage'
-import {
-  mineApi, settingCollectOptions, settingFontOptions,
-  settingCacheSize,
-  type SettingNotifyItem,
-} from '@/lib/mine-data'
+import { mineApi, type SettingNotifyItem } from '@/lib/mine-data'
+
+/**
+ * 应用版本号。与 src/manifest.json 的 versionName 保持一致。
+ * uni-app 无现成的编译期常量注入机制（tsconfig 未开 resolveJsonModule，无法直接 import manifest.json），
+ * 🔴 发版时改 manifest.json versionName 必须同步改这里。
+ */
+const APP_VERSION = 'v0.1.0'
 
 const loading = ref(true)
 const error = ref('')
@@ -75,28 +78,71 @@ function retry() {
 
 onMounted(() => {
   fetchData()
+  calcCacheSize()
 })
 
-// 通用设置
-const fontSize = ref('medium')
-const collectVisible = ref('public')
-const historyVisible = ref(true)
+/* —— 隐私开关（谁可以看我的收藏/浏览记录可见）与字体大小已整组下架 ——
+ * 原实现是纯本地 ref：开关拨了不落库、字体选了不生效（个保法层面属误导用户）。
+ * 后端用户偏好端点上线后恢复，恢复时连同下方模板注释块一起放开。
+ * const fontSize = ref('medium')
+ * const collectVisible = ref('public')
+ * const historyVisible = ref(true)
+ */
 const cacheCleared = ref(false)
 
 // 弹窗状态
 const showLogout = ref(false)
 const showClearCache = ref(false)
-const showFont = ref(false)
-const showCollect = ref(false)
 
-function labelOf(options: { label: string; value: string }[], v: string) {
-  return options.find((o) => o.value === v)?.label ?? ''
+/* ═══ 清除缓存（真实现·就地实现，不再引用 mine-data 的假容量常量）═══
+ * 白名单原则：宁可少清，绝不清掉登录态/用户偏好/用户本地数据。
+ * 全项目 storage key 盘点（2026-07-17 grep src 全量 setStorage/getStorage 调用点）：
+ * - 登录凭证类：auth_token / auth_refresh_token / userInfo / login:redirect / wx_oa_openid / temp_referrer
+ * - 用户偏好类：user_interest_themes(兴趣标记) / classics_reader_pref(阅读器偏好) / mine_app_permissions / 搜索历史
+ * - 用户数据类（前缀）：rebu:*(排盘记录/收藏/工具偏好) / draft:*(创作草稿) / live_replay_pos_*(回放进度)
+ * 以上全部保留；白名单外的（feed:home:cache / circles:home:cache / discover:home:cache 等列表缓存）才清。 */
+const PROTECTED_KEYS = [
+  'auth_token', 'auth_refresh_token', 'userInfo', 'login:redirect', 'wx_oa_openid', 'temp_referrer',
+  'user_interest_themes', 'classics_reader_pref', 'mine_app_permissions',
+  'circle_search_history', 'video_search_history',
+]
+const PROTECTED_PREFIXES = ['rebu:', 'draft:', 'live_replay_pos_']
+function isProtectedKey(k: string) {
+  return PROTECTED_KEYS.includes(k) || PROTECTED_PREFIXES.some((p) => k.startsWith(p))
 }
-
+function formatKb(kb: number) {
+  return kb >= 1024 ? `${(kb / 1024).toFixed(1)} MB` : `${Math.max(0, Math.round(kb))} KB`
+}
+// 本地存储真实占用（uni.getStorageInfoSync().currentSize 单位 KB；H5 端为估算值）
+const cacheSizeText = ref('0 KB')
+function calcCacheSize() {
+  try {
+    cacheSizeText.value = formatKb(uni.getStorageInfoSync().currentSize || 0)
+  } catch {
+    cacheSizeText.value = '0 KB'
+  }
+}
 function handleClearCache() {
-  cacheCleared.value = true
+  let before = 0
+  let keys: string[] = []
+  try {
+    const info = uni.getStorageInfoSync()
+    before = info.currentSize || 0
+    keys = info.keys || []
+  } catch { /* 读不到存储信息时按空处理，不阻断 */ }
+  for (const k of keys) {
+    if (!isProtectedKey(k)) {
+      try { uni.removeStorageSync(k) } catch { /* 单 key 清除失败跳过 */ }
+    }
+  }
+  let after = 0
+  try { after = uni.getStorageInfoSync().currentSize || 0 } catch { /* 忽略 */ }
+  const freed = Math.max(0, before - after)
+  calcCacheSize()
   showClearCache.value = false
+  cacheCleared.value = true
   setTimeout(() => (cacheCleared.value = false), 3000)
+  uni.showToast({ title: freed > 0 ? `已清理 ${formatKb(freed)}` : '已清理', icon: 'none' })
 }
 function handleLogout() {
   showLogout.value = false
@@ -111,19 +157,20 @@ function handleLogout() {
   uni.reLaunch({ url: '/pkg-auth/login/index' })
 }
 
-// 选项弹窗通用处理
-type OptionDialogState = { title: string; options: { label: string; value: string }[]; current: string; onPick: (v: string) => void } | null
-const optionDialog = ref<OptionDialogState>(null)
-function openFont() {
-  optionDialog.value = { title: '字体大小', options: settingFontOptions, current: fontSize.value, onPick: (v) => (fontSize.value = v) }
-}
-function openCollect() {
-  optionDialog.value = { title: '谁可以看我的收藏', options: settingCollectOptions, current: collectVisible.value, onPick: (v) => (collectVisible.value = v) }
-}
-function pickOption(v: string) {
-  optionDialog.value?.onPick(v)
-  optionDialog.value = null
-}
+/* —— 选项弹窗通用处理（随字体大小/收藏可见性一起下架，后端用户偏好端点上线后恢复）——
+ * type OptionDialogState = { title: string; options: { label: string; value: string }[]; current: string; onPick: (v: string) => void } | null
+ * const optionDialog = ref<OptionDialogState>(null)
+ * function openFont() {
+ *   optionDialog.value = { title: '字体大小', options: settingFontOptions, current: fontSize.value, onPick: (v) => (fontSize.value = v) }
+ * }
+ * function openCollect() {
+ *   optionDialog.value = { title: '谁可以看我的收藏', options: settingCollectOptions, current: collectVisible.value, onPick: (v) => (collectVisible.value = v) }
+ * }
+ * function pickOption(v: string) {
+ *   optionDialog.value?.onPick(v)
+ *   optionDialog.value = null
+ * }
+ */
 </script>
 
 <template>
@@ -150,7 +197,7 @@ function pickOption(v: string) {
           <view class="row" @tap="navigateTo('/mine/change-password')">
             <AppIcon name="lock" :size="18" color="#666" />
             <text class="row-label">修改密码</text>
-            <text class="row-sub">上次修改：30天前</text>
+            <!-- 「上次修改：30天前」系硬编码假文案已删——后端无该字段，只留入口 -->
             <AppIcon name="chevron-right" :size="16" color="#C9A96E" />
           </view>
           <view class="row" @tap="navigateTo('/mine/change-phone')">
@@ -195,6 +242,8 @@ function pickOption(v: string) {
             <text class="row-label">黑名单管理</text>
             <AppIcon name="chevron-right" :size="16" color="#C9A96E" />
           </view>
+          <!-- 隐私开关整组下架：原实现为纯本地 ref 不落库（拨了开关实际什么都没改，个保法层面误导用户）。
+               后端用户偏好端点上线后恢复以下两行（连同 script 中注释掉的 collectVisible/historyVisible/openCollect）。
           <view class="row" @tap="openCollect">
             <AppIcon name="eye" :size="18" color="#666" />
             <text class="row-label">谁可以看我的收藏</text>
@@ -208,6 +257,7 @@ function pickOption(v: string) {
               <view class="switch-dot" :class="{ on: historyVisible }" />
             </view>
           </view>
+          -->
           <view class="row" @tap="toastComingSoon">
             <AppIcon name="history" :size="18" color="#666" />
             <text class="row-label">清除浏览历史</text>
@@ -223,15 +273,18 @@ function pickOption(v: string) {
           <view class="row" @tap="showClearCache = true">
             <AppIcon name="hard-drive" :size="18" color="#666" />
             <text class="row-label">清除缓存</text>
-            <text class="row-sub" :style="{ color: cacheCleared ? '#22c55e' : '#999' }">{{ cacheCleared ? '已清除' : settingCacheSize }}</text>
+            <text class="row-sub" :style="{ color: cacheCleared ? '#22c55e' : '#999' }">{{ cacheCleared ? '已清除' : cacheSizeText }}</text>
             <AppIcon name="chevron-right" :size="16" color="#C9A96E" />
           </view>
+          <!-- 字体大小下架：原实现选了不生效（本地 ref 无任何应用逻辑）。全局字号阶梯已是平台标准，
+               用户级缩放待长辈模式专项，届时恢复以下入口（连同 script 中注释的 fontSize/openFont）。
           <view class="row" @tap="openFont">
             <AppIcon name="type" :size="18" color="#666" />
             <text class="row-label">字体大小</text>
             <text class="row-sub">{{ labelOf(settingFontOptions, fontSize) }}</text>
             <AppIcon name="chevron-right" :size="16" color="#C9A96E" />
           </view>
+          -->
         </view>
       </view>
 
@@ -247,7 +300,7 @@ function pickOption(v: string) {
           <view class="row list-press" @tap="navigateTo('/about')">
             <AppIcon name="info" :size="18" color="#666" />
             <text class="row-label">关于我们</text>
-            <text class="row-sub">v3.2.1</text>
+            <text class="row-sub">{{ APP_VERSION }}</text>
             <AppIcon name="chevron-right" :size="16" color="#C9A96E" />
           </view>
         </view>
@@ -278,8 +331,8 @@ function pickOption(v: string) {
     <view v-if="showClearCache" class="mask end mask-fade-in" @tap="showClearCache = false">
       <view class="dialog sheet-slide-up" @tap.stop>
         <text class="dialog-title">清除缓存</text>
-        <text class="dialog-desc">将清除 <text class="hl">{{ settingCacheSize }}</text> 的缓存数据</text>
-        <text class="dialog-desc sm">不影响账号数据和下载内容</text>
+        <text class="dialog-desc">当前本地存储占用 <text class="hl">{{ cacheSizeText }}</text>，将清理其中的临时缓存</text>
+        <text class="dialog-desc sm">不影响登录状态、草稿和排盘记录</text>
         <view class="dialog-actions">
           <view class="dlg-btn ghost btn-press" @tap="showClearCache = false"><text class="dlg-btn-text ghost-text">取消</text></view>
           <view class="dlg-btn primary btn-press" @tap="handleClearCache"><text class="dlg-btn-text primary-text">确认清除</text></view>
@@ -287,7 +340,7 @@ function pickOption(v: string) {
       </view>
     </view>
 
-    <!-- 选项弹窗（字体/深色/收藏可见性） -->
+    <!-- 选项弹窗（字体/收藏可见性）——随两组假设置一起下架，后端用户偏好端点上线后恢复
     <view v-if="optionDialog" class="mask end mask-fade-in" @tap="optionDialog = null">
       <view class="sheet sheet-slide-up" @tap.stop>
         <text class="sheet-title">{{ optionDialog.title }}</text>
@@ -303,6 +356,7 @@ function pickOption(v: string) {
         <view class="sheet-cancel" @tap="optionDialog = null"><text class="sheet-cancel-text">取消</text></view>
       </view>
     </view>
+    -->
   </view>
 </template>
 

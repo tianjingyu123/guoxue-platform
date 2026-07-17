@@ -298,7 +298,11 @@ export interface WalletInfo {
   growthValue: number
   nextLevelGrowth: number
   points: number
+  /** 冻结中的国学币（提现审批/风控冻结·后端 VirtualCoinAccount.frozen），>0 时页面须可见 */
+  frozen: number
+  /** 累计充值（单位：国学币·后端 totalRecharged 即币数，不是人民币，展示不可加 ¥） */
   totalRecharge: number
+  /** 累计消费（单位：国学币·同上） */
   totalSpent: number
 }
 export interface RechargeOption {
@@ -331,8 +335,9 @@ export const walletInfo: WalletInfo = {
   growthValue: 4520,
   nextLevelGrowth: 6000,
   points: 3680,
-  totalRecharge: 2500.0,
-  totalSpent: 1220.0,
+  frozen: 0,
+  totalRecharge: 2500,
+  totalSpent: 1220,
 }
 export const rechargeOptions: RechargeOption[] = [
   { coins: 100, price: 10, bonus: 0 },
@@ -684,11 +689,15 @@ export interface RechargePayMethod {
   name: string
   badge: string
   badgeClass: string
+  /** true=渠道未接通（后端无该渠道充值支付端点），页面须诚实置灰，不可下死单 */
+  disabled?: boolean
 }
 export const rechargePayMethods: RechargePayMethod[] = [
   { id: 'wechat', name: '微信支付', badge: '微', badgeClass: 'badge-wechat' },
-  { id: 'alipay', name: '支付宝', badge: '支', badgeClass: 'badge-alipay' },
-  { id: 'unionpay', name: '云闪付', badge: '云', badgeClass: 'badge-unionpay' },
+  // 🔴 充值真实支付端点仅有微信小程序 JSAPI（POST /shop/recharge/jsapi）。
+  //    支付宝/云闪付后端只能建 PENDING 充值单、没有任何发起支付的端点 —— 点了就是死单假成功，诚实置灰。
+  { id: 'alipay', name: '支付宝', badge: '支', badgeClass: 'badge-alipay', disabled: true },
+  { id: 'unionpay', name: '云闪付', badge: '云', badgeClass: 'badge-unionpay', disabled: true },
 ]
 
 /* —— 钱包提现页 —— */
@@ -746,6 +755,10 @@ export interface WithdrawBalanceInfo {
   maxWithdraw: number
   feeRate: number
   minFee: number
+  /** 代扣代缴开关（后台 finance.tax.enabled·开着时提现要扣税，预览必须算进去否则到账额虚高） */
+  taxEnabled: boolean
+  /** 代扣代缴税率（0~1·未开启为 0） */
+  taxRate: number
   savedAccounts: WithdrawAccount[]
 }
 // @data-needs: 提现余额与已存收款账户，返回 [{availableBalance,frozenBalance,pendingBalance,minWithdraw,maxWithdraw,feeRate,minFee,savedAccounts}]
@@ -757,6 +770,8 @@ export const withdrawBalanceInfo: WithdrawBalanceInfo = {
   maxWithdraw: 50000,
   feeRate: 0.006,
   minFee: 1,
+  taxEnabled: false,
+  taxRate: 0,
   savedAccounts: [
     { method: 'alipay', alipayAccount: '138****8888', alipayName: '张*明' },
     { method: 'bank', bankName: '中国工商银行', bankAccount: '6222****1234', bankHolder: '张*明' },
@@ -845,6 +860,8 @@ interface RawWithdrawInfo {
   maxWithdraw?: number | string
   feeRate?: number | string
   minFee?: number | string
+  taxEnabled?: boolean
+  taxRate?: number | string
   savedAccounts?: RawSavedAccount[]
 }
 /** GET /users/wallet/recharge-options 原始项 */
@@ -1611,6 +1628,9 @@ export const mineApi = {
       growthValue: 0,
       nextLevelGrowth: 1,
       points: Number(b.points ?? 0),
+      // 冻结币透传：后端一直有返回、前端原来丢弃 → 用户看到「余额变少」却查不到钱在哪
+      frozen: Number(b.frozen ?? 0),
+      // 🔴 totalRecharged/totalSpent 是币数（VirtualCoinAccount 整数币），不是人民币，展示端不得加 ¥
       totalRecharge: Number(b.totalRecharged ?? 0),
       totalSpent: Number(b.totalSpent ?? 0),
     }
@@ -1647,14 +1667,30 @@ export const mineApi = {
     return await apiPost<{ payParams: WechatPayParams }>('/shop/recharge/jsapi', { amountCoin })
   },
 
-  /** 获取交易记录 —— GET /users/wallet/transactions（后端 {transactions:VirtualCoinTransaction[]} → 适配） */
-  async getTransactions(_type?: string): Promise<WalletTxRecord[]> {
-    const res = await apiGet<{ transactions?: RawWalletTx[] } | RawWalletTx[]>(`/users/wallet/transactions${_type ? `?type=${encodeURIComponent(_type)}` : ''}`)
+  /**
+   * 获取交易记录（服务端分页）—— GET /users/wallet/transactions?page=&pageSize=[&type=][&month=]
+   * 后端返回 { transactions, total, page, pageSize }。
+   * 🔴 后端查证（wallet.controller:22-37 + coin.service.getTransactions:242）：
+   *   - page/pageSize 真分页可用；
+   *   - type 是 CoinTransType 枚举（RECHARGE/SPEND/REFUND/GRANT/INCOME），不是前端的 income/expense——
+   *     「支出」可精确映射 type=SPEND；「收入」是 4 个枚举的并集，单值参数表达不了，只能客户端过滤；
+   *   - month 参数 controller 收了但 wallet.service:57 没往下传（服务端月份过滤是后端缺口），
+   *     这里仍然拼上（契约已声明、后端补上即生效），客户端过滤兜底。
+   */
+  async getTransactions(opts?: { page?: number; pageSize?: number; type?: string; month?: string }): Promise<{ list: WalletTxRecord[]; total: number }> {
+    const page = opts?.page || 1
+    const pageSize = opts?.pageSize || 20
+    const qs = [`page=${page}`, `pageSize=${pageSize}`]
+    if (opts?.type) qs.push(`type=${encodeURIComponent(opts.type)}`)
+    if (opts?.month) qs.push(`month=${encodeURIComponent(opts.month)}`)
+    const res = await apiGet<{ transactions?: RawWalletTx[]; total?: number } | RawWalletTx[]>(`/users/wallet/transactions?${qs.join('&')}`)
     const list = Array.isArray(res) ? res : (res?.transactions ?? [])
-    return list.map(adaptWalletTx)
+    const total = Array.isArray(res) ? list.length : Number(res?.total ?? list.length)
+    return { list: list.map(adaptWalletTx), total }
   },
 
-  /** 获取提现信息 —— GET /users/wallet/withdraw-info（冻结/在途后端无→0，页面降级；savedAccounts 适配） */
+  /** 获取提现信息 —— GET /users/wallet/withdraw-info（冻结/在途后端无→0，页面降级；savedAccounts 适配；
+   *  taxEnabled/taxRate 透传：后台开了代扣代缴时前端预览不算税=到账金额虚高，属资金口径错误） */
   async getWithdrawInfo(): Promise<WithdrawBalanceInfo> {
     const r = await apiGet<RawWithdrawInfo>('/users/wallet/withdraw-info')
     return {
@@ -1665,6 +1701,8 @@ export const mineApi = {
       maxWithdraw: Number(r.maxWithdraw ?? 50000),
       feeRate: Number(r.feeRate ?? 0.006),
       minFee: Number(r.minFee ?? 1),
+      taxEnabled: !!r.taxEnabled,
+      taxRate: Number(r.taxRate ?? 0),
       savedAccounts: Array.isArray(r.savedAccounts) ? r.savedAccounts.map(adaptSavedAccount) : [],
     }
   },
@@ -1674,11 +1712,24 @@ export const mineApi = {
     return apiPost<{ amountRmb: number; amountCoin: number }>('/users/wallet/convert-to-coin', { amountRmb })
   },
 
-  /** 申请提现 —— POST /users/wallet/withdraw（后端校验可提现余额/门槛100-50000/并发锁） */
-  async withdraw(_amount: number, _method: string, _account: string | Record<string, string>): Promise<{ success: boolean; message: string }> {
+  /** 申请提现 —— POST /users/wallet/withdraw（后端校验可提现余额/门槛100-50000/并发锁）。
+   *  🔴 后端响应（wallet.service.submitWithdraw:307）带权威金额 {amount,fee,taxAmount,actualAmount}（含税快照），
+   *  必须透传给成功页展示——前端本地公式只是预览，落库口径以后端为准。 */
+  async withdraw(_amount: number, _method: string, _account: string | Record<string, string>): Promise<{
+    success: boolean; message: string; amount?: number; fee?: number; taxAmount?: number; actualAmount?: number
+  }> {
     try {
-      await apiPost('/users/wallet/withdraw', { amount: _amount, method: _method, account: _account })
-      return { success: true, message: '提现申请已提交' }
+      const res = await apiPost<{ amount?: number | string; fee?: number | string; taxAmount?: number | string; actualAmount?: number | string }>(
+        '/users/wallet/withdraw', { amount: _amount, method: _method, account: _account },
+      )
+      return {
+        success: true,
+        message: '提现申请已提交',
+        amount: res?.amount != null ? Number(res.amount) : undefined,
+        fee: res?.fee != null ? Number(res.fee) : undefined,
+        taxAmount: res?.taxAmount != null ? Number(res.taxAmount) : undefined,
+        actualAmount: res?.actualAmount != null ? Number(res.actualAmount) : undefined,
+      }
     } catch (e: any) { return { success: false, message: e?.message || '提现失败' } }
   },
 

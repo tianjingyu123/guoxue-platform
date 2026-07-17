@@ -1,14 +1,13 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import { navigateTo } from '@/utils/router'
 import { pointsApi, type PointsTask } from '@/lib/points-data'
 
 const info = ref({ balance: 0, totalEarned: 0, totalSpent: 0, todayEarned: 0 })
 const tasks = ref<PointsTask[]>([])
 const loading = ref(true)
 const error = ref('')
-const completing = ref<number | null>(null)
-const submitting = ref(false)
 
 const taskColors = ['#9a2e22', '#2563eb', '#16a34a', '#d97706', '#7c3aed']
 const completedCount = computed(() => tasks.value.filter((t) => t.completed).length)
@@ -45,24 +44,37 @@ onMounted(() => {
 function goBack() {
   uni.navigateBack()
 }
+// 统一走 @/utils/router 的 navigateTo（自带失败兜底 toast），替代裸 uni.navigateTo
 function go(url: string) {
-  uni.navigateTo({ url })
+  navigateTo(url)
 }
 function pct(cur: number, max: number) {
   return Math.min(100, Math.round((cur / max) * 100))
 }
-function handleComplete(taskId: number) {
-  const task = tasks.value.find((t) => t.id === taskId)
-  if (!task || task.completed || completing.value !== null || submitting.value) return
-  completing.value = taskId
-  submitting.value = true
-  setTimeout(() => {
-    task.completed = true
-    info.value.balance += task.points
-    info.value.todayEarned += task.points
-    completing.value = null
-    submitting.value = false
-  }, 400)
+/* —— 任务按钮 = 「去完成」跳对应功能页 ——
+ * 原实现是 setTimeout 本地 +积分 置完成态（资产造假），已删除。
+ * 完成态如实显示后端下发值（后端 /users/me/points/tasks 目前恒 completed:false，真进度待后端）。
+ * 后端任务无 type 字段 → 按标题映射跳转目标（与 server points.controller getDefaultEarnRules
+ * 的 6 个标题对齐，并兼容旧 mock 标题）；映射不到的任务隐藏按钮。 */
+const TASK_ROUTES: Record<string, string> = {
+  '每日签到': '/profile', // 签到入口在个人中心（profile 页签到卡，POST /users/me/checkin）
+  '完成学习': '/courses',
+  '发表评论': '/courses',
+  '购买课程': '/courses',
+  '分享内容': '/pages/circles/index',
+  '邀请好友': '/invite',
+  // 兼容旧 mock 标题（points-data pointsTasks）
+  '邀请好友注册': '/invite',
+  '购买课程/商品': '/mall',
+  '发布帖子': '/publish',
+  '发布文章': '/editor',
+}
+function taskRoute(task: PointsTask): string | undefined {
+  return TASK_ROUTES[task.title]
+}
+function goTask(task: PointsTask) {
+  const route = taskRoute(task)
+  if (route) navigateTo(route)
 }
 </script>
 
@@ -91,7 +103,7 @@ function handleComplete(taskId: number) {
             <text class="ov-num">{{ info.balance.toLocaleString() }}</text>
             <text class="ov-today">今日已获 +{{ info.todayEarned }}</text>
           </view>
-          <view class="ov-btn" @tap="go('/pkg-mine/points/exchange')">
+          <view class="ov-btn" @tap="go('/pkg-mine/points/exchange/index')">
             <text class="ov-btn-text">积分兑换</text>
             <AppIcon name="chevron-right" :size="16" color="#fff" />
           </view>
@@ -136,8 +148,8 @@ function handleComplete(taskId: number) {
                 <AppIcon name="check-circle" :size="16" color="#16a34a" />
                 <text class="task-done-text">已完成</text>
               </view>
-              <view v-else class="task-btn" @tap="handleComplete(task.id)">
-                <text class="task-btn-text">{{ completing === task.id ? '...' : task.action }}</text>
+              <view v-else-if="taskRoute(task)" class="task-btn" @tap="goTask(task)">
+                <text class="task-btn-text">{{ task.action || '去完成' }}</text>
               </view>
             </view>
           </view>

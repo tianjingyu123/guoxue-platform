@@ -38,6 +38,14 @@ const customAmount = ref('')
 const payMethod = ref<string>('wechat')
 const isSubmitting = ref(false)
 
+function selectPayMethod(m: { id: string; name: string; disabled?: boolean }) {
+  if (m.disabled) {
+    uni.showToast({ title: `${m.name}渠道暂未开通，请使用微信支付`, icon: 'none' })
+    return
+  }
+  payMethod.value = m.id
+}
+
 function selectOption(coins: number) {
   selectedCoins.value = coins
   customAmount.value = ''
@@ -100,8 +108,28 @@ async function handleSubmit() {
       track.purchase({ type: 'recharge', amount: selectedAmount.value, method: 'wechat' })
       return
     }
+    // 小程序内非微信渠道（理论上已被 selectPayMethod 挡下）：诚实提示，不下死单
+    uni.showToast({ title: '当前仅支持微信支付', icon: 'none' })
+    return
     // #endif
-    // 其他端/其他支付方式：演示模式（下单+模拟到账，真实渠道待各端接入）
+    /*
+     * 🔴 非小程序端（H5/App）诚实处理（W2·2026-07-17 审计修复）：
+     * 后端查证——充值真实支付端点仅有微信小程序 JSAPI（POST /shop/recharge/jsapi，需小程序 openid）；
+     * POST /users/wallet/recharge 只建 VirtualCoinRecharge(PENDING) 单（返回 orderNo，不是 shop Order id），
+     * 统一收银页 /shop/paying 只认 shop Order（pay/jsapi、pay/h5 都按 Order 表查单）→ 无法接续支付。
+     * 原实现「下单 + toast 成功」= 生产环境假成功（生产后端不模拟到账，币压根没到账）。
+     * → 生产：不建死单，直接诚实引导去小程序；开发联调：保留后端演示模式（后端仅非生产环境模拟到账）。
+     * 记后端缺口：需提供 H5/公众号 JSAPI 的充值支付渠道，接通后此处改跳统一收银页。
+     */
+    if (!import.meta.env.DEV) {
+      uni.showModal({
+        title: '暂不支持在当前环境充值',
+        content: '在线充值目前仅支持在微信小程序内完成。请打开本平台微信小程序，进入「我的-钱包-充值」。',
+        showCancel: false,
+      })
+      return
+    }
+    // 开发联调专用：后端演示模式（生产后端会拒绝模拟到账，绝不会走到假成功）
     const res = await mineApi.recharge(amountCoin, payMethod.value)
     if (res.success) track.purchase({ type: 'recharge', amount: selectedAmount.value, method: payMethod.value })
     uni.showToast({ title: res.message, icon: res.success ? 'success' : 'none' })
@@ -119,14 +147,14 @@ async function handleSubmit() {
     <view v-else-if="error" class="error-state"><text>{{ error }}</text><view class="retry-btn" @tap="retry">重试</view></view>
     <template v-else>
     <view class="body">
-      <!-- 支付环境提示：微信小程序内为真实微信支付，其他环境为演示模拟到账 -->
+      <!-- 支付环境提示（W2：删除生产误导的「演示模式」横幅，改诚实说明） -->
       <view class="cs-banner">
         <app-icon name="alert-circle" :size="28" color="#C9A96E" />
         <!-- #ifdef MP-WEIXIN -->
         <text class="cs-banner-txt">微信支付：将唤起微信完成真实支付，到账稍有延迟（以支付回调为准）</text>
         <!-- #endif -->
         <!-- #ifndef MP-WEIXIN -->
-        <text class="cs-banner-txt">演示模式：当前环境为模拟到账，真实微信支付请在微信小程序内进行</text>
+        <text class="cs-banner-txt">在线充值目前仅支持在微信小程序内完成，请前往本平台微信小程序充值</text>
         <!-- #endif -->
       </view>
 
@@ -195,16 +223,18 @@ async function handleSubmit() {
             v-for="m in payMethods"
             :key="m.id"
             class="pay-card"
-            :class="{ active: payMethod === m.id }"
-            @tap="payMethod = m.id"
+            :class="{ active: payMethod === m.id && !m.disabled, disabled: m.disabled }"
+            @tap="selectPayMethod(m)"
           >
             <view class="pay-left">
               <view class="pay-badge" :class="m.badgeClass">{{ m.badge }}</view>
               <text class="pay-name">{{ m.name }}</text>
+              <!-- 渠道未接通诚实标注：后端无该渠道支付端点，点了就是死单 -->
+              <text v-if="m.disabled" class="pay-soon">暂未开通</text>
             </view>
-            <view class="pay-radio" :class="{ active: payMethod === m.id }">
+            <view class="pay-radio" :class="{ active: payMethod === m.id && !m.disabled }">
               <app-icon
-                v-if="payMethod === m.id"
+                v-if="payMethod === m.id && !m.disabled"
                 name="check"
                 :size="22"
                 color="#FFFFFF"
@@ -458,6 +488,16 @@ async function handleSubmit() {
 .pay-card.active {
   border-color: #c9a96e;
   background: rgba(201, 169, 110, 0.06);
+}
+.pay-card.disabled {
+  opacity: 0.55;
+}
+.pay-soon {
+  font-size: 20rpx;
+  color: #8a7a6d;
+  background: #f0ede8;
+  padding: 4rpx 14rpx;
+  border-radius: 999rpx;
 }
 .pay-left {
   display: flex;

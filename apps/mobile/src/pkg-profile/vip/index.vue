@@ -180,34 +180,11 @@
       </view>
     </view>
 
-    <!-- 支付方式选择 Sheet -->
+    <!-- 支付方式选择 Sheet（V1：确认后创建订单跳统一收银页 /pkg-shop/paying，原 Native 扫码弹层已移除——
+         手机端无从扫码属死路；收银页覆盖微信内 JSAPI/外部浏览器 mweb/小程序 requestPayment 全端） -->
     <view v-if="showPaySheet" class="sheet-mask" @tap="closePaySheet">
       <view class="sheet" @tap.stop>
-        <!-- 状态B：已发起微信 Native 支付，展示扫码引导 + 轮询支付结果 -->
-        <view v-if="payPending">
-          <text class="sheet-title">请使用微信扫码支付</text>
-          <view class="sheet-summary">
-            <text class="sheet-plan">{{ selectedPlan?.name }} · {{ selectedPlan?.durationName }}</text>
-            <text class="sheet-amount"><text class="sheet-amount-yuan">¥</text>{{ formatPrice(payPending.amount) }}</text>
-          </view>
-          <view class="pending-box">
-            <text class="pending-tip">复制以下支付链接，在微信中打开完成支付（二维码渲染后续接入）：</text>
-            <text class="pending-url" :selectable="true">{{ payPending.codeUrl }}</text>
-            <view class="pending-copy" @tap="copyCodeUrl">
-              <text class="pending-copy-txt">复制支付链接</text>
-            </view>
-            <view class="pending-poll">
-              <view class="pending-dot" />
-              <text class="pending-poll-txt">正在等待支付结果（{{ pollCount }}/{{ POLL_MAX }}），支付成功后自动开通</text>
-            </view>
-          </view>
-          <view class="sheet-cancel" @tap="closePaySheet">
-            <text class="sheet-cancel-txt">关闭（稍后可在购买记录中查看）</text>
-          </view>
-        </view>
-
-        <!-- 状态A：选择支付方式 + 协议勾选 -->
-        <view v-else>
+        <view>
           <text class="sheet-title">选择支付方式</text>
           <view v-if="selectedPlan" class="sheet-summary">
             <text class="sheet-plan">{{ selectedPlan.name }} · {{ selectedPlan.durationName }}</text>
@@ -304,7 +281,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import AppNavBar from '@/components/common/app-nav-bar.vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import AppError from '@/components/common/app-error.vue'
@@ -328,13 +305,20 @@ const payMethods: PayMethodItem[] = [
   { key: 'alipay', label: '支付宝', short: '支', color: '#3B82F6', enabled: false },
 ]
 
-// 常见问题（静态运营文案，非业务数据）
-const faqs = [
-  { q: '连续包年会自动扣款吗？', a: '自动扣费能力开通前不会自动扣款：到期前我们会提醒你，由你确认后以 ¥148 优惠价续费。' },
-  { q: '免费用户能用 AI 伴读吗？', a: '可以，每天有免费次数；开通书院会员后 AI 伴读与白话对照不限量。' },
-  { q: '开通后可以退款吗？', a: '会员服务一经开通，暂不支持退款，请确认后购买。' },
-  { q: '会员到期后权益还在吗？', a: '到期后会员权益将失效，已购买的内容不受影响。' },
-]
+// 常见问题（运营文案；V3：年费价从套餐真数据取，不再硬编码 ¥148——后台改价 FAQ 就变成假承诺）
+const faqs = computed(() => {
+  const plans = data.value?.planGroups[0]?.plans || []
+  const yearly = plans.find(p => p.autoRenew) || plans.find(p => p.level === 'YEARLY')
+  const renewText = yearly
+    ? `自动扣费能力开通前不会自动扣款：到期前我们会提醒你，由你确认后以 ¥${formatPrice(yearly.price)} 优惠价续费。`
+    : '自动扣费能力开通前不会自动扣款：到期前我们会提醒你，由你确认后以优惠价续费。'
+  return [
+    { q: '连续包年会自动扣款吗？', a: renewText },
+    { q: '免费用户能用 AI 伴读吗？', a: '可以，每天有免费次数；开通书院会员后 AI 伴读与白话对照不限量。' },
+    { q: '开通后可以退款吗？', a: '会员服务一经开通，暂不支持退款，请确认后购买。' },
+    { q: '会员到期后权益还在吗？', a: '到期后会员权益将失效，已购买的内容不受影响。' },
+  ]
+})
 
 // 权益卡图标轮换（纯展示层，权益文案来自后端 MemberConfig.benefits）
 const BENEFIT_ICONS = ['crown', 'book-open', 'gift', 'zap', 'shield', 'shopping-bag', 'bot', 'star']
@@ -355,12 +339,8 @@ const agreement = ref<VipAgreement | null>(null)
 const agreementLoading = ref(false)
 const agreementError = ref<string | null>(null)
 
-// —— 支付进行中（微信 Native 扫码 + 轮询订单状态）——
-const payPending = ref<{ orderId: string; codeUrl: string; amount: number } | null>(null)
+// 支付渠道未就绪弹层（仅在错误确属渠道未配置时展示，其余错误如实透出）
 const payUnavailable = ref(false)
-const POLL_MAX = 40 // 最多轮询 40 次（每 3s 一次，约 2 分钟）
-const pollCount = ref(0)
-let pollTimer: ReturnType<typeof setTimeout> | null = null
 
 const currentPlanGroup = computed(() => data.value?.planGroups.find(g => g.level === selectedLevel.value))
 
@@ -467,7 +447,14 @@ function confirmAgreementRead() {
   agreementChecked.value = true
 }
 
-// —— 真实购买链路：创建订单 → 发起微信 Native 支付 → 轮询订单状态 ——
+/**
+ * V1 真实购买链路（2026-07-17 审计修复）：创建 MEMBER 订单 → 跳统一收银页 /pkg-shop/paying。
+ * 原实现走 payOrderNative（Native 扫码协议）——手机上没有第二台设备扫码，就是死路；
+ * 统一收银页对齐 purchase-sheet 范式，微信内公众号 JSAPI / 外部浏览器 mweb / 小程序 requestPayment
+ * 全端可付，到账由支付回调驱动、收银页轮询订单状态并展示结果。
+ * 扫码弹层整体移除（选择说明：本产品仅移动端 H5/小程序两种形态，无 PC 宽屏版；
+ * 收银页已覆盖全部真实端型，保留扫码层只会再次成为无人可用的死 UI）。
+ */
 async function handlePurchase() {
   if (purchasing.value || !selectedPlan.value) return
   if (!agreementChecked.value) {
@@ -478,94 +465,32 @@ async function handlePurchase() {
   track.custom('member_pay_click', { planId: selectedPlan.value.id, level: selectedPlan.value.level })
   purchasing.value = true
   try {
-    // 1) 创建会员订单（服务端按 MemberConfig 真价计费；amount 语义=数量，固定 1）
+    // 创建会员订单（服务端按 MemberConfig 真价计费；amount 语义=数量，固定 1）
     const order = await shopApi.createOrder({
       type: 'MEMBER',
       targetId: selectedPlan.value.id,
       quantity: 1,
     })
     if (!order.id) throw new Error('订单创建失败')
-    // 2) 发起微信 Native 扫码支付（商户资质审核中时该调用会失败 → 诚实降级提示）
-    const pay = await shopApi.payOrderNative(order.id)
-    if (pay.codeUrl) {
-      payPending.value = { orderId: order.id, codeUrl: pay.codeUrl, amount: order.amount }
-      startPolling(order.id)
-    } else {
-      // 未返回 code_url 同样视为渠道未就绪，不假装成功
+    // 金额展示优先用订单真实应付额（服务端计价），异常时回退套餐标价
+    const payAmount = Number(order.amount) || selectedPlan.value.price
+    showPaySheet.value = false
+    navigateTo(`/pkg-shop/paying?orderId=${order.id}&method=wechat&amount=${payAmount}`)
+  } catch (e) {
+    // V2 错误透传：只有确属支付渠道未配置类错误才提示「开通中」，
+    // 其余（登录态失效/参数/套餐下架/余额类）如实展示后端 message，不再一律吞成「渠道开通中」误导用户
+    const msg = (e as Error)?.message || ''
+    if (/未配置|渠道|商户|支付.*(开通|配置|证书)/.test(msg)) {
       payUnavailable.value = true
+    } else {
+      uni.showToast({ title: msg || '下单失败，请重试', icon: 'none' })
     }
-  } catch {
-    // 支付渠道未就绪（当前微信支付 AppID 审核中必现）→ 诚实提示，订单保留在购买记录中
-    payUnavailable.value = true
   } finally {
     purchasing.value = false
   }
 }
 
-// 每 3s 轮询一次订单状态，最多 POLL_MAX 次；PAID 后开通成功
-function startPolling(orderId: string) {
-  stopPolling()
-  pollCount.value = 0
-  const tick = async () => {
-    pollCount.value++
-    try {
-      const st = await shopApi.getOrderPayState(orderId)
-      if (st.paid) {
-        onPaid(orderId)
-        return
-      }
-    } catch {
-      // 单次查询失败不中断轮询
-    }
-    if (pollCount.value >= POLL_MAX) {
-      uni.showToast({ title: '未检测到支付结果，可稍后在购买记录中查看', icon: 'none' })
-      payPending.value = null
-      showPaySheet.value = false
-      return
-    }
-    pollTimer = setTimeout(tick, 3000)
-  }
-  pollTimer = setTimeout(tick, 3000)
-}
-
-function stopPolling() {
-  if (pollTimer) {
-    clearTimeout(pollTimer)
-    pollTimer = null
-  }
-}
-
-// 支付成功：埋点（仅真正 PAID 后触发）+ 提示 + 刷新会员状态
-function onPaid(orderId: string) {
-  stopPolling()
-  track.purchase({
-    type: 'vip',
-    orderId,
-    planId: selectedPlan.value?.id,
-    level: selectedPlan.value?.level,
-    amount: payPending.value?.amount ?? selectedPlan.value?.price,
-  })
-  payPending.value = null
-  showPaySheet.value = false
-  uni.showToast({ title: '开通成功', icon: 'success' })
-  loadData()
-}
-
-function copyCodeUrl() {
-  const url = payPending.value?.codeUrl
-  if (!url) return
-  uni.setClipboardData({
-    data: url,
-    success: () => uni.showToast({ title: '支付链接已复制', icon: 'none' }),
-  })
-}
-
-// 关闭支付弹层：若扫码支付进行中则停止轮询（订单保留，可在购买记录中继续）
 function closePaySheet() {
-  if (payPending.value) {
-    stopPolling()
-    payPending.value = null
-  }
   showPaySheet.value = false
 }
 
@@ -576,7 +501,6 @@ onMounted(() => {
   track.custom('member_page_view')
   loadData()
 })
-onUnmounted(stopPolling)
 </script>
 
 <style lang="scss" scoped>
@@ -683,8 +607,6 @@ onUnmounted(stopPolling)
 .sheet-confirm { margin-top: 32rpx; height: 96rpx; border-radius: 16rpx; background: var(--brand); display: flex; align-items: center; justify-content: center; }
 .sheet-confirm.disabled { opacity: 0.5; }
 .sheet-confirm-txt { font-size: 30rpx; font-weight: 500; color: #FFFFFF; }
-.sheet-cancel { margin-top: 24rpx; height: 88rpx; border-radius: 16rpx; border: 2rpx solid #E8E3DB; display: flex; align-items: center; justify-content: center; }
-.sheet-cancel-txt { font-size: 28rpx; color: #8A8478; }
 
 /* 协议勾选行 */
 .agree-row { display: flex; align-items: center; margin-top: 32rpx; }
@@ -706,17 +628,6 @@ onUnmounted(stopPolling)
 .agreement-retry { padding: 12rpx 48rpx; border-radius: 999rpx; border: 2rpx solid var(--brand); }
 .agreement-retry-txt { font-size: 26rpx; color: var(--brand); }
 .agreement-confirm { flex-shrink: 0; }
-
-/* 扫码支付进行中 */
-.pending-box { margin-top: 8rpx; padding: 24rpx; background: #FAF8F5; border-radius: 16rpx; }
-.pending-tip { font-size: 24rpx; color: #8A8478; line-height: 1.6; display: block; }
-.pending-url { font-size: 22rpx; color: #2C2C2C; margin-top: 16rpx; display: block; word-break: break-all; line-height: 1.5; }
-.pending-copy { margin-top: 24rpx; height: 72rpx; border-radius: 12rpx; border: 2rpx solid var(--brand); display: flex; align-items: center; justify-content: center; }
-.pending-copy-txt { font-size: 26rpx; color: var(--brand); }
-.pending-poll { display: flex; align-items: center; gap: 12rpx; margin-top: 24rpx; }
-.pending-dot { width: 16rpx; height: 16rpx; border-radius: 50%; background: #16A34A; animation: pulse 1.2s ease-in-out infinite; }
-@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
-.pending-poll-txt { font-size: 22rpx; color: #8A8478; flex: 1; }
 
 /* 支付渠道未就绪弹窗 */
 .modal-mask { position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 400; display: flex; align-items: center; justify-content: center; }

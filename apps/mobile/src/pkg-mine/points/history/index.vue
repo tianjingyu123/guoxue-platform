@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import { navigateTo } from '@/utils/router'
 import { pointsApi, type PointsHistoryItem } from '@/lib/points-data'
 
 const info = ref({ balance: 0, totalEarned: 0, totalSpent: 0, todayEarned: 0 })
@@ -47,8 +48,9 @@ onMounted(() => {
 function goBack() {
   uni.navigateBack()
 }
+// 统一走 @/utils/router 的 navigateTo（自带失败兜底 toast），替代裸 uni.navigateTo
 function go(url: string) {
-  uni.navigateTo({ url })
+  navigateTo(url)
 }
 </script>
 
@@ -73,7 +75,7 @@ function go(url: string) {
       </view>
       <text class="empty-page-title">暂无积分记录</text>
       <text class="empty-page-hint">完成签到、学习等任务即可赚取积分</text>
-      <view class="empty-page-btn" @tap="go('/pkg-mine/points/tasks')">
+      <view class="empty-page-btn" @tap="go('/pkg-mine/points/tasks/index')">
         <text class="empty-page-btn-text">去做任务赚积分</text>
       </view>
     </view>
@@ -96,10 +98,10 @@ function go(url: string) {
 
       <!-- 快捷操作 -->
       <view class="quick">
-        <view class="quick-btn quick-ghost" @tap="go('/pkg-mine/points/tasks')">
+        <view class="quick-btn quick-ghost" @tap="go('/pkg-mine/points/tasks/index')">
           <text class="quick-ghost-text">去做任务</text>
         </view>
-        <view class="quick-btn quick-primary" @tap="go('/pkg-mine/points/exchange')">
+        <view class="quick-btn quick-primary" @tap="go('/pkg-mine/points/exchange/index')">
           <text class="quick-primary-text">积分兑换</text>
         </view>
       </view>

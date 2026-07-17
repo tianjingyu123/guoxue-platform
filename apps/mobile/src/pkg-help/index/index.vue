@@ -123,7 +123,10 @@
               </view>
               <app-icon name="chevron-right" :size="32" color="#9A9A9A" />
             </view>
-            <view class="more-card" @click="go('/about')">
+            <!-- 「使用教程」下架（2026-07-17）：原跳 /about 关于我们页，货不对板——
+                 全项目并无「图文视频新手指引」页（仅 pkg-live/obs-guide 主播推流指引、pkg-auth/interests-guide 注册引导，均非通用教程）。
+                 新手教程页上线后恢复此卡并改指真实目标。
+            <view class="more-card" @click="go('/tutorial')">
               <view class="more-left">
                 <view class="more-icon" style="background: rgba(168,85,247,0.1)">
                   <app-icon name="book-open" :size="40" color="#A855F7" />
@@ -135,6 +138,7 @@
               </view>
               <app-icon name="chevron-right" :size="32" color="#9A9A9A" />
             </view>
+            -->
           </view>
         </view>
       </view>

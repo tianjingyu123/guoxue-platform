@@ -16,6 +16,7 @@ const error = ref('')
 const info = ref<WithdrawBalanceInfo>({
   availableBalance: 0, frozenBalance: 0, pendingBalance: 0,
   minWithdraw: 10, maxWithdraw: 50000, feeRate: 0.006, minFee: 1,
+  taxEnabled: false, taxRate: 0,
   savedAccounts: [],
 })
 
@@ -112,8 +113,20 @@ function switchMethod(m: WithdrawMethod) {
 }
 
 const amountNum = computed(() => parseFloat(amount.value) || 0)
-const fee = computed(() => Math.max(amountNum.value * info.value.feeRate, info.value.minFee))
-const actualAmount = computed(() => Math.max(amountNum.value - fee.value, 0))
+/**
+ * W5 费用预览与后端口径逐字对齐（wallet.service.computeWithdrawBreakdown:103-108）：
+ *   fee = max(minFee, round(amount*feeRate*100)/100)
+ *   tax = round(amount*taxRate*100)/100（后台开代扣代缴时才 >0）
+ *   actual = round((amount-fee-tax)*100)/100
+ * 原实现漏税：taxEnabled 时预览到账额虚高，用户实收比页面承诺少 —— 真金口径事故。
+ */
+const fee = computed(() => Math.max(info.value.minFee, Math.round(amountNum.value * info.value.feeRate * 100) / 100))
+const taxAmount = computed(() =>
+  info.value.taxEnabled && info.value.taxRate > 0
+    ? Math.round(amountNum.value * info.value.taxRate * 100) / 100
+    : 0,
+)
+const actualAmount = computed(() => Math.max(Math.round((amountNum.value - fee.value - taxAmount.value) * 100) / 100, 0))
 
 const isValidAmount = computed(
   () =>
@@ -152,9 +165,9 @@ function onPwdInput(e: { detail: { value: string } }) {
   if (v.length === 6) verifyAndSubmit()
 }
 
-// 成功态
+// 成功态（金额以后端响应为权威——落库的手续费/税/到账快照，前端公式仅是预览）
 const success = ref(false)
-const result = reactive({ amount: 0, fee: 0, actualAmount: 0, estimatedArrival: '' })
+const result = reactive({ amount: 0, fee: 0, taxAmount: 0, actualAmount: 0, estimatedArrival: '' })
 
 async function verifyAndSubmit() {
   // 重入守卫：出款路径求稳，密码框满 6 位可能连触发，双提会重复发起提现
@@ -181,9 +194,11 @@ async function verifyAndSubmit() {
       // 提现申请后端受理成功那一刻发转化事件（金额用真实提现金额·元）
       track.custom('withdraw_submit', { amount: amountNum.value, method: method.value })
       showPwd.value = false
-      result.amount = amountNum.value
-      result.fee = fee.value
-      result.actualAmount = actualAmount.value
+      // W5 成功页金额用后端响应的权威快照（含税），本地公式仅兜底
+      result.amount = res.amount ?? amountNum.value
+      result.fee = res.fee ?? fee.value
+      result.taxAmount = res.taxAmount ?? taxAmount.value
+      result.actualAmount = res.actualAmount ?? actualAmount.value
       result.estimatedArrival =
         method.value === 'wechat'
           ? '审核通过后发起转账，需你在微信中确认收款'
@@ -212,6 +227,11 @@ function continueWithdraw() {
 }
 function goService() {
   navigateTo('/customer-service')
+}
+/** W4 忘记支付密码：关弹窗后跳支付密码页（/mine/payment-password → pkg-mine/payment-password/index） */
+function goResetPwd() {
+  showPwd.value = false
+  navigateTo('/mine/payment-password')
 }
 </script>
 
@@ -243,6 +263,10 @@ function goService() {
         <view class="result-row">
           <text class="result-label">手续费</text>
           <text class="result-val">-¥{{ result.fee.toFixed(2) }}</text>
+        </view>
+        <view v-if="result.taxAmount > 0" class="result-row">
+          <text class="result-label">代扣税款</text>
+          <text class="result-val">-¥{{ result.taxAmount.toFixed(2) }}</text>
         </view>
         <view class="result-divider" />
         <view class="result-row">
@@ -446,6 +470,11 @@ function goService() {
           >
           <text class="fee-val">-¥{{ fee.toFixed(2) }}</text>
         </view>
+        <!-- W5 代扣代缴：后台开关开启时预览必须含税，否则到账金额虚高误导用户 -->
+        <view v-if="info.taxEnabled && info.taxRate > 0" class="fee-row">
+          <text class="fee-label">代扣税款 ({{ (info.taxRate * 100).toFixed(1) }}%)</text>
+          <text class="fee-val">-¥{{ taxAmount.toFixed(2) }}</text>
+        </view>
         <view class="result-divider" />
         <view class="fee-row">
           <text class="fee-label">预计到账</text>
@@ -501,7 +530,8 @@ function goService() {
         <view v-if="verifying" class="pwd-verifying">
           <text>验证中...</text>
         </view>
-        <text class="pwd-forget">忘记支付密码？</text>
+        <!-- W4：原来是死文字点了没反应 → 跳支付密码设置/重置页 -->
+        <text class="pwd-forget" @tap="goResetPwd">忘记支付密码？</text>
       </view>
     </view>
   </view>
