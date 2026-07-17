@@ -62,6 +62,12 @@
           </view>
         </view>
 
+        <view v-if="plans.length === 0" class="empty">
+          <app-icon name="pie-chart" :size="72" color="#D9D4C8" />
+          <text class="empty-t">还没有分配方案</text>
+          <text class="empty-sub">点击下方按钮创建你的第一个收益分配方案</text>
+        </view>
+
         <view class="add-btn" @tap="openCreate"><app-icon name="plus" :size="36" color="#999999" /><text class="add-btn-t">添加分配方案</text></view>
       </view>
 
@@ -206,17 +212,13 @@ const contentTypes = [
 ]
 
 interface Plan { id: string; name: string; isDefault: boolean; description: string; rules: { platform: number; circle: number; creator: number }; contentTypes: string[]; createdAt: string }
+interface GuestOverride { guestId: string; guestName: string; avatar: string; sharePercent: number; contentTypes: string[] }
 
-const plans = ref<Plan[]>([
-  { id: 'default', name: '默认分配方案', isDefault: true, description: '适用于所有内容类型的通用分配方案', rules: { platform: 10, circle: 20, creator: 70 }, contentTypes: ['article', 'course', 'live', 'qa'], createdAt: '2024-01-01' },
-  { id: 'course-special', name: '课程专属方案', isDefault: false, description: '针对付费课程的特殊分配比例', rules: { platform: 15, circle: 15, creator: 70 }, contentTypes: ['course'], createdAt: '2024-02-15' },
-  { id: 'live-tips', name: '直播打赏方案', isDefault: false, description: '直播打赏收益的分配规则', rules: { platform: 20, circle: 10, creator: 70 }, contentTypes: ['live'], createdAt: '2024-03-01' },
-])
+// 分配方案属圈主自定义配置，暂无「方案列表」后端端点，故起始为空 —— 圈主通过下方「添加分配方案」自建。
+// 此前内联的假方案（含过期 createdAt 2024-xx）与假嘉宾（张玄风/李易安）已移除，杜绝穿帮。
+const plans = ref<Plan[]>([])
 
-const guestOverrides = [
-  { guestId: '1', guestName: '张玄风', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=zhang', sharePercent: 75, contentTypes: ['article', 'course'] },
-  { guestId: '2', guestName: '李易安', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=li', sharePercent: 65, contentTypes: ['course'] },
-]
+const guestOverrides = ref<GuestOverride[]>([])
 
 const activeTab = ref<'plans' | 'guests'>('plans')
 const showHelp = ref(false)

@@ -9,6 +9,7 @@ import {
   type RechargeOption,
 } from '@/lib/mine-data'
 import { formatPrice } from '@/utils/format'
+import { track } from '@/composables/useTrack'
 
 const loading = ref(false)
 const error = ref('')
@@ -26,7 +27,7 @@ async function loadData() {
   catch (e) { error.value = (e as Error)?.message || '加载失败' }
   finally { loading.value = false }
 }
-onMounted(loadData)
+onMounted(() => { track.custom('recharge_view'); loadData() })
 
 const payMethods = rechargePayMethods
 
@@ -92,11 +93,14 @@ async function handleSubmit() {
     // 微信小程序内且选微信支付：走真实微信支付
     if (payMethod.value === 'wechat') {
       await payByWechatMp(amountCoin)
+      // 支付调起成功即算充值转化（金额用页面真实 RMB 金额，非币数）
+      track.purchase({ type: 'recharge', amount: selectedAmount.value, method: 'wechat' })
       return
     }
     // #endif
     // 其他端/其他支付方式：演示模式（下单+模拟到账，真实渠道待各端接入）
     const res = await mineApi.recharge(amountCoin, payMethod.value)
+    if (res.success) track.purchase({ type: 'recharge', amount: selectedAmount.value, method: payMethod.value })
     uni.showToast({ title: res.message, icon: res.success ? 'success' : 'none' })
   } catch (e) {
     uni.showToast({ title: (e as Error)?.message || '充值失败', icon: 'none' })

@@ -46,7 +46,7 @@ const bgColor = computed(() => {
 
 <template>
   <view class="sa-root">
-    <image v-if="hasImg" class="sa-fill" :src="src as string" mode="aspectFill" @error="imgError = true" />
+    <image v-if="hasImg" class="sa-fill" :src="src as string" mode="aspectFill" lazy-load @error="imgError = true" />
     <view v-else class="sa-fill sa-fb" :style="{ background: bgColor }">
       <text v-if="initial" class="sa-init">{{ initial }}</text>
       <AppIcon v-else name="user" :size="18" color="rgba(255,255,255,0.92)" />

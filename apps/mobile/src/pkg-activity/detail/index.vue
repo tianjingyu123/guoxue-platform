@@ -62,7 +62,7 @@
             <app-icon :name="rulesExpanded ? 'chevron-up' : 'chevron-down'" :size="32" color="#999" />
           </view>
           <view v-if="rulesExpanded" class="rules-body">
-            <text class="rule-line">1. 活动时间：2024年11月1日00:00 - 11月11日23:59</text>
+            <text class="rule-line">1. 活动时间：以页面顶部倒计时为准</text>
             <text class="rule-line">2. 活动期间，全场课程低至5折，部分商品参与满减活动</text>
             <text class="rule-line">3. 新用户注册即送100国学币，可抵扣任意订单</text>
             <text class="rule-line">4. 分享活动页面给好友，好友注册成功后双方各得50国学币</text>
@@ -274,7 +274,8 @@ const navH = ref(44)
 
 const config = {
   title: '双十一国学节',
-  endTime: '2024-11-11T23:59:59',
+  // 演示活动无后端数据源，结束时间按当前时间滚动（+10 天），避免硬编码过期年份穿帮
+  endTime: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString(),
   banners: [
     { id: 1, title: '双十一国学节', subtitle: '全场课程5折起' },
     { id: 2, title: '新用户专享', subtitle: '注册即送100国学币' },

@@ -87,8 +87,9 @@ import { navigateTo, redirectTo } from '@/utils/router'
 import { shopApi, payTimeoutReasons } from '@/lib/shop-data'
 import { formatPrice } from '@/utils/format'
 
-const orderId = ref('ORD20241201123456')
-const amount = ref('344.00')
+// 真实进入必由收银台跳转携带 orderId/amount（见 onLoad）；默认留空，不硬编码过期示例单号
+const orderId = ref('')
+const amount = ref('0')
 const timeoutTime = ref('')
 const reasons = payTimeoutReasons
 

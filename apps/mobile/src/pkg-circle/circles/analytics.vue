@@ -23,7 +23,7 @@
         <!-- 趋势图 -->
         <text class="sec-title">本周浏览 & 点赞趋势</text>
         <view class="chart-card">
-          <view class="chart">
+          <view v-if="chartData.length" class="chart">
             <view v-for="d in chartData" :key="d.day" class="chart-col">
               <view class="bars">
                 <view class="bar views" :style="{ height: (d.views / maxVal * 100) + '%' }" />
@@ -32,6 +32,7 @@
               <text class="chart-x">{{ d.day }}</text>
             </view>
           </view>
+          <view v-else class="chart-empty"><text class="empty-t">暂无趋势数据</text></view>
           <view class="legend">
             <view class="lg"><view class="lg-dot views" /><text class="lg-t">浏览</text></view>
             <view class="lg"><view class="lg-dot likes" /><text class="lg-t">点赞</text></view>
@@ -40,7 +41,11 @@
 
         <!-- TOP5 -->
         <view class="top-title"><app-icon name="trending-up" :size="28" color="#C41E3A" /><text class="top-title-t">热门内容 TOP 5</text></view>
-        <view class="top-list">
+        <view v-if="!topPosts.length" class="top-empty">
+          <app-icon name="trending-up" :size="72" color="#D9D4C8" />
+          <text class="empty-t">暂无热门内容</text>
+        </view>
+        <view v-else class="top-list">
           <view v-for="(post, idx) in topPosts" :key="post.id" class="post">
             <text class="post-rank" :class="rankCls(idx)">{{ idx + 1 }}</text>
             <view class="post-main">
@@ -70,31 +75,27 @@ import { goBack } from '@/utils/router'
 
 const statusBarH = uni.getSystemInfoSync().statusBarHeight || 20
 
+interface ChartPoint { day: string; views: number; likes: number }
+interface TopPost { id: string; title: string; author: string; avatar: string; views: number; likes: number; comments: number; shares: number }
+
+// 内容分析数据来源于圈子仪表盘（需 circleId + 圈主鉴权）。此页当前无入口/无 circleId 上下文，
+// 为杜绝穿帮假数据（此前为「周易大师/张玄风」+ unsplash 真人头像 + 虚构统计），先置诚实空态。
+// 接线路径已就绪：GET /circles/:id/dashboard/trends（趋势）+ /circles/:id/hot-content（热门 TOP5），
+// 待本页接入 circleId 后改为真连即可。
 const kpis = [
-  { label: '总浏览', value: '44,690', icon: 'eye', color: '#2563EB', bg: '#EFF6FF' },
-  { label: '总点赞', value: '2,824', icon: 'heart', color: '#EF4444', bg: '#FEF2F2' },
-  { label: '总评论', value: '558', icon: 'message-circle', color: '#16A34A', bg: '#F0FDF4' },
-  { label: '总分享', value: '687', icon: 'share-2', color: '#9333EA', bg: '#FAF5FF' },
+  { label: '总浏览', value: '0', icon: 'eye', color: '#2563EB', bg: '#EFF6FF' },
+  { label: '总点赞', value: '0', icon: 'heart', color: '#EF4444', bg: '#FEF2F2' },
+  { label: '总评论', value: '0', icon: 'message-circle', color: '#16A34A', bg: '#F0FDF4' },
+  { label: '总分享', value: '0', icon: 'share-2', color: '#9333EA', bg: '#FAF5FF' },
 ]
 
-const chartData = [
-  { day: '周一', views: 4200, likes: 280 },
-  { day: '周二', views: 5100, likes: 340 },
-  { day: '周三', views: 4800, likes: 310 },
-  { day: '周四', views: 6200, likes: 420 },
-  { day: '周五', views: 7800, likes: 530 },
-  { day: '周六', views: 9500, likes: 680 },
-  { day: '周日', views: 8300, likes: 590 },
-]
-const maxVal = computed(() => Math.max(...chartData.flatMap(d => [d.views, d.likes])))
+const chartData: ChartPoint[] = []
+const maxVal = computed(() => {
+  const vals = chartData.flatMap(d => [d.views, d.likes])
+  return vals.length ? Math.max(...vals) : 1
+})
 
-const topPosts = [
-  { id: '1', title: '八字五行详解：从生克制化到格局分析', author: '周易大师', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=60', views: 12580, likes: 864, comments: 203, shares: 156 },
-  { id: '2', title: '紫微斗数十四主星性格分析全集', author: '张玄风', avatar: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=60', views: 9840, likes: 620, comments: 145, shares: 98 },
-  { id: '3', title: '2024年甲辰年各生肖运势完整版', author: '李玄机', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=60', views: 8720, likes: 512, comments: 89, shares: 234 },
-  { id: '4', title: '风水布局实战：客厅财位的正确摆放', author: '王德华', avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=60', views: 7350, likes: 430, comments: 67, shares: 112 },
-  { id: '5', title: '奇门遁甲基础：九宫八卦布局详解', author: '林奇门', avatar: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=60', views: 6200, likes: 398, comments: 54, shares: 87 },
-]
+const topPosts: TopPost[] = []
 
 function rankCls(idx: number) { return idx === 0 ? 'gold' : idx === 1 ? 'silver' : idx === 2 ? 'bronze' : '' }
 </script>
@@ -145,4 +146,7 @@ function rankCls(idx: number) { return idx === 0 ? 'gold' : idx === 1 ? 'silver'
 .post-author-t { font-size: 20rpx; color: #999999; }
 .meta-item { display: flex; align-items: center; gap: 4rpx; }
 .meta-t { font-size: 20rpx; color: #999999; }
+.chart-empty { height: 280rpx; display: flex; align-items: center; justify-content: center; }
+.top-empty { display: flex; flex-direction: column; align-items: center; gap: 16rpx; padding: 80rpx 0; background: #ffffff; border: 1rpx solid #ECE7DD; border-radius: 20rpx; }
+.empty-t { font-size: 24rpx; color: #999999; }
 </style>

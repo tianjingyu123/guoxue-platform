@@ -149,7 +149,7 @@ const decoChars = computed(() => {
 </script>
 
 <template>
-  <image v-if="hasImg && !imgError" class="sc-full" :class="{ 'content-fade-in': imgLoaded }" :style="imgLoaded ? '' : 'opacity:0'" :src="src as string" mode="aspectFill" @load="imgLoaded = true" @error="imgError = true" />
+  <image v-if="hasImg && !imgError" class="sc-full" :class="{ 'content-fade-in': imgLoaded }" :style="imgLoaded ? '' : 'opacity:0'" :src="src as string" mode="aspectFill" lazy-load @load="imgLoaded = true" @error="imgError = true" />
   <!-- 首帧兜底：无封面图但有视频源，取视频第一帧（静音·不自动播·不显控件） -->
   <video
     v-else-if="hasVideoFrame"

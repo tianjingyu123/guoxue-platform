@@ -225,11 +225,17 @@ const frontImage = ref<string | null>(null)
 const backImage = ref<string | null>(null)
 const isSubmitting = ref(false)
 
-const info = {
-  pending: { submitTime: '2024-01-15 14:30', expectedTime: '1-3个工作日' },
-  approved: { verifyTime: '2024-01-16 10:00', realName: '张**' },
-  rejected: { reason: '身份证照片模糊，请重新上传清晰照片', rejectTime: '2024-01-16 09:00' },
+// 当前时刻格式化，避免硬编码过期日期（本页为演示态，真实审核时间待接后端实名状态端点）
+function nowStr() {
+  const d = new Date()
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
 }
+const info = ref({
+  pending: { submitTime: nowStr(), expectedTime: '1-3个工作日' },
+  approved: { verifyTime: nowStr(), realName: '——' },
+  rejected: { reason: '身份证照片模糊，请重新上传清晰照片', rejectTime: nowStr() },
+})
 
 const canSubmit = computed(
   () => realName.value.length >= 2 && idNumber.value.length === 18 && !!frontImage.value && !!backImage.value,
@@ -251,6 +257,7 @@ function handleSubmit() {
   isSubmitting.value = true
   setTimeout(() => {
     isSubmitting.value = false
+    info.value.pending.submitTime = nowStr()
     status.value = 'pending'
   }, 1500)
 }

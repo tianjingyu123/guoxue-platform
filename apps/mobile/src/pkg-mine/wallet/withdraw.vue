@@ -9,6 +9,7 @@ import {
   type WithdrawAccount,
   type WithdrawBalanceInfo,
 } from '@/lib/mine-data'
+import { track } from '@/composables/useTrack'
 
 const loading = ref(false)
 const error = ref('')
@@ -54,7 +55,7 @@ async function loadData() {
   } catch (e) { error.value = (e as Error)?.message || '加载失败' }
   finally { loading.value = false }
 }
-onMounted(loadData)
+onMounted(() => { track.custom('withdraw_view'); loadData() })
 
 // 表单状态
 const amount = ref('')
@@ -177,6 +178,8 @@ async function verifyAndSubmit() {
           : { bankName: form.bankName, bankAccount: form.bankAccount, bankHolder: form.bankHolder }
     const res = await mineApi.withdraw(amountNum.value, method.value, account)
     if (res.success) {
+      // 提现申请后端受理成功那一刻发转化事件（金额用真实提现金额·元）
+      track.custom('withdraw_submit', { amount: amountNum.value, method: method.value })
       showPwd.value = false
       result.amount = amountNum.value
       result.fee = fee.value

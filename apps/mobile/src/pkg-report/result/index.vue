@@ -213,77 +213,21 @@ const statusFilter = ref('all')
 const showDetail = ref(false)
 const selectedRecord = ref<ReportRecord | null>(null)
 
-const stats = ref({ total: 5, pending: 1, processing: 1, resolved: 2, rejected: 1 })
+// 举报处理结果记录：后端仅有管理员侧列表端点（GET /interaction/report 限 SUPER_ADMIN/OPERATION_ADMIN），
+// 无「我的举报」用户侧端点，故此处诚实置空 —— 页面下方已有「暂无举报记录」空态。
+// 待后端补用户侧端点后，改为真连即可（filteredRecords/stats 均已按 records 动态计算）。
+const records = ref<ReportRecord[]>([])
 
-const records = ref<ReportRecord[]>([
-  {
-    id: 1,
-    targetType: 'post',
-    targetTitle: '这个八字太神奇了，大家来看看',
-    reportType: 'fraud',
-    reason: '存在虚假宣传，夸大算命效果诱导消费',
-    createdAt: '2024-01-15 10:30',
-    status: 'resolved',
-    result: {
-      conclusion: '举报成立',
-      action: '内容下架 + 账号警告',
-      description: '经核实，该内容存在虚假宣传行为，已对相关内容进行下架处理。',
-      handler: '审核员A',
-      handledAt: '2024-01-16 14:22',
-    },
-  },
-  {
-    id: 2,
-    targetType: 'user',
-    targetTitle: '神棍大师',
-    reportType: 'harassment',
-    reason: '多次对他人进行人身攻击和骚扰',
-    createdAt: '2024-01-16 15:45',
-    status: 'rejected',
-    result: {
-      conclusion: '举报不成立',
-      description: '经平台审核，被举报用户的行为未违反平台社区规范。',
-      handler: '审核员B',
-      handledAt: '2024-01-17 09:15',
-    },
-  },
-  {
-    id: 3,
-    targetType: 'comment',
-    targetTitle: '路人甲的评论',
-    reportType: 'harassment',
-    reason: '评论含有攻击性言论',
-    createdAt: '2024-01-17 08:20',
-    status: 'resolved',
-    result: {
-      conclusion: '举报成立',
-      action: '评论删除 + 禁言3天',
-      description: '经核实，该评论含有攻击性言论，已删除并对发布者禁言处理。',
-      handler: '审核员A',
-      handledAt: '2024-01-17 16:40',
-    },
-  },
-  {
-    id: 4,
-    targetType: 'circle',
-    targetTitle: '玄学交流圈',
-    reportType: 'spam',
-    reason: '圈内大量垃圾广告刷屏',
-    createdAt: '2024-01-18 11:00',
-    status: 'processing',
-    result: null,
-  },
-  {
-    id: 5,
-    targetType: 'live',
-    targetTitle: '今晚八点教你看手相',
-    reportType: 'inappropriate',
-    reason: '直播内容涉嫌违规',
-    createdAt: '2024-01-18 20:15',
-    status: 'pending',
-    result: null,
-  },
-])
+const stats = computed(() => {
+  const r = records.value
+  return {
+    total: r.length,
+    pending: r.filter((x) => x.status === 'pending').length,
+    processing: r.filter((x) => x.status === 'processing').length,
+    resolved: r.filter((x) => x.status === 'resolved').length,
+    rejected: r.filter((x) => x.status === 'rejected').length,
+  }
+})
 
 const filteredRecords = computed(() => {
   if (statusFilter.value === 'all') return records.value

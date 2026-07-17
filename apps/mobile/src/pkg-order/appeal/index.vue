@@ -283,8 +283,12 @@ const appealTypes = [
   { id: 'other', label: '其他问题', desc: '其他交易相关问题' },
 ]
 
+// 「申诉已提交」时间取当前时刻（该演示时间线在提交后展示），避免硬编码过期日期
+const _now = new Date()
+const _p = (n: number) => String(n).padStart(2, '0')
+const submittedAt = `${_now.getFullYear()}-${_p(_now.getMonth() + 1)}-${_p(_now.getDate())} ${_p(_now.getHours())}:${_p(_now.getMinutes())}`
 const appealTimeline = [
-  { status: 'submitted', label: '申诉已提交', time: '2024-01-20 10:30', completed: true, current: false },
+  { status: 'submitted', label: '申诉已提交', time: submittedAt, completed: true, current: false },
   { status: 'reviewing', label: '平台审核中', time: '预计1-3个工作日', completed: true, current: true },
   { status: 'processing', label: '平台介入处理', time: '', completed: false, current: false },
   { status: 'completed', label: '处理完成', time: '', completed: false, current: false },

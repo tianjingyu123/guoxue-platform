@@ -43,7 +43,7 @@
             <!-- 亚军 左 -->
             <view v-if="podium[1]" class="pod p2" @tap="goProfile(podium[1])">
               <view class="pod-avatar">
-                <image v-if="podium[1].avatar" :src="podium[1].avatar" mode="aspectFill" class="pod-img" />
+                <image v-if="podium[1].avatar" :src="podium[1].avatar" mode="aspectFill" lazy-load class="pod-img" />
                 <text v-else class="pod-ph">{{ firstChar(podium[1].nickname) }}</text>
                 <text class="rank-badge">亚军</text>
               </view>
@@ -54,7 +54,7 @@
             <!-- 冠军 中 -->
             <view v-if="podium[0]" class="pod p1" @tap="goProfile(podium[0])">
               <view class="pod-avatar">
-                <image v-if="podium[0].avatar" :src="podium[0].avatar" mode="aspectFill" class="pod-img" />
+                <image v-if="podium[0].avatar" :src="podium[0].avatar" mode="aspectFill" lazy-load class="pod-img" />
                 <text v-else class="pod-ph">{{ firstChar(podium[0].nickname) }}</text>
                 <text class="rank-badge">冠军</text>
               </view>
@@ -65,7 +65,7 @@
             <!-- 季军 右 -->
             <view v-if="podium[2]" class="pod p3" @tap="goProfile(podium[2])">
               <view class="pod-avatar">
-                <image v-if="podium[2].avatar" :src="podium[2].avatar" mode="aspectFill" class="pod-img" />
+                <image v-if="podium[2].avatar" :src="podium[2].avatar" mode="aspectFill" lazy-load class="pod-img" />
                 <text v-else class="pod-ph">{{ firstChar(podium[2].nickname) }}</text>
                 <text class="rank-badge">季军</text>
               </view>
@@ -80,7 +80,7 @@
             <view v-for="t in rest" :key="t.userId" class="lrow" @tap="goProfile(t)">
               <text class="rk">{{ t.position }}</text>
               <view class="ra-wrap">
-                <image v-if="t.avatar" :src="t.avatar" mode="aspectFill" class="ra" />
+                <image v-if="t.avatar" :src="t.avatar" mode="aspectFill" lazy-load class="ra" />
                 <view v-else class="ra ra-ph"><text class="ra-ph-txt">{{ firstChar(t.nickname) }}</text></view>
               </view>
               <view class="rb">
@@ -120,7 +120,7 @@
     <view v-if="mine" class="selfbar" :style="{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 8px)' }">
       <text class="self-rk">{{ mine.position ?? '—' }}</text>
       <view class="self-ra-wrap">
-        <image v-if="mineAvatar" :src="mineAvatar" mode="aspectFill" class="self-ra" />
+        <image v-if="mineAvatar" :src="mineAvatar" mode="aspectFill" lazy-load class="self-ra" />
         <view v-else class="self-ra self-ra-ph"><text class="self-ra-txt">我</text></view>
       </view>
       <view class="self-rb">

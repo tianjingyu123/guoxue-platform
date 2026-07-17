@@ -4,11 +4,39 @@
  * 契约见 docs/迁移准备/04-ClaudeCode对接说明.md。
  */
 import { getToken, clearToken, getRefreshToken, setToken, setRefreshToken, clearRefreshToken } from './storage'
+import { track } from '@/composables/useTrack'
 
 export interface ApiResponse<T> {
   code: number
   data: T
   message: string
+}
+
+/**
+ * 统一上报 API 失败（旁路埋点，绝不阻塞/改变请求主流程）。
+ * 修复的盲区：此前 4xx/5xx/网络失败只转 toast，线上端点批量 500/挂掉前端零观测信号，只能等用户投诉。
+ * 现在失败分支旁路发一条 api_error，admin 埋点侧即可观测到接口异常。
+ *
+ * 三大防护：
+ *  1) 防埋点自身成环：埋点批量上报本身走网络（POST /track/batch）。若它失败又触发 api_error → 无限环。
+ *     故凡 url 含 '/track' 一律跳过，绝不为埋点请求上报埋点。
+ *  2) 防洪峰：后端大面积 500 会瞬时产生海量失败。track.custom 走的是 useTrack 的「队列 + 批量 flush」
+ *     （非同步逐条发网络请求），再叠加 20% 采样，进一步压制持续错误风暴下的上报量。
+ *  3) 脱敏：只取 path 去掉 query（token/phone 等敏感信息常在 query），避免敏感值进埋点。
+ *
+ * @param path   apiFetch 收到的相对路径（不含 BASE_URL/PREFIX）
+ * @param status HTTP 状态码；网络失败/超时无状态码时传 0
+ * @param code   业务信封 code（可选）
+ */
+function reportApiError(path: string, status: number, code?: number): void {
+  try {
+    if (!path || path.includes('/track')) return // 防环：埋点自身请求不上报
+    if (Math.random() > 0.2) return // 防洪峰：仅 20% 采样（叠加 useTrack 队列批量）
+    const cleanPath = path.split('?')[0] // 脱敏：仅保留 path，丢弃 query
+    track.custom('api_error', { url: cleanPath, status, code })
+  } catch {
+    // 埋点异常绝不影响请求主流程
+  }
 }
 
 // 与原型一致：base + /api/v1 前缀
@@ -184,6 +212,7 @@ function apiFetch<T>(path: string, method: Method, data?: unknown, header?: Reco
         if (body && body.code === 200) {
           resolve(body.data)
         } else {
+          reportApiError(path, res.statusCode, body?.code) // 旁路：上报 4xx/5xx 等非成功响应
           reject(new Error(body?.message || `请求失败(${res.statusCode})`))
         }
       },
@@ -193,6 +222,7 @@ function apiFetch<T>(path: string, method: Method, data?: unknown, header?: Reco
           resolve(apiFetch<T>(path, method, data, header, true, timeoutMs))
           return
         }
+        reportApiError(path, 0) // 旁路：网络失败/超时（重试后仍失败），status=0
         reject(new Error(friendlyNetError(err.errMsg, '网络连接失败，请检查网络后重试')))
       },
     })
@@ -236,6 +266,7 @@ export function apiGetPaged<T>(path: string, header?: Record<string, string>, _r
           const p = body.pagination
           resolve({ items, total: p?.total ?? items.length, page: p?.page ?? 1, pageSize: p?.pageSize ?? items.length })
         } else {
+          reportApiError(path, res.statusCode, body?.code) // 旁路：上报分页接口非成功响应
           reject(new Error(body?.message || `请求失败(${res.statusCode})`))
         }
       },
@@ -245,6 +276,7 @@ export function apiGetPaged<T>(path: string, header?: Record<string, string>, _r
           resolve(apiGetPaged<T>(path, header, true))
           return
         }
+        reportApiError(path, 0) // 旁路：分页 GET 网络失败/超时，status=0
         reject(new Error(friendlyNetError(err.errMsg, '网络连接失败，请检查网络后重试')))
       },
     })

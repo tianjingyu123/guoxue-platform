@@ -153,8 +153,15 @@ async function loadData() {
 }
 function retry() { loadData() }
 
-const refundMethod = '微信支付'
-const estimatedDate = '2024年1月18日'
+// 退款方式优先取后端返回，无则默认原路（微信支付）
+const refundMethod = computed(() => data.value?.refundMethod || '原支付账户')
+// 预计到账日动态计算：后端 estimatedDate 优先，否则按当前时间 + 7 天（微信/支付宝退款一般 1-7 个工作日）
+const estimatedDate = computed(() => {
+  const raw = data.value?.estimatedDate
+  const d = raw ? new Date(raw) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+  if (Number.isNaN(d.getTime())) return ''
+  return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`
+})
 
 const currentIndex = computed(() => data.value?.timeline?.findIndex((n: { isCurrent?: boolean }) => n.isCurrent) ?? -1)
 

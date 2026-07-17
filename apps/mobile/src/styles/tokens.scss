@@ -6,6 +6,9 @@
 
 /* ---------- ① 原始调色板（仅供语义层引用，组件禁止直接用） ---------- */
 :root {
+  /* ⚠️ 全站锁定浅色：暗色未全站适配（hex 与 var 混用会在系统深色下半翻转花屏），
+     强制浏览器只用浅色配色，防止原生控件/表单被 UA 强制深色。待暗色专项重构后再放开。 */
+  color-scheme: light;
   /* 故宫红 */
   --gugong-red: #c41e3a;
   --gugong-red-soft: #d94452;
@@ -105,7 +108,12 @@
   --ebook-text-soft: #64748b;
 }
 
-/* ---------- ② 语义令牌 · 深色（与原型一致的整套覆盖） ---------- */
+/* ---------- ② 语义令牌 · 深色（暂时禁用） ----------
+   ⚠️ 暗色未全站适配：全站 250+ 文件硬编码 hex（不随令牌翻转）与少数 var()（随令牌翻转）
+   混用，H5 端系统开深色会触发 prefers-color-scheme 半翻转 → 花屏 + 文字消失。
+   真做暗色需数千处 hex→var 大重构（待专项拍板）。当前先锁死浅色，禁用系统深色自动翻转，
+   保证浅色全平台一致可读。下方整套深色覆盖（含 @media 与 .theme-dark 手动 class）暂时注释停用。
+
 @media (prefers-color-scheme: dark) {
   :root {
     --xuan-paper: #1a1815;
@@ -121,7 +129,6 @@
     --classics-bg: #1a1815;
   }
 }
-/* 手动暗色 class（小程序无 prefers-color-scheme 时用） */
 .theme-dark {
   --xuan-paper: #1a1815;
   --pure-white: #211e1a;
@@ -133,6 +140,7 @@
   --jewel-gold: #d4b87d;
   --classics-bg: #1a1815;
 }
+---------- 深色语义令牌注释结束 ---------- */
 
 /* ---------- 字族 ---------- */
 :root {
@@ -150,6 +158,8 @@
   --indigo: #2d5a87;
   --indigo-light: #e8f0f5;
 }
+/* ⚠️ 五行色深色覆盖同样暂时禁用（原因见上方语义令牌深色段说明）：先锁浅色，待暗色专项重构。
+
 @media (prefers-color-scheme: dark) {
   :root {
     --wuxing-wood: #4ade80;
@@ -166,6 +176,7 @@
   --wuxing-metal: #fcd34d;
   --wuxing-water: #60a5fa;
 }
+---------- 五行色深色覆盖注释结束 ---------- */
 
 /* ---------- 五行类名工具类（供 :class 动态绑定, App/小程序端 scoped 外全局可用） ---------- */
 .wx-wood { color: var(--wuxing-wood); }

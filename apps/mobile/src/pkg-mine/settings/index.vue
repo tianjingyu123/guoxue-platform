@@ -4,7 +4,7 @@ import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo, toastComingSoon } from '@/utils/router'
 import {
   mineApi, settingCollectOptions, settingFontOptions,
-  settingDarkOptions, settingCacheSize,
+  settingCacheSize,
   type SettingNotifyItem,
 } from '@/lib/mine-data'
 
@@ -78,7 +78,6 @@ onMounted(() => {
 
 // 通用设置
 const fontSize = ref('medium')
-const darkMode = ref('system')
 const collectVisible = ref('public')
 const historyVisible = ref(true)
 const cacheCleared = ref(false)
@@ -87,7 +86,6 @@ const cacheCleared = ref(false)
 const showLogout = ref(false)
 const showClearCache = ref(false)
 const showFont = ref(false)
-const showDark = ref(false)
 const showCollect = ref(false)
 
 function labelOf(options: { label: string; value: string }[], v: string) {
@@ -109,9 +107,6 @@ type OptionDialogState = { title: string; options: { label: string; value: strin
 const optionDialog = ref<OptionDialogState>(null)
 function openFont() {
   optionDialog.value = { title: '字体大小', options: settingFontOptions, current: fontSize.value, onPick: (v) => (fontSize.value = v) }
-}
-function openDark() {
-  optionDialog.value = { title: '深色模式', options: settingDarkOptions, current: darkMode.value, onPick: (v) => (darkMode.value = v) }
 }
 function openCollect() {
   optionDialog.value = { title: '谁可以看我的收藏', options: settingCollectOptions, current: collectVisible.value, onPick: (v) => (collectVisible.value = v) }
@@ -226,12 +221,6 @@ function pickOption(v: string) {
             <AppIcon name="type" :size="18" color="#666" />
             <text class="row-label">字体大小</text>
             <text class="row-sub">{{ labelOf(settingFontOptions, fontSize) }}</text>
-            <AppIcon name="chevron-right" :size="16" color="#C9A96E" />
-          </view>
-          <view class="row" @tap="openDark">
-            <AppIcon name="moon" :size="18" color="#666" />
-            <text class="row-label">深色模式</text>
-            <text class="row-sub">{{ labelOf(settingDarkOptions, darkMode) }}</text>
             <AppIcon name="chevron-right" :size="16" color="#C9A96E" />
           </view>
         </view>

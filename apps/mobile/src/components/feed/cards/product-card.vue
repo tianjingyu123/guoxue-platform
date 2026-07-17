@@ -18,7 +18,7 @@ const price = computed(() => payloadNum(props.item, 'price'))
 <template>
   <view class="fcard">
     <view class="cov">
-      <image v-if="hasCover" class="cov-img" :src="item.cover" mode="aspectFill" @error="imgError = true" />
+      <image v-if="hasCover" class="cov-img" :src="item.cover" mode="aspectFill" lazy-load @error="imgError = true" />
       <view v-else class="cov-img ph"><text class="ph-t">{{ item.title.charAt(0) }}</text></view>
       <text class="seal gold serif">物</text>
     </view>
