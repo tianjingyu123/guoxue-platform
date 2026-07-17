@@ -1992,12 +1992,6 @@
           }
         },
         {
-          "path": "become-partner/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
           "path": "announcements/index",
           "style": {
             "navigationStyle": "custom"

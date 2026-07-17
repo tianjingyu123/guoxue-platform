@@ -1,3 +1,7 @@
+<!--
+  已下线：假提交未接真连。handleSubmit 仅 setTimeout 假成功并丢弃表单，从未调用任何后端。
+  已从 pages.json 摘除注册条目（不可达）。接入前须先真连 /operator apply 端点（采集 name/phone/specialty 提交后端审核）。
+-->
 <template>
   <view class="page">
     <view class="nav">

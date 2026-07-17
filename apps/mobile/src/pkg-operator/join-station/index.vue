@@ -21,6 +21,14 @@
       <view class="state-retry-btn" @tap="retry"><text>重试</text></view>
     </view>
 
+    <!-- 申请已提交（真调用 /station/apply 成功后的真实态） -->
+    <view v-else-if="applied" class="apply-done" :style="{ paddingTop: navHeight + 'px' }">
+      <view class="apply-done-ic"><app-icon name="check-circle-2" :size="48" color="#2E8B57" /></view>
+      <text class="apply-done-title serif">申请已提交</text>
+      <text class="apply-done-desc">你的分站申请已提交，平台将尽快审核。审核通过后即可在个人中心进入分站管理。</text>
+      <view class="apply-done-btn" @tap="goBack"><text class="apply-done-btn-text">返回</text></view>
+    </view>
+
     <!-- 正常内容 -->
     <template v-else>
       <scroll-view scroll-y class="js-scroll" :style="{ paddingTop: navHeight + 'px' }">
@@ -106,6 +114,26 @@
           <view class="js-risk-i"><view class="js-risk-dot" /><text class="js-risk-i-text">请理性决策，量力而行。</text></view>
         </view>
 
+        <!-- 分站信息（必填·后端 ApplyStationDto 要求 name+code） -->
+        <text class="js-sec-title serif">分站信息（必填）</text>
+        <view class="js-invite-input-card">
+          <input
+            v-model="stationName"
+            class="js-invite-input"
+            placeholder="分站名称（如：XX国学驿站）"
+            placeholder-class="js-invite-ph"
+            maxlength="50"
+          />
+          <input
+            v-model="stationCode"
+            class="js-invite-input js-invite-input-gap"
+            placeholder="专属推广码（字母/数字·全平台唯一）"
+            placeholder-class="js-invite-ph"
+            maxlength="30"
+          />
+          <text class="js-invite-input-note">名称与推广码用于生成你的专属分站入口，推广码全平台唯一，提交后由平台审核。</text>
+        </view>
+
         <!-- 运营商邀请码（选填·自主开通态可填） -->
         <template v-if="!invitedByOperator">
           <text class="js-sec-title serif">运营商邀请码（选填）</text>
@@ -144,8 +172,8 @@
       <view class="js-cta">
         <text class="js-cta-price">系统租赁费 <text class="js-cta-price-b">¥999 / 年</text> · 达标可减免/退还</text>
         <text class="js-cta-hint">点击即表示已阅读并同意 <text class="js-cta-hint-link" @tap="openAgreement">《站长服务协议》</text></text>
-        <view class="js-cta-btn" @tap="handleOpen">
-          <text class="js-cta-btn-text">{{ invitedByOperator ? '确认开通（归属 ' + operatorName + '）' : '确认开通我的分站' }}</text>
+        <view class="js-cta-btn" :class="{ 'js-cta-btn-disabled': submitting }" @tap="handleOpen">
+          <text class="js-cta-btn-text">{{ submitting ? '提交中…' : (invitedByOperator ? '确认开通（归属 ' + operatorName + '）' : '确认开通我的分站') }}</text>
         </view>
       </view>
     </template>
@@ -157,6 +185,7 @@ import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
 import { operatorApi } from '@/lib/operator-data'
+import { apiPost } from '@/utils/request'
 
 // ===== 状态栏留白（自定义导航） =====
 const statusBarHeight = ref(20)
@@ -166,6 +195,11 @@ const navHeight = ref(64)
 const loading = ref(true)
 const error = ref('')
 const submitting = ref(false)
+const applied = ref(false)
+
+// ===== 分站信息（后端 ApplyStationDto 必填 name+code） =====
+const stationName = ref('')
+const stationCode = ref('')
 
 // ===== 邀请开通态 =====
 const inviteCode = ref('')
@@ -239,10 +273,19 @@ function openAgreement() {
 
 async function handleOpen() {
   if (submitting.value) return
+  const name = stationName.value.trim()
+  const code = stationCode.value.trim()
+  if (!name) { uni.showToast({ title: '请填写分站名称', icon: 'none' }); return }
+  if (!code) { uni.showToast({ title: '请填写专属推广码', icon: 'none' }); return }
   submitting.value = true
   try {
-    // 沿用平台账号开通 · POST /station/apply { inviteCode? }（后端未开通时提示）
-    uni.showToast({ title: '开通功能开发中', icon: 'none' })
+    // 纯审核制：POST /station/apply 直接建 PENDING 分站（无扣费下单）。
+    // 后端 ApplyStationDto 仅收 name/code/intro/logo；inviteCode 暂不收（whitelist strip），
+    // 运营商归属关系待后端补字段后再接。后端会校验"已开通"和"推广码占用"并回具体 message。
+    await apiPost('/station/apply', { name, code })
+    applied.value = true
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '提交失败，请稍后重试', icon: 'none' })
   } finally {
     submitting.value = false
   }
@@ -323,6 +366,7 @@ async function handleOpen() {
 /* ===== 邀请码输入 ===== */
 .js-invite-input-card { margin: 0 38rpx; background: #FFFFFF; border: 1rpx solid #EFEBE4; border-radius: 27rpx; padding: 31rpx; }
 .js-invite-input { height: 88rpx; background: rgba(138,129,120,0.06); border-radius: 17rpx; padding: 0 27rpx; font-size: 26rpx; color: #2C2C2C; }
+.js-invite-input-gap { margin-top: 19rpx; }
 .js-invite-ph { color: #9A9A9A; }
 .js-invite-input-note { display: block; font-size: 21rpx; color: #9A9A9A; margin-top: 19rpx; line-height: 1.6; }
 
@@ -345,7 +389,16 @@ async function handleOpen() {
 .js-cta-hint { display: block; font-size: 21rpx; color: #9A9A9A; text-align: center; margin-bottom: 21rpx; }
 .js-cta-hint-link { color: #C41E3A; }
 .js-cta-btn { height: 96rpx; border-radius: 999rpx; background: #C41E3A; display: flex; align-items: center; justify-content: center; box-shadow: 0 2rpx 20rpx rgba(196,30,58,0.3); }
+.js-cta-btn-disabled { opacity: 0.55; }
 .js-cta-btn-text { font-size: 31rpx; font-weight: 600; color: #fff; }
+
+/* ===== 申请已提交态 ===== */
+.apply-done { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 0 64rpx; text-align: center; }
+.apply-done-ic { width: 150rpx; height: 150rpx; border-radius: 50%; background: rgba(46,139,87,0.12); display: flex; align-items: center; justify-content: center; margin-bottom: 40rpx; }
+.apply-done-title { font-size: 40rpx; font-weight: 700; color: #2C2C2C; margin-bottom: 18rpx; }
+.apply-done-desc { font-size: 26rpx; color: #6E6E73; line-height: 1.7; margin-bottom: 56rpx; }
+.apply-done-btn { width: 100%; height: 96rpx; border-radius: 999rpx; background: #C41E3A; display: flex; align-items: center; justify-content: center; box-shadow: 0 2rpx 20rpx rgba(196,30,58,0.3); }
+.apply-done-btn-text { font-size: 31rpx; font-weight: 600; color: #fff; }
 
 /* ===== 三态 ===== */
 .state-loading { flex: 1; display: flex; align-items: center; justify-content: center; }
