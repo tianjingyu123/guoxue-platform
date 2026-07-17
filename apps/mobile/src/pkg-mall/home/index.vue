@@ -69,6 +69,7 @@ function goCategory(id: string) { navigateTo(id === 'all' ? '/mall/category' : `
 
 <template>
   <view class="page">
+    <app-network-bar />
     <!-- 顶部搜索栏 -->
     <view class="topbar">
       <search-bar default-tab="product" placeholder="搜索商品..." />

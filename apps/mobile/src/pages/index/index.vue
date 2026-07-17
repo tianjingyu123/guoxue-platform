@@ -13,6 +13,7 @@ import AppIcon from '@/components/common/app-icon.vue'
 import FeedCard from '@/components/feed/feed-card.vue'
 import SmartCover from '@/components/common/smart-cover.vue'
 import BottomNav from '@/components/bottom-nav/bottom-nav.vue'
+import DailyStudy from '@/components/home/daily-study.vue'
 import { navigateTo } from '@/utils/router'
 import { getSmartFeed, sendFeedback, ratioPadding, type FeedEnvelope } from '@/lib/feed-data'
 import { getPublishedLayout, type LayoutBlock } from '@/lib/page-layout-data'
@@ -347,6 +348,9 @@ function backToTop() {
           </view>
         </view>
       </view>
+
+      <!-- 今日学一点：按用户兴趣主题每日推 3 条真实内容（自拉数据·空则整体隐藏，兴趣个性化产物上屏） -->
+      <daily-study />
 
       <!-- 双列瀑布流：九类卡等权分左右两列（长按呼负反馈浮层）。
            普通周期大卡已下线（董事长 #28）——重点主推位仅保留顶部焦点大卡；此处纯双列不再插全宽大卡 -->

@@ -298,6 +298,8 @@ export function uploadImage(filePath: string, _retried = false): Promise<string>
       filePath,
       name: 'file',
       header: token ? { Authorization: `Bearer ${token}` } : {},
+      // 弱网下防止长时间挂起：图片上传 60s 超时（视频不设，见 uploadVideo）
+      timeout: 60000,
       success: (res) => {
         if (res.statusCode === 401) {
           if (!_retried) {
@@ -387,6 +389,8 @@ export function uploadDocument(filePath: string, _retried = false): Promise<stri
       filePath,
       name: 'file',
       header: token ? { Authorization: `Bearer ${token}` } : {},
+      // 弱网下防止长时间挂起：文档附件（≤50MB）60s 超时
+      timeout: 60000,
       success: (res) => {
         if (res.statusCode === 401) {
           if (!_retried) {

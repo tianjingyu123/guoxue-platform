@@ -170,9 +170,10 @@
 <script setup lang="ts">
 import { ref, computed, onUnmounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
-import { goBack, navigateTo } from '@/utils/router'
+import { goBack, navigateTo, reLaunch } from '@/utils/router'
 import { authApi } from '@/lib/auth-data'
 import { setToken, setRefreshToken, setUserInfo } from '@/utils/storage'
+import { hasSelectedInterests } from '@/utils/interests'
 
 const statusBarHeight = ref(0)
 const steps = ['phone', 'verify', 'password'] as const
@@ -266,7 +267,12 @@ async function handleRegister() {
       setToken(res.data.token)
       setRefreshToken(res.data.refreshToken || '')
       setUserInfo(res.data.user)
-      uni.reLaunch({ url: '/pages/index/index' })
+      // 新用户/未选过兴趣 → 先走欢迎峰值页(welcome→兴趣引导)，选完再进首页；老用户直接进首页
+      if (hasSelectedInterests()) {
+        uni.reLaunch({ url: '/pages/index/index' })
+      } else {
+        reLaunch('/welcome')
+      }
     } else {
       uni.showToast({ title: res.message || '注册失败', icon: 'none' })
     }
