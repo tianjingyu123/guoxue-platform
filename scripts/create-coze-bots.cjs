@@ -18,25 +18,100 @@ if (!fs.existsSync(path.join(SERVER_ROOT, "dist"))) {
   console.error("请在 apps/server 目录下运行（需要 dist 编译产物）");
   process.exit(1);
 }
-require(path.join(SERVER_ROOT, "node_modules", "dotenv")).config({ path: path.join(SERVER_ROOT, ".env") });
+// 手写 .env 解析（生产 pnpm 结构下 dotenv 不一定可 require，去依赖化）
+try {
+  for (const line of fs.readFileSync(path.join(SERVER_ROOT, ".env"), "utf-8").split("\n")) {
+    const m = line.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)\s*$/);
+    if (m && process.env[m[1]] === undefined) process.env[m[1]] = m[2].replace(/^["']|["']$/g, "");
+  }
+} catch (e) { console.error(".env 读取失败:", e.message); process.exit(1); }
 
-const COZE_API_KEY = process.env.COZE_API_KEY || "";
+let COZE_API_KEY = process.env.COZE_API_KEY || "";
 const COZE_SPACE_ID = process.env.COZE_SPACE_ID || "";
-if (!COZE_API_KEY) {
-  console.error("COZE_API_KEY 未配置（.env）。请先配置 Coze 个人访问令牌再运行。");
-  process.exit(1);
-}
 
 // dist 内 crypto.util 的编译位置随构建结构可能为 dist/common 或 dist/src/common，两处都试
-let encrypt;
+let encrypt, decrypt;
 for (const p of ["dist/common/crypto.util.js", "dist/src/common/crypto.util.js"]) {
   const full = path.join(SERVER_ROOT, p);
-  if (fs.existsSync(full)) { encrypt = require(full).encrypt; break; }
+  if (fs.existsSync(full)) { ({ encrypt, decrypt } = require(full)); break; }
 }
-if (!encrypt) { console.error("找不到 dist 里的 crypto.util（encrypt）"); process.exit(1); }
+if (!encrypt) { console.error("找不到 dist 里的 crypto.util（encrypt/decrypt）"); process.exit(1); }
 
-const { PrismaClient } = require(path.join(SERVER_ROOT, "node_modules", "@prisma/client"));
+// pnpm workspace 下 @prisma/client 可能在 server 直下或仓库根，两处都试
+let PrismaClient;
+for (const p of [
+  path.join(SERVER_ROOT, "node_modules", "@prisma/client"),
+  path.join(SERVER_ROOT, "..", "..", "node_modules", "@prisma/client"),
+]) {
+  try { ({ PrismaClient } = require(p)); break; } catch { /* 下一个 */ }
+}
+if (!PrismaClient) { console.error("找不到 @prisma/client"); process.exit(1); }
 const prisma = new PrismaClient();
+
+/** env 没有 PAT 时的回退：从库内真 bot 记录取。
+ *  实测生产的 5 条真 bot apiKey 是**明文 pat_**（当年入库未加密→chat 的 decrypt 必失败
+ *  ="点击没反应"根因），故优先直取明文；没有明文再尝试解密密文记录。 */
+async function resolveApiKey() {
+  if (COZE_API_KEY) return;
+  const plain = await prisma.botConfig.findFirst({
+    where: { apiKey: { startsWith: "pat_" } },
+    orderBy: { updatedAt: "desc" },
+  });
+  if (plain) {
+    COZE_API_KEY = plain.apiKey;
+    console.log(`PAT 从库内明文记录「${plain.name}」取得（${COZE_API_KEY.slice(0, 8)}···长度${COZE_API_KEY.length}）`);
+    return;
+  }
+  const real = await prisma.botConfig.findFirst({
+    where: {
+      status: "ACTIVE",
+      NOT: [{ apiKey: "sk_dev_placeholder" }, { botId: { startsWith: "coze_" } }],
+    },
+    orderBy: { updatedAt: "desc" },
+  });
+  if (!real) { console.error("库内无可用 PAT 来源，且 COZE_API_KEY 未配置。"); process.exit(1); }
+  try {
+    const pat = decrypt(real.apiKey);
+    if (!/^pat_/.test(pat)) { console.error(`解密结果非 pat_ 格式（来源 ${real.name}），中止。`); process.exit(1); }
+    COZE_API_KEY = pat;
+    console.log(`PAT 已从库内「${real.name}」解密取得（${pat.slice(0, 8)}···长度${pat.length}）`);
+  } catch (e) {
+    console.error(`解密失败（来源 ${real.name}）：${e.message}`);
+    process.exit(1);
+  }
+}
+
+/** 把 PAT 永久保存到后台「第三方配置」（董事长 2026-07-17 指示：免得后期又找不到）。
+ *  存储格式与 ThirdPartyConfigLoader 一致：configKey=third_party.coze，
+ *  configValue=encrypt(JSON.stringify({apiKey}))，merge 已有字段不覆盖。
+ *  服务启动时 syncToEnv 自动写回 process.env.COZE_API_KEY；后台第三方配置页可见（掩码）。 */
+async function saveToThirdPartyConfig() {
+  const KEY = "third_party.coze";
+  const row = await prisma.configSystem.findUnique({ where: { configKey: KEY } });
+  let merged = {};
+  if (row) {
+    try { merged = JSON.parse(decrypt(row.configValue)); } catch { try { merged = JSON.parse(row.configValue); } catch { merged = {}; } }
+  }
+  merged.apiKey = COZE_API_KEY;
+  const stored = encrypt(JSON.stringify(merged));
+  await prisma.configSystem.upsert({
+    where: { configKey: KEY },
+    update: { configValue: stored, description: "Coze（智能体）密钥·脚本回存 2026-07-17" },
+    create: { configKey: KEY, configValue: stored, description: "Coze（智能体）密钥·脚本回存 2026-07-17" },
+  });
+  console.log("🗄️ PAT 已保存到后台第三方配置（third_party.coze·加密），重启后自动同步 env");
+}
+
+/** 修复明文 apiKey：重新 encrypt 回写。chat 链路 decrypt(明文) 必失败——这是
+ *  「5 个真智能体点击都不能用」的直接根因；加密后即恢复可用，且消除明文落库。 */
+async function fixPlaintextKeys() {
+  const plains = await prisma.botConfig.findMany({ where: { apiKey: { startsWith: "pat_" } } });
+  for (const b of plains) {
+    await prisma.botConfig.update({ where: { id: b.id }, data: { apiKey: encrypt(b.apiKey) } });
+    console.log(`🔐 已加密回写：${b.name}`);
+  }
+  if (!plains.length) console.log("无明文 apiKey 需修复（已处理过）");
+}
 
 /** 共同守则：拼进每个人设末尾（领域边界 + 平台语气） */
 const COMMON_RULES = `
@@ -149,7 +224,24 @@ async function cozePublish(botId) {
   if (json.code !== 0) throw new Error(`发布失败: ${JSON.stringify(json)}`);
 }
 
+/** env 显式给了新 PAT 时：把库内全部真 bot（botId 为纯数字串）的 apiKey 刷成新 PAT。
+ *  背景：旧 PAT 已过期（Coze 4101），5 个既有智能体即使解密正常也会被 Coze 拒——
+ *  换新令牌必须连旧 bot 一起刷，对话才能活。 */
+async function refreshRealBotKeys() {
+  if (!process.env.COZE_API_KEY) return; // 只有显式提供新 PAT 时才刷
+  const real = await prisma.botConfig.findMany({ where: { NOT: [{ botId: { startsWith: "coze_" } }] } });
+  for (const b of real.filter((x) => /^\d{5,}$/.test(x.botId))) {
+    await prisma.botConfig.update({ where: { id: b.id }, data: { apiKey: encrypt(COZE_API_KEY) } });
+    console.log(`🔄 已用新 PAT 刷新：${b.name}`);
+  }
+}
+
 (async () => {
+  await resolveApiKey();           // 先取 PAT（env 显式提供优先，其次库内）
+  await saveToThirdPartyConfig();  // PAT 永久入后台第三方配置（防再丢）
+  await fixPlaintextKeys();        // 把明文加密回写（修明文落库）
+  await refreshRealBotKeys();      // env 给了新 PAT 时连旧 bot 凭证一起刷新
+
   // 1. 下架占位智能体（幂等）：占位凭证一对话必失败，广场不陈列坏品
   const down = await prisma.botConfig.updateMany({
     where: { OR: [{ apiKey: "sk_dev_placeholder" }, { botId: { startsWith: "coze_" } }], status: "ACTIVE" },

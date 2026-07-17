@@ -178,7 +178,9 @@ export class BotService {
       },
     });
     if (!bot) throw new BusinessException(ErrorCode.NOT_FOUND, "智能体不存在");
-    const { ...rest } = bot;
+    // 🔴 原为 `const { ...rest } = bot`——解构漏写 apiKey 项等于什么都没剥，
+    // C 端 detail 接口把（明文存储时期的）PAT 原样下发 = 令牌泄露事故
+    const { apiKey: _apiKey, ...rest } = bot;
     return rest;
   }
 
