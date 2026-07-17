@@ -10,6 +10,7 @@
  */
 import { computed, ref, watch } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import { cdnImage } from '@/utils/image'
 
 interface Props { src?: string | null; name?: string }
 const props = withDefaults(defineProps<Props>(), { src: '', name: '' })
@@ -22,6 +23,9 @@ const hasImg = computed(() => {
   const s = typeof props.src === 'string' ? props.src.trim() : ''
   return s !== '' && !JUNK_AVATAR_RE.test(s) && !imgError.value
 })
+
+// COS 头像追加 imageMogr2 缩略(120 宽·webp)：头像展示尺寸 ≤120rpx，原图直出纯浪费（utils/image.ts）
+const displaySrc = computed(() => cdnImage(props.src as string, 120))
 
 // 昵称首字（中文/英文取第一个可见字符）
 const initial = computed(() => (props.name || '').trim().slice(0, 1))
@@ -46,7 +50,7 @@ const bgColor = computed(() => {
 
 <template>
   <view class="sa-root">
-    <image v-if="hasImg" class="sa-fill" :src="src as string" mode="aspectFill" lazy-load @error="imgError = true" />
+    <image v-if="hasImg" class="sa-fill" :src="displaySrc" mode="aspectFill" lazy-load @error="imgError = true" />
     <view v-else class="sa-fill sa-fb" :style="{ background: bgColor }">
       <text v-if="initial" class="sa-init">{{ initial }}</text>
       <AppIcon v-else name="user" :size="18" color="rgba(255,255,255,0.92)" />

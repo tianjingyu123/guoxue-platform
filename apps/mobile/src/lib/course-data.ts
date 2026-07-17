@@ -47,7 +47,8 @@ export interface CourseDetail {
   detailImages: string[] // 课程介绍详情图（后台编辑器上传·简介区按顺序无缝拼接展示）
   isEnrolled: boolean; progress: number
 }
-// @data-needs: 课程章节, 参数 courseId, 返回 [{id,title,duration,isFree,lessons:[{id,title,duration,isFree,isCompleted}]}]
+// @data-needs: 课程章节, 参数 courseId, 返回 [{id,title,duration(秒),isFree,lessons:[{id,title,duration(秒),isFree,isCompleted}]}]
+// 🔴 duration 单位统一为秒（DB CourseChapter.duration 真源即秒·播放页 formatTime/详情页 fmtLessonDur 同口径）
 export interface CourseLesson { id: string; title: string; duration: number; isFree: boolean; isCompleted?: boolean }
 export interface CourseChapter { id: string; title: string; duration: number; isFree: boolean; lessons: CourseLesson[] }
 // @data-needs: 课程评价, 参数 courseId, 返回 [{id,user:{id,name,avatar},rating,content,createdAt}]

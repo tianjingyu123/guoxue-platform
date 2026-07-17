@@ -64,10 +64,11 @@ export interface MallBanner {
   to: string
   href: string
 }
+// 🔴 合规红线：接后端真实活动配置前禁止金额/折扣类承诺（广告法——无真实活动背书的"立减/8折/买赠"即虚假宣传）
 export const mallBanners: MallBanner[] = [
-  { id: 1, title: '新人专享', subtitle: '首单立减20元', from: '#d0405a', to: '#c41e3a', href: '/shop/coupons' },
-  { id: 2, title: '国学典籍', subtitle: '周易全系列8折', from: '#d4b87d', to: '#c9a96e', href: '/mall/category?cat=books' },
-  { id: 3, title: '开运饰品', subtitle: '买二赠一', from: '#3b82f6', to: '#2563eb', href: '/mall/category?cat=jewelry' },
+  { id: 1, title: '新人专享', subtitle: '精选好物推荐', from: '#d0405a', to: '#c41e3a', href: '/shop/coupons' },
+  { id: 2, title: '国学典籍', subtitle: '周易典籍专区', from: '#d4b87d', to: '#c9a96e', href: '/mall/category?cat=books' },
+  { id: 3, title: '开运饰品', subtitle: '匠心饰品精选', from: '#3b82f6', to: '#2563eb', href: '/mall/category?cat=jewelry' },
 ]
 
 /** 电商直播（rail 横滑） */
@@ -185,7 +186,7 @@ export const cartCount = 3
 export interface SpecOption { id: string; label: string; price: number; stock: number }
 export interface SpecGroup { name: string; options: SpecOption[] }
 export interface ProductReview {
-  id: number
+  id: number | string
   user: { name: string; avatar: string }
   rating: number
   content: string
@@ -200,6 +201,8 @@ export interface ProductDetail {
   subtitle: string
   images: string[]
   hasVideo: boolean
+  /** 商品视频地址（后端 videoUrl 透出，详情页播放按钮用；无则 undefined） */
+  videoUrl?: string
   price: number
   originalPrice: number
   coupon: { value: number; threshold: number }
@@ -245,77 +248,8 @@ export interface StoreData {
 /** 头像走 dicebear（与 circle-bots-data 约定一致） */
 const AVATAR = (seed: string) => `https://api.dicebear.com/7.x/avataaars/svg?seed=${seed}`
 
-export const productDetail: ProductDetail = {
-  id: 1,
-  title: '周易正义·十三经注疏本（全四册）',
-  subtitle: '唐·孔颖达 疏',
-  images: [`.webp`, `.webp`, `.webp`, `.webp`],
-  hasVideo: true,
-  price: 68,
-  originalPrice: 128,
-  coupon: { value: 10, threshold: 99 },
-  sales: 2341,
-  stock: 856,
-  specs: [
-    {
-      name: '版本',
-      options: [
-        { id: 'standard', label: '标准版', price: 68, stock: 500 },
-        { id: 'deluxe', label: '精装版', price: 128, stock: 200 },
-        { id: 'collector', label: '收藏版', price: 268, stock: 50 },
-      ],
-    },
-    {
-      name: '数量',
-      options: [
-        { id: '1', label: '1套', price: 0, stock: 999 },
-        { id: '2', label: '2套', price: 0, stock: 999 },
-        { id: '3', label: '3套', price: 0, stock: 999 },
-      ],
-    },
-  ],
-  rating: 4.9,
-  reviewCount: 1256,
-  tags: ['质量好', '包装精美', '内容详实', '印刷清晰'],
-  reviews: [
-    {
-      id: 1,
-      user: { name: '易学爱好者', avatar: AVATAR('yixue') },
-      rating: 5,
-      content: '非常好的版本，注疏详尽，印刷质量很高，纸张也很好。作为入门和进阶学习周易的必备书籍。',
-      images: [`.webp`, `.webp`],
-      date: '2024-03-15',
-      likes: 128,
-      spec: '精装版',
-    },
-    {
-      id: 2,
-      user: { name: '国学传承', avatar: AVATAR('guoxue') },
-      rating: 5,
-      content: '孔颖达的正义注疏是研究周易的权威版本，这个出版质量很好，值得收藏。',
-      images: [],
-      date: '2024-03-10',
-      likes: 86,
-      spec: '收藏版',
-    },
-    {
-      id: 3,
-      user: { name: '命理研究', avatar: AVATAR('mingli') },
-      rating: 4,
-      content: '书的内容没话说，就是物流有点慢，等了好几天。整体还是很满意的。',
-      images: [`.webp`],
-      date: '2024-03-08',
-      likes: 45,
-      spec: '标准版',
-    },
-  ],
-  description:
-    '《周易正义》是唐代孔颖达等奉敕编撰的儒家经典注疏，是"十三经注疏"之一，也是现存最早、最权威的《周易》注疏本。\n\n本书特点：\n• 原文+注释+疏解三位一体\n• 采用宋刻底本，校勘精审\n• 繁体竖排，古籍原貌\n• 全四册精装，便于翻阅收藏\n\n适合人群：\n• 周易研究者、国学爱好者\n• 命理学、风水学从业者\n• 高校古典文献学专业师生\n• 传统文化收藏爱好者',
-}
-
-export function getProductDetail(_id?: string | number): ProductDetail {
-  return productDetail
-}
+// 假商品样本 productDetail/getProductDetail 已删（2026-07-17 真金审计 P0-2）：
+// 曾作为 getProduct 失败回退，导致后端异常时用户对着一件不存在的假商品真金下单。
 
 /* ============================================================
    五、商品分类页（app/mall/category）
@@ -1312,6 +1246,7 @@ function adaptProductDetail(p: RawShopProduct): ProductDetail {
     // 有 images 用 images(轮播)，否则退回单张 cover，避免顶部封面空白（fixImgUrls：存量转义 URL 反转义）
     images: (Array.isArray(p.images) && p.images.length) ? fixImgUrls(p.images) : (p.cover ? [fixImgUrl(p.cover)] : []),
     hasVideo: !!p.videoUrl,
+    videoUrl: p.videoUrl ? fixImgUrl(p.videoUrl) : undefined,
     price,
     originalPrice: shopNum(p.originalPrice) || price,
     coupon: { value: 0, threshold: 0 },
@@ -1526,13 +1461,32 @@ function adaptMallReview(r: RawShopReview): FullReview {
 }
 
 export const shopApi = {
-  /** 商品详情 — GET /shop/products/:id */
+  /** 商品详情 — GET /shop/products/:id。失败直接抛给页面走错误态（P0-2：绝不回退假商品让用户真金下单）。
+   *  评分/评价数/前 2 条评价并行取自评价端点回填（P1-2）；评价拉取失败静默保持 0，不阻断商品展示。 */
   async getProduct(id: string): Promise<ProductDetail> {
-    try {
-      return adaptProductDetail(await apiGet<RawShopProduct>(`/shop/products/${id}`))
-    } catch {
-      return getProductDetail(id)
+    // 评价请求先行发起（与详情并行），失败吞掉返回 null
+    const reviewsPromise = apiGet<{ reviews?: RawShopReview[]; stats?: RawReviewStats }>(
+      `/shop/products/${id}/reviews?page=1&pageSize=2`,
+    ).catch(() => null)
+    const detail = adaptProductDetail(await apiGet<RawShopProduct>(`/shop/products/${id}`))
+    const res = await reviewsPromise
+    if (res) {
+      const stats: RawReviewStats = res.stats || {}
+      const raw = Array.isArray(res.reviews) ? res.reviews : []
+      detail.reviewCount = stats.count ?? raw.length
+      detail.rating = Math.round(Number(stats.average ?? 0) * 10) / 10
+      detail.reviews = raw.slice(0, 2).map((r): ProductReview => ({
+        id: r.id || '',
+        user: { name: r.user?.nickname || '匿名用户', avatar: r.user?.avatar || '' },
+        rating: r.rating ?? 5,
+        content: r.content || '',
+        images: Array.isArray(r.images) ? r.images : [],
+        date: shopFmtDate(r.createdAt),
+        likes: 0, // 后端评价无点赞体系
+        spec: '', // 后端评价未关联 SKU 规格
+      }))
     }
+    return detail
   },
 
   /** C 端店铺主页 — 商家信息 + 在售商品（GET /shop/store/:merchantId）。失败抛给页面走三态，不回退假数据 */

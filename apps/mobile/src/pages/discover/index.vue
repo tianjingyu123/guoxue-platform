@@ -82,6 +82,46 @@ function rightCol(type: string): FeedEnvelope[] {
 const firstLoading = ref(true)
 const loadError = ref(false)
 
+// SWR 首屏缓存（照首页 FEED_CACHE_KEY 模式）：只存七分区各自的第一页（6 张）——
+// 再次进入 tab 先渲染缓存跳过骨架屏，后台 loadFirstPages 静默刷新替换
+const DISCOVER_CACHE_KEY = 'discover:home:cache'
+
+/** 缓存写入：各分区首页快照（只截第一页 6 张控制体积；全空不写） */
+function writeSectionsCache() {
+  try {
+    const snap: Record<string, FeedEnvelope[]> = {}
+    let hasAny = false
+    CATEGORIES.forEach((c) => {
+      const first = sections[c.type].items.slice(0, 6)
+      if (first.length) hasAny = true
+      snap[c.type] = first
+    })
+    if (hasAny) uni.setStorageSync(DISCOVER_CACHE_KEY, snap)
+  } catch { /* 存储满等异常不影响主流程 */ }
+}
+
+/** 缓存恢复：命中任一分区即返回 true（骨架屏跳过）。结构校验：对象 + 每类 Array.isArray 兜底 */
+function restoreSectionsCache(): boolean {
+  let hit = false
+  try {
+    const raw = uni.getStorageSync(DISCOVER_CACHE_KEY) as unknown
+    if (raw && typeof raw === 'object') {
+      CATEGORIES.forEach((c) => {
+        const list = (raw as Record<string, unknown>)[c.type]
+        if (Array.isArray(list) && list.length) {
+          const s = sections[c.type]
+          s.items = list as FeedEnvelope[]
+          s.page = 1
+          s.loaded = true
+          s.noMore = list.length < 6
+          hit = true
+        }
+      })
+    }
+  } catch { /* 读缓存失败按未命中处理 */ }
+  return hit
+}
+
 /** 首屏加载：各分区并行拉第一页 6 张，返回空则该区不渲染 */
 async function loadFirstPages() {
   // 已有内容时（下拉刷新）不回骨架，静默重拉
@@ -104,6 +144,8 @@ async function loadFirstPages() {
   // lib 层 getCategoryFeed 吞错返回 []，页面区分不了「全失败」与「七类真的全空」；
   // 生产上七类同时为空几乎只可能是断网/接口挂 → 视为加载失败给整页重试（部分成功则正常显示成功分区）
   loadError.value = CATEGORIES.every((c) => sections[c.type].items.length === 0)
+  // SWR：刷新成功（非全空）后落盘各分区首页快照，供下次进 tab 秒开
+  if (!loadError.value) writeSectionsCache()
 }
 
 /** 整页错误态重试 */
@@ -135,6 +177,9 @@ async function loadMore(type: string) {
 }
 
 onMounted(() => {
+  // SWR：先恢复上次七分区首屏缓存——命中则立即上屏（跳过骨架屏），
+  // 随后 loadFirstPages 静默刷新（hadAny=true 不回骨架，失败保留已上屏内容）；未命中走原骨架流程
+  if (restoreSectionsCache()) firstLoading.value = false
   loadFirstPages()
   getPublishedLayout('discover').then((l) => { discoverBlocks.value = l.blocks }).catch(() => {})
 })

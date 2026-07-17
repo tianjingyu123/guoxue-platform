@@ -26,11 +26,20 @@ const selectedSpecs = ref<Record<string, string>>({ 版本: 'standard', 数量: 
 const submitting = ref(false)
 const recItems = ref<RecommendItem[]>([])
 
-async function fetchData(productId?: string) {
+// 当前商品 id（P1-12：重试必须传回真实 id，禁 || '1' 兜底跳到别的商品）
+const currentId = ref('')
+
+async function fetchData() {
+  if (!currentId.value) {
+    // 无 id 直接走错误态，绝不兜底展示 id=1 商品让用户误下单
+    error.value = true
+    loading.value = false
+    return
+  }
   loading.value = true
   error.value = false
   try {
-    const data = await shopApi.getProduct(productId || '1')
+    const data = await shopApi.getProduct(currentId.value)
     product.value = data
     // 底栏收藏态/购物车角标（未登录/失败静默降级，不阻塞详情渲染）
     shopApi.isProductFavorited(String(data.id)).then((v) => { isFavorite.value = v })
@@ -38,7 +47,7 @@ async function fetchData(productId?: string) {
       .then((res: { items?: Array<{ quantity: number }> }) => { cartCount.value = (res.items || []).reduce((s: number, i: { quantity: number }) => s + i.quantity, 0) })
       .catch(() => {})
     // 详情加载成功后拉取推荐（内置降级，无需 try/catch）
-    recItems.value = await recommendApi.getForScene('product_detail', String(product.value?.id ?? productId ?? '1'))
+    recItems.value = await recommendApi.getForScene('product_detail', String(product.value?.id ?? currentId.value))
   } catch (e) {
     error.value = true
   } finally {
@@ -47,8 +56,8 @@ async function fetchData(productId?: string) {
 }
 
 onLoad((query) => {
-  const id = (query?.id as string) || '1'
-  fetchData(id)
+  currentId.value = (query?.id as string) || ''
+  fetchData()
 })
 
 // 微信原生分享（好友 / 朋友圈）
@@ -120,12 +129,26 @@ function buyNow() {
   showSpecPanel.value = false
   navigateTo(`/shop/checkout?productId=${product.value.id}&quantity=${qty}`)
 }
-function goReviews() { navigateTo('/mall/product/reviews') }
+// P1-3：必须带商品 id 走动态路由 /mall/product/:id/reviews，不带 id 的静态入口是死链（评价页拿不到商品）
+function goReviews() {
+  if (!product.value?.id) return
+  navigateTo(`/mall/product/${product.value.id}/reviews`)
+}
 function goCart() { navigateTo('/shop/cart') }
 function goService() { navigateTo('/customer-service') }
 
 /** 购物车角标显示（超 99 显示 99+） */
 const cartBadge = computed(() => (cartCount.value > 99 ? '99+' : String(cartCount.value)))
+
+/** 商品视频播放（P2-10：原播放按钮无任何处理是死按钮）——uni video 组件全屏遮罩层，H5/小程序通用 */
+const showVideo = ref(false)
+function openVideo() {
+  if (!product.value?.videoUrl) {
+    uni.showToast({ title: '视频暂不可用', icon: 'none' })
+    return
+  }
+  showVideo.value = true
+}
 
 /** 收藏/取消收藏（持久化到 interaction/collect·乐观更新+失败回滚+防重复） */
 const favSubmitting = ref(false)
@@ -171,7 +194,7 @@ async function toggleFavorite() {
           <view class="slide">
             <image v-if="!failedImages.has(i)" lazy-load class="slide-img" :src="src" mode="aspectFill" @error="onImgError(i)" />
             <smart-cover v-else class="slide-img" :src="''" :title="product.title" type="product" deco :deco-size="120" />
-            <view v-if="i === 0 && product.hasVideo" class="play-wrap">
+            <view v-if="i === 0 && product.videoUrl" class="play-wrap" @tap.stop="openVideo">
               <view class="play-btn"><AppIcon name="play" :size="48" color="#1f1f1f" /></view>
             </view>
           </view>
@@ -198,14 +221,8 @@ async function toggleFavorite() {
         <text>销量 {{ product.sales }}</text>
         <text>库存 {{ product.stock }}</text>
       </view>
-      <!-- 优惠券仅在有真实面额时露出：coupon 目前是占位 {0,0}，无券不再显示"满0减0"骗用户（2026-07-16 修） -->
-      <view v-if="product.coupon && product.coupon.value > 0" class="coupon-entry">
-        <view class="coupon-left">
-          <text class="coupon-badge">券</text>
-          <text class="coupon-text">满{{ formatPrice(product.coupon.threshold) }}减{{ formatPrice(product.coupon.value) }}</text>
-        </view>
-        <view class="coupon-claim"><text class="coupon-claim-text">领取</text><AppIcon name="chevron-right" :size="26" color="var(--brand)" /></view>
-      </view>
+      <!-- 优惠券入口整块已删（2026-07-17 真金审计 P1-11）：「领取」无任何点击处理是死按钮，
+           后端商品券体系接通前不留死入口（coupon 占位 {0,0} 本就恒隐藏，假数据雷一并排掉） -->
     </view>
 
     <!-- 进店入口（自营/未开通商家 merchant 为 null 时整块不渲染） -->
@@ -300,6 +317,20 @@ async function toggleFavorite() {
         <view class="btn-cart" hover-class="card-press" @tap="openSpecPanel('cart')"><text class="btn-cart-text">加入购物车</text></view>
         <view class="btn-buy" hover-class="card-press" @tap="openSpecPanel('buy')"><text class="btn-buy-text">立即购买</text></view>
       </view>
+    </view>
+
+    <!-- 商品视频全屏播放层 -->
+    <view v-if="showVideo" class="video-mask" @tap="showVideo = false">
+      <video
+        v-if="product.videoUrl"
+        class="video-player"
+        :src="product.videoUrl"
+        autoplay
+        controls
+        object-fit="contain"
+        @tap.stop
+      />
+      <view class="video-close" @tap.stop="showVideo = false"><AppIcon name="x" :size="40" color="#ffffff" /></view>
     </view>
 
     <!-- 规格面板 -->
@@ -454,6 +485,11 @@ async function toggleFavorite() {
 .sp-btn-cart-text { font-size: 28rpx; font-weight: 500; color: #fff; }
 .sp-btn-buy { flex: 1; height: 88rpx; border-radius: 999rpx; background: var(--brand); display: flex; align-items: center; justify-content: center; }
 .sp-btn-buy-text { font-size: 28rpx; font-weight: 500; color: #fff; }
+
+/* 商品视频全屏播放层 */
+.video-mask { position: fixed; inset: 0; z-index: 60; background: rgba(0,0,0,0.92); display: flex; align-items: center; justify-content: center; }
+.video-player { width: 100%; height: 60vh; }
+.video-close { position: absolute; top: calc(28rpx + var(--status-bar-height, 0px)); right: 28rpx; width: 72rpx; height: 72rpx; border-radius: 50%; background: rgba(255,255,255,0.15); display: flex; align-items: center; justify-content: center; }
 
 /* 三态：加载/错误 */
 .state-wrap { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 200rpx 0; min-height: 60vh; }

@@ -1,0 +1,64 @@
+/* ============================================================
+   热卜国学 · 品牌视觉签名（批0基建 · 2026-07-17）
+   全局装饰性签名元素：墨线 / 卷尾 / 回纹 / 宣纸噪点 / 盖章入场。
+
+   🔴 动效三铁律（全站新增动效必须遵守）：
+   ① 只许动 opacity / transform / background-position（不触发重排，不掉帧）；
+   ② 入场动效一次性播完即止（≤0.5s），循环动画仅限既有氛围类（呼吸灯/太极）；
+   ③ 动效服务内容不抢戏——能不加就不加，加了必须有含义（如盖章=确认/达成）。
+   ============================================================ */
+
+/* —— 墨线分隔：两端渐隐，替代生硬 1px 通栏灰线 —— */
+.ink-divider {
+  height: 2rpx;
+  background: var(--ink-line);
+  border: none;
+}
+
+/* —— 卷尾：列表到底的仪式感（两侧墨线 + 中间文案，配 voice.ts END"已到卷尾"） —— */
+.scroll-end {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  padding: 40rpx 48rpx;
+  font-size: 24rpx;
+  color: var(--text-tertiary);
+}
+.scroll-end::before,
+.scroll-end::after {
+  content: '';
+  flex: 1;
+  height: 2rpx;
+  background: var(--ink-line);
+}
+
+/* —— 回纹边框：中式「万字不断头」纹样框 ——
+   🔴 白名单：成就/会员权益卡、精华帖标记、证书类卡片、重要仪式性容器。
+   黑名单：普通卡片/按钮/列表项一律禁用（满屏回纹=庙会感）。
+   实现：SVG 回纹单元平铺为 border-image；不支持 border-image 的端回退为素色细框。 */
+.huiwen-border {
+  border: 12rpx solid rgba(196, 30, 58, 0.25); /* 回退：不支持 border-image 时的素色框 */
+  border-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='72' height='72'%3E%3Cdefs%3E%3Cpattern id='m' width='24' height='24' patternUnits='userSpaceOnUse'%3E%3Cpath d='M3 21 V3 H21 V21 H10 V10 H16 V16' fill='none' stroke='%23C41E3A' stroke-opacity='0.3' stroke-width='2'/%3E%3C/pattern%3E%3C/defs%3E%3Crect width='72' height='72' fill='url(%23m)'/%3E%3C/svg%3E") 24 round;
+}
+
+/* —— 宣纸噪点：细腻纸感纹理层（覆盖在容器上，需父容器 position:relative） ——
+   🔴 禁用于滚动长列表/每张列表卡：feTurbulence 逐元素渲染有成本，只给页头/仪式性大卡用。
+   注：小程序端 wxss 对 SVG filter 背景支持不一，不生效时静默降级为无纹理（可接受）。 */
+.paper-texture {
+  position: absolute;
+  inset: 0;
+  opacity: 0.6;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0.29 0 0 0 0 0.23 0 0 0 0 0.17 0 0 0 0.06 0'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* —— 盖章入场：印章「啪」地落下（大后坐回弹）——
+   用于 brand-seal 及成就解锁/签到完成等确认时刻。只动 opacity/transform，一次性。 */
+@keyframes seal-stamp-in {
+  0% { opacity: 0; transform: scale(1.8) rotate(-10deg); }
+  60% { opacity: 1; transform: scale(0.94) rotate(1deg); }
+  100% { opacity: 1; transform: scale(1) rotate(0deg); }
+}
+.seal-stamp-in {
+  animation: seal-stamp-in 0.42s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}

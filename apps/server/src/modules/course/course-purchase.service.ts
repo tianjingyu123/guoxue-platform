@@ -76,6 +76,15 @@ export class CoursePurchaseService {
         orderData.promotionType = pricing.appliedPromotion.type;
         orderData.promotionId = pricing.appliedPromotion.id;
       }
+      // 免费课「订阅即完成」（董事长 2026-07-18 拍板：免费课也要订阅动作，统一进「我的课程」）：
+      // ¥0 单无需支付流程直接置 PAID——getMyCourses 查 PAID/COMPLETED 即自动收录；
+      // checkAccess 对 price=0 本就放行，此单的意义是让用户在「我的课程」里找得到它。幂等由上方已购检查保证
+      if (Number(pricing.effectivePrice) === 0) {
+        orderData.status = "PAID";
+        orderData.paidAt = new Date();
+        orderData.payMethod = "FREE";
+        orderData.payAmount = 0;
+      }
       const order = await this.prisma.order.create({ data: orderData });
       return order;
     } finally {

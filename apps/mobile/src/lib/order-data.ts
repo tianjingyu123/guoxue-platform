@@ -690,11 +690,13 @@ export const orderApi = {
     throw new Error('电子发票功能即将开放，如需发票请联系在线客服')
   },
 
-  /** 退款进度（按 orderId 在用户售后单中匹配最新一条） */
+  /** 退款进度（按 orderId 在用户售后单中匹配最新一条）
+   *  P1-4：空 id 禁兜底取 list[0]——那是把别的订单的退款张冠李戴给用户看（资金信息错配），直接走错误态 */
   async refundProgress(orderId: string): Promise<RefundDetail> {
+    if (!orderId) throw new Error('暂无该订单的退款记录')
     const res = await apiGet<RawAfterSale[] | { items: RawAfterSale[] }>(`/shop/after-sales?page=1&pageSize=100`)
     const list: RawAfterSale[] = Array.isArray(res) ? res : (res?.items || [])
-    const matched = orderId ? list.find((a) => a.orderId === orderId) : list[0]
+    const matched = list.find((a) => a.orderId === orderId)
     if (!matched) throw new Error('暂无该订单的退款记录')
     return adaptRefundDetail(matched)
   },

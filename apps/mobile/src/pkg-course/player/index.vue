@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /** 课程播放页 P3 · V0 还原（视频态 + 图文态 + 音频态 + 试看态 + 完课态/证书弹层） */
 import { ref, computed, onMounted, onUnmounted, getCurrentInstance } from 'vue'
-import { onLoad, onHide } from '@dcloudio/uni-app'
+import { onLoad, onShow, onHide } from '@dcloudio/uni-app'
 import { goBack, navigateTo } from '@/utils/router'
 import AppIcon from '@/components/common/app-icon.vue'
 import SmartAvatar from '@/components/common/smart-avatar.vue'
@@ -315,6 +315,16 @@ onLoad((options) => {
 onMounted(() => {
   loadData()
 })
+
+// 🔴 买完课回来仍未购态修复：从收银台/详情页返回播放页时回刷购买态
+//    （微信渠道跳收银页支付后 PurchaseSheet 不会 emit paid，此前只进页拉一次，试看条/目录锁态永不解开）
+//    防抖：首次 onShow（进页）跳过，loadData 已并行拉取
+let firstShowDone = false
+onShow(() => {
+  if (!firstShowDone) { firstShowDone = true; return }
+  if (!courseId.value) return
+  void courseApi.checkAccess(courseId.value).then((v) => { hasAccess.value = v }).catch(() => { /* 静默 */ })
+})
 </script>
 
 <template>
@@ -471,7 +481,7 @@ onMounted(() => {
         <view class="p-btn-ph" />
       </view>
 
-      <!-- 音频态：封面大图 + 波形 + 播控 -->
+      <!-- 音频态：封面大图 + 波形 + 播控（🔴UI 层盖在收起的 video 之上——video 不卸载，声音与进度继续） -->
       <view v-if="isAudioMode" class="audio-stage">
         <view class="audio-cover"><image class="audio-cover-img" :src="content.cover || courseDetail?.cover || ''" mode="aspectFill" /></view>
         <view class="wave">
@@ -492,8 +502,11 @@ onMounted(() => {
         <view class="audio-exit" @tap="isAudioMode = false"><text class="audio-exit-t">恢复视频</text></view>
       </view>
 
-      <!-- 视频态 / 试看态 -->
-      <view v-else class="video" @tap="onPlayerTap">
+      <!-- 视频态 / 试看态
+           🔴 音频模式修复：此前 v-else 会把 video 整个卸载，playerCtx 指向已销毁元素，
+           音频台播放/暂停/进度/倍速控件全部空转。现改为音频模式下仅视觉收起（height:0 overflow:hidden），
+           video 元素常驻 DOM，切换前后 uni.createVideoContext('courseVideo') 始终作用于同一元素。 -->
+      <view class="video" :class="{ 'video--audio': isAudioMode }" @tap="onPlayerTap">
         <video
           id="courseVideo"
           class="video-el"
@@ -723,6 +736,8 @@ onMounted(() => {
 
 /* 视频 16:9（padding-top 撑高，X5 安全） */
 .video { position: relative; width: 100%; padding-top: 56.25%; background: #000; }
+/* 音频模式：video 收起不卸载（尺寸归零仍在 DOM，声音/timeupdate/seek 全部继续；恢复视频只是撑回高度） */
+.video--audio { padding-top: 0; height: 0; overflow: hidden; }
 .video-el { position: absolute; inset: 0; width: 100%; height: 100%; background: #000; }
 
 /* 不可播诚实态 */

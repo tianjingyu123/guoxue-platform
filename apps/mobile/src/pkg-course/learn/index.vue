@@ -51,10 +51,10 @@ function toEnrolledSame(c: PlannedCourse) {
   navigateTo(`/courses/${c.courseId}/player`)
 }
 function viewCertificate(c: PlannedCourse) { navigateTo(`/courses/${c.courseId}/certificate`) }
-// 🔴 别名表里没有 /course/home 和 /mine/browse-history —— 这两个入口原本点了没反应。
-//    真实别名：/courses（课程首页）、/history（浏览历史）
+// 🔴 别名表里没有 /course/home —— 该入口原本点了没反应。真实别名：/courses（课程首页）
 function goExplore() { navigateTo('/courses') }
-function goFavorites() { navigateTo('/history') }
+// 🔴「我的收藏」此前误跳 /history（浏览历史）——正确别名 /favorites → pkg-mine/favorites/index
+function goFavorites() { navigateTo('/favorites') }
 function goReviews() { navigateTo('/mine/my-comments') }
 function goWorks() { navigateTo('/mine/submissions') }
 

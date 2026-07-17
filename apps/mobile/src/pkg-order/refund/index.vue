@@ -180,7 +180,8 @@ onLoad((q) => {
   } catch (e) {
     safeBottom.value = 0
   }
-  if (q?.id) orderId.value = q.id
+  // P1-4：入口（订单列表/详情）传的是 orderId，原来只读 q.id 恒空 → 兼容两种参数名
+  orderId.value = (q?.orderId as string) || (q?.id as string) || ''
 })
 
 onMounted(() => { loadData() })

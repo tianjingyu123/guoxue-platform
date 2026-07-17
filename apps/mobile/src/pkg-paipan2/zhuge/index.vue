@@ -4,6 +4,9 @@
  * 心诚仪式：安静默想所问之事，随心输入三个汉字 → 结果页本地重算
  * 取舍：①开始前先试算一次，接住引擎「不在康熙字典库」错误 toast 提示换字（引擎已弃 cnchar 改直查康熙字典库）
  *       ②补测算历史弹层（本地 rebu:zhuge-history · 上限 50，沿用梅花易数范式）
+ *       ③性能（2026-07-17 审计）：签库+康熙笔画共约 968KB JSON 随 zhuge-engine 静态引入，
+ *         未摇签先下全量数据——输入页改动态 import()（点「开始」才加载引擎），
+ *         result 页保持静态引（引擎打进独立 chunk，两处共享同一份，不重复下载）
  */
 import { ref, computed } from 'vue'
 import ToolHeader from '@/components/paipan/tool-header.vue'
@@ -11,24 +14,41 @@ import PaperCard from '@/components/paipan/paper-card.vue'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
-import { paiZhuge, isHan } from '@/pkg-paipan2/lib/zhuge-engine'
 import { loadZhugeHistory, clearZhugeHistory, type ZhugeHistoryRecord } from './history'
+
+// 汉字判定：与 zhuge-engine 的 isHan 同一正则。此处本地内联而非从引擎 import——
+// 输入校验每次击键都要跑，静态引引擎会把 968KB 签库/笔画库拖进输入页首包（性能后置的初衷就没了）
+const HAN_RE = /^[一-鿿㐀-䶿]$/u
+const isHan = (ch: string) => HAN_RE.test(ch)
 
 const chars = ref('')
 const trimmed = computed(() => chars.value.trim())
 const charList = computed(() => Array.from(trimmed.value))
 const valid = computed(() => charList.value.length === 3 && charList.value.every(isHan))
 
-function submit() {
-  if (!valid.value) return
-  // 预检：生僻字不在康熙字典库时提前拦截（占卜须准确，不静默兜底）
+// 防重入：动态加载引擎期间重复点「开始」不重复触发
+let submitting = false
+
+async function submit() {
+  if (!valid.value || submitting) return
+  submitting = true
   try {
-    paiZhuge(trimmed.value)
-  } catch (e) {
-    uni.showToast({ title: e instanceof Error ? e.message : '起卦失败，请换字再测', icon: 'none' })
-    return
+    // 摇签动作后才动态加载引擎（签库+康熙笔画数据随 chunk 此刻才下载）
+    const { paiZhuge } = await import('@/pkg-paipan2/lib/zhuge-engine')
+    // 预检：生僻字不在康熙字典库时提前拦截（占卜须准确，不静默兜底）
+    try {
+      paiZhuge(trimmed.value)
+    } catch (e) {
+      uni.showToast({ title: e instanceof Error ? e.message : '起卦失败，请换字再测', icon: 'none' })
+      return
+    }
+    navigateTo(`/pkg-paipan2/zhuge/result?input=${encodeURIComponent(trimmed.value)}`)
+  } catch {
+    // 弱网下引擎 chunk 加载失败：给明确提示，可重试
+    uni.showToast({ title: '网络不佳，加载签库失败，请重试', icon: 'none' })
+  } finally {
+    submitting = false
   }
-  navigateTo(`/pkg-paipan2/zhuge/result?input=${encodeURIComponent(trimmed.value)}`)
 }
 
 // ─── 测算历史（本地存储弹层） ───

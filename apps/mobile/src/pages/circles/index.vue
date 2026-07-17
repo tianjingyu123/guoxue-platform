@@ -35,19 +35,46 @@ const loading = ref(true)
 const error = ref(false)
 const myStats = ref<MyCircleStats>({ joinedCount: 0, postCount: 0, likeReceived: 0 })
 
-/** 发现圈子网格（随分类变化，单独重载） */
-async function loadCircles() {
-  loading.value = true
-  error.value = false
+// SWR 首屏缓存（照首页 FEED_CACHE_KEY 模式）：只存默认「推荐」分类的首屏列表——
+// 再次进入 tab 先渲染缓存跳过骨架屏，后台静默刷新整批替换
+const CIRCLES_CACHE_KEY = 'circles:home:cache'
+// 请求序号守卫（照首页 feedReqSeq 模式）：静默刷新与切分类/下拉刷新可能并发，
+// 慢的旧响应晚到会覆盖新结果——响应回来时序号已不是最新则整体丢弃
+let circlesReqSeq = 0
+
+/** 发现圈子网格（随分类变化，单独重载）。
+ *  silent=true 为 SWR 后台静默刷新：不回骨架屏；失败时保留已上屏的缓存内容（不切错误态）。 */
+async function loadCircles(silent = false) {
+  const seq = ++circlesReqSeq
+  if (!silent) {
+    loading.value = true
+    error.value = false
+  }
   try {
     const res = await circleApi.list({ category: category.value })
+    if (seq !== circlesReqSeq) return // 过期响应：丢弃，由更新的请求负责上屏
     circles.value = res.data
     markJoined()
+    error.value = false
+    // SWR 缓存：只存「推荐」分类首屏。isJoined 属用户态，落盘前抹掉防换号后串显；
+    // 上屏后由 loadExtras 拉到的 joinedIds 经 markJoined 重新回填
+    if (category.value === '') {
+      try {
+        if (res.data.length > 0) {
+          uni.setStorageSync(CIRCLES_CACHE_KEY, res.data.map((c) => ({ ...c, isJoined: false })))
+        } else {
+          // 列表真空：清掉旧缓存，否则下次进页永远先闪一屏已不存在的旧圈子
+          uni.removeStorageSync(CIRCLES_CACHE_KEY)
+        }
+      } catch { /* 存储满等异常不影响主流程 */ }
+    }
   } catch {
+    if (seq !== circlesReqSeq) return
+    if (silent) return // 静默刷新失败：旧内容留存，不闪错误页
     error.value = true
     circles.value = []
   } finally {
-    loading.value = false
+    if (seq === circlesReqSeq && !silent) loading.value = false
   }
 }
 
@@ -84,7 +111,23 @@ function openCircle(c: Circle) {
   else navigateTo(`/pkg-circle/circles/preview?id=${c.id}`)
 }
 
-onMounted(() => { loadCircles(); loadExtras() })
+onMounted(() => {
+  // SWR：先读上次「推荐」分类首屏缓存——命中则立即上屏（跳过骨架屏），后台静默刷新替换；
+  // 无缓存走原骨架屏流程。缓存读坏（非数组）按未命中处理。
+  let cached: Circle[] = []
+  try {
+    const raw = uni.getStorageSync(CIRCLES_CACHE_KEY)
+    if (Array.isArray(raw)) cached = raw
+  } catch { /* 读缓存失败按未命中处理 */ }
+  if (cached.length > 0) {
+    circles.value = cached
+    loading.value = false
+    loadCircles(true)
+  } else {
+    loadCircles()
+  }
+  loadExtras()
+})
 // 下拉刷新：重拉圈子列表与附加数据
 onPullDownRefresh(async () => {
   try {

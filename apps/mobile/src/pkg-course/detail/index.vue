@@ -6,8 +6,8 @@
  * 三态：未购态（含购买半屏弹层）/ 已购态（进度+继续学习）/ 秒杀态（价格区差异）
  * 真连接口全部保留：courseApi.getDetail/getChapters/getReviews/checkAccess/isFavorited/toggleFavorite
  */
-import { ref, computed, onMounted } from 'vue'
-import { onLoad, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
+import { ref, computed, onMounted, nextTick, getCurrentInstance } from 'vue'
+import { onLoad, onShow, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 import { navigateTo, goBack } from '@/utils/router'
 import { useShare } from '@/composables/useShare'
 import AppIcon from '@/components/common/app-icon.vue'
@@ -16,6 +16,7 @@ import SmartAvatar from '@/components/common/smart-avatar.vue'
 import PurchaseSheet from '@/components/common/purchase-sheet.vue'
 import TeacherCertBadge from '@/components/common/teacher-cert-badge.vue'
 import { courseApi } from '@/lib/course-data'
+import { purchaseApi } from '@/lib/purchase-data'
 import { teacherApi, type TeacherInstituteBadge } from '@/lib/teacher-data'
 import { recommendApi } from '@/lib/recommend-data'
 import { track } from '@/composables/useTrack'
@@ -39,6 +40,7 @@ const instructorCert = ref<{ verifiedTitle: string; institute: TeacherInstituteB
 
 // 收藏写操作防重复
 const favSubmitting = ref(false)
+const subscribing = ref(false)
 // 自定义导航栏状态栏占位高度（避免顶部返回/收藏/分享按钮被系统状态栏遮挡）
 const statusBarHeight = ref(0)
 const showConsultPanel = ref(false)
@@ -46,6 +48,10 @@ const showGroupPanel = ref(false)
 const hasAccess = ref(false)
 const showPurchase = ref(false)
 const isLiked = ref(false)
+// onShow 回刷防抖：首次 onShow（进页）跳过，仅从收银台/其他页返回时回刷购买态
+let firstShowDone = false
+// 播放页「写个评价」跳来（?tab=review）→ 加载完成后滚动定位到评价区
+let pendingReviewScroll = false
 
 const totalLessons = computed(() => chapters.value.reduce((s, c) => s + c.lessons.length, 0))
 const totalDuration = computed(() => chapters.value.reduce((s, c) => s + c.duration, 0))
@@ -65,15 +71,18 @@ const nextLesson = computed(() => {
 
 const priceText = (v: any) => Math.round(Number(v) * 100) / 100
 
-function fmtDuration(min: number) {
+// 课程总时长（入参秒·与课时口径统一；当前模板未渲染，保留供后续总时长展示）
+function fmtDuration(seconds: number) {
+  const min = Math.round((seconds || 0) / 60)
   if (min >= 60) { const h = Math.floor(min / 60); const m = min % 60; return `${h}小时${m > 0 ? m + '分钟' : ''}` }
   return `${min}分钟`
 }
 function fmtStudents(n: number) { return (n ?? 0).toLocaleString() }
-// 课时时长展示为「分:秒」样式（V0 数字等宽风格·后端 duration 单位分钟）
-function fmtLessonDur(min: number) {
-  const m = Math.floor(min)
-  return `${String(m).padStart(2, '0')}:00`
+// 课时时长展示为「分:秒」（🔴后端/DB 真源 duration 单位是秒·与播放页 formatTime 同口径，此前误当分钟输出"600:00"）
+function fmtLessonDur(seconds: number) {
+  const mins = Math.floor((seconds || 0) / 60)
+  const secs = Math.floor((seconds || 0) % 60)
+  return `${mins}:${String(secs).padStart(2, '0')}`
 }
 // 点击课时：试看/已购 → 直达播放页并播放；未购付费章节 → 提示购买
 function onLessonTap(lesson: any) {
@@ -102,10 +111,32 @@ async function toggleFavorite() {
 function onShare() {
   openPoster('course', course.value?.id || courseId.value)
 }
-function onPurchase() {
+async function onPurchase() {
   if (hasAccess.value) { onContinueLearning(); return }
   // F3 电商漏斗埋点：购买点击（D-T1）
   track.custom('buy_click', { type: 'course', id: course.value?.id })
+  // 免费课「免费订阅」（董事长 2026-07-18 拍板）：不进支付链，但要有订阅动作——
+  // 调购买端点建 ¥0 单，后端直接置 PAID（course-purchase.service 同批改）→ 自动进「我的课程」。
+  // 幂等：已订阅再点后端报"已购买"，视同成功。未登录 401 由请求层跳登录，回跳后 onShow 回刷解锁。
+  if (course.value?.isFree) {
+    if (subscribing.value) return
+    subscribing.value = true
+    try {
+      await purchaseApi.createOrder({ type: 'COURSE', targetId: courseId.value })
+      hasAccess.value = true
+      uni.showToast({ title: '已订阅，可在「我的课程」查看', icon: 'none' })
+    } catch (e) {
+      const msg = (e as Error)?.message || ''
+      if (msg.includes('已购买') || msg.includes('无需重复')) {
+        hasAccess.value = true // 已订阅过：视同成功直接解锁
+      } else if (msg) {
+        uni.showToast({ title: msg, icon: 'none' })
+      }
+    } finally {
+      subscribing.value = false
+    }
+    return
+  }
   showPurchase.value = true
 }
 async function onPurchased() {
@@ -128,6 +159,11 @@ function onContinueLearning() {
 function goMember() { navigateTo('/pkg-mine/memberships/index') }
 /** 课程评价页（F3·学员写评价 + 讲师回复双视角） */
 function goReviews() { navigateTo(`/courses/${courseId.value}/reviews`) }
+/** 在线客服：智能客服会话页（路由别名 /customer-service → pkg-agent/agent/customer-service） */
+function goCustomerService() {
+  showConsultPanel.value = false
+  navigateTo('/customer-service')
+}
 /** 讲师公开主页（讲师 userId 缺失时不可点；未认证讲师由主页 404 错误态诚实提示） */
 function goTeacherProfile() {
   const uid = course.value?.instructor?.id
@@ -174,12 +210,48 @@ async function loadData() {
     error.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
+    // ?tab=review：内容渲染后滚动定位评价区（只消费一次）
+    if (pendingReviewScroll && !error.value) {
+      pendingReviewScroll = false
+      scrollToReviews()
+    }
   }
 }
 
 onLoad((options) => {
   courseId.value = options?.id || '1'
+  // 播放页「写个评价」带 ?tab=review 跳来 → 加载完成后滚动到评价区（此前该参数被静默丢弃落在页顶）
+  pendingReviewScroll = options?.tab === 'review'
 })
+
+// 🔴 买完课回来仍未购态修复：从收银台/其他页返回本页时回刷购买态
+//    （微信渠道跳收银页支付后 PurchaseSheet 不会 emit paid，此前只 onMounted 拉一次永远停在未购态）
+onShow(() => {
+  if (!firstShowDone) { firstShowDone = true; return }
+  if (!courseId.value || loading.value) return
+  void courseApi.checkAccess(courseId.value).then((v) => { hasAccess.value = v })
+})
+
+// 评价区滚动定位（页级滚动·锚点 #reviewsCard，参照文章页 adCommentsAnchor 机制的页面版）
+const inst = getCurrentInstance()
+function scrollToReviews() {
+  nextTick(() => {
+    // 等图片/推荐位撑开布局后再取位（延时取位·pageScrollTo 带动画）
+    setTimeout(() => {
+      const q = uni.createSelectorQuery().in(inst?.proxy as any)
+      q.select('#reviewsCard').boundingClientRect()
+      // uni 类型定义 scrollOffset 回调必填：结果统一从 exec(res) 取，此处传 no-op
+      q.selectViewport().scrollOffset(() => { /* no-op */ })
+      q.exec((res) => {
+        const rect = res?.[0] as { top?: number } | null
+        const vp = res?.[1] as { scrollTop?: number } | null
+        if (rect && typeof rect.top === 'number') {
+          uni.pageScrollTo({ scrollTop: (vp?.scrollTop || 0) + rect.top - 12, duration: 300 })
+        }
+      })
+    }, 200)
+  })
+}
 
 // 微信原生分享（好友 / 朋友圈）
 const { toAppMessage, toTimeline, openPoster } = useShare()
@@ -372,8 +444,8 @@ onMounted(() => {
         </template>
       </view>
 
-      <!-- ══ 区块6 学员评价摘要 ══ -->
-      <view class="card">
+      <!-- ══ 区块6 学员评价摘要（#reviewsCard：播放页「写个评价」?tab=review 滚动锚点） ══ -->
+      <view id="reviewsCard" class="card">
         <view class="review-head">
           <text class="score-big">{{ course.rating || '—' }}</text>
           <view class="stars">
@@ -448,7 +520,7 @@ onMounted(() => {
         </view>
         <view class="buy-btn" hover-class="btn-press" @tap="onPurchase">
           <text class="buy-btn-main">
-            <text v-if="course.isFree">免费学习</text>
+            <text v-if="course.isFree">{{ subscribing ? '订阅中…' : '免费订阅' }}</text>
             <text v-else-if="isSeckill">立即抢购 ¥{{ priceText(course.price) }}</text>
             <text v-else>立即购买 ¥{{ priceText(course.price) }}</text>
           </text>
@@ -477,19 +549,15 @@ onMounted(() => {
           <view @tap="showConsultPanel = false"><app-icon name="x" :size="36" color="#999999" /></view>
         </view>
         <view class="sheet-body">
-          <view class="consult-item">
+          <!-- 在线客服：接现成智能客服会话页（此前无 @tap 是死按钮）；
+               「微信咨询」项已删——无真实课程顾问二维码，不留扫码死按钮 -->
+          <view class="consult-item" hover-class="card-press" @tap="goCustomerService">
             <view class="consult-ico" style="background:#C41E3A"><app-icon name="message-circle" :size="36" color="#ffffff" /></view>
             <view class="consult-meta">
               <text class="consult-name">在线客服</text>
               <text class="consult-sub">9:00-22:00 在线解答</text>
             </view>
-          </view>
-          <view class="consult-item">
-            <view class="consult-ico" style="background:#34A853"><app-icon name="qr-code" :size="36" color="#ffffff" /></view>
-            <view class="consult-meta">
-              <text class="consult-name">微信咨询</text>
-              <text class="consult-sub">扫码添加课程顾问</text>
-            </view>
+            <app-icon name="chevron-right" :size="30" color="#999999" />
           </view>
         </view>
       </view>

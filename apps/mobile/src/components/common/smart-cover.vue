@@ -12,6 +12,7 @@
  */
 import { computed, ref, watch, onMounted, onUnmounted, getCurrentInstance } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import { cdnImage } from '@/utils/image'
 
 interface Props {
   src?: string | null
@@ -143,8 +144,9 @@ const inView = ref(false)
 // #ifndef H5
 inView.value = true
 // #endif
-// image 实际拿到的 src：仅当有图且已进视口才给真值，否则空（元素仍在、opacity:0，作为观察目标不显破图）
-const displaySrc = computed(() => (hasImg.value && inView.value ? (props.src as string) : ''))
+// image 实际拿到的 src：仅当有图且已进视口才给真值，否则空（元素仍在、opacity:0，作为观察目标不显破图）。
+// COS 图追加 imageMogr2 缩略(480 宽·webp)：列表封面原图实测 101.6KB → 裁剪后 12.2KB（utils/image.ts）
+const displaySrc = computed(() => (hasImg.value && inView.value ? cdnImage(props.src as string, 480) : ''))
 // @error 兜底守卫：懒加载未进视口时 src 为空不算真失败，避免误翻生成封面（破坏兜底链）
 function onImgError() {
   if (!displaySrc.value) return
@@ -169,6 +171,10 @@ onUnmounted(() => { io && io.disconnect(); io = null })
 // 无封面图但有视频源 → 用视频首帧兜底（#t=0.5 让 H5 定位到第 0.5s 首帧，避免纯黑帧）
 const hasVideoFrame = computed(() => !hasImg.value && typeof props.videoUrl === 'string' && props.videoUrl.trim() !== '')
 const videoFrameSrc = computed(() => (props.videoUrl || '') + '#t=0.5')
+// 视频首帧同样纳入 inView 懒加载门（照 image 分支 displaySrc 模式）：
+// 此前 video 分支不受门控，视口外的卡片一挂载就给 mp4 真 src 直接拉流——深滚列表多路视频并发下载。
+// 未进视口时给空 src（元素仍在，作为观察目标），进视口才赋真值开始取首帧。
+const displayVideoSrc = computed(() => (hasVideoFrame.value && inView.value ? videoFrameSrc.value : ''))
 /** 大字水印模式：deco 或无标题（小缩略图/卡下已有标题） */
 const decoMode = computed(() => props.deco || !props.title)
 /** 水印字：标题首二字（去书名号等标点）→ 类型字 → 雅 */
@@ -184,7 +190,8 @@ const decoChars = computed(() => {
   <video
     v-else-if="hasVideoFrame"
     class="sc-full"
-    :src="videoFrameSrc"
+    :src="displayVideoSrc"
+    preload="metadata"
     :controls="false"
     :show-center-play-btn="false"
     :show-play-btn="false"

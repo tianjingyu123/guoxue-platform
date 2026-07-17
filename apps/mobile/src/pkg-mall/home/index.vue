@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /** 商城首页 - 从原型 app/mall/page.tsx 1:1 迁移 */
 import { ref, computed, onMounted } from 'vue'
-import { onPullDownRefresh } from '@dcloudio/uni-app'
+import { onPullDownRefresh, onShow } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import ProductCard from '@/components/cards/product-card.vue'
 import LiveCard from '@/components/cards/live-card.vue'
@@ -50,7 +50,9 @@ async function fetchCartCount() {
 }
 const cartBadge = computed(() => (cartCount.value > 99 ? '99+' : String(cartCount.value)))
 
-onMounted(() => { fetchData(); fetchCartCount() })
+onMounted(() => { fetchData() })
+// 角标走 onShow（首次进入也触发）：加购后返回首页角标要跟着变，onMounted 只拉一次会显示陈旧数量
+onShow(() => { fetchCartCount() })
 
 // 下拉刷新：重拉商城首页数据与购物车角标
 onPullDownRefresh(async () => {
@@ -131,8 +133,8 @@ function goCategory(id: string) { navigateTo(id === 'all' ? '/mall/category' : `
         </scroll-view>
       </view>
 
-      <!-- Banner 轮播 -->
-      <view class="banner">
+      <!-- Banner 轮播（空数据时整块隐藏，不留 220rpx 空白块） -->
+      <view v-if="mallBanners.length" class="banner">
         <swiper class="banner-swiper" circular autoplay :interval="4000" :duration="500" @change="onBannerChange">
           <swiper-item v-for="b in mallBanners" :key="b.id">
             <view class="banner-slide" :style="{ background: `linear-gradient(90deg, ${b.from}, ${b.to})` }" @tap="navigateTo(b.href)">

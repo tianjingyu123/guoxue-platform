@@ -82,10 +82,9 @@ const iconCategories = computed(() => categoryTabs.value.filter((t) => t.id !== 
 const currentBanner = ref(0)
 let bannerTimer: ReturnType<typeof setInterval> | null = null
 
-// 秒杀倒计时（时:分:秒；派生自当日 23:59:59）
-const countdown = ref({ h: '00', m: '00', s: '00' })
-let cdTimer: ReturnType<typeof setInterval> | null = null
-let cdEnd = 0
+// 🔴 秒杀倒计时已移除（诚实原则）：原倒计时派生自「当日 23:59:59」并非真实活动截止时间，
+//    且到 0 后恒显 00:00:00 仍可购买=假倒计时。flashSale 本身派生自划线价（无活动配置真源），
+//    故只保留「限时优惠」标语义。待后端有真实活动截止字段（activity endTime）后再恢复倒计时组件。
 
 // 排序底部弹层
 const showSortSheet = ref(false)
@@ -113,25 +112,6 @@ function startBannerTimer() {
   }
 }
 
-function updateCountdown() {
-  const remaining = Math.max(0, cdEnd - Date.now())
-  const h = Math.floor(remaining / 3600000)
-  const m = Math.floor((remaining % 3600000) / 60000)
-  const s = Math.floor((remaining % 60000) / 1000)
-  countdown.value = {
-    h: String(h).padStart(2, '0'),
-    m: String(m).padStart(2, '0'),
-    s: String(s).padStart(2, '0'),
-  }
-}
-
-function startCountdown() {
-  const now = new Date()
-  cdEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59).getTime()
-  updateCountdown()
-  cdTimer = setInterval(updateCountdown, 1000)
-}
-
 // 头部：推荐轮播 + 秒杀 + 分类 tab（并行，失败不阻塞主列表）
 async function loadHeader() {
   try {
@@ -146,7 +126,6 @@ async function loadHeader() {
     newCourses.value = home.newCourses ?? []
     categoryTabs.value = tabs
     startBannerTimer()
-    if (flashSaleCourses.value.length) startCountdown()
   } catch {
     /* 头部失败静默；分类 tab 兜底仅「全部」 */
     if (!categoryTabs.value.length) categoryTabs.value = [{ id: 'all', name: '全部' }]
@@ -173,7 +152,6 @@ onPullDownRefresh(async () => {
 
 onUnmounted(() => {
   if (bannerTimer) clearInterval(bannerTimer)
-  if (cdTimer) clearInterval(cdTimer)
 })
 
 function retry() { loadHeader(); refresh() }
@@ -287,16 +265,11 @@ function openMyLearning() { navigateTo('/courses/my-learning') }
 
       <!-- ══ 区块4 限时秒杀横条（有秒杀活动才显示）══ -->
       <view v-if="flashSaleCourses.length" class="seckill">
+        <!-- 倒计时已删（原派生自当日 23:59:59 非真实活动截止·到 0 恒显 00:00:00=假倒计时）；
+             只留「限时优惠」标+划线价锚点诚实表达折扣语义，接真活动截止配置后恢复倒计时 -->
         <view class="seckill-head">
           <text class="seckill-tag">限时优惠</text>
-          <view class="countdown">
-            <text class="cd-label">距结束</text>
-            <text class="cd-num">{{ countdown.h }}</text>
-            <text class="cd-sep">:</text>
-            <text class="cd-num">{{ countdown.m }}</text>
-            <text class="cd-sep">:</text>
-            <text class="cd-num">{{ countdown.s }}</text>
-          </view>
+          <text class="seckill-sub">精选好课 · 折后价立省</text>
         </view>
         <scroll-view class="seckill-cards" scroll-x :show-scrollbar="false">
           <view class="seckill-cards-inner">
@@ -519,10 +492,7 @@ function openMyLearning() { navigateTo('/courses/my-learning') }
 .seckill { background: rgba(201,169,110,0.14); border-radius: 36rpx; padding: 28rpx 32rpx; display: flex; flex-direction: column; gap: 24rpx; }
 .seckill-head { display: flex; align-items: center; gap: 20rpx; }
 .seckill-tag { flex-shrink: 0; background: #C41E3A; color: #fff; font-size: 22rpx; font-weight: 700; padding: 6rpx 16rpx; border-radius: 12rpx; letter-spacing: 2rpx; }
-.countdown { display: flex; align-items: center; gap: 8rpx; }
-.cd-label { font-size: 26rpx; color: #6E6E73; margin-right: 4rpx; }
-.cd-num { min-width: 40rpx; text-align: center; background: #2C2C2C; color: #fff; font-size: 24rpx; font-weight: 700; padding: 4rpx 6rpx; border-radius: 8rpx; font-family: "SF Mono", "Roboto Mono", monospace; }
-.cd-sep { color: #2C2C2C; font-size: 24rpx; font-weight: 700; }
+.seckill-sub { font-size: 26rpx; color: #6E6E73; }
 .seckill-more { margin-left: auto; display: flex; align-items: center; }
 .seckill-more-txt { font-size: 26rpx; color: #999999; }
 .seckill-cards { white-space: nowrap; }

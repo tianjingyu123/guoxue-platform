@@ -138,7 +138,8 @@
   100% { background-position: 200% 0; }
 }
 .skeleton {
-  background: linear-gradient(90deg, #ececec 25%, #f5f5f5 37%, #ececec 63%);
+  /* 视觉签名批0：冷灰 #ececec/#f5f5f5 → 暖灰（与宣纸底同族，等待也在品牌里） */
+  background: linear-gradient(90deg, #EFEBE4 25%, #F7F4EF 37%, #EFEBE4 63%);
   background-size: 400% 100%;
   animation: skeleton-shimmer 1.4s ease-in-out infinite;
   border-radius: 8rpx;
