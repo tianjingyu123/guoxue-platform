@@ -156,7 +156,7 @@ function focusComment() {
   <view class="ad">
     <!-- 顶栏：sticky 毛玻璃（返回 + 文章 + 分享） -->
     <view class="ad-topbar">
-      <view class="ad-top-btn" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
+      <view class="ad-top-btn ad-top-back" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
       <text class="ad-top-title">文章</text>
       <view class="ad-top-btn" @tap="openShare"><app-icon name="share-2" :size="36" color="#6E6E73" /></view>
     </view>
@@ -349,6 +349,8 @@ function focusComment() {
   position: relative; z-index: 20;
 }
 .ad-top-btn { padding: 8rpx; }
+/* 返回按钮触控热区≥88rpx：容器扩大+负margin保持视觉位置（仅返回，分享不动） */
+.ad-top-back { width: 88rpx; height: 88rpx; padding: 0; margin: -14rpx; display: flex; align-items: center; justify-content: center; }
 .ad-top-title { flex: 1; font-size: 32rpx; font-weight: 600; color: var(--text-primary, #2c2c2c); }
 
 /* 骨架屏（V0 ①：封面块 + 标题两行 + 作者行 + 四行正文） */

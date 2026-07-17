@@ -358,7 +358,7 @@ async function toggleFavorite() {
 .price-off { font-size: 20rpx; padding: 2rpx 12rpx; border-radius: 8rpx; background: rgba(196,30,58,0.1); color: var(--brand); }
 .p-title { display: block; font-size: 34rpx; font-weight: 600; color: var(--text-strong); margin-top: 18rpx; line-height: 1.4; }
 .p-official { display: inline-block; font-size: 22rpx; font-weight: 600; color: #fff; background: var(--brand); padding: 2rpx 12rpx; border-radius: 8rpx; margin-right: 10rpx; vertical-align: middle; }
-.p-sub { display: block; font-size: 26rpx; color: var(--text-soft); margin-top: 6rpx; }
+.p-sub { display: block; font-size: 28rpx; color: var(--text-soft); margin-top: 6rpx; }
 .p-meta { display: flex; gap: 28rpx; margin-top: 18rpx; font-size: 22rpx; color: var(--text-soft); }
 .coupon-entry { display: flex; align-items: center; justify-content: space-between; margin-top: 18rpx; padding: 14rpx 18rpx; border-radius: 12rpx; background: rgba(196,30,58,0.05); border: 1rpx solid rgba(196,30,58,0.2); }
 .coupon-left { display: flex; align-items: center; gap: 12rpx; }
@@ -384,7 +384,7 @@ async function toggleFavorite() {
 .guard-item { width: 50%; display: flex; align-items: center; gap: 14rpx; margin-bottom: 20rpx; }
 .guard-icon { width: 56rpx; height: 56rpx; border-radius: 50%; background: rgba(196,30,58,0.1); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .guard-name { display: block; font-size: 22rpx; font-weight: 500; color: var(--text-strong); }
-.guard-desc { display: block; font-size: 18rpx; color: var(--text-soft); }
+.guard-desc { display: block; font-size: 22rpx; color: var(--text-soft); }
 /* 评价 */
 .review-head { display: flex; align-items: center; justify-content: space-between; }
 .review-head-l { display: flex; align-items: center; gap: 10rpx; }
@@ -401,7 +401,7 @@ async function toggleFavorite() {
 .rv-name { font-size: 24rpx; color: var(--text-strong); }
 .rv-stars { display: flex; gap: 2rpx; margin-top: 2rpx; }
 .rv-date { font-size: 20rpx; color: var(--text-soft); }
-.rv-content { display: block; font-size: 26rpx; color: var(--text-strong); margin-top: 14rpx; line-height: 1.5; }
+.rv-content { display: block; font-size: 28rpx; color: var(--text-strong); margin-top: 14rpx; line-height: 1.6; }
 .rv-imgs { display: flex; gap: 12rpx; margin-top: 14rpx; }
 .rv-img { width: 110rpx; height: 110rpx; border-radius: 12rpx; }
 .rv-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 14rpx; }
@@ -414,7 +414,7 @@ async function toggleFavorite() {
    注意不加 white-space: pre-line —— HTML 源码里的换行符会被渲染成多余空白行（图片间的另一层"缝"） */
 .desc-section { margin-top: 24rpx; background: var(--surface); overflow: hidden; }
 .desc-head { padding: 28rpx 28rpx 8rpx; }
-.desc { display: block; font-size: 26rpx; color: var(--text); line-height: 1.7; }
+.desc { display: block; font-size: 30rpx; color: var(--text); line-height: 1.7; }
 .desc-empty { padding: 0 28rpx 28rpx; color: var(--text-soft); }
 /* 底部操作栏 */
 .action-bar { position: fixed; bottom: 0; left: 0; right: 0; z-index: 30; background: var(--surface); border-top: 1rpx solid var(--border, #eee); padding: 16rpx 28rpx calc(16rpx + env(safe-area-inset-bottom)); display: flex; align-items: center; gap: 24rpx; }

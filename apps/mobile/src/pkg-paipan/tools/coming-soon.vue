@@ -55,7 +55,7 @@ function goBack() {
 .page { min-height: 100vh; background: var(--bg-paper); display: flex; flex-direction: column; }
 
 .topbar { display: flex; align-items: center; padding: 12rpx 24rpx; padding-top: calc(12rpx + var(--status-bar-height, 0)); border-bottom: 2rpx solid var(--border); background: var(--card); }
-.topbar-back { padding: 4rpx; margin-left: -4rpx; }
+.topbar-back { width: 88rpx; height: 88rpx; margin: -18rpx -18rpx -18rpx -22rpx; display: flex; align-items: center; justify-content: center; } /* 触控热区≥88rpx：容器扩大+负margin保持视觉位置 */
 .topbar-title { flex: 1; text-align: center; font-size: 30rpx; font-weight: 700; color: var(--text-ink); padding-right: 48rpx; }
 .topbar-spacer { width: 0; }
 

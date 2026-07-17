@@ -320,7 +320,7 @@ onUnmounted(() => { if (audioCtx) { try { audioCtx.destroy() } catch {} } })
   <view class="pd">
     <!-- 顶栏：sticky 毛玻璃（V0 .topbar） -->
     <view class="pd-topbar">
-      <view class="pd-top-btn" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
+      <view class="pd-top-btn pd-top-back" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
       <text class="pd-top-title">帖子详情</text>
       <view class="pd-top-btn" @tap="showMenu = !showMenu"><app-icon name="more-horizontal" :size="40" color="#6E6E73" /></view>
     </view>
@@ -506,6 +506,8 @@ onUnmounted(() => { if (audioCtx) { try { audioCtx.destroy() } catch {} } })
   position: relative; z-index: 20;
 }
 .pd-top-btn { padding: 8rpx; }
+/* 返回按钮触控热区≥88rpx：容器扩大+负margin保持视觉位置（仅返回，⋯菜单不动） */
+.pd-top-back { width: 88rpx; height: 88rpx; padding: 0; margin: -14rpx; display: flex; align-items: center; justify-content: center; }
 .pd-top-title { flex: 1; font-size: 32rpx; font-weight: 600; color: var(--text-primary, #2c2c2c); }
 
 /* ⋯ 菜单（V0 gov-menu 浮层） */

@@ -148,6 +148,19 @@
   --font-serif: 'Noto Serif SC', 'Songti SC', 'STSong', serif;
 }
 
+/* ---------- 字号阶梯（《全平台体验标准 V1.0》§二 · 全平台唯一字号真源） ----------
+   新代码禁止手写字号魔法数字，一律引用下列变量。
+   caption 22rpx 为全站最小字号，禁止更小（纯装饰性徽标数字除外）。
+   正文行高统一 1.6（page 全局已设，见 App.vue）。 */
+:root {
+  --fs-display: 44rpx;   /* 特大标题/金额 · font-weight 700 */
+  --fs-title-lg: 36rpx;  /* 页面主标题 · font-weight 600 */
+  --fs-title: 32rpx;     /* 卡片/区块标题 · font-weight 600 */
+  --fs-body: 30rpx;      /* 正文 · font-weight 400 */
+  --fs-body-sm: 26rpx;   /* 次要正文 · font-weight 400 */
+  --fs-caption: 22rpx;   /* 辅助说明（最小值·禁止更小） · font-weight 400 */
+}
+
 /* ---------- 五行专属色 + indigo 辅助色（从原型 globals.css 1:1 迁移） ---------- */
 :root {
   --wuxing-wood: #2d8a4e;   /* 木 - 青绿色 */

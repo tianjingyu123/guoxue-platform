@@ -427,13 +427,13 @@ function applyRole(role: string) {
 .id-name-row { display: flex; align-items: center; gap: 12rpx; }
 .id-name { font-size: 34rpx; font-weight: 700; color: #2B2620; }
 .title-chip { padding: 2rpx 12rpx; border: 2rpx solid #C41E3A; border-radius: 8rpx; background: rgba(196,30,58,0.06); }
-.title-chip-txt { font-family: var(--font-serif); font-size: 20rpx; font-weight: 600; color: #C41E3A; letter-spacing: 2rpx; }
-.id-sign { display: block; font-size: 24rpx; color: #8A8578; margin-top: 10rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.title-chip-txt { font-family: var(--font-serif); font-size: 24rpx; font-weight: 600; color: #C41E3A; letter-spacing: 2rpx; }
+.id-sign { display: block; font-size: 26rpx; color: #8A8578; margin-top: 10rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .id-stats { display: flex; gap: 56rpx; margin-top: 28rpx; padding-left: 4rpx; }
 .st { display: flex; align-items: baseline; gap: 10rpx; }
 .st-b { font-size: 30rpx; font-weight: 700; color: #2B2620; }
-.st-l { font-size: 22rpx; color: #8A8578; }
+.st-l { font-size: 24rpx; color: #8A8578; }
 
 /* 会员金卡条 */
 .gold-bar { margin-top: 32rpx; height: 128rpx; border-radius: 24rpx; padding: 0 28rpx; display: flex; align-items: center; gap: 20rpx; }
@@ -444,31 +444,31 @@ function applyRole(role: string) {
 .gb-title { display: block; font-size: 26rpx; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .gb-title--member { color: #5A431E; }
 .gb-title--guest { color: #2B2620; }
-.gb-sub { display: block; font-size: 22rpx; margin-top: 4rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gb-sub { display: block; font-size: 24rpx; margin-top: 4rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .gb-sub--member { color: #8A6B38; }
 .gb-sub--guest { color: #8A8578; }
 .gb-cta { flex-shrink: 0; height: 56rpx; padding: 0 28rpx; border-radius: 28rpx; display: flex; align-items: center; }
 .gb-cta--member { background: #2B2620; }
 .gb-cta--guest { background: linear-gradient(105deg, #F3E3C3, #E8CE9C); box-shadow: 0 2rpx 8rpx rgba(180,140,70,.25); }
-.gb-cta-txt { font-size: 22rpx; }
+.gb-cta-txt { font-size: 24rpx; }
 .gb-cta-txt--member { color: #E8CE9C; font-weight: 500; }
 .gb-cta-txt--guest { color: #5A431E; font-weight: 700; }
 
 /* 通用区块标题 */
 .sec-title { display: flex; align-items: baseline; padding: 36rpx 32rpx 20rpx; }
 .sec-h { font-family: var(--font-serif); font-size: 32rpx; font-weight: 700; color: #2B2620; }
-.sec-more { margin-left: auto; font-size: 22rpx; color: #B0A99A; }
+.sec-more { margin-left: auto; font-size: 24rpx; color: #B0A99A; }
 
 /* ② 继续区 */
 .cont-row { width: 100%; white-space: nowrap; }
 .cont-row-inner { display: inline-flex; gap: 16rpx; padding: 0 32rpx; }
 .cont-card { display: inline-block; width: 300rpx; vertical-align: top; background: #fff; border-radius: 20rpx; padding: 20rpx; box-shadow: 0 2rpx 8rpx rgba(60,50,40,.06); white-space: normal; }
-.cont-tag { display: inline-block; font-size: 18rpx; color: #C9A96E; border: 2rpx solid #C9A96E; border-radius: 6rpx; padding: 0 8rpx; }
+.cont-tag { display: inline-block; font-size: 22rpx; color: #C9A96E; border: 2rpx solid #C9A96E; border-radius: 6rpx; padding: 0 8rpx; }
 .cont-main { display: flex; gap: 16rpx; align-items: center; margin-top: 14rpx; }
 .cont-th { width: 80rpx; height: 104rpx; border-radius: 12rpx; background: linear-gradient(135deg, rgba(196,30,58,0.08), rgba(201,169,110,0.12)); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .cont-txt { flex: 1; min-width: 0; }
 .cont-t { display: block; font-size: 24rpx; font-weight: 500; color: #2B2620; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.cont-sub { display: block; font-size: 20rpx; color: #B0A99A; margin-top: 4rpx; }
+.cont-sub { display: block; font-size: 24rpx; color: #B0A99A; margin-top: 4rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .prog { height: 8rpx; background: #F0EBE1; border-radius: 4rpx; margin-top: 16rpx; overflow: hidden; }
 .prog-i { height: 100%; background: #C9A96E; border-radius: 4rpx; }
 
@@ -477,33 +477,33 @@ function applyRole(role: string) {
 .empty-th { width: 112rpx; height: 84rpx; border-radius: 16rpx; background: linear-gradient(135deg, rgba(196,30,58,0.06), rgba(201,169,110,0.12)); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .el-txt { flex: 1; min-width: 0; }
 .el-t { display: block; font-size: 26rpx; font-weight: 700; color: #2B2620; }
-.el-sub { display: block; font-size: 22rpx; color: #8A8578; margin-top: 6rpx; }
+.el-sub { display: block; font-size: 24rpx; color: #8A8578; margin-top: 6rpx; }
 .el-go { flex-shrink: 0; height: 52rpx; padding: 0 24rpx; border-radius: 26rpx; border: 2rpx solid #C41E3A; display: flex; align-items: center; }
-.el-go-txt { font-size: 22rpx; color: #C41E3A; }
+.el-go-txt { font-size: 24rpx; color: #C41E3A; }
 
 /* ③ 资产四宫格 */
 .assets { display: flex; margin: 28rpx 32rpx 0; background: #fff; border-radius: 24rpx; box-shadow: 0 2rpx 8rpx rgba(60,50,40,.06); }
 .asset { flex: 1; text-align: center; padding: 30rpx 0 26rpx; position: relative; }
 .asset + .asset::before { content: ''; position: absolute; left: 0; top: 28rpx; bottom: 28rpx; width: 2rpx; background: #F0EBE1; }
 .asset-b { display: block; font-family: var(--font-serif); font-size: 34rpx; font-weight: 700; color: #2B2620; }
-.asset-s { display: block; font-size: 20rpx; color: #8A8578; margin-top: 6rpx; }
+.asset-s { display: block; font-size: 24rpx; color: #8A8578; margin-top: 6rpx; }
 
 /* ④ 订单条 */
 .orders { margin: 20rpx 32rpx 0; background: #fff; border-radius: 24rpx; padding: 26rpx 28rpx 28rpx; box-shadow: 0 2rpx 8rpx rgba(60,50,40,.06); }
 .orders-head { display: flex; align-items: center; margin-bottom: 26rpx; }
 .orders-title { font-size: 26rpx; font-weight: 700; color: #2B2620; }
-.orders-more { margin-left: auto; font-size: 22rpx; color: #B0A99A; }
+.orders-more { margin-left: auto; font-size: 24rpx; color: #B0A99A; }
 .orders-row { display: flex; }
 .o-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 12rpx; }
 .o-icon { position: relative; width: 48rpx; height: 48rpx; display: flex; align-items: center; justify-content: center; }
 .o-dot { position: absolute; top: -10rpx; right: -14rpx; min-width: 28rpx; height: 28rpx; padding: 0 8rpx; border-radius: 14rpx; background: #C41E3A; color: #fff; font-size: 18rpx; line-height: 28rpx; text-align: center; }
-.o-label { font-size: 20rpx; color: #8A8578; }
+.o-label { font-size: 24rpx; color: #8A8578; }
 
 /* ⑤ 内容矩阵 */
 .matrix { display: flex; flex-wrap: wrap; margin: 20rpx 32rpx 0; background: #fff; border-radius: 24rpx; padding: 12rpx 0 16rpx; box-shadow: 0 2rpx 8rpx rgba(60,50,40,.06); }
 .m-item { width: 25%; display: flex; flex-direction: column; align-items: center; gap: 12rpx; padding: 26rpx 0 18rpx; position: relative; }
 .m-icon { position: relative; width: 48rpx; height: 48rpx; display: flex; align-items: center; justify-content: center; }
-.m-label { font-size: 20rpx; color: #8A8578; }
+.m-label { font-size: 24rpx; color: #8A8578; }
 .m-item.star .m-label { color: #8A6420; font-weight: 500; }
 .m-star-dot { position: absolute; top: -2rpx; right: -6rpx; width: 10rpx; height: 10rpx; border-radius: 50%; background: #C9A96E; }
 
@@ -511,7 +511,7 @@ function applyRole(role: string) {
 .roles { margin: 20rpx 32rpx 0; background: #fff; border-radius: 24rpx; padding: 8rpx 0; box-shadow: 0 2rpx 8rpx rgba(60,50,40,.06); overflow: hidden; }
 .roles-head { display: flex; align-items: baseline; padding: 24rpx 28rpx 12rpx; }
 .roles-title { font-size: 26rpx; font-weight: 700; color: #2B2620; }
-.roles-hint { margin-left: auto; font-size: 20rpx; color: #B0A99A; }
+.roles-hint { margin-left: auto; font-size: 24rpx; color: #B0A99A; }
 .role-row { display: flex; align-items: center; gap: 24rpx; height: 112rpx; padding: 0 28rpx; }
 .role-row + .role-row { border-top: 2rpx solid #F5F1EA; }
 .role-seal { width: 68rpx; height: 68rpx; border-radius: 16rpx; font-family: var(--font-serif); font-size: 30rpx; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
@@ -519,19 +519,19 @@ function applyRole(role: string) {
 .role-row.pending .role-seal { background: #F6F1E7; color: #B4884A; border: 2rpx solid #DFCBA4; }
 .role-txt { flex: 1; min-width: 0; }
 .role-name { display: block; font-size: 26rpx; font-weight: 700; color: #2B2620; }
-.role-sub { display: block; font-size: 20rpx; color: #8A8578; margin-top: 4rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.role-sub { display: block; font-size: 24rpx; color: #8A8578; margin-top: 4rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .role-row.joined .role-sub { color: #C41E3A; }
 .role-go { display: flex; align-items: center; gap: 4rpx; flex-shrink: 0; }
 .role-go-txt { font-size: 24rpx; font-weight: 500; color: #2B2620; }
 .role-apply { flex-shrink: 0; height: 52rpx; padding: 0 24rpx; border-radius: 26rpx; border: 2rpx solid #C9A96E; display: flex; align-items: center; }
-.role-apply-txt { font-size: 22rpx; color: #8A6420; }
+.role-apply-txt { font-size: 24rpx; color: #8A6420; }
 .role-more { display: flex; align-items: center; justify-content: center; gap: 8rpx; height: 80rpx; border-top: 2rpx solid #F5F1EA; }
-.role-more-txt { font-size: 22rpx; color: #B0A99A; }
+.role-more-txt { font-size: 24rpx; color: #B0A99A; }
 
 /* ⑦ 服务行 */
 .svc { display: flex; margin: 20rpx 32rpx 0; background: #fff; border-radius: 24rpx; padding: 12rpx 0 16rpx; box-shadow: 0 2rpx 8rpx rgba(60,50,40,.06); }
 .svc-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 12rpx; padding: 26rpx 0 18rpx; }
-.svc-label { font-size: 20rpx; color: #8A8578; }
+.svc-label { font-size: 24rpx; color: #8A8578; }
 
 /* 三态：骨架屏 / 错误态 */
 .skeleton { padding-top: 120rpx; display: flex; flex-direction: column; align-items: center; gap: 32rpx; }

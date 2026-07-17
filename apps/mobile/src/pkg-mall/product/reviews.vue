@@ -206,7 +206,7 @@ function setPreviewIndex(index: number) { if (previewImage.value) previewImage.v
 /* 顶部 */
 .header { position: sticky; top: 0; z-index: 40; background: var(--surface); border-bottom: 1rpx solid var(--border, #eee); padding-top: var(--status-bar-height, 0px); }
 .header-inner { display: flex; align-items: center; justify-content: space-between; padding: 0 28rpx; height: 88rpx; }
-.back-btn { width: 56rpx; height: 56rpx; display: flex; align-items: center; justify-content: center; }
+.back-btn { width: 88rpx; height: 88rpx; margin: 0 -16rpx; display: flex; align-items: center; justify-content: center; } /* 触控热区≥88rpx：容器扩大+负margin保持视觉位置 */
 .header-title { font-size: 30rpx; font-weight: 600; color: var(--text-strong); }
 .header-spacer { width: 56rpx; }
 /* 总览 */

@@ -226,7 +226,7 @@ function dateOnly(t?: string) { return t ? t.split(' ')[0] : '' }
   gap: 12rpx;
   padding: 12rpx 24rpx;
 }
-.sc-back { padding: 6rpx; }
+.sc-back { width: 88rpx; height: 88rpx; margin: -18rpx; display: flex; align-items: center; justify-content: center; } /* 触控热区≥88rpx：容器扩大+负margin保持视觉位置 */
 .sc-city {
   display: flex;
   align-items: center;

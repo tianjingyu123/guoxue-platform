@@ -44,7 +44,7 @@ navHeight.value = (sys.statusBarHeight || 0) + 44
 .page { min-height: 100vh; background: #ffffff; }
 .nav { position: fixed; top: 0; left: 0; right: 0; z-index: 50; background: #ffffff; border-bottom: 1px solid #ededed; }
 .nav-bar { display: flex; align-items: center; height: 44px; padding: 0 16px; }
-.nav-back { width: 32px; height: 32px; display: flex; align-items: center; }
+.nav-back { width: 44px; height: 44px; margin-right: -12px; display: flex; align-items: center; } /* 触控热区≥44px：容器扩大+负margin保持视觉位置（图标靠左不变） */
 .nav-title { flex: 1; text-align: center; font-size: 17px; font-weight: 600; color: #1a1a1a; }
 .nav-placeholder { width: 32px; }
 .scroll { height: 100vh; box-sizing: border-box; }

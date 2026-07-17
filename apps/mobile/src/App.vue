@@ -143,7 +143,7 @@ page {
   background-color: var(--bg-paper, #faf8f5);
   color: var(--text-ink, #2c2c2c);
   font-family: var(--font-sans, 'Noto Sans SC', 'PingFang SC', sans-serif);
-  font-size: 28rpx;
+  font-size: var(--fs-body, 30rpx); /* 全局基准=body 30rpx（《全平台体验标准 V1.0》字体阶梯） */
   line-height: 1.6;
 }
 

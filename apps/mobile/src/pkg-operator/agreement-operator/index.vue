@@ -105,7 +105,7 @@ function onAgree() {
 /* 自定义导航 */
 .ag-nav { background: #FFFFFF; border-bottom: 1rpx solid #ECE7DF; }
 .ag-nav-bar { height: 88rpx; display: flex; align-items: center; padding: 0 38rpx; }
-.ag-nav-back { width: 48rpx; height: 48rpx; display: flex; align-items: center; justify-content: center; }
+.ag-nav-back { width: 88rpx; height: 88rpx; margin: 0 -20rpx; display: flex; align-items: center; justify-content: center; } /* 触控热区≥88rpx：容器扩大+负margin保持视觉位置 */
 .ag-nav-back-ic { font-size: 44rpx; color: #2C2C2C; line-height: 1; }
 .ag-nav-title { flex: 1; text-align: center; font-size: 33rpx; font-weight: 600; color: #2C2C2C; }
 .ag-nav-placeholder { width: 48rpx; }

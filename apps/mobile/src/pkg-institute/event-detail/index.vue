@@ -159,7 +159,7 @@ function goEvents() {
 
 .nav-simple { position: fixed; top: 0; left: 0; right: 0; z-index: 20; background: #fff; border-bottom: 1px solid #ececec; }
 .nav-bar { height: 44px; display: flex; align-items: center; padding: 0 12px; gap: 8px; }
-.nav-back { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; margin-left: -4px; }
+.nav-back { width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; margin: 0 -6px 0 -10px; } /* 触控热区≥44px：容器扩大+负margin保持视觉位置 */
 .nav-title { font-size: 17px; font-weight: 600; color: #1a1a1a; }
 .not-found { display: flex; flex-direction: column; align-items: center; padding-top: 120px; gap: 12px; }
 .not-found-text { font-size: 14px; color: #9ca3af; }

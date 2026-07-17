@@ -232,7 +232,9 @@ $line: #EDEAE4;
 /* 自绘导航栏 */
 .nav { position: fixed; top: 0; left: 0; right: 0; z-index: 20; background: $paper; border-bottom: 1px solid $line; }
 .nav-bar { height: 44px; display: flex; align-items: center; padding: 0 12px; }
-.nav-back { width: 30px; height: 30px; border-radius: 50%; background: #fff; border: 1px solid $line; display: flex; align-items: center; justify-content: center; }
+/* 触控热区≥44px：外容器扩大+负margin，30px 视觉圆形由 ::before 保持不变 */
+.nav-back { width: 44px; height: 44px; margin: 0 -7px; position: relative; display: flex; align-items: center; justify-content: center; }
+.nav-back::before { content: ''; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 30px; height: 30px; border-radius: 50%; background: #fff; border: 1px solid $line; z-index: -1; box-sizing: border-box; }
 .nav-title { flex: 1; text-align: center; font-size: 17px; font-weight: 700; color: $ink; }
 .nav-placeholder { width: 30px; }
 .search-wrap { padding: 0 20rpx 16rpx; }

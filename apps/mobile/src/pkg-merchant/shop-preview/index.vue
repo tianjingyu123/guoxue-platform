@@ -146,7 +146,7 @@ load()
 .page { min-height: 100vh; background: #f5f5f5; }
 .nav { position: fixed; top: 0; left: 0; right: 0; z-index: 50; background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(8px); border-bottom: 1px solid #ededed; }
 .nav-bar { display: flex; align-items: center; height: 44px; padding: 0 16px; }
-.nav-back { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; }
+.nav-back { width: 44px; height: 44px; margin: 0 -6px; display: flex; align-items: center; justify-content: center; } /* 触控热区≥44px：容器扩大+负margin保持视觉位置 */
 .nav-title { flex: 1; text-align: center; font-size: 17px; font-weight: 600; color: #1a1a1a; }
 .scroll { height: 100vh; box-sizing: border-box; }
 

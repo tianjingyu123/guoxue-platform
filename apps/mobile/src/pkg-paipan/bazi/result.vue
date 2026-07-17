@@ -320,7 +320,7 @@ function onShare() {
 /* 顶栏 */
 .hdr { position: sticky; top: 0; z-index: 20; background: var(--card); border-bottom: 2rpx solid var(--border, rgba(0,0,0,0.08)); padding-top: var(--status-bar-height, 0); }
 .hdr-bar { display: flex; align-items: center; justify-content: space-between; padding: 10rpx 24rpx; }
-.hdr-back { padding: 4rpx; }
+.hdr-back { width: 88rpx; height: 88rpx; margin: -20rpx; display: flex; align-items: center; justify-content: center; } /* 触控热区≥88rpx：容器扩大+负margin保持视觉位置 */
 .hdr-title { font-size: 32rpx; font-weight: 700; color: var(--text-ink); }
 .hdr-actions { display: flex; align-items: center; gap: 8rpx; }
 .hdr-act { padding: 8rpx; }

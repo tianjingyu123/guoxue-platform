@@ -282,7 +282,7 @@ onShareTimeline(() => toTimeline({ title: shareTitle.value, path: sharePath() })
 <style scoped lang="scss">
 .page { min-height: 100vh; background: var(--bg-paper, #faf8f5); display: flex; flex-direction: column; }
 .hdr { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; justify-content: space-between; padding: 16rpx 24rpx; background: var(--card, #fff); border-bottom: 2rpx solid var(--border, #eee); padding-top: calc(var(--status-bar-height, 0px) + 16rpx); }
-.hdr-back { padding: 6rpx; }
+.hdr-back { width: 88rpx; height: 88rpx; margin: -18rpx; display: flex; align-items: center; justify-content: center; } /* 触控热区≥88rpx：容器扩大+负margin保持视觉位置 */
 .hdr-title { font-size: 32rpx; font-weight: 600; color: var(--text-ink, #2c2c2c); }
 .hdr-link { padding: 6rpx 12rpx; }
 .hdr-link-t { font-size: 24rpx; color: var(--brand); }
