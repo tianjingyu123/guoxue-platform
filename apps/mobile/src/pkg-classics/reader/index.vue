@@ -287,6 +287,9 @@ async function explain(seg: string) {
   }
 }
 
+/** AI 解读失败重试：重发当前句（失败态 aiResult=null 且 aiLoading=false，explain 缓存守卫不拦截，会真正重新请求） */
+function retryExplain() { if (aiSeg.value) explain(aiSeg.value) }
+
 // ── H5 选中任意文字 → 即时解读（在「点句」基础上支持自由划选片段）──
 const selectedText = ref('')
 function handleSelection() {
@@ -518,7 +521,10 @@ onLoad((q) => {
           <view class="rd-orig"><text class="rd-orig-txt">{{ aiSeg }}</text></view>
           <!-- AI 研读中动态卡（阶段文案+墨点晕开+伪进度·关抽屉不中断请求，重开续接进度） -->
           <view v-if="aiLoading" class="rd-ai-wait"><ai-thinking mode="translate" :since="aiThinkStart" /></view>
-          <view v-else-if="aiError" class="rd-ai-loading"><text class="rd-ai-err">{{ aiError }}</text></view>
+          <view v-else-if="aiError" class="rd-ai-loading">
+            <text class="rd-ai-err">{{ aiError }}</text>
+            <view class="rd-ai-retry" @tap="retryExplain"><text class="rd-ai-retry-txt">重试</text></view>
+          </view>
           <template v-else-if="aiResult">
             <view class="rd-ai-sec">
               <text class="rd-ai-label">白话译文</text>
@@ -719,7 +725,8 @@ export default { options: { styleIsolation: 'shared' } }
 }
 .rd-statusbar { height: var(--status-bar-height, 0px); }
 .rd-top-inner { display: flex; align-items: center; gap: 16rpx; height: 92rpx; padding: 0 16rpx; }
-.rd-icon-btn { width: 64rpx; height: 64rpx; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+/* 触控热区 88rpx（负 margin 抵消占位·无底色，视觉不变） */
+.rd-icon-btn { width: 88rpx; height: 88rpx; margin: -12rpx; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .rd-top-mid { flex: 1; min-width: 0; text-align: center; }
 .rd-top-title { display: block; font-size: 30rpx; font-weight: 600; color: var(--rd-fg); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .rd-top-sub { display: block; font-size: 22rpx; color: var(--rd-sub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -804,7 +811,10 @@ export default { options: { styleIsolation: 'shared' } }
 .rd-ai-loading { padding: 40rpx 0; text-align: center; color: var(--rd-sub, #999); font-size: 26rpx; }
 /* AI 研读中动态卡容器（替代原纯文字等待） */
 .rd-ai-wait { padding: 28rpx 8rpx 20rpx; }
-.rd-ai-err { color: var(--brand); }
+.rd-ai-err { display: block; color: var(--brand); }
+/* 失败态「重试」小钮：重发当前句 */
+.rd-ai-retry { display: inline-flex; align-items: center; justify-content: center; margin-top: 24rpx; min-height: 64rpx; padding: 0 48rpx; border: 2rpx solid var(--rd-brand, #a06a38); border-radius: 999rpx; &:active { opacity: 0.6; } }
+.rd-ai-retry-txt { font-size: 26rpx; font-weight: 500; color: var(--rd-brand, #a06a38); }
 .rd-ai-sec { margin-bottom: 28rpx; }
 .rd-ai-label { display: block; font-size: 24rpx; font-weight: 600; color: var(--rd-brand,#a06a38); margin-bottom: 12rpx; }
 .rd-ai-trans { font-size: 30rpx; line-height: 1.9; color: var(--rd-fg,#2c2c2c); }

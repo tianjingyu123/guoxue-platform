@@ -76,7 +76,8 @@
         </view>
       </view>
 
-      <view class="msg-list__end">— 已显示全部消息 —</view>
+      <!-- 接口单次最多取 50 条：满 50 条时如实提示截断，不谎称"已显示全部"（分页留后端项） -->
+      <view class="msg-list__end">{{ messages.length >= 50 ? '— 仅显示最近 50 条消息 —' : '— 已显示全部消息 —' }}</view>
     </view>
 
     <!-- 空态 -->
@@ -183,6 +184,10 @@ async function markAllRead() {
     await imApi.markAllNotifyRead()
     messages.value.forEach((m) => (m.isRead = true))
     counts.value = { system: 0, interaction: 0, transaction: 0, service: 0, income: 0, total: 0 }
+    uni.showToast({ title: '已全部标为已读', icon: 'none' })
+  } catch (e) {
+    // 失败必须提示：此前静默失败让用户以为已读成功（照 circles/notifications.vue 范式）
+    uni.showToast({ title: (e as Error)?.message || '操作失败，请重试', icon: 'none' })
   } finally {
     marking.value = false
   }

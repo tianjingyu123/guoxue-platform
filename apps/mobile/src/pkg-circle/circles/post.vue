@@ -5,7 +5,7 @@
  *       音频条(后端无音频·诚实降级不渲染) → 图片双列 → 触点卡 → 互动栏 → 评论区。
  *       三态 = V0 骨架屏 / 错误卡（评论区三态由统一组件自带）。
  * 评论区 = 统一 CommentSection 组件（列表+吸底输入条+乐观更新+楼中楼一站式，自写评论区已删）。
- * 「⋯」菜单：圈主/管理员(getJoinStatus.role) = 置顶/精华/删除（circleManageApi）；普通成员 = 举报（无端点·toast 口径与 live 页一致）。
+ * 「⋯」菜单：圈主/管理员(getJoinStatus.role) = 置顶/精华/删除（circleManageApi）；作者本人 = 删除（后端放行作者删帖）；其他成员 = 举报（gotoReport 真提交）。
  * 打赏区/弹窗：后端无打赏统计（reward 恒 0）→ 死代码已删（V0 注释同口径：诚实隐藏）。
  */
 import { ref, computed, nextTick, onUnmounted } from 'vue'
@@ -16,7 +16,7 @@ import SmartAvatar from '@/components/common/smart-avatar.vue'
 import CommentSection from '@/components/comment/comment-section.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { gotoReport } from '@/lib/report-data'
-import { getToken } from '@/utils/storage'
+import { getToken, getUserInfo } from '@/utils/storage'
 import {
   postDetailApi, parseMarkdown,
   type PostDetail, type MdBlock,
@@ -57,6 +57,14 @@ const govActing = ref(false)
 const myRole = ref<CircleMemberRole | null>(null)
 /** 仅圈主/管理员可见治理项（置顶/精华/删除） */
 const canGovern = computed(() => myRole.value === 'OWNER' || myRole.value === 'ADMIN')
+/**
+ * 作者本人（非治理角色）：菜单显示「删除」并隐藏「举报」（不给用户举报自己）。
+ * 删除复用 govDeletePost（DELETE /circles/:id/posts/:postId）——已核后端
+ * circle-post.service.deletePost：post.userId === 当前用户直接放行，非作者才查治理权限，
+ * 无需另设普通删除端点。
+ */
+const myUserId = String(getUserInfo<{ id?: string | number }>()?.id ?? '')
+const isAuthor = computed(() => !!myUserId && String(post.value?.author?.id || '') === myUserId)
 
 onLoad((q) => {
   if (q?.circleId) circleId.value = q.circleId
@@ -326,7 +334,7 @@ onUnmounted(() => { if (audioCtx) { try { audioCtx.destroy() } catch {} } })
     <view class="pd-topbar">
       <view class="pd-top-btn pd-top-back" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
       <text class="pd-top-title">帖子详情</text>
-      <view class="pd-top-btn" @tap="showMenu = !showMenu"><app-icon name="more-horizontal" :size="40" color="#6E6E73" /></view>
+      <view class="pd-top-btn pd-top-menu" @tap="showMenu = !showMenu"><app-icon name="more-horizontal" :size="40" color="#6E6E73" /></view>
     </view>
 
     <!-- ⋯ 菜单（V0 gov-menu 浮层）：圈主/管理员=治理三项；普通成员=举报 -->
@@ -346,6 +354,11 @@ onUnmounted(() => { if (audioCtx) { try { audioCtx.destroy() } catch {} } })
           <text class="pd-menu-t danger">删除帖子</text>
         </view>
       </template>
+      <!-- 作者本人：删除自己的帖子（后端放行作者删除）·不显示「举报自己」 -->
+      <view v-else-if="isAuthor" class="pd-menu-item" @tap="govDeletePost">
+        <app-icon name="trash-2" :size="30" color="#C41E3A" />
+        <text class="pd-menu-t danger">删除帖子</text>
+      </view>
       <view v-else class="pd-menu-item" @tap="reportPost">
         <app-icon name="alert-circle" :size="30" color="#6E6E73" />
         <text class="pd-menu-t">举报</text>
@@ -504,8 +517,9 @@ onUnmounted(() => { if (audioCtx) { try { audioCtx.destroy() } catch {} } })
   position: relative; z-index: 20;
 }
 .pd-top-btn { padding: 8rpx; }
-/* 返回按钮触控热区≥88rpx：容器扩大+负margin保持视觉位置（仅返回，⋯菜单不动） */
+/* 返回/⋯菜单按钮触控热区≥88rpx：容器扩大+负margin保持视觉位置 */
 .pd-top-back { width: 88rpx; height: 88rpx; padding: 0; margin: -14rpx; display: flex; align-items: center; justify-content: center; }
+.pd-top-menu { width: 88rpx; height: 88rpx; padding: 0; margin: -16rpx; display: flex; align-items: center; justify-content: center; }
 .pd-top-title { flex: 1; font-size: 32rpx; font-weight: 600; color: var(--text-primary, #2c2c2c); }
 
 /* ⋯ 菜单（V0 gov-menu 浮层） */

@@ -402,15 +402,24 @@ export const videoApi = {
   /**
    * 视频列表（全屏流）— GET /videos（错误传播给页面三态，不回退假 mock）
    * 后端已支持分页（video.controller @Get() → svc.list({page,pageSize})·返回 {videos,total,page,pageSize}）。
-   * page 从 1 起；本方法内按标题去重仅限单页（seed 重复数据），跨页去重由调用方按 id 处理。
+   * page 从 1 起。去重以 id 为准（同名视频是合法数据，纯按 title 去重会误杀·与页面跨页去重同口径）；
+   * title 去重仅作为 seed 种子数据防线保留（种子曾把同一条内容用不同 id 反复灌入）——
+   * 深链目标若被本防线滤掉，由详情页 pendingId→getById 单拉插队兜底，不会「静默换片」。
    */
   async list(params?: { page?: number; pageSize?: number }): Promise<VideoItem[]> {
     const page = params?.page ?? 1
     const pageSize = params?.pageSize ?? 50
     const res = await apiGet<RawVideo[] | { videos?: RawVideo[]; data?: RawVideo[] }>(`/videos?page=${page}&pageSize=${pageSize}`)
     const arr = Array.isArray(res) ? res : (res?.videos ?? res?.data ?? [])
-    const seen = new Set<string>()
-    return arr.map(adaptVideoItem).filter((v: VideoItem) => { if (seen.has(v.title)) return false; seen.add(v.title); return true })
+    const seenIds = new Set<string>()
+    const seenTitles = new Set<string>()
+    return arr.map(adaptVideoItem).filter((v: VideoItem) => {
+      if (v.id && seenIds.has(v.id)) return false
+      if (v.title && seenTitles.has(v.title)) return false // seed 防线（见上方注释）
+      if (v.id) seenIds.add(v.id)
+      if (v.title) seenTitles.add(v.title)
+      return true
+    })
   },
 
   /** 视频详情 — GET /videos/:id（错误传播） */

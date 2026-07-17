@@ -438,7 +438,23 @@ async function loadFeed() {
     feedHasMore.value = list.length > 0
     if (pendingId.value) {
       const idx = list.findIndex((v) => v.id === pendingId.value)
-      if (idx !== -1) currentIndex.value = idx
+      if (idx !== -1) {
+        currentIndex.value = idx
+      } else {
+        // 深链目标不在首屏 feed（排序靠后/被去重）：单拉 GET /videos/:id 插队首定位，
+        // 杜绝「分享链接静默换片」——失败/已下架则诚实提示，落回 feed 首条
+        try {
+          const target = await videoApi.getById(pendingId.value)
+          if (target?.id) {
+            videos.value = [target, ...videos.value.filter((v) => v.id !== target.id)]
+            currentIndex.value = 0
+          } else {
+            uni.showToast({ title: '视频不存在或已下架', icon: 'none' })
+          }
+        } catch {
+          uni.showToast({ title: '视频不存在或已下架', icon: 'none' })
+        }
+      }
     }
   } catch (e) {
     error.value = (e as Error)?.message || '加载失败，请重试'
@@ -700,7 +716,7 @@ function onSingleTap(e: { changedTouches?: Array<{ clientX?: number; clientY?: n
     // 双击
     lastTapTime = 0
     const touch = e.changedTouches?.[0] || e.detail || {}
-    const x = touch.clientX || windowH.value / 2
+    const x = touch.clientX || windowW.value / 2 // 横坐标兜底用屏宽（原误用 windowH 屏高）
     const y = touch.clientY || windowH.value / 2
     const id = heartId++
     floatingHearts.value.push({ id, x, y })
@@ -729,8 +745,9 @@ async function onLike() {
   try {
     const res = await videoApi.like(v.id)
     if (res.isLiked !== v.isLiked) { v.isLiked = res.isLiked; v.likes += res.isLiked ? 1 : -1 }
-  } catch {
+  } catch (e) {
     v.isLiked = prev; v.likes += prev ? 1 : -1 // 失败回滚
+    uni.showToast({ title: (e as Error)?.message || '操作失败，请重试', icon: 'none' })
   }
 }
 // 收藏：乐观更新 + 真连 POST /videos/:id/collect
@@ -742,8 +759,9 @@ async function onCollect() {
   try {
     const res = await videoApi.collect(v.id)
     v.isCollected = res.isCollected
-  } catch {
+  } catch (e) {
     v.isCollected = prev // 失败回滚
+    uni.showToast({ title: (e as Error)?.message || '操作失败，请重试', icon: 'none' })
   }
 }
 // 关注：真连 POST/DELETE /users/:id/follow（乐观切换 + 失败回滚·成功加号变√）
@@ -1063,9 +1081,12 @@ function onBack() {
 /* 顶部导航 */
 .vp__top { position: absolute; top: 0; left: 0; right: 0; z-index: 30; }
 .vp__top-row { display: flex; align-items: center; justify-content: space-between; padding: 16rpx 24rpx; }
-.vp__icon-btn { position: relative; width: 64rpx; height: 64rpx; border-radius: 999rpx; background: rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; }
+/* 触控热区撑到 88rpx（负 margin 抵消占位·视觉圆钮仍 64rpx 由 ::before 绘制，位置不变） */
+.vp__icon-btn { position: relative; width: 88rpx; height: 88rpx; margin: -12rpx; border-radius: 999rpx; display: flex; align-items: center; justify-content: center; }
+.vp__icon-btn::before { content: ''; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 64rpx; height: 64rpx; border-radius: 999rpx; background: rgba(0,0,0,0.3); z-index: -1; }
 .vp__top-right { display: flex; align-items: center; gap: 12rpx; }
-.vp__cart-badge { position: absolute; top: -6rpx; right: -6rpx; min-width: 32rpx; height: 32rpx; padding: 0 6rpx; border-radius: 999rpx; background: var(--brand); color: #fff; font-size: 18rpx; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+/* 徽标定位随热区外扩 12rpx 内收，保持贴视觉圆钮右上角不变 */
+.vp__cart-badge { position: absolute; top: 6rpx; right: 6rpx; min-width: 32rpx; height: 32rpx; padding: 0 6rpx; border-radius: 999rpx; background: var(--brand); color: #fff; font-size: 18rpx; font-weight: 700; display: flex; align-items: center; justify-content: center; }
 
 /* 来源圈子胶囊（V0 source-pill：深色毛玻璃圆角胶囊） */
 .vp__source-pill {

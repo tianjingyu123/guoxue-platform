@@ -11,7 +11,7 @@ const props = defineProps<{
   liked: boolean
   showEssence?: boolean
 }>()
-const emit = defineEmits<{ (e: 'like', id: string): void }>()
+const emit = defineEmits<{ (e: 'like', id: string): void; (e: 'report', id: string): void }>()
 
 function openPost() {
   navigateTo(`/pkg-circle/circles/post?circleId=${props.circleId}&id=${props.post.id}`)
@@ -44,7 +44,8 @@ function openUser() {
           <text class="pc-time">{{ post.createdAt }}</text>
         </view>
       </view>
-      <view class="pc-more"><app-icon name="more-horizontal" :size="20" color="#999999" /></view>
+      <!-- ··· 接举报（此前无 @tap 是死按钮）：emit 给父页走 pkg-report 统一入口 -->
+      <view class="pc-more" @tap.stop="emit('report', post.id)"><app-icon name="more-horizontal" :size="20" color="#999999" /></view>
     </view>
 
     <!-- 内容 -->
@@ -73,9 +74,7 @@ function openUser() {
         <app-icon name="message-circle" :size="40" color="var(--text, #666666)" />
         <text class="pc-act-txt">{{ post.comments }}</text>
       </view>
-      <view class="pc-act" @tap="openPost">
-        <app-icon name="bookmark" :size="40" color="var(--text, #666666)" />
-      </view>
+      <!-- bookmark 图标已删：点击行为=打开帖子（与评论按钮重复），误导用户以为流内可收藏；真收藏在帖子详情页 -->
     </view>
 
   </view>

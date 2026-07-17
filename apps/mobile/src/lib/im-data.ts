@@ -134,22 +134,37 @@ export interface ChatMessage {
   isSelf?: boolean
 }
 
-/** 腾讯 IM SDK 消息 → 页面 ChatMessage（最小闭环：文本；其他类型占位提示） */
+/** SDK 图片消息 payload（TimMessage.payload 只声明了 text，这里按 SDK TIMImageElem 结构局部扩展） */
+interface TimImagePayload {
+  text?: string
+  imageInfoArray?: Array<{ url?: string; imageUrl?: string; width?: number; height?: number }>
+}
+
+/** 腾讯 IM SDK 消息 → 页面 ChatMessage（文本 + 图片；其他类型占位提示） */
 export function timToChatMessage(m: TimMessage): ChatMessage {
-  const isText = m.type === 'TIMTextElem'
-  return {
+  const base = {
     id: m.ID,
     senderId: m.from,
     senderName: m.nick || '',
     senderAvatar: m.avatar || '',
-    type: 'text',
-    content: isText ? (m.payload?.text || '') : '[暂不支持的消息类型]',
-    status: 'read',
+    status: 'read' as MessageStatus,
     isWithdrawn: false,
     createdAt: formatMessageTime(m.time * 1000),
     timestamp: m.time * 1000,
     isSelf: m.flow === 'out',
   }
+  if (m.type === 'TIMTextElem') {
+    return { ...base, type: 'text', content: m.payload?.text || '' }
+  }
+  if (m.type === 'TIMImageElem') {
+    // imageInfoArray[0]=原图（SDK 约定），url/imageUrl 字段随版本二选一
+    const info = (m.payload as TimImagePayload)?.imageInfoArray?.[0]
+    const url = info?.url || info?.imageUrl || ''
+    if (url) {
+      return { ...base, type: 'image', content: '[图片]', image: { url, width: info?.width || 0, height: info?.height || 0 } }
+    }
+  }
+  return { ...base, type: 'text', content: '[暂不支持的消息类型]' }
 }
 
 /** 消息时间标签格式化 */
@@ -186,6 +201,8 @@ export interface ChatPermission {
   canSend: boolean
   hint: string
   reason?: string
+  /** 富媒体发送权限（后端 RelationPolicy.mediaPerms 透传；缺省视为不可发） */
+  media?: { image: boolean; voice: boolean; file: boolean }
 }
 
 // 注：旧的前端本地权限推断 getChatPermission 已删除，私信权限统一由后端 /im/relation/:id 判定（toChatPermission）
@@ -225,6 +242,7 @@ export function toChatPermission(p: RelationPolicy): ChatPermission {
       canSend: true,
       hint: p.hint,
       reason: p.reason,
+      media: p.mediaPerms,
     }
   }
   if (p.reason === 'waiting_reply') {
@@ -319,9 +337,12 @@ function notifyLink(targetType?: string | null, targetId?: string | null): strin
   if (!targetType || !targetId) return undefined
   const t = targetType.toUpperCase()
   if (t.includes('COURSE')) return `/pkg-course/detail?id=${targetId}`
-  if (t.includes('ARTICLE') || t.includes('POST')) return `/pkg-circle/articles/detail?id=${targetId}`
+  // POST 必须先于 ARTICLE/CIRCLE 判断：帖子(含 CIRCLE_POST)走帖子详情页，被当文章打开必空
+  if (t.includes('POST')) return `/pkg-circle/circles/post?id=${targetId}`
+  if (t.includes('ARTICLE')) return `/pkg-circle/articles/detail?id=${targetId}`
   if (t.includes('ORDER')) return `/pkg-order/detail?id=${targetId}`
-  if (t.includes('CIRCLE')) return `/pkg-circle/detail?id=${targetId}`
+  if (t.includes('CIRCLE')) return `/pkg-circle/circles/detail?id=${targetId}` // 原 /pkg-circle/detail 是死路由（pages.json 无此页）
+  if (t.includes('USER') || t.includes('FOLLOW')) return `/user/${targetId}` // 关注通知点头像进对方主页（DYNAMIC_ROUTES 现成映射）
   if (t.includes('LIVE')) return `/pkg-live/watch/index?id=${targetId}` // 原指 vertical 半死页(products恒空)·改指真观看页
   return undefined
 }
@@ -763,6 +784,14 @@ export const imApi = {
   /** 删除会话（TIM SDK，聊天记录一并清除） */
   async deleteConversation(conversationID: string): Promise<void> {
     await useTim().deleteConversation(conversationID)
+  },
+
+  /**
+   * 发送单聊图片消息（真连 POST /im/c2c/image，后端经 REST openim/sendmsg 下发对端并同步多端）。
+   * imageUrl 需为已上传的可访问 URL（先走 uploadImage）；宽高可选，后端缺省 0。
+   */
+  async sendC2CImage(toUserId: string, imageUrl: string, width?: number, height?: number): Promise<void> {
+    await apiPost('/im/c2c/image', { toUserId, imageUrl, width, height })
   },
 
   /** 获取通知消息列表（真连 /notifications，映射为前端展示模型；错误向上抛走三态，不回退假数据） */

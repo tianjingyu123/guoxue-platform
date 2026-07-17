@@ -155,8 +155,8 @@
         </view>
       </view>
 
-      <!-- 相关推荐 -->
-      <view class="cd-sec cd-related-sec">
+      <!-- 相关推荐（空列表整块不渲染，避免「标题+空横滚」空壳） -->
+      <view v-if="book.relatedBooks && book.relatedBooks.length" class="cd-sec cd-related-sec">
         <text class="cd-sec-title cd-related-title">相关推荐</text>
         <scroll-view scroll-x class="cd-related-scroll">
           <view class="cd-related-row">
@@ -191,6 +191,7 @@
 import { ref, computed } from 'vue'
 import { onLoad, onShow, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 import { useShare } from '@/composables/useShare'
+import { withRef } from '@/utils/referral'
 import ClassicsHeader from '@/components/classics/classics-header.vue'
 import FlatCover from '@/components/classics/flat-cover.vue'
 import CommentSection from '@/components/comment/comment-section.vue'
@@ -290,8 +291,26 @@ function toggleChapter(id: string) {
 function goBack() {
   uni.navigateBack({ fail: () => uni.switchTab({ url: '/pages/index/index', fail: () => {} }) })
 }
+/**
+ * 顶栏分享（H5 无原生转发面板·照短视频 buildShareUrl/withRef 范式）：
+ * 构造本书 H5 深链（携带分享者 ref 推荐归因）→ 复制到剪贴板 + toast 引导转发。
+ * 小程序端仍走 onShareAppMessage/onShareTimeline 原生转发。
+ */
+function buildShareUrl(): string {
+  const id = book.value?.id || bookId.value
+  // import.meta.env 在 uni-app 下缺少类型声明，保留 as any
+  let base = (import.meta as any).env?.VITE_H5_URL || 'https://api.rebugx.cn/h5'
+  // #ifdef H5
+  base = window.location.origin + ((import.meta as any).env?.BASE_URL || '/h5/')
+  // #endif
+  if (!base.endsWith('/')) base += '/'
+  return withRef(`${base}pkg-classics/detail/index?id=${id}`)
+}
 function onShare() {
-  uni.showToast({ title: '分享', icon: 'none' })
+  uni.setClipboardData({
+    data: buildShareUrl(),
+    success: () => uni.showToast({ title: '链接已复制，粘贴给好友吧', icon: 'none' }),
+  })
 }
 function toSharedReading() {
   if (!book.value) return

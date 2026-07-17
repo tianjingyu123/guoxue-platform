@@ -10,11 +10,14 @@ import { onShow, onPullDownRefresh } from '@dcloudio/uni-app'
 import BottomNav from '@/components/bottom-nav/bottom-nav.vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import SmartCover from '@/components/common/smart-cover.vue'
+import SmartAvatar from '@/components/common/smart-avatar.vue'
 import { navigateTo } from '@/utils/router'
+import { getToken } from '@/utils/storage'
 import {
   circleApi, circleCategories, formatMembers,
   type Circle, type HotPost, type MyCircleStats,
 } from '@/lib/circle-data'
+import { growthApi } from '@/lib/circle-growth-data'
 
 const category = ref('')
 const circles = ref<Circle[]>([])
@@ -26,6 +29,8 @@ function markJoined() {
   circles.value = circles.value.map((c) => (joinedIds.value.has(String(c.id)) ? { ...c, isJoined: true } : c))
 }
 const hotPosts = ref<HotPost[]>([])
+// 我发起的待审核入圈申请（circleId 集合）：给发现列表卡片标「审核中」（此前申请后回广场毫无痕迹）
+const pendingIds = ref<Set<string>>(new Set())
 const loading = ref(true)
 const error = ref(false)
 const myStats = ref<MyCircleStats>({ joinedCount: 0, postCount: 0, likeReceived: 0 })
@@ -48,16 +53,22 @@ async function loadCircles() {
 
 /** 我的圈子 + 动态 + 统计（与分类无关，首屏加载一次；各自空数据走空态） */
 async function loadExtras() {
-  const [myRes, postRes, statsRes] = await Promise.allSettled([
+  const [myRes, postRes, statsRes, jrRes] = await Promise.allSettled([
     circleApi.my(),
     circleApi.getHotPosts(),
     circleApi.getMyStats(),
+    // 我的入圈申请（真连 GET /circles/my-join-requests）：待审核圈子回填「审核中」标；未登录不发请求
+    getToken() ? growthApi.myJoinRequests() : Promise.resolve([]),
   ])
   myCircles.value = myRes.status === 'fulfilled' ? myRes.value : []
   joinedIds.value = new Set(myCircles.value.map((c) => String(c.id)))
   markJoined()
   hotPosts.value = postRes.status === 'fulfilled' ? postRes.value : []
   if (statsRes.status === 'fulfilled') myStats.value = statsRes.value
+  // 拉取失败保持上次结果（不误清标记）；成功则全量刷新
+  if (jrRes.status === 'fulfilled') {
+    pendingIds.value = new Set(jrRes.value.filter((r) => r.status === 'PENDING').map((r) => String(r.circleId)))
+  }
 }
 
 function selectCategory(id: string) {
@@ -180,6 +191,7 @@ onShow(() => {
               <view class="card-head">
                 <text class="card-title">{{ c.name }}</text>
                 <view v-if="c.isJoined" class="tag-joined"><text class="tag-joined-txt">已加入</text></view>
+                <view v-else-if="pendingIds.has(String(c.id))" class="tag-pending"><text class="tag-pending-txt">审核中</text></view>
               </view>
               <!-- 待加入卡留足描述空间（2 行），像商品卡展示卖点 -->
               <text class="card-desc">{{ c.description }}</text>
@@ -189,7 +201,10 @@ onShow(() => {
                   <view class="sep" /><text class="card-members">今日 {{ c.todayActive }} 条</text>
                 </template>
                 <view class="foot-spacer" />
-                <text v-if="c.isPaid" class="card-price">¥{{ c.price }}<text class="card-price-unit">/年</text></text>
+                <!-- 价格按圈子类型三分：YEARLY=年费(带/年)、PAID=一次性付费(不带/年)、FREE=免费。
+                     此前用 isPaid 判断（只认 PAID），年费圈被标成"免费"是虚假标签，PAID 圈还错带"/年" -->
+                <text v-if="c.type === 'YEARLY'" class="card-price">¥{{ c.price }}<text class="card-price-unit">/年</text></text>
+                <text v-else-if="c.type === 'PAID' || (!c.type && c.isPaid)" class="card-price">¥{{ c.price }}</text>
                 <text v-else class="card-price free">免费</text>
               </view>
             </view>
@@ -216,7 +231,7 @@ onShow(() => {
             v-for="post in hotPosts" :key="post.id"
             class="feed-item list-press" @tap="go(`/pkg-circle/circles/post?id=${post.id}&circleId=${post.circleId}`)"
           >
-            <image lazy-load :src="post.author.avatar" class="feed-avatar" mode="aspectFill" />
+            <smart-avatar :src="post.author.avatar" :name="post.author.name" class="feed-avatar" />
             <view class="feed-body">
               <view class="feed-source">
                 <text class="feed-circle" @tap.stop="go(`/pkg-circle/circles/detail?id=${post.circleId}`)">{{ post.circleName }}</text>
@@ -228,7 +243,8 @@ onShow(() => {
               </view>
               <text class="feed-text">{{ post.content }}</text>
             </view>
-            <image v-if="post.images.length" lazy-load :src="post.images[0]" class="feed-thumb" mode="aspectFill" />
+            <!-- 帖子缩略图：smart-cover 兜底（URL 失效不再破图；plain=纯底纹，缩略图上不出水印文字） -->
+            <smart-cover v-if="post.images.length" :src="post.images[0]" type="circle" plain class="feed-thumb" />
           </view>
         </view>
       </view>
@@ -331,6 +347,9 @@ onShow(() => {
 /* 已加入·轻标签 */
 .tag-joined { flex-shrink: 0; padding: 4rpx 16rpx; border-radius: 999rpx; background: var(--separator, #f2ede4); }
 .tag-joined-txt { font-size: 21rpx; color: var(--text-tertiary, #999); }
+/* 审核中·轻标签（待圈主审批的入圈申请） */
+.tag-pending { flex-shrink: 0; padding: 4rpx 16rpx; border-radius: 999rpx; background: rgba(201, 169, 110, 0.14); }
+.tag-pending-txt { font-size: 21rpx; color: var(--gold, #c9a96e); }
 /* 待加入卡留足描述空间：2 行卖点 */
 .card-desc { display: -webkit-box; font-size: 25rpx; color: var(--text-secondary, #6e6e73); margin-top: 10rpx; line-height: 1.5; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .card-foot { display: flex; align-items: center; gap: 12rpx; margin-top: auto; padding-top: 16rpx; }

@@ -19,6 +19,7 @@ import {
   circleDetailApi, memberBenefits,
   type CircleDetail, type CirclePost,
 } from '@/lib/circle-detail-data'
+import { growthApi } from '@/lib/circle-growth-data'
 
 const circleId = ref('')
 const circle = ref<CircleDetail | null>(null)
@@ -31,6 +32,9 @@ const joining = ref(false)
 const introExpanded = ref(false)
 const showConfirmSheet = ref(false)
 const showPurchase = ref(false)
+// 邀请码（C1 链路兑换口）：分享链接 ?code= 自动填入，或点「有邀请码？」手动输入；join 时随请求携带
+const inviteCode = ref('')
+const showCodeInput = ref(false)
 
 const isLoggedIn = () => !!getToken()
 
@@ -74,6 +78,13 @@ async function loadData() {
     if (isLoggedIn()) {
       const st = await circleDetailApi.getJoinStatus(circleId.value)
       isJoined.value = st.joined
+      // 待审核态跨会话回填（与详情页同口径）：有本圈 PENDING 申请 → 按钮持久「申请已提交 · 查看进度」
+      if (!st.joined) {
+        try {
+          const reqs = await growthApi.myJoinRequests()
+          applied.value = reqs.some((r) => r.status === 'PENDING' && String(r.circleId) === String(circleId.value))
+        } catch { /* 拉取失败保持会话内状态 */ }
+      }
     }
   } catch {
     error.value = '加载失败，请重试'
@@ -104,7 +115,7 @@ async function doFreeJoin() {
   if (joining.value) return
   joining.value = true
   try {
-    const r = await circleDetailApi.join(circleId.value)
+    const r = await circleDetailApi.join(circleId.value, inviteCode.value.trim() || undefined)
     if (joinMode.value === 'approval' || r?.status === 'pending') {
       applied.value = true
       uni.showToast({ title: r?.message || '申请已提交，等待圈主审核', icon: 'none' })
@@ -140,6 +151,8 @@ function fmt(n: number) { return n.toLocaleString() }
 
 onLoad((q) => {
   circleId.value = (q?.id || q?.circleId || '') as string
+  // 分享链接携带的邀请码自动填入（invite-codes 分享链接补 &code= 后即全链打通）
+  if (q?.code) inviteCode.value = String(q.code)
   loadData()
 })
 </script>
@@ -229,6 +242,21 @@ onLoad((q) => {
         <text class="jp-preview-lock-t">加入后解锁全部 {{ fmt(circle.posts) }} 条内容</text>
       </view>
     </template>
+
+    <!-- 邀请码兑换口（C1 链路：好友有码却无处输）：点击展开输入行，join 时随请求携带 -->
+    <view v-if="!isJoined" class="jp-invite">
+      <view v-if="!showCodeInput" class="jp-invite-entry" @tap="showCodeInput = true">
+        <app-icon name="ticket" :size="28" color="#C9A96E" />
+        <text class="jp-invite-entry-t">{{ inviteCode ? `已填写邀请码 ${inviteCode} · 点击修改` : '有邀请码？点此填写' }}</text>
+      </view>
+      <view v-else class="jp-invite-row">
+        <input
+          v-model="inviteCode" class="jp-invite-input" placeholder="输入好友邀请码"
+          :maxlength="32" placeholder-class="jp-invite-ph"
+        />
+        <view class="jp-invite-ok" @tap="showCodeInput = false"><text class="jp-invite-ok-t">确定</text></view>
+      </view>
+    </view>
 
     <!-- 底部通栏：三方式分流（同一组件切换文案与流程） -->
     <view class="jp-join-bar">
@@ -404,6 +432,19 @@ onLoad((q) => {
   border-radius: 28rpx; background: var(--bg-warm, #f8f4ec);
 }
 .jp-preview-lock-t { font-size: 26rpx; color: var(--text-secondary, #6e6e73); }
+
+/* 邀请码兑换口 */
+.jp-invite { margin: 28rpx 32rpx 0; }
+.jp-invite-entry { display: flex; align-items: center; justify-content: center; gap: 10rpx; padding: 22rpx; border-radius: 24rpx; background: var(--bg-warm, #f8f4ec); border: 1rpx dashed var(--gold, #c9a96e); }
+.jp-invite-entry:active { opacity: 0.85; }
+.jp-invite-entry-t { font-size: 26rpx; color: #8a6d3b; }
+.jp-invite-row { display: flex; align-items: center; gap: 16rpx; }
+/* 🔴 uni-app input 必须写明确 height，只写 padding 会塌成 0 高真机点不了 */
+.jp-invite-input { flex: 1; height: 80rpx; padding: 0 28rpx; border-radius: 24rpx; background: var(--bg-card, #fff); border: 1rpx solid var(--gold, #c9a96e); font-size: 27rpx; color: var(--text-primary, #2c2c2c); }
+.jp-invite-ph { color: var(--text-tertiary, #999); }
+.jp-invite-ok { flex-shrink: 0; height: 80rpx; padding: 0 36rpx; border-radius: 24rpx; background: var(--gold, #c9a96e); display: flex; align-items: center; justify-content: center; }
+.jp-invite-ok:active { opacity: 0.85; }
+.jp-invite-ok-t { font-size: 26rpx; color: #fff; font-weight: 500; }
 
 /* 底部通栏 */
 .jp-join-bar {

@@ -25,6 +25,9 @@ import { track } from '@/composables/useTrack'
 import { formatPrice } from '@/utils/format'
 import { liveApi } from '@/lib/live-data'
 import { consultApi, type ConsultExpert } from '@/lib/circle-consult-data'
+import { postDetailApi } from '@/lib/post-detail-data'
+import { gotoReport } from '@/lib/report-data'
+import { growthApi } from '@/lib/circle-growth-data'
 
 const circleId = ref('1')
 const circle = ref<CircleDetail | null>(null)
@@ -159,7 +162,7 @@ async function loadData() {
     circle.value = c
     isJoined.value = c.isJoined
 
-    const [p, m, arts, crs, lvs, prds, pas, st] = await Promise.allSettled([
+    const [p, m, arts, crs, lvs, prds, pas, st, jr] = await Promise.allSettled([
       circleDetailApi.posts(circleId.value),
       circleDetailApi.listMembers(circleId.value),
       circleDetailApi.articles(circleId.value),
@@ -168,6 +171,8 @@ async function loadData() {
       circleDetailApi.products(circleId.value),
       circleDetailApi.postedArticles(circleId.value),
       isLoggedIn() ? circleDetailApi.getJoinStatus(circleId.value) : Promise.reject(new Error('未登录')),
+      // 我的入圈申请（GET /circles/my-join-requests）：待审核态跨会话回填——此前 applied 仅会话内，重进页面按钮退回"申请加入"
+      isLoggedIn() ? growthApi.myJoinRequests() : Promise.reject(new Error('未登录')),
     ])
     posts.value = p.status === 'fulfilled' ? p.value.data : []
     members.value = m.status === 'fulfilled' ? m.value.data : []
@@ -181,6 +186,10 @@ async function loadData() {
       memberExpireAt.value = st.value.expireAt
       memberExpired.value = st.value.expired
       if (circle.value) circle.value.myRole = st.value.role
+    }
+    // 待审核态回填：未加入且有本圈 PENDING 申请 → 按钮持久展示「审核中 · 查看进度」；拉取失败保持会话内状态
+    if (jr.status === 'fulfilled' && !isJoined.value) {
+      applied.value = jr.value.some((r) => r.status === 'PENDING' && String(r.circleId) === String(circleId.value))
     }
     likedPosts.value = new Set((p.status === 'fulfilled' ? p.value.data : []).filter((x) => x.isLiked).map((x) => x.id))
   } catch {
@@ -243,12 +252,34 @@ async function onPurchased() {
     refresh()
   } else uni.showToast({ title: '订单已提交，支付完成后自动加入', icon: 'none' })
 }
-function handleLikePost(postId: string) {
+// 详情流内点赞：乐观更新 + 真调后端（照 post.vue toggleLike 范式）。
+// 此前只改本地 Set 不发请求，刷新全部回滚——流内点赞从未落库。
+const likingPosts = new Set<string>() // 防重复点击（非渲染态，无需响应式）
+async function handleLikePost(postId: string) {
+  if (likingPosts.has(postId)) return
+  likingPosts.add(postId)
   const next = new Set(likedPosts.value)
   const wasLiked = next.has(postId)
   wasLiked ? next.delete(postId) : next.add(postId)
   likedPosts.value = next
   posts.value = posts.value.map((p) => (p.id === postId ? { ...p, likes: p.likes + (wasLiked ? -1 : 1) } : p))
+  try {
+    await postDetailApi.toggleLike(postId)
+  } catch {
+    // 失败回滚
+    const back = new Set(likedPosts.value)
+    wasLiked ? back.add(postId) : back.delete(postId)
+    likedPosts.value = back
+    posts.value = posts.value.map((p) => (p.id === postId ? { ...p, likes: p.likes + (wasLiked ? 1 : -1) } : p))
+    uni.showToast({ title: '操作失败，请重试', icon: 'none' })
+  } finally {
+    likingPosts.delete(postId)
+  }
+}
+/** 流内帖子举报（post-card ··· 菜单）：复用 pkg-report 统一入口（与 post.vue reportPost 同路由） */
+function handleReportPost(postId: string) {
+  const p = posts.value.find((x) => x.id === postId)
+  gotoReport('POST', postId, p?.content, p?.author.name)
 }
 
 function fmt(n: number) { return n.toLocaleString() }
@@ -303,14 +334,17 @@ function onBodyScroll() {
 function openManage() { navigateTo(`/pkg-circle/circles/dashboard?id=${circleId.value}`) }
 function goRenew() { navigateTo(`/pkg-circle/circles/renew?id=${circleId.value}`) }
 function openMembers() { navigateTo(`/pkg-circle/circles/members?id=${circleId.value}`) }
-function openAnnouncement() { navigateTo(`/pkg-circle/circles/announcements?id=1&circleId=${circleId.value}`) }
+// 公告页只消费 circleId（announcements.vue onLoad 仅读 q.circleId）；此前硬编码 id=1 是无效死参，去掉
+function openAnnouncement() { navigateTo(`/pkg-circle/circles/announcements?circleId=${circleId.value}`) }
 function openUser(id: string) { navigateTo(`/pkg-circle/user/profile?id=${id}`) }
 function openAssistant() { navigateTo(`/pkg-circle/circles/assistant?circleId=${circleId.value}&name=${encodeURIComponent(circle.value?.name || '')}`) }
 function openConsult() { navigateTo(`/pkg-circle/circles/consult-experts?circleId=${circleId.value}`) }
-// 增值带跳转：直播广场 / 课堂列表 / 橱窗（复用活动广场式聚合，暂跳各内容页）
+// 增值带跳转（此前课堂/橱窗都误跳全平台活动页 activities——无课无货还跨圈）：
+// 课堂→课程首页（pkg-course/home 不收 circleId 过滤参数·圈内课程聚合页后端待建，先跳真实课程板块）
+// 橱窗→商城首页（圈内商品聚合页不存在，跳商城比错跳活动页诚实；计数来自 ?circleId= 圈内接口，口径不符记后端配合项）
 function openLive(id: string) { navigateTo(`/live/${id}`) }
-function openCourses() { navigateTo('/pkg-circle/circles/activities') }
-function openShowcase() { navigateTo('/pkg-circle/circles/activities') }
+function openCourses() { navigateTo('/pkg-course/home/index') }
+function openShowcase() { navigateTo('/pkg-mall/home/index') }
 </script>
 
 <template>
@@ -426,7 +460,7 @@ function openShowcase() { navigateTo('/pkg-circle/circles/activities') }
         <post-card
           v-for="post in posts" :key="post.id"
           :post="post" :circle-id="circleId" :liked="likedPosts.has(post.id)"
-          @like="handleLikePost"
+          @like="handleLikePost" @report="handleReportPost"
         />
 
         <!-- 圈内课程卡（门控·融入流） -->
@@ -453,7 +487,8 @@ function openShowcase() { navigateTo('/pkg-circle/circles/activities') }
           <image v-if="postedArticles[0].cover" lazy-load :src="postedArticles[0].cover" class="article-cover" mode="aspectFill" />
         </view>
 
-        <view class="feed-end"><text class="feed-end-txt">上拉加载更多</text></view>
+        <!-- 诚实文案：posts 接口无分页、页面也无 scrolltolower 处理，"上拉加载更多"是假承诺（分页留后端配合项） -->
+        <view class="feed-end"><text class="feed-end-txt">已显示全部动态</text></view>
       </view>
 
       <!-- 精华 Tab -->
@@ -462,7 +497,7 @@ function openShowcase() { navigateTo('/pkg-circle/circles/activities') }
           <post-card
             v-for="post in essencePosts" :key="post.id"
             :post="post" :circle-id="circleId" :liked="likedPosts.has(post.id)" :show-essence="true"
-            @like="handleLikePost"
+            @like="handleLikePost" @report="handleReportPost"
           />
         </template>
         <view v-else class="empty">
