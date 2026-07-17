@@ -53,8 +53,11 @@ async function fetchData() {
     shopApi.getCart()
       .then((res: { items?: Array<{ quantity: number }> }) => { cartCount.value = (res.items || []).reduce((s: number, i: { quantity: number }) => s + i.quantity, 0) })
       .catch(() => {})
-    // 详情加载成功后拉取推荐（内置降级，无需 try/catch）
-    recItems.value = await recommendApi.getForScene('product_detail', String(product.value?.id ?? currentId.value))
+    // 详情加载成功后并行拉取推荐（内置降级）——不 await，避免推荐接口白拖首屏一个 RTT：
+    // 商品数据就绪即可关 loading 显示商品，推荐区异步填充（recItems 独立渲染）
+    recommendApi.getForScene('product_detail', String(product.value?.id ?? currentId.value))
+      .then((items) => { recItems.value = items })
+      .catch(() => {})
   } catch (e) {
     error.value = true
   } finally {

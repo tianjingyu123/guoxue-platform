@@ -319,6 +319,9 @@ async function loadData() {
     scrollToBottom()
   })
   loading.value = false
+  // 初次拉历史后滚到底部：消息列表在 loading=false 后才渲染，先等一帧让列表渲染完再触发滚底
+  await nextTick()
+  scrollToBottom()
 }
 
 onMounted(() => {

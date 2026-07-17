@@ -46,9 +46,12 @@ const followActing = ref(false)
 
 // 图片预览：原生 uni.previewImage（可左右滑切换/双指缩放·替换自写单图遮罩）
 function previewPostImages(current: number) {
-  const urls = (post.value?.images || []).map((im) => im.url).filter(Boolean)
+  const images = post.value?.images || []
+  const urls = images.map((im) => im.url).filter(Boolean)
   if (!urls.length) return
-  uni.previewImage({ urls, current: urls[Math.min(current, urls.length - 1)] })
+  // current 是原始 images 下标；过滤空 url 后下标会错位，故用点击项自身的 url 定位（uni.previewImage 的 current 支持传 url）
+  const clicked = images[current]?.url
+  uni.previewImage({ urls, current: clicked && urls.includes(clicked) ? clicked : urls[0] })
 }
 
 // ─── 「⋯」菜单：圈主治理 / 举报 ───

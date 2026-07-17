@@ -120,11 +120,18 @@ let flvPlayer: any = null
 /* ===== H5 静音解除（P1）：muted 只为过 autoplay 策略，首帧后尽力恢复有声 ===== */
 const showUnmuteTip = ref(false)
 let mediaEl: HTMLVideoElement | null = null
+// 自动解除静音只尝试一次：失败回退静音续播会再次派发 playing → onFirstFrame，无守卫则反复翻转 muted 死循环
+let unmuteAttempted = false
 
 /** 首帧起播（playing 事件）：仍处静音则尝试有声自动播 */
 function onFirstFrame() {
-  if (mediaEl?.muted) attemptAutoUnmute()
-  else showUnmuteTip.value = false // 已是有声（用户此前点过/重连保留）→ 确保浮层不残留
+  if (mediaEl?.muted) {
+    if (unmuteAttempted) return // 已自动尝试过 → 保持胶囊提示，等用户手动点击，不再自动重试
+    unmuteAttempted = true
+    attemptAutoUnmute()
+  } else {
+    showUnmuteTip.value = false // 已是有声（用户此前点过/重连保留）→ 确保浮层不残留
+  }
 }
 
 /** 尝试有声播放：浏览器允许→静默解除并隐藏浮层；被 autoplay 策略拦→回退静音续播 + 显示提示胶囊 */
@@ -171,7 +178,7 @@ function scheduleH5Reconnect() {
 
 async function initH5(isRetry = false) {
   destroyH5()
-  if (!isRetry) resetRetry() // 首次/换源/手动重试清零计数，重连不清
+  if (!isRetry) { resetRetry(); unmuteAttempted = false } // 首次/换源/手动重试清零计数与自动开声守卫，重连不清
   loadError.value = false
   // uni-app H5 的 <video> 会包一层 wrapper，真正的媒体元素是其内部的 <video>
   const wrapper = document.getElementById(videoId)

@@ -243,6 +243,9 @@ async function loadData() {
     .then((list) => { target.value.isBlocked = list.some((b) => String(b.userId) === peerId.value) })
     .catch(() => {})
   loading.value = false
+  // 初次拉历史后滚到底部：消息列表在 loading=false 后才渲染，先等一帧让列表渲染完再触发滚底
+  await nextTick()
+  scrollToBottom()
 }
 
 // 对端昵称/头像：优先 query 传入，否则从收到的消息补齐（无独立资料端点时的诚实来源）
