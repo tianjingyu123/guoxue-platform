@@ -185,6 +185,17 @@ export const cartCount = 3
 
 export interface SpecOption { id: string; label: string; price: number; stock: number }
 export interface SpecGroup { name: string; options: SpecOption[] }
+/** 商品 SKU（后端 ProductSku 透传：specs={规格名:规格值} 组合对象·价格/库存按 SKU 维度·Decimal 价序列化为字符串已归一 number） */
+export interface ProductSkuInfo {
+  id: string
+  /** 规格组合，如 { 颜色: '红', 尺寸: 'L' } */
+  specs: Record<string, string>
+  /** 规格组合展示名（specs 值拼接；无值退 skuCode/序号） */
+  name: string
+  price: number
+  stock: number
+  skuCode?: string
+}
 export interface ProductReview {
   id: number | string
   user: { name: string; avatar: string }
@@ -208,7 +219,10 @@ export interface ProductDetail {
   coupon: { value: number; threshold: number }
   sales: number
   stock: number
+  /** 规格组（多规格商品由 skus 映射生成；单规格商品为空数组，详情页走无规格流） */
   specs: SpecGroup[]
+  /** SKU 原始数组（与 specs 同源透出，选中 option.id 即 skuId，加购/下单必须携带） */
+  skus: ProductSkuInfo[]
   rating: number
   reviewCount: number
   tags: string[]
@@ -1236,9 +1250,33 @@ function fixImgUrls(arr: unknown): string[] {
  * 反转义存量转义脏数据 + <img> 注入 display:block;width:100% 无缝通栏 + 纯图片 <p> 去 margin（详情多图拼接无缝）。
  */
 const normalizeRichDetail = normalizeRichContent
-/** 后端商品详情 → 前端 ProductDetail（specs/reviews/coupon 后端结构不同→默认空，页面降级） */
+/** 后端商品详情 → 前端 ProductDetail（reviews/coupon 后端结构不同→默认空，页面降级；skus→specs 真实映射 R4 P1-1） */
 function adaptProductDetail(p: RawShopProduct): ProductDetail {
   const price = p.effectivePrice ?? shopNum(p.price)
+  // SKU 映射：后端 ProductSku = { id, specs: {规格名:规格值}, price: Decimal(序列化字符串), stock, skuCode }
+  // 一个 SKU 即一条「规格组合」，选中即锁定 skuId → 价格/库存/下单全按 SKU 维度（资金语义：绝不让多规格按默认价成交）
+  const skus: ProductSkuInfo[] = (Array.isArray(p.skus) ? p.skus : [])
+    .filter((s): s is RawShopSku & { id: string } => !!s?.id)
+    .map((s, i) => {
+      const specsObj: Record<string, string> = {}
+      if (s.specs && typeof s.specs === 'object' && !Array.isArray(s.specs)) {
+        for (const [k, v] of Object.entries(s.specs as Record<string, unknown>)) {
+          if (v !== null && v !== undefined && v !== '') specsObj[k] = String(v)
+        }
+      }
+      return {
+        id: s.id,
+        specs: specsObj,
+        name: Object.values(specsObj).join(' ') || s.skuCode || `规格${i + 1}`,
+        price: shopNum(s.price),
+        stock: shopNum(s.stock),
+        skuCode: s.skuCode || undefined,
+      }
+    })
+  // 规格组名取各 SKU 规格键并集（如「颜色/尺寸」），无键退「规格」；无 skus 的单规格商品 specs 保持空
+  const specGroupName = skus.length
+    ? [...new Set(skus.flatMap((s) => Object.keys(s.specs)))].join('/') || '规格'
+    : ''
   return {
     id: p.id || '',
     title: p.title || '',
@@ -1252,7 +1290,10 @@ function adaptProductDetail(p: RawShopProduct): ProductDetail {
     coupon: { value: 0, threshold: 0 },
     sales: shopNum(p.salesCount),
     stock: shopNum(p.stock),
-    specs: [],
+    specs: skus.length
+      ? [{ name: specGroupName, options: skus.map((s): SpecOption => ({ id: s.id, label: s.name, price: s.price, stock: s.stock })) }]
+      : [],
+    skus,
     rating: 0,
     reviewCount: 0,
     tags: Array.isArray(p.tags) ? p.tags : [],

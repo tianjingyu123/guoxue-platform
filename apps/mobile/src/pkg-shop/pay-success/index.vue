@@ -2,6 +2,10 @@
   <view class="pay-success">
     <!-- 成功动画区域 -->
     <view class="hero" :style="{ paddingTop: 'calc(120rpx + var(--status-bar-height, 0px))' }">
+      <!-- 品牌朱印「成」盖章入场（视觉签名批1·一屏仅此一枚·斜置于成功勾右上侧） -->
+      <view class="hero-seal">
+        <brand-seal chars="成" :size="120" variant="zhu" stamped />
+      </view>
       <view class="check-wrap" :class="{ show: showAnim }">
         <view class="check-bg" />
         <view class="check-icon" :class="{ show: showAnim }">
@@ -76,6 +80,7 @@
 <script setup lang="ts">
 import { ref, reactive } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
+import BrandSeal from '@/components/common/brand-seal.vue'
 import { navigateTo, reLaunch } from '@/utils/router'
 import { shopApi } from '@/lib/shop-data'
 
@@ -147,10 +152,20 @@ function goShop() {
   background: linear-gradient(180deg, #4CAF50 0%, #45a049 100%);
 }
 .hero {
+  position: relative;
   padding-bottom: 64rpx;
   display: flex;
   flex-direction: column;
   align-items: center;
+}
+/* 朱印定位：成功勾右侧留白处，微斜似手工钤印；旋转放外层容器，
+   不与内层 seal-stamp-in 的 transform 动画互相覆盖 */
+.hero-seal {
+  position: absolute;
+  right: 64rpx;
+  top: calc(96rpx + var(--status-bar-height, 0px));
+  transform: rotate(9deg);
+  z-index: 1;
 }
 .check-wrap {
   position: relative;

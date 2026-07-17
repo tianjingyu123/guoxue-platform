@@ -18,6 +18,7 @@ import AppIcon from '@/components/common/app-icon.vue'
 import SmartCover from '@/components/common/smart-cover.vue'
 import CommentSection from '@/components/comment/comment-section.vue'
 import { goBack, navigateTo, toastComingSoon } from '@/utils/router'
+import { VOICE } from '@/lib/voice'
 import {
   articleApi, recommendRoute,
   type ArticleDetail, type ArticleRecommendCard, type ArticleProductCard,
@@ -309,6 +310,8 @@ function focusComment() {
           </view>
         </view>
       </template>
+      <!-- 卷尾（品牌签名·墨线由全局 .scroll-end 画，文案统一走 voice.ts） -->
+      <view class="scroll-end"><text>{{ VOICE.END }}</text></view>
       <view class="ad-bottom-pad" />
     </scroll-view>
 

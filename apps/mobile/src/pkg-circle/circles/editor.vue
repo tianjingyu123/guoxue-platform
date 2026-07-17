@@ -391,6 +391,7 @@ import { onLoad, onUnload } from '@dcloudio/uni-app'
 import { uploadImage, uploadDocument } from '@/utils/request'
 import { composeArticleHtml, decomposeArticleHtml } from '@/utils/rich-content'
 import { navigateBack } from '@/utils/router'
+import { VOICE } from '@/lib/voice'
 import { circleApi } from '@/lib/circle-data'
 import { circleDetailApi } from '@/lib/circle-detail-data'
 import { articleApi, tagApi, addArticleRecommend, type ProductLibraryItem } from '@/lib/article-data'
@@ -1010,7 +1011,7 @@ async function handlePublish() {
     submittedClean = true
     clearLocalDraft()
     if (recFailed > 0) uni.showToast({ title: '已发布，商品关联失败可稍后在文章中重试', icon: 'none' })
-    else uni.showToast({ title: '发布成功', icon: 'success' })
+    else uni.showToast({ title: VOICE.TOAST_PUBLISHED, icon: 'success' })
     // 广播圈子详情页立即刷新（配合后端 createPost 缓存失效，新帖即时可见·董事长反馈）
     uni.$emit('circle:refresh', selectedCircle.value)
     setTimeout(() => navigateBack(), 600)

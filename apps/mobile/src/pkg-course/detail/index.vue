@@ -122,7 +122,7 @@ async function onPurchase() {
     if (subscribing.value) return
     subscribing.value = true
     try {
-      await purchaseApi.createOrder({ type: 'COURSE', targetId: courseId.value })
+      await purchaseApi.createOrder({ type: 'COURSE', targetId: courseId.value, amount: 1 })
       hasAccess.value = true
       uni.showToast({ title: '已订阅，可在「我的课程」查看', icon: 'none' })
     } catch (e) {

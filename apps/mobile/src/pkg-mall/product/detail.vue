@@ -22,7 +22,10 @@ const isFavorite = ref(false)
 const cartCount = ref(0)
 const showSpecPanel = ref(false)
 const specAction = ref<'cart' | 'buy'>('cart')
-const selectedSpecs = ref<Record<string, string>>({ 版本: 'standard', 数量: '1' })
+// SKU 选择（R4 P1-1）：选项即 SKU（option.id = skuId），多规格必须选中后才能加购/下单
+const selectedSkuId = ref('')
+// 购买数量（独立 stepper，上限=选中 SKU 库存或商品总库存）
+const quantity = ref(1)
 const submitting = ref(false)
 const recItems = ref<RecommendItem[]>([])
 
@@ -41,6 +44,9 @@ async function fetchData() {
   try {
     const data = await shopApi.getProduct(currentId.value)
     product.value = data
+    // 重置 SKU 选择与数量（重试/换商品不残留上一商品的选择）；仅 1 个有货 SKU 时自动选中减少一步
+    selectedSkuId.value = data.skus.length === 1 && data.skus[0].stock > 0 ? data.skus[0].id : ''
+    quantity.value = 1
     // 底栏收藏态/购物车角标（未登录/失败静默降级，不阻塞详情渲染）
     shopApi.isProductFavorited(String(data.id)).then((v) => { isFavorite.value = v })
     shopApi.getCart()
@@ -77,22 +83,26 @@ const discount = computed(() => {
   if (!product.value) return 0
   return Math.round((1 - product.value.price / product.value.originalPrice) * 100)
 })
+/** 多规格商品（后端有 skus）；单规格 specs 为空走无规格流：不弹规格、不传 skuId */
+const hasSpecs = computed(() => !!product.value && product.value.specs.length > 0)
+/** 选中的 SKU（真实后端 SKU，价格/库存/下单以此为准） */
+const selectedSku = computed(() => {
+  if (!product.value || !selectedSkuId.value) return null
+  return (product.value.skus as Array<{ id: string; name: string; price: number; stock: number }>).find((s) => s.id === selectedSkuId.value) || null
+})
 const currentPrice = computed(() => {
   if (!product.value) return 0
-  const v = product.value.specs.find((s: any) => s.name === '版本')?.options.find((o: any) => o.id === selectedSpecs.value['版本'])
-  return v?.price || product.value.price
+  return selectedSku.value ? selectedSku.value.price : product.value.price
 })
 const currentStock = computed(() => {
   if (!product.value) return 0
-  const v = product.value.specs.find((s: any) => s.name === '版本')?.options.find((o: any) => o.id === selectedSpecs.value['版本'])
-  return v?.stock || product.value.stock
+  return selectedSku.value ? selectedSku.value.stock : product.value.stock
 })
+/** 数量上限=选中 SKU 库存（未选/单规格=商品总库存），至少 1 保证 stepper 可用 */
+const maxQty = computed(() => Math.max(1, currentStock.value))
 const selectedSpecLabels = computed(() => {
-  if (!product.value) return '请选择规格'
-  return Object.entries(selectedSpecs.value)
-    .map(([k, v]) => product.value.specs.find((s: any) => s.name === k)?.options.find((o: any) => o.id === v)?.label)
-    .filter(Boolean)
-    .join('、')
+  if (!hasSpecs.value) return ''
+  return selectedSku.value ? selectedSku.value.name : '请选择规格'
 })
 const previewReviews = computed(() => {
   if (!product.value) return []
@@ -103,14 +113,44 @@ function onSwiperChange(e: { detail: { current: number } }) { swiperIndex.value 
 // 主图加载失败（存量商品常有 /static/xxx.jpg 坏链）→ 该张切书法兜底，绝不留白
 const failedImages = ref<Set<number>>(new Set())
 function onImgError(i: number) { const s = new Set(failedImages.value); s.add(i); failedImages.value = s }
-function selectSpec(name: string, id: string) { selectedSpecs.value = { ...selectedSpecs.value, [name]: id } }
+/** 选择 SKU：无库存置灰禁选；切换后数量夹紧到新 SKU 库存 */
+function selectSku(opt: { id: string; stock: number }) {
+  if (opt.stock <= 0) {
+    uni.showToast({ title: '该规格暂时缺货', icon: 'none' })
+    return
+  }
+  selectedSkuId.value = opt.id
+  if (quantity.value > opt.stock) quantity.value = Math.max(1, opt.stock)
+}
+function decQty() { if (quantity.value > 1) quantity.value-- }
+function incQty() {
+  if (quantity.value >= maxQty.value) {
+    uni.showToast({ title: '已达库存上限', icon: 'none' })
+    return
+  }
+  quantity.value++
+}
 function openSpecPanel(action: 'cart' | 'buy') { specAction.value = action; showSpecPanel.value = true }
+/** 多规格未选拦截：自动弹规格面板提示先选（返回 true=已拦截）；库存不足一并拦截 */
+function guardSkuSelection(): boolean {
+  if (hasSpecs.value && !selectedSkuId.value) {
+    showSpecPanel.value = true
+    uni.showToast({ title: '请先选择规格', icon: 'none' })
+    return true
+  }
+  if (currentStock.value <= 0) {
+    uni.showToast({ title: '库存不足', icon: 'none' })
+    return true
+  }
+  return false
+}
 async function addToCart() {
   if (submitting.value || !product.value) return
+  if (guardSkuSelection()) return
   submitting.value = true
   try {
-    const qty = Number(selectedSpecs.value['数量']) || 1
-    const res = await shopApi.addToCart(String(product.value.id), qty)
+    // 多规格携带 skuId（后端购物车/结算按 SKU 计价扣库存）；单规格不传，行为不变
+    const res = await shopApi.addToCart(String(product.value.id), quantity.value, hasSpecs.value ? selectedSkuId.value : undefined)
     cartCount.value = (res.items || []).reduce((s, i) => s + i.quantity, 0)
     showSpecPanel.value = false
     uni.showToast({ title: '已加入购物车', icon: 'success' })
@@ -122,12 +162,14 @@ async function addToCart() {
 }
 function buyNow() {
   if (!product.value) return
+  if (guardSkuSelection()) return
   // F3 电商漏斗埋点：购买点击（D-T1）
   track.custom('buy_click', { type: 'product', id: product.value.id })
-  // 实物商品必须经结算页确认收货地址/优惠券后再建单（此前直接 createOrder 跳过了地址确认）
-  const qty = Number(selectedSpecs.value['数量']) || 1
+  // 实物商品必须经结算页确认收货地址/优惠券后再建单（此前直接 createOrder 跳过了地址确认）；
+  // 多规格携带 skuId → 结算页 getCheckout/estimateOrder/createOrder 全链按 SKU 计价（资金语义端到端一致）
+  const skuParam = hasSpecs.value && selectedSkuId.value ? `&skuId=${selectedSkuId.value}` : ''
   showSpecPanel.value = false
-  navigateTo(`/shop/checkout?productId=${product.value.id}&quantity=${qty}`)
+  navigateTo(`/shop/checkout?productId=${product.value.id}&quantity=${quantity.value}${skuParam}`)
 }
 // P1-3：必须带商品 id 走动态路由 /mall/product/:id/reviews，不带 id 的静态入口是死链（评价页拿不到商品）
 function goReviews() {
@@ -235,9 +277,9 @@ async function toggleFavorite() {
       <view class="store-entry-btn"><text class="store-entry-btn-text">进店</text><AppIcon name="chevron-right" :size="28" color="var(--brand)" /></view>
     </view>
 
-    <!-- 规格入口 -->
-    <view class="card spec-entry" hover-class="card-press" @tap="openSpecPanel('cart')">
-      <view class="spec-entry-l"><text class="spec-label">规格</text><text class="spec-val">{{ selectedSpecLabels }}</text></view>
+    <!-- 规格入口（仅多规格商品显示；单规格无可选项不渲染） -->
+    <view v-if="hasSpecs" class="card spec-entry" hover-class="card-press" @tap="openSpecPanel('cart')">
+      <view class="spec-entry-l"><text class="spec-label">规格</text><text class="spec-val" :class="{ 'spec-val-empty': !selectedSku }">{{ selectedSpecLabels }}</text></view>
       <AppIcon name="chevron-right" :size="32" color="var(--text-soft)" />
     </view>
 
@@ -341,16 +383,31 @@ async function toggleFavorite() {
         <view class="sp-info">
           <text class="sp-price">¥{{ formatPrice(currentPrice) }}</text>
           <text class="sp-stock">库存 {{ currentStock }} 件</text>
-          <text class="sp-selected">已选：{{ selectedSpecLabels || '请选择规格' }}</text>
+          <text v-if="hasSpecs" class="sp-selected">{{ selectedSku ? `已选：${selectedSpecLabels}` : '请选择规格' }}</text>
         </view>
       </view>
       <view class="sp-body">
+        <!-- 真实 SKU 规格组（选项=SKU 组合，选中即锁定 skuId；无库存置灰禁选） -->
         <view v-for="grp in product.specs" :key="grp.name" class="sp-group">
           <text class="sp-group-name">{{ grp.name }}</text>
           <view class="sp-opts">
-            <view v-for="opt in grp.options" :key="opt.id" class="sp-opt" :class="{ 'sp-opt-on': selectedSpecs[grp.name] === opt.id }" @tap="selectSpec(grp.name, opt.id)">
-              <text class="sp-opt-text" :class="{ 'sp-opt-text-on': selectedSpecs[grp.name] === opt.id }">{{ opt.label }}{{ opt.price > 0 && grp.name === '版本' ? ` ¥${formatPrice(opt.price)}` : '' }}</text>
+            <view
+              v-for="opt in grp.options" :key="opt.id"
+              class="sp-opt"
+              :class="{ 'sp-opt-on': selectedSkuId === opt.id, 'sp-opt-off': opt.stock <= 0 }"
+              @tap="selectSku(opt)"
+            >
+              <text class="sp-opt-text" :class="{ 'sp-opt-text-on': selectedSkuId === opt.id, 'sp-opt-text-off': opt.stock <= 0 }">{{ opt.label }} ¥{{ formatPrice(opt.price) }}{{ opt.stock <= 0 ? '（缺货）' : '' }}</text>
             </view>
+          </view>
+        </view>
+        <!-- 数量 stepper（上限=选中 SKU 库存或商品总库存） -->
+        <view class="sp-qty-row">
+          <text class="sp-group-name">数量</text>
+          <view class="sp-stepper">
+            <view class="sp-step-btn" :class="{ 'sp-step-btn-off': quantity <= 1 }" @tap="decQty"><text class="sp-step-text">−</text></view>
+            <text class="sp-qty-num">{{ quantity }}</text>
+            <view class="sp-step-btn" :class="{ 'sp-step-btn-off': quantity >= maxQty }" @tap="incQty"><text class="sp-step-text">＋</text></view>
           </view>
         </view>
       </view>
@@ -402,6 +459,7 @@ async function toggleFavorite() {
 .spec-entry-l { display: flex; align-items: center; gap: 12rpx; }
 .spec-label { font-size: 26rpx; color: var(--text-soft); }
 .spec-val { font-size: 26rpx; color: var(--text-strong); }
+.spec-val-empty { color: var(--text-soft); }
 /* 进店入口 */
 .store-entry { display: flex; align-items: center; justify-content: space-between; }
 .store-entry-l { display: flex; align-items: center; gap: 16rpx; min-width: 0; }
@@ -478,8 +536,17 @@ async function toggleFavorite() {
 .sp-opts { display: flex; flex-wrap: wrap; gap: 16rpx; margin-top: 16rpx; }
 .sp-opt { padding: 14rpx 28rpx; border-radius: 12rpx; background: var(--surface-sunken); }
 .sp-opt-on { background: var(--brand); }
+.sp-opt-off { opacity: 0.45; }
 .sp-opt-text { font-size: 26rpx; color: var(--text-strong); }
 .sp-opt-text-on { color: #fff; }
+.sp-opt-text-off { color: var(--text-soft); text-decoration: line-through; }
+/* 数量 stepper */
+.sp-qty-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8rpx; }
+.sp-stepper { display: flex; align-items: center; gap: 0; border: 1rpx solid var(--border, #e5e5e5); border-radius: 12rpx; overflow: hidden; }
+.sp-step-btn { width: 64rpx; height: 64rpx; display: flex; align-items: center; justify-content: center; background: var(--surface-sunken); }
+.sp-step-btn-off { opacity: 0.4; }
+.sp-step-text { font-size: 32rpx; color: var(--text-strong); line-height: 1; }
+.sp-qty-num { min-width: 88rpx; text-align: center; font-size: 28rpx; font-weight: 500; color: var(--text-strong); }
 .sp-actions { display: flex; gap: 20rpx; padding-top: 28rpx; border-top: 1rpx solid var(--border, #eee); }
 .sp-btn-cart { flex: 1; height: 88rpx; border-radius: 999rpx; background: var(--gold, #c9a96e); display: flex; align-items: center; justify-content: center; }
 .sp-btn-cart-text { font-size: 28rpx; font-weight: 500; color: #fff; }

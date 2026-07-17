@@ -40,10 +40,16 @@
                     <text class="poster-card__author-from" :style="{ color: activeTheme.sub }">来自 {{ BRAND.name }}</text>
                   </view>
                 </view>
-                <!-- 预览区二维码：与导出图同源（都按 data.link 现画），避免"看到的和存下来的不一致" -->
-                <view class="poster-card__qr">
-                  <canvas canvas-id="previewQr" id="previewQr" class="poster-card__qr-img" />
-                  <text class="poster-card__qr-label" :style="{ color: activeTheme.sub }">{{ posterData.qrLabel }}</text>
+                <!-- 品牌朱印 + 二维码（印章与 canvas 导出版同构·drawSealOnCanvas） -->
+                <view class="poster-card__stamp-area">
+                  <view class="poster-card__seal">
+                    <brand-seal :chars="sealChars" :size="96" />
+                  </view>
+                  <!-- 预览区二维码：与导出图同源（都按 data.link 现画），避免"看到的和存下来的不一致" -->
+                  <view class="poster-card__qr">
+                    <canvas canvas-id="previewQr" id="previewQr" class="poster-card__qr-img" />
+                    <text class="poster-card__qr-label" :style="{ color: activeTheme.sub }">{{ posterData.qrLabel }}</text>
+                  </view>
                 </view>
               </view>
             </view>
@@ -126,6 +132,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
+import BrandSeal from '@/components/common/brand-seal.vue'
 import {
   POSTER_THEMES,
   SHARE_TONES,
@@ -157,6 +164,8 @@ const canvasW = 300
 const canvasH = 420
 
 const typeTitle = computed(() => getPosterTypeTitle(posterType.value))
+/** 印面文字：品牌名前二字（nameShort 缺省时回退全名取前二字） */
+const sealChars = computed(() => Array.from(BRAND.nameShort || BRAND.name).slice(0, 2).join(''))
 const activeTheme = computed(() => POSTER_THEMES[themeIndex.value])
 const currentTone = computed(() =>
   posterData.value ? SHARE_TONES[toneIndex.value].build(posterData.value.title) : '',
@@ -248,6 +257,11 @@ function drawPoster() {
   const QR = 72
   drawQrToCanvas(ctx, data.link, W - 32 - QR, H - 32 - QR, QR, { padding: 4 })
 
+  /* 品牌朱印（视觉签名批1）：与预览区 brand-seal 同构，画在二维码左侧、底边对齐——
+   * 预览 96rpx=48px、间距 12px，绝不与二维码/作者行重叠 */
+  const SEAL = 48
+  drawSealOnCanvas(ctx, sealChars.value, W - 32 - QR - 12 - SEAL, H - 32 - SEAL, SEAL)
+
   ctx.draw(false, () => {
     setTimeout(() => {
       uni.canvasToTempFilePath({
@@ -270,6 +284,51 @@ function drawPoster() {
 watch(themeIndex, () => {
   if (posterData.value) drawPoster()
 })
+
+/**
+ * canvas 版品牌朱印：与预览区 brand-seal.vue（variant=zhu）同构复刻——
+ * 印泥红圆角方印面 + 距边 7% 白细内框 + 白楷竖排二字，保证「所见即所存」。
+ * 圆角用 lineTo+arc 拼四角（uni 各端 canvas 均支持，不依赖 arcTo/roundRect）。
+ */
+function drawSealOnCanvas(ctx: UniApp.CanvasContext, chars: string, x: number, y: number, size: number) {
+  const list = Array.from(chars).slice(0, 2)
+  if (!list.length) return
+  const r = Math.round(size * 0.1)
+  // 圆角方形印面（印泥红取 --seal-gradient 中值，小尺寸下渐变差异不可见）
+  ctx.beginPath()
+  ctx.moveTo(x + r, y)
+  ctx.lineTo(x + size - r, y)
+  ctx.arc(x + size - r, y + r, r, -Math.PI / 2, 0)
+  ctx.lineTo(x + size, y + size - r)
+  ctx.arc(x + size - r, y + size - r, r, 0, Math.PI / 2)
+  ctx.lineTo(x + r, y + size)
+  ctx.arc(x + r, y + size - r, r, Math.PI / 2, Math.PI)
+  ctx.lineTo(x, y + r)
+  ctx.arc(x + r, y + r, r, Math.PI, Math.PI * 1.5)
+  ctx.closePath()
+  ctx.setFillStyle('#c41e3a')
+  ctx.fill()
+  // 白细内框（距边 7%，印章的"格"感）
+  const inset = size * 0.07
+  ctx.setStrokeStyle('rgba(255,255,255,0.55)')
+  ctx.setLineWidth(1)
+  ctx.strokeRect(x + inset, y + inset, size - inset * 2, size - inset * 2)
+  // 白楷竖排字（楷体 fallback 与组件一致；MP 端忽略 font 时降级默认字体，可接受）
+  const fs = Math.round(size * (list.length === 1 ? 0.52 : 0.36))
+  ctx.setFillStyle('#ffffff')
+  ctx.setFontSize(fs)
+  ctx.font = `600 ${fs}px "Kaiti SC", STKaiti, KaiTi, serif`
+  ctx.setTextAlign('center')
+  const cx = x + size / 2
+  if (list.length === 1) {
+    ctx.fillText(list[0], cx, y + size * 0.5 + fs * 0.35)
+  } else {
+    // 双字竖排：上下两格中心 30% / 70%，baseline 按字高 0.35 微调至视觉居中
+    ctx.fillText(list[0], cx, y + size * 0.3 + fs * 0.35)
+    ctx.fillText(list[1], cx, y + size * 0.7 + fs * 0.35)
+  }
+  ctx.setTextAlign('left') // 还原对齐，避免污染后续绘制
+}
 
 function wrapText(
   ctx: UniApp.CanvasContext,
@@ -513,6 +572,15 @@ onMounted(() => {})
 }
 .poster-card__author-from {
   font-size: 20rpx;
+}
+/* 印章+二维码组：印章底边与二维码图对齐（二维码下方还有 label，故印章抬起 label 高度） */
+.poster-card__stamp-area {
+  display: flex;
+  align-items: flex-end;
+  gap: 24rpx;
+}
+.poster-card__seal {
+  margin-bottom: 34rpx;
 }
 .poster-card__qr {
   display: flex;

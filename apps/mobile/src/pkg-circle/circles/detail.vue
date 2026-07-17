@@ -15,6 +15,7 @@ import SmartCover from '@/components/common/smart-cover.vue'
 import SmartAvatar from '@/components/common/smart-avatar.vue'
 import PostCard from '@/components/circle/post-card.vue'
 import { goBack, navigateTo } from '@/utils/router'
+import { VOICE } from '@/lib/voice'
 import { getToken } from '@/utils/storage'
 import PurchaseSheet from '@/components/common/purchase-sheet.vue'
 import {
@@ -487,8 +488,9 @@ function openShowcase() { navigateTo('/pkg-mall/home/index') }
           <image v-if="postedArticles[0].cover" lazy-load :src="postedArticles[0].cover" class="article-cover" mode="aspectFill" />
         </view>
 
-        <!-- 诚实文案：posts 接口无分页、页面也无 scrolltolower 处理，"上拉加载更多"是假承诺（分页留后端配合项） -->
-        <view class="feed-end"><text class="feed-end-txt">已显示全部动态</text></view>
+        <!-- 卷尾（品牌签名·墨线由全局 .scroll-end 画）。诚实前提不变：posts 接口无分页、
+             页面也无 scrolltolower 处理，此处即真实结尾，"上拉加载更多"是假承诺（分页留后端配合项） -->
+        <view class="scroll-end"><text>{{ VOICE.END }}</text></view>
       </view>
 
       <!-- 精华 Tab -->
@@ -509,7 +511,8 @@ function openShowcase() { navigateTo('/pkg-mall/home/index') }
       <!-- 问答 Tab：本圈达人付费问答（提问入口+担保说明），不再误落文章列表 -->
       <view v-else-if="activeTab === 'qa'" class="feed">
         <view class="qa-trust">
-          <app-icon name="shield" :size="28" color="#C9A96E" />
+          <!-- 托管担保=交易保障信息非荣誉场景，盾牌随品牌朱红（金色纪律纠偏） -->
+          <app-icon name="shield" :size="28" color="#C41E3A" />
           <text class="qa-trust-t">平台托管：48 小时未回复自动全额退还</text>
         </view>
         <view v-if="qaLoading" class="empty"><text class="empty-txt">加载中…</text></view>
@@ -749,7 +752,8 @@ function openShowcase() { navigateTo('/pkg-mall/home/index') }
 .ai-text { flex: 1; min-width: 0; }
 .ai-title { display: block; font-size: 27rpx; font-weight: 600; color: var(--text-primary, #2c2c2c); }
 .ai-sub { display: block; font-size: 23rpx; color: var(--text-tertiary, #999); margin-top: 2rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ai-go { flex-shrink: 0; font-size: 24rpx; color: var(--gold, #c9a96e); font-weight: 500; }
+/* 「去对话」是动作链接非荣誉标识，随品牌朱红（金色纪律纠偏·入口描边/圆底弱金氛围保留） */
+.ai-go { flex-shrink: 0; font-size: 24rpx; color: var(--brand, #c41e3a); font-weight: 500; }
 
 /* 增值内容带 */
 .value-strip { width: 100%; white-space: nowrap; margin-top: 24rpx; }
@@ -784,8 +788,7 @@ function openShowcase() { navigateTo('/pkg-mall/home/index') }
 
 /* 动态流 */
 .feed { padding: 24rpx 32rpx 0; display: flex; flex-direction: column; gap: 24rpx; }
-.feed-end { text-align: center; padding: 36rpx 0 12rpx; }
-.feed-end-txt { font-size: 24rpx; color: var(--text-tertiary, #999); }
+/* 到底提示改用全局 .scroll-end（signature.scss 卷尾墨线） */
 
 /* 内联卡片（课程/文章） */
 .inline-card { background: var(--bg-card, #fff); border-radius: 32rpx; padding: 28rpx 32rpx; box-shadow: 0 2rpx 4rpx rgba(44, 44, 44, 0.04); }
@@ -795,7 +798,8 @@ function openShowcase() { navigateTo('/pkg-mall/home/index') }
 .course-kind { font-size: 22rpx; color: var(--text-tertiary, #999); letter-spacing: 2rpx; }
 .course-title { font-size: 29rpx; font-weight: 700; color: var(--text-primary, #2c2c2c); margin-top: 6rpx; line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .course-meta { display: flex; align-items: center; gap: 16rpx; margin-top: auto; padding-top: 12rpx; }
-.course-price { font-size: 26rpx; font-weight: 600; color: var(--gold, #c9a96e); }
+/* 价格=交易信息走品牌朱红（金色纪律：金只留给会员/成就/精华/认证/圈主/评分/收藏选中） */
+.course-price { font-size: 26rpx; font-weight: 600; color: var(--brand, #c41e3a); }
 .course-teacher { font-size: 23rpx; color: var(--text-tertiary, #999); }
 .article-card { display: flex; gap: 24rpx; align-items: stretch; }
 .article-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
@@ -857,12 +861,13 @@ function openShowcase() { navigateTo('/pkg-mall/home/index') }
 .assistant-tag-txt { font-size: 20rpx; color: #8a6d3b; font-weight: 600; line-height: 1.4; }
 
 /* 问答 Tab（达人付费问答） */
+/* 托管担保条随盾牌一并离金归朱（浅朱底+中性文字，同处纠偏保持整条协调） */
 .qa-trust {
   display: flex; align-items: center; gap: 10rpx;
   padding: 16rpx 24rpx; border-radius: 16rpx;
-  background: rgba(201, 169, 110, 0.1);
+  background: rgba(196, 30, 58, 0.06);
 }
-.qa-trust-t { font-size: 24rpx; color: #8a6d3b; }
+.qa-trust-t { font-size: 24rpx; color: var(--text-secondary, #6e6e73); }
 .qa-card {
   display: flex; align-items: center; gap: 20rpx;
   background: #ffffff; border-radius: 24rpx; padding: 24rpx;

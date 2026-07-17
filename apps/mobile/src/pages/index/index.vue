@@ -15,6 +15,7 @@ import SmartCover from '@/components/common/smart-cover.vue'
 import BottomNav from '@/components/bottom-nav/bottom-nav.vue'
 import DailyStudy from '@/components/home/daily-study.vue'
 import { navigateTo } from '@/utils/router'
+import { VOICE } from '@/lib/voice'
 import { getSmartFeed, sendFeedback, ratioPadding, feedTargetUrl, type FeedEnvelope } from '@/lib/feed-data'
 import { getPublishedLayout, type LayoutBlock } from '@/lib/page-layout-data'
 import BlockRenderer from '@/components/layout/block-renderer.vue'
@@ -500,9 +501,8 @@ function backToTop() {
       <view v-else-if="loadMoreError" class="more-tip" hover-class="btn-press" @tap="retryLoadMore">
         <text class="more-tip-txt more-tip-err">加载失败 · 点击重试</text>
       </view>
-      <view v-else-if="noMore" class="end">
-        <view class="end-line" /><text class="end-text">已经到底了</text><view class="end-line" />
-      </view>
+      <!-- 卷尾（品牌签名·两侧墨线由全局 .scroll-end 伪元素画，文案统一走 voice.ts） -->
+      <view v-else-if="noMore" class="scroll-end"><text>{{ VOICE.END }}</text></view>
     </scroll-view>
 
     <!-- 回到顶部 -->
@@ -700,9 +700,8 @@ function backToTop() {
 .more-tip-txt { font-size: 24rpx; color: #999999; }
 /* 加载更多失败重试（朱红提醒色，可点） */
 .more-tip-err { color: #C41E3A; }
-.end { display: flex; align-items: center; justify-content: center; gap: 24rpx; padding: 48rpx 0 64rpx; }
-.end-line { width: 60rpx; height: 1rpx; background-color: #E8E0D5; }
-.end-text { font-size: 24rpx; color: #999999; }
+/* 到底提示改用全局 .scroll-end（signature.scss 卷尾墨线），此处只补页底留白 */
+.scroll-end { padding-bottom: 64rpx; }
 
 /* ── 空态 ── */
 .empty {
