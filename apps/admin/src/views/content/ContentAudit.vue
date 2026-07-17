@@ -1022,10 +1022,18 @@ function platformReject(row: PlatformAuditRow) {
 
 // ── 审核动作（专用审核端点·内容/课程分流）──
 
-function doAudit(row: ContentRow, status: 'APPROVED' | 'REJECTED', reason?: string) {
-  return row._kind === 'COURSE'
-    ? courseApi.audit(row.id, status, reason)
-    : contentApi.audit(row.id, status, reason)
+async function doAudit(row: ContentRow, status: 'APPROVED' | 'REJECTED', reason?: string) {
+  if (row._kind === 'COURSE') return courseApi.audit(row.id, status, reason)
+  try {
+    return await contentApi.audit(row.id, status, reason)
+  } catch (e) {
+    // 兼容回退：后端专用审核端点(PUT /contents/:id/audit)未部署时 404，
+    // 降级走旧编辑端点保持审核可用（旧口径=超管/运营可审）。后端上线后此分支自然不再触发。
+    if ((e as { response?: { status?: number } })?.response?.status === 404) {
+      return contentApi.update(row.id, { status, auditReason: reason })
+    }
+    throw e
+  }
 }
 
 function approveOne(row: ContentRow) {
