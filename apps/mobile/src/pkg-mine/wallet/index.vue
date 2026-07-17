@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
 import { mineApi, type WalletInfo, type RechargeOption, type WalletTxRecord, type WalletTxCategory } from '@/lib/mine-data'
@@ -28,7 +29,8 @@ async function loadData() {
   } catch (e) { error.value = (e as Error)?.message || '加载失败' }
   finally { loading.value = false }
 }
-onMounted(loadData)
+// 用 onShow：从充值/提现返回时重拉余额，避免余额陈旧（onShow 首次进入也会触发，等价初始加载）
+onShow(loadData)
 
 const levelProgress = computed(() =>
   Math.round((info.value.growthValue / info.value.nextLevelGrowth) * 100),

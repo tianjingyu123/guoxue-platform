@@ -215,8 +215,21 @@ async function doFeedback(reason: string) {
 // 回到顶部
 const scrollTopVal = ref(0)
 const showBackTop = ref(false)
+// 滚动节流(~100ms)：原每帧读 scrollTop 高频触发，加节流壳减少滚动期主线程压力；判定逻辑(>900)不变
+let scrollLockTs = 0
+let scrollTrailing: ReturnType<typeof setTimeout> | null = null
+function applyBackTop(top: number) { showBackTop.value = top > 900 }
 function onScroll(e: { detail: { scrollTop: number } }) {
-  showBackTop.value = e.detail.scrollTop > 900
+  const top = e.detail.scrollTop
+  const now = Date.now()
+  if (now - scrollLockTs >= 100) {
+    scrollLockTs = now
+    applyBackTop(top)
+  } else {
+    // 节流窗口内只记尾值，窗口结束后补一次，避免最后一次滚动被丢导致按钮状态卡住
+    if (scrollTrailing) clearTimeout(scrollTrailing)
+    scrollTrailing = setTimeout(() => { scrollLockTs = Date.now(); applyBackTop(top) }, 100)
+  }
 }
 function backToTop() {
   scrollTopVal.value = scrollTopVal.value === 0 ? 1 : 0

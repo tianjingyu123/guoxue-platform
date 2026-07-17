@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { onPullDownRefresh } from '@dcloudio/uni-app'
+import { onPullDownRefresh, onShow } from '@dcloudio/uni-app'
 import BottomNav from '@/components/bottom-nav/bottom-nav.vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo, toastComingSoon } from '@/utils/router'
@@ -42,11 +42,12 @@ const userData = ref({
 })
 const recItems = ref<RecommendItem[]>([])
 
-// totalMessages 基于 API 返回的用户数据动态计算
-const totalMessages = computed(() => {
-  const m = userData.value.messages
-  return m.system + m.interaction + m.transaction
-})
+// 铃铛未读数：旁路 profile-data 的占位常量（messages 无聚合端点恒 0），
+// 直接用真实聚合端点 GET /notifications/unread-count 驱动红点（内部已 try/catch 降级 0）
+const unreadNotify = ref(0)
+async function fetchUnreadNotify() {
+  unreadNotify.value = await mineApi.getUnreadNotifyCount()
+}
 
 /* ===== 身份成长区（§六）：六角色统一模型（图章单字 + 一句权益 + 申请页路由）
    注：运营商/线下驿站/研究院不在后端 UserRole 联合类型内（无对应身份后台），
@@ -183,10 +184,15 @@ onMounted(() => {
   loadWalletBalance()
 })
 
-// 下拉刷新：重拉个人资料与装备称号
+// 每次显示都刷新铃铛未读（从通知中心读完返回即时消红点）；onShow 首屏也会触发
+onShow(() => {
+  fetchUnreadNotify()
+})
+
+// 下拉刷新：重拉个人资料与装备称号 + 铃铛未读
 onPullDownRefresh(async () => {
   try {
-    await Promise.all([fetchData(), fetchEquippedTitle(), loadWalletBalance()])
+    await Promise.all([fetchData(), fetchEquippedTitle(), loadWalletBalance(), fetchUnreadNotify()])
   } finally {
     uni.stopPullDownRefresh()
   }
@@ -235,7 +241,7 @@ function applyRole(role: string) {
       <view class="top-acts" :style="{ top: statusBarHeight + 6 + 'px' }">
         <view class="top-act" @tap="go('/notifications')">
           <AppIcon name="message-circle" :size="44" color="#2B2620" />
-          <view v-if="totalMessages > 0" class="dot" />
+          <view v-if="unreadNotify > 0" class="dot" />
         </view>
         <view class="top-act" @tap="go('/pkg-mine/settings/index')">
           <AppIcon name="settings" :size="44" color="#2B2620" />

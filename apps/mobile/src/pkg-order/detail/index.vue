@@ -124,7 +124,7 @@
       <view class="foot-service" @tap="toService"><app-icon name="phone" :size="30" color="#666666" /><text>联系客服</text></view>
       <view class="foot-actions">
         <template v-if="order.status === 'pending_pay'">
-          <view class="fbtn ghost"><text>取消订单</text></view>
+          <view class="fbtn ghost" @tap="doCancel"><text>取消订单</text></view>
           <view class="fbtn primary" @tap="goPay"><text>去支付</text></view>
         </template>
         <!-- 虚拟订单（课程/会员）：付款即交付，无物流/收货操作；课程给学习入口 -->
@@ -208,7 +208,13 @@ function goReview() { if (!order.value) return; navigateTo(`/orders/${order.valu
 function goAfterSale() { if (!order.value) return; navigateTo(`/shop/after-sale?orderId=${order.value.id}`) }
 // 换货入口：挂订单售后（换货页读该订单商品/SKU/地址，提交走 after-sale type=exchange）
 function goExchange() { if (!order.value) return; navigateTo(`/shop/exchange?orderId=${order.value.id}`) }
-function goPay() { if (!order.value) return; navigateTo(`/shop/paying?orderId=${order.value.id}`) }
+function goPay() {
+  if (!order.value) return
+  // 带上真实实付金额，避免收银页显示 ¥0.00；payMethod 为展示串，反映射为收银页可识别的 key（未支付订单通常无，缺省微信）
+  const m = order.value.payMethod === '微信支付' ? 'wechat' : order.value.payMethod === '支付宝' ? 'alipay' : ''
+  const q = `orderId=${order.value.id}&amount=${order.value.payAmount}${m ? `&method=${m}` : ''}`
+  navigateTo(`/shop/paying?${q}`)
+}
 function goShop() { navigateTo('/mall') }
 function toService() { navigateTo('/customer-service') }
 async function confirmReceive() {
@@ -221,6 +227,26 @@ async function confirmReceive() {
     }
   } catch { uni.showToast({ title: '操作失败', icon: 'none' }) }
   finally { submitting.value = false }
+}
+// 取消订单（仅待付款可取消，后端校验）：确认后直接调用，成功刷新本页状态为已取消
+function doCancel() {
+  if (!order.value || submitting.value) return
+  uni.showModal({
+    title: '取消订单', content: '确定要取消该订单吗？',
+    confirmText: '取消订单', cancelText: '再想想',
+    success: async (r) => {
+      if (!r.confirm || !order.value || submitting.value) return
+      submitting.value = true
+      try {
+        const ok = await orderApi.cancel(order.value.id)
+        if (ok && order.value) {
+          order.value = { ...order.value, status: 'cancelled' as const, canCancel: false }
+          uni.showToast({ title: '订单已取消', icon: 'none' })
+        }
+      } catch { uni.showToast({ title: '取消失败', icon: 'none' }) }
+      finally { submitting.value = false }
+    },
+  })
 }
 </script>
 

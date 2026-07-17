@@ -16,6 +16,8 @@ import { apiGet, apiPost, apiPut } from '@/utils/request'
 export type OrderStatus =
   | 'pending_pay' | 'pending_ship' | 'pending_receive'
   | 'completed' | 'cancelled' | 'after_sale'
+  // 中性兜底态：后端新增/未知状态（REFUNDING/CLOSED 等）落此，显灰色「处理中」，绝不误显「已完成」
+  | 'processing'
 
 export interface OrderProduct {
   id: string
@@ -63,6 +65,8 @@ export const orderStatusConfig: Record<string, { label: string; color: string; i
   completed: { label: '已完成', color: '#999999', icon: 'check-circle' },
   cancelled: { label: '已取消', color: '#999999', icon: 'x' },
   after_sale: { label: '售后中', color: '#F97316', icon: 'alert-circle' },
+  // 未知/新增状态兜底：中性灰「处理中」，不误导为已完成
+  processing: { label: '处理中', color: '#999999', icon: 'clock' },
 }
 
 export const orderCancelReasons = ['不想要了', '信息填写错误', '重复下单', '其他原因']
@@ -121,6 +125,8 @@ export const detailStatusConfig: Record<string, { icon: string; color: string; b
   completed: { icon: 'check-circle', color: '#10B981', bg: 'rgba(16,185,129,0.1)', text: '已完成', step: 4 },
   cancelled: { icon: 'x-circle', color: '#6B7280', bg: 'rgba(107,114,128,0.1)', text: '已取消', step: 0 },
   after_sale: { icon: 'refresh-cw', color: '#F59E0B', bg: 'rgba(245,158,11,0.1)', text: '售后中', step: 3 },
+  // 未知/新增状态兜底：中性灰「处理中」，step=0 不点亮任何进度节点
+  processing: { icon: 'clock', color: '#6B7280', bg: 'rgba(107,114,128,0.1)', text: '处理中', step: 0 },
 }
 
 /** 虚拟订单已支付态的状态卡覆盖（付款即开通，不显示「待发货」） */
@@ -415,7 +421,8 @@ function adaptOrderListItem(o: RawOrder): OrderListItem {
   return {
     id: o.id || '',
     orderNo: shortNo(o.id),
-    status: ORDER_STATUS_MAP[o.status || ''] || 'completed',
+    // 后端新增状态（REFUNDING/CLOSED 等）兜底为中性「处理中」，不再误显「已完成」
+    status: ORDER_STATUS_MAP[o.status || ''] || 'processing',
     orderType,
     isVirtual,
     totalAmount: num(o.originalAmount ?? o.amount),

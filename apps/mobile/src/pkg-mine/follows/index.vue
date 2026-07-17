@@ -74,7 +74,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
 import { navigateTo } from '@/utils/router'
 import { mineApi, type FollowUserItem } from '@/lib/mine-data'
 import SmartAvatar from '@/components/common/smart-avatar.vue'
@@ -104,7 +105,8 @@ async function fetchData() {
   }
 }
 
-onMounted(fetchData)
+// 用 onShow：从他人主页取关返回时重拉，避免关注列表陈旧（onShow 首次进入也会触发，等价初始加载）
+onShow(fetchData)
 
 async function toggleFollow(user: FollowUserItem) {
   if (submittingId.value) return

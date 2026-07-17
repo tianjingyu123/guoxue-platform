@@ -85,12 +85,15 @@ import { shopApi, payFailReasons } from '@/lib/shop-data'
 const orderId = ref('')
 const reason = ref('default')
 const amount = ref('0')
+const payMethod = ref('')
 const failTime = ref('')
 
 onLoad((q) => {
   orderId.value = (q?.orderId as string) || ''
   reason.value = (q?.reason as string) || 'default'
-  amount.value = (q?.amount as string) || '344'
+  // 兜底改 '0'（真实进入由收银页跳转携带 amount，此兜底基本不触发；残留示例值 344 会误显金额）
+  amount.value = (q?.amount as string) || '0'
+  if (q?.method) payMethod.value = q.method as string
   const d = new Date()
   failTime.value = `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 })
@@ -98,7 +101,11 @@ onLoad((q) => {
 const failInfo = computed(() => payFailReasons[reason.value] || payFailReasons.default)
 const amountText = computed(() => parseFloat(amount.value || '0').toFixed(2))
 
-function goRePay() { redirectTo(`/shop/paying?orderId=${orderId.value}`) }
+// 重新支付带上真实金额与支付方式，避免收银页显示 ¥0.00 且强制微信
+function goRePay() {
+  const q = `orderId=${orderId.value}&amount=${amount.value}${payMethod.value ? `&method=${payMethod.value}` : ''}`
+  redirectTo(`/shop/paying?${q}`)
+}
 function goChangeMethod() { navigateTo(`/shop/checkout?orderId=${orderId.value}`) }
 function goOrder() { navigateTo(`/orders/${orderId.value}`) }
 function goShop() { navigateTo('/mall') }

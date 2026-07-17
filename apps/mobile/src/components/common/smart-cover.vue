@@ -10,7 +10,7 @@
  *   卡片下方已有标题的消费方传 deco 免封面内外标题重复；小尺寸缩略图不再是空色块
  * - 修复小容器内"图标+三行标题"上下溢出裁半个字：图标不再参与压缩、标题降为两行
  */
-import { computed, ref, watch } from 'vue'
+import { computed, ref, watch, onMounted, onUnmounted, getCurrentInstance } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 
 interface Props {
@@ -136,6 +136,36 @@ const imgError = ref(false)
 // 图片加载完成渐显（消除硬闪）：初始 false → @load 置 true 触发 content-fade-in
 const imgLoaded = ref(false)
 watch(() => props.src, () => { imgError.value = false; imgLoaded.value = false })
+// H5 真懒加载：uni <image lazy-load> 只在小程序生效，H5/App 是 no-op → 深滚全站封面 eager 撑爆内存。
+// 用 IntersectionObserver 监听：视口外不给 image 赋真实 src（displaySrc 返回空），进入视口(提前一屏)才赋真 src。
+// inView：H5 初始 false（等观察器放行）；小程序/App 恒 true（保留 image 原生 lazy-load，行为不变）。
+const inView = ref(false)
+// #ifndef H5
+inView.value = true
+// #endif
+// image 实际拿到的 src：仅当有图且已进视口才给真值，否则空（元素仍在、opacity:0，作为观察目标不显破图）
+const displaySrc = computed(() => (hasImg.value && inView.value ? (props.src as string) : ''))
+// @error 兜底守卫：懒加载未进视口时 src 为空不算真失败，避免误翻生成封面（破坏兜底链）
+function onImgError() {
+  if (!displaySrc.value) return
+  imgError.value = true
+}
+// #ifdef H5
+let io: any = null
+onMounted(() => {
+  const inst = getCurrentInstance()
+  // 提前一屏(200px)预加载，避免滚到才白；scoped 到本组件实例，.sc-full 在图/视频/生成封面各分支都存在，恒可观察
+  io = uni.createIntersectionObserver(inst as any)
+  io.relativeToViewport({ top: 200, bottom: 200 }).observe('.sc-full', (res: any) => {
+    if (res.intersectionRatio > 0) {
+      inView.value = true
+      io && io.disconnect()
+      io = null
+    }
+  })
+})
+onUnmounted(() => { io && io.disconnect(); io = null })
+// #endif
 // 无封面图但有视频源 → 用视频首帧兜底（#t=0.5 让 H5 定位到第 0.5s 首帧，避免纯黑帧）
 const hasVideoFrame = computed(() => !hasImg.value && typeof props.videoUrl === 'string' && props.videoUrl.trim() !== '')
 const videoFrameSrc = computed(() => (props.videoUrl || '') + '#t=0.5')
@@ -149,7 +179,7 @@ const decoChars = computed(() => {
 </script>
 
 <template>
-  <image v-if="hasImg && !imgError" class="sc-full" :class="{ 'content-fade-in': imgLoaded }" :style="imgLoaded ? '' : 'opacity:0'" :src="src as string" mode="aspectFill" lazy-load @load="imgLoaded = true" @error="imgError = true" />
+  <image v-if="hasImg && !imgError" class="sc-full" :class="{ 'content-fade-in': imgLoaded }" :style="imgLoaded ? '' : 'opacity:0'" :src="displaySrc" mode="aspectFill" lazy-load @load="imgLoaded = true" @error="onImgError" />
   <!-- 首帧兜底：无封面图但有视频源，取视频第一帧（静音·不自动播·不显控件） -->
   <video
     v-else-if="hasVideoFrame"

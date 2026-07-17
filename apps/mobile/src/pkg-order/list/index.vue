@@ -114,7 +114,7 @@
         <view class="card-foot" @tap.stop>
           <template v-if="order.status === 'pending_pay'">
             <view class="btn ghost" hover-class="btn-press" @tap="askCancel(order.id)"><text class="btn-t">取消订单</text></view>
-            <view class="btn primary" hover-class="btn-press" @tap="goPay(order.id)"><text class="btn-t btn-t-light">去支付</text></view>
+            <view class="btn primary" hover-class="btn-press" @tap="goPay(order)"><text class="btn-t btn-t-light">去支付</text></view>
           </template>
           <template v-else-if="order.status === 'pending_ship'">
             <view v-if="order.canCancel" class="btn ghost" hover-class="btn-press" @tap="askCancel(order.id)"><text class="btn-t">取消订单</text></view>
@@ -246,7 +246,8 @@ function copyNo(no: string) {
   uni.setClipboardData({ data: no, success: () => uni.showToast({ title: '订单号已复制', icon: 'none' }) })
 }
 function goDetail(id: string) { navigateTo(`/orders/${id}`) }
-function goPay(id: string) { navigateTo(`/shop/paying?orderId=${id}`) }
+// 带上订单真实实付金额，避免收银页显示 ¥0.00（列表无 payMethod 字段，收银页默认微信）
+function goPay(order: OrderListItem) { navigateTo(`/shop/paying?orderId=${order.id}&amount=${order.payAmount}`) }
 function goLogistics(id: string) { navigateTo(`/orders/logistics?orderId=${id}`) }
 function goReview(id: string) { navigateTo(`/orders/${id}/review`) }
 function goAfterSale(id: string) { navigateTo(`/shop/after-sale?orderId=${id}`) }

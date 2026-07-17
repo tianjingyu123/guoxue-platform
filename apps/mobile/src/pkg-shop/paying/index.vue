@@ -30,6 +30,14 @@
         <text class="cancel-link" @tap="handleCancel">取消支付</text>
       </block>
 
+      <!-- 确认支付结果中（倒计时归零但仍在查单，不判失败） -->
+      <block v-else-if="status === 'confirming'">
+        <view class="spinner" />
+        <text class="title">正在确认支付结果...</text>
+        <text class="sub">若已完成支付请稍候，系统正在核对到账状态</text>
+        <text class="cancel-link" @tap="handleCancel">返回订单查看</text>
+      </block>
+
       <!-- 成功 -->
       <block v-else-if="status === 'success'">
         <view class="result-icon green"><app-icon name="check-circle" :size="72" color="#4CAF50" /></view>
@@ -89,20 +97,24 @@ import { track } from '@/composables/useTrack'
 import { BRAND } from '@/lib/brand'
 import { formatPrice } from '@/utils/format'
 
-type Status = 'loading' | 'paying' | 'success' | 'failed' | 'timeout' | 'cancelled'
+type Status = 'loading' | 'paying' | 'confirming' | 'success' | 'failed' | 'timeout' | 'cancelled'
 
 const orderId = ref('')
 const payMethod = ref('wechat')
 const amount = ref('0')
 const status = ref<Status>('loading')
-const countdown = ref(30)
+const countdown = ref(180)
 const failReason = ref('')
 const submitting = ref(false)
 
 let cdTimer: ReturnType<typeof setInterval> | null = null
 let pollTimer: ReturnType<typeof setTimeout> | null = null
+// handleCancel 独立防抖守卫：与 submitting（支付发起中守卫）解耦，
+// 否则慢支付 confirming 态下 submitting 仍为 true 会误挡用户取消/返回
+let cancelling = false
 let pollCount = 0
-const maxPolls = 10
+// 3s/次 × 70 ≈ 210s，覆盖倒计时 180s 之外的回调延迟；轮询（而非倒计时）才是「真超时」的唯一判定者
+const maxPolls = 70
 
 const methodName = computed(() => {
   if (payMethod.value === 'wechat') return '微信支付'
@@ -130,11 +142,16 @@ onLoad((q) => {
 })
 
 async function startPaying() {
+  // 真守卫：发起阶段进行中忽略重复触发（handleRetry 快速连点 / onLoad 重入），杜绝多个 pollTimer 泄漏与重复下单
+  if (submitting.value) return
+  submitting.value = true
   status.value = 'paying'
-  countdown.value = 30
+  countdown.value = 180
   pollCount = 0
   failReason.value = ''
+  clearTimers('all') // 清掉上一轮遗留的倒计时/轮询 timer，防泄漏
   startCountdown()
+  try {
   // #ifdef MP-WEIXIN
   // 微信小程序内：走 JSAPI 支付，唤起微信收银台（到账以支付回调为准）
   try {
@@ -218,7 +235,12 @@ async function startPaying() {
   // App 等其他端：微信 APP 支付需客户端 SDK 接入（未接），提示改用小程序/H5 支付；仍轮询兜底（可换端支付）
   uni.showToast({ title: '当前端暂不支持在线支付，请在小程序或浏览器中完成支付', icon: 'none', duration: 3000 })
   // #endif
-  startPolling()
+    startPolling()
+  } finally {
+    // 发起阶段结束即释放守卫（无论：成功唤起 / 用户取消早返回 / 失败早返回 / 外部浏览器外跳），
+    // 之后的「支付中/确认中→结果」由倒计时与轮询驱动，不再依赖 submitting
+    submitting.value = false
+  }
 }
 
 // #ifdef H5
@@ -309,8 +331,12 @@ function startCountdown() {
   clearTimers('cd')
   cdTimer = setInterval(() => {
     if (countdown.value <= 1) {
-      status.value = 'timeout'
-      clearTimers('all')
+      countdown.value = 0
+      clearTimers('cd') // 只停倒计时，绝不停轮询
+      // 🔴命脉：倒计时归零 ≠ 支付失败。慢支付/晚 resolve 时用户其实已扣款，
+      // 此处若判 timeout 就会「已付却显示超时」。改为进入「确认支付结果中」中间态，
+      // 让 startPolling 继续查单直到查到 paid 或耗尽 maxPolls 才由轮询判真超时。
+      if (status.value === 'paying') status.value = 'confirming'
       return
     }
     countdown.value -= 1
@@ -320,7 +346,9 @@ function startCountdown() {
 function startPolling() {
   // 真实轮询订单支付状态（读订单 status，不依赖微信查单）
   pollTimer = setTimeout(async () => {
-    if (status.value !== 'paying') return
+    // 放行 paying 与 confirming 两态：慢支付晚 resolve、倒计时已归零进确认态时，都必须继续查单，
+    // 唯有已进 success/failed/timeout/cancelled 结果态才停（否则重复跳转/重复兑现）
+    if (status.value !== 'paying' && status.value !== 'confirming') return
     pollCount += 1
     try {
       const st = await shopApi.getOrderPayState(orderId.value)
@@ -350,11 +378,11 @@ function clearTimers(which: 'cd' | 'poll' | 'all') {
 }
 
 function handleCancel() {
-  if (submitting.value) return
-  submitting.value = true
+  if (cancelling) return
+  cancelling = true
   clearTimers('all')
   navigateTo(`/orders/${orderId.value}`)
-  setTimeout(() => { submitting.value = false }, 500)
+  setTimeout(() => { cancelling = false }, 500)
 }
 function handleRetry() {
   if (submitting.value) return

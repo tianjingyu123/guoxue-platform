@@ -90,17 +90,23 @@ import { formatPrice } from '@/utils/format'
 // 真实进入必由收银台跳转携带 orderId/amount（见 onLoad）；默认留空，不硬编码过期示例单号
 const orderId = ref('')
 const amount = ref('0')
+const payMethod = ref('')
 const timeoutTime = ref('')
 const reasons = payTimeoutReasons
 
 onLoad((q) => {
   if (q?.orderId) orderId.value = q.orderId as string
   if (q?.amount) amount.value = q.amount as string
+  if (q?.method) payMethod.value = q.method as string
   const d = new Date()
   timeoutTime.value = `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 })
 
-function goRePay() { redirectTo(`/shop/paying?orderId=${orderId.value}`) }
+// 重新支付带上真实金额与支付方式，避免收银页显示 ¥0.00 且强制微信
+function goRePay() {
+  const q = `orderId=${orderId.value}&amount=${amount.value}${payMethod.value ? `&method=${payMethod.value}` : ''}`
+  redirectTo(`/shop/paying?${q}`)
+}
 function goChangeMethod() { navigateTo(`/shop/checkout?orderId=${orderId.value}`) }
 // 真别名是 /orders/:id（原来写的 /shop/orders/:id 没登记 → 支付超时后点「查看订单」没反应）
 function goOrder() { navigateTo(`/orders/${orderId.value}`) }

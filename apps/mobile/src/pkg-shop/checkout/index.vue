@@ -173,6 +173,8 @@ const showAddress = ref(false)
 const showCoupon = ref(false)
 const showTimeout = ref(false)
 const submitting = ref(false)
+// 多商品逐单创建时，缓存已成功建单（key=productId:skuId），失败重试跳过已建单，避免首商品重复下单产生孤儿单
+const createdOrders = new Map<string, { id: string; amount: number }>()
 
 // 结算来源：立即购买(productId+skuId+quantity) 或 购物车结算(itemIds)
 const source = ref<{ productId?: string; skuId?: string; quantity?: number; itemIds?: string[] }>({})
@@ -302,6 +304,10 @@ async function submitOrder() {
     const orders: { id: string; amount: number }[] = []
     for (let i = 0; i < items.value.length; i++) {
       const it = items.value[i]
+      const key = `${it.productId}:${it.skuId || ''}`
+      // 已成功建过的订单（上次提交中途失败留下）直接复用，不再重复下单
+      const cached = createdOrders.get(key)
+      if (cached) { orders.push(cached); continue }
       const order = await shopApi.createOrder({
         type: 'PRODUCT',
         targetId: it.productId,
@@ -313,7 +319,9 @@ async function submitOrder() {
         sourceContentType: contentSource.value.type,
         sourceContentId: contentSource.value.id,
       })
-      orders.push({ id: order.id, amount: order.amount })
+      const rec = { id: order.id, amount: order.amount }
+      createdOrders.set(key, rec) // 建单成功立即缓存，失败重试时该商品跳过
+      orders.push(rec)
     }
     const first = orders[0]
     if (orders.length > 1) {

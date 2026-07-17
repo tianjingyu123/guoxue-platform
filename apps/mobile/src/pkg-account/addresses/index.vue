@@ -114,7 +114,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { onLoad, onShow } from '@dcloudio/uni-app'
 import { goBack, navigateTo } from '@/utils/router'
 import { accountApi, type ShippingAddressItem } from '@/lib/account-data'
 
@@ -154,8 +154,10 @@ onLoad(() => {
     statusBarHeight.value = 20
     navHeight.value = 64
   }
-  fetchAddresses()
 })
+
+// 用 onShow 拉取：新增/编辑地址子页保存后 goBack 无 emit，靠 onShow 每次返回重拉覆盖陈旧列表（首次进入也会触发）
+onShow(fetchAddresses)
 
 function onTouchStart(e: any /* uni 表单事件经 vue-tsc 按原生签名校验，参数须 any */) {
   touchStartX = e.touches[0].clientX

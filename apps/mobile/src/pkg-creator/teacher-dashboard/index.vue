@@ -12,7 +12,6 @@
         <view class="td-right">
           <view class="td-icon-btn td-bell" @tap="go('/notifications')">
             <AppIcon name="bell" :size="20" color="#fff" />
-            <view class="td-dot" />
           </view>
           <view class="td-icon-btn" @tap="go('/pkg-creator/my-qualifications/index')">
             <AppIcon name="award" :size="20" color="#fff" />
@@ -423,16 +422,6 @@ onLoad(() => {
   align-items: center;
   gap: 8rpx;
 }
-.td-dot {
-  position: absolute;
-  top: 8rpx;
-  right: 8rpx;
-  width: 14rpx;
-  height: 14rpx;
-  background: #ff3b30;
-  border-radius: 50%;
-}
-
 /* 身份卡 */
 .td-identity {
   display: flex;

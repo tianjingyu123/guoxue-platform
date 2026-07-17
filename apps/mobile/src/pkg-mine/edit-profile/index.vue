@@ -125,6 +125,7 @@ import { ref, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import SmartAvatar from '@/components/common/smart-avatar.vue'
 import { mineApi } from '@/lib/mine-data'
+import { getUserInfo, setUserInfo } from '@/utils/storage'
 
 interface UserProfile {
   avatar: string
@@ -228,6 +229,13 @@ async function handleSave() {
       avatar: profile.value.avatar,
       bio: profile.value.bio,
       interestCategories: profile.value.interests,
+    })
+    // 回写本地 userInfo 缓存，使全站（海报/证书/IM/短视频等）用 getUserInfo() 的展示位即时同步新昵称/头像/简介
+    setUserInfo({
+      ...(getUserInfo() || {}),
+      nickname: profile.value.nickname,
+      avatar: profile.value.avatar,
+      bio: profile.value.bio,
     })
     uni.showToast({ title: '保存成功', icon: 'none' })
     setTimeout(() => uni.navigateBack(), 600)
