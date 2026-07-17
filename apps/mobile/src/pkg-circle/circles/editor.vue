@@ -20,7 +20,9 @@
     </view>
 
     <!-- 类型选择 -->
-    <view class="type-bar">
+    <!-- 无文章权限的成员不渲染死 tab（点了也被拦，置灰徒增认知负担）；只剩「发帖」时整条 type-bar 隐藏。
+         用 roleLoaded && 而非 !roleLoaded ||：普通成员占多数，确认有权限才出现，避免渲染后又消失的闪烁 -->
+    <view v-if="roleLoaded && canPublishArticle" class="type-bar">
       <view
         v-for="t in (['post', 'article'] as const)"
         :key="t"
@@ -96,7 +98,8 @@
     </view>
 
     <!-- 选择圈子（必选，后端发帖/发文章均需归属圈子） -->
-    <view class="select-row" @tap="showCircleSelect = true">
+    <!-- 从圈子进入时圈子已定，改只读展示（无下拉箭头/不可点），少一个无效决策点 -->
+    <view class="select-row" @tap="!circleLocked && (showCircleSelect = true)">
       <template v-if="selectedCircleData">
         <view class="circle-avatar">
           <image lazy-load :src="selectedCircleData.cover" class="circle-avatar-img" mode="aspectFill" />
@@ -107,7 +110,7 @@
         <app-icon name="hash" :size="16" color="#8a8a8a" />
         <text class="select-placeholder">选择要发布到的圈子</text>
       </template>
-      <app-icon name="chevron-down" :size="16" color="#8a8a8a" class="select-arrow" />
+      <app-icon v-if="!circleLocked" name="chevron-down" :size="16" color="#8a8a8a" class="select-arrow" />
     </view>
 
     <!-- 选择标签（仅文章，后端文章支持 tags，帖子无标签字段） -->
@@ -329,6 +332,8 @@ const circlesLoading = ref(false)
 const tags = ref<{ id: string; name: string }[]>([])
 
 const showCircleSelect = ref(false)
+/** 从圈子详情带 circleId 进入时圈子锁定，选择行退化为只读展示 */
+const circleLocked = ref(false)
 const showTopicSelect = ref(false)
 const showAssist = ref(false)   // 创-P3 创作助手抽屉
 const showAIPanel = ref<'title' | 'tags' | 'cover' | null>(null)
@@ -381,6 +386,7 @@ onLoad((opts) => {
   }
   if (opts?.circleId) {
     selectedCircle.value = opts.circleId
+    circleLocked.value = true
     refreshRole(opts.circleId)
   }
   // 无草稿参数时，检测本地兜底草稿，提示恢复

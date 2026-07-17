@@ -264,8 +264,10 @@ function openQuickPost() { navigateTo(`/pkg-circle/circles/editor?circleId=${cir
 // 打开发布面板时顺带查一下是否有正在进行的直播（有则「发直播」→「我的直播」）
 const hasActiveLive = ref(false)
 function openCreate() {
+  // 普通成员只有「发动态」一种创作形式，弹单选项面板=纯多一次点击（最短路径标准：发帖≤2击）
+  // 直接进编辑页；圈主/合伙人/管理员保留多形式创作面板。权限已由页面加载时的 myRole 静默取回
+  if (!canCreate.value) { openQuickPost(); return }
   showPublish.value = true
-  if (!canCreate.value) return
   liveApi.getManageList()
     .then(({ list }) => { hasActiveLive.value = list.some((r) => r.status === 'live') })
     .catch(() => { hasActiveLive.value = false })

@@ -153,6 +153,14 @@ const noteSubmitting = ref(false)
 
 const bookmarking = ref(false)
 
+// 任一抽屉打开时锁底层页面滚动（H5）：抽屉把手/标题等非滚动区上滑动时，
+// touchmove 默认行为会直接滚底层原文页（scroll-view 内滚区之外 overscroll 拦不住）
+watch([aiOpen, tocOpen, setOpen, dictOpen, noteOpen], (vals) => {
+  // #ifdef H5
+  document.documentElement.style.overflow = vals.some(Boolean) ? 'hidden' : ''
+  // #endif
+})
+
 function isLoggedIn() {
   return !!getToken()
 }
@@ -379,7 +387,13 @@ function goBack() {
 }
 
 onHide(() => saveProgress())
-onUnload(() => saveProgress())
+onUnload(() => {
+  saveProgress()
+  // 抽屉开着直接返回时还原滚动锁（H5 SPA 共享 document，残留会锁死其他页面）
+  // #ifdef H5
+  document.documentElement.style.overflow = ''
+  // #endif
+})
 
 onLoad((q) => {
   loadPref()
@@ -472,7 +486,7 @@ onLoad((q) => {
     </view>
 
     <!-- AI 文白对照抽屉 -->
-    <view v-if="aiOpen" class="rd-mask" @tap="aiOpen = false">
+    <view v-if="aiOpen" class="rd-mask" @tap="aiOpen = false" @touchmove.self.prevent>
       <view class="rd-sheet" @tap.stop>
         <view class="rd-sheet-bar"><view class="rd-sheet-handle" /></view>
         <view class="rd-sheet-head">
@@ -500,7 +514,7 @@ onLoad((q) => {
     </view>
 
     <!-- 目录抽屉（目录 / 书签 / 笔记） -->
-    <view v-if="tocOpen" class="rd-mask" @tap="tocOpen = false">
+    <view v-if="tocOpen" class="rd-mask" @tap="tocOpen = false" @touchmove.self.prevent>
       <view class="rd-sheet rd-sheet-tall" @tap.stop>
         <view class="rd-sheet-bar"><view class="rd-sheet-handle" /></view>
         <view class="rd-toc-tabs">
@@ -574,7 +588,7 @@ onLoad((q) => {
     </view>
 
     <!-- 设置抽屉 -->
-    <view v-if="setOpen" class="rd-mask" @tap="setOpen = false">
+    <view v-if="setOpen" class="rd-mask" @tap="setOpen = false" @touchmove.self.prevent>
       <view class="rd-sheet" @tap.stop>
         <view class="rd-sheet-bar"><view class="rd-sheet-handle" /></view>
         <view class="rd-sheet-head"><text class="rd-sheet-title">阅读设置</text></view>
@@ -599,7 +613,7 @@ onLoad((q) => {
     </view>
 
     <!-- 查词抽屉 -->
-    <view v-if="dictOpen" class="rd-mask" @tap="dictOpen = false">
+    <view v-if="dictOpen" class="rd-mask" @tap="dictOpen = false" @touchmove.self.prevent>
       <view class="rd-sheet rd-sheet-tall" @tap.stop>
         <view class="rd-sheet-bar"><view class="rd-sheet-handle" /></view>
         <view class="rd-sheet-head"><text class="rd-sheet-title">古汉语查词</text></view>
@@ -635,7 +649,7 @@ onLoad((q) => {
     </view>
 
     <!-- 笔记输入 -->
-    <view v-if="noteOpen" class="rd-mask" @tap="noteOpen = false">
+    <view v-if="noteOpen" class="rd-mask" @tap="noteOpen = false" @touchmove.self.prevent>
       <view class="rd-sheet" @tap.stop>
         <view class="rd-sheet-bar"><view class="rd-sheet-handle" /></view>
         <view class="rd-sheet-head"><text class="rd-sheet-title">写笔记 · {{ curChapter?.title }}</text></view>
@@ -744,7 +758,11 @@ export default { options: { styleIsolation: 'shared' } }
 .rd-sheet-head { display: flex; align-items: center; gap: 16rpx; padding: 12rpx 40rpx 20rpx; }
 .rd-sheet-title { font-size: 32rpx; font-weight: 700; color: var(--rd-fg, #2c2c2c); }
 .rd-ai-badge { width: 44rpx; height: 44rpx; border-radius: 999rpx; display: flex; align-items: center; justify-content: center; background: linear-gradient(150deg,#c8324c,#9e1b30); }
-.rd-sheet-body { padding: 0 40rpx 40rpx; }
+/* 滚动穿透修复（照 .rd-toc-body 已验证模式）：AI 对照/查词抽屉共用此类，
+   原无约束高度 → scroll-view 不产生内滚，在 AI 内容上滑动滚的是底层原文页 */
+.rd-sheet-body { padding: 0 40rpx 40rpx; flex: 1; min-height: 0; }
+.rd-sheet-body :deep(.uni-scroll-view),
+.rd-sheet-body :deep(.uni-scroll-view-content) { overscroll-behavior: contain; }
 
 /* AI 对照 */
 .rd-orig { background: rgba(160,106,56,0.08); border-radius: 16rpx; padding: 24rpx; margin-bottom: 24rpx; }

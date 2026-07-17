@@ -97,21 +97,11 @@ function uploadCover(target: 'a' | 'c') {
 /** 发布成功后的去向：全平台开放 → 提示平台审核并可跳发布审核台账；仅本圈 → 回圈子详情 */
 function afterPublishSuccess(scope: 'CIRCLE_ONLY' | 'PLATFORM', successText: string) {
   clearLocalDraft() // 发布成功，清本地兜底缓存
-  if (scope === 'PLATFORM') {
-    uni.showModal({
-      title: successText,
-      content: '已提交平台审核，可在 圈子·我的 → 发布审核 查看进度',
-      confirmText: '查看进度',
-      cancelText: '返回圈子',
-      success: (r) => {
-        if (r.confirm) reLaunch('/pkg-circle/circles/my-audits')
-        else reLaunch(`/pkg-circle/circles/detail?id=${circleId.value}`)
-      },
-    })
-  } else {
-    uni.showToast({ title: successText, icon: 'success' })
-    setTimeout(() => reLaunch(`/pkg-circle/circles/detail?id=${circleId.value}`), 600)
-  }
+  // 成功后不加确认弹窗（最短路径标准）：全平台开放场景审核进度入口在「圈子·我的→发布审核」
+  // 本来就有，toast 传达即可，不值得强制用户多点一击
+  const tip = scope === 'PLATFORM' ? '已提交平台审核' : successText
+  uni.showToast({ title: tip, icon: 'success' })
+  setTimeout(() => reLaunch(`/pkg-circle/circles/detail?id=${circleId.value}`), 600)
 }
 
 async function submitArticle() {

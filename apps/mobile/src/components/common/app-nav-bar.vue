@@ -123,9 +123,10 @@ function onBack() {
 }
 
 .nav-back {
-  width: 60rpx;
-  height: 60rpx;
-  margin-left: -12rpx; /* -ml-2，与原型一致 */
+  /* 触控热区标准 ≥88rpx（44pt）：icon 不变，容器扩大 + 负 margin 保持视觉位置不动 */
+  width: 88rpx;
+  height: 88rpx;
+  margin-left: -26rpx;
   display: flex;
   align-items: center;
   justify-content: center;
