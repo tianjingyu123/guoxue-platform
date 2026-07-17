@@ -235,7 +235,8 @@ async function startPaying() {
   // App 等其他端：微信 APP 支付需客户端 SDK 接入（未接），提示改用小程序/H5 支付；仍轮询兜底（可换端支付）
   uni.showToast({ title: '当前端暂不支持在线支付，请在小程序或浏览器中完成支付', icon: 'none', duration: 3000 })
   // #endif
-    startPolling()
+    // 首查用 600ms 短延迟：支付唤起成功后回调多在 1~2s 内到账，快探能把感知等待压到 ~1s
+    startPolling(600)
   } finally {
     // 发起阶段结束即释放守卫（无论：成功唤起 / 用户取消早返回 / 失败早返回 / 外部浏览器外跳），
     // 之后的「支付中/确认中→结果」由倒计时与轮询驱动，不再依赖 submitting
@@ -343,8 +344,11 @@ function startCountdown() {
   }, 1000)
 }
 
-function startPolling() {
-  // 真实轮询订单支付状态（读订单 status，不依赖微信查单）
+// 真实轮询订单支付状态（读订单 status，不依赖微信查单）。
+// 首次由支付唤起成功后以短延迟触发；微信回调多在支付后 1~2s 到账，故前几次用 1s 短间隔快探
+// （把「支付完成→成功页」的等待从最多 3s 压到 ~1s），耗尽快探次数后退回 3s 稳态轮询。
+function startPolling(delayMs?: number) {
+  const delay = delayMs ?? (pollCount < 6 ? 1000 : 3000)
   pollTimer = setTimeout(async () => {
     // 放行 paying 与 confirming 两态：慢支付晚 resolve、倒计时已归零进确认态时，都必须继续查单，
     // 唯有已进 success/failed/timeout/cancelled 结果态才停（否则重复跳转/重复兑现）
@@ -357,7 +361,7 @@ function startPolling() {
         status.value = 'success'
         track.purchase({ type: 'shop_order', orderId: orderId.value, amount: amount.value, method: payMethod.value })
         clearTimers('all')
-        setTimeout(() => redirectTo(`/shop/pay-success?orderId=${orderId.value}`), 1200)
+        setTimeout(() => redirectTo(`/shop/pay-success?orderId=${orderId.value}`), 900)
         return
       }
     } catch (e) {
@@ -369,7 +373,7 @@ function startPolling() {
     } else {
       startPolling()
     }
-  }, 3000)
+  }, delay)
 }
 
 function clearTimers(which: 'cd' | 'poll' | 'all') {
