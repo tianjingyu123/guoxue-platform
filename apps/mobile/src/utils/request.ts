@@ -63,8 +63,37 @@ function friendlyNetError(errMsg: string | undefined, fallback: string): string 
 }
 
 /**
+ * 取当前栈顶页完整路径（含 query），用于登录后回跳。
+ * 端差异：H5 端页面实例带 $page.fullPath（已含 query 串）；小程序端只有
+ * route（不带斜杠、不含 query）+ options（query 对象），需手动拼回。
+ * 取不到（启动早期栈为空等）返回 ''，调用方按"不存"处理。
+ */
+function getCurrentFullPath(): string {
+  try {
+    const pages = getCurrentPages()
+    const cur = pages[pages.length - 1] as any
+    if (!cur) return ''
+    // H5：$page.fullPath 已含 query，直接用
+    const full = cur.$page?.fullPath
+    if (typeof full === 'string' && full) return full.startsWith('/') ? full : `/${full}`
+    // 小程序：route + options 拼接
+    const route: string = cur.route || ''
+    if (!route) return ''
+    const opts: Record<string, string> = cur.options || cur.$page?.options || {}
+    const qs = Object.keys(opts)
+      .map((k) => `${k}=${encodeURIComponent(opts[k])}`)
+      .join('&')
+    return `/${route}${qs ? `?${qs}` : ''}`
+  } catch {
+    return ''
+  }
+}
+
+/**
  * 401 统一处理：清 token + 跳登录页。
  * 用 _redirecting 去重，避免多请求并发返回 401 时重复 reLaunch。
+ * 跳转前把当前页完整路径存入 login:redirect（登录页读取后回跳），
+ * 当前页就是登录/鉴权页或取不到路径时不存，避免登录成功后又跳回登录页。
  */
 let _redirecting = false
 function handleUnauthorized() {
@@ -72,6 +101,14 @@ function handleUnauthorized() {
   clearRefreshToken()
   if (_redirecting) return
   _redirecting = true
+  try {
+    const from = getCurrentFullPath()
+    if (from && !from.startsWith('/pkg-auth/')) {
+      uni.setStorageSync('login:redirect', from)
+    }
+  } catch {
+    // 记录回跳路径失败不影响跳登录主流程
+  }
   uni.reLaunch({
     url: LOGIN_URL,
     complete: () => {

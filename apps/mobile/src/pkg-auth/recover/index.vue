@@ -23,7 +23,7 @@
           <view class="rec-icon icon-phone"><AppIcon name="phone" :size="24" color="#c9a96e" /></view>
           <view class="rec-main">
             <text class="rec-title">手机号找回</text>
-            <text class="rec-desc">通过手机验证码重置密码</text>
+            <text class="rec-desc">自助找回暂未开放，客服协助处理</text>
           </view>
           <AppIcon name="chevron-right" :size="20" color="#bbbbbb" />
         </view>
@@ -33,7 +33,7 @@
           <view class="rec-icon icon-mail"><AppIcon name="mail" :size="24" color="#3b82f6" /></view>
           <view class="rec-main">
             <text class="rec-title">邮箱找回</text>
-            <text class="rec-desc">通过邮箱验证重置密码</text>
+            <text class="rec-desc">自助找回暂未开放，客服协助处理</text>
           </view>
           <AppIcon name="chevron-right" :size="20" color="#bbbbbb" />
         </view>
@@ -51,7 +51,7 @@
 
       <!-- 温馨提示 -->
       <view class="tip">
-        <text class="tip-text">温馨提示：如果您绑定了多种验证方式，推荐使用手机号找回，速度更快更安全。</text>
+        <text class="tip-text">温馨提示：账号找回目前由人工客服协助处理，请通过「联系客服」提交找回申请，我们会尽快为您处理。</text>
       </view>
     </view>
   </view>
@@ -74,14 +74,25 @@ function onBack() {
   goBack()
 }
 
+/** 手机号/邮箱自助找回子页未迁移——给用户活路：说明人工协助并引导到本页已有的客服入口 */
+function assistRecover(channel: string) {
+  uni.showModal({
+    title: '人工协助找回',
+    content: `${channel}自助找回暂未开放，账号找回目前由人工客服协助处理，是否前往联系客服？`,
+    confirmText: '联系客服',
+    cancelText: '取消',
+    success: (res) => {
+      if (res.confirm) onFeedback()
+    },
+  })
+}
+
 function onPhone() {
-  // 下游手机号找回子页待迁移
-  uni.showToast({ title: '敬请期待', icon: 'none' })
+  assistRecover('手机号')
 }
 
 function onEmail() {
-  // 下游邮箱找回子页待迁移
-  uni.showToast({ title: '敬请期待', icon: 'none' })
+  assistRecover('邮箱')
 }
 
 function onFeedback() {

@@ -37,7 +37,7 @@
             <text class="card-title">选择订单</text>
           </view>
           <view v-if="applicableOrders.length === 0" class="orders-empty">
-            <text class="orders-empty-text">暂无可开票订单</text>
+            <text class="orders-empty-text">还没有可开票的订单——已完成的实付订单才能开票</text>
           </view>
           <view v-else class="order-list">
             <view

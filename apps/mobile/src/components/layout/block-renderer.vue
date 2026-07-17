@@ -47,6 +47,10 @@ function bannerItems(b: LayoutBlock): Array<{ image: string; link: string; title
 function go(link: string) {
   if (link) navigateTo(link)
 }
+// banner swiper 滑动/自动轮播 → 同步自绘指示点（与点击指示点设 current 构成双向同步）
+function onBannerChange(id: string, e: { detail?: { current?: number } }) {
+  bannerIdx.value[id] = e?.detail?.current ?? 0
+}
 </script>
 
 <template>
@@ -54,25 +58,48 @@ function go(link: string) {
     <template v-for="b in blocks" :key="b.id">
       <!-- banner / 轮播 -->
       <view v-if="b.type === 'banner'" class="blk-banner">
+        <!-- 多图：uni 原生 swiper（自动轮播 4s + 循环 + 手势滑动）。原实现是 v-show 静态切换：
+             无 autoplay 无手势，只能点 10rpx 小指示点，运营配的第 2 张起用户几乎看不到。
+             指示点自绘保留（隐藏原生 indicator-dots），外热区 padding 撑大可点，与 current 双向同步。 -->
+        <template v-if="bannerItems(b).length > 1">
+          <swiper
+            class="blk-banner-swiper"
+            :autoplay="true"
+            :interval="4000"
+            circular
+            :indicator-dots="false"
+            :current="bannerIdx[b.id] || 0"
+            @change="onBannerChange(b.id, $event)"
+          >
+            <swiper-item v-for="(it, i) in bannerItems(b)" :key="i">
+              <view class="blk-banner-slide" hover-class="blk-press" @tap="go(it.link)">
+                <image class="blk-banner-img" :src="it.image" mode="aspectFill" lazy-load />
+                <view v-if="it.title" class="blk-banner-cap"><text class="blk-banner-cap-t">{{ it.title }}</text></view>
+              </view>
+            </swiper-item>
+          </swiper>
+          <view class="blk-dots">
+            <view
+              v-for="(_, i) in bannerItems(b)"
+              :key="i"
+              class="blk-dot-hit"
+              @tap="bannerIdx[b.id] = i"
+            >
+              <view class="blk-dot" :class="{ on: (bannerIdx[b.id] || 0) === i }" />
+            </view>
+          </view>
+        </template>
+        <!-- 单图：不套 swiper，保持原静态展示 -->
         <view
-          v-for="(it, i) in bannerItems(b)"
-          :key="i"
-          v-show="(bannerIdx[b.id] || 0) === i"
+          v-else-if="bannerItems(b).length === 1"
           class="blk-banner-slide"
           hover-class="blk-press"
-          @tap="go(it.link)"
+          @tap="go(bannerItems(b)[0].link)"
         >
-          <image class="blk-banner-img" :src="it.image" mode="aspectFill" lazy-load />
-          <view v-if="it.title" class="blk-banner-cap"><text class="blk-banner-cap-t">{{ it.title }}</text></view>
-        </view>
-        <view v-if="bannerItems(b).length > 1" class="blk-dots">
-          <view
-            v-for="(_, i) in bannerItems(b)"
-            :key="i"
-            class="blk-dot"
-            :class="{ on: (bannerIdx[b.id] || 0) === i }"
-            @tap="bannerIdx[b.id] = i"
-          />
+          <image class="blk-banner-img" :src="bannerItems(b)[0].image" mode="aspectFill" lazy-load />
+          <view v-if="bannerItems(b)[0].title" class="blk-banner-cap">
+            <text class="blk-banner-cap-t">{{ bannerItems(b)[0].title }}</text>
+          </view>
         </view>
       </view>
 
@@ -151,12 +178,16 @@ function go(link: string) {
 .blocks { display: flex; flex-direction: column; gap: 20rpx; }
 
 .blk-banner { position: relative; margin: 0 24rpx; border-radius: 24rpx; overflow: hidden; }
-.blk-banner-slide { position: relative; width: 100%; }
+/* swiper 是原生固定高容器，高度与单图 banner 图一致 */
+.blk-banner-swiper { width: 100%; height: 240rpx; }
+.blk-banner-slide { position: relative; width: 100%; height: 100%; }
 .blk-banner-img { width: 100%; height: 240rpx; display: block; background: #f2efea; }
 .blk-banner-cap { position: absolute; left: 0; right: 0; bottom: 0; padding: 40rpx 24rpx 16rpx; background: linear-gradient(to top, rgba(0,0,0,0.5), transparent); }
 .blk-banner-cap-t { color: #fff; font-size: 28rpx; font-weight: 600; }
-.blk-dots { position: absolute; right: 24rpx; bottom: 16rpx; display: flex; gap: 8rpx; }
-.blk-dot { width: 10rpx; height: 10rpx; border-radius: 999rpx; background: rgba(255,255,255,0.5); }
+/* 指示点：本体 12rpx，外层 .blk-dot-hit 用 padding 撑出 ≥40rpx 热区（原 10rpx 裸点手指点不中） */
+.blk-dots { position: absolute; right: 10rpx; bottom: 2rpx; display: flex; }
+.blk-dot-hit { padding: 16rpx 14rpx; display: flex; align-items: center; justify-content: center; }
+.blk-dot { width: 12rpx; height: 12rpx; border-radius: 999rpx; background: rgba(255,255,255,0.5); }
 .blk-dot.on { width: 24rpx; border-radius: 6rpx; background: #fff; }
 
 .blk-notice { margin: 0 24rpx; padding: 16rpx 24rpx; background: rgba(201,169,110,0.14); border-radius: 16rpx; }

@@ -61,7 +61,7 @@
       <!-- 空态 -->
       <view v-else-if="displayList.length === 0" class="empty">
         <app-icon name="heart" :size="64" color="#d1d5db" />
-        <text class="empty-text">暂无收藏内容</text>
+        <text class="empty-text">还没有收藏，喜欢的内容点 ❤ 就会出现在这里</text>
         <view class="empty-btn" @tap="goDiscover">
           <text class="empty-btn-text">去发现</text>
         </view>

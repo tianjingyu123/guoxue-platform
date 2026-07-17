@@ -125,7 +125,7 @@
           <text class="addr-tip">请在7天内将商品寄回以上地址</text>
         </view>
         <view class="addr-btn" @tap="fillLogistics">
-          <text class="addr-btn-text">填写物流单号</text>
+          <text class="addr-btn-text">寄出后登记运单号</text>
         </view>
       </view>
 
@@ -242,8 +242,18 @@ function copyId() {
 function previewImage(urls: string[], current: number) {
   uni.previewImage({ urls, current })
 }
+/** 后端暂无用户侧回填退货运单号端点（仅管理员 PUT /shop/orders/:id/logistics）——
+ *  给用户活路：引导联系客服登记运单号，待后端补端点后改为真连提交 */
 function fillLogistics() {
-  uni.showToast({ title: '功能开发中', icon: 'none' })
+  uni.showModal({
+    title: '登记运单号',
+    content: '商品寄出后，请联系客服登记快递运单号，确保退款及时到账。',
+    confirmText: '联系客服',
+    cancelText: '稍后再说',
+    success: (res) => {
+      if (res.confirm) navigateTo('/customer-service')
+    },
+  })
 }
 const cancelling = ref(false)
 async function doCancel() {

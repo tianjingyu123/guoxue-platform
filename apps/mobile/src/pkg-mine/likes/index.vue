@@ -63,8 +63,17 @@ async function handleUnlike(item: LikeItem) {
     unliking.value = null
   }
 }
-function goDetail() {
-  uni.showToast({ title: '内容详情开发中', icon: 'none' })
+/** 跳原内容页（原为"开发中"toast）。circle_post 详情页需 circleId 本数据没有；question/answer/comment 无独立详情页 → 保持提示 */
+function goDetail(item: LikeItem) {
+  const { id, type } = item.target
+  const url =
+    type === 'article' ? `/pkg-circle/articles/detail?id=${id}`
+    : type === 'course' ? `/pkg-course/detail/index?id=${id}`
+    : type === 'video' ? `/pkg-video/detail/index?id=${id}`
+    : type === 'product' ? `/pkg-mall/product/detail?id=${id}`
+    : ''
+  if (!url) { uni.showToast({ title: '该内容暂不支持跳转', icon: 'none' }); return }
+  uni.navigateTo({ url, fail: () => uni.showToast({ title: '打开失败', icon: 'none' }) })
 }
 function onBack() {
   goBack()
@@ -119,7 +128,7 @@ function goHome() {
         <view v-for="item in filteredItems" :key="item.id" class="card">
           <view class="card-inner">
             <!-- 类型图标 -->
-            <view class="cover" :style="{ background: likeTypeStyles[item.target.type].bg }" @click="goDetail">
+            <view class="cover" :style="{ background: likeTypeStyles[item.target.type].bg }" @click="goDetail(item)">
               <app-icon
                 :name="likeTypeStyles[item.target.type].icon"
                 :size="32"
@@ -137,7 +146,7 @@ function goHome() {
                   <app-icon :name="likeTypeStyles[item.target.type].icon" :size="12" :color="likeTypeStyles[item.target.type].color" />
                   <text class="type-badge-text">{{ likeTypeNames[item.target.type] }}</text>
                 </view>
-                <text class="title" @click="goDetail">{{ item.target.title }}</text>
+                <text class="title" @click="goDetail(item)">{{ item.target.title }}</text>
                 <view class="meta">
                   <text v-if="item.target.author" class="meta-author">{{ item.target.author.nickname }}</text>
                   <text class="meta-time">· {{ item.createdAt }}</text>

@@ -24,7 +24,7 @@
         <view class="state-icon">
           <app-icon name="package" :size="72" color="#b8ab94" />
         </view>
-        <text class="state-text">暂无商品数据</text>
+        <text class="state-text">没有可换货的商品，如有疑问请联系客服</text>
       </view>
       <template v-else>
         <!-- 选择换货商品 -->

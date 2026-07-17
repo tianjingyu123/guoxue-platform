@@ -73,7 +73,8 @@ function handleNavigate() {
   if (countdownTimer) clearInterval(countdownTimer)
   // 本地真源判断：已选过兴趣主题直接进首页，未选过进兴趣引导（单步 6 主题卡）
   if (hasSelectedInterests()) {
-    reLaunch('/')
+    // 用完整页面路径（'/' 在 ROUTE_MAP 无映射会原样透传，小程序端不可达）
+    reLaunch('/pages/index/index')
   } else {
     navigateTo('/interests-guide')
   }

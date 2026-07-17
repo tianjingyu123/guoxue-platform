@@ -199,7 +199,7 @@ onShow(() => {
         <!-- 空态 -->
         <view v-else class="empty">
           <view class="empty-icon"><app-icon name="users" :size="56" color="#999999" /></view>
-          <text class="empty-text">暂无相关圈子</text>
+          <text class="empty-text">没找到相关圈子，换个分类看看吧</text>
         </view>
       </view>
 

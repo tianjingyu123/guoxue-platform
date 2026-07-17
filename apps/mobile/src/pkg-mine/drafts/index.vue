@@ -109,7 +109,7 @@ function confirmDelete(d: DraftListItem) {
       try {
         await articleApi.deleteDraft(d.id)
         drafts.value = drafts.value.filter(x => x.id !== d.id)
-        uni.showToast({ title: '已删除', icon: 'success' })
+        uni.showToast({ title: '草稿已删除', icon: 'success' })
       } catch (e) {
         uni.showToast({ title: (e as Error)?.message || '删除失败', icon: 'none' })
       }

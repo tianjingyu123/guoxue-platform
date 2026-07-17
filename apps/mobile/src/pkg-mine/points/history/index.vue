@@ -138,7 +138,10 @@ function go(url: string) {
           </view>
         </template>
         <view v-else class="empty">
-          <text class="empty-text">暂无记录</text>
+          <text class="empty-text">这里还没有记录，做任务赚积分</text>
+          <view class="empty-btn" @tap="go('/pkg-mine/points/tasks/index')">
+            <text class="empty-btn-text">去做任务</text>
+          </view>
         </view>
       </view>
       <view class="bottom-space" />
@@ -333,6 +336,18 @@ function go(url: string) {
 .empty-text {
   font-size: 26rpx;
   color: #8a8178;
+}
+.empty-btn {
+  display: inline-block;
+  margin-top: 32rpx;
+  padding: 18rpx 56rpx;
+  background: #c9a96e;
+  border-radius: 999rpx;
+}
+.empty-btn-text {
+  font-size: 28rpx;
+  font-weight: 500;
+  color: #fff;
 }
 .bottom-space {
   height: 48rpx;

@@ -140,16 +140,22 @@ function adapt(res: RawSearchResponse): SearchResults {
   }
 }
 
+/** 搜索分页页大小（与后端默认一致；结果页据「返回条数 < 此值」判到底） */
+export const SEARCH_PAGE_SIZE = 20
+
 export const searchApi = {
   /**
    * 执行搜索。tab='all' 综合（不传 type，各类前 5）；其余传对应后端 type。
+   * page 从 1 起（后端 GET /search 原生支持 page/pageSize，此前前端写死第 1 页）。
    * 出错抛给调用方走 error 三态（不回退假数据）。
    */
-  async search(q: string, tab: SearchTab = 'all'): Promise<SearchResults> {
+  async search(q: string, tab: SearchTab = 'all', page = 1): Promise<SearchResults> {
     const kw = q.trim()
     if (!kw) return emptyResults()
     const typeParam = tab === 'all' ? '' : `&type=${tab}`
-    const res = await apiGet<RawSearchResponse>(`/search?q=${encodeURIComponent(kw)}&pageSize=20${typeParam}`)
+    const res = await apiGet<RawSearchResponse>(
+      `/search?q=${encodeURIComponent(kw)}&page=${page}&pageSize=${SEARCH_PAGE_SIZE}${typeParam}`,
+    )
     return adapt(res || {})
   },
 

@@ -223,7 +223,7 @@ function closePickers() {
         <view class="empty-icon">
           <app-icon name="wallet" :size="56" color="#d1d1d1" />
         </view>
-        <text class="empty-txt">暂无交易记录</text>
+        <text class="empty-txt">还没有交易记录</text>
         <view class="empty-btn" @tap="navigateTo('/pkg-mine/wallet/recharge')">
           <text class="empty-btn-text">去充值</text>
         </view>

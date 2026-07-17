@@ -271,7 +271,7 @@ async function toggleFavorite() {
     <view class="desc-section">
       <view class="desc-head"><text class="card-title">商品详情</text></view>
       <rich-text v-if="product.description" class="desc" :nodes="product.description" />
-      <text v-else class="desc desc-empty">暂无详情</text>
+      <text v-else class="desc desc-empty">商家还没有上传详情图，可以看看买家评价了解真实体验</text>
     </view>
 
     <!-- 推荐：经常一起购买 -->

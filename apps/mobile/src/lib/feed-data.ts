@@ -124,6 +124,40 @@ export function formatDuration(v?: number | string): string {
 }
 
 // ============================================
+// 类型 → 详情/落地路由（唯一真源映射）
+//  feed-card（瀑布流九类卡）与首页焦点区 goFocus 共用此函数——
+//  勿在组件内另写 switch 分叉（曾因两处各写一份导致焦点大卡非 live 一律错跳文章页）。
+// ============================================
+export function feedTargetUrl(item: FeedEnvelope): string {
+  const id = item.id
+  switch (item.type) {
+    case 'video':
+      return `/video/${id}`
+    case 'article':
+      return `/articles/${id}`
+    case 'post':
+      return `/pkg-circle/circles/post?id=${id}`
+    case 'course':
+      return `/course/${id}`
+    case 'product':
+      return `/mall/product/${id}`
+    case 'classic':
+      return `/pkg-classics/detail/index?id=${id}`
+    case 'live':
+      return `/live/${id}`
+    case 'paipan':
+      // 排盘钩子 → 排盘主 tab（router MAIN_TABS 走 reLaunch）。
+      // 旧值 /pkg-paipan/index/index 不在 pages.json（pkg-paipan 分包无 index 页），
+      // navigateTo 必 fail 弹「功能开发中」——战略转化位曾是死链。
+      return '/paipan'
+    case 'agent':
+      return `/pkg-agent/agent/chat?id=${id}`
+    default:
+      return `/articles/${id}`
+  }
+}
+
+// ============================================
 // 智能体卡分类色系（card-system.html §智能体·4 色系）
 //  文案生成=暖金 / 分析报告=冷紫 / 古籍查询=温润棕 / 办公效率=蓝灰
 //  payload.category 命中关键字 → 对应色系；缺省默认暖金（copy）

@@ -59,8 +59,17 @@ async function unlike(item: LikeItem) {
     unliking.value = null
   }
 }
-function openTarget() {
-  uni.showToast({ title: '内容详情开发中', icon: 'none' })
+/** 跳原内容页（原为"开发中"toast）。circle_post 详情页需 circleId 本数据没有；question/answer/comment 无独立详情页 → 保持提示 */
+function openTarget(item: LikeItem) {
+  const { id, type } = item.target
+  const url =
+    type === 'article' ? `/pkg-circle/articles/detail?id=${id}`
+    : type === 'course' ? `/pkg-course/detail/index?id=${id}`
+    : type === 'video' ? `/pkg-video/detail/index?id=${id}`
+    : type === 'product' ? `/pkg-mall/product/detail?id=${id}`
+    : ''
+  if (!url) { uni.showToast({ title: '该内容暂不支持跳转', icon: 'none' }); return }
+  uni.navigateTo({ url, fail: () => uni.showToast({ title: '打开失败', icon: 'none' }) })
 }
 </script>
 
@@ -97,7 +106,7 @@ function openTarget() {
 
     <scroll-view v-else scroll-y class="scroll">
       <view class="like-list">
-        <view v-for="item in filtered" :key="item.id" class="like-item" @tap="openTarget">
+        <view v-for="item in filtered" :key="item.id" class="like-item" @tap="openTarget(item)">
           <view
             class="type-icon"
             :style="{ background: likeTypeStyles[item.target.type].bg }"

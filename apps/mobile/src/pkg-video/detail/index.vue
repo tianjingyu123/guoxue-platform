@@ -8,7 +8,10 @@
         <text class="vp__state-txt">{{ error }}</text>
         <view class="vp__state-btn" @tap="retry"><text class="vp__state-btn-txt">重试</text></view>
       </block>
-      <text v-else class="vp__state-txt">暂无视频</text>
+      <block v-else>
+        <text class="vp__state-txt">视频不见了，去发现页看看其他精彩内容</text>
+        <view class="vp__state-btn" @tap="navigateTo('/discover')"><text class="vp__state-btn-txt">去发现页</text></view>
+      </block>
     </view>
 
     <template v-if="currentVideo">

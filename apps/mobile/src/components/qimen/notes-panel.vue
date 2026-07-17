@@ -60,7 +60,7 @@ function deleteNoteItem(key: string) {
           </view>
         </view>
         <view v-if="expandedItem === item.key" class="np-row-body">
-          <textarea v-model="notes[item.key]" class="np-textarea" placeholder="请输入" :auto-height="false" />
+          <textarea v-model="notes[item.key]" class="np-textarea" :placeholder="`记下此局关于「${item.label}」的判断与心得`" :auto-height="false" />
           <attachment-bar :note-key="item.key" :media="media" />
         </view>
       </view>

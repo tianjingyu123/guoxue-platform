@@ -126,13 +126,13 @@ function onSave() { uni.showToast({ title: '已保存', icon: 'success' }) }
               <view class="np-chev" :class="{ rot: expandedItem === item.key }"><app-icon name="chevron-right" :size="28" color="#9ca3af" /></view>
             </view>
             <view v-if="expandedItem === item.key" class="np-row-body">
-              <textarea v-model="notes[item.key]" class="np-textarea" placeholder="请输入" :auto-height="false" />
+              <textarea v-model="notes[item.key]" class="np-textarea" :placeholder="`记录命主${item.label}的实际情况，便于日后验证`" :auto-height="false" />
               <attachment-bar :note-key="item.key" :media="media" />
             </view>
           </template>
           <view v-else class="np-input-block">
             <text class="np-row-label sm">{{ item.label }}:</text>
-            <input v-model="notes[item.key]" class="np-input" placeholder="请输入" />
+            <input v-model="notes[item.key]" class="np-input" :placeholder="`简要记录命主的${item.label}`" />
             <attachment-bar :note-key="item.key" :media="media" />
           </view>
         </view>
@@ -198,14 +198,14 @@ function onSave() { uni.showToast({ title: '已保存', icon: 'success' }) }
           <view v-if="expandedItem === group.key" class="np-row-body">
             <view v-for="sub in group.subItems" :key="sub.key" class="np-sub">
               <text v-if="group.subItems.length > 1" class="np-sub-label">{{ sub.label }}</text>
-              <textarea v-model="notes[sub.key]" class="np-textarea sm" placeholder="请输入" />
+              <textarea v-model="notes[sub.key]" class="np-textarea sm" :placeholder="`写下你对${sub.label}的判断依据`" />
               <attachment-bar :note-key="sub.key" :media="media" />
             </view>
           </view>
         </view>
         <view class="np-summary">
           <text class="np-summary-title">总结:</text>
-          <textarea v-model="notes['summary']" class="np-textarea lg" placeholder="请输入" />
+          <textarea v-model="notes['summary']" class="np-textarea lg" placeholder="综合各项点评，写下对此命局的整体结论" />
           <attachment-bar note-key="summary" :media="media" />
         </view>
       </template>

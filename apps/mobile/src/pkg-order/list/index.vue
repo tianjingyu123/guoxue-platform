@@ -264,7 +264,7 @@ async function confirmReceive(id: string) {
       uni.showToast({ title: '确认收货成功', icon: 'none' })
       loadCounts()
     }
-  } catch { uni.showToast({ title: '操作失败', icon: 'none' }) }
+  } catch (e) { uni.showToast({ title: (e as Error)?.message || '操作失败，请重试', icon: 'none' }) }
   finally { submitting.value = false }
 }
 function askCancel(id: string) { cancelId.value = id; showCancel.value = true }
@@ -281,7 +281,7 @@ async function doCancel() {
       loadCounts()
     }
     closeCancel()
-  } catch { uni.showToast({ title: '操作失败', icon: 'none' }) }
+  } catch (e) { uni.showToast({ title: (e as Error)?.message || '操作失败，请重试', icon: 'none' }) }
   finally { submitting.value = false }
 }
 </script>

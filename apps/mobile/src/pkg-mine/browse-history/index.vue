@@ -46,7 +46,7 @@
           v-for="item in group.items"
           :key="item.id"
           class="card"
-          @click="openItem"
+          @click="openItem(item)"
         >
           <!-- 类型图标 -->
           <view class="type-icon" :style="{ background: cfg(item.type).color }">
@@ -79,10 +79,12 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { goBack } from '@/utils/router'
+import { apiGet } from '@/utils/request'
 import {
   mineApi,
   historyTypeConfig,
   type HistoryGroup,
+  type HistoryItem,
   type HistoryItemType,
 } from '@/lib/mine-data'
 
@@ -113,8 +115,39 @@ function retry() {
   loadData()
 }
 
-function openItem() {
-  uni.showToast({ title: '内容详情开发中', icon: 'none' })
+/** 跳原内容页（原为"开发中"toast）。
+ * HistoryItem.id 是浏览记录 cuid 而非内容 id（adaptHistory 未透传 targetId）
+ * → 首次点击时拉一次原始记录建 记录id→{targetType,targetId} 映射，用原始 targetType 判跳转 */
+interface RawHistoryRow { id?: string | number; targetType?: string; targetId?: string }
+let rawMapPromise: Promise<Map<string, { targetType: string; targetId: string }>> | null = null
+function loadRawMap() {
+  if (!rawMapPromise) {
+    rawMapPromise = apiGet<{ items?: RawHistoryRow[] } | RawHistoryRow[]>('/users/history?page=1&pageSize=50')
+      .then((res) => {
+        const items = Array.isArray(res) ? res : (res?.items ?? [])
+        return new Map(items.map((r) => [
+          String(r.id),
+          { targetType: String(r.targetType || '').toLowerCase(), targetId: String(r.targetId || '') },
+        ]))
+      })
+      .catch(() => { rawMapPromise = null; return new Map<string, { targetType: string; targetId: string }>() })
+  }
+  return rawMapPromise
+}
+function contentUrl(type: string, id: string): string {
+  return type === 'article' ? `/pkg-circle/articles/detail?id=${id}`
+    : type === 'course' ? `/pkg-course/detail/index?id=${id}`
+    : type === 'video' ? `/pkg-video/detail/index?id=${id}`
+    : type === 'product' ? `/pkg-mall/product/detail?id=${id}`
+    : type === 'live' ? `/pkg-live/watch/index?id=${id}`
+    : type === 'circle' ? `/pkg-circle/circles/detail?id=${id}`
+    : '' // post 无 circleId / classic·ebook·poetry·content 等无对应映射 → 保持提示
+}
+async function openItem(item: HistoryItem) {
+  const raw = (await loadRawMap()).get(item.id)
+  const url = raw && raw.targetId ? contentUrl(raw.targetType, raw.targetId) : ''
+  if (!url) { uni.showToast({ title: '该内容暂不支持跳转', icon: 'none' }); return }
+  uni.navigateTo({ url, fail: () => uni.showToast({ title: '打开失败', icon: 'none' }) })
 }
 
 onMounted(loadData)

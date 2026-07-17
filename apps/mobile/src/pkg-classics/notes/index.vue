@@ -270,7 +270,7 @@ async function batchDelete() {
     await Promise.all(ids.map((id) => classicsApi.removeNote(id)))
     notes.value = notes.value.filter((note) => !ids.includes(note.id))
     exitSelect()
-    uni.showToast({ title: '已删除', icon: 'none' })
+    uni.showToast({ title: '笔记已删除', icon: 'none' })
   } catch (e) {
     uni.showToast({ title: (e as Error)?.message || '删除失败', icon: 'none' })
     fetchData()
@@ -280,7 +280,7 @@ async function deleteItem(id: string) {
   try {
     await classicsApi.removeNote(id)
     notes.value = notes.value.filter((note) => note.id !== id)
-    uni.showToast({ title: '已删除', icon: 'none' })
+    uni.showToast({ title: '笔记已删除', icon: 'none' })
   } catch (e) {
     uni.showToast({ title: (e as Error)?.message || '删除失败', icon: 'none' })
   }

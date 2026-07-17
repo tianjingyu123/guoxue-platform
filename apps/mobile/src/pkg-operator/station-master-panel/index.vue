@@ -18,7 +18,7 @@
         <view class="state-retry-btn" @tap="retry"><text>重试</text></view>
       </view>
       <view v-else-if="isEmpty" class="state-empty">
-        <text class="state-empty-text">暂无数据</text>
+        <text class="state-empty-text">数据每日凌晨聚合更新，开展经营后这里会亮起来</text>
       </view>
       <view v-else-if="notOpened" class="state-empty smp-not-opened">
         <view class="smp-not-opened-icon"><app-icon name="store" :size="64" color="#C41E3A" /></view>

@@ -179,7 +179,7 @@ onLoad((options) => {
       <view class="empty-illus">
         <app-icon name="star" :size="46" color="#C9A96E" />
       </view>
-      <text class="empty-title serif">暂无评价</text>
+      <text class="empty-title serif">还没有评价</text>
       <text class="empty-desc">{{ isInstructor ? '学员评价后，你可以在这里回复' : '购买后欢迎首评，你的评价会帮到更多同好' }}</text>
       <view v-if="!isInstructor" class="empty-btn" hover-class="press" @tap="openWriteSheet">
         <text class="empty-btn-txt">写下第一条评价</text>

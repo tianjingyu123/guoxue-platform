@@ -110,14 +110,15 @@ function handleSubmit() {
   if (selected.value.length === 0) return
   navigated = true
   saveInterestThemes(selected.value)
-  reLaunch('/')
+  // 用完整页面路径（'/' 在 ROUTE_MAP 无映射会原样透传，小程序端不可达）
+  reLaunch('/pages/index/index')
 }
 
 // 跳过：不保存，直接进首页
 function handleSkip() {
   if (navigated) return
   navigated = true
-  reLaunch('/')
+  reLaunch('/pages/index/index')
 }
 </script>
 

@@ -25,7 +25,7 @@
           <view class="empty-icon">
             <app-icon name="map-pin" :size="80" color="#999999" />
           </view>
-          <text class="empty-text">暂无收货地址</text>
+          <text class="empty-text">还没有收货地址，添加一个方便下单</text>
           <view class="empty-btn" @tap="goEdit()">
             <text class="empty-btn-text">添加地址</text>
           </view>

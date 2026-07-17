@@ -70,6 +70,9 @@
             @click="doSearch(h)"
           >
             <text class="tag-text">{{ h }}</text>
+            <view class="tag-del" @click.stop="removeHistory(i)">
+              <app-icon name="x" :size="22" color="var(--text-soft)" />
+            </view>
           </view>
         </view>
       </view>
@@ -139,6 +142,9 @@ const statusBarHeight = ref(0)
 const autoFocus = ref(false)
 const aiModalOpen = ref(false)
 const keyword = ref('')
+// 来源板块默认 Tab（如商城搜索入口带 ?tab=product）：此前 onLoad 直接丢弃，
+// 从商城进搜索页最终落到「综合」Tab。现存下来，所有跳结果页路径统一透传。
+const entryTab = ref('')
 
 /**
  * 🔴 2026-07-14 真连：这三块原来全是写死的假数据（「八字入门教程 12.8万」等 8 条假热搜、
@@ -187,6 +193,9 @@ onLoad((opt) => {
   } catch (e) {
     statusBarHeight.value = 0
   }
+  if (opt && opt.tab) {
+    entryTab.value = opt.tab
+  }
   if (opt && opt.keyword) {
     keyword.value = decodeURIComponent(opt.keyword)
   } else {
@@ -199,15 +208,32 @@ function goBack() {
   navigateBack()
 }
 
-async function clearHistory() {
-  const list = historyList.value
-  historyList.value = [] // 先清 UI，失败再回滚（清历史是高频轻操作，不该等一个 loading）
-  try {
-    await searchApi.clearHistory()
-  } catch (e) {
-    historyList.value = list
-    uni.showToast({ title: (e as Error)?.message || '清空失败', icon: 'none' })
-  }
+/** 全清历史：加二次确认（垃圾桶误触会一把清光，showModal 拦一道），确认后先清 UI 失败回滚 */
+function clearHistory() {
+  uni.showModal({
+    title: '清空搜索历史',
+    content: '确定清空全部搜索历史吗？',
+    confirmColor: '#C41E3A',
+    success: async (res) => {
+      if (!res.confirm) return
+      const list = historyList.value
+      historyList.value = [] // 先清 UI，失败再回滚（清历史是高频轻操作，不该等一个 loading）
+      try {
+        await searchApi.clearHistory()
+      } catch (e) {
+        historyList.value = list
+        uni.showToast({ title: (e as Error)?.message || '清空失败', icon: 'none' })
+      }
+    },
+  })
+}
+
+/**
+ * 单条删除：后端只有整体清空端点（DELETE /search/history），没有单条删除 → 仅本地移除展示。
+ * 后端行保留恰好继续喂热搜词频；代价是刷新/重进页面后该词会重新出现（如实取舍）。
+ */
+function removeHistory(i: number) {
+  historyList.value = historyList.value.filter((_, idx) => idx !== i)
 }
 
 function doSearch(kw: string) {
@@ -220,7 +246,9 @@ function doSearch(kw: string) {
     historyList.value = [q, ...historyList.value].slice(0, 10)
   }
   searchApi.saveHistory(q) // fire-and-forget：失败不该挡住跳转
-  navigateTo(`/search/result?keyword=${encodeURIComponent(q)}`)
+  // 透传来源板块 Tab（商城入口带 tab=product → 结果页直落「商品」Tab）
+  const tabQ = entryTab.value ? `&tab=${encodeURIComponent(entryTab.value)}` : ''
+  navigateTo(`/search/result?keyword=${encodeURIComponent(q)}${tabQ}`)
 }
 </script>
 
@@ -394,6 +422,19 @@ function doSearch(kw: string) {
   border-radius: 32rpx;
   background: var(--surface);
   border: 2rpx solid var(--line);
+}
+.tag--history {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  padding-right: 16rpx;
+}
+.tag-del {
+  width: 40rpx;
+  height: 40rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .tag--guess {
   background: rgba(201, 169, 110, 0.08);

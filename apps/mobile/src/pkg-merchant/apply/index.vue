@@ -57,7 +57,7 @@
             <input
               class="m2-input"
               :class="{ 'm2-input-err': fieldErr('shopName') }"
-              placeholder="请输入"
+              placeholder="对外展示的店铺名称，最多20字"
               placeholder-class="m2-ph"
               :maxlength="20"
               v-model="form.shopName"

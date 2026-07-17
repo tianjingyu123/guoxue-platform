@@ -54,8 +54,17 @@ function batchDelete() {
   isEditMode.value = false
   uni.showToast({ title: '已删除', icon: 'none' })
 }
-function openTarget() {
-  uni.showToast({ title: '内容详情开发中', icon: 'none' })
+/** 跳评论目标内容页（原为"开发中"toast）。circle_post 详情页需 circleId 本数据没有；question 无独立详情页 → 保持提示 */
+function openTarget(c: MyCommentItem) {
+  const { id, type } = c.target
+  const url =
+    type === 'article' ? `/pkg-circle/articles/detail?id=${id}`
+    : type === 'course' ? `/pkg-course/detail/index?id=${id}`
+    : type === 'video' ? `/pkg-video/detail/index?id=${id}`
+    : type === 'product' ? `/pkg-mall/product/detail?id=${id}`
+    : ''
+  if (!url) { uni.showToast({ title: '该内容暂不支持跳转', icon: 'none' }); return }
+  uni.navigateTo({ url, fail: () => uni.showToast({ title: '打开失败', icon: 'none' }) })
 }
 </script>
 
@@ -94,7 +103,7 @@ function openTarget() {
             <text class="comment-content">{{ c.content }}</text>
 
             <!-- 目标内容 -->
-            <view class="target" @tap.stop="openTarget">
+            <view class="target" @tap.stop="openTarget(c)">
               <view v-if="c.target.cover" class="target-cover">
                 <image lazy-load class="target-img" :src="c.target.cover" mode="aspectFill" />
               </view>

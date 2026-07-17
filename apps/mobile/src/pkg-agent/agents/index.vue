@@ -66,21 +66,23 @@
         </view>
       </view>
       <view v-if="searchedBots.length" class="cat-grid">
-        <view v-for="bot in searchedBots" :key="bot.id" class="grid-card" @tap="openBot(bot.id)">
-          <view class="gc-banner" :style="{ background: botGrad(bot.name) }">
-            <view class="gc-glyph serif">{{ (bot.name || '智')[0] }}</view>
-            <view class="gc-avatar">
-              <smart-avatar class="gc-avatar-img" :src="bot.avatar" :name="bot.name" />
-            </view>
-            <text v-if="bot.isNew" class="gc-new">NEW</text>
+        <view v-for="bot in searchedBots" :key="bot.id" class="grid-card gc-flow" :style="{ background: botGrad(bot.name) }" @tap="openBot(bot.id)">
+          <text class="gc-ai">AI</text>
+          <text v-if="bot.isNew" class="gc-new">NEW</text>
+          <view class="gc-face">
+            <view class="gc-halo" />
+            <smart-avatar v-if="bot.avatar" class="gc-avatar-img" :src="bot.avatar" :name="bot.name" />
+            <text v-else class="gc-face-glyph serif">{{ (bot.name || '智')[0] }}</text>
           </view>
-          <view class="gc-body">
-            <text class="gc-name">{{ bot.name }}</text>
-            <text class="gc-desc">{{ bot.description || '暂无简介' }}</text>
-            <view class="gc-foot">
-              <text v-if="bot.useCount" class="gc-count">{{ formatCount(bot.useCount) }}次对话</text>
-              <text v-else class="gc-count">{{ bot.categoryName }}</text>
-            </view>
+          <view v-if="bot.capabilities.includes('语音对话')" class="gc-mic">
+            <app-icon name="mic" :size="22" color="#ffffff" /><text class="gc-mic-txt">可连麦</text>
+          </view>
+          <text class="gc-name">{{ bot.name }}</text>
+          <text class="gc-desc">{{ bot.description || '暂无简介' }}</text>
+          <view class="gc-foot">
+            <text v-if="bot.useCount" class="gc-count">{{ formatCount(bot.useCount) }}次对话</text>
+            <text v-else class="gc-count">{{ bot.categoryName }}</text>
+            <view class="gc-hook"><text class="gc-hook-txt">问一问 ›</text></view>
           </view>
         </view>
       </view>
@@ -214,29 +216,27 @@
           </view>
         </view>
         <view class="cat-grid">
-          <!-- 印面卡（2026-07-17 重设计）：1:1 主视觉=毛玻璃圆底楷体大字+呼吸金晕+流动渐变，
-               替换 150rpx 扁横幅里"小头像+水印首字出现两次"的旧观感；语音智能体凸显「可连麦」 -->
-          <view v-for="bot in group.bots" :key="bot.id" class="grid-card" @tap="openBot(bot.id)">
-            <view class="gc-banner gc-flow" :style="{ background: botGrad(bot.name) }">
-              <view class="gc-face">
-                <view class="gc-halo" />
-                <smart-avatar v-if="bot.avatar" class="gc-avatar-img" :src="bot.avatar" :name="bot.name" />
-                <text v-else class="gc-face-glyph serif">{{ (bot.name || '智')[0] }}</text>
-              </view>
-              <text v-if="bot.isNew" class="gc-new">NEW</text>
-              <view v-if="bot.capabilities.includes('语音对话')" class="gc-mic">
-                <app-icon name="mic" :size="22" color="#ffffff" /><text class="gc-mic-txt">可连麦</text>
-              </view>
+          <!-- 整体渐变卡（2026-07-17 董事长拍板：对齐首页 feed 智能体卡整体效果）：
+               整卡流动渐变（名字/简介同底不再"上图下白"像商品）+ 中央毛玻璃圆底楷体大字/头像
+               + 呼吸金晕 + AI 徽标 + 底行「问一问 ›」白胶囊引导对话；语音智能体凸显「可连麦」 -->
+          <view v-for="bot in group.bots" :key="bot.id" class="grid-card gc-flow" :style="{ background: botGrad(bot.name) }" @tap="openBot(bot.id)">
+            <text class="gc-ai">AI</text>
+            <text v-if="bot.isNew" class="gc-new">NEW</text>
+            <view class="gc-face">
+              <view class="gc-halo" />
+              <smart-avatar v-if="bot.avatar" class="gc-avatar-img" :src="bot.avatar" :name="bot.name" />
+              <text v-else class="gc-face-glyph serif">{{ (bot.name || '智')[0] }}</text>
             </view>
-            <view class="gc-body">
-              <text class="gc-name">{{ bot.name }}</text>
-              <text class="gc-desc">{{ bot.description || '暂无简介' }}</text>
-              <view class="gc-foot">
-                <text v-if="bot.useCount" class="gc-count">{{ formatCount(bot.useCount) }}次对话</text>
-                <text v-else-if="bot.isFree" class="gc-count">免费使用</text>
-                <text v-else class="gc-count">按次计费</text>
-                <text class="gc-hook">问一问 ›</text>
-              </view>
+            <view v-if="bot.capabilities.includes('语音对话')" class="gc-mic">
+              <app-icon name="mic" :size="22" color="#ffffff" /><text class="gc-mic-txt">可连麦</text>
+            </view>
+            <text class="gc-name">{{ bot.name }}</text>
+            <text class="gc-desc">{{ bot.description || '暂无简介' }}</text>
+            <view class="gc-foot">
+              <text v-if="bot.useCount" class="gc-count">{{ formatCount(bot.useCount) }}次对话</text>
+              <text v-else-if="bot.isFree" class="gc-count">免费使用</text>
+              <text v-else class="gc-count">按次计费</text>
+              <view class="gc-hook"><text class="gc-hook-txt">问一问 ›</text></view>
             </view>
           </view>
         </view>
@@ -689,34 +689,42 @@ function goBack() {
 .cat-grid {
   display: flex; flex-wrap: wrap; gap: 20rpx;
 }
+/* 整体渐变卡（同 feed 智能体卡范式）：整卡即渐变主视觉，名字/简介/底行同底一体，
+   高度由内容自然撑（约 1:1.2）。BOT_GRADS 六色系全为深色系 → 全卡统一白字保证对比度。 */
 .grid-card {
+  position: relative;
   width: calc(50% - 10rpx);
   box-sizing: border-box;
-  background: #ffffff;
   border-radius: 24rpx;
   overflow: hidden;
-  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.04);
-  display: flex; flex-direction: column;
+  padding: 34rpx 24rpx 24rpx;
+  display: flex; flex-direction: column; align-items: center;
+  box-shadow: 0 4rpx 16rpx rgba(40, 30, 55, 0.16);
   transition: transform 0.15s ease;
 }
 .grid-card:active { transform: scale(0.97); }
-/* 印面主视觉：1:1 容器（规范=智能体图标 1:1），渐变底按名称哈希轮换 */
-.gc-banner {
-  position: relative; width: 100%; padding-top: 100%;
-}
-/* 渐变流动（X5 安全：只动 background-position，同 feed 智能体卡） */
+/* 渐变流动（X5 安全：只动 background-position，同 feed 智能体卡；
+   !important 盖过内联 background 简写重置的 background-size） */
 .gc-flow {
   background-size: 200% 200% !important;
   animation: gcFlow 7s ease-in-out infinite alternate;
 }
 @keyframes gcFlow { 0% { background-position: 0% 0%; } 100% { background-position: 100% 100%; } }
 .serif { font-family: 'STKaiti', 'KaiTi', 'STSong', serif; }
-/* 中央毛玻璃圆底：楷体大字如一方印面；有真实头像则显示头像 */
+/* 左上 AI 徽标（深渐变上白描边款） */
+.gc-ai {
+  position: absolute; top: 16rpx; left: 16rpx; z-index: 3;
+  font-size: 20rpx; font-weight: 700; letter-spacing: 1rpx; color: rgba(255, 255, 255, 0.92);
+  background: rgba(255, 255, 255, 0.14); border: 2rpx solid rgba(255, 255, 255, 0.38);
+  border-radius: 8rpx; padding: 2rpx 12rpx;
+}
+/* 中央毛玻璃圆底：楷体大字如一方印面；有真实头像则显示头像
+   （深渐变上圆底降为白 22% 玻璃感，白字大字对比充分） */
 .gc-face {
-  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-  width: 168rpx; height: 168rpx; border-radius: 999rpx; overflow: visible;
-  background: rgba(255, 255, 255, 0.5);
-  box-shadow: inset 0 2rpx 6rpx rgba(255, 255, 255, 0.7), 0 4rpx 16rpx rgba(120, 100, 60, 0.12);
+  position: relative; flex-shrink: 0;
+  width: 148rpx; height: 148rpx; border-radius: 999rpx; overflow: visible;
+  background: rgba(255, 255, 255, 0.22);
+  box-shadow: inset 0 2rpx 6rpx rgba(255, 255, 255, 0.45), 0 4rpx 16rpx rgba(0, 0, 0, 0.18);
   display: flex; align-items: center; justify-content: center;
 }
 /* 呼吸金晕（只动 opacity） */
@@ -727,32 +735,33 @@ function goBack() {
 }
 @keyframes gcHalo { 0%, 100% { opacity: 0.3; } 50% { opacity: 0.6; } }
 .gc-face-glyph {
-  font-size: 88rpx; font-weight: 700; line-height: 1; color: #ffffff;
-  text-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.18);
+  font-size: 80rpx; font-weight: 700; line-height: 1; color: #ffffff;
+  text-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.3);
 }
-.gc-avatar-img { width: 152rpx; height: 152rpx; border-radius: 999rpx; overflow: hidden; }
-/* 语音智能体的稀缺能力标识 */
+.gc-avatar-img { width: 136rpx; height: 136rpx; border-radius: 999rpx; overflow: hidden; }
+/* 语音智能体的稀缺能力标识（面下居中胶囊） */
 .gc-mic {
-  position: absolute; left: 50%; transform: translateX(-50%); bottom: 20rpx;
+  margin-top: 14rpx;
   display: flex; align-items: center; gap: 6rpx;
-  padding: 6rpx 18rpx; border-radius: 999rpx;
-  background: rgba(0, 0, 0, 0.28); backdrop-filter: blur(8rpx);
+  padding: 4rpx 18rpx; border-radius: 999rpx;
+  background: rgba(0, 0, 0, 0.24); border: 2rpx solid rgba(255, 255, 255, 0.28);
 }
 .gc-mic-txt { font-size: 20rpx; color: #ffffff; letter-spacing: 1rpx; }
 .gc-new {
-  position: absolute; top: 12rpx; right: 12rpx;
+  position: absolute; top: 16rpx; right: 16rpx; z-index: 3;
   padding: 2rpx 10rpx;
   background: #52c41a; color: #ffffff;
   font-size: 18rpx; border-radius: 6rpx;
 }
-.gc-body { padding: 18rpx 24rpx 22rpx; display: flex; flex-direction: column; }
 .gc-name {
-  font-size: 30rpx; font-weight: 600; color: var(--text-ink, #2c2c2c);
+  margin-top: 18rpx; max-width: 100%; text-align: center;
+  font-size: 30rpx; font-weight: 600; color: #ffffff;
+  text-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.25);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .gc-desc {
-  font-size: 24rpx; color: #8a8a8a; line-height: 1.55;
-  margin-top: 8rpx;
+  font-size: 24rpx; color: rgba(255, 255, 255, 0.85); line-height: 1.55;
+  margin-top: 8rpx; text-align: center;
   height: 74rpx;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -760,12 +769,20 @@ function goBack() {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
 }
+/* 底行：对话数 + 「问一问 ›」白胶囊（引导对话 hook）
+   margin-top:auto → flex 同行卡片被拉伸时底行仍贴底 */
 .gc-foot {
+  width: 100%;
   display: flex; align-items: center; justify-content: space-between;
-  margin-top: 14rpx;
+  margin-top: auto; padding-top: 18rpx;
 }
-.gc-count { font-size: 22rpx; color: #8b7355; }
-.gc-hook { font-size: 22rpx; color: #8a6420; font-weight: 500; }
+.gc-count { font-size: 22rpx; color: rgba(255, 255, 255, 0.7); }
+.gc-hook {
+  flex-shrink: 0;
+  padding: 8rpx 20rpx; border-radius: 999rpx;
+  background: rgba(255, 255, 255, 0.2);
+}
+.gc-hook-txt { font-size: 22rpx; font-weight: 600; color: #ffffff; }
 
 /* 空态 */
 .empty-block { padding: 80rpx 32rpx; display: flex; justify-content: center; }

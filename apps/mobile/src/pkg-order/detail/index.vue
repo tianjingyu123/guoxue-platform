@@ -225,7 +225,7 @@ async function confirmReceive() {
       order.value = { ...order.value, status: 'completed' as const, canConfirm: false, canReview: true }
       uni.showToast({ title: '确认收货成功', icon: 'none' })
     }
-  } catch { uni.showToast({ title: '操作失败', icon: 'none' }) }
+  } catch (e) { uni.showToast({ title: (e as Error)?.message || '操作失败，请重试', icon: 'none' }) }
   finally { submitting.value = false }
 }
 // 取消订单（仅待付款可取消，后端校验）：确认后直接调用，成功刷新本页状态为已取消

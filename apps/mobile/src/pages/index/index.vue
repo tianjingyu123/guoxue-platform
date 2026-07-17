@@ -15,7 +15,7 @@ import SmartCover from '@/components/common/smart-cover.vue'
 import BottomNav from '@/components/bottom-nav/bottom-nav.vue'
 import DailyStudy from '@/components/home/daily-study.vue'
 import { navigateTo } from '@/utils/router'
-import { getSmartFeed, sendFeedback, ratioPadding, type FeedEnvelope } from '@/lib/feed-data'
+import { getSmartFeed, sendFeedback, ratioPadding, feedTargetUrl, type FeedEnvelope } from '@/lib/feed-data'
 import { getPublishedLayout, type LayoutBlock } from '@/lib/page-layout-data'
 import BlockRenderer from '@/components/layout/block-renderer.vue'
 
@@ -43,44 +43,70 @@ const loadingMore = ref(false)
 const noMore = ref(false)
 // 首屏加载失败（服务器错误/断网）标志：与"真的没内容"（空态）区分，展示错误态+重试
 const loadError = ref(false)
+// 加载更多失败标志：列表尾巴显示「加载失败 · 点击重试」（不再静默吞掉）
+const loadMoreError = ref(false)
 const page = ref(1)
 const PAGE_SIZE = 20
+// 首页 feed 首屏缓存 key（SWR：秒开旧内容 + 后台静默刷新替换）
+const FEED_CACHE_KEY = 'feed:home:cache'
 
 /** 拉取一页 feed。reset=true 时重置为第一页（下拉刷新/切频道换一批）。
- *  失败时（getSmartFeed 抛错）仅在首屏加载（reset）时置 loadError，交页面显示重试，不误当空态。 */
-async function loadFeed(reset = false) {
+ *  失败时（getSmartFeed 抛错）仅在首屏加载（reset）时置 loadError，交页面显示重试，不误当空态。
+ *  返回本次拉取是否成功（供加载更多失败回滚页码用）。 */
+async function loadFeed(reset = false): Promise<boolean> {
   if (reset) {
     page.value = 1
     noMore.value = false
+    loadMoreError.value = false
   }
   let items: FeedEnvelope[]
   try {
     items = await getSmartFeed(page.value, PAGE_SIZE)
     loadError.value = false
   } catch {
-    // 服务器错误/断网：首屏失败标记错误态（重试），加载更多失败则静默停在原内容
+    // 服务器错误/断网：首屏失败标记错误态（重试），加载更多失败由调用方回滚页码+尾巴重试
     if (reset) loadError.value = true
-    return
+    return false
   }
   // 过滤后端仍在塞的智能体卡：其 targetId 为占位 id（如 hook-agent），点进对话页查真实
   // agent → "智能体不存在"死链。智能体入口改由金刚区真实入口承载，首页 feed 只排真实内容。
   const real = items.filter((i) => i.type !== 'agent')
   if (reset) {
     feed.value = real
+    // SWR 缓存：只存推荐频道的首页第一页（控制体积），关注频道/后续页不写
+    if (activeTab.value === 'recommend' && real.length > 0) {
+      try { uni.setStorageSync(FEED_CACHE_KEY, real) } catch { /* 存储满等异常不影响主流程 */ }
+    }
   } else {
     feed.value = feed.value.concat(real)
   }
   // 到底判定用后端原始返回条数（不含被过滤的智能体卡），避免因过滤而误判到底
   if (items.length < PAGE_SIZE) noMore.value = true
+  return true
 }
 
 // 平台微页面：首页顶部运营楼层（后台「微页面编辑器」搭 route='home' 平台页发布 → 此处渲染；无则不显示）
 const homeBlocks = ref<LayoutBlock[]>([])
 
 async function init() {
-  loading.value = true
   // 运营楼层：拉已发布平台微页面（有则渲染在瀑布流之上·无则空）
   getPublishedLayout('home').then((l) => { homeBlocks.value = l.blocks }).catch(() => {})
+  // SWR：先读上次首屏缓存——命中则立即上屏（不显示骨架屏），后台静默刷新整批替换（不闪跳）；
+  // 无缓存走原有骨架屏流程。缓存读坏（非数组）按未命中处理。
+  let cached: FeedEnvelope[] = []
+  try {
+    const raw = uni.getStorageSync(FEED_CACHE_KEY)
+    if (Array.isArray(raw)) cached = raw
+  } catch { /* 读缓存失败按未命中处理 */ }
+  if (cached.length > 0) {
+    feed.value = cached
+    loading.value = false
+    // 后台静默刷新：loadFeed(true) 成功后整批替换 feed（一次性赋值不闪跳）；
+    // 失败时 loadError 置位但 feed.length>0，错误态模板不触发，旧内容留存
+    loadFeed(true)
+    return
+  }
+  loading.value = true
   try {
     await loadFeed(true)
   } finally {
@@ -100,27 +126,47 @@ function retry() {
 async function onRefresh() {
   if (refreshing.value) return
   refreshing.value = true
+  // 记刷新前首条 id：刷新成功后比对新旧首条，变了才提示"新内容"，没变提示"暂无更新"
+  const prevFirstId = feed.value[0]?.id
   try {
-    await loadFeed(true)
+    const ok = await loadFeed(true)
     // 刷新失败但已有旧内容时保留内容（不闪错误页），仅轻提示
     if (loadError.value && feed.value.length > 0) {
       uni.showToast({ title: '刷新失败，请稍后重试', icon: 'none' })
+    } else if (ok) {
+      const newFirstId = feed.value[0]?.id
+      uni.showToast({
+        title: newFirstId !== undefined && newFirstId !== prevFirstId ? '已为你推荐新内容' : '暂无更新',
+        icon: 'none',
+      })
     }
   } finally {
     refreshing.value = false
   }
 }
 
-// 无限滚动加载下一页
+// 无限滚动加载下一页：失败时回滚页码 -1 + 尾巴亮出「加载失败 · 点击重试」（原为静默吞掉，
+// 用户滑到底只看到转圈消失，还以为到底了——下次 scrolltolower 又用错页码跳页）
 async function onLoadMore() {
   if (loadingMore.value || noMore.value || loading.value) return
   loadingMore.value = true
+  loadMoreError.value = false
   try {
     page.value += 1
-    await loadFeed(false)
+    const ok = await loadFeed(false)
+    if (!ok) {
+      page.value -= 1
+      loadMoreError.value = true
+    }
   } finally {
     loadingMore.value = false
   }
+}
+
+// 尾巴「点击重试」：清失败标志重拉同一页
+function retryLoadMore() {
+  loadMoreError.value = false
+  onLoadMore()
 }
 
 // ── 焦点区（编辑式·直播优先）：取 feed 中首个直播卡，无直播则取首卡兜底 ──
@@ -142,8 +188,9 @@ const focusCoverType = computed(() => {
 function goFocus() {
   const it = focusItem.value
   if (!it) return
-  if (it.type === 'live') navigateTo(`/live/${it.id}`)
-  else navigateTo(`/articles/${it.id}`)
+  // 与 feed-card 共用 feedTargetUrl 唯一映射：焦点卡可能是 course/product/video 等九类之一，
+  // 原本非 live 一律跳 /articles/:id → 课程/商品焦点卡点进文章详情必错页
+  navigateTo(feedTargetUrl(it))
 }
 
 // ── 双列瀑布流 + 16:9 全宽大卡节奏（董事长 2026-07-17 拍板：仅 live/course 可升大卡）──
@@ -421,8 +468,11 @@ function backToTop() {
         </view>
       </template>
 
-      <!-- 加载更多 / 到底提示 -->
+      <!-- 加载更多 / 失败重试 / 到底提示 -->
       <view v-if="loadingMore" class="more-tip"><text class="more-tip-txt">加载中…</text></view>
+      <view v-else-if="loadMoreError" class="more-tip" hover-class="btn-press" @tap="retryLoadMore">
+        <text class="more-tip-txt more-tip-err">加载失败 · 点击重试</text>
+      </view>
       <view v-else-if="noMore" class="end">
         <view class="end-line" /><text class="end-text">已经到底了</text><view class="end-line" />
       </view>
@@ -620,6 +670,8 @@ function backToTop() {
 /* 加载更多 / 到底 */
 .more-tip { display: flex; align-items: center; justify-content: center; padding: 32rpx 0; }
 .more-tip-txt { font-size: 24rpx; color: #999999; }
+/* 加载更多失败重试（朱红提醒色，可点） */
+.more-tip-err { color: #C41E3A; }
 .end { display: flex; align-items: center; justify-content: center; gap: 24rpx; padding: 48rpx 0 64rpx; }
 .end-line { width: 60rpx; height: 1rpx; background-color: #E8E0D5; }
 .end-text { font-size: 24rpx; color: #999999; }

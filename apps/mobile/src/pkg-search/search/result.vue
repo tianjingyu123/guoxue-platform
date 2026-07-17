@@ -41,7 +41,7 @@
       </scroll-view>
     </view>
 
-    <scroll-view scroll-y class="result-body">
+    <scroll-view scroll-y class="result-body" :lower-threshold="200" @scrolltolower="loadMoreResults">
       <!-- 加载骨架 -->
       <view v-if="loading" class="skeleton-wrap">
         <view v-for="i in 5" :key="i" class="skeleton-card">
@@ -162,7 +162,7 @@
               >
                 <view :class="activeTab === 'course' ? 'course-cover-grid' : 'course-cover-row'">
                   <image lazy-load v-if="course.cover" :src="course.cover" class="row-cover-img" mode="aspectFill" />
-                  <app-icon v-else name="book-open" :size="56" color="#C41E3A" />
+                  <view v-else class="cover-fallback"><app-icon name="book-open" :size="56" color="#C41E3A" /></view>
                 </view>
                 <view :class="activeTab === 'course' ? 'course-meta-grid' : 'course-meta-row'">
                   <rich-text class="course-title" :nodes="highlight(course.title)" />
@@ -193,7 +193,7 @@
               >
                 <view class="product-cover">
                   <image lazy-load v-if="product.cover" :src="product.cover" class="product-cover-img" mode="aspectFill" />
-                  <app-icon v-else name="shopping-bag" :size="56" color="#C41E3A" />
+                  <view v-else class="cover-fallback"><app-icon name="shopping-bag" :size="56" color="#C41E3A" /></view>
                 </view>
                 <view class="product-meta">
                   <rich-text class="product-name" :nodes="highlight(product.title)" />
@@ -279,6 +279,11 @@
             </view>
           </view>
         </view>
+
+        <!-- 翻页尾巴（仅分类 Tab）：加载中 / 到底 / 可上滑 -->
+        <view v-if="showLoadFoot" class="load-foot">
+          <text class="load-foot-text">{{ loadingMore ? '加载中…' : noMore ? '已经到底了' : '上滑加载更多' }}</text>
+        </view>
       </block>
 
       <view class="bottom-gap" />
@@ -291,7 +296,7 @@ import { ref, computed, watch } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo, navigateBack } from '@/utils/router'
-import { searchApi, type SearchResults, type SearchTab } from '@/lib/search-data'
+import { searchApi, SEARCH_PAGE_SIZE, type SearchResults, type SearchTab } from '@/lib/search-data'
 import { formatPrice } from '@/utils/format'
 
 const tabs: { key: SearchTab; label: string }[] = [
@@ -336,6 +341,30 @@ const resultCache = new Map<string, SearchResults>()
 // AI 总结缓存（仅综合 Tab 用，按关键词缓存）
 const aiCache = new Map<string, string>()
 
+// ===== 分页（分类 Tab 上滑加载更多；综合 Tab 各类前 5 混排无分页语义，不翻页）=====
+const page = ref(1)
+const loadingMore = ref(false)
+const noMore = ref(false)
+// 分页态缓存：与 resultCache 同 key，切回 Tab 恢复已翻到的页码与到底态
+const pageCache = new Map<string, { page: number; noMore: boolean }>()
+
+/** 分类 Tab → results 字段映射（'all' 无映射 → 不参与翻页） */
+const tabListKey: Partial<Record<SearchTab, keyof SearchResults>> = {
+  content: 'contents',
+  course: 'courses',
+  product: 'products',
+  circle: 'circles',
+  classic: 'classics',
+  user: 'users',
+}
+
+// 翻页尾巴可见性：分类 Tab 且当前列表非空
+const showLoadFoot = computed(() => {
+  const key = tabListKey[activeTab.value]
+  if (!key) return false
+  return !loading.value && !error.value && (results.value[key] as unknown[]).length > 0
+})
+
 const isEmpty = computed(() => {
   const r = results.value
   return !loading.value && !error.value &&
@@ -352,21 +381,32 @@ async function loadResults() {
     loading.value = false
     return
   }
-  // 命中缓存：切回已搜过的 Tab，直接复用不重拉（无骨架闪烁）
+  // 命中缓存：切回已搜过的 Tab，直接复用不重拉（无骨架闪烁），并恢复分页态
   const cacheKey = `${kw}||${activeTab.value}`
   const cached = resultCache.get(cacheKey)
   if (cached) {
     results.value = cached
     error.value = ''
     loading.value = false
+    const pc = pageCache.get(cacheKey)
+    page.value = pc ? pc.page : 1
+    noMore.value = pc ? pc.noMore : false
     aiSummaryText.value = activeTab.value === 'all' ? (aiCache.get(kw) || '') : ''
     return
   }
   loading.value = true
   error.value = ''
+  page.value = 1
+  noMore.value = false
   try {
     results.value = await searchApi.search(kw, activeTab.value)
     resultCache.set(cacheKey, results.value)
+    // 分类 Tab：首页不足一页即到底（search 抛错走 catch，这里的空/短返回可信）
+    const listKey = tabListKey[activeTab.value]
+    if (listKey) {
+      noMore.value = (results.value[listKey] as unknown[]).length < SEARCH_PAGE_SIZE
+      pageCache.set(cacheKey, { page: 1, noMore: noMore.value })
+    }
     searchApi.saveHistory(kw) // 静默保存历史，不阻塞
     const r = results.value
     const hasAny = r.contents.length || r.courses.length || r.products.length ||
@@ -380,6 +420,38 @@ async function loadResults() {
     error.value = '搜索失败，请重试'
   } finally {
     loading.value = false
+  }
+}
+
+/**
+ * 上滑翻页（scroll-view @scrolltolower）：仅分类 Tab。
+ * 追加当前 Tab 列表并按 id 去重（FTS 权重排序下翻页可能少量重叠）；
+ * 失败 toast 保留现状可重试，不误设 noMore。
+ */
+async function loadMoreResults() {
+  const key = tabListKey[activeTab.value]
+  if (!key || loading.value || loadingMore.value || noMore.value || error.value) return
+  const kw = keyword.value.trim()
+  if (!kw) return
+  const cacheKey = `${kw}||${activeTab.value}`
+  loadingMore.value = true
+  try {
+    const next = page.value + 1
+    const res = await searchApi.search(kw, activeTab.value, next)
+    const incoming = res[key] as Array<{ id: string }>
+    const cur = results.value[key] as Array<{ id: string }>
+    if (incoming.length) {
+      const seen = new Set(cur.map((it) => it.id))
+      cur.push(...incoming.filter((it) => !seen.has(it.id)))
+      page.value = next
+      resultCache.set(cacheKey, results.value) // 追加后的整表回写缓存，切 Tab 回来不丢
+    }
+    if (incoming.length < SEARCH_PAGE_SIZE) noMore.value = true
+    pageCache.set(cacheKey, { page: page.value, noMore: noMore.value })
+  } catch {
+    uni.showToast({ title: '加载失败，请重试', icon: 'none' })
+  } finally {
+    loadingMore.value = false
   }
 }
 
@@ -841,14 +913,20 @@ function formatNumber(num: number) {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  position: relative; /* cover-fallback 绝对定位锚点 */
 }
 .course-cover-grid {
+  /* X5 内核不支持 aspect-ratio：4:3 用 padding-top 75% 撑比例，子元素绝对铺满 */
   width: 100%;
-  aspect-ratio: 4 / 3;
+  height: 0;
+  padding-top: 75%;
+  position: relative;
   background: linear-gradient(135deg, rgba(196, 30, 58, 0.2), rgba(201, 169, 110, 0.2));
-  display: flex;
-  align-items: center;
-  justify-content: center;
+}
+.course-cover-grid .row-cover-img {
+  position: absolute;
+  top: 0;
+  left: 0;
 }
 .course-meta-row {
   flex: 1;
@@ -916,12 +994,17 @@ function formatNumber(num: number) {
   overflow: hidden;
 }
 .product-cover {
+  /* X5 内核不支持 aspect-ratio：1:1 用 padding-top 100% 撑比例，子元素绝对铺满 */
   width: 100%;
-  aspect-ratio: 1 / 1;
+  height: 0;
+  padding-top: 100%;
+  position: relative;
   background: linear-gradient(135deg, rgba(196, 30, 58, 0.1), rgba(201, 169, 110, 0.1));
-  display: flex;
-  align-items: center;
-  justify-content: center;
+}
+.product-cover .product-cover-img {
+  position: absolute;
+  top: 0;
+  left: 0;
 }
 .product-meta {
   padding: 24rpx;
@@ -1082,6 +1165,29 @@ function formatNumber(num: number) {
 .product-cover,
 .user-avatar {
   overflow: hidden;
+}
+
+/* 无封面占位图标：绝对铺满父容器并居中（父容器已 position:relative） */
+.cover-fallback {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 翻页尾巴 */
+.load-foot {
+  display: flex;
+  justify-content: center;
+  padding: 24rpx 0 8rpx;
+}
+.load-foot-text {
+  font-size: 24rpx;
+  color: var(--text-soft);
 }
 
 /* 古籍/电子书 分类标签 */

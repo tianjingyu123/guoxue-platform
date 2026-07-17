@@ -84,8 +84,8 @@
           <text class="resend-tip">{{ countdown > 0 ? countdown + '秒后可重发' : '没有收到验证码？' }}</text>
           <text class="resend-btn" :class="{ 'resend-disabled': countdown > 0 }" @tap="sendCode">重新发送</text>
         </view>
-        <view class="btn" :class="{ 'btn-disabled': code.length !== 6 }" @tap="verifyCode">
-          <text class="btn-text">下一步</text>
+        <view class="btn" :class="{ 'btn-disabled': code.length !== 6 || isVerifying }" @tap="verifyCode">
+          <text class="btn-text">{{ isVerifying ? '校验中...' : '下一步' }}</text>
         </view>
       </view>
 
@@ -142,8 +142,9 @@
         <!-- 密码不一致提示 -->
         <text v-if="confirmPassword && password !== confirmPassword" class="error-text">两次输入的密码不一致</text>
         <!-- 协议 -->
-        <view class="terms-row">
-          <view class="checkbox" :class="{ 'checkbox-checked': agreed }" @tap="agreed = !agreed">
+        <!-- 整行可点切换勾选（协议链接 .stop 仍跳协议页）；checkbox 视觉不变，热区=整行 ≥88rpx -->
+        <view class="terms-row" @tap="agreed = !agreed">
+          <view class="checkbox" :class="{ 'checkbox-checked': agreed }">
             <AppIcon v-if="agreed" name="check" :size="12" color="#ffffff" />
           </view>
           <view class="terms-text">
@@ -191,6 +192,10 @@ const showConfirmPassword = ref(false)
 const agreed = ref(false)
 const countdown = ref(0)
 const isLoading = ref(false)
+// 第 2 步验证码真校验中（防重复提交）
+const isVerifying = ref(false)
+// 与 request.ts 同源的 API 地址（BASE_URL/PREFIX 未导出，此处按同一规则拼装）
+const API_BASE = `${(import.meta as any).env?.VITE_API_URL || ''}/api/v1`
 
 let timer: ReturnType<typeof setInterval> | null = null
 
@@ -246,10 +251,47 @@ async function sendCode() {
   }
 }
 
-// @data-needs: 校验验证码, 参数 {phone, code}, 返回 {success, message}
+/**
+ * 第 2 步「下一步」真校验验证码 — POST /sms/verify（公开端点·仅限流保护）。
+ * 错码当步就报，不再等到最后一步注册时才失败。
+ * 🔴 不走 apiPost：后端错码返回 HTTP 401（AUTH_SMS_CODE_INVALID=200004 → mod 200 → 401），
+ * 而 /sms/verify 不在 request.ts 的 isAuthEntryPath 白名单里，走 apiPost 会触发
+ * refresh→handleUnauthorized 把未登录用户踢出注册流，故此处用裸 uni.request 自行处理。
+ * 注：后端校验成功即消费验证码，但 /auth/register/phone 注册端点不收也不验 code，不会被阻断。
+ */
 function verifyCode() {
-  if (code.value.length !== 6) return
-  step.value = 'password'
+  if (!code.value) {
+    uni.showToast({ title: '请输入验证码', icon: 'none' })
+    return
+  }
+  if (code.value.length !== 6) {
+    uni.showToast({ title: '请输入6位验证码', icon: 'none' })
+    return
+  }
+  if (isVerifying.value) return
+  isVerifying.value = true
+  uni.request({
+    url: `${API_BASE}/sms/verify`,
+    method: 'POST',
+    // scene 必须与发码时一致（sendCode 用的 'register'，后端按 sms:code:register:{phone} 存取）
+    data: { phone: phone.value, code: code.value, scene: 'register' },
+    timeout: 15000,
+    success: (res) => {
+      // 成功契约与 request.ts apiFetch 一致：ResponseInterceptor 包壳 body.code === 200
+      const body = res.data as { code?: number; message?: string } | undefined
+      if (body && body.code === 200) {
+        step.value = 'password'
+      } else {
+        uni.showToast({ title: body?.message || '验证码错误', icon: 'none' })
+      }
+    },
+    fail: () => {
+      uni.showToast({ title: '网络连接失败，请检查网络后重试', icon: 'none' })
+    },
+    complete: () => {
+      isVerifying.value = false
+    },
+  })
 }
 
 // @data-needs: 注册, 参数 {phone, code, password, nickname}, 返回 {success, data:{token, user}, message}
@@ -443,11 +485,17 @@ onUnmounted(() => {
   color: #999999;
   letter-spacing: normal;
 }
+/* 热区扩到 88×88rpx（图标 40rpx 视觉位置不变：right = 24 - (88-40)/2 = 0） */
 .eye-btn {
   position: absolute;
-  right: 24rpx;
+  right: 0;
   top: 50%;
   transform: translateY(-50%);
+  width: 88rpx;
+  height: 88rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .resend-row {
@@ -475,11 +523,13 @@ onUnmounted(() => {
   margin-top: -24rpx;
 }
 
-/* 协议 */
+/* 协议：整行是勾选热区，padding+min-height 撑到 ≥88rpx（checkbox 视觉尺寸不变） */
 .terms-row {
   display: flex;
   align-items: flex-start;
   gap: 16rpx;
+  padding: 16rpx 0;
+  min-height: 88rpx;
 }
 .checkbox {
   width: 36rpx;

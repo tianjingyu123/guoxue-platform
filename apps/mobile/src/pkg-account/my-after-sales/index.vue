@@ -32,7 +32,7 @@
           <view class="empty-icon">
             <app-icon name="package" :size="80" color="#999999" />
           </view>
-          <text class="empty-text">暂无售后记录</text>
+          <text class="empty-text">没有售后记录，一切顺利就最好</text>
           <view class="empty-btn" @tap="navigateTo('/orders')">
             <text class="empty-btn-text">查看订单</text>
           </view>

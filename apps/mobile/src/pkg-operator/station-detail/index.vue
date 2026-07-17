@@ -140,7 +140,7 @@ function toastSoon() {
       </view>
       <!-- 三态：空数据 -->
       <view v-else-if="isEmpty" class="state-empty">
-        <text class="state-empty-text">暂无数据</text>
+        <text class="state-empty-text">数据每日凌晨聚合更新，开展经营后这里会亮起来</text>
       </view>
       <template v-else>
       <!-- Hero Banner -->

@@ -59,7 +59,10 @@
         <view class="state-icon">
           <app-icon name="users" :size="72" color="#b8ab94" />
         </view>
-        <text class="state-text">暂无拼团商品</text>
+        <text class="state-text">拼团活动正在筹备，先去商城逛逛精选好物</text>
+        <view class="state-retry" @tap="navigateTo('/mall')">
+          <text class="state-retry-text">去商城逛逛</text>
+        </view>
       </view>
       <!-- 数据列表 -->
       <view v-for="item in groupBuyList" :key="item.id" class="card">

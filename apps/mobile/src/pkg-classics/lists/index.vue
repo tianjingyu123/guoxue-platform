@@ -34,12 +34,8 @@ function toggleLike(id: string) {
 
 function goDetail(id: string) {
   uni.navigateTo({ url: `/pkg-classics/collection/index?id=${id}` }).catch(() => {
-    uni.showToast({ title: '书单详情即将上线', icon: 'none' })
+    uni.showToast({ title: '书单详情暂未开放', icon: 'none' })
   })
-}
-
-function onCreate() {
-  uni.showToast({ title: '创建书单即将上线', icon: 'none' })
 }
 
 // 对齐原型 list.likes.toLocaleString()
@@ -69,6 +65,11 @@ function fmtLikes(n: number): string {
         <view style="margin-top:16rpx;" @tap="fetchData">
           <text style="color:var(--muted-foreground);">重试</text>
         </view>
+      </view>
+      <!-- 诚实空态：后端书单数据源尚未建设，如实告知而非留白 -->
+      <view v-else-if="!lists.length" class="lp-card" style="text-align:center;padding:80rpx 48rpx;">
+        <text style="display:block;font-size:30rpx;font-weight:600;color:var(--foreground);">书单栏目筹备中</text>
+        <text style="display:block;margin-top:16rpx;font-size:26rpx;line-height:1.6;color:var(--muted-foreground);">编辑正在整理首批主题书单，上线后将在此展示，敬请关注。</text>
       </view>
       <view v-else v-for="list in lists" :key="list.id" class="lp-card">
         <!-- 卡片主体（可点击进入详情） -->

@@ -173,7 +173,7 @@ async function handleFollow() {
           followerCount: profile.value.stats.followerCount + (wasFollowing ? 1 : -1),
         },
       }
-      uni.showToast({ title: '操作失败', icon: 'none' })
+      uni.showToast({ title: res.message || '操作失败，请重试', icon: 'none' })
     }
   } finally {
     followLoading.value = false

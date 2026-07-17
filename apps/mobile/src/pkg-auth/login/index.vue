@@ -103,8 +103,9 @@
         </view>
 
         <!-- 协议勾选 -->
-        <view class="terms-row">
-          <view class="checkbox" :class="{ 'checkbox-checked': agreedTerms }" @tap="agreedTerms = !agreedTerms">
+        <!-- 整行可点切换勾选（协议链接 .stop 仍跳协议页）；checkbox 视觉不变，热区=整行 ≥88rpx -->
+        <view class="terms-row" @tap="agreedTerms = !agreedTerms">
+          <view class="checkbox" :class="{ 'checkbox-checked': agreedTerms }">
             <AppIcon v-if="agreedTerms" name="check" :size="12" color="#ffffff" />
           </view>
           <view class="terms-text">
@@ -228,9 +229,59 @@ async function handleSendCode() {
   }
 }
 
+/**
+ * 登录成功后的统一去向：
+ * 1) 新用户/未选兴趣 → 仍先走欢迎峰值页（welcome→兴趣引导），不被回跳打断注册引导流；
+ * 2) 有 login:redirect（401 被踢时 request.ts 记录的原页面完整路径·含 query）→ reLaunch 回原页
+ *    （项目为自定义底部导航非原生 tabBar，主 tab 页与普通页统一走 reLaunch，无需 switchTab 分叉）；
+ * 3) 无 redirect → 维持原行为回首页。
+ * redirect 读到即清除（一次性），且拒绝 pkg-auth 自身路径防回跳成环。
+ */
+function goAfterLogin() {
+  let redirect = ''
+  try {
+    redirect = uni.getStorageSync('login:redirect') || ''
+    if (redirect) uni.removeStorageSync('login:redirect')
+  } catch {
+    // 读取失败按无 redirect 处理
+  }
+  if (!hasSelectedInterests()) {
+    reLaunch('/welcome')
+    return
+  }
+  if (redirect && redirect.startsWith('/') && !redirect.startsWith('/pkg-auth/')) {
+    uni.reLaunch({
+      url: redirect,
+      // 回跳失败（目标页被下架等）兜底回首页，不让用户卡在登录页
+      fail: () => uni.reLaunch({ url: '/pages/index/index' }),
+    })
+    return
+  }
+  uni.reLaunch({ url: '/pages/index/index' })
+}
+
+/** 置灰按钮点击不再静默：按填写顺序提示第一个缺项（校验口径与 canSubmit 完全一致） */
+function showSubmitHint() {
+  const toast = (title: string) => uni.showToast({ title, icon: 'none' })
+  if (!phone.value) return toast('请输入手机号')
+  if (!isPhoneValid.value) return toast('请输入正确的11位手机号')
+  if (loginType.value === 'phone') {
+    if (!code.value) return toast('请输入验证码')
+    if (!isCodeValid.value) return toast('请输入6位验证码')
+  } else {
+    if (!password.value) return toast('请输入密码')
+    if (!isPasswordValid.value) return toast('密码长度不能少于6位')
+  }
+  if (!agreedTerms.value) return toast('请先阅读并同意用户协议和隐私政策')
+}
+
 // @data-needs: 登录, 参数 {phone, code} 或 {phone, password}, 返回 {success, data:{token, user}, message}
 async function handleLogin() {
-  if (!canSubmit.value || isLoading.value) return
+  if (isLoading.value) return
+  if (!canSubmit.value) {
+    showSubmitHint()
+    return
+  }
   isLoading.value = true
   error.value = ''
   try {
@@ -243,12 +294,8 @@ async function handleLogin() {
       setToken(res.data.token)
       setRefreshToken(res.data.refreshToken || '')
       setUserInfo(res.data.user)
-      // 新用户/未选过兴趣 → 先走欢迎峰值页(welcome→兴趣引导)，选完再进首页；老用户直接进首页
-      if (hasSelectedInterests()) {
-        uni.reLaunch({ url: '/pages/index/index' })
-      } else {
-        reLaunch('/welcome')
-      }
+      // 新用户先走欢迎峰值页；老用户优先回被 401 打断的原页面，无则回首页（goAfterLogin 统一处理）
+      goAfterLogin()
     } else {
       error.value = res.message || '登录失败'
     }
@@ -278,12 +325,8 @@ async function handleThirdParty(_type: 'wechat') {
       setToken(res.data.token)
       setRefreshToken(res.data.refreshToken || '')
       setUserInfo(res.data.user)
-      // 新用户/未选过兴趣 → 先走欢迎峰值页(welcome→兴趣引导)，选完再进首页；老用户直接进首页
-      if (hasSelectedInterests()) {
-        uni.reLaunch({ url: '/pages/index/index' })
-      } else {
-        reLaunch('/welcome')
-      }
+      // 新用户先走欢迎峰值页；老用户优先回被 401 打断的原页面，无则回首页（goAfterLogin 统一处理）
+      goAfterLogin()
     } else {
       uni.showToast({ title: res.message || '微信登录失败', icon: 'none' })
     }
@@ -474,11 +517,17 @@ onUnmounted(() => {
 .code-btn-text-disabled {
   color: #999999;
 }
+/* 热区扩到 88×88rpx（图标 40rpx 视觉位置不变：right = 32 - (88-40)/2 = 8rpx） */
 .eye-btn {
   position: absolute;
-  right: 32rpx;
+  right: 8rpx;
   top: 50%;
   transform: translateY(-50%);
+  width: 88rpx;
+  height: 88rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* 错误提示 */
@@ -498,12 +547,13 @@ onUnmounted(() => {
   color: var(--brand);
 }
 
-/* 协议 */
+/* 协议：整行是勾选热区，min-height 撑到 ≥88rpx（checkbox 视觉尺寸不变） */
 .terms-row {
   display: flex;
   align-items: flex-start;
   gap: 16rpx;
   padding: 16rpx 0;
+  min-height: 88rpx;
 }
 .checkbox {
   width: 40rpx;

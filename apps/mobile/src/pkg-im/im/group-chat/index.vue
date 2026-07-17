@@ -121,31 +121,17 @@
             @confirm="handleSend"
           />
         </view>
+        <!-- 语音消息未实现：空输入时不再展示无响应的话筒占位按钮 -->
         <view v-if="inputText.trim()" class="send-btn" :class="{ 'send-btn-disabled': submitting }" @tap="handleSend">
           <AppIcon name="send" :size="20" color="#ffffff" />
         </view>
-        <view v-else class="icon-btn">
-          <AppIcon name="mic" :size="20" color="#2c2c2c" />
-        </view>
       </view>
 
-      <!-- 更多功能面板 -->
+      <!-- 更多功能面板（相册/拍照/语音未实现已隐藏，只保留已实现的 @成员） -->
       <view v-if="showMorePanel" class="more-panel">
-        <view class="more-item" @tap="toast('相册功能开发中')">
-          <view class="more-icon"><AppIcon name="image" :size="20" color="#16a34a" /></view>
-          <text class="more-label">相册</text>
-        </view>
-        <view class="more-item" @tap="toast('拍照功能开发中')">
-          <view class="more-icon"><AppIcon name="camera" :size="20" color="#3b82f6" /></view>
-          <text class="more-label">拍照</text>
-        </view>
         <view class="more-item" @tap="openAtFromPanel">
           <view class="more-icon"><AppIcon name="at-sign" :size="20" color="#9333ea" /></view>
           <text class="more-label">@成员</text>
-        </view>
-        <view class="more-item" @tap="toast('语音功能开发中')">
-          <view class="more-icon"><AppIcon name="mic" :size="20" color="#ea580c" /></view>
-          <text class="more-label">语音</text>
         </view>
       </view>
     </view>

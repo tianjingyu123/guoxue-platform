@@ -400,7 +400,7 @@ async function toggleBook(item: LiveItem) {
           class="empty"
         >
           <view class="empty-icon"><AppIcon name="calendar" :size="56" color="#B0A99A" /></view>
-          <text class="empty-txt">暂无相关直播</text>
+          <text class="empty-txt">这个分类还没有直播，去看看全部直播或精彩回放</text>
         </view>
       </template>
     </scroll-view>

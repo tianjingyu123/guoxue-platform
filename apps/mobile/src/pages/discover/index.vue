@@ -8,8 +8,9 @@
  *  → ⑤ 事业与合作（B 端折叠区·董事长拍板保留·放最下）
  *
  * 数据真连：getCategoryFeed(type, page, size=6) → 该类别一页 FeedEnvelope[]，
- * 卡片统一走 <feed-card>（九类通用卡·自带点击/角标/去数字化）。空则隐藏该分区，
- * 追加返回空则隐藏「查看更多」（到底）。
+ * 卡片统一走 <feed-card>（九类通用卡·自带点击/角标/去数字化）。空则隐藏该分区；
+ * 追加「有返回但不足一页」才判到底（空返回可能是网络失败，保留按钮可重试）。
+ * 首屏三态：骨架（.skeleton 微光）→ 七类全空视为整页错误给重试 → 正常分区。
  */
 import { ref, reactive, onMounted } from 'vue'
 import { onPullDownRefresh } from '@dcloudio/uni-app'
@@ -72,20 +73,41 @@ function rightCol(type: string): FeedEnvelope[] {
   return sections[type].items.filter((_, i) => i % 2 === 1)
 }
 
+// 首屏三态：骨架加载中 / 整页错误重试 / 正常分区
+const firstLoading = ref(true)
+const loadError = ref(false)
+
 /** 首屏加载：各分区并行拉第一页 6 张，返回空则该区不渲染 */
 async function loadFirstPages() {
+  // 已有内容时（下拉刷新）不回骨架，静默重拉
+  const hadAny = CATEGORIES.some((c) => sections[c.type].items.length > 0)
+  if (!hadAny) firstLoading.value = true
   await Promise.all(
     CATEGORIES.map(async (c) => {
       const s = sections[c.type]
       const list = await getCategoryFeed(c.type, 1, 6)
+      // 刷新失败（lib 层吞错返回 []）时保留已有内容，不把整区清空
+      if (!list.length && s.items.length) return
       s.items = list
+      s.page = 1
       s.loaded = true
-      s.noMore = list.length < 6  // 不足一页即到底
+      // 只有「有返回但不足一页」才判到底；空返回可能是网络失败，不据此锁死
+      s.noMore = list.length > 0 && list.length < 6
     }),
   )
+  firstLoading.value = false
+  // lib 层 getCategoryFeed 吞错返回 []，页面区分不了「全失败」与「七类真的全空」；
+  // 生产上七类同时为空几乎只可能是断网/接口挂 → 视为加载失败给整页重试（部分成功则正常显示成功分区）
+  loadError.value = CATEGORIES.every((c) => sections[c.type].items.length === 0)
 }
 
-/** 「查看更多」：该类别 page++ 再拉 6 张追加；返回空/不足则到底 */
+/** 整页错误态重试 */
+function retryFirst() {
+  loadError.value = false
+  loadFirstPages()
+}
+
+/** 「查看更多」：该类别 page++ 再拉 6 张追加；有返回但不足一页才判到底 */
 async function loadMore(type: string) {
   const s = sections[type]
   if (s.loadingMore || s.noMore) return
@@ -96,8 +118,12 @@ async function loadMore(type: string) {
     if (list.length) {
       s.items = s.items.concat(list)
       s.page = next
+      if (list.length < 6) s.noMore = true
+    } else {
+      // 空返回无法区分「到底」与「请求失败」（lib 层吞错返回 []）：
+      // 不设 noMore、保留按钮让用户可重试，避免把一次网络失败当成永久到底
+      uni.showToast({ title: '暂时没有更多，稍后再试', icon: 'none' })
     }
-    if (list.length < 6) s.noMore = true
   } finally {
     s.loadingMore = false
   }
@@ -145,7 +171,33 @@ function goEntry(href: string) { navigateTo(href) }
       </view>
     </view>
 
+    <!-- ④a 首屏骨架：分区占位（复用全局 .skeleton 微光，2 个假分区各 3 张骨架卡） -->
+    <template v-if="firstLoading">
+      <view v-for="n in 2" :key="'sk-' + n" class="cat-section">
+        <view class="sec"><view class="skeleton sk-title" /></view>
+        <view class="flow">
+          <view class="col">
+            <view class="skeleton sk-card-a" />
+            <view class="skeleton sk-card-b" />
+          </view>
+          <view class="col">
+            <view class="skeleton sk-card-b" />
+          </view>
+        </view>
+      </view>
+    </template>
+
+    <!-- ④b 整页错误态：七分区全空视为加载失败（lib 层吞错无法逐类分辨），给重试 -->
+    <view v-else-if="loadError" class="disc-error">
+      <AppIcon name="wifi-off" :size="120" color="#D8D0C4" />
+      <text class="disc-error-msg">加载失败，请检查网络后重试</text>
+      <view class="disc-error-btn" hover-class="disc-error-btn-press" @tap="retryFirst">
+        <text class="disc-error-btn-txt">重新加载</text>
+      </view>
+    </view>
+
     <!-- ④ 按类别分区：每区= 标题 + 更多› + 双列瀑布流 + 查看更多 -->
+    <template v-else>
     <template v-for="cat in CATEGORIES" :key="cat.type">
       <view v-if="sections[cat.type].loaded && sections[cat.type].items.length" class="cat-section">
         <view class="sec">
@@ -172,6 +224,7 @@ function goEntry(href: string) { navigateTo(href) }
           </view>
         </view>
       </view>
+    </template>
     </template>
 
     <!-- ⑤ 事业与合作（B 端入口折叠区，与 C 端分层，董事长拍板保留） -->
@@ -235,6 +288,18 @@ $ink: #2C2C2C; $sub: #6E6E73; $faint: #999999; $wash: #F6F1E7; $line: #F2EDE4;
 .more-btn { padding: 14rpx 56rpx; border-radius: 999rpx; background: $card; border: 2rpx solid $line; box-shadow: 0 2rpx 12rpx rgba(60,50,40,0.06); }
 .more-btn-press { opacity: 0.7; }
 .more-btn-txt { font-size: 26rpx; color: $sub; }
+
+/* ④a 首屏骨架（微光动画来自全局 .skeleton·animations.scss） */
+.sk-title { width: 200rpx; height: 36rpx; }
+.sk-card-a { width: 100%; height: 0; padding-top: 133%; border-radius: 20rpx; }
+.sk-card-b { width: 100%; height: 0; padding-top: 90%; border-radius: 20rpx; }
+
+/* ④b 整页错误态 */
+.disc-error { padding: 120rpx 40rpx; display: flex; flex-direction: column; align-items: center; gap: 24rpx; }
+.disc-error-msg { font-size: 28rpx; color: $sub; }
+.disc-error-btn { margin-top: 8rpx; padding: 16rpx 64rpx; border-radius: 999rpx; background: $red; }
+.disc-error-btn-press { opacity: 0.8; }
+.disc-error-btn-txt { font-size: 28rpx; color: #FFFFFF; }
 
 /* ⑤ 事业与合作（B 端折叠） */
 .biz-section { margin: 32rpx 40rpx 0; border-radius: 24rpx; background: $card; overflow: hidden; box-shadow: 0 2rpx 12rpx rgba(60,50,40,0.06); }

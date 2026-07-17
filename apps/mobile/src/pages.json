@@ -40,7 +40,8 @@
       "path": "pages/discover/index",
       "style": {
         "navigationBarTitleText": "发现",
-        "navigationStyle": "custom"
+        "navigationStyle": "custom",
+        "enablePullDownRefresh": true
       }
     },
     {

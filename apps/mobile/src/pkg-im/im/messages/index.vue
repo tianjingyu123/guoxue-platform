@@ -84,8 +84,11 @@
       <view class="msg-empty__icon">
         <AppIcon name="bell" :size="80" color="#d6cdbf" />
       </view>
-      <text class="msg-empty__title">暂无消息</text>
-      <text class="msg-empty__desc">当前分类下没有消息</text>
+      <text class="msg-empty__title">这里还静悄悄的</text>
+      <text class="msg-empty__desc">去圈子逛逛，互动和通知都会出现在这里</text>
+      <view class="msg-empty__btn" @tap="navigateTo('/pages/circles/index')">
+        <text class="msg-empty__btn-text">去圈子逛逛</text>
+      </view>
     </view>
   </view>
 </template>
@@ -408,6 +411,16 @@ async function markAllRead() {
 .msg-empty__desc {
   font-size: 26rpx;
   color: #9c9388;
+}
+.msg-empty__btn {
+  margin-top: 40rpx;
+  padding: 16rpx 48rpx;
+  background: var(--brand, #c41e3a);
+  border-radius: 999rpx;
+}
+.msg-empty__btn-text {
+  font-size: 28rpx;
+  color: #ffffff;
 }
 
 /* 加载/错误状态 */

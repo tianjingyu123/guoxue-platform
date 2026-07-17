@@ -11,7 +11,7 @@
 import { computed } from 'vue'
 import { navigateTo } from '@/utils/router'
 import { track } from '@/composables/useTrack'
-import type { FeedEnvelope } from '@/lib/feed-data'
+import { feedTargetUrl, type FeedEnvelope } from '@/lib/feed-data'
 
 import VideoCard from './cards/video-card.vue'
 import ArticleCard from './cards/article-card.vue'
@@ -42,38 +42,11 @@ const bigOk = computed(
   () => props.big === true && (t.value === 'live' || t.value === 'course') && !!props.item.cover
 )
 
-/** 类型 → 详情/落地路由（用真实动态路由前缀，与全站 router 映射对齐） */
-function targetUrl(it: FeedEnvelope): string {
-  const id = it.id
-  switch (it.type) {
-    case 'video':
-      return `/video/${id}`
-    case 'article':
-      return `/articles/${id}`
-    case 'post':
-      return `/pkg-circle/circles/post?id=${id}`
-    case 'course':
-      return `/course/${id}`
-    case 'product':
-      return `/mall/product/${id}`
-    case 'classic':
-      return `/pkg-classics/detail/index?id=${id}`
-    case 'live':
-      return `/live/${id}`
-    case 'paipan':
-      // 排盘钩子 → 排盘工具首页（战略转化位）
-      return `/pkg-paipan/index/index`
-    case 'agent':
-      return `/pkg-agent/agent/chat?id=${id}`
-    default:
-      return `/articles/${id}`
-  }
-}
-
+// 类型 → 路由映射统一收敛到 lib/feed-data.ts feedTargetUrl（首页焦点区共用，勿再本地另写分叉）
 function go() {
   const it = props.item
   track.click('feed_card', { type: it.type, id: it.id })
-  navigateTo(targetUrl(it))
+  navigateTo(feedTargetUrl(it))
 }
 </script>
 
