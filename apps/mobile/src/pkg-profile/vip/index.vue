@@ -282,6 +282,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
 import AppNavBar from '@/components/common/app-nav-bar.vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import AppError from '@/components/common/app-error.vue'
@@ -499,6 +500,13 @@ function go(path: string) { navigateTo(path) }
 onMounted(() => {
   // F2 会员漏斗埋点：会员页曝光（D-T1）
   track.custom('member_page_view')
+  loadData()
+})
+// 支付跳收银页后返回本页 → 回刷会员状态：否则陈旧"开通会员"未购态诱导再点一次
+// 而后端 MEMBER 下单不校验已有有效会员 → 二次建单二次扣款（首次 onShow 进页由标记跳过）
+let vipFirstShow = true
+onShow(() => {
+  if (vipFirstShow) { vipFirstShow = false; return }
   loadData()
 })
 </script>

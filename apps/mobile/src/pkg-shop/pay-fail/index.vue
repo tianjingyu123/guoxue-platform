@@ -44,10 +44,7 @@
             <app-icon name="refresh-cw" :size="34" color="#fff" />
             <text>重新支付</text>
           </view>
-          <view class="btn ghost" @tap="goChangeMethod">
-            <app-icon name="credit-card" :size="34" color="#2C2C2C" />
-            <text>换个方式支付</text>
-          </view>
+          <!-- 原「换个方式支付」按钮删除：当前仅微信一个收银渠道，与「重新支付」跳同一收银页功能重复 -->
           <view class="btn text" @tap="goOrder">
             <app-icon name="file-text" :size="34" color="#666666" />
             <text>查看订单详情</text>
@@ -111,7 +108,6 @@ function goRePay() {
   redirectTo(`/shop/paying?${q}`)
 }
 // P1-5：结算页不认 orderId（原跳法=死路"没有可结算的商品"）；收银页 /shop/paying 认 orderId 且按环境走可用支付渠道
-function goChangeMethod() { redirectTo(`/shop/paying?orderId=${orderId.value}&amount=${amount.value}`) }
 function goOrder() { navigateTo(`/orders/${orderId.value}`) }
 function goShop() { navigateTo('/mall') }
 function goService() { navigateTo('/customer-service') }
