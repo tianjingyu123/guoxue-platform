@@ -60,8 +60,10 @@ function open(vm: HistoryVM) {
   const q = [
     `name=${encodeURIComponent(r.name)}`, `gender=${encodeURIComponent(r.gender)}`,
     `year=${r.year}`, `month=${r.month}`, `day=${r.day}`, `hour=${r.hour}`, `minute=${r.minute}`,
-  ].join('&')
-  navigateTo(`/paipan/bazi/result?${q}`)
+  ]
+  // 带 serverId：result 页据此复用原后端 PaipanRecord，不再每次重开都 createRecord 新建（记录膨胀+点评挂错盘）
+  if (r.serverId) q.push(`id=${encodeURIComponent(r.serverId)}`)
+  navigateTo(`/paipan/bazi/result?${q.join('&')}`)
 }
 function onPin(ids: string[]) { pinBaziHistory(ids); reload() }
 function onDelete(ids: string[]) { removeBaziHistory(ids); reload() }

@@ -4,12 +4,13 @@
  * 全屏覆盖面板：顶栏 + 命主反馈/师傅点评双 Tab + 关键事件时间轴 + 显示设置弹窗
  * 录音/选图/播放经 use-media-notes composable 跨端适配。
  */
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, watch } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import AttachmentBar from './attachment-bar.vue'
 import { useMediaNotes } from '@/composables/use-media-notes'
 
-const props = defineProps<{ open: boolean }>()
+/** recordId：本盘的落盘标识（后端记录 id 或本地生辰指纹），笔记按盘隔离存取 */
+const props = defineProps<{ open: boolean; recordId?: string }>()
 const emit = defineEmits<{ (e: 'close'): void }>()
 
 const media = useMediaNotes()
@@ -66,12 +67,10 @@ const masterGroups = computed(() => {
 })
 
 // ---- 关键事件时间轴 ----
+// 2026-07-17 修复：删掉原型带来的 3 条假预填事件（升职加薪/购置房产/住院检查）——
+// 用户的盘上凭空躺着别人的「人生大事」，比空着更糟。现在初始为空，读本地存储回填。
 interface EventItem { id: number; date: string; content: string }
-const events = reactive<EventItem[]>([
-  { id: 1, date: '2017-06', content: '升职加薪，任部门主管' },
-  { id: 2, date: '2019-03', content: '购置房产' },
-  { id: 3, date: '2022-10', content: '因身体不适住院检查' },
-])
+const events = reactive<EventItem[]>([])
 const showAddEvent = ref(false)
 const newEventDate = ref('')
 const newEventContent = ref('')
@@ -95,7 +94,48 @@ function formatEventDate(d: string) {
 }
 const dateTypes = [{ key: 'year', label: '年' }, { key: 'month', label: '年月' }, { key: 'day', label: '年月日' }] as const
 
-function onSave() { uni.showToast({ title: '已保存', icon: 'success' }) }
+// ---- 真保存：按盘落本地存储（2026-07-17 修复；此前 onSave 只 toast「已保存」，关面板即丢） ----
+interface NotesStorePayload {
+  /** 命主反馈/师傅点评各栏文字（key 与 CLIENT_ITEMS/MASTER_ITEMS/summary 对应） */
+  notes: Record<string, string>
+  /** 关键事件时间轴 */
+  events: EventItem[]
+  savedAt: number
+}
+const storageKey = () => `rebu:bazi-notes:${props.recordId || 'default'}`
+
+/** 打开面板时读回本盘已存的笔记（recordId 变化也重读，防串盘） */
+function loadNotes() {
+  // 先清空再回填：切换到没存过笔记的盘时不能残留上一盘的内容
+  for (const k of Object.keys(notes)) delete notes[k]
+  events.splice(0, events.length)
+  try {
+    const raw = uni.getStorageSync(storageKey()) as NotesStorePayload | ''
+    if (raw && typeof raw === 'object') {
+      if (raw.notes && typeof raw.notes === 'object') Object.assign(notes, raw.notes)
+      if (Array.isArray(raw.events)) {
+        for (const e of raw.events) {
+          if (e && typeof e.id === 'number' && typeof e.date === 'string' && typeof e.content === 'string') {
+            events.push({ id: e.id, date: e.date, content: e.content })
+          }
+        }
+      }
+    }
+  } catch {
+    // 存储损坏按无笔记处理，不阻断面板
+  }
+}
+watch(() => [props.open, props.recordId] as const, ([open]) => { if (open) loadNotes() }, { immediate: true })
+
+function onSave() {
+  try {
+    const payload: NotesStorePayload = { notes: { ...notes }, events: events.map(e => ({ ...e })), savedAt: Date.now() }
+    uni.setStorageSync(storageKey(), payload)
+    uni.showToast({ title: '已保存', icon: 'success' })
+  } catch {
+    uni.showToast({ title: '保存失败，请重试', icon: 'none' })
+  }
+}
 </script>
 
 <template>

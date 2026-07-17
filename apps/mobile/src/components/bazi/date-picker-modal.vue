@@ -3,7 +3,10 @@
  * 日期选择弹窗——从原型 date-picker-modal.tsx 迁移。
  * 公历/农历：原型自定义滚轮 → uni 原生 picker-view（跨端最佳实践，手感更稳）。
  * 四柱：天干地支键盘，逐列(年/月/日/时)逐行(干/支)填写，保留五行配色。
- * 注：农历日数沿用原型简化口径(按公历当月天数截取)，非天文精确，与原型一致。
+ * 注：农历日数沿用原型简化口径(按公历当月天数截取)，非天文精确——因此可能选出
+ * 该农历月不存在的日子（如某月无三十）。这类非法日在 input-form 提交时经
+ * toSolarSafe 归一会转换失败并 toast 拦下重选，不会流入排盘链路。
+ * 夏令时开关在 input-form 的时间选项里（真实透传后端），本弹窗不再放第二个。
  */
 import { ref, computed, watch } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
@@ -38,7 +41,6 @@ const month = ref(props.initialDate?.month || 1)
 const day = ref(props.initialDate?.day || 1)
 const hour = ref<number | null>(props.initialDate?.hour ?? null)
 const minute = ref<number | null>(props.initialDate?.minute ?? null)
-const useDST = ref(false)
 
 const sizhu = ref<Record<string,string>>({ yearGan:'',yearZhi:'',monthGan:'',monthZhi:'',dayGan:'',dayZhi:'',hourGan:'',hourZhi:'' })
 const activeCol = ref<'year'|'month'|'day'|'hour'>('year')
@@ -199,13 +201,8 @@ function confirm() {
         </picker-view>
       </view>
 
-      <!-- 底部夏令时 -->
-      <view class="dp-bottom">
-        <text class="dp-dst-label">夏令时</text>
-        <view class="dp-switch" :class="{ 'dp-switch-on': useDST }" @tap="useDST = !useDST">
-          <view class="dp-switch-dot" :class="{ 'dp-switch-dot-on': useDST }" />
-        </view>
-      </view>
+      <!-- 底部夏令时开关已移除：它此前不参与 confirm 载荷，是只能拨不生效的死开关；
+           真实的夏令时选项在 input-form「时间选项」处（已透传后端排盘引擎） -->
     </view>
   </view>
 </template>
@@ -250,11 +247,4 @@ function confirm() {
 .dp-wheel { padding: 16rpx 24rpx; }
 .dp-pv { height: 440rpx; }
 .dp-pv-item { display: flex; align-items: center; justify-content: center; font-size: 30rpx; color: #1f2937; }
-/* 底部 */
-.dp-bottom { display: flex; align-items: center; justify-content: flex-end; gap: 16rpx; padding: 24rpx 40rpx; border-top: 2rpx solid #f3f4f6; }
-.dp-dst-label { font-size: 22rpx; color: #9ca3af; }
-.dp-switch { width: 72rpx; height: 36rpx; border-radius: 999rpx; background: #e5e7eb; position: relative; transition: background 0.2s; }
-.dp-switch-on { background: var(--brand); }
-.dp-switch-dot { position: absolute; top: 4rpx; left: 4rpx; width: 28rpx; height: 28rpx; background: #fff; border-radius: 999rpx; box-shadow: 0 2rpx 4rpx rgba(0,0,0,0.15); transition: transform 0.2s; }
-.dp-switch-dot-on { transform: translateX(36rpx); }
 </style>

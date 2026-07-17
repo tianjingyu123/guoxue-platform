@@ -44,7 +44,9 @@ async function load() {
 }
 
 function doSearch() { keyword.value = inputVal.value }
-function openBot(bot: BotItem) { navigateTo(`/pkg-agent/bots/chat?id=${bot.id}`) }
+// 走 ROUTE_MAP 别名（/bots/chat → /pkg-agent/bots/chat/index）。此前直写 /pkg-agent/bots/chat
+// 缺 /index 段，uni.navigateTo 找不到页面 → 恒弹「功能开发中」，广场所有卡片全是死链。
+function openBot(bot: BotItem) { navigateTo(`/bots/chat?id=${bot.id}`) }
 
 onMounted(load)
 </script>

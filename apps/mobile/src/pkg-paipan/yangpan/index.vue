@@ -89,6 +89,20 @@ function handleSubmit() {
   const qs = Object.keys(params).map(k => `${k}=${encodeURIComponent(params[k])}`).join('&')
   navigateTo(`/paipan/yangpan/result?${qs}`)
 }
+
+/** 分享：H5 系统分享/复制链接，其余端复制标题（照 jinkoujue/meihua 范式） */
+function handleShare() {
+  const title = yangpanTitle
+  // #ifdef H5
+  const url = window.location.href
+  const nav = navigator as Navigator & { share?: (data: { title?: string; url?: string }) => Promise<void> }
+  if (nav.share) { nav.share({ title, url }).catch(() => {}); return }
+  uni.setClipboardData({ data: url, success: () => uni.showToast({ title: '链接已复制', icon: 'none' }) })
+  return
+  // #endif
+  // eslint-disable-next-line no-unreachable
+  uni.setClipboardData({ data: title, success: () => uni.showToast({ title: '已复制', icon: 'none' }) })
+}
 </script>
 
 <template>
@@ -107,7 +121,7 @@ function handleSubmit() {
     <!-- 标题横幅 -->
     <view class="banner">
       <text class="banner-title">{{ yangpanTitle }}</text>
-      <view class="banner-share">
+      <view class="banner-share" @tap="handleShare">
         <app-icon name="share-2" :size="28" color="rgba(255,255,255,0.9)" />
         <text class="banner-share-text">分享</text>
       </view>

@@ -7,6 +7,8 @@ import { navigateTo } from '@/utils/router'
 import DatePickerModal from './date-picker-modal.vue'
 import LocationPickerModal from './location-picker-modal.vue'
 import GroupPickerModal from './group-picker-modal.vue'
+// 农历→公历归一（与 qimen 等 13 个排盘入口同一把尺子；本组件仅被 pkg-paipan 页面引用，不进主包）
+import { toSolarSafe } from '@/pkg-paipan/lib/date-convert'
 
 const name = ref('')
 const gender = ref<'male' | 'female'>('male')
@@ -52,7 +54,8 @@ function pad(n: number) { return String(n).padStart(2, '0') }
 const formatBirthDate = computed(() => {
   const d = birthDate.value
   const hourStr = d.hour !== null ? `${pad(d.hour)}:${pad(d.minute || 0)}` : '未知时'
-  return `${d.year}-${pad(d.month)}-${pad(d.day)} ${hourStr}`
+  // 农历输入如实标注（数字仍是用户所选的农历年月日，提交时才归一为公历）
+  return `${d.isLunar ? '农历 ' : ''}${d.year}-${pad(d.month)}-${pad(d.day)} ${hourStr}`
 })
 const formatBirthPlace = computed(() => {
   const p = birthPlace.value
@@ -82,11 +85,23 @@ function onDateConfirm(d: { year: number; month: number; day: number; hour: numb
 
 function handleSubmit() {
   const p = birthDate.value
+  // 🔴 P0 修复（2026-07-17）：农历输入必须先归一为公历再进排盘链路。
+  // 此前 isLunar 标记只是随 query 传给 result，而 result/calculate 只吃公历数字，
+  // 农历起盘等于把农历年月日当公历排 —— 四柱全错。
+  // 归一用 toSolarSafe（与 qimen 等排盘入口同源）；非法农历日（如某月无三十，
+  // date-picker 农历日列按公历月天数截取所以可能选出）会转换抛错 → 在此拦下重选。
+  const { date, ok } = toSolarSafe({
+    year: p.year, month: p.month, day: p.day, hour: p.hour, minute: p.minute, isLunar: p.isLunar,
+  })
+  if (!ok) {
+    uni.showToast({ title: '农历日期无效，请重新选择', icon: 'none' })
+    return
+  }
   const q = [
     `name=${encodeURIComponent(name.value || '未知')}`,
     `gender=${gender.value === 'male' ? '男' : '女'}`,
-    `year=${p.year}`, `month=${p.month}`, `day=${p.day}`, `hour=${p.hour}`, `minute=${p.minute}`,
-    `isLunar=${p.isLunar}`,
+    // 归一后恒为公历，不再向 result 传 isLunar（result 只吃公历）
+    `year=${date.year}`, `month=${date.month}`, `day=${date.day}`, `hour=${date.hour}`, `minute=${date.minute}`,
     `province=${encodeURIComponent(birthPlace.value.province)}`,
     `city=${encodeURIComponent(birthPlace.value.city)}`,
     `district=${encodeURIComponent(birthPlace.value.district)}`,

@@ -94,15 +94,18 @@ export const medicalTools: MedicalTool[] = [
 ]
 
 // AI 智能体
+// 2026-07-17：8 张卡原 href 全指 coming-soon 占位——而旁边「查看全部」进的就是真广场（/agents），
+// 同屏一半死一半活。卡片是原型时代的臆想角色（无真实 bot id，无法直达对话），统一改指真广场，
+// 用户点卡进广场自选智能体开聊。后端上了对位 bot 后可再改成 /bots/chat?id= 直达。
 export const agents: Agent[] = [
-  { id: 'master-trainer', name: '大师陪练官', description: '一对一命理解盘陪练', avatar: 'master', href: '/tools/coming-soon?name=大师陪练官' },
-  { id: 'classic-expert', name: '古籍经典专家', description: '周易古籍深度解读', avatar: 'classic', href: '/tools/coming-soon?name=古籍经典专家' },
-  { id: 'report-generator', name: '命理报告师', description: '专业命理报告生成', avatar: 'report', href: '/tools/coming-soon?name=命理报告师' },
-  { id: 'study-assistant', name: '易学学习助手', description: '入门到进阶学习指导', avatar: 'study', href: '/tools/coming-soon?name=易学学习助手' },
-  { id: 'qimen-advisor', name: '奇门决策顾问', description: '奇门遁甲实战分析', avatar: 'qimen', href: '/tools/coming-soon?name=奇门决策顾问' },
-  { id: 'ziwei-reader', name: '紫微解盘师', description: '紫微斗数命盘解读', avatar: 'ziwei', href: '/tools/coming-soon?name=紫微解盘师' },
-  { id: 'fengshui-master', name: '风水布局师', description: '居家风水分析指导', avatar: 'fengshui', href: '/tools/coming-soon?name=风水布局师' },
-  { id: 'naming-expert', name: '起名大师', description: '姓名学专业取名', avatar: 'naming', href: '/tools/coming-soon?name=起名大师' },
+  { id: 'master-trainer', name: '大师陪练官', description: '一对一命理解盘陪练', avatar: 'master', href: '/agents' },
+  { id: 'classic-expert', name: '古籍经典专家', description: '周易古籍深度解读', avatar: 'classic', href: '/agents' },
+  { id: 'report-generator', name: '命理报告师', description: '专业命理报告生成', avatar: 'report', href: '/agents' },
+  { id: 'study-assistant', name: '易学学习助手', description: '入门到进阶学习指导', avatar: 'study', href: '/agents' },
+  { id: 'qimen-advisor', name: '奇门决策顾问', description: '奇门遁甲实战分析', avatar: 'qimen', href: '/agents' },
+  { id: 'ziwei-reader', name: '紫微解盘师', description: '紫微斗数命盘解读', avatar: 'ziwei', href: '/agents' },
+  { id: 'fengshui-master', name: '风水布局师', description: '居家风水分析指导', avatar: 'fengshui', href: '/agents' },
+  { id: 'naming-expert', name: '起名大师', description: '姓名学专业取名', avatar: 'naming', href: '/agents' },
 ]
 
 // 智能体头像渐变（与原型 AgentAvatar colors 1:1，含角色专属色）

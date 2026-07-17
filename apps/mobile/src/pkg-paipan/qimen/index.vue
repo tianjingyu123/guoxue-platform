@@ -92,12 +92,28 @@ function handleSubmit() {
     startMethod: startMethod.value,
     customJu: startMethod.value === 'custom' ? customJu.value : '',
     anganMethod: anganMethod.value,
-    trueSolar: String(useTrueSolar.value),
+    // 🔴 参数名必须叫 useTrueSolar：result.vue 读的是 opts.useTrueSolar（历史页也发 useTrueSolar=1）。
+    // 此前这里发 trueSolar= → 结果页恒 false，开关形同虚设。
+    useTrueSolar: String(useTrueSolar.value),
     lat: String(coordinates.lat),
     lng: String(coordinates.lng),
   }
   const qs = Object.keys(params).map(k => `${k}=${encodeURIComponent(params[k])}`).join('&')
   navigateTo(`/paipan/qimen/result?${qs}`)
+}
+
+/** 分享：H5 系统分享/复制链接，其余端复制标题（照 jinkoujue/meihua 范式） */
+function handleShare() {
+  const title = `${bannerTitle} - ${BRAND.nameShort}`
+  // #ifdef H5
+  const url = window.location.href
+  const nav = navigator as Navigator & { share?: (data: { title?: string; url?: string }) => Promise<void> }
+  if (nav.share) { nav.share({ title, url }).catch(() => {}); return }
+  uni.setClipboardData({ data: url, success: () => uni.showToast({ title: '链接已复制', icon: 'none' }) })
+  return
+  // #endif
+  // eslint-disable-next-line no-unreachable
+  uni.setClipboardData({ data: title, success: () => uni.showToast({ title: '已复制', icon: 'none' }) })
 }
 </script>
 
@@ -117,7 +133,7 @@ function handleSubmit() {
     <!-- 标题横幅 -->
     <view class="banner">
       <text class="banner-title">{{ bannerTitle }}</text>
-      <view class="banner-share">
+      <view class="banner-share" @tap="handleShare">
         <app-icon name="share-2" :size="28" color="rgba(255,255,255,0.9)" />
         <text class="banner-share-text">分享</text>
       </view>

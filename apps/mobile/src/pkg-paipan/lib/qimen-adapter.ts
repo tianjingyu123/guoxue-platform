@@ -15,6 +15,7 @@
  */
 import { computeQimen, PALACE_NAMES, type QimenOptions, type QimenPalace } from './qimen-engine'
 import { getJieqiRange } from '@/lib/paipan/jieqi'
+import { trueSolarTime } from '@/lib/paipan/ganzhi'
 import type { QimenGong, QimenInput, QimenResult, QimenMeta } from '@/lib/qimen-data'
 
 /** 九宫对应八卦（页面展示用） */
@@ -59,7 +60,21 @@ function toGong(p: QimenPalace): QimenGong {
  */
 export function computeQimenLocal(input: QimenInput): QimenResult {
   // 逐字段构造 Date，规避各端字符串解析差异
-  const date = new Date(input.year, input.month - 1, input.day, input.hour, input.minute ?? 0)
+  const clock = new Date(input.year, input.month - 1, input.day, input.hour, input.minute ?? 0)
+
+  // 真太阳时修正（与阴盘 yinpan/result.vue、八字/紫微引擎同一真源 shared/paipan/ganzhi.trueSolarTime）：
+  // 修正量 = 经度差 4*(lng-120) 分钟 + 均时差。修正后的时刻用于起局与节气区间，
+  // 并落 meta.trueSolar 供结果页「真太阳时」行展示。此前 useTrueSolar/lng 传进来从不消费，开关是假的。
+  let date = clock
+  let trueSolarMeta: QimenMeta['trueSolar']
+  if (input.useTrueSolar && typeof input.lng === 'number' && Number.isFinite(input.lng)) {
+    date = trueSolarTime(clock, input.lng)
+    trueSolarMeta = {
+      hour: date.getHours(),
+      minute: date.getMinutes(),
+      offsetMin: Math.round((date.getTime() - clock.getTime()) / 60000),
+    }
+  }
 
   const options: QimenOptions = {
     panMethod: input.panMethod === 'fei' ? 'fei' : 'zhuan',
@@ -97,6 +112,7 @@ export function computeQimenLocal(input: QimenInput): QimenResult {
       nextName: jq.next.name,
       end: fmt(jq.next.date),
     },
+    trueSolar: trueSolarMeta,
   }
 
   return {

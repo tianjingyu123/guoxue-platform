@@ -97,6 +97,8 @@ interface RawBaziResponse {
   shenGong?: RawPalace
   fenXiTiShi?: Record<string, string[]> | null
   geJu?: unknown
+  /** 真太阳时校正信息（开启 useTrueSolarTime 时引擎返回） */
+  taiYangShi?: { adjustedHour?: number; adjustedMinute?: number; desc?: string } | null
 }
 /** 八字古籍参考内容原始响应 */
 
@@ -161,11 +163,16 @@ export function adaptBazi(raw: RawBaziResponse) {
     diZhi: fxArr('sanHe', 'sanHui', 'liuChong', 'liuHe', 'liuHai', 'sanXing', 'ziXing'), // 地支三合/三会/冲/合/害/刑/自刑
     zhengZhu: fxArr('anHe', 'xiangPo', 'anJue'), // 暗合/相破/暗绝
   }
+  // 真太阳时（开启校正时引擎返回 taiYangShi；未开启为空 → 组件 v-if 隐藏）
+  const ts = raw?.taiYangShi
+  const realSolarTime = (ts && ts.adjustedHour !== undefined)
+    ? `${String(Math.floor(Number(ts.adjustedHour))).padStart(2, '0')}时${String(Number(ts.adjustedMinute) || 0).padStart(2, '0')}分${ts.desc ? `（${ts.desc}）` : ''}`
+    : ''
   return {
     relations,
     zodiac: raw?.shengXiao || '',
     lunarDate: raw?.lunarDate || '',
-    realSolarTime: '', // 后端未启用真太阳时换算 → 降级（组件 v-if 隐藏）
+    realSolarTime,
     jieQi: '', // 后端无节气字段 → 降级
     siZhu,
     shenSha,
@@ -243,17 +250,41 @@ export interface BaziCalcInput {
   hour: number
   minute?: number
   place?: string
+  /** 出生城市（真太阳时按城市经度校正；后端 BaziInputDto.city） */
+  city?: string
+  /** 真太阳时校正（后端 BaziInputDto.useTrueSolarTime，引擎 calcTrueSolarTime 真消费） */
+  useTrueSolarTime?: boolean
+  /** 夏令时校正（后端 BaziInputDto.useDaylightSaving，1986-1991 出生适用） */
+  useDaylightSaving?: boolean
+  /**
+   * 早晚子时：true → ziShiMode='modern'（晚子时日柱不换、时柱用次日干），
+   * false/缺省 → 'traditional'（23 点后日柱用次日）。与引擎 sizhu.ts 口径一致。
+   */
+  earlyZi?: boolean
 }
 
 export const baziApi = {
-  /** 八字排盘结果（真连 GET /paipan/bazi/calculate，真实算法 + adaptBazi 适配，失败抛错走页面 error 态） */
+  /**
+   * 八字排盘结果（真连 POST /paipan/bazi/preview，真实算法 + adaptBazi 适配，失败抛错走页面 error 态）。
+   *
+   * 2026-07-17 从 GET /paipan/bazi/calculate 改走 POST preview：GET 版只收
+   * year/month/day/hour/minute/gender，真太阳时/早晚子时/夏令时/出生地在前端采集了
+   * 却传不过去（假开关）。POST preview 走完整 BaziInputDto
+   * （city/useTrueSolarTime/useDaylightSaving/ziShiMode），引擎逐项真消费
+   * （buildInput → calcBazi，已亲核 apps/server paipan.service.ts + bazi-engine）。
+   * 两端点同为免登录 + 限流，返回结构一致（均为 calcBaziPreview 的 BaziResult）。
+   */
   async calculate(input: BaziCalcInput) {
-    const params = new URLSearchParams({
-      year: String(input.year), month: String(input.month), day: String(input.day),
-      hour: String(input.hour), minute: String(input.minute ?? 0),
+    return adaptBazi(await apiPost<RawBaziResponse>('/paipan/bazi/preview', {
+      name: input.name || undefined,
       gender: input.gender,
-    }).toString()
-    return adaptBazi(await apiGet<RawBaziResponse>('/paipan/bazi/calculate?' + params))
+      year: input.year, month: input.month, day: input.day,
+      hour: input.hour, minute: input.minute ?? 0,
+      city: input.city || undefined,
+      useTrueSolarTime: input.useTrueSolarTime === true,
+      useDaylightSaving: input.useDaylightSaving === true,
+      ziShiMode: input.earlyZi ? 'modern' : 'traditional',
+    }))
   },
 
   /**
@@ -269,6 +300,12 @@ export const baziApi = {
       day: input.day,
       hour: input.hour,
       minute: input.minute ?? 0,
+      // 与 calculate 同口径透传（POST /paipan/bazi 同为 BaziInputDto），
+      // 否则落库的盘与用户看到的盘会因校正项不同而两样
+      city: input.city || undefined,
+      useTrueSolarTime: input.useTrueSolarTime === true,
+      useDaylightSaving: input.useDaylightSaving === true,
+      ziShiMode: input.earlyZi ? 'modern' : 'traditional',
     })
     if (!res?.id) throw new Error('保存排盘记录失败')
     return { id: res.id }

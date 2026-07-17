@@ -116,6 +116,22 @@ function onAnalyze() {
   uni.showToast({ title: 'AI 智能解析即将上线', icon: 'none' })
 }
 
+/** 分享：H5 系统分享/复制链接，其余端复制盘面摘要（照 jinkoujue/meihua 范式） */
+function handleShare() {
+  const r = result.value
+  if (!r) return
+  const summary = `奇门遁甲：${q.year}年${pad(q.month)}月${pad(q.day)}日${q.hour}时 ${juLabel.value} 值符${r.zhiFu} 值使${zhiShiMenLabel.value}${q.matter ? ` · ${q.matter}` : ''}`
+  // #ifdef H5
+  const url = window.location.href
+  const nav = navigator as Navigator & { share?: (data: { title?: string; url?: string }) => Promise<void> }
+  if (nav.share) { nav.share({ title: summary, url }).catch(() => {}); return }
+  uni.setClipboardData({ data: url, success: () => uni.showToast({ title: '链接已复制', icon: 'none' }) })
+  return
+  // #endif
+  // eslint-disable-next-line no-unreachable
+  uni.setClipboardData({ data: summary, success: () => uni.showToast({ title: '盘面已复制', icon: 'none' }) })
+}
+
 onLoad((opts: Record<string, string> = {}) => {
   q.matter = opts.matter ? decodeURIComponent(opts.matter) : ''
   q.year = Number(opts.year) || 2026
@@ -128,7 +144,9 @@ onLoad((opts: Record<string, string> = {}) => {
   q.startMethod = opts.startMethod || 'zhirun'
   q.anganMethod = opts.anganMethod || 'dipan'
   q.customJu = opts.customJu ? decodeURIComponent(opts.customJu) : ''
-  q.useTrueSolar = opts.useTrueSolar === 'true'
+  // 兼容三种写法：入口页 useTrueSolar=true、历史页 useTrueSolar=1、旧链接 trueSolar=true/1
+  const ts = opts.useTrueSolar ?? opts.trueSolar
+  q.useTrueSolar = ts === 'true' || ts === '1'
   q.lat = Number(opts.lat) || 0
   q.lng = Number(opts.lng) || 0
   editedMatter.value = q.matter
@@ -267,7 +285,7 @@ function saveMatter() { q.matter = editedMatter.value; showEditMatter.value = fa
       <view class="hdr-inner">
         <view class="hdr-back" @tap="navigateTo('/paipan/qimen')"><app-icon name="chevron-left" :size="40" color="var(--text-ink)" /></view>
         <text class="hdr-title">{{ BRAND.nameShort }}奇门遁甲</text>
-        <view class="hdr-share"><app-icon name="share-2" :size="32" color="var(--text-soft)" /></view>
+        <view class="hdr-share" @tap="handleShare"><app-icon name="share-2" :size="32" color="var(--text-soft)" /></view>
       </view>
     </view>
 
