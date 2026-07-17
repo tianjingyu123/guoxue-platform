@@ -10,6 +10,7 @@ import { safePagination } from "../../common/pagination";
 import { isUniqueConstraintError } from "../../common/prisma-errors";
 import { AuditService } from "../audit/audit.service";
 import { AuthService } from "../auth/auth.service";
+import { PushAudienceService } from "./push-audience.service";
 
 @Injectable()
 export class UserService {
@@ -20,6 +21,7 @@ export class UserService {
     private redis: RedisService,
     private audit: AuditService,
     private auth: AuthService,
+    private audience: PushAudienceService,
   ) {}
 
   async getUserById(userId: string) {
@@ -175,7 +177,31 @@ export class UserService {
 
   // ───────── 用户状态管理 ─────────
 
-  async updateUserStatus(userId: string, status: string) {
+  /** 状态变更的用户侧通知文案（封禁给理由·解封告知恢复） */
+  private buildStatusNotice(status: string, reason?: string): { title: string; content: string } {
+    if (status === "DISABLED") {
+      return {
+        title: "账号已被封禁",
+        content: reason
+          ? `你的账号因「${reason}」被平台封禁。如有异议请联系客服申诉。`
+          : "你的账号因违反平台规范被封禁。如有异议请联系客服申诉。",
+      };
+    }
+    return {
+      title: "账号状态变更",
+      content: status === "ACTIVE"
+        ? `你的账号已恢复正常使用。${reason ? `说明：${reason}` : ""}`.trim()
+        : `你的账号状态已变更为 ${status}。${reason ? `原因：${reason}` : ""}`.trim(),
+    };
+  }
+
+  /**
+   * 更新用户状态（封禁/解封）。
+   * 2026-07-17 审计修复：reason 此前无处落地——封禁完全查不到理由。现落两处：
+   * ① AuditLog（全局 AuditInterceptor 只记 method+url，理由必须在 service 层补）；② 站内通知告知用户。
+   * 两处留痕失败都不阻断状态变更本身（状态已改，宁可少一条痕也不能回滚成"没封"假象）。
+   */
+  async updateUserStatus(userId: string, status: string, reason?: string, operatorId?: string, ip?: string) {
     const existing = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "用户不存在");
     const updated = await this.prisma.user.update({
@@ -185,10 +211,28 @@ export class UserService {
     });
     // 封禁即踢下线：撤销全部 refreshToken + 已签发 accessToken（M1）
     if (status === "DISABLED") await this.auth.revokeAllRefreshTokens(userId);
+
+    // 理由落 AuditLog
+    await this.audit.log({
+      userId: operatorId,
+      action: "USER_STATUS_CHANGE",
+      targetType: "USER",
+      targetId: userId,
+      detail: `用户状态 ${existing.status} → ${status}${reason ? `；理由：${reason}` : "（未填写理由）"}`,
+      ip,
+    }).catch((err) => this.logger.warn("用户状态变更审计写入失败", err));
+
+    // 站内通知用户（封禁用户解封后可见；通知失败不回滚状态）
+    const notice = this.buildStatusNotice(status, reason);
+    await this.prisma.notification.create({
+      data: { userId, type: "SYSTEM", title: notice.title, content: notice.content },
+    }).catch((err) => this.logger.warn("用户状态变更通知写入失败", err));
+
     return updated;
   }
 
-  async batchUpdateStatus(ids: string[], status: string) {
+  /** 批量更新用户状态（理由落 AuditLog + 逐用户站内通知·同 updateUserStatus 口径） */
+  async batchUpdateStatus(ids: string[], status: string, reason?: string, operatorId?: string, ip?: string) {
     const result = await this.prisma.user.updateMany({
       where: { id: { in: ids } },
       data: { status: status as UserStatus },
@@ -196,6 +240,21 @@ export class UserService {
     if (status === "DISABLED") {
       for (const id of ids) await this.auth.revokeAllRefreshTokens(id);
     }
+
+    await this.audit.log({
+      userId: operatorId,
+      action: "USER_STATUS_BATCH_CHANGE",
+      targetType: "USER",
+      targetId: ids.length === 1 ? ids[0] : undefined,
+      detail: `批量用户状态 → ${status}（${result.count}人：${ids.slice(0, 20).join(",")}${ids.length > 20 ? `…等${ids.length}人` : ""}）${reason ? `；理由：${reason}` : "（未填写理由）"}`,
+      ip,
+    }).catch((err) => this.logger.warn("批量状态变更审计写入失败", err));
+
+    const notice = this.buildStatusNotice(status, reason);
+    await this.prisma.notification.createMany({
+      data: ids.map((userId) => ({ userId, type: "SYSTEM", title: notice.title, content: notice.content })),
+    }).catch((err) => this.logger.warn("批量状态变更通知写入失败", err));
+
     return { updated: result.count };
   }
 
@@ -393,61 +452,27 @@ export class UserService {
   }
 
   // ───────── 用户分群推送 ─────────
-
-  /**
-   * 构建分群筛选条件（会员等级 + 活跃天数）。
-   * pushByTag 与 estimateByTag 共用，保证「预估人数」与「实际推送人数」口径一致。
-   * 注：tag 维度当前后端未落地具体筛选规则，仅 memberLevel/activeDays 生效。
-   */
-  private async buildTagWhere(memberLevel: string, activeDays: number): Promise<Prisma.UserWhereInput> {
-    const where: Prisma.UserWhereInput = {};
-
-    // 按会员等级筛选
-    if (memberLevel && memberLevel !== "ALL") {
-      where.memberLevel = memberLevel as MemberLevel;
-    }
-
-    // 按活跃天数筛选（通过 UserBehaviorLog）
-    if (activeDays > 0) {
-      const activeSince = new Date();
-      activeSince.setDate(activeSince.getDate() - activeDays);
-
-      const activeUserIds = await this.prisma.userBehaviorLog.groupBy({
-        by: ["userId"],
-        where: { createdAt: { gte: activeSince } },
-      });
-      const activeIds = activeUserIds.map((u) => u.userId).filter((id): id is string => id !== null);
-      where.id = { in: activeIds };
-    }
-
-    return where;
-  }
+  // 圈人口径唯一真源 = PushAudienceService（2026-07-17 审计修复：tag 此前是假参数从不生效，
+  // 现按 UserTag 表真实标签匹配；estimate 与 push 共用同一条件构建，保证预估=实发）。
 
   /** 分群推送预估人数（dry-run，不发送） */
   async estimateByTag(
+    tag: string | undefined,
     memberLevel: string,
     activeDays: number,
-  ): Promise<{ count: number; memberLevel: string; activeDays: number }> {
-    const where = await this.buildTagWhere(memberLevel, activeDays);
-    const count = await this.prisma.user.count({ where });
-    return { count, memberLevel, activeDays };
+  ): Promise<{ count: number; tag: string; memberLevel: string; activeDays: number }> {
+    const count = await this.audience.estimate(tag, memberLevel, activeDays);
+    return { count, tag: tag ?? "", memberLevel, activeDays };
   }
 
   async pushByTag(
-    tag: string,
+    tag: string | undefined,
     memberLevel: string,
     activeDays: number,
     title: string,
     content: string,
   ): Promise<{ matchedCount: number; tag: string; memberLevel: string; activeDays: number }> {
-    const where = await this.buildTagWhere(memberLevel, activeDays);
-
-    // 查询匹配用户
-    const matchedUsers = await this.prisma.user.findMany({
-      where,
-      select: { id: true },
-    });
-    const userIds = matchedUsers.map((u) => u.id);
+    const userIds = await this.audience.resolveUserIds(tag, memberLevel, activeDays);
 
     // 写入通知
     if (userIds.length > 0) {
@@ -462,7 +487,34 @@ export class UserService {
     }
 
     this.logger.log(`按标签推送: tag=${tag}, memberLevel=${memberLevel}, activeDays=${activeDays}, 匹配=${userIds.length}人`);
-    return { matchedCount: userIds.length, tag, memberLevel, activeDays };
+    return { matchedCount: userIds.length, tag: tag ?? "", memberLevel, activeDays };
+  }
+
+  // ───────── 用户圈子关系（admin 用户详情页） ─────────
+
+  /** 用户加入的全部圈子（含角色/加入时间·管理员用户详情页真数据） */
+  async getUserCircles(userId: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
+    if (!user) throw new BusinessException(ErrorCode.NOT_FOUND, "用户不存在");
+    const members = await this.prisma.circleMember.findMany({
+      where: { userId },
+      orderBy: { joinedAt: "desc" },
+      select: {
+        role: true,
+        joinedAt: true,
+        expireAt: true,
+        circle: { select: { id: true, name: true, cover: true, type: true, status: true } },
+      },
+    });
+    return {
+      items: members.map((m) => ({
+        circle: m.circle,
+        role: m.role,
+        joinedAt: m.joinedAt,
+        expireAt: m.expireAt,
+      })),
+      total: members.length,
+    };
   }
 
   // ───────── 白名单管理（基于 Redis Set） ─────────

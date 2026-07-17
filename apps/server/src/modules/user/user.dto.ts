@@ -62,6 +62,10 @@ export class UpdateUserStatusDto {
   @IsString()
   @MinLength(1)
   status: string;
+
+  /** 封禁/解封理由（可选·落 AuditLog 并通知用户） */
+  @IsOptional() @IsString()
+  reason?: string;
 }
 
 export class BatchUpdateUserStatusDto {
@@ -73,12 +77,19 @@ export class BatchUpdateUserStatusDto {
   @IsString()
   @MinLength(1)
   status: string;
+
+  /** 批量封禁/解封理由（可选·落 AuditLog 并通知用户） */
+  @IsOptional() @IsString()
+  reason?: string;
 }
 
 export class PushByTagDto {
-  @IsString()
-  @MinLength(1)
-  tag: string;
+  /**
+   * 真实用户标签（UserTag 表·如 active_7d/pay_once/whale，见 push-audience.service.ts）。
+   * 可选：不传则必须带 memberLevel/activeDays；全员推送必须显式传 "ALL"（防误推）。
+   */
+  @IsOptional() @IsString()
+  tag?: string;
 
   @IsOptional() @IsString()
   memberLevel?: string;

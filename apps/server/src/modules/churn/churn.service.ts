@@ -5,6 +5,7 @@ import { RedisService } from "../../redis/redis.service";
 import { Prisma } from "@prisma/client";
 import { SmsService } from "../sms/sms.service";
 import { NotificationService } from "../notification/notification.service";
+import { MarketingService } from "../marketing/marketing.service";
 import { safePagination, NO_PAGE_LIMIT } from "../../common/pagination";
 
 /** 每批处理的用户数 */
@@ -19,6 +20,7 @@ export class ChurnService {
     private readonly redis: RedisService,
     @Optional() private smsService?: SmsService,
     @Optional() private notificationService?: NotificationService,
+    @Optional() private marketingService?: MarketingService,
   ) {}
 
   // ───────── 每日流失评分 ─────────
@@ -203,33 +205,67 @@ export class ChurnService {
     let succeeded = 0;
     let failed = 0;
 
+    // 2026-07-17 审计修复：此前无论动作是否真执行（未知类型/缺 phone/COUPON 待人工）一律标 COMPLETED，
+    // 运营看到"已完成"实际什么都没发。现在只有真执行成功才 COMPLETED：
+    // - 未知类型 / 前置条件缺失 → FAILED + 原因
+    // - COUPON 无法自动发放 → PENDING_MANUAL（诚实值·不进 PENDING 重试队列，运营在动作列表按状态筛出人工处理）
     for (const action of actions) {
       try {
         const data = action.actionData as Record<string, unknown> | null;
+        let outcome: { status: "COMPLETED" | "FAILED" | "PENDING_MANUAL"; note?: string } = { status: "COMPLETED" };
+
         switch (action.actionType) {
           case "SMS": {
-            if (this.smsService && data?.phone) {
-              await this.smsService.sendVerifyCode(data.phone as string, "CHURN_RETENTION");
-            } else {
-              this.logger.warn(`SMS 流失动作缺少 phone 或 SMS 服务不可用: ${action.id}`);
+            if (!this.smsService) {
+              outcome = { status: "FAILED", note: "SMS 服务不可用" };
+              break;
             }
+            // 规则配置里通常没有 phone（规则是按风险等级的模板），兜底取目标用户手机号
+            let phone = (data?.phone as string | undefined)?.trim();
+            if (!phone) {
+              const user = await this.prisma.user.findUnique({
+                where: { id: action.userId },
+                select: { phone: true },
+              });
+              phone = user?.phone ?? undefined;
+            }
+            if (!phone) {
+              outcome = { status: "FAILED", note: "目标用户无手机号，无法发送召回短信" };
+              break;
+            }
+            await this.smsService.sendVerifyCode(phone, "CHURN_RETENTION");
             break;
           }
           case "COUPON": {
-            // 优惠券发放需要营销模块支持，记录日志待人工处理
-            this.logger.log(`COUPON 流失动作待人工发放: userId=${action.userId}, data=${JSON.stringify(data)}`);
+            const couponId = ((data?.couponId ?? data?.templateId) as string | undefined)?.trim();
+            if (this.marketingService && couponId) {
+              // 真发放：复用营销模块 grantCoupon（同 admin 手工发放路径·含发行量校验+事务）
+              await this.marketingService.grantCoupon(couponId, { userId: action.userId });
+            } else {
+              outcome = {
+                status: "PENDING_MANUAL",
+                note: couponId ? "营销服务不可用，待人工发放" : "动作配置缺少 couponId（优惠券模板ID），待人工发放",
+              };
+              this.logger.log(`COUPON 流失动作待人工发放: userId=${action.userId}, data=${JSON.stringify(data)}`);
+            }
             break;
           }
           default: {
+            outcome = { status: "FAILED", note: `未实现的动作类型: ${action.actionType}` };
             this.logger.warn(`未知流失动作类型: ${action.actionType}`);
           }
         }
 
         await this.prisma.churnAction.update({
           where: { id: action.id },
-          data: { status: "COMPLETED", executedAt: new Date() },
+          data: {
+            status: outcome.status,
+            executedAt: new Date(),
+            ...(outcome.note ? { errorLog: outcome.note } : {}),
+          },
         });
-        succeeded++;
+        if (outcome.status === "COMPLETED") succeeded++;
+        else failed++;
       } catch (err: unknown) {
         const msg = (err as Error).message?.substring(0, 200);
         await this.prisma.churnAction.update({

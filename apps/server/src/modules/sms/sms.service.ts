@@ -234,7 +234,56 @@ export class SmsService {
       }),
       this.prisma.smsLog.count({ where }),
     ]);
-    return { logs, total, page, pageSize };
+    // 出口兜底脱敏：新日志写入时已 maskPhone，但历史记录可能存过明文；
+    // maskPhone 幂等（已脱敏的串再过一遍结果不变），管理端一律不吐完整手机号。
+    return { logs: logs.map((l) => ({ ...l, phone: maskPhone(l.phone) })), total, page, pageSize };
+  }
+
+  /**
+   * 短信配置状态（管理端只读·运营页判断"短信是否已配置可用"）。
+   * 🔴 绝不返回密钥明文——密钥类字段只返回是否已配置的布尔值。
+   * 现读 process.env：启动时与后台第三方配置保存后 ThirdPartyConfigLoader.syncToEnv 都会写回 env，
+   * 此处实时读取即反映最新配置（不用构造器缓存的旧值）。
+   * 注意：SendSms 仍用构造器缓存的密钥，改配置后需重启/reload 才对发送生效——ready 仅表示"配置已齐"。
+   */
+  async getConfigStatus() {
+    const secretId = process.env.TENCENT_SECRET_ID || process.env.COS_SECRET_ID || "";
+    const secretKey = process.env.TENCENT_SECRET_KEY || process.env.COS_SECRET_KEY || "";
+    const appId = process.env.SMS_APP_ID || "";
+    const signName = process.env.SMS_SIGN_NAME || "";
+    const templateId = process.env.SMS_TEMPLATE_ID || "";
+    const region = process.env.SMS_REGION || process.env.COS_REGION || "ap-guangzhou";
+
+    const [lastSuccess, lastSend] = await Promise.all([
+      this.prisma.smsLog.findFirst({
+        where: { status: "SUCCESS" },
+        orderBy: { createdAt: "desc" },
+        select: { createdAt: true },
+      }),
+      this.prisma.smsLog.findFirst({
+        orderBy: { createdAt: "desc" },
+        select: { createdAt: true, status: true },
+      }),
+    ]);
+
+    const items = {
+      secretId: !!secretId,
+      secretKey: !!secretKey,
+      sdkAppId: !!appId,
+      signName: !!signName,
+      templateId: !!templateId,
+    };
+
+    return {
+      ready: Object.values(items).every(Boolean), // 配置项齐全（真实可用性以最近发送结果为准）
+      devMode: this.isDevMode(),
+      items, // 各配置项存在性（布尔·不含任何明文）
+      signName: signName || null, // 签名内容非密钥·运营可读
+      region,
+      lastSuccessAt: lastSuccess?.createdAt ?? null,
+      lastSendAt: lastSend?.createdAt ?? null,
+      lastSendStatus: lastSend?.status ?? null,
+    };
   }
 
   async getAdminStats() {

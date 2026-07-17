@@ -43,24 +43,46 @@ export class FinanceService {
   // ───────── 1. 对账中心 ─────────
 
   async triggerReconciliation(dto: { period?: string; source?: string; billDate?: string }) {
-    // 支持 period 字段（如 "2026-05"），从中推导 source 和 billDate
     const source = dto.source || "WECHAT";
-    let billDateStr = dto.billDate;
-    if (!billDateStr && dto.period) {
-      billDateStr = dto.period + "-01"; // 月初日期
-    }
-    if (!billDateStr) {
+
+    // 🔴 两种口径（此前 period 模式只对月初"一天"却号称月对账 → 月内其余 27~30 天的掉单/差额全被漏掉）：
+    //   billDate → 单日对账（原有行为不变）
+    //   period   → 整月对账：订单窗口 = [月初, 次月初)，账单 = 逐日下载后合并
+    let rangeStart: Date;
+    let rangeEnd: Date;
+    let billDatesToFetch: string[];
+    if (dto.billDate) {
+      const billDate = new Date(dto.billDate);
+      rangeStart = new Date(billDate.getFullYear(), billDate.getMonth(), billDate.getDate());
+      rangeEnd = new Date(rangeStart.getTime() + 86400000);
+      billDatesToFetch = [dto.billDate];
+    } else if (dto.period) {
+      const [year, month] = dto.period.split("-").map(Number);
+      if (!year || !month || month < 1 || month > 12) {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "无效的对账月份格式，应为 YYYY-MM（如 2026-05）");
+      }
+      rangeStart = new Date(year, month - 1, 1);
+      rangeEnd = new Date(year, month, 1);
+      // 逐日账单：只取已过去的日期（渠道当日账单要次日才出）
+      billDatesToFetch = [];
+      const today = new Date();
+      const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      for (let d = new Date(rangeStart); d < rangeEnd && d < todayStart; d.setDate(d.getDate() + 1)) {
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, "0");
+        const day = String(d.getDate()).padStart(2, "0");
+        billDatesToFetch.push(`${y}-${m}-${day}`);
+      }
+    } else {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "请提供对账月份(period)或账单日期(billDate)");
     }
-    const billDate = new Date(billDateStr);
-    const startOfDay = new Date(billDate.getFullYear(), billDate.getMonth(), billDate.getDate());
-    const endOfDay = new Date(startOfDay.getTime() + 86400000);
+    const billDateStr = dto.billDate || dto.period + "-01";
 
-    // 查询该日期已支付订单
+    // 查询该窗口内已支付订单
     const orders = await this.prisma.order.findMany({
       where: {
         status: "PAID",
-        paidAt: { gte: startOfDay, lt: endOfDay },
+        paidAt: { gte: rangeStart, lt: rangeEnd },
       },
       select: { id: true, payAmount: true, payMethod: true, payTransactionId: true },
     });
@@ -73,22 +95,26 @@ export class FinanceService {
     const mismatches: { orderNo: string; internalAmount: number; billAmount?: number; reason: string }[] = [];
 
     if (source === "WECHAT" && this.wechatPay) {
-      try {
-        const billCsv = await this.wechatPay.downloadTradeBill({ billDate: billDateStr.replace(/-/g, "") });
-        if (billCsv) {
-          billEntries = this.parseBillCsv(billCsv);
-          billStatus = "DOWNLOADED";
-        } else {
-          // 🔴 downloadTradeBill 失败/无账单时返回 null（其内部吞掉了异常）。
-          //    绝不能把「没拉到账单」标成 DOWNLOADED —— 否则下面 billEntries 为空、
-          //    逐笔比对被整段跳过、diffCount=0，最终生成一条「对账通过·全额匹配」的假绿灯，
-          //    把渠道掉单/金额差全部隐藏。必须标记为不可用，判为 PENDING 待人工核。
-          billStatus = "BILL_UNAVAILABLE";
+      // 逐日下载并合并（单日模式即单个日期）。任何一天拉不到都不能算 DOWNLOADED ——
+      // 🔴 downloadTradeBill 失败/无账单时返回 null（其内部吞掉了异常）。
+      //    绝不能把「没拉到账单」标成 DOWNLOADED —— 否则下面 billEntries 为空/不全、
+      //    逐笔比对被跳过或漏比、diffCount 偏小，最终生成「对账通过·全额匹配」的假绿灯，
+      //    把渠道掉单/金额差全部隐藏。缺任何一天都标不可用，判为 PENDING 待人工核。
+      let anyDayUnavailable = billDatesToFetch.length === 0;
+      for (const dayStr of billDatesToFetch) {
+        try {
+          const billCsv = await this.wechatPay.downloadTradeBill({ billDate: dayStr.replace(/-/g, "") });
+          if (billCsv) {
+            billEntries = billEntries.concat(this.parseBillCsv(billCsv));
+          } else {
+            anyDayUnavailable = true;
+          }
+        } catch (err) {
+          this.logger.warn(`微信账单下载失败(${dayStr}): ${(err as Error).message}`);
+          anyDayUnavailable = true;
         }
-      } catch (err) {
-        this.logger.warn(`微信账单下载失败: ${(err as Error).message}，仅以内部汇总对账`);
-        billStatus = "BILL_UNAVAILABLE";
       }
+      billStatus = anyDayUnavailable ? "BILL_UNAVAILABLE" : "DOWNLOADED";
     }
 
     // 逐笔比对（内部订单 id = 微信账单中的商户订单号）
@@ -129,8 +155,9 @@ export class FinanceService {
     const record = await this.prisma.reconciliationRecord.create({
       data: {
         source: source,
-        billDate: startOfDay,
+        billDate: rangeStart,
         // 只有「账单可用 + 逐笔零差异」才算对账通过；账单不可用/内部有单账单空 → PENDING 待人工核
+        // 状态口径统一为 MISMATCHED（前端同步统一，勿再出现 MISMATCH 变体）
         status: mismatches.length > 0 ? "MISMATCHED" : billUsable ? "MATCHED" : "PENDING",
         totalAmount,
         matchAmount,
@@ -139,6 +166,9 @@ export class FinanceService {
           orderCount: orders.length,
           billEntryCount: billEntries.length,
           billStatus,
+          rangeStart: rangeStart.toISOString(),
+          rangeEnd: rangeEnd.toISOString(),
+          billDates: billDatesToFetch,
           mismatches: mismatches.slice(0, 100), // 最多保留100条差异明细
           orders: orders.map((o) => o.id),
         },
@@ -365,13 +395,13 @@ export class FinanceService {
 
     const userId = dto.userId;
 
-    // 检查是否已存在（有 userId 时才检查去重）
-    if (userId) {
-      const existing = await this.prisma.settlementOrder.findFirst({
-        where: { userId, period },
-      });
-      if (existing) throw new BusinessException(ErrorCode.BAD_REQUEST, "该周期结算单已存在");
-    }
+    // 防重复生成：无 userId 时落库为 "PLATFORM"，同样按 period 去重 ——
+    // 此前平台级不查重，重复点击会生成多张同周期总账结算单，审批打款一旦各批一张即重复出款
+    const dedupeUserId = userId || "PLATFORM";
+    const existing = await this.prisma.settlementOrder.findFirst({
+      where: { userId: dedupeUserId, period },
+    });
+    if (existing) throw new BusinessException(ErrorCode.BAD_REQUEST, "该周期结算单已存在");
 
     // 聚合该周期所有收益
     const earningWhere: any = {
@@ -419,23 +449,53 @@ export class FinanceService {
     if (settlement.userId === adminId) throw new BusinessException(ErrorCode.FORBIDDEN, "不能审批自己的结算单");
     if (settlement.status !== "PENDING") throw new BusinessException(ErrorCode.BAD_REQUEST, "当前状态不允许审批");
 
-    return this.prisma.settlementOrder.update({
-      where: { id },
+    // CAS：仅 PENDING 可翻 APPROVED，防两个管理员并发双双通过（TOCTOU）
+    const flipped = await this.prisma.settlementOrder.updateMany({
+      where: { id, status: "PENDING" },
       data: { status: "APPROVED", approvedBy: adminId },
     });
+    if (flipped.count === 0) throw new BusinessException(ErrorCode.BAD_REQUEST, "该结算单已被处理，请刷新后重试");
+    return this.prisma.settlementOrder.findUnique({ where: { id } });
   }
 
-  async paySettlement(id: string, operatorId: string) {
+  async paySettlement(id: string, operatorId: string, payoutRef?: string) {
+    // 🔴 payoutRef 必填（同提现打款范式）：结算打款必须能对上一条真实转账流水
+    const ref = (payoutRef || "").trim();
+    if (!ref) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "必须提供打款流水号（银行/支付宝转账凭证号）");
+    }
+
     const settlement = await this.prisma.settlementOrder.findUnique({ where: { id } });
     if (!settlement) throw new BusinessException(ErrorCode.NOT_FOUND, "结算单不存在");
     // 防自审自批：受益人不得给自己的结算单打款
     if (settlement.userId === operatorId) throw new BusinessException(ErrorCode.FORBIDDEN, "不能给自己的结算单打款");
+    // 🔴 四眼原则：审批人与打款人必须是两个人（同提现 confirmWithdrawalPay 范式）
+    if (settlement.approvedBy && settlement.approvedBy === operatorId) {
+      throw new BusinessException(ErrorCode.FORBIDDEN, "审批人不能同时打款，需由另一名财务操作");
+    }
     if (settlement.status !== "APPROVED") throw new BusinessException(ErrorCode.BAD_REQUEST, "当前状态不允许打款");
 
-    return this.prisma.settlementOrder.update({
-      where: { id },
-      data: { status: "PAID", paidAt: new Date() },
+    // 查重：SettlementOrder 无独立流水号列（不加迁移），payoutRef 存入 detail JSON 并按 JSON 路径查重
+    const dup = await this.prisma.settlementOrder.findFirst({
+      where: { detail: { path: ["payoutRef"], equals: ref } },
     });
+    if (dup && dup.id !== id) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, `流水号 ${ref} 已用于另一张结算单（${dup.id}），疑似重复打款`);
+    }
+
+    const mergedDetail = {
+      ...((settlement.detail as Record<string, unknown>) || {}),
+      payoutRef: ref,
+      paidBy: operatorId,
+    } as Prisma.InputJsonValue;
+
+    // CAS：仅 APPROVED 可翻 PAID，并发/重复点击只会成功一次
+    const flipped = await this.prisma.settlementOrder.updateMany({
+      where: { id, status: "APPROVED" },
+      data: { status: "PAID", paidAt: new Date(), detail: mergedDetail },
+    });
+    if (flipped.count === 0) throw new BusinessException(ErrorCode.BAD_REQUEST, "该结算单已被处理，请刷新后重试");
+    return this.prisma.settlementOrder.findUnique({ where: { id } });
   }
 
   // ───────── 4. 提现审批 ─────────
@@ -481,10 +541,32 @@ export class FinanceService {
     return this.prisma.withdrawalApplication.findUnique({ where: { id } });
   }
 
+  /**
+   * 🔴 让"冻结"真的生效：Order.frozenAmount 此前全后端零消费（假冻结）。
+   * 语义定为「风控暂停出款」：用户名下存在任何被冻结订单资金时，其提现不允许通过审批/打款。
+   * 选择拦在审批+打款两道闸而非"扣减可提额度"——额度计算在 wallet 模块（本次禁改），
+   * 且冻结是风控动作（涉诉/涉诈调查），全额暂停出款比按额度部分放行更符合冻结本意、改动也最小。
+   */
+  private async assertNoFrozenFunds(userId: string, action: string) {
+    const agg = await this.prisma.order.aggregate({
+      where: { userId, frozenAmount: { not: null } },
+      _sum: { frozenAmount: true },
+    });
+    const frozen = Number(agg._sum.frozenAmount || 0);
+    if (frozen > 0) {
+      throw new BusinessException(
+        ErrorCode.FORBIDDEN,
+        `该用户有 ¥${frozen.toFixed(2)} 资金处于风控冻结中，冻结期间不可${action}`,
+      );
+    }
+  }
+
   async approveWithdrawal(id: string, adminId: string, reviewNote?: string) {
     // 防自审自批：受益人不得审批自己的提现申请
     const app = await this.prisma.withdrawalApplication.findUnique({ where: { id } });
     if (app && app.userId === adminId) throw new BusinessException(ErrorCode.FORBIDDEN, "不能审批自己的提现");
+    // 风控冻结拦截：冻结中的用户提现不予通过
+    if (app) await this.assertNoFrozenFunds(app.userId, "通过提现审批");
     return this.transitWithdrawal(
       id,
       "PENDING",
@@ -499,6 +581,13 @@ export class FinanceService {
   }
 
   async confirmWithdrawalPay(id: string, adminId: string, payoutRef?: string) {
+    // 🔴 payoutRef 必填（照 commission.confirmPayout 标杆·替代此前 MANUAL-占位）：
+    //    每一笔 PAID 必须对上一条真实银行/微信/支付宝流水，占位符会让"记了打款却没真打"无从对账。
+    const ref = (payoutRef || "").trim();
+    if (!ref) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "必须提供打款流水号（银行/微信/支付宝转账凭证号）");
+    }
+
     const app = await this.prisma.withdrawalApplication.findUnique({ where: { id } });
     // 防自审自批：受益人不得给自己的提现打款
     if (app && app.userId === adminId) throw new BusinessException(ErrorCode.FORBIDDEN, "不能给自己的提现打款");
@@ -506,16 +595,59 @@ export class FinanceService {
     if (app && app.reviewedBy === adminId) {
       throw new BusinessException(ErrorCode.FORBIDDEN, "审批人不能同时打款，需由另一名财务操作");
     }
-    // 手动打款也要留出款凭据：便于对账关联、防与自动代付交错重复出款。
-    // payoutRef @unique，缺省用 MANUAL-<id> 作幂等/审计标记。
-    const ref = payoutRef?.trim() || `MANUAL${id.replace(/-/g, "").slice(0, 26)}`;
+    // 风控冻结拦截：冻结中的用户不出款
+    if (app) await this.assertNoFrozenFunds(app.userId, "打款");
+
+    // 查重：同一流水号只能对应一笔出款（DB @unique 是最后兜底，这里先给出明确错误）
+    const dup = await this.prisma.withdrawalApplication.findUnique({ where: { payoutRef: ref } });
+    if (dup && dup.id !== id) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, `流水号 ${ref} 已用于另一笔提现（${dup.id}），疑似重复打款`);
+    }
+
     return this.transitWithdrawal(id, "APPROVED", "PAID", { payoutRef: ref }, "当前状态不允许打款");
+  }
+
+  /**
+   * 【打款专用】取提现完整收款账户 —— 唯一返回明文 accountInfo 的通道（照 commission.revealPayoutAccount 标杆）。
+   * 安全约束：仅 APPROVED 可取（最小化明文暴露面）；防自取；**先写审计成功才返回明文** ——
+   * 审计写失败即拒绝，宁可打不了款，也不允许出现"有人看了收款账户但查不到是谁"。
+   */
+  async revealWithdrawalPayoutAccount(id: string, operatorId: string, ip?: string) {
+    const app = await this.prisma.withdrawalApplication.findUnique({ where: { id } });
+    if (!app) throw new BusinessException(ErrorCode.NOT_FOUND, "提现申请不存在");
+    if (app.userId === operatorId) {
+      throw new BusinessException(ErrorCode.FORBIDDEN, "不能查看自己提现申请的收款账户");
+    }
+    if (app.status !== "APPROVED") {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "仅已审核通过（APPROVED）的提现可查看收款账户");
+    }
+
+    // 先留痕再返回：不 catch —— 审计失败直接抛错，不给明文
+    await this.prisma.auditLog.create({
+      data: {
+        userId: operatorId,
+        action: "REVEAL_PAYOUT_ACCOUNT",
+        targetType: "WITHDRAWAL_APPLICATION",
+        targetId: id,
+        detail: `查看提现收款账户（打款用）: application=${id}, 受益人=${app.userId}, 实付=¥${Number(app.actualAmount)}${ip ? `, ip=${ip}` : ""}`,
+      },
+    });
+
+    return {
+      id: app.id,
+      userId: app.userId,
+      amount: Number(app.amount),
+      actualAmount: Number(app.actualAmount),
+      payMethod: app.payMethod,
+      accountInfo: app.accountInfo, // 明文（列表接口一律脱敏，勿放宽那边）
+    };
   }
 
   // ───────── 6. 资金冻结/解冻 ─────────
 
-  /** 冻结订单资金 */
-  async freezeAmount(dto: { orderId?: string; userId?: string; amount: number; reason?: string }) {
+  /** 冻结订单资金（adminId=操作人·审计必留痕） */
+  async freezeAmount(dto: { orderId?: string; userId?: string; amount: number; reason?: string }, adminId: string) {
+    if (!(dto.amount > 0)) throw new BusinessException(ErrorCode.BAD_REQUEST, "冻结金额必须大于0");
     if (!dto.orderId && dto.userId) {
       // 如果是通过用户ID冻结，则冻结该用户所有已支付订单
       const userOrders = await this.prisma.order.findMany({
@@ -526,6 +658,21 @@ export class FinanceService {
       dto.orderId = userOrders[0].id;
     }
     if (!dto.orderId) throw new BusinessException(ErrorCode.BAD_REQUEST, "请提供订单ID或用户ID");
+
+    // 🔴 冻结上限=订单金额：冻结额超实付会虚增"被冻资金"，解冻/追偿时对不上账
+    const target = await this.prisma.order.findUnique({
+      where: { id: dto.orderId },
+      select: { payAmount: true, amount: true },
+    });
+    if (!target) throw new BusinessException(ErrorCode.ORDER_NOT_FOUND, "订单不存在");
+    const orderPaid = Number(target.payAmount ?? target.amount ?? 0);
+    if (dto.amount > orderPaid + 1e-6) {
+      throw new BusinessException(
+        ErrorCode.BAD_REQUEST,
+        `冻结金额 ¥${dto.amount} 超过订单实付 ¥${orderPaid.toFixed(2)}`,
+      );
+    }
+
     // 原子操作：仅在未冻结时更新
     const result = await this.prisma.order.updateMany({
       where: {
@@ -542,10 +689,10 @@ export class FinanceService {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "该订单已有冻结金额，请先解冻");
     }
 
-    // 记录冻结操作到审计日志
+    // 记录冻结操作到审计日志（userId=操作人，资金动作必须可追责到人）
     await this.prisma.auditLog.create({
       data: {
-        userId: null,
+        userId: adminId || null,
         action: "FREEZE_AMOUNT",
         targetType: "ORDER",
         targetId: dto.orderId,
@@ -553,12 +700,12 @@ export class FinanceService {
       },
     }).catch((e) => this.logger.warn("冻结审计日志记录失败", e));
 
-    this.logger.log(`订单 ${dto.orderId} 冻结金额 ${dto.amount}`);
+    this.logger.log(`订单 ${dto.orderId} 冻结金额 ${dto.amount}（操作人 ${adminId}）`);
     return { success: true, orderId: dto.orderId, frozenAmount: dto.amount };
   }
 
-  /** 解冻订单资金 */
-  async unfreezeAmount(dto: { orderId: string; reason?: string }) {
+  /** 解冻订单资金（adminId=操作人·审计必留痕） */
+  async unfreezeAmount(dto: { orderId: string; reason?: string }, adminId: string) {
     // 原子操作：仅在有冻结金额时解冻
     const result = await this.prisma.order.updateMany({
       where: {
@@ -573,10 +720,10 @@ export class FinanceService {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "该订单无冻结金额");
     }
 
-    // 记录解冻操作到审计日志
+    // 记录解冻操作到审计日志（userId=操作人，资金动作必须可追责到人）
     await this.prisma.auditLog.create({
       data: {
-        userId: null,
+        userId: adminId || null,
         action: "UNFREEZE_AMOUNT",
         targetType: "ORDER",
         targetId: dto.orderId,
@@ -584,7 +731,7 @@ export class FinanceService {
       },
     }).catch((e) => this.logger.warn("解冻审计日志记录失败", e));
 
-    this.logger.log(`订单 ${dto.orderId} 已解冻`);
+    this.logger.log(`订单 ${dto.orderId} 已解冻（操作人 ${adminId}）`);
     return { success: true, orderId: dto.orderId };
   }
 

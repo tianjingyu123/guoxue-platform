@@ -49,6 +49,27 @@ export class PayoutService {
     if (app.status !== PayoutService.PAYABLE_STATUS) {
       throw new BusinessException(ErrorCode.BAD_REQUEST, `当前状态 ${app.status} 不可发起打款（须先审核通过）`);
     }
+    // 🔴 防自审自批：受益人不得给自己的提现发起代付
+    if (app.userId === operatorId) {
+      throw new BusinessException(ErrorCode.FORBIDDEN, "不能给自己的提现发起打款");
+    }
+    // 🔴 四眼原则（与 finance.confirmWithdrawalPay 同款）：审批人与打款人必须是两个人，
+    //    否则单个财务可一手审批一手放款给同伙账户套现。自动代付是真金出款，同样必须拦。
+    if (app.reviewedBy && app.reviewedBy === operatorId) {
+      throw new BusinessException(ErrorCode.FORBIDDEN, "审批人不能同时发起打款，需由另一名财务操作");
+    }
+    // 🔴 风控冻结拦截：用户名下有被冻结资金时暂停出款（冻结语义见 finance.freezeAmount）
+    const frozenAgg = await this.prisma.order.aggregate({
+      where: { userId: app.userId, frozenAmount: { not: null } },
+      _sum: { frozenAmount: true },
+    });
+    const frozenTotal = Number(frozenAgg._sum.frozenAmount || 0);
+    if (frozenTotal > 0) {
+      throw new BusinessException(
+        ErrorCode.FORBIDDEN,
+        `该用户有 ¥${frozenTotal.toFixed(2)} 资金处于风控冻结中，冻结期间不可打款`,
+      );
+    }
     // toUpperCase：存量行是前端直传的小写 'alipay'/'bank'，新行已在 submitWithdraw 统一大写
     if (String(app.payMethod).toUpperCase() !== "WECHAT") {
       throw new BusinessException(

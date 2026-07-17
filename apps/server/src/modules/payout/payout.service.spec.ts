@@ -30,6 +30,8 @@ describe("PayoutService（提现自动代付）", () => {
         update: jest.fn().mockImplementation(({ data }: any) => Promise.resolve({ ...approvedApp, ...data })),
         updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       },
+      // 风控冻结拦截：默认无冻结资金（放行）
+      order: { aggregate: jest.fn().mockResolvedValue({ _sum: { frozenAmount: null } }) },
       auth: { findFirst: jest.fn().mockResolvedValue({ openId: "o_abc123" }) },
     };
     wechat = { transferToBalance: jest.fn(), queryTransferByOutBillNo: jest.fn() };
@@ -41,6 +43,26 @@ describe("PayoutService（提现自动代付）", () => {
     it("未审核（PENDING）不能发起打款 —— 打款必须先经审核", async () => {
       prisma.withdrawalApplication.findUnique.mockResolvedValue({ ...approvedApp, status: "PENDING" });
       await expect(svc.autoPayout("app1", "admin1")).rejects.toThrow(BusinessException);
+      expect(wechat.transferToBalance).not.toHaveBeenCalled();
+    });
+
+    // 🔴 四眼原则：与 finance 人工打款同款 —— 审批人与打款人必须是两个人
+    it("审批人不能同时发起自动打款（四眼原则）", async () => {
+      prisma.withdrawalApplication.findUnique.mockResolvedValue({ ...approvedApp, reviewedBy: "admin1" });
+      await expect(svc.autoPayout("app1", "admin1")).rejects.toThrow("审批人不能同时发起打款");
+      expect(wechat.transferToBalance).not.toHaveBeenCalled();
+    });
+
+    it("受益人不能给自己的提现发起打款（防自审自批）", async () => {
+      prisma.withdrawalApplication.findUnique.mockResolvedValue({ ...approvedApp, userId: "admin1" });
+      await expect(svc.autoPayout("app1", "admin1")).rejects.toThrow(BusinessException);
+      expect(wechat.transferToBalance).not.toHaveBeenCalled();
+    });
+
+    it("用户有风控冻结资金时不予自动打款", async () => {
+      prisma.withdrawalApplication.findUnique.mockResolvedValue({ ...approvedApp, reviewedBy: "admin2" });
+      prisma.order.aggregate.mockResolvedValue({ _sum: { frozenAmount: 300 } });
+      await expect(svc.autoPayout("app1", "admin1")).rejects.toThrow("冻结");
       expect(wechat.transferToBalance).not.toHaveBeenCalled();
     });
 

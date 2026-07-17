@@ -28,7 +28,7 @@ export class FundApprovalController {
   @ApiResponse({ status: 403, description: "无权限" })
   @ApiQuery({ name: "page", required: false, type: Number })
   @ApiQuery({ name: "pageSize", required: false, type: Number })
-  @ApiQuery({ name: "status", required: false, description: "PENDING/APPROVED/REJECTED，留空查全部" })
+  @ApiQuery({ name: "status", required: false, description: "PENDING/APPROVED/REJECTED/ALL（全部）·缺省 PENDING" })
   listPending(
     @Query("page") page = 1,
     @Query("pageSize") pageSize = 20,

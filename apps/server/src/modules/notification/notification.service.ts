@@ -4,7 +4,8 @@ import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { PushService } from "./push.service";
-import { SendNotificationDto, BatchSendDto, CIRCLE_NOTIFICATION_CATEGORIES } from "./notification.dto";
+import { PushAudienceService } from "../user/push-audience.service";
+import { SendNotificationDto, BatchSendDto, BroadcastDto, CIRCLE_NOTIFICATION_CATEGORIES } from "./notification.dto";
 import { safePagination, NO_PAGE_LIMIT } from "../../common/pagination";
 
 const PREFS_TTL = 86400 * 30;
@@ -31,6 +32,7 @@ export class NotificationService {
     private prisma: PrismaService,
     private redis: RedisService,
     private push: PushService,
+    private audience: PushAudienceService,
   ) {}
 
   /** 给单个用户发送通知（DB存储 + 推送通道） */
@@ -131,6 +133,86 @@ export class NotificationService {
     }
 
     return { success: true, count: data.length, pushSkipped: pushDisabled.size };
+  }
+
+  /**
+   * 管理员按标签群发（2026-07-17 审计补齐：此前只有单发/按 userIds 批发，无按人群群发）。
+   * - 圈人复用 PushAudienceService（与 users/push/estimate 同口径·预估=实发）
+   * - 落库为站内通知（createMany）；与既有 pushByTag 一致，不触发微信模板推送通道
+   *   （群发量大时逐人拉 auth 推模板消息会拖死请求，站内通知是此场景的诚实边界）
+   * - 返回真实写入人数
+   */
+  async broadcast(dto: BroadcastDto, senderId?: string) {
+    let userIds: string[];
+    if (dto.userIds?.length) {
+      // 直接指定收件人：去重 + 只保留真实存在的 ACTIVE 用户（人数要真实）
+      const unique = [...new Set(dto.userIds)];
+      const users = await this.prisma.user.findMany({
+        where: { id: { in: unique }, status: "ACTIVE" },
+        select: { id: true },
+      });
+      userIds = users.map((u) => u.id);
+    } else {
+      userIds = await this.audience.resolveUserIds(dto.tag, dto.memberLevel || "", dto.activeDays || 0);
+    }
+
+    const type = dto.type || "SYSTEM";
+    let sentCount = 0;
+    if (userIds.length > 0) {
+      const result = await this.prisma.notification.createMany({
+        data: userIds.map((userId) => ({ userId, type, title: dto.title, content: dto.content })),
+      });
+      sentCount = result.count;
+    }
+
+    this.logger.log(
+      `管理员群发: sender=${senderId ?? "unknown"}, tag=${dto.tag ?? ""}, userIds=${dto.userIds?.length ?? 0}, 实发=${sentCount}人, title=${dto.title}`,
+    );
+    return { sentCount, tag: dto.tag ?? "", type, title: dto.title };
+  }
+
+  /**
+   * 管理员发送历史（GET /notifications/admin/sent）。
+   * 诚实设计：Notification 模型无 sender/senderId 字段（不加迁移不虚构发送人），
+   * 按「title + type + 分钟窗口」聚合近似还原每一次发送批次，返回目标人数与已读数。
+   * 局限：同一分钟内同标题的两次发送会并为一条；系统自动通知（同为 SYSTEM 型）也会出现在列表中。
+   */
+  async adminSentHistory(rawPage: number | string = 1, rawPageSize: number | string = 20, type?: string) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
+
+    const whereSql = type ? `WHERE "type"=$1` : "";
+    const listParams: unknown[] = type ? [type, pageSize, skip] : [pageSize, skip];
+    const countParams: unknown[] = type ? [type] : [];
+
+    const [rows, totalRows] = await Promise.all([
+      this.prisma.$queryRawUnsafe<Array<{ title: string; type: string; sentAt: Date; targetCount: number; readCount: number; content: string }>>(
+        `SELECT title, "type", date_trunc('minute', "createdAt") AS "sentAt",
+                COUNT(*)::int AS "targetCount",
+                COUNT(*) FILTER (WHERE "isRead")::int AS "readCount",
+                MIN(content) AS content
+         FROM "Notification"
+         ${whereSql}
+         GROUP BY title, "type", date_trunc('minute', "createdAt")
+         ORDER BY "sentAt" DESC
+         LIMIT $${type ? 2 : 1} OFFSET $${type ? 3 : 2}`,
+        ...listParams,
+      ),
+      this.prisma.$queryRawUnsafe<Array<{ cnt: number }>>(
+        `SELECT COUNT(*)::int AS cnt FROM (
+           SELECT 1 FROM "Notification" ${whereSql}
+           GROUP BY title, "type", date_trunc('minute', "createdAt")
+         ) t`,
+        ...countParams,
+      ),
+    ]);
+
+    return {
+      items: rows.map((r) => ({ ...r, targetCount: Number(r.targetCount), readCount: Number(r.readCount) })),
+      total: Number(totalRows[0]?.cnt) || 0,
+      page,
+      pageSize,
+      aggregated: true, // 提示前端：无 sender 字段·按标题+类型+分钟窗口聚合的近似口径
+    };
   }
 
   /** 使用预取 auth 数据发送推送（批量场景） */

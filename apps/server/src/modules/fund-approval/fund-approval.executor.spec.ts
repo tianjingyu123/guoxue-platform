@@ -45,4 +45,15 @@ describe("FundApprovalExecutor 自审自批防护", () => {
     approvals.findById.mockResolvedValue({ id: "a1", status: "APPROVED", requestedBy: "admin-1", type: "RECHARGE", payload: {} });
     await expect(executor.review("a1", true, undefined, "admin-2")).rejects.toBeInstanceOf(BusinessException);
   });
+
+  // 🔴 汇付分账四眼收口：审批通过后由执行器调用 createSplit 真正发起渠道分账
+  it("HUIFU_SPLIT 审批通过后执行 huifu.createSplit", async () => {
+    const huifu = { createSplit: jest.fn().mockResolvedValue({ splitStatus: "PROCESSING" }) };
+    const exec2 = new FundApprovalExecutor(approvals, {} as any, huifu as any, coin, {} as any);
+    const payload = { orderId: "order-1", amount: 100, receivers: [{ acctId: "A1", amount: 100, name: "张三" }] };
+    approvals.findById.mockResolvedValue({ id: "a2", status: "PENDING", requestedBy: "admin-1", type: "HUIFU_SPLIT", payload });
+    const res = await exec2.review("a2", true, undefined, "admin-2");
+    expect(res.approved).toBe(true);
+    expect(huifu.createSplit).toHaveBeenCalledWith(payload);
+  });
 });

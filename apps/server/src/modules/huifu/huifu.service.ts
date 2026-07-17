@@ -54,6 +54,45 @@ export class HuifuService {
     });
   }
 
+  /**
+   * 发起「分账」审批（不立即执行）——真金动作全部过审批中心（四眼）。
+   * 此前 /huifu/split 单人直接触发渠道真实分账出款；现改为：发起人提交 → 财务审批
+   * 通过后由 FundApprovalExecutor 调用 createSplit 真正向汇付发起分账。
+   * 发起前先做与 createSplit 同款的存在性/状态/总额校验，把明显非法的请求挡在审批单之外。
+   */
+  async requestSplit(dto: HuifuSplitDto, requestedBy: string) {
+    let receivers = dto.receivers || [];
+    if (receivers.length === 0 && dto.receiverId) {
+      receivers = [{ acctId: dto.receiverId, amount: dto.amount, name: dto.receiverName || dto.receiverId }];
+    }
+    if (receivers.length === 0) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "请提供分账接收方信息");
+    }
+
+    const splitRecord = await this.prisma.huifuSplitRecord.findUnique({ where: { orderId: dto.orderId } });
+    if (!splitRecord) throw new BusinessException(ErrorCode.NOT_FOUND, "找不到对应的支付记录");
+    if (["PROCESSING", "SUCCESS"].includes(splitRecord.splitStatus)) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "该订单已分账或分账处理中");
+    }
+
+    const splitTotal = receivers.reduce((sum, r) => sum + Number(r.amount), 0);
+    if (splitTotal > Number(splitRecord.totalAmount) + 1e-6) {
+      throw new BusinessException(
+        ErrorCode.BAD_REQUEST,
+        `分账总额 ¥${splitTotal.toFixed(2)} 超过订单已付 ¥${Number(splitRecord.totalAmount).toFixed(2)}`,
+      );
+    }
+
+    if (!this.fundApproval) throw new BusinessException(ErrorCode.BAD_REQUEST, "审批服务不可用");
+    return this.fundApproval.create({
+      type: "HUIFU_SPLIT",
+      payload: { ...dto, receivers } as unknown as Record<string, unknown>,
+      amount: splitTotal,
+      summary: `汇付分账 ¥${splitTotal.toFixed(2)}（订单 ${dto.orderId}·${receivers.length} 个接收方）`,
+      requestedBy,
+    });
+  }
+
   // ───────── 配置管理 ─────────
 
   private async getConfig(key: string): Promise<string> {

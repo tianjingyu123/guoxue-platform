@@ -60,6 +60,18 @@ export class SmsController {
     return this.sms.getAdminLogs(+page, +pageSize, status);
   }
 
+  @Get("admin/config-status")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "短信配置状态（只读存在性·绝不返回密钥明文）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
+  getConfigStatus() {
+    return this.sms.getConfigStatus();
+  }
+
   @Get("admin/stats")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")

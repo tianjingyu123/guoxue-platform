@@ -30,7 +30,7 @@ export class CommissionController {
 
   @Get("configs")
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN")
   @ApiOperation({ summary: "获取所有分佣配置" })
   @ApiResponse({ status: 200, description: "成功" })
   @ApiResponse({ status: 401, description: "未登录" })
@@ -162,7 +162,7 @@ export class CommissionController {
 
   @Get("admin/withdrawals")
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN")
   @ApiOperation({ summary: "查看所有提现记录（管理员）" })
   @ApiResponse({ status: 200, description: "成功" })
   @ApiResponse({ status: 401, description: "未登录" })
@@ -179,6 +179,9 @@ export class CommissionController {
     return this.svc.listWithdrawals(+page, +pageSize, status);
   }
 
+  // 🔴 刻意不给 FINANCE_ADMIN：Withdrawal 表无 reviewedBy 列（本批禁迁移），代码层无法校验
+  //    "审核人≠打款人"；现行四眼靠角色分离实现——审核=OPERATION_ADMIN、打款=FINANCE_ADMIN。
+  //    若放开 FINANCE_ADMIN 审核，同一财务可先审后打、单人闭环出款。前端应对财务隐藏审核按钮。
   @Put("admin/withdrawals/:id")
   @RedLineGate(RedLine.MONEY)
   @Auditable({ action: "提现审核", targetType: "WITHDRAWAL" })
@@ -310,7 +313,7 @@ export class CommissionController {
 
   @Get("platform-fee/summary")
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN")
   @ApiOperation({ summary: "平台抽成汇总" })
   @ApiResponse({ status: 200, description: "成功" })
   @ApiResponse({ status: 401, description: "未登录" })

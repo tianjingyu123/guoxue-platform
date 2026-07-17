@@ -2,11 +2,12 @@ import { Request } from "express";
 import { Controller, Get, Post, Put, Delete, Body, Param, Query, Req, UseGuards } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiResponse } from "@nestjs/swagger";
 import { NotificationService } from "./notification.service";
-import { SendNotificationDto, BatchSendDto } from "./notification.dto";
+import { SendNotificationDto, BatchSendDto, BroadcastDto } from "./notification.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
 import { RedLineGate, RedLine } from "../../common/red-lines";
+import { Auditable } from "../../common/audit.decorator";
 
 @ApiTags("通知")
 @Controller("notifications")
@@ -42,6 +43,42 @@ export class NotificationController {
   @ApiBearerAuth()
   batchSend(@Body() dto: BatchSendDto) {
     return this.svc.batchSend(dto);
+  }
+
+  /** 管理员按标签群发（圈人口径同 users/push/estimate·返回真实发送人数） */
+  @Post("admin/broadcast")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
+  @Auditable({ action: "管理员群发通知", targetType: "NOTIFICATION" })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "管理员按标签/用户列表群发通知" })
+  @ApiResponse({ status: 201, description: "创建成功·返回真实发送人数" })
+  @ApiResponse({ status: 400, description: "未指定圈选条件（全员需显式 tag=ALL）" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
+  @ApiBearerAuth()
+  broadcast(@Body() dto: BroadcastDto, @Req() req: Request) {
+    return this.svc.broadcast(dto, req.user?.id);
+  }
+
+  /** 管理员发送历史（无 sender 字段·按标题+类型+分钟窗口聚合的诚实口径） */
+  @Get("admin/sent")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "管理员通知发送历史（按批次聚合·含目标人数/已读数）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
+  @ApiBearerAuth()
+  @ApiQuery({ name: "page", required: false, type: Number })
+  @ApiQuery({ name: "pageSize", required: false, type: Number })
+  @ApiQuery({ name: "type", required: false, type: String, description: "通知类型过滤（如 SYSTEM）" })
+  adminSentHistory(
+    @Query("page") page = 1,
+    @Query("pageSize") pageSize = 20,
+    @Query("type") type?: string,
+  ) {
+    return this.svc.adminSentHistory(+page, +pageSize, type);
   }
 
   /** 我的通知 */

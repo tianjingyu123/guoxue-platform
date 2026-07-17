@@ -76,6 +76,10 @@ export class FundApprovalExecutor {
         return this.commission.updateConfig(p.key, p.dto ?? {});
       case "REFUND":
         return this.huifu.createRefund(p);
+      case "HUIFU_SPLIT":
+        // 汇付分账（真金出款）：审批通过后才真正向渠道发起。createSplit 自带
+        // 状态防重（PROCESSING/SUCCESS 拒绝）与总额≤已付校验，重复执行不会二次分账。
+        return this.huifu.createSplit(p);
       case "COIN_REFUND":
         // 虚拟币退款（客诉/协商）：财务审批通过后给用户退回国学币
         return this.coin.refund(p.userId, p.amountCoin, p.description || "客诉退款");

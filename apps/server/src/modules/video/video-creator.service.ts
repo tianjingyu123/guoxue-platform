@@ -1,12 +1,16 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
+import { AuditService } from "../audit/audit.service";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { safePagination } from "../../common/pagination";
 
 @Injectable()
 export class VideoCreatorService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private audit: AuditService,
+  ) {}
 
   /** 创作者概览 — 汇总用户视频的播放/互动/带货数据 */
   async getOverview(userId: string) {
@@ -634,15 +638,59 @@ export class VideoCreatorService {
   }
 
   /**
+   * 【四眼·打款专用】取完整收款账户——线下人工打款的唯一明文通道（照 commission.revealPayoutAccount 范式）。
+   * 安全约束（每条都是刻意的）：
+   * - 仅 APPROVED 可取：未审核/已驳回/已打款的记录不暴露收款账号，最小化明文暴露面；
+   * - 防自取：受益人不得为自己取号；
+   * - 先留痕后给明文：每次取号写 AuditLog（谁、何时、取了哪条、金额）；审计写失败即拒绝返回，
+   *   不允许出现"有人看了账号但查不到是谁"。
+   */
+  async revealPayoutAccount(id: string, operatorId: string, ip?: string) {
+    const w = await this.prisma.videoCreatorWithdrawal.findUnique({ where: { id } });
+    if (!w) throw new BusinessException(ErrorCode.NOT_FOUND, "提现申请不存在");
+    if (w.userId === operatorId) {
+      throw new BusinessException(ErrorCode.FORBIDDEN, "不能查看自己提现申请的收款账户");
+    }
+    if (w.status !== "APPROVED") {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "仅已审核通过（APPROVED）的申请可查看收款账户");
+    }
+
+    // 先留痕再返回：审计失败异常上抛 → 不给明文
+    await this.audit.log({
+      userId: operatorId,
+      action: "REVEAL_PAYOUT_ACCOUNT",
+      targetType: "VIDEO_CREATOR_WITHDRAWAL",
+      targetId: id,
+      detail: `查看创作者提现收款账户（打款用）: withdrawal=${id}, 受益人=${w.userId}, 金额=${w.amountCoin}币, 方式=${w.method}`,
+      ip,
+    });
+
+    return {
+      id: w.id,
+      userId: w.userId,
+      amountCoin: w.amountCoin,
+      method: w.method,
+      account: w.account, // 明文·仅此端点返回（列表一律 maskAccount）
+    };
+  }
+
+  /**
    * 审批创作者提现申请（管理员）。
-   * action：approve 通过（PENDING→APPROVED，币仍冻结）；pay 打款（APPROVED/PENDING→PAID，真实扣减冻结币 + SPEND 流水）；
+   * action：approve 通过（PENDING→APPROVED，币仍冻结）；pay 打款（仅 APPROVED→PAID，真实扣减冻结币 + SPEND 流水）；
    *         reject 拒绝（PENDING/APPROVED→REJECTED，解冻退回可用余额）。
    * 资金一致性：状态变更、冻结币扣减/释放、流水写入全部同事务；并发用条件 updateMany 防重，防止同一申请被双重打款/双重退款。
+   *
+   * 🔴 2026-07-17 四眼加固（照 commission 提现范式）：
+   * - 防自审自批：受益人不得审批/打款自己的申请（任何动作）；
+   * - 禁 PENDING 直付：pay 必须先 APPROVED（此前 PENDING 可一步 PAID = 单人即可出款）；
+   * - 审批人≠打款人：pay 时校验 reviewedBy ≠ 当前操作人；
+   * - payoutRef 必填 + 判重：模型无唯一约束（不加迁移），以 reviewNote 内嵌 [payoutRef:xxx] 标记查重，
+   *   同一流水号第二次打款直接拒绝；pay 不覆盖 reviewedBy（保留审批人身份），打款人记入 reviewNote [paidBy:xxx]。
    */
   async reviewWithdrawal(
     id: string,
     reviewerId: string,
-    data: { action: "approve" | "reject" | "pay"; note?: string },
+    data: { action: "approve" | "reject" | "pay"; note?: string; payoutRef?: string },
   ) {
     const { action, note } = data;
     if (!["approve", "reject", "pay"].includes(action)) {
@@ -652,6 +700,11 @@ export class VideoCreatorService {
     return this.prisma.$transaction(async (tx) => {
       const w = await tx.videoCreatorWithdrawal.findUnique({ where: { id } });
       if (!w) throw new BusinessException(ErrorCode.NOT_FOUND, "提现申请不存在");
+
+      // 防自审自批：受益人不得处理自己的提现申请
+      if (w.userId === reviewerId) {
+        throw new BusinessException(ErrorCode.FORBIDDEN, "不能审批自己的提现申请");
+      }
 
       // ── 通过：仅状态流转，币继续冻结 ──
       if (action === "approve") {
@@ -687,13 +740,36 @@ export class VideoCreatorService {
         return { success: true, status: "REJECTED" };
       }
 
-      // ── 打款：真实扣减冻结币 + SPEND 流水 ──
-      if (w.status !== "APPROVED" && w.status !== "PENDING") {
-        throw new BusinessException(ErrorCode.BAD_REQUEST, "仅待审核/已通过申请可打款");
+      // ── 打款：仅 APPROVED 可付 + 四眼 + payoutRef 幂等，真实扣减冻结币 + SPEND 流水 ──
+      if (w.status !== "APPROVED") {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "仅已审核通过（APPROVED）的申请可打款，请先完成审批");
       }
+      if (w.reviewedBy && w.reviewedBy === reviewerId) {
+        throw new BusinessException(ErrorCode.FORBIDDEN, "审批人与打款人不能是同一人（四眼原则）");
+      }
+      const ref = (data.payoutRef || "").trim();
+      if (!ref) {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "必须提供打款流水号 payoutRef（银行/支付宝转账凭证号）");
+      }
+      // 判重：模型无 payoutRef 列（不加迁移），以 reviewNote 内嵌标记查重
+      const refMark = `[payoutRef:${ref}]`;
+      const dup = await tx.videoCreatorWithdrawal.findFirst({
+        where: { status: "PAID", reviewNote: { contains: refMark } },
+        select: { id: true },
+      });
+      if (dup) {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, `流水号 ${ref} 已用于申请 ${dup.id}，疑似重复打款`);
+      }
+
+      const mergedNote = [w.reviewNote, note].filter((v) => v && v.trim()).join(" | ");
       const r = await tx.videoCreatorWithdrawal.updateMany({
-        where: { id, status: w.status },
-        data: { status: "PAID", reviewedBy: reviewerId, reviewNote: note, processedAt: new Date() },
+        where: { id, status: "APPROVED" },
+        // 不覆盖 reviewedBy：保留审批人身份（四眼可追溯）；打款人以 [paidBy:] 记入备注
+        data: {
+          status: "PAID",
+          reviewNote: `${mergedNote ? `${mergedNote} ` : ""}${refMark}[paidBy:${reviewerId}]`,
+          processedAt: new Date(),
+        },
       });
       if (r.count === 0) throw new BusinessException(ErrorCode.BAD_REQUEST, "申请状态已变更，请刷新");
 

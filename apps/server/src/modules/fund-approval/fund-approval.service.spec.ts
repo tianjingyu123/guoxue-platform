@@ -64,10 +64,10 @@ describe("FundApprovalService", () => {
 
   describe("list（分页查询）", () => {
     it("默认查 PENDING 第一页", async () => {
-      mockModel.findMany.mockResolvedValue([{ id: "fa-1" }]);
+      mockModel.findMany.mockResolvedValue([{ id: "fa-1", type: "REFUND" }]);
       mockModel.count.mockResolvedValue(1);
       const result = await svc.list();
-      expect(result).toEqual({ items: [{ id: "fa-1" }], total: 1, page: 1, pageSize: 20 });
+      expect(result).toEqual({ items: [{ id: "fa-1", type: "REFUND", amountUnit: "CNY" }], total: 1, page: 1, pageSize: 20 });
       expect(mockModel.findMany).toHaveBeenCalledWith(expect.objectContaining({
         where: { status: "PENDING" }, skip: 0, take: 20,
       }));
@@ -78,6 +78,26 @@ describe("FundApprovalService", () => {
       mockModel.count.mockResolvedValue(0);
       await svc.list(2, 10, "");
       expect(mockModel.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: {}, skip: 10, take: 10 }));
+    });
+
+    it("status=ALL（不分大小写）查全部状态", async () => {
+      mockModel.findMany.mockResolvedValue([]);
+      mockModel.count.mockResolvedValue(0);
+      await svc.list(1, 20, "all");
+      expect(mockModel.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: {} }));
+    });
+
+    // 🔴 amountUnit：RECHARGE/COIN_REFUND 的 amount 是币数，其余是人民币元 —— 前端显示以此为准
+    it("RECHARGE/COIN_REFUND 标 COIN，其余标 CNY", async () => {
+      mockModel.findMany.mockResolvedValue([
+        { id: "1", type: "RECHARGE", amount: 1000 },
+        { id: "2", type: "COIN_REFUND", amount: 50 },
+        { id: "3", type: "REFUND", amount: 9.9 },
+        { id: "4", type: "HUIFU_SPLIT", amount: 100 },
+      ]);
+      mockModel.count.mockResolvedValue(4);
+      const result = await svc.list(1, 20, "ALL");
+      expect(result.items.map((i: any) => i.amountUnit)).toEqual(["COIN", "COIN", "CNY", "CNY"]);
     });
   });
 

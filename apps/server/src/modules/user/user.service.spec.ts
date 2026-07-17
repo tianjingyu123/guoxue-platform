@@ -4,6 +4,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { AuditService } from "../audit/audit.service";
 import { AuthService } from "../auth/auth.service";
+import { PushAudienceService } from "./push-audience.service";
 import { BusinessException } from "../../common/business.exception";
 
 const mockRedis = {
@@ -43,7 +44,8 @@ const mockPrisma = {
     create: jest.fn(),
     delete: jest.fn(),
   },
-  notification: { createMany: jest.fn(), updateMany: jest.fn() },
+  notification: { create: jest.fn().mockResolvedValue({}), createMany: jest.fn().mockResolvedValue({ count: 0 }), updateMany: jest.fn() },
+  userTag: { findMany: jest.fn().mockResolvedValue([]) },
   userBehaviorLog: { groupBy: jest.fn(), findMany: jest.fn() },
   order: { aggregate: jest.fn() },
   virtualCoinAccount: { findUnique: jest.fn() },
@@ -68,8 +70,9 @@ describe("UserService", () => {
         UserService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: RedisService, useValue: mockRedis },
-        { provide: AuditService, useValue: { moderateTextOrThrow: jest.fn().mockResolvedValue(undefined), moderateImageOrThrow: jest.fn().mockResolvedValue(undefined) } },
+        { provide: AuditService, useValue: { moderateTextOrThrow: jest.fn().mockResolvedValue(undefined), moderateImageOrThrow: jest.fn().mockResolvedValue(undefined), log: jest.fn().mockResolvedValue({}) } },
         { provide: AuthService, useValue: { revokeAllRefreshTokens: jest.fn().mockResolvedValue(undefined) } },
+        PushAudienceService,
       ],
     }).compile();
     svc = mod.get(UserService);

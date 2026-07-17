@@ -3,6 +3,7 @@ import { NotificationService } from "./notification.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { PushService } from "./push.service";
+import { PushAudienceService } from "../user/push-audience.service";
 
 const mockPush = {
   send: jest.fn().mockResolvedValue(null),
@@ -42,6 +43,7 @@ describe("NotificationService", () => {
     const mod = await Test.createTestingModule({
       providers: [
         NotificationService,
+        PushAudienceService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: RedisService, useValue: mockRedis },
         { provide: PushService, useValue: mockPush },

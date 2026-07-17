@@ -239,8 +239,8 @@ export class UserController {
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiResponse({ status: 403, description: "无权限" })
-  batchUpdateStatus(@Body() dto: BatchUpdateUserStatusDto) {
-    return this.user.batchUpdateStatus(dto.ids, dto.status);
+  batchUpdateStatus(@Body() dto: BatchUpdateUserStatusDto, @Req() req: Request) {
+    return this.user.batchUpdateStatus(dto.ids, dto.status, dto.reason, req.user?.id, req.ip);
   }
 
   @Put(":id/status")
@@ -254,8 +254,22 @@ export class UserController {
   @ApiResponse({ status: 404, description: "资源不存在" })
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiResponse({ status: 403, description: "无权限" })
-  updateUserStatus(@Param("id") id: string, @Body() dto: UpdateUserStatusDto) {
-    return this.user.updateUserStatus(id, dto.status);
+  updateUserStatus(@Param("id") id: string, @Body() dto: UpdateUserStatusDto, @Req() req: Request) {
+    return this.user.updateUserStatus(id, dto.status, dto.reason, req.user?.id, req.ip);
+  }
+
+  // ───────── 用户圈子关系（管理员） ─────────
+
+  @Get(":id/circles")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "CUSTOMER_SERVICE")
+  @ApiOperation({ summary: "用户加入的圈子列表（管理员·用户详情页）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 404, description: "用户不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
+  getUserCircles(@Param("id") id: string) {
+    return this.user.getUserCircles(id);
   }
 
   // ───────── 会员 ─────────
@@ -373,13 +387,15 @@ export class UserController {
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
+  @ApiQuery({ name: "tag", required: false, type: String, description: "用户标签（UserTag 真实标签·全员传 ALL）" })
   @ApiQuery({ name: "memberLevel", required: false, type: String, description: "会员等级" })
   @ApiQuery({ name: "activeDays", required: false, type: Number, description: "最少活跃天数" })
   estimatePush(
+    @Query("tag") tag?: string,
     @Query("memberLevel") memberLevel?: string,
     @Query("activeDays") activeDays?: number,
   ) {
-    return this.user.estimateByTag(memberLevel || "", Number(activeDays) || 0);
+    return this.user.estimateByTag(tag, memberLevel || "", Number(activeDays) || 0);
   }
 
   @Post("push/by-tag")

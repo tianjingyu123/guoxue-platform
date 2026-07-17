@@ -6,6 +6,7 @@ const mockSvc = {
   createPayment: jest.fn(),
   queryPayment: jest.fn(),
   createSplit: jest.fn(),
+  requestSplit: jest.fn(),
   querySplit: jest.fn(),
   requestRefund: jest.fn(),
   verifyNotify: jest.fn(),
@@ -87,10 +88,16 @@ describe("HuifuController", () => {
   });
 
   describe("分账", () => {
-    it("发起分账", async () => {
-      mockSvc.createSplit.mockResolvedValue({ splitStatus: "PROCESSING" });
-      const result = await ctrl.createSplit({ orderId: "order-1", amount: 100, receivers: [{ acctId: "A1", amount: 10, name: "张三" }] });
-      expect(result.splitStatus).toBe("PROCESSING");
+    // 🔴 四眼收口：/huifu/split 不再直接执行渠道分账，而是提交 FundApproval 审批
+    it("发起分账 → 提交资金审批（不直接执行）", async () => {
+      mockSvc.requestSplit.mockResolvedValue({ submitted: true, approvalId: "fa-split", status: "PENDING" });
+      const result: any = await ctrl.createSplit(
+        { orderId: "order-1", amount: 100, receivers: [{ acctId: "A1", amount: 10, name: "张三" }] },
+        mockRequest("admin1"),
+      );
+      expect(result.submitted).toBe(true);
+      expect(mockSvc.requestSplit).toHaveBeenCalledWith(expect.any(Object), "admin1");
+      expect(mockSvc.createSplit).not.toHaveBeenCalled();
     });
 
     it("查询分账结果", async () => {

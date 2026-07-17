@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
 import { UserService } from "./user.service";
+import { PushAudienceService } from "./push-audience.service";
 import { UserController } from "./user.controller";
 import { PaymentPasswordController } from "./payment-password.controller";
 import { PaymentPasswordService } from "./payment-password.service";
@@ -26,7 +27,7 @@ import { AuthModule } from "../auth/auth.module";
   // CreationRankingsController 必须置于 UserController 之前：GET users/creation-rankings 是静态段，
   // 若 users/:id 先注册会将其吞掉（Express 按注册序匹配）
   controllers: [CreationRankingsController, UserController, PaymentPasswordController, PointsController, TeenModeController, FeedbackController, WalletController],
-  providers: [UserService, PaymentPasswordService, PointsService, TeenModeService, FeedbackService, WalletService],
-  exports: [UserService, PointsService],
+  providers: [UserService, PushAudienceService, PaymentPasswordService, PointsService, TeenModeService, FeedbackService, WalletService],
+  exports: [UserService, PointsService, PushAudienceService],
 })
 export class UserModule {}

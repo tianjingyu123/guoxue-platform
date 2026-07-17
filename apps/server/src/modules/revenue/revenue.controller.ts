@@ -34,7 +34,7 @@ export class RevenueController {
 
   @Get("platform/overview")
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN")
   @ApiOperation({ summary: "平台营收总览（管理员）" })
   @ApiResponse({ status: 200, description: "成功" })
   @ApiResponse({ status: 401, description: "未登录" })
@@ -45,21 +45,42 @@ export class RevenueController {
 
   @Get("platform/trends")
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN")
   @ApiOperation({ summary: "平台营收趋势（管理员）" })
   @ApiResponse({ status: 200, description: "成功" })
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiResponse({ status: 403, description: "无权限" })
-  @ApiQuery({ name: "days", required: false, type: Number })
+  @ApiQuery({ name: "days", required: false, description: "近N天数字，或 month（本月至今）/ year（本年至今）" })
   platformTrends(@Query("days") days = "30") {
-    return this.svc.getRevenueTrends(+days);
+    return this.svc.getRevenueTrends(RevenueController.parseTrendDays(days));
+  }
+
+  /**
+   * days 三态解析：数字 | "month" | "year"。
+   * 此前 `+days` 对 "month"/"year" 得 NaN → startDate 变 Invalid Date → 趋势查询整段坏掉。
+   */
+  private static parseTrendDays(raw: string): number {
+    const v = String(raw ?? "").trim().toLowerCase();
+    const now = new Date();
+    if (v === "month") {
+      // 本月 1 日至今
+      return Math.max(now.getDate() - 1, 1);
+    }
+    if (v === "year") {
+      // 本年 1 月 1 日至今
+      const yearStart = new Date(now.getFullYear(), 0, 1);
+      return Math.max(Math.floor((now.getTime() - yearStart.getTime()) / 86400000), 1);
+    }
+    const n = Math.floor(Number(v));
+    if (!Number.isFinite(n) || n <= 0) return 30;
+    return Math.min(n, 366); // 上限防全表逐日聚合被撑爆
   }
 
   // ───────── 新增：收入统计（管理员）─────────
 
   @Get("stats")
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN")
   @ApiOperation({ summary: "收入统计（管理员，可选平台级）" })
   @ApiResponse({ status: 200, description: "成功" })
   @ApiResponse({ status: 401, description: "未登录" })
@@ -80,7 +101,7 @@ export class RevenueController {
 
   @Get("breakdown")
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN")
   @ApiOperation({ summary: "收入分类明细（管理员，可选平台级）" })
   @ApiResponse({ status: 200, description: "成功" })
   @ApiResponse({ status: 401, description: "未登录" })

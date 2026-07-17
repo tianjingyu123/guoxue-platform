@@ -11,6 +11,8 @@ import {
   GenerateSettlementDto,
   ApproveWithdrawalDto,
   RejectWithdrawalDto,
+  PayWithdrawalDto,
+  PaySettlementDto,
   FreezeAmountDto,
   UnfreezeAmountDto,
 } from "./finance.dto";
@@ -232,14 +234,14 @@ export class FinanceController {
   @Auditable({ action: "结算打款", targetType: "SETTLEMENT" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN")
-  @ApiOperation({ summary: "标记已打款" })
+  @ApiOperation({ summary: "标记已打款（需提供转账流水号·审批人不得打款）" })
   @ApiResponse({ status: 200, description: "更新成功" })
-  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 400, description: "参数校验失败/缺流水号/流水号重复" })
   @ApiResponse({ status: 404, description: "资源不存在" })
   @ApiResponse({ status: 401, description: "未登录" })
-  @ApiResponse({ status: 403, description: "无权限" })
-  paySettlement(@Param("id") id: string, @Req() req: Request) {
-    return this.svc.paySettlement(id, req.user.id);
+  @ApiResponse({ status: 403, description: "无权限/审批人与打款人须分离" })
+  paySettlement(@Param("id") id: string, @Body() dto: PaySettlementDto, @Req() req: Request) {
+    return this.svc.paySettlement(id, req.user.id, dto.payoutRef);
   }
 
   // ───────── 4. 提现审批 ─────────
@@ -292,18 +294,38 @@ export class FinanceController {
     return this.svc.rejectWithdrawal(id, req.user.id, dto.reviewNote);
   }
 
+  /**
+   * 打款专用：取完整收款账户（明文）。
+   * 🔴 finance 侧唯一返回明文 accountInfo 的端点 —— 权限收到财务/超管，
+   *    每次调用先写 AuditLog 成功才返回（谁看了哪个账户），列表接口一律脱敏勿放宽。
+   */
+  @Get("withdrawals/:id/payout-account")
+  @RedLineGate(RedLine.MONEY)
+  @Auditable({ action: "查看提现收款账户", targetType: "WITHDRAWAL" })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "FINANCE_ADMIN")
+  @ApiOperation({ summary: "查看提现收款账户完整信息（打款用·强制审计留痕）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 400, description: "仅 APPROVED 状态可查看" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限/不能自取" })
+  revealWithdrawalPayoutAccount(@Param("id") id: string, @Req() req: Request) {
+    return this.svc.revealWithdrawalPayoutAccount(id, req.user.id, req.ip);
+  }
+
   @Post("withdrawals/:id/pay")
   @RedLineGate(RedLine.MONEY)
   @Auditable({ action: "提现打款", targetType: "WITHDRAWAL" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN")
-  @ApiOperation({ summary: "确认打款" })
+  @ApiOperation({ summary: "确认打款（需提供转账流水号·幂等防重复打款）" })
   @ApiResponse({ status: 201, description: "创建成功" })
-  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 400, description: "参数校验失败/缺流水号/流水号重复" })
   @ApiResponse({ status: 401, description: "未登录" })
-  @ApiResponse({ status: 403, description: "无权限" })
-  confirmWithdrawalPay(@Param("id") id: string, @Req() req: Request) {
-    return this.svc.confirmWithdrawalPay(id, req.user.id);
+  @ApiResponse({ status: 403, description: "无权限/审批人与打款人须分离" })
+  confirmWithdrawalPay(@Param("id") id: string, @Body() dto: PayWithdrawalDto, @Req() req: Request) {
+    return this.svc.confirmWithdrawalPay(id, req.user.id, dto.payoutRef);
   }
 
   // ───────── 6. 资金冻结/解冻 ─────────
@@ -318,8 +340,8 @@ export class FinanceController {
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiResponse({ status: 403, description: "无权限" })
-  freezeAmount(@Body() dto: FreezeAmountDto) {
-    return this.svc.freezeAmount(dto);
+  freezeAmount(@Body() dto: FreezeAmountDto, @Req() req: Request) {
+    return this.svc.freezeAmount(dto, req.user.id);
   }
 
   @Post("unfreeze")
@@ -332,8 +354,8 @@ export class FinanceController {
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiResponse({ status: 403, description: "无权限" })
-  unfreezeAmount(@Body() dto: UnfreezeAmountDto) {
-    return this.svc.unfreezeAmount(dto);
+  unfreezeAmount(@Body() dto: UnfreezeAmountDto, @Req() req: Request) {
+    return this.svc.unfreezeAmount(dto, req.user.id);
   }
 
   @Get("freeze-records")

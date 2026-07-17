@@ -41,7 +41,7 @@ export class HuifuController {
 
   @Get("status")
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN")
   @ApiBearerAuth()
   @ApiOperation({ summary: "检查汇付支付是否已启用" })
   @ApiResponse({ status: 200, description: "成功" })
@@ -110,15 +110,15 @@ export class HuifuController {
 
   @Post("split")
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN")
   @ApiBearerAuth()
-  @ApiOperation({ summary: "发起分账" })
-  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiOperation({ summary: "发起分账（提交资金审批·财务审批通过后才真正向汇付发起）" })
+  @ApiResponse({ status: 201, description: "已提交审批" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiResponse({ status: 403, description: "无权限" })
-  createSplit(@Body() dto: HuifuSplitDto) {
-    return this.svc.createSplit(dto);
+  createSplit(@Body() dto: HuifuSplitDto, @Req() req: Request) {
+    return this.svc.requestSplit(dto, req.user.id);
   }
 
   @Get("split/:orderId")
@@ -152,7 +152,7 @@ export class HuifuController {
 
   @Get("balance")
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN")
   @ApiBearerAuth()
   @ApiOperation({ summary: "查询商户余额" })
   @ApiResponse({ status: 200, description: "成功" })

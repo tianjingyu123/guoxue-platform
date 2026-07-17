@@ -84,9 +84,10 @@ describe("UserController", () => {
     expect(result.roles).toHaveLength(0);
   });
 
-  it("PUT /users/:id/status — 更新用户状态", async () => {
-    const result: any = await ctrl.updateUserStatus("u1", { status: "BANNED" } as any);
+  it("PUT /users/:id/status — 更新用户状态（带理由）", async () => {
+    const result: any = await ctrl.updateUserStatus("u1", { status: "BANNED", reason: "违规发布" } as any, mockReq());
     expect(result.status).toBe("BANNED");
+    expect(mockUserSvc.updateUserStatus).toHaveBeenCalledWith("u1", "BANNED", "违规发布", "u1", "127.0.0.1");
   });
 
   it("GET /users/:id/purchases — 购买记录", async () => {
@@ -144,9 +145,10 @@ describe("UserController", () => {
     expect(result.id).toBe("u1");
   });
 
-  it("PUT /users/batch/status — 批量更新用户状态", async () => {
-    const result: any = await ctrl.batchUpdateStatus({ ids: ["u1", "u2"], status: "DISABLED" });
+  it("PUT /users/batch/status — 批量更新用户状态（带理由）", async () => {
+    const result: any = await ctrl.batchUpdateStatus({ ids: ["u1", "u2"], status: "DISABLED", reason: "批量封禁" }, mockReq());
     expect(result.updated).toBe(3);
+    expect(mockUserSvc.batchUpdateStatus).toHaveBeenCalledWith(["u1", "u2"], "DISABLED", "批量封禁", "u1", "127.0.0.1");
   });
 
   it("GET /users/:id/purchases — 非本人非管理员无权查看", () => {
