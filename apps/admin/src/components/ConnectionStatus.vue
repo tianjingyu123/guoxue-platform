@@ -1,5 +1,8 @@
 <template>
+  <!-- 遮挡修复：原先常驻整宽 fixed 条(z-index 9999)盖住顶栏上沿，铃铛/退出点击被拦截。
+       一线后台范式=服务正常时零打扰，仅故障(及故障后的重试中)显示横幅。 -->
   <div
+    v-if="bannerVisible"
     class="conn-status"
     :class="status"
   >
@@ -18,11 +21,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from "vue";
+import { ref, computed, onMounted, onUnmounted } from "vue";
 import { api } from "@/api";
 
 type Status = "checking" | "online" | "offline";
 const status = ref<Status>("checking");
+/** 曾经离线：离线后的"重试中"也要保持横幅可见，避免闪烁消失又出现 */
+const wasOffline = ref(false);
+const bannerVisible = computed(
+  () => status.value === "offline" || (status.value === "checking" && wasOffline.value),
+);
 let timer: ReturnType<typeof setInterval> | null = null;
 
 const STATUS_MAP: Record<Status, string> = {

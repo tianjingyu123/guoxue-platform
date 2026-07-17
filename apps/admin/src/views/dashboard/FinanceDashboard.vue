@@ -39,7 +39,8 @@ const cardRoutes: Record<string, string> = {
   "待审批结算":   "/finance/settlements",
   "总订单数":     "/orders",
   "退款率":       "/orders/refund",
-  "付费用户数":   "/users",
+  // /users 路由 roles 不含 FINANCE_ADMIN，财务点了会被守卫拦（死链）→ 改跳财务可达的报表页（2026-07-18 修）
+  "付费用户数":   "/finance/reports",
   "客单价":       "/finance/reports",
 }
 function onCardClick(card: CardDef) {
@@ -110,12 +111,13 @@ function buildMonthRevenueOption(months: string[], values: number[]) {
   }
 }
 
-/** 将数值转为带单位的字符串 */
+/** 将数值转为带单位的字符串：金额 ¥千分位两位小数 / 退款率带 %（标准第四节） */
 function formatCardValue(card: CardDef): string {
-  if (card.format === "currency") return `¥${card.value.toLocaleString()}`
+  if (card.format === "currency") {
+    return `¥${card.value.toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  }
   if (card.label === "退款率") return `${card.value}%`
-  if (card.label === "客单价") return `¥${card.value.toLocaleString()}`
-  return String(card.value)
+  return card.value.toLocaleString()
 }
 
 onMounted(load)
@@ -285,7 +287,12 @@ async function load() {
             class="stat-card__value"
             :class="{ 'stat-card__value--alert': card.label === '退款率' && card.value > 5 }"
           >
-            <AnimatedCounter :value="card.value" />
+            <!-- 金额/百分比卡走 formatCardValue（¥千分位两位小数、%），纯数量卡保留动画计数 -->
+            <span v-if="card.format === 'currency' || card.label === '退款率'">{{ formatCardValue(card) }}</span>
+            <AnimatedCounter
+              v-else
+              :value="card.value"
+            />
           </div>
           <div
             v-if="card.delta"

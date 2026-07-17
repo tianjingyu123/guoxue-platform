@@ -86,7 +86,7 @@ const routes = [
         path: "contents/audit",
         name: "ContentAudit",
         component: () => import("@/views/content/ContentAudit.vue"),
-        meta: { title: "内容审核", roles: ["SUPER_ADMIN", "CONTENT_AUDITOR"] },
+        meta: { title: "内容审核", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"] },
       },
       {
         path: "contents/recommend",

@@ -1,11 +1,56 @@
 <script setup lang="ts">
-import { ref, shallowRef, onMounted, type Component } from 'vue'
+import { ref, shallowRef, computed, watch, onMounted, type Component } from 'vue'
 import { BRAND } from '@/lib/brand'
 import PendingOverview from '@/components/PendingOverview.vue'
 
 const loading = ref(true)
 const dashComp = shallowRef<Component | null>(null)
 const error = ref('')
+
+// ===== 工作台定义（优先级从高到低，与旧 else-if 链一致）=====
+// 多角色员工原来只能看到最高优先级工作台，其余工作台永远不可达；
+// 现按用户实际拥有的角色生成可切换列表（2026-07-18·董事长"每个员工进工作区便携高效"）
+interface DashDef { role: string; label: string; loader: () => Promise<{ default: Component }> }
+const DASHBOARDS: DashDef[] = [
+  { role: 'SUPER_ADMIN', label: '超管总览', loader: () => import('@/views/dashboard/SuperAdminDashboard.vue') },
+  { role: 'OPERATION_ADMIN', label: '运营工作台', loader: () => import('@/views/dashboard/OperationDashboard.vue') },
+  { role: 'FINANCE_ADMIN', label: '财务工作台', loader: () => import('@/views/dashboard/FinanceDashboard.vue') },
+  { role: 'CUSTOMER_SERVICE', label: '客服工作台', loader: () => import('@/views/dashboard/CustomerServiceDashboard.vue') },
+  { role: 'CONTENT_AUDITOR', label: '内容审核台', loader: () => import('@/views/dashboard/ContentAuditDashboard.vue') },
+  { role: 'GOODS_AUDITOR', label: '商品审核台', loader: () => import('@/views/dashboard/GoodsAuditDashboard.vue') },
+]
+
+/** 当前用户可用的工作台（按优先级序） */
+const available = ref<DashDef[]>([])
+/** 当前选中的工作台角色 */
+const activeRole = ref('')
+/** 已加载过的工作台组件缓存（切换不重复拉 chunk） */
+const compCache = new Map<string, Component>()
+
+const segOptions = computed(() => available.value.map((d) => ({ label: d.label, value: d.role })))
+
+/** 加载并切到指定角色的工作台 */
+async function applyRole(role: string) {
+  const def = DASHBOARDS.find((d) => d.role === role)
+  if (!def) return
+  const cached = compCache.get(role)
+  if (cached) {
+    dashComp.value = cached
+    return
+  }
+  loading.value = true
+  try {
+    const mod = await def.loader()
+    compCache.set(role, mod.default)
+    dashComp.value = mod.default
+  } catch (e) {
+    error.value = (e as Error)?.message || String(e)
+  } finally {
+    loading.value = false
+  }
+}
+
+watch(activeRole, (role) => { if (role) void applyRole(role) })
 
 onMounted(async () => {
   try {
@@ -19,28 +64,15 @@ onMounted(async () => {
     }
     const roles: string[] = cached ? JSON.parse(cached) : []
 
-    let mod: { default: Component } | null = null
-    if (roles.includes('SUPER_ADMIN')) {
-      mod = await import('@/views/dashboard/SuperAdminDashboard.vue')
-    } else if (roles.includes('OPERATION_ADMIN')) {
-      mod = await import('@/views/dashboard/OperationDashboard.vue')
-    } else if (roles.includes('FINANCE_ADMIN')) {
-      mod = await import('@/views/dashboard/FinanceDashboard.vue')
-    } else if (roles.includes('CUSTOMER_SERVICE')) {
-      mod = await import('@/views/dashboard/CustomerServiceDashboard.vue')
-    } else if (roles.includes('CONTENT_AUDITOR')) {
-      mod = await import('@/views/dashboard/ContentAuditDashboard.vue')
-    } else if (roles.includes('GOODS_AUDITOR')) {
-      mod = await import('@/views/dashboard/GoodsAuditDashboard.vue')
-    }
-
-    if (mod) {
-      dashComp.value = mod.default
+    available.value = DASHBOARDS.filter((d) => roles.includes(d.role))
+    if (available.value.length > 0) {
+      // 默认进最高优先级工作台（watch 触发 applyRole 加载）
+      activeRole.value = available.value[0].role
     }
   } catch (e) {
     error.value = (e as Error)?.message || String(e)
   } finally {
-    loading.value = false
+    if (!activeRole.value) loading.value = false
   }
 })
 </script>
@@ -50,6 +82,16 @@ onMounted(async () => {
     v-loading="loading"
     style="min-height:300px"
   >
+    <!-- 工作台切换：仅多角色员工可见（单角色不显示，避免多余控件·2026-07-18） -->
+    <div
+      v-if="available.length > 1"
+      class="workspace-switch"
+    >
+      <el-segmented
+        v-model="activeRole"
+        :options="segOptions"
+      />
+    </div>
     <!-- 待办概览：员工进后台第一眼看到各审核队列待处理数（目录重构批 2026-07-11） -->
     <PendingOverview />
     <component
@@ -83,6 +125,10 @@ onMounted(async () => {
 </template>
 
 <style scoped>
+.workspace-switch {
+  margin-bottom: 16px;
+}
+
 .dashboard-error {
   padding: 80px 20px;
   text-align: center;

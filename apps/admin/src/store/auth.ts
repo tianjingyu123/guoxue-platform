@@ -122,8 +122,12 @@ export const useAuthStore = defineStore("auth", () => {
     token.value = null;
     user.value = null;
     menus.value = [];
-    localStorage.removeItem("token");
-    localStorage.removeItem("user_roles");
+    // 会话键全量清理（与全仓 localStorage.setItem 写入点一一对应·防止凭证/会话残留被下一个登录者复用）
+    localStorage.removeItem("token"); // login / api 拦截器刷新时写入
+    localStorage.removeItem("refresh_token"); // login / api 拦截器刷新时写入（此前漏删·安全修复）
+    localStorage.removeItem("user_roles"); // fetchProfile 写入（路由守卫用）
+    localStorage.removeItem("redirect_after_login"); // api 401 时写入·防止换号登录后被带回上一账号的页面
+    localStorage.removeItem("admin_assistant_chat"); // 运营助手对话记录·含上一账号的会话内容
     ElMessage.success("已退出登录");
   }
 

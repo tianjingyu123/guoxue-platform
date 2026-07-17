@@ -175,8 +175,16 @@
         :rows="4"
         maxlength="500"
         show-word-limit
-        placeholder="处理备注（如：核查属实，已转人工退款审批）"
+        :placeholder="resolveStatus === 'REJECTED'
+          ? '驳回理由（必填，将同步给申诉发起人）'
+          : '处理备注（选填，如：核查属实，已转人工退款审批）'"
       />
+      <div
+        v-if="resolveStatus === 'REJECTED' && !note.trim()"
+        style="margin-top:6px;font-size:12px;color:var(--el-color-danger)"
+      >
+        驳回申诉必须填写理由
+      </div>
       <template #footer>
         <el-button @click="resolveVisible = false">
           取消
@@ -184,9 +192,10 @@
         <el-button
           :type="resolveStatus === 'RESOLVED' ? 'success' : 'danger'"
           :loading="submitting"
+          :disabled="resolveStatus === 'REJECTED' && !note.trim()"
           @click="confirmResolve"
         >
-          确认
+          确认{{ resolveStatus === 'RESOLVED' ? '解决' : '驳回' }}
         </el-button>
       </template>
     </el-dialog>
@@ -263,14 +272,19 @@ function openResolve(row: DisputeRow, status: 'RESOLVED' | 'REJECTED') {
 }
 async function confirmResolve() {
   if (!pendingRow.value || submitting.value) return
+  // 驳回申诉必须写理由（危险操作 L2 级：驳回类理由必填；通过/解决备注可选）
+  if (resolveStatus.value === 'REJECTED' && !note.value.trim()) {
+    ElMessage.warning('驳回申诉必须填写理由')
+    return
+  }
   submitting.value = true
   try {
     await callDisputeApi.resolve(pendingRow.value.id, { status: resolveStatus.value, note: note.value.trim() || undefined })
     ElMessage.success(resolveStatus.value === 'RESOLVED' ? '已标记核实解决' : '已驳回申诉')
     resolveVisible.value = false
     fetchList()
-  } catch (e) {
-    ElMessage.error((e as Error)?.message || '处理失败')
+  } catch {
+    // 错误已由 api/index.ts 响应拦截器统一弹出人话提示，此处不再重复弹（避免双弹+英文 axios message）
   } finally {
     submitting.value = false
   }

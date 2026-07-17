@@ -284,8 +284,8 @@ async function confirmResolve() {
     ElMessage.success(resolveUphold.value ? '已裁定成立，处理已撤销' : '已维持原处理')
     resolveVisible.value = false
     fetchList()
-  } catch (e) {
-    ElMessage.error((e as Error)?.message || '裁决失败')
+  } catch {
+    // 错误已由 api/index.ts 响应拦截器统一弹出人话提示，此处不再重复弹（避免双弹+英文 axios message）
   } finally {
     submitting.value = false
   }

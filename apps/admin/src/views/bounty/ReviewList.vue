@@ -22,31 +22,78 @@
     </el-result>
 
     <template v-else>
+      <!-- 状态筛选：后端 GET /admin/bounty/reviews 仅支持 page/pageSize，无 status 参数，此处为当前页内前端过滤（已记后端清单） -->
+      <el-radio-group
+        v-model="statusFilter"
+        style="margin-bottom: 12px"
+      >
+        <el-radio-button value="">
+          全部
+        </el-radio-button>
+        <el-radio-button value="PENDING">
+          待审核
+        </el-radio-button>
+        <el-radio-button value="APPROVED">
+          已通过
+        </el-radio-button>
+        <el-radio-button value="REJECTED">
+          已拒绝
+        </el-radio-button>
+      </el-radio-group>
+
       <el-table
         v-loading="loading"
-        :data="list"
+        :data="filteredList"
         border
         stripe
       >
         <template #empty>
-          <el-empty description="暂无待审核记录" />
+          <el-empty :description="statusFilter ? '当前页无此状态的记录，换个筛选或翻页看看' : '暂无审核记录'" />
         </template>
-        <el-table-column
-          prop="questionId"
-          label="问题ID"
-          width="200"
-        />
       <el-table-column
         prop="questionTitle"
         label="问题标题"
         min-width="180"
         show-overflow-tooltip
-      />
+      >
+        <template #default="{ row }">
+          {{ row.questionTitle || '--' }}
+        </template>
+      </el-table-column>
       <el-table-column
-        prop="reviewerId"
+        label="问题ID"
+        width="110"
+      >
+        <template #default="{ row }">
+          <el-tooltip
+            :content="row.questionId"
+            placement="top"
+            :disabled="!row.questionId"
+          >
+            <span
+              class="id-chip"
+              @click="copyId(row.questionId)"
+            >{{ shortId(row.questionId) }}</span>
+          </el-tooltip>
+        </template>
+      </el-table-column>
+      <el-table-column
         label="审核人ID"
-        width="180"
-      />
+        width="110"
+      >
+        <template #default="{ row }">
+          <el-tooltip
+            :content="row.reviewerId"
+            placement="top"
+            :disabled="!row.reviewerId"
+          >
+            <span
+              class="id-chip"
+              @click="copyId(row.reviewerId)"
+            >{{ shortId(row.reviewerId) }}</span>
+          </el-tooltip>
+        </template>
+      </el-table-column>
       <el-table-column
         prop="status"
         label="审核状态"
@@ -63,12 +110,25 @@
         label="原因/备注"
         min-width="200"
         show-overflow-tooltip
-      />
+      >
+        <template #default="{ row }">
+          {{ row.reason || '--' }}
+        </template>
+      </el-table-column>
       <el-table-column
-        prop="createdAt"
         label="创建时间"
-        width="170"
-      />
+        width="150"
+      >
+        <template #default="{ row }">
+          <el-tooltip
+            :content="row.createdAt"
+            placement="top"
+            :disabled="!row.createdAt"
+          >
+            <span>{{ fmtTime(row.createdAt) }}</span>
+          </el-tooltip>
+        </template>
+      </el-table-column>
       <el-table-column
         label="操作"
         width="180"
@@ -110,7 +170,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { ref, computed, onMounted } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { bountyApi } from "@/api";
 
@@ -131,6 +191,35 @@ const list = ref<ReviewRow[]>([]);
 const page = ref(1);
 const pageSize = ref(20);
 const total = ref(0);
+/** 状态筛选（后端接口不支持 status 参数，当前页内前端过滤） */
+const statusFilter = ref("");
+const filteredList = computed(() =>
+  statusFilter.value ? list.value.filter((r) => r.status === statusFilter.value) : list.value,
+);
+
+/** 本地时区格式化 YYYY-MM-DD HH:mm（禁止 ISO 串直出） */
+function fmtTime(t?: string) {
+  if (!t) return "--";
+  const d = new Date(t);
+  if (Number.isNaN(d.getTime())) return "--";
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
+/** 长 ID 截断显示前 8 位 */
+function shortId(id?: string) {
+  return id ? `${id.slice(0, 8)}…` : "--";
+}
+
+async function copyId(id?: string) {
+  if (!id) return;
+  try {
+    await navigator.clipboard.writeText(id);
+    ElMessage.success("已复制");
+  } catch {
+    ElMessage.error("复制失败，请手动选择复制");
+  }
+}
 
 function reviewStatusTag(status: string) {
   const map: Record<string, string> = { PENDING: "info", APPROVED: "success", REJECTED: "danger" };
@@ -159,13 +248,18 @@ async function fetchList() {
 async function handleApprove(row: ReviewRow) {
   if (processingId.value) return;
   try {
-    await ElMessageBox.confirm("确定通过此审核吗？", "确认通过", { type: "info" });
+    // 列表接口仅返回 问题标题/问题ID/审核人/状态/原因/时间，无答案正文与悬赏金额（已记后端清单），确认框内呈现现有信息
+    await ElMessageBox.confirm(
+      `确定通过对问题「${row.questionTitle || shortId(row.questionId)}」的审核吗？`,
+      "确认通过",
+      { type: "warning", confirmButtonText: "确认通过", cancelButtonText: "取消" },
+    );
     processingId.value = row.id;
     await bountyApi.approveReview(row.id);
     ElMessage.success("已通过");
     fetchList();
-  } catch (e) {
-    if (e !== "cancel" && e !== "close") ElMessage.error("操作失败");
+  } catch {
+    // 取消不提示；接口错误已由响应拦截器统一弹出人话提示，不再重复弹
   } finally {
     processingId.value = null;
   }
@@ -174,16 +268,23 @@ async function handleApprove(row: ReviewRow) {
 async function handleReject(row: ReviewRow) {
   if (processingId.value) return;
   try {
-    const { value } = await ElMessageBox.prompt("请输入拒绝原因", "拒绝审核", {
-      confirmButtonText: "确认",
-      cancelButtonText: "取消",
-    });
+    const { value } = await ElMessageBox.prompt(
+      `拒绝对问题「${row.questionTitle || shortId(row.questionId)}」的审核，请填写拒绝原因（将记录在案）：`,
+      "拒绝审核",
+      {
+        confirmButtonText: "确认拒绝",
+        cancelButtonText: "取消",
+        inputType: "textarea",
+        inputPlaceholder: "拒绝原因（必填）",
+        inputValidator: (v: string) => (v && v.trim() ? true : "请输入拒绝原因"),
+      },
+    );
     processingId.value = row.id;
-    await bountyApi.rejectReview(row.id, value);
+    await bountyApi.rejectReview(row.id, value.trim());
     ElMessage.success("已拒绝");
     fetchList();
-  } catch (e) {
-    if (e !== "cancel" && e !== "close") ElMessage.error("操作失败");
+  } catch {
+    // 取消不提示；接口错误已由响应拦截器统一弹出人话提示，不再重复弹
   } finally {
     processingId.value = null;
   }
@@ -195,4 +296,6 @@ onMounted(fetchList);
 <style scoped>
 .page { padding: 20px; }
 .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+.id-chip { cursor: pointer; font-family: monospace; color: var(--el-color-primary); }
+.id-chip:hover { text-decoration: underline; }
 </style>

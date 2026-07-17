@@ -31,6 +31,7 @@
       <!-- 底部收缩 -->
       <div
         class="aside-footer"
+        :class="{ 'is-collapsed': isCollapse }"
         @click="isCollapse = !isCollapse"
       >
         <span class="collapse-icon">{{ isCollapse ? '»' : '«' }}</span>
@@ -52,10 +53,14 @@
             <el-breadcrumb-item :to="{ path: '/dashboard' }">
               <span class="breadcrumb-home">首页</span>
             </el-breadcrumb-item>
-            <template v-if="route.meta.title && route.meta.title !== '首页'">
+            <!-- 完整层级：分组 / 子分组 / 当前页（来自菜单树·分组名不可点，当前页高亮） -->
+            <template
+              v-for="(seg, i) in breadcrumbTrail"
+              :key="i"
+            >
               <span class="breadcrumb-sep">/</span>
               <el-breadcrumb-item>
-                <span class="breadcrumb-current">{{ route.meta.title }}</span>
+                <span :class="i === breadcrumbTrail.length - 1 ? 'breadcrumb-current' : 'breadcrumb-group'">{{ seg }}</span>
               </el-breadcrumb-item>
             </template>
           </el-breadcrumb>
@@ -108,15 +113,43 @@
       </el-main>
     </el-container>
 
+    <!-- 移动端抽屉菜单（≤768px 顶栏 ☰ 打开·桌面端开关不可见故永不弹出·路由跳转后自动收起） -->
+    <el-drawer
+      v-model="mobileMenuOpen"
+      direction="ltr"
+      size="240px"
+      :with-header="false"
+      class="mobile-drawer"
+    >
+      <div class="brand">
+        <BrandLogo
+          :compact="false"
+          :title="BRAND.name"
+          subtitle="管理后台"
+        />
+      </div>
+      <div class="menu-scroll mobile-menu-scroll">
+        <el-menu
+          router
+          :default-active="route.path"
+          background-color="transparent"
+          text-color="rgba(255,255,255,0.6)"
+          active-text-color="#C9A96E"
+        >
+          <SidebarMenu :items="auth.menus" />
+        </el-menu>
+      </div>
+    </el-drawer>
+
     <!-- 全局悬浮运营助手（答疑指导 + 反馈问题） -->
     <AdminAssistant />
   </el-container>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { ref, computed, watch, onMounted } from "vue";
 import { useRouter, useRoute } from "vue-router";
-import { useAuthStore } from "@/store/auth";
+import { useAuthStore, type MenuItem } from "@/store/auth";
 import SidebarMenu from "@/components/SidebarMenu.vue";
 import AdminAssistant from "@/components/AdminAssistant.vue";
 import ConnectionStatus from "@/components/ConnectionStatus.vue";
@@ -130,6 +163,33 @@ const auth = useAuthStore();
 const isCollapse = ref(false);
 const unreadCount = ref(0);
 const mobileMenuOpen = ref(false);
+
+// 路由跳转后自动收起移动端抽屉（点菜单项即关）
+watch(
+  () => route.fullPath,
+  () => { mobileMenuOpen.value = false; },
+);
+
+// 面包屑完整层级：在菜单树（lib/menu-structure 分组结构·经 buildMenus 生成的 auth.menus）中
+// 定位当前路由，收集祖先分组名 → "分组 / 子分组 / 当前页"；首页本身或菜单外页面回退到 meta.title
+const breadcrumbTrail = computed<string[]>(() => {
+  const path = route.path;
+  if (path === "/dashboard") return []; // 首页只显示"首页"，不重复"工作台"
+  const find = (nodes: MenuItem[], trail: string[]): string[] | null => {
+    for (const n of nodes) {
+      if (n.path === path) return [...trail, n.title];
+      if (n.children) {
+        const hit = find(n.children, [...trail, n.title]);
+        if (hit) return hit;
+      }
+    }
+    return null;
+  };
+  const hit = find(auth.menus, []);
+  if (hit) return hit;
+  const title = route.meta.title as string | undefined;
+  return title && title !== "首页" ? [title] : [];
+});
 
 async function fetchUnread() {
   try {
@@ -283,8 +343,13 @@ function logout() {
   font-size: 14px;
   transition: transform var(--transition-base);
 }
+/* hover 时箭头朝动作方向微移：展开态(«)向左示意收起·收起态(»)向右示意展开
+   （原来把 JS 三元写进了 CSS 值·整条规则无效·改为 .is-collapsed class 绑定） */
 .aside-footer:hover .collapse-icon {
-  transform: translateX(isCollapse ? 4px : -4px);
+  transform: translateX(-4px);
+}
+.aside-footer.is-collapsed:hover .collapse-icon {
+  transform: translateX(4px);
 }
 
 /* ═══════════════════════ 顶栏 ═══════════════════════ */
@@ -322,6 +387,25 @@ function logout() {
 }
 @media (max-width: 768px) {
   .mobile-toggle { display: block; }
+  /* 移动端隐藏固定侧栏（220px 会挤没内容区）·菜单改走 ☰ 抽屉·桌面布局零变化 */
+  .aside { display: none; }
+}
+
+/* ── 移动端抽屉菜单（复用侧栏暗色视觉·未 append-to-body 故 :deep 可达）
+   兼容 class 落在抽屉面板或 overlay 两种版本行为 ── */
+:deep(.el-drawer.mobile-drawer),
+:deep(.mobile-drawer .el-drawer) {
+  background: var(--gradient-dark);
+}
+:deep(.mobile-drawer .el-drawer__body) {
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.mobile-menu-scroll {
+  flex: 1;
+  overflow-y: auto;
 }
 
 /* 面包屑 */
@@ -337,6 +421,11 @@ function logout() {
   margin: 0 8px;
   color: var(--color-divider);
   font-size: var(--font-size-small);
+}
+.breadcrumb-group {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-caption);
+  cursor: default;
 }
 .breadcrumb-current {
   color: var(--color-text-title);

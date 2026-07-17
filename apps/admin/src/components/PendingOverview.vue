@@ -64,6 +64,10 @@ const QUEUES: QueueDef[] = [
   { title: "圈子退款", link: "/circle-refunds", url: "/circle-refund/admin-pending" },
   { title: "圈子申诉", link: "/circle-appeals", url: "/circle-governance/admin/appeals", params: { ...P1, status: "PENDING" } },
   { title: "通话账单申诉", link: "/call-disputes", url: "/consult-calls/admin/disputes", params: { ...P1, status: "PENDING" } },
+  // 补齐三缺口（2026-07-18）：举报/用户申诉走列表端点 status=PENDING 取 total；
+  // 悬赏审核（/admin/bounty/reviews）后端不支持 status 过滤、total 是全量非待审数，接了会虚报，暂不接（待后端补）
+  { title: "举报处理", link: "/reports", url: "/interaction/report", params: { ...P1, status: "PENDING" } },
+  { title: "用户申诉", link: "/risk/appeals", url: "/risk-control/appeals", params: { ...P1, status: "PENDING" } },
   { title: "实名审核", link: "/users/identity", url: "/identity/admin/audit-list", params: { ...P1, status: "PENDING" } },
   { title: "讲师认证", link: "/teacher/certifications", url: "/teacher/certifications", params: { ...P1, status: "PENDING" } },
   { title: "商家入驻审核", link: "/merchants", url: "/admin/merchants", params: { ...P1, status: "PENDING_REVIEW" } },

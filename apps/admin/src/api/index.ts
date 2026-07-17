@@ -187,6 +187,9 @@ export const contentApi = {
   remove: (id: string) => api.delete(`/contents/${id}`),
   batchStatus: (ids: string[], status: string) => api.put("/contents/batch/status", { ids, status }),
   stats: () => api.get("/contents/stats/overview"),
+  // 专用审核端点（仅改状态+理由·CONTENT_AUDITOR 可用·2026-07-18 Z1 批）
+  audit: (id: string, status: string, reason?: string) =>
+    api.put(`/contents/${id}/audit`, { status, reason }),
 };
 
 // 课程
@@ -196,7 +199,7 @@ export const courseApi = {
   create: (data: Record<string, unknown>) => api.post("/courses", data),
   update: (id: string, data: Record<string, unknown>) => api.put(`/courses/${id}`, data),
   remove: (id: string) => api.delete(`/courses/${id}`),
-  audit: (id: string, status: string) => api.put(`/courses/${id}/audit`, { status }),
+  audit: (id: string, status: string, reason?: string) => api.put(`/courses/${id}/audit`, { status, reason }),
   batchAudit: (ids: string[], status: string) => api.put("/courses/batch/audit", { ids, status }),
   forceDelete: (id: string) => api.delete(`/courses/${id}/force`),
   forceStatus: (id: string, status: string) => api.put(`/courses/${id}/status`, { status }),
@@ -928,8 +931,8 @@ export const notificationApi = {
 export const reportApi = {
   list: (params?: { page?: number; pageSize?: number; targetType?: string; status?: string }) =>
     api.get("/interaction/report", { params }),
-  process: (id: string) => api.put(`/interaction/report/${id}/process`),
-  dismiss: (id: string) => api.put(`/interaction/report/${id}/dismiss`),
+  process: (id: string, result?: string) => api.put(`/interaction/report/${id}/process`, { result }),
+  dismiss: (id: string, reason?: string) => api.put(`/interaction/report/${id}/dismiss`, { reason }),
 };
 
 // 商品管理（管理后台）
