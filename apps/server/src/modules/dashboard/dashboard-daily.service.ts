@@ -5,6 +5,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
+import { PAID_ORDER_STATUSES } from "./order-status.constants";
 
 const DAY_MS = 86_400_000;
 /** 模块热度 Top N */
@@ -24,7 +25,7 @@ export interface DailyMetrics {
   d7Retention?: number;
   /** B 端活跃：当日活跃用户中拥有 B 端身份（站长/商家/圈主/驿站主/认证讲师）的去重数（D-T3·生态健康核心数） */
   bActiveCount?: number;
-  /** 当日 GMV：paidAt 当日且已支付（非 PENDING/CANCELLED）订单实付和 */
+  /** 当日 GMV：paidAt 当日且为已支付有效单（PAID/SHIPPED/COMPLETED）订单实付和 */
   gmv: number;
   /** 当日支付成功订单数 */
   ordersPaid: number;
@@ -114,9 +115,9 @@ export class DashboardDailyService {
       }),
       this.prisma.trackEvent.count({ where: { action: "page_view", createdAt: range } }),
       this.prisma.user.count({ where: { createdAt: range } }),
-      // gmv/ordersPaid：paidAt 当日且已支付（含后续 SHIPPED/COMPLETED/REFUNDED，GMV=支付口径）
+      // gmv/ordersPaid：paidAt 当日且为已支付有效单（PAID/SHIPPED/COMPLETED·统一营收口径·排除退款/取消）
       this.prisma.order.findMany({
-        where: { paidAt: range, status: { notIn: ["PENDING", "CANCELLED"] } },
+        where: { paidAt: range, status: { in: PAID_ORDER_STATUSES } },
         select: { payAmount: true, amount: true },
       }),
       this.prisma.memberPurchase.count({ where: { paidAt: range } }),
@@ -248,7 +249,7 @@ export class DashboardDailyService {
         distinct: ["userId"],
       }),
       this.prisma.trackEvent.count({ where: { action: "page_view", createdAt: range } }),
-      this.prisma.order.count({ where: { paidAt: range, status: { notIn: ["PENDING", "CANCELLED"] } } }),
+      this.prisma.order.count({ where: { paidAt: range, status: { in: PAID_ORDER_STATUSES } } }),
     ]);
     return { date, dau: dauRows.length, pv, ordersPaid };
   }

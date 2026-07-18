@@ -7,6 +7,14 @@ export class AuditListQueryDto {
   @IsOptional() @IsString()
   userId?: string;
 
+  @ApiPropertyOptional({ description: "操作人ID（等价于 userId，前端字段兼容）" })
+  @IsOptional() @IsString()
+  operatorId?: string;
+
+  @ApiPropertyOptional({ description: "关键词（模糊匹配 detail/action）" })
+  @IsOptional() @IsString()
+  keyword?: string;
+
   @ApiPropertyOptional({ description: "操作类型" })
   @IsOptional() @IsString()
   action?: string;
@@ -164,6 +172,10 @@ export class ContentAuditReviewDto {
 export class OperationLogListQueryDto {
   @ApiPropertyOptional({ description: "用户ID" })
   @IsOptional() @IsString() userId?: string;
+  @ApiPropertyOptional({ description: "操作人ID（等价于 userId，前端字段兼容）" })
+  @IsOptional() @IsString() operatorId?: string;
+  @ApiPropertyOptional({ description: "关键词（模糊匹配 action/targetType/targetId）" })
+  @IsOptional() @IsString() keyword?: string;
   @ApiPropertyOptional({ description: "操作类型" })
   @IsOptional() @IsString() action?: string;
   @ApiPropertyOptional({ description: "目标类型" })

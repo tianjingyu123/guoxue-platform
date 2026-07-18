@@ -1,4 +1,5 @@
 import { Test } from "@nestjs/testing";
+import { SchedulerRegistry } from "@nestjs/schedule";
 import { SystemService } from "./system.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
@@ -32,6 +33,7 @@ describe("SystemService", () => {
         { provide: RedisService, useValue: mockRedis },
         { provide: AuditService, useValue: mockAudit },
         { provide: ThirdPartyConfigLoader, useValue: mockThirdParty },
+        { provide: SchedulerRegistry, useValue: { getCronJobs: jest.fn().mockReturnValue(new Map()) } },
       ],
     }).compile();
     svc = mod.get(SystemService);

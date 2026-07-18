@@ -67,10 +67,15 @@ export class SystemController {
   @ApiQuery({ name: "keyPrefix", required: false, type: String, description: "按 key 前缀过滤" })
   async listConfigs(@Query("keyPrefix") keyPrefix?: string) {
     const configs = await this.systemService.getAllConfigs();
+    // 配置卫生：运营机器人日志（operation_robot_logs* 等）被写入 ConfigSystem 污染了配置列表，
+    // 列表端点前缀过滤掉这类日志键（数据不动，仅不在配置管理页展示）。
+    const LOG_KEY_PREFIXES = ["operation_robot_logs", "robot_logs"];
+    const isLogKey = (key?: string) => !!key && LOG_KEY_PREFIXES.some((p) => key.startsWith(p));
+    const cleaned = configs.filter((c: any) => !isLogKey(c.configKey));
     if (keyPrefix) {
-      return { configs: configs.filter((c: any) => c.configKey?.startsWith(keyPrefix)) };
+      return { configs: cleaned.filter((c: any) => c.configKey?.startsWith(keyPrefix)) };
     }
-    return { configs };
+    return { configs: cleaned };
   }
 
   @Post("configs")
@@ -473,6 +478,19 @@ export class SystemController {
   @ApiQuery({ name: "limit", required: false, description: "返回最近 N 条记录", example: "10" })
   async getCronStatus(@Query("limit") limit = "10") {
     return { jobs: await this.systemService.getRecentCronJobs(Number(limit)) };
+  }
+
+  @Get("cron")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "定时任务总览（进程内真实注册的 @Cron 任务 + DB 执行记录合并）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
+  @ApiBearerAuth()
+  @ApiQuery({ name: "limit", required: false, description: "合并的最近执行记录条数", example: "20" })
+  async getCronJobs(@Query("limit") limit = "20") {
+    return this.systemService.getCronJobs(Number(limit));
   }
 
   // ───────── 数据导出 ─────────

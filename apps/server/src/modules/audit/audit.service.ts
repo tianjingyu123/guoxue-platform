@@ -772,8 +772,24 @@ export class AuditService {
     return updated;
   }
 
+  /**
+   * 日期区间 → UTC 范围（按 Asia/Shanghai 日历日解释 YYYY-MM-DD，前端选"某天"即北京自然日）。
+   * 已含时间的 ISO 串按原值解析。审计/操作日志的 createdAt 始终以 UTC ISO 返回，由前端本地格式化，
+   * 避免"操作日志 16:30 vs 审计日志 23:30"这类因区间/展示时区不一致造成的错位。
+   */
+  private buildCreatedAtRange(startDate?: string, endDate?: string): { gte?: Date; lte?: Date } | undefined {
+    if (!startDate && !endDate) return undefined;
+    const isDateOnly = (s: string) => /^\d{4}-\d{2}-\d{2}$/.test(s);
+    const range: { gte?: Date; lte?: Date } = {};
+    if (startDate) range.gte = isDateOnly(startDate) ? new Date(`${startDate}T00:00:00.000+08:00`) : new Date(startDate);
+    if (endDate) range.lte = isDateOnly(endDate) ? new Date(`${endDate}T23:59:59.999+08:00`) : new Date(endDate);
+    return range;
+  }
+
   async list(params: {
     userId?: string;
+    operatorId?: string;
+    keyword?: string;
     action?: string;
     targetType?: string;
     targetId?: string;
@@ -784,15 +800,21 @@ export class AuditService {
   }) {
     const { page, pageSize, skip } = safePagination(params.page, params.pageSize, NO_PAGE_LIMIT);
     const where: Prisma.AuditLogWhereInput = {};
-    if (params.userId) where.userId = params.userId;
+    // operatorId 与 userId 等价（前端字段兼容），任一命中即按操作人过滤
+    const operator = params.userId || params.operatorId;
+    if (operator) where.userId = operator;
     if (params.action) where.action = params.action;
     if (params.targetType) where.targetType = params.targetType;
     if (params.targetId) where.targetId = params.targetId;
-    if (params.startDate || params.endDate) {
-      where.createdAt = {};
-      if (params.startDate) where.createdAt.gte = new Date(params.startDate);
-      if (params.endDate) where.createdAt.lte = new Date(params.endDate + "T23:59:59.999Z");
+    const keyword = params.keyword?.trim();
+    if (keyword) {
+      where.OR = [
+        { detail: { contains: keyword, mode: "insensitive" } },
+        { action: { contains: keyword, mode: "insensitive" } },
+      ];
     }
+    const createdAt = this.buildCreatedAtRange(params.startDate, params.endDate);
+    if (createdAt) where.createdAt = createdAt;
 
     const [logs, total] = await Promise.all([
       this.prisma.auditLog.findMany({
@@ -817,6 +839,8 @@ export class AuditService {
 
   async listOperationLogs(params: {
     userId?: string;
+    operatorId?: string;
+    keyword?: string;
     action?: string;
     targetType?: string;
     targetId?: string;
@@ -827,15 +851,23 @@ export class AuditService {
   }) {
     const { page, pageSize, skip } = safePagination(params.page, params.pageSize, NO_PAGE_LIMIT);
     const where: Prisma.OperationLogWhereInput = {};
-    if (params.userId) where.userId = params.userId;
+    // operatorId 与 userId 等价（前端字段兼容）
+    const operator = params.userId || params.operatorId;
+    if (operator) where.userId = operator;
     if (params.action) where.action = params.action;
     if (params.targetType) where.targetType = params.targetType;
     if (params.targetId) where.targetId = params.targetId;
-    if (params.startDate || params.endDate) {
-      where.createdAt = {};
-      if (params.startDate) where.createdAt.gte = new Date(params.startDate);
-      if (params.endDate) where.createdAt.lte = new Date(params.endDate + "T23:59:59.999Z");
+    const keyword = params.keyword?.trim();
+    if (keyword) {
+      // OperationLog.detail 为 Json 无法 contains，关键词匹配 action/targetType/targetId
+      where.OR = [
+        { action: { contains: keyword, mode: "insensitive" } },
+        { targetType: { contains: keyword, mode: "insensitive" } },
+        { targetId: { contains: keyword, mode: "insensitive" } },
+      ];
     }
+    const createdAt = this.buildCreatedAtRange(params.startDate, params.endDate);
+    if (createdAt) where.createdAt = createdAt;
 
     const [logs, total] = await Promise.all([
       this.prisma.operationLog.findMany({

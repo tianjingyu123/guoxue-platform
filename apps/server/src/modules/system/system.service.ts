@@ -1,4 +1,5 @@
 import { Injectable, Logger } from "@nestjs/common";
+import { SchedulerRegistry } from "@nestjs/schedule";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { Prisma } from "@prisma/client";
@@ -20,6 +21,7 @@ export class SystemService {
     private redis: RedisService,
     private audit: AuditService,
     private thirdParty: ThirdPartyConfigLoader,
+    private scheduler: SchedulerRegistry,
   ) {}
 
   async getAllConfigs() {
@@ -688,6 +690,53 @@ export class SystemService {
       orderBy: { createdAt: "desc" },
       take: limit,
     });
+  }
+
+  /**
+   * 定时任务总览（修复"/system/cron 页空转"）：
+   * - registered：SchedulerRegistry 真实注册的 @Cron 任务（进程内实际在跑），含名称/cron 表达式/下次执行时间；
+   *   这些任务不落 OperationLog，故只查 DB 会显示为空（页面空转的根因）。
+   * - recent：DB 中 Webhook 触发型 cron（action=cron.*）的最近执行记录，与注册任务合并展示。
+   */
+  async getCronJobs(recentLimit = 20) {
+    const registered: Array<{ name: string; cronTime: string | null; nextRun: string | null; running: boolean }> = [];
+    try {
+      const jobs = this.scheduler.getCronJobs();
+      for (const [name, job] of jobs) {
+        let nextRun: string | null = null;
+        let cronTime: string | null = null;
+        try {
+          const nd = (job as { nextDate?: () => unknown }).nextDate?.();
+          nextRun = this.toIso(nd);
+        } catch { nextRun = null; }
+        try {
+          // cronTime.source 在不同版本形态各异，尽量取到表达式字符串
+          const ct = (job as { cronTime?: { source?: unknown } }).cronTime;
+          cronTime = ct?.source != null ? String(ct.source) : null;
+        } catch { cronTime = null; }
+        let running = false;
+        try { running = Boolean((job as { running?: boolean }).running); } catch { running = false; }
+        registered.push({ name, cronTime, nextRun, running });
+      }
+    } catch (err) {
+      this.logger.warn(`枚举注册 cron 失败: ${err instanceof Error ? err.message : String(err)}`);
+    }
+    registered.sort((a, b) => a.name.localeCompare(b.name));
+
+    const recent = await this.getRecentCronJobs(recentLimit);
+    return { registered, registeredCount: registered.length, recent };
+  }
+
+  /** 将 luxon DateTime / Date / 字符串统一转 UTC ISO（cron 下次执行时间展示） */
+  private toIso(v: unknown): string | null {
+    if (v == null) return null;
+    if (v instanceof Date) return v.toISOString();
+    const anyV = v as { toISO?: () => string; toJSDate?: () => Date; toString?: () => string };
+    if (typeof anyV.toISO === "function") { try { return anyV.toISO(); } catch { /* noop */ } }
+    if (typeof anyV.toJSDate === "function") { try { return anyV.toJSDate().toISOString(); } catch { /* noop */ } }
+    const s = String(v);
+    const d = new Date(s);
+    return Number.isNaN(d.getTime()) ? s : d.toISOString();
   }
 
   // ── 后台定时任务 ──

@@ -21,7 +21,8 @@ export class BigScreenAuthGuard implements CanActivate {
       const record = await this.prisma.bigScreenToken.findUnique({ where: { token } });
 
       if (!record) throw new UnauthorizedException("无效的大屏令牌");
-      if (record.status !== "APPROVED") throw new UnauthorizedException("令牌未审批或已撤销");
+      // 审批态兼容：审批服务写 ACTIVE，历史/文档口径为 APPROVED，两值均视为有效（存量兼容）
+      if (record.status !== "APPROVED" && record.status !== "ACTIVE") throw new UnauthorizedException("令牌未审批或已撤销");
 
       const now = new Date();
       if (now < record.validFrom || now > record.validTo) {
