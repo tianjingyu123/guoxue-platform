@@ -26,12 +26,15 @@ export class OfflineCourseService {
 
   // ───────── 线下课程 ─────────
 
+  // 🔴 契约防再犯（2026-07-17 审计核实）：
+  // 1) OfflineCourse.price 单位=元（schema Decimal(10,2)，非分）——前后端展示/入库均按元，勿再 ×100 或 /100；
+  // 2) 列表返回键 courses（listOfflineCourses 等）为既有前端契约，保持不改名（前端并行对齐）。
   async createOfflineCourse(userId: string, dto: { stationId: string; title: string; cover?: string; intro?: string; teacherId?: string; price?: number; maxStudents: number; startTime: string; endTime: string; location: string }) {
     await this.shared.assertStationOwner(userId, dto.stationId);
     return this.prisma.offlineCourse.create({
       data: {
         ...dto,
-        price: dto.price ?? 0,
+        price: dto.price ?? 0, // 单位=元（Decimal(10,2)）
         startTime: new Date(dto.startTime),
         endTime: new Date(dto.endTime),
       },

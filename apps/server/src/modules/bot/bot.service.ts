@@ -132,8 +132,12 @@ export class BotService {
   async update(id: string, dto: UpdateBotDto) {
     const existing = await this.prisma.botConfig.findUnique({ where: { id } });
     if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "智能体配置不存在");
-    const data: Prisma.BotConfigUpdateInput = { ...dto };
-    if (dto.apiKey) data.apiKey = encrypt(dto.apiKey);
+    // apiKey/botId 传空串或缺省 = 保留原值（改价格/排序等无需重输令牌）。
+    // 🔴 原实现 `{ ...dto }` 会把 apiKey:"" 原样落库，管理端表单空提交即抹掉已配置的 Coze 令牌
+    const { apiKey, botId, ...rest } = dto;
+    const data: Prisma.BotConfigUpdateInput = { ...rest };
+    if (apiKey) data.apiKey = encrypt(apiKey);
+    if (botId) data.botId = botId;
     return this.prisma.botConfig.update({ where: { id }, data });
   }
 
@@ -167,6 +171,33 @@ export class BotService {
     return bots
       .filter((b) => this.isConfigured(b))
       .map(({ apiKey: _apiKey, ...rest }) => rest);
+  }
+
+  /** apiKey 掩码：只露 sk_*** + 末 4 位（存量密文先解密再取尾，解密失败走明文兼容取尾） */
+  private maskApiKey(storedApiKey: string | null | undefined): string {
+    if (!storedApiKey) return "";
+    const plain = decrypt(storedApiKey); // decrypt 对非密文（明文旧数据/占位）原样返回，不抛错
+    if (plain.length <= 4) return "sk_***";
+    return `sk_***${plain.slice(-4)}`;
+  }
+
+  /**
+   * 管理端列表：返回全部智能体（含占位凭证/非 ACTIVE），供后台盘点与换发 Coze 新令牌。
+   * - apiKey 永不明文下发，只回掩码 apiKeyMask（sk_*** + 末4位）
+   * - isConfigured 布尔标注凭证是否真实可用（占位=false·即 C 端广场已下架项）
+   */
+  async adminList(type?: string) {
+    const where: Prisma.BotConfigWhereInput = {};
+    if (type) where.type = type;
+    const bots = await this.prisma.botConfig.findMany({
+      where,
+      orderBy: { sortOrder: "asc" },
+      take: 200,
+    });
+    return bots.map((b) => {
+      const { apiKey, ...rest } = b;
+      return { ...rest, apiKeyMask: this.maskApiKey(apiKey), isConfigured: this.isConfigured(b) };
+    });
   }
 
   async getDetail(id: string) {

@@ -154,6 +154,16 @@ describe("BotService", () => {
       const result = await svc.update("b1", { name: "新名称" });
       expect(result.name).toBe("新名称");
     });
+
+    it("apiKey/botId 传空串或缺省时保留原值（不落库覆盖）", async () => {
+      mockPrisma.botConfig.findUnique.mockResolvedValue({ id: "b1", name: "旧名称" });
+      mockPrisma.botConfig.update.mockResolvedValue({ id: "b1" });
+      await svc.update("b1", { apiKey: "", botId: "", sortOrder: 3 } as any);
+      const data = mockPrisma.botConfig.update.mock.calls[0][0].data;
+      expect(data).not.toHaveProperty("apiKey");
+      expect(data).not.toHaveProperty("botId");
+      expect(data.sortOrder).toBe(3);
+    });
   });
 
   describe("delete", () => {
@@ -166,10 +176,19 @@ describe("BotService", () => {
   });
 
   describe("list", () => {
-    it("列出所有活跃智能体", async () => {
-      mockPrisma.botConfig.findMany.mockResolvedValue([{ id: "b1", name: "助手" }]);
+    it("列出所有活跃智能体（凭证真实可用才下发·2026-07-17 拍板占位=下架）", async () => {
+      mockPrisma.botConfig.findMany.mockResolvedValue([{ id: "b1", name: "助手", botId: "734829102938", apiKey: "sk_real_1234" }]);
       const result = await svc.list();
       expect(result).toHaveLength(1);
+      expect(result[0]).not.toHaveProperty("apiKey");
+    });
+
+    it("占位凭证（coze_ 前缀 botId / sk_dev_placeholder）在 C 端列表被过滤", async () => {
+      mockPrisma.botConfig.findMany.mockResolvedValue([
+        { id: "b1", name: "占位", botId: "coze_customer_001", apiKey: "sk_dev_placeholder" },
+      ]);
+      const result = await svc.list();
+      expect(result).toHaveLength(0);
     });
 
     it("按类型过滤", async () => {
@@ -185,6 +204,25 @@ describe("BotService", () => {
       await svc.list();
       expect(mockPrisma.botConfig.findMany).toHaveBeenCalledWith(
         expect.objectContaining({ where: { status: "ACTIVE" } }),
+      );
+    });
+  });
+
+  describe("adminList", () => {
+    it("管理端返回全部（含占位）·apiKey 只回掩码 + isConfigured 布尔", async () => {
+      mockPrisma.botConfig.findMany.mockResolvedValue([
+        { id: "b1", name: "真实", botId: "734829102938", apiKey: "sk_real_1234" },
+        { id: "b2", name: "占位", botId: "coze_customer_001", apiKey: "sk_dev_placeholder" },
+      ]);
+      const result = await svc.adminList();
+      expect(result).toHaveLength(2);
+      expect(result[0]).not.toHaveProperty("apiKey");
+      expect(result[0].apiKeyMask).toBe("sk_***1234");
+      expect(result[0].isConfigured).toBe(true);
+      expect(result[1].isConfigured).toBe(false);
+      // 管理端不按 status=ACTIVE 过滤（下架/占位也要能盘点与换令牌）
+      expect(mockPrisma.botConfig.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: {} }),
       );
     });
   });

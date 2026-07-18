@@ -108,6 +108,7 @@ export class OfflineTeacherService {
     });
   }
 
+  // 契约防再犯：列表返回键 teachers 为既有前端契约，保持不改名（前端并行对齐）
   async listTeachers(stationId?: string, rawPage = 1, rawPageSize = 20) {
     const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
     const where: Prisma.StationTeacherWhereInput = {};

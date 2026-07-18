@@ -103,6 +103,19 @@ export class BotController {
     return this.svc.list(type);
   }
 
+  @Get("admin/list")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "管理端智能体列表（含占位凭证/全状态·apiKey 只回掩码 sk_***后4位 + isConfigured）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
+  @ApiBearerAuth()
+  @ApiQuery({ name: "type", required: false, type: String, description: "智能体类型" })
+  adminList(@Query("type") type?: string) {
+    return this.svc.adminList(type);
+  }
+
   @Get("ranking")
   @ApiOperation({ summary: "智能体热度排行" })
   @ApiResponse({ status: 200, description: "成功" })

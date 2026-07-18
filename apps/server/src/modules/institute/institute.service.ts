@@ -456,7 +456,17 @@ export class InstituteService {
   // 管理层中心
   // ════════════════════════════════════════
 
-  private async assertManagement(userId: string) {
+  /**
+   * 管理层守卫。
+   * @param opts.asAdmin 平台管理角色豁免（SUPER_ADMIN/OPERATION_ADMIN/FINANCE_ADMIN·由 controller 判角色后传入，
+   *        service 不自行判角色）：无需研究院会籍即可进入，视角落到默认研究院。C 端调用不传 opts，行为零变化。
+   */
+  private async assertManagement(userId: string, opts?: { asAdmin?: boolean }) {
+    if (opts?.asAdmin) {
+      const institute = await this.prisma.institute.findFirst({ select: { id: true } });
+      if (!institute) throw new BusinessException(ErrorCode.NOT_FOUND, "研究院尚未建立");
+      return { id: "", instituteId: institute.id, role: "PRESIDENT" as InstituteRole, status: "ACTIVE" };
+    }
     // 多院化：直接按「ACTIVE 管理层会籍」查找（findFirst·防止 PENDING 记录绕过授权的语义不变）
     const member = await this.prisma.instituteMember.findFirst({
       where: { userId, status: "ACTIVE", role: { in: MGMT_ROLES } },
@@ -531,8 +541,9 @@ export class InstituteService {
     });
   }
 
-  async getFinanceOverview(userId: string, period?: string) {
-    await this.assertManagement(userId);
+  async getFinanceOverview(userId: string, period?: string, opts?: { asAdmin?: boolean }) {
+    // 财务概览（只读）：平台管理角色可 asAdmin 豁免会籍；分红发放等资金写操作不豁免，仍须真实管理层会籍
+    await this.assertManagement(userId, opts);
     const where: Prisma.InstituteRevenueWhereInput = {};
     const dividendWhere: Prisma.InstituteDividendWhereInput = {};
 

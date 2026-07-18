@@ -278,12 +278,16 @@ export class InstituteController {
 
   @Get("manage/finance")
   @UseGuards(JwtAuthGuard)
-  @ApiOperation({ summary: "研究院财务概览" })
+  @ApiOperation({ summary: "研究院财务概览（研究院管理层；平台 SUPER/OPERATION/FINANCE_ADMIN 免会籍可查）" })
   @ApiResponse({ status: 200, description: "成功" })
   @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "仅研究院管理层可操作" })
   @ApiBearerAuth()
   manageFinance(@Req() req: Request, @Query("period") period?: string) {
-    return this.svc.getFinanceOverview(req.user.id, period);
+    // 平台管理角色（含财务）后台查账免研究院会籍；C 端（非管理角色）走原管理层会籍校验，行为零变化
+    const roles = req.user.roles ?? [];
+    const asAdmin = ["SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN"].some((r) => roles.includes(r as (typeof roles)[number]));
+    return this.svc.getFinanceOverview(req.user.id, period, { asAdmin });
   }
 
   @Post("manage/dividends")

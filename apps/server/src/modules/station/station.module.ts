@@ -1,7 +1,7 @@
 import { Module } from "@nestjs/common";
 import { StationService } from "./station.service";
 import { StationController } from "./station.controller";
-import { StationDashboardController, OperatorDashboardController } from "./station-dashboard.controller";
+import { StationDashboardController, OperatorDashboardController, StationAdminOverviewController } from "./station-dashboard.controller";
 import { StationDashboardService } from "./station-dashboard.service";
 import { AdminReferralController } from "./admin-referral.controller";
 import { AdminReferralService } from "./admin-referral.service";
@@ -19,7 +19,7 @@ import { TrackModule } from "../track/track.module";
 
 @Module({
   imports: [RedisModule, MarketingModule, TrackModule],
-  controllers: [StationController, AdminReferralController, PromotionController, StationDashboardController, OperatorDashboardController, StationMicroPageController, StationPinnedController],
+  controllers: [StationController, AdminReferralController, PromotionController, StationDashboardController, OperatorDashboardController, StationAdminOverviewController, StationMicroPageController, StationPinnedController],
   providers: [StationService, AdminReferralService, PromotionService, StationDashboardService, StationPaipanSyncService, TeamTaskService, StationPinnedService, StationBillingService],
   exports: [StationService, AdminReferralService, PromotionService, StationDashboardService, StationPaipanSyncService, TeamTaskService, StationBillingService],
 })

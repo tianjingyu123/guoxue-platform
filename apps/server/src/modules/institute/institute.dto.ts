@@ -138,13 +138,14 @@ export class UpdateLecturerLevelDto {
 }
 
 export class CreateTaskTemplateDto {
+  // 字段名 title/requiredCount/periodUnit 为既有前后端契约，保持不改（前端并行对齐）；仅校验消息人话化
   @ApiProperty({ description: "任务类型: SALON/LIVE/ARTICLE/OFFLINE_EVENT/CIRCLE_MEMBER_COUNT/CIRCLE_DAYS" })
-  @IsString()
+  @IsString({ message: "任务类型必填" })
   taskType: string;
 
   @ApiProperty({ description: "任务标题" })
-  @IsString()
-  @MinLength(1)
+  @IsString({ message: "任务名称必填" })
+  @MinLength(1, { message: "任务名称必填" })
   title: string;
 
   @ApiPropertyOptional({ description: "说明" })
@@ -153,16 +154,16 @@ export class CreateTaskTemplateDto {
 
   @ApiPropertyOptional({ description: "年度要求完成次数", default: 1 })
   @Type(() => Number)
-  @IsOptional() @IsInt()
+  @IsOptional() @IsInt({ message: "要求完成次数需为整数" })
   requiredCount?: number;
 
   @ApiPropertyOptional({ description: "周期单位: MONTH/QUARTER/YEAR", default: "YEAR" })
-  @IsOptional() @IsString()
+  @IsOptional() @IsString({ message: "周期单位格式不正确" })
   periodUnit?: string;
 
   @ApiPropertyOptional({ description: "排序" })
   @Type(() => Number)
-  @IsOptional() @IsInt()
+  @IsOptional() @IsInt({ message: "排序值需为整数" })
   sortOrder?: number;
 }
 
