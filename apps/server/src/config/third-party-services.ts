@@ -242,6 +242,17 @@ export const THIRD_PARTY_SERVICES: ThirdPartyService[] = [
       S("apiBase", "Coze API 域名", ["COZE_API_BASE"], false, "国内版填 https://api.coze.cn（默认，一般不用改）；海外版填 https://api.coze.com", "https://api.coze.cn"),
     ],
   },
+  {
+    key: "hunyuan_embedding", label: "腾讯混元 Embedding（语义向量·内容理解内核）", category: "AI",
+    note: "★内容语义向量化内核：把文章/短视频/课程/商品/古籍/圈子帖等内容转成 1024 维语义向量，用于「猜你喜欢/相关推荐/智能客服召回」等真语义理解（替换过去的字符哈希降级）。★可直接复用平台已有的腾讯云密钥（同一个腾讯云账号，混元也是腾讯云服务）：下面 SecretId/SecretKey 留空即自动复用『腾讯云(通用)』或『COS』里已填的那一对；也可单独填。使用前请先在腾讯云控制台开通『混元大模型』服务。填好后把『启用』设为 true 即可生效。",
+    fields: [
+      S("secretId", "SecretId（可留空复用腾讯云）", ["HUNYUAN_SECRET_ID"], false, "留空则自动复用『腾讯云(通用)』或『COS』已填的 SecretId；如需单独用另一对密钥再填。CAM→API密钥管理，AKID 开头的那串"),
+      S("secretKey", "SecretKey（可留空复用腾讯云）", ["HUNYUAN_SECRET_KEY"], true, "留空则自动复用『腾讯云(通用)』或『COS』的 SecretKey；敏感·加密存储·掩码显示·留空不覆盖已存值"),
+      S("region", "服务地域", ["HUNYUAN_EMBEDDING_REGION"], false, "默认 ap-guangzhou，一般不用改；仅当在其它地域开通混元时才需改", "ap-guangzhou"),
+      S("model", "模型", ["HUNYUAN_EMBEDDING_MODEL"], false, "混元 embedding 模型名，默认官方 hunyuan-embedding（GetEmbedding 接口固定输出 1024 维，一般不用改）", "hunyuan-embedding"),
+      S("enabled", "启用（true/false）", ["HUNYUAN_EMBEDDING_ENABLED"], false, "填 true 开启用混元真语义向量；留空或填 false 则继续用降级方案（TF-IDF/字符哈希），不产生调用费用。开启前确认已在腾讯云控制台开通『混元大模型』并已配好上面的密钥（或复用腾讯云通用密钥）", "false"),
+    ],
+  },
   // ───────── 其他 ─────────
   {
     key: "kuaidi100", label: "快递100（物流）", category: "物流",

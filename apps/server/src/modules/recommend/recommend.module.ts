@@ -22,6 +22,9 @@ import { ContextBuilderService } from "./services/context-builder.service";
 import { CrossSellStrategy } from "./strategies/cross-sell.strategy";
 import { TfidfVectorProvider } from "./strategies/tfidf-vector.provider";
 import { OpenAIEmbeddingProvider } from "./strategies/openai-embedding.provider";
+import { HunyuanEmbeddingProvider } from "./strategies/hunyuan-embedding.provider";
+import { ContentVectorizeService } from "./services/content-vectorize.service";
+import { ContentVectorizeTask } from "./tasks/content-vectorize.task";
 import { AbTestService } from "./services/ab-test.service";
 import { AbTestController } from "./ab-test.controller";
 import { SmartFeedService } from "./smart-feed.service";
@@ -67,6 +70,9 @@ import { StationPickModule } from "../station-pick/station-pick.module";
     CrossSellStrategy,
     TfidfVectorProvider,
     OpenAIEmbeddingProvider,
+    HunyuanEmbeddingProvider,
+    ContentVectorizeService,
+    ContentVectorizeTask,
     AbTestService,
     SmartFeedService,
     SemanticTaggerService,
@@ -80,6 +86,7 @@ import { StationPickModule } from "../station-pick/station-pick.module";
     RuleService,
     RecommendCacheService,
     SmartFeedService,
+    ContentVectorizeService,
   ],
 })
 export class RecommendModule {}

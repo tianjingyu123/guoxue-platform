@@ -2,6 +2,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
+import { HunyuanEmbeddingService } from "./hunyuan-embedding.service";
 
 interface VectorSearchResult {
   id: string;
@@ -82,7 +83,10 @@ export class VectorService {
   private embeddingApiAvailable = false;
   private embeddingApiChecked = false;
 
-  constructor(private readonly prisma: PrismaService) {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly hunyuan: HunyuanEmbeddingService,
+  ) {
     // Embedding 独立配置：优先 EMBEDDING_API_KEY，回退 DASHSCOPE（阿里百炼有真实 embedding），
     // 再回退 DEEPSEEK（注意 DeepSeek 无 embedding 端点，仅作最后兜底→会降级字符哈希）。
     this.embeddingApiKey =
@@ -146,8 +150,23 @@ export class VectorService {
     }
   }
 
-  /** 文本转向量 */
+  /**
+   * 文本转向量（三级优先：混元真语义 1024维 > 兼容 Embedding API > 本地字符哈希）。
+   * 混元启用时全程走 1024 维（真向量+同维字符哈希兜底），避免同库混维破坏余弦相似度。
+   */
   async embed(texts: string[]): Promise<number[][]> {
+    // 优先腾讯混元真语义向量
+    if (this.hunyuan.isEnabled) {
+      try {
+        const hy = await this.hunyuan.embedBatch(texts);
+        // 未命中项（本批 API 失败）用同维（1024）字符哈希兜底，保证维度一致
+        return texts.map((t, i) => hy[i] ?? textToSparseVector(t, this.hunyuan.dimension));
+      } catch (err: any) {
+        this.logger.warn(`混元向量异常，降级字符哈希(1024): ${err.message}`);
+        return texts.map((t) => textToSparseVector(t, this.hunyuan.dimension));
+      }
+    }
+
     await this.detectEmbeddingApi();
 
     if (this.embeddingApiAvailable) {

@@ -10,6 +10,7 @@ import { UserProfileStrategy } from "../strategies/user-profile.strategy";
 import { VectorRecallStrategy } from "../strategies/vector-recall.strategy";
 import { TfidfVectorProvider } from "../strategies/tfidf-vector.provider";
 import { OpenAIEmbeddingProvider } from "../strategies/openai-embedding.provider";
+import { HunyuanEmbeddingProvider } from "../strategies/hunyuan-embedding.provider";
 import { AbTestService } from "./ab-test.service";
 import { StrategyWeightOverride } from "../ab-test.dto";
 import { RecommendSelectService } from "./recommend-select.service";
@@ -31,11 +32,16 @@ export class RecommendSceneCoreService {
     private vectorRecall: VectorRecallStrategy,
     private tfidf: TfidfVectorProvider,
     private embedding: OpenAIEmbeddingProvider,
+    private hunyuan: HunyuanEmbeddingProvider,
     private abTest: AbTestService,
     private selectSvc: RecommendSelectService,
   ) {
-    // 优先使用 OpenAI/DeepSeek Embedding，其次 TF-IDF
-    this.vectorRecall.setProvider(this.embedding.isEnabled ? this.embedding : this.tfidf);
+    // 向量召回 provider 选择优先级：腾讯混元真语义（enabled） > OpenAI/DeepSeek（enabled） > TF-IDF（字符哈希为各 provider 内部兜底）
+    this.vectorRecall.setProvider(
+      this.hunyuan.isEnabled ? this.hunyuan
+      : this.embedding.isEnabled ? this.embedding
+      : this.tfidf,
+    );
   }
 
   async sceneEmptyState(ctx: RecommendContext): Promise<RecommendItem[]> {

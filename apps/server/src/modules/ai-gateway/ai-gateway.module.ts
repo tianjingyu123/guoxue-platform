@@ -4,6 +4,7 @@ import { AiGatewayService } from "./ai-gateway.service";
 import { ModelRouterService } from "./model-router.service";
 import { AiLoggerService } from "./ai-logger.service";
 import { VectorService } from "./vector.service";
+import { HunyuanEmbeddingService } from "./hunyuan-embedding.service";
 import { RagService } from "./rag.service";
 import { KnowledgeSyncService } from "./knowledge-sync.service";
 import { KnowledgeSyncController } from "./knowledge-sync.controller";
@@ -67,6 +68,7 @@ import { ZhixuanService } from "./zhixuan.service";
     StreamUnifierService,
     QualityScorerService,
     VectorService,
+    HunyuanEmbeddingService,
     RagService,
     KnowledgeSyncService,
     CustomerServiceService,
@@ -92,6 +94,6 @@ import { ZhixuanService } from "./zhixuan.service";
     AnomalyDetectorService,
     DataExplorerService,
   ],
-  exports: [AiGatewayService, ModelRouterService, AiLoggerService, VectorService, RagService, KnowledgeSyncService, SemanticCacheService, StreamUnifierService, MultiAgentService, MultimodalService, EdgeAiService, KnowledgeGraphService, UserKnowledgeService, PlatformKnowledgeService, AiEventBusService, CapabilityRegistryService, DecisionLedgerService, CollaborationService, AnomalyDetectorService, DataExplorerService],
+  exports: [AiGatewayService, ModelRouterService, AiLoggerService, VectorService, HunyuanEmbeddingService, RagService, KnowledgeSyncService, SemanticCacheService, StreamUnifierService, MultiAgentService, MultimodalService, EdgeAiService, KnowledgeGraphService, UserKnowledgeService, PlatformKnowledgeService, AiEventBusService, CapabilityRegistryService, DecisionLedgerService, CollaborationService, AnomalyDetectorService, DataExplorerService],
 })
 export class AiGatewayModule {}

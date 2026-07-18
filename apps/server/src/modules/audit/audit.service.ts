@@ -747,6 +747,12 @@ export class AuditService {
           ),
         );
       await Promise.all(target.cachePatterns.map((p) => this.redis.delByPattern(p))).catch(() => undefined);
+
+      // 🔗 内容向量化触发点（内容理解内核·事件驱动）：审核通过后算语义向量入推荐池、驳回后移除。
+      //    approved → ContentVectorizeService.onContentApproved(record.contentType, record.contentId)
+      //    !approved → ContentVectorizeService.onContentUnpublished(record.contentType, record.contentId)
+      //    当前为避免 audit↔recommend 循环依赖，由 ContentVectorizeTask 定时对账（reconcile）按 auditStatus 托底同步；
+      //    如需实时，可将 RecommendModule 导出的 ContentVectorizeService 注入本服务后在此调用（fire-and-forget + catch）。
     }
 
     // 审核无感化（第八节）：三类先发后审内容的人工改判驳回 = 轻度违规处置（降 SELF_ONLY + 温和站内信）
