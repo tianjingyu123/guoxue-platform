@@ -21,6 +21,17 @@ export interface TagsResult {
 }
 
 /**
+ * POST /ai/publish/typeset → { formatted, changed, warning? }
+ * - changed:true  → formatted 是排版好的 Markdown（AI 只加格式没改字，已过后端内容一致性校验）
+ * - changed:false → AI 排版时改动了文字被后端拒绝，formatted 是原文，warning 是提示语（不应替换用户内容）
+ */
+export interface TypesetResult {
+  formatted: string
+  changed: boolean
+  warning?: string
+}
+
+/**
  * POST /ai/publish/generate-cover
  * - 配置了腾讯云 AI 绘画：imageUrl 为 base64 data url（真实图）
  * - 未配置/失败：imageUrl=null + designPrompt（AI 生成的设计提示词文本）
@@ -42,4 +53,6 @@ export const publishAssistApi = {
   suggestTags: (content: string) => apiPost<TagsResult>('/ai/publish/suggest-tags', { content }),
   /** AI 封面图生成 */
   generateCover: (prompt: string) => apiPost<CoverResult>('/ai/publish/generate-cover', { prompt }),
+  /** AI 一键排版（只加 Markdown 格式不改字·后端内容一致性校验，changed=false 时 formatted 为原文不应替换） */
+  typeset: (text: string) => apiPost<TypesetResult>('/ai/publish/typeset', { text }),
 }

@@ -180,6 +180,11 @@
           <app-icon name="sparkles" :size="12" color="#C41E3A" />
           <text class="ai-chip-text red">创作助手</text>
         </view>
+        <!-- AI 一键排版：只加格式不改字（帖子/文章通用），排版中禁重复点 -->
+        <view class="ai-chip ai-purple" :class="{ disabled: typesetting }" @tap="handleTypeset">
+          <app-icon :name="typesetting ? 'loader-2' : 'type'" :size="12" color="#7c3aed" :class="{ spin: typesetting }" />
+          <text class="ai-chip-text purple">{{ typesetting ? 'AI排版中…' : 'AI排版' }}</text>
+        </view>
         <template v-if="type === 'article'">
           <view class="ai-chip ai-blue" @tap="openAIPanel('title')">
             <app-icon name="wand-2" :size="12" color="#2563eb" />
@@ -442,6 +447,7 @@ const aiResult = ref<any>(null)
 const coverPrompt = ref('')
 const saving = ref(false)
 const publishing = ref(false)
+const typesetting = ref(false)   // AI 一键排版进行中（禁重复点）
 
 // 续编：从草稿箱带 draftId 进来，加载草稿全文续写；保存回写同一草稿（updateDraft），发布走 publishDraft
 const editingDraftId = ref<string | null>(null)
@@ -908,6 +914,29 @@ function useCover() {
   if (aiResult.value?.imageUrl) { cover.value = aiResult.value.imageUrl; showAIPanel.value = null }
 }
 
+/** AI 一键排版：取当前正文 → 后端只加 Markdown 格式不改字。
+ *  changed=true 则整文替换回正文；changed=false 说明 AI 改了字被后端拒绝，弹 warning 不动内容让用户重试 */
+async function handleTypeset() {
+  if (typesetting.value) return
+  if (!content.value.trim()) { uni.showToast({ title: '请先输入内容', icon: 'none' }); return }
+  typesetting.value = true
+  try {
+    const res = await publishAssistApi.typeset(content.value)
+    if (res.changed) {
+      content.value = res.formatted
+      lastCursor = null   // 整文替换后旧光标失真，退化为末尾插入
+      uni.showToast({ title: '排版完成', icon: 'success' })
+    } else {
+      // 后端拒绝（AI 改动了文字）：保留原文不替换，仅提示重试
+      uni.showToast({ title: res.warning || 'AI 排版改动了文字，请重试', icon: 'none' })
+    }
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '排版失败', icon: 'none' })
+  } finally {
+    typesetting.value = false
+  }
+}
+
 /** 公共校验：内容 + 圈子必选 */
 function validateBase(): boolean {
   if (!content.value.trim()) { uni.showToast({ title: '请输入内容', icon: 'none' }); return false }
@@ -1339,11 +1368,14 @@ async function handlePublish() {
 .ai-blue { background: rgba(37,99,235,0.1); }
 .ai-green { background: rgba(5,150,105,0.1); }
 .ai-orange { background: rgba(234,88,12,0.1); }
+.ai-purple { background: rgba(124,58,237,0.1); }
+.ai-chip.disabled { opacity: 0.6; }
 .ai-chip-text { font-size: 22rpx; }
 .ai-chip-text.red { color: #C41E3A; }
 .ai-chip-text.blue { color: #2563eb; }
 .ai-chip-text.green { color: #059669; }
 .ai-chip-text.orange { color: #ea580c; }
+.ai-chip-text.purple { color: #7c3aed; }
 
 /* 弹窗 */
 .mask {
