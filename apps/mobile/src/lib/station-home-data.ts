@@ -125,11 +125,11 @@ export function sectionVisible(tpl: StationTemplate | undefined, section: string
 }
 
 export function feedTypeLabel(type: string): string {
-  const labels: Record<string, string> = { article: '文章', video: '视频', course: '课程', live: '直播', product: '商品', post: '动态' }
+  const labels: Record<string, string> = { article: '文章', video: '视频', course: '课程', live: '直播', product: '商品', post: '动态', circle: '圈子', ebook: '电子书', agent: '智能体', classic: '典籍' }
   return labels[type] || '内容'
 }
 export function feedTypeIcon(type: string): string {
-  const icons: Record<string, string> = { article: 'file-text', video: 'play', course: 'book-open', live: 'radio', product: 'shopping-bag', post: 'message-square' }
+  const icons: Record<string, string> = { article: 'file-text', video: 'play', course: 'book-open', live: 'radio', product: 'shopping-bag', post: 'message-square', circle: 'users', ebook: 'book', agent: 'sparkles', classic: 'book-open' }
   return icons[type] || 'file-text'
 }
 export function formatStatNumber(num: number): string {
@@ -168,6 +168,18 @@ interface RawMicroPageResp {
   status?: string
   components?: MicroPageComponentView[]
 }
+/** GET /station/brand/:code/pinned 原始响应（站长主推位·9板块×6位·仅含有内容板块） */
+interface RawPinnedContent {
+  id: string
+  title?: string
+  cover?: string | null
+  price?: number | null
+  contentType: string
+  liveStatus?: string
+  viewerCount?: number
+}
+interface RawPinnedSlot { slotIndex: number; content: RawPinnedContent | null }
+interface RawPinnedBoard { board: string; label?: string; filled?: number; slots?: RawPinnedSlot[] }
 
 // ===== stationHomeApi — 分站首页数据 API 层（全真连） =====
 export const stationHomeApi = {
@@ -213,6 +225,37 @@ export const stationHomeApi = {
       name: r.name || '',
       status: r.status || 'PUBLISHED',
       components: [...components].sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0)),
+    }
+  },
+  /**
+   * 分站站长主推位 — GET /station/brand/:code/pinned。
+   * 站长在后台锁定的 9 板块×6 位精选内容，按板块+位次拍平为统一卡片，供"站长精选"分区渲染。
+   * 端点未开启(404)、分站无内容或异常 → 返回空数组（诚实降级，分区不渲染）。
+   */
+  async getPinnedBoards(code: string): Promise<StationFeedCard[]> {
+    try {
+      const boards = await apiGet<RawPinnedBoard[]>(`/station/brand/${encodeURIComponent(code)}/pinned`)
+      if (!Array.isArray(boards)) return []
+      const cards: StationFeedCard[] = []
+      for (const b of boards) {
+        for (const slot of b.slots || []) {
+          const c = slot.content
+          if (!c || !c.id) continue
+          cards.push({
+            id: c.id,
+            type: c.contentType === 'live_room' ? 'live' : c.contentType,
+            title: c.title || '',
+            cover: c.cover || '',
+            author: '',
+            price: c.price ?? undefined,
+            isLive: c.liveStatus === 'live',
+            viewers: c.viewerCount,
+          })
+        }
+      }
+      return cards
+    } catch {
+      return []
     }
   },
 }

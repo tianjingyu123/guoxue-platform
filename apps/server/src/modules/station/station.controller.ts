@@ -292,6 +292,13 @@ export class StationController {
     return this.svc.getPublishedMicroPage(code);
   }
 
+  @Get("brand/:code/pinned")
+  @ApiOperation({ summary: "通过推广码获取分站站长主推位（公开·用户侧渲染·仅返回有内容板块·无则空数组）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  getPublishedPinnedBoards(@Param("code") code: string) {
+    return this.svc.getPublishedPinnedBoards(code);
+  }
+
   // ───────── 运营商品牌与小程序 ─────────
 
   @Put("operator/:id/brand")

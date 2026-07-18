@@ -7,6 +7,7 @@ import { RedisService } from "../../redis/redis.service";
 import { InsightService } from "../track/insight.service";
 import { CreateStationDto, UpdateStationDto, CreateOperatorDto, SetStationTemplateDto, UpdateOperatorBrandDto, ApplyStationDto } from "./station.dto";
 import { safePagination, NO_PAGE_LIMIT } from "../../common/pagination";
+import { StationPinnedService } from "./station-pinned.service";
 
 /** 模版定义 */
 export const STATION_TEMPLATES = {
@@ -65,9 +66,11 @@ export class StationService {
     private prisma: PrismaService,
     private redis: RedisService,
     private insight: InsightService,
+    private stationPinned: StationPinnedService,
   ) {}
 
   private readonly BRAND_TTL = 600; // 品牌配置缓存10分钟
+  private readonly PINNED_TTL = 120; // 站长主推位公开缓存2分钟（兼顾新鲜度与公开访问性能·挡懒失活高频写）
 
   // ───────── 分站管理 ─────────
 
@@ -529,6 +532,24 @@ export class StationService {
       orderBy: { publishedAt: "desc" },
       include: { components: { orderBy: { sortOrder: "asc" } } },
     });
+  }
+
+  /**
+   * 通过推广码获取分站【站长主推位】（公开·用户侧渲染）。
+   * 站长在 pinned-manage 锁定的 9 板块×6 位主推内容 → C 端"站长精选"分区真实露出。
+   * 只返回有已锁内容的板块（filled>0）；无分站/无内容返回空数组（前端诚实降级不渲染）。
+   */
+  async getPublishedPinnedBoards(code: string) {
+    const cacheKey = `station:pinned-public:${code}`;
+    const cached = await this.redis.getJson<any>(cacheKey);
+    if (cached) return cached;
+
+    const station = await this.prisma.station.findUnique({ where: { code }, select: { id: true } });
+    if (!station) return [];
+    const boards = await this.stationPinned.getBoards(station.id);
+    const result = (boards as Array<{ filled: number }>).filter((b) => b.filled > 0);
+    await this.redis.setJson(cacheKey, result, this.PINNED_TTL);
+    return result;
   }
 
   // ───────── 运营商品牌与小程序 ─────────
