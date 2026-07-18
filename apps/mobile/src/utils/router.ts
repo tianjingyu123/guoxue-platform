@@ -330,7 +330,6 @@ const ROUTE_MAP: Record<string, string> = {
   '/my-circles': '/pkg-circle/my-circles/index',
   // 圈子静态子页（必须有静态别名，否则被动态 /circles/:id 抢占当成圈子 id → 详情错误页）
   '/circles/create': '/pkg-circle/circles/create',
-  '/circles/stats': '/pkg-circle/circles/stats',
   '/circles/activities': '/pkg-circle/circles/activities',
   '/circles/badges': '/pkg-circle/circles/badges',
   '/rankings': '/pkg-circle/rankings/index',
