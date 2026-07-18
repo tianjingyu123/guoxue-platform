@@ -1811,6 +1811,12 @@
           "style": {
             "navigationStyle": "custom"
           }
+        },
+        {
+          "path": "customers/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
         }
       ]
     },
