@@ -225,11 +225,21 @@ export const THIRD_PARTY_SERVICES: ThirdPartyService[] = [
     ],
   },
   {
-    key: "coze", label: "Coze（智能体）", category: "AI",
-    note: "Coze智能体广场。coze.cn 获取访问令牌。",
+    key: "coze", label: "Coze（智能体·个人令牌）", category: "AI",
+    note: "【旧方式·个人访问令牌 PAT】coze.cn 获取访问令牌，最长30天需手动续期。★推荐改用下方「Coze OAuth（免维护授权）」，配好后本卡片可留空作过渡兜底。",
     fields: [
       S("apiKey", "API Token", "COZE_API_KEY", true, "Coze平台 coze.cn→个人头像→设置→API授权→个人访问令牌"),
       S("botIds", "Bot IDs（逗号分隔）", "COZE_BOT_IDS", false, "已发布的Bot ID，多个用英文逗号分隔"),
+    ],
+  },
+  {
+    key: "coze_oauth", label: "Coze OAuth（智能体·免维护授权）", category: "AI",
+    note: "★【推荐·服务端应用授权·免维护】用「OAuth JWT」授权，后端自动签名换取访问令牌并自动刷新，无需再像个人令牌那样每30天手动续期。申请步骤：登录 coze.cn→右上角头像→扣子 API→授权→创建 OAuth 应用→应用类型选『服务类应用』（Service application）→创建后在应用详情『公钥管理』里新增公钥（系统会生成公私钥对，下载保存好私钥文件）→把下面四项填进来即可。配好后与上方「个人令牌」并存，系统优先用 OAuth，换取失败自动回退个人令牌，过渡不断服务。",
+    fields: [
+      S("clientId", "应用 ID（client_id）", ["COZE_OAUTH_CLIENT_ID"], false, "OAuth 应用详情页顶部的『应用ID / Client ID』（一串数字）"),
+      S("publicKeyId", "公钥指纹（public_key_id）", ["COZE_OAUTH_PUBLIC_KEY_ID"], false, "OAuth 应用→公钥管理→新增公钥后生成的『公钥指纹 / 公钥ID』（一串字符）"),
+      S("privateKey", "私钥（PEM·内容或路径）", ["COZE_OAUTH_PRIVATE_KEY"], true, "新增公钥时下载的私钥文件（形如 private_key.pem）：用记事本打开全选复制内容粘贴进来，或直接填服务器上私钥文件的完整路径。系统自动识别。私钥加密存储、掩码显示，留空不覆盖已存值。", "", true, true),
+      S("apiBase", "Coze API 域名", ["COZE_API_BASE"], false, "国内版填 https://api.coze.cn（默认，一般不用改）；海外版填 https://api.coze.com", "https://api.coze.cn"),
     ],
   },
   // ───────── 其他 ─────────

@@ -151,8 +151,11 @@ export class BotService {
   /** Coze 凭证是否真实可用：种子占位（botId "coze_xx_001"、apiKey "sk_dev_placeholder"）
    *  能过非空校验但一对话必失败——广场不陈列坏品（董事长 2026-07-17 拍板下架不能用的） */
   private isConfigured(bot: { botId: string; apiKey: string }): boolean {
-    if (!bot.botId || !bot.apiKey) return false;
-    if (bot.apiKey === "sk_dev_placeholder") return false;
+    if (!bot.botId) return false;
+    // 配了 OAuth 时全平台统一用 OAuth 令牌，单个智能体可不存 PAT；否则要求非空且非占位
+    if (!this.coze.isOAuthConfigured()) {
+      if (!bot.apiKey || bot.apiKey === "sk_dev_placeholder") return false;
+    }
     // 真实 Coze bot_id 是纯数字长串；种子占位是 "coze_customer_001" 一类
     if (/^coze_/i.test(bot.botId)) return false;
     return true;
@@ -315,8 +318,10 @@ export class BotService {
   private async getBotOrThrow(id: string) {
     const bot = await this.prisma.botConfig.findUnique({ where: { id } });
     if (!bot) throw new BusinessException(ErrorCode.NOT_FOUND, "智能体不存在");
-    if (!bot.apiKey || !bot.botId) throw new BusinessException(ErrorCode.BAD_REQUEST, "智能体未配置API密钥");
-    const decrypted = decrypt(bot.apiKey);
+    if (!bot.botId) throw new BusinessException(ErrorCode.BAD_REQUEST, "智能体未配置 Bot ID");
+    // 配了 OAuth 时全平台统一用 OAuth 令牌，单个智能体可不存 PAT；否则仍要求 PAT
+    if (!bot.apiKey && !this.coze.isOAuthConfigured()) throw new BusinessException(ErrorCode.BAD_REQUEST, "智能体未配置API密钥");
+    const decrypted = bot.apiKey ? decrypt(bot.apiKey) : "";
     // 返回时掩码 apiKey，防止 JSON 序列化/日志输出泄露
     return {
       ...bot,
@@ -796,11 +801,12 @@ export class BotService {
 
   // ───────── 语音通话 ─────────
 
-  /** 获取全局 Coze PAT（用于管理类 API） */
+  /** 获取全局 Coze 令牌（用于管理类 API）：配了 OAuth 时 CozeService 内部自动换 token，PAT 可留空 */
   private getGlobalApiKey(): string {
     const key = process.env.COZE_API_KEY;
-    if (!key) throw new BusinessException(ErrorCode.BAD_REQUEST, "未配置全局 COZE_API_KEY");
-    return key;
+    if (key) return key;
+    if (this.coze.isOAuthConfigured()) return ""; // OAuth 生效，令牌由 CozeService 统一解析
+    throw new BusinessException(ErrorCode.BAD_REQUEST, "未配置全局 COZE_API_KEY 或 Coze OAuth");
   }
 
   /** 创建语音通话房间 */

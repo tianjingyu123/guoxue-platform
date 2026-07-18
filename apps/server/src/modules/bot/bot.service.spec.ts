@@ -41,7 +41,7 @@ const mockPrisma = {
   $transaction: jest.fn(async (cb: (tx: unknown) => unknown) => cb(mockPrisma)),
 };
 
-const mockCoze = {};
+const mockCoze = { isOAuthConfigured: jest.fn().mockReturnValue(false) };
 const mockReco = { build: jest.fn().mockResolvedValue({ content: "", recommendation: null }) };
 
 describe("BotService", () => {

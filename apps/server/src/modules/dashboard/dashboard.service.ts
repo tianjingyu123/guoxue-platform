@@ -747,9 +747,11 @@ export class DashboardService {
       ? { status: "ok" }
       : { status: "degraded", detail: "WECHAT_PAY_MCH_ID 未配置" };
 
-    services.coze = process.env.COZE_API_KEY
+    // Coze：个人令牌(PAT) 或 OAuth（client_id+公钥指纹+私钥）任一齐备即视为已配置
+    services.coze = (process.env.COZE_API_KEY ||
+      (process.env.COZE_OAUTH_CLIENT_ID && process.env.COZE_OAUTH_PUBLIC_KEY_ID && process.env.COZE_OAUTH_PRIVATE_KEY))
       ? { status: "ok" }
-      : { status: "degraded", detail: "COZE_API_KEY 未配置" };
+      : { status: "degraded", detail: "Coze 未配置（个人令牌或 OAuth 均可）" };
 
     services.deepSeek = process.env.DEEPSEEK_API_KEY
       ? { status: "ok" }

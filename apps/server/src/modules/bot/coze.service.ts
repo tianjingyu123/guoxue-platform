@@ -3,6 +3,7 @@ import { Observable } from "rxjs";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { SystemService } from "../system/system.service";
+import { CozeOAuthService } from "./coze-oauth.service";
 
 /** Coze 流式结构化事件（chatStreamEx 输出） */
 export interface CozeStreamEvent {
@@ -37,6 +38,8 @@ export class CozeService {
   constructor(
     // SystemModule 为 @Global 导出·@Optional 保证单测缺 provider 时回退默认品牌名
     @Optional() private readonly systemService?: SystemService,
+    // @Optional：配了 OAuth 则所有 Coze 调用统一用自动刷新的 OAuth 令牌；未配/单测缺 provider 时回退传入的 PAT
+    @Optional() private readonly oauth?: CozeOAuthService,
   ) {}
 
   /** 品牌名（后台 BrandConfig 可配·拉取失败/未注入时兜底"热卜国学"，与历史口径一致） */
@@ -47,6 +50,23 @@ export class CozeService {
     } catch {
       return "热卜国学";
     }
+  }
+
+  /**
+   * 解析实际使用的令牌：配置了 Coze OAuth 则用自动签名/刷新的 access_token；
+   * 未配置或换取失败则回退传入的 PAT（过渡不断服务）。所有对 Coze 的调用统一经此。
+   */
+  private async resolveApiKey(fallback: string): Promise<string> {
+    if (this.oauth?.isConfigured()) {
+      const token = await this.oauth.getAccessToken();
+      if (token) return token;
+    }
+    return fallback;
+  }
+
+  /** 是否已配置 Coze OAuth（供调用方在缺 PAT 时放行守卫） */
+  isOAuthConfigured(): boolean {
+    return this.oauth?.isConfigured() ?? false;
   }
 
   // ───────── 对话 ─────────
@@ -84,11 +104,13 @@ export class CozeService {
       body.additional_params = params.additionalParams;
     }
 
+    const apiKey = await this.resolveApiKey(params.apiKey);
+
     // 先发送用户消息创建chat
     const createResp = await fetch(`${this.baseUrl}/chat`, {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${params.apiKey}`,
+        "Authorization": `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify(body),
@@ -105,8 +127,8 @@ export class CozeService {
     const chatId = createDataBody.id as string;
     const conversationId = createDataBody.conversation_id as string;
 
-    // 轮询获取对话结果
-    return this.pollChatResult(chatId, conversationId, params.apiKey);
+    // 轮询获取对话结果（复用已解析的令牌，避免二次换取）
+    return this.pollChatResult(chatId, conversationId, apiKey);
   }
 
   /** 发起对话（流式·仅文本增量），返回SSE Observable —— 兼容旧调用方 */
@@ -164,10 +186,11 @@ export class CozeService {
 
       (async () => {
         try {
+          const apiKey = await this.resolveApiKey(params.apiKey);
           const resp = await fetch(`${this.baseUrl}/chat`, {
             method: "POST",
             headers: {
-              "Authorization": `Bearer ${params.apiKey}`,
+              "Authorization": `Bearer ${apiKey}`,
               "Content-Type": "application/json",
             },
             body: JSON.stringify(body),
@@ -306,6 +329,7 @@ export class CozeService {
     chatId: string,
     apiKey: string,
   ) {
+    apiKey = await this.resolveApiKey(apiKey);
     const resp = await fetch(
       `${this.baseUrl}/chat/message/list?chat_id=${chatId}&conversation_id=${conversationId}`,
       {
@@ -322,6 +346,7 @@ export class CozeService {
 
   /** 获取对话详情 */
   async getChatDetail(conversationId: string, chatId: string, apiKey: string) {
+    apiKey = await this.resolveApiKey(apiKey);
     const resp = await fetch(
       `${this.baseUrl}/chat/retrieve?chat_id=${chatId}&conversation_id=${conversationId}`,
       {
@@ -343,6 +368,7 @@ export class CozeService {
     messageId: string,
     apiKey: string,
   ) {
+    apiKey = await this.resolveApiKey(apiKey);
     const resp = await fetch(
       `${this.baseUrl}/chat/message/retrieve?chat_id=${chatId}&conversation_id=${conversationId}&message_id=${messageId}`,
       { headers: { "Authorization": `Bearer ${apiKey}` } },
@@ -358,6 +384,7 @@ export class CozeService {
 
   /** 从 Coze 获取智能体详情（含 voice_id 等配置） */
   async retrieveBot(botId: string, apiKey: string) {
+    apiKey = await this.resolveApiKey(apiKey);
     const resp = await fetch(`https://api.coze.cn/v1/bot/retrieve?bot_id=${botId}`, {
       headers: { "Authorization": `Bearer ${apiKey}` },
     });
@@ -370,6 +397,7 @@ export class CozeService {
 
   /** 获取 Coze 空间下的所有智能体列表 */
   async listBots(apiKey: string, spaceId?: string) {
+    apiKey = await this.resolveApiKey(apiKey);
     const params = new URLSearchParams();
     if (spaceId) params.set("space_id", spaceId);
     const url = `https://api.coze.cn/v1/space/list_bot${params.toString() ? "?" + params.toString() : ""}`;
@@ -424,9 +452,10 @@ export class CozeService {
     if (params.onboarding)            body.onboarding_info = params.onboarding;
     if (params.voiceId)               body.voice_id = params.voiceId;
 
+    const apiKey = await this.resolveApiKey(params.apiKey);
     const resp = await fetch("https://api.coze.cn/v1/bot/create", {
       method: "POST",
-      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${params.apiKey}` },
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
       body: JSON.stringify(body),
     });
     const data = await resp.json() as Record<string, unknown>;
@@ -439,7 +468,7 @@ export class CozeService {
     try {
       await fetch("https://api.coze.cn/v1/bot/publish", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${params.apiKey}` },
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
         body: JSON.stringify({ bot_id: botData.bot_id, connector_ids: [1024] }),
       });
     } catch { /* 发布失败不影响创建 */ }
@@ -466,10 +495,11 @@ export class CozeService {
     if (params.voiceId) body.voice_id = params.voiceId;
     if (params.prologue) (body.config as Record<string, unknown>).prologue_content = params.prologue;
 
+    const apiKey = await this.resolveApiKey(params.apiKey);
     const resp = await fetch("https://api.coze.cn/v1/audio/rooms", {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${params.apiKey}`,
+        "Authorization": `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify(body),
@@ -484,6 +514,7 @@ export class CozeService {
 
   /** 获取可用音色列表 */
   async listVoices(apiKey: string) {
+    apiKey = await this.resolveApiKey(apiKey);
     const resp = await fetch("https://api.coze.cn/v1/audio/voices", {
       headers: { "Authorization": `Bearer ${apiKey}` },
     });
@@ -502,10 +533,11 @@ export class CozeService {
     apiKey: string;
     parameters?: Record<string, unknown>;
   }) {
+    const apiKey = await this.resolveApiKey(params.apiKey);
     const resp = await fetch("https://api.coze.cn/v1/workflow/run", {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${params.apiKey}`,
+        "Authorization": `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
@@ -529,6 +561,7 @@ export class CozeService {
 
   /** 上传文件到 Coze（用于多模态对话） */
   async uploadFile(file: Buffer, filename: string, apiKey: string) {
+    apiKey = await this.resolveApiKey(apiKey);
     const form = new FormData();
     form.append("file", new Blob([file]), filename);
 

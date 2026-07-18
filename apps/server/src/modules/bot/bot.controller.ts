@@ -66,7 +66,8 @@ export class BotController {
     onboarding?: Record<string, unknown>; voiceId?: string;
   }) {
     const apiKey = process.env.COZE_API_KEY || "";
-    if (!apiKey) throw new BusinessException(ErrorCode.INTERNAL_ERROR, "COZE_API_KEY 未配置");
+    // 配了 Coze OAuth 时令牌由 CozeService 内部换取，无需全局 PAT
+    if (!apiKey && !this.cozeSvc.isOAuthConfigured()) throw new BusinessException(ErrorCode.INTERNAL_ERROR, "COZE_API_KEY 未配置且未配置 Coze OAuth");
 
     // 1. 在 Coze 平台创建智能体
     const botData = await this.cozeSvc.createBot({
