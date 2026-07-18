@@ -124,6 +124,19 @@ export class LiveService {
       this.notifyBookedUsers(updated).catch((err) => this.logger.warn(`开播预约通知发送失败 room=${id}`, err));
     }
 
+    // 直播回放画面+音频机审（先发后审·VM 异步轮询·四档处置）：回放是可下载录像，VM 适用。
+    // 命中 severe → 回放下架 + 通知（applyModerationVerdict 对 LIVE 走 auditStatus=REJECTED）。
+    // 注：LIVING 实时流审核需腾讯云「直播流审核」独立能力（Type=LIVE_VIDEO/推流回调），非本次录像任务制覆盖，后续接入。
+    if (status === "REPLAY" && extra?.replayUrl) {
+      this.audit.queueContentModeration({
+        contentType: "LIVE",
+        contentId: id,
+        userId: updated.userId,
+        circleId: updated.circleId,
+        video: extra.replayUrl,
+      });
+    }
+
     return updated;
   }
 
@@ -908,6 +921,9 @@ export class LiveService {
 
     const muted = await this.isUserMuted(roomId, userId);
     if (muted) throw new BusinessException(ErrorCode.BAD_REQUEST, "您已被禁言");
+
+    // 内容审核（先审后发·三层漏斗）：直播评论持久化入库前拦违规；fail-open 保证密钥未配不阻断发评论
+    await this.audit.moderateTextOrThrow(content, { scene: "LIVE_COMMENT", userId, dataId: roomId });
 
     const comment = await this.prisma.comment.create({
       data: {

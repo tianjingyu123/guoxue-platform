@@ -36,6 +36,8 @@ export class ShopProductService {
       [dto.title, dto.intro, dto.detail].filter(Boolean).join(" "),
       { scene: "PRODUCT", userId },
     );
+    // 商品主图/详情图 IMS 图片审核（多图批量·任一 Block 拦截；fail-open 密钥未配不阻断上架）
+    await this.audit.moderateImageOrThrow(dto.images, { scene: "PRODUCT_IMAGE", userId });
     const { skus, ...rest } = dto;
     const data: Prisma.ProductCreateInput = {
       title: rest.title,
@@ -73,6 +75,10 @@ export class ShopProductService {
       [dto.title, dto.intro, dto.detail].filter(Boolean).join(" "),
       { scene: "PRODUCT_EDIT", userId, dataId: productId },
     );
+    // 改动的商品图 IMS 审核（仅当本次提交了 images 时·未改则不重复审）
+    if (dto.images !== undefined) {
+      await this.audit.moderateImageOrThrow(dto.images, { scene: "PRODUCT_IMAGE", userId, dataId: productId });
+    }
 
     const data: Prisma.ProductUpdateInput = {};
     if (dto.title !== undefined) data.title = dto.title;

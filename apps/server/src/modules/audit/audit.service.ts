@@ -98,6 +98,14 @@ export class AuditService {
 
   // ───────── 内容审核 ─────────
 
+  /**
+   * 同步本地敏感词命中（零网络·<1ms）——供高频实时场景（直播弹幕/IM 私信）快拦用。
+   * 不做腾讯云/DeepSeek 深审，深审由调用方异步补做。命中即返回命中词数组，未命中返回空数组。
+   */
+  hasLocalViolation(text: string | undefined | null): string[] {
+    return this.sensitiveWord.check((text ?? "").trim());
+  }
+
   /** 审核图片 */
   async moderateImage(imageUrl: string, bizType?: string) {
     const result = await this.moderation.imageModeration({ imageUrl, bizType });
@@ -390,6 +398,62 @@ export class AuditService {
     return { verdict: worst, category };
   }
 
+  private sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  /**
+   * 视频画面+音频分级（非阻断版·先发后审专用·异步耗时）：
+   * 提交腾讯云 VM 视频审核任务（画面逐帧 + 内置音频 ASR），有界轮询任务详情：
+   * - VM Block  → severe（下架）
+   * - VM Review → uncertain（转人工·视频无 DeepSeek 二次复审）
+   * - VM Pass   → pass
+   * - 轮询超时（任务未在窗口内完成）→ uncertain（登记人工队列·不误杀）
+   * - 未配置密钥/任务创建失败/网络异常 → **fail-open 返回 pass**（延续全链路基调，密钥未配不阻断内容）
+   *
+   * 轮询窗口可调：VIDEO_MODERATION_POLL_MAX（次数·默认20）× VIDEO_MODERATION_POLL_INTERVAL_MS（间隔·默认15s）≈ 5 分钟。
+   */
+  async classifyVideoRisk(
+    videoUrl: string | undefined | null,
+    opts: { scene: string; userId?: string; dataId?: string },
+  ): Promise<{ verdict: UgcRiskVerdict; category?: string }> {
+    const url = (videoUrl ?? "").trim();
+    if (!url) return { verdict: "pass" };
+
+    let taskId: string | null;
+    try {
+      const created = await this.moderation.createVideoModerationTask({ url, bizType: opts.scene, dataId: opts.dataId });
+      taskId = this.moderation.getFirstTaskId(created);
+    } catch (err) {
+      // 未配密钥/凭证失效/网络异常 → fail-open（与图文一致，密钥未配不阻断视频发布）
+      this.logger.warn(`腾讯云视频审核不可用，后审 fail-open [scene=${opts.scene}]`, err instanceof Error ? err.message : err);
+      return { verdict: "pass" };
+    }
+    if (!taskId) return { verdict: "pass" };
+
+    const maxAttempts = Number(process.env.VIDEO_MODERATION_POLL_MAX ?? 20);
+    const intervalMs = Number(process.env.VIDEO_MODERATION_POLL_INTERVAL_MS ?? 15_000);
+    for (let i = 0; i < maxAttempts; i++) {
+      await this.sleep(intervalMs);
+      let detail: unknown;
+      try {
+        detail = await this.moderation.describeVmTask(taskId);
+      } catch (err) {
+        // 单次查询失败不终判，继续轮询（末次仍失败则走超时 uncertain）
+        this.logger.warn(`视频审核任务查询失败，继续轮询 [task=${taskId}]`, err instanceof Error ? err.message : err);
+        continue;
+      }
+      const status = this.moderation.getTaskStatus(detail);
+      if (status !== "FINISH") continue;
+      const suggestion = this.moderation.getTaskSuggestion(detail);
+      if (suggestion === "Block") return { verdict: "severe", category: this.moderation.getBlockedLabels(detail)?.[0] || "违规视频" };
+      if (suggestion === "Review") return { verdict: "uncertain", category: this.moderation.getBlockedLabels(detail)?.[0] || "视频疑似违规" };
+      return { verdict: "pass" };
+    }
+    // 轮询窗口内未完成 → 转人工（保守但不误杀，延续 uncertain 语义）
+    return { verdict: "uncertain", category: "视频审核超时待人工" };
+  }
+
   /**
    * 存量内容机审兜底扫描（董事长 2026-07-11 拍板：存量 PENDING 一次性放行 + 机审兜底）。
    * 对指定类型、指定时刻前创建的已可见内容重新排队机审；每条间隔 2s 错峰，避免打爆第三方审核配额。
@@ -440,6 +504,7 @@ export class AuditService {
     circleId?: string | null;
     text?: string;
     images?: string | string[];
+    video?: string;
   }): void {
     const run = (attempt: number) => {
       this.moderateContentAsync(opts).catch((err) => {
@@ -468,6 +533,7 @@ export class AuditService {
     circleId?: string | null;
     text?: string;
     images?: string | string[];
+    video?: string;
   }): Promise<void> {
     const scene = opts.contentType;
     const rank: Record<UgcRiskVerdict, number> = { pass: 0, uncertain: 1, mild: 2, severe: 3 };
@@ -475,6 +541,11 @@ export class AuditService {
     if (risk.verdict !== "severe" && opts.images) {
       const imgRisk = await this.classifyImageRisk(opts.images, { scene, userId: opts.userId, dataId: opts.contentId });
       if (rank[imgRisk.verdict] > rank[risk.verdict]) risk = imgRisk;
+    }
+    // 视频画面+音频审核（VM·异步耗时·封面/标题已在上面覆盖，此处补审视频本体）
+    if (risk.verdict !== "severe" && opts.video) {
+      const vidRisk = await this.classifyVideoRisk(opts.video, { scene, userId: opts.userId, dataId: opts.contentId });
+      if (rank[vidRisk.verdict] > rank[risk.verdict]) risk = vidRisk;
     }
 
     if (risk.verdict === "pass") return;

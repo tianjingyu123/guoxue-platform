@@ -2,6 +2,13 @@ import { Test } from "@nestjs/testing";
 import { ImService } from "./im.service";
 import { TlsSigService } from "./tlssig.service";
 import { ImPolicyService } from "./im-policy.service";
+import { AuditService } from "../audit/audit.service";
+
+// 私信审核 mock：本地快拦默认无命中；深审默认 pass（不干扰既有发送用例）
+const mockAudit = {
+  hasLocalViolation: jest.fn(() => [] as string[]),
+  classifyTextRisk: jest.fn(async () => ({ verdict: "pass" as const })),
+};
 
 const mockTlsSig = {
   getAppId: jest.fn().mockReturnValue(1400000000),
@@ -45,6 +52,7 @@ describe("ImService", () => {
         ImService,
         { provide: TlsSigService, useValue: mockTlsSig },
         { provide: ImPolicyService, useValue: mockPolicy },
+        { provide: AuditService, useValue: mockAudit },
       ],
     }).compile();
     svc = mod.get(ImService);
@@ -199,6 +207,7 @@ describe("ImService", () => {
           ImService,
           { provide: TlsSigService, useValue: mockTlsSig },
           { provide: ImPolicyService, useValue: mockPolicy },
+          { provide: AuditService, useValue: mockAudit },
         ],
       }).compile();
       const badSvc = mod.get(ImService);

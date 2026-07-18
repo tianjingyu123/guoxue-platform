@@ -87,7 +87,7 @@ export class VideoService {
     if (auditStatus === "PENDING") {
       await this.auditService.openContentAudit({ contentType: "VIDEO", contentId: video.id, circleId, submitterId: userId });
     }
-    // 异步机审（fire-and-forget·不阻塞发布响应）：标题+简介文本 / 封面图
+    // 异步机审（fire-and-forget·不阻塞发布响应）：标题+简介文本 / 封面图 / 视频画面+音频（VM·耗时轮询）
     this.auditService.queueContentModeration({
       contentType: "VIDEO",
       contentId: video.id,
@@ -95,6 +95,7 @@ export class VideoService {
       circleId,
       text: [dto.title, dto.description].filter(Boolean).join(" "),
       images: dto.coverUrl,
+      video: dto.videoUrl,
     });
     return video;
   }
