@@ -34,6 +34,7 @@ describe("SmartFeedService", () => {
   let prisma: any;
   let recommend: any;
   let gateway: any;
+  let redis: any;
   let svc: SmartFeedService;
 
   beforeEach(() => {
@@ -62,7 +63,13 @@ describe("SmartFeedService", () => {
     recommend = { personalized: jest.fn().mockResolvedValue([]) };
     // 默认 AI 不可用 → 走降级路径（同样应带时段因子）
     gateway = { chat: jest.fn().mockRejectedValue(new Error("AI 不可用")) };
-    svc = new SmartFeedService(prisma, recommend, gateway);
+    // 缓存桩：getOrSet 直接回源（每次实算·保持既有断言行为）；AI 排序缓存恒未命中
+    redis = {
+      getOrSet: (_k: string, _ttl: number, factory: () => Promise<any>) => factory(),
+      getJson: jest.fn().mockResolvedValue(null),
+      setJson: jest.fn().mockResolvedValue(undefined),
+    };
+    svc = new SmartFeedService(prisma, recommend, gateway, redis);
   });
 
   afterEach(() => {

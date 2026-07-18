@@ -7,6 +7,7 @@ import { RedisService } from "../../redis/redis.service";
 import { LedgerBalanceService } from "../settlement/ledger-balance.service";
 import { Prisma } from "@prisma/client";
 import { COIN_TO_RMB } from "../../common/constants";
+import { encryptAccountInfo, resolveAccountInfo } from "../../common/crypto.util";
 
 /** 提现门槛与上限（元），与 PRD 一致 */
 const MIN_WITHDRAW_RMB = 100;
@@ -113,7 +114,8 @@ export class WalletService {
       this.getWithdrawableBalance(userId),
       this.prisma.withdrawalApplication.findMany({
         where: { userId, status: "PAID" },
-        select: { accountInfo: true },
+        // 切读：取密文列优先解密，回退明文列兼容存量
+        select: { accountInfo: true, accountInfoEnc: true },
         orderBy: { createdAt: "desc" },
         take: 5,
       }),
@@ -128,7 +130,9 @@ export class WalletService {
       minFee: WITHDRAW_MIN_FEE,
       taxEnabled: tax.enabled,
       taxRate: tax.rate, // 代扣代缴税率（0 表示未开启扣税）
-      savedAccounts: savedAccounts.map((a) => a.accountInfo as Record<string, unknown>),
+      savedAccounts: savedAccounts.map(
+        (a) => resolveAccountInfo(a.accountInfoEnc, a.accountInfo) as Record<string, unknown>,
+      ),
     };
   }
 
@@ -289,6 +293,8 @@ export class WalletService {
         throw new BusinessException(ErrorCode.BAD_REQUEST, "扣除手续费与税款后实际到账为 0，请提高提现金额");
       }
 
+      // 前端「上次收款账户」按 accountInfo.method 匹配，不带上就永远预填不出来
+      const accountInfo = { ...data.account, method: payMethod.toLowerCase() };
       const application = await this.prisma.withdrawalApplication.create({
         data: {
           userId,
@@ -298,8 +304,9 @@ export class WalletService {
           taxRate: tax.rate,
           actualAmount,
           payMethod,
-          // 前端「上次收款账户」按 accountInfo.method 匹配，不带上就永远预填不出来
-          accountInfo: { ...data.account, method: payMethod.toLowerCase() },
+          // 双写：明文列过渡期保留（兼容旧读路径/存量），密文列为加密真源（读取优先解密）
+          accountInfo,
+          accountInfoEnc: encryptAccountInfo(accountInfo),
           status: "PENDING",
         },
       });

@@ -4,6 +4,7 @@ import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { WechatPayService } from "../shop/wechat-pay.service";
 import { SystemService } from "../system/system.service";
+import { resolveAccountInfo } from "../../common/crypto.util";
 
 /**
  * 自动代付（提现出款）—— 资金架构批次3。
@@ -97,8 +98,11 @@ export class PayoutService {
     }
 
     try {
-      // ≥2000 元微信要求提交收款人真实姓名（加密）
-      const userName = amountFen >= 200_000 ? this.extractHolderName(app.accountInfo) : undefined;
+      // ≥2000 元微信要求提交收款人真实姓名（加密）。切读：先解密密文列(回退明文兼容存量)
+      const userName =
+        amountFen >= 200_000
+          ? this.extractHolderName(resolveAccountInfo(app.accountInfoEnc, app.accountInfo))
+          : undefined;
 
       const res = await this.wechat.transferToBalance({
         outBillNo,

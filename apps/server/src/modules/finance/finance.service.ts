@@ -4,7 +4,7 @@ import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
 import { Prisma } from "@prisma/client";
 import { WechatPayService } from "../shop/wechat-pay.service";
-import { maskBankCard, maskName, maskAlipay, maskPhone, maskIdCard } from "../../common/crypto.util";
+import { maskBankCard, maskName, maskAlipay, maskPhone, maskIdCard, resolveAccountInfo } from "../../common/crypto.util";
 import { safePagination, NO_PAGE_LIMIT } from "../../common/pagination";
 
 /** 脱敏提现收款账户(accountInfo Json)——防管理端审批列表批量泄露完整卡号/账户。
@@ -513,8 +513,11 @@ export class FinanceService {
       }),
       this.prisma.withdrawalApplication.count({ where }),
     ]);
-    // PII 脱敏：批量列表不返回完整收款账户
-    const masked = withdrawals.map((w) => ({ ...w, accountInfo: maskAccountInfo(w.accountInfo) }));
+    // PII 脱敏：批量列表不返回完整收款账户。切读=先解密密文列(回退明文)再脱敏；密文列不外泄。
+    const masked = withdrawals.map(({ accountInfoEnc, ...w }) => ({
+      ...w,
+      accountInfo: maskAccountInfo(resolveAccountInfo(accountInfoEnc, w.accountInfo)),
+    }));
     return { withdrawals: masked, total, page, pageSize };
   }
 
@@ -639,7 +642,8 @@ export class FinanceService {
       amount: Number(app.amount),
       actualAmount: Number(app.actualAmount),
       payMethod: app.payMethod,
-      accountInfo: app.accountInfo, // 明文（列表接口一律脱敏，勿放宽那边）
+      // 切读：解密密文列(回退明文兼容存量)返回完整明文（列表接口一律脱敏，勿放宽那边）
+      accountInfo: resolveAccountInfo(app.accountInfoEnc, app.accountInfo),
     };
   }
 

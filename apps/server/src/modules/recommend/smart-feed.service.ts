@@ -2,6 +2,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RecommendService } from "./recommend.service";
 import { AiGatewayService } from "../ai-gateway/ai-gateway.service";
+import { RedisService } from "../../redis/redis.service";
 
 /**
  * 首页聚合瀑布流「九类卡统一信封」。
@@ -118,6 +119,25 @@ const PRODUCT_SELECT = {
   originalPrice: true,
 } as const;
 
+// ─── 规模化缓存参数（抗 10 万 DAU·首页最高频接口·见下方缓存 key 论证） ───
+/**
+ * 各缓存 TTL（秒）。原则：候选池/分层结果变化缓慢，短 TTL 即可消掉每请求的十余次 DB 查询，
+ * 又能在秒~分钟级追上新内容。所有缓存均经 RedisService.getOrSet（cache-aside + 防击穿互斥锁 +
+ * Redis 不可用自动降级内存），任何缓存故障都不会让首页出错，只退化为直查 DB。
+ */
+/** 用户分层缓存（classifyUser）：分层由累计订单/兴趣/发帖/注册天数决定，变化很慢 → 5 分钟 */
+const SEGMENT_TTL = 300;
+/** 全局候选池缓存（new/advanced/premium/broad·不含用户私有数据·全平台共享）→ 2 分钟 */
+const POOL_TTL = 120;
+/** 个性化候选池缓存（default/normal 段·按 userId 隔离·含个性化推荐）→ 1 分钟 */
+const POOL_TTL_USER = 60;
+/** 分类 feed 缓存（发现页分区·全局热门·按 type/page 隔离）→ 2 分钟 */
+const CATEGORY_TTL = 120;
+/** AI 重排序结果缓存（按 segment+候选签名·纯公共内容重排序·无用户私有数据）→ 2 分钟 */
+const AIRANK_TTL = 120;
+/** AI 重排在线等待上限（毫秒）：超时立即走非 AI 兜底，绝不让首页等待 LLM */
+const AI_RANK_TIMEOUT_MS = 800;
+
 /** 混排纪律：一屏窗口大小（约一屏 4-6 卡） */
 const SCREEN_WINDOW = 5;
 /** 混排纪律：每屏窗口内至多 1 张工具/交易卡（product/paipan/agent） */
@@ -148,32 +168,59 @@ export class SmartFeedService {
     private readonly prisma: PrismaService,
     private readonly recommend: RecommendService,
     private readonly gateway: AiGatewayService,
+    private readonly redis: RedisService,
   ) {}
+
+  /**
+   * 统一缓存包装：走 RedisService.getOrSet（cache-aside + 防击穿互斥锁 + Redis 不可用降级内存）。
+   * 任何缓存层异常都兜底为直接回源 factory()，保证首页永不因缓存故障而报错/白屏。
+   */
+  private async cached<T>(key: string, ttl: number, factory: () => Promise<T>): Promise<T> {
+    try {
+      return await this.redis.getOrSet(key, ttl, factory);
+    } catch (err) {
+      this.logger.warn(`缓存读写失败，直接回源(${key}): ${(err as Error).message}`);
+      return factory();
+    }
+  }
+
+  /** 短哈希（djb2·仅用于压缩缓存 key 长度·非安全用途） */
+  private hashKey(s: string): string {
+    let h = 5381;
+    for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0;
+    return (h >>> 0).toString(36);
+  }
 
   /** 获取智能信息流 */
   async getFeed(userId: string, page = 1, pageSize = 20): Promise<SmartFeedResult> {
     const segment = await this.classifyUser(userId);
     const timeSlot = this.resolveTimeSlot();
 
+    // 候选池缓存：
+    // - new/advanced/premium 三段的池函数均忽略 userId（纯热门/全平台共享），故用「全局 key」按
+    //   segment+pageSize 缓存，所有同段用户共享一份池，天然无跨用户串味（池里只有公开内容）。
+    // - default(normal 段) 走个性化推荐 personalized(userId)，含用户私有排序，必须按 userId 隔离缓存，
+    //   否则会把 A 的个性化流串给 B（串味）。故 key 带 userId、TTL 更短。
     let items: FeedItem[] = [];
     switch (segment) {
       case "new":
-        items = await this.getNewUserFeed(userId, pageSize);
+        items = await this.cached(`smartfeed:pool:new:${pageSize}`, POOL_TTL, () => this.getNewUserFeed(userId, pageSize));
         break;
       case "advanced":
-        items = await this.getAdvancedFeed(userId, pageSize);
+        items = await this.cached(`smartfeed:pool:advanced:${pageSize}`, POOL_TTL, () => this.getAdvancedFeed(userId, pageSize));
         break;
       case "premium":
-        items = await this.getPremiumFeed(userId, pageSize);
+        items = await this.cached(`smartfeed:pool:premium:${pageSize}`, POOL_TTL, () => this.getPremiumFeed(userId, pageSize));
         break;
       default:
-        items = await this.getDefaultFeed(userId, pageSize);
+        items = await this.cached(`smartfeed:pool:default:${userId}:${pageSize}`, POOL_TTL_USER, () => this.getDefaultFeed(userId, pageSize));
     }
 
     // 空兜底：某分层策略无产出（如 normal 段 personalized 返空 / 该段数据源恰好为空）时，
     // 回落到热门混排（新手池：热门文章/课程/古籍/视频），确保任何用户首页都有内容、不留白。
+    // 复用同一全局新手池缓存（与 new 段共享），无串味。
     if (items.length === 0) {
-      items = await this.getNewUserFeed(userId, pageSize);
+      items = await this.cached(`smartfeed:pool:new:${pageSize}`, POOL_TTL, () => this.getNewUserFeed(userId, pageSize));
     }
 
     // 质量因子（创-P1·任务八接线）：qualityScore 作为排序因子（权重 0.3）·<40 分标记软限流
@@ -219,7 +266,8 @@ export class SmartFeedService {
    */
   async getAnonymousFeed(page = 1, pageSize = 20): Promise<SmartFeedResult> {
     const timeSlot = this.resolveTimeSlot();
-    let items = await this.getBroadFeed(pageSize); // 广口径 7 类·首页展示全部卡片形态
+    // 广口径池为全平台共享热门（getBroadFeed 无 userId 参数），全局 key 缓存·无串味
+    let items = await this.cached(`smartfeed:pool:broad:${pageSize}`, POOL_TTL, () => this.getBroadFeed(pageSize)); // 广口径 7 类·首页展示全部卡片形态
     // 游客可见内容控制：后台配置 ConfigSystem.guest.visibleTypes（JSON 类型白名单）·空/未配 = 全部可见
     const allow = await this.getGuestVisibleTypes();
     if (allow) items = items.filter((i) => allow.has(i.type));
@@ -261,6 +309,12 @@ export class SmartFeedService {
    * 复用各类型查询与 mapXxx 映射，返回该类别的一页 FeedItem[]（分页）。
    */
   async getCategoryFeed(type: string, page = 1, size = 6): Promise<FeedItem[]> {
+    // 分类 feed 为全平台共享热门（按 viewCount/studentCount 排序·无用户私有数据），
+    // 全局 key 按 type/page/size 缓存，无跨用户串味。
+    return this.cached(`smartfeed:cat:${type}:${page}:${size}`, CATEGORY_TTL, () => this.computeCategoryFeed(type, page, size));
+  }
+
+  private async computeCategoryFeed(type: string, page = 1, size = 6): Promise<FeedItem[]> {
     const skip = (Math.max(1, page) - 1) * size;
     try {
       switch (type) {
@@ -362,8 +416,16 @@ export class SmartFeedService {
     }
   }
 
-  /** 用户分层 */
+  /**
+   * 用户分层（带缓存）。分层依据（累计订单/兴趣数/发帖数/注册天数/累计消费）变化很慢，
+   * 按 userId 缓存 5 分钟即可消掉每次首页的 5 次 DB 查询。key 含 userId，无跨用户串味。
+   */
   private async classifyUser(userId: string): Promise<"new" | "advanced" | "premium" | "normal"> {
+    return this.cached(`smartfeed:seg:${userId}`, SEGMENT_TTL, () => this.computeUserSegment(userId));
+  }
+
+  /** 用户分层实算（无缓存·供 classifyUser 缓存包装调用） */
+  private async computeUserSegment(userId: string): Promise<"new" | "advanced" | "premium" | "normal"> {
     const [orderCount, interestCount, postCount, memberSince] = await Promise.all([
       this.prisma.order.count({ where: { userId, status: "PAID" } }),
       this.prisma.userInterest.count({ where: { userId } }),
@@ -519,14 +581,42 @@ export class SmartFeedService {
     }
   }
 
-  /** AI 智能排序 */
+  /**
+   * AI 智能排序（缓存 + 限时降级 · 首页永不因 AI 慢/挂而阻塞）。
+   *
+   * 规模化改造要点：
+   * 1) **结果缓存**：AI 重排的输入只有 segment + 候选内容标题（候选池本身已按 segment 缓存，
+   *    故同段用户的候选签名一致），输出是对这批「公开内容」的一个排序。因此缓存 key 用
+   *    `segment + 候选签名哈希`，**不含 userId**——重排结果只是公共内容的先后次序，不含任何用户
+   *    私有信息，同段用户共享该次序是正确的（同输入必同输出），且天然无跨用户串味。命中即
+   *    直接套用，跳过 LLM。
+   * 2) **限时在线等待**：未命中时最多等 {@link AI_RANK_TIMEOUT_MS} ms；LLM 及时返回则套用并写缓存，
+   *    超时/失败立即返回「非 AI 兜底序」（即 items 原序，已含时段/质量权重），绝不让首页等 LLM。
+   * 3) **异步回填**：超时兜底后，LLM 若稍晚返回仍写入缓存，供下一次同签名请求命中——LLM 由每请求
+   *    一次降为「每个候选签名在 TTL 内至多一次」。
+   */
   private async aiRankItems(userId: string, items: FeedItem[], segment: string): Promise<FeedItem[]> {
-    try {
-      const itemsList = items.slice(0, 20).map((item, i) =>
-        `${i + 1}. [${item.type}] ${item.title} — ${item.subtitle || ""}`
-      ).join("\n");
+    const top = items.slice(0, 20);
+    const signature = top.map((i) => `${i.type}:${i.id}`).join("|");
+    const cacheKey = `smartfeed:airank:${segment}:${this.hashKey(signature)}`;
 
-      const result = await this.gateway.chat({
+    // 1) 命中缓存：直接套用已算好的 AI 次序，不调 LLM
+    try {
+      const cachedOrder = await this.redis.getJson<number[]>(cacheKey);
+      if (cachedOrder && Array.isArray(cachedOrder) && cachedOrder.length > 0) {
+        return this.applyRankOrder(items, cachedOrder);
+      }
+    } catch {
+      /* 缓存读失败：忽略，继续走限时 LLM 或兜底 */
+    }
+
+    const itemsList = top.map((item, i) =>
+      `${i + 1}. [${item.type}] ${item.title} — ${item.subtitle || ""}`
+    ).join("\n");
+
+    // LLM 调用（解析出序号数组；解析失败→null）。独立成 promise 以便限时竞速 + 超时后异步回填。
+    const chatPromise: Promise<number[] | null> = this.gateway
+      .chat({
         scene: "smart_feed",
         userId,
         messages: [
@@ -537,28 +627,56 @@ export class SmartFeedService {
           { role: "user", content: `候选内容:\n${itemsList}\n\n请为${segment}用户重新排序，返回前10个的序号数组。` },
         ],
         options: { temperature: 0.2, maxTokens: 256 },
+      })
+      .then((result) => {
+        const match = result.content.match(/\[[\d,\s]+\]/);
+        return match ? (JSON.parse(match[0]) as number[]) : null;
       });
 
-      const match = result.content.match(/\[[\d,\s]+\]/);
-      if (match) {
-        const ranked = JSON.parse(match[0]) as number[];
-        const reranked: FeedItem[] = [];
-        const rest = [...items];
-        for (const idx of ranked) {
-          if (idx >= 1 && idx <= rest.length) {
-            reranked.push(rest[idx - 1]);
-          }
-        }
-        for (const item of rest) {
-          if (!reranked.includes(item)) reranked.push(item);
-        }
-        return reranked;
-      }
+    // 2) 限时等待：超时立即以 null 兜底（不阻塞首页）
+    let order: number[] | null = null;
+    try {
+      order = await Promise.race([
+        chatPromise,
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), AI_RANK_TIMEOUT_MS)),
+      ]);
     } catch (err) {
-      this.logger.warn("AI排序失败，使用默认排序", err);
+      this.logger.warn("AI排序失败，使用默认排序", err as Error);
+      order = null;
     }
 
+    if (order && Array.isArray(order) && order.length > 0) {
+      // LLM 及时返回：写缓存（失败不影响本次）并套用
+      this.redis.setJson(cacheKey, order, AIRANK_TTL).catch(() => undefined);
+      return this.applyRankOrder(items, order);
+    }
+
+    // 3) 超时/失败/空结果：非 AI 兜底（原序），同时后台把稍晚返回的 LLM 结果回填缓存供下次命中。
+    //    统一挂 catch 吞掉 chatPromise 可能的 rejection，避免未处理拒绝。
+    void chatPromise
+      .then((late) => {
+        if (late && Array.isArray(late) && late.length > 0) {
+          return this.redis.setJson(cacheKey, late, AIRANK_TTL);
+        }
+        return undefined;
+      })
+      .catch(() => undefined);
     return items;
+  }
+
+  /** 按 AI 返回的 1-based 序号数组重排 items；未被点名的项按原序补在末尾。 */
+  private applyRankOrder(items: FeedItem[], ranked: number[]): FeedItem[] {
+    const reranked: FeedItem[] = [];
+    const rest = [...items];
+    for (const idx of ranked) {
+      if (idx >= 1 && idx <= rest.length) {
+        reranked.push(rest[idx - 1]);
+      }
+    }
+    for (const item of rest) {
+      if (!reranked.includes(item)) reranked.push(item);
+    }
+    return reranked;
   }
 
   // ─── 内容源 → 统一信封 mapper（补 author/metric/coverRatio/payload） ───

@@ -700,6 +700,7 @@ model Article {
   @@index([userId, createdAt])
   @@index([stationId])
   @@index([auditStatus, createdAt])
+  @@index([auditStatus, viewCount]) // 首页 smart-feed 热门文章排序：where auditStatus=APPROVED order by viewCount desc（对标 Course[auditStatus,studentCount]/ClassicBook[status,viewCount]）
   @@index([circleId, auditStatus, createdAt])
 }
 
@@ -3565,7 +3566,10 @@ model VideoCreatorWithdrawal {
   userId      String
   amountCoin  Int // 提现币数（正数）
   method      String    @db.VarChar(50) // 提现方式（银行卡/支付宝/微信）
-  account     String    @db.VarChar(255) // 收款账号
+  account     String    @db.VarChar(255) // 收款账号（明文·过渡期双写保留，切读完成后清空）
+  /// 收款账号密文（encrypt(account)）—— PII 加密真源。读取优先解密此列，回退 account 兼容存量
+  /// （crypto.util resolveAccount）。additive·可空。密文比明文长，放宽到 512。
+  accountEnc  String?   @db.VarChar(512)
   status      String    @default("PENDING") // PENDING|APPROVED|REJECTED|PAID
   reviewNote  String? // 审核备注（拒绝原因等）
   reviewedBy  String? // 审核人 userId
@@ -4448,7 +4452,10 @@ model WithdrawalApplication {
   taxRate      Decimal @default(0) @db.Decimal(5, 4) // 扣税比例（快照·便于对账）
   actualAmount Decimal @default(0) @db.Decimal(10, 2) // 实际到账 = amount − fee − taxAmount
   payMethod    String // WECHAT/ALIPAY/BANK
-  accountInfo  Json // 收款账户信息
+  accountInfo  Json // 收款账户信息（明文·过渡期双写保留，切读完成后清空）
+  /// 收款账户密文（整体 encrypt(JSON.stringify(accountInfo))）—— PII 加密真源。
+  /// 读取优先解密此列，回退 accountInfo 兼容存量（crypto.util resolveAccountInfo）。additive·可空。
+  accountInfoEnc String?
   /// PENDING 待审 / APPROVED 已通过待打款 / TRANSFERRING 已发起渠道转账（钱还没到用户手上！）
   /// / REJECTED 驳回 / PAID 已到账
   /// 🔴 TRANSFERRING 必须计入「占用额度」——钱已从平台发出但用户尚未确认收款，

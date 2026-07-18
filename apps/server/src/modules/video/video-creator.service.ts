@@ -4,6 +4,7 @@ import { AuditService } from "../audit/audit.service";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { safePagination } from "../../common/pagination";
+import { encrypt, resolveAccount } from "../../common/crypto.util";
 
 @Injectable()
 export class VideoCreatorService {
@@ -298,12 +299,15 @@ export class VideoCreatorService {
         throw new BusinessException(ErrorCode.BAD_REQUEST, "余额不足");
       }
 
+      const acctPlain = data.account.trim();
       const withdrawal = await tx.videoCreatorWithdrawal.create({
         data: {
           userId,
           amountCoin: amount,
           method: data.method.trim(),
-          account: data.account.trim(),
+          // 双写：明文列过渡期保留（兼容旧读路径/存量），密文列为加密真源（读取优先解密）
+          account: acctPlain,
+          accountEnc: encrypt(acctPlain),
           status: "PENDING",
         },
       });
@@ -626,7 +630,8 @@ export class VideoCreatorService {
         phone: this.maskPhone(u?.phone),
         amount: w.amountCoin,
         method: w.method,
-        account: this.maskAccount(w.account),
+        // 切读：先解密密文列(回退明文兼容存量)再脱敏
+        account: this.maskAccount(resolveAccount(w.accountEnc, w.account)),
         status: w.status,
         reviewNote: w.reviewNote ?? "",
         createdAt: w.createdAt.toISOString().slice(0, 16).replace("T", " "),
@@ -670,7 +675,8 @@ export class VideoCreatorService {
       userId: w.userId,
       amountCoin: w.amountCoin,
       method: w.method,
-      account: w.account, // 明文·仅此端点返回（列表一律 maskAccount）
+      // 切读：解密密文列(回退明文兼容存量)返回完整明文·仅此端点（列表一律 maskAccount）
+      account: resolveAccount(w.accountEnc, w.account),
     };
   }
 
@@ -790,7 +796,8 @@ export class VideoCreatorService {
           balanceAfter: acct.balance, // 余额在申请冻结时已扣减，此处为打款后可用余额
           scene: "REFUND",
           refId: id,
-          description: `提现至${w.method} ${w.account}`,
+          // PII：流水描述不落完整账号，脱敏（解密密文列→脱敏）。金额/scene/refId 逻辑不变
+          description: `提现至${w.method} ${this.maskAccount(resolveAccount(w.accountEnc, w.account))}`,
         },
       });
       return { success: true, status: "PAID" };

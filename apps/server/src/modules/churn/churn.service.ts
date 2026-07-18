@@ -239,7 +239,9 @@ export class ChurnService {
           case "COUPON": {
             const couponId = ((data?.couponId ?? data?.templateId) as string | undefined)?.trim();
             if (this.marketingService && couponId) {
-              // 真发放：复用营销模块 grantCoupon（同 admin 手工发放路径·含发行量校验+事务）
+              // 真发放且可核销：券体系已统一，grantCoupon 现建「商城优惠券」UserCoupon（结算 applyCouponPricing 真抵扣），
+              // 不再进旧 CouponRecord 废券表。故 couponId 需为「商城优惠券」(Coupon) id；
+              // 券不存在/失效/过期 → grantCoupon 抛错，被下方 catch 标 FAILED（诚实失败，不再静默发废券）。
               await this.marketingService.grantCoupon(couponId, { userId: action.userId });
             } else {
               outcome = {

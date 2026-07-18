@@ -22,8 +22,8 @@ const mockSvc = {
   createCouponTemplate: jest.fn().mockResolvedValue({ id: "ct1", faceValue: 10 }),
   listCouponTemplates: jest.fn().mockResolvedValue({ items: [], total: 0 }),
   updateCouponTemplate: jest.fn().mockResolvedValue({ id: "ct1" }),
-  grantCoupon: jest.fn().mockResolvedValue({ id: "cr1", status: "UNUSED" }),
-  batchGrantCoupon: jest.fn().mockResolvedValue({ total: 3, success: 3, failed: 0, results: [] }),
+  grantCoupon: jest.fn().mockResolvedValue({ id: "uc1", userId: "u1", couponId: "c1", used: false }),
+  batchGrantCoupon: jest.fn().mockResolvedValue({ granted: 3, skipped: 0 }),
   getCouponRecords: jest.fn().mockResolvedValue({ items: [], total: 0 }),
 
   createDiscount: jest.fn().mockResolvedValue({ id: "d1", discountPct: 80 }),
@@ -117,14 +117,14 @@ describe("MarketingController", () => {
     expect(result.faceValue).toBe(10);
   });
 
-  it("POST /marketing/coupons/:id/grant — 发放优惠券", async () => {
-    const result = await ctrl.grantCoupon("ct1", { userId: "u1" });
-    expect(result.status).toBe("UNUSED");
+  it("POST /marketing/coupons/:id/grant — 发放优惠券（建可核销 UserCoupon）", async () => {
+    const result = await ctrl.grantCoupon("c1", { userId: "u1" });
+    expect(result.used).toBe(false);
   });
 
   it("POST /marketing/coupons/:id/batch-grant — 批量发放", async () => {
-    const result = await ctrl.batchGrantCoupon("ct1", { userIds: ["u1", "u2", "u3"] });
-    expect(result.success).toBe(3);
+    const result = await ctrl.batchGrantCoupon("c1", { userIds: ["u1", "u2", "u3"] });
+    expect(result.granted).toBe(3);
   });
 
   it("GET /marketing/coupons/:id/records — 领取记录", async () => {
