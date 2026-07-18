@@ -600,12 +600,14 @@ function goBack() {
   display: flex; align-items: center; justify-content: center;
 }
 .recent-avatar-img { width: 64rpx; height: 64rpx; }
-.recent-info { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.recent-info { flex: 1; min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
 .recent-name {
+  display: block; max-width: 100%;
   font-size: 26rpx; font-weight: 600; color: var(--text-ink, #2c2c2c);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .recent-msg {
+  display: block; max-width: 100%;
   font-size: 22rpx; color: #999999; margin-top: 4rpx;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
