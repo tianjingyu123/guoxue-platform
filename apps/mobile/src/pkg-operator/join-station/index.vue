@@ -177,14 +177,41 @@
         </view>
       </view>
     </template>
+
+    <!-- 待支付：微信 Native 扫码 + 轮询（范式同 join-operator） -->
+    <view v-if="payPending" class="modal-mask">
+      <view class="modal-card" @tap.stop>
+        <text class="modal-title">请使用微信扫码支付</text>
+        <text class="pay-amount"><text class="pay-amount-yuan">¥</text>{{ payPending.amount }}</text>
+        <text class="pay-tip">复制以下支付链接，在微信中打开完成支付：</text>
+        <text class="pay-url" :selectable="true">{{ payPending.codeUrl }}</text>
+        <view class="modal-btn" @tap="copyCodeUrl">
+          <text class="modal-btn-txt">复制支付链接</text>
+        </view>
+        <text class="pay-poll">正在等待支付结果（{{ pollCount }}/{{ POLL_MAX }}），支付成功后自动开通</text>
+        <text class="pay-cancel" @tap="cancelPay">取消</text>
+      </view>
+    </view>
+
+    <!-- 支付渠道未就绪：诚实降级，不假装成功（分站已建，订单已保留） -->
+    <view v-if="payUnavailable" class="modal-mask" @tap="payUnavailable = false">
+      <view class="modal-card" @tap.stop>
+        <text class="modal-title">支付渠道正在开通中</text>
+        <text class="modal-desc">微信支付商户资质审核中，暂时无法在线支付。你的分站申请已保留，可稍后在订单记录中继续支付开通。</text>
+        <view class="modal-btn" @tap="payUnavailable = false">
+          <text class="modal-btn-txt">我知道了</text>
+        </view>
+      </view>
+    </view>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
 import { operatorApi } from '@/lib/operator-data'
+import { shopApi } from '@/lib/shop-data'
 import { apiPost } from '@/utils/request'
 
 // ===== 状态栏留白（自定义导航） =====
@@ -200,6 +227,13 @@ const applied = ref(false)
 // ===== 分站信息（后端 ApplyStationDto 必填 name+code） =====
 const stationName = ref('')
 const stationCode = ref('')
+
+// ===== 支付状态（范式对齐 join-operator：Native 扫码 + 轮询 + 渠道未就绪诚实降级）=====
+const payPending = ref<{ orderId: string; codeUrl: string; amount: number } | null>(null)
+const payUnavailable = ref(false)
+const pollCount = ref(0)
+const POLL_MAX = 40 // 3s × 40 ≈ 2 分钟
+let pollTimer: ReturnType<typeof setTimeout> | null = null
 
 // ===== 邀请开通态 =====
 const inviteCode = ref('')
@@ -271,6 +305,11 @@ function openAgreement() {
   navigateTo('/pkg-operator/agreement-station/index')
 }
 
+/**
+ * 申请 + 999 付费开通：先建 PENDING 分站拿 id，再下 STATION_MASTER 订单发起 Native 扫码支付。
+ * 付款后后端 processStationMasterPaid 把该分站 PENDING→ACTIVE（付款即激活·无需管理员审核）。
+ * 金额由服务端读 CommissionConfig.station_master_price 定价，前端不参与计费（防篡改）。
+ */
 async function handleOpen() {
   if (submitting.value) return
   const name = stationName.value.trim()
@@ -279,17 +318,97 @@ async function handleOpen() {
   if (!code) { uni.showToast({ title: '请填写专属推广码', icon: 'none' }); return }
   submitting.value = true
   try {
-    // 纯审核制：POST /station/apply 直接建 PENDING 分站（无扣费下单）。
-    // 后端 ApplyStationDto 仅收 name/code/intro/logo；inviteCode 暂不收（whitelist strip），
-    // 运营商归属关系待后端补字段后再接。后端会校验"已开通"和"推广码占用"并回具体 message。
-    await apiPost('/station/apply', { name, code })
-    applied.value = true
+    // 1) 建分站（PENDING）。后端 ApplyStationDto 收 name/code，返回创建的 station 记录（含 id）。
+    //    后端会校验"已开通"和"推广码占用"并回具体 message。
+    const station = await apiPost<{ id: string }>('/station/apply', { name, code })
+    if (!station?.id) throw new Error('分站创建失败')
+
+    // 2) 为该分站创建付费开通订单（targetId=分站 id）。后端校验分站存在+归属付款人+定价。
+    const order = await shopApi.createOrder({
+      type: 'STATION_MASTER',
+      targetId: station.id,
+      quantity: 1,
+    })
+    if (!order.id) throw new Error('订单创建失败')
+
+    // 3) 发起微信 Native 扫码支付
+    const pay = await shopApi.payOrderNative(order.id)
+    if (pay.codeUrl) {
+      payPending.value = { orderId: order.id, codeUrl: pay.codeUrl, amount: order.amount }
+      startPolling(order.id)
+    } else {
+      // 未返回 code_url = 渠道未就绪，不假装成功（分站已建，订单保留在订单记录中可继续支付）
+      payUnavailable.value = true
+    }
   } catch (e) {
-    uni.showToast({ title: (e as Error)?.message || '提交失败，请稍后重试', icon: 'none' })
+    // "已开通/已有分站" 等业务拦截 → 直接透传后端 message；其余（渠道未就绪/未配价格等）→ 诚实降级
+    const msg = (e as Error)?.message || ''
+    if (msg.includes('已开通') || msg.includes('已有分站')) {
+      uni.showToast({ title: msg, icon: 'none' })
+    } else {
+      payUnavailable.value = true
+    }
   } finally {
     submitting.value = false
   }
 }
+
+function startPolling(orderId: string) {
+  stopPolling()
+  pollCount.value = 0
+  const tick = async () => {
+    pollCount.value++
+    try {
+      const st = await shopApi.getOrderPayState(orderId)
+      if (st.paid) {
+        onPaid()
+        return
+      }
+    } catch {
+      // 单次查询失败不中断轮询
+    }
+    if (pollCount.value >= POLL_MAX) {
+      uni.showToast({ title: '未检测到支付结果，可稍后在订单记录中查看', icon: 'none' })
+      payPending.value = null
+      return
+    }
+    pollTimer = setTimeout(tick, 3000)
+  }
+  pollTimer = setTimeout(tick, 3000)
+}
+
+function stopPolling() {
+  if (pollTimer) {
+    clearTimeout(pollTimer)
+    pollTimer = null
+  }
+}
+
+/**
+ * 支付成功：后端支付后处理器已把分站 PENDING→ACTIVE，此处仅提示 + 跳站长预览自己的分站。
+ */
+function onPaid() {
+  stopPolling()
+  payPending.value = null
+  uni.showToast({ title: '分站开通成功', icon: 'success' })
+  setTimeout(() => navigateTo('/pkg-operator/station-home/index'), 1200)
+}
+
+function copyCodeUrl() {
+  if (!payPending.value) return
+  uni.setClipboardData({
+    data: payPending.value.codeUrl,
+    success: () => uni.showToast({ title: '已复制', icon: 'none' }),
+  })
+}
+
+/** 取消只关弹层、停轮询；订单保留在订单记录中可继续支付（不擅自取消订单） */
+function cancelPay() {
+  stopPolling()
+  payPending.value = null
+}
+
+onUnmounted(() => stopPolling())
 </script>
 
 <style scoped>
@@ -407,4 +526,18 @@ async function handleOpen() {
 .state-error-text { font-size: 28rpx; color: #C41E3A; text-align: center; }
 .state-retry-btn { padding: 16rpx 48rpx; background: #C41E3A; border-radius: 999rpx; }
 .state-retry-btn text { font-size: 28rpx; color: #fff; }
+
+/* ===== 支付弹层（待支付扫码 / 渠道未就绪·范式同 join-operator） ===== */
+.modal-mask { position: fixed; inset: 0; background: rgba(0,0,0,0.55); display: flex; align-items: center; justify-content: center; z-index: 100; }
+.modal-card { width: 600rpx; background: #FFFFFF; border-radius: 27rpx; padding: 46rpx 38rpx; display: flex; flex-direction: column; align-items: center; }
+.modal-title { font-size: 33rpx; font-weight: 700; color: #1A1A1A; text-align: center; }
+.modal-desc { font-size: 25rpx; color: #6E6E73; line-height: 1.6; text-align: center; margin-top: 20rpx; }
+.modal-btn { margin-top: 31rpx; width: 100%; height: 84rpx; border-radius: 21rpx; background: #C41E3A; display: flex; align-items: center; justify-content: center; }
+.modal-btn-txt { font-size: 28rpx; color: #FFFFFF; font-weight: 600; }
+.pay-amount { margin-top: 21rpx; font-size: 54rpx; font-weight: 700; color: #C41E3A; }
+.pay-amount-yuan { font-size: 31rpx; }
+.pay-tip { margin-top: 21rpx; font-size: 23rpx; color: #6E6E73; text-align: center; line-height: 1.6; }
+.pay-url { margin-top: 15rpx; width: 100%; padding: 18rpx; background: #F7F5F2; border-radius: 12rpx; font-size: 21rpx; color: #3A3A3C; word-break: break-all; line-height: 1.5; }
+.pay-poll { margin-top: 23rpx; font-size: 21rpx; color: #9A9A9A; text-align: center; line-height: 1.6; }
+.pay-cancel { margin-top: 20rpx; font-size: 25rpx; color: #9A9A9A; }
 </style>
