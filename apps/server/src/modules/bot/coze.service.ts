@@ -184,9 +184,12 @@ export class CozeService {
         body.additional_params = params.additionalParams;
       }
 
+      const t0 = Date.now();
+      let firstChunkLogged = false;
       (async () => {
         try {
           const apiKey = await this.resolveApiKey(params.apiKey);
+          const tokenMs = Date.now() - t0;
           const resp = await fetch(`${this.baseUrl}/chat`, {
             method: "POST",
             headers: {
@@ -197,6 +200,7 @@ export class CozeService {
             // 流式回答整体可能超 10s，用较宽裕超时仅防"永不响应"挂死，避免截断正常长回答
             signal: AbortSignal.timeout(120000),
           });
+          const fetchMs = Date.now() - t0;
 
           if (resp.status !== 200) {
             const errText = await resp.text();
@@ -266,6 +270,10 @@ export class CozeService {
                 const typeOk = data.type === undefined || data.type === "answer";
                 const ctypeOk = data.content_type === undefined || data.content_type === "text";
                 if (!isReplayEvent && typeOk && ctypeOk && typeof data.content === "string" && data.content) {
+                  if (!firstChunkLogged) {
+                    firstChunkLogged = true;
+                    this.logger.log(`Coze首字诊断 token换取=${tokenMs}ms 连Coze=${fetchMs}ms Coze吐首字=${Date.now() - t0}ms bot=${params.botId}`);
+                  }
                   subscriber.next({ type: "chunk", content: data.content });
                 }
               } catch (err) {
