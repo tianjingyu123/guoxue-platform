@@ -75,6 +75,22 @@ function openEdit(row: LegalDoc) {
 async function save() {
   if (!form.title) { ElMessage.warning('请输入标题'); return }
   if (!form.content) { ElMessage.warning('请输入正文内容'); return }
+  // L3：发布法律协议将立即成为 C 端展示的生效版本；若同类型已有发布版本，警示避免双版本
+  if (form.status === 'PUBLISHED') {
+    const existing = publishedCountOfType(form.type)
+    // 编辑自身已是发布态时不算新增冲突（existing 含自身）；新建或从草稿转发布时若已存在发布版本则强警示
+    const willConflict = !editingId.value ? existing >= 1 : existing >= 2
+    const conflictHtml = willConflict
+      ? `<div style="margin-top:8px;padding:8px;background:var(--el-color-warning-light-9);border-radius:4px;color:var(--el-color-warning);font-size:12px">注意：「${typeLabel[form.type] ?? form.type}」已存在其他「已发布」版本，发布本版本后将出现<b>多个生效版本</b>。请发布后立即将旧版本改为「草稿」。</div>`
+      : ''
+    try {
+      await ElMessageBox.confirm(
+        `即将<b style="color:var(--el-color-danger)">发布</b>「${typeLabel[form.type] ?? form.type} · ${form.title}」（${form.version || '未填版本号'}）。发布后将立即作为 C 端展示的<b>生效法律文本</b>，对全体用户生效。${conflictHtml}`,
+        '发布协议确认',
+        { type: 'warning', dangerouslyUseHTMLString: true, confirmButtonText: '确认发布' },
+      )
+    } catch { return }
+  }
   saving.value = true
   try {
     if (editingId.value) {
@@ -88,10 +104,17 @@ async function save() {
   } catch { } finally { saving.value = false }
 }
 
-async function del(id: string, title: string) {
+async function del(row: LegalDoc) {
+  const isPublished = row.status === 'PUBLISHED'
   try {
-    await ElMessageBox.confirm(`确定删除"${title}"？`, '提示', { type: 'warning' })
-    await api.delete(`${BASE}/${id}`)
+    await ElMessageBox.confirm(
+      isPublished
+        ? `<div style="color:var(--el-color-danger);font-weight:600">危险：正在删除「已发布」的法律文本</div><div style="margin-top:6px">「${typeLabel[row.type] ?? row.type} · ${row.title}」（${row.version || '无版本号'}）当前对全体 C 端用户生效。删除后该协议将从线上消失，可能造成注册/下单流程缺少必需协议、引发合规风险。</div><div style="margin-top:6px;font-size:12px;color:var(--el-text-color-secondary)">建议：如需下线请先发布新版本或改为草稿，而非直接删除。</div>`
+        : `确定删除草稿「${row.title}」（${row.version || '无版本号'}）？`,
+      '删除法律文本确认',
+      { type: isPublished ? 'error' : 'warning', dangerouslyUseHTMLString: isPublished, confirmButtonText: '确定删除', confirmButtonClass: isPublished ? 'el-button--danger' : '' },
+    )
+    await api.delete(`${BASE}/${row.id}`)
     ElMessage.success('已删除')
     fetchList()
   } catch { /* cancelled */ }
@@ -99,10 +122,17 @@ async function del(id: string, title: string) {
 
 function formatDate(d: string) { return d ? new Date(d).toLocaleString() : '-' }
 
-const filteredList = computed(() => {
-  if (!typeFilter.value) return list.value
-  return list.value.filter((r: LegalDoc) => r.type === typeFilter.value)
+// 检测同一类型存在多个「已发布」版本（C 端只应展示唯一生效版本，多版本需警示运营核对）
+const multiPublishedTypes = computed(() => {
+  const cnt: Record<string, number> = {}
+  for (const d of list.value) {
+    if (d.status === 'PUBLISHED') cnt[d.type] = (cnt[d.type] || 0) + 1
+  }
+  return Object.keys(cnt).filter(t => cnt[t] > 1)
 })
+function publishedCountOfType(type: string) {
+  return list.value.filter(d => d.type === type && d.status === 'PUBLISHED').length
+}
 </script>
 
 <template>
@@ -154,6 +184,16 @@ const filteredList = computed(() => {
         重试
       </el-button>
     </el-alert>
+
+    <el-alert
+      v-if="multiPublishedTypes.length"
+      type="warning"
+      :closable="false"
+      show-icon
+      :title="`检测到「${multiPublishedTypes.map(t => typeLabel[t] ?? t).join('、')}」存在多个「已发布」版本`"
+      description="同一类型协议应只保留唯一生效版本，多个已发布版本可能导致 C 端展示错乱或合规风险。请将过期版本改为「草稿」，仅保留最新生效版本。"
+      style="margin-bottom:12px"
+    />
 
     <el-table
       v-loading="loading"
@@ -221,7 +261,7 @@ const filteredList = computed(() => {
           <el-button
             type="danger"
             size="small"
-            @click="del(row.id, row.title)"
+            @click="del(row)"
           >
             删除
           </el-button>

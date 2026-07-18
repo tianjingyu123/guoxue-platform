@@ -72,18 +72,33 @@
       </el-table-column>
       <el-table-column
         label="最后状态"
-        width="80"
+        width="100"
       >
         <template #default="{ row }">
-          {{ row.lastStatus || '-' }}
+          <el-tag
+            v-if="row.lastStatus !== undefined && row.lastStatus !== null && row.lastStatus !== ''"
+            :type="lastStatusTag(row.lastStatus)"
+            size="small"
+          >
+            {{ lastStatusText(row.lastStatus) }}
+          </el-tag>
+          <span v-else>-</span>
         </template>
       </el-table-column>
       <el-table-column
         label="操作"
-        width="160"
+        width="220"
         fixed="right"
       >
         <template #default="{ row }">
+          <el-button
+            size="small"
+            text
+            type="primary"
+            @click="openEdit(row)"
+          >
+            编辑
+          </el-button>
           <el-button
             size="small"
             text
@@ -111,7 +126,7 @@
 
     <el-dialog
       v-model="dialogVisible"
-      title="注册 Webhook"
+      :title="editingId ? '编辑 Webhook' : '注册 Webhook'"
       width="550px"
     >
       <el-form
@@ -144,7 +159,10 @@
           />
         </el-form-item>
         <el-form-item label="签名密钥">
-          <el-input v-model="form.secret" />
+          <el-input
+            v-model="form.secret"
+            :placeholder="editingId ? '留空则保持原密钥不变' : '可选'"
+          />
         </el-form-item>
         <el-form-item label="备注">
           <el-input v-model="form.description" />
@@ -159,7 +177,7 @@
           :loading="saving"
           @click="doRegister"
         >
-          注册
+          {{ editingId ? '保存' : '注册' }}
         </el-button>
       </template>
     </el-dialog>
@@ -169,7 +187,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { webhookApi } from '@/api'
+import { webhookApi, api } from '@/api'
 
 const EVENT_OPTIONS = [
   { label: '订单支付', value: 'ORDER_PAID' }, { label: '订单退款', value: 'ORDER_REFUNDED' },
@@ -179,6 +197,26 @@ const EVENT_OPTIONS = [
 ]
 const EVENT_MAP = Object.fromEntries(EVENT_OPTIONS.map(e => [e.value, e.label]))
 function eventLabel(v: string) { return EVENT_MAP[v] || v }
+
+// 最后一次推送状态翻译：可能是 HTTP 状态码(200/500) 或 ok/failed 文本
+function lastStatusText(s?: string | number) {
+  if (s === undefined || s === null || s === '') return '-'
+  const str = String(s)
+  const map: Record<string, string> = { ok: '成功', success: '成功', failed: '失败', error: '失败', pending: '待发送' }
+  if (map[str]) return map[str]
+  const code = Number(str)
+  if (!isNaN(code)) return code >= 200 && code < 300 ? `成功(${code})` : `失败(${code})`
+  return str
+}
+function lastStatusTag(s?: string | number): '' | 'success' | 'danger' | 'info' {
+  if (s === undefined || s === null || s === '') return 'info'
+  const str = String(s)
+  if (['ok', 'success'].includes(str)) return 'success'
+  if (['failed', 'error'].includes(str)) return 'danger'
+  const code = Number(str)
+  if (!isNaN(code)) return code >= 200 && code < 300 ? 'success' : 'danger'
+  return 'info'
+}
 
 interface WebhookRow {
   id: string
@@ -197,6 +235,7 @@ const saving = ref(false)
 const togglingId = ref('')
 const deletingId = ref('')
 const dialogVisible = ref(false)
+const editingId = ref('')
 const form = ref({ event: 'ORDER_PAID', url: '', secret: '', description: '' })
 
 function fmt(d: string) { return d ? new Date(d).toLocaleDateString('zh-CN') : '-' }
@@ -211,13 +250,32 @@ async function fetchList() {
   finally { loading.value = false }
 }
 
-function openRegister() { form.value = { event: 'ORDER_PAID', url: '', secret: '', description: '' }; dialogVisible.value = true }
+function openRegister() { editingId.value = ''; form.value = { event: 'ORDER_PAID', url: '', secret: '', description: '' }; dialogVisible.value = true }
+
+function openEdit(row: WebhookRow) {
+  editingId.value = row.id
+  // 密钥不回显（后端一般不返回明文），留空表示不修改
+  form.value = { event: row.event, url: row.url || '', secret: '', description: row.description || '' }
+  dialogVisible.value = true
+}
 
 async function doRegister() {
   if (!form.value.url) { ElMessage.warning('请输入回调URL'); return }
   saving.value = true
-  try { await webhookApi.register(form.value); ElMessage.success('已注册'); dialogVisible.value = false; fetchList() }
-  catch { ElMessage.error('注册失败，请重试') }
+  try {
+    if (editingId.value) {
+      // 后端已提供 @Put /webhooks/:id；api 包装未导出该方法，直接用底层 api 实例。密钥留空则不提交，避免覆盖为空
+      const payload: Record<string, string> = { event: form.value.event, url: form.value.url, description: form.value.description }
+      if (form.value.secret) payload.secret = form.value.secret
+      await api.put(`/webhooks/${editingId.value}`, payload)
+      ElMessage.success('已保存')
+    } else {
+      await webhookApi.register(form.value)
+      ElMessage.success('已注册')
+    }
+    dialogVisible.value = false; fetchList()
+  }
+  catch { ElMessage.error(editingId.value ? '保存失败，请重试' : '注册失败，请重试') }
   finally { saving.value = false }
 }
 

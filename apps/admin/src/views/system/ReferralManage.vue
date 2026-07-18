@@ -17,7 +17,7 @@
         <el-card shadow="hover">
           <el-statistic
             title="配置总数"
-            :value="total"
+            :value="displayTotal"
           />
         </el-card>
       </el-col>
@@ -25,11 +25,20 @@
         <el-card shadow="hover">
           <el-statistic
             title="当前生效"
-            :value="activeConfig ? '1' : '0'"
+            :value="activeConfig ? 1 : 0"
           />
         </el-card>
       </el-col>
     </el-row>
+
+    <el-alert
+      type="info"
+      :closable="false"
+      show-icon
+      title="关于「分站ID / 运营商ID」"
+      description="此处为系统内部标识（分站、运营商的唯一 ID），留空表示对全局生效。临时配置用于活动期内临时调整推荐分佣比例，到期自动失效。"
+      style="margin-bottom:16px"
+    />
 
     <!-- 当前生效 -->
     <el-card
@@ -160,7 +169,7 @@
           <el-button
             size="small"
             type="danger"
-            @click="del(row.id)"
+            @click="del(row)"
           >
             删除
           </el-button>
@@ -253,7 +262,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { api } from '@/api'
 
@@ -272,6 +281,9 @@ const loading = ref(false); const saving = ref(false); const loadError = ref(fal
 const vis = ref(false); const editingId = ref(''); const tab = ref('all')
 const activeConfig = ref<ReferralConfig | null>(null)
 const form = reactive({ stationId: '', operatorId: '', commissionRate: 10, validFrom: '', validTo: '' })
+
+// 修「总数0/生效1」矛盾：生效配置来自独立接口，可能未计入列表 total，至少不低于生效数
+const displayTotal = computed(() => Math.max(total.value, activeConfig.value ? 1 : 0))
 
 onMounted(() => { fetchList(); fetchActive() })
 function formatDate(d?: string) { return d ? new Date(d).toLocaleString() : '-' }
@@ -295,6 +307,16 @@ function openEdit(row: ReferralConfig) {
   vis.value = true
 }
 async function save() {
+  // L3：推荐分佣比例变更直接影响全站/分站的推广返佣金额
+  const scope = form.stationId ? `分站「${form.stationId}」` : (form.operatorId ? `运营商「${form.operatorId}」` : '全局')
+  const period = form.validFrom && form.validTo ? `${form.validFrom} ~ ${form.validTo}` : '未设有效期（长期生效）'
+  try {
+    await ElMessageBox.confirm(
+      `即将保存推荐分佣临时配置：<div style="margin-top:6px">生效范围：<b>${scope}</b></div><div>佣金比例：<b style="color:var(--el-color-warning)">${form.commissionRate}%</b></div><div>有效期：${period}</div><div style="margin-top:6px;font-size:12px;color:var(--el-text-color-secondary)">生效后该范围内的推广返佣金额将按此比例计算，请确认比例无误。</div>`,
+      '分佣配置保存确认',
+      { type: 'warning', dangerouslyUseHTMLString: true, confirmButtonText: '确认保存' },
+    )
+  } catch { return }
   saving.value = true
   try {
     const payload = {
@@ -309,6 +331,12 @@ async function save() {
     ElMessage.success('已保存'); vis.value = false; fetchList(); fetchActive()
   } catch { } finally { saving.value = false }
 }
-async function del(id: string) { try { await ElMessageBox.confirm('确定删除？', '提示', { type: 'warning' }); await api.delete(`/admin/referral/temp-configs/${id}`); ElMessage.success('已删除'); fetchList(); fetchActive() } catch {} }
+async function del(row: ReferralConfig) {
+  const scope = row.stationId ? `分站「${row.stationId}」` : (row.operatorId ? `运营商「${row.operatorId}」` : '全局')
+  try {
+    await ElMessageBox.confirm(`确定删除该临时分佣配置（${scope}，佣金 ${row.commissionRate}%）？删除后该范围将回落至默认分佣规则。`, '删除确认', { type: 'warning', confirmButtonText: '确定删除' })
+    await api.delete(`/admin/referral/temp-configs/${row.id}`); ElMessage.success('已删除'); fetchList(); fetchActive()
+  } catch {}
+}
 </script>
 <style scoped>.page { padding: 16px; } .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; } .toolbar h3 { margin: 0; font-size: 18px; color: var(--color-text-title); }</style>

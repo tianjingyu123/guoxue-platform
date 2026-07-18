@@ -299,7 +299,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { api } from '@/api'
 import CosImageUpload from '@/components/upload/CosImageUpload.vue'
@@ -333,7 +333,14 @@ const GIFT_BASE = '/coin/gifts'
 
 onMounted(() => { fetchTiers() })
 
-function formatDate(d: string) { return d ? new Date(d).toLocaleString() : '-' }
+// 礼物 tab 首次切入时才加载，避免默认展示"暂无礼物"假空态
+let giftsLoaded = false
+watch(activeTab, (tab) => {
+  if (tab === 'gifts' && !giftsLoaded) {
+    giftsLoaded = true
+    fetchGifts()
+  }
+})
 
 async function fetchTiers() {
   loading.value = true
@@ -341,9 +348,13 @@ async function fetchTiers() {
   try {
     const { data } = await api.get('/system/configs', { params: { keyPrefix: TIER_PREFIX } })
     const items = data?.configs ?? data?.data ?? []
-    tierList.value = items.map((item: { key: string; id: string; value: string | Record<string, unknown> }) => {
-      const val = typeof item.value === 'string' ? JSON.parse(item.value) : item.value
-      return { ...val, _key: item.key, _id: item.id }
+    // 后端字段为 configKey/configValue（非 key/value），更新与删除均按 configKey 走
+    tierList.value = items.map((item: { configKey: string; id?: string; configValue: string | Record<string, unknown> }) => {
+      let val: Record<string, unknown> = {}
+      try {
+        val = typeof item.configValue === 'string' ? JSON.parse(item.configValue) : (item.configValue || {})
+      } catch { val = {} }
+      return { ...val, _key: item.configKey, _id: item.id || '' }
     })
   } catch { loadError.value = true; tierList.value = []; ElMessage.error('加载失败，请重试') } finally { loading.value = false }
 }
@@ -365,7 +376,7 @@ function openCreateTier() {
 }
 
 function openEditTier(row: CoinTierRow) {
-  editingId.value = row._key || row._id; dialogTitle.value = '编辑档位'
+  editingId.value = row._key; dialogTitle.value = '编辑档位'
   Object.assign(form, { name: row.name, amount: row.amount, coins: row.coins, presentedCoins: row.presentedCoins || 0 })
   vis.value = true
 }
@@ -375,7 +386,7 @@ async function saveTier() {
   try {
     const payload = { name: form.name, amount: form.amount, coins: form.coins, presentedCoins: form.presentedCoins }
     if (editingId.value) {
-      await api.put(`/system/configs/${editingId.value}`, { key: editingId.value, value: JSON.stringify(payload) })
+      await api.put(`/system/configs/${encodeURIComponent(editingId.value)}`, { key: editingId.value, value: JSON.stringify(payload) })
     } else {
       await api.post('/system/configs', { key: TIER_PREFIX + form.name, value: JSON.stringify(payload) })
     }
@@ -385,8 +396,9 @@ async function saveTier() {
 
 async function delTier(row: CoinTierRow) {
   try {
-    await ElMessageBox.confirm('确定删除该档位？', '提示', { type: 'warning' })
-    await api.delete(`/system/configs/${row._id}`)
+    await ElMessageBox.confirm(`确定删除充值档位「${row.name || row._key}」？删除后 C 端充值页将不再展示该档位。`, '删除确认', { type: 'warning', confirmButtonText: '确定删除' })
+    // 后端删除按 configKey 而非 id
+    await api.delete(`/system/configs/${encodeURIComponent(row._key)}`)
     ElMessage.success('已删除'); fetchTiers()
   } catch {}
 }

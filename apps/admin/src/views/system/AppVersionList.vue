@@ -69,6 +69,16 @@ function openEdit(row: AppVersionRow) {
 
 async function save() {
   if (!form.version) { ElMessage.warning('请输入版本号'); return }
+  // L3：强制更新会拦截所有低版本用户，不更新无法继续使用 App，影响面极大
+  if (form.forceUpdate) {
+    try {
+      await ElMessageBox.confirm(
+        `即将发布<b style="color:var(--el-color-danger)">强制更新</b>版本（${form.platform === 'ios' ? 'iOS' : 'Android'} · ${form.version}）。<div style="margin-top:6px;font-size:12px;color:var(--el-text-color-secondary)">所有低于该版本的用户打开 App 后将被强制要求升级，不升级无法继续使用。请确认下载地址有效、更新包已就绪。</div>`,
+        '强制更新发布确认',
+        { type: 'warning', dangerouslyUseHTMLString: true, confirmButtonText: '确认发布强制更新' },
+      )
+    } catch { return }
+  }
   saving.value = true
   try {
     if (editingId.value) {
@@ -82,10 +92,10 @@ async function save() {
   } catch { } finally { saving.value = false }
 }
 
-async function del(id: string, version: string) {
+async function del(row: AppVersionRow) {
   try {
-    await ElMessageBox.confirm(`确定删除版本 ${version}？`, '提示', { type: 'warning' })
-    await api.delete(`${BASE}/${id}`)
+    await ElMessageBox.confirm(`确定删除 ${row.platform === 'ios' ? 'iOS' : 'Android'} 版本 ${row.version}？删除后该版本记录将不再用于客户端版本检测。`, '删除确认', { type: 'warning', confirmButtonText: '确定删除' })
+    await api.delete(`${BASE}/${row.id}`)
     ElMessage.success('已删除')
     fetchList()
   } catch { /* cancelled */ }
@@ -216,7 +226,7 @@ function formatDate(d?: string) { return d ? new Date(d).toLocaleString() : '-' 
           <el-button
             type="danger"
             size="small"
-            @click="del(row.id, row.version)"
+            @click="del(row)"
           >
             删除
           </el-button>

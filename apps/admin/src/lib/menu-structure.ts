@@ -401,7 +401,8 @@ const MENU_GROUPS: Array<LeafDef | GroupDef> = [
       // 系统任务池（AI 执行队列）→ 已划入 AI 工作区"任务池"（与运营任务池同区重命名区分·合并待拍板）
       M("/system/feedback"),
       M("/system/error-monitor"),
-      M("/system/operation-logs"),
+      // 2026-07-18 Z7审计下架：与审计日志(/audit-logs)同端点 auditApi.list 重复入口·页面已收敛为引导卡·拍板确认后删路由
+      // M("/system/operation-logs"),
       M("/system/config-versions"),
       M("/audit-logs"),
       M("/system/search-weights"),
@@ -429,6 +430,7 @@ const NOT_IN_MENU = new Set<string>([
   "/qimen",
   "/liuyao",
   "/daliuren",
+  "/system/operation-logs", // Z7审计下架：与审计日志同端点重复入口·已收敛引导卡
 ]);
 
 /**

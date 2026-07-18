@@ -79,10 +79,13 @@ async function save() {
   } catch { } finally { saving.value = false }
 }
 
-async function del(id: string, title: string) {
+async function del(row: SiteNotice) {
+  const activeWarn = row.isActive
+    ? '该公告当前<b style="color:var(--el-color-danger)">生效中</b>，删除后将立即从全站用户端消失。'
+    : ''
   try {
-    await ElMessageBox.confirm(`确定删除公告"${title}"？`, '提示', { type: 'warning' })
-    await api.delete(`${BASE}/${id}`)
+    await ElMessageBox.confirm(`确定删除公告「${row.title}」？${activeWarn}`, '删除确认', { type: 'warning', dangerouslyUseHTMLString: !!activeWarn, confirmButtonText: '确定删除' })
+    await api.delete(`${BASE}/${row.id}`)
     ElMessage.success('已删除')
     fetchList()
   } catch { /* cancelled */ }
@@ -192,7 +195,7 @@ function formatDate(d: string) { return d ? new Date(d).toLocaleString() : '-' }
           <el-button
             type="danger"
             size="small"
-            @click="del(row.id, row.title)"
+            @click="del(row)"
           >
             删除
           </el-button>

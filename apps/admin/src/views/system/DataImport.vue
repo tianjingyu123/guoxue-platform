@@ -243,8 +243,10 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { importApi, classicApi } from '@/api'
+
+const TYPE_LABEL: Record<string, string> = { article: '文章', course: '课程', product: '商品', classic: '古籍', user: '用户' }
 
 // 接口错误结构（axios 错误响应）
 interface ApiError {
@@ -269,6 +271,18 @@ function onFileChange(uploadFile: any) { file.value = uploadFile.raw }
 
 async function doImport() {
   if (!file.value) { ElMessage.warning('请选择文件'); return }
+  // L3：导入将向生产库批量写入数据，无法一键撤销；用户类导入涉及账号，额外强提示
+  const typeName = TYPE_LABEL[importType.value] || importType.value
+  const extra = importType.value === 'user'
+    ? '<div style="margin-top:6px;color:var(--el-color-danger);font-size:12px">该类型将批量创建<b>用户账号</b>，请务必核对手机号唯一性，避免生成重复/垃圾账号。</div>'
+    : ''
+  try {
+    await ElMessageBox.confirm(
+      `即将把 CSV 文件「${file.value.name}」按<b>「${typeName}」</b>类型导入生产数据库。导入结果无法一键撤销，请确认文件内容与格式说明一致。${extra}`,
+      '数据导入确认',
+      { type: 'warning', dangerouslyUseHTMLString: true, confirmButtonText: '确认导入' },
+    )
+  } catch { return }
   importing.value = true
   try {
     const res = await importApi.importCsv(importType.value, file.value)
@@ -315,6 +329,14 @@ async function daizhigeStats() {
 }
 
 async function daizhigeImport() {
+  // L3：单次最多导入 daizhigeMax 部古籍全文，写入生产库
+  try {
+    await ElMessageBox.confirm(
+      `即将从殆知阁种子文件导入古籍全文（单次上限 ${daizhigeMax.value} 部${daizhigeCategory.value ? '，分类：' + daizhigeCategory.value : '，全部分类'}）。已存在的书目将自动跳过。确定开始导入？`,
+      '古籍导入确认',
+      { type: 'warning', confirmButtonText: '开始导入' },
+    )
+  } catch { return }
   importingDaizhige.value = true
   daizhigeResult.value = null
   try {

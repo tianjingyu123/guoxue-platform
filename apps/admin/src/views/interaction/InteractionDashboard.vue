@@ -70,7 +70,7 @@
       </el-col>
       <el-col :span="4">
         <div class="stat-card">
-          <span class="value">{{ stats.thisWeek.likes }}</span>
+          <span class="value">{{ weekTotal.toLocaleString() }}</span>
           <span class="label">近7天互动</span>
           <span class="sub">点赞+评论+关注+收藏</span>
         </div>
@@ -125,17 +125,42 @@
               </template>
             </el-table-column>
             <el-table-column
-              label="ID"
-              prop="targetId"
-              width="180"
-              show-overflow-tooltip
-            />
+              label="内容"
+              min-width="140"
+            >
+              <template #default="{ row }">
+                <div class="content-cell">
+                  <el-tooltip
+                    :content="row.targetId || '—'"
+                    placement="top"
+                  >
+                    <span
+                      class="id-copy"
+                      @click="copyId(row.targetId)"
+                    >{{ shortId(row.targetId) }}</span>
+                  </el-tooltip>
+                  <el-button
+                    v-if="jumpRoute(row.targetType)"
+                    link
+                    type="primary"
+                    size="small"
+                    @click="jump(row)"
+                  >
+                    查看
+                  </el-button>
+                </div>
+              </template>
+            </el-table-column>
             <el-table-column
               label="点赞"
               prop="likeCount"
               width="70"
               align="center"
-            />
+            >
+              <template #default="{ row }">
+                {{ (row.likeCount ?? 0).toLocaleString() }}
+              </template>
+            </el-table-column>
             <template #empty>
               <el-empty
                 description="暂无热门内容"
@@ -191,8 +216,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from "vue";
+import { ref, reactive, computed, onMounted, onBeforeUnmount } from "vue";
 import { useRouter } from "vue-router";
+import { ElMessage } from "element-plus";
 import { interactionApi } from "@/api";
 import * as echarts from "echarts";
 
@@ -215,15 +241,63 @@ const stats = reactive({
 
 const topContent = ref<TopContentRow[]>([]);
 const trendChart = ref<HTMLElement | null>(null);
+let chart: echarts.ECharts | null = null;
 const loading = ref(false);
 const loadError = ref(false);
 
-function typeLabel(t: string) {
+/** 近7天互动总量 = 点赞+评论+关注+收藏（与卡片文案口径对齐，原先只显示 likes 一项与文案不符） */
+const weekTotal = computed(() => {
+  const w = stats.thisWeek;
+  return w.likes + w.comments + w.follows + w.collects;
+});
+
+function typeLabel(t?: string) {
   const m: Record<string, string> = { ARTICLE: "文章", COURSE: "课程", CIRCLE: "圈子", PRODUCT: "商品", CLASSIC: "古籍" };
-  return m[t] || t;
+  return t ? (m[t] || t) : "—";
+}
+
+/** 长 ID 截断显示前 8 位（标准§四.4） */
+function shortId(id?: string) {
+  if (!id) return "—";
+  return id.length > 8 ? `${id.slice(0, 8)}…` : id;
+}
+
+/** 点击复制完整 ID（标准§四.4：截断+悬浮全文+点击复制） */
+async function copyId(id?: string) {
+  if (!id) return;
+  try {
+    await navigator.clipboard.writeText(id);
+    ElMessage.success("已复制内容 ID");
+  } catch {
+    ElMessage.warning("复制失败，请手动选择");
+  }
+}
+
+/** 各内容类型对应的管理页路由（仅登记确有的路由，未知类型不给跳转避免 404） */
+const TYPE_ROUTE: Record<string, string> = {
+  ARTICLE: "/contents", CLASSIC: "/contents",
+  COURSE: "/courses", CIRCLE: "/circles",
+};
+function jumpRoute(t?: string): string | undefined {
+  return t ? TYPE_ROUTE[t] : undefined;
+}
+function jump(row: TopContentRow) {
+  const r = jumpRoute(row.targetType);
+  // 带上 id 作为 query，管理页可据此高亮/搜索；无 id 时仅跳列表
+  if (r) router.push({ path: r, query: row.targetId ? { id: row.targetId } : {} });
 }
 
 onMounted(() => refresh());
+
+onBeforeUnmount(() => {
+  window.removeEventListener("resize", onResize);
+  chart?.dispose();
+  chart = null;
+});
+
+function onResize() {
+  chart?.resize();
+}
 
 async function refresh() {
   loading.value = true;
@@ -255,7 +329,11 @@ async function refresh() {
 }
 
 function renderTrendChart(trends: TrendPoint[]) {
-  const chart = echarts.init(trendChart.value!);
+  // 复用实例，避免每次刷新重复 init 造成内存泄漏与「已有实例」告警
+  if (!chart) {
+    chart = echarts.init(trendChart.value!);
+    window.addEventListener("resize", onResize);
+  }
   chart.setOption({
     tooltip: { trigger: "axis" },
     legend: { data: ["点赞", "评论", "关注", "收藏"], bottom: 0 },
@@ -268,7 +346,7 @@ function renderTrendChart(trends: TrendPoint[]) {
       { name: "收藏", type: "line", smooth: true, data: trends.map((t) => t.collects), itemStyle: { color: "#f56c6c" } },
     ],
     grid: { left: 50, right: 20, top: 20, bottom: 40 },
-  });
+  }, true);
 }
 </script>
 
@@ -281,4 +359,7 @@ function renderTrendChart(trends: TrendPoint[]) {
 .stat-card .label { display: block; font-size: 13px; color: var(--color-text-secondary); margin-top: 4px; }
 .stat-card .sub { display: block; font-size: 11px; color: var(--color-success); margin-top: 2px; }
 .stat-card.warn .sub { color: var(--color-error); }
+.content-cell { display: flex; align-items: center; gap: 8px; }
+.id-copy { font-family: var(--font-mono, monospace); font-size: 12px; color: var(--color-text-secondary); cursor: pointer; }
+.id-copy:hover { color: var(--el-color-primary, #409eff); text-decoration: underline; }
 </style>

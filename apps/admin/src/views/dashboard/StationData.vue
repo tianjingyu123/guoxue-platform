@@ -1,183 +1,166 @@
 <script setup lang="ts">
 /**
  * StationData.vue — 分站数据看板
- * 按分站 ID 查询推广分站的营收与运营指标
+ * 对齐后端嵌套契约 entity-dashboard.service.getStationDashboard：
+ *   { basicInfo:{name,masterName,code,status,joinedAt},
+ *     promotion:{totalClicks,totalConversions,conversionRate},
+ *     commission:{totalCommission,settled,pending},
+ *     channelAnalysis:[{channel,clicks,conversions}],
+ *     team:{subordinateCount,totalCommission} }
+ * 分站改为对象选择器（filterable 远程搜索），不再手输 UUID；
+ * 后端 200 返回 {error:"分站不存在"} 识别为错误态；后端 null 字段显 "—" 不画 0。
  */
-import { ref, onMounted } from "vue"
-import type { Component } from "vue"
+import { ref, onMounted, type Component } from "vue"
 import { useRoute } from "vue-router"
-import { api } from "@/api"
-import * as echarts from "echarts"
+import { stationApi, dashboardApi } from "@/api"
 import ChartCard from "@/components/ChartCard.vue"
 import {
-  OfficeBuilding, Money, Calendar, User,
-  View, DataLine, Goods, Coin,
+  OfficeBuilding, User, Postcard, CircleCheck,
+  View, Goods, DataLine, Money, Coin, Wallet, Share,
 } from "@element-plus/icons-vue"
 
 const route = useRoute()
 
-// ==================== 状态 ====================
+// ==================== 后端契约类型 ====================
+interface StationDashboard {
+  basicInfo?: { name?: string; masterName?: string; code?: string; status?: string; joinedAt?: string }
+  promotion?: { totalClicks?: number; totalConversions?: number; conversionRate?: string }
+  commission?: { totalCommission?: number; settled?: number; pending?: number }
+  channelAnalysis?: { channel?: string; clicks?: number; conversions?: number }[]
+  team?: { subordinateCount?: number; totalCommission?: number }
+  error?: string
+}
+
+// ==================== 分站选择器（远程搜索） ====================
+interface StationOption { id: string; name: string }
 const entityId = ref("")
+const stationOptions = ref<StationOption[]>([])
+const optionsLoading = ref(false)
+
+async function searchStations(query: string) {
+  optionsLoading.value = true
+  try {
+    const res = await stationApi.list({ page: 1, pageSize: 50, keyword: query?.trim() || undefined })
+    const d = res.data as { items?: StationOption[]; stations?: StationOption[] }
+    const list = d?.items || d?.stations || (Array.isArray(res.data) ? res.data : [])
+    stationOptions.value = (list as StationOption[]).filter((s) => s?.id && s?.name)
+  } catch {
+    stationOptions.value = []
+  } finally {
+    optionsLoading.value = false
+  }
+}
+
+// ==================== 状态 ====================
 const loading = ref(false)
 const loadError = ref(false)
-/** 分站数据看板返回结构（字段宽松 optional，仅声明实际访问字段） */
-interface StationStat {
-  stationName?: string
-  totalRevenue?: number
-  monthRevenue?: number
-  promoters?: number
-  clicks?: number
-  conversionRate?: string | number
-  orders?: number
-  commissionTotal?: number
-  revenueTimeline?: { date?: string; revenue?: number }[]
-}
-const data = ref<StationStat | null>(null)
-
-// 支持从分站管理页面跳转过来时自动查询
-onMounted(() => {
-  const q = route.query.stationId
-  if (q && typeof q === "string") {
-    entityId.value = q
-    fetchData()
-  }
-})
+const errorMsg = ref("")
+const data = ref<StationDashboard | null>(null)
 
 // ==================== 统计卡片 ====================
-interface CardDef { label: string; value: string | number; icon: Component }
+interface CardDef { label: string; value: string; icon: Component; hint?: string }
 const cards = ref<CardDef[]>([])
 
-// ==================== ECharts 选项 ====================
-// chartOption 为 ECharts option，类型为复杂联合，框架类型不匹配，保留 any
-const chartOption = ref<any>({})
+const STATION_STATUS_MAP: Record<string, string> = {
+  ACTIVE: "运营中", PENDING: "待审核", DISABLED: "已停用",
+  SUSPENDED: "已暂停", CLOSED: "已关闭", EXPIRED: "已到期",
+}
 
-/** 构建营收趋势折线图 */
-function buildRevenueOption(dates: string[], values: number[]) {
+// ==================== 格式化 ====================
+function fmtNum(v: number | null | undefined): string {
+  return v == null ? "—" : Number(v).toLocaleString("zh-CN")
+}
+function fmtMoney(v: number | null | undefined): string {
+  return v == null ? "—" : `¥${Number(v).toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+}
+function fmtDate(v: string | null | undefined): string {
+  if (!v) return "—"
+  const d = new Date(v)
+  if (Number.isNaN(d.getTime())) return "—"
+  const p = (n: number) => String(n).padStart(2, "0")
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
+}
+
+// ==================== ECharts 选项 ====================
+// echarts option 结构复杂，统一用 any（框架类型）
+const channelOption = ref<any>(null)
+const commissionOption = ref<any>(null)
+
+function buildChannelOption(list: NonNullable<StationDashboard["channelAnalysis"]>) {
+  const items = list.filter((c) => (c.clicks ?? 0) > 0 || (c.conversions ?? 0) > 0)
+  if (!items.length) return null
+  const labels = items.map((c) => c.channel || "未标注")
   return {
-    grid: { top: 30, right: 20, bottom: 30, left: 60 },
-    xAxis: {
-      type: "category", data: dates,
-      axisLine: { lineStyle: { color: "#F0F0F0" } },
-      axisTick: { show: false },
-      axisLabel: { color: "#999", fontSize: 12 },
-    },
-    yAxis: {
-      type: "value",
-      splitLine: { lineStyle: { color: "#F0F0F0" } },
-      axisLabel: { color: "#999", fontSize: 12, formatter: "¥{value}" },
-      axisLine: { show: false }, axisTick: { show: false },
-    },
-    series: [{
-      type: "line", data: values, smooth: true,
-      symbol: "circle", symbolSize: 6,
-      lineStyle: { color: "#4ECDC4", width: 3 },
-      itemStyle: { color: "#4ECDC4", borderWidth: 2, borderColor: "#fff" },
-      areaStyle: {
-        color: {
-          type: "linear", x: 0, y: 0, x2: 0, y2: 1,
-          colorStops: [
-            { offset: 0, color: "rgba(78,205,196,0.15)" },
-            { offset: 1, color: "rgba(78,205,196,0)" },
-          ],
-        },
-      },
-    }],
-    tooltip: {
-      trigger: "axis", backgroundColor: "#fff",
-      borderColor: "#F0F0F0", borderWidth: 1,
-      textStyle: { color: "#1A1A1A", fontSize: 13 },
-      // params 为 ECharts tooltip 回调参数（复杂联合类型），保留 any
-      formatter: (params: any) => {
-        const p = params[0]
-        return `<div style="font-weight:600;margin-bottom:4px">${p.name}</div>
-                <div>营收：<span style="color:#4ECDC4;font-weight:600">¥${Number(p.value).toLocaleString()}</span></div>`
-      },
-    },
+    grid: { top: 40, right: 20, bottom: 30, left: 50 },
+    legend: { data: ["点击", "转化"], top: 0 },
+    tooltip: { trigger: "axis", axisPointer: { type: "shadow" } },
+    xAxis: { type: "category", data: labels, axisTick: { show: false }, axisLabel: { color: "#999", fontSize: 12 } },
+    yAxis: { type: "value", minInterval: 1, splitLine: { lineStyle: { color: "#F0F0F0" } }, axisLabel: { color: "#999", fontSize: 12 } },
+    series: [
+      { name: "点击", type: "bar", data: items.map((c) => c.clicks ?? 0), itemStyle: { color: "#5B8FF9", borderRadius: [4, 4, 0, 0] }, barMaxWidth: 28 },
+      { name: "转化", type: "bar", data: items.map((c) => c.conversions ?? 0), itemStyle: { color: "#61C29B", borderRadius: [4, 4, 0, 0] }, barMaxWidth: 28 },
+    ],
   }
 }
 
-/** 构建关键指标柱状图（回退方案） */
-function buildBarOption() {
-  const d = data.value
-  if (!d) return {}
-  const labels = ["总收益", "本月收益", "推广人数", "点击量", "订单数", "佣金总额"]
-  const values = [
-    d.totalRevenue ?? 0,
-    d.monthRevenue ?? 0,
-    d.promoters ?? 0,
-    d.clicks ?? 0,
-    d.orders ?? 0,
-    d.commissionTotal ?? 0,
+function buildCommissionOption(c: NonNullable<StationDashboard["commission"]>) {
+  const items = [
+    { name: "已结算", value: c.settled ?? 0 },
+    { name: "待结算", value: c.pending ?? 0 },
   ]
+  if (items.every((i) => !i.value)) return null
   return {
-    grid: { top: 30, right: 20, bottom: 30, left: 60 },
-    xAxis: {
-      type: "category", data: labels,
-      axisLine: { lineStyle: { color: "#F0F0F0" } },
-      axisTick: { show: false },
-      axisLabel: { color: "#999", fontSize: 12 },
-    },
-    yAxis: {
-      type: "value",
-      splitLine: { lineStyle: { color: "#F0F0F0" } },
-      axisLabel: { color: "#999", fontSize: 12 },
-      axisLine: { show: false }, axisTick: { show: false },
-    },
+    tooltip: { trigger: "item", valueFormatter: (v: number) => fmtMoney(v) },
+    legend: { bottom: 0 },
     series: [{
-      type: "bar", data: values, barWidth: "40%",
-      itemStyle: {
-        color: {
-          type: "linear", x: 0, y: 0, x2: 0, y2: 1,
-          colorStops: [
-            { offset: 0, color: "rgba(78,205,196,0.8)" },
-            { offset: 1, color: "rgba(78,205,196,0.3)" },
-          ],
-        },
-        borderRadius: [4, 4, 0, 0],
-      },
+      type: "pie", radius: ["45%", "70%"], center: ["50%", "45%"],
+      data: items.map((i, idx) => ({ ...i, itemStyle: { color: ["#61C29B", "#F6BD16"][idx] } })),
+      label: { formatter: "{b}\n{d}%" },
     }],
-    tooltip: {
-      trigger: "axis", backgroundColor: "#fff",
-      borderColor: "#F0F0F0", borderWidth: 1,
-      textStyle: { color: "#1A1A1A", fontSize: 13 },
-    },
   }
 }
 
 // ==================== 数据获取 ====================
 async function fetchData() {
-  if (!entityId.value.trim()) return
+  if (!entityId.value) return
   loading.value = true
   loadError.value = false
+  errorMsg.value = ""
   data.value = null
+  cards.value = []
+  channelOption.value = null
+  commissionOption.value = null
   try {
-    const res = await api.get(`/dashboard/station/${entityId.value.trim()}`)
-    const d = res.data ?? {}
+    const res = await dashboardApi.station(entityId.value)
+    const d = (res.data ?? {}) as StationDashboard
+    // 后端异常时 200 返回 {error:"分站不存在"/"获取站长看板失败"}，识别为错误态
+    if (d.error) {
+      loadError.value = true
+      errorMsg.value = d.error
+      return
+    }
     data.value = d
 
+    const b = d.basicInfo ?? {}
+    const p = d.promotion ?? {}
+    const c = d.commission ?? {}
+    const t = d.team ?? {}
     cards.value = [
-      { label: "分站名称",   value: d.stationName ?? "--",        icon: OfficeBuilding },
-      { label: "总收益",     value: d.totalRevenue ?? 0,          icon: Money },
-      { label: "本月收益",   value: d.monthRevenue ?? 0,          icon: Calendar },
-      { label: "推广人数",   value: d.promoters ?? 0,             icon: User },
-      { label: "点击量",     value: d.clicks ?? 0,                icon: View },
-      { label: "转化率",     value: d.conversionRate ?? "0%",     icon: DataLine },
-      { label: "订单数",     value: d.orders ?? 0,                icon: Goods },
-      { label: "佣金总额",   value: d.commissionTotal ?? 0,       icon: Coin },
+      { label: "分站名称", value: b.name ?? "—", icon: OfficeBuilding },
+      { label: "站长", value: b.masterName ?? "—", icon: User },
+      { label: "分站编码", value: b.code ?? "—", icon: Postcard },
+      { label: "状态", value: STATION_STATUS_MAP[b.status ?? ""] ?? b.status ?? "—", icon: CircleCheck, hint: b.joinedAt ? `开通于 ${fmtDate(b.joinedAt)}` : undefined },
+      { label: "累计点击", value: fmtNum(p.totalClicks), icon: View },
+      { label: "转化订单", value: fmtNum(p.totalConversions), icon: Goods },
+      { label: "转化率", value: p.conversionRate ?? "—", icon: DataLine },
+      { label: "累计佣金", value: fmtMoney(c.totalCommission), icon: Money },
+      { label: "已结算", value: fmtMoney(c.settled), icon: Wallet },
+      { label: "待结算", value: fmtMoney(c.pending), icon: Coin },
+      { label: "下级团队", value: fmtNum(t.subordinateCount), icon: Share, hint: "ACTIVE 状态推荐关系" },
     ]
 
-    // 优先使用 revenueTimeline 绘制折线图
-    const timeline = d.revenueTimeline ?? []
-    if (Array.isArray(timeline) && timeline.length > 0) {
-      const dates = timeline.map((t: { date?: string; revenue?: number }) => t.date ?? "")
-      const values = timeline.map((t: { date?: string; revenue?: number }) => t.revenue ?? 0)
-      if (dates.length && values.length) {
-        chartOption.value = buildRevenueOption(dates, values)
-      }
-    } else {
-      // 回退到柱状图
-      chartOption.value = buildBarOption()
-    }
+    channelOption.value = d.channelAnalysis?.length ? buildChannelOption(d.channelAnalysis) : null
+    commissionOption.value = d.commission ? buildCommissionOption(d.commission) : null
   } catch {
     data.value = null
     loadError.value = true
@@ -186,60 +169,66 @@ async function fetchData() {
   }
 }
 
+// 支持从分站管理页面跳转过来时自动查询
+onMounted(() => {
+  const q = route.query.stationId
+  if (q && typeof q === "string") {
+    entityId.value = q
+    searchStations("")
+    fetchData()
+  }
+})
+
 // ==================== 导出 CSV ====================
 function exportCSV() {
-  if (!data.value) return
   const d = data.value
-  const rows = [
-    ["指标", "值"],
-    ["分站名称", d.stationName ?? ""],
-    ["分站 ID", entityId.value],
-    ["总收益", d.totalRevenue ?? 0],
-    ["本月收益", d.monthRevenue ?? 0],
-    ["推广人数", d.promoters ?? 0],
-    ["点击量", d.clicks ?? 0],
-    ["转化率", d.conversionRate ?? "0%"],
-    ["订单数", d.orders ?? 0],
-    ["佣金总额", d.commissionTotal ?? 0],
-  ]
-
-  // 追加时间序列数据
-  const timeline = d.revenueTimeline ?? []
-  if (Array.isArray(timeline) && timeline.length > 0) {
-    rows.push([], ["日期", "营收"])
-    for (const t of timeline) {
-      rows.push([t.date ?? "", t.revenue ?? 0])
-    }
+  if (!d) return
+  const rows: (string | number)[][] = [["指标", "值"]]
+  cards.value.forEach((c) => rows.push([c.label, c.value]))
+  const ch = d.channelAnalysis ?? []
+  if (ch.length) {
+    rows.push([], ["推广渠道", "点击", "转化"])
+    for (const c of ch) rows.push([c.channel || "未标注", c.clicks ?? 0, c.conversions ?? 0])
   }
-
   const csv = rows.map((r) => r.join(",")).join("\n")
   const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" })
   const url = URL.createObjectURL(blob)
   const a = document.createElement("a")
   a.href = url
-  a.download = `分站数据_${entityId.value}_${new Date().toISOString().slice(0, 10)}.csv`
+  a.download = `分站数据_${d.basicInfo?.name ?? entityId.value}_${new Date().toISOString().slice(0, 10)}.csv`
   a.click()
   URL.revokeObjectURL(url)
 }
 </script>
 
 <template>
-  <div
-    v-loading="loading"
-    class="page"
-  >
+  <div class="page">
     <div class="toolbar">
       <h3>分站数据看板</h3>
       <div class="toolbar-right">
-        <el-input
+        <el-select
           v-model="entityId"
-          placeholder="输入分站ID"
-          style="width:200px"
+          placeholder="搜索并选择分站"
+          style="width:240px"
+          filterable
+          remote
           clearable
-          @keyup.enter="fetchData"
-        />
+          :remote-method="searchStations"
+          :loading="optionsLoading"
+          @focus="!stationOptions.length && searchStations('')"
+          @change="fetchData"
+        >
+          <el-option
+            v-for="s in stationOptions"
+            :key="s.id"
+            :label="s.name"
+            :value="s.id"
+          />
+        </el-select>
         <el-button
           type="primary"
+          :loading="loading"
+          :disabled="!entityId"
           @click="fetchData"
         >
           查询
@@ -253,78 +242,99 @@ function exportCSV() {
       </div>
     </div>
 
-    <!-- 错误态 -->
-    <el-result
-      v-if="loadError"
-      icon="error"
-      title="数据加载失败"
-      sub-title="无法获取分站数据，请检查网络或稍后重试"
+    <div
+      v-loading="loading"
+      class="content"
     >
-      <template #extra>
-        <el-button
-          type="primary"
-          @click="fetchData"
-        >
-          重试
-        </el-button>
-      </template>
-    </el-result>
-
-    <template v-else>
-    <div v-if="data">
-      <el-row
-        :gutter="20"
-        class="stats-row"
+      <el-result
+        v-if="loadError"
+        icon="error"
+        :title="errorMsg || '数据加载失败'"
+        :sub-title="errorMsg ? '请重新选择分站后再查询' : '无法获取分站数据，请稍后重试'"
       >
-        <el-col
-          v-for="card in cards"
-          :key="card.label"
-          :xs="24"
-          :sm="12"
-          :md="6"
+        <template #extra>
+          <el-button
+            type="primary"
+            @click="fetchData"
+          >
+            重试
+          </el-button>
+        </template>
+      </el-result>
+
+      <template v-else-if="data">
+        <el-row
+          :gutter="20"
+          class="stats-row"
         >
-          <div class="stat-card">
-            <div class="stat-card__top">
-              <span class="stat-card__label">{{ card.label }}</span>
-              <div class="stat-card__icon">
-                <el-icon :size="18">
-                  <component :is="card.icon" />
-                </el-icon>
+          <el-col
+            v-for="card in cards"
+            :key="card.label"
+            :xs="24"
+            :sm="12"
+            :md="6"
+          >
+            <div class="stat-card">
+              <div class="stat-card__top">
+                <span class="stat-card__label">{{ card.label }}</span>
+                <div class="stat-card__icon">
+                  <el-icon :size="18">
+                    <component :is="card.icon" />
+                  </el-icon>
+                </div>
+              </div>
+              <div class="stat-card__value">
+                {{ card.value }}
+              </div>
+              <div
+                v-if="card.hint"
+                class="stat-card__hint"
+              >
+                {{ card.hint }}
               </div>
             </div>
-            <div class="stat-card__value">
-              {{ card.value }}
-            </div>
-          </div>
-        </el-col>
-      </el-row>
-      <el-row
-        :gutter="20"
-        class="charts-row"
-      >
-        <el-col
-          :xs="24"
-          :md="24"
+          </el-col>
+        </el-row>
+
+        <el-row
+          :gutter="20"
+          class="charts-row"
         >
-          <ChartCard
-            title="营收趋势"
-            :option="chartOption"
-            :height="320"
-          />
-        </el-col>
-      </el-row>
+          <el-col
+            :xs="24"
+            :md="14"
+          >
+            <ChartCard
+              title="推广渠道分析（点击 × 转化）"
+              :option="channelOption"
+              :height="320"
+            />
+          </el-col>
+          <el-col
+            :xs="24"
+            :md="10"
+          >
+            <ChartCard
+              title="佣金结算构成"
+              :option="commissionOption"
+              :height="320"
+            />
+          </el-col>
+        </el-row>
+      </template>
+
+      <el-empty
+        v-else-if="!loading"
+        description="请选择分站查看数据（支持按名称搜索）"
+        :image-size="48"
+      />
     </div>
-    <el-empty
-      v-if="!data && !loading"
-      description="请输入分站ID查询数据"
-      :image-size="48"
-    />
-    </template>
   </div>
 </template>
 
 <style scoped>
 .page { padding: 16px; }
+.content { min-height: 200px; }
 .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .toolbar h3 { margin: 0; font-size: 18px; color: var(--color-text-title); }
 .toolbar-right { display: flex; gap: 8px; }
@@ -342,7 +352,8 @@ function exportCSV() {
   background: rgba(255,107,107,0.1); color: #FF6B6B;
   display: flex; align-items: center; justify-content: center;
 }
-.stat-card__value { font-size: 28px; font-weight: 700; color: #1A1A1A; margin-top: 8px; font-feature-settings: "tnum"; line-height: 1.2; }
+.stat-card__value { font-size: 24px; font-weight: 700; color: #1A1A1A; margin-top: 8px; font-feature-settings: "tnum"; line-height: 1.2; word-break: break-all; }
+.stat-card__hint { margin-top: 6px; font-size: 12px; color: var(--color-text-secondary); }
 .charts-row { margin-bottom: 20px; }
 @media (max-width: 768px) { .stat-card { margin-bottom: 12px; } }
 </style>

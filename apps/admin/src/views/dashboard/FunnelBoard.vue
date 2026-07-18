@@ -139,6 +139,15 @@
             >
               <template #default="{ row, $index }">
                 <span v-if="$index === 0">—</span>
+                <!-- 按日累加口径下后步人数可能大于前步（同一用户跨日重复计数），转化率会 >100%，
+                     此时率无业务意义，显示 "—" 并 tooltip 说明，避免出现「300%」误导 -->
+                <el-tooltip
+                  v-else-if="row.rate > 1"
+                  content="按日累加口径下后步人数大于前步（同一用户跨日重复计数），此处转化率无意义，故不展示。如需精确率请用去重口径专项分析。"
+                  placement="top"
+                >
+                  <span class="rate-na">—</span>
+                </el-tooltip>
                 <span
                   v-else
                   :class="{ 'rate-low': row.rate < 0.1 }"
@@ -151,6 +160,13 @@
             >
               <template #default="{ row, $index }">
                 <span v-if="$index === 0">100%</span>
+                <el-tooltip
+                  v-else-if="row.totalRate > 1"
+                  content="按日累加口径下该步人数大于第 1 步（同一用户跨日重复计数），总转化率无意义，故不展示。"
+                  placement="top"
+                >
+                  <span class="rate-na">—</span>
+                </el-tooltip>
                 <span v-else>{{ (row.totalRate * 100).toFixed(1) }}%</span>
               </template>
             </el-table-column>
@@ -329,4 +345,5 @@ async function rebuild() {
 .chart-trend { height: 320px; }
 .steps-card { margin-top: var(--spacing-lg); }
 .rate-low { color: var(--el-color-danger); font-weight: 600; }
+.rate-na { color: var(--color-text-secondary, #909399); cursor: help; border-bottom: 1px dashed var(--color-divider, #dcdfe6); }
 </style>

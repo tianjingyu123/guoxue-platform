@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
+import { QuestionFilled } from "@element-plus/icons-vue";
 import { systemApi } from "@/api";
 
 interface CronJob {
@@ -17,6 +18,7 @@ interface CronJob {
 const jobs = ref<CronJob[]>([]);
 const loading = ref(false);
 const loadError = ref(false);
+const notImplemented = ref(false);
 const triggering = ref(false);
 const status = ref<Record<string, unknown>>({});
 
@@ -25,14 +27,20 @@ onMounted(() => fetchStatus());
 async function fetchStatus() {
   loading.value = true;
   loadError.value = false;
+  notImplemented.value = false;
   try {
     const { data } = await systemApi.getCronStatus();
     status.value = data ?? {};
     jobs.value = (data as any)?.jobs ?? [];
-  } catch {
-    loadError.value = true;
+  } catch (e: any) {
     jobs.value = [];
-    ElMessage.error("加载失败，请重试");
+    // 契约兜底：后端未提供任务清单端点（404）时给出说明性降级，而非笼统报错
+    if (e?.response?.status === 404) {
+      notImplemented.value = true;
+    } else {
+      loadError.value = true;
+      ElMessage.error("加载失败，请重试");
+    }
   } finally {
     loading.value = false;
   }
@@ -56,6 +64,16 @@ function getStatusTag(s?: string) {
   if (s === "idle" || s === "pending") return "info";
   if (s === "error" || s === "failed") return "danger";
   return "info";
+}
+
+function statusLabel(s?: string) {
+  const map: Record<string, string> = {
+    running: "运行中", active: "已启用",
+    idle: "空闲", pending: "等待中",
+    error: "出错", failed: "失败",
+    disabled: "已停用", stopped: "已停止",
+  };
+  return (s && map[s]) || s || "-";
 }
 
 function formatLastRun(v?: string) {
@@ -92,7 +110,18 @@ function formatLastRun(v?: string) {
       </el-button>
     </el-alert>
 
+    <el-alert
+      v-if="notImplemented"
+      type="info"
+      :closable="false"
+      show-icon
+      title="定时任务清单接口暂未开放"
+      description="当前后端未提供定时任务运行状态查询接口（返回 404）。定时任务仍在服务端按配置正常运行，如需查看执行情况请查阅服务器日志或联系运维。待后端提供任务清单端点后本页将自动展示。"
+      style="margin-bottom:12px"
+    />
+
     <el-table
+      v-if="!notImplemented"
       v-loading="loading"
       :data="jobs"
       border
@@ -107,12 +136,29 @@ function formatLastRun(v?: string) {
         width="250"
       />
       <el-table-column
-        prop="schedule"
         label="调度规则"
-        width="180"
+        width="200"
       >
+        <template #header>
+          <span>调度规则
+            <el-tooltip
+              placement="top"
+              effect="dark"
+            >
+              <template #content>
+                Cron 表达式格式：秒 分 时 日 月 周<br>
+                示例：<code>0 0 3 * * *</code> = 每天凌晨 3:00 执行<br>
+                <code>*</code> 表示每一个单位，<code>*/5</code> 表示每 5 个单位
+              </template>
+              <el-icon style="vertical-align:middle;cursor:help"><QuestionFilled /></el-icon>
+            </el-tooltip>
+          </span>
+        </template>
         <template #default="{ row }">
-          {{ row.schedule || row.cron || '-' }}
+          <span
+            style="font-family:monospace"
+            :title="row.schedule || row.cron || ''"
+          >{{ row.schedule || row.cron || '-' }}</span>
         </template>
       </el-table-column>
       <el-table-column
@@ -124,7 +170,7 @@ function formatLastRun(v?: string) {
             size="small"
             :type="getStatusTag(row.status)"
           >
-            {{ row.status || '-' }}
+            {{ statusLabel(row.status) }}
           </el-tag>
         </template>
       </el-table-column>

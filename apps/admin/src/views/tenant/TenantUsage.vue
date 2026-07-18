@@ -132,6 +132,9 @@
         width="140"
         sortable
       />
+      <template #empty>
+        <el-empty description="所选周期内暂无调用记录" />
+      </template>
     </el-table>
   </div>
 </template>

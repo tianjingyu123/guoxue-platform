@@ -16,6 +16,15 @@
       </div>
     </div>
 
+    <el-alert
+      type="warning"
+      :closable="false"
+      show-icon
+      title="配置生效范围提示"
+      description="本页维护的是首页模块布局配置项（home:layout 等）。当前 C 端首页装修以「平台页面布局」为准，本页部分模块可能暂无 C 端消费方，保存后不一定立即反映到用户端。请与前端页面布局方案确认后再调整，避免误以为已生效。"
+      style="margin-bottom:12px"
+    />
+
     <!-- 错误态 -->
     <el-result
       v-if="loadError"
@@ -559,7 +568,13 @@ function confirmEdit() {
     description: editTarget.value.description,
     condition: editTarget.value.condition || undefined,
   };
-  try { item.config = JSON.parse(editTarget.value.configJson || "{}"); } catch { item.config = {}; }
+  // JSON 解析失败要明确报错，禁止静默吞成 {} 导致配置丢失
+  try {
+    item.config = JSON.parse(editTarget.value.configJson || "{}");
+  } catch (e) {
+    ElMessage.error("配置数据不是合法的 JSON，请检查后重试：" + (e as Error).message);
+    return;
+  }
 
   if (editIndex.value >= 0) {
     modules.value[editIndex.value] = item;

@@ -96,7 +96,7 @@
       >
         <template #default="{ row }">
           <el-tag :type="planTag(row.plan)">
-            {{ row.plan }}
+            {{ planLabel(row.plan) }}
           </el-tag>
         </template>
       </el-table-column>
@@ -136,13 +136,29 @@
         prop="expireAt"
         label="过期时间"
         width="170"
-      />
+      >
+        <template #default="{ row }">
+          {{ formatDate(row.expireAt) }}
+        </template>
+      </el-table-column>
       <el-table-column
         label="操作"
-        width="220"
+        width="320"
         fixed="right"
       >
         <template #default="{ row }">
+          <el-button
+            size="small"
+            @click="goDetail(row)"
+          >
+            详情
+          </el-button>
+          <el-button
+            size="small"
+            @click="goUsage(row)"
+          >
+            用量
+          </el-button>
           <el-button
             size="small"
             @click="openEditDialog(row)"
@@ -294,8 +310,11 @@
 
 <script setup lang="ts">
 import { ref, onMounted, reactive } from "vue";
+import { useRouter } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { tenantAdminApi } from "@/api";
+
+const router = useRouter();
 
 interface Tenant {
   id: string;
@@ -350,6 +369,16 @@ function planTag(plan: string) {
   const map: Record<string, string> = { BASIC: "info", PRO: "warning", ENTERPRISE: "danger" };
   return map[plan] || "info";
 }
+
+function planLabel(plan: string) {
+  const map: Record<string, string> = { BASIC: "基础版", PRO: "专业版", ENTERPRISE: "企业版" };
+  return map[plan] || plan || "-";
+}
+
+function formatDate(d?: string) { return d ? new Date(d).toLocaleString() : "-"; }
+
+function goDetail(row: Tenant) { router.push({ name: "TenantDetail", params: { id: row.id } }); }
+function goUsage(row: Tenant) { router.push({ name: "TenantUsage", params: { id: row.id } }); }
 
 function statusTag(status: string) {
   const map: Record<string, string> = { ACTIVE: "success", DISABLED: "info", EXPIRED: "danger" };

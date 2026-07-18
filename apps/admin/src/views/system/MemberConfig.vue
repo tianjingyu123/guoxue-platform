@@ -23,12 +23,15 @@ const page = ref(1)
 const vis = ref(false)
 const editingId = ref('')
 
+const LEVEL_LABEL: Record<string, string> = { NONE: '无等级', SILVER: '白银', GOLD: '黄金', PLATINUM: '铂金', DIAMOND: '钻石' }
+function levelText(name?: string) { return (name && LEVEL_LABEL[name]) || name || '-' }
+
 const levelOptions = [
-  { label: 'NONE（无等级）', value: 'NONE' },
-  { label: 'SILVER（白银）', value: 'SILVER' },
-  { label: 'GOLD（黄金）', value: 'GOLD' },
-  { label: 'PLATINUM（铂金）', value: 'PLATINUM' },
-  { label: 'DIAMOND（钻石）', value: 'DIAMOND' },
+  { label: '无等级（NONE）', value: 'NONE' },
+  { label: '白银（SILVER）', value: 'SILVER' },
+  { label: '黄金（GOLD）', value: 'GOLD' },
+  { label: '铂金（PLATINUM）', value: 'PLATINUM' },
+  { label: '钻石（DIAMOND）', value: 'DIAMOND' },
 ]
 
 const form = reactive({
@@ -81,6 +84,14 @@ async function save() {
   if (!form.name) { ElMessage.warning('请选择等级名称'); return }
   if (form.price < 0) { ElMessage.warning('请输入有效的价格'); return }
   if (form.durationDays < 1) { ElMessage.warning('时长至少为1天'); return }
+  // L3：会员定价变更立即影响 C 端购买价格
+  try {
+    await ElMessageBox.confirm(
+      `即将保存会员等级「${levelText(form.name)}」：<div style="margin-top:6px">价格：<b style="color:var(--el-color-warning)">¥${Number(form.price).toFixed(2)}</b> / ${form.durationDays} 天</div><div style="margin-top:6px;font-size:12px;color:var(--el-text-color-secondary)">保存后 C 端会员购买页将立即按此价格展示与收款，请确认金额无误。</div>`,
+      '会员配置保存确认',
+      { type: 'warning', dangerouslyUseHTMLString: true, confirmButtonText: '确认保存' },
+    )
+  } catch { return }
   saving.value = true
   try {
     if (editingId.value) {
@@ -94,10 +105,10 @@ async function save() {
   } catch { } finally { saving.value = false }
 }
 
-async function del(id: string) {
+async function del(row: MemberConfigRow) {
   try {
-    await ElMessageBox.confirm('确定删除此会员等级？', '提示', { type: 'warning' })
-    await api.delete(`${BASE}/${id}`)
+    await ElMessageBox.confirm(`确定删除会员等级「${levelText(row.name)}」（¥${Number(row.price ?? 0).toFixed(2)}）？删除后 C 端将不再展示该等级，已购用户的既有权益不受影响。`, '删除确认', { type: 'warning', confirmButtonText: '确定删除' })
+    await api.delete(`${BASE}/${row.id}`)
     ElMessage.success('已删除')
     fetchList()
   } catch { /* cancelled */ }
@@ -149,7 +160,7 @@ async function del(id: string) {
             :type="row.name === 'DIAMOND' ? 'danger' : row.name === 'PLATINUM' ? 'warning' : row.name === 'GOLD' ? '' : row.name === 'SILVER' ? 'info' : 'info'"
             size="small"
           >
-            {{ row.name }}
+            {{ levelText(row.name) }}
           </el-tag>
         </template>
       </el-table-column>
@@ -211,7 +222,7 @@ async function del(id: string) {
           <el-button
             size="small"
             type="danger"
-            @click="del(row.id)"
+            @click="del(row)"
           >
             删除
           </el-button>

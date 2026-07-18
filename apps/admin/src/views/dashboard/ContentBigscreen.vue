@@ -88,6 +88,21 @@
           </div>
         </div>
       </div>
+
+      <!-- 内容构成（填充下半屏·补 mini 图表·仅有数据时渲染） -->
+      <div class="bs-panel bs-panel--full">
+        <h3>📊 内容类型构成</h3>
+        <div
+          v-show="hasComposition"
+          ref="compChartRef"
+          class="comp-chart"
+        />
+        <el-empty
+          v-if="!hasComposition && !loading"
+          description="暂无内容构成数据"
+          :image-size="60"
+        />
+      </div>
     </div>
 
     <footer class="bs-footer">
@@ -98,10 +113,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount } from "vue";
+import { ref, onMounted, onBeforeUnmount, nextTick } from "vue";
 import { useRoute } from "vue-router";
 import { bigscreenApi } from "@/api";
 import { BRAND } from "@/lib/brand";
+import * as echarts from "echarts";
 
 /** 创作者贡献项 */
 interface CreatorItem { userId?: string; nickname?: string; articleCount?: number }
@@ -125,7 +141,48 @@ const loadError = ref(false);
 let timer: ReturnType<typeof setInterval> | undefined = undefined;
 let clockTimer: ReturnType<typeof setInterval> | undefined = undefined;
 
+// 内容构成图（填充下半屏空白·仅在有数据时渲染，全 0 时诚实空态）
+const compChartRef = ref<HTMLElement | null>(null);
+let compChart: echarts.ECharts | null = null;
+const hasComposition = ref(false);
+
 function fmt(v: number | string | null | undefined) { return v != null ? Number(v).toLocaleString() : "0"; }
+
+function renderComposition() {
+  const d = data.value;
+  const items = [
+    { name: "文章", value: Number(d.totalArticles || 0), color: "#5cdb8a" },
+    { name: "帖子", value: Number(d.totalPosts || 0), color: "#f0a050" },
+    { name: "课程", value: Number(d.totalCourses || 0), color: "#4dd9c8" },
+    { name: "视频", value: Number(d.totalVideos || 0), color: "#b39cf0" },
+  ];
+  hasComposition.value = items.some((i) => i.value > 0);
+  if (!hasComposition.value) {
+    compChart?.dispose();
+    compChart = null;
+    return;
+  }
+  if (!compChartRef.value) return;
+  if (!compChart) {
+    compChart = echarts.init(compChartRef.value);
+    window.addEventListener("resize", onResize);
+  }
+  compChart.setOption({
+    tooltip: { trigger: "axis", axisPointer: { type: "shadow" } },
+    grid: { top: 20, right: 30, bottom: 30, left: 60 },
+    xAxis: { type: "category", data: items.map((i) => i.name), axisLabel: { color: "#8ba0c0" }, axisLine: { lineStyle: { color: "rgba(100,150,255,.2)" } } },
+    yAxis: { type: "value", axisLabel: { color: "#8ba0c0" }, splitLine: { lineStyle: { color: "rgba(100,150,255,.08)" } } },
+    series: [{
+      type: "bar", barMaxWidth: 60,
+      data: items.map((i) => ({ value: i.value, itemStyle: { color: i.color, borderRadius: [6, 6, 0, 0] } })),
+      label: { show: true, position: "top", color: "#c8d8f0", fontSize: 13 },
+    }],
+  }, true);
+}
+
+function onResize() {
+  compChart?.resize();
+}
 
 async function fetchData() {
   try {
@@ -133,6 +190,8 @@ async function fetchData() {
     const { data: d } = await bigscreenApi.contentEco(token);
     data.value = d || {};
     loadError.value = false;
+    await nextTick();
+    renderComposition();
   } catch {
     loadError.value = true;
   } finally {
@@ -149,15 +208,21 @@ onMounted(() => {
 onBeforeUnmount(() => {
   clearInterval(timer);
   clearInterval(clockTimer);
+  window.removeEventListener("resize", onResize);
+  compChart?.dispose();
+  compChart = null;
 });
 </script>
 
 <style scoped>
-.bigscreen { background: linear-gradient(135deg, #0b1320 0%, #1a2332 100%); color: #d6e4ff; min-height: 100vh; }
+/* 整屏 flex 纵向铺满，body 自适应撑开，杜绝内容不足时下半屏纯黑空白 */
+.bigscreen { background: linear-gradient(135deg, #0b1320 0%, #1a2332 100%); color: #d6e4ff; min-height: 100vh; display: flex; flex-direction: column; }
 .bs-header { display: flex; justify-content: space-between; align-items: center; padding: 16px 40px; border-bottom: 1px solid rgba(100,150,255,.1); }
 .bs-title { font-size: 28px; letter-spacing: 4px; color: #7cb7ff; }
 .bs-time { font-size: 16px; color: #6b7c93; }
-.bs-body { padding: 24px 40px; }
+.bs-body { padding: 24px 40px; flex: 1; display: flex; flex-direction: column; gap: 20px; }
+.bs-panel--full { flex: 1; min-height: 320px; }
+.comp-chart { width: 100%; height: 100%; min-height: 280px; }
 
 .kpi-bar { display: flex; gap: 20px; margin-bottom: 24px; }
 .kpi-item { flex: 1; background: rgba(100,150,255,.04); border: 1px solid rgba(100,150,255,.1); border-radius: 8px; padding: 20px; text-align: center; }
