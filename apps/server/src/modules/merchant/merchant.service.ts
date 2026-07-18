@@ -426,7 +426,7 @@ export class MerchantService {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const [todayOrders, todaySales, totalProducts, pendingReviews] = await Promise.all([
+    const [todayOrders, todaySales, totalProducts, pendingReviews, cumSalesAgg, cumOrderCount, ratingAgg] = await Promise.all([
       this.prisma.order.count({ where: { merchantId: merchant.id, createdAt: { gte: today } } }),
       this.prisma.order.aggregate({
         where: { merchantId: merchant.id, createdAt: { gte: today }, status: { in: ["PAID", "SHIPPED", "COMPLETED"] } },
@@ -434,6 +434,13 @@ export class MerchantService {
       }),
       this.prisma.product.count({ where: { userId } }),
       this.prisma.productReview.count({ where: { product: { userId }, reply: null } }),
+      // 累计口径实时聚合（去规范化字段 merchant.totalSales/totalOrders/rating 全库无 writer·恒为种子值→改实时算）
+      this.prisma.order.aggregate({
+        where: { merchantId: merchant.id, status: { in: ["PAID", "SHIPPED", "COMPLETED"] } },
+        _sum: { amount: true },
+      }),
+      this.prisma.order.count({ where: { merchantId: merchant.id } }),
+      this.prisma.productReview.aggregate({ where: { product: { userId } }, _avg: { rating: true }, _count: true }),
     ]);
 
     return {
@@ -441,9 +448,10 @@ export class MerchantService {
       todaySales: Number(todaySales._sum.amount ?? 0),
       totalProducts,
       pendingReviews,
-      totalSales: Number(merchant.totalSales),
-      totalOrders: merchant.totalOrders,
-      rating: Number(merchant.rating),
+      totalSales: Number(cumSalesAgg._sum.amount ?? 0),
+      totalOrders: cumOrderCount,
+      // 有评价→真实均分(1位小数)·无评价→保持 5.0 默认(不破坏前端·避免误伤新店显示0分)
+      rating: ratingAgg._count > 0 && ratingAgg._avg.rating != null ? Math.round(Number(ratingAgg._avg.rating) * 10) / 10 : 5.0,
     };
   }
 

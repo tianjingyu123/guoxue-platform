@@ -33,7 +33,7 @@ const mockPrisma: any = {
   merchantViolation: { count: jest.fn() },
   order: { aggregate: jest.fn(), count: jest.fn() },
   product: { count: jest.fn() },
-  productReview: { count: jest.fn() },
+  productReview: { count: jest.fn(), aggregate: jest.fn() },
 };
 
 describe("MerchantService", () => {
@@ -239,10 +239,16 @@ describe("MerchantService", () => {
       mockPrisma.order.aggregate.mockResolvedValue({ _sum: { amount: 500 } });
       mockPrisma.product.count.mockResolvedValue(10);
       mockPrisma.productReview.count.mockResolvedValue(2);
+      // 累计口径改实时聚合后：rating 走 productReview 均分
+      mockPrisma.productReview.aggregate.mockResolvedValue({ _avg: { rating: 4 }, _count: 3 });
       const result = await svc.getDashboard("u1");
       expect(result.todayOrders).toBe(5);
       expect(result.totalProducts).toBe(10);
       expect(result.pendingReviews).toBe(2);
+      // 累计=实时聚合值而非去规范化死字段(merchant.totalSales=10000/totalOrders=50/rating=4.5 均不再采用)
+      expect(result.totalSales).toBe(500);
+      expect(result.totalOrders).toBe(5);
+      expect(result.rating).toBe(4);
     });
 
     it("商家不存在抛出异常", async () => {

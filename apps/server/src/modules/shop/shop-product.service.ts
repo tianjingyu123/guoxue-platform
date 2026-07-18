@@ -349,14 +349,14 @@ export class ShopProductService {
       where: { id: merchantId, status: "ACTIVE" },
       select: {
         id: true, userId: true, shopName: true, shopLogo: true, shopIntro: true,
-        rating: true, totalSales: true, totalOrders: true, openedAt: true, creditGrade: true,
+        openedAt: true, creditGrade: true,
       },
     });
     if (!merchant) throw new BusinessException(ErrorCode.NOT_FOUND, "店铺不存在或未开通");
 
     // 商品经创建者 userId 归属商家（Product 无 merchantId 列，用 userId 关联在售商品）
     const where: Prisma.ProductWhereInput = { userId: merchant.userId, status: "ON_SALE" };
-    const [products, total] = await Promise.all([
+    const [products, total, cumSalesAgg, cumOrderCount, ratingAgg] = await Promise.all([
       this.prisma.product.findMany({
         where,
         include: { skus: true },
@@ -365,6 +365,13 @@ export class ShopProductService {
         orderBy: { createdAt: "desc" },
       }),
       this.prisma.product.count({ where }),
+      // 累计口径实时聚合（去规范化字段 merchant.totalSales/totalOrders/rating 全库无 writer→改实时算，避免店铺页显示死数/虚高满分）
+      this.prisma.order.aggregate({
+        where: { merchantId: merchant.id, status: { in: ["PAID", "SHIPPED", "COMPLETED"] } },
+        _sum: { amount: true },
+      }),
+      this.prisma.order.count({ where: { merchantId: merchant.id } }),
+      this.prisma.productReview.aggregate({ where: { product: { userId: merchant.userId } }, _avg: { rating: true }, _count: true }),
     ]);
 
     const enriched = products.map((p) => ({
@@ -379,9 +386,9 @@ export class ShopProductService {
         shopName: merchant.shopName,
         shopLogo: merchant.shopLogo,
         shopIntro: merchant.shopIntro,
-        rating: Number(merchant.rating),
-        totalSales: Number(merchant.totalSales),
-        totalOrders: merchant.totalOrders,
+        rating: ratingAgg._count > 0 && ratingAgg._avg.rating != null ? Math.round(Number(ratingAgg._avg.rating) * 10) / 10 : 5.0,
+        totalSales: Number(cumSalesAgg._sum.amount ?? 0),
+        totalOrders: cumOrderCount,
         openedAt: merchant.openedAt,
         productCount: total,
         // 严选标（履-P2 权益挂钩）：A 级店铺主页展示「严选」信任背书
