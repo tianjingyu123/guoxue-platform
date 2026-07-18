@@ -3,6 +3,7 @@ import { ref, onMounted } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { QuestionFilled } from "@element-plus/icons-vue";
 import { systemApi } from "@/api";
+import { formatDateTime } from "@/utils/datetime";
 
 interface CronJob {
   name: string;
@@ -29,15 +30,30 @@ async function fetchStatus() {
   loadError.value = false;
   notImplemented.value = false;
   try {
-    const { data } = await systemApi.getCronStatus();
+    // 优先新总览端点 /system/cron：进程内真实注册的 @Cron 任务(registered·实际在跑) + DB执行记录(recent)。
+    // 修"页空转"根因——旧 /system/cron-status 只查 OperationLog(webhook触发型)，@Cron 任务不落库故永远空。
+    const { data } = await systemApi.getCronJobs();
+    const registered = (data as any)?.registered ?? [];
+    jobs.value = registered.map((r: any) => ({
+      name: r.name,
+      schedule: r.cronTime,
+      status: r.running ? "running" : "idle",
+      nextRun: r.nextRun,
+    }));
     status.value = data ?? {};
-    jobs.value = (data as any)?.jobs ?? [];
   } catch (e: any) {
-    jobs.value = [];
-    // 契约兜底：后端未提供任务清单端点（404）时给出说明性降级，而非笼统报错
+    // 404 兜底：z8 前的后端无 /system/cron，降级回旧 cron-status（webhook触发记录）
     if (e?.response?.status === 404) {
-      notImplemented.value = true;
+      try {
+        const { data } = await systemApi.getCronStatus();
+        status.value = data ?? {};
+        jobs.value = (data as any)?.jobs ?? [];
+      } catch {
+        jobs.value = [];
+        notImplemented.value = true;
+      }
     } else {
+      jobs.value = [];
       loadError.value = true;
       ElMessage.error("加载失败，请重试");
     }
@@ -77,8 +93,7 @@ function statusLabel(s?: string) {
 }
 
 function formatLastRun(v?: string) {
-  if (!v) return "-";
-  try { return new Date(v).toLocaleString(); } catch { return v; }
+  return formatDateTime(v); // 中式 YYYY-MM-DD HH:mm·无效返回 —
 }
 </script>
 

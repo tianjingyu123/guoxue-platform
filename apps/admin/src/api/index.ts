@@ -827,6 +827,8 @@ export const systemApi = {
   deleteMemberConfig: (id: string) => api.delete(`/system/member-configs/${id}`),
   // Cron调度
   getCronStatus: () => api.get("/system/cron-status"),
+  // 定时任务总览：进程内真实注册的 @Cron 任务(registered) + DB执行记录(recent)·修"cron页空转"
+  getCronJobs: () => api.get("/system/cron"),
   triggerCron: (jobName: string) => api.post(`/system/cron/${jobName}`),
 };
 
