@@ -13,6 +13,7 @@ import {
 } from '@/lib/agent-data'
 import { botApi, type BotQuota } from '@/lib/bot-data'
 import { formatPrice } from '@/utils/format'
+import { streamChat, streamChatSupported } from '@/utils/stream-chat'
 
 const loading = ref(true)
 const error = ref('')
@@ -30,6 +31,8 @@ const messages = ref<ChatMessage[]>([
 const inputValue = ref('')
 const isTyping = ref(false)
 const freeRemaining = ref(0)
+// 当前 Coze 续聊会话 id（流式 body 传参 + onMeta 回写；与 agentApi 内部会话表保持同步）
+const conversationId = ref('')
 const showMenu = ref(false)
 const scrollId = ref('')
 
@@ -90,7 +93,7 @@ async function loadData() {
     const opts = currentPage?.options || currentPage?.$page?.options || {}
     const id = opts.id || '1'
     agentId.value = id
-    const conversationId = opts.conversationId || ''
+    const convId = opts.conversationId || ''
 
     const [detail, questions, recs] = await Promise.all([
       agentApi.getDetail(id),
@@ -104,10 +107,11 @@ async function loadData() {
     freeRemaining.value = detail?.freeQuota || 0
 
     // 从历史进入：续聊同一会话并回填真实历史消息（拉取失败则保留欢迎语，不伪造历史）
-    if (conversationId) {
-      agentApi.setConversation(id, conversationId)
+    if (convId) {
+      conversationId.value = convId
+      agentApi.setConversation(id, convId)
       try {
-        const hist = await agentApi.getChatHistory(id, conversationId)
+        const hist = await agentApi.getChatHistory(id, convId)
         if (hist.length) messages.value = hist
       } catch (_e) { /* 历史拉取失败：保持欢迎语，不造假 */ }
     }
@@ -157,8 +161,96 @@ async function handleSend() {
   sendCore(text)
 }
 
-/** 发送核心（handleSend 与失败重试共用；user 气泡由调用方保证已在列表中） */
+/**
+ * 发送核心（handleSend 与失败重试共用；user 气泡由调用方保证已在列表中）。
+ * H5 走真流式 SSE（增量上屏，根治 Coze 30s 轮询 502）；小程序/App 端不支持 fetch 流 → 降级原非流式接口 + 假打字机。
+ */
 function sendCore(text: string) {
+  if (streamChatSupported()) sendCoreStream(text)
+  else sendCoreFallback(text)
+}
+
+/** 额度耗尽/回复失败的统一错误处理（流式与降级共用，保持原有购买引导/失败气泡逻辑一致） */
+function handleSendError(e: unknown, text: string) {
+  const msg = (e as Error)?.message || ''
+  if (msg.includes('追问次数已用完')) {
+    // 额度耗尽：刷新额度并弹购买引导弹窗
+    refreshQuota()
+    showPurchaseModal.value = true
+  } else {
+    // 失败态落在气泡内（含重试），一次性 toast 一闪即逝且不给出路
+    messages.value.push({
+      id: messages.value.length + 1, role: 'assistant', time: nowTime(),
+      content: msg || '回复失败了，请稍后重试', isError: true, failedQuery: text,
+    })
+    scrollToBottom()
+  }
+}
+
+/** 发送成功后本地额度同步减 1（试用优先，其次追问包，与后端 consumeQuota 消耗顺序一致） */
+function consumeQuotaLocal() {
+  const q = quota.value
+  if (q && q.pricePer10Coin > 0 && !q.memberFree) {
+    if (q.freeUsed < q.freeUses) q.freeUsed += 1
+    else if (q.paidRemaining > 0) q.paidRemaining -= 1
+  }
+}
+
+/** H5 真流式：POST /bots/:id/chat/stream（chunk 增量实时上屏 + meta 会话/免责/导流） */
+async function sendCoreStream(text: string) {
+  isTyping.value = true
+  if (freeRemaining.value > 0) freeRemaining.value -= 1
+  scrollToBottom()
+  // 先 push 一条空 assistant 消息，流式增量往里追加
+  const msgId = messages.value.length + 1
+  messages.value.push({ id: msgId, role: 'assistant', content: '', time: nowTime(), isStreaming: true })
+  const live = () => messages.value.find((m) => m.id === msgId)
+  try {
+    await streamChat(
+      `/bots/${agentId.value}/chat/stream`,
+      { query: text, conversationId: conversationId.value || undefined },
+      {
+        onChunk: (t) => {
+          const m = live()
+          if (m) m.content += t
+          scrollToBottom()
+        },
+        onMeta: (meta) => {
+          const m = live()
+          if (m) {
+            // disclaimer 为后端下发的 AI 风险免责声明（合规要求）
+            if (meta.disclaimer) m.disclaimer = meta.disclaimer
+            if (meta.recommendation) m.recommendation = meta.recommendation as Recommendation
+          }
+          // 会话续聊 id：同步本地 ref 与 agentApi 内部会话表
+          if (meta.conversationId) {
+            conversationId.value = meta.conversationId
+            agentApi.setConversation(agentId.value, meta.conversationId)
+          }
+        },
+      },
+    )
+    // 成功：收尾流式态 + 本地额度同步减 1
+    const done = live()
+    if (done) done.isStreaming = false
+    isTyping.value = false
+    consumeQuotaLocal()
+    scrollToBottom()
+  } catch (e) {
+    isTyping.value = false
+    freeRemaining.value += 1 // 失败不消耗额度，回退发送前的本地预扣
+    // 移除刚 push 的空流式消息（若内容仍为空）；已有部分内容则保留并收尾流式态
+    const m = live()
+    if (m) {
+      if (!m.content) messages.value = messages.value.filter((x) => x !== m)
+      else m.isStreaming = false
+    }
+    handleSendError(e, text)
+  }
+}
+
+/** 非 H5 降级：原非流式接口 sendMessage + 客户端假打字机（内容真实，仅动画） */
+function sendCoreFallback(text: string) {
   isTyping.value = true
   if (freeRemaining.value > 0) freeRemaining.value -= 1
   scrollToBottom()
@@ -169,28 +261,12 @@ function sendCore(text: string) {
       // disclaimer 为后端下发的 AI 风险免责声明（合规要求），随该条 assistant 消息保存并展示
       messages.value.push({ id, role: 'assistant', content: '', time: nowTime(), isStreaming: true, disclaimer })
       simulateStreaming(reply, id, recommendation)
-      // 发送成功：本地余量同步减 1（试用优先，其次追问包，与后端 consumeQuota 消耗顺序一致）
-      const q = quota.value
-      if (q && q.pricePer10Coin > 0 && !q.memberFree) {
-        if (q.freeUsed < q.freeUses) q.freeUsed += 1
-        else if (q.paidRemaining > 0) q.paidRemaining -= 1
-      }
+      // 发送成功：本地余量同步减 1
+      consumeQuotaLocal()
     } catch (e) {
       isTyping.value = false
       freeRemaining.value += 1 // 失败不消耗额度，回退发送前的本地预扣
-      const msg = (e as Error)?.message || ''
-      if (msg.includes('追问次数已用完')) {
-        // 额度耗尽：刷新额度并弹购买引导弹窗
-        refreshQuota()
-        showPurchaseModal.value = true
-      } else {
-        // 失败态落在气泡内（含重试），一次性 toast 一闪即逝且不给出路
-        messages.value.push({
-          id: messages.value.length + 1, role: 'assistant', time: nowTime(),
-          content: msg || '回复失败了，请稍后重试', isError: true, failedQuery: text,
-        })
-        scrollToBottom()
-      }
+      handleSendError(e, text)
     }
   }, 600)
 }
