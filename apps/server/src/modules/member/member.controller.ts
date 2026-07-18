@@ -107,8 +107,17 @@ export class MemberController {
   @ApiResponse({ status: 403, description: "无权限" })
   @ApiQuery({ name: "page", required: false })
   @ApiQuery({ name: "pageSize", required: false })
-  getAdminPurchases(@Query("page") page = 1, @Query("pageSize") pageSize = 20) {
-    return this.memberService.getAdminPurchases(+page, +pageSize);
+  @ApiQuery({ name: "type", required: false, description: "会员类型：MONTHLY/QUARTERLY/YEARLY/LIFETIME" })
+  @ApiQuery({ name: "startDate", required: false, description: "购买起始日（含，YYYY-MM-DD）" })
+  @ApiQuery({ name: "endDate", required: false, description: "购买截止日（含，YYYY-MM-DD）" })
+  getAdminPurchases(
+    @Query("page") page = 1,
+    @Query("pageSize") pageSize = 20,
+    @Query("type") type?: string,
+    @Query("startDate") startDate?: string,
+    @Query("endDate") endDate?: string,
+  ) {
+    return this.memberService.getAdminPurchases(+page, +pageSize, { type, startDate, endDate });
   }
 
   @Get("admin/stats")

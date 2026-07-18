@@ -80,9 +80,11 @@ describe("CommentController", () => {
   });
 
   it("GET /comment/moderation/list — 审核列表", async () => {
-    const result: any = await ctrl.moderationList("PENDING", undefined, 1 as any, 20 as any);
+    const result: any = await ctrl.moderationList("PENDING", undefined, undefined, 1 as any, 20 as any);
     expect(result).toHaveLength(1);
-    expect(mockCommentSvc.getModerationList).toHaveBeenCalled();
+    expect(mockCommentSvc.getModerationList).toHaveBeenCalledWith(
+      expect.objectContaining({ status: "PENDING", page: 1, pageSize: 20 }),
+    );
   });
 
   it("PUT /comment/moderation/batch-hide — 批量隐藏", async () => {

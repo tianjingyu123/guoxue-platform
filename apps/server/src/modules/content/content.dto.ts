@@ -116,11 +116,19 @@ export class ContentListQueryDto {
   @IsOptional() @IsString()
   keyword?: string;
 
-  @ApiPropertyOptional({ description: "状态筛选" })
+  @ApiPropertyOptional({ description: "状态筛选（支持逗号分隔多值，如 APPROVED,PUBLISHED → in 查询）" })
   @IsOptional() @IsString()
   status?: string;
 
   @ApiPropertyOptional({ description: "分站ID" })
   @IsOptional() @IsString()
   stationId?: string;
+
+  @ApiPropertyOptional({ description: "一级品类筛选" })
+  @IsOptional() @IsString()
+  categoryLevel1?: string;
+
+  @ApiPropertyOptional({ description: "二级品类筛选" })
+  @IsOptional() @IsString()
+  categoryLevel2?: string;
 }

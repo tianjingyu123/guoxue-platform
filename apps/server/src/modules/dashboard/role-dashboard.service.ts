@@ -1,6 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
+import { PAID_ORDER_STATUSES } from "./order-status.constants";
 
 @Injectable()
 export class RoleDashboardService {
@@ -45,9 +46,9 @@ export class RoleDashboardService {
       this.prisma.user.count(),
       this.prisma.user.count({ where: { createdAt: { gte: today } } }),
       this.prisma.user.count({ where: { createdAt: { gte: thisMonth } } }),
-      this.prisma.order.aggregate({ where: { status: { in: ["PAID", "COMPLETED"] } }, _sum: { amount: true } }),
-      this.prisma.order.aggregate({ where: { createdAt: { gte: today }, status: { in: ["PAID", "COMPLETED"] } }, _sum: { amount: true } }),
-      this.prisma.order.aggregate({ where: { createdAt: { gte: thisMonth }, status: { in: ["PAID", "COMPLETED"] } }, _sum: { amount: true } }),
+      this.prisma.order.aggregate({ where: { status: { in: PAID_ORDER_STATUSES } }, _sum: { amount: true } }),
+      this.prisma.order.aggregate({ where: { createdAt: { gte: today }, status: { in: PAID_ORDER_STATUSES } }, _sum: { amount: true } }),
+      this.prisma.order.aggregate({ where: { createdAt: { gte: thisMonth }, status: { in: PAID_ORDER_STATUSES } }, _sum: { amount: true } }),
       this.prisma.article.count({ where: { auditStatus: "PENDING" } }),
       this.prisma.course.count({ where: { auditStatus: "PENDING" } }),
       this.prisma.report.count({ where: { status: "PENDING" } }),
@@ -144,22 +145,22 @@ export class RoleDashboardService {
       orderTypeBreakdown,
       revenueByDay,
     ] = await Promise.all([
-      this.prisma.order.aggregate({ where: { status: { in: ["PAID", "COMPLETED"] }, createdAt: { gte: thisMonth } }, _sum: { amount: true } }),
-      this.prisma.order.aggregate({ where: { status: { in: ["PAID", "COMPLETED"] }, createdAt: { gte: lastMonth, lt: thisMonth } }, _sum: { amount: true } }),
-      this.prisma.order.aggregate({ where: { status: { in: ["PAID", "COMPLETED"] }, createdAt: { gte: today } }, _sum: { amount: true } }),
-      this.prisma.order.aggregate({ where: { status: { in: ["PAID", "COMPLETED"] } }, _sum: { amount: true } }),
+      this.prisma.order.aggregate({ where: { status: { in: PAID_ORDER_STATUSES }, createdAt: { gte: thisMonth } }, _sum: { amount: true } }),
+      this.prisma.order.aggregate({ where: { status: { in: PAID_ORDER_STATUSES }, createdAt: { gte: lastMonth, lt: thisMonth } }, _sum: { amount: true } }),
+      this.prisma.order.aggregate({ where: { status: { in: PAID_ORDER_STATUSES }, createdAt: { gte: today } }, _sum: { amount: true } }),
+      this.prisma.order.aggregate({ where: { status: { in: PAID_ORDER_STATUSES } }, _sum: { amount: true } }),
       this.prisma.withdrawal.count({ where: { status: "PENDING" } }),
       this.prisma.withdrawal.aggregate({ where: { status: "PENDING" }, _sum: { amount: true } }),
       this.prisma.order.count({ where: { status: "REFUNDED", updatedAt: { gte: thisMonth } } }),
       this.prisma.order.aggregate({ where: { status: "REFUNDED", updatedAt: { gte: thisMonth } }, _sum: { amount: true } }),
       this.prisma.order.groupBy({
         by: ["type"],
-        where: { status: { in: ["PAID", "COMPLETED"] }, createdAt: { gte: thisMonth } },
+        where: { status: { in: PAID_ORDER_STATUSES }, createdAt: { gte: thisMonth } },
         _sum: { amount: true },
         _count: true,
       }),
       this.prisma.order.findMany({
-        where: { status: { in: ["PAID", "COMPLETED"] }, createdAt: { gte: thisMonth } },
+        where: { status: { in: PAID_ORDER_STATUSES }, createdAt: { gte: thisMonth } },
         select: { createdAt: true, amount: true },
         orderBy: { createdAt: "asc" },
         take: 50000,

@@ -130,8 +130,11 @@ export class StationController {
   @Get()
   @ApiOperation({ summary: "分站列表" })
   @ApiResponse({ status: 200, description: "成功" })
-  listStations(@Query("page") page = 1, @Query("pageSize") pageSize = 20) {
-    return this.svc.listStations(+page, +pageSize);
+  @ApiQuery({ name: "page", required: false })
+  @ApiQuery({ name: "pageSize", required: false })
+  @ApiQuery({ name: "keyword", required: false, description: "关键词（分站名/推广码/站长昵称）" })
+  listStations(@Query("page") page = 1, @Query("pageSize") pageSize = 20, @Query("keyword") keyword?: string) {
+    return this.svc.listStations(+page, +pageSize, keyword);
   }
 
   // ───────── 分站发现 ─────────

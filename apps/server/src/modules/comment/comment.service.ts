@@ -210,11 +210,13 @@ export class CommentService {
 
   // ───────── 管理员审核 ─────────
 
-  async getModerationList(params: { status?: string; targetType?: string; page?: number; pageSize?: number }) {
-    const { status = "PUBLISHED", targetType } = params;
+  async getModerationList(params: { status?: string; targetType?: string; keyword?: string; page?: number; pageSize?: number }) {
+    const { status = "PUBLISHED", targetType, keyword } = params;
     const { skip, page, pageSize } = safePagination(params.page, params.pageSize);
     const where: Prisma.CommentWhereInput = { status };
     if (targetType) where.targetType = targetType;
+    // 评论内容关键词搜索（前端 CommentList 的 keyword 搜索接此参数即生效）
+    if (keyword?.trim()) where.content = { contains: keyword.trim(), mode: "insensitive" };
 
     const [items, total] = await Promise.all([
       this.prisma.comment.findMany({

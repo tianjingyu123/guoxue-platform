@@ -60,7 +60,25 @@ export class AfterSaleSlaService {
       this.prisma.afterSale.count({ where }),
     ]);
     const enriched = await this.enrich(items);
-    return { items: enriched, total, page, pageSize };
+    // 补买家昵称（AfterSale 无 user 关系·不动 schema）：批量查 User.nickname，附 user:{id,nickname}
+    // 让退款/售后审核页用户列显示"谁"而非裸 UUID；查不到用户则 user=null，前端降级显示 userId
+    const withBuyer = await this.attachBuyer(enriched);
+    return { items: withBuyer, total, page, pageSize };
+  }
+
+  /** 批量补买家昵称（AfterSale.userId → User.nickname·一次查询不 N+1） */
+  private async attachBuyer<T extends { userId: string }>(
+    rows: T[],
+  ): Promise<Array<T & { user: { id: string; nickname: string | null } | null }>> {
+    const userIds = [...new Set(rows.map((r) => r.userId))];
+    const users = userIds.length
+      ? await this.prisma.user.findMany({
+          where: { id: { in: userIds } },
+          select: { id: true, nickname: true },
+        })
+      : [];
+    const userMap = new Map(users.map((u) => [u.id, u]));
+    return rows.map((r) => ({ ...r, user: userMap.get(r.userId) ?? null }));
   }
 
   /** 给售后单批量补 SLA 推导字段 + 快速退款标注 */

@@ -255,16 +255,27 @@ export class StationService {
     return station;
   }
 
-  async listStations(rawPage = 1, rawPageSize = 20) {
+  async listStations(rawPage = 1, rawPageSize = 20, keyword?: string) {
     const { page, pageSize, skip } = safePagination(rawPage, rawPageSize, NO_PAGE_LIMIT);
+    // keyword 服务端筛选（分站名/推广码/站长昵称）·不传即全量，向后兼容
+    const where: Prisma.StationWhereInput = {};
+    if (keyword?.trim()) {
+      const k = keyword.trim();
+      where.OR = [
+        { name: { contains: k, mode: "insensitive" } },
+        { code: { contains: k, mode: "insensitive" } },
+        { user: { nickname: { contains: k, mode: "insensitive" } } },
+      ];
+    }
     const [stations, total] = await Promise.all([
       this.prisma.station.findMany({
+        where,
         include: { user: { select: { id: true, nickname: true } } },
         skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),
-      this.prisma.station.count(),
+      this.prisma.station.count({ where }),
     ]);
     return { stations, total, page, pageSize };
   }

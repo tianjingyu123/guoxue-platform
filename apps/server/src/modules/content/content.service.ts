@@ -50,7 +50,7 @@ export class ContentService {
 
     // 无关键词搜索时尝试缓存（第一页缓存30秒）
     if (!q.keyword && page === 1) {
-      const cacheKey = `content:list:${q.type || "all"}:${q.status || "all"}:${q.stationId || "all"}`;
+      const cacheKey = `content:list:${q.type || "all"}:${q.status || "all"}:${q.stationId || "all"}:${q.categoryLevel1 || "all"}:${q.categoryLevel2 || "all"}`;
       const cached = await this.redis.getJson(cacheKey);
       if (cached) return cached as { data: Content[]; total: number; page: number; pageSize: number };
 
@@ -66,8 +66,15 @@ export class ContentService {
     const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
     const where: Prisma.ContentWhereInput = {};
     if (q.type) where.type = q.type;
-    if (q.status) where.status = q.status;
+    if (q.status) {
+      // status 支持逗号分隔多值（前端"已通过"tab 需 APPROVED+PUBLISHED 并存）；单值时保持等值查询，向后兼容
+      const statuses = q.status.split(",").map((s) => s.trim()).filter(Boolean);
+      if (statuses.length > 1) where.status = { in: statuses };
+      else if (statuses.length === 1) where.status = statuses[0];
+    }
     if (q.stationId) where.stationId = q.stationId;
+    if (q.categoryLevel1) where.categoryLevel1 = q.categoryLevel1;
+    if (q.categoryLevel2) where.categoryLevel2 = q.categoryLevel2;
     if (q.keyword) {
       where.OR = [
         { title: { contains: q.keyword } },

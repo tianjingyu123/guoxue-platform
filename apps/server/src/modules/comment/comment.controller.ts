@@ -126,15 +126,17 @@ export class CommentController {
   @ApiBearerAuth()
   @ApiQuery({ name: "status", required: false })
   @ApiQuery({ name: "targetType", required: false })
+  @ApiQuery({ name: "keyword", required: false })
   @ApiQuery({ name: "page", required: false, type: Number })
   @ApiQuery({ name: "pageSize", required: false, type: Number })
   moderationList(
     @Query("status") status?: string,
     @Query("targetType") targetType?: string,
+    @Query("keyword") keyword?: string,
     @Query("page") page = 1,
     @Query("pageSize") pageSize = 20,
   ) {
-    return this.comment.getModerationList({ status, targetType, page: +page, pageSize: +pageSize });
+    return this.comment.getModerationList({ status, targetType, keyword, page: +page, pageSize: +pageSize });
   }
 
   @Put("moderation/batch-hide")

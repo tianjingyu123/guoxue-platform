@@ -106,7 +106,11 @@ describe("MemberController", () => {
     it("GET admin/purchases → 购买记录", async () => {
       const res = await ctrl.getAdminPurchases(1, 20);
       expect(res).toHaveProperty("items");
-      expect(mockService.getAdminPurchases).toHaveBeenCalledWith(1, 20);
+      expect(mockService.getAdminPurchases).toHaveBeenCalledWith(1, 20, {
+        type: undefined,
+        startDate: undefined,
+        endDate: undefined,
+      });
     });
 
     it("GET admin/stats → 会员统计", async () => {

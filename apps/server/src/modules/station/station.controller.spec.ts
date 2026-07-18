@@ -59,7 +59,7 @@ describe("StationController", () => {
   it("GET /station — 分站列表", async () => {
     const result: any = await ctrl.listStations(1 as any, 20 as any);
     expect(result).toHaveLength(1);
-    expect(mockStationSvc.listStations).toHaveBeenCalledWith(1, 20);
+    expect(mockStationSvc.listStations).toHaveBeenCalledWith(1, 20, undefined);
   });
 
   it("GET /station/:id — 分站详情", async () => {
