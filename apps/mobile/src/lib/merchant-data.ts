@@ -331,8 +331,13 @@ export const merchantBackendApi = {
   appealViolation: (id: string, appeal: string) => apiPost(`/merchant-backend/violations/${id}/appeal`, { appeal }),
 
   // 客户 / 通知 / 咨询 / 内容
-  getCustomers: (params?: { page?: number; pageSize?: number }) =>
-    apiGetPaged<MerchantCustomer>(`/merchant-backend/customers?page=${params?.page ?? 1}&pageSize=${params?.pageSize ?? 20}`),
+  getCustomers: (params?: { page?: number; pageSize?: number; keyword?: string }) => {
+    const q = new URLSearchParams()
+    q.set('page', String(params?.page ?? 1))
+    q.set('pageSize', String(params?.pageSize ?? 20))
+    if (params?.keyword?.trim()) q.set('keyword', params.keyword.trim())
+    return apiGetPaged<MerchantCustomer>(`/merchant-backend/customers?${q.toString()}`)
+  },
   getNotices: () => apiGet<MerchantNotice[]>('/merchant-backend/notices'),
   getInquiries: (params?: { page?: number; pageSize?: number }) =>
     // 后端咨询子系统未实现（诚实降级返回空），结构未定 → 用宽松记录类型占位

@@ -256,6 +256,7 @@ const quickItems = [
   { label: '订单管理', icon: 'shopping-cart', path: '/pkg-merchant/orders/index' },
   { label: '结算收入', icon: 'credit-card', path: '/pkg-merchant/revenue/index' },
   { label: '评价管理', icon: 'star', path: '/pkg-merchant/reviews/index' },
+  { label: '客户管理', icon: 'user-check', path: '/pkg-merchant/customers/index' },
   { label: '店铺资料', icon: 'store', path: '/pkg-merchant/profile/index' },
   { label: '操作员', icon: 'users', path: '/pkg-merchant/operators/index' },
   { label: '消息中心', icon: 'message-square', path: '/pkg-merchant/notices/index' },
